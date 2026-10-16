@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
+import { CreatureModel } from '../entities/creatures';
+import { ITEMS } from '../data/items';
 import { currentAccount } from './Account';
 
 // Connection to an Everrealm world server (server/server.mjs).
@@ -24,9 +26,15 @@ interface Remote {
   anim: AnimState;
   held: HeldItem;
   speed: number;
+  /** The halter of the horse they're riding, and that horse. */
+  mount: string | null;
+  horse: CreatureModel | null;
+  horseOf: string | null;
 }
 
-interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem }
+interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null }
+
+const SEAT = 1.08;
 
 const TOKENS_KEY = 'everrealm.netTokens';
 const SEND_MS = 120;
@@ -142,10 +150,12 @@ export class Online {
       case 'leave': this.removeRemote(m.id as number); this.setStatus('online'); break;
       case 'look': { const r = this.remotes.get(m.id as number); if (r) this.replaceModel(r, m.look as Appearance); break; }
       case 'snap':
-        for (const [id, x, y, z, yaw, anim, held] of m.p as [number, number, number, number, number, AnimState, HeldItem][]) {
+        for (const [id, x, y, z, yaw, anim, held, mount] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined][]) {
           const r = this.remotes.get(id);
           if (!r) continue;
           r.from.copy(r.model.root.position);
+          if (r.horse) r.from.y -= SEAT;
+          r.mount = typeof mount === 'string' && ITEMS[mount]?.mount ? mount : null;
           r.to.set(x, y, z);
           r.t = 0;
           r.speed = r.from.distanceTo(r.to) / 0.1;
@@ -163,7 +173,8 @@ export class Online {
     const pos = new THREE.Vector3(p.x, p.y, p.z);
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
-    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0 });
+    const mount = p.mount && ITEMS[p.mount]?.mount ? p.mount : null;
+    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null });
   }
 
   private replaceModel(r: Remote, look: Appearance): void {
@@ -178,6 +189,7 @@ export class Online {
     const r = this.remotes.get(id);
     if (!r) return;
     this.hooks.scene.remove(r.model.root);
+    if (r.horse) this.hooks.scene.remove(r.horse.root);
     this.remotes.delete(id);
   }
 
@@ -186,16 +198,32 @@ export class Online {
   }
 
   /** Called every frame while playing: send our state, move everyone else. */
-  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem }): void {
+  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null }): void {
     if (this.status !== 'online' || !this.ws) return;
     this.sendT -= dt * 1000;
     if (this.sendT <= 0) {
       this.sendT = SEND_MS;
-      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held }));
+      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount: me.mount ?? null }));
     }
     for (const r of this.remotes.values()) {
       r.t = Math.min(1, r.t + dt / 0.1);
       r.model.root.position.lerpVectors(r.from, r.to, r.t);
+      // A rider: their horse underfoot, and them in the saddle
+      if (r.mount !== r.horseOf) {
+        if (r.horse) this.hooks.scene.remove(r.horse.root);
+        const m = r.mount ? ITEMS[r.mount].mount! : null;
+        r.horse = m ? new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow }) : null;
+        if (r.horse) this.hooks.scene.add(r.horse.root);
+        r.horseOf = r.mount;
+      }
+      if (r.horse) {
+        r.horse.root.position.copy(r.model.root.position);
+        r.horse.root.rotation.y = r.model.root.rotation.y;
+        const sp = r.t < 1 ? r.speed : 0;
+        r.horse.setAnim(sp > 10.5 ? 'run' : sp > 0.4 ? 'walk' : 'idle');
+        r.horse.update(dt, sp);
+        r.model.root.position.y += SEAT;
+      }
       // Turn the short way round.
       let dy = r.yaw - r.model.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));

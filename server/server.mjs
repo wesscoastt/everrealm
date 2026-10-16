@@ -44,7 +44,7 @@ const CHAT_GAP_MS = 600;
 const SESSION_DAYS = 60;
 const MAX_CHARS = 6;
 const WORLD = [-384, 2432];
-const ANIMS = new Set(['idle', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook']);
+const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
@@ -220,7 +220,7 @@ function broadcast(msg, except) {
   const s = JSON.stringify(msg);
   for (const p of players.values()) if (p !== except && p.ws.readyState === 1) p.ws.send(s);
 }
-const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held });
+const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount });
 
 wss.on('connection', (ws, req) => {
   let me = null;
@@ -256,7 +256,7 @@ wss.on('connection', (ws, req) => {
       }
       me = {
         id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
-        x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', lastChat: 0, dirty: true,
+        x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', mount: null, lastChat: 0, dirty: true,
       };
       players.set(me.id, me);
       send(ws, { t: 'welcome', id: me.id, players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
@@ -273,6 +273,8 @@ wss.on('connection', (ws, req) => {
         me.x = x; me.y = y; me.z = z; me.yaw = yaw;
         if (ANIMS.has(msg.anim)) me.anim = msg.anim;
         if (HELD.has(msg.held)) me.held = msg.held;
+        // The horse being ridden, by its halter's id (only its look is shared)
+        me.mount = typeof msg.mount === 'string' && /^halter_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
         me.dirty = true;
         break;
       }
@@ -317,7 +319,7 @@ setInterval(() => {
   if (!moved.length) return;
   for (const p of moved) p.dirty = false;
   for (const to of players.values()) {
-    const rows = moved.filter((p) => p !== to).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held]);
+    const rows = moved.filter((p) => p !== to).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0]);
     if (rows.length) send(to.ws, { t: 'snap', p: rows });
   }
 }, TICK_MS);

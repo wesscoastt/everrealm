@@ -2200,7 +2200,7 @@ export class Game implements GameApi {
     M.setHeld(P.swimming && (M.state === 'swim' || M.state === 'tread') ? 'none' : held);
     M.swimPitch = P.swimPitch;
     M.update(dt, P.speed, !P.onGround && !P.swimming);
-    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held });
+    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null });
 
     // Interaction candidate
     this.candidate = this.dialogue ? null : this.findCandidate();
