@@ -1219,6 +1219,7 @@ export class Hud {
         <kbd>3</kbd><span>Second Wind: heal over time</span>
         <kbd>Q</kbd><span>Dodge roll, invulnerable while rolling</span>
         <kbd>Tab</kbd><span>Target the nearest enemy</span>
+        <kbd>G</kbd><span>Call your horse, or get down (halters are sold in the towns)</span>
         <kbd>E</kbd><span>Talk, gather, use, pull in a bite</span>
         <kbd>Enter</kbd><span>Chat, when playing online</span>
         <kbd>F</kbd><span>Eat food</span>

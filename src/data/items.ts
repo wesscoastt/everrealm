@@ -3,7 +3,7 @@ export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'ques
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
 
 export interface IconSpec {
-  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin';
+  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe';
   a: string;
   b?: string;
 }
@@ -28,6 +28,8 @@ export interface ItemDef {
   tool?: { skill: SkillId; power: number; level: number; held: 'pickaxe' | 'hatchet' | 'rod' };
   /** Helm traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll. */
   armor?: { slot: 'head'; defense: number; vigor?: number; wind?: number; roll?: number };
+  /** A halter: the horse it calls (every horse runs at the same pace; only the look differs). */
+  mount?: { coat: string; mane: string; cloth: string; glow?: boolean };
   /** The regional set this piece belongs to (see GEAR_SETS). */
   set?: string;
 }
@@ -131,6 +133,11 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'boar_hide', name: 'Boar hide', kind: 'material', rarity: 'common', stack: true, value: 9, icon: { shape: 'pelt', a: '#5a3e2a' }, desc: 'Thick and bristled. Saddlers in Ansbury take it.' }),
   I({ id: 'crab_shell', name: 'Tide crab shell', kind: 'material', rarity: 'common', stack: true, value: 12, icon: { shape: 'shell', a: '#c8442a', b: '#f0a070' }, desc: 'Gullmouth grinds it for the fields.' }),
   I({ id: 'frost_pelt', name: 'Frost wolf pelt', kind: 'material', rarity: 'uncommon', stack: true, value: 40, icon: { shape: 'pelt', a: '#dde6ee' }, desc: 'Thick enough to sleep on snow.' }),
+  I({ id: 'halter_bay', name: 'Turnpike bay', kind: 'collectible', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'shoe', a: '#8a5a2e', b: '#2e4a7a' }, mount: { coat: '#8a5a2e', mane: '#1e1610', cloth: '#2e4a7a' }, desc: 'A drover\'s hack off the Ansbury horse fair, steady in traffic and deaf to church bells.', stats: 'Use it, or press G, to ride. Every horse keeps the same pace.' }),
+  I({ id: 'halter_grey', name: 'Saltings grey', kind: 'collectible', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'shoe', a: '#c8c8c0', b: '#7a2a24' }, mount: { coat: '#b8b8b0', mane: '#e8e6e0', cloth: '#7a2a24' }, desc: 'Dapple grey, raised on the salt marsh behind Gullmouth. Walks into the sea if you let it.', stats: 'Use it, or press G, to ride. Every horse keeps the same pace.' }),
+  I({ id: 'halter_chestnut', name: 'Company chestnut', kind: 'collectible', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'shoe', a: '#b0582a', b: '#3a3a3a' }, mount: { coat: '#a8532a', mane: '#6a2e14', cloth: '#3a3a3a' }, desc: 'Retired from the Harrowgate ore carts. Still stops dead at every shift bell.', stats: 'Use it, or press G, to ride. Every horse keeps the same pace.' }),
+  I({ id: 'halter_fell', name: 'Scarth fell pony', kind: 'collectible', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'shoe', a: '#2a2420', b: '#5a7a4a' }, mount: { coat: '#2e2622', mane: '#121010', cloth: '#5a7a4a' }, desc: 'Black, shaggy and short in the leg. Kelderby swears by them on the ice.', stats: 'Use it, or press G, to ride. Every horse keeps the same pace.' }),
+  I({ id: 'halter_ember', name: 'Cinder-shod mare', kind: 'collectible', rarity: 'rare', stack: false, value: 0, icon: { shape: 'shoe', a: '#3a1a10', b: '#ff9a3a' }, mount: { coat: '#3a1c12', mane: '#c8501e', cloth: '#1e1210', glow: true }, desc: 'Found grazing the ash round Cinderhorn\'s pit. Her shoes never cool.', stats: 'Use it, or press G, to ride. Every horse keeps the same pace.' }),
   I({ id: 'wren_whistle', name: 'Cherry-twig whistle', kind: 'collectible', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'whistle', a: '#a8442e' }, desc: 'The mouthpiece is chewed. It still works. Found in a tin box marked PRIVATE.' }),
   // Gullmouth and Harrowgate
   I({ id: 'maddox_chest', name: 'Maddox sea chest', kind: 'quest', rarity: 'common', stack: false, value: 0, icon: { shape: 'bread', a: '#6a4a2c' }, desc: 'Salt-swollen oak with brass corners gone green. Padlocked. Jory Maddox has the key.' }),

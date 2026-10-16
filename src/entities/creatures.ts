@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
-export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar';
+export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse';
 
 /** Colour overrides so one body plan can serve several regional species. */
 export interface Palette { a?: string; b?: string; c?: string; glow?: boolean }
@@ -51,6 +51,7 @@ export class CreatureModel {
       case 'rabbit': this.buildRabbit(); break;
       case 'sheep': this.buildSheep(); break;
       case 'chicken': this.buildChicken(); break;
+      case 'horse': this.buildHorse(); break;
     }
     // Per-instance materials for hit flashes
     this.root.traverse((o) => {
@@ -276,6 +277,62 @@ export class CreatureModel {
     }
   }
 
+  /** A riding horse: a = coat, b = mane, tail and lower legs, c = saddle cloth; glow lights the hooves. */
+  private buildHorse(): void {
+    this.plateHeight = 2.4;
+    const coat = lam(this.pal.a ?? '#7a4a2a'), dark = lam(this.pal.b ?? '#2a1e16'), cloth = lam(this.pal.c ?? '#2e4a7a');
+    const leather = lam('#4a3020'), brass = lam('#c8a050');
+    const hoof = this.pal.glow ? lam('#ff9a3a', { emissive: new THREE.Color('#c84a10') }) : lam('#26201a');
+    add(this.body, rb(0.7, 0.72, 1.62, 0.16), coat, 0, 1.36, 0);
+    add(this.body, rb(0.64, 0.6, 0.5, 0.14), coat, 0, 1.4, 0.7); // chest
+    add(this.body, rb(0.62, 0.56, 0.5, 0.14), coat, 0, 1.4, -0.66); // quarters
+    // Neck and head, the neck reaching forward and up
+    add(this.body, rb(0.34, 0.95, 0.44, 0.1), coat, 0, 1.92, 0.98, 0.55);
+    add(this.body, rb(0.1, 0.92, 0.2, 0.04), dark, 0, 2.0, 0.84, 0.55); // mane
+    const head = new THREE.Group();
+    head.position.set(0, 2.32, 1.24);
+    this.body.add(head);
+    add(head, rb(0.34, 0.36, 0.62, 0.1), coat, 0, 0, 0.16, 0.5);
+    add(head, rb(0.3, 0.3, 0.28, 0.08), coat, 0, -0.2, 0.42, 0.5); // muzzle
+    add(head, rb(0.24, 0.1, 0.12, 0.03), dark, 0, -0.3, 0.55, 0.5);
+    add(head, rb(0.36, 0.05, 0.05, 0.01), leather, 0, -0.1, 0.36, 0.5); // noseband
+    for (const sd of [1, -1]) {
+      add(head, new THREE.ConeGeometry(0.06, 0.2, 4), coat, sd * 0.11, 0.24, -0.04, -0.2, Math.PI / 4, sd * -0.15);
+      add(head, rb(0.04, 0.07, 0.07, 0.02), lam('#120c08'), sd * 0.17, 0.06, 0.12, 0.5);
+      add(head, rb(0.03, 0.03, 0.03, 0.01), brass, sd * 0.17, -0.12, 0.4);
+    }
+    add(head, rb(0.12, 0.14, 0.24, 0.04), dark, 0, 0.2, -0.06, 0.3); // forelock
+    this.head = head;
+    // Reins from the bit back to the pommel
+    for (const sd of [1, -1]) add(this.body, rb(0.02, 0.02, 0.9, 0.005), leather, sd * 0.16, 1.98, 0.86, -0.42);
+    // Tail
+    const tail = new THREE.Group();
+    tail.position.set(0, 1.62, -0.92);
+    this.body.add(tail);
+    add(tail, rb(0.16, 0.24, 0.2, 0.06), dark, 0, 0, -0.04, -0.4);
+    add(tail, rb(0.2, 0.8, 0.16, 0.07), dark, 0, -0.44, -0.18, 0.25);
+    this.tail = tail;
+    // Saddle on a cloth
+    add(this.body, rb(0.78, 0.05, 0.74, 0.02), cloth, 0, 1.73, 0.04);
+    add(this.body, rb(0.8, 0.26, 0.06, 0.02), cloth, 0, 1.6, -0.32);
+    add(this.body, rb(0.5, 0.12, 0.56, 0.05), leather, 0, 1.8, 0.04);
+    add(this.body, rb(0.42, 0.16, 0.08, 0.03), leather, 0, 1.9, -0.22); // cantle
+    add(this.body, rb(0.2, 0.16, 0.1, 0.03), leather, 0, 1.9, 0.3); // pommel
+    for (const sd of [1, -1]) {
+      add(this.body, rb(0.03, 0.42, 0.04, 0.01), leather, sd * 0.4, 1.55, 0.06);
+      add(this.body, rb(0.12, 0.04, 0.1, 0.01), brass, sd * 0.42, 1.33, 0.06);
+    }
+    for (const [x, z] of [[0.21, 0.62], [-0.21, 0.62], [0.21, -0.6], [-0.21, -0.6]]) {
+      const leg = new THREE.Group();
+      leg.position.set(x, 1.12, z);
+      this.body.add(leg);
+      add(leg, rb(0.2, 0.56, 0.26, 0.06), coat, 0, -0.26, 0);
+      add(leg, rb(0.14, 0.44, 0.16, 0.04), dark, 0, -0.74, 0.01);
+      add(leg, rb(0.18, 0.12, 0.2, 0.03), hoof, 0, -1.04, 0.02);
+      this.legs.push(leg);
+    }
+  }
+
   setAnim(a: CreatureAnim): void {
     if (a !== this.anim) { this.anim = a; this.animTime = 0; }
   }
@@ -287,7 +344,7 @@ export class CreatureModel {
   update(dt: number, speed: number): void {
     this.animTime += dt;
     const t = this.animTime;
-    this.phase += dt * (speed > 0.1 ? 3 + speed * 1.6 : 0);
+    this.phase += dt * (speed > 0.1 ? (this.kind === 'horse' ? 3.4 + speed * 0.62 : 3 + speed * 1.6) : 0);
     const sw = Math.sin(this.phase);
     this.body.position.set(0, 0, 0);
     this.body.rotation.set(0, 0, 0);
@@ -327,7 +384,12 @@ export class CreatureModel {
       leg.rotation.x = Math.sin(this.phase + off) * legAmp;
       if (this.kind === 'rustback') leg.rotation.y = Math.sin(this.phase + off) * legAmp * 0.6;
     });
-    if (this.anim === 'walk' || this.anim === 'run') this.body.position.y = Math.abs(Math.cos(this.phase)) * (this.kind === 'rabbit' ? 0.18 : 0.04);
+    if (this.anim === 'walk' || this.anim === 'run') this.body.position.y = Math.abs(Math.cos(this.phase)) * (this.kind === 'rabbit' ? 0.18 : this.kind === 'horse' && this.anim === 'run' ? 0.1 : 0.04);
+    // A gallop rocks the horse fore and aft, front legs paired against the hind
+    if (this.kind === 'horse' && this.anim === 'run') {
+      this.body.rotation.x = Math.sin(this.phase) * 0.07;
+      this.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(this.phase + (i < 2 ? 0 : 2.2) + (i % 2) * 0.35) * 0.75; });
+    }
     if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * 0.008) * (this.anim === 'run' ? 0.5 : 0.2);
     if (this.head) this.head.rotation.set(0, 0, 0);
 

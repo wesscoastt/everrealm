@@ -51,6 +51,7 @@ To hear the score without playing, open `/music-preview.html` on the dev server.
 | 3 | Second Wind |
 | Q | Dodge roll (you can't be hit while rolling) |
 | Tab | Target the nearest enemy |
+| G | Call your horse, or get down |
 | E | Talk, gather, use a station, take the Charter Post, or pull in a bite |
 | F | Eat |
 | B / I | Pack |
@@ -63,7 +64,7 @@ To hear the score without playing, open `/music-preview.html` on the dev server.
 **Touch screens** (phones and tablets; the controls appear on the first touch):
 - Put your left thumb down anywhere on the lower left of the screen to make a movement stick there.
 - Drag anywhere else to turn the camera, and pinch with two fingers to zoom. A tap is a click.
-- The buttons by your right thumb are **Jump** (hold it to swim up), **Use** (talk, gather, open), **Run** (on/off) and **Target**. **Dive** appears while you're swimming.
+- The buttons by your right thumb are **Jump** (hold it to swim up), **Use** (talk, gather, open), **Run** (on/off), **Target** and **Ride**. **Dive** appears while you're swimming.
 - Tap the action bar for abilities and panels, and the interaction prompt to use what it names.
 - The world map pans with a finger and pinches to zoom; tap to set a waypoint, and tap it again to clear it.
 - The layout fits a phone held either way, though sideways gives you more room.
@@ -94,6 +95,17 @@ The map also has about 50 scattered points of interest, plus regional ore seams,
 - **Far terrain.** Beyond the loaded area, a stepped low-resolution mesh of the whole continent fills in. Big landmarks have simple stand-ins until their chunks arrive.
 - **Map.** The world map and minimap paint in as you explore, and the explored area is saved.
 - **Code.** The terrain functions are in `src/world/terrain.ts`, the settlements in `src/world/sites.ts`, and the streaming in `src/game/ChunkManager.ts`.
+
+## Riding
+
+A halter calls a horse (G, or use it from the pack). Every horse runs at the same pace, nearly twice walking speed, and a gallop with Shift costs energy. They differ only in looks, so riding fits the horizontal progression:
+- **Turnpike bay:** 60 marks at the Charter Market in Ansbury.
+- **Saltings grey:** 80 marks at Rook's Chandlery in Gullmouth.
+- **Company chestnut:** 80 marks at the Harrowgate Company Store.
+- **Scarth fell pony:** 90 marks from Morgan's Sledge at Kelderby.
+- **Cinder-shod mare:** a rare drop from Cinderhorn; her shoes glow.
+
+You get down to fight, talk, gather or swim, when something hits you, and under a low ceiling. You can't call a horse in the middle of a fight.
 
 ## Out in the world
 
@@ -151,7 +163,6 @@ Writing standards and canon are in [docs/NARRATIVE_STYLE.md](docs/NARRATIVE_STYL
 
 ## Not done yet
 
-- **No mounts.** The Charter Post covers the settlements; between them, and for places off its roads, you walk.
 - **Multiplayer is presence and chat only.** Other players are visible but nothing is shared: each player has their own ore nodes, enemies and quests, and you can't trade, group or fight together. The browser is still the authority for inventory, skills and quests. The server only checks a save's shape and size before storing it, so a modified client could send anything.
 - **Accounts are simple.** There's no password reset or email, and a realm's accounts live in its own files (`server/data/`).
 - **Events, bosses and dungeons are per player.** Other players are visible at them, but each browser runs its own copy of the fight.

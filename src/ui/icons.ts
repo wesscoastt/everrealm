@@ -108,6 +108,14 @@ function paint(spec: IconSpec): string {
       for (let i = 0; i < 8; i++) px(8 + i * 2, 12 + (i % 3) * 3, 1, 3, shade(a, 0.7));
       break;
     }
+    case 'shoe': {
+      // A horseshoe hung on a halter strap
+      x.strokeStyle = outline; x.lineWidth = 7; x.beginPath(); x.arc(16, 15, 9, Math.PI * 0.15, Math.PI * 0.85, true); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 4; x.beginPath(); x.arc(16, 15, 9, Math.PI * 0.15, Math.PI * 0.85, true); x.stroke();
+      for (const [ox, oy] of [[8, 13], [11, 8], [21, 8], [24, 13]]) px(ox, oy, 1, 1, outline);
+      px(14, 24, 4, 6, outline); px(15, 25, 2, 5, b ?? a);
+      break;
+    }
     case 'whistle': {
       diag(7, 24, 14, 5, outline); diag(8, 23, 13, 3, a);
       px(13, 16, 3, 3, outline);

@@ -23,6 +23,7 @@ export class TouchControls {
         <button class="tb run" aria-label="Run"><b>Run</b></button>
         <button class="tb aim" data-tap="Tab" aria-label="Next target"><b>Target</b></button>
         <button class="tb dive" data-hold="KeyC" aria-label="Dive"><b>Dive</b></button>
+        <button class="tb ride" data-tap="KeyG" aria-label="Ride"><b>Ride</b></button>
       </div>`;
     hudRoot.append(this.root);
     this.base = this.root.querySelector('.stick')!;

@@ -40,7 +40,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook';
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook';
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -380,6 +380,22 @@ export class Humanoid {
         armsSwing(amp * 0.9);
         P.torso.rotation.x = this.state === 'run' ? 0.14 : 0.04;
         P.torso.rotation.y = sw * 0.06;
+        break;
+      }
+      case 'ride': {
+        // In the saddle: thighs astride the horse, lower legs down its sides, hands forward on the
+        // reins. The body rises and falls with the horse, more at a gallop.
+        const gait = Math.min(1, speed / 9);
+        if (speed > 0.2) this.swimPhase += dt * (3.4 + speed * 0.62);
+        const s = this.swimPhase;
+        P.legL.rotation.set(-1.05, 0, 0.5); P.legR.rotation.set(-1.05, 0, -0.5);
+        P.shinL.rotation.x = 1.25; P.shinR.rotation.x = 1.25;
+        P.armL.rotation.x = -0.65; P.armR.rotation.x = -0.65;
+        P.armL.rotation.z = 0.12; P.armR.rotation.z = -0.12;
+        P.foreL.rotation.x = -0.55; P.foreR.rotation.x = -0.55;
+        P.body.position.y = Math.abs(Math.sin(s)) * 0.07 * gait;
+        P.torso.rotation.x = 0.08 + gait * 0.14;
+        P.head.rotation.x = -gait * 0.1;
         break;
       }
       case 'swim': {

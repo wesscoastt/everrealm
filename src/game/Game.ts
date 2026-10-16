@@ -20,6 +20,7 @@ import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
 import { Particles } from '../systems/Particles';
+import { CreatureModel } from '../entities/creatures';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
@@ -34,7 +35,7 @@ const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSit
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */
 const LIFT = { x: 1201, z: 1800, r: 6, y: 89 };
 import { QUEST_SPAWNS, WORLD_THINGS, WorldThing } from '../data/places_regional';
-import { B } from '../world/blocks';
+import { B, isSolid } from '../world/blocks';
 import { fellTree, FishSpot, LOWER_WEND, OreNode, regrowTree, TreeNode } from '../world/generate';
 import { distToPolyline } from '../world/noise';
 import { Interactable } from '../world/structures';
@@ -138,6 +139,8 @@ export class Game implements GameApi {
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
   private crowd!: Crowd;
+  /** The horse under the player, while riding. */
+  private horse: CreatureModel | null = null;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
   private cine: { view: [number, number, number, number, number, number]; t: number; then: () => void } | null = null;
   animals: Animal[] = [];
@@ -773,6 +776,9 @@ export class Game implements GameApi {
       this.hp = Math.min(this.hp, this.maxHp);
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
+    } else if (def.mount) {
+      this.hud.toggle('inv');
+      this.toggleMount(st.id);
     } else if (st.id === 'wren_whistle') {
       this.sfx('whistle');
     }
@@ -1175,6 +1181,7 @@ export class Game implements GameApi {
   }
 
   private interact(c: Candidate): void {
+    this.dismount();
     if (c.warn) { this.hud.system(c.warn + '.'); this.sfx('fail'); return; }
     switch (c.kind) {
       case 'npc': this.startDialogue(c.npc!); break;
@@ -1534,8 +1541,57 @@ export class Game implements GameApi {
   }
 
   // =================================================================== Combat
+  /** The halters in the pack, the chosen one first. */
+  private halters(): string[] {
+    const own = this.save.inv.filter((st) => st && ITEMS[st.id]?.mount).map((st) => st!.id);
+    const pick = this.flag('mount') as string | undefined;
+    return pick && own.includes(pick) ? [pick, ...own.filter((x) => x !== pick)] : own;
+  }
+
+  /** Call your horse and get up, or get down. */
+  private toggleMount(which?: string): void {
+    if (this.horse && !which) { this.dismount(); return; }
+    const id = which ?? this.halters()[0];
+    if (!id) { this.hud.system('You have no horse. Halters are sold in Ansbury, Gullmouth, Harrowgate and Kelderby.'); return; }
+    const P = this.player;
+    if (this.dialogue || this.dead || this.mode !== 'play') return;
+    if (P.swimming) { this.hud.system('Not in the water.'); return; }
+    if (this.elapsed - this.lastCombat < 5) { this.hud.system('Not while you\'re fighting.'); return; }
+    if (!this.roomForHorse()) { this.hud.system('There\'s no room for a horse here.'); return; }
+    this.dismount(true);
+    this.cancelActions();
+    const m = ITEMS[id].mount!;
+    const horse = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow });
+    P.footPosition(horse.root.position);
+    horse.root.rotation.y = P.facing;
+    this.scene.add(horse.root);
+    this.horse = horse;
+    P.seat = 1.08;
+    this.setFlag('mount', id);
+    this.particles.dust(P.position, 14);
+    this.sfx('whistle', 0.6);
+  }
+
+  private dismount(quiet = false): void {
+    if (!this.horse) return;
+    this.scene.remove(this.horse.root);
+    this.horse = null;
+    this.player.seat = 0;
+    if (!quiet) this.particles.dust(this.player.position, 8);
+  }
+
+  /** Headroom for a rider: nothing solid over the saddle. */
+  private roomForHorse(): boolean {
+    const p = this.player.position, V = this.world.voxels;
+    for (let y = 2; y <= 3; y++) for (const [dx, dz] of [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]]) {
+      if (isSolid(V.get(Math.floor(p.x + dx), Math.floor(p.y + y), Math.floor(p.z + dz)))) return false;
+    }
+    return true;
+  }
+
   private useAbility(i: number): void {
     if (this.mode !== 'play' || this.dead) return;
+    this.dismount();
     this.hud.pressAbility(i);
     if (i === 0) this.strike();
     else if (i === 1) this.cleave();
@@ -1708,6 +1764,7 @@ export class Game implements GameApi {
     const taken = Math.max(1, Math.round(dmg * (0.9 + Math.random() * 0.2) - armor));
     this.hp -= taken;
     this.lastCombat = this.elapsed;
+    this.dismount();
     this.hitAnim = 0.3;
     this.sfx('hurt');
     this.rig.addShake(0.25);
@@ -1888,7 +1945,7 @@ export class Game implements GameApi {
     this.particles.update(dt);
     this.world.update(dt, P, this.elapsed, timeScale);
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
-    this.rig.update(dt, P);
+    this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
     if (this.cine) {
       const c = this.cine, [vx, vy, vz, lx, ly, lz] = c.view, DUR = 7;
       c.t += dt;
@@ -1969,6 +2026,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyQ')) this.useAbility(3);
     if (I.pressedOnce('KeyF')) this.useAbility(4);
     if (I.pressedOnce('Tab')) this.cycleTarget();
+    if (I.pressedOnce('KeyG')) this.toggleMount();
 
     const ePressed = I.pressedOnce('KeyE');
     if (ePressed) {
@@ -1986,7 +2044,7 @@ export class Game implements GameApi {
       } else if (picked instanceof Npc) {
         if (picked.pos.distanceTo(this.player.position) < 4.5) this.startDialogue(picked);
         else this.hud.system(`${picked.def.name} is too far away to talk to.`);
-      } else if (!this.hud.isOpen('map')) this.strike();
+      } else if (!this.hud.isOpen('map') && !this.horse) this.strike();
     }
     // Moving cancels gathering and crafting.
     const mv = this.moveVector();
@@ -2071,8 +2129,8 @@ export class Game implements GameApi {
 
     const mv = this.dialogue || this.attack?.kind === 'cleave' ? new THREE.Vector3() : this.moveVector();
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
-    let speed = 5.4;
-    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14)); }
+    let speed = this.horse ? 9.6 : 5.4;
+    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + (this.helm?.wind ?? 0)));
     if (this.attack) speed *= 0.35;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
@@ -2083,6 +2141,18 @@ export class Game implements GameApi {
     P.swimAim = THREE.MathUtils.clamp((0.32 - this.rig.pitch) * 1.2, -1.2, 1.2);
     const fall = P.update(dt, mv, speed, jump);
     if (P.swimming !== wasSwimming) document.body.classList.toggle('swimming', P.swimming);
+    document.body.classList.toggle('riding', !!this.horse);
+    if (this.horse) {
+      if (P.swimming || !this.roomForHorse()) this.dismount();
+      else {
+        P.footPosition(this.horse.root.position);
+        this.horse.root.rotation.y = P.facing;
+        this.horse.setAnim(!P.onGround ? 'run' : P.speed > 10.5 ? 'run' : P.speed > 0.4 ? 'walk' : 'idle');
+        this.horse.update(dt, P.speed);
+        characterDetail(this.horse.root, this.horse.root.position.distanceTo(this.camera.position));
+        if (P.onGround && P.speed > 9 && Math.random() < dt * 8) this.particles.dust(P.position, 1);
+      }
+    }
     if (P.swimming && !wasSwimming && P.velocity.y < -3) {
       this.particles.splash(tmpV.set(P.position.x, P.waterTop, P.position.z), 22);
       this.sfx('splash', 0.8);
@@ -2121,7 +2191,8 @@ export class Game implements GameApi {
       const st = this.craftAction.station;
       M.setState(st === 'anvil' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
-    } else if (this.hitAnim > 0) M.setState('hit');
+    } else if (this.horse) { M.setState('ride'); held = 'none'; }
+    else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
     else if (!P.onGround && !P.swimming) M.setState('jump');
     else if (P.speed > 0.4) M.setState(P.speed > 6.5 ? 'run' : 'walk');

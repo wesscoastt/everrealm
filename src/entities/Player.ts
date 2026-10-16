@@ -41,6 +41,9 @@ export class Player {
   rolling = 0;
   private rollDir = new THREE.Vector3();
   fallStartY = 0;
+  /** In the saddle: the rider sits this high over the ground (0 on foot). */
+  seat = 0;
+  private seatLift = 0;
 
   constructor(private world: VoxelWorld, look: Appearance) {
     this.model = new Humanoid(look);
@@ -54,6 +57,13 @@ export class Player {
     this.model.setHeld(held);
     parent.add(this.model.root);
   }
+
+  /** Where the feet are, smoothed through steps (for a mount to stand on). */
+  footPosition(out: THREE.Vector3): THREE.Vector3 {
+    return out.set(this.position.x, this.position.y + this.stepOffset, this.position.z);
+  }
+
+  get facing(): number { return this.visualYaw; }
 
   teleport(x: number, y: number, z: number): void {
     this.position.set(x, y, z);
@@ -194,7 +204,8 @@ export class Player {
     // At the surface the stroking body rides high, back and head out; treading sits shoulder-deep
     const lift = this.swimming && !this.underwater ? (this.speed > 0.6 ? 0.08 : -0.05) : 0;
     this.swimLift += (lift - this.swimLift) * Math.min(1, dt * 6);
-    this.model.root.position.set(p.x, p.y + this.stepOffset + this.swimLift, p.z);
+    this.seatLift += (this.seat - this.seatLift) * Math.min(1, dt * 12);
+    this.model.root.position.set(p.x, p.y + this.stepOffset + this.swimLift + this.seatLift, p.z);
     this.model.root.rotation.y = this.visualYaw;
     return landed;
   }

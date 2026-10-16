@@ -429,6 +429,9 @@ body.touch #prompt { pointer-events: auto; cursor: pointer; }
 #touch .tb.aim { grid-column: 1; grid-row: 1; }
 #touch .tb.dive { display: none; grid-column: 1 / span 2; grid-row: 3; width: 100%; height: 40px; border-radius: 20px; }
 body.swimming #touch .tb.dive { display: block; }
+#touch .tb.ride { grid-column: 1 / span 2; grid-row: 3; width: 100%; height: 40px; border-radius: 20px; }
+body.swimming #touch .tb.ride { display: none; }
+body.riding #touch .tb.ride { box-shadow: inset 0 0 0 2px #e8c882, 0 0 12px rgba(232, 200, 130, 0.5); }
 @media (max-height: 500px) {
   .minimap-wrap { top: 8px; right: 10px; width: 112px; }
   .minimap { width: 112px; height: 112px; padding: 6px; }
