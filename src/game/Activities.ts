@@ -137,6 +137,8 @@ export class Activities {
           const [lo, hi] = ev.def.marks;
           this.host.reward(Math.round(ev.def.xp * k), Math.round((lo + Math.random() * (hi - lo)) * k), items, `${ev.def.name}: ${medal}`);
           this.host.banner('Event complete', `${ev.def.name} · ${medal}`);
+          const best = this.host.flag('ev:' + ev.def.id);
+          if (best !== 'Gold' && !(best === 'Silver' && medal === 'Bronze')) this.host.setFlag('ev:' + ev.def.id, medal);
           this.host.sound('levelUp');
           this.endEvent(ev, ev.def.cooldown);
         }
@@ -255,6 +257,7 @@ export class Activities {
         this.host.reward(1400, 40 + Math.round(Math.random() * 20), ['star_crystal', 'star_crystal', ...(Math.random() < 0.12 ? ['starglass_edge'] : [])], 'Shardfall sealed');
         this.host.banner('Shardfall sealed', 'The star is still');
         this.host.setFlag('shard', s.cycle);
+        this.host.setFlag('shardsSealed', Number(this.host.flag('shardsSealed') ?? 0) + 1);
         this.endShard();
       }
     }
@@ -371,10 +374,11 @@ export class Activities {
     const b = this.boss;
     if (b && b.enemy === e) {
       // Besides its own loot: one of its region's pieces for certain, and the cycle is done
-      const pieces = e.def.loot.filter((l) => l.chance < 1).map((l) => l.item);
+      const pieces = e.def.loot.filter((l) => l.chance < 1 && !ITEMS[l.item]?.mount).map((l) => l.item);
       this.host.reward(e.def.xp, 0, pieces.length ? [pieces[Math.floor(Math.random() * pieces.length)]] : [], `${e.def.name} defeated`);
       this.host.banner(`${e.def.name} defeated`, 'World boss');
       this.host.setFlag('boss:' + b.def.id, b.cycle);
+      this.host.setFlag('killed:' + b.def.id, 1);
       for (const a of b.adds) if (a.alive) this.host.removeEnemy(a);
       this.quakeMesh.visible = false;
       setTimeout(() => { if (this.boss === b) { this.host.removeEnemy(b.enemy); this.boss = null; } }, 8000);

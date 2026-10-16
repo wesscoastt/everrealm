@@ -23,6 +23,7 @@ import { Particles } from '../systems/Particles';
 import { CreatureModel } from '../entities/creatures';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
+import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { POSTS, postFare, postHours } from '../data/travel';
@@ -521,6 +522,12 @@ export class Game implements GameApi {
       get currentStation() { return g.currentStation; },
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
+      feats: () => {
+        const api = g.featApi();
+        const worn = g.flag('title');
+        return FEATS.map((f) => ({ id: f.id, name: f.name, group: f.group, desc: f.desc, have: f.have(api), need: f.need, done: !!g.flag('feat:' + f.id), marks: f.marks, title: f.title, worn: worn === f.id }));
+      },
+      wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: 'weapon' | 'head') => g.unequip(slot),
       dropSlot: (i: number) => g.dropSlot(i),
       craft: (r: string, n: number) => g.startCraft(r, n),
@@ -724,6 +731,8 @@ export class Game implements GameApi {
     // Explored chunks saved before the world grew past 0 use the old chunk keys
     if (!this.flag('mapV2')) { this.save.explored = this.save.explored?.map(legacyChunkKey); this.setFlag('mapV2'); }
     if (this.save.explored?.length) this.world.chunks.queueMapTiles(this.save.explored);
+    const worn = this.flag('title') as string | undefined;
+    this.hud.setTitle(worn ? FEATS.find((f) => f.id === worn)?.title ?? null : null);
     this.startPending = { fresh };
     this.hud.showTitle(title);
     void sx; void sz;
@@ -1551,6 +1560,35 @@ export class Game implements GameApi {
   }
 
   // =================================================================== Combat
+  featApi(): FeatApi {
+    const flags = this.save.flags;
+    return {
+      flag: (k) => flags[k],
+      countFlags: (prefix) => Object.keys(flags).filter((k) => k.startsWith(prefix) && flags[k]).length,
+      explored: this.save.explored?.length ?? 0,
+      owns: (id) => this.inv.count(id) > 0,
+      totalLevel: (Object.values(this.save.xp) as number[]).reduce((a, xp) => a + levelForXp(xp), 0),
+    };
+  }
+
+  private featT = 2;
+  /** Every couple of seconds: anything newly earned pays out and says so. */
+  private checkFeats(dt: number): void {
+    this.featT -= dt;
+    if (this.featT > 0) return;
+    this.featT = 2;
+    const api = this.featApi();
+    for (const f of FEATS) {
+      if (this.flag('feat:' + f.id) || f.have(api) < f.need) continue;
+      this.setFlag('feat:' + f.id, Date.now());
+      this.addMarks(f.marks);
+      this.hud.banner('Feat', f.name, true);
+      this.hud.system(`Feat: ${f.name}. ${f.marks} marks, and the title "${f.title}" (wear it from the journal's Feats page).`);
+      this.sfx('quest');
+      break;
+    }
+  }
+
   /** The halters in the pack, the chosen one first. */
   private halters(): string[] {
     const own = this.save.inv.filter((st) => st && ITEMS[st.id]?.mount).map((st) => st!.id);
@@ -1945,6 +1983,7 @@ export class Game implements GameApi {
     }
     this.activities.update(dt);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
+    this.checkFeats(dt);
     for (const a of this.animals) {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);
       a.model.root.visible = !far;

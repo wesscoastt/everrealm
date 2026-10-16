@@ -91,11 +91,16 @@ export interface EventPanel { kind: 'event' | 'boss' | 'shard'; title: string; g
 export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean }
 export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
 
+export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean }
+
 export interface UiCtx {
   save: SaveData;
   inv: Inventory;
   level(s: SkillId): number;
   useSlot(i: number): void;
+  feats(): FeatView[];
+  /** Wear a feat's title (null for none). */
+  wearTitle(id: string | null): void;
   unequip(slot: 'weapon' | 'head'): void;
   dropSlot(i: number): void;
   craft(recipe: string, count: number): void;
@@ -441,9 +446,19 @@ export class Hud {
     setTimeout(() => { if (this.lastBanner === key) this.lastBanner = ''; }, 4200);
   }
 
+  private region = '';
+  private worn: string | null = null;
+
   setZone(name: string, region?: string): void {
     this.q('.zone-label').textContent = name;
-    if (region) this.q('#player-frame .pt').textContent = region;
+    if (region) this.region = region;
+    this.q('#player-frame .pt').textContent = this.worn ?? this.region;
+  }
+
+  /** The title worn under the player's name, in place of the region. */
+  setTitle(title: string | null): void {
+    this.worn = title;
+    this.q('#player-frame .pt').textContent = title ?? this.region;
   }
 
   setClock(hour: number): void {
@@ -845,7 +860,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || !qs.some((q) => q.id === this.selQuest)) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -863,8 +878,28 @@ export class Hud {
     const pl = el('div', 'ji' + (this.selQuest === 'places' ? ' sel' : ''), 'Places found');
     pl.addEventListener('click', () => { this.selQuest = 'places'; this.renderJournal(); });
     list.append(pl);
+    const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
+    ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
+    list.append(ft);
     const page = el('div', 'jbody');
-    if (this.selQuest === 'places') {
+    if (this.selQuest === 'feats') {
+      const fs = this.ctx.feats();
+      const done = fs.filter((f) => f.done).length;
+      page.innerHTML = `<h4>Feats</h4><div class="feat-sum">${done} of ${fs.length} done. Each pays out once and gives you a title to wear.</div>`;
+      for (const group of [...new Set(fs.map((f) => f.group))]) {
+        page.append(el('h5', 'feat-group', esc(group)));
+        for (const f of fs.filter((x) => x.group === group)) {
+          const row = el('div', 'feat' + (f.done ? ' done' : ''));
+          const pct = Math.min(100, (f.have / f.need) * 100);
+          row.innerHTML = `<div class="ft"><b>${esc(f.name)}</b><span>${f.done ? 'Done' : `${Math.min(f.have, f.need).toLocaleString()} / ${f.need.toLocaleString()}`}</span></div>
+            <div class="fd">${esc(f.desc)}</div>
+            ${f.done ? '' : `<div class="bar feat-bar"><i style="width:${pct}%"></i></div>`}
+            <div class="fr">${f.marks} marks · title <i>${esc(f.title)}</i>${f.done ? ` <button class="btn sm${f.worn ? ' on' : ''}" data-t="${f.id}">${f.worn ? 'Worn' : 'Wear'}</button>` : ''}</div>`;
+          row.querySelector('button')?.addEventListener('click', () => { this.ctx.wearTitle(f.worn ? null : f.id); this.renderJournal(); });
+          page.append(row);
+        }
+      }
+    } else if (this.selQuest === 'places') {
       const found = this.ctx.save.discovered;
       const all = places();
       const regions = all.filter((p) => p.kind === 'region');
