@@ -21,6 +21,7 @@ import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
 import { Particles } from '../systems/Particles';
 import { TouchControls } from '../ui/TouchControls';
+import { Crowd, CrowdZone } from './Crowd';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { POSTS, postFare, postHours } from '../data/travel';
@@ -55,6 +56,36 @@ type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
 
 /** Where the selected or new character stands on the menus, and the way the camera looks at them. */
 const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() };
+
+/** Where townsfolk walk, and how many of them, busiest in the capital. */
+function crowdZones(): CrowdZone[] {
+  return [
+    { id: 'ansbury', x: 820, z: 300, r: 196, n: 30, lines: [
+      'The minster bell\'s cracked. You can hear it on the low note.',
+      'They\'re tilting Saturday. My money\'s on the Harrowgate lad.',
+      'Wipe your boots before the Charter Hall, they take your name.',
+      'Somebody\'s left a dray across the Shambles again.',
+      'The guildhall clock\'s five minutes fast. It always is.',
+      'If the Weighhouse says a pound, it\'s a pound.',
+    ] },
+    { id: 'hollinford', x: 165, z: 182, r: 42, n: 6, lines: [
+      'The ford\'s up to my knees today.',
+      'Haverwood\'s thick with mushrooms after the rain.',
+    ] },
+    { id: 'gullmouth', x: coastX(600) - 80, z: 600, r: 72, n: 11, lines: [
+      'Tide\'s turning. Get the nets in.',
+      'The light wants oil again.',
+      'A gull had my pie. The whole pie.',
+    ] },
+    { id: 'harrowgate', x: 975, z: 1003, r: 60, n: 8, lines: [
+      'Shift bell\'s in ten.',
+      'Company store\'s put candles up again.',
+      'Slag\'s still warm. Don\'t sit on it.',
+    ] },
+    { id: 'kelderby', x: 300, z: 1460, r: 30, n: 4, lines: ['Wind\'s got teeth up here today.'] },
+    { id: 'cotters', x: 486, z: 252, r: 26, n: 3 },
+  ];
+}
 
 interface Candidate {
   kind: 'npc' | 'ore' | 'tree' | 'fish' | 'thing' | 'wthing' | 'act';
@@ -106,6 +137,7 @@ export class Game implements GameApi {
   enemies: Enemy[] = [];
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
+  private crowd!: Crowd;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
   private cine: { view: [number, number, number, number, number, number]; t: number; then: () => void } | null = null;
   animals: Animal[] = [];
@@ -234,6 +266,7 @@ export class Game implements GameApi {
     this.world = new GameWorld(this.scene, (l) => this.hud.showTitle(l + '…'));
     this.rig = new CameraRig(this.camera, this.world.voxels);
     this.player = new Player(this.world.voxels, this.save.look);
+    this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.activities = new Activities({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -1844,6 +1877,7 @@ export class Game implements GameApi {
       }
     }
     this.activities.update(dt);
+    this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     for (const a of this.animals) {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);
       a.model.root.visible = !far;

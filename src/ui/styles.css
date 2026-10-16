@@ -217,6 +217,8 @@
 .floater.crit { font-size: 28px; color: var(--gold); }
 .floater.player { color: #ff6a4a; }
 .floater.heal { color: #9ff08a; }
+.floater.chatter { font: italic 500 15px var(--book); color: #f4ead2; white-space: nowrap; text-shadow: 1px 1px 0 #000, 0 0 6px rgba(0,0,0,0.8); animation: chatterUp 3.4s ease-out forwards; }
+@keyframes chatterUp { 0% { opacity: 0; transform: translate(-50%, -40%); } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -110%); } }
 @keyframes floatUp { 0% { opacity: 0; margin-top: 0; } 10% { opacity: 1; } 100% { opacity: 0; margin-top: -50px; } }
 
 /* ------------------------------------------------------------- Panels */

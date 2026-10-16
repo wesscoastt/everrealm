@@ -106,6 +106,7 @@ These are things to find and join while exploring, in the spirit of Guild Wars 2
 - **Shardfalls.** Every six minutes a star shard comes down at one of six grounds in the south. You fight what crawls out of it in three waves for a crystal reward.
 - **Public dungeons (2) and delves (6).** These are underground halls with packs of enemies, named champions and a chest that refills every half hour. The public dungeons, Mortlake Cellars and the Black Cut, are deep and wide. Delves, such as Badger Holt, Withy Culvert and the Cold Seep, are short.
 - **Vistas (8).** Viewpoints on headlands and summits. Reach one and the camera sweeps round the view; the first visit pays out.
+- **Townsfolk.** People walk the paved streets of every town, about thirty in Ansbury and a handful in a hamlet. They stop to look about, step aside for you, and sometimes say something as you pass. Most have gone indoors by night.
 - **Wonders (6).** Places to stumble on: the Weeping Stair, the Kelpie Arch, the Stone King (a colossal crowned statue), the Drowned Bell-tower, the Kingfisher Steps and the Great Starfall crater.
 
 ## The score

@@ -499,7 +499,7 @@ export class Hud {
     f.style.left = x + (Math.random() - 0.5) * 30 + 'px';
     f.style.top = y + 'px';
     this.floaters.append(f);
-    setTimeout(() => f.remove(), 1000);
+    setTimeout(() => f.remove(), cls === 'chatter' ? 3400 : 1000);
   }
 
   // ------------------------------------------------------------------ Minimap
