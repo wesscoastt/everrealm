@@ -477,6 +477,16 @@ export class Game implements GameApi {
   // =================================================================== Settings and save
   private applySettings(): void {
     const s = this.save.settings;
+    // A phone or tablet starts on lighter settings, once per browser; Settings can raise them again
+    const TUNED = 'everrealm.phoneTuned';
+    let tuned = true;
+    try { tuned = !!localStorage.getItem(TUNED); } catch { /* storage blocked: leave the settings be */ }
+    if (!tuned && matchMedia('(pointer: coarse)').matches) {
+      s.viewDist = Math.min(s.viewDist, 5);
+      s.renderScale = Math.min(s.renderScale, 0.75);
+      s.shadows = false;
+      try { localStorage.setItem(TUNED, '1'); } catch { /* as above */ }
+    }
     this.audio.volumes = { master: s.master, sfx: s.sfx, ambience: s.ambience, music: s.music };
     this.audio.applyVolumes();
     this.renderer.shadowMap.enabled = s.shadows;
