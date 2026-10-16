@@ -1,0 +1,22 @@
+# Render blueprint for the Everrealm world server (accounts, characters, other players).
+# New > Blueprint on render.com, pick this repository, and Render builds and runs it.
+# The free plan sleeps when idle and forgets its files on every restart, so accounts made there
+# don't last. For a realm that keeps them, switch to the Starter plan and uncomment the disk.
+services:
+  - type: web
+    name: everrealm-realm
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # With the disk below, also keep the realm's files on it:
+      # - key: EVERREALM_DATA
+      #   value: /var/data/everrealm
+    # disk:
+    #   name: realm-data
+    #   mountPath: /var/data
+    #   sizeGB: 1

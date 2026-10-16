@@ -1,0 +1,294 @@
+import * as THREE from 'three';
+import { EnemyDef } from '../data/gameplay';
+import { B, isSolid } from '../world/blocks';
+import { VoxelWorld } from '../world/VoxelWorld';
+import { CreatureKind, CreatureModel } from './creatures';
+
+export type EnemyState = 'idle' | 'wander' | 'chase' | 'windup' | 'attack' | 'recover' | 'return' | 'dead';
+
+export interface EnemyContext {
+  player: THREE.Vector3;
+  playerAlive: boolean;
+  playerInvulnerable: boolean;
+  hitPlayer(damage: number, from: Enemy): void;
+  sound(name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3): void;
+}
+
+const telegraphMat = new THREE.MeshBasicMaterial({ color: '#ff3a24', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+const telegraphFill = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+
+let nextId = 1;
+
+export class Enemy {
+  readonly id = nextId++;
+  readonly model: CreatureModel;
+  readonly pos = new THREE.Vector3();
+  readonly home = new THREE.Vector3();
+  yaw = Math.random() * Math.PI * 2;
+  hp: number;
+  state: EnemyState = 'idle';
+  private timer = 0;
+  private cooldown = 0;
+  private wanderTarget = new THREE.Vector3();
+  private attackDir = new THREE.Vector3();
+  private attackOrigin = new THREE.Vector3();
+  private hitDone = false;
+  private vy = 0;
+  respawnIn = 0;
+  readonly telegraph = new THREE.Group();
+  private teleOutline: THREE.Mesh;
+  private teleFill: THREE.Mesh;
+  lastHitAt = -99;
+  /** Set when a quest put this creature in the world; its kills are counted and it does not respawn. */
+  questTag?: string;
+  /** Set true for one frame when the enemy dies so the game can grant rewards. */
+  justDied = false;
+  knock = new THREE.Vector3();
+
+  /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
+  constructor(readonly def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
+    this.model = new CreatureModel(def.model ?? (def.type as CreatureKind), def.palette, def.scale);
+    this.hp = def.hp;
+    const src = ground ?? world;
+    const y = src.topSolid(x, z) + 1;
+    this.home.set(x + 0.5, y, z + 0.5);
+    // Rustbacks live underground: find the cave floor instead of the hill top.
+    if (def.type === 'rustback') this.home.y = src.groundBelow(x + 0.5, 25, z + 0.5);
+    this.pos.copy(this.home);
+    this.wanderTarget.copy(this.home);
+
+    const isCircle = def.attack === 'slam';
+    const outlineGeo = isCircle ? new THREE.CircleGeometry(def.range, 28) : new THREE.PlaneGeometry(1.6, def.range);
+    if (!isCircle) outlineGeo.translate(0, def.range / 2, 0);
+    outlineGeo.rotateX(-Math.PI / 2);
+    this.teleOutline = new THREE.Mesh(outlineGeo, telegraphMat);
+    this.teleFill = new THREE.Mesh(outlineGeo, telegraphFill);
+    this.telegraph.add(this.teleOutline, this.teleFill);
+    this.telegraph.visible = false;
+    this.syncModel();
+  }
+
+  get alive(): boolean {
+    return this.state !== 'dead';
+  }
+
+  get name(): string {
+    return this.def.name;
+  }
+
+  takeDamage(amount: number, from: THREE.Vector3, now: number): boolean {
+    if (!this.alive) return false;
+    this.hp -= amount;
+    this.lastHitAt = now;
+    this.model.flashHit();
+    const away = new THREE.Vector3().subVectors(this.pos, from).setY(0).normalize();
+    this.knock.addScaledVector(away, this.def.elite ? 2 : 5);
+    if (this.state === 'idle' || this.state === 'wander' || this.state === 'return') this.state = 'chase';
+    if (this.state !== 'windup' && this.state !== 'attack') this.model.setAnim('hit');
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.state = 'dead';
+      this.timer = 0;
+      this.respawnIn = this.def.respawn;
+      this.model.setAnim('dead');
+      this.telegraph.visible = false;
+      this.justDied = true;
+    }
+    return true;
+  }
+
+  private canStand(x: number, z: number, y: number): number | null {
+    // Returns the new feet height if the creature may move there (step up to 1 block, never into water).
+    const ix = Math.floor(x), iz = Math.floor(z);
+    for (const dy of [0, 1, -1, -2]) {
+      const fy = Math.floor(y) + dy;
+      const below = this.world.get(ix, fy - 1, iz);
+      if (isSolid(below) && !isSolid(this.world.get(ix, fy, iz)) && !isSolid(this.world.get(ix, fy + 1, iz))) {
+        if (this.world.get(ix, fy, iz) === B.Water) return null;
+        return fy;
+      }
+    }
+    return null;
+  }
+
+  private stepToward(tx: number, tz: number, speed: number, dt: number): boolean {
+    const dx = tx - this.pos.x, dz = tz - this.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.05) return false;
+    const step = Math.min(d, speed * dt);
+    const nx = this.pos.x + (dx / d) * step, nz = this.pos.z + (dz / d) * step;
+    const fy = this.canStand(nx, nz, this.pos.y + 0.1);
+    this.yaw = Math.atan2(dx, dz);
+    if (fy === null) return false;
+    this.pos.x = nx;
+    this.pos.z = nz;
+    if (fy > this.pos.y + 0.1) this.pos.y = fy;
+    return true;
+  }
+
+  update(dt: number, ctx: EnemyContext): void {
+    this.justDied = false;
+    this.timer += dt;
+    this.cooldown -= dt;
+    const def = this.def;
+    const toPlayer = new THREE.Vector3().subVectors(ctx.player, this.pos);
+    const distP = Math.hypot(toPlayer.x, toPlayer.z);
+    const distHome = Math.hypot(this.pos.x - this.home.x, this.pos.z - this.home.z);
+    let moveSpeed = 0;
+
+    // Knockback and gravity
+    if (this.knock.lengthSq() > 0.001) {
+      const kx = this.knock.x * dt, kz = this.knock.z * dt;
+      const fy = this.canStand(this.pos.x + kx, this.pos.z + kz, this.pos.y + 0.1);
+      if (fy !== null) { this.pos.x += kx; this.pos.z += kz; }
+      this.knock.multiplyScalar(Math.exp(-dt * 8));
+    }
+    const ground = this.world.groundBelow(this.pos.x, this.pos.y + 0.6, this.pos.z);
+    if (this.pos.y > ground + 0.01) {
+      this.vy -= 25 * dt;
+      this.pos.y = Math.max(ground, this.pos.y + this.vy * dt);
+    } else {
+      this.vy = 0;
+      this.pos.y = ground;
+    }
+
+    switch (this.state) {
+      case 'dead':
+        this.respawnIn -= dt;
+        if (this.timer > 2.5) this.model.root.position.y -= dt * 0.6;
+        if (this.respawnIn <= 0) {
+          this.hp = def.hp;
+          this.pos.copy(this.home);
+          this.state = 'idle';
+          this.model.setAnim('idle');
+          this.timer = 0;
+        }
+        this.model.update(dt, 0);
+        if (this.timer <= 2.5) this.syncModel();
+        this.model.root.visible = this.respawnIn > 0 ? this.timer < 5 : true;
+        return;
+      case 'idle':
+      case 'wander': {
+        if (ctx.playerAlive && distP < def.aggro && Math.abs(toPlayer.y) < 4) {
+          this.state = 'chase';
+          ctx.sound(def.type === 'jelly' ? 'squelch' : def.type === 'rustback' ? 'skitter' : 'growl', this.pos);
+          break;
+        }
+        if (this.state === 'idle' && this.timer > 2 + Math.random() * 4) {
+          const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 5;
+          this.wanderTarget.set(this.home.x + Math.cos(a) * r, 0, this.home.z + Math.sin(a) * r);
+          this.state = 'wander';
+          this.timer = 0;
+        }
+        if (this.state === 'wander') {
+          const moved = this.stepToward(this.wanderTarget.x, this.wanderTarget.z, def.speed * 0.35, dt);
+          moveSpeed = moved ? def.speed * 0.35 : 0;
+          if (!moved || this.timer > 6) { this.state = 'idle'; this.timer = 0; }
+        }
+        break;
+      }
+      case 'chase': {
+        if (!ctx.playerAlive || distHome > def.leash) { this.state = 'return'; break; }
+        if (distP <= def.range * (def.attack === 'charge' ? 0.9 : 0.85) && this.cooldown <= 0) {
+          this.state = 'windup';
+          this.timer = 0;
+          this.attackOrigin.copy(this.pos);
+          this.attackDir.set(toPlayer.x, 0, toPlayer.z).normalize();
+          this.yaw = Math.atan2(this.attackDir.x, this.attackDir.z);
+          this.telegraph.visible = true;
+          this.model.setAnim('windup');
+          break;
+        }
+        const keep = def.attack === 'charge' ? def.range * 0.6 : def.range * 0.6;
+        if (distP > keep) {
+          const moved = this.stepToward(ctx.player.x, ctx.player.z, def.speed, dt);
+          moveSpeed = moved ? def.speed : 0;
+        } else this.yaw = Math.atan2(toPlayer.x, toPlayer.z);
+        break;
+      }
+      case 'windup': {
+        const k = Math.min(1, this.timer / def.windup);
+        if (def.attack !== 'slam') {
+          // Lunges track the player a little during windup; charges lock direction.
+          if (def.attack === 'lunge' && k < 0.6) {
+            this.attackDir.set(toPlayer.x, 0, toPlayer.z).normalize();
+            this.yaw = Math.atan2(this.attackDir.x, this.attackDir.z);
+          }
+        }
+        this.teleFill.scale.setScalar(Math.max(0.01, k));
+        if (def.attack !== 'slam') this.teleFill.scale.set(1, 1, Math.max(0.01, k));
+        if (this.timer >= def.windup) {
+          this.state = 'attack';
+          this.timer = 0;
+          this.hitDone = false;
+          this.attackOrigin.copy(this.pos);
+          this.model.setAnim('attack');
+          ctx.sound('swing', this.pos);
+        }
+        break;
+      }
+      case 'attack': {
+        const dur = def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : 0.45;
+        if (def.attack !== 'slam') {
+          const speed = def.attack === 'charge' ? 13 : (def.range * 0.95) / 0.26;
+          this.stepToward(this.pos.x + this.attackDir.x, this.pos.z + this.attackDir.z, speed, dt);
+          moveSpeed = speed;
+          // Hit test against the strip swept so far
+          if (!this.hitDone && ctx.playerAlive && !ctx.playerInvulnerable) {
+            const rel = new THREE.Vector3().subVectors(ctx.player, this.attackOrigin);
+            const along = rel.x * this.attackDir.x + rel.z * this.attackDir.z;
+            const side = Math.abs(rel.x * this.attackDir.z - rel.z * this.attackDir.x);
+            const reach = Math.hypot(this.pos.x - this.attackOrigin.x, this.pos.z - this.attackOrigin.z) + 0.9;
+            if (along > -0.3 && along < reach && side < 1.0 && Math.abs(rel.y) < 2) {
+              this.hitDone = true;
+              ctx.hitPlayer(def.damage, this);
+            }
+          }
+        } else if (!this.hitDone && this.timer > 0.4) {
+          this.hitDone = true;
+          if (ctx.playerAlive && !ctx.playerInvulnerable && distP < def.range && Math.abs(toPlayer.y) < 2) ctx.hitPlayer(def.damage, this);
+          ctx.sound('squelch', this.pos);
+        }
+        if (this.timer >= dur) {
+          this.state = 'recover';
+          this.timer = 0;
+          this.cooldown = def.cooldown;
+          this.telegraph.visible = false;
+          this.model.setAnim('idle');
+        }
+        break;
+      }
+      case 'recover':
+        if (this.timer > 0.55) { this.state = 'chase'; this.timer = 0; }
+        break;
+      case 'return': {
+        const moved = this.stepToward(this.home.x, this.home.z, def.speed * 0.8, dt);
+        moveSpeed = moved ? def.speed * 0.8 : 0;
+        this.hp = Math.min(def.hp, this.hp + def.hp * dt * 0.5);
+        if (distHome < 1 || !moved) {
+          if (!moved) this.pos.copy(this.home);
+          this.state = 'idle';
+          this.timer = 0;
+          this.hp = def.hp;
+        }
+        break;
+      }
+    }
+
+    if (this.state === 'chase' || this.state === 'wander' || this.state === 'return') this.model.setAnim(moveSpeed > 0.1 ? (moveSpeed > def.speed * 0.6 ? 'run' : 'walk') : 'idle');
+    else if (this.state === 'idle') this.model.setAnim('idle');
+    if (this.model.anim === 'hit' && this.model.animTime > 0.25) this.model.setAnim('idle');
+    this.model.update(dt, moveSpeed);
+    this.syncModel();
+  }
+
+  private syncModel(): void {
+    this.model.root.position.copy(this.pos);
+    this.model.root.rotation.y = this.yaw;
+    if (this.telegraph.visible) {
+      this.telegraph.position.set(this.attackOrigin.x, this.attackOrigin.y + 0.06, this.attackOrigin.z);
+      this.telegraph.rotation.y = this.def.attack === 'slam' ? 0 : Math.atan2(this.attackDir.x, this.attackDir.z) + Math.PI;
+      if (this.state === 'windup' && this.def.attack === 'slam') this.telegraph.position.copy(this.pos).setY(this.pos.y + 0.06);
+    }
+  }
+}

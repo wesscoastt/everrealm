@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Everrealm score preview</title>
+    <style>
+      body { background: #17130f; color: #efe6d2; font: 15px system-ui, sans-serif; padding: 20px; }
+      button { margin: 4px; padding: 6px 12px; }
+      canvas { display: block; margin-top: 12px; background: #000; }
+    </style>
+  </head>
+  <body>
+    <h2>Everrealm score: offline renders</h2>
+    <div id="btns"></div>
+    <pre id="log"></pre>
+    <canvas id="spec" width="1200" height="260"></canvas>
+    <script type="module">
+      import { Score, THEME_IDS } from '/src/systems/music/Score.ts';
+
+      const log = (s) => (document.getElementById('log').textContent += s + '\n');
+
+      function wav(buffer) {
+        const ch = buffer.numberOfChannels, rate = buffer.sampleRate, len = buffer.length;
+        const out = new DataView(new ArrayBuffer(44 + len * ch * 2));
+        const w = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+        w(0, 'RIFF'); out.setUint32(4, 36 + len * ch * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+        out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true); out.setUint32(24, rate, true);
+        out.setUint32(28, rate * ch * 2, true); out.setUint16(32, ch * 2, true); out.setUint16(34, 16, true); w(36, 'data'); out.setUint32(40, len * ch * 2, true);
+        const data = [...Array(ch)].map((_, c) => buffer.getChannelData(c));
+        let o = 44;
+        for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++) { out.setInt16(o, Math.max(-1, Math.min(1, data[c][i])) * 32767, true); o += 2; }
+        return new Blob([out.buffer], { type: 'audio/wav' });
+      }
+
+      function stats(buffer) {
+        const d = buffer.getChannelData(0), rate = buffer.sampleRate;
+        let peak = 0, sum = 0, silentSec = 0;
+        const secs = Math.floor(d.length / rate);
+        const perSec = [];
+        for (let s = 0; s < secs; s++) {
+          let ss = 0;
+          for (let i = s * rate; i < (s + 1) * rate; i++) { const v = d[i]; ss += v * v; peak = Math.max(peak, Math.abs(v)); }
+          const rms = Math.sqrt(ss / rate);
+          perSec.push(rms);
+          sum += ss;
+          if (rms < 0.004) silentSec++;
+        }
+        const rms = Math.sqrt(sum / d.length);
+        return { peak: +peak.toFixed(3), rmsDb: +(20 * Math.log10(rms + 1e-9)).toFixed(1), silentSec, secs, perSec };
+      }
+
+      // Share of energy per band, via one-pole filters (cheap, good enough for balance)
+      function bands(buffer) {
+        const d = buffer.getChannelData(0), rate = buffer.sampleRate;
+        const cut = [150, 600, 2500];
+        const a = cut.map((f) => Math.exp(-2 * Math.PI * f / rate));
+        const lp = [0, 0, 0];
+        const e = [0, 0, 0, 0];
+        for (let i = 0; i < d.length; i++) {
+          const x = d[i];
+          for (let k = 0; k < 3; k++) lp[k] = lp[k] * a[k] + x * (1 - a[k]);
+          const b0 = lp[0], b1 = lp[1] - lp[0], b2 = lp[2] - lp[1], b3 = x - lp[2];
+          e[0] += b0 * b0; e[1] += b1 * b1; e[2] += b2 * b2; e[3] += b3 * b3;
+        }
+        const t = e.reduce((p, c) => p + c, 0);
+        return { low: +(e[0] / t).toFixed(2), lowMid: +(e[1] / t).toFixed(2), mid: +(e[2] / t).toFixed(2), high: +(e[3] / t).toFixed(3) };
+      }
+
+      function drawSpec(buffer, label) {
+        const c = document.getElementById('spec'), x = c.getContext('2d');
+        const d = buffer.getChannelData(0), rate = buffer.sampleRate;
+        x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
+        const cols = c.width, N = 1024;
+        for (let col = 0; col < cols; col++) {
+          const start = Math.floor((col / cols) * (d.length - N));
+          // Cheap DFT on 64 log-spaced bins
+          for (let b = 0; b < 64; b++) {
+            const f = 55 * Math.pow(2, b / 9);
+            let re = 0, im = 0;
+            for (let i = 0; i < N; i += 2) { const v = d[start + i]; const a = (2 * Math.PI * f * i) / rate; re += v * Math.cos(a); im += v * Math.sin(a); }
+            const mag = Math.sqrt(re * re + im * im) / N * 40;
+            const v = Math.min(255, Math.floor(Math.sqrt(mag) * 255));
+            x.fillStyle = `rgb(${v},${Math.floor(v * 0.75)},${Math.floor(v * 0.4)})`;
+            x.fillRect(col, c.height - (b + 1) * 4, 1, 4);
+          }
+        }
+        x.fillStyle = '#fff'; x.fillText(label, 6, 14);
+      }
+
+      async function render(theme, seconds, combat = false) {
+        const rate = 32000;
+        const ctx = new OfflineAudioContext(2, rate * seconds, rate);
+        const score = new Score(ctx, ctx.destination);
+        score.setContext({ theme, combat: false });
+        score.advance(seconds);
+        if (combat) { score.setContext({ theme, combat: true }); score.advance(seconds); }
+        const t0 = performance.now();
+        const buf = await ctx.startRendering();
+        const st = stats(buf);
+        window.lastBuf = buf;
+        st.bands = bands(buf);
+        log(`${theme}${combat ? '+combat' : ''}: ${seconds}s rendered in ${((performance.now() - t0) / 1000).toFixed(1)}s · peak ${st.peak} · rms ${st.rmsDb} dB · near-silent ${st.silentSec}s · bands ${JSON.stringify(st.bands)}`);
+        drawSpec(buf, theme);
+        await fetch(`/__save-preview?name=${theme}${combat ? '-combat' : ''}`, { method: 'POST', body: wav(buf) });
+        return { theme, ...st, perSec: st.perSec.map((v) => +v.toFixed(3)) };
+      }
+
+      window.renderTheme = render;
+      window.THEME_IDS = THEME_IDS;
+      for (const id of THEME_IDS) {
+        const b = document.createElement('button');
+        b.textContent = id;
+        b.onclick = () => render(id, 90);
+        document.getElementById('btns').append(b);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,618 @@
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+export interface Appearance {
+  skin: string;
+  hair: string;
+  hairStyle: number; // 0 short, 1 long, 2 topknot, 3 shaved, 4 braids
+  eyes: string;
+  tunic: string;
+  trim: string;
+  trousers: string;
+  boots: string;
+  cape?: string | null;
+  beard?: boolean;
+  apron?: boolean;
+  hat?: 'none' | 'hood' | 'cap' | 'kerchief';
+  hatColor?: string;
+  build?: number; // 0.9 slim .. 1.15 broad
+  height?: number;
+  shoulderPads?: string | null;
+  lashes?: boolean;
+  age?: number; // 0 young .. 1 old (greys brows, adds lines)
+}
+
+export type HeldItem = 'none' | 'sword' | 'bronzeSword' | 'pickaxe' | 'hatchet' | 'rod' | 'hammer' | 'tongs';
+
+/** Length of a dodge roll in seconds (the player's movement uses the same figure). */
+export const ROLL_TIME = 0.55;
+/** Roll keyframes: `at` is the fraction of the roll; `lift` is the pivot's height above the feet. */
+interface RollPose { at: number; leg: number; shin: number; split: number; curl: number; nod: number; arm: number; wide: number; fore: number; lift: number }
+const ROLL_KEYS: RollPose[] = [
+  { at: 0, leg: 0, shin: 0, split: 0, curl: 0, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
+  // dive: lean in, push off the back foot, arms reaching
+  { at: 0.14, leg: -0.7, shin: 0.5, split: 0.9, curl: 0.55, nod: 0.25, arm: -2.0, wide: 0.15, fore: -0.1, lift: 0.86 },
+  // tucked ball
+  { at: 0.3, leg: -2.2, shin: 2.4, split: 0, curl: 1.0, nod: 0.6, arm: -0.9, wide: -0.25, fore: -1.5, lift: 0.7 },
+  { at: 0.68, leg: -2.2, shin: 2.4, split: 0, curl: 1.0, nod: 0.6, arm: -0.9, wide: -0.25, fore: -1.5, lift: 0.7 },
+  // coming up into a crouch, arms out for balance
+  { at: 0.86, leg: -1.1, shin: 1.7, split: 0.2, curl: 0.5, nod: 0.1, arm: -0.6, wide: 0.45, fore: -0.4, lift: 0.8 },
+  { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
+];
+
+export type AnimState = 'idle' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook';
+
+const geoCache = new Map<string, THREE.BufferGeometry>();
+function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
+  const key = `${w.toFixed(3)}:${h.toFixed(3)}:${d.toFixed(3)}:${r}`;
+  let g = geoCache.get(key);
+  if (!g) {
+    g = new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+    geoCache.set(key, g);
+  }
+  return g;
+}
+
+const matCache = new Map<string, THREE.MeshLambertMaterial>();
+function lam(color: string): THREE.MeshLambertMaterial {
+  let m = matCache.get(color);
+  if (!m) { m = new THREE.MeshLambertMaterial({ color }); matCache.set(color, m); }
+  return m;
+}
+
+function shade(hex: string, f: number): string {
+  const c = new THREE.Color(hex);
+  c.multiplyScalar(f);
+  return '#' + c.getHexString();
+}
+
+function faceTexture(a: Appearance): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const x = c.getContext('2d')!;
+  x.fillStyle = a.skin; x.fillRect(0, 0, 32, 32);
+  // Soft cheek shading
+  x.fillStyle = shade(a.skin, 0.93); x.fillRect(0, 22, 32, 10);
+  x.fillStyle = 'rgba(220,90,90,0.18)'; x.fillRect(5, 19, 5, 3); x.fillRect(22, 19, 5, 3);
+  // Brows
+  const brow = (a.age ?? 0) > 0.6 ? '#cfcac0' : shade(a.hair, 0.8);
+  x.fillStyle = brow; x.fillRect(6, 10, 7, 2); x.fillRect(19, 10, 7, 2);
+  // Eyes
+  x.fillStyle = '#f6f2ea'; x.fillRect(7, 13, 6, 4); x.fillRect(19, 13, 6, 4);
+  x.fillStyle = a.eyes; x.fillRect(9, 13, 3, 4); x.fillRect(20, 13, 3, 4);
+  x.fillStyle = '#16100c'; x.fillRect(10, 14, 2, 2); x.fillRect(21, 14, 2, 2);
+  x.fillStyle = '#ffffff'; x.fillRect(10, 14, 1, 1); x.fillRect(21, 14, 1, 1);
+  if (a.lashes) { x.fillStyle = '#1a120c'; x.fillRect(6, 12, 7, 1); x.fillRect(19, 12, 7, 1); }
+  // Nose and mouth
+  x.fillStyle = shade(a.skin, 0.82); x.fillRect(15, 15, 2, 5); x.fillRect(14, 19, 4, 1);
+  x.fillStyle = shade(a.skin, 0.6); x.fillRect(12, 24, 8, 1);
+  x.fillStyle = shade(a.skin, 0.75); x.fillRect(13, 25, 6, 1);
+  if ((a.age ?? 0) > 0.5) { x.fillStyle = shade(a.skin, 0.85); x.fillRect(5, 17, 3, 1); x.fillRect(24, 17, 3, 1); x.fillRect(8, 8, 16, 1); }
+  if (a.beard) {
+    x.fillStyle = a.hair;
+    x.fillRect(3, 21, 26, 11); x.fillRect(10, 20, 12, 3);
+    x.fillStyle = shade(a.skin, 0.55); x.fillRect(12, 24, 8, 2);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function heldMesh(kind: HeldItem): THREE.Group {
+  const g = new THREE.Group();
+  const add = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number, rx = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, lam(color));
+    m.position.set(x, y, z);
+    m.rotation.set(rx, 0, rz);
+    m.castShadow = true;
+    g.add(m);
+  };
+  const wood = '#6e4a2c', iron = '#8e959e', dark = '#3a3d42', bronze = '#c08a42';
+  switch (kind) {
+    case 'sword':
+    case 'bronzeSword': {
+      const blade = kind === 'sword' ? '#b4bcc6' : '#d6a052';
+      add(rbox(0.07, 0.16, 0.07, 0.02), '#4a2e1c', 0, -0.02, 0);
+      add(rbox(0.09, 0.06, 0.32, 0.02), kind === 'sword' ? dark : bronze, 0, 0.08, 0);
+      add(rbox(0.05, 0.8, 0.12, 0.015), blade, 0, 0.5, 0);
+      add(rbox(0.06, 0.06, 0.06, 0.02), kind === 'sword' ? dark : bronze, 0, -0.12, 0);
+      add(new THREE.ConeGeometry(0.06, 0.14, 4), blade, 0, 0.96, 0);
+      break;
+    }
+    case 'pickaxe':
+      add(rbox(0.06, 0.95, 0.06, 0.02), wood, 0, 0.3, 0);
+      add(rbox(0.08, 0.1, 0.62, 0.02), iron, 0, 0.74, 0.0);
+      add(new THREE.ConeGeometry(0.045, 0.16, 4), iron, 0, 0.74, 0.38, Math.PI / 2);
+      add(new THREE.ConeGeometry(0.045, 0.16, 4), iron, 0, 0.74, -0.38, -Math.PI / 2);
+      break;
+    case 'hatchet':
+      add(rbox(0.06, 0.75, 0.06, 0.02), wood, 0, 0.25, 0);
+      add(rbox(0.06, 0.24, 0.26, 0.02), iron, 0, 0.56, 0.12);
+      break;
+    case 'rod':
+      add(new THREE.CylinderGeometry(0.018, 0.03, 2.2, 5), '#8a6a3a', 0, 1.0, 0);
+      add(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 8), dark, 0, 0.1, 0.06, 0, Math.PI / 2);
+      break;
+    case 'hammer':
+      add(rbox(0.05, 0.55, 0.05, 0.02), wood, 0, 0.18, 0);
+      add(rbox(0.14, 0.12, 0.26, 0.02), dark, 0, 0.45, 0.04);
+      break;
+    case 'tongs':
+      add(rbox(0.03, 0.7, 0.03, 0.01), dark, 0.025, 0.25, 0);
+      add(rbox(0.03, 0.7, 0.03, 0.01), dark, -0.025, 0.25, 0);
+      break;
+  }
+  return g;
+}
+
+export class Humanoid {
+  readonly root = new THREE.Group();
+  readonly body = new THREE.Group();
+  private hips = new THREE.Group();
+  private torso = new THREE.Group();
+  private head = new THREE.Group();
+  private armL = new THREE.Group();
+  private armR = new THREE.Group();
+  private foreL = new THREE.Group();
+  private foreR = new THREE.Group();
+  private legL = new THREE.Group();
+  private legR = new THREE.Group();
+  private shinL = new THREE.Group();
+  private shinR = new THREE.Group();
+  private handR = new THREE.Group();
+  private cape: THREE.Mesh | null = null;
+  private held: THREE.Group | null = null;
+  heldKind: HeldItem = 'none';
+  private phase = 0;
+  private blink = 0;
+  state: AnimState = 'idle';
+  stateTime = 0;
+  /** 0..1 progress hint for one-shot actions (attack, mine, chop). */
+  actionSpeed = 1;
+  comboIndex = 0;
+  private capeSwing = 0;
+  /** Lowest point of the model through a dodge roll, sampled on first use (see rollFloorAt). */
+  private rollFloor: Float32Array | null = null;
+  private eyeLids: THREE.Mesh;
+
+  constructor(public look: Appearance) {
+    const build = look.build ?? 1;
+    const s = look.height ?? 1;
+    this.root.add(this.body);
+    this.body.scale.setScalar(s);
+
+    const part = (parent: THREE.Object3D, geo: THREE.BufferGeometry, color: string | THREE.Material, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(geo, typeof color === 'string' ? lam(color) : color);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      parent.add(m);
+      return m;
+    };
+
+    // Hips sit at the top of the legs; everything hangs from here.
+    this.hips.position.y = 0.86;
+    this.body.add(this.hips);
+    part(this.hips, rbox(0.5 * build, 0.2, 0.3, 0.05), look.trousers, 0, 0, 0);
+
+    for (const [leg, shin, side] of [[this.legL, this.shinL, 1], [this.legR, this.shinR, -1]] as const) {
+      leg.position.set(0.13 * side * build, -0.04, 0);
+      this.hips.add(leg);
+      part(leg, rbox(0.22, 0.42, 0.24, 0.05), look.trousers, 0, -0.2, 0);
+      shin.position.set(0, -0.4, 0);
+      leg.add(shin);
+      part(shin, rbox(0.21, 0.24, 0.23, 0.05), look.trousers, 0, -0.1, 0);
+      part(shin, rbox(0.25, 0.22, 0.32, 0.06), look.boots, 0, -0.32, 0.03);
+      part(shin, rbox(0.27, 0.06, 0.34, 0.03), shade(look.boots, 0.7), 0, -0.41, 0.03);
+    }
+
+    this.torso.position.y = 0.06;
+    this.hips.add(this.torso);
+    part(this.torso, rbox(0.54 * build, 0.38, 0.32, 0.06), look.tunic, 0, 0.36, 0);
+    part(this.torso, rbox(0.6 * build, 0.24, 0.34, 0.07), look.tunic, 0, 0.58, 0);
+    part(this.torso, rbox(0.56 * build, 0.09, 0.35, 0.03), '#3b2618', 0, 0.16, 0);
+    part(this.torso, rbox(0.1, 0.08, 0.04, 0.015), '#c8a040', 0, 0.16, 0.18);
+    // Tunic skirt below the belt
+    part(this.torso, rbox(0.56 * build, 0.2, 0.34, 0.04), shade(look.tunic, 0.9), 0, 0.03, 0);
+    // Collar trim
+    part(this.torso, rbox(0.3, 0.06, 0.34, 0.02), look.trim, 0, 0.71, 0);
+    if (look.apron) part(this.torso, rbox(0.42, 0.62, 0.04, 0.02), '#5a3a24', 0, 0.28, 0.18);
+    if (look.shoulderPads) {
+      for (const side of [1, -1]) part(this.torso, rbox(0.26, 0.15, 0.36, 0.06), look.shoulderPads, side * 0.34 * build, 0.68, 0);
+    }
+
+    // Head
+    this.head.position.set(0, 0.76, 0);
+    this.torso.add(this.head);
+    part(this.head, rbox(0.14, 0.08, 0.14, 0.03), look.skin, 0, 0.02, 0);
+    const faceMat = new THREE.MeshLambertMaterial({ map: faceTexture(look) });
+    const skinMat = lam(look.skin);
+    const headGeo = rbox(0.44, 0.46, 0.42, 0.07);
+    const headMesh = new THREE.Mesh(headGeo, skinMat);
+    headMesh.position.set(0, 0.28, 0);
+    headMesh.castShadow = true;
+    this.head.add(headMesh);
+    const faceQuad = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.42), faceMat);
+    faceQuad.position.set(0, 0.28, 0.212);
+    this.head.add(faceQuad);
+    this.eyeLids = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.06), skinMat);
+    this.eyeLids.position.set(0, 0.29, 0.215);
+    this.eyeLids.visible = false;
+    this.head.add(this.eyeLids);
+    // Ears
+    for (const side of [1, -1]) part(this.head, rbox(0.06, 0.12, 0.08, 0.02), look.skin, side * 0.23, 0.27, 0);
+    this.buildHair(part);
+
+    // Arms
+    for (const [arm, fore, side] of [[this.armL, this.foreL, 1], [this.armR, this.foreR, -1]] as const) {
+      arm.position.set(0.37 * side * build, 0.64, 0);
+      this.torso.add(arm);
+      part(arm, rbox(0.18, 0.32, 0.2, 0.05), look.tunic, 0, -0.13, 0);
+      fore.position.set(0, -0.3, 0);
+      arm.add(fore);
+      part(fore, rbox(0.17, 0.26, 0.19, 0.05), shade(look.tunic, 0.95), 0, -0.1, 0);
+      part(fore, rbox(0.19, 0.07, 0.21, 0.02), look.trim, 0, -0.2, 0);
+      part(fore, rbox(0.16, 0.15, 0.17, 0.05), look.skin, 0, -0.3, 0);
+    }
+    this.handR.position.set(0, -0.32, 0.02);
+    this.foreR.add(this.handR);
+
+    if (look.cape) {
+      const capeGeo = new THREE.PlaneGeometry(0.62 * build, 1.0, 2, 6);
+      capeGeo.translate(0, -0.5, 0);
+      this.cape = new THREE.Mesh(capeGeo, new THREE.MeshLambertMaterial({ color: look.cape, side: THREE.DoubleSide }));
+      this.cape.position.set(0, 0.72, -0.18);
+      this.cape.castShadow = true;
+      this.torso.add(this.cape);
+    }
+    this.root.traverse((o) => { o.userData.humanoid = this; });
+  }
+
+  private buildHair(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
+    const h = this.look.hair;
+    const hat = this.look.hat ?? 'none';
+    const style = this.look.hairStyle;
+    if (hat === 'hood') {
+      part(this.head, rbox(0.52, 0.32, 0.5, 0.1), this.look.hatColor ?? '#4a5a3a', 0, 0.48, -0.02);
+      part(this.head, rbox(0.52, 0.42, 0.18, 0.06), this.look.hatColor ?? '#4a5a3a', 0, 0.28, -0.18);
+      for (const s of [1, -1]) part(this.head, rbox(0.06, 0.44, 0.44, 0.03), this.look.hatColor ?? '#4a5a3a', s * 0.25, 0.3, 0);
+      return;
+    }
+    if (style !== 3) {
+      part(this.head, rbox(0.48, 0.14, 0.46, 0.06), h, 0, 0.53, -0.01);
+      part(this.head, rbox(0.48, 0.34, 0.12, 0.04), h, 0, 0.36, -0.18);
+      for (const s of [1, -1]) part(this.head, rbox(0.06, 0.24, 0.36, 0.03), h, s * 0.235, 0.4, -0.03);
+      part(this.head, rbox(0.42, 0.08, 0.06, 0.03), h, 0, 0.5, 0.2);
+    } else {
+      part(this.head, rbox(0.45, 0.04, 0.43, 0.02), shade(h, 0.8), 0, 0.51, 0);
+    }
+    if (style === 1) part(this.head, rbox(0.46, 0.5, 0.1, 0.04), h, 0, 0.18, -0.22);
+    if (style === 2) { part(this.head, rbox(0.18, 0.18, 0.18, 0.07), h, 0, 0.66, -0.06); part(this.head, rbox(0.1, 0.06, 0.1, 0.02), '#a8442e', 0, 0.58, -0.06); }
+    if (style === 4) for (const s of [1, -1]) { part(this.head, rbox(0.1, 0.5, 0.1, 0.04), h, s * 0.2, 0.08, -0.15); part(this.head, rbox(0.11, 0.05, 0.11, 0.02), '#e2c070', s * 0.2, -0.15, -0.15); }
+    if (hat === 'cap') part(this.head, rbox(0.5, 0.12, 0.5, 0.05), this.look.hatColor ?? '#6a3a2a', 0, 0.58, 0);
+    if (hat === 'kerchief') { part(this.head, rbox(0.5, 0.14, 0.48, 0.06), this.look.hatColor ?? '#a8382c', 0, 0.55, -0.02); part(this.head, rbox(0.14, 0.14, 0.08, 0.03), this.look.hatColor ?? '#a8382c', 0, 0.42, -0.26); }
+  }
+
+  setHeld(kind: HeldItem): void {
+    if (kind === this.heldKind) return;
+    if (this.held) this.handR.remove(this.held);
+    this.held = kind === 'none' ? null : heldMesh(kind);
+    if (this.held) {
+      this.held.rotation.x = Math.PI / 2;
+      this.handR.add(this.held);
+    }
+    this.heldKind = kind;
+  }
+
+  /** Stroke phase, and the swimmer's body pitch (set by the player; 0 is level, positive head-up). */
+  private swimPhase = 0;
+  swimPitch = 0;
+
+  setState(s: AnimState): void {
+    if (s !== this.state) { this.state = s; this.stateTime = 0; }
+  }
+
+  /** speed is horizontal speed in m/s; used to drive the stride. */
+  update(dt: number, speed: number, airborne = false): void {
+    this.stateTime += dt;
+    const t = this.stateTime;
+    this.blink -= dt;
+    if (this.blink < -0.12) this.blink = 2 + Math.random() * 3;
+    this.eyeLids.visible = this.blink < 0 && this.state !== 'dead';
+
+    // Reset pose
+    const P = this;
+    P.body.position.set(0, 0, 0);
+    P.body.rotation.set(0, 0, 0);
+    P.hips.rotation.set(0, 0, 0);
+    P.torso.rotation.set(0, 0, 0);
+    P.head.rotation.set(0, 0, 0);
+    for (const g of [P.armL, P.armR, P.foreL, P.foreR, P.legL, P.legR, P.shinL, P.shinR]) g.rotation.set(0, 0, 0);
+    P.armL.rotation.z = 0.08;
+    P.armR.rotation.z = -0.08;
+    P.foreL.rotation.x = -0.15;
+    P.foreR.rotation.x = -0.15;
+    if (P.held) {
+      // Blades rest angled up and forward; tools and swings hold perpendicular to the forearm.
+      const resting = ['idle', 'walk', 'run', 'jump', 'talk', 'hit'].includes(this.state);
+      const blade = this.heldKind === 'sword' || this.heldKind === 'bronzeSword';
+      P.held.rotation.set(blade && resting ? 0.55 : Math.PI / 2, 0, 0);
+    }
+
+    const stride = Math.min(1, speed / 6);
+    if (speed > 0.2) this.phase += dt * (4.5 + speed * 1.15);
+    const sw = Math.sin(this.phase);
+    const breathe = Math.sin(performance.now() * 0.0022) * 0.015;
+
+    const legs = (amp: number) => {
+      P.legL.rotation.x = sw * amp;
+      P.legR.rotation.x = -sw * amp;
+      P.shinL.rotation.x = Math.max(0, -Math.sin(this.phase - 0.9)) * amp * 1.3;
+      P.shinR.rotation.x = Math.max(0, Math.sin(this.phase - 0.9)) * amp * 1.3;
+      P.body.position.y = Math.abs(Math.cos(this.phase)) * 0.05 * amp * 1.6;
+    };
+    const armsSwing = (amp: number) => {
+      P.armL.rotation.x = -sw * amp;
+      P.armR.rotation.x = sw * amp;
+      P.foreL.rotation.x = -0.25 - Math.max(0, sw) * amp * 0.6;
+      P.foreR.rotation.x = -0.25 - Math.max(0, -sw) * amp * 0.6;
+    };
+
+    switch (this.state) {
+      case 'idle':
+      case 'talk': {
+        P.torso.position.y = 0.06 + breathe;
+        P.armL.rotation.z = 0.1 + breathe;
+        P.armR.rotation.z = -0.1 - breathe;
+        P.head.rotation.y = Math.sin(performance.now() * 0.0006) * 0.12;
+        if (this.state === 'talk') {
+          P.armR.rotation.x = -0.6 - Math.sin(t * 3) * 0.25;
+          P.foreR.rotation.x = -0.9;
+          P.head.rotation.x = Math.sin(t * 5) * 0.05;
+        }
+        break;
+      }
+      case 'walk':
+      case 'run': {
+        const amp = this.state === 'run' ? 0.95 : 0.55 + stride * 0.2;
+        legs(amp);
+        armsSwing(amp * 0.9);
+        P.torso.rotation.x = this.state === 'run' ? 0.14 : 0.04;
+        P.torso.rotation.y = sw * 0.06;
+        break;
+      }
+      case 'swim': {
+        // Front crawl, body near level and pivoting about the chest: arms wheel overhead in turn,
+        // legs flutter, the head lifts to look ahead and turns to breathe on every other stroke.
+        const lean = THREE.MathUtils.clamp(1.3 - this.swimPitch, 0.2, 2.6), h = 1.15;
+        this.swimPhase += dt * (3.2 + speed * 0.55);
+        const s = this.swimPhase;
+        P.body.rotation.x = lean;
+        P.body.position.y = h - h * Math.cos(lean);
+        P.body.position.z = -h * Math.sin(lean) * 0.55;
+        P.armL.rotation.x = -(s % (Math.PI * 2));
+        P.armR.rotation.x = -((s + Math.PI) % (Math.PI * 2));
+        P.armL.rotation.z = 0.25; P.armR.rotation.z = -0.25;
+        P.foreL.rotation.x = -0.35 - Math.max(0, Math.sin(s)) * 0.5;
+        P.foreR.rotation.x = -0.35 - Math.max(0, -Math.sin(s)) * 0.5;
+        P.legL.rotation.x = Math.sin(s * 2.2) * 0.32; P.legR.rotation.x = -Math.sin(s * 2.2) * 0.32;
+        P.shinL.rotation.x = 0.15 + Math.max(0, Math.sin(s * 2.2)) * 0.3; P.shinR.rotation.x = 0.15 + Math.max(0, -Math.sin(s * 2.2)) * 0.3;
+        P.head.rotation.x = -Math.min(1.1, lean * 0.7);
+        P.head.rotation.y = Math.sin(s * 0.5) > 0.7 ? Math.sin(s * 0.5) * 0.5 : 0;
+        P.torso.rotation.y = Math.sin(s) * 0.18;
+        break;
+      }
+      case 'tread': {
+        // Treading water: upright with a slight lean, hands sculling, legs cycling, a gentle bob
+        this.swimPhase += dt * 3.4;
+        const s = this.swimPhase;
+        P.body.rotation.x = 0.18;
+        P.body.position.y = Math.sin(s * 0.6) * 0.05;
+        P.armL.rotation.x = -0.35; P.armR.rotation.x = -0.35;
+        P.armL.rotation.z = 0.75 + Math.sin(s) * 0.3; P.armR.rotation.z = -0.75 - Math.sin(s) * 0.3;
+        P.armL.rotation.y = Math.sin(s) * 0.35; P.armR.rotation.y = -Math.sin(s) * 0.35;
+        P.foreL.rotation.x = -0.7; P.foreR.rotation.x = -0.7;
+        P.legL.rotation.x = -0.35 + Math.sin(s * 1.3) * 0.45; P.legR.rotation.x = -0.35 - Math.sin(s * 1.3) * 0.45;
+        P.shinL.rotation.x = 0.7 + Math.cos(s * 1.3) * 0.35; P.shinR.rotation.x = 0.7 - Math.cos(s * 1.3) * 0.35;
+        P.head.rotation.x = -0.12;
+        break;
+      }
+      case 'jump': {
+        P.legL.rotation.x = -0.6; P.shinL.rotation.x = 1.0;
+        P.legR.rotation.x = 0.25; P.shinR.rotation.x = 0.5;
+        P.armL.rotation.x = -0.9; P.armR.rotation.x = -0.5;
+        P.armL.rotation.z = 0.5; P.armR.rotation.z = -0.5;
+        break;
+      }
+      case 'attack': {
+        // Three-step combo: right slash, backhand, overhead.
+        const d = 0.42 / this.actionSpeed;
+        const k = Math.min(1, t / d);
+        const wind = k < 0.35 ? k / 0.35 : 1;
+        const strike = k < 0.35 ? 0 : Math.min(1, (k - 0.35) / 0.3);
+        if (this.comboIndex === 0) {
+          P.armR.rotation.x = -1.6 * wind + 1.9 * strike;
+          P.armR.rotation.z = -0.9 * wind + 0.9 * strike;
+          P.torso.rotation.y = 0.5 * wind - 1.0 * strike;
+        } else if (this.comboIndex === 1) {
+          P.armR.rotation.x = -1.3;
+          P.armR.rotation.y = -0.8 * wind + 1.6 * strike;
+          P.armR.rotation.z = -1.2;
+          P.torso.rotation.y = -0.5 * wind + 1.0 * strike;
+        } else {
+          P.armR.rotation.x = -2.8 * wind + 2.6 * strike;
+          P.armL.rotation.x = -2.4 * wind + 2.2 * strike;
+          P.torso.rotation.x = -0.2 * wind + 0.45 * strike;
+        }
+        P.foreR.rotation.x = -0.4;
+        P.legL.rotation.x = -0.35; P.legR.rotation.x = 0.3; P.shinR.rotation.x = 0.3;
+        break;
+      }
+      case 'cleave': {
+        const k = Math.min(1, t / 0.55);
+        P.body.rotation.y = k * Math.PI * 2;
+        P.armR.rotation.x = -1.5;
+        P.armR.rotation.z = -1.3;
+        P.armL.rotation.z = 1.2;
+        P.legL.rotation.x = -0.4; P.legR.rotation.x = 0.4;
+        P.body.position.y = Math.sin(k * Math.PI) * 0.15;
+        break;
+      }
+      case 'mine':
+      case 'chop':
+      case 'hammer': {
+        const period = this.state === 'hammer' ? 0.7 : 0.9 / this.actionSpeed;
+        const k = (t % period) / period;
+        const up = k < 0.55 ? k / 0.55 : 1 - (k - 0.55) / 0.15;
+        const v = Math.max(0, Math.min(1, up));
+        if (this.state === 'chop') {
+          P.torso.rotation.y = 0.7 * v - 0.4;
+          P.armR.rotation.x = -1.3;
+          P.armR.rotation.z = -1.6 * v + 0.2;
+          P.armL.rotation.x = -1.0;
+          P.armL.rotation.z = 0.2;
+        } else {
+          P.armR.rotation.x = -2.9 * v - 0.2;
+          P.armL.rotation.x = this.state === 'hammer' ? -0.6 : -2.7 * v - 0.2;
+          P.torso.rotation.x = 0.35 * (1 - v);
+          P.foreR.rotation.x = -0.4 * v;
+        }
+        P.legL.rotation.x = -0.25; P.legR.rotation.x = 0.25;
+        break;
+      }
+      case 'fishCast': {
+        const k = Math.min(1, t / 0.7);
+        const back = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55;
+        P.armR.rotation.x = -1.2 - back * 1.6;
+        P.foreR.rotation.x = -0.4;
+        P.torso.rotation.x = -0.1 * back;
+        break;
+      }
+      case 'fishWait': {
+        P.armR.rotation.x = -0.9 + Math.sin(t * 1.5) * 0.03;
+        P.armL.rotation.x = -0.7; P.armL.rotation.z = -0.25;
+        P.foreR.rotation.x = -0.3;
+        P.torso.position.y = 0.06 + breathe;
+        break;
+      }
+      case 'cook': {
+        P.armR.rotation.x = -1.0 + Math.sin(t * 3) * 0.15;
+        P.armL.rotation.x = -0.6;
+        P.torso.rotation.x = 0.25;
+        P.legL.rotation.x = -0.9; P.shinL.rotation.x = 1.2; P.legR.rotation.x = 0.2; P.shinR.rotation.x = 1.6;
+        P.body.position.y = -0.22;
+        break;
+      }
+      case 'bellows': {
+        const k = Math.sin(t * 3.4);
+        P.armR.rotation.x = -0.9 - k * 0.35; P.armL.rotation.x = -0.9 - k * 0.35;
+        P.foreR.rotation.x = -0.6; P.foreL.rotation.x = -0.6;
+        P.torso.rotation.x = 0.2 + k * 0.08;
+        break;
+      }
+      case 'hit': {
+        const k = Math.max(0, 1 - t / 0.3);
+        P.torso.rotation.x = -0.35 * k;
+        P.head.rotation.x = -0.3 * k;
+        P.armL.rotation.z = 0.6 * k;
+        P.armR.rotation.z = -0.6 * k;
+        break;
+      }
+      case 'heal': {
+        const k = Math.min(1, t / 0.5);
+        P.armL.rotation.x = -2.2 * k; P.armR.rotation.x = -2.2 * k;
+        P.armL.rotation.z = 0.5; P.armR.rotation.z = -0.5;
+        P.head.rotation.x = -0.3 * k;
+        break;
+      }
+      case 'roll': {
+        const k = Math.min(1, t / ROLL_TIME);
+        this.poseRoll(k);
+        // Keep the tucked body on the ground: no sinking through it, no floating over it.
+        P.body.position.y -= this.rollFloorAt(k);
+        break;
+      }
+      case 'dead': {
+        const k = Math.min(1, t / 0.6);
+        P.body.rotation.x = -k * Math.PI / 2;
+        P.body.position.y = 0.15 * k;
+        P.body.position.z = -0.6 * k;
+        P.armL.rotation.z = 1.2 * k; P.armR.rotation.z = -1.2 * k;
+        break;
+      }
+    }
+    if (airborne && this.state !== 'roll' && this.state !== 'attack' && this.state !== 'cleave') {
+      P.legL.rotation.x = -0.5; P.shinL.rotation.x = 0.9; P.legR.rotation.x = 0.2; P.shinR.rotation.x = 0.4;
+    }
+    if (this.cape) {
+      const target = 0.15 + Math.min(1, speed / 7) * 0.9 + (airborne ? 0.4 : 0);
+      this.capeSwing += (target - this.capeSwing) * Math.min(1, dt * 5);
+      this.cape.rotation.x = this.capeSwing + Math.sin(performance.now() * 0.006 + this.phase) * 0.05;
+    }
+  }
+
+  /**
+   * Dodge-roll pose at fraction k: dive with the arms reaching, tuck, tumble once about the
+   * tucked body's middle, then come up through a crouch. Poses are keyed and eased between.
+   */
+  private poseRoll(k: number): void {
+    const P = this;
+    let a = ROLL_KEYS[0], b = ROLL_KEYS[1];
+    for (let i = 1; i < ROLL_KEYS.length; i++) { a = ROLL_KEYS[i - 1]; b = ROLL_KEYS[i]; if (k <= b.at) break; }
+    const u = THREE.MathUtils.smoothstep(k, a.at, b.at);
+    const m = (f: keyof RollPose) => a[f] + (b[f] - a[f]) * u;
+    P.legL.rotation.x = m('leg'); P.legR.rotation.x = m('leg') + m('split');
+    P.shinL.rotation.x = m('shin'); P.shinR.rotation.x = m('shin') - m('split') * 0.5;
+    P.torso.rotation.x = m('curl');
+    P.head.rotation.x = m('nod');
+    P.armL.rotation.x = m('arm'); P.armR.rotation.x = m('arm');
+    P.armL.rotation.z = m('wide'); P.armR.rotation.z = -m('wide');
+    P.foreL.rotation.x = m('fore'); P.foreR.rotation.x = m('fore');
+    // Turn the whole body about a pivot near the middle of the tucked shape, so the roll
+    // travels over the shoulders instead of swinging round the feet.
+    const ang = Math.PI * 2 * THREE.MathUtils.smootherstep(k, 0.1, 0.8);
+    const s = P.body.scale.x, py = 1.0, pz = 0.3;
+    P.body.rotation.x = ang;
+    P.body.position.y = s * (m('lift') - (py * Math.cos(ang) - pz * Math.sin(ang)));
+    P.body.position.z = s * (pz - (py * Math.sin(ang) + pz * Math.cos(ang)));
+  }
+
+  /**
+   * Height of the model's lowest point above its feet at roll fraction k. Measured once per
+   * model from the real meshes (builds, heights and hats differ), leaving out the held item
+   * and the cape, which may brush the ground.
+   */
+  private rollFloorAt(k: number): number {
+    if (!this.rollFloor) {
+      const n = 32, f = new Float32Array(n + 1);
+      const box = new THREE.Box3(), base = new THREE.Vector3();
+      const skip = new Set<THREE.Object3D | null>([this.held, this.cape]);
+      const measure = (o: THREE.Object3D) => {
+        if (skip.has(o)) return;
+        if ((o as THREE.Mesh).isMesh && o !== this.eyeLids) box.expandByObject(o, true);
+        for (const c of o.children) measure(c);
+      };
+      for (let i = 0; i <= n; i++) {
+        this.poseRoll(i / n);
+        this.root.updateMatrixWorld(true);
+        box.makeEmpty();
+        measure(this.body);
+        // Standing feet sit a hair below zero; measure the roll against that, not against 0.
+        f[i] = box.min.y - this.root.getWorldPosition(base).y;
+      }
+      const rest = f[0];
+      for (let i = 0; i <= n; i++) f[i] -= rest;
+      this.rollFloor = f;
+    }
+    const f = this.rollFloor, x = k * (f.length - 1), i = Math.min(f.length - 2, Math.floor(x));
+    return f[i] + (f[i + 1] - f[i]) * (x - i);
+  }
+
+  /** Approximate world position of the held item tip (used for sparks, fishing line origin). */
+  heldTip(out: THREE.Vector3): THREE.Vector3 {
+    if (!this.held) return this.handR.getWorldPosition(out);
+    const local = new THREE.Vector3(0, this.heldKind === 'rod' ? 2.1 : 0.75, 0);
+    return this.held.localToWorld(out.copy(local));
+  }
+}

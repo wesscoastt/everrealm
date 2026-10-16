@@ -1,0 +1,172 @@
+/* Character select, creator and intro. Same Hearthwood materials as the HUD (styles.css). */
+
+.fe-root { position: absolute; inset: 0; z-index: 22; pointer-events: none; }
+.fe { position: absolute; inset: 0; }
+.fe button, .fe input, .fe .frame, .fe-drag, .fe-modal { pointer-events: auto; }
+#settings-panel { z-index: 30; }
+
+.fe .frame > header { position: relative; display: flex; align-items: baseline; justify-content: space-between; padding: 9px 14px 8px; background: linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.45)), var(--tex-stone); background-size: auto, 64px; border-bottom: 3px solid var(--ink); }
+.fe .frame > header h3 { margin: 0; font: 600 17px var(--px); color: var(--cream); letter-spacing: 0.6px; text-shadow: var(--hard); }
+.fe .frame > header small { font: 500 13px var(--px); color: var(--muted); }
+.fe .btn.sm { padding: 5px 10px; font-size: 12px; }
+.fe .btn.big { padding: 14px 44px; font-size: 20px; letter-spacing: 1px; }
+.fe .btn.on { background: linear-gradient(#a8e07a 0 2px, var(--moss) 2px 55%, var(--moss-d) 55%); color: #fff; }
+.fe .link { background: none; border: 0; padding: 4px 2px; cursor: pointer; font: 600 13px var(--px); color: var(--cream-d); text-shadow: var(--hard1); letter-spacing: 0.5px; }
+.fe .link:hover { color: #fff; }
+.fe .link.danger { color: #e8907a; }
+.fe label { display: block; font: 600 11px var(--px); color: var(--muted); letter-spacing: 1px; margin: 12px 0 6px; }
+.fe input[type=text] { width: 100%; padding: 8px 10px; font: 600 17px var(--px); color: var(--cream); background: #0b0907; border: 2px solid var(--ink); box-shadow: inset 0 0 0 2px #5a4129; outline: none; user-select: text; }
+.fe input[type=text]:focus { box-shadow: inset 0 0 0 2px var(--moss); }
+.fe input[type=text].bad { box-shadow: inset 0 0 0 2px var(--ember); }
+.fe .nrow { display: flex; gap: 6px; align-items: stretch; }
+.fe .actions { display: flex; gap: 8px; margin-top: 14px; }
+.fe .actions .btn { flex: 1; padding: 10px; }
+.fe .chip { font: 500 13px var(--px); }
+
+/* ------------------------------------------------------------------ Character select */
+.fe-select { background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 38%, rgba(8, 6, 4, 0.62) 100%), linear-gradient(rgba(8,6,4,0.45), rgba(8,6,4,0) 22%, rgba(8,6,4,0) 70%, rgba(8,6,4,0.7)); }
+.fe-brand { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; }
+.fe-brand .gem { width: 16px; height: 16px; background: linear-gradient(#e4fbff 0 3px, var(--teal) 3px 60%, var(--teal-d) 60%); border: 2px solid var(--ink); transform: rotate(45deg); box-shadow: 0 0 14px rgba(95, 208, 230, 0.8); }
+.fe-brand b { font: 700 34px var(--px); letter-spacing: 3px; color: var(--cream); text-shadow: 0 3px 0 #9c8458, 0 6px 0 #3a2c1a, 0 10px 16px rgba(0,0,0,0.6); }
+.fe-brand b span { color: var(--moss); }
+
+.fe-realm { position: absolute; top: 18px; right: 22px; display: flex; align-items: center; gap: 14px; padding: 8px 12px 8px 14px; }
+.fe-realm small { display: block; font: 600 10px var(--px); color: var(--muted); letter-spacing: 1.5px; }
+.fe-realm b { font: 600 16px var(--px); color: var(--cream); text-shadow: var(--hard1); }
+.fe-realm .st { display: flex; align-items: center; gap: 7px; font: 500 13px var(--body); color: var(--cream-d); max-width: 230px; }
+.fe-realm .st span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-realm { flex-wrap: wrap; max-width: 470px; }
+.fe-realm .acct { flex-basis: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); font: 500 13px var(--body); color: var(--cream-d); }
+.fe-realm .acct b { font: 600 13px var(--body); color: var(--wheat); text-shadow: none; }
+.fe-realm .acct small { font: 500 12px var(--body); letter-spacing: 0; color: var(--muted); }
+.fe-realm .link { background: none; border: 0; padding: 0; color: var(--wheat); font: 600 13px var(--body); text-decoration: underline; cursor: pointer; }
+.fe-modal .acct-form label { display: block; margin: 10px 0 4px; font: 600 11px var(--px); letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+.fe-modal .acct-form input { width: 100%; box-sizing: border-box; padding: 9px 10px; background: rgba(0,0,0,0.4); border: 2px solid var(--ink); color: var(--cream); font: 500 15px var(--body); }
+.fe-modal .acct-form input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--moss); }
+.fe-modal .acct-form .err { min-height: 20px; margin: 8px 0 0; font-size: 13.5px; color: #f0a37a; }
+.fe-modal .acct-form .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.dot { flex: none; width: 10px; height: 10px; border: 2px solid var(--ink); background: var(--faint); }
+.dot.up { background: var(--moss); box-shadow: 0 0 8px var(--moss); }
+.dot.down { background: var(--ember); }
+.dot.checking { background: var(--wheat); animation: blink 0.8s steps(2) infinite; }
+.dot.offline { background: var(--teal); }
+@keyframes blink { 50% { opacity: 0.3; } }
+
+.fe-roster { position: absolute; left: 22px; top: 92px; width: 300px; max-height: calc(100vh - 200px); display: flex; flex-direction: column; padding-bottom: 12px; }
+.fe-roster .list { overflow-y: auto; padding: 10px 10px 2px; display: flex; flex-direction: column; gap: 6px; }
+.fe-roster .empty { margin: 8px 4px; font: italic 500 15px var(--book); color: var(--muted); }
+.fe-roster .card { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 9px; text-align: left; cursor: pointer; background: rgba(0,0,0,0.35); border: 2px solid var(--ink); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04); color: var(--cream); }
+.fe-roster .card:hover { background: rgba(255, 230, 180, 0.06); }
+.fe-roster .card.sel { background: linear-gradient(90deg, rgba(127, 191, 77, 0.28), rgba(127, 191, 77, 0.06)); box-shadow: inset 0 0 0 2px var(--moss); }
+.fe-roster .card canvas { width: 44px; height: 44px; flex: none; image-rendering: pixelated; border: 2px solid var(--ink); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
+.fe-roster .card .t { display: flex; flex-direction: column; min-width: 0; }
+.fe-roster .card b { font: 600 16px var(--px); text-shadow: var(--hard1); }
+.fe-roster .card small { font: 500 12.5px var(--body); color: var(--cream-d); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fe-roster .row { padding: 10px 10px 0; }
+.fe-roster .row .btn { width: 100%; padding: 9px; }
+.fe-roster .link.danger { align-self: center; margin-top: 8px; }
+
+.fe-news { position: absolute; right: 22px; top: 92px; width: 280px; padding-bottom: 10px; }
+.fe-news ul { margin: 0; padding: 10px 14px 0 30px; font: 500 14.5px/1.35 var(--body); color: var(--cream-d); }
+.fe-news li { margin-bottom: 8px; }
+.fe-news li::marker { color: var(--teal); }
+.fe-news b { color: var(--cream); }
+
+.fe-enter { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; width: min(560px, calc(100vw - 32px)); }
+.fe-enter h2 { margin: 0; font: 700 34px var(--px); color: var(--cream); letter-spacing: 1px; text-shadow: 3px 3px 0 #0a0806, 0 0 18px rgba(0,0,0,0.6); }
+.fe-enter p { margin: 2px 0 0; font: 500 16px var(--body); color: var(--cream-d); text-shadow: var(--hard1); }
+.fe-enter .hint { font: 500 12px var(--px); color: var(--muted); text-shadow: var(--hard1); letter-spacing: 0.5px; }
+
+.fe-foot { position: absolute; left: 22px; bottom: 16px; display: flex; gap: 14px; }
+.fe-ver { position: absolute; right: 22px; bottom: 18px; font: 500 12px var(--px); color: var(--muted); text-shadow: var(--hard1); letter-spacing: 0.4px; }
+
+/* ------------------------------------------------------------------ Modals */
+.fe-modal { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(6, 4, 2, 0.6); z-index: 5; padding: 16px; }
+.fe-modal .box { position: relative; width: min(440px, 100%); padding-bottom: 14px; }
+.fe-modal .body { padding: 4px 16px 0; }
+.fe-modal p { font: 500 15px/1.4 var(--body); color: var(--cream-d); }
+.fe-modal .prose p { font: 500 16px/1.45 var(--book); }
+.fe-modal .note { font-size: 13.5px; color: var(--muted); }
+.fe-modal code { font: 600 12.5px monospace; color: var(--wheat); }
+.fe-modal .realm { display: block; width: 100%; margin: 10px 0 0; padding: 10px 12px; text-align: left; cursor: pointer; background: rgba(0,0,0,0.35); border: 2px solid var(--ink); color: var(--cream); }
+.fe-modal .realm.sel { box-shadow: inset 0 0 0 2px var(--moss); }
+.fe-modal .realm b { display: block; font: 600 16px var(--px); }
+.fe-modal .realm small { font: 500 13px var(--body); color: var(--cream-d); }
+
+/* ------------------------------------------------------------------ Creator */
+.fe-steps { position: absolute; left: 22px; top: 22px; bottom: 22px; width: 360px; display: flex; flex-direction: column; }
+.fe-steps .tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 3px solid var(--ink); background: rgba(0,0,0,0.25); }
+.fe-steps .tabs button { flex: 1; padding: 7px 2px 6px; cursor: pointer; font: 600 13px var(--px); color: var(--muted); background: rgba(0,0,0,0.35); border: 2px solid var(--ink); border-bottom: 0; }
+.fe-steps .tabs button.sel { color: #fff; background: var(--moss-d); text-shadow: var(--hard1); }
+.fe-steps .pane { flex: 1; overflow-y: auto; padding: 4px 14px 14px; }
+.fe-steps .pane::-webkit-scrollbar { width: 10px; }
+.fe-steps .pane::-webkit-scrollbar-thumb { background: var(--iron); border: 2px solid var(--ink); }
+.fe-steps .lead { font: italic 500 15px/1.4 var(--book); color: var(--cream-d); margin: 10px 0 4px; }
+.fe-steps .origin { display: flex; flex-direction: column; gap: 4px; width: 100%; margin-top: 8px; padding: 10px 12px; text-align: left; cursor: pointer; background: rgba(0,0,0,0.35); border: 2px solid var(--ink); color: var(--cream); }
+.fe-steps .origin.sel { background: linear-gradient(90deg, rgba(127, 191, 77, 0.24), rgba(127, 191, 77, 0.05)); box-shadow: inset 0 0 0 2px var(--moss); }
+.fe-steps .origin .h b { display: block; font: 600 16px var(--px); text-shadow: var(--hard1); }
+.fe-steps .origin .h small { font: 600 11px var(--px); color: var(--teal); letter-spacing: 0.8px; text-transform: uppercase; }
+.fe-steps .origin .d { font: 500 14px/1.35 var(--body); color: var(--cream-d); }
+.fe-steps .origin .s { font: 600 12px var(--px); color: var(--wheat); }
+.fe-steps .slide { display: flex; align-items: center; gap: 10px; }
+.fe-steps .slide small { font: 500 12px var(--px); color: var(--muted); width: 44px; }
+.fe-steps .slide small:last-child { text-align: right; }
+.fe-steps .slide input { flex: 1; accent-color: var(--moss); }
+
+.fe-drag { position: absolute; left: 400px; right: 300px; top: 70px; bottom: 210px; cursor: grab; }
+.fe-drag:active { cursor: grabbing; }
+.fe-cam { position: absolute; right: 22px; top: 22px; display: flex; gap: 6px; }
+.fe-namebar { position: absolute; right: 22px; bottom: 22px; width: 340px; padding: 0 14px 14px; }
+.fe-namebar .err { min-height: 18px; margin-top: 6px; font: 500 13px var(--body); color: var(--bad); }
+.fe-namebar .actions { margin-top: 6px; }
+.fe-namebar .actions .btn { white-space: nowrap; font-size: 14px; }
+.fe-namebar .actions .go { flex: 1.6; }
+
+/* ------------------------------------------------------------------ Intro */
+.fe-intro { z-index: 42; }
+.fe-fade { position: absolute; inset: 0; background: #070504; opacity: 1; pointer-events: none; }
+.fe-skip { position: absolute; top: calc(9vh + 14px); right: 20px; padding: 6px 12px; cursor: pointer; font: 600 13px var(--px); color: var(--cream-d); background: rgba(0,0,0,0.45); border: 2px solid var(--ink); text-shadow: var(--hard1); z-index: 2; }
+.fe-skip kbd { margin-left: 6px; padding: 0 5px; font: 600 11px var(--px); border: 1px solid var(--muted); }
+.fe-cap { position: absolute; left: 50%; bottom: calc(9vh + 18px); transform: translateX(-50%); width: min(820px, calc(100vw - 32px)); padding: 12px 28px 14px; text-align: center; opacity: 0; z-index: 2; background: radial-gradient(ellipse at 50% 60%, rgba(7, 5, 4, 0.55), rgba(7, 5, 4, 0) 72%); }
+.fe-cap.show { animation: capIn 0.9s ease forwards; }
+.fe-cap .k { font: 600 15px var(--px); letter-spacing: 6px; color: #9fd8f0; text-transform: uppercase; text-shadow: var(--hard1); min-height: 4px; }
+.fe-cap p { margin: 8px 0 0; font: italic 500 clamp(18px, 2.2vw, 25px)/1.4 var(--book); color: var(--cream); text-shadow: 2px 2px 0 rgba(0,0,0,0.9), 0 0 18px rgba(0,0,0,0.8); }
+@keyframes capIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ------------------------------------------------------------------ Narrow screens */
+@media (max-width: 860px) {
+  .fe-brand { top: 10px; } .fe-brand b { font-size: 24px; }
+  .fe-realm { top: auto; bottom: 14px; right: 12px; left: auto; padding: 6px 8px; gap: 8px; }
+  .fe-realm .st { display: none; }
+  .fe-realm .acct { padding-top: 4px; gap: 8px; } .fe-realm .acct small, .fe-realm .acct .x { display: none; }
+  .fe-news { display: none; }
+  .fe-roster { left: 16px; right: 16px; width: auto; top: 54px; max-height: 34vh; }
+  .fe-enter { bottom: 104px; } .fe-enter h2 { font-size: 26px; } .fe-enter .hint { display: none; }
+  .fe-foot { bottom: 18px; left: 16px; } .fe-ver { display: none; }
+  .fe-steps { left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; height: 44vh; }
+  .fe-namebar { right: 16px; left: 16px; width: auto; top: 16px; bottom: auto; padding-bottom: 10px; }
+  .fe-namebar .actions { margin-top: 2px; }
+  .fe-cam { right: auto; left: 16px; top: auto; bottom: calc(44vh + 26px); }
+  .fe-drag { left: 0; right: 0; top: 190px; bottom: calc(44vh + 60px); }
+}
+
+/* ------------------------------------------------------------------ Short screens (a phone on its side) */
+@media (max-height: 500px) {
+  .fe-brand { display: none; }
+  .fe-roster { left: 12px; right: auto; top: 10px; bottom: 10px; width: min(260px, 42vw); max-height: none; padding-bottom: 8px; }
+  .fe-roster .list { padding: 6px 6px 2px; gap: 4px; }
+  .fe-roster .card { padding: 4px 6px; }
+  .fe-roster .card canvas { width: 32px; height: 32px; }
+  .fe-roster .card b { font-size: 14px; }
+  .fe-roster .row { padding: 6px 6px 0; } .fe-roster .row .btn { padding: 6px; }
+  .fe-enter { left: auto; right: 12px; transform: none; width: min(320px, 50vw); bottom: 92px; gap: 6px; }
+  .fe-enter h2 { font-size: 22px; } .fe-enter p { font-size: 13px; } .fe-enter .hint { display: none; }
+  .fe-enter .btn.big { padding: 8px 20px; }
+  .fe-realm { top: auto; bottom: 10px; right: 12px; left: auto; max-width: min(320px, 50vw); }
+  .fe-foot { left: auto; right: 12px; top: 10px; bottom: auto; }
+  .fe-steps { left: 12px; top: 10px; bottom: 10px; height: auto; width: min(320px, 46vw); }
+  .fe-namebar { left: auto; right: 12px; top: auto; bottom: 10px; width: min(300px, 46vw); padding-bottom: 10px; }
+  .fe-cam { left: auto; right: 12px; top: 10px; bottom: auto; }
+  .fe-drag { left: min(340px, 48vw); right: 0; top: 50px; bottom: 130px; }
+  .fe-modal .box { max-height: calc(100vh - 20px); overflow-y: auto; }
+}

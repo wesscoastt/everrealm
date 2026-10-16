@@ -1,0 +1,2503 @@
+import { B } from './blocks';
+import { POSTS } from '../data/travel';
+import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
+import { hash2 } from './noise';
+import { roofApex, roofOverhang, roofRise } from './roofShape';
+import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
+import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist } from './terrain';
+import { CHUNK, chunkKey, inWorld, localIdx, SY, WX, WZ } from './VoxelWorld';
+
+// Deterministic settlements and landmarks across the continent. Running plan() yields the same
+// sites, block overrides and prop descriptors in every worker and on the main thread.
+
+export type PropType = 'roof' | 'door' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
+  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
+  /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
+  | 'rope' | 'root';
+
+export interface PropDesc {
+  t: PropType;
+  x: number;
+  y: number;
+  z: number;
+  ry?: number;
+  len?: number;
+  span?: number;
+  rise?: number;
+  /** Interior furniture ('furn'): which piece, and a colour variant. */
+  item?: string;
+  tint?: number;
+  /** Roof dormers: +1 or -1 picks the slope, 0 or absent for none. */
+  dormers?: number;
+  mat?: 'red' | 'blue' | 'thatch' | 'slate';
+  color?: string;
+  kind?: 'hollin' | 'harrow' | 'aldermere';
+  r?: number;
+  h?: number;
+  text?: string;
+}
+
+export interface ImpostorBox { x: number; y: number; z: number; w: number; h: number; d: number; color: string; cone?: boolean }
+
+export interface Site {
+  id: string;
+  name: string;
+  region: RegionId;
+  x: number;
+  z: number;
+  /** Activation radius: props load and the impostor hides inside it. */
+  r: number;
+  named: boolean;
+  props: PropDesc[];
+  rects: [number, number, number, number][];
+  impostor: ImpostorBox[];
+  /** Dungeons, delves, vistas and wonders: what the game's activities find here. */
+  act?: SiteActivity;
+}
+
+/** What an activity site holds for the game (see game/Activities.ts). */
+export interface SiteActivity {
+  kind: 'dungeon' | 'delve' | 'vista' | 'scenic';
+  /** Creatures that live here and come back after a while: [x, floorY, z, enemy type]. */
+  spawns?: [number, number, number, string][];
+  /** The champion at the end: [x, floorY, z, enemy type]. */
+  boss?: [number, number, number, string];
+  /** The chest behind the champion: [x, floorY, z]. */
+  chest?: [number, number, number];
+  /** A vista: where to stand, and the point the camera circles [x, y, z, x, y, z]. */
+  view?: [number, number, number, number, number, number];
+}
+
+/** The lairs where the world bosses rise. */
+const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Tidewright Sands', 'wb-cinderhorn': 'Cinderhorn Pit', 'wb-rimeglass': 'The Rime Bowl' };
+
+/** Underworks themes: depth and reach, stone, light, who lives there, and what's left lying about. */
+const UNDERWORKS = {
+  mortlake: { pub: true, depth: 18, reach: 32, wall: B.MossyStone, wall2: B.StoneBrick, floor: B.StoneBrick, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['sporejelly', 'thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['mushrooms', 'candles', 'chest', 'barrel'] },
+  blackcut: { pub: true, depth: 18, reach: 32, wall: B.TerraBrown, wall2: B.Timber, floor: B.Gravel, floor2: B.IronOre, light: '#ffb070', mobs: ['redback', 'dustwolf', 'redback'], boss: 'redback', clutter: ['cart', 'rails', 'crate', 'barrel'] },
+  badger: { pub: false, depth: 13, reach: 19, wall: B.Dirt, wall2: B.OakLog, floor: B.Path, floor2: B.Gravel, light: '#ffc880', mobs: ['boar', 'roadwolf'], boss: 'boar', clutter: ['crate', 'barrel', 'mushrooms'] },
+  culvert: { pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.MossyCobble, floor: B.Cobble, floor2: B.Clay, light: '#c8e8ff', mobs: ['jelly', 'roadwolf'], boss: 'roadwolf', clutter: ['barrel', 'crate', 'candles'] },
+  smugglers: { pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.Planks, floor: B.Sand, floor2: B.Planks, light: '#ffd890', mobs: ['crab', 'brinejelly'], boss: 'crab', clutter: ['barrel', 'crate', 'chest', 'barrel'] },
+  tinner: { pub: false, depth: 13, reach: 19, wall: B.TerraOrange, wall2: B.Timber, floor: B.Gravel, floor2: B.TinOre, light: '#ffb070', mobs: ['dustwolf', 'redback'], boss: 'dustwolf', clutter: ['cart', 'crate', 'rails'] },
+  seep: { pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff', mobs: ['shardjelly', 'frostwolf'], boss: 'frostwolf', clutter: ['candles', 'chest'] },
+  hob: { pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
+};
+
+/** Per-chunk list of [localIndex, blockId, ...] written in order after terrain. */
+export class Overrides {
+  readonly map = new Map<number, number[]>();
+  set(x: number, y: number, z: number, id: number): void {
+    x = Math.floor(x); z = Math.floor(z); y = Math.floor(y);
+    if (!inWorld(x, z) || y < 0 || y >= SY) return;
+    const k = chunkKey(x >> 5, z >> 5);
+    let a = this.map.get(k);
+    if (!a) this.map.set(k, (a = []));
+    a.push(localIdx(x & 31, y, z & 31), id);
+  }
+}
+
+export interface Plan {
+  sites: Site[];
+  overrides: Overrides;
+  /** Footprint rectangles bucketed by chunk, so trees and creatures keep out of buildings. */
+  rectsByChunk: Map<number, [number, number, number, number][]>;
+}
+
+let cached: Plan | null = null;
+
+export function plan(): Plan {
+  if (cached) return cached;
+  const sites: Site[] = [];
+  const O = new Overrides();
+  const flats: Flatten[] = [];
+
+  // ---------------------------------------------------------------- Named sites
+  const gullZ = 600, gullCoast = coastX(gullZ);
+  const lightZ = 330, lightCoast = coastX(lightZ);
+  interface Named { id: string; name: string; x: number; z: number; r0: number; r1: number; h?: number; build: (s: Site, base: number) => void }
+  const named: Named[] = [
+    { id: 'aldermere', name: 'Ansbury', x: 820, z: 300, r0: 205, r1: 250, h: 24, build: (s, b) => { buildAldermere(s, b); buildNewTown(b, extra); } },
+    { id: 'cotters', name: 'Cotter\'s End', x: 486, z: 252, r0: 20, r1: 34, build: (s, b) => buildHamlet(s, b, 486, 252, 'thatch', 4) },
+    { id: 'waystation', name: 'The Waystation', x: 708, z: 572, r0: 16, r1: 28, build: (s, b) => buildWaystation(s, b) },
+    { id: 'hollowoak', name: 'The Hollow Oak', x: 304, z: 600, r0: 14, r1: 24, build: (s, b) => buildHollowOak(s, b) },
+    { id: 'mossgate', name: 'Ketley Arches', x: 176, z: 860, r0: 18, r1: 30, build: (s, b) => buildMossgate(s, b) },
+    { id: 'woodcamp', name: 'Fellers\' Camp', x: 446, z: 520, r0: 12, r1: 22, build: (s) => { buildCamp(s, 446, 520, true); fellersExtras(s); } },
+    { id: 'gullmouth', name: 'Gullmouth', x: gullCoast - 34, z: gullZ, r0: 26, r1: 40, h: SEA + 3, build: (s, b) => buildGullmouth(s, b, gullCoast) },
+    { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
+    { id: 'harrowgate', name: 'Harrowgate Works', x: 1000, z: 1000, r0: 30, r1: 46, build: (s, b) => buildHarrowgate(s, b) },
+    { id: 'mesafort', name: 'Gallows Knap', x: 1250, z: 1250, r0: 16, r1: 26, build: (s, b) => buildFort(s, b) },
+    { id: 'coldhearth', name: 'Kelderby', x: 300, z: 1460, r0: 20, r1: 32, build: (s, b) => buildHamlet(s, b, 300, 1460, 'slate', 3) },
+    { id: 'starwatch', name: 'Scarth Watch', x: 600, z: 1700, r0: 12, r1: 22, build: (s, b) => buildObservatory(s, b) },
+    { id: 'temple', name: 'Glass Kirk', x: 1190, z: 1800, r0: 18, r1: 30, build: (s, b) => buildTemple(s, b) },
+    { id: 'bothy', name: 'Hale\'s Fold', x: 382, z: 1380, r0: 18, r1: 30, build: (s, b) => buildBothy(s, b) },
+    { id: 'skyisles', name: 'The Weatherholms', x: 900, z: 1640, r0: 0, r1: 0, build: (s) => buildIslands(s) },
+    // Public dungeons and delves (open to anyone who finds them), vistas, and the wonders of the realm
+    { id: 'pd-mortlake', name: 'Mortlake Cellars', x: 322, z: 1018, r0: 34, r1: 50, h: 30, build: (s, b) => buildUnderworks(s, b, 'mortlake') },
+    { id: 'pd-blackcut', name: 'The Black Cut', x: 1067, z: 1180, r0: 34, r1: 50, build: (s, b) => buildUnderworks(s, b, 'blackcut') },
+    { id: 'delve-badger', name: 'Badger Holt', x: 567, z: 539, r0: 20, r1: 30, h: 27, build: (s, b) => buildUnderworks(s, b, 'badger') },
+    { id: 'delve-culvert', name: 'Withy Culvert', x: 900, z: 640, r0: 20, r1: 30, h: 27, build: (s, b) => buildUnderworks(s, b, 'culvert') },
+    { id: 'delve-smugglers', name: 'Smugglers\' Hole', x: 1660, z: 1090, r0: 20, r1: 30, h: 28, build: (s, b) => buildUnderworks(s, b, 'smugglers') },
+    { id: 'delve-tinner', name: 'Tinner\'s Adit', x: 826, z: 1274, r0: 20, r1: 30, h: 28, build: (s, b) => buildUnderworks(s, b, 'tinner') },
+    { id: 'delve-seep', name: 'The Cold Seep', x: 700, z: 1560, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'seep') },
+    { id: 'delve-hob', name: 'Hob\'s Barrow', x: 150, z: 760, r0: 20, r1: 30, h: 33, build: (s, b) => buildUnderworks(s, b, 'hob') },
+    { id: 'vista-northhead', name: 'Vista: Gannet Head', x: 1050, z: -200, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-westcape', name: 'Vista: Cape Wrath', x: -170, z: 640, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-gulf', name: 'Vista: the Gulf Cliffs', x: 1468, z: 1420, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-raddle', name: 'Vista: Red Knoll', x: 1226, z: 1080, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-scarth', name: 'Vista: Scarth Edge', x: 908, z: 1900, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-hagworm', name: 'Vista: Wychwood Rise', x: 330, z: 1150, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-turnpike', name: 'Vista: Beacon Hill', x: 585, z: 144, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'vista-southhead', name: 'Vista: the Lizard', x: 693, z: 2269, r0: 0, r1: 0, build: (s) => buildVista(s) },
+    { id: 'sc-weeping', name: 'The Weeping Stair', x: 470, z: 1250, r0: 0, r1: 0, build: (s, b) => buildWeepingStair(s, b) },
+    { id: 'sc-arch', name: 'The Kelpie Arch', x: -310, z: 700, r0: 0, r1: 0, build: (s) => buildSeaArch(s) },
+    { id: 'sc-colossus', name: 'The Stone King', x: 1365, z: 1054, r0: 30, r1: 44, build: (s, b) => buildColossus(s, b) },
+    { id: 'sc-drowned', name: 'The Drowned Bell-tower', x: 1560, z: 1500, r0: 0, r1: 0, build: (s) => buildDrownedTower(s) },
+    { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
+    { id: 'sc-crater', name: 'The Great Starfall', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
+    // World bosses' lairs and the Shardfalls' landing grounds (data/activities.ts says when they're used)
+    ...WORLD_BOSSES.map((b): Named => ({ id: 'lair-' + b.id, name: LAIR_NAMES[b.id], x: b.x, z: b.z, r0: 20, r1: 32, build: (s, g) => buildLair(s, g, b.type) })),
+    ...SHARDFALLS.map(([x, z], i): Named => ({ id: 'shardfall-' + i, name: 'Shardfall ground', x, z, r0: 12, r1: 22, build: (s, g) => buildShardGround(s, g) })),
+    { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
+  ];
+  for (const n of named) {
+    if (n.r1 > 0) flats.push({ x: n.x, z: n.z, r0: n.r0, r1: n.r1, h: n.h ?? Math.max(SEA + 2, Math.round(baseHeight(n.x, n.z))) });
+  }
+  // Gullmouth's upper town inland of the harbour; Harrowgate's Company Row west of the palisade
+  flats.push({ x: Math.floor(gullCoast) - 100, z: gullZ, r0: 44, r1: 64, h: SEA + 3 });
+  flats.push({ x: 952, z: 1006, r0: 30, r1: 44, h: Math.max(SEA + 2, Math.round(baseHeight(1000, 1000))) });
+
+  // ---------------------------------------------------------------- Scattered points of interest
+  const pois: { x: number; z: number; kind: string; region: RegionId }[] = [];
+  const CELL = 176;
+  for (let cz = 0; cz < WZ / CELL; cz++) for (let cx = 0; cx < WX / CELL; cx++) {
+    if (hash2(cx, cz, 501) > 0.8) continue;
+    const x = Math.floor(cx * CELL + 30 + hash2(cx, cz, 502) * (CELL - 60));
+    const z = Math.floor(cz * CELL + 30 + hash2(cx, cz, 503) * (CELL - 60));
+    if (x < GW + 40 && z < GW + 40) continue;
+    if (x > 1800 || z < 50 || x < 50 || z > WZ - 60) continue;
+    const reg = regionAt(x, z).a;
+    const h = baseHeight(x, z);
+    if (h <= SEA + 1 || roadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
+    if (named.some((n) => Math.hypot(n.x - x, n.z - z) < 80)) continue;
+    const kinds: Record<RegionId, string[]> = {
+      greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
+      saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
+    };
+    const list = kinds[reg];
+    const kind = list[Math.floor(hash2(cx, cz, 504) * list.length)];
+    pois.push({ x, z, kind, region: reg });
+    flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
+  }
+
+  setFlattenZones(flats);
+
+  // Sites a builder adds besides its own (Ansbury's New Town wards)
+  const extra: Site[] = [];
+  for (const n of named) {
+    const s: Site = { id: n.id, name: n.name, region: regionAt(n.x, n.z).a, x: n.x, z: n.z, r: 220, named: true, props: [], rects: [], impostor: [] };
+    n.build(s, heightAt(n.x, n.z));
+    sites.push(s);
+  }
+  sites.push(...extra);
+  // A Charter Post sign at every stop (Hollin Ford's is part of the authored village).
+  for (const p of POSTS) {
+    const site = sites.find((x) => x.id === p.place);
+    if (site) site.props.push({ t: 'sign', x: p.x, y: heightAt(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
+  }
+  pois.forEach((p, i) => {
+    const s: Site = { id: `poi${i}`, name: '', region: p.region, x: p.x, z: p.z, r: 160, named: false, props: [], rects: [], impostor: [] };
+    const b = heightAt(p.x, p.z);
+    switch (p.kind) {
+      case 'stones': buildStones(s, p.x, p.z, b); break;
+      case 'shrine': buildShrine(s, p.x, p.z, b); break;
+      case 'ruintower': buildRuinTower(s, p.x, p.z, b); break;
+      case 'farm': buildFarm(s, p.x, p.z, b); break;
+      case 'mossruin': buildRuinWalls(s, p.x, p.z, b, B.MossyCobble); break;
+      case 'mesaruin': buildRuinWalls(s, p.x, p.z, b, B.TerraBrown); break;
+      case 'camp': buildSmallCamp(s, p.x, p.z); break;
+      case 'mine': buildMinePOI(s, p.x, p.z, b, hash2(p.x, p.z, 9) < 0.5 ? 1 : -1); break;
+      case 'crystals': buildCrystals(s, p.x, p.z, b); break;
+    }
+    sites.push(s);
+  });
+
+  const rectsByChunk = new Map<number, [number, number, number, number][]>();
+  for (const s of sites) for (const r of s.rects) {
+    for (let cz = r[1] >> 5; cz <= r[3] >> 5; cz++) for (let cx = r[0] >> 5; cx <= r[2] >> 5; cx++) {
+      const k = chunkKey(cx, cz);
+      if (!rectsByChunk.has(k)) rectsByChunk.set(k, []);
+      rectsByChunk.get(k)!.push(r);
+    }
+  }
+  cached = { sites, overrides: O, rectsByChunk };
+  return cached;
+
+  // ================================================================ Builders
+  // (Hoisted function declarations close over O.)
+
+  function rect(s: Site, x0: number, z0: number, x1: number, z1: number) { s.rects.push([Math.floor(x0), Math.floor(z0), Math.ceil(x1), Math.ceil(z1)]); }
+  function clearUp(x: number, z: number, from: number, to = from + 14) { for (let y = from; y < Math.min(SY, to); y++) O.set(x, y, z, B.Air); }
+  function foundation(x: number, z: number, base: number, id: number = B.Cobble) {
+    for (let y = Math.min(heightAt(x, z), base) - 1; y < base; y++) O.set(x, y, z, id);
+  }
+
+  function house(s: Site, x0: number, z0: number, w: number, d: number, floors: number, base: number, roof: PropDesc['mat'], door: 'n' | 's' | 'e' | 'w', opts: { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean } = {}) {
+    // closed: a house front with a shut door and lit windows, not fitted out inside (most of the
+    // New Town's terraces; a capital has more doors than anyone needs to open)
+    const top = base + floors * 4;
+    rect(s, x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
+    for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearUp(x, z, base, top + 12);
+    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) foundation(x, z, base);
+    const wall = opts.wall ?? B.Plaster;
+    const frame = opts.frame ?? B.Timber;
+    const doorX = door === 'n' || door === 's' ? x0 + Math.floor(w / 2) : door === 'e' ? x0 + w - 1 : x0;
+    const doorZ = door === 'e' || door === 'w' ? z0 + Math.floor(d / 2) : door === 's' ? z0 + d - 1 : z0;
+    for (let y = base; y < top; y++) {
+      const ly = (y - base) % 4, f = Math.floor((y - base) / 4);
+      for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
+        const ex = x === x0 || x === x0 + w - 1, ez = z === z0 || z === z0 + d - 1;
+        if (!ex && !ez) { O.set(x, y, z, B.Air); continue; }
+        const along = ez ? x - x0 : z - z0, span = ez ? w : d;
+        let id: number = wall;
+        if (ex && ez) id = frame;
+        else if (ly === 3) id = B.DarkPlanks;
+        else if (f === 0 && ly === 0) id = B.Cobble;
+        else if (along % 3 === 0) id = frame;
+        else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1) id = B.Window;
+        if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = opts.closed ? B.Barrier : B.Air; // the doorway: walk in
+        if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
+        O.set(x, y, z, id);
+      }
+    }
+    // Inside: a boarded floor, the upper storeys, stairs, furniture and lamplight
+    O.set(doorX, base - 1, doorZ, B.StoneBrick); // threshold
+    const chim = opts.chimney !== false ? chimneyCell({ x0, z0, w, d, door }) : undefined;
+    const shape = { x0, z0, w, d, floors, base, door, doorX, doorZ, role: opts.role, tint: Math.floor(hash2(x0, z0, 5) * 3), chimney: chim };
+    const ry = door === 'n' ? Math.PI : door === 's' ? 0 : door === 'e' ? Math.PI / 2 : -Math.PI / 2;
+    const ox = door === 'e' ? 0.52 : door === 'w' ? -0.52 : 0, oz = door === 's' ? 0.52 : door === 'n' ? -0.52 : 0;
+    if (opts.closed) s.props.push({ t: 'door', x: doorX + 0.5 + ox, y: base, z: doorZ + 0.5 + oz, ry });
+    else {
+      for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) O.set(x, base - 1, z, B.Planks);
+      const fit = fitOut(shape);
+      for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
+      for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint });
+      const leaf = openDoorPlace(shape);
+      s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry });
+    }
+    s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 1.8, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
+    const alongX = w >= d;
+    const span = alongX ? d : w;
+    if (opts.impostor !== false) s.impostor.push({ x: x0 + w / 2, y: base + floors * 2 + 1.2, z: z0 + d / 2, w, h: floors * 4 + 2.4, d, color: ROOF_TONE[roof ?? 'red'] });
+    s.props.push({ t: 'roof', x: x0 + w / 2, y: top, z: z0 + d / 2, len: alongX ? w : d, span, rise: roofRise(span), ry: alongX ? 0 : Math.PI / 2, mat: roof, dormers: floors > 1 ? (alongX ? (door === 's' ? 1 : door === 'n' ? -1 : 0) : (door === 'e' ? 1 : door === 'w' ? -1 : 0)) : 0 });
+    if (chim) {
+      // A stone stack standing proud of the gable end wall, from the ground up past the ridge; the
+      // wall behind it is stone too, where the hearth stands inside.
+      const [wx, wz] = chim;
+      const ox = wx === x0 ? -1 : wx === x0 + w - 1 ? 1 : 0, oz = ox ? 0 : wz === z0 ? -1 : 1;
+      const cx = wx + ox, cz = wz + oz;
+      const apex = roofApex(span, roofRise(span), roofOverhang(roof === 'thatch'));
+      for (let y = base; y < top; y++) O.set(wx, y, wz, B.Cobble);
+      foundation(cx, cz, base, B.Cobble);
+      for (let y = base; y < top + apex + 1.5; y++) O.set(cx, y, cz, y < top + apex + 0.5 ? B.Cobble : B.StoneBrick);
+      s.props.push({ t: 'smoke', x: cx + 0.5, y: Math.ceil(top + apex + 1.5) + 0.2, z: cz + 0.5 });
+    }
+  }
+
+  function tower(s: Site, cx: number, cz: number, size: number, height: number, base: number, mat: number, opts: { hollow?: boolean; broken?: boolean; crenel?: boolean; door?: 'n' | 's' | 'e' | 'w'; trim?: number } = {}) {
+    const h0 = Math.floor(size / 2);
+    rect(s, cx - h0 - 1, cz - h0 - 1, cx + h0 + 1, cz + h0 + 1);
+    for (let z = cz - h0; z <= cz + h0; z++) for (let x = cx - h0; x <= cx + h0; x++) {
+      foundation(x, z, base, mat);
+      clearUp(x, z, base, base + height + 4);
+      const shell = Math.abs(x - cx) === h0 || Math.abs(z - cz) === h0;
+      const corner = Math.abs(x - cx) === h0 && Math.abs(z - cz) === h0;
+      const topY = opts.broken ? base + height - Math.floor(hash2(x, z, 61) * 6) : base + height;
+      for (let y = base; y < topY; y++) {
+        if (!shell && opts.hollow) { if (y === base + height - 1) O.set(x, y, z, B.Planks); continue; }
+        let id = mat;
+        if (opts.trim && (y - base) % 6 === 5) id = opts.trim;
+        if (shell && !corner && (y - base) % 6 === 3 && (x - cx + z - cz) % 2 === 0) id = B.Window;
+        O.set(x, y, z, shell || !opts.hollow ? id : B.Air);
+      }
+      if (opts.crenel && shell && (x + z) % 2 === 0) O.set(x, base + height, z, mat);
+    }
+    if (opts.door) {
+      const dx = opts.door === 'e' ? h0 : opts.door === 'w' ? -h0 : 0, dz = opts.door === 's' ? h0 : opts.door === 'n' ? -h0 : 0;
+      const walkIn = !!opts.hollow;
+      O.set(cx + dx, base, cz + dz, walkIn ? B.Air : B.Barrier); O.set(cx + dx, base + 1, cz + dz, walkIn ? B.Air : B.Barrier);
+      if (walkIn) O.set(cx + dx, base + 2, cz + dz, B.Cobble);
+      const ry = opts.door === 'n' ? Math.PI : opts.door === 's' ? 0 : opts.door === 'e' ? Math.PI / 2 : -Math.PI / 2;
+      if (walkIn) {
+        // The leaf stands open against the jamb, inside
+        const nx = Math.sign(dx), nz = Math.sign(dz), tx = -nz, tz = nx;
+        s.props.push({ t: 'furn', item: 'doorOpen', x: cx + dx + 0.5 + tx * 0.42 - nx * 0.5, y: base, z: cz + dz + 0.5 + tz * 0.42 - nz * 0.5, ry: Math.atan2(nx, nz) });
+      } else s.props.push({ t: 'door', x: cx + dx + 0.5 + Math.sign(dx) * 0.52, y: base, z: cz + dz + 0.5 + Math.sign(dz) * 0.52, ry });
+    }
+  }
+
+  function wallLine(s: Site, x0: number, z0: number, x1: number, z1: number, base: number, height: number, mat: number, gaps: [number, number][] = []) {
+    const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0);
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0));
+    rect(s, Math.min(x0, x1) - 2, Math.min(z0, z1) - 2, Math.max(x0, x1) + 2, Math.max(z0, z1) + 2);
+    for (let i = 0; i <= n; i++) {
+      const x = x0 + dx * i, z = z0 + dz * i;
+      const along = dx ? x : z;
+      if (gaps.some(([a, b]) => along >= a && along <= b)) continue;
+      for (let t = -1; t <= 1; t++) {
+        const wx = x + (dz ? t : 0), wz = z + (dx ? t : 0);
+        const g = heightAt(wx, wz);
+        for (let y = Math.min(g, base) - 1; y < base + height; y++) O.set(wx, y, wz, (y + i) % 9 === 0 ? B.MossyStone : mat);
+        clearUp(wx, wz, base + height, base + height + 6);
+        if (t === -1 || t === 1) { if (i % 2 === 0) O.set(wx, base + height, wz, mat); }
+      }
+    }
+  }
+
+  /**
+   * A post-and-rail fence from (x0, z0) to (x1, z1), in runs of up to six blocks so it follows the
+   * ground, with an invisible barrier two blocks high under it: the player steps up one block on
+   * their own, so a single block would be climbed straight over.
+   */
+  function fence(s: Site, x0: number, z0: number, x1: number, z1: number) {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    if (len < 0.5) return;
+    const runs = Math.max(1, Math.ceil(len / 6));
+    const ry = -Math.atan2(z1 - z0, x1 - x0);
+    for (let r = 0; r < runs; r++) {
+      const t0 = r / runs, t1 = (r + 1) / runs;
+      const mx = x0 + (x1 - x0) * (t0 + t1) / 2, mz = z0 + (z1 - z0) * (t0 + t1) / 2;
+      s.props.push({ t: 'fence', x: mx, y: heightAt(Math.floor(mx), Math.floor(mz)), z: mz, len: len / runs, ry });
+    }
+    const steps = Math.ceil(len * 3);
+    const done = new Set<string>();
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.floor(x0 + ((x1 - x0) * i) / steps), z = Math.floor(z0 + ((z1 - z0) * i) / steps);
+      if (done.has(x + ',' + z)) continue;
+      done.add(x + ',' + z);
+      const g = heightAt(x, z);
+      O.set(x, g, z, B.Barrier); O.set(x, g + 1, z, B.Barrier);
+    }
+  }
+  function street(x0: number, z0: number, x1: number, z1: number) {
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      const g = heightAt(x, z);
+      O.set(x, g - 1, z, (x + z) % 5 === 0 ? B.StoneBrick : hash2(x, z, 3) < 0.12 ? B.MossyCobble : B.Cobble);
+      clearUp(x, z, g, g + 8);
+    }
+  }
+
+  // ---------------------------------------------------------------- Ansbury
+  // ---------------------------------------------------------------- Shared detail helpers
+  /** Paved ground: cobbles with dressed stone in a pattern, worn patches of moss. */
+  function pave(x0: number, z0: number, x1: number, z1: number, base: number, style: 'cobble' | 'flag' | 'yard' = 'cobble') {
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      foundation(x, z, base);
+      const h = hash2(x, z, 7);
+      const id = style === 'flag' ? ((x + z) % 2 === 0 ? B.StoneBrick : h < 0.15 ? B.MossyCobble : B.Cobble)
+        : style === 'yard' ? (h < 0.55 ? B.Path : h < 0.8 ? B.Gravel : B.Cobble)
+          : (x + z) % 5 === 0 ? B.StoneBrick : h < 0.1 ? B.MossyCobble : B.Cobble;
+      O.set(x, base - 1, z, id);
+      clearUp(x, z, base, base + 10);
+    }
+  }
+  /** A planted oak: a trunk and a rounded crown, for squares and gardens where wild trees are kept out. */
+  function plantTree(x: number, z: number, base: number, size = 1) {
+    const trunk = 4 + Math.round(size * 2);
+    for (let y = base; y < base + trunk; y++) O.set(x, y, z, B.OakLog);
+    const r = 2.2 + size;
+    for (let dy = -1; dy <= Math.ceil(r); dy++) for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const d = Math.hypot(dx, dz * 1.05, dy * 1.3);
+      if (d < r && hash2(x + dx * 3 + dy, z + dz, 33) > 0.08) {
+        const yy = base + trunk - 1 + dy;
+        if (dx === 0 && dz === 0 && yy < base + trunk) continue;
+        O.set(x + dx, yy, z + dz, B.OakLeaves);
+      }
+    }
+  }
+  /** Stone arch over a gate gap in a wall: a lintel course at the top of the wall with crenels. */
+  function gateArch(alongX: boolean, a0: number, a1: number, at: number, base: number, height: number) {
+    for (let a = a0; a <= a1; a++) for (let t = -1; t <= 1; t++) {
+      const x = alongX ? a : at + t, z = alongX ? at + t : a;
+      for (let y = base + height - 3; y < base + height; y++) O.set(x, y, z, y === base + height - 3 ? B.Cobble : B.StoneBrick);
+      if ((t === -1 || t === 1) && a % 2 === 0) O.set(x, base + height, z, B.StoneBrick);
+    }
+  }
+
+  // ---------------------------------------------------------------- Ansbury
+  // The keep stands at the centre in its own square, so the four streets meet around it rather
+  // than running into its walls. South of it the Charter Market fills a second square, and the
+  // boulevard runs on to the south gate between the Toll Office and the Weighhouse. Houses line
+  // every street and fill the four quarters in lanes; Tanners' Row is the south-west quarter.
+  function buildAldermere(s: Site, base: number) {
+    s.r = 280;
+    const X0 = 750, X1 = 890, Z0 = 230, Z1 = 370, cx = 820, cz = 300;
+    rect(s, X0, Z0, X1, Z1); // no wild trees or creatures inside the walls
+
+    // What must stay open: streets, squares, the gate yard, and everywhere somebody stands or looks.
+    const taken: [number, number, number, number][] = [];
+    const claim = (x0: number, z0: number, x1: number, z1: number) => taken.push([x0, z0, x1, z1]);
+    const isFree = (x0: number, z0: number, x1: number, z1: number) => !taken.some((r) => x0 <= r[2] && x1 >= r[0] && z0 <= r[3] && z1 >= r[1]);
+    claim(X0 - 2, Z0 - 2, X1 + 2, Z0 + 4); claim(X0 - 2, Z1 - 4, X1 + 2, Z1 + 2); // inside the walls, a walk along them
+    claim(X0 - 2, Z0 - 2, X0 + 4, Z1 + 2); claim(X1 - 4, Z0 - 2, X1 + 2, Z1 + 2);
+    claim(X0, cz - 4, X1, cz + 4);           // the east-west street
+    claim(cx - 4, Z0, cx + 4, cz);           // the north street
+    claim(cx - 4, cz, cx + 4, Z1);           // the boulevard
+    claim(cx - 21, cz - 21, cx + 21, cz + 21); // the keep square
+    claim(cx - 21, cz + 16, cx + 19, cz + 40); // the Charter Market
+    claim(cx - 21, Z1 - 13, cx + 21, Z1);    // the gate yard (Toll Office desk, the watch, the gate book)
+    for (const [px, pz] of [[778.5, 316.2], [784.5, 316.2], [779.5, 327.5], [802.6, 331.2], [811, 332], [806, 334], [812.5, 328.5]]) claim(px - 2, pz - 2, px + 2, pz + 2);
+
+    // ---- Streets and squares
+    street(X0 + 2, cz - 3, X1 - 2, cz + 3);
+    street(cx - 3, Z0 + 2, cx + 3, cz);
+    street(cx - 3, cz, cx + 3, Z1 - 2);
+    pave(cx - 20, cz - 20, cx + 20, cz + 20, base, 'flag');      // keep square
+    pave(cx - 20, cz + 16, cx + 18, cz + 39, base, 'cobble');    // Charter Market
+    pave(cx - 20, Z1 - 12, cx + 20, Z1 - 2, base, 'cobble');     // gate yard
+    for (const [tx, tz] of [[cx - 17, cz - 17], [cx + 17, cz - 17], [cx - 17, cz + 14], [cx + 17, cz + 14]]) plantTree(tx, tz, base, 0.6);
+
+    // ---- Walls, towers and gates
+    wallLine(s, X0, Z0, X1, Z0, base, 9, B.StoneBrick);
+    wallLine(s, X0, Z1, X1, Z1, base, 9, B.StoneBrick, [[cx - 4, cx + 4]]);
+    wallLine(s, X0, Z0, X0, Z1, base, 9, B.StoneBrick, [[cz - 4, cz + 4]]);
+    wallLine(s, X1, Z0, X1, Z1, base, 9, B.StoneBrick, [[cz - 4, cz + 4]]);
+    for (const [tx, tz] of [[X0, Z0], [X1, Z0], [X0, Z1], [X1, Z1]]) tower(s, tx, tz, 9, 15, base, B.StoneBrick, { crenel: true, trim: B.Cobble });
+    for (const [tx, tz] of [[X0, cz - 7], [X0, cz + 7], [X1, cz - 7], [X1, cz + 7], [cx - 7, Z1], [cx + 7, Z1]]) tower(s, tx, tz, 5, 13, base, B.StoneBrick, { crenel: true, trim: B.Cobble });
+    // Half-way towers along the long walls
+    for (const tx of [785, 855]) for (const tz of [Z0, Z1]) tower(s, tx, tz, 5, 12, base, B.StoneBrick, { crenel: true });
+    for (const tz of [265, 335]) for (const tx of [X0, X1]) tower(s, tx, tz, 5, 12, base, B.StoneBrick, { crenel: true });
+    gateArch(true, cx - 4, cx + 4, Z1, base, 9);
+    gateArch(false, cz - 4, cz + 4, X0, base, 9);
+    gateArch(false, cz - 4, cz + 4, X1, base, 9);
+    for (const [tx, tz] of [[X0, Z0], [X1, Z0], [X0, Z1], [X1, Z1]]) s.props.push({ t: 'cone', x: tx + 0.5, y: base + 16, z: tz + 0.5, r: 6.2, h: 6, mat: 'blue' });
+
+    // ---- The keep: the Charter's hall on the ground floor, corner turrets and a parapet above
+    tower(s, cx, cz, 21, 28, base, B.StoneBrick, { crenel: true, hollow: true, trim: B.Cobble });
+    tower(s, cx - 8, cz - 8, 7, 36, base, B.StoneBrick, { crenel: true });
+    tower(s, cx + 8, cz - 8, 7, 34, base, B.StoneBrick, { crenel: true });
+    for (const tx of [cx - 10, cx + 10]) tower(s, tx, cz + 10, 5, 32, base, B.StoneBrick, { crenel: true, trim: B.Cobble });
+    s.props.push({ t: 'cone', x: cx - 7.5, y: base + 36, z: cz - 7.5, r: 5.2, h: 9, mat: 'blue' });
+    s.props.push({ t: 'cone', x: cx + 8.5, y: base + 34, z: cz - 7.5, r: 5.2, h: 8, mat: 'blue' });
+    for (const tx of [cx - 10, cx + 10]) s.props.push({ t: 'cone', x: tx + 0.5, y: base + 32, z: cz + 10.5, r: 3.8, h: 6, mat: 'blue' });
+    // Parapet: a corbelled course stepping out from the wall top, crenellated
+    for (let a = -11; a <= 11; a++) for (const [x, z] of [[cx + a, cz - 11], [cx + a, cz + 11], [cx - 11, cz + a], [cx + 11, cz + a]]) {
+      O.set(x, base + 26, z, B.Cobble); O.set(x, base + 27, z, B.StoneBrick);
+      if ((x + z) % 2 === 0) O.set(x, base + 28, z, B.StoneBrick);
+    }
+    keepHall(s, cx, cz, base);
+    // The keep's roof is a stone leads walk, not planks
+    for (let z = cz - 9; z <= cz + 9; z++) for (let x = cx - 9; x <= cx + 9; x++) O.set(x, base + 27, z, (x + z) % 3 === 0 ? B.Cobble : B.StoneBrick);
+    // A broad step along the front, and lamps and banners at the door
+    for (let x = cx - 7; x <= cx + 7; x++) { O.set(x, base, cz + 11, B.StoneBrick); clearUp(x, cz + 11, base + 1, base + 4); }
+    for (const [bx, bz] of [[cx - 4, cz + 11.2], [cx + 5, cz + 11.2]]) s.props.push({ t: 'banner', x: bx, y: base + 14, z: bz, kind: 'aldermere' });
+    for (const lx of [cx - 3.5, cx + 4.5]) s.props.push({ t: 'wallLantern', x: lx, y: base + 3.2, z: cz + 11.05, ry: 0 });
+    for (const [bx, bz, ry] of [[X0 - 2.5, cz - 5, 0], [X0 - 2.5, cz + 6, 0], [X1 + 2.5, cz - 5, 0], [X1 + 2.5, cz + 6, 0]] as const) s.props.push({ t: 'banner', x: bx, y: base + 8.5, z: bz, kind: 'aldermere', ry });
+
+    // ---- Civic buildings on the boulevard and the market
+    house(s, cx - 21, Z1 - 20, 12, 9, 2, base, 'slate', 's', { wall: B.StoneBrick, role: 'office' });   // the Toll Office
+    house(s, cx - 20, cz + 41, 9, 7, 1, base, 'red', 'e', { role: 'shop' });                           // chandler by the market
+    house(s, cx + 6, cz + 41, 16, 12, 2, base, 'slate', 'w', { wall: B.StoneBrick, role: 'office' });  // the Weighhouse
+    s.props.push({ t: 'sign', x: cx + 4.2, y: base, z: cz + 50.5, ry: Math.PI / 2, text: 'Weighhouse' });
+    s.props.push({ t: 'sign', x: cx - 15.5, y: base, z: Z1 - 10.2, ry: 0, text: 'Toll Office' });
+    claim(cx - 23, Z1 - 22, cx - 7, Z1 - 10); claim(cx - 22, cz + 39, cx - 9, cz + 49); claim(cx + 4, cz + 39, cx + 24, cz + 55);
+
+    // ---- Tanners' Row: the Gisborne foundry keeps its place, with its yard behind
+    house(s, 776, 318, 8, 7, 1, base, 'blue', 'n', { role: 'workshop', wall: B.StoneBrick });
+    claim(774, 316, 786, 330);
+    s.props.push({ t: 'crate', x: 778.2, y: base, z: 326.6 }, { t: 'barrel', x: 781.4, y: base, z: 327.8 }, { t: 'barrel', x: 782.4, y: base, z: 327.2 });
+
+    // ---- Street fronts: terraced houses facing every street
+    const roofs: PropDesc['mat'][] = ['blue', 'slate', 'red', 'blue', 'slate'];
+    const walls = [B.Plaster, B.Plaster, B.Planks, B.StoneBrick];
+    let k = 0;
+    // Every building's footprint, with a block either side for gable-end chimneys
+    const built: [number, number, number, number][] = [[cx - 22, Z1 - 20, cx - 9, Z1 - 12], [cx - 21, cz + 41, cx - 11, cz + 47], [cx + 5, cz + 41, cx + 22, cz + 52], [775, 318, 784, 324]];
+    const inBuilding = (x: number, z: number) => built.some((r) => r[0] <= x && x <= r[2] && r[1] <= z && z <= r[3]);
+    const plot = (x0: number, z0: number, w: number, d: number, door: 'n' | 's' | 'e' | 'w', role?: Role) => {
+      if (!isFree(x0 - 1, z0 - 1, x0 + w, z0 + d)) return false;
+      claim(x0 - 1, z0 - 1, x0 + w, z0 + d);
+      built.push(w >= d ? [x0 - 1, z0, x0 + w, z0 + d - 1] : [x0, z0 - 1, x0 + w - 1, z0 + d]);
+      const h = hash2(x0, z0, 13);
+      house(s, x0, z0, w, d, h < 0.45 ? 2 : 1, base, roofs[k % roofs.length], door, { wall: walls[Math.floor(h * 97) % walls.length], role: role ?? (h > 0.9 ? 'store' : h > 0.8 ? 'workshop' : 'home') });
+      k++;
+      return true;
+    };
+    // East-west street: a row each side, doors onto the street
+    // An inn on the corner by the keep square, then the rows
+    plot(cx - 35, cz - 14, 13, 9, 's', 'inn');
+    for (let x = X0 + 5; x + 8 <= cx - 22; x += 9) { plot(x, cz - 12, 8, 7, 's'); plot(x, cz + 6, 8, 7, 'n'); }
+    for (let x = cx + 23; x + 8 <= X1 - 4; x += 9) { plot(x, cz - 12, 8, 7, 's', x < cx + 33 ? 'shop' : undefined); plot(x, cz + 6, 8, 7, 'n', x < cx + 33 ? 'shop' : undefined); }
+    // North street: a row each side, doors onto the street
+    for (let z = Z0 + 5; z + 8 <= cz - 22; z += 9) { plot(cx - 13, z, 7, 8, 'e'); plot(cx + 6, z, 7, 8, 'w'); }
+    // The four quarters: back-to-back rows with a lane in front of each
+    const quarter = (x0: number, z0: number, x1: number, z1: number) => {
+      for (let z = z0; z + 13 <= z1; z += 17) {
+        let rowCount = 0;
+        for (let x = x0; x + 8 <= x1; x += 10) {
+          const w = 7 + Math.floor(hash2(x, z, 17) * 3), d = 6 + Math.floor(hash2(x, z, 19) * 2);
+          if (plot(x, z, w, d, 'n')) rowCount++;
+          if (plot(x, z + 7, w, d, 's')) rowCount++;
+        }
+        // Lanes in front of both rows: trodden earth and gravel, where nothing else stands
+        if (rowCount) for (const lz of [z - 2, z - 1, z + 14, z + 15]) for (let x = x0 - 1; x <= x1; x++) {
+          if (lz < Z0 + 5 || lz > Z1 - 5 || inBuilding(x, lz)) continue;
+          const h = hash2(x, lz, 23);
+          O.set(x, base - 1, lz, h < 0.6 ? B.Path : h < 0.85 ? B.Gravel : B.Cobble);
+        }
+      }
+    };
+    quarter(X0 + 6, Z0 + 7, cx - 15, cz - 14);
+    quarter(cx + 8, Z0 + 7, X1 - 5, cz - 14);
+    quarter(X0 + 6, cz + 16, cx - 23, Z1 - 6);
+    quarter(cx + 26, cz + 16, X1 - 5, Z1 - 6);
+    // Kitchen gardens and yards in what's left at the edges of the quarters
+    for (const [gx, gz] of [[X0 + 7, cz + 40], [X1 - 14, cz + 40], [X0 + 7, Z0 + 40], [X1 - 14, Z0 + 40]]) {
+      if (!isFree(gx - 1, gz - 1, gx + 8, gz + 6)) continue;
+      claim(gx - 1, gz - 1, gx + 8, gz + 6);
+      for (let z = gz + 1; z < gz + 5; z++) for (let x = gx + 1; x < gx + 7; x++) { O.set(x, base - 1, z, (z - gz) % 2 ? B.Farmland : B.Dirt); clearUp(x, z, base, base + 6); }
+      fence(s, gx, gz, gx + 7, gz); fence(s, gx, gz + 5, gx + 3, gz + 5); fence(s, gx + 4.5, gz + 5, gx + 7, gz + 5);
+      fence(s, gx, gz, gx, gz + 5); fence(s, gx + 7, gz, gx + 7, gz + 5);
+      plantTree(gx + 9, gz + 2, base, 0.4);
+    }
+
+    // ---- The Charter Market: two rows of stalls, the market board, carts and goods
+    const stallColors = ['#a8382c', '#2f528f', '#3f7a3a', '#c8a03a'];
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'stall', x: cx - 12 + i * 8, y: base, z: cz + 22, ry: Math.PI, color: stallColors[i] });
+    for (let i = 0; i < 3; i++) s.props.push({ t: 'stall', x: cx - 8 + i * 8, y: base, z: cz + 30, ry: 0, color: stallColors[(i + 2) % 4] });
+    for (let i = 0; i < 6; i++) s.props.push({ t: 'crate', x: cx - 15 + (i % 3) * 0.8, y: base + Math.floor(i / 3) * 0.6, z: cz + 25.5 + (i % 2) * 0.4 });
+    s.props.push({ t: 'barrel', x: cx + 15.5, y: base, z: cz + 25.8 }, { t: 'barrel', x: cx + 16.4, y: base, z: cz + 26.4 }, { t: 'cart', x: cx + 14, y: base, z: cz + 33, ry: 0.5 });
+    s.props.push({ t: 'bench', x: cx - 4, y: base, z: cz + 36.5, ry: 0 }, { t: 'bench', x: cx + 6, y: base, z: cz + 36.5, ry: 0 });
+    s.props.push({ t: 'well', x: cx - 14, y: base, z: cz + 34 });
+    s.props.push({ t: 'notice', x: cx - 7.5, y: base, z: cz + 28.5 }); // the market board (side-quest postings)
+    for (const [bx, bz] of [[cx - 14, cz + 34], [cx - 15, cz + 34], [cx - 14, cz + 33], [cx - 15, cz + 33]]) { O.set(bx, base, bz, B.Barrier); O.set(bx, base + 1, bz, B.Barrier); }
+    // ---- Outside the south gate: toll board, Charter notice, the Toll Office table inside
+    s.props.push({ t: 'notice', x: cx + 8.5, y: base, z: Z1 + 4.5 }); // toll board
+    s.props.push({ t: 'notice', x: cx - 8.5, y: base, z: Z1 + 4.5 }); // the Charter's own notices
+    s.props.push({ t: 'desk', x: cx - 9.5, y: base, z: Z1 - 7.5 }); // the Toll Office table, inside the gate
+    rect(s, cx - 10, Z1 + 3, cx - 7, Z1 + 6);
+    rect(s, cx + 7, Z1 + 3, cx + 10, Z1 + 6);
+
+    // ---- Lamps along the streets
+    for (let i = 0; i < 10; i++) s.props.push({ t: 'lantern', x: cx + (i % 2 ? 4.6 : -4.4), y: base, z: Z0 + 16 + i * 14, ry: i % 2 ? Math.PI : 0 });
+    for (let x = X0 + 12; x < X1 - 6; x += 14) { if (Math.abs(x - cx) < 24) continue; s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: cz - 3.6, ry: 0 }, { t: 'lantern', x: x + 7.5, y: base, z: cz + 4.6, ry: Math.PI }); }
+
+    // Seen from across the plains
+    s.impostor.push(
+      { x: cx, y: base + 14, z: cz, w: 21, h: 28, d: 21, color: '#8f949c' },
+      { x: cx - 7.5, y: base + 18, z: cz - 7.5, w: 7, h: 36, d: 7, color: '#8f949c' },
+      { x: cx + 8.5, y: base + 17, z: cz - 7.5, w: 7, h: 34, d: 7, color: '#8f949c' },
+      { x: cx - 7.5, y: base + 40.5, z: cz - 7.5, w: 10, h: 9, d: 10, color: '#2f4c78', cone: true },
+      { x: cx + 8.5, y: base + 38, z: cz - 7.5, w: 10, h: 8, d: 10, color: '#2f4c78', cone: true },
+      { x: cx, y: base + 4.5, z: Z0, w: 140, h: 9, d: 3, color: '#8a8f98' },
+      { x: cx, y: base + 4.5, z: Z1, w: 140, h: 9, d: 3, color: '#8a8f98' },
+      { x: X0, y: base + 4.5, z: cz, w: 3, h: 9, d: 140, color: '#8a8f98' },
+      { x: X1, y: base + 4.5, z: cz, w: 3, h: 9, d: 140, color: '#8a8f98' },
+    );
+  }
+
+  // ---------------------------------------------------------------- Ansbury's New Town
+  /**
+   * Greater Ansbury. The old walled city is left exactly as it was; round it the New Town fills a
+   * second wall with a gate on each road. Four wards, each its own site so only the nearby ones
+   * build their props: the Guild Ward (north, the guildhall and clock tower on their square), the
+   * Tilt Ward (east, the tilt-yard), the Minster Ward (south, the minster on its plaza and the
+   * Charter Green) and the Shambles (west, the covered market). Terraces fill the rest: shut doors
+   * and lit windows mostly, with one house in five open to walk into.
+   */
+  function buildNewTown(base: number, extra: Site[]) {
+    const X0 = 750, X1 = 890, Z0 = 230, Z1 = 370, cx = 820, cz = 300; // the old walls
+    const OX0 = 630, OX1 = 1010, OZ0 = 120, OZ1 = 474; // the new
+    const ward = (id: string, name: string, x: number, z: number): Site => {
+      const w: Site = { id, name, region: 'crownroad', x, z, r: 240, named: false, props: [], rects: [], impostor: [] };
+      extra.push(w);
+      return w;
+    };
+    const north = ward('ansbury-guild', 'Guild Ward', cx, 165);
+    const east = ward('ansbury-tilt', 'Tilt Ward', 955, cz);
+    const south = ward('ansbury-minster', 'Minster Ward', cx, 430);
+    const west = ward('ansbury-shambles', 'The Shambles', 685, cz);
+    /** The ward whose wall is nearest: that site carries the props built there. */
+    const wardAt = (x: number, z: number) => {
+      const dn = z - OZ0, ds = OZ1 - z, de = OX1 - x, dw = x - OX0, m = Math.min(dn, ds, de, dw);
+      return m === dn ? north : m === ds ? south : m === de ? east : west;
+    };
+    rect(north, OX0, OZ0, OX1, OZ1); // no wild trees or creatures anywhere inside the new wall
+
+    const taken: [number, number, number, number][] = [];
+    const claim = (x0: number, z0: number, x1: number, z1: number) => taken.push([x0, z0, x1, z1]);
+    const isFree = (x0: number, z0: number, x1: number, z1: number) => !taken.some((r) => x0 <= r[2] && x1 >= r[0] && z0 <= r[3] && z1 >= r[1]);
+    claim(X0 - 17, Z0 - 17, X1 + 17, Z1 + 17); // the old city and the walk round its walls
+    // Older things the town grew round: wayside shrines, the old toll tower, farm fields
+    for (const q of pois) if (q.x > OX0 - 14 && q.x < OX1 + 14 && q.z > OZ0 - 14 && q.z < OZ1 + 14) claim(q.x - 14, q.z - 14, q.x + 14, q.z + 14);
+    // And the south road's quest spots: Bess Tull's letters and the wolves on the verge
+    claim(780, 444, 800, 466);
+    claim(OX0 - 2, OZ0 - 2, OX1 + 2, OZ0 + 6); claim(OX0 - 2, OZ1 - 6, OX1 + 2, OZ1 + 2); // inside the new wall, a lane all round
+    claim(OX0 - 2, OZ0 - 2, OX0 + 6, OZ1 + 2); claim(OX1 - 6, OZ0 - 2, OX1 + 2, OZ1 + 2);
+    claim(OX0, cz - 6, X0 - 17, cz + 6); claim(X1 + 17, cz - 6, OX1, cz + 6); // the avenues to the gates
+    claim(cx - 6, OZ0, cx + 6, Z0 - 17); claim(cx - 6, Z1 + 17, cx + 6, OZ1);
+
+    // ---- The new wall: towers at the corners and along it, a gate on each road
+    const wallH = 8;
+    wallLine(north, OX0, OZ0, OX1, OZ0, base, wallH, B.StoneBrick, [[cx - 4, cx + 4]]);
+    wallLine(south, OX0, OZ1, OX1, OZ1, base, wallH, B.StoneBrick, [[cx - 4, cx + 4]]);
+    wallLine(west, OX0, OZ0, OX0, OZ1, base, wallH, B.StoneBrick, [[cz - 4, cz + 4]]);
+    wallLine(east, OX1, OZ0, OX1, OZ1, base, wallH, B.StoneBrick, [[cz - 4, cz + 4]]);
+    gateArch(true, cx - 4, cx + 4, OZ0, base, wallH);
+    gateArch(true, cx - 4, cx + 4, OZ1, base, wallH);
+    gateArch(false, cz - 4, cz + 4, OX0, base, wallH);
+    gateArch(false, cz - 4, cz + 4, OX1, base, wallH);
+    for (const [tx, tz] of [[OX0, OZ0], [OX1, OZ0], [OX0, OZ1], [OX1, OZ1]]) {
+      tower(wardAt(tx, tz), tx, tz, 9, 14, base, B.StoneBrick, { crenel: true, trim: B.Cobble });
+      wardAt(tx, tz).props.push({ t: 'cone', x: tx + 0.5, y: base + 15, z: tz + 0.5, r: 6, h: 6, mat: 'slate' });
+    }
+    for (const [tx, tz] of [[cx - 7, OZ0], [cx + 7, OZ0], [cx - 7, OZ1], [cx + 7, OZ1], [OX0, cz - 7], [OX0, cz + 7], [OX1, cz - 7], [OX1, cz + 7]]) tower(wardAt(tx, tz), tx, tz, 5, 12, base, B.StoneBrick, { crenel: true, trim: B.Cobble });
+    for (const t of [700, 760, 880, 940]) for (const tz of [OZ0, OZ1]) tower(wardAt(t, tz), t, tz, 5, 11, base, B.StoneBrick, { crenel: true });
+    for (const t of [190, 245, 355, 420]) for (const tx of [OX0, OX1]) tower(wardAt(tx, t), tx, t, 5, 11, base, B.StoneBrick, { crenel: true });
+    for (const [bx, bz, ry, w] of [[cx - 4, OZ0 - 2.5, 0, north], [cx + 5, OZ0 - 2.5, 0, north], [cx - 4, OZ1 + 2.6, Math.PI, south], [cx + 5, OZ1 + 2.6, Math.PI, south]] as const) w.props.push({ t: 'banner', x: bx, y: base + 7.5, z: bz, kind: 'aldermere', ry });
+
+    // ---- Streets: the ring round the old walls, the four avenues, lamps and plane trees
+    street(X0 - 15, Z0 - 15, X1 + 15, Z0 - 9);
+    street(X0 - 15, Z1 + 9, X1 + 15, Z1 + 15);
+    street(X0 - 15, Z0 - 15, X0 - 9, Z1 + 15);
+    street(X1 + 9, Z0 - 15, X1 + 15, Z1 + 15);
+    street(OX0 + 1, cz - 3, X0 - 16, cz + 3);
+    street(X1 + 16, cz - 3, OX1 - 1, cz + 3);
+    street(cx - 3, OZ0 + 1, cx + 3, Z0 - 16);
+    street(cx - 3, Z1 + 16, cx + 3, OZ1 - 1);
+    pave(cx - 24, Z1 + 3, cx + 24, Z1 + 8, base, 'flag'); // the old south gate's yard, now a square
+    // Plane trees on the walk between the ring road and the old wall
+    for (let t = 0; t < 1; t += 1 / 14) {
+      for (const [tx, tz] of [[X0 - 6, Z0 - 4 + t * (Z1 - Z0 + 8)], [X1 + 6, Z0 - 4 + t * (Z1 - Z0 + 8)], [X0 - 4 + t * (X1 - X0 + 8), Z0 - 6], [X0 - 4 + t * (X1 - X0 + 8), Z1 + 6]]) {
+        const x = Math.round(tx), z = Math.round(tz);
+        if (Math.abs(x - cx) < 8 || Math.abs(z - cz) < 8) continue; // keep the gateways open
+        if (Math.abs(z - (Z1 + 6)) < 1 && Math.abs(x - cx) < 26) continue; // and the south gate square
+        plantTree(x, z, base, 0.55);
+      }
+    }
+    const lamp = (x: number, z: number, ry = 0) => wardAt(x, z).props.push({ t: 'lantern', x, y: base, z, ry });
+    for (let x = OX0 + 10; x < X0 - 18; x += 13) { lamp(x + 0.5, cz - 4.6); lamp(x + 6.5, cz + 4.6, Math.PI); }
+    for (let x = X1 + 22; x < OX1 - 6; x += 13) { lamp(x + 0.5, cz - 4.6); lamp(x + 6.5, cz + 4.6, Math.PI); }
+    for (let z = OZ0 + 10; z < Z0 - 18; z += 13) { lamp(cx - 4.6, z + 0.5, Math.PI / 2); lamp(cx + 4.6, z + 6.5, -Math.PI / 2); }
+    for (let z = Z1 + 22; z < OZ1 - 6; z += 13) { lamp(cx - 4.6, z + 0.5, Math.PI / 2); lamp(cx + 4.6, z + 6.5, -Math.PI / 2); }
+    for (let i = 0; i < 12; i++) {
+      const t = i / 12;
+      lamp(X0 - 8 + t * (X1 - X0 + 16), Z0 - 16.5); lamp(X0 - 8 + t * (X1 - X0 + 16), Z1 + 16.5, Math.PI);
+    }
+
+    // ---- Guild Ward: the guildhall and its clock tower on a flagged square with a fountain
+    claim(756, 134, 816, 197);
+    pave(758, 156, 815, 195, base, 'flag');
+    house(north, 764, 138, 28, 15, 2, base, 'slate', 's', { wall: B.StoneBrick, role: 'office' });
+    tower(north, 798, 142, 7, 30, base, B.StoneBrick, { trim: B.Cobble });
+    north.props.push({ t: 'cone', x: 798.5, y: base + 30, z: 142.5, r: 5, h: 9, mat: 'blue' });
+    for (const [gx, gz] of [[798.5, 146.2], [802.2, 142.5]]) north.props.push({ t: 'glow', x: gx, y: base + 25, z: gz, r: 2.6, color: '#fff2c8' }); // the clock faces, lit
+    fountain(north, 787, 176, base);
+    for (const [bx, bz, ry] of [[778, 176, Math.PI / 2], [796, 176, -Math.PI / 2], [787, 167, Math.PI], [787, 185, 0]] as const) north.props.push({ t: 'bench', x: bx, y: base, z: bz, ry });
+    for (const [tx, tz] of [[761, 159], [812, 159], [761, 192], [812, 192]]) plantTree(tx, tz, base, 0.5);
+    for (let i = 0; i < 3; i++) north.props.push({ t: 'stall', x: 768 + i * 8, y: base, z: 190, ry: Math.PI, color: ['#2f528f', '#a8382c', '#c8a03a'][i] });
+    north.props.push({ t: 'sign', x: 778.5, y: base, z: 157.5, ry: 0, text: 'Guildhall' });
+
+    // ---- Tilt Ward: the tilt-yard, banked stands round a sanded oval with the tilt down the middle
+    claim(922, 192, 994, 236);
+    tiltYard(east, 958, 214, base);
+
+    // ---- Minster Ward: the minster on its plaza, and the Charter Green
+    claim(826, 392, 872, 472);
+    minster(south, 840, 396, base);
+    pave(826, 437, 872, 470, base, 'flag');
+    fountain(south, 849, 456, base);
+    for (const [tx, tz] of [[829, 440], [869, 440], [829, 468], [869, 468]]) plantTree(tx, tz, base, 0.5);
+    claim(646, 386, 728, 474);
+    charterGreen(south, 648, 388, 726, 472, base);
+
+    // ---- The Shambles: the covered market and its yard
+    claim(648, 242, 702, 295);
+    pave(650, 244, 700, 293, base, 'cobble');
+    shelter(west, 656, 250, 36, 14, base, 'red', 5);
+    for (let i = 0; i < 4; i++) for (const [sz, ry] of [[253.5, 0], [260.5, Math.PI]] as const) west.props.push({ t: 'stall', x: 661 + i * 8.5, y: base, z: sz, ry, color: ['#a8382c', '#3f7a3a', '#2f528f', '#c8a03a'][(i + (ry ? 2 : 0)) % 4] });
+    for (let i = 0; i < 8; i++) west.props.push({ t: i % 2 ? 'barrel' : 'crate', x: 658 + i * 4.2, y: base, z: 266.5 + (i % 3) * 0.6 });
+    west.props.push({ t: 'sign', x: 674.5, y: base, z: 270.5, ry: 0, text: 'The Shambles' });
+    fountain(west, 675, 282, base);
+    for (const [cx2, cz2, ry] of [[690, 284, 0.4], [658, 286, -0.6]] as const) west.props.push({ t: 'cart', x: cx2, y: base, z: cz2, ry });
+
+    // ---- Terraces: pairs of rows back to back, a lane in front of each, gardens and yards between
+    const roofs: PropDesc['mat'][] = ['slate', 'blue', 'red', 'slate', 'blue', 'red', 'thatch'];
+    const walls = [B.Plaster, B.Plaster, B.Planks, B.StoneBrick, B.Plaster];
+    let n = 0;
+    const plot = (x0: number, z0: number, w: number, d: number, door: 'n' | 's' | 'e' | 'w', front = false) => {
+      if (!isFree(x0 - 1, z0 - 1, x0 + w, z0 + d)) return false;
+      claim(x0 - 1, z0 - 1, x0 + w, z0 + d);
+      const h = hash2(x0, z0, 41);
+      const open = front ? h < 0.35 : h < 0.2;
+      const s = wardAt(x0 + w / 2, z0 + d / 2);
+      house(s, x0, z0, w, d, h < 0.55 ? 2 : h < 0.62 ? 3 : 1, base, roofs[n % roofs.length], door, {
+        wall: walls[Math.floor(h * 113) % walls.length], closed: !open,
+        role: open ? (front ? (h < 0.06 ? 'inn' : h < 0.24 ? 'shop' : 'workshop') : h < 0.05 ? 'inn' : h < 0.1 ? 'shop' : h < 0.14 ? 'workshop' : 'home') : undefined,
+      });
+      n++;
+      return true;
+    };
+    // Street fronts first: tall houses and shops shoulder to shoulder down both sides of each
+    // avenue, doors onto it, over a flagged pavement
+    const pavement = (x0: number, z0: number, x1: number, z1: number) => {
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (!(Math.abs(x - cx) <= 3 && Math.abs(z - cz) <= 3)) O.set(x, base - 1, z, (x + z) % 3 ? B.StoneBrick : B.Cobble);
+    };
+    pavement(OX0 + 4, cz - 6, X0 - 16, cz - 4); pavement(OX0 + 4, cz + 4, X0 - 16, cz + 6);
+    pavement(X1 + 16, cz - 6, OX1 - 4, cz - 4); pavement(X1 + 16, cz + 4, OX1 - 4, cz + 6);
+    pavement(cx - 6, OZ0 + 4, cx - 4, Z0 - 16); pavement(cx + 4, OZ0 + 4, cx + 6, Z0 - 16);
+    pavement(cx - 6, Z1 + 16, cx - 4, OZ1 - 4); pavement(cx + 4, Z1 + 16, cx + 6, OZ1 - 4);
+    const fw = (x: number, z: number) => 7 + Math.floor(hash2(x, z, 77) * 3);
+    for (let x = OX0 + 8; x + 10 <= X0 - 18; x += 0) { const w = fw(x, cz); plot(x, cz - 14, w, 7, 's', true); plot(x, cz + 8, w, 7, 'n', true); x += w + 1; }
+    for (let x = X1 + 19; x + 10 <= OX1 - 6; x += 0) { const w = fw(x, cz); plot(x, cz - 14, w, 7, 's', true); plot(x, cz + 8, w, 7, 'n', true); x += w + 1; }
+    for (let z = OZ0 + 8; z + 10 <= Z0 - 18; z += 0) { const d = fw(cx, z); plot(cx - 14, z, 7, d, 'e', true); plot(cx + 8, z, 7, d, 'w', true); z += d + 1; }
+    for (let z = Z1 + 19; z + 10 <= OZ1 - 8; z += 0) { const d = fw(cx, z); plot(cx - 14, z, 7, d, 'e', true); plot(cx + 8, z, 7, d, 'w', true); z += d + 1; }
+    for (let z = OZ0 + 10; z + 14 <= OZ1 - 8; z += 21) {
+      for (let x = OX0 + 9; x + 9 <= OX1 - 8; x += 12) {
+        const w = 8 + Math.floor(hash2(x, z, 43) * 3), d = 6 + Math.floor(hash2(x, z, 47) * 2);
+        // Leave a yard or garden now and then, so a street isn't one long wall
+        if (hash2(x, z, 53) < 0.1) continue;
+        const a = plot(x, z, w, d, 'n'), b = hash2(x + 3, z, 59) < 0.15 ? false : plot(x, z + 7, w, d, 's');
+        // The lane in front of each row
+        const ward0 = wardAt(x + w / 2, z + 4);
+        for (const [made, lz] of [[a, z - 2], [a, z - 1], [b, z + 14], [b, z + 15]] as const) if (made) for (let lx = x - 1; lx <= x + 11; lx++) {
+          if (!isFree(lx, lz, lx, lz)) continue;
+          const hh = hash2(lx, lz, 61);
+          O.set(lx, base - 1, lz, hh < 0.55 ? B.Path : hh < 0.85 ? B.Gravel : B.Cobble);
+        }
+        if (a && hash2(x, z, 67) < 0.25 && isFree(x + 4, z - 4, x + 4, z - 4)) ward0.props.push({ t: 'lantern', x: x + 4.5, y: base, z: z - 3.5, ry: 0 });
+        // A kitchen garden or a tree in the gap behind the pair
+        if (a && b && hash2(x, z, 71) < 0.35 && isFree(x + 3, z + 17, x + 6, z + 20)) {
+          for (let gz = z + 17; gz <= z + 19; gz++) for (let gx = x + 1; gx <= x + 7; gx++) O.set(gx, base - 1, gz, (gz - z) % 2 ? B.Farmland : B.Dirt);
+          claim(x, z + 16, x + 8, z + 21);
+        } else if (a && b && hash2(x, z, 73) < 0.4 && isFree(x + 4, z + 18, x + 4, z + 18)) { plantTree(x + 4, z + 18, base, 0.45); claim(x + 1, z + 15, x + 7, z + 21); }
+      }
+    }
+
+    // Seen from across the plains: the new wall, the minster tower, the clock tower
+    north.impostor.push(
+      { x: cx, y: base + 4, z: OZ0, w: OX1 - OX0, h: 8, d: 3, color: '#8a8f98' },
+      { x: cx, y: base + 4, z: OZ1, w: OX1 - OX0, h: 8, d: 3, color: '#8a8f98' },
+      { x: OX0, y: base + 4, z: cz, w: 3, h: 8, d: OZ1 - OZ0, color: '#8a8f98' },
+      { x: OX1, y: base + 4, z: cz, w: 3, h: 8, d: OZ1 - OZ0, color: '#8a8f98' },
+      { x: 836, y: base + 16, z: 432, w: 7, h: 33, d: 7, color: '#9a9ea6' },
+      { x: 836, y: base + 38, z: 432, w: 8, h: 11, d: 8, color: '#4a5260', cone: true },
+      { x: 798, y: base + 15, z: 142, w: 7, h: 30, d: 7, color: '#9a9ea6' },
+    );
+  }
+
+  /** A stone hall with tall lancet windows, buttress lines and a broad doorway (no door leaf). */
+  function stoneHall(s: Site, x0: number, z0: number, w: number, d: number, h: number, base: number, door: 'n' | 's' | 'e' | 'w' | null) {
+    rect(s, x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
+    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
+      foundation(x, z, base, B.StoneBrick);
+      O.set(x, base - 1, z, (x + z) % 2 ? B.StoneBrick : B.Cobble);
+      clearUp(x, z, base, base + h + 14);
+      const ex = x === x0 || x === x0 + w - 1, ez = z === z0 || z === z0 + d - 1;
+      if (!ex && !ez) continue;
+      const along = ez ? x - x0 : z - z0, span = ez ? w : d;
+      for (let y = base; y < base + h; y++) {
+        const ly = y - base;
+        let id: number = B.StoneBrick;
+        if (ex && ez) id = B.Cobble;
+        else if (along % 4 === 0) id = B.Cobble;
+        else if (ly >= 3 && ly <= h - 3 && along % 4 === 2 && along > 1 && along < span - 2) id = B.Window;
+        else if (ly === h - 1) id = B.Cobble;
+        O.set(x, y, z, id);
+      }
+    }
+    if (door) {
+      const dx = door === 'n' || door === 's' ? x0 + Math.floor(w / 2) : door === 'e' ? x0 + w - 1 : x0;
+      const dz = door === 'e' || door === 'w' ? z0 + Math.floor(d / 2) : door === 's' ? z0 + d - 1 : z0;
+      for (let i = -1; i <= 1; i++) for (let y = base; y < base + 4; y++) {
+        const x = door === 'n' || door === 's' ? dx + i : dx, z = door === 'n' || door === 's' ? dz : dz + i;
+        O.set(x, y, z, B.Air);
+      }
+    }
+  }
+
+  /** The minster: nave and transepts in stone under slate, a bell tower and spire at the west front. */
+  function minster(s: Site, x0: number, z0: number, base: number) {
+    const NW = 16, ND = 40, H = 13, tz = z0 + 8, TW = 34, TD = 12;
+    stoneHall(s, x0 - 9, tz, TW, TD, H, base, null);
+    stoneHall(s, x0, z0, NW, ND, H, base, 's');
+    // Open the crossing: the nave and the transept are one space inside
+    for (let y = base; y < base + H; y++) {
+      for (let z = z0 + 1; z < z0 + ND - 1; z++) for (let x = x0 + 1; x < x0 + NW - 1; x++) O.set(x, y, z, B.Air);
+      for (let z = tz + 1; z < tz + TD - 1; z++) for (let x = x0 - 8; x < x0 + NW + 8; x++) O.set(x, y, z, B.Air);
+    }
+    s.props.push({ t: 'roof', x: x0 + NW / 2, y: base + H, z: z0 + ND / 2, len: ND, span: NW, rise: roofRise(NW), ry: Math.PI / 2, mat: 'slate' });
+    s.props.push({ t: 'roof', x: x0 + NW / 2, y: base + H, z: tz + TD / 2, len: TW, span: TD, rise: roofRise(TD), ry: 0, mat: 'slate' });
+    tower(s, x0 - 4, z0 + ND - 4, 7, H + 20, base, B.StoneBrick, { trim: B.Cobble });
+    s.props.push({ t: 'cone', x: x0 - 3.5, y: base + H + 20, z: z0 + ND - 3.5, r: 4.6, h: 12, mat: 'slate' });
+    // Inside: pews down both sides of the aisle, the altar under the north window, lamps on chains
+    for (let z = z0 + 18; z < z0 + ND - 4; z += 2.6) for (const px of [x0 + 4.2, x0 + NW - 4.2]) s.props.push({ t: 'bench', x: px, y: base, z, ry: 0 });
+    s.props.push({ t: 'furn', item: 'counter', x: x0 + NW / 2, y: base, z: z0 + 3.2, ry: 0 });
+    s.props.push({ t: 'furn', item: 'candles', x: x0 + NW / 2 - 0.6, y: base + 1.05, z: z0 + 3.2, ry: 0 }, { t: 'furn', item: 'candles', x: x0 + NW / 2 + 0.7, y: base + 1.05, z: z0 + 3.2, ry: 1 });
+    s.props.push({ t: 'glow', x: x0 + NW / 2, y: base + 2, z: z0 + 3.2, r: 2, color: '#ffe0a8' });
+    for (const [bx, bz] of [[x0 + 1.2, z0 + 6], [x0 + NW - 1.2, z0 + 6]]) s.props.push({ t: 'banner', x: bx, y: base + 9, z: bz, kind: 'aldermere', ry: Math.PI / 2 });
+    for (const lz of [z0 + 6, z0 + 14, z0 + 22, z0 + 30]) s.props.push({ t: 'furn', item: 'lamp', x: x0 + NW / 2, y: base + H - 2, z: lz, ry: 0 });
+    for (const lx of [x0 - 4, x0 + NW + 4]) s.props.push({ t: 'furn', item: 'lamp', x: lx, y: base + H - 2, z: tz + TD / 2, ry: 0 });
+    s.props.push({ t: 'sign', x: x0 + NW / 2 + 4.5, y: base, z: z0 + ND + 2.5, ry: 0, text: 'The Minster' });
+  }
+
+  /** A fountain: a stone basin of water round a column, on a square. */
+  function fountain(s: Site, x: number, z: number, base: number) {
+    rect(s, x - 4, z - 4, x + 4, z + 4);
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 3.4) continue;
+      O.set(x + dx, base - 2, z + dz, B.Cobble);
+      if (d > 2.4) { O.set(x + dx, base - 1, z + dz, B.StoneBrick); O.set(x + dx, base, z + dz, B.StoneBrick); }
+      else { O.set(x + dx, base - 1, z + dz, B.Water); O.set(x + dx, base, z + dz, B.Water); }
+    }
+    for (let y = base - 1; y < base + 3; y++) O.set(x, y, z, y === base + 2 ? B.Cobble : B.StoneBrick);
+    s.props.push({ t: 'glow', x: x + 0.5, y: base + 3.4, z: z + 0.5, r: 2, color: '#cfe8ff' });
+  }
+
+  /** The tilt-yard: an oval sanded floor, three banks of stands, the tilt barrier, pavilions. */
+  function tiltYard(s: Site, ex: number, ez: number, base: number) {
+    const a = 28, b = 17;
+    rect(s, ex - a - 4, ez - b - 4, ex + a + 4, ez + b + 4);
+    for (let z = ez - b - 4; z <= ez + b + 4; z++) for (let x = ex - a - 4; x <= ex + a + 4; x++) {
+      const d = Math.sqrt(((x - ex) / a) ** 2 + ((z - ez) / b) ** 2);
+      if (d > 1.36) continue;
+      foundation(x, z, base);
+      clearUp(x, z, base, base + 8);
+      if (d < 1) { O.set(x, base - 1, z, hash2(x, z, 81) < 0.8 ? B.Sand : B.Gravel); continue; }
+      const gate = Math.abs(z - ez) <= 2 && Math.abs(x - ex) > a * 0.8;
+      if (gate) { O.set(x, base - 1, z, B.Gravel); continue; }
+      const tier = d < 1.12 ? 1 : d < 1.24 ? 2 : 3;
+      for (let y = base; y < base + tier; y++) O.set(x, y, z, tier === 3 && y === base + 2 ? B.StoneBrick : B.Planks);
+      if (tier === 3) { O.set(x, base + 3, z, B.StoneBrick); if ((x + z) % 2 === 0) O.set(x, base + 4, z, B.StoneBrick); }
+    }
+    fence(s, ex - 18, ez, ex + 18, ez); // the tilt
+    for (const [px, pz, ry, col] of [[ex - a - 9, ez - 9, Math.PI / 2, '#a8382c'], [ex + a + 9, ez + 9, -Math.PI / 2, '#2f528f']] as const) s.props.push({ t: 'tent', x: px, y: base, z: pz, ry, color: col });
+    for (const [bx, bz] of [[ex - 14, ez - b - 2.2], [ex, ez - b - 3.2], [ex + 14, ez - b - 2.2], [ex - 14, ez + b + 2.2], [ex + 14, ez + b + 2.2]]) s.props.push({ t: 'banner', x: bx, y: base + 7.2, z: bz, kind: 'aldermere' });
+    s.props.push({ t: 'sign', x: ex - a - 3.5, y: base, z: ez - 4.5, ry: Math.PI / 2, text: 'The Tilt-yard' });
+  }
+
+  /** The Charter Green: gravel walks, lawns, a pond, a hedge maze of a garden, benches, old trees. */
+  function charterGreen(s: Site, x0: number, z0: number, x1: number, z1: number, base: number) {
+    rect(s, x0, z0, x1, z1);
+    const mx = Math.round((x0 + x1) / 2), mz = Math.round((z0 + z1) / 2);
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      foundation(x, z, base, B.Dirt);
+      clearUp(x, z, base, base + 10);
+      const walk = Math.abs(x - mx) <= 1 || Math.abs(z - mz) <= 1 || Math.abs(Math.hypot(x - mx, z - mz) - 22) < 1.2;
+      O.set(x, base - 1, z, walk ? (hash2(x, z, 91) < 0.75 ? B.Gravel : B.Path) : B.Grass);
+      const edge = x === x0 || x === x1 || z === z0 || z === z1;
+      if (edge && !(Math.abs(x - mx) <= 2 || Math.abs(z - mz) <= 2)) O.set(x, base, z, B.OakLeaves); // a clipped hedge round it
+    }
+    // The pond, east of the cross walks
+    const px = mx + 22, pz = mz - 16;
+    for (let dz = -7; dz <= 7; dz++) for (let dx = -10; dx <= 10; dx++) {
+      const d = Math.hypot(dx / 10, dz / 7);
+      if (d > 1) continue;
+      O.set(px + dx, base - 2, pz + dz, B.Clay);
+      O.set(px + dx, base - 1, pz + dz, d > 0.85 ? B.Sand : B.Water);
+    }
+    for (const [tx, tz] of [[x0 + 8, z0 + 8], [x1 - 8, z0 + 8], [x0 + 8, z1 - 8], [x1 - 8, z1 - 8], [mx - 14, mz + 14], [mx + 14, mz + 14], [mx - 14, mz - 14], [mx - 30, mz + 4], [mx + 30, mz + 22]]) plantTree(tx, tz, base, 0.7);
+    // A statue on the crossing: the first Speaker, on a plinth
+    for (let y = base; y < base + 5; y++) O.set(mx, y, mz, y < base + 2 ? B.StoneBrick : B.Cobble);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) O.set(mx + dx, base, mz + dz, B.StoneBrick);
+    for (const [bx, bz, ry] of [[mx - 5, mz - 3, 0], [mx + 5, mz + 3, Math.PI], [mx - 3, mz + 5, Math.PI / 2], [mx + 3, mz - 5, -Math.PI / 2]] as const) s.props.push({ t: 'bench', x: bx, y: base, z: bz, ry });
+    for (const [lx, lz] of [[mx - 2.5, z0 + 6], [mx + 2.5, z1 - 6], [x0 + 6, mz - 2.5], [x1 - 6, mz + 2.5]]) s.props.push({ t: 'lantern', x: lx, y: base, z: lz });
+    s.props.push({ t: 'sign', x: mx + 3.5, y: base, z: z0 + 2.5, ry: 0, text: 'The Charter Green' });
+  }
+
+  // ---------------------------------------------------------------- Dungeons, delves, vistas, wonders
+  /**
+   * Underworks: a public dungeon or a delve, dug under levelled ground. A gatehouse over a stair
+   * down; dressed-stone halls joined by corridors, lit by lanterns; creatures in every hall, a
+   * champion in the last, and a chest behind the champion. Public dungeons are bigger, with two
+   * wings and a great hall; delves are three rooms. Themes set the stone and the clutter.
+   */
+  function buildUnderworks(s: Site, G: number, theme: keyof typeof UNDERWORKS) {
+    const T = UNDERWORKS[theme];
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    const F = Math.max(7, G - T.depth); // the floor everything below stands on
+    rect(s, cx - T.reach, cz - T.reach - 4, cx + T.reach, cz + T.reach);
+    const spawns: [number, number, number, string][] = [];
+    const lamp = (x: number, z: number, y = F + 2.2) => s.props.push({ t: 'glow', x: x + 0.5, y, z: z + 0.5, r: 2.2, color: T.light });
+    const wallMat = (x: number, y: number, z: number) => (hash2(x * 3 + y, z, 301) < 0.3 ? T.wall2 : T.wall);
+    /** Carve a hall (inclusive bounds, local to the centre) with dressed walls, floor and ceiling. */
+    const hall = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false) => {
+      for (let z = z0 - 1; z <= z1 + 1; z++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+        const X = cx + x, Z = cz + z, edge = x < x0 || x > x1 || z < z0 || z > z1;
+        for (let y = F - 1; y <= F + h; y++) {
+          if (y === F - 1) O.set(X, y, Z, edge ? wallMat(X, y, Z) : hash2(X, Z, 303) < 0.22 ? T.floor2 : T.floor);
+          else if (y === F + h || edge) O.set(X, y, Z, wallMat(X, y, Z));
+          else O.set(X, y, Z, B.Air);
+        }
+      }
+      if (pillars) for (let z = z0 + 3; z <= z1 - 3; z += 5) for (const x of [x0 + 3, x1 - 3]) for (let y = F; y < F + h; y++) O.set(cx + x, y, cz + z, T.wall2);
+      // Lanterns along the long walls
+      for (let x = x0 + 2; x <= x1 - 2; x += 6) for (const [z, ry] of [[z0, 0], [z1, Math.PI]] as const) {
+        s.props.push({ t: 'wallLantern', x: cx + x + 0.5, y: F + 2.4, z: cz + z + (ry ? 0.92 : 0.08), ry });
+      }
+      lamp(cx + (x0 + x1) / 2, cz + (z0 + z1) / 2, F + Math.min(h - 1, 4));
+    };
+    /** A corridor three wide and four high between two points on one axis. */
+    const run = (ax: number, az: number, bx: number, bz: number) => hall(Math.min(ax, bx) - (ax === bx ? 1 : 0), Math.min(az, bz) - (az === bz ? 1 : 0), Math.max(ax, bx) + (ax === bx ? 1 : 0), Math.max(az, bz) + (az === bz ? 1 : 0), 4);
+    const put = (x: number, z: number, n: number, types: string[]) => { for (let i = 0; i < n; i++) spawns.push([cx + x + (i % 2 ? 2 : -2) * (i >> 1 ? 1 : 0.5), F, cz + z + (i % 2 ? 1.5 : -1.5), types[i % types.length]]); };
+    const clutter = (x: number, z: number) => {
+      const X = cx + x, Z = cz + z, k = hash2(X, Z, 305);
+      for (const c of T.clutter.slice(0, 2 + Math.floor(k * 2))) s.props.push(c === 'mushrooms' || c === 'candles' || c === 'shelves' || c === 'chest' ? { t: 'furn', item: c, x: X + (k - 0.5) * 2, y: F, z: Z + (k - 0.5) * 1.5, ry: k * 6 } : { t: c as PropType, x: X + (k - 0.5) * 2, y: F, z: Z - (k - 0.5) * 1.5, ry: k * 6 });
+    };
+
+    // The gatehouse and the stair down (south from the gate)
+    const ez = -T.reach - 2;
+    for (let k = 0; k < T.depth; k++) {
+      const z = cz + ez + 2 + k, top = G - 1 - k;
+      for (let x = cx - 2; x <= cx + 2; x++) {
+        for (let y = top - 2; y < top + 5; y++) {
+          const side = x === cx - 2 || x === cx + 2;
+          if (y < top) O.set(x, y, z, side ? wallMat(x, y, z) : T.floor);
+          else O.set(x, y, z, side && y < G - 1 ? wallMat(x, y, z) : y >= G ? (side ? T.wall : B.Air) : B.Air);
+        }
+      }
+      if (k % 4 === 2) lamp(cx, z, top + 2);
+    }
+    for (let y = G; y < G + 5; y++) for (const x of [cx - 3, cx + 3]) for (const z of [cz + ez + 1, cz + ez + 2, cz + ez + 3]) O.set(x, y, z, y === G + 4 ? T.wall2 : T.wall);
+    for (let x = cx - 3; x <= cx + 3; x++) for (const z of [cz + ez + 1, cz + ez + 2, cz + ez + 3]) O.set(x, G + 4, z, T.wall2);
+    for (const x of [cx - 2, cx + 2]) s.props.push({ t: 'lantern', x: x + 0.5, y: G, z: cz + ez - 0.5, ry: 0 });
+    s.props.push({ t: 'sign', x: cx + 5.5, y: G, z: cz + ez - 1.5, ry: 0, text: s.name.length > 15 ? s.name.replace('The ', '') : s.name });
+    const stairEnd = ez + 2 + T.depth; // local z where the stair meets the floor
+
+    if (T.pub) {
+      // Antechamber, two wings, the great hall
+      run(0, stairEnd, 0, -12); hall(-6, -11, 6, -1, 6); put(0, -6, 2, T.mobs);
+      run(-7, -6, -14, -6); hall(-30, -15, -15, 5, 8, true); put(-22, -8, 4, T.mobs); put(-22, 2, 2, T.mobs);
+      run(7, -6, 14, -6); hall(15, -15, 30, 5, 8, true); put(22, -8, 4, T.mobs); put(22, 2, 2, T.mobs);
+      run(0, 0, 0, 9); hall(-13, 10, 13, 30, 10, true); put(-6, 16, 2, T.mobs); put(6, 16, 2, T.mobs);
+      for (const [x, z] of [[-26, -12], [26, -12], [-26, 3], [26, 3], [-4, -9], [-10, 27], [10, 27]]) clutter(x, z);
+      s.act = { kind: 'dungeon', spawns, boss: [cx + 0.5, F, cz + 22.5, T.boss], chest: [cx + 0.5, F, cz + 28.5] };
+      s.props.push({ t: 'furn', item: 'lamp', x: cx + 0.5, y: F + 9.5, z: cz + 20.5, ry: 0 }, { t: 'furn', item: 'lamp', x: cx + 0.5, y: F + 9.5, z: cz + 13.5, ry: 0 });
+    } else {
+      run(0, stairEnd, 0, -5); hall(-5, -4, 5, 4, 5); put(0, 0, 2, T.mobs);
+      run(6, 0, 8, 0); hall(9, -7, 18, 7, 6, true); put(13, -3, 2, T.mobs);
+      run(-6, 0, -8, 0); hall(-17, -6, -9, 6, 5); put(-13, 0, 3, T.mobs);
+      for (const [x, z] of [[-15, -4], [-11, 4], [3, -3], [16, 5]]) clutter(x, z);
+      s.act = { kind: 'delve', spawns, boss: [cx + 14.5, F, cz + 2.5, T.boss], chest: [cx + 17.5, F, cz + 5.5] };
+    }
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+  }
+
+  /** A world boss's lair: a levelled clearing ringed with whatever suits the creature. */
+  function buildLair(s: Site, G: number, type: string) {
+    const cx = Math.round(s.x), cz = Math.round(s.z), R = 19;
+    rect(s, cx - R - 3, cz - R - 3, cx + R + 3, cz + R + 3);
+    for (let dz = -R - 2; dz <= R + 2; dz++) for (let dx = -R - 2; dx <= R + 2; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > R + 2) continue;
+      const x = cx + dx, z = cz + dz, h = hash2(x, z, 331);
+      clearUp(x, z, G, G + 14);
+      const floor = type === 'bramblemaw' ? (h < 0.5 ? B.Loam : h < 0.8 ? B.Grass : B.MossyCobble)
+        : type === 'tidewright' ? (h < 0.8 ? B.Sand : B.Gravel)
+          : type === 'cinderhorn' ? (h < 0.6 ? B.RedSand : h < 0.85 ? B.TerraOrange : B.Basalt)
+            : (h < 0.6 ? B.Ice : h < 0.85 ? B.Snow : B.Basalt);
+      if (d <= R) O.set(x, G - 1, z, floor);
+    }
+    // The ring: twelve features round the edge
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + 0.13, x = Math.round(cx + Math.cos(a) * (R + 1)), z = Math.round(cz + Math.sin(a) * (R + 1));
+      const h = 4 + Math.floor(hash2(x, z, 333) * 5);
+      if (type === 'bramblemaw') {
+        // Thorn roots arching up out of the ground and back in
+        for (let k = 0; k <= 6; k++) O.set(x + Math.round(Math.cos(a + Math.PI / 2) * (k - 3)), G + Math.round(Math.sin((k / 6) * Math.PI) * h), z + Math.round(Math.sin(a + Math.PI / 2) * (k - 3)), B.OakLog);
+        s.props.push({ t: 'furn', item: 'mushrooms', x: x + 0.5, y: G, z: z + 0.5, ry: a, tint: i });
+      } else if (type === 'tidewright') {
+        for (let y = G - 1; y < G + h - 2; y++) for (const [ox, oz] of [[0, 0], [1, 0], [0, 1]]) O.set(x + ox, y, z + oz, y > G + 1 ? B.Stone : B.MossyStone);
+        if (i % 4 === 0) s.props.push({ t: 'boat', x: x + 0.5 - Math.cos(a) * 4, y: G + 0.5, z: z + 0.5 - Math.sin(a) * 4, ry: a });
+      } else if (type === 'cinderhorn') {
+        for (let y = G - 1; y < G + h; y++) O.set(x, y, z, y > G + h - 3 ? B.TerraBrown : B.Basalt);
+        s.props.push({ t: 'glow', x: x + 0.5, y: G + 0.6, z: z + 0.5, r: 2.2, color: '#ff7a3a' }, { t: 'smoke', x: x + 0.5, y: G + h + 0.4, z: z + 0.5 });
+      } else {
+        for (let y = G - 1; y < G + h + 2; y++) O.set(x, y, z, B.Crystal);
+        s.props.push({ t: 'glow', x: x + 0.5, y: G + h, z: z + 0.5, r: 3, color: '#9fe8ff' });
+      }
+    }
+    s.props.push({ t: 'sign', x: cx + R + 4.5, y: heightAt(cx + R + 4, cz), z: cz + 0.5, ry: Math.PI / 2, text: s.name.replace('The ', '') });
+  }
+
+  /** Where a Shardfall comes down: a scorched circle of basalt, old shards in it. Not on the map. */
+  function buildShardGround(s: Site, G: number) {
+    s.named = false;
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    rect(s, cx - 12, cz - 12, cx + 12, cz + 12);
+    for (let dz = -11; dz <= 11; dz++) for (let dx = -11; dx <= 11; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 11) continue;
+      const x = cx + dx, z = cz + dz;
+      clearUp(x, z, G, G + 10);
+      O.set(x, G - 1, z, d < 4 ? B.Basalt : hash2(x, z, 335) < 0.55 ? B.Gravel : B.Basalt);
+      if (d > 6 && hash2(x, z, 337) < 0.04) { O.set(x, G, z, B.Crystal); if (hash2(z, x, 339) < 0.5) O.set(x, G + 1, z, B.Crystal); }
+    }
+  }
+
+  /** A vista: a stepped stone cairn on the highest ground nearby, a pennant on top. */
+  function buildVista(s: Site) {
+    let bx = Math.round(s.x), bz = Math.round(s.z), bh = -1;
+    for (let dz = -20; dz <= 20; dz += 2) for (let dx = -20; dx <= 20; dx += 2) {
+      const h = heightAt(s.x + dx, s.z + dz);
+      if (h > bh && h <= 84 && coastDist(s.x + dx, s.z + dz) > 8) { bh = h; bx = Math.round(s.x + dx); bz = Math.round(s.z + dz); }
+    }
+    if (bh < 0) bh = heightAt(bx, bz);
+    rect(s, bx - 7, bz - 7, bx + 7, bz + 7);
+    for (let t = 0; t < 6; t++) {
+      const r = 6 - t;
+      for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+        const x = bx + dx, z = bz + dz;
+        if (t === 0) for (let y = heightAt(x, z) - 1; y < bh; y++) O.set(x, y, z, B.Cobble);
+        O.set(x, bh + t, z, hash2(x, z + t, 311) < 0.25 ? B.MossyCobble : (Math.abs(dx) === r || Math.abs(dz) === r) ? B.StoneBrick : B.Cobble);
+        clearUp(x, z, bh + t + 1, bh + t + 4);
+      }
+    }
+    for (let y = bh + 6; y < bh + 9; y++) O.set(bx, y, bz + 1, B.Timber);
+    s.props.push({ t: 'banner', x: bx + 0.5, y: bh + 9, z: bz + 1.5, kind: 'aldermere', ry: 0 }, { t: 'glow', x: bx + 0.5, y: bh + 7, z: bz + 0.5, r: 2.4, color: '#bfe8ff' });
+    s.act = { kind: 'vista', view: [bx + 0.5, bh + 6, bz - 0.5, bx + 0.5, bh + 4, bz + 0.5] };
+    s.impostor.push({ x: bx + 0.5, y: bh + 3, z: bz + 0.5, w: 9, h: 6, d: 9, color: '#8a8f98' });
+  }
+
+  /** The Weeping Stair: a gorge stepping down in five pools, each spilling over its lip into the next. */
+  function buildWeepingStair(s: Site, G: number) {
+    const cx = Math.round(s.x), z0 = Math.round(s.z) - 32;
+    rect(s, cx - 14, z0 - 4, cx + 14, z0 + 66);
+    for (let t = 0; t < 5; t++) {
+      const za = z0 + t * 13, top = G - t * 5; // the pool's water stands at top - 1
+      for (let z = za; z < za + 13; z++) for (let x = cx - 12; x <= cx + 12; x++) {
+        const half = 7 + Math.round(Math.sin((z + x * 0.3) * 0.35) * 1.5);
+        const dx = Math.abs(x - cx);
+        if (dx > half + 4) continue;
+        if (dx > half) {
+          // The gorge walls: mossy rock up to the old ground
+          for (let y = top - 4; y < Math.max(top + 4, heightAt(x, z)); y++) O.set(x, y, z, hash2(x, y + z, 313) < 0.4 ? B.MossyStone : B.Stone);
+          continue;
+        }
+        O.set(x, top - 4, z, B.Gravel);
+        for (let y = top - 3; y < top - 1; y++) O.set(x, y, z, B.Water);
+        for (let y = top - 1; y < G + 12; y++) O.set(x, y, z, B.Air);
+        // The lip: a ledge of stone at the pool's downstream end with water spilling over the middle
+        if (z === za + 12 && t < 4) {
+          for (let y = top - 6; y < top - 1; y++) O.set(x, y, z, dx < 4 ? B.Water : B.MossyStone);
+        }
+      }
+      for (const [gx, gz] of [[cx - 6, za + 4], [cx + 5, za + 8]]) O.set(gx, top - 1, gz, B.Glowcap);
+      s.props.push({ t: 'furn', item: 'mushrooms', x: cx - 8.5, y: top - 1, z: za + 6.5, ry: t, tint: t });
+    }
+    // A footbridge over the top pool, trees on the banks
+    for (let x = cx - 9; x <= cx + 9; x++) O.set(x, G - 1, z0 + 5, B.Planks);
+    for (let x = cx - 9; x <= cx + 9; x++) for (const z of [z0 + 4, z0 + 6]) { O.set(x, G, z, x % 3 === 0 ? B.Timber : B.DarkPlanks); O.set(x, G + 1, z, B.Barrier); } // parapets
+    for (const [tx, tz] of [[cx - 14, z0 + 8], [cx + 14, z0 + 20], [cx - 14, z0 + 36], [cx + 14, z0 + 50]]) plantTree(tx, tz, heightAt(tx, tz), 0.6);
+    s.act = { kind: 'scenic' };
+  }
+
+  /** The Kelpie Arch: a sea arch off the west cape, crystal in its veins, gulls on its crown. */
+  function buildSeaArch(s: Site) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    for (let a = 0; a <= 64; a++) {
+      const t = a / 64, ang = Math.PI * t;
+      const z = cz + Math.round(Math.cos(ang) * 16), yTop = SEA + Math.round(Math.sin(ang) * 22) + 3;
+      const legs = t < 0.12 || t > 0.88;
+      for (let dz = -2; dz <= 2; dz++) for (let dx = -3; dx <= 3; dx++) {
+        if (Math.hypot(dx * 0.8, dz) > 3) continue;
+        const x = cx + dx, zz = z + dz;
+        const y0 = legs ? Math.min(heightAt(x, zz), SEA) - 1 : yTop - 4;
+        for (let y = y0; y <= yTop; y++) O.set(x, y, zz, hash2(x, y, zz) < 0.04 ? B.Crystal : y > yTop - 1 && hash2(x, zz, 315) < 0.5 ? B.MossyStone : y < SEA + 2 ? B.Basalt : B.Stone);
+      }
+    }
+    for (const [gz, gy] of [[cz - 3, SEA + 26], [cz + 2, SEA + 26], [cz + 6, SEA + 25]]) s.props.push({ t: 'furn', item: 'gull', x: cx + 0.5, y: gy, z: gz + 0.5, ry: gz });
+    s.props.push({ t: 'glow', x: cx + 0.5, y: SEA + 18, z: cz + 0.5, r: 6, color: '#9fe8ff' });
+    s.impostor.push({ x: cx, y: SEA + 12, z: cz - 16, w: 6, h: 24, d: 6, color: '#5a5a62' }, { x: cx, y: SEA + 12, z: cz + 16, w: 6, h: 24, d: 6, color: '#5a5a62' }, { x: cx, y: SEA + 23, z: cz, w: 6, h: 4, d: 34, color: '#5a5a62' });
+    s.act = { kind: 'scenic' };
+  }
+
+  /**
+   * The Stone King: a colossus standing knee-deep in the red sand of the barrens, crowned, a
+   * shield at his side and his sword raised to the sky. Weathered and mossed; seen for miles.
+   */
+  function buildColossus(s: Site, G: number) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    rect(s, cx - 24, cz - 24, cx + 24, cz + 24);
+    const stone = (x: number, y: number, z: number, id?: number) => O.set(x, y, z, id ?? (hash2(x * 3 + y, z, 317) < 0.16 ? B.MossyStone : hash2(z, x + y, 318) < 0.1 ? B.Cobble : B.StoneBrick));
+    const box = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, id?: number) => {
+      for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) stone(x, y, z, id);
+    };
+    /** A limb as a thick line between two points. */
+    const limb = (a: [number, number, number], b: [number, number, number], r: number, id?: number) => {
+      const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * 1.5);
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, px = a[0] + (b[0] - a[0]) * t, py = a[1] + (b[1] - a[1]) * t, pz = a[2] + (b[2] - a[2]) * t;
+        for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) if (Math.hypot(dx, dy, dz) <= r + 0.35) stone(Math.round(px + dx), Math.round(py + dy), Math.round(pz + dz), id);
+      }
+    };
+    const y0 = G - 3;
+    // Legs, knee-deep in a drift
+    box(cx - 6, y0, cz - 3, cx - 2, G + 13, cz + 2);
+    box(cx + 2, y0, cz - 3, cx + 6, G + 13, cz + 2);
+    box(cx - 7, G + 10, cz - 4, cx + 7, G + 13, cz + 3, B.Cobble); // the skirt of mail
+    // Torso, belt and breastplate
+    box(cx - 7, G + 14, cz - 4, cx + 7, G + 27, cz + 3);
+    box(cx - 7, G + 15, cz - 4, cx + 7, G + 16, cz + 3, B.TerraBrown);
+    for (let y = G + 18; y <= G + 26; y++) O.set(cx, y, cz + 4, B.Cobble);
+    // Shoulders, pauldrons
+    box(cx - 10, G + 24, cz - 4, cx - 7, G + 28, cz + 3, B.Cobble);
+    box(cx + 7, G + 24, cz - 4, cx + 10, G + 28, cz + 3, B.Cobble);
+    // Head: a squared face, brows, eyes, nose, a beard, and the crown's points
+    box(cx - 3, G + 28, cz - 3, cx + 3, G + 36, cz + 3);
+    for (const ex of [cx - 2, cx + 2]) { O.set(ex, G + 33, cz + 4, B.Basalt); O.set(ex, G + 34, cz + 4, B.StoneBrick); }
+    O.set(cx, G + 32, cz + 4, B.Cobble); O.set(cx, G + 33, cz + 4, B.Cobble);
+    box(cx - 2, G + 28, cz + 4, cx + 2, G + 30, cz + 4, B.Cobble);
+    for (let i = -3; i <= 3; i++) for (const z of [cz - 3, cz + 3]) { O.set(cx + i, G + 37, z, B.TerraCream); if (i % 2 === 0) O.set(cx + i, G + 38, z, B.TerraCream); }
+    for (let k = -3; k <= 3; k++) for (const x of [cx - 3, cx + 3]) { O.set(x, G + 37, cz + k, B.TerraCream); if (k % 2 === 0) O.set(x, G + 38, cz + k, B.TerraCream); }
+    // His left arm down at his side to a great round shield
+    limb([cx - 9, G + 25, cz], [cx - 10, G + 15, cz + 2], 2);
+    for (let dy = -6; dy <= 6; dy++) for (let dz = -6; dz <= 6; dz++) if (Math.hypot(dy, dz) <= 6.3) stone(cx - 13, G + 14 + dy, cz + 2 + dz, Math.hypot(dy, dz) > 5.3 ? B.TerraCream : Math.hypot(dy, dz) < 1.5 ? B.TerraBrown : undefined);
+    // His right arm raised, the sword held up to the sky
+    limb([cx + 9, G + 26, cz], [cx + 13, G + 33, cz + 1], 2);
+    limb([cx + 13, G + 33, cz + 1], [cx + 14, G + 40, cz + 1], 2);
+    box(cx + 12, G + 41, cz - 3, cx + 16, G + 41, cz + 5, B.TerraCream); // the cross-guard
+    box(cx + 14, G + 38, cz + 1, cx + 14, G + 42, cz + 1, B.DarkPlanks); // the grip
+    const tip = Math.min(SY - 3, G + 60);
+    for (let y = G + 42; y <= tip; y++) for (const dz of [0, 1, 2]) for (const dx of y > tip - 3 ? [0] : [-1, 0]) O.set(cx + 14 + dx, y, cz + dz, dz === 1 ? B.StoneBrick : B.Stone);
+    // Drifts round his legs, sand everywhere
+    for (let dz = -16; dz <= 16; dz++) for (let dx = -16; dx <= 16; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 16) continue;
+      const x = cx + dx, z = cz + dz, h = Math.round(Math.max(0, 5 - d * 0.45) + hash2(x, z, 319) * 1.5);
+      for (let y = heightAt(x, z) - 1; y < G - 1 + h; y++) O.set(x, y, z, B.RedSand);
+      O.set(x, G - 2 + h, z, B.RedSand);
+    }
+    s.impostor.push({ x: cx, y: G + 20, z: cz, w: 14, h: 40, d: 8, color: '#8a8070' }, { x: cx + 14, y: G + 50, z: cz + 1, w: 2, h: 20, d: 3, color: '#9a9488' });
+    s.act = { kind: 'scenic' };
+  }
+
+  /** The drowned bell-tower: a church of the old coast, the sea come in over it; the tower stands. */
+  function buildDrownedTower(s: Site) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const shell = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+      const topY = SEA + 12 - (shell ? Math.floor(hash2(dx, dz, 321) * 4) : 0);
+      for (let y = heightAt(cx + dx, cz + dz) - 1; y < topY; y++) {
+        if (!shell && y > SEA) { O.set(cx + dx, y, cz + dz, B.Air); continue; }
+        const win = shell && (y - SEA) % 5 === 3 && (dx === 0 || dz === 0);
+        O.set(cx + dx, y, cz + dz, win ? B.Window : hash2(dx, y, dz) < 0.3 ? B.MossyStone : B.StoneBrick);
+      }
+    }
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) O.set(cx + dx, SEA + 1, cz + dz, B.Planks); // a floor above the water
+    // The nave's walls under the water, arches breaking the surface here and there
+    for (let i = -14; i <= 14; i++) for (const side of [-6, 6]) {
+      const x = cx + side, z = cz + 6 + i;
+      if (i < 4 && i > -4) continue;
+      const top = i % 5 === 0 ? SEA + 3 : SEA - 1 - (Math.abs(i) % 3);
+      for (let y = heightAt(x, z) - 1; y < top; y++) O.set(x, y, z, hash2(x, y, z) < 0.5 ? B.MossyCobble : B.StoneBrick);
+    }
+    s.props.push({ t: 'glow', x: cx + 0.5, y: SEA + 13, z: cz + 0.5, r: 4, color: '#ffd8a0' }, { t: 'furn', item: 'gull', x: cx + 2.5, y: SEA + 12, z: cz + 2.5, ry: 1 });
+    s.impostor.push({ x: cx + 0.5, y: SEA + 6, z: cz + 0.5, w: 7, h: 12, d: 7, color: '#7a7e86' });
+    s.act = { kind: 'scenic' };
+  }
+
+  /** The Kingfisher Steps: terraced pools of pale mineral stone, each spilling into the one below. */
+  function buildKingfisherSteps(s: Site, G: number) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    rect(s, cx - 18, cz - 18, cx + 18, cz + 22);
+    for (let t = 0; t < 7; t++) {
+      const pz = cz - 14 + t * 5, py = G + 4 - t, r = 7 + (t % 3);
+      for (let dz = -3; dz <= 3; dz++) for (let dx = -r; dx <= r; dx++) {
+        const d = Math.hypot(dx / r, dz / 3.4);
+        if (d > 1) continue;
+        const x = cx + dx + Math.round(Math.sin(t * 1.7) * 3), z = pz + dz;
+        for (let y = Math.min(heightAt(x, z), py) - 1; y < py; y++) O.set(x, y, z, B.TerraCream);
+        if (d < 0.82) O.set(x, py - 1, z, B.Water);
+        else O.set(x, py, z, B.TerraCream);
+        clearUp(x, z, py + (d < 0.82 ? 0 : 1), py + 6);
+      }
+    }
+    s.props.push({ t: 'furn', item: 'gull', x: cx + 4.5, y: G + 5, z: cz - 13.5, ry: 2 });
+    for (const [tx, tz] of [[cx - 15, cz - 6], [cx + 15, cz + 4], [cx - 13, cz + 16]]) plantTree(tx, tz, heightAt(tx, tz), 0.5);
+    s.act = { kind: 'scenic' };
+  }
+
+  /** The Great Starfall: a crater blown in the highland, crystal spires grown where the star lay. */
+  function buildGreatStarfall(s: Site, G: number) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    rect(s, cx - 34, cz - 34, cx + 34, cz + 34);
+    for (let dz = -32; dz <= 32; dz++) for (let dx = -32; dx <= 32; dx++) {
+      const d = Math.hypot(dx, dz) / 28;
+      if (d > 1.15) continue;
+      const x = cx + dx, z = cz + dz;
+      const g = heightAt(x, z);
+      if (d < 1) {
+        const floor = G - Math.round((1 - d * d) * 10);
+        for (let y = floor; y < Math.max(g, G) + 4; y++) O.set(x, y, z, B.Air);
+        O.set(x, floor - 1, z, d < 0.35 ? B.Basalt : hash2(x, z, 323) < 0.2 ? B.Crystal : B.Gravel);
+      } else {
+        for (let y = g; y < G + 3 - Math.round((d - 1) * 20); y++) O.set(x, y, z, B.Basalt); // the thrown-up rim
+      }
+    }
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.39, r = i === 0 ? 0 : 3 + (i % 4) * 2.5, h = 14 - (i === 0 ? 0 : 4 + (i % 3) * 2);
+      const x = cx + Math.round(Math.cos(a) * r), z = cz + Math.round(Math.sin(a) * r), floor = G - 10;
+      for (let y = floor; y < floor + h; y++) for (const [dx, dz] of y < floor + h - 3 ? [[0, 0], [1, 0], [0, 1]] : [[0, 0]]) O.set(x + dx, y, z + dz, B.Crystal);
+      s.props.push({ t: 'glow', x: x + 0.5, y: floor + h - 1, z: z + 0.5, r: 4, color: '#9fe8ff' });
+    }
+    s.impostor.push({ x: cx, y: G, z: cz, w: 6, h: 10, d: 6, color: '#7fd8f0' });
+    s.act = { kind: 'scenic' };
+  }
+
+  /**
+   * The Charter's hall inside the keep: a flagged floor, pillars, the Speaker's dais between the two
+   * north towers, long tables for a sitting, hearths on the side walls and lamps on chains. The
+   * keep's shell is 21 blocks square; the hall is its ground floor, seven blocks high.
+   */
+  function keepHall(s: Site, cx: number, cz: number, base: number) {
+    const H = 7;
+    for (let z = cz - 9; z <= cz + 9; z++) for (let x = cx - 9; x <= cx + 9; x++) {
+      if ((Math.abs(x - (cx - 8)) <= 3 || Math.abs(x - (cx + 8)) <= 3) && Math.abs(z - (cz - 8)) <= 3) continue; // the towers' bases
+      O.set(x, base - 1, z, (x + z) % 2 === 0 ? B.StoneBrick : B.Basalt);
+      for (let y = base; y < base + H; y++) O.set(x, y, z, B.Air);
+      O.set(x, base + H, z, (x - cx) % 4 === 0 ? B.DarkPlanks : B.Planks); // ceiling, with beams
+    }
+    // Doorway: three wide, four high, through the south wall, with an open pair of doors
+    for (let x = cx - 1; x <= cx + 1; x++) for (let y = base; y < base + 4; y++) O.set(x, y, cz + 10, B.Air);
+    for (let x = cx - 2; x <= cx + 2; x++) O.set(x, base + 4, cz + 10, B.Cobble);
+    s.props.push({ t: 'furn', item: 'doorOpen', x: cx - 1.42, y: base, z: cz + 9.4, ry: Math.PI / 2 }, { t: 'furn', item: 'doorOpen', x: cx + 2.42, y: base, z: cz + 9.4, ry: -Math.PI / 2 });
+    // Pillars down both sides
+    for (const px of [cx - 5, cx + 5]) for (const pz of [cz - 1, cz + 3, cz + 7]) {
+      for (let y = base; y < base + H; y++) O.set(px, y, pz, y === base || y === base + H - 1 ? B.Cobble : B.StoneBrick);
+    }
+    // The dais between the towers, a step up, with the Speaker's chair and a table for the clerks
+    for (let z = cz - 9; z <= cz - 5; z++) for (let x = cx - 4; x <= cx + 4; x++) O.set(x, base, z, z === cz - 5 ? B.StoneBrick : B.Planks);
+    s.props.push({ t: 'furn', item: 'chair', x: cx + 0.5, y: base + 1, z: cz - 7.5, ry: 0 });
+    s.props.push({ t: 'furn', item: 'table', x: cx + 0.5, y: base + 1, z: cz - 5.6, ry: 0 });
+    for (const [x, z] of [[cx, cz - 8], [cx + 1, cz - 8], [cx - 1, cz - 6], [cx, cz - 6], [cx + 1, cz - 6]]) { O.set(x, base + 1, z, B.Barrier); O.set(x, base + 2, z, B.Barrier); }
+    s.props.push({ t: 'banner', x: cx - 3, y: base + 6, z: cz - 9.3, kind: 'aldermere' }, { t: 'banner', x: cx + 4, y: base + 6, z: cz - 9.3, kind: 'aldermere' });
+    // Long tables with benches for a sitting, either side of the carpet
+    for (const tx of [cx - 3, cx + 3]) for (const tz of [cz - 1, cz + 2, cz + 5]) {
+      s.props.push({ t: 'furn', item: 'table', x: tx + 0.5, y: base, z: tz + 0.5, ry: Math.PI / 2 });
+      s.props.push({ t: 'furn', item: 'bench', x: tx - 0.55, y: base, z: tz + 0.5, ry: Math.PI / 2 }, { t: 'furn', item: 'bench', x: tx + 1.55, y: base, z: tz + 0.5, ry: Math.PI / 2 });
+      for (const dz of [0, 1]) { O.set(tx, base, tz + dz, B.Barrier); O.set(tx, base + 1, tz + dz, B.Barrier); }
+    }
+    for (let z = cz - 4; z <= cz + 9; z += 2) s.props.push({ t: 'furn', item: 'rug', x: cx + 0.5, y: base, z: z + 0.5, ry: Math.PI / 2, tint: 0 });
+    // Hearths on the side walls, and lamps
+    for (const [hx, ry] of [[cx - 8.6, Math.PI / 2], [cx + 9.6, -Math.PI / 2]] as const) {
+      s.props.push({ t: 'furn', item: 'hearth', x: hx, y: base, z: cz + 3.5, ry });
+      O.set(Math.floor(hx), base, cz + 3, B.Barrier); O.set(Math.floor(hx), base + 1, cz + 3, B.Barrier);
+    }
+    for (const [lx, lz] of [[cx, cz - 2], [cx, cz + 4], [cx - 6, cz + 1], [cx + 6, cz + 1], [cx - 6, cz + 6], [cx + 6, cz + 6]]) {
+      s.props.push({ t: 'furn', item: 'lamp', x: lx + 0.5, y: base + H, z: lz + 0.5, ry: 0 }, { t: 'glow', x: lx + 0.5, y: base + H - 1, z: lz + 0.5, r: 2.2 });
+    }
+    s.props.push({ t: 'furn', item: 'shelves', x: cx - 8.5, y: base, z: cz - 3.5, ry: Math.PI / 2 }, { t: 'furn', item: 'shelves', x: cx + 9.5, y: base, z: cz - 3.5, ry: -Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'chest', x: cx - 8.4, y: base, z: cz + 7.5, ry: Math.PI / 2 }, { t: 'furn', item: 'chest', x: cx + 9.4, y: base, z: cz + 7.5, ry: -Math.PI / 2 });
+  }
+
+  function buildHamlet(s: Site, base: number, x: number, z: number, roof: PropDesc['mat'], n: number) {
+    const spots: [number, number, 'n' | 's' | 'e' | 'w'][] = [[-12, -10, 's'], [4, -12, 's'], [-14, 6, 'e'], [6, 6, 'n']];
+    for (let i = 0; i < n; i++) {
+      const [dx, dz, door] = spots[i];
+      house(s, x + dx, z + dz, 7, 6, 1, heightAt(x + dx + 3, z + dz + 3), roof, door, { wall: roof === 'slate' ? B.StoneBrick : B.Plaster });
+    }
+    if (n > 1) { s.props.push({ t: 'well', x: x + 0.5, y: base, z: z + 0.5 }); rect(s, x - 2, z - 2, x + 2, z + 2); }
+    s.props.push({ t: 'lantern', x: x + 3.5, y: heightAt(x + 3, z + 1), z: z + 1.5 });
+    if (roof !== 'slate') fence(s, x - 19, z + 18, x - 1, z + 18);
+    if (n > 1) hamletExtras(s, base, x, z, roof);
+  }
+
+  function buildWaystation(s: Site, base: number) {
+    house(s, 700, 560, 12, 9, 2, base, 'red', 's', { role: 'inn' });
+    house(s, 716, 562, 7, 6, 1, base, 'thatch', 's', { chimney: false });
+    s.props.push({ t: 'sign', x: 706, y: base, z: 572, text: 'The Waystation' });
+    s.props.push({ t: 'firepit', x: 712.5, y: base, z: 574.5 }, { t: 'bench', x: 710, y: base, z: 576, ry: 0 }, { t: 'barrel', x: 699, y: base, z: 570 }, { t: 'cart', x: 724, y: base, z: 574, ry: 0.4 });
+    rect(s, 708, 572, 716, 578);
+    waystationExtras(s, base);
+  }
+
+  function buildHollowOak(s: Site, base: number) {
+    const cx = 304, cz = 600;
+    rect(s, cx - 16, cz - 16, cx + 16, cz + 16);
+    // Leaf mould round the tree, and a path worn from the road to the split
+    for (let dz = -12; dz <= 12; dz++) for (let dx = -12; dx <= 12; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 12 || hash2(cx + dx, cz + dz, 72) > 1.15 - d / 10) continue;
+      O.set(cx + dx, heightAt(cx + dx, cz + dz) - 1, cz + dz, B.Loam);
+    }
+    for (let dz = 3; dz <= 15; dz++) for (let dx = -1; dx <= 1; dx++) {
+      if (Math.abs(dx) === 1 && hash2(cx + dx, cz + dz, 73) < 0.4) continue;
+      O.set(cx + dx, heightAt(cx + dx, cz + dz) - 1, cz + dz, B.Path);
+    }
+    // The trunk: hollow enough to stand inside, flaring at the foot, with a split facing the road
+    for (let y = base - 2; y < base + 30; y++) {
+      const r = 3.4 + Math.max(0, base + 3 - y) * 0.45;
+      for (let dz = -6; dz <= 6; dz++) for (let dx = -6; dx <= 6; dx++) {
+        const d = Math.hypot(dx, dz);
+        if (d > r) continue;
+        const hollow = d <= 1.9 && y >= base && y < base + 9;
+        const door = dz >= 2 && Math.abs(dx) <= (y === base + 3 ? 0 : 1) && y >= base && y <= base + 3;
+        if (hollow || door) { O.set(cx + dx, y, cz + dz, B.Air); continue; }
+        const floor = y === base - 1 && (d <= 1.9 || (dz >= 2 && Math.abs(dx) <= 1));
+        O.set(cx + dx, y, cz + dz, floor ? B.Loam : B.OakLog);
+      }
+    }
+    // Boughs, and buttress roots arching over the ground before they dive in (none across the door)
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      for (let k = 3; k < 12; k += 0.5) for (const up of [0, 1]) O.set(cx + Math.round(Math.cos(a) * k), base + 18 + Math.floor(k / 2) + up, cz + Math.round(Math.sin(a) * k), B.OakLog);
+    }
+    for (let i = 0; i < 7; i++) {
+      const a0 = Math.PI / 2 + 0.75 + i * ((Math.PI * 2 - 1.5) / 6);
+      for (let k = 3; k <= 9.5; k += 0.5) {
+        const a = a0 + (k - 3) * 0.05 * (i % 2 ? 1 : -1);
+        const x = cx + Math.round(Math.cos(a) * k), z = cz + Math.round(Math.sin(a) * k);
+        const top = base + Math.round(2.6 - (k - 3) * 0.5);
+        const wide = k < 5.5 ? [[0, 0], [Math.round(-Math.sin(a)), Math.round(Math.cos(a))]] : [[0, 0]];
+        for (const [wx, wz] of wide) for (let y = heightAt(x + wx, z + wz) - 1; y < top; y++) O.set(x + wx, y, z + wz, B.OakLog);
+      }
+    }
+    for (let dy = -6; dy <= 8; dy++) for (let dz = -15; dz <= 15; dz++) for (let dx = -15; dx <= 15; dx++) {
+      const d = (dx * dx + dz * dz) / 200 + (dy * dy) / (dy < 0 ? 30 : 60);
+      if (d < 1 && hash2(dx * 7 + dy, dz, 71) > 0.06) O.set(cx + dx, base + 30 + dy, cz + dz, B.OakLeaves);
+    }
+    // Glowcaps in the roots' shade, toadstools between them
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.4 + 0.3, k = 4.5 + hash2(i, 3, 74) * 2.5;
+      const x = cx + Math.round(Math.cos(a) * k), z = cz + Math.round(Math.sin(a) * k);
+      if (z - cz >= 3 && Math.abs(x - cx) <= 2) continue; // keep the path clear
+      if (i % 3 === 0) O.set(x, heightAt(x, z), z, B.Glowcap);
+      else s.props.push({ t: 'furn', item: 'mushrooms', x: x + 0.5, y: heightAt(x, z), z: z + 0.5, ry: a, tint: i });
+    }
+    // The post: letters pinned up the inside of the trunk and tied in bundles on the floor,
+    // candle stubs and a lamp; offerings and ribbons left at the split.
+    for (const y of [base + 0.3, base + 1.9, base + 3.5, base + 5.1]) {
+      s.props.push({ t: 'furn', item: 'pinned', x: cx + 0.5, y, z: cz - 1, ry: 0, tint: Math.round(y) });
+      s.props.push({ t: 'furn', item: 'pinned', x: cx - 1, y, z: cz + 0.5, ry: Math.PI / 2, tint: Math.round(y) + 1 });
+      s.props.push({ t: 'furn', item: 'pinned', x: cx + 2, y, z: cz + 0.5, ry: -Math.PI / 2, tint: Math.round(y) + 2 });
+    }
+    for (const [lx, lz, t] of [[-0.6, -0.6, 0], [1.6, -0.6, 1], [-0.6, 1.4, 2]]) s.props.push({ t: 'furn', item: 'letters', x: cx + lx, y: base, z: cz + lz, ry: t, tint: t });
+    s.props.push({ t: 'furn', item: 'candles', x: cx + 1.55, y: base, z: cz + 1.5, ry: 0.3 }, { t: 'glow', x: cx + 1.55, y: base + 0.5, z: cz + 1.5, r: 1.2, color: '#ffd8a0' });
+    s.props.push({ t: 'furn', item: 'lamp', x: cx + 0.5, y: base + 4.6, z: cz + 0.5, ry: 0 });
+    for (const [ox, t] of [[-1.6, 0], [2.6, 1]]) s.props.push({ t: 'furn', item: 'offering', x: cx + ox, y: heightAt(cx + Math.floor(ox), cz + 5), z: cz + 5.6, ry: t, tint: t });
+    s.props.push({ t: 'furn', item: 'candles', x: cx - 1.1, y: heightAt(cx - 2, cz + 5), z: cz + 5.2, ry: 1 }, { t: 'glow', x: cx - 1.1, y: base + 0.5, z: cz + 5.2, r: 1.2, color: '#ffd8a0' });
+    for (const ox of [-0.2, 1.2]) s.props.push({ t: 'furn', item: 'ribbons', x: cx + ox, y: base + 3.9, z: cz + 4.05, ry: 0, tint: Math.round(ox * 3) });
+    s.props.push({ t: 'sign', x: cx + 3.5, y: heightAt(cx + 3, cz + 11), z: cz + 11.5, ry: 0.2, text: 'The Hollow Oak' });
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + 1, z: cz + 0.5 });
+    s.impostor.push({ x: cx, y: base + 15, z: cz, w: 6, h: 30, d: 6, color: '#5f4128' }, { x: cx, y: base + 31, z: cz, w: 30, h: 13, d: 30, color: '#2f5a2e' });
+  }
+
+  function buildMossgate(s: Site, base: number) {
+    const cx = 176, cz = 860;
+    for (let i = 0; i < 5; i++) {
+      const ax = cx - 14 + i * 7;
+      // Arch: two pillars and a lintel, some fallen
+      const fallen = hash2(i, 3, 81) < 0.35;
+      for (const px of [ax, ax + 4]) for (let y = base - 1; y < base + (fallen && px === ax + 4 ? 2 : 7); y++) O.set(px, y, cz, y % 3 === 0 ? B.MossyCobble : B.MossyStone);
+      if (!fallen) for (let x = ax; x <= ax + 4; x++) O.set(x, base + 7, cz, B.MossyStone);
+      else for (let x = ax + 5; x <= ax + 8; x++) O.set(x, base, cz + 2, B.MossyCobble);
+    }
+    buildRuinWalls(s, cx, cz + 12, base, B.MossyCobble);
+    for (let i = 0; i < 6; i++) O.set(cx - 10 + i * 4, base, cz - 3 + (i % 2) * 6, B.Glowcap);
+    rect(s, cx - 16, cz - 4, cx + 22, cz + 20);
+    mossgateCamp(s, base);
+  }
+
+  function buildCamp(s: Site, x: number, z: number, big: boolean) {
+    const base = heightAt(x, z);
+    s.props.push({ t: 'firepit', x: x + 0.5, y: base, z: z + 0.5 });
+    const colors = ['#8a6a3a', '#6a7a4a', '#7a3a2a'];
+    for (let i = 0; i < (big ? 3 : 2); i++) {
+      const a = i * 2.1 + 0.4;
+      const tx = x + Math.cos(a) * 5, tz = z + Math.sin(a) * 5;
+      s.props.push({ t: 'tent', x: tx, y: heightAt(tx, tz), z: tz, ry: -a + Math.PI / 2, color: colors[i % 3] });
+    }
+    if (big) for (let i = 0; i < 6; i++) for (let k = 0; k < 2; k++) O.set(x + 7 + k, base + (i >> 1), z - 3 + (i % 2), B.OakLog);
+    if (big) s.props.push({ t: 'notice', x: x - 6.5, y: heightAt(x - 6, z - 5), z: z - 5.5 }); // Harrowgate's order slip
+    s.props.push({ t: 'crate', x: x - 3, y: base, z: z + 3 }, { t: 'barrel', x: x - 4, y: base, z: z + 2 });
+    rect(s, x - 8, z - 8, x + 10, z + 8);
+  }
+
+  function buildGullmouth(s: Site, base: number, coast: number) {
+    const z = 600;
+    const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate', 'blue', 'red', 'slate'];
+    const spots: [number, number, 'n' | 's' | 'e' | 'w'][] = [[-58, -22, 's'], [-44, -24, 's'], [-58, 10, 'n'], [-44, 12, 'n'], [-30, -20, 'e'], [-30, 12, 'e'], [-16, -22, 's'], [-16, 12, 'n']];
+    const roles: (Role | undefined)[] = [undefined, undefined, undefined, undefined, 'office', 'shop', 'store', undefined]; // the harbourmaster, Bett's chandlery, a fish store
+    spots.forEach(([dx, dz, door], i) => house(s, coast + dx, z + dz, 7, 6, 1 + (i === 1 || i === 4 ? 1 : 0), base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.Planks, role: roles[i] }));
+    street(coast - 60, z - 4, coast - 12, z + 4);
+    // Two jetties out over the water
+    for (const jz of [z - 2, z + 6]) {
+      for (let x = coast - 14; x < coast + 34; x++) for (let w = 0; w < 3; w++) {
+        O.set(x, SEA, jz + w, B.Planks);
+        clearUp(x, jz + w, SEA + 1, SEA + 6);
+        if ((x - coast) % 6 === 0 && (w === 0 || w === 2)) for (let y = 2; y < SEA; y++) O.set(x, y, jz + w, B.Timber);
+      }
+      s.props.push({ t: 'lantern', x: coast + 33, y: SEA + 1, z: jz + 1.5 });
+    }
+    s.props.push({ t: 'boat', x: coast + 20, y: SEA - 0.55, z: z - 4.5, ry: 0.1 }, { t: 'boat', x: coast + 28, y: SEA - 0.55, z: z + 11, ry: -0.2 });
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'barrel', x: coast - 10 + i * 1.1, y: SEA + 1, z: z + 5 }, { t: 'crate', x: coast - 6, y: SEA + 1, z: z - 4 + i });
+    s.props.push({ t: 'sign', x: coast - 62, y: heightAt(coast - 62, z), z: z - 5, text: 'Gullmouth' });
+    rect(s, coast - 62, z - 26, coast + 34, z + 20);
+    gullmouthExtras(s, base, coast);
+    gullmouthTown(s, base, coast);
+  }
+
+  function buildLighthouse(s: Site, base: number) {
+    const cx = s.x, cz = s.z;
+    rect(s, cx - 6, cz - 6, cx + 6, cz + 6);
+    for (let y = base - 3; y < base + 26; y++) for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const d = Math.hypot(dx, dz);
+      const r = y < base + 20 ? 3.6 - (y - base) * 0.03 : 2.6;
+      if (d > r) { if (y >= base) O.set(cx + dx, y, cz + dz, B.Air); continue; }
+      const shell = d > r - 1.1;
+      if (!shell && y >= base) { O.set(cx + dx, y, cz + dz, y === base + 20 ? B.Planks : B.Air); continue; }
+      const stripe = Math.floor((y - base) / 4) % 2 === 0;
+      let id: number = stripe ? B.Plaster : B.Clay;
+      if (y >= base + 21 && y <= base + 23) id = (dx + dz) % 2 === 0 ? B.Window : B.Timber;
+      O.set(cx + dx, y, cz + dz, id);
+    }
+    for (let y = base; y < base + 20; y++) { const a = (y - base) * 0.8; O.set(cx + Math.round(Math.cos(a) * 1.6), y, cz + Math.round(Math.sin(a) * 1.6), B.Planks); }
+    O.set(cx + 3, base, cz, B.Air); O.set(cx + 3, base + 1, cz, B.Air);
+    s.props.push({ t: 'desk', x: cx + 5.5, y: base, z: cz + 1.5, ry: Math.PI / 2 }); // the keeper's oil book, outside the door
+    s.props.push({ t: 'cone', x: cx + 0.5, y: base + 24, z: cz + 0.5, r: 3.6, h: 4, mat: 'red' }, { t: 'glow', x: cx + 0.5, y: base + 22.5, z: cz + 0.5, r: 6 });
+    s.impostor.push({ x: cx + 0.5, y: base + 12, z: cz + 0.5, w: 6, h: 24, d: 6, color: '#e8dcc8' }, { x: cx + 0.5, y: base + 26, z: cz + 0.5, w: 7, h: 4, d: 7, color: '#a8382c', cone: true });
+    lighthouseExtras(s, base);
+  }
+
+  function buildHarrowgate(s: Site, base: number) {
+    const cx = 1000, cz = 1000;
+    house(s, cx - 22, cz - 14, 12, 8, 2, base, 'slate', 's', { wall: B.Planks, role: 'office' }); // the office (Pryce's trestle outside)
+    house(s, cx - 6, cz - 16, 9, 7, 1, base, 'slate', 's', { wall: B.Planks, role: 'store' });
+    house(s, cx + 8, cz - 14, 10, 8, 1, base, 'red', 's', { wall: B.StoneBrick, role: 'shop' }); // the company store
+    // Palisade
+    for (const [x0, z0, x1, z1] of [[cx - 30, cz - 24, cx + 30, cz - 24], [cx - 30, cz + 24, cx + 30, cz + 24], [cx - 30, cz - 24, cx - 30, cz + 24], [cx + 30, cz - 24, cx + 30, cz + 24]]) {
+      const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0), n = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0));
+      for (let i = 0; i <= n; i++) {
+        const x = x0 + dx * i, z = z0 + dz * i;
+        if (Math.abs(x - cx) < 4 && z0 === z1 && z0 > cz) continue; // south gate
+        if (Math.abs(z - cz) < 4 && x0 === x1 && x0 < cx) continue; // west gate
+        const g = heightAt(x, z);
+        for (let y = g - 1; y < base + 4; y++) O.set(x, y, z, B.OakLog);
+        if (i % 2 === 0) O.set(x, base + 4, z, B.OakLog);
+      }
+    }
+    // Mine into the slope behind
+    buildMine(s, cx + 12, cz + 8, base, 1, 34);
+    s.props.push({ t: 'headframe', x: cx + 12.5, y: base, z: cz + 8.5, ry: Math.PI / 2 });
+    s.props.push({ t: 'banner', x: cx - 3, y: base + 5, z: cz + 24.6, kind: 'harrow' }, { t: 'banner', x: cx + 4, y: base + 5, z: cz + 24.6, kind: 'harrow' });
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'cart', x: cx - 10 + i * 3, y: base, z: cz + 6, ry: 0.3 * i });
+    s.props.push({ t: 'desk', x: cx - 12.5, y: base, z: cz - 4.5, ry: Math.PI / 2 }); // Pryce's trestle by the office door
+    s.props.push({ t: 'anvil', x: cx + 13, y: base, z: cz - 4 }, { t: 'sign', x: cx - 3, y: base, z: cz + 27, text: 'Harrowgate &\nDaughters' });
+    rect(s, cx - 32, cz - 26, cx + 32, cz + 26);
+    harrowgateExtras(s, base);
+    companyRow(s, base);
+  }
+
+  function buildMine(s: Site, x: number, z: number, base: number, dir: number, len = 22) {
+    // Tunnel along +x or -x into the hillside, timbered, with ore in the walls
+    rect(s, x - 3, z - 4, x + 3, z + 4);
+    for (let i = 0; i < len; i++) {
+      const tx = x + dir * i;
+      for (let w = -2; w <= 2; w++) {
+        O.set(tx, base - 1, z + w, B.Gravel);
+        for (let y = base; y < base + 4; y++) O.set(tx, y, z + w, B.Air);
+      }
+      if (i % 4 === 0) {
+        for (let y = base; y < base + 4; y++) { O.set(tx, y, z - 2, B.Timber); O.set(tx, y, z + 2, B.Timber); }
+        for (let w = -2; w <= 2; w++) O.set(tx, base + 4, z + w, B.Timber);
+      }
+      if (i > 3 && i % 3 === 1) {
+        const side = i % 2 ? -3 : 3;
+        const ore = hash2(tx, z, 91) < 0.5 ? B.IronOre : B.CopperOre;
+        O.set(tx, base + 1, z + side, ore);
+      }
+      if (i % 8 === 4) s.props.push({ t: 'wallLantern', x: tx + 0.5, y: base + 2.6, z: z - 1.5, ry: 0 }, { t: 'glow', x: tx + 0.5, y: base + 3, z: z - 1 });
+    }
+    s.props.push({ t: 'cart', x: x + dir * 2 + 0.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
+  }
+
+  function buildFort(s: Site, base: number) {
+    const cx = 1250, cz = 1250;
+    for (const [x0, z0, x1, z1] of [[cx - 14, cz - 14, cx + 14, cz - 14], [cx - 14, cz + 14, cx + 14, cz + 14], [cx - 14, cz - 14, cx - 14, cz + 14], [cx + 14, cz - 14, cx + 14, cz + 14]]) {
+      const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0);
+      for (let i = 0; i <= 28; i++) {
+        const x = x0 + dx * i, z = z0 + dz * i;
+        const hgt = Math.floor(2 + hash2(x, z, 101) * 7 * (i % 7 < 4 ? 1 : 0.3));
+        for (let y = base - 1; y < base + hgt; y++) O.set(x, y, z, y % 4 === 0 ? B.TerraBrown : B.StoneBrick);
+      }
+    }
+    tower(s, cx, cz, 7, 14, base, B.StoneBrick, { broken: true, hollow: true });
+    for (let i = 0; i < 20; i++) {
+      const rx = cx - 12 + Math.floor(hash2(i, 1, 102) * 24), rz = cz - 12 + Math.floor(hash2(i, 2, 102) * 24);
+      if (Math.abs(rx - cx) <= 2 && rz > cz) continue; // keep the way to the stair clear
+      O.set(rx, base, rz, B.StoneBrick);
+    }
+    buildUndercroft(s, cx, cz, base);
+    fortExtras(s, base);
+    s.impostor.push({ x: cx, y: base + 7, z: cz, w: 7, h: 14, d: 7, color: '#8a6a5a' });
+    rect(s, cx - 15, cz - 15, cx + 15, cz + 15);
+  }
+
+  /**
+   * The undercroft under Gallows Knap: the old builders' crystal workings, which Harrowgate's survey
+   * crew went down into and came back out of short. Upper level at floor y 7 (stair, hall, corridor,
+   * survey camp), lower level at floor y 3 (the deep cut, with the tally wall at its far end).
+   * Kept below y 13 because the canyon floor above it dips to y 18.
+   */
+  function buildUndercroft(s: Site, cx: number, cz: number, base: number) {
+    const UP = 7, LOW = 3;
+    const room = (x0: number, z0: number, x1: number, z1: number, floor: number, height: number, veins = 0.04) => {
+      for (let z = z0 - 1; z <= z1 + 1; z++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+        const edge = x < x0 || x > x1 || z < z0 || z > z1;
+        for (let y = floor - 1; y <= floor + height + 1; y++) {
+          if (edge || y === floor - 1 || y === floor + height + 1) {
+            // Shell: worked stone where the builders dressed it, raw rock and crystal where they didn't
+            const h = hash2(x * 3 + y, z, 171);
+            O.set(x, y, z, h < veins ? B.Crystal : y === floor - 1 ? (h < 0.5 ? B.StoneBrick : B.Cobble) : h < 0.35 ? B.StoneBrick : h < 0.7 ? B.Stone : B.Basalt);
+          } else O.set(x, y, z, B.Air);
+        }
+      }
+    };
+    // Rooms first; the stair, corridor and ramp are carved afterwards so no room wall seals a passage.
+    const hallZ = cz + 3 + (base - UP) + 1;
+    room(cx + 7, hallZ + 5, cx + 24, hallZ + 7, UP, 3, 0.02);              // corridor east (shell)
+    room(cx - 6, hallZ, cx + 6, hallZ + 12, UP, 5);                       // the hall
+    for (const [px, pz] of [[-3, 3], [3, 3], [-3, 9], [3, 9]]) for (let y = UP; y < UP + 5; y++) O.set(cx + px, y, hallZ + pz, B.StoneBrick);
+    const camp = { x0: cx + 25, z0: hallZ - 2, x1: cx + 37, z1: hallZ + 14 };
+    room(camp.x0, camp.z0, camp.x1, camp.z1, UP, 5);                      // Harrowgate's survey camp
+    const cut = { x0: cx + 18, z0: camp.z1 + UP - LOW + 2, x1: cx + 44, z1: camp.z1 + UP - LOW + 23 };
+    room(cut.x0, cut.z0, cut.x1, cut.z1, LOW, 8, 0.12);                   // the deep cut
+    // Door in the tower's south wall, and the builders' stair going down under the south wall
+    for (let y = base; y < base + 3; y++) for (let dx = -1; dx <= 1; dx++) O.set(cx + dx, y, cz + 3, B.Air);
+    for (let k = 0; k <= base - UP; k++) {
+      const z = cz + 3 + k, floor = base - k;
+      for (let dx = -2; dx <= 2; dx++) {
+        const wall = Math.abs(dx) === 2;
+        for (let y = floor - 1; y <= floor + 4; y++) {
+          if (wall) { if (y < base) O.set(cx + dx, y, z, B.StoneBrick); }
+          else O.set(cx + dx, y, z, y === floor - 1 ? B.StoneBrick : B.Air);
+        }
+      }
+    }
+    // The corridor, opened through the hall's east wall and the camp's west wall
+    for (let x = cx + 6; x <= cx + 25; x++) for (let z = hallZ + 5; z <= hallZ + 7; z++) {
+      O.set(x, UP - 1, z, B.StoneBrick);
+      for (let y = UP; y <= UP + 2; y++) O.set(x, y, z, B.Air);
+    }
+    // Ramp from the camp down into the deep cut
+    for (let k = 0; k <= UP - LOW + 1; k++) {
+      const z = camp.z1 + k, floor = Math.max(LOW, UP - k);
+      for (let x = cx + 29; x <= cx + 33; x++) for (let y = floor - 1; y <= floor + 4; y++) O.set(x, y, z, y === floor - 1 ? B.StoneBrick : B.Air);
+    }
+    // Crystal outcrops left standing in the cut, and the cap: a dark band of basalt over the crystal
+    for (const [ox, oz, hgt] of [[4, 5, 3], [21, 6, 4], [9, 15, 2], [17, 17, 3], [24, 12, 5]]) for (let y = LOW; y < LOW + hgt; y++) O.set(cut.x0 + ox, y, cut.z0 + oz, B.Crystal);
+    for (let x = cut.x0; x <= cut.x1; x++) for (const y of [LOW + 7, LOW + 8]) O.set(x, y, cut.z1 + 1, B.Basalt);
+    // The tally wall: a dressed panel at the far end
+    for (let x = cut.x0 + 9; x <= cut.x0 + 17; x++) for (let y = LOW; y < LOW + 5; y++) O.set(x, y, cut.z1 + 1, (x + y) % 3 === 0 ? B.Basalt : B.StoneBrick);
+    // Light: the survey crew's lamps, and crystal glow in the cut
+    s.props.push(
+      { t: 'lantern', x: cx + 0.5, y: UP, z: hallZ + 1.5 }, { t: 'glow', x: cx + 0.5, y: UP + 3, z: hallZ + 6.5, r: 9 },
+      { t: 'lantern', x: cx + 16.5, y: UP, z: hallZ + 6.5 },
+      { t: 'lantern', x: camp.x0 + 2.5, y: UP, z: camp.z0 + 2.5 }, { t: 'glow', x: camp.x0 + 6.5, y: UP + 3, z: camp.z0 + 8.5, r: 9 },
+      { t: 'tent', x: camp.x0 + 9, y: UP, z: camp.z0 + 4, ry: Math.PI / 2, color: '#7a3a2a' },
+      { t: 'crate', x: camp.x0 + 2, y: UP, z: camp.z0 + 12 }, { t: 'barrel', x: camp.x0 + 3, y: UP, z: camp.z0 + 13 },
+      { t: 'desk', x: camp.x0 + 6.5, y: UP, z: camp.z0 + 1.5 },
+      { t: 'glow', x: cut.x0 + 13.5, y: LOW + 4, z: cut.z0 + 10.5, r: 14, color: '#7fe0f4' },
+      { t: 'glow', x: cut.x0 + 13.5, y: LOW + 2, z: cut.z1 - 1.5, r: 8, color: '#7fe0f4' },
+    );
+  }
+
+  function buildObservatory(s: Site, base: number) {
+    const cx = 600, cz = 1700;
+    // The plateau is high (ground at y 79) and the world stops at y 95: the tower is as tall as that allows
+    const H = Math.max(12, Math.min(30, SY - 5 - base));
+    tower(s, cx, cz, 9, H, base, B.StoneBrick, { crenel: true, door: 's', trim: B.Basalt, hollow: true });
+    observatoryInterior(s, cx, cz, base, H);
+    for (let a = -5; a <= 5; a++) for (const [x, z] of [[cx + a, cz - 5], [cx + a, cz + 5], [cx - 5, cz + a], [cx + 5, cz + a]]) {
+      O.set(x, base + H - 3, z, B.Basalt); O.set(x, base + H - 2, z, B.StoneBrick);
+      if ((x + z) % 2 === 0) O.set(x, base + H - 1, z, B.StoneBrick);
+    }
+    for (const [tx, tz] of [[cx - 5, cz - 5], [cx + 5, cz - 5], [cx - 5, cz + 5], [cx + 5, cz + 5]]) {
+      for (let y = base - 1; y < base + H + 2; y++) O.set(tx, y, tz, y > base + H - 3 ? B.Cobble : B.StoneBrick);
+      O.set(tx, base + H + 2, tz, B.Basalt);
+      for (let y = base; y < base + 8; y++) for (const [ox, oz] of [[Math.sign(tx - cx), 0], [0, Math.sign(tz - cz)]]) O.set(tx + ox, y, tz + oz, y === base + 7 ? B.Cobble : B.StoneBrick);
+    }
+    s.props.push({ t: 'wallLantern', x: cx - 0.7, y: base + 2.4, z: cz + 4.6, ry: 0 }, { t: 'wallLantern', x: cx + 1.7, y: base + 2.4, z: cz + 4.6, ry: 0 });
+    for (let y = 0; y < 4; y++) O.set(cx, base + H + y, cz, B.Crystal);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { O.set(cx + dx, base + H, cz + dz, B.Crystal); O.set(cx + dx, base + H + 1, cz + dz, B.Crystal); }
+    house(s, cx - 16, cz + 6, 8, 7, 1, heightAt(cx - 12, cz + 9), 'slate', 'e', { wall: B.StoneBrick });
+    s.props.push({ t: 'desk', x: cx - 3.5, y: heightAt(cx - 4, cz + 9), z: cz + 9.5, ry: Math.PI / 2 }); // Ilse's weather log
+    s.props.push({ t: 'desk', x: cx + 3.5, y: heightAt(cx + 3, cz + 9), z: cz + 9.5, ry: Math.PI / 2 }); // the glass, set up on a trestle
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + H + 2, z: cz + 0.5, r: 8, color: '#7fe0f4' });
+    s.impostor.push({ x: cx + 0.5, y: base + H / 2, z: cz + 0.5, w: 9, h: H, d: 9, color: '#8a8f98' }, { x: cx + 0.5, y: base + H + 2, z: cz + 0.5, w: 3, h: 4, d: 3, color: '#7fe0f4' });
+  }
+
+  function buildTemple(s: Site, base: number) {
+    const cx = 1190, cz = 1800;
+    for (let z = cz - 10; z <= cz + 10; z++) for (let x = cx - 16; x <= cx + 16; x++) {
+      foundation(x, z, base, B.StoneBrick);
+      O.set(x, base - 1, z, (x + z) % 4 === 0 ? B.Basalt : B.StoneBrick);
+      clearUp(x, z, base, base + 12);
+    }
+    for (let x = cx - 14; x <= cx + 14; x += 4) for (const z of [cz - 8, cz + 8]) {
+      const broken = hash2(x, z, 111) < 0.3;
+      for (let y = base; y < base + (broken ? 3 : 9); y++) O.set(x, y, z, B.StoneBrick);
+      if (!broken) O.set(x, base + 9, z, B.Basalt);
+    }
+    // The fallen star: a cracked crystal mass in the middle
+    for (let dy = 0; dy < 7; dy++) for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      if (Math.hypot(dx, dz * 1.2) + dy * 0.5 < 3.4 && hash2(dx, dz + dy * 9, 112) > 0.15) O.set(cx + dx, base + dy, cz + dz, B.Crystal);
+    }
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + 3, z: cz + 0.5, r: 10, color: '#7fe0f4' });
+    // Harrowgate's survey: stakes across the floor, a camp off the east end, and a test cut through the paving
+    for (let x = cx + 6; x <= cx + 14; x += 4) for (const z of [cz - 5, cz + 5]) { s.props.push({ t: 'fence', x: x + 0.5, y: base, z: z + 0.5, len: 1 }); O.set(x, base, z, B.Barrier); O.set(x, base + 1, z, B.Barrier); }
+    for (let z = cz - 2; z <= cz + 2; z++) for (let x = cx + 9; x <= cx + 13; x++) { O.set(x, base - 1, z, B.Air); O.set(x, base - 2, z, B.Crystal); }
+    for (const [tx, tz, ry, col] of [[cx + 22, cz - 6, 0.4, '#7a3a2a'], [cx + 24, cz + 5, -0.3, '#8a6a3a']] as const) s.props.push({ t: 'tent', x: tx, y: heightAt(tx, tz), z: tz, ry, color: col });
+    s.props.push({ t: 'cart', x: cx + 19, y: heightAt(cx + 19, cz), z: cz + 0.5, ry: Math.PI / 2 }, { t: 'crate', x: cx + 20, y: heightAt(cx + 20, cz + 2), z: cz + 2.5 });
+    rect(s, cx - 17, cz - 11, cx + 26, cz + 11);
+    s.impostor.push({ x: cx, y: base + 3, z: cz, w: 6, h: 7, d: 6, color: '#7fe0f4' });
+    templeExtras(s, base);
+  }
+
+  function buildIslands(s: Site) {
+    // Float each island over the lowest ground nearby, so there is sky beneath it
+    const isles: [number, number, number, number][] = [];
+    for (const [sx, sz, r, lift] of [[900, 1640, 11, 20], [948, 1606, 8, 28], [862, 1700, 9, 17], [1000, 1670, 7, 31], [830, 1610, 6, 24]] as const) {
+      let best: { x: number; z: number; g: number } = { x: sx, z: sz, g: Infinity };
+      for (let oz = -60; oz <= 60; oz += 12) for (let ox = -60; ox <= 60; ox += 12) {
+        let g = 0;
+        for (let k = 0; k < 9; k++) g = Math.max(g, heightAt(sx + ox + ((k % 3) - 1) * r, sz + oz + (Math.floor(k / 3) - 1) * r));
+        if (g < best.g) best = { x: sx + ox, z: sz + oz, g };
+      }
+      const iy = Math.min(SY - 10, Math.round(best.g + r * 1.1 + lift));
+      if (iy - best.g > r + 6) isles.push([best.x, best.z, iy, r]);
+    }
+    let isleN = 0;
+    for (const [ix, iz, iy, r] of isles) {
+      for (let dy = -r; dy <= 2; dy++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+        const depth = -dy;
+        const rr = dy > 0 ? r - dy * 1.5 : r * (1 - depth / (r * 1.1)) + hash2(dx, dz, 121) * 1.2;
+        if (Math.hypot(dx, dz) > rr) continue;
+        let id: number = dy === 2 ? B.Grass : dy > -1 ? B.Dirt : depth > r * 0.6 ? B.Basalt : B.Stone;
+        if (dy < -2 && hash2(dx + dy, dz, 122) > 0.97) id = B.Crystal;
+        O.set(ix + dx, iy + dy, iz + dz, id);
+      }
+      // Roots trail from the underside: thin ones as props, the thickest as blocks
+      for (let k = 0; k < r * 2.5; k++) {
+        const a = hash2(ix, k, 125) * Math.PI * 2, d = Math.sqrt(hash2(iz, k, 126)) * r * 0.8;
+        const x = Math.floor(ix + Math.cos(a) * d), z = Math.floor(iz + Math.sin(a) * d);
+        const bottom = iy - Math.floor(1.1 * (r - Math.hypot(x - ix, z - iz)));
+        const len = 3 + hash2(x, z, 127) * (r * 0.7);
+        if (k % 4 === 0) for (let y = 1; y <= Math.min(4, len * 0.4); y++) O.set(x, bottom - y, z, y < 3 ? B.OakLog : B.Dirt);
+        s.props.push({ t: 'root', x: x + 0.5, y: bottom + 0.6 - (k % 4 === 0 ? Math.min(4, Math.floor(len * 0.4)) : 0), z: z + 0.5, ry: a, len: 0.4 + hash2(z, x, 128) * 0.8, h: len, r: 0.3 });
+      }
+      // What stood on the isles: a ring of columns on the largest with crystal grown through its
+      // floor, an arch on the next, broken piers on the rest. The tops stay under the world's ceiling.
+      const top = iy + 3, room = SY - 1 - top;
+      const col = (x: number, z: number, h: number) => { for (let y = 0; y < Math.min(h, room); y++) O.set(x, top + y, z, y === 0 ? B.Cobble : (x + y + z) % 4 === 0 ? B.MossyStone : B.StoneBrick); };
+      if (isleN === 0) {
+        for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
+          if (Math.hypot(dx, dz) > 5.2 || hash2(ix + dx, iz + dz, 129) < 0.15) continue;
+          O.set(ix + dx, top - 1, iz + dz, (dx + dz) % 2 === 0 ? B.StoneBrick : hash2(dx, dz, 130) < 0.5 ? B.MossyCobble : B.Cobble);
+        }
+        const hs = [6, 6, 2, 5, 1, 7, 3, 0];
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2;
+          if (hs[k]) col(Math.round(ix + Math.cos(a) * 5), Math.round(iz + Math.sin(a) * 5), hs[k]);
+        }
+        // A lintel still spanning the first two columns
+        const [ax, az, bx, bz] = [ix + 5, iz, Math.round(ix + Math.cos(Math.PI / 4) * 5), Math.round(iz + Math.sin(Math.PI / 4) * 5)];
+        for (let t = 0; t <= 8; t++) if (top + 6 < SY) O.set(Math.round(ax + (bx - ax) * t / 8), top + 6, Math.round(az + (bz - az) * t / 8), B.StoneBrick);
+        for (let k = 0; k < 4; k++) O.set(ix - 2 + k, top, iz + 3, B.MossyStone); // a fallen drum
+        for (const [dx, dz, h] of [[0, 0, 3], [1, 0, 2], [0, 1, 1], [-1, -1, 2]]) for (let y = 0; y < h; y++) O.set(ix + dx, top + y, iz + dz, B.Crystal);
+        s.props.push({ t: 'glow', x: ix + 0.5, y: top + 2, z: iz + 0.5, r: 5, color: '#9fe8ff' });
+      } else if (isleN === 1) {
+        for (const dx of [-2, 2]) col(ix + dx, iz, 6);
+        for (let dx = -2; dx <= 1; dx++) if (top + 6 < SY) O.set(ix + dx, top + 5, iz, B.StoneBrick); // the keystone end has gone
+        for (let k = 0; k < 3; k++) O.set(ix - 1 + k, top - 1, iz + 2 + (k & 1), B.StoneBrick);
+      } else {
+        for (let k = 0; k < 2; k++) {
+          const px = ix + Math.floor(hash2(ix, k, 123) * r) - (r >> 1), pz = iz + Math.floor(hash2(iz, k, 124) * r) - (r >> 1);
+          col(px, pz, 2 + k * 2);
+        }
+      }
+      // A wind-bent tree where there is headroom
+      if (isleN !== 0 && r >= 7 && top + 10 < SY) plantTree(ix + 2, iz - 2, top, 0.3);
+      isleN++;
+      s.impostor.push({ x: ix, y: iy - r * 0.35, z: iz, w: r * 2, h: r * 0.9, d: r * 2, color: '#6a6a72' }, { x: ix, y: iy + 2.5, z: iz, w: r * 2, h: 1, d: r * 2, color: '#6a9a4a' });
+    }
+    s.r = 260;
+  }
+
+  function buildWreck(s: Site, x: number, z: number) {
+    // A shingle bar runs out from the beach and buries the bow; the stern is still in the surf.
+    // The bar steps down from the shore a block at a time, so it can be walked both ways.
+    for (let xx = x - 24; xx <= x + 4; xx++) for (let w = -6; w <= 6; w++) {
+      const along = (xx - (x - 10)) / 14.5;
+      if (along * along + (w / 6.5) * (w / 6.5) > 1) continue;
+      const zz = z + w;
+      const ground = heightAt(xx, zz);
+      const top = Math.min(SEA + 8, SEA + 1 + Math.max(0, Math.floor((x - 10 - xx) * 0.8)));
+      if (ground >= top) continue; // the beach is already this high
+      for (let y = ground - 1; y < top; y++) O.set(xx, y, zz, y >= top - 1 ? B.Sand : B.Gravel);
+      for (let y = top; y <= SEA; y++) O.set(xx, y, zz, B.Air);
+    }
+    // The Gannet: keel along +x from the bow (buried in the bar) to the stern in the surf, heeled to
+    // starboard, her port side stove in amidships so the ribs show, the starboard quarter gone.
+    const half = (i: number) => (i < 2 ? 1 : i < 5 ? 2 : i < 14 ? 3 : 2);
+    const keelY = (i: number) => SEA - 3 + Math.floor(i / 7);
+    for (let i = 0; i < 19; i++) {
+      const W = half(i), ky = keelY(i), X = x + i;
+      O.set(X, ky - 1, z, B.Timber); // the keel
+      for (let w = -W; w <= W; w++) {
+        if (i > 13 && w > 0) continue;
+        const gun = ky + 5 + (i < 3 ? 1 : 0) - (w > 0 ? 1 : 0); // sheer up to the bow; heeled
+        if (Math.abs(w) < W) { O.set(X, ky + (Math.abs(w) >= 2 ? 1 : 0), z + w, B.Planks); continue; }
+        const breach = w < 0 && i >= 7 && i <= 12;
+        for (let y = ky + 1; y <= gun; y++) {
+          if (breach && y > ky + 2 && y < gun) { if (i % 2 === 1) O.set(X, y, z + w, B.Timber); continue; } // ribs
+          O.set(X, y, z + w, y === gun ? B.Timber : (y - ky) % 2 === 0 ? B.Planks : B.DarkPlanks);
+        }
+      }
+      // Deck beams every third frame, and the foredeck still planked
+      if (i % 3 === 0 || i < 4) for (let w = -W + 1; w <= W - 1; w++) if (!(i > 13 && w > 0)) O.set(X, ky + 4 + (i < 3 ? 1 : 0), z + w, i < 4 ? B.Planks : B.DarkPlanks);
+    }
+    for (let y = keelY(0); y <= SEA + 4; y++) O.set(x - 1, y, z, B.Timber); // stem post, out of the shingle
+    for (let y = keelY(18); y <= keelY(18) + 1; y++) O.set(x + 19, y, z, B.Timber); // stump of the sternpost
+    // The mainmast, snapped, with its yard fallen across the rail
+    for (let y = keelY(6); y < SEA + 8; y++) O.set(x + 6, y, z, B.Timber);
+    for (let k = 0; k < 5; k++) O.set(x + 7 + k, SEA + 6 - k, z - 1 + (k >> 1), B.Timber);
+    s.props.push({ t: 'rope', x: x + 6.5, y: SEA + 7.8, z: z + 0.5, ry: Math.PI, len: 6.5, h: 3.2, r: 0.5 });
+    s.props.push({ t: 'rope', x: x + 6.5, y: SEA + 7.6, z: z + 0.5, ry: -0.4, len: 8, h: 8, r: 0.6 });
+    s.props.push({ t: 'rope', x: x + 6.5, y: SEA + 7.2, z: z + 0.5, ry: Math.PI / 2 + 0.2, len: 3.4, h: 4.6, r: 0.3 });
+    // Cargo strewn up the bar and floating in the surf. Col Maddox's sea chest is under the crate by the bow.
+    const onBar = (px: number, pz: number) => Math.max(heightAt(Math.floor(px), Math.floor(pz)), Math.min(SEA + 8, SEA + 1 + Math.max(0, Math.floor((x - 10 - Math.floor(px)) * 0.8))));
+    s.props.push({ t: 'crate', x: x - 3, y: onBar(x - 3, z + 2), z: z + 2 }, { t: 'barrel', x: x - 5, y: onBar(x - 5, z - 2), z: z - 2 });
+    for (const [dx, dz, t] of [[-7.5, -3.5, 'barrel'], [-11, 2.5, 'crate'], [-4, -4.2, 'crate'], [-12.5, -2, 'barrel'], [-8.2, 3.6, 'barrel'], [1.5, 3.4, 'crate']] as const) s.props.push({ t, x: x + dx, y: onBar(x + dx, z + dz), z: z + dz, ry: dx * 0.7 });
+    for (const [dx, dz] of [[9, 5.5], [13, -4.5], [4.5, -5.5]]) s.props.push({ t: 'barrel', x: x + dx, y: SEA - 0.45, z: z + dz, ry: dx });
+    s.props.push({ t: 'furn', item: 'coil', x: x - 6.5, y: onBar(x - 6.5, z + 1.2), z: z + 1.2 }, { t: 'furn', item: 'coil', x: x + 2.5, y: keelY(2) + 6, z: z - 0.5 });
+    // The ship's boat, dragged up the bar and left
+    s.props.push({ t: 'boat', x: x - 12, y: onBar(x - 12, z - 4) + 0.5, z: z - 4, ry: 2.6 });
+    s.props.push({ t: 'rope', x: x - 11, y: onBar(x - 11, z - 3.8) + 0.6, z: z - 3.8, ry: -0.5, len: 4, h: 0.55, r: -0.1 });
+    // Gulls' rocks in the surf, white with droppings, gulls on them and on the wreck
+    for (const [rx, rz, rh] of [[x + 11, z - 10, 4], [x + 16, z + 9, 3], [x + 4, z - 12, 2]]) {
+      for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+        const d = Math.hypot(dx, dz * 1.2);
+        if (d > 2.3) continue;
+        const top = SEA + rh - Math.round(d * 1.1) - (hash2(rx + dx, rz + dz, 75) < 0.3 ? 1 : 0);
+        for (let y = heightAt(rx + dx, rz + dz) - 1; y <= top; y++) O.set(rx + dx, y, rz + dz, y === top && d < 0.9 ? B.Snow : y > SEA - 1 ? (hash2(rx + dx, y + rz + dz, 78) < 0.25 ? B.Gravel : B.Stone) : B.Basalt);
+      }
+      s.props.push({ t: 'furn', item: 'gull', x: rx + 0.5, y: SEA + rh + 1, z: rz + 0.5, ry: rx }, { t: 'furn', item: 'gull', x: rx + 0.85, y: SEA + rh + 1, z: rz + 0.2, ry: rz });
+    }
+    for (const [i, ry] of [[3, 1], [9, -2], [16, 0.5]]) s.props.push({ t: 'furn', item: 'gull', x: x + i + 0.5, y: keelY(i) + 6 + (i < 3 ? 1 : 0), z: z - half(i) + 0.5, ry });
+    s.props.push({ t: 'furn', item: 'gull', x: x + 6.5, y: SEA + 8, z: z + 0.5, ry: 2 });
+    rect(s, x - 24, z - 13, x + 20, z + 12);
+  }
+
+  /** Hale's Fold: a shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. */
+  function buildBothy(s: Site, base: number) {
+    const cx = 376, cz = 1380;
+    house(s, cx - 3, cz - 6, 6, 5, 1, base, 'slate', 's', { wall: B.Cobble, chimney: false });
+    // The fold: a ring of drystone wall, coursed rough stone with a coping of stones on edge, open
+    // to the west with a hurdle for a gate, and a creep hole low in the east side for the lambs.
+    const fx = cx + 13, fz = cz + 1;
+    const ring = new Set<string>();
+    for (let a = 0; a < 96; a++) {
+      const t = (a / 96) * Math.PI * 2;
+      if (Math.cos(t) < -0.92) continue; // the gate
+      const x = Math.round(fx + Math.cos(t) * 6.5), z = Math.round(fz + Math.sin(t) * 6.5);
+      if (ring.has(x + ',' + z)) continue;
+      ring.add(x + ',' + z);
+      const creep = x === fx + 6 || x === fx + 7 ? Math.abs(z - fz) === 0 : false;
+      for (let y = heightAt(x, z) - 1; y < base + 2; y++) {
+        if (creep && y === base) { O.set(x, y, z, B.Air); continue; }
+        O.set(x, y, z, y < base ? B.Cobble : hash2(x, y * 3 + z, 76) < 0.3 ? B.MossyCobble : hash2(x, z + y, 77) < 0.2 ? B.Stone : B.Cobble);
+      }
+      O.set(x, base + 2, z, (x + z) % 2 === 0 ? B.StoneBrick : B.Stone); // the coping
+      if (creep) O.set(x, base + 1, z, B.StoneBrick); // lintel over the creep
+    }
+    s.props.push({ t: 'furn', item: 'hurdle', x: fx - 6.2, y: base, z: fz + 1.6, ry: Math.PI / 2 - 0.5 });
+    // Inside: a hay rack, a water trough, hay on the ground
+    s.props.push({ t: 'furn', item: 'hayrack', x: fx + 1.5, y: base, z: fz - 2.5, ry: 0 });
+    for (const [bx, bz] of [[fx + 1, fz - 3], [fx + 2, fz - 3]]) block2(bx, bz, base);
+    s.props.push({ t: 'barrel', x: fx + 3.5, y: base, z: fz + 2.5 }, { t: 'barrel', x: fx + 4.3, y: base, z: fz + 2.1 });
+    for (const [hx, hz] of [[fx - 1, fz + 2], [fx + 3, fz - 1]]) O.set(hx, base - 1, hz, B.Hay);
+    // Field walls running off along the ridge from the fold
+    drystone(fx + 5, fz - 5, fx + 18, fz - 12);
+    drystone(fx + 6, fz + 4, fx + 19, fz + 9);
+    drystone(cx - 4, cz - 7, cx - 14, cz - 13);
+    // A peat stack against the bothy's west gable: cut turves in neat courses under a slate cap
+    for (let y = 0; y < 3; y++) for (let k = 0; k < 4 - (y === 2 ? 1 : 0); k++) for (const w of [0, 1]) O.set(cx - 5 - w, base + y, cz - 6 + k, y % 2 ? B.Loam : B.Dirt);
+    for (let k = 0; k < 3; k++) for (const w of [0, 1]) O.set(cx - 5 - w, base + 3, cz - 6 + k, k % 2 ? B.Stone : B.StoneBrick);
+    // By the door: the fire Bryn kept, a bench, a water butt and rope, the lantern Ilse watched for
+    s.props.push({ t: 'firepit', x: cx + 0.5, y: base, z: cz + 4.5 }, { t: 'crate', x: cx - 4, y: base, z: cz + 2 }, { t: 'lantern', x: cx + 2.5, y: base, z: cz + 1.5 });
+    s.props.push({ t: 'bench', x: cx + 3.6, y: base, z: cz + 4.5, ry: Math.PI / 2 });
+    s.props.push({ t: 'barrel', x: cx - 2.2, y: base, z: cz + 0.6 }, { t: 'furn', item: 'coil', x: cx - 3.2, y: base, z: cz + 0.8 });
+    rect(s, cx - 15, cz - 14, fx + 20, fz + 10);
+  }
+
+  // ---------------------------------------------------------------- Settlement detail
+  /** A two-high barrier block under a prop that shouldn't be walked through. */
+  function block2(x: number, z: number, y?: number) { const g = y ?? heightAt(x, z); O.set(x, g, z, B.Barrier); O.set(x, g + 1, z, B.Barrier); }
+  /** An open-sided shelter: timber posts at the corners (and along long sides) under a gable roof. */
+  function shelter(s: Site, x0: number, z0: number, w: number, d: number, base: number, roof: PropDesc['mat'], h = 4) {
+    for (let x = x0; x < x0 + w; x++) for (let z = z0; z < z0 + d; z++) { foundation(x, z, base, B.Cobble); O.set(x, base - 1, z, hash2(x, z, 180) < 0.5 ? B.Gravel : B.Path); clearUp(x, z, base, base + h + 6); }
+    const posts: [number, number][] = [];
+    for (let x = x0; x < x0 + w; x += Math.max(1, Math.min(4, w - 1))) posts.push([x, z0], [x, z0 + d - 1]);
+    posts.push([x0 + w - 1, z0], [x0 + w - 1, z0 + d - 1]);
+    for (const [px, pz] of posts) for (let y = base; y < base + h; y++) O.set(px, y, pz, B.Timber);
+    for (let x = x0; x < x0 + w; x++) for (const z of [z0, z0 + d - 1]) O.set(x, base + h - 1, z, B.DarkPlanks);
+    const alongX = w >= d;
+    s.props.push({ t: 'roof', x: x0 + w / 2, y: base + h, z: z0 + d / 2, len: alongX ? w : d, span: alongX ? d : w, rise: roofRise(alongX ? d : w), ry: alongX ? 0 : Math.PI / 2, mat: roof });
+    rect(s, x0 - 1, z0 - 1, x0 + w, z0 + d);
+  }
+  /** A stack of cut logs, ends out. */
+  function logStack(x0: number, z0: number, len: number, rows: number, alongX: boolean) {
+    for (let r = 0; r < rows; r++) for (let i = 0; i < len - r; i++) for (const k of [0, 1]) {
+      const x = alongX ? x0 + i : x0 + k, z = alongX ? z0 + k : z0 + i;
+      O.set(x, heightAt(x0, z0) + r, z, B.OakLog);
+    }
+  }
+  function haystack(x: number, z: number, h = 3) {
+    for (let y = 0; y < h; y++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (y < h - 1 || (dx === 0 && dz === 0)) O.set(x + dx, heightAt(x, z) + y, z + dz, B.Hay);
+  }
+  function oreHeap(x: number, z: number, ore: number) {
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      const h = 2 - Math.round(Math.hypot(dx, dz) * 0.8);
+      for (let y = 0; y < h; y++) O.set(x + dx, heightAt(x + dx, z + dz) + y, z + dz, hash2(dx + y, dz, 181) < 0.55 ? ore : B.Gravel);
+    }
+  }
+  /** A drystone wall along a line, one or two blocks high. */
+  function drystone(x0: number, z0: number, x1: number, z1: number, gaps: [number, number][] = []) {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0));
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / n), z = Math.round(z0 + ((z1 - z0) * i) / n);
+      if (gaps.some(([gx, gz]) => Math.abs(gx - x) + Math.abs(gz - z) <= 1)) continue;
+      const g = heightAt(x, z);
+      O.set(x, g, z, B.Cobble);
+      O.set(x, g + 1, z, hash2(x, z, 182) < 0.4 ? B.MossyCobble : B.Cobble);
+    }
+  }
+
+  /** Cotter's End and Kelderby: yards, carts, sheds, pens and gardens round the houses. */
+  function hamletExtras(s: Site, base: number, x: number, z: number, roof: PropDesc['mat']) {
+    if (x === 486 && z === 252) {
+      // The carters' hamlet: a yard round the well, carts everywhere, Garth's wheel shed, a paddock, gardens
+      pave(x - 5, z - 4, x + 5, z + 4, base, 'yard');
+      for (const [bx, bz] of [[x, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]]) block2(bx, bz);
+      for (const [cx2, cz2, ry] of [[x + 9, z - 3, 0.3], [x - 7, z + 3, -0.4], [x + 3, z + 11, 1.4], [x + 12, z + 8, 2.0]] as const) s.props.push({ t: 'cart', x: cx2 + 0.5, y: heightAt(cx2, cz2), z: cz2 + 0.5, ry });
+      shelter(s, x + 14, z, 6, 5, heightAt(x + 16, z + 2), 'thatch');
+      s.props.push({ t: 'desk', x: x + 16.5, y: heightAt(x + 16, z + 2), z: z + 2.5, ry: 0 }, { t: 'crate', x: x + 18.4, y: heightAt(x + 18, z + 3), z: z + 3.2 }, { t: 'barrel', x: x + 15, y: heightAt(x + 15, z + 3), z: z + 3.4 });
+      logStack(x + 14, z + 6, 5, 2, true);
+      // The paddock, west of the houses, with a trough
+      fence(s, x - 32, z - 22, x - 20, z - 22); fence(s, x - 32, z - 10, x - 28, z - 10); fence(s, x - 26, z - 10, x - 20, z - 10);
+      fence(s, x - 32, z - 22, x - 32, z - 10); fence(s, x - 20, z - 22, x - 20, z - 10);
+      s.props.push({ t: 'barrel', x: x - 23.5, y: heightAt(x - 24, z - 16), z: z - 15.5 }, { t: 'barrel', x: x - 22.7, y: heightAt(x - 23, z - 16), z: z - 15.6 });
+      haystack(x - 30, z - 20); haystack(x + 15, z - 9, 2);
+      // Kitchen gardens behind the two north houses
+      for (const [gx, gz] of [[x + 3, z - 19], [x - 13, z - 17]]) {
+        for (let zz = gz + 1; zz < gz + 4; zz++) for (let xx = gx + 1; xx < gx + 8; xx++) { O.set(xx, heightAt(xx, zz) - 1, zz, (zz - gz) % 2 ? B.Farmland : B.Dirt); clearUp(xx, zz, heightAt(xx, zz), heightAt(xx, zz) + 5); }
+        fence(s, gx, gz, gx + 8, gz); fence(s, gx, gz, gx, gz + 4); fence(s, gx + 8, gz, gx + 8, gz + 4);
+      }
+      s.props.push({ t: 'sign', x: x - 6.5, y: heightAt(x - 7, z + 15), z: z + 15.5, ry: 0, text: 'Cotter\'s End' });
+      s.props.push({ t: 'lantern', x: x - 4.5, y: heightAt(x - 5, z - 5), z: z - 4.5 }, { t: 'lantern', x: x + 9.5, y: heightAt(x + 9, z + 5), z: z + 5.5, ry: Math.PI });
+      rect(s, x - 34, z - 24, x + 22, z + 18);
+    } else if (roof === 'slate') {
+      // A high hamlet: drystone walls, a sheepfold, a stone byre, peat stacked by the doors, a sledge
+      pave(x - 4, z - 3, x + 4, z + 3, base, 'yard');
+      for (const [bx, bz] of [[x, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]]) block2(bx, bz);
+      const fx = x + 16, fz = z - 1;
+      drystone(fx - 5, fz - 5, fx + 5, fz - 5); drystone(fx - 5, fz + 5, fx + 5, fz + 5);
+      drystone(fx + 5, fz - 5, fx + 5, fz + 5); drystone(fx - 5, fz - 5, fx - 5, fz + 5, [[fx - 5, fz]]);
+      haystack(fx + 2, fz - 2, 2);
+      house(s, x + 11, z - 16, 6, 5, 1, heightAt(x + 13, z - 14), 'slate', 's', { wall: B.StoneBrick, role: 'store', chimney: false });
+      for (const [px, pz] of [[x - 12, z - 4], [x + 3, z - 5]]) for (let y = 0; y < 2; y++) for (let k = 0; k < 2; k++) O.set(px + k, heightAt(px, pz) + y, pz, B.Loam);
+      s.props.push({ t: 'cart', x: x + 9.5, y: heightAt(x + 9, z + 3), z: z + 3.5, ry: 0.4 }, { t: 'lantern', x: x - 3.5, y: heightAt(x - 4, z + 4), z: z + 4.5 });
+      drystone(x - 20, z + 14, x + 4, z + 14, [[x - 6, z + 14]]);
+      rect(s, x - 22, z - 20, x + 24, z + 16);
+    }
+  }
+
+  /** The Waystation: a stable and paddock, a yard with tables outside the inn, a well, company carts. */
+  function waystationExtras(s: Site, base: number) {
+    pave(696, 569, 725, 581, base, 'yard');
+    shelter(s, 686, 559, 10, 8, base, 'thatch');
+    for (const [hx, hz] of [[687, 560], [693, 564]]) haystack(hx, hz, 2);
+    s.props.push({ t: 'barrel', x: 690.5, y: base, z: 565.5 }, { t: 'barrel', x: 691.4, y: base, z: 565.8 }, { t: 'cart', x: 689.5, y: base, z: 572.5, ry: 1.2 });
+    fence(s, 684, 583, 698, 583); fence(s, 684, 571, 684, 583); fence(s, 698, 576, 698, 583); fence(s, 684, 571, 690, 571);
+    // Tables outside the door, for travellers waiting on the Post
+    for (const tx of [716, 720]) {
+      s.props.push({ t: 'furn', item: 'table', x: tx + 0.5, y: base, z: 578.5, ry: Math.PI / 2 });
+      s.props.push({ t: 'bench', x: tx - 0.6, y: base, z: 578.5, ry: Math.PI / 2 }, { t: 'bench', x: tx + 1.6, y: base, z: 578.5, ry: Math.PI / 2 });
+      for (const dz of [578, 579]) block2(tx, dz, base);
+    }
+    s.props.push({ t: 'well', x: 713.5, y: base, z: 565.5 });
+    for (const [bx, bz] of [[712, 564], [713, 564], [712, 565], [713, 565]]) block2(bx, bz, base);
+    s.props.push({ t: 'cart', x: 730.5, y: base, z: 578, ry: 0.2 }, { t: 'cart', x: 734, y: base, z: 572.5, ry: -0.3 });
+    logStack(724, 560, 5, 2, true);
+    s.props.push({ t: 'lantern', x: 697.5, y: base, z: 579.5 }, { t: 'lantern', x: 723.5, y: base, z: 580.5, ry: Math.PI });
+    rect(s, 682, 556, 738, 586);
+  }
+
+  /** Fellers' Camp: a cookhouse lean-to, log stacks, stumps of felled trees, sawhorses and a loaded cart. */
+  function fellersExtras(s: Site) {
+    const x = 446, z = 520, base = heightAt(x, z);
+    shelter(s, x - 9, z + 9, 5, 4, heightAt(x - 7, z + 10), 'thatch', 3);
+    s.props.push({ t: 'furn', item: 'table', x: x - 6.5, y: heightAt(x - 7, z + 10), z: z + 10.5, ry: 0 }, { t: 'barrel', x: x - 8.2, y: heightAt(x - 8, z + 11), z: z + 11 }, { t: 'crate', x: x - 4.8, y: heightAt(x - 5, z + 11), z: z + 11.2 });
+    for (const [bx, bz] of [[x - 7, z + 10], [x - 6, z + 10]]) block2(bx, bz);
+    logStack(x + 10, z - 6, 7, 3, true);
+    logStack(x + 12, z + 4, 5, 2, false);
+    for (let i = 0; i < 14; i++) {
+      const a = hash2(i, x, 183) * Math.PI * 2, r = 14 + hash2(i, z, 184) * 10;
+      const px = Math.round(x + Math.cos(a) * r), pz = Math.round(z + Math.sin(a) * r);
+      O.set(px, heightAt(px, pz), pz, B.OakLog);
+    }
+    s.props.push({ t: 'cart', x: x + 4, y: base, z: z - 9, ry: 0.4 }, { t: 'bench', x: x + 8, y: base, z: z + 9, ry: 0.3 }, { t: 'bench', x: x + 9.5, y: base, z: z + 11, ry: 0.3 });
+    s.props.push({ t: 'tent', x: x - 15, y: heightAt(x - 15, z - 4), z: z - 4, ry: 1.2, color: '#5a6a3a' }, { t: 'lantern', x: x + 2.5, y: base, z: z - 4.5 });
+    rect(s, x - 26, z - 26, x + 26, z + 26);
+  }
+
+  /** Wynn Carrow's camp beside the arches: eleven years of it. */
+  function mossgateCamp(s: Site, base: number) {
+    const x = 190, z = 852;
+    pave(x - 3, z - 2, x + 6, z + 5, heightAt(x, z), 'yard');
+    s.props.push({ t: 'tent', x: x, y: heightAt(x, z), z: z, ry: 0.2, color: '#6a5a3a' });
+    shelter(s, x + 3, z - 2, 4, 4, heightAt(x + 4, z), 'thatch', 3);
+    const b2 = heightAt(x + 4, z);
+    s.props.push({ t: 'furn', item: 'shelves', x: x + 5, y: b2, z: z - 1.4, ry: 0 }, { t: 'desk', x: x + 4.5, y: b2, z: z + 0.6, ry: 0 }, { t: 'crate', x: x + 6.3, y: b2, z: z + 0.8 });
+    block2(x + 4, z, b2); block2(x + 5, z, b2);
+    s.props.push({ t: 'firepit', x: x + 1.5, y: heightAt(x + 1, z + 4), z: z + 4.5 }, { t: 'bench', x: x + 4, y: heightAt(x + 4, z + 4), z: z + 4.5, ry: Math.PI / 2 });
+    block2(x + 1, z + 4); block2(x + 2, z + 4);
+    s.props.push({ t: 'fence', x: x - 2, y: heightAt(x - 2, z + 3), z: z + 3, len: 3, ry: Math.PI / 2 });
+    block2(x - 2, z + 2); block2(x - 2, z + 3); block2(x - 2, z + 4);
+    rect(s, x - 5, z - 4, x + 9, z + 7);
+    void base;
+  }
+
+  /** Gullmouth: net racks along the shore, boats drawn up, fish crates, lamps up the street. */
+  function gullmouthExtras(s: Site, base: number, coast: number) {
+    const z = 600;
+    for (const rz of [588, 614]) {
+      for (let i = 0; i < 4; i++) {
+        const px = Math.floor(coast - 11 + i * 2.5), g = heightAt(px, rz);
+        for (let y = 0; y < 2; y++) O.set(px, g + y, rz, B.Timber);
+      }
+      s.props.push({ t: 'fence', x: coast - 7.25, y: heightAt(Math.floor(coast - 7), rz) + 0.4, z: rz + 0.5, len: 7.5, ry: 0 });
+      for (let px = Math.floor(coast - 11); px <= Math.floor(coast - 3.5); px++) block2(px, rz); // nets hung on it: solid
+    }
+    s.props.push({ t: 'boat', x: coast - 4, y: heightAt(Math.floor(coast - 4), z - 14), z: z - 14, ry: 1.4 }, { t: 'boat', x: coast - 3, y: heightAt(Math.floor(coast - 3), z + 18), z: z + 18, ry: 1.8 });
+    for (let i = 0; i < 5; i++) s.props.push({ t: 'crate', x: coast - 13 + (i % 3) * 0.75, y: base + (i > 2 ? 0.6 : 0), z: z - 8 + (i % 2) * 0.5 });
+    s.props.push({ t: 'barrel', x: coast - 15, y: base, z: z + 8.5 }, { t: 'barrel', x: coast - 15.9, y: base, z: z + 9 });
+    for (let x = coast - 56; x < coast - 14; x += 12) s.props.push({ t: 'lantern', x: Math.floor(x) + 0.5, y: base, z: z - 4.6, ry: 0 });
+    void base;
+  }
+
+  /**
+   * Gullmouth's upper town: the high street carried inland to a market square with its cross and
+   * stalls, rows of houses either side and behind, a chapel and bell tower, warehouses on the quay
+   * north and south of the jetties, a fish market, and a stone breakwater with a harbour light.
+   */
+  function gullmouthTown(s: Site, base: number, coast: number) {
+    const z = 600, C = Math.floor(coast);
+    rect(s, C - 140, z - 36, C - 60, z + 36);
+    street(C - 134, z - 4, C - 61, z + 4);
+    // The market square and its cross
+    pave(C - 104, z - 16, C - 80, z + 16, base, 'cobble');
+    for (let y = base; y < base + 5; y++) O.set(C - 92, y, z, y < base + 1 ? B.StoneBrick : y < base + 4 ? B.Cobble : B.StoneBrick);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) O.set(C - 92 + dx, base, z + dz, B.StoneBrick);
+    s.props.push({ t: 'glow', x: C - 91.5, y: base + 5.4, z: z + 0.5, r: 2.2 });
+    const cols = ['#2f528f', '#a8382c', '#c8a03a', '#3f7a3a'];
+    for (let i = 0; i < 3; i++) { s.props.push({ t: 'stall', x: C - 100 + i * 8, y: base, z: z - 11, ry: Math.PI, color: cols[i] }, { t: 'stall', x: C - 100 + i * 8, y: base, z: z + 11, ry: 0, color: cols[(i + 2) % 4] }); }
+    s.props.push({ t: 'well', x: C - 84.5, y: base, z: z + 5.5 }, { t: 'notice', x: C - 99.5, y: base, z: z + 5.5, ry: Math.PI / 2 });
+    for (const [bx, bz] of [[C - 85, z + 5], [C - 84, z + 5], [C - 85, z + 6], [C - 84, z + 6]]) block2(bx, bz, base);
+    // Houses along the high street and a row behind each side
+    const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate'];
+    let k = 0;
+    const row = (x0: number, x1: number, zz: number, door: 'n' | 's') => {
+      for (let x = x0; x + 7 <= x1; x += 9) {
+        if (x + 8 > C - 106 && x < C - 78 && Math.abs(zz - z) < 20) continue; // the square
+        const h = hash2(x, zz, 85);
+        house(s, x, zz, 7 + Math.floor(h * 2), 6, h < 0.5 ? 2 : 1, base, roofs[k++ % roofs.length], door, { wall: h < 0.5 ? B.Plaster : B.Planks, closed: h > 0.45, role: h < 0.15 ? 'shop' : h < 0.25 ? 'inn' : 'home' });
+      }
+    };
+    row(C - 133, C - 63, z - 14, 's'); row(C - 133, C - 63, z + 8, 'n');
+    row(C - 120, C - 63, z - 30, 's'); row(C - 120, C - 63, z + 24, 'n');
+    for (const lz of [z - 22, z - 21, z + 18, z + 19]) for (let x = C - 134; x <= C - 62; x++) O.set(x, base - 1, lz, hash2(x, lz, 87) < 0.6 ? B.Path : B.Gravel);
+    // The chapel, its door on the lane behind the north row, and its bell tower
+    stoneHall(s, C - 140, z - 34, 11, 17, 8, base, 'e');
+    s.props.push({ t: 'roof', x: C - 134.5, y: base + 8, z: z - 25.5, len: 17, span: 11, rise: roofRise(11), ry: Math.PI / 2, mat: 'slate' });
+    tower(s, C - 142, z - 14, 5, 15, base, B.StoneBrick, { trim: B.Cobble });
+    s.props.push({ t: 'cone', x: C - 141.5, y: base + 15, z: z - 13.5, r: 3.6, h: 6, mat: 'slate' });
+    for (let zz = z - 30; zz < z - 18; zz += 2.5) s.props.push({ t: 'bench', x: C - 134.5, y: base, z: zz, ry: 0 });
+    s.props.push({ t: 'furn', item: 'counter', x: C - 134.5, y: base, z: z - 32.2, ry: 0 }, { t: 'furn', item: 'lamp', x: C - 134.5, y: base + 7, z: z - 25.5, ry: 0 });
+    // Warehouses on the quay, the fish market, lamps down to the water
+    for (const wz of [z - 38, z + 28]) for (const wx of [C - 26, C - 14]) house(s, wx, wz, 10, 8, 2, base, 'slate', wz < z ? 's' : 'n', { wall: B.Planks, closed: true, chimney: false });
+    shelter(s, C - 46, z + 22, 14, 8, base, 'blue', 4);
+    for (let i = 0; i < 6; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: C - 44 + i * 2.1, y: base, z: z + 26 });
+    for (let x = C - 130; x < C - 62; x += 13) s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: z - 4.6, ry: 0 }, { t: 'lantern', x: x + 6.5, y: base, z: z + 4.6, ry: Math.PI });
+    // The breakwater: a stone arm out into the bay, a light at its end
+    let last: [number, number] = [C, z - 44];
+    for (let i = 0; i <= 60; i++) {
+      const t = i / 60, bx = Math.round(C + 2 + t * 46), bz = Math.round(z - 46 + t * t * 20);
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const x = bx + dx, zz = bz + dz;
+        for (let y = Math.min(heightAt(x, zz), SEA) - 1; y <= SEA + 1; y++) O.set(x, y, zz, y === SEA + 1 ? (hash2(x, zz, 89) < 0.3 ? B.MossyCobble : B.Cobble) : B.StoneBrick);
+      }
+      last = [bx, bz];
+    }
+    for (let y = SEA + 2; y < SEA + 6; y++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) O.set(last[0] + dx, y, last[1] + dz, y === SEA + 5 ? B.Window : B.StoneBrick);
+    s.props.push({ t: 'glow', x: last[0] + 1, y: SEA + 6.6, z: last[1] + 1, r: 5, color: '#ffd890' }, { t: 'smoke', x: last[0] + 1, y: SEA + 7, z: last[1] + 1 });
+    s.props.push({ t: 'sign', x: C - 128.5, y: base, z: z + 5.5, ry: 0, text: 'Gullmouth' });
+  }
+
+  /**
+   * Harrowgate's Company Row, outside the west gate: two rows of the company's cottages on the
+   * road, the meeting hall at the end, the smelter with its stack, and the slag heap.
+   */
+  function companyRow(s: Site, base: number) {
+    rect(s, 916, 978, 972, 1036);
+    street(932, 996, 969, 1004);
+    for (let x = 934; x + 6 <= 968; x += 8) {
+      house(s, x, 986, 6, 6, 1, base, 'slate', 's', { wall: B.Planks, closed: hash2(x, 986, 91) > 0.3, role: 'home', chimney: true });
+      house(s, x, 1008, 6, 6, 1, base, 'slate', 'n', { wall: B.Planks, closed: hash2(x, 1008, 93) > 0.3, role: 'home', chimney: true });
+    }
+    house(s, 918, 992, 11, 15, 1, base, 'red', 'e', { wall: B.StoneBrick, role: 'inn' }); // the meeting hall and canteen
+    // The smelter: a shed, its stack smoking, the slag heap and an ore cart
+    house(s, 944, 1022, 12, 8, 1, base, 'slate', 'n', { wall: B.Cobble, closed: true, chimney: false });
+    for (let y = base; y < base + 15; y++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) O.set(940 + dx, y, 1024 + dz, y > base + 12 ? B.StoneBrick : B.Cobble);
+    s.props.push({ t: 'smoke', x: 941, y: base + 15.5, z: 1025 }, { t: 'glow', x: 950, y: base + 1, z: 1021, r: 2.2, color: '#ff9a50' });
+    oreHeap(928, 1026, B.Basalt); oreHeap(932, 1030, B.Gravel);
+    s.props.push({ t: 'cart', x: 936, y: base, z: 1020, ry: 0.6 }, { t: 'rails', x: 948.5, y: base, z: 1017.5, len: 14, ry: Math.PI / 2 });
+    for (let x = 936; x < 968; x += 11) s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: 995.4, ry: 0 });
+    s.props.push({ t: 'sign', x: 966.5, y: base, z: 993.5, ry: 0, text: 'Company Row' });
+  }
+
+  /** Harrowgate Works: a bunkhouse, watchtowers on the palisade, ore stockpiles, rails, a lintel over the gate. */
+  function harrowgateExtras(s: Site, base: number) {
+    const cx = 1000, cz = 1000;
+    house(s, cx - 24, cz + 8, 14, 8, 2, base, 'slate', 'n', { wall: B.Planks, role: 'inn' });
+    for (const [tx, tz] of [[cx - 30, cz - 24], [cx + 30, cz - 24], [cx - 30, cz + 24], [cx + 30, cz + 24]]) {
+      for (const [px, pz] of [[tx - 1, tz - 1], [tx + 1, tz - 1], [tx - 1, tz + 1], [tx + 1, tz + 1]]) for (let y = heightAt(px, pz) - 1; y < base + 7; y++) O.set(px, y, pz, B.OakLog);
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) O.set(tx + dx, base + 7, tz + dz, B.Planks);
+      s.props.push({ t: 'roof', x: tx + 0.5, y: base + 9.5, z: tz + 0.5, len: 4, span: 4, rise: 1.6, ry: 0, mat: 'red' });
+      for (const [px, pz] of [[tx - 1, tz - 1], [tx + 1, tz - 1], [tx - 1, tz + 1], [tx + 1, tz + 1]]) for (let y = base + 8; y < base + 10; y++) O.set(px, y, pz, B.Timber);
+    }
+    for (let x = cx - 5; x <= cx + 5; x++) { O.set(x, base + 5, cz + 24, B.OakLog); if (x % 2 === 0) O.set(x, base + 6, cz + 24, B.OakLog); }
+    oreHeap(cx + 20, cz + 16, B.CopperOre); oreHeap(cx + 25, cz + 18, B.IronOre);
+    s.props.push({ t: 'rails', x: cx + 8.5, y: base, z: cz + 8.5, len: 12, ry: Math.PI / 2 });
+    s.props.push({ t: 'cart', x: cx + 18, y: base, z: cz + 12, ry: 0.9 }, { t: 'crate', x: cx - 7, y: base, z: cz + 18 }, { t: 'crate', x: cx - 6.2, y: base, z: cz + 18.4 }, { t: 'barrel', x: cx - 5, y: base, z: cz + 19 });
+    for (const [lx, lz] of [[cx - 15, cz + 2], [cx + 5, cz - 3], [cx + 20, cz + 6], [cx - 3, cz + 20]]) s.props.push({ t: 'lantern', x: lx + 0.5, y: base, z: lz + 0.5 });
+  }
+
+  /** Fleet Light: the keeper's cottage, the oil store, and a wall along the cliff. */
+  function lighthouseExtras(s: Site, base: number) {
+    const cx = s.x, cz = s.z;
+    house(s, Math.floor(cx - 15), Math.floor(cz - 3), 7, 6, 1, base, 'red', 'e', { wall: B.Plaster });
+    house(s, Math.floor(cx - 6), Math.floor(cz + 6), 5, 4, 1, base, 'slate', 'n', { wall: B.StoneBrick, role: 'store', chimney: false });
+    drystone(Math.floor(cx - 17), Math.floor(cz - 8), Math.floor(cx + 2), Math.floor(cz - 8));
+    s.props.push({ t: 'barrel', x: cx - 1.5, y: base, z: cz + 6 }, { t: 'barrel', x: cx - 0.6, y: base, z: cz + 6.4 });
+    rect(s, cx - 18, cz - 9, cx + 6, cz + 11);
+  }
+
+  /** Gallows Knap above ground: tower stubs at the corners, a ruined gatehouse, paving, fallen masonry. */
+  function fortExtras(s: Site, base: number) {
+    const cx = 1250, cz = 1250;
+    const stair = (x: number, z: number) => Math.abs(x - cx) <= 3 && z >= cz + 2 && z <= cz + 20; // the builders' stair
+    for (const [tx, tz] of [[cx - 14, cz - 14], [cx + 14, cz - 14], [cx - 14, cz + 14], [cx + 14, cz + 14]]) {
+      const top = base + 6 + Math.floor(hash2(tx, tz, 185) * 6);
+      for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+        const d = Math.hypot(dx, dz);
+        if (d > 2.6) continue;
+        const h = d > 1.4 ? top - Math.floor(hash2(tx + dx, tz + dz, 186) * 4) : base;
+        for (let y = heightAt(tx + dx, tz + dz) - 1; y < h; y++) O.set(tx + dx, y, tz + dz, y % 4 === 0 ? B.TerraBrown : weathered(tx + dx, y, tz + dz, 187, 0.05));
+      }
+    }
+    for (const gx of [cx - 5, cx + 5]) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) for (let y = base - 1; y < base + 8 - Math.abs(dx); y++) O.set(gx + dx, y, cz + 15 + dz, weathered(gx + dx, y, cz + 15, 188, 0.05));
+    for (let dz = -12; dz <= 12; dz++) for (let dx = -12; dx <= 12; dx++) {
+      const x = cx + dx, z = cz + dz;
+      if (stair(x, z) || Math.max(Math.abs(dx), Math.abs(dz)) <= 4 || hash2(x, z, 189) > 0.4) continue;
+      O.set(x, base - 1, z, hash2(x, z, 190) < 0.5 ? B.StoneBrick : B.TerraCream);
+    }
+    for (let i = 0; i < 10; i++) {
+      const x = cx - 18 + Math.floor(hash2(i, 5, 191) * 36), z = cz - 18 + Math.floor(hash2(i, 6, 191) * 36);
+      if (!stair(x, z) && Math.max(Math.abs(x - cx), Math.abs(z - cz)) > 4) rubble(x, z, 192 + i, B.StoneBrick);
+    }
+    rect(s, cx - 20, cz - 20, cx + 20, cz + 22);
+  }
+
+  /** The Glass Kirk: lintels on the standing columns, steps, braziers, pilgrims' benches. */
+  function templeExtras(s: Site, base: number) {
+    const cx = 1190, cz = 1800;
+    for (const z of [cz - 8, cz + 8]) for (let x = cx - 14; x < cx + 14; x += 4) {
+      const whole = (xx: number) => hash2(xx, z, 111) >= 0.3;
+      const ly = Math.min(base + 9, SY - 1); // the world's ceiling is y 95, and this floor is high
+      if (whole(x) && whole(x + 4)) for (let k = 0; k <= 4; k++) O.set(x + k, ly, z, k === 0 || k === 4 ? B.Basalt : B.StoneBrick);
+    }
+    // Dressed retaining walls where the hillside stands above the floor, coped with basalt; open on
+    // the west where the Post road comes down, and on the east towards Harrowgate's camp.
+    const retain = (x: number, z: number) => {
+      const g = heightAt(x, z);
+      if (g <= base) return;
+      for (let y = base; y < g; y++) O.set(x, y, z, y === g - 1 ? B.Basalt : (y + x + z) % 7 === 0 ? B.Cobble : B.StoneBrick);
+    };
+    for (let x = cx - 17; x <= cx + 17; x++) for (const z of [cz - 11, cz + 11]) retain(x, z);
+    // The hillside round the floor, dressed in stone: terraces where pilgrims stand to watch
+    for (let z = cz - 24; z <= cz + 24; z++) for (let x = cx - 30; x <= cx + 30; x++) {
+      if (Math.abs(x - cx) <= 17 && Math.abs(z - cz) <= 11) continue;
+      if (x > cx + 17 && Math.abs(z - cz) <= 12) continue; // Harrowgate's camp keeps its ground
+      const g = heightAt(x, z);
+      if (g <= base || g > base + 8) continue;
+      O.set(x, g - 1, z, (g - base) % 2 === 0 ? B.StoneBrick : B.Cobble);
+    }
+    for (let z = cz - 11; z <= cz + 11; z++) { if (z < cz + 1 || z > cz + 6) retain(cx - 17, z); if (z < cz - 2 || z > cz + 2) retain(cx + 17, z); }
+    for (const [bx, bz] of [[cx - 15, cz - 9], [cx - 15, cz + 9], [cx + 15, cz - 9], [cx + 15, cz + 9]]) {
+      O.set(bx, base, bz, B.Cobble); O.set(bx, base + 1, bz, B.StoneBrick);
+      s.props.push({ t: 'firepit', x: bx + 0.5, y: base + 2, z: bz + 0.5 });
+    }
+    for (const z of [cz - 4, cz + 4]) s.props.push({ t: 'bench', x: cx - 10, y: base, z: z + 0.5, ry: 0 }, { t: 'bench', x: cx - 6.5, y: base, z: z + 0.5, ry: 0 });
+    s.props.push({ t: 'glow', x: cx - 15 + 0.5, y: base + 3, z: cz + 0.5, r: 3 }, { t: 'glow', x: cx + 15.5, y: base + 3, z: cz + 0.5, r: 3 });
+  }
+
+  /** Scarth Watch inside: floors every six blocks, a stair up each storey, the count kept on the ground floor. */
+  function observatoryInterior(s: Site, cx: number, cz: number, base: number, H: number) {
+    const lo = cx - 3, hi = cx + 3, zlo = cz - 3, zhi = cz + 3; // the 7x7 inside of the 9-wide shell
+    for (let z = zlo; z <= zhi; z++) for (let x = lo; x <= hi; x++) O.set(x, base - 1, z, (x + z) % 2 ? B.Planks : B.DarkPlanks);
+    const storeys = Math.floor(H / 6);
+    for (let f = 0; f < storeys; f++) {
+      const y0 = base + f * 6;
+      // Stairs: six steps along one wall, alternating walls each storey
+      const north = f % 2 === 0;
+      for (let k = 0; k < 6; k++) {
+        const x = north ? lo + k : hi - k, z = north ? zlo : zhi;
+        for (let y = y0; y <= y0 + k; y++) O.set(x, y, z, B.DarkPlanks);
+      }
+      {
+        // The floor above (the roof deck over the top storey), open over the stair
+        for (let z = zlo; z <= zhi; z++) for (let x = lo; x <= hi; x++) {
+          const hole = (north ? z === zlo : z === zhi) && (north ? x >= lo + 2 && x <= lo + 4 : x <= hi - 2 && x >= hi - 4); // headroom over the upper steps
+          O.set(x, y0 + 5, z, hole ? B.Air : f === storeys - 1 ? ((x + z) % 2 ? B.StoneBrick : B.Basalt) : B.Planks);
+        }
+      }
+      s.props.push({ t: 'furn', item: 'lamp', x: cx + 0.5, y: y0 + 5, z: cz + 0.5, ry: 0 }, { t: 'glow', x: cx + 0.5, y: y0 + 4, z: cz + 0.5, r: 1.6 });
+    }
+    s.props.push({ t: 'furn', item: 'desk', x: cx + 0.5, y: base, z: cz + 1.5, ry: Math.PI }, { t: 'furn', item: 'shelves', x: hi + 0.3, y: base, z: cz + 0.5, ry: -Math.PI / 2 }, { t: 'furn', item: 'chest', x: lo + 0.7, y: base, z: cz + 1.5, ry: Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'bed', x: lo + 1, y: base + 6, z: cz + 1.5, ry: Math.PI / 2 }, { t: 'furn', item: 'shelves', x: hi + 0.3, y: base + 6, z: cz - 1.5, ry: -Math.PI / 2 });
+    for (const [bx, bz] of [[cx, cz + 1], [cx + 1, cz + 1]]) block2(bx, bz, base);
+  }
+
+  // ---------------------------------------------------------------- Small POIs
+  /** Weathered stone: mostly dressed, some mossy, some rough, chosen per block. */
+  function weathered(x: number, y: number, z: number, seed: number, mossy = 0.3): number {
+    const h = hash2(x * 7 + y, z, seed);
+    return h < mossy ? B.MossyStone : h < mossy + 0.15 ? B.MossyCobble : h < 0.85 ? B.StoneBrick : B.Cobble;
+  }
+  /** A low heap of fallen stone, a couple of blocks across. */
+  function rubble(x: number, z: number, seed: number, mat?: number) {
+    const n = 2 + Math.floor(hash2(x, z, seed) * 4);
+    for (let i = 0; i < n; i++) {
+      const px = x + Math.floor((hash2(i, x, seed + 1) - 0.5) * 3), pz = z + Math.floor((hash2(i, z, seed + 2) - 0.5) * 3);
+      const g = heightAt(px, pz);
+      O.set(px, g, pz, mat ?? weathered(px, g, pz, seed, 0.5));
+      if (i === 0 && hash2(px, pz, seed + 3) < 0.5) O.set(px, g + 1, pz, B.MossyCobble);
+    }
+  }
+
+  /** A ring of standing stones with lintels on some pairs, an altar slab, a fallen stone and a cairn. */
+  function buildStones(s: Site, x: number, z: number, base: number) {
+    const n = 9, R = 7;
+    const tops: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + hash2(x, z, 130) * 0.6;
+      const px = Math.round(x + Math.cos(a) * R), pz = Math.round(z + Math.sin(a) * R);
+      const fallen = hash2(px, pz, 132) < 0.12;
+      const hgt = fallen ? 1 : 4 + Math.floor(hash2(px, pz, 131) * 2);
+      tops.push(fallen ? -1 : hgt);
+      // Each upright is two blocks wide along the ring
+      const tx = Math.round(-Math.sin(a)), tz = Math.round(Math.cos(a));
+      for (const k of [0, 1]) for (let y = heightAt(px + tx * k, pz + tz * k) - 1; y < base + hgt; y++) O.set(px + tx * k, y, pz + tz * k, weathered(px + k, y, pz, 133, 0.35));
+      if (fallen) for (let k = 2; k < 5; k++) O.set(px + Math.round(Math.cos(a)) * k, heightAt(px, pz), pz + Math.round(Math.sin(a)) * k, B.MossyStone);
+    }
+    // Lintels over neighbouring uprights of equal height: the trilithons
+    for (let i = 0; i < n; i += 3) {
+      const j = (i + 1) % n;
+      if (tops[i] < 3 || tops[j] < 3) continue;
+      const a0 = (i / n) * Math.PI * 2 + hash2(x, z, 130) * 0.6, a1 = (j / n) * Math.PI * 2 + hash2(x, z, 130) * 0.6;
+      const y = base + Math.min(tops[i], tops[j]);
+      for (let t = 0; t <= 6; t++) {
+        const a = a0 + ((a1 - a0) * t) / 6;
+        O.set(Math.round(x + Math.cos(a) * R), y, Math.round(z + Math.sin(a) * R), B.Stone);
+      }
+    }
+    // The altar: a long slab on two blocks, with offerings
+    for (const dx of [-1, 0, 1]) { O.set(x + dx, base, z, dx === 0 ? B.Air : B.StoneBrick); O.set(x + dx, base + 1, z, B.Stone); }
+    s.props.push({ t: 'glow', x: x + 0.5, y: base + 2.2, z: z + 0.5, r: 1.6 }, { t: 'crate', x: x + 0.3, y: base + 2, z: z + 0.5, ry: 0.4 });
+    // Worn ground inside the ring, and a cairn outside it
+    for (let dz = -R + 1; dz < R; dz++) for (let dx = -R + 1; dx < R; dx++) {
+      if (Math.hypot(dx, dz) > R - 1.5 || hash2(x + dx, z + dz, 134) > 0.35) continue;
+      O.set(x + dx, heightAt(x + dx, z + dz) - 1, z + dz, hash2(dx, dz, 135) < 0.5 ? B.Path : B.Gravel);
+    }
+    const cx = x + R + 4, cz = z - 2;
+    for (let y = 0; y < 3; y++) for (let dz = -1 + y; dz <= 1 - y; dz++) for (let dx = -1 + y; dx <= 1 - y; dx++) O.set(cx + dx, heightAt(cx, cz) + y, cz + dz, y === 2 ? B.MossyStone : B.Cobble);
+    rect(s, x - R - 6, z - R - 3, x + R + 6, z + R + 3);
+    s.impostor.push({ x: x + 0.5, y: base + 2, z: z + 0.5, w: R * 2, h: 4, d: R * 2, color: '#8a8f86' });
+  }
+
+  /** A wayside shrine on a stepped platform: four columns under a slate roof, the lamp in the middle. */
+  function buildShrine(s: Site, x: number, z: number, base: number) {
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const r = Math.max(Math.abs(dx), Math.abs(dz));
+      foundation(x + dx, z + dz, base, B.Cobble);
+      clearUp(x + dx, z + dz, base, base + 9);
+      if (r === 4) O.set(x + dx, base - 1, z + dz, hash2(dx, dz, 140) < 0.3 ? B.MossyCobble : B.Cobble);       // the court, at ground level
+      else if (r === 3) O.set(x + dx, base, z + dz, B.StoneBrick);                                                 // first step
+      else { O.set(x + dx, base, z + dz, B.StoneBrick); O.set(x + dx, base + 1, z + dz, (dx + dz) % 2 === 0 ? B.StoneBrick : B.Cobble); } // the floor
+    }
+    // Columns with a cap and a base, at the corners of the floor
+    for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+      O.set(x + dx, base + 2, z + dz, B.Cobble);
+      for (let y = base + 3; y < base + 6; y++) O.set(x + dx, y, z + dz, B.StoneBrick);
+      O.set(x + dx, base + 6, z + dz, B.Cobble);
+    }
+    // Beams between the column caps, carrying the roof
+    for (let k = -2; k <= 2; k++) for (const [ax, az] of [[k, -2], [k, 2], [-2, k], [2, k]]) O.set(x + ax, base + 6, z + az, B.DarkPlanks);
+    s.props.push({ t: 'roof', x: x + 0.5, y: base + 7, z: z + 0.5, len: 6, span: 6, rise: 2.6, ry: 0, mat: 'slate' });
+    s.props.push({ t: 'lantern', x: x + 0.5, y: base + 2, z: z + 0.5 });
+    // A low wall round the court, open to the south, with a carved waymarker beside the gap
+    for (let k = -4; k <= 4; k++) for (const [ax, az] of [[k, -5], [-5, k], [5, k], [k, 5]]) {
+      if (az === 5 && Math.abs(ax) <= 1) continue;
+      const g = heightAt(x + ax, z + az);
+      O.set(x + ax, g, z + az, hash2(ax, az, 141) < 0.4 ? B.MossyCobble : B.Cobble);
+    }
+    for (let y = 0; y < 3; y++) O.set(x + 2, heightAt(x + 2, z + 6) + y, z + 6, y === 2 ? B.MossyStone : B.StoneBrick);
+    s.props.push({ t: 'bench', x: x - 3.5, y: base, z: z + 0.5, ry: Math.PI / 2 }, { t: 'bench', x: x + 4.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
+    s.props.push({ t: 'glow', x: x - 1.2, y: base + 2.3, z: z - 1.5, r: 1 }, { t: 'glow', x: x + 2.2, y: base + 2.3, z: z - 1.5, r: 1 });
+    rect(s, x - 6, z - 6, x + 6, z + 7);
+    s.impostor.push({ x: x + 0.5, y: base + 4, z: z + 0.5, w: 6, h: 8, d: 6, color: '#7a7f88' });
+  }
+
+  /**
+   * A round ruined watchtower: a broken shell with a doorway on the south, a floor's worth of beams
+   * still in place, ivy on the north face, fallen stone and a stub of its outer wall.
+   */
+  function buildRuinTower(s: Site, x: number, z: number, base: number) {
+    const R = 3.6;
+    for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > R + 0.4) continue;
+      const px = x + dx, pz = z + dz;
+      foundation(px, pz, base, B.StoneBrick);
+      O.set(px, base - 1, pz, d < R - 0.9 ? (hash2(dx, dz, 144) < 0.5 ? B.Gravel : B.Cobble) : B.StoneBrick);
+      if (d < R - 0.9) { clearUp(px, pz, base, base + 16); continue; }
+      // Wall height falls away on one side, as if the top had come down that way
+      const fall = Math.max(0, Math.cos(Math.atan2(dz, dx) - 0.8)) * 7;
+      const top = base + 14 - Math.floor(fall + hash2(px, pz, 145) * 3);
+      for (let y = base; y < top; y++) {
+        const door = dz >= R - 1.2 && Math.abs(dx) <= 0 && y < base + 3;
+        const slit = (y - base) % 5 === 3 && Math.abs(dx) === 0 && Math.abs(dz) > 2;
+        O.set(px, y, pz, door ? B.Air : slit && dz < 0 ? B.Air : weathered(px, y, pz, 146, 0.25));
+      }
+      clearUp(px, pz, top, base + 18);
+      if (dz < -1 && hash2(px, pz, 147) < 0.6) for (let y = base + 2; y < top - 1; y++) if (hash2(px, y, 148) < 0.5) O.set(px, y, pz - 1, B.OakLeaves); // ivy
+    }
+    // Beams of the first floor, some missing
+    for (let dx = -2; dx <= 2; dx++) for (const dz of [-1, 1]) if (hash2(x + dx, z + dz, 149) < 0.7) O.set(x + dx, base + 5, z + dz, B.DarkPlanks);
+    for (let dx = -1; dx <= 1; dx += 2) for (let dz = -2; dz <= 2; dz++) if (hash2(x + dx, z + dz, 150) < 0.5) O.set(x + dx, base + 5, z + dz, B.Planks);
+    // Lintel over the doorway
+    O.set(x, base + 3, z + 3, B.Cobble); O.set(x - 1, base + 3, z + 3, B.Cobble); O.set(x + 1, base + 3, z + 3, B.Cobble);
+    // Fallen stone round the foot, and a stub of the outer wall
+    for (let i = 0; i < 7; i++) {
+      const a = hash2(i, x, 151) * Math.PI * 2, r = 5 + hash2(i, z, 152) * 4;
+      rubble(Math.round(x + Math.cos(a) * r), Math.round(z + Math.sin(a) * r), 153 + i);
+    }
+    for (let k = -6; k <= 4; k++) {
+      const wx = x + k, wz = z - 8, g = heightAt(wx, wz);
+      const h = Math.floor(hash2(wx, wz, 154) * 3) + (k < -2 ? 1 : 0);
+      for (let y = g - 1; y < g + h; y++) O.set(wx, y, wz, weathered(wx, y, wz, 155, 0.4));
+    }
+    rect(s, x - 9, z - 9, x + 9, z + 9);
+    s.impostor.push({ x: x + 0.5, y: base + 6, z: z + 0.5, w: 7, h: 12, d: 7, color: '#8a8a88' });
+  }
+
+  /**
+   * A ruined building complex: an enclosing wall with a gateway, rooms inside with doorways, a row of
+   * broken columns, patches of the old floor, and fallen stone. `mat` sets the local stone.
+   */
+  function buildRuinWalls(s: Site, x: number, z: number, base: number, mat: number) {
+    const mossy = mat === B.MossyCobble;
+    const wallAt = (wx: number, wz: number, h: number) => {
+      const g = heightAt(wx, wz);
+      for (let y = g - 1; y < base + h; y++) {
+        const r = hash2(wx * 3 + y, wz, 156);
+        O.set(wx, y, wz, r < 0.35 ? B.StoneBrick : r < 0.5 ? (mossy ? B.MossyStone : B.TerraCream) : mat);
+      }
+    };
+    const heightAlong = (wx: number, wz: number, maxH: number) => Math.floor(hash2(wx, wz, 151) * maxH * 0.6 + (hash2(Math.floor(wx / 4), Math.floor(wz / 4), 157) * maxH * 0.6));
+    // Enclosure, 17 across, gateway in the south side
+    for (let i = -8; i <= 8; i++) for (const [ax, az] of [[i, -8], [i, 8], [-8, i], [8, i]]) {
+      if (az === 8 && Math.abs(ax) <= 1) continue;
+      wallAt(x + ax, z + az, heightAlong(x + ax, z + az, 6));
+    }
+    for (const gx of [-2, 2]) for (let y = heightAt(x + gx, z + 8) - 1; y < base + 6; y++) O.set(x + gx, y, z + 8, B.StoneBrick); // gate piers
+    for (let gx = -2; gx <= 2; gx++) O.set(x + gx, base + 6, z + 8, B.Stone);
+    // Inner rooms: a cross wall with doorways, and a corner room
+    for (let i = -7; i <= 7; i++) if (Math.abs(i) > 1) wallAt(x + i, z - 1, heightAlong(x + i, z - 1, 5));
+    for (let i = -7; i <= -2; i++) if (i !== -4) wallAt(x + 2, z + i, heightAlong(x + 2, z + i, 4));
+    // Old floor, lifted in places
+    for (let dz = -7; dz <= 7; dz++) for (let dx = -7; dx <= 7; dx++) {
+      if (hash2(x + dx, z + dz, 158) < 0.55) O.set(x + dx, heightAt(x + dx, z + dz) - 1, z + dz, (dx + dz) % 2 === 0 ? B.StoneBrick : mossy ? B.MossyCobble : B.TerraCream);
+    }
+    // Columns down the south court, some whole, some broken
+    for (const cxo of [-5, -2, 2, 5]) {
+      const h = hash2(x + cxo, z, 159) < 0.4 ? 1 + Math.floor(hash2(cxo, z, 160) * 2) : 5;
+      for (let y = base; y < base + h; y++) O.set(x + cxo, y, z + 4, y === base ? B.Cobble : B.StoneBrick);
+      if (h === 5) O.set(x + cxo, base + 5, z + 4, B.Cobble);
+    }
+    for (let i = 0; i < 8; i++) rubble(x + Math.floor((hash2(i, x, 161) - 0.5) * 22), z + Math.floor((hash2(i, z, 162) - 0.5) * 22), 163 + i);
+    if (mossy) for (let i = 0; i < 6; i++) O.set(x - 6 + Math.floor(hash2(i, 1, 164) * 12), base, z - 6 + Math.floor(hash2(i, 2, 164) * 12), B.Glowcap);
+    rect(s, x - 10, z - 10, x + 10, z + 10);
+  }
+
+  /** A star-fall crater: a basalt rim, crystal spires at the heart, shards and crystal-shot boulders. */
+  function buildCrystals(s: Site, x: number, z: number, base: number) {
+    const R = 7;
+    for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > R + 1) continue;
+      const px = x + dx, pz = z + dz, g = heightAt(px, pz);
+      if (d > R - 0.5) { O.set(px, g, pz, hash2(px, pz, 165) < 0.6 ? B.Basalt : B.Stone); continue; } // the rim
+      const dip = Math.round((1 - d / R) * 2.2);
+      for (let y = g - dip; y < g; y++) O.set(px, y, pz, B.Air);
+      O.set(px, g - dip - 1, pz, hash2(px, pz, 166) < 0.25 ? B.Crystal : B.Basalt);
+    }
+    // The heart: spires leaning out from the middle
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2 + hash2(x, z, 167), lean = k === 0 ? 0 : 0.35;
+      const hgt = k === 0 ? 8 : 3 + Math.floor(hash2(k, x, 168) * 4);
+      const ox = k === 0 ? 0 : Math.round(Math.cos(a) * 2), oz = k === 0 ? 0 : Math.round(Math.sin(a) * 2);
+      const floor = heightAt(x, z) - 3;
+      for (let y = 0; y < hgt; y++) {
+        const px = x + ox + Math.round(Math.cos(a) * lean * y), pz = z + oz + Math.round(Math.sin(a) * lean * y);
+        O.set(px, floor + y, pz, B.Crystal);
+        if (y < hgt / 2 && k === 0) for (const [ddx, ddz] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) O.set(px + ddx, floor + y, pz + ddz, B.Crystal);
+      }
+    }
+    // Shards and boulders around the crater
+    for (let k = 0; k < 9; k++) {
+      const a = hash2(k, z, 169) * Math.PI * 2, r = R + 2 + hash2(k, x, 170) * 5;
+      const px = Math.round(x + Math.cos(a) * r), pz = Math.round(z + Math.sin(a) * r), g = heightAt(px, pz);
+      if (k % 3 === 0) { for (let y = 0; y < 2; y++) for (const [ddx, ddz] of [[0, 0], [1, 0], [0, 1]]) O.set(px + ddx, g + y, pz + ddz, y === 1 && ddx + ddz === 0 ? B.Crystal : B.Basalt); }
+      else for (let y = 0; y < 1 + (k % 3); y++) O.set(px, g + y, pz, B.Crystal);
+    }
+    s.props.push({ t: 'glow', x: x + 0.5, y: base + 2, z: z + 0.5, r: 8, color: '#7fe0f4' }, { t: 'glow', x: x + 0.5, y: base + 5, z: z + 0.5, r: 4, color: '#bff4ff' });
+    rect(s, x - R - 7, z - R - 7, x + R + 7, z + R + 7);
+    s.impostor.push({ x: x + 0.5, y: base + 3, z: z + 0.5, w: 4, h: 7, d: 4, color: '#7fe0f4' });
+  }
+
+  /** A farmstead: the house, a barn, fenced fields in rows, haystacks, a well, a cart and a trough. */
+  function buildFarm(s: Site, x: number, z: number, base: number) {
+    house(s, x - 12, z - 10, 7, 6, 1, heightAt(x - 9, z - 7), 'thatch', 's');
+    house(s, x + 3, z - 12, 10, 7, 1, heightAt(x + 8, z - 9), 'red', 's', { wall: B.Planks, role: 'store', chimney: false });
+    pave(x - 6, z - 4, x + 6, z + 3, heightAt(x, z), 'yard');
+    s.props.push({ t: 'well', x: x + 0.5, y: heightAt(x, z), z: z + 0.5 }, { t: 'cart', x: x + 4.5, y: heightAt(x + 4, z), z: z + 1.5, ry: 0.6 });
+    for (const [bx, bz] of [[x, z], [x - 1, z], [x, z - 1], [x - 1, z - 1]]) { const g = heightAt(bx, bz); O.set(bx, g, bz, B.Barrier); O.set(bx, g + 1, bz, B.Barrier); }
+    // Haystacks by the barn
+    for (const [hx, hz, h] of [[x + 14, z - 7, 3], [x + 14, z - 4, 2], [x + 16, z - 6, 2]]) for (let y = 0; y < h; y++) for (const [ddx, ddz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (y < h - 1 || ddx + ddz === 0) O.set(hx + ddx, heightAt(hx, hz) + y, hz + ddz, B.Hay);
+    // Fields: furrowed rows, a ditch every fifth row, fenced with a gate on the yard side
+    const field = (fx0: number, fz0: number, fx1: number, fz1: number) => {
+      for (let fz = fz0 + 1; fz < fz1; fz++) for (let fx = fx0 + 1; fx < fx1; fx++) {
+        const g = heightAt(fx, fz);
+        clearUp(fx, fz, g, g + 6);
+        O.set(fx, g - 1, fz, (fz - fz0) % 5 === 0 ? B.Path : B.Farmland);
+      }
+      const gx = Math.round((fx0 + fx1) / 2);
+      fence(s, fx0, fz0, gx - 1, fz0); fence(s, gx + 1, fz0, fx1, fz0);
+      fence(s, fx0, fz1, fx1, fz1); fence(s, fx0, fz0, fx0, fz1); fence(s, fx1, fz0, fx1, fz1);
+      rect(s, fx0, fz0, fx1, fz1);
+    };
+    field(x - 18, z + 6, x - 2, z + 16);
+    field(x - 18, z + 18, x + 8, z + 33);
+    // A trough and a lamp in the yard
+    s.props.push({ t: 'barrel', x: x - 5.5, y: heightAt(x - 6, z + 2), z: z + 2.5 }, { t: 'crate', x: x - 4.6, y: heightAt(x - 5, z + 2), z: z + 2.8 }, { t: 'lantern', x: x - 3.5, y: heightAt(x - 4, z - 2), z: z - 2.5 });
+    rect(s, x - 20, z - 14, x + 18, z + 35);
+  }
+
+  /** A travellers' or workers' camp: tents round a fire with log seats, bedrolls, a lean-to and stores. */
+  function buildSmallCamp(s: Site, x: number, z: number) {
+    const base = heightAt(x, z);
+    pave(x - 3, z - 3, x + 3, z + 3, base, 'yard');
+    s.props.push({ t: 'firepit', x: x + 0.5, y: base, z: z + 0.5 });
+    for (const [bx, bz] of [[x, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]]) { O.set(bx, base, bz, B.Barrier); O.set(bx, base + 1, bz, B.Barrier); }
+    const colors = ['#8a6a3a', '#6a7a4a', '#7a3a2a', '#5a5a6a'];
+    for (let i = 0; i < 4; i++) {
+      const a = i * 1.57 + 0.5 + hash2(x, z, 171) * 0.4;
+      const tx = x + Math.cos(a) * 6.5, tz = z + Math.sin(a) * 6.5;
+      s.props.push({ t: 'tent', x: tx, y: heightAt(tx, tz), z: tz, ry: -a + Math.PI / 2, color: colors[i] });
+      s.props.push({ t: 'furn', item: 'rug', x: x + Math.cos(a) * 4.3, y: heightAt(tx, tz), z: z + Math.sin(a) * 4.3, ry: -a, tint: i });
+    }
+    // Log seats round the fire
+    for (const [lx, lz, along] of [[x - 2, z, false], [x + 3, z, false], [x, z - 2, true], [x, z + 3, true]] as const) {
+      for (let k = 0; k < 2; k++) O.set(lx + (along ? k : 0), base, lz + (along ? 0 : k), B.OakLog);
+    }
+    // A lean-to over the stores
+    const lx = x + 8, lz = z - 6;
+    for (const [px, pz] of [[lx, lz], [lx + 3, lz], [lx, lz + 3], [lx + 3, lz + 3]]) for (let y = 0; y < 3; y++) O.set(px, heightAt(px, pz) + y, pz, B.Timber);
+    s.props.push({ t: 'roof', x: lx + 2, y: heightAt(lx, lz) + 3, z: lz + 2, len: 4, span: 4, rise: 1.4, ry: 0, mat: 'thatch' });
+    for (let i = 0; i < 3; i++) s.props.push({ t: 'crate', x: lx + 1 + i * 0.8, y: heightAt(lx, lz) + (i === 1 ? 0.6 : 0), z: lz + 1.5 + (i % 2) * 0.4 });
+    s.props.push({ t: 'barrel', x: lx + 2.5, y: heightAt(lx, lz), z: lz + 2.8 }, { t: 'cart', x: x - 8, y: heightAt(x - 8, z + 5), z: z + 5, ry: 0.8 }, { t: 'lantern', x: x + 3.5, y: base, z: z - 3.5 });
+    rect(s, x - 10, z - 10, x + 13, z + 10);
+  }
+
+  /**
+   * A drift mine into a built-up hillside: a rock mound with the adit cut into its face, a timber
+   * portal, rails out to a spoil heap, a tool shed, ore crates and lamps.
+   */
+  function buildMinePOI(s: Site, x: number, z: number, base: number, dir: number) {
+    // The hill: a dome of rock and earth over where the tunnel runs
+    const hx = x + dir * 12, R = 12;
+    for (let dz = -R; dz <= R; dz++) for (let dx = -R - 2; dx <= R + 2; dx++) {
+      const d = Math.hypot(dx / 1.15, dz);
+      if (d > R) continue;
+      const px = hx + dx, pz = z + dz, g = heightAt(px, pz);
+      const top = base + Math.round(Math.sqrt(Math.max(0, 1 - (d / R) ** 2)) * 9);
+      const red = s.region === 'redstone', snow = s.region === 'starfall';
+      for (let y = g - 1; y < top; y++) O.set(px, y, pz, y === top - 1 ? (red ? B.TerraOrange : snow ? B.SnowGrass : B.Grass) : y > top - 3 ? (red ? B.TerraBrown : B.Dirt) : hash2(px * 3 + y, pz, 172) < 0.2 ? B.Gravel : red ? B.TerraBrown : B.Stone);
+    }
+    buildMine(s, x, z, base, dir, 26);
+    // The portal: squared timbers and a lintel, a bit forward of the hill face
+    const px = x + dir * 1;
+    for (const w of [-2, 2]) for (let y = base; y < base + 5; y++) O.set(px, y, z + w, B.Timber);
+    for (let w = -3; w <= 3; w++) O.set(px, base + 5, z + w, B.DarkPlanks);
+    for (let w = -1; w <= 1; w++) for (let y = base; y < base + 4; y++) O.set(px, y, z + w, B.Air);
+    // Rails out of the adit to the spoil heap, and the heap itself
+    s.props.push({ t: 'rails', x: x - dir * 3.5, y: base, z: z + 0.5, len: 8, ry: Math.PI / 2 });
+    const sx = x - dir * 9, sz = z + 6;
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const h = 3 - Math.round(Math.hypot(dx, dz) * 0.9);
+      for (let y = 0; y < h; y++) O.set(sx + dx, heightAt(sx + dx, sz + dz) + y, sz + dz, hash2(dx, dz + y, 173) < 0.3 ? B.Cobble : B.Gravel);
+    }
+    // A tool shed, ore waiting for the cart, lamps
+    house(s, x - dir * 8 - 3, z - 11, 6, 5, 1, heightAt(x - dir * 8, z - 9), 'slate', 's', { wall: B.Planks, role: 'workshop', chimney: false });
+    s.props.push({ t: 'crate', x: x - dir * 2, y: base, z: z + 3.5 }, { t: 'crate', x: x - dir * 2.8, y: base, z: z + 3.9 }, { t: 'barrel', x: x - dir * 2, y: base, z: z - 3.5 });
+    s.props.push({ t: 'lantern', x: x - dir * 1.5, y: base, z: z - 3.5 }, { t: 'lantern', x: x - dir * 1.5, y: base, z: z + 4.5 });
+    pave(x - dir * 6 - 2, z - 3, x - dir * 6 + 2, z + 3, base, 'yard');
+    rect(s, Math.min(x - 14 * dir, hx + R) - 2, z - R - 2, Math.max(x - 14 * dir, hx + R) + 2, z + R + 2);
+    s.impostor.push({ x: hx, y: base + 4, z: z, w: R * 2, h: 8, d: R * 2, color: '#6a6a5a' });
+  }
+}
+
+/** Roof colours for a house's far-away stand-in. */
+const ROOF_TONE: Record<string, string> = { red: '#9a4a36', blue: '#3e5a86', slate: '#4a4e58', thatch: '#b89a58' };
+
+/** Settlements where hostile creatures never spawn: [x, z, radius]. */
+const SAFE_R: Record<string, number> = { aldermere: 270, cotters: 34, waystation: 30, gullmouth: 125, harrowgate: 95, coldhearth: 34, starwatch: 26, lighthouse: 18, hollowoak: 16, woodcamp: 20 };
+export function safeZones(): [number, number, number][] {
+  return plan().sites.filter((s) => SAFE_R[s.id]).map((s) => [s.x, s.z, SAFE_R[s.id]]);
+}
+
+/** Sites whose footprint rectangles touch a chunk. */
+export function chunkRects(cx: number, cz: number): [number, number, number, number][] {
+  return plan().rectsByChunk.get(chunkKey(cx, cz)) ?? [];
+}
+
+export function inRects(rects: [number, number, number, number][], x: number, z: number, pad = 0): boolean {
+  for (const r of rects) if (x >= r[0] - pad && x <= r[2] + pad && z >= r[1] - pad && z <= r[3] + pad) return true;
+  return false;
+}
+
+export { CHUNK };

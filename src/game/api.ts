@@ -1,0 +1,50 @@
+import { SkillId } from '../data/items';
+import { Station } from '../data/gameplay';
+
+/** The narrow surface dialogue, quests and interactables use to read and change the game. */
+export interface GameApi {
+  flag(key: string): unknown;
+  setFlag(key: string, value?: unknown): void;
+  stage(quest: string): string | undefined;
+  setStage(quest: string, stage: string): void;
+  count(item: string): number;
+  has(item: string, n?: number): boolean;
+  give(item: string, n?: number): boolean;
+  take(item: string, n?: number): boolean;
+  readonly marks: number;
+  addMarks(n: number): void;
+  level(skill: SkillId): number;
+  hasTool(skill: SkillId): boolean;
+  toast(text: string): void;
+  /** Opens a trader's panel; defaults to Tamsin's stall. Ids are keys of SHOPS. */
+  openShop(id?: string): void;
+  openCrafting(station: Station): void;
+  /** Opens the Charter Post panel at the given stop (an id from POSTS). */
+  openTravel(from: string): void;
+  /** Opens a notice board (an id from the content BOARDS). */
+  openBoard(id: string): void;
+  startCasting(): void;
+  playerName: string;
+}
+
+export interface DOption {
+  text: string | ((g: GameApi) => string);
+  /** Node to go to. Omit to end the conversation. */
+  next?: string;
+  cond?: (g: GameApi) => boolean;
+  effect?: (g: GameApi) => void;
+}
+
+export interface DNode {
+  text: string | ((g: GameApi) => string);
+  /** Defaults to the NPC. 'narrator' renders in italics. */
+  speaker?: 'npc' | 'narrator';
+  options?: DOption[];
+  next?: string;
+  effect?: (g: GameApi) => void;
+}
+
+export interface DialogueTree {
+  start: (g: GameApi) => string;
+  nodes: Record<string, DNode>;
+}

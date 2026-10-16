@@ -1,0 +1,68 @@
+import { createSeededRandom } from '../utils/random';
+import { smoothstep } from './noise';
+import { baseHeight, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA } from './terrain';
+import { WMIN, WSIZE } from './VoxelWorld';
+
+// The Charter's chart of the continent: what every map in the realm shows before you have walked
+// it. Painted once, at low resolution, from the terrain functions: the sea and the coast, each
+// region in its own muted ink, hill shading, rivers, lakes and the roads. The world map draws the
+// land you have explored over it in full detail.
+
+const INK: Record<RegionId, [number, number, number]> = {
+  greenwake: [150, 172, 112],
+  crownroad: [196, 182, 116],
+  brambledeep: [104, 134, 88],
+  saltwind: [206, 192, 150],
+  redstone: [192, 132, 92],
+  starfall: [176, 182, 194],
+};
+
+let chart: HTMLCanvasElement | null = null;
+
+/** Covers the whole world, WMIN..WMAX on both axes, at eight blocks a pixel. */
+export function continentChart(size = WSIZE / 8): HTMLCanvasElement {
+  if (chart) return chart;
+  const step = WSIZE / size;
+  const h = new Float32Array(size * size);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) h[j * size + i] = baseHeight(WMIN + (i + 0.5) * step, WMIN + (j + 0.5) * step);
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const x = c.getContext('2d')!;
+  const img = x.createImageData(size, size);
+  const rnd = createSeededRandom(4242);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
+    const wx = WMIN + (i + 0.5) * step, wz = WMIN + (j + 0.5) * step, k = j * size + i, o = k * 4;
+    const ht = h[k];
+    let r: number, g: number, b: number;
+    if (ht <= SEA) {
+      // Sea: deeper is darker, with a pale band along the shore
+      const depth = Math.min(1, (SEA - ht) / 12);
+      r = 128 - depth * 40; g = 164 - depth * 40; b = 178 - depth * 30;
+      const shore = j > 0 && i > 0 && (h[k - 1] > SEA || h[k - size] > SEA);
+      if (shore) { r += 30; g += 30; b += 24; }
+    } else {
+      const reg = regionAt(wx, wz);
+      [r, g, b] = INK[reg.a];
+      if (reg.a === 'greenwake') {
+        // The vale's grid is square; on the chart its colour fades out round the rim instead
+        const v = smoothstep(150, 290, Math.hypot(wx - 165, wz - 165) + (rnd() - 0.5) * 6);
+        const o = INK[regionAt(Math.max(330, wx), Math.max(330, wz)).a];
+        r += (o[0] - r) * v; g += (o[1] - g) * v; b += (o[2] - b) * v;
+      }
+      // Hill shading from the north-west, and higher ground paler
+      const west = i > 0 ? h[k - 1] : ht, north = j > 0 ? h[k - size] : ht;
+      const shade = Math.max(-0.35, Math.min(0.35, (ht - west + ht - north) * 0.05));
+      const lift = Math.min(0.35, Math.max(0, (ht - 40) / 140));
+      r = r * (1 + shade) + (255 - r) * lift; g = g * (1 + shade) + (255 - g) * lift; b = b * (1 + shade) + (255 - b) * lift;
+      if (riverDist(wx, wz) < 3.5 || lakeDist(wx, wz) < 1) { r = 104; g = 146; b = 170; }
+      else if (roadDist(wx, wz) < 2.2 && (i + j) % 3 !== 0) { r = 122; g = 92; b = 58; }
+    }
+    // Paper grain
+    const n = (rnd() - 0.5) * 10;
+    img.data[o] = r + n; img.data[o + 1] = g + n; img.data[o + 2] = b + n; img.data[o + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  chart = c;
+  return c;
+}
+

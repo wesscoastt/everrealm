@@ -1,0 +1,157 @@
+/* Everrealm interface theme: "Lanternlight".
+   The interface has its own look instead of borrowing the world's block tiles: night-blue
+   panels lit from above, a thin gilt edge with small corner glints, softened corners, round
+   buttons and portraits, gilt buttons, and a storybook small-caps face for labels. Loaded after
+   styles.css; it changes surfaces, colours and type, not layout. Painted surfaces are in skin.ts. */
+
+:root {
+  --ink: #070b16;
+  --oak-d: #121a2e;
+  --oak: #1c2742;
+  --iron: #c9a24a;
+  --iron-l: #f6dc92;
+  --iron-d: #6f5322;
+  --slate: #0e1426;
+  --night: #111a31;
+  --night-2: #1b2747;
+  --gild: #b8913e;
+  --gild-l: #f3d58a;
+  --gild-line: rgba(243, 213, 138, 0.42);
+  --gild-faint: rgba(243, 213, 138, 0.18);
+  --cream: #f4ecd8;
+  --cream-d: #d9ccb0;
+  --muted: #aaa4bb;
+  --faint: #6f6a86;
+  --px: 'Alegreya Sans SC', 'Alegreya Sans', 'Segoe UI', sans-serif;
+  --hard: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.35);
+  --hard1: 0 1px 1px rgba(0, 0, 0, 0.9);
+}
+
+/* ------------------------------------------------------------- Panels */
+.frame {
+  background: radial-gradient(130% 90% at 50% -10%, rgba(96, 128, 214, 0.2), transparent 60%), var(--tex-plank);
+  background-size: auto, 256px 256px;
+  image-rendering: auto;
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--gild-line), inset 0 0 0 4px rgba(7, 11, 22, 0.85), inset 0 0 0 5px var(--gild-faint), 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+/* Corner glints in place of iron brackets */
+.frame::after {
+  inset: 0;
+  background:
+    radial-gradient(circle, #fff6d6 0 1px, var(--gild-l) 1.6px, rgba(243, 213, 138, 0.35) 2.6px, transparent 4px) 3px 3px / 8px 8px no-repeat,
+    radial-gradient(circle, #fff6d6 0 1px, var(--gild-l) 1.6px, rgba(243, 213, 138, 0.35) 2.6px, transparent 4px) calc(100% - 3px) 3px / 8px 8px no-repeat,
+    radial-gradient(circle, #fff6d6 0 1px, var(--gild-l) 1.6px, rgba(243, 213, 138, 0.35) 2.6px, transparent 4px) 3px calc(100% - 3px) / 8px 8px no-repeat,
+    radial-gradient(circle, #fff6d6 0 1px, var(--gild-l) 1.6px, rgba(243, 213, 138, 0.35) 2.6px, transparent 4px) calc(100% - 3px) calc(100% - 3px) / 8px 8px no-repeat;
+  filter: none;
+}
+.panel > header, .creator > header {
+  background: linear-gradient(rgba(243, 213, 138, 0.1), rgba(0, 0, 0, 0)), var(--tex-stone);
+  background-size: auto, 128px;
+  border-bottom: 1px solid var(--gild-line);
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.panel > header h3, .creator > header h3 { font: 700 19px var(--book); color: var(--gild-l); letter-spacing: 0.4px; }
+.panel > header .x { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--gild-line); background: rgba(255, 255, 255, 0.06); color: var(--gild-l); text-shadow: none; }
+.panel > header .x:hover { background: rgba(232, 100, 58, 0.35); color: #fff; }
+.panel .body::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.25); border-radius: 6px; }
+.panel .body::-webkit-scrollbar-thumb { background: var(--gild); border: 2px solid var(--night); border-radius: 6px; }
+
+/* Insets inside panels */
+.inv-grid, .equip-row, .armoury, .recipe, .tabs { background: rgba(4, 8, 20, 0.38); border: 1px solid var(--gild-faint); border-radius: 8px; }
+.tab + .tab { border-left: 1px solid var(--gild-faint); }
+.tab { background: transparent; }
+.tab.sel { background: rgba(243, 213, 138, 0.1); box-shadow: inset 0 -2px 0 var(--gild-l); }
+.shop-row:nth-child(odd) { background: rgba(4, 8, 20, 0.3); border-radius: 6px; }
+.armoury .set { border-top-color: var(--gild-faint); }
+
+/* ------------------------------------------------------------- Slots, portraits, tooltips */
+.slot {
+  background: linear-gradient(#1a2443, #0e1529);
+  border: 1px solid rgba(243, 213, 138, 0.2);
+  border-radius: 7px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -8px 14px rgba(0, 0, 0, 0.35);
+}
+.slot.r-uncommon { border-color: rgba(111, 214, 90, 0.7); box-shadow: inset 0 0 10px rgba(111, 214, 90, 0.18); }
+.slot.r-rare { border-color: rgba(90, 168, 255, 0.8); box-shadow: inset 0 0 10px rgba(90, 168, 255, 0.22), 0 0 6px rgba(90, 168, 255, 0.4); }
+.slot.r-epic { border-color: rgba(192, 122, 255, 0.85); box-shadow: inset 0 0 10px rgba(192, 122, 255, 0.25), 0 0 6px rgba(192, 122, 255, 0.45); }
+.slot.drag-over { box-shadow: inset 0 0 0 2px var(--gild-l); }
+.portrait, .dlg .face { border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 30%, #23325c, var(--slate)); border: 1px solid var(--ink); box-shadow: inset 0 0 0 2px var(--gild), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.4); }
+.portrait canvas, .dlg .face canvas { border-radius: 50%; padding: 4px; }
+#tooltip { background: rgba(12, 18, 36, 0.97); border: 1px solid var(--ink); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--gild-line), 0 8px 20px rgba(0, 0, 0, 0.5); }
+.loot-line img, .skill img { background: #0b1122; border-radius: 5px; border-color: var(--ink); }
+
+/* ------------------------------------------------------------- Bars: smooth and rounded */
+.bar { height: 14px; background: #0a1022; border: 1px solid var(--ink); border-radius: 8px; box-shadow: 0 0 0 1px var(--gild-line), inset 0 2px 4px rgba(0, 0, 0, 0.5); }
+.bar > i { border-radius: 8px; transition: width 0.25s ease; }
+.bar::before { background: linear-gradient(rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 55%); border-radius: 8px; }
+.bar.hp > i { background: linear-gradient(90deg, #b8321e, #ff7a54); }
+.bar.hp > .lag { background: rgba(244, 216, 168, 0.75); }
+.bar.en > i { background: linear-gradient(90deg, #b8861e, #ffd86a); }
+.bar.xp > i { background: linear-gradient(90deg, #2a7fa8, #9fe6ff); }
+
+/* ------------------------------------------------------------- Action bar and menu */
+.ab-slot { background: radial-gradient(circle at 50% 30%, #22305a, #0b1122 75%); border: 1px solid var(--ink); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--gild-line), inset 0 10px 16px rgba(255, 255, 255, 0.04), 0 3px 8px rgba(0, 0, 0, 0.45); }
+.ab-slot:hover { box-shadow: inset 0 0 0 1px var(--gild-l), 0 0 12px rgba(243, 213, 138, 0.35); }
+.ab-slot .key { background: #0f1730; border: 1px solid var(--gild-line); border-radius: 5px; color: var(--gild-l); }
+.ab-slot .cd { border-radius: 0 0 9px 9px; background: rgba(4, 8, 20, 0.72); box-shadow: 0 -2px 0 rgba(243, 213, 138, 0.5); }
+.ab-sep { width: 1px; background: linear-gradient(transparent, var(--gild-line), transparent); box-shadow: none; }
+.menu-btn { border-radius: 50%; border: 1px solid var(--gild-line); background: radial-gradient(circle at 50% 30%, #26355f, #0f1730 75%); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+.menu-btn:hover { color: var(--gild-l); box-shadow: 0 0 0 1px var(--gild-l), 0 0 12px rgba(243, 213, 138, 0.4); }
+.menu-btn.alert::after { border-radius: 50%; border: 1px solid var(--ink); background: var(--gild-l); }
+
+/* ------------------------------------------------------------- Minimap and zone */
+.minimap { border-radius: 50%; border: 1px solid var(--ink); background: radial-gradient(circle, #1a2443, #0c1226); box-shadow: inset 0 0 0 2px var(--gild), inset 0 0 0 5px #0b1122, inset 0 0 0 6px var(--gild-faint), 0 6px 18px rgba(0, 0, 0, 0.5); }
+.minimap canvas { border-radius: 50%; border: 1px solid var(--gild-line); }
+.zone-label { background: linear-gradient(90deg, transparent, rgba(14, 21, 44, 0.94) 14% 86%, transparent); border: none; font: 700 15px var(--book); color: var(--gild-l); }
+.mm-row { background: rgba(10, 16, 34, 0.88); border: 1px solid var(--gild-line); border-radius: 10px; }
+#map-panel canvas { border: 1px solid var(--ink); border-radius: 6px; box-shadow: 0 0 0 1px var(--gild), 0 0 0 4px #0b1122, 0 0 0 5px var(--gild-faint); }
+
+/* ------------------------------------------------------------- Buttons and coins */
+.btn { border: 1px solid #5b4416; border-radius: 6px; color: #1b1408; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.55); background: linear-gradient(#f6dc92, #d2a94e 55%, #9c7630); box-shadow: 0 2px 0 #3a2a0c, 0 4px 10px rgba(0, 0, 0, 0.35); }
+.btn:active { box-shadow: 0 1px 0 #3a2a0c; }
+.btn.ghost { background: linear-gradient(#22305a, #141d38); color: var(--cream); border-color: var(--gild-line); text-shadow: var(--hard1); }
+.btn.danger { background: linear-gradient(#ff9f86, #c8442a 55%, #8a2614); color: #fff; border-color: #4a1408; text-shadow: var(--hard1); }
+.coin::before { border-radius: 50%; border: 1px solid #3a2a0c; background: radial-gradient(circle at 35% 35%, #fff2b0, var(--wheat) 55%, var(--wheat-d)); }
+
+/* ------------------------------------------------------------- Parchment keeps its paper, with a gilt edge */
+.jbody, #read-panel .paper { border: 1px solid #5b4416; border-radius: 8px; }
+#banner .rod { border-radius: 5px; border: 1px solid var(--ink); background: linear-gradient(var(--gild-l), var(--gild) 55%, var(--iron-d)); }
+
+/* Open windows sit above the minimap and its compass letters */
+.panel.show { z-index: 8; }
+
+/* Minimap rim buttons: zoom in and out, and turn with the camera */
+.minimap .mm-b { position: absolute; z-index: 3; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--gild-line); background: radial-gradient(circle at 50% 30%, #26355f, #0f1730 75%); color: var(--gild-l); font: 700 15px var(--body); line-height: 1; cursor: pointer; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); }
+.minimap .mm-b:hover { box-shadow: 0 0 0 1px var(--gild-l), 0 0 10px rgba(243, 213, 138, 0.4); }
+.minimap .mm-in { right: 2px; bottom: 30px; }
+.minimap .mm-out { right: 20px; bottom: 8px; }
+.minimap .mm-rot { left: 2px; bottom: 30px; font-size: 13px; }
+.minimap .mm-rot.on { color: #0b1122; background: radial-gradient(circle at 50% 30%, #f6dc92, #c9a24a 75%); }
+.minimap canvas { image-rendering: auto; }
+
+/* The world map: a full-panel view with zoom buttons and a legend over it */
+#map-panel .body { position: relative; display: block; flex: 1; min-height: 0; padding: 0 14px; overflow: hidden; }
+#map-panel canvas { display: block; width: 100%; height: 100%; max-width: none; max-height: none; cursor: grab; image-rendering: auto; }
+#map-panel .map-ctl { position: absolute; right: 26px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
+#map-panel .map-ctl .mm-b, .minimap .mm-b { pointer-events: auto; }
+#map-panel .map-ctl .mm-b { position: static; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 50%; border: 1px solid var(--gild-line); background: radial-gradient(circle at 50% 30%, #26355f, #0f1730 75%); color: var(--gild-l); font: 700 17px var(--body); cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+#map-panel .map-ctl .mm-b:hover { box-shadow: 0 0 0 1px var(--gild-l), 0 0 10px rgba(243, 213, 138, 0.4); }
+#map-panel .map-legend { position: absolute; left: 26px; top: 12px; display: flex; flex-wrap: wrap; gap: 6px; max-width: 70%; }
+#map-panel .chip { padding: 4px 11px; border-radius: 14px; border: 1px solid var(--gild-line); background: rgba(11, 17, 34, 0.85); color: var(--muted); font: 600 13px var(--px); cursor: pointer; }
+#map-panel .chip.on { color: var(--gild-l); background: rgba(38, 53, 95, 0.92); }
+
+/* The event tracker under the minimap (GW2's event panel) */
+.event-panel { position: absolute; top: 278px; right: 16px; width: 220px; padding: 9px 12px 10px; display: none; }
+.event-panel.show { display: block; }
+.event-panel .ev-kind { font: 700 11px var(--px); letter-spacing: 1.5px; text-transform: uppercase; color: #ff9a2a; }
+.event-panel[data-kind="boss"] .ev-kind { color: #ff6a4a; }
+.event-panel[data-kind="shard"] .ev-kind { color: #7fe0f4; }
+.event-panel .ev-title { font: 700 16px var(--book); color: var(--gild-l); margin: 1px 0 3px; }
+.event-panel .ev-goal { font: 500 13px var(--body); color: var(--cream-d); line-height: 1.3; margin-bottom: 7px; }
+.event-panel .bar.ev > i { background: linear-gradient(90deg, #b8661e, #ffb04a); }
+.event-panel[data-kind="boss"] .bar.ev > i { background: linear-gradient(90deg, #8a2414, #ff6a4a); }
+.event-panel[data-kind="shard"] .bar.ev > i { background: linear-gradient(90deg, #2a7fa8, #9fe6ff); }
+.event-panel .ev-time { font: 600 12px var(--px); color: var(--muted); margin-top: 5px; text-align: right; }
