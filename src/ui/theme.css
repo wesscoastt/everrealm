@@ -197,3 +197,4 @@
 .jbody .calling-msg { margin-top: 8px; font: 600 13px var(--px); color: #9a3a1a; }
 #ab-gauge { background: #0b1122; border: 1px solid var(--ink); border-radius: 7px; box-shadow: inset 0 0 0 1px var(--gild-line), 0 2px 6px rgba(0,0,0,0.4); }
 #ab-gauge i { border-radius: 6px 0 0 6px; opacity: 0.9; }
+.coin.token::before { display: none !important; }

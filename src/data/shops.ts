@@ -18,6 +18,8 @@ export interface ShopDef {
   buyRate: (g: GameApi, item: string) => number;
   /** Multiplier on stock prices. */
   priceMult?: (g: GameApi) => number;
+  /** Priced in this item (a festival token) instead of marks. */
+  currency?: string;
   /** Line under the panel, in the owner's own terms. */
   footer: (g: GameApi) => string;
 }

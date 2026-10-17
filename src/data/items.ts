@@ -30,6 +30,8 @@ export interface ItemDef {
   armor?: { slot: 'head'; defense: number; vigor?: number; wind?: number; roll?: number };
   /** A halter: the horse it calls (every horse runs at the same pace; only the look differs). */
   mount?: { coat: string; mane: string; cloth: string; glow?: boolean };
+  /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
+  dye?: { color: string; name: string };
   /** The regional set this piece belongs to (see GEAR_SETS). */
   set?: string;
 }
@@ -164,3 +166,7 @@ export const RARITY_COLOR: Record<Rarity, string> = {
 // Side content items (src/data/content).
 import { CONTENT } from './content';
 for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
+
+// Festival tokens, fare, dyes and horses (src/data/festivals.ts).
+import { FESTIVAL_ITEMS } from './festivals';
+for (const d of FESTIVAL_ITEMS) ITEMS[d.id] = d;

@@ -7,6 +7,7 @@ import { continentChart } from '../world/atlas';
 import { WMIN } from '../world/VoxelWorld';
 import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
+import type { FestivalView } from '../game/Festivals';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
 /** Minimap zoom steps, in CSS pixels per block, and the CSS width they're measured across. */
@@ -94,7 +95,7 @@ import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim'; label?: string; yaw?: number; id?: string }
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim' | 'fair'; label?: string; yaw?: number; id?: string }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -109,6 +110,7 @@ export interface UiCtx {
   level(s: SkillId): number;
   useSlot(i: number): void;
   daily(): DailyView;
+  festival(): FestivalView;
   claimLogin(): void;
   feats(): FeatView[];
   calling(): CallingId;
@@ -159,6 +161,8 @@ export interface ShopView {
   stock: { item: string; price: number }[];
   sellPrice(id: string): number;
   footer: string;
+  /** Prices in a festival token instead of marks: its name and how many you have. */
+  currency?: { id: string; name: string; have: number };
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] => {
@@ -733,6 +737,14 @@ export class Hud {
     // People, foes, other players; objectives last, pinned to the rim when out of range
     for (const m of markers) {
       if (m.kind === 'quest' || ACT_KINDS.has(m.kind)) continue;
+      if (m.kind === 'fair') {
+        const [fx, fy] = at(m.x, m.z);
+        if (Math.hypot(fx, fy) > inside) continue;
+        c.fillStyle = '#4a3020'; c.fillRect(fx - 1, fy - 9, 2.5, 16);
+        c.fillStyle = '#e8a020'; c.strokeStyle = '#0b1122'; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(fx + 1, fy - 9); c.lineTo(fx + 11, fy - 5); c.lineTo(fx + 1, fy - 1); c.closePath(); c.fill(); c.stroke();
+        continue;
+      }
       if (m.kind === 'waymark' || m.kind === 'waymarkDim') {
         const [wx, wy] = at(m.x, m.z);
         if (Math.hypot(wx, wy) > inside) continue;
@@ -985,7 +997,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'calling' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -1014,6 +1026,12 @@ export class Hud {
       const ji = el('div', 'ji' + (this.selQuest === id ? ' sel' : ''), esc(label) + (dot ? ' <span class="dot-new">●</span>' : ''));
       ji.addEventListener('click', () => { this.selQuest = id; this.renderJournal(); });
       list.append(ji);
+    }
+    {
+      const fv = this.ctx.festival();
+      const fj = el('div', 'ji' + (this.selQuest === 'festival' ? ' sel' : ''), (fv.on ? esc(fv.on.name) : 'Festivals') + (fv.on && !fv.on.writ.done ? ' <span class="dot-new">●</span>' : ''));
+      fj.addEventListener('click', () => { this.selQuest = 'festival'; this.renderJournal(); });
+      list.append(fj);
     }
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
@@ -1045,6 +1063,16 @@ export class Hud {
         claim.addEventListener('click', () => { this.ctx.claimLogin(); this.renderJournal(); });
         page.append(claim);
       }
+    } else if (this.selQuest === 'festival') {
+      const fv = this.ctx.festival();
+      const on = fv.on;
+      page.innerHTML = on
+        ? `<h4>${esc(on.name)}</h4><div class="feat-sum">On until ${esc(on.closes)}. ${esc(on.blurb)}</div>
+          <div class="feat${on.writ.done ? ' done' : ''}"><div class="ft"><b>Festival writ: ${esc(on.writ.name)}</b><span>${on.writ.done ? 'Done' : `${on.writ.have.toLocaleString()} / ${on.writ.need.toLocaleString()}`}</span></div><div class="fd">${esc(on.writ.desc)}</div>${on.writ.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (on.writ.have / on.writ.need) * 100)}%"></i></div>`}<div class="fr">8 ${esc(on.tokenName)} and 20 marks · a new one every day</div></div>
+          <div class="feat"><div class="ft"><b><img class="tok" src="${itemIcon(on.token)}" alt=""> ${on.have} ${esc(on.tokenName)}</b></div><div class="fd">Creatures drop them while the festival's on (big ones always do). Spend them at the festival stall beside any Charter Post: the pennant on your map.</div></div>`
+        : `<h4>Festivals</h4><div class="feat-sum">No festival is on just now. They come round every year on the same days, for everyone.</div>`;
+      page.append(el('h5', 'feat-group', 'The festival year'));
+      for (const y of fv.year) page.append(el('div', 'feat' + (y.on ? ' done' : ''), `<div class="ft"><b>${esc(y.name)}</b><span>${y.on ? 'On now' : esc(y.when)}</span></div>`));
     } else if (this.selQuest === 'calling') {
       page.innerHTML = `<h4>Your calling</h4><div class="feat-sum">How you fight: keys 3, 4 and 5 and the bar above them. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>`;
       page.querySelectorAll<HTMLElement>('[data-calling]').forEach((b) => b.addEventListener('click', () => {
@@ -1139,7 +1167,8 @@ export class Hud {
         const row = el('div', 'shop-row');
         row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(s.item)}" alt=""></div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${esc(d.stats ?? d.desc)}</div></div><span class="coin">${s.price}</span><button class="btn">Buy</button>`;
         const b = row.querySelector('button')!;
-        b.disabled = this.ctx.save.marks < s.price;
+        b.disabled = (shop.currency ? shop.currency.have : this.ctx.save.marks) < s.price;
+        if (shop.currency) { const c = row.querySelector('.coin') as HTMLElement; c.classList.add('token'); c.innerHTML = `<img src="${itemIcon(shop.currency.id)}" alt="">${s.price}`; c.title = shop.currency.name; }
         b.addEventListener('click', () => this.ctx.buy(s.item));
         const slot = row.querySelector('.slot') as HTMLElement;
         slot.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(s.item), e.clientX, e.clientY));
@@ -1162,7 +1191,9 @@ export class Hud {
       });
       if (!seen.size) body.append(el('div', '', '<p style="color:var(--muted)">Your pack is empty.</p>'));
     }
-    this.q('#shop-panel .footer').innerHTML = `<span>${esc(shop.footer)}</span><span class="coin">${this.ctx.save.marks} marks</span>`;
+    this.q('#shop-panel .footer').innerHTML = shop.currency
+      ? `<span>${esc(shop.footer)}</span><span class="coin token"><img src="${itemIcon(shop.currency.id)}" alt="">${shop.currency.have} ${esc(shop.currency.name)}</span>`
+      : `<span>${esc(shop.footer)}</span><span class="coin">${this.ctx.save.marks} marks</span>`;
   }
 
   private renderTravel(): void {
@@ -1272,6 +1303,11 @@ export class Hud {
         const fare = lit && m.id ? this.ctx.waymarkFare(m.id) : null;
         hits.push({ x: X, y: Y, name: m.label ?? 'Waymark', sub: lit ? (fare !== null ? `Waymark · click to travel (${fare} marks)` : 'Waymark') : 'Waymark · walk up to it to attune' });
         if (lit && m.id) this.wmHits.push({ x: X, y: Y, id: m.id, name: m.label ?? 'Waymark' });
+      } else if (m.kind === 'fair' && on('post')) {
+        x.fillStyle = '#4a3020'; x.fillRect(X - px(1.5), Y - px(12), px(3), px(22));
+        x.fillStyle = '#e8a020'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
+        x.beginPath(); x.moveTo(X + px(1.5), Y - px(12)); x.lineTo(X + px(15), Y - px(6)); x.lineTo(X + px(1.5), Y); x.closePath(); x.fill(); x.stroke();
+        hits.push({ x: X, y: Y, name: m.label ?? 'Festival stall', sub: 'Festival stall: trade tokens here' });
       } else if (m.kind === 'post' && on('post')) {
         x.fillStyle = '#c8803a'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
         x.fillRect(X - px(2), Y - px(3), px(4), px(14)); x.strokeRect(X - px(2), Y - px(3), px(4), px(14));

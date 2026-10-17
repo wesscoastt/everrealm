@@ -14,6 +14,8 @@ export interface DailyHost {
   banner(title: string, sub: string): void;
   system(text: string): void;
   sound(): void;
+  /** Hears every event too (the festival writ counts the same things). */
+  also?(kind: WritKind, n: number): void;
 }
 
 interface LoginState { month: string; count: number; lastDay: number }
@@ -71,6 +73,7 @@ export class Dailies {
 
   /** Some work toward today's writs. */
   bump(kind: WritKind, n = 1): void {
+    this.host.also?.(kind, n);
     const s = this.writs();
     let changed = false;
     for (const w of writsFor(s.day)) {

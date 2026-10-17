@@ -49,6 +49,8 @@ export class GameWorld {
   private lanternGlows: THREE.Sprite[] = [];
   /** A few real point lights, moved each frame to the lamps nearest the player (see placeLamps). */
   private lampLights: THREE.PointLight[] = [];
+  /** Lights put up by things outside the sites (festival stalls), lit by the same pool. */
+  readonly extraLamps: THREE.Vector3[] = [];
   private activeSites = new Map<string, BuiltSite>();
   private impostors = new Map<string, THREE.Group>();
   private lod: THREE.Mesh | null = null;
@@ -394,6 +396,7 @@ export class GameWorld {
     };
     if (this.structures.group.visible) for (const p of this.structures.lights) consider(p);
     for (const s of this.activeSites.values()) for (const p of s.lamps) consider(p);
+    for (const p of this.extraLamps) consider(p);
     // Lit a little by day (dark rooms), fully from dusk
     const level = LAMP_POWER * (0.3 + 0.7 * night) * (0.92 + (flick - 0.85) * 0.5);
     const edge = dist.length > N ? Math.sqrt(dist[N]) : Infinity;

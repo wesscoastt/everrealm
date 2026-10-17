@@ -516,3 +516,8 @@ body.touch #chatbox .cb-log { height: 86px; font-size: 12.5px; }
 body.touch #loot { bottom: auto; top: 360px; }
 @media (max-width: 1360px) { body:not(.touch) #chatbox { bottom: 150px; width: 330px; } body:not(.touch) #chatbox .cb-log { height: 120px; } body:not(.touch) #loot { bottom: 330px; } }
 @media (max-height: 620px) { body:not(.touch) #chatbox .cb-log { height: 80px; } }
+
+.coin.token { display: inline-flex; align-items: center; gap: 3px; }
+.coin.token img { width: 18px; height: 18px; image-rendering: pixelated; }
+.jbody img.tok { width: 18px; height: 18px; image-rendering: pixelated; vertical-align: -4px; }
+.coin.token::before { display: none !important; }

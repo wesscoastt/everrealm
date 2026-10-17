@@ -20,6 +20,8 @@ export interface CharSummary {
   /** Region the character last stood in. */
   place: string;
   playTime: number;
+  /** Festival dye colours this character has unlocked for the wardrobe. */
+  dyes?: string[];
 }
 
 export interface FrontCtx {
@@ -51,6 +53,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
 const CLOTH = ['#3a5a8a', '#2e3a5a', '#1e2a4a', '#5a7aa8', '#7a2a24', '#a8382c', '#8a4a3a', '#c86a3a', '#3f6a3a', '#2a4a2a', '#4a5a3a', '#7a8a4a', '#5a2f6a', '#7a4a8a', '#8a6a2a', '#c8a050', '#5a5048', '#3a3a3a', '#1e1a18', '#e8dcc0', '#c8c0a8', '#6a3a4a'];
+const DYEABLE = new Set(['tunic', 'shirt', 'trim', 'trousers', 'hose', 'boots', 'cape', 'hatColor', 'gloves', 'belt']);
 const OPT = {
   skin: ['#fbe3cf', '#f6d8bc', '#f0c8a0', '#e8b48a', '#e0b090', '#d09870', '#c88a62', '#a8704a', '#8a5636', '#6a4028', '#5a3420', '#4a2a18'],
   eyes: ['#3a5a7a', '#4a7a8a', '#7a8a9a', '#3a6a3a', '#5a3a1a', '#8a6a2a', '#6a6a7a', '#2a2a2a', '#7a5a2a'],
@@ -400,7 +403,9 @@ export class Frontend {
     if (!pane) return;
     this.root.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.classList.toggle('sel', b.dataset.tab === this.tab));
     const L = this.look;
-    const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${OPT[k].map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
+    // Festival dyes join every cloth swatch, for the character that owns them
+    const dyed = (k: keyof typeof OPT) => (DYEABLE.has(k) && this.editing?.dyes?.length ? [...OPT[k], ...this.editing.dyes.filter((d) => !OPT[k].includes(d))] : OPT[k]);
+    const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${dyed(k).map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
     const chips = (attr: string, items: [string, unknown][], cur: unknown) => `<div class="chips">${items.map(([t, v], i) => `<button class="chip ${cur === v ? 'sel' : ''}" data-${attr}="${i}">${t}</button>`).join('')}</div>`;
     const slider = (k: 'build' | 'height', label: string, min: number, max: number, lo: string, hi: string) => `<label>${label}</label><div class="slide"><small>${lo}</small><input type="range" min="${min}" max="${max}" step="0.01" value="${L[k] ?? 1}" data-s="${k}"><small>${hi}</small></div>`;
     if (this.tab === 'origin') {
