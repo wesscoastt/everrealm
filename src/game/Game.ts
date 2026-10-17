@@ -2504,6 +2504,8 @@ export class Game implements GameApi {
     }
     this.world.sky.underwater = this.world.voxels.isWater(this.camera.position.x, this.camera.position.y, this.camera.position.z);
     this.player.model.root.visible = this.rig.actualDistance > 1.1;
+    // In first person you face where you look
+    if (this.rig.firstPerson && !this.dialogue && !this.action && !this.craftAction) this.player.yaw = this.rig.yaw - Math.PI;
     this.ambientFx(dt);
     this.respawnNodes();
     this.updateHud(dt);

@@ -28,11 +28,19 @@ export class CameraRig {
 
   rotate(dx: number, dy: number): void {
     this.yaw -= dx * 0.0055;
-    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.0045, -0.55, 1.35);
+    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.0045, this.firstPerson ? -1.3 : -0.55, 1.35);
   }
 
+  /** Zoomed all the way in: you see through your character's eyes. */
+  get firstPerson(): boolean { return this.targetDistance < 1; }
+
   zoom(steps: number): void {
-    this.targetDistance = THREE.MathUtils.clamp(this.targetDistance + steps * 1.1, 2.5, 18);
+    // Past the closest third-person distance the view drops into first person, and back out again
+    if (this.firstPerson) { if (steps > 0) this.targetDistance = 2.5; return; }
+    const next = this.targetDistance + steps * 1.1;
+    if (next < 2.5) { if (this.targetDistance <= 2.5 + 0.01) { this.targetDistance = 0; this.distance = 0; } else this.targetDistance = 2.5; return; }
+    this.targetDistance = Math.min(18, next);
+    if (this.pitch < -0.55) this.pitch = -0.55;
   }
 
   /** Forward direction on the ground plane. */
@@ -45,6 +53,19 @@ export class CameraRig {
     const k = 1 - Math.exp(-dt * 12);
     this.focus.lerp(want, this.focus.distanceToSquared(want) > 400 ? 1 : k);
     this.distance += (this.targetDistance - this.distance) * (1 - Math.exp(-dt * 8));
+    if (this.firstPerson) {
+      // Eyes a little forward of the head, looking where the mouse points
+      const eye = this.camera.position.set(target.x, target.y + 1.62, target.z);
+      eye.x -= Math.sin(this.yaw) * 0.18; eye.z -= Math.cos(this.yaw) * 0.18;
+      this.focus.copy(eye);
+      this.actualDistance = 0;
+      this.indoor = false;
+      for (let y = 1; y <= 3; y++) if (this.world.solidAt(eye.x, eye.y + y, eye.z)) { this.indoor = true; break; }
+      const cp = Math.cos(this.pitch);
+      this.camera.lookAt(eye.x - Math.sin(this.yaw) * cp, eye.y - Math.sin(this.pitch), eye.z - Math.cos(this.yaw) * cp);
+      if (this.shake > 0.001) { this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.15; this.shake *= Math.exp(-dt * 10); }
+      return;
+    }
 
     // Pull in when a block is between the player and the camera. In tight spaces (the Pit),
     // try flatter and steeper angles and use whichever leaves the most room.
