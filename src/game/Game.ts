@@ -1956,8 +1956,9 @@ export class Game implements GameApi {
     this.kit.landed();
     this.lastCombat = this.elapsed;
     this.target = this.target && this.target.alive ? this.target : e;
-    this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : '');
+    this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : quiet ? 'tick' : '');
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
+    if (crit) { e.punch = Math.max(e.punch, e.def.elite ? 0.12 : 0.24); this.hitstop = Math.max(this.hitstop, 0.08); this.rig.addShake(0.16); }
     this.addXp('melee', Math.max(1, Math.round(dmg * 0.4)));
     if (e.justDied) this.onEnemyKilled(e);
     return dmg;
@@ -2072,6 +2073,7 @@ export class Game implements GameApi {
     this.sfx('hurt');
     this.rig.addShake(0.25);
     this.floatAt(this.player.position, 2.2, `-${taken}`, 'player');
+    this.hud.hurt(taken / this.maxHp);
     const away = tmpV.subVectors(this.player.position, from.pos).setY(0).normalize();
     this.player.velocity.addScaledVector(away, 5);
     if (!this.target || !this.target.alive) this.target = from;
@@ -2801,6 +2803,27 @@ export class Game implements GameApi {
     const P = this.player.position;
     this.hud.setPlayer(this.save.name, this.level('melee'), this.hp, this.maxHp, this.energy);
     if (this.target && (!this.target.alive || this.target.pos.distanceTo(P) > 40)) this.target = null;
+    this.hud.setLowHealth(!this.dead && this.hp < this.maxHp * 0.3);
+    // A big fight: the nearest awake boss, or the one you've targeted
+    let boss: Enemy | null = this.target && this.target.alive && this.target.isBoss ? this.target : null;
+    if (!boss) {
+      let bd = 40;
+      for (const e of this.enemies) {
+        if (!e.alive || !e.isBoss || e.state === 'idle' || e.state === 'wander' || e.state === 'return') continue;
+        const d = e.pos.distanceTo(P);
+        if (d < bd) { bd = d; boss = e; }
+      }
+    }
+    this.hud.setBoss(boss ? { name: boss.name, level: boss.def.level, hp: boss.hp, max: boss.def.hp, enraged: boss.enraged } : null);
+    for (const e of this.enemies) if (e.justEnraged) {
+      e.justEnraged = false;
+      if (e.pos.distanceTo(P) > 50) continue;
+      this.hud.system(`${e.name} is enraged: it hits faster now. Watch for the wide circle.`);
+      this.floatAt(e.pos, e.model.plateHeight + 0.8, 'Enraged', 'crit');
+      this.audio.playAt('growl', e.pos.distanceTo(P), 1);
+      this.rig.addShake(0.35);
+      this.particles.burst(tmpV.copy(e.pos).setY(e.pos.y + 1.2), '#ff5a2a', 30);
+    }
     const t = this.target;
     this.hud.setTarget(t ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite } : null);
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);

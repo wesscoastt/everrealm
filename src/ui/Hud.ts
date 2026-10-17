@@ -231,6 +231,10 @@ export class Hud {
     tf.innerHTML = `<div class="portrait"><span class="tl">3</span></div><div class="info"><div class="name"><span class="tn"></span><small class="ts"></small></div><div class="bar hp"><i class="fill"></i><b></b></div></div>`;
     r.append(tf);
 
+    const boss = el('div', 'hud-only'); boss.id = 'bossbar';
+    boss.innerHTML = '<div class="bb-head"><b class="bb-name"></b><span class="bb-rage">Enraged</span><small class="bb-lvl"></small></div><div class="bb-bar"><i class="bb-fill"></i><i class="bb-mark"></i><span class="bb-num"></span></div>';
+    r.append(boss);
+    const hurt = el('div', ''); hurt.id = 'hurt'; r.prepend(hurt);
     const evp = el('div', 'event-panel frame hud-only');
     evp.innerHTML = '<div class="ev-kind"></div><div class="ev-title"></div><div class="ev-goal"></div><div class="bar ev"><i></i><b></b></div><div class="ev-time"></div>';
     r.append(evp);
@@ -632,12 +636,50 @@ export class Hud {
     for (const [k, e] of this.plates) if (!seen.has(k)) e.style.display = 'none';
   }
 
+  /** Recent numbers, so a quick run of hits stacks upward instead of printing over itself. */
+  private recentFloats: { x: number; y: number; at: number }[] = [];
+
   floater(x: number, y: number, text: string, cls = ''): void {
     const f = el('div', 'floater ' + cls, esc(text));
-    f.style.left = x + (Math.random() - 0.5) * 30 + 'px';
-    f.style.top = y + 'px';
+    const now = performance.now();
+    this.recentFloats = this.recentFloats.filter((r) => now - r.at < 450);
+    const crowd = cls === 'chatter' ? 0 : this.recentFloats.filter((r) => Math.abs(r.x - x) < 60 && Math.abs(r.y - y) < 60).length;
+    if (cls !== 'chatter') this.recentFloats.push({ x, y, at: now });
+    f.style.left = x + (Math.random() - 0.5) * 24 + (crowd % 2 ? 14 : -6) + 'px';
+    f.style.top = y - crowd * 17 + 'px';
     this.floaters.append(f);
-    setTimeout(() => f.remove(), cls === 'chatter' ? 3400 : 1000);
+    setTimeout(() => f.remove(), cls === 'chatter' ? 3400 : cls.includes('crit') ? 1250 : 1000);
+  }
+
+  /** The red at the screen's edges when you're hit, stronger for a bigger share of your health. */
+  hurt(share: number): void {
+    const v = this.q('#hurt');
+    v.style.setProperty('--hurt', String(Math.min(1, 0.35 + share * 3)));
+    v.classList.remove('hit');
+    void v.offsetWidth;
+    v.classList.add('hit');
+  }
+
+  /** A slow red pulse at the edges while health is low. */
+  setLowHealth(on: boolean): void {
+    this.q('#hurt').classList.toggle('low', on);
+  }
+
+  private bossKey = '';
+  /** The bar across the top in a big fight. */
+  setBoss(b: { name: string; level: number; hp: number; max: number; enraged: boolean } | null): void {
+    const box = this.q('#bossbar');
+    box.classList.toggle('show', !!b);
+    if (!b) { this.bossKey = ''; return; }
+    if (this.bossKey !== b.name) {
+      this.bossKey = b.name;
+      box.querySelector('.bb-name')!.textContent = b.name;
+      box.querySelector('.bb-lvl')!.textContent = `Level ${b.level}`;
+    }
+    box.classList.toggle('enraged', b.enraged);
+    const pct = Math.max(0, b.hp / b.max);
+    (box.querySelector('.bb-fill') as HTMLElement).style.width = `${pct * 100}%`;
+    box.querySelector('.bb-num')!.textContent = `${Math.ceil(b.hp).toLocaleString()} / ${b.max.toLocaleString()} · ${Math.ceil(pct * 100)}%`;
   }
 
   // ------------------------------------------------------------------ Minimap

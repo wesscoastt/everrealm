@@ -16,6 +16,11 @@ export interface EnemyContext {
 
 const telegraphMat = new THREE.MeshBasicMaterial({ color: '#ff3a24', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
 const telegraphFill = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+const RING_GEO = new THREE.RingGeometry(0.93, 1, 48).rotateX(-Math.PI / 2);
+const DISC_GEO = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
+const FILL_FROM = new THREE.Color('#ff5a2a'), FILL_TO = new THREE.Color('#ff2a10'), FILL_NOW = new THREE.Color('#fff0c0');
+/** A boss's signature attack: a wide circle round it, wound up slowly, every fourth attack. */
+const SIGNATURE = { every: 4, windup: 1.5, damage: 1.4 };
 
 let nextId = 1;
 
@@ -46,6 +51,17 @@ export class Enemy {
   /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
   stun = 0;
   knock = new THREE.Vector3();
+  /** A hit's squash, decaying (the game makes it bigger for crits). */
+  punch = 0;
+  /** Big fights: enraged below 35% health, and set for one frame when it happens. */
+  enraged = false;
+  justEnraged = false;
+  /** The current wind-up is the boss's signature circle. */
+  signature = false;
+  private attacks = 0;
+  private fillMat = telegraphFill.clone();
+  private bigRing: THREE.Mesh;
+  private bigFill: THREE.Mesh;
 
   /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
   constructor(readonly def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
@@ -64,11 +80,22 @@ export class Enemy {
     if (!isCircle) outlineGeo.translate(0, def.range / 2, 0);
     outlineGeo.rotateX(-Math.PI / 2);
     this.teleOutline = new THREE.Mesh(outlineGeo, telegraphMat);
-    this.teleFill = new THREE.Mesh(outlineGeo, telegraphFill);
-    this.telegraph.add(this.teleOutline, this.teleFill);
+    this.teleFill = new THREE.Mesh(outlineGeo, this.fillMat);
+    this.bigRing = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({ color: '#ffb0a0', transparent: true, opacity: 0.7, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    this.bigFill = new THREE.Mesh(DISC_GEO, this.fillMat);
+    this.bigRing.visible = this.bigFill.visible = false;
+    this.telegraph.add(this.teleOutline, this.teleFill, this.bigRing, this.bigFill);
     this.telegraph.visible = false;
     this.syncModel();
   }
+
+  /** World bosses and story bosses (not ordinary elites like Old Notch): boss bar, enrage, signature attack. */
+  get isBoss(): boolean { return !!this.def.elite && this.def.hp >= 1500; }
+
+  /** Reach of the signature circle. */
+  get signatureRadius(): number { return Math.max(5, this.def.range + 3); }
+
+  private get windupTime(): number { return this.signature ? SIGNATURE.windup : this.def.windup * (this.enraged ? 0.8 : 1); }
 
   get alive(): boolean {
     return this.state !== 'dead';
@@ -83,6 +110,8 @@ export class Enemy {
     this.hp -= amount;
     this.lastHitAt = now;
     this.model.flashHit();
+    this.punch = Math.max(this.punch, this.def.elite ? 0.06 : 0.14);
+    if (this.isBoss && !this.enraged && this.hp > 0 && this.hp < this.def.hp * 0.35) { this.enraged = true; this.justEnraged = true; }
     const away = new THREE.Vector3().subVectors(this.pos, from).setY(0).normalize();
     this.knock.addScaledVector(away, this.def.elite ? 2 : 5);
     if (this.state === 'idle' || this.state === 'wander' || this.state === 'return') this.state = 'chase';
@@ -174,6 +203,8 @@ export class Enemy {
           this.state = 'idle';
           this.model.setAnim('idle');
           this.timer = 0;
+          this.enraged = false;
+          this.attacks = 0;
         }
         this.model.update(dt, 0);
         if (this.timer <= 2.5) this.syncModel();
@@ -204,6 +235,12 @@ export class Enemy {
         if (distP <= def.range * (def.attack === 'charge' ? 0.9 : 0.85) && this.cooldown <= 0) {
           this.state = 'windup';
           this.timer = 0;
+          // A boss's every fourth attack is its signature: a wide circle round it, slow to come
+          this.attacks++;
+          this.signature = this.isBoss && this.attacks % SIGNATURE.every === 0;
+          this.teleOutline.visible = this.teleFill.visible = !this.signature;
+          this.bigRing.visible = this.bigFill.visible = this.signature;
+          if (this.signature) { this.bigRing.scale.setScalar(this.signatureRadius); ctx.sound('growl', this.pos); }
           this.attackOrigin.copy(this.pos);
           this.attackDir.set(toPlayer.x, 0, toPlayer.z).normalize();
           this.yaw = Math.atan2(this.attackDir.x, this.attackDir.z);
@@ -212,14 +249,15 @@ export class Enemy {
           break;
         }
         const keep = def.attack === 'charge' ? def.range * 0.6 : def.range * 0.6;
+        const pace = def.speed * (this.enraged ? 1.15 : 1);
         if (distP > keep) {
-          const moved = this.stepToward(ctx.player.x, ctx.player.z, def.speed, dt);
-          moveSpeed = moved ? def.speed : 0;
+          const moved = this.stepToward(ctx.player.x, ctx.player.z, pace, dt);
+          moveSpeed = moved ? pace : 0;
         } else this.yaw = Math.atan2(toPlayer.x, toPlayer.z);
         break;
       }
       case 'windup': {
-        const k = Math.min(1, this.timer / def.windup);
+        const k = Math.min(1, this.timer / this.windupTime);
         if (def.attack !== 'slam') {
           // Lunges track the player a little during windup; charges lock direction.
           if (def.attack === 'lunge' && k < 0.6) {
@@ -229,7 +267,11 @@ export class Enemy {
         }
         this.teleFill.scale.setScalar(Math.max(0.01, k));
         if (def.attack !== 'slam') this.teleFill.scale.set(1, 1, Math.max(0.01, k));
-        if (this.timer >= def.windup) {
+        this.bigFill.scale.setScalar(Math.max(0.01, k) * this.signatureRadius);
+        // The fill reddens and thickens as it comes, and flashes pale in the last moment: that's the cue to roll
+        if (k > 0.82) { this.fillMat.color.copy(FILL_NOW); this.fillMat.opacity = 0.6; }
+        else { this.fillMat.color.copy(FILL_FROM).lerp(FILL_TO, k); this.fillMat.opacity = 0.28 + k * 0.22; }
+        if (this.timer >= this.windupTime) {
           this.state = 'attack';
           this.timer = 0;
           this.hitDone = false;
@@ -240,8 +282,14 @@ export class Enemy {
         break;
       }
       case 'attack': {
-        const dur = def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : 0.45;
-        if (def.attack !== 'slam') {
+        const dur = this.signature ? 0.5 : def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : 0.45;
+        if (this.signature) {
+          if (!this.hitDone && this.timer > 0.2) {
+            this.hitDone = true;
+            if (ctx.playerAlive && !ctx.playerInvulnerable && distP < this.signatureRadius && Math.abs(toPlayer.y) < 2.5) ctx.hitPlayer(def.damage * SIGNATURE.damage, this);
+            ctx.sound('squelch', this.pos);
+          }
+        } else if (def.attack !== 'slam') {
           const speed = def.attack === 'charge' ? 13 : (def.range * 0.95) / 0.26;
           this.stepToward(this.pos.x + this.attackDir.x, this.pos.z + this.attackDir.z, speed, dt);
           moveSpeed = speed;
@@ -264,8 +312,9 @@ export class Enemy {
         if (this.timer >= dur) {
           this.state = 'recover';
           this.timer = 0;
-          this.cooldown = def.cooldown;
+          this.cooldown = def.cooldown * (this.enraged ? 0.65 : 1) * (this.signature ? 1.4 : 1);
           this.telegraph.visible = false;
+          this.signature = false;
           this.model.setAnim('idle');
         }
         break;
@@ -297,10 +346,16 @@ export class Enemy {
   private syncModel(): void {
     this.model.root.position.copy(this.pos);
     this.model.root.rotation.y = this.yaw;
+    // The hit punch: wide and low for a moment, then back
+    if (this.punch > 0.001) {
+      this.punch *= 0.82;
+      this.model.root.scale.set(1 + this.punch, 1 - this.punch * 0.7, 1 + this.punch);
+    } else if (this.model.root.scale.x !== 1) this.model.root.scale.setScalar(1);
     if (this.telegraph.visible) {
       this.telegraph.position.set(this.attackOrigin.x, this.attackOrigin.y + 0.06, this.attackOrigin.z);
       this.telegraph.rotation.y = this.def.attack === 'slam' ? 0 : Math.atan2(this.attackDir.x, this.attackDir.z) + Math.PI;
-      if (this.state === 'windup' && this.def.attack === 'slam') this.telegraph.position.copy(this.pos).setY(this.pos.y + 0.06);
+      if (this.state === 'windup' && (this.def.attack === 'slam' || this.signature)) this.telegraph.position.copy(this.pos).setY(this.pos.y + 0.06);
+      if (this.signature) this.telegraph.rotation.y = 0;
     }
   }
 }

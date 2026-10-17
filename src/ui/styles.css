@@ -563,3 +563,36 @@ body.touch #loot { bottom: auto; top: 360px; }
 /* A phone on its side: chat tucks under the tracker, two lines, clear of the bar and the stick */
 @media (max-height: 500px) { body.touch #chatbox { top: 160px; width: 220px; } body.touch #chatbox .cb-log { height: 40px; font-size: 11.5px; } body.touch #chatbox .cb-tabs button { padding: 1px 6px; font-size: 10px; } body.touch #loot { top: 92px; left: 250px; } #touch .stick { top: calc(100% - 96px); } }
 @media (max-height: 500px) { body.touch #ui .ab-slot { width: 38px; height: 38px; } body.touch #ui .ab-plate { gap: 5px; padding: 6px 10px 12px; } body.touch #ui .ab-sep { display: none; } body.touch #ab-gauge { width: 170px; } }
+
+/* ------------------------------------------------------------------ Combat feel */
+.floater { white-space: nowrap; }
+.floater.crit { font-size: 30px; color: #ffd84a; animation: critPop 1.25s ease-out forwards; }
+.floater.crit::after { content: '!'; }
+.floater.tick { font-size: 15px; color: #ffb070; opacity: 0.9; }
+.floater.player { font-size: 22px; }
+@keyframes critPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.35); } 25% { transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); margin-top: -56px; } }
+
+#hurt { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(170, 10, 0, 0.55) 100%); }
+#hurt.hit { animation: hurtFlash 0.6s ease-out; }
+#hurt.low { animation: lowPulse 1.4s ease-in-out infinite; }
+#hurt.low.hit { animation: hurtFlash 0.6s ease-out, lowPulse 1.4s ease-in-out 0.6s infinite; }
+@keyframes hurtFlash { 0% { opacity: var(--hurt, 0.6); } 100% { opacity: 0; } }
+@keyframes lowPulse { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.5; } }
+
+#bossbar { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); width: min(520px, calc(100vw - 580px)); display: none; pointer-events: none; }
+/* Too narrow to sit between the player frame and the minimap: above the action bar instead */
+@media (max-width: 940px) { #bossbar { top: 100px; left: calc(50% + 60px); width: 290px; } }
+#bossbar.show { display: block; animation: bossIn 0.4s ease-out; }
+#bossbar .bb-head { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-bottom: 4px; text-shadow: var(--hard); }
+#bossbar .bb-name { font: 700 19px var(--book, serif); color: #ffe3b0; letter-spacing: 0.5px; }
+#bossbar .bb-lvl { font: 600 11px var(--px); color: var(--cream-d); letter-spacing: 1px; text-transform: uppercase; }
+#bossbar .bb-rage { display: none; font: 700 11px var(--px); letter-spacing: 1.5px; text-transform: uppercase; color: #ff5a3a; }
+#bossbar.enraged .bb-rage { display: inline; animation: lowPulse 0.9s ease-in-out infinite; }
+#bossbar .bb-bar { position: relative; height: 16px; background: rgba(10, 6, 6, 0.85); border: 2px solid #120a08; border-radius: 4px; box-shadow: 0 0 0 1px rgba(243, 213, 138, 0.45), 0 4px 12px rgba(0,0,0,0.5); overflow: hidden; }
+#bossbar .bb-fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#e0462a, #8a1a10); transition: width 0.25s; }
+#bossbar.enraged .bb-fill { background: linear-gradient(#ff6a2a, #b8200c); box-shadow: 0 0 10px #ff5a2a; }
+#bossbar .bb-mark { position: absolute; left: 35%; top: 0; bottom: 0; width: 2px; background: rgba(255, 220, 160, 0.6); }
+#bossbar .bb-num { position: absolute; inset: 0; display: grid; place-items: center; font: 600 11px var(--px); color: #fff; text-shadow: 1px 1px 0 #000; }
+@keyframes bossIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 520px) { #bossbar { top: auto; bottom: 112px; width: 92vw; } #bossbar .bb-name { font-size: 15px; } }
+@media (max-height: 500px) { #bossbar { top: 8px; left: 244px; transform: none; width: min(230px, calc(100vw - 590px)); } #bossbar .bb-name { font-size: 14px; } }
