@@ -75,6 +75,10 @@ export interface OnlineHooks {
   status(s: OnlineStatus, players: number): void;
   /** The server has a newer copy of this character than the browser does. */
   newerSave(save: SaveData): void;
+  /** A shared world boss's health, as the server keeps it. */
+  bossState?(id: string, cycle: number, hp: number, max: number): void;
+  /** The server says a world boss has fallen, and who fought it. */
+  bossDown?(id: string, cycle: number, by: string[]): void;
 }
 
 export class Online {
@@ -164,6 +168,8 @@ export class Online {
         break;
       case 'chat': this.hooks.chat(String(m.from), String(m.text)); break;
       case 'sys': this.hooks.system(String(m.text)); break;
+      case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
+      case 'bossDown': this.hooks.bossDown?.(String(m.id), Number(m.cycle), Array.isArray(m.by) ? (m.by as unknown[]).map(String) : []); break;
     }
   }
 
@@ -232,6 +238,18 @@ export class Online {
       r.model.setHeld(r.held);
       r.model.update(dt, r.t < 1 ? r.speed : 0, r.anim === 'jump');
     }
+  }
+
+  get online(): boolean { return this.status === 'online' && !!this.ws; }
+
+  /** Ask for a world boss's shared health (sent when it rises in front of us). */
+  bossSync(id: string, cycle: number, max: number): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'bossSync', id, cycle, max }));
+  }
+
+  /** A blow landed on a shared world boss. */
+  bossHit(id: string, cycle: number, dmg: number, max: number): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'bossHit', id, cycle, dmg, max }));
   }
 
   chat(text: string): void {

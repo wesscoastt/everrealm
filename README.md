@@ -124,6 +124,7 @@ These are things to find and join while exploring, in the spirit of Guild Wars 2
   - Each rises every 30 minutes, staggered, with a 3-minute warning on the map and in chat.
   - A boss stays up for 10 minutes. It cracks the ground in a ring you have to leave, and calls in adds at two-thirds and one-third health.
   - Kills pay out regional gear.
+  - Online, a world boss is shared. The server keeps its health, every player's blows count against the same bar, and it falls for everyone at once. Everyone who landed a blow gets the reward; onlookers don't.
 - **Shardfalls.** Every six minutes a star shard comes down at one of six grounds in the south. You fight what crawls out of it in three waves for a crystal reward.
 - **Public dungeons (2) and delves (6).** These are underground halls with packs of enemies, named champions and a chest that refills every half hour. The public dungeons, Mortlake Cellars and the Black Cut, are deep and wide. Delves, such as Badger Holt, Withy Culvert and the Cold Seep, are short.
 - **Vistas (8).** Viewpoints on headlands and summits. Reach one and the camera sweeps round the view; the first visit pays out.
@@ -175,7 +176,7 @@ Writing standards and canon are in [docs/NARRATIVE_STYLE.md](docs/NARRATIVE_STYL
 
 - **Multiplayer is presence and chat only.** Other players are visible but nothing is shared: each player has their own ore nodes, enemies and quests, and you can't trade, group or fight together. The browser is still the authority for inventory, skills and quests. The server only checks a save's shape and size before storing it, so a modified client could send anything.
 - **Accounts are simple.** There's no password reset or email, and a realm's accounts live in its own files (`server/data/`).
-- **Events, bosses and dungeons are per player.** Other players are visible at them, but each browser runs its own copy of the fight.
+- **Events and dungeons are per player.** Other players are visible at them, but each browser runs its own copy (world bosses are shared).
 - **Later milestones:** housing, guilds, the marketplace, banking, farming and herbalism aren't built.
 - **Score quality:** the score is synthesised, not recorded. It has the shape of an orchestra but not the tone of real players.
 - **Phones:** touch controls work, but heavy scenes, such as Ansbury's New Town at a long view distance, are slow on older phones. Lower the view distance and render scale in Settings.

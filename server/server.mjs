@@ -334,6 +334,28 @@ wss.on('connection', (ws, req) => {
         broadcast({ t: 'chat', from: me.name, text });
         break;
       }
+      case 'bossSync': {
+        // A player has the boss in front of them: tell them where its health stands
+        const b = bossFor(msg.id, msg.cycle, msg.max);
+        if (b) send(ws, bossState(b));
+        break;
+      }
+      case 'bossHit': {
+        const b = bossFor(msg.id, msg.cycle, msg.max);
+        const dmg = num(msg.dmg, 0, BOSS_HIT_MAX);
+        if (!b || b.down || !dmg) return;
+        const now = Date.now();
+        if (!me.hitWindow || now - me.hitWindow.at > 1000) me.hitWindow = { at: now, n: 0 };
+        if (++me.hitWindow.n > BOSS_HITS_PER_SEC) return;
+        b.hp = Math.max(0, b.hp - Math.round(dmg));
+        b.hitters.add(me.name);
+        if (b.hp <= 0) {
+          b.down = true;
+          broadcast({ t: 'bossDown', id: b.id, cycle: b.cycle, by: [...b.hitters] });
+          log(`${b.id} (cycle ${b.cycle}) brought down by ${[...b.hitters].join(', ')}`);
+        } else broadcast(bossState(b));
+        break;
+      }
       case 'save': {
         if (raw.length > MAX_SAVE) { send(ws, { t: 'sys', text: 'The server refused your save: too large.' }); return; }
         const bad = validSave(msg.save, me.name);
@@ -356,6 +378,26 @@ wss.on('connection', (ws, req) => {
     log(`${me.name} left (${players.size} online)`);
   });
 });
+
+// World bosses are shared: the server keeps each one's health for the cycle it's up in. Every hit
+// is sent here, everyone is told the new health, and the boss falls when the server says so.
+const bosses = new Map(); // "wb-id:cycle" -> { id, cycle, hp, max, down, hitters: Set<name>, at }
+const BOSS_HIT_MAX = 600;     // no single blow does more than this
+const BOSS_HITS_PER_SEC = 12;
+function bossState(b) { return { t: 'boss', id: b.id, cycle: b.cycle, hp: b.hp, max: b.max, down: b.down }; }
+function bossFor(id, cycle, max) {
+  if (typeof id !== 'string' || !/^wb-[a-z]{2,20}$/.test(id) || !Number.isInteger(cycle) || cycle < 0) return null;
+  const key = id + ':' + cycle;
+  let b = bosses.get(key);
+  if (!b) {
+    const m = num(max, 500, 50000);
+    if (m === null) return null;
+    b = { id, cycle, hp: m, max: m, down: false, hitters: new Set(), at: Date.now() };
+    bosses.set(key, b);
+  }
+  return b;
+}
+setInterval(() => { const old = Date.now() - 2 * 3600_000; for (const [k, b] of bosses) if (b.at < old) bosses.delete(k); }, 600_000);
 
 // Movement snapshots: only players who moved, to everyone else.
 setInterval(() => {

@@ -35,12 +35,16 @@ export interface ActivityHost {
   discovered(id: string): boolean;
   cinematic(view: [number, number, number, number, number, number], then: () => void): void;
   setEvent(panel: EventPanel | null): void;
+  /** An enemy fell other than by the player's blow (a shared boss): run the game's kill handling. */
+  killed?(e: Enemy): void;
+  /** Online: the world boss's health is the server's, shared with every player there. */
+  shared?: { on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void };
 }
 
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
 
 interface LiveEvent { def: EventDef; wave: number; enemies: Enemy[]; killed: number; total: number; endsAt: number }
-interface LiveBoss { def: BossDef; enemy: Enemy; cycle: number; calls: number; nextQuake: number; quake?: { at: THREE.Vector3; t: number }; adds: Enemy[] }
+interface LiveBoss { def: BossDef; enemy: Enemy; cycle: number; calls: number; nextQuake: number; quake?: { at: THREE.Vector3; t: number }; adds: Enemy[]; shared: boolean; hitByMe: boolean; credit: boolean }
 interface LiveShard { idx: number; cycle: number; wave: number; enemies: Enemy[]; crystal: THREE.Group; fall: number }
 
 const QUAKE_R = 8, QUAKE_WINDUP = 1.8;
@@ -177,7 +181,9 @@ export class Activities {
       const beaten = this.host.flag('boss:' + def.id) === cycle;
       if (up && !beaten && !this.boss && Math.hypot(P.x - def.x, P.z - def.z) < 200 && this.host.voxels.isLoaded(def.x, def.z)) {
         const e = this.spawn({ ...ENEMIES[def.type] }, def.x, def.z, true);
-        this.boss = { def, enemy: e, cycle, calls: 0, nextQuake: this.clock + 8, adds: [] };
+        const shared = !!this.host.shared?.on();
+        this.boss = { def, enemy: e, cycle, calls: 0, nextQuake: this.clock + 8, adds: [], shared, hitByMe: false, credit: true };
+        if (shared) this.host.shared!.sync(def.id, cycle, e.def.hp);
         this.host.banner(name, `World boss · ${def.where}`);
         this.host.sound('bell');
       }
@@ -193,6 +199,8 @@ export class Activities {
     if (!b) { this.quakeMesh.visible = false; return; }
     const e = b.enemy;
     if (!e.alive) return;
+    // Rose before the connection was up: join the shared fight once it is
+    if (!b.shared && this.host.shared?.on()) { b.shared = true; this.host.shared.sync(b.def.id, b.cycle, e.def.hp); }
     // Adds at two-thirds and one-third
     const hp = e.hp / e.def.hp;
     if ((b.calls === 0 && hp < 0.66) || (b.calls === 1 && hp < 0.33)) {
@@ -372,6 +380,39 @@ export class Activities {
     return e;
   }
 
+  /**
+   * A blow on an enemy, before it lands. A shared world boss never falls from our blow alone: the
+   * blow goes to the server, and the boss stays on at least one point until the server says it's
+   * down. Returns the damage to apply here.
+   */
+  beforeHit(e: Enemy, dmg: number): number {
+    const b = this.boss;
+    if (!b || b.enemy !== e || !b.shared) return dmg;
+    if (!this.host.shared?.on()) { b.shared = false; return dmg; }
+    b.hitByMe = true;
+    this.host.shared.hit(b.def.id, b.cycle, dmg, e.def.hp);
+    return Math.min(dmg, Math.max(0, e.hp - 1));
+  }
+
+  /** The server's word on a shared boss's health. */
+  bossState(id: string, cycle: number, hp: number): void {
+    const b = this.boss;
+    if (!b || b.def.id !== id || b.cycle !== cycle || !b.enemy.alive) return;
+    b.enemy.hp = Math.max(1, Math.min(b.enemy.def.hp, hp));
+  }
+
+  /** The server says the boss is down: it falls here too. Those who fought it get the reward. */
+  bossDown(id: string, cycle: number, by: string[], me: string): void {
+    const b = this.boss;
+    if (!b || b.def.id !== id || b.cycle !== cycle || !b.enemy.alive) return;
+    b.credit = b.hitByMe || by.includes(me);
+    const others = by.filter((n) => n !== me);
+    if (others.length) this.host.system(`${b.enemy.def.name} falls. Fought by ${by.join(', ')}.`);
+    b.enemy.takeDamage(b.enemy.hp + 1, b.enemy.pos, this.clock);
+    // Fighters get the full kill (its loot, marks and the boss's own reward); onlookers only see it fall
+    if (b.credit) this.host.killed?.(b.enemy); else this.onKilled(b.enemy);
+  }
+
   /** The game tells us about every kill; ours count toward events. */
   onKilled(e: Enemy): void {
     this.tasks.onKilled(e);
@@ -380,10 +421,12 @@ export class Activities {
     if (b && b.enemy === e) {
       // Besides its own loot: one of its region's pieces for certain, and the cycle is done
       const pieces = e.def.loot.filter((l) => l.chance < 1 && !ITEMS[l.item]?.mount).map((l) => l.item);
-      this.host.reward(e.def.xp, 0, pieces.length ? [pieces[Math.floor(Math.random() * pieces.length)]] : [], `${e.def.name} defeated`);
-      this.host.banner(`${e.def.name} defeated`, 'World boss');
+      if (b.credit) {
+        this.host.reward(e.def.xp, 0, pieces.length ? [pieces[Math.floor(Math.random() * pieces.length)]] : [], `${e.def.name} defeated`);
+        this.host.banner(`${e.def.name} defeated`, 'World boss');
+      } else this.host.banner(`${e.def.name} defeated`, 'Others brought it down; land a blow next time for a share');
       this.host.setFlag('boss:' + b.def.id, b.cycle);
-      this.host.setFlag('killed:' + b.def.id, 1);
+      if (b.credit) this.host.setFlag('killed:' + b.def.id, 1);
       for (const a of b.adds) if (a.alive) this.host.removeEnemy(a);
       this.quakeMesh.visible = false;
       setTimeout(() => { if (this.boss === b) { this.host.removeEnemy(b.enemy); this.boss = null; } }, 8000);

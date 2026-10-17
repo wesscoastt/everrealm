@@ -283,6 +283,12 @@ export class Game implements GameApi {
     });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.activities = new Activities({
+      killed: (e) => this.onEnemyKilled(e),
+      shared: {
+        on: () => !!this.online?.online,
+        sync: (id, cycle, max) => this.online.bossSync(id, cycle, max),
+        hit: (id, cycle, dmg, max) => this.online.bossHit(id, cycle, dmg, max),
+      },
       scene: this.scene,
       voxels: this.world.voxels,
       player: () => this.player.position,
@@ -327,6 +333,8 @@ export class Game implements GameApi {
       system: (t) => this.hud.system(t),
       chat: (from, t) => this.hud.chat(from, t),
       status: (s, n) => this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online'),
+      bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
+      bossDown: (id, cycle, by) => this.activities.bossDown(id, cycle, by, this.save.name),
       newerSave: (save) => {
         // Another browser played this character further. Take the server's copy and restart on it.
         this.hud.system('The server has newer progress for this character. Loading it…');
@@ -1786,7 +1794,7 @@ export class Game implements GameApi {
       if (crit && this.gearSet === 'starglass') this.energy = Math.min(100, this.energy + 6);
       if (crit) dmg *= 1.6;
       dmg = Math.round(dmg);
-      e.takeDamage(dmg, P, this.elapsed);
+      e.takeDamage(this.activities.beforeHit(e, dmg), P, this.elapsed);
       drawn += dmg * (blade?.leech ?? 0);
       any = true;
       this.target = this.target && this.target.alive ? this.target : e;
