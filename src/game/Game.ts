@@ -57,6 +57,7 @@ import { originById } from '../data/origins';
 import { ClassKit } from './ClassKit';
 import { Festivals } from './Festivals';
 import { Home, Piece } from './Home';
+import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
@@ -2390,6 +2391,9 @@ export class Game implements GameApi {
     }
     this.particles.update(dt);
     this.world.update(dt, P, this.elapsed, timeScale);
+    // Doors open for anyone walking up to them: you, other players, the villagers
+    const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos)];
+    updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'open' : 'close', 0.5));
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
     this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
     if (this.cine) {

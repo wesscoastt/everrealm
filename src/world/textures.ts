@@ -9,6 +9,8 @@ import { createSeededRandom } from '../utils/random';
 
 export const TILE = 32;
 const EMIT_A = 190;
+/** Window glass: its own alpha, so the shader can show it as plain glass by day and lit at night. */
+const GLASS_A = 160;
 
 type RGB = [number, number, number];
 type Px = { data: Uint8ClampedArray; rnd: () => number };
@@ -304,7 +306,7 @@ const painters: Record<number, (p: Px) => void> = {
       if (frame) set(p, x, y, hex('#3a2617'));
       else {
         const g = mix(hex('#ffcf7a'), hex('#ffe9b8'), (x + y) / 56 + p.rnd() * 0.1);
-        set(p, x, y, g, EMIT_A);
+        set(p, x, y, g, GLASS_A);
       }
     }
   },

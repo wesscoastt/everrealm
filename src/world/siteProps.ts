@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as P from './props';
+import { Door, makeDoor } from './Doors';
 import { ImpostorBox, Site } from './sites';
 
 // Turns a site's prop descriptors into meshes when the player comes near, and builds the
@@ -13,6 +14,7 @@ export interface BuiltSite {
   lamps: THREE.Vector3[];
   smoke: THREE.Vector3[];
   fires: THREE.Object3D[];
+  doors: Door[];
 }
 
 /** A fire's three flame tongues as one shape (scaled on the fire's own origin to flicker). */
@@ -69,6 +71,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   const lamps: THREE.Vector3[] = [];
   const smoke: THREE.Vector3[] = [];
   const fires: THREE.Object3D[] = [];
+  const doors: Door[] = [];
   const roofMat = (m?: string) => (m === 'blue' ? M.roofBlue : m === 'thatch' ? M.thatch : m === 'slate' ? M.roofSlate : M.roofRed);
   const place = (g: THREE.Object3D, x: number, y: number, z: number, ry = 0) => batch.addGroup(g, P.mat4(x, y, z, ry));
   const gPos: number[] = [], gSize: number[] = [], gCol: number[] = [];
@@ -127,6 +130,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;
       case 'desk': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'furn': {
+        if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0); group.add(dr.pivot); doors.push(dr); break; }
         const g = P.furniture(M, d.item ?? '', d.tint ?? 0);
         if (g) place(g, d.x, d.y, d.z, d.ry);
         // A room's hanging lamp: a small glow round the lantern box and a light under it
@@ -161,7 +165,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
     group.add(b);
   }
   group.add(batch.build(true));
-  return { group, glows, lamps, smoke, fires };
+  return { group, glows, lamps, smoke, fires, doors };
 }
 
 /** Plain coloured boxes and cones standing in for a landmark until its chunks load (one draw call). */

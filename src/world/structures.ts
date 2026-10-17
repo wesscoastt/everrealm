@@ -3,6 +3,7 @@ import { B } from './blocks';
 import { EX, Layout, ROADS } from './generate';
 import { distToPolyline, hash2 } from './noise';
 import * as P from './props';
+import { Door, makeDoor } from './Doors';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
@@ -28,6 +29,7 @@ export interface StructureResult {
   smoke: THREE.Vector3[];
   lights: THREE.Vector3[];
   poi: Record<string, THREE.Vector3>;
+  doors: Door[];
 }
 
 const BASE = 19;
@@ -35,6 +37,7 @@ const BASE = 19;
 export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials, time: { value: number }): StructureResult {
   const batch = new P.Batcher();
   const group = new THREE.Group();
+  const doors: Door[] = [];
   const interactables: Interactable[] = [];
   const fires: THREE.Object3D[] = [];
   const smoke: THREE.Vector3[] = [];
@@ -118,7 +121,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const dx = o.door === 'e' ? dOff : o.door === 'w' ? -dOff : 0;
     const dz = o.door === 's' ? dOff : o.door === 'n' ? -dOff : 0;
     const leaf = openDoorPlace(shape);
-    place(P.openDoor(M), leaf.x, BASE, leaf.z, leaf.ry);
+    { const dr = makeDoor(M, leaf.x, BASE, leaf.z, leaf.ry); group.add(dr.pivot); doors.push(dr); }
     const side = o.door === 'n' || o.door === 's' ? [1.2, 0] : [0, 1.2];
     const wl = P.wallLantern(M);
     place(wl, doorX + 0.5 + dx * 0.9 + side[0], BASE + 1.8, doorZ + 0.5 + dz * 0.9 + side[1], doorRot);
@@ -638,5 +641,5 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
 
   const built = batch.build(true);
   group.add(built);
-  return { group, interactables, sails, bell, fires, smoke, lights, poi };
+  return { group, interactables, sails, bell, fires, smoke, lights, poi, doors };
 }

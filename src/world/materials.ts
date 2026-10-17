@@ -54,10 +54,16 @@ varying vec2 vTileUv;`)
       .replace('#include <map_fragment>', `vec4 texel = texture(uAtlas, vec3(vTileUv, floor(vLayer + 0.5)));
 if (texel.a < 0.3) discard;
 // Leaves (the swaying blocks) have soft alpha edges, which must not read as glow
-float emitMask = texel.a < 0.9 && vSway < 0.5 ? 1.0 : 0.0;
-diffuseColor.rgb *= texel.rgb;`)
+float glassMask = abs(texel.a - 160.0 / 255.0) < 0.03 ? 1.0 : 0.0;
+float emitMask = texel.a < 0.9 && vSway < 0.5 && glassMask < 0.5 ? 1.0 : 0.0;
+// Window glass: cool, sky-catching panes by day; the lamplight inside shows as night falls
+float nightK = clamp((uGlow - 0.22) / 1.25, 0.0, 1.0);
+float lum = dot(texel.rgb, vec3(0.3, 0.5, 0.2));
+vec3 dayGlass = vec3(0.42, 0.55, 0.64) * (0.75 + lum * 0.35);
+diffuseColor.rgb *= mix(texel.rgb, mix(dayGlass, texel.rgb * 0.35, nightK), glassMask);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += texel.rgb * emitMask * uGlow;`);
+totalEmissiveRadiance += texel.rgb * emitMask * uGlow;
+totalEmissiveRadiance += texel.rgb * glassMask * nightK * 1.3;`);
   };
   mat.customProgramCacheKey = () => 'everrealm-voxel';
   return mat;

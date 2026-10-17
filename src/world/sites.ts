@@ -28,6 +28,8 @@ export interface PropDesc {
   /** Interior furniture ('furn'): which piece, and a colour variant. */
   item?: string;
   tint?: number;
+  /** A house door ('furn' doorOpen) that swings shut when nobody's near (see world/Doors.ts). */
+  swing?: boolean;
   /** Roof dormers: +1 or -1 picks the slope, 0 or absent for none. */
   dormers?: number;
   mat?: 'red' | 'blue' | 'thatch' | 'slate';
@@ -346,7 +348,7 @@ export function plan(): Plan {
       for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
       for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint });
       const leaf = openDoorPlace(shape);
-      s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry });
+      s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
     }
     s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
     const alongX = w >= d;
@@ -394,7 +396,7 @@ export function plan(): Plan {
       if (walkIn) {
         // The leaf stands open against the jamb, inside
         const nx = Math.sign(dx), nz = Math.sign(dz), tx = -nz, tz = nx;
-        s.props.push({ t: 'furn', item: 'doorOpen', x: cx + dx + 0.5 + tx * 0.42 - nx * 0.5, y: base, z: cz + dz + 0.5 + tz * 0.42 - nz * 0.5, ry: Math.atan2(nx, nz) });
+        s.props.push({ t: 'furn', item: 'doorOpen', x: cx + dx + 0.5 + tx * 0.42 - nx * 0.5, y: base, z: cz + dz + 0.5 + tz * 0.42 - nz * 0.5, ry: Math.atan2(nx, nz), swing: true });
       } else s.props.push({ t: 'door', x: cx + dx + 0.5 + Math.sign(dx) * 0.52, y: base, z: cz + dz + 0.5 + Math.sign(dz) * 0.52, ry });
     }
   }

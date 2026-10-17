@@ -6,6 +6,7 @@ import { EX, FishSpot, generateTerrain, growTree, Layout, OreNode, placeTrees, T
 import { Grid, SX as GSX, SY as GSY, SZ as GSZ } from '../world/grid';
 import { bindWaterUniforms, createSharedUniforms, createVoxelMaterial, createWaterMaterial, SharedUniforms } from '../world/materials';
 import { createPropMaterials, PropMaterials } from '../world/props';
+import type { Door } from '../world/Doors';
 import { BuiltSite, buildImpostor, buildSiteProps } from '../world/siteProps';
 import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
@@ -330,6 +331,12 @@ export class GameWorld {
     const out = [...this.structures.smoke];
     for (const s of this.activeSites.values()) out.push(...s.smoke);
     return out;
+  }
+
+  /** Every swinging door in the vale and the settlements now built round the player. */
+  *doors(): Iterable<Door> {
+    yield* this.structures.doors;
+    for (const s of this.activeSites.values()) yield* s.doors;
   }
 
   update(dt: number, center: THREE.Vector3, elapsed: number, timeScale: number): void {
