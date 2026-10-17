@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { FestivalDef, FESTIVALS, festivalAt, festivalDates } from '../data/festivals';
 import type { WritKind } from '../data/calendar';
 import { utcDay } from '../data/calendar';
@@ -54,10 +55,11 @@ export class Festivals {
 
   constructor(private host: FestivalHost) {}
 
-  /** Once a session: say what's on. */
-  greet(): void {
+  /** Once a session: say what's on. A brand-new character hears about it a little later, once they've looked around. */
+  greet(fresh = false): void {
     const f = this.fest;
     if (!f) return;
+    if (fresh) { setTimeout(() => this.greet(false), 20000); return; }
     const { closes } = festivalDates(f);
     const key = `fest:seen:${f.id}:${closes.getUTCFullYear()}`;
     if (!this.host.flag(key)) {
@@ -124,6 +126,8 @@ export class Festivals {
 
   update(dt: number, P: THREE.Vector3): void {
     this.clock += dt;
+    // Only the fairs within sight are drawn
+    for (const s of this.stalls.values()) s.group.visible = Math.hypot(s.x - P.x, s.z - P.z) < 180;
     // The calendar can turn over while you play
     if ((this.checkAt -= dt) <= 0) {
       this.checkAt = 60;
@@ -311,10 +315,45 @@ export class Festivals {
         break;
       }
     }
+    bake(g);
     this.host.scene.add(g);
     this.stalls.set(post, { post, x, y, z, ry, group: g });
     // Lit after dark: over the counter, and at the centrepiece
     const world = (lx: number, ly: number, lz: number) => new THREE.Vector3(lx, ly, lz).applyAxisAngle(new THREE.Vector3(0, 1, 0), ry).add(g.position);
     this.host.lamps.push(world(0, 2.2, sz + 0.6), world(0, f.centre === 'firtree' || f.centre === 'maypole' ? 3.5 : 1.6, cz));
+  }
+}
+
+const BAKED_LIT = new THREE.MeshLambertMaterial({ vertexColors: true });
+const BAKED_GLOW = new THREE.MeshBasicMaterial({ vertexColors: true });
+
+/**
+ * Merge a fair's boxes into two meshes (lit, and glowing) with the colours baked into the vertices:
+ * built from a hundred small parts, drawn in three calls with the flags.
+ */
+function bake(g: THREE.Group): void {
+  const lit: THREE.BufferGeometry[] = [], glow: THREE.BufferGeometry[] = [];
+  const parts = g.children.filter((o): o is THREE.Mesh => (o as THREE.Mesh).isMesh && !(o as THREE.InstancedMesh).isInstancedMesh);
+  for (const m of parts) {
+    m.updateMatrix();
+    const mat = m.material as THREE.MeshLambertMaterial;
+    const geo = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrix);
+    geo.deleteAttribute('uv');
+    const n = geo.getAttribute('position').count, c = mat.color, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    (mat.emissive && mat.emissive.getHex() !== 0 ? glow : lit).push(geo);
+    g.remove(m);
+    m.geometry.dispose();
+    mat.dispose();
+  }
+  for (const [list, material, shadow] of [[lit, BAKED_LIT, true], [glow, BAKED_GLOW, false]] as const) {
+    if (!list.length) continue;
+    const merged = mergeGeometries(list, false);
+    for (const geo of list) geo.dispose();
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, material);
+    mesh.castShadow = shadow; mesh.receiveShadow = true;
+    g.add(mesh);
   }
 }

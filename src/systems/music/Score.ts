@@ -16,7 +16,8 @@ const MODES = {
 type Quality = 'maj' | 'min' | 'sus2' | 'sus4' | 'add9';
 interface Chord { deg: number; q?: Quality; bars?: number }
 
-export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'night' | 'deep';
+export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'night' | 'deep'
+  | 'ansbury' | 'harbour' | 'works' | 'hearth' | 'kirk' | 'holms' | 'inn' | 'festival';
 type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings';
 
 interface Theme {
@@ -130,6 +131,86 @@ const THEMES: Record<ThemeId, Theme> = {
     ],
     lead: ['celesta', 'flute'], pad: ['strings'], vowel: 'oo', arp: 'harp', brightness: 0.25, rest: [20, 36], level: 0.7,
   },
+  // Ansbury: a processional in F, horns over strings and choir, for the Charter's city.
+  ansbury: {
+    id: 'ansbury', root: 53, mode: MODES.ionian, bpm: 70,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 1 }, { deg: 4, q: 'sus4' }],
+    motifs: [
+      '0:2 2:2 4:2 5:2 4:4 2:2 3:2 4:4 r:2 7:2 6:2 4:2 5:4 4:2 2:2 0:6 r:2',
+      '4:2 4:1 5:1 7:4 5:2 4:2 2:4 r:2 3:2 2:2 1:2 0:6 r:2',
+    ],
+    lead: ['horn', 'strings', 'horn'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.6, rest: [12, 22], level: 0.9,
+  },
+  // Gullmouth: a harbour air in D Dorian that wants to be danced to, flute over plucked harp.
+  harbour: {
+    id: 'harbour', root: 50, mode: MODES.dorian, bpm: 92,
+    prog: [{ deg: 0 }, { deg: 3, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 0 }, { deg: 3, q: 'maj' }, { deg: 4 }, { deg: 0 }],
+    motifs: [
+      '0:1 2:1 4:1 5:1 4:1 2:1 3:2 1:2 0:2 r:2 4:1 5:1 7:2 5:1 4:1 2:4 r:2',
+      '7:1 5:1 4:1 2:1 4:2 3:2 2:1 1:1 0:4 r:2',
+    ],
+    lead: ['flute', 'flute', 'strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.5, rest: [12, 22], level: 0.85,
+  },
+  // Harrowgate Works: low A minor under a drone, horns at a distance, the sound of shifts.
+  works: {
+    id: 'works', root: 45, mode: MODES.aeolian, bpm: 58,
+    prog: [{ deg: 0, q: 'sus4' }, { deg: 5 }, { deg: 6 }, { deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'maj' }, { deg: 0 }],
+    motifs: [
+      '0:2 r:1 0:1 3:2 2:2 0:4 r:2 -2:2 -1:2 0:6 r:4',
+      '4:3 3:1 2:2 0:2 1:4 r:2 0:8',
+    ],
+    lead: ['horn', 'strings'], pad: ['strings'], vowel: 'oo', arp: null, brightness: 0.3, rest: [18, 30], drone: true, level: 0.9,
+  },
+  // Hamlets and camps (Kelderby, Fellers' Camp, the Waystation): fireside G, flute and celesta.
+  hearth: {
+    id: 'hearth', root: 55, mode: MODES.ionian, bpm: 76,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }, { deg: 0 }],
+    motifs: [
+      '2:1 1:1 0:2 4:2 2:2 3:4 r:2 5:1 4:1 3:2 2:2 1:2 0:6 r:2',
+      '0:2 2:1 4:1 5:2 4:2 2:6 r:2',
+    ],
+    lead: ['flute', 'celesta'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.4, rest: [16, 28], level: 0.75,
+  },
+  // The Glass Kirk: a slow choir in B, celesta like light off crystal.
+  kirk: {
+    id: 'kirk', root: 47, mode: MODES.ionian, bpm: 46,
+    prog: [{ deg: 0, q: 'add9' }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'sus4' }, { deg: 0 }, { deg: 1 }, { deg: 3 }, { deg: 0 }],
+    motifs: [
+      '0:4 2:2 4:6 r:2 5:2 4:2 2:4 1:4 0:8 r:4',
+      '4:4 5:4 7:8 r:2 6:2 5:2 4:8',
+    ],
+    lead: ['choir', 'choir', 'strings'], pad: ['choir'], vowel: 'oo', arp: 'celesta', brightness: 0.55, rest: [14, 26], level: 1.6,
+  },
+  // The Weatherholms: high Lydian A-flat, celesta and choir with a lot of air under them.
+  holms: {
+    id: 'holms', root: 56, mode: MODES.lydian, bpm: 48,
+    prog: [{ deg: 0, q: 'add9' }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 1, q: 'maj' }, { deg: 0, q: 'sus2' }, { deg: 4 }],
+    motifs: [
+      '7:4 8:2 9:6 r:2 7:2 6:2 4:8 r:4',
+      '4:2 6:2 7:4 9:4 8:2 7:2 6:8',
+    ],
+    lead: ['celesta', 'choir', 'flute'], pad: ['choir', 'strings'], vowel: 'ah', arp: 'celesta', brightness: 0.8, rest: [16, 28], level: 0.85,
+  },
+  // Indoors in a town: an inn tune in F Mixolydian, close and easy.
+  inn: {
+    id: 'inn', root: 53, mode: MODES.mixolydian, bpm: 96,
+    prog: [{ deg: 0 }, { deg: 6, q: 'maj' }, { deg: 0 }, { deg: 3 }, { deg: 0 }, { deg: 6, q: 'maj' }, { deg: 4 }, { deg: 0 }],
+    motifs: [
+      '0:1 1:1 2:1 4:1 2:1 1:1 0:2 4:1 5:1 4:1 2:1 1:4 r:2',
+      '4:1 5:1 7:1 5:1 4:1 2:1 4:2 2:1 1:1 0:4 r:2',
+    ],
+    lead: ['flute', 'celesta', 'flute'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.45, rest: [10, 18], level: 0.7,
+  },
+  // A festival on the green: a jig in G, hardly stopping for breath.
+  festival: {
+    id: 'festival', root: 55, mode: MODES.ionian, bpm: 112,
+    prog: [{ deg: 0 }, { deg: 4 }, { deg: 0 }, { deg: 4 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 0 }],
+    motifs: [
+      '4:1 4:1 5:1 7:1 5:1 4:1 2:2 0:1 2:1 4:1 2:1 1:2 r:1 4:1 4:1 5:1 7:1 9:1 7:1 5:2 4:1 2:1 1:1 2:1 0:3 r:1',
+      '7:1 5:1 4:1 5:1 7:2 4:2 5:1 4:1 2:1 4:1 5:2 2:2 4:1 2:1 1:1 2:1 0:4 r:2',
+    ],
+    lead: ['flute', 'flute', 'strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.6, rest: [4, 8], level: 0.65,
+  },
   // Underground: no tune at all, just held low voices and the odd pluck.
   deep: {
     id: 'deep', root: 48, mode: MODES.phrygian, bpm: 40,
@@ -177,7 +258,12 @@ function parseMotif(s: string): { deg: number | null; beats: number }[] {
 export interface MusicContext {
   theme: ThemeId;
   combat: boolean;
+  /** The fight is against something big (an elite, a story boss, a world boss): the heavier layer. */
+  boss?: boolean;
 }
+
+/** Short cues over whatever is playing. */
+export type Sting = 'discover' | 'chapter' | 'victory';
 
 type Section = 'swell' | 'statement' | 'interlude' | 'rest';
 
@@ -238,7 +324,38 @@ export class Score {
     }
     if (this.combatOn) {
       const horizon = this.realtime ? Math.min(until, now + 3) : until;
-      while (this.combatCursor < horizon) this.combatCursor = this.scheduleCombat(this.combatCursor);
+      while (this.combatCursor < horizon) this.combatCursor = this.wanted.boss ? this.scheduleBoss(this.combatCursor) : this.scheduleCombat(this.combatCursor);
+    }
+  }
+
+  /**
+   * A cue over the music: the exploration bus ducks for a few seconds while it plays. Discovering a
+   * place: a rising harp and a bright chord. A chapter: a horn call. A victory: a fanfare over timpani.
+   */
+  sting(kind: Sting): void {
+    const now = this.ctx.currentTime + 0.05;
+    const e = this.explore.gain;
+    e.cancelScheduledValues(now); e.setValueAtTime(e.value, now);
+    e.linearRampToValueAtTime(0.3, now + 0.3); e.linearRampToValueAtTime(this.combatOn ? 0.18 : 1, now + 5);
+    const bus = this.out;
+    if (kind === 'discover') {
+      [62, 66, 69, 74, 78].forEach((m, i) => this.orch.harp(now + i * 0.11, m, 0.22, bus));
+      this.orch.strings(now + 0.45, [62, 66, 69, 73], 3.2, 0.12, bus, { attack: 0.6, release: 2.4, bright: 0.75 });
+      this.orch.celesta(now + 0.55, 86, 0.1, bus);
+    } else if (kind === 'chapter') {
+      const call: [number, number][] = [[57, 0.5], [62, 0.5], [66, 0.5], [69, 1.6]];
+      let t = now;
+      for (const [m, d] of call) { this.orch.horn(t, m, d * 0.95, 0.22, bus); t += d; }
+      this.orch.strings(now + 1.4, [50, 57, 62, 66], 3.4, 0.13, bus, { attack: 0.5, release: 2.6, bright: 0.65 });
+      this.orch.choir(now + 1.5, [62, 66, 69], 3, 0.09, bus, 'ah', 0.6);
+    } else {
+      this.orch.timpani(now, 38, 0.36, bus);
+      this.orch.timpani(now + 0.3, 38, 0.26, bus);
+      const fan: [number, number][] = [[62, 0.25], [62, 0.25], [62, 0.25], [66, 0.75], [69, 1.8]];
+      let t = now + 0.6;
+      for (const [m, d] of fan) { this.orch.horn(t, m, d * 0.9, 0.24, bus); this.orch.horn(t, m - 12, d * 0.9, 0.14, bus); t += d; }
+      this.orch.strings(t - 1.8, [50, 57, 62, 66, 69], 3, 0.14, bus, { attack: 0.3, release: 2.4, bright: 0.8 });
+      this.orch.timpani(t - 1.8, 38, 0.32, bus);
     }
   }
 
@@ -321,6 +438,31 @@ export class Score {
       }
     }
     return time + bar * 0.5;
+  }
+
+  /** Against something big: A minor, 144 bpm, choir hits and timpani on every bar. */
+  private scheduleBoss(start: number): number {
+    const bpm = 144, beat = 60 / bpm, bar = beat * 4;
+    const roots = [45, 41, 43, 40]; // A, F, G, E
+    const r = roots[this.combatBar % roots.length];
+    const fig = [0, 0, 7, 0, 3, 0, 7, 5];
+    for (let b = 0; b < 2; b++) {
+      const t0 = start + b * bar;
+      for (let i = 0; i < 8; i++) {
+        this.orch.spiccato(t0 + i * beat * 0.5, r - 12 + fig[i], i % 2 === 0 ? 0.26 : 0.17, this.combatBus);
+        this.orch.spiccato(t0 + i * beat * 0.5, r + fig[i], i % 4 === 0 ? 0.14 : 0.09, this.combatBus);
+        if (i % 2 === 0) this.orch.taiko(t0 + i * beat * 0.5, i === 0 ? 0.55 : 0.28, this.combatBus);
+      }
+      this.orch.timpani(t0, r - 24, 0.36, this.combatBus);
+      this.orch.timpani(t0 + beat * 2.5, r - 24, 0.22, this.combatBus);
+    }
+    // A choir stab and the horns every phrase, a step higher each time round
+    this.orch.choir(start, [r + 12, r + 15, r + 19], beat * 3, 0.16, this.combatBus, 'ah', 0.08);
+    this.orch.horn(start + beat * 4, r + 7, beat * 2, 0.22, this.combatBus);
+    this.orch.horn(start + beat * 6, r + 12, beat * 2, 0.2, this.combatBus);
+    this.orch.strings(start, [r, r + 3, r + 7, r + 12], bar * 2, 0.14, this.combatBus, { attack: 0.2, release: 0.8, bright: 0.8 });
+    this.combatBar++;
+    return start + bar * 2;
   }
 
   private scheduleCombat(start: number): number {

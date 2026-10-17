@@ -1,4 +1,4 @@
-import { MusicContext, Score } from './music/Score';
+import { MusicContext, Score, Sting } from './music/Score';
 
 // Procedural Web Audio: every sound is synthesised, so there are no asset licences to track.
 
@@ -194,6 +194,11 @@ export class AudioSystem {
 
   private cricket(): void {
     for (let i = 0; i < 6; i++) this.tone(4200, 'square', 0.015, 0.012, i * 0.04, undefined, this.amb);
+  }
+
+  /** A short musical cue over the score (a new place, a chapter, a big fight won). */
+  sting(kind: Sting): void {
+    if (this.score) this.score.sting(kind);
   }
 
   /** Steer the score: which theme, and whether the combat layer is up. Call every frame. */

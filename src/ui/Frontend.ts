@@ -179,10 +179,10 @@ export class Frontend {
       <aside class="fe-news frame">
         <header><h3>In this build</h3></header>
         <ul>
-          <li><b>Turnpike side quests.</b> Twenty, across Ansbury, Cotter's End and the Waystation.</li>
-          <li><b>Hollin Ford rebuilt.</b> A cobbled street, six more houses and kitchen gardens.</li>
-          <li><b>The main story.</b> Twelve chapters in two acts, The Charter's Debt and The Weatherholms, starting by Ansbury's south gate.</li>
-          <li><b>Moving skies.</b> Clouds drift with the wind. The dodge roll is a proper roll.</li>
+          <li><b>The Weatherholms.</b> The main story's second act: six new chapters after the sitting, up a hoist to the floating isles.</li>
+          <li><b>Callings.</b> Warden, Reaver, Ashcaller or Pathfinder, each with its own mechanic and three skills. Change any time out of a fight.</li>
+          <li><b>Festivals.</b> Five fairs on the real calendar, with stalls, tokens, dyes and a horse each. The journal says what's on.</li>
+          <li><b>Chat and emotes.</b> Press Enter to talk, or /wave, /dance, /sit and more. Other players see them.</li>
         </ul>
       </aside>
       <div class="fe-enter">${cur
@@ -196,6 +196,8 @@ export class Frontend {
       if (c) drawFace(cv, c.look);
     });
     this.root.querySelectorAll<HTMLElement>('.card').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.select(b.dataset.id!); this.showSelect(); }));
+    // The picked character's card is always in view, in a long list or a narrow strip
+    this.root.querySelector<HTMLElement>('.card.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     this.root.querySelectorAll<HTMLElement>('[data-a]').forEach((b) => b.addEventListener('click', () => this.act(b.dataset.a!, cur)));
     if (realm && this.realmState === 'offline') this.checkRealm(realm);
   }

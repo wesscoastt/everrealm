@@ -140,7 +140,12 @@
   .fe-realm .st { display: none; }
   .fe-realm .acct { padding-top: 4px; gap: 8px; } .fe-realm .acct small, .fe-realm .acct .x { display: none; }
   .fe-news { display: none; }
-  .fe-roster { left: 16px; right: 16px; width: auto; top: 54px; max-height: 34vh; }
+  .fe-roster { left: 16px; right: 16px; width: auto; top: 54px; max-height: none; }
+  /* Characters in a strip across the top, so the one you've picked stands clear below */
+  .fe-roster .list { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 8px 8px 4px; scrollbar-width: thin; }
+  .fe-roster .card { width: auto; flex: none; min-width: 148px; max-width: 200px; padding: 5px 8px; }
+  .fe-roster .card canvas { width: 34px; height: 34px; }
+  .fe-roster .card small + small { display: none; }
   .fe-enter { bottom: 104px; } .fe-enter h2 { font-size: 26px; } .fe-enter .hint { display: none; }
   .fe-foot { bottom: 18px; left: 16px; } .fe-ver { display: none; }
   .fe-steps { left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; height: 44vh; }
@@ -191,3 +196,7 @@
 .calling .cp .pro { color: #6fbf4a; } .calling .cp .con { color: #d07050; }
 .fe-steps .calling { background: rgba(0,0,0,0.35); border: 2px solid var(--ink); color: var(--cream); }
 .fe-steps .calling.sel { background: linear-gradient(90deg, rgba(127, 191, 77, 0.2), rgba(127, 191, 77, 0.04)); box-shadow: inset 0 0 0 2px var(--moss); }
+.fe-roster .list::-webkit-scrollbar { height: 6px; width: 6px; }
+.fe-roster .list::-webkit-scrollbar-thumb { background: rgba(243, 213, 138, 0.35); border-radius: 3px; }
+.fe-roster .list::-webkit-scrollbar-track { background: transparent; }
+.fe-roster .list { scrollbar-color: rgba(243, 213, 138, 0.35) transparent; }

@@ -37,7 +37,8 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
 const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSitting', 'joan', 'joanSitting']);
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */
 const LIFT = { x: 1201, z: 1800, r: 6, y: 89 };
-import { QUEST_SPAWNS, WORLD_THINGS, WorldThing } from '../data/places_regional';
+import { ALDERMERE, CAMP, COLD, GULL, QUEST_SPAWNS, TEMPLE, WORKS, WORLD_THINGS, WorldThing } from '../data/places_regional';
+import { bigIsle } from '../world/holms';
 import { B, isSolid } from '../world/blocks';
 import { fellTree, FishSpot, LOWER_WEND, OreNode, regrowTree, TreeNode } from '../world/generate';
 import { distToPolyline } from '../world/noise';
@@ -431,6 +432,7 @@ export class Game implements GameApi {
     this.save.quests[q] = s;
     const def = QUESTS[q];
     if (s === 'done' && def.story) {
+      this.audio.sting('chapter');
       this.hud.banner(`Chapter ${ROMAN[def.story.chapter]} complete`, def.story.title, true);
       this.sfx('quest');
       // The next chapter opens a moment later, on the game clock (browser timers stall in background tabs).
@@ -950,7 +952,7 @@ export class Game implements GameApi {
     this.world.structures.bell.visible = ['report', 'done'].includes(this.stage('fordBell') ?? '');
     this.hud.setPortrait(this.save.look);
     this.applyCalling();
-    this.festivals.greet();
+    this.festivals.greet(fresh);
     if (!this.flag('class')) {
       // Characters from before callings: show them the choice once (they play as Wardens until they pick)
       this.setFlag('class', 'warden');
@@ -960,12 +962,14 @@ export class Game implements GameApi {
     this.audio.unlock();
     this.hud.setTracker(this.questEntries());
     if (this.online.enabled && this.online.status === 'off') this.online.connect(this.save.name, this.save.look, this.save.playTime);
-    // The day's login reward, waiting in the journal
+    // The day's login reward, waiting in the journal. A new character gets to see the world first;
+    // someone coming back gets the journal opened for them, as long as nothing else is on screen.
     if (this.dailies.loginReady) setTimeout(() => {
       if (this.mode !== 'play' || !this.dailies.loginReady) return;
-      this.hud.system('A login reward is waiting. Open the journal (J), Daily round.');
-      this.hud.openJournalAt('login');
-    }, 2500);
+      this.hud.setJournalAlert(true);
+      this.hud.system('A login reward is waiting in your journal (J), under Daily round.');
+      if (!fresh && this.save.playTime > 600 && !this.dialogue && !this.hud.anyOpen()) this.hud.openJournalAt('login');
+    }, fresh ? 30000 : 2500);
     if (this.arriving) {
       this.hud.banner(this.arriving, this.arrivingBy === 'waymark' ? 'By waymark' : 'The post cart sets you down');
       this.arriving = null;
@@ -1245,6 +1249,13 @@ export class Game implements GameApi {
       if (id === 'fordBell' && stage === 'casting' && this.casting) objs[0].text = `Wait while Bram pours the bell (${Math.ceil(this.casting.dur - this.casting.t)}s)`;
       out.push({ id, name: def.story ? `${ROMAN[def.story.chapter]}. ${def.name}` : def.name, notes: def.notes(this, stage), objectives: objs, done: stage === 'done', story: !!def.story });
     }
+    // Breadcrumbs: where a new character starts, and where the main story starts once they've found their feet
+    const lead = (id: string, name: string, notes: string, text: string, marker: string, story = false) => {
+      const p = this.markerPos(marker);
+      out.unshift({ id, name, notes, objectives: [{ text, dist: p ? Math.hypot(p.x - this.player.position.x, p.z - this.player.position.z) : undefined }], done: false, story });
+    };
+    if (!this.stage('fordBell')) lead('lead:hollin', 'Hollin Ford', 'The reeve runs the village from the square. If anyone needs a hand, she\'ll know.', 'Talk to Maud Ashby, the reeve, in the square', 'maud');
+    else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) lead('lead:story', 'The Charter\'s Debt', 'Everyone on the road is talking about a notice the Charter has posted by Ansbury\'s south gate.', 'Read the Charter notice by Ansbury\'s south gate', 'charterNotice', true);
     return out;
   }
 
@@ -1292,6 +1303,7 @@ export class Game implements GameApi {
       for (const o of def.objectives(this, stage)) if (o.marker && !o.done) { const p = this.markerPos(o.marker); if (p) out.push(p); }
     }
     if (!this.stage('fordBell')) { const m = this.npcs.find((n) => n.id === 'maud'); if (m) out.push(m.pos); }
+    else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) { const p = this.markerPos('charterNotice'); if (p) out.push(p); }
     for (const def of Object.values(QUESTS)) {
       if (this.stage(def.id) || !def.marks) continue;
       for (const id of Object.keys(def.marks(this, undefined))) { const n = this.npcs.find((x) => x.id === id); if (n?.placed) out.push(n.pos); }
@@ -1999,6 +2011,7 @@ export class Game implements GameApi {
   private onEnemyKilled(e: Enemy): void {
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
+    if (e.def.elite) this.audio.sting('victory');
     this.activities.onKilled(e);
     this.addXp('melee', e.def.xp);
     const [lo, hi] = e.def.marks;
@@ -2116,6 +2129,8 @@ export class Game implements GameApi {
     const look = base.clone().add(new THREE.Vector3(0, (close ? 1.6 : 1.05) * h, 0));
     // In the creator the options panel covers the left of the screen, so frame the model right of centre.
     if (creator && innerWidth > 860) look.addScaledVector(right, close ? -0.45 : -0.85);
+    // On a narrow screen the character list runs across the top: stand back and aim higher so the model sits below it
+    if (!creator && innerWidth <= 860) { pos.addScaledVector(d, 0.4); pos.y += 0.25 * h; look.y += 0.85 * h; }
     if (!this.menuCam) this.menuCam = { pos: pos.clone(), look: look.clone() };
     const k = 1 - Math.exp(-dt * 5);
     this.menuCam.pos.lerp(pos, k);
@@ -2586,16 +2601,37 @@ export class Game implements GameApi {
       setTimeout(() => this.sfx('thunder', 0.8), 600 + Math.random() * 2200);
     }
     this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin', rain: underground ? 0 : wet * (sky.sheltered ? 0.45 : 1) });
-    this.audio.musicContext({ theme: this.musicTheme(underground), combat: this.inCombat() });
+    this.audio.musicContext({ theme: this.musicTheme(underground), combat: this.inCombat(), boss: this.bossFight() });
   }
 
   /** Theme for where the player is and the time of day. */
+  /**
+   * The music for where the player is: underground, a festival green, indoors in a town, then the
+   * place itself (each town and the big landmarks have their own), and otherwise the region by day
+   * and the night theme after dark.
+   */
   private musicTheme(underground: boolean): ThemeId {
     if (underground) return 'deep';
-    const town = this.currentRegion === 'hollin';
-    if (this.world.sky.night > 0.65 && !town) return 'night';
-    if (town) return 'hollin';
+    const P = this.player.position;
+    const near = (x: number, z: number, r: number) => Math.hypot(P.x - x, P.z - z) < r;
+    const place: ThemeId | null = this.currentRegion === 'hollin' ? 'hollin'
+      : near(ALDERMERE.cx, ALDERMERE.cz, 95) ? 'ansbury'
+      : near(GULL.coast - 34, GULL.z, 50) ? 'harbour'
+      : near(WORKS.cx, WORKS.cz, 50) ? 'works'
+      : near(TEMPLE.x, TEMPLE.z, 45) ? 'kirk'
+      : near(COLD.x, COLD.z, 40) || near(CAMP.x, CAMP.z, 30) || near(708, 572, 30) ? 'hearth'
+      : near(bigIsle().x, bigIsle().z, 70) ? 'holms'
+      : null;
+    if (place && this.festivals.stallNear(P, 14)) return 'festival';
+    if (place && place !== 'holms' && place !== 'kirk' && this.world.sky.sheltered) return 'inn';
+    if (place) return place;
+    if (this.world.sky.night > 0.65) return 'night';
     return this.regionTheme();
+  }
+
+  /** In a fight with something big: an elite, a story boss or a world boss nearby and awake. */
+  private bossFight(): boolean {
+    return this.enemies.some((e) => e.alive && e.def.elite && (e.state === 'chase' || e.state === 'windup' || e.state === 'attack') && e.pos.distanceTo(this.player.position) < 30);
   }
 
   /** Region theme; Hollindale by default. */
@@ -2811,11 +2847,12 @@ export class Game implements GameApi {
         if (!this.save.discovered.includes(regionId)) {
           const rp = places().find((g) => g.id === regionId)!;
           this.save.discovered.push(regionId);
-          if (regionId !== 'region:greenwake') { this.hud.banner(rp.name, rp.sub); this.sfx('discover'); }
+          if (regionId !== 'region:greenwake') { this.hud.banner(rp.name, rp.sub); this.sfx('discover'); this.audio.sting('discover'); }
         } else if (!this.save.discovered.includes(r.id)) {
           this.save.discovered.push(r.id);
           this.hud.banner(r.name, r.sub);
           this.sfx('discover');
+          this.audio.sting('discover');
         }
         if (!this.save.discovered.includes(r.id)) this.save.discovered.push(r.id);
         this.persist();

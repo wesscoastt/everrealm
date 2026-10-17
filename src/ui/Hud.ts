@@ -815,6 +815,7 @@ export class Hud {
 
   // ------------------------------------------------------------------ Panels
   isOpen(p: PanelId): boolean { return this.open.has(p); }
+  anyOpen(): boolean { return this.open.size > 0; }
 
   toggle(p: PanelId): void {
     if (this.open.has(p)) this.close(p);
