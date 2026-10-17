@@ -84,6 +84,23 @@ export class Player {
     return false;
   }
 
+  /**
+   * In the water against a bank or a quay up to two blocks high: haul out onto it (a swimmer
+   * otherwise gets stuck in a river whose banks stand above the reach of a step).
+   */
+  private climbOut(nx: number, nz: number): boolean {
+    if (!this.inWater && !this.swimming) return false;
+    const p = this.position;
+    for (const h of [1.02, 2.04, 2.6]) {
+      if (this.barrierAt(nx, p.y + h - 1.02, nz)) return false;
+      if (!this.collides(nx, p.y + h, nz) && !this.collides(p.x, p.y + h, p.z)) {
+        p.y += h; this.stepOffset -= h; this.velocity.y = Math.max(this.velocity.y, 0);
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** A barrier at foot height (a fence, a bench): the player won't step up onto it, only jump it. */
   private barrierAt(px: number, py: number, pz: number): boolean {
     const y = Math.floor(py + 0.01);
@@ -171,14 +188,14 @@ export class Player {
       if (!this.collides(p.x + stepX, p.y, p.z)) p.x += stepX;
       else if ((this.onGround || this.inWater) && !this.barrierAt(p.x + stepX, p.y, p.z) && !this.collides(p.x + stepX, p.y + 1.02, p.z) && !this.collides(p.x, p.y + 1.02, p.z)) {
         p.y += 1.02; p.x += stepX; this.stepOffset -= 1.02;
-      } else this.velocity.x = 0;
+      } else if (this.climbOut(p.x + stepX, p.z)) { p.x += stepX; } else this.velocity.x = 0;
     }
     const stepZ = this.velocity.z * dt;
     if (stepZ !== 0) {
       if (!this.collides(p.x, p.y, p.z + stepZ)) p.z += stepZ;
       else if ((this.onGround || this.inWater) && !this.barrierAt(p.x, p.y, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z)) {
         p.y += 1.02; p.z += stepZ; this.stepOffset -= 1.02;
-      } else this.velocity.z = 0;
+      } else if (this.climbOut(p.x, p.z + stepZ)) { p.z += stepZ; } else this.velocity.z = 0;
     }
     const stepY = this.velocity.y * dt;
     const wasGround = this.onGround;
