@@ -168,7 +168,9 @@ export function socialInit(ctx) {
         if (!msg.accept) { sys(asker, `${me.name} would rather not have visitors just now.`); return true; }
         if (!Array.isArray(msg.pieces)) { sys(asker, `${me.name} doesn't have a home yet.`); return true; }
         const pieces = msg.pieces.slice(0, 24).filter((p) => Array.isArray(p) && p.length === 4 && typeof p[0] === 'string' && p[0].length < 40 && [1, 2, 3].every((i) => Number.isFinite(p[i])));
-        send(asker.ws, { t: 'hShow', owner: me.name, pieces });
+        const pl = msg.plot && typeof msg.plot === 'object' ? msg.plot : null;
+        const plot = pl && typeof pl.lot === 'string' && pl.lot.length < 8 ? { lot: pl.lot, spec: pl.spec && typeof pl.spec === 'object' ? { size: String(pl.spec.size).slice(0, 12), floors: Number(pl.spec.floors) === 2 ? 2 : 1, wall: String(pl.spec.wall).slice(0, 12), roof: String(pl.spec.roof).slice(0, 12) } : undefined } : null;
+        send(asker.ws, { t: 'hShow', owner: me.name, pieces, plot });
         sys(me, `${asker.name} can see round your home now.`);
         return true;
       }

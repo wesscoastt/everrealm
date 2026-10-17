@@ -72,6 +72,7 @@ class Mock implements GameApi {
   quake() {}
   buyHome() { this.s.flags.home = []; }
   arrangeHome() {}
+  lotAction() {}
   playerName = 'Tester';
 }
 

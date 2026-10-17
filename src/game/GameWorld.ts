@@ -334,10 +334,17 @@ export class GameWorld {
   }
 
   /** Every swinging door in the vale and the settlements now built round the player. */
+  /** Doors that belong to something other than the vale and the settlements (a player's house). */
+  extraDoors: () => Door[] = () => [];
+
   *doors(): Iterable<Door> {
     yield* this.structures.doors;
+    yield* this.extraDoors();
     for (const s of this.activeSites.values()) yield* s.doors;
   }
+
+  /** Builds the props for a site that isn't in the plan (a player's house). */
+  buildProps(site: Site): BuiltSite { return buildSiteProps(site, this.props, this.shared.uTime, this.glowMat); }
 
   update(dt: number, center: THREE.Vector3, elapsed: number, timeScale: number): void {
     this.shared.uTime.value = elapsed;

@@ -36,8 +36,8 @@ export const CROWN = { x: 1250, z: 1250, hallFloor: 7, cutFloor: 3 };
 /** Glass Kirk: crystal mass at the centre of a paved floor at y 89. */
 export const TEMPLE = { x: 1190, z: 1800 };
 
-/** Wendside Cottage, the house for sale on the road east of Hollin Ford: its walls and floor height. */
-export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 400, bench: { x: 412.6, z: 199.5 } };
+import { COTTAGE, LAND_BOARD, LOT_D, LOT_W, LOTS } from './housing';
+export { COTTAGE };
 
 /** Something in the world the player can examine with E. */
 export interface WorldThing {
@@ -58,7 +58,12 @@ export interface WorldThing {
 export const WORLD_THINGS: WorldThing[] = [
   ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
   { id: 'homeBuy', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d + 1.5, label: 'Read the For Sale notice', radius: 2.4, when: (g) => !g.flag('home'), use: (g) => g.buyHome() },
-  { id: 'homeArrange', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d - 1.5, y: COTTAGE.floor, label: 'Arrange the furniture', radius: 2, when: (g) => !!g.flag('home'), use: (g) => g.arrangeHome() },
+  { id: 'landBoard', x: LAND_BOARD.x, z: LAND_BOARD.z, label: 'Read the Charter land board', radius: 2.4, read: 'landBoard' },
+  // A stake at the front of each lot: lease it, draw up plans, build
+  ...LOTS.map((l): WorldThing => {
+    const fx = l.x0 + LOT_W / 2, fz = l.door === 's' ? l.z0 + LOT_D - 0.5 : l.z0 + 0.5;
+    return { id: 'lot:' + l.id, x: fx, z: fz, label: `Look at ${l.name}`, radius: 2.6, use: (g) => g.lotAction(l.id) };
+  }),
   { id: 'homeBench', x: COTTAGE.bench.x, z: COTTAGE.bench.z, label: "Work at the joiner's bench", radius: 2.4, when: (g) => !!g.flag('home'), use: (g) => g.openCrafting('bench') },
   { id: 'aldermereToll', x: ALDERMERE.cx + 8.5, z: ALDERMERE.south + 4.5, label: 'Read the toll board', radius: 2.4, read: 'aldermereToll' },
   // Main story clues

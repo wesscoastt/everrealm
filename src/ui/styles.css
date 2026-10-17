@@ -677,3 +677,24 @@ body.touch #loot { bottom: auto; top: 360px; }
 img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; image-rendering: pixelated; }
 .lday img.lico { width: 28px; height: 28px; display: block; margin: 4px auto 2px; image-rendering: pixelated; }
 .lday { text-align: center; }
+
+/* The house plans at a lot (game/Planner.ts) */
+#plantray { position: fixed; right: 14px; top: 120px; width: 360px; max-width: calc(100vw - 32px); max-height: calc(100vh - 260px); overflow-y: auto; z-index: 30; padding: 10px 12px; background: linear-gradient(rgba(14, 20, 40, 0.95), rgba(8, 10, 20, 0.95)); border: 1px solid var(--ink); border-radius: 10px; color: var(--cream-d); font: 500 13px var(--body); pointer-events: auto; }
+#plantray .ht-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+#plantray .ht-head b { color: var(--gold); font: 600 14px var(--px); }
+#plantray .pl-row { display: flex; gap: 8px; align-items: baseline; margin: 6px 0; }
+#plantray .pl-row > span { width: 58px; flex: none; opacity: 0.75; font-size: 12px; }
+#plantray .pl-row > div { display: flex; flex-wrap: wrap; gap: 4px; }
+#plantray button { font: 500 12.5px var(--body); color: var(--cream-d); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+#plantray button.on { color: var(--gold); border-color: var(--gold); }
+#plantray button[disabled] { opacity: 0.45; cursor: default; }
+#plantray .pl-x { padding: 2px 8px; }
+#plantray .pl-blurb { margin: 6px 0; opacity: 0.85; font-style: italic; }
+#plantray .pl-cost ul { list-style: none; margin: 4px 0 0; padding: 0; }
+#plantray .pl-cost li { padding: 2px 0; }
+#plantray .pl-cost li.no { color: #e89a8a; }
+#plantray .pl-cost li i { opacity: 0.6; font-style: normal; }
+#plantray .ht-keys { display: flex; gap: 10px; align-items: center; margin-top: 9px; font-size: 12px; }
+#plantray .ht-keys span { flex: 1; opacity: 0.75; }
+#plantray [data-build] { color: var(--gold); border-color: var(--gold); }
+@media (max-width: 600px) { #plantray { left: 16px; right: 16px; width: auto; top: 90px; } }

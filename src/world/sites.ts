@@ -7,6 +7,7 @@ import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, localIdx, SY, WMIN, WX, WZ } from './VoxelWorld';
 import { hoistSpot, isleSpots } from './holms';
+import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -184,6 +185,7 @@ export function plan(): Plan {
     { id: 'hollowoak', name: 'The Hollow Oak', x: 304, z: 600, r0: 14, r1: 24, build: (s, b) => buildHollowOak(s, b) },
     { id: 'mossgate', name: 'Ketley Arches', x: 176, z: 860, r0: 18, r1: 30, build: (s, b) => buildMossgate(s, b) },
     { id: 'wendside', name: 'Wendside Cottage', x: 408, z: 200, r0: 10, r1: 18, h: 20, build: (s, b) => buildCottage(s, b) },
+    { id: 'lots', name: 'Wendside Lots', x: 416, z: 214, r0: 0, r1: 0, build: (s) => buildLots(s) },
     { id: 'woodcamp', name: 'Fellers\' Camp', x: 446, z: 520, r0: 12, r1: 22, build: (s) => { buildCamp(s, 446, 520, true); fellersExtras(s); } },
     { id: 'gullmouth', name: 'Gullmouth', x: gullCoast - 34, z: gullZ, r0: 26, r1: 40, h: SEA + 3, build: (s, b) => buildGullmouth(s, b, gullCoast) },
     { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
@@ -307,66 +309,8 @@ export function plan(): Plan {
     for (let y = Math.min(heightAt(x, z), base) - 1; y < base; y++) O.set(x, y, z, id);
   }
 
-  function house(s: Site, x0: number, z0: number, w: number, d: number, floors: number, base: number, roof: PropDesc['mat'], door: 'n' | 's' | 'e' | 'w', opts: { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean } = {}) {
-    // closed: a house front with a shut door and lit windows, not fitted out inside (most of the
-    // New Town's terraces; a capital has more doors than anyone needs to open)
-    const top = base + floors * 4;
-    rect(s, x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
-    for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearUp(x, z, base, top + 12);
-    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) foundation(x, z, base);
-    const wall = opts.wall ?? B.Plaster;
-    const frame = opts.frame ?? B.Timber;
-    const doorX = door === 'n' || door === 's' ? x0 + Math.floor(w / 2) : door === 'e' ? x0 + w - 1 : x0;
-    const doorZ = door === 'e' || door === 'w' ? z0 + Math.floor(d / 2) : door === 's' ? z0 + d - 1 : z0;
-    for (let y = base; y < top; y++) {
-      const ly = (y - base) % 4, f = Math.floor((y - base) / 4);
-      for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
-        const ex = x === x0 || x === x0 + w - 1, ez = z === z0 || z === z0 + d - 1;
-        if (!ex && !ez) { O.set(x, y, z, B.Air); continue; }
-        const along = ez ? x - x0 : z - z0, span = ez ? w : d;
-        let id: number = wall;
-        if (ex && ez) id = frame;
-        else if (ly === 3) id = B.DarkPlanks;
-        else if (f === 0 && ly === 0) id = B.Cobble;
-        else if (along % 3 === 0) id = frame;
-        else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1) id = B.Window;
-        // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
-        if (x === doorX && z === doorZ && f === 0 && ly <= 2) id = opts.closed ? B.Barrier : B.Air;
-        O.set(x, y, z, id);
-      }
-    }
-    // Inside: a boarded floor, the upper storeys, stairs, furniture and lamplight
-    O.set(doorX, base - 1, doorZ, B.StoneBrick); // threshold
-    const chim = opts.chimney !== false ? chimneyCell({ x0, z0, w, d, door }) : undefined;
-    const shape = { x0, z0, w, d, floors, base, door, doorX, doorZ, role: opts.role, tint: Math.floor(hash2(x0, z0, 5) * 3), chimney: chim };
-    const ry = door === 'n' ? Math.PI : door === 's' ? 0 : door === 'e' ? Math.PI / 2 : -Math.PI / 2;
-    const ox = door === 'e' ? 0.52 : door === 'w' ? -0.52 : 0, oz = door === 's' ? 0.52 : door === 'n' ? -0.52 : 0;
-    if (opts.closed) s.props.push({ t: 'door', x: doorX + 0.5 + ox, y: base, z: doorZ + 0.5 + oz, ry });
-    else {
-      for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) O.set(x, base - 1, z, B.Planks);
-      const fit = fitOut(shape);
-      for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
-      for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint });
-      const leaf = openDoorPlace(shape);
-      s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
-    }
-    s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
-    const alongX = w >= d;
-    const span = alongX ? d : w;
-    if (opts.impostor !== false) s.impostor.push({ x: x0 + w / 2, y: base + floors * 2 + 1.2, z: z0 + d / 2, w, h: floors * 4 + 2.4, d, color: ROOF_TONE[roof ?? 'red'] });
-    s.props.push({ t: 'roof', x: x0 + w / 2, y: top, z: z0 + d / 2, len: alongX ? w : d, span, rise: roofRise(span), ry: alongX ? 0 : Math.PI / 2, mat: roof, dormers: floors > 1 ? (alongX ? (door === 's' ? 1 : door === 'n' ? -1 : 0) : (door === 'e' ? 1 : door === 'w' ? -1 : 0)) : 0 });
-    if (chim) {
-      // A stone stack standing proud of the gable end wall, from the ground up past the ridge; the
-      // wall behind it is stone too, where the hearth stands inside.
-      const [wx, wz] = chim;
-      const ox = wx === x0 ? -1 : wx === x0 + w - 1 ? 1 : 0, oz = ox ? 0 : wz === z0 ? -1 : 1;
-      const cx = wx + ox, cz = wz + oz;
-      const apex = roofApex(span, roofRise(span), roofOverhang(roof === 'thatch'));
-      for (let y = base; y < top; y++) O.set(wx, y, wz, B.Cobble);
-      foundation(cx, cz, base, B.Cobble);
-      for (let y = base; y < top + apex + 1.5; y++) O.set(cx, y, cz, y < top + apex + 0.5 ? B.Cobble : B.StoneBrick);
-      s.props.push({ t: 'smoke', x: cx + 0.5, y: Math.ceil(top + apex + 1.5) + 0.2, z: cz + 0.5 });
-    }
+  function house(s: Site, x0: number, z0: number, w: number, d: number, floors: number, base: number, roof: PropDesc['mat'], door: 'n' | 's' | 'e' | 'w', opts: HouseOpts = {}) {
+    houseInto(O, s, x0, z0, w, d, floors, base, roof, door, opts);
   }
 
   function tower(s: Site, cx: number, cz: number, size: number, height: number, base: number, mat: number, opts: { hollow?: boolean; broken?: boolean; crenel?: boolean; door?: 'n' | 's' | 'e' | 'w'; trim?: number } = {}) {
@@ -1954,6 +1898,23 @@ export function plan(): Plan {
     s.props.push({ t: 'crate', x: 412.7, y: base, z: 201.4 });
   }
 
+  /** The Wendside lots: five plots let by the Charter along the Ford road, and the land board. */
+  function buildLots(s: Site) {
+    LOTS.forEach((l, i) => {
+      rect(s, l.x0, l.z0, l.x0 + LOT_W, l.z0 + LOT_D);
+      for (const [cx, cz] of [[l.x0, l.z0], [l.x0 + LOT_W - 1, l.z0], [l.x0, l.z0 + LOT_D - 1], [l.x0 + LOT_W - 1, l.z0 + LOT_D - 1]]) {
+        const y = heightAt(cx, cz);
+        O.set(cx, y, cz, B.OakLog);
+      }
+      // The road side: a rope between the front stakes, and the lot's number on a board
+      const fz = l.door === 's' ? l.z0 + LOT_D - 0.5 : l.z0 + 0.5;
+      const y = heightAt(l.x0 + 7, Math.floor(fz));
+      s.props.push({ t: 'rope', x: l.x0 + 0.5, y: y + 0.85, z: fz, ry: Math.PI / 2, len: LOT_W - 1, h: 0, r: 0.25 });
+      s.props.push({ t: 'sign', x: l.x0 + LOT_W / 2 + 0.5, y, z: fz + (l.door === 's' ? 0.6 : -0.6), ry: l.door === 's' ? 0 : Math.PI, text: `LOT ${i + 1}\nTo let` });
+    });
+    s.props.push({ t: 'notice', x: LAND_BOARD.x, y: heightAt(LAND_BOARD.x, LAND_BOARD.z), z: LAND_BOARD.z, ry: 0 });
+  }
+
   /** Hale's Fold: a shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. */
   function buildBothy(s: Site, base: number) {
     const cx = 376, cz = 1380;
@@ -2665,3 +2626,79 @@ export function inRects(rects: [number, number, number, number][], x: number, z:
 }
 
 export { CHUNK };
+
+export interface HouseOpts { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean }
+/** Somewhere to write a house's blocks: the plan's overrides, or a live world (a player's own house). */
+export interface BlockWriter { set(x: number, y: number, z: number, id: number): void }
+export type HouseSink = Pick<Site, 'props' | 'rects' | 'impostor'>;
+
+/**
+ * A voxel house: walls with timber framing and windows, a three-high doorway, floors, stairs and
+ * furniture inside (by role), the roof, a porch lantern and a chimney stack. Shared by the
+ * settlements and by houses players build on their own lots.
+ */
+export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, w: number, d: number, floors: number, base: number, roof: PropDesc['mat'], door: 'n' | 's' | 'e' | 'w', opts: HouseOpts = {}) {
+  const rect = (_s: HouseSink, a: number, b: number, c: number, e: number) => { s.rects.push([Math.floor(a), Math.floor(b), Math.ceil(c), Math.ceil(e)]); };
+  const clearUp = (x: number, z: number, from: number, to = from + 14) => { for (let y = from; y < Math.min(SY, to); y++) O.set(x, y, z, B.Air); };
+  const foundation = (x: number, z: number, b: number, id: number = B.Cobble) => { for (let y = Math.min(heightAt(x, z), b) - 1; y < b; y++) O.set(x, y, z, id); };
+
+  // closed: a house front with a shut door and lit windows, not fitted out inside (most of the
+  // New Town's terraces; a capital has more doors than anyone needs to open)
+  const top = base + floors * 4;
+  rect(s, x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
+  for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearUp(x, z, base, top + 12);
+  for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) foundation(x, z, base);
+  const wall = opts.wall ?? B.Plaster;
+  const frame = opts.frame ?? B.Timber;
+  const doorX = door === 'n' || door === 's' ? x0 + Math.floor(w / 2) : door === 'e' ? x0 + w - 1 : x0;
+  const doorZ = door === 'e' || door === 'w' ? z0 + Math.floor(d / 2) : door === 's' ? z0 + d - 1 : z0;
+  for (let y = base; y < top; y++) {
+    const ly = (y - base) % 4, f = Math.floor((y - base) / 4);
+    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
+      const ex = x === x0 || x === x0 + w - 1, ez = z === z0 || z === z0 + d - 1;
+      if (!ex && !ez) { O.set(x, y, z, B.Air); continue; }
+      const along = ez ? x - x0 : z - z0, span = ez ? w : d;
+      let id: number = wall;
+      if (ex && ez) id = frame;
+      else if (ly === 3) id = B.DarkPlanks;
+      else if (f === 0 && ly === 0) id = B.Cobble;
+      else if (along % 3 === 0) id = frame;
+      else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1) id = B.Window;
+      // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
+      if (x === doorX && z === doorZ && f === 0 && ly <= 2) id = opts.closed ? B.Barrier : B.Air;
+      O.set(x, y, z, id);
+    }
+  }
+  // Inside: a boarded floor, the upper storeys, stairs, furniture and lamplight
+  O.set(doorX, base - 1, doorZ, B.StoneBrick); // threshold
+  const chim = opts.chimney !== false ? chimneyCell({ x0, z0, w, d, door }) : undefined;
+  const shape = { x0, z0, w, d, floors, base, door, doorX, doorZ, role: opts.role, tint: Math.floor(hash2(x0, z0, 5) * 3), chimney: chim };
+  const ry = door === 'n' ? Math.PI : door === 's' ? 0 : door === 'e' ? Math.PI / 2 : -Math.PI / 2;
+  const ox = door === 'e' ? 0.52 : door === 'w' ? -0.52 : 0, oz = door === 's' ? 0.52 : door === 'n' ? -0.52 : 0;
+  if (opts.closed) s.props.push({ t: 'door', x: doorX + 0.5 + ox, y: base, z: doorZ + 0.5 + oz, ry });
+  else {
+    for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) O.set(x, base - 1, z, B.Planks);
+    const fit = fitOut(shape);
+    for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
+    for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint });
+    const leaf = openDoorPlace(shape);
+    s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
+  }
+  s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
+  const alongX = w >= d;
+  const span = alongX ? d : w;
+  if (opts.impostor !== false) s.impostor.push({ x: x0 + w / 2, y: base + floors * 2 + 1.2, z: z0 + d / 2, w, h: floors * 4 + 2.4, d, color: ROOF_TONE[roof ?? 'red'] });
+  s.props.push({ t: 'roof', x: x0 + w / 2, y: top, z: z0 + d / 2, len: alongX ? w : d, span, rise: roofRise(span), ry: alongX ? 0 : Math.PI / 2, mat: roof, dormers: floors > 1 ? (alongX ? (door === 's' ? 1 : door === 'n' ? -1 : 0) : (door === 'e' ? 1 : door === 'w' ? -1 : 0)) : 0 });
+  if (chim) {
+    // A stone stack standing proud of the gable end wall, from the ground up past the ridge; the
+    // wall behind it is stone too, where the hearth stands inside.
+    const [wx, wz] = chim;
+    const ox = wx === x0 ? -1 : wx === x0 + w - 1 ? 1 : 0, oz = ox ? 0 : wz === z0 ? -1 : 1;
+    const cx = wx + ox, cz = wz + oz;
+    const apex = roofApex(span, roofRise(span), roofOverhang(roof === 'thatch'));
+    for (let y = base; y < top; y++) O.set(wx, y, wz, B.Cobble);
+    foundation(cx, cz, base, B.Cobble);
+    for (let y = base; y < top + apex + 1.5; y++) O.set(cx, y, cz, y < top + apex + 0.5 ? B.Cobble : B.StoneBrick);
+    s.props.push({ t: 'smoke', x: cx + 0.5, y: Math.ceil(top + apex + 1.5) + 0.2, z: cz + 0.5 });
+  }
+}

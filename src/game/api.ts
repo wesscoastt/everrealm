@@ -32,6 +32,8 @@ export interface GameApi {
   /** Wendside Cottage: offer it for sale, or start arranging it. */
   buyHome(): void;
   arrangeHome(): void;
+  /** A lot's stake: lease it, or draw up plans for a house on it. */
+  lotAction(id: string): void;
 }
 
 export interface DOption {

@@ -57,6 +57,9 @@ import { originById } from '../data/origins';
 import { ClassKit } from './ClassKit';
 import { Festivals } from './Festivals';
 import { Home, Piece } from './Home';
+import { Building } from './Building';
+import { Planner } from './Planner';
+import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, HouseSpec, Lot, LOT_PRICE, LOTS, PlotState, plotShape, readPlot } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { FESTIVALS } from '../data/festivals';
@@ -161,6 +164,10 @@ export class Game implements GameApi {
   /** The festival that's on, its stalls and its writ. */
   festivals!: Festivals;
   home!: Home;
+  building!: Building;
+  planner!: Planner;
+  /** While visiting: the host's lot and plans, shown in place of your own. */
+  private visitPlot: PlotState | null = null;
   /** Groups and trades with other players. */
   readonly social: Social = new Social({
     net: () => this.online,
@@ -347,6 +354,17 @@ export class Game implements GameApi {
       count: (it) => this.inv.count(it), give: (it) => this.give(it), take: (it) => this.take(it),
       player: () => this.player.position, yaw: () => this.player.yaw,
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n as Sfx),
+      shape: () => this.myHome(),
+    });
+    this.building = new Building({ scene: this.scene, voxels: this.world.voxels, buildProps: (s) => this.world.buildProps(s) });
+    this.world.extraDoors = () => this.building.doors();
+    this.planner = new Planner({
+      count: (it) => this.inv.count(it), marks: () => this.save.marks,
+      preview: (l, s) => this.building.showPlan(l, s),
+      build: (l, s) => this.buildHouse(l, s),
+      sound: (n) => this.sfx(n as Sfx),
+      player: () => this.player.position,
+      standing: () => !!readPlot(this.flag('plot'))?.spec,
     });
     this.kit = new ClassKit({
       scene: this.scene,
@@ -430,11 +448,14 @@ export class Game implements GameApi {
       ...this.social.hooks(),
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
-        this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces()), () => this.online.homeShow(from, false, null), 60);
+        this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces(), readPlot(this.flag('plot'))), () => this.online.homeShow(from, false, null), 60);
       },
-      homeShow: (owner: string, pieces: unknown[]) => {
-        this.home.visit(owner, pieces as Piece[]);
-        this.hud.system(`${owner}'s home is Wendside Cottage, on the road east of Hollin Ford.`);
+      homeShow: (owner: string, pieces: unknown[], plot: unknown) => {
+        const hp = readPlot(plot);
+        const shape = plotShape(hp) ?? COTTAGE_SHAPE;
+        this.visitPlot = hp?.spec ? hp : null;
+        this.home.visit(owner, pieces as Piece[], shape);
+        this.hud.system(hp?.spec ? `${owner}'s house stands on ${LOTS.find((l) => l.id === hp.lot)!.name}, the Wendside lots east of Hollin Ford.` : `${owner}'s home is Wendside Cottage, on the road east of Hollin Ford.`);
       },
       chat: (from, t, id, kind) => {
         this.hud.chat(from, t, kind);
@@ -456,7 +477,7 @@ export class Game implements GameApi {
     });
     // Closing the tab saves locally and sends the server the final copy (uploads are otherwise throttled).
     window.addEventListener('pagehide', () => { if (this.restoring) return; this.persist(); this.online.save(this.save, true); if (this.mode === 'play') uploadSave(this.save, true); });
-    this.world.onChunk = (cx, cz, r) => this.spawnChunk(cx, cz, r);
+    this.world.onChunk = (cx, cz, r) => { this.spawnChunk(cx, cz, r); this.building?.chunkLoaded(cx, cz); };
     this.world.onChunkGone = (cx, cz) => this.despawnChunk(cx, cz);
     this.mode = 'title';
     this.applySettings();
@@ -662,6 +683,57 @@ export class Game implements GameApi {
     this.hud.banner('Well rested', 'A quarter more experience for half an hour', true);
     this.sfx('heal');
     this.hud.refresh();
+  }
+
+  /** Your home: the house on your lot once it's built, otherwise Wendside Cottage if you bought it. */
+  private myHome(): HomeShape | null {
+    return plotShape(readPlot(this.flag('plot'))) ?? (this.flag('home') ? COTTAGE_SHAPE : null);
+  }
+
+  lotAction(id: string): void {
+    const lot = LOTS.find((l) => l.id === id)!;
+    const mine = readPlot(this.flag('plot'));
+    if (mine && mine.lot !== id) { this.hud.system(`${lot.name}: to let. You already hold ${LOTS.find((l) => l.id === mine.lot)!.name}; one home to a household.`); return; }
+    if (!mine) {
+      if (this.save.marks < LOT_PRICE) { this.hud.system(`${lot.name}: to let for ninety-nine years, ${LOT_PRICE} marks to the Charter. You have ${this.save.marks}.`); this.sfx('fail'); return; }
+      this.hud.ask(`Lease ${lot.name} from the Charter for ${LOT_PRICE} marks? Then draw up plans and have a house built on it.`, () => {
+        if (readPlot(this.flag('plot')) || this.save.marks < LOT_PRICE) return;
+        this.addMarks(-LOT_PRICE);
+        this.setFlag('plot', { lot: id });
+        this.hud.banner(lot.name, 'Leased for ninety-nine years', true);
+        this.sfx('discover');
+        this.hud.refresh();
+        this.persist();
+        this.planner.open(lot);
+      }, () => {}, 30);
+      return;
+    }
+    this.hud.closeAll();
+    this.planner.open(lot, mine.spec);
+  }
+
+  /** The builders raise the house: they take the timber, ironwork and wages, and it stands. */
+  private buildHouse(lot: Lot, spec: HouseSpec): void {
+    const mine = readPlot(this.flag('plot'));
+    if (!mine || mine.lot !== lot.id) return;
+    const pieces = this.home.pieces();
+    if (pieces.length) { this.hud.system(`Your furniture is still set out at ${this.myHome()?.name ?? 'home'}. Pick it up first (Arrange the furniture, then X): the builders won't shift it.`); this.sfx('fail'); return; }
+    const cost = costOf(spec);
+    for (const [id, n] of Object.entries(cost.items)) if (this.inv.count(id) < n) { this.hud.system(`The builders need ${n} ${ITEMS[id].name} and you have ${this.inv.count(id)}.`); this.sfx('fail'); return; }
+    if (this.save.marks < cost.marks) { this.hud.system(`The builders want ${cost.marks} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
+    const rebuild = !!mine.spec;
+    const fromCottage = !rebuild && !!this.flag('home');
+    for (const [id, n] of Object.entries(cost.items)) this.inv.remove(id, n);
+    this.addMarks(-cost.marks);
+    if (fromCottage) { this.addMarks(COTTAGE_BUYBACK); this.hud.system(`You give Wendside Cottage back to the Charter, and Maud Ashby pays you ${COTTAGE_BUYBACK} marks for it.`); }
+    this.setFlag('plot', { lot: lot.id, spec });
+    this.setFlag('home', []);
+    this.planner.close();
+    this.hud.banner(rebuild ? 'Rebuilt' : 'Your house stands', `${lot.name}, the Wendside lots`, true);
+    this.sfx('levelUp');
+    this.hud.system('The Ansbury builders raise it in an afternoon and leave you the key. Furnish it however you like: press E inside to arrange the furniture.');
+    this.hud.refresh();
+    this.persist();
   }
 
   buyHome(): void {
@@ -1538,7 +1610,9 @@ export class Game implements GameApi {
     const stall = this.festivals.stallNear(p);
     if (stall && this.festivals.fest) consider({ kind: 'act', label: `Browse the ${this.festivals.fest.name} stall`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
     const bed = !this.home.active && this.home.bed();
-    if (bed && this.home.inside(p)) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, COTTAGE.floor + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
+    if (bed && this.home.inside(p) && Math.abs(bed.y - p.y) < 2) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, bed.y + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
+    // Indoors at home: arrange the furniture from anywhere in the house
+    if (!this.home.active && !this.home.visiting && this.home.owned && this.home.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const wt of WORLD_THINGS) {
       const d = Math.hypot(wt.x - p.x, wt.z - p.z);
@@ -2374,6 +2448,10 @@ export class Game implements GameApi {
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
     this.home.update();
+    this.planner.update();
+    // The house on the lots: a host's while you visit them, otherwise your own
+    if (!this.home.visiting) this.visitPlot = null;
+    this.building.show(this.home.visiting ? this.visitPlot : readPlot(this.flag('plot')));
     // Well rested: half an hour of play at a quarter more experience, after a night in your own bed
     const rested = Number(this.flag('rested') ?? 0);
     if (rested > 0) {
@@ -2451,6 +2529,7 @@ export class Game implements GameApi {
       if (I.wheel) this.rig.zoom(I.wheel);
       return;
     }
+    if (this.planner.lot && I.pressedOnce('Escape')) this.planner.close();
     if (this.home.active) {
       // Arranging the house: E sets the held piece down, R turns it, X picks up the nearest
       if (I.pressedOnce('KeyE')) { this.home.place(); this.hud.refresh(); this.persist(); }
