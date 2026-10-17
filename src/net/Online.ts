@@ -79,6 +79,12 @@ export interface OnlineHooks {
   bossState?(id: string, cycle: number, hp: number, max: number): void;
   /** The server says a world boss has fallen, and who fought it. */
   bossDown?(id: string, cycle: number, by: string[]): void;
+  /** A shared event's progress: kills so far, the wave it's on, seconds left. */
+  eventState?(id: string, killed: number, total: number, wave: number, left: number): void;
+  /** A shared event is over (won or failed) with each player's kills. */
+  eventDone?(id: string, ok: boolean, total: number, shares: Record<string, number>): void;
+  /** That event ran lately and is resting for so many seconds. */
+  eventCool?(id: string, left: number): void;
 }
 
 export class Online {
@@ -169,6 +175,9 @@ export class Online {
       case 'chat': this.hooks.chat(String(m.from), String(m.text)); break;
       case 'sys': this.hooks.system(String(m.text)); break;
       case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
+      case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left)); break;
+      case 'evDone': this.hooks.eventDone?.(String(m.id), !!m.ok, Number(m.total), (m.shares && typeof m.shares === 'object' ? m.shares : {}) as Record<string, number>); break;
+      case 'evCool': this.hooks.eventCool?.(String(m.id), Number(m.left)); break;
       case 'bossDown': this.hooks.bossDown?.(String(m.id), Number(m.cycle), Array.isArray(m.by) ? (m.by as unknown[]).map(String) : []); break;
     }
   }
@@ -245,6 +254,16 @@ export class Online {
   /** Ask for a world boss's shared health (sent when it rises in front of us). */
   bossSync(id: string, cycle: number, max: number): void {
     if (this.online) this.ws!.send(JSON.stringify({ t: 'bossSync', id, cycle, max }));
+  }
+
+  /** Near an event: join its run, or start one. */
+  eventStart(id: string, waves: number[], time: number, cooldown: number): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'evStart', id, waves, time, cooldown }));
+  }
+
+  /** One of an event's creatures fell to us. */
+  eventKill(id: string): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'evKill', id }));
   }
 
   /** A blow landed on a shared world boss. */

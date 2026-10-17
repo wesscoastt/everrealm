@@ -334,6 +334,32 @@ wss.on('connection', (ws, req) => {
         broadcast({ t: 'chat', from: me.name, text });
         break;
       }
+      case 'evStart': {
+        // A player is near an event: join the run that's on, or start one if it isn't cooling down
+        if (typeof msg.id !== 'string' || !/^ev-[a-z]{2,20}$/.test(msg.id)) return;
+        const now = Date.now();
+        let ev = events.get(msg.id);
+        if (ev && !ev.done) { send(ws, evState(ev)); return; }
+        if (ev && now < ev.coolUntil) { send(ws, { t: 'evCool', id: ev.id, left: Math.round((ev.coolUntil - now) / 1000) }); return; }
+        const waves = Array.isArray(msg.waves) ? msg.waves.slice(0, 6).map((n) => num(n, 1, 12)) : [];
+        const time = num(msg.time, 30, 900), cooldown = num(msg.cooldown, 30, 3600);
+        if (!waves.length || waves.includes(null) || time === null || cooldown === null) return;
+        ev = { id: msg.id, waves, total: waves.reduce((a, b) => a + b, 0), killed: 0, endsAt: now + time * 1000, done: false, coolUntil: 0, cooldown, shares: new Map() };
+        events.set(ev.id, ev);
+        broadcast(evState(ev));
+        break;
+      }
+      case 'evKill': {
+        const ev = events.get(msg.id);
+        if (!ev || ev.done) return;
+        const now = Date.now();
+        if (!me.killWindow || now - me.killWindow.at > 1000) me.killWindow = { at: now, n: 0 };
+        if (++me.killWindow.n > 10) return;
+        ev.killed++;
+        ev.shares.set(me.name, (ev.shares.get(me.name) ?? 0) + 1);
+        if (ev.killed >= ev.total) endEvent(ev, true); else broadcast(evState(ev));
+        break;
+      }
       case 'bossSync': {
         // A player has the boss in front of them: tell them where its health stands
         const b = bossFor(msg.id, msg.cycle, msg.max);
@@ -398,6 +424,19 @@ function bossFor(id, cycle, max) {
   return b;
 }
 setInterval(() => { const old = Date.now() - 2 * 3600_000; for (const [k, b] of bosses) if (b.at < old) bosses.delete(k); }, 600_000);
+
+// Dynamic events are shared too: one run of each at a time. The first player near it starts it;
+// everyone's kills count toward its waves, the clock is the server's, and when it ends each player
+// is told their share of the work (which sets their medal).
+const events = new Map(); // id -> { id, waves, total, killed, endsAt, done, coolUntil, cooldown, shares: Map<name, kills> }
+function waveOf(ev) { let n = 0; for (let i = 0; i < ev.waves.length; i++) { n += ev.waves[i]; if (ev.killed < n) return i; } return ev.waves.length - 1; }
+function evState(ev) { return { t: 'ev', id: ev.id, killed: ev.killed, total: ev.total, wave: waveOf(ev), left: Math.max(0, Math.round((ev.endsAt - Date.now()) / 1000)) }; }
+function endEvent(ev, ok) {
+  ev.done = true;
+  ev.coolUntil = Date.now() + (ok ? ev.cooldown : 60) * 1000;
+  broadcast({ t: 'evDone', id: ev.id, ok, total: ev.total, shares: Object.fromEntries(ev.shares) });
+}
+setInterval(() => { const now = Date.now(); for (const ev of events.values()) if (!ev.done && now > ev.endsAt) endEvent(ev, false); }, 1000);
 
 // Movement snapshots: only players who moved, to everyone else.
 setInterval(() => {

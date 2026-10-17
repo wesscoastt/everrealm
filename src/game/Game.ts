@@ -288,6 +288,8 @@ export class Game implements GameApi {
         on: () => !!this.online?.online,
         sync: (id, cycle, max) => this.online.bossSync(id, cycle, max),
         hit: (id, cycle, dmg, max) => this.online.bossHit(id, cycle, dmg, max),
+        evStart: (id, waves, time, cooldown) => this.online.eventStart(id, waves, time, cooldown),
+        evKill: (id) => this.online.eventKill(id),
       },
       scene: this.scene,
       voxels: this.world.voxels,
@@ -335,6 +337,9 @@ export class Game implements GameApi {
       status: (s, n) => this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online'),
       bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
       bossDown: (id, cycle, by) => this.activities.bossDown(id, cycle, by, this.save.name),
+      eventState: (id, killed, total, wave, left) => this.activities.eventState(id, killed, total, wave, left),
+      eventDone: (id, ok, total, shares) => this.activities.eventDone(id, ok, total, shares, this.save.name),
+      eventCool: (id, left) => this.activities.eventCool(id, left),
       newerSave: (save) => {
         // Another browser played this character further. Take the server's copy and restart on it.
         this.hud.system('The server has newer progress for this character. Loading it…');

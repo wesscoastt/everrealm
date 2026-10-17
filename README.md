@@ -118,7 +118,7 @@ You get down to fight, talk, gather or swim, when something hits you, and under 
 ## Out in the world
 
 These are things to find and join while exploring, in the spirit of Guild Wars 2 and The Elder Scrolls Online. They show on the minimap and world map, and an event tracker appears while you're in one.
-- **World events (12).** Dynamic events start when you're nearby: wolves on the Lantern ridge, a mire bloom in the Wetlings, wolves on the drove road, stalkers round the Fellers' Camp, crabs on the strand, and more. Each runs in waves against a timer and pays out a gold, silver or bronze medal by your share of the work.
+- **World events (12).** Dynamic events start when you're nearby: wolves on the Lantern ridge, a mire bloom in the Wetlings, wolves on the drove road, stalkers round the Fellers' Camp, crabs on the strand, and more. Each runs in waves against a timer and pays out a gold, silver or bronze medal by your share of the work. Online, an event is shared: one run at a time on the server's clock, everyone's kills count toward its waves, and medals go by each player's share.
 - **Parish tasks (12).** Two areas in each region where the locals want a hand, like Guild Wars 2's hearts: stook barley, mend paddock rails, rake salt pans, cut peat and so on at the spots marked with a gold diamond, and drive off the pests that keep coming. Each chore and each pest fills the bar, progress is kept between visits, and a full bar pays out once. They show on the map as hearts, hollow until done.
 - **World bosses (4).** Bramblemaw, the Tidewright, Cinderhorn and Rimeglass each rise in their own lair on a shared real-time clock:
   - Each rises every 30 minutes, staggered, with a 3-minute warning on the map and in chat.
@@ -176,7 +176,7 @@ Writing standards and canon are in [docs/NARRATIVE_STYLE.md](docs/NARRATIVE_STYL
 
 - **Multiplayer is presence and chat only.** Other players are visible but nothing is shared: each player has their own ore nodes, enemies and quests, and you can't trade, group or fight together. The browser is still the authority for inventory, skills and quests. The server only checks a save's shape and size before storing it, so a modified client could send anything.
 - **Accounts are simple.** There's no password reset or email, and a realm's accounts live in its own files (`server/data/`).
-- **Events and dungeons are per player.** Other players are visible at them, but each browser runs its own copy (world bosses are shared).
+- **Dungeons and tasks are per player.** Other players are visible at them, but each browser runs its own copy (events and world bosses are shared). In a shared event each player sees their own copy of the creatures; the count, the waves and the clock are shared.
 - **Later milestones:** housing, guilds, the marketplace, banking, farming and herbalism aren't built.
 - **Score quality:** the score is synthesised, not recorded. It has the shape of an orchestra but not the tone of real players.
 - **Phones:** touch controls work, but heavy scenes, such as Ansbury's New Town at a long view distance, are slow on older phones. Lower the view distance and render scale in Settings.

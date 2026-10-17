@@ -38,12 +38,15 @@ export interface ActivityHost {
   /** An enemy fell other than by the player's blow (a shared boss): run the game's kill handling. */
   killed?(e: Enemy): void;
   /** Online: the world boss's health is the server's, shared with every player there. */
-  shared?: { on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void };
+  shared?: {
+    on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void;
+    evStart(id: string, waves: number[], time: number, cooldown: number): void; evKill(id: string): void;
+  };
 }
 
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
 
-interface LiveEvent { def: EventDef; wave: number; enemies: Enemy[]; killed: number; total: number; endsAt: number }
+interface LiveEvent { def: EventDef; wave: number; enemies: Enemy[]; killed: number; total: number; endsAt: number; shared?: { killed: number }; stalled?: number }
 interface LiveBoss { def: BossDef; enemy: Enemy; cycle: number; calls: number; nextQuake: number; quake?: { at: THREE.Vector3; t: number }; adds: Enemy[]; shared: boolean; hitByMe: boolean; credit: boolean }
 interface LiveShard { idx: number; cycle: number; wave: number; enemies: Enemy[]; crystal: THREE.Group; fall: number }
 
@@ -58,6 +61,8 @@ function championOf(type: EnemyType, scale = 1.4): EnemyDef {
 export class Activities {
   private cool = new Map<string, number>();
   private live = new Map<string, LiveEvent>();
+  /** Online: when we last asked the server about each event (so we don't ask every second). */
+  private asked = new Map<string, number>();
   private boss: LiveBoss | null = null;
   private announced = new Set<string>();
   private shard: LiveShard | null = null;
@@ -106,6 +111,13 @@ export class Activities {
       const d = Math.hypot(P.x - def.x, P.z - def.z);
       if (d > 70 || !this.host.voxels.isLoaded(def.x, def.z)) continue;
       if (Math.random() < 0.6) continue; // not every visit: they flare up when they will
+      if (this.host.shared?.on()) {
+        // Online the server runs it: ask, and it starts the run (or says one is on, or resting)
+        if ((this.asked.get(def.id) ?? 0) > this.clock) continue;
+        this.asked.set(def.id, this.clock + 8);
+        this.host.shared.evStart(def.id, waveSizes(def), def.time, def.cooldown);
+        continue;
+      }
       const ev: LiveEvent = { def, wave: -1, enemies: [], killed: 0, total: def.waves.reduce((n, w) => n + w.count, 0) + (def.leader ? 1 : 0), endsAt: this.clock + def.time };
       this.live.set(def.id, ev);
       this.nextWave(ev);
@@ -114,12 +126,14 @@ export class Activities {
     }
   }
 
-  private nextWave(ev: LiveEvent): void {
+  private nextWave(ev: LiveEvent, already = 0): void {
     ev.wave++;
     const w = ev.def.waves[ev.wave];
     const last = ev.wave === ev.def.waves.length - 1;
     const types: EnemyDef[] = Array.from({ length: w.count }, () => ENEMIES[w.type]);
     if (last && ev.def.leader) types.push(championOf(ev.def.leader));
+    // Joining a shared wave part-way through: only what's left of it
+    types.splice(0, Math.min(already, types.length - 1));
     types.forEach((def, i) => {
       const a = (i / types.length) * Math.PI * 2 + ev.wave, r = 5 + (i % 3) * 2;
       ev.enemies.push(this.spawn(def, ev.def.x + Math.cos(a) * r, ev.def.z + Math.sin(a) * r, true));
@@ -128,6 +142,22 @@ export class Activities {
 
   private tickEvents(P: THREE.Vector3): void {
     for (const ev of this.live.values()) {
+      if (ev.shared) {
+        // The server keeps the clock and the count; leaving the area lets it go on without us
+        if (Math.hypot(P.x - ev.def.x, P.z - ev.def.z) > 260) { this.endEvent(ev, 30); continue; }
+        // Ours are all down but the wave isn't done (others' kills went elsewhere, or a message was
+        // lost): after a moment the rest of the wave turns up here
+        if (ev.enemies.some((e) => e.alive)) ev.stalled = undefined;
+        else if (ev.stalled === undefined) ev.stalled = this.clock;
+        else if (this.clock - ev.stalled > 6) {
+          ev.stalled = undefined;
+          const end = waveSizes(ev.def).slice(0, ev.wave + 1).reduce((a, b) => a + b, 0);
+          const before = end - waveSizes(ev.def)[ev.wave];
+          ev.wave--;
+          this.nextWave(ev, Math.max(0, ev.shared.killed - before));
+        }
+        continue;
+      }
       const far = Math.hypot(P.x - ev.def.x, P.z - ev.def.z) > 260;
       if (far || this.clock > ev.endsAt) {
         if (!far) { this.host.banner('Event failed', ev.def.name); }
@@ -139,15 +169,7 @@ export class Activities {
         else {
           // Success: the share of the work that was yours sets the medal
           const share = ev.killed / Math.max(1, ev.total);
-          const medal = share >= 0.75 ? 'Gold' : share >= 0.4 ? 'Silver' : 'Bronze';
-          const k = medal === 'Gold' ? 1 : medal === 'Silver' ? 0.75 : 0.5;
-          const items = ev.def.loot.filter((l) => Math.random() < l.chance * (medal === 'Gold' ? 1.5 : 1)).map((l) => l.item);
-          const [lo, hi] = ev.def.marks;
-          this.host.reward(Math.round(ev.def.xp * k), Math.round((lo + Math.random() * (hi - lo)) * k), items, `${ev.def.name}: ${medal}`);
-          this.host.banner('Event complete', `${ev.def.name} · ${medal}`);
-          const best = this.host.flag('ev:' + ev.def.id);
-          if (best !== 'Gold' && !(best === 'Silver' && medal === 'Bronze')) this.host.setFlag('ev:' + ev.def.id, medal);
-          this.host.sound('levelUp');
+          this.award(ev, share >= 0.75 ? 'Gold' : share >= 0.4 ? 'Silver' : 'Bronze');
           this.endEvent(ev, ev.def.cooldown);
         }
       }
@@ -158,6 +180,65 @@ export class Activities {
     for (const e of ev.enemies) this.host.removeEnemy(e);
     this.live.delete(ev.def.id);
     this.cool.set(ev.def.id, this.clock + cooldown);
+  }
+
+  /** The server's word on a shared event: join it if we're near, and keep up with its waves. */
+  eventState(id: string, killed: number, total: number, wave: number, left: number): void {
+    const def = EVENTS.find((d) => d.id === id);
+    if (!def) return;
+    const P = this.host.player();
+    let ev = this.live.get(id);
+    if (!ev) {
+      if (Math.hypot(P.x - def.x, P.z - def.z) > 160 || !this.host.voxels.isLoaded(def.x, def.z)) return;
+      ev = { def, wave: -1, enemies: [], killed: 0, total, endsAt: this.clock + left, shared: { killed } };
+      this.live.set(id, ev);
+      this.host.banner(def.name, `Event · ${REGION_INFO[def.region].name}`);
+      this.host.sound('bell');
+    }
+    ev.shared = { killed };
+    ev.endsAt = this.clock + left;
+    if (wave > ev.wave) {
+      // The wave has moved on (others finished it): what was left of ours slips away
+      for (const e of ev.enemies) if (e.alive) this.host.removeEnemy(e);
+      ev.enemies = ev.enemies.filter((e) => !e.alive);
+      const before = waveSizes(def).slice(0, wave).reduce((a, b) => a + b, 0);
+      ev.wave = wave - 1;
+      this.nextWave(ev, Math.max(0, killed - before));
+    }
+  }
+
+  /** A shared event is over: the medal goes by our share of the work. */
+  eventDone(id: string, ok: boolean, total: number, shares: Record<string, number>, me: string): void {
+    const ev = this.live.get(id);
+    const def = EVENTS.find((d) => d.id === id);
+    if (!def) return;
+    this.cool.set(id, this.clock + (ok ? def.cooldown : 60));
+    if (!ev) return;
+    if (!ok) { this.host.banner('Event failed', def.name); this.endEvent(ev, 60); return; }
+    const mine = Number(shares[me] ?? 0), people = Math.max(1, Object.keys(shares).length);
+    const fair = total / people;
+    if (mine === 0) { this.host.banner('Event complete', `${def.name} · others saw it through`); this.endEvent(ev, def.cooldown); return; }
+    const k = mine / fair;
+    const medal = k >= 0.75 ? 'Gold' : k >= 0.4 ? 'Silver' : 'Bronze';
+    this.award(ev, medal);
+    this.endEvent(ev, def.cooldown);
+  }
+
+  /** That event ran lately: don't ask again until it's rested. */
+  eventCool(id: string, left: number): void {
+    this.cool.set(id, this.clock + left);
+  }
+
+  /** Pay out an event by medal. */
+  private award(ev: LiveEvent, medal: 'Gold' | 'Silver' | 'Bronze'): void {
+    const k = medal === 'Gold' ? 1 : medal === 'Silver' ? 0.75 : 0.5;
+    const items = ev.def.loot.filter((l) => Math.random() < l.chance * (medal === 'Gold' ? 1.5 : 1)).map((l) => l.item);
+    const [lo, hi] = ev.def.marks;
+    this.host.reward(Math.round(ev.def.xp * k), Math.round((lo + Math.random() * (hi - lo)) * k), items, `${ev.def.name}: ${medal}`);
+    this.host.banner('Event complete', `${ev.def.name} · ${medal}`);
+    const best = this.host.flag('ev:' + ev.def.id);
+    if (best !== 'Gold' && !(best === 'Silver' && medal === 'Bronze')) this.host.setFlag('ev:' + ev.def.id, medal);
+    this.host.sound('levelUp');
   }
 
   // ---------------------------------------------------------------- World bosses
@@ -416,7 +497,10 @@ export class Activities {
   /** The game tells us about every kill; ours count toward events. */
   onKilled(e: Enemy): void {
     this.tasks.onKilled(e);
-    for (const ev of this.live.values()) if (ev.enemies.includes(e)) ev.killed++;
+    for (const ev of this.live.values()) if (ev.enemies.includes(e)) {
+      ev.killed++;
+      if (ev.shared) this.host.shared?.evKill(ev.def.id);
+    }
     const b = this.boss;
     if (b && b.enemy === e) {
       // Besides its own loot: one of its region's pieces for certain, and the cycle is done
@@ -439,7 +523,7 @@ export class Activities {
       const d = Math.hypot(P.x - ev.def.x, P.z - ev.def.z);
       if (d > 160 || d > bd) continue;
       bd = d;
-      const killed = ev.enemies.filter((e) => !e.alive).length + ev.def.waves.slice(0, ev.wave).reduce((n, w) => n + w.count, 0);
+      const killed = ev.shared ? ev.shared.killed : ev.enemies.filter((e) => !e.alive).length + ev.def.waves.slice(0, ev.wave).reduce((n, w) => n + w.count, 0);
       best = { kind: 'event', title: ev.def.name, goal: ev.def.goal, progress: killed / ev.total, count: `${killed}/${ev.total}`, time: Math.max(0, ev.endsAt - this.clock) };
     }
     const b = this.boss;
@@ -464,6 +548,11 @@ export class Activities {
     out.push(...this.tasks.markers());
     return out;
   }
+}
+
+/** How many creatures each wave brings (the leader comes with the last). */
+function waveSizes(def: EventDef): number[] {
+  return def.waves.map((w, i) => w.count + (i === def.waves.length - 1 && def.leader ? 1 : 0));
 }
 
 /** Which region each gear set comes from (dungeon chests favour their own region's pieces). */
