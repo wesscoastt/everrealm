@@ -95,7 +95,7 @@ import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim' | 'fair'; label?: string; yaw?: number; id?: string }
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim' | 'fair' | 'giver'; label?: string; yaw?: number; id?: string }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -643,11 +643,14 @@ export class Hud {
   /** Shows (or hides) the tracker for the event, world boss or Shardfall you're in. */
   setEvent(ev: EventPanel | null): void {
     const p = this.eventEl;
+    const was = p.classList.contains('show');
     p.classList.toggle('show', !!ev);
+    if (was !== !!ev) this.stackTracker();
     if (!ev) return;
     const key = ev.kind + ev.title;
     if (key !== this.eventKey) {
       this.eventKey = key;
+      requestAnimationFrame(() => this.stackTracker());
       p.dataset.kind = ev.kind;
       (p.querySelector('.ev-kind') as HTMLElement).textContent = ev.kind === 'event' ? 'Event' : ev.kind === 'boss' ? 'World boss' : ev.kind === 'task' ? 'Parish task' : 'Shardfall';
       (p.querySelector('.ev-title') as HTMLElement).textContent = ev.title;
@@ -657,6 +660,16 @@ export class Hud {
     (p.querySelector('.ev b') as HTMLElement).textContent = ev.count;
     const t = ev.time;
     (p.querySelector('.ev-time') as HTMLElement).textContent = t === undefined ? '' : `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')} left`;
+  }
+
+  /**
+   * The event panel and the quest tracker share the column under the minimap: while an event is
+   * showing there, the tracker goes below it. (On a phone the event panel has its own corner.)
+   */
+  private stackTracker(): void {
+    const tr = this.q('#tracker'), p = this.eventEl;
+    const inColumn = p.classList.contains('show') && p.getBoundingClientRect().right > innerWidth - 40;
+    tr.style.top = inColumn ? `${p.offsetTop + p.offsetHeight + 8}px` : '';
   }
 
   private saveMinimap(): void {
@@ -737,6 +750,14 @@ export class Hud {
     // People, foes, other players; objectives last, pinned to the rim when out of range
     for (const m of markers) {
       if (m.kind === 'quest' || ACT_KINDS.has(m.kind)) continue;
+      if (m.kind === 'giver') {
+        const [gx, gy] = at(m.x, m.z);
+        if (Math.hypot(gx, gy) > inside) continue;
+        c.fillStyle = '#ffd23a'; c.strokeStyle = '#3a2400'; c.lineWidth = 2;
+        c.beginPath(); c.arc(gx, gy, 6.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.fillStyle = '#3a2400'; c.fillRect(gx - 1.2, gy - 4, 2.4, 5); c.fillRect(gx - 1.2, gy + 2, 2.4, 2);
+        continue;
+      }
       if (m.kind === 'fair') {
         const [fx, fy] = at(m.x, m.z);
         if (Math.hypot(fx, fy) > inside) continue;
@@ -1332,6 +1353,14 @@ export class Hud {
       actGlyph(x, m.kind, X, Y, dpr * 1.5);
       if (m.label && (z > 0.5 || (m.kind !== 'event' && m.kind !== 'taskDone' && m.kind !== 'task'))) label(m.label, X, Y + px(20), `700 ${px(14)}px "Alegreya", serif`, ACT_COLOR[m.kind] === '#ffd23a' ? '#5a3a00' : '#3a1008');
       hits.push({ x: X, y: Y, name: m.label ?? '', sub: m.kind === 'task' ? 'Parish task: the locals want a hand' : m.kind === 'taskDone' ? 'Parish task: done' : m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' });
+    }
+    if (on('quests') && z > 1.1) for (const m of markers) {
+      if (m.kind !== 'giver') continue;
+      const X = sx(m.x), Y = sy(m.z);
+      x.fillStyle = '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(2);
+      x.beginPath(); x.arc(X, Y, px(7), 0, Math.PI * 2); x.fill(); x.stroke();
+      x.fillStyle = '#3a2400'; x.fillRect(X - px(1.3), Y - px(4.5), px(2.6), px(5.5)); x.fillRect(X - px(1.3), Y + px(2.2), px(2.6), px(2.2));
+      hits.push({ x: X, y: Y, name: 'Someone with work', sub: 'Has a quest to offer' });
     }
     if (on('quests')) for (const m of markers) {
       if (m.kind !== 'quest') continue;

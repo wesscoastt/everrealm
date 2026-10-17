@@ -1295,18 +1295,23 @@ export class Game implements GameApi {
     return this.world.structures.poi[key] ?? null;
   }
 
-  private questMarkers(): THREE.Vector3[] {
-    const out: THREE.Vector3[] = [];
+  /** Where the journal's objectives point, and (giver) the people with a quest to offer. */
+  private questMarkers(): { p: THREE.Vector3; giver?: boolean }[] {
+    const out: { p: THREE.Vector3; giver?: boolean }[] = [];
     for (const [id, stage] of Object.entries(this.save.quests)) {
       const def = QUESTS[id];
       if (!def) continue;
-      for (const o of def.objectives(this, stage)) if (o.marker && !o.done) { const p = this.markerPos(o.marker); if (p) out.push(p); }
+      for (const o of def.objectives(this, stage)) if (o.marker && !o.done) { const p = this.markerPos(o.marker); if (p) out.push({ p }); }
     }
-    if (!this.stage('fordBell')) { const m = this.npcs.find((n) => n.id === 'maud'); if (m) out.push(m.pos); }
-    else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) { const p = this.markerPos('charterNotice'); if (p) out.push(p); }
+    if (!this.stage('fordBell')) { const m = this.npcs.find((n) => n.id === 'maud'); if (m) out.push({ p: m.pos }); }
+    else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) { const p = this.markerPos('charterNotice'); if (p) out.push({ p }); }
+    const seen = new Set<string>();
     for (const def of Object.values(QUESTS)) {
       if (this.stage(def.id) || !def.marks) continue;
-      for (const id of Object.keys(def.marks(this, undefined))) { const n = this.npcs.find((x) => x.id === id); if (n?.placed) out.push(n.pos); }
+      for (const id of Object.keys(def.marks(this, undefined))) {
+        const n = this.npcs.find((x) => x.id === id);
+        if (n?.placed && !seen.has(id)) { seen.add(id); out.push({ p: n.pos, giver: true }); }
+      }
     }
     return out;
   }
@@ -2657,7 +2662,7 @@ export class Game implements GameApi {
 
   private mapMarkers(full = false): MapMarker[] {
     const out: MapMarker[] = [];
-    for (const q of this.questMarkers()) out.push({ x: q.x, z: q.z, kind: 'quest' });
+    for (const q of this.questMarkers()) out.push({ x: q.p.x, z: q.p.z, kind: q.giver ? 'giver' : 'quest' });
     for (const n of this.npcs) {
       // Only people who are there (see NpcDef.when), in places the player has found.
       if (!n.def.title || (n.def.when && !n.def.when(this))) continue;
