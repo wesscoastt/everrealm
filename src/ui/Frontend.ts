@@ -29,6 +29,8 @@ export interface FrontCtx {
   enter(id: string): void;
   deleteCharacter(id: string): void;
   create(name: string, look: Appearance, origin: string): void;
+  /** Save a new look for an existing character. */
+  restyle(id: string, look: Appearance): void;
   /** The creator's model (null removes it). */
   preview(look: Appearance | null): void;
   creatorView(view: 'body' | 'face'): void;
@@ -46,21 +48,34 @@ export interface FrontCtx {
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!));
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
+const CLOTH = ['#3a5a8a', '#2e3a5a', '#1e2a4a', '#5a7aa8', '#7a2a24', '#a8382c', '#8a4a3a', '#c86a3a', '#3f6a3a', '#2a4a2a', '#4a5a3a', '#7a8a4a', '#5a2f6a', '#7a4a8a', '#8a6a2a', '#c8a050', '#5a5048', '#3a3a3a', '#1e1a18', '#e8dcc0', '#c8c0a8', '#6a3a4a'];
 const OPT = {
-  skin: ['#f6d8bc', '#f0c8a0', '#e0b090', '#d09870', '#c88a62', '#a8704a', '#8a5636', '#6a4028'],
-  eyes: ['#3a5a7a', '#3a6a3a', '#5a3a1a', '#6a6a7a', '#2a2a2a', '#7a5a2a'],
-  hair: ['#1e1612', '#3a2418', '#5a3a22', '#7a5a3a', '#a8642e', '#c87a3a', '#e2c070', '#cfc8b8', '#9a948c', '#3a2a5a'],
-  tunic: ['#3a5a8a', '#2e3a5a', '#7a2a24', '#8a4a3a', '#3f6a3a', '#4a5a3a', '#5a2f6a', '#8a6a2a', '#5a5048', '#3a3a3a'],
-  trim: ['#e0bd64', '#c8b890', '#a8382c', '#5fd0e6', '#e8dcc0', '#3a3a3a'],
-  trousers: ['#4a3a2c', '#3a3430', '#2a2a34', '#4a4034', '#5a4a3a', '#2e3a2a'],
-  boots: ['#3a2a1c', '#2a1e14', '#1e1a18', '#5a4030'],
-  cape: ['none', '#7a2a24', '#2f4a7a', '#2f5a3a', '#4a2a3a', '#e8dcc0', '#2a2420'],
-  hatColor: ['#4a5a3a', '#6a3a2a', '#a8382c', '#2e3a5a', '#d8d0b8', '#3a3a32'],
+  skin: ['#fbe3cf', '#f6d8bc', '#f0c8a0', '#e8b48a', '#e0b090', '#d09870', '#c88a62', '#a8704a', '#8a5636', '#6a4028', '#5a3420', '#4a2a18'],
+  eyes: ['#3a5a7a', '#4a7a8a', '#7a8a9a', '#3a6a3a', '#5a3a1a', '#8a6a2a', '#6a6a7a', '#2a2a2a', '#7a5a2a'],
+  hair: ['#0e0c0c', '#1e1612', '#3a2418', '#5a3a22', '#7a5a3a', '#6a2a1a', '#a8642e', '#c87a3a', '#e2c070', '#f0e0b0', '#cfc8b8', '#e8e4dc', '#9a948c', '#3a2a5a', '#2a3a6a', '#5a1a2a'],
+  tunic: CLOTH,
+  shirt: CLOTH,
+  trim: ['#e0bd64', '#c8b890', '#a8382c', '#5fd0e6', '#e8dcc0', '#3a3a3a', '#8a6a2a', '#7a4a8a', '#3f6a3a', '#c8ccd2'],
+  trousers: ['#4a3a2c', '#3a3430', '#2a2a34', '#4a4034', '#5a4a3a', '#2e3a2a', '#1e1a18', '#5a2a24', '#2e3a5a', '#7a6a4a'],
+  hose: ['#e8dcc0', '#c8c0a8', '#7a2a24', '#2e3a5a', '#3f6a3a', '#3a3a3a', '#8a6a2a'],
+  boots: ['#3a2a1c', '#2a1e14', '#1e1a18', '#5a4030', '#7a5a3a', '#4a2a2a', '#2e2e34', '#c8b890'],
+  cape: ['none', '#7a2a24', '#a8382c', '#2f4a7a', '#1e2a4a', '#2f5a3a', '#4a2a3a', '#5a2f6a', '#e8dcc0', '#2a2420', '#8a6a2a'],
+  hatColor: ['#4a5a3a', '#6a3a2a', '#a8382c', '#2e3a5a', '#d8d0b8', '#3a3a32', '#9aa0a8', '#5a2f6a', '#c8a050', '#1e1a18'],
+  paint: ['none', '#2a4a8a', '#8a2a24', '#1e1e1e', '#e8e4dc', '#3f6a3a'],
+  earring: ['none', '#d8b04a', '#c8ccd2', '#b87333'],
+  gloves: ['none', '#4a3020', '#2a1e14', '#7a5a3a', '#1e1a18', '#c8b890', '#7a2a24'],
+  belt: ['#3b2618', '#1e1a18', '#5a4030', '#7a2a24', '#c8a050', '#2e3a5a'],
 };
-type Tab = 'origin' | 'face' | 'hair' | 'body' | 'outfit';
-const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids'];
+type Tab = 'origin' | 'body' | 'face' | 'hair' | 'outfit' | 'gear';
+const TAB_NAME: Record<Tab, string> = { origin: 'Origin', body: 'Body', face: 'Face', hair: 'Hair', outfit: 'Outfit', gear: 'Gear' };
+const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids', 'Bob', 'Ponytail', 'Bun', 'Curls', 'Mohawk', 'Undercut', 'Twin tails', 'Wild mane'];
+const FACIAL = ['None', 'Full beard', 'Stubble', 'Moustache', 'Goatee', 'Chinstrap', 'Long beard', 'Mutton chops', 'Forked beard'];
+const BROWS = ['Straight', 'Heavy', 'Arched', 'Fine'];
+const TOPS = ['Tunic', 'Doublet', 'Robe', 'Vest', 'Gambeson', 'Gown', 'Jerkin', 'Long coat'];
+const LEGS = ['Trousers', 'Breeches', 'Kilt', 'Wide trousers'];
+const SHOES = ['Boots', 'Tall boots', 'Shoes'];
 const AGES: [string, number][] = [['Young', 0.05], ['Grown', 0.35], ['Weathered', 0.62], ['Old', 0.9]];
-const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief']];
+const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band']];
 const PADS: [string, string | null][] = [['None', null], ['Iron', '#8c939d'], ['Leather', '#6a4a2a']];
 const NAMES = ['Rowan', 'Merrin', 'Corwen', 'Ysolde', 'Hallam', 'Briony', 'Teague', 'Linden', 'Osgar', 'Wilmot', 'Sabeth', 'Edric', 'Nettle', 'Clement', 'Avice', 'Hesper', 'Tamar', 'Gethin', 'Orla', 'Piran'];
 
@@ -80,11 +95,17 @@ function defaultLook(): Appearance {
 
 function randomLook(): Appearance {
   const hat = Math.random() < 0.3 ? pick(HATS)[1] : 'none';
+  const frame = Math.random() < 0.5 ? 'f' : 'm';
   return {
+    frame, facial: frame === 'm' && Math.random() < 0.45 ? 1 + Math.floor(Math.random() * 8) : 0,
+    brows: Math.floor(Math.random() * 4), freckles: Math.random() < 0.2, scar: Math.random() < 0.1,
+    paint: Math.random() < 0.08 ? pick(OPT.paint.slice(1)) : null, earring: Math.random() < 0.25 ? pick(OPT.earring.slice(1)) : null,
+    top: Math.floor(Math.random() * TOPS.length), shirt: pick(OPT.shirt), legs: Math.floor(Math.random() * LEGS.length), hose: pick(OPT.hose),
+    shoes: Math.floor(Math.random() * SHOES.length), gloves: Math.random() < 0.3 ? pick(OPT.gloves.slice(1)) : null, belt: pick(OPT.belt),
     skin: pick(OPT.skin), hair: pick(OPT.hair), hairStyle: Math.floor(Math.random() * HAIR_STYLES.length), eyes: pick(OPT.eyes),
     tunic: pick(OPT.tunic), trim: pick(OPT.trim), trousers: pick(OPT.trousers), boots: pick(OPT.boots),
     cape: ((c) => (c === 'none' ? null : c))(pick(OPT.cape)),
-    beard: Math.random() < 0.35, lashes: Math.random() < 0.5,
+    lashes: frame === 'f' ? Math.random() < 0.8 : Math.random() < 0.2,
     build: Math.round((0.88 + Math.random() * 0.26) * 100) / 100, height: Math.round((0.92 + Math.random() * 0.14) * 100) / 100,
     age: pick(AGES)[1], hat, hatColor: pick(OPT.hatColor), shoulderPads: Math.random() < 0.2 ? pick(PADS)[1] : null,
   };
@@ -101,6 +122,8 @@ export class Frontend {
   private look = defaultLook();
   private origin = ORIGINS[0].id;
   private tab: Tab = 'origin';
+  /** The character whose look is being changed (null when making a new one). */
+  private editing: CharSummary | null = null;
   private name = '';
   private view: 'body' | 'face' = 'body';
   private realmState: 'offline' | 'checking' | 'up' | 'down' = 'offline';
@@ -145,7 +168,7 @@ export class Frontend {
           return `<button class="card ${c.id === sel ? 'sel' : ''}" data-id="${c.id}"><canvas data-face="${c.id}"></canvas><span class="t"><b>${esc(c.name)}</b><small>${o ? esc(o.title) + ' · ' : ''}total level ${c.level}</small><small>${esc(c.place)} · ${playTime(c.playTime)}</small></span></button>`;
         }).join('') : '<p class="empty">No characters in this browser yet.</p>'}</div>
         <div class="row"><button class="btn ghost" data-a="new" ${full ? 'disabled' : ''}>${full ? 'All six slots are used' : 'Create new character'}</button></div>
-        ${cur ? '<button class="link danger" data-a="delete">Delete character</button>' : ''}
+        ${cur ? '<div class="row2"><button class="link" data-a="restyle">Change look</button><button class="link danger" data-a="delete">Delete character</button></div>' : ''}
       </aside>
       <aside class="fe-news frame">
         <header><h3>In this build</h3></header>
@@ -175,6 +198,7 @@ export class Frontend {
     this.ctx.sfx('click');
     if (a === 'enter' && cur) this.ctx.enter(cur.id);
     else if (a === 'new') this.showCreator();
+    else if (a === 'restyle' && cur) this.showCreator(cur);
     else if (a === 'delete' && cur) this.confirmDelete(cur);
     else if (a === 'settings') this.ctx.openSettings();
     else if (a === 'credits') this.credits();
@@ -294,18 +318,20 @@ export class Frontend {
   }
 
   // ------------------------------------------------------------------ Character creator
-  showCreator(): void {
+  /** Make a character, or (given one) change how an existing character looks. */
+  showCreator(edit?: CharSummary): void {
     this.screen = 'creator';
-    this.look = defaultLook();
+    this.editing = edit ?? null;
+    this.look = edit ? { ...edit.look } : defaultLook();
     this.origin = ORIGINS[0].id;
-    this.tab = 'origin';
+    this.tab = edit ? 'body' : 'origin';
     this.view = 'body';
     this.name = '';
     this.ctx.preview(this.look);
     this.ctx.creatorView('body');
     this.root.innerHTML = `<div class="fe fe-creator">
-      <aside class="fe-steps frame"><header><h3>Create a character</h3></header>
-        <div class="tabs">${(['origin', 'face', 'hair', 'body', 'outfit'] as const).map((t) => `<button data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
+      <aside class="fe-steps frame"><header><h3>${edit ? `Change ${esc(edit.name)}'s look` : 'Create a character'}</h3></header>
+        <div class="tabs">${(edit ? ['body', 'face', 'hair', 'outfit', 'gear'] as const : ['origin', 'body', 'face', 'hair', 'outfit', 'gear'] as const).map((t) => `<button data-tab="${t}">${TAB_NAME[t]}</button>`).join('')}</div>
         <div class="pane"></div>
       </aside>
       <div class="fe-drag" title="Drag to turn"></div>
@@ -313,10 +339,10 @@ export class Frontend {
         <button class="btn ghost sm" data-v="body">Full</button><button class="btn ghost sm" data-v="face">Face</button><button class="btn ghost sm rand">Randomise</button>
       </div>
       <div class="fe-namebar frame">
-        <label>NAME</label>
-        <div class="nrow"><input type="text" class="nm" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Your name"><button class="btn ghost sm dice" title="Suggest a name">Suggest</button></div>
+        ${edit ? `<label>${esc(edit.name)}</label>` : '<label>NAME</label>'}
+        <div class="nrow"${edit ? ' style="display:none"' : ''}><input type="text" class="nm" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Your name"><button class="btn ghost sm dice" title="Suggest a name">Suggest</button></div>
         <div class="err"></div>
-        <div class="actions"><button class="btn ghost back">Back</button><button class="btn go">Create character</button></div>
+        <div class="actions"><button class="btn ghost back">Back</button><button class="btn go">${edit ? 'Save look' : 'Create character'}</button></div>
       </div>
     </div>`;
     const r = this.root;
@@ -344,6 +370,7 @@ export class Frontend {
     });
     r.querySelector('.back')!.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.preview(null); this.ctx.select(this.ctx.selected()); this.showSelect(); });
     r.querySelector('.go')!.addEventListener('click', () => {
+      if (this.editing) { this.ctx.sfx('click'); this.ctx.restyle(this.editing.id, { ...this.look }); return; }
       const problem = nameProblem(this.name, taken());
       if (problem) { err.textContent = problem; nm.classList.add('bad'); nm.focus(); return; }
       this.ctx.sfx('click');
@@ -374,18 +401,30 @@ export class Frontend {
     const slider = (k: 'build' | 'height', label: string, min: number, max: number, lo: string, hi: string) => `<label>${label}</label><div class="slide"><small>${lo}</small><input type="range" min="${min}" max="${max}" step="0.01" value="${L[k] ?? 1}" data-s="${k}"><small>${hi}</small></div>`;
     if (this.tab === 'origin') {
       pane.innerHTML = `<p class="lead">Everyone in the Charter Counties comes from somewhere. Where did you grow up?</p>${ORIGINS.map((o) => `<button class="origin ${o.id === this.origin ? 'sel' : ''}" data-o="${o.id}"><span class="h"><b>${esc(o.title)}</b><small>${esc(o.place)} · ${esc(o.region)}</small></span><span class="d">${esc(o.blurb)}</span><span class="s">${esc(o.startText)}</span></button>`).join('')}`;
+    } else if (this.tab === 'body') {
+      pane.innerHTML = `<label>BODY TYPE</label>${chips('frame', [['Masculine', 'm'], ['Feminine', 'f']], L.frame ?? 'm')}
+        <label>SKIN</label>${sw('skin', L.skin)}
+        ${slider('build', 'BUILD', 0.86, 1.16, 'Slight', 'Broad')}${slider('height', 'HEIGHT', 0.9, 1.08, 'Short', 'Tall')}
+        <label>AGE</label>${chips('age', AGES, L.age)}`;
     } else if (this.tab === 'face') {
-      pane.innerHTML = `<label>SKIN</label>${sw('skin', L.skin)}<label>EYES</label>${sw('eyes', L.eyes)}
-        <label>AGE</label>${chips('age', AGES, L.age)}
-        <label>FEATURES</label><div class="chips"><button class="chip ${L.beard ? 'sel' : ''}" data-t="beard">Beard</button><button class="chip ${L.lashes ? 'sel' : ''}" data-t="lashes">Lashes</button></div>`;
+      pane.innerHTML = `<label>EYES</label>${sw('eyes', L.eyes)}
+        <label>BROWS</label>${chips('brows', BROWS.map((t, i) => [t, i]), L.brows ?? 0)}
+        <label>DETAILS</label><div class="chips">${(['lashes', 'freckles', 'scar'] as const).map((k) => `<button class="chip ${L[k] ? 'sel' : ''}" data-t="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+        <label>FACE PAINT</label>${sw('paint', L.paint)}
+        <label>EARRING</label>${sw('earring', L.earring)}`;
     } else if (this.tab === 'hair') {
       pane.innerHTML = `<label>STYLE</label>${chips('hs', HAIR_STYLES.map((t, i) => [t, i]), L.hairStyle)}<label>COLOUR</label>${sw('hair', L.hair)}
-        <label>HEADWEAR</label>${chips('hat', HATS, L.hat ?? 'none')}${L.hat && L.hat !== 'none' ? sw('hatColor', L.hatColor) : ''}`;
-    } else if (this.tab === 'body') {
-      pane.innerHTML = `${slider('build', 'BUILD', 0.86, 1.16, 'Slight', 'Broad')}${slider('height', 'HEIGHT', 0.9, 1.08, 'Short', 'Tall')}`;
+        <label>FACIAL HAIR</label>${chips('facial', FACIAL.map((t, i) => [t, i]), L.facial ?? (L.beard ? 1 : 0))}`;
+    } else if (this.tab === 'outfit') {
+      pane.innerHTML = `<label>TOP</label>${chips('top', TOPS.map((t, i) => [t, i]), L.top ?? 0)}
+        <label>MAIN CLOTH</label>${sw('tunic', L.tunic)}<label>SHIRT AND SLEEVES</label>${sw('shirt', L.shirt ?? null)}<label>TRIM</label>${sw('trim', L.trim)}
+        <label>CLOAK</label>${sw('cape', L.cape)}<label>SHOULDERS</label>${chips('pad', PADS, L.shoulderPads ?? null)}`;
     } else {
-      pane.innerHTML = `<label>TUNIC</label>${sw('tunic', L.tunic)}<label>TRIM</label>${sw('trim', L.trim)}<label>TROUSERS</label>${sw('trousers', L.trousers)}
-        <label>BOOTS</label>${sw('boots', L.boots)}<label>CLOAK</label>${sw('cape', L.cape)}<label>SHOULDERS</label>${chips('pad', PADS, L.shoulderPads ?? null)}`;
+      pane.innerHTML = `<label>LEGS</label>${chips('legs', LEGS.map((t, i) => [t, i]), L.legs ?? 0)}<label>TROUSERS</label>${sw('trousers', L.trousers)}
+        ${L.legs === 1 || L.legs === 2 ? `<label>HOSE</label>${sw('hose', L.hose ?? null)}` : ''}
+        <label>FOOTWEAR</label>${chips('shoes', SHOES.map((t, i) => [t, i]), L.shoes ?? 0)}${sw('boots', L.boots)}
+        <label>GLOVES</label>${sw('gloves', L.gloves)}<label>BELT</label>${sw('belt', L.belt ?? '#3b2618')}
+        <label>HEADWEAR</label>${chips('hat', HATS, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' ? sw('hatColor', L.hatColor) : ''}`;
     }
     const changed = () => { this.ctx.sfx('click'); this.ctx.preview(this.look); this.renderPane(); };
     pane.querySelectorAll<HTMLElement>('.sw').forEach((b) => b.addEventListener('click', () => {
@@ -396,9 +435,16 @@ export class Frontend {
     pane.querySelectorAll<HTMLElement>('[data-o]').forEach((b) => b.addEventListener('click', () => { this.origin = b.dataset.o!; this.ctx.sfx('click'); this.renderPane(); }));
     pane.querySelectorAll<HTMLElement>('[data-age]').forEach((b) => b.addEventListener('click', () => { this.look.age = AGES[Number(b.dataset.age)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-hs]').forEach((b) => b.addEventListener('click', () => { this.look.hairStyle = Number(b.dataset.hs); changed(); }));
+    const pickNum = (attr: string, key: 'facial' | 'brows' | 'top' | 'legs' | 'shoes', items: unknown[]) => pane.querySelectorAll<HTMLElement>(`[data-${attr}]`).forEach((b) => b.addEventListener('click', () => {
+      this.look[key] = Number(b.dataset[attr]);
+      if (key === 'facial') this.look.beard = this.look.facial! > 0;
+      void items; changed();
+    }));
+    pickNum('facial', 'facial', FACIAL); pickNum('brows', 'brows', BROWS); pickNum('top', 'top', TOPS); pickNum('legs', 'legs', LEGS); pickNum('shoes', 'shoes', SHOES);
+    pane.querySelectorAll<HTMLElement>('[data-frame]').forEach((b) => b.addEventListener('click', () => { this.look.frame = Number(b.dataset.frame) === 1 ? 'f' : 'm'; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = HATS[Number(b.dataset.hat)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
-    pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'beard' | 'lashes'; this.look[k] = !this.look[k]; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
     pane.querySelectorAll<HTMLInputElement>('[data-s]').forEach((s) => s.addEventListener('input', () => {
       this.look[s.dataset.s as 'build' | 'height'] = Number(s.value);
       this.ctx.preview(this.look);

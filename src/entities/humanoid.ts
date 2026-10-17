@@ -13,8 +13,31 @@ export interface Appearance {
   cape?: string | null;
   beard?: boolean;
   apron?: boolean;
-  hat?: 'none' | 'hood' | 'cap' | 'kerchief';
+  hat?: 'none' | 'hood' | 'cap' | 'kerchief' | 'wide' | 'straw' | 'beret' | 'circlet' | 'coif' | 'band';
   hatColor?: string;
+  /** Body shape: the broader-shouldered frame, or the narrower one with a fuller chest and hips. */
+  frame?: 'm' | 'f';
+  /** 0 none, 1 full beard, 2 stubble, 3 moustache, 4 goatee, 5 chinstrap, 6 long beard, 7 mutton chops, 8 forked beard. Old saves use `beard`. */
+  facial?: number;
+  /** 0 straight, 1 heavy, 2 arched, 3 fine. */
+  brows?: number;
+  freckles?: boolean;
+  scar?: boolean;
+  /** Face paint colour (a band across the eyes), or none. */
+  paint?: string | null;
+  /** Earring metal, or none. */
+  earring?: string | null;
+  /** 0 tunic, 1 doublet, 2 robe, 3 vest over a shirt, 4 gambeson, 5 gown, 6 jerkin, 7 long coat. */
+  top?: number;
+  /** The second cloth: sleeves, the shirt under a vest, a gown's bodice. */
+  shirt?: string;
+  /** 0 trousers, 1 breeches and hose, 2 kilt, 3 wide trousers. */
+  legs?: number;
+  hose?: string;
+  /** 0 boots, 1 tall boots, 2 shoes. */
+  shoes?: number;
+  gloves?: string | null;
+  belt?: string;
   build?: number; // 0.9 slim .. 1.15 broad
   height?: number;
   shoulderPads?: string | null;
@@ -74,9 +97,16 @@ function faceTexture(a: Appearance): THREE.CanvasTexture {
   // Soft cheek shading
   x.fillStyle = shade(a.skin, 0.93); x.fillRect(0, 22, 32, 10);
   x.fillStyle = 'rgba(220,90,90,0.18)'; x.fillRect(5, 19, 5, 3); x.fillRect(22, 19, 5, 3);
-  // Brows
+  // Brows, in four shapes
   const brow = (a.age ?? 0) > 0.6 ? '#cfcac0' : shade(a.hair, 0.8);
-  x.fillStyle = brow; x.fillRect(6, 10, 7, 2); x.fillRect(19, 10, 7, 2);
+  x.fillStyle = brow;
+  switch (a.brows ?? 0) {
+    case 1: x.fillRect(5, 9, 8, 3); x.fillRect(19, 9, 8, 3); break;
+    case 2: x.fillRect(6, 10, 2, 1); x.fillRect(8, 9, 4, 1); x.fillRect(12, 10, 1, 1); x.fillRect(19, 10, 1, 1); x.fillRect(20, 9, 4, 1); x.fillRect(24, 10, 2, 1); break;
+    case 3: x.fillRect(7, 10, 5, 1); x.fillRect(20, 10, 5, 1); break;
+    default: x.fillRect(6, 10, 7, 2); x.fillRect(19, 10, 7, 2);
+  }
+  if (a.paint) { x.fillStyle = a.paint; x.fillRect(3, 12, 26, 6); }
   // Eyes
   x.fillStyle = '#f6f2ea'; x.fillRect(7, 13, 6, 4); x.fillRect(19, 13, 6, 4);
   x.fillStyle = a.eyes; x.fillRect(9, 13, 3, 4); x.fillRect(20, 13, 3, 4);
@@ -88,15 +118,24 @@ function faceTexture(a: Appearance): THREE.CanvasTexture {
   x.fillStyle = shade(a.skin, 0.6); x.fillRect(12, 24, 8, 1);
   x.fillStyle = shade(a.skin, 0.75); x.fillRect(13, 25, 6, 1);
   if ((a.age ?? 0) > 0.5) { x.fillStyle = shade(a.skin, 0.85); x.fillRect(5, 17, 3, 1); x.fillRect(24, 17, 3, 1); x.fillRect(8, 8, 16, 1); }
-  if (a.beard) {
-    x.fillStyle = a.hair;
-    x.fillRect(3, 21, 26, 11); x.fillRect(10, 20, 12, 3);
-    x.fillStyle = shade(a.skin, 0.55); x.fillRect(12, 24, 8, 2);
-  }
+  if (a.freckles) { x.fillStyle = shade(a.skin, 0.78); for (const [fx, fy] of [[7, 18], [9, 19], [11, 18], [21, 18], [23, 19], [25, 18], [8, 20], [24, 20]]) x.fillRect(fx, fy, 1, 1); }
+  if (a.scar) { x.fillStyle = shade(a.skin, 0.68); for (let i = 0; i < 7; i++) x.fillRect(21 + Math.floor(i / 2), 8 + i * 2, 1, 2); }
+  const fh = facialOf(a), hc = a.hair, lip = shade(a.skin, 0.55);
+  if (fh === 1 || fh === 6 || fh === 8) { x.fillStyle = hc; x.fillRect(3, 21, 26, 11); x.fillRect(10, 20, 12, 3); x.fillStyle = lip; x.fillRect(12, 24, 8, 2); }
+  if (fh === 2) { x.fillStyle = 'rgba(40,28,20,0.28)'; x.fillRect(4, 21, 24, 11); }
+  if (fh === 3 || fh === 4) { x.fillStyle = hc; x.fillRect(10, 21, 12, 2); x.fillRect(9, 22, 2, 2); x.fillRect(21, 22, 2, 2); }
+  if (fh === 4) { x.fillStyle = hc; x.fillRect(13, 26, 6, 6); }
+  if (fh === 5) { x.fillStyle = hc; x.fillRect(3, 18, 3, 12); x.fillRect(26, 18, 3, 12); x.fillRect(5, 28, 22, 4); }
+  if (fh === 7) { x.fillStyle = hc; x.fillRect(3, 16, 5, 14); x.fillRect(24, 16, 5, 14); x.fillRect(8, 21, 16, 2); }
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter;
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+/** Facial hair, reading old saves that only had a beard on or off. */
+function facialOf(a: Appearance): number {
+  return a.facial ?? (a.beard ? 1 : 0);
 }
 
 function heldMesh(kind: HeldItem): THREE.Group {
@@ -192,34 +231,74 @@ export class Humanoid {
     };
 
     // Hips sit at the top of the legs; everything hangs from here.
+    const fem = look.frame === 'f';
+    const top = look.top ?? 0, legs = look.legs ?? 0, shoes = look.shoes ?? 0;
+    const shirt = look.shirt ?? shade(look.trim, 0.9), hose = look.hose ?? shade(look.trousers, 0.8), belt = look.belt ?? '#3b2618';
+    const long = top === 2 || top === 5; // robe and gown reach the shins
     this.hips.position.y = 0.86;
     this.body.add(this.hips);
-    part(this.hips, rbox(0.5 * build, 0.2, 0.3, 0.05), look.trousers, 0, 0, 0);
+    part(this.hips, rbox((fem ? 0.54 : 0.5) * build, 0.2, 0.3, 0.05), look.trousers, 0, 0, 0);
 
     for (const [leg, shin, side] of [[this.legL, this.shinL, 1], [this.legR, this.shinR, -1]] as const) {
       leg.position.set(0.13 * side * build, -0.04, 0);
       this.hips.add(leg);
-      part(leg, rbox(0.22, 0.42, 0.24, 0.05), look.trousers, 0, -0.2, 0);
+      const thigh = legs === 3 ? 0.26 : 0.22;
+      part(leg, rbox(thigh, 0.42, thigh + 0.02, 0.05), legs === 2 ? hose : look.trousers, 0, -0.2, 0);
       shin.position.set(0, -0.4, 0);
       leg.add(shin);
-      part(shin, rbox(0.21, 0.24, 0.23, 0.05), look.trousers, 0, -0.1, 0);
-      part(shin, rbox(0.25, 0.22, 0.32, 0.06), look.boots, 0, -0.32, 0.03);
+      // Lower leg: trousers, or hose under breeches and kilts
+      part(shin, rbox(legs === 3 ? 0.25 : 0.21, 0.24, legs === 3 ? 0.27 : 0.23, 0.05), legs === 1 || legs === 2 ? hose : look.trousers, 0, -0.1, 0);
+      if (shoes === 1) part(shin, rbox(0.25, 0.42, 0.27, 0.05), look.boots, 0, -0.18, 0.01); // tall boots to the knee
+      if (shoes === 2) {
+        part(shin, rbox(0.22, 0.12, 0.31, 0.04), look.boots, 0, -0.37, 0.04);
+      } else {
+        part(shin, rbox(0.25, 0.22, 0.32, 0.06), look.boots, 0, -0.32, 0.03);
+      }
       part(shin, rbox(0.27, 0.06, 0.34, 0.03), shade(look.boots, 0.7), 0, -0.41, 0.03);
+    }
+    // A kilt over the thighs, pleated
+    if (legs === 2 && !long) {
+      part(this.hips, rbox(0.56 * build, 0.38, 0.34, 0.04), look.trousers, 0, -0.18, 0);
+      for (let i = -2; i <= 2; i++) part(this.hips, rbox(0.02, 0.36, 0.35, 0.005), shade(look.trousers, 0.75), i * 0.1 * build, -0.18, 0);
     }
 
     this.torso.position.y = 0.06;
     this.hips.add(this.torso);
-    part(this.torso, rbox(0.54 * build, 0.38, 0.32, 0.06), look.tunic, 0, 0.36, 0);
-    part(this.torso, rbox(0.6 * build, 0.24, 0.34, 0.07), look.tunic, 0, 0.58, 0);
-    part(this.torso, rbox(0.56 * build, 0.09, 0.35, 0.03), '#3b2618', 0, 0.16, 0);
+    // The upper body, by cut: a vest shows its shirt, a doublet is closer-fitted and buttoned
+    const body = top === 3 ? shirt : look.tunic;
+    const chestW = (fem ? 0.5 : 0.6) * build, waistW = (fem ? 0.46 : 0.54) * build;
+    part(this.torso, rbox(waistW, 0.38, 0.32, 0.06), body, 0, 0.36, 0);
+    part(this.torso, rbox(chestW, 0.24, 0.34, 0.07), body, 0, 0.58, 0);
+    if (fem) part(this.torso, rbox(0.4 * build, 0.15, 0.08, 0.04), body, 0, 0.5, 0.16);
+    part(this.torso, rbox(waistW + 0.02, 0.09, 0.35, 0.03), belt, 0, 0.16, 0);
     part(this.torso, rbox(0.1, 0.08, 0.04, 0.015), '#c8a040', 0, 0.16, 0.18);
-    // Tunic skirt below the belt
-    part(this.torso, rbox(0.56 * build, 0.2, 0.34, 0.04), shade(look.tunic, 0.9), 0, 0.03, 0);
+    const hem = shade(look.tunic, 0.9);
+    if (top === 0 || top === 4 || top === 6) part(this.torso, rbox(waistW + 0.02, 0.2, 0.34, 0.04), hem, 0, 0.03, 0); // skirt below the belt
+    if (top === 1) for (let i = 0; i < 4; i++) part(this.torso, rbox(0.04, 0.04, 0.02, 0.01), look.trim, 0, 0.62 - i * 0.12, 0.17);
+    if (top === 3) {
+      // The vest: two front panels and a back over the shirt
+      for (const side of [1, -1]) part(this.torso, rbox(0.2 * build, 0.5, 0.05, 0.02), look.tunic, side * 0.15 * build, 0.45, 0.16);
+      part(this.torso, rbox(chestW, 0.5, 0.05, 0.02), look.tunic, 0, 0.45, -0.17);
+    }
+    if (top === 4) for (let i = 0; i < 4; i++) part(this.torso, rbox(waistW + 0.03, 0.015, 0.345, 0.005), shade(look.tunic, 0.78), 0, 0.28 + i * 0.12, 0);
+    if (top === 6) for (const side of [1, -1]) part(this.torso, rbox(0.06, 0.62, 0.35, 0.01), belt, side * 0.1, 0.42, 0, );
+    if (long) {
+      // Robe and gown: a long skirt from the belt to the shins, a gown flaring wider
+      const w = (top === 5 ? 0.66 : 0.58) * build;
+      part(this.hips, rbox(w, 0.72, top === 5 ? 0.46 : 0.38, 0.06), top === 5 ? look.tunic : hem, 0, -0.32, 0);
+      part(this.hips, rbox(w + 0.02, 0.05, (top === 5 ? 0.46 : 0.38) + 0.02, 0.02), look.trim, 0, -0.66, 0);
+      if (top === 5) part(this.torso, rbox(0.12, 0.42, 0.02, 0.01), shirt, 0, 0.44, 0.17); // laced bodice
+    }
+    if (top === 7) {
+      // Long coat: tails at the back to the knee, and lapels
+      part(this.torso, rbox(chestW, 0.6, 0.05, 0.02), look.tunic, 0, -0.12, -0.17);
+      for (const side of [1, -1]) part(this.torso, rbox(0.08, 0.4, 0.03, 0.01), look.trim, side * 0.12, 0.5, 0.17);
+    }
     // Collar trim
     part(this.torso, rbox(0.3, 0.06, 0.34, 0.02), look.trim, 0, 0.71, 0);
     if (look.apron) part(this.torso, rbox(0.42, 0.62, 0.04, 0.02), '#5a3a24', 0, 0.28, 0.18);
     if (look.shoulderPads) {
-      for (const side of [1, -1]) part(this.torso, rbox(0.26, 0.15, 0.36, 0.06), look.shoulderPads, side * 0.34 * build, 0.68, 0);
+      for (const side of [1, -1]) part(this.torso, rbox(0.26, 0.15, 0.36, 0.06), look.shoulderPads, side * (fem ? 0.3 : 0.34) * build, 0.68, 0);
     }
 
     // Head
@@ -240,20 +319,27 @@ export class Humanoid {
     this.eyeLids.position.set(0, 0.29, 0.215);
     this.eyeLids.visible = false;
     this.head.add(this.eyeLids);
-    // Ears
+    // Ears, and an earring
     for (const side of [1, -1]) part(this.head, rbox(0.06, 0.12, 0.08, 0.02), look.skin, side * 0.23, 0.27, 0);
+    if (look.earring) part(this.head, rbox(0.03, 0.06, 0.03, 0.01), look.earring, 0.25, 0.18, 0.01);
+    // Beards that hang below the chin
+    const fh = facialOf(look);
+    if (fh === 6) part(this.head, rbox(0.3, 0.26, 0.14, 0.05), look.hair, 0, 0.0, 0.17);
+    if (fh === 8) for (const side of [1, -1]) part(this.head, rbox(0.1, 0.24, 0.1, 0.03), look.hair, side * 0.07, -0.02, 0.17);
     this.buildHair(part);
 
     // Arms
+    // Sleeves are the shirt's under a doublet, vest or jerkin
+    const sleeve = top === 1 || top === 3 || top === 6 ? shirt : look.tunic;
     for (const [arm, fore, side] of [[this.armL, this.foreL, 1], [this.armR, this.foreR, -1]] as const) {
-      arm.position.set(0.37 * side * build, 0.64, 0);
+      arm.position.set((fem ? 0.33 : 0.37) * side * build, 0.64, 0);
       this.torso.add(arm);
-      part(arm, rbox(0.18, 0.32, 0.2, 0.05), look.tunic, 0, -0.13, 0);
+      part(arm, rbox(fem ? 0.16 : 0.18, 0.32, fem ? 0.18 : 0.2, 0.05), sleeve, 0, -0.13, 0);
       fore.position.set(0, -0.3, 0);
       arm.add(fore);
-      part(fore, rbox(0.17, 0.26, 0.19, 0.05), shade(look.tunic, 0.95), 0, -0.1, 0);
+      part(fore, rbox(fem ? 0.15 : 0.17, 0.26, fem ? 0.17 : 0.19, 0.05), shade(sleeve, 0.95), 0, -0.1, 0);
       part(fore, rbox(0.19, 0.07, 0.21, 0.02), look.trim, 0, -0.2, 0);
-      part(fore, rbox(0.16, 0.15, 0.17, 0.05), look.skin, 0, -0.3, 0);
+      part(fore, rbox(0.16, 0.15, 0.17, 0.05), look.gloves ?? look.skin, 0, -0.3, 0);
     }
     this.handR.position.set(0, -0.32, 0.02);
     this.foreR.add(this.handR);
@@ -273,24 +359,78 @@ export class Humanoid {
     const h = this.look.hair;
     const hat = this.look.hat ?? 'none';
     const style = this.look.hairStyle;
+    if (hat === 'coif') {
+      // A mail coif: the whole head but the face
+      const mail = this.look.hatColor ?? '#9aa0a8';
+      part(this.head, rbox(0.5, 0.18, 0.48, 0.08), mail, 0, 0.52, -0.01);
+      part(this.head, rbox(0.5, 0.5, 0.14, 0.05), mail, 0, 0.3, -0.18);
+      for (const s of [1, -1]) part(this.head, rbox(0.06, 0.52, 0.42, 0.03), mail, s * 0.25, 0.26, 0);
+      return;
+    }
     if (hat === 'hood') {
       part(this.head, rbox(0.52, 0.32, 0.5, 0.1), this.look.hatColor ?? '#4a5a3a', 0, 0.48, -0.02);
       part(this.head, rbox(0.52, 0.42, 0.18, 0.06), this.look.hatColor ?? '#4a5a3a', 0, 0.28, -0.18);
       for (const s of [1, -1]) part(this.head, rbox(0.06, 0.44, 0.44, 0.03), this.look.hatColor ?? '#4a5a3a', s * 0.25, 0.3, 0);
       return;
     }
-    if (style !== 3) {
+    // The base cap of hair (a shaved head has stubble only; a mohawk and an undercut keep the sides short)
+    const shaved = style === 3 || style === 9;
+    if (!shaved) {
       part(this.head, rbox(0.48, 0.14, 0.46, 0.06), h, 0, 0.53, -0.01);
       part(this.head, rbox(0.48, 0.34, 0.12, 0.04), h, 0, 0.36, -0.18);
-      for (const s of [1, -1]) part(this.head, rbox(0.06, 0.24, 0.36, 0.03), h, s * 0.235, 0.4, -0.03);
+      if (style !== 10) for (const s of [1, -1]) part(this.head, rbox(0.06, 0.24, 0.36, 0.03), h, s * 0.235, 0.4, -0.03);
       part(this.head, rbox(0.42, 0.08, 0.06, 0.03), h, 0, 0.5, 0.2);
     } else {
       part(this.head, rbox(0.45, 0.04, 0.43, 0.02), shade(h, 0.8), 0, 0.51, 0);
+    }
+    switch (style) {
+      case 5: // bob: to the jaw all round
+        for (const s of [1, -1]) part(this.head, rbox(0.08, 0.36, 0.4, 0.04), h, s * 0.24, 0.3, -0.02);
+        part(this.head, rbox(0.48, 0.36, 0.1, 0.04), h, 0, 0.3, -0.2);
+        break;
+      case 6: // ponytail
+        part(this.head, rbox(0.12, 0.12, 0.12, 0.04), h, 0, 0.44, -0.26);
+        part(this.head, rbox(0.1, 0.42, 0.1, 0.04), h, 0, 0.18, -0.3);
+        break;
+      case 7: // bun
+        part(this.head, rbox(0.2, 0.18, 0.18, 0.08), h, 0, 0.5, -0.27);
+        break;
+      case 8: // curls
+        for (const [cx, cy, cz] of [[-0.16, 0.6, 0.06], [0, 0.62, 0.08], [0.16, 0.6, 0.06], [-0.2, 0.58, -0.12], [0.2, 0.58, -0.12], [0, 0.6, -0.16], [-0.24, 0.42, -0.04], [0.24, 0.42, -0.04]]) part(this.head, rbox(0.14, 0.14, 0.14, 0.06), h, cx, cy, cz);
+        break;
+      case 9: // mohawk
+        part(this.head, rbox(0.1, 0.16, 0.5, 0.04), h, 0, 0.6, -0.02);
+        break;
+      case 10: // undercut: long on top, swept over
+        part(this.head, rbox(0.42, 0.1, 0.44, 0.05), h, 0.04, 0.6, 0);
+        part(this.head, rbox(0.12, 0.16, 0.3, 0.04), h, 0.2, 0.52, 0.02);
+        break;
+      case 11: // twin tails
+        for (const s of [1, -1]) { part(this.head, rbox(0.1, 0.1, 0.1, 0.03), h, s * 0.26, 0.48, -0.12); part(this.head, rbox(0.09, 0.4, 0.09, 0.03), h, s * 0.3, 0.24, -0.14); }
+        break;
+      case 12: // wild mane
+        part(this.head, rbox(0.56, 0.2, 0.52, 0.08), h, 0, 0.56, -0.03);
+        part(this.head, rbox(0.56, 0.6, 0.16, 0.06), h, 0, 0.2, -0.22);
+        for (const s of [1, -1]) part(this.head, rbox(0.1, 0.5, 0.34, 0.05), h, s * 0.26, 0.24, -0.06);
+        break;
     }
     if (style === 1) part(this.head, rbox(0.46, 0.5, 0.1, 0.04), h, 0, 0.18, -0.22);
     if (style === 2) { part(this.head, rbox(0.18, 0.18, 0.18, 0.07), h, 0, 0.66, -0.06); part(this.head, rbox(0.1, 0.06, 0.1, 0.02), '#a8442e', 0, 0.58, -0.06); }
     if (style === 4) for (const s of [1, -1]) { part(this.head, rbox(0.1, 0.5, 0.1, 0.04), h, s * 0.2, 0.08, -0.15); part(this.head, rbox(0.11, 0.05, 0.11, 0.02), '#e2c070', s * 0.2, -0.15, -0.15); }
     if (hat === 'cap') part(this.head, rbox(0.5, 0.12, 0.5, 0.05), this.look.hatColor ?? '#6a3a2a', 0, 0.58, 0);
+    if (hat === 'wide' || hat === 'straw') {
+      const c = hat === 'straw' ? '#d8b860' : this.look.hatColor ?? '#3a3a32';
+      part(this.head, rbox(0.8, 0.04, 0.8, 0.02), c, 0, 0.56, 0);
+      part(this.head, rbox(0.44, 0.2, 0.44, 0.06), c, 0, 0.66, 0);
+      part(this.head, rbox(0.45, 0.05, 0.45, 0.02), hat === 'straw' ? '#a8382c' : shade(c, 0.6), 0, 0.6, 0);
+    }
+    if (hat === 'beret') { const c = this.look.hatColor ?? '#2e3a5a'; const b = part(this.head, rbox(0.5, 0.1, 0.48, 0.05), c, -0.04, 0.6, 0); b.rotation.z = 0.15; }
+    if (hat === 'circlet') {
+      const c = this.look.hatColor === '#d8d0b8' ? '#d8d0b8' : '#d8b04a';
+      part(this.head, rbox(0.47, 0.04, 0.45, 0.01), c, 0, 0.47, 0);
+      part(this.head, rbox(0.06, 0.06, 0.03, 0.01), '#5fd0e6', 0, 0.48, 0.23);
+    }
+    if (hat === 'band') part(this.head, rbox(0.47, 0.06, 0.45, 0.02), this.look.hatColor ?? '#a8382c', 0, 0.46, 0);
     if (hat === 'kerchief') { part(this.head, rbox(0.5, 0.14, 0.48, 0.06), this.look.hatColor ?? '#a8382c', 0, 0.55, -0.02); part(this.head, rbox(0.14, 0.14, 0.08, 0.03), this.look.hatColor ?? '#a8382c', 0, 0.42, -0.26); }
   }
 

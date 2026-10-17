@@ -59,11 +59,15 @@ const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
 function townsLook(): Appearance {
   const r = Math.random();
+  const fem = Math.random() < 0.5;
   return {
-    skin: pick(POOLS.skin), hair: pick(POOLS.hair), hairStyle: Math.floor(Math.random() * 5), eyes: pick(['#3a5a7a', '#4a3a2a', '#3a5a3a', '#5a4a3a']),
+    frame: fem ? 'f' : 'm', facial: !fem && Math.random() < 0.4 ? 1 + Math.floor(Math.random() * 8) : 0,
+    top: pick([0, 0, 1, 2, 3, 4, 6, 7, ...(fem ? [5, 5] : [])]), shirt: pick(POOLS.trim), legs: pick([0, 0, 1, 3]), hose: pick(POOLS.trim),
+    shoes: pick([0, 0, 1, 2]), brows: Math.floor(Math.random() * 4), freckles: Math.random() < 0.15,
+    skin: pick(POOLS.skin), hair: pick(POOLS.hair), hairStyle: Math.floor(Math.random() * 13), eyes: pick(['#3a5a7a', '#4a3a2a', '#3a5a3a', '#5a4a3a']),
     tunic: pick(POOLS.tunic), trim: pick(POOLS.trim), trousers: pick(POOLS.trousers), boots: pick(POOLS.boots),
     cape: Math.random() < 0.12 ? pick(POOLS.tunic) : null,
-    beard: Math.random() < 0.3, lashes: Math.random() < 0.5, apron: Math.random() < 0.18,
+    lashes: fem, apron: Math.random() < 0.18,
     hat: r < 0.18 ? 'cap' : r < 0.3 ? 'kerchief' : r < 0.36 ? 'hood' : 'none', hatColor: pick(POOLS.hatColor),
     build: 0.9 + Math.random() * 0.24, height: 0.9 + Math.random() * 0.16, age: Math.random() < 0.15 ? 0.85 : Math.random() * 0.6,
   };

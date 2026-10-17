@@ -622,6 +622,18 @@ export class Game implements GameApi {
         if (id === g.charId) g.selectCharacter(listCharacters()[0]?.id ?? null);
       },
       create: (name, look, origin) => g.newGame(name, look, origin),
+      restyle: (id, look) => {
+        // A new look for a character already made: saved here and sent up to the account
+        const c = listCharacters().find((x) => x.id === id);
+        if (!c) return;
+        c.save.look = look;
+        writeSave(c.save, saveKeyFor(id));
+        void uploadSave(c.save, true);
+        g.previewLook(null);
+        g.charId = null;
+        g.selectCharacter(id);
+        g.front.showSelect();
+      },
       preview: (look) => {
         if (look) { g.previewSpin = g.mode === 'creator' ? g.previewSpin : 0; g.previewLook(look, 'creator'); } else g.previewLook(null);
       },
