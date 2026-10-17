@@ -196,6 +196,7 @@ export class Tasks {
     t.spots.splice(t.spots.indexOf(s), 1);
     t.refill.push(this.clock + SPOT_BACK);
     this.host.sound('open');
+    this.host.daily?.('chore');
     this.advance(t.def, CHORE);
   }
 

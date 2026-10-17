@@ -6,6 +6,7 @@ import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
 import { WMIN } from '../world/VoxelWorld';
 import { POSTS } from '../data/travel';
+import type { DailyView } from '../game/Dailies';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
 /** Minimap zoom steps, in CSS pixels per block, and the CSS width they're measured across. */
@@ -104,6 +105,8 @@ export interface UiCtx {
   inv: Inventory;
   level(s: SkillId): number;
   useSlot(i: number): void;
+  daily(): DailyView;
+  claimLogin(): void;
   feats(): FeatView[];
   /** Wear a feat's title (null for none). */
   wearTitle(id: string | null): void;
@@ -464,6 +467,12 @@ export class Hud {
     this.q('.zone-label').textContent = name;
     if (region) this.region = region;
     this.q('#player-frame .pt').textContent = this.worn ?? this.region;
+  }
+
+  /** Open the journal on one of its pages (the login reward, a writ). */
+  openJournalAt(page: string): void {
+    this.selQuest = page;
+    if (!this.isOpen('journal')) this.toggle('journal'); else this.renderJournal();
   }
 
   /** The title worn under the player's name, in place of the region. */
@@ -883,7 +892,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -901,11 +910,45 @@ export class Hud {
     const pl = el('div', 'ji' + (this.selQuest === 'places' ? ' sel' : ''), 'Places found');
     pl.addEventListener('click', () => { this.selQuest = 'places'; this.renderJournal(); });
     list.append(pl);
+    list.append(el('h6', '', 'DAILY ROUND'));
+    for (const [id, label] of [['writs', 'Charter writs'], ['login', 'Login rewards']] as const) {
+      const d = this.ctx.daily();
+      const dot = id === 'login' ? !d.login.claimedToday : d.writs.some((w) => !w.done);
+      const ji = el('div', 'ji' + (this.selQuest === id ? ' sel' : ''), esc(label) + (dot ? ' <span class="dot-new">●</span>' : ''));
+      ji.addEventListener('click', () => { this.selQuest = id; this.renderJournal(); });
+      list.append(ji);
+    }
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
     const page = el('div', 'jbody');
-    if (this.selQuest === 'feats') {
+    if (this.selQuest === 'writs' || this.selQuest === 'login') {
+      const d = this.ctx.daily();
+      const h = Math.floor(d.resetIn / 3600), m = Math.floor((d.resetIn % 3600) / 60);
+      if (this.selQuest === 'writs') {
+        page.innerHTML = `<h4>Charter writs</h4><div class="feat-sum">Three a day, the same for everyone. New ones in ${h}h ${m}m.${d.bundleDone ? ' All three done today.' : ' Finish all three for a bundle on top.'}</div>`;
+        for (const w of d.writs) {
+          const row = el('div', 'feat' + (w.done ? ' done' : ''));
+          row.innerHTML = `<div class="ft"><b>${esc(w.name)}</b><span>${w.done ? 'Done' : `${w.have.toLocaleString()} / ${w.need.toLocaleString()}`}</span></div><div class="fd">${esc(w.desc)}</div>${w.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (w.have / w.need) * 100)}%"></i></div>`}<div class="fr">${w.marks} marks and experience</div>`;
+          page.append(row);
+        }
+      } else {
+        const L = d.login;
+        page.innerHTML = `<h4>Login rewards</h4><div class="feat-sum">A reward for each day you play this month (${L.count} of ${L.track.length} taken). The track starts again next month.</div>`;
+        const grid = el('div', 'login-grid');
+        L.track.forEach((r, i) => {
+          const cell = el('div', 'lday' + (i < L.count ? ' got' : '') + (i === L.count && !L.claimedToday ? ' today' : '') + (r.rare ? ' rare' : ''));
+          cell.innerHTML = `<small>Day ${i + 1}</small><span>${esc(r.label)}</span>`;
+          grid.append(cell);
+        });
+        page.append(grid);
+        const claim = el('button', 'btn' + (L.claimedToday ? ' ghost' : ''), L.claimedToday ? `Come back in ${h}h ${m}m` : L.count >= L.track.length ? 'All taken this month' : `Claim day ${L.count + 1}`) as HTMLButtonElement;
+        claim.disabled = L.claimedToday || L.count >= L.track.length;
+        claim.classList.add('claim');
+        claim.addEventListener('click', () => { this.ctx.claimLogin(); this.renderJournal(); });
+        page.append(claim);
+      }
+    } else if (this.selQuest === 'feats') {
       const fs = this.ctx.feats();
       const done = fs.filter((f) => f.done).length;
       page.innerHTML = `<h4>Feats</h4><div class="feat-sum">${done} of ${fs.length} done. Each pays out once and gives you a title to wear.</div>`;

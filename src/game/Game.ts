@@ -23,6 +23,7 @@ import { Particles } from '../systems/Particles';
 import { CreatureModel } from '../entities/creatures';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
+import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
@@ -142,6 +143,14 @@ export class Game implements GameApi {
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
   private crowd!: Crowd;
+  readonly dailies = new Dailies({
+    flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+    addMarks: (n) => this.addMarks(n), addXp: (s, n) => { this.writXp = true; this.addXp(s, n); this.writXp = false; },
+    give: (it, n) => this.give(it, n), banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), sound: () => this.sfx('quest'),
+  });
+  /** Set while a writ pays its experience, so the payment doesn't count toward other writs. */
+  private writXp = false;
+  private travelled = 0;
   private waymarkStones!: Waymarks;
   private weatherT = 0;
   /** The horse under the player, while riding. */
@@ -283,6 +292,7 @@ export class Game implements GameApi {
     });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.activities = new Activities({
+      daily: (k) => this.dailies.bump(k),
       killed: (e) => this.onEnemyKilled(e),
       shared: {
         on: () => !!this.online?.online,
@@ -504,6 +514,7 @@ export class Game implements GameApi {
 
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
+    if (!this.writXp && skill !== 'melee') this.dailies.bump(`xp:${skill}`, Math.round(amount));
     const before = this.level(skill);
     this.save.xp[skill] += Math.round(amount);
     const after = this.level(skill);
@@ -575,6 +586,8 @@ export class Game implements GameApi {
       get currentStation() { return g.currentStation; },
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
+      daily: () => g.dailies.view(),
+      claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
       feats: () => {
         const api = g.featApi();
         const worn = g.flag('title');
@@ -827,6 +840,12 @@ export class Game implements GameApi {
     this.audio.unlock();
     this.hud.setTracker(this.questEntries());
     if (this.online.enabled && this.online.status === 'off') this.online.connect(this.save.name, this.save.look, this.save.playTime);
+    // The day's login reward, waiting in the journal
+    if (this.dailies.loginReady) setTimeout(() => {
+      if (this.mode !== 'play' || !this.dailies.loginReady) return;
+      this.hud.system('A login reward is waiting. Open the journal (J), Daily round.');
+      this.hud.openJournalAt('login');
+    }, 2500);
     if (this.arriving) {
       this.hud.banner(this.arriving, this.arrivingBy === 'waymark' ? 'By waymark' : 'The post cart sets you down');
       this.arriving = null;
@@ -1833,6 +1852,7 @@ export class Game implements GameApi {
   }
 
   private onEnemyKilled(e: Enemy): void {
+    this.dailies.bump('kill');
     this.activities.onKilled(e);
     this.addXp('melee', e.def.xp);
     const [lo, hi] = e.def.marks;
@@ -2258,6 +2278,8 @@ export class Game implements GameApi {
     P.swimAim = THREE.MathUtils.clamp((0.32 - this.rig.pitch) * 1.2, -1.2, 1.2);
     const fall = P.update(dt, mv, speed, jump);
     if (P.swimming !== wasSwimming) document.body.classList.toggle('swimming', P.swimming);
+    this.travelled += P.speed * dt;
+    if (this.travelled >= 50) { this.dailies.bump('travel', Math.floor(this.travelled)); this.travelled %= 1; }
     document.body.classList.toggle('riding', !!this.horse);
     if (this.horse) {
       if (P.swimming || !this.roomForHorse()) this.dismount();

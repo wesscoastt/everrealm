@@ -37,6 +37,8 @@ export interface ActivityHost {
   setEvent(panel: EventPanel | null): void;
   /** An enemy fell other than by the player's blow (a shared boss): run the game's kill handling. */
   killed?(e: Enemy): void;
+  /** Work toward the day's writs. */
+  daily?(kind: 'event' | 'chore'): void;
   /** Online: the world boss's health is the server's, shared with every player there. */
   shared?: {
     on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void;
@@ -239,6 +241,7 @@ export class Activities {
     const best = this.host.flag('ev:' + ev.def.id);
     if (best !== 'Gold' && !(best === 'Silver' && medal === 'Bronze')) this.host.setFlag('ev:' + ev.def.id, medal);
     this.host.sound('levelUp');
+    this.host.daily?.('event');
   }
 
   // ---------------------------------------------------------------- World bosses

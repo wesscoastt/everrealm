@@ -104,6 +104,12 @@ Twenty carved stones with a band of blue runes stand by every Charter Post stop,
 
 Each region has its own climate, and the weather changes every seven minutes on a clock every player shares. The Fleet coast is the wettest and gets sea frets, the Raddle Barrens hardly ever see rain, and Scarth snows, sometimes in a blizzard. Morning mist lies in the valleys and burns off by mid-morning. Grey skies dim and flatten the light and pull the fog in. Rain and snow fall round you, with the sound of rain, and heavy storms bring lightning and thunder. The weather shows with the time of day under the minimap.
 
+## The daily round
+
+The day turns over at midnight UTC, the same moment for every player. Both are in the journal (J) under *Daily round*.
+- **Login rewards**, in the manner of ESO and SWTOR: a 28-day track each month. Every day you play, you claim the next day on it, and missed days don't count against you. The track pays marks, food and materials, plus two horses you can only get there: the *Quarter-Day dun* on day 14 and the *Rent-Day roan* on day 28. The journal opens on the reward when one is waiting.
+- **Charter writs:** three daily tasks, the same for everyone, picked from the date. Examples: bring down creatures, earn Mining, Woodcutting, Fishing, Cooking or Smithing experience, do parish task chores, see an event through, or travel a long way. Each pays marks and experience, and finishing all three adds a bundle.
+
 ## Riding
 
 A halter calls a horse (G, or use it from the pack). Every horse runs at the same pace, nearly twice walking speed, and a gallop with Shift costs energy. They differ only in looks, so riding fits the horizontal progression:
