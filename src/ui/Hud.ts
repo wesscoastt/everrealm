@@ -1195,8 +1195,8 @@ export class Hud {
       }
     }
     this.q('#map-panel .footer').innerHTML = document.body.classList.contains('touch')
-      ? '<span>Pinch to zoom · drag to pan · tap to set a waypoint · tap it again to clear it</span>'
-      : '<span>Wheel to zoom · drag to pan · click to set a waypoint · right-click to clear it</span><span>M to close</span>';
+      ? '<span>Pinch to zoom · drag to pan · tap a blue waymark to travel · tap elsewhere to set a waypoint</span>'
+      : '<span>Wheel to zoom · drag to pan · click a blue waymark to travel · click elsewhere for a waypoint (right-click clears it)</span><span>M to close</span>';
   }
 
   /** The map canvas, its zoom buttons and legend chips, and the mouse handling. */
