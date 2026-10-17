@@ -188,7 +188,7 @@ The game is a static site, and the world server is a small Node process. They're
 
 **The world server, on Render** (or any host that runs Node or containers and allows WebSockets).
 1. On render.com, choose *New > Blueprint* and pick this repository. `render.yaml` sets up a web service that runs `node server/server.mjs`, with a health check on `/health`.
-2. Choose a plan. The free plan sleeps after 15 idle minutes and takes about a minute to wake when someone connects. It also forgets its files on every restart, so accounts don't last. For a lasting realm, use the Starter plan, uncomment the disk in `render.yaml`, and set `EVERREALM_DATA` to a folder on it.
+2. Choose how the realm keeps its data. The free plan sleeps after 15 idle minutes, takes about a minute to wake when someone connects, and forgets its files on every restart. To keep accounts on the free plan, make a free Redis database at upstash.com and paste its REST URL and token into the service's `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. The server mirrors every write there and restores everything when it starts. Or use the Starter plan, uncomment the disk in `render.yaml`, and set `EVERREALM_DATA` to a folder on it.
 3. On GitHub, add a repository variable under *Settings > Secrets and variables > Actions > Variables*. Name it `VITE_REALM` and set it to `wss://<your-service>.onrender.com`.
 4. Re-run the Pages workflow. The hosted game then connects to that realm by default.
 

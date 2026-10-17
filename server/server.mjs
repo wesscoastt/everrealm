@@ -20,6 +20,10 @@
 //   DELETE /api/characters/<name>        -> {ok}
 //
 // Run: npm run server   (PORT, HOST and EVERREALM_DATA environment variables override the defaults)
+//
+// Hosts whose disk doesn't last (Render's free plan wipes it on every restart) can keep the realm
+// in Upstash Redis: set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. The files stay the
+// working copy; every write is mirrored to Redis, and on start the files are restored from it.
 
 import { WebSocketServer } from 'ws';
 import crypto from 'node:crypto';
@@ -54,8 +58,48 @@ const keyFor = (name) => name.toLowerCase().replace(/[^a-z0-9' -]/g, '').trim().
 const num = (v, lo, hi) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : null);
 
 // ---------------------------------------------------------------- Storage
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL, REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const MIRROR = !!(REDIS_URL && REDIS_TOKEN);
+async function redis(cmd) {
+  const r = await fetch(REDIS_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + REDIS_TOKEN }, body: JSON.stringify(cmd) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j.result;
+}
+/** The file's key in Redis: its path under the data folder. */
+const mirrorKey = (file) => 'er:' + path.relative(DATA, file).split(path.sep).join('/');
+function mirror(file, text) {
+  if (!MIRROR) return;
+  redis(text === null ? ['DEL', mirrorKey(file)] : ['SET', mirrorKey(file), text]).catch((e) => log('mirror failed:', e.message));
+}
+/** On start: bring every file back from Redis (the disk may be new and empty). */
+async function restore() {
+  if (!MIRROR) return;
+  try {
+    const keys = await redis(['KEYS', 'er:*']);
+    for (let i = 0; i < keys.length; i += 100) {
+      const part = keys.slice(i, i + 100);
+      const vals = await redis(['MGET', ...part]);
+      part.forEach((k, j) => {
+        if (vals[j] == null) return;
+        const file = path.join(DATA, ...k.slice(3).split('/'));
+        if (!file.startsWith(DATA)) return;
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, vals[j]);
+      });
+    }
+    log(`restored ${keys.length} records from Redis`);
+  } catch (e) { log('restore from Redis failed:', e.message); }
+}
+await restore();
+
 function readJson(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } }
-function writeJson(file, data) { fs.writeFileSync(file + '.tmp', JSON.stringify(data)); fs.renameSync(file + '.tmp', file); }
+function writeJson(file, data) {
+  const text = JSON.stringify(data);
+  fs.writeFileSync(file + '.tmp', text);
+  fs.renameSync(file + '.tmp', file);
+  mirror(file, text);
+}
 const loadChar = (key) => readJson(path.join(CHAR_DIR, key + '.json'));
 const storeChar = (key, rec) => writeJson(path.join(CHAR_DIR, key + '.json'), rec);
 const accKey = (user) => user.toLowerCase();
@@ -196,7 +240,7 @@ async function api(req, res) {
       return reply(res, 200, { ok: true });
     }
     if (req.method === 'DELETE') {
-      if (rec) fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true });
+      if (rec) { fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true }); mirror(path.join(CHAR_DIR, key + '.json'), null); }
       acc.chars = acc.chars.filter((k) => k !== key);
       storeAccount(acc);
       return reply(res, 200, { ok: true });

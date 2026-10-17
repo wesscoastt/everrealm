@@ -1,7 +1,9 @@
 # Render blueprint for the Everrealm world server (accounts, characters, other players).
 # New > Blueprint on render.com, pick this repository, and Render builds and runs it.
-# The free plan sleeps when idle and forgets its files on every restart, so accounts made there
-# don't last. For a realm that keeps them, switch to the Starter plan and uncomment the disk.
+# The free plan sleeps when idle and forgets its files on every restart. To keep accounts and
+# characters anyway, fill in the two Upstash Redis values (a free database at upstash.com): the
+# server mirrors every write there and restores from it on start. Or use the Starter plan with the
+# disk below.
 services:
   - type: web
     name: everrealm-realm
@@ -13,6 +15,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
       # With the disk below, also keep the realm's files on it:
       # - key: EVERREALM_DATA
       #   value: /var/data/everrealm
