@@ -12,6 +12,7 @@ npm run dev        # http://127.0.0.1:5188  (add ?debug for an fps/draw-call rea
 npm run build      # production build in dist/
 npm run quests     # play every quest headlessly down every branch; fails on dead ends, broken links, style breaks
 npm run quest-book -- greenwake   # review page for a region's side quests (after npm run quests)
+npm run balance    # plays each calling through four fights; fails if one is more than 7% off the rest overall
 npm run sites      # placement check: everyone and everything quests rely on stands on open ground; fences are solid
 ```
 
@@ -48,7 +49,7 @@ To hear the score without playing, open `/music-preview.html` on the dev server.
 | Space | Jump |
 | Click or 1 | Strike (three-hit combo) |
 | 2 | Cleave |
-| 3 | Second Wind |
+| 3, 4, 5 | Your calling's skills: heal or guard, signature, elite |
 | Q | Dodge roll (you can't be hit while rolling) |
 | Tab | Target the nearest enemy |
 | G | Call your horse, or get down |
@@ -95,6 +96,17 @@ The map also has about 50 scattered points of interest, plus regional ore seams,
 - **Far terrain.** Beyond the loaded area, a stepped low-resolution mesh of the whole continent fills in. Big landmarks have simple stand-ins until their chunks arrive.
 - **Map.** The world map and minimap paint in as you explore, and the explored area is saved.
 - **Code.** The terrain functions are in `src/world/terrain.ts`, the settlements in `src/world/sites.ts`, and the streaming in `src/game/ChunkManager.ts`.
+
+## Callings
+
+Four ways to fight, picked in the creator and changed any time out of a fight from the journal (J). Everyone shares Strike, Cleave, the roll and eating; a calling adds a mechanic and three skills on keys 3 to 5. They trade damage, safety and reach rather than one being stronger: `npm run balance` checks it, and every number lives in `TUNE` in `src/data/classes.ts` (runtime in `src/game/ClassKit.ts`).
+
+| Calling | Mechanic | 3 · sustain | 4 · signature | 5 · elite |
+| --- | --- | --- | --- | --- |
+| Warden | Resolve: each blow taken cuts the next by 5% (up to five) | Bulwark (shield) | Shield Bash (stun) | Oath of the Ring (40% less damage, burning ring) |
+| Reaver | Fury: full Fury makes the next skill hit 50% harder | Bloodletting (bleed that heals) | Leaping Cut (leap, area hit) | The Red Hour (+40% dealt, +20% taken) |
+| Ashcaller | Kindling: every third Ember Bolt bursts | Cinder Ward (heal and burn) | Ember Bolt (22-block range) | Starfall (big delayed area) |
+| Pathfinder | Mark: marked foes take 15% more from you | Field Dressing (big heal) | Volley (arrows and marks) | Shadowstep (behind the target, next Strike crits x3) |
 
 ## Waymarks
 
@@ -153,7 +165,7 @@ The score is original orchestral music, synthesised live in Web Audio (`src/syst
 | Menus | **Character select** is the main menu: up to six characters per browser, each shown with a face, origin, total level, region and play time. The selected character stands in Hollin Ford's square. Enter world, create, and delete (you type the name to confirm). A realm panel shows offline or the server you're connected to, checks whether it answers, and switches realm. Also What's new, Settings and Credits. Keyboard: arrows to choose, Enter to play. |
 | Character | Full-screen **creator** with tabs for Origin, Body, Face, Hair, Outfit and Gear. You can drag to turn the model, switch between full-body and face views, and randomise. **Origins:** Cotter's End (+10 marks), Gullmouth (Fishing 5), Harrowgate Works (Mining 5) or Fellers' Camp (Woodcutting 5).<ul><li>**Body:** a masculine or feminine frame, 12 skin tones, build and height sliders, and age.</li><li>**Face:** 9 eye colours, 4 brow shapes, lashes, freckles, a scar, face paint and an earring.</li><li>**Hair:** 13 styles in 16 colours, and 9 kinds of facial hair (stubble, moustache, goatee, chinstrap, mutton chops, full, long and forked beards).</li><li>**Outfit:** 8 tops (tunic, doublet, robe, vest, gambeson, gown, jerkin, long coat) with main, shirt and trim colours from 22 cloths, a cloak and shoulder pads.</li><li>**Gear:** 4 leg styles with hose, 3 kinds of footwear, gloves, a belt, and 10 kinds of headwear.</li></ul>**Change look** on the character screen restyles a character you already have. Name suggestions; names are checked for length, letters and duplicates. |
 | Intro | A new character sees a 40-second letterboxed arrival: Spill Falls, down the Wend to Hollin Ford, the empty bell frame, Sallow Pit, then the square. The captions include a line from the character's origin. Space or Esc skips. Data in `src/data/intro.ts`. |
-| Combat | Real-time three-hit combo, Cleave, Second Wind, and a dodge roll with i-frames: a dive, a tuck, one tumble over the shoulders and up through a crouch, kept in contact with the ground for every build and height. Enemy attacks are telegraphed (lunge, slam, charge), with hitstop, damage numbers, loot, death and respawn. |
+| Combat | Real-time three-hit combo, Cleave, four callings (see below), and a dodge roll with i-frames: a dive, a tuck, one tumble over the shoulders and up through a crouch, kept in contact with the ground for every build and height. Enemy attacks are telegraphed (lunge, slam, charge), with hitstop, damage numbers, loot, death and respawn. |
 | Enemies | There are fourteen kinds, with each region's creatures at its own level band. Hollindale has the vale wolf, Old Notch (elite), the mire jelly and the rustback. The other regions add the hedge boar, Turnpike wolf, thornback stalker, spore jelly, tide crab, brine jelly, dust wolf, redback, frost wolf and shard jelly. Settlements are kept clear of them. |
 | Skills | Mining, Smithing, Fishing, Cooking, Woodcutting and Melee, levelling 1 to 100. Higher tiers come from the wider world: iron ore, star crystal, elder oak, mackerel, sea bass and frost char, plus iron tools and an iron longsword. |
 | Main story | **The Charter's Debt**, six chapters:
