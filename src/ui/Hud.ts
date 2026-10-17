@@ -90,6 +90,7 @@ import type { Inventory, SaveData } from '../game/state';
 import { abilityIcon, itemIcon, shapeIcon } from './icons';
 import { CALLINGS, CallingDef, CallingId, callingById } from '../data/classes';
 import { callingCard } from './callingCard';
+import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
@@ -127,6 +128,10 @@ export interface UiCtx {
   /** Deletes the character being played and goes back to character select. */
   resetSave(): void;
   ability(i: number): void;
+  /** Play an emote (from the chat box's menu). */
+  emote(id: string): void;
+  /** Send what was typed in the chat box (lines and /commands). */
+  say(text: string): void;
   /** True on the menus (character select, creator), false in the world. */
   inMenu: boolean;
   mapImage: HTMLCanvasElement;
@@ -247,6 +252,7 @@ export class Hud {
 
     const tr = el('div', 'hud-only'); tr.id = 'tracker'; r.append(tr);
 
+    this.buildChat();
     const ab = el('div', 'hud-only'); ab.id = 'actionbar';
     const slot = (i: number, k: string, key: string, t: string) => `<div class="ab-slot" data-ab="${i}" title="${t} (${key})"><img src="${abilityIcon(k)}" alt=""><span class="key">${key}</span><div class="cd"></div><div class="cdt"></div></div>`;
     ab.innerHTML = `<div id="xpbar"><div class="label">Melee 1</div><div class="bar xp"><i></i><b></b></div></div>
@@ -407,11 +413,55 @@ export class Hud {
     this.pushLoot(line);
   }
 
-  /** A chat line from another player (or yourself). */
-  chat(from: string, text: string): void {
-    const line = el('div', 'loot-line chat');
-    line.innerHTML = `<span><b>${esc(from)}</b>${esc(text)}</span>`;
-    this.pushLoot(line);
+  /** A chat line from a player (or yourself): said, or an emote ("Ada waves."). */
+  chat(from: string, text: string, kind: 'say' | 'emote' = 'say'): void {
+    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>` : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
+  }
+
+  private chatFilter: 'all' | 'chat' | 'world' = 'all';
+  private chatIdle = 0;
+  private chatHistory: string[] = [];
+  private chatHistoryAt = 0;
+
+  /** Add a line to the chat box: channel 'chat' (players) or 'world' (the game's own messages). */
+  private chatLine(ch: 'chat' | 'world', html: string, cls = ''): void {
+    const log = this.q('#chatbox .cb-log');
+    const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+    const d = new Date();
+    const line = el('div', `cb-line ${ch} ${cls}`, `<time>${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</time> ${html}`);
+    line.hidden = this.chatFilter !== 'all' && this.chatFilter !== ch;
+    log.append(line);
+    while (log.children.length > 150) log.firstElementChild!.remove();
+    if (atEnd) log.scrollTop = log.scrollHeight;
+    this.chatWake();
+  }
+
+  /** The chat box fades back when nothing has happened in it for a while. */
+  private chatWake(): void {
+    const box = this.q('#chatbox');
+    box.classList.remove('idle');
+    clearTimeout(this.chatIdle);
+    this.chatIdle = window.setTimeout(() => { if (!box.matches(':hover') && document.activeElement !== box.querySelector('input')) box.classList.add('idle'); }, 14000);
+  }
+
+  private buildChat(): void {
+    const box = el('div', 'hud-only'); box.id = 'chatbox';
+    box.innerHTML = `<div class="cb-tabs">${(['all', 'chat', 'world'] as const).map((c) => `<button data-ch="${c}" class="${c === 'all' ? 'sel' : ''}">${c === 'all' ? 'All' : c === 'chat' ? 'Chat' : 'World'}</button>`).join('')}<button class="cb-emo" title="Emotes">☺</button></div>
+      <div class="cb-log"></div>
+      <div class="cb-emotes">${EMOTES.map((e) => `<button data-emote="${e.id}" title="/${e.id}"><span>${e.icon}</span>${e.id[0].toUpperCase() + e.id.slice(1)}</button>`).join('')}</div>
+      <input class="cb-input" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Say something · /help for commands">`;
+    this.root.append(box);
+    box.querySelectorAll<HTMLElement>('[data-ch]').forEach((b) => b.addEventListener('click', () => {
+      this.chatFilter = b.dataset.ch as 'all';
+      box.querySelectorAll('[data-ch]').forEach((x) => x.classList.toggle('sel', x === b));
+      box.querySelectorAll<HTMLElement>('.cb-line').forEach((l) => { l.hidden = this.chatFilter !== 'all' && !l.classList.contains(this.chatFilter); });
+      const log = box.querySelector('.cb-log')!; log.scrollTop = log.scrollHeight;
+    }));
+    box.querySelector('.cb-emo')!.addEventListener('click', () => box.classList.toggle('emoting'));
+    box.querySelectorAll<HTMLElement>('[data-emote]').forEach((b) => b.addEventListener('click', () => { box.classList.remove('emoting'); this.ctx.emote(b.dataset.emote!); }));
+    box.addEventListener('mouseenter', () => this.chatWake());
+    // Tapping the log opens the line on phones
+    box.querySelector('.cb-log')!.addEventListener('click', () => { if (document.body.classList.contains('touch')) this.openChat((t) => this.ctx.say(t)); });
   }
 
   /** Online status next to the clock; null hides it (offline play). */
@@ -421,32 +471,44 @@ export class Hud {
     e.classList.toggle('online', online);
   }
 
-  /** Opens the chat box; Enter sends, Escape closes. Returns false if it was already open. */
-  openChat(send: (text: string) => void): boolean {
-    let input = this.q<HTMLInputElement>('#chat-input');
-    if (!input) {
-      input = document.createElement('input');
-      input.id = 'chat-input';
-      input.maxLength = 200;
-      input.placeholder = 'Say something. Enter sends, Esc closes';
-      this.root.append(input);
-    }
-    if (input.classList.contains('show')) return false;
-    input.value = '';
-    input.classList.add('show');
+  /** Opens the chat line; Enter sends, Escape closes, up and down go through what you've said. Returns false if it was already open. */
+  openChat(send: (text: string) => void, prefill = ''): boolean {
+    const box = this.q('#chatbox');
+    const input = box.querySelector<HTMLInputElement>('.cb-input')!;
+    if (box.classList.contains('typing')) return false;
+    box.classList.add('typing');
+    input.value = prefill;
     input.focus();
-    const done = () => { input.classList.remove('show'); input.blur(); input.onkeydown = null; };
+    this.chatWake();
+    this.chatHistoryAt = this.chatHistory.length;
+    const done = () => { box.classList.remove('typing'); input.blur(); input.onkeydown = null; this.chatWake(); };
     input.onkeydown = (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') { const t = input.value.trim(); if (t) send(t); done(); }
-      else if (e.key === 'Escape') done();
+      if (e.key === 'Enter') {
+        const t = input.value.trim();
+        if (t) { send(t); if (this.chatHistory[this.chatHistory.length - 1] !== t) this.chatHistory.push(t); if (this.chatHistory.length > 30) this.chatHistory.shift(); }
+        done();
+      } else if (e.key === 'Escape') done();
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.chatHistoryAt = Math.max(0, Math.min(this.chatHistory.length, this.chatHistoryAt + (e.key === 'ArrowUp' ? -1 : 1)));
+        input.value = this.chatHistory[this.chatHistoryAt] ?? '';
+      }
     };
-    input.onblur = () => input.classList.remove('show');
+    input.onblur = () => { box.classList.remove('typing'); input.onkeydown = null; };
     return true;
   }
 
+  /** The game's own messages: they go to the chat box's World channel. */
   system(text: string): void {
-    this.pushLoot(el('div', 'loot-line sys', `<span>${esc(text)}</span>`));
+    this.chatLine('world', esc(text));
+  }
+
+  /** A speech bubble that follows a head: the game moves it each frame with placeBubble. */
+  bubble(text: string, emote = false): HTMLElement {
+    const b = el('div', 'bubble' + (emote ? ' emote' : ''), esc(text));
+    this.floaters.append(b);
+    return b;
   }
 
   private pushLoot(line: HTMLElement): void {

@@ -48,7 +48,7 @@ const CHAT_GAP_MS = 600;
 const SESSION_DAYS = 60;
 const MAX_CHARS = 6;
 const WORLD = [-384, 2432];
-const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook']);
+const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
@@ -328,10 +328,12 @@ wss.on('connection', (ws, req) => {
       }
       case 'chat': {
         const now = Date.now();
-        const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+        const kind = msg.kind === 'emote' ? 'emote' : 'say';
+        const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, kind === 'emote' ? 120 : 200) : '';
         if (!text || now - me.lastChat < CHAT_GAP_MS) return;
         me.lastChat = now;
-        broadcast({ t: 'chat', from: me.name, text });
+        // Everyone gets it, the speaker too (that's their confirmation); id puts the bubble over the right head
+        broadcast({ t: 'chat', from: me.name, id: me.id, text, kind });
         break;
       }
       case 'evStart': {

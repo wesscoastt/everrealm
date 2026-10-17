@@ -55,6 +55,7 @@ To hear the score without playing, open `/music-preview.html` on the dev server.
 | G | Call your horse, or get down |
 | E | Talk, gather, use a station, take the Charter Post, or pull in a bite |
 | F | Eat |
+| Enter or / | Chat. /help lists commands; /wave, /bow, /cheer, /dance, /sit and more are emotes others see (or click ☺ on the chat box). Moving ends one. |
 | B / I | Pack |
 | K | Skills |
 | J | Journal |

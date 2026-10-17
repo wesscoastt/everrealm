@@ -484,3 +484,35 @@ body.riding #touch .tb.ride { box-shadow: inset 0 0 0 2px #e8c882, 0 0 12px rgba
 .calling .sk small { display: block; font: 500 12.5px/1.3 var(--body); opacity: 0.85; }
 .calling .cp { display: flex; gap: 14px; flex-wrap: wrap; font: 600 12px var(--px); }
 .calling .cp .pro { color: #6fbf4a; } .calling .cp .con { color: #d07050; }
+
+/* Chat box: bottom left, fades back when quiet */
+#chatbox { position: absolute; left: 14px; bottom: 14px; width: 380px; display: flex; flex-direction: column; gap: 4px; pointer-events: auto; transition: opacity 0.6s; }
+#chatbox.idle:not(:hover):not(.typing) { opacity: 0.45; }
+#chatbox.idle:not(:hover):not(.typing) .cb-tabs { visibility: hidden; }
+#chatbox .cb-tabs { display: flex; gap: 4px; }
+#chatbox .cb-tabs button { font: 600 11px var(--px); letter-spacing: 0.6px; padding: 3px 9px; color: var(--cream-d); background: rgba(8, 10, 20, 0.7); border: 1px solid var(--ink); border-radius: 6px 6px 0 0; cursor: pointer; }
+#chatbox .cb-tabs button.sel { color: var(--gold); background: rgba(14, 20, 40, 0.92); }
+#chatbox .cb-tabs .cb-emo { margin-left: auto; font-size: 14px; padding: 1px 9px; }
+#chatbox .cb-log { height: 150px; overflow-y: auto; padding: 6px 8px; background: linear-gradient(rgba(6, 8, 16, 0.55), rgba(6, 8, 16, 0.78)); border: 1px solid rgba(0, 0, 0, 0.6); border-radius: 0 8px 8px 8px; font: 500 13.5px/1.35 var(--body); color: #e8e2d2; text-shadow: 1px 1px 0 #000; scrollbar-width: thin; }
+#chatbox .cb-line { padding: 1px 0; overflow-wrap: anywhere; }
+#chatbox .cb-line time { font: 500 10px var(--px); opacity: 0.45; margin-right: 2px; }
+#chatbox .cb-line.chat b { color: var(--gold); }
+#chatbox .cb-line.emote i { color: #d8c8ff; }
+#chatbox .cb-line.world { color: #bfe3ea; }
+#chatbox .cb-line.help { color: #f0e0a0; }
+#chatbox .cb-input { display: none; font: 500 14px var(--body); padding: 6px 9px; color: #fff; background: rgba(8, 10, 20, 0.92); border: 1px solid var(--gold); border-radius: 6px; outline: none; }
+#chatbox.typing .cb-input { display: block; }
+#chatbox .cb-emotes { display: none; flex-wrap: wrap; gap: 4px; padding: 6px; background: rgba(8, 10, 20, 0.92); border: 1px solid var(--ink); border-radius: 8px; }
+#chatbox.emoting .cb-emotes { display: flex; }
+#chatbox .cb-emotes button { display: flex; align-items: center; gap: 4px; font: 600 12px var(--px); padding: 4px 8px; color: var(--cream); background: rgba(30, 36, 60, 0.9); border: 1px solid var(--ink); border-radius: 6px; cursor: pointer; }
+#chatbox .cb-emotes button:hover { color: var(--gold); }
+#loot { bottom: 222px; }
+.bubble { position: absolute; transform: translate(-50%, -100%); max-width: 240px; padding: 5px 10px; font: 500 14px/1.3 var(--body); color: #2a1d10; background: #f6efdc; border: 1px solid #5a4129; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.4); pointer-events: none; text-align: center; overflow-wrap: anywhere; transition: opacity 0.3s; }
+.bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: #f6efdc; border-bottom: 0; }
+.bubble.emote { font-style: italic; background: #e6e0f6; } .bubble.emote::after { border-top-color: #e6e0f6; }
+.bubble.fading { opacity: 0; }
+body.touch #chatbox { top: 232px; bottom: auto; left: 8px; width: min(250px, 62vw); }
+body.touch #chatbox .cb-log { height: 86px; font-size: 12.5px; }
+body.touch #loot { bottom: auto; top: 360px; }
+@media (max-width: 1360px) { body:not(.touch) #chatbox { bottom: 150px; width: 330px; } body:not(.touch) #chatbox .cb-log { height: 120px; } body:not(.touch) #loot { bottom: 330px; } }
+@media (max-height: 620px) { body:not(.touch) #chatbox .cb-log { height: 80px; } }

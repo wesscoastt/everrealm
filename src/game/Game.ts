@@ -54,6 +54,7 @@ import { MAX_CHARACTERS, deleteCharacter, lastPlayed, listCharacters, newCharact
 import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
 import { ClassKit } from './ClassKit';
+import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingId, callingById, TUNE } from '../data/classes';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
@@ -179,6 +180,10 @@ export class Game implements GameApi {
   private cds = { strike: 0, cleave: 0, roll: 0, eat: 0 };
   /** The calling's skills (keys 3 to 5), mechanic and the effects they leave. */
   kit!: ClassKit;
+  /** The emote being played (until it ends, or you move). */
+  private emote: { id: EmoteAnim; left: number } | null = null;
+  /** Speech bubbles over heads: -1 is you, otherwise a player's id on the server. */
+  private bubbles: { el: HTMLElement; who: number; until: number }[] = [];
   /** A leap or a shadowstep under way. */
   private dash: { fx: number; fy: number; fz: number; tx: number; tz: number; t: number; dur: number } | null = null;
   private attack: { kind: 'strike' | 'cleave'; t: number; dur: number; hitAt: number; hit: boolean; combo: number } | null = null;
@@ -376,7 +381,10 @@ export class Game implements GameApi {
     this.online = new Online({
       scene: this.scene,
       system: (t) => this.hud.system(t),
-      chat: (from, t) => this.hud.chat(from, t),
+      chat: (from, t, id, kind) => {
+        this.hud.chat(from, t, kind);
+        if (id !== undefined) this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
+      },
       status: (s, n) => this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online'),
       bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
       bossDown: (id, cycle, by) => this.activities.bossDown(id, cycle, by, this.save.name),
@@ -640,6 +648,8 @@ export class Game implements GameApi {
       sfx: (n: 'click' | 'open' | 'close') => g.sfx(n),
       resetSave: () => { if (g.charId) deleteCharacter(g.charId); location.reload(); },
       ability: (i: number) => g.useAbility(i),
+      emote: (id: string) => g.doEmote(id),
+      say: (t: string) => g.say(t),
       mapMarkers: () => g.mapMarkers(true),
       waymarkFare: (id: string) => g.waymarkFareTo(id),
       travelWaymark: (id: string) => g.travelWaymark(id),
@@ -2220,9 +2230,10 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyK')) this.hud.toggle('skills');
     if (I.pressedOnce('KeyJ')) this.hud.toggle('journal');
     if (I.pressedOnce('KeyM')) this.hud.toggle('map');
-    if (I.pressedOnce('Enter') && this.online.status === 'online') {
+    const enter = I.pressedOnce('Enter'), slash = I.pressedOnce('Slash');
+    if (enter || slash) {
       this.input.down.clear();
-      this.hud.openChat((t) => { this.online.chat(t); });
+      this.hud.openChat((t) => this.say(t), slash && !enter ? '/' : '');
     }
     if (I.dragX || I.dragY) this.rig.rotate(I.dragX, I.dragY);
     if (I.wheel) this.rig.zoom(I.wheel);
@@ -2345,6 +2356,11 @@ export class Game implements GameApi {
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + (this.helm?.wind ?? 0)));
     if (this.attack) speed *= 0.35;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
+    // Moving, jumping, fighting or working ends an emote; the short ones also end on their own
+    if (this.emote) {
+      this.emote.left -= dt;
+      if (mv.lengthSq() > 0.01 || jump || this.attack || this.action || this.craftAction || P.swimming || this.horse || this.hitAnim > 0 || (this.emote.left <= 0 && emoteById(this.emote.id)!.secs > 0)) this.emote = null;
+    }
     // Swimming: Space rises, C dives, and underwater you swim where the camera looks
     const wasSwimming = P.swimming;
     P.rise = !this.dialogue && this.input.held('Space');
@@ -2416,6 +2432,7 @@ export class Game implements GameApi {
     if (P.rolling > 0) M.setState('roll');
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');
+    else if (this.emote && !this.horse) M.setState(this.emote.id);
     else if (this.action) {
       held = ITEMS[this.action.tool].tool!.held;
       if (this.action.kind === 'fish') M.setState(this.action.phase === 'cast' ? 'fishCast' : 'fishWait');
@@ -2552,7 +2569,96 @@ export class Game implements GameApi {
     return out;
   }
 
+  // =================================================================== Chat and emotes
+  /** What was typed in the chat box: a /command, or a line to say. */
+  private say(raw: string): void {
+    const text = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!text) return;
+    if (text.startsWith('/')) {
+      const [cmd, ...rest] = text.slice(1).split(' ');
+      const arg = rest.join(' ');
+      const c = cmd.toLowerCase();
+      if (emoteById(c)) { this.doEmote(c); return; }
+      switch (c) {
+        case 'help': case '?':
+          this.hud.system('Chat: just type and press Enter. Commands: /me <action> (e.g. /me tips a hat), /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
+          return;
+        case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
+        case 'me': case 'e': case 'em':
+          if (!arg) { this.hud.system('Try /me looks out over the valley.'); return; }
+          this.sendEmoteLine(arg.slice(0, 120));
+          return;
+        case 's': case 'say': if (arg) this.speak(arg); return;
+        case 'who': {
+          const others = [...this.online.remotes.values()].map((r) => r.name);
+          this.hud.system(this.online.status !== 'online' ? 'You are playing offline.' : others.length ? `In the world with you (${others.length}): ${others.slice(0, 30).join(', ')}${others.length > 30 ? '…' : ''}` : 'Nobody else is in the world right now.');
+          return;
+        }
+        case 'played': {
+          const h = Math.floor(this.save.playTime / 3600), m = Math.floor((this.save.playTime % 3600) / 60);
+          this.hud.system(`${this.save.name} has played for ${h ? h + 'h ' : ''}${m}m.`);
+          return;
+        }
+        case 'clear': document.querySelectorAll('#chatbox .cb-line').forEach((l) => l.remove()); return;
+        default: this.hud.system(`There's no /${cmd}. Type /help for the list.`); return;
+      }
+    }
+    this.speak(text);
+  }
+
+  private speak(text: string): void {
+    if (this.online.status === 'online') { this.online.chat(text, 'say'); return; } // the server echoes it back to everyone, you included
+    this.hud.chat(this.save.name, text);
+    this.addBubble(-1, text, false);
+  }
+
+  /** An action line ("Ada waves."): shown to everyone nearby on the server, or just you offline. */
+  private sendEmoteLine(text: string): void {
+    if (this.online.status === 'online') { this.online.chat(text, 'emote'); return; }
+    this.hud.chat(this.save.name, text, 'emote');
+    this.addBubble(-1, `${this.save.name} ${text}`, true);
+  }
+
+  doEmote(id: string): void {
+    const e = emoteById(id);
+    if (!e || this.mode !== 'play') return;
+    if (this.dead) { this.hud.system('Not while you are down.'); return; }
+    if (this.horse || this.player.swimming) { this.hud.system(this.horse ? 'Get down from your horse first (G).' : 'Not while swimming.'); return; }
+    this.cancelActions();
+    this.attack = null;
+    this.emote = { id: e.id, left: e.secs };
+    this.player.model.setState(e.id);
+    this.sendEmoteLine(e.text);
+  }
+
+  private addBubble(who: number, text: string, emote: boolean): void {
+    // One bubble per head: a new line replaces the old
+    for (const b of this.bubbles) if (b.who === who) b.el.remove();
+    this.bubbles = this.bubbles.filter((b) => b.who !== who);
+    this.bubbles.push({ el: this.hud.bubble(text.length > 120 ? text.slice(0, 117) + '…' : text, emote), who, until: this.elapsed + Math.min(9, 3.5 + text.length * 0.05) });
+  }
+
+  /** Keep bubbles over their heads; hide them behind the camera or far off. */
+  private placeBubbles(): void {
+    const fwd = this.camera.getWorldDirection(tmpV2);
+    this.bubbles = this.bubbles.filter((b) => {
+      const pos = b.who === -1 ? this.player.position : this.online.remotes.get(b.who)?.model.root.position;
+      if (!pos || this.elapsed > b.until) { b.el.remove(); return false; }
+      const lift = b.who === -1 ? 2.35 + (this.horse ? 1.1 : 0) : 2.35;
+      tmpV.set(pos.x, pos.y + lift, pos.z);
+      const far = tmpV.distanceTo(this.camera.position) > 45;
+      const behind = tmpV.clone().sub(this.camera.position).dot(fwd) < 0.5;
+      const v = tmpV.project(this.camera);
+      b.el.style.display = far || behind || v.z > 1 ? 'none' : '';
+      b.el.style.left = (v.x * 0.5 + 0.5) * window.innerWidth + 'px';
+      b.el.style.top = (-v.y * 0.5 + 0.5) * window.innerHeight + 'px';
+      b.el.classList.toggle('fading', b.until - this.elapsed < 0.4);
+      return true;
+    });
+  }
+
   private updateHud(dt: number): void {
+    this.placeBubbles();
     const P = this.player.position;
     this.hud.setPlayer(this.save.name, this.level('melee'), this.hp, this.maxHp, this.energy);
     if (this.target && (!this.target.alive || this.target.pos.distanceTo(P) > 40)) this.target = null;
@@ -2712,6 +2818,8 @@ export class Game implements GameApi {
       finishCasting: () => { if (this.casting) this.casting.t = this.casting.dur; },
       calling: (id: CallingId) => this.setCalling(id),
       skill: (i: number) => this.useAbility(2 + i),
+      say: (t: string) => this.say(t),
+      emote: (id: string) => this.doEmote(id),
     };
   }
 }

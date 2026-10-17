@@ -71,7 +71,8 @@ export interface OnlineHooks {
   scene: THREE.Scene;
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
-  chat(from: string, text: string): void;
+  /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
+  chat(from: string, text: string, id?: number, kind?: 'say' | 'emote'): void;
   status(s: OnlineStatus, players: number): void;
   /** The server has a newer copy of this character than the browser does. */
   newerSave(save: SaveData): void;
@@ -144,6 +145,7 @@ export class Online {
     try { m = JSON.parse(raw); } catch { return; }
     switch (m.t) {
       case 'welcome': {
+        this.myId = typeof m.id === 'number' ? m.id : -1;
         for (const p of m.players as PlayerPub[]) this.addRemote(p);
         this.setStatus('online');
         const others = this.remotes.size;
@@ -172,7 +174,7 @@ export class Online {
           r.yaw = yaw; r.anim = anim; r.held = held;
         }
         break;
-      case 'chat': this.hooks.chat(String(m.from), String(m.text)); break;
+      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, m.kind === 'emote' ? 'emote' : 'say'); break;
       case 'sys': this.hooks.system(String(m.text)); break;
       case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
       case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left)); break;
@@ -271,8 +273,31 @@ export class Online {
     if (this.online) this.ws!.send(JSON.stringify({ t: 'bossHit', id, cycle, dmg, max }));
   }
 
-  chat(text: string): void {
-    if (this.status === 'online' && this.ws) this.ws.send(JSON.stringify({ t: 'chat', text }));
+  /** Your id on the server (to know your own echoed chat). */
+  myId = -1;
+
+  private chatQueue: { text: string; kind: 'say' | 'emote' }[] = [];
+  private chatSentAt = 0;
+  private chatTimer = 0;
+
+  /** Send a chat line. The server drops lines closer together than 600 ms, so they're paced here instead of lost. */
+  chat(text: string, kind: 'say' | 'emote' = 'say'): void {
+    if (this.status !== 'online' || !this.ws) return;
+    if (this.chatQueue.length >= 6) { this.hooks.system('You are talking too fast: wait a moment.'); return; }
+    this.chatQueue.push({ text, kind });
+    this.flushChat();
+  }
+
+  private flushChat(): void {
+    clearTimeout(this.chatTimer);
+    while (this.chatQueue.length) {
+      const wait = this.chatSentAt + 650 - Date.now();
+      if (wait > 0) { this.chatTimer = window.setTimeout(() => this.flushChat(), wait); return; }
+      if (this.status !== 'online' || !this.ws) { this.chatQueue = []; return; }
+      const m = this.chatQueue.shift()!;
+      this.ws.send(JSON.stringify({ t: 'chat', text: m.text, kind: m.kind }));
+      this.chatSentAt = Date.now();
+    }
   }
 
   /** Upload the character, at most every ten seconds unless forced. */

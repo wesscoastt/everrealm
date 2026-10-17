@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { EmoteAnim } from '../data/emotes';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export interface Appearance {
@@ -63,7 +64,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook';
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -687,6 +688,107 @@ export class Humanoid {
         this.poseRoll(k);
         // Keep the tucked body on the ground: no sinking through it, no floating over it.
         P.body.position.y -= this.rollFloorAt(k);
+        break;
+      }
+      // Emotes (data/emotes.ts). One-shots ease in and out over their length; loops hold.
+      case 'wave': {
+        const k = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (2.2 - t) / 0.3));
+        P.armR.rotation.z = (-2.5 + Math.sin(t * 9) * 0.28) * k;
+        P.foreR.rotation.x = -0.3 * k;
+        P.head.rotation.z = -0.08 * k; P.torso.position.y = 0.06 + breathe;
+        break;
+      }
+      case 'bow': {
+        const k = Math.sin(Math.PI * Math.min(1, t / 2));
+        P.torso.rotation.x = 0.75 * k; P.head.rotation.x = 0.25 * k;
+        P.armR.rotation.x = -0.9 * k; P.foreR.rotation.x = -1.2 * k; P.armR.rotation.z = 0.25 * k;
+        P.armL.rotation.x = 0.35 * k;
+        break;
+      }
+      case 'cheer': {
+        const k = Math.min(1, t / 0.2) * Math.min(1, Math.max(0, (2.4 - t) / 0.3));
+        const hop = Math.abs(Math.sin(t * 7));
+        P.armL.rotation.x = -2.9 * k; P.armR.rotation.x = -2.9 * k;
+        P.armL.rotation.z = (0.35 + hop * 0.15) * k; P.armR.rotation.z = (-0.35 - hop * 0.15) * k;
+        P.body.position.y = hop * 0.12 * k; P.shinL.rotation.x = hop * 0.4 * k; P.shinR.rotation.x = hop * 0.4 * k;
+        P.head.rotation.x = -0.25 * k;
+        break;
+      }
+      case 'clap': {
+        const k = Math.min(1, t / 0.2) * Math.min(1, Math.max(0, (2.4 - t) / 0.3));
+        const c = Math.abs(Math.sin(t * 11));
+        P.armL.rotation.x = -1.15 * k; P.armR.rotation.x = -1.15 * k;
+        P.armL.rotation.z = (-0.15 - c * 0.35) * k; P.armR.rotation.z = (0.15 + c * 0.35) * k;
+        P.foreL.rotation.x = -0.5 * k; P.foreR.rotation.x = -0.5 * k;
+        P.torso.position.y = 0.06 + breathe;
+        break;
+      }
+      case 'laugh': {
+        const k = Math.min(1, t / 0.2) * Math.min(1, Math.max(0, (2.2 - t) / 0.3));
+        P.torso.rotation.x = (-0.18 + Math.sin(t * 16) * 0.05) * k; P.head.rotation.x = -0.35 * k;
+        P.armL.rotation.x = -0.5 * k; P.armR.rotation.x = -0.5 * k; P.foreL.rotation.x = -1.4 * k; P.foreR.rotation.x = -1.4 * k;
+        P.armL.rotation.z = -0.15 * k; P.armR.rotation.z = 0.15 * k;
+        P.body.position.y = Math.abs(Math.sin(t * 16)) * 0.025 * k;
+        break;
+      }
+      case 'salute': {
+        const k = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (2 - t) / 0.3));
+        P.armR.rotation.x = -1.6 * k; P.armR.rotation.z = -0.9 * k; P.foreR.rotation.x = -1.9 * k;
+        P.torso.rotation.x = -0.05 * k; P.head.rotation.x = -0.08 * k;
+        break;
+      }
+      case 'point': {
+        const k = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (2 - t) / 0.3));
+        P.armR.rotation.x = -1.55 * k; P.foreR.rotation.x = 0; P.armR.rotation.z = 0;
+        P.torso.rotation.y = -0.15 * k; P.head.rotation.x = -0.05 * k;
+        break;
+      }
+      case 'shrug': {
+        const k = Math.sin(Math.PI * Math.min(1, t / 1.8));
+        P.armL.rotation.z = 0.45 * k; P.armR.rotation.z = -0.45 * k; P.foreL.rotation.x = -1.1 * k; P.foreR.rotation.x = -1.1 * k;
+        P.torso.position.y = 0.06 + 0.05 * k; P.head.rotation.z = 0.18 * k;
+        break;
+      }
+      case 'dance': {
+        const b = t * 6.5;
+        P.body.position.y = Math.abs(Math.sin(b)) * 0.08;
+        P.body.rotation.y = Math.sin(b * 0.5) * 0.35;
+        P.hips.rotation.z = Math.sin(b) * 0.12;
+        P.torso.rotation.z = -Math.sin(b) * 0.1;
+        P.armL.rotation.x = -1.4 - Math.sin(b) * 0.9; P.armR.rotation.x = -1.4 + Math.sin(b) * 0.9;
+        P.armL.rotation.z = 0.4; P.armR.rotation.z = -0.4; P.foreL.rotation.x = -0.6; P.foreR.rotation.x = -0.6;
+        P.legL.rotation.x = Math.max(0, Math.sin(b)) * -0.5; P.shinL.rotation.x = Math.max(0, Math.sin(b)) * 0.9;
+        P.legR.rotation.x = Math.max(0, -Math.sin(b)) * -0.5; P.shinR.rotation.x = Math.max(0, -Math.sin(b)) * 0.9;
+        P.head.rotation.z = Math.sin(b) * 0.1;
+        break;
+      }
+      case 'sit': {
+        const k = Math.min(1, t / 0.5);
+        P.body.position.y = -0.72 * k;
+        P.legL.rotation.set(-1.45 * k, 0, 0.12 * k); P.legR.rotation.set(-1.45 * k, 0, -0.12 * k);
+        P.shinL.rotation.x = 0.35 * k; P.shinR.rotation.x = 0.35 * k;
+        P.armL.rotation.x = 0.45 * k; P.armR.rotation.x = 0.45 * k; P.armL.rotation.z = 0.3 * k; P.armR.rotation.z = -0.3 * k;
+        P.torso.rotation.x = -0.12 * k; P.torso.position.y = 0.06 + breathe;
+        P.head.rotation.y = Math.sin(performance.now() * 0.0005) * 0.2;
+        break;
+      }
+      case 'kneel': {
+        const k = Math.min(1, t / 0.5);
+        P.body.position.y = -0.42 * k;
+        P.legL.rotation.x = -1.5 * k; P.shinL.rotation.x = 1.5 * k;
+        P.legR.rotation.x = -0.05 * k; P.shinR.rotation.x = 1.55 * k;
+        P.torso.rotation.x = 0.1 * k; P.head.rotation.x = 0.3 * k;
+        P.armL.rotation.x = -0.5 * k; P.foreL.rotation.x = -0.8 * k; P.armR.rotation.x = -0.2 * k;
+        break;
+      }
+      case 'sleep': {
+        const k = Math.min(1, t / 0.8);
+        P.body.rotation.x = -k * Math.PI / 2;
+        P.body.position.y = 0.12 * k;
+        P.body.position.z = -0.6 * k;
+        P.armL.rotation.z = 0.15 * k; P.armR.rotation.x = -2.6 * k; P.foreR.rotation.x = -1.4 * k;
+        P.torso.position.y = 0.06 + Math.sin(performance.now() * 0.0012) * 0.02;
+        P.head.rotation.y = 0.4 * k;
         break;
       }
       case 'dead': {
