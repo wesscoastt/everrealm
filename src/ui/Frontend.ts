@@ -1,5 +1,7 @@
 import type { Appearance } from '../entities/humanoid';
 import { ORIGINS, originById } from '../data/origins';
+import { CALLINGS, CallingId } from '../data/classes';
+import { callingCard } from './callingCard';
 import { drawFace } from './skin';
 import './frontend.css';
 
@@ -28,7 +30,7 @@ export interface FrontCtx {
   select(id: string | null): void;
   enter(id: string): void;
   deleteCharacter(id: string): void;
-  create(name: string, look: Appearance, origin: string): void;
+  create(name: string, look: Appearance, origin: string, calling: CallingId): void;
   /** Save a new look for an existing character. */
   restyle(id: string, look: Appearance): void;
   /** The creator's model (null removes it). */
@@ -66,8 +68,8 @@ const OPT = {
   gloves: ['none', '#4a3020', '#2a1e14', '#7a5a3a', '#1e1a18', '#c8b890', '#7a2a24'],
   belt: ['#3b2618', '#1e1a18', '#5a4030', '#7a2a24', '#c8a050', '#2e3a5a'],
 };
-type Tab = 'origin' | 'body' | 'face' | 'hair' | 'outfit' | 'gear';
-const TAB_NAME: Record<Tab, string> = { origin: 'Origin', body: 'Body', face: 'Face', hair: 'Hair', outfit: 'Outfit', gear: 'Gear' };
+type Tab = 'origin' | 'calling' | 'body' | 'face' | 'hair' | 'outfit' | 'gear';
+const TAB_NAME: Record<Tab, string> = { origin: 'Origin', calling: 'Calling', body: 'Body', face: 'Face', hair: 'Hair', outfit: 'Outfit', gear: 'Gear' };
 const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids', 'Bob', 'Ponytail', 'Bun', 'Curls', 'Mohawk', 'Undercut', 'Twin tails', 'Wild mane'];
 const FACIAL = ['None', 'Full beard', 'Stubble', 'Moustache', 'Goatee', 'Chinstrap', 'Long beard', 'Mutton chops', 'Forked beard'];
 const BROWS = ['Straight', 'Heavy', 'Arched', 'Fine'];
@@ -121,6 +123,7 @@ export class Frontend {
   private screen: 'none' | 'select' | 'creator' | 'intro' = 'none';
   private look = defaultLook();
   private origin = ORIGINS[0].id;
+  private calling: CallingId = 'warden';
   private tab: Tab = 'origin';
   /** The character whose look is being changed (null when making a new one). */
   private editing: CharSummary | null = null;
@@ -324,6 +327,7 @@ export class Frontend {
     this.editing = edit ?? null;
     this.look = edit ? { ...edit.look } : defaultLook();
     this.origin = ORIGINS[0].id;
+    this.calling = 'warden';
     this.tab = edit ? 'body' : 'origin';
     this.view = 'body';
     this.name = '';
@@ -331,7 +335,7 @@ export class Frontend {
     this.ctx.creatorView('body');
     this.root.innerHTML = `<div class="fe fe-creator">
       <aside class="fe-steps frame"><header><h3>${edit ? `Change ${esc(edit.name)}'s look` : 'Create a character'}</h3></header>
-        <div class="tabs">${(edit ? ['body', 'face', 'hair', 'outfit', 'gear'] as const : ['origin', 'body', 'face', 'hair', 'outfit', 'gear'] as const).map((t) => `<button data-tab="${t}">${TAB_NAME[t]}</button>`).join('')}</div>
+        <div class="tabs">${(edit ? ['body', 'face', 'hair', 'outfit', 'gear'] as const : ['origin', 'calling', 'body', 'face', 'hair', 'outfit', 'gear'] as const).map((t) => `<button data-tab="${t}">${TAB_NAME[t]}</button>`).join('')}</div>
         <div class="pane"></div>
       </aside>
       <div class="fe-drag" title="Drag to turn"></div>
@@ -374,7 +378,7 @@ export class Frontend {
       const problem = nameProblem(this.name, taken());
       if (problem) { err.textContent = problem; nm.classList.add('bad'); nm.focus(); return; }
       this.ctx.sfx('click');
-      this.ctx.create(this.name.trim(), { ...this.look }, this.origin);
+      this.ctx.create(this.name.trim(), { ...this.look }, this.origin, this.calling);
     });
     // Drag the empty middle of the screen to turn the model
     const drag = r.querySelector<HTMLElement>('.fe-drag')!;
@@ -401,6 +405,8 @@ export class Frontend {
     const slider = (k: 'build' | 'height', label: string, min: number, max: number, lo: string, hi: string) => `<label>${label}</label><div class="slide"><small>${lo}</small><input type="range" min="${min}" max="${max}" step="0.01" value="${L[k] ?? 1}" data-s="${k}"><small>${hi}</small></div>`;
     if (this.tab === 'origin') {
       pane.innerHTML = `<p class="lead">Everyone in the Charter Counties comes from somewhere. Where did you grow up?</p>${ORIGINS.map((o) => `<button class="origin ${o.id === this.origin ? 'sel' : ''}" data-o="${o.id}"><span class="h"><b>${esc(o.title)}</b><small>${esc(o.place)} · ${esc(o.region)}</small></span><span class="d">${esc(o.blurb)}</span><span class="s">${esc(o.startText)}</span></button>`).join('')}`;
+    } else if (this.tab === 'calling') {
+      pane.innerHTML = `<p class="lead">How do you fight? No calling is stronger than another, and you can change yours later from the journal, whenever you're not in a fight.</p>${CALLINGS.map((c) => callingCard(c, c.id === this.calling)).join('')}`;
     } else if (this.tab === 'body') {
       pane.innerHTML = `<label>BODY TYPE</label>${chips('frame', [['Masculine', 'm'], ['Feminine', 'f']], L.frame ?? 'm')}
         <label>SKIN</label>${sw('skin', L.skin)}
@@ -432,6 +438,7 @@ export class Frontend {
       (this.look as unknown as Record<string, unknown>)[b.dataset.k!] = v;
       changed();
     }));
+    pane.querySelectorAll<HTMLElement>('[data-calling]').forEach((b) => b.addEventListener('click', () => { this.calling = b.dataset.calling as CallingId; this.ctx.sfx('click'); this.renderPane(); }));
     pane.querySelectorAll<HTMLElement>('[data-o]').forEach((b) => b.addEventListener('click', () => { this.origin = b.dataset.o!; this.ctx.sfx('click'); this.renderPane(); }));
     pane.querySelectorAll<HTMLElement>('[data-age]').forEach((b) => b.addEventListener('click', () => { this.look.age = AGES[Number(b.dataset.age)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-hs]').forEach((b) => b.addEventListener('click', () => { this.look.hairStyle = Number(b.dataset.hs); changed(); }));

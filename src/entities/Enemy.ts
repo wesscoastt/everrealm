@@ -43,6 +43,8 @@ export class Enemy {
   questTag?: string;
   /** Set true for one frame when the enemy dies so the game can grant rewards. */
   justDied = false;
+  /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
+  stun = 0;
   knock = new THREE.Vector3();
 
   /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
@@ -152,6 +154,16 @@ export class Enemy {
       this.pos.y = ground;
     }
 
+    // Stunned: stands dazed, any wind-up lost
+    if (this.stun > 0 && this.state !== 'dead') {
+      this.stun -= dt;
+      this.telegraph.visible = false;
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.6); }
+      this.model.setAnim('hit');
+      this.model.update(dt, 0);
+      this.syncModel();
+      return;
+    }
     switch (this.state) {
       case 'dead':
         this.respawnIn -= dt;

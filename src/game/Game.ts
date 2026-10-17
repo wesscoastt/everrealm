@@ -53,6 +53,8 @@ import { Inventory, newSave, SaveData, writeSave } from './state';
 import { MAX_CHARACTERS, deleteCharacter, lastPlayed, listCharacters, newCharacterId, rememberCharacter, saveKeyFor, setLastPlayed } from './roster';
 import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
+import { ClassKit } from './ClassKit';
+import { CallingId, callingById, TUNE } from '../data/classes';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
 import { currentAccount, deleteRemote, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
@@ -174,7 +176,11 @@ export class Game implements GameApi {
   energy = 100;
   dead = false;
   private deadTimer = 0;
-  private cds = { strike: 0, cleave: 0, wind: 0, roll: 0, eat: 0 };
+  private cds = { strike: 0, cleave: 0, roll: 0, eat: 0 };
+  /** The calling's skills (keys 3 to 5), mechanic and the effects they leave. */
+  kit!: ClassKit;
+  /** A leap or a shadowstep under way. */
+  private dash: { fx: number; fy: number; fz: number; tx: number; tz: number; t: number; dur: number } | null = null;
   private attack: { kind: 'strike' | 'cleave'; t: number; dur: number; hitAt: number; hit: boolean; combo: number } | null = null;
   private comboIndex = 0;
   private comboWindow = 0;
@@ -291,6 +297,33 @@ export class Game implements GameApi {
       this.sfx('discover');
     });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.kit = new ClassKit({
+      scene: this.scene,
+      particles: this.particles,
+      player: () => this.player.position,
+      yaw: () => this.player.yaw,
+      enemies: () => this.enemies,
+      faceTarget: (r) => this.faceTarget(r),
+      setTarget: (e) => { this.target = e; },
+      power: () => this.swingPower(),
+      hit: (e, d, o) => this.dealDamage(e, d * (0.9 + Math.random() * 0.2), o?.crit ?? (!o?.quiet && Math.random() < 0.12 + (this.blade?.crit ?? 0)), !!o?.quiet),
+      heal: (n) => {
+        const h = Math.min(this.maxHp - this.hp, Math.round(n));
+        if (h > 0 && !this.dead) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
+      },
+      maxHp: () => this.maxHp,
+      anim: (st) => {
+        if (st === 'heal') { this.healAnim = 0.6; return; }
+        this.player.model.setState(st); this.player.model.stateTime = 0; this.healAnim = 0;
+      },
+      sfx: (n) => this.sfx(n),
+      moveTo: (x, z, secs) => {
+        const p = this.player.position;
+        this.dash = { fx: p.x, fy: p.y, fz: p.z, tx: x, tz: z, t: 0, dur: Math.max(0.05, secs) };
+      },
+      inCombat: () => { this.lastCombat = this.elapsed; this.dismount(); },
+      sustainScale: () => (this.gearSet === 'tolley' ? 2 / 3 : 1),
+    });
     this.activities = new Activities({
       daily: (k) => this.dailies.bump(k),
       killed: (e) => this.onEnemyKilled(e),
@@ -593,6 +626,8 @@ export class Game implements GameApi {
         const worn = g.flag('title');
         return FEATS.map((f) => ({ id: f.id, name: f.name, group: f.group, desc: f.desc, have: f.have(api), need: f.need, done: !!g.flag('feat:' + f.id), marks: f.marks, title: f.title, worn: worn === f.id }));
       },
+      calling: () => g.calling,
+      setCalling: (id: CallingId) => g.setCalling(id),
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: 'weapon' | 'head') => g.unequip(slot),
       dropSlot: (i: number) => g.dropSlot(i),
@@ -634,7 +669,7 @@ export class Game implements GameApi {
         deleteCharacter(id);
         if (id === g.charId) g.selectCharacter(listCharacters()[0]?.id ?? null);
       },
-      create: (name, look, origin) => g.newGame(name, look, origin),
+      create: (name, look, origin, calling) => g.newGame(name, look, origin, calling),
       restyle: (id, look) => {
         // A new look for a character already made: saved here and sent up to the account
         const c = listCharacters().find((x) => x.id === id);
@@ -732,13 +767,37 @@ export class Game implements GameApi {
     this.scene.add(this.previewModel.root);
   }
 
-  private newGame(name: string, look: Appearance, origin: string): void {
+  /** The character's calling (characters made before callings start as Wardens until they choose). */
+  get calling(): CallingId { return callingById(this.flag('class'))?.id ?? 'warden'; }
+
+  private applyCalling(): void {
+    this.kit.set(this.calling);
+    this.hud.setCalling(this.kit.calling);
+  }
+
+  /** Change calling: only out of a fight. Returns why not, or null. */
+  setCalling(id: CallingId): string | null {
+    if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    const c = callingById(id);
+    if (!c) return 'No such calling.';
+    this.setFlag('class', id);
+    this.applyCalling();
+    if (this.mode === 'play') {
+      this.hud.banner(c.name, c.role, true);
+      this.particles.burst(tmpV.copy(this.player.position).setY(this.player.position.y + 1), c.mechanic.color, 24);
+      this.sfx('discover');
+    }
+    return null;
+  }
+
+  private newGame(name: string, look: Appearance, origin: string, calling: CallingId = 'warden'): void {
     this.online.disconnect(); // the new character connects under its own name once it is in the world
     const settings = this.save.settings;
     this.charId = newCharacterId();
     this.save = newSave(name, look);
     this.save.settings = settings;
     this.save.origin = origin;
+    this.save.flags.class = calling;
     const o = originById(origin);
     if ('marks' in o.start) this.save.marks += o.start.marks;
     else this.save.xp[o.start.skill] = xpForLevel(o.start.level);
@@ -837,6 +896,13 @@ export class Game implements GameApi {
     if (this.stage('fordBell') === 'casting') this.save.quests.fordBell = 'report';
     this.world.structures.bell.visible = ['report', 'done'].includes(this.stage('fordBell') ?? '');
     this.hud.setPortrait(this.save.look);
+    this.applyCalling();
+    if (!this.flag('class')) {
+      // Characters from before callings: show them the choice once (they play as Wardens until they pick)
+      this.setFlag('class', 'warden');
+      this.hud.system('Callings have come to the Charter Counties. Choose how you fight in the journal (J): you can change it any time out of a fight.');
+      setTimeout(() => this.hud.openJournalAt('calling'), 1200);
+    }
     this.audio.unlock();
     this.hud.setTracker(this.questEntries());
     if (this.online.enabled && this.online.status === 'off') this.online.connect(this.save.name, this.save.look, this.save.playTime);
@@ -1729,9 +1795,9 @@ export class Game implements GameApi {
     this.hud.pressAbility(i);
     if (i === 0) this.strike();
     else if (i === 1) this.cleave();
-    else if (i === 2) this.secondWind();
-    else if (i === 3) this.roll();
-    else if (i === 4) this.eat();
+    else if (i <= 4) { if (!this.attack && !this.dash && !this.player.swimming) { this.cancelActions(); if (this.kit.use(i - 2)) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; } } }
+    else if (i === 5) this.roll();
+    else if (i === 6) this.eat();
   }
 
   private faceTarget(range: number): Enemy | null {
@@ -1781,13 +1847,25 @@ export class Game implements GameApi {
     this.lastCombat = this.elapsed;
   }
 
-  private secondWind(): void {
-    if (this.cds.wind > 0) return;
-    this.cds.wind = this.gearSet === 'tolley' ? 20 : 30;
-    this.healOverTime = { left: 3, perSec: (this.maxHp * 0.35) / 3 };
-    this.healAnim = 0.6;
-    this.sfx('heal');
-    this.particles.heal(this.player.position);
+  /** An ordinary swing's damage at this level with this weapon, before the roll and crits. */
+  private swingPower(): number {
+    const lvl = this.level('melee');
+    return (7 + lvl * 1.45 + (this.blade?.damage ?? 0)) * (1 + (lvl - 1) * 0.02);
+  }
+
+  /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
+  private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
+    if (!e.alive) return 0;
+    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1)));
+    e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
+    this.kit.landed();
+    this.lastCombat = this.elapsed;
+    this.target = this.target && this.target.alive ? this.target : e;
+    this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : '');
+    if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
+    this.addXp('melee', Math.max(1, Math.round(dmg * 0.4)));
+    if (e.justDied) this.onEnemyKilled(e);
+    return dmg;
   }
 
   private roll(): void {
@@ -1809,8 +1887,8 @@ export class Game implements GameApi {
     const P = this.player.position;
     const face = new THREE.Vector3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw));
     const blade = this.blade;
-    const weapon = blade?.damage ?? 0;
-    const lvl = this.level('melee');
+    const power = this.swingPower();
+    const bonus = a.kind === 'strike' ? this.kit.strikeBonus() : { mult: 1, crit: false };
     let drawn = 0;
     let any = false;
     for (const e of this.enemies) {
@@ -1825,19 +1903,11 @@ export class Game implements GameApi {
         if (ang > 1.35 && dist > 1.1) continue;
       }
       const mult = a.kind === 'cleave' ? 1.5 : [1, 1.1, 1.5][a.combo];
-      let dmg = (7 + lvl * 1.45 + weapon) * mult * (0.9 + Math.random() * 0.2) * (1 + (lvl - 1) * 0.02);
-      const crit = Math.random() < 0.12 + (blade?.crit ?? 0) || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
+      const crit = bonus.crit || Math.random() < 0.12 + (blade?.crit ?? 0) || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
       if (crit && this.gearSet === 'starglass') this.energy = Math.min(100, this.energy + 6);
-      if (crit) dmg *= 1.6;
-      dmg = Math.round(dmg);
-      e.takeDamage(this.activities.beforeHit(e, dmg), P, this.elapsed);
+      const dmg = this.dealDamage(e, power * mult * bonus.mult * (0.9 + Math.random() * 0.2), crit);
       drawn += dmg * (blade?.leech ?? 0);
       any = true;
-      this.target = this.target && this.target.alive ? this.target : e;
-      this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : '');
-      this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
-      this.addXp('melee', Math.max(1, Math.round(dmg * 0.4)));
-      if (e.justDied) this.onEnemyKilled(e);
     }
     if (drawn >= 1 && !this.dead) {
       const healed = Math.min(this.maxHp - this.hp, Math.round(drawn));
@@ -1896,7 +1966,8 @@ export class Game implements GameApi {
       return;
     }
     const armor = this.helm?.defense ?? 0;
-    const taken = Math.max(1, Math.round(dmg * (0.9 + Math.random() * 0.2) - armor));
+    const taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) - armor)));
+    if (taken <= 0) { this.floatAt(this.player.position, 2.2, 'Absorbed', 'heal'); this.lastCombat = this.elapsed; return; }
     this.hp -= taken;
     this.lastCombat = this.elapsed;
     this.dismount();
@@ -2160,8 +2231,10 @@ export class Game implements GameApi {
     if (I.pressedOnce('Digit1')) this.useAbility(0);
     if (I.pressedOnce('Digit2')) this.useAbility(1);
     if (I.pressedOnce('Digit3')) this.useAbility(2);
-    if (I.pressedOnce('KeyQ')) this.useAbility(3);
-    if (I.pressedOnce('KeyF')) this.useAbility(4);
+    if (I.pressedOnce('Digit4')) this.useAbility(3);
+    if (I.pressedOnce('Digit5')) this.useAbility(4);
+    if (I.pressedOnce('KeyQ')) this.useAbility(5);
+    if (I.pressedOnce('KeyF')) this.useAbility(6);
     if (I.pressedOnce('Tab')) this.cycleTarget();
     if (I.pressedOnce('KeyG')) this.toggleMount();
 
@@ -2233,6 +2306,7 @@ export class Game implements GameApi {
     this.iframes = Math.max(0, this.iframes - dt);
     this.hitAnim = Math.max(0, this.hitAnim - dt);
     this.healAnim = Math.max(0, this.healAnim - dt);
+    this.kit.update(dt);
 
     if (this.dead) {
       this.deadTimer += dt;
@@ -2276,7 +2350,27 @@ export class Game implements GameApi {
     P.rise = !this.dialogue && this.input.held('Space');
     P.sink = !this.dialogue && this.input.held('KeyC');
     P.swimAim = THREE.MathUtils.clamp((0.32 - this.rig.pitch) * 1.2, -1.2, 1.2);
-    const fall = P.update(dt, mv, speed, jump);
+    let fall: number;
+    if (this.dash) {
+      // A leap arcs; a shadowstep is near enough instant
+      const d = this.dash, V = this.world.voxels;
+      d.t += dt;
+      const k = Math.min(1, d.t / d.dur);
+      const gy = Math.max(d.fy, P.position.y);
+      P.position.set(d.fx + (d.tx - d.fx) * k, gy + (d.dur > 0.2 ? Math.sin(Math.PI * k) * 2.2 : 0), d.fz + (d.tz - d.fz) * k);
+      P.velocity.set(0, 0, 0);
+      if (k >= 1) {
+        this.dash = null;
+        // Land on top of whatever is there, not inside it
+        const x = Math.floor(P.position.x), z = Math.floor(P.position.z);
+        let y = Math.floor(P.position.y);
+        for (let n = 0; n < 8 && (isSolid(V.get(x, y, z)) || isSolid(V.get(x, y + 1, z))); n++) y++;
+        while (y > 1 && !isSolid(V.get(x, y - 1, z)) && P.position.y - y < 6) y--;
+        P.position.y = y;
+        this.particles.dust(P.position, 10);
+      }
+      fall = P.update(dt, new THREE.Vector3(), 0, false);
+    } else fall = P.update(dt, mv, speed, jump);
     if (P.swimming !== wasSwimming) document.body.classList.toggle('swimming', P.swimming);
     this.travelled += P.speed * dt;
     if (this.travelled >= 50) { this.dailies.bump('travel', Math.floor(this.travelled)); this.travelled %= 1; }
@@ -2468,10 +2562,12 @@ export class Game implements GameApi {
     this.hud.setAbilities([
       { left: this.cds.strike, total: 0.5 },
       { left: this.cds.cleave, total: 6 },
-      { left: this.cds.wind, total: 30 },
+      ...this.kit.slots(),
       { left: this.cds.roll, total: 0.8, disabled: this.energy < 25 },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);
+    const gauge = this.kit.gauge();
+    this.hud.setGauge(gauge.label, gauge.value, gauge.max);
     // Prompt
     const c = this.candidate;
     if (this.action?.kind === 'fish' && this.action.phase === 'bite') this.hud.setPrompt('E', 'Pull in the line');
@@ -2614,6 +2710,8 @@ export class Game implements GameApi {
       pull: () => this.pullLine(),
       key: (code: string) => { (this.input as unknown as { pressed: Set<string> }).pressed.add(code); },
       finishCasting: () => { if (this.casting) this.casting.t = this.casting.dur; },
+      calling: (id: CallingId) => this.setCalling(id),
+      skill: (i: number) => this.useAbility(2 + i),
     };
   }
 }

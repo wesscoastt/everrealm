@@ -137,6 +137,11 @@
 .ab-slot .cd { position: absolute; left: 4px; right: 4px; bottom: 4px; height: calc(var(--p, 0) * (100% - 8px)); background: rgba(8, 6, 4, 0.74); box-shadow: 0 -2px 0 rgba(255, 220, 160, 0.45); }
 .ab-slot .cdt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; font: 700 18px var(--px); color: #fff; text-shadow: var(--hard); }
 .ab-slot.disabled img { filter: grayscale(1) brightness(0.45); }
+#ab-gauge { position: relative; width: 220px; height: 12px; margin: -3px 0 -2px; background: #0b0907; border: 2px solid var(--ink); overflow: hidden; }
+#ab-gauge i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; transition: width 0.15s; }
+#ab-gauge span { position: absolute; inset: -2px 0 0; text-align: center; font: 600 9px var(--px); color: #fff; text-shadow: var(--hard1); letter-spacing: 0.5px; line-height: 12px; }
+#ab-gauge.full { box-shadow: 0 0 8px currentColor; animation: gaugepulse 0.9s ease-in-out infinite alternate; }
+@keyframes gaugepulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
 .ab-sep { width: 3px; height: 40px; background: var(--ink); box-shadow: 1px 0 0 #5a4129; margin: 0 2px; }
 .menu-btns { display: flex; gap: 6px; }
 .menu-btn { position: relative; width: 34px; height: 34px; border: 3px solid var(--ink); cursor: pointer; background: linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.35)), var(--tex-stone); background-size: auto, 48px; box-shadow: inset 2px 2px 0 rgba(255,255,255,0.12), inset -2px -2px 0 rgba(0,0,0,0.4); color: var(--cream); font: 700 13px var(--px); text-shadow: var(--hard1); padding: 0; }
@@ -463,3 +468,19 @@ body.riding #touch .tb.ride { box-shadow: inset 0 0 0 2px #e8c882, 0 0 12px rgba
   #touch .tbtns { bottom: 96px; }
   #touch .stick { left: 76px; top: calc(100% - 200px); }
 }
+
+/* Calling cards (creator and journal) */
+.calling { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 8px; padding: 10px 12px; text-align: left; cursor: pointer; border-left: 4px solid var(--cc) !important; }
+.calling .ch b { display: block; font: 600 16px var(--px); }
+.calling .ch small { font: 600 11px var(--px); letter-spacing: 0.8px; text-transform: uppercase; color: var(--cc); filter: brightness(0.85); }
+.calling .cd { font: 500 13.5px/1.35 var(--body); opacity: 0.85; }
+.calling .cm { font: 500 13px/1.3 var(--body); }
+.calling .cm i { font-style: normal; font-weight: 700; color: var(--cc); }
+.calling .cs { display: none; flex-direction: column; gap: 4px; }
+.calling.sel .cs { display: flex; }
+.calling .sk { display: flex; gap: 8px; align-items: flex-start; }
+.calling .sk img { width: 30px; height: 30px; image-rendering: pixelated; flex: none; border-radius: 4px; }
+.calling .sk b { display: block; font: 600 12.5px var(--px); }
+.calling .sk small { display: block; font: 500 12.5px/1.3 var(--body); opacity: 0.85; }
+.calling .cp { display: flex; gap: 14px; flex-wrap: wrap; font: 600 12px var(--px); }
+.calling .cp .pro { color: #6fbf4a; } .calling .cp .con { color: #d07050; }

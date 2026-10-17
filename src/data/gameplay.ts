@@ -31,7 +31,7 @@ export function levelForXp(xp: number): number {
 /** Unlocks shown in the skills panel. Only list things this build actually has. */
 export const UNLOCKS: Record<SkillId, { level: number; text: string }[]> = {
   melee: [
-    { level: 1, text: 'Strike, Cleave, Second Wind' },
+    { level: 1, text: 'Strike, Cleave and your calling\'s three skills' },
     { level: 5, text: '+10% damage (applied per level)' },
   ],
   mining: [

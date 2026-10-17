@@ -190,3 +190,10 @@
 .jbody .lday.today { border-color: #c8902a; box-shadow: 0 0 0 2px rgba(200, 144, 42, 0.45); background: rgba(232, 200, 130, 0.45); }
 .jbody .lday.rare span { color: #6a400c; font-weight: 700; }
 .jbody .claim { display: block; margin: 0 auto 6px; }
+
+.jbody .calling { background: rgba(255, 245, 220, 0.35); border: 1px solid rgba(110, 70, 20, 0.35); border-radius: 6px; color: #2a1d10; }
+.jbody .calling.sel { background: linear-gradient(90deg, rgba(214, 170, 70, 0.35), rgba(255, 245, 220, 0.3)); border-color: rgba(150, 100, 20, 0.6); }
+.jbody .calling .cp .pro { color: #3f7a2a; } .jbody .calling .cp .con { color: #9a3a1a; }
+.jbody .calling-msg { margin-top: 8px; font: 600 13px var(--px); color: #9a3a1a; }
+#ab-gauge { background: #0b1122; border: 1px solid var(--ink); border-radius: 7px; box-shadow: inset 0 0 0 1px var(--gild-line), 0 2px 6px rgba(0,0,0,0.4); }
+#ab-gauge i { border-radius: 6px 0 0 6px; opacity: 0.9; }

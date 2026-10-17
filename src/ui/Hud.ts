@@ -88,6 +88,8 @@ const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'wood
 import type { Appearance } from '../entities/humanoid';
 import type { Inventory, SaveData } from '../game/state';
 import { abilityIcon, itemIcon, shapeIcon } from './icons';
+import { CALLINGS, CallingDef, CallingId, callingById } from '../data/classes';
+import { callingCard } from './callingCard';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
@@ -108,6 +110,9 @@ export interface UiCtx {
   daily(): DailyView;
   claimLogin(): void;
   feats(): FeatView[];
+  calling(): CallingId;
+  /** Change calling; returns why it can't be done, or null. */
+  setCalling(id: CallingId): string | null;
   /** Wear a feat's title (null for none). */
   wearTitle(id: string | null): void;
   unequip(slot: 'weapon' | 'head'): void;
@@ -243,11 +248,16 @@ export class Hud {
     const tr = el('div', 'hud-only'); tr.id = 'tracker'; r.append(tr);
 
     const ab = el('div', 'hud-only'); ab.id = 'actionbar';
+    const slot = (i: number, k: string, key: string, t: string) => `<div class="ab-slot" data-ab="${i}" title="${t} (${key})"><img src="${abilityIcon(k)}" alt=""><span class="key">${key}</span><div class="cd"></div><div class="cdt"></div></div>`;
     ab.innerHTML = `<div id="xpbar"><div class="label">Melee 1</div><div class="bar xp"><i></i><b></b></div></div>
+      <div id="ab-gauge"><i></i><span></span></div>
       <div class="ab-plate frame">
-        ${[['strike', '1', 'Strike'], ['cleave', '2', 'Cleave'], ['wind', '3', 'Second Wind'], ['roll', 'Q', 'Dodge roll']].map(([k, key, t], i) => `<div class="ab-slot" data-ab="${i}" title="${t} (${key})"><img src="${abilityIcon(k as 'strike')}" alt=""><span class="key">${key}</span><div class="cd"></div><div class="cdt"></div></div>`).join('')}
+        ${[['strike', '1', 'Strike'], ['cleave', '2', 'Cleave']].map(([k, key, t], i) => slot(i, k, key, t)).join('')}
         <div class="ab-sep"></div>
-        <div class="ab-slot" data-ab="4" title="Eat the best food you're carrying (F)"><img src="${abilityIcon('eat')}" alt=""><span class="key">F</span><span class="count"></span><div class="cd"></div><div class="cdt"></div></div>
+        ${[3, 4, 5].map((key, j) => slot(2 + j, 'strike', String(key), '')).join('')}
+        <div class="ab-sep"></div>
+        ${slot(5, 'roll', 'Q', 'Dodge roll')}
+        <div class="ab-slot" data-ab="6" title="Eat the best food you're carrying (F)"><img src="${abilityIcon('eat')}" alt=""><span class="key">F</span><span class="count"></span><div class="cd"></div><div class="cdt"></div></div>
         <div class="ab-sep"></div>
         <div class="menu-btns">
           <button class="menu-btn" data-p="inv">B<small>Bag</small></button>
@@ -341,6 +351,27 @@ export class Hud {
       const cnt = s.querySelector('.count');
       if (cnt) cnt.textContent = c.count ? String(c.count) : '';
     });
+  }
+
+/** Put a calling's three skills on keys 3 to 5 and colour its gauge. */
+  setCalling(c: CallingDef): void {
+    const slots = this.root.querySelectorAll<HTMLElement>('.ab-slot');
+    c.skills.forEach((sk, j) => {
+      const s = slots[2 + j];
+      s.querySelector('img')!.src = abilityIcon(sk.icon);
+      s.title = `${sk.name} (${3 + j}): ${sk.desc}`;
+    });
+    const g = this.q('#ab-gauge');
+    g.title = `${c.mechanic.name}: ${c.mechanic.desc}`;
+    (g.querySelector('i') as HTMLElement).style.background = c.mechanic.color;
+  }
+
+  setGauge(label: string, value: number, max: number): void {
+    const g = this.q('#ab-gauge');
+    (g.querySelector('i') as HTMLElement).style.width = Math.min(100, (value / max) * 100) + '%';
+    const sp = g.querySelector('span')!;
+    if (sp.textContent !== label) sp.textContent = label;
+    g.classList.toggle('full', value >= max);
   }
 
   pressAbility(i: number): void {
@@ -892,7 +923,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'calling' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -903,6 +934,10 @@ export class Hud {
         list.append(ji);
       }
     };
+    list.append(el('h6', '', 'YOU'));
+    const cj = el('div', 'ji' + (this.selQuest === 'calling' ? ' sel' : ''), 'Calling: ' + esc(callingById(this.ctx.calling())?.name ?? ''));
+    cj.addEventListener('click', () => { this.selQuest = 'calling'; this.renderJournal(); });
+    list.append(cj);
     add('THE CHARTER\'S DEBT', qs.filter((q) => q.story && !q.done));
     add('ACTIVE', qs.filter((q) => !q.story && !q.done));
     add('COMPLETED', qs.filter((q) => q.done));
@@ -948,6 +983,14 @@ export class Hud {
         claim.addEventListener('click', () => { this.ctx.claimLogin(); this.renderJournal(); });
         page.append(claim);
       }
+    } else if (this.selQuest === 'calling') {
+      page.innerHTML = `<h4>Your calling</h4><div class="feat-sum">How you fight: keys 3, 4 and 5 and the bar above them. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>`;
+      page.querySelectorAll<HTMLElement>('[data-calling]').forEach((b) => b.addEventListener('click', () => {
+        const why = this.ctx.setCalling(b.dataset.calling as CallingId);
+        this.ctx.sfx('click');
+        if (why) page.querySelector('.calling-msg')!.textContent = why;
+        else this.renderJournal();
+      }));
     } else if (this.selQuest === 'feats') {
       const fs = this.ctx.feats();
       const done = fs.filter((f) => f.done).length;
@@ -1346,7 +1389,7 @@ export class Hud {
         <kbd>Space</kbd><span>Jump</span>
         <kbd>Click / 1</kbd><span>Strike · three-hit combo</span>
         <kbd>2</kbd><span>Cleave: spin attack</span>
-        <kbd>3</kbd><span>Second Wind: heal over time</span>
+        <kbd>3</kbd><kbd>4</kbd><kbd>5</kbd><span>Your calling's skills: heal or guard, signature, elite</span>
         <kbd>Q</kbd><span>Dodge roll, invulnerable while rolling</span>
         <kbd>Tab</kbd><span>Target the nearest enemy</span>
         <kbd>G</kbd><span>Call your horse, or get down (halters are sold in the towns)</span>

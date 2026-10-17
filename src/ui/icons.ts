@@ -161,7 +161,23 @@ export function shapeIcon(shape: IconSpec['shape'], a: string, b?: string): stri
 }
 
 /** Ability icons: 16x16 pixel glyphs on a bevelled tile, shown pixelated. */
-export function abilityIcon(kind: 'strike' | 'cleave' | 'wind' | 'roll' | 'eat'): string {
+/** Ten-by-ten glyphs for the calling skills (X = lit), and their colour. */
+const GLYPHS: Record<string, [string[], string]> = {
+  shield: [['XXXXXXXXXX', 'X........X', 'X..XXXX..X', 'X..X..X..X', 'X..XXXX..X', 'X........X', '.X......X.', '..X....X..', '...X..X...', '....XX....'], '#e8f0ff'],
+  bash: [['....XX....', '...XXXX...', '..XXXXXX..', '.XXX..XXX.', 'XXX....XXX', '.XXX..XXX.', '..XXXXXX..', '...XXXX...', 'X...XX...X', '.X......X.'], '#f6ecd0'],
+  oath: [['...XXXX...', '.XX....XX.', 'X...XX...X', 'X..X..X..X', 'X.X.XX.X.X', 'X.X.XX.X.X', 'X..X..X..X', 'X...XX...X', '.XX....XX.', '...XXXX...'], '#fff0b0'],
+  bleed: [['....X.....', '....X.....', '...XXX....', '...XXX....', '..XXXXX...', '..XXXXX...', '..XXXXX..X', '...XXX...X', '........XX', '.......XX.'], '#ffb0a0'],
+  leap: [['.......XX.', '......X..X', '.....X....', '....X.....', '...X......', '..X.......', '.X........', 'X.........', 'XXX....XXX', '.X.XXXX.X.'], '#f6ecd0'],
+  redhour: [['..XXXXXX..', '.X......X.', 'X...XX...X', 'X...XX...X', 'X...XXXX.X', 'X........X', 'X........X', '.X......X.', '..XXXXXX..', '..........'], '#ffb0a0'],
+  ward: [['....X.....', '...XX..X..', '..XXX.XX..', '.XXXXXXX..', '.XXX.XXXX.', 'XXX...XXX.', 'XX.....XX.', 'XX.....XX.', '.XX...XX..', '..XXXXX...'], '#ffe0a0'],
+  bolt: [['......XXX.', '.....XXXXX', '....XXXXXX', '...XXXXXX.', '..XXX.XX..', '.XX.......', 'XX........', 'X.........', '..........', '..........'], '#fff0b0'],
+  star: [['....XX....', '....XX....', '...XXXX...', 'XXXXXXXXXX', '.XXXXXXXX.', '..XXXXXX..', '..XXXXXX..', '.XXX..XXX.', '.XX....XX.', 'X........X'], '#fff0b0'],
+  dressing: [['...XXXX...', '...XXXX...', '...XXXX...', 'XXXXXXXXXX', 'XXXXXXXXXX', 'XXXXXXXXXX', 'XXXXXXXXXX', '...XXXX...', '...XXXX...', '...XXXX...'], '#f6f6f0'],
+  volley: [['X.X.X.....', '.XXX......', '..XXX.....', '...XXX....', '....XXX...', '.....XXX..', '......XXX.', '.......XX.', '..........', '..........'], '#f6ecd0'],
+  step: [['..XX......', '..XX......', '.XXXX..XX.', 'X.XX.X.XX.', '..XX..XXXX', '.X..XX.XX.', '.X..X.XX.X', 'X..X..X..X', '.....X..X.', '.....X..X.'], '#c8c8f0'],
+};
+
+export function abilityIcon(kind: string): string {
   const key = 'ability:' + kind;
   let url = cache.get(key);
   if (url) return url;
@@ -171,6 +187,10 @@ export function abilityIcon(kind: 'strike' | 'cleave' | 'wind' | 'roll' | 'eat')
   const tones: Record<string, [string, string, string]> = {
     strike: ['#c4553a', '#8a2e1c', '#5a1a0e'], cleave: ['#d88a3a', '#9a5a1c', '#5a320c'], wind: ['#6ab04a', '#3f7a2a', '#204a14'],
     roll: ['#4a8ac8', '#2a5a8a', '#163452'], eat: ['#c8a050', '#8a6a2a', '#4a3a14'],
+    shield: ['#6a9ad0', '#3a6aa0', '#1a3a60'], bash: ['#7a8aa8', '#4a5a78', '#262e44'], oath: ['#d8b860', '#9a7a30', '#5a4414'],
+    bleed: ['#c84040', '#8a1e1e', '#4a0c0c'], leap: ['#d86a3a', '#9a3a1a', '#5a1e0a'], redhour: ['#a82a2a', '#6a1010', '#3a0606'],
+    ward: ['#e09040', '#a85a1a', '#5a2e0a'], bolt: ['#f0a040', '#b0601a', '#60300a'], star: ['#6a5ab0', '#3a2a78', '#1a1440'],
+    dressing: ['#7ab060', '#4a7a34', '#24441a'], volley: ['#8ab060', '#5a7a34', '#2e441a'], step: ['#5a5a7a', '#34344a', '#1a1a28'],
   };
   const [hi, mid, lo] = tones[kind];
   x.fillStyle = mid; x.fillRect(0, 0, 16, 16);
@@ -194,6 +214,11 @@ export function abilityIcon(kind: 'strike' | 'cleave' | 'wind' | 'roll' | 'eat')
   } else if (kind === 'roll') {
     const arc: [number, number][] = [[4,9],[4,8],[4,7],[5,6],[5,5],[6,4],[7,4],[8,4],[9,4],[10,5],[11,6],[11,7],[11,8],[10,9],[9,10],[8,11],[7,11]];
     p(D, arc.map(([a, b]) => [a + 1, b + 1] as [number, number])); p(W, arc); p(W, [[6,10],[6,11],[6,12],[7,12],[8,12],[5,11]]);
+  } else if (GLYPHS[kind]) {
+    const [rows, col] = GLYPHS[kind];
+    const pts: [number, number][] = [];
+    rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === 'X') pts.push([3 + i, 3 + j]); }));
+    p(D, pts.map(([a, b]) => [a + 1, b + 1] as [number, number])); p(col, pts);
   } else {
     const loaf: [number, number][] = []; for (let i = 3; i < 13; i++) for (let j = 6; j < 11; j++) if (!((i === 3 || i === 12) && (j === 6 || j === 10))) loaf.push([i, j]);
     p(D, loaf.map(([a, b]) => [a + 1, b + 1] as [number, number])); p('#e8c070', loaf); p('#a8783a', [[5,7],[6,8],[8,7],[9,8],[11,7]]); p('#fff0c0', [[4,7],[5,6],[6,6]]);
