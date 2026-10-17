@@ -107,10 +107,11 @@ for (const s of P.sites) for (const p of s.props as PropDesc[]) {
     const t = (i + 0.5) / n - 0.5;
     const fx = p.x + Math.cos(ry) * t * len, fz = p.z - Math.sin(ry) * t * len;
     const g = heightAt(Math.floor(fx), Math.floor(fz)); // the barrier follows the ground cell by cell
-    if (cells.get(key(fx, g, fz)) !== B.Barrier || cells.get(key(fx, g + 1, fz)) !== B.Barrier) open++;
+    // A fence is a one-block barrier: you jump it, you can't walk or step through it
+    if (cells.get(key(fx, g, fz)) !== B.Barrier) open++;
   }
   checked++;
-  if (open) problems.push(`fence in ${s.id} at (${p.x.toFixed(1)}, ${p.z.toFixed(1)}): ${open} of ${n} cells can be walked through`);
+  if (open) problems.push(`fence in ${s.id} at (${p.x.toFixed(1)}, ${p.z.toFixed(1)}): ${open} of ${n} cells have no barrier (can be walked through)`);
 }
 
 console.log(`${checked} points checked across ${P.sites.length} sites.`);

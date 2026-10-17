@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { B } from './blocks';
-import { EX, Layout } from './generate';
+import { EX, Layout, ROADS } from './generate';
 import { distToPolyline, hash2 } from './noise';
 import * as P from './props';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
@@ -98,8 +98,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
         else if (f === 0 && ly === 0) id = B.Cobble;
         else if (along % 3 === 0) id = B.Timber;
         else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1 && !(f === 0 && ly === 2 && along === span - 2)) id = B.Window;
-        if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = B.Air; // the doorway: walk in
-        if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
+        // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
+        if (x === doorX && z === doorZ && f === 0 && ly <= 2) id = B.Air;
         world.put(x, y, z, id);
       }
     }
@@ -359,6 +359,25 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   house({ x0: 199, z0: 190, w: 6, d: 6, floors: 1, roof: 'thatch', door: 'w', chimney: true });
   house({ x0: 197, z0: 200, w: 5, d: 5, floors: 1, roof: 'red', door: 'n' });
 
+  // Lanterns along the valley's roads and lanes beyond the village street, every 22 blocks
+  {
+    let side = 1;
+    for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
+      const [ax, az] = road[i], [bx, bz] = road[i + 1];
+      const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+      for (let t = 11; t < len; t += 22) {
+        side = -side;
+        const cx = ax + ux * t, cz = az + uz * t;
+        if (cx > 112 && cx < 230 && cz > 170 && cz < 200) continue; // the village street has its own
+        const x = Math.floor(cx - uz * 2.6 * side) + 0.5, z = Math.floor(cz + ux * 2.6 * side) + 0.5;
+        if (ROADS.some((r) => distToPolyline(x, z, r).d < 1.8)) continue;
+        const y = ground(Math.floor(x), Math.floor(z));
+        if (y <= WATER_LEVEL + 1 || world.get(Math.floor(x), y, Math.floor(z)) !== B.Air || world.get(Math.floor(x), y - 1, Math.floor(z)) === B.Farmland) continue;
+        lantern(x, z, Math.atan2(-(cz - z), cx - x));
+      }
+    }
+  }
+
   // Lantern posts along the village road
   for (const [x, z, r] of [[147.5, 182.2, 0], [160.6, 186.4, Math.PI], [163.2, 182.0, 0], [180.6, 186.6, Math.PI], [184.4, 183.0, 0], [195.6, 186.8, Math.PI], [140.5, 186.8, Math.PI]] as [number, number, number][]) lantern(x, z, r);
 
@@ -390,10 +409,26 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     if (row === 5) world.put(x, y - 1, z, B.Dirt);
     layout.exclusion[x + z * SX] = EX.Farm;
   }
-  // Post-and-rail fence in runs of up to six blocks (so it follows the ground), solid to walk into:
-  // a barrier two blocks high under it, because the player steps up a single block on their own.
-  const fenceLine = (x0: number, z0: number, x1: number, z1: number) => {
+  // Post-and-rail fence in runs of up to six blocks (so it follows the ground): a barrier one block
+  // high under it, which the player can't step up onto but can jump.
+  const fenceLine = (x0: number, z0: number, x1: number, z1: number): void => {
     const len = Math.hypot(x1 - x0, z1 - z0);
+    // Where a road or lane crosses, the fence stops either side of it, like a gate left open
+    const onRoad = (t: number) => { const x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t; return ROADS.some((r) => distToPolyline(x, z, r).d < 1.4); };
+    const n = Math.ceil(len * 2);
+    if (len > 0.5 && [...Array(n + 1).keys()].some((i) => onRoad(i / n))) {
+      let from: number | null = null;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, road = onRoad(t);
+        if (!road && from === null) from = t;
+        if ((road || i === n) && from !== null) {
+          const to = road ? (i - 1) / n : t;
+          if (to - from > 0.5 / len) fenceLine(x0 + (x1 - x0) * from, z0 + (z1 - z0) * from, x0 + (x1 - x0) * to, z0 + (z1 - z0) * to);
+          from = null;
+        }
+      }
+      return;
+    }
     const runs = Math.max(1, Math.ceil(len / 6));
     for (let r = 0; r < runs; r++) {
       const mx = x0 + ((x1 - x0) * (r + 0.5)) / runs, mz = z0 + ((z1 - z0) * (r + 0.5)) / runs;
@@ -402,8 +437,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const steps = Math.ceil(len * 3);
     for (let i = 0; i <= steps; i++) {
       const x = Math.floor(x0 + ((x1 - x0) * i) / steps), z = Math.floor(z0 + ((z1 - z0) * i) / steps);
-      const y = ground(x, z);
-      if (world.get(x, y, z) === B.Air) barrier(x, y, z, 2);
+      // One barrier per cell: the ground under a barrier already placed is the barrier's own cell
+      let y = ground(x, z);
+      while (y > 0 && world.get(x, y - 1, z) === B.Barrier) y--;
+      if (world.get(x, y, z) === B.Air) barrier(x, y, z, 1);
     }
   };
   for (const [x0, z0, x1, z1] of [[127, 211, 149, 211], [127, 235, 149, 235], [127, 211, 127, 222], [127, 226, 127, 235], [149, 211, 149, 235]]) fenceLine(x0, z0, x1, z1);

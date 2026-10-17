@@ -78,12 +78,12 @@ export const LAKES: { x: number; z: number; r: number; name: string }[] = [
 ];
 
 export const WORLD_ROADS: [number, number][][] = [
-  // Hollindale east road to Ansbury's west gate
-  [[320, 197], [380, 205], [460, 228], [560, 250], [660, 280], [748, 300]],
-  // Ansbury east gate to Gullmouth
-  [[892, 300], [1000, 320], [1140, 360], [1300, 420], [1460, 520], [1600, 590], [1680, 600]],
-  // Ansbury south gate down the Turnpike to the Waystation and Harrowgate Works
-  [[820, 372], [800, 440], [740, 500], [690, 560], [700, 700], [780, 820], [880, 930], [970, 990]],
+  // Hollindale east road to Ansbury: in at the New Town's west gate and along the avenue to the old west gate
+  [[320, 197], [380, 205], [460, 228], [560, 250], [604, 292], [630, 300], [748, 300]],
+  // Ansbury east gate, out through the New Town's east gate, to Gullmouth
+  [[892, 300], [1010, 300], [1052, 314], [1140, 360], [1300, 420], [1460, 520], [1600, 590], [1680, 600]],
+  // Ansbury south gate down the avenue, out of the New Town's south gate, down the Turnpike to the Waystation and Harrowgate Works
+  [[820, 372], [820, 476], [800, 504], [744, 528], [690, 560], [700, 700], [780, 820], [880, 930], [970, 990]],
   // Hollindale south road through Hagworm Wood
   [[232, 320], [250, 400], [230, 520], [260, 640], [300, 760], [330, 880], [300, 1000], [250, 1140], [270, 1300], [300, 1440]],
   // Harrowgate Works east to the coast road

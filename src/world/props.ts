@@ -635,9 +635,10 @@ export function chest(M: PropMaterials): THREE.Group {
 
 export function door(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(box(0.92, 1.92, 0.1), M.darkWood, 0, 0.96, 0));
-  for (const y of [0.4, 1.5]) g.add(mesh(box(0.7, 0.07, 0.04), M.iron, -0.06, y, 0.06));
-  g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), M.iron, 0.32, 0.95, 0.08));
+  // Fills a three-block doorway
+  g.add(mesh(box(0.92, 2.9, 0.1), M.darkWood, 0, 1.45, 0));
+  for (const y of [0.45, 1.45, 2.45]) g.add(mesh(box(0.7, 0.07, 0.04), M.iron, -0.06, y, 0.06));
+  g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), M.iron, 0.32, 1.2, 0.08));
   return g;
 }
 

@@ -4,8 +4,8 @@ import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { hash2 } from './noise';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
-import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist } from './terrain';
-import { CHUNK, chunkKey, inWorld, localIdx, SY, WX, WZ } from './VoxelWorld';
+import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
+import { CHUNK, chunkKey, inWorld, localIdx, SY, WMIN, WX, WZ } from './VoxelWorld';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -86,9 +86,14 @@ const UNDERWORKS = {
 /** Per-chunk list of [localIndex, blockId, ...] written in order after terrain. */
 export class Overrides {
   readonly map = new Map<number, number[]>();
+  /** Cells last written as farmland or a barrier (a fence, a closed door), so roads can be cleared of them. */
+  readonly soft = new Map<number, number>();
   set(x: number, y: number, z: number, id: number): void {
     x = Math.floor(x); z = Math.floor(z); y = Math.floor(y);
     if (!inWorld(x, z) || y < 0 || y >= SY) return;
+    const cell = (x - WMIN) + (z - WMIN) * 4096 + y * 4096 * 4096;
+    if (id === B.Farmland || id === B.Barrier) this.soft.set(cell, id);
+    else if (this.soft.has(cell)) this.soft.delete(cell);
     const k = chunkKey(x >> 5, z >> 5);
     let a = this.map.get(k);
     if (!a) this.map.set(k, (a = []));
@@ -104,6 +109,60 @@ export interface Plan {
 }
 
 let cached: Plan | null = null;
+
+/** What may not stand on a road: a cart, barrels, a bench, a fence, a stall or a tent. */
+const ROAD_CLUTTER = new Set<PropType>(['cart', 'barrel', 'crate', 'bench', 'fence', 'stall', 'tent', 'anvil', 'firepit']);
+
+/**
+ * Keep every road between towns open: a garden or a field planted across one goes back to path, a
+ * fence across one comes down, and anything left standing on one is moved off. Walls and houses
+ * aren't touched (the roads are laid to go through gates and down streets).
+ */
+function clearRoads(O: Overrides, sites: Site[]): void {
+  const onRoad = (x: number, z: number) => !(x < GW + 40 && z < GW + 40) && roadDist(x, z) < 1.7 && heightAt(x, z) > SEA;
+  for (const [cell, id] of [...O.soft]) {
+    const x = (cell % 4096) + WMIN, z = (Math.floor(cell / 4096) % 4096) + WMIN, y = Math.floor(cell / (4096 * 4096));
+    if (!onRoad(x, z)) continue;
+    O.set(x, y, z, id === B.Farmland ? B.Path : B.Air);
+  }
+  for (const s of sites) s.props = s.props.filter((p) => !(ROAD_CLUTTER.has(p.t) && onRoad(p.x, p.z)));
+}
+
+/**
+ * Lantern posts along the roads between towns, one every 24 blocks on alternating sides, leaning
+ * out over the road; the towns light their own streets. They're grouped into stretches so only the
+ * lamps near the player are built and lit.
+ */
+function roadLamps(O: Overrides, sites: Site[]): void {
+  const towns = sites.filter((s) => s.named);
+  let n = 0, side = 1, stretch: Site | null = null;
+  for (const line of WORLD_ROADS) for (let i = 0; i < line.length - 1; i++) {
+    const [ax, az] = line[i], [bx, bz] = line[i + 1];
+    const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+    for (let t = 12; t < len; t += 24) {
+      side = -side;
+      const cx = ax + ux * t, cz = az + uz * t;
+      // Off the road's edge, on open dry ground, outside the towns (they have their own lamps)
+      const x = Math.floor(cx - uz * 2.8 * side) + 0.5, z = Math.floor(cz + ux * 2.8 * side) + 0.5;
+      const g = heightAt(Math.floor(x), Math.floor(z));
+      if (g <= SEA + 1 || roadDist(x, z) < 1.8 || Math.abs(g - heightAt(Math.floor(cx), Math.floor(cz))) > 2) continue;
+      if (towns.some((s) => Math.hypot(s.x - x, s.z - z) < (s.id === 'aldermere' ? 260 : 40))) continue;
+      if (sites.some((s) => !s.named && s.id.startsWith('poi') && Math.hypot(s.x - x, s.z - z) < 24)) continue;
+      if (!stretch || Math.hypot(stretch.x - x, stretch.z - z) > 90) {
+        stretch = { id: 'roadlamps' + n++, name: '', region: regionAt(x, z).a, x, z, r: 170, named: false, props: [], rects: [], impostor: [] };
+        sites.push(stretch);
+      }
+      // The lamp's arm reaches back toward the middle of the road
+      const ry = Math.atan2(-(cz - z), cx - x);
+      stretch.props.push({ t: 'lantern', x, y: g, z, ry });
+      O.set(x, g, z, B.Barrier); O.set(x, g + 1, z, B.Barrier);
+    }
+  }
+}
+
+/** Tools can listen for every street and paved area laid (the path check uses this). */
+let streetHook: ((x0: number, z0: number, x1: number, z1: number, kind: string) => void) | null = null;
+export function setStreetHook(fn: typeof streetHook): void { streetHook = fn; }
 
 export function plan(): Plan {
   if (cached) return cached;
@@ -221,6 +280,9 @@ export function plan(): Plan {
     sites.push(s);
   });
 
+  clearRoads(O, sites);
+  roadLamps(O, sites);
+
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
   for (const s of sites) for (const r of s.rects) {
     for (let cz = r[1] >> 5; cz <= r[3] >> 5; cz++) for (let cx = r[0] >> 5; cx <= r[2] >> 5; cx++) {
@@ -264,8 +326,8 @@ export function plan(): Plan {
         else if (f === 0 && ly === 0) id = B.Cobble;
         else if (along % 3 === 0) id = frame;
         else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1) id = B.Window;
-        if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = opts.closed ? B.Barrier : B.Air; // the doorway: walk in
-        if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
+        // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
+        if (x === doorX && z === doorZ && f === 0 && ly <= 2) id = opts.closed ? B.Barrier : B.Air;
         O.set(x, y, z, id);
       }
     }
@@ -284,7 +346,7 @@ export function plan(): Plan {
       const leaf = openDoorPlace(shape);
       s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry });
     }
-    s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 1.8, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
+    s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
     const alongX = w >= d;
     const span = alongX ? d : w;
     if (opts.impostor !== false) s.impostor.push({ x: x0 + w / 2, y: base + floors * 2 + 1.2, z: z0 + d / 2, w, h: floors * 4 + 2.4, d, color: ROOF_TONE[roof ?? 'red'] });
@@ -361,6 +423,22 @@ export function plan(): Plan {
   function fence(s: Site, x0: number, z0: number, x1: number, z1: number) {
     const len = Math.hypot(x1 - x0, z1 - z0);
     if (len < 0.5) return;
+    // Where a road crosses the line the fence stops either side of it, like a field gate left open
+    const onRoad = (t: number) => { const x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t; return !(x < GW + 40 && z < GW + 40) && roadDist(x, z) < 2.2; };
+    const n = Math.ceil(len * 2);
+    if ([...Array(n + 1).keys()].some((i) => onRoad(i / n))) {
+      let from: number | null = null;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, road = onRoad(t);
+        if (!road && from === null) from = t;
+        if ((road || i === n) && from !== null) {
+          const to = road ? (i - 1) / n : t;
+          if (to - from > 0.5 / len) fence(s, x0 + (x1 - x0) * from, z0 + (z1 - z0) * from, x0 + (x1 - x0) * to, z0 + (z1 - z0) * to);
+          from = null;
+        }
+      }
+      return;
+    }
     const runs = Math.max(1, Math.ceil(len / 6));
     const ry = -Math.atan2(z1 - z0, x1 - x0);
     for (let r = 0; r < runs; r++) {
@@ -375,10 +453,11 @@ export function plan(): Plan {
       if (done.has(x + ',' + z)) continue;
       done.add(x + ',' + z);
       const g = heightAt(x, z);
-      O.set(x, g, z, B.Barrier); O.set(x, g + 1, z, B.Barrier);
+      O.set(x, g, z, B.Barrier); // one block high: a fence is jumped, not walked over (see Player)
     }
   }
   function street(x0: number, z0: number, x1: number, z1: number) {
+    streetHook?.(x0, z0, x1, z1, 'street');
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       const g = heightAt(x, z);
       O.set(x, g - 1, z, (x + z) % 5 === 0 ? B.StoneBrick : hash2(x, z, 3) < 0.12 ? B.MossyCobble : B.Cobble);
@@ -390,6 +469,7 @@ export function plan(): Plan {
   // ---------------------------------------------------------------- Shared detail helpers
   /** Paved ground: cobbles with dressed stone in a pattern, worn patches of moss. */
   function pave(x0: number, z0: number, x1: number, z1: number, base: number, style: 'cobble' | 'flag' | 'yard' = 'cobble') {
+    streetHook?.(x0, z0, x1, z1, style);
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       foundation(x, z, base);
       const h = hash2(x, z, 7);

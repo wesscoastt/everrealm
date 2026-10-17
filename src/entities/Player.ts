@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isSolid } from '../world/blocks';
+import { B, isSolid } from '../world/blocks';
 import { SY, VoxelWorld } from '../world/VoxelWorld';
 import { Appearance, Humanoid, ROLL_TIME } from './humanoid';
 
@@ -84,6 +84,15 @@ export class Player {
     return false;
   }
 
+  /** A barrier at foot height (a fence, a bench): the player won't step up onto it, only jump it. */
+  private barrierAt(px: number, py: number, pz: number): boolean {
+    const y = Math.floor(py + 0.01);
+    const x0 = Math.floor(px - HALF), x1 = Math.floor(px + HALF - 1e-4);
+    const z0 = Math.floor(pz - HALF), z1 = Math.floor(pz + HALF - 1e-4);
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (this.world.get(x, y, z) === B.Barrier) return true;
+    return false;
+  }
+
   startRoll(dir: THREE.Vector3): void {
     this.rolling = ROLL_TIME;
     this.rollDir.copy(dir).setY(0).normalize();
@@ -160,14 +169,14 @@ export class Player {
     const stepX = this.velocity.x * dt;
     if (stepX !== 0) {
       if (!this.collides(p.x + stepX, p.y, p.z)) p.x += stepX;
-      else if ((this.onGround || this.inWater) && !this.collides(p.x + stepX, p.y + 1.02, p.z) && !this.collides(p.x, p.y + 1.02, p.z)) {
+      else if ((this.onGround || this.inWater) && !this.barrierAt(p.x + stepX, p.y, p.z) && !this.collides(p.x + stepX, p.y + 1.02, p.z) && !this.collides(p.x, p.y + 1.02, p.z)) {
         p.y += 1.02; p.x += stepX; this.stepOffset -= 1.02;
       } else this.velocity.x = 0;
     }
     const stepZ = this.velocity.z * dt;
     if (stepZ !== 0) {
       if (!this.collides(p.x, p.y, p.z + stepZ)) p.z += stepZ;
-      else if ((this.onGround || this.inWater) && !this.collides(p.x, p.y + 1.02, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z)) {
+      else if ((this.onGround || this.inWater) && !this.barrierAt(p.x, p.y, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z)) {
         p.y += 1.02; p.z += stepZ; this.stepOffset -= 1.02;
       } else this.velocity.z = 0;
     }
