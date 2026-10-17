@@ -39,6 +39,13 @@ export const TEMPLE = { x: 1190, z: 1800 };
 import { COTTAGE, LAND_BOARD, LOT_D, LOT_W, LOTS } from './housing';
 export { COTTAGE };
 
+/** The Charter Bank's counters, at the doors of the main towns' counting houses. */
+export const BANKS = [
+  { id: 'ansbury', name: 'the Weighhouse, Ansbury', x: 825.5, z: 347.5 },
+  { id: 'gullmouth', name: 'the harbour office, Gullmouth', x: coastX(600) - 22.5, z: 583.5 },
+  { id: 'harrowgate', name: 'the company office, Harrowgate', x: 984.5, z: 994.5 },
+];
+
 /** Something in the world the player can examine with E. */
 export interface WorldThing {
   id: string;
@@ -58,6 +65,8 @@ export interface WorldThing {
 export const WORLD_THINGS: WorldThing[] = [
   ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
   { id: 'homeBuy', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d + 1.5, label: 'Read the For Sale notice', radius: 2.4, when: (g) => !g.flag('home'), use: (g) => g.buyHome() },
+  // The Charter Bank's counters: one vault, reached from any of them
+  ...BANKS.map((b): WorldThing => ({ id: 'bank:' + b.id, x: b.x, z: b.z, label: `Use the bank (${b.name})`, radius: 2.6, use: (g) => g.openBank(b.id) })),
   { id: 'landBoard', x: LAND_BOARD.x, z: LAND_BOARD.z, label: 'Read the Charter land board', radius: 2.4, read: 'landBoard' },
   // A stake at the front of each lot: lease it, draw up plans, build
   ...LOTS.map((l): WorldThing => {

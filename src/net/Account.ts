@@ -55,6 +55,21 @@ export async function signIn(user: string, pass: string, create: boolean): Promi
   return null;
 }
 
+/** The bank vault shared by the account's characters, or null if the server can't be reached. */
+export async function getVault(): Promise<{ vault: { items: Record<string, number>; marks: number }; ver: number } | null> {
+  const r = await call('GET', '/api/vault');
+  if (r.status !== 200) return null;
+  return { vault: r.data.vault as { items: Record<string, number>; marks: number }, ver: Number(r.data.ver) || 0 };
+}
+
+/** Store the vault as changed against version `ver`; a stale version comes back with the vault as it is. */
+export async function putVault(vault: { items: Record<string, number>; marks: number }, ver: number): Promise<{ ok: boolean; ver?: number; vault?: { items: Record<string, number>; marks: number }; error?: string }> {
+  const r = await call('PUT', '/api/vault', { vault, ver });
+  if (r.status === 200) return { ok: true, ver: Number(r.data.ver) };
+  if (r.status === 409) return { ok: false, vault: r.data.vault as { items: Record<string, number>; marks: number }, ver: Number(r.data.ver) };
+  return { ok: false, error: String(r.data.error ?? 'The realm\'s server isn\'t answering.') };
+}
+
 export async function signOut(): Promise<void> {
   if (currentAccount()) await call('POST', '/api/logout');
   remember(null);

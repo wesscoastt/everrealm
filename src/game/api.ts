@@ -34,6 +34,8 @@ export interface GameApi {
   arrangeHome(): void;
   /** A lot's stake: lease it, or draw up plans for a house on it. */
   lotAction(id: string): void;
+  /** The Charter Bank's vault, at one of its counters (an id from BANKS). */
+  openBank(id: string): void;
 }
 
 export interface DOption {

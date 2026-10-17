@@ -20,6 +20,8 @@
 //   GET  /api/me                         -> {user, characters: [{name, save, updated}]}
 //   PUT  /api/characters/<name> {save}   -> {ok}
 //   DELETE /api/characters/<name>        -> {ok}
+//   GET  /api/vault                      -> {vault, ver}   (the bank vault all the account's characters share)
+//   PUT  /api/vault {vault, ver}         -> {ok, ver}, or 409 {vault, ver} when ver is stale
 //
 // Run: npm run server   (PORT, HOST and EVERREALM_DATA environment variables override the defaults)
 //
@@ -212,6 +214,24 @@ async function api(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/me') {
     const characters = acc.chars.map((k) => loadChar(k)).filter((r) => r && r.owner === acc.user).map((r) => ({ name: r.name, save: r.save, updated: r.updated ?? r.created }));
     return reply(res, 200, { user: acc.user, characters });
+  }
+  if (url.pathname === '/api/vault') {
+    if (req.method === 'GET') return reply(res, 200, { vault: acc.vault ?? { items: {}, marks: 0 }, ver: acc.vaultVer ?? 0 });
+    if (req.method === 'PUT') {
+      const body = await readBody(req);
+      const v = body?.vault;
+      // A change made against an older copy (another of the account's characters got there first)
+      if (Number(body?.ver) !== (acc.vaultVer ?? 0)) return reply(res, 409, { vault: acc.vault ?? { items: {}, marks: 0 }, ver: acc.vaultVer ?? 0 });
+      const items = {};
+      const entries = v && typeof v.items === 'object' && v.items ? Object.entries(v.items) : [];
+      if (entries.length > 80) return reply(res, 400, { error: 'The vault holds 80 kinds of things.' });
+      for (const [k, n] of entries) if (/^[a-z0-9_]{1,40}$/.test(k) && Number.isInteger(n) && n > 0 && n <= 1e6) items[k] = n;
+      const marks = Number.isInteger(v?.marks) && v.marks >= 0 && v.marks <= 1e9 ? v.marks : 0;
+      acc.vault = { items, marks };
+      acc.vaultVer = (acc.vaultVer ?? 0) + 1;
+      storeAccount(acc);
+      return reply(res, 200, { ok: true, ver: acc.vaultVer });
+    }
   }
   const m = url.pathname.match(/^\/api\/characters\/(.+)$/);
   if (m) {

@@ -37,7 +37,7 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
 const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSitting', 'joan', 'joanSitting']);
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */
 const LIFT = { x: 1201, z: 1800, r: 6, y: 89 };
-import { ALDERMERE, CAMP, COLD, COTTAGE, GULL, QUEST_SPAWNS, TEMPLE, WORKS, WORLD_THINGS, WorldThing } from '../data/places_regional';
+import { ALDERMERE, BANKS, CAMP, COLD, COTTAGE, GULL, QUEST_SPAWNS, TEMPLE, WORKS, WORLD_THINGS, WorldThing } from '../data/places_regional';
 import { bigIsle } from '../world/holms';
 import { B, isSolid } from '../world/blocks';
 import { fellTree, FishSpot, LOWER_WEND, OreNode, regrowTree, TreeNode } from '../world/generate';
@@ -59,6 +59,7 @@ import { Festivals } from './Festivals';
 import { Home, Piece } from './Home';
 import { Building } from './Building';
 import { Planner } from './Planner';
+import { Bank } from './Bank';
 import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, HouseSpec, Lot, LOT_PRICE, LOTS, PlotState, plotShape, readPlot } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
@@ -166,6 +167,15 @@ export class Game implements GameApi {
   home!: Home;
   building!: Building;
   planner!: Planner;
+  readonly bank: Bank = new Bank({
+    pack: () => this.social['host'].pack(),
+    count: (id) => this.inv.count(id), canAdd: (id, n) => this.inv.canAdd(id, n),
+    give: (id, n) => this.inv.add(id, n), take: (id, n) => this.inv.remove(id, n),
+    marks: () => this.save.marks, addMarks: (n) => { this.save.marks = Math.max(0, this.save.marks + n); },
+    sound: (n) => this.sfx(n as Sfx), system: (t) => this.hud.system(t),
+    persist: () => this.persist(), refresh: () => this.hud.refresh(),
+    player: () => this.player.position,
+  });
   /** While visiting: the host's lot and plans, shown in place of your own. */
   private visitPlot: PlotState | null = null;
   /** Groups and trades with other players. */
@@ -688,6 +698,13 @@ export class Game implements GameApi {
   /** Your home: the house on your lot once it's built, otherwise Wendside Cottage if you bought it. */
   private myHome(): HomeShape | null {
     return plotShape(readPlot(this.flag('plot'))) ?? (this.flag('home') ? COTTAGE_SHAPE : null);
+  }
+
+  openBank(id: string): void {
+    const b = BANKS.find((x) => x.id === id);
+    if (!b) return;
+    this.hud.closeAll();
+    void this.bank.show(b.name, b.x, b.z);
   }
 
   lotAction(id: string): void {
@@ -2449,6 +2466,7 @@ export class Game implements GameApi {
     this.festivals.update(dt, P);
     this.home.update();
     this.planner.update();
+    this.bank.update();
     // The house on the lots: a host's while you visit them, otherwise your own
     if (!this.home.visiting) this.visitPlot = null;
     this.building.show(this.home.visiting ? this.visitPlot : readPlot(this.flag('plot')));
@@ -2532,6 +2550,7 @@ export class Game implements GameApi {
       return;
     }
     if (this.planner.lot && I.pressedOnce('Escape')) this.planner.close();
+    if (this.bank.open && I.pressedOnce('Escape')) this.bank.close();
     if (this.home.active) {
       // Arranging the house: E sets the held piece down, R turns it, X picks up the nearest
       if (I.pressedOnce('KeyE')) { this.home.place(); this.hud.refresh(); this.persist(); }

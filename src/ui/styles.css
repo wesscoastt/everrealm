@@ -698,3 +698,24 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #plantray .ht-keys span { flex: 1; opacity: 0.75; }
 #plantray [data-build] { color: var(--gold); border-color: var(--gold); }
 @media (max-width: 600px) { #plantray { left: 16px; right: 16px; width: auto; top: 90px; } }
+
+/* The Charter Bank (game/Bank.ts) */
+#bankpanel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 620px; max-width: calc(100vw - 32px); max-height: calc(100vh - 120px); overflow-y: auto; z-index: 31; padding: 12px 14px; background: linear-gradient(rgba(14, 20, 40, 0.96), rgba(8, 10, 20, 0.96)); border: 1px solid var(--ink); border-radius: 10px; color: var(--cream-d); font: 500 13px var(--body); pointer-events: auto; }
+#bankpanel .bk-head { display: flex; justify-content: space-between; align-items: center; }
+#bankpanel .bk-head b { color: var(--gold); font: 600 15px var(--px); }
+#bankpanel .bk-sub { margin: 4px 0 10px; opacity: 0.7; font-size: 12px; }
+#bankpanel .bk-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+#bankpanel h6 { margin: 0 0 6px; font: 600 12px var(--px); color: var(--gold); letter-spacing: 0.5px; }
+#bankpanel h6 i { opacity: 0.6; font-style: normal; color: var(--cream-d); }
+#bankpanel .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; min-height: 90px; align-content: start; }
+#bankpanel .bk-grid em { grid-column: 1 / -1; opacity: 0.6; }
+#bankpanel .bslot { position: relative; height: 40px; padding: 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px; cursor: pointer; }
+#bankpanel .bslot:hover { border-color: var(--gold); }
+#bankpanel .bslot img { width: 30px; height: 30px; image-rendering: pixelated; margin-top: 4px; }
+#bankpanel .bslot .n { position: absolute; right: 3px; bottom: 1px; font: 600 11px var(--px); text-shadow: 1px 1px 0 #000; }
+#bankpanel button { font: 500 12.5px var(--body); color: var(--cream-d); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+#bankpanel .bk-all { margin-top: 8px; }
+#bankpanel .bk-marks { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+#bankpanel .bk-marks b { color: var(--gold); }
+#bankpanel .bk-mb { display: flex; gap: 4px; }
+@media (max-width: 600px) { #bankpanel .bk-cols { grid-template-columns: 1fr; } }
