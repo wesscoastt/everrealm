@@ -127,7 +127,7 @@ export const FISH_TABLE: Record<'wend' | 'spill' | 'eelpool' | 'lake' | 'sea' | 
 
 // ------------------------------------------------------------- Crafting
 
-export type Station = 'furnace' | 'anvil' | 'hearth';
+export type Station = 'furnace' | 'anvil' | 'hearth' | 'bench';
 
 export interface Recipe {
   id: string;
@@ -161,9 +161,19 @@ export const RECIPES: Recipe[] = [
   { id: 'cooked_seabass', station: 'hearth', skill: 'cooking', level: 15, xp: 90, inputs: { raw_seabass: 1 }, output: 'cooked_seabass', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cooked_char', station: 'hearth', skill: 'cooking', level: 25, xp: 150, inputs: { raw_char: 1 }, output: 'cooked_char', count: 1, time: 2.4, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cooked_pike', station: 'hearth', skill: 'cooking', level: 10, xp: 65, inputs: { raw_pike: 1 }, output: 'cooked_pike', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
+  // Joinery, at the bench by Wendside Cottage: furniture from the logs you cut
+  { id: 'j_stool', station: 'bench', skill: 'woodcutting', level: 1, xp: 12, inputs: { oak_logs: 2 }, output: 'furn_stool', count: 1, time: 2 },
+  { id: 'j_chair', station: 'bench', skill: 'woodcutting', level: 3, xp: 22, inputs: { oak_logs: 3 }, output: 'furn_chair', count: 1, time: 2.4 },
+  { id: 'j_table', station: 'bench', skill: 'woodcutting', level: 4, xp: 30, inputs: { oak_logs: 4 }, output: 'furn_table', count: 1, time: 2.8 },
+  { id: 'j_bench', station: 'bench', skill: 'woodcutting', level: 6, xp: 34, inputs: { birch_logs: 4 }, output: 'furn_bench', count: 1, time: 2.8 },
+  { id: 'j_shelves', station: 'bench', skill: 'woodcutting', level: 8, xp: 40, inputs: { birch_logs: 3, oak_logs: 2 }, output: 'furn_shelves', count: 1, time: 3 },
+  { id: 'j_chest', station: 'bench', skill: 'woodcutting', level: 10, xp: 55, inputs: { oak_logs: 4, bronze_bar: 1 }, output: 'furn_chest', count: 1, time: 3.2 },
+  { id: 'j_barrel', station: 'bench', skill: 'woodcutting', level: 10, xp: 50, inputs: { oak_logs: 3, bronze_bar: 1 }, output: 'furn_barrel', count: 1, time: 3 },
+  { id: 'j_bed', station: 'bench', skill: 'woodcutting', level: 12, xp: 70, inputs: { pine_logs: 5 }, output: 'furn_bed', count: 1, time: 3.4 },
+  { id: 'j_dresser', station: 'bench', skill: 'woodcutting', level: 15, xp: 90, inputs: { pine_logs: 4, birch_logs: 3 }, output: 'furn_dresser', count: 1, time: 3.6 },
 ];
 
-export const STATION_NAMES: Record<Station, string> = { furnace: 'Furnace', anvil: 'Anvil', hearth: 'Cook fire' };
+export const STATION_NAMES: Record<Station, string> = { furnace: 'Furnace', anvil: 'Anvil', hearth: 'Cook fire', bench: "Joiner's bench" };
 
 // ------------------------------------------------------------- Shop
 

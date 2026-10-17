@@ -1947,6 +1947,9 @@ export function plan(): Plan {
     house(s, 404, 197, 8, 7, 1, base, 'thatch', 's', { role: 'vacant' });
     s.props.push({ t: 'sign', x: 410.5, y: base, z: 205.5, ry: 0, text: 'FOR SALE\nEnquire within' });
     s.props.push({ t: 'barrel', x: 404.6, y: base, z: 204.6 });
+    // The joiner's bench under the east eaves (see COTTAGE.bench), a stack of logs beside it
+    s.props.push({ t: 'desk', x: 412.6, y: base, z: 199.5, ry: -Math.PI / 2 });
+    s.props.push({ t: 'crate', x: 412.7, y: base, z: 201.4 });
   }
 
   /** Hale's Fold: a shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. */

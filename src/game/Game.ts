@@ -629,6 +629,12 @@ export class Game implements GameApi {
   /** The pack opens beside a trader or a station, where there's room for both; on a phone, one panel at a time. */
   private showPackBeside(): void { if (innerWidth > 520) this.hud.show('inv'); }
 
+  /** Where a crafting station stands: the joiner's bench is at the cottage, the rest in Hollin Ford. */
+  private stationAt(st: Station): { x: number; y: number; z: number } {
+    if (st === 'bench') return { ...COTTAGE.bench, y: COTTAGE.floor };
+    return this.world.structures.interactables.find((i) => i.kind === st)!;
+  }
+
   openCrafting(st: Station): void { this.currentStation = st; this.hud.show('craft'); this.showPackBeside(); }
   startCasting(): void { this.casting = { t: 0, dur: 30 }; }
   get playerName(): string { return this.save.name; }
@@ -1200,7 +1206,7 @@ export class Game implements GameApi {
     if (!c) return;
     const r = RECIPES.find((x) => x.id === c.recipe)!;
     c.t += dt;
-    const st = this.world.structures.interactables.find((i) => i.kind === c.station)!;
+    const st = this.stationAt(c.station);
     this.player.faceTowards(st.x, st.z);
     if (c.station === 'anvil') {
       this.anvilTimer -= dt;
@@ -2478,7 +2484,7 @@ export class Game implements GameApi {
     const mv = this.moveVector();
     if (mv.lengthSq() > 0.01 && (this.action || this.craftAction)) this.cancelActions();
     if (this.currentStation && this.hud.isOpen('craft')) {
-      const st = this.world.structures.interactables.find((i) => i.kind === this.currentStation)!;
+      const st = this.stationAt(this.currentStation);
       if (Math.hypot(st.x - this.player.position.x, st.z - this.player.position.z) > 4) { this.hud.close('craft'); this.currentStation = null; }
     } else if (!this.hud.isOpen('craft')) this.currentStation = null;
     if (this.hud.isOpen('travel')) {
@@ -2664,7 +2670,7 @@ export class Game implements GameApi {
       else M.setState(this.action.kind === 'mine' ? 'mine' : 'chop');
     } else if (this.craftAction) {
       const st = this.craftAction.station;
-      M.setState(st === 'anvil' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
+      M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
     } else if (this.horse) { M.setState('ride'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
