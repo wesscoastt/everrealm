@@ -56,6 +56,7 @@ import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
 import { ClassKit } from './ClassKit';
 import { Festivals } from './Festivals';
+import { Social } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingId, callingById, TUNE } from '../data/classes';
@@ -157,6 +158,29 @@ export class Game implements GameApi {
   });
   /** The festival that's on, its stalls and its writ. */
   festivals!: Festivals;
+  /** Groups and trades with other players. */
+  readonly social: Social = new Social({
+    net: () => this.online,
+    system: (t) => this.hud.system(t),
+    ask: (t, y, n, s) => this.hud.ask(t, y, n, s),
+    setGroup: (rows) => this.hud.setGroup(rows),
+    openTrade: (open) => { if (open) { this.hud.show('trade'); } else this.hud.close('trade'); },
+    refreshTrade: () => this.hud.refresh('trade'),
+    player: () => ({ x: this.player.position.x, z: this.player.position.z, hp: this.hp, max: this.maxHp, level: this.level('melee'), calling: this.calling }),
+    pack: () => {
+      const m = new Map<string, number>();
+      for (const s of this.save.inv) if (s) m.set(s.id, (m.get(s.id) ?? 0) + s.n);
+      return [...m].map(([id, n]) => ({ id, n }));
+    },
+    count: (id) => this.inv.count(id),
+    take: (id, n) => this.inv.remove(id, n),
+    give: (id, n) => this.give(id, n),
+    freeSlots: () => this.inv.freeSlots(),
+    marks: () => this.save.marks,
+    addMarks: (n) => { this.save.marks = Math.max(0, this.save.marks + n); this.hud.refresh(); },
+    sound: (n) => this.sfx(n),
+    persist: () => this.persist(),
+  });
   /** Set while a writ pays its experience, so the payment doesn't count toward other writs. */
   private writXp = false;
   private travelled = 0;
@@ -393,9 +417,10 @@ export class Game implements GameApi {
     this.online = new Online({
       scene: this.scene,
       system: (t) => this.hud.system(t),
+      ...this.social.hooks(),
       chat: (from, t, id, kind) => {
         this.hud.chat(from, t, kind);
-        if (id !== undefined) this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
+        if (id !== undefined && kind !== 'group') this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
       },
       status: (s, n) => this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online'),
       bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
@@ -601,6 +626,7 @@ export class Game implements GameApi {
 
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
+    if (this.social.groupNearby()) amount = Math.round(amount * 1.1);
     if (!this.writXp && skill !== 'melee') this.dailies.bump(`xp:${skill}`, Math.round(amount));
     const before = this.level(skill);
     this.save.xp[skill] += Math.round(amount);
@@ -675,6 +701,13 @@ export class Game implements GameApi {
       useSlot: (i: number) => g.useSlot(i),
       daily: () => g.dailies.view(),
       festival: () => g.festivals.view(),
+      trade: () => g.social.ui(),
+      tradeAdd: (id: string) => g.social.add(id),
+      tradeRemove: (i: number) => g.social.remove(i),
+      tradeMarks: (n: number) => g.social.setMarks(n),
+      tradeLock: () => g.social.lock(),
+      tradeAccept: () => g.social.accept(),
+      tradeCancel: () => g.social.cancel(),
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
       feats: () => {
         const api = g.featApi();
@@ -2269,6 +2302,7 @@ export class Game implements GameApi {
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
+    this.social.update(dt);
     for (const a of this.animals) {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);
       a.model.root.visible = !far;
@@ -2374,6 +2408,16 @@ export class Game implements GameApi {
     }
     if (I.click) {
       if (this.action?.kind === 'fish' && this.pullLine()) return;
+      const other = this.pickPlayer(I.click.x, I.click.y);
+      if (other) {
+        const name = other.name;
+        this.hud.playerMenu(name, I.click.x, I.click.y, [
+          ...(this.social.isAlly(other.id) ? [] : [{ label: 'Invite to group', act: () => this.social.invite(name) }]),
+          { label: 'Trade', act: () => this.social.ask(name) },
+          { label: 'Wave', act: () => this.doEmote('wave') },
+        ]);
+        return;
+      }
       const picked = this.pick(I.click.x, I.click.y);
       if (picked instanceof Enemy) {
         this.target = picked;
@@ -2402,6 +2446,21 @@ export class Game implements GameApi {
       }
     }
     void dt;
+  }
+
+  /** Another player under the cursor, nearer than anything else in the way. */
+  private pickPlayer(x: number, y: number): { id: number; name: string } | null {
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1), this.camera);
+    let best: { id: number; name: string } | null = null, bd = 30;
+    for (const r of this.online.remotes.values()) {
+      const c = r.model.root.position;
+      const hit = ray.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(c.x, c.y + 1.1, c.z), 0.8), tmpV);
+      if (!hit) continue;
+      const d = hit.distanceTo(this.camera.position);
+      if (d < bd) { bd = d; best = { id: r.id, name: r.name }; }
+    }
+    return best;
   }
 
   private pick(x: number, y: number): Enemy | Npc | null {
@@ -2701,7 +2760,7 @@ export class Game implements GameApi {
       out.push({ x, z, kind: 'npc', label: full ? n.def.name.split(' ')[0] : undefined });
     }
     if (!full) for (const e of this.enemies) if (e.alive && e.pos.distanceTo(this.player.position) < 55) out.push({ x: e.pos.x, z: e.pos.z, kind: e.def.elite ? 'elite' : 'enemy' });
-    for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: 'other', label: full ? r.name : undefined });
+    for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: this.social.isAlly(r.id) ? 'ally' : 'other', label: full || this.social.isAlly(r.id) ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
     out.push(...this.activities.markers());
     out.push(...this.waymarkStones.markers());
@@ -2722,6 +2781,7 @@ export class Game implements GameApi {
       if (emoteById(c)) { this.doEmote(c); return; }
       switch (c) {
         case 'help': case '?':
+          this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Chat: just type and press Enter. Commands: /me <action> (e.g. /me tips a hat), /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
           return;
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
@@ -2741,6 +2801,11 @@ export class Game implements GameApi {
           return;
         }
         case 'clear': document.querySelectorAll('#chatbox .cb-line').forEach((l) => l.remove()); return;
+        case 'invite': case 'inv': if (arg) this.social.invite(arg); else this.hud.system('Who? /invite <name>, or click them and choose Invite.'); return;
+        case 'leave': case 'leavegroup': this.social.leave(); return;
+        case 'kick': if (arg) this.social.kick(arg); return;
+        case 'p': case 'party': case 'g': case 'group': if (arg) this.social.say(arg); return;
+        case 'trade': if (arg) this.social.ask(arg); else this.hud.system('Who? /trade <name>, or click them and choose Trade.'); return;
         default: this.hud.system(`There's no /${cmd}. Type /help for the list.`); return;
       }
     }

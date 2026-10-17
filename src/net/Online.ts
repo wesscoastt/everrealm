@@ -67,12 +67,23 @@ function tokenFor(name: string): string {
   return all[key];
 }
 
+export interface TradeOffer { items: { id: string; n: number }[]; marks: number }
+export interface GroupView { id: number; leader: number; members: { id: number; name: string; hp: number; max: number; level: number; calling: string; x: number; z: number }[] }
+export interface TradeView { id: number; with: string; mine: TradeOffer; theirs: TradeOffer; myLock: boolean; theirLock: boolean; myAccept: boolean; theirAccept: boolean }
+
 export interface OnlineHooks {
   scene: THREE.Scene;
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
   /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
-  chat(from: string, text: string, id?: number, kind?: 'say' | 'emote'): void;
+  chat(from: string, text: string, id?: number, kind?: 'say' | 'emote' | 'group'): void;
+  /** Groups and trades (game/Social.ts). */
+  group?(v: GroupView): void;
+  groupInvited?(from: string): void;
+  tradeAsked?(from: string): void;
+  trade?(v: TradeView): void;
+  tradeEnd?(why: string): void;
+  tradeDone?(withName: string, give: TradeOffer, take: TradeOffer): void;
   status(s: OnlineStatus, players: number): void;
   /** The server has a newer copy of this character than the browser does. */
   newerSave(save: SaveData): void;
@@ -174,7 +185,13 @@ export class Online {
           r.yaw = yaw; r.anim = anim; r.held = held;
         }
         break;
-      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, m.kind === 'emote' ? 'emote' : 'say'); break;
+      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, m.kind === 'emote' ? 'emote' : m.kind === 'group' ? 'group' : 'say'); break;
+      case 'group': this.hooks.group?.(m as unknown as GroupView); break;
+      case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
+      case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
+      case 'trade': this.hooks.trade?.(m as unknown as TradeView); break;
+      case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
+      case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
       case 'sys': this.hooks.system(String(m.text)); break;
       case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
       case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left)); break;
@@ -272,6 +289,20 @@ export class Online {
   bossHit(id: string, cycle: number, dmg: number, max: number): void {
     if (this.online) this.ws!.send(JSON.stringify({ t: 'bossHit', id, cycle, dmg, max }));
   }
+
+  private emit(msg: object): void { if (this.status === 'online' && this.ws) this.ws.send(JSON.stringify(msg)); }
+  groupInvite(name: string): void { this.emit({ t: 'gInvite', name }); }
+  groupAnswer(accept: boolean): void { this.emit({ t: 'gAnswer', accept }); }
+  groupLeave(): void { this.emit({ t: 'gLeave' }); }
+  groupKick(name: string): void { this.emit({ t: 'gKick', name }); }
+  groupChat(text: string): void { this.emit({ t: 'gChat', text }); }
+  vitals(hp: number, max: number, level: number, calling: string): void { this.emit({ t: 'vitals', hp, max, level, calling }); }
+  tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
+  tradeAnswer(name: string, accept: boolean): void { this.emit({ t: 'tAnswer', name, accept }); }
+  tradeOffer(items: { id: string; n: number }[], marks: number): void { this.emit({ t: 'tOffer', items, marks }); }
+  tradeLock(on: boolean): void { this.emit({ t: 'tLock', on }); }
+  tradeAccept(): void { this.emit({ t: 'tAccept' }); }
+  tradeCancel(): void { this.emit({ t: 'tCancel' }); }
 
   /** Your id on the server (to know your own echoed chat). */
   myId = -1;

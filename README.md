@@ -55,6 +55,7 @@ To hear the score without playing, open `/music-preview.html` on the dev server.
 | G | Call your horse, or get down |
 | E | Talk, gather, use a station, take the Charter Post, or pull in a bite |
 | F | Eat |
+| Click another player | Invite to group, trade, or wave. Also /invite, /trade, /p (group chat), /leave, /kick |
 | Enter or / | Chat. /help lists commands; /wave, /bow, /cheer, /dance, /sit and more are emotes others see (or click ☺ on the chat box). Moving ends one. |
 | B / I | Pack |
 | K | Skills |
@@ -112,6 +113,10 @@ Four ways to fight, picked in the creator and changed any time out of a fight fr
 ## The main story
 
 Twelve chapters in two acts. **The Charter's Debt** (I to VI) starts at the Charter notice by Ansbury's south gate and ends at the sitting. **The Weatherholms** (VII to XII) follows from the Speaker's letter: Harrowgate's hoist beside the floating isles, the forty-one's counting stones, a sinking isle, and a three-way choice with Hilda Harrowgate. Canon is in `docs/LORE.md`; Act II's content is `src/data/content/weatherholms.ts`. `npm run quests` walks every chapter down every branch.
+
+## Groups and trades
+
+Online, players can group up (five at most): party frames under your own, groupmates green on the map, group chat with /p, and a tenth more experience while a groupmate is within 60 blocks. Two players within twelve blocks can trade: each puts items from the pack (not quest items) and marks on the table; changing either side unlocks both; when both have locked and accepted, the server tells each side what to give and take. Server half in `server/social.mjs`, client half in `src/game/Social.ts`.
 
 ## Festivals
 

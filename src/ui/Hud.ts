@@ -8,6 +8,7 @@ import { WMIN } from '../world/VoxelWorld';
 import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
+import type { GroupRow, TradeUi } from '../game/Social';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
 /** Minimap zoom steps, in CSS pixels per block, and the CSS width they're measured across. */
@@ -95,7 +96,7 @@ import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim' | 'fair' | 'giver'; label?: string; yaw?: number; id?: string }
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally'; label?: string; yaw?: number; id?: string }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -111,6 +112,14 @@ export interface UiCtx {
   useSlot(i: number): void;
   daily(): DailyView;
   festival(): FestivalView;
+  /** The trade on the table, if any, and what to do with it. */
+  trade(): TradeUi | null;
+  tradeAdd(id: string): void;
+  tradeRemove(i: number): void;
+  tradeMarks(n: number): void;
+  tradeLock(): void;
+  tradeAccept(): void;
+  tradeCancel(): void;
   claimLogin(): void;
   feats(): FeatView[];
   calling(): CallingId;
@@ -173,7 +182,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
 };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel';
+export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade';
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -314,6 +323,12 @@ export class Hud {
     panel('settings-panel', 'Menu', 'settings');
     panel('read-panel', '', 'read');
     panel('travel-panel', 'Charter Post', 'travel');
+    // Closing the trade window by hand calls the trade off
+    panel('trade-panel', 'Trade', 'trade').querySelector('.x')!.addEventListener('click', () => this.ctx.tradeCancel());
+    const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
+    const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
+    const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
+    window.addEventListener('pointerdown', (e) => { if (!(e.target as HTMLElement).closest('#pmenu')) pm.classList.remove('show'); }, true);
 
     const dlg = el('div', 'dlg'); dlg.innerHTML = '<div class="face"><canvas></canvas></div><div class="who"></div><div class="line"></div><div class="opts"></div>'; r.append(dlg);
   }
@@ -422,9 +437,84 @@ export class Hud {
     this.pushLoot(line);
   }
 
-  /** A chat line from a player (or yourself): said, or an emote ("Ada waves."). */
-  chat(from: string, text: string, kind: 'say' | 'emote' = 'say'): void {
-    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>` : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
+  /** A chat line from a player (or yourself): said, an emote ("Ada waves."), or group chat. */
+  chat(from: string, text: string, kind: 'say' | 'emote' | 'group' = 'say'): void {
+    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>` : kind === 'group' ? `<b>[Group] ${esc(from)}:</b> ${esc(text)}` : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
+  }
+
+  // ------------------------------------------------------------------ Groups and trades
+  /** The group's frames, under your own (null: not in a group). */
+  setGroup(rows: GroupRow[] | null): void {
+    const box = this.q('#group');
+    if (!rows) { box.innerHTML = ''; box.classList.remove('show'); return; }
+    box.classList.add('show');
+    box.innerHTML = '<h6>Group</h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.near ? '' : ' far'}" title="${m.near ? '' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
+  }
+
+  private askT = 0;
+  private askNo: (() => void) | null = null;
+  /** A yes-or-no from another player (a group invite, a trade), answered or let lapse. */
+  ask(text: string, yes: () => void, no: () => void, secs: number): void {
+    const box = this.q('#askbox');
+    if (this.askNo) this.askNo();
+    clearTimeout(this.askT);
+    box.querySelector('p')!.textContent = text;
+    const done = (fn: () => void) => { box.classList.remove('show'); clearTimeout(this.askT); this.askNo = null; fn(); this.ctx.sfx('click'); };
+    (box.querySelector('.yes') as HTMLElement).onclick = () => done(yes);
+    (box.querySelector('.no') as HTMLElement).onclick = () => done(no);
+    this.askNo = no;
+    const tm = box.querySelector('.tm') as HTMLElement;
+    tm.style.animation = 'none'; void tm.offsetWidth; tm.style.animation = `askTime ${secs}s linear forwards`;
+    box.classList.add('show');
+    this.ctx.sfx('open');
+    this.askT = window.setTimeout(() => { if (this.askNo) done(no); }, secs * 1000);
+  }
+
+  /** A little menu by the cursor for another player: invite, trade and so on. */
+  playerMenu(title: string, x: number, y: number, items: { label: string; act: () => void }[]): void {
+    const pm = this.q('#pmenu');
+    pm.innerHTML = `<b>${esc(title)}</b>`;
+    for (const it of items) {
+      const b = el('button', 'btn ghost sm', esc(it.label));
+      b.addEventListener('click', () => { pm.classList.remove('show'); it.act(); });
+      pm.append(b);
+    }
+    pm.classList.add('show');
+    pm.style.left = Math.min(innerWidth - pm.offsetWidth - 8, x + 8) + 'px';
+    pm.style.top = Math.min(innerHeight - pm.offsetHeight - 8, y - 10) + 'px';
+  }
+
+  private renderTrade(): void {
+    const t = this.ctx.trade();
+    const body = this.q('#trade-panel .body');
+    if (!t) { body.innerHTML = ''; return; }
+    this.q('#trade-panel h3').textContent = `Trade with ${t.with}`;
+    const stack = (s: { id: string; n: number }, i: number, mine: boolean) => {
+      const d = ITEMS[s.id];
+      return `<div class="tslot r-${d?.rarity ?? 'common'}" data-i="${mine ? i : -1}" title="${esc(d?.name ?? s.id)}${mine ? ' (click to take back)' : ''}"><img src="${itemIcon(s.id)}" alt="">${s.n > 1 ? `<span class="n">${s.n}</span>` : ''}</div>`;
+    };
+    const side = (who: string, o: { items: { id: string; n: number }[]; marks: number }, mine: boolean, locked: boolean, accepted: boolean) => `
+      <div class="tside${locked ? ' locked' : ''}">
+        <h5>${esc(who)} <span>${accepted ? 'Accepted' : locked ? 'Locked' : 'Choosing'}</span></h5>
+        <div class="tslots">${o.items.map((s, i) => stack(s, i, mine)).join('') || '<em>Nothing yet</em>'}</div>
+        <div class="tmarks">${mine ? `<label>Marks <input type="number" min="0" max="${this.ctx.save.marks}" value="${o.marks}" ${locked ? 'disabled' : ''}></label>` : `<span class="coin">${o.marks} marks</span>`}</div>
+      </div>`;
+    body.innerHTML = `<div class="tsides">${side('You', t.mine, true, t.myLock, t.myAccept)}${side(t.with, t.theirs, false, t.theirLock, t.theirAccept)}</div>
+      <h6 class="tpack-h">Your pack: click something to put it on the table</h6>
+      <div class="tpack">${t.pack.map((s) => `<div class="tslot r-${ITEMS[s.id]?.rarity ?? 'common'}" data-add="${s.id}" title="${esc(ITEMS[s.id]?.name ?? s.id)}"><img src="${itemIcon(s.id)}" alt="">${s.n > 1 ? `<span class="n">${s.n}</span>` : ''}</div>`).join('') || '<em>Nothing in your pack that can be traded.</em>'}</div>
+      <p class="tnote">Changing either side unlocks both. When both of you have locked, accept.</p>`;
+    if (!t.myLock) {
+      body.querySelectorAll<HTMLElement>('[data-add]').forEach((e) => e.addEventListener('click', () => this.ctx.tradeAdd(e.dataset.add!)));
+      body.querySelectorAll<HTMLElement>('.tside [data-i]').forEach((e) => { const i = Number(e.dataset.i); if (i >= 0) e.addEventListener('click', () => this.ctx.tradeRemove(i)); });
+      const inp = body.querySelector<HTMLInputElement>('.tmarks input');
+      inp?.addEventListener('change', () => this.ctx.tradeMarks(Number(inp.value)));
+      inp?.addEventListener('keydown', (e) => e.stopPropagation());
+    }
+    const both = t.myLock && t.theirLock;
+    this.q('#trade-panel .footer').innerHTML = `<button class="btn ghost tcancel">Cancel</button><button class="btn ghost tlock">${t.myLock ? 'Unlock' : 'Lock'}</button><button class="btn taccept" ${both && !t.myAccept ? '' : 'disabled'}>${t.myAccept ? 'Waiting…' : 'Accept'}</button>`;
+    this.q('#trade-panel .tcancel').addEventListener('click', () => this.ctx.tradeCancel());
+    this.q('#trade-panel .tlock').addEventListener('click', () => this.ctx.tradeLock());
+    this.q('#trade-panel .taccept').addEventListener('click', () => this.ctx.tradeAccept());
   }
 
   private chatFilter: 'all' | 'chat' | 'world' = 'all';
@@ -822,7 +912,7 @@ export class Hud {
       const [x, y] = at(m.x, m.z);
       if (Math.hypot(x, y) > inside) continue;
       const big = m.kind === 'elite';
-      c.fillStyle = m.kind === 'other' ? '#5fc6ff' : m.kind === 'npc' ? '#f4e6a0' : big ? '#ffb020' : m.kind === 'enemy' ? '#e8402e' : '#ffffff';
+      c.fillStyle = m.kind === 'ally' ? '#7fe05a' : m.kind === 'other' ? '#5fc6ff' : m.kind === 'npc' ? '#f4e6a0' : big ? '#ffb020' : m.kind === 'enemy' ? '#e8402e' : '#ffffff';
       c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
       c.beginPath(); c.arc(x, y, big ? 8 : 5.5, 0, Math.PI * 2); c.fill(); c.stroke();
       if (big) { c.strokeStyle = '#ffb020'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 12, 0, Math.PI * 2); c.stroke(); }
@@ -929,6 +1019,7 @@ export class Hud {
         case 'craft': this.renderCraft(); break;
         case 'shop': this.renderShop(); break;
         case 'travel': this.renderTravel(); break;
+        case 'trade': this.renderTrade(); break;
         case 'map': this.renderMap(); break;
         case 'settings': this.renderSettings(); break;
       }
@@ -1389,6 +1480,10 @@ export class Hud {
         x.beginPath(); x.arc(X, Y, px(5), 0, Math.PI * 2); x.fill(); x.stroke();
         if (m.label && z > 2.2) label(m.label, X, Y + px(15), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#2a1a0a');
         if (m.label) hits.push({ x: X, y: Y, name: m.label, sub: 'Townsperson' });
+      } else if (m.kind === 'ally') {
+        x.fillStyle = '#5fbf3a'; x.strokeStyle = '#fff'; x.lineWidth = px(2);
+        x.beginPath(); x.arc(X, Y, px(6), 0, Math.PI * 2); x.fill(); x.stroke();
+        if (m.label) { label(m.label, X, Y + px(16), `700 ${px(13)}px "Alegreya Sans", sans-serif`, '#1f4a10'); hits.push({ x: X, y: Y, name: m.label, sub: 'In your group' }); }
       } else if (m.kind === 'other') {
         x.fillStyle = '#3f8fc0'; x.strokeStyle = '#fff'; x.lineWidth = px(2);
         x.beginPath(); x.arc(X, Y, px(5), 0, Math.PI * 2); x.fill(); x.stroke();

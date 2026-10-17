@@ -596,3 +596,42 @@ body.touch #loot { bottom: auto; top: 360px; }
 @keyframes bossIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (max-width: 520px) { #bossbar { top: auto; bottom: 112px; width: 92vw; } #bossbar .bb-name { font-size: 15px; } }
 @media (max-height: 500px) { #bossbar { top: 8px; left: 244px; transform: none; width: min(230px, calc(100vw - 590px)); } #bossbar .bb-name { font-size: 14px; } }
+
+/* ------------------------------------------------------------------ Groups and trades */
+#group { position: absolute; left: 16px; top: 178px; width: 200px; display: none; flex-direction: column; gap: 4px; }
+#group.show { display: flex; }
+#group h6 { margin: 0 0 1px 2px; font: 600 10px var(--px); letter-spacing: 1.2px; color: var(--cream-d); text-transform: uppercase; text-shadow: var(--hard1); }
+#group .gm { padding: 4px 7px 5px; background: rgba(8, 12, 24, 0.72); border: 1px solid rgba(0,0,0,0.6); border-left: 3px solid #5fbf3a; border-radius: 5px; }
+#group .gm.me { border-left-color: var(--gold); }
+#group .gm.far { opacity: 0.55; }
+#group .gn { display: flex; align-items: baseline; gap: 5px; font: 600 13px var(--px); color: var(--cream); text-shadow: var(--hard1); }
+#group .gn small { margin-left: auto; font: 500 10.5px var(--body); color: var(--cream-d); }
+#group .crown { color: var(--gold); font-size: 12px; }
+#group .bar.hp { height: 6px; margin-top: 3px; }
+#askbox { position: absolute; left: 50%; top: 26%; transform: translateX(-50%); width: min(360px, 90vw); padding: 12px 16px 14px; display: none; text-align: center; z-index: 25; overflow: hidden; pointer-events: auto; }
+#askbox.show { display: block; }
+#askbox p { margin: 0 0 10px; font: 500 15px var(--body); color: var(--cream); }
+#askbox .row { display: flex; gap: 10px; justify-content: center; }
+#askbox .tm { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--gold); transform-origin: left; }
+@keyframes askTime { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+#pmenu { position: absolute; display: none; flex-direction: column; gap: 4px; padding: 8px; min-width: 150px; z-index: 26; pointer-events: auto; }
+#pmenu.show { display: flex; }
+#pmenu b { font: 600 14px var(--px); color: var(--gold); margin: 0 2px 2px; }
+#pmenu .btn { text-align: left; }
+#trade-panel { left: 50%; top: 92px; transform: translateX(-50%); width: 500px; }
+#trade-panel .tsides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#trade-panel .tside { padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,0,0,0.6); border-radius: 6px; }
+#trade-panel .tside.locked { box-shadow: inset 0 0 0 2px rgba(127, 191, 77, 0.6); }
+#trade-panel h5 { margin: 0 0 6px; display: flex; justify-content: space-between; font: 600 14px var(--px); color: var(--cream); }
+#trade-panel h5 span { font: 600 11px var(--px); color: var(--cream-d); text-transform: uppercase; letter-spacing: 1px; }
+#trade-panel .tslots, #trade-panel .tpack { display: flex; flex-wrap: wrap; gap: 4px; min-height: 44px; }
+#trade-panel .tslot { position: relative; width: 40px; height: 40px; background: #0b1122; border: 1px solid var(--ink); border-radius: 5px; cursor: pointer; }
+#trade-panel .tslot img { width: 100%; height: 100%; image-rendering: pixelated; }
+#trade-panel .tslot .n { position: absolute; right: 2px; bottom: 0; font: 600 11px var(--px); color: #fff; text-shadow: var(--hard1); }
+#trade-panel .tmarks { margin-top: 6px; font: 500 13px var(--body); color: var(--cream-d); }
+#trade-panel .tmarks input { width: 90px; margin-left: 6px; padding: 2px 6px; background: #0b1122; color: #fff; border: 1px solid var(--ink); border-radius: 4px; }
+#trade-panel .tpack-h { margin: 10px 0 5px; font: 600 11px var(--px); color: var(--cream-d); letter-spacing: 1px; text-transform: uppercase; }
+#trade-panel em { font: italic 500 13px var(--body); color: var(--muted); }
+#trade-panel .tnote { margin: 8px 0 0; font: italic 500 12.5px var(--body); color: var(--cream-d); }
+#trade-panel .footer { display: flex; gap: 8px; justify-content: flex-end; }
+@media (max-width: 520px) { #trade-panel .tsides { grid-template-columns: 1fr; } #group { top: 100px; left: 8px; width: 150px; } #group .gm { padding: 3px 5px; } }
