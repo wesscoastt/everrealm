@@ -5,7 +5,7 @@ import { MusicContext, Score } from './music/Score';
 export type Sfx =
   | 'swing' | 'hit' | 'hitHeavy' | 'hurt' | 'clink' | 'oreBreak' | 'chop' | 'treeFall' | 'cast' | 'splash' | 'bite' | 'catch'
   | 'bell' | 'coin' | 'levelUp' | 'click' | 'open' | 'close' | 'step' | 'growl' | 'squelch' | 'skitter' | 'heal' | 'roll'
-  | 'anvil' | 'sizzle' | 'quest' | 'discover' | 'whistle' | 'death' | 'pickup' | 'fail';
+  | 'anvil' | 'sizzle' | 'quest' | 'discover' | 'whistle' | 'death' | 'pickup' | 'fail' | 'thunder';
 
 export class AudioSystem {
   ctx: AudioContext | null = null;
@@ -16,6 +16,7 @@ export class AudioSystem {
   private noise!: AudioBuffer;
   private windGain!: GainNode;
   private riverGain!: GainNode;
+  private rainGain!: GainNode;
   private fireGain!: GainNode;
   private nextBird = 0;
   score: Score | null = null;
@@ -42,6 +43,7 @@ export class AudioSystem {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.windGain = this.loopNoise(400, 0.6, 'lowpass');
     this.riverGain = this.loopNoise(900, 0.8, 'bandpass');
+    this.rainGain = this.loopNoise(2600, 0.35, 'highpass');
     this.fireGain = this.loopNoise(2400, 0.3, 'highpass');
   }
 
@@ -156,6 +158,7 @@ export class AudioSystem {
       case 'anvil': this.tone(2600, 'sine', 0.35, 0.18 * v); this.tone(3900, 'sine', 0.2, 0.08 * v); this.burst(5000, 2, 0.04, 0.2 * v, 'highpass'); break;
       case 'sizzle': this.burst(5000, 0.5, 0.6, 0.15 * v, 'highpass'); break;
       case 'whistle': this.tone(1800, 'sine', 0.5, 0.2 * v, 0, 2300); break;
+      case 'thunder': this.burst(220, 0.6, 3.2, 0.55 * v, 'lowpass', 0, 45); this.burst(90, 0.8, 2.4, 0.4 * v, 'lowpass', 0.35, 40); break;
       case 'death': this.tone(300, 'sine', 1.2, 0.2 * v, 0, 80); break;
     }
   }
@@ -166,14 +169,15 @@ export class AudioSystem {
     this.play(name, vol * Math.max(0.05, 1 - dist / 40));
   }
 
-  ambience(dt: number, opts: { night: number; river: number; fire: number; underground: boolean; inTown: boolean }): void {
+  ambience(dt: number, opts: { night: number; river: number; fire: number; underground: boolean; inTown: boolean; rain?: number }): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.windGain.gain.setTargetAtTime(opts.underground ? 0.02 : 0.08 + opts.night * 0.04, t, 0.5);
     this.riverGain.gain.setTargetAtTime(opts.river * 0.28, t, 0.3);
     this.fireGain.gain.setTargetAtTime(opts.fire * 0.12, t, 0.2);
+    this.rainGain.gain.setTargetAtTime((opts.rain ?? 0) * 0.3, t, 1.2);
     this.nextBird -= dt;
-    if (this.nextBird <= 0 && !opts.underground) {
+    if (this.nextBird <= 0 && !opts.underground && (opts.rain ?? 0) < 0.3) {
       this.nextBird = 1.5 + Math.random() * 4;
       if (opts.night < 0.5) this.birdCall();
       else this.cricket();

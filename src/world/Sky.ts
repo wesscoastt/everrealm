@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import type { WeatherState } from './weather';
+import { precipitation } from './precip';
 import { SharedUniforms } from './materials';
 import { createSeededRandom } from '../utils/random';
 
@@ -39,6 +41,9 @@ function lerpColor(a: string, b: string, t: number, out: THREE.Color): THREE.Col
   return out.copy(c1.set(a)).lerp(c2.set(b), t);
 }
 
+const GREY = new THREE.Color('#8e97a2');
+const tmpC = new THREE.Color();
+
 export class Sky {
   readonly group = new THREE.Group();
   readonly sun: THREE.DirectionalLight;
@@ -60,6 +65,16 @@ export class Sky {
   night = 0;
   /** The camera is under water: a close blue-green fog closes in. */
   underwater = false;
+  /** The weather now (eased toward the target), and where it's heading. */
+  readonly weather: WeatherState = { cloud: 0.1, precip: 0, snow: false, mist: 0, name: 'Clear' };
+  private weatherTo: WeatherState = { ...this.weather };
+  /** A roof overhead: no rain drawn (it would fall through it). */
+  sheltered = false;
+  /** Lightning: a white flash that fades. */
+  flash = 0;
+  private rain = precipitation('rain');
+  private snow = precipitation('snow');
+  private precipTime = 0;
 
   constructor(scene: THREE.Scene, private shared: SharedUniforms) {
     this.fog = new THREE.Fog('#c4dcea', 120, 1100);
@@ -168,6 +183,36 @@ export class Sky {
     this.group.add(this.stars);
 
     scene.add(this.group);
+    scene.add(this.rain.obj, this.snow.obj);
+  }
+
+  /** Where the weather should go; the sky gets there over half a minute or so. */
+  setWeather(w: WeatherState): void {
+    this.weatherTo = w;
+  }
+
+  /** Ease the weather toward its target and move the rain or snow with the camera. */
+  private updateWeather(dt: number, cam: THREE.Vector3): void {
+    const W = this.weather, T = this.weatherTo, k = Math.min(1, dt / 25);
+    // Change kind only once the old fall has thinned out
+    if (W.snow !== T.snow && W.precip < 0.05) W.snow = T.snow;
+    W.cloud += (T.cloud - W.cloud) * k;
+    W.precip += ((W.snow === T.snow ? T.precip : 0) - W.precip) * k;
+    W.mist += (T.mist - W.mist) * k;
+    W.name = T.name;
+    this.precipTime += dt;
+    for (const [p, on] of [[this.rain, !W.snow], [this.snow, W.snow]] as const) {
+      const show = on && W.precip > 0.02 && !this.underwater;
+      p.obj.visible = show;
+      if (!show) continue;
+      const u = p.mat.uniforms;
+      u.uTime.value = this.precipTime;
+      u.uCam.value.copy(cam);
+      // Under a roof, a few drops still show at the edges of the view rather than none at all
+      u.uAmount.value = W.precip * (this.sheltered ? 0.25 : 1);
+      u.uOpacity.value = (W.snow ? 0.85 : 0.55) * (1 - this.night * 0.55);
+    }
+    this.flash = Math.max(0, this.flash - dt * 4);
   }
 
   /** Drift every cluster with the wind and lay it out around the player. */
@@ -217,6 +262,27 @@ export class Sky {
     lerpColor(a.hemiGround, b.hemiGround, t, this.hemi.groundColor);
     this.hemi.intensity = a.hemiI + (b.hemiI - a.hemiI) * t;
 
+    // Weather: grey skies dim the sun and wash the colours toward slate; mist and rain pull the fog in
+    this.updateWeather(dt, center);
+    const W = this.weather, c = W.cloud;
+    tmpC.copy(GREY).multiplyScalar(1 - this.night * 0.8);
+    zen.lerp(tmpC, c * 0.55);
+    this.domeMat.uniforms.uHorizon.value.lerp(tmpC, c * 0.5);
+    if (!this.underwater) {
+      this.fog.color.lerp(tmpC, c * 0.5);
+      const thick = Math.max(W.mist, W.precip * 0.55);
+      this.fog.near = 120 * (1 - thick * 0.9);
+      this.fog.far = 1100 - c * 300 - thick * 850;
+    }
+    // Under a lid of cloud the sun all but goes (shadows fade) and the light turns flat and cool
+    this.sun.intensity *= 1 - c * 0.85;
+    this.sun.color.lerp(tmpC.copy(GREY), c * 0.4);
+    this.hemi.intensity *= 1 - c * 0.3;
+    this.hemi.color.lerp(GREY, c * 0.45);
+    this.hemi.groundColor.multiplyScalar(1 - c * 0.3);
+    tmpC.copy(GREY).multiplyScalar(1 - this.night * 0.8);
+    if (this.flash > 0) { this.hemi.intensity += this.flash * 2.5; zen.lerp(tmpC.set('#dfe6ff'), this.flash * 0.6); }
+
     // Sun path: rises in the east (+x), sets in the west, tilted toward the south.
     const ang = ((h - 6) / 12) * Math.PI;
     const elev = Math.sin(ang);
@@ -234,7 +300,8 @@ export class Sky {
     this.shared.uGlow.value = 0.22 + this.night * 1.25;
     (this.stars.material as THREE.PointsMaterial).opacity = this.night * 0.9;
     // White by day, warmed by a low sun, blue-grey and dim at night
-    this.cloudMat.color.set('#ffffff').lerp(this.sun.color, 0.3 * (1 - this.night)).lerp(this.fog.color, 0.12).multiplyScalar(1 - this.night * 0.78);
+    this.cloudMat.color.set('#ffffff').lerp(this.sun.color, 0.3 * (1 - this.night)).lerp(this.fog.color, 0.12).lerp(GREY, this.weather.cloud * 0.55).multiplyScalar(1 - this.night * 0.78);
+    this.cloudMat.opacity = 0.85 + this.weather.cloud * 0.12;
 
     // Shadow frustum follows the player, snapped to texels to avoid shimmer.
     const snap = 96 / 2048;

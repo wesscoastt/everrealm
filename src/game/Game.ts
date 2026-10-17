@@ -44,6 +44,7 @@ import { DialogueTree, DNode, GameApi } from './api';
 import { GameWorld } from './GameWorld';
 import { places } from '../data/places';
 import { coastX, heightAt, regionAt, REGION_INFO, riverDist } from '../world/terrain';
+import { weatherAt } from '../world/weather';
 import type { ChunkResult } from '../world/chunkgen';
 import { chunkKey } from '../world/VoxelWorld';
 import { Inventory, newSave, SaveData, writeSave } from './state';
@@ -140,6 +141,7 @@ export class Game implements GameApi {
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
   private crowd!: Crowd;
+  private weatherT = 0;
   /** The horse under the player, while riding. */
   private horse: CreatureModel | null = null;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
@@ -2299,7 +2301,22 @@ export class Game implements GameApi {
     const river = Math.max(0, 1 - waterNear / 22);
     const fire = Math.max(0, 1 - Math.hypot(hearth.x - P.x, hearth.z - P.z) / 10);
     const underground = this.world.voxels.topSolid(P.x, P.z) > P.y + 3;
-    this.audio.ambience(dt, { night: this.world.sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin' });
+    // Weather follows the region you're in, on a clock every player shares
+    const sky = this.world.sky;
+    this.weatherT -= dt;
+    if (this.weatherT <= 0) {
+      this.weatherT = 1;
+      const w = weatherAt(regionAt(P.x, P.z).a, sky.hour);
+      sky.setWeather(w);
+      this.hud.setWeather(w.name);
+    }
+    sky.sheltered = this.world.voxels.topSolid(P.x, P.z) > P.y + 1.9;
+    const wet = sky.weather.snow ? 0 : sky.weather.precip;
+    if (wet > 0.75 && !underground && Math.random() < dt / 25) {
+      sky.flash = 1;
+      setTimeout(() => this.sfx('thunder', 0.8), 600 + Math.random() * 2200);
+    }
+    this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin', rain: underground ? 0 : wet * (sky.sheltered ? 0.45 : 1) });
     this.audio.musicContext({ theme: this.musicTheme(underground), combat: this.inCombat() });
   }
 

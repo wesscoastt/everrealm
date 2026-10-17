@@ -470,8 +470,13 @@ export class Hud {
   setClock(hour: number): void {
     const h = Math.floor(hour), m = Math.floor((hour - h) * 60);
     this.q('.clock').textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    this.q('.daypart').textContent = hour < 5 ? 'Night' : hour < 8 ? 'Dawn' : hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 20 ? 'Evening' : 'Night';
+    const part = hour < 5 ? 'Night' : hour < 8 ? 'Dawn' : hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 20 ? 'Evening' : 'Night';
+    this.q('.daypart').textContent = this.weatherName && this.weatherName !== 'Clear' && this.weatherName !== 'Fair' ? `${part} · ${this.weatherName}` : part;
   }
+
+  private weatherName = '';
+  /** The weather's word, shown with the time of day under the minimap. */
+  setWeather(name: string): void { this.weatherName = name; }
 
   setDeath(on: boolean): void {
     this.q('#death').classList.toggle('show', on);
