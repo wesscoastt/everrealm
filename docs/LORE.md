@@ -317,6 +317,34 @@ Six chapters. The quest ids are `storyNotice`, `storyMossgate`, `storyCrown`, `s
 
 The Speaker gives the player a Charter ring in every ending. Earlier choices change what people say: the Weighhouse and Gannet outcomes change Lowen's lines, Posted Rate changes Hilda's greeting and Pryce's price for the page, and doing Wick's quest earns a friendlier word from Corrie.
 
+## The main story, Act II: The Weatherholms [in game]
+
+Six chapters after the sitting. The quest ids are `storyStride`, `storyHoist`, `storyForty`, `storyDrop`, `storyBaskets` and `storyLastMark`. Everything is in `src/data/content/weatherholms.ts`; where the isles and the hoist stand is worked out in `src/world/holms.ts`. It starts from the Speaker after the sitting (she has a letter from Ilse), whichever way the sitting went.
+
+### What is true in the world
+
+- **Harrowgate's Weatherholm venture.** After the sitting, Hilda Harrowgate looks for crystal where the Charter's writ doesn't run. Her notice on the tower: "No claim of the Charter runs above the ground." Two marks a day and board, thirty baskets before the frost, mostly Kelderby hands.
+- **The hoist.** A timber tower on the ground beside the largest isle, as tall as the isle is high, with a basket on a rope up its middle and a plank bridge from its top platform onto the isle's grass. The camp and the crystal store are at its foot. Its footings went down into a crystal seam, and shard jellies come up round them at night.
+- **Crystal is lift, both ways.** Take crystal off an isle and it sinks. Ilse logged the big isle dropping nine feet in a month, then four in an afternoon. Joan's reckoning: it isn't a straight line; six more baskets and the isle comes down, on the tower and the camp.
+- **The forty-one.** They lived on the field for generations. The ring's counting stones record forty-one, then up to sixty-three, then down: thirty, twenty-two, nine. They kept sheep, dug a well, buried their dead, and spun rope from their own wool for three lifetimes until it reached the ground.
+- **The Ketley arches.** The last nine climbed down the rope and built the five arches at Ketley, to tie down the fields that were still on the ground, so that nobody else would go up. The fourth stone, under the crystal in the ring, shows nine strokes, a rope, and five arches. Wynn Carrow: "They're a promise."
+- **The Keel.** The crystal mass under the ring floor, woken by Harrowgate's cut; it comes up out of the cut when the isle lurches.
+
+### People
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Gethin Vane** | Foreman of Harrowgate's hoist. Counts in baskets | His crew whole and the rope fine | He's been telling the crew the rope is fraying so they won't ask why it's stopped |
+| **Delyth Morgan** | Crew on the isle, Cai Morgan's daughter from Kelderby. Copies the stones into a book of grey paper | To know what she's been standing on | She sent baskets down while she copied the stones |
+
+### Endings (`holmEnd`)
+
+- `back`: the twenty-four baskets go back up (the player helps load the last four crates); the isle holds; the venture ends and the hoist stands empty, kept standing on Hilda's pay.
+- `charter`: the Speaker rules that the isles were Ketley's fields and Ketley is in the Charter, so the Charter's writ runs to them. The ring is left as it is, the crystal goes back at the company's cost, and the hoist is the Charter's, a mark a ride. Wynn is made keeper of the ring, unpaid.
+- `joan`: Joan sets the rate: the ring isle is left alone, the small isles give a basket a month, and weight goes back on the big one until it stops dropping. Joan measures it every morning.
+
+Every ending: Delyth cuts a forty-second stroke on the last stone and gives the player her chisel (`holm_mark`), and the basket is open to the player for good.
+
 ## Terminology
 
 - "reeve", not "mayor". "moot", not "council".

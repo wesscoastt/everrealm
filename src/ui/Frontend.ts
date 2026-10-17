@@ -181,7 +181,7 @@ export class Frontend {
         <ul>
           <li><b>Turnpike side quests.</b> Twenty, across Ansbury, Cotter's End and the Waystation.</li>
           <li><b>Hollin Ford rebuilt.</b> A cobbled street, six more houses and kitchen gardens.</li>
-          <li><b>The Charter's Debt.</b> The main story, six chapters, starting by Ansbury's south gate.</li>
+          <li><b>The main story.</b> Twelve chapters in two acts, The Charter's Debt and The Weatherholms, starting by Ansbury's south gate.</li>
           <li><b>Moving skies.</b> Clouds drift with the wind. The dodge roll is a proper roll.</li>
         </ul>
       </aside>

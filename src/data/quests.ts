@@ -19,7 +19,7 @@ export interface QuestDef {
   /** Quest-giver / turn-in marks over NPC heads, keyed by NPC id. Stage is undefined before the quest starts. */
   marks?: (g: GameApi, stage: string | undefined) => Record<string, '!' | '?'>;
   /** Main-story chapter: shown with a chapter card, its own marker colour, and first in the journal. */
-  story?: { chapter: number; title: string };
+  story?: { chapter: number; title: string; /** The act's name on the chapter card; defaults to The Charter's Debt. */ act?: string };
   /** Quest started (at this stage) the moment this one is done: how story chapters chain. */
   next?: [string, string];
   /** Region the quest belongs to, for the journal and the quest walker's report. */

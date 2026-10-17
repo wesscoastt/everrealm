@@ -178,7 +178,7 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
 // ------------------------------------------------------------- Enemies
 
 export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'roadwolf' | 'thornwolf' | 'sporejelly' | 'crab' | 'brinejelly' | 'dustwolf' | 'redback' | 'frostwolf' | 'shardjelly' | 'rustqueen' | 'oldglass'
-  | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden';
+  | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden' | 'keelglass';
 
 export interface EnemyDef {
   type: EnemyType;
@@ -228,6 +228,8 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   // Story bosses. The Rust Queen nests on the old builders' iron under Gallows Knap; Old Glass grew in the crystal under the Kirk.
   rustqueen: { type: 'rustqueen', model: 'rustback', palette: { a: '#3a1410', b: '#d0582a' }, scale: 2.3, name: 'The Rust Queen', level: 24, hp: 1500, damage: 32, speed: 3.4, aggro: 12, leash: 40, attack: 'charge', windup: 0.9, range: 9, cooldown: 2.4, xp: 900, elite: true, loot: [{ item: 'rustback_shell', chance: 1, min: 3, max: 3 }, { item: 'iron_ore', chance: 1, min: 4, max: 4 }, { item: 'harrow_cleaver', chance: 1 }], marks: [40, 60], respawn: 600 },
   oldglass: { type: 'oldglass', model: 'jelly', palette: { a: '#a8f0ff', b: '#3a9ac8', glow: true }, scale: 2.6, name: 'Old Glass', level: 30, hp: 2200, damage: 42, speed: 2.6, aggro: 14, leash: 40, attack: 'slam', windup: 0.95, range: 4.5, cooldown: 2.2, xp: 1400, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 1 }], marks: [60, 90], respawn: 600 },
+  // Act II: the crystal under the forty-one's ring, woken by Harrowgate's cut.
+  keelglass: { type: 'keelglass', model: 'jelly', palette: { a: '#d0c4ff', b: '#5a3ab0', glow: true }, scale: 2.8, name: 'The Keel', level: 31, hp: 2600, damage: 44, speed: 2.4, aggro: 12, leash: 18, attack: 'slam', windup: 1.0, range: 4.6, cooldown: 2.3, xp: 1600, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 0.5 }], marks: [60, 90], respawn: 600 },
   // World bosses (see data/activities.ts): they rise on a schedule every player shares, and their
   // loot is their region's gear. The Shardwarden leads the Shardfalls in Scarth.
   bramblemaw: { type: 'bramblemaw', model: 'wolf', palette: { a: '#2e3a1e', b: '#16200e', c: '#9ab07a' }, scale: 3.4, name: 'The Bramblemaw', level: 16, hp: 5200, damage: 34, speed: 6.2, aggro: 24, leash: 60, attack: 'lunge', windup: 0.8, range: 5.5, cooldown: 2.0, xp: 1600, elite: true, loot: [{ item: 'thorn_blade', chance: 0.35 }, { item: 'moss_hood', chance: 0.35 }, { item: 'elder_logs', chance: 1, min: 3, max: 3 }], marks: [45, 70], respawn: 99999 },

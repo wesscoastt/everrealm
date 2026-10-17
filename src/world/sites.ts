@@ -6,6 +6,7 @@ import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, localIdx, SY, WMIN, WX, WZ } from './VoxelWorld';
+import { hoistSpot, isleSpots } from './holms';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -1736,18 +1737,8 @@ export function plan(): Plan {
   }
 
   function buildIslands(s: Site) {
-    // Float each island over the lowest ground nearby, so there is sky beneath it
-    const isles: [number, number, number, number][] = [];
-    for (const [sx, sz, r, lift] of [[900, 1640, 11, 20], [948, 1606, 8, 28], [862, 1700, 9, 17], [1000, 1670, 7, 31], [830, 1610, 6, 24]] as const) {
-      let best: { x: number; z: number; g: number } = { x: sx, z: sz, g: Infinity };
-      for (let oz = -60; oz <= 60; oz += 12) for (let ox = -60; ox <= 60; ox += 12) {
-        let g = 0;
-        for (let k = 0; k < 9; k++) g = Math.max(g, heightAt(sx + ox + ((k % 3) - 1) * r, sz + oz + (Math.floor(k / 3) - 1) * r));
-        if (g < best.g) best = { x: sx + ox, z: sz + oz, g };
-      }
-      const iy = Math.min(SY - 10, Math.round(best.g + r * 1.1 + lift));
-      if (iy - best.g > r + 6) isles.push([best.x, best.z, iy, r]);
-    }
+    // Each island floats over the lowest ground nearby, so there is sky beneath it (world/holms.ts)
+    const isles: [number, number, number, number][] = isleSpots().map((i) => [i.x, i.z, i.y, i.r]);
     let isleN = 0;
     for (const [ix, iz, iy, r] of isles) {
       for (let dy = -r; dy <= 2; dy++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
@@ -1802,7 +1793,67 @@ export function plan(): Plan {
       isleN++;
       s.impostor.push({ x: ix, y: iy - r * 0.35, z: iz, w: r * 2, h: r * 0.9, d: r * 2, color: '#6a6a72' }, { x: ix, y: iy + 2.5, z: iz, w: r * 2, h: 1, d: r * 2, color: '#6a9a4a' });
     }
+    buildHoist(s);
     s.r = 260;
+  }
+
+  /**
+   * Harrowgate's hoist: a timber tower beside the largest isle, a basket on a rope up its middle,
+   * and a plank bridge from its top platform onto the isle. At its foot, the crew's camp and the
+   * crystal store.
+   */
+  function buildHoist(s: Site) {
+    const H = hoistSpot();
+    const x0 = Math.floor(H.x), z0 = Math.floor(H.z), g = H.ground, top = H.top;
+    // A level gravel yard round the tower's foot
+    for (let dx = -6; dx <= 6; dx++) for (let dz = -6; dz <= 6; dz++) {
+      if (Math.hypot(dx, dz) > 6.5) continue;
+      const x = x0 + dx, z = z0 + dz;
+      for (let y = Math.min(heightAt(x, z), g) - 3; y < g; y++) O.set(x, y, z, y === g - 1 ? (Math.abs(dx) <= 2 && Math.abs(dz) <= 2 ? B.Planks : B.Gravel) : B.Dirt);
+      clearUp(x, z, g, g + 8);
+    }
+    // Four corner posts, braced every six blocks round the outside (the middle is the basket's shaft)
+    for (let y = g; y < top - 1; y++) for (const [cx, cz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) O.set(x0 + cx, y, z0 + cz, B.Timber);
+    for (let y = g + 5; y < top - 1; y += 6) for (let k = -1; k <= 1; k++) {
+      O.set(x0 + k, y, z0 - 2, B.Planks); O.set(x0 + k, y, z0 + 2, B.Planks);
+      O.set(x0 - 2, y, z0 + k, B.Planks); O.set(x0 + 2, y, z0 + k, B.Planks);
+    }
+    // The top platform, and the bridge from it to the isle's grass
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) { O.set(x0 + dx, top - 1, z0 + dz, B.Planks); clearUp(x0 + dx, z0 + dz, top, top + 4); }
+    // The bridge stops where the isle's grass starts (its edge is r - 3 from the middle), short of the ring
+    for (let k = 3; k <= 9; k++) for (let w = -2; w <= 2; w++) {
+      const x = x0 + H.dx * k + (H.dz !== 0 ? w : 0), z = z0 + H.dz * k + (H.dx !== 0 ? w : 0);
+      O.set(x, top - 1, z, B.Planks);
+      if (k < 9) clearUp(x, z, top, top + 3);
+    }
+    // Rails along the bridge, a lantern at each end, the winch and the basket
+    const side = (k: number, w: number): [number, number] => [x0 + 0.5 + H.dx * k + (H.dz !== 0 ? w : 0), z0 + 0.5 + H.dz * k + (H.dx !== 0 ? w : 0)];
+    const along = Math.atan2(H.dx, H.dz);
+    // Rails: two-high timber posts every other block along both edges, rope strung between them,
+    // and the gaps barred two high, so nobody steps or hops off a thirty-block drop by accident
+    for (let k = 3; k <= 9; k++) for (const w of [-2, 2]) {
+      const x = x0 + H.dx * k + (H.dz !== 0 ? w : 0), z = z0 + H.dz * k + (H.dx !== 0 ? w : 0);
+      const post = (k - 3) % 2 === 0;
+      O.set(x, top, z, post ? B.Timber : B.Barrier);
+      O.set(x, top + 1, z, post ? B.Timber : B.Barrier);
+      if (post && k < 9) { const [rx, rz] = side(k, w); s.props.push({ t: 'rope', x: rx, y: top + 1.85, z: rz, ry: along, len: 2, h: 0.25, r: 0.05 }); }
+    }
+    for (const k of [2.6, 9]) { const [lx, lz] = side(k, 2); s.props.push({ t: 'lantern', x: lx, y: top, z: lz, ry: along }); }
+    s.props.push({ t: 'crate', x: x0 + 0.5, y: top, z: z0 + 0.5, ry: 0.1 }); // the basket, at the top
+    s.props.push({ t: 'rope', x: x0 + 0.5, y: top + 2.2, z: z0 + 0.5, ry: 0, len: 0.2, h: top - g + 1, r: 0.05 });
+    const back = (k: number, w: number): [number, number] => [x0 + 0.5 - H.dx * k + (H.dz !== 0 ? w : 0), z0 + 0.5 - H.dz * k + (H.dx !== 0 ? w : 0)];
+    const [wx, wz] = back(4, -2), [ex, ez] = back(4, 2.5);
+    s.props.push({ t: 'cart', x: wx, y: g, z: wz, ry: along }, { t: 'barrel', x: ex, y: g, z: ez });
+    // The camp: two tents, a fire, and the crystal store (crates, stacked)
+    const [tx1, tz1] = back(9, -4), [tx2, tz2] = back(9, 4), [fx, fz] = back(7, 0);
+    s.props.push({ t: 'tent', x: tx1, y: heightAt(tx1, tz1), z: tz1, ry: along, color: '#4a4a52' }, { t: 'tent', x: tx2, y: heightAt(tx2, tz2), z: tz2, ry: along, color: '#6a5a3a' });
+    s.props.push({ t: 'firepit', x: fx, y: g, z: fz });
+    const [sx, sz] = back(-1, 5);
+    for (let k = 0; k < 5; k++) s.props.push({ t: 'crate', x: sx + (k % 3) * 0.75, y: g + (k >= 3 ? 0.62 : 0), z: sz + (k >= 3 ? 0.35 : 0), ry: k * 0.3 });
+    s.props.push({ t: 'glow', x: sx + 0.7, y: g + 1, z: sz, r: 2, color: '#9fe8ff' });
+    const [nx, nz] = back(3, -3.5);
+    s.props.push({ t: 'notice', x: nx, y: g, z: nz, ry: along });
+    rect(s, x0 - 12, z0 - 12, x0 + 12, z0 + 12);
   }
 
   function buildWreck(s: Site, x: number, z: number) {

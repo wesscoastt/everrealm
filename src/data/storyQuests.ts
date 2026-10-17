@@ -115,7 +115,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storySitting: {
-    id: 'storySitting', name: 'What the Charter Owes', story: { chapter: 6, title: 'What the Charter Owes' },
+    id: 'storySitting', name: 'What the Charter Owes', story: { chapter: 6, title: 'What the Charter Owes' }, next: ['storyStride', 'letter'],
     notes: (g, s) => {
       if (s === 'done') {
         const e = g.flag('charterEnd');

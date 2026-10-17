@@ -68,7 +68,7 @@ export const WORLD_THINGS: WorldThing[] = [
   { id: 'crownTally', x: CROWN.x + 31.5, z: CROWN.z + 59, y: CROWN.cutFloor, label: 'Look at the tally wall', radius: 3.4, read: 'crownTally', when: (g) => !!g.stage('storyCrown') },
   // Marker only: where Harrowgate's crew cut the Kirk floor (nothing to press E on).
   { id: 'templeCut', x: TEMPLE.x + 11, z: TEMPLE.z, label: '', radius: 0, when: () => false },
-  { id: 'ilseGlass', x: STARWATCH.x + 3.5, z: STARWATCH.z + 9.5, label: 'Look through the glass', radius: 2.4, read: 'ilseGlass', when: (g) => !!g.stage('storyStar') },
+  { id: 'ilseGlass', x: STARWATCH.x + 3.5, z: STARWATCH.z + 9.5, label: 'Look through the glass', radius: 2.4, read: 'ilseGlass', when: (g) => !!g.stage('storyStar') && g.stage('storyStride') !== 'glass' },
   {
     id: 'gannetChest', x: WRECK.x - 3, z: WRECK.z + 2, label: 'Search under the bow', radius: 3,
     when: (g) => g.stage('gannetLog') === 'chest',

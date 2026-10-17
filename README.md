@@ -109,6 +109,10 @@ Four ways to fight, picked in the creator and changed any time out of a fight fr
 | Ashcaller | Kindling: every third Ember Bolt bursts | Cinder Ward (heal and burn) | Ember Bolt (22-block range) | Starfall (big delayed area) |
 | Pathfinder | Mark: marked foes take 15% more from you | Field Dressing (big heal) | Volley (arrows and marks) | Shadowstep (behind the target, next Strike crits x3) |
 
+## The main story
+
+Twelve chapters in two acts. **The Charter's Debt** (I to VI) starts at the Charter notice by Ansbury's south gate and ends at the sitting. **The Weatherholms** (VII to XII) follows from the Speaker's letter: Harrowgate's hoist beside the floating isles, the forty-one's counting stones, a sinking isle, and a three-way choice with Hilda Harrowgate. Canon is in `docs/LORE.md`; Act II's content is `src/data/content/weatherholms.ts`. `npm run quests` walks every chapter down every branch.
+
 ## Festivals
 
 Five fairs on the real calendar, the same days for everyone, back every year: the Lambing Fair (20 March to 20 April), Midsummer Watch (14 June to 10 July), Harvest Home (18 September to 20 October), the Lantern Wake (24 October to 10 November) and the Frostfair (12 December to 6 January). While one is on, a stall with bunting and a centrepiece (maypole, watch-fire, harvest stack, turnip lanterns, lit fir tree) goes up on open ground by every Charter Post; creatures drop the festival's token (elites always drop three); a festival writ each day pays 8 tokens; and the stall sells a festival dish, two wardrobe dyes and a festival horse for tokens. All cosmetic or comfort. Data in `src/data/festivals.ts`, runtime in `src/game/Festivals.ts`; add `?festival=<id>` to the address to try one out of season.

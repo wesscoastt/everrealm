@@ -32,7 +32,7 @@ import { POSTS, postFare, postHours } from '../data/travel';
 import { Online } from '../net/Online';
 import { BOARDS } from '../data/content';
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 /** People whose every conversation is a story scene. */
 const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSitting', 'joan', 'joanSitting']);
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */
@@ -439,7 +439,7 @@ export class Game implements GameApi {
       this.hud.banner('Quest complete', def.name, true);
       this.sfx('quest');
     } else if (!prev && def.story) {
-      this.hud.chapterCard(`The Charter's Debt · Chapter ${ROMAN[def.story.chapter]}`, def.story.title);
+      this.hud.chapterCard(`${def.story.act ?? 'The Charter\'s Debt'} · Chapter ${ROMAN[def.story.chapter]}`, def.story.title);
       this.sfx('levelUp');
     } else if (!prev) {
       this.hud.banner('New quest', def.name, true);
@@ -480,6 +480,22 @@ export class Game implements GameApi {
     return this.save.inv.some((st) => st && ITEMS[st.id].tool?.skill === s);
   }
   toast(text: string): void { this.hud.system(text); }
+
+  ride(x: number, y: number, z: number, line?: string): void {
+    this.dismount(true);
+    this.cancelActions();
+    this.player.teleport(x, y + 0.05, z);
+    this.rig.snap(this.player.position);
+    this.particles.dust(this.player.position, 10);
+    this.sfx('roll', 0.7);
+    if (line) this.hud.system(line);
+  }
+
+  quake(strength = 0.6): void {
+    this.rig.addShake(strength);
+    this.sfx('hitHeavy');
+    this.particles.dust(this.player.position, 24);
+  }
   /** The festival stall trades through the shop panel, in tokens. */
   private openFestivalStall(): void {
     const f = this.festivals.fest;

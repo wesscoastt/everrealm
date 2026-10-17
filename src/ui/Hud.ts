@@ -1012,7 +1012,7 @@ export class Hud {
     const cj = el('div', 'ji' + (this.selQuest === 'calling' ? ' sel' : ''), 'Calling: ' + esc(callingById(this.ctx.calling())?.name ?? ''));
     cj.addEventListener('click', () => { this.selQuest = 'calling'; this.renderJournal(); });
     list.append(cj);
-    add('THE CHARTER\'S DEBT', qs.filter((q) => q.story && !q.done));
+    add('MAIN STORY', qs.filter((q) => q.story && !q.done));
     add('ACTIVE', qs.filter((q) => !q.story && !q.done));
     add('COMPLETED', qs.filter((q) => q.done));
     list.append(el('h6', '', 'ATLAS'));

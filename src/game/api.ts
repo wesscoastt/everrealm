@@ -24,6 +24,10 @@ export interface GameApi {
   /** Opens a notice board (an id from the content BOARDS). */
   openBoard(id: string): void;
   startCasting(): void;
+  /** Carry the player somewhere close by (a hoist basket, a rope): they arrive standing at (x, y, z). */
+  ride(x: number, y: number, z: number, line?: string): void;
+  /** The ground lurches under the player: a camera shake and a thud. */
+  quake(strength?: number): void;
   playerName: string;
 }
 
