@@ -29,6 +29,9 @@ export interface GameApi {
   /** The ground lurches under the player: a camera shake and a thud. */
   quake(strength?: number): void;
   playerName: string;
+  /** Wendside Cottage: offer it for sale, or start arranging it. */
+  buyHome(): void;
+  arrangeHome(): void;
 }
 
 export interface DOption {

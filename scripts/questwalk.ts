@@ -70,6 +70,8 @@ class Mock implements GameApi {
   startCasting() { this.s.flags.__casting = true; }
   ride() {}
   quake() {}
+  buyHome() { this.s.flags.home = []; }
+  arrangeHome() {}
   playerName = 'Tester';
 }
 

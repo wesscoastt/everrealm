@@ -181,6 +181,7 @@ export function plan(): Plan {
     { id: 'waystation', name: 'The Waystation', x: 708, z: 572, r0: 16, r1: 28, build: (s, b) => buildWaystation(s, b) },
     { id: 'hollowoak', name: 'The Hollow Oak', x: 304, z: 600, r0: 14, r1: 24, build: (s, b) => buildHollowOak(s, b) },
     { id: 'mossgate', name: 'Ketley Arches', x: 176, z: 860, r0: 18, r1: 30, build: (s, b) => buildMossgate(s, b) },
+    { id: 'wendside', name: 'Wendside Cottage', x: 408, z: 200, r0: 10, r1: 18, h: 20, build: (s, b) => buildCottage(s, b) },
     { id: 'woodcamp', name: 'Fellers\' Camp', x: 446, z: 520, r0: 12, r1: 22, build: (s) => { buildCamp(s, 446, 520, true); fellersExtras(s); } },
     { id: 'gullmouth', name: 'Gullmouth', x: gullCoast - 34, z: gullZ, r0: 26, r1: 40, h: SEA + 3, build: (s, b) => buildGullmouth(s, b, gullCoast) },
     { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
@@ -1939,6 +1940,13 @@ export function plan(): Plan {
     for (const [i, ry] of [[3, 1], [9, -2], [16, 0.5]]) s.props.push({ t: 'furn', item: 'gull', x: x + i + 0.5, y: keelY(i) + 6 + (i < 3 ? 1 : 0), z: z - half(i) + 0.5, ry });
     s.props.push({ t: 'furn', item: 'gull', x: x + 6.5, y: SEA + 8, z: z + 0.5, ry: 2 });
     rect(s, x - 24, z - 13, x + 20, z + 12);
+  }
+
+  /** Wendside Cottage: a thatched cottage standing empty by the road, with a notice on a post. */
+  function buildCottage(s: Site, base: number) {
+    house(s, 404, 197, 8, 7, 1, base, 'thatch', 's', { role: 'vacant' });
+    s.props.push({ t: 'sign', x: 410.5, y: base, z: 205.5, ry: 0, text: 'FOR SALE\nEnquire within' });
+    s.props.push({ t: 'barrel', x: 404.6, y: base, z: 204.6 });
   }
 
   /** Hale's Fold: a shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. */

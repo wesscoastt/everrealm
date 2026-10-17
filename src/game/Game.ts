@@ -37,7 +37,7 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
 const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSitting', 'joan', 'joanSitting']);
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */
 const LIFT = { x: 1201, z: 1800, r: 6, y: 89 };
-import { ALDERMERE, CAMP, COLD, GULL, QUEST_SPAWNS, TEMPLE, WORKS, WORLD_THINGS, WorldThing } from '../data/places_regional';
+import { ALDERMERE, CAMP, COLD, COTTAGE, GULL, QUEST_SPAWNS, TEMPLE, WORKS, WORLD_THINGS, WorldThing } from '../data/places_regional';
 import { bigIsle } from '../world/holms';
 import { B, isSolid } from '../world/blocks';
 import { fellTree, FishSpot, LOWER_WEND, OreNode, regrowTree, TreeNode } from '../world/generate';
@@ -56,6 +56,7 @@ import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
 import { ClassKit } from './ClassKit';
 import { Festivals } from './Festivals';
+import { Home } from './Home';
 import { Social } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
@@ -158,6 +159,7 @@ export class Game implements GameApi {
   });
   /** The festival that's on, its stalls and its writ. */
   festivals!: Festivals;
+  home!: Home;
   /** Groups and trades with other players. */
   readonly social: Social = new Social({
     net: () => this.online,
@@ -338,6 +340,12 @@ export class Game implements GameApi {
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
       give: (it, n) => this.give(it, n), count: (it) => this.inv.count(it), addMarks: (n) => this.addMarks(n),
       banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), sound: (n) => this.sfx(n),
+    });
+    this.home = new Home({
+      scene: this.scene, flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+      count: (it) => this.inv.count(it), give: (it) => this.give(it), take: (it) => this.take(it),
+      player: () => this.player.position, yaw: () => this.player.yaw,
+      system: (t) => this.hud.system(t), sound: (n) => this.sfx(n as Sfx),
     });
     this.kit = new ClassKit({
       scene: this.scene,
@@ -624,6 +632,25 @@ export class Game implements GameApi {
   openCrafting(st: Station): void { this.currentStation = st; this.hud.show('craft'); this.showPackBeside(); }
   startCasting(): void { this.casting = { t: 0, dur: 30 }; }
   get playerName(): string { return this.save.name; }
+
+  buyHome(): void {
+    if (this.home.owned) return;
+    const price = COTTAGE.price;
+    if (this.save.marks < price) { this.hud.system(`"Wendside Cottage. Two rooms' worth of floor, a sound roof, a good hearth. ${price} marks to the Charter." You have ${this.save.marks}.`); this.sfx('fail'); return; }
+    this.hud.ask(`Buy Wendside Cottage for ${price} marks? It's yours for good: furnish it however you like.`, () => {
+      if (this.home.owned || this.save.marks < price) return;
+      this.addMarks(-price);
+      this.setFlag('home', []);
+      this.home.render();
+      this.hud.banner('Wendside Cottage', 'A home of your own', true);
+      this.sfx('discover');
+      this.hud.system('The key is under the barrel. Buy furniture from Tamsin or Perrin, then press E inside to arrange it.');
+      this.hud.refresh();
+      this.persist();
+    }, () => {}, 30);
+  }
+
+  arrangeHome(): void { this.hud.closeAll(); if (this.home.active) this.home.stop(); else this.home.start(); }
 
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
@@ -1034,6 +1061,7 @@ export class Game implements GameApi {
     const st = this.save.inv[i];
     if (!st) return;
     const def = ITEMS[st.id];
+    if (def.furn) { this.hud.system(this.home.owned ? 'Furniture goes down at home: press E inside Wendside Cottage and choose Arrange the furniture.' : 'Furniture needs a house to go in. There\'s a cottage for sale on the road east of Hollin Ford.'); return; }
     if (def.kind === 'food') this.eat(st.id);
     else if (def.weapon) {
       const old = this.save.equip.weapon;
@@ -2311,6 +2339,7 @@ export class Game implements GameApi {
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
+    this.home.update();
     this.social.update(dt);
     for (const a of this.animals) {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);
@@ -2377,6 +2406,13 @@ export class Game implements GameApi {
       if (I.dragX || I.dragY) this.rig.rotate(I.dragX, I.dragY);
       if (I.wheel) this.rig.zoom(I.wheel);
       return;
+    }
+    if (this.home.active) {
+      // Arranging the house: E sets the held piece down, R turns it, X picks up the nearest
+      if (I.pressedOnce('KeyE')) { this.home.place(); this.hud.refresh(); this.persist(); }
+      if (I.pressedOnce('KeyR')) this.home.rotate();
+      if (I.pressedOnce('KeyX')) { this.home.pickUp(); this.hud.refresh(); this.persist(); }
+      if (I.pressedOnce('Escape')) this.home.stop();
     }
     if (I.pressedOnce('Escape')) {
       if (!this.hud.closeAll()) {

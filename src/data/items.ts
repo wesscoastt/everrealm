@@ -34,6 +34,8 @@ export interface ItemDef {
   dye?: { color: string; name: string };
   /** The regional set this piece belongs to (see GEAR_SETS). */
   set?: string;
+  /** Furniture for a home: the prop it becomes (see props.furniture) and its cloth tint. */
+  furn?: { model: string; tint?: number };
 }
 
 const I = (d: ItemDef) => d;
@@ -78,6 +80,19 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'bronze_bar', name: 'Bronze bar', kind: 'material', rarity: 'common', stack: true, value: 9, icon: { shape: 'bar', a: '#c08a42' }, desc: 'Stamped with the Tolley mark, a hammer over a wave.' }),
   I({ id: 'silver_bar', name: 'Silver bar', kind: 'material', rarity: 'uncommon', stack: true, value: 30, icon: { shape: 'bar', a: '#dfe6ee' }, desc: 'Tamsin pays well for these and asks where you got them.' }),
   // Logs
+  I({ id: 'furn_bed', name: 'Cottage bed', kind: 'collectible', rarity: 'common', stack: true, value: 40, icon: { shape: 'log', a: '#7a5434', b: '#c8a070' }, desc: 'A box bed with a straw tick and a patched quilt.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'bed' } }),
+  I({ id: 'furn_table', name: 'Kitchen table', kind: 'collectible', rarity: 'common', stack: true, value: 24, icon: { shape: 'log', a: '#8a6440', b: '#d0aa78' }, desc: 'Scrubbed pale. Someone has carved initials under the edge.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'table' } }),
+  I({ id: 'furn_stool', name: 'Three-legged stool', kind: 'collectible', rarity: 'common', stack: true, value: 6, icon: { shape: 'log', a: '#8a6440', b: '#c49a64' }, desc: 'Never wobbles, whatever the floor.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'stool' } }),
+  I({ id: 'furn_chair', name: 'High-backed chair', kind: 'collectible', rarity: 'common', stack: true, value: 14, icon: { shape: 'log', a: '#6e4a2c', b: '#b08458' }, desc: 'For sitting up straight, or pretending to.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'chair' } }),
+  I({ id: 'furn_bench', name: 'Settle bench', kind: 'collectible', rarity: 'common', stack: true, value: 16, icon: { shape: 'log', a: '#6e4a2c', b: '#c49a64' }, desc: 'Long enough for two, or one with boots off.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'bench' } }),
+  I({ id: 'furn_dresser', name: 'Dresser', kind: 'collectible', rarity: 'common', stack: true, value: 36, icon: { shape: 'log', a: '#5a3c24', b: '#b08458' }, desc: 'Plates on the rack, string and candle ends in the drawers.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'dresser' } }),
+  I({ id: 'furn_shelves', name: 'Shelves', kind: 'collectible', rarity: 'common', stack: true, value: 18, icon: { shape: 'log', a: '#5a3c24', b: '#c8a070' }, desc: 'Jars, a book or two, a stone with a hole in it.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'shelves' } }),
+  I({ id: 'furn_chest', name: 'Blanket chest', kind: 'collectible', rarity: 'common', stack: true, value: 20, icon: { shape: 'log', a: '#6e4a2c', b: '#8a8070' }, desc: 'Iron-banded. Smells of cedar and mothballs.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'chest' } }),
+  I({ id: 'furn_barrel', name: 'Barrel', kind: 'collectible', rarity: 'common', stack: true, value: 8, icon: { shape: 'log', a: '#7a5434', b: '#5a5a5a' }, desc: 'Apples, or rain, or nothing yet.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'barrel' } }),
+  I({ id: 'furn_candles', name: 'Candle cluster', kind: 'collectible', rarity: 'common', stack: true, value: 6, icon: { shape: 'log', a: '#e8dcb0', b: '#c49a64' }, desc: 'Tallow stubs on a saucer. Cosy, and only a little smoky.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'candles' } }),
+  I({ id: 'furn_rug_red', name: 'Red rag rug', kind: 'collectible', rarity: 'common', stack: true, value: 12, icon: { shape: 'log', a: '#a8423a', b: '#d8a070' }, desc: 'Braided from old shirts. Warm underfoot.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'rug', tint: 0 } }),
+  I({ id: 'furn_rug_blue', name: 'Blue rag rug', kind: 'collectible', rarity: 'common', stack: true, value: 12, icon: { shape: 'log', a: '#3a5a9a', b: '#a8c0d8' }, desc: 'Braided from old shirts. Warm underfoot.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'rug', tint: 1 } }),
+  I({ id: 'furn_rug_green', name: 'Green rag rug', kind: 'collectible', rarity: 'common', stack: true, value: 12, icon: { shape: 'log', a: '#3e7a46', b: '#b8d090' }, desc: 'Braided from old shirts. Warm underfoot.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'rug', tint: 2 } }),
   I({ id: 'oak_logs', name: 'Oak logs', kind: 'material', rarity: 'common', stack: true, value: 2, icon: { shape: 'log', a: '#6e4a2c', b: '#c49a64' }, desc: 'Split oak. Burns slow.' }),
   I({ id: 'birch_logs', name: 'Birch logs', kind: 'material', rarity: 'common', stack: true, value: 3, icon: { shape: 'log', a: '#e8e4d8', b: '#c4a070' }, desc: 'Light wood. The bark peels off in sheets.' }),
   I({ id: 'pine_logs', name: 'Pine logs', kind: 'material', rarity: 'common', stack: true, value: 5, icon: { shape: 'log', a: '#4c2f24', b: '#d2b07a' }, desc: 'Sticky with resin. Smells better than it burns.' }),

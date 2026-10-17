@@ -42,6 +42,7 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'fishing_rod', price: 16 },
       { item: 'cooked_mackerel', price: 24 },
       { item: 'halter_bay', price: 60, when: (g) => !g.has('halter_bay') },
+      ...['furn_chair', 'furn_bench', 'furn_dresser', 'furn_shelves', 'furn_chest', 'furn_rug_blue', 'furn_rug_green'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 10) * 1.8) })),
     ],
     buyRate: () => 0.6,
     priceMult: (g) => (g.flag('hwChoice') === 'refund' ? 0.9 : 1),

@@ -173,6 +173,12 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'bronze_hatchet', price: 45 },
   { item: 'worn_pickaxe', price: 12 },
   { item: 'fishing_rod', price: 15 },
+  { item: 'furn_stool', price: 10 },
+  { item: 'furn_table', price: 40 },
+  { item: 'furn_bed', price: 65 },
+  { item: 'furn_candles', price: 10 },
+  { item: 'furn_rug_red', price: 20 },
+  { item: 'furn_barrel', price: 14 },
 ];
 
 // ------------------------------------------------------------- Enemies

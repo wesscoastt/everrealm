@@ -3,7 +3,7 @@
 // streamed sites (sites.ts) and the authored valley (structures.ts), which each turn the result into
 // blocks and props in their own way.
 
-export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store';
+export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant';
 export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk';
 
 export interface HouseShape {
@@ -121,6 +121,8 @@ export function fitOut(h: HouseShape): FitOut {
       }
       return false;
     };
+    // A house for sale: swept out, the lamp and the hearth left for whoever moves in
+    if (role === 'vacant') { if (ground) hearthAtChimney(); continue; }
     if (role === 'inn' && ground) {
       // Bar along the back wall with barrels behind it, tables with benches out front, a hearth on the side
       hearthAtChimney() || put('hearth', awayU, Math.floor(D / 2), awayFacing, [[awayU, Math.floor(D / 2)]]);
