@@ -90,7 +90,7 @@ import { abilityIcon, itemIcon, shapeIcon } from './icons';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone'; label?: string; yaw?: number }
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim'; label?: string; yaw?: number; id?: string }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -123,6 +123,9 @@ export interface UiCtx {
   inMenu: boolean;
   mapImage: HTMLCanvasElement;
   mapMarkers(): MapMarker[];
+  /** Marks to go to a waymark from here, or null if it can't be reached that way now. */
+  waymarkFare(id: string): number | null;
+  travelWaymark(id: string): void;
   currentStation: Station | null;
   /** The trader whose panel is open. */
   shop(): ShopView;
@@ -168,6 +171,8 @@ export class Hud {
   private mmRotate = false;
   private eventEl!: HTMLElement;
   private eventKey = '';
+  /** Attuned waymarks where they were last drawn on the world map (canvas pixels), for clicks. */
+  private wmHits: { x: number; y: number; id: string; name: string }[] = [];
   /** The world map's view (centre, canvas pixels per block, zoom limits), hover point and hidden icon kinds. */
   private mapView = { cx: 1024, cz: 1024, k: 1, kMin: 0.2, kMax: 7, dpr: 1, fresh: true, hover: null as { x: number; y: number } | null, hits: [] as { x: number; y: number; name: string; sub: string }[], hidden: new Set<string>() };
   /** A waypoint the player dropped on the map; it shows on the minimap too. */
@@ -626,6 +631,13 @@ export class Hud {
     // People, foes, other players; objectives last, pinned to the rim when out of range
     for (const m of markers) {
       if (m.kind === 'quest' || ACT_KINDS.has(m.kind)) continue;
+      if (m.kind === 'waymark' || m.kind === 'waymarkDim') {
+        const [wx, wy] = at(m.x, m.z);
+        if (Math.hypot(wx, wy) > inside) continue;
+        c.fillStyle = m.kind === 'waymark' ? '#3ab8ff' : '#7a8a96'; c.strokeStyle = '#0b1122'; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(wx, wy - 8); c.lineTo(wx + 5, wy); c.lineTo(wx, wy + 8); c.lineTo(wx - 5, wy); c.closePath(); c.fill(); c.stroke();
+        continue;
+      }
       const [x, y] = at(m.x, m.z);
       if (Math.hypot(x, y) > inside) continue;
       const big = m.kind === 'elite';
@@ -1064,6 +1076,7 @@ export class Hud {
     x.fillStyle = vg; x.fillRect(0, 0, cw, ch);
 
     const hits: { x: number; y: number; name: string; sub: string }[] = [];
+    this.wmHits = [];
     const on = (f: string) => !V.hidden.has(f);
     const label = (text: string, lx: number, ly: number, font: string, fill: string, halo = 'rgba(250, 242, 220, 0.85)', width = 4) => {
       x.font = font; x.lineJoin = 'round'; x.lineWidth = width * dpr; x.strokeStyle = halo; x.fillStyle = fill;
@@ -1102,7 +1115,16 @@ export class Hud {
     for (const m of markers) {
       const X = sx(m.x), Y = sy(m.z);
       if (X < -40 || Y < -40 || X > cw + 40 || Y > ch + 40) continue;
-      if (m.kind === 'post' && on('post')) {
+      if ((m.kind === 'waymark' || m.kind === 'waymarkDim') && on('waymarks')) {
+        const lit = m.kind === 'waymark';
+        x.fillStyle = lit ? '#3ab8ff' : '#7a8a96'; x.strokeStyle = '#0b1122'; x.lineWidth = px(2);
+        x.beginPath(); x.moveTo(X, Y - px(10)); x.lineTo(X + px(6), Y); x.lineTo(X, Y + px(10)); x.lineTo(X - px(6), Y); x.closePath(); x.fill(); x.stroke();
+        x.fillStyle = lit ? '#e8f8ff' : '#c8d0d6'; x.fillRect(X - px(1.5), Y - px(4), px(3), px(8));
+        if (m.label && z > 0.6) label(m.label, X, Y + px(22), `600 ${px(12)}px "Alegreya Sans", sans-serif`, lit ? '#0e3a5a' : '#4a5660');
+        const fare = lit && m.id ? this.ctx.waymarkFare(m.id) : null;
+        hits.push({ x: X, y: Y, name: m.label ?? 'Waymark', sub: lit ? (fare !== null ? `Waymark · click to travel (${fare} marks)` : 'Waymark') : 'Waymark · walk up to it to attune' });
+        if (lit && m.id) this.wmHits.push({ x: X, y: Y, id: m.id, name: m.label ?? 'Waymark' });
+      } else if (m.kind === 'post' && on('post')) {
         x.fillStyle = '#c8803a'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
         x.fillRect(X - px(2), Y - px(3), px(4), px(14)); x.strokeRect(X - px(2), Y - px(3), px(4), px(14));
         x.fillRect(X - px(9), Y - px(11), px(18), px(8)); x.strokeRect(X - px(9), Y - px(11), px(18), px(8));
@@ -1185,7 +1207,7 @@ export class Hud {
     const ctl = el('div', 'map-ctl');
     ctl.innerHTML = '<button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
     const legend = el('div', 'map-legend');
-    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['quests', 'Objectives'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
+    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
       const chip = el('button', 'chip on', name);
       chip.addEventListener('click', () => { if (V.hidden.has(f)) V.hidden.delete(f); else V.hidden.add(f); chip.classList.toggle('on', !V.hidden.has(f)); this.ctx.sfx('click'); });
       legend.append(chip);
@@ -1237,12 +1259,31 @@ export class Hud {
       if (!click) return;
       const r = c.getBoundingClientRect();
       const wx = V.cx + ((e.clientX - r.left) * V.dpr - c.width / 2) / V.k, wz = V.cz + ((e.clientY - r.top) * V.dpr - c.height / 2) / V.k;
+      // A waymark under the click: offer the trip instead of setting a waypoint
+      const cxp = (e.clientX - r.left) * V.dpr, cyp = (e.clientY - r.top) * V.dpr;
+      const wm = this.wmHits.find((h) => Math.hypot(h.x - cxp, h.y - cyp) < 16 * V.dpr);
+      if (wm) { this.offerWaymark(wm.id, wm.name); return; }
       // Tapping the waypoint again takes it away (a finger has no right button)
       if (this.pin && Math.hypot(this.pin.x - wx, this.pin.z - wz) * V.k / V.dpr < 16) { this.pin = null; this.ctx.sfx('click'); return; }
       if (wx >= WMIN && wz >= WMIN && wx < WMIN + this.ctx.mapImage.width && wz < WMIN + this.ctx.mapImage.height) { this.pin = { x: wx, z: wz }; this.ctx.sfx('click'); }
     });
     c.addEventListener('contextmenu', (e) => { e.preventDefault(); this.pin = null; });
     return c;
+  }
+
+  /** A small box over the map: go to this waymark for so many marks? */
+  private offerWaymark(id: string, name: string): void {
+    const body = this.q('#map-panel .body');
+    body.querySelector('.wm-go')?.remove();
+    const fare = this.ctx.waymarkFare(id);
+    const box = el('div', 'wm-go frame');
+    box.innerHTML = fare === null
+      ? `<b>${esc(name)}</b><span>You can't travel by waymark just now.</span><div class="row"><button class="btn sm no">Close</button></div>`
+      : `<b>${esc(name)}</b><span>Travel there for ${fare} mark${fare === 1 ? '' : 's'}? You have ${this.ctx.save.marks}.</span><div class="row"><button class="btn sm no">Stay</button><button class="btn sm go"${this.ctx.save.marks < fare ? ' disabled' : ''}>Travel</button></div>`;
+    box.querySelector('.no')!.addEventListener('click', () => box.remove());
+    box.querySelector('.go')?.addEventListener('click', () => { box.remove(); this.ctx.travelWaymark(id); });
+    body.append(box);
+    this.ctx.sfx('click');
   }
 
   private renderSettings(): void {

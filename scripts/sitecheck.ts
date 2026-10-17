@@ -12,6 +12,7 @@ import { BLOCKS, B } from '../src/world/blocks';
 import { Overrides, plan, PropDesc } from '../src/world/sites';
 import { GW, heightAt, SEA } from '../src/world/terrain';
 import { EVENTS, SHARDFALLS, TASKS, WORLD_BOSSES } from '../src/data/activities';
+import { waymarks } from '../src/game/Waymarks';
 import { NPCS } from '../src/data/npcs';
 import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { POSTS } from '../src/data/travel';
@@ -72,6 +73,11 @@ for (const sp of QUEST_SPAWNS) sp.at.forEach(([x, z], i) => check(`spawn ${sp.ta
 for (const [label, x, z] of [...EVENTS.map((e) => [`event ${e.id}`, e.x, e.z] as const), ...WORLD_BOSSES.map((b) => [`boss ${b.id}`, b.x, b.z] as const), ...TASKS.map((t) => [`task ${t.id}`, t.x, t.z] as const), ...SHARDFALLS.map(([x, z], i) => [`shardfall ${i}`, x, z] as const)]) {
   check(label, x, z);
   if (heightAt(Math.floor(x), Math.floor(z)) <= SEA + 1) problems.push(`${label} (${x}, ${z}): in the water`);
+}
+// Waymarks: the stone and the spot travellers arrive on are open ground
+for (const w of waymarks()) {
+  check(`waymark ${w.id}`, w.x, w.z, w.y !== undefined ? { y: w.y } : undefined);
+  check(`waymark ${w.id} arrival`, w.ax, w.az, w.ay !== undefined ? { y: w.ay } : undefined);
 }
 // Dungeons and delves: every creature, champion and chest stands on a floor with room above it
 for (const st of P.sites) {

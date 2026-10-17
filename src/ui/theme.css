@@ -175,3 +175,7 @@
 .jbody .feat .fr .btn.on { box-shadow: inset 0 0 0 1px var(--gild-l); }
 .event-panel[data-kind="task"] .ev-kind { color: #ffd23a; }
 .event-panel[data-kind="task"] .bar.ev > i { background: linear-gradient(90deg, #a87a1a, #ffd870); }
+#map-panel .wm-go { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); min-width: 260px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; border-radius: 10px; background: rgba(10, 16, 34, 0.94); border: 1px solid var(--gild-line); color: var(--cream); z-index: 3; }
+#map-panel .wm-go b { font: 700 16px var(--book); color: #9fe0ff; }
+#map-panel .wm-go span { font: 500 13.5px var(--body); color: var(--cream-d); }
+#map-panel .wm-go .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }

@@ -96,6 +96,10 @@ The map also has about 50 scattered points of interest, plus regional ore seams,
 - **Map.** The world map and minimap paint in as you explore, and the explored area is saved.
 - **Code.** The terrain functions are in `src/world/terrain.ts`, the settlements in `src/world/sites.ts`, and the streaming in `src/game/ChunkManager.ts`.
 
+## Waymarks
+
+Twenty carved stones with a band of blue runes stand by every Charter Post stop, at the foot of every vista and at the edge of every world boss's lair. Walk up to one to attune it. After that, click it on the world map (M) to travel there from anywhere for a few marks: one, plus one for every 120 blocks. You can't do it in a fight or a conversation. A trip to a vista sets you down on top of the cairn. The Charter Post still runs the roads, costing time rather than marks. A feat, *Every Stone Woken*, goes with attuning them all.
+
 ## Weather
 
 Each region has its own climate, and the weather changes every seven minutes on a clock every player shares. The Fleet coast is the wettest and gets sea frets, the Raddle Barrens hardly ever see rain, and Scarth snows, sometimes in a blizzard. Morning mist lies in the valleys and burns off by mid-morning. Grey skies dim and flatten the light and pull the fog in. Rain and snow fall round you, with the sound of rain, and heavy storms bring lightning and thunder. The weather shows with the time of day under the minimap.

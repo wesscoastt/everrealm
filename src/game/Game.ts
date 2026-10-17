@@ -23,6 +23,7 @@ import { Particles } from '../systems/Particles';
 import { CreatureModel } from '../entities/creatures';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
+import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
@@ -141,6 +142,7 @@ export class Game implements GameApi {
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
   private crowd!: Crowd;
+  private waymarkStones!: Waymarks;
   private weatherT = 0;
   /** The horse under the player, while riding. */
   private horse: CreatureModel | null = null;
@@ -192,6 +194,7 @@ export class Game implements GameApi {
   private restoring = false;
   /** Set while the post cart is on the road, so arrival can be announced. */
   private arriving: string | null = null;
+  private arrivingBy: 'post' | 'waymark' = 'post';
   /** Live creatures placed by QUEST_SPAWNS, by tag. */
   private questSpawned = new Map<string, Enemy[]>();
   /** Ground height under each regional world thing, found once its chunk has loaded. */
@@ -272,6 +275,12 @@ export class Game implements GameApi {
     this.world = new GameWorld(this.scene, (l) => this.hud.showTitle(l + '…'));
     this.rig = new CameraRig(this.camera, this.world.voxels);
     this.player = new Player(this.world.voxels, this.save.look);
+    this.waymarkStones = new Waymarks(this.scene, this.world.voxels, (id) => !!this.flag(id), (w) => {
+      this.setFlag(w.id, 1);
+      this.hud.banner('Waymark attuned', w.name, true);
+      this.hud.system(`Waymark attuned: ${w.name}. Open the map (M) and click it to travel here from anywhere.`);
+      this.sfx('discover');
+    });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.activities = new Activities({
       scene: this.scene,
@@ -425,6 +434,34 @@ export class Game implements GameApi {
   }
 
   /** Ride the post cart: pay, lose some hours, and wake up at the other stop once its ground has loaded. */
+  waymarkFareTo(id: string): number | null {
+    const w = waymarks().find((x) => x.id === id);
+    if (!w || !this.flag(id) || this.mode !== 'play' || this.dead || this.dialogue) return null;
+    if (this.elapsed - this.lastCombat < 5) return null;
+    return waymarkFare(this.player.position, w);
+  }
+
+  /** Go by waymark: pay, and the world loads round the stone. */
+  travelWaymark(id: string): void {
+    const w = waymarks().find((x) => x.id === id);
+    const fare = this.waymarkFareTo(id);
+    if (!w || fare === null) { this.hud.system('You can\'t travel by waymark just now (not in a fight, not in a conversation).'); return; }
+    if (this.save.marks < fare) { this.hud.system('You don\'t have the marks for that.'); return; }
+    this.save.marks -= fare;
+    this.sfx('coin');
+    this.dismount(true);
+    this.hud.closeAll();
+    this.cancelActions();
+    this.target = null;
+    const y = w.ay ?? heightAt(w.ax, w.az) + 1;
+    this.save.pos = [w.ax, y + 0.5, w.az];
+    this.save.hour = this.world.sky.hour;
+    this.save.hp = this.hp;
+    this.arriving = w.name;
+    this.arrivingBy = 'waymark';
+    this.startPlay(false, 'Following the waymarks…');
+  }
+
   private travelTo(id: string): void {
     const here = POSTS.find((p) => p.id === this.currentPost);
     const there = POSTS.find((p) => p.id === id);
@@ -444,6 +481,7 @@ export class Game implements GameApi {
     this.save.hour = (this.world.sky.hour + postHours(here, there)) % 24;
     this.save.hp = this.hp;
     this.arriving = there.name;
+    this.arrivingBy = 'post';
     this.startPlay(false, 'On the Charter Post…');
   }
 
@@ -542,6 +580,8 @@ export class Game implements GameApi {
       resetSave: () => { if (g.charId) deleteCharacter(g.charId); location.reload(); },
       ability: (i: number) => g.useAbility(i),
       mapMarkers: () => g.mapMarkers(true),
+      waymarkFare: (id: string) => g.waymarkFareTo(id),
+      travelWaymark: (id: string) => g.travelWaymark(id),
       shop: () => g.shopView(),
       travel: () => g.travelView(),
       travelTo: (id: string) => g.travelTo(id),
@@ -763,7 +803,7 @@ export class Game implements GameApi {
     this.hud.setTracker(this.questEntries());
     if (this.online.enabled && this.online.status === 'off') this.online.connect(this.save.name, this.save.look, this.save.playTime);
     if (this.arriving) {
-      this.hud.banner(this.arriving, 'The post cart sets you down');
+      this.hud.banner(this.arriving, this.arrivingBy === 'waymark' ? 'By waymark' : 'The post cart sets you down');
       this.arriving = null;
     }
     if (fresh) {
@@ -1986,6 +2026,7 @@ export class Game implements GameApi {
     this.activities.update(dt);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.checkFeats(dt);
+    this.waymarkStones.update(P, this.elapsed);
     for (const a of this.animals) {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);
       a.model.root.visible = !far;
@@ -2365,6 +2406,7 @@ export class Game implements GameApi {
     for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: 'other', label: full ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
     out.push(...this.activities.markers());
+    out.push(...this.waymarkStones.markers());
     if (full) out.push({ x: this.player.position.x, z: this.player.position.z, kind: 'player', yaw: this.player.yaw });
     return out;
   }
