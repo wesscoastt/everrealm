@@ -17,6 +17,8 @@ export class CameraRig {
   private closeness = 8;
   /** Current distance from focus to camera, so the game can fade the player when it gets tiny. */
   actualDistance = 8;
+  /** Whether the camera's focus is under a roof (see update). */
+  indoor = false;
 
   constructor(readonly camera: THREE.PerspectiveCamera, private world: VoxelWorld) {}
 
@@ -63,6 +65,7 @@ export class CameraRig {
       return false;
     };
     const indoor = roofed(this.focus.x, this.focus.y, this.focus.z);
+    this.indoor = indoor;
     // A view that runs out of the door doesn't count: the camera stays inside, under the roof
     const inside = (c: { d: THREE.Vector3; dist: number }) => {
       for (let t = c.dist; t > 0.6; t -= 0.5) if (roofed(this.focus.x + c.d.x * t, this.focus.y + c.d.y * t - 0.6, this.focus.z + c.d.z * t)) return { d: c.d, dist: t };

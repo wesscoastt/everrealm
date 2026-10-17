@@ -6,6 +6,8 @@ export interface SharedUniforms {
   uSunDir: { value: THREE.Vector3 };
   uSkyColor: { value: THREE.Color };
   uSunColor: { value: THREE.Color };
+  /** 0 outdoors .. 1 with the camera inside a building: window glass turns see-through. */
+  uIndoor: { value: number };
 }
 
 export function createSharedUniforms(): SharedUniforms {
@@ -15,6 +17,7 @@ export function createSharedUniforms(): SharedUniforms {
     uSunDir: { value: new THREE.Vector3(0.4, 0.8, 0.3).normalize() },
     uSkyColor: { value: new THREE.Color('#8fc4ec') },
     uSunColor: { value: new THREE.Color('#fff1d6') },
+    uIndoor: { value: 0 },
   };
 }
 
@@ -25,6 +28,7 @@ export function createVoxelMaterial(atlas: THREE.DataArrayTexture, shared: Share
     shader.uniforms.uAtlas = { value: atlas };
     shader.uniforms.uTime = shared.uTime;
     shader.uniforms.uGlow = shared.uGlow;
+    shader.uniforms.uIndoor = shared.uIndoor;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 attribute vec2 aMeta;
@@ -48,6 +52,7 @@ vTileUv = aUv;`);
 precision highp sampler2DArray;
 uniform sampler2DArray uAtlas;
 uniform float uGlow;
+uniform float uIndoor;
 varying float vLayer;
 varying float vSway;
 varying vec2 vTileUv;`)
@@ -55,6 +60,8 @@ varying vec2 vTileUv;`)
 if (texel.a < 0.3) discard;
 // Leaves (the swaying blocks) have soft alpha edges, which must not read as glow
 float glassMask = abs(texel.a - 160.0 / 255.0) < 0.03 ? 1.0 : 0.0;
+// From indoors you look out through the glass (a dither fades it as the camera comes inside)
+if (glassMask > 0.5 && uIndoor > 0.01 && fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) < uIndoor) discard;
 float emitMask = texel.a < 0.9 && vSway < 0.5 && glassMask < 0.5 ? 1.0 : 0.0;
 // Window glass: cool, sky-catching panes by day; the lamplight inside shows as night falls
 float nightK = clamp((uGlow - 0.22) / 1.25, 0.0, 1.0);

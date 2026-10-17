@@ -2474,6 +2474,8 @@ export class Game implements GameApi {
     updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'open' : 'close', 0.5));
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
     this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
+    const ind = this.world.shared.uIndoor;
+    ind.value += ((this.rig.indoor ? 1 : 0) - ind.value) * Math.min(1, dt * 4);
     if (this.cine) {
       const c = this.cine, [vx, vy, vz, lx, ly, lz] = c.view, DUR = 7;
       c.t += dt;
