@@ -164,6 +164,24 @@ export class Home {
     return [Math.min(h.x0 + h.w - 1.5, Math.max(h.x0 + 1.5, x)), Math.min(h.z0 + h.d - 1.5, Math.max(h.z0 + 1.5, z)), this.floorAt(p.y, h)];
   }
 
+  /**
+   * Where the held piece goes: the spot in front of you, or if that's taken, the nearest free spot
+   * within a block of it, so a table slides clear of the stairs instead of refusing outright.
+   */
+  private fitSpot(): [number, number, number, boolean] {
+    const [x, z, f] = this.spot();
+    if (!this.holding) return [x, z, f, true];
+    const list = this.pieces();
+    if (this.fits(this.holding, x, z, this.turn, list, f)) return [x, z, f, true];
+    let best: [number, number] | null = null, bd = Infinity;
+    for (let dx = -1; dx <= 1; dx += 0.5) for (let dz = -1; dz <= 1; dz += 0.5) {
+      const d = Math.hypot(dx, dz);
+      if (d >= bd || !this.fits(this.holding, x + dx, z + dz, this.turn, list, f)) continue;
+      bd = d; best = [x + dx, z + dz];
+    }
+    return best ? [best[0], best[1], f, true] : [x, z, f, false];
+  }
+
   /** Room for a piece here: inside the walls, clear of the hearth and the door, and of other pieces (rugs go under things). */
   private fits(item: string, x: number, z: number, turn: number, list: Piece[], floor = 0): boolean {
     const h = this.where();
@@ -222,11 +240,11 @@ export class Home {
     if (!this.active) return;
     if (!this.inside(this.host.player())) { this.stop(); this.host.system('You step outside and leave the furniture where it is.'); return; }
     if (this.ghost) {
-      const [x, z, f] = this.spot();
+      const [x, z, f, fitsHere] = this.fitSpot();
       this.ghost.position.set(x, this.where()!.base + f * 4, z);
       this.ghost.rotation.y = (this.turn * Math.PI) / 2;
       // The ghost turns red where the piece won't fit
-      const ok = !this.holding || this.fits(this.holding, x, z, this.turn, this.pieces(), f);
+      const ok = fitsHere;
       if (ok !== this.ghostOk) {
         this.ghostOk = ok;
         this.ghost.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshLambertMaterial | undefined; if (m && 'emissive' in m) m.emissive.set(ok ? 0x000000 : 0x8a1010); });
@@ -242,7 +260,7 @@ export class Home {
     const max = maxPieces(this.where()!);
     if (list.length >= max) { this.host.system(`The house holds ${max} pieces. Pick something up first.`); return; }
     if (!this.host.take(this.holding)) { this.hold(null); return; }
-    const [x, z, f] = this.spot();
+    const [x, z, f] = this.fitSpot();
     if (!this.fits(this.holding, x, z, this.turn, list, f)) { this.host.give(this.holding); this.host.system('That would knock into something. Try another spot or turn it.'); this.host.sound('fail'); return; }
     this.host.setFlag('home', [...list, [this.holding, x, z, this.turn, f]]);
     this.host.sound('pickup');
