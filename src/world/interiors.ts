@@ -4,7 +4,7 @@
 // blocks and props in their own way.
 
 export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant';
-export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk';
+export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles';
 
 export interface HouseShape {
   x0: number; z0: number; w: number; d: number; floors: number; base: number;
@@ -14,6 +14,29 @@ export interface HouseShape {
   role?: Role;
   /** Rug colour: 0..2 picks red, blue, green. */
   tint?: number;
+}
+
+/**
+ * Each piece's footprint, width (local x) by depth (local z), in blocks, measured from the props.
+ * A piece claims every floor cell its footprint reaches into, so nothing is set down over it.
+ */
+export const FURN_SIZE: Record<FurnItem, [number, number]> = {
+  bed: [1, 2], table: [1.6, 0.86], stool: [0.4, 0.4], dresser: [1.5, 0.56], hearth: [1.9, 0.9], rug: [1.8, 1.2], chest: [0.8, 0.54],
+  barrel: [0.72, 0.72], crate: [0.72, 0.72], counter: [2.5, 0.7], shelves: [1.42, 0.43], lamp: [0.28, 0.28], bench: [1.8, 0.42], desk: [1.6, 0.8],
+  chair: [1, 0.83], candles: [0.4, 0.4],
+};
+
+/** World cells a piece covers: those its footprint overlaps by more than a sliver. */
+export function furnCells(item: FurnItem, x: number, z: number, ry: number): [number, number][] {
+  const [w, l] = FURN_SIZE[item];
+  const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry));
+  const hx = (w * c + l * sn) / 2, hz = (w * sn + l * c) / 2;
+  const out: [number, number][] = [];
+  for (let cx = Math.floor(x - hx); cx <= Math.floor(x + hx); cx++) for (let cz = Math.floor(z - hz); cz <= Math.floor(z + hz); cz++) {
+    const ox = Math.min(x + hx, cx + 1) - Math.max(x - hx, cx), oz = Math.min(z + hz, cz + 1) - Math.max(z - hz, cz);
+    if (ox > 0.1 && oz > 0.1) out.push([cx, cz]);
+  }
+  return out;
 }
 
 export interface Furn { item: FurnItem; x: number; y: number; z: number; ry: number; tint?: number }
@@ -54,11 +77,16 @@ export function fitOut(h: HouseShape): FitOut {
 
   for (let f = 0; f < h.floors; f++) {
     const y = h.base + f * 4;
+    // Cells are tracked in world coordinates, so a piece's real footprint can claim them
     const used = new Set<string>();
-    const k = (u: number, v: number) => `${u},${v}`;
+    const room = new Set<string>();
+    for (let u = 0; u < W; u++) for (let v = 0; v < D; v++) room.add(F.cell(u, v).join(','));
+    const k = (u: number, v: number) => F.cell(u, v).join(',');
     const free = (u: number, v: number) => u >= 0 && v >= 0 && u < W && v < D && !used.has(k(u, v));
     // Keep the way in clear: the door column on the ground floor, two cells deep.
     if (f === 0) for (let v = 0; v < Math.min(2, D); v++) used.add(k(du, v));
+    // ...and the cell the open door leaf swings into
+    if (f === 0) { const leaf = openDoorPlace(h); used.add([Math.floor(leaf.x), Math.floor(leaf.z)].join(',')); }
     // Stairs up, along the back wall, on the side away from the door: four steps, the last at floor height.
     const stairsHere = f < h.floors - 1 && W >= 5 && D >= 3;
     if (stairsHere) {
@@ -88,12 +116,18 @@ export function fitOut(h: HouseShape): FitOut {
     }
     const put = (item: FurnItem, u: number, v: number, ry: number, cells: [number, number][] = [[u, v]], du2 = 0.5, dv2 = 0.5, solid = true, tint?: number) => {
       if (!cells.every(([a, b]) => free(a, b))) return false;
-      for (const [a, b] of cells) used.add(k(a, b));
       // Centre between the cells it fills
       const cs = cells.map(([a, b]) => F.cell(a, b));
       const cx = cs.reduce((s, c) => s + c[0], 0) / cs.length + 0.5, cz = cs.reduce((s, c) => s + c[1], 0) / cs.length + 0.5;
       const [ox, oz] = F.cell(u, v);
       const fx = cs.length > 1 ? cx : ox + du2, fz = cs.length > 1 ? cz : oz + dv2;
+      // Rugs lie under things; everything else needs all the floor it reaches, inside the walls
+      if (item !== 'rug') {
+        const reach = furnCells(item, fx, fz, ry).map((c) => c.join(','));
+        if (!reach.every((c) => room.has(c) && !used.has(c))) return false;
+        for (const c of reach) used.add(c);
+      }
+      for (const [a, b] of cells) used.add(k(a, b));
       out.furn.push({ item, x: fx, y, z: fz, ry, tint });
       if (solid) for (const [x, z] of cs) { out.blocks.push([x, y, z, 'barrier']); out.blocks.push([x, y + 1, z, 'barrier']); }
       return true;

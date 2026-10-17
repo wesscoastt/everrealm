@@ -13,7 +13,8 @@
     "quest-book": "node scripts/questbook.mjs",
     "sites": "rolldown scripts/sitecheck.ts --platform node --format esm --file .walker/sitecheck.mjs --logLevel warn && node .walker/sitecheck.mjs",
     "paths": "rolldown scripts/pathcheck.ts --platform node --format esm --file .walker/pathcheck.mjs --logLevel warn && node .walker/pathcheck.mjs",
-    "balance": "rolldown scripts/classbalance.ts --platform node --format esm --file .walker/classbalance.mjs --logLevel warn && node .walker/classbalance.mjs"
+    "balance": "rolldown scripts/classbalance.ts --platform node --format esm --file .walker/classbalance.mjs --logLevel warn && node .walker/classbalance.mjs",
+    "furniture": "rolldown scripts/furncheck.ts --platform node --format esm --file .walker/furncheck.mjs --logLevel warn && node .walker/furncheck.mjs"
   },
   "dependencies": {
     "three": "^0.184.0",

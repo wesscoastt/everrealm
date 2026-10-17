@@ -639,6 +639,22 @@ export class Game implements GameApi {
   startCasting(): void { this.casting = { t: 0, dur: 30 }; }
   get playerName(): string { return this.save.name; }
 
+  /** A night in your own bed: well rested for 30 minutes of play, once every 8 hours. */
+  private sleep(): void {
+    const last = Number(this.flag('slept') ?? 0), now = Date.now();
+    if (now - last < 8 * 3600_000) {
+      const h = Math.ceil((8 * 3600_000 - (now - last)) / 3600_000);
+      this.hud.system(`You lie down for a while, but you're not tired. Try again in ${h} hour${h === 1 ? '' : 's'}.`);
+      return;
+    }
+    this.setFlag('slept', now);
+    this.setFlag('rested', 30 * 60);
+    this.hp = this.maxHp;
+    this.hud.banner('Well rested', 'A quarter more experience for half an hour', true);
+    this.sfx('heal');
+    this.hud.refresh();
+  }
+
   buyHome(): void {
     if (this.home.owned) return;
     const price = COTTAGE.price;
@@ -661,6 +677,7 @@ export class Game implements GameApi {
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
     if (this.social.groupNearby()) amount = Math.round(amount * 1.1);
+    if (Number(this.flag('rested') ?? 0) > 0) amount = Math.round(amount * 1.25);
     if (!this.writXp && skill !== 'melee') this.dailies.bump(`xp:${skill}`, Math.round(amount));
     const before = this.level(skill);
     this.save.xp[skill] += Math.round(amount);
@@ -1511,6 +1528,8 @@ export class Game implements GameApi {
     }
     const stall = this.festivals.stallNear(p);
     if (stall && this.festivals.fest) consider({ kind: 'act', label: `Browse the ${this.festivals.fest.name} stall`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
+    const bed = !this.home.active && this.home.bed();
+    if (bed && this.home.inside(p)) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, COTTAGE.floor + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const wt of WORLD_THINGS) {
       const d = Math.hypot(wt.x - p.x, wt.z - p.z);
@@ -2346,6 +2365,13 @@ export class Game implements GameApi {
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
     this.home.update();
+    // Well rested: half an hour of play at a quarter more experience, after a night in your own bed
+    const rested = Number(this.flag('rested') ?? 0);
+    if (rested > 0) {
+      const left = rested - dt;
+      this.setFlag('rested', left > 0 ? left : 0);
+      if (left <= 0) this.hud.system("The good night's sleep has worn off.");
+    }
     this.social.update(dt);
     for (const a of this.animals) {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);

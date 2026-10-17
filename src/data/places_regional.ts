@@ -58,7 +58,7 @@ export interface WorldThing {
 export const WORLD_THINGS: WorldThing[] = [
   ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
   { id: 'homeBuy', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d + 1.5, label: 'Read the For Sale notice', radius: 2.4, when: (g) => !g.flag('home'), use: (g) => g.buyHome() },
-  { id: 'homeArrange', x: COTTAGE.x0 + 4, z: COTTAGE.z0 + 3.5, y: COTTAGE.floor, label: 'Arrange the furniture', radius: 3.2, when: (g) => !!g.flag('home'), use: (g) => g.arrangeHome() },
+  { id: 'homeArrange', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d - 1.5, y: COTTAGE.floor, label: 'Arrange the furniture', radius: 2, when: (g) => !!g.flag('home'), use: (g) => g.arrangeHome() },
   { id: 'homeBench', x: COTTAGE.bench.x, z: COTTAGE.bench.z, label: "Work at the joiner's bench", radius: 2.4, when: (g) => !!g.flag('home'), use: (g) => g.openCrafting('bench') },
   { id: 'aldermereToll', x: ALDERMERE.cx + 8.5, z: ALDERMERE.south + 4.5, label: 'Read the toll board', radius: 2.4, read: 'aldermereToll' },
   // Main story clues

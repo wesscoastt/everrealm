@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ITEMS } from '../data/items';
 import { COTTAGE } from '../data/places_regional';
 import { createPropMaterials, furniture } from '../world/props';
+import { chimneyCell, fitOut, FurnItem, furnCells, FURN_SIZE } from '../world/interiors';
 
 // A home of your own: Wendside Cottage, on the road east of Hollin Ford. Furniture is bought as
 // items; arranging the house turns them into pieces on the floor, saved in the 'home' flag as
@@ -25,6 +26,16 @@ export interface HomeHost {
 /** The floor you may furnish: inside the walls, half a block clear of them. */
 const IN = { x0: COTTAGE.x0 + 1.5, x1: COTTAGE.x0 + COTTAGE.w - 1.5, z0: COTTAGE.z0 + 1.5, z1: COTTAGE.z0 + COTTAGE.d - 1.5 };
 const MAX_PIECES = 24;
+const SHAPE = { x0: COTTAGE.x0, z0: COTTAGE.z0, w: COTTAGE.w, d: COTTAGE.d, floors: 1, base: COTTAGE.floor, door: 's' as const, doorX: COTTAGE.x0 + Math.floor(COTTAGE.w / 2), doorZ: COTTAGE.z0 + COTTAGE.d - 1 };
+/** Floor the cottage keeps for itself: the hearth, the way in and the door leaf. */
+const KEPT = (() => {
+  const fit = fitOut({ ...SHAPE, role: 'vacant', chimney: chimneyCell(SHAPE) });
+  const cells = new Set<string>();
+  for (const f of fit.furn) if (f.item !== 'lamp') for (const c of furnCells(f.item, f.x, f.z, f.ry)) cells.add(c.join(','));
+  for (let v = 1; v <= 2; v++) cells.add([SHAPE.doorX, SHAPE.doorZ - v].join(','));
+  cells.add([SHAPE.doorX - 1, SHAPE.doorZ - 1].join(','));
+  return cells;
+})();
 
 export class Home {
   private M = createPropMaterials();
@@ -35,6 +46,7 @@ export class Home {
   private holding: string | null = null;
   private turn = 0;
   active = false;
+  private ghostOk = true;
 
   constructor(private host: HomeHost) {
     host.scene.add(this.group);
@@ -44,6 +56,12 @@ export class Home {
   get owned(): boolean { return !!this.host.flag('home'); }
   pieces(): Piece[] { const v = this.host.flag('home'); return Array.isArray(v) ? (v as Piece[]) : []; }
   inside(p: THREE.Vector3): boolean { return p.x > IN.x0 - 1 && p.x < IN.x1 + 1 && p.z > IN.z0 - 1 && p.z < IN.z1 + 1 && Math.abs(p.y - COTTAGE.floor) < 2.5; }
+
+  /** The bed you've set down, if any, for sleeping in. */
+  bed(): { x: number; z: number } | null {
+    const b = this.pieces().find(([item]) => ITEMS[item]?.furn?.model === 'bed');
+    return b ? { x: b[1], z: b[2] } : null;
+  }
 
   render(): void {
     this.group.clear();
@@ -85,6 +103,7 @@ export class Home {
       m.material = Array.isArray(m.material) ? mats : mats[0];
     });
     this.ghost = g;
+    this.ghostOk = true;
     this.host.scene.add(g);
     this.buildTray();
   }
@@ -97,13 +116,58 @@ export class Home {
     return [Math.min(IN.x1, Math.max(IN.x0, x)), Math.min(IN.z1, Math.max(IN.z0, z))];
   }
 
+  /** Room for a piece here: inside the walls, clear of the hearth and the door, and of other pieces (rugs go under things). */
+  private fits(item: string, x: number, z: number, turn: number, list: Piece[]): boolean {
+    const model = ITEMS[item]?.furn?.model as FurnItem | undefined;
+    if (!model || !(model in FURN_SIZE)) return true;
+    const ry = (turn * Math.PI) / 2;
+    const [w, l] = FURN_SIZE[model];
+    const hx = (turn % 2 ? l : w) / 2, hz = (turn % 2 ? w : l) / 2;
+    if (x - hx < COTTAGE.x0 + 1 - 0.02 || x + hx > COTTAGE.x0 + COTTAGE.w - 1 + 0.02 || z - hz < COTTAGE.z0 + 1 - 0.02 || z + hz > COTTAGE.z0 + COTTAGE.d - 1 + 0.02) return false;
+    if (model === 'rug') return true;
+    if (furnCells(model, x, z, ry).some((c) => KEPT.has(c.join(',')))) return false;
+    for (const [it, px, pz, pt] of list) {
+      const m = ITEMS[it]?.furn?.model as FurnItem | undefined;
+      if (!m || m === 'rug' || !(m in FURN_SIZE)) continue;
+      const [pw, pl] = FURN_SIZE[m];
+      const qx = (pt % 2 ? pl : pw) / 2, qz = (pt % 2 ? pw : pl) / 2;
+      if (hx + qx - Math.abs(x - px) > 0.05 && hz + qz - Math.abs(z - pz) > 0.05) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Layouts saved before pieces had footprints may overlap: once per character, anything that
+   * no longer fits goes back in the pack (or stays put if the pack is full).
+   */
+  private tidy(): void {
+    const kept: Piece[] = [], back: string[] = [];
+    for (const pc of this.pieces()) {
+      if (this.fits(pc[0], pc[1], pc[2], pc[3], kept) || !this.host.give(pc[0])) kept.push(pc);
+      else back.push(ITEMS[pc[0]]?.name ?? pc[0]);
+    }
+    if (!back.length) return;
+    this.host.setFlag('home', kept);
+    this.render();
+    this.host.system(`Some furniture at Wendside was jammed together, so it's back in your pack: ${back.join(', ')}.`);
+  }
+  private tidied: unknown = null;
+
   update(): void {
+    const v = this.host.flag('home');
+    if (v && v !== this.tidied) { this.tidy(); this.tidied = this.host.flag('home'); this.render(); }
     if (!this.active) return;
     if (!this.inside(this.host.player())) { this.stop(); this.host.system('You step outside and leave the furniture where it is.'); return; }
     if (this.ghost) {
       const [x, z] = this.spot();
       this.ghost.position.set(x, COTTAGE.floor, z);
       this.ghost.rotation.y = (this.turn * Math.PI) / 2;
+      // The ghost turns red where the piece won't fit
+      const ok = !this.holding || this.fits(this.holding, x, z, this.turn, this.pieces());
+      if (ok !== this.ghostOk) {
+        this.ghostOk = ok;
+        this.ghost.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshLambertMaterial | undefined; if (m && 'emissive' in m) m.emissive.set(ok ? 0x000000 : 0x8a1010); });
+      }
     }
   }
 
@@ -115,6 +179,7 @@ export class Home {
     if (list.length >= MAX_PIECES) { this.host.system(`The cottage holds ${MAX_PIECES} pieces. Pick something up first.`); return; }
     if (!this.host.take(this.holding)) { this.hold(null); return; }
     const [x, z] = this.spot();
+    if (!this.fits(this.holding, x, z, this.turn, list)) { this.host.give(this.holding); this.host.system('That would knock into something. Try another spot or turn it.'); this.host.sound('fail'); return; }
     this.host.setFlag('home', [...list, [this.holding, x, z, this.turn]]);
     this.host.sound('pickup');
     this.render();

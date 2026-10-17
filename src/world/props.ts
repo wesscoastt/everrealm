@@ -781,8 +781,9 @@ export function highChair(M: PropMaterials): THREE.Group {
 /** The door leaf standing open against the jamb (an open door, seen edge-on from outside). */
 export function openDoor(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(box(0.1, 1.92, 0.9), M.darkWood, 0, 0.96, 0));
-  for (const y of [0.4, 1.5]) g.add(mesh(box(0.04, 0.07, 0.7), M.iron, 0.06, y, 0.05));
+  // The leaf of a three-block doorway, swung open against the wall
+  g.add(mesh(box(0.1, 2.9, 0.9), M.darkWood, 0, 1.45, 0));
+  for (const y of [0.45, 1.45, 2.45]) g.add(mesh(box(0.04, 0.07, 0.7), M.iron, 0.06, y, 0.05));
   return g;
 }
 
