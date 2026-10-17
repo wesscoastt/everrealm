@@ -1,5 +1,5 @@
 import { ITEMS } from '../data/items';
-import type { GroupView, Online, TradeOffer, TradeView } from '../net/Online';
+import type { GroupView, GuildRank, GuildView, Online, TradeOffer, TradeView } from '../net/Online';
 
 // Groups and trades in the browser (the server half is server/social.mjs). The group shows as
 // frames under your own, its members are green on the map, and playing near them is worth a tenth
@@ -13,6 +13,7 @@ export interface SocialHost {
   setGroup(rows: GroupRow[] | null): void;
   openTrade(open: boolean): void;
   refreshTrade(): void;
+  refreshGuild(): void;
   player(): { x: number; z: number; hp: number; max: number; level: number; calling: string };
   /** Items in the pack, stacked by kind (equipped gear isn't in the pack, so it can't be traded). */
   pack(): { id: string; n: number }[];
@@ -34,6 +35,8 @@ const GROUP_RANGE = 60;
 
 export class Social {
   group: GroupView | null = null;
+  /** Your guild, as the server last told it (null: none, or not heard yet). */
+  guild: GuildView | null = null;
   trade: TradeView | null = null;
   private vitalsT = 0;
 
@@ -48,6 +51,8 @@ export class Social {
       trade: (v: TradeView) => this.onTrade(v),
       tradeEnd: (why: string) => { this.trade = null; this.host.openTrade(false); if (why) this.host.system(why); },
       tradeDone: (withName: string, give: TradeOffer, take: TradeOffer) => this.onTradeDone(withName, give, take),
+      guild: (v: GuildView) => { this.guild = v.name ? v : null; this.host.refreshGuild(); },
+      guildInvited: (from: string, guild: string) => this.host.ask(`${from} invites you to join the guild ${guild}.`, () => this.host.net().guildAnswer(true), () => this.host.net().guildAnswer(false), 90),
     };
   }
 
@@ -94,6 +99,17 @@ export class Social {
     const p = this.host.player();
     this.host.net().vitals(Math.round(p.hp), Math.round(p.max), p.level, p.calling);
   }
+
+  // ---------------------------------------------------------------- Guilds
+  /** Officers and the leader can invite. */
+  get canInviteToGuild(): boolean { return !!this.guild && (this.guild.rank === 'leader' || this.guild.rank === 'officer'); }
+  guildFound(name: string, motto: string): void { if (this.online()) this.host.net().guildCreate(name, motto); }
+  guildInvite(name: string): void { if (this.online()) this.host.net().guildInvite(name); }
+  guildLeave(): void { if (!this.guild) { this.host.system('You aren\'t in a guild.'); return; } this.host.net().guildLeave(); }
+  guildKick(name: string): void { if (this.online()) this.host.net().guildKick(name); }
+  guildRank(name: string, rank: GuildRank): void { if (this.online()) this.host.net().guildRank(name, rank); }
+  guildMotto(text: string): void { if (this.online()) this.host.net().guildMotto(text); }
+  guildSay(text: string): void { if (this.online()) { if (!this.guild) this.host.system('You aren\'t in a guild.'); else this.host.net().guildChat(text); } }
 
   // ---------------------------------------------------------------- Trades
   ask(name: string): void { if (this.online()) this.host.net().tradeAsk(name); }

@@ -30,9 +30,11 @@ interface Remote {
   mount: string | null;
   horse: CreatureModel | null;
   horseOf: string | null;
+  /** Their guild's name, shown under their name. */
+  guild: string | null;
 }
 
-interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null }
+interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null }
 
 const SEAT = 1.08;
 
@@ -71,12 +73,17 @@ export interface TradeOffer { items: { id: string; n: number }[]; marks: number 
 export interface GroupView { id: number; leader: number; members: { id: number; name: string; hp: number; max: number; level: number; calling: string; x: number; z: number }[] }
 export interface TradeView { id: number; with: string; mine: TradeOffer; theirs: TradeOffer; myLock: boolean; theirLock: boolean; myAccept: boolean; theirAccept: boolean }
 
+export type GuildRank = 'leader' | 'officer' | 'member';
+export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[] }
+
 export interface OnlineHooks {
   scene: THREE.Scene;
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
   /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
-  chat(from: string, text: string, id?: number, kind?: 'say' | 'emote' | 'group'): void;
+  chat(from: string, text: string, id?: number, kind?: 'say' | 'emote' | 'group' | 'guild'): void;
+  guild?(v: GuildView): void;
+  guildInvited?(from: string, guild: string): void;
   /** Groups and trades (game/Social.ts). */
   group?(v: GroupView): void;
   groupInvited?(from: string): void;
@@ -185,7 +192,10 @@ export class Online {
           r.yaw = yaw; r.anim = anim; r.held = held;
         }
         break;
-      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, m.kind === 'emote' ? 'emote' : m.kind === 'group' ? 'group' : 'say'); break;
+      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, m.kind === 'emote' ? 'emote' : m.kind === 'group' ? 'group' : m.kind === 'guild' ? 'guild' : 'say'); break;
+      case 'guild': this.hooks.guild?.({ name: null, motto: '', rank: null, founded: 0, members: [], ...(m as object) } as GuildView); break;
+      case 'uInvited': this.hooks.guildInvited?.(String(m.from), String(m.guild)); break;
+      case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
@@ -208,7 +218,7 @@ export class Online {
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
     const mount = p.mount && ITEMS[p.mount]?.mount ? p.mount : null;
-    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null });
+    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null });
   }
 
   private replaceModel(r: Remote, look: Appearance): void {
@@ -303,6 +313,14 @@ export class Online {
   tradeLock(on: boolean): void { this.emit({ t: 'tLock', on }); }
   tradeAccept(): void { this.emit({ t: 'tAccept' }); }
   tradeCancel(): void { this.emit({ t: 'tCancel' }); }
+  guildCreate(name: string, motto: string): void { this.emit({ t: 'uCreate', name, motto }); }
+  guildInvite(name: string): void { this.emit({ t: 'uInvite', name }); }
+  guildAnswer(accept: boolean): void { this.emit({ t: 'uAnswer', accept }); }
+  guildLeave(): void { this.emit({ t: 'uLeave' }); }
+  guildKick(name: string): void { this.emit({ t: 'uKick', name }); }
+  guildRank(name: string, rank: GuildRank): void { this.emit({ t: 'uRank', name, rank }); }
+  guildMotto(text: string): void { this.emit({ t: 'uMotto', text }); }
+  guildChat(text: string): void { this.emit({ t: 'uChat', text }); }
 
   /** Your id on the server (to know your own echoed chat). */
   myId = -1;

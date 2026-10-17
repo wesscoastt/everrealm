@@ -166,6 +166,7 @@ export class Game implements GameApi {
     setGroup: (rows) => this.hud.setGroup(rows),
     openTrade: (open) => { if (open) { this.hud.show('trade'); } else this.hud.close('trade'); },
     refreshTrade: () => this.hud.refresh('trade'),
+    refreshGuild: () => this.hud.refresh('guild'),
     player: () => ({ x: this.player.position.x, z: this.player.position.z, hp: this.hp, max: this.maxHp, level: this.level('melee'), calling: this.calling }),
     pack: () => {
       const m = new Map<string, number>();
@@ -708,6 +709,14 @@ export class Game implements GameApi {
       tradeLock: () => g.social.lock(),
       tradeAccept: () => g.social.accept(),
       tradeCancel: () => g.social.cancel(),
+      guild: () => ({ view: g.social.guild, online: g.online.status === 'online' }),
+      guildDo: (what: 'found' | 'leave' | 'kick' | 'rank' | 'motto', a?: string, b?: string) => {
+        if (what === 'found') g.social.guildFound(a ?? '', b ?? '');
+        else if (what === 'leave') g.social.guildLeave();
+        else if (what === 'kick') g.social.guildKick(a ?? '');
+        else if (what === 'rank') g.social.guildRank(a ?? '', (b ?? 'member') as 'leader' | 'officer' | 'member');
+        else g.social.guildMotto(a ?? '');
+      },
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
       feats: () => {
         const api = g.featApi();
@@ -2380,6 +2389,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyK')) this.hud.toggle('skills');
     if (I.pressedOnce('KeyJ')) this.hud.toggle('journal');
     if (I.pressedOnce('KeyM')) this.hud.toggle('map');
+    if (I.pressedOnce('KeyO')) this.hud.toggle('guild');
     const enter = I.pressedOnce('Enter'), slash = I.pressedOnce('Slash');
     if (enter || slash) {
       this.input.down.clear();
@@ -2413,6 +2423,7 @@ export class Game implements GameApi {
         const name = other.name;
         this.hud.playerMenu(name, I.click.x, I.click.y, [
           ...(this.social.isAlly(other.id) ? [] : [{ label: 'Invite to group', act: () => this.social.invite(name) }]),
+          ...(this.social.canInviteToGuild && !this.online.remotes.get(other.id)?.guild ? [{ label: 'Invite to guild', act: () => this.social.guildInvite(name) }] : []),
           { label: 'Trade', act: () => this.social.ask(name) },
           { label: 'Wave', act: () => this.doEmote('wave') },
         ]);
@@ -2782,6 +2793,7 @@ export class Game implements GameApi {
       switch (c) {
         case 'help': case '?':
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
+          this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
           this.hud.system('Chat: just type and press Enter. Commands: /me <action> (e.g. /me tips a hat), /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
           return;
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
@@ -2806,6 +2818,12 @@ export class Game implements GameApi {
         case 'kick': if (arg) this.social.kick(arg); return;
         case 'p': case 'party': case 'g': case 'group': if (arg) this.social.say(arg); return;
         case 'trade': if (arg) this.social.ask(arg); else this.hud.system('Who? /trade <name>, or click them and choose Trade.'); return;
+        case 'gu': case 'gc': if (arg) this.social.guildSay(arg); return;
+        case 'ginvite': if (arg) this.social.guildInvite(arg); return;
+        case 'gleave': this.social.guildLeave(); return;
+        case 'gkick': if (arg) this.social.guildKick(arg); return;
+        case 'gpromote': if (arg) this.social.guildRank(arg, 'officer'); return;
+        case 'gdemote': if (arg) this.social.guildRank(arg, 'member'); return;
         default: this.hud.system(`There's no /${cmd}. Type /help for the list.`); return;
       }
     }
@@ -2938,7 +2956,7 @@ export class Game implements GameApi {
       const rp = r.model.root.position;
       if (rp.distanceTo(P) > 40) continue;
       const s = project(rp.x, rp.y + 2.25 * (r.model.look.height ?? 1), rp.z);
-      if (s) plates.push({ key: 'p' + r.id, x: s.x, y: s.y, name: r.name, kind: 'player' });
+      if (s) plates.push({ key: 'p' + r.id, x: s.x, y: s.y, name: r.name, sub: r.guild ? `<${r.guild}>` : undefined, kind: 'player' });
     }
     this.hud.updatePlates(plates);
 

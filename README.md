@@ -55,7 +55,8 @@ To hear the score without playing, open `/music-preview.html` on the dev server.
 | G | Call your horse, or get down |
 | E | Talk, gather, use a station, take the Charter Post, or pull in a bite |
 | F | Eat |
-| Click another player | Invite to group, trade, or wave. Also /invite, /trade, /p (group chat), /leave, /kick |
+| O | Guild panel |
+| Click another player | Invite to group or guild, trade, or wave. Also /invite, /trade, /p (group chat), /leave, /kick |
 | Enter or / | Chat. /help lists commands; /wave, /bow, /cheer, /dance, /sit and more are emotes others see (or click ☺ on the chat box). Moving ends one. |
 | B / I | Pack |
 | K | Skills |
@@ -117,6 +118,10 @@ Twelve chapters in two acts. **The Charter's Debt** (I to VI) starts at the Char
 ## Groups and trades
 
 Online, players can group up (five at most): party frames under your own, groupmates green on the map, group chat with /p, and a tenth more experience while a groupmate is within 60 blocks. Two players within twelve blocks can trade: each puts items from the pack (not quest items) and marks on the table; changing either side unlocks both; when both have locked and accepted, the server tells each side what to give and take. Server half in `server/social.mjs`, client half in `src/game/Social.ts`.
+
+## Guilds
+
+Online, anyone not in a guild can found one, free (O opens the guild panel). Ranks: leader, officers, members. Officers invite (click a player, or /ginvite) and remove members; the leader also promotes, demotes and can hand the guild over. Guild chat is /gu; the roster shows who's in the world and when the others were last seen; members carry the guild's name under theirs. Guilds are kept between sessions in `data/guilds` on the server (mirrored to Redis): `server/guilds.mjs`.
 
 ## Festivals
 

@@ -9,6 +9,7 @@ import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
 import type { GroupRow, TradeUi } from '../game/Social';
+import type { GuildRank, GuildView } from '../net/Online';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
 /** Minimap zoom steps, in CSS pixels per block, and the CSS width they're measured across. */
@@ -120,6 +121,9 @@ export interface UiCtx {
   tradeLock(): void;
   tradeAccept(): void;
   tradeCancel(): void;
+  /** The guild panel: your guild (null: none), whether you're online at all, and what you can do. */
+  guild(): { view: GuildView | null; online: boolean };
+  guildDo(what: 'found' | 'leave' | 'kick' | 'rank' | 'motto', a?: string, b?: string): void;
   claimLogin(): void;
   feats(): FeatView[];
   calling(): CallingId;
@@ -182,7 +186,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
 };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade';
+export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild';
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -288,6 +292,7 @@ export class Hud {
           <button class="menu-btn" data-p="skills">K<small>Skills</small></button>
           <button class="menu-btn" data-p="journal">J<small>Journal</small></button>
           <button class="menu-btn" data-p="map">M<small>Map</small></button>
+          <button class="menu-btn" data-p="guild">O<small>Guild</small></button>
           <button class="menu-btn" data-p="settings">☰<small>Menu</small></button>
         </div>
       </div>`;
@@ -325,6 +330,7 @@ export class Hud {
     panel('travel-panel', 'Charter Post', 'travel');
     // Closing the trade window by hand calls the trade off
     panel('trade-panel', 'Trade', 'trade').querySelector('.x')!.addEventListener('click', () => this.ctx.tradeCancel());
+    panel('guild-panel', 'Guild', 'guild');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
     const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
     const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
@@ -438,8 +444,8 @@ export class Hud {
   }
 
   /** A chat line from a player (or yourself): said, an emote ("Ada waves."), or group chat. */
-  chat(from: string, text: string, kind: 'say' | 'emote' | 'group' = 'say'): void {
-    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>` : kind === 'group' ? `<b>[Group] ${esc(from)}:</b> ${esc(text)}` : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
+  chat(from: string, text: string, kind: 'say' | 'emote' | 'group' | 'guild' = 'say'): void {
+    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>` : kind === 'group' ? `<b>[Group] ${esc(from)}:</b> ${esc(text)}` : kind === 'guild' ? `<b>[Guild] ${esc(from)}:</b> ${esc(text)}` : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
   }
 
   // ------------------------------------------------------------------ Groups and trades
@@ -482,6 +488,52 @@ export class Hud {
     pm.classList.add('show');
     pm.style.left = Math.min(innerWidth - pm.offsetWidth - 8, x + 8) + 'px';
     pm.style.top = Math.min(innerHeight - pm.offsetHeight - 8, y - 10) + 'px';
+  }
+
+  private renderGuild(): void {
+    const { view: g, online } = this.ctx.guild();
+    const body = this.q('#guild-panel .body');
+    const foot = this.q('#guild-panel .footer');
+    this.q('#guild-panel h3').textContent = g?.name ?? 'Guild';
+    if (!online) {
+      body.innerHTML = '<p class="gnote">Guilds live on the online realm. You\'re playing offline: connect to a realm from the character screen to found or join one.</p>';
+      foot.innerHTML = '';
+      return;
+    }
+    if (!g) {
+      body.innerHTML = `<p class="gnote">You aren't in a guild. Found one, or ask someone in a guild to invite you (they click you and choose <i>Invite to guild</i>).</p>
+        <label class="gl">Name <input class="gname" maxlength="24" placeholder="The Lantern Watch"></label>
+        <label class="gl">Motto <input class="gmotto" maxlength="140" placeholder="A line for the roster (optional)"></label>
+        <button class="btn gfound">Found the guild</button>`;
+      body.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
+      body.querySelector('.gfound')!.addEventListener('click', () => this.ctx.guildDo('found', (body.querySelector('.gname') as HTMLInputElement).value, (body.querySelector('.gmotto') as HTMLInputElement).value));
+      foot.innerHTML = '<span>Free to found. Up to 200 members.</span>';
+      return;
+    }
+    const lead = g.rank === 'leader', officer = lead || g.rank === 'officer';
+    const order: Record<GuildRank, number> = { leader: 0, officer: 1, member: 2 };
+    const members = [...g.members].sort((a, b) => Number(b.online) - Number(a.online) || order[a.rank] - order[b.rank] || a.name.localeCompare(b.name));
+    const seen = (t: number) => { const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`; };
+    const rankName: Record<GuildRank, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
+    body.innerHTML = `<div class="gmotto-row">${officer ? `<input class="gmotto-edit" maxlength="140" value="${esc(g.motto)}" placeholder="Set a motto for the guild">` : `<i>${esc(g.motto || 'No motto yet.')}</i>`}</div>
+      <div class="gcount">${g.members.filter((m) => m.online).length} of ${g.members.length} in the world · your rank: ${rankName[g.rank ?? 'member']}</div>
+      <div class="groster">${members.map((m) => {
+        const acts: string[] = [];
+        if (lead && m.rank !== 'leader') {
+          acts.push(m.rank === 'member' ? `<button class="btn ghost sm" data-rank="officer" data-n="${esc(m.name)}">Promote</button>` : `<button class="btn ghost sm" data-rank="member" data-n="${esc(m.name)}">Demote</button>`);
+          acts.push(`<button class="btn ghost sm" data-lead="${esc(m.name)}">Make leader</button>`);
+        }
+        if ((lead && m.rank !== 'leader') || (g.rank === 'officer' && m.rank === 'member')) acts.push(`<button class="btn ghost sm danger" data-kick="${esc(m.name)}">Remove</button>`);
+        return `<div class="gmember${m.online ? ' on' : ''}"><span class="dot"></span><b>${esc(m.name)}</b><span class="grank ${m.rank}">${rankName[m.rank]}</span><small>${m.online ? 'In the world' : 'Seen ' + seen(m.seen)}</small><span class="gacts">${acts.join('')}</span></div>`;
+      }).join('')}</div>
+      <p class="gnote">Guild chat: /gu message. Invite: click a player and choose <i>Invite to guild</i>, or /ginvite name.</p>`;
+    const motto = body.querySelector<HTMLInputElement>('.gmotto-edit');
+    if (motto) { motto.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') motto.blur(); }); motto.addEventListener('change', () => this.ctx.guildDo('motto', motto.value)); }
+    body.querySelectorAll<HTMLElement>('[data-rank]').forEach((b) => b.addEventListener('click', () => this.ctx.guildDo('rank', b.dataset.n!, b.dataset.rank!)));
+    body.querySelectorAll<HTMLElement>('[data-lead]').forEach((b) => b.addEventListener('click', () => this.ask(`Hand the guild to ${b.dataset.lead}? You'll become an officer.`, () => this.ctx.guildDo('rank', b.dataset.lead!, 'leader'), () => {}, 30)));
+    body.querySelectorAll<HTMLElement>('[data-kick]').forEach((b) => b.addEventListener('click', () => this.ask(`Remove ${b.dataset.kick} from the guild?`, () => this.ctx.guildDo('kick', b.dataset.kick!), () => {}, 30)));
+    foot.innerHTML = `<span>Founded ${new Date(g.founded).toLocaleDateString()}</span><button class="btn ghost sm gleave">Leave the guild</button>`;
+    foot.querySelector('.gleave')!.addEventListener('click', () => this.ask(`Leave ${g.name}?${g.members.length === 1 ? ' You are its only member: it will be gone.' : ''}`, () => this.ctx.guildDo('leave'), () => {}, 30));
   }
 
   private renderTrade(): void {
@@ -1020,6 +1072,7 @@ export class Hud {
         case 'shop': this.renderShop(); break;
         case 'travel': this.renderTravel(); break;
         case 'trade': this.renderTrade(); break;
+        case 'guild': this.renderGuild(); break;
         case 'map': this.renderMap(); break;
         case 'settings': this.renderSettings(); break;
       }
