@@ -44,6 +44,13 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 1000,
+    rolldownOptions: {
+      output: {
+        // three.js changes only when we upgrade it: its own file stays cached in the browser across
+        // game updates, and the game's own code (which changes often) is the only part re-downloaded.
+        advancedChunks: { groups: [{ name: 'three', test: /node_modules[\/]three/ }] },
+      },
+    },
   },
 });

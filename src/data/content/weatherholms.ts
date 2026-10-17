@@ -30,7 +30,8 @@ const foot = (k: number, w = 0): [number, number] => [H.x - H.dx * k + (H.dz !==
 const isle = (k: number, w = 0): [number, number] => [I.x - H.dx * k + (H.dz !== 0 ? w : 0), I.z - H.dz * k + (H.dx !== 0 ? w : 0)];
 /** Points on the ring: the stones stand inside its columns (radius 5). */
 const ring = (deg: number, r = 4): [number, number] => [I.x + 0.5 + Math.cos((deg * Math.PI) / 180) * r, I.z + 0.5 + Math.sin((deg * Math.PI) / 180) * r];
-const T1 = ring(0), T2 = ring(135), T3 = ring(225), TLAST: [number, number] = [I.x + 1.5, I.z + 2];
+// A step in from each standing stone (the stones themselves are built in sites.ts, inside the columns)
+const T1 = ring(0, 2.6), T2 = ring(135, 2.6), T3 = ring(225, 2.6), TLAST: [number, number] = [I.x + 1.5, I.z + 2.5];
 const STORE = foot(-1, 5);
 
 const stones = (g: GameApi) => ['holmT1', 'holmT2', 'holmT3'].filter((f) => g.flag(f)).length;
@@ -580,7 +581,7 @@ export const WEATHERHOLMS: RegionContent = {
   ],
   spawns: [
     { tag: 'footings', type: 'shardjelly', at: [foot(-3, -4), foot(-3, 4), foot(3, 5), foot(5, -4)], y: H.ground, when: (g) => at(g, HOIST) === 'footings' },
-    { tag: 'keelJ', type: 'shardjelly', at: [isle(-3, 3), isle(-3, -3), isle(2, -4)], y: I.top, when: (g) => at(g, FORTY) === 'keel' },
+    { tag: 'keelJ', type: 'shardjelly', at: [isle(-3, 3), isle(-2, -4.5), isle(2, -4)], y: I.top, when: (g) => at(g, FORTY) === 'keel' },
     { tag: 'keel', type: 'keelglass', at: [[I.x + 0.5, I.z - 0.5]], y: I.top, when: (g) => at(g, FORTY) === 'keel' },
   ],
   hooks: (D) => {

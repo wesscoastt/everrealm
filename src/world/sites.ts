@@ -1778,6 +1778,26 @@ export function plan(): Plan {
         for (let k = 0; k < 4; k++) O.set(ix - 2 + k, top, iz + 3, B.MossyStone); // a fallen drum
         for (const [dx, dz, h] of [[0, 0, 3], [1, 0, 2], [0, 1, 1], [-1, -1, 2]]) for (let y = 0; y < h; y++) O.set(ix + dx, top + y, iz + dz, B.Crystal);
         s.props.push({ t: 'glow', x: ix + 0.5, y: top + 2, z: iz + 0.5, r: 5, color: '#9fe8ff' });
+        // The forty-one's counting stones, standing inside three of the columns (the story's readings
+        // are a step in from each: content/weatherholms.ts), and the fourth lying face down by the cut
+        for (const deg of [0, 135, 225]) {
+          const sx = Math.floor(ix + 0.5 + Math.cos((deg * Math.PI) / 180) * 4), sz = Math.floor(iz + 0.5 + Math.sin((deg * Math.PI) / 180) * 4);
+          O.set(sx, top, sz, B.MossyStone); O.set(sx, top + 1, sz, B.StoneBrick);
+        }
+        O.set(ix + 2, top, iz + 2, B.MossyStone); O.set(ix + 3, top, iz + 2, B.MossyStone);
+        // Harrowgate's cut: a square hole in the paving east of the crystal, raw crystal at the bottom
+        for (let dx = 2; dx <= 3; dx++) for (let dz = -2; dz <= -1; dz++) {
+          O.set(ix + dx, top - 1, iz + dz, B.Air); O.set(ix + dx, top - 2, iz + dz, B.Air); O.set(ix + dx, top - 3, iz + dz, B.Crystal);
+        }
+        s.props.push({ t: 'rope', x: ix + 2.2, y: top + 0.6, z: iz - 1.5, ry: 0, len: 0.2, h: 2.6, r: 0.05 });
+        s.props.push({ t: 'glow', x: ix + 3, y: top - 2, z: iz - 1, r: 2.2, color: '#c8b8ff' });
+        // The crew's things by the bridge: crates of crystal waiting for the basket, a barrel of water
+        const dirX = Math.sign(hoistSpot().x - ix), dirZ = Math.sign(hoistSpot().z - iz);
+        const camp = (k: number, w: number): [number, number] => [ix + 0.5 + dirX * k + (dirZ !== 0 ? w : 0), iz + 0.5 + dirZ * k + (dirX !== 0 ? w : 0)];
+        for (const [k, w, t] of [[6.5, -3.5, 'crate'], [6.8, -2.6, 'crate'], [6.2, 3.5, 'barrel'], [5.6, -3.2, 'crate']] as const) {
+          const [cx, cz] = camp(k, w);
+          s.props.push({ t, x: cx, y: top, z: cz, ry: k });
+        }
       } else if (isleN === 1) {
         for (const dx of [-2, 2]) col(ix + dx, iz, 6);
         for (let dx = -2; dx <= 1; dx++) if (top + 6 < SY) O.set(ix + dx, top + 5, iz, B.StoneBrick); // the keystone end has gone
