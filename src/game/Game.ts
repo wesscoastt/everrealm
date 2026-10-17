@@ -56,7 +56,7 @@ import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
 import { ClassKit } from './ClassKit';
 import { Festivals } from './Festivals';
-import { Home } from './Home';
+import { Home, Piece } from './Home';
 import { Social } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
@@ -427,6 +427,14 @@ export class Game implements GameApi {
       scene: this.scene,
       system: (t) => this.hud.system(t),
       ...this.social.hooks(),
+      homeAsked: (from: string) => {
+        if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
+        this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces()), () => this.online.homeShow(from, false, null), 60);
+      },
+      homeShow: (owner: string, pieces: unknown[]) => {
+        this.home.visit(owner, pieces as Piece[]);
+        this.hud.system(`${owner}'s home is Wendside Cottage, on the road east of Hollin Ford.`);
+      },
       chat: (from, t, id, kind) => {
         this.hud.chat(from, t, kind);
         if (id !== undefined && kind !== 'group') this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
@@ -2493,6 +2501,7 @@ export class Game implements GameApi {
           ...(this.social.isAlly(other.id) ? [] : [{ label: 'Invite to group', act: () => this.social.invite(name) }]),
           ...(this.social.canInviteToGuild && !this.online.remotes.get(other.id)?.guild ? [{ label: 'Invite to guild', act: () => this.social.guildInvite(name) }] : []),
           { label: 'Trade', act: () => this.social.ask(name) },
+          { label: 'Visit their home', act: () => this.online.homeAsk(name) },
           { label: 'Wave', act: () => this.doEmote('wave') },
         ]);
         return;

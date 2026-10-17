@@ -46,6 +46,8 @@ export class Home {
   private holding: string | null = null;
   private turn = 0;
   active = false;
+  /** Visiting: whose home is shown, and their furniture in place of yours. */
+  visiting: { owner: string; pieces: Piece[]; arrived: boolean } | null = null;
   private ghostOk = true;
 
   constructor(private host: HomeHost) {
@@ -55,17 +57,26 @@ export class Home {
 
   get owned(): boolean { return !!this.host.flag('home'); }
   pieces(): Piece[] { const v = this.host.flag('home'); return Array.isArray(v) ? (v as Piece[]) : []; }
+
+  /** Show someone else's furniture until you walk away from the cottage. */
+  visit(owner: string, pieces: Piece[]): void {
+    this.stop();
+    this.visiting = { owner, pieces: pieces.filter((p) => ITEMS[p[0]]?.furn), arrived: false };
+    this.render();
+    this.host.system(`You're seeing ${owner}'s Wendside Cottage. Walk away from it to see your own again.`);
+  }
   inside(p: THREE.Vector3): boolean { return p.x > IN.x0 - 1 && p.x < IN.x1 + 1 && p.z > IN.z0 - 1 && p.z < IN.z1 + 1 && Math.abs(p.y - COTTAGE.floor) < 2.5; }
 
   /** The bed you've set down, if any, for sleeping in. */
   bed(): { x: number; z: number } | null {
+    if (this.visiting) return null;
     const b = this.pieces().find(([item]) => ITEMS[item]?.furn?.model === 'bed');
     return b ? { x: b[1], z: b[2] } : null;
   }
 
   render(): void {
     this.group.clear();
-    for (const [item, x, z, t] of this.pieces()) {
+    for (const [item, x, z, t] of this.visiting?.pieces ?? this.pieces()) {
       const def = ITEMS[item]?.furn;
       const g = def && furniture(this.M, def.model, def.tint ?? 0);
       if (!g) continue;
@@ -77,6 +88,7 @@ export class Home {
 
   start(): void {
     if (!this.owned) return;
+    if (this.visiting) { this.host.system(`This is ${this.visiting.owner}'s home; you can only arrange your own.`); return; }
     this.active = true;
     this.buildTray();
     this.host.system('Arranging the house. Pick a piece, then E to set it down, R to turn it, X to pick up the nearest. Esc when you\'re done.');
@@ -154,6 +166,14 @@ export class Home {
   private tidied: unknown = null;
 
   update(): void {
+    if (this.visiting) {
+      const p = this.host.player();
+      // The visit lasts until you've been to the cottage and walked away again
+      const d = Math.hypot(p.x - (COTTAGE.x0 + COTTAGE.w / 2), p.z - (COTTAGE.z0 + COTTAGE.d / 2));
+      if (d < 30) this.visiting.arrived = true;
+      else if (d > 40 && this.visiting.arrived) { this.host.system(`You leave ${this.visiting.owner}'s home.`); this.visiting = null; this.render(); }
+      return;
+    }
     const v = this.host.flag('home');
     if (v && v !== this.tidied) { this.tidy(); this.tidied = this.host.flag('home'); this.render(); }
     if (!this.active) return;

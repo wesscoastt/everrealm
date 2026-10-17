@@ -88,6 +88,9 @@ export interface OnlineHooks {
   group?(v: GroupView): void;
   groupInvited?(from: string): void;
   tradeAsked?(from: string): void;
+  /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
+  homeAsked?(from: string): void;
+  homeShow?(owner: string, pieces: unknown[]): void;
   trade?(v: TradeView): void;
   tradeEnd?(why: string): void;
   tradeDone?(withName: string, give: TradeOffer, take: TradeOffer): void;
@@ -199,6 +202,8 @@ export class Online {
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
+      case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
+      case 'hShow': this.hooks.homeShow?.(String(m.owner), Array.isArray(m.pieces) ? m.pieces : []); break;
       case 'trade': this.hooks.trade?.(m as unknown as TradeView); break;
       case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
@@ -308,6 +313,8 @@ export class Online {
   groupChat(text: string): void { this.emit({ t: 'gChat', text }); }
   vitals(hp: number, max: number, level: number, calling: string): void { this.emit({ t: 'vitals', hp, max, level, calling }); }
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
+  homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }
+  homeShow(name: string, accept: boolean, pieces: unknown[] | null): void { this.emit({ t: 'hShow', name, accept, pieces }); }
   tradeAnswer(name: string, accept: boolean): void { this.emit({ t: 'tAnswer', name, accept }); }
   tradeOffer(items: { id: string; n: number }[], marks: number): void { this.emit({ t: 'tOffer', items, marks }); }
   tradeLock(on: boolean): void { this.emit({ t: 'tLock', on }); }

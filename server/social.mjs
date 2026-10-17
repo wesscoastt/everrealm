@@ -84,6 +84,8 @@ export function socialInit(ctx) {
       send(p.ws, { t: 'tradeEnd', why });
     }
   }
+  /** Visitor id -> { host id, when asked } */
+  const homeAsks = new Map();
   const near = (a, b) => Math.hypot(a.x - b.x, a.z - b.z) <= TRADE_RANGE;
 
   /** A message about groups or trades; returns true if it was one. */
@@ -145,6 +147,29 @@ export function socialInit(ctx) {
         if (Number.isFinite(hp) && Number.isFinite(max) && max > 0 && max < 100000) { me.hp = Math.max(0, Math.min(max, hp)); me.maxHp = max; }
         if (Number.isFinite(level) && level >= 1 && level <= 999) me.level = Math.round(level);
         if (typeof msg.calling === 'string' && /^[a-z]{3,16}$/.test(msg.calling)) me.calling = msg.calling;
+        return true;
+      }
+      // ------------------------------------------------------------ Home visits
+      // Everyone's Wendside Cottage stands in the same spot; a visit shows the visitor the host's
+      // furniture in place of their own. The host says yes first, then sends their layout.
+      case 'hAsk': {
+        const to = byName(msg.name);
+        if (!to || to === me) { sys(me, to ? "That's your own home." : `Nobody called ${String(msg.name ?? '').slice(0, 20)} is in the world.`); return true; }
+        homeAsks.set(me.id, { to: to.id, at: Date.now() });
+        send(to.ws, { t: 'hAsked', from: me.name });
+        sys(me, `You ask to visit ${to.name}'s home.`);
+        return true;
+      }
+      case 'hShow': {
+        const asker = byName(msg.name);
+        const ask = asker && homeAsks.get(asker.id);
+        if (!asker || !ask || ask.to !== me.id || Date.now() - ask.at > 120_000) { sys(me, 'That request to visit has lapsed.'); return true; }
+        homeAsks.delete(asker.id);
+        if (!msg.accept) { sys(asker, `${me.name} would rather not have visitors just now.`); return true; }
+        if (!Array.isArray(msg.pieces)) { sys(asker, `${me.name} doesn't have a home yet.`); return true; }
+        const pieces = msg.pieces.slice(0, 24).filter((p) => Array.isArray(p) && p.length === 4 && typeof p[0] === 'string' && p[0].length < 40 && [1, 2, 3].every((i) => Number.isFinite(p[i])));
+        send(asker.ws, { t: 'hShow', owner: me.name, pieces });
+        sys(me, `${asker.name} can see round your home now.`);
         return true;
       }
       // ------------------------------------------------------------ Trades
