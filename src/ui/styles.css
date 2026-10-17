@@ -521,3 +521,45 @@ body.touch #loot { bottom: auto; top: 360px; }
 .coin.token img { width: 18px; height: 18px; image-rendering: pixelated; }
 .jbody img.tok { width: 18px; height: 18px; image-rendering: pixelated; vertical-align: -4px; }
 .coin.token::before { display: none !important; }
+@media (max-width: 480px) { .logo p { font-size: 12px; letter-spacing: 3px; white-space: nowrap; } .logo p i { margin: 0 7px 2px; width: 5px; height: 5px; } }
+
+/* ------------------------------------------------------------------ A phone held upright (the full HUD) */
+@media (max-width: 520px) and (min-height: 501px) {
+  #ui .ab-plate { gap: 3px; padding: 5px 6px 9px; }
+  #ui .ab-slot { width: 34px; height: 34px; }
+  #ui .ab-slot .key { font-size: 10px; height: 13px; bottom: -11px; min-width: 14px; }
+  #ui .ab-slot .cdt { font-size: 14px; }
+  #ui .ab-sep { display: none; }
+  #ab-gauge { width: 180px; }
+  body.touch #xpbar { display: none; }
+  #banner { transform: translateX(-50%) scale(0.7); transform-origin: top center; top: 13%; }
+  #banner .cloth { min-width: 0; max-width: 128vw; padding: 12px 26px 30px; }
+  /* Left: chat under the player frame. Right: event, then tracker, under the minimap. */
+  body.touch #chatbox { top: 236px; width: 50vw; }
+  body.touch #chatbox .cb-log { height: 78px; font-size: 12px; }
+  body.touch #chatbox .cb-tabs button { padding: 2px 6px; font-size: 10px; }
+  body.touch #loot { top: 344px; }
+  #ui .event-panel { top: 236px; right: 8px; width: 168px; padding: 6px 9px 7px; }
+  #ui .event-panel .ev-goal { display: none; }
+  #ui .event-panel .ev-title { font-size: 14px; }
+  #tracker { top: 236px; right: 4px; width: 172px; max-height: 128px; overflow: hidden; padding: 4px 8px 6px 12px; }
+  #tracker h4 { font-size: 13px; } #tracker .obj { font-size: 12px; } #tracker .q + .q { margin-top: 6px; }
+  #touch .tbtns { bottom: 104px; }
+  #touch .stick { top: calc(100% - 190px); }
+}
+
+/* Panels on an upright phone: full width, above the action bar; the journal's list becomes a strip */
+@media (max-width: 520px) {
+  #ui .panel { left: 6px !important; right: 6px !important; width: auto !important; transform: none !important; top: 64px !important; bottom: auto !important; max-height: calc(100vh - 150px); z-index: 20; }
+  #ui #map-panel { inset: 6px 6px 96px 6px !important; max-height: none; z-index: 30; }
+  #ui .journal { grid-template-columns: 1fr; gap: 8px; min-height: 0; }
+  #ui .jlist { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  #ui .jlist h6 { display: none; }
+  #ui .jlist .ji { flex: none; white-space: nowrap; margin: 0; padding: 5px 9px; font-size: 13px; border: 1px solid rgba(90, 65, 41, 0.6); border-radius: 6px; }
+  #ui .jbody { max-height: calc(100vh - 290px); }
+  #ui .slots { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 520px) and (min-height: 501px) { body.touch #prompt { bottom: 300px; max-width: 86vw; } }
+/* A phone on its side: chat tucks under the tracker, two lines, clear of the bar and the stick */
+@media (max-height: 500px) { body.touch #chatbox { top: 160px; width: 220px; } body.touch #chatbox .cb-log { height: 40px; font-size: 11.5px; } body.touch #chatbox .cb-tabs button { padding: 1px 6px; font-size: 10px; } body.touch #loot { top: 92px; left: 250px; } #touch .stick { top: calc(100% - 96px); } }
+@media (max-height: 500px) { body.touch #ui .ab-slot { width: 38px; height: 38px; } body.touch #ui .ab-plate { gap: 5px; padding: 6px 10px 12px; } body.touch #ui .ab-sep { display: none; } body.touch #ab-gauge { width: 170px; } }

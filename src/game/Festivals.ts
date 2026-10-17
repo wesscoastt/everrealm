@@ -201,7 +201,7 @@ export class Festivals {
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.rotation.y = ry;
-    const mat = (c: string, glow = 0) => new THREE.MeshLambertMaterial({ color: c, emissive: glow ? new THREE.Color(c).multiplyScalar(glow) : undefined });
+    const mat = (c: string, glow = 0) => new THREE.MeshLambertMaterial(glow ? { color: c, emissive: new THREE.Color(c).multiplyScalar(glow) } : { color: c });
     const box = (w: number, h: number, d: number, m: THREE.Material, px: number, py: number, pz: number, rx = 0, rz = 0) => {
       const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
       o.position.set(px, py, pz); o.rotation.set(rx, 0, rz); o.castShadow = true; o.receiveShadow = true; g.add(o); return o;

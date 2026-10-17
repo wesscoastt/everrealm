@@ -508,11 +508,11 @@ export class Game implements GameApi {
       footer: () => `Prices in ${f.tokenPlural}. The stall takes nothing else.`,
     };
     this.currentShop = 'festival';
-    this.hud.show('shop'); this.hud.show('inv');
+    this.hud.show('shop'); this.showPackBeside();
     this.sfx('open');
   }
 
-  openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.hud.show('inv'); }
+  openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
 
   /** A notice board talks like a person with no face: the dialogue panel, headed with the board's name. */
@@ -592,7 +592,10 @@ export class Game implements GameApi {
     this.startPlay(false, 'On the Charter Post…');
   }
 
-  openCrafting(st: Station): void { this.currentStation = st; this.hud.show('craft'); this.hud.show('inv'); }
+  /** The pack opens beside a trader or a station, where there's room for both; on a phone, one panel at a time. */
+  private showPackBeside(): void { if (innerWidth > 520) this.hud.show('inv'); }
+
+  openCrafting(st: Station): void { this.currentStation = st; this.hud.show('craft'); this.showPackBeside(); }
   startCasting(): void { this.casting = { t: 0, dur: 30 }; }
   get playerName(): string { return this.save.name; }
 
@@ -2144,8 +2147,32 @@ export class Game implements GameApi {
     this.camera.lookAt(this.menuCam.look);
   }
 
+  /** Graphics watchdog: the renderer's frame count, and how long it has stood still. */
+  private gfxFrame = -1;
+  private gfxStuck = 0;
+
+  /**
+   * If the GPU drops the WebGL context (a phone rotating, the app going to the background, a driver
+   * reset) and it doesn't come back, three.js quietly stops drawing and the world goes black. Save,
+   * and reload once; if it happens again straight away, say so instead of reloading in a loop.
+   */
+  private watchGraphics(dt: number): void {
+    const f = this.renderer.info.render.frame;
+    if (f !== this.gfxFrame || document.hidden) { this.gfxFrame = f; this.gfxStuck = 0; return; }
+    this.gfxStuck += dt;
+    if (this.gfxStuck < 2.5) return;
+    this.gfxStuck = -1e9; // once
+    let last = 0;
+    try { last = Number(sessionStorage.getItem('everrealm.gfxReset') ?? 0); } catch { /* none */ }
+    if (Date.now() - last < 30000) { this.hud.system('The graphics stopped drawing. Reloading the page will bring them back; your progress is saved.'); return; }
+    try { sessionStorage.setItem('everrealm.gfxReset', String(Date.now())); } catch { /* none */ }
+    if (this.mode === 'play') this.persist();
+    location.reload();
+  }
+
   private frame(dt: number): void {
     this.elapsed += dt;
+    this.watchGraphics(dt);
     const w = this.canvasResize();
     void w;
     if (!this.world) { this.renderer.render(this.scene, this.camera); return; }

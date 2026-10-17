@@ -255,6 +255,7 @@ export class Hud {
     } catch { /* storage unavailable: defaults */ }
 
     const tr = el('div', 'hud-only'); tr.id = 'tracker'; r.append(tr);
+    window.addEventListener('resize', () => this.stackTracker());
 
     this.buildChat();
     const ab = el('div', 'hud-only'); ab.id = 'actionbar';
@@ -668,8 +669,11 @@ export class Hud {
    */
   private stackTracker(): void {
     const tr = this.q('#tracker'), p = this.eventEl;
-    const inColumn = p.classList.contains('show') && p.getBoundingClientRect().right > innerWidth - 40;
-    tr.style.top = inColumn ? `${p.offsetTop + p.offsetHeight + 8}px` : '';
+    tr.style.top = '';
+    if (!p.classList.contains('show')) return;
+    // Only when they share a column: their boxes overlap side to side
+    const a = p.getBoundingClientRect(), b = tr.getBoundingClientRect();
+    if (a.left < b.right && b.left < a.right) tr.style.top = `${p.offsetTop + p.offsetHeight + 8}px`;
   }
 
   private saveMinimap(): void {
@@ -1138,6 +1142,9 @@ export class Hud {
     wrap.append(list, page);
     body.innerHTML = '';
     body.append(wrap);
+    // On a phone the list is a strip: keep the open page's tab in view
+    const selTab = list.querySelector<HTMLElement>('.ji.sel');
+    if (selTab && list.scrollWidth > list.clientWidth) list.scrollLeft = selTab.offsetLeft - list.clientWidth / 2 + selTab.offsetWidth / 2;
   }
 
   private renderCraft(): void {
