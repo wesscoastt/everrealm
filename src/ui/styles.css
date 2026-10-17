@@ -672,3 +672,8 @@ body.touch #loot { bottom: auto; top: 360px; }
 #hometray .ht-keys button { margin-left: auto; }
 #hometray kbd { font: 600 11px var(--px); padding: 1px 5px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; }
 @media (max-width: 600px) { #hometray { left: 16px; right: 16px; width: auto; bottom: 150px; } }
+
+/* Item icons beside item names in text: rewards, writs, recipes */
+img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; image-rendering: pixelated; }
+.lday img.lico { width: 28px; height: 28px; display: block; margin: 4px auto 2px; image-rendering: pixelated; }
+.lday { text-align: center; }

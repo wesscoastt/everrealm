@@ -25,7 +25,9 @@ export interface DailyView {
   writs: { id: string; name: string; desc: string; have: number; need: number; done: boolean; marks: number }[];
   bundleDone: boolean;
   resetIn: number;
-  login: { month: string; count: number; claimedToday: boolean; track: { label: string; rare: boolean }[] };
+  login: { month: string; count: number; claimedToday: boolean; track: { label: string; rare: boolean; items: [string, number][]; marks: number }[] };
+  /** What finishing all three writs may give: marks, and one of these items. */
+  bundle: { marks: number; items: string[] };
 }
 
 function describe(r: { marks?: number; items?: string[] }): string {
@@ -106,7 +108,8 @@ export class Dailies {
       writs: writsFor(w.day).map((d) => ({ id: d.id, name: d.name, desc: d.desc, have: w.prog[d.id] ?? 0, need: d.need, done: w.done.includes(d.id), marks: d.marks })),
       bundleDone: w.bundle,
       resetIn: untilReset(),
-      login: { month: l.month, count: l.count, claimedToday: l.lastDay === utcDay(), track: LOGIN_TRACK.map((r) => ({ label: describe(r), rare: !!r.label })) },
+      login: { month: l.month, count: l.count, claimedToday: l.lastDay === utcDay(), track: LOGIN_TRACK.map((r) => ({ label: describe(r), rare: !!r.label, marks: r.marks ?? 0, items: [...(r.items ?? []).reduce((m, it) => m.set(it, (m.get(it) ?? 0) + 1), new Map<string, number>())] })) },
+      bundle: { marks: WRIT_BUNDLE.marks, items: [...new Set(WRIT_BUNDLE.items)] },
     };
   }
 }

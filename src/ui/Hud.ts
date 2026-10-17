@@ -91,6 +91,26 @@ const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'wood
 import type { Appearance } from '../entities/humanoid';
 import type { Inventory, SaveData } from '../game/state';
 import { abilityIcon, itemIcon, shapeIcon } from './icons';
+
+/**
+ * Puts an item's icon in front of its name wherever a message mentions it ("You no longer have
+ * 3 Bronze bar."). Longest names first, so "Cooked trout" wins over "trout"; names are matched
+ * whole and case-sensitively, so ordinary words in a sentence are left alone.
+ */
+let itemNameRe: RegExp | null = null;
+const itemByName = new Map<string, string>();
+function withItemIcons(html: string): string {
+  if (!itemNameRe) {
+    const names: string[] = [];
+    for (const d of Object.values(ITEMS)) if (d.name.length >= 4 && !itemByName.has(esc(d.name))) { itemByName.set(esc(d.name), d.id); names.push(esc(d.name)); }
+    names.sort((a, b) => b.length - a.length);
+    itemNameRe = new RegExp('(^|[^\\w>])(' + names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![\\w])', 'g');
+  }
+  return html.replace(itemNameRe, (_m, pre: string, name: string) => `${pre}<img class="ric" src="${itemIcon(itemByName.get(name)!)}" alt="">${name}`);
+}
+
+/** The marks coin, for reward lines. */
+const COIN_ICON = () => shapeIcon('coin', '#e8c050', '#a87a20');
 import { CALLINGS, CallingDef, CallingId, callingById } from '../data/classes';
 import { callingCard } from './callingCard';
 import { EMOTES } from '../data/emotes';
@@ -652,7 +672,7 @@ export class Hud {
 
   /** The game's own messages: they go to the chat box's World channel. */
   system(text: string): void {
-    this.chatLine('world', esc(text));
+    this.chatLine('world', withItemIcons(esc(text)));
   }
 
   /** A speech bubble that follows a head: the game moves it each frame with placeBubble. */
@@ -1253,10 +1273,10 @@ export class Hud {
       const d = this.ctx.daily();
       const h = Math.floor(d.resetIn / 3600), m = Math.floor((d.resetIn % 3600) / 60);
       if (this.selQuest === 'writs') {
-        page.innerHTML = `<h4>Charter writs</h4><div class="feat-sum">Three a day, the same for everyone. New ones in ${h}h ${m}m.${d.bundleDone ? ' All three done today.' : ' Finish all three for a bundle on top.'}</div>`;
+        page.innerHTML = `<h4>Charter writs</h4><div class="feat-sum">Three a day, the same for everyone. New ones in ${h}h ${m}m.${d.bundleDone ? ' All three done today.' : ` Finish all three for a bundle on top: <img class="ric" src="${COIN_ICON()}" alt="">${d.bundle.marks} marks and one of ${d.bundle.items.map((it) => `<img class="ric" src="${itemIcon(it)}" alt="" title="${esc(ITEMS[it]?.name ?? it)}">`).join('')}`}</div>`;
         for (const w of d.writs) {
           const row = el('div', 'feat' + (w.done ? ' done' : ''));
-          row.innerHTML = `<div class="ft"><b>${esc(w.name)}</b><span>${w.done ? 'Done' : `${w.have.toLocaleString()} / ${w.need.toLocaleString()}`}</span></div><div class="fd">${esc(w.desc)}</div>${w.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (w.have / w.need) * 100)}%"></i></div>`}<div class="fr">${w.marks} marks and experience</div>`;
+          row.innerHTML = `<div class="ft"><b>${esc(w.name)}</b><span>${w.done ? 'Done' : `${w.have.toLocaleString()} / ${w.need.toLocaleString()}`}</span></div><div class="fd">${esc(w.desc)}</div>${w.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (w.have / w.need) * 100)}%"></i></div>`}<div class="fr"><img class="ric" src="${COIN_ICON()}" alt="">${w.marks} marks and experience</div>`;
           page.append(row);
         }
       } else {
@@ -1265,7 +1285,8 @@ export class Hud {
         const grid = el('div', 'login-grid');
         L.track.forEach((r, i) => {
           const cell = el('div', 'lday' + (i < L.count ? ' got' : '') + (i === L.count && !L.claimedToday ? ' today' : '') + (r.rare ? ' rare' : ''));
-          cell.innerHTML = `<small>Day ${i + 1}</small><span>${esc(r.label)}</span>`;
+          const ic = r.items.length ? itemIcon(r.items[0][0]) : COIN_ICON();
+          cell.innerHTML = `<small>Day ${i + 1}</small><img class="lico" src="${ic}" alt=""><span>${esc(r.label)}</span>`;
           grid.append(cell);
         });
         page.append(grid);
@@ -1280,7 +1301,7 @@ export class Hud {
       const on = fv.on;
       page.innerHTML = on
         ? `<h4>${esc(on.name)}</h4><div class="feat-sum">On until ${esc(on.closes)}. ${esc(on.blurb)}</div>
-          <div class="feat${on.writ.done ? ' done' : ''}"><div class="ft"><b>Festival writ: ${esc(on.writ.name)}</b><span>${on.writ.done ? 'Done' : `${on.writ.have.toLocaleString()} / ${on.writ.need.toLocaleString()}`}</span></div><div class="fd">${esc(on.writ.desc)}</div>${on.writ.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (on.writ.have / on.writ.need) * 100)}%"></i></div>`}<div class="fr">8 ${esc(on.tokenName)} and 20 marks · a new one every day</div></div>
+          <div class="feat${on.writ.done ? ' done' : ''}"><div class="ft"><b>Festival writ: ${esc(on.writ.name)}</b><span>${on.writ.done ? 'Done' : `${on.writ.have.toLocaleString()} / ${on.writ.need.toLocaleString()}`}</span></div><div class="fd">${esc(on.writ.desc)}</div>${on.writ.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (on.writ.have / on.writ.need) * 100)}%"></i></div>`}<div class="fr"><img class="ric" src="${itemIcon(on.token)}" alt="">8 ${esc(on.tokenName)} and <img class="ric" src="${COIN_ICON()}" alt="">20 marks · a new one every day</div></div>
           <div class="feat"><div class="ft"><b><img class="tok" src="${itemIcon(on.token)}" alt=""> ${on.have} ${esc(on.tokenName)}</b></div><div class="fd">Creatures drop them while the festival's on (big ones always do). Spend them at the festival stall beside any Charter Post: the pennant on your map.</div></div>`
         : `<h4>Festivals</h4><div class="feat-sum">No festival is on just now. They come round every year on the same days, for everyone.</div>`;
       page.append(el('h5', 'feat-group', 'The festival year'));
@@ -1305,7 +1326,7 @@ export class Hud {
           row.innerHTML = `<div class="ft"><b>${esc(f.name)}</b><span>${f.done ? 'Done' : `${Math.min(f.have, f.need).toLocaleString()} / ${f.need.toLocaleString()}`}</span></div>
             <div class="fd">${esc(f.desc)}</div>
             ${f.done ? '' : `<div class="bar feat-bar"><i style="width:${pct}%"></i></div>`}
-            <div class="fr">${f.marks} marks · title <i>${esc(f.title)}</i>${f.done ? ` <button class="btn sm${f.worn ? ' on' : ''}" data-t="${f.id}">${f.worn ? 'Worn' : 'Wear'}</button>` : ''}</div>`;
+            <div class="fr"><img class="ric" src="${COIN_ICON()}" alt="">${f.marks} marks · title <i>${esc(f.title)}</i>${f.done ? ` <button class="btn sm${f.worn ? ' on' : ''}" data-t="${f.id}">${f.worn ? 'Worn' : 'Wear'}</button>` : ''}</div>`;
           row.querySelector('button')?.addEventListener('click', () => { this.ctx.wearTitle(f.worn ? null : f.id); this.renderJournal(); });
           page.append(row);
         }
@@ -1347,7 +1368,7 @@ export class Hud {
       const out = ITEMS[r.output];
       const reqs = Object.entries(r.inputs).map(([id, n]) => {
         const have = this.ctx.inv.count(id);
-        return `<span class="${have >= n ? 'ok' : 'no'}">${n}× ${esc(ITEMS[id].name)} (${have})</span>`;
+        return `<span class="${have >= n ? 'ok' : 'no'}"><img class="ric" src="${itemIcon(id)}" alt="">${n}× ${esc(ITEMS[id].name)} (${have})</span>`;
       }).join('');
       const skillName = SKILLS.find((s) => s.id === r.skill)!.name;
       row.innerHTML = `<div class="slot r-${out.rarity}"><img src="${itemIcon(r.output)}" alt=""></div><div><div class="nm" style="color:${RARITY_COLOR[out.rarity]}">${esc(out.name)}</div><div class="req"><span class="${okLevel ? 'ok' : 'no'}">${skillName} ${r.level}</span>${reqs}<span>+${r.xp} XP</span></div></div><div class="btns"><button class="btn" data-n="1">Make</button><button class="btn ghost" data-n="99">All (${Math.max(0, maxMake)})</button></div>`;
