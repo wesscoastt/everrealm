@@ -67,3 +67,40 @@ export const BOSS_WARN = 180;
 /** Shardfalls: a star comes down at one of these, in turn, every SHARDFALL_EVERY seconds. */
 export const SHARDFALLS: [number, number][] = [[513, 1568], [666, 1772], [830, 1733], [1058, 1971], [1344, 1731], [1404, 1906]];
 export const SHARDFALL_EVERY = 360;
+
+// ---------------------------------------------------------------- Parish tasks
+// Areas where the locals want a hand (Guild Wars 2's renown hearts, in our own clothes): do the
+// chores at the glowing spots and drive off the pests until the bar fills, once per character.
+
+export type ChoreProp = 'crop' | 'withy' | 'sheaf' | 'rail' | 'clamp' | 'skep' | 'salt' | 'kelp' | 'ochre' | 'cistern' | 'peat' | 'cairn';
+
+export interface TaskDef {
+  id: string;
+  name: string;
+  region: RegionId;
+  x: number; z: number;
+  /** How far the task's ground reaches. */
+  r: number;
+  goal: string;
+  /** The chore: "Lift the turnip row". */
+  verb: string; noun: string; prop: ChoreProp;
+  pests: { type: EnemyType; max: number };
+  xp: number;
+  marks: number;
+  loot: string[];
+}
+
+export const TASKS: TaskDef[] = [
+  { id: 'tk-ridley', name: 'The Ridley Allotments', region: 'greenwake', x: 289, z: 161, r: 22, goal: 'Lift the turnips for the allotment holders and see off the wolves.', verb: 'Lift', noun: 'turnip row', prop: 'crop', pests: { type: 'wolf', max: 2 }, xp: 260, marks: 14, loot: ['bread', 'bread'] },
+  { id: 'tk-withies', name: 'Sallowmere Withy Beds', region: 'greenwake', x: 38, z: 133, r: 22, goal: 'Cut withies for the basket-makers and clear the jellies out of the beds.', verb: 'Cut', noun: 'withy bundle', prop: 'withy', pests: { type: 'jelly', max: 3 }, xp: 260, marks: 14, loot: ['copper_ore', 'copper_ore'] },
+  { id: 'tk-askew', name: 'Askew\'s Stubble', region: 'crownroad', x: 418, z: 301, r: 24, goal: 'Stook the cut barley before the boars trample it.', verb: 'Stook', noun: 'barley sheaf', prop: 'sheaf', pests: { type: 'boar', max: 2 }, xp: 480, marks: 22, loot: ['boar_hide', 'bread'] },
+  { id: 'tk-paddocks', name: 'The Drove Paddocks', region: 'crownroad', x: 684, z: 844, r: 24, goal: 'Mend the paddock rails and keep the road wolves off the stock.', verb: 'Mend', noun: 'broken rail', prop: 'rail', pests: { type: 'roadwolf', max: 3 }, xp: 520, marks: 24, loot: ['wolf_pelt', 'bread'] },
+  { id: 'tk-colliers', name: 'The Colliers\' Clearing', region: 'brambledeep', x: 333, z: 793, r: 24, goal: 'Bank up the charcoal clamps for the colliers and drive off the thornbacks.', verb: 'Bank up', noun: 'charcoal clamp', prop: 'clamp', pests: { type: 'thornwolf', max: 2 }, xp: 720, marks: 30, loot: ['elder_logs', 'elder_logs'] },
+  { id: 'tk-skeps', name: 'Mossbank Bee Garths', region: 'brambledeep', x: 331, z: 391, r: 22, goal: 'Set the bee skeps back on their stands and burst the spore jellies.', verb: 'Right', noun: 'fallen skep', prop: 'skep', pests: { type: 'sporejelly', max: 3 }, xp: 700, marks: 30, loot: ['jelly_residue', 'cooked_trout'] },
+  { id: 'tk-saltpans', name: 'The Saltings Pans', region: 'saltwind', x: 1612, z: 378, r: 24, goal: 'Rake the salt pans and turn the crabs out of them.', verb: 'Rake', noun: 'salt pan', prop: 'salt', pests: { type: 'crab', max: 3 }, xp: 820, marks: 34, loot: ['crab_shell', 'cooked_mackerel'] },
+  { id: 'tk-wrack', name: 'Wrack Fields', region: 'saltwind', x: 1765, z: 832, r: 24, goal: 'Spread the kelp heaps on the fields and keep the brine jellies off them.', verb: 'Spread', noun: 'kelp heap', prop: 'kelp', pests: { type: 'brinejelly', max: 3 }, xp: 820, marks: 34, loot: ['jelly_residue', 'cooked_mackerel'] },
+  { id: 'tk-ochre', name: 'The Ochre Diggings', region: 'redstone', x: 1146, z: 896, r: 24, goal: 'Dig out ochre for the dyers and keep the redbacks off the diggers.', verb: 'Dig', noun: 'ochre seam', prop: 'ochre', pests: { type: 'redback', max: 2 }, xp: 1000, marks: 40, loot: ['iron_ore', 'iron_ore'] },
+  { id: 'tk-cisterns', name: 'The Thirsty Mile', region: 'redstone', x: 866, z: 1381, r: 24, goal: 'Clear the silted cisterns along the track and see off the dust wolves.', verb: 'Clear', noun: 'silted cistern', prop: 'cistern', pests: { type: 'dustwolf', max: 3 }, xp: 1000, marks: 40, loot: ['wolf_pelt', 'iron_ore'] },
+  { id: 'tk-peat', name: 'Kelder Peat Hags', region: 'starfall', x: 659, z: 1889, r: 24, goal: 'Cut and stack peat for the winter and keep the frost wolves back.', verb: 'Cut', noun: 'peat bank', prop: 'peat', pests: { type: 'frostwolf', max: 2 }, xp: 1300, marks: 48, loot: ['frost_pelt', 'cooked_char'] },
+  { id: 'tk-cairns', name: 'The Cairn Road', region: 'starfall', x: 143, z: 1573, r: 24, goal: 'Build the fallen waymark cairns back up and shatter the shard jellies.', verb: 'Rebuild', noun: 'fallen cairn', prop: 'cairn', pests: { type: 'shardjelly', max: 3 }, xp: 1300, marks: 48, loot: ['star_crystal', 'cooked_char'] },
+];

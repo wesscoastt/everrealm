@@ -6,6 +6,7 @@ import { Enemy } from '../entities/Enemy';
 import type { MapMarker } from '../ui/Hud';
 import { plan, Site } from '../world/sites';
 import { REGION_INFO } from '../world/terrain';
+import { Tasks } from './Tasks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
 // The world's activities, in the manner of the big online games:
@@ -36,7 +37,7 @@ export interface ActivityHost {
   setEvent(panel: EventPanel | null): void;
 }
 
-export interface EventPanel { kind: 'event' | 'boss' | 'shard'; title: string; goal: string; progress: number; count: string; time?: number }
+export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
 
 interface LiveEvent { def: EventDef; wave: number; enemies: Enemy[]; killed: number; total: number; endsAt: number }
 interface LiveBoss { def: BossDef; enemy: Enemy; cycle: number; calls: number; nextQuake: number; quake?: { at: THREE.Vector3; t: number }; adds: Enemy[] }
@@ -61,8 +62,10 @@ export class Activities {
   private clock = 0;
   private quakeMesh: THREE.Mesh;
   private sites: Site[];
+  readonly tasks: Tasks;
 
   constructor(private host: ActivityHost) {
+    this.tasks = new Tasks(host, (def, x, z) => this.spawn(def, x, z, false));
     this.sites = plan().sites.filter((s) => s.act);
     const ring = new THREE.Mesh(new THREE.CircleGeometry(QUAKE_R, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.3, depthWrite: false }));
     ring.visible = false;
@@ -88,6 +91,7 @@ export class Activities {
     this.tickEvents(P);
     this.tickBoss(dt, P);
     this.tickShard(dt, P);
+    this.tasks.update(dt, P);
     this.panel(P);
   }
 
@@ -299,7 +303,7 @@ export class Activities {
   // ---------------------------------------------------------------- Chests, vistas, wonders
   /** Things to press E on: dungeon chests (refill each half hour) and vistas (once each). */
   candidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
-    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [];
+    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = this.tasks.candidates(P);
     for (const s of this.sites) {
       const a = s.act!;
       if (a.chest && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
@@ -370,6 +374,7 @@ export class Activities {
 
   /** The game tells us about every kill; ours count toward events. */
   onKilled(e: Enemy): void {
+    this.tasks.onKilled(e);
     for (const ev of this.live.values()) if (ev.enemies.includes(e)) ev.killed++;
     const b = this.boss;
     if (b && b.enemy === e) {
@@ -398,7 +403,7 @@ export class Activities {
     if (b && b.enemy.alive && Math.hypot(P.x - b.def.x, P.z - b.def.z) < 160) best = { kind: 'boss', title: b.enemy.def.name, goal: `World boss in ${b.def.where}. Roll out of the red ring.`, progress: 1 - b.enemy.hp / b.enemy.def.hp, count: `${Math.round((b.enemy.hp / b.enemy.def.hp) * 100)}% left`, time: -this.bossClock(b.def).until };
     const s = this.shard;
     if (s && s.wave >= 0) best = { kind: 'shard', title: 'Shardfall', goal: s.wave < 2 ? 'Shatter what came down with the star' : 'Break the Shardwarden', progress: (s.wave + (s.enemies.filter((e) => !e.alive).length / Math.max(1, s.enemies.length))) / 3, count: `Wave ${s.wave + 1}/3` };
-    this.host.setEvent(best);
+    this.host.setEvent(best ?? this.tasks.panel(P));
   }
 
   /** Map and minimap markers: events running, bosses up or coming, the Shardfall. */
@@ -413,6 +418,7 @@ export class Activities {
     }
     const cycle = Math.floor(this.now() / SHARDFALL_EVERY);
     if (this.host.flag('shard') !== cycle) { const [sx, sz] = SHARDFALLS[cycle % SHARDFALLS.length]; out.push({ x: sx, z: sz, kind: 'shard', label: 'Shardfall' }); }
+    out.push(...this.tasks.markers());
     return out;
   }
 }

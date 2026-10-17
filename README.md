@@ -111,6 +111,7 @@ You get down to fight, talk, gather or swim, when something hits you, and under 
 
 These are things to find and join while exploring, in the spirit of Guild Wars 2 and The Elder Scrolls Online. They show on the minimap and world map, and an event tracker appears while you're in one.
 - **World events (12).** Dynamic events start when you're nearby: wolves on the Lantern ridge, a mire bloom in the Wetlings, wolves on the drove road, stalkers round the Fellers' Camp, crabs on the strand, and more. Each runs in waves against a timer and pays out a gold, silver or bronze medal by your share of the work.
+- **Parish tasks (12).** Two areas in each region where the locals want a hand, like Guild Wars 2's hearts: stook barley, mend paddock rails, rake salt pans, cut peat and so on at the spots marked with a gold diamond, and drive off the pests that keep coming. Each chore and each pest fills the bar, progress is kept between visits, and a full bar pays out once. They show on the map as hearts, hollow until done.
 - **World bosses (4).** Bramblemaw, the Tidewright, Cinderhorn and Rimeglass each rise in their own lair on a shared real-time clock:
   - Each rises every 30 minutes, staggered, with a 3-minute warning on the map and in chat.
   - A boss stays up for 10 minutes. It cracks the ground in a ring you have to leave, and calls in adds at two-thirds and one-third health.

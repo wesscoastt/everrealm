@@ -11,7 +11,7 @@
 import { BLOCKS, B } from '../src/world/blocks';
 import { Overrides, plan, PropDesc } from '../src/world/sites';
 import { GW, heightAt, SEA } from '../src/world/terrain';
-import { EVENTS, SHARDFALLS, WORLD_BOSSES } from '../src/data/activities';
+import { EVENTS, SHARDFALLS, TASKS, WORLD_BOSSES } from '../src/data/activities';
 import { NPCS } from '../src/data/npcs';
 import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { POSTS } from '../src/data/travel';
@@ -69,7 +69,7 @@ for (const t of WORLD_THINGS) if (t.radius > 0) check(`thing ${t.id}`, t.x, t.z,
 for (const p of POSTS) check(`post ${p.id}`, p.x, p.z);
 for (const sp of QUEST_SPAWNS) sp.at.forEach(([x, z], i) => check(`spawn ${sp.tag} ${i}`, x, z, { y: sp.y }));
 // Events, world bosses and Shardfalls happen on open, dry ground
-for (const [label, x, z] of [...EVENTS.map((e) => [`event ${e.id}`, e.x, e.z] as const), ...WORLD_BOSSES.map((b) => [`boss ${b.id}`, b.x, b.z] as const), ...SHARDFALLS.map(([x, z], i) => [`shardfall ${i}`, x, z] as const)]) {
+for (const [label, x, z] of [...EVENTS.map((e) => [`event ${e.id}`, e.x, e.z] as const), ...WORLD_BOSSES.map((b) => [`boss ${b.id}`, b.x, b.z] as const), ...TASKS.map((t) => [`task ${t.id}`, t.x, t.z] as const), ...SHARDFALLS.map(([x, z], i) => [`shardfall ${i}`, x, z] as const)]) {
   check(label, x, z);
   if (heightAt(Math.floor(x), Math.floor(z)) <= SEA + 1) problems.push(`${label} (${x}, ${z}): in the water`);
 }

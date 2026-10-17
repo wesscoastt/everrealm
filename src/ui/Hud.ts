@@ -31,7 +31,8 @@ function mapPin(c: CanvasRenderingContext2D, x: number, y: number, s: number): v
 }
 
 /** Colours for activity markers. */
-const ACT_COLOR: Record<string, string> = { event: '#ff9a2a', boss: '#e8402e', bossSoon: '#c0786a', shard: '#7fe0f4' };
+const ACT_COLOR: Record<string, string> = { event: '#ff9a2a', boss: '#e8402e', bossSoon: '#c0786a', shard: '#7fe0f4', task: '#ffd23a', taskDone: '#b8a878' };
+const ACT_KINDS = new Set(['event', 'boss', 'bossSoon', 'shard', 'task', 'taskDone']);
 
 /** An activity marker: an event's shield, a world boss's crowned skull, the Shardfall's crystal. */
 function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: number, s: number): void {
@@ -40,6 +41,11 @@ function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: numbe
   if (kind === 'event') {
     c.beginPath(); c.moveTo(0, -7); c.lineTo(6, -4); c.lineTo(5, 3); c.lineTo(0, 7); c.lineTo(-5, 3); c.lineTo(-6, -4); c.closePath(); c.fill(); c.stroke();
     c.fillStyle = '#1e1208'; c.fillRect(-0.8, -4, 1.6, 6); c.fillRect(-3, -1.5, 6, 1.4);
+  } else if (kind === 'task' || kind === 'taskDone') {
+    // A heart: hollow while there's work to do, filled once it's done
+    c.beginPath(); c.moveTo(0, 6); c.bezierCurveTo(-8, 0, -6, -7, 0, -3.2); c.bezierCurveTo(6, -7, 8, 0, 0, 6); c.closePath();
+    c.fill(); c.stroke();
+    if (kind === 'task') { c.fillStyle = '#1e1208'; c.beginPath(); c.moveTo(0, 2.6); c.bezierCurveTo(-3.6, -0.2, -2.8, -3.4, 0, -1.4); c.bezierCurveTo(2.8, -3.4, 3.6, -0.2, 0, 2.6); c.fill(); }
   } else if (kind === 'shard') {
     c.beginPath(); c.moveTo(0, -8); c.lineTo(4, 0); c.lineTo(0, 8); c.lineTo(-4, 0); c.closePath(); c.fill(); c.stroke();
   } else {
@@ -84,10 +90,10 @@ import { abilityIcon, itemIcon, shapeIcon } from './icons';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard'; label?: string; yaw?: number }
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone'; label?: string; yaw?: number }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
-export interface EventPanel { kind: 'event' | 'boss' | 'shard'; title: string; goal: string; progress: number; count: string; time?: number }
+export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
 export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean }
 export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
 
@@ -527,7 +533,7 @@ export class Hud {
     if (key !== this.eventKey) {
       this.eventKey = key;
       p.dataset.kind = ev.kind;
-      (p.querySelector('.ev-kind') as HTMLElement).textContent = ev.kind === 'event' ? 'Event' : ev.kind === 'boss' ? 'World boss' : 'Shardfall';
+      (p.querySelector('.ev-kind') as HTMLElement).textContent = ev.kind === 'event' ? 'Event' : ev.kind === 'boss' ? 'World boss' : ev.kind === 'task' ? 'Parish task' : 'Shardfall';
       (p.querySelector('.ev-title') as HTMLElement).textContent = ev.title;
     }
     (p.querySelector('.ev-goal') as HTMLElement).textContent = ev.goal;
@@ -601,10 +607,10 @@ export class Hud {
     }
     // Events, world bosses, the Shardfall: glyphs, or arrows on the rim when they're out of range
     for (const m of markers) {
-      if (m.kind !== 'event' && m.kind !== 'boss' && m.kind !== 'bossSoon' && m.kind !== 'shard') continue;
+      if (!ACT_KINDS.has(m.kind)) continue;
       const [x, y] = at(m.x, m.z), d = Math.hypot(x, y);
       if (d > inside) {
-        if (m.kind === 'bossSoon') continue;
+        if (m.kind === 'bossSoon' || m.kind === 'task' || m.kind === 'taskDone') continue;
         const ux = x / d, uy = y / d;
         c.save(); c.translate(ux * (R - 16), uy * (R - 16)); c.rotate(Math.atan2(uy, ux) + Math.PI / 2);
         c.fillStyle = ACT_COLOR[m.kind]; c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
@@ -614,7 +620,7 @@ export class Hud {
     }
     // People, foes, other players; objectives last, pinned to the rim when out of range
     for (const m of markers) {
-      if (m.kind === 'quest' || m.kind === 'event' || m.kind === 'boss' || m.kind === 'bossSoon' || m.kind === 'shard') continue;
+      if (m.kind === 'quest' || ACT_KINDS.has(m.kind)) continue;
       const [x, y] = at(m.x, m.z);
       if (Math.hypot(x, y) > inside) continue;
       const big = m.kind === 'elite';
@@ -1108,12 +1114,12 @@ export class Hud {
       }
     }
     for (const m of markers) {
-      if (m.kind !== 'event' && m.kind !== 'boss' && m.kind !== 'bossSoon' && m.kind !== 'shard') continue;
-      if (!on(m.kind === 'event' ? 'events' : 'bosses')) continue;
+      if (!ACT_KINDS.has(m.kind)) continue;
+      if (!on(m.kind === 'event' ? 'events' : m.kind === 'task' || m.kind === 'taskDone' ? 'tasks' : 'bosses')) continue;
       const X = sx(m.x), Y = sy(m.z);
       actGlyph(x, m.kind, X, Y, dpr * 1.5);
-      if (m.label && (z > 0.5 || m.kind !== 'event')) label(m.label, X, Y + px(20), `700 ${px(14)}px "Alegreya", serif`, ACT_COLOR[m.kind] === '#ffd23a' ? '#5a3a00' : '#3a1008');
-      hits.push({ x: X, y: Y, name: m.label ?? '', sub: m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' });
+      if (m.label && (z > 0.5 || (m.kind !== 'event' && m.kind !== 'taskDone' && m.kind !== 'task'))) label(m.label, X, Y + px(20), `700 ${px(14)}px "Alegreya", serif`, ACT_COLOR[m.kind] === '#ffd23a' ? '#5a3a00' : '#3a1008');
+      hits.push({ x: X, y: Y, name: m.label ?? '', sub: m.kind === 'task' ? 'Parish task: the locals want a hand' : m.kind === 'taskDone' ? 'Parish task: done' : m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' });
     }
     if (on('quests')) for (const m of markers) {
       if (m.kind !== 'quest') continue;
@@ -1174,7 +1180,7 @@ export class Hud {
     const ctl = el('div', 'map-ctl');
     ctl.innerHTML = '<button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
     const legend = el('div', 'map-legend');
-    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['quests', 'Objectives'], ['events', 'Events'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
+    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['quests', 'Objectives'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
       const chip = el('button', 'chip on', name);
       chip.addEventListener('click', () => { if (V.hidden.has(f)) V.hidden.delete(f); else V.hidden.add(f); chip.classList.toggle('on', !V.hidden.has(f)); this.ctx.sfx('click'); });
       legend.append(chip);

@@ -1,4 +1,4 @@
-import { EVENTS, WORLD_BOSSES } from './activities';
+import { EVENTS, TASKS, WORLD_BOSSES } from './activities';
 import { ITEMS } from './items';
 
 // Feats: long goals for exploring and joining in, kept in the journal. Each one pays out marks
@@ -39,6 +39,8 @@ export const FEATS: FeatDef[] = [
   { id: 'gold', name: 'First Over the Wall', group: 'The open world', desc: 'Win gold in six different world events.', need: 6, have: (g) => EVENTS.filter((e) => g.flag('ev:' + e.id) === 'Gold').length, marks: 120, title: 'Gilded' },
   { id: 'bosses', name: 'Four Terrors Laid Low', group: 'The open world', desc: 'Help bring down each of the four world bosses.', need: WORLD_BOSSES.length, have: (g) => g.countFlags('killed:'), marks: 200, title: 'Terror-Breaker' },
   { id: 'shards', name: 'Sealer of Stars', group: 'The open world', desc: 'Seal five Shardfalls.', need: 5, have: (g) => Number(g.flag('shardsSealed') ?? 0), marks: 120, title: 'Star-Sealer' },
+  { id: 'tasks5', name: 'A Good Neighbour', group: 'The open world', desc: 'Finish five parish tasks.', need: 5, have: (g) => g.countFlags('task:'), marks: 60, title: 'Good Neighbour' },
+  { id: 'tasks', name: 'Every Parish Helped', group: 'The open world', desc: 'Finish every parish task in the counties.', need: TASKS.length, have: (g) => g.countFlags('task:'), marks: 200, title: 'Friend of the Parishes' },
   { id: 'horse', name: 'Up in the Saddle', group: 'Stable', desc: 'Buy a halter and ride.', need: 1, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 10, title: 'Rider' },
   { id: 'stable', name: 'The Whole Stable', group: 'Stable', desc: 'Own every horse in the counties, the Cinder-shod mare included.', need: HALTERS.length, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 150, title: 'Horse-Lord' },
   { id: 'level', name: 'Turned Your Hand', group: 'Craft and trade', desc: 'Reach a total level of 100 across your skills.', need: 100, have: (g) => g.totalLevel, marks: 100, title: 'Journeyman' },
