@@ -241,7 +241,7 @@ export const GW_ASHCROFT: RegionContent = {
       gwD1: { text: 'Duchess? I haven\'t seen Duchess. Duchess is a hen. There are lots of hens.', options: [{ text: 'Your aunt says you were under the kitchen table when she talked about the pot.', next: 'gwD2' }, { text: 'All right.' }] },
       gwD2: { speaker: 'narrator', text: 'Dilly looks at her feet for a long time.', next: 'gwD3' },
       gwD3: {
-        text: 'She\'s in the reeds at the Wetlings. In a basket. With corn. She likes it there. Don\'t tell. Aunt Ruth will put her in the pot and then she\'ll put me in the pot.',
+        text: 'She\'s in the reeds at the Wetlings. In a basket. With corn. Don\'t tell. Aunt Ruth will put her in the pot. Then me.',
         effect: (g) => g.setStage(DUCH, 'reeds'),
       },
       gwDafter: {

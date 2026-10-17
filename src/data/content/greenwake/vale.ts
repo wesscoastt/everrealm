@@ -27,7 +27,7 @@ const agnes: DialogueTree = {
         { text: 'Bye.' },
       ],
     },
-    lw1: { text: 'The summer my father was a boy, you could walk across the Wend without wetting your knees. He opened the inn that autumn. He knew a name when he saw one.' },
+    lw1: { text: 'When my father was a boy, you could walk the Wend without wetting your knees. He opened the inn that autumn. He knew a good name.' },
     pike: { text: 'My father said Pell Garrow stole his pike. He said it at Pell\'s wedding. He said it at his own funeral, nearly. Pell hid it, did he? Behind the falls?', next: 'pike2' },
     pike2: { text: 'I\'ll tell my sister. She owes me a mark.' },
     s1: { text: 'Fourthday. Thirty plates, and my cook\'s gone to her sister\'s to have a baby, which is a poor excuse but a real one.', next: 's2' },
@@ -315,7 +315,7 @@ export const GW_VALE: RegionContent = {
       if (at(g, HINGE) === 'done' && !g.flag('gwWrenHinge')) return 'gwH9';
       return undefined;
     }, {
-      gwP0: { text: 'A pin? For Dunstan? Bring me a bronze bar. Smelt one at the furnace, copper and tin, one of each. I\'m not making a pin out of nothing. I\'m not Uncle Bram.' },
+      gwP0: { text: 'A pin? For Dunstan? Bring me a bronze bar. Copper and tin, one each, at the furnace. I don\'t make pins out of nothing. I\'m not Uncle Bram.' },
       gwP1: { text: 'A brake pin? For Dunstan? I can do that. I can do that. Uncle Bram, I\'m doing a pin.', next: 'gwP2' },
       gwP2: { speaker: 'narrator', text: 'Bram, at the furnace, says nothing in a way that means yes.', next: 'gwP3' },
       gwP3: { speaker: 'narrator', text: 'Twenty minutes later there\'s a pin on the anvil, still warm, with a small W stamped in the head.', next: 'gwP4' },

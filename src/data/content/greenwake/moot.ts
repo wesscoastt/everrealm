@@ -57,9 +57,9 @@ const ivy: DialogueTree = {
       text: 'Maud told you, then. Or you found out, which is the same thing with more walking.',
       options: [{ text: 'Call the moot.', next: 'mo2' }, { text: 'Not yet.' }],
     },
-    mo2: { speaker: 'narrator', text: 'Ivy rings the handbell she keeps for the purpose. It takes the village twenty minutes to arrive under the Oak, and most of that is Joss Wether looking for his other boot.', next: 'mo3' },
+    mo2: { speaker: 'narrator', text: 'Ivy rings her handbell. The village takes twenty minutes to gather under the Oak, most of it Joss Wether looking for his other boot.', next: 'mo3' },
     mo3: { text: 'The moot sits. Third item: the Pit lease. Maud?', next: 'mo4' },
-    mo4: { speaker: 'narrator', text: 'Maud stands up and says it in short sentences: the piles, the mason, a hundred and twenty marks, thirty-one in the box, forty a quarter from Harrowgate. Nobody interrupts. Hollin Ford has never once not interrupted.', next: 'mo5' },
+    mo4: { speaker: 'narrator', text: 'Maud says it in short sentences: the piles, the mason, a hundred and twenty marks, thirty-one in the box, forty a quarter from Harrowgate. Nobody interrupts. A first.', next: 'mo5' },
     mo5: { speaker: 'narrator', text: 'Pell Garrow says, to nobody in particular, "Penny water\'s what\'s eating them piles."', next: 'mo6' },
     mo6: {
       text: 'You did the walking. The moot will hear you first.',
@@ -83,7 +83,7 @@ const ivy: DialogueTree = {
 
     // ---- The ford post
     f1: { text: 'Before the bridge there was a rope, and before the rope there was my father, and before my father there were a great many wet sheep.', next: 'f2' },
-    f2: { text: 'He ran the ford for thirty years: an iron post on the far bank, a rope through the ring on top. They pulled the post out when the bridge opened. Or said so.', next: 'f3' },
+    f2: { text: 'He ran the ford thirty years. An iron post on the far bank, a rope through its ring. They pulled it when the bridge opened. Or said so.', next: 'f3' },
     f3: {
       text: 'I\'d like to know if it\'s still there. My eyes won\'t do the far bank any more.',
       options: [{ text: 'I\'ll look.', effect: (g) => g.setStage(FORD, 'post') }, { text: 'Bye.' }],

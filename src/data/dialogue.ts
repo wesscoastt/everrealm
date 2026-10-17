@@ -70,11 +70,11 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         options: [{ text: 'Why is it at the smithy?', next: 'bell2' }],
       },
       bell2: {
-        text: 'Cracked in the thaw. Ice got into the seam. Bram took it to recast, and every week since midsummer it\'s been the mould sweating, or the clay\'s wrong, or the wind\'s in the east.',
+        text: 'Cracked in the thaw. Bram took it to recast. Every week since midsummer it\'s the mould sweating, or the clay, or the wind\'s in the east.',
         next: 'gauge',
       },
       gauge: {
-        text: 'See the gauge by the bridge? Four fingers this morning. It was two on market day. At six the Wetlings go under, and somebody has to ring that bell so the Ashcrofts can get their cows up the bank.',
+        text: 'See the gauge by the bridge? Four fingers this morning. Two on market day. At six the Wetlings go under, and somebody rings that bell.',
         options: [
           { text: 'I could go and ask Bram.', next: 'accept' },
           { text: 'Can\'t you ring something else?', next: 'pan' },
@@ -221,7 +221,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       which3: { text: 'It\'s not the mould. I\'m short of metal.', next: 'short' },
       howlong: { text: 'Depends on the metal. I\'m short.', next: 'short' },
       short: {
-        text: 'A bell that size wants three bars of bronze. Copper and tin, smelted together. Harrowgate\'s lot buy every scrap of ore that comes out of the Pit. Can\'t get any for love or money. Mostly money.',
+        text: 'A bell that size wants three bronze bars. Harrowgate\'s lot buy every scrap of ore out of the Pit. Can\'t get any for love or money. Mostly money.',
         options: [
           { text: 'I\'ll mine it for you.', next: 'offer' },
           { text: 'What happened to the old bell\'s metal?', next: 'where' },
@@ -240,7 +240,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       offer: { text: 'Would you.', next: 'offer1' },
       offer1: { speaker: 'narrator', text: 'It isn\'t quite a question.', next: 'offer2', effect: (g) => g.setStage(Q, 'gather') },
       offer2: {
-        text: 'Hesk at the Pit lets people chip at the upper gallery if they keep out of his carts. Three copper, three tin. Smelt them in my furnace, bring me the bars, and I\'ll do the pour.',
+        text: 'Hesk lets folk chip at the Pit\'s upper gallery if they keep clear of his carts. Three copper, three tin. Smelt them, bring me bars. I\'ll pour.',
         options: [
           { text: 'I don\'t have a pickaxe.', next: 'pick', cond: (g) => !g.hasTool('mining') },
           { text: 'Anything I should know?', next: 'rust', cond: (g) => g.hasTool('mining') },
@@ -280,9 +280,9 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       },
       handed: { text: 'Right. Nance! Bellows.' },
       c1: { speaker: 'narrator', text: 'Bram sets the bar down on the anvil very carefully, as if it might go off.', next: 'c2' },
-      c2: { text: 'Charcoal was four marks a sack before the Pit opened. Now it\'s nine, because their smelter burns it faster than the burners can make it. My rent didn\'t go down to match.', next: 'c3' },
+      c2: { text: 'Charcoal was four marks a sack before the Pit. Now it\'s nine: their smelter burns it faster than anyone can make it. My rent didn\'t drop.', next: 'c3' },
       c3: {
-        text: 'There was a cracked bell in my yard worth more than I clear in a season. Pryce asked. I said yes. I was going to recast it out of the next good month. There wasn\'t one.',
+        text: 'A cracked bell in my yard, worth more than my season. Pryce asked. I said yes. I\'d make it good next month. There wasn\'t one.',
         options: [
           { text: 'It stays between us. Make the bell.', next: 'cover', effect: (g) => handOver(g, 'cover') },
           { text: 'Tell Maud yourself, or I will.', next: 'confess', effect: (g) => handOver(g, 'confess') },
@@ -306,7 +306,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       confess3: { text: 'Fine. After the pour. I\'m not walking over that bridge without a bell to show her.' },
       cold: { speaker: 'narrator', text: 'Bram doesn\'t look up.', next: 'cold2' },
       cold2: {
-        text: 'Maud\'s been in. I\'m paying Pryce\'s thirty-one marks back to the moot at a mark a week, so I\'ll be square with her round about the time I\'m dead. Give me the bars.',
+        text: 'Maud\'s been in. Pryce\'s thirty-one marks back to the moot, a mark a week. I\'ll be square with her about when I\'m dead. Give me the bars.',
         options: [{ text: 'Here.', next: 'cold3', effect: (g) => handOver(g, 'report') }],
       },
       cold3: { text: 'I\'ll pour it. Then we\'re square, you and me. That\'s all we are.' },

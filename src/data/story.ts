@@ -67,7 +67,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
       p7: {
         text: (g) => (s(g, 'gannetLog') === 'done' && g.flag('gannetChoice') !== 'spare'
           ? 'And Fleet\'s oil, which you know about. Nessa Crane has written to me four times. I held those barrels back. I\'d do it again with the same books. I would like different books.'
-          : 'Fleet Light got six barrels of oil this winter instead of nine. I held the other three back against the arrears. I\'d do it again with the same books. I would like different books.'),
+          : 'Fleet Light got six barrels of oil this winter, not nine. I held three back against the arrears. I\'d do it again with these books. I\'d like different books.'),
         next: 'p8',
       },
       p8: {
@@ -133,7 +133,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
         options: [{ text: 'Why the Kirk?', next: 'm2' }],
       },
       m2: {
-        text: 'Because the Charter can\'t pay and won\'t stop trying. Tolls on barley, oil kept from a lighthouse. I\'d rather be paid in crystal than watch them squeeze carters to pay me.',
+        text: 'Because the Charter can\'t pay and won\'t stop trying: tolls on barley, oil kept from a lighthouse. I\'d rather take crystal than watch carters squeezed.',
         options: [
           { text: 'You bought the debt cheap. You\'re squeezing them now.', next: 'm3' },
           { text: 'That\'s generous of you.', next: 'm3b' },
@@ -196,7 +196,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
         next: 'moor5',
       },
       moor5: {
-        text: 'If anything they made is still whole, it\'ll be in the Hollow Oak. It\'s been Hagworm Wood\'s post box since before there was a Charter: letters, debts, apologies. The oldest things in it aren\'t letters.',
+        text: 'Anything of theirs still whole will be in the Hollow Oak. Hagworm Wood\'s post box since before the Charter. The oldest things in it aren\'t letters.',
         next: 'moor6',
       },
       moor6: {
@@ -207,7 +207,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
       slate: { text: 'That\'s it. Give it here. Gently. It\'s older than the Charter, and it\'s spent most of that inside a tree.', options: [{ text: 'Hand him the slate.', next: 'sl2' }] },
       sl2: { speaker: 'narrator', text: 'He holds it to the light and turns it a little at a time.', next: 'sl3' },
       sl3: { text: 'A field. Ropes. And here, a hill, with a crown cut into the top of it. Points all round.', next: 'sl4' },
-      sl4: { text: 'That\'s Gallows Knap, in the Marches. Harrowgate keeps stores in the ruin now. And look: in this one they\'ve cut the crown off, and in this one the field has gone.', options: [{ text: 'Gone where?', next: 'sl5' }] },
+      sl4: { text: 'That\'s Gallows Knap, in the Marches. Harrowgate keeps stores there now. And look: here they\'ve cut the crown off. Here, the field has gone.', options: [{ text: 'Gone where?', next: 'sl5' }] },
       sl5: { text: 'Up.', next: 'sl6' },
       sl6: { speaker: 'narrator', text: 'He hands the slate back flat on both palms, as if it might go up too.', next: 'sl7' },
       sl7: {
@@ -232,7 +232,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
       return 'main';
     },
     nodes: {
-      main: { text: 'People come up here to put a hand on it. I keep the floor swept and write their names in a book. That\'s the whole of the job, and it\'s enough.' },
+      main: { text: 'People come up to put a hand on it. I sweep the floor and write their names in a book. That\'s the job. It\'s enough.' },
       meet: { text: 'You\'re not a pilgrim. Pilgrims look at the star. You\'re looking at the stakes.', next: 'meet2' },
       meet2: {
         text: 'Harrowgate put them in last month. Every one of them went through a stone somebody laid by hand.',
@@ -281,7 +281,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
       j2: { speaker: 'narrator', text: 'She knows what it is before it\'s flat.', next: 'j3' },
       j3: { text: 'I didn\'t get as far as the wall. I got as far as the Queen. Two of my lads didn\'t get that far.', next: 'j4' },
       j4: {
-        text: 'One span of lift for every three feet of cap. I wrote it down. I wrote "ten feet, no less." Hilda wrote "tender is for thirty" underneath, because the tender is for thirty.',
+        text: 'One span of lift for every three feet of cap. I wrote "ten feet, no less." Hilda wrote "tender is for thirty" underneath. Because it is.',
         options: [{ text: 'Why thirty?', next: 'j5' }],
       },
       j5: { text: 'Thirty feet of cap off pays forty thousand marks in three years. Ten takes twenty years. Hilda can count. So can the Charter.', next: 'j6' },
@@ -335,7 +335,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
         ],
       },
       r1: { speaker: 'narrator', text: 'You hold it up. The room goes quiet in the way rooms do when everyone in them is counting.', effect: (g) => g.setFlag('shownRubbing'), next: 'r2' },
-      r2: { speaker: 'narrator', text: 'Joan Harrowgate stands. "One span of lift for every three feet of cap. I measured it under the Crown. On the Kirk floor, this week, it came up two feet in four seconds."', next: 'r3' },
+      r2: { speaker: 'narrator', text: 'Joan Harrowgate stands. "A span of lift for every three feet of cap. On the Kirk floor this week: two feet in four seconds."', next: 'r3' },
       r3: { speaker: 'narrator', text: 'Hilda Harrowgate doesn\'t stand. "Then we take ten feet and leave twenty. My sister\'s own figure."', next: 'r4' },
       r4: { speaker: 'narrator', text: 'Joan: "I said ten would probably hold."', next: 'r5' },
       r5: { text: 'Probably. I have built a whole career on probably. I didn\'t build it on a hill.', next: 'ev' },
@@ -356,7 +356,7 @@ export const STORY_DIALOGUE: Record<string, DialogueTree> = {
       refuse2: { speaker: 'narrator', text: 'Lowen Pike writes something and doesn\'t look up. Everyone in the room knows it\'s the new toll board.', next: 'refuse3' },
       refuse3: { text: 'A mark more on every cart, from the first of the month. Somebody tell the carters before they read it.', next: 'close' },
       joan: {
-        text: 'Let, on terms. Ten feet of cap. The Harrowgate engineer in charge of the cut, and answerable to this Charter. The keeper\'s floor untouched. The debt met from the crystal over twenty years.',
+        text: 'Let, on terms: ten feet of cap; the Harrowgate engineer in charge, answerable to this Charter; the keeper\'s floor untouched; the debt met from crystal over twenty years.',
         effect: (g) => g.setFlag('charterEnd', 'joan'),
         next: 'joan2',
       },
@@ -488,7 +488,7 @@ export function applyStoryHooks(D: Record<string, DialogueTree>): void {
     },
     sGlassW: { text: 'The glass is on the trestle. East, and low.' },
     sIsles: {
-      text: 'Ketley\'s fields. Eight hundred years of drifting, about a stride a year. I have the last thirty in the log. Go to the Kirk. Sela Orme keeps it, and Joan Harrowgate is camped at the east end with her stakes.',
+      text: 'Ketley\'s fields, drifting a stride a year for eight hundred years. I\'ve logged the last thirty. Go to the Kirk. Sela Orme keeps it; Joan Harrowgate\'s camped there.',
     },
   });
 
@@ -543,7 +543,7 @@ export function applyStoryHooks(D: Record<string, DialogueTree>): void {
   } as Record<string, DNode>);
   addOption(D, 'perrin', 'main', opt('What\'s the Charter notice about?', 'sNotice', (g) => !s(g, 'storyNotice')));
   Object.assign(D.perrin.nodes, {
-    sNotice: { text: 'The Charter wants to sell the Glass Kirk to Harrowgate. It\'s on the board by the gate, in long words. Lowen Pike at the Toll Office will give you the short ones.' },
+    sNotice: { text: 'The Charter wants to sell the Glass Kirk to Harrowgate. It\'s on the board by the gate, in long words. Lowen Pike does the short ones.' },
   } as Record<string, DNode>);
 }
 
