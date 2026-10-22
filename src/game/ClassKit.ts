@@ -25,7 +25,9 @@ export interface KitHost {
   anim(state: 'attack' | 'cleave' | 'heal'): void;
   sfx(name: 'swing' | 'hitHeavy' | 'heal' | 'bell' | 'splash' | 'growl'): void;
   /** Move the player to a point over a short time (a leap or a step). */
-  moveTo(x: number, z: number, secs: number): void;
+  moveTo(x: number, z: number, secs: number, y?: number): void;
+  /** A clear, level-enough way to the target for a leap or a step (says why not, if not). */
+  canReach(e: Enemy): boolean;
   inCombat(): void;
   /** The Tolley set's shorter sustain cooldown. */
   sustainScale(): number;
@@ -186,9 +188,9 @@ export class ClassKit {
       }
       case 'leap': {
         const e = H.faceTarget(T.leap.range);
-        if (!e) return false;
+        if (!e || !H.canReach(e)) return false;
         const away = new THREE.Vector3().subVectors(P, e.pos).setY(0).normalize();
-        H.moveTo(e.pos.x + away.x * 1.4, e.pos.z + away.z * 1.4, 0.32);
+        H.moveTo(e.pos.x + away.x * 1.4, e.pos.z + away.z * 1.4, 0.32, e.pos.y);
         H.anim('cleave'); H.sfx('swing');
         this.pending.push({ at: e.pos.clone(), t: 0.32, ring: this.ring(e.pos, T.leap.r, '#e0583a', 0.32), r: T.leap.r, dmg: pw * T.leap.dmg });
         return true;
@@ -243,10 +245,10 @@ export class ClassKit {
       }
       case 'shadowstep': {
         const e = H.faceTarget(T.shadowstep.range);
-        if (!e) return false;
+        if (!e || !H.canReach(e)) return false;
         H.particles.burst(P.clone().setY(P.y + 1), '#2a2a3a', 18);
         const back = new THREE.Vector3(Math.sin(e.model.root.rotation.y), 0, Math.cos(e.model.root.rotation.y));
-        H.moveTo(e.pos.x - back.x * 1.6, e.pos.z - back.z * 1.6, 0.08);
+        H.moveTo(e.pos.x - back.x * 1.6, e.pos.z - back.z * 1.6, 0.08, e.pos.y);
         e.stun = Math.max(e.stun, T.shadowstep.stun);
         this.stepStrike = this.clock + T.shadowstep.window;
         return true;

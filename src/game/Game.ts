@@ -237,7 +237,7 @@ export class Game implements GameApi {
   /** Speech bubbles over heads: -1 is you, otherwise a player's id on the server. */
   private bubbles: { el: HTMLElement; who: number; until: number }[] = [];
   /** A leap or a shadowstep under way. */
-  private dash: { fx: number; fy: number; fz: number; tx: number; tz: number; t: number; dur: number } | null = null;
+  private dash: { fx: number; fy: number; fz: number; tx: number; tz: number; ty: number; t: number; dur: number } | null = null;
   private attack: { kind: 'strike' | 'cleave'; t: number; dur: number; hitAt: number; hit: boolean; combo: number } | null = null;
   private comboIndex = 0;
   private comboWindow = 0;
@@ -397,9 +397,19 @@ export class Game implements GameApi {
         this.player.model.setState(st); this.player.model.stateTime = 0; this.healAnim = 0;
       },
       sfx: (n) => this.sfx(n),
-      moveTo: (x, z, secs) => {
+      moveTo: (x, z, secs, y) => {
         const p = this.player.position;
-        this.dash = { fx: p.x, fy: p.y, fz: p.z, tx: x, tz: z, t: 0, dur: Math.max(0.05, secs) };
+        this.dash = { fx: p.x, fy: p.y, fz: p.z, tx: x, tz: z, ty: y ?? p.y, t: 0, dur: Math.max(0.05, secs) };
+      },
+      canReach: (e) => {
+        // Leaps and steps go to a creature you could walk to: not up a cliff, not through a wall
+        const p = this.player.position;
+        const why = Math.abs(e.pos.y - p.y) > 3 ? (e.pos.y > p.y ? "It's too far above you." : "It's too far below you.") : null;
+        const dx = e.pos.x - p.x, dy = e.pos.y + 0.9 - (p.y + 1.2), dz = e.pos.z - p.z, d = Math.hypot(dx, dy, dz);
+        const hit = d > 0.8 ? this.world.voxels.raycast(p.x, p.y + 1.2, p.z, dx / d, dy / d, dz / d, d - 0.6) : null;
+        const msg = why ?? (hit ? 'Something is in the way.' : null);
+        if (msg) { this.hud.system(msg); this.sfx('fail'); return false; }
+        return true;
       },
       inCombat: () => { this.lastCombat = this.elapsed; this.dismount(); },
       sustainScale: () => (this.gearSet === 'tolley' ? 2 / 3 : 1),
@@ -1635,7 +1645,7 @@ export class Game implements GameApi {
     for (const wt of WORLD_THINGS) {
       const d = Math.hypot(wt.x - p.x, wt.z - p.z);
       if (d > wt.radius || (wt.when && !wt.when(this))) continue;
-      const y = this.thingGround(wt);
+      const y = this.thingGround(wt, p.y);
       if (y === null || Math.abs(y - p.y) > 2.5) continue;
       consider({ kind: 'wthing', label: wt.label, pos: new THREE.Vector3(wt.x, y + 1, wt.z), wthing: wt }, d);
     }
@@ -1716,8 +1726,16 @@ export class Game implements GameApi {
   }
 
   /** Ground under a regional world thing, or null while its chunk isn't loaded. */
-  private thingGround(wt: WorldThing): number | null {
+  /**
+   * The floor a thing stands on. Looked for near the player's own height first, so a thing on a
+   * keep's steps, under an arch or inside a building isn't taken to be up on the roof above it.
+   */
+  private thingGround(wt: WorldThing, nearY?: number): number | null {
     if (wt.y !== undefined) return this.world.voxels.isLoaded(wt.x, wt.z) ? wt.y : null;
+    if (nearY !== undefined && this.world.voxels.isLoaded(wt.x, wt.z)) {
+      const y = this.world.voxels.groundBelow(wt.x, nearY + 2.5, wt.z);
+      if (Math.abs(y - nearY) <= 2.5) return y;
+    }
     const known = this.thingY.get(wt.id);
     if (known !== undefined) return known;
     if (!this.world.voxels.isLoaded(wt.x, wt.z)) return null;
@@ -2776,12 +2794,17 @@ export class Game implements GameApi {
       P.velocity.set(0, 0, 0);
       if (k >= 1) {
         this.dash = null;
-        // Land on top of whatever is there, not inside it
-        const x = Math.floor(P.position.x), z = Math.floor(P.position.z);
-        let y = Math.floor(P.position.y);
-        for (let n = 0; n < 8 && (isSolid(V.get(x, y, z)) || isSolid(V.get(x, y + 1, z))); n++) y++;
-        while (y > 1 && !isSolid(V.get(x, y - 1, z)) && P.position.y - y < 6) y--;
-        P.position.y = y;
+        // Land where there's room to stand, at the target's height: next to it if the spot itself is
+        // taken, back where you started if nowhere near is free. Never up onto a roof or a hilltop.
+        const free = (x: number, y: number, z: number) => !isSolid(V.get(x, y, z)) && !isSolid(V.get(x, y + 1, z)) && isSolid(V.get(x, y - 1, z));
+        let spot: [number, number, number] | null = null;
+        const baseY = Math.round(d.ty);
+        search: for (const r of [0, 0.8, 1.5]) for (let a = 0; a < (r ? 8 : 1); a++) {
+          const x = Math.floor(d.tx + Math.cos((a * Math.PI) / 4) * r), z = Math.floor(d.tz + Math.sin((a * Math.PI) / 4) * r);
+          for (const dy of [0, 1, -1, 2, -2]) if (free(x, baseY + dy, z)) { spot = [x + 0.5, baseY + dy, z + 0.5]; break search; }
+        }
+        if (spot) P.position.set(spot[0], spot[1], spot[2]);
+        else P.position.set(d.fx, d.fy, d.fz);
         this.particles.dust(P.position, 10);
       }
       fall = P.update(dt, new THREE.Vector3(), 0, false);

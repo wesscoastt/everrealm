@@ -1909,7 +1909,8 @@ export function plan(): Plan {
       // The road side: a rope between the front stakes, and the lot's number on a board
       const fz = l.door === 's' ? l.z0 + LOT_D - 0.5 : l.z0 + 0.5;
       const y = heightAt(l.x0 + 7, Math.floor(fz));
-      s.props.push({ t: 'rope', x: l.x0 + 0.5, y: y + 0.85, z: fz, ry: Math.PI / 2, len: LOT_W - 1, h: 0, r: 0.25 });
+      // (a strand runs along +x before it's turned, so ry 0 lays it between the two front stakes)
+      s.props.push({ t: 'rope', x: l.x0 + 0.5, y: y + 0.9, z: fz, ry: 0, len: LOT_W - 1, h: 0, r: 0.25 });
       s.props.push({ t: 'sign', x: l.x0 + LOT_W / 2 + 0.5, y, z: fz + (l.door === 's' ? 0.6 : -0.6), ry: l.door === 's' ? 0 : Math.PI, text: `LOT ${i + 1}\nTo let` });
     });
     s.props.push({ t: 'notice', x: LAND_BOARD.x, y: heightAt(LAND_BOARD.x, LAND_BOARD.z), z: LAND_BOARD.z, ry: 0 });
