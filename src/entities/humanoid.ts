@@ -347,9 +347,10 @@ export class Humanoid {
     // Ears, and an earring
     for (const side of [1, -1]) part(this.head, rbox(0.06, 0.12, 0.08, 0.02), look.skin, side * 0.23, 0.27, 0);
     if (look.earring) part(this.head, rbox(0.03, 0.06, 0.03, 0.01), look.earring, 0.25, 0.18, 0.01);
-    // The nose, standing out from the face (broader on a broad frame)
+    // The nose, standing out from the face (broader on a broad frame). It ends at the painted nose
+    // shadow (face row 41), well above the mouth (rows 46-49), so the camera looking down sees both.
     const nw = look.frame === 'f' ? 0.06 : 0.07;
-    part(this.head, rbox(nw, 0.1, 0.04, 0.015), shade(look.skin, 0.96), 0, 0.235, 0.228);
+    part(this.head, rbox(nw, 0.075, 0.035, 0.014), shade(look.skin, 0.96), 0, 0.263, 0.226);
     this.buildBeard(part);
     this.buildHair(part);
 
