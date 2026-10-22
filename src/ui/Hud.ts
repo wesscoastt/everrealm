@@ -94,7 +94,7 @@ function mmStar(c: CanvasRenderingContext2D, x: number, y: number, r: number): v
   c.closePath(); c.fill(); c.stroke();
 }
 
-const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'woodcamp', 'gullmouth', 'harrowgate', 'coldhearth']);
+const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'woodcamp', 'gullmouth', 'harrowgate', 'coldhearth', 'cragsby', 'holme', 'scarrow']);
 import type { Appearance } from '../entities/humanoid';
 import type { Inventory, SaveData } from '../game/state';
 import { abilityIcon, itemIcon, shapeIcon } from './icons';

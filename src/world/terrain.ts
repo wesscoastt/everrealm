@@ -124,7 +124,17 @@ export const WORLD_ROADS: [number, number][][] = [
   [[300, 1440], [420, 1520], [560, 1620], [600, 1690], [760, 1760], [960, 1800], [1180, 1790]],
   // Waystation west to Hagworm Wood's woodcutters
   [[690, 560], [580, 560], [460, 530], [330, 560], [260, 640]],
+  // The outer lands' roads (keep these last: the heart's points of interest are placed by the roads above)
+  // North, round the east side of Hollindale and over the neck to Cragsby on the Gannet Cliffs
+  [[380, 205], [372, 140], [360, 60], [330, 0], [280, -50], [262, -120], [262, -250], [226, -430], [252, -620], [238, -840], [246, -930], [250, -985]],
+  // West from the Hagworm road over the neck to Holme Staithe on the Wrath Levels
+  [[300, 1000], [180, 995], [40, 985], [-120, 980], [-280, 1006], [-440, 966], [-650, 990], [-780, 1000], [-875, 1008]],
+  // South from Kelderby down the Scarth highlands, over the neck and up onto Tolmen Moor to Scarrow Tor
+  // (down the highlands' gentle western shoulder: further east they end in a sixty-foot cliff)
+  [[300, 1478], [292, 1560], [268, 1640], [252, 1720], [240, 1800], [226, 1880], [204, 1960], [186, 2040], [196, 2120], [244, 2170], [296, 2230], [326, 2300], [288, 2470], [318, 2620], [302, 2770], [310, 2840], [328, 2910], [338, 2952]],
 ];
+/** How many of WORLD_ROADS are the heart's own (the outer lands' come after). */
+export const HEART_ROADS = 7;
 
 /** Precomputed segment boxes so per-column distance tests only touch nearby segments. */
 interface Seg { ax: number; az: number; bx: number; bz: number; minX: number; maxX: number; minZ: number; maxZ: number }
@@ -138,6 +148,7 @@ function segs(lines: [number, number][][], pad: number): Seg[] {
 }
 const RIVER_SEGS = segs(RIVERS, 40);
 const ROAD_SEGS = segs(WORLD_ROADS, 12);
+const HEART_ROAD_SEGS = segs(WORLD_ROADS.slice(0, HEART_ROADS), 12);
 
 function segDist(px: number, pz: number, list: Seg[]): number {
   let best = Infinity;
@@ -156,6 +167,11 @@ function segDist(px: number, pz: number, list: Seg[]): number {
 export function roadDist(x: number, z: number): number {
   // Roads wobble a little so they don't look ruled
   return segDist(x + (valueNoise(x / 14, z / 14, 77) - 0.5) * 3, z, ROAD_SEGS);
+}
+
+/** Distance to the heart's own roads only: what the heart's points of interest were placed by. */
+export function heartRoadDist(x: number, z: number): number {
+  return segDist(x + (valueNoise(x / 14, z / 14, 77) - 0.5) * 3, z, HEART_ROAD_SEGS);
 }
 
 export function riverDist(x: number, z: number): number {

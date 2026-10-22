@@ -198,7 +198,8 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
 
 export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'roadwolf' | 'thornwolf' | 'sporejelly' | 'crab' | 'brinejelly' | 'dustwolf' | 'redback' | 'frostwolf' | 'shardjelly' | 'rustqueen' | 'oldglass'
   | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden' | 'keelglass'
-  | 'huss' | 'conger' | 'thornray' | 'lionsmane' | 'porbeagle' | 'blueshark' | 'bellmane' | 'sexton';
+  | 'huss' | 'conger' | 'thornray' | 'lionsmane' | 'porbeagle' | 'blueshark' | 'bellmane' | 'sexton'
+  | 'clifffox' | 'cragboar' | 'fenjelly' | 'bogboar' | 'moorwolf' | 'graniteback';
 
 export interface EnemyDef {
   type: EnemyType;
@@ -264,6 +265,13 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   lionsmane: { type: 'lionsmane', model: 'medusa', name: 'Lion\'s mane', level: 17, hp: 280, damage: 23, speed: 1.8, aggro: 7, leash: 18, attack: 'slam', windup: 0.95, range: 3.6, cooldown: 2.4, xp: 190, loot: [{ item: 'jelly_residue', chance: 0.8 }, { item: 'brine_cutlass', chance: 0.03 }], marks: [5, 9], respawn: 110 },
   porbeagle: { type: 'porbeagle', model: 'shark', palette: { a: '#3e4a58', b: '#e8ecee', c: '#2e3844' }, scale: 1.1, name: 'Porbeagle', level: 20, hp: 360, damage: 27, speed: 6.4, aggro: 14, leash: 36, attack: 'charge', windup: 0.7, range: 8, cooldown: 2.4, xp: 240, loot: [{ item: 'shark_tooth', chance: 0.6 }, { item: 'raw_seabass', chance: 0.3 }], marks: [6, 11], respawn: 130 },
   blueshark: { type: 'blueshark', model: 'shark', palette: { a: '#2a4a8a', b: '#e8eef6', c: '#1e3a72' }, scale: 1.3, name: 'Blue shark', level: 27, hp: 540, damage: 36, speed: 6.8, aggro: 15, leash: 38, attack: 'charge', windup: 0.6, range: 9, cooldown: 2.2, xp: 390, loot: [{ item: 'shark_tooth', chance: 0.7, min: 1, max: 2 }, { item: 'frost_cowl', chance: 0.02 }], marks: [10, 18], respawn: 140 },
+  // The outer lands: Gannet Cliffs (8-14), the Wrath Levels (14-20), Tolmen Moor (28-35)
+  clifffox: { type: 'clifffox', model: 'wolf', palette: { a: '#c86a2a', b: '#7a3a18', c: '#f0e0c8' }, scale: 0.8, name: 'Cliff fox', level: 10, hp: 130, damage: 14, speed: 6, aggro: 10, leash: 28, attack: 'lunge', windup: 0.5, range: 2.2, cooldown: 1.4, xp: 80, loot: [{ item: 'wolf_pelt', chance: 0.4 }, { item: 'gannet_egg', chance: 0.2 }], marks: [2, 5], respawn: 100 },
+  cragboar: { type: 'cragboar', model: 'boar', palette: { a: '#6a6460', b: '#3a3632', c: '#c8b0a0' }, scale: 1.05, name: 'Crag boar', level: 12, hp: 180, damage: 17, speed: 4.4, aggro: 9, leash: 26, attack: 'charge', windup: 0.7, range: 6.5, cooldown: 2.4, xp: 110, loot: [{ item: 'boar_hide', chance: 0.6 }, { item: 'wolfskin_hood', chance: 0.02 }], marks: [3, 6], respawn: 110 },
+  fenjelly: { type: 'fenjelly', model: 'jelly', palette: { a: '#7a8a3a', b: '#3a4a1a' }, scale: 1.1, name: 'Fen jelly', level: 15, hp: 230, damage: 20, speed: 2.8, aggro: 8, leash: 24, attack: 'slam', windup: 0.8, range: 2.8, cooldown: 2.2, xp: 150, loot: [{ item: 'jelly_residue', chance: 0.8 }, { item: 'brine_cutlass', chance: 0.02 }], marks: [4, 8], respawn: 100 },
+  bogboar: { type: 'bogboar', model: 'boar', palette: { a: '#3a3024', b: '#1e1812', c: '#8a7a5a' }, scale: 1.15, name: 'Bog boar', level: 18, hp: 300, damage: 24, speed: 4.4, aggro: 9, leash: 28, attack: 'charge', windup: 0.7, range: 7, cooldown: 2.3, xp: 200, loot: [{ item: 'boar_hide', chance: 0.7 }, { item: 'oilskin_hat', chance: 0.02 }], marks: [5, 10], respawn: 120 },
+  moorwolf: { type: 'moorwolf', model: 'wolf', palette: { a: '#7a7064', b: '#4a443c', c: '#c8beb0' }, scale: 1.25, name: 'Moor wolf', level: 30, hp: 600, damage: 40, speed: 6.6, aggro: 15, leash: 36, attack: 'lunge', windup: 0.45, range: 3, cooldown: 1.3, xp: 430, loot: [{ item: 'frost_pelt', chance: 0.4 }, { item: 'frost_cowl', chance: 0.02 }], marks: [12, 20], respawn: 140 },
+  graniteback: { type: 'graniteback', model: 'rustback', palette: { a: '#5a5a5e', b: '#8a8a90' }, scale: 1.5, name: 'Graniteback', level: 32, hp: 720, damage: 44, speed: 3.6, aggro: 9, leash: 26, attack: 'charge', windup: 0.75, range: 8.5, cooldown: 2.2, xp: 500, loot: [{ item: 'iron_ore', chance: 0.5, min: 1, max: 2 }, { item: 'star_crystal', chance: 0.1 }, { item: 'starglass_edge', chance: 0.02 }], marks: [14, 24], respawn: 150 },
   // Holmsey, the drowned parish: the pale jellies over its square, and the conger in its nave
   bellmane: { type: 'bellmane', model: 'medusa', palette: { a: '#bfe8d8', b: '#5aa890', c: '#e0fff4', glow: true }, scale: 1.2, name: 'Bell-mane', level: 27, hp: 500, damage: 35, speed: 2, aggro: 8, leash: 20, attack: 'slam', windup: 0.9, range: 4.2, cooldown: 2.3, xp: 380, loot: [{ item: 'jelly_residue', chance: 0.8 }, { item: 'star_crystal', chance: 0.15 }, { item: 'frost_cowl', chance: 0.02 }], marks: [10, 17], respawn: 140 },
   sexton: { type: 'sexton', model: 'eel', palette: { a: '#3a3e38', b: '#8a9480', c: '#22261f' }, scale: 1.6, name: 'Old Sexton', level: 29, hp: 560, damage: 34, speed: 5.4, aggro: 12, leash: 22, attack: 'lunge', windup: 0.6, range: 4.2, cooldown: 1.9, xp: 600, elite: true, loot: [{ item: 'shark_tooth', chance: 1, min: 2, max: 3 }, { item: 'conger_skin', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 0.2 }, { item: 'frost_cowl', chance: 0.2 }], marks: [30, 45], respawn: 300 },
@@ -279,10 +287,10 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
   saltwind: { enemies: ['crab', 'brinejelly'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
   redstone: { enemies: ['dustwolf', 'redback'], animals: ['rabbit'], sea: ['porbeagle', 'thornray', 'lionsmane'] },
   starfall: { enemies: ['frostwolf', 'shardjelly'], animals: ['deer'], sea: ['blueshark', 'blueshark', 'porbeagle'] },
-  // The outer lands: borrowed creatures of the right levels until their own are written
-  gannet: { enemies: ['boar', 'roadwolf', 'crab'], animals: ['sheep', 'rabbit'], sea: ['huss', 'conger', 'thornray'] },
-  wrath: { enemies: ['brinejelly', 'sporejelly', 'thornwolf'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
-  tolmen: { enemies: ['frostwolf', 'shardjelly'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
+  // The outer lands
+  gannet: { enemies: ['clifffox', 'cragboar', 'clifffox'], animals: ['sheep', 'rabbit'], sea: ['huss', 'conger', 'conger'] },
+  wrath: { enemies: ['fenjelly', 'bogboar', 'fenjelly'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
+  tolmen: { enemies: ['moorwolf', 'graniteback', 'moorwolf'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
 };
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [

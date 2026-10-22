@@ -5,6 +5,11 @@ import { coastX } from '../world/terrain';
 // by distance, and the journey takes in-game hours.
 // Kept free of world/site imports: sites.ts reads this list to put a sign at every stop.
 
+/** The outer lands' towns (the middles of their squares): Cragsby on the Gannet Cliffs, Holme Staithe on the Wrath Levels, Scarrow Tor on Tolmen Moor. */
+export const CRAGSBY = { x: 250, z: -1000 };
+export const HOLME = { x: -890, z: 1010 };
+export const SCARROW = { x: 340, z: 2966 };
+
 export interface PostStop {
   id: string;
   name: string;
@@ -30,6 +35,10 @@ export const POSTS: PostStop[] = [
   // Added for the pilgrims; the cart turns round at the west end of the Kirk floor.
   { id: 'temple', name: 'Glass Kirk', place: 'temple', x: 1170.5, z: 1803.5, ry: -Math.PI / 2 },
   // The ferry from Gullmouth; the sign is on the hamlet green (MEW in world/sites.ts), facing the jetty
+  // The outer lands: a stop on each town's square, where the road comes in
+  { id: 'cragsby', name: 'Cragsby', place: 'cragsby', x: 252.5, z: -993.5, ry: 0 },
+  { id: 'holme', name: 'Holme Staithe', place: 'holme', x: -883.5, z: 1013.5, ry: -Math.PI / 2 },
+  { id: 'scarrow', name: 'Scarrow Tor', place: 'scarrow', x: 338.5, z: 2959.5, ry: Math.PI },
   { id: 'mewstones', name: 'The Mewstones (ferry)', place: 'mewstones', ferryFrom: 'gullmouth', x: 2345.5, z: 728.5, ry: -Math.PI / 2 },
 ];
 

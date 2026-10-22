@@ -1,12 +1,12 @@
 import { B, BLOCKS } from './blocks';
-import { POSTS } from '../data/travel';
+import { CRAGSBY, HOLME, POSTS, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
-import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
-import { CHUNK, chunkKey, inWorld, localIdx, SY, WMIN } from './VoxelWorld';
+import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
+import { CHUNK, chunkKey, inWorld, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 
@@ -259,6 +259,10 @@ export function plan(): Plan {
     { id: 'sc-colossus', name: 'The Stone King', x: 1365, z: 1054, r0: 30, r1: 44, build: (s, b) => buildColossus(s, b) },
     { id: 'sc-drowned', name: 'The Drowned Bell-tower', x: 1560, z: 1500, r0: 0, r1: 0, build: (s) => buildDrownedTower(s) },
     // Under the sea: the parish the tower belonged to, and a reef that wrecks ships off the Fleet Coast
+    // The outer lands' towns, at the far ends of the roads over the necks
+    { id: 'cragsby', name: 'Cragsby', x: CRAGSBY.x, z: CRAGSBY.z, r0: 22, r1: 34, build: (s, b) => buildOuterTown(s, b, 'cragsby') },
+    { id: 'holme', name: 'Holme Staithe', x: HOLME.x, z: HOLME.z, r0: 22, r1: 34, build: (s, b) => buildOuterTown(s, b, 'holme') },
+    { id: 'scarrow', name: 'Scarrow Tor', x: SCARROW.x, z: SCARROW.z, r0: 22, r1: 34, build: (s, b) => buildOuterTown(s, b, 'scarrow') },
     { id: 'delve-holmsey', name: 'Holmsey', x: 1512, z: 1500, r0: 0, r1: 0, sea: true, build: (s) => buildHolmsey(s) },
     { id: 'dive-grindles', name: 'The Grindles', x: 1905, z: 1032, r0: 0, r1: 0, sea: true, build: (s) => buildGrindles(s) },
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
@@ -271,6 +275,8 @@ export function plan(): Plan {
   for (const n of named) {
     if (n.r1 > 0) flats.push({ x: n.x, z: n.z, r0: n.r0, r1: n.r1, h: n.h ?? Math.max(SEA + 2, Math.round(baseHeight(n.x, n.z))) });
   }
+  // Holme Staithe's mere, west of the town, that its staithe runs out into
+  flats.push({ x: HOLME.x - 40, z: HOLME.z + 4, r0: 9, r1: 14, h: SEA - 3 });
   // Gullmouth's upper town inland of the harbour; Harrowgate's Company Row west of the palisade
   flats.push({ x: Math.floor(gullCoast) - 100, z: gullZ, r0: 44, r1: 64, h: SEA + 3 });
   flats.push({ x: 952, z: 1006, r0: 30, r1: 44, h: Math.max(SEA + 2, Math.round(baseHeight(1000, 1000))) });
@@ -293,7 +299,8 @@ export function plan(): Plan {
     if (x > 1800 || z < 50 || x < 50 || z > OLD_EDGE - 60) continue;
     const reg = regionAt(x, z).a;
     const h = baseHeight(x, z);
-    if (h <= SEA + 1 || roadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
+    // (by the heart's own roads: the outer lands' roads came later, and mustn't move these)
+    if (h <= SEA + 1 || heartRoadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
     if (named.some((n) => !n.sea && Math.hypot(n.x - x, n.z - z) < 80)) continue;
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
@@ -305,7 +312,25 @@ export function plan(): Plan {
     pois.push({ x, z, kind, region: reg });
     flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
   }
+  // The outer lands' own scatter, numbered after the heart's so the heart's keep their ids
+  const OCELL = 240;
+  const outerKinds: Partial<Record<RegionId, string[]>> = { gannet: ['shrine', 'ruintower', 'camp', 'stones'], wrath: ['mossruin', 'camp', 'shrine', 'farm'], tolmen: ['stones', 'ruintower', 'crystals', 'mine'] };
+  for (let cz = Math.floor(WMIN / OCELL); cz * OCELL < WMAX; cz++) for (let cx = Math.floor(WMIN / OCELL); cx * OCELL < WMAX; cx++) {
+    if (hash2(cx, cz, 511) > 0.7) continue;
+    const x = Math.floor(cx * OCELL + 30 + hash2(cx, cz, 512) * (OCELL - 60)), z = Math.floor(cz * OCELL + 30 + hash2(cx, cz, 513) * (OCELL - 60));
+    const reg = regionAt(x, z).a, list = outerKinds[reg];
+    if (!list || (x > -140 && x < OLD_EDGE + 140 && z > -140 && z < OLD_EDGE + 140)) continue;
+    const h = baseHeight(x, z);
+    if (h <= SEA + 1 || roadDist(x, z) < 16 || [[10, 0], [-10, 0], [0, 10], [0, -10]].some(([dx, dz]) => Math.abs(baseHeight(x + dx, z + dz) - h) > 3)) continue;
+    if (named.some((n) => Math.hypot(n.x - x, n.z - z) < 90)) continue;
+    pois.push({ x, z, kind: list[Math.floor(hash2(cx, cz, 514) * list.length)], region: reg });
+    flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
+  }
 
+  setFlattenZones(flats);
+  // The outer lands' roads are graded: cut through the hills and banked over the hollows, never
+  // more than a block's rise in two (the towns are flat already, so the grading starts from them)
+  flats.push(...gradeRoads());
   setFlattenZones(flats);
 
   // Sites a builder adds besides its own (Ansbury's New Town wards)
@@ -1521,6 +1546,104 @@ export function plan(): Plan {
     spawns.push([cx - 6.5, heightAt(cx - 6, cz) + 0.8, cz + 0.5, 'thornray'], [cx + 2.5, heightAt(cx + 2, cz - 14) + 0.8, cz - 13.5, 'thornray']);
     s.act = { kind: 'dive', spawns, caches };
     s.impostor.push({ x: cx + 0.5, y: SEA + 1.5, z: cz + 0.5, w: 6, h: 3, d: 6, color: '#3a3a3e' });
+  }
+
+  /**
+   * The outer lands' towns, on one plan round a square: the inn on its north-west corner, the store
+   * on its north-east, houses round the rest (the road comes in on the open side), the Charter Post
+   * sign on the square, and each town's own trade at its edge. Cragsby, on the Gannet Cliffs: stone
+   * and slate, the fowlers' rope and the egg store. Holme Staithe, on the Wrath Levels: plaster and
+   * thatch, the staithe out into its mere, eel traps and reed stacks, and Harrowgate's new sluice on
+   * the drain north of the town. Scarrow Tor, on Tolmen Moor: granite and slate, peat stacks, a
+   * pony pound, and the tor with its holed stone.
+   */
+  function buildOuterTown(s: Site, G: number, kind: 'cragsby' | 'holme' | 'scarrow') {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    const roof: PropDesc['mat'] = kind === 'holme' ? 'thatch' : 'slate';
+    const wall = kind === 'holme' ? B.Plaster : B.StoneBrick;
+    pave(cx - 7, cz - 7, cx + 7, cz + 7, G, kind === 'scarrow' ? 'flag' : 'cobble');
+    house(s, cx - 19, cz - 17, 12, 8, 2, G, roof, 's', { wall, role: 'inn' });
+    house(s, cx + 8, cz - 16, 8, 7, 1, G, roof, 's', { wall, role: 'shop' });
+    const homes: [number, number, number, number, 'n' | 's' | 'e' | 'w'][] = [[cx - 20, cz + 9, 7, 6, 'n'], [cx - 9, cz + 10, 7, 6, 'n'], [cx + 9, cz + 9, 7, 6, 'n'], [cx - 22, cz - 4, 6, 7, 'e']];
+    homes.forEach(([x, z, w, d, door], i) => house(s, x, z, w, d, i === 1 ? 2 : 1, G, roof, door, { wall: kind !== 'holme' && i % 2 ? B.Stone : wall, closed: i !== 0, role: i === 0 ? 'home' : undefined }));
+    for (const [lx, lz] of [[-6.5, -6.5], [7.5, -6.5], [-6.5, 7.5], [7.5, 7.5]]) s.props.push({ t: 'lantern', x: cx + lx, y: G, z: cz + lz });
+    s.props.push({ t: 'bench', x: cx - 3, y: G, z: cz + 4.5, ry: 0 }, { t: 'bench', x: cx + 4, y: G, z: cz - 3.5, ry: Math.PI });
+    if (kind === 'scarrow') {
+      // A market cross of moor granite: two steps, the shaft and its arms
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) O.set(cx + dx, G, cz + dz, B.StoneBrick);
+      for (let y = G + 1; y < G + 6; y++) O.set(cx, y, cz, B.Stone);
+      O.set(cx - 1, G + 4, cz, B.Stone); O.set(cx + 1, G + 4, cz, B.Stone);
+    } else {
+      s.props.push({ t: 'well', x: cx + 0.5, y: G, z: cz + 0.5 });
+      for (const [bx, bz] of [[cx, cz], [cx + 1, cz], [cx, cz + 1], [cx + 1, cz + 1]]) block2(bx, bz, G);
+    }
+    rect(s, cx - 2, cz - 2, cx + 2, cz + 2);
+
+    if (kind === 'cragsby') {
+      // The egg store, east of the square, and the fowlers' rope by the inn
+      house(s, cx + 18, cz - 3, 6, 6, 1, G, 'slate', 'w', { wall: B.StoneBrick, role: 'store', chimney: false });
+      s.props.push({ t: 'sign', x: cx + 16.5, y: G, z: cz + 4.5, ry: Math.PI / 2, text: 'Egg store' });
+      for (const [fx, fz, ry] of [[-15.5, -7.6, 0], [-13, -7.8, 1.2], [14.6, 1.5, 2.1]] as const) s.props.push({ t: 'furn', item: 'coil', x: cx + fx, y: G, z: cz + fz, ry });
+      s.props.push({ t: 'crate', x: cx + 15.4, y: G, z: cz - 1.6 }, { t: 'crate', x: cx + 15.4, y: G + 0.6, z: cz - 1.4 }, { t: 'barrel', x: cx + 15.2, y: G, z: cz + 2.8 });
+      drystone(cx - 32, cz - 26, cx + 30, cz - 26);
+      s.impostor.push({ x: cx - 13, y: G + 5, z: cz - 13, w: 12, h: 10, d: 8, color: '#8a8a8e' });
+    } else if (kind === 'holme') {
+      // The staithe: a timber landing stage out over the mere, eel traps along it, reed stacked to dry
+      const jx0 = cx - 27, jx1 = cx - 36, jz = cz + 3;
+      for (let x = jx1; x <= jx0; x++) for (let z = jz; z <= jz + 2; z++) {
+        O.set(x, G - 1, z, (x + z) % 3 ? B.Planks : B.DarkPlanks);
+        clearUp(x, z, G, G + 4);
+        if ((x - jx1) % 4 === 0 && z !== jz + 1) for (let y = SEA - 4; y < G - 1; y++) O.set(x, y, z, B.OakLog);
+      }
+      for (let i = 0; i < 3; i++) s.props.push({ t: 'barrel', x: jx1 + 1.5 + i * 2.5, y: G, z: jz + 2.6, ry: i });
+      s.props.push({ t: 'furn', item: 'coil', x: jx1 + 1.2, y: G, z: jz + 0.6, ry: 0.4 });
+      rect(s, jx1, jz, jx0, jz + 2);
+      for (const [hx, hz] of [[cx - 16, cz + 20], [cx - 12, cz + 21], [cx + 18, cz + 14]]) haystack(hx, hz, 2);
+      // Harrowgate's sluice on the new drain, north of the town: stone cheeks, a timber gate between
+      const sx = cx + 26, sz = cz - 34;
+      for (let z = sz - 14; z <= sz + 14; z++) for (let x = sx - 1; x <= sx + 1; x++) {
+        for (let y = SEA - 3; y < heightAt(x, z) + 1; y++) O.set(x, y, z, y < SEA ? B.Water : B.Air);
+        O.set(x, SEA - 4, z, B.Clay);
+      }
+      for (const dx of [-2, 2]) for (let y = SEA - 4; y < SEA + 3; y++) O.set(sx + dx, y, sz, B.StoneBrick);
+      for (let x = sx - 1; x <= sx + 1; x++) for (let y = SEA - 3; y < SEA + 2; y++) O.set(x, y, sz, B.DarkPlanks);
+      for (let x = sx - 2; x <= sx + 2; x++) O.set(x, SEA + 3, sz, B.Timber);
+      s.props.push({ t: 'furn', item: 'coil', x: sx + 3.5, y: heightAt(sx + 3, sz), z: sz + 1.5, ry: 1 }, { t: 'sign', x: sx + 3.5, y: heightAt(sx + 3, sz - 2), z: sz - 1.5, ry: -Math.PI / 2, text: 'H. & D. Drain No. 4' });
+      rect(s, sx - 3, sz - 14, sx + 3, sz + 14);
+      s.impostor.push({ x: cx - 13, y: G + 5, z: cz - 13, w: 12, h: 10, d: 8, color: '#c8b070' });
+    } else {
+      // Peat stacked by the doors, a pony pound in drystone, and the tor with its holed stone
+      for (const [px, pz] of [[cx - 14, cz + 5], [cx + 17, cz + 7], [cx - 25, cz + 4]]) for (let y = 0; y < 2; y++) for (let k = 0; k < 2; k++) O.set(px + k, heightAt(px, pz) + y, pz, B.Loam);
+      const fx = cx + 24, fz = cz - 8;
+      drystone(fx - 6, fz - 5, fx + 6, fz - 5); drystone(fx - 6, fz + 5, fx + 6, fz + 5);
+      drystone(fx + 6, fz - 5, fx + 6, fz + 5); drystone(fx - 6, fz - 5, fx - 6, fz + 5, [[fx - 6, fz]]);
+      haystack(fx + 2, fz - 2, 2);
+      const tx = cx + 22, tz = cz + 24;
+      tor(tx, tz);
+      // The holed stone: a slab of granite on its edge, a hole through it a child can be passed through
+      const hx = tx - 9, hz = tz + 3, hg = heightAt(hx, hz);
+      for (let dx = -2; dx <= 2; dx++) for (let y = hg - 1; y < hg + 5; y++) {
+        const hole = (dx === 0 || dx === -1) && (y === hg + 2 || y === hg + 3);
+        const edge = (Math.abs(dx) === 2 && y >= hg + 4);
+        if (!hole && !edge) O.set(hx + dx, y, hz, hash2(hx + dx, y, hz) < 0.3 ? B.MossyStone : B.Stone);
+      }
+      rect(s, hx - 3, hz - 1, hx + 3, hz + 1);
+      s.impostor.push({ x: tx, y: heightAt(tx, tz) + 5, z: tz, w: 10, h: 10, d: 9, color: '#7a7a76' });
+    }
+  }
+
+  /** A tor: granite boulders stacked in rounded layers, weathered to steps you could climb. */
+  function tor(x: number, z: number) {
+    const g = heightAt(x, z);
+    const layers: [number, number, number, number][] = [[0, 0, 5.2, 4], [1, -1, 4.2, 4], [-1, 1, 3.2, 3], [0, 0, 2.2, 3]];
+    let y = g - 1;
+    for (const [ox, oz, r, h] of layers) {
+      for (let dz = -6; dz <= 6; dz++) for (let dx = -6; dx <= 6; dx++) {
+        if (Math.hypot(dx - ox, (dz - oz) * 1.15) > r + hash2(x + dx, z + dz, 348) * 0.8) continue;
+        for (let k = 0; k < h; k++) O.set(x + dx, y + k, z + dz, hash2(x + dx, y + k, z + dz) < 0.22 ? B.MossyStone : B.Stone);
+      }
+      y += h;
+    }
   }
 
   /** The Kingfisher Steps: terraced pools of pale mineral stone, each spilling into the one below. */
@@ -3128,11 +3251,45 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
   return out;
 }
 
+/**
+ * Grading for the outer lands' roads: the ground along each, sampled every two blocks, smoothed over
+ * forty, and held to a rise of under a block in two; then a small levelled square every four blocks
+ * to lay it into the land. Kept above the sea, so a creek gets a causeway.
+ */
+function gradeRoads(): Flatten[] {
+  const out: Flatten[] = [];
+  for (const line of WORLD_ROADS.slice(HEART_ROADS)) {
+    const pts: { x: number; z: number; h: number }[] = [];
+    for (let i = 0; i < line.length - 1; i++) {
+      const [ax, az] = line[i], [bx, bz] = line[i + 1];
+      const len = Math.hypot(bx - ax, bz - az);
+      for (let t = 0; t < len; t += 2) {
+        const x = ax + ((bx - ax) * t) / len, z = az + ((bz - az) * t) / len;
+        pts.push({ x, z, h: heightAt(Math.floor(x), Math.floor(z)) });
+      }
+    }
+    const sm = pts.map((_, i) => {
+      let s = 0, n = 0;
+      for (let k = Math.max(0, i - 20); k <= Math.min(pts.length - 1, i + 20); k++) { s += pts[k].h; n++; }
+      return s / n;
+    });
+    // The first and last twenty blocks keep their own ground (the road it leaves, the town it reaches)
+    const PIN = 10, pinned = (i: number) => i < PIN || i >= sm.length - PIN;
+    for (let i = 0; i < sm.length; i++) if (pinned(i)) sm[i] = pts[i].h;
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 1; i < sm.length; i++) if (!pinned(i)) sm[i] = Math.min(sm[i - 1] + 0.9, Math.max(sm[i - 1] - 0.9, sm[i]));
+      for (let i = sm.length - 2; i >= 0; i--) if (!pinned(i)) sm[i] = Math.min(sm[i + 1] + 0.9, Math.max(sm[i + 1] - 0.9, sm[i]));
+    }
+    for (let i = PIN; i < pts.length - PIN; i += 2) out.push({ x: Math.round(pts[i].x), z: Math.round(pts[i].z), r0: 2.5, r1: 6, h: Math.max(SEA + 2, Math.round(sm[i])) });
+  }
+  return out;
+}
+
 /** Roof colours for a house's far-away stand-in. */
 const ROOF_TONE: Record<string, string> = { red: '#9a4a36', blue: '#3e5a86', slate: '#4a4e58', thatch: '#b89a58' };
 
 /** Settlements where hostile creatures never spawn: [x, z, radius]. */
-const SAFE_R: Record<string, number> = { aldermere: 270, cotters: 34, waystation: 30, gullmouth: 125, harrowgate: 95, coldhearth: 34, starwatch: 26, lighthouse: 18, hollowoak: 16, woodcamp: 20 };
+const SAFE_R: Record<string, number> = { cragsby: 64, holme: 60, scarrow: 64, aldermere: 270, cotters: 34, waystation: 30, gullmouth: 125, harrowgate: 95, coldhearth: 34, starwatch: 26, lighthouse: 18, hollowoak: 16, woodcamp: 20 };
 export function safeZones(): [number, number, number][] {
   return plan().sites.filter((s) => SAFE_R[s.id]).map((s) => [s.x, s.z, SAFE_R[s.id]]);
 }

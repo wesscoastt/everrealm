@@ -16,6 +16,7 @@ export const LIGHT = { x: coastX(330) - 14, z: 330 };
 export const WRECK = { x: coastX(780) + 22, z: 780 };
 /** Harrowgate Works: palisade 30 blocks around this point. */
 export const WORKS = { cx: 1000, cz: 1000 };
+export { CRAGSBY, HOLME, SCARROW } from './travel';
 
 /** Fellers' Camp in Hagworm Wood: firepit at the centre, log stack to the east. */
 export const CAMP = { x: 446, z: 520 };
