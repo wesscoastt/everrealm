@@ -595,6 +595,60 @@ export function boat(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/**
+ * A two-masted trading ship, built blocky like the world: bow toward +x, the deck at y 2.2 (so a
+ * ship placed 2.2 below a deck height sits right), the hull's foot a little under the water.
+ * Sails set for a ship under way, furled on the yards for one at her moorings.
+ */
+export function ship(M: PropMaterials, sails: 'set' | 'furled' | 'bare' = 'furled', stripe = '#7a2a1e', flag = '#2f528f'): THREE.Group {
+  const g = new THREE.Group();
+  // The hull in three courses, narrower toward the keel, and the bow and stern built up
+  g.add(mesh(box(11, 1.2, 3.2), M.darkWood, 0, 0.1, 0));
+  g.add(mesh(box(13, 1.0, 4.2), M.darkWood, 0.2, 1.0, 0));
+  g.add(mesh(box(14, 0.7, 4.7), M.wood, 0.3, 1.85, 0));
+  g.add(mesh(box(14.1, 0.22, 4.76), flat(stripe), 0.3, 1.55, 0));
+  g.add(mesh(box(2.2, 1.9, 3.4), M.darkWood, 7.4, 1.5, 0));
+  g.add(mesh(box(1.3, 1.6, 2.2), M.darkWood, 8.9, 2.1, 0));
+  g.add(mesh(box(1.4, 2.0, 4.4), M.darkWood, -6.6, 1.6, 0));
+  // Deck, the forecastle and the sterncastle with its rail and lantern
+  g.add(mesh(box(13.6, 0.14, 4.3), M.wood, 0.3, 2.2, 0));
+  g.add(mesh(box(2.8, 1.3, 4.3), M.wood, 6.2, 2.9, 0));
+  g.add(mesh(box(3.8, 2.3, 4.7), M.wood, -5.2, 3.35, 0));
+  for (const z of [-2.25, 2.25]) {
+    g.add(mesh(box(3.8, 0.5, 0.12), M.darkWood, -5.2, 4.75, z));
+    g.add(mesh(box(9.0, 0.45, 0.12), M.darkWood, 0.6, 2.5, z));
+  }
+  g.add(mesh(box(0.12, 0.5, 4.6), M.darkWood, -7.05, 4.75, 0));
+  g.add(mesh(box(0.34, 0.44, 0.34), M.glow, -7.4, 4.1, 0));
+  g.add(mesh(box(0.42, 0.06, 0.42), M.iron, -7.4, 4.36, 0));
+  // A hull still on the slip has no masts yet
+  if (sails === 'bare') return g;
+  // Masts, yards and bowsprit
+  g.add(mesh(cyl(0.16, 0.24, 13.5), M.wood, 0.2, 2.2 + 6.75, 0));
+  g.add(mesh(cyl(0.13, 0.2, 10), M.wood, 5.0, 2.2 + 5, 0));
+  g.add(mesh(cyl(0.08, 0.12, 5.4), M.wood, 10.4, 3.2, 0, 0, 0, -Math.PI / 2 + 0.32));
+  const yard = (x: number, y: number, len: number) => g.add(mesh(box(0.2, 0.2, len), M.darkWood, x, y, 0));
+  yard(0.2, 13.2, 6.4); yard(0.2, 8.0, 7.0); yard(5.0, 10.4, 4.8); yard(5.0, 6.6, 5.4);
+  const cloth = M.clothCream;
+  if (sails === 'set') {
+    // Full sails, bellied a little forward
+    g.add(mesh(box(0.1, 4.8, 6.0), cloth, 0.45, 10.6, 0));
+    g.add(mesh(box(0.1, 3.4, 4.6), cloth, 5.25, 8.5, 0));
+    g.add(mesh(box(0.1, 1.4, 5.2), flat(stripe), 0.5, 10.6, 0));
+  } else {
+    // Furled: rolled along the yards
+    for (const [x, y, len] of [[0.2, 12.9, 6], [0.2, 7.7, 6.6], [5.0, 10.1, 4.4], [5.0, 6.3, 5]]) g.add(mesh(cyl(0.2, 0.2, len as number, 6), cloth, x as number, y as number, 0, 0, Math.PI / 2));
+  }
+  // Stays from the mast heads to bow and stern, and a pennant at the main top
+  const stay = (ax: number, ay: number, bx: number, by: number) => {
+    const len = Math.hypot(bx - ax, by - ay);
+    g.add(mesh(box(len, 0.05, 0.05), M.rope, (ax + bx) / 2, (ay + by) / 2, 0, 0, 0, Math.atan2(by - ay, bx - ax)));
+  };
+  stay(0.2, 15.6, 5.0, 12.0); stay(5.0, 12.0, 12.4, 4.0); stay(0.2, 15.6, -6.9, 4.8);
+  g.add(mesh(box(0.04, 0.5, 1.4), flat(flag), 0.2, 16.1, 0.7));
+  return g;
+}
+
 export function firepit(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 8; i++) {

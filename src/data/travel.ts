@@ -15,6 +15,8 @@ export interface PostStop {
   z: number;
   /** Which way the sign faces. */
   ry: number;
+  /** A ferry stop: reached by boat from this stop, and known as soon as that one is. */
+  ferryFrom?: string;
 }
 
 export const POSTS: PostStop[] = [
@@ -27,7 +29,16 @@ export const POSTS: PostStop[] = [
   { id: 'coldhearth', name: 'Kelderby', place: 'coldhearth', x: 307.5, z: 1468.5, ry: 0 },
   // Added for the pilgrims; the cart turns round at the west end of the Kirk floor.
   { id: 'temple', name: 'Glass Kirk', place: 'temple', x: 1170.5, z: 1803.5, ry: -Math.PI / 2 },
+  // The ferry from Gullmouth; the sign is on the hamlet green (MEW in world/sites.ts), facing the jetty
+  { id: 'mewstones', name: 'The Mewstones (ferry)', place: 'mewstones', ferryFrom: 'gullmouth', x: 2345.5, z: 728.5, ry: -Math.PI / 2 },
 ];
+
+/** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */
+export function postKnown(p: PostStop, discovered: string[]): boolean {
+  if (discovered.includes(p.place)) return true;
+  const from = p.ferryFrom ? POSTS.find((q) => q.id === p.ferryFrom) : undefined;
+  return !!from && discovered.includes(from.place);
+}
 
 /** Marks for the trip: two to get on, and one for every fifty blocks of road. */
 export function postFare(a: PostStop, b: PostStop): number {

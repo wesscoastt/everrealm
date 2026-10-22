@@ -27,11 +27,19 @@ const solid = (x: number, y: number, z: number): boolean => {
   return y < heightAt(Math.floor(x), Math.floor(z));
 };
 /** The walking surface here (the top of what's built or the ground), and whether two blocks above it are clear. */
-function cell(x: number, z: number): { ok: boolean; field: boolean; y: number; what: string } {
+function cell(x: number, z: number, climb = false): { ok: boolean; field: boolean; y: number; what: string } {
   const g = heightAt(x, z);
   // Find the floor: the highest solid block from a little above the ground down to just below it
   let y = g + 3;
   while (y > g - 3 && !solid(x, y - 1, z)) y--;
+  // Walking a street (climb): on a step, or inside something raised (a flight of steps up to a
+  // terrace, a causeway), the floor is its top if that's within reach. A wall across the street still
+  // blocks the walk: its top is too far a step from the street either side of it.
+  if (climb && solid(x, y, z)) {
+    let up = y;
+    while (up < g + 9 && (solid(x, up, z) || solid(x, up + 1, z))) up++;
+    if (up < g + 9) y = up;
+  }
   const under = cells.get(key(x, y - 1, z));
   const field = under === B.Farmland;
   const blockA = solid(x, y, z), blockB = solid(x, y + 1, z);
@@ -85,7 +93,7 @@ for (const line of WORLD_ROADS) for (let i = 0; i < line.length - 1; i++) {
 // allowing a detour of a few blocks either side of it.
 let streetSections = 0;
 const memo = new Map<string, { ok: boolean; y: number }>();
-const at = (x: number, z: number) => { const k = x + ',' + z; let c = memo.get(k); if (!c) { const r = cell(x, z); c = { ok: r.ok, y: r.y }; memo.set(k, c); } return c; };
+const at = (x: number, z: number) => { const k = x + ',' + z; let c = memo.get(k); if (!c) { const r = cell(x, z, true); c = { ok: r.ok, y: r.y }; memo.set(k, c); } return c; };
 for (const s of streets) {
   const w = s.x1 - s.x0 + 1, h = s.z1 - s.z0 + 1;
   if (s.kind !== 'street' || Math.min(w, h) < 2 || Math.max(w, h) < 6) continue;

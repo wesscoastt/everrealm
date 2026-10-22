@@ -63,7 +63,9 @@ export interface WorldThing {
 }
 
 export const WORLD_THINGS: WorldThing[] = [
-  ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
+  ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: p.ferryFrom ? 'Take the ferry' : 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
+  // Gullmouth's ferry steps, on the south jetty (the ferry berths beside it: world/Ferry.ts)
+  { id: 'ferry:gullmouth', x: GULL.coast - 8.5, z: 607.5, label: 'Take the ferry to the Mewstones', radius: 2.6, use: (g) => g.openTravel('gullmouth') },
   { id: 'homeBuy', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d + 1.5, label: 'Read the For Sale notice', radius: 2.4, when: (g) => !g.flag('home'), use: (g) => g.buyHome() },
   // The Charter Bank's counters: one vault, reached from any of them
   ...BANKS.map((b): WorldThing => ({ id: 'bank:' + b.id, x: b.x, z: b.z, label: `Use the bank (${b.name})`, radius: 2.6, use: (g) => g.openBank(b.id) })),

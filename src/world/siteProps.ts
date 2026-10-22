@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as P from './props';
+import { waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { ImpostorBox, Site } from './sites';
 
@@ -116,6 +117,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         break;
       }
       case 'boat': place(P.boat(M), d.x, d.y, d.z, d.ry); break;
+      case 'ship': place(P.ship(M, d.sails ?? 'furled', d.color), d.x, d.y, d.z, d.ry); break;
+      case 'waymark': place(waymarkShrine(M, d.theme ?? 'crownroad'), d.x, d.y, d.z, d.ry); break;
       case 'tent': place(P.tent(M, d.color ?? '#8a6a3a'), d.x, d.y, d.z, d.ry); break;
       case 'headframe': place(P.mineHeadframe(M, 'HARROWGATE WORKS\nNo. 1 Drift'), d.x, d.y, d.z, d.ry); break;
       case 'cart': place(P.cart(M), d.x, d.y, d.z, d.ry); break;

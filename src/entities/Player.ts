@@ -74,6 +74,26 @@ export class Player {
     this.yaw = Math.atan2(x - this.position.x, z - this.position.z);
   }
 
+  /**
+   * Put down inside something (a wall built since logging out, a barrier under a prop): move to the
+   * nearest open ground, spiralling out to twelve blocks and a few up or down. True if moved.
+   */
+  standClear(): boolean {
+    const p = this.position;
+    if (!this.collides(p.x, p.y, p.z)) return false;
+    const y0 = Math.floor(p.y);
+    for (let r = 1; r <= 12; r++) for (let k = 0; k < r * 8; k++) {
+      const a = (k / (r * 8)) * Math.PI * 2, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+      for (const dy of [0, 1, -1, 2, -2, 3, 4]) {
+        const y = y0 + dy;
+        if (!this.collides(x, y, z) && this.collides(x, y - 0.5, z)) { this.teleport(x, y, z); return true; }
+      }
+    }
+    // Nothing open near: up onto the top of the column
+    this.teleport(p.x, this.world.topSolid(Math.floor(p.x), Math.floor(p.z)) + 1, p.z);
+    return true;
+  }
+
   private collides(px: number, py: number, pz: number): boolean {
     const x0 = Math.floor(px - HALF), x1 = Math.floor(px + HALF - 1e-4);
     const y0 = Math.floor(py), y1 = Math.floor(py + HEIGHT - 1e-4);

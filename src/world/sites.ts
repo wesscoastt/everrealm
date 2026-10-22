@@ -1,6 +1,7 @@
-import { B } from './blocks';
+import { B, BLOCKS } from './blocks';
 import { POSTS } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
+import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
@@ -15,7 +16,11 @@ import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 export type PropType = 'roof' | 'door' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
-  | 'rope' | 'root';
+  | 'rope' | 'root'
+  /** A trading ship (props.ship): color is her stripe; sails set or furled. */
+  | 'ship'
+  /** A waymark shrine (world/shrines.ts) in its region's style. */
+  | 'waymark';
 
 export interface PropDesc {
   t: PropType;
@@ -36,6 +41,10 @@ export interface PropDesc {
   mat?: 'red' | 'blue' | 'thatch' | 'slate';
   color?: string;
   kind?: 'hollin' | 'harrow' | 'aldermere';
+  /** A ship's sails ('bare': a hull on the slip, no masts yet). */
+  sails?: 'set' | 'furled' | 'bare';
+  /** A waymark shrine's style. */
+  theme?: RegionId;
   r?: number;
   h?: number;
   text?: string;
@@ -110,14 +119,34 @@ export class Overrides {
   }
 }
 
+/** A waymark: its shrine, and where travellers are set down beside it (or on a vista's top). */
+export interface WaymarkSpot { id: string; name: string; x: number; z: number; y: number; ax: number; az: number; ay?: number; theme: RegionId; ry: number }
+
 export interface Plan {
   sites: Site[];
   overrides: Overrides;
+  /** Every waymark shrine, Hollin Ford's included. */
+  waymarks: WaymarkSpot[];
   /** Footprint rectangles bucketed by chunk, so trees and creatures keep out of buildings. */
   rectsByChunk: Map<number, [number, number, number, number][]>;
 }
 
 let cached: Plan | null = null;
+
+/** The Mewstones' hamlet: the middle of its green, on the big isle's west shore. */
+export const MEW = { x: 2350, z: 724 };
+let mewJettyCache: { x0: number; x1: number; z: number } | null = null;
+/**
+ * The Mewstones' jetty: from x0 at the shore out west to x1, three blocks wide from z. Worked out
+ * from the ground (after the planner's flattening), so call it once plan() has run.
+ */
+export function mewJetty(): { x0: number; x1: number; z: number } {
+  if (mewJettyCache) return mewJettyCache;
+  const z = MEW.z - 1;
+  let x = MEW.x - 8;
+  while (x > MEW.x - 120 && heightAt(x, z + 1) > SEA) x--;
+  return (mewJettyCache = { x0: x + 2, x1: x - 26, z });
+}
 
 /** Ansbury's new (outer) wall: the line it runs along on each side. */
 const NEW_WALL = { x0: 630, x1: 1010, z0: 120, z1: 474 };
@@ -204,6 +233,7 @@ export function plan(): Plan {
     { id: 'temple', name: 'Glass Kirk', x: 1190, z: 1800, r0: 18, r1: 30, build: (s, b) => buildTemple(s, b) },
     { id: 'bothy', name: 'Hale\'s Fold', x: 382, z: 1380, r0: 18, r1: 30, build: (s, b) => buildBothy(s, b) },
     { id: 'skyisles', name: 'The Weatherholms', x: 900, z: 1640, r0: 0, r1: 0, build: (s) => buildIslands(s) },
+    { id: 'mewstones', name: 'The Mewstones', x: MEW.x, z: MEW.z, r0: 16, r1: 30, h: SEA + 8, build: (s, b) => buildMewstones(s, b) },
     // Public dungeons and delves (open to anyone who finds them), vistas, and the wonders of the realm
     { id: 'pd-mortlake', name: 'Mortlake Cellars', x: 322, z: 1018, r0: 34, r1: 50, h: 30, build: (s, b) => buildUnderworks(s, b, 'mortlake') },
     { id: 'pd-blackcut', name: 'The Black Cut', x: 1067, z: 1180, r0: 34, r1: 50, build: (s, b) => buildUnderworks(s, b, 'blackcut') },
@@ -304,6 +334,7 @@ export function plan(): Plan {
 
   clearRoads(O, sites);
   roadLamps(O, sites);
+  const waymarks = placeWaymarks(O, sites);
 
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
   for (const s of sites) for (const r of s.rects) {
@@ -313,7 +344,7 @@ export function plan(): Plan {
       rectsByChunk.get(k)!.push(r);
     }
   }
-  cached = { sites, overrides: O, rectsByChunk };
+  cached = { sites, overrides: O, rectsByChunk, waymarks };
   return cached;
 
   // ================================================================ Builders
@@ -1481,12 +1512,13 @@ export function plan(): Plan {
       }
       s.props.push({ t: 'lantern', x: coast + 33, y: SEA + 1, z: jz + 1.5 });
     }
-    s.props.push({ t: 'boat', x: coast + 20, y: SEA - 0.55, z: z - 4.5, ry: 0.1 }, { t: 'boat', x: coast + 28, y: SEA - 0.55, z: z + 11, ry: -0.2 });
+    s.props.push({ t: 'boat', x: coast + 3, y: SEA - 0.55, z: z - 5, ry: 0.1 }, { t: 'boat', x: coast + 5, y: SEA - 0.55, z: z + 12, ry: -0.2 });
     for (let i = 0; i < 4; i++) s.props.push({ t: 'barrel', x: coast - 10 + i * 1.1, y: SEA + 1, z: z + 5 }, { t: 'crate', x: coast - 6, y: SEA + 1, z: z - 4 + i });
     s.props.push({ t: 'sign', x: coast - 62, y: heightAt(coast - 62, z), z: z - 5, text: 'Gullmouth' });
     rect(s, coast - 62, z - 26, coast + 34, z + 20);
     gullmouthExtras(s, base, coast);
     gullmouthTown(s, base, coast);
+    gullmouthHarbour(s, base, coast);
   }
 
   function buildLighthouse(s: Site, base: number) {
@@ -2196,6 +2228,149 @@ export function plan(): Plan {
   }
 
   /**
+   * Gullmouth as the Fleet Coast's trading port: a merchant ship at the north jetty (her deck
+   * walkable, a plank to it), another at anchor inside the breakwater, the shipyard up the shore with
+   * a hull on the slip, the merchants' quarter at the west gate on the Ansbury road, and on the high
+   * ground to the south two terraces of houses climbing to the castle on the cliff, the harbour wall
+   * running round to it. The ferry to the Mewstones berths at the south jetty (see GameWorld).
+   */
+  function gullmouthHarbour(s: Site, base: number, coast: number) {
+    const C = Math.floor(coast);
+    const wall = (x: number, z: number, y0: number, h: number, crenel = true) => {
+      for (let y = Math.min(heightAt(x, z), y0) - 1; y < y0 + h; y++) O.set(x, y, z, y === y0 + h - 1 && (x + z) % 7 === 0 ? B.MossyCobble : B.StoneBrick);
+      clearUp(x, z, y0 + h, y0 + h + 6);
+      if (crenel && (x + z) % 2 === 0) O.set(x, y0 + h, z, B.StoneBrick);
+    };
+    // Steps up along z from (x0..x1, za, ya) to zb at yb, a rise every so often
+    const stairs = (x0: number, x1: number, za: number, zb: number, ya: number, yb: number) => {
+      for (let z = za; z <= zb; z++) {
+        const y = ya + Math.floor(((z - za) * (yb - ya)) / (zb - za + 1));
+        for (let x = x0; x <= x1; x++) { foundation(x, z, y, B.StoneBrick); O.set(x, y - 1, z, B.StoneBrick); clearUp(x, z, y, y + 8); }
+      }
+      streetHook?.(x0, za, x1, zb, 'street');
+    };
+
+    // ---- Ships: a merchantman at the north jetty, her deck on barriers so you can walk it
+    const D = SEA + 2; // deck height
+    s.props.push({ t: 'ship', x: C + 18, y: D - 2.27, z: 594.5, ry: 0, sails: 'furled', color: '#7a2a1e' });
+    for (let x = C + 11; x <= C + 25; x++) for (let z = 593; z <= 596; z++) { O.set(x, SEA, z, B.Barrier); O.set(x, SEA + 1, z, B.Barrier); clearUp(x, z, SEA + 2, SEA + 6); }
+    for (const x of [C + 17, C + 18]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank
+    s.props.push({ t: 'ship', x: C + 28, y: D - 2.27, z: 581, ry: 0.15, sails: 'furled', color: '#2f528f' }); // at anchor inside the breakwater, clear of the ferry's course
+
+    // ---- The shipyard, up the shore to the north: a slipway into the water and a hull on it
+    const yg = Math.round(heightAt(C - 6, 524));
+    rect(s, C - 18, 508, C + 26, 542);
+    for (let z = 527; z <= 535; z++) for (let x = C - 10; x <= C + 24; x++) {
+      const g = Math.max(Math.min(heightAt(x, z), yg), SEA);
+      O.set(x, g - 1, z, z === 527 || z === 535 ? B.Timber : B.Planks);
+      clearUp(x, z, g, g + 16);
+    }
+    s.props.push({ t: 'ship', x: C + 6, y: yg + 1.9 - 2.27, z: 531, ry: 0, sails: 'bare', color: '#5a6a3a' });
+    for (let x = C - 1; x <= C + 13; x++) for (let z = 529; z <= 533; z++) { O.set(x, yg, z, B.Barrier); O.set(x, yg + 1, z, B.Barrier); }
+    // Scaffold either side of her: posts and a plank walk at deck height
+    for (const z of [526, 536]) {
+      for (let x = C - 2; x <= C + 14; x++) { O.set(x, yg + 1, z, B.Planks); clearUp(x, z, yg + 2, yg + 6); }
+      for (let x = C - 2; x <= C + 14; x += 4) { O.set(x, yg, z, B.Timber); }
+    }
+    shelter(s, C - 18, 512, 12, 8, yg, 'slate', 4);
+    logStack(C - 16, 522, 6, 2, true);
+    s.props.push({ t: 'crate', x: C - 13.5, y: yg, z: 538 }, { t: 'crate', x: C - 12.7, y: yg, z: 538.4 }, { t: 'barrel', x: C - 9.5, y: yg, z: 539 }, { t: 'desk', x: C - 12, y: yg, z: 514.5, ry: Math.PI });
+    s.props.push({ t: 'lantern', x: C - 4.5, y: yg, z: 538.5 }, { t: 'lantern', x: C + 15.5, y: yg, z: 538.5 });
+    street(C - 6, 539, C - 2, 560);
+
+    // ---- The merchants' quarter at the west gate, on the road in from Ansbury
+    const bm = Math.round(heightAt(1616, 596));
+    rect(s, 1584, 556, 1640, 626);
+    // The gate: two towers either side of the road, an arch between, a stretch of wall each way
+    tower(s, 1592, 581, 5, 10, bm, B.StoneBrick, { crenel: true });
+    tower(s, 1592, 601, 5, 10, bm, B.StoneBrick, { crenel: true });
+    for (let z = 584; z <= 598; z++) for (let x = 1591; x <= 1593; x++) { O.set(x, bm + 6, z, B.StoneBrick); O.set(x, bm + 7, z, (x + z) % 2 ? B.StoneBrick : B.Air); }
+    for (let z = 562; z <= 578; z++) for (const x of [1592, 1593]) wall(x, z, bm, 6);
+    for (let z = 604; z <= 620; z++) for (const x of [1592, 1593]) wall(x, z, bm, 6);
+    // Counting houses north of the road, their yard paved to it; the Merchants' Hall and a bonded warehouse south of it
+    pave(1597, 581, 1638, 587, bm, 'flag');
+    const roofs: PropDesc['mat'][] = ['slate', 'blue', 'slate', 'red'];
+    [1598, 1608, 1618, 1628].forEach((x, i) => house(s, x, 574, 8, 7, 2, bm, roofs[i], 's', { wall: i % 2 ? B.Plaster : B.StoneBrick, role: i === 1 ? 'office' : 'shop' }));
+    stoneHall(s, 1604, 606, 14, 18, 9, bm, 'n');
+    s.props.push({ t: 'roof', x: 1611, y: bm + 9, z: 615, len: 18, span: 14, rise: roofRise(14), ry: Math.PI / 2, mat: 'slate' });
+    s.props.push({ t: 'sign', x: 1609.5, y: bm, z: 603.6, ry: 0, text: 'Merchants\' Hall' });
+    pave(1603, 598, 1637, 605, bm, 'flag'); // the forecourt the hall and the warehouse open onto
+    house(s, 1624, 606, 10, 8, 2, bm, 'slate', 'n', { wall: B.Planks, closed: true, chimney: false });
+    s.props.push({ t: 'cart', x: 1638.5, y: bm, z: 609.5, ry: 1.4 }, { t: 'crate', x: 1621, y: bm, z: 603 }, { t: 'crate', x: 1621.7, y: bm, z: 603.6 }, { t: 'barrel', x: 1636, y: bm, z: 604 });
+    for (const x of [1600, 1615, 1630]) s.props.push({ t: 'lantern', x: x + 0.5, y: bm, z: 588.5, ry: 0 });
+
+    // ---- The terraces: the town's high ground to the south, two levels of houses and stairs between
+    const T1 = 26, T2 = 30, TC = 31;
+    pave(1676, 652, 1784, 668, T1, 'flag');
+    for (let x = 1676; x <= 1784; x++) if (x < 1725 || x > 1729) O.set(x, T1, 652, B.StoneBrick); // a parapet along the edge
+    stairs(1726, 1728, 632, 651, Math.round(heightAt(1727, 632)), T1);
+    [1678, 1688, 1698, 1732, 1742, 1752, 1762, 1772].forEach((x, i) => house(s, x, 656, 7, 6, 1 + (i % 3 === 0 ? 1 : 0), T1, i % 2 ? 'blue' : 'slate', 'n', { wall: i % 2 ? B.Plaster : B.StoneBrick, closed: i % 3 === 2, role: 'home' }));
+    s.props.push({ t: 'well', x: 1715.5, y: T1, z: 656.5 }, { t: 'bench', x: 1720, y: T1, z: 660, ry: 0 });
+    for (const [bx, bz] of [[1715, 656], [1716, 656], [1715, 657], [1716, 657]]) block2(bx, bz, T1);
+    pave(1676, 672, 1730, 690, T2, 'flag');
+    for (let x = 1676; x <= 1730; x++) if (x < 1707 || x > 1709) O.set(x, T2, 672, B.StoneBrick);
+    stairs(1707, 1709, 664, 671, T1, T2);
+    [1680, 1690, 1714, 1722].forEach((x, i) => house(s, x, 677, 7, 6, 2, T2, i % 2 ? 'red' : 'slate', 'n', { wall: B.StoneBrick, closed: i === 3, role: 'home' }));
+    for (const [lx, lz, y] of [[1724, 653, T1], [1731, 653, T1], [1705, 673, T2], [1711, 673, T2]] as const) s.props.push({ t: 'lantern', x: lx + 0.5, y, z: lz + 0.5 });
+
+    // ---- The castle on the cliff, and the road up to its gate
+    stairs(1758, 1762, 669, 693, T1, TC);
+    pave(1734, 696, 1786, 730, TC, 'flag');
+    for (let x = 1732; x <= 1788; x++) for (const z of [694, 695, 731, 732]) if (z > 695 || x < 1757 || x > 1763) wall(x, z, TC, 6);
+    for (let z = 696; z <= 730; z++) for (const x of [1732, 1733, 1787, 1788]) wall(x, z, TC, 6);
+    for (let x = 1757; x <= 1763; x++) for (const z of [694, 695]) { O.set(x, TC + 5, z, B.StoneBrick); O.set(x, TC + 6, z, (x + z) % 2 ? B.StoneBrick : B.Air); }
+    for (const [tx, tz] of [[1733, 695], [1787, 695], [1733, 731], [1787, 731]]) tower(s, tx, tz, 7, 12, TC, B.StoneBrick, { crenel: true });
+    tower(s, 1754, 694, 5, 10, TC, B.StoneBrick, { crenel: true });
+    tower(s, 1766, 694, 5, 10, TC, B.StoneBrick, { crenel: true });
+    stoneHall(s, 1746, 708, 20, 16, 10, TC, 'n');
+    s.props.push({ t: 'roof', x: 1756, y: TC + 10, z: 716, len: 20, span: 16, rise: roofRise(16), ry: 0, mat: 'slate' });
+    tower(s, 1773, 712, 7, 20, TC, B.StoneBrick, { crenel: true });
+    for (const [bx, bz] of [[1760, 694], [1733, 695], [1787, 695], [1773, 712]]) s.props.push({ t: 'banner', x: bx + 0.5, y: TC + (bx === 1773 ? 21 : bx === 1760 ? 8 : 13), z: bz - 1.2, kind: 'aldermere' });
+    for (const [lx, lz] of [[1756, 700], [1764, 700], [1756, 726], [1776, 726]]) s.props.push({ t: 'lantern', x: lx + 0.5, y: TC, z: lz + 0.5 });
+    rect(s, 1674, 646, 1790, 736);
+
+    // ---- The harbour wall along the cliff from the warehouses to the castle, two towers on it
+    for (let z = 640; z <= 693; z++) {
+      const x0 = Math.floor(coastX(z)) - 6;
+      for (const x of [x0, x0 + 1]) wall(x, z, Math.max(heightAt(x, z), T1 - 2), 4);
+    }
+    for (const tz of [660, 680]) tower(s, Math.floor(coastX(tz)) - 6, tz, 5, 8, Math.max(heightAt(Math.floor(coastX(tz)) - 6, tz), T1 - 2), B.StoneBrick, { crenel: true });
+  }
+
+  /**
+   * The Mewstones: a fishing hamlet on the big isle's west shore, looking back at Gullmouth, with a
+   * jetty where the ferry ties up, the lookout on the rise behind, and boats drawn up on the shingle.
+   */
+  function buildMewstones(s: Site, base: number) {
+    const { x: cx, z: cz } = MEW;
+    rect(s, cx - 20, cz - 22, cx + 44, cz + 20);
+    pave(cx - 7, cz - 6, cx + 7, cz + 6, base, 'yard');
+    const roofs: PropDesc['mat'][] = ['slate', 'thatch', 'slate', 'blue', 'thatch'];
+    ([[-15, -16, 's'], [-3, -17, 's'], [9, -16, 's'], [-13, 10, 'n'], [7, 10, 'n']] as const).forEach(([dx, dz, door], i) =>
+      house(s, cx + dx, cz + dz, 7, 6, 1, base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.StoneBrick, role: i === 2 ? 'inn' : i === 4 ? 'shop' : 'home' }));
+    s.props.push({ t: 'well', x: cx + 0.5, y: base, z: cz + 0.5 }, { t: 'bench', x: cx - 4, y: base, z: cz + 3, ry: Math.PI / 2 });
+    for (const [bx, bz] of [[cx, cz], [cx + 1, cz], [cx, cz + 1], [cx + 1, cz + 1]]) block2(bx, bz, base);
+    // The jetty: from the shore below the green straight out west
+    const J = mewJetty();
+    for (let x = J.x1; x <= J.x0; x++) for (let w = 0; w < 3; w++) {
+      const z = J.z + w;
+      O.set(x, SEA, z, B.Planks);
+      clearUp(x, z, SEA + 1, SEA + 6);
+      if ((x - J.x1) % 6 === 0 && (w === 0 || w === 2)) for (let y = 2; y < SEA; y++) O.set(x, y, z, B.Timber);
+    }
+    street(J.x0, J.z, cx - 7, J.z + 2);
+    s.props.push({ t: 'lantern', x: J.x1 + 0.5, y: SEA + 1, z: J.z + 1.5 });
+    s.props.push({ t: 'boat', x: J.x0 - 2, y: SEA - 0.55, z: J.z - 4, ry: 1.2 }, { t: 'boat', x: J.x0 - 1, y: SEA - 0.55, z: J.z + 7, ry: 1.9 });
+    for (let i = 0; i < 4; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: cx - 6 + i * 1.1, y: base, z: cz - 8 });
+    s.props.push({ t: 'lantern', x: cx - 6.5, y: base, z: cz + 6.5 }, { t: 'lantern', x: cx + 7.5, y: base, z: cz - 6.5 });
+    // The lookout on the rise behind the hamlet, a fire kept in its top
+    const lx = cx + 36, lz = cz, lg = heightAt(lx, lz);
+    tower(s, lx, lz, 5, 10, lg, B.StoneBrick, { crenel: true });
+    s.props.push({ t: 'glow', x: lx + 0.5, y: lg + 11, z: lz + 0.5, r: 4, color: '#ffc070' }, { t: 'smoke', x: lx + 0.5, y: lg + 11.5, z: lz + 0.5 });
+    street(cx + 7, cz - 1, lx - 3, cz + 1);
+  }
+
+  /**
    * Harrowgate's Company Row, outside the west gate: two rows of the company's cottages on the
    * road, the meeting hall at the end, the smelter with its stack, and the slag heap.
    */
@@ -2628,6 +2803,85 @@ export function plan(): Plan {
     rect(s, Math.min(x - 14 * dir, hx + R) - 2, z - R - 2, Math.max(x - 14 * dir, hx + R) + 2, z + R + 2);
     s.impostor.push({ x: hx, y: base + 4, z: z, w: R * 2, h: 8, d: R * 2, color: '#6a6a5a' });
   }
+}
+
+/**
+ * Waymarks: a shrine by every Charter Post stop, at the foot of every vista's cairn and at the edge
+ * of every world boss's lair. Each goes on the nearest 7 by 7 patch of level open ground (off roads,
+ * streets and water, clear of buildings and props), facing back toward the place it serves, with its
+ * pillars solid. Hollin Ford's is placed by hand in the authored vale.
+ */
+function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
+  // The planner's blocks near a spot, decoded a chunk at a time (last write wins, as in the game)
+  const decoded = new Map<number, Map<number, number>>();
+  const block = (x: number, y: number, z: number): number | undefined => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = decoded.get(k);
+    if (!m) {
+      m = new Map();
+      const a = O.map.get(k);
+      if (a) for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]);
+      decoded.set(k, m);
+    }
+    return m.get(localIdx(x & 31, y, z & 31));
+  };
+  const solid = (x: number, y: number, z: number) => { const b = block(x, y, z); return b === undefined ? y < heightAt(x, z) : b !== B.Air && b !== B.Water && !!BLOCKS[b]?.solid; };
+  const surface = (x: number, z: number) => { const g = heightAt(x, z); let y = g + 6; while (y > g - 4 && !solid(x, y - 1, z)) y--; return y; };
+  const PAVED = new Set<number>([B.Path, B.Cobble, B.StoneBrick, B.MossyCobble, B.Gravel, B.Planks, B.Farmland]);
+  const IGNORE = new Set<PropType>(['roof', 'glow', 'smoke', 'rope', 'root', 'banner', 'wallLantern', 'cone']);
+  const fits = (x: number, z: number, slack: number): number | null => {
+    const fx = Math.floor(x), fz = Math.floor(z);
+    if (heightAt(fx, fz) <= SEA + 1 || roadDist(fx, fz) < 4.5 || riverDist(fx, fz) < 6 || lakeDist(fx, fz) < 4) return null;
+    const y0 = surface(fx, fz);
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const X = fx + dx, Z = fz + dz, y = surface(X, Z);
+      if (Math.abs(y - y0) > slack) return null;
+      const top = block(X, y - 1, Z);
+      if (top !== undefined && (PAVED.has(top) || top === B.Water || top === B.Barrier)) return null;
+      for (let h = 0; h < 4; h++) if (solid(X, y + h, Z) || block(X, y + h, Z) === B.Barrier) return null;
+    }
+    for (const s of sites) if (Math.abs(s.x - x) < 300 && Math.abs(s.z - z) < 300)
+      for (const p of s.props) if (!IGNORE.has(p.t) && Math.abs(p.x - x) < 4.2 && Math.abs(p.z - z) < 4.2) return null;
+    return y0;
+  };
+  const out: WaymarkSpot[] = [{ id: 'wm-hollin', name: 'Hollin Ford', x: HOLLIN_SHRINE.x, z: HOLLIN_SHRINE.z, y: HOLLIN_SHRINE.y, ax: HOLLIN_SHRINE.x, az: HOLLIN_SHRINE.z + 3.5, theme: 'greenwake', ry: HOLLIN_SHRINE.ry }];
+  const put = (id: string, name: string, s: Site | undefined, ax0: number, az0: number, opts: { slack?: number; arrive?: [number, number, number] } = {}) => {
+    let best: { x: number; z: number; y: number } | null = null;
+    for (let r = 4; r <= 26 && !best; r += 1) for (let k = 0; k < 24 && !best; k++) {
+      const a = (k / 24) * Math.PI * 2 + r * 0.37;
+      const x = Math.floor(ax0 + Math.cos(a) * r) + 0.5, z = Math.floor(az0 + Math.sin(a) * r) + 0.5;
+      const y = fits(x, z, opts.slack ?? 1);
+      if (y !== null) best = { x, z, y };
+    }
+    // Nowhere fits: stand it where the old stone stood
+    if (!best) best = { x: Math.floor(ax0) + 0.5, z: Math.floor(az0) + 0.5, y: surface(Math.floor(ax0), Math.floor(az0)) };
+    const ry = Math.round(Math.atan2(ax0 - best.x, az0 - best.z) / (Math.PI / 2)) * (Math.PI / 2);
+    const theme = regionAt(best.x, best.z).a;
+    const fx = Math.floor(best.x), fz = Math.floor(best.z);
+    for (const [dx, dz] of SHRINE_SOLID[theme].cells) {
+      const X = fx + Math.round(dx * Math.cos(ry) + dz * Math.sin(ry)), Z = fz + Math.round(-dx * Math.sin(ry) + dz * Math.cos(ry));
+      for (let h = 0; h < SHRINE_SOLID[theme].h; h++) O.set(X, best.y + h, Z, B.Barrier);
+    }
+    const host = s ?? sites[0];
+    host.props.push({ t: 'waymark', x: best.x, y: best.y, z: best.z, ry, theme });
+    host.rects.push([fx - 3, fz - 3, fx + 3, fz + 3]);
+    const arrive = opts.arrive;
+    out.push({ id, name, x: best.x, z: best.z, y: best.y, theme, ry, ax: arrive ? arrive[0] : best.x + Math.sin(ry) * 3.5, az: arrive ? arrive[2] : best.z + Math.cos(ry) * 3.5, ay: arrive?.[1] });
+  };
+  for (const p of POSTS) {
+    if (p.id === 'hollin') continue;
+    put('wm-' + p.id, p.name, sites.find((x) => x.id === p.place), p.x, p.z);
+  }
+  for (const s of sites) {
+    const v = s.act?.kind === 'vista' ? s.act.view : undefined;
+    // On a vista the shrine stands below the cairn, and travellers arrive on top of it
+    if (v) put('wm-' + s.id, s.name.replace('Vista: ', ''), s, v[0] + 7, v[2] + 1, { slack: 2, arrive: [Math.floor(v[0]) + 0.5, v[1], Math.floor(v[2]) + 0.5] });
+  }
+  for (const b of WORLD_BOSSES) {
+    const lair = sites.find((s) => s.id === 'lair-' + b.id);
+    put('wm-' + b.id, lair?.name ?? b.where, lair, b.x + 0.5, b.z + 22.5);
+  }
+  return out;
 }
 
 /** Roof colours for a house's far-away stand-in. */

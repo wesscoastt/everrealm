@@ -76,7 +76,8 @@ for (const [label, x, z] of [...EVENTS.map((e) => [`event ${e.id}`, e.x, e.z] as
 }
 // Waymarks: the stone and the spot travellers arrive on are open ground
 for (const w of waymarks()) {
-  check(`waymark ${w.id}`, w.x, w.z, w.y !== undefined ? { y: w.y } : undefined);
+  // The shrine's middle is its solid pillar: check the dais in front of it, and where travellers arrive
+  check(`waymark ${w.id} dais`, w.x + Math.sin(w.ry) * 2.2, w.z + Math.cos(w.ry) * 2.2);
   check(`waymark ${w.id} arrival`, w.ax, w.az, w.ay !== undefined ? { y: w.ay } : undefined);
 }
 // Dungeons and delves: every creature, champion and chest stands on a floor with room above it

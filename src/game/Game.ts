@@ -30,7 +30,7 @@ import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
-import { POSTS, postFare, postHours } from '../data/travel';
+import { POSTS, postFare, postHours, postKnown } from '../data/travel';
 import { Online } from '../net/Online';
 import { BOARDS } from '../data/content';
 
@@ -638,7 +638,7 @@ export class Game implements GameApi {
       from: here.name,
       stops: POSTS.map((p) => ({
         id: p.id, name: p.name, here: p.id === here.id,
-        known: this.save.discovered.includes(p.place),
+        known: postKnown(p, this.save.discovered),
         fare: postFare(here, p), hours: postHours(here, p),
       })),
     };
@@ -676,7 +676,7 @@ export class Game implements GameApi {
   private travelTo(id: string): void {
     const here = POSTS.find((p) => p.id === this.currentPost);
     const there = POSTS.find((p) => p.id === id);
-    if (!here || !there || here === there || !this.save.discovered.includes(there.place)) return;
+    if (!here || !there || here === there || !postKnown(there, this.save.discovered)) return;
     const fare = postFare(here, there);
     if (this.save.marks < fare || this.dead || this.dialogue) return;
     this.save.marks -= fare;
@@ -692,7 +692,7 @@ export class Game implements GameApi {
     this.save.hp = this.hp;
     this.arriving = there.name;
     this.arrivingBy = 'post';
-    this.startPlay(false, 'On the Charter Post…');
+    this.startPlay(false, here.ferryFrom || there.ferryFrom ? 'Crossing on the ferry…' : 'On the Charter Post…');
   }
 
   /** The pack opens beside a trader or a station, where there's room for both; on a phone, one panel at a time. */
@@ -1187,6 +1187,8 @@ export class Game implements GameApi {
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
     this.rig.yaw = this.save.yaw + Math.PI;
+    // Never start the game stuck inside something built since the save
+    this.player.standClear();
     this.rig.snap(this.player.position);
     this.hp = Math.min(this.maxHp, Math.max(1, this.save.hp));
     for (const n of this.npcs) n.placed = false;
@@ -2378,7 +2380,9 @@ export class Game implements GameApi {
     this.dead = false;
     this.player.locked = false;
     this.hp = Math.round(this.maxHp * 0.6);
-    this.player.teleport(145.5, 19, 179.6);
+    // Back on your feet in the square at Hollin Ford, by the Charter Post (clear of the Moot Oak's benches)
+    this.player.teleport(152.5, 19, 185.5);
+    this.player.standClear();
     this.rig.snap(this.player.position);
     this.target = null;
     this.hud.setDeath(false);

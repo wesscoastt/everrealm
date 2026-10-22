@@ -482,10 +482,11 @@ export class Humanoid {
     P.foreL.rotation.x = -0.15;
     P.foreR.rotation.x = -0.15;
     if (P.held) {
-      // Blades rest angled up and forward; tools and swings hold perpendicular to the forearm.
+      // Blades rest in a low guard, pointing forward and a little down; tools and swings hold
+      // perpendicular to the forearm.
       const resting = ['idle', 'walk', 'run', 'jump', 'talk', 'hit'].includes(this.state);
       const blade = this.heldKind === 'sword' || this.heldKind === 'bronzeSword';
-      P.held.rotation.set(blade && resting ? 0.55 : Math.PI / 2, 0, 0);
+      P.held.rotation.set(blade && resting ? Math.PI / 2 + 0.38 : Math.PI / 2, 0, 0);
     }
 
     const stride = Math.min(1, speed / 6);

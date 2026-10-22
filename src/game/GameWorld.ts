@@ -5,6 +5,8 @@ import { ChunkResult, MAP_COLORS } from '../world/chunkgen';
 import { EX, FishSpot, generateTerrain, growTree, Layout, OreNode, placeTrees, TreeNode } from '../world/generate';
 import { Grid, SX as GSX, SY as GSY, SZ as GSZ } from '../world/grid';
 import { bindWaterUniforms, createSharedUniforms, createVoxelMaterial, createWaterMaterial, SharedUniforms } from '../world/materials';
+import { realmNow } from '../world/clock';
+import { Ferry } from '../world/Ferry';
 import { createPropMaterials, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
 import { BuiltSite, buildImpostor, buildSiteProps } from '../world/siteProps';
@@ -58,6 +60,7 @@ export class GameWorld {
   private activeSites = new Map<string, BuiltSite>();
   private impostors = new Map<string, THREE.Group>();
   private lod: THREE.Group | null = null;
+  private readonly ferry: Ferry;
   private lodUniforms = { uCenter: { value: new THREE.Vector2() }, uRadius: { value: 0 } };
   /** Fired when a streamed chunk arrives with creatures to place. */
   onChunk: ((cx: number, cz: number, r: ChunkResult | null) => void) | null = null;
@@ -79,6 +82,8 @@ export class GameWorld {
     placeTrees(this.grid, this.layout, rnd);
     onProgress('Charting the continent');
     this.sites = plan().sites;
+    this.ferry = new Ferry(this.props);
+    this.scene.add(this.ferry.root);
     this.stats.genMs = performance.now() - t0;
 
     // Hollindale's nodes live for the whole session, bucketed by chunk
@@ -386,6 +391,9 @@ export class GameWorld {
     this.glowMat.opacity = 0.15 + glow * 0.75;
     this.props.glow.emissiveIntensity = 0.5 + glow * 2.2;
     this.structures.sails.rotation.x += dt * 0.5;
+    // The Mewstones ferry keeps her timetable whether anyone is near; she's only drawn when someone is
+    this.ferry.update(realmNow() / 1000);
+    this.ferry.root.visible = this.ferry.root.position.distanceTo(center) < 900;
     const flick = 0.85 + Math.sin(elapsed * 13) * 0.08 + Math.sin(elapsed * 23.7) * 0.06;
     for (const f of this.structures.fires) f.scale.set(1, flick, 1);
 

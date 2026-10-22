@@ -3,6 +3,7 @@ import { B, isSolid } from './blocks';
 import { EX, Layout, ROADS } from './generate';
 import { distToPolyline, hash2 } from './noise';
 import * as P from './props';
+import { HOLLIN_SHRINE, SHRINE_SOLID, waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
@@ -404,6 +405,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       }
     }
   }
+
+  // The waymark shrine on the north side of the square (its rune is lit by the game: Waymarks.ts)
+  place(waymarkShrine(M, 'greenwake'), HOLLIN_SHRINE.x, HOLLIN_SHRINE.y, HOLLIN_SHRINE.z, HOLLIN_SHRINE.ry);
+  for (const [dx, dz] of SHRINE_SOLID.greenwake.cells) barrier(Math.floor(HOLLIN_SHRINE.x) + dx, HOLLIN_SHRINE.y, Math.floor(HOLLIN_SHRINE.z) + dz, SHRINE_SOLID.greenwake.h);
 
   // Lantern posts along the village road
   for (const [x, z, r] of [[147.5, 182.2, 0], [160.6, 186.4, Math.PI], [163.2, 182.0, 0], [180.6, 186.6, Math.PI], [184.4, 183.0, 0], [195.6, 186.8, Math.PI], [140.5, 186.8, Math.PI]] as [number, number, number][]) lantern(x, z, r);
