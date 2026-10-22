@@ -2292,6 +2292,29 @@ export class Game implements GameApi {
     else if (i === 6) this.eat();
   }
 
+  /** Foes you can see ahead, best first: near, and in front of the camera. */
+  private targetOrder(): Enemy[] {
+    const P = this.player.position, cy = this.rig.yaw;
+    const ahead = new THREE.Vector3(-Math.sin(cy), 0, -Math.cos(cy));
+    const score = (e: Enemy) => {
+      const dx = e.pos.x - P.x, dz = e.pos.z - P.z, d = Math.hypot(dx, dz);
+      const ang = d > 0.5 ? Math.acos(THREE.MathUtils.clamp((dx * ahead.x + dz * ahead.z) / d, -1, 1)) : 0;
+      return d * (1 + ang * 0.8);
+    };
+    return this.enemies
+      .filter((e) => e.alive && e.model.root.visible && e.pos.distanceTo(P) < 32)
+      .sort((a, b) => score(a) - score(b));
+  }
+
+  /** Tab: the next foe in front of you (GW2): nearest and most ahead first, then the next on each press. */
+  private cycleTarget(): void {
+    const list = this.targetOrder();
+    if (!list.length) { this.target = null; return; }
+    const i = this.target ? list.indexOf(this.target) : -1;
+    this.target = list[(i + 1) % list.length];
+    this.sfx('click', 0.4);
+  }
+
   private faceTarget(range: number): Enemy | null {
     let best: Enemy | null = null;
     if (this.target && this.target.alive && this.target.pos.distanceTo(this.player.position) < range + 1.5) best = this.target;
@@ -2926,14 +2949,6 @@ export class Game implements GameApi {
     return best;
   }
 
-  private cycleTarget(): void {
-    const P = this.player.position;
-    const list = this.enemies.filter((e) => e.alive && e.pos.distanceTo(P) < 25).sort((a, b) => a.pos.distanceTo(P) - b.pos.distanceTo(P));
-    if (!list.length) { this.target = null; return; }
-    const i = this.target ? list.indexOf(this.target) : -1;
-    this.target = list[(i + 1) % list.length];
-  }
-
   private updatePlayer(dt: number): void {
     const P = this.player;
     for (const k of Object.keys(this.cds) as (keyof typeof this.cds)[]) this.cds[k] = Math.max(0, this.cds[k] - dt);
@@ -3372,6 +3387,8 @@ export class Game implements GameApi {
       this.rig.addShake(0.35);
       this.particles.burst(tmpV.copy(e.pos).setY(e.pos.y + 1.2), '#ff5a2a', 30);
     }
+    // A target that dies, or that you leave far behind, is let go
+    if (this.target && (!this.target.alive || this.target.pos.distanceTo(this.player.position) > 48)) this.target = null;
     const t = this.target;
     this.hud.setTarget(t ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite } : null);
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);
