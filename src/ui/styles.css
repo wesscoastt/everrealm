@@ -754,3 +754,19 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
   #banner { transform: translateX(-50%) scale(0.58); transform-origin: top center; top: 2%; }
   #banner .cloth { min-width: 0; }
 }
+
+/* The Exchange */
+#exchange-panel { left: 50%; top: 92px; transform: translateX(-50%); width: 560px; }
+#exchange-panel .body { max-height: min(62vh, 560px); overflow-y: auto; }
+#exchange-panel .tabs { align-items: center; }
+#exchange-panel .ex-reload { margin-left: auto; padding: 3px 10px; font-size: 12px; }
+#exchange-panel .ex-search { width: 100%; margin: 4px 0 8px; padding: 6px 9px; font: 500 14px var(--body); color: #fff; background: #0b1122; border: 1px solid var(--ink); border-radius: 4px; outline: none; }
+#exchange-panel .ex-search:focus { box-shadow: 0 0 0 1px var(--gold); }
+#exchange-panel .ex-note { color: var(--muted); font: 500 13px var(--body); margin: 6px 4px; }
+#exchange-panel .ex-h { margin: 10px 4px 4px; font: 600 12px var(--px); color: var(--cream-d); text-transform: uppercase; letter-spacing: 1px; }
+#exchange-panel .shop-row.sel { box-shadow: inset 0 0 0 1px var(--gold); }
+#exchange-panel .ex-form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 10px 10px 64px; background: rgba(0,0,0,0.3); }
+#exchange-panel .ex-form label { font: 500 12px var(--body); color: var(--cream-d); display: flex; align-items: center; gap: 6px; }
+#exchange-panel .ex-form input { width: 90px; padding: 3px 6px; background: #0b1122; color: #fff; border: 1px solid var(--ink); border-radius: 4px; }
+#exchange-panel .ex-net { font: 500 12px var(--body); color: var(--muted); flex: 1; }
+@media (max-width: 640px) { #exchange-panel { width: calc(100vw - 32px); } #exchange-panel .ex-form { padding-left: 10px; } }

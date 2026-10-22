@@ -10,7 +10,7 @@ import './canvas-stub.mjs';
 import * as THREE from 'three';
 import zlib from 'node:zlib';
 import fs from 'node:fs';
-import { Grid, SX, SY, SZ } from '../src/world/grid';
+import { Grid, SX, SY, SZ, WATER_LEVEL } from '../src/world/grid';
 import { generateTerrain, EX, ROADS } from '../src/world/generate';
 import { buildStructures } from '../src/world/structures';
 import { Batcher, createPropMaterials } from '../src/world/props';
@@ -81,7 +81,9 @@ for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
     if (x < 0 || z < 0 || x >= SX || z >= SZ) continue;
     const h = layout.heights[x + z * SX];
     let top = h + 4; while (top > h - 6 && (!isSolid(grid.get(x, top, z)) || LEAF.has(grid.get(x, top, z)))) top--;
-    const what = top + 1 - h >= 3 ? 'a wall' : grid.get(x, top, z) === B.Barrier ? 'a fence or post' : '';
+    // A deck at the river's level with water under it is a bridge carrying the road, not a wall across it
+    const deck = top <= WATER_LEVEL && grid.get(x, top - 1, z) === B.Water;
+    const what = top + 1 - h >= 3 && !deck ? 'a wall' : grid.get(x, top, z) === B.Barrier ? 'a fence or post' : '';
     if (what && !crossed.has(`${x},${z}`)) { crossed.add(`${x},${z}`); problems.push(`road ${ROADS.indexOf(road)} runs into ${what} at (${x}, ${z})`); }
   }
 }

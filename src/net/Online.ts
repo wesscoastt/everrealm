@@ -78,6 +78,9 @@ export interface GroupView { id: number; leader: number; members: { id: number; 
 export interface TradeView { id: number; with: string; mine: TradeOffer; theirs: TradeOffer; myLock: boolean; theirLock: boolean; myAccept: boolean; theirAccept: boolean }
 
 export type GuildRank = 'leader' | 'officer' | 'member';
+/** A stack in the Exchange's book, and what the book owes you (takings, or a stack sent back). */
+export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number }
+export interface ExOwed { kind: 'sold' | 'back'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number }
 export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[] }
 
 export interface OnlineHooks {
@@ -118,6 +121,14 @@ export interface OnlineHooks {
   eventDone?(id: string, ok: boolean, total: number, shares: Record<string, number>): void;
   /** That event ran lately and is resting for so many seconds. */
   eventCool?(id: string, left: number): void;
+  /** The Exchange (game/Exchange.ts). */
+  exBook?(rows: ExRow[], mine: number[]): void;
+  exPosted?(row: ExRow): void;
+  exRefused?(item: string, n: number, why: string): void;
+  exBought?(row: ExRow): void;
+  exBack?(row: ExRow): void;
+  exGone?(id: number): void;
+  exOwed?(rows: ExOwed[]): void;
 }
 
 export class Online {
@@ -225,6 +236,13 @@ export class Online {
       case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
       case 'sys': this.hooks.system(String(m.text)); break;
+      case 'exBook': this.hooks.exBook?.(Array.isArray(m.rows) ? (m.rows as ExRow[]) : [], Array.isArray(m.mine) ? (m.mine as number[]) : []); break;
+      case 'exPosted': this.hooks.exPosted?.(m.row as ExRow); break;
+      case 'exRefused': this.hooks.exRefused?.(String(m.item), Number(m.n) || 0, String(m.why ?? '')); break;
+      case 'exBought': this.hooks.exBought?.(m.row as ExRow); break;
+      case 'exBack': this.hooks.exBack?.(m.row as ExRow); break;
+      case 'exGone': this.hooks.exGone?.(Number(m.id)); break;
+      case 'exOwed': this.hooks.exOwed?.(Array.isArray(m.rows) ? (m.rows as ExOwed[]) : []); break;
       case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
       case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left)); break;
       case 'evDone': this.hooks.eventDone?.(String(m.id), !!m.ok, Number(m.total), (m.shares && typeof m.shares === 'object' ? m.shares : {}) as Record<string, number>); break;
@@ -350,6 +368,10 @@ export class Online {
   guildRank(name: string, rank: GuildRank): void { this.emit({ t: 'uRank', name, rank }); }
   guildMotto(text: string): void { this.emit({ t: 'uMotto', text }); }
   guildChat(text: string): void { this.emit({ t: 'uChat', text }); }
+  exList(): void { this.emit({ t: 'exList' }); }
+  exPost(item: string, n: number, price: number): void { this.emit({ t: 'exPost', item, n, price }); }
+  exBuy(id: number): void { this.emit({ t: 'exBuy', id }); }
+  exCancel(id: number): void { this.emit({ t: 'exCancel', id }); }
 
   /** Your id on the server (to know your own echoed chat). */
   myId = -1;

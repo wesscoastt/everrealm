@@ -780,6 +780,8 @@ export function plan(): Plan {
     for (const [tx, tz] of [[761, 159], [812, 159], [761, 192], [812, 192]]) plantTree(tx, tz, base, 0.5);
     for (let i = 0; i < 3; i++) north.props.push({ t: 'stall', x: 768 + i * 8, y: base, z: 190, ry: Math.PI, color: ['#2f528f', '#a8382c', '#c8a03a'][i] });
     north.props.push({ t: 'sign', x: 778.5, y: base, z: 157.5, ry: 0, text: 'Guildhall' });
+    // The Exchange's desk on the square, where Gideon Wray reads the guilds' book to anyone who asks
+    north.props.push({ t: 'desk', x: 775.5, y: base, z: 164.2, ry: Math.PI }, { t: 'sign', x: 772.2, y: base, z: 164.5, ry: 0, text: 'The Exchange' });
 
     // ---- Tilt Ward: the tilt-yard, banked stands round a sanded oval with the tilt down the middle
     claim(922, 192, 994, 236);

@@ -65,6 +65,7 @@ import { Bank } from './Bank';
 import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, HouseSpec, Lot, LOT_PRICE, LOTS, PlotState, plotShape, readPlot } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
+import { Exchange } from './Exchange';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingId, callingById, TUNE } from '../data/classes';
@@ -213,6 +214,20 @@ export class Game implements GameApi {
     flag: (k) => this.flag(k),
     setFlag: (k, v) => this.setFlag(k, v),
     refreshFriends: () => this.hud.refresh('guild'),
+  });
+  /** The auction house: one book for the realm, read at any broker. */
+  readonly exchange: Exchange = new Exchange({
+    net: () => this.online,
+    online: () => this.online?.status === 'online',
+    system: (t) => this.hud.system(t),
+    count: (id) => this.inv.count(id),
+    take: (id, n) => this.inv.remove(id, n),
+    give: (id, n) => this.give(id, n),
+    marks: () => this.save.marks,
+    addMarks: (n) => { this.save.marks = Math.max(0, this.save.marks + n); this.hud.refresh(); },
+    sound: (n) => this.sfx(n),
+    persist: () => this.persist(),
+    refresh: () => this.hud.refresh('exchange'),
   });
   /** Set while a writ pays its experience, so the payment doesn't count toward other writs. */
   private writXp = false;
@@ -479,6 +494,7 @@ export class Game implements GameApi {
       scene: this.scene,
       system: (t) => this.hud.system(t),
       ...this.social.hooks(),
+      ...this.exchange.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
@@ -729,6 +745,13 @@ export class Game implements GameApi {
     return plotShape(readPlot(this.flag('plot'))) ?? (this.flag('home') ? COTTAGE_SHAPE : null);
   }
 
+  openExchange(): void {
+    this.hud.closeAll();
+    this.exchange.open();
+    this.hud.show('exchange');
+    this.showPackBeside();
+  }
+
   openBank(id: string): void {
     const b = BANKS.find((x) => x.id === id);
     if (!b) return;
@@ -886,6 +909,11 @@ export class Game implements GameApi {
       tradeLock: () => g.social.lock(),
       tradeAccept: () => g.social.accept(),
       tradeCancel: () => g.social.cancel(),
+      exchange: () => g.exchange.view(),
+      exBuy: (id: number) => g.exchange.buy(id),
+      exPost: (item: string, n: number, price: number) => g.exchange.post(item, n, price),
+      exTakeBack: (id: number) => g.exchange.takeBack(id),
+      exReload: () => g.exchange.open(),
       guild: () => ({ view: g.social.guild, online: g.online.status === 'online' }),
       friends: () => {
         // Where friends are: asked of the realm again now and then while the list is open
@@ -2738,6 +2766,8 @@ export class Game implements GameApi {
       const p = POSTS.find((x) => x.id === this.currentPost);
       if (!p || Math.hypot(p.x - this.player.position.x, p.z - this.player.position.z) > 5) this.hud.close('travel');
     }
+    // The book closes when you walk away from the broker
+    if (this.hud.isOpen('exchange') && !this.npcs.some((n) => (n.id === 'wray' || n.id === 'tregear' || n.id === 'pound') && n.pos.distanceTo(this.player.position) < 6)) this.hud.close('exchange');
     if (this.hud.isOpen('shop')) {
       if (this.currentShop === 'festival') { if (!this.festivals.stallNear(this.player.position, 6)) this.hud.close('shop'); }
       else {

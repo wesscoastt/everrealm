@@ -25,6 +25,8 @@ export interface StructureResult {
   group: THREE.Group;
   interactables: Interactable[];
   sails: THREE.Group;
+  /** Ford Mill's wheel, turned by the game (GameWorld). */
+  wheel: THREE.Group;
   bell: THREE.Group;
   fires: THREE.Object3D[];
   smoke: THREE.Vector3[];
@@ -423,6 +425,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   sign(139.5, 182.0, [
     { text: 'Hollin Ford', to: [160, 184] },
     { text: 'Gorse Mill', to: [118, 202] },
+    { text: 'Ford Mill', to: [172, 214] },
     { text: 'The Lantern', to: [96, 244] },
   ]);
   sign(196.5, 181.5, [ // on the corner, not in the Pit road
@@ -625,6 +628,31 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   const crateY = ground(MX + 6, MZ - 2);
   for (let i = 0; i < 3; i++) place(P.crate(M, 0.6), MX + 6.2, crateY + i * 0.6, MZ - 2 + (i % 2) * 0.2, i);
 
+  // Ford Mill: below the bridge on the west bank, its undershot wheel turning in a race cut into the bank
+  house({ x0: 169, z0: 211, w: 8, d: 6, floors: 2, roof: 'thatch', door: 'w', role: 'workshop' });
+  for (let z = 209; z <= 216; z++) for (let x = 177; x <= 182; x++) {
+    const lining = z === 209 || z === 216;
+    if (!lining && world.get(x, WATER_LEVEL - 1, z) === B.Water) continue;
+    clearAbove(x, z, lining ? WATER_LEVEL + 1 : WATER_LEVEL);
+    for (let y = 12; y < WATER_LEVEL + (lining ? 1 : 0); y++) world.put(x, y, z, lining ? (y === WATER_LEVEL ? B.Cobble : B.StoneBrick) : y === 12 ? B.Gravel : B.Water);
+  }
+  // The pier that carries the axle's far end
+  for (const z of [212, 213]) for (let y = 12; y <= WATER_LEVEL; y++) world.put(181, y, z, B.StoneBrick);
+  const wheel = P.waterWheel(M, 5);
+  wheel.position.set(180.0, WATER_LEVEL + 0.3, 213.0);
+  wheel.traverse((o) => { (o as THREE.Mesh).castShadow = true; });
+  group.add(wheel);
+  // A plank footbridge just downstream, from the mill's side over to the riverside path
+  for (let x = 182; x <= 195; x++) for (let z = 217; z <= 220; z++) {
+    clearAbove(x, z, WATER_LEVEL + 1);
+    world.put(x, WATER_LEVEL, z, z === 218 || z === 219 ? (x % 3 ? B.Planks : B.DarkPlanks) : B.DarkPlanks);
+    if ((z === 217 || z === 220) && x > 182 && x < 190) barrier(x, WATER_LEVEL + 1, z, 1); // the rails stop short of the Wetlings track
+  }
+  for (const x of [185, 189]) for (const z of [217, 220]) for (let y = 11; y < WATER_LEVEL; y++) if (!isSolid(world.get(x, y, z))) world.put(x, y, z, B.OakLog);
+  for (const z of [217.5, 220.5]) place(P.fenceRun(M, 7), 186.5, WATER_LEVEL + 1, z, 0);
+  mark(181, 216, 196, 221);
+  poi.fordMill = new THREE.Vector3(167.5, BASE, 214);
+
   // -------------------------------------------------------------- Sallow Pit mouth
   const pitY = 22;
   place(P.mineHeadframe(M), 218.5, pitY, 118.6);
@@ -708,5 +736,5 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
 
   const built = batch.build(true);
   group.add(built);
-  return { group, interactables, sails, bell, fires, smoke, lights, poi, doors };
+  return { group, interactables, sails, wheel, bell, fires, smoke, lights, poi, doors };
 }

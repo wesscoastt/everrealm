@@ -391,6 +391,7 @@ export class GameWorld {
     this.glowMat.opacity = 0.15 + glow * 0.75;
     this.props.glow.emissiveIntensity = 0.5 + glow * 2.2;
     this.structures.sails.rotation.x += dt * 0.5;
+    this.structures.wheel.rotation.x += dt * 0.7;
     // The Mewstones ferry keeps her timetable whether anyone is near; she's only drawn when someone is
     this.ferry.update(realmNow() / 1000);
     this.ferry.root.visible = this.ferry.root.position.distanceTo(center) < 900;

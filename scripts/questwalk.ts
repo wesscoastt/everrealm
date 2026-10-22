@@ -74,6 +74,7 @@ class Mock implements GameApi {
   arrangeHome() {}
   lotAction() {}
   openBank() {}
+  openExchange() {}
   playerName = 'Tester';
 }
 

@@ -7,6 +7,7 @@
 //   - chat: plain text to everyone on the server, rate-limited
 //   - groups of up to five and trades between two players (server/social.mjs)
 //   - guilds, kept between sessions (server/guilds.mjs)
+//   - the Exchange: one auction house book for the realm (server/exchange.mjs)
 //   - characters: a copy of each character's save, owned by an account (or, for players without
 //     one, claimed by a per-browser secret as before)
 //
@@ -36,6 +37,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { socialInit } from './social.mjs';
 import { guildsInit } from './guilds.mjs';
+import { exchangeInit } from './exchange.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -290,6 +292,7 @@ function broadcast(msg, except) {
 }
 const social = socialInit({ players, send });
 const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataDir: DATA, mirrorDelete: (file) => mirror(file, null), log });
+const exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null });
 
 wss.on('connection', (ws, req) => {
@@ -333,13 +336,14 @@ wss.on('connection', (ws, req) => {
       send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
       guilds.join(me);
       social.join(me);
+      exchange.join(me);
       broadcast({ t: 'join', player: pub(me) }, me);
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD[0], WORLD[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);

@@ -9,6 +9,7 @@ import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
 import type { GroupRow, TradeUi } from '../game/Social';
+import type { ExchangeView } from '../game/Exchange';
 import type { GuildRank, GuildView } from '../net/Online';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
@@ -193,6 +194,12 @@ export interface UiCtx {
   /** The Charter Post stop the player is standing at. */
   travel(): TravelView;
   travelTo(id: string): void;
+  /** The Exchange's book (game/Exchange.ts). */
+  exchange(): ExchangeView;
+  exBuy(id: number): void;
+  exPost(item: string, n: number, price: number): void;
+  exTakeBack(id: number): void;
+  exReload(): void;
 }
 
 export interface TravelView {
@@ -217,9 +224,11 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
   if (html) e.innerHTML = html;
   return e;
 };
+/** How long ago, roughly: 'just now', '5 min ago', '3 h ago', '2 days ago'. */
+const ago = (t: number) => { const s = (Date.now() - t) / 1000; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild';
+export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange';
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -245,6 +254,10 @@ export class Hud {
   private selQuest = '';
   private openSkill: SkillId | null = null;
   private shopTab: 'buy' | 'sell' = 'buy';
+  /** The Exchange panel: which page, what's typed in the search, the stack being priced. */
+  private exTab: 'buy' | 'sell' = 'buy';
+  private exQuery = '';
+  private exSell: string | null = null;
   private dlgOptions: HTMLButtonElement[] = [];
   private dragFrom = -1;
   dialogueOpen = false;
@@ -364,6 +377,7 @@ export class Hud {
     // Closing the trade window by hand calls the trade off
     panel('trade-panel', 'Trade', 'trade').querySelector('.x')!.addEventListener('click', () => this.ctx.tradeCancel());
     panel('guild-panel', 'Friends', 'guild');
+    panel('exchange-panel', 'The Exchange', 'exchange');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
     const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
     const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
@@ -1109,8 +1123,8 @@ export class Hud {
   }
 
   show(p: PanelId): void {
-    if (p === 'craft' || p === 'shop' || p === 'travel') { this.close('journal'); this.close('map'); this.close('settings'); }
-    if (p === 'map' || p === 'journal' || p === 'settings') for (const o of ['craft', 'shop', 'travel', 'map', 'journal', 'settings'] as PanelId[]) if (o !== p) this.close(o);
+    if (p === 'craft' || p === 'shop' || p === 'travel' || p === 'exchange') { this.close('journal'); this.close('map'); this.close('settings'); }
+    if (p === 'map' || p === 'journal' || p === 'settings') for (const o of ['craft', 'shop', 'travel', 'exchange', 'map', 'journal', 'settings'] as PanelId[]) if (o !== p) this.close(o);
     this.open.add(p);
     this.panelEl(p).classList.add('show');
     this.ctx.sfx('open');
@@ -1150,6 +1164,7 @@ export class Hud {
         case 'travel': this.renderTravel(); break;
         case 'trade': this.renderTrade(); break;
         case 'guild': this.renderGuild(); break;
+        case 'exchange': this.renderExchange(); break;
         case 'map': this.renderMap(); break;
         case 'settings': this.renderSettings(); break;
       }
@@ -1487,6 +1502,108 @@ export class Hud {
     this.q('#shop-panel .footer').innerHTML = shop.currency
       ? `<span>${esc(shop.footer)}</span><span class="coin token"><img src="${itemIcon(shop.currency.id)}" alt="">${shop.currency.have} ${esc(shop.currency.name)}</span>`
       : `<span>${esc(shop.footer)}</span><span class="coin">${this.ctx.save.marks} marks</span>`;
+  }
+
+  /** The Exchange: Buy (the book, cheapest first, searchable) and Sell (your stacks, and pricing one from your pack). */
+  private renderExchange(): void {
+    const v = this.ctx.exchange();
+    const body = this.q('#exchange-panel .body');
+    body.innerHTML = '';
+    const marks = this.ctx.save.marks;
+    this.q('#exchange-panel .footer').innerHTML = `<span>A mark in twenty of every sale goes to the Exchange</span><span class="coin">${marks} marks</span>`;
+    if (!v.online) {
+      body.append(el('p', 'ex-note', 'The Exchange keeps one book for the whole realm, on the realm server. You\'re playing offline, so the broker can\'t read it to you. Play online to buy and sell here.'));
+      return;
+    }
+    const tabs = el('div', 'tabs');
+    for (const t of ['buy', 'sell'] as const) {
+      const e = el('div', 'tab' + (this.exTab === t ? ' sel' : ''), t === 'buy' ? 'Buy' : `Sell${v.mine.length ? ` (${v.mine.length})` : ''}`);
+      e.addEventListener('click', () => { this.exTab = t; this.ctx.sfx('click'); this.renderExchange(); });
+      tabs.append(e);
+    }
+    const reload = el('button', 'btn ghost ex-reload', 'Refresh');
+    reload.addEventListener('click', () => this.ctx.exReload());
+    tabs.append(reload);
+    body.append(tabs);
+    const slot = (id: string, n: number) => `<div class="slot r-${ITEMS[id]?.rarity ?? 'common'}"><img src="${itemIcon(id)}" alt="">${n > 1 ? `<span class="n">${n}</span>` : ''}</div>`;
+    const tip = (row: HTMLElement, id: string) => {
+      const s = row.querySelector('.slot') as HTMLElement;
+      s.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(id), e.clientX, e.clientY));
+      s.addEventListener('mouseleave', () => this.hideTooltip());
+    };
+    if (this.exTab === 'buy') {
+      const search = el('input', 'ex-search') as HTMLInputElement;
+      search.placeholder = 'Search the book';
+      search.value = this.exQuery;
+      search.addEventListener('keydown', (e) => e.stopPropagation());
+      search.addEventListener('input', () => { this.exQuery = search.value; this.renderExchangeRows(list, v.rows, marks, slot, tip); });
+      body.append(search);
+      const list = el('div', 'ex-list');
+      body.append(list);
+      this.renderExchangeRows(list, v.rows, marks, slot, tip);
+      if (!v.rows.length) list.append(el('p', 'ex-note', v.loading ? 'The broker is finding the page…' : 'Nothing is for sale in the book just now. Be the first: the Sell page posts a stack.'));
+      setTimeout(() => { if (this.exQuery) search.focus(); }, 0);
+      return;
+    }
+    // Sell: your stacks in the book, then your pack
+    body.append(el('h6', 'ex-h', `Your stacks in the book (${v.mine.length} of 20)`));
+    if (!v.mine.length) body.append(el('p', 'ex-note', 'None. Choose something from your pack below to post it.'));
+    for (const r of v.mine) {
+      const d = ITEMS[r.item];
+      const row = el('div', 'shop-row');
+      row.innerHTML = `${slot(r.item, r.n)}<div><div class="nm" style="color:${RARITY_COLOR[d?.rarity ?? 'common']}">${esc(d?.name ?? r.item)}</div><div class="d">Posted ${ago(r.at)}</div></div><span class="coin">${r.price}</span><button class="btn ghost">Take back</button>`;
+      row.querySelector('button')!.addEventListener('click', () => this.ctx.exTakeBack(r.id));
+      tip(row, r.item);
+      body.append(row);
+    }
+    body.append(el('h6', 'ex-h', 'Post from your pack'));
+    const seen = new Map<string, number>();
+    for (const st of this.ctx.save.inv) if (st && ITEMS[st.id] && ITEMS[st.id].kind !== 'quest') seen.set(st.id, (seen.get(st.id) ?? 0) + st.n);
+    if (!seen.size) body.append(el('p', 'ex-note', 'Nothing in your pack the broker will take.'));
+    if (this.exSell && !seen.has(this.exSell)) this.exSell = null;
+    for (const [id, have] of seen) {
+      const d = ITEMS[id];
+      const row = el('div', 'shop-row ex-pick' + (this.exSell === id ? ' sel' : ''));
+      const each = v.cheapest.get(id);
+      row.innerHTML = `${slot(id, have)}<div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${each !== undefined ? `In the book from ${Math.ceil(each)} each` : 'None in the book'}</div></div><span></span><button class="btn">${this.exSell === id ? 'Choosing' : 'Sell'}</button>`;
+      row.querySelector('button')!.addEventListener('click', () => { this.exSell = this.exSell === id ? null : id; this.renderExchange(); });
+      tip(row, id);
+      body.append(row);
+      if (this.exSell !== id) continue;
+      // Pricing: how many, at what price, and what you'll see after the cut
+      const guide = Math.max(1, Math.round(each ?? Math.max(2, d.value * 1.5)));
+      const form = el('div', 'ex-form');
+      form.innerHTML = `<label>How many <input type="number" class="ex-n" min="1" max="${have}" value="${have}"></label><label>Price for the stack <input type="number" class="ex-p" min="1" max="1000000" value="${guide * have}"></label><span class="ex-net"></span><button class="btn ex-post">Post</button>`;
+      const nIn = form.querySelector('.ex-n') as HTMLInputElement, pIn = form.querySelector('.ex-p') as HTMLInputElement, net = form.querySelector('.ex-net') as HTMLElement;
+      const upd = () => { const p = Math.max(0, Math.floor(Number(pIn.value) || 0)); net.textContent = `You get ${p - Math.floor(p * 0.05)} when it sells`; };
+      for (const i of [nIn, pIn]) { i.addEventListener('keydown', (e) => e.stopPropagation()); i.addEventListener('input', upd); }
+      nIn.addEventListener('change', () => { const n = Math.min(have, Math.max(1, Math.floor(Number(nIn.value) || 1))); nIn.value = String(n); pIn.value = String(guide * n); upd(); });
+      upd();
+      form.querySelector('.ex-post')!.addEventListener('click', () => {
+        const n = Math.min(have, Math.max(1, Math.floor(Number(nIn.value) || 1)));
+        this.ctx.exPost(id, n, Math.floor(Number(pIn.value) || 0));
+        this.exSell = null;
+      });
+      body.append(form);
+    }
+  }
+
+  private renderExchangeRows(list: HTMLElement, rows: { id: number; item: string; n: number; price: number; seller: string }[], marks: number, slot: (id: string, n: number) => string, tip: (row: HTMLElement, id: string) => void): void {
+    list.innerHTML = '';
+    const q = this.exQuery.trim().toLowerCase();
+    const shown = rows.filter((r) => !q || (ITEMS[r.item]?.name ?? r.item).toLowerCase().includes(q)).slice(0, 120);
+    if (q && !shown.length) list.append(el('p', 'ex-note', 'Nothing in the book matches that.'));
+    for (const r of shown) {
+      const d = ITEMS[r.item];
+      const row = el('div', 'shop-row');
+      const each = r.n > 1 ? ` · ${Math.ceil(r.price / r.n)} each` : '';
+      row.innerHTML = `${slot(r.item, r.n)}<div><div class="nm" style="color:${RARITY_COLOR[d?.rarity ?? 'common']}">${esc(d?.name ?? r.item)}${r.n > 1 ? ` × ${r.n}` : ''}</div><div class="d">${esc(r.seller)}${each}</div></div><span class="coin">${r.price}</span><button class="btn">Buy</button>`;
+      const b = row.querySelector('button')!;
+      b.disabled = marks < r.price;
+      b.addEventListener('click', () => this.ctx.exBuy(r.id));
+      tip(row, r.item);
+      list.append(row);
+    }
   }
 
   private renderTravel(): void {

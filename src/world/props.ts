@@ -974,6 +974,29 @@ export function windmillSails(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/**
+ * An undershot mill wheel: two rims with six spokes each, a dozen paddles, on an axle along x that
+ * runs `axleLen` back toward the mill (-x) and a little past the wheel. Spin it about x.
+ */
+export function waterWheel(M: PropMaterials, axleLen = 5): THREE.Group {
+  const g = new THREE.Group();
+  const R = 2.4, W = 1.0, N = 12;
+  g.add(mesh(cyl(0.16, 0.16, axleLen, 8), M.darkWood, -axleLen / 2 + 0.8, 0, 0, 0, 0, Math.PI / 2));
+  for (const sx of [-W / 2, W / 2]) {
+    const chord = 2 * R * Math.sin(Math.PI / N) + 0.06;
+    for (let k = 0; k < N; k++) {
+      const a = ((k + 0.5) / N) * Math.PI * 2;
+      g.add(mesh(box(0.12, 0.16, chord), M.darkWood, sx, Math.sin(a) * R, Math.cos(a) * R, 0, Math.PI / 2 - a));
+    }
+    for (let k = 0; k < 6; k++) g.add(mesh(box(0.1, R * 2, 0.1), M.wood, sx, 0, 0, 0, (k / 6) * Math.PI));
+  }
+  for (let k = 0; k < N; k++) {
+    const a = (k / N) * Math.PI * 2;
+    g.add(mesh(box(W + 0.15, 0.55, 0.07), M.wood, 0, Math.sin(a) * (R - 0.15), Math.cos(a) * (R - 0.15), 0, Math.PI / 2 - a));
+  }
+  return g;
+}
+
 export function tent(M: PropMaterials, color: string): THREE.Group {
   const g = new THREE.Group();
   const shape = new THREE.Shape();

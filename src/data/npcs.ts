@@ -106,6 +106,27 @@ export const NPCS: NpcDef[] = [
     schedule: [{ from: 0, to: 24, at: [A.cx - 12, A.cz + 23.4], face: [A.cx - 12, A.cz + 18], anim: 'idle' }],
     barks: ['Bread\'s this morning\'s.', 'Don\'t squeeze it, buy it.'],
   },
+  // The Exchange's brokers: one book, three counters (game/Exchange.ts)
+  {
+    id: 'wray', name: 'Gideon Wray', title: 'Exchange broker, Guild Ward',
+    look: { skin: '#d8a882', hair: '#3a2a1e', hairStyle: 1, eyes: '#4a3a2a', tunic: '#2e3a5a', trim: '#c8a050', trousers: '#2a2a30', boots: '#1e1a16', hat: 'cap', hatColor: '#2a2a34', build: 0.94, age: 0.5 },
+    // At his desk on the Guildhall square, facing the fountain
+    schedule: [{ from: 0, to: 24, at: [775.5, 162.5], face: [775.5, 168], anim: 'idle' }],
+    barks: ['The book\'s open.', 'Posted in Ansbury, sold in Gullmouth.'],
+  },
+  {
+    id: 'tregear', name: 'Morwenna Tregear', title: 'Exchange broker, Gullmouth',
+    look: { skin: '#c89070', hair: '#1e1612', hairStyle: 3, eyes: '#2a3a4a', tunic: '#3a5a6a', trim: '#e0d0a0', trousers: '#2e3a40', boots: '#2a1e14', lashes: true, build: 1, age: 0.4 },
+    // Outside the harbour office, by the bank counter
+    schedule: [{ from: 0, to: 24, at: [GULL.coast - 20.5, 587.5], face: [GULL.coast - 22.5, 584], anim: 'idle' }],
+    barks: ['Same book as Ansbury\'s.', 'Selling? Price it to move.'],
+  },
+  {
+    id: 'pound', name: 'Silas Pound', title: 'Exchange broker, Harrowgate',
+    look: { skin: '#e0b48e', hair: '#8a8a84', hairStyle: 0, beard: true, eyes: '#4a4030', tunic: '#5a4a3a', trim: '#b89048', trousers: '#3a3028', boots: '#2a1e14', build: 1.1, age: 0.7 },
+    schedule: [{ from: 0, to: 24, at: [988.5, 994.5], face: [984.5, 994.5], anim: 'idle' }],
+    barks: ['Buying or selling?'],
+  },
   {
     id: 'hob', name: 'Hob Tannet', title: 'Carter, Cotter\'s End',
     look: { skin: '#c88a62', hair: '#7a5a3a', hairStyle: 0, beard: true, eyes: '#4a3a2a', tunic: '#6a5a3a', trim: '#8a7a5a', trousers: '#4a4034', boots: '#3a2a1c', hat: 'cap', hatColor: '#5a4a2a', build: 1.08, age: 0.55 },

@@ -36,6 +36,8 @@ export interface GameApi {
   lotAction(id: string): void;
   /** The Charter Bank's vault, at one of its counters (an id from BANKS). */
   openBank(id: string): void;
+  /** The Exchange's book, from a broker. */
+  openExchange(): void;
 }
 
 export interface DOption {

@@ -23,7 +23,34 @@ function finishBell(g: GameApi, marks: number): void {
   g.setStage(Q, 'done');
 }
 
+/** An Exchange broker: first meeting, the book, and how it works. */
+function broker(flag: string, first: string, again: string): DialogueTree {
+  return {
+    start: () => 'main',
+    nodes: {
+      main: {
+        text: (g) => (g.flag(flag) ? again : first),
+        effect: (g) => g.setFlag(flag),
+        options: [
+          { text: 'Show me the book.', effect: (g) => g.openExchange() },
+          { text: 'How does the Exchange work?', next: 'how' },
+          { text: 'Bye.' },
+        ],
+      },
+      how: { text: 'Post a stack at your price and it leaves your pack. When it sells, the marks wait in the book for you.', next: 'how2' },
+      how2: { text: 'The Exchange keeps a mark in every twenty. Take a stack down whenever you like.', next: 'how3' },
+      how3: { text: 'If nobody buys it in three days, it comes back to you by itself.', next: 'how4' },
+      how4: { text: 'Every broker reads the same book. Post it here and someone in Gullmouth or at the Works can buy it.', next: 'main' },
+    },
+  };
+}
+
 export const DIALOGUE: Record<string, DialogueTree> = {
+  // ---------------------------------------------------------------- The Exchange's brokers
+  wray: broker('wrayMet', 'Gideon Wray, for the Exchange. The guilds keep one book for the whole of the counties, and I read it to anyone who asks.', 'The book\'s open.'),
+  tregear: broker('tregearMet', 'Morwenna Tregear. I keep the Exchange\'s book for the harbour. Same book as Ansbury\'s: post it here, sell it there.', 'What are we selling?'),
+  pound: broker('poundMet', 'Silas Pound. The Company lends me this end of the counter. It\'s the same book as Ansbury\'s, whatever the Company tells you.', 'Buying or selling?'),
+
   // ---------------------------------------------------------------- Maud Ashby, reeve
   maud: {
     start: (g) => {
