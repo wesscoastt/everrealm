@@ -1,8 +1,9 @@
 import type { ArmourSlot, ArmourWeight } from './armour';
 import type { Appearance } from '../entities/humanoid';
 import type { Breed } from '../entities/creatures';
+import { gearVariant, NAMED_ITEMS, type NamedInfo } from './gear';
 
-export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'quest' | 'collectible' | 'trophy';
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
 
@@ -40,6 +41,13 @@ export interface ItemDef {
   set?: string;
   /** Furniture for a home: the prop it becomes (see props.furniture) and its cloth tint. */
   furn?: { model: string; tint?: number };
+  /** A rolled piece (data/gear.ts): the piece it was rolled from, its quality (0 Worn to 3 Masterwork) and its leaning. */
+  base?: string;
+  quality?: number;
+  affix?: string;
+  /** A named piece (data/gear.ts): what it does, how many the realm holds and what drops it; and this copy's number. */
+  named?: NamedInfo;
+  serial?: number;
 }
 
 const I = (d: ItemDef) => d;
@@ -50,6 +58,8 @@ const I = (d: ItemDef) => d;
  * Power grows with Melee level; gear picks the style. Points, per weapon trait:
  * damage +1, speed +0.05, reach +0.25, crit +3%, leech 2%. Per helm trait: defense +1,
  * vigor +10 health, wind +10%, roll +0.04 s. Slower or weaker in one trait pays for another.
+ * What drops is rolled from these (data/gear.ts): a quality worth a point or two either way, and a
+ * leaning that moves points between traits. Named pieces spend 2 more, and each does one thing of its own.
  */
 export const GEAR_BUDGET = { weapon: 8, head: 4 };
 
@@ -86,7 +96,7 @@ export function gearPoints(d: ItemDef): number {
   return 0;
 }
 
-export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
+const BASE_ITEMS: Record<string, ItemDef> = Object.fromEntries([
   // Ores and bars
   I({ id: 'copper_ore', name: 'Copper ore', kind: 'material', rarity: 'common', stack: true, value: 3, icon: { shape: 'ore', a: '#c8743a', b: '#4fae8c' }, desc: 'Smelts with tin into bronze.' }),
   I({ id: 'tin_ore', name: 'Tin ore', kind: 'material', rarity: 'common', stack: true, value: 3, icon: { shape: 'ore', a: '#c6ccd2', b: '#8d97a2' }, desc: 'Pale and crumbly. No use on its own; Bram calls it "the other half".' }),
@@ -209,12 +219,32 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'charter_ring', name: 'Charter ring', kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'coin', a: '#c88a42' }, desc: 'Plain copper, stamped with the Charter\'s road sign. The Speaker gives very few, and says so.' }),
 ].map((d) => [d.id, d]));
 
+/**
+ * Every item by id. Rolled and numbered gear ("bronze_sword__keen2", "u_dancey_billhook__n2") isn't
+ * listed: it's worked out from its base the first time it's asked for, so Object.values(ITEMS) is
+ * still just the game's own items.
+ */
+const VARIANTS = new Map<string, ItemDef | null>();
+const variant = (id: string): ItemDef | undefined => {
+  let v = VARIANTS.get(id);
+  if (v === undefined) { v = gearVariant(id, (b) => BASE_ITEMS[b]); VARIANTS.set(id, v); }
+  return v ?? undefined;
+};
+export const ITEMS: Record<string, ItemDef> = new Proxy(BASE_ITEMS, {
+  get: (t, k) => (typeof k !== 'string' || k in t || !k.includes('__') ? (t as Record<string | symbol, unknown>)[k] : variant(k)),
+  has: (t, k) => k in t || (typeof k === 'string' && k.includes('__') && !!variant(k)),
+});
+
 export const RARITY_COLOR: Record<Rarity, string> = {
   common: '#b8b2a4',
   uncommon: '#5fcf5a',
   rare: '#4fa0ff',
   epic: '#b46aff',
+  legendary: '#ff9a2a',
 };
+
+// Named pieces (data/gear.ts).
+for (const d of NAMED_ITEMS) ITEMS[d.id] = d;
 
 // Side content items (src/data/content).
 import { CONTENT } from './content';

@@ -13,6 +13,7 @@ import {
   ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, SHOP_STOCK, SKILLS, Station, TREE_INFO,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
+import { baseOf, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal } from '../entities/Animal';
@@ -339,6 +340,16 @@ export class Game implements GameApi {
   /** Dev tools (ui/DevPanel.ts): F8, for developers' accounts only. */
   private devPanel!: DevPanel;
   private dev = { god: false, fast: false };
+  /** What the named pieces you wear do (data/gear.ts), worked out again when what you wear changes. */
+  private fxKey = '';
+  private fxSet = new Set<NamedFx>();
+  /** Blows in a row on one foe (the Clinker tusk); a fury after a kill (Tallow Jack's knife); when you were
+   *  last hurt (Whiteface's ruff); when the sexton's helm last warded you; a leaping crit in flight (the Kettle light). */
+  private streak: { e: Enemy | null; n: number } = { e: null, n: 0 };
+  private furyUntil = 0;
+  private lastHurt = -99;
+  private glassAt = -99;
+  private chaining = false;
   private autosave = 0;
   private hudTimer = 0;
   private lastSkill: SkillId = 'melee';
@@ -510,7 +521,7 @@ export class Game implements GameApi {
         const xp = Math.round(xp0 * k), marks = Math.round(marks0 * k);
         if (xp) this.addXp('melee', xp);
         if (marks) this.addMarks(marks);
-        for (const it of items) this.give(it, 1);
+        for (const it of items) this.give(this.dropped(it, 'elite'), 1);
         this.hud.system(why + (xp ? ` (+${xp} XP)` : ''));
       },
       level: () => this.level('melee'),
@@ -584,7 +595,7 @@ export class Game implements GameApi {
       reward: (xp, marks, items, why) => {
         if (xp) this.addXp('melee', xp);
         if (marks) this.addMarks(marks);
-        for (const it of items) this.give(it, 1);
+        for (const it of items) this.give(this.dropped(it, 'boss'), 1);
         this.hud.system(why + (xp ? ` (+${xp} XP)` : ''));
       },
       banner: (t, sub) => this.hud.banner(t, sub),
@@ -619,6 +630,16 @@ export class Game implements GameApi {
       scene: this.scene,
       system: (t) => this.hud.system(t),
       qStatus: (d, n) => this.dungeons.onQueue(d, n),
+      uGrant: (id, ok, n, cap, first) => {
+        const d = ITEMS[id];
+        if (!ok || !d?.named) return;
+        const item = `${id}__n${n}`;
+        this.setFlag('u:' + item, first);
+        if (!this.give(item)) { this.setFlag('uPending', [...((this.flag('uPending') as string[] | undefined) ?? []), item]); return; }
+        this.hud.banner(d.name, `Named · No. ${n} of ${cap} in the realm`, true);
+        this.hud.system(`${d.name}, No. ${n} of the ${cap} in the realm. ${d.named.text}`);
+        this.audio.sting('victory');
+      },
       qReady: (run, d, names, hench, secs) => this.dungeons.onReady(run, d, names, hench, secs),
       dStart: (run, d, members, missing) => this.dungeons.onStart(run, d, members.map((m) => ({ id: m.id, name: m.name, role: (m.role === 'tank' || m.role === 'healer' ? m.role : 'damage') as Role })), henchmenFor(missing.filter((r): r is Role => r === 'tank' || r === 'healer' || r === 'damage')).map((h) => h.id)),
       dEv: (from, k, i, dmg) => this.dungeons.onEvent(from, k, i, dmg),
@@ -736,7 +757,7 @@ export class Game implements GameApi {
     if (ok) {
       this.hud.loot(item, n); this.sfx('pickup');
       const d = ITEMS[item];
-      if (d.weapon || d.armor) this.setFlag('found:' + item); // the armoury remembers every piece
+      if (d.weapon || d.armor) this.setFlag('found:' + baseOf(item)); // the armoury remembers every piece
     }
     else this.hud.system('Your pack is full.');
     this.hud.refresh('inv');
@@ -1132,6 +1153,29 @@ export class Game implements GameApi {
   private get helm() { return this.save.equip.head ? ITEMS[this.save.equip.head].armor : undefined; }
   /** The regional set bonus in force (GEAR_SETS), if both pieces match. */
   private get gearSet() { return activeSet(this.save.equip); }
+  private get fx(): Set<NamedFx> {
+    const e = this.save.equip, worn = [e.weapon, e.head, e.chest, e.legs, e.hands, e.feet], key = worn.join('|');
+    if (key !== this.fxKey) {
+      this.fxKey = key;
+      this.fxSet = new Set(worn.map((id) => (id ? ITEMS[id]?.named?.fx : undefined)).filter((f): f is NamedFx => !!f));
+    }
+    return this.fxSet;
+  }
+  /** How fast you swing: the weapon, the calling's haste, and a fury after a kill. */
+  private get pace(): number { return (this.blade?.speed ?? 1) * this.kit.attackSpeed() * (this.furyUntil > this.elapsed ? 1.25 : 1); }
+  /** A drop: weapons and armour come rolled (data/gear.ts), anything else as it is. */
+  private dropped(id: string, source: DropSource): string { const d = ITEMS[id]; return d ? rollGear(d, source) : id; }
+  /** A named piece has dropped: the realm numbers it, if any are left (server/uniques.mjs). Offline there's
+   *  no count to keep, so none drop. */
+  private claimNamed(id: string): void {
+    if (this.online.status !== 'online') return;
+    if (this.inv.freeSlots() < 1) { this.hud.system('Something glints in what\'s left of it, but your pack is full.'); return; }
+    this.online.uClaim(id);
+  }
+  private healSelf(n: number): void {
+    const h = Math.min(this.maxHp - this.hp, Math.round(n));
+    if (h > 0 && !this.dead) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
+  }
 
   private sfx(name: Sfx, vol = 1): void { this.audio.play(name, vol); }
 
@@ -1158,6 +1202,9 @@ export class Game implements GameApi {
 
   persist(): void {
     if (this.mode !== 'play' || this.restoring) return;
+    // A named piece the realm numbered for you while your pack was full
+    const owed = this.flag('uPending') as string[] | undefined;
+    if (owed?.length && this.inv.freeSlots() > 0 && this.give(owed[0])) this.setFlag('uPending', owed.slice(1));
     const p = this.player.position;
     this.save.pos = this.dungeons?.savePos() ?? [p.x, p.y, p.z];
     this.save.yaw = this.player.yaw;
@@ -2450,6 +2497,7 @@ export class Game implements GameApi {
       const info = ORE_INFO[a.ore.kind];
       if (!this.inv.canAdd(info.item)) { this.hud.system('Your pack is full.'); this.cancelActions(); return; }
       this.give(info.item);
+      if (this.fx.has('prospector') && Math.random() < 0.2 && this.inv.canAdd(info.item)) this.give(info.item);
       this.addXp('mining', info.xp);
       this.sfx('oreBreak');
       this.particles.debris(new THREE.Vector3(a.ore.x + 0.5, a.ore.y + 0.5, a.ore.z + 0.5), ['#7f8389', '#5d6066'], 14, 4);
@@ -2460,6 +2508,7 @@ export class Game implements GameApi {
       const info = TREE_INFO[a.tree.kind];
       if (!this.inv.canAdd(info.item)) { this.hud.system('Your pack is full.'); this.cancelActions(); return; }
       this.give(info.item);
+      if (this.fx.has('prospector') && Math.random() < 0.2 && this.inv.canAdd(info.item)) this.give(info.item);
       this.addXp('woodcutting', info.xp);
       a.tree.logs--;
       if (a.tree.logs <= 0) {
@@ -2682,7 +2731,7 @@ export class Game implements GameApi {
     }
     const combo = this.comboWindow > 0 ? (this.comboIndex + 1) % 3 : 0;
     this.comboIndex = combo;
-    const dur = (combo === 2 ? 0.55 : 0.42) / ((this.blade?.speed ?? 1) * this.kit.attackSpeed());
+    const dur = (combo === 2 ? 0.55 : 0.42) / this.pace;
     this.attack = { kind: 'strike', t: 0, dur, hitAt: dur * 0.48, hit: false, combo };
     this.player.model.comboIndex = combo;
     this.player.model.setState('attack');
@@ -2695,7 +2744,7 @@ export class Game implements GameApi {
   private cleave(): void {
     if (this.cds.cleave > 0 || this.attack) return;
     this.cancelActions();
-    const pace = (this.blade?.speed ?? 1) * this.kit.attackSpeed();
+    const pace = this.pace;
     this.attack = { kind: 'cleave', t: 0, dur: 0.6 / pace, hitAt: 0.28 / pace, hit: false, combo: 0 };
     this.player.model.setState('cleave');
     this.player.model.stateTime = 0;
@@ -2713,6 +2762,9 @@ export class Game implements GameApi {
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
   private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
     if (!e.alive) return 0;
+    const fx = this.fx;
+    // The Clinker tusk: blows in a row on one foe build, 5% a blow up to a quarter
+    if (fx.has('momentum') && !quiet) { this.streak = this.streak.e === e ? { e, n: Math.min(5, this.streak.n + 1) } : { e, n: 0 }; raw *= 1 + this.streak.n * 0.05; }
     const flank = this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1;
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
     e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
@@ -2729,6 +2781,17 @@ export class Game implements GameApi {
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
     if (crit) { e.punch = Math.max(e.punch, e.def.elite ? 0.12 : 0.24); this.hitstop = Math.max(this.hitstop, 0.08); this.rig.addShake(0.16); }
     this.addXp('melee', Math.max(1, Math.round(dmg * 0.4)));
+    if (!quiet) {
+      if (fx.has('bleed') && e.alive) this.kit.addDot(e, (dmg * 0.33) / 4, 4);
+      if (fx.has('chill')) e.slowLeft = 3;
+      if (fx.has('weaken')) e.weakLeft = 4;
+      if (crit && fx.has('crit_heal')) this.healSelf(this.maxHp * 0.02);
+      // The Kettle light: a critical hit leaps to the nearest other foe
+      if (crit && fx.has('chain') && !this.chaining) {
+        const o = this.enemies.filter((x) => x !== e && x.alive && x.pos.distanceTo(e.pos) < 5).sort((a, b) => a.pos.distanceTo(e.pos) - b.pos.distanceTo(e.pos))[0];
+        if (o) { this.chaining = true; this.particles.sparks(tmpV2.copy(o.pos).setY(o.pos.y + 0.8), 10, '#c8f4ff'); this.dealDamage(o, raw * 0.5, false, true); this.chaining = false; }
+      }
+    }
     if (e.justDied) this.onEnemyKilled(e);
     return dmg;
   }
@@ -2738,6 +2801,7 @@ export class Game implements GameApi {
     if (this.cds.roll > 0 || this.energy < cost) return;
     this.cancelActions();
     this.energy -= cost;
+    if (this.fx.has('tide')) { this.energy = Math.min(100, this.energy + 10); this.healSelf(this.maxHp * 0.04); }
     this.cds.roll = 0.8;
     this.iframes = 0.46 + this.armour.roll;
     this.rolledThrough = false;
@@ -2827,17 +2891,22 @@ export class Game implements GameApi {
     this.dungeons.onKilled(e);
     this.addXp('melee', e.def.xp);
     const [lo, hi] = e.def.marks;
-    const m = lo + Math.floor(Math.random() * (hi - lo + 1));
+    const m = Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (this.fx.has('fortune') ? 1.33 : 1));
     if (m > 0) this.addMarks(m);
+    if (this.fx.has('howl')) this.furyUntil = this.elapsed + 6;
+    if (this.fx.has('second_wind')) this.healSelf(this.maxHp * 0.06);
+    if (!e.questTag) for (const d of NAMED_BY_SOURCE.get(e.def.type) ?? []) if (Math.random() < d.named!.chance) this.claimNamed(d.id);
     const reg = regionAt(e.home.x, e.home.z).a, pieces = REGION_ARMOUR[reg];
     if (e.def.type.startsWith('r_')) this.gainStanding(reg, GAINS.rare);
     else if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.gainStanding(reg, GAINS.boss);
-    if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(pieces[Math.floor(Math.random() * pieces.length)], 1);
+    const source: DropSource = e.isBoss ? 'boss' : e.def.elite || e.def.type.startsWith('r_') ? 'elite' : 'mob';
+    if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(this.dropped(pieces[Math.floor(Math.random() * pieces.length)], source), 1);
     for (const l of e.def.loot) {
       if (Math.random() < l.chance) {
-        this.give(l.item, l.min ?? 1);
+        const got = this.dropped(l.item, source);
+        this.give(got, l.min ?? 1);
         // Gear is a sidegrade, so say what it trades
-        const d = ITEMS[l.item];
+        const d = ITEMS[got];
         if ((d.weapon || d.armor) && d.stats) this.hud.system(`${d.name}: ${d.stats}`);
       }
     }
@@ -2872,9 +2941,22 @@ export class Game implements GameApi {
     }
     const armor = this.armour.defense;
     // Defence takes a share of the blow, with diminishing returns (D/(D+40)): see data/armour.ts
-    const taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) * (1 - armor / (armor + 40))), from));
+    const fx = this.fx;
+    if (from.weakLeft > 0) dmg *= 0.85; // tarnished by Verdigris greaves
+    let taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) * (1 - armor / (armor + 40))), from));
     if (taken <= 0) { this.floatAt(this.player.position, 2.2, 'Absorbed', 'heal'); this.lastCombat = this.elapsed; return; }
+    // The barnacle coat when you're low; Whiteface's ruff after a quiet spell
+    if (fx.has('last_stand') && this.hp < this.maxHp / 3) taken = Math.max(1, Math.round(taken * 0.75));
+    if (fx.has('stone_skin') && this.elapsed - this.lastHurt > 8) taken = Math.max(1, Math.round(taken * 0.5));
+    this.lastHurt = this.elapsed;
     this.hp -= taken;
+    // The Rust Queen's gauntlets give a third of it back; the sexton's helm wards you below half health
+    if (fx.has('thorns') && from.alive) this.dealDamage(from, taken * 0.33, false, true);
+    if (fx.has('glassward') && this.hp > 0 && this.hp < this.maxHp / 2 && this.elapsed - this.glassAt > 60) {
+      this.glassAt = this.elapsed;
+      this.kit.addShield(this.maxHp * 0.2, 8);
+      this.floatAt(this.player.position, 2.6, 'Warded', 'heal');
+    }
     this.lastCombat = this.elapsed;
     this.dismount();
     this.hitAnim = 0.3;
@@ -3371,7 +3453,8 @@ export class Game implements GameApi {
       this.hp = Math.min(this.maxHp, this.hp + h);
       if (Math.random() < dt * 6) this.particles.heal(P.position);
     }
-    if (this.elapsed - this.lastCombat > 6 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.035 * dt);
+    const moss = this.fx.has('regrowth');
+    if (this.elapsed - this.lastCombat > (moss ? 3 : 6) && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.035 * (moss ? 1.5 : 1) * dt);
 
     const mv = this.dialogue || this.attack?.kind === 'cleave' ? new THREE.Vector3() : this.moveVector();
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
@@ -3380,7 +3463,8 @@ export class Game implements GameApi {
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind));
     if (this.attack) speed *= 0.35;
     if (this.dev.fast) speed *= 2.5;
-    speed *= this.hazards.slow;
+    if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;
+    if (this.fx.has('drover') && this.elapsed - this.lastCombat > 3) speed *= 1.12;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
     // Moving, jumping, fighting or working ends an emote; the short ones also end on their own
     if (this.emote) {

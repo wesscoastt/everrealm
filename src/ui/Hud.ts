@@ -3,6 +3,7 @@ import { SLOT_NAMES } from '../data/armour';
 import type { Equip } from '../data/items';
 import './theme.css';
 import { activeSet, GEAR_SETS, ITEMS, RARITY_COLOR, SkillId } from '../data/items';
+import { baseOf, QUALITY } from '../data/gear';
 import { levelForXp, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
@@ -1238,7 +1239,8 @@ export class Hud {
    */
   private armoury(): HTMLElement {
     const save = this.ctx.save;
-    const owned = new Set([save.equip.weapon, save.equip.head, save.equip.chest, save.equip.legs, save.equip.hands, save.equip.feet, ...save.inv.map((s) => s?.id)]);
+    // (a rolled piece counts as the piece it was rolled from)
+    const owned = new Set([save.equip.weapon, save.equip.head, save.equip.chest, save.equip.legs, save.equip.hands, save.equip.feet, ...save.inv.map((s) => s?.id)].map((x) => x && baseOf(x)));
     const found = (id: string) => owned.has(id) || !!save.flags['found:' + id];
     const pieces = Object.values(ITEMS).filter((d) => d.set);
     const box = el('details', 'armoury');
@@ -1260,11 +1262,18 @@ export class Hud {
     if (d.set) {
       // Which set it belongs to, how much of it is worn, and what the pair does
       const S = GEAR_SETS[d.set], eq = this.ctx.save.equip;
-      const worn = [eq.weapon, eq.head].filter((x) => x && ITEMS[x].set === d.set).length;
+      const worn = [eq.weapon, eq.head, eq.chest, eq.legs, eq.hands, eq.feet].filter((x) => x && ITEMS[x]?.set === d.set).length;
       extra = `<b>${esc(S.name)}</b> set (${worn}/2 worn): ${esc(S.bonus)}` + (extra ? '<br>' + extra : '');
     }
     const kindName: Record<string, string> = { material: 'Material', tool: 'Tool', weapon: 'Weapon', armor: 'Armour', food: 'Food', quest: 'Quest item', collectible: 'Collectible', trophy: 'Trophy' };
-    return `<h5 style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</h5><div class="kind">${kindName[d.kind]}${d.rarity !== 'common' ? ' · ' + d.rarity[0].toUpperCase() + d.rarity.slice(1) : ''}</div><div class="desc">${esc(d.desc)}</div>${d.stats ? `<div class="stats">${esc(d.stats)}</div>` : ''}<div class="val">Worth about ${d.value} marks</div>${extra ? `<div class="hint">${extra}</div>` : ''}`;
+    // Rolled gear says its quality; a named piece says what it does, its number, and where it comes from
+    const grade = d.named ? 'Named' : d.quality !== undefined ? QUALITY[d.quality].word : d.rarity !== 'common' ? d.rarity[0].toUpperCase() + d.rarity.slice(1) : '';
+    let named = '';
+    if (d.named) {
+      const first = d.serial ? this.ctx.save.flags['u:' + id] : undefined;
+      named = `<div class="named"><b>${esc(d.named.text)}</b><span>${d.serial ? `No. ${d.serial} of the ${d.named.cap} in the realm` : `The realm holds ${d.named.cap}`}${first ? ` · first found by ${esc(String(first))}` : ''}</span><span>From ${esc(d.named.where)}</span></div>`;
+    }
+    return `<h5 style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</h5><div class="kind">${kindName[d.kind]}${grade ? ' · ' + grade : ''}</div><div class="desc">${esc(d.desc)}</div>${d.stats ? `<div class="stats">${esc(d.stats)}</div>` : ''}${named}<div class="val">Worth about ${d.value} marks</div>${extra ? `<div class="hint">${extra}</div>` : ''}`;
   }
 
   showTooltip(html: string, x: number, y: number): void {

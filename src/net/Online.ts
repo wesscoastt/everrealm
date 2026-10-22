@@ -135,6 +135,10 @@ export interface OnlineHooks {
   dStart?(run: number, dungeon: string, members: { id: number; name: string; role: string }[], missing: string[]): void;
   dEv?(from: number, k: 'hit' | 'kill', i: number, dmg: number): void;
   dLeft?(name: string): void;
+  /** The realm's answer to a named piece dropping: its number, or none left (gone) / asked too soon. */
+  uGrant?(id: string, ok: boolean, n: number, cap: number, first: string, gone: boolean): void;
+  /** Every named piece: how many the realm holds, and who has found the ones given out. */
+  uLedger?(ledger: Record<string, { cap: number; found: { n: number; name: string }[] }>): void;
 }
 
 export class Online {
@@ -259,6 +263,8 @@ export class Online {
       case 'dStart': this.hooks.dStart?.(Number(m.run), String(m.dungeon), Array.isArray(m.members) ? (m.members as { id: number; name: string; role: string }[]) : [], Array.isArray(m.missing) ? (m.missing as unknown[]).map(String) : []); break;
       case 'dEv': if (m.k === 'hit' || m.k === 'kill') this.hooks.dEv?.(Number(m.from), m.k, Number(m.i), Number(m.dmg) || 0); break;
       case 'dLeft': this.hooks.dLeft?.(String(m.name)); break;
+      case 'uGrant': this.hooks.uGrant?.(String(m.id), !!m.ok, Number(m.n) || 0, Number(m.cap) || 0, String(m.first ?? ''), !!m.gone); break;
+      case 'uLedger': if (m.ledger && typeof m.ledger === 'object') this.hooks.uLedger?.(m.ledger as Record<string, { cap: number; found: { n: number; name: string }[] }>); break;
     }
   }
 
@@ -383,6 +389,9 @@ export class Online {
   // The Group Finder (server/finder.mjs)
   qJoin(dungeon: string, role: string): void { this.emit({ t: 'qJoin', dungeon, role }); }
   qLeave(): void { this.emit({ t: 'qLeave' }); }
+  /** A named piece has dropped: ask the realm for its number. */
+  uClaim(id: string): void { this.emit({ t: 'uClaim', id }); }
+  uLedger(): void { this.emit({ t: 'uLedger' }); }
   /** Stop waiting for a full group: go in with whoever's queued, henchmen for the rest. */
   qNow(): void { this.emit({ t: 'qNow' }); }
   qGroup(dungeon: string): void { this.emit({ t: 'qGroup', dungeon }); }

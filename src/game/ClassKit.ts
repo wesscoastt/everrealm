@@ -171,6 +171,10 @@ export class ClassKit {
 
   /** Blood Rush: how much faster you swing. */
   attackSpeed(): number { return this.rushUntil > this.clock ? T.rush.speed : 1; }
+  /** A wound from outside the calling (a named piece's): it ticks with the calling's own. */
+  addDot(e: Enemy, perSec: number, secs: number): void { this.dots.push({ e, perSec, left: secs, tick: 1 }); }
+  /** A ward from outside the calling (a named piece's): it takes blows until it's spent or runs out. */
+  addShield(amount: number, secs: number): void { this.shield = Math.max(this.shield, amount); this.shieldUntil = Math.max(this.shieldUntil, this.clock + secs); }
 
   /** A Strike is about to land: Shadowstep's heavy blow. */
   strikeBonus(): { mult: number; crit: boolean } {

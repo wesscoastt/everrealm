@@ -423,6 +423,8 @@ stylePass();
 const STARTER = new Set(['worn_sword']);
 for (const d of Object.values(ITEMS)) {
   if (!(d.weapon || d.armor) || STARTER.has(d.id)) continue;
+  // Named pieces spend two more and do one thing of their own (npm run gear checks them)
+  if (d.named) continue;
   // Body armour spends no budget: its defence is its weight's, and it carries nothing else (data/armour.ts)
   if (d.armor && d.armor.slot !== 'head') {
     const a = d.armor;

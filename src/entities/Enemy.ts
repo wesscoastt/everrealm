@@ -67,6 +67,10 @@ export class Enemy {
   justDied = false;
   /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
   stun = 0;
+  /** Seconds left chilled by a named piece: it moves at two thirds of its pace. */
+  slowLeft = 0;
+  /** Seconds left tarnished by a named piece: its blows do 15% less. */
+  weakLeft = 0;
   knock = new THREE.Vector3();
   /** A hit's squash, decaying (the game makes it bigger for crits). */
   punch = 0;
@@ -319,7 +323,7 @@ export class Enemy {
           this.model.setAnim('windup');
           break;
         }
-        const pace = def.speed * (this.enraged ? 1.15 : 1);
+        const pace = def.speed * (this.enraged ? 1.15 : 1) * (this.slowLeft > 0 ? 0.67 : 1);
         if (distP > def.range * 0.6) {
           const moved = this.swimToward(aim.x, aim.y, aim.z, pace, dt);
           moveSpeed = moved ? pace : 0;
@@ -406,6 +410,8 @@ export class Enemy {
 
   update(dt: number, ctx: EnemyContext): void {
     this.justDied = false;
+    if (this.slowLeft > 0) this.slowLeft -= dt;
+    if (this.weakLeft > 0) this.weakLeft -= dt;
     if (ctx.level) this.scaleTo(ctx.level);
     this.timer += dt;
     this.cooldown -= dt;
@@ -498,7 +504,7 @@ export class Enemy {
           break;
         }
         const keep = def.attack === 'charge' ? def.range * 0.6 : def.range * 0.6;
-        const pace = def.speed * (this.enraged ? 1.15 : 1);
+        const pace = def.speed * (this.enraged ? 1.15 : 1) * (this.slowLeft > 0 ? 0.67 : 1);
         if (distP > keep) {
           const moved = this.stepToward(ctx.player.x, ctx.player.z, pace, dt);
           moveSpeed = moved ? pace : 0;
