@@ -11,6 +11,7 @@ import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
+import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -313,6 +314,8 @@ export function plan(): Plan {
     ...WORLD_BOSSES.map((b): Named => ({ id: 'lair-' + b.id, name: LAIR_NAMES[b.id], x: b.x, z: b.z, r0: 20, r1: 32, build: (s, g) => buildLair(s, g, b.type) })),
     ...SHARDFALLS.map(([x, z], i): Named => ({ id: 'shardfall-' + i, name: 'Shardfall ground', x, z, r0: 12, r1: 22, build: (s, g) => buildShardGround(s, g) })),
     { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
+    // Stables outside the towns (data/stables.ts)
+    ...STABLES.map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
   ];
   for (const n of named) {
     if (n.r1 > 0) flats.push({ x: n.x, z: n.z, r0: n.r0, r1: n.r1, h: n.h ?? Math.max(SEA + 2, Math.round(baseHeight(n.x, n.z))) });
@@ -3350,6 +3353,41 @@ export function plan(): Plan {
     // A trough and a lamp in the yard
     s.props.push({ t: 'barrel', x: x - 5.5, y: heightAt(x - 6, z + 2), z: z + 2.5 }, { t: 'crate', x: x - 4.6, y: heightAt(x - 5, z + 2), z: z + 2.8 }, { t: 'lantern', x: x - 3.5, y: heightAt(x - 4, z - 2), z: z - 2.5 });
     rect(s, x - 20, z - 14, x + 18, z + 35);
+  }
+
+  /** A stable outside a town: the block to one side of a yard, a paddock to the other, a sign by the road. */
+  function buildStable(s: Site, st: StableDef) {
+    const W = (u: number, v: number) => stableAt(st, u, v);
+    const box = (u0: number, v0: number, u1: number, v1: number): [number, number, number, number] => {
+      const [ax, az] = W(u0, v0), [bx, bz] = W(u1, v1);
+      return [Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz)];
+    };
+    const far = st.id === 'st-cragsby' || st.id === 'st-holme' || st.id === 'st-scarrow';
+    // The block: eleven across and six deep, its doors to the road
+    const [hx0, hz0, hx1, hz1] = box(-12, -8, -2, -3);
+    house(s, hx0, hz0, hx1 - hx0 + 1, hz1 - hz0 + 1, 1, Math.floor(heightAt((hx0 + hx1) / 2, (hz0 + hz1) / 2)), far ? 'slate' : 'thatch', st.face, { wall: B.Planks, role: 'store', chimney: false });
+    // The yard in front of it
+    const [yx0, yz0, yx1, yz1] = box(-12, -2, 0, 4);
+    pave(yx0, yz0, yx1, yz1, Math.floor(heightAt(st.x, st.z)), 'yard');
+    // The paddock, with a gap for a gate on the road side
+    const corner = (u: number, v: number) => W(u, v);
+    const line = (a: [number, number], b: [number, number]) => fence(s, a[0], a[1], b[0], b[1]);
+    line(corner(1, -9), corner(12, -9));
+    line(corner(12, -9), corner(12, 2));
+    line(corner(1, -9), corner(1, 2));
+    line(corner(1, 2), corner(5, 2));
+    line(corner(8, 2), corner(12, 2));
+    // Hay by the block, a trough in the paddock, a lantern and the sign by the road
+    for (const [u, v, h] of [[-13, -2, 2], [-13, 0, 1]] as const) {
+      const [x, z] = W(u, v);
+      for (let y = 0; y < h; y++) O.set(x, heightAt(x, z) + y, z, B.Hay);
+    }
+    const at = (u: number, v: number) => { const [x, z] = W(u, v); return { x: x + 0.5, y: heightAt(x, z), z: z + 0.5 }; };
+    s.props.push({ t: 'barrel', ...at(3, 0) }, { t: 'barrel', ...at(4, 0) });
+    s.props.push({ t: 'lantern', ...at(-12, 3) });
+    s.props.push({ t: 'sign', ...at(1, 4), ry: stableYaw(st), text: st.name });
+    const [rx0, rz0, rx1, rz1] = box(-13, -10, 13, 4);
+    rect(s, rx0, rz0, rx1, rz1);
   }
 
   /** A travellers' or workers' camp: tents round a fire with log seats, bedrolls, a lean-to and stores. */

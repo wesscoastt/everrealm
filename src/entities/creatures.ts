@@ -10,7 +10,9 @@ export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'r
 export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'ray', 'medusa']);
 
 /** Colour overrides so one body plan can serve several regional species. */
-export interface Palette { a?: string; b?: string; c?: string; glow?: boolean }
+/** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed. */
+export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie';
+export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed }
 export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze';
 
 const mats = new Map<string, THREE.Material>();
@@ -346,6 +348,54 @@ export class CreatureModel {
       add(leg, rb(0.14, 0.44, 0.16, 0.04), dark, 0, -0.74, 0.01);
       add(leg, rb(0.18, 0.12, 0.2, 0.03), hoof, 0, -1.04, 0.02);
       this.legs.push(leg);
+    }
+    if (this.pal.breed) this.horseBreed(this.pal.breed, head);
+  }
+
+  /** What a breed adds to the horse: the seat stays where it is, so anyone rides any of them. */
+  private horseBreed(breed: Breed, head: THREE.Group): void {
+    const white = lam('#f0ece4');
+    if (breed === 'pied') {
+      // White patches over the barrel, the quarters and the neck
+      add(this.body, rb(0.73, 0.46, 0.62, 0.14), white, 0, 1.38, 0.18);
+      add(this.body, rb(0.65, 0.4, 0.34, 0.12), white, 0, 1.48, -0.7);
+      add(this.body, rb(0.36, 0.42, 0.3, 0.08), white, 0, 1.78, 0.86, 0.55);
+      add(head, rb(0.12, 0.2, 0.5, 0.04), white, 0, 0.08, 0.3, 0.5); // blaze
+    } else if (breed === 'shire') {
+      // Heavy white feathering round the hooves and a broad blaze
+      for (const leg of this.legs) add(leg, rb(0.26, 0.3, 0.3, 0.08), white, 0, -0.9, 0.02);
+      add(head, rb(0.16, 0.24, 0.52, 0.05), white, 0, 0.06, 0.3, 0.5);
+    } else if (breed === 'elk') {
+      // A shaggy throat and broad, branching antlers
+      const horn = lam(this.pal.glow ? '#e8f4ff' : '#d8c8a8', this.pal.glow ? { emissive: new THREE.Color('#4a6a8a') } : undefined);
+      add(this.body, rb(0.3, 0.5, 0.3, 0.08), lam(this.pal.b ?? '#3a2a1e'), 0, 1.7, 1.1, 0.3);
+      for (const sd of [1, -1]) {
+        const a = new THREE.Group();
+        a.position.set(sd * 0.12, 0.26, -0.02);
+        a.rotation.set(-0.3, 0, sd * -0.5);
+        head.add(a);
+        add(a, rb(0.07, 0.6, 0.07, 0.02), horn, 0, 0.3, 0);
+        add(a, rb(0.06, 0.36, 0.06, 0.02), horn, sd * 0.14, 0.42, 0.08, 0, 0, sd * -0.7);
+        add(a, rb(0.06, 0.32, 0.06, 0.02), horn, sd * -0.04, 0.62, -0.1, -0.6, 0, sd * 0.3);
+        add(a, rb(0.22, 0.06, 0.3, 0.02), horn, sd * 0.06, 0.64, 0.02, 0, 0, sd * -0.2); // palm
+        add(a, rb(0.05, 0.24, 0.05, 0.02), horn, sd * 0.02, 0.18, 0.12, 0.8, 0, 0); // brow tine
+      }
+    } else if (breed === 'ram') {
+      // Curled horns and a fleece over the back
+      const horn = lam('#c8b890'), wool = lam(this.pal.a ?? '#e8e0d0');
+      for (const sd of [1, -1]) {
+        const curl = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.065, 6, 14, Math.PI * 1.6), horn);
+        curl.position.set(sd * 0.2, 0.08, -0.02);
+        curl.rotation.set(0, sd * Math.PI / 2, 0.6);
+        curl.castShadow = true;
+        head.add(curl);
+      }
+      for (const [x, y, z] of [[0, 1.66, 0.4], [0, 1.68, -0.4], [0.28, 1.5, 0], [-0.28, 1.5, 0], [0, 1.62, 0.84]] as const) add(this.body, rb(0.5, 0.26, 0.5, 0.12), wool, x, y, z);
+    } else if (breed === 'kelpie') {
+      // Weed hanging from the mane, and eyes that glow like a lamp under water
+      const weed = lam('#2e5a3a');
+      for (let i = 0; i < 5; i++) add(this.body, rb(0.05, 0.4 + (i % 2) * 0.2, 0.06, 0.02), weed, (i % 2 ? 0.08 : -0.08), 1.86 - i * 0.02, 0.6 + i * 0.12, 0.3);
+      for (const sd of [1, -1]) add(head, rb(0.05, 0.06, 0.06, 0.02), lam('#9af0e0', { emissive: new THREE.Color('#2aa890') }), sd * 0.18, 0.06, 0.12, 0.5);
     }
   }
 

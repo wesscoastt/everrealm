@@ -307,7 +307,7 @@ export class Online {
       if (r.mount !== r.horseOf) {
         if (r.horse) this.hooks.scene.remove(r.horse.root);
         const m = r.mount ? ITEMS[r.mount].mount! : null;
-        r.horse = m ? new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow }) : null;
+        r.horse = m ? new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed }) : null;
         if (r.horse) this.hooks.scene.add(r.horse.root);
         r.horseOf = r.mount;
       }

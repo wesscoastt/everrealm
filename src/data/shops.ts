@@ -43,7 +43,6 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'fishing_rod', price: 16 },
       { item: 'cooked_mackerel', price: 24 },
       ...['linen_chest', 'linen_legs', 'linen_hands', 'linen_feet', 'leather_chest', 'leather_legs', 'leather_hands', 'leather_feet'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 20) * 2) })),
-      { item: 'halter_bay', price: 60, when: (g) => !g.has('halter_bay') },
       ...['furn_chair', 'furn_bench', 'furn_dresser', 'furn_shelves', 'furn_chest', 'furn_rug_blue', 'furn_rug_green'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 10) * 1.8) })),
     ],
     buyRate: () => 0.6,
@@ -59,7 +58,6 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'cooked_seabass', price: 34 },
       { item: 'oilskin_chest', price: 110 },
       { item: 'oilskin_feet', price: 70 },
-      { item: 'halter_grey', price: 80, when: (g) => !g.has('halter_grey') },
     ],
     buyRate: (_g, item) => (FISH.has(item) ? 0.85 : 0.5),
     footer: () => 'Bett pays well for fish and badly for everything else',
@@ -71,7 +69,6 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'iron_hatchet', price: 90 },
       { item: 'bronze_pickaxe', price: 40 },
       { item: 'bread', price: 6 },
-      { item: 'halter_chestnut', price: 80, when: (g) => !g.has('halter_chestnut') },
       // Wick's pick sits on the shelf while the matter is open
       { item: 'abery_pick', price: 40, when: (g) => g.stage('fairPrice') === 'getPick' && !g.has('abery_pick') && !g.flag('fpRelease') },
     ],

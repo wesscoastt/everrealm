@@ -6,8 +6,9 @@ import { WEATHERHOLMS } from './weatherholms';
 import { HOLMSEY } from './holmsey';
 import { KETTLE } from './kettle';
 import { PACKWOMAN } from './packwoman';
+import { STABLE_CONTENT } from './stables';
 
 // Every region's side content. Add a region by writing its module and listing it here.
-export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER];
+export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER, STABLE_CONTENT];
 
 export const BOARDS: Board[] = CONTENT.flatMap((c) => c.boards ?? []);

@@ -71,6 +71,7 @@ import { Social } from './Social';
 import { Exchange } from './Exchange';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
+import { Stables } from './Stables';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
 import { regionLevel, rewardScale } from '../data/scaling';
@@ -205,6 +206,8 @@ export class Game implements GameApi {
   dungeons!: Dungeons;
   /** Vents, bogs and loose cliffs (game/Hazards.ts). */
   private hazards!: Hazards;
+  /** The horses for sale in the stables' paddocks (game/Stables.ts). */
+  private stables!: Stables;
   /** The frames under your own: the online group, and any henchmen with you. */
   private showGroup(): void {
     const extra = this.dungeons?.rows() ?? [];
@@ -536,6 +539,7 @@ export class Game implements GameApi {
       this.animals.push(an);
       this.scene.add(an.model.root);
     }
+    this.stables = new Stables(this.scene, this.world.voxels);
     this.hazards = new Hazards({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -2437,7 +2441,7 @@ export class Game implements GameApi {
   private toggleMount(which?: string): void {
     if (this.horse && !which) { this.dismount(); return; }
     const id = which ?? this.halters()[0];
-    if (!id) { this.hud.system('You have no horse. Halters are sold in Ansbury, Gullmouth, Harrowgate and Kelderby.'); return; }
+    if (!id) { this.hud.system('You have no horse. The stables outside Ansbury, Gullmouth and Harrowgate Works sell them, and so does Cai Morgan in Kelderby. The far towns over the necks breed rarer ones.'); return; }
     const P = this.player;
     if (this.dialogue || this.dead || this.mode !== 'play') return;
     if (P.swimming) { this.hud.system('Not in the water.'); return; }
@@ -2446,7 +2450,7 @@ export class Game implements GameApi {
     this.dismount(true);
     this.cancelActions();
     const m = ITEMS[id].mount!;
-    const horse = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow });
+    const horse = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed });
     P.footPosition(horse.root.position);
     horse.root.rotation.y = P.facing;
     this.scene.add(horse.root);
@@ -3013,6 +3017,7 @@ export class Game implements GameApi {
     this.activities.update(dt);
     this.dungeons.update(dt);
     this.hazards.update(dt);
+    this.stables.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
