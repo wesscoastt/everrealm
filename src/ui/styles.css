@@ -463,7 +463,7 @@ body.riding #touch .tb.ride { box-shadow: inset 0 0 0 2px #e8c882, 0 0 12px rgba
 @media (max-width: 520px) {
   #ui .ab-plate { gap: 4px; padding: 6px 8px 10px; }
   #ui .ab-slot { width: 38px; height: 38px; }
-  #ui .menu-btns { display: grid; grid-template-columns: repeat(3, 24px); gap: 3px; }
+  #ui .menu-btns { display: grid; grid-template-columns: repeat(4, 24px); gap: 3px; }
   #ui .menu-btn { width: 24px; height: 24px; font-size: 10px; }
   #touch .tbtns { bottom: 96px; }
   #touch .stick { left: 76px; top: calc(100% - 200px); }

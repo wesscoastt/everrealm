@@ -936,7 +936,7 @@ export class Game implements GameApi {
     this.planner.close();
     this.hud.banner(rebuild ? 'Rebuilt' : 'Your house stands', `${lot.name}, the Wendside lots`, true);
     this.sfx('levelUp');
-    this.hud.system('The Ansbury builders raise it in an afternoon and leave you the key. Furnish it however you like: press E inside to arrange the furniture.');
+    this.hud.system('The Ansbury builders raise it in an afternoon and leave you the key. Furnish it however you like: inside, use the prompt to arrange the furniture.');
     this.hud.refresh();
     this.persist();
   }
@@ -952,7 +952,7 @@ export class Game implements GameApi {
       this.home.render();
       this.hud.banner('Wendside Cottage', 'A home of your own', true);
       this.sfx('discover');
-      this.hud.system('The key is under the barrel. Buy furniture from Tamsin or Perrin, then press E inside to arrange it.');
+      this.hud.system('The key is under the barrel. Buy furniture from Tamsin or Perrin, then use the prompt inside to arrange it.');
       this.hud.refresh();
       this.persist();
     }, () => {}, 30);
@@ -1487,8 +1487,9 @@ export class Game implements GameApi {
       this.hud.banner('Hollin Ford', 'Hollindale');
       this.currentRegion = 'hollin';
       if (!this.save.discovered.includes('hollin')) this.save.discovered.push('hollin');
-      setTimeout(() => this.hud.system('WASD to move. Drag the mouse to look around.'), 1500);
-      setTimeout(() => this.hud.system('People with a gold ! have something to say. Press E to talk.'), 5000);
+      const touch = document.body.classList.contains('touch');
+      setTimeout(() => this.hud.system(touch ? 'The stick on the left moves you. Drag anywhere else to look around.' : 'WASD to move. Drag the mouse to look around.'), 1500);
+      setTimeout(() => this.hud.system(touch ? 'People with a gold ! have something to say. Tap the prompt, or Use, to talk.' : 'People with a gold ! have something to say. Press E to talk.'), 5000);
     }
     this.persist();
   }

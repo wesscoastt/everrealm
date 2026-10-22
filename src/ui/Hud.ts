@@ -360,6 +360,7 @@ export class Hud {
           <button class="menu-btn" data-p="skills">K<small>Skills</small></button>
           <button class="menu-btn" data-p="journal">J<small>Journal</small></button>
           <button class="menu-btn" data-p="map">M<small>Map</small></button>
+          <button class="menu-btn" data-p="finder" title="Group Finder: dungeons, with a group or henchmen (P)">P<small>Group</small></button>
           <button class="menu-btn" data-p="guild">O<small>Guild</small></button>
           <button class="menu-btn" data-p="settings">☰<small>Menu</small></button>
         </div>
@@ -491,7 +492,9 @@ export class Hud {
     const p = this.q('#prompt');
     if (!key) { p.classList.remove('show'); return; }
     p.classList.add('show');
-    p.innerHTML = `<kbd>${key}</kbd><span>${esc(text)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}${warn ? `<span class="warn">${esc(warn)}</span>` : ''}`;
+    // On a touch screen the prompt itself is the button (TouchControls)
+    const k = key === 'E' && document.body.classList.contains('touch') ? 'Tap' : key;
+    p.innerHTML = `<kbd>${k}</kbd><span>${esc(text)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}${warn ? `<span class="warn">${esc(warn)}</span>` : ''}`;
   }
 
   setCast(label: string | null, progress = 0, alert = false): void {
@@ -1583,7 +1586,7 @@ export class Hud {
     }).join('');
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
     body.innerHTML = status + roles + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
-    this.q('#finder-panel .footer').innerHTML = '<span>P opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit\'s chamber, and the crack in the Kettle\'s north wall.</span>';
+    this.q('#finder-panel .footer').innerHTML = `<span>${document.body.classList.contains('touch') ? 'The Group button' : 'P'} opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit's chamber, and the crack in the Kettle's north wall.</span>`;
     body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
     body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return;
