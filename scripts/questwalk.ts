@@ -14,6 +14,7 @@
 // provide, writing that breaks the style guide, and gear off the horizontal budget (GEAR_BUDGET). Warnings are reported but don't fail it.
 
 import fs from 'node:fs';
+import { WEIGHTS } from '../src/data/armour';
 import { DIALOGUE, READABLES } from '../src/data/dialogue';
 import { ENEMIES, FISH_TABLE, ORE_INFO, RECIPES, SHOP_STOCK, TREE_INFO } from '../src/data/gameplay';
 import { GEAR_BUDGET, gearPoints, ITEMS } from '../src/data/items';
@@ -422,6 +423,12 @@ stylePass();
 const STARTER = new Set(['worn_sword']);
 for (const d of Object.values(ITEMS)) {
   if (!(d.weapon || d.armor) || STARTER.has(d.id)) continue;
+  // Body armour spends no budget: its defence is its weight's, and it carries nothing else (data/armour.ts)
+  if (d.armor && d.armor.slot !== 'head') {
+    const a = d.armor;
+    if (!a.weight || a.defense !== WEIGHTS[a.weight].defense || a.vigor || a.wind || a.roll) err('gear:' + d.id, `${d.id}: body armour should have its weight's defence and nothing else`);
+    continue;
+  }
   const budget = d.weapon ? GEAR_BUDGET.weapon : GEAR_BUDGET.head, pts = gearPoints(d);
   if (Math.abs(pts - budget) > 0.01) err('gear:' + d.id, `${d.id}: gear worth ${pts.toFixed(2)} points, the budget is ${budget}`);
 }
