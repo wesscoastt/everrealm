@@ -124,7 +124,12 @@
 
 /* ------------------------------------------------------------- Action bar */
 #actionbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
-#xpbar { width: 520px; }
+#xpbar { position: relative; width: 520px; }
+#skillxp { position: absolute; right: 0; bottom: calc(100% + 5px); width: 210px; display: flex; align-items: center; gap: 6px; opacity: 0; transform: translateY(4px); transition: opacity 0.3s, transform 0.3s; pointer-events: none; }
+#skillxp.show { opacity: 1; transform: none; }
+#skillxp span { font: 500 11px var(--px); color: var(--cream); text-shadow: var(--hard1); white-space: nowrap; }
+#skillxp .bar { flex: 1; height: 9px; }
+#skillxp .bar > b { font-size: 8px; }
 #xpbar .bar { height: 11px; }
 #xpbar .bar > b { font-size: 10px; }
 #xpbar .label { font: 500 12px var(--px); color: var(--cream-d); text-align: center; margin-bottom: 3px; text-shadow: var(--hard1); letter-spacing: 0.5px; }

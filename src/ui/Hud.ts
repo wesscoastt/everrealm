@@ -366,7 +366,7 @@ export class Hud {
     this.buildChat();
     const ab = el('div', 'hud-only'); ab.id = 'actionbar';
     const slot = (i: number, k: string, key: string, t: string) => `<div class="ab-slot" data-ab="${i}" title="${t} (${key})"><img src="${abilityIcon(k)}" alt=""><span class="key">${key}</span><div class="cd"></div><div class="cdt"></div></div>`;
-    ab.innerHTML = `<div id="xpbar"><div class="label">Melee 1</div><div class="bar xp"><i></i><b></b></div></div>
+    ab.innerHTML = `<div id="xpbar" title="Your level: earned by fighting and by quests"><div id="skillxp"><span></span><div class="bar"><i></i><b></b></div></div><div class="label">Level 1</div><div class="bar xp"><i></i><b></b></div></div>
       <div id="ab-gauge"><i></i><span></span></div>
       <div class="ab-plate frame">
         ${[['strike', '1', 'Strike'], ['cleave', '2', 'Cleave'], ['riposte', '3', 'Weapon skill']].map(([k, key, t], i) => slot(i, k, key, t)).join('')}
@@ -465,14 +465,30 @@ export class Hud {
     this.q('#target-frame .bar b').textContent = t.friendly ? '' : `${Math.ceil(t.hp)} / ${t.max}`;
   }
 
-  setXpBar(skill: SkillId, xp: number): void {
+/** The level bar over the action bar: your level, always (the trades show their own, briefly, above it). */
+  setXpBar(xp: number): void {
     const lv = levelForXp(xp);
     const a = xpForLevel(lv), b = xpForLevel(lv + 1);
-    const name = SKILLS.find((s) => s.id === skill)!.name;
-    this.q('#xpbar .label').textContent = `${name} ${lv}`;
-    (this.q('#xpbar i') as HTMLElement).style.width = ((xp - a) / (b - a)) * 100 + '%';
-    this.q('#xpbar b').textContent = `${xp - a} / ${b - a} XP`;
+    this.q('#xpbar > .label').textContent = `Level ${lv}`;
+    (this.q('#xpbar > .bar > i') as HTMLElement).style.width = ((xp - a) / (b - a)) * 100 + '%';
+    this.q('#xpbar > .bar > b').textContent = `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()} XP`;
   }
+
+  /** A trade's progress, shown for a few seconds over the level bar when it earns experience. */
+  skillXp(skill: SkillId, xp: number): void {
+    const s = SKILLS.find((k) => k.id === skill)!;
+    const lv = levelForXp(xp), a = xpForLevel(lv), b = xpForLevel(lv + 1);
+    const box = this.q('#skillxp');
+    box.querySelector('span')!.textContent = `${s.name} ${lv}`;
+    const fill = box.querySelector('i') as HTMLElement;
+    fill.style.width = ((xp - a) / (b - a)) * 100 + '%';
+    fill.style.background = `linear-gradient(#ffffff55 0 2px, ${s.color} 2px 65%, #00000040 65%)`;
+    box.querySelector('b')!.textContent = `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()}`;
+    box.classList.add('show');
+    clearTimeout(this.skillXpT);
+    this.skillXpT = window.setTimeout(() => box.classList.remove('show'), 4500);
+  }
+  private skillXpT = 0;
 
   setAbilities(cds: { left: number; total: number; disabled?: boolean; count?: number; locked?: number }[]): void {
     this.root.querySelectorAll<HTMLElement>('.ab-slot').forEach((s, i) => {

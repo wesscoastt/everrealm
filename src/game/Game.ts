@@ -396,7 +396,6 @@ export class Game implements GameApi {
   private chaining = false;
   private autosave = 0;
   private hudTimer = 0;
-  private lastSkill: SkillId = 'melee';
   private elapsed = 0;
   private previewModel: Humanoid | null = null;
   private orbit = 0;
@@ -1180,8 +1179,8 @@ export class Game implements GameApi {
     const before = this.level(skill);
     this.save.xp[skill] += Math.round(amount);
     const after = this.level(skill);
-    this.lastSkill = skill;
     this.hud.xpDrop(skill, Math.round(amount));
+    if (skill !== 'melee') this.hud.skillXp(skill, this.save.xp[skill]);
     if (after > before) {
       const name = SKILLS.find((s) => s.id === skill)!.name;
       this.hud.banner(`${name} ${after}`, 'Level up', true);
@@ -4168,7 +4167,7 @@ export class Game implements GameApi {
     this.hudTimer = 0.2;
     this.hud.drawMinimap(P.x, P.z, this.rig.yaw, this.player.yaw, this.mapMarkers());
     this.hud.setClock(this.world.sky.hour);
-    this.hud.setXpBar(this.lastSkill, this.save.xp[this.lastSkill]);
+    this.hud.setXpBar(this.save.xp.melee);
     this.hud.setTracker(this.questEntries());
     if (this.hud.isOpen('map')) this.hud.refresh('map');
 

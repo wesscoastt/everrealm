@@ -128,16 +128,18 @@ export function generateTerrain(world: Grid): Layout {
       const r = distToPolyline(x, z, LOWER_WEND);
       const halfW = 3.4 + fbm2(x / 20, z / 20, 2, 33) * 1.6;
       const dPool = Math.hypot(x - SPILL.x, (z - SPILL.z) * 1.15) - SPILL.r;
+      // The plunge basin at the foot of the falls, joining them to the pool
+      const dBasin = z > FALLS.z ? Math.hypot(x - (FALLS.x0 + FALLS.x1) / 2, (z - FALLS.z - 3.5) * 1.1) - 3.6 : 99;
       const inRiver = r.d < halfW;
-      if (inRiver || dPool < 0) {
-        const depthT = inRiver ? 1 - r.d / halfW : Math.min(1, -dPool / 6);
-        const depth = dPool < 0 ? 2 + Math.round(depthT * 3) : 1 + Math.round(depthT * 2.2);
+      if (inRiver || dPool < 0 || dBasin < 0) {
+        const depthT = inRiver ? 1 - r.d / halfW : Math.min(1, -Math.min(dPool, dBasin) / 6);
+        const depth = dBasin < 0 ? 3 + Math.round(-dBasin * 0.5) : dPool < 0 ? 2 + Math.round(depthT * 3) : 1 + Math.round(depthT * 2.2);
         h = WATER_LEVEL - depth;
         waterTop[i] = WATER_LEVEL;
         exclusion[i] = EX.Water;
         bedKind[i] = depthT > 0.5 ? 2 : 1;
       } else {
-        const bank = Math.min(r.d - halfW, dPool < 12 ? dPool : 99);
+        const bank = Math.min(r.d - halfW, dPool < 12 ? dPool : 99, dBasin);
         if (bank < 7) h = Math.min(h, WATER_LEVEL + 0.4 + bank * 0.55);
       }
 
@@ -280,7 +282,7 @@ export function generateTerrain(world: Grid): Layout {
     if (dx * dx + dz * dz + dy * dy * 0.6 < 1 || (z >= 92 && x >= 90 && x <= 98 && y <= WATER_LEVEL + 3)) world.put(x, y, z, B.Air);
   }
   for (let x = 89; x <= 99; x++) for (let z = 84; z <= 95; z++) {
-    if (world.get(x, WATER_LEVEL + 1, z) === B.Air) world.put(x, WATER_LEVEL, z, hash2(x, z, 12) < 0.3 ? B.MossyCobble : B.Stone);
+    if (world.get(x, WATER_LEVEL + 1, z) === B.Air && world.get(x, WATER_LEVEL - 1, z) !== B.Water) world.put(x, WATER_LEVEL, z, hash2(x, z, 12) < 0.3 ? B.MossyCobble : B.Stone);
   }
   // Eel pool inside the hollow
   for (let x = 93; x <= 95; x++) for (let z = 87; z <= 89; z++) {
