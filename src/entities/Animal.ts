@@ -24,31 +24,61 @@ export class Animal {
     this.speed = kind === 'deer' ? 2.2 : kind === 'rabbit' ? 2.6 : kind === 'sheep' ? 1.0 : 1.4;
   }
 
-  private walkable(x: number, z: number): number | null {
-    const ix = Math.floor(x), iz = Math.floor(z);
+  /** Where it would stand at (x, z), coming from height y: ground a step up or down at most, room for its body, no water. */
+  private walkable(x: number, z: number, y = this.pos.y): number | null {
+    const ix = Math.floor(x), iz = Math.floor(z), tall = this.kind === 'deer' ? 3 : 2;
     for (const dy of [0, 1, -1]) {
-      const fy = Math.floor(this.pos.y + 0.1) + dy;
-      if (isSolid(this.world.get(ix, fy - 1, iz)) && !isSolid(this.world.get(ix, fy, iz)) && !isSolid(this.world.get(ix, fy + 1, iz)) && this.world.get(ix, fy, iz) !== B.Water) return fy;
+      const fy = Math.floor(y + 0.1) + dy;
+      if (!isSolid(this.world.get(ix, fy - 1, iz)) || this.world.get(ix, fy, iz) === B.Water) continue;
+      let open = true;
+      for (let h = 0; h < tall; h++) if (isSolid(this.world.get(ix, fy + h, iz))) open = false;
+      if (open) return fy;
     }
     return null;
+  }
+
+  /** Could it walk straight to (x, z)? Checked every half block, its nose half a body ahead of its feet. */
+  private clearTo(x: number, z: number): boolean {
+    const dx = x - this.pos.x, dz = z - this.pos.z, d = Math.hypot(dx, dz);
+    if (d < 0.5) return true;
+    const ux = dx / d, uz = dz / d, nose = this.kind === 'deer' ? 0.8 : 0.4;
+    let y = this.pos.y;
+    for (let s = 0.5; s <= d + nose; s += 0.5) {
+      const fy = this.walkable(this.pos.x + ux * s, this.pos.z + uz * s, y);
+      if (fy === null) return false;
+      y = fy;
+    }
+    return true;
+  }
+
+  /** A spot to walk to that it can reach in a straight line: anywhere round home, or away from someone. */
+  private pickTarget(away?: THREE.Vector3): boolean {
+    for (let k = 0; k < 8; k++) {
+      let x: number, z: number;
+      if (away) {
+        // Straight away first, then turning aside a little more each try
+        const a = Math.atan2(this.pos.x - away.x, this.pos.z - away.z) + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.45;
+        x = this.pos.x + Math.sin(a) * 10; z = this.pos.z + Math.cos(a) * 10;
+      } else {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * this.radius;
+        x = this.home.x + Math.cos(a) * r; z = this.home.z + Math.sin(a) * r;
+      }
+      if (Math.hypot(x - this.home.x, z - this.home.z) > this.radius + 12) continue;
+      if (this.clearTo(x, z)) { this.target.set(x, 0, z); return true; }
+    }
+    return false;
   }
 
   update(dt: number, player: THREE.Vector3): void {
     this.timer -= dt;
     const dp = Math.hypot(player.x - this.pos.x, player.z - this.pos.z);
     if (this.skittish && dp < (this.kind === 'deer' ? 8 : 4.5) && this.mode !== 'flee') {
-      this.mode = 'flee';
-      this.timer = 2.5;
-      const ax = this.pos.x - player.x, az = this.pos.z - player.z;
-      const l = Math.hypot(ax, az) || 1;
-      this.target.set(this.pos.x + (ax / l) * 12, 0, this.pos.z + (az / l) * 12);
+      // Bolt away from you, round a wall rather than into it; cornered, it stands its ground
+      if (this.pickTarget(player)) { this.mode = 'flee'; this.timer = 2.5; }
     }
     if (this.timer <= 0) {
       if (this.mode === 'idle' || this.mode === 'graze' || this.mode === 'flee') {
-        const a = Math.random() * Math.PI * 2, r = Math.random() * this.radius;
-        this.target.set(this.home.x + Math.cos(a) * r, 0, this.home.z + Math.sin(a) * r);
-        this.mode = 'walk';
-        this.timer = 6;
+        if (this.pickTarget()) { this.mode = 'walk'; this.timer = 6; } else { this.mode = 'graze'; this.timer = 2 + Math.random() * 3; }
       } else {
         this.mode = Math.random() < 0.5 ? 'graze' : 'idle';
         this.timer = 2 + Math.random() * 5;
@@ -67,7 +97,7 @@ export class Animal {
         if (fy !== null && Math.hypot(nx - this.home.x, nz - this.home.z) < this.radius + 14) {
           this.pos.set(nx, fy, nz);
           moving = sp;
-        } else { this.mode = 'idle'; this.timer = 0.5; }
+        } else if (this.mode === 'flee' ? !this.pickTarget(player) : !this.pickTarget()) { this.mode = 'idle'; this.timer = 1 + Math.random() * 2; }
       }
     }
     const g = this.world.groundBelow(this.pos.x, this.pos.y + 0.6, this.pos.z);
