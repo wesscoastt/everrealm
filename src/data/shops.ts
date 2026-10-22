@@ -42,6 +42,7 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'iron_hatchet', price: 75 },
       { item: 'fishing_rod', price: 16 },
       { item: 'cooked_mackerel', price: 24 },
+      ...['w_charter_sword', 'w_charter_longsword', 'w_charter_spear', 'w_charter_mace', 'w_collegium_staff', 'w_collegium_dagger'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 40) * 2.2) })),
       ...['linen_chest', 'linen_legs', 'linen_hands', 'linen_feet', 'leather_chest', 'leather_legs', 'leather_hands', 'leather_feet'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 20) * 2) })),
       ...['furn_chair', 'furn_bench', 'furn_dresser', 'furn_shelves', 'furn_chest', 'furn_rug_blue', 'furn_rug_green'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 10) * 1.8) })),
     ],

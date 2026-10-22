@@ -362,7 +362,8 @@ wss.on('connection', (ws, req) => {
         if (x === null || y === null || z === null || yaw === null) return;
         me.x = x; me.y = y; me.z = z; me.yaw = yaw;
         if (ANIMS.has(msg.anim)) me.anim = msg.anim;
-        if (HELD.has(msg.held)) me.held = msg.held;
+        // A tool by name, or a weapon by its item id (drawn from the item in each game)
+        if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
         me.mount = typeof msg.mount === 'string' && /^(halter|mount)_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
         // Riding behind someone in your group, on a two-seat mount, close by, with the seat free

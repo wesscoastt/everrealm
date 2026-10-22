@@ -1,6 +1,7 @@
 import type { ArmourSlot, ArmourWeight } from './armour';
 import type { Appearance } from '../entities/humanoid';
 import type { Breed } from '../entities/creatures';
+import type { OffhandModel, WeaponModel } from '../entities/humanoid';
 import { gearVariant, NAMED_ITEMS, type NamedInfo } from './gear';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -29,7 +30,7 @@ export interface ItemDef {
    * Weapon traits: flat damage, attack speed (1 = normal), extra reach in blocks, extra critical
    * chance, and the share of damage dealt that comes back as health. See GEAR_BUDGET.
    */
-  weapon?: { damage: number; speed: number; held: 'sword' | 'bronzeSword'; reach?: number; crit?: number; leech?: number };
+  weapon?: { damage: number; speed: number; held: 'sword' | 'bronzeSword'; reach?: number; crit?: number; leech?: number; model?: WeaponModel };
   tool?: { skill: SkillId; power: number; level: number; held: 'pickaxe' | 'hatchet' | 'rod' };
   /** Armour traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll; its weight and how it shows (data/armour.ts). */
   armor?: { slot: ArmourSlot; defense: number; vigor?: number; wind?: number; roll?: number; weight?: ArmourWeight; look?: Partial<Appearance> };
@@ -37,6 +38,12 @@ export interface ItemDef {
   mount?: { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed; seats?: number };
   /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
   dye?: { color: string; name: string };
+  /**
+   * Carried or worn besides weapon and armour (data/offhand.ts): a shield, lantern, tome, horn or focus in
+   * the left hand, an amulet, a ring. Its traits spend a small budget of their own (GEAR_BUDGET), on the
+   * armour traits, critical hits, health drawn back, or calling skills recharging faster (haste).
+   */
+  trinket?: { slot: 'offhand' | 'neck' | 'ring'; defense?: number; vigor?: number; wind?: number; roll?: number; crit?: number; leech?: number; haste?: number; model?: OffhandModel };
   /** The regional set this piece belongs to (see GEAR_SETS). */
   set?: string;
   /** Furniture for a home: the prop it becomes (see props.furniture) and its cloth tint. */
@@ -254,6 +261,11 @@ for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
 import { ARMOUR_ITEMS, HELM_WEIGHTS } from './armour';
 for (const d of ARMOUR_ITEMS) ITEMS[d.id] = d;
 for (const [id, h] of Object.entries(HELM_WEIGHTS)) if (ITEMS[id]?.armor) Object.assign(ITEMS[id].armor!, { weight: h.weight, look: h.look });
+
+// The realm's weapons, and how the older ones look in the hand (src/data/weapons.ts).
+import { OLD_WEAPON_MODELS, WEAPON_ITEMS } from './weapons';
+for (const d of WEAPON_ITEMS) ITEMS[d.id] = d;
+for (const [id, m] of Object.entries(OLD_WEAPON_MODELS)) if (ITEMS[id]?.weapon) ITEMS[id].weapon!.model = m;
 
 // Rares' trophies and treasure maps (src/data/wilds.ts).
 import { MAP_ITEMS, TROPHIES } from './wilds';

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { canLearn, pointsAt, spent, TALENTS, TREES } from '../data/talents';
 import type { Equip } from '../data/items';
 import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
+import { REGION_WEAPONS } from '../data/weapons';
 import { FIGURE } from '../entities/humanoid';
 import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
@@ -18,7 +19,7 @@ import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal } from '../entities/Animal';
 import { Enemy } from '../entities/Enemy';
-import { Appearance, HeldItem, Humanoid } from '../entities/humanoid';
+import { Appearance, HeldItem, Humanoid, setGearModels } from '../entities/humanoid';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
 import { AudioSystem, Sfx } from '../systems/Audio';
@@ -380,6 +381,8 @@ export class Game implements GameApi {
     this.hasSave = !!loaded;
     this.save = loaded ?? newSave('Rowan', { skin: '#e0b090', hair: '#5a3a22', hairStyle: 0, eyes: '#3a5a7a', tunic: '#3a5a8a', trim: '#e0bd64', trousers: '#4a3a2c', boots: '#3a2a1c', cape: '#7a2a24' });
     this.inv = new Inventory(this.save);
+    // Weapons and off-hand pieces are drawn from their items (data/weapons.ts, data/offhand.ts)
+    setGearModels((id) => ITEMS[id]?.weapon?.model ?? null, (id) => ITEMS[id]?.trinket?.model ?? null);
     this.hud = new Hud(this.uiCtx());
     new TouchControls(this.input, this.hud.root);
     this.front = new Frontend(this.frontCtx(), this.hud.root);
@@ -2944,6 +2947,9 @@ export class Game implements GameApi {
     else if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.gainStanding(reg, GAINS.boss);
     const source: DropSource = e.isBoss ? 'boss' : e.def.elite || e.def.type.startsWith('r_') ? 'elite' : 'mob';
     if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(this.dropped(pieces[Math.floor(Math.random() * pieces.length)], source), 1);
+    // The region's own weapons, now and then
+    const arms = REGION_WEAPONS[reg];
+    if (arms && !e.questTag && Math.random() < (e.def.elite ? 0.15 : 0.02)) this.give(this.dropped(arms[Math.floor(Math.random() * arms.length)], source), 1);
     for (const l of e.def.loot) {
       if (Math.random() < l.chance) {
         const got = this.dropped(l.item, source);
@@ -3617,7 +3623,9 @@ export class Game implements GameApi {
 
     // Animation state
     const M = P.model;
-    let held: HeldItem = this.save.equip.weapon ? ITEMS[this.save.equip.weapon].weapon!.held : 'none';
+    // A weapon by its id, so it's drawn as itself (and others see it so); tools by name
+    const wid = this.save.equip.weapon;
+    let held: HeldItem | string = wid ? (ITEMS[wid]?.weapon?.model ? wid : ITEMS[wid]?.weapon?.held ?? 'none') : 'none';
     if (P.rolling > 0) M.setState('roll');
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');

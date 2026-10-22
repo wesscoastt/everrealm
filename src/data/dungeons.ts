@@ -1,6 +1,7 @@
 import type { CallingId } from './classes';
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import { dungeonArmour } from './armour';
+import { DUNGEON_WEAPONS } from './weapons';
 
 // Group dungeons, in the manner of ESO's: built into the world behind a door, for four (one to
 // hold the creatures, one to heal, two to do the damage). The Group Finder (key P) makes a group
@@ -59,8 +60,8 @@ export interface DungeonDef {
   chest: { xp: number; marks: number; items: string[] };
 }
 
-const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap'];
-const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood'];
+const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap', ...(DUNGEON_WEAPONS['gd-oldman'] ?? [])];
+const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood', ...(DUNGEON_WEAPONS['gd-kettle'] ?? [])];
 
 export const DUNGEONS: DungeonDef[] = [
   {

@@ -1,6 +1,7 @@
 import type { CreatureKind, Palette } from '../entities/creatures';
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import { ARMOUR_SMITHING } from './armour';
+import { WEAPON_SMITHING } from './weapons';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
 
@@ -164,6 +165,7 @@ export const RECIPES: Recipe[] = [
   { id: 'bronze_sword', station: 'anvil', skill: 'smithing', level: 4, xp: 45, inputs: { bronze_bar: 2 }, output: 'bronze_sword', count: 1, time: 3.0 },
   { id: 'bronze_helm', station: 'anvil', skill: 'smithing', level: 6, xp: 60, inputs: { bronze_bar: 3 }, output: 'bronze_helm', count: 1, time: 3.2 },
   // Armour at the anvil: bronze and iron, chest, legs, hands and feet (data/armour.ts)
+  ...WEAPON_SMITHING.map((w): Recipe => ({ id: w.id, station: 'anvil', skill: 'smithing', level: w.level, xp: 30 + w.bars * 22, inputs: { [w.bar]: w.bars }, output: w.id, count: 1, time: 2.4 + w.bars * 0.4 })),
   ...ARMOUR_SMITHING.flatMap(([line, bar, n, lvl]) => (['chest', 'legs', 'hands', 'feet'] as const).map((slot, k): Recipe => ({ id: `${line}_${slot}`, station: 'anvil', skill: 'smithing', level: lvl + [2, 1, 0, 0][k], xp: 30 + n[k] * 22, inputs: { [bar]: n[k] }, output: `${line}_${slot}`, count: 1, time: 2.4 + n[k] * 0.4 }))),
   { id: 'iron_bar', station: 'furnace', skill: 'smithing', level: 15, xp: 50, inputs: { iron_ore: 2 }, output: 'iron_bar', count: 1, time: 2.2 },
   { id: 'iron_pickaxe', station: 'anvil', skill: 'smithing', level: 18, xp: 110, inputs: { iron_bar: 2 }, output: 'iron_pickaxe', count: 1, time: 3.2 },
@@ -209,6 +211,7 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'furn_candles', price: 10 },
   { item: 'furn_rug_red', price: 20 },
   { item: 'furn_barrel', price: 14 },
+  ...['w_hollin_sword', 'w_hollin_dagger', 'w_hollin_spear', 'w_hollin_staff', 'w_hollin_axe'].map((item) => ({ item, price: 30 })),
 ];
 
 // ------------------------------------------------------------- Enemies

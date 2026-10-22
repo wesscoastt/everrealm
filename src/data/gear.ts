@@ -55,7 +55,12 @@ function armourPts(a: NonNullable<ItemDef['armor']>): Record<ATrait, number> {
 export function affixFits(d: ItemDef, affix: string): boolean {
   const A = AFFIXES[affix];
   if (!A) return false;
-  if (d.weapon) return !!A.weapon && (A.weapon === 'damage' ? weaponPts(d.weapon).speed >= -2 : d.weapon.damage >= 2);
+  if (d.weapon) {
+    if (!A.weapon) return false;
+    // (a weapon already quick takes no more speed: it tops out at 1.4)
+    const p = weaponPts(d.weapon);
+    return A.weapon === 'damage' ? p.speed >= -2 : d.weapon.damage >= 2 && (A.weapon !== 'speed' || p.speed <= 4);
+  }
   if (d.armor) return !!A.armour && (A.armour === 'defense' || d.armor.defense >= 1);
   return false;
 }

@@ -317,7 +317,7 @@ export class Online {
   }
   private behind(x: number, y: number, z: number, yaw: number) { return { x: x - Math.sin(yaw) * PILLION_BACK, y, z: z - Math.cos(yaw) * PILLION_BACK, yaw }; }
 
-  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; pillion?: number | null }): void {
+  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem | string; mount?: string | null; pillion?: number | null }): void {
     if (this.status !== 'online' || !this.ws) return;
     this.sendT -= dt * 1000;
     if (this.sendT <= 0) {

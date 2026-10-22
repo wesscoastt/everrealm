@@ -179,6 +179,368 @@ function facialOf(a: Appearance): number {
   return a.facial ?? (a.beard ? 1 : 0);
 }
 
+/** How a weapon looks in the hand (data/weapons.ts gives each its own). */
+export type WeaponFamily = 'sword' | 'sabre' | 'longsword' | 'greatsword' | 'dagger' | 'falchion' | 'cleaver' | 'axe' | 'greataxe' | 'mace' | 'hammer' | 'spear' | 'staff';
+/** A maker's shapes: the guard, the pommel, and the head (a blade's profile, an axe's bit, a mace's head, a staff's top). */
+export type WeaponGuard = 'bar' | 'crescent' | 'disc' | 'swept' | 'none';
+export type WeaponPommel = 'cube' | 'wheel' | 'fishtail' | 'gem' | 'ring' | 'cap';
+export type WeaponHead = 'fuller' | 'leaf' | 'tapered' | 'wavy' | 'bearded' | 'broad' | 'crescent' | 'hatchet' | 'pick' | 'flanged' | 'studded' | 'star' | 'knob' | 'maul' | 'lucerne' | 'crook' | 'orb' | 'gnarled' | 'forked' | 'ringed' | 'winged' | 'harpoon' | 'glaive' | 'gig';
+export interface WeaponModel { family: WeaponFamily; metal: string; hilt: string; grip: string; accent?: string; glow?: string; guard?: WeaponGuard; pommel?: WeaponPommel; head?: WeaponHead }
+/** What can be held off the right hand: a shield, a lantern, a tome, a horn, a focus (data/offhand.ts). */
+export type OffhandFamily = 'heater' | 'round' | 'kite' | 'buckler' | 'tower' | 'lantern' | 'tome' | 'horn' | 'focus';
+export interface OffhandModel { family: OffhandFamily; face: string; rim: string; boss?: string; emblem?: string; glow?: string }
+
+/** Items to models: set once by the game, so anyone holding an item by its id is drawn with it. */
+let weaponModelOf: (id: string) => WeaponModel | null = () => null;
+let offhandModelOf: (id: string) => OffhandModel | null = () => null;
+export function setGearModels(weapon: (id: string) => WeaponModel | null, offhand: (id: string) => OffhandModel | null): void { weaponModelOf = weapon; offhandModelOf = offhand; }
+
+/** A weapon in the right hand. Its +y runs from the grip out along the blade or the haft; the edge
+ *  (and an axe's bit) faces +z, the flat of the blade faces x. Each maker has its own guard, pommel
+ *  and head (data/weapons.ts), so a Charter sword and a Barrow sword differ in shape, not just colour. */
+function weaponMesh(w: WeaponModel): THREE.Group {
+  const g = new THREE.Group();
+  const add = (geo: THREE.BufferGeometry, color: string | THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, typeof color === 'string' ? lam(color) : color);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, 0, rz);
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  const M = w.metal, H = w.hilt, G = w.grip, A = w.accent ?? w.hilt;
+  const edge = shade(M, 1.2), dark = shade(M, 0.75);
+  const glow = w.glow ? new THREE.MeshLambertMaterial({ color: w.glow, emissive: new THREE.Color(w.glow).multiplyScalar(0.7) }) : null;
+  const cone = (r: number, h: number) => new THREE.ConeGeometry(r, h, 4);
+
+  /** The guard across the top of the grip, `span` long. */
+  const guard = (y: number, span: number) => {
+    switch (w.guard ?? 'bar') {
+      case 'bar': add(rbox(0.09, 0.06, span, 0.02), H, 0, y, 0); break;
+      case 'crescent': // quillons turned up toward the blade
+        add(rbox(0.09, 0.06, span * 0.62, 0.02), H, 0, y, 0);
+        for (const s of [1, -1]) { add(rbox(0.08, 0.07, 0.08, 0.02), H, 0, y + 0.025, s * span * 0.36); add(rbox(0.07, 0.08, 0.05, 0.02), A, 0, y + 0.075, s * span * 0.42); }
+        break;
+      case 'disc': add(rbox(span * 0.42, 0.045, span * 0.5, 0.06), H, 0, y, 0); add(rbox(span * 0.3, 0.05, span * 0.36, 0.04), A, 0, y - 0.01, 0); break;
+      case 'swept': // a knuckle bow down to the pommel, and a side ring
+        add(rbox(0.08, 0.05, span * 0.8, 0.02), H, 0, y, 0);
+        add(rbox(0.03, 0.26, 0.03, 0.01), H, 0, y - 0.12, span * 0.36);
+        add(rbox(0.03, 0.03, span * 0.36, 0.01), H, 0, y - 0.24, span * 0.18);
+        add(rbox(0.1, 0.03, 0.03, 0.01), H, 0.04, y - 0.02, -span * 0.12);
+        break;
+      case 'none': add(rbox(0.08, 0.04, 0.09, 0.02), H, 0, y, 0); break;
+    }
+  };
+  /** The pommel at the foot of the grip. */
+  const pommel = (y: number, s = 0.065) => {
+    const P = glow ?? A;
+    switch (w.pommel ?? 'cube') {
+      case 'cube': add(rbox(s, s, s, 0.02), P, 0, y, 0); break;
+      case 'wheel': add(rbox(s * 0.7, s * 1.5, s * 1.5, s * 0.5), P, 0, y - s * 0.2, 0); break;
+      case 'fishtail': for (const k of [1, -1]) add(rbox(s * 0.8, s * 0.9, s * 0.5, 0.015), P, 0, y - s * 0.15, k * s * 0.42, k * 0.45); break;
+      case 'gem': add(rbox(s * 0.9, s * 0.4, s * 0.9, 0.015), H, 0, y + s * 0.2, 0); add(rbox(s * 0.8, s * 0.8, s * 0.8, 0.02), P, 0, y - s * 0.3, 0).rotation.set(Math.PI / 4, 0, Math.PI / 4); break;
+      case 'ring': for (const [dy, dz, hh, dd] of [[0, s * 0.55, s * 1.2, s * 0.3], [0, -s * 0.55, s * 1.2, s * 0.3], [s * 0.45, 0, s * 0.3, s * 1.4], [-s * 0.45, 0, s * 0.3, s * 1.4]]) add(rbox(s * 0.45, hh, dd, 0.01), P, 0, y - s * 0.4 + dy, dz); break;
+      case 'cap': add(rbox(s * 1.25, s * 0.6, s * 1.25, 0.02), P, 0, y, 0); add(rbox(s * 0.5, s * 0.45, s * 0.5, 0.015), P, 0, y - s * 0.45, 0); break;
+    }
+  };
+  /** A straight blade from y0, len long, wide across, shaped by the maker's head. */
+  const blade = (y0: number, len: number, wide: number) => {
+    const head = w.head ?? 'fuller';
+    if (head === 'leaf') {
+      // Narrow at the shoulders, swelling past the middle, then to a point: old bronze
+      const segs = [0.82, 0.95, 1.12, 1.2, 1.05];
+      segs.forEach((f, i) => add(rbox(0.05, len / segs.length + 0.005, wide * f, 0.012), M, 0, y0 + (i + 0.5) * (len / segs.length), 0));
+      add(rbox(0.054, len * 0.85, 0.018, 0.005), dark, 0, y0 + len * 0.45, 0);
+      add(cone(wide * 0.55, 0.2), M, 0, y0 + len + 0.09, 0);
+    } else if (head === 'tapered') {
+      const segs = [1.05, 0.9, 0.75, 0.6];
+      segs.forEach((f, i) => add(rbox(0.045, len / segs.length + 0.005, wide * f, 0.012), M, 0, y0 + (i + 0.5) * (len / segs.length), 0));
+      add(cone(wide * 0.3, 0.22), M, 0, y0 + len + 0.1, 0);
+      add(rbox(0.048, len * 0.5, 0.016, 0.004), edge, 0, y0 + len * 0.3, 0);
+    } else if (head === 'wavy') {
+      const n = 7;
+      for (let i = 0; i < n; i++) add(rbox(0.05, len / n + 0.01, wide, 0.012), i % 2 ? edge : M, 0, y0 + (i + 0.5) * (len / n), (i % 2 ? 1 : -1) * wide * 0.12);
+      add(cone(wide / 2, 0.16), M, 0, y0 + len + 0.07, 0);
+    } else {
+      add(rbox(0.05, len, wide, 0.015), M, 0, y0 + len / 2, 0);
+      add(rbox(0.052, len * 0.8, 0.02, 0.005), edge, 0, y0 + len * 0.45, 0); // the fuller
+      add(cone(wide / 2, 0.14), M, 0, y0 + len + 0.07, 0);
+    }
+  };
+  /** An axe's bit at height `top` on the haft, scaled by s; `twin` adds a second bit behind. */
+  const axeHead = (top: number, s: number, twin: boolean) => {
+    add(rbox(0.085, 0.13 * s, 0.11, 0.02), H, 0, top, 0); // the eye
+    const bit = (dir: number) => {
+      switch (w.head ?? 'bearded') {
+        case 'broad': // flares evenly toward the edge
+          [[0.08, 0.14], [0.15, 0.24], [0.22, 0.34]].forEach(([z, h]) => add(rbox(0.05, h * s, 0.08 * s, 0.012), M, 0, top, dir * z * s));
+          add(rbox(0.054, 0.36 * s, 0.03, 0.006), edge, 0, top, dir * 0.27 * s);
+          break;
+        case 'crescent': // the edge curves round, horns up and down
+          [[0.08, 0.14, 0], [0.15, 0.24, 0], [0.21, 0.36, 0]].forEach(([z, h, dy]) => add(rbox(0.05, h * s, 0.08 * s, 0.012), M, 0, top + dy, dir * z * s));
+          for (const v of [1, -1]) add(rbox(0.05, 0.1 * s, 0.07 * s, 0.012), M, 0, top + v * 0.2 * s, dir * 0.27 * s);
+          add(rbox(0.054, 0.3 * s, 0.03, 0.006), edge, 0, top, dir * 0.27 * s);
+          for (const v of [1, -1]) add(rbox(0.054, 0.1 * s, 0.03, 0.006), edge, 0, top + v * 0.2 * s, dir * 0.31 * s);
+          break;
+        case 'hatchet': // a small bit, a hammer poll behind
+          add(rbox(0.05, 0.12 * s, 0.1 * s, 0.012), M, 0, top, dir * 0.1 * s);
+          add(rbox(0.05, 0.18 * s, 0.06 * s, 0.012), M, 0, top, dir * 0.17 * s);
+          add(rbox(0.054, 0.2 * s, 0.025, 0.006), edge, 0, top, dir * 0.205 * s);
+          break;
+        case 'pick': // a miner's pick: a spike each way, curving down
+          for (const d of [1, -1]) {
+            add(rbox(0.05, 0.07 * s, 0.12 * s, 0.015), M, 0, top, d * 0.1 * s);
+            add(rbox(0.045, 0.06 * s, 0.1 * s, 0.012), M, 0, top - 0.025 * s, d * 0.2 * s);
+            add(cone(0.03 * s, 0.12 * s), dark, 0, top - 0.06 * s, d * 0.27 * s, d * 2.2);
+          }
+          break;
+        default: // bearded: the bit hangs down below the eye, to hook a shield's rim
+          add(rbox(0.05, 0.16 * s, 0.1 * s, 0.012), M, 0, top + 0.01 * s, dir * 0.1 * s);
+          add(rbox(0.05, 0.26 * s, 0.08 * s, 0.012), M, 0, top - 0.04 * s, dir * 0.18 * s);
+          add(rbox(0.05, 0.14 * s, 0.06 * s, 0.012), M, 0, top - 0.17 * s, dir * 0.16 * s);
+          add(rbox(0.054, 0.36 * s, 0.03, 0.006), edge, 0, top - 0.06 * s, dir * 0.225 * s);
+      }
+    };
+    bit(1);
+    if (twin && (w.head ?? 'bearded') !== 'pick' && (w.head ?? 'bearded') !== 'hatchet') bit(-1);
+    else if (!twin && (w.head ?? 'bearded') !== 'pick' && (w.head ?? 'bearded') !== 'hatchet') add(cone(0.03, 0.12), dark, 0, top, -0.1, -Math.PI / 2); // the back spike
+  };
+
+  switch (w.family) {
+    case 'sword':
+    case 'longsword':
+    case 'greatsword': {
+      const long = w.family === 'longsword', great = w.family === 'greatsword';
+      const grip = great ? 0.3 : long ? 0.24 : 0.16, len = great ? 1.25 : long ? 1.0 : 0.8, wide = great ? 0.16 : long ? 0.11 : 0.12;
+      add(rbox(0.07, grip, 0.07, 0.02), G, 0, -0.02 - (grip - 0.16) / 2, 0);
+      for (let k = 1; k < grip / 0.06; k++) add(rbox(0.075, 0.015, 0.075, 0.005), shade(G, 0.7), 0, 0.06 - (grip - 0.02) * (k / (grip / 0.06)), 0); // the wrap
+      guard(0.08, great ? 0.5 : long ? 0.38 : 0.32);
+      blade(0.1, len, wide);
+      if (great) add(rbox(0.07, 0.08, 0.06, 0.02), H, 0, 0.2, 0.09); // the lugs of a two-hander
+      pommel(-0.1 - (grip - 0.16));
+      break;
+    }
+    case 'sabre': {
+      add(rbox(0.07, 0.16, 0.07, 0.02), G, 0, -0.02, 0);
+      if ((w.guard ?? 'swept') === 'disc') guard(0.08, 0.3);
+      else {
+        add(rbox(0.09, 0.05, 0.22, 0.02), H, 0, 0.08, 0);
+        add(rbox(0.03, 0.26, 0.03, 0.01), H, 0, -0.01, 0.1); // the knuckle guard
+      }
+      for (let i = 0; i < 4; i++) add(rbox(0.045, 0.22, 0.1, 0.015), i === 3 ? edge : M, 0, 0.2 + i * 0.2, 0.02 + i * i * 0.012, -i * 0.07);
+      pommel(-0.11, 0.055);
+      break;
+    }
+    case 'dagger': {
+      add(rbox(0.06, 0.12, 0.06, 0.02), G, 0, -0.01, 0);
+      guard(0.06, 0.18);
+      if (w.head === 'leaf' || w.head === 'tapered') blade(0.08, 0.34, 0.085);
+      else {
+        add(rbox(0.04, 0.34, 0.08, 0.012), M, 0, 0.25, 0);
+        add(rbox(0.042, 0.28, 0.016, 0.004), edge, 0, 0.24, 0);
+        add(cone(0.04, 0.1), M, 0, 0.47, 0);
+      }
+      pommel(-0.08, 0.05);
+      break;
+    }
+    case 'falchion':
+    case 'cleaver': {
+      const cl = w.family === 'cleaver';
+      add(rbox(0.07, 0.18, 0.07, 0.02), G, 0, -0.03, 0);
+      guard(0.08, 0.24);
+      add(rbox(0.05, 0.36, cl ? 0.22 : 0.13, 0.015), M, 0, 0.29, cl ? 0.05 : 0.01);
+      add(rbox(0.05, 0.36, cl ? 0.26 : 0.18, 0.015), M, 0, 0.62, cl ? 0.07 : 0.03); // widening toward the point
+      add(rbox(0.052, 0.66, 0.02, 0.005), edge, 0, 0.46, cl ? -0.05 : -0.04);
+      if (!cl) add(cone(0.09, 0.14), M, 0, 0.86, 0.03);
+      else add(rbox(0.05, 0.06, 0.1, 0.015), M, 0, 0.82, 0.14); // the squared-off end hooks forward
+      pommel(-0.13, 0.06);
+      break;
+    }
+    case 'axe':
+    case 'greataxe': {
+      const great = w.family === 'greataxe', haft = great ? 1.25 : 0.82;
+      add(rbox(0.06, haft, 0.06, 0.02), G, 0, haft / 2 - 0.15, 0);
+      for (const y of great ? [-0.05, 0.35] : [-0.05]) add(rbox(0.07, 0.14, 0.07, 0.02), H, 0, y, 0); // grip wraps
+      axeHead(haft - 0.2, great ? 1.45 : 1, great);
+      add(rbox(0.07, 0.08, 0.07, 0.02), A, 0, -0.16, 0);
+      break;
+    }
+    case 'mace':
+    case 'hammer': {
+      const ham = w.family === 'hammer', haft = ham ? 0.86 : 0.7;
+      add(rbox(0.06, haft, 0.06, 0.02), G, 0, haft / 2 - 0.12, 0);
+      add(rbox(0.075, 0.18, 0.075, 0.02), H, 0, -0.02, 0); // the wrapped grip
+      const top = haft - 0.12;
+      if (ham) {
+        const head = w.head ?? 'maul';
+        if (head === 'pick') {
+          add(rbox(0.12, 0.12, 0.14, 0.025), M, 0, top, 0.06);
+          add(rbox(0.13, 0.03, 0.15, 0.01), edge, 0, top + 0.05, 0.06);
+          add(rbox(0.05, 0.06, 0.16, 0.015), M, 0, top, -0.1);
+          add(cone(0.04, 0.2), dark, 0, top - 0.02, -0.26, -1.87);
+          add(cone(0.03, 0.14), dark, 0, top + 0.12, 0);
+        } else if (head === 'lucerne') {
+          add(rbox(0.12, 0.13, 0.12, 0.025), M, 0, top, 0.05);
+          for (const [dy, dx] of [[0.04, 0.035], [0.04, -0.035], [-0.04, 0]]) add(rbox(0.03, 0.03, 0.06, 0.008), edge, dx, top + dy, 0.13);
+          add(cone(0.035, 0.22), dark, 0, top, -0.18, -Math.PI / 2);
+          add(rbox(0.04, 0.24, 0.04, 0.012), M, 0, top + 0.16, 0);
+          add(cone(0.03, 0.12), dark, 0, top + 0.33, 0);
+        } else {
+          add(rbox(0.16, 0.16, 0.3, 0.03), M, 0, top, 0.04);
+          add(rbox(0.17, 0.04, 0.31, 0.01), edge, 0, top + 0.06, 0.04);
+          for (const z of [0.12, -0.04]) add(rbox(0.17, 0.17, 0.025, 0.006), A, 0, top, z); // bands
+          add(cone(0.05, 0.18), dark, 0, top, -0.2, -Math.PI / 2);
+        }
+      } else {
+        const head = w.head ?? 'flanged';
+        if (head === 'studded') {
+          add(rbox(0.15, 0.17, 0.15, 0.06), M, 0, top, 0);
+          for (const [x, y, z] of [[0.08, 0, 0], [-0.08, 0, 0], [0, 0, 0.08], [0, 0, -0.08], [0, 0.09, 0], [0.055, 0.05, 0.055], [-0.055, 0.05, -0.055], [0.055, -0.05, -0.055], [-0.055, -0.05, 0.055]]) add(rbox(0.04, 0.04, 0.04, 0.01), dark, x, top + y, z);
+        } else if (head === 'star') {
+          add(rbox(0.14, 0.14, 0.14, 0.05), M, 0, top, 0);
+          for (const [x, y, z, rx, rz] of [[0.09, 0, 0, 0, -Math.PI / 2], [-0.09, 0, 0, 0, Math.PI / 2], [0, 0, 0.09, Math.PI / 2, 0], [0, 0, -0.09, -Math.PI / 2, 0], [0, 0.09, 0, 0, 0], [0.06, 0.06, 0, 0, -0.8], [-0.06, 0.06, 0, 0, 0.8], [0, 0.06, 0.06, 0.8, 0], [0, 0.06, -0.06, -0.8, 0]]) add(cone(0.022, 0.09), edge, x, top + y, z, rx, rz);
+        } else if (head === 'knob') {
+          add(rbox(0.14, 0.2, 0.14, 0.06), M, 0, top, 0);
+          for (const y of [-0.05, 0.05]) add(rbox(0.15, 0.025, 0.15, 0.008), A, 0, top + y, 0);
+          add(rbox(0.06, 0.05, 0.06, 0.02), dark, 0, top + 0.12, 0);
+        } else {
+          add(rbox(0.13, 0.2, 0.13, 0.04), M, 0, top, 0);
+          for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; add(rbox(0.03, 0.22, 0.09, 0.01), k % 2 ? edge : M, Math.cos(a) * 0.08, top, Math.sin(a) * 0.08).rotation.y = -a; } // flanges
+          add(cone(0.035, 0.08), dark, 0, top + 0.14, 0);
+        }
+      }
+      add(rbox(0.07, 0.06, 0.07, 0.02), glow ?? A, 0, -0.14, 0);
+      break;
+    }
+    case 'spear': {
+      add(rbox(0.05, 1.9, 0.05, 0.015), G, 0, 0.35, 0);
+      add(rbox(0.07, 0.1, 0.07, 0.02), H, 0, 1.3, 0); // the socket
+      const head = w.head ?? 'leaf';
+      if (head === 'harpoon') {
+        add(rbox(0.035, 0.3, 0.06, 0.01), M, 0, 1.5, 0);
+        add(cone(0.05, 0.16), M, 0, 1.73, 0);
+        for (const d of [1, -1]) add(rbox(0.03, 0.12, 0.03, 0.008), edge, 0, 1.6, d * 0.06, 0, 0).rotation.x = d * 0.6; // barbs
+      } else if (head === 'glaive') {
+        add(rbox(0.04, 0.5, 0.12, 0.012), M, 0, 1.6, 0.03);
+        add(rbox(0.04, 0.16, 0.08, 0.012), M, 0, 1.88, 0.06);
+        add(rbox(0.042, 0.6, 0.02, 0.005), edge, 0, 1.66, 0.095);
+        add(rbox(0.04, 0.06, 0.06, 0.01), M, 0, 1.42, -0.06); // the back spur
+      } else if (head === 'gig') {
+        add(rbox(0.04, 0.05, 0.24, 0.012), M, 0, 1.38, 0);
+        for (const z of [-0.1, 0, 0.1]) { add(rbox(0.03, 0.3, 0.03, 0.008), M, 0, 1.55, z); add(cone(0.028, 0.1), edge, 0, 1.74, z); }
+      } else {
+        add(rbox(0.04, 0.36, 0.11, 0.012), M, 0, 1.52, 0);
+        add(cone(0.06, 0.18), M, 0, 1.79, 0);
+        add(rbox(0.042, 0.4, 0.02, 0.005), edge, 0, 1.56, 0);
+        if (head === 'winged') add(rbox(0.04, 0.04, 0.26, 0.01), H, 0, 1.34, 0); // lugs, to stop a boar on the shaft
+      }
+      add(rbox(0.06, 0.08, 0.06, 0.02), A, 0, -0.58, 0); // the butt cap
+      if (w.accent) add(rbox(0.02, 0.18, 0.08, 0.005), w.accent, 0.04, 1.22, 0); // a pennant ribbon
+      break;
+    }
+    case 'staff': {
+      add(rbox(0.055, 1.85, 0.055, 0.018), G, 0, 0.38, 0);
+      for (const y of [0.2, -0.2]) add(rbox(0.065, 0.06, 0.065, 0.01), H, 0, y, 0); // grip bindings
+      const head = w.head ?? (glow ? 'orb' : 'crook');
+      const stone = glow ?? M;
+      if (head === 'orb') {
+        add(rbox(0.1, 0.06, 0.1, 0.02), H, 0, 1.3, 0);
+        for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) add(rbox(0.02, 0.2, 0.02, 0.006), H, x * 0.05, 1.42, z * 0.05);
+        add(rbox(0.11, 0.13, 0.11, 0.03), stone, 0, 1.43, 0).rotation.y = Math.PI / 4; // a stone held in claws
+      } else if (head === 'gnarled') {
+        add(rbox(0.08, 0.16, 0.08, 0.03), G, 0.02, 1.36, 0);
+        add(rbox(0.07, 0.14, 0.07, 0.03), G, -0.02, 1.48, 0.02);
+        add(rbox(0.06, 0.12, 0.06, 0.025), G, 0.01, 1.58, -0.02);
+        add(rbox(0.07, 0.07, 0.07, 0.02), stone, 0, 1.5, 0.06);
+      } else if (head === 'forked') {
+        for (const d of [1, -1]) { add(rbox(0.045, 0.2, 0.045, 0.012), G, 0, 1.4, d * 0.05, d * -0.3); add(rbox(0.04, 0.16, 0.04, 0.012), G, 0, 1.56, d * 0.09); }
+        add(rbox(0.07, 0.06, 0.07, 0.02), H, 0, 1.3, 0);
+      } else if (head === 'ringed') {
+        for (const [dy, dz, hh, dd] of [[0, 0.1, 0.24, 0.035], [0, -0.1, 0.24, 0.035], [0.11, 0, 0.035, 0.24], [-0.11, 0, 0.035, 0.24]]) add(rbox(0.035, hh, dd, 0.008), M, 0, 1.46 + dy, dz);
+        for (const z of [0.06, -0.06]) add(rbox(0.02, 0.06, 0.06, 0.008), A, 0, 1.3, z); // rings that chime
+        add(rbox(0.08, 0.06, 0.08, 0.02), H, 0, 1.3, 0);
+      } else {
+        add(rbox(0.1, 0.1, 0.1, 0.03), H, 0, 1.3, 0);
+        add(rbox(0.06, 0.2, 0.16, 0.02), M, 0, 1.44, 0.05).rotation.x = -0.4; // a crook head
+      }
+      add(rbox(0.06, 0.06, 0.06, 0.02), A, 0, -0.54, 0);
+      break;
+    }
+  }
+  return g;
+}
+
+/** Something in the left hand. Shields face out from the forearm; the rest hang or are carried. */
+function offhandMesh(o: OffhandModel): THREE.Group {
+  const g = new THREE.Group();
+  const add = (geo: THREE.BufferGeometry, color: string | THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, typeof color === 'string' ? lam(color) : color);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  const glow = o.glow ? new THREE.MeshLambertMaterial({ color: o.glow, emissive: new THREE.Color(o.glow).multiplyScalar(0.8) }) : null;
+  switch (o.family) {
+    case 'heater':
+    case 'kite':
+    case 'tower':
+    case 'round':
+    case 'buckler': {
+      // The shield stands off the outside of the forearm, its face outward (+x)
+      const dims = { heater: [0.56, 0.62], kite: [0.5, 0.86], tower: [0.66, 1.0], round: [0.66, 0.66], buckler: [0.34, 0.34] }[o.family];
+      const [w, h] = dims;
+      add(rbox(0.06, h, w, o.family === 'round' || o.family === 'buckler' ? 0.2 : 0.06), o.face, 0.1, -0.06, 0);
+      add(rbox(0.07, h + 0.04, 0.04, 0.01), o.rim, 0.1, -0.06, w / 2);
+      add(rbox(0.07, h + 0.04, 0.04, 0.01), o.rim, 0.1, -0.06, -w / 2);
+      add(rbox(0.07, 0.04, w + 0.04, 0.01), o.rim, 0.1, -0.06 + h / 2, 0);
+      if (o.family === 'heater' || o.family === 'kite') {
+        // The point at the bottom
+        add(rbox(0.06, h * 0.32, w * 0.55, 0.04), o.face, 0.1, -0.06 - h / 2 - h * 0.1, 0);
+        add(rbox(0.06, h * 0.18, w * 0.25, 0.03), o.face, 0.1, -0.06 - h / 2 - h * 0.28, 0);
+      } else add(rbox(0.07, 0.04, w + 0.04, 0.01), o.rim, 0.1, -0.06 - h / 2, 0);
+      if (o.boss) add(rbox(0.06, 0.14, 0.14, 0.05), o.boss, 0.14, -0.04, 0);
+      if (o.emblem) {
+        add(rbox(0.01, h * 0.6, 0.06, 0.01), o.emblem, 0.135, -0.06, 0);
+        add(rbox(0.01, 0.06, w * 0.6, 0.01), o.emblem, 0.135, 0.02, 0);
+      }
+      if (glow) add(rbox(0.02, 0.08, 0.08, 0.02), glow, 0.15, 0.12, 0);
+      break;
+    }
+    case 'lantern': {
+      add(rbox(0.02, 0.18, 0.02, 0.005), o.rim, 0, -0.1, 0); // the bail
+      add(rbox(0.16, 0.04, 0.16, 0.01), o.rim, 0, -0.2, 0);
+      add(rbox(0.13, 0.18, 0.13, 0.02), glow ?? o.face, 0, -0.31, 0);
+      for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) add(rbox(0.02, 0.2, 0.02, 0.005), o.rim, x * 0.07, -0.31, z * 0.07);
+      add(rbox(0.16, 0.04, 0.16, 0.01), o.rim, 0, -0.42, 0);
+      break;
+    }
+    case 'tome': {
+      add(rbox(0.08, 0.3, 0.24, 0.02), o.face, 0.04, -0.12, 0.06);
+      add(rbox(0.06, 0.28, 0.22, 0.01), '#e8dcc0', 0.04, -0.12, 0.07); // pages
+      add(rbox(0.09, 0.3, 0.03, 0.01), o.rim, 0.04, -0.12, -0.06); // the spine
+      if (o.emblem) add(rbox(0.01, 0.08, 0.08, 0.01), o.emblem, 0.085, -0.1, 0.06);
+      if (glow) add(rbox(0.01, 0.05, 0.05, 0.01), glow, 0.086, -0.2, 0.06);
+      break;
+    }
+    case 'horn': {
+      for (let i = 0; i < 4; i++) add(rbox(0.07 + i * 0.02, 0.12, 0.07 + i * 0.02, 0.03), i === 3 ? o.rim : o.face, 0, -0.06 - i * 0.1, i * i * 0.02, i * 0.12);
+      add(rbox(0.02, 0.3, 0.02, 0.005), o.rim, -0.06, -0.15, 0.05); // the baldric strap
+      break;
+    }
+    case 'focus': {
+      add(rbox(0.04, 0.16, 0.04, 0.01), o.rim, 0, -0.06, 0);
+      add(rbox(0.12, 0.16, 0.12, 0.04), glow ?? o.face, 0, -0.2, 0).rotation.y = Math.PI / 4;
+      add(rbox(0.06, 0.06, 0.06, 0.02), o.rim, 0, -0.32, 0);
+      break;
+    }
+  }
+  return g;
+}
+
+const TOOLS = new Set<string>(['sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
+
 function heldMesh(kind: HeldItem): THREE.Group {
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number, rx = 0, rz = 0) => {
@@ -241,9 +603,13 @@ export class Humanoid {
   private shinL = new THREE.Group();
   private shinR = new THREE.Group();
   private handR = new THREE.Group();
+  private handL = new THREE.Group();
   private cape: THREE.Mesh | null = null;
   private held: THREE.Group | null = null;
-  heldKind: HeldItem = 'none';
+  /** A tool by name, or a weapon by its item id (its model comes from data/weapons.ts). */
+  heldKind: HeldItem | string = 'none';
+  private offhand: THREE.Group | null = null;
+  offhandKind: string | null = null;
   private phase = 0;
   private blink = 1 + Math.random() * 3;
   state: AnimState = 'idle';
@@ -387,6 +753,8 @@ export class Humanoid {
     this.handR.position.set(0, -0.32, 0.02);
     this.buildArmour(part, build, fem, chestW, waistW);
     this.foreR.add(this.handR);
+    this.handL.position.set(0, -0.3, 0.02);
+    this.foreL.add(this.handL);
 
     if (look.cape) {
       const capeGeo = new THREE.PlaneGeometry(0.62 * build, 1.0, 2, 6);
@@ -718,15 +1086,26 @@ export class Humanoid {
     if (hat === 'kerchief') { part(this.head, rbox(0.52, 0.14, 0.5, 0.06), this.look.hatColor ?? '#a8382c', 0, 0.57, -0.02); part(this.head, rbox(0.14, 0.14, 0.08, 0.03), this.look.hatColor ?? '#a8382c', 0, 0.44, -0.27); }
   }
 
-  setHeld(kind: HeldItem): void {
+  setHeld(kind: HeldItem | string): void {
     if (kind === this.heldKind) return;
     if (this.held) this.handR.remove(this.held);
-    this.held = kind === 'none' ? null : heldMesh(kind);
+    const model = TOOLS.has(kind) ? null : weaponModelOf(kind);
+    this.held = kind === 'none' ? null : model ? weaponMesh(model) : heldMesh(TOOLS.has(kind) ? (kind as HeldItem) : 'sword');
     if (this.held) {
       this.held.rotation.x = Math.PI / 2;
       this.handR.add(this.held);
     }
     this.heldKind = kind;
+  }
+
+  /** Something in the left hand by its item id (a shield, a lantern, a tome), or nothing. */
+  setOffhand(id: string | null): void {
+    if (id === this.offhandKind) return;
+    if (this.offhand) this.handL.remove(this.offhand);
+    const model = id ? offhandModelOf(id) : null;
+    this.offhand = model ? offhandMesh(model) : null;
+    if (this.offhand) this.handL.add(this.offhand);
+    this.offhandKind = id;
   }
 
   /** Stroke phase, and the swimmer's body pitch (set by the player; 0 is level, positive head-up). */
@@ -761,7 +1140,7 @@ export class Humanoid {
       // Blades rest in a low guard, pointing forward and a little down; tools and swings hold
       // perpendicular to the forearm.
       const resting = ['idle', 'walk', 'run', 'jump', 'talk', 'hit'].includes(this.state);
-      const blade = this.heldKind === 'sword' || this.heldKind === 'bronzeSword';
+      const blade = !TOOLS.has(this.heldKind) || this.heldKind === 'sword' || this.heldKind === 'bronzeSword';
       P.held.rotation.set(blade && resting ? Math.PI / 2 + 0.38 : Math.PI / 2, 0, 0);
     }
 
