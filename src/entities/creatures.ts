@@ -22,6 +22,63 @@ const lam = (c: string, extra: THREE.MeshLambertMaterialParameters = {}) => {
   if (!m) { m = new THREE.MeshLambertMaterial({ color: c, ...extra }); mats.set(key, m); }
   return m;
 };
+/**
+ * A horse's surfaces, painted at 16 pixels a face like everything else: a coat with the lie of the
+ * hair (and dapples on a grey), a mane in strands, saddle cloth woven with a border, leather with
+ * its grain and stitching. Cached by kind and colour.
+ */
+const horseMats = new Map<string, THREE.MeshLambertMaterial>();
+function horseMat(kind: 'coat' | 'mane' | 'cloth' | 'leather', color: string, extra: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
+  const key = kind + color + JSON.stringify(extra);
+  const hit = horseMats.get(key);
+  if (hit) return hit;
+  const N = 16, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const x = c.getContext('2d')!;
+  const base = new THREE.Color(color);
+  const hsl = { h: 0, s: 0, l: 0 };
+  base.getHSL(hsl);
+  let seed = 0;
+  for (const ch of key) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const px = (i: number, j: number, dl: number) => { const k = base.clone().offsetHSL(0, 0, dl); x.fillStyle = `#${k.getHexString()}`; x.fillRect(i, j, 1, 1); };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    let dl = (rnd() - 0.5) * 0.05;
+    if (kind === 'coat') {
+      // Short hairs lying one way: a darker pixel now and then along a slant, a little sheen on top
+      if ((i + j * 2) % 7 === 0) dl -= 0.035;
+      dl += (N / 2 - j) * 0.004;
+    } else if (kind === 'mane') {
+      // Strands: columns, each a shade apart, darker at the roots
+      dl = ((i * 7) % 5 - 2) * 0.03 + (j < 3 ? -0.04 : 0) + (rnd() - 0.5) * 0.02;
+    } else if (kind === 'cloth') {
+      // A woven check, and a pale border round the edge
+      dl = ((i + j) % 2 ? 0.02 : -0.02) + (rnd() - 0.5) * 0.02;
+      if (i < 2 || j < 2 || i > N - 3 || j > N - 3) dl = i === 0 || j === 0 || i === N - 1 || j === N - 1 ? -0.08 : 0.22;
+    } else {
+      // Grain, and a row of stitches a pixel in from the edge
+      dl = (rnd() - 0.5) * 0.07;
+      if ((i === 1 || j === 1 || i === N - 2 || j === N - 2) && (i + j) % 3 === 0) dl = 0.18;
+    }
+    px(i, j, dl);
+  }
+  // Dapples on a grey: paler rings with darker middles
+  if (kind === 'coat' && hsl.s < 0.12 && hsl.l > 0.5 && hsl.l < 0.85) {
+    for (let k = 0; k < 4; k++) {
+      const cx = 2 + Math.floor(rnd() * 12), cy = 2 + Math.floor(rnd() * 12);
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) px(cx + dx, cy + dy, 0.07);
+      px(cx, cy, -0.05);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshLambertMaterial({ map: t, ...extra });
+  horseMats.set(key, m);
+  return m;
+}
+
 const rb = (w: number, h: number, d: number, r = 0.05) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
 
 function add(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0): THREE.Mesh {
@@ -298,8 +355,8 @@ export class CreatureModel {
   /** A riding horse: a = coat, b = mane, tail and lower legs, c = saddle cloth; glow lights the hooves. */
   private buildHorse(): void {
     this.plateHeight = 2.4;
-    const coat = lam(this.pal.a ?? '#7a4a2a'), dark = lam(this.pal.b ?? '#2a1e16'), cloth = lam(this.pal.c ?? '#2e4a7a');
-    const leather = lam('#4a3020'), brass = lam('#c8a050');
+    const coat = horseMat('coat', this.pal.a ?? '#7a4a2a'), dark = horseMat('mane', this.pal.b ?? '#2a1e16'), cloth = horseMat('cloth', this.pal.c ?? '#2e4a7a');
+    const leather = horseMat('leather', '#4a3020'), brass = lam('#c8a050');
     const hoof = this.pal.glow ? lam('#ff9a3a', { emissive: new THREE.Color('#c84a10') }) : lam('#26201a');
     add(this.body, rb(0.7, 0.72, 1.62, 0.16), coat, 0, 1.36, 0);
     add(this.body, rb(0.64, 0.6, 0.5, 0.14), coat, 0, 1.4, 0.7); // chest
@@ -354,7 +411,7 @@ export class CreatureModel {
 
   /** What a breed adds to the horse: the seat stays where it is, so anyone rides any of them. */
   private horseBreed(breed: Breed, head: THREE.Group): void {
-    const white = lam('#f0ece4');
+    const white = horseMat('coat', '#f0ece4');
     if (breed === 'pied') {
       // White patches over the barrel, the quarters and the neck
       add(this.body, rb(0.73, 0.46, 0.62, 0.14), white, 0, 1.38, 0.18);
@@ -382,7 +439,7 @@ export class CreatureModel {
       }
     } else if (breed === 'ram') {
       // Curled horns and a fleece over the back
-      const horn = lam('#c8b890'), wool = lam(this.pal.a ?? '#e8e0d0');
+      const horn = lam('#c8b890'), wool = horseMat('mane', this.pal.a ?? '#e8e0d0');
       for (const sd of [1, -1]) {
         const curl = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.065, 6, 14, Math.PI * 1.6), horn);
         curl.position.set(sd * 0.2, 0.08, -0.02);
