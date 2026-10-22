@@ -172,10 +172,29 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
 }
 
 /** Plain coloured boxes and cones standing in for a landmark until its chunks load (one draw call). */
+/**
+ * A site's far-away stand-in. Long pieces (a town wall's sides) are meshes of their own, each knowing
+ * its footprint (userData.box), so the game can hide each one as you come near it: walking up to a
+ * wall far from the town's middle mustn't leave the grey box drawn over the real wall and its gate.
+ * The rest is merged, and hides with the site.
+ */
 export function buildImpostor(boxes: ImpostorBox[]): THREE.Group {
+  const g = new THREE.Group();
   const parts: THREE.BufferGeometry[] = [];
   const col = new THREE.Color();
   for (const b of boxes) {
+    if (!b.cone && Math.max(b.w, b.d) > 40) {
+      const geo = new THREE.BoxGeometry(b.w, b.h, b.d).translate(b.x, b.y, b.z).toNonIndexed();
+      geo.deleteAttribute('uv');
+      col.set(b.color);
+      const c = new Float32Array(geo.attributes.position.count * 3);
+      for (let i = 0; i < c.length; i += 3) { c[i] = col.r; c[i + 1] = col.g; c[i + 2] = col.b; }
+      geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      const m = new THREE.Mesh(geo, IMPOSTOR_MAT);
+      m.userData.box = b;
+      g.add(m);
+      continue;
+    }
     let geo: THREE.BufferGeometry = b.cone ? new THREE.ConeGeometry(b.w * 0.55, b.h, 4) : new THREE.BoxGeometry(b.w, b.h, b.d);
     if (b.cone) geo.rotateY(Math.PI / 4);
     geo.translate(b.x, b.y, b.z);
@@ -187,8 +206,7 @@ export function buildImpostor(boxes: ImpostorBox[]): THREE.Group {
     geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
     parts.push(geo);
   }
-  const g = new THREE.Group();
-  const merged = mergeGeometries(parts, false);
+  const merged = parts.length ? mergeGeometries(parts, false) : null;
   if (merged) g.add(new THREE.Mesh(merged, IMPOSTOR_MAT));
   return g;
 }

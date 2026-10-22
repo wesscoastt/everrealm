@@ -427,7 +427,17 @@ export class GameWorld {
         this.activeSites.delete(s.id);
       }
       const imp = this.impostors.get(s.id);
-      if (imp) imp.visible = d > this.chunks.coveredRadius + 20;
+      if (imp) {
+        const far = this.chunks.coveredRadius + 20;
+        imp.visible = true;
+        // A long piece (a wall) hides as you come near it, wherever the town's middle is; the rest with the site
+        for (const m of imp.children) {
+          const b = m.userData.box as { x: number; z: number; w: number; d: number } | undefined;
+          if (!b) { m.visible = d > far; continue; }
+          const dx = Math.max(0, Math.abs(center.x - b.x) - b.w / 2), dz = Math.max(0, Math.abs(center.z - b.z) - b.d / 2);
+          m.visible = Math.hypot(dx, dz) > far;
+        }
+      }
     }
     for (const s of this.activeSites.values()) for (const f of s.fires) f.scale.set(1, flick, 1);
     this.placeLamps(center, glow, flick);
