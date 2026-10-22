@@ -430,6 +430,31 @@ Storyline (each a rank): **The Audition** (Apprentice: play "Lady Day" at the ba
 
 Instruments: tin whistle, Hale pipes, Jory Polglase's fiddle, Sefton's frame drum, the Ansbury lute, the post horn, the hurdy-gurdy, the Waits' harp and the Carne whistle. Anyone can play by ear on the number keys. Played through at a performance spot (the bandstand, the moot oak, the Waystation yard, the fire at Fellers' Camp, the well at Kelderby, the Gullmouth quay, the Glass Kirk, the Works yard, the Ketley Arches, the keep steps, the Minster steps), a tune brings people to listen, and they leave a few marks. A group can play as a band, each on their own part.
 
+## Lore books [in game]
+
+Twenty-four books lie open on stands by the places they're about, and go into the journal's Library when read (`src/data/lorebooks.ts`). What they establish:
+
+- **The Charter** (a copy on the Charter Green): Ansbury keeps the roads, the counties keep their reeves, moots and customs; a toll may be no more than the keeping costs; a county may leave at Lady Day with a year's notice, paying what it owes; disputes go to the Speaker. A pencilled note by H.K. (Hugh Kellet): nobody has ever left, or been able to pay.
+- **Nat Coverdale**, toll rider number fourteen, was laid off at Advent when the riders were cut. **Sergeant A. Holroyd** put up a roll at the tilt-yard for anyone who still wanted the work: the Muster.
+- **The Lantern's** beacon line answered the Ridge fire and Fleet; its keeper lit it a last time after the Charter Post replaced it.
+- **The Exchange** keeps one book on the realm; Gideon Wray takes one mark in twenty.
+- **Fellers' Camp rules** (I. Marrow): a caller for every tree, two to a saw, elder-oak props nine foot with no knots in the bottom third, nobody under an ancient after dark.
+- **Harrowgate's Rules of the Works**: pay by the cart at the posted rate, tools deducted, stoppages for a fall of roof paid at half once the Company is satisfied it wasn't your fault.
+- **The lamplighters** are licensed by the Charter, light every lamp by the second bell after sunset, and say nothing of what they see from a ladder. Someone has added "Light the poor streets first".
+- **The Muster's notice**: anyone who can hold a weapon and keep their word, nobody also paid by the Company Wardens.
+- **Ilse Blewitt's** volume nine: a big fall past the Kettle, the stipend three weeks late, the near isle a stride and a hand further since spring.
+- **Wynn Carrow** measured the rope grooves on all seventeen standing Ketley arches: deepest nearest the Knap. A tenth arch stump holds up a gate in the Mossgate sheepfold. His rubbing of the Gallows Knap tally wall ends in forty-one strokes.
+- **A Collegium lecture**: crystal lifts the ground by a span for every three feet of cap (Joan Harrowgate's figure); the Collegium wants a licence over the old words.
+- **"Three Marks in Ten"**: Amos Hollis's broadside, four verses and a chorus.
+- **Gullmouth sayings**: never whistle on the quay, never count the boats aloud.
+- **Kelderby sayings** (the Hales'): when the Kettle steams on a cold morning, snow in two days.
+- **The moor's bells**: the chapel at **Carne Cross** lost its roof a hundred years ago and its parish fifty before that, but keeps its bell; you can ring the passing bell for anyone, if you find the chapel and the coin. (The Passing Bell, planned.)
+- **The Book of Names** at the Glass Kirk; after Act III, Sela writes Holmsey first.
+- **The Hollow Oak's** letters, and an old slate of a field held down by four ropes.
+- **Number Four's** shift board: Coll Bray with Penney and young Tully; Bray let go at Michaelmas; the roof down at Candlemas with nobody under it; "Ask the old man" chalked after.
+- **The Collegium's letter** to Tabitha Gant: the pages were taken by a student who has since left; the Collegium keeps its own copy of the tunes, for scholars, by appointment.
+- **Tomorrow's Coast**: a Morrow sailor at the Mewstones; their tall cities held down with black stone, and an island of wrecks where nobody pays a toll.
+
 ## Morrow, the second continent [planned]
 
 The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.

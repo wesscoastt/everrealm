@@ -172,6 +172,9 @@ export interface UiCtx {
   groupLeader(): boolean;
   claimLogin(): void;
   feats(): FeatView[];
+  /** The library: every lore book, shelf by shelf, and which you've read (data/lorebooks.ts). */
+  library(): { shelf: string; books: { id: string; title: string; where: string; read: boolean }[] }[];
+  readBook(id: string): void;
   /** The factions: which you've joined, your rank, and what's next (data/factions.ts). */
   factions(): { id: string; name: string; where: string; blurb: string; join: string; rank: string | null; rankIdx: number; ranks: string[]; next: string | null; open: boolean }[];
   /** Standing in each region (data/standing.ts). */
@@ -1400,7 +1403,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -1439,6 +1442,9 @@ export class Hud {
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
+    const lj = el('div', 'ji' + (this.selQuest === 'library' ? ' sel' : ''), 'Library');
+    lj.addEventListener('click', () => { this.selQuest = 'library'; this.renderJournal(); });
+    list.append(lj);
     const fj2 = el('div', 'ji' + (this.selQuest === 'factions' ? ' sel' : ''), 'Factions');
     fj2.addEventListener('click', () => { this.selQuest = 'factions'; this.renderJournal(); });
     list.append(fj2);
@@ -1513,6 +1519,19 @@ export class Hud {
         if (why) page.querySelector('.calling-msg')!.textContent = why;
         else this.renderJournal();
       }));
+    } else if (this.selQuest === 'library') {
+      const shelves = this.ctx.library();
+      const all = shelves.flatMap((x) => x.books), have = all.filter((b) => b.read).length;
+      page.innerHTML = `<h4>Library</h4><div class="feat-sum">${have} of ${all.length} books found. People left them where they wrote them: look for a book lying open on a stand by the place it's about. Click one you've found to read it again.</div>`;
+      for (const sh of shelves) {
+        page.append(el('h5', 'feat-group', esc(sh.shelf)));
+        for (const b of sh.books) {
+          const row = el('div', 'feat book' + (b.read ? ' done' : ''));
+          row.innerHTML = b.read ? `<div class="ft"><b>${esc(b.title)}</b><span>Read</span></div>` : `<div class="ft"><b class="miss">Not yet found</b><span></span></div><div class="fd">Somewhere near ${esc(b.where)}.</div>`;
+          if (b.read) { row.style.cursor = 'pointer'; row.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.readBook(b.id); }); }
+          page.append(row);
+        }
+      }
     } else if (this.selQuest === 'factions') {
       const rows = this.ctx.factions();
       page.innerHTML = '<h4>Factions</h4><div class="feat-sum">Companies you can join, each with its own hall, people and storyline. Every chapter of a storyline raises your rank; the last gives a title.</div>';

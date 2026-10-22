@@ -5,6 +5,8 @@ import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
 import { Stage } from './Stage';
 import { Chests, TIERS } from './Chests';
+import { LoreBooks } from './LoreBooks';
+import { BOOK_BY_ID, LORE_BOOKS, SHELVES } from '../data/lorebooks';
 import { FACTIONS, factionRank } from '../data/factions';
 import { HEARING } from './Bard';
 import type { PartId } from '../data/tunes';
@@ -188,6 +190,8 @@ export class Game implements GameApi {
   private activities!: Activities;
   /** Hidden chests across the land (game/Chests.ts). */
   private chests!: Chests;
+  /** Lore books lying open by the places they're about (game/LoreBooks.ts). */
+  private books!: LoreBooks;
   private crowd!: Crowd;
   private roadfolk!: Roadfolk;
   private doll = new Doll();
@@ -551,6 +555,18 @@ export class Game implements GameApi {
       sound: (n) => this.sfx(n),
       lockpick: (tier, picks, snap) => { const T = TIERS[tier]; return this.hud.lockpick(T.name, T.pins, T.zone, T.speed, picks, snap); },
       known: (id) => this.inv.count(id) > 0,
+    });
+    this.books = new LoreBooks({
+      scene: this.scene,
+      voxels: this.world.voxels,
+      player: () => this.player.position,
+      api: () => this,
+      flag: (k) => this.flag(k),
+      setFlag: (k, v) => this.setFlag(k, v),
+      read: (title, text) => this.hud.showReadable(title, text),
+      system: (t) => this.hud.system(t),
+      sound: (n) => this.sfx(n),
+      sparkle: (at) => this.particles.note(at, '#fff4d0'),
     });
     this.activities = new Activities({
       daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
@@ -1365,6 +1381,8 @@ export class Game implements GameApi {
       },
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
       standing: () => g.standingView(),
+      library: () => SHELVES.map((shelf) => ({ shelf, books: LORE_BOOKS.filter((b) => b.shelf === shelf).map((b) => ({ id: b.id, title: b.title, where: b.where, read: !!g.flag('book:' + b.id) })) })),
+      readBook: (id: string) => { const b = BOOK_BY_ID[id]; if (b && g.flag('book:' + id)) g.books.open(b); },
       factions: () => FACTIONS.map((f) => {
         const r = factionRank(g, f.id);
         const nextQ = f.storyline.find((q) => g.stage(q) !== 'done');
@@ -2246,6 +2264,7 @@ export class Game implements GameApi {
         if (mine && t.until > Date.now() && dc < 2) consider({ kind: 'act', label: 'Open your chest', pos: new THREE.Vector3(cx + 0.5, base + 1, cz + 0.5), act: () => { this.hud.closeAll(); void this.bank.show(`your chest, ${L.name}`, cx + 0.5, cz + 0.5); } }, dc);
       });
     }
+    for (const a of this.books.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.chests.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
@@ -3735,6 +3754,7 @@ export class Game implements GameApi {
     this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
+    this.books.update(dt);
 
     // Interaction candidate
     this.candidate = this.dialogue || this.hud.picking ? null : this.findCandidate();
@@ -4244,6 +4264,7 @@ export class Game implements GameApi {
       info: REGION_INFO,
       give: (id: string, n = 1) => this.give(id, n),
       item: (id: string) => ITEMS[id],
+      books: () => LORE_BOOKS,
       xp: (s: SkillId, n: number) => this.addXp(s, n),
       stage: (q: string, s: string) => this.setStage(q, s),
       hour: (h: number) => { this.world.sky.hour = h; },
