@@ -288,6 +288,9 @@ export class Hud {
   private exSell: string | null = null;
   private dlgOptions: HTMLButtonElement[] = [];
   private dragFrom = -1;
+  /** Your character in the pack (ui/Doll.ts): the canvas it's drawn into, and which way it faces. */
+  dollCanvas: HTMLCanvasElement | null = null;
+  dollYaw = 0.45;
   dialogueOpen = false;
   private lastBanner = '';
 
@@ -1307,18 +1310,32 @@ export class Hud {
     const save = this.ctx.save;
     body.innerHTML = '';
     const eq = el('div', 'equip-row');
-    const slots = el('div', 'eq-slots');
-    for (const slot of ['weapon', 'head', 'chest', 'legs', 'hands', 'feet'] as const) {
-      const id = save.equip[slot] ?? null;
-      const wrap = el('div', 'eq');
-      const s = this.slotEl(id, 1, -1, 'Click to unequip');
-      if (id) s.addEventListener('click', () => { this.ctx.unequip(slot); this.hideTooltip(); });
-      wrap.append(s, el('span', '', slot === 'weapon' ? 'Weapon' : SLOT_NAMES[slot]));
-      slots.append(wrap);
-    }
-    eq.append(slots);
+    // Like an MMO's character panel: armour down the left, you in the middle, the rest on the right
+    const doll = el('div', 'paperdoll');
+    const column = (list: readonly ('weapon' | 'head' | 'chest' | 'legs' | 'hands' | 'feet')[]) => {
+      const col = el('div', 'col');
+      for (const slot of list) {
+        const id = save.equip[slot] ?? null;
+        const wrap = el('div', 'eq');
+        const s = this.slotEl(id, 1, -1, 'Click to unequip');
+        if (id) s.addEventListener('click', () => { this.ctx.unequip(slot); this.hideTooltip(); });
+        wrap.append(s, el('span', '', slot === 'weapon' ? 'Weapon' : SLOT_NAMES[slot]));
+        col.append(wrap);
+      }
+      return col;
+    };
+    const canvas = document.createElement('canvas');
+    canvas.className = 'doll';
+    canvas.title = 'Drag to turn';
+    let dragX: number | null = null;
+    canvas.addEventListener('pointerdown', (e) => { dragX = e.clientX; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointermove', (e) => { if (dragX === null) return; this.dollYaw += (e.clientX - dragX) * 0.012; dragX = e.clientX; });
+    canvas.addEventListener('pointerup', () => { dragX = null; });
+    this.dollCanvas = canvas;
+    doll.append(column(['head', 'chest', 'legs']), canvas, column(['weapon', 'hands', 'feet']));
+    eq.append(doll);
     // Gear is horizontal: show the weapon's style, the armour's weights and the set in force, not a bigger number
-    const style = (id: string | null) => (id ? (ITEMS[id].stats ?? '').split('.')[0] : 'None');
+    const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();
     eq.append(el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b>`));
     body.append(eq);

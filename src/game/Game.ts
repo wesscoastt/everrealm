@@ -30,6 +30,7 @@ import { CreatureModel, type CreatureKind } from '../entities/creatures';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
+import { Doll } from '../ui/Doll';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
@@ -181,6 +182,7 @@ export class Game implements GameApi {
   private activities!: Activities;
   private crowd!: Crowd;
   private roadfolk!: Roadfolk;
+  private doll = new Doll();
   readonly dailies = new Dailies({
     flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
     addMarks: (n) => this.addMarks(n), addXp: (s, n) => { this.writXp = true; this.addXp(s, n); this.writXp = false; },
@@ -3257,6 +3259,13 @@ export class Game implements GameApi {
     this.autosave += dt;
     if (this.autosave > 20) { this.autosave = 0; this.persist(); }
     this.input.endFrame();
+    // Your character in the pack, while it's open (drawn first; the frame goes over it)
+    const dc = this.hud.dollCanvas;
+    if (dc?.isConnected && dc.clientWidth) {
+      this.doll.set(this.wornLook(), this.save.equip.weapon ? ITEMS[this.save.equip.weapon]?.weapon?.held ?? 'none' : 'none');
+      this.doll.yaw = this.hud.dollYaw += dt * 0.25;
+      this.doll.draw(this.renderer, dt, dc);
+    }
     this.renderer.render(this.scene, this.camera);
     if (this.debug) {
       this.fpsAcc.t += dt; this.fpsAcc.n++;

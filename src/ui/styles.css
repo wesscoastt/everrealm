@@ -796,6 +796,11 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 /* Armour: weapon and five armour slots in a row, the summary under them */
 .equip-row { flex-wrap: wrap; }
 .equip-row .eq-slots { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+.paperdoll { display: grid; grid-template-columns: 52px 1fr 52px; gap: 8px; width: 100%; align-items: center; }
+.paperdoll .col { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.paperdoll .slot { width: 40px; height: 40px; }
+.paperdoll canvas.doll { width: 100%; height: 196px; display: block; border-radius: 8px; border: 1px solid var(--gild-faint, rgba(224, 189, 100, 0.25)); cursor: grab; touch-action: none; }
+.paperdoll canvas.doll:active { cursor: grabbing; }
 .equip-row .eq-slots .slot { width: 40px; height: 40px; }
 .equip-row .stats { margin-left: 0; text-align: left; width: 100%; font-size: 12px; }
 
