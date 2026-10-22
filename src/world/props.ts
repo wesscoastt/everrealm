@@ -541,14 +541,15 @@ export function noticeBoard(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/** A mine cart, running along its length (z) like rails(): set on a track with the same turn, its wheels sit on the rails. */
 export function cart(M: PropMaterials, ore = true): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(box(1.0, 0.55, 0.7), M.wood, 0, 0.6, 0));
-  g.add(mesh(box(1.04, 0.08, 0.74), M.iron, 0, 0.86, 0));
-  for (const x of [-0.32, 0.32]) for (const z of [-0.38, 0.38]) g.add(mesh(cyl(0.17, 0.17, 0.08, 10), M.iron, x, 0.22, z, 0, Math.PI / 2));
+  g.add(mesh(box(0.6, 0.55, 1.0), M.wood, 0, 0.6, 0));
+  g.add(mesh(box(0.64, 0.08, 1.04), M.iron, 0, 0.86, 0));
+  for (const x of [-0.34, 0.34]) for (const z of [-0.32, 0.32]) g.add(mesh(cyl(0.17, 0.17, 0.08, 10), M.iron, x, 0.22, z, 0, 0, Math.PI / 2));
   if (ore) {
     const rocks = new THREE.Group();
-    for (let i = 0; i < 6; i++) rocks.add(mesh(box(0.28, 0.24, 0.26), i % 2 ? M.stone : M.cobble, -0.3 + (i % 3) * 0.3, 0.92, -0.15 + Math.floor(i / 3) * 0.3, i));
+    for (let i = 0; i < 6; i++) rocks.add(mesh(box(0.26, 0.24, 0.28), i % 2 ? M.stone : M.cobble, -0.15 + Math.floor(i / 3) * 0.3, 0.92, -0.3 + (i % 3) * 0.3, i));
     g.add(rocks);
   }
   return g;
