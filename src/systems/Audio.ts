@@ -6,7 +6,8 @@ import { Instruments } from './music/Instruments';
 export type Sfx =
   | 'swing' | 'hit' | 'hitHeavy' | 'hurt' | 'clink' | 'oreBreak' | 'chop' | 'treeFall' | 'cast' | 'splash' | 'bite' | 'catch'
   | 'bell' | 'coin' | 'levelUp' | 'click' | 'open' | 'close' | 'step' | 'growl' | 'squelch' | 'skitter' | 'heal' | 'roll'
-  | 'anvil' | 'sizzle' | 'quest' | 'discover' | 'whistle' | 'death' | 'pickup' | 'fail' | 'thunder';
+  | 'anvil' | 'sizzle' | 'quest' | 'discover' | 'whistle' | 'death' | 'pickup' | 'fail' | 'thunder'
+  | 'bark' | 'meow' | 'quack' | 'baa' | 'purr';
 
 export class AudioSystem {
   ctx: AudioContext | null = null;
@@ -175,6 +176,12 @@ export class AudioSystem {
       case 'whistle': this.tone(1800, 'sine', 0.5, 0.2 * v, 0, 2300); break;
       case 'thunder': this.burst(220, 0.6, 3.2, 0.55 * v, 'lowpass', 0, 45); this.burst(90, 0.8, 2.4, 0.4 * v, 'lowpass', 0.35, 40); break;
       case 'death': this.tone(300, 'sine', 1.2, 0.2 * v, 0, 80); break;
+      // Animals: a bark (two, sometimes), a meow that bends, a quack, a baa that wavers, a purr
+      case 'bark': for (let i = 0; i < (Math.random() < 0.5 ? 2 : 1); i++) { this.tone(420, 'sawtooth', 0.09, 0.09 * v, i * 0.22, 260); this.burst(900, 2, 0.08, 0.25 * v, 'bandpass', i * 0.22); } break;
+      case 'meow': this.tone(560, 'triangle', 0.32, 0.07 * v, 0, 820); this.tone(760, 'sine', 0.2, 0.04 * v, 0.14, 480); break;
+      case 'quack': for (let i = 0; i < 2; i++) { this.tone(330, 'square', 0.1, 0.05 * v, i * 0.14, 260); this.burst(1100, 4, 0.09, 0.12 * v, 'bandpass', i * 0.14); } break;
+      case 'baa': for (let i = 0; i < 5; i++) this.tone(300 + (i % 2) * 30, 'sawtooth', 0.12, 0.04 * v, i * 0.09, 290); break;
+      case 'purr': for (let i = 0; i < 10; i++) this.burst(140, 3, 0.07, 0.18 * v, 'lowpass', i * 0.09); break;
     }
   }
 

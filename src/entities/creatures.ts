@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse'
+export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse' | 'dog' | 'cat' | 'duck'
   | 'shark' | 'eel' | 'ray' | 'medusa'
   /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
   | 'bandit';
@@ -14,7 +14,7 @@ export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'r
 /** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed. */
 export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie';
 export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean }
-export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze';
+export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze' | 'sit' | 'swim';
 
 const mats = new Map<string, THREE.Material>();
 const lam = (c: string, extra: THREE.MeshLambertMaterialParameters = {}) => {
@@ -194,6 +194,9 @@ export class CreatureModel {
       case 'deer': this.buildDeer(); break;
       case 'rabbit': this.buildRabbit(); break;
       case 'sheep': this.buildSheep(); break;
+      case 'dog': this.buildDog(); break;
+      case 'cat': this.buildCat(); break;
+      case 'duck': this.buildDuck(); break;
       case 'chicken': this.buildChicken(); break;
       case 'horse': this.buildHorse(); break;
       case 'shark': this.buildShark(); break;
@@ -203,7 +206,7 @@ export class CreatureModel {
     }
     // Texture the plain surfaces (fur, chitin, scales, fleece) so nothing looks moulded out of putty;
     // glowing parts (eyes, a jelly's bell) and see-through ones keep their own look
-    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale' };
+    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', dog: 'fur', cat: 'fur', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale' };
     const skin = surface[kind];
     if (skin) this.root.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -432,23 +435,178 @@ export class CreatureModel {
     }
   }
 
+  /** A sheep: a deep fleece in tufts over a narrower body, a long dark face with side ears, wool to the knee. a = fleece, b = face and legs; a ram (breed 'ram') has curled horns. */
   private buildSheep(): void {
-    this.plateHeight = 1.2;
-    const wool = lam('#eeeae0');
-    add(this.body, rb(0.66, 0.6, 0.96, 0.2), wool, 0, 0.72, 0);
-    for (let i = 0; i < 5; i++) add(this.body, rb(0.3, 0.26, 0.3, 0.1), wool, (i % 2 ? 0.2 : -0.2), 1.0, -0.3 + i * 0.15);
+    this.plateHeight = 1.25;
+    const W = lam(this.pal.a ?? '#ece6d8'), Wd = lam(new THREE.Color(this.pal.a ?? '#ece6d8').multiplyScalar(0.88).getStyle()), F = lam(this.pal.b ?? '#2e2a26');
+    // The fleece: a core, and tufts all over it so the outline is lumpy, not a box
+    add(this.body, rb(0.7, 0.58, 1.0, 0.2), W, 0, 0.78, -0.02);
+    const tufts: [number, number, number, number][] = [
+      [0, 1.06, 0.28, 0.36], [0.18, 1.04, -0.02, 0.34], [-0.18, 1.04, -0.02, 0.34], [0, 1.08, -0.3, 0.36], [0.2, 1.0, -0.42, 0.3], [-0.2, 1.0, -0.42, 0.3],
+      [0.34, 0.86, 0.2, 0.3], [-0.34, 0.86, 0.2, 0.3], [0.36, 0.82, -0.22, 0.32], [-0.36, 0.82, -0.22, 0.32], [0, 0.88, 0.48, 0.34], [0, 0.82, -0.52, 0.34],
+      [0.26, 0.6, 0.28, 0.26], [-0.26, 0.6, 0.28, 0.26], [0.27, 0.58, -0.3, 0.26], [-0.27, 0.58, -0.3, 0.26],
+    ];
+    tufts.forEach(([x, y, z, s], i) => add(this.body, rb(s, s * 0.82, s, s * 0.32), i % 3 === 0 ? Wd : W, x, y, z));
     const head = new THREE.Group();
-    head.position.set(0, 0.86, 0.52);
+    head.position.set(0, 0.98, 0.56);
     this.body.add(head);
-    add(head, rb(0.26, 0.3, 0.32, 0.08), lam('#3a3430'), 0, 0, 0.08);
-    add(head, rb(0.3, 0.14, 0.2, 0.06), wool, 0, 0.16, 0.0);
-    for (const sd of [1, -1]) add(head, rb(0.16, 0.06, 0.08, 0.02), lam('#3a3430'), sd * 0.18, 0.04, 0.0);
+    add(head, taper(rb(0.24, 0.26, 0.4, 0.07), 0.78, 0.82), F, 0, -0.04, 0.1, 0, Math.PI); // the long face, narrowing to the nose
+    add(head, rb(0.3, 0.16, 0.2, 0.07), W, 0, 0.13, -0.04); // the woolly poll
+    const nose = add(head, rb(0.12, 0.06, 0.04, 0.015), lam('#1a1614'), 0, -0.09, 0.31);
+    nose.userData.plain = true;
+    for (const sd of [1, -1]) {
+      // Pale eyes with the long dark pupil, set wide; ears straight out to the side, drooping a little
+      const eye = add(head, rb(0.05, 0.04, 0.02, 0.008), lam('#d8c890'), sd * 0.122, 0.035, 0.08, 0, sd * 0.35, 0);
+      eye.userData.plain = true;
+      const pupil = add(head, rb(0.032, 0.012, 0.012, 0.004), lam('#141010'), sd * 0.128, 0.035, 0.092, 0, sd * 0.35, 0);
+      pupil.userData.plain = true;
+      add(head, rb(0.18, 0.05, 0.08, 0.02), F, sd * 0.2, 0.06, -0.02, 0, 0, sd * -0.35);
+      if (this.pal.breed === 'ram') {
+        // Horns curling back and down round the ear
+        for (let k = 0; k < 4; k++) {
+          const a = k * 0.9;
+          add(head, rb(0.08, 0.08, 0.12, 0.03), lam('#c8b890'), sd * (0.16 + k * 0.02), 0.12 - Math.sin(a) * 0.1, -0.06 - Math.cos(a) * 0.08 + 0.04, a, 0, 0).userData.plain = true;
+        }
+      }
+    }
     this.head = head;
-    for (const [x, z] of [[0.18, 0.3], [-0.18, 0.3], [0.18, -0.3], [-0.18, -0.3]]) {
+    // A short woolly tail
+    const tail = new THREE.Group();
+    tail.position.set(0, 0.86, -0.56);
+    this.body.add(tail);
+    add(tail, rb(0.14, 0.2, 0.12, 0.05), W, 0, -0.08, -0.03, 0.3);
+    this.tail = tail;
+    // Legs: wool to the knee, then thin and dark, with cloven hooves
+    for (const [x, z] of [[0.2, 0.32], [-0.2, 0.32], [0.2, -0.34], [-0.2, -0.34]]) {
       const leg = new THREE.Group();
-      leg.position.set(x, 0.44, z);
+      leg.position.set(x, 0.56, z);
       this.body.add(leg);
-      add(leg, rb(0.1, 0.44, 0.1, 0.03), lam('#3a3430'), 0, -0.22, 0);
+      add(leg, rb(0.17, 0.2, 0.18, 0.06), W, 0, -0.06, 0);
+      add(leg, rb(0.08, 0.36, 0.08, 0.02), F, 0, -0.32, 0.01);
+      add(leg, rb(0.1, 0.06, 0.11, 0.02), lam('#1e1a16'), 0, -0.53, 0.02);
+      this.legs.push(leg);
+    }
+  }
+
+  /** A working dog, collie-built: a = coat, b = the white of chest, muzzle, feet and tail tip, c = tan points. */
+  private buildDog(): void {
+    this.plateHeight = 0.95;
+    const C = lam(this.pal.a ?? '#26211e'), Wt = lam(this.pal.b ?? '#efe8dc'), T = lam(this.pal.c ?? '#a8682e');
+    add(this.body, taper(rb(0.32, 0.36, 0.78, 0.06), 0.82, 0.78), C, 0, 0.56, -0.06);
+    add(this.body, rb(0.3, 0.3, 0.12, 0.05), Wt, 0, 0.52, 0.32); // the white chest
+    add(this.body, rb(0.4, 0.34, 0.2, 0.07), C, 0, 0.68, 0.26); // ruff
+    add(this.body, rb(0.24, 0.24, 0.24, 0.05), C, 0, 0.78, 0.38, -0.5); // neck
+    const head = new THREE.Group();
+    head.position.set(0, 0.9, 0.5);
+    this.body.add(head);
+    add(head, rb(0.26, 0.22, 0.24, 0.05), C, 0, 0, 0);
+    add(head, rb(0.08, 0.22, 0.2, 0.02), Wt, 0, 0.01, 0.02); // the white blaze up the face
+    add(head, taper(rb(0.15, 0.11, 0.22, 0.03), 0.8, 0.8), Wt, 0, -0.05, 0.19, 0, Math.PI); // muzzle
+    const nose = add(head, rb(0.07, 0.05, 0.05, 0.018), lam('#141010'), 0, -0.02, 0.31);
+    nose.userData.plain = true;
+    for (const sd of [1, -1]) {
+      const eye = add(head, rb(0.045, 0.04, 0.02, 0.01), lam('#3a2414'), sd * 0.075, 0.04, 0.115);
+      eye.userData.plain = true;
+      add(head, rb(0.05, 0.025, 0.02, 0.008), T, sd * 0.075, 0.085, 0.11); // tan brows
+      // Ears up, tips folded over
+      add(head, rb(0.08, 0.13, 0.04, 0.015), C, sd * 0.09, 0.17, -0.03, 0, 0, sd * -0.15);
+      add(head, rb(0.07, 0.06, 0.035, 0.012), C, sd * 0.1, 0.235, 0.0, 0.7, 0, sd * -0.15);
+    }
+    const jaw = new THREE.Group();
+    jaw.position.set(0, -0.09, 0.08);
+    head.add(jaw);
+    add(jaw, rb(0.1, 0.035, 0.17, 0.012), Wt, 0, -0.01, 0.09);
+    const tongue = add(jaw, rb(0.05, 0.015, 0.08, 0.006), lam('#d86a6a'), 0, 0.006, 0.14);
+    tongue.userData.plain = true;
+    this.head = head;
+    this.jaw = jaw;
+    // A plumed tail carried up, white at the tip
+    const tail = new THREE.Group();
+    tail.position.set(0, 0.72, -0.44);
+    this.body.add(tail);
+    add(tail, rb(0.1, 0.1, 0.22, 0.03), C, 0, 0.04, -0.09, 0.6);
+    add(tail, rb(0.13, 0.13, 0.22, 0.04), C, 0, 0.16, -0.2, 1.0);
+    add(tail, rb(0.11, 0.11, 0.1, 0.03), Wt, 0, 0.27, -0.26, 1.2);
+    this.tail = tail;
+    for (const [x, z, hind] of [[0.11, 0.24, 0], [-0.11, 0.24, 0], [0.11, -0.34, 1], [-0.11, -0.34, 1]] as const) {
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.46, z);
+      this.body.add(leg);
+      if (hind) {
+        add(leg, rb(0.12, 0.24, 0.18, 0.04), C, 0, -0.08, 0);
+        add(leg, rb(0.07, 0.22, 0.07, 0.02), C, 0, -0.28, -0.04, 0.25);
+      } else add(leg, rb(0.08, 0.38, 0.09, 0.02), C, 0, -0.2, 0.01);
+      add(leg, rb(0.09, 0.07, 0.12, 0.02), Wt, 0, -0.42, 0.03); // white feet
+      this.legs.push(leg);
+    }
+  }
+
+  /** A cat: lean and low, a round head with tall ears, a long tail held up. a = coat, b = stripes, c = chest and paws. */
+  private buildCat(): void {
+    this.plateHeight = 0.6;
+    const C = lam(this.pal.a ?? '#d8843a'), S = lam(this.pal.b ?? '#9a5420'), P = lam(this.pal.c ?? '#f2e8d8');
+    add(this.body, rb(0.2, 0.2, 0.46, 0.06), C, 0, 0.3, -0.02);
+    for (let k = 0; k < 3; k++) add(this.body, rb(0.21, 0.04, 0.05, 0.012), S, 0, 0.39, -0.16 + k * 0.12); // stripes over the back
+    add(this.body, rb(0.16, 0.14, 0.08, 0.04), P, 0, 0.27, 0.2); // pale chest
+    const head = new THREE.Group();
+    head.position.set(0, 0.44, 0.24);
+    this.body.add(head);
+    add(head, rb(0.22, 0.19, 0.18, 0.07), C, 0, 0, 0);
+    add(head, rb(0.12, 0.07, 0.07, 0.025), P, 0, -0.045, 0.085); // muzzle
+    const nose = add(head, rb(0.035, 0.025, 0.02, 0.008), lam('#d88a8a'), 0, -0.02, 0.12);
+    nose.userData.plain = true;
+    for (const sd of [1, -1]) {
+      const eye = add(head, rb(0.05, 0.045, 0.02, 0.012), lam('#a8d050', { emissive: new THREE.Color('#1a2a00') }), sd * 0.055, 0.025, 0.09);
+      eye.userData.plain = true;
+      const slit = add(head, rb(0.01, 0.04, 0.01, 0.003), lam('#101010'), sd * 0.055, 0.025, 0.1);
+      slit.userData.plain = true;
+      add(head, new THREE.ConeGeometry(0.05, 0.12, 4), C, sd * 0.07, 0.13, -0.01, 0, Math.PI / 4, sd * -0.18);
+      add(head, rb(0.08, 0.004, 0.004, 0.001), lam('#f0f0f0'), sd * 0.1, -0.04, 0.1, 0, 0, sd * 0.15).userData.plain = true; // whiskers
+    }
+    add(head, rb(0.05, 0.02, 0.05, 0.01), S, 0, 0.09, 0.03); // the stripe on the brow
+    this.head = head;
+    // The tail, up and curving over at the tip
+    const tail = new THREE.Group();
+    tail.position.set(0, 0.36, -0.25);
+    this.body.add(tail);
+    for (let k = 0; k < 5; k++) add(tail, rb(0.055, 0.055, 0.1, 0.02), k % 2 ? S : C, 0, 0.03 + k * 0.07, -0.05 - Math.sin(k * 0.5) * 0.06 + k * 0.012, -0.9 + k * 0.32);
+    this.tail = tail;
+    for (const [x, z] of [[0.065, 0.15], [-0.065, 0.15], [0.065, -0.18], [-0.065, -0.18]]) {
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.22, z);
+      this.body.add(leg);
+      add(leg, rb(0.06, 0.2, 0.07, 0.02), C, 0, -0.1, 0);
+      add(leg, rb(0.065, 0.04, 0.08, 0.015), P, 0, -0.21, 0.01);
+      this.legs.push(leg);
+    }
+  }
+
+  /** A duck: a = body, b = head (a drake's green, a duck's brown), with the blue flash on the wing. */
+  private buildDuck(): void {
+    this.plateHeight = 0.6;
+    const Bd = lam(this.pal.a ?? '#8a7a66'), H = lam(this.pal.b ?? '#2a6a3a'), Bill = lam('#e0b840');
+    add(this.body, rb(0.28, 0.2, 0.44, 0.09), Bd, 0, 0.18, 0);
+    add(this.body, rb(0.24, 0.12, 0.16, 0.05), Bd, 0, 0.26, -0.2, -0.4); // the tail end, up
+    add(this.body, rb(0.24, 0.1, 0.12, 0.04), lam('#e8e0d0'), 0, 0.16, 0.16); // breast
+    for (const sd of [1, -1]) {
+      add(this.body, rb(0.04, 0.12, 0.3, 0.03), lam('#6a5e50'), sd * 0.14, 0.22, -0.04);
+      add(this.body, rb(0.042, 0.04, 0.08, 0.01), lam('#3a5ac8'), sd * 0.145, 0.22, -0.08).userData.plain = true; // the speculum
+    }
+    const head = new THREE.Group();
+    head.position.set(0, 0.38, 0.18);
+    this.body.add(head);
+    add(head, rb(0.08, 0.14, 0.08, 0.03), H, 0, -0.06, -0.01); // neck
+    add(head, rb(0.14, 0.13, 0.15, 0.05), H, 0, 0.04, 0.02);
+    add(head, rb(0.07, 0.035, 0.12, 0.015), Bill, 0, 0.0, 0.14).userData.plain = true;
+    for (const sd of [1, -1]) add(head, rb(0.02, 0.025, 0.02, 0.006), lam('#101010'), sd * 0.065, 0.06, 0.06).userData.plain = true;
+    if (this.pal.b === undefined) add(head, rb(0.145, 0.02, 0.13, 0.008), lam('#f0f0f0'), 0, -0.04, 0.02); // the drake's white collar
+    this.head = head;
+    for (const x of [0.07, -0.07]) {
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.1, 0);
+      this.body.add(leg);
+      add(leg, rb(0.03, 0.1, 0.03, 0.01), lam('#e08a30'), 0, -0.05, 0);
+      add(leg, rb(0.07, 0.015, 0.08, 0.005), lam('#e08a30'), 0, -0.1, 0.03);
       this.legs.push(leg);
     }
   }
@@ -882,6 +1040,7 @@ export class CreatureModel {
       return;
     }
 
+    if (this.kind === 'duck' && this.anim !== 'swim') for (const l of this.legs) l.visible = true;
     const legAmp = this.anim === 'run' ? 0.8 : this.anim === 'walk' ? 0.45 : 0;
     this.legs.forEach((leg, i) => {
       const off = this.kind === 'rustback' ? (i % 2) * Math.PI : i === 0 || i === 3 ? 0 : Math.PI;
@@ -894,7 +1053,7 @@ export class CreatureModel {
       this.body.rotation.x = Math.sin(this.phase) * 0.07;
       this.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(this.phase + (i < 2 ? 0 : 2.2) + (i % 2) * 0.35) * 0.75; });
     }
-    if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * 0.008) * (this.anim === 'run' ? 0.5 : 0.2);
+    if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * (this.kind === 'dog' ? 0.016 : this.kind === 'cat' ? 0.002 : 0.008)) * (this.anim === 'run' ? 0.5 : this.kind === 'dog' ? 0.45 : 0.2);
     if (this.head) this.head.rotation.set(0, 0, 0);
     // A wolf pants as it stands, and its jaw opens as it gathers to bite
     if (this.jaw) this.jaw.rotation.x = this.anim === 'idle' ? 0.08 + Math.sin(t * 9) * 0.05 : this.anim === 'windup' ? 0.35 * Math.min(1, t / 0.4) : this.anim === 'attack' ? 0.55 * (1 - Math.min(1, t / 0.3)) : this.anim === 'dead' ? 0.3 : 0.05;
@@ -905,6 +1064,23 @@ export class CreatureModel {
         break;
       case 'graze':
         if (this.head) this.head.rotation.x = 0.7 + Math.sin(t * 6) * 0.05;
+        break;
+      case 'sit': {
+        // Sitting up: the back end down on its haunches, the front legs straight
+        const k = Math.min(1, t / 0.4);
+        this.body.rotation.x = -0.42 * k;
+        this.body.position.y = -0.06 * k;
+        this.body.position.z = -0.1 * k;
+        if (this.legs[0]) { this.legs[0].rotation.x = 0.42 * k; this.legs[1].rotation.x = 0.42 * k; }
+        if (this.legs[2]) { this.legs[2].rotation.x = -0.9 * k; this.legs[3].rotation.x = -0.9 * k; }
+        if (this.head) { this.head.rotation.x = 0.3 * k; this.head.rotation.y = Math.sin(performance.now() * 0.0007 + this.phase) * 0.3; }
+        break;
+      }
+      case 'swim':
+        // Afloat: a gentle bob, the feet paddling out of sight
+        this.body.position.y = -0.12 + Math.sin(performance.now() * 0.003 + this.phase) * 0.02;
+        this.legs.forEach((l) => { l.visible = false; });
+        if (this.head) this.head.rotation.x = Math.sin(performance.now() * 0.002) * 0.1;
         break;
       case 'windup': {
         const k = Math.min(1, t / 0.5);

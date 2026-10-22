@@ -6,6 +6,8 @@ import { REGION_WEAPONS } from '../data/weapons';
 import { Stage } from './Stage';
 import { Chests, TIERS } from './Chests';
 import { LoreBooks } from './LoreBooks';
+import { FishSchools } from './FishSchools';
+import type { Palette } from '../entities/creatures';
 import { BOOK_BY_ID, LORE_BOOKS, SHELVES } from '../data/lorebooks';
 import { FACTIONS, factionRank } from '../data/factions';
 import { HEARING } from './Bard';
@@ -62,7 +64,8 @@ import { Interactable } from '../world/structures';
 import { DialogueTree, DNode, GameApi } from './api';
 import { GameWorld , ForageSpot } from './GameWorld';
 import { places } from '../data/places';
-import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist } from '../world/terrain';
+import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist, SEA } from '../world/terrain';
+import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
 import type { ChunkResult } from '../world/chunkgen';
 import { chunkKey } from '../world/VoxelWorld';
@@ -190,8 +193,12 @@ export class Game implements GameApi {
   private activities!: Activities;
   /** Hidden chests across the land (game/Chests.ts). */
   private chests!: Chests;
+  /** The towns' dogs and cats, spawned near the player (one list, so each keeps its place). */
+  private pets: { kind: 'dog' | 'cat'; x: number; z: number; pal: Palette; a: Animal | null }[] = [];
   /** Lore books lying open by the places they're about (game/LoreBooks.ts). */
   private books!: LoreBooks;
+  /** Schools of fish in the water near you (game/FishSchools.ts). */
+  private fish!: FishSchools;
   private crowd!: Crowd;
   private roadfolk!: Roadfolk;
   private doll = new Doll();
@@ -556,6 +563,7 @@ export class Game implements GameApi {
       lockpick: (tier, picks, snap) => { const T = TIERS[tier]; return this.hud.lockpick(T.name, T.pins, T.zone, T.speed, picks, snap); },
       known: (id) => this.inv.count(id) > 0,
     });
+    this.fish = new FishSchools(this.scene, this.world.voxels);
     this.books = new LoreBooks({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -624,11 +632,19 @@ export class Game implements GameApi {
       this.scene.add(e.model.root, e.telegraph);
     }
     for (const a of ANIMAL_SPAWNS) {
-      const an = new Animal(a.kind, a.x, a.z, a.radius, this.world.voxels, this.world.grid);
+      const an = new Animal(a.kind, a.x, a.z, a.radius, this.world.voxels, this.world.grid, a.kind === 'duck' && a.x % 2 < 1 ? {} : a.kind === 'duck' ? { a: '#8a6a4a', b: '#7a5a3a' } : {});
       this.animals.push(an);
       this.scene.add(an.model.root);
     }
     this.stables = new Stables(this.scene, this.world.voxels);
+    // Dogs and cats about the towns: by every Charter Post sign and in Hollin Ford, coats from a few kinds
+    {
+      const dogCoats: Palette[] = [{ a: '#26211e', b: '#efe8dc', c: '#a8682e' }, { a: '#8a5a2e', b: '#e8d8b8', c: '#5a3a1e' }, { a: '#c8a060', b: '#f0e4c8', c: '#8a6a3a' }, { a: '#3a3a3a', b: '#d8d8d8', c: '#6a6a6a' }];
+      const catCoats: Palette[] = [{ a: '#d8843a', b: '#9a5420', c: '#f2e8d8' }, { a: '#2a2626', b: '#1a1616', c: '#3a3434' }, { a: '#8a8a8e', b: '#5a5a60', c: '#d8d8dc' }, { a: '#f0ece4', b: '#c8843a', c: '#ffffff' }];
+      const spots: [number, number][] = [[171.5, 188.5], [147.5, 183.5], [182.5, 196.5], ...POSTS.filter((q) => !q.ferryFrom).flatMap((q): [number, number][] => [[q.x + 4.5, q.z + 3.5], [q.x - 4.5, q.z + 2.5]]), [687.5, 420.5], [675.5, 286.5], [787.5, 182.5]];
+      spots.forEach(([x, z], i) => this.pets.push({ kind: i % 3 === 1 ? 'dog' : 'cat', x, z, pal: i % 3 === 1 ? dogCoats[i % dogCoats.length] : catCoats[(i * 7) % catCoats.length], a: null }));
+    }
+    Animal.voice = (kind, at) => this.audio.playAt(({ dog: 'bark', cat: 'meow', duck: 'quack', sheep: 'baa' } as Record<string, Sfx>)[kind] ?? 'click', at.distanceTo(this.player.position), 0.8);
     this.hazards = new Hazards({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -2264,6 +2280,17 @@ export class Game implements GameApi {
         if (mine && t.until > Date.now() && dc < 2) consider({ kind: 'act', label: 'Open your chest', pos: new THREE.Vector3(cx + 0.5, base + 1, cz + 0.5), act: () => { this.hud.closeAll(); void this.bank.show(`your chest, ${L.name}`, cx + 0.5, cz + 0.5); } }, dc);
       });
     }
+    for (const a of this.animals) {
+      if (a.kind !== 'dog' && a.kind !== 'cat') continue;
+      const d = Math.hypot(a.pos.x - p.x, a.pos.z - p.z);
+      if (d > 2 || Math.abs(a.pos.y - p.y) > 1.5) continue;
+      consider({ kind: 'act', label: a.kind === 'dog' ? 'Pet the dog' : 'Stroke the cat', pos: a.pos.clone().add(new THREE.Vector3(0, 0.9, 0)), act: () => {
+        a.pet();
+        this.sfx(a.kind === 'dog' ? 'bark' : 'purr');
+        for (let i = 0; i < 4; i++) this.particles.note(new THREE.Vector3(a.pos.x + (Math.random() - 0.5) * 0.5, a.pos.y + 0.9 + i * 0.1, a.pos.z + (Math.random() - 0.5) * 0.5), '#ff8aa8');
+        this.setFlag(`pet:${a.kind}@${Math.round(a.home.x)},${Math.round(a.home.z)}`, true);
+      } }, d);
+    }
     for (const a of this.books.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.chests.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
@@ -3367,7 +3394,7 @@ export class Game implements GameApi {
       const far = a.pos.distanceTo(P) > 90 || !this.world.voxels.isLoaded(a.pos.x, a.pos.z);
       a.model.root.visible = !far;
       if (far) continue;
-      a.update(dt, P);
+      a.update(dt, P, this.player.speed);
       characterDetail(a.model.root, a.pos.distanceTo(this.camera.position));
     }
     this.particles.update(dt);
@@ -3754,7 +3781,21 @@ export class Game implements GameApi {
     this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
+    // Town pets come and go with you, each keeping its own spot
+    for (const pt of this.pets) {
+      const d = Math.hypot(pt.x - this.player.position.x, pt.z - this.player.position.z);
+      if (!pt.a && d < 90 && this.world.voxels.isLoaded(pt.x, pt.z)) {
+        pt.a = new Animal(pt.kind, pt.x, pt.z, pt.kind === 'dog' ? 9 : 5, this.world.voxels, undefined, pt.pal);
+        this.animals.push(pt.a);
+        this.scene.add(pt.a.model.root);
+      } else if (pt.a && d > 130) {
+        this.scene.remove(pt.a.model.root);
+        this.animals = this.animals.filter((x) => x !== pt.a);
+        pt.a = null;
+      }
+    }
     this.books.update(dt);
+    this.fish.update(dt, this.player.position);
 
     // Interaction candidate
     this.candidate = this.dialogue || this.hud.picking ? null : this.findCandidate();
@@ -4165,14 +4206,31 @@ export class Game implements GameApi {
 
   private spawnChunk(cx: number, cz: number, r: ChunkResult | null): void {
     if (this.flag('templeLifted') && cx === LIFT.x >> 5 && cz === LIFT.z >> 5) this.raiseTemple(2);
-    if (!r || !r.spawns.length) return;
+    if (!r) return;
     const list = { enemies: [] as Enemy[], animals: [] as Animal[] };
+    // Ducks on inland water: now and then a pair, where a river or a pond is deep enough to float on
+    if (hash2(cx, cz, 313) < 0.4) {
+      const V = this.world.voxels;
+      for (let k = 0; k < 14; k++) {
+        const x = cx * 32 + 2 + Math.floor(hash2(cx * 7 + k, cz, 317) * 28) + 0.5, z = cz * 32 + 2 + Math.floor(hash2(cx, cz * 7 + k, 319) * 28) + 0.5;
+        let y = 90;
+        while (y > 2 && V.get(Math.floor(x), y, Math.floor(z)) === B.Air) y--;
+        if (V.get(Math.floor(x), y, Math.floor(z)) !== B.Water || V.get(Math.floor(x), y - 1, Math.floor(z)) !== B.Water || y <= SEA + 1) continue;
+        for (const pal of [{}, { a: '#8a6a4a', b: '#7a5a3a' }]) {
+          const a = new Animal('duck', x + (pal.a ? 1.2 : 0), z, 6, V, undefined, pal);
+          list.animals.push(a); this.animals.push(a); this.scene.add(a.model.root);
+        }
+        break;
+      }
+    }
     for (const s of r.spawns) {
       const table = REGION_SPAWNS[s.region];
       if (s.animal) {
         if (!table.animals.length) continue;
         const kind = table.animals[Math.floor(s.roll * table.animals.length)];
-        const a = new Animal(kind, s.x, s.z, 10, this.world.voxels);
+        // A flock has the odd black sheep, and a ram
+        const pal = kind !== 'sheep' ? {} : s.roll * 97 % 1 < 0.12 ? { a: '#4a443e', b: '#221e1a' } : s.roll * 31 % 1 < 0.15 ? { breed: 'ram' as const } : {};
+        const a = new Animal(kind, s.x, s.z, 10, this.world.voxels, undefined, pal);
         list.animals.push(a);
         this.animals.push(a);
         this.scene.add(a.model.root);

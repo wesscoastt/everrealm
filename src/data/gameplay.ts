@@ -368,7 +368,9 @@ export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [
   { type: 'rustback', x: 246, z: 96 }, { type: 'rustback', x: 236, z: 84 },
 ];
 
-export const ANIMAL_SPAWNS: { kind: 'deer' | 'rabbit' | 'sheep' | 'chicken'; x: number; z: number; radius: number }[] = [
+export const ANIMAL_SPAWNS: { kind: 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'duck'; x: number; z: number; radius: number }[] = [
+  // A pair of mallards on the Wend above the ford
+  { kind: 'duck', x: 141.5, z: 150.5, radius: 5 }, { kind: 'duck', x: 142.5, z: 151.5, radius: 5 },
   { kind: 'deer', x: 214, z: 160, radius: 14 }, { kind: 'deer', x: 222, z: 168, radius: 14 }, { kind: 'deer', x: 120, z: 150, radius: 16 },
   { kind: 'deer', x: 280, z: 210, radius: 12 }, { kind: 'deer', x: 100, z: 200, radius: 12 },
   { kind: 'rabbit', x: 140, z: 160, radius: 10 }, { kind: 'rabbit', x: 110, z: 170, radius: 10 }, { kind: 'rabbit', x: 200, z: 150, radius: 10 },
