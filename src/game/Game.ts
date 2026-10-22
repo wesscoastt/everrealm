@@ -4122,10 +4122,12 @@ export class Game implements GameApi {
       region: () => { const p = this.player.position; return { region: regionAt(p.x, p.z), zone: this.currentRegion, theme: this.regionTheme(), chunks: this.world.chunks.entries.size, covered: this.world.chunks.coveredRadius, gen: this.world.chunks.stats }; },
       info: REGION_INFO,
       give: (id: string, n = 1) => this.give(id, n),
+      item: (id: string) => ITEMS[id],
       xp: (s: SkillId, n: number) => this.addXp(s, n),
       stage: (q: string, s: string) => this.setStage(q, s),
       hour: (h: number) => { this.world.sky.hour = h; },
       creature: (kind: CreatureKind, pal = {}) => new CreatureModel(kind, pal),
+      figure: (look: Appearance) => new Humanoid(look),
       state: () => ({
         mode: this.mode, hp: this.hp, pos: this.player?.position.toArray().map((v) => +v.toFixed(2)), quests: { ...this.save.quests }, flags: { ...this.save.flags },
         marks: this.save.marks, inv: this.save.inv.filter(Boolean), levels: Object.fromEntries(SKILLS.map((s) => [s.id, this.level(s.id)])),

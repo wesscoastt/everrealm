@@ -51,6 +51,22 @@ export interface Appearance {
   shoulderPads?: string | null;
   lashes?: boolean;
   age?: number; // 0 young .. 1 old (greys brows, adds lines)
+  // Armour worn over the clothes (data/armour.ts). Each slot's piece sets its own, so a breastplate
+  // from one set and greaves from another sit together.
+  /** On the body: a breastplate, scales, a riveted brigandine, a leather cuirass, or mail. */
+  chestArmour?: { style: 'plate' | 'scale' | 'brigandine' | 'cuirass' | 'mail'; color: string; trim?: string };
+  /** On the shoulders: rounded or layered plate, plate with spikes, fur, leather, or a cloth mantle. */
+  shoulders?: { style: 'round' | 'layered' | 'spiked' | 'fur' | 'leather' | 'mantle'; color: string; trim?: string };
+  /** A tabard over it all, front and back, with an emblem on the chest. */
+  tabard?: { color: string; trim: string; emblem?: string };
+  /** On the forearms: plate with a cop at the elbow, or laced leather. */
+  bracers?: { style: 'plate' | 'leather'; color: string; trim?: string };
+  /** On the legs: plate (cuisses, knee cops, greaves), leather guards, or plates hanging from the hips. */
+  legArmour?: { style: 'plate' | 'leather' | 'tassets'; color: string; trim?: string };
+  /** Plate over the boots. */
+  sabatons?: { color: string };
+  /** A helm, which covers the hair (and any hat): nasal, kettle, sallet, barbute, great helm or horned. */
+  helm?: { style: 'nasal' | 'kettle' | 'sallet' | 'barbute' | 'great' | 'horned'; color: string; trim?: string; plume?: string };
 }
 
 export type HeldItem = 'none' | 'sword' | 'bronzeSword' | 'pickaxe' | 'hatchet' | 'rod' | 'hammer' | 'tongs';
@@ -353,6 +369,7 @@ export class Humanoid {
     part(this.head, rbox(nw, 0.075, 0.035, 0.014), shade(look.skin, 0.96), 0, 0.263, 0.226);
     this.buildBeard(part);
     this.buildHair(part);
+    this.buildHelm(part);
 
     // Arms
     // Sleeves are the shirt's under a doublet, vest or jerkin
@@ -368,6 +385,7 @@ export class Humanoid {
       part(fore, rbox(0.16, 0.15, 0.17, 0.05), look.gloves ?? look.skin, 0, -0.3, 0);
     }
     this.handR.position.set(0, -0.32, 0.02);
+    this.buildArmour(part, build, fem, chestW, waistW);
     this.foreR.add(this.handR);
 
     if (look.cape) {
@@ -409,7 +427,169 @@ export class Humanoid {
    * temples and the nape, a fringe that's different for each style, and whatever hangs down. Under a
    * hat only what shows below its brim is built.
    */
+  /** Armour over the clothes: the body, the shoulders, a tabard, the forearms, the legs and the feet. */
+  private buildArmour(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh, build: number, fem: boolean, chestW: number, waistW: number): void {
+    const L = this.look, T = this.torso;
+    const lit = (c: string) => shade(c, 1.18), deep = (c: string) => shade(c, 0.78);
+    const ch = L.chestArmour;
+    if (ch) {
+      const c = ch.color, t = ch.trim ?? deep(c);
+      if (ch.style === 'plate') {
+        part(T, rbox(chestW + 0.06, 0.3, 0.4, 0.09), c, 0, 0.56, 0.01); // breastplate
+        part(T, rbox(waistW + 0.05, 0.22, 0.38, 0.07), c, 0, 0.34, 0.01);
+        part(T, rbox(0.04, 0.44, 0.03, 0.01), lit(c), 0, 0.46, 0.205); // the ridge down the middle
+        for (let i = 0; i < 3; i++) part(T, rbox(waistW + 0.08 + i * 0.02, 0.07, 0.4 + i * 0.01, 0.02), i % 2 ? deep(c) : c, 0, 0.19 - i * 0.075, 0.01); // fauld
+        part(T, rbox(chestW * 0.62, 0.05, 0.06, 0.015), t, 0, 0.7, 0.18); // the rolled edge at the neck
+        for (const sd of [1, -1]) part(T, rbox(0.035, 0.035, 0.02, 0.008), t, sd * 0.16 * build, 0.6, 0.215); // rivets
+      } else if (ch.style === 'scale') {
+        part(T, rbox(chestW + 0.04, 0.54, 0.38, 0.07), deep(c), 0, 0.44, 0);
+        for (let r = 0; r < 6; r++) for (let k = -2; k <= 2; k++) {
+          const x = k * 0.11 * build + (r % 2 ? 0.055 : 0);
+          if (Math.abs(x) > chestW / 2) continue;
+          part(T, rbox(0.1, 0.075, 0.025, 0.015), (r + k) % 3 ? c : lit(c), x, 0.66 - r * 0.085, 0.195);
+        }
+        part(T, rbox(chestW * 0.66, 0.05, 0.06, 0.015), t, 0, 0.71, 0.17);
+      } else if (ch.style === 'brigandine') {
+        part(T, rbox(chestW + 0.05, 0.52, 0.39, 0.07), c, 0, 0.45, 0);
+        for (let r = 0; r < 5; r++) for (let k = -2; k <= 2; k++) part(T, rbox(0.03, 0.03, 0.015, 0.008), t, k * 0.1 * build, 0.64 - r * 0.1, 0.2);
+        for (const sd of [1, -1]) part(T, rbox(0.03, 0.5, 0.012, 0.005), deep(c), sd * 0.22 * build, 0.45, 0.2); // seams
+      } else if (ch.style === 'cuirass') {
+        part(T, rbox(chestW + 0.03, 0.48, 0.37, 0.08), c, 0, 0.46, 0);
+        for (const y of [0.69, 0.23]) part(T, rbox(chestW + 0.04, 0.03, 0.375, 0.01), t, 0, y, 0); // stitched edges
+        for (const sd of [1, -1]) {
+          part(T, rbox(0.06, 0.03, 0.4, 0.01), t, sd * 0.17, 0.72, 0); // straps over the shoulders
+          part(T, rbox(0.05, 0.05, 0.02, 0.01), '#c8a050', sd * 0.17, 0.5, 0.195); // buckles
+        }
+      } else {
+        part(T, rbox(chestW + 0.03, 0.56, 0.37, 0.06), c, 0, 0.44, 0);
+        for (let r = 0; r < 8; r++) part(T, rbox(chestW + 0.035, 0.012, 0.375, 0.004), r % 2 ? deep(c) : lit(c), 0, 0.68 - r * 0.065, 0); // the rows of rings
+        part(T, rbox(waistW + 0.06, 0.16, 0.38, 0.04), c, 0, 0.08, 0); // the skirt of it
+      }
+    }
+    const tb = L.tabard;
+    if (tb) {
+      for (const z of [0.205, -0.205]) {
+        part(T, rbox(0.36 * build, 0.92, 0.025, 0.01), tb.color, 0, 0.22, z);
+        part(T, rbox(0.37 * build, 0.04, 0.03, 0.01), tb.trim, 0, -0.22, z); // hem
+        for (const sd of [1, -1]) part(T, rbox(0.025, 0.9, 0.03, 0.005), tb.trim, sd * 0.18 * build, 0.22, z); // edges
+      }
+      if (tb.emblem) {
+        const e = part(T, rbox(0.13, 0.13, 0.012, 0.01), tb.emblem, 0, 0.48, 0.222);
+        e.rotation.z = Math.PI / 4;
+        part(T, rbox(0.04, 0.2, 0.014, 0.005), tb.emblem, 0, 0.3, 0.222);
+      }
+    }
+    const sh = L.shoulders;
+    if (sh) {
+      const c = sh.color, t = sh.trim ?? deep(c);
+      if (sh.style === 'mantle' || sh.style === 'fur') {
+        // Over the shoulders and round the back of the neck
+        const fur = sh.style === 'fur';
+        part(T, rbox(chestW + 0.18, fur ? 0.16 : 0.12, 0.44, fur ? 0.07 : 0.04), c, 0, 0.7, 0);
+        part(T, rbox(chestW + 0.08, fur ? 0.22 : 0.32, 0.05, 0.03), fur ? deep(c) : c, 0, fur ? 0.6 : 0.55, -0.21);
+        if (fur) for (let k = -3; k <= 3; k++) part(T, rbox(0.08, 0.08 + (k % 2 ? 0.03 : 0), 0.08, 0.03), k % 2 ? lit(c) : c, k * 0.09 * build, 0.8, (k % 3) * 0.04);
+        else part(T, rbox(chestW + 0.2, 0.03, 0.45, 0.01), t, 0, 0.64, 0); // its edge
+      } else {
+        for (const [arm, side] of [[this.armL, 1], [this.armR, -1]] as const) {
+          if (sh.style === 'leather') {
+            part(arm, rbox(0.25, 0.12, 0.28, 0.05), c, side * 0.02, 0.03, 0);
+            part(arm, rbox(0.26, 0.025, 0.29, 0.01), t, side * 0.02, -0.03, 0);
+            continue;
+          }
+          part(arm, rbox(0.28, 0.13, 0.31, 0.07), c, side * 0.025, 0.04, 0); // the cop over the point of the shoulder
+          part(arm, rbox(0.26, 0.08, 0.29, 0.03), sh.style === 'layered' ? deep(c) : c, side * 0.04, -0.05, 0);
+          if (sh.style === 'layered') part(arm, rbox(0.24, 0.07, 0.27, 0.03), c, side * 0.055, -0.12, 0);
+          part(arm, rbox(0.29, 0.025, 0.32, 0.008), t, side * 0.025, -0.015, 0); // its rolled edge
+          if (sh.style === 'spiked') for (const dz of [-0.07, 0.07]) {
+            const sp = part(arm, new THREE.ConeGeometry(0.03, 0.14, 5), lit(c), side * 0.06, 0.15, dz);
+            sp.rotation.z = -side * 0.4;
+          }
+        }
+      }
+    }
+    const br = L.bracers;
+    if (br) for (const fore of [this.foreL, this.foreR]) {
+      if (br.style === 'plate') {
+        part(fore, rbox(0.2, 0.2, 0.22, 0.05), br.color, 0, -0.13, 0);
+        part(fore, rbox(0.17, 0.1, 0.17, 0.04), lit(br.color), 0, 0.02, -0.02); // the cop at the elbow
+      } else {
+        part(fore, rbox(0.19, 0.19, 0.21, 0.05), br.color, 0, -0.13, 0);
+        for (const y of [-0.07, -0.13, -0.19]) part(fore, rbox(0.195, 0.012, 0.215, 0.004), br.trim ?? deep(br.color), 0, y, 0); // lacing
+      }
+    }
+    const lg = L.legArmour;
+    if (lg) {
+      const c = lg.color, t = lg.trim ?? deep(c);
+      if (lg.style === 'tassets' || lg.style === 'plate') for (const sd of [1, -1]) part(this.hips, rbox(0.22, 0.2, 0.05, 0.02), lg.style === 'plate' ? deep(c) : c, sd * 0.13 * build, -0.1, 0.17);
+      for (const [leg, shin] of [[this.legL, this.shinL], [this.legR, this.shinR]] as const) {
+        if (lg.style === 'plate') {
+          part(leg, rbox(0.26, 0.3, 0.27, 0.06), c, 0, -0.17, 0.01); // cuisse
+          part(leg, rbox(0.2, 0.11, 0.1, 0.03), lit(c), 0, -0.38, 0.13); // the knee cop
+          part(shin, rbox(0.25, 0.22, 0.28, 0.05), c, 0, -0.09, 0.01); // greave
+          part(shin, rbox(0.04, 0.2, 0.02, 0.01), lit(c), 0, -0.09, 0.15);
+        } else if (lg.style === 'leather') {
+          part(leg, rbox(0.24, 0.28, 0.06, 0.02), c, 0, -0.18, 0.12);
+          part(shin, rbox(0.24, 0.2, 0.27, 0.05), c, 0, -0.09, 0.01);
+          for (const y of [-0.03, -0.1, -0.17]) part(shin, rbox(0.245, 0.014, 0.275, 0.004), t, 0, y, 0.01); // wraps
+        } else part(leg, rbox(0.24, 0.12, 0.05, 0.02), deep(c), 0, -0.18, 0.13);
+      }
+    }
+    if (L.sabatons) for (const shin of [this.shinL, this.shinR]) {
+      part(shin, rbox(0.27, 0.1, 0.34, 0.04), L.sabatons.color, 0, -0.33, 0.05);
+      part(shin, rbox(0.25, 0.04, 0.12, 0.02), lit(L.sabatons.color), 0, -0.3, 0.17);
+    }
+  }
+
+  /** A helm on the head, over the hair. */
+  private buildHelm(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
+    const hm = this.look.helm;
+    if (!hm) return;
+    const H = this.head, c = hm.color, t = hm.trim ?? shade(c, 0.75), dark = '#0c0a0a';
+    switch (hm.style) {
+      case 'nasal':
+      case 'horned':
+        part(H, rbox(0.48, 0.24, 0.46, 0.12), c, 0, 0.49, 0);
+        part(H, rbox(0.5, 0.06, 0.48, 0.02), t, 0, 0.38, 0); // the band
+        part(H, rbox(0.05, 0.18, 0.04, 0.01), c, 0, 0.27, 0.235); // nasal
+        part(H, rbox(0.04, 0.2, 0.03, 0.01), shade(c, 1.15), 0, 0.55, 0.2); // ridge
+        if (hm.style === 'horned') for (const sd of [1, -1]) {
+          const horn = part(H, new THREE.ConeGeometry(0.05, 0.3, 6), '#e8dcc0', sd * 0.3, 0.5, 0);
+          horn.rotation.z = -sd * 1.0;
+        }
+        break;
+      case 'kettle':
+        part(H, rbox(0.47, 0.22, 0.45, 0.1), c, 0, 0.5, 0);
+        part(H, rbox(0.7, 0.04, 0.68, 0.02), c, 0, 0.4, 0); // the brim
+        part(H, rbox(0.72, 0.02, 0.7, 0.01), t, 0, 0.385, 0);
+        break;
+      case 'sallet':
+        part(H, rbox(0.5, 0.3, 0.48, 0.13), c, 0, 0.46, -0.01);
+        part(H, rbox(0.44, 0.08, 0.2, 0.03), c, 0, 0.34, -0.27).rotation.x = -0.3; // the tail over the neck
+        part(H, rbox(0.47, 0.13, 0.07, 0.03), shade(c, 0.92), 0, 0.33, 0.225); // the visor
+        part(H, rbox(0.36, 0.022, 0.012, 0.004), dark, 0, 0.335, 0.262); // its slit
+        break;
+      case 'barbute':
+        part(H, rbox(0.49, 0.5, 0.47, 0.13), c, 0, 0.3, 0);
+        part(H, rbox(0.3, 0.045, 0.012, 0.004), dark, 0, 0.32, 0.237); // the T of the opening
+        part(H, rbox(0.09, 0.2, 0.012, 0.004), dark, 0, 0.2, 0.237);
+        part(H, rbox(0.04, 0.24, 0.03, 0.01), shade(c, 1.15), 0, 0.47, 0.2);
+        break;
+      case 'great':
+        part(H, rbox(0.5, 0.52, 0.48, 0.07), c, 0, 0.29, 0);
+        part(H, rbox(0.52, 0.05, 0.5, 0.01), t, 0, 0.42, 0); // reinforcing band
+        part(H, rbox(0.38, 0.03, 0.012, 0.004), dark, 0, 0.335, 0.247); // the sight
+        for (let k = 0; k < 3; k++) for (const sd of [1, -1]) part(H, rbox(0.025, 0.025, 0.012, 0.004), dark, sd * (0.06 + k * 0.05), 0.2, 0.247); // breaths
+        part(H, rbox(0.04, 0.2, 0.012, 0.004), t, 0, 0.18, 0.247);
+        break;
+    }
+    if (hm.plume) {
+      part(H, rbox(0.07, 0.2, 0.34, 0.03), hm.plume, 0, 0.66, -0.06);
+      part(H, rbox(0.07, 0.14, 0.12, 0.03), shade(hm.plume, 0.85), 0, 0.6, -0.26);
+    }
+  }
+
   private buildHair(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
+    if (this.look.helm) return; // the helm covers it
     const h = this.look.hair;
     const hat = this.look.hat ?? 'none';
     const style = this.look.hairStyle;
