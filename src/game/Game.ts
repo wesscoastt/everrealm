@@ -70,6 +70,7 @@ import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
 import { Dungeons } from './Dungeons';
+import { Hazards } from './Hazards';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
 import { regionLevel, rewardScale } from '../data/scaling';
@@ -202,6 +203,8 @@ export class Game implements GameApi {
   private groupRows: GroupRow[] | null = null;
   /** Group dungeons: the finder, a run, the henchmen (game/Dungeons.ts). */
   dungeons!: Dungeons;
+  /** Vents, bogs and loose cliffs (game/Hazards.ts). */
+  private hazards!: Hazards;
   /** The frames under your own: the online group, and any henchmen with you. */
   private showGroup(): void {
     const extra = this.dungeons?.rows() ?? [];
@@ -529,6 +532,21 @@ export class Game implements GameApi {
       this.animals.push(an);
       this.scene.add(an.model.root);
     }
+    this.hazards = new Hazards({
+      scene: this.scene,
+      voxels: this.world.voxels,
+      particles: this.particles,
+      player: () => this.player.position,
+      hurt: (share, at, what) => this.hurtByGround(share, at, what),
+      enemies: () => this.enemies,
+      hitEnemy: (e, dmg) => {
+        e.takeDamage(dmg, e.pos.clone().add(new THREE.Vector3(0.1, 0, 0.1)), this.elapsed);
+        this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), 'tick');
+        if (e.justDied) this.onEnemyKilled(e);
+      },
+      sound: (name, at) => this.audio.playAt(name, at.distanceTo(this.player.position), 0.8),
+      firstNear: (kind, text) => { if (this.flag('hz:' + kind)) return; this.setFlag('hz:' + kind, true); this.hud.system(text); },
+    });
     this.dungeons = new Dungeons({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -2766,6 +2784,26 @@ export class Game implements GameApi {
     if (this.hp <= 0) this.die();
   }
 
+  /** Caught by the ground itself (a vent, a falling stone): so much of your health. Rolling clear, or a
+   *  shield, saves you; armour doesn't. */
+  private hurtByGround(share: number, at: THREE.Vector3, what: string): void {
+    if (this.dead || this.iframes > 0) return;
+    const taken = Math.round(this.kit.incoming(this.maxHp * share));
+    if (taken <= 0) { this.floatAt(this.player.position, 2.2, 'Absorbed', 'heal'); return; }
+    this.hp -= taken;
+    this.dismount();
+    this.hitAnim = 0.3;
+    this.sfx('hurt');
+    this.rig.addShake(0.3);
+    this.floatAt(this.player.position, 2.2, `-${taken}`, 'player');
+    this.hud.hurt(taken / this.maxHp);
+    const away = tmpV.subVectors(this.player.position, at).setY(0);
+    if (away.lengthSq() < 0.01) away.set(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw));
+    if (!this.kit.steady()) this.player.velocity.addScaledVector(away.normalize(), 6);
+    if (this.action || this.craftAction) this.cancelActions();
+    if (this.hp <= 0) { this.hud.system(`${what}: you went down.`); this.die(); }
+  }
+
   private die(): void {
     this.hp = 0;
     this.dead = true;
@@ -2969,6 +3007,7 @@ export class Game implements GameApi {
     }
     this.activities.update(dt);
     this.dungeons.update(dt);
+    this.hazards.update(dt);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
@@ -3229,6 +3268,7 @@ export class Game implements GameApi {
     if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind));
     if (this.attack) speed *= 0.35;
+    speed *= this.hazards.slow;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
     // Moving, jumping, fighting or working ends an emote; the short ones also end on their own
     if (this.emote) {

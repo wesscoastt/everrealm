@@ -21,6 +21,7 @@ import { BOARDS } from '../src/data/content';
 import { ENEMIES, EnemyType } from '../src/data/gameplay';
 import { RARES, rareLairs, TREASURE_MAPS, treasureSpot } from '../src/data/wilds';
 import { DUNGEONS } from '../src/data/dungeons';
+import { hazards } from '../src/data/hazards';
 
 // Record every override as the planner writes it (the last write to a cell wins, as in the game).
 const cells = new Map<string, number>();
@@ -173,6 +174,24 @@ for (const d of DUNGEONS) { check(`dungeon ${d.id} door`, d.door[0], d.door[2], 
 // Rares' lairs and treasure maps' dig spots: open ground (the sea rare's waters are open water)
 for (const r of RARES) if (!r.sea) rareLairs(r, P).forEach(([x, z], i) => check(`rare ${r.id} lair ${i}`, x, z));
 for (const m of TREASURE_MAPS) { const s = treasureSpot(m, P); if (!s) problems.push(`treasure ${m.id}: no landmark to draw it from`); else check(`treasure ${m.id}`, s.x, s.z); }
+// Vents, bogs and loose cliffs: open ground, and clear of anywhere people stand or things happen
+const HZ = hazards(P);
+const busy: [string, number, number][] = [
+  ...NPCS.flatMap((n) => n.schedule.map((s, i) => [`npc ${n.id} slot ${i}`, s.at[0], s.at[1]] as [string, number, number])),
+  ...POSTS.map((p) => [`post ${p.id}`, p.x, p.z] as [string, number, number]),
+  ...QUEST_SPAWNS.flatMap((sp) => sp.at.map(([x, z], i) => [`spawn ${sp.tag} ${i}`, x, z] as [string, number, number])),
+  ...EVENTS.map((e) => [`event ${e.id}`, e.x, e.z] as [string, number, number]),
+  ...WORLD_BOSSES.map((b) => [`boss ${b.id}`, b.x, b.z] as [string, number, number]),
+  ...TASKS.map((t) => [`task ${t.id}`, t.x, t.z] as [string, number, number]),
+  ...waymarks().map((w) => [`waymark ${w.id}`, w.x, w.z] as [string, number, number]),
+  ...DUNGEONS.map((d) => [`dungeon ${d.id} door`, d.door[0], d.door[2]] as [string, number, number]),
+  ...BOARDS.map((b) => [`board ${b.id}`, b.x, b.z] as [string, number, number]),
+];
+for (const h of HZ) {
+  check(`hazard ${h.id}`, h.x, h.z);
+  for (const [label, x, z] of busy) if (Math.hypot(x - h.x, z - h.z) < h.r + 8) problems.push(`hazard ${h.id} (${h.x}, ${h.z}): ${(Math.hypot(x - h.x, z - h.z)).toFixed(0)} from ${label}`);
+}
+console.log(`${HZ.length} hazards: ${['vent', 'bog', 'rockfall'].map((k) => HZ.filter((h) => h.kind === k).length + ' ' + k + 's').join(', ')}.`);
 // Boards are read from beside the post: one of the four neighbouring cells must be open ground.
 for (const b of BOARDS) {
   if (b.interactable) continue;

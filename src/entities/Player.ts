@@ -70,6 +70,8 @@ export class Player {
   teleport(x: number, y: number, z: number): void {
     this.position.set(x, y, z);
     this.velocity.set(0, 0, 0);
+    // A fall is measured from where you were set down, not from before
+    this.fallStartY = y;
   }
 
   faceTowards(x: number, z: number): void {

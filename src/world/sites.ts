@@ -9,6 +9,7 @@ import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist
 import { CHUNK, chunkKey, inWorld, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
+import { hazards, stamp } from '../data/hazards';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -380,9 +381,14 @@ export function plan(): Plan {
   clearRoads(O, sites);
   roadLamps(O, sites);
   const waymarks = placeWaymarks(O, sites);
+  // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
+  const hz = hazards({ sites, waymarks, overrides: O });
+  stamp(hz, O);
 
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
-  for (const s of sites) for (const r of s.rects) {
+  // (trees keep off the hazards too)
+  const hzRects = hz.map((h): [number, number, number, number] => [Math.floor(h.x - h.r), Math.floor(h.z - h.r), Math.floor(h.x + h.r), Math.floor(h.z + h.r)]);
+  for (const r of [...sites.flatMap((s) => s.rects), ...hzRects]) {
     for (let cz = r[1] >> 5; cz <= r[3] >> 5; cz++) for (let cx = r[0] >> 5; cx <= r[2] >> 5; cx++) {
       const k = chunkKey(cx, cz);
       if (!rectsByChunk.has(k)) rectsByChunk.set(k, []);
