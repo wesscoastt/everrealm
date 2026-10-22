@@ -92,7 +92,13 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     roads[lx + lz * CHUNK] = rd < 4 ? 1 : 0;
     let maxDiff = 0;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) maxDiff = Math.max(maxDiff, h - hAt(x + dx, z + dz));
-    const { top, sub } = columnBlocks(x, z, h, maxDiff, reg, road);
+    let { top, sub } = columnBlocks(x, z, h, maxDiff, reg, road);
+    // Where the road climbs a block a block, each rise is a stone step: a stair up the hill
+    if (road && maxDiff >= 1) {
+      let run = false;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (h - hAt(x + dx, z + dz) >= 1 && (hAt(x - dx, z - dz) > h || h - hAt(x + 2 * dx, z + 2 * dz) >= 2)) run = true;
+      if (run) { top = reg === 'redstone' ? B.TerraCream : B.Cobble; sub = B.Stone; }
+    }
     for (let y = 0; y < h; y++) {
       let id: number;
       if (y === h - 1) id = top;

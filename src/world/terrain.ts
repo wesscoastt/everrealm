@@ -489,8 +489,81 @@ export function baseHeight(x: number, z: number): number {
   return h;
 }
 
+// ------------------------------------------------------------------ Road grading
+// The roads are cut and banked to an easy climb: each has a height along its length, the ground
+// smoothed and then held to under a block's rise a block, and the ground under and beside the road
+// is eased to it. Where a road still climbs, each rise is a step you walk up (chunkgen lays them as
+// stone steps). Over a river or a lake the road runs level from bank to bank, where sites.ts lays
+// a bridge; the water itself and the sea are left as they are.
+const GRADE = 0.85, GRADE_SMOOTH = 4, GRADE_IN = 1.8, GRADE_OUT = 5.5;
+interface RoadLine { segs: { ax: number; az: number; bx: number; bz: number; len: number; s0: number; minX: number; maxX: number; minZ: number; maxZ: number }[]; prof: Float32Array }
+let ROAD_LINES: RoadLine[] | null = null;
+function roadLines(): RoadLine[] {
+  if (ROAD_LINES) return ROAD_LINES;
+  ROAD_LINES = WORLD_ROADS.map((line) => {
+    const segs: RoadLine['segs'] = [];
+    let s = 0;
+    for (let i = 0; i < line.length - 1; i++) {
+      const [ax, az] = line[i], [bx, bz] = line[i + 1], len = Math.hypot(bx - ax, bz - az);
+      segs.push({ ax, az, bx, bz, len, s0: s, minX: Math.min(ax, bx) - GRADE_OUT - 2, maxX: Math.max(ax, bx) + GRADE_OUT + 2, minZ: Math.min(az, bz) - GRADE_OUT - 2, maxZ: Math.max(az, bz) + GRADE_OUT + 2 });
+      s += len;
+    }
+    // The ground along the middle, a block apart
+    const n = Math.max(2, Math.ceil(s) + 1), raw = new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      const at = Math.min(k, s), g = segs.find((q) => at <= q.s0 + q.len) ?? segs[segs.length - 1];
+      const t = g.len ? (at - g.s0) / g.len : 0;
+      raw[k] = baseHeight(g.ax + (g.bx - g.ax) * t, g.az + (g.bz - g.az) * t);
+    }
+    // Across water (a river, a lake) the road keeps on level from one bank to the other
+    for (let k = 0; k < n; k++) {
+      if (raw[k] > SEA + 1) continue;
+      let e = k;
+      while (e < n && raw[e] <= SEA + 1) e++;
+      if (k > 0 && e < n && e - k <= 80) for (let j = k; j < e; j++) raw[j] = raw[k - 1] + ((raw[e] - raw[k - 1]) * (j - k + 1)) / (e - k + 1);
+      k = e;
+    }
+    // Smoothed, then held to the grade both ways
+    const prof = new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      let sum = 0, c = 0;
+      for (let j = Math.max(0, k - GRADE_SMOOTH); j <= Math.min(n - 1, k + GRADE_SMOOTH); j++) { sum += raw[j]; c++; }
+      prof[k] = sum / c;
+    }
+    for (let k = 1; k < n; k++) prof[k] = Math.max(prof[k - 1] - GRADE, Math.min(prof[k - 1] + GRADE, prof[k]));
+    for (let k = n - 2; k >= 0; k--) prof[k] = Math.max(prof[k + 1] - GRADE, Math.min(prof[k + 1] + GRADE, prof[k]));
+    return { segs, prof };
+  });
+  return ROAD_LINES;
+}
+
+/** The graded road's height here and how much it holds the ground (0 off the road, 1 on it). */
+export function roadGrade(x: number, z: number): { h: number; w: number } | null {
+  const px = x + (valueNoise(x / 14, z / 14, 77) - 0.5) * 3; // the same wobble as roadDist
+  let best = Infinity, h = 0;
+  for (const line of roadLines()) for (const g of line.segs) {
+    if (px < g.minX || px > g.maxX || z < g.minZ || z > g.maxZ) continue;
+    const dx = g.bx - g.ax, dz = g.bz - g.az;
+    const t = g.len ? Math.max(0, Math.min(1, ((px - g.ax) * dx + (z - g.az) * dz) / (g.len * g.len))) : 0;
+    const d = Math.hypot(px - (g.ax + dx * t), z - (g.az + dz * t));
+    if (d >= best) continue;
+    best = d;
+    const s = g.s0 + g.len * t, k = Math.min(line.prof.length - 2, Math.floor(s)), f = s - k;
+    h = line.prof[k] + (line.prof[k + 1] - line.prof[k]) * f;
+  }
+  if (best >= GRADE_OUT) return null;
+  return { h, w: smoothstep(GRADE_OUT, GRADE_IN, best) };
+}
+
 export function heightAt(x: number, z: number): number {
   let h = baseHeight(x, z);
+  const rg = roadGrade(x, z);
+  if (rg && h > SEA + 1 && rg.h > SEA + 1) {
+    // Fading out toward Hollindale's authored valley, so the land still meets the valley's edge
+    const out = Math.max(-x, x - GW, -z, z - GW);
+    const seam = Math.max(0, Math.min(1, out / 10));
+    h += (rg.h - h) * rg.w * seam;
+  }
   const list = FLAT_BUCKETS.get(Math.floor(x / FLAT_CELL) + Math.floor(z / FLAT_CELL) * 1000);
   if (list) for (const f of list) {
     const dx = x - f.x, dz = z - f.z;

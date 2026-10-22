@@ -386,11 +386,14 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   lights.push(new THREE.Vector3(181.5, BASE + 0.8, 193.5));
   smoke.push(new THREE.Vector3(181.5, BASE + 1.3, 193.5));
   interactables.push({ id: 'hearth', kind: 'hearth', x: 181.5, y: BASE + 0.6, z: 193.5, label: 'Cook at the fire', radius: 2.4 });
-  // The bank drops away toward the river here: make good the ground the fireside benches stand on
+  // The bank drops away toward the river here: make good the ground the fireside benches stand on,
+  // its far edge a block lower, so the Wetlings track below it is a step up and not a climb
   for (let z = 191; z <= 197; z++) for (let x = 178; x <= 184; x++) {
     if (world.get(x, BASE - 1, z) === B.Water) continue;
-    for (let y = ground(x, z); y < BASE - 1; y++) world.put(x, y, z, B.Dirt);
-    if (ground(x, z) < BASE) world.put(x, BASE - 1, z, B.Grass);
+    const lvl = z === 197 ? BASE - 1 : BASE;
+    clearAbove(x, z, lvl);
+    for (let y = ground(x, z); y < lvl - 1; y++) world.put(x, y, z, B.Dirt);
+    if (ground(x, z) < lvl) world.put(x, lvl - 1, z, B.Grass);
   }
   place(P.bench(M, 1.6), 179.3, BASE, 193.5, Math.PI / 2);
   place(P.bench(M, 1.6), 181.5, BASE, 196, 0);

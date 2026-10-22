@@ -63,7 +63,8 @@ function check(label: string, x: number, z: number, opts: { y?: number; water?: 
   const stand = top + 1;
   const under = cells.get(key(x, top, z));
   if (under === B.Barrier) problems.push(`${label} (${x.toFixed(1)}, ${z.toFixed(1)}): standing on a barrier (a fence, door or prop)`);
-  else if (stand - ground >= 2 && !GROUNDLIKE.has(under ?? -1)) {
+  // (a bridge deck over a lake or river carries the road: standing on it is standing on the road)
+  else if (stand - ground >= 2 && !GROUNDLIKE.has(under ?? -1) && !(under === B.Planks && ground <= SEA)) {
     const what = `${label} (${x.toFixed(1)}, ${z.toFixed(1)}): ${stand - ground} blocks above the ground, on ${BLOCKS[under ?? 0]?.name ?? 'terrain'}`;
     if (stand - ground >= 4) problems.push(what); else raised.push(what);
   }

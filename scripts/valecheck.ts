@@ -95,6 +95,25 @@ for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
   }
 }
 
+// ---- The valley's roads climb a block at a time: never a step you'd have to jump
+for (const road of ROADS) {
+  let prev: number | null = null, px = 0, pz = 0;
+  for (let i = 0; i < road.length - 1; i++) {
+    const [ax, az] = road[i], [bx, bz] = road[i + 1];
+    const len = Math.hypot(bx - ax, bz - az);
+    for (let t = 0; t <= len; t += 1) {
+      const x = Math.floor(ax + ((bx - ax) * t) / len), z = Math.floor(az + ((bz - az) * t) / len);
+      if (x < 0 || z < 0 || x >= SX || z >= SZ || (x === px && z === pz)) continue;
+      let top = SY - 1; while (top > 0 && (!isSolid(grid.get(x, top, z)) || LEAF.has(grid.get(x, top, z)) || grid.get(x, top, z) === B.Barrier)) top--;
+      const stand = top + 1;
+      // (where a road meets water, a ford or a pool's edge, there's no step to take: swim or wade)
+      if (grid.get(x, top + 1, z) === B.Water) { prev = null; continue; }
+      if (prev !== null && Math.abs(stand - prev) >= 2) problems.push(`road ${ROADS.indexOf(road)} steps ${stand - prev > 0 ? 'up' : 'down'} ${Math.abs(stand - prev)} at (${x}, ${z})`);
+      prev = stand; px = x; pz = z;
+    }
+  }
+}
+
 // ---- Blocks you can see resting on an invisible barrier (they look as if they float)
 for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) for (let y = 1; y < SY; y++) {
   const id = grid.get(x, y, z);

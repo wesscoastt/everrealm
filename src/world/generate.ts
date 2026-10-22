@@ -21,9 +21,10 @@ export const ROADS: [number, number][][] = [
   [[179, 184], [196, 184], [226, 188], [262, 194], [324, 200]], // East road out of the village
   [[190, 184], [193.5, 180], [193.5, 169], [201, 160], [210, 146], [216, 126], [218, 118]], // Pit road, up between the smithy and the blue cottage
   [[150, 190], [147.5, 196], [147.5, 204], [151, 212], [151, 237], [136, 241], [112, 241], [96, 246], [80, 250]], // Lantern path (clear of the cottage chimney), round the east and south of the farm
-  [[180, 196], [190, 214], [204, 232], [214, 262], [226, 292], [232, 324]], // Wetlings track, then south out of the vale
+  // Wetlings track: down from the inn, over the plank bridge, along the far bank and south out of the vale
+  [[180, 196], [190.6, 213], [193, 216], [193, 218.5], [181, 218.5], [184, 226], [196, 236], [206, 243], [214, 262], [226, 292], [232, 324]],
   [[140, 184], [136.5, 188], [136.5, 196], [126, 200], [118, 202]], // Mill lane, between the well and the corner house
-  [[154, 182], [152, 166], [132, 146], [112, 128], [104, 117]], // Spill path
+  [[154, 182], [152, 166], [130.5, 146], [110.5, 128], [104, 117]], // Spill path, back from the stream's edge
 ];
 
 export type TreeKind = 'oak' | 'birch' | 'pine' | 'moot' | 'giant' | 'ancient';
@@ -168,6 +169,32 @@ export function generateTerrain(world: Grid): Layout {
       heights[hIdx(x, z)] = WATER_LEVEL + 1;
       waterTop[hIdx(x, z)] = 0;
       exclusion[hIdx(x, z)] = EX.Keep;
+    }
+  }
+
+  // Roads: where the ground under one jumps two blocks or more between neighbours (along it or across
+  // it), the two are eased toward each other a block at a time until no step is more than one;
+  // everywhere else the road lies on the valley as authored
+  {
+    const onRoad = new Uint8Array(SX * SZ), cells: number[] = [];
+    for (const road of ROADS) {
+      const xs = road.map((p) => p[0]), zs = road.map((p) => p[1]);
+      for (let z = Math.max(1, Math.min(...zs) - 3); z <= Math.min(SZ - 2, Math.max(...zs) + 3); z++) for (let x = Math.max(1, Math.min(...xs) - 3); x <= Math.min(SX - 2, Math.max(...xs) + 3); x++) {
+        const i = hIdx(x, z);
+        if (onRoad[i] || exclusion[i] === EX.Water || waterTop[i] || distToPolyline(x, z, road).d >= 1.8) continue;
+        onRoad[i] = 1;
+        cells.push(i);
+      }
+    }
+    for (let pass = 0; pass < 60; pass++) {
+      let eased = false;
+      for (const i of cells) for (const j of [i + 1, i - 1, i + SX, i - SX]) {
+        if (!onRoad[j] || heights[i] - heights[j] < 2) continue;
+        heights[i]--;
+        heights[j]++;
+        eased = true;
+      }
+      if (!eased) break;
     }
   }
 

@@ -5,7 +5,7 @@ import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
-import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
+import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
@@ -185,27 +185,32 @@ function clearRoads(O: Overrides, sites: Site[]): void {
   for (const s of sites) s.props = s.props.filter((p) => !(ROAD_CLUTTER.has(p.t) && onRoad(p.x, p.z)));
 }
 
-/** Where a road runs into a lake (the Turnpike over the Millpond): a timber bridge, three planks wide at
- *  the bank's height, on posts down to the bed, with a post standing up at the side every four blocks. */
+/** Where a road runs into a lake or over a river (the Turnpike over the Millpond, the Waystation road west):
+ *  a timber bridge, three planks wide, level with the graded road on either bank, on posts down to the bed,
+ *  with a post standing up at the side every four blocks. */
 function lakeBridges(O: Overrides): void {
   for (const line of WORLD_ROADS) for (let i = 0; i < line.length - 1; i++) {
     const [ax, az] = line[i], [bx, bz] = line[i + 1];
     const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
-    if (lakeDist((ax + bx) / 2, (az + bz) / 2) > len / 2 + 20) continue;
     let n = 0;
     for (let s = 0; s <= len; s += 0.5) {
       const cx = ax + ux * s, cz = az + uz * s;
+      if (cx < GW + 2 && cz < GW + 2) continue;
       // Out to a block past the water each side, so the deck meets the bank
       const wet = [-1.5, 0, 1.5].some((k) => heightAt(Math.floor(cx + ux * k), Math.floor(cz + uz * k)) <= SEA);
-      if (!wet || lakeDist(cx, cz) > 6) continue;
+      if (!wet || (lakeDist(cx, cz) > 6 && riverDist(cx, cz) > 8)) continue;
+      const rg = roadGrade(Math.floor(cx), Math.floor(cz));
+      const deck = Math.max(SEA, Math.round(rg?.h ?? SEA + 1) - 1);
       for (let w = -1.5; w <= 1.5; w += 0.5) {
         const x = Math.floor(cx - uz * w), z = Math.floor(cz + ux * w);
-        O.set(x, SEA, z, B.Planks);
-        O.set(x, SEA + 1, z, B.Air); O.set(x, SEA + 2, z, B.Air);
+        if (heightAt(x, z) > deck) continue; // the bank itself
+        O.set(x, deck, z, B.Planks);
+        for (let y = Math.max(1, heightAt(x, z)); y < deck; y++) if (y >= SEA) O.set(x, y, z, B.Air);
+        O.set(x, deck + 1, z, B.Air); O.set(x, deck + 2, z, B.Air);
       }
       if (n++ % 8 === 0) for (const side of [-2.2, 2.2]) {
         const x = Math.floor(cx - uz * side), z = Math.floor(cz + ux * side);
-        for (let y = Math.max(1, Math.floor(heightAt(x, z))); y <= SEA + 1; y++) O.set(x, y, z, B.OakLog);
+        for (let y = Math.max(1, Math.floor(heightAt(x, z))); y <= deck + 1; y++) O.set(x, y, z, B.OakLog);
       }
     }
   }
