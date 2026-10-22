@@ -332,6 +332,7 @@ wss.on('connection', (ws, req) => {
       me.guildName = null;
       send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
       guilds.join(me);
+      social.join(me);
       broadcast({ t: 'join', player: pub(me) }, me);
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);

@@ -25,7 +25,12 @@ export interface SocialHost {
   addMarks(n: number): void;
   sound(name: 'coin' | 'quest' | 'click'): void;
   persist(): void;
+  flag(k: string): unknown;
+  setFlag(k: string, v: unknown): void;
+  refreshFriends(): void;
 }
+
+export interface FriendRow { name: string; online: boolean; x?: number; z?: number }
 
 export interface GroupRow { id: number; name: string; hp: number; max: number; level: number; leader: boolean; me: boolean; near: boolean; calling: string }
 
@@ -52,6 +57,21 @@ export class Social {
       tradeEnd: (why: string) => { this.trade = null; this.host.openTrade(false); if (why) this.host.system(why); },
       tradeDone: (withName: string, give: TradeOffer, take: TradeOffer) => this.onTradeDone(withName, give, take),
       guild: (v: GuildView) => { this.guild = v.name ? v : null; this.host.refreshGuild(); },
+      friendStatus: (list: { name: string; x: number; z: number }[]) => {
+        this.onlineFriends = new Map(list.map((f) => [f.name.toLowerCase(), { x: f.x, z: f.z }]));
+        this.host.refreshFriends();
+      },
+      friendOn: (name: string) => {
+        this.onlineFriends.set(name.toLowerCase(), { x: 0, z: 0 });
+        this.host.system(`Your friend ${name} has come into the world.`);
+        this.host.refreshFriends();
+        this.watch();
+      },
+      friendOff: (name: string) => {
+        this.onlineFriends.delete(name.toLowerCase());
+        this.host.system(`Your friend ${name} has left the world.`);
+        this.host.refreshFriends();
+      },
       guildInvited: (from: string, guild: string) => this.host.ask(`${from} invites you to join the guild ${guild}.`, () => this.host.net().guildAnswer(true), () => this.host.net().guildAnswer(false), 90),
     };
   }
@@ -81,6 +101,40 @@ export class Social {
   }
 
   invite(name: string): void { if (this.online()) this.host.net().groupInvite(name); }
+  promote(name: string): void { if (this.online()) this.host.net().groupPromote(name); }
+
+  // ---------------------------------------------------------------- Friends and whispers
+  /** Names on this character's friends list (kept in the save, so it follows the character). */
+  friends(): string[] { const v = this.host.flag('friends'); return Array.isArray(v) ? (v as string[]).filter((n) => typeof n === 'string') : []; }
+  private onlineFriends = new Map<string, { x: number; z: number }>();
+  /** Who last whispered to you, for /r. */
+  lastWhisper: string | null = null;
+  friendRows(): FriendRow[] {
+    return this.friends().map((name) => { const o = this.onlineFriends.get(name.toLowerCase()); return { name, online: !!o, x: o?.x, z: o?.z }; })
+      .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
+  }
+  addFriend(name: string): void {
+    const n = name.trim().replace(/\s+/g, ' ').slice(0, 20);
+    if (!/^[A-Za-z][A-Za-z' -]{1,19}$/.test(n)) { this.host.system('That isn\'t a name.'); return; }
+    const list = this.friends();
+    if (list.some((f) => f.toLowerCase() === n.toLowerCase())) { this.host.system(`${n} is already on your friends list.`); return; }
+    if (list.length >= 100) { this.host.system('Your friends list is full (100).'); return; }
+    this.host.setFlag('friends', [...list, n]);
+    this.host.persist();
+    this.host.system(`${n} is on your friends list.`);
+    this.watch();
+  }
+  removeFriend(name: string): void {
+    this.host.setFlag('friends', this.friends().filter((f) => f.toLowerCase() !== name.toLowerCase()));
+    this.onlineFriends.delete(name.toLowerCase());
+    this.host.persist();
+    this.host.refreshFriends();
+    this.watch();
+  }
+  isFriend(name: string): boolean { return this.friends().some((f) => f.toLowerCase() === name.toLowerCase()); }
+  /** Tell the realm whose comings and goings we want to hear about (on joining, and when the list changes). */
+  watch(): void { if (this.host.net().status === 'online') this.host.net().friendsWatch(this.friends()); }
+  whisper(to: string, text: string): void { if (this.online()) this.host.net().whisper(to, text); }
   leave(): void { if (!this.inGroup) { this.host.system('You aren\'t in a group.'); return; } this.host.net().groupLeave(); }
   kick(name: string): void { if (this.online()) this.host.net().groupKick(name); }
   say(text: string): void { if (this.online()) this.host.net().groupChat(text); }

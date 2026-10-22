@@ -54,6 +54,7 @@ export function socialInit(ctx) {
     g.members = g.members.filter((id) => id !== p.id);
     p.group = null;
     send(p.ws, { t: 'group', id: 0, leader: 0, members: [] });
+    sys(p, why === 'has left the group' ? 'You have left the group.' : 'You are no longer in the group.');
     for (const id of g.members) { const o = players.get(id); if (o) sys(o, `${p.name} ${why}.`); }
     if (g.members.length < 2) {
       // A group of one is no group
@@ -123,6 +124,36 @@ export function socialInit(ctx) {
         return true;
       }
       case 'gLeave': leaveGroup(me, 'has left the group'); return true;
+      case 'gPromote': {
+        const g = groupOf(me);
+        const who = byName(msg.name);
+        if (!g || g.members[0] !== me.id) { sys(me, 'Only the group\'s leader can do that.'); return true; }
+        if (!who || who.group !== g.id || who === me) { sys(me, 'They aren\'t in your group.'); return true; }
+        g.members = [who.id, ...g.members.filter((id) => id !== who.id)];
+        for (const id of g.members) { const o = players.get(id); if (o) sys(o, `${who.name} now leads the group.`); }
+        sendGroup(g);
+        return true;
+      }
+      // ------------------------------------------------------------ Whispers and friends
+      case 'whisper': {
+        const to = byName(msg.to);
+        const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+        if (!to) { sys(me, `Nobody called ${String(msg.to ?? '').slice(0, 20)} is in the world.`); return true; }
+        if (to === me || !text) return true;
+        const now = Date.now();
+        if (now - (me.lastChat ?? 0) < 600) return true;
+        me.lastChat = now;
+        send(to.ws, { t: 'chat', from: me.name, id: me.id, text, kind: 'whisper' });
+        send(me.ws, { t: 'chat', from: to.name, id: me.id, text, kind: 'whisperTo' });
+        return true;
+      }
+      case 'fWatch': {
+        // The names on this player's friends list: who of them is in the world, and word as they come and go
+        const names = Array.isArray(msg.names) ? msg.names.filter((n) => typeof n === 'string').slice(0, 100).map((n) => n.trim().toLowerCase()) : [];
+        me.watch = new Set(names);
+        send(me.ws, friendStatus(me));
+        return true;
+      }
       case 'gKick': {
         const g = groupOf(me);
         const who = byName(msg.name);
@@ -244,7 +275,19 @@ export function socialInit(ctx) {
   }
 
   /** A player has gone: out of their group, and out of any trade. */
+  /** Who on this player's friends list is in the world, and where. */
+  function friendStatus(me) {
+    return { t: 'fStatus', online: [...players.values()].filter((p) => p !== me && me.watch?.has(p.name.toLowerCase())).map((p) => ({ name: p.name, x: Math.round(p.x), z: Math.round(p.z) })) };
+  }
+  /** A player has come into the world or gone: tell everyone who keeps them as a friend. */
+  function announce(who, on) {
+    const n = who.name.toLowerCase();
+    for (const p of players.values()) if (p !== who && p.watch?.has(n)) send(p.ws, { t: on ? 'fOn' : 'fOff', name: who.name });
+  }
+  function join(me) { announce(me, true); }
+
   function leave(me) {
+    announce(me, false);
     invites.delete(me.id);
     tradeAsks.delete(me.id);
     const tr = tradeOf(me);
@@ -264,5 +307,5 @@ export function socialInit(ctx) {
     for (const [id, inv] of invites) if (now - inv.at > INVITE_MS) invites.delete(id);
   }, 500);
 
-  return { handle, leave };
+  return { handle, join, leave };
 }

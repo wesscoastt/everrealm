@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+
+/** What a chat line is: said aloud, an emote, to the group or guild, or a whisper (received, or sent). */
+export type ChatKind = 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo';
 import { setRealmTime } from '../world/clock';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
@@ -82,7 +85,11 @@ export interface OnlineHooks {
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
   /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
-  chat(from: string, text: string, id?: number, kind?: 'say' | 'emote' | 'group' | 'guild'): void;
+  chat(from: string, text: string, id?: number, kind?: ChatKind): void;
+  /** Friends: who's in the world (and where), and word as one comes or goes. */
+  friendStatus?(online: { name: string; x: number; z: number }[]): void;
+  friendOn?(name: string): void;
+  friendOff?(name: string): void;
   guild?(v: GuildView): void;
   guildInvited?(from: string, guild: string): void;
   /** Groups and trades (game/Social.ts). */
@@ -201,7 +208,10 @@ export class Online {
           r.yaw = yaw; r.anim = anim; r.held = held;
         }
         break;
-      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, m.kind === 'emote' ? 'emote' : m.kind === 'group' ? 'group' : m.kind === 'guild' ? 'guild' : 'say'); break;
+      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
+      case 'fStatus': this.hooks.friendStatus?.(Array.isArray(m.online) ? (m.online as { name: string; x: number; z: number }[]) : []); break;
+      case 'fOn': this.hooks.friendOn?.(String(m.name)); break;
+      case 'fOff': this.hooks.friendOff?.(String(m.name)); break;
       case 'guild': this.hooks.guild?.({ name: null, motto: '', rank: null, founded: 0, members: [], ...(m as object) } as GuildView); break;
       case 'uInvited': this.hooks.guildInvited?.(String(m.from), String(m.guild)); break;
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
@@ -317,6 +327,9 @@ export class Online {
   groupAnswer(accept: boolean): void { this.emit({ t: 'gAnswer', accept }); }
   groupLeave(): void { this.emit({ t: 'gLeave' }); }
   groupKick(name: string): void { this.emit({ t: 'gKick', name }); }
+  groupPromote(name: string): void { this.emit({ t: 'gPromote', name }); }
+  whisper(to: string, text: string): void { this.emit({ t: 'whisper', to, text }); }
+  friendsWatch(names: string[]): void { this.emit({ t: 'fWatch', names }); }
   groupChat(text: string): void { this.emit({ t: 'gChat', text }); }
   vitals(hp: number, max: number, level: number, calling: string): void { this.emit({ t: 'vitals', hp, max, level, calling }); }
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }

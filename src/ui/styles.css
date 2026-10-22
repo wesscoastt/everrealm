@@ -719,3 +719,18 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #bankpanel .bk-marks b { color: var(--gold); }
 #bankpanel .bk-mb { display: flex; gap: 4px; }
 @media (max-width: 600px) { #bankpanel .bk-cols { grid-template-columns: 1fr; } }
+
+/* Group frame: leave, and a menu on each member */
+#group h6 { display: flex; align-items: center; justify-content: space-between; }
+#group h6 .gleave { font: 600 10px var(--px); letter-spacing: 0.8px; color: var(--cream-d); background: rgba(8, 12, 24, 0.72); border: 1px solid rgba(0,0,0,0.6); border-radius: 4px; padding: 1px 6px; cursor: pointer; pointer-events: auto; }
+#group h6 .gleave:hover { color: var(--gold); }
+#group .gm:not(.me) { cursor: pointer; pointer-events: auto; }
+#group .gm:not(.me):hover { border-color: rgba(255, 220, 140, 0.5); }
+/* Social panel: Friends | Guild */
+#guild-panel .stabs { display: flex; gap: 4px; padding: 0 14px 6px; }
+#guild-panel .stabs button { font: 600 12px var(--px); letter-spacing: 0.8px; color: var(--cream-d); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+#guild-panel .stabs button.sel { color: var(--gold); border-color: var(--gold); }
+#guild-panel .fadd { display: flex; gap: 6px; margin-bottom: 8px; }
+#guild-panel .fadd input { flex: 1; }
+.cb-line.whisper b, .cb-line.whisperTo b { color: #e8a0e0; }
+.cb-line.whisper, .cb-line.whisperTo { color: #f0c8ec; }

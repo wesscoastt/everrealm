@@ -180,6 +180,8 @@ export class Game implements GameApi {
   });
   /** While visiting: the host's lot and plans, shown in place of your own. */
   private visitPlot: PlotState | null = null;
+  /** When the friends list last asked the realm where everyone is (game seconds). */
+  friendsAsked = -99;
   /** Groups and trades with other players. */
   readonly social: Social = new Social({
     net: () => this.online,
@@ -203,6 +205,9 @@ export class Game implements GameApi {
     addMarks: (n) => { this.save.marks = Math.max(0, this.save.marks + n); this.hud.refresh(); },
     sound: (n) => this.sfx(n),
     persist: () => this.persist(),
+    flag: (k) => this.flag(k),
+    setFlag: (k, v) => this.setFlag(k, v),
+    refreshFriends: () => this.hud.refresh('guild'),
   });
   /** Set while a writ pays its experience, so the payment doesn't count toward other writs. */
   private writXp = false;
@@ -484,9 +489,14 @@ export class Game implements GameApi {
       },
       chat: (from, t, id, kind) => {
         this.hud.chat(from, t, kind);
-        if (id !== undefined && kind !== 'group') this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
+        if (kind === 'whisper') { this.social.lastWhisper = from; this.sfx('click'); }
+        // Only what's said aloud shows over a head: group, guild and whispers are private
+        if (id !== undefined && (kind === 'say' || kind === 'emote' || !kind)) this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
       },
-      status: (s, n) => this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online'),
+      status: (s, n) => {
+        if (s === 'online') this.social.watch();
+        this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online');
+      },
       bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
       bossDown: (id, cycle, by) => this.activities.bossDown(id, cycle, by, this.save.name),
       eventState: (id, killed, total, wave, left) => this.activities.eventState(id, killed, total, wave, left),
@@ -872,6 +882,27 @@ export class Game implements GameApi {
       tradeAccept: () => g.social.accept(),
       tradeCancel: () => g.social.cancel(),
       guild: () => ({ view: g.social.guild, online: g.online.status === 'online' }),
+      friends: () => {
+        // Where friends are: asked of the realm again now and then while the list is open
+        if (g.online.status === 'online' && g.elapsed - g.friendsAsked > 10) { g.friendsAsked = g.elapsed; g.social.watch(); }
+        return {
+        online: g.online.status === 'online',
+        rows: g.social.friendRows().map((r) => ({ name: r.name, online: r.online, where: r.online && r.x !== undefined && (r.x !== 0 || r.z !== 0) ? REGION_INFO[regionAt(r.x, r.z!).a].name : null })),
+        };
+      },
+      friendDo: (what: 'add' | 'remove' | 'whisper' | 'invite', name: string) => {
+        if (what === 'add') g.social.addFriend(name);
+        else if (what === 'remove') g.social.removeFriend(name);
+        else if (what === 'invite') g.social.invite(name);
+        else { g.hud.close('guild'); g.hud.openChat((t) => g.say(t), `/w ${name} `); }
+      },
+      groupDo: (what: 'leave' | 'promote' | 'kick' | 'whisper', name?: string) => {
+        if (what === 'leave') g.social.leave();
+        else if (what === 'promote' && name) g.social.promote(name);
+        else if (what === 'kick' && name) g.social.kick(name);
+        else if (what === 'whisper' && name) g.hud.openChat((t) => g.say(t), `/w ${name} `);
+      },
+      groupLeader: () => !!g.social.group && g.social.group.leader === g.online.myId,
       guildDo: (what: 'found' | 'leave' | 'kick' | 'rank' | 'motto', a?: string, b?: string) => {
         if (what === 'found') g.social.guildFound(a ?? '', b ?? '');
         else if (what === 'leave') g.social.guildLeave();
@@ -2653,6 +2684,8 @@ export class Game implements GameApi {
           ...(this.social.isAlly(other.id) ? [] : [{ label: 'Invite to group', act: () => this.social.invite(name) }]),
           ...(this.social.canInviteToGuild && !this.online.remotes.get(other.id)?.guild ? [{ label: 'Invite to guild', act: () => this.social.guildInvite(name) }] : []),
           { label: 'Trade', act: () => this.social.ask(name) },
+          { label: 'Whisper', act: () => this.hud.openChat((t) => this.say(t), `/w ${name} `) },
+          ...(this.social.isFriend(name) ? [] : [{ label: 'Add friend', act: () => this.social.addFriend(name) }]),
           { label: 'Visit their home', act: () => this.online.homeAsk(name) },
           { label: 'Wave', act: () => this.doEmote('wave') },
         ]);
@@ -3049,6 +3082,19 @@ export class Game implements GameApi {
         case 'clear': document.querySelectorAll('#chatbox .cb-line').forEach((l) => l.remove()); return;
         case 'invite': case 'inv': if (arg) this.social.invite(arg); else this.hud.system('Who? /invite <name>, or click them and choose Invite.'); return;
         case 'leave': case 'leavegroup': this.social.leave(); return;
+        case 'promote': if (arg) this.social.promote(arg); return;
+        case 'w': case 'whisper': case 'tell': case 't': case 'msg': {
+          const sp = arg.indexOf(' ');
+          if (sp < 1) { this.hud.system('Whisper: /w <name> <message>'); return; }
+          this.social.whisper(arg.slice(0, sp), arg.slice(sp + 1));
+          return;
+        }
+        case 'r': case 'reply':
+          if (!this.social.lastWhisper) { this.hud.system('Nobody has whispered to you yet.'); return; }
+          if (arg) this.social.whisper(this.social.lastWhisper, arg);
+          return;
+        case 'friend': case 'addfriend': if (arg) this.social.addFriend(arg); else this.hud.system('Who? /friend <name>, or click them and choose Add friend.'); return;
+        case 'unfriend': case 'removefriend': if (arg) this.social.removeFriend(arg); return;
         case 'kick': if (arg) this.social.kick(arg); return;
         case 'p': case 'party': case 'g': case 'group': if (arg) this.social.say(arg); return;
         case 'trade': if (arg) this.social.ask(arg); else this.hud.system('Who? /trade <name>, or click them and choose Trade.'); return;

@@ -144,6 +144,13 @@ export interface UiCtx {
   /** The guild panel: your guild (null: none), whether you're online at all, and what you can do. */
   guild(): { view: GuildView | null; online: boolean };
   guildDo(what: 'found' | 'leave' | 'kick' | 'rank' | 'motto', a?: string, b?: string): void;
+  /** Friends: the list (with where each online one is), and what to do with one. */
+  friends(): { rows: { name: string; online: boolean; where: string | null }[]; online: boolean };
+  friendDo(what: 'add' | 'remove' | 'whisper' | 'invite', name: string): void;
+  /** The group frame's buttons: leave, or (leading) promote or remove someone. */
+  groupDo(what: 'leave' | 'promote' | 'kick' | 'whisper', name?: string): void;
+  /** Leading the group (for the frame's menu). */
+  groupLeader(): boolean;
   claimLogin(): void;
   feats(): FeatView[];
   calling(): CallingId;
@@ -350,7 +357,7 @@ export class Hud {
     panel('travel-panel', 'Charter Post', 'travel');
     // Closing the trade window by hand calls the trade off
     panel('trade-panel', 'Trade', 'trade').querySelector('.x')!.addEventListener('click', () => this.ctx.tradeCancel());
-    panel('guild-panel', 'Guild', 'guild');
+    panel('guild-panel', 'Friends', 'guild');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
     const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
     const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
@@ -464,8 +471,13 @@ export class Hud {
   }
 
   /** A chat line from a player (or yourself): said, an emote ("Ada waves."), or group chat. */
-  chat(from: string, text: string, kind: 'say' | 'emote' | 'group' | 'guild' = 'say'): void {
-    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>` : kind === 'group' ? `<b>[Group] ${esc(from)}:</b> ${esc(text)}` : kind === 'guild' ? `<b>[Guild] ${esc(from)}:</b> ${esc(text)}` : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
+  chat(from: string, text: string, kind: 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo' = 'say'): void {
+    this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>`
+      : kind === 'group' ? `<b>[Group] ${esc(from)}:</b> ${esc(text)}`
+      : kind === 'guild' ? `<b>[Guild] ${esc(from)}:</b> ${esc(text)}`
+      : kind === 'whisper' ? `<b>${esc(from)} whispers:</b> ${esc(text)}`
+      : kind === 'whisperTo' ? `<b>To ${esc(from)}:</b> ${esc(text)}`
+      : `<b>${esc(from)}:</b> ${esc(text)}`, kind);
   }
 
   // ------------------------------------------------------------------ Groups and trades
@@ -474,7 +486,36 @@ export class Hud {
     const box = this.q('#group');
     if (!rows) { box.innerHTML = ''; box.classList.remove('show'); return; }
     box.classList.add('show');
-    box.innerHTML = '<h6>Group</h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.near ? '' : ' far'}" title="${m.near ? '' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
+    box.innerHTML = '<h6>Group <button class="gleave" title="Leave the group">Leave</button></h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.near ? '' : ' far'}" data-n="${esc(m.name)}" title="${m.near ? 'Click for options' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
+    box.querySelector('.gleave')!.addEventListener('click', () => this.ask('Leave the group?', () => this.ctx.groupDo('leave'), () => {}, 30));
+    box.querySelectorAll<HTMLElement>('.gm:not(.me)').forEach((row) => row.addEventListener('click', (e) => {
+      const name = row.dataset.n!;
+      const lead = this.ctx.groupLeader();
+      this.playerMenu(name, e.clientX, e.clientY, [
+        { label: 'Whisper', act: () => this.ctx.groupDo('whisper', name) },
+        ...(lead ? [{ label: 'Make leader', act: () => this.ctx.groupDo('promote', name) }, { label: 'Remove from group', act: () => this.ask(`Remove ${name} from the group?`, () => this.ctx.groupDo('kick', name), () => {}, 30) }] : []),
+      ]);
+    }));
+  }
+
+  private renderFriends(): void {
+    const { rows, online } = this.ctx.friends();
+    const body = this.q('#guild-panel .body');
+    const foot = this.q('#guild-panel .footer');
+    this.q('#guild-panel h3').textContent = 'Friends';
+    const on = rows.filter((r) => r.online).length;
+    body.innerHTML = `<div class="fadd"><input class="fname" maxlength="20" placeholder="Add a friend by name"><button class="btn sm fgo">Add</button></div>
+      ${online ? '' : '<p class="gnote">You\'re playing offline: friends show as in the world only on the online realm.</p>'}
+      <div class="groster">${rows.length ? rows.map((r) => `<div class="gmember${r.online ? ' on' : ''}"><span class="dot"></span><b>${esc(r.name)}</b><small>${r.online ? esc(r.where ?? 'In the world') : 'Away'}</small><span class="gacts">${r.online ? `<button class="btn ghost sm" data-fw="${esc(r.name)}">Whisper</button><button class="btn ghost sm" data-fi="${esc(r.name)}">Invite</button>` : ''}<button class="btn ghost sm danger" data-fr="${esc(r.name)}">Remove</button></span></div>`).join('') : '<p class="gnote">No friends on your list yet. Add someone by name, or click a player and choose <i>Add friend</i>.</p>'}</div>
+      <p class="gnote">Whisper: /w name message, and /r to answer the last whisper.</p>`;
+    const inp = body.querySelector<HTMLInputElement>('.fname')!;
+    const add = () => { if (inp.value.trim()) { this.ctx.friendDo('add', inp.value); inp.value = ''; } };
+    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') add(); });
+    body.querySelector('.fgo')!.addEventListener('click', add);
+    body.querySelectorAll<HTMLElement>('[data-fw]').forEach((b) => b.addEventListener('click', () => this.ctx.friendDo('whisper', b.dataset.fw!)));
+    body.querySelectorAll<HTMLElement>('[data-fi]').forEach((b) => b.addEventListener('click', () => this.ctx.friendDo('invite', b.dataset.fi!)));
+    body.querySelectorAll<HTMLElement>('[data-fr]').forEach((b) => b.addEventListener('click', () => this.ask(`Take ${b.dataset.fr} off your friends list?`, () => this.ctx.friendDo('remove', b.dataset.fr!), () => {}, 30)));
+    foot.innerHTML = `<span>${on} of ${rows.length} in the world</span>`;
   }
 
   private askT = 0;
@@ -510,7 +551,18 @@ export class Hud {
     pm.style.top = Math.min(innerHeight - pm.offsetHeight - 8, y - 10) + 'px';
   }
 
+  /** The social panel (O) opens on Friends or Guild. */
+  private socialTab: 'friends' | 'guild' = 'friends';
   private renderGuild(): void {
+    const panel = this.q('#guild-panel');
+    let tabs = panel.querySelector<HTMLElement>('.stabs');
+    if (!tabs) {
+      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button>');
+      panel.querySelector('.body')!.before(tabs);
+      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild'; this.ctx.sfx('click'); this.renderGuild(); }));
+    }
+    tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.classList.toggle('sel', b.dataset.st === this.socialTab));
+    if (this.socialTab === 'friends') { this.renderFriends(); return; }
     const { view: g, online } = this.ctx.guild();
     const body = this.q('#guild-panel .body');
     const foot = this.q('#guild-panel .footer');
