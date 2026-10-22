@@ -258,7 +258,7 @@ const painters: Record<number, (p: Px) => void> = {
       set(p, x, y, c);
     }
   },
-  [T.OakLeaves]: (p) => leaves(p, '#2f6a22', '#47902f', '#69b23e', 91, 50),
+  [T.OakLeaves]: (p) => leaves(p, '#2f6a22', '#47902f', '#69b23e', 91, 6),
   [T.Planks]: (p) => planks(p, '#7d5532', '#9c6d40', '#b9884f', 101),
   [T.DarkPlanks]: (p) => planks(p, '#3c2718', '#523621', '#66452b', 111),
   [T.Plaster]: (p) => {
@@ -289,8 +289,8 @@ const painters: Record<number, (p: Px) => void> = {
       for (let k = 0; k < w; k++) set(p, x + k, y, hex('#2c2a28'));
     }
   },
-  [T.BirchLeaves]: (p) => leaves(p, '#5d8a2a', '#7aa83a', '#a2c858', 201, 55),
-  [T.PineLeaves]: (p) => leaves(p, '#1d4630', '#2b5e3e', '#3f7a50', 211, 40),
+  [T.BirchLeaves]: (p) => leaves(p, '#5d8a2a', '#7aa83a', '#a2c858', 201, 7),
+  [T.PineLeaves]: (p) => leaves(p, '#1d4630', '#2b5e3e', '#3f7a50', 211, 5),
   [T.Clay]: (p) => {
     base(p, '#8f4a2e', '#a85a36', '#bf6e44', 221, 0.08);
     for (let y = 0; y < TILE; y += 8) for (let x = 0; x < TILE; x++) set(p, x, y + Math.floor(vnoise(x, y, 8, 5) * 2), hex('#c98a5a'));
