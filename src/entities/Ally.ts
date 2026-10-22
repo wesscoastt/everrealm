@@ -50,6 +50,12 @@ export class Ally {
   quiet = 0;
   /** Getting nowhere toward where they want to be: after a while they catch up some other way. */
   stuck = 0;
+  /** In reach of what it's fighting: it stays put until the foe is well out of reach again (no stepping in and out every frame). */
+  inReach = false;
+  /** Where a healer means to stand, eased toward each new spot so it doesn't jump between foes. */
+  goal: THREE.Vector2 | null = null;
+  /** The way the body faces, turned toward yaw rather than snapped to it. */
+  private shownYaw = 0;
   private vy = 0;
 
   constructor(readonly def: Henchman, readonly level: number, private world: VoxelWorld) {
@@ -69,6 +75,7 @@ export class Ally {
   place(x: number, y: number, z: number): void {
     this.pos.set(x, y, z);
     this.vy = 0;
+    this.shownYaw = this.yaw;
     this.sync();
   }
 
@@ -148,11 +155,15 @@ export class Ally {
     else if (this.act === 'hit' && this.actTime < 0.25) M.setState('hit');
     else M.setState(moving > 0.3 ? (moving > 4.5 ? 'run' : 'walk') : 'idle');
     M.update(dt, this.down ? 0 : moving);
-    this.sync();
+    this.sync(dt);
   }
 
-  private sync(): void {
+  private sync(dt = 0): void {
     this.model.root.position.copy(this.pos);
-    this.model.root.rotation.y = this.yaw;
+    // Turn at a walking pace the short way round
+    let d = this.yaw - this.shownYaw;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.shownYaw += dt > 0 ? Math.sign(d) * Math.min(Math.abs(d), dt * 9) : d;
+    this.model.root.rotation.y = this.shownYaw;
   }
 }

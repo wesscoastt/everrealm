@@ -694,9 +694,12 @@ export class Dungeons {
     const side = a.role === 'tank' ? 0 : (i % 2 ? 1 : -1) * 1.3;
     const to = new THREE.Vector3(a.pos.x - t.pos.x, 0, a.pos.z - t.pos.z);
     const d = to.length();
-    if (d > reach) {
+    // Step in to well inside reach, then hold until the foe is well out of it again
+    if (a.inReach && d > reach + 0.9) a.inReach = false;
+    if (!a.inReach && d < reach - 0.3) a.inReach = true;
+    if (!a.inReach) {
       to.normalize();
-      const gx = t.pos.x + to.x * (reach - 0.4) - to.z * side, gz = t.pos.z + to.z * (reach - 0.4) + to.x * side;
+      const gx = t.pos.x + to.x * (reach - 1.0) - to.z * side, gz = t.pos.z + to.z * (reach - 1.0) + to.x * side;
       const moved = a.stepToward(gx, gz, 5.6, dt);
       a.stuck = moved ? 0 : a.stuck + dt;
       if (a.stuck > 2.5) this.catchUp(a, t.pos);
@@ -742,18 +745,24 @@ export class Dungeons {
     const foe = this.nearest(front, engaged);
     let gx = front.x, gz = front.z;
     if (foe) { const dx = front.x - foe.pos.x, dz = front.z - foe.pos.z, d = Math.hypot(dx, dz) || 1; gx += (dx / d) * 6 + (i % 2 ? 1.5 : -1.5); gz += (dz / d) * 6; }
+    // Ease toward the new spot rather than jumping to it when the nearest foe changes
+    if (!a.goal || Math.hypot(a.goal.x - gx, a.goal.y - gz) > 20) a.goal = new THREE.Vector2(gx, gz);
+    else a.goal.lerp(new THREE.Vector2(gx, gz), Math.min(1, dt * 1.5));
+    gx = a.goal.x; gz = a.goal.y;
     const dist = Math.hypot(a.pos.x - gx, a.pos.z - gz);
     if (foe && a.cd <= 0 && a.mend > 0.4 && foe.pos.distanceTo(a.pos) < 14) {
       a.cd = a.every;
       this.allyHit(a, foe, a.hit);
       this.host.particles.sparks(foe.pos.clone().setY(foe.pos.y + 0.8), 6, '#e8ffd0');
     }
-    if (dist > 2) {
+    if (dist > (a.inReach ? 3 : 1.2)) {
+      a.inReach = false;
       const moved = a.stepToward(gx, gz, 5.2, dt);
       a.stuck = moved ? 0 : a.stuck + dt;
       if (a.stuck > 3) this.catchUp(a, front);
       return moved ? 5.2 : 0;
     }
+    a.inReach = true;
     if (foe) a.face(foe.pos.x, foe.pos.z);
     return 0;
   }
@@ -782,7 +791,9 @@ export class Dungeons {
     const goal = r.trail.length > back ? r.trail[r.trail.length - 1 - back] : P;
     const d = Math.hypot(a.pos.x - goal.x, a.pos.z - goal.z);
     if (a.pos.distanceTo(P) > 30) { this.catchUp(a, P); return 0; }
-    if (d < 1.2) { a.stuck = 0; return 0; }
+    // Settle at the footstep, and set off again only once it's a couple of strides away
+    if (d < 1.2 || (a.inReach && d < 2.4)) { a.stuck = 0; a.inReach = true; return 0; }
+    a.inReach = false;
     // Head for the next footstep after the nearest one, so corners are walked round, not cut
     let k = r.trail.length - 1 - back, best = Infinity;
     for (let j = 0; j < r.trail.length - back; j++) { const dd = r.trail[j].distanceTo(a.pos); if (dd < best) { best = dd; k = j; } }
