@@ -36,6 +36,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { socialInit } from './social.mjs';
 import { guildsInit } from './guilds.mjs';
+import { npcInit } from './npc.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -290,6 +291,8 @@ function broadcast(msg, except) {
 }
 const social = socialInit({ players, send });
 const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataDir: DATA, mirrorDelete: (file) => mirror(file, null), log });
+// AI-voiced townsfolk (talk only; off unless ANTHROPIC_API_KEY is set)
+const npc = npcInit({ send, log });
 const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null });
 
 wss.on('connection', (ws, req) => {
@@ -327,10 +330,12 @@ wss.on('connection', (ws, req) => {
       me = {
         id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
         x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', mount: null, lastChat: 0, dirty: true,
+        // Behind Render's proxy the caller's address is the first one forwarded
+        ip: String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress || '',
       };
       players.set(me.id, me);
       me.guildName = null;
-      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
+      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), npcAi: npc.available(), players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
       guilds.join(me);
       social.join(me);
       broadcast({ t: 'join', player: pub(me) }, me);
@@ -339,7 +344,7 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || npc.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD[0], WORLD[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
@@ -444,6 +449,7 @@ wss.on('connection', (ws, req) => {
     if (!me) return;
     social.leave(me);
     guilds.leave(me);
+    npc.leave(me);
     players.delete(me.id);
     broadcast({ t: 'leave', id: me.id });
     broadcast({ t: 'sys', text: `${me.name} has left.` });

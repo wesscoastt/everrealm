@@ -19,6 +19,17 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
+      # AI-voiced townsfolk (server/npc.mjs). Leave the key empty and the feature stays off.
+      # The key is set in Render's dashboard only, never in this file or the browser.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Which Claude model voices them: claude-haiku-5-5 (about 0.03 cents a reply) or
+      # claude-opus-5-5 (about 1 cent a reply, better writing). Empty means claude-opus-5-5.
+      - key: NPC_MODEL
+        sync: false
+      # Most the realm spends on them in a day, in US dollars, counted from the tokens used
+      - key: NPC_DAILY_USD
+        value: "1"
       # With the disk below, also keep the realm's files on it:
       # - key: EVERREALM_DATA
       #   value: /var/data/everrealm

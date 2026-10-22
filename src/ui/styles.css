@@ -363,6 +363,14 @@
 .dlg .opt:hover, .dlg .opt.focus { background: rgba(80, 50, 15, 0.12); color: #000; }
 .dlg .opt .k { position: absolute; left: 4px; top: 4px; width: 20px; height: 20px; display: grid; place-items: center; font: 700 13px var(--body); color: var(--cream); background: #3a2814; border: 2px solid var(--ink); }
 .dlg .opt.leave { color: #7a5a30; font-style: italic; }
+/* Open talk with an AI-voiced townsperson */
+.dlg .said { font: italic 500 15px var(--book); color: #6a4a24; margin: 0 0 4px; }
+.dlg .line.wait { color: #8a6a40; letter-spacing: 3px; }
+.dlg .talkbox { display: flex; gap: 6px; margin: 0 0 10px; }
+.dlg .talkbox input { flex: 1; min-width: 0; font: 500 16px var(--body); padding: 6px 9px; color: #241708; background: rgba(255, 248, 230, 0.75); border: 2px solid #3a2814; border-radius: 0; }
+.dlg .talkbox input:focus { outline: none; background: #fffaf0; box-shadow: 0 0 0 2px rgba(224, 189, 100, 0.6); }
+.dlg .talkbox .send { font: 700 14px var(--body); padding: 6px 14px; color: var(--cream); background: #3a2814; border: 2px solid var(--ink); cursor: pointer; }
+.dlg .talkbox .send:disabled { opacity: 0.5; cursor: default; }
 
 /* ------------------------------------------------------------- Title and creator */
 /* Loading screen: opaque, so half-built chunks never show behind the logo */

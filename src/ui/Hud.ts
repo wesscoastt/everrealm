@@ -122,7 +122,8 @@ export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enem
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
 export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean }
-export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
+/** chat: open talk, with what the player last said and whether the answer is still coming. */
+export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[]; chat?: { waiting: boolean; you?: string } }
 
 export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean }
 
@@ -165,6 +166,8 @@ export interface UiCtx {
   sell(slot: number): void;
   quests(): QuestEntry[];
   dialogueChoose(i: number): void;
+  /** Something the player says in open talk with an AI-voiced townsperson. */
+  dialogueSay(text: string): void;
   settingsChanged(): void;
   sfx(name: 'click' | 'open' | 'close'): void;
   /** Deletes the character being played and goes back to character select. */
@@ -1834,6 +1837,7 @@ export class Hud {
     this.dialogueOpen = !!v;
     // (small screens clear the way for the conversation: see body.talking in styles.css)
     document.body.classList.toggle('talking', !!v);
+    if (!v || !v.chat) { d.querySelector('.said')?.remove(); d.querySelector('.talkbox')?.remove(); }
     if (!v) { d.classList.remove('show'); return; }
     d.classList.add('show');
     if (v.look) drawFace(d.querySelector('.face canvas') as HTMLCanvasElement, v.look);
@@ -1841,6 +1845,7 @@ export class Hud {
     const line = d.querySelector('.line')!;
     line.className = 'line' + (v.narrator ? ' narr' : '');
     line.textContent = v.text;
+    if (v.chat) this.talkBox(d, line, v.chat);
     const opts = d.querySelector('.opts')!;
     opts.innerHTML = '';
     this.dlgOptions = v.options.map((o, i) => {
@@ -1874,6 +1879,33 @@ export class Hud {
   setHudHidden(on: boolean): void {
     this.root.classList.toggle('hidden-hud', on);
   }
+
+  /** Open talk: what you said above the answer, and a box to say the next thing. The box is kept
+   *  between answers so what you're typing and the focus aren't lost. */
+  private talkBox(d: HTMLElement, line: Element, c: { waiting: boolean; you?: string }): void {
+    let said = d.querySelector<HTMLElement>('.said');
+    if (!said) { said = el('div', 'said'); line.before(said); }
+    said.textContent = c.you ? `You: ${c.you}` : '';
+    said.hidden = !c.you;
+    if (c.waiting) { line.textContent = '…'; line.classList.add('wait'); }
+    let box = d.querySelector<HTMLElement>('.talkbox');
+    if (!box) {
+      box = el('div', 'talkbox', '<input type="text" maxlength="240" placeholder="Say something…" aria-label="What you say" autocomplete="off"><button class="send">Say</button>');
+      const inp = box.querySelector('input')!;
+      // (the cursor goes back to the box after Say is clicked, ready for the next line)
+      const go = (): void => { const t = inp.value.trim(); if (t && !inp.readOnly) { inp.value = ''; this.ctx.dialogueSay(t); } inp.focus(); };
+      // Typing stays in the box: keys don't reach movement, hotkeys or the dialogue numbers
+      inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); if (e.key === 'Escape') inp.blur(); });
+      box.querySelector('.send')!.addEventListener('click', go);
+      d.querySelector('.opts')!.before(box);
+      inp.focus();
+    }
+    box.querySelector('input')!.readOnly = c.waiting;
+    box.querySelector<HTMLButtonElement>('.send')!.disabled = c.waiting;
+  }
+
+  /** Put the cursor in the open-talk box, if one is showing. */
+  focusTalk(): void { this.root.querySelector<HTMLInputElement>('.dlg .talkbox input')?.focus(); }
 
   dialogueKey(i: number): boolean {
     if (!this.dialogueOpen) return false;

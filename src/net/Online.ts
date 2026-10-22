@@ -99,6 +99,8 @@ export interface OnlineHooks {
   /** A creature someone else killed, and how long (ms) until it's back; the whole list on joining. */
   mobDead?(key: string, leftMs: number): void;
   mobLedger?(list: [string, number][]): void;
+  /** A townsperson's answer in open talk (server/npc.mjs). Words only: the game reads nothing in it. */
+  npcLine?(npc: string, text: string, ok: boolean): void;
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
   homeAsked?(from: string): void;
   homeShow?(owner: string, pieces: unknown[], plot: unknown): void;
@@ -123,6 +125,8 @@ export interface OnlineHooks {
 export class Online {
   status: OnlineStatus = 'off';
   readonly remotes = new Map<number, Remote>();
+  /** Townsfolk the server can voice in open talk (empty when that's off). */
+  aiNpcs: string[] = [];
   private ws: WebSocket | null = null;
   private sendT = 0;
   private lastSave = 0;
@@ -148,6 +152,7 @@ export class Online {
     ws.onmessage = (e) => this.onMessage(typeof e.data === 'string' ? e.data : '');
     ws.onclose = () => {
       this.ws = null;
+      this.aiNpcs = [];
       this.clearRemotes();
       if (this.status === 'denied') return;
       const wasOnline = this.status === 'online';
@@ -163,6 +168,7 @@ export class Online {
     window.clearTimeout(this.retryTimer);
     this.me = null;
     if (this.ws) { this.ws.onclose = null; this.ws.close(); this.ws = null; }
+    this.aiNpcs = [];
     this.clearRemotes();
     this.setStatus('off');
   }
@@ -180,6 +186,7 @@ export class Online {
         this.myId = typeof m.id === 'number' ? m.id : -1;
         if (typeof m.now === 'number') setRealmTime(m.now);
         if (Array.isArray(m.mobs)) this.hooks.mobLedger?.(m.mobs as [string, number][]);
+        this.aiNpcs = Array.isArray(m.npcAi) ? (m.npcAi as unknown[]).map(String) : [];
         for (const p of m.players as PlayerPub[]) this.addRemote(p);
         this.setStatus('online');
         const others = this.remotes.size;
@@ -217,6 +224,7 @@ export class Online {
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
+      case 'npcLine': this.hooks.npcLine?.(String(m.npc ?? ''), typeof m.text === 'string' ? m.text : '', !!m.ok); break;
       case 'mobDead': if (typeof m.key === 'string' && typeof m.left === 'number') this.hooks.mobDead?.(m.key, m.left); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
       case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
@@ -335,6 +343,8 @@ export class Online {
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
   /** Tell the realm a creature at this spawn point died; it's gone for everyone for `secs`. */
   mobDead(key: string, secs: number): void { this.emit({ t: 'mobDead', key, secs }); }
+  /** Say something to an AI-voiced townsperson; the answer comes back as npcLine. */
+  npcSay(npc: string, text: string): void { this.emit({ t: 'npcSay', npc, text: text.slice(0, 240) }); }
   homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }
   homeShow(name: string, accept: boolean, pieces: unknown[] | null, plot: unknown = null): void { this.emit({ t: 'hShow', name, accept, pieces, plot }); }
   tradeAnswer(name: string, accept: boolean): void { this.emit({ t: 'tAnswer', name, accept }); }

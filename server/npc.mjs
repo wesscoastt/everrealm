@@ -7,7 +7,8 @@
 //     game: it can't give items, marks or experience, start or finish quests, or change any flag.
 //   - Separate from everything else on the socket. The call is made off the message loop and its
 //     reply arrives on its own later; movement, combat, trades and saves never wait for it.
-//   - Bounded. Per character: one request at a time, a few seconds apart, a few dozen a day. For the
+//   - Bounded. Per character: one request at a time, a few seconds apart, a few dozen a day; per
+//     connection address a couple of hundred a day, so new names don't buy more. For the
 //     whole realm: a daily budget in dollars (NPC_DAILY_USD, default $1), counted from the tokens each
 //     reply really used, so the credit lasts a known number of days whatever the model or the crowd.
 //   - Fails soft. Without a key the feature is off and the game shows nothing new; a limit, an error
@@ -25,7 +26,7 @@ const DAILY_USD = Math.max(0, Number(process.env.NPC_DAILY_USD ?? 1) || 0);
 // counted at Opus 5.5's price, so a guess errs towards stopping early.
 const PRICES = { 'claude-opus-5-5': [4, 20, 0.2, 5], 'claude-haiku-5-5': [0.1, 0.5, 0.01, 0.125] };
 const PRICE = PRICES[MODEL] ?? PRICES['claude-opus-5-5'];
-const PER_DAY = 60, PER_TEN_MIN = 15, GAP_MS = 3000;
+const PER_DAY = 60, PER_TEN_MIN = 15, GAP_MS = 3000, PER_IP_DAY = 200;
 const MAX_IN = 240, MAX_OUT_CHARS = 420, HISTORY = 8, IDLE_MS = 20 * 60_000;
 // Server-side refusal fallback is offered on these models (see the Anthropic docs); not on Haiku
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5']);
@@ -34,11 +35,13 @@ export function npcInit(ctx) {
   const { send, log } = ctx;
   const enabled = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
   // Retries are few and quick: a player is waiting at the bar, not a batch job
-  const client = enabled ? new Anthropic({ timeout: 20_000, maxRetries: 1 }) : null;
-  log(enabled ? `AI townsfolk on (${MODEL}, ${DAILY_USD} a day)` : 'AI townsfolk off (no ANTHROPIC_API_KEY)');
+  const client = enabled ? new Anthropic({ timeout: 15_000, maxRetries: 1 }) : null;
+  log(enabled ? `AI townsfolk on (${MODEL}, $${DAILY_USD} a day)` : 'AI townsfolk off (no ANTHROPIC_API_KEY)');
 
   /** Character key -> { day, dayCount, recent: ms[], last, busy } */
   const usage = new Map();
+  /** Connection address -> { day, count } */
+  const byIp = new Map();
   /** "characterKey:npc" -> { msgs, at } */
   const memory = new Map();
   let today = dayOf(Date.now()), todayCount = 0, spent = 0;
@@ -50,7 +53,7 @@ export function npcInit(ctx) {
   /** Is this character allowed another line now? Returns why not, or null. */
   function limit(me) {
     const now = Date.now();
-    if (dayOf(now) !== today) { today = dayOf(now); todayCount = 0; spent = 0; }
+    if (dayOf(now) !== today) { today = dayOf(now); todayCount = 0; spent = 0; byIp.clear(); }
     if (spent >= DAILY_USD) return 'realm';
     let u = usage.get(me.key);
     if (!u || u.day !== today) usage.set(me.key, (u = { day: today, dayCount: 0, recent: [], last: 0, busy: false }));
@@ -59,6 +62,7 @@ export function npcInit(ctx) {
     u.recent = u.recent.filter((t) => now - t < 600_000);
     if (u.recent.length >= PER_TEN_MIN) return 'busy';
     if (u.dayCount >= PER_DAY) return 'day';
+    if (me.ip && (byIp.get(me.ip) ?? 0) >= PER_IP_DAY) return 'day';
     return null;
   }
 
@@ -119,17 +123,20 @@ export function npcInit(ctx) {
     if (why) { line(me, npcId, why === 'day' || why === 'realm' ? pick(persona.tired) : pick(persona.busy), false, why); return true; }
     const u = usage.get(me.key);
     u.busy = true; u.last = Date.now(); u.recent.push(u.last); u.dayCount++; todayCount++;
+    if (me.ip) byIp.set(me.ip, (byIp.get(me.ip) ?? 0) + 1);
     ask(me, npcId, persona, said)
       .then((r) => line(me, npcId, r.text, r.ok, r.why))
       .catch((e) => {
         // Typed errors from the SDK: a limit or an outage gets the NPC's own line, never a crash
-        const kind = e instanceof Anthropic.RateLimitError ? 'rate limit' : e instanceof Anthropic.AuthenticationError ? 'bad API key' : e instanceof Anthropic.APIError ? `API ${e.status}` : (e?.name ?? 'error');
+        const kind = e instanceof Anthropic.APIConnectionTimeoutError ? 'timed out' : e instanceof Anthropic.APIConnectionError ? 'no connection'
+          : e instanceof Anthropic.RateLimitError ? 'rate limit' : e instanceof Anthropic.AuthenticationError ? 'bad API key'
+          : e instanceof Anthropic.APIError ? `API ${e.status}` : (e?.name ?? 'error');
         log(`npc ${npcId} for ${me.name}: ${kind}${e?.message ? ': ' + String(e.message).slice(0, 160) : ''}`);
         line(me, npcId, pick(persona.busy), false, 'error');
       })
       .finally(() => {
         u.busy = false;
-        if (todayCount % 25 === 0) log(`AI townsfolk today: ${todayCount} replies, ${spent.toFixed(3)} of ${DAILY_USD}`);
+        if (todayCount % 25 === 0) log(`AI townsfolk today: ${todayCount} replies, $${spent.toFixed(3)} of $${DAILY_USD}`);
       });
     return true;
   }

@@ -277,7 +277,8 @@ export class Game implements GameApi {
   private questSpawned = new Map<string, Enemy[]>();
   /** Ground height under each regional world thing, found once its chunk has loaded. */
   private thingY = new Map<string, number>();
-  private dialogue: { npc: Npc; tree: DialogueTree; node: string; text?: string } | null = null;
+  /** first: the node the conversation opened on. chat: open talk with an AI-voiced townsperson (words only). */
+  private dialogue: { npc: Npc; tree: DialogueTree; node: string; text?: string; first?: string; chat?: { waiting: boolean; you?: string; reply?: string; narr?: boolean; timer?: number } } | null = null;
   private casting: { t: number; dur: number } | null = null;
   private candidate: Candidate | null = null;
   private outline: THREE.LineSegments;
@@ -476,6 +477,7 @@ export class Game implements GameApi {
       ...this.social.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
+      npcLine: (npc: string, text: string) => this.npcLine(npc, text),
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
         this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces(), readPlot(this.flag('plot'))), () => this.online.homeShow(from, false, null), 60);
@@ -926,6 +928,7 @@ export class Game implements GameApi {
       sell: (slot: number) => g.sell(slot),
       quests: () => g.questEntries(),
       dialogueChoose: (i: number) => g.chooseOption(i),
+      dialogueSay: (t: string) => g.dialogueSay(t),
       settingsChanged: () => g.applySettings(),
       sfx: (n: 'click' | 'open' | 'close') => g.sfx(n),
       resetSave: () => { if (g.charId) deleteCharacter(g.charId); location.reload(); },
@@ -1415,7 +1418,8 @@ export class Game implements GameApi {
     this.dialogue = { npc, tree, node: '' };
     if (this.isStoryScene(npc.id)) this.hud.setCinema(true, true);
     this.player.faceTowards(npc.pos.x, npc.pos.z);
-    this.enterNode(tree.start(this));
+    this.dialogue.first = tree.start(this);
+    this.enterNode(this.dialogue.first);
   }
 
   private enterNode(id: string): void {
@@ -1430,14 +1434,20 @@ export class Game implements GameApi {
     this.renderNode(node);
   }
 
-  private nodeOptions(node: DNode): { text: string; next?: string; effect?: (g: GameApi) => void; leave?: boolean }[] {
-    const opts = (node.options ?? []).filter((o) => !o.cond || o.cond(this)).map((o) => ({
+  private nodeOptions(node: DNode): { text: string; next?: string; effect?: (g: GameApi) => void; leave?: boolean; chat?: boolean }[] {
+    const opts: { text: string; next?: string; effect?: (g: GameApi) => void; leave?: boolean; chat?: boolean }[] = (node.options ?? []).filter((o) => !o.cond || o.cond(this)).map((o) => ({
       text: typeof o.text === 'function' ? o.text(this) : o.text,
       next: o.next,
       effect: o.effect,
       leave: !o.next && !o.effect,
     }));
     if (!opts.length) opts.push(node.next ? { text: 'Continue', next: node.next, effect: undefined, leave: false } : { text: 'Leave', next: undefined, effect: undefined, leave: true });
+    // Open talk is offered where the conversation began, above the goodbye
+    const d = this.dialogue;
+    if (d && d.node === d.first && this.canTalkFreely(d.npc.id)) {
+      const at = opts.findIndex((o) => o.leave);
+      opts.splice(at < 0 ? opts.length : at, 0, { text: 'Talk about something else…', chat: true });
+    }
     return opts;
   }
 
@@ -1457,16 +1467,74 @@ export class Game implements GameApi {
   private chooseOption(i: number): void {
     const d = this.dialogue;
     if (!d) return;
+    if (d.chat) { if (i === 0) this.leaveChat(); else if (i === 1) this.endDialogue(); return; }
     const node = d.tree.nodes[d.node];
     const opt = this.nodeOptions(node)[i];
     if (!opt) return;
+    if (opt.chat) { d.chat = { waiting: false }; this.renderChat(); return; }
     opt.effect?.(this);
     if (!this.dialogue) return;
     if (opt.next) this.enterNode(opt.next);
     else this.endDialogue();
   }
 
+  // ------------------------------------------------------------------ Open talk
+  // A few townsfolk can be talked with freely when the realm server has an AI voice for them
+  // (server/npc.mjs). It's words only: an answer is shown and nothing in it is read, so open talk
+  // can't give items, marks or experience, or move a quest. The written conversation is untouched.
+
+  private canTalkFreely(id: string): boolean {
+    return this.online.online && this.online.aiNpcs.includes(id) && !this.isStoryScene(id);
+  }
+
+  private renderChat(): void {
+    const d = this.dialogue!, c = d.chat!;
+    this.hud.showDialogue({
+      speaker: d.npc.def.name,
+      title: d.npc.def.title,
+      text: c.reply ?? `${d.npc.def.name.split(' ')[0]} looks up, ready to hear what you have to say.`,
+      narrator: !c.reply || !!c.narr,
+      look: d.npc.def.look,
+      chat: { waiting: c.waiting, you: c.you },
+      options: [{ text: 'Back to other matters' }, { text: 'Goodbye', leave: true }],
+    });
+  }
+
+  dialogueSay(text: string): void {
+    const d = this.dialogue, c = d?.chat;
+    if (!d || !c || c.waiting) return;
+    const said = text.replace(/\s+/g, ' ').trim().slice(0, 240);
+    if (!said) return;
+    if (!this.online.online) { this.hud.system('Open talk needs the realm server, and you\'re not connected.'); this.leaveChat(); return; }
+    Object.assign(c, { waiting: true, you: said, reply: undefined, narr: false });
+    this.online.npcSay(d.npc.id, said);
+    // The server always answers, even if only with a line of the NPC's own; this covers a lost connection
+    window.clearTimeout(c.timer);
+    const npc = d.npc.id, first = d.npc.def.name.split(' ')[0];
+    c.timer = window.setTimeout(() => this.npcLine(npc, `${first} is called away for a moment.`, true), 45_000);
+    this.renderChat();
+  }
+
+  private npcLine(npc: string, text: string, narr = false): void {
+    const d = this.dialogue, c = d?.chat;
+    if (!d || !c || d.npc.id !== npc || !c.waiting) return;
+    window.clearTimeout(c.timer);
+    Object.assign(c, { waiting: false, reply: text || '…', narr });
+    this.renderChat();
+    this.sfx('click');
+  }
+
+  /** Back to the written conversation, where it was (its effects don't run again). */
+  private leaveChat(): void {
+    const d = this.dialogue;
+    if (!d?.chat) return;
+    window.clearTimeout(d.chat.timer);
+    d.chat = undefined;
+    this.renderNode(d.tree.nodes[d.node]);
+  }
+
   private endDialogue(): void {
+    if (this.dialogue?.chat) window.clearTimeout(this.dialogue.chat.timer);
     if (this.dialogue) this.dialogue.npc.talking = false;
     this.dialogue = null;
     this.hud.setCinema(false, true);
@@ -2624,7 +2692,7 @@ export class Game implements GameApi {
     // Dialogue captures number keys and Escape.
     if (this.dialogue) {
       for (let k = 1; k <= 9; k++) if (I.pressedOnce('Digit' + k)) this.hud.dialogueKey(k - 1);
-      if (I.pressedOnce('Space') || I.pressedOnce('Enter')) this.hud.dialogueKey(0);
+      if (I.pressedOnce('Space') || I.pressedOnce('Enter')) { if (this.dialogue.chat) this.hud.focusTalk(); else this.hud.dialogueKey(0); }
       if (I.pressedOnce('Escape')) this.endDialogue();
       if (this.dialogue && this.dialogue.npc.pos.distanceTo(this.player.position) > 6) this.endDialogue();
       if (I.dragX || I.dragY) this.rig.rotate(I.dragX, I.dragY);
