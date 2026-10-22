@@ -269,7 +269,7 @@ export class ClassKit {
       }
       case 'leap': {
         const at = H.aim(T.leap.range);
-        if (at.distanceTo(P) < 1.5 || !H.clear(at)) return false;
+        if (at.distanceTo(P) < 1.5 || Math.abs(at.y - P.y) > 4 || !H.clear(at)) return false;
         H.moveTo(at.x, at.z, 0.32, at.y);
         H.anim('cleave'); H.sfx('swing');
         this.pending.push({ at: at.clone(), t: 0.32, ring: this.ring(at, T.leap.r, '#e0583a', 0.32), r: T.leap.r, dmg: pw * T.leap.dmg });
@@ -332,7 +332,7 @@ export class ClassKit {
       }
       case 'blink': {
         const at = H.aim(T.blink.range);
-        if (at.distanceTo(P) < 1.5 || !H.clear(at)) return false;
+        if (at.distanceTo(P) < 1.5 || Math.abs(at.y - P.y) > 4 || !H.clear(at)) return false;
         H.particles.burst(P.clone().setY(P.y + 1), '#b8a8ff', 20);
         H.moveTo(at.x, at.z, 0.06, at.y);
         this.evadeUntil = this.clock + T.blink.evade;

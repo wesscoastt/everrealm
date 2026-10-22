@@ -1501,8 +1501,12 @@ export class Game implements GameApi {
     this.player.setAppearance(this.wornLook(), this.scene);
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
-    this.intro = { t: 0, shot: -1 };
-    this.front.showIntro();
+    // A new character's first time: the storybook of the land, then down the Wend into Hollin Ford
+    const flyover = () => { if (this.mode !== 'intro') return; this.intro = { t: 0, shot: -1 }; this.front.showIntro(); };
+    if (this.flag('prologueSeen')) { flyover(); return; }
+    this.setFlag('prologueSeen', 1);
+    this.intro = null;
+    this.front.showPrologue(flyover);
   }
 
   private endIntro(): void {
@@ -2591,12 +2595,13 @@ export class Game implements GameApi {
       ray.setFromCamera(new THREE.Vector2((this.input.mouseX / innerWidth) * 2 - 1, -(this.input.mouseY / innerHeight) * 2 + 1), this.camera);
       const o = ray.ray.origin, d = ray.ray.direction;
       const hit = this.world.voxels.raycast(o.x, o.y, o.z, d.x, d.y, d.z, 90);
-      if (hit) at = new THREE.Vector3(hit.x + 0.5, hit.y + 1, hit.z + 0.5);
+      // (Underground the camera's line can strike the ceiling, or the ground above it: only a point near your own height counts)
+      if (hit && Math.abs(hit.y + 1 - P.y) < 6) at = new THREE.Vector3(hit.x + 0.5, hit.y + 1, hit.z + 0.5);
     }
     if (!at) at = this.target?.alive ? this.target.pos.clone() : P.clone().add(new THREE.Vector3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw)).multiplyScalar(range * 0.6));
     const flat = new THREE.Vector3(at.x - P.x, 0, at.z - P.z);
     if (flat.length() > range) { flat.setLength(range); at.set(P.x + flat.x, at.y, P.z + flat.z); }
-    at.y = this.world.voxels.groundBelow(at.x, Math.max(at.y, P.y) + 3, at.z);
+    at.y = this.world.voxels.groundBelow(at.x, Math.min(Math.max(at.y, P.y) + 3, P.y + 6), at.z);
     if (flat.length() > 0.5) this.player.yaw = Math.atan2(flat.x, flat.z);
     return at;
   }
@@ -3409,6 +3414,9 @@ export class Game implements GameApi {
         this.particles.dust(P.position, 10);
       }
       fall = P.update(dt, new THREE.Vector3(), 0, false);
+      // A leap, a step or a spring is never a fall
+      fall = 0;
+      P.fallStartY = P.position.y;
     } else fall = P.update(dt, mv, speed, jump);
     if (P.swimming !== wasSwimming) document.body.classList.toggle('swimming', P.swimming);
     // The first dive: how fighting works down here

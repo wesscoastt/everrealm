@@ -3,6 +3,7 @@ import { ORIGINS, originById } from '../data/origins';
 import { CALLINGS, CallingId } from '../data/classes';
 import { callingCard } from './callingCard';
 import { drawFace } from './skin';
+import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
 
 // The screens around the game: character select (the main menu), the character creator, and the
@@ -150,7 +151,7 @@ const playTime = (s: number) => {
 
 export class Frontend {
   private root: HTMLElement;
-  private screen: 'none' | 'home' | 'select' | 'creator' | 'intro' = 'none';
+  private screen: 'none' | 'home' | 'select' | 'creator' | 'intro' | 'prologue' = 'none';
   private homeTab: HomeTab = 'start';
   /** Players in the world on the chosen realm (null: not asked yet, or no realm). */
   private realmOnline: number | null = null;
@@ -535,6 +536,36 @@ export class Frontend {
   }
 
   // ------------------------------------------------------------------ Intro
+  /** The storybook prologue: painted pages of the land, one after another; done() when it ends or is skipped. */
+  showPrologue(done: () => void): void {
+    this.screen = 'prologue';
+    let i = -1, timer = 0;
+    const finish = () => { if (this.screen !== 'prologue') return; window.clearTimeout(timer); this.prologueNext = null; done(); };
+    const next = () => {
+      if (this.screen !== 'prologue') return;
+      window.clearTimeout(timer);
+      if (++i >= PROLOGUE.length) { finish(); return; }
+      const p = PROLOGUE[i];
+      const page = document.createElement('div');
+      page.className = 'pg' + (i % 2 ? ' left' : '');
+      page.innerHTML = `<div class="pic" style="background-image:url('${p.img}')"></div><div class="band"><div class="k">${esc(p.kicker)}</div><p>${esc(p.text)}</p></div>`;
+      const book = this.root.querySelector('.fe-book');
+      book?.querySelectorAll('.pg').forEach((o) => { o.classList.add('out'); window.setTimeout(() => o.remove(), 1400); });
+      book?.append(page);
+      requestAnimationFrame(() => page.classList.add('in'));
+      this.ctx.sfx('click');
+      timer = window.setTimeout(next, 4200 + p.text.length * 55);
+    };
+    this.prologueNext = next;
+    this.prologueSkip = finish;
+    this.root.innerHTML = `<div class="fe fe-prologue"><div class="fe-book"></div><button class="fe-skip">Skip <kbd>Esc</kbd></button><div class="fe-turn">Click or <kbd>Space</kbd> to turn the page</div></div>`;
+    this.root.querySelector('.fe-skip')!.addEventListener('click', (e) => { e.stopPropagation(); finish(); });
+    this.root.querySelector('.fe-prologue')!.addEventListener('click', () => next());
+    next();
+  }
+  private prologueNext: (() => void) | null = null;
+  private prologueSkip: (() => void) | null = null;
+
   showIntro(): void {
     this.screen = 'intro';
     this.root.innerHTML = `<div class="fe fe-intro"><div class="fe-fade"></div><button class="fe-skip">Skip <kbd>Space</kbd></button><div class="fe-cap"><div class="k"></div><p></p></div></div>`;
@@ -561,6 +592,11 @@ export class Frontend {
     if (this.screen === 'none' || (e.target as HTMLElement)?.tagName === 'INPUT') return;
     if (this.root.querySelector('.fe-modal')) {
       if (e.key === 'Escape') this.root.querySelector<HTMLElement>('.fe-modal .no, .fe-modal .ok')?.click();
+      return;
+    }
+    if (this.screen === 'prologue') {
+      if (e.key === 'Escape') { e.preventDefault(); this.prologueSkip?.(); }
+      else if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); this.prologueNext?.(); }
       return;
     }
     if (this.screen === 'intro' && (e.key === ' ' || e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); this.ctx.skipIntro(); }
