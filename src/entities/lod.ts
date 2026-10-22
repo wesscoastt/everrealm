@@ -30,7 +30,8 @@ function prepare(root: THREE.Object3D): Parts {
     if (!m.isMesh) return;
     if (m.castShadow) p.casters.push(m);
     const mat = m.material as THREE.MeshLambertMaterial;
-    const flat = !Array.isArray(mat) && mat.type === 'MeshLambertMaterial' && !mat.map && !mat.transparent && !mat.vertexColors && mat.emissive.getHex() === 0;
+    // (two-sided parts, a cape, stay as they are: the merged mesh is one-sided, and from behind they'd vanish)
+    const flat = !Array.isArray(mat) && mat.type === 'MeshLambertMaterial' && !mat.map && !mat.transparent && !mat.vertexColors && mat.emissive.getHex() === 0 && mat.side === THREE.FrontSide;
     // Parts hidden at build time (a blink's eyelids), glowing parts (eyes) and parts with children stay as they are
     if (flat && m.visible && !m.children.length && m.parent) {
       let list = byJoint.get(m.parent);

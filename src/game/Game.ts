@@ -2404,10 +2404,11 @@ export class Game implements GameApi {
     m.root.rotation.y = creator ? face + this.previewSpin : face + Math.sin(this.elapsed * 0.35) * 0.18;
     m.setState('idle');
     m.update(dt, 0);
-    const h = m.look.height ?? 1;
+    // (framed for the figure as it stands: everyone is scaled by FIGURE)
+    const h = (m.look.height ?? 1) * FIGURE;
     const close = creator && this.creatorView === 'face';
     const right = new THREE.Vector3(d.z, 0, -d.x);
-    const pos = base.clone().addScaledVector(d, close ? 2.5 : creator ? 4.4 : 5.2).add(new THREE.Vector3(0, (close ? 1.8 : 1.35) * h, 0));
+    const pos = base.clone().addScaledVector(d, close ? 2.2 : creator ? 3.8 : 4.5).add(new THREE.Vector3(0, (close ? 1.8 : 1.35) * h, 0));
     const look = base.clone().add(new THREE.Vector3(0, (close ? 1.6 : 1.05) * h, 0));
     // In the creator the options panel covers the left of the screen, so frame the model right of centre.
     if (creator && innerWidth > 860) look.addScaledVector(right, close ? -0.45 : -0.85);
