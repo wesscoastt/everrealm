@@ -19,6 +19,7 @@
     "stairs": "rolldown scripts/stairscheck.ts --platform node --format esm --file .walker/stairscheck.mjs --logLevel warn && node .walker/stairscheck.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
     "three": "^0.184.0",
     "ws": "^8.22.0"
   },
