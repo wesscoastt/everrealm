@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { playerHp, playerPower } from '../data/scaling';
 import { B, isSolid } from '../world/blocks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { AnimState, Appearance, Humanoid } from './humanoid';
@@ -10,11 +11,15 @@ import type { Henchman } from '../data/dungeons';
 
 const BASE: Appearance = { skin: '#d8a882', hair: '#3a2418', hairStyle: 0, eyes: '#3a2a1a', tunic: '#5a4a3a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14' };
 
-/** Health and blows by role, for a henchman of level L: the tank lasts, the damage dealers hit. */
-export function allyStats(role: Henchman['role'], L: number): { hp: number; hit: number; every: number } {
-  if (role === 'tank') return { hp: 170 + L * 16, hit: 4 + L * 1.0, every: 1.3 };
-  if (role === 'healer') return { hp: 110 + L * 9, hit: 3 + L * 0.8, every: 1.6 };
-  return { hp: 120 + L * 10, hit: 6 + L * 1.6, every: 1.15 };
+/**
+ * Health and blows by role, for a henchman of level L: the tank lasts, the damage dealers hit. Shares
+ * of a player's own health and swing at that level (data/scaling.ts), so they're as useful at 50 as at 5.
+ */
+export function allyStats(role: Henchman['role'], L: number): { hp: number; hit: number; every: number; mend: number } {
+  const hp = playerHp(L), pw = playerPower(L), mend = 0.3 * hp;
+  if (role === 'tank') return { hp: 2.15 * hp, hit: 0.4 * pw, every: 1.3, mend };
+  if (role === 'healer') return { hp: 1.3 * hp, hit: 0.31 * pw, every: 1.6, mend };
+  return { hp: 1.43 * hp, hit: 0.63 * pw, every: 1.15, mend };
 }
 
 let nextBubble = -100;
@@ -27,6 +32,8 @@ export class Ally {
   readonly max: number;
   readonly hit: number;
   readonly every: number;
+  /** A healer's single mend and group round. */
+  readonly mendBy: number;
   /** Seconds until the next blow, the next mend, the role's skill (a tank's call, a healer's round). */
   cd = 0;
   mend = 0;
@@ -52,6 +59,7 @@ export class Ally {
     this.max = this.hp = Math.round(s.hp);
     this.hit = s.hit;
     this.every = s.every;
+    this.mendBy = s.mend;
   }
 
   get name(): string { return this.def.name; }

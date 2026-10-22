@@ -72,6 +72,7 @@ import { Exchange } from './Exchange';
 import { Dungeons } from './Dungeons';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
+import { regionLevel, rewardScale } from '../data/scaling';
 import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
@@ -482,12 +483,16 @@ export class Game implements GameApi {
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
       removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
       hitPlayer: (d, from) => this.hitPlayer(d, from),
-      reward: (xp, marks, items, why) => {
+      reward: (xp0, marks0, items, why) => {
+        // Written for the region's own level, paid at yours (data/scaling.ts)
+        const k = rewardScale(this.level('melee'), regionLevel(regionAt(this.player.position.x, this.player.position.z).a));
+        const xp = Math.round(xp0 * k), marks = Math.round(marks0 * k);
         if (xp) this.addXp('melee', xp);
         if (marks) this.addMarks(marks);
         for (const it of items) this.give(it, 1);
         this.hud.system(why + (xp ? ` (+${xp} XP)` : ''));
       },
+      level: () => this.level('melee'),
       banner: (t, sub) => this.hud.banner(t, sub),
       system: (t) => this.hud.system(t),
       sound: (n) => this.sfx(n),
@@ -2866,6 +2871,7 @@ export class Game implements GameApi {
       playerAlive: !this.dead,
       playerInvulnerable: this.iframes > 0,
       playerSwimming: this.player.swimming,
+      level: this.level('melee'),
       hitPlayer: (d: number, from: Enemy) => this.hitPlayer(d, from),
       sound: (name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3) => this.audio.playAt(name, at.distanceTo(P), 0.8),
     };

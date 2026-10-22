@@ -47,8 +47,7 @@ export interface DungeonDef {
   id: string;
   name: string;
   where: string;
-  levels: [number, number];
-  /** The henchmen fight at least at this level. */
+  /** The level its numbers were written for: creatures, ground circles and the chest are scaled from it to yours. */
   level: number;
   blurb: string;
   /** The way in, out in the world (press E), and where you come back out (x, y, z, facing). */
@@ -65,7 +64,7 @@ const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood'];
 
 export const DUNGEONS: DungeonDef[] = [
   {
-    id: 'gd-oldman', name: 'The Old Man\'s Workings', where: 'Sallow Pit, Hollindale', levels: [8, 12], level: 10,
+    id: 'gd-oldman', name: 'The Old Man\'s Workings', where: 'Sallow Pit, Hollindale', level: 10,
     blurb: 'Number Four gallery has been shut since the roof came in at Candlemas. Lamps go missing from the lamp room, and copper goes up the shaft at night that never went through Hesk Dunmore\'s carts.',
     door: [256.5, 22, 92.5], out: [253.5, 22, 92.5, -Math.PI / 2],
     bosses: [
@@ -107,7 +106,7 @@ export const DUNGEONS: DungeonDef[] = [
     chest: { xp: 1400, marks: 60, items: ['copper_ore', 'copper_ore', 'copper_ore', 'rustback_shell', 'bronze_bar', 'bronze_bar'] },
   },
   {
-    id: 'gd-kettle', name: 'Under the Kettle', where: 'The Kettle, Scarth Highlands', levels: [28, 32], level: 30,
+    id: 'gd-kettle', name: 'Under the Kettle', where: 'The Kettle, Scarth Highlands', level: 30,
     blurb: 'Kelderby folds its ewes in the crack in the Kettle\'s north wall every winter. This winter something came up out of the back of the crack and took nine, and the shepherds have seen a light down there that they don\'t like.',
     door: [807.5, 51, 2040.5], out: [807.5, 51, 2043.5, 0],
     bosses: [

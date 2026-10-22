@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { EnemyDef, EnemyType, ENEMIES } from '../data/gameplay';
@@ -32,6 +33,8 @@ export interface ActivityHost {
   removeEnemy(e: Enemy): void;
   hitPlayer(damage: number, from: Enemy): void;
   reward(xp: number, marks: number, items: string[], why: string): void;
+  /** The player's level (everything scales to it). */
+  level?(): number;
   banner(title: string, sub: string): void;
   system(text: string): void;
   sound(name: 'discover' | 'levelUp' | 'bell' | 'open'): void;
@@ -61,6 +64,8 @@ interface LiveBoss { def: BossDef; enemy: Enemy; cycle: number; calls: number; n
 interface LiveShard { idx: number; cycle: number; wave: number; enemies: Enemy[]; crystal: THREE.Group; fall: number }
 
 const QUAKE_R = 8, QUAKE_WINDUP = 1.8;
+/** A shared world boss's health on the realm server, the same for everyone whatever their level. */
+const SHARED_HP = 20000;
 
 /** A bigger, harder one of an ordinary creature: event leaders and dungeon champions. */
 function championOf(type: EnemyType, scale = 1.4): EnemyDef {
@@ -277,7 +282,7 @@ export class Activities {
         const e = this.spawn({ ...ENEMIES[def.type] }, def.x, def.z, true);
         const shared = !!this.host.shared?.on();
         this.boss = { def, enemy: e, cycle, calls: 0, nextQuake: this.clock + 8, adds: [], shared, hitByMe: false, credit: true };
-        if (shared) this.host.shared!.sync(def.id, cycle, e.def.hp);
+        if (shared) this.host.shared!.sync(def.id, cycle, SHARED_HP);
         this.host.banner(name, `World boss · ${def.where}`);
         this.host.sound('bell');
       }
@@ -294,7 +299,7 @@ export class Activities {
     const e = b.enemy;
     if (!e.alive) return;
     // Rose before the connection was up: join the shared fight once it is
-    if (!b.shared && this.host.shared?.on()) { b.shared = true; this.host.shared.sync(b.def.id, b.cycle, e.def.hp); }
+    if (!b.shared && this.host.shared?.on()) { b.shared = true; this.host.shared.sync(b.def.id, b.cycle, SHARED_HP); }
     // Adds at two-thirds and one-third
     const hp = e.hp / e.def.hp;
     if ((b.calls === 0 && hp < 0.66) || (b.calls === 1 && hp < 0.33)) {
@@ -511,7 +516,7 @@ export class Activities {
   private dig(m: TreasureMap): void {
     if (!this.host.take(m.id, 1)) return;
     this.host.setFlag('dug:' + m.id, Number(this.host.flag('dug:' + m.id) ?? 0) + 1);
-    const lvl = Number((REGION_INFO[m.region].levels.split(/[–-]/)[0]) || 1);
+    const lvl = regionLevel(m.region);
     const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'gannet_egg', wrath: 'smoked_eel', tolmen: 'iron_ore' };
     const items = [mats[m.region], mats[m.region]];
     const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && !DUNGEON_SETS.has(d.set));
@@ -606,7 +611,8 @@ export class Activities {
     if (!b || b.enemy !== e || !b.shared) return dmg;
     if (!this.host.shared?.on()) { b.shared = false; return dmg; }
     b.hitByMe = true;
-    this.host.shared.hit(b.def.id, b.cycle, dmg, e.def.hp);
+    // Each player's boss is at their own level, so the realm keeps its health as a share of SHARED_HP
+    this.host.shared.hit(b.def.id, b.cycle, Math.max(1, Math.round((dmg / e.def.hp) * SHARED_HP)), SHARED_HP);
     return Math.min(dmg, Math.max(0, e.hp - 1));
   }
 
@@ -614,7 +620,7 @@ export class Activities {
   bossState(id: string, cycle: number, hp: number): void {
     const b = this.boss;
     if (!b || b.def.id !== id || b.cycle !== cycle || !b.enemy.alive) return;
-    b.enemy.hp = Math.max(1, Math.min(b.enemy.def.hp, hp));
+    b.enemy.hp = Math.max(1, Math.min(b.enemy.def.hp, Math.round((hp / SHARED_HP) * b.enemy.def.hp)));
   }
 
   /** The server says the boss is down: it falls here too. Those who fought it get the reward. */

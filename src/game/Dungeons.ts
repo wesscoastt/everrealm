@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { damageScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
 import { ENEMIES, EnemyType } from '../data/gameplay';
@@ -118,11 +119,13 @@ export interface FinderView {
   group: { leader: boolean; size: number } | null;
   queue: { dungeon: string; secs: number; count: number } | null;
   run: { name: string; done: boolean; henchmen: string[]; others: string[] } | null;
-  dungeons: { id: string; name: string; where: string; levels: [number, number]; blurb: string; clears: number }[];
+  dungeons: { id: string; name: string; where: string; blurb: string; clears: number }[];
   level: number;
 }
 
 const HAZARD_RING = new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
+/** Blows passed between members are a share of the creature's health, in ten-thousandths. */
+const SHARE = 10000;
 const HAZARD_DISC = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
 const FILL_MS = 90;
 
@@ -152,7 +155,7 @@ export class Dungeons {
       online: this.host.net.on(), role: this.role, group: this.host.group(), level: this.host.level(),
       queue: this.queued ? { dungeon: this.queued.dungeon, secs: Math.floor(this.clock - this.queued.since), count: this.queued.count } : null,
       run: r ? { name: r.def.name, done: r.done, henchmen: r.allies.map((a) => `${a.name} (${ROLE_NAMES[a.role]})`), others: r.others.map((o) => `${o.name} (${ROLE_NAMES[o.role]})`) } : null,
-      dungeons: DUNGEONS.map((d) => ({ id: d.id, name: d.name, where: d.where, levels: d.levels, blurb: d.blurb, clears: Number(this.host.flag('gdClears:' + d.id) ?? 0) })),
+      dungeons: DUNGEONS.map((d) => ({ id: d.id, name: d.name, where: d.where, blurb: d.blurb, clears: Number(this.host.flag('gdClears:' + d.id) ?? 0) })),
     };
   }
 
@@ -237,8 +240,9 @@ export class Dungeons {
     if (!r || !e || !e.alive) return;
     const at = this.host.remote(from) ?? e.pos;
     if (k === 'kill') { e.takeDamage(e.hp + 1, at, this.clock); this.host.killed(e); return; }
-    e.takeDamage(Math.min(e.hp, dmg), at, this.clock);
-    this.addThreat(e, 'r' + from, dmg);
+    const local = Math.round((dmg / SHARE) * e.def.hp);
+    e.takeDamage(Math.min(e.hp, local), at, this.clock);
+    this.addThreat(e, 'r' + from, local);
     if (e.justDied) this.host.killed(e);
   }
 
@@ -263,7 +267,7 @@ export class Dungeons {
     const site = plan().sites.find((s) => s.id === def.id);
     const act = site?.act;
     if (!site || !act || act.kind !== 'group' || !act.arrive) return;
-    const lvl = Math.max(def.level, this.host.level());
+    const lvl = Math.max(1, this.host.level());
     const allies = henchmen.filter((h) => HENCH[h]).map((h) => new Ally(HENCH[h], lvl, this.host.voxels));
     this.run = {
       def, act, site, id, role: this.role, allies, others, mobs: [], packOf: new Map(), bosses: [], adds: [], threat: new Map(),
@@ -434,7 +438,7 @@ export class Dungeons {
     if (v.k === 'me') return { ...base, splash };
     const ally = v.ally;
     return {
-      player: v.pos, playerAlive: v.up, playerInvulnerable: false, playerSwimming: false,
+      player: v.pos, playerAlive: v.up, playerInvulnerable: false, playerSwimming: false, level: base.level,
       hitPlayer: ally ? (d: number) => this.hurtAlly(ally, d) : () => {},
       sound: base.sound, splash,
     };
@@ -507,7 +511,7 @@ export class Dungeons {
     r.sendT -= dt;
     if (r.id && r.sendT <= 0) {
       r.sendT = 0.25;
-      for (const [i, dmg] of r.hits) this.host.net.event(r.id, 'hit', i, Math.round(dmg));
+      for (const [i, dmg] of r.hits) { const e = r.mobs[i]; if (e) this.host.net.event(r.id, 'hit', i, Math.max(1, Math.round((dmg / e.def.hp) * SHARE))); }
       r.hits.clear();
     }
     r.rowsT -= dt;
@@ -562,7 +566,7 @@ export class Dungeons {
         const pool = ms.filter((m) => !(m.ally?.role === 'tank' || (m.k === 'me' && r.role === 'tank')));
         const pick = (pool.length ? pool : ms).sort(() => Math.random() - 0.5).slice(0, hz.count);
         if (pick.length) this.host.system(hz.line);
-        for (const m of pick) this.addHazard(m.pos.clone(), hz.r, hz.windup, hz.damage, e, hz.color);
+        for (const m of pick) this.addHazard(m.pos.clone(), hz.r, hz.windup, Math.round(hz.damage * damageScale(this.host.level(), r.def.level)), e, hz.color);
       }
     }
   }
@@ -718,7 +722,7 @@ export class Dungeons {
     const low = inReach.filter((h) => h.frac < 0.65);
     if (a.skill <= 0 && low.length >= 2) {
       a.skill = 14; a.act = 'heal'; a.actTime = 0;
-      for (const h of inReach) { const got = h.heal(22 + L * 1.6); if (got > 0) { this.host.float(h.pos, 2.2, `+${got}`, 'heal'); this.host.particles.heal(h.pos); } }
+      for (const h of inReach) { const got = h.heal(a.mendBy); if (got > 0) { this.host.float(h.pos, 2.2, `+${got}`, 'heal'); this.host.particles.heal(h.pos); } }
       this.healThreat(a, engaged, 30);
       this.host.sfx('heal', 0.4);
     } else if (a.mend <= 0) {
@@ -726,7 +730,7 @@ export class Dungeons {
       if (worst && worst.frac < 0.78) {
         a.mend = 2.3; a.act = 'heal'; a.actTime = 0;
         a.face(worst.pos.x, worst.pos.z);
-        const got = worst.heal(14 + L * 2.4);
+        const got = worst.heal(a.mendBy);
         if (got > 0) { this.host.float(worst.pos, 2.2, `+${got}`, 'heal'); this.host.particles.heal(worst.pos); }
         this.healThreat(a, engaged, got * 0.3);
         if (a.quiet > 9 && Math.random() < 0.4) this.bark(a, a.def.barks.mend ?? []);
@@ -868,7 +872,8 @@ export class Dungeons {
     const today = new Date().toDateString();
     const daily = this.host.flag('gdDaily') !== today;
     if (daily) this.host.setFlag('gdDaily', today);
-    this.host.reward(Math.round(c.xp * (daily ? 1.5 : 1)), c.marks + (daily ? 60 : 0), c.items, daily ? `${r.def.name}: the chest, and the day's first dungeon` : `${r.def.name}: the chest`);
+    const k = rewardScale(this.host.level(), r.def.level);
+    this.host.reward(Math.round(c.xp * k * (daily ? 1.5 : 1)), Math.round((c.marks + (daily ? 60 : 0)) * k), c.items, daily ? `${r.def.name}: the chest, and the day's first dungeon` : `${r.def.name}: the chest`);
     this.host.sfx('open');
     this.host.persist();
   }

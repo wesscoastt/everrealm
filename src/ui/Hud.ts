@@ -1573,13 +1573,12 @@ export class Hud {
     const roles = `<div class="gf-roles"><span class="lbl">Go in as</span>${ROLES.map((r) => `<button class="gf-role${v.role === r ? ' sel' : ''}" data-role="${r}" title="${esc(ROLE_DESC[r])}"><b>${ROLE_NAMES[r]}</b></button>`).join('')}<small>${esc(ROLE_DESC[v.role])}${v.role === 'healer' ? ' Six tenths of the damage you deal goes to them, and your calling\'s healing skill (key 3) mends everyone near you as well.' : v.role === 'tank' ? ' What you hit stays on you: your blows count three times for keeping its attention.' : ''}</small></div>`;
     const order = [...v.dungeons].sort((a, b) => Number(b.id === this.finderAt) - Number(a.id === this.finderAt));
     const cards = order.map((d) => {
-      const low = v.level < d.levels[0];
       const busy = !!v.run || !!v.queue;
       const findLabel = v.group ? (v.group.leader ? `Take your group in (${v.group.size})` : 'Your group\'s leader takes you in') : 'Find a group';
       const findOff = busy || !v.online || (!!v.group && !v.group.leader);
-      return `<div class="gf-card${d.id === this.finderAt ? ' sel' : ''}"><h5>${esc(d.name)}<small>${esc(d.where)} · levels ${d.levels[0]}–${d.levels[1]} · for four</small></h5>
+      return `<div class="gf-card${d.id === this.finderAt ? ' sel' : ''}"><h5>${esc(d.name)}<small>${esc(d.where)} · for four · at your level</small></h5>
         <p>${esc(d.blurb)}</p>
-        <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}. The day's first clear pays half again.` : 'Not cleared yet.'}${low ? ` <span class="warn">You're below level ${d.levels[0]}: it will be hard.</span>` : ''}</div>
+        <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}. The day's first clear pays half again.` : 'Not cleared yet.'}</div>
         <div class="gf-go"><button class="btn" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go with henchmen</button><button class="btn ghost" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? '' : 'Finding other players needs the online realm.'}">${findLabel}</button></div></div>`;
     }).join('');
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');

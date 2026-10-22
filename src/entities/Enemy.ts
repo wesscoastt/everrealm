@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { scaleDef } from '../data/scaling';
 import { EnemyDef } from '../data/gameplay';
 import { B, isSolid } from '../world/blocks';
 import { VoxelWorld } from '../world/VoxelWorld';
@@ -15,6 +16,8 @@ export interface EnemyContext {
   playerSwimming: boolean;
   hitPlayer(damage: number, from: Enemy): void;
   sound(name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3): void;
+  /** The player's level: every creature meets you at it (data/scaling.ts). */
+  level?: number;
   /**
    * In a group: a blow that lands on a circle (a slam, a boss's signature) also catches everyone
    * else standing in it. "player" above is whoever the creature is after; this is the rest.
@@ -34,6 +37,10 @@ let nextId = 1;
 
 export class Enemy {
   readonly id = nextId++;
+  /** The creature as written (data/gameplay.ts). */
+  readonly base: EnemyDef;
+  /** This one as met: the written creature scaled to the player's level (scaleTo). */
+  def: EnemyDef;
   readonly model: CreatureModel | FoeModel;
   readonly pos = new THREE.Vector3();
   readonly home = new THREE.Vector3();
@@ -81,7 +88,9 @@ export class Enemy {
   private attackDir3 = new THREE.Vector3();
 
   /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
-  constructor(readonly def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
+  constructor(def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
+    this.base = def;
+    this.def = { ...def };
     const kind = def.model ?? (def.type as CreatureKind);
     this.model = kind === 'bandit' ? new FoeModel(def.look ?? {}, def.held ?? 'sword', x * 31 + z * 17) : new CreatureModel(kind, def.palette, def.scale);
     this.hp = def.hp;
@@ -129,7 +138,15 @@ export class Enemy {
   }
 
   /** World bosses and story bosses (not ordinary elites like Old Notch): boss bar, enrage, signature attack. */
-  get isBoss(): boolean { return !!this.def.elite && this.def.hp >= 1500; }
+  get isBoss(): boolean { return !!this.base.elite && this.base.hp >= 1500; }
+
+  /** Meet the player at their level, keeping its share of health (everything scales to you). */
+  scaleTo(L: number): void {
+    if (this.def.level === L || !(L >= 1)) return;
+    const frac = this.def.hp > 0 ? this.hp / this.def.hp : 1;
+    this.def = scaleDef(this.base, L);
+    if (this.state !== 'dead') this.hp = Math.max(1, Math.round(this.def.hp * frac));
+  }
 
   /** Reach of the signature circle. */
   get signatureRadius(): number { return Math.max(5, this.def.range + 3); }
@@ -389,6 +406,7 @@ export class Enemy {
 
   update(dt: number, ctx: EnemyContext): void {
     this.justDied = false;
+    if (ctx.level) this.scaleTo(ctx.level);
     this.timer += dt;
     this.cooldown -= dt;
     if (this.swims) { this.updateSwimmer(dt, ctx); return; }

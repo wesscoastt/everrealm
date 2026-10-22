@@ -16,6 +16,13 @@ const REGION_LABELS: Record<RegionId, [number, number]> = {
 
 let cache: Place[] | null = null;
 
+/** What each region is, for its label on the map (no levels: everything meets you at yours). */
+const REGION_SUB: Record<RegionId, string> = {
+  greenwake: 'Farms and the Pit along the Wend', crownroad: 'Ansbury and the toll road', brambledeep: 'Giant trees and the fellers',
+  saltwind: 'Gullmouth and the fishing coast', redstone: 'Harrowgate Works and red rock', starfall: 'High pasture and the Kettle',
+  gannet: 'Seabird cliffs in the north', wrath: 'Fens and sluices in the west', tolmen: 'Stones and moorland in the south',
+};
+
 export function places(): Place[] {
   if (cache) return cache;
   const out: Place[] = REGIONS.map((r) => ({ id: r.id, name: r.name, sub: r.sub, x: r.x, z: r.z, r: r.r, y: r.y, kind: 'place' as const }))
@@ -28,7 +35,7 @@ export function places(): Place[] {
   }
   for (const id of Object.keys(REGION_LABELS) as RegionId[]) {
     const [x, z] = REGION_LABELS[id];
-    out.push({ id: 'region:' + id, name: REGION_INFO[id].name, sub: `Levels ${REGION_INFO[id].levels}`, x, z, r: 0, kind: 'region' });
+    out.push({ id: 'region:' + id, name: REGION_INFO[id].name, sub: REGION_SUB[id], x, z, r: 0, kind: 'region' });
   }
   cache = out;
   return out;
