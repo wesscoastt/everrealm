@@ -97,44 +97,61 @@ function shade(hex: string, f: number): string {
   return '#' + c.getHexString();
 }
 
+/**
+ * The face, painted on a 64-pixel square over the front of the head (the nose and any beard are
+ * built on top in 3D). Rows: brows 18-22, eyes 24-31, nose shadow 39-41, mouth 46-49.
+ */
 function faceTexture(a: Appearance): THREE.CanvasTexture {
   const c = document.createElement('canvas');
-  c.width = c.height = 32;
+  c.width = c.height = 64;
   const x = c.getContext('2d')!;
-  x.fillStyle = a.skin; x.fillRect(0, 0, 32, 32);
-  // Soft cheek shading
-  x.fillStyle = shade(a.skin, 0.93); x.fillRect(0, 22, 32, 10);
-  x.fillStyle = 'rgba(220,90,90,0.18)'; x.fillRect(5, 19, 5, 3); x.fillRect(22, 19, 5, 3);
+  const px = (col: string, X: number, Y: number, w = 1, h = 1) => { x.fillStyle = col; x.fillRect(X, Y, w, h); };
+  const fem = a.frame === 'f', age = a.age ?? 0;
+  px(a.skin, 0, 0, 64, 64);
+  // Light falls from above: a lit brow, shadowed jaw and temples
+  px(shade(a.skin, 1.04), 6, 6, 52, 10);
+  px(shade(a.skin, 0.95), 0, 50, 64, 14);
+  px(shade(a.skin, 0.93), 0, 0, 4, 64); px(shade(a.skin, 0.93), 60, 0, 4, 64);
+  // Cheeks
+  x.fillStyle = fem ? 'rgba(214,96,96,0.22)' : 'rgba(200,100,90,0.13)';
+  x.fillRect(9, 36, 9, 5); x.fillRect(46, 36, 9, 5);
   // Brows, in four shapes
-  const brow = (a.age ?? 0) > 0.6 ? '#cfcac0' : shade(a.hair, 0.8);
-  x.fillStyle = brow;
+  const brow = age > 0.6 ? '#cfcac0' : shade(a.hair, 0.78);
   switch (a.brows ?? 0) {
-    case 1: x.fillRect(5, 9, 8, 3); x.fillRect(19, 9, 8, 3); break;
-    case 2: x.fillRect(6, 10, 2, 1); x.fillRect(8, 9, 4, 1); x.fillRect(12, 10, 1, 1); x.fillRect(19, 10, 1, 1); x.fillRect(20, 9, 4, 1); x.fillRect(24, 10, 2, 1); break;
-    case 3: x.fillRect(7, 10, 5, 1); x.fillRect(20, 10, 5, 1); break;
-    default: x.fillRect(6, 10, 7, 2); x.fillRect(19, 10, 7, 2);
+    case 1: px(brow, 11, 18, 15, 4); px(brow, 38, 18, 15, 4); px(brow, 24, 20, 2, 2); px(brow, 38, 20, 2, 2); break;
+    case 2: px(brow, 12, 21, 3, 2); px(brow, 15, 19, 7, 2); px(brow, 22, 20, 3, 2); px(brow, 39, 20, 3, 2); px(brow, 42, 19, 7, 2); px(brow, 49, 21, 3, 2); break;
+    case 3: px(brow, 14, 20, 10, 1); px(brow, 40, 20, 10, 1); break;
+    default: px(brow, 12, 19, 13, 3); px(brow, 39, 19, 13, 3); px(brow, 12, 21, 2, 1); px(brow, 50, 21, 2, 1);
   }
-  if (a.paint) { x.fillStyle = a.paint; x.fillRect(3, 12, 26, 6); }
-  // Eyes
-  x.fillStyle = '#f6f2ea'; x.fillRect(7, 13, 6, 4); x.fillRect(19, 13, 6, 4);
-  x.fillStyle = a.eyes; x.fillRect(9, 13, 3, 4); x.fillRect(20, 13, 3, 4);
-  x.fillStyle = '#16100c'; x.fillRect(10, 14, 2, 2); x.fillRect(21, 14, 2, 2);
-  x.fillStyle = '#ffffff'; x.fillRect(10, 14, 1, 1); x.fillRect(21, 14, 1, 1);
-  if (a.lashes) { x.fillStyle = '#1a120c'; x.fillRect(6, 12, 7, 1); x.fillRect(19, 12, 7, 1); }
-  // Nose and mouth
-  x.fillStyle = shade(a.skin, 0.82); x.fillRect(15, 15, 2, 5); x.fillRect(14, 19, 4, 1);
-  x.fillStyle = shade(a.skin, 0.6); x.fillRect(12, 24, 8, 1);
-  x.fillStyle = shade(a.skin, 0.75); x.fillRect(13, 25, 6, 1);
-  if ((a.age ?? 0) > 0.5) { x.fillStyle = shade(a.skin, 0.85); x.fillRect(5, 17, 3, 1); x.fillRect(24, 17, 3, 1); x.fillRect(8, 8, 16, 1); }
-  if (a.freckles) { x.fillStyle = shade(a.skin, 0.78); for (const [fx, fy] of [[7, 18], [9, 19], [11, 18], [21, 18], [23, 19], [25, 18], [8, 20], [24, 20]]) x.fillRect(fx, fy, 1, 1); }
-  if (a.scar) { x.fillStyle = shade(a.skin, 0.68); for (let i = 0; i < 7; i++) x.fillRect(21 + Math.floor(i / 2), 8 + i * 2, 1, 2); }
-  const fh = facialOf(a), hc = a.hair, lip = shade(a.skin, 0.55);
-  if (fh === 1 || fh === 6 || fh === 8) { x.fillStyle = hc; x.fillRect(3, 21, 26, 11); x.fillRect(10, 20, 12, 3); x.fillStyle = lip; x.fillRect(12, 24, 8, 2); }
-  if (fh === 2) { x.fillStyle = 'rgba(40,28,20,0.28)'; x.fillRect(4, 21, 24, 11); }
-  if (fh === 3 || fh === 4) { x.fillStyle = hc; x.fillRect(10, 21, 12, 2); x.fillRect(9, 22, 2, 2); x.fillRect(21, 22, 2, 2); }
-  if (fh === 4) { x.fillStyle = hc; x.fillRect(13, 26, 6, 6); }
-  if (fh === 5) { x.fillStyle = hc; x.fillRect(3, 18, 3, 12); x.fillRect(26, 18, 3, 12); x.fillRect(5, 28, 22, 4); }
-  if (fh === 7) { x.fillStyle = hc; x.fillRect(3, 16, 5, 14); x.fillRect(24, 16, 5, 14); x.fillRect(8, 21, 16, 2); }
+  if (a.paint) { x.fillStyle = a.paint; x.fillRect(5, 23, 54, 11); }
+  // Eyes: almond whites, a coloured iris with a dark pupil and a catch of light, a lid line above
+  for (const cx of [19, 45]) {
+    px('#f4efe6', cx - 5, 26, 10, 4); px('#f4efe6', cx - 4, 25, 8, 1); px('#f4efe6', cx - 3, 30, 6, 1);
+    px(a.eyes, cx - 2, 25, 5, 6);
+    px(shade(a.eyes, 0.6), cx - 2, 25, 5, 1);
+    px('#120c08', cx - 1, 26, 3, 3);
+    px('#ffffff', cx + 1, 26, 1, 1);
+    px(shade(a.skin, 0.55), cx - 5, 24, 10, 1); px(shade(a.skin, 0.55), cx - 6, 25, 1, 1);
+    px(shade(a.skin, 0.86), cx - 4, 31, 8, 1);
+    if (a.lashes) { px('#1a120c', cx - 6, 24, 12, 1); px('#1a120c', cx + (cx < 32 ? -7 : 6), 23, 1, 1); }
+  }
+  // Under the nose (the nose itself stands out in 3D), and the mouth
+  px(shade(a.skin, 0.78), 28, 40, 2, 1); px(shade(a.skin, 0.78), 34, 40, 2, 1);
+  px(shade(a.skin, 0.88), 27, 41, 10, 1);
+  const lip = fem ? shade(a.skin, 0.72) : shade(a.skin, 0.78);
+  px(lip, 26, 46, 12, 1);
+  px(shade(a.skin, 0.5), 25, 47, 14, 1); px(shade(a.skin, 0.62), 24, 46, 1, 1); px(shade(a.skin, 0.62), 39, 46, 1, 1);
+  px(fem ? 'rgba(190,80,80,0.45)' : shade(a.skin, 0.82), 27, 48, 10, 2);
+  px(shade(a.skin, 0.9), 28, 52, 8, 1);
+  // Age: lines at the eyes, across the brow and down from the nose
+  if (age > 0.45) { px(shade(a.skin, 0.84), 9, 27, 2, 1); px(shade(a.skin, 0.84), 53, 27, 2, 1); px(shade(a.skin, 0.84), 22, 42, 1, 4); px(shade(a.skin, 0.84), 41, 42, 1, 4); }
+  if (age > 0.65) { px(shade(a.skin, 0.86), 16, 13, 32, 1); px(shade(a.skin, 0.86), 20, 15, 24, 1); px(shade(a.skin, 0.84), 9, 29, 2, 1); px(shade(a.skin, 0.84), 53, 29, 2, 1); }
+  if (a.freckles) for (const [fx, fy] of [[14, 35], [17, 37], [21, 35], [12, 38], [43, 35], [46, 37], [50, 35], [52, 38], [29, 36], [34, 36]]) px(shade(a.skin, 0.76), fx, fy, 1, 1);
+  if (a.scar) { for (let i = 0; i < 9; i++) px(shade(a.skin, 0.66), 47 - Math.floor(i / 3), 15 + i * 2, 1, 2); }
+  // Facial hair is mostly built in 3D; stubble and the shadow under a full beard are painted
+  const fh = facialOf(a), hc = shade(a.hair, 0.9);
+  if (fh === 2) { x.fillStyle = 'rgba(40,28,20,0.3)'; x.fillRect(6, 43, 52, 21); x.fillRect(22, 41, 20, 3); }
+  if (fh === 1 || fh === 6 || fh === 8 || fh === 5 || fh === 7) { px(hc, 4, 52, 56, 12); }
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter;
   t.colorSpace = THREE.SRGBColorSpace;
@@ -212,7 +229,7 @@ export class Humanoid {
   private held: THREE.Group | null = null;
   heldKind: HeldItem = 'none';
   private phase = 0;
-  private blink = 0;
+  private blink = 1 + Math.random() * 3;
   state: AnimState = 'idle';
   stateTime = 0;
   /** 0..1 progress hint for one-shot actions (attack, mine, chop). */
@@ -323,17 +340,17 @@ export class Humanoid {
     const faceQuad = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.42), faceMat);
     faceQuad.position.set(0, 0.28, 0.212);
     this.head.add(faceQuad);
-    this.eyeLids = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.06), skinMat);
-    this.eyeLids.position.set(0, 0.29, 0.215);
+    this.eyeLids = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.05), skinMat);
+    this.eyeLids.position.set(0, 0.305, 0.215);
     this.eyeLids.visible = false;
     this.head.add(this.eyeLids);
     // Ears, and an earring
     for (const side of [1, -1]) part(this.head, rbox(0.06, 0.12, 0.08, 0.02), look.skin, side * 0.23, 0.27, 0);
     if (look.earring) part(this.head, rbox(0.03, 0.06, 0.03, 0.01), look.earring, 0.25, 0.18, 0.01);
-    // Beards that hang below the chin
-    const fh = facialOf(look);
-    if (fh === 6) part(this.head, rbox(0.3, 0.26, 0.14, 0.05), look.hair, 0, 0.0, 0.17);
-    if (fh === 8) for (const side of [1, -1]) part(this.head, rbox(0.1, 0.24, 0.1, 0.03), look.hair, side * 0.07, -0.02, 0.17);
+    // The nose, standing out from the face (broader on a broad frame)
+    const nw = look.frame === 'f' ? 0.06 : 0.07;
+    part(this.head, rbox(nw, 0.1, 0.04, 0.015), shade(look.skin, 0.96), 0, 0.235, 0.228);
+    this.buildBeard(part);
     this.buildHair(part);
 
     // Arms
@@ -363,10 +380,41 @@ export class Humanoid {
     this.root.traverse((o) => { o.userData.humanoid = this; });
   }
 
+  /** Facial hair in 3D: the jaw and chin, a moustache, chops and forks, shaded a little darker underneath. */
+  private buildBeard(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
+    const fh = facialOf(this.look);
+    if (!fh || fh === 2) return;
+    const h = shade(this.look.hair, 0.95), d = shade(this.look.hair, 0.82);
+    const b = (w: number, ht: number, dp: number, x: number, y: number, z: number, c = h) => part(this.head, rbox(w, ht, dp, 0.02), c, x, y, z);
+    const moustache = () => { b(0.2, 0.04, 0.05, 0, 0.196, 0.238); for (const s of [1, -1]) b(0.05, 0.05, 0.04, s * 0.1, 0.175, 0.234, d); };
+    const jaw = (low = 0) => {
+      b(0.42, 0.11 + low, 0.06, 0, 0.105 - low / 2, 0.215);
+      for (const s of [1, -1]) b(0.05, 0.24, 0.3, s * 0.215, 0.17, 0.06);
+      b(0.3, 0.06 + low, 0.08, 0, 0.055 - low / 2, 0.205, d);
+    };
+    switch (fh) {
+      case 1: jaw(); moustache(); break;
+      case 3: moustache(); break;
+      case 4: moustache(); b(0.12, 0.11, 0.06, 0, 0.1, 0.22); b(0.08, 0.05, 0.05, 0, 0.05, 0.21, d); break;
+      case 5: for (const s of [1, -1]) b(0.04, 0.24, 0.3, s * 0.218, 0.17, 0.06); b(0.4, 0.05, 0.06, 0, 0.07, 0.205); break;
+      case 6: jaw(0.04); moustache(); b(0.3, 0.22, 0.12, 0, -0.04, 0.17); b(0.2, 0.1, 0.1, 0, -0.18, 0.15, d); break;
+      case 7: moustache(); for (const s of [1, -1]) b(0.08, 0.26, 0.16, s * 0.2, 0.16, 0.14); break;
+      case 8: jaw(); moustache(); for (const s of [1, -1]) { b(0.1, 0.18, 0.1, s * 0.07, -0.04, 0.18); b(0.07, 0.08, 0.08, s * 0.08, -0.16, 0.17, d); } break;
+    }
+  }
+
+  /**
+   * Hair, built from pieces rather than a single cap: the crown with a few lighter tufts on top, the
+   * temples and the nape, a fringe that's different for each style, and whatever hangs down. Under a
+   * hat only what shows below its brim is built.
+   */
   private buildHair(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
     const h = this.look.hair;
     const hat = this.look.hat ?? 'none';
     const style = this.look.hairStyle;
+    const fem = this.look.frame === 'f';
+    /** A piece of hair: shade above 1 for the lit tops, below for the undersides. */
+    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => part(this.head, rbox(w, ht, d, r), tone === 1 ? h : shade(h, tone), x, y, z);
     if (hat === 'coif') {
       // A mail coif: the whole head but the face
       const mail = this.look.hatColor ?? '#9aa0a8';
@@ -376,70 +424,117 @@ export class Humanoid {
       return;
     }
     if (hat === 'hood') {
-      part(this.head, rbox(0.52, 0.32, 0.5, 0.1), this.look.hatColor ?? '#4a5a3a', 0, 0.48, -0.02);
-      part(this.head, rbox(0.52, 0.42, 0.18, 0.06), this.look.hatColor ?? '#4a5a3a', 0, 0.28, -0.18);
-      for (const s of [1, -1]) part(this.head, rbox(0.06, 0.44, 0.44, 0.03), this.look.hatColor ?? '#4a5a3a', s * 0.25, 0.3, 0);
+      const c = this.look.hatColor ?? '#4a5a3a';
+      part(this.head, rbox(0.52, 0.32, 0.5, 0.1), c, 0, 0.48, -0.02);
+      part(this.head, rbox(0.52, 0.42, 0.18, 0.06), c, 0, 0.28, -0.18);
+      for (const s of [1, -1]) part(this.head, rbox(0.06, 0.44, 0.44, 0.03), c, s * 0.25, 0.3, 0);
+      part(this.head, rbox(0.42, 0.05, 0.05, 0.02), shade(c, 0.75), 0, 0.5, 0.23);
+      if (style !== 3 && style !== 9) p(0.3, 0.05, 0.03, -0.03, 0.47, 0.222, 1.0, 0.012);
       return;
     }
-    // The base cap of hair (a shaved head has stubble only; a mohawk and an undercut keep the sides short)
+    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief';
     const shaved = style === 3 || style === 9;
-    if (!shaved) {
-      part(this.head, rbox(0.48, 0.14, 0.46, 0.06), h, 0, 0.53, -0.01);
-      part(this.head, rbox(0.48, 0.34, 0.12, 0.04), h, 0, 0.36, -0.18);
-      if (style !== 10) for (const s of [1, -1]) part(this.head, rbox(0.06, 0.24, 0.36, 0.03), h, s * 0.235, 0.4, -0.03);
-      part(this.head, rbox(0.42, 0.08, 0.06, 0.03), h, 0, 0.5, 0.2);
+    if (shaved) {
+      p(0.45, 0.035, 0.43, 0, 0.515, 0, 0.78, 0.015);
+      for (const s of [1, -1]) p(0.03, 0.14, 0.3, s * 0.222, 0.42, -0.04, 0.78, 0.01);
     } else {
-      part(this.head, rbox(0.45, 0.04, 0.43, 0.02), shade(h, 0.8), 0, 0.51, 0);
+      // Crown, temples, nape
+      p(0.48, 0.1, 0.46, 0, 0.555, -0.01);
+      if (!covered && style !== 2 && style !== 6 && style !== 7) {
+        p(0.18, 0.05, 0.2, -0.09, 0.615, 0.03, 1.12);
+        p(0.15, 0.04, 0.17, 0.1, 0.61, -0.06, 1.06);
+        p(0.13, 0.04, 0.13, -0.02, 0.612, -0.17, 0.96);
+      }
+      if (style !== 10) for (const s of [1, -1]) p(0.05, 0.22, 0.32, s * 0.236, 0.43, -0.04, 0.96);
+      p(0.48, 0.3, 0.1, 0, 0.39, -0.19, 0.94);
+      p(0.38, 0.06, 0.08, 0, 0.22, -0.19, 0.88);
+      if (!fem && (style === 0 || style === 8 || style === 10)) for (const s of [1, -1]) p(0.035, 0.1, 0.06, s * 0.226, 0.33, 0.12, 0.9, 0.01);
     }
+    // The fringe across the forehead (the face's front is at z 0.21)
+    const Z = 0.228;
+    const fringe = (pieces: [number, number, number][]) => { for (const [x, w, ht] of pieces) p(w, ht, 0.045, x, 0.515 - ht / 2, Z, 1.02, 0.015); };
     switch (style) {
-      case 5: // bob: to the jaw all round
-        for (const s of [1, -1]) part(this.head, rbox(0.08, 0.36, 0.4, 0.04), h, s * 0.24, 0.3, -0.02);
-        part(this.head, rbox(0.48, 0.36, 0.1, 0.04), h, 0, 0.3, -0.2);
+      case 0: fringe([[-0.15, 0.14, 0.1], [-0.02, 0.14, 0.08], [0.11, 0.13, 0.06], [0.19, 0.06, 0.04]]); if (!covered) { p(0.32, 0.07, 0.14, -0.04, 0.625, 0.13, 1.1, 0.03); p(0.18, 0.05, 0.1, 0.12, 0.615, 0.15, 1.04, 0.02); } break;
+      case 1: case 4: case 11: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
+      case 5: fringe([[-0.12, 0.2, 0.1], [0.08, 0.2, 0.1], [0.19, 0.06, 0.08]]); break;
+      case 8: for (const [x, y] of [[-0.14, 0.49], [0.0, 0.5], [0.14, 0.49]]) p(0.12, 0.1, 0.08, x, y, 0.21, 1.04, 0.04); break;
+      case 10: fringe([[0.04, 0.32, 0.06]]); p(0.13, 0.15, 0.05, 0.14, 0.45, Z, 1.04, 0.015); break;
+      case 12: fringe([[-0.16, 0.12, 0.12], [-0.03, 0.12, 0.09], [0.1, 0.12, 0.13], [0.2, 0.06, 0.08]]); break;
+      default: if (!shaved) p(0.42, 0.035, 0.04, 0, 0.51, 0.222, 1, 0.01);
+    }
+    // What hangs down, by style
+    switch (style) {
+      case 1: // long, loose
+        for (const s of [1, -1]) { p(0.07, 0.42, 0.22, s * 0.24, 0.25, 0.04, 0.96); p(0.06, 0.08, 0.16, s * 0.24, 0.0, 0.05, 0.9); }
+        p(0.48, 0.5, 0.1, 0, 0.2, -0.21, 0.94);
+        for (const [x, w, ht] of [[-0.16, 0.14, 0.07], [0.02, 0.14, 0.1], [0.17, 0.12, 0.06]] as const) p(w, ht, 0.09, x, -0.05 - ht / 2, -0.21, 0.88);
         break;
-      case 6: // ponytail
-        part(this.head, rbox(0.12, 0.12, 0.12, 0.04), h, 0, 0.44, -0.26);
-        part(this.head, rbox(0.1, 0.42, 0.1, 0.04), h, 0, 0.18, -0.3);
+      case 2: // topknot
+        p(0.17, 0.15, 0.17, 0, 0.66, -0.06, 1.05, 0.06);
+        p(0.11, 0.06, 0.11, 0, 0.75, -0.06, 1.12, 0.04);
+        part(this.head, rbox(0.12, 0.05, 0.12, 0.02), '#a8442e', 0, 0.595, -0.06);
+        break;
+      case 4: // two braids down the back
+        for (const s of [1, -1]) {
+          for (let k = 0; k < 5; k++) p(0.09, 0.09, 0.09, s * 0.19 + (k % 2 ? 0.012 : -0.012) * s, 0.27 - k * 0.085, -0.13, k % 2 ? 0.92 : 1.02, 0.03);
+          part(this.head, rbox(0.1, 0.04, 0.1, 0.015), '#e2c070', s * 0.19, -0.15, -0.13);
+          p(0.06, 0.06, 0.06, s * 0.19, -0.2, -0.13, 0.9, 0.02);
+        }
+        break;
+      case 5: // bob, to the jaw all round
+        for (const s of [1, -1]) p(0.08, 0.36, 0.42, s * 0.245, 0.3, -0.02, 0.95);
+        p(0.5, 0.36, 0.1, 0, 0.3, -0.21, 0.93);
+        break;
+      case 6: // ponytail, tied with a thong
+        part(this.head, rbox(0.1, 0.08, 0.06, 0.02), '#3a2a1a', 0, 0.44, -0.255);
+        p(0.13, 0.14, 0.1, 0, 0.34, -0.28, 1.0, 0.04);
+        p(0.11, 0.14, 0.09, 0, 0.21, -0.3, 0.95, 0.04);
+        p(0.08, 0.12, 0.08, 0, 0.09, -0.3, 0.9, 0.03);
         break;
       case 7: // bun
-        part(this.head, rbox(0.2, 0.18, 0.18, 0.08), h, 0, 0.5, -0.27);
+        p(0.21, 0.17, 0.17, 0, 0.49, -0.27, 1.0, 0.07);
+        p(0.14, 0.06, 0.12, 0, 0.59, -0.26, 1.1, 0.04);
         break;
-      case 8: // curls
-        for (const [cx, cy, cz] of [[-0.16, 0.6, 0.06], [0, 0.62, 0.08], [0.16, 0.6, 0.06], [-0.2, 0.58, -0.12], [0.2, 0.58, -0.12], [0, 0.6, -0.16], [-0.24, 0.42, -0.04], [0.24, 0.42, -0.04]]) part(this.head, rbox(0.14, 0.14, 0.14, 0.06), h, cx, cy, cz);
+      case 8: // curls all over
+        for (const [cx, cy, cz] of [[-0.16, 0.6, 0.06], [0, 0.63, 0.08], [0.16, 0.6, 0.06], [-0.2, 0.58, -0.12], [0.2, 0.58, -0.12], [0, 0.61, -0.16], [-0.25, 0.42, -0.04], [0.25, 0.42, -0.04], [-0.15, 0.36, -0.22], [0.15, 0.36, -0.22]]) p(0.14, 0.14, 0.14, cx, cy, cz, (cx + cz) % 0.2 > 0 ? 1.06 : 0.96, 0.06);
         break;
-      case 9: // mohawk
-        part(this.head, rbox(0.1, 0.16, 0.5, 0.04), h, 0, 0.6, -0.02);
+      case 9: // mohawk: a crest, tallest at the crown
+        [[0.16, 0.1], [0.06, 0.15], [-0.05, 0.18], [-0.16, 0.13]].forEach(([z, ht], i) => p(0.1, ht, 0.11, 0, 0.52 + ht / 2, z, i % 2 ? 0.95 : 1.06, 0.03));
         break;
       case 10: // undercut: long on top, swept over
-        part(this.head, rbox(0.42, 0.1, 0.44, 0.05), h, 0.04, 0.6, 0);
-        part(this.head, rbox(0.12, 0.16, 0.3, 0.04), h, 0.2, 0.52, 0.02);
+        p(0.42, 0.1, 0.44, 0.03, 0.61, 0, 1.06);
+        p(0.12, 0.16, 0.3, 0.2, 0.53, 0.02, 0.98);
         break;
       case 11: // twin tails
-        for (const s of [1, -1]) { part(this.head, rbox(0.1, 0.1, 0.1, 0.03), h, s * 0.26, 0.48, -0.12); part(this.head, rbox(0.09, 0.4, 0.09, 0.03), h, s * 0.3, 0.24, -0.14); }
+        for (const s of [1, -1]) {
+          part(this.head, rbox(0.08, 0.06, 0.06, 0.02), '#a8442e', s * 0.26, 0.47, -0.1);
+          p(0.11, 0.14, 0.1, s * 0.29, 0.37, -0.12, 1.02, 0.04);
+          p(0.09, 0.18, 0.09, s * 0.31, 0.21, -0.13, 0.94, 0.03);
+          p(0.07, 0.1, 0.07, s * 0.31, 0.07, -0.13, 0.9, 0.03);
+        }
         break;
       case 12: // wild mane
-        part(this.head, rbox(0.56, 0.2, 0.52, 0.08), h, 0, 0.56, -0.03);
-        part(this.head, rbox(0.56, 0.6, 0.16, 0.06), h, 0, 0.2, -0.22);
-        for (const s of [1, -1]) part(this.head, rbox(0.1, 0.5, 0.34, 0.05), h, s * 0.26, 0.24, -0.06);
+        p(0.56, 0.2, 0.52, 0, 0.57, -0.03, 1.02, 0.06);
+        p(0.56, 0.6, 0.16, 0, 0.2, -0.22, 0.94, 0.05);
+        for (const s of [1, -1]) { p(0.1, 0.5, 0.34, s * 0.27, 0.24, -0.06, 0.96, 0.04); p(0.08, 0.14, 0.12, s * 0.3, -0.04, -0.02, 0.88, 0.03); }
+        for (const [x, z] of [[-0.18, 0.1], [0.05, 0.14], [0.2, -0.05], [-0.1, -0.2]]) p(0.12, 0.08, 0.12, x, 0.69, z, 1.1, 0.04);
         break;
     }
-    if (style === 1) part(this.head, rbox(0.46, 0.5, 0.1, 0.04), h, 0, 0.18, -0.22);
-    if (style === 2) { part(this.head, rbox(0.18, 0.18, 0.18, 0.07), h, 0, 0.66, -0.06); part(this.head, rbox(0.1, 0.06, 0.1, 0.02), '#a8442e', 0, 0.58, -0.06); }
-    if (style === 4) for (const s of [1, -1]) { part(this.head, rbox(0.1, 0.5, 0.1, 0.04), h, s * 0.2, 0.08, -0.15); part(this.head, rbox(0.11, 0.05, 0.11, 0.02), '#e2c070', s * 0.2, -0.15, -0.15); }
-    if (hat === 'cap') part(this.head, rbox(0.5, 0.12, 0.5, 0.05), this.look.hatColor ?? '#6a3a2a', 0, 0.58, 0);
+    if (hat === 'cap') part(this.head, rbox(0.5, 0.12, 0.5, 0.05), this.look.hatColor ?? '#6a3a2a', 0, 0.6, 0);
     if (hat === 'wide' || hat === 'straw') {
       const c = hat === 'straw' ? '#d8b860' : this.look.hatColor ?? '#3a3a32';
-      part(this.head, rbox(0.8, 0.04, 0.8, 0.02), c, 0, 0.56, 0);
-      part(this.head, rbox(0.44, 0.2, 0.44, 0.06), c, 0, 0.66, 0);
-      part(this.head, rbox(0.45, 0.05, 0.45, 0.02), hat === 'straw' ? '#a8382c' : shade(c, 0.6), 0, 0.6, 0);
+      part(this.head, rbox(0.8, 0.04, 0.8, 0.02), c, 0, 0.6, 0);
+      part(this.head, rbox(0.46, 0.2, 0.46, 0.06), c, 0, 0.7, 0);
+      part(this.head, rbox(0.47, 0.05, 0.47, 0.02), hat === 'straw' ? '#a8382c' : shade(c, 0.6), 0, 0.64, 0);
     }
-    if (hat === 'beret') { const c = this.look.hatColor ?? '#2e3a5a'; const b = part(this.head, rbox(0.5, 0.1, 0.48, 0.05), c, -0.04, 0.6, 0); b.rotation.z = 0.15; }
+    if (hat === 'beret') { const c = this.look.hatColor ?? '#2e3a5a'; const b = part(this.head, rbox(0.52, 0.1, 0.5, 0.05), c, -0.04, 0.62, 0); b.rotation.z = 0.15; }
     if (hat === 'circlet') {
       const c = this.look.hatColor === '#d8d0b8' ? '#d8d0b8' : '#d8b04a';
-      part(this.head, rbox(0.47, 0.04, 0.45, 0.01), c, 0, 0.47, 0);
-      part(this.head, rbox(0.06, 0.06, 0.03, 0.01), '#5fd0e6', 0, 0.48, 0.23);
+      part(this.head, rbox(0.5, 0.04, 0.48, 0.01), c, 0, 0.5, 0);
+      part(this.head, rbox(0.06, 0.06, 0.03, 0.01), '#5fd0e6', 0, 0.51, 0.245);
     }
-    if (hat === 'band') part(this.head, rbox(0.47, 0.06, 0.45, 0.02), this.look.hatColor ?? '#a8382c', 0, 0.46, 0);
-    if (hat === 'kerchief') { part(this.head, rbox(0.5, 0.14, 0.48, 0.06), this.look.hatColor ?? '#a8382c', 0, 0.55, -0.02); part(this.head, rbox(0.14, 0.14, 0.08, 0.03), this.look.hatColor ?? '#a8382c', 0, 0.42, -0.26); }
+    if (hat === 'band') part(this.head, rbox(0.5, 0.06, 0.48, 0.02), this.look.hatColor ?? '#a8382c', 0, 0.49, 0);
+    if (hat === 'kerchief') { part(this.head, rbox(0.52, 0.14, 0.5, 0.06), this.look.hatColor ?? '#a8382c', 0, 0.57, -0.02); part(this.head, rbox(0.14, 0.14, 0.08, 0.03), this.look.hatColor ?? '#a8382c', 0, 0.44, -0.27); }
   }
 
   setHeld(kind: HeldItem): void {
