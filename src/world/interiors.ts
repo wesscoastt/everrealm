@@ -207,20 +207,52 @@ export function fitOut(h: HouseShape): FitOut {
       }
       put('shelves', du === 0 ? 1 : 0, backV, facing.front, [[du === 0 ? 1 : 0, backV]]);
     } else {
-      // A home. Ground floor: hearth, table and stools, dresser; beds go upstairs if there is one.
+      // A home, in one of four ways, so no two neighbours' kitchens are the same: a table room
+      // (table, stools and dresser), a parlour (a writing desk and chair, shelves, a rug), a kitchen
+      // (a worktop by the hearth, a table with benches, barrels) or a reading room (shelves along
+      // the back, and a chair). Beds go upstairs if there is one.
       if (ground) {
         if (!hearthAtChimney()) if (!put('hearth', awayU, backV, awayFacing, [[awayU, backV]])) put('hearth', awayU, Math.max(0, backV - 1), awayFacing, [[awayU, Math.max(0, backV - 1)]]);
+        const plan = seed < 0.34 ? 'table' : seed < 0.56 ? 'parlour' : seed < 0.8 ? 'kitchen' : 'reading';
         const tv = Math.max(1, Math.min(D - 2, Math.floor(D / 2)));
         let tu = du + 1 < W - 1 ? du + 1 : du - 2;
         if (tu < 0) tu = 0;
-        if (W >= 3 && D >= 3 && put('table', tu, tv, facing.front, tu + 1 < W ? [[tu, tv], [tu + 1, tv]] : [[tu, tv]])) {
-          put('rug', tu, tv, facing.front, [[tu, tv]], 1, 0.5, false, h.tint);
-          put('stool', tu, tv + 1, facing.front, [[tu, tv + 1]], 0.5, 0.35, false);
-          put('stool', tu + 1, tv - 1, facing.back, [[tu + 1, tv - 1]], 0.5, 0.65, false);
+        const inward = nearU === leftU ? 1 : -1;
+        if (plan === 'table') {
+          if (W >= 3 && D >= 3 && put('table', tu, tv, facing.front, tu + 1 < W ? [[tu, tv], [tu + 1, tv]] : [[tu, tv]])) {
+            put('rug', tu, tv, facing.front, [[tu, tv]], 1, 0.5, false, h.tint);
+            put('stool', tu, tv + 1, facing.front, [[tu, tv + 1]], 0.5, 0.35, false);
+            put('stool', tu + 1, tv - 1, facing.back, [[tu + 1, tv - 1]], 0.5, 0.65, false);
+          }
+        } else if (plan === 'parlour') {
+          // The desk against the back wall on the near side, a chair at it, candles on it, shelves by it
+          const a = nearU, b = nearU + inward;
+          if (b >= 0 && b < W && put('desk', a, backV, facing.front, [[a, backV], [b, backV]])) {
+            put('chair', Math.min(a, b), backV - 1, facing.back, [[Math.min(a, b), backV - 1]], 1, 0.5, false);
+            out.furn.push({ item: 'candles', x: (F.cell(a, backV)[0] + F.cell(b, backV)[0]) / 2 + 0.5, y: y + 0.82, z: (F.cell(a, backV)[1] + F.cell(b, backV)[1]) / 2 + 0.5, ry: 0 });
+          }
+          put('shelves', nearU + inward * 2, backV, facing.front, [[nearU + inward * 2, backV]]);
+          put('rug', Math.floor(W / 2), tv, facing.front, [[Math.floor(W / 2), tv]], 0.5, 0.5, false, h.tint);
+          put('chest', nearU, Math.max(1, tv - 1), towardsAway, [[nearU, Math.max(1, tv - 1)]]);
+        } else if (plan === 'kitchen') {
+          // A worktop along the back by the hearth, the table out in the room with a bench each side
+          const cu = awayU === rightU ? Math.max(0, W - 4) : 1;
+          put('counter', cu + 1, backV, facing.front, [[cu, backV], [cu + 1, backV], [cu + 2, backV]].filter(([u]) => u >= 0 && u < W) as [number, number][]);
+          if (W >= 3 && D >= 4 && put('table', tu, tv, facing.front, tu + 1 < W ? [[tu, tv], [tu + 1, tv]] : [[tu, tv]])) {
+            put('bench', tu, tv + 1, facing.front, [[tu, tv + 1], [tu + 1, tv + 1]].filter(([u]) => u < W) as [number, number][], 0.5, 0.5, false);
+            put('bench', tu, tv - 1, facing.back, [[tu, tv - 1], [tu + 1, tv - 1]].filter(([u]) => u < W) as [number, number][], 0.5, 0.5, false);
+          }
+          put('barrel', awayU, 0, 0, [[awayU, 0]]);
+          put('crate', awayU, 1, 0, [[awayU, 1]]);
+        } else {
+          // Books: shelves along the back wall, a chair turned to the hearth
+          for (let u = 0; u < W; u++) if (u !== awayU) put('shelves', u, backV, facing.front, [[u, backV]]);
+          put('chair', Math.floor(W / 2), tv, towardsAway, [[Math.floor(W / 2), tv]], 0.5, 0.5, false);
+          put('rug', Math.floor(W / 2), tv, facing.front, [[Math.floor(W / 2), tv]], 0.5, 0.5, false, h.tint);
         }
-        put('dresser', nearU, backV, facing.front, [[nearU, backV]]) || put('dresser', nearU, Math.max(0, backV - 1), towardsAway, [[nearU, Math.max(0, backV - 1)]]);
+        if (plan !== 'reading') put('dresser', nearU, backV, facing.front, [[nearU, backV]]) || put('dresser', nearU, Math.max(0, backV - 1), towardsAway, [[nearU, Math.max(0, backV - 1)]]);
         put('barrel', nearU, 0, 0, [[nearU, 0]]);
-        if (seed < 0.5) put('crate', awayU, 0, 0, [[awayU, 0]]);
+        if (seed < 0.5 && plan !== 'kitchen') put('crate', awayU, 0, 0, [[awayU, 0]]);
       }
       if (topFloor || (ground && h.floors === 1)) {
         // Beds along the side walls, heads to the back wall, a chest at the foot

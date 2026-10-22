@@ -1,4 +1,5 @@
 import { B } from '../world/blocks';
+import type { FrontId, TrimId } from '../world/sites';
 
 /** Wendside Cottage, the house for sale on the road east of Hollin Ford: its walls and floor height. */
 export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 400, bench: { x: 412.6, z: 199.5 } };
@@ -34,7 +35,7 @@ export type WallId = 'plaster' | 'planks' | 'stone' | 'cobble';
 export type RoofId = 'thatch' | 'red' | 'slate' | 'blue';
 
 /** The plans: what to build on a lot. */
-export interface HouseSpec { size: SizeId; floors: 1 | 2; wall: WallId; roof: RoofId }
+export interface HouseSpec { size: SizeId; floors: 1 | 2; wall: WallId; roof: RoofId; /** How the front is built (older plans: as the walls suggest). */ front?: FrontId; /** What dresses it. */ trim?: TrimId[] }
 
 export const SIZES: Record<SizeId, { name: string; w: number; d: number; floors: (1 | 2)[]; blurb: string; cost: Cost }> = {
   cottage: { name: 'Cottage', w: 7, d: 6, floors: [1], blurb: 'One room and a hearth. Cheap to build, easy to keep warm.', cost: { items: { oak_logs: 24, bronze_bar: 2 }, marks: 120 } },
@@ -58,6 +59,18 @@ export const ROOFS: Record<RoofId, { name: string; cost: Cost }> = {
 
 export interface Cost { items: Record<string, number>; marks: number }
 
+export const FRONTS: Record<FrontId, { name: string; blurb: string; cost: Cost }> = {
+  framed: { name: 'Timber-framed', blurb: 'Posts every third block, windows between.', cost: { items: {}, marks: 0 } },
+  studded: { name: 'Close-studded', blurb: 'A post every other block and small windows: the old way, and dear in timber.', cost: { items: { oak_logs: 10 }, marks: 30 } },
+  quoined: { name: 'Quoined', blurb: 'No posts: the corners dressed in alternate courses, a string course between storeys.', cost: { items: {}, marks: 50 } },
+  boarded: { name: 'Weatherboard', blurb: 'Posts only at the corners and the door, windows in pairs.', cost: { items: { birch_logs: 8 }, marks: 0 } },
+};
+export const TRIMS: Record<TrimId, { name: string; cost: Cost }> = {
+  hood: { name: 'Door hood', cost: { items: { oak_logs: 4 }, marks: 20 } },
+  shutters: { name: 'Shutters', cost: { items: { birch_logs: 4 }, marks: 15 } },
+  boxes: { name: 'Window boxes', cost: { items: {}, marks: 10 } },
+};
+
 /** Everything the builders need for these plans: timber and ironwork from you, marks for their labour. */
 export function costOf(spec: HouseSpec): Cost {
   const size = SIZES[spec.size];
@@ -67,6 +80,8 @@ export function costOf(spec: HouseSpec): Cost {
   let marks = add(size.cost, spec.floors === 2 ? 1.5 : 1) + (spec.floors === 2 ? 100 : 0);
   marks += add(WALLS[spec.wall].cost, spec.floors);
   marks += add(ROOFS[spec.roof].cost);
+  if (spec.front) marks += add(FRONTS[spec.front].cost, spec.floors);
+  for (const t of spec.trim ?? []) marks += add(TRIMS[t].cost);
   return { items, marks: Math.round(marks) };
 }
 
@@ -91,7 +106,8 @@ export function readPlot(v: unknown): PlotState | null {
   if (typeof o.lot !== 'string' || !LOTS.some((l) => l.id === o.lot)) return null;
   const s = o.spec as Record<string, unknown> | undefined;
   const spec = s && String(s.size) in SIZES && (s.floors === 1 || s.floors === 2) && String(s.wall) in WALLS && String(s.roof) in ROOFS
-    ? { size: s.size as SizeId, floors: SIZES[s.size as SizeId].floors.includes(s.floors as 1 | 2) ? s.floors as 1 | 2 : 1, wall: s.wall as WallId, roof: s.roof as RoofId } : undefined;
+    ? { size: s.size as SizeId, floors: SIZES[s.size as SizeId].floors.includes(s.floors as 1 | 2) ? s.floors as 1 | 2 : 1, wall: s.wall as WallId, roof: s.roof as RoofId,
+      front: String(s.front) in FRONTS ? s.front as FrontId : undefined, trim: Array.isArray(s.trim) ? (s.trim as unknown[]).filter((t): t is TrimId => String(t) in TRIMS) : undefined } : undefined;
   return { lot: o.lot, spec };
 }
 

@@ -1,5 +1,6 @@
 import { ITEMS } from '../data/items';
-import { costOf, HouseSpec, Lot, LOT_D, LOT_W, ROOFS, SIZES, WALLS } from '../data/housing';
+import { costOf, FRONTS, HouseSpec, Lot, LOT_D, LOT_W, ROOFS, SIZES, TRIMS, WALLS } from '../data/housing';
+import type { TrimId } from '../world/sites';
 import { itemIcon, shapeIcon } from '../ui/icons';
 
 // The land agent's plans, drawn up at your lot: pick a size, storeys, walls and roof, see what the
@@ -23,7 +24,7 @@ const coin = () => shapeIcon('coin', '#e8c050', '#a87a20');
 
 export class Planner {
   lot: Lot | null = null;
-  private spec: HouseSpec = { size: 'cottage', floors: 1, wall: 'plaster', roof: 'thatch' };
+  private spec: HouseSpec = { size: 'cottage', floors: 1, wall: 'plaster', roof: 'thatch', front: 'framed', trim: [] };
   private el: HTMLDivElement | null = null;
 
   constructor(private host: PlannerHost) {}
@@ -72,7 +73,9 @@ export class Planner {
       ${size.floors.length > 1 ? pick('Storeys', [['1', 'One'], ['2', 'Two']], String(s.floors)) : ''}
       ${pick('Walls', Object.entries(WALLS).map(([k, v]) => [k, v.name]), s.wall)}
       ${pick('Roof', Object.entries(ROOFS).map(([k, v]) => [k, v.name]), s.roof)}
-      <p class="pl-blurb">${esc(size.blurb)} ${esc(WALLS[s.wall].blurb)}</p>
+      ${pick('Front', Object.entries(FRONTS).map(([k, v]) => [k, v.name]), s.front ?? 'framed')}
+      <div class="pl-row"><span>Trim</span><div>${Object.entries(TRIMS).map(([k, v]) => `<button data-trim="${k}" class="${(s.trim ?? []).includes(k as TrimId) ? 'on' : ''}">${esc(v.name)}</button>`).join('')}</div></div>
+      <p class="pl-blurb">${esc(size.blurb)} ${esc(WALLS[s.wall].blurb)} ${esc(FRONTS[s.front ?? 'framed'].blurb)}</p>
       <div class="pl-cost"><b>The builders want</b><ul>${rows.join('')}</ul></div>
       <div class="ht-keys"><span>${this.host.standing() ? 'Building again pulls the old house down: nothing comes back from it.' : 'Timber and ironwork from you; the builders bring the rest.'}</span><button data-build ${ready ? '' : 'disabled'}>${this.host.standing() ? 'Pull down and rebuild' : 'Build it'}</button></div>`;
     this.el.querySelectorAll<HTMLElement>('[data-g]').forEach((b) => b.addEventListener('click', () => {
@@ -81,6 +84,13 @@ export class Planner {
       if (b.dataset.g === 'Storeys') this.spec.floors = Number(v) as 1 | 2;
       if (b.dataset.g === 'Walls') this.spec.wall = v as HouseSpec['wall'];
       if (b.dataset.g === 'Roof') this.spec.roof = v as HouseSpec['roof'];
+      if (b.dataset.g === 'Front') this.spec.front = v as HouseSpec['front'];
+      this.host.sound('click');
+      this.render();
+    }));
+    this.el.querySelectorAll<HTMLElement>('[data-trim]').forEach((b) => b.addEventListener('click', () => {
+      const t = b.dataset.trim as TrimId, cur = this.spec.trim ?? [];
+      this.spec.trim = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
       this.host.sound('click');
       this.render();
     }));

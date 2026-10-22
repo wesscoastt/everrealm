@@ -64,8 +64,8 @@ export const NPCS: NpcDef[] = [
     id: 'pell', name: 'Pell Garrow', title: 'Fisherman',
     look: { skin: '#d8a07a', hair: '#dedad2', hairStyle: 0, beard: true, eyes: '#4a5a6a', tunic: '#5a6a5a', trim: '#8a7a5a', trousers: '#4a4a3a', boots: '#3a2a1c', hat: 'cap', hatColor: '#3a4a5a', age: 0.95, build: 0.94, height: 0.95 },
     schedule: [
-      { from: 5.5, to: 20, at: [166.5, 197.5], face: [166.5, 201], anim: 'fishWait', held: 'rod', path: [[164.5, 196]] },
-      { from: 20, to: 5.5, at: [164.2, 201.5], face: [162, 201.5], anim: 'idle', path: [[164.5, 196]] },
+      { from: 5.5, to: 20, at: [166.5, 197.5], face: [166.5, 201], anim: 'fishWait', held: 'rod', path: [[163.6, 197.4]] },
+      { from: 20, to: 5.5, at: [164.2, 201.5], face: [162, 201.5], anim: 'idle', path: [[163.6, 197.4]] },
     ],
     barks: ['Penny water.', 'Mind that board.'],
   },

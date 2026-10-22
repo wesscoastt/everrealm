@@ -699,6 +699,23 @@ export function door(M: PropMaterials, high = 2): THREE.Group {
   return g;
 }
 
+/** A stone doorstep, half a block high, in front of a door that stands a block above the ground. */
+export function doorstep(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(1.2, 0.5, 0.8), M.cobble, 0, 0.25, 0));
+  g.add(mesh(box(1.26, 0.06, 0.86), flat('#9a968c'), 0, 0.5, 0.01)); // a worn top slab, a shade lighter
+  return g;
+}
+
+/** A painted shutter, folded back against the wall beside a window: boards, two battens and a hinge. */
+export function shutter(M: PropMaterials, color: string): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.44, 1.9, 0.06), flat(color), 0, 0.95, 0.03));
+  for (const y of [0.35, 1.55]) g.add(mesh(box(0.46, 0.1, 0.04), flat(color), 0, y, 0.07));
+  g.add(mesh(box(0.06, 0.06, 0.05), M.iron, 0.2, 0.35, 0.09));
+  return g;
+}
+
 export function windowBox(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(box(0.9, 0.22, 0.3), M.darkWood, 0, 0, 0.15));

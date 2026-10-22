@@ -38,6 +38,18 @@ export class Npc {
     return y;
   }
 
+  /** Whether something a person walks round stands `ahead` blocks off along heading `a`: a prop's barrier at their feet, or a wall. */
+  private inTheWay(a: number, ahead: number): boolean {
+    const y = Math.round(this.pos.y);
+    // Half way and the whole way, with a shoulder's width either side, so a corner isn't clipped
+    for (const k of [0.5, 1]) for (const [sx, sz] of [[0, 0], [0.3, 0], [-0.3, 0], [0, 0.3], [0, -0.3]]) {
+      const x = this.pos.x + Math.sin(a) * ahead * k + sx, z = this.pos.z + Math.cos(a) * ahead * k + sz;
+      const at = (yy: number) => this.world.get(Math.floor(x), yy, Math.floor(z));
+      if (at(y) === B.Barrier || at(y + 1) === B.Barrier || (this.world.solidAt(x, y + 0.2, z) && this.world.solidAt(x, y + 1.2, z))) return true;
+    }
+    return false;
+  }
+
   /** The tunes this person is playing now, if they're at their post with an instrument out (game/Stage.ts). */
   get performing(): ScheduleSlot['play'] | null {
     return this.slot?.play && !this.talking && this.model.state === 'perform' ? this.slot.play : null;
@@ -72,10 +84,15 @@ export class Npc {
       const d = Math.hypot(dx, dz);
       if (d < 0.15) this.route.shift();
       else {
+        // A lantern post, a signpost or a well on the way: bear round it rather than climb it
+        let a = Math.atan2(dx, dz);
+        if (d > 0.6 && this.inTheWay(a, Math.min(d, 0.7))) {
+          for (const turn of [0.6, -0.6, 1.1, -1.1, 1.5, -1.5]) if (!this.inTheWay(a + turn, 0.7)) { a += turn; break; }
+        }
         const step = Math.min(d, 2.1 * dt);
-        this.pos.x += (dx / d) * step;
-        this.pos.z += (dz / d) * step;
-        this.yaw = Math.atan2(dx, dz);
+        this.pos.x += Math.sin(a) * step;
+        this.pos.z += Math.cos(a) * step;
+        this.yaw = a;
         speed = 2.1;
       }
     } else if (this.def.wander && !this.talking) {

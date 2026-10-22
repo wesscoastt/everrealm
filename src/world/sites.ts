@@ -26,7 +26,11 @@ export type PropType = 'roof' | 'door' | 'lantern' | 'wallLantern' | 'banner' | 
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
   | 'ship'
   /** A waymark shrine (world/shrines.ts) in its region's style. */
-  | 'waymark';
+  | 'waymark'
+  /** A window box of flowers, and a painted shutter (color), on a house front. */
+  | 'windowBox' | 'shutter'
+  /** A half-block stone step before a door a block above the ground. */
+  | 'doorstep';
 
 export interface PropDesc {
   t: PropType;
@@ -3901,7 +3905,11 @@ export function inRects(rects: [number, number, number, number][], x: number, z:
 
 export { CHUNK };
 
-export interface HouseOpts { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean }
+/** How a house front is built: timber-framed, close-studded, stone with quoins, or weatherboarded. */
+export type FrontId = 'framed' | 'studded' | 'quoined' | 'boarded';
+/** What dresses a front: a hood over the door, shutters, window boxes. */
+export type TrimId = 'hood' | 'shutters' | 'boxes';
+export interface HouseOpts { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean; front?: FrontId; trim?: TrimId[] }
 /** Somewhere to write a house's blocks: the plan's overrides, or a live world (a player's own house). */
 export interface BlockWriter { set(x: number, y: number, z: number, id: number): void }
 export type HouseSink = Pick<Site, 'props' | 'rects' | 'impostor'>;
@@ -3922,22 +3930,54 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   rect(s, x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
   for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearUp(x, z, base, top + 12);
   for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) foundation(x, z, base);
-  const wall = opts.wall ?? B.Plaster;
+  // The front: what the walls are made of decides most of it, and the house's place the rest, so a
+  // street isn't one house over and over (a player's plans say it outright)
+  const pick = hash2(x0, z0, 77);
+  const style: FrontId = opts.front ?? (opts.wall === B.StoneBrick ? (pick < 0.5 ? 'quoined' : 'framed') : opts.wall === B.Planks ? (pick < 0.6 ? 'boarded' : 'framed') : opts.wall === B.Cobble ? 'quoined' : pick < 0.4 ? 'studded' : 'framed');
+  const wall = opts.wall ?? (style === 'boarded' ? B.Planks : style === 'quoined' ? B.StoneBrick : B.Plaster);
   const frame = opts.frame ?? B.Timber;
+  const trim = opts.trim ?? [...(hash2(x0, z0, 79) < 0.4 ? ['hood'] : []), ...(hash2(x0, z0, 81) < 0.32 && style !== 'boarded' ? ['shutters'] : []), ...(hash2(x0, z0, 83) < 0.28 ? ['boxes'] : [])] as TrimId[];
   const doorX = door === 'n' || door === 's' ? x0 + Math.floor(w / 2) : door === 'e' ? x0 + w - 1 : x0;
   const doorZ = door === 'e' || door === 'w' ? z0 + Math.floor(d / 2) : door === 's' ? z0 + d - 1 : z0;
+  /** The front's windows, for the shutters and the window boxes: [x, z, storey]. */
+  const fronts: [number, number, number][] = [];
+  const onFront = (x: number, z: number) => (door === 's' ? z === z0 + d - 1 : door === 'n' ? z === z0 : door === 'e' ? x === x0 + w - 1 : x === x0);
   for (let y = base; y < top; y++) {
     const ly = (y - base) % 4, f = Math.floor((y - base) / 4);
     for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
       const ex = x === x0 || x === x0 + w - 1, ez = z === z0 || z === z0 + d - 1;
       if (!ex && !ez) { O.set(x, y, z, B.Air); continue; }
       const along = ez ? x - x0 : z - z0, span = ez ? w : d;
+      const inner = along > 0 && along < span - 1;
       let id: number = wall;
-      if (ex && ez) id = frame;
-      else if (ly === 3) id = B.DarkPlanks;
-      else if (f === 0 && ly === 0) id = B.Cobble;
-      else if (along % 3 === 0) id = frame;
-      else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1) id = B.Window;
+      if (style === 'studded') {
+        // Close studding: a post every other block, small windows between
+        if (ex && ez) id = frame;
+        else if (ly === 3) id = B.DarkPlanks;
+        else if (f === 0 && ly === 0) id = B.Cobble;
+        else if (along % 2 === 0) id = frame;
+        else if (ly === 1 && along % 4 === 1 && inner) id = B.Window;
+      } else if (style === 'quoined') {
+        // Dressed stone: quoins at the corners in alternate courses, a string course between storeys
+        if (ex && ez) id = ly % 2 === 0 ? B.Cobble : B.StoneBrick;
+        else if (ly === 3) id = B.Cobble;
+        else if (f === 0 && ly === 0) id = B.Cobble;
+        else if ((ly === 1 || ly === 2) && along % 3 === 1 && inner) id = B.Window;
+      } else if (style === 'boarded') {
+        // Weatherboard: posts only at the corners and either side of the door, windows in pairs
+        if (ex && ez) id = frame;
+        else if (ly === 3) id = B.DarkPlanks;
+        else if (f === 0 && ly === 0) id = B.Cobble;
+        else if (f === 0 && onFront(x, z) && Math.abs(along - (ez ? doorX - x0 : doorZ - z0)) === 1) id = frame;
+        else if ((ly === 1 || ly === 2) && along % 4 !== 0 && along % 4 !== 3 && inner) id = B.Window;
+      } else {
+        if (ex && ez) id = frame;
+        else if (ly === 3) id = B.DarkPlanks;
+        else if (f === 0 && ly === 0) id = B.Cobble;
+        else if (along % 3 === 0) id = frame;
+        else if ((ly === 1 || ly === 2) && along % 3 === 1 && inner) id = B.Window;
+      }
+      if (id === B.Window && ly === 1 && onFront(x, z) && !(x === doorX && z === doorZ)) fronts.push([x, z, f]);
       // The doorway: two blocks high, under a dark lintel
       if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = opts.closed ? B.Barrier : B.Air;
       else if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
@@ -3960,6 +4000,29 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
     s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
   }
   s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
+  // A door a block over the ground outside gets a half step; two blocks, a stone step and a half step before it
+  const out: [number, number] = door === 's' ? [0, 1] : door === 'n' ? [0, -1] : door === 'e' ? [1, 0] : [-1, 0];
+  {
+    const ex = doorX + out[0], ez = doorZ + out[1], g = heightAt(ex, ez), rise = base - g;
+    if (rise === 1) s.props.push({ t: 'doorstep', x: ex + 0.5 - out[0] * 0.1, y: g, z: ez + 0.5 - out[1] * 0.1, ry });
+    else if (rise === 2) {
+      O.set(ex, g, ez, B.StoneBrick);
+      s.props.push({ t: 'doorstep', x: ex + out[0] + 0.5 - out[0] * 0.1, y: g, z: ez + out[1] + 0.5 - out[1] * 0.1, ry });
+    }
+  }
+  // The trim: a hood over the door, shutters either side of the front windows, boxes of flowers under them
+  const faceAt = (x: number, z: number): [number, number] => [x + 0.5 + out[0] * 0.53, z + 0.5 + out[1] * 0.53];
+  if (trim.includes('hood')) {
+    const [hx, hz] = faceAt(doorX, doorZ);
+    s.props.push({ t: 'roof', x: hx + out[0] * 0.45, y: base + 2.95, z: hz + out[1] * 0.45, len: 2.6, span: 1.3, rise: 0.55, ry: out[0] ? Math.PI / 2 : 0, mat: roof });
+  }
+  const shutterTone = ['#3a5a7a', '#4a6a3a', '#7a3a2a', '#2a4a4a', '#5a4a6a'][Math.floor(hash2(x0, z0, 85) * 5)];
+  for (const [fx, fz, f] of fronts) {
+    const [cx, cz] = faceAt(fx, fz);
+    const sx = out[1] !== 0 ? 1 : 0, sz = out[0] !== 0 ? 1 : 0;
+    if (trim.includes('shutters') && style !== 'studded' && style !== 'boarded') for (const k of [-1, 1]) s.props.push({ t: 'shutter', x: cx + sx * k * 0.74, y: base + f * 4 + 1, z: cz + sz * k * 0.74, ry, color: shutterTone });
+    if (trim.includes('boxes') && f === 0) s.props.push({ t: 'windowBox', x: cx, y: base + 0.95, z: cz, ry });
+  }
   const alongX = w >= d;
   const span = alongX ? d : w;
   if (opts.impostor !== false) s.impostor.push({ x: x0 + w / 2, y: base + floors * 2 + 1.2, z: z0 + d / 2, w, h: floors * 4 + 2.4, d, color: ROOF_TONE[roof ?? 'red'] });

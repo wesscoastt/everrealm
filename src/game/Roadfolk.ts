@@ -3,7 +3,7 @@ import { Appearance, HeldItem, Humanoid } from '../entities/humanoid';
 import { characterDetail } from '../entities/lod';
 import type { Enemy } from '../entities/Enemy';
 import { VoxelWorld } from '../world/VoxelWorld';
-import { B } from '../world/blocks';
+import { B, isSolid } from '../world/blocks';
 import { GW, heightAt, SEA, WORLD_ROADS } from '../world/terrain';
 import { ROADS as VALE_ROADS } from '../world/generate';
 import { realmHour, realmNow } from '../world/clock';
@@ -58,6 +58,8 @@ interface Figure {
   shown: boolean;
   chat: number;
   swing: number;
+  /** How far aside they've stepped to get round something in the way. */
+  dodge: number;
 }
 
 export interface Town { id: string; x: number; z: number; r: number }
@@ -196,8 +198,8 @@ export class Roadfolk {
     }
   }
 
-  private add(f: Omit<Figure, 'pos' | 'yaw' | 'moving' | 'shown' | 'chat' | 'swing'>): void {
-    this.figures.push({ ...f, pos: new THREE.Vector3(), yaw: 0, moving: 0, shown: false, chat: 0, swing: 0 });
+  private add(f: Omit<Figure, 'pos' | 'yaw' | 'moving' | 'shown' | 'chat' | 'swing' | 'dodge'>): void {
+    this.figures.push({ ...f, pos: new THREE.Vector3(), yaw: 0, moving: 0, shown: false, chat: 0, swing: 0, dodge: 0 });
   }
 
   private lookFor(r: () => number, over: Partial<Appearance>): Appearance {
@@ -226,14 +228,33 @@ export class Roadfolk {
     f.pos.x = ax + ux * s - uz * side;
     f.pos.z = az + uz * s + ux * side;
     if (dir) { f.yaw = Math.atan2(ux * dir, uz * dir); f.moving = b.speed; } else f.moving = 0;
+    // A signpost, a lamp or a well in the way: step aside round it, the same way in every game
+    // (it's read off the world, which everyone has the same), easing out and back in
+    let want = 0;
+    if (dir && this.blocked(f.pos.x + ux * dir * 0.7, f.pos.z + uz * dir * 0.7) || this.blocked(f.pos.x, f.pos.z)) {
+      for (const o of [0.9, -0.9, 1.6, -1.6, 2.3]) if (!this.blocked(f.pos.x - uz * o, f.pos.z + ux * o) && !this.blocked(f.pos.x - uz * o + ux * dir * 0.7, f.pos.z + ux * o + uz * dir * 0.7)) { want = o; break; }
+    }
+    f.dodge += (want - f.dodge) * 0.2;
+    f.pos.x -= uz * f.dodge;
+    f.pos.z += ux * f.dodge;
     return true;
+  }
+
+  /** Something a person would walk round at (x, z): a prop's barrier, or a wall, at standing height. */
+  private blocked(x: number, z: number): boolean {
+    const ix = Math.floor(x), iz = Math.floor(z);
+    if (!this.voxels.isLoaded(ix, iz)) return false;
+    const y = this.ground(x, z);
+    const a = this.voxels.get(ix, y, iz), b = this.voxels.get(ix, y + 1, iz);
+    return a === B.Barrier || b === B.Barrier || (a !== B.Air && a !== B.Water && a !== undefined && isSolid(a));
   }
 
   /** Standing height: on the road, through any leaves overhead, up onto a bridge over water. */
   private ground(x: number, z: number): number {
     const ix = Math.floor(x), iz = Math.floor(z), vale = ix < GW && iz < GW && ix >= 0 && iz >= 0;
     let y = this.voxels.groundBelow(x, vale ? 40 : heightAt(ix, iz) + 3, z);
-    while (y > 1 && [B.OakLeaves, B.BirchLeaves, B.PineLeaves].includes(this.voxels.get(ix, y - 1, iz) as never)) y = this.voxels.groundBelow(x, y - 2, z);
+    // (through leaves overhead, and never up onto the barrier round a signpost or a lamp)
+    while (y > 1 && [B.OakLeaves, B.BirchLeaves, B.PineLeaves, B.Barrier].includes(this.voxels.get(ix, y - 1, iz) as never)) y = this.voxels.groundBelow(x, y - 2, z);
     if (!vale && (y <= SEA || this.voxels.get(ix, y - 1, iz) === B.Water)) y = this.voxels.groundBelow(x, heightAt(ix, iz) + 8, z);
     return y;
   }

@@ -46,7 +46,7 @@ export class Building {
       a.push([Math.floor(x), Math.floor(y), Math.floor(z), id]);
     } };
     const site: Site = { id: 'home-' + lot.id, name: '', region: 'greenwake', x: at.x0 + at.w / 2, z: at.z0 + at.d / 2, r: 200, named: false, props: [], rects: [], impostor: [] };
-    houseInto(writer, site, at.x0, at.z0, at.w, at.d, at.floors, at.base, ROOF_MAT[plot.spec.roof], at.door, { role: 'vacant', wall: WALLS[plot.spec.wall].block, impostor: false });
+    houseInto(writer, site, at.x0, at.z0, at.w, at.d, at.floors, at.base, ROOF_MAT[plot.spec.roof], at.door, { role: 'vacant', wall: WALLS[plot.spec.wall].block, impostor: false, front: plot.spec.front, trim: plot.spec.trim ?? [] });
     const built = this.host.buildProps(site);
     this.host.scene.add(built.group);
     this.raised = { key, blocks, built, originals: new Map() };

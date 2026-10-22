@@ -158,6 +158,16 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const wl = P.wallLantern(M);
     place(wl, doorX + 0.5 + dx * 0.9 + side[0], HB + 1.8, doorZ + 0.5 + dz * 0.9 + side[1], doorRot);
     lights.push(new THREE.Vector3(doorX + 0.5 + dx * 1.7 + side[0], HB + 1.85, doorZ + 0.5 + dz * 1.7 + side[1]));
+    // A door a block over the ground outside gets a half step (two blocks: a stone step and a half step before it)
+    {
+      const ux = Math.sign(dx), uz = Math.sign(dz), ex = doorX + ux, ez = doorZ + uz;
+      const rise = HB - ground(ex, ez);
+      if (rise === 1) place(P.doorstep(M), ex + 0.5 - ux * 0.1, ground(ex, ez), ez + 0.5 - uz * 0.1, doorRot);
+      else if (rise === 2) {
+        world.put(ex, ground(ex, ez), ez, B.StoneBrick);
+        place(P.doorstep(M), ex + ux + 0.5 - ux * 0.1, ground(ex + ux, ez + uz), ez + uz + 0.5 - uz * 0.1, doorRot);
+      }
+    }
 
     // Roof. Dormers go on the slope that faces the door, when there is one.
     const alongX = w >= d;
