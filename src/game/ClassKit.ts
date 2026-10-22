@@ -45,11 +45,11 @@ export interface KitHost {
   clear(at: THREE.Vector3): boolean;
 }
 
-interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number }
+interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean }
 interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
 /** Ground that hurts for a while (a ring of fire, a rain of arrows, cinders), or a snare waiting for a foot. */
-interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number } }
+interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number }; chill?: boolean }
 interface Cut { e: Enemy; t: number; dmg: number }
 
 const RING_GEO = new THREE.RingGeometry(0.85, 1, 40).rotateX(-Math.PI / 2);
@@ -70,6 +70,9 @@ export class ClassKit {
   private fury = 0;
   private kindling = 0;
   private marks = new Map<Enemy, number>();
+  /** The Wizard's Chill on each foe, and when it fades. */
+  private chill = new Map<Enemy, { n: number; until: number }>();
+  private evadeUntil = 0;
   // Effects
   private shield = 0; private shieldUntil = 0;
   private oathUntil = 0; private oathTick = 0;
@@ -106,6 +109,8 @@ export class ClassKit {
     this.boltMult = 1;
     this.dots = [];
     this.marks.clear();
+    this.chill.clear();
+    this.evadeUntil = 0;
   }
 
   /** Put these utilities (ids, three of the calling's four) on the bar. */
@@ -133,6 +138,8 @@ export class ClassKit {
 
   /** Damage about to be taken: a Riposte turns it aside; Resolve, the Oath, Hold Fast, the Red Hour; then the shield soaks what it can. */
   incoming(dmg: number, from?: Enemy): number {
+    // A Wizard's Blink: nothing touches you for a moment
+    if (this.evadeUntil > this.clock) return 0;
     if (this.riposteUntil > this.clock) {
       this.riposteUntil = 0;
       const P = this.host.player();
@@ -178,6 +185,11 @@ export class ClassKit {
       case 'warden': return { label: `${m.name} ${this.resolve}`, value: this.resolve, max: T.resolve.max, color: m.color };
       case 'reaver': return { label: this.fury >= 100 ? 'Fury: full' : m.name, value: this.fury, max: 100, color: m.color };
       case 'ashcaller': return { label: `${m.name} ${this.kindling}/3`, value: this.kindling, max: 3, color: m.color };
+      case 'wizard': {
+        let n = 0;
+        for (const [e, c] of this.chill) if (e.alive && c.until > this.clock) n = Math.max(n, c.n);
+        return { label: `${m.name} ${n}/${T.chill.max}`, value: n, max: T.chill.max, color: m.color };
+      }
       default: {
         let left = 0;
         for (const [e, until] of this.marks) if (e.alive && until > this.clock) left = Math.max(left, until - this.clock);
@@ -293,6 +305,47 @@ export class ClassKit {
         H.anim('heal'); H.sfx('bell');
         this.pending.push({ at, t: T.starfall.delay, ring: this.ring(at, T.starfall.r, '#ffd27a', T.starfall.delay), r: T.starfall.r, dmg: pw * T.starfall.dmg });
         return true;
+      }
+      // Wizard
+      case 'icebarrier':
+        this.shield = H.maxHp() * T.icebarrier.shield; this.shieldUntil = this.clock + T.icebarrier.secs;
+        H.anim('heal'); H.sfx('bell');
+        H.particles.burst(P.clone().setY(P.y + 1), '#cfefff', 18);
+        return true;
+      case 'frostbolt':
+      case 'icelance': {
+        const lance = id === 'icelance';
+        const e = H.faceTarget(lance ? T.icelance.range : T.frostbolt.range);
+        if (!e) return false;
+        H.anim('attack');
+        const m = new THREE.Mesh(lance ? new THREE.ConeGeometry(0.12, 1.1, 6).rotateX(Math.PI / 2) : new THREE.OctahedronGeometry(0.24, 0), new THREE.MeshBasicMaterial({ color: lance ? '#bfefff' : '#8ad8f0' }));
+        m.position.copy(P).setY(P.y + 1.4);
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: lance ? 34 : 24, dmg: pw * (lance ? T.icelance.dmg : T.frostbolt.dmg), chill: !lance, lance });
+        return true;
+      }
+      case 'blizzard': {
+        const at = H.aim(T.blizzard.range);
+        H.anim('heal'); H.sfx('bell');
+        this.zone(at, T.blizzard.r, T.blizzard.secs, pw * T.blizzard.dmg, '#bfe4ff', undefined, true);
+        return true;
+      }
+      case 'blink': {
+        const at = H.aim(T.blink.range);
+        if (at.distanceTo(P) < 1.5 || !H.clear(at)) return false;
+        H.particles.burst(P.clone().setY(P.y + 1), '#b8a8ff', 20);
+        H.moveTo(at.x, at.z, 0.06, at.y);
+        this.evadeUntil = this.clock + T.blink.evade;
+        H.particles.burst(at.clone().setY(at.y + 1), '#b8a8ff', 20);
+        return true;
+      }
+      case 'frostnova': {
+        H.anim('cleave'); H.sfx('hitHeavy');
+        this.ring(P, T.frostnova.r, '#bfe4ff', 0.6);
+        H.particles.burst(P.clone().setY(P.y + 0.6), '#dff6ff', 40);
+        let any = false;
+        for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.frostnova.r) { H.hit(e, pw * T.frostnova.dmg); e.stun = Math.max(e.stun, T.frostnova.freeze); any = true; }
+        return any || !!H.faceTarget(T.frostnova.r);
       }
       // Pathfinder
       case 'dressing':
@@ -437,9 +490,22 @@ export class ClassKit {
   }
 
   /** Ground that hurts for a while, or a snare. */
-  private zone(at: THREE.Vector3, r: number, secs: number, dmg: number, color: string, snare?: { stun: number }): void {
+  private zone(at: THREE.Vector3, r: number, secs: number, dmg: number, color: string, snare?: { stun: number }, chill?: boolean): void {
     const ring = this.ring(at, r, color, secs);
-    this.zones.push({ at: at.clone(), r, left: secs, tick: snare ? 0 : 0.2, dmg, ring, snare });
+    this.zones.push({ at: at.clone(), r, left: secs, tick: snare ? 0 : 0.2, dmg, ring, snare, chill });
+  }
+
+  /** Chill a foe; at full Chill it freezes solid for a moment and cracks for extra damage. */
+  private addChill(e: Enemy): void {
+    if (!e.alive) return;
+    const c = this.chill.get(e);
+    const n = (c && c.until > this.clock ? c.n : 0) + 1;
+    if (n < T.chill.max) { this.chill.set(e, { n, until: this.clock + T.chill.fade }); return; }
+    this.chill.delete(e);
+    e.stun = Math.max(e.stun, T.chill.freeze);
+    this.host.particles.burst(e.pos.clone().setY(e.pos.y + 1), '#dff6ff', 30);
+    this.host.sfx('hitHeavy');
+    this.host.hit(e, this.host.power() * T.chill.shatter);
   }
 
   /** A ground ring that fades out over secs. */
@@ -477,12 +543,14 @@ export class ClassKit {
       }
       if ((z.tick -= dt) > 0) continue;
       z.tick = 1;
-      for (const e of H.enemies()) if (e.alive && Math.hypot(e.pos.x - z.at.x, e.pos.z - z.at.z) < z.r && Math.abs(e.pos.y - z.at.y) < 3) H.hit(e, z.dmg, { quiet: true });
-      H.particles.sparks(z.at.clone().setY(z.at.y + 0.4), 6, '#ffb060');
+      for (const e of H.enemies()) if (e.alive && Math.hypot(e.pos.x - z.at.x, e.pos.z - z.at.z) < z.r && Math.abs(e.pos.y - z.at.y) < 3) { H.hit(e, z.dmg, { quiet: true }); if (z.chill) this.addChill(e); }
+      if (z.chill) for (let k = 0; k < 3; k++) H.particles.dust(z.at.clone().add(new THREE.Vector3((Math.random() - 0.5) * z.r * 1.6, 4, (Math.random() - 0.5) * z.r * 1.6)), 6);
+      else H.particles.sparks(z.at.clone().setY(z.at.y + 0.4), 6, '#ffb060');
     }
     for (const z of this.zones) if (z.left <= 0) { z.ring.userData.age = z.ring.userData.life; }
     this.zones = this.zones.filter((z) => z.left > 0);
     for (const [e, until] of this.marks) if (until <= this.clock || !e.alive) this.marks.delete(e);
+    for (const [e, c] of this.chill) if (c.until <= this.clock || !e.alive) this.chill.delete(e);
     if (this.calling.id === 'warden' && this.resolve > 0 && this.clock - this.resolveAt > T.resolve.fade) this.resolve = 0;
     // Shield bubble
     const shielded = this.shield > 0 && this.shieldUntil > this.clock;
@@ -515,7 +583,11 @@ export class ClassKit {
       const step = f.speed * dt;
       if (d.length() <= step || !f.to.alive) {
         if (f.to.alive) {
-          H.hit(f.to, f.dmg);
+          // An Ice Lance on a frozen foe (stunned, by frost or anything else) hits far harder
+          const frozen = f.lance && f.to.stun > 0;
+          H.hit(f.to, f.dmg * (frozen ? T.icelance.frozen : 1), frozen ? { crit: true } : undefined);
+          if (f.lance) H.particles.burst(to, '#dff6ff', frozen ? 24 : 10);
+          if (f.chill) this.addChill(f.to);
           if (f.stun) f.to.stun = Math.max(f.to.stun, f.stun);
           if (f.burst) {
             H.particles.burst(to, '#ffb040', 26);

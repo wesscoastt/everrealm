@@ -93,6 +93,29 @@ export const TREES: Record<CallingId, TreeDef[]> = {
       tal('a_pyre', 'Pyre', 4, 'Cinder Ward heals and burns 15% more.', (t) => { t.ward.heal *= 1.15; t.ward.burn *= 1.15; }, true),
     ] },
   ],
+  wizard: [
+    { id: 'z_frost', name: 'Frost', desc: 'The bolt and the freeze', talents: [
+      tal('z_bite', 'Bitter Cold', 1, 'Frost Bolt hits 15% harder.', (t) => { t.frostbolt.dmg *= 1.15; }),
+      tal('z_crack', 'Crack', 2, 'A frozen foe cracks for 30% more.', (t) => { t.chill.shatter *= 1.3; }),
+      tal('z_hold', 'Hard Freeze', 2, 'A freeze holds half a second longer.', (t) => { t.chill.freeze += 0.5; }),
+      tal('z_far', 'Far Sight', 3, 'Frost Bolt reaches 28 blocks.', (t) => { t.frostbolt.range = 28; }),
+      tal('z_glacier', 'Glacier', 4, 'A frozen foe cracks for 40% more again, and stays frozen a little longer.', (t) => { t.chill.shatter *= 1.4; t.chill.freeze += 0.3; }, true),
+    ] },
+    { id: 'z_storm', name: 'Storm', desc: 'The blizzard', talents: [
+      tal('z_snow', 'Heavy Snow', 1, 'Blizzard cuts 15% harder.', (t) => { t.blizzard.dmg *= 1.15; }),
+      tal('z_wide', 'Wide Storm', 2, 'Blizzard covers six blocks round.', (t) => { t.blizzard.r = 6; }),
+      tal('z_winter', 'Long Winter', 2, 'Blizzard lasts eight seconds.', (t) => { t.blizzard.secs = 8; }),
+      tal('z_hail', 'Hail', 3, 'Blizzard cuts a fifth harder again.', (t) => { t.blizzard.dmg *= 1.2; }),
+      tal('z_white', 'Whiteout', 4, 'Blizzard cuts 35% harder again.', (t) => { t.blizzard.dmg *= 1.35; }, true),
+    ] },
+    { id: 'z_ward', name: 'Ward', desc: 'The barrier and the lance', talents: [
+      tal('z_thick', 'Thick Ice', 1, 'Ice Barrier soaks a fifth more.', (t) => { t.icebarrier.shield *= 1.2; }),
+      tal('z_keen', 'Keen Lance', 2, 'Ice Lance hits a fifth harder.', (t) => { t.icelance.dmg *= 1.2; }),
+      tal('z_lasting', 'Lasting Ice', 2, 'Ice Barrier lasts thirteen seconds.', (t) => { t.icebarrier.secs = 13; }),
+      tal('z_shard', 'Splinter', 3, 'Ice Lance hits a frozen foe two and a half times as hard.', (t) => { t.icelance.frozen = 2.5; }),
+      tal('z_rime', 'Rime Armour', 4, 'Ice Barrier soaks 35% more again.', (t) => { t.icebarrier.shield *= 1.35; }, true),
+    ] },
+  ],
   pathfinder: [
     { id: 'p_arrows', name: 'Arrows', desc: 'The volley', talents: [
       tal('p_fletch', 'Fletcher', 1, 'Volley\'s arrows hit 15% harder.', (t) => { t.volley.dmg *= 1.15; }),

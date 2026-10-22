@@ -20,7 +20,7 @@ export const ROLE_DESC: Record<Role, string> = {
 /** A full group: one to hold, one to heal, two to hit. */
 export const PARTY: Role[] = ['tank', 'healer', 'damage', 'damage'];
 /** What each calling plays unless you choose otherwise. */
-export const CALLING_ROLE: Record<CallingId, Role> = { warden: 'tank', reaver: 'damage', ashcaller: 'damage', pathfinder: 'damage' };
+export const CALLING_ROLE: Record<CallingId, Role> = { warden: 'tank', reaver: 'damage', ashcaller: 'damage', pathfinder: 'damage', wizard: 'damage' };
 
 /** A boss's fight: what's said, the creatures it calls in, and what it throws at the floor. */
 export interface BossPlan {

@@ -1,4 +1,4 @@
-// Callings: the four ways to fight in the Charter Counties. The bar is Guild Wars 2's: your weapon's
+// Callings: the five ways to fight in the Charter Counties. The bar is Guild Wars 2's: your weapon's
 // skills (Strike, Cleave and a third that depends on the weapon in your hand, keys 1 to 3), then the
 // calling's heal (4), three utilities (5 to 7: its signature, and two you choose from three) and an
 // elite (8). Some are aimed at
@@ -9,7 +9,7 @@
 // You can change calling at any time out of a fight, from the journal: it's a choice of how to
 // play, not a slot you're locked into.
 
-export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder';
+export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard';
 
 export interface SkillDef {
   id: string;
@@ -103,6 +103,22 @@ export const CALLINGS: CallingDef[] = [
     ],
     pros: 'Range and mobility; burst', cons: 'Little to soak a long fight',
   },
+  {
+    id: 'wizard', name: 'Wizard', role: 'Frost and the old words',
+    blurb: 'Speaks the cold into things until they freeze. The keepers at Scarth Watch learned it from the winters on the high pasture, and write every word of it down.',
+    mechanic: { name: 'Chill', desc: 'Frost Bolt, Blizzard and Frost Nova chill what they hit. At three Chill a foe freezes solid for a moment and cracks for extra damage.', color: '#8ad8f0' },
+    skills: [
+      { id: 'icebarrier', name: 'Ice Barrier', icon: 'icebarrier', cd: 22, desc: 'A shell of ice that soaks up damage equal to almost a third of your health, for ten seconds.' },
+      { id: 'frostbolt', name: 'Frost Bolt', icon: 'frostbolt', cd: 1.6, desc: 'Throw a shard of ice at your target from up to twenty-two blocks. It chills what it hits.' },
+      { id: 'blizzard', name: 'Blizzard', icon: 'blizzard', cd: 60, aim: 20, desc: 'Call a storm down where you aim: for six seconds it cuts and chills everything under it.' },
+    ],
+    utilities: [
+      { id: 'blink', name: 'Blink', icon: 'blink', cd: 14, aim: 10, desc: 'Vanish and step out of the air up to ten blocks away, where you aim. Nothing touches you for a moment.' },
+      { id: 'icelance', name: 'Ice Lance', icon: 'icelance', cd: 8, desc: 'A long spear of ice at your target. It hits more than twice as hard on a frozen foe.' },
+      { id: 'frostnova', name: 'Frost Nova', icon: 'frostnova', cd: 16, desc: 'Cold bursts out of you: everything within five blocks is hurt and frozen for two seconds.' },
+    ],
+    pros: 'Fights from range; freezes foes in place', cons: 'Little damage up close',
+  },
 ];
 
 export const callingById = (id: unknown): CallingDef | null => CALLINGS.find((c) => c.id === id) ?? null;
@@ -142,6 +158,14 @@ export const TUNE = {
   snare: { r: 1.6, stun: 2, dmg: 1.5, secs: 20, range: 14 },
   rain: { r: 4, secs: 4, dmg: 0.55, range: 20 },
   quickstep: { dist: 6, window: 4 },
+  // Wizard
+  chill: { max: 3, freeze: 1.2, shatter: 1.0, fade: 8 },
+  icebarrier: { shield: 0.3, secs: 10 },
+  frostbolt: { dmg: 1.4, range: 22 },
+  blizzard: { r: 5, secs: 6, dmg: 0.75, range: 20 },
+  blink: { range: 10, evade: 1 },
+  icelance: { dmg: 1.6, frozen: 2.2, range: 22 },
+  frostnova: { r: 5, dmg: 0.8, freeze: 2 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },

@@ -12,7 +12,7 @@ const CRIT = 0.12, CRIT_MULT = 1.6;
 const CHAIN = [{ m: 1, d: 0.42 }, { m: 1.1, d: 0.42 }, { m: 1.5, d: 0.55 }];
 const CLEAVE = { m: 1.5, d: 0.6, cd: 6 };
 
-interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number }
+interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number }
 interface Fight { name: string; foes: () => Foe[]; secs: number; ranged: boolean; dummy: boolean }
 
 /** Fights: a training dummy, four dummies, a strong elite toe to toe, and a pack of four. */
@@ -22,7 +22,7 @@ const FIGHTS: Fight[] = [
   { name: 'elite duel', foes: () => [foe(90, 0.06)], secs: 120, ranged: false, dummy: false },
   { name: 'pack of four', foes: () => [0, 1, 2, 3].map(() => foe(14, 0.025)), secs: 120, ranged: false, dummy: false },
 ];
-function foe(hp: number, rate: number): Foe { return { hp, stun: 0, hitIn: 0.6 + Math.random() * 0.6, rate, bleed: 0, bleedPer: 0, mark: 0 }; }
+function foe(hp: number, rate: number): Foe { return { hp, stun: 0, hitIn: 0.6 + Math.random() * 0.6, rate, bleed: 0, bleedPer: 0, mark: 0, chill: 0 }; }
 
 interface Result { dealt: number; secs: number; hpLeft: number; won: boolean }
 
@@ -37,7 +37,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   const cds = [0, 0, 0, 0, 0];
   let holdUntil = 0, rushUntil = 0, critNext = false, boltMult = 1;
   /** Burning or arrow-struck ground: so much a second to everything caught, until then. */
-  const zones: { until: number; per: number; tick: number }[] = [];
+  const zones: { until: number; per: number; tick: number; chill?: boolean }[] = [];
+  let evadeUntil = 0;
   let t = 0, hp = 1, busy = 0, chain = 0, cleaveCd = 0, dealt = 0;
   let resolve = 0, resolveAt = -99, fury = 0, kindling = 0, shield = 0, shieldUntil = 0, oathUntil = 0, oathTick = 0;
   let redUntil = 0, wardUntil = 0, wardTick = 0, stepUntil = 0, pendingStar = -1;
@@ -52,6 +53,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   };
   const heal = (n: number) => { hp = Math.min(1, hp + n); };
   const aoe = (n: number, p: number) => live().slice(0, n).forEach((e) => hit(e, p));
+  // The Wizard's Chill: the third freezes the foe and cracks it
+  const chill = (e: Foe) => { if (++e.chill >= TUNE.chill.max) { e.chill = 0; e.stun = Math.max(e.stun, TUNE.chill.freeze); hit(e, TUNE.chill.shatter); } };
   // How many foes an area skill catches: a pack bunches up around you; the duel is one.
   const caught = () => Math.min(live().length, 4);
 
@@ -69,7 +72,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (wardUntil > t && (wardTick -= DT) <= 0) { wardTick = 1; heal(TUNE.ward.heal / TUNE.ward.secs); if (!ranged) aoe(caught(), TUNE.ward.burn); }
     for (const e of L) if (e.bleed > 0) { e.bleed -= DT; hit(e, e.bleedPer * DT, false); heal(TUNE.bleed.heal * DT); }
     if (pendingStar >= 0 && (pendingStar -= DT) < 0) { pendingStar = -1; aoe(caught(), TUNE.starfall.dmg); }
-    for (const z of zones) if (z.until > t && (z.tick -= DT) <= 0) { z.tick = 1; aoe(caught(), z.per); }
+    for (const z of zones) if (z.until > t && (z.tick -= DT) <= 0) { z.tick = 1; aoe(caught(), z.per); if (z.chill) live().slice(0, caught()).forEach(chill); }
 
     // Incoming blows (rate = share of your health per second, landing every ~1.2 s)
     if (!f.dummy) for (const e of L) {
@@ -78,6 +81,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       e.hitIn = 1.2;
       // At range, a ranged calling only gets reached about half the time (kiting, the approach)
       if (ranged && Math.random() < 0.5) continue;
+      if (evadeUntil > t) continue;
       let d = e.rate * 1.2;
       if (id === 'warden') {
         d *= 1 - resolve * TUNE.resolve.per; resolve = Math.min(TUNE.resolve.max, resolve + 1); resolveAt = t;
@@ -125,6 +129,13 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'snare': hit(tgt, TUNE.snare.dmg); tgt.stun = Math.max(tgt.stun, TUNE.snare.stun); break;
         case 'rain': zones.push({ until: t + TUNE.rain.secs, per: TUNE.rain.dmg, tick: 0.2 }); break;
         case 'quickstep': stepUntil = t + TUNE.quickstep.window; break;
+        case 'icebarrier': if (f.dummy || hp > 0.85) return false; shield = TUNE.icebarrier.shield; shieldUntil = t + TUNE.icebarrier.secs; break;
+        case 'frostbolt': hit(tgt, TUNE.frostbolt.dmg); chill(tgt); break;
+        case 'blizzard': zones.push({ until: t + TUNE.blizzard.secs, per: TUNE.blizzard.dmg, tick: 0.2, chill: true }); break;
+        // Blink: a moment untouchable, and they have to come to you again
+        case 'blink': if (f.dummy || hp > 0.7) return false; evadeUntil = t + TUNE.blink.evade; for (const e of L) e.hitIn += 1.5; break;
+        case 'icelance': hit(tgt, TUNE.icelance.dmg * (tgt.stun > 0 ? TUNE.icelance.frozen : 1)); break;
+        case 'frostnova': if (ranged) return false; aoe(caught(), TUNE.frostnova.dmg); live().slice(0, caught()).forEach((e) => { e.stun = Math.max(e.stun, TUNE.frostnova.freeze); }); break;
       }
       if (furyK > 1) fury = 0;
       cds[i] = s.cd;
@@ -148,7 +159,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
 
 // Average many runs; ranged callings fight the way that suits them better
 const RUNS = 300;
-const rangedCallings = new Set<CallingId>(['ashcaller']);
+const rangedCallings = new Set<CallingId>(['ashcaller', 'wizard']);
 const rows: Record<string, number[]> = {};
 for (const c of CALLINGS) {
   const cells: number[] = [];

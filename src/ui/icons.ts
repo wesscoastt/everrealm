@@ -214,6 +214,12 @@ const GLYPHS: Record<string, [string[], string]> = {
   quickstep: [['.....XX...', '.....XX...', '....XXXX..', '...X.XX.X.', '.....XX...', '....X..X..', '...X....X.', '..........', 'XX..XX..XX', '.XX..XX..X'], '#d0f0c0'],
   riposte: [['X........X', '.X......X.', '..X....X..', '...X..X...', '....XX....', '....XX....', '...X..X...', '..X....X..', '.XX....XX.', 'XX......XX'], '#f6ecd0'],
   flurry: [['X...X...X.', '.X...X...X', '..X...X...', '...X...X..', 'X...X...X.', '.X...X...X', '..X...X...', '...X...X..', '..........', '..........'], '#f6ecd0'],
+  frostbolt: [['.......X.X', '........X.', '......XXX.', '.....XXX..', '....XXX...', '...XXX....', '..XXX.....', '.XX.......', 'XX........', 'X.........'], '#e8f8ff'],
+  icebarrier: [['....XX....', '...XXXX...', '..XX..XX..', '.XX.XX.XX.', 'XX.XXXX.XX', 'XX.XXXX.XX', '.XX.XX.XX.', '..XX..XX..', '...XXXX...', '....XX....'], '#e8f8ff'],
+  blizzard: [['X...X...X.', '.X.X.X.X.X', 'X...X...X.', '..X...X...', '.X.X.X.X.X', '..X...X...', 'X...X...X.', '.X.X.X.X.X', 'X...X...X.', '..........'], '#f0faff'],
+  blink: [['X.X.X.....', '.........X', '........XX', '.......XXX', '......XXXX', '........XX', '.......X.X', '......X...', '.....X....', '....X.....'], '#e0d8ff'],
+  icelance: [['.........X', '........XX', '.......XX.', '......XX..', '.....XX...', '....XX....', '...XX.....', '..XX......', '.XX.......', 'X.........'], '#e8f8ff'],
+  frostnova: [['X...X...X.', '.X..X..X..', '..X.X.X...', '...XXX....', 'XXXXXXXXX.', '...XXX....', '..X.X.X...', '.X..X..X..', 'X...X...X.', '..........'], '#f0faff'],
   sunder: [['...XXXX...', '...XXXX...', '....XX....', '....XX....', '....XX....', '....XX....', '..........', '.X..XX..X.', 'XXXXXXXXXX', '.X.X..X.X.'], '#f6ecd0'],
 };
 
@@ -236,6 +242,8 @@ export function abilityIcon(kind: string): string {
     firewall: ['#e07030', '#a84010', '#5a2006'], cinderstep: ['#c86a30', '#8a4010', '#4a2006'], kindle: ['#f0b040', '#b07010', '#603a06'],
     snare: ['#8a7a50', '#5a4a2a', '#2e2614'], rain: ['#6a8ab0', '#3a5a7a', '#1a2e44'], quickstep: ['#5a9a6a', '#2e6a3a', '#163a1e'],
     riposte: ['#9aa4b4', '#5a6474', '#2a3040'], flurry: ['#b4a48a', '#74644a', '#403420'], sunder: ['#a8784a', '#6a4422', '#3a220e'],
+    frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],
+    blink: ['#8a7ad0', '#5a4aa0', '#2e245a'], icelance: ['#4aa0d0', '#1a6a9a', '#0c3654'], frostnova: ['#6ac0e0', '#2a80a8', '#124460'],
   };
   const [hi, mid, lo] = tones[kind];
   x.fillStyle = mid; x.fillRect(0, 0, 16, 16);
