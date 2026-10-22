@@ -1,5 +1,9 @@
 import * as THREE from 'three';
-import { CALLINGS, CallingDef, CallingId, TUNE as T } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, TUNE } from '../data/classes';
+import { tuned, type Tune } from '../data/talents';
+
+/** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
+let T: Tune = TUNE;
 import type { Enemy } from '../entities/Enemy';
 import type { Particles } from '../systems/Particles';
 
@@ -134,6 +138,9 @@ export class ClassKit {
       }
     }
   }
+
+  /** Apply the talents learned for this calling. */
+  setTalents(learned: string[]): void { T = tuned(learned); }
 
   slots(): { left: number; total: number }[] {
     return this.calling.skills.map((s, i) => ({ left: this.cds[i], total: i === 0 ? s.cd * this.host.sustainScale() : s.cd }));

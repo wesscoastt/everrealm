@@ -168,6 +168,10 @@ export interface UiCtx {
   claimLogin(): void;
   feats(): FeatView[];
   calling(): CallingId;
+  /** The calling's talent trees: points to spend, and each talent's state (why it can't be learned yet, if not). */
+  talents(): { points: number; total: number; trees: { name: string; desc: string; talents: { id: string; name: string; desc: string; cost: number; capstone: boolean; learned: boolean; why: string | null }[] }[] };
+  learnTalent(id: string): string | null;
+  resetTalents(): string | null;
   /** Change calling; returns why it can't be done, or null. */
   setCalling(id: CallingId): string | null;
   /** Wear a feat's title (null for none). */
@@ -1390,7 +1394,17 @@ export class Hud {
       page.append(el('h5', 'feat-group', 'The festival year'));
       for (const y of fv.year) page.append(el('div', 'feat' + (y.on ? ' done' : ''), `<div class="ft"><b>${esc(y.name)}</b><span>${y.on ? 'On now' : esc(y.when)}</span></div>`));
     } else if (this.selQuest === 'calling') {
-      page.innerHTML = `<h4>Your calling</h4><div class="feat-sum">How you fight: keys 3, 4 and 5 and the bar above them. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>`;
+      const tv = this.ctx.talents();
+      const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><h5>${esc(t.name)}<small>${esc(t.desc)}</small></h5>${t.talents.map((d) => `<button class="tal${d.learned ? ' got' : d.why ? ' no' : ' can'}${d.capstone ? ' cap' : ''}" data-tal="${d.id}" title="${esc(d.why ?? (d.learned ? 'Learned' : 'Click to learn'))}"><b>${esc(d.name)}</b><span>${esc(d.desc)}</span><i>${d.learned ? 'Learned' : d.cost + (d.cost === 1 ? ' point' : ' points')}${d.capstone ? ' · capstone' : ''}</i></button>`).join('')}</div>`;
+      page.innerHTML = `<h4>Your calling</h4><div class="feat-sum">How you fight: keys 3, 4 and 5 and the bar above them. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>
+        <h4 class="tal-h">Talents <span>${tv.points} of ${tv.total} points to spend</span><button class="btn ghost tal-reset">Unlearn all</button></h4>
+        <div class="feat-sum">A point a level from level 3. Talents go in order down each tree, and you can hold one capstone. Unlearning costs nothing, out of a fight.</div>
+        <div class="ttrees">${tv.trees.map(tree).join('')}</div>`;
+      page.querySelectorAll<HTMLElement>('[data-tal]').forEach((b) => b.addEventListener('click', () => {
+        const why = this.ctx.learnTalent(b.dataset.tal!);
+        if (why) page.querySelector('.calling-msg')!.textContent = why; else this.renderJournal();
+      }));
+      page.querySelector('.tal-reset')?.addEventListener('click', () => { const why = this.ctx.resetTalents(); if (why) page.querySelector('.calling-msg')!.textContent = why; else this.renderJournal(); });
       page.querySelectorAll<HTMLElement>('[data-calling]').forEach((b) => b.addEventListener('click', () => {
         const why = this.ctx.setCalling(b.dataset.calling as CallingId);
         this.ctx.sfx('click');

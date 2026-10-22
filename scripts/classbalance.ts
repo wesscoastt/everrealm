@@ -4,7 +4,8 @@
 // is more than 7% off the average, or if one is best at everything.
 //
 // Units: damage in P (one ordinary swing at your level); health as a fraction of your own.
-import { CALLINGS, CallingId, TUNE } from '../src/data/classes';
+import { CALLINGS, CallingId, TUNE as BASE } from '../src/data/classes';
+import { TREES, tuned, type Tune } from '../src/data/talents';
 
 const DT = 0.05;
 const CRIT = 0.12, CRIT_MULT = 1.6;
@@ -25,7 +26,7 @@ function foe(hp: number, rate: number): Foe { return { hp, stun: 0, hitIn: 0.6 +
 
 interface Result { dealt: number; secs: number; hpLeft: number; won: boolean }
 
-function run(id: CallingId, f: Fight, ranged: boolean): Result {
+function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE): Result {
   const c = CALLINGS.find((x) => x.id === id)!;
   const foes = f.foes();
   const cds = [0, 0, 0];
@@ -164,4 +165,39 @@ for (const c of CALLINGS) {
   if (FIGHTS.every((_, i) => CALLINGS.every((o) => rows[c.id][i] >= rows[o.id][i]))) { console.log(`  ${c.name} is best at everything`); bad++; }
 }
 console.log(bad ? `${bad} balance problem(s)` : 'Balanced: every calling within 7% overall');
-process.exit(bad ? 1 : 0);
+
+// Talent trees: each calling with each of its trees learned in full (capstone too), scored against
+// the twelve builds' average the same way. Every tree has to stay within 7% of it, and no tree may be
+// best at everything.
+const builds: { calling: CallingId; tree: string; cells: number[] }[] = [];
+for (const c of CALLINGS) for (const tree of TREES[c.id]) {
+  const T = tuned(tree.talents.map((t) => t.id));
+  const cells = FIGHTS.map((f) => {
+    const modes = rangedCallings.has(c.id) && !f.dummy ? [false, true] : [false];
+    let best = -Infinity;
+    for (const ranged of modes) {
+      let score = 0;
+      for (let r = 0; r < RUNS; r++) {
+        const res = run(c.id, f, ranged, T);
+        if (f.dummy) score += res.dealt / res.secs;
+        else score += res.won ? res.hpLeft : -(f.foes().reduce((sum, e) => sum + e.hp, 0) - res.dealt) / f.foes().reduce((sum, e) => sum + e.hp, 0);
+      }
+      best = Math.max(best, score / RUNS);
+    }
+    return best;
+  });
+  builds.push({ calling: c.id, tree: tree.name, cells });
+}
+const tavg = FIGHTS.map((_, i) => builds.reduce((sum, b) => sum + b.cells[i], 0) / builds.length);
+const tover = builds.map((b) => b.cells.map((v, i) => FIGHTS[i].dummy ? v / tavg[i] : 1 + (v - tavg[i])).reduce((sum, v) => sum + v, 0) / FIGHTS.length);
+const tmean = tover.reduce((sum, v) => sum + v, 0) / tover.length;
+console.log('\ntalent trees, each learned in full');
+builds.forEach((b, k) => console.log(pad(b.calling + ' / ' + b.tree, 26) + b.cells.map((v, i) => pad(FIGHTS[i].dummy ? v.toFixed(2) + ' P/s' : (v * 100).toFixed(0) + '% hp', 14)).join('') + tover[k].toFixed(3)));
+let tbad = 0;
+builds.forEach((b, k) => {
+  const off = tover[k] / tmean - 1;
+  if (Math.abs(off) > 0.07) { console.log(`  ${b.calling} / ${b.tree} is ${(off * 100).toFixed(0)}% off the average`); tbad++; }
+  if (FIGHTS.every((_, i) => builds.every((o) => b.cells[i] >= o.cells[i]))) { console.log(`  ${b.calling} / ${b.tree} is best at everything`); tbad++; }
+});
+console.log(tbad ? `${tbad} talent balance problem(s)` : 'Talent trees balanced: every tree within 7% overall');
+process.exit(bad || tbad ? 1 : 0);

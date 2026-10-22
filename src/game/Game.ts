@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { canLearn, pointsAt, spent, TALENTS, TREES } from '../data/talents';
 import type { Equip } from '../data/items';
 import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { FIGURE } from '../entities/humanoid';
@@ -996,6 +997,9 @@ export class Game implements GameApi {
       },
       calling: () => g.calling,
       setCalling: (id: CallingId) => g.setCalling(id),
+      talents: () => g.talentView(),
+      learnTalent: (id: string) => g.learnTalent(id),
+      resetTalents: () => g.resetTalents(),
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: keyof Equip) => g.unequip(slot),
       armourSummary: () => g.armourSummary(),
@@ -1146,7 +1150,48 @@ export class Game implements GameApi {
 
   private applyCalling(): void {
     this.kit.set(this.calling);
+    this.kit.setTalents(this.learned());
     this.hud.setCalling(this.kit.calling);
+  }
+
+  // =================================================================== Talents (data/talents.ts)
+  /** The talents learned for the current calling. */
+  private learned(): string[] {
+    const v = this.flag('talents:' + this.calling);
+    return Array.isArray(v) ? (v as string[]).filter((id) => TALENTS[id]?.calling === this.calling) : [];
+  }
+
+  /** Learn a talent; returns why not, or null. */
+  learnTalent(id: string): string | null {
+    const have = this.learned();
+    const why = canLearn(id, have, this.calling, this.level('melee'));
+    if (why) return why;
+    this.setFlag('talents:' + this.calling, [...have, id]);
+    this.kit.setTalents(this.learned());
+    this.sfx('levelUp', 0.6);
+    this.persist();
+    return null;
+  }
+
+  /** Unlearn every talent of the current calling, for nothing: only out of a fight. */
+  resetTalents(): string | null {
+    if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    this.setFlag('talents:' + this.calling, []);
+    this.kit.setTalents([]);
+    this.persist();
+    return null;
+  }
+
+  /** What the Calling page shows of the trees. */
+  talentView() {
+    const have = this.learned(), lvl = this.level('melee');
+    return {
+      points: pointsAt(lvl) - spent(have), total: pointsAt(lvl),
+      trees: TREES[this.calling].map((t) => ({
+        name: t.name, desc: t.desc,
+        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, cost: d.cost, capstone: !!d.capstone, learned: have.includes(d.id), why: have.includes(d.id) ? null : canLearn(d.id, have, this.calling, lvl) })),
+      })),
+    };
   }
 
   /** Change calling: only out of a fight. Returns why not, or null. */
