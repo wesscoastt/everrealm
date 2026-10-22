@@ -1152,8 +1152,9 @@ export class Hud {
         c.restore();
       } else mapPin(c, x, y, 2);
     }
-    // View cone and the player's arrow
-    const look = rot - camYaw + Math.PI;
+    // View cone (what the camera sees) and the player's arrow. The camera looks along -sin/-cos of
+    // its yaw while the player faces along +sin/+cos of theirs, so the cone takes no half turn.
+    const look = rot - camYaw;
     c.save(); c.rotate(look);
     const cone = c.createRadialGradient(0, 0, 0, 0, 0, 110);
     cone.addColorStop(0, 'rgba(255, 244, 210, 0.42)'); cone.addColorStop(1, 'rgba(255, 244, 210, 0)');
