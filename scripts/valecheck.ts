@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { Grid, SX, SY, SZ, WATER_LEVEL } from '../src/world/grid';
 import { generateTerrain, EX, ROADS, growTree, placeTrees } from '../src/world/generate';
 import { createSeededRandom } from '../src/utils/random';
+import { heightAt } from '../src/world/terrain';
 import { buildStructures } from '../src/world/structures';
 import { Batcher, createPropMaterials } from '../src/world/props';
 import { B, isSolid } from '../src/world/blocks';
@@ -101,16 +102,32 @@ for (const road of ROADS) {
   for (let i = 0; i < road.length - 1; i++) {
     const [ax, az] = road[i], [bx, bz] = road[i + 1];
     const len = Math.hypot(bx - ax, bz - az);
-    for (let t = 0; t <= len; t += 1) {
+    for (let t = 0; t <= len; t += 0.5) {
       const x = Math.floor(ax + ((bx - ax) * t) / len), z = Math.floor(az + ((bz - az) * t) / len);
       if (x < 0 || z < 0 || x >= SX || z >= SZ || (x === px && z === pz)) continue;
-      let top = SY - 1; while (top > 0 && (!isSolid(grid.get(x, top, z)) || LEAF.has(grid.get(x, top, z)) || grid.get(x, top, z) === B.Barrier)) top--;
-      const stand = top + 1;
+      const standAt = (cx: number, cz: number) => { let t = SY - 1; while (t > 0 && (!isSolid(grid.get(cx, t, cz)) || LEAF.has(grid.get(cx, t, cz)) || grid.get(cx, t, cz) === B.Barrier)) t--; return t + 1; };
+      const top = standAt(x, z) - 1, stand = top + 1;
+      // A diagonal move goes through one of the two cells beside it: the easier
+      if (prev !== null && x !== px && z !== pz) { const via = [standAt(x, pz), standAt(px, z)].find((m) => Math.abs(m - prev!) < 2 && Math.abs(stand - m) < 2); if (via !== undefined) { prev = stand; px = x; pz = z; continue; } }
       // (where a road meets water, a ford or a pool's edge, there's no step to take: swim or wade)
       if (grid.get(x, top + 1, z) === B.Water) { prev = null; continue; }
       if (prev !== null && Math.abs(stand - prev) >= 2) problems.push(`road ${ROADS.indexOf(road)} steps ${stand - prev > 0 ? 'up' : 'down'} ${Math.abs(stand - prev)} at (${x}, ${z})`);
       prev = stand; px = x; pz = z;
     }
+  }
+}
+
+// ---- Where a road leaves the valley, the land outside meets it (the world past the edge is generated)
+for (const road of ROADS) for (const [px, pz] of road) {
+  const x = Math.round(px), z = Math.round(pz);
+  if (x < SX - 1 && z < SZ - 1) continue;
+  for (let k = -1; k <= 1; k++) {
+    const gx = x >= SX - 1 ? SX - 1 : Math.min(SZ - 1, Math.max(0, x + k)), gz = z >= SZ - 1 ? SZ - 1 : Math.min(SZ - 1, Math.max(0, z + k));
+    const ox = x >= SX - 1 ? SX : gx, oz = z >= SZ - 1 ? SZ : gz;
+    let top = SY - 1; while (top > 0 && (!isSolid(grid.get(gx, top, gz)) || LEAF.has(grid.get(gx, top, gz)))) top--;
+    if (grid.get(gx, top, gz) !== B.Path && grid.get(gx, top, gz) !== B.Gravel) continue; // only the road itself
+    const out = heightAt(ox, oz);
+    if (Math.abs(top + 1 - out) >= 2) problems.push(`road ${ROADS.indexOf(road)} leaves the valley at (${gx}, ${gz}) at height ${top + 1}; outside it is ${out}`);
   }
 }
 

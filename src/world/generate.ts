@@ -1,6 +1,6 @@
 import { B } from './blocks';
 import { distToPolyline, fbm2, hash2, smoothstep } from './noise';
-import { baseHeight, valeSurface } from './terrain';
+import { baseHeight, heightAt, valeSurface } from './terrain';
 import { SX, SY, SZ, Grid, WATER_LEVEL } from './grid';
 
 // Hollindale layout. Coordinates are block units, x east, z south.
@@ -174,24 +174,33 @@ export function generateTerrain(world: Grid): Layout {
 
   // Roads: where the ground under one jumps two blocks or more between neighbours (along it or across
   // it), the two are eased toward each other a block at a time until no step is more than one;
-  // everywhere else the road lies on the valley as authored
+  // everywhere else the road lies on the valley as authored. Cells at the valley's edge stay as they
+  // are, since the land outside has to meet them: the road climbs to them from inside.
   {
     const onRoad = new Uint8Array(SX * SZ), cells: number[] = [];
     for (const road of ROADS) {
       const xs = road.map((p) => p[0]), zs = road.map((p) => p[1]);
-      for (let z = Math.max(1, Math.min(...zs) - 3); z <= Math.min(SZ - 2, Math.max(...zs) + 3); z++) for (let x = Math.max(1, Math.min(...xs) - 3); x <= Math.min(SX - 2, Math.max(...xs) + 3); x++) {
+      for (let z = Math.max(0, Math.min(...zs) - 3); z <= Math.min(SZ - 1, Math.max(...zs) + 3); z++) for (let x = Math.max(0, Math.min(...xs) - 3); x <= Math.min(SX - 1, Math.max(...xs) + 3); x++) {
         const i = hIdx(x, z);
-        if (onRoad[i] || exclusion[i] === EX.Water || waterTop[i] || distToPolyline(x, z, road).d >= 1.8) continue;
+        if (onRoad[i] || exclusion[i] === EX.Water || waterTop[i] || distToPolyline(x, z, road).d >= 2.3) continue;
         onRoad[i] = 1;
         cells.push(i);
       }
     }
-    for (let pass = 0; pass < 60; pass++) {
+    const edge = (i: number) => { const x = i % SX, z = Math.floor(i / SX); return x <= 2 || z <= 2 || x >= SX - 3 || z >= SZ - 3; };
+    // Where a road leaves the valley it takes the height of the land outside, which it has to meet
+    for (const i of cells) {
+      const x = i % SX, z = Math.floor(i / SX);
+      if (x >= SX - 3 || z >= SZ - 3) heights[i] = Math.round(heightAt(x >= SX - 3 ? SX : x, z >= SZ - 3 ? SZ : z));
+    }
+    for (let pass = 0; pass < 400; pass++) {
       let eased = false;
       for (const i of cells) for (const j of [i + 1, i - 1, i + SX, i - SX]) {
-        if (!onRoad[j] || heights[i] - heights[j] < 2) continue;
-        heights[i]--;
-        heights[j]++;
+        if (j < 0 || j >= SX * SZ || Math.abs((j % SX) - (i % SX)) > 1 || !onRoad[j] || heights[i] - heights[j] < 2) continue;
+        const fi = edge(i), fj = edge(j);
+        if (fi && fj) continue;
+        if (!fi) heights[i]--;
+        if (!fj) heights[j]++;
         eased = true;
       }
       if (!eased) break;
