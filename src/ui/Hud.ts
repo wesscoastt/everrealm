@@ -800,6 +800,7 @@ export class Hud {
 
   private pushLoot(line: HTMLElement): void {
     const box = this.q('#loot');
+    this.fitChat();
     box.prepend(line);
     while (box.children.length > 7) box.lastElementChild!.remove();
     setTimeout(() => line.remove(), 5000);
@@ -987,14 +988,19 @@ export class Hud {
    * The event panel and the quest tracker share the column under the minimap: while an event is
    * showing there, the tracker goes below it. (On a phone the event panel has its own corner.)
    */
-  /** Lift the chat box above the action bar wherever the two would overlap (any screen size, any bar). */
+  /**
+   * Lift the chat box above the action bar wherever the two would overlap (any screen size, any bar),
+   * and stack what you pick up (ore, loot, quest items) just above the chat box, never over it.
+   */
   private fitChat(): void {
-    const bar = document.getElementById('actionbar'), chat = document.getElementById('chatbox');
+    const bar = document.getElementById('actionbar'), chat = document.getElementById('chatbox'), loot = document.getElementById('loot');
+    if (loot) loot.style.bottom = '';
     if (!bar || !chat || document.body.classList.contains('touch')) return;
     chat.style.bottom = '';
     const b = bar.getBoundingClientRect(), c = chat.getBoundingClientRect();
     if (!b.width || !c.width) return;
     if (c.right > b.left - 8 && c.bottom > b.top - 8) chat.style.bottom = `${Math.ceil(window.innerHeight - b.top + 10)}px`;
+    if (loot) loot.style.bottom = `${Math.ceil(window.innerHeight - chat.getBoundingClientRect().top + 8)}px`;
   }
 
   private stackTracker(): void {
