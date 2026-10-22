@@ -404,25 +404,6 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   house({ x0: 199, z0: 190, w: 6, d: 6, floors: 1, roof: 'thatch', door: 'w', chimney: true });
   house({ x0: 197, z0: 200, w: 5, d: 5, floors: 1, roof: 'red', door: 'n' });
 
-  // Lanterns along the valley's roads and lanes beyond the village street, every 22 blocks
-  {
-    let side = 1;
-    for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
-      const [ax, az] = road[i], [bx, bz] = road[i + 1];
-      const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
-      for (let t = 11; t < len; t += 22) {
-        side = -side;
-        const cx = ax + ux * t, cz = az + uz * t;
-        if (cx > 112 && cx < 230 && cz > 170 && cz < 200) continue; // the village street has its own
-        const x = Math.floor(cx - uz * 2.6 * side) + 0.5, z = Math.floor(cz + ux * 2.6 * side) + 0.5;
-        if (ROADS.some((r) => distToPolyline(x, z, r).d < 1.8)) continue;
-        const y = ground(Math.floor(x), Math.floor(z));
-        if (y <= WATER_LEVEL + 1 || world.get(Math.floor(x), y, Math.floor(z)) !== B.Air || world.get(Math.floor(x), y - 1, Math.floor(z)) === B.Farmland) continue;
-        lantern(x, z, Math.atan2(-(cz - z), cx - x));
-      }
-    }
-  }
-
   // The waymark shrine on the north side of the square (its rune is lit by the game: Waymarks.ts)
   place(waymarkShrine(M, 'greenwake'), HOLLIN_SHRINE.x, HOLLIN_SHRINE.y, HOLLIN_SHRINE.z, HOLLIN_SHRINE.ry);
   for (const [dx, dz] of SHRINE_SOLID.greenwake.cells) barrier(Math.floor(HOLLIN_SHRINE.x) + dx, HOLLIN_SHRINE.y, Math.floor(HOLLIN_SHRINE.z) + dz, SHRINE_SOLID.greenwake.h);
@@ -618,6 +599,13 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   const MX = 112, MZ = 206;
   const mBase = ground(MX, MZ);
   mark(MX - 6, MZ - 6, MX + 6, MZ + 6);
+  // A stone footing under the whole round, down to the ground wherever it falls away, so the mill
+  // stands on the hill rather than over it
+  for (let z = MZ - 4; z <= MZ + 4; z++) for (let x = MX - 4; x <= MX + 4; x++) {
+    const d = Math.max(Math.abs(x - MX), Math.abs(z - MZ)) * 0.72 + Math.min(Math.abs(x - MX), Math.abs(z - MZ)) * 0.42;
+    if (d > 3.4) continue;
+    for (let y = ground(x, z); y < mBase; y++) world.put(x, y, z, B.StoneBrick);
+  }
   for (let y = mBase; y < mBase + 11; y++) {
     const r = 3.4 - (y - mBase) * 0.05;
     for (let z = MZ - 4; z <= MZ + 4; z++) for (let x = MX - 4; x <= MX + 4; x++) {
@@ -749,6 +737,26 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   poi.haverwood = new THREE.Vector3(250, 20, 230);
   poi.spill = new THREE.Vector3(96, 17, 118);
   poi.fallsHollow = new THREE.Vector3(94, 17, 88);
+
+  // Lanterns along the valley's roads and lanes beyond the village street, every 22 blocks. Set last,
+  // once the farms, gardens and yards are laid, so none stands where a field is dug round it later.
+  {
+    let side = 1;
+    for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
+      const [ax, az] = road[i], [bx, bz] = road[i + 1];
+      const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+      for (let t = 11; t < len; t += 22) {
+        side = -side;
+        const cx = ax + ux * t, cz = az + uz * t;
+        if (cx > 112 && cx < 230 && cz > 170 && cz < 200) continue; // the village street has its own
+        const x = Math.floor(cx - uz * 2.6 * side) + 0.5, z = Math.floor(cz + ux * 2.6 * side) + 0.5;
+        if (ROADS.some((r) => distToPolyline(x, z, r).d < 1.8)) continue;
+        const y = ground(Math.floor(x), Math.floor(z));
+        if (y <= WATER_LEVEL + 1 || world.get(Math.floor(x), y, Math.floor(z)) !== B.Air || world.get(Math.floor(x), y - 1, Math.floor(z)) === B.Farmland) continue;
+        lantern(x, z, Math.atan2(-(cz - z), cx - x));
+      }
+    }
+  }
 
   const built = batch.build(true);
   group.add(built);

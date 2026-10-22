@@ -131,6 +131,18 @@ for (const road of ROADS) for (const [px, pz] of road) {
   }
 }
 
+// ---- Buildings off the ground: a wall or a floor with a gap of air between it and the ground under it
+{
+  const BUILT = new Set<number>([B.StoneBrick, B.Plaster, B.Timber, B.Planks, B.DarkPlanks, B.Window, B.Thatch, B.MossyCobble]);
+  const GROUND = new Set<number>([B.Grass, B.Dirt, B.Stone, B.Sand, B.Gravel, B.Path, B.Clay, B.Farmland, B.Snow, B.SnowGrass]);
+  let gaps = 0;
+  for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) for (let y = 1; y < SY - 2; y++) {
+    if (grid.get(x, y, z) !== B.Air || !GROUND.has(grid.get(x, y - 1, z)) || !BUILT.has(grid.get(x, y + 1, z))) continue;
+    if (++gaps <= 25) problems.push(`a building stands off the ground at (${x}, ${y}, ${z})`);
+  }
+  if (gaps > 25) problems.push(`... and ${gaps - 25} more gaps under buildings`);
+}
+
 // ---- Blocks you can see resting on an invisible barrier (they look as if they float)
 for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) for (let y = 1; y < SY; y++) {
   const id = grid.get(x, y, z);
@@ -155,6 +167,17 @@ for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) for (let y = 1; y < SY
   }
   for (let y = 0; y < SY; y++) for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
     if (LEAF.has(grid.get(x, y, z)) && !seen[at(x, y, z)]) problems.push(`leaf floating at (${x}, ${y}, ${z}), on no tree`);
+  }
+}
+
+// ---- Tall props sunk in the ground or standing in water (a lamp post a field was dug round later)
+for (const { box } of placed) {
+  if (box.max.y - box.min.y < 1.5) continue;
+  const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+  if (cx < 0 || cz < 0 || cx >= SX || cz >= SZ) continue;
+  for (const dy of [0.05, 1.05]) {
+    const id = grid.get(Math.floor(cx), Math.floor(box.min.y + dy), Math.floor(cz));
+    if (id === B.Water || (isSolid(id) && id !== B.Barrier)) { problems.push(`prop sunk at (${cx.toFixed(1)}, ${box.min.y.toFixed(1)}, ${cz.toFixed(1)}): ${id === B.Water ? 'in water' : 'in the ground'}`); break; }
   }
 }
 

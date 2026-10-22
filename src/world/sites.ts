@@ -6,7 +6,7 @@ import { hash2 } from './noise';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
-import { CHUNK, chunkKey, inWorld, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
+import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 import { hazards, stamp } from '../data/hazards';
@@ -183,6 +183,56 @@ function clearRoads(O: Overrides, sites: Site[]): void {
     O.set(x, y, z, id === B.Farmland ? B.Path : B.Air);
   }
   for (const s of sites) s.props = s.props.filter((p) => !(ROAD_CLUTTER.has(p.t) && onRoad(p.x, p.z)));
+}
+
+/**
+ * Footings: wherever something built stands a block or two over dry ground (a platform laid level on a
+ * slope, a shrine's court at its downhill edge, a wall where a road was cut down beside it), the gap
+ * under it is filled, so nothing hangs in the air. Left alone: anything over a road (gate arches),
+ * over water (bridges, jetties), or in a doorway (walls either side of it, open through it).
+ */
+function footings(O: Overrides): void {
+  const BUILT = new Set<number>([B.StoneBrick, B.Plaster, B.Timber, B.Planks, B.DarkPlanks, B.Window, B.Thatch, B.MossyCobble, B.Cobble, B.MossyStone, B.TerraBrown, B.TerraCream]);
+  // The last write to each cell, as the game applies them
+  const last = new Map<number, number>();
+  const lowest = new Map<number, number>(); // column -> lowest built y
+  const col = (x: number, z: number) => (x - WMIN) + (z - WMIN) * KEY_W;
+  for (const [k, a] of O.map) {
+    const [cx, cz] = keyChunk(k);
+    for (let i = 0; i < a.length; i += 2) {
+      const li = a[i], x = cx * CHUNK + (li % CHUNK), z = cz * CHUNK + (Math.floor(li / CHUNK) % CHUNK), y = Math.floor(li / (CHUNK * CHUNK));
+      last.set(col(x, z) + y * KEY_W * KEY_W, a[i + 1]);
+    }
+  }
+  for (const [cell, id] of last) {
+    if (!BUILT.has(id)) continue;
+    const c = cell % (KEY_W * KEY_W), y = Math.floor(cell / (KEY_W * KEY_W));
+    if (y < (lowest.get(c) ?? Infinity)) lowest.set(c, y);
+  }
+  const at = (x: number, y: number, z: number) => last.get(col(x, z) + y * KEY_W * KEY_W);
+  const solidAt = (x: number, y: number, z: number) => {
+    const o = at(x, y, z);
+    if (o !== undefined) return o !== B.Air && o !== B.Water && !!BLOCKS[o]?.solid;
+    return y < heightAt(x, z);
+  };
+  for (const [c, y] of lowest) {
+    const x = (c % KEY_W) + WMIN, z = Math.floor(c / KEY_W) + WMIN;
+    if (x < GW + 40 && z < GW + 40) continue;
+    const h = heightAt(x, z);
+    if (h <= SEA + 1 || roadDist(x, z) < 2.4) continue;
+    let g = y - 1;
+    while (g >= 0 && !solidAt(x, g, z)) { if (at(x, g, z) === B.Water) { g = -99; break; } g--; }
+    const gap = y - 1 - g;
+    if (g < 0 || gap < 1 || gap > 2) continue;
+    // A doorway: wall either side along one line, and open in front and behind along the other, up
+    // past the lintel (a slot under a deck has the deck over it there)
+    const f = g + 1, wx = solidAt(x - 1, f, z) && solidAt(x + 1, f, z), wz = solidAt(x, f, z - 1) && solidAt(x, f, z + 1);
+    const open = (dx: number, dz: number) => !solidAt(x + dx, f, z + dz) && !solidAt(x + dx, y, z + dz);
+    if ((wx && open(0, -1) && open(0, 1)) || (wz && open(-1, 0) && open(1, 0))) continue;
+    const id = at(x, y, z)!;
+    const fill = id === B.Planks || id === B.DarkPlanks || id === B.Timber || id === B.Thatch || id === B.Plaster || id === B.Window ? B.Cobble : id;
+    for (let k = g + 1; k < y; k++) { O.set(x, k, z, fill); last.set(col(x, z) + k * KEY_W * KEY_W, fill); }
+  }
 }
 
 /** Where a road runs into a lake or over a river (the Turnpike over the Millpond, the Waystation road west):
@@ -463,6 +513,7 @@ export function plan(): Plan {
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
   const hz = hazards({ sites, waymarks, overrides: O });
   stamp(hz, O);
+  footings(O);
 
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
   // (trees keep off the hazards and the puzzles too)

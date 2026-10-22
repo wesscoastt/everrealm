@@ -146,10 +146,11 @@ export function fitOut(h: HouseShape): FitOut {
     const awayU = du < W / 2 ? rightU : leftU, nearU = du < W / 2 ? leftU : rightU;
     const towardsAway = du < W / 2 ? facing.right : facing.left; // faces into the room from the near side
     const awayFacing = du < W / 2 ? facing.left : facing.right;
-    // A lamp hung from the ceiling beam in the middle of each storey
-    const lc = F.cell(Math.floor(W / 2), Math.floor(D / 2));
-    out.lights.push([lc[0] + 0.5, y + 3.1, lc[1] + 0.5]);
-    out.furn.push({ item: 'lamp', x: lc[0] + 0.5, y: y + 3.9, z: lc[1] + 0.5, ry: 0 });
+    // A lamp hung in the middle of each storey: from the boards of the floor above, or under the top
+    // storey's roof from its beam
+    const lc = F.cell(Math.floor(W / 2), Math.floor(D / 2)), hang = f === h.floors - 1 ? 3.9 : 3;
+    out.lights.push([lc[0] + 0.5, y + hang - 0.8, lc[1] + 0.5]);
+    out.furn.push({ item: 'lamp', x: lc[0] + 0.5, y: y + hang, z: lc[1] + 0.5, ry: 0 });
 
     const ground = f === 0;
     const topFloor = f === h.floors - 1;

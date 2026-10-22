@@ -268,6 +268,9 @@ for (const s of P.sites) for (const p of s.props as PropDesc[]) {
   checked++;
   // A lamp on a two-high timber rail post: its lamp clears the post's top
   if (p.t === 'lantern' && cells.get(key(p.x, p.y, p.z)) === B.Timber && !wallAt(p.y + 2) && !wallAt(p.y + 3)) continue;
+  // ...or standing in water (a field or a ditch dug round it after it was set)
+  const wet = (y: number) => cells.get(key(p.x, y, p.z)) === B.Water;
+  if (p.t !== 'well' && (wet(p.y) || wet(p.y + 1))) problems.push(`${p.t} in ${s.id} at (${p.x.toFixed(1)}, ${p.y}, ${p.z.toFixed(1)}): standing in water`);
   if (wallAt(p.y) || wallAt(p.y + 1)) problems.push(`${p.t} in ${s.id} at (${p.x.toFixed(1)}, ${p.y}, ${p.z.toFixed(1)}): inside ${BLOCKS[cells.get(key(p.x, wallAt(p.y) ? p.y : p.y + 1, p.z))!]?.name}`);
 }
 
@@ -281,6 +284,33 @@ for (const [k, id] of cells) {
   if ((wall(1, 0) && wall(-1, 0)) || (wall(0, 1) && wall(0, -1))) continue;
   problems.push(`block on a barrier at (${x}, ${y}, ${z}): ${BLOCKS[id]?.name}`);
 }
+// Buildings off the ground: in every column the planner built in, the lowest wall or floor block must
+// sit on the ground or on something else built, not over a gap. (Decks over water are bridges and
+// jetties, three blocks up is an arch or a gallery, and higher is a roof or an upper floor.)
+{
+  const BUILT = new Set<number>([B.StoneBrick, B.Plaster, B.Timber, B.Planks, B.DarkPlanks, B.Window, B.Thatch, B.MossyCobble, B.Cobble, B.MossyStone, B.TerraBrown, B.TerraCream]);
+  const lowest = new Map<string, { x: number; y: number; z: number; id: number }>();
+  for (const [k, id] of cells) {
+    if (!BUILT.has(id)) continue;
+    const [x, y, z] = k.split(',').map(Number);
+    const col = `${x},${z}`, cur = lowest.get(col);
+    if (!cur || y < cur.y) lowest.set(col, { x, y, z, id });
+  }
+  const gaps: string[] = [];
+  for (const { x, y, z } of lowest.values()) {
+    if ((x < GW + 40 && z < GW + 40) || heightAt(x, z) <= SEA + 1) continue;
+    let g = y - 1;
+    while (g >= 0 && !solid(x, g, z)) { if (cells.get(key(x, g, z)) === B.Water) { g = -99; break; } g--; }
+    const gap = y - 1 - g;
+    // (a doorway, wall either side along one line and open across it, is meant to be open)
+    const f = g + 1, wx = solid(x - 1, f, z) && solid(x + 1, f, z), wz = solid(x, f, z - 1) && solid(x, f, z + 1);
+    const open = (dx: number, dz: number) => !solid(x + dx, f, z + dz) && !solid(x + dx, y, z + dz);
+    if ((wx && open(0, -1) && open(0, 1)) || (wz && open(-1, 0) && open(1, 0))) continue;
+    if (g >= 0 && gap >= 1 && gap <= 2) gaps.push(`a building stands ${gap} block${gap > 1 ? 's' : ''} off the ground at (${x}, ${y}, ${z})`);
+  }
+  if (gaps.length) problems.push(...gaps.slice(0, 40), ...(gaps.length > 40 ? [`... and ${gaps.length - 40} more`] : []));
+}
+
 console.log(`${checked} points checked across ${P.sites.length} sites.`);
 if (all && raised.length) { console.log(`\nStanding on something built (2-3 blocks up, usually a step, floor or jetty):`); for (const r of raised) console.log('  ' + r); }
 if (problems.length) { console.log(`\n${problems.length} problem(s):`); for (const p of problems) console.log('  ' + p); process.exitCode = 1; }
