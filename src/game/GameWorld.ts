@@ -11,11 +11,14 @@ import { BuiltSite, buildImpostor, buildSiteProps } from '../world/siteProps';
 import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
-import { coastDist, GW, SEA } from '../world/terrain';
+import { GW, landDist, SEA } from '../world/terrain';
 import { buildBlockTextureArray } from '../world/textures';
 import { Vegetation } from '../world/Vegetation';
-import { CHUNK, chunkKey, localIdx, SY, VoxelWorld, WMIN, WSIZE } from '../world/VoxelWorld';
+import { CHUNK, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMIN, WSIZE } from '../world/VoxelWorld';
 import { ChunkManager } from './ChunkManager';
+
+/** Blocks between the far terrain's samples: it's only seen past the near chunks, in the haze. */
+const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
 const LAMP_LIGHTS = 8, LAMP_REACH = 11, LAMP_POWER = 9;
@@ -54,7 +57,7 @@ export class GameWorld {
   readonly extraLamps: THREE.Vector3[] = [];
   private activeSites = new Map<string, BuiltSite>();
   private impostors = new Map<string, THREE.Group>();
-  private lod: THREE.Mesh | null = null;
+  private lod: THREE.Group | null = null;
   private lodUniforms = { uCenter: { value: new THREE.Vector2() }, uRadius: { value: 0 } };
   /** Fired when a streamed chunk arrives with creatures to place. */
   onChunk: ((cx: number, cz: number, r: ChunkResult | null) => void) | null = null;
@@ -90,9 +93,10 @@ export class GameWorld {
 
     this.gwMap = this.renderGreenwakeMap();
     this.mapImage = document.createElement('canvas');
-    // The explored map covers the whole world; world (x, z) is pixel (x - WMIN, z - WMIN)
-    this.mapImage.width = WSIZE;
-    this.mapImage.height = WSIZE;
+    // The explored map covers the whole world at MAP_SCALE blocks a pixel: world (x, z) is pixel
+    // ((x - WMIN) / MAP_SCALE, (z - WMIN) / MAP_SCALE)
+    this.mapImage.width = WSIZE / MAP_SCALE;
+    this.mapImage.height = WSIZE / MAP_SCALE;
     // Unexplored stays clear: the world map shows the Charter's chart there (see world/atlas.ts)
     this.mapCtx = this.mapImage.getContext('2d')!;
 
@@ -132,7 +136,7 @@ export class GameWorld {
       this.impostors.set(s.id, g);
       scene.add(g);
     }
-    this.chunks.requestLod(8).then((r) => this.buildLod(r));
+    this.chunks.requestLod(LOD_STEP).then((r) => this.buildLod(r));
   }
 
   // ---------------------------------------------------------------- Nodes
@@ -212,8 +216,17 @@ export class GameWorld {
   // ---------------------------------------------------------------- Map
   private paintTile(cx: number, cz: number, px: Uint8ClampedArray | null): void {
     this.explored.add(chunkKey(cx, cz));
-    if (px) this.mapCtx.putImageData(new ImageData(new Uint8ClampedArray(px), CHUNK, CHUNK), cx * CHUNK - WMIN, cz * CHUNK - WMIN);
-    else this.mapCtx.drawImage(this.gwMap, cx * CHUNK, cz * CHUNK, CHUNK, CHUNK, cx * CHUNK - WMIN, cz * CHUNK - WMIN, CHUNK, CHUNK);
+    const S = MAP_SCALE, n = CHUNK / S, ox = (cx * CHUNK - WMIN) / S, oz = (cz * CHUNK - WMIN) / S;
+    if (px) {
+      // Each pixel of the map is the average of the S x S blocks under it
+      const out = new Uint8ClampedArray(n * n * 4);
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) for (let c = 0; c < 4; c++) {
+        let sum = 0;
+        for (let dj = 0; dj < S; dj++) for (let di = 0; di < S; di++) sum += px[((j * S + dj) * CHUNK + i * S + di) * 4 + c];
+        out[(j * n + i) * 4 + c] = sum / (S * S);
+      }
+      this.mapCtx.putImageData(new ImageData(out, n, n), ox, oz);
+    } else this.mapCtx.drawImage(this.gwMap, cx * CHUNK, cz * CHUNK, CHUNK, CHUNK, ox, oz, n, n);
   }
 
   private renderGreenwakeMap(): HTMLCanvasElement {
@@ -246,7 +259,7 @@ export class GameWorld {
   // ---------------------------------------------------------------- Far terrain
   private buildLod(r: { heights: Float32Array; colors: Uint8Array; n: number }): void {
     const { heights, colors, n } = r;
-    const step = 8;
+    const step = LOD_STEP;
     // The authored vale's heights come from its grid
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
       const x = WMIN + i * step, z = WMIN + j * step;
@@ -264,39 +277,57 @@ export class GameWorld {
     for (let j = 1; j < n - 1; j++) for (let i = 1; i < n - 1; i++) {
       const k = i + j * n;
       if (heights[k] > SEA && heights[k - 1] <= SEA && heights[k + 1] <= SEA && heights[k - n] <= SEA && heights[k + n] <= SEA) heights[k] = SEA - 1;
-      // Out past the coast every stack is a stray: the far terrain is open sea there
-      else if (heights[k] > SEA && coastDist(WMIN + i * 8, WMIN + j * 8) < 0) heights[k] = SEA - 1;
+      // Out at sea every stack is a stray: the far terrain is open water there
+      else if (heights[k] > SEA && landDist(WMIN + i * step, WMIN + j * step) < 0) heights[k] = SEA - 1;
     }
-    const pos: number[] = [], col: number[] = [], nor: number[] = [];
-    const quad = (a: number[], b: number[], c: number[], d: number[], cr: number, cg: number, cb: number, nx: number, ny: number, nz: number) => {
-      pos.push(...a, ...b, ...c, ...a, ...c, ...d);
-      for (let k = 0; k < 6; k++) { col.push(cr, cg, cb); nor.push(nx, ny, nz); }
-    };
     const H = (i: number, j: number) => {
       const h = heights[Math.min(n - 1, Math.max(0, i)) + Math.min(n - 1, Math.max(0, j)) * n];
       return h <= SEA ? SEA - 0.3 : Math.round(h) - 1.2;
     };
-    for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {
-      const x0 = WMIN + i * step, z0 = WMIN + j * step, x1 = x0 + step, z1 = z0 + step;
-      const h = H(i, j);
-      const o = (i + j * n) * 3;
-      const water = heights[i + j * n] <= SEA;
-      const cr = water ? 0.24 : colors[o] / 255, cg = water ? 0.47 : colors[o + 1] / 255, cb = water ? 0.66 : colors[o + 2] / 255;
-      quad([x0, h, z1], [x1, h, z1], [x1, h, z0], [x0, h, z0], cr, cg, cb, 0, 1, 0);
-      // Stepped walls toward lower neighbours: far terrain keeps the block silhouette
-      const e = H(i + 1, j), s = H(i, j + 1), w = H(i - 1, j), nn = H(i, j - 1);
-      const k = 0.68;
-      if (e < h) quad([x1, e, z1], [x1, e, z0], [x1, h, z0], [x1, h, z1], cr * k, cg * k, cb * k, 1, 0, 0);
-      if (w < h) quad([x0, w, z0], [x0, w, z1], [x0, h, z1], [x0, h, z0], cr * k, cg * k, cb * k, -1, 0, 0);
-      if (s < h) quad([x0, s, z1], [x1, s, z1], [x1, h, z1], [x0, h, z1], cr * 0.8, cg * 0.8, cb * 0.8, 0, 0, 1);
-      if (nn < h) quad([x1, nn, z0], [x0, nn, z0], [x0, h, z0], [x1, h, z0], cr * 0.8, cg * 0.8, cb * 0.8, 0, 0, -1);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    g.computeBoundingSphere();
+    // Land in tiles of TILE x TILE samples, so whatever is off screen isn't drawn; all the water,
+    // sea and lakes alike, is one flat sheet underneath
+    const TILE = 64;
+    const group = new THREE.Group();
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const addMesh = (pos: number[], col: number[], nor: number[]) => {
+      if (!pos.length) return;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      // Colours and normals as bytes: the far terrain is a lot of vertices, and phones have little memory
+      g.setAttribute('normal', new THREE.BufferAttribute(Int8Array.from(nor, (v) => Math.round(v * 127)), 3, true));
+      g.setAttribute('color', new THREE.BufferAttribute(Uint8Array.from(col, (v) => Math.round(Math.max(0, Math.min(1, v)) * 255)), 3, true));
+      g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, mat);
+      m.receiveShadow = false;
+      group.add(m);
+    };
+    for (let tj = 0; tj < n - 1; tj += TILE) for (let ti = 0; ti < n - 1; ti += TILE) {
+      const pos: number[] = [], col: number[] = [], nor: number[] = [];
+      const quad = (a: number[], b: number[], c: number[], d: number[], cr: number, cg: number, cb: number, nx: number, ny: number, nz: number) => {
+        pos.push(...a, ...b, ...c, ...a, ...c, ...d);
+        for (let k = 0; k < 6; k++) { col.push(cr, cg, cb); nor.push(nx, ny, nz); }
+      };
+      for (let j = tj; j < Math.min(n - 1, tj + TILE); j++) for (let i = ti; i < Math.min(n - 1, ti + TILE); i++) {
+        if (heights[i + j * n] <= SEA) continue;
+        const x0 = WMIN + i * step, z0 = WMIN + j * step, x1 = x0 + step, z1 = z0 + step;
+        const h = H(i, j);
+        const o = (i + j * n) * 3;
+        const cr = colors[o] / 255, cg = colors[o + 1] / 255, cb = colors[o + 2] / 255;
+        quad([x0, h, z1], [x1, h, z1], [x1, h, z0], [x0, h, z0], cr, cg, cb, 0, 1, 0);
+        // Stepped walls toward lower neighbours: far terrain keeps the block silhouette
+        const e = H(i + 1, j), s = H(i, j + 1), w = H(i - 1, j), nn = H(i, j - 1);
+        const k = 0.68;
+        if (e < h) quad([x1, e, z1], [x1, e, z0], [x1, h, z0], [x1, h, z1], cr * k, cg * k, cb * k, 1, 0, 0);
+        if (w < h) quad([x0, w, z0], [x0, w, z1], [x0, h, z1], [x0, h, z0], cr * k, cg * k, cb * k, -1, 0, 0);
+        if (s < h) quad([x0, s, z1], [x1, s, z1], [x1, h, z1], [x0, h, z1], cr * 0.8, cg * 0.8, cb * 0.8, 0, 0, 1);
+        if (nn < h) quad([x1, nn, z0], [x0, nn, z0], [x0, h, z0], [x1, h, z0], cr * 0.8, cg * 0.8, cb * 0.8, 0, 0, -1);
+      }
+      addMesh(pos, col, nor);
+    }
+    {
+      const y = SEA - 0.3, a = WMIN, b = WMIN + WSIZE, cr = 0.24, cg = 0.47, cb = 0.66;
+      addMesh([a, y, b, b, y, b, b, y, a, a, y, b, b, y, a, a, y, a], Array(6).fill([cr, cg, cb]).flat(), Array(6).fill([0, 1, 0]).flat());
+    }
     mat.onBeforeCompile = (s) => {
       s.uniforms.uCenter = this.lodUniforms.uCenter;
       s.uniforms.uRadius = this.lodUniforms.uRadius;
@@ -307,9 +338,7 @@ export class GameWorld {
         .replace('#include <common>', '#include <common>\nvarying vec2 vLodXZ;\nuniform vec2 uCenter;\nuniform float uRadius;')
         .replace('void main() {', 'void main() {\n  if (distance(vLodXZ, uCenter) < uRadius) discard;');
     };
-    this.lod = new THREE.Mesh(g, mat);
-    this.lod.frustumCulled = false;
-    this.lod.receiveShadow = false;
+    this.lod = group;
     this.scene.add(this.lod);
   }
 

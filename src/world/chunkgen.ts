@@ -1,10 +1,13 @@
 import { B, isLeaves } from './blocks';
 import { growTree, TreeKind } from './generate';
-import { hash2 } from './noise';
+import { fbm2, hash2 } from './noise';
 import { chunkRects, inRects, plan, safeZones } from './sites';
 import { columnBlocks, columnNoise, deepBlock, GW, heightAt, regionAt, RegionId, RegionSample, REGION_INFO, roadDist, SEA, tintAt } from './terrain';
 import { CHUNK, chunkKey, localIdx, SY, WMIN, WSIZE } from './VoxelWorld';
 import { createSeededRandom } from '../utils/random';
+
+/** 0 in open country, 1 in the middle of a copse (the outer lands' patches of woodland). */
+const smoothCopse = (x: number, z: number) => { const v = fbm2(x / 140, z / 140, 2, 760); return v < 0.6 ? 0 : v > 0.7 ? 1 : (v - 0.6) / 0.1; };
 
 // Generates one streamed chunk outside Hollindale. Pure and deterministic: every worker produces
 // identical blocks for the same chunk.
@@ -104,6 +107,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   const ORE_TABLE: Record<RegionId, [GenOre['kind'], number][]> = {
     greenwake: [], crownroad: [['tin', 0.0025], ['copper', 0.0015]], brambledeep: [['silver', 0.0015], ['copper', 0.0015]],
     saltwind: [['tin', 0.003], ['iron', 0.0015]], redstone: [['copper', 0.004], ['iron', 0.0045]], starfall: [['iron', 0.003], ['silver', 0.002]],
+    gannet: [['tin', 0.002], ['copper', 0.0015]], wrath: [], tolmen: [['tin', 0.003], ['silver', 0.0025], ['iron', 0.002]],
   };
   const ORE_BLOCK: Record<GenOre['kind'], number> = { copper: B.CopperOre, tin: B.TinOre, silver: B.SilverOre, iron: B.IronOre, crystal: B.Crystal };
   for (let lz = 0; lz < CHUNK; lz++) for (let lx = 0; lx < CHUNK; lx++) {
@@ -153,9 +157,11 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     const reg = regionAt(x, z).a;
     const h = hAt(x, z);
     if (h <= SEA + 1) continue;
-    const density: Record<RegionId, number> = { greenwake: 0.1, crownroad: 0.07, brambledeep: 0.7, saltwind: 0.12, redstone: 0.03, starfall: 0.3 };
+    const density: Record<RegionId, number> = { greenwake: 0.1, crownroad: 0.07, brambledeep: 0.7, saltwind: 0.12, redstone: 0.03, starfall: 0.3, gannet: 0.04, wrath: 0.06, tolmen: 0.03 };
     const forest = hash2(Math.floor(x / 60), Math.floor(z / 60), 712) * 0.18;
-    if (hash2(gx, gz, 713) > density[reg] + (reg === 'crownroad' || reg === 'saltwind' ? forest : 0)) continue;
+    // The outer lands grow their trees in copses: beech hangers on the downs, willow clumps in the marsh, stands on the moor
+    const copse = reg === 'gannet' || reg === 'wrath' || reg === 'tolmen' ? smoothCopse(x, z) * (reg === 'gannet' ? 0.55 : reg === 'wrath' ? 0.3 : 0.18) : 0;
+    if (hash2(gx, gz, 713) > density[reg] + copse + (reg === 'crownroad' || reg === 'saltwind' ? forest : 0)) continue;
     let steep = 0;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) steep = Math.max(steep, Math.abs(h - hAt(x + dx, z + dz)));
     if (steep > 1) continue;
@@ -167,6 +173,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     else if (reg === 'brambledeep') kind = k < 0.12 && gx % 3 === 0 && gz % 3 === 0 ? 'giant' : k < 0.3 ? 'birch' : 'oak';
     else if (reg === 'saltwind') kind = k < 0.6 ? 'pine' : 'oak';
     else if (reg === 'redstone') kind = 'pine';
+    else if (reg === 'wrath') kind = 'birch';
     else kind = k < 0.25 ? 'birch' : 'oak';
     if (h > 66) continue;
     candidates.push({ x, z, kind, seed: Math.floor(hash2(x, z, 715) * 1e9) });
@@ -260,7 +267,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     const r = hash2(x, z, 909), r2 = hash2(x, z, 910);
     const t = tint.subarray((lz * CHUNK + lx) * 6);
     if (id === B.Grass || id === B.SnowGrass || id === B.Loam) {
-      const dens: Record<RegionId, number> = { greenwake: 0.4, crownroad: 0.42, brambledeep: 0.55, saltwind: 0.38, redstone: 0.18, starfall: 0.22 };
+      const dens: Record<RegionId, number> = { greenwake: 0.4, crownroad: 0.42, brambledeep: 0.55, saltwind: 0.38, redstone: 0.18, starfall: 0.22, gannet: 0.42, wrath: 0.6, tolmen: 0.3 };
       if (r < dens[reg] && id !== B.SnowGrass) {
         const tall = r2 < (reg === 'brambledeep' ? 0.55 : 0.18);
         veg.push(x + 0.2 + r * 0.6, y + 1, z + 0.2 + r2 * 0.6, tall ? 1 : 0, 0.9 + r2 * 0.5, r * 6.28, t[0], t[1], t[2]);

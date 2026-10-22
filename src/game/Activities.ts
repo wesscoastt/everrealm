@@ -6,7 +6,7 @@ import { ITEMS } from '../data/items';
 import { Enemy } from '../entities/Enemy';
 import type { MapMarker } from '../ui/Hud';
 import { plan, Site } from '../world/sites';
-import { REGION_INFO } from '../world/terrain';
+import { REGION_INFO, RegionId } from '../world/terrain';
 import { Tasks } from './Tasks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
@@ -420,7 +420,7 @@ export class Activities {
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === reg);
     const items: string[] = [];
     if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
-    const mats: Record<string, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal' };
+    const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'boar_hide', wrath: 'jelly_residue', tolmen: 'iron_ore' };
     items.push(mats[reg], mats[reg]);
     this.host.reward(big ? 900 : 450, big ? 60 : 30, items, `The chest in ${s.name}`);
     this.host.sound('open');

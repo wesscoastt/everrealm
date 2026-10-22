@@ -10,6 +10,7 @@ export interface Place { id: string; name: string; sub: string; x: number; z: nu
 const REGION_LABELS: Record<RegionId, [number, number]> = {
   greenwake: [150, 140], crownroad: [700, 210], brambledeep: [270, 760], saltwind: [1560, 470],
   redstone: [1060, 1120], starfall: [760, 1820],
+  gannet: [500, -1100], wrath: [-1250, 900], tolmen: [700, 3050],
 };
 
 let cache: Place[] | null = null;

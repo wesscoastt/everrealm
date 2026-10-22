@@ -4,7 +4,7 @@ import { activeSet, GEAR_SETS, ITEMS, RARITY_COLOR, SkillId } from '../data/item
 import { levelForXp, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
-import { WMIN } from '../world/VoxelWorld';
+import { MAP_SCALE, WMIN, WSIZE } from '../world/VoxelWorld';
 import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
@@ -959,13 +959,12 @@ export class Hud {
     c.save();
     c.translate(R, R); c.rotate(rot); c.scale(k, k); c.translate(-px, -pz);
     c.imageSmoothingEnabled = true;
-    const chart = continentChart(), cs = this.ctx.mapImage.width / chart.width;
-    c.drawImage(chart, WMIN, WMIN, chart.width * cs, chart.height * cs);
+    c.drawImage(continentChart(), WMIN, WMIN, WSIZE, WSIZE);
     c.fillStyle = 'rgba(236, 222, 186, 0.35)';
     c.fillRect(px - 400, pz - 400, 800, 800);
     c.imageSmoothingEnabled = k < 2.5;
     const span = (W / k) * 1.5;
-    c.drawImage(this.ctx.mapImage, px - span / 2 - WMIN, pz - span / 2 - WMIN, span, span, px - span / 2, pz - span / 2, span, span);
+    c.drawImage(this.ctx.mapImage, (px - span / 2 - WMIN) / MAP_SCALE, (pz - span / 2 - WMIN) / MAP_SCALE, span / MAP_SCALE, span / MAP_SCALE, px - span / 2, pz - span / 2, span, span);
     c.restore();
     // Inner shadow at the rim
     const vg = c.createRadialGradient(R, R, R * 0.62, R, R, R);
@@ -1515,7 +1514,7 @@ export class Hud {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const cw = Math.max(200, Math.round(body.clientWidth * dpr)), ch = Math.max(200, Math.round(body.clientHeight * dpr));
     if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
-    const WORLD = this.ctx.mapImage.width;
+    const WORLD = WSIZE;
     const kMin = Math.min(cw, ch) / WORLD * 0.92, kMax = 7 * dpr;
     const markers = this.ctx.mapMarkers();
     const me = markers.find((m) => m.kind === 'player');
@@ -1749,7 +1748,7 @@ export class Hud {
       if (wm) { this.offerWaymark(wm.id, wm.name); return; }
       // Tapping the waypoint again takes it away (a finger has no right button)
       if (this.pin && Math.hypot(this.pin.x - wx, this.pin.z - wz) * V.k / V.dpr < 16) { this.pin = null; this.ctx.sfx('click'); return; }
-      if (wx >= WMIN && wz >= WMIN && wx < WMIN + this.ctx.mapImage.width && wz < WMIN + this.ctx.mapImage.height) { this.pin = { x: wx, z: wz }; this.ctx.sfx('click'); }
+      if (wx >= WMIN && wz >= WMIN && wx < WMIN + WSIZE && wz < WMIN + WSIZE) { this.pin = { x: wx, z: wz }; this.ctx.sfx('click'); }
     });
     c.addEventListener('contextmenu', (e) => { e.preventDefault(); this.pin = null; });
     return c;

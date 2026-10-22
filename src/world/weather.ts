@@ -26,8 +26,11 @@ const CLIMATE: Record<RegionId, Climate> = {
   saltwind: { wet: 0.32, grey: 0.25, mist: 0.4, fret: true },
   redstone: { wet: 0.05, grey: 0.15, mist: 0.1 },
   starfall: { wet: 0.38, grey: 0.25, snow: true, mist: 0.3 },
+  gannet: { wet: 0.26, grey: 0.3, mist: 0.35, fret: true },
+  wrath: { wet: 0.3, grey: 0.35, mist: 0.85, fret: true },
+  tolmen: { wet: 0.42, grey: 0.4, mist: 0.7 },
 };
-const REGION_N: Record<RegionId, number> = { greenwake: 1, crownroad: 2, brambledeep: 3, saltwind: 4, redstone: 5, starfall: 6 };
+const REGION_N: Record<RegionId, number> = { greenwake: 1, crownroad: 2, brambledeep: 3, saltwind: 4, redstone: 5, starfall: 6, gannet: 7, wrath: 8, tolmen: 9 };
 
 function hash(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;

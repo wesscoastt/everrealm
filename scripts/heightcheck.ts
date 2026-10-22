@@ -5,7 +5,8 @@
 // Samples every fourth block over the world as it stood before the expansion (-384..2432 on both
 // axes): the ground you stand on (after the planner's flattening round sites), the region and its
 // blend, and whether a road or a river runs there. Open sea more than 120 blocks from any land is
-// left out, so new isles may rise there; everything else has to come out the same.
+// left out, so new isles may rise there; everything else has to come out the same (deep water: its
+// depth only).
 
 import zlib from 'node:zlib';
 import fs from 'node:fs';
@@ -59,7 +60,9 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   if (!guard[k]) continue;
   guarded++;
   const o = k * 3;
-  if (base[o] === cur[o] && base[o + 1] === cur[o + 1] && base[o + 2] === cur[o + 2]) continue;
+  // Deep water (more than four blocks down) only has to keep its depth: its region just picks sand or gravel for a floor nobody stands on
+  const deep = base[o] < SEA - 4;
+  if (base[o] === cur[o] && (deep || (base[o + 1] === cur[o + 1] && base[o + 2] === cur[o + 2]))) continue;
   changed++;
   const x = X0 + i * S + 2, z = X0 + j * S + 2;
   const key = `${Math.floor(x / 64) * 64},${Math.floor(z / 64) * 64}`;
@@ -71,5 +74,5 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
 console.log(`${guarded} samples of today's land and shore checked.`);
 if (!changed) { console.log('No change.'); process.exit(0); }
 console.log(`${changed} changed, in ${tiles.size} tiles of 64 blocks:`);
-for (const [k, t] of [...tiles].sort((a, b) => b[1].n - a[1].n).slice(0, 40)) console.log(`  tile ${k}: ${t.n} samples, e.g. (${t.x}, ${t.z}) was ${t.was}, now ${t.now}`);
+for (const [k, t] of [...tiles].sort((a, b) => b[1].n - a[1].n).slice(0, 400)) console.log(`  tile ${k}: ${t.n} samples, e.g. (${t.x}, ${t.z}) was ${t.was}, now ${t.now}`);
 process.exit(1);

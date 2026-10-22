@@ -3,7 +3,7 @@ import { FIGURE } from '../entities/humanoid';
 import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
 import { Activities } from './Activities';
-import { legacyChunkKey } from '../world/VoxelWorld';
+import { legacyChunkKey, v2ChunkKey } from '../world/VoxelWorld';
 import { createRenderer } from '../core/Renderer';
 import { DIALOGUE, READABLES } from '../data/dialogue';
 import {
@@ -48,7 +48,7 @@ import { Interactable } from '../world/structures';
 import { DialogueTree, DNode, GameApi } from './api';
 import { GameWorld } from './GameWorld';
 import { places } from '../data/places';
-import { coastX, heightAt, regionAt, REGION_INFO, riverDist } from '../world/terrain';
+import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist } from '../world/terrain';
 import { weatherAt } from '../world/weather';
 import type { ChunkResult } from '../world/chunkgen';
 import { chunkKey } from '../world/VoxelWorld';
@@ -76,6 +76,11 @@ type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
 
 /** Where the selected or new character stands on the menus, and the way the camera looks at them. */
 const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() };
+/** The music for each region; the outer lands borrow a neighbour's until their own is written. */
+const REGION_THEME: Record<RegionId, ThemeId> = {
+  greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
+  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall',
+};
 
 /** Where townsfolk walk, and how many of them, busiest in the capital. */
 function crowdZones(): CrowdZone[] {
@@ -1161,8 +1166,10 @@ export class Game implements GameApi {
     this.front.hide();
     const [sx, , sz] = this.save.pos;
     this.player.teleport(this.save.pos[0], this.save.pos[1], this.save.pos[2]);
-    // Explored chunks saved before the world grew past 0 use the old chunk keys
-    if (!this.flag('mapV2')) { this.save.explored = this.save.explored?.map(legacyChunkKey); this.setFlag('mapV2'); }
+    // Explored chunks are saved by chunk key, and a key depends on the world's size: convert saves
+    // from before the world grew past 0, and from before the outer lands
+    if (!this.flag('mapV2')) { this.save.explored = this.save.explored?.map(legacyChunkKey); this.setFlag('mapV2'); this.setFlag('mapV3'); }
+    else if (!this.flag('mapV3')) { this.save.explored = this.save.explored?.map(v2ChunkKey); this.setFlag('mapV3'); }
     if (this.save.explored?.length) this.world.chunks.queueMapTiles(this.save.explored);
     const worn = this.flag('title') as string | undefined;
     this.hud.setTitle(worn ? FEATS.find((f) => f.id === worn)?.title ?? null : null);
@@ -3012,7 +3019,7 @@ export class Game implements GameApi {
   private regionTheme(): ThemeId {
     const p = this.player.position;
     const r = regionAt(p.x, p.z);
-    return (r.t < 0.35 ? r.a : r.b) as ThemeId;
+    return REGION_THEME[r.t < 0.35 ? r.a : r.b];
   }
 
   private inCombat(): boolean {

@@ -5,7 +5,7 @@ import { hash2 } from './noise';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
-import { CHUNK, chunkKey, inWorld, localIdx, SY, WMIN, WX, WZ } from './VoxelWorld';
+import { CHUNK, chunkKey, inWorld, localIdx, SY, WMIN } from './VoxelWorld';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 
@@ -87,6 +87,11 @@ const UNDERWORKS = {
   hob: { pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
 
+/** Row width for a cell's key: wider than the world, so no two cells share one. */
+const KEY_W = 8192;
+/** The world's edge before the outer lands were grown: the scattered places keep to it, so each keeps its number. */
+const OLD_EDGE = 2432;
+
 /** Per-chunk list of [localIndex, blockId, ...] written in order after terrain. */
 export class Overrides {
   readonly map = new Map<number, number[]>();
@@ -95,7 +100,7 @@ export class Overrides {
   set(x: number, y: number, z: number, id: number): void {
     x = Math.floor(x); z = Math.floor(z); y = Math.floor(y);
     if (!inWorld(x, z) || y < 0 || y >= SY) return;
-    const cell = (x - WMIN) + (z - WMIN) * 4096 + y * 4096 * 4096;
+    const cell = (x - WMIN) + (z - WMIN) * KEY_W + y * KEY_W * KEY_W;
     if (id === B.Farmland || id === B.Barrier) this.soft.set(cell, id);
     else if (this.soft.has(cell)) this.soft.delete(cell);
     const k = chunkKey(x >> 5, z >> 5);
@@ -128,7 +133,7 @@ const ROAD_CLUTTER = new Set<PropType>(['cart', 'barrel', 'crate', 'bench', 'fen
 function clearRoads(O: Overrides, sites: Site[]): void {
   const onRoad = (x: number, z: number) => !(x < GW + 40 && z < GW + 40) && roadDist(x, z) < 1.7 && heightAt(x, z) > SEA;
   for (const [cell, id] of [...O.soft]) {
-    const x = (cell % 4096) + WMIN, z = (Math.floor(cell / 4096) % 4096) + WMIN, y = Math.floor(cell / (4096 * 4096));
+    const x = (cell % KEY_W) + WMIN, z = (Math.floor(cell / KEY_W) % KEY_W) + WMIN, y = Math.floor(cell / (KEY_W * KEY_W));
     if (!onRoad(x, z)) continue;
     O.set(x, y, z, id === B.Farmland ? B.Path : B.Air);
   }
@@ -237,7 +242,7 @@ export function plan(): Plan {
   // ---------------------------------------------------------------- Scattered points of interest
   const pois: { x: number; z: number; kind: string; region: RegionId }[] = [];
   const CELL = 176;
-  for (let cz = 0; cz < WZ / CELL; cz++) for (let cx = 0; cx < WX / CELL; cx++) {
+  for (let cz = 0; cz < OLD_EDGE / CELL; cz++) for (let cx = 0; cx < OLD_EDGE / CELL; cx++) {
     if (hash2(cx, cz, 501) > 0.8) continue;
     let x = Math.floor(cx * CELL + 30 + hash2(cx, cz, 502) * (CELL - 60));
     let z = Math.floor(cz * CELL + 30 + hash2(cx, cz, 503) * (CELL - 60));
@@ -249,7 +254,7 @@ export function plan(): Plan {
       if (m < 9) { if (m === d[0]) x = W.x0 - 18; else if (m === d[1]) x = W.x1 + 18; else if (m === d[2]) z = W.z0 - 18; else z = W.z1 + 18; }
     }
     if (x < GW + 40 && z < GW + 40) continue;
-    if (x > 1800 || z < 50 || x < 50 || z > WZ - 60) continue;
+    if (x > 1800 || z < 50 || x < 50 || z > OLD_EDGE - 60) continue;
     const reg = regionAt(x, z).a;
     const h = baseHeight(x, z);
     if (h <= SEA + 1 || roadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
@@ -257,6 +262,7 @@ export function plan(): Plan {
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
+      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'],
     };
     const list = kinds[reg];
     const kind = list[Math.floor(hash2(cx, cz, 504) * list.length)];

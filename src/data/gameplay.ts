@@ -264,6 +264,10 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
   saltwind: { enemies: ['crab', 'brinejelly'], animals: ['rabbit'] },
   redstone: { enemies: ['dustwolf', 'redback'], animals: ['rabbit'] },
   starfall: { enemies: ['frostwolf', 'shardjelly'], animals: ['deer'] },
+  // The outer lands: borrowed creatures of the right levels until their own are written
+  gannet: { enemies: ['boar', 'roadwolf', 'crab'], animals: ['sheep', 'rabbit'] },
+  wrath: { enemies: ['brinejelly', 'sporejelly', 'thornwolf'], animals: ['rabbit'] },
+  tolmen: { enemies: ['frostwolf', 'shardjelly'], animals: ['sheep', 'deer'] },
 };
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [

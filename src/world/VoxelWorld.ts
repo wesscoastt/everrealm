@@ -5,12 +5,15 @@ import { B, isSolid } from './blocks';
 // is only ever seen by entities far outside the loaded radius.
 
 /**
- * The world spans WMIN..WMAX blocks on both axes: the continent (the old 0..2048 square and the
- * land grown past its edges) and the sea all round it. Coordinates can be negative.
+ * The world spans WMIN..WMAX blocks on both axes: the heartland (the old 0..2048 square and the
+ * land grown past its edges), the outer lands across the sound, and the sea all round. Coordinates
+ * can be negative.
  */
-export const WMIN = -384;
-export const WMAX = 2432;
+export const WMIN = -2304;
+export const WMAX = 4096;
 export const WSIZE = WMAX - WMIN;
+/** Blocks to a pixel of the explored map (one picture of the whole world, kept in memory). */
+export const MAP_SCALE = 2;
 /** Upper bounds (exclusive) on x and z. */
 export const WX = WMAX;
 export const WZ = WMAX;
@@ -28,6 +31,8 @@ export const inWorld = (x: number, z: number) => x >= WMIN && z >= WMIN && x < W
 export const chunkInWorld = (cx: number, cz: number) => cx >= CMIN && cz >= CMIN && cx < CMAX && cz < CMAX;
 /** Chunk keys saved before the world grew past 0 (a 64-chunk square from the origin). */
 export const legacyChunkKey = (key: number) => chunkKey(key % 64, Math.floor(key / 64));
+/** Chunk keys saved before the outer lands (the world was -384..2432: chunks -12..76, 88 a row). */
+export const v2ChunkKey = (key: number) => chunkKey((key % 88) - 12, Math.floor(key / 88) - 12);
 export const localIdx = (lx: number, y: number, lz: number) => lx + CHUNK * (lz + CHUNK * y);
 
 export interface RayHit {

@@ -53,7 +53,7 @@ const MAX_SAVE = 512_000;
 const CHAT_GAP_MS = 600;
 const SESSION_DAYS = 60;
 const MAX_CHARS = 6;
-const WORLD = [-384, 2432];
+const WORLD = [-2304, 4096]; // the world's edges on x and z (src/world/VoxelWorld.ts)
 const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 

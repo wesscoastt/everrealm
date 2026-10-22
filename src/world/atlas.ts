@@ -15,12 +15,15 @@ const INK: Record<RegionId, [number, number, number]> = {
   saltwind: [206, 192, 150],
   redstone: [192, 132, 92],
   starfall: [176, 182, 194],
+  gannet: [172, 192, 128],
+  wrath: [146, 156, 110],
+  tolmen: [158, 130, 128],
 };
 
 let chart: HTMLCanvasElement | null = null;
 
-/** Covers the whole world, WMIN..WMAX on both axes, at eight blocks a pixel. */
-export function continentChart(size = WSIZE / 8): HTMLCanvasElement {
+/** Covers the whole world, WMIN..WMAX on both axes, at sixteen blocks a pixel. */
+export function continentChart(size = WSIZE / 16): HTMLCanvasElement {
   if (chart) return chart;
   const step = WSIZE / size;
   const h = new Float32Array(size * size);
@@ -54,8 +57,8 @@ export function continentChart(size = WSIZE / 8): HTMLCanvasElement {
       const shade = Math.max(-0.35, Math.min(0.35, (ht - west + ht - north) * 0.05));
       const lift = Math.min(0.35, Math.max(0, (ht - 40) / 140));
       r = r * (1 + shade) + (255 - r) * lift; g = g * (1 + shade) + (255 - g) * lift; b = b * (1 + shade) + (255 - b) * lift;
-      if (riverDist(wx, wz) < 3.5 || lakeDist(wx, wz) < 1) { r = 104; g = 146; b = 170; }
-      else if (roadDist(wx, wz) < 2.2 && (i + j) % 3 !== 0) { r = 122; g = 92; b = 58; }
+      if (riverDist(wx, wz) < step * 0.44 || lakeDist(wx, wz) < 1) { r = 104; g = 146; b = 170; }
+      else if (roadDist(wx, wz) < step * 0.28 && (i + j) % 3 !== 0) { r = 122; g = 92; b = 58; }
     }
     // Paper grain
     const n = (rnd() - 0.5) * 10;
