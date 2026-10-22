@@ -128,7 +128,8 @@ const FILL_MS = 90;
 
 export class Dungeons {
   run: Run | null = null;
-  queued: { dungeon: string; since: number; count: number } | null = null;
+  /** In the realm's queue (heard: the server has answered since). */
+  queued: { dungeon: string; since: number; count: number; heard?: boolean } | null = null;
   private clock = 0;
   private qT = 0;
 
@@ -202,8 +203,8 @@ export class Dungeons {
   /** The server: how the queue stands (null: you're out of it). */
   onQueue(dungeon: string | null, count: number): void {
     if (!dungeon) { this.queued = null; this.host.refresh(); return; }
-    if (this.queued && this.queued.dungeon === dungeon) this.queued.count = count;
-    else this.queued = { dungeon, since: this.clock, count };
+    if (this.queued && this.queued.dungeon === dungeon) { this.queued.count = count; this.queued.heard = true; }
+    else this.queued = { dungeon, since: this.clock, count, heard: true };
     this.host.refresh();
   }
 
@@ -461,7 +462,16 @@ export class Dungeons {
   update(dt: number): void {
     this.clock += dt;
     // The queue's clock on the finder ticks while it's open
-    if (this.queued) { this.qT -= dt; if (this.qT <= 0) { this.qT = 1; this.host.refresh(); } }
+    if (this.queued) {
+      this.qT -= dt;
+      if (this.qT <= 0) { this.qT = 1; this.host.refresh(); }
+      // A realm that doesn't answer (an older server, or one restarting): don't leave you waiting
+      if (!this.queued.heard && this.clock - this.queued.since > 8) {
+        this.queued = null;
+        this.host.system('The realm didn\'t answer the Group Finder (it may be updating). You can go in with henchmen, or try again in a minute.');
+        this.host.refresh();
+      }
+    }
     const r = this.run;
     if (!r) return;
     const P = this.host.player();
