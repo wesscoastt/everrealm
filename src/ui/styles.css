@@ -530,6 +530,13 @@ body.touch #loot { bottom: auto; top: 360px; }
   #ui .ab-slot .key { font-size: 10px; height: 13px; bottom: -11px; min-width: 14px; }
   #ui .ab-slot .cdt { font-size: 14px; }
   #ui .ab-sep { display: none; }
+  /* Ten skills and the panel buttons don't fit one row: the buttons go underneath */
+  #actionbar { width: calc(100vw - 12px); }
+  #ui .ab-plate { flex-wrap: wrap; justify-content: center; width: 100%; box-sizing: border-box; row-gap: 14px; }
+  #ui .menu-btns { grid-template-columns: repeat(8, 26px); gap: 4px; }
+  #ui .menu-btn { width: 26px; height: 26px; }
+  #touch .tbtns { bottom: 134px; }
+  #touch .stick { top: calc(100% - 236px); }
   #ab-gauge { width: 180px; }
   body.touch #xpbar { display: none; }
   #banner { transform: translateX(-50%) scale(0.7); transform-origin: top center; top: 13%; }
@@ -820,3 +827,15 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #group .gm.hench { cursor: default; }
 #group .gm.hench .gn small { color: #9fc4e8; }
 @media (max-width: 640px) { #finder-panel { width: calc(100vw - 32px); } #finder-panel .gf-status { grid-template-columns: 1fr; } #finder-panel .gf-status .btn { grid-column: 1; grid-row: auto; justify-self: start; } }
+
+/* The journal's bar (on the parchment page): the weapon skill, the heal, the signature, the three utilities (two on), the elite */
+.bar-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; margin: 6px 0 12px; }
+.bsk { display: flex; gap: 8px; align-items: flex-start; text-align: left; padding: 6px 8px; background: rgba(255, 250, 235, 0.55); border: 1px solid #a8946a; border-radius: 4px; color: #2a2016; font: 500 12px var(--body); }
+.bsk img { width: 32px; height: 32px; image-rendering: pixelated; flex: none; border: 1px solid #3a2a18; }
+.bsk b { display: block; font: 700 13px var(--body); color: #2a2016; }
+.bsk b i { font-style: normal; color: #1e5a8a; font-size: 11px; margin-left: 4px; }
+.bsk small { color: #5a4a34; line-height: 1.35; }
+.bsk.on { border-color: #9a6a1a; box-shadow: inset 0 0 0 2px rgba(200, 140, 40, 0.55); background: rgba(255, 236, 190, 0.7); cursor: default; }
+.bsk.off { opacity: 0.72; cursor: pointer; }
+.bsk.off:hover { opacity: 1; border-color: #6a5432; }
+.bar-msg { color: #9a3a1a; font: 600 12px var(--body); min-height: 1em; }

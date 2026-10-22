@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CALLINGS, CallingDef, CallingId, TUNE } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, chosenUtilities, SkillDef, TUNE, WEAPON_SKILLS, WeaponLine } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
 
 /** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
@@ -37,11 +37,20 @@ export interface KitHost {
   sustainScale(): number;
   /** How much faster the skills recharge (light armour). */
   skillHaste(): number;
+  /** The ground point a ground-aimed skill lands on: under the cursor (or on the target, on a touch screen), at most range away. */
+  aim(range: number): THREE.Vector3;
+  /** Spring this far along dir (stopping short of walls and drops); false if there's no room. */
+  dash(dir: THREE.Vector3, dist: number): boolean;
+  /** A straight, open way from you to a ground point (no wall between, not up a cliff). */
+  clear(at: THREE.Vector3): boolean;
 }
 
-interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number }
-interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number }
+interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number }
+interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
+/** Ground that hurts for a while (a ring of fire, a rain of arrows, cinders), or a snare waiting for a foot. */
+interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number } }
+interface Cut { e: Enemy; t: number; dmg: number }
 
 const RING_GEO = new THREE.RingGeometry(0.85, 1, 40).rotateX(-Math.PI / 2);
 const BOLT_GEO = new THREE.SphereGeometry(0.22, 8, 6);
@@ -49,7 +58,12 @@ const ARROW_GEO = new THREE.BoxGeometry(0.06, 0.06, 0.7);
 
 export class ClassKit {
   calling: CallingDef = CALLINGS[0];
-  readonly cds = [0, 0, 0];
+  /** The bar: the heal, three utilities, the elite (keys 4 to 8). */
+  bar: SkillDef[] = [CALLINGS[0].skills[0], ...chosenUtilities(CALLINGS[0], null), CALLINGS[0].skills[2]];
+  readonly cds = [0, 0, 0, 0, 0];
+  /** The weapon skill (key 3): the line of the weapon in hand, and its cooldown. */
+  weapon: WeaponLine = 'balanced';
+  wcd = 0;
   private clock = 0;
   // Mechanics
   private resolve = 0; private resolveAt = 0;
@@ -62,6 +76,12 @@ export class ClassKit {
   private redUntil = 0;
   private wardUntil = 0; private wardTick = 0;
   private stepStrike = 0;
+  private holdUntil = 0;
+  private rushUntil = 0;
+  private riposteUntil = 0;
+  private boltMult = 1;
+  private zones: Zone[] = [];
+  private cuts: Cut[] = [];
   private dots: Dot[] = [];
   private flying: Flying[] = [];
   private pending: Pending[] = [];
@@ -77,13 +97,25 @@ export class ClassKit {
     const c = CALLINGS.find((x) => x.id === id) ?? CALLINGS[0];
     if (c === this.calling) return;
     this.calling = c;
+    this.bar = [c.skills[0], ...chosenUtilities(c, null), c.skills[2]];
     this.cds.fill(0);
     // Nothing carries over from the old calling
     this.fury = this.kindling = this.resolve = this.shield = 0;
     this.shieldUntil = this.oathUntil = this.redUntil = this.wardUntil = this.stepStrike = 0;
+    this.holdUntil = this.rushUntil = this.riposteUntil = 0;
+    this.boltMult = 1;
     this.dots = [];
     this.marks.clear();
   }
+
+  /** Put these utilities (ids, three of the calling's four) on the bar. */
+  setUtilities(ids: unknown): void {
+    const u = chosenUtilities(this.calling, ids);
+    this.bar = [this.calling.skills[0], ...u, this.calling.skills[2]];
+  }
+
+  /** The weapon skill for the weapon in hand. */
+  get weaponSkill(): SkillDef { return WEAPON_SKILLS[this.weapon]; }
 
   // ---------------------------------------------------------------- What the game asks
   /** Change damage the player is about to deal to e. */
@@ -99,9 +131,18 @@ export class ClassKit {
     if (this.calling.id === 'reaver') this.fury = Math.min(100, this.fury + T.fury.perHit);
   }
 
-  /** Damage about to be taken: Resolve, the Oath, the Red Hour, then the shield soaks what it can. */
-  incoming(dmg: number): number {
+  /** Damage about to be taken: a Riposte turns it aside; Resolve, the Oath, Hold Fast, the Red Hour; then the shield soaks what it can. */
+  incoming(dmg: number, from?: Enemy): number {
+    if (this.riposteUntil > this.clock) {
+      this.riposteUntil = 0;
+      const P = this.host.player();
+      this.host.sfx('hitHeavy');
+      this.host.particles.sparks(P.clone().setY(P.y + 1.2), 16, '#ffe8a0');
+      if (from && from.alive) { this.host.setTarget(from); this.host.hit(from, this.host.power() * T.riposte.dmg, { crit: true }); }
+      return 0;
+    }
     let d = dmg;
+    if (this.holdUntil > this.clock) d *= T.holdfast.taken;
     if (this.calling.id === 'warden') {
       d *= 1 - this.resolve * T.resolve.per;
       this.resolve = Math.min(T.resolve.max, this.resolve + 1);
@@ -117,6 +158,12 @@ export class ClassKit {
     }
     return d;
   }
+
+  /** Hold Fast: nothing knocks you back. */
+  steady(): boolean { return this.holdUntil > this.clock; }
+
+  /** Blood Rush: how much faster you swing. */
+  attackSpeed(): number { return this.rushUntil > this.clock ? T.rush.speed : 1; }
 
   /** A Strike is about to land: Shadowstep's heavy blow. */
   strikeBonus(): { mult: number; crit: boolean } {
@@ -143,15 +190,28 @@ export class ClassKit {
   setTalents(learned: string[]): void { T = tuned(learned); }
 
   slots(): { left: number; total: number }[] {
-    return this.calling.skills.map((s, i) => ({ left: this.cds[i], total: i === 0 ? s.cd * this.host.sustainScale() : s.cd }));
+    return this.bar.map((s, i) => ({ left: this.cds[i], total: i === 0 ? s.cd * this.host.sustainScale() : s.cd }));
+  }
+
+  weaponSlot(): { left: number; total: number } { return { left: this.wcd, total: this.weaponSkill.cd }; }
+
+  /** The weapon skill (key 3). */
+  useWeapon(): boolean {
+    if (this.wcd > 0) return false;
+    const s = this.weaponSkill;
+    if (!this.cast(s.id, this.host.player(), this.host.power())) return false;
+    this.wcd = s.cd;
+    this.host.inCombat();
+    return true;
   }
 
   // ---------------------------------------------------------------- The skills
-  /** Use skill 0, 1 or 2. Returns false if it couldn't be used (cooling, no target). */
+  /** Use bar slot i (0 the heal, 1 to 3 the utilities, 4 the elite). Returns false if it couldn't be used (cooling, no target). */
   use(i: number): boolean {
     if (this.cds[i] > 0) return false;
     const P = this.host.player();
-    const s = this.calling.skills[i];
+    const s = this.bar[i];
+    if (!s) return false;
     const fury = this.calling.id === 'reaver' && this.fury >= 100 && s.id !== 'redhour' ? T.fury.mult : 1;
     const pw = this.host.power() * fury;
     const ok = this.cast(s.id, P, pw);
@@ -196,12 +256,11 @@ export class ClassKit {
         return true;
       }
       case 'leap': {
-        const e = H.faceTarget(T.leap.range);
-        if (!e || !H.canReach(e)) return false;
-        const away = new THREE.Vector3().subVectors(P, e.pos).setY(0).normalize();
-        H.moveTo(e.pos.x + away.x * 1.4, e.pos.z + away.z * 1.4, 0.32, e.pos.y);
+        const at = H.aim(T.leap.range);
+        if (at.distanceTo(P) < 1.5 || !H.clear(at)) return false;
+        H.moveTo(at.x, at.z, 0.32, at.y);
         H.anim('cleave'); H.sfx('swing');
-        this.pending.push({ at: e.pos.clone(), t: 0.32, ring: this.ring(e.pos, T.leap.r, '#e0583a', 0.32), r: T.leap.r, dmg: pw * T.leap.dmg });
+        this.pending.push({ at: at.clone(), t: 0.32, ring: this.ring(at, T.leap.r, '#e0583a', 0.32), r: T.leap.r, dmg: pw * T.leap.dmg });
         return true;
       }
       case 'redhour':
@@ -220,16 +279,17 @@ export class ClassKit {
         this.kindling++;
         const burst = this.kindling >= T.bolt.every;
         if (burst) this.kindling = 0;
-        const m = new THREE.Mesh(BOLT_GEO, new THREE.MeshBasicMaterial({ color: burst ? '#ffd060' : '#ff8a3a' }));
+        const k = this.boltMult;
+        this.boltMult = 1;
+        const m = new THREE.Mesh(BOLT_GEO, new THREE.MeshBasicMaterial({ color: burst ? '#ffd060' : k > 1 ? '#fff0a0' : '#ff8a3a' }));
         m.position.copy(P).setY(P.y + 1.4);
-        if (burst) m.scale.setScalar(1.6);
+        if (burst || k > 1) m.scale.setScalar(1.6);
         H.scene.add(m);
-        this.flying.push({ mesh: m, to: e, speed: 26, dmg: pw * T.bolt.dmg, burst: burst ? pw * T.bolt.burst : undefined });
+        this.flying.push({ mesh: m, to: e, speed: 26, dmg: pw * T.bolt.dmg * k, burst: burst ? pw * T.bolt.burst : undefined });
         return true;
       }
       case 'starfall': {
-        const e = H.faceTarget(T.starfall.range);
-        const at = e ? e.pos.clone() : P.clone().add(new THREE.Vector3(Math.sin(H.yaw()) * 8, 0, Math.cos(H.yaw()) * 8));
+        const at = H.aim(T.starfall.range);
         H.anim('heal'); H.sfx('bell');
         this.pending.push({ at, t: T.starfall.delay, ring: this.ring(at, T.starfall.r, '#ffd27a', T.starfall.delay), r: T.starfall.r, dmg: pw * T.starfall.dmg });
         return true;
@@ -262,8 +322,124 @@ export class ClassKit {
         this.stepStrike = this.clock + T.shadowstep.window;
         return true;
       }
+      // Warden utilities
+      case 'holdfast':
+        this.holdUntil = this.clock + T.holdfast.secs;
+        this.ring(P, 1.4, '#9fc4e8', T.holdfast.secs);
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      case 'shieldthrow': {
+        const e = H.faceTarget(T.shieldthrow.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('swing');
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.08, 10).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#8aa0c0' }));
+        m.position.copy(P).setY(P.y + 1.3);
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: 24, dmg: pw * T.shieldthrow.dmg, stun: T.shieldthrow.stun });
+        return true;
+      }
+      case 'rally':
+        H.heal(H.maxHp() * T.rally.heal);
+        this.resolve = T.resolve.max; this.resolveAt = this.clock;
+        H.anim('heal'); H.sfx('heal'); H.particles.heal(P);
+        return true;
+      // Reaver utilities
+      case 'rend': {
+        H.anim('cleave'); H.sfx('swing');
+        const face = new THREE.Vector3(Math.sin(H.yaw()), 0, Math.cos(H.yaw()));
+        let any = false;
+        for (const e of H.enemies()) {
+          if (!e.alive) continue;
+          const to = new THREE.Vector3().subVectors(e.pos, P).setY(0);
+          const d = to.length();
+          if (d > T.rend.r || (d > 1 && to.normalize().dot(face) < 0.2)) continue;
+          H.hit(e, pw * T.rend.dmg);
+          this.dots = this.dots.filter((x) => x.e !== e);
+          this.dots.push({ e, perSec: pw * T.rend.dot, left: T.rend.secs, tick: 1 });
+          any = true;
+        }
+        H.particles.sparks(P.clone().add(face.multiplyScalar(1.5)).setY(P.y + 1), 14, '#ff8a6a');
+        return any || !!H.faceTarget(T.rend.r);
+      }
+      case 'rush':
+        this.rushUntil = this.clock + T.rush.secs;
+        H.particles.burst(P.clone().setY(P.y + 1), '#e0583a', 18); H.sfx('growl');
+        return true;
+      case 'hamstring': {
+        const e = H.faceTarget(T.hamstring.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('hitHeavy');
+        H.hit(e, pw * T.hamstring.dmg);
+        e.stun = Math.max(e.stun, T.hamstring.stun);
+        return true;
+      }
+      // Kindler utilities
+      case 'firewall': {
+        const at = H.aim(T.firewall.range);
+        H.anim('heal'); H.sfx('bell');
+        this.zone(at, T.firewall.r, T.firewall.secs, pw * T.firewall.burn, '#ff7a30');
+        return true;
+      }
+      case 'cinderstep': {
+        const back = new THREE.Vector3(-Math.sin(H.yaw()), 0, -Math.cos(H.yaw()));
+        const from = P.clone();
+        if (!H.dash(back, T.cinderstep.dist)) return false;
+        this.zone(from, T.cinderstep.r, T.cinderstep.secs, pw * T.cinderstep.burn, '#ff9a40');
+        H.particles.fire(from.clone().setY(from.y + 0.3));
+        return true;
+      }
+      case 'kindle':
+        this.kindling = Math.min(T.bolt.every - 1, this.kindling + T.kindle.stacks);
+        this.boltMult = T.kindle.mult;
+        H.particles.fire(P.clone().setY(P.y + 1)); H.sfx('heal');
+        return true;
+      // Pathfinder utilities
+      case 'snare': {
+        const at = H.aim(T.snare.range);
+        H.anim('attack'); H.sfx('swing');
+        this.zone(at, T.snare.r, T.snare.secs, pw * T.snare.dmg, '#c8b080', { stun: T.snare.stun });
+        return true;
+      }
+      case 'rain': {
+        const at = H.aim(T.rain.range);
+        H.anim('attack'); H.sfx('swing');
+        this.zone(at, T.rain.r, T.rain.secs, pw * T.rain.dmg, '#e8dcc0');
+        return true;
+      }
+      case 'quickstep': {
+        const back = new THREE.Vector3(-Math.sin(H.yaw()), 0, -Math.cos(H.yaw()));
+        if (!H.dash(back, T.quickstep.dist)) return false;
+        this.stepStrike = this.clock + T.quickstep.window;
+        H.particles.dust(P, 8);
+        return true;
+      }
+      // Weapon skills
+      case 'riposte':
+        this.riposteUntil = this.clock + T.riposte.secs;
+        H.anim('attack'); H.sfx('swing');
+        H.particles.sparks(P.clone().setY(P.y + 1.3), 8, '#ffe8a0');
+        return true;
+      case 'flurry': {
+        const e = H.faceTarget(T.flurry.range);
+        if (!e) return false;
+        for (let k = 0; k < T.flurry.hits; k++) this.cuts.push({ e, t: k * T.flurry.every, dmg: pw * T.flurry.dmg });
+        H.anim('attack'); H.sfx('swing');
+        return true;
+      }
+      case 'sunder': {
+        const at = H.aim(T.sunder.range);
+        H.anim('cleave'); H.sfx('swing');
+        this.pending.push({ at, t: T.sunder.delay, ring: this.ring(at, T.sunder.r, '#ffd27a', T.sunder.delay), r: T.sunder.r, dmg: pw * T.sunder.dmg, stun: T.sunder.stun });
+        return true;
+      }
     }
     return false;
+  }
+
+  /** Ground that hurts for a while, or a snare. */
+  private zone(at: THREE.Vector3, r: number, secs: number, dmg: number, color: string, snare?: { stun: number }): void {
+    const ring = this.ring(at, r, color, secs);
+    this.zones.push({ at: at.clone(), r, left: secs, tick: snare ? 0 : 0.2, dmg, ring, snare });
   }
 
   /** A ground ring that fades out over secs. */
@@ -283,7 +459,29 @@ export class ClassKit {
     this.clock += dt;
     const H = this.host, P = H.player();
     const haste = H.skillHaste();
-    for (let i = 0; i < 3; i++) this.cds[i] = Math.max(0, this.cds[i] - dt * haste);
+    for (let i = 0; i < this.cds.length; i++) this.cds[i] = Math.max(0, this.cds[i] - dt * haste);
+    this.wcd = Math.max(0, this.wcd - dt * haste);
+    // Flurry's cuts, one after another
+    for (const c of this.cuts) {
+      c.t -= dt;
+      if (c.t <= 0 && c.e.alive && c.e.pos.distanceTo(P) < T.flurry.range + 1.5) { H.hit(c.e, c.dmg); H.sfx('swing'); }
+    }
+    this.cuts = this.cuts.filter((c) => c.t > 0);
+    // Burning ground, arrows falling, snares waiting
+    for (const z of this.zones) {
+      z.left -= dt;
+      if (z.snare) {
+        const caught = H.enemies().find((e) => e.alive && Math.hypot(e.pos.x - z.at.x, e.pos.z - z.at.z) < z.r);
+        if (caught) { caught.stun = Math.max(caught.stun, z.snare.stun); H.hit(caught, z.dmg); H.particles.sparks(z.at.clone().setY(z.at.y + 0.5), 12, '#c8b080'); z.left = 0; }
+        continue;
+      }
+      if ((z.tick -= dt) > 0) continue;
+      z.tick = 1;
+      for (const e of H.enemies()) if (e.alive && Math.hypot(e.pos.x - z.at.x, e.pos.z - z.at.z) < z.r && Math.abs(e.pos.y - z.at.y) < 3) H.hit(e, z.dmg, { quiet: true });
+      H.particles.sparks(z.at.clone().setY(z.at.y + 0.4), 6, '#ffb060');
+    }
+    for (const z of this.zones) if (z.left <= 0) { z.ring.userData.age = z.ring.userData.life; }
+    this.zones = this.zones.filter((z) => z.left > 0);
     for (const [e, until] of this.marks) if (until <= this.clock || !e.alive) this.marks.delete(e);
     if (this.calling.id === 'warden' && this.resolve > 0 && this.clock - this.resolveAt > T.resolve.fade) this.resolve = 0;
     // Shield bubble
@@ -318,6 +516,7 @@ export class ClassKit {
       if (d.length() <= step || !f.to.alive) {
         if (f.to.alive) {
           H.hit(f.to, f.dmg);
+          if (f.stun) f.to.stun = Math.max(f.to.stun, f.stun);
           if (f.burst) {
             H.particles.burst(to, '#ffb040', 26);
             for (const e of H.enemies()) if (e !== f.to && e.alive && e.pos.distanceTo(f.to.pos) < T.bolt.r) H.hit(e, f.burst);
@@ -337,7 +536,7 @@ export class ClassKit {
       if (p.t > 0) continue;
       H.particles.burst(p.at.clone().setY(p.at.y + 0.5), p.r > 4 ? '#ffe2a0' : '#ff7a50', p.r > 4 ? 60 : 24);
       H.sfx('hitHeavy');
-      for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(p.at) < p.r) H.hit(e, p.dmg);
+      for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(p.at) < p.r) { H.hit(e, p.dmg); if (p.stun) e.stun = Math.max(e.stun, p.stun); }
     }
     this.pending = this.pending.filter((p) => p.t > 0);
     // Rings fade

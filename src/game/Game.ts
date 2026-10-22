@@ -77,7 +77,7 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingId, callingById, TUNE } from '../data/classes';
+import { CallingId, callingById, TUNE, weaponLine } from '../data/classes';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
 import { currentAccount, deleteRemote, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
@@ -463,6 +463,15 @@ export class Game implements GameApi {
       inCombat: () => { this.lastCombat = this.elapsed; this.dismount(); },
       sustainScale: () => (this.gearSet === 'tolley' ? 2 / 3 : 1),
       skillHaste: () => this.armour.haste,
+      aim: (range) => this.aimPoint(range),
+      dash: (dir, dist) => this.springAlong(dir, dist),
+      clear: (at) => {
+        const p = this.player.position;
+        if (Math.abs(at.y - p.y) > 3) { this.hud.system(at.y > p.y ? "That's too far above you." : "That's too far below you."); this.sfx('fail'); return false; }
+        const dx = at.x - p.x, dy = at.y - p.y, dz = at.z - p.z, d = Math.hypot(dx, dy, dz);
+        if (d > 0.8 && this.world.voxels.raycast(p.x, p.y + 1.2, p.z, dx / d, dy / d, dz / d, d - 0.6)) { this.hud.system('Something is in the way.'); this.sfx('fail'); return false; }
+        return true;
+      },
     });
     this.activities = new Activities({
       daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
@@ -1141,6 +1150,8 @@ export class Game implements GameApi {
       calling: () => g.calling,
       setCalling: (id: CallingId) => g.setCalling(id),
       talents: () => g.talentView(),
+      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: g.kit.calling.utilities, signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
+      setUtilities: (ids: string[]) => g.setUtilities(ids),
       learnTalent: (id: string) => g.learnTalent(id),
       resetTalents: () => g.resetTalents(),
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
@@ -1294,7 +1305,19 @@ export class Game implements GameApi {
   private applyCalling(): void {
     this.kit.set(this.calling);
     this.kit.setTalents(this.learned());
-    this.hud.setCalling(this.kit.calling);
+    this.kit.setUtilities(this.flag('bar:' + this.calling));
+    this.kit.weapon = weaponLine(this.blade?.speed);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+  }
+
+  /** Choose the two utilities beside the signature (from the calling's other three). */
+  setUtilities(ids: string[]): string | null {
+    if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    this.setFlag('bar:' + this.calling, ids.slice(0, 2));
+    this.kit.setUtilities(ids);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.persist();
+    return null;
   }
 
   // =================================================================== Talents (data/talents.ts)
@@ -2435,9 +2458,52 @@ export class Game implements GameApi {
     this.hud.pressAbility(i);
     if (i === 0) this.strike();
     else if (i === 1) this.cleave();
-    else if (i <= 4) { if (!this.attack && !this.dash) { this.cancelActions(); if (this.kit.use(i - 2)) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; } } }
-    else if (i === 5) this.roll();
-    else if (i === 6) this.eat();
+    else if (i <= 7) {
+      if (this.attack || this.dash) return;
+      this.cancelActions();
+      const ok = i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
+      if (ok) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; }
+    }
+    else if (i === 8) this.roll();
+    else if (i === 9) this.eat();
+  }
+
+  /**
+   * Where a ground-aimed skill lands: the ground under the cursor, or on a touch screen (or with
+   * the cursor off the ground) on your target or a little ahead; never further than the skill
+   * reaches. You turn to face it.
+   */
+  private aimPoint(range: number): THREE.Vector3 {
+    const P = this.player.position;
+    let at: THREE.Vector3 | null = null;
+    if (!document.body.classList.contains('touch')) {
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2((this.input.mouseX / innerWidth) * 2 - 1, -(this.input.mouseY / innerHeight) * 2 + 1), this.camera);
+      const o = ray.ray.origin, d = ray.ray.direction;
+      const hit = this.world.voxels.raycast(o.x, o.y, o.z, d.x, d.y, d.z, 90);
+      if (hit) at = new THREE.Vector3(hit.x + 0.5, hit.y + 1, hit.z + 0.5);
+    }
+    if (!at) at = this.target?.alive ? this.target.pos.clone() : P.clone().add(new THREE.Vector3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw)).multiplyScalar(range * 0.6));
+    const flat = new THREE.Vector3(at.x - P.x, 0, at.z - P.z);
+    if (flat.length() > range) { flat.setLength(range); at.set(P.x + flat.x, at.y, P.z + flat.z); }
+    at.y = this.world.voxels.groundBelow(at.x, Math.max(at.y, P.y) + 3, at.z);
+    if (flat.length() > 0.5) this.player.yaw = Math.atan2(flat.x, flat.z);
+    return at;
+  }
+
+  /** Spring along a direction (Cinder Step, Quickstep): as far as there's open, level-enough ground. */
+  private springAlong(dir: THREE.Vector3, dist: number): boolean {
+    const P = this.player.position, d = dir.clone().setY(0).normalize();
+    for (let k = dist; k >= 2; k -= 1) {
+      const x = P.x + d.x * k, z = P.z + d.z * k;
+      const g = this.world.voxels.groundBelow(x, P.y + 2.5, z);
+      if (Math.abs(g - P.y) > 2.5 || this.world.voxels.raycast(P.x, P.y + 1, P.z, d.x, 0, d.z, k)) continue;
+      this.dash = { fx: P.x, fy: P.y, fz: P.z, tx: x, tz: z, ty: g, t: 0, dur: 0.2 };
+      this.sfx('roll');
+      return true;
+    }
+    this.hud.system('No room to spring back.');
+    return false;
   }
 
   /** Foes you can see ahead, best first: near, and in front of the camera. */
@@ -2494,7 +2560,7 @@ export class Game implements GameApi {
     }
     const combo = this.comboWindow > 0 ? (this.comboIndex + 1) % 3 : 0;
     this.comboIndex = combo;
-    const dur = (combo === 2 ? 0.55 : 0.42) / (this.blade?.speed ?? 1);
+    const dur = (combo === 2 ? 0.55 : 0.42) / ((this.blade?.speed ?? 1) * this.kit.attackSpeed());
     this.attack = { kind: 'strike', t: 0, dur, hitAt: dur * 0.48, hit: false, combo };
     this.player.model.comboIndex = combo;
     this.player.model.setState('attack');
@@ -2507,7 +2573,7 @@ export class Game implements GameApi {
   private cleave(): void {
     if (this.cds.cleave > 0 || this.attack) return;
     this.cancelActions();
-    const pace = this.blade?.speed ?? 1;
+    const pace = (this.blade?.speed ?? 1) * this.kit.attackSpeed();
     this.attack = { kind: 'cleave', t: 0, dur: 0.6 / pace, hitAt: 0.28 / pace, hit: false, combo: 0 };
     this.player.model.setState('cleave');
     this.player.model.stateTime = 0;
@@ -2683,7 +2749,7 @@ export class Game implements GameApi {
     }
     const armor = this.armour.defense;
     // Defence takes a share of the blow, with diminishing returns (D/(D+40)): see data/armour.ts
-    const taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) * (1 - armor / (armor + 40)))));
+    const taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) * (1 - armor / (armor + 40))), from));
     if (taken <= 0) { this.floatAt(this.player.position, 2.2, 'Absorbed', 'heal'); this.lastCombat = this.elapsed; return; }
     this.hp -= taken;
     this.lastCombat = this.elapsed;
@@ -2694,7 +2760,7 @@ export class Game implements GameApi {
     this.floatAt(this.player.position, 2.2, `-${taken}`, 'player');
     this.hud.hurt(taken / this.maxHp);
     const away = tmpV.subVectors(this.player.position, from.pos).setY(0).normalize();
-    this.player.velocity.addScaledVector(away, 5);
+    if (!this.kit.steady()) this.player.velocity.addScaledVector(away, 5);
     if (!this.target || !this.target.alive) this.target = from;
     if (this.action || this.craftAction) this.cancelActions();
     if (this.hp <= 0) this.die();
@@ -3025,13 +3091,9 @@ export class Game implements GameApi {
     if (I.wheel) this.rig.zoom(I.wheel);
     if (this.dead) return;
 
-    if (I.pressedOnce('Digit1')) this.useAbility(0);
-    if (I.pressedOnce('Digit2')) this.useAbility(1);
-    if (I.pressedOnce('Digit3')) this.useAbility(2);
-    if (I.pressedOnce('Digit4')) this.useAbility(3);
-    if (I.pressedOnce('Digit5')) this.useAbility(4);
-    if (I.pressedOnce('KeyQ')) this.useAbility(5);
-    if (I.pressedOnce('KeyF')) this.useAbility(6);
+    for (let k = 1; k <= 8; k++) if (I.pressedOnce('Digit' + k)) this.useAbility(k - 1);
+    if (I.pressedOnce('KeyQ')) this.useAbility(8);
+    if (I.pressedOnce('KeyF')) this.useAbility(9);
     if (I.pressedOnce('Tab')) this.cycleTarget();
     if (I.pressedOnce('KeyG')) this.toggleMount();
 
@@ -3568,10 +3630,14 @@ export class Game implements GameApi {
     this.hud.setAbilities([
       { left: this.cds.strike, total: 0.5 },
       { left: this.cds.cleave, total: 6 },
+      this.kit.weaponSlot(),
       ...this.kit.slots(),
       { left: this.cds.roll, total: 0.8, disabled: this.energy < this.armour.rollCost },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);
+    // The weapon skill follows the weapon in hand
+    const line = weaponLine(this.blade?.speed);
+    if (line !== this.kit.weapon) { this.kit.weapon = line; this.kit.wcd = 0; this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill); }
     const gauge = this.kit.gauge();
     this.hud.setGauge(gauge.label, gauge.value, gauge.max);
     // Prompt
@@ -3722,7 +3788,7 @@ export class Game implements GameApi {
       festival: () => this.festivals.view(),
       finishCasting: () => { if (this.casting) this.casting.t = this.casting.dur; },
       calling: (id: CallingId) => this.setCalling(id),
-      skill: (i: number) => this.useAbility(2 + i),
+      skill: (i: number) => this.useAbility(3 + i),
       say: (t: string) => this.say(t),
       emote: (id: string) => this.doEmote(id),
     };

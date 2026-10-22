@@ -127,7 +127,7 @@ function withItemIcons(html: string): string {
 
 /** The marks coin, for reward lines. */
 const COIN_ICON = () => shapeIcon('coin', '#e8c050', '#a87a20');
-import { CALLINGS, CallingDef, CallingId, callingById } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, callingById, type SkillDef } from '../data/classes';
 import { callingCard } from './callingCard';
 import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
@@ -176,6 +176,9 @@ export interface UiCtx {
   talents(): { points: number; total: number; trees: { name: string; desc: string; talents: { id: string; name: string; desc: string; cost: number; capstone: boolean; learned: boolean; why: string | null }[] }[] };
   learnTalent(id: string): string | null;
   resetTalents(): string | null;
+  /** The bar: the two utilities chosen, the three to choose from, the signature, heal and elite, and the weapon skill. */
+  bar(): { chosen: string[]; pool: SkillDef[]; signature: SkillDef; heal: SkillDef; elite: SkillDef; weapon: SkillDef };
+  setUtilities(ids: string[]): string | null;
   /** Change calling; returns why it can't be done, or null. */
   setCalling(id: CallingId): string | null;
   /** Wear a feat's title (null for none). */
@@ -348,12 +351,16 @@ export class Hud {
     ab.innerHTML = `<div id="xpbar"><div class="label">Melee 1</div><div class="bar xp"><i></i><b></b></div></div>
       <div id="ab-gauge"><i></i><span></span></div>
       <div class="ab-plate frame">
-        ${[['strike', '1', 'Strike'], ['cleave', '2', 'Cleave']].map(([k, key, t], i) => slot(i, k, key, t)).join('')}
+        ${[['strike', '1', 'Strike'], ['cleave', '2', 'Cleave'], ['riposte', '3', 'Weapon skill']].map(([k, key, t], i) => slot(i, k, key, t)).join('')}
         <div class="ab-sep"></div>
-        ${[3, 4, 5].map((key, j) => slot(2 + j, 'strike', String(key), '')).join('')}
+        ${slot(3, 'dressing', '4', 'Heal')}
         <div class="ab-sep"></div>
-        ${slot(5, 'roll', 'Q', 'Dodge roll')}
-        <div class="ab-slot" data-ab="6" title="Eat the best food you're carrying (F)"><img src="${abilityIcon('eat')}" alt=""><span class="key">F</span><span class="count"></span><div class="cd"></div><div class="cdt"></div></div>
+        ${[5, 6, 7].map((key, j) => slot(4 + j, 'strike', String(key), 'Utility')).join('')}
+        <div class="ab-sep"></div>
+        ${slot(7, 'star', '8', 'Elite')}
+        <div class="ab-sep"></div>
+        ${slot(8, 'roll', 'Q', 'Dodge roll')}
+        <div class="ab-slot" data-ab="9" title="Eat the best food you're carrying (F)"><img src="${abilityIcon('eat')}" alt=""><span class="key">F</span><span class="count"></span><div class="cd"></div><div class="cdt"></div></div>
         <div class="ab-sep"></div>
         <div class="menu-btns">
           <button class="menu-btn" data-p="inv">B<small>Bag</small></button>
@@ -460,13 +467,15 @@ export class Hud {
     });
   }
 
-/** Put a calling's three skills on keys 3 to 5 and colour its gauge. */
-  setCalling(c: CallingDef): void {
+/** Put the weapon skill on key 3 and the calling's bar on 4 to 8 (heal, three utilities, elite), and colour its gauge. */
+  setCalling(c: CallingDef, bar: SkillDef[], weapon: SkillDef): void {
     const slots = this.root.querySelectorAll<HTMLElement>('.ab-slot');
-    c.skills.forEach((sk, j) => {
+    [weapon, ...bar].forEach((sk, j) => {
       const s = slots[2 + j];
+      if (!s) return;
       s.querySelector('img')!.src = abilityIcon(sk.icon);
-      s.title = `${sk.name} (${3 + j}): ${sk.desc}`;
+      const kind = j === 0 ? 'Weapon skill' : j === 1 ? 'Heal' : j === 5 ? 'Elite' : 'Utility';
+      s.title = `${sk.name} (${3 + j}) · ${kind}${sk.aim ? ', aimed at the ground' : ''}: ${sk.desc}`;
     });
     const g = this.q('#ab-gauge');
     g.title = `${c.mechanic.name}: ${c.mechanic.desc}`;
@@ -1414,10 +1423,22 @@ export class Hud {
     } else if (this.selQuest === 'calling') {
       const tv = this.ctx.talents();
       const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><h5>${esc(t.name)}<small>${esc(t.desc)}</small></h5>${t.talents.map((d) => `<button class="tal${d.learned ? ' got' : d.why ? ' no' : ' can'}${d.capstone ? ' cap' : ''}" data-tal="${d.id}" title="${esc(d.why ?? (d.learned ? 'Learned' : 'Click to learn'))}"><b>${esc(d.name)}</b><span>${esc(d.desc)}</span><i>${d.learned ? 'Learned' : d.cost + (d.cost === 1 ? ' point' : ' points')}${d.capstone ? ' · capstone' : ''}</i></button>`).join('')}</div>`;
-      page.innerHTML = `<h4>Your calling</h4><div class="feat-sum">How you fight: keys 3, 4 and 5 and the bar above them. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>
+      const bv = this.ctx.bar();
+      const sk = (s: SkillDef, key: string, extra = '') => `<button class="bsk${extra}" data-u="${s.id}" title="${esc(s.desc)}"><img src="${abilityIcon(s.icon)}" alt=""><span><b>${key ? key + ' · ' : ''}${esc(s.name)}${s.aim ? ' <i>aimed</i>' : ''}</b><small>${esc(s.desc)} ${s.cd >= 2 ? `(${s.cd} s)` : ''}</small></span></button>`;
+      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). Aimed skills land where the cursor points. Click a utility to put it on the bar, out of a fight.</div>
+        <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', bv.chosen.includes(s.id) ? ' on' : ' off')).join('')}${sk(bv.elite, '8')}</div><div class="bar-msg"></div>
+        <h4>Your calling</h4><div class="feat-sum">How you fight. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>
         <h4 class="tal-h">Talents <span>${tv.points} of ${tv.total} points to spend</span><button class="btn ghost tal-reset">Unlearn all</button></h4>
         <div class="feat-sum">A point a level from level 3. Talents go in order down each tree, and you can hold one capstone. Unlearning costs nothing, out of a fight.</div>
         <div class="ttrees">${tv.trees.map(tree).join('')}</div>`;
+      page.querySelectorAll<HTMLElement>('.bsk.on, .bsk.off').forEach((b) => b.addEventListener('click', () => {
+        // Swap a utility in: it takes the place of the one chosen longest ago that isn't it
+        const id = b.dataset.u!, cur = bv.chosen;
+        if (cur.includes(id)) return;
+        const why = this.ctx.setUtilities([...cur.slice(1), id]);
+        this.ctx.sfx('click');
+        if (why) page.querySelector('.bar-msg')!.textContent = why; else this.renderJournal();
+      }));
       page.querySelectorAll<HTMLElement>('[data-tal]').forEach((b) => b.addEventListener('click', () => {
         const why = this.ctx.learnTalent(b.dataset.tal!);
         if (why) page.querySelector('.calling-msg')!.textContent = why; else this.renderJournal();
@@ -1573,7 +1594,7 @@ export class Hud {
       const left = Math.max(0, 90 - v.queue.secs);
       status = `<div class="gf-status"><b>Looking for a group: ${esc(d?.name ?? '')}</b><span>${v.queue.count} queued · ${mm(v.queue.secs)}${left ? ` · henchmen fill the empty places in ${mm(left)}` : ' · filling with henchmen'}</span><button class="btn ghost" data-gf="cancel">Stop looking</button></div>`;
     }
-    const roles = `<div class="gf-roles"><span class="lbl">Go in as</span>${ROLES.map((r) => `<button class="gf-role${v.role === r ? ' sel' : ''}" data-role="${r}" title="${esc(ROLE_DESC[r])}"><b>${ROLE_NAMES[r]}</b></button>`).join('')}<small>${esc(ROLE_DESC[v.role])}${v.role === 'healer' ? ' Six tenths of the damage you deal goes to them, and your calling\'s healing skill (key 3) mends everyone near you as well.' : v.role === 'tank' ? ' What you hit stays on you: your blows count three times for keeping its attention.' : ''}</small></div>`;
+    const roles = `<div class="gf-roles"><span class="lbl">Go in as</span>${ROLES.map((r) => `<button class="gf-role${v.role === r ? ' sel' : ''}" data-role="${r}" title="${esc(ROLE_DESC[r])}"><b>${ROLE_NAMES[r]}</b></button>`).join('')}<small>${esc(ROLE_DESC[v.role])}${v.role === 'healer' ? ' Six tenths of the damage you deal goes to them, and your calling\'s heal (key 4) mends everyone near you as well.' : v.role === 'tank' ? ' What you hit stays on you: your blows count three times for keeping its attention.' : ''}</small></div>`;
     const order = [...v.dungeons].sort((a, b) => Number(b.id === this.finderAt) - Number(a.id === this.finderAt));
     const cards = order.map((d) => {
       const busy = !!v.run || !!v.queue;

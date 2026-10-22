@@ -200,6 +200,21 @@ const GLYPHS: Record<string, [string[], string]> = {
   dressing: [['...XXXX...', '...XXXX...', '...XXXX...', 'XXXXXXXXXX', 'XXXXXXXXXX', 'XXXXXXXXXX', 'XXXXXXXXXX', '...XXXX...', '...XXXX...', '...XXXX...'], '#f6f6f0'],
   volley: [['X.X.X.....', '.XXX......', '..XXX.....', '...XXX....', '....XXX...', '.....XXX..', '......XXX.', '.......XX.', '..........', '..........'], '#f6ecd0'],
   step: [['..XX......', '..XX......', '.XXXX..XX.', 'X.XX.X.XX.', '..XX..XXXX', '.X..XX.XX.', '.X..X.XX.X', 'X..X..X..X', '.....X..X.', '.....X..X.'], '#c8c8f0'],
+  holdfast: [['..XXXXXX..', '.XX....XX.', '.X..XX..X.', '.X..XX..X.', '.X......X.', '..X....X..', '...X..X...', '....XX....', '.XX.XX.XX.', 'XXXXXXXXXX'], '#e8f0ff'],
+  shieldthrow: [['......XXX.', '.....XXXXX', '.....X.X.X', '.....XXXXX', '......XXX.', '...X......', '..X.......', '.X........', 'X.........', '..........'], '#e8f0ff'],
+  rally: [['....XX....', '....XX....', '..XXXXXX..', '....XX....', '....XX....', '.XX....XX.', 'XXXX..XXXX', '.XX....XX.', '..........', '..XXXXXX..'], '#fff0b0'],
+  rend: [['X.........', '.X..X.....', '..X..X..X.', '...X..X..X', '....X..X..', '.....X..X.', '......X..X', '.......X..', '........X.', '.........X'], '#ffb0a0'],
+  rush: [['.....XX...', '....XX....', '...XX.....', '..XXXXXX..', '.....XX...', '....XX....', '...XX.....', '..XX......', '.XX.......', 'XX........'], '#ffd0a0'],
+  hamstring: [['..X.......', '..XX......', '..X.X.....', '..X..X....', '..X...X...', '..XXXXXX..', '..X.......', '..X....XX.', '..X...X..X', '.XXX...XX.'], '#ffb0a0'],
+  firewall: [['..X...X...', '.XX..XX..X', '.XXX.XXX.X', 'XXXXXXXXXX', 'XX.XXX.XXX', 'X...X...XX', '..........', 'XXXXXXXXXX', '.X.X.X.X.X', 'X.X.X.X.X.'], '#ffd080'],
+  cinderstep: [['......XX..', '.....XXXX.', '......XX..', '....X.X...', '...X..X...', '......X...', '.....X.X..', '..X.X...X.', '.XXX......', 'XXXXX.....'], '#ffd080'],
+  kindle: [['....X.....', '...XX.....', '..XXX..X..', '..XXXX.XX.', '.XXXXXXXX.', '.XXX.XXXX.', 'XXX...XXX.', 'XX.....XX.', 'XX.....XX.', '.XXXXXXX..'], '#fff0a0'],
+  snare: [['XXXXXXXXXX', 'X.X.X.X.XX', 'XX.X.X.X.X', 'X.X.X.X.XX', 'XX.X.X.X.X', 'X.X.X.X.XX', 'XX.X.X.X.X', 'X.X.X.X.XX', 'XX.X.X.X.X', 'XXXXXXXXXX'], '#e8dcc0'],
+  rain: [['X..X..X..X', '.X..X..X..', '..X..X..X.', 'X..X..X..X', '.X..X..X..', '..X..X..X.', '..........', '.XXXXXXXX.', 'XXXXXXXXXX', '..........'], '#f6ecd0'],
+  quickstep: [['.....XX...', '.....XX...', '....XXXX..', '...X.XX.X.', '.....XX...', '....X..X..', '...X....X.', '..........', 'XX..XX..XX', '.XX..XX..X'], '#d0f0c0'],
+  riposte: [['X........X', '.X......X.', '..X....X..', '...X..X...', '....XX....', '....XX....', '...X..X...', '..X....X..', '.XX....XX.', 'XX......XX'], '#f6ecd0'],
+  flurry: [['X...X...X.', '.X...X...X', '..X...X...', '...X...X..', 'X...X...X.', '.X...X...X', '..X...X...', '...X...X..', '..........', '..........'], '#f6ecd0'],
+  sunder: [['...XXXX...', '...XXXX...', '....XX....', '....XX....', '....XX....', '....XX....', '..........', '.X..XX..X.', 'XXXXXXXXXX', '.X.X..X.X.'], '#f6ecd0'],
 };
 
 export function abilityIcon(kind: string): string {
@@ -216,6 +231,11 @@ export function abilityIcon(kind: string): string {
     bleed: ['#c84040', '#8a1e1e', '#4a0c0c'], leap: ['#d86a3a', '#9a3a1a', '#5a1e0a'], redhour: ['#a82a2a', '#6a1010', '#3a0606'],
     ward: ['#e09040', '#a85a1a', '#5a2e0a'], bolt: ['#f0a040', '#b0601a', '#60300a'], star: ['#6a5ab0', '#3a2a78', '#1a1440'],
     dressing: ['#7ab060', '#4a7a34', '#24441a'], volley: ['#8ab060', '#5a7a34', '#2e441a'], step: ['#5a5a7a', '#34344a', '#1a1a28'],
+    holdfast: ['#6a9ad0', '#3a6aa0', '#1a3a60'], shieldthrow: ['#7a8aa8', '#4a5a78', '#262e44'], rally: ['#d8b860', '#9a7a30', '#5a4414'],
+    rend: ['#c84040', '#8a1e1e', '#4a0c0c'], rush: ['#d86a3a', '#9a3a1a', '#5a1e0a'], hamstring: ['#a83a3a', '#6a1a1a', '#3a0a0a'],
+    firewall: ['#e07030', '#a84010', '#5a2006'], cinderstep: ['#c86a30', '#8a4010', '#4a2006'], kindle: ['#f0b040', '#b07010', '#603a06'],
+    snare: ['#8a7a50', '#5a4a2a', '#2e2614'], rain: ['#6a8ab0', '#3a5a7a', '#1a2e44'], quickstep: ['#5a9a6a', '#2e6a3a', '#163a1e'],
+    riposte: ['#9aa4b4', '#5a6474', '#2a3040'], flurry: ['#b4a48a', '#74644a', '#403420'], sunder: ['#a8784a', '#6a4422', '#3a220e'],
   };
   const [hi, mid, lo] = tones[kind];
   x.fillStyle = mid; x.fillRect(0, 0, 16, 16);

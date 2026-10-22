@@ -57,7 +57,7 @@ export const GEAR_BUDGET = { weapon: 8, head: 4 };
  * bonus that changes how you fight, not how hard you hit. The armoury in the pack lists every piece and where it comes from.
  */
 export const GEAR_SETS: Record<string, { name: string; where: string; bonus: string }> = {
-  tolley: { name: 'Tolley\'s work', where: 'Smithed at an anvil', bonus: 'Your calling\'s healing skill (key 3) recharges a third faster.' },
+  tolley: { name: 'Tolley\'s work', where: 'Smithed at an anvil', bonus: 'Your calling\'s heal (key 4) recharges a third faster.' },
   tollriders: { name: 'The Toll Riders', where: 'Turnpike wolves', bonus: 'Sprinting costs half the energy.' },
   thornback: { name: 'Thornback', where: 'Hagworm Wood', bonus: 'Your first strike on an unhurt enemy is always critical.' },
   brine: { name: 'Brine', where: 'Fleet Coast', bonus: 'Rolling through an attack restores 6% of your health.' },
