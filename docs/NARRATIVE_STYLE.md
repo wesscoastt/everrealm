@@ -30,7 +30,9 @@ The full standard is the narrative brief. This page is the working version that 
 
 Destiny or chosen-one framing, "ancient evil", "only time will tell", "more than meets the eye", "we meet again", "your journey begins", "the fate of the world", trailer-voice narration, a three-item list in every description, rhetorical-question openers, and ellipses as a stand-in for emotion.
 
-The owner's standing rule is no AI tropes: it should read as authentic. So these are out too: embark, delve, tapestry, whispers, echoes, prophecy framing, "...or something more?", purple prose, and cryptic one-line warnings from people who should just say what they mean. A line that sounds like a riddle gets rewritten as plain speech.
+The owner's standing rule is no AI tropes: it should read as authentic. So these are out too: "tapestry", "embark on a journey", "delve", "ancient evil stirs", "destiny awaits", "whispers of" and "echoes of", "shrouded in mystery", "a testament to", "little did they know", "...or something more?" teasers, dramatic em-dash cliffhangers, prophecy or chosen-one framing, purple prose, therapy-speak, cryptic one-line warnings from people who should just say what they mean, and every NPC sounding the same. A line that sounds like a riddle gets rewritten as plain speech.
+
+Every line has to make sense where it is: who says it, why they say it, and what the player does next.
 
 ## Names
 
