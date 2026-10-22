@@ -76,6 +76,7 @@ class Mock implements GameApi {
   lotAction() {}
   openBank() {}
   openExchange() {}
+  openMail() {}
   playerName = 'Tester';
 }
 

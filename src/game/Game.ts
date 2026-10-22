@@ -932,6 +932,14 @@ export class Game implements GameApi {
     this.sfx('open');
   }
 
+  /** A pedlar's pack, on the road (data/content/pedlars.ts). */
+  private openPedlar(id: string): void {
+    this.currentShop = 'pedlar_' + id;
+    this.hud.show('shop'); this.showPackBeside();
+    this.roadfolk.pedlarSay(id);
+    this.sfx('open');
+  }
+
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
 
@@ -2311,6 +2319,8 @@ export class Game implements GameApi {
     }
     const stall = this.festivals.stallNear(p);
     if (stall && this.festivals.fest) consider({ kind: 'act', label: `Browse the ${this.festivals.fest.name} stall`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
+    // A pedlar on the road: they stop for you, and open their pack
+    for (const pd of this.roadfolk.pedlarsNear(p, 3.4)) consider({ kind: 'act', label: `Trade with ${pd.name}`, sub: pd.title, pos: new THREE.Vector3(pd.pos.x, pd.pos.y + 1, pd.pos.z), act: () => this.openPedlar(pd.id) }, Math.hypot(pd.pos.x - p.x, pd.pos.z - p.z));
     const bed = !this.home.active && this.home.bed();
     if (bed && this.home.inside(p) && Math.abs(bed.y - p.y) < 2) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, bed.y + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
     // Indoors at home: arrange the furniture from anywhere in the house
@@ -3613,6 +3623,7 @@ export class Game implements GameApi {
     if (this.hud.isOpen('exchange') && !this.npcs.some((n) => (n.id === 'wray' || n.id === 'tregear' || n.id === 'pound') && n.pos.distanceTo(this.player.position) < 6)) this.hud.close('exchange');
     if (this.hud.isOpen('shop')) {
       if (this.currentShop === 'festival') { if (!this.festivals.stallNear(this.player.position, 6)) this.hud.close('shop'); }
+      else if (this.currentShop.startsWith('pedlar_')) { if (!this.roadfolk.pedlarsNear(this.player.position, 6).some((x) => 'pedlar_' + x.id === this.currentShop)) this.hud.close('shop'); }
       else {
         const t = this.npcs.find((n) => n.id === SHOPS[this.currentShop].owner);
         if (!t || t.pos.distanceTo(this.player.position) > 6) this.hud.close('shop');
@@ -3977,6 +3988,7 @@ export class Game implements GameApi {
       const x = n.placed ? n.pos.x : hx, z = n.placed ? n.pos.z : hz;
       out.push({ x, z, kind: 'npc', label: full ? n.def.name.split(' ')[0] : undefined });
     }
+    for (const pd of this.roadfolk.pedlarsNear(this.player.position, 95)) out.push({ x: pd.pos.x, z: pd.pos.z, kind: 'npc', label: full ? pd.name.split(' ')[0] : undefined });
     if (!full) for (const e of this.enemies) if (e.alive && e.pos.distanceTo(this.player.position) < 55) out.push({ x: e.pos.x, z: e.pos.z, kind: e.def.elite ? 'elite' : 'enemy' });
     for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: this.social.isAlly(r.id) ? 'ally' : 'other', label: full || this.social.isAlly(r.id) ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
@@ -4197,6 +4209,10 @@ export class Game implements GameApi {
       if (d > 28 || !n.model.root.visible) continue;
       const s = project(n.pos.x, n.pos.y + 2.3 * FIGURE * (n.def.look.height ?? 1), n.pos.z);
       if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: n.def.name, sub: d < 12 ? n.def.title : undefined, kind: 'npc', mark: this.npcMark(n) });
+    }
+    for (const pd of this.roadfolk.pedlarsNear(P, 28)) {
+      const s = project(pd.pos.x, pd.pos.y + 2.3 * FIGURE * pd.height, pd.pos.z);
+      if (s) plates.push({ key: 'pd' + pd.id, x: s.x, y: s.y, name: pd.name, sub: pd.pos.distanceTo(P) < 12 ? pd.title : undefined, kind: 'npc' });
     }
     for (const e of this.enemies) {
       if (!e.alive) continue;

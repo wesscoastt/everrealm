@@ -7,6 +7,8 @@ import { B, isSolid } from '../world/blocks';
 import { GW, heightAt, SEA, WORLD_ROADS } from '../world/terrain';
 import { ROADS as VALE_ROADS } from '../world/generate';
 import { realmHour, realmNow } from '../world/clock';
+import { CreatureModel } from '../entities/creatures';
+import { PEDLARS, type Pedlar } from '../data/content/pedlars';
 
 // People on the roads and the watch in the towns, the same for everyone in the realm.
 //
@@ -18,6 +20,10 @@ import { realmHour, realmNow } from '../world/clock';
 // The watch: guards walk the streets the roads run down, back and forth, and in the bigger towns two
 // stand at each way in. They're on the clock too. Anything with teeth that comes within reach of
 // one gets a blade in it.
+//
+// Pedlars walk the long roads the same way, leading a pack pony, and stop when someone comes up to
+// deal with them (game/Game.ts opens their pack). A pedlar kept talking falls behind the clock and
+// hurries a little after, until they're back where everyone else sees them.
 //
 // Looks come from a seed, not from chance, for the same reason. Only the ones near the player are
 // built (and each keeps its own figure after that: there are only a hundred or so in the realm);
@@ -42,7 +48,7 @@ interface Beat {
 
 interface Figure {
   id: string;
-  kind: 'traveller' | 'guard' | 'post';
+  kind: 'traveller' | 'guard' | 'post' | 'pedlar';
   look: Appearance;
   held: HeldItem;
   lines: readonly string[];
@@ -60,6 +66,10 @@ interface Figure {
   swing: number;
   /** How far aside they've stepped to get round something in the way. */
   dodge: number;
+  /** A pedlar: who, the seconds they've stood dealing (behind the clock by that much), and their pony. */
+  pedlar?: Pedlar;
+  lag: number;
+  pony?: CreatureModel;
 }
 
 export interface Town { id: string; x: number; z: number; r: number }
@@ -135,6 +145,8 @@ export class Roadfolk {
   private figures: Figure[] = [];
   private chatT = 0;
   private swingT = 0;
+  /** The realm clock at the last update: a pedlar's stop is measured on it, as their walk is. */
+  private lastT = 0;
 
   constructor(
     private readonly scene: THREE.Object3D,
@@ -157,6 +169,14 @@ export class Roadfolk {
         });
       }
     });
+    // Pedlars, each on their own road with a pony
+    for (const pd of PEDLARS) {
+      const road = WORLD_ROADS[pd.road];
+      if (!road) continue;
+      const len = beatOf(road, 1, 0, 0, true, 0).len, r = seeded(hashStr('pd.' + pd.id));
+      const period = 2 * (len / pd.speed + pd.rest);
+      this.add({ id: 'pd.' + pd.id, kind: 'pedlar', look: this.lookFor(r, pd.look), held: 'none', lines: pd.hello, night: false, pedlar: pd, beat: beatOf(road, pd.speed, pd.rest, r() * period, false, 0.9) });
+    }
     // The watch
     for (const t of towns) {
       const W = WATCH[t.id] ?? WATCH_ANY;
@@ -198,8 +218,8 @@ export class Roadfolk {
     }
   }
 
-  private add(f: Omit<Figure, 'pos' | 'yaw' | 'moving' | 'shown' | 'chat' | 'swing' | 'dodge'>): void {
-    this.figures.push({ ...f, pos: new THREE.Vector3(), yaw: 0, moving: 0, shown: false, chat: 0, swing: 0, dodge: 0 });
+  private add(f: Omit<Figure, 'pos' | 'yaw' | 'moving' | 'shown' | 'chat' | 'swing' | 'dodge' | 'lag'>): void {
+    this.figures.push({ ...f, pos: new THREE.Vector3(), yaw: 0, moving: 0, shown: false, chat: 0, swing: 0, dodge: 0, lag: 0 });
   }
 
   private lookFor(r: () => number, over: Partial<Appearance>): Appearance {
@@ -215,7 +235,7 @@ export class Roadfolk {
   /** Where a beat puts its walker at this moment, or null while they're in out of sight. */
   private place(f: Figure, b: Beat, t: number): boolean {
     const walk = b.len / b.speed, period = 2 * (walk + b.rest);
-    let u = (((t + b.phase) % period) + period) % period, s: number, dir: number;
+    let u = (((t - f.lag + b.phase) % period) + period) % period, s: number, dir: number;
     if (u < walk) { s = u * b.speed; dir = 1; }
     else if ((u -= walk) < b.rest) { if (b.hideAtEnds) return false; s = b.len; dir = 0; }
     else if ((u -= b.rest) < walk) { s = b.len - u * b.speed; dir = -1; }
@@ -261,6 +281,8 @@ export class Roadfolk {
 
   update(dt: number, player: THREE.Vector3, camera: THREE.Vector3, enemies: Enemy[], now: number, paused = false): void {
     const t = realmNow() / 1000, hour = realmHour(), night = hour < 6 || hour >= 21;
+    const real = this.lastT ? Math.max(0, Math.min(5, t - this.lastT)) : 0;
+    this.lastT = t;
     this.chatT -= dt;
     this.swingT -= dt;
     const near: Figure[] = [];
@@ -269,6 +291,11 @@ export class Roadfolk {
       if (out && f.beat) out = this.place(f, f.beat, t);
       else if (out && f.post) { f.pos.x = f.post.x; f.pos.z = f.post.z; f.yaw = f.post.yaw; f.moving = 0; }
       const d = Math.hypot(f.pos.x - player.x, f.pos.z - player.z);
+      if (f.pedlar) {
+        // Someone to deal with: stand and face them (the clock runs on without us); then catch up
+        if (out && d < 4.5) { f.lag += real; f.moving = 0; f.yaw = Math.atan2(player.x - f.pos.x, player.z - f.pos.z); }
+        else if (f.lag > 0) f.lag = Math.max(0, f.lag - real * 0.35);
+      }
       if (!out || d > SHOW || !this.voxels.isLoaded(Math.floor(f.pos.x), Math.floor(f.pos.z))) { this.hide(f); continue; }
       near.push(f);
     }
@@ -300,6 +327,7 @@ export class Roadfolk {
       if (!busy) f.model.setState(f.moving > 0 ? 'walk' : 'idle');
       f.model.update(dt, f.moving);
       f.model.root.position.copy(f.pos);
+      if (f.pedlar) this.lead(f, dt);
       let dy = f.yaw - f.model.root.rotation.y;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
@@ -317,7 +345,49 @@ export class Roadfolk {
 
   private hide(f: Figure): void {
     if (f.shown && f.model) this.scene.remove(f.model.root);
+    if (f.shown && f.pony) this.scene.remove(f.pony.root);
     f.shown = false;
+  }
+
+  /** A pedlar's pony: on a short lead, a couple of blocks behind, stopping when they stop. */
+  private lead(f: Figure, dt: number): void {
+    const pd = f.pedlar!;
+    if (!f.pony) {
+      f.pony = new CreatureModel('horse', { a: pd.pony.coat, b: pd.pony.mane, c: pd.pony.cloth, breed: 'pack' });
+      f.pony.root.scale.setScalar(0.82);
+      const back = f.yaw + Math.PI;
+      f.pony.root.position.set(f.pos.x + Math.sin(back) * 2.3, f.pos.y, f.pos.z + Math.cos(back) * 2.3);
+    }
+    if (!f.pony.root.parent) this.scene.add(f.pony.root);
+    const pr = f.pony.root.position;
+    const dx = f.pos.x - pr.x, dz = f.pos.z - pr.z, d = Math.hypot(dx, dz) || 1;
+    // Keep to the end of the lead: close up when they're more than 2.3 away, wait when nearer
+    const step = d > 2.3 ? Math.min(d - 2.3, Math.max(f.moving, 1.6) * 1.15 * dt + (d > 5 ? d - 5 : 0)) : 0;
+    pr.x += (dx / d) * step;
+    pr.z += (dz / d) * step;
+    const g = this.ground(pr.x, pr.z);
+    pr.y += (g - pr.y) * Math.min(1, dt * 8);
+    if (step > 0) {
+      let dy = Math.atan2(dx, dz) - f.pony.root.rotation.y;
+      while (dy > Math.PI) dy -= Math.PI * 2;
+      while (dy < -Math.PI) dy += Math.PI * 2;
+      f.pony.root.rotation.y += dy * Math.min(1, dt * 5);
+    }
+    f.pony.setAnim(step > 0 ? 'walk' : 'idle');
+    f.pony.update(dt, step / Math.max(dt, 1e-3));
+  }
+
+  /** Pedlars standing within reach of a point: for dealing with, and their name plates. */
+  pedlarsNear(p: THREE.Vector3, r: number): { id: string; name: string; title: string; pos: THREE.Vector3; height: number }[] {
+    const out: { id: string; name: string; title: string; pos: THREE.Vector3; height: number }[] = [];
+    for (const f of this.figures) if (f.pedlar && f.shown && Math.hypot(f.pos.x - p.x, f.pos.z - p.z) < r) out.push({ id: f.pedlar.id, name: f.pedlar.name, title: f.pedlar.title, pos: f.pos, height: f.look.height ?? 1 });
+    return out;
+  }
+
+  /** Say something from a pedlar (their greeting when you open their pack). */
+  pedlarSay(id: string): void {
+    const f = this.figures.find((x) => x.pedlar?.id === id);
+    if (f) { this.say(f.pos, 2.3, f.lines[Math.floor(Math.random() * f.lines.length)]); f.chat = 40; }
   }
 
   /** How many are out on the realm's clock right now, and how many are built near you. */

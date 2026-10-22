@@ -9,8 +9,9 @@ import { PACKWOMAN } from './packwoman';
 import { STABLE_CONTENT } from './stables';
 import { WAITS } from './waits';
 import { TAVERN_CONTENT } from './taverns';
+import { PEDLAR_CONTENT } from './pedlars';
 
 // Every region's side content. Add a region by writing its module and listing it here.
-export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER, STABLE_CONTENT, WAITS, TAVERN_CONTENT];
+export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER, STABLE_CONTENT, WAITS, TAVERN_CONTENT, PEDLAR_CONTENT];
 
 export const BOARDS: Board[] = CONTENT.flatMap((c) => c.boards ?? []);

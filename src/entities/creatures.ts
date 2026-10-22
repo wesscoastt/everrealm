@@ -11,8 +11,8 @@ export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'r
 export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'ray', 'medusa']);
 
 /** Colour overrides so one body plan can serve several regional species. */
-/** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed. */
-export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie';
+/** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed, a pack pony's load. */
+export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack';
 export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean }
 export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze' | 'sit' | 'swim';
 
@@ -765,6 +765,23 @@ export class CreatureModel {
         head.add(curl);
       }
       for (const [x, y, z] of [[0, 1.66, 0.4], [0, 1.68, -0.4], [0.28, 1.5, 0], [-0.28, 1.5, 0], [0, 1.62, 0.84]] as const) add(this.body, rb(0.5, 0.26, 0.5, 0.12), wool, x, y, z);
+    } else if (breed === 'pack') {
+      // A pack pony: a canvas pannier hung either side, a bedroll across behind the saddle, a kettle and a pan
+      const canvas = lam('#b8a888'), strap = lam('#4a3020'), roll = lam(this.pal.c ?? '#6a4a2a'), iron = lam('#3a3a3c');
+      for (const sd of [1, -1]) {
+        add(this.body, rb(0.24, 0.5, 0.62, 0.06), canvas, sd * 0.5, 1.42, -0.14);
+        add(this.body, rb(0.26, 0.06, 0.64, 0.02), strap, sd * 0.5, 1.62, -0.14);
+        add(this.body, rb(0.05, 0.5, 0.06, 0.01), strap, sd * 0.62, 1.42, -0.14);
+      }
+      const bed = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.9, 8), roll);
+      bed.rotation.z = Math.PI / 2;
+      bed.position.set(0, 1.98, -0.42);
+      bed.castShadow = true;
+      this.body.add(bed);
+      const kettle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.16, 8), iron);
+      kettle.position.set(0.66, 1.2, -0.36);
+      this.body.add(kettle);
+      add(this.body, rb(0.04, 0.26, 0.26, 0.02), iron, -0.66, 1.24, -0.36);
     } else if (breed === 'kelpie') {
       // Weed hanging from the mane, and eyes that glow like a lamp under water
       const weed = lam('#2e5a3a');
