@@ -349,7 +349,8 @@ export function plan(): Plan {
     const h = baseHeight(x, z);
     // (by the heart's own roads: the outer lands' roads came later, and mustn't move these)
     if (h <= SEA + 1 || heartRoadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
-    if (named.some((n) => !n.sea && !n.under && Math.hypot(n.x - x, n.z - z) < 80)) continue;
+    // (Stables and lodging houses came later, and were placed clear of these: they don't move them)
+    if (named.some((n) => !n.sea && !n.under && !/^(st|lg)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < 80)) continue;
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
@@ -370,7 +371,8 @@ export function plan(): Plan {
     if (!list || (x > -140 && x < OLD_EDGE + 140 && z > -140 && z < OLD_EDGE + 140)) continue;
     const h = baseHeight(x, z);
     if (h <= SEA + 1 || roadDist(x, z) < 16 || [[10, 0], [-10, 0], [0, 10], [0, -10]].some(([dx, dz]) => Math.abs(baseHeight(x + dx, z + dz) - h) > 3)) continue;
-    if (named.some((n) => Math.hypot(n.x - x, n.z - z) < 90)) continue;
+    // (Stables and lodging houses came later, and were placed clear of these: they don't move them)
+    if (named.some((n) => !/^(st|lg)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < 90)) continue;
     pois.push({ x, z, kind: list[Math.floor(hash2(cx, cz, 514) * list.length)], region: reg });
     flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
   }
