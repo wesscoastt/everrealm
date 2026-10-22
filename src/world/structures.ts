@@ -116,7 +116,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
         else if (f === 0 && ly === 0) id = B.Cobble;
         else if (along % 3 === 0) id = B.Timber;
         else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1 && !(f === 0 && ly === 2 && along === span - 2)) id = B.Window;
-        // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
+        // The doorway: two blocks high, under a dark lintel
         if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = B.Air;
         else if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
         world.put(x, y, z, id);
@@ -163,7 +163,9 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     if (o.windowBoxes) {
       const wz = o.door === 's' ? z0 + d + 0.02 : z0 - 0.02;
       const ry = o.door === 's' ? 0 : Math.PI;
-      for (let a = 1; a < w - 1; a += 3) place(P.windowBox(M), x0 + a + 1.5, HB + 1.0, wz, ry);
+      // One under each ground-floor window (the windows are at every third block from the corner);
+      // never across the doorway
+      for (let a = 1; a < w - 1; a += 3) if (x0 + a !== doorX) place(P.windowBox(M), x0 + a + 0.5, HB + 1.0, wz, ry);
     }
     return { doorX, doorZ, base: HB };
   };
@@ -418,7 +420,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     { text: 'Gorse Mill', to: [118, 202] },
     { text: 'The Lantern', to: [96, 244] },
   ]);
-  sign(192.5, 181.6, [
+  sign(196.5, 181.5, [ // on the corner, not in the Pit road
     { text: 'Sallow Pit', to: [210, 146] },
     { text: 'Ansbury', to: [260, 194] },
     { text: 'Hollin Ford', to: [170, 184] },

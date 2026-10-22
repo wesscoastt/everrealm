@@ -114,6 +114,9 @@ export interface Plan {
 
 let cached: Plan | null = null;
 
+/** Ansbury's new (outer) wall: the line it runs along on each side. */
+const NEW_WALL = { x0: 630, x1: 1010, z0: 120, z1: 474 };
+
 /** What may not stand on a road: a cart, barrels, a bench, a fence, a stall or a tent. */
 const ROAD_CLUTTER = new Set<PropType>(['cart', 'barrel', 'crate', 'bench', 'fence', 'stall', 'tent', 'anvil', 'firepit']);
 
@@ -236,8 +239,15 @@ export function plan(): Plan {
   const CELL = 176;
   for (let cz = 0; cz < WZ / CELL; cz++) for (let cx = 0; cx < WX / CELL; cx++) {
     if (hash2(cx, cz, 501) > 0.8) continue;
-    const x = Math.floor(cx * CELL + 30 + hash2(cx, cz, 502) * (CELL - 60));
-    const z = Math.floor(cz * CELL + 30 + hash2(cx, cz, 503) * (CELL - 60));
+    let x = Math.floor(cx * CELL + 30 + hash2(cx, cz, 502) * (CELL - 60));
+    let z = Math.floor(cz * CELL + 30 + hash2(cx, cz, 503) * (CELL - 60));
+    // Not astride Ansbury's outer wall (a stone ring was built through it): out past the wall instead.
+    // Ones nearer than a ring's width only: the town was laid out round those further in
+    const W = NEW_WALL;
+    if (x > W.x0 - 9 && x < W.x1 + 9 && z > W.z0 - 9 && z < W.z1 + 9) {
+      const d = [Math.abs(x - W.x0), Math.abs(x - W.x1), Math.abs(z - W.z0), Math.abs(z - W.z1)], m = Math.min(...d);
+      if (m < 9) { if (m === d[0]) x = W.x0 - 18; else if (m === d[1]) x = W.x1 + 18; else if (m === d[2]) z = W.z0 - 18; else z = W.z1 + 18; }
+    }
     if (x < GW + 40 && z < GW + 40) continue;
     if (x > 1800 || z < 50 || x < 50 || z > WZ - 60) continue;
     const reg = regionAt(x, z).a;
@@ -634,7 +644,7 @@ export function plan(): Plan {
    */
   function buildNewTown(base: number, extra: Site[]) {
     const X0 = 750, X1 = 890, Z0 = 230, Z1 = 370, cx = 820, cz = 300; // the old walls
-    const OX0 = 630, OX1 = 1010, OZ0 = 120, OZ1 = 474; // the new
+    const { x0: OX0, x1: OX1, z0: OZ0, z1: OZ1 } = NEW_WALL; // the new
     const ward = (id: string, name: string, x: number, z: number): Site => {
       const w: Site = { id, name, region: 'crownroad', x, z, r: 240, named: false, props: [], rects: [], impostor: [] };
       extra.push(w);
@@ -904,7 +914,7 @@ export function plan(): Plan {
     fence(s, ex - 18, ez, ex + 18, ez); // the tilt
     for (const [px, pz, ry, col] of [[ex - a - 9, ez - 9, Math.PI / 2, '#a8382c'], [ex + a + 9, ez + 9, -Math.PI / 2, '#2f528f']] as const) s.props.push({ t: 'tent', x: px, y: base, z: pz, ry, color: col });
     for (const [bx, bz] of [[ex - 14, ez - b - 2.2], [ex, ez - b - 3.2], [ex + 14, ez - b - 2.2], [ex - 14, ez + b + 2.2], [ex + 14, ez + b + 2.2]]) s.props.push({ t: 'banner', x: bx, y: base + 7.2, z: bz, kind: 'aldermere' });
-    s.props.push({ t: 'sign', x: ex - a - 3.5, y: base, z: ez - 4.5, ry: Math.PI / 2, text: 'The Tilt-yard' });
+    s.props.push({ t: 'sign', x: ex - a - 5.5, y: base, z: ez - 3.5, ry: Math.PI / 2, text: 'The Tilt-yard' });
   }
 
   /** The Charter Green: gravel walks, lawns, a pond, a hedge maze of a garden, benches, old trees. */
@@ -1748,7 +1758,7 @@ export function plan(): Plan {
         // The crew's things by the bridge: crates of crystal waiting for the basket, a barrel of water
         const dirX = Math.sign(hoistSpot().x - ix), dirZ = Math.sign(hoistSpot().z - iz);
         const camp = (k: number, w: number): [number, number] => [ix + 0.5 + dirX * k + (dirZ !== 0 ? w : 0), iz + 0.5 + dirZ * k + (dirX !== 0 ? w : 0)];
-        for (const [k, w, t] of [[6.5, -3.5, 'crate'], [6.8, -2.6, 'crate'], [6.2, 3.5, 'barrel'], [5.6, -3.2, 'crate']] as const) {
+        for (const [k, w, t] of [[6.5, -3.5, 'crate'], [6.8, -2.6, 'crate'], [6.2, 3.5, 'barrel'], [6.1, -2.7, 'crate']] as const) {
           const [cx, cz] = camp(k, w);
           s.props.push({ t, x: cx, y: top, z: cz, ry: k });
         }
@@ -2014,7 +2024,7 @@ export function plan(): Plan {
       // The carters' hamlet: a yard round the well, carts everywhere, Garth's wheel shed, a paddock, gardens
       pave(x - 5, z - 4, x + 5, z + 4, base, 'yard');
       for (const [bx, bz] of [[x, z], [x + 1, z], [x, z + 1], [x + 1, z + 1]]) block2(bx, bz);
-      for (const [cx2, cz2, ry] of [[x + 9, z - 3, 0.3], [x - 7, z + 3, -0.4], [x + 3, z + 11, 1.4], [x + 12, z + 8, 2.0]] as const) s.props.push({ t: 'cart', x: cx2 + 0.5, y: heightAt(cx2, cz2), z: cz2 + 0.5, ry });
+      for (const [cx2, cz2, ry] of [[x + 9, z - 3, 0.3], [x - 7, z + 3, -0.4], [x + 3, z + 11, 1.4], [x + 14, z + 11, 2.0]] as const) s.props.push({ t: 'cart', x: cx2 + 0.5, y: heightAt(cx2, cz2), z: cz2 + 0.5, ry });
       shelter(s, x + 14, z, 6, 5, heightAt(x + 16, z + 2), 'thatch');
       s.props.push({ t: 'desk', x: x + 16.5, y: heightAt(x + 16, z + 2), z: z + 2.5, ry: 0 }, { t: 'crate', x: x + 18.4, y: heightAt(x + 18, z + 3), z: z + 3.2 }, { t: 'barrel', x: x + 15, y: heightAt(x + 15, z + 3), z: z + 3.4 });
       logStack(x + 14, z + 6, 5, 2, true);
@@ -2029,7 +2039,7 @@ export function plan(): Plan {
         fence(s, gx, gz, gx + 8, gz); fence(s, gx, gz, gx, gz + 4); fence(s, gx + 8, gz, gx + 8, gz + 4);
       }
       s.props.push({ t: 'sign', x: x - 6.5, y: heightAt(x - 7, z + 15), z: z + 15.5, ry: 0, text: 'Cotter\'s End' });
-      s.props.push({ t: 'lantern', x: x - 4.5, y: heightAt(x - 5, z - 5), z: z - 4.5 }, { t: 'lantern', x: x + 9.5, y: heightAt(x + 9, z + 5), z: z + 5.5, ry: Math.PI });
+      s.props.push({ t: 'lantern', x: x - 4.5, y: heightAt(x - 5, z - 5), z: z - 4.5 }, { t: 'lantern', x: x + 12.5, y: heightAt(x + 12, z + 5), z: z + 5.5, ry: Math.PI });
       rect(s, x - 34, z - 24, x + 22, z + 18);
     } else if (roof === 'slate') {
       // A high hamlet: drystone walls, a sheepfold, a stone byre, peat stacked by the doors, a sledge
@@ -2215,7 +2225,7 @@ export function plan(): Plan {
     oreHeap(cx + 20, cz + 16, B.CopperOre); oreHeap(cx + 25, cz + 18, B.IronOre);
     s.props.push({ t: 'rails', x: cx + 8.5, y: base, z: cz + 8.5, len: 12, ry: Math.PI / 2 });
     s.props.push({ t: 'cart', x: cx + 18, y: base, z: cz + 12, ry: 0.9 }, { t: 'crate', x: cx - 7, y: base, z: cz + 18 }, { t: 'crate', x: cx - 6.2, y: base, z: cz + 18.4 }, { t: 'barrel', x: cx - 5, y: base, z: cz + 19 });
-    for (const [lx, lz] of [[cx - 15, cz + 2], [cx + 5, cz - 3], [cx + 20, cz + 6], [cx - 3, cz + 20]]) s.props.push({ t: 'lantern', x: lx + 0.5, y: base, z: lz + 0.5 });
+    for (const [lx, lz] of [[cx - 15, cz + 2], [cx + 5, cz - 3], [cx + 20, cz + 4], [cx - 3, cz + 20]]) s.props.push({ t: 'lantern', x: lx + 0.5, y: base, z: lz + 0.5 });
   }
 
   /** Fleet Light: the keeper's cottage, the oil store, and a wall along the cliff. */
@@ -2224,7 +2234,7 @@ export function plan(): Plan {
     house(s, Math.floor(cx - 15), Math.floor(cz - 3), 7, 6, 1, base, 'red', 'e', { wall: B.Plaster });
     house(s, Math.floor(cx - 6), Math.floor(cz + 6), 5, 4, 1, base, 'slate', 'n', { wall: B.StoneBrick, role: 'store', chimney: false });
     drystone(Math.floor(cx - 17), Math.floor(cz - 8), Math.floor(cx + 2), Math.floor(cz - 8));
-    s.props.push({ t: 'barrel', x: cx - 1.5, y: base, z: cz + 6 }, { t: 'barrel', x: cx - 0.6, y: base, z: cz + 6.4 });
+    s.props.push({ t: 'barrel', x: cx - 0.5, y: base, z: cz + 5.4 }, { t: 'barrel', x: cx + 0.4, y: base, z: cz + 5.6 });
     rect(s, cx - 18, cz - 9, cx + 6, cz + 11);
   }
 

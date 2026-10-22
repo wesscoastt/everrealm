@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import zlib from 'node:zlib';
 import fs from 'node:fs';
 import { Grid, SX, SY, SZ } from '../src/world/grid';
-import { generateTerrain, EX } from '../src/world/generate';
+import { generateTerrain, EX, ROADS } from '../src/world/generate';
 import { buildStructures } from '../src/world/structures';
 import { Batcher, createPropMaterials } from '../src/world/props';
 import { B, isSolid } from '../src/world/blocks';
@@ -50,6 +50,13 @@ for (const d of res.doors) {
   if (stand - floor >= 2) problems.push(`door at (${ox}, ${oz}): ground outside is ${stand - floor} blocks above the floor (a pit)`);
   else if (floor - stand >= 2) problems.push(`door at (${ox}, ${oz}): a ${floor - stand}-block drop outside`);
   else if (isSolid(grid.get(ox, stand, oz)) || isSolid(grid.get(ox, stand + 1, oz))) problems.push(`door at (${ox}, ${oz}): blocked outside`);
+  // Nothing standing in the way at body height: on the step outside, in the doorway, or just inside
+  for (const k of [1, 0, -1]) {
+    const cx = ox - nx * (1 - k), cz = oz - nz * (1 - k);
+    const cell = new THREE.Box3(new THREE.Vector3(cx + 0.08, floor + 0.1, cz + 0.08), new THREE.Vector3(cx + 0.92, floor + 1.8, cz + 0.92));
+    const hit = placed.find((p) => p.box.intersectsBox(cell));
+    if (hit) problems.push(`door at (${ox}, ${oz}): a prop ${['inside', 'in the doorway', 'on the step'][k + 1]} at (${((hit.box.min.x + hit.box.max.x) / 2).toFixed(1)}, ${hit.box.min.y.toFixed(1)}, ${((hit.box.min.z + hit.box.max.z) / 2).toFixed(1)})`);
+  }
 }
 
 // ---- Paths and paving under buildings
@@ -59,6 +66,23 @@ for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
   if ((id === B.Path) && layout.exclusion[x + z * SX] === EX.Building) {
     // A worn path inside a house's ring: fine if it's the doorstep, wrong if a wall stands on it
     if (isSolid(grid.get(x, y + 1, z))) problems.push(`path under a wall at (${x}, ${z})`);
+  }
+}
+
+// ---- The valley's roads: nothing built across them (a house, a garden fence, a wall) so a road
+// never runs into the side of something and stops
+const LEAF = new Set<number>([B.OakLeaves, B.BirchLeaves, B.PineLeaves]);
+const crossed = new Set<string>();
+for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
+  const [ax, az] = road[i], [bx, bz] = road[i + 1];
+  const len = Math.hypot(bx - ax, bz - az);
+  for (let t = 0; t <= len; t += 0.5) {
+    const x = Math.floor(ax + ((bx - ax) * t) / len), z = Math.floor(az + ((bz - az) * t) / len);
+    if (x < 0 || z < 0 || x >= SX || z >= SZ) continue;
+    const h = layout.heights[x + z * SX];
+    let top = h + 4; while (top > h - 6 && (!isSolid(grid.get(x, top, z)) || LEAF.has(grid.get(x, top, z)))) top--;
+    const what = top + 1 - h >= 3 ? 'a wall' : grid.get(x, top, z) === B.Barrier ? 'a fence or post' : '';
+    if (what && !crossed.has(`${x},${z}`)) { crossed.add(`${x},${z}`); problems.push(`road ${ROADS.indexOf(road)} runs into ${what} at (${x}, ${z})`); }
   }
 }
 

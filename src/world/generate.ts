@@ -19,8 +19,8 @@ export const FALLS = { x0: 93, x1: 95, z: 94 };
 export const ROADS: [number, number][][] = [
   [[-4, 188], [40, 190], [80, 186], [112, 186], [140, 184], [163, 184]], // West road into the square
   [[179, 184], [196, 184], [226, 188], [262, 194], [324, 200]], // East road out of the village
-  [[190, 184], [200, 170], [210, 146], [216, 126], [218, 118]], // Pit road
-  [[150, 190], [151, 197], [151, 237], [136, 241], [112, 241], [96, 246], [80, 250]], // Lantern path, round the east and south of the farm
+  [[190, 184], [193.5, 180], [193.5, 169], [201, 160], [210, 146], [216, 126], [218, 118]], // Pit road, up between the smithy and the blue cottage
+  [[150, 190], [147.5, 196], [147.5, 204], [151, 212], [151, 237], [136, 241], [112, 241], [96, 246], [80, 250]], // Lantern path (clear of the cottage chimney), round the east and south of the farm
   [[180, 196], [190, 214], [204, 232], [214, 262], [226, 292], [232, 324]], // Wetlings track, then south out of the vale
   [[140, 184], [136.5, 188], [136.5, 196], [126, 200], [118, 202]], // Mill lane, between the well and the corner house
   [[154, 182], [152, 166], [132, 146], [112, 128], [104, 117]], // Spill path

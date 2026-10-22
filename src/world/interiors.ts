@@ -239,6 +239,10 @@ export function fitOut(h: HouseShape): FitOut {
       put('chest', du, 0, facing.back, [[du, 0]]);
     }
   }
+  // An invisible ceiling over the top floor, where the roof (a model, not blocks) is all there is:
+  // it's what tells the game you're indoors up there (windows you can see out of, the camera kept
+  // under the beams). Four blocks over the floor, out of reach of a jump.
+  for (let z = h.z0 + 1; z < h.z0 + h.d - 1; z++) for (let x = h.x0 + 1; x < h.x0 + h.w - 1; x++) out.blocks.push([x, h.base + h.floors * 4, z, 'barrier']);
   return out;
 }
 
