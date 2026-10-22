@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import type { Equip } from '../data/items';
+import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { FIGURE } from '../entities/humanoid';
 import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
@@ -440,6 +442,7 @@ export class Game implements GameApi {
       },
       inCombat: () => { this.lastCombat = this.elapsed; this.dismount(); },
       sustainScale: () => (this.gearSet === 'tolley' ? 2 / 3 : 1),
+      skillHaste: () => this.armour.haste,
     });
     this.activities = new Activities({
       daily: (k) => this.dailies.bump(k),
@@ -847,7 +850,46 @@ export class Game implements GameApi {
     this.hud.refresh('skills');
   }
 
-  get maxHp(): number { return 100 + (this.level('melee') - 1) * 6 + (this.helm?.vigor ?? 0); }
+  get maxHp(): number { return 100 + (this.level('melee') - 1) * 6 + this.armour.vigor; }
+
+  /**
+   * Everything the armour adds up to (data/armour.ts): defense off each hit, health, energy, roll
+   * time, and the weights' own effects (light: skill haste; medium: crits and cheaper rolls; heavy:
+   * health, slower energy).
+   */
+  private get armour() {
+    const e = this.save.equip;
+    const a = { defense: 0, vigor: 0, wind: 0, roll: 0, crit: 0, rollCost: 25, haste: 1, light: 0, medium: 0, heavy: 0 };
+    for (const id of [e.head, e.chest, e.legs, e.hands, e.feet]) {
+      const r = id ? ITEMS[id]?.armor : undefined;
+      if (!r) continue;
+      a.defense += r.defense; a.vigor += r.vigor ?? 0; a.wind += r.wind ?? 0; a.roll += r.roll ?? 0;
+      if (r.weight) a[r.weight]++;
+    }
+    a.haste += a.light * 0.04;
+    a.crit += a.medium * 0.015; a.rollCost -= a.medium * 2;
+    a.vigor += a.heavy * 12; a.wind -= a.heavy * 0.03;
+    return a;
+  }
+
+  /** What the gear panel says about the armour worn. */
+  armourSummary(): { defense: number; weights: string; set: string | null } {
+    const a = this.armour;
+    const w = (['light', 'medium', 'heavy'] as const).filter((k) => a[k] > 0).map((k) => `${a[k]} ${WEIGHTS[k].name.toLowerCase()} (${WEIGHTS[k].desc})`);
+    const s = this.gearSet;
+    return { defense: a.defense, weights: w.join('; ') || 'none', set: s };
+  }
+
+  /** The look the character shows: their own, with what they're wearing over it. */
+  private wornLook(): Appearance {
+    const e = this.save.equip;
+    const look: Appearance = { ...this.save.look };
+    for (const id of [e.chest, e.legs, e.hands, e.feet, e.head]) {
+      const l = id ? ITEMS[id]?.armor?.look : undefined;
+      if (l) Object.assign(look, l);
+    }
+    return look;
+  }
   /** The equipped weapon's and helm's traits (gear is horizontal: see GEAR_BUDGET in items.ts). */
   private get blade() { return this.save.equip.weapon ? ITEMS[this.save.equip.weapon].weapon : undefined; }
   private get helm() { return this.save.equip.head ? ITEMS[this.save.equip.head].armor : undefined; }
@@ -955,7 +997,8 @@ export class Game implements GameApi {
       calling: () => g.calling,
       setCalling: (id: CallingId) => g.setCalling(id),
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
-      unequip: (slot: 'weapon' | 'head') => g.unequip(slot),
+      unequip: (slot: keyof Equip) => g.unequip(slot),
+      armourSummary: () => g.armourSummary(),
       dropSlot: (i: number) => g.dropSlot(i),
       craft: (r: string, n: number) => g.startCraft(r, n),
       buy: (item: string) => g.buy(item),
@@ -1150,7 +1193,7 @@ export class Game implements GameApi {
     this.hud.hideTitle();
     this.hud.setHudHidden(true);
     this.hud.setCinema(true, true);
-    this.player.setAppearance(this.save.look, this.scene);
+    this.player.setAppearance(this.wornLook(), this.scene);
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
     this.intro = { t: 0, shot: -1 };
@@ -1214,7 +1257,7 @@ export class Game implements GameApi {
     this.startPending = null;
     this.mode = 'play';
     this.hud.hideTitle();
-    this.player.setAppearance(this.save.look, this.scene);
+    this.player.setAppearance(this.wornLook(), this.scene);
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
     this.rig.yaw = this.save.yaw + Math.PI;
@@ -1277,11 +1320,13 @@ export class Game implements GameApi {
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.armor) {
-      const old = this.save.equip.head;
+      const slot = def.armor.slot;
+      const old = this.save.equip[slot] ?? null;
       this.inv.removeAt(i, 1);
-      this.save.equip.head = st.id;
+      this.save.equip[slot] = st.id;
       if (old) this.inv.add(old, 1);
       this.hp = Math.min(this.hp, this.maxHp);
+      this.player.setAppearance(this.wornLook(), this.scene);
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.mount) {
@@ -1300,13 +1345,14 @@ export class Game implements GameApi {
     this.hud.refresh();
   }
 
-  private unequip(slot: 'weapon' | 'head'): void {
+  private unequip(slot: keyof Equip): void {
     const id = this.save.equip[slot];
     if (!id) return;
     if (!this.inv.canAdd(id)) { this.hud.system('Your pack is full.'); return; }
     this.inv.add(id);
     this.save.equip[slot] = null;
     this.hp = Math.min(this.hp, this.maxHp);
+    if (slot !== 'weapon') this.player.setAppearance(this.wornLook(), this.scene);
     this.hud.refresh();
   }
 
@@ -2277,11 +2323,12 @@ export class Game implements GameApi {
   }
 
   private roll(): void {
-    if (this.cds.roll > 0 || this.energy < 25) return;
+    const cost = this.armour.rollCost;
+    if (this.cds.roll > 0 || this.energy < cost) return;
     this.cancelActions();
-    this.energy -= 25;
+    this.energy -= cost;
     this.cds.roll = 0.8;
-    this.iframes = 0.46 + (this.helm?.roll ?? 0);
+    this.iframes = 0.46 + this.armour.roll;
     this.rolledThrough = false;
     const P = this.player;
     const mv = this.moveVector();
@@ -2317,7 +2364,7 @@ export class Game implements GameApi {
         if (ang > 1.35 && flat > 1.1) continue;
       }
       const mult = a.kind === 'cleave' ? 1.5 : [1, 1.1, 1.5][a.combo];
-      const crit = bonus.crit || Math.random() < 0.12 + (blade?.crit ?? 0) || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
+      const crit = bonus.crit || Math.random() < 0.12 + (blade?.crit ?? 0) + this.armour.crit || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
       if (crit && this.gearSet === 'starglass') this.energy = Math.min(100, this.energy + 6);
       const dmg = this.dealDamage(e, power * mult * bonus.mult * (0.9 + Math.random() * 0.2), crit);
       drawn += dmg * (blade?.leech ?? 0);
@@ -2370,6 +2417,8 @@ export class Game implements GameApi {
     const [lo, hi] = e.def.marks;
     const m = lo + Math.floor(Math.random() * (hi - lo + 1));
     if (m > 0) this.addMarks(m);
+    const reg = regionAt(e.home.x, e.home.z).a, pieces = REGION_ARMOUR[reg];
+    if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(pieces[Math.floor(Math.random() * pieces.length)], 1);
     for (const l of e.def.loot) {
       if (Math.random() < l.chance) {
         this.give(l.item, l.min ?? 1);
@@ -2407,8 +2456,9 @@ export class Game implements GameApi {
       }
       return;
     }
-    const armor = this.helm?.defense ?? 0;
-    const taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) - armor)));
+    const armor = this.armour.defense;
+    // Defence takes a share of the blow, with diminishing returns (D/(D+40)): see data/armour.ts
+    const taken = Math.round(this.kit.incoming(Math.max(1, dmg * (0.9 + Math.random() * 0.2) * (1 - armor / (armor + 40)))));
     if (taken <= 0) { this.floatAt(this.player.position, 2.2, 'Absorbed', 'heal'); this.lastCombat = this.elapsed; return; }
     this.hp -= taken;
     this.lastCombat = this.elapsed;
@@ -2882,7 +2932,7 @@ export class Game implements GameApi {
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
     let speed = this.horse ? 9.6 : 5.4;
     if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
-    else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + (this.helm?.wind ?? 0)));
+    else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind));
     if (this.attack) speed *= 0.35;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
     // Moving, jumping, fighting or working ends an emote; the short ones also end on their own
@@ -3284,7 +3334,7 @@ export class Game implements GameApi {
       { left: this.cds.strike, total: 0.5 },
       { left: this.cds.cleave, total: 6 },
       ...this.kit.slots(),
-      { left: this.cds.roll, total: 0.8, disabled: this.energy < 25 },
+      { left: this.cds.roll, total: 0.8, disabled: this.energy < this.armour.rollCost },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);
     const gauge = this.kit.gauge();

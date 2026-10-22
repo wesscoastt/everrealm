@@ -770,3 +770,9 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #exchange-panel .ex-form input { width: 90px; padding: 3px 6px; background: #0b1122; color: #fff; border: 1px solid var(--ink); border-radius: 4px; }
 #exchange-panel .ex-net { font: 500 12px var(--body); color: var(--muted); flex: 1; }
 @media (max-width: 640px) { #exchange-panel { width: calc(100vw - 32px); } #exchange-panel .ex-form { padding-left: 10px; } }
+
+/* Armour: weapon and five armour slots in a row, the summary under them */
+.equip-row { flex-wrap: wrap; }
+.equip-row .eq-slots { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+.equip-row .eq-slots .slot { width: 40px; height: 40px; }
+.equip-row .stats { margin-left: 0; text-align: left; width: 100%; font-size: 12px; }

@@ -31,6 +31,8 @@ export interface KitHost {
   inCombat(): void;
   /** The Tolley set's shorter sustain cooldown. */
   sustainScale(): number;
+  /** How much faster the skills recharge (light armour). */
+  skillHaste(): number;
 }
 
 interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number }
@@ -273,7 +275,8 @@ export class ClassKit {
   update(dt: number): void {
     this.clock += dt;
     const H = this.host, P = H.player();
-    for (let i = 0; i < 3; i++) this.cds[i] = Math.max(0, this.cds[i] - dt);
+    const haste = H.skillHaste();
+    for (let i = 0; i < 3; i++) this.cds[i] = Math.max(0, this.cds[i] - dt * haste);
     for (const [e, until] of this.marks) if (until <= this.clock || !e.alive) this.marks.delete(e);
     if (this.calling.id === 'warden' && this.resolve > 0 && this.clock - this.resolveAt > T.resolve.fade) this.resolve = 0;
     // Shield bubble

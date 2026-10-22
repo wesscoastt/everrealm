@@ -1,4 +1,6 @@
 import './styles.css';
+import { SLOT_NAMES } from '../data/armour';
+import type { Equip } from '../data/items';
 import './theme.css';
 import { activeSet, GEAR_SETS, ITEMS, RARITY_COLOR, SkillId } from '../data/items';
 import { levelForXp, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
@@ -170,7 +172,9 @@ export interface UiCtx {
   setCalling(id: CallingId): string | null;
   /** Wear a feat's title (null for none). */
   wearTitle(id: string | null): void;
-  unequip(slot: 'weapon' | 'head'): void;
+  unequip(slot: keyof Equip): void;
+  /** The armour worn: what it takes off a hit, the weights and what they do, the set in force. */
+  armourSummary(): { defense: number; weights: string; set: string | null };
   dropSlot(i: number): void;
   craft(recipe: string, count: number): void;
   buy(item: string): void;
@@ -1182,7 +1186,7 @@ export class Hud {
    */
   private armoury(): HTMLElement {
     const save = this.ctx.save;
-    const owned = new Set([save.equip.weapon, save.equip.head, ...save.inv.map((s) => s?.id)]);
+    const owned = new Set([save.equip.weapon, save.equip.head, save.equip.chest, save.equip.legs, save.equip.hands, save.equip.feet, ...save.inv.map((s) => s?.id)]);
     const found = (id: string) => owned.has(id) || !!save.flags['found:' + id];
     const pieces = Object.values(ITEMS).filter((d) => d.set);
     const box = el('details', 'armoury');
@@ -1242,18 +1246,20 @@ export class Hud {
     const save = this.ctx.save;
     body.innerHTML = '';
     const eq = el('div', 'equip-row');
-    for (const slot of ['weapon', 'head'] as const) {
-      const id = save.equip[slot];
+    const slots = el('div', 'eq-slots');
+    for (const slot of ['weapon', 'head', 'chest', 'legs', 'hands', 'feet'] as const) {
+      const id = save.equip[slot] ?? null;
       const wrap = el('div', 'eq');
       const s = this.slotEl(id, 1, -1, 'Click to unequip');
       if (id) s.addEventListener('click', () => { this.ctx.unequip(slot); this.hideTooltip(); });
-      wrap.append(s, el('span', '', slot === 'weapon' ? 'Weapon' : 'Head'));
-      eq.append(wrap);
+      wrap.append(s, el('span', '', slot === 'weapon' ? 'Weapon' : SLOT_NAMES[slot]));
+      slots.append(wrap);
     }
-    // Gear is horizontal: show the style each piece gives and the set in force, not a bigger number
+    eq.append(slots);
+    // Gear is horizontal: show the weapon's style, the armour's weights and the set in force, not a bigger number
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? '').split('.')[0] : 'None');
-    const set = activeSet(save.equip);
-    eq.append(el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Head <b>${esc(style(save.equip.head))}</b><br>${set ? `Set <b>${esc(GEAR_SETS[set].name)}</b><br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b>`));
+    const a = this.ctx.armourSummary();
+    eq.append(el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b>`));
     body.append(eq);
     body.append(this.armoury());
     const grid = el('div', 'inv-grid');

@@ -95,6 +95,31 @@ function paint(spec: IconSpec): string {
       px(15, 8, 2, 14, shade(a, 1.3));
       break;
     }
+    case 'chest': {
+      // A jerkin: shoulders, body, the trim down the front
+      x.fillStyle = outline; x.beginPath(); x.moveTo(5, 9); x.lineTo(11, 5); x.lineTo(21, 5); x.lineTo(27, 9); x.lineTo(25, 15); x.lineTo(23, 14); x.lineTo(23, 28); x.lineTo(9, 28); x.lineTo(9, 14); x.lineTo(7, 15); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(7, 9.5); x.lineTo(12, 7); x.lineTo(20, 7); x.lineTo(25, 9.5); x.lineTo(24, 12.5); x.lineTo(21.5, 12); x.lineTo(21.5, 26.5); x.lineTo(10.5, 26.5); x.lineTo(10.5, 12); x.lineTo(8, 12.5); x.fill();
+      px(15, 7, 2, 20, b ?? shade(a, 0.7)); px(11, 20, 10, 2, shade(a, 0.75));
+      break;
+    }
+    case 'legs': {
+      x.fillStyle = outline; x.beginPath(); x.moveTo(8, 5); x.lineTo(24, 5); x.lineTo(25, 28); x.lineTo(18, 28); x.lineTo(16, 13); x.lineTo(14, 28); x.lineTo(7, 28); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(10, 7); x.lineTo(22, 7); x.lineTo(23, 26.5); x.lineTo(19.5, 26.5); x.lineTo(16, 10.5); x.lineTo(12.5, 26.5); x.lineTo(9, 26.5); x.fill();
+      px(9, 7, 14, 2, b ?? shade(a, 0.7));
+      break;
+    }
+    case 'gloves': {
+      x.fillStyle = outline; x.fillRect(7, 6, 10, 20); x.fillRect(17, 12, 6, 8); x.fillRect(5, 22, 14, 6);
+      x.fillStyle = a; x.fillRect(9, 8, 6, 15); x.fillRect(15, 14, 6, 4); px(7, 23, 10, 4, b ?? shade(a, 0.7));
+      px(11, 8, 1, 12, shade(a, 0.75));
+      break;
+    }
+    case 'boots': {
+      x.fillStyle = outline; x.beginPath(); x.moveTo(8, 4); x.lineTo(17, 4); x.lineTo(17, 18); x.lineTo(27, 22); x.lineTo(27, 28); x.lineTo(7, 28); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(10, 6); x.lineTo(15, 6); x.lineTo(15, 19.5); x.lineTo(25, 23.5); x.lineTo(25, 26); x.lineTo(9, 26); x.fill();
+      px(9, 6, 7, 2, b ?? shade(a, 0.7));
+      break;
+    }
     case 'shell': {
       x.fillStyle = outline; x.beginPath(); x.ellipse(16, 18, 13, 10, 0, Math.PI, 0); x.fill(); px(3, 18, 26, 4, outline);
       x.fillStyle = a; x.beginPath(); x.ellipse(16, 18, 11, 8.5, 0, Math.PI, 0); x.fill();

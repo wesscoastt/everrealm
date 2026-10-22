@@ -1,9 +1,12 @@
+import type { ArmourSlot, ArmourWeight } from './armour';
+import type { Appearance } from '../entities/humanoid';
+
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic';
 export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'quest' | 'collectible' | 'trophy';
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
 
 export interface IconSpec {
-  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe';
+  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots';
   a: string;
   b?: string;
 }
@@ -26,8 +29,8 @@ export interface ItemDef {
    */
   weapon?: { damage: number; speed: number; held: 'sword' | 'bronzeSword'; reach?: number; crit?: number; leech?: number };
   tool?: { skill: SkillId; power: number; level: number; held: 'pickaxe' | 'hatchet' | 'rod' };
-  /** Helm traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll. */
-  armor?: { slot: 'head'; defense: number; vigor?: number; wind?: number; roll?: number };
+  /** Armour traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll; its weight and how it shows (data/armour.ts). */
+  armor?: { slot: ArmourSlot; defense: number; vigor?: number; wind?: number; roll?: number; weight?: ArmourWeight; look?: Partial<Appearance> };
   /** A halter: the horse it calls (every horse runs at the same pace; only the look differs). */
   mount?: { coat: string; mane: string; cloth: string; glow?: boolean };
   /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
@@ -50,8 +53,8 @@ const I = (d: ItemDef) => d;
 export const GEAR_BUDGET = { weapon: 8, head: 4 };
 
 /**
- * Regional sets: each region's weapon and helm worn together add a bonus that changes how you
- * fight, not how hard you hit. The armoury in the pack lists every piece and where it comes from.
+ * Regional sets: any two pieces of a region's set worn together (its weapon, helm or armour) add a
+ * bonus that changes how you fight, not how hard you hit. The armoury in the pack lists every piece and where it comes from.
  */
 export const GEAR_SETS: Record<string, { name: string; where: string; bonus: string }> = {
   tolley: { name: 'Tolley\'s work', where: 'Smithed at an anvil', bonus: 'Your calling\'s healing skill (key 3) recharges a third faster.' },
@@ -61,10 +64,18 @@ export const GEAR_SETS: Record<string, { name: string; where: string; bonus: str
   harrow: { name: 'The Works', where: 'Raddle Barrens and the Rust Queen', bonus: 'Cleave recharges in 4 seconds instead of 6.' },
   starglass: { name: 'Kirkglass', where: 'Scarth Highlands and Old Glass', bonus: 'Critical hits give back 6 energy.' },
 };
-/** The set both equipped pieces share, if they do. */
-export function activeSet(equip: { weapon: string | null; head: string | null }): string | null {
-  const a = equip.weapon ? ITEMS[equip.weapon]?.set : undefined, b = equip.head ? ITEMS[equip.head]?.set : undefined;
-  return a && a === b ? a : null;
+/** Everything worn: the weapon and the five armour slots (older saves only have the first two). */
+export interface Equip { weapon: string | null; head: string | null; chest?: string | null; legs?: string | null; hands?: string | null; feet?: string | null }
+/** The set in force: any two equipped pieces of one set (the weapon counts), the most-worn set if two qualify. */
+export function activeSet(equip: Equip): string | null {
+  const n = new Map<string, number>();
+  for (const id of [equip.weapon, equip.head, equip.chest, equip.legs, equip.hands, equip.feet]) {
+    const s = id ? ITEMS[id]?.set : undefined;
+    if (s) n.set(s, (n.get(s) ?? 0) + 1);
+  }
+  let best: string | null = null, most = 1;
+  for (const [s, k] of n) if (k > most) { best = s; most = k; }
+  return best;
 }
 export function gearPoints(d: ItemDef): number {
   if (d.weapon) { const w = d.weapon; return w.damage + (w.speed - 1) / 0.05 + (w.reach ?? 0) / 0.25 + (w.crit ?? 0) / 0.03 + (w.leech ?? 0) / 0.02; }
@@ -115,7 +126,7 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'farm_hatchet', name: 'Farmhand\'s hatchet', kind: 'tool', rarity: 'common', stack: false, value: 4, icon: { shape: 'hatchet', a: '#8e959e', b: '#6e4a2c' }, desc: 'Good for kindling. Adequate for trees.', tool: { skill: 'woodcutting', power: 1, level: 1, held: 'hatchet' }, stats: 'Woodcutting tool. Power 1.' }),
   I({ id: 'bronze_hatchet', name: 'Bronze hatchet', kind: 'tool', rarity: 'uncommon', stack: false, value: 20, icon: { shape: 'hatchet', a: '#c08a42', b: '#6e4a2c' }, desc: 'A proper felling head.', tool: { skill: 'woodcutting', power: 2, level: 2, held: 'hatchet' }, stats: 'Woodcutting tool. Power 2. Requires Woodcutting 2.' }),
   I({ id: 'fishing_rod', name: 'Pell\'s old rod', kind: 'tool', rarity: 'common', stack: false, value: 6, icon: { shape: 'rod', a: '#8a6a3a' }, desc: 'Hazel, with a cork float that has seen better rivers.', tool: { skill: 'fishing', power: 1, level: 1, held: 'rod' }, stats: 'Fishing tool.' }),
-  I({ id: 'bronze_helm', name: 'Bronze cap', kind: 'armor', rarity: 'uncommon', stack: false, value: 35, icon: { shape: 'helm', a: '#c08a42' }, desc: 'Rings when something hits it. Better the helm than you.', set: 'tolley', armor: { slot: 'head', defense: 4 }, stats: 'Takes 4 off every hit.' }),
+  I({ id: 'bronze_helm', name: 'Bronze cap', kind: 'armor', rarity: 'uncommon', stack: false, value: 35, icon: { shape: 'helm', a: '#c08a42' }, desc: 'Rings when something hits it. Better the helm than you.', set: 'tolley', armor: { slot: 'head', defense: 4 }, stats: 'Defence 4.' }),
   // Creature materials
   I({ id: 'wolf_pelt', name: 'Wolf pelt', kind: 'material', rarity: 'common', stack: true, value: 6, icon: { shape: 'pelt', a: '#8a7c6a' }, desc: 'Coarse grey-brown fur. Tamsin sends them to Ansbury for collars.' }),
   I({ id: 'rustback_shell', name: 'Rustback shell plate', kind: 'material', rarity: 'common', stack: true, value: 5, icon: { shape: 'shell', a: '#b5622e', b: '#4fae8c' }, desc: 'Flecked with green where the beetle\'s been eating copper.' }),
@@ -136,11 +147,11 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'brine_cutlass', name: 'Brine cutlass', kind: 'weapon', rarity: 'uncommon', stack: false, value: 45, icon: { shape: 'sword', a: '#9ad0e0', b: '#5a3a24' }, desc: 'Salt-pitted and sharp. Gullmouth says a blade that has been in the sea gives back what it takes.', set: 'brine', weapon: { damage: 4, speed: 1, held: 'sword', leech: 0.08 }, stats: 'Draws strength. Damage +4, heals 8% of damage dealt.' }),
   I({ id: 'harrow_cleaver', name: 'Harrowgate cleaver', kind: 'weapon', rarity: 'rare', stack: false, value: 80, icon: { shape: 'sword', a: '#a86a4a', b: '#3a1410' }, desc: 'Cut from a drift rail and ground to an edge. It swings like a door.', set: 'harrow', weapon: { damage: 11, speed: 0.85, held: 'bronzeSword' }, stats: 'Heavy. Damage +11, attacks 15% slower.' }),
   I({ id: 'starglass_edge', name: 'Kirkglass edge', kind: 'weapon', rarity: 'rare', stack: false, value: 80, icon: { shape: 'sword', a: '#a8f0ff', b: '#2a8ab0' }, desc: 'A sliver of Old Glass set in a plain hilt. It is warm, and it hums when it hits.', set: 'starglass', weapon: { damage: 3, speed: 1, held: 'sword', reach: 0.25, crit: 0.06, leech: 0.04 }, stats: 'A little of everything. Damage +3, reach +0.25, critical hits +6%, heals 4% of damage dealt.' }),
-  I({ id: 'wolfskin_hood', name: 'Wolfskin hood', kind: 'armor', rarity: 'uncommon', stack: false, value: 30, icon: { shape: 'helm', a: '#8a7c6a' }, desc: 'Drovers wear them on the Turnpike. Warm, light, and no help at all against teeth.', set: 'tollriders', armor: { slot: 'head', defense: 1, wind: 0.3 }, stats: 'For running. Takes 1 off every hit, energy comes back 30% faster.' }),
-  I({ id: 'oilskin_hat', name: 'Oilskin sou\'wester', kind: 'armor', rarity: 'uncommon', stack: false, value: 30, icon: { shape: 'helm', a: '#e0b83a' }, desc: 'Waxed canvas with a brim down the back. Gullmouth\'s crews say it makes you quick on a wet deck.', set: 'brine', armor: { slot: 'head', defense: 1, roll: 0.12 }, stats: 'For dodging. Takes 1 off every hit, rolls stay untouchable 0.12 s longer.' }),
-  I({ id: 'redback_helm', name: 'Redback plate helm', kind: 'armor', rarity: 'rare', stack: false, value: 60, icon: { shape: 'helm', a: '#c8442a' }, desc: 'A redback\'s head plate, padded and strapped. Heavy enough to make you breathe hard.', set: 'harrow', armor: { slot: 'head', defense: 6, wind: -0.2 }, stats: 'For standing your ground. Takes 6 off every hit, energy comes back 20% slower.' }),
+  I({ id: 'wolfskin_hood', name: 'Wolfskin hood', kind: 'armor', rarity: 'uncommon', stack: false, value: 30, icon: { shape: 'helm', a: '#8a7c6a' }, desc: 'Drovers wear them on the Turnpike. Warm, light, and no help at all against teeth.', set: 'tollriders', armor: { slot: 'head', defense: 1, wind: 0.3 }, stats: 'For running. Defence 1, energy comes back 30% faster.' }),
+  I({ id: 'oilskin_hat', name: 'Oilskin sou\'wester', kind: 'armor', rarity: 'uncommon', stack: false, value: 30, icon: { shape: 'helm', a: '#e0b83a' }, desc: 'Waxed canvas with a brim down the back. Gullmouth\'s crews say it makes you quick on a wet deck.', set: 'brine', armor: { slot: 'head', defense: 1, roll: 0.12 }, stats: 'For dodging. Defence 1, rolls stay untouchable 0.12 s longer.' }),
+  I({ id: 'redback_helm', name: 'Redback plate helm', kind: 'armor', rarity: 'rare', stack: false, value: 60, icon: { shape: 'helm', a: '#c8442a' }, desc: 'A redback\'s head plate, padded and strapped. Heavy enough to make you breathe hard.', set: 'harrow', armor: { slot: 'head', defense: 6, wind: -0.2 }, stats: 'For standing your ground. Defence 6, energy comes back 20% slower.' }),
   I({ id: 'frost_cowl', name: 'Frost-pelt cowl', kind: 'armor', rarity: 'rare', stack: false, value: 60, icon: { shape: 'helm', a: '#dde6ee' }, desc: 'Kelderby stitches them for the high pasture. You stop shivering, and you last.', set: 'starglass', armor: { slot: 'head', defense: 0, vigor: 40 }, stats: 'For lasting. Maximum health +40.' }),
-  I({ id: 'moss_hood', name: 'Moss-dyed hood', kind: 'armor', rarity: 'uncommon', stack: false, value: 30, icon: { shape: 'helm', a: '#5a7a3a' }, desc: 'Felted wool dyed in the Wend\'s green. In Hagworm Wood it is the colour of not being seen.', set: 'thornback', armor: { slot: 'head', defense: 2, vigor: 20 }, stats: 'For the long fight. Takes 2 off every hit, maximum health +20.' }),
+  I({ id: 'moss_hood', name: 'Moss-dyed hood', kind: 'armor', rarity: 'uncommon', stack: false, value: 30, icon: { shape: 'helm', a: '#5a7a3a' }, desc: 'Felted wool dyed in the Wend\'s green. In Hagworm Wood it is the colour of not being seen.', set: 'thornback', armor: { slot: 'head', defense: 2, vigor: 20 }, stats: 'For the long fight. Defence 2, maximum health +20.' }),
   I({ id: 'raw_mackerel', name: 'Raw mackerel', kind: 'material', rarity: 'common', stack: true, value: 8, icon: { shape: 'fish', a: '#3a6a8a', b: '#c8d8e0' }, desc: 'Striped and slippery. Gullmouth eats it with everything.' }),
   I({ id: 'raw_seabass', name: 'Raw sea bass', kind: 'material', rarity: 'uncommon', stack: true, value: 16, icon: { shape: 'fish', a: '#7a8a98', b: '#e0e6ea' }, desc: 'Caught off the Gullmouth jetties at the turn of the tide.' }),
   I({ id: 'raw_char', name: 'Raw frost char', kind: 'material', rarity: 'rare', stack: true, value: 30, icon: { shape: 'fish', a: '#c86a5a', b: '#e8d8c8' }, desc: 'Lives under the ice of the Highland tarns. Red-bellied.' }),
@@ -201,6 +212,11 @@ export const RARITY_COLOR: Record<Rarity, string> = {
 // Side content items (src/data/content).
 import { CONTENT } from './content';
 for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
+
+// Armour for the body, and the helms' weights (src/data/armour.ts).
+import { ARMOUR_ITEMS, HELM_WEIGHTS } from './armour';
+for (const d of ARMOUR_ITEMS) ITEMS[d.id] = d;
+for (const [id, h] of Object.entries(HELM_WEIGHTS)) if (ITEMS[id]?.armor) Object.assign(ITEMS[id].armor!, { weight: h.weight, look: h.look });
 
 // Rares' trophies and treasure maps (src/data/wilds.ts).
 import { MAP_ITEMS, TROPHIES } from './wilds';

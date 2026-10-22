@@ -1,3 +1,4 @@
+import type { Equip } from '../data/items';
 import type { Appearance } from '../entities/humanoid';
 import { ITEMS, SkillId } from '../data/items';
 import { levelForXp } from '../data/gameplay';
@@ -28,7 +29,7 @@ export interface SaveData {
   hp: number;
   xp: Record<SkillId, number>;
   inv: (Stack | null)[];
-  equip: { weapon: string | null; head: string | null };
+  equip: Equip;
   marks: number;
   flags: Record<string, unknown>;
   quests: Record<string, string>;
