@@ -343,7 +343,9 @@ export class Hud {
     } catch { /* storage unavailable: defaults */ }
 
     const tr = el('div', 'hud-only'); tr.id = 'tracker'; r.append(tr);
-    window.addEventListener('resize', () => this.stackTracker());
+    window.addEventListener('resize', () => { this.stackTracker(); this.fitChat(); });
+    // The bar's width changes with the calling and the screen: keep the chat clear of it
+    setInterval(() => this.fitChat(), 1000);
 
     this.buildChat();
     const ab = el('div', 'hud-only'); ab.id = 'actionbar';
@@ -979,6 +981,16 @@ export class Hud {
    * The event panel and the quest tracker share the column under the minimap: while an event is
    * showing there, the tracker goes below it. (On a phone the event panel has its own corner.)
    */
+  /** Lift the chat box above the action bar wherever the two would overlap (any screen size, any bar). */
+  private fitChat(): void {
+    const bar = document.getElementById('actionbar'), chat = document.getElementById('chatbox');
+    if (!bar || !chat || document.body.classList.contains('touch')) return;
+    chat.style.bottom = '';
+    const b = bar.getBoundingClientRect(), c = chat.getBoundingClientRect();
+    if (!b.width || !c.width) return;
+    if (c.right > b.left - 8 && c.bottom > b.top - 8) chat.style.bottom = `${Math.ceil(window.innerHeight - b.top + 10)}px`;
+  }
+
   private stackTracker(): void {
     const tr = this.q('#tracker'), p = this.eventEl;
     tr.style.top = '';

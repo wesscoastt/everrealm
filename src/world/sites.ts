@@ -185,11 +185,6 @@ function clearRoads(O: Overrides, sites: Site[]): void {
   for (const s of sites) s.props = s.props.filter((p) => !(ROAD_CLUTTER.has(p.t) && onRoad(p.x, p.z)));
 }
 
-/**
- * Lantern posts along the roads between towns, one every 24 blocks on alternating sides, leaning
- * out over the road; the towns light their own streets. They're grouped into stretches so only the
- * lamps near the player are built and lit.
- */
 /** Where a road runs into a lake (the Turnpike over the Millpond): a timber bridge, three planks wide at
  *  the bank's height, on posts down to the bed, with a post standing up at the side every four blocks. */
 function lakeBridges(O: Overrides): void {
@@ -216,6 +211,11 @@ function lakeBridges(O: Overrides): void {
   }
 }
 
+/**
+ * Lantern posts along the roads between towns, one every 24 blocks on alternating sides, leaning
+ * out over the road; the towns light their own streets. They're grouped into stretches so only the
+ * lamps near the player are built and lit.
+ */
 function roadLamps(O: Overrides, sites: Site[]): void {
   const towns = sites.filter((s) => s.named);
   let n = 0, side = 1, stretch: Site | null = null;
@@ -240,6 +240,43 @@ function roadLamps(O: Overrides, sites: Site[]): void {
       stretch.props.push({ t: 'lantern', x, y: g, z, ry });
       O.set(x, g, z, B.Barrier); O.set(x, g + 1, z, B.Barrier);
     }
+  }
+}
+
+/**
+ * Every lantern post leans out over the way people walk: its arm turns toward the paving, path or
+ * road beside it (whichever side most of it lies), whatever its builder said. A lamp with open
+ * ground all round, or paving all round (the middle of a square), keeps the way it was set.
+ */
+function aimLamps(O: Overrides, sites: Site[]): void {
+  const PAVED = new Set<number>([B.Path, B.Cobble, B.StoneBrick, B.Gravel, B.MossyCobble, B.Planks]);
+  const chunks = new Map<number, Map<number, number>>();
+  const idAt = (x: number, y: number, z: number): number | undefined => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = chunks.get(k);
+    if (!m) { m = new Map(); const a = O.map.get(k) ?? []; for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]); chunks.set(k, m); }
+    return m.get(localIdx(x & 31, y, z & 31));
+  };
+  const walkway = (x: number, y: number, z: number): boolean => {
+    if (roadDist(x + 0.5, z + 0.5) < 1.6) return true;
+    const under = idAt(x, y - 1, z), at = idAt(x, y, z);
+    return under !== undefined && PAVED.has(under) && (at === undefined || at === B.Air);
+  };
+  for (const s of sites) for (const p of s.props) {
+    if (p.t !== 'lantern') continue;
+    const lx = Math.floor(p.x), lz = Math.floor(p.z), ly = Math.floor(p.y);
+    let sx = 0, sz = 0, n = 0, all = 0;
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d < 0.5 || d > 4.2) continue;
+      all++;
+      if (!walkway(lx + dx, ly, lz + dz)) continue;
+      sx += dx / (d * d); sz += dz / (d * d); n++;
+    }
+    if (!n || n > all * 0.85 || Math.hypot(sx, sz) < 0.15) continue;
+    // Town streets run square: a lamp nearly square to one leans straight out over it
+    const ry = Math.atan2(-sz, sx), sq = Math.round(ry / (Math.PI / 2)) * (Math.PI / 2);
+    p.ry = s.id.startsWith('roadlamps') || Math.abs(ry - sq) > 0.35 ? ry : sq;
   }
 }
 
@@ -416,6 +453,7 @@ export function plan(): Plan {
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
+  aimLamps(O, sites);
   const waymarks = placeWaymarks(O, sites);
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
   const hz = hazards({ sites, waymarks, overrides: O });

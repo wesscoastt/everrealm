@@ -56,7 +56,20 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   const ground = (x: number, z: number) => world.topSolid(x, z) + 1;
   const place = (g: THREE.Object3D, x: number, y: number, z: number, ry = 0) => batch.addGroup(g, P.mat4(x, y, z, ry));
   const barrier = (x: number, y: number, z: number, h = 1) => { for (let k = 0; k < h; k++) world.put(Math.floor(x), y + k, Math.floor(z), B.Barrier); };
-  const lantern = (x: number, z: number, ry = 0) => {
+  /** The way to the nearest road (a lamp's arm leans out over it), or null with no road near. */
+  const toRoad = (x: number, z: number): number | null => {
+    let best = 7, at: [number, number] | null = null;
+    for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
+      const [ax, az] = road[i], [bx, bz] = road[i + 1];
+      const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+      const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+      const px = ax + dx * t, pz = az + dz * t, d = Math.hypot(px - x, pz - z);
+      if (d < best && d > 0.3) { best = d; at = [px, pz]; }
+    }
+    return at ? Math.atan2(-(at[1] - z), at[0] - x) : null;
+  };
+  const lantern = (x: number, z: number, ry0?: number) => {
+    const ry = ry0 ?? toRoad(x, z) ?? 0;
     const y = ground(Math.floor(x), Math.floor(z));
     place(P.lanternPost(M), x, y, z, ry);
     barrier(x, y, z, 2);
@@ -412,8 +425,9 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   place(waymarkShrine(M, 'greenwake'), HOLLIN_SHRINE.x, HOLLIN_SHRINE.y, HOLLIN_SHRINE.z, HOLLIN_SHRINE.ry);
   for (const [dx, dz] of SHRINE_SOLID.greenwake.cells) barrier(Math.floor(HOLLIN_SHRINE.x) + dx, HOLLIN_SHRINE.y, Math.floor(HOLLIN_SHRINE.z) + dz, SHRINE_SOLID.greenwake.h);
 
-  // Lantern posts along the village road
-  for (const [x, z, r] of [[147.5, 182.2, 0], [160.6, 186.4, Math.PI], [163.2, 182.0, 0], [180.6, 186.6, Math.PI], [184.4, 183.0, 0], [195.6, 186.8, Math.PI], [140.5, 186.8, Math.PI]] as [number, number, number][]) lantern(x, z, r);
+  // Lantern posts along the village road, leaning out over it; the pair at the bridge stand on the
+  // banks at either end of it, not up on the parapet
+  for (const [x, z] of [[147.5, 182.2], [160.6, 186.4], [160.6, 181.6], [182.6, 186.6], [184.4, 182.2], [195.6, 186.8], [140.5, 186.8]] as [number, number][]) lantern(x, z);
 
   // Signposts at the two junctions
   const sign = (x: number, z: number, arms: { text: string; to: [number, number] }[]) => {
@@ -596,7 +610,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   }
   place(P.well(M), 134.5, ground(134, 192), 192.5, 0.3);
   for (const [x, z] of [[134, 192], [135, 192], [134, 193], [135, 193]]) barrier(x, ground(x, z), z, 2);
-  for (const [x, z] of [[125.5, 183.0], [203.5, 183.0], [213.5, 184.2]] as [number, number][]) lantern(x, z, 0);
+  for (const [x, z] of [[125.5, 183.0], [203.5, 183.0], [213.5, 184.2]] as [number, number][]) lantern(x, z);
 
   // Gorse Mill
   const MX = 112, MZ = 206;
