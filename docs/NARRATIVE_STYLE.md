@@ -30,6 +30,12 @@ The full standard is the narrative brief. This page is the working version that 
 
 Destiny or chosen-one framing, "ancient evil", "only time will tell", "more than meets the eye", "we meet again", "your journey begins", "the fate of the world", trailer-voice narration, a three-item list in every description, rhetorical-question openers, and ellipses as a stand-in for emotion.
 
+The owner's standing rule is no AI tropes: it should read as authentic. So these are out too: embark, delve, tapestry, whispers, echoes, prophecy framing, "...or something more?", purple prose, and cryptic one-line warnings from people who should just say what they mean. A line that sounds like a riddle gets rewritten as plain speech.
+
+## Names
+
+Every name in the game, items included, has to be its own and not the kind AI writing reaches for. No made-up compounds like Stormreach, Ironhold or Shadowfall, and no Elara, Kael, Lyra or Thorne. Follow the vale instead: surnames from trades and places (Tolley, Garrow, Pargeter, Ashby) and places named for what's there (Gullmouth, the Spill, Sallow Pit, the Low Water). Still to rename: the Great Starfall, Cinderhorn Pit, Tidewright Sands and the Ashcaller calling.
+
 ## Review passes for each batch
 
 Run these on every batch: specificity, voice, read-aloud, purpose, gameplay truth. A line that fails one of them gets cut or rewritten before it goes into `src/data/`.
