@@ -1832,6 +1832,8 @@ export class Hud {
   showDialogue(v: DialogueView | null): void {
     const d = this.q('.dlg');
     this.dialogueOpen = !!v;
+    // (small screens clear the way for the conversation: see body.talking in styles.css)
+    document.body.classList.toggle('talking', !!v);
     if (!v) { d.classList.remove('show'); return; }
     d.classList.add('show');
     if (v.look) drawFace(d.querySelector('.face canvas') as HTMLCanvasElement, v.look);

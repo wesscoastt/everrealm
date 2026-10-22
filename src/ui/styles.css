@@ -737,3 +737,20 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 
 /* The Early Access tag under the title */
 .logo .ea { display: inline-block; margin-top: 18px; padding: 4px 14px 5px; font: 700 14px var(--px); letter-spacing: 4px; text-transform: uppercase; color: #1d150c; background: linear-gradient(#ffe9a0, #e0b84a); border: 2px solid var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,0.45); }
+
+/* ------------------------------------------------------------------ Talking on a small screen
+   The conversation gets the screen: touch controls, tracker, chat and the action bar step aside, and
+   the dialogue sits at the bottom, full width, scrolling if it's long, with answers in two columns. */
+@media (max-height: 500px), (max-width: 760px) {
+  body.talking #touch, body.talking #tracker, body.talking #chatbox, body.talking #actionbar, body.talking #ab-gauge, body.talking #ui .event-panel, body.talking #loot, body.talking #group { display: none !important; }
+  body.talking .dlg { left: 8px; right: 8px; bottom: 8px; width: auto; transform: none; max-height: calc(100vh - 16px); overflow-y: auto; min-height: 0; padding: 10px 14px 10px 86px; }
+  body.talking .dlg .face { left: 10px; top: 10px; width: 62px; height: 62px; }
+  body.talking .dlg .line { font-size: 16px; min-height: 0; margin-bottom: 8px; }
+  body.talking .dlg .opt { font-size: 15px; padding: 7px 10px 7px 32px; }
+}
+@media (max-height: 500px) {
+  body.talking .dlg .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
+  /* Banners: smaller and higher, so they don't sit over the middle of the view */
+  #banner { transform: translateX(-50%) scale(0.58); transform-origin: top center; top: 2%; }
+  #banner .cloth { min-width: 0; }
+}
