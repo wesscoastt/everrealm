@@ -15,6 +15,9 @@ const smoothCopse = (x: number, z: number) => { const v = fbm2(x / 140, z / 140,
 export interface GenTree { kind: TreeKind; x: number; y: number; z: number; trunk: number[]; leaves: number[]; logs: number }
 export interface GenOre { kind: 'copper' | 'tin' | 'silver' | 'iron' | 'crystal'; x: number; y: number; z: number }
 export interface GenFish { x: number; y: number; z: number; water: 'wend' | 'lake' | 'sea' | 'highland' }
+/** Something to pick (game: foraging): blackberries, wild garlic, chanterelles, samphire, bilberries, cloudberries. */
+export interface GenForage { x: number; y: number; z: number; kind: string }
+
 export interface GenSpawn { x: number; z: number; region: RegionId; roll: number; animal: boolean; sea?: boolean }
 
 export interface ChunkResult {
@@ -28,6 +31,7 @@ export interface ChunkResult {
   veg: Float32Array;
   map: Uint8ClampedArray;
   spawns: GenSpawn[];
+  forage: GenForage[];
 }
 
 // Heights are precomputed for the chunk plus a one-block border; anything further out (tree
@@ -226,7 +230,17 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   mark("sites");
   // ------------------------------------------------------------ Surface pass: fish, grass, map, spawns
   const fish: GenFish[] = [];
+  const forage: GenForage[] = [];
   const veg: number[] = [];
+  // What each region grows to pick, and on what ground (sand: samphire, by the sea)
+  const FORAGE: Partial<Record<RegionId, string[]>> = {
+    greenwake: ['blackberries', 'wild_garlic', 'wild_garlic'], crownroad: ['blackberries', 'wild_garlic', 'wild_garlic'], brambledeep: ['chanterelles', 'wild_garlic', 'wild_garlic', 'blackberries'],
+    saltwind: ['blackberries'], starfall: ['bilberries', 'cloudberries'], gannet: ['blackberries'], wrath: ['chanterelles'], tolmen: ['bilberries', 'cloudberries'],
+  };
+  const FORAGE_TINT: Record<string, [number, number, number, number]> = {
+    blackberries: [10, 1, 1, 1], bilberries: [13, 1, 1, 1], cloudberries: [14, 1, 1, 1],
+    wild_garlic: [12, 1, 1, 1], samphire: [12, 0.6, 0.95, 0.55], chanterelles: [11, 1, 1, 1],
+  };
   const map = new Uint8ClampedArray(CHUNK * CHUNK * 4);
   const tops = new Int16Array(CHUNK * CHUNK);
   for (let lz = 0; lz < CHUNK; lz++) for (let lx = 0; lx < CHUNK; lx++) {
@@ -286,6 +300,17 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     }
     if (above !== B.Air) continue;
     const r = hash2(x, z, 909), r2 = hash2(x, z, 910);
+    // Forage: about four to a chunk, off the roads
+    // (samphire is likelier: there are few beach columns to a chunk)
+    if (forage.length < 5 && hash2(x, z, 917) < (id === B.Sand ? 0.03 : 0.0045) && !roads[lx + lz * CHUNK]) {
+      const list = (id === B.Sand && y + 1 <= SEA + 2) ? ['samphire'] : (id === B.Grass || id === B.SnowGrass || id === B.Loam) ? FORAGE[reg] : undefined;
+      if (list?.length) {
+        const kind = list[Math.floor(hash2(x * 7 + 3, z * 13 + 5, 951) * list.length)], t = FORAGE_TINT[kind];
+        forage.push({ x: x + 0.5, y: y + 1, z: z + 0.5, kind });
+        veg.push(x + 0.5, y + 1, z + 0.5, t[0], 1.15, r * 6.28, t[1], t[2], t[3]);
+        continue;
+      }
+    }
     const t = tint.subarray((lz * CHUNK + lx) * 6);
     if (id === B.Grass || id === B.SnowGrass || id === B.Loam) {
       const dens: Record<RegionId, number> = { greenwake: 0.4, crownroad: 0.42, brambledeep: 0.55, saltwind: 0.38, redstone: 0.18, starfall: 0.22, gannet: 0.42, wrath: 0.6, tolmen: 0.3 };
@@ -333,7 +358,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   }
 
   mark("surface");
-  return { cx, cz, data, tint, trees, ores: liveOres, fish, veg: new Float32Array(veg), map, spawns };
+  return { cx, cz, data, tint, trees, ores: liveOres, fish, forage, veg: new Float32Array(veg), map, spawns };
 }
 
 /** Coarse heights and colours for the far-terrain mesh (step 8 over the whole world, from WMIN). */

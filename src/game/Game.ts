@@ -46,7 +46,7 @@ import { fellTree, FishSpot, LOWER_WEND, OreNode, regrowTree, TreeNode } from '.
 import { distToPolyline } from '../world/noise';
 import { Interactable } from '../world/structures';
 import { DialogueTree, DNode, GameApi } from './api';
-import { GameWorld } from './GameWorld';
+import { GameWorld , ForageSpot } from './GameWorld';
 import { places } from '../data/places';
 import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist } from '../world/terrain';
 import { weatherAt } from '../world/weather';
@@ -114,7 +114,8 @@ function crowdZones(): CrowdZone[] {
 }
 
 interface Candidate {
-  kind: 'npc' | 'ore' | 'tree' | 'fish' | 'thing' | 'wthing' | 'act';
+  kind: 'npc' | 'ore' | 'tree' | 'fish' | 'forage' | 'thing' | 'wthing' | 'act';
+  forage?: ForageSpot;
   act?: () => void;
   label: string;
   pos: THREE.Vector3;
@@ -1690,6 +1691,12 @@ export class Game implements GameApi {
         consider({ kind: 'tree', label: `Chop ${info.name.toLowerCase()}`, pos: new THREE.Vector3(t.x + 0.5, t.y + 1, t.z + 0.5), tree: t, warn: !tool ? 'Needs a hatchet' : this.level('woodcutting') < info.level ? `Needs Woodcutting ${info.level}` : '' }, d);
       }
     }
+    // Forage: berries, mushrooms and herbs, picked by hand
+    for (const f of near.flatMap((b) => b.forage)) {
+      if (f.bareUntil > this.elapsed) continue;
+      const d = Math.hypot(f.x - p.x, f.z - p.z);
+      if (d < 2.2 && Math.abs(f.y - p.y) < 2) consider({ kind: 'forage', label: `Pick ${ITEMS[f.kind]?.name.toLowerCase() ?? f.kind}`, pos: new THREE.Vector3(f.x, f.y + 0.4, f.z), forage: f }, d);
+    }
     if (!this.player.swimming) {
       for (const f of near.flatMap((b) => b.fish)) {
         const d = Math.hypot(f.x - p.x, f.z - p.z);
@@ -1733,6 +1740,18 @@ export class Game implements GameApi {
       case 'ore': this.startGather({ kind: 'mine', ore: c.ore, tool: this.inv.bestTool('mining', this.level('mining'))! }); break;
       case 'tree': this.startGather({ kind: 'chop', tree: c.tree, tool: this.inv.bestTool('woodcutting', this.level('woodcutting'))! }); break;
       case 'fish': this.startGather({ kind: 'fish', spot: c.spot, tool: this.inv.bestTool('fishing', 99)! }); break;
+      case 'forage': {
+        // A handful, and the bush is bare for ten minutes
+        const f = c.forage!, n = 1 + (Math.random() < 0.35 ? 1 : 0);
+        if (!this.give(f.kind, n)) { this.hud.system('Your pack is full.'); this.sfx('fail'); break; }
+        f.bareUntil = this.elapsed + 600;
+        this.addXp('cooking', 14);
+        this.sfx('pickup');
+        this.particles.leaves(tmpV.set(f.x, f.y + 0.4, f.z), f.kind === 'chanterelles' ? '#d89028' : '#4a7a32', 6);
+        this.player.faceTowards(f.x, f.z);
+        this.persist();
+        break;
+      }
       case 'thing': this.useThing(c.thing!); break;
       case 'act': c.act!(); this.hud.refresh(); this.persist(); break;
       case 'wthing': {

@@ -25,7 +25,9 @@ const LOD_STEP = 12;
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
 const LAMP_LIGHTS = 8, LAMP_REACH = 11, LAMP_POWER = 9;
 
-export interface NodeBucket { ores: OreNode[]; trees: TreeNode[]; fish: FishSpot[]; persistent: boolean }
+/** Something growing to pick: bare (picked) until `bareUntil` (game time). */
+export interface ForageSpot { x: number; y: number; z: number; kind: string; bareUntil: number }
+export interface NodeBucket { ores: OreNode[]; trees: TreeNode[]; fish: FishSpot[]; forage: ForageSpot[]; persistent: boolean }
 
 /**
  * The world: the authored Hollindale grid, the streamed continent around it, the nodes players
@@ -148,7 +150,7 @@ export class GameWorld {
   private bucket(x: number, z: number, persistent = false): NodeBucket {
     const key = chunkKey(Math.floor(x) >> 5, Math.floor(z) >> 5);
     let b = this.buckets.get(key);
-    if (!b) this.buckets.set(key, (b = { ores: [], trees: [], fish: [], persistent }));
+    if (!b) this.buckets.set(key, (b = { ores: [], trees: [], fish: [], forage: [], persistent }));
     return b;
   }
 
@@ -207,6 +209,7 @@ export class GameWorld {
         return { id: this.nodeId++, kind: t.kind, x: t.x, y: t.y, z: t.z, trunk, leaves, logs: t.logs, depletedUntil: 0, choppable: true } as TreeNode;
       });
       b.fish = r.fish.map((f) => ({ id: this.nodeId++, x: f.x, y: f.y, z: f.z, water: f.water } as FishSpot));
+      b.forage = (r.forage ?? []).map((f) => ({ x: f.x, y: f.y, z: f.z, kind: f.kind, bareUntil: 0 }));
     }
     this.onChunk?.(cx, cz, r);
   }

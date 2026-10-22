@@ -163,6 +163,11 @@ export const RECIPES: Recipe[] = [
   { id: 'cooked_mackerel', station: 'hearth', skill: 'cooking', level: 8, xp: 50, inputs: { raw_mackerel: 1 }, output: 'cooked_mackerel', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_seabass', station: 'hearth', skill: 'cooking', level: 15, xp: 90, inputs: { raw_seabass: 1 }, output: 'cooked_seabass', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cooked_char', station: 'hearth', skill: 'cooking', level: 25, xp: 150, inputs: { raw_char: 1 }, output: 'cooked_char', count: 1, time: 2.4, failAtReq: 0.45, failItem: 'burnt_fish' },
+  { id: 'bramble_pie', station: 'hearth', skill: 'cooking', level: 6, xp: 45, inputs: { blackberries: 3, bread: 1 }, output: 'bramble_pie', count: 1, time: 2, failAtReq: 0.35, failItem: 'burnt_fish' },
+  { id: 'mushroom_stew', station: 'hearth', skill: 'cooking', level: 14, xp: 85, inputs: { chanterelles: 3, wild_garlic: 1 }, output: 'mushroom_stew', count: 1, time: 2.4, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'bass_samphire', station: 'hearth', skill: 'cooking', level: 18, xp: 110, inputs: { raw_seabass: 1, samphire: 2 }, output: 'bass_samphire', count: 1, time: 2.4, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'bilberry_tart', station: 'hearth', skill: 'cooking', level: 24, xp: 140, inputs: { bilberries: 4, bread: 1 }, output: 'bilberry_tart', count: 1, time: 2.6, failAtReq: 0.45, failItem: 'burnt_fish' },
+  { id: 'cloudberry_jam', station: 'hearth', skill: 'cooking', level: 28, xp: 180, inputs: { cloudberries: 4 }, output: 'cloudberry_jam', count: 1, time: 2.8, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cooked_huss', station: 'hearth', skill: 'cooking', level: 6, xp: 42, inputs: { raw_huss: 1 }, output: 'cooked_huss', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_pike', station: 'hearth', skill: 'cooking', level: 10, xp: 65, inputs: { raw_pike: 1 }, output: 'cooked_pike', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   // Joinery, at the bench by Wendside Cottage: furniture from the logs you cut

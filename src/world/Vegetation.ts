@@ -4,9 +4,9 @@ import { EX, Layout, LOWER_WEND } from './generate';
 import { distToPolyline, fbm2, hash2, smoothstep } from './noise';
 import { SX, SZ, Grid, WATER_LEVEL } from './grid';
 
-// Sprite atlas: 10 cells of 32x32 in a 320x32 canvas.
-const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass }
-const CELLS = 10;
+// Sprite atlas: 15 cells of 32x32 in a 480x32 canvas.
+const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass, Berry, Mushroom, Herb, BerryBlue, BerryCloud }
+const CELLS = 15;
 
 function paintAtlas(): THREE.Texture {
   const c = document.createElement('canvas');
@@ -58,6 +58,22 @@ function paintAtlas(): THREE.Texture {
   }
   // Sea grass: thin green ribbons in the sandy shallows
   for (let i = 0; i < 12; i++) blade(32 * S.SeaGrass, 3 + i * 2.3, 18 + (i * 7) % 10, ((i * 5) % 7) - 3, i % 2 ? '#3e7a4a' : '#4f8a52', 1.6);
+  // Forage (game: picked with E): brambles and low bushes in fruit, a clump of mushrooms, a herb in flower
+  const bush = (cell: number, berry: string, berry2: string, tall: number) => {
+    for (let i = 0; i < 9; i++) blade(32 * cell, 4 + i * 3, tall + (i * 5) % 8, ((i * 7) % 9) - 4, i % 2 ? '#3a6a2a' : '#4a7a32', 2.6);
+    for (let k = 0; k < 9; k++) { x.fillStyle = k % 3 ? berry : berry2; x.beginPath(); x.arc(32 * cell + 6 + (k * 7) % 21, 32 - tall + (k * 5) % 12, 2.2, 0, 7); x.fill(); }
+  };
+  bush(S.Berry, '#3a1a3a', '#6a2a4a', 18);
+  bush(S.BerryBlue, '#3a4a8a', '#5a6aaa', 12);
+  bush(S.BerryCloud, '#f0a040', '#e88a30', 12);
+  for (let k = 0; k < 4; k++) {
+    const mx = 32 * S.Mushroom + 5 + k * 6.5, my = 32 - 6 - (k % 2) * 4;
+    x.fillStyle = '#efe6d0'; x.fillRect(mx - 1, my, 2.5, 6 + (k % 2) * 4);
+    x.fillStyle = k % 2 ? '#e8a030' : '#d89028'; x.beginPath(); x.ellipse(mx, my, 5 - (k % 2), 3, 0, Math.PI, 0); x.fill();
+  }
+  for (let i = 0; i < 10; i++) blade(32 * S.Herb, 4 + i * 2.6, 14 + (i * 7) % 10, ((i * 3) % 7) - 3, i % 2 ? '#5a9a3a' : '#6aaa44', 1.6);
+  x.fillStyle = '#f4f0e8';
+  for (let k = 0; k < 6; k++) { x.beginPath(); x.arc(32 * S.Herb + 6 + k * 4, 12 + (k % 3) * 3, 1.8, 0, 7); x.fill(); }
   // Bleed opaque colours into transparent pixels so mipmaps don't fringe the sprites black.
   const img = x.getImageData(0, 0, c.width, c.height);
   const d = new Uint8Array(img.data);
