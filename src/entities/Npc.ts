@@ -32,7 +32,9 @@ export class Npc {
     const top = x < 320 && z < 320 ? 40 : 95;
     // People stand on the ground, never on a canopy: look down through leaves.
     let y = this.world.groundBelow(x, top, z);
-    while (y > 1 && LEAVES.has(this.world.get(Math.floor(x), y - 1, Math.floor(z)))) y = this.world.groundBelow(x, y - 2, z);
+    // ...and under the roof, not on it: a barrier with room under it is the ceiling a house keeps under its roof
+    const ceiling = (yy: number) => this.world.get(Math.floor(x), yy - 1, Math.floor(z)) === B.Barrier && !this.world.solidAt(x, yy - 1.5, z) && !this.world.solidAt(x, yy - 2.5, z);
+    for (let k = 0; k < 6 && y > 1 && (LEAVES.has(this.world.get(Math.floor(x), y - 1, Math.floor(z))) || ceiling(y)); k++) y = this.world.groundBelow(x, y - 2, z);
     return y;
   }
 
