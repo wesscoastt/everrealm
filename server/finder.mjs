@@ -3,7 +3,8 @@
 // A player queues for a dungeon as a tank, a healer or a damage dealer. When the queue holds a full
 // group (one tank, one healer, two damage) those four are asked; once someone has waited a minute
 // and a half, whoever is queued for that dungeon is asked, and henchmen (in each player's own game)
-// fill the empty places. A group's leader can also take the group in as it stands. Everyone asked
+// fill the empty places. Anyone queued can say go now rather than wait (qNow): the same happens at
+// once. A group's leader can also take the group in as it stands. Everyone asked
 // has thirty seconds to say yes; if anyone says no or lets it lapse, the rest go back to the front
 // of the queue. When all have said yes the run starts: they're grouped, told who's in it and which
 // places henchmen fill, and from then on the server passes their blows and kills to each other
@@ -92,7 +93,7 @@ export function finderInit(ctx) {
       const qd = queue.filter((q) => q.dungeon === dungeon);
       const need = { ...NEED }, pick = [];
       for (const q of qd) if (need[q.role] > 0) { need[q.role]--; pick.push(q); }
-      if (pick.length < PARTY.length && now - qd[0].at < FILL_MS) continue;
+      if (pick.length < PARTY.length && !qd.some((q) => q.now || now - q.at >= FILL_MS)) continue;
       queue = queue.filter((q) => !pick.includes(q));
       status(dungeon);
       readyCheck(dungeon, pick);
@@ -121,6 +122,12 @@ export function finderInit(ctx) {
         return true;
       }
       case 'qLeave': unqueue(me.id); return true;
+      case 'qNow': {
+        // Don't wait for the full four: whoever's queued goes, henchmen for the rest
+        const q = queue.find((x) => x.id === me.id);
+        if (q) { q.now = true; match(); }
+        return true;
+      }
       case 'qGroup': {
         // A group's leader takes the group in: everyone is asked, roles come with the answers
         if (typeof msg.dungeon !== 'string' || !DUNGEON.test(msg.dungeon)) return true;

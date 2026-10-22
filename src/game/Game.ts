@@ -605,6 +605,7 @@ export class Game implements GameApi {
         on: () => this.online.status === 'online',
         queue: (d, role) => this.online.qJoin(d, role),
         unqueue: () => this.online.qLeave(),
+        queueNow: () => this.online.qNow(),
         groupGo: (d) => this.online.qGroup(d),
         answer: (run, yes, role) => this.online.qAnswer(run, yes, role),
         event: (run, k, i, dmg) => this.online.dEv(run, k, i, dmg),
@@ -1196,11 +1197,12 @@ export class Game implements GameApi {
       exTakeBack: (id: number) => g.exchange.takeBack(id),
       exReload: () => g.exchange.open(),
       finder: () => g.dungeons.view(),
-      finderDo: (what: 'role' | 'hench' | 'find' | 'cancel' | 'leave', id?: string) => {
+      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave', id?: string) => {
         let why: string | null = null;
         if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
         else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
         else if (what === 'find' && id) why = g.dungeons.findGroup(id);
+        else if (what === 'now') g.dungeons.goNow();
         else if (what === 'cancel') g.dungeons.unqueue();
         else if (what === 'leave') g.dungeons.leave();
         if (why) g.hud.system(why);

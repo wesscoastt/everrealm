@@ -222,7 +222,7 @@ export interface UiCtx {
   exReload(): void;
   /** The Group Finder (game/Dungeons.ts). */
   finder(): FinderView;
-  finderDo(what: 'role' | 'hench' | 'find' | 'cancel' | 'leave', id?: string): string | null;
+  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave', id?: string): string | null;
 }
 
 export interface TravelView {
@@ -1616,18 +1616,18 @@ export class Hud {
     } else if (v.queue) {
       const d = v.dungeons.find((x) => x.id === v.queue!.dungeon);
       const left = Math.max(0, 90 - v.queue.secs);
-      status = `<div class="gf-status"><b>Looking for a group: ${esc(d?.name ?? '')}</b><span>${v.queue.count} queued · ${mm(v.queue.secs)}${left ? ` · henchmen fill the empty places in ${mm(left)}` : ' · filling with henchmen'}</span><button class="btn ghost" data-gf="cancel">Stop looking</button></div>`;
+      status = `<div class="gf-status"><b>Looking for players: ${esc(d?.name ?? '')}</b><span>${v.queue.count} of 4 queued · ${mm(v.queue.secs)}${left ? ` · henchmen fill the empty places in ${mm(left)}` : ' · filling with henchmen'}</span><div class="gf-btns"><button class="btn" data-gf="now" title="Go in with whoever is queued; henchmen take the other places">Go now</button><button class="btn ghost" data-gf="cancel">Stop looking</button></div></div>`;
     }
     const roles = `<div class="gf-roles"><span class="lbl">Go in as</span>${ROLES.map((r) => `<button class="gf-role${v.role === r ? ' sel' : ''}" data-role="${r}" title="${esc(ROLE_DESC[r])}"><b>${ROLE_NAMES[r]}</b></button>`).join('')}<small>${esc(ROLE_DESC[v.role])}${v.role === 'healer' ? ' Six tenths of the damage you deal goes to them, and your calling\'s heal (key 4) mends everyone near you as well.' : v.role === 'tank' ? ' What you hit stays on you: your blows count three times for keeping its attention.' : ''}</small></div>`;
     const order = [...v.dungeons].sort((a, b) => Number(b.id === this.finderAt) - Number(a.id === this.finderAt));
     const cards = order.map((d) => {
       const busy = !!v.run || !!v.queue;
-      const findLabel = v.group ? (v.group.leader ? `Take your group in (${v.group.size})` : 'Your group\'s leader takes you in') : 'Find a group';
+      const findLabel = v.group ? (v.group.leader ? `Take your group in (${v.group.size})` : 'Your group\'s leader takes you in') : 'Find players';
       const findOff = busy || !v.online || (!!v.group && !v.group.leader);
       return `<div class="gf-card${d.id === this.finderAt ? ' sel' : ''}"><h5>${esc(d.name)}<small>${esc(d.where)} · for four · at your level</small></h5>
         <p>${esc(d.blurb)}</p>
         <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}. The day's first clear pays half again.` : 'Not cleared yet.'}</div>
-        <div class="gf-go"><button class="btn" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go with henchmen</button><button class="btn ghost" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? '' : 'Finding other players needs the online realm.'}">${findLabel}</button></div></div>`;
+        <div class="gf-go"><button class="btn" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? 'Real players first; henchmen take any place still empty after a minute and a half' : 'Finding other players needs the online realm.'}">${findLabel}</button><button class="btn ghost" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go alone with henchmen</button></div>${v.online && !v.group ? '<div class="gf-meta">Real players first. Any place still empty after 1:30 goes to a henchman, so you might go in two and two.</div>' : ''}</div>`;
     }).join('');
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
     body.innerHTML = status + roles + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
@@ -1636,7 +1636,7 @@ export class Hud {
     body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return;
       this.ctx.sfx('click');
-      const what = b.dataset.gf as 'hench' | 'find' | 'cancel' | 'leave';
+      const what = b.dataset.gf as 'hench' | 'find' | 'now' | 'cancel' | 'leave';
       if (what === 'leave') { this.ask('Leave the dungeon?', () => this.ctx.finderDo('leave'), () => {}, 30); return; }
       this.ctx.finderDo(what, b.dataset.id);
     }));

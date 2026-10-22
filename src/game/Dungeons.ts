@@ -26,6 +26,8 @@ export interface DungeonNet {
   on(): boolean;
   queue(dungeon: string, role: Role): void;
   unqueue(): void;
+  /** Go now with whoever's queued (henchmen fill the rest). */
+  queueNow(): void;
   /** A group's leader takes the group in (each member answers the ready check). */
   groupGo(dungeon: string): void;
   answer(run: number, yes: boolean, role: Role): void;
@@ -191,9 +193,16 @@ export class Dungeons {
     }
     this.host.net.queue(id, this.role);
     this.queued = { dungeon: id, since: this.clock, count: 1 };
-    this.host.system(`Looking for a group for ${DUNGEON_BY_ID[id].name}, as ${ROLE_NAMES[this.role].toLowerCase()}. Henchmen fill the places nobody takes after a minute and a half.`);
+    this.host.system(`Looking for players for ${DUNGEON_BY_ID[id].name}, as ${ROLE_NAMES[this.role].toLowerCase()}. Henchmen fill the places nobody takes after a minute and a half, or now if you say go.`);
     this.host.refresh();
     return null;
+  }
+
+  /** Don't wait the minute and a half: whoever's queued for it goes in now, with henchmen for the rest. */
+  goNow(): void {
+    if (!this.queued) return;
+    this.host.net.queueNow();
+    this.host.system('Going in with whoever\'s queued. Henchmen take the other places.');
   }
 
   unqueue(): void {

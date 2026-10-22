@@ -383,6 +383,8 @@ export class Online {
   // The Group Finder (server/finder.mjs)
   qJoin(dungeon: string, role: string): void { this.emit({ t: 'qJoin', dungeon, role }); }
   qLeave(): void { this.emit({ t: 'qLeave' }); }
+  /** Stop waiting for a full group: go in with whoever's queued, henchmen for the rest. */
+  qNow(): void { this.emit({ t: 'qNow' }); }
   qGroup(dungeon: string): void { this.emit({ t: 'qGroup', dungeon }); }
   qAnswer(run: number, yes: boolean, role: string): void { this.emit({ t: 'qAnswer', run, yes, role }); }
   dEv(run: number, k: 'hit' | 'kill', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }

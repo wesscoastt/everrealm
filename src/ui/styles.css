@@ -817,6 +817,7 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #finder-panel .body { max-height: min(64vh, 600px); overflow-y: auto; }
 #finder-panel .gf-status { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; padding: 8px 10px; margin-bottom: 10px; border: 1px solid var(--gold); border-radius: 4px; background: rgba(243, 213, 138, 0.06); }
 #finder-panel .gf-status b { font: 600 14px var(--body); color: var(--cream); }
+#finder-panel .gf-status .gf-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
 #finder-panel .gf-status span { grid-column: 1; font: 500 12px var(--body); color: var(--cream-d); }
 #finder-panel .gf-status .btn { grid-column: 2; grid-row: 1 / span 2; }
 #finder-panel .gf-roles { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
