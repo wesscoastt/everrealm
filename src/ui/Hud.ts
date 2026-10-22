@@ -12,6 +12,8 @@ import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
 import type { GroupRow, TradeUi } from '../game/Social';
 import type { ExchangeView } from '../game/Exchange';
+import type { FinderView } from '../game/Dungeons';
+import { HENCHMEN, ROLE_DESC, ROLE_NAMES, ROLES } from '../data/dungeons';
 import type { GuildRank, GuildView } from '../net/Online';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
@@ -72,7 +74,7 @@ function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: numbe
 
 /** Glyphs for dungeons (a dark gate), delves (a cave mouth), vistas (a peak) and dive sites (an anchor); false for others. */
 function placeGlyph(c: CanvasRenderingContext2D, id: string, x: number, y: number, s: number): boolean {
-  const kind = id.startsWith('pd-') ? 'pd' : id.startsWith('delve-') ? 'delve' : id.startsWith('vista-') ? 'vista' : id.startsWith('dive-') ? 'dive' : '';
+  const kind = id.startsWith('pd-') || id.startsWith('gd-') ? 'pd' : id.startsWith('delve-') ? 'delve' : id.startsWith('vista-') ? 'vista' : id.startsWith('dive-') ? 'dive' : '';
   if (!kind) return false;
   c.save(); c.translate(x, y); c.scale(s, s); c.strokeStyle = '#1e1208'; c.lineWidth = 1.6;
   if (kind === 'dive') {
@@ -213,6 +215,9 @@ export interface UiCtx {
   exPost(item: string, n: number, price: number): void;
   exTakeBack(id: number): void;
   exReload(): void;
+  /** The Group Finder (game/Dungeons.ts). */
+  finder(): FinderView;
+  finderDo(what: 'role' | 'hench' | 'find' | 'cancel' | 'leave', id?: string): string | null;
 }
 
 export interface TravelView {
@@ -241,7 +246,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
 const ago = (t: number) => { const s = (Date.now() - t) / 1000; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange';
+export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder';
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -269,6 +274,8 @@ export class Hud {
   private shopTab: 'buy' | 'sell' = 'buy';
   /** The Exchange panel: which page, what's typed in the search, the stack being priced. */
   private exTab: 'buy' | 'sell' = 'buy';
+  /** The dungeon the Group Finder shows first (the door you came to). */
+  finderAt: string | null = null;
   private exQuery = '';
   private exSell: string | null = null;
   private dlgOptions: HTMLButtonElement[] = [];
@@ -391,6 +398,7 @@ export class Hud {
     panel('trade-panel', 'Trade', 'trade').querySelector('.x')!.addEventListener('click', () => this.ctx.tradeCancel());
     panel('guild-panel', 'Friends', 'guild');
     panel('exchange-panel', 'The Exchange', 'exchange');
+    panel('finder-panel', 'Group Finder', 'finder');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
     const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
     const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
@@ -519,9 +527,10 @@ export class Hud {
     const box = this.q('#group');
     if (!rows) { box.innerHTML = ''; box.classList.remove('show'); return; }
     box.classList.add('show');
-    box.innerHTML = '<h6>Group <button class="gleave" title="Leave the group">Leave</button></h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.near ? '' : ' far'}" data-n="${esc(m.name)}" title="${m.near ? 'Click for options' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
-    box.querySelector('.gleave')!.addEventListener('click', () => this.ask('Leave the group?', () => this.ctx.groupDo('leave'), () => {}, 30));
-    box.querySelectorAll<HTMLElement>('.gm:not(.me)').forEach((row) => row.addEventListener('click', (e) => {
+    box.innerHTML = '<h6>Group <button class="gleave" title="Leave the group">Leave</button></h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.hench ? ' hench' : ''}${m.near ? '' : ' far'}" data-n="${esc(m.name)}" title="${m.hench ? 'A henchman, with you for this dungeon' : m.near ? 'Click for options' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
+    const henchOnly = rows.every((m) => m.me || m.hench);
+    box.querySelector('.gleave')!.addEventListener('click', () => this.ask(henchOnly ? 'Leave the dungeon? Your henchmen go home.' : 'Leave the group?', () => this.ctx.groupDo('leave'), () => {}, 30));
+    box.querySelectorAll<HTMLElement>('.gm:not(.me):not(.hench)').forEach((row) => row.addEventListener('click', (e) => {
       const name = row.dataset.n!;
       const lead = this.ctx.groupLeader();
       this.playerMenu(name, e.clientX, e.clientY, [
@@ -1136,8 +1145,8 @@ export class Hud {
   }
 
   show(p: PanelId): void {
-    if (p === 'craft' || p === 'shop' || p === 'travel' || p === 'exchange') { this.close('journal'); this.close('map'); this.close('settings'); }
-    if (p === 'map' || p === 'journal' || p === 'settings') for (const o of ['craft', 'shop', 'travel', 'exchange', 'map', 'journal', 'settings'] as PanelId[]) if (o !== p) this.close(o);
+    if (p === 'craft' || p === 'shop' || p === 'travel' || p === 'exchange' || p === 'finder') { this.close('journal'); this.close('map'); this.close('settings'); }
+    if (p === 'map' || p === 'journal' || p === 'settings') for (const o of ['craft', 'shop', 'travel', 'exchange', 'finder', 'map', 'journal', 'settings'] as PanelId[]) if (o !== p) this.close(o);
     this.open.add(p);
     this.panelEl(p).classList.add('show');
     this.ctx.sfx('open');
@@ -1178,6 +1187,7 @@ export class Hud {
         case 'trade': this.renderTrade(); break;
         case 'guild': this.renderGuild(); break;
         case 'exchange': this.renderExchange(); break;
+        case 'finder': this.renderFinder(); break;
         case 'map': this.renderMap(); break;
         case 'settings': this.renderSettings(); break;
       }
@@ -1530,6 +1540,45 @@ export class Hud {
   }
 
   /** The Exchange: Buy (the book, cheapest first, searchable) and Sell (your stacks, and pricing one from your pack). */
+  // ------------------------------------------------------------------ The Group Finder
+  private renderFinder(): void {
+    const v = this.ctx.finder();
+    const body = this.q('#finder-panel .body');
+    const mm = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    let status = '';
+    if (v.run) {
+      const with_ = [...v.run.others, ...v.run.henchmen];
+      status = `<div class="gf-status in"><b>In ${esc(v.run.name)}${v.run.done ? ' (cleared)' : ''}</b><span>With ${with_.length ? esc(with_.join(', ')) : 'nobody'}.</span><button class="btn ghost" data-gf="leave">Leave the dungeon</button></div>`;
+    } else if (v.queue) {
+      const d = v.dungeons.find((x) => x.id === v.queue!.dungeon);
+      const left = Math.max(0, 90 - v.queue.secs);
+      status = `<div class="gf-status"><b>Looking for a group: ${esc(d?.name ?? '')}</b><span>${v.queue.count} queued · ${mm(v.queue.secs)}${left ? ` · henchmen fill the empty places in ${mm(left)}` : ' · filling with henchmen'}</span><button class="btn ghost" data-gf="cancel">Stop looking</button></div>`;
+    }
+    const roles = `<div class="gf-roles"><span class="lbl">Go in as</span>${ROLES.map((r) => `<button class="gf-role${v.role === r ? ' sel' : ''}" data-role="${r}" title="${esc(ROLE_DESC[r])}"><b>${ROLE_NAMES[r]}</b></button>`).join('')}<small>${esc(ROLE_DESC[v.role])}${v.role === 'healer' ? ' Six tenths of the damage you deal goes to them, and your calling\'s healing skill (key 3) mends everyone near you as well.' : v.role === 'tank' ? ' What you hit stays on you: your blows count three times for keeping its attention.' : ''}</small></div>`;
+    const order = [...v.dungeons].sort((a, b) => Number(b.id === this.finderAt) - Number(a.id === this.finderAt));
+    const cards = order.map((d) => {
+      const low = v.level < d.levels[0];
+      const busy = !!v.run || !!v.queue;
+      const findLabel = v.group ? (v.group.leader ? `Take your group in (${v.group.size})` : 'Your group\'s leader takes you in') : 'Find a group';
+      const findOff = busy || !v.online || (!!v.group && !v.group.leader);
+      return `<div class="gf-card${d.id === this.finderAt ? ' sel' : ''}"><h5>${esc(d.name)}<small>${esc(d.where)} · levels ${d.levels[0]}–${d.levels[1]} · for four</small></h5>
+        <p>${esc(d.blurb)}</p>
+        <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}. The day's first clear pays half again.` : 'Not cleared yet.'}${low ? ` <span class="warn">You're below level ${d.levels[0]}: it will be hard.</span>` : ''}</div>
+        <div class="gf-go"><button class="btn" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go with henchmen</button><button class="btn ghost" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? '' : 'Finding other players needs the online realm.'}">${findLabel}</button></div></div>`;
+    }).join('');
+    const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
+    body.innerHTML = status + roles + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
+    this.q('#finder-panel .footer').innerHTML = '<span>P opens this anywhere. The Old Man\'s door is in Sallow Pit\'s chamber.</span>';
+    body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
+    body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
+      if (b.disabled) return;
+      this.ctx.sfx('click');
+      const what = b.dataset.gf as 'hench' | 'find' | 'cancel' | 'leave';
+      if (what === 'leave') { this.ask('Leave the dungeon?', () => this.ctx.finderDo('leave'), () => {}, 30); return; }
+      this.ctx.finderDo(what, b.dataset.id);
+    }));
+  }
+
   private renderExchange(): void {
     const v = this.ctx.exchange();
     const body = this.q('#exchange-panel .body');

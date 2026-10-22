@@ -408,7 +408,7 @@ export class Activities {
     const out: { label: string; pos: THREE.Vector3; use: () => void }[] = this.tasks.candidates(P);
     for (const s of this.sites) {
       const a = s.act!;
-      if (a.chest && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
+      if (a.chest && a.kind !== 'group' && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
         const opened = Number(this.host.flag('chest:' + s.id) ?? 0);
         const ready = Date.now() - opened > 30 * 60 * 1000;
         out.push({ label: ready ? 'Open the chest' : 'The chest is empty (it fills again in a while)', pos: new THREE.Vector3(a.chest[0], a.chest[1] + 0.5, a.chest[2]), use: () => ready && this.openChest(s) });
@@ -514,7 +514,7 @@ export class Activities {
     const lvl = Number((REGION_INFO[m.region].levels.split(/[–-]/)[0]) || 1);
     const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'gannet_egg', wrath: 'smoked_eel', tolmen: 'iron_ore' };
     const items = [mats[m.region], mats[m.region]];
-    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley');
+    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && d.set !== 'oldman');
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === m.region);
     if (Math.random() < 0.4) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
     this.host.reward(300 + lvl * 30, 20 + lvl * 3, items, `Treasure dug up in ${REGION_INFO[m.region].name}`);
@@ -534,7 +534,7 @@ export class Activities {
     this.host.setFlag('chest:' + s.id, Date.now());
     const big = s.act!.kind === 'dungeon';
     const reg = s.region;
-    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley');
+    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && d.set !== 'oldman');
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === reg);
     const items: string[] = [];
     if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
@@ -570,7 +570,7 @@ export class Activities {
   private foundWonders(P: THREE.Vector3): void {
     for (const s of this.sites) {
       const a = s.act!;
-      if (a.kind === 'vista' || a.kind === 'camp' || this.host.flag('found:' + s.id)) continue;
+      if (a.kind === 'vista' || a.kind === 'camp' || a.kind === 'group' || this.host.flag('found:' + s.id)) continue;
       if (Math.hypot(P.x - s.x, P.z - s.z) > 40) continue;
       this.host.setFlag('found:' + s.id, 1);
       const what = a.kind === 'dungeon' ? 'Public dungeon' : a.kind === 'delve' ? 'Delve' : a.kind === 'dive' ? 'Dive site' : 'Wonder';

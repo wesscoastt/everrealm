@@ -90,6 +90,28 @@ Content is in `src/data/content/greenwake/`.
 5. **The Ford Bell** quest resolves this. Outcomes are recorded under `quest.fordBell.choice`: `unaware`, `cover`, `confess` or `report`.
 6. July: Mr Pryce breaks the bell into pigs and sells the three stone of bronze to Gisborne the founder in Ansbury for 45 marks. Gisborne casts the Weighhouse's new weights from it (see Ansbury below).
 
+## The Old Man's Workings (group dungeon) [in game]
+
+Behind the boarded door at the east end of Sallow Pit's chamber. For four players; the Group Finder (key P) makes up a group, and henchmen fill the places nobody takes. The halls are in `src/world/sites.ts` (`buildOldMan`), the fights in `src/data/dungeons.ts`.
+
+- **Number Four** gallery was shut after the roof came in at Candlemas. Hesk Dunmore boarded it himself. Since then six lamps have gone from the lamp room and the carts have weighed light every fourthday.
+- **The old man** is miners' talk for workings older than anyone's records. Number Four broke into one: walls black from fire-setting (fires lit against the rock to crack it), copper still in the walls, and a tally cut in fives on the east wall by whoever worked it first. Nobody in the game says who that was.
+- **Coll Bray** worked Number Four at night with a crew of two, sorting ore by hand with no company stamp. Hesk let him go at Michaelmas for drinking on shift.
+- **Old Sump**: the pumps have been off since Candlemas, the water has come back up, and a mire jelly has grown huge in it.
+- **Verdigris**: a rustback the size of a cart, green right through from eating nothing but copper. Rustbacks eat metal (Hesk, from the start of the game); this one ate a seam. Its young nest in the walls.
+- After a clear, Hesk tells the company Number Four is flooded ("It very nearly is") and gives the player a pit lamp cap. Flag `heskN4Done`; clears are counted in `gdClears:gd-oldman`.
+
+### Henchmen
+
+Hesk's four regulars, who go down anywhere for a day's rate. Whoever's free comes: a tank, a healer, then Bet, then Tom.
+
+| Name | Role | Voice |
+| --- | --- | --- |
+| **Osgood Mason** | Quarryman; holds the front | Few words. "On me." |
+| **Edith Leach** | Bonesetter; heals, and gets people up | Brisk, scolding. "Hold still." |
+| **Bet Pascoe** | Pick-hand; knows the Pit | Hard, practical. "Mind your heads." |
+| **Tom Fowler** | Bird-catcher | Young, quick, talks too much. "Did you see that?" |
+
 ## The bell bronze, start to finish [in game]
 
 The thread that ties the first four quests together. Every step is something the player can read or be told.

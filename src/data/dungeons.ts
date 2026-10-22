@@ -1,0 +1,203 @@
+import type { CallingId } from './classes';
+import type { Appearance, HeldItem } from '../entities/humanoid';
+import { dungeonArmour } from './armour';
+
+// Group dungeons, in the manner of ESO's: built into the world behind a door, for four (one to
+// hold the creatures, one to heal, two to do the damage). The Group Finder (key P) makes a group
+// from the players queued for one, and henchmen fill any place nobody takes, the way Guild Wars
+// hired them at the outposts. A run belongs to its group: the creatures are put down for it when
+// it goes in and stay dead until it leaves. The halls are in world/sites.ts (buildOldMan), the run
+// in game/Dungeons.ts, the henchmen in entities/Ally.ts, the queue in server/finder.mjs.
+
+export type Role = 'tank' | 'healer' | 'damage';
+export const ROLES: Role[] = ['tank', 'healer', 'damage'];
+export const ROLE_NAMES: Record<Role, string> = { tank: 'Tank', healer: 'Healer', damage: 'Damage' };
+export const ROLE_DESC: Record<Role, string> = {
+  tank: 'Stands in front and keeps the creatures on you.',
+  healer: 'Keeps the group on its feet: your blows mend whoever is most hurt near you.',
+  damage: 'Brings the creatures down.',
+};
+/** A full group: one to hold, one to heal, two to hit. */
+export const PARTY: Role[] = ['tank', 'healer', 'damage', 'damage'];
+/** What each calling plays unless you choose otherwise. */
+export const CALLING_ROLE: Record<CallingId, Role> = { warden: 'tank', reaver: 'damage', ashcaller: 'damage', pathfinder: 'damage' };
+
+/** A boss's fight: what's said, the creatures it calls in, and what it throws at the floor. */
+export interface BossPlan {
+  /** Said when the fight starts, and when it ends: [speaker ('' for what you see), line]. */
+  pull: [string, string];
+  fall: [string, string];
+  /** Calls in creatures as its health drops past each share. */
+  adds?: { at: number; types: string[]; line: [string, string] }[];
+  /**
+   * Every so many seconds, a circle under that many of the group, filling for the wind-up; whoever
+   * is still in it when it lands takes the damage. Move or roll out.
+   */
+  hazard?: { every: number; count: number; r: number; windup: number; damage: number; color: string; line: string };
+  /** What it can drop: a piece for you, at this chance (always at least one from the last boss). */
+  drops: string[];
+  chance: number;
+}
+
+/** A line once, the first time the group comes into a place: Bet says it if she's along, otherwise it's what you see. */
+export interface Note { x: number; z: number; r: number; said: string; seen: string }
+
+export interface DungeonDef {
+  /** The site the halls are built at (sites.ts). */
+  id: string;
+  name: string;
+  where: string;
+  levels: [number, number];
+  /** The henchmen fight at least at this level. */
+  level: number;
+  blurb: string;
+  /** The way in, out in the world (press E), and where you come back out (x, y, z, facing). */
+  door: [number, number, number];
+  out: [number, number, number, number];
+  bosses: BossPlan[];
+  notes: Note[];
+  /** The chest at the end: marks, experience, and what's inside. */
+  chest: { xp: number; marks: number; items: string[] };
+}
+
+const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap'];
+
+export const DUNGEONS: DungeonDef[] = [
+  {
+    id: 'gd-oldman', name: 'The Old Man\'s Workings', where: 'Sallow Pit, Hollindale', levels: [8, 12], level: 10,
+    blurb: 'Number Four gallery has been shut since the roof came in at Candlemas. Lamps go missing from the lamp room, and copper goes up the shaft at night that never went through Hesk Dunmore\'s carts.',
+    door: [256.5, 22, 92.5], out: [253.5, 22, 92.5, -Math.PI / 2],
+    bosses: [
+      {
+        pull: ['Coll Bray', 'Company sent you, did they? Company can come down itself.'],
+        adds: [{ at: 0.5, types: ['dg_nightman'], line: ['Coll Bray', 'Ned! Leave the crates, get over here!'] }],
+        hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 36, color: '#ffb040', line: 'Coll Bray throws a lit lamp.' },
+        fall: ['Coll Bray', 'We only took what was lying loose. Something else is eating the seam. Go and look if you don\'t believe me.'],
+        drops: ['bray_hanger', ...OLDMAN_GEAR], chance: 0.6,
+      },
+      {
+        pull: ['', 'The water in the sump heaves, and most of it gets up.'],
+        adds: [
+          { at: 0.66, types: ['dg_seep', 'dg_seep'], line: ['', 'Two lumps of Old Sump slide off into the water and come back out on their own.'] },
+          { at: 0.33, types: ['dg_seep', 'dg_seep'], line: ['', 'It splits again.'] },
+        ],
+        hazard: { every: 8, count: 2, r: 3.2, windup: 1.8, damage: 34, color: '#7ac07a', line: 'The floor bulges where the water is coming up.' },
+        fall: ['', 'Old Sump goes flat and runs away between the stones.'],
+        drops: OLDMAN_GEAR, chance: 0.6,
+      },
+      {
+        pull: ['', 'The copper in the wall moves. It isn\'t copper: it\'s a rustback the size of a cart, green right through.'],
+        adds: [
+          { at: 0.75, types: ['dg_hatchling', 'dg_hatchling', 'dg_hatchling'], line: ['', 'A clutch splits open in the wall.'] },
+          { at: 0.5, types: ['dg_hatchling', 'dg_hatchling', 'dg_hatchling'], line: ['', 'Another clutch splits open.'] },
+          { at: 0.25, types: ['dg_hatchling', 'dg_hatchling', 'dg_hatchling', 'dg_hatchling'], line: ['', 'The walls are full of them.'] },
+        ],
+        hazard: { every: 10, count: 2, r: 3.5, windup: 1.8, damage: 42, color: '#c8b090', line: 'Grit pours from the roof where Verdigris hit the wall.' },
+        fall: ['', 'Verdigris goes down on its side, and the hatchlings scatter into the cracks.'],
+        drops: OLDMAN_GEAR, chance: 1,
+      },
+    ],
+    notes: [
+      { x: 228, z: -60, r: 7, said: 'Number Four. They shut it after the roof came in. Somebody\'s been greasing the rails.', seen: 'Number Four gallery. The rails have been greased, and not long ago.' },
+      { x: 241, z: -78, r: 9, said: 'That\'s ore sorted by hand. No company stamp on any of it.', seen: 'Crates of ore, sorted by hand. None of them carries the company\'s stamp.' },
+      { x: 268, z: -86, r: 9, said: 'Pumps have been off since Candlemas. That\'s a lot of water.', seen: 'The sump. The pumps have been off for months, and the water has come back up.' },
+      { x: 280, z: -40, r: 8, said: 'That\'s the old man. Fire-set, look at the soot. Nobody\'s cut rock like that in a hundred years.', seen: 'Old workings, older than the Pit: the walls are black where fires were lit against the rock to crack it.' },
+    ],
+    chest: { xp: 1400, marks: 60, items: ['copper_ore', 'copper_ore', 'copper_ore', 'rustback_shell', 'bronze_bar', 'bronze_bar'] },
+  },
+];
+
+export const DUNGEON_BY_ID: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
+
+// ---------------------------------------------------------------- Henchmen
+/** What a henchman says: going in, hurt, after a kill, going down, getting up, and (a healer) mending. */
+export interface Barks { pull: string[]; low: string[]; kill: string[]; down: string; up: string; mend?: string[] }
+
+export interface Henchman {
+  id: string;
+  name: string;
+  title: string;
+  role: Role;
+  look: Partial<Appearance>;
+  held: HeldItem;
+  barks: Barks;
+}
+
+/**
+ * Four hands for hire who'll go down anywhere for a day's rate, Hesk's regulars when the company
+ * needs a gallery cleared. Whoever's free comes: a tank, a healer, and the damage dealers the group
+ * is short of (Bet first; she knows the Pit).
+ */
+export const HENCHMEN: Henchman[] = [
+  {
+    id: 'osgood', name: 'Osgood Mason', title: 'Quarryman', role: 'tank',
+    look: { skin: '#c89070', hair: '#3a2418', hairStyle: 0, beard: true, eyes: '#3a2a1a', tunic: '#5a5a60', trim: '#2e2e34', trousers: '#3e3e44', boots: '#24221e', shoulderPads: '#8a8a90', top: 4, gloves: '#6a6a70', build: 1.22, height: 1.06, age: 0.45 },
+    held: 'hammer',
+    barks: {
+      pull: ['On me.', 'I\'ve got them.', 'Stay behind me.', 'Here. Look at me, not them.'],
+      low: ['Bit of help here.', 'Edith.'],
+      kill: ['Next.', 'That\'s that.'],
+      down: 'Down. Sorry.',
+      up: 'Right. Where was I.',
+    },
+  },
+  {
+    id: 'edith', name: 'Edith Leach', title: 'Bonesetter', role: 'healer',
+    look: { frame: 'f', skin: '#f0cfb0', hair: '#9a948c', hairStyle: 2, eyes: '#4a5a6a', tunic: '#5a4a6a', trim: '#d8c8a0', trousers: '#3a3040', boots: '#2a2018', top: 5, shirt: '#d8c8a0', apron: true, age: 0.7, build: 0.95 },
+    held: 'none',
+    barks: {
+      pull: ['Nobody stand in anything.', 'Keep where I can see you.', 'If you\'re bleeding, come to me. Don\'t make me come to you.'],
+      low: ['I can\'t mend what I can\'t reach.', 'Somebody get that thing off me.'],
+      kill: ['Good.'],
+      down: 'Oh, for goodness\' sake. Get me up.',
+      up: 'I\'m up. Don\'t fuss.',
+      mend: ['Hold still.', 'That\'ll scar.', 'You\'re fine. Mostly.', 'Stop moving.'],
+    },
+  },
+  {
+    id: 'bet', name: 'Bet Pascoe', title: 'Pick-hand', role: 'damage',
+    look: { frame: 'f', skin: '#d8a882', hair: '#1e1612', hairStyle: 1, eyes: '#3a2a1a', tunic: '#3a3a36', trim: '#7a6a4a', trousers: '#2e2a26', boots: '#1e1a16', hat: 'kerchief', hatColor: '#7a2a22', build: 1.05, age: 0.35 },
+    held: 'pickaxe',
+    barks: {
+      pull: ['Mind your heads.', 'Rustbacks. Hit them under the shell.', 'Here we go.'],
+      low: ['I\'ve had worse from a pit fall.', 'That one had teeth.'],
+      kill: ['That\'s one for the tally.', 'Down it goes.'],
+      down: 'Get this off me.',
+      up: 'Still here.',
+    },
+  },
+  {
+    id: 'tom', name: 'Tom Fowler', title: 'Bird-catcher', role: 'damage',
+    look: { skin: '#e2b894', hair: '#7a3a1e', hairStyle: 3, eyes: '#4a7a4a', tunic: '#4a5a3a', trim: '#8a7a4a', trousers: '#3a3a2a', boots: '#2a2418', hat: 'cap', hatColor: '#5a4a2a', age: 0.2, build: 0.9 },
+    held: 'hatchet',
+    barks: {
+      pull: ['That one\'s mine!', 'Left, it\'s going left!', 'I\'ll take the little ones.'],
+      low: ['It bit me!', 'Ow. That\'s my good arm.'],
+      kill: ['Got it!', 'Did you see that?', 'Easy.'],
+      down: 'Ow. Ow.',
+      up: 'Not dead! Not dead.',
+    },
+  },
+];
+
+/** The henchmen who fill the places a group is short of. */
+export function henchmenFor(missing: Role[]): Henchman[] {
+  const out: Henchman[] = [];
+  for (const r of missing) {
+    const h = HENCHMEN.find((x) => x.role === r && !out.includes(x));
+    if (h) out.push(h);
+  }
+  return out;
+}
+
+/** The places a group is short of, given the roles it has. */
+export function missingRoles(have: Role[]): Role[] {
+  const left = [...have];
+  const out: Role[] = [];
+  for (const r of PARTY) {
+    const i = left.indexOf(r);
+    if (i >= 0) left.splice(i, 1); else out.push(r);
+  }
+  // A group with more of one role than it needs is still four: drop henchmen for the extra players
+  return out.slice(0, Math.max(0, PARTY.length - have.length));
+}

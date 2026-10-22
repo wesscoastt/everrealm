@@ -307,5 +307,20 @@ export function socialInit(ctx) {
     for (const [id, inv] of invites) if (now - inv.at > INVITE_MS) invites.delete(id);
   }, 500);
 
-  return { handle, join, leave };
+  /** Put these players in one group of their own (the Group Finder's), out of any they were in. */
+  function formGroup(ids) {
+    const ps = ids.map((id) => players.get(id)).filter(Boolean);
+    if (ps.length < 2) return;
+    const g0 = groupOf(ps[0]);
+    if (g0 && g0.members.length === ps.length && ps.every((p) => p.group === g0.id)) return; // already just them
+    for (const p of ps) if (p.group) leaveGroup(p, 'has left the group');
+    const g = { id: nextGroup++, members: ps.map((p) => p.id) };
+    groups.set(g.id, g);
+    for (const p of ps) { p.group = g.id; sys(p, 'You\'re grouped for the dungeon.'); }
+    sendGroup(g);
+  }
+  /** A player's group: its leader and members (ids), or null. */
+  function groupIds(p) { const g = groupOf(p); return g ? { leader: g.members[0], members: [...g.members] } : null; }
+
+  return { handle, join, leave, formGroup, groupIds };
 }

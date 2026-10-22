@@ -129,6 +129,12 @@ export interface OnlineHooks {
   exBack?(row: ExRow): void;
   exGone?(id: number): void;
   exOwed?(rows: ExOwed[]): void;
+  /** The Group Finder (game/Dungeons.ts): the queue, a group ready, a run starting, and the run's blows and kills. */
+  qStatus?(dungeon: string | null, n: number): void;
+  qReady?(run: number, dungeon: string, names: string[], henchmen: number, secs: number): void;
+  dStart?(run: number, dungeon: string, members: { id: number; name: string; role: string }[], missing: string[]): void;
+  dEv?(from: number, k: 'hit' | 'kill', i: number, dmg: number): void;
+  dLeft?(name: string): void;
 }
 
 export class Online {
@@ -248,6 +254,11 @@ export class Online {
       case 'evDone': this.hooks.eventDone?.(String(m.id), !!m.ok, Number(m.total), (m.shares && typeof m.shares === 'object' ? m.shares : {}) as Record<string, number>); break;
       case 'evCool': this.hooks.eventCool?.(String(m.id), Number(m.left)); break;
       case 'bossDown': this.hooks.bossDown?.(String(m.id), Number(m.cycle), Array.isArray(m.by) ? (m.by as unknown[]).map(String) : []); break;
+      case 'qStatus': this.hooks.qStatus?.(typeof m.dungeon === 'string' ? m.dungeon : null, Number(m.n) || 0); break;
+      case 'qReady': this.hooks.qReady?.(Number(m.run), String(m.dungeon), Array.isArray(m.names) ? (m.names as unknown[]).map(String) : [], Number(m.henchmen) || 0, Number(m.secs) || 30); break;
+      case 'dStart': this.hooks.dStart?.(Number(m.run), String(m.dungeon), Array.isArray(m.members) ? (m.members as { id: number; name: string; role: string }[]) : [], Array.isArray(m.missing) ? (m.missing as unknown[]).map(String) : []); break;
+      case 'dEv': if (m.k === 'hit' || m.k === 'kill') this.hooks.dEv?.(Number(m.from), m.k, Number(m.i), Number(m.dmg) || 0); break;
+      case 'dLeft': this.hooks.dLeft?.(String(m.name)); break;
     }
   }
 
@@ -369,6 +380,13 @@ export class Online {
   guildMotto(text: string): void { this.emit({ t: 'uMotto', text }); }
   guildChat(text: string): void { this.emit({ t: 'uChat', text }); }
   exList(): void { this.emit({ t: 'exList' }); }
+  // The Group Finder (server/finder.mjs)
+  qJoin(dungeon: string, role: string): void { this.emit({ t: 'qJoin', dungeon, role }); }
+  qLeave(): void { this.emit({ t: 'qLeave' }); }
+  qGroup(dungeon: string): void { this.emit({ t: 'qGroup', dungeon }); }
+  qAnswer(run: number, yes: boolean, role: string): void { this.emit({ t: 'qAnswer', run, yes, role }); }
+  dEv(run: number, k: 'hit' | 'kill', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }
+  dLeave(run: number): void { this.emit({ t: 'dLeave', run }); }
   exPost(item: string, n: number, price: number): void { this.emit({ t: 'exPost', item, n, price }); }
   exBuy(id: number): void { this.emit({ t: 'exBuy', id }); }
   exCancel(id: number): void { this.emit({ t: 'exCancel', id }); }

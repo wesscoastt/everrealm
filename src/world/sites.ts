@@ -70,7 +70,7 @@ export interface Site {
 
 /** What an activity site holds for the game (see game/Activities.ts). */
 export interface SiteActivity {
-  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive' | 'camp';
+  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive' | 'camp' | 'group';
   /** Creatures that live here and come back after a while: [x, floorY, z, enemy type]. */
   spawns?: [number, number, number, string][];
   /** The champion at the end: [x, floorY, z, enemy type]. */
@@ -81,6 +81,16 @@ export interface SiteActivity {
   caches?: [number, number, number][];
   /** A vista: where to stand, and the point the camera circles [x, y, z, x, y, z]. */
   view?: [number, number, number, number, number, number];
+  /**
+   * A group dungeon (data/dungeons.ts, game/Dungeons.ts): its packs in the order they're met (each
+   * pack pulls together), its bosses in order with their crew, where a group arrives, and the way
+   * back up. Its halls are buried: covered lists each hall's footprint and ceiling, for the site check.
+   */
+  packs?: [number, number, number, string][][];
+  bosses?: { at: [number, number, number]; type: string; crew?: [number, number, number, string][] }[];
+  arrive?: [number, number, number];
+  exit?: [number, number, number];
+  covered?: [number, number, number, number, number][];
 }
 
 /** The lairs where the world bosses rise. */
@@ -217,7 +227,7 @@ export function plan(): Plan {
   const gullZ = 600, gullCoast = coastX(gullZ);
   const lightZ = 330, lightCoast = coastX(lightZ);
   /** A landmark to build (sea: it's on the sea bed, and the land's points of interest ignore it). */
-  interface Named { id: string; name: string; x: number; z: number; r0: number; r1: number; h?: number; sea?: boolean; build: (s: Site, base: number) => void }
+  interface Named { id: string; name: string; x: number; z: number; r0: number; r1: number; h?: number; sea?: boolean; under?: boolean; build: (s: Site, base: number) => void }
   const named: Named[] = [
     { id: 'aldermere', name: 'Ansbury', x: 820, z: 300, r0: 205, r1: 250, h: 24, build: (s, b) => { buildAldermere(s, b); buildNewTown(b, extra); } },
     { id: 'cotters', name: 'Cotter\'s End', x: 486, z: 252, r0: 20, r1: 34, build: (s, b) => buildHamlet(s, b, 486, 252, 'thatch', 4) },
@@ -265,6 +275,8 @@ export function plan(): Plan {
     { id: 'scarrow', name: 'Scarrow Tor', x: SCARROW.x, z: SCARROW.z, r0: 22, r1: 34, build: (s, b) => buildOuterTown(s, b, 'scarrow') },
     { id: 'delve-holmsey', name: 'Holmsey', x: 1512, z: 1500, r0: 0, r1: 0, sea: true, build: (s) => buildHolmsey(s) },
     { id: 'dive-grindles', name: 'The Grindles', x: 1905, z: 1032, r0: 0, r1: 0, sea: true, build: (s) => buildGrindles(s) },
+    // Group dungeons: buried halls, entered by a door elsewhere (the Old Man's from Sallow Pit's chamber)
+    { id: 'gd-oldman', name: 'The Old Man\'s Workings', x: 254, z: -58, r0: 0, r1: 0, under: true, build: (s) => buildOldMan(s) },
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
     { id: 'sc-crater', name: 'The Great Starfall', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
     // World bosses' lairs and the Shardfalls' landing grounds (data/activities.ts says when they're used)
@@ -301,7 +313,7 @@ export function plan(): Plan {
     const h = baseHeight(x, z);
     // (by the heart's own roads: the outer lands' roads came later, and mustn't move these)
     if (h <= SEA + 1 || heartRoadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
-    if (named.some((n) => !n.sea && Math.hypot(n.x - x, n.z - z) < 80)) continue;
+    if (named.some((n) => !n.sea && !n.under && Math.hypot(n.x - x, n.z - z) < 80)) continue;
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
@@ -1023,33 +1035,60 @@ export function plan(): Plan {
    * champion in the last, and a chest behind the champion. Public dungeons are bigger, with two
    * wings and a great hall; delves are three rooms. Themes set the stone and the clutter.
    */
+  /** The stone, floor and light of something dug under the ground (an underworks theme, or a group dungeon's). */
+  interface DigTheme { wall: number; wall2: number; floor: number; floor2: number; light: string }
+  /**
+   * Digging under the ground: halls, and the corridors between them. Halls are carved as they're
+   * called; corridors wait for finish(), then cut through the halls' walls. Each only walls a cell
+   * nothing has opened, so a corridor never ends in a wall and a hall's wall never closes a corridor.
+   * Lanterns go up last, and only on wall that's still there.
+   */
+  function digger(s: Site, cx: number, cz: number, F: number, T: DigTheme) {
+    const open = new Set<number>();
+    const K = (X: number, Z: number) => (X - WMIN) + (Z - WMIN) * KEY_W;
+    const runs: [number, number, number, number][] = [];
+    const lanterns: { x: number; z: number; ry: number; wx: number; wz: number }[] = [];
+    const wallMat = (x: number, y: number, z: number) => (hash2(x * 3 + y, z, 301) < 0.3 ? T.wall2 : T.wall);
+    const lamp = (x: number, z: number, y = F + 2.2) => s.props.push({ t: 'glow', x: x + 0.5, y, z: z + 0.5, r: 2.2, color: T.light });
+    /** Carve a box (inclusive bounds, local to the centre) with dressed walls, floor and ceiling. */
+    const carve = (x0: number, z0: number, x1: number, z1: number, h: number, th = T) => {
+      const wm = (x: number, y: number, z: number) => (hash2(x * 3 + y, z, 301) < 0.3 ? th.wall2 : th.wall);
+      for (let z = z0 - 1; z <= z1 + 1; z++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+        const X = cx + x, Z = cz + z, edge = x < x0 || x > x1 || z < z0 || z > z1, k = K(X, Z);
+        if (edge) { if (!open.has(k)) for (let y = F - 1; y <= F + h; y++) O.set(X, y, Z, wm(X, y, Z)); continue; }
+        const was = open.has(k);
+        if (!was) O.set(X, F - 1, Z, hash2(X, Z, 303) < 0.22 ? th.floor2 : th.floor);
+        for (let y = F; y < F + h; y++) O.set(X, y, Z, B.Air);
+        if (!was) O.set(X, F + h, Z, wm(X, F + h, Z));
+        open.add(k);
+      }
+    };
+    const hall = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false, th = T) => {
+      carve(x0, z0, x1, z1, h, th);
+      if (pillars) for (let z = z0 + 3; z <= z1 - 3; z += 5) for (const x of [x0 + 3, x1 - 3]) for (let y = F; y < F + h; y++) O.set(cx + x, y, cz + z, th.wall2);
+      // Lanterns along the long walls
+      for (let x = x0 + 2; x <= x1 - 2; x += 6) for (const [z, ry] of [[z0, 0], [z1, Math.PI]] as const) lanterns.push({ x: cx + x + 0.5, z: cz + z + (ry ? 0.92 : 0.08), ry, wx: cx + x, wz: cz + z + (ry ? 1 : -1) });
+      s.props.push({ t: 'glow', x: cx + (x0 + x1) / 2 + 0.5, y: F + Math.min(h - 1, 4), z: cz + (z0 + z1) / 2 + 0.5, r: 2.2, color: th.light });
+    };
+    /** A corridor three wide and four high between two points on one axis (cut at finish()). */
+    const run = (ax: number, az: number, bx: number, bz: number) => runs.push([ax, az, bx, bz]);
+    /** Mark columns already opened by hand (a stair), so corridors run into them cleanly. */
+    const opened = (X: number, Z: number) => open.add(K(X, Z));
+    const isOpen = (X: number, Z: number) => open.has(K(X, Z));
+    const finish = () => {
+      for (const [ax, az, bx, bz] of runs) carve(Math.min(ax, bx) - (ax === bx ? 1 : 0), Math.min(az, bz) - (az === bz ? 1 : 0), Math.max(ax, bx) + (ax === bx ? 1 : 0), Math.max(az, bz) + (az === bz ? 1 : 0), 4);
+      for (const l of lanterns) if (!open.has(K(l.wx, l.wz))) s.props.push({ t: 'wallLantern', x: l.x, y: F + 2.4, z: l.z, ry: l.ry });
+    };
+    return { hall, run, finish, lamp, wallMat, opened, isOpen };
+  }
+
   function buildUnderworks(s: Site, G: number, theme: keyof typeof UNDERWORKS) {
     const T = UNDERWORKS[theme];
     const cx = Math.round(s.x), cz = Math.round(s.z);
     const F = Math.max(7, G - T.depth); // the floor everything below stands on
     rect(s, cx - T.reach, cz - T.reach - 4, cx + T.reach, cz + T.reach);
     const spawns: [number, number, number, string][] = [];
-    const lamp = (x: number, z: number, y = F + 2.2) => s.props.push({ t: 'glow', x: x + 0.5, y, z: z + 0.5, r: 2.2, color: T.light });
-    const wallMat = (x: number, y: number, z: number) => (hash2(x * 3 + y, z, 301) < 0.3 ? T.wall2 : T.wall);
-    /** Carve a hall (inclusive bounds, local to the centre) with dressed walls, floor and ceiling. */
-    const hall = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false) => {
-      for (let z = z0 - 1; z <= z1 + 1; z++) for (let x = x0 - 1; x <= x1 + 1; x++) {
-        const X = cx + x, Z = cz + z, edge = x < x0 || x > x1 || z < z0 || z > z1;
-        for (let y = F - 1; y <= F + h; y++) {
-          if (y === F - 1) O.set(X, y, Z, edge ? wallMat(X, y, Z) : hash2(X, Z, 303) < 0.22 ? T.floor2 : T.floor);
-          else if (y === F + h || edge) O.set(X, y, Z, wallMat(X, y, Z));
-          else O.set(X, y, Z, B.Air);
-        }
-      }
-      if (pillars) for (let z = z0 + 3; z <= z1 - 3; z += 5) for (const x of [x0 + 3, x1 - 3]) for (let y = F; y < F + h; y++) O.set(cx + x, y, cz + z, T.wall2);
-      // Lanterns along the long walls
-      for (let x = x0 + 2; x <= x1 - 2; x += 6) for (const [z, ry] of [[z0, 0], [z1, Math.PI]] as const) {
-        s.props.push({ t: 'wallLantern', x: cx + x + 0.5, y: F + 2.4, z: cz + z + (ry ? 0.92 : 0.08), ry });
-      }
-      lamp(cx + (x0 + x1) / 2, cz + (z0 + z1) / 2, F + Math.min(h - 1, 4));
-    };
-    /** A corridor three wide and four high between two points on one axis. */
-    const run = (ax: number, az: number, bx: number, bz: number) => hall(Math.min(ax, bx) - (ax === bx ? 1 : 0), Math.min(az, bz) - (az === bz ? 1 : 0), Math.max(ax, bx) + (ax === bx ? 1 : 0), Math.max(az, bz) + (az === bz ? 1 : 0), 4);
+    const { hall, run, finish, lamp, wallMat, opened } = digger(s, cx, cz, F, T);
     const put = (x: number, z: number, n: number, types: string[]) => { for (let i = 0; i < n; i++) spawns.push([cx + x + (i % 2 ? 2 : -2) * (i >> 1 ? 1 : 0.5), F, cz + z + (i % 2 ? 1.5 : -1.5), types[i % types.length]]); };
     const clutter = (x: number, z: number) => {
       const X = cx + x, Z = cz + z, k = hash2(X, Z, 305);
@@ -1068,6 +1107,7 @@ export function plan(): Plan {
         }
       }
       if (k % 4 === 2) lamp(cx, z, top + 2);
+      for (let x = cx - 1; x <= cx + 1; x++) opened(x, z);
     }
     for (let y = G; y < G + 5; y++) for (const x of [cx - 3, cx + 3]) for (const z of [cz + ez + 1, cz + ez + 2, cz + ez + 3]) O.set(x, y, z, y === G + 4 ? T.wall2 : T.wall);
     for (let x = cx - 3; x <= cx + 3; x++) for (const z of [cz + ez + 1, cz + ez + 2, cz + ez + 3]) O.set(x, G + 4, z, T.wall2);
@@ -1091,6 +1131,87 @@ export function plan(): Plan {
       for (const [x, z] of [[-15, -4], [-11, 4], [3, -3], [16, 5]]) clutter(x, z);
       s.act = { kind: 'delve', spawns, boss: [cx + 14.5, F, cz + 2.5, T.boss], chest: [cx + 17.5, F, cz + 5.5] };
     }
+    finish();
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+  }
+
+  /**
+   * The Old Man's Workings, under the hills north of Sallow Pit: the Pit's shut Number Four gallery,
+   * the night shift's room, the flooded sump, a low drift, and at the bottom the old man itself
+   * (miners' word for workings older than anyone's records), sooted black by fire-setting, where
+   * Verdigris nests on the copper. Reached only through the boarded door in the Pit's chamber.
+   */
+  function buildOldMan(s: Site) {
+    const OX = 208, OZ = -60, F = 5;
+    const PIT: DigTheme = { wall: B.Stone, wall2: B.Timber, floor: B.Gravel, floor2: B.Stone, light: '#ffc880' };
+    const SUMP: DigTheme = { wall: B.MossyStone, wall2: B.MossyCobble, floor: B.Clay, floor2: B.Gravel, light: '#b8ffc8' };
+    const OLD: DigTheme = { wall: B.Basalt, wall2: B.Stone, floor: B.Stone, floor2: B.Gravel, light: '#ffb070' };
+    const { hall, run, finish } = digger(s, OX, OZ, F, PIT);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, F, OZ + z + 0.5];
+    const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
+    const covered: [number, number, number, number, number][] = [];
+    const room = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false, th = PIT) => {
+      hall(x0, z0, x1, z1, h, pillars, th);
+      covered.push([OX + x0 - 1, OZ + z0 - 1, OX + x1 + 1, OZ + z1 + 1, F + h]);
+    };
+    const prop = (t: PropType, x: number, z: number, ry = 0, y = F) => s.props.push({ t, x: OX + x + 0.5, y, z: OZ + z + 0.5, ry });
+    const furn = (item: string, x: number, z: number, ry = 0) => s.props.push({ t: 'furn', item, x: OX + x + 0.5, y: F, z: OZ + z + 0.5, ry });
+
+    // The lamp room, where a group comes down the shaft ladder
+    room(0, -4, 9, 4, 5);
+    for (let y = F; y < F + 5; y++) for (const z of [-2, 2]) O.set(OX, y, OZ + z, B.Timber); // the ladder's frame on the west wall
+    for (let z = -2; z <= 2; z++) O.set(OX, F + 4, OZ + z, B.Timber);
+    s.props.push({ t: 'sign', x: OX + 1.2, y: F, z: OZ + 3.4, ry: Math.PI / 2, text: 'Shaft ladder' });
+    furn('candles', 6, -3); prop('crate', 7, 3, 0.4); prop('barrel', 8, 2.6); prop('crate', 6, 3.2, 1.2);
+    // Number Four, the shut gallery: rails down the middle, a cart left where it stopped
+    run(10, 0, 19, 0);
+    room(20, -7, 46, 7, 7, true);
+    s.props.push({ t: 'rails', x: OX + 33.5, y: F, z: OZ + 0.5, ry: Math.PI / 2, len: 24 } as PropDesc);
+    prop('cart', 36, 0, Math.PI / 2); prop('crate', 22, -6, 0.3); prop('barrel', 45, 6); furn('candles', 30, 6);
+    // The night shift's room: where Coll Bray's crew sorted the copper they carried up at night
+    run(33, -8, 33, -17);
+    room(22, -33, 44, -18, 7);
+    for (const [x, z, r] of [[25, -31, 0.2], [27, -31, 1.1], [41, -31, 0.6], [42, -29, 1.7], [24, -20, 0.9]] as const) prop('crate', x, z, r);
+    furn('candles', 33, -32); prop('barrel', 40, -20); prop('cart', 29, -30, 0.2);
+    // The sump: the pumps have been off since the roof came in, and the water's coming back
+    run(45, -26, 58, -26);
+    room(59, -40, 85, -12, 9, false, SUMP);
+    for (let z = -39; z <= -36; z++) for (let x = 80; x <= 84; x++) { O.set(OX + x, F - 2, OZ + z, B.Clay); O.set(OX + x, F - 1, OZ + z, B.Water); }
+    prop('barrel', 61, -38); prop('crate', 62, -14, 0.5); furn('mushrooms', 66, -39); furn('mushrooms', 83, -14);
+    // The drift: low, and full of the rustbacks' young
+    run(72, -11, 72, 0);
+    room(66, 1, 78, 9, 5);
+    furn('mushrooms', 67, 8);
+    // The old man: workings older than the Pit, black with the soot of fire-setting, copper in the walls
+    run(72, 10, 72, 17);
+    room(55, 18, 92, 44, 11, true, OLD);
+    for (let z = 18; z <= 44; z++) for (const x of [54, 93]) for (let y = F + 1; y < F + 5; y++) if (hash2(x * 7 + y, z, 951) < 0.18) O.set(OX + x, y, OZ + z, B.CopperOre);
+    for (let x = 55; x <= 92; x++) for (let y = F + 1; y < F + 5; y++) if (hash2(x * 5 + y, 45, 952) < 0.16) O.set(OX + x, y, OZ + 45, B.CopperOre);
+    // A tally on the east wall, cut by whoever worked it first: strokes in fives, a bar across each
+    for (let i = 0; i < 23; i++) { const z = 24 + i + Math.floor(i / 5); if (z > 41) break; const bar = i % 5 === 4; for (let y = F + 2; y < F + 4; y++) O.set(OX + 93, y, OZ + z, bar ? B.Stone : B.Sand); }
+    furn('candles', 74, 43); prop('crate', 58, 42, 0.8); prop('barrel', 90, 42);
+    finish();
+
+    s.act = {
+      kind: 'group',
+      arrive: at(2, 0),
+      exit: at(1, 0),
+      packs: [
+        [mob(27, -2, 'dg_rustback'), mob(29, 2, 'dg_rustback'), mob(25, 1, 'dg_rustback')],
+        [mob(40, 3, 'dg_rustback'), mob(42, -2, 'dg_rustback'), mob(41, 0, 'dg_seep')],
+        [mob(64, -23, 'dg_seep'), mob(64, -29, 'dg_seep'), mob(62, -26, 'dg_rustback')],
+        [mob(70, 4, 'dg_hatchling'), mob(74, 4, 'dg_hatchling'), mob(70, 7, 'dg_hatchling'), mob(74, 7, 'dg_hatchling'), mob(72, 6, 'dg_rustback')],
+        [mob(60, 22, 'dg_rustback'), mob(62, 24, 'dg_rustback')],
+        [mob(86, 22, 'dg_rustback'), mob(88, 24, 'dg_rustback')],
+      ],
+      bosses: [
+        { at: at(33, -27), type: 'dg_coll', crew: [mob(29, -24, 'dg_nightman'), mob(37, -24, 'dg_nightman')] },
+        { at: at(74, -27), type: 'dg_sump' },
+        { at: at(73, 33), type: 'dg_verdigris' },
+      ],
+      chest: at(73, 41),
+      covered,
+    };
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
   }
 

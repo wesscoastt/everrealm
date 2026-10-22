@@ -15,6 +15,11 @@ export interface EnemyContext {
   playerSwimming: boolean;
   hitPlayer(damage: number, from: Enemy): void;
   sound(name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3): void;
+  /**
+   * In a group: a blow that lands on a circle (a slam, a boss's signature) also catches everyone
+   * else standing in it. "player" above is whoever the creature is after; this is the rest.
+   */
+  splash?(at: THREE.Vector3, r: number, damage: number, from: Enemy): void;
 }
 
 const telegraphMat = new THREE.MeshBasicMaterial({ color: '#ff3a24', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
@@ -513,6 +518,7 @@ export class Enemy {
           if (!this.hitDone && this.timer > 0.2) {
             this.hitDone = true;
             if (ctx.playerAlive && !ctx.playerInvulnerable && distP < this.signatureRadius && Math.abs(toPlayer.y) < 2.5) ctx.hitPlayer(def.damage * SIGNATURE.damage, this);
+            ctx.splash?.(this.pos, this.signatureRadius, def.damage * SIGNATURE.damage, this);
             ctx.sound('squelch', this.pos);
           }
         } else if (def.attack !== 'slam') {
@@ -533,6 +539,7 @@ export class Enemy {
         } else if (!this.hitDone && this.timer > 0.4) {
           this.hitDone = true;
           if (ctx.playerAlive && !ctx.playerInvulnerable && distP < def.range && Math.abs(toPlayer.y) < 2) ctx.hitPlayer(def.damage, this);
+          ctx.splash?.(this.pos, def.range, def.damage, this);
           ctx.sound('squelch', this.pos);
         }
         if (this.timer >= dur) {

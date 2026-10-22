@@ -42,7 +42,7 @@ const raised: string[] = [];
 let checked = 0;
 
 function check(label: string, x: number, z: number, opts: { y?: number; water?: boolean } = {}) {
-  if (x < GW + 40 && z < GW + 40) return; // authored valley
+  if (x >= 0 && z >= 0 && x < GW + 40 && z < GW + 40) return; // authored valley
   checked++;
   if (opts.y !== undefined) {
     // Underground points: the floor must be solid and the two cells above it open
@@ -100,6 +100,60 @@ for (const st of P.sites) {
   if (a.boss) creature(`act ${st.id} champion`, a.boss);
   if (a.chest) check(`act ${st.id} chest`, a.chest[0], a.chest[2], { y: a.chest[1] });
   a.caches?.forEach((c, i) => check(`act ${st.id} cache ${i}`, c[0], c[2], { y: c[1] }));
+  // Group dungeons: every pack, boss and crew, where a group arrives and the way back up
+  a.packs?.forEach((pk, i) => pk.forEach((p, k) => creature(`act ${st.id} pack ${i}.${k}`, p)));
+  a.bosses?.forEach((b, i) => { creature(`act ${st.id} boss ${i}`, [...b.at, b.type]); b.crew?.forEach((c, k) => creature(`act ${st.id} boss ${i} crew ${k}`, c)); });
+  for (const [label, p] of [['arrival', a.arrive], ['exit', a.exit]] as const) if (p) check(`act ${st.id} ${label}`, p[0], p[2], { y: p[1] });
+  // Buried halls stay buried: at least two blocks of ground over every ceiling
+  a.covered?.forEach(([x0, z0, x1, z1, top], i) => {
+    let thin = 0;
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (heightAt(x, z) < top + 3) thin++;
+    checked++;
+    if (thin) problems.push(`act ${st.id} hall ${i}: ${thin} columns with under two blocks of ground over the ceiling`);
+  });
+  reachable(st.id, a);
+}
+
+/**
+ * Dungeons, delves and group dungeons can be walked through. A walk from the chest (stepping up a
+ * block, dropping up to three) must reach every creature and champion, and come out under the sky
+ * (a group dungeon: reach its arrival point instead, as it's entered through a door elsewhere).
+ */
+function reachable(id: string, a: NonNullable<(typeof P.sites)[number]['act']>) {
+  const goals: [string, [number, number, number]][] = [];
+  a.spawns?.forEach((p, i) => goals.push([`spawn ${i}`, [p[0], p[1], p[2]]]));
+  if (a.boss) goals.push(['champion', [a.boss[0], a.boss[1], a.boss[2]]]);
+  a.packs?.forEach((pk, i) => pk.forEach((p, k) => goals.push([`pack ${i}.${k}`, [p[0], p[1], p[2]]])));
+  a.bosses?.forEach((b, i) => { goals.push([`boss ${i}`, b.at]); b.crew?.forEach((c, k) => goals.push([`boss ${i} crew ${k}`, [c[0], c[1], c[2]]])); });
+  if (a.arrive) goals.push(['arrival', a.arrive]);
+  if (!a.chest || !goals.length || (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'group')) return;
+  if (water(a.chest[0], a.chest[1], a.chest[2])) return; // under the sea: swum, not walked
+  const walk = (x: number, y: number, z: number) => solid(x, y - 1, z) && !solid(x, y, z) && !solid(x, y + 1, z);
+  const K = (x: number, y: number, z: number) => `${x},${y},${z}`;
+  const [sx, sy, sz] = a.chest.map(Math.floor);
+  const seen = new Set<string>([K(sx, sy, sz)]);
+  const queue: [number, number, number][] = [[sx, sy, sz]];
+  let sky = false;
+  while (queue.length && seen.size < 400000) {
+    const [x, y, z] = queue.pop()!;
+    if (y >= heightAt(x, z)) sky = true;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (const dy of [0, 1, -1, -2, -3]) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      if (Math.abs(nx - sx) > 120 || Math.abs(nz - sz) > 120 || seen.has(K(nx, ny, nz))) continue;
+      if (dy > 0 && solid(x, y + 2, z)) continue; // no headroom to step up
+      if (dy < 0 && [0, -1, -2].slice(0, -dy).some((k) => solid(nx, y + k, nz) || solid(nx, y + k + 1, nz))) continue; // a wall in the way of the drop
+      if (!walk(nx, ny, nz)) continue;
+      seen.add(K(nx, ny, nz));
+      queue.push([nx, ny, nz]);
+      break;
+    }
+  }
+  checked++;
+  for (const [label, p] of goals) {
+    const [x, y, z] = p.map(Math.floor);
+    if (!seen.has(K(x, y, z))) problems.push(`act ${id} ${label} (${p[0].toFixed(1)}, ${p[1]}, ${p[2].toFixed(1)}): can't be walked to from the chest`);
+  }
+  if (a.kind !== 'group' && !sky) problems.push(`act ${id}: the chest can't be walked out to the open air`);
 }
 // Rares' lairs and treasure maps' dig spots: open ground (the sea rare's waters are open water)
 for (const r of RARES) if (!r.sea) rareLairs(r, P).forEach(([x, z], i) => check(`rare ${r.id} lair ${i}`, x, z));

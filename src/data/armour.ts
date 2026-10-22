@@ -30,6 +30,8 @@ interface Line {
   set?: string;
   /** Where its pieces drop (a region's creatures), if they do. */
   region?: RegionId;
+  /** Or a group dungeon's bosses (data/dungeons.ts). */
+  dungeon?: string;
   rarity: ItemDef['rarity'];
   value: number;
   colour: string;
@@ -130,6 +132,37 @@ const LINES: Line[] = [
       feet: ['Fell boots', 'Felt-lined and studded for the ice on Scarth\'s paths.'],
     },
   },
+  // The Old Man's Workings (group dungeon): its bosses drop these
+  {
+    id: 'pitsmock', weight: 'light', set: 'oldman', dungeon: 'gd-oldman', rarity: 'rare', value: 55, colour: '#7a7466', trim: '#3a362e',
+    look: { chest: { top: 3, tunic: '#7a7466', trim: '#3a362e', shirt: '#a8a090' }, legs: { trousers: '#4a463e', legs: 1, hose: '#3a362e' }, hands: { gloves: '#5a564c' }, feet: { boots: '#2e2a24', shoes: 1 } },
+    pieces: {
+      chest: ['Pitman\'s smock', 'Grey twill, patched at the elbows from kneeling at the face. Number Four\'s chalk mark is on the back.'],
+      legs: ['Pitman\'s breeches', 'Leather knee patches, worn through and patched again.'],
+      hands: ['Pitman\'s mitts', 'Cut off at the fingers, so you can still feel the seam.'],
+      feet: ['Pit clogs', 'Wooden soles. They keep your feet out of the wet and tell everyone where you are.'],
+    },
+  },
+  {
+    id: 'nightshift', weight: 'medium', set: 'oldman', dungeon: 'gd-oldman', rarity: 'rare', value: 55, colour: '#3a3a36', trim: '#7a6a4a',
+    look: { chest: { top: 6, tunic: '#3a3a36', trim: '#7a6a4a' }, legs: { trousers: '#2e2a26', legs: 1, hose: '#4a463e' }, hands: { gloves: '#2a2622' }, feet: { boots: '#1e1a16', shoes: 1 } },
+    pieces: {
+      chest: ['Night-shift jerkin', 'Dark leather, nothing on it that catches a lamp. Coll Bray\'s crew all wore them.'],
+      legs: ['Night-shift breeches', 'Black wool over leather. Good for not being seen on a shaft ladder.'],
+      hands: ['Night-shift gloves', 'Soft palms, for carrying copper quietly.'],
+      feet: ['Night-shift boots', 'Felt over the hobnails, so they don\'t ring on the rails.'],
+    },
+  },
+  {
+    id: 'verdigris', weight: 'heavy', set: 'oldman', dungeon: 'gd-oldman', rarity: 'rare', value: 70, colour: '#3e7a5e', trim: '#24402e',
+    look: { chest: { top: 4, tunic: '#2e5a46', trim: '#7ac8a0', shoulderPads: '#5a9a7a' }, legs: { trousers: '#24402e', legs: 0 }, hands: { gloves: '#5a9a7a' }, feet: { boots: '#1e3024', shoes: 1 } },
+    pieces: {
+      chest: ['Verdigris plate', 'Shell from the big rustback in the Old Man, strapped over a coat. Green right through: it ate nothing but copper.'],
+      legs: ['Verdigris greaves', 'Shell plates at the shin. They leave green marks on your trousers.'],
+      hands: ['Verdigris gauntlets', 'The plates over the knuckles were the edges of its jaw.'],
+      feet: ['Verdigris boots', 'Shod with shell at the toe. They don\'t rust; they\'re rust already.'],
+    },
+  },
 ];
 
 const SHAPES = { chest: 'chest', legs: 'legs', hands: 'gloves', feet: 'boots' } as const;
@@ -148,6 +181,11 @@ export const REGION_ARMOUR: Partial<Record<RegionId, string[]>> = Object.fromEnt
   LINES.filter((l) => l.region).map((l) => [l.region!, (['chest', 'legs', 'hands', 'feet'] as const).map((s) => `${l.id}_${SLOT_WORD[s]}`)]),
 );
 
+/** A group dungeon's body armour, in every weight (its bosses drop these). */
+export function dungeonArmour(dungeon: string): string[] {
+  return LINES.filter((l) => l.dungeon === dungeon).flatMap((l) => (['chest', 'legs', 'hands', 'feet'] as const).map((s) => `${l.id}_${SLOT_WORD[s]}`));
+}
+
 /** The weight of each helm, and how it shows on the head. */
 export const HELM_WEIGHTS: Record<string, { weight: ArmourWeight; look: Partial<Appearance> }> = {
   bronze_helm: { weight: 'heavy', look: { hat: 'coif', hatColor: '#c08a42' } },
@@ -156,6 +194,7 @@ export const HELM_WEIGHTS: Record<string, { weight: ArmourWeight; look: Partial<
   redback_helm: { weight: 'heavy', look: { hat: 'coif', hatColor: '#c8442a' } },
   frost_cowl: { weight: 'light', look: { hat: 'hood', hatColor: '#dde6ee' } },
   moss_hood: { weight: 'light', look: { hat: 'hood', hatColor: '#5a7a3a' } },
+  pitlamp_cap: { weight: 'light', look: { hat: 'cap', hatColor: '#5a564c' } },
 };
 
 /** Smithed at an anvil: bronze and iron. [line, bars for the chest, legs, hands, feet, smithing level]. */

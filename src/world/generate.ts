@@ -291,6 +291,16 @@ export function generateTerrain(world: Grid): Layout {
     for (let y = FLOOR; y <= FLOOR + 7; y++) for (let dx = 0; dx < 2; dx++) for (let dz = 0; dz < 2; dz++) world.put(px + dx, y, pz + dz, B.Stone);
   }
   mineLights.push([229, FLOOR + 3, 100.5], [239, FLOOR + 4, 92], [247, FLOOR + 3, 88], [233, FLOOR + 3, 84]);
+  // Number Four's mouth: a timbered cut east off the chamber, boarded up. Behind the boards is the
+  // ladder down to the shut gallery (the Old Man's Workings, a group dungeon: sites.ts buildOldMan).
+  for (let x = 249; x <= 256; x++) for (let z = 90; z <= 94; z++) {
+    for (let y = FLOOR; y < FLOOR + 5; y++) carve(x, y, z);
+    world.put(x, FLOOR - 1, z, B.Gravel);
+  }
+  for (let y = FLOOR; y < FLOOR + 5; y++) { world.put(256, y, 90, B.Timber); world.put(256, y, 94, B.Timber); }
+  for (let z = 90; z <= 94; z++) world.put(256, FLOOR + 4, z, B.Timber);
+  for (let z = 91; z <= 93; z++) for (let y = FLOOR; y < FLOOR + 4; y++) world.put(257, y, z, hash2(z, y, 61) < 0.3 ? B.Timber : B.Planks);
+  mineLights.push([253, FLOOR + 3, 92.5]);
 
   // Ore seams in the chamber walls
   const wallSpots: [number, number, number][] = [];

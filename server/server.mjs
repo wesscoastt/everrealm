@@ -38,6 +38,7 @@ import path from 'node:path';
 import { socialInit } from './social.mjs';
 import { guildsInit } from './guilds.mjs';
 import { exchangeInit } from './exchange.mjs';
+import { finderInit } from './finder.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -293,6 +294,7 @@ function broadcast(msg, except) {
 const social = socialInit({ players, send });
 const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataDir: DATA, mirrorDelete: (file) => mirror(file, null), log });
 const exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log });
+const finder = finderInit({ players, send, log, social });
 const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null });
 
 wss.on('connection', (ws, req) => {
@@ -343,7 +345,7 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || finder.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD[0], WORLD[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
@@ -446,6 +448,7 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     if (!me) return;
+    finder.leave(me);
     social.leave(me);
     guilds.leave(me);
     players.delete(me.id);

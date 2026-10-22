@@ -32,7 +32,7 @@ export interface SocialHost {
 
 export interface FriendRow { name: string; online: boolean; x?: number; z?: number }
 
-export interface GroupRow { id: number; name: string; hp: number; max: number; level: number; leader: boolean; me: boolean; near: boolean; calling: string }
+export interface GroupRow { id: number; name: string; hp: number; max: number; level: number; leader: boolean; me: boolean; near: boolean; calling: string; hench?: boolean }
 
 export interface TradeUi extends TradeView { pack: { id: string; n: number }[] }
 

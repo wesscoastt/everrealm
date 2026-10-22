@@ -69,6 +69,9 @@ import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, HouseSpec, Lot, LOT_
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
+import { Dungeons } from './Dungeons';
+import { henchmenFor, Role } from '../data/dungeons';
+import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingId, callingById, TUNE } from '../data/classes';
@@ -192,12 +195,23 @@ export class Game implements GameApi {
   private visitPlot: PlotState | null = null;
   /** When the friends list last asked the realm where everyone is (game seconds). */
   friendsAsked = -99;
+  /** The online group's frames as the server last sent them (null: not in one). */
+  private groupRows: GroupRow[] | null = null;
+  /** Group dungeons: the finder, a run, the henchmen (game/Dungeons.ts). */
+  dungeons!: Dungeons;
+  /** The frames under your own: the online group, and any henchmen with you. */
+  private showGroup(): void {
+    const extra = this.dungeons?.rows() ?? [];
+    if (!extra.length) { this.hud.setGroup(this.groupRows); return; }
+    const me: GroupRow = { id: -1, name: this.save.name, hp: this.hp, max: this.maxHp, level: this.level('melee'), leader: true, me: true, near: true, calling: this.calling };
+    this.hud.setGroup([...(this.groupRows ?? [me]), ...extra]);
+  }
   /** Groups and trades with other players. */
   readonly social: Social = new Social({
     net: () => this.online,
     system: (t) => this.hud.system(t),
     ask: (t, y, n, s) => this.hud.ask(t, y, n, s),
-    setGroup: (rows) => this.hud.setGroup(rows),
+    setGroup: (rows) => { this.groupRows = rows; this.showGroup(); },
     openTrade: (open) => { if (open) { this.hud.show('trade'); } else this.hud.close('trade'); },
     refreshTrade: () => this.hud.refresh('trade'),
     refreshGuild: () => this.hud.refresh('guild'),
@@ -296,7 +310,8 @@ export class Game implements GameApi {
   private restoring = false;
   /** Set while the post cart is on the road, so arrival can be announced. */
   private arriving: string | null = null;
-  private arrivingBy: 'post' | 'waymark' = 'post';
+  private arrivingBy: 'post' | 'waymark' | 'dungeon' = 'post';
+  private arrivingSub = '';
   /** Live creatures placed by QUEST_SPAWNS, by tag. */
   private questSpawned = new Map<string, Enemy[]>();
   /** Ground height under each regional world thing, found once its chunk has loaded. */
@@ -420,6 +435,7 @@ export class Game implements GameApi {
       heal: (n) => {
         const h = Math.min(this.maxHp - this.hp, Math.round(n));
         if (h > 0 && !this.dead) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
+        this.dungeons.shareHeal(n);
       },
       maxHp: () => this.maxHp,
       anim: (st) => {
@@ -497,9 +513,66 @@ export class Game implements GameApi {
       this.animals.push(an);
       this.scene.add(an.model.root);
     }
+    this.dungeons = new Dungeons({
+      scene: this.scene,
+      voxels: this.world.voxels,
+      particles: this.particles,
+      player: () => this.player.position,
+      dead: () => this.dead,
+      invulnerable: () => this.iframes > 0,
+      swimming: () => this.player.swimming,
+      level: () => this.level('melee'),
+      hp: () => ({ hp: this.hp, max: this.maxHp }),
+      calling: () => this.calling,
+      inCombat: () => this.elapsed - this.lastCombat < 6,
+      hurtPlayer: (d, from) => this.hitPlayer(d, from),
+      healPlayer: (n) => { if (this.dead || n <= 0) return; this.hp = Math.min(this.maxHp, this.hp + n); this.floatAt(this.player.position, 2.2, `+${Math.round(n)}`, 'heal'); this.particles.heal(this.player.position); },
+      raise: (share) => this.raise(share),
+      addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
+      removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
+      killed: (e) => this.onEnemyKilled(e),
+      target: () => this.target,
+      travel: (at, yaw, banner, sub) => this.travelInto(at, yaw, banner, sub),
+      reward: (xp, marks, items, why) => {
+        if (xp) this.addXp('melee', xp);
+        if (marks) this.addMarks(marks);
+        for (const it of items) this.give(it, 1);
+        this.hud.system(why + (xp ? ` (+${xp} XP)` : ''));
+      },
+      banner: (t, sub) => this.hud.banner(t, sub),
+      system: (t) => this.hud.system(t),
+      say: (who, text, bubble) => {
+        if (who) this.hud.chat(who, text, 'say'); else this.hud.system(text);
+        if (bubble !== undefined) this.addBubble(bubble, text, false);
+      },
+      float: (at, h, text, cls) => this.floatAt(at, h, text, cls),
+      sound: (name, at) => this.audio.playAt(name, at.distanceTo(this.player.position), 0.8),
+      sfx: (n, v) => this.sfx(n, v),
+      ask: (t, y, n, s) => this.hud.ask(t, y, n, s),
+      flag: (k) => this.flag(k),
+      setFlag: (k, v) => this.setFlag(k, v),
+      persist: () => this.persist(),
+      net: {
+        on: () => this.online.status === 'online',
+        queue: (d, role) => this.online.qJoin(d, role),
+        unqueue: () => this.online.qLeave(),
+        groupGo: (d) => this.online.qGroup(d),
+        answer: (run, yes, role) => this.online.qAnswer(run, yes, role),
+        event: (run, k, i, dmg) => this.online.dEv(run, k, i, dmg),
+        leaveRun: (run) => this.online.dLeave(run),
+      },
+      remote: (id) => this.online.remotes.get(id)?.model.root.position ?? null,
+      group: () => (this.social.inGroup ? { leader: this.social.group!.leader === this.online.myId, size: this.social.group!.members.length } : null),
+      refresh: () => { this.showGroup(); this.hud.refresh('finder'); },
+    });
     this.online = new Online({
       scene: this.scene,
       system: (t) => this.hud.system(t),
+      qStatus: (d, n) => this.dungeons.onQueue(d, n),
+      qReady: (run, d, names, hench, secs) => this.dungeons.onReady(run, d, names, hench, secs),
+      dStart: (run, d, members, missing) => this.dungeons.onStart(run, d, members.map((m) => ({ id: m.id, name: m.name, role: (m.role === 'tank' || m.role === 'healer' ? m.role : 'damage') as Role })), henchmenFor(missing.filter((r): r is Role => r === 'tank' || r === 'healer' || r === 'damage')).map((h) => h.id)),
+      dEv: (from, k, i, dmg) => this.dungeons.onEvent(from, k, i, dmg),
+      dLeft: (name) => this.dungeons.onLeft(name),
       ...this.social.hooks(),
       ...this.exchange.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
@@ -694,6 +767,28 @@ export class Game implements GameApi {
     this.arriving = w.name;
     this.arrivingBy = 'waymark';
     this.startPlay(false, 'Following the waymarks…');
+  }
+
+  /** Into a group dungeon or back out of it: the world loads round the point. */
+  private travelInto(at: [number, number, number], yaw: number, banner: string, sub: string): void {
+    this.dismount(true);
+    this.hud.closeAll();
+    this.cancelActions();
+    this.target = null;
+    this.save.pos = [at[0], at[1] + 0.05, at[2]];
+    this.save.yaw = yaw;
+    this.save.hour = this.world.sky.hour;
+    this.save.hp = this.hp;
+    this.arriving = banner;
+    this.arrivingBy = 'dungeon';
+    this.arrivingSub = sub;
+    this.startPlay(false, sub.startsWith('Group dungeon') ? 'Down the shaft ladder…' : 'Up the ladder…');
+  }
+
+  /** The Group Finder, open at a dungeon (the door, or key P). */
+  openFinder(id?: string): void {
+    if (id) this.hud.finderAt = id;
+    this.hud.show('finder');
   }
 
   private travelTo(id: string): void {
@@ -923,7 +1018,7 @@ export class Game implements GameApi {
   persist(): void {
     if (this.mode !== 'play' || this.restoring) return;
     const p = this.player.position;
-    this.save.pos = [p.x, p.y, p.z];
+    this.save.pos = this.dungeons?.savePos() ?? [p.x, p.y, p.z];
     this.save.yaw = this.player.yaw;
     this.save.hour = this.world.sky.hour;
     this.save.hp = this.hp;
@@ -960,6 +1055,18 @@ export class Game implements GameApi {
       exPost: (item: string, n: number, price: number) => g.exchange.post(item, n, price),
       exTakeBack: (id: number) => g.exchange.takeBack(id),
       exReload: () => g.exchange.open(),
+      finder: () => g.dungeons.view(),
+      finderDo: (what: 'role' | 'hench' | 'find' | 'cancel' | 'leave', id?: string) => {
+        let why: string | null = null;
+        if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
+        else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
+        else if (what === 'find' && id) why = g.dungeons.findGroup(id);
+        else if (what === 'cancel') g.dungeons.unqueue();
+        else if (what === 'leave') g.dungeons.leave();
+        if (why) g.hud.system(why);
+        g.hud.refresh('finder');
+        return why;
+      },
       guild: () => ({ view: g.social.guild, online: g.online.status === 'online' }),
       friends: () => {
         // Where friends are: asked of the realm again now and then while the list is open
@@ -976,7 +1083,8 @@ export class Game implements GameApi {
         else { g.hud.close('guild'); g.hud.openChat((t) => g.say(t), `/w ${name} `); }
       },
       groupDo: (what: 'leave' | 'promote' | 'kick' | 'whisper', name?: string) => {
-        if (what === 'leave') g.social.leave();
+        if (what === 'leave' && !g.social.inGroup && g.dungeons.active) g.dungeons.leave();
+        else if (what === 'leave') g.social.leave();
         else if (what === 'promote' && name) g.social.promote(name);
         else if (what === 'kick' && name) g.social.kick(name);
         else if (what === 'whisper' && name) g.hud.openChat((t) => g.say(t), `/w ${name} `);
@@ -1337,7 +1445,7 @@ export class Game implements GameApi {
       if (!fresh && this.save.playTime > 600 && !this.dialogue && !this.hud.anyOpen()) this.hud.openJournalAt('login');
     }, fresh ? 30000 : 2500);
     if (this.arriving) {
-      this.hud.banner(this.arriving, this.arrivingBy === 'waymark' ? 'By waymark' : 'The post cart sets you down');
+      this.hud.banner(this.arriving, this.arrivingBy === 'waymark' ? 'By waymark' : this.arrivingBy === 'dungeon' ? this.arrivingSub : 'The post cart sets you down');
       this.arriving = null;
     }
     if (fresh) {
@@ -1813,6 +1921,7 @@ export class Game implements GameApi {
     // Indoors at home: arrange the furniture from anywhere in the house
     if (!this.home.active && !this.home.visiting && this.home.owned && this.home.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
+    for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const wt of WORLD_THINGS) {
       const d = Math.hypot(wt.x - p.x, wt.z - p.z);
       if (d > wt.radius || (wt.when && !wt.when(this))) continue;
@@ -2377,8 +2486,10 @@ export class Game implements GameApi {
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
   private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
     if (!e.alive) return 0;
-    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1)));
+    const flank = this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1;
+    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
     e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
+    this.dungeons.onPlayerHit(e, dmg);
     this.kit.landed();
     this.lastCombat = this.elapsed;
     this.target = this.target && this.target.alive ? this.target : e;
@@ -2481,6 +2592,7 @@ export class Game implements GameApi {
     this.festivals.onKill(!!e.def.elite);
     if (e.def.elite) this.audio.sting('victory');
     this.activities.onKilled(e);
+    this.dungeons.onKilled(e);
     this.addXp('melee', e.def.xp);
     const [lo, hi] = e.def.marks;
     const m = lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -2555,12 +2667,25 @@ export class Game implements GameApi {
     this.sfx('death');
   }
 
+  /** Up again where you fell (a healer's work), with this share of your health. */
+  private raise(share: number): void {
+    if (!this.dead) return;
+    this.dead = false;
+    this.player.locked = false;
+    this.hp = Math.max(1, Math.round(this.maxHp * share));
+    this.hud.setDeath(false);
+    this.iframes = 1.2;
+  }
+
   private respawn(): void {
     this.dead = false;
     this.player.locked = false;
     this.hp = Math.round(this.maxHp * 0.6);
-    // Back on your feet in the square at Hollin Ford, by the Charter Post (clear of the Moot Oak's benches)
-    this.player.teleport(152.5, 19, 185.5);
+    // Back on your feet in the square at Hollin Ford, by the Charter Post (clear of the Moot Oak's benches),
+    // or at the start of the dungeon you're in
+    const start = this.dungeons.respawnAt();
+    if (start) this.player.teleport(start[0], start[1], start[2]);
+    else this.player.teleport(152.5, 19, 185.5);
     this.player.standClear();
     this.rig.snap(this.player.position);
     this.target = null;
@@ -2667,7 +2792,7 @@ export class Game implements GameApi {
         const g = this.world.voxels.groundBelow(focus.x, Math.max(focus.y + 1, 0) + 0.5, focus.z);
         const top = this.world.voxels.topSolid(focus.x, focus.z) + 1;
         // Post-cart arrivals always stand on the real ground at the stop; nothing should be overhead there.
-        if (this.arriving || this.world.voxels.solidAt(focus.x, focus.y + 0.2, focus.z) || focus.y - g > 30) this.player.teleport(focus.x, top, focus.z);
+        if ((this.arriving && this.arrivingBy !== 'dungeon') || this.world.voxels.solidAt(focus.x, focus.y + 0.2, focus.z) || focus.y - g > 30) this.player.teleport(focus.x, top, focus.z);
         if (this.startPending.fresh) this.beginIntro();
         else this.finishStart(false);
         return;
@@ -2710,7 +2835,7 @@ export class Game implements GameApi {
       const d = e.pos.distanceTo(P);
       if (d > 90 && e.state !== 'dead') { e.model.root.visible = false; continue; }
       e.model.root.visible = e.state !== 'dead' || e.model.root.visible;
-      e.update(dt, ctx);
+      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? ctx);
       characterDetail(e.model.root, e.pos.distanceTo(this.camera.position));
     }
     for (const n of this.npcs) {
@@ -2731,6 +2856,7 @@ export class Game implements GameApi {
       }
     }
     this.activities.update(dt);
+    this.dungeons.update(dt);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
@@ -2843,6 +2969,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyJ')) this.hud.toggle('journal');
     if (I.pressedOnce('KeyM')) this.hud.toggle('map');
     if (I.pressedOnce('KeyO')) this.hud.toggle('guild');
+    if (I.pressedOnce('KeyP')) this.hud.toggle('finder');
     const enter = I.pressedOnce('Enter'), slash = I.pressedOnce('Slash');
     if (enter || slash) {
       this.input.down.clear();
@@ -2963,7 +3090,7 @@ export class Game implements GameApi {
       P.model.setState('dead');
       P.update(dt, new THREE.Vector3(), 0, false);
       P.model.update(dt, 0);
-      if (this.deadTimer > 3.5) this.respawn();
+      if (this.deadTimer > (this.dungeons.raising ? 9 : 3.5)) this.respawn();
       return;
     }
 
@@ -3346,7 +3473,7 @@ export class Game implements GameApi {
   private placeBubbles(): void {
     const fwd = this.camera.getWorldDirection(tmpV2);
     this.bubbles = this.bubbles.filter((b) => {
-      const pos = b.who === -1 ? this.player.position : this.online.remotes.get(b.who)?.model.root.position;
+      const pos = b.who === -1 ? this.player.position : b.who <= -100 ? this.dungeons.bubbleAt(b.who) : this.online.remotes.get(b.who)?.model.root.position;
       if (!pos || this.elapsed > b.until) { b.el.remove(); return false; }
       const lift = b.who === -1 ? 2.35 + (this.horse ? 1.1 : 0) : 2.35;
       tmpV.set(pos.x, pos.y + lift, pos.z);

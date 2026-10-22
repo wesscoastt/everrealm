@@ -1,4 +1,5 @@
 import { REGIONS } from './gameplay';
+import { DUNGEON_BY_ID } from './dungeons';
 import { plan } from '../world/sites';
 import { REGION_INFO, RegionId } from '../world/terrain';
 
@@ -21,6 +22,8 @@ export function places(): Place[] {
     .filter((p) => p.id !== 'hollin' || true);
   for (const s of plan().sites) {
     if (!s.named) continue;
+    const door = s.act?.kind === 'group' ? DUNGEON_BY_ID[s.id]?.door : undefined;
+    if (door) { out.push({ id: s.id, name: s.name, sub: 'Group dungeon', x: door[0], z: door[2], r: 8, kind: 'place' }); continue; }
     out.push({ id: s.id, name: s.name, sub: REGION_INFO[s.region].name, x: s.x, z: s.z, r: s.id === 'aldermere' ? 80 : s.id === 'skyisles' ? 70 : 34, kind: 'place' });
   }
   for (const id of Object.keys(REGION_LABELS) as RegionId[]) {
