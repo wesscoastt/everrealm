@@ -23,6 +23,7 @@ import { RARES, rareLairs, TREASURE_MAPS, treasureSpot } from '../src/data/wilds
 import { DUNGEONS } from '../src/data/dungeons';
 import { hazards } from '../src/data/hazards';
 import { ESCORTS } from '../src/data/escorts';
+import { PUZZLES } from '../src/data/puzzles';
 
 // Record every override as the planner writes it (the last write to a cell wins, as in the game).
 const cells = new Map<string, number>();
@@ -180,6 +181,12 @@ for (const es of ESCORTS) es.route.forEach(([x, z], i) => {
   check(`escort ${es.id} point ${i}`, x + 0.5, z + 0.5);
   if (i) for (let t = 0.1; t < 1; t += 0.1) { const [px, pz] = es.route[i - 1], qx = px + (x - px) * t, qz = pz + (z - pz) * t; if (heightAt(Math.floor(qx), Math.floor(qz)) <= SEA && ![0, 1, 2, 3, 4].some((dy) => solid(qx, SEA - 1 + dy, qz))) problems.push(`escort ${es.id} leg ${i}: water at (${qx.toFixed(0)}, ${qz.toFixed(0)})`); }
 });
+// Puzzles: the chest, every piece and the clue post on open, dry ground
+for (const pz of PUZZLES) for (const [label, dx, dz] of [['chest', 0, 0] as const, ...pz.pieces.map((p) => [p.name, p.dx, p.dz] as const), ['clue', pz.clue.dx, pz.clue.dz] as const]) {
+  const x = pz.x + dx + 0.5, z = pz.z + dz + 0.5;
+  check(`puzzle ${pz.id} ${label}`, x, z);
+  if (heightAt(Math.floor(x), Math.floor(z)) <= SEA + 1) problems.push(`puzzle ${pz.id} ${label} (${x}, ${z}): in the water`);
+}
 // Vents, bogs and loose cliffs: open ground, and clear of anywhere people stand or things happen
 const HZ = hazards(P);
 const busy: [string, number, number][] = [

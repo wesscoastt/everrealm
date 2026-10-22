@@ -10,6 +10,7 @@ import { CHUNK, chunkKey, inWorld, localIdx, SY, WMAX, WMIN } from './VoxelWorld
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 import { hazards, stamp } from '../data/hazards';
+import { PUZZLES } from '../data/puzzles';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -413,8 +414,8 @@ export function plan(): Plan {
   stamp(hz, O);
 
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
-  // (trees keep off the hazards too)
-  const hzRects = hz.map((h): [number, number, number, number] => [Math.floor(h.x - h.r), Math.floor(h.z - h.r), Math.floor(h.x + h.r), Math.floor(h.z + h.r)]);
+  // (trees keep off the hazards and the puzzles too)
+  const hzRects = [...hz, ...PUZZLES.map((q) => ({ x: q.x, z: q.z, r: 7 }))].map((h): [number, number, number, number] => [Math.floor(h.x - h.r), Math.floor(h.z - h.r), Math.floor(h.x + h.r), Math.floor(h.z + h.r)]);
   for (const r of [...sites.flatMap((s) => s.rects), ...hzRects]) {
     for (let cz = r[1] >> 5; cz <= r[3] >> 5; cz++) for (let cx = r[0] >> 5; cx <= r[2] >> 5; cx++) {
       const k = chunkKey(cx, cz);

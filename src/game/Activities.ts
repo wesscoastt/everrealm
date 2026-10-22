@@ -10,6 +10,7 @@ import { plan, Site } from '../world/sites';
 import { REGION_INFO, RegionId } from '../world/terrain';
 import { Tasks } from './Tasks';
 import { Escorts } from './Escorts';
+import { Puzzles } from './Puzzles';
 import { RARES, RareDef, rareLairs, TREASURE_MAPS, TreasureMap, treasureSpot } from '../data/wilds';
 import { hash2 } from '../world/noise';
 import type { VoxelWorld } from '../world/VoxelWorld';
@@ -91,10 +92,12 @@ export class Activities {
   private sites: Site[];
   readonly tasks: Tasks;
   readonly escorts: Escorts;
+  readonly puzzles: Puzzles;
 
   constructor(private host: ActivityHost) {
     this.tasks = new Tasks(host, (def, x, z) => this.spawn(def, x, z, false));
     this.escorts = new Escorts(host, (def, x, z) => this.spawn(def, x, z, false));
+    this.puzzles = new Puzzles(host);
     this.sites = plan().sites.filter((s) => s.act);
     const ring = new THREE.Mesh(new THREE.CircleGeometry(QUAKE_R, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.3, depthWrite: false }));
     ring.visible = false;
@@ -124,6 +127,7 @@ export class Activities {
     this.tickShard(dt, P);
     this.tasks.update(dt, P);
     this.escorts.update(dt, P);
+    this.puzzles.update(dt, P);
     this.panel(P);
   }
 
@@ -416,7 +420,7 @@ export class Activities {
   // ---------------------------------------------------------------- Chests, vistas, wonders
   /** Things to press E on: dungeon chests (refill each half hour) and vistas (once each). */
   candidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
-    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.escorts.candidates(P), ...this.tasks.candidates(P)];
+    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.escorts.candidates(P), ...this.puzzles.candidates(P), ...this.tasks.candidates(P)];
     for (const s of this.sites) {
       const a = s.act!;
       if (a.chest && a.kind !== 'group' && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
@@ -694,7 +698,7 @@ export class Activities {
     }
     const cycle = Math.floor(this.now() / SHARDFALL_EVERY);
     if (this.host.flag('shard') !== cycle) { const [sx, sz] = SHARDFALLS[cycle % SHARDFALLS.length]; out.push({ x: sx, z: sz, kind: 'shard', label: 'Shardfall' }); }
-    out.push(...this.tasks.markers(), ...this.escorts.markers());
+    out.push(...this.tasks.markers(), ...this.escorts.markers(), ...this.puzzles.markers());
     // The X on every treasure map in the pack
     for (const m of TREASURE_MAPS) {
       if (this.host.count(m.id) === 0) continue;
