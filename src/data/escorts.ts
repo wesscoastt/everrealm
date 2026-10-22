@@ -32,7 +32,7 @@ export const ESCORTS: EscortDef[] = [
   {
     id: 'es-charcoal', name: 'The Charcoal Run', region: 'brambledeep',
     who: {
-      name: 'Tam Haddock', title: 'Collier\'s lad',
+      name: 'Abel Toft', title: 'Collier\'s lad',
       look: { skin: '#e0b088', hair: '#3a2418', hairStyle: 3, eyes: '#3a4a2a', tunic: '#3a3430', trim: '#6a5a40', trousers: '#2e2a26', boots: '#2a1e14', hat: 'cap', hatColor: '#2a2420', build: 0.95, age: 0.2 },
       held: 'none',
     },
@@ -46,14 +46,14 @@ export const ESCORTS: EscortDef[] = [
       hurt: 'I can\'t take much more of this.',
       wait: 'Don\'t leave me out here on my own.',
       end: 'That\'s the Waystation. Hetty pays out of the tin. Here, your share.',
-      fail: 'Tam is down. He\'ll limp back to the camp and try again later.',
+      fail: 'Abel is down. He\'ll limp back to the camp and try again later.',
     },
     xp: 520, marks: 26, loot: ['bread', 'bread'], rest: 120,
   },
   {
     id: 'es-post', name: 'The South Post', region: 'crownroad',
     who: {
-      name: 'Lettie Crane', title: 'Post carrier',
+      name: 'Lettie Starling', title: 'Post carrier',
       look: { frame: 'f', skin: '#f0c8a8', hair: '#8a4a2a', hairStyle: 1, eyes: '#3a4a6a', tunic: '#3a4a6a', trim: '#e8d0a0', trousers: '#2a2a34', boots: '#1e1a18', cape: '#5a2a22', lashes: true, build: 0.95, age: 0.3 },
       held: 'none',
     },

@@ -32,7 +32,7 @@ const ITEMS: ItemDef[] = [
 /** Each stable's keeper: who they are and what they say. */
 const KEEPERS: Record<string, { name: string; title: string; look: NpcDef['look']; bark: string; hello: string; about: string }> = {
   'st-ansbury': {
-    name: 'Joss Pellow', title: 'Stablemaster, Ansbury',
+    name: 'Rafe Pellow', title: 'Stablemaster, Ansbury',
     look: { skin: '#d8a882', hair: '#4a3a2a', hairStyle: 0, beard: true, eyes: '#3a4a3a', tunic: '#5a4030', trim: '#c8a060', trousers: '#3a3430', boots: '#2a1e14', hat: 'cap', hatColor: '#3a2a1e', build: 1.1, age: 0.5 },
     bark: 'Town horses. Nothing frightens them.',
     hello: 'Ansbury Stables. Every horse here has been through the fair crowd twice and the market on a Saturday. Nothing frightens them.',
@@ -67,7 +67,7 @@ const KEEPERS: Record<string, { name: string; title: string; look: NpcDef['look'
     about: 'The kelpie\'s grandmother came up out of the mere one winter and wouldn\'t go back. Her foals are the same. Keep her away from deep water. She gets ideas.',
   },
   'st-scarrow': {
-    name: 'Jory Hosken', title: 'Moorman, Scarrow Tor',
+    name: 'Clem Hosken', title: 'Moorman, Scarrow Tor',
     look: { skin: '#d8a07a', hair: '#cfcac0', hairStyle: 0, beard: true, eyes: '#4a5a6a', tunic: '#5a4a3a', trim: '#8a7a5a', trousers: '#4a4034', boots: '#3a2a1c', hat: 'wide', hatColor: '#4a3a2a', build: 1.08, age: 0.8 },
     bark: 'Rams. And the stag.',
     hello: 'Tor Stables. Rams for the moor. And the stag, if you\'ve the marks.',

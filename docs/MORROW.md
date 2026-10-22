@@ -50,7 +50,7 @@ Each is several times the size of Ansbury, built to be walked around for an hour
 - **Standing** with the Brethren works like the region standing already in the game: smuggling runs,
   raids on Harrowgate convoys, sunk cargo to raise, duels in the Cockpit. Higher standing opens the
   fence, the shipwrights' yard, Brethren gear and the back rooms of Saltpenny.
-- **Captain Dunstan Vey** speaks for the captains. He'd sell you anything except his crew.
+- **Captain Ned Vey** speaks for the captains. He'd sell you anything except his crew.
 
 ## Ships
 
@@ -68,18 +68,19 @@ Five chapters after Act III, from Nessa Crane at Gullmouth.
 
 1. **Low Water.** A Morrow ship comes into Gullmouth half-crewed, carrying passengers from the north
    who won't say what they left. A year ago Harrowgate & Daughters sent a ship east for crystal: the
-   *Third Daughter*, with **Hester Harrowgate** aboard, the youngest sister. Nothing has been heard
-   since. Hilda pays your passage, and so does Joan, separately, without telling each other.
+   *Third Daughter*, with **Mr Pryce** aboard as the company's buyer and Delia Harrowgate's signature
+   on his papers. Nothing has been heard since. Delia wants to know what her name has been signed to.
+   She pays your passage, and so does Joan, separately, without telling each other.
 2. **Callis.** The great city. The Assembly's towers have been buying black, more than they've ever
-   needed, to hold down towers that have started to lift as the white in them settles. Hester has
-   been here: she sold the Assembly the black, and nobody asked where it came from.
-3. **Saltpenny.** The black comes up the coast in Brethren hulls. Dunstan Vey will tell you where they
+   needed, to hold down towers that have started to lift as the white in them settles. Pryce has
+   been here: he sold the Assembly the black, and nobody asked where it came from.
+3. **Saltpenny.** The black comes up the coast in Brethren hulls. Ned Vey will tell you where they
    load it, for a price: a Harrowgate convoy, or a favour later. The Brethren didn't dig it. They
    only carry it.
 4. **The Greywaste.** The black was dug out of the northern barrows. The old kingdom buried its dead
    under black so they would lie still. Take the black away and they don't: these are the **Held**.
    The villages emptied one by one, and Northgate has shut its gate.
-5. **Kingsbarrow.** Hester is in the city of the dead with her diggers, still digging, because the
+5. **Kingsbarrow.** Pryce is in the city of the dead with his diggers, still digging, because the
    Assembly has already paid. The old king's barrow is the last and deepest seam.
 
 **Endings** (as in the earlier acts, the choice changes the world):
@@ -87,13 +88,13 @@ Five chapters after Act III, from Nessa Crane at Gullmouth.
 - **Put it back.** The black goes back into the barrows and the Held lie down. Callis must take its
   tallest towers down a storey at a time before they lift, and the Assembly never forgives the
   Counties.
-- **Hold the line.** Northgate keeps the Held behind its wall, Hester's company sells the black on
+- **Hold the line.** Northgate keeps the Held behind its wall, Harrowgate sells the black on
   under Assembly licence, and the Greywaste is given up. Profitable, for some.
 - **The Brethren's way.** Vey sinks the black in deep water off the Keys where nobody can dig it.
   The Held lie down slowly. The towers come down anyway, and Saltpenny is owed a favour by everyone.
 
-In every ending Hester comes home, but whether she sails on the *Third Daughter* or in irons
-depends on what you did.
+In every ending Pryce comes home, but whether he sails on the *Third Daughter* or in irons
+depends on what you did. Delia reads his book at last.
 
 ## Building order (when the time comes)
 

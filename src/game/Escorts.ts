@@ -158,7 +158,7 @@ export class Escorts {
     this.live.delete(l.def.id);
   }
 
-  /** "Walk with Tam to the Waystation" while they wait. */
+  /** "Walk with Abel to the Waystation" while they wait. */
   candidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
     const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [];
     for (const l of this.live.values()) {
