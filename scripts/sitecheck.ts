@@ -59,7 +59,9 @@ function check(label: string, x: number, z: number, opts: { y?: number; water?: 
   // for the floor; anything built up to eight blocks above the ground still counts.
   const ground = heightAt(Math.floor(x), Math.floor(z));
   let top = ground + 8;
-  while (top > 0 && !solid(x, top, z)) top--;
+  // (a barrier with room under it is a ceiling, the one a house keeps under its roof: look past it)
+  const ceiling = (y: number) => cells.get(key(x, y, z)) === B.Barrier && !solid(x, y - 1, z) && !solid(x, y - 2, z);
+  while (top > 0 && (!solid(x, top, z) || ceiling(top))) top--;
   const stand = top + 1;
   const under = cells.get(key(x, top, z));
   if (under === B.Barrier) problems.push(`${label} (${x.toFixed(1)}, ${z.toFixed(1)}): standing on a barrier (a fence, door or prop)`);

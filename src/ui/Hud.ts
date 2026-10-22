@@ -14,6 +14,8 @@ import type { FestivalView } from '../game/Festivals';
 import type { GroupRow, TradeUi } from '../game/Social';
 import type { ExchangeView } from '../game/Exchange';
 import type { FinderView } from '../game/Dungeons';
+import type { MusicView } from '../game/Stage';
+import { PART_NAMES, type PartId } from '../data/tunes';
 import { HENCHMEN, ROLE_DESC, ROLE_NAMES, ROLES } from '../data/dungeons';
 import type { GuildRank, GuildView } from '../net/Online';
 
@@ -170,6 +172,8 @@ export interface UiCtx {
   groupLeader(): boolean;
   claimLogin(): void;
   feats(): FeatView[];
+  /** The factions: which you've joined, your rank, and what's next (data/factions.ts). */
+  factions(): { id: string; name: string; where: string; blurb: string; join: string; rank: string | null; rankIdx: number; ranks: string[]; next: string | null; open: boolean }[];
   /** Standing in each region (data/standing.ts). */
   standing(): { id: string; name: string; points: number; rank: string; off: number; from: number; next: { name: string; at: number; off: number } | null }[];
   calling(): CallingId;
@@ -223,6 +227,9 @@ export interface UiCtx {
   exReload(): void;
   /** The Group Finder (game/Dungeons.ts). */
   finder(): FinderView;
+  /** The songbook: instruments, tunes, the band (game/Stage.ts). */
+  music(): MusicView;
+  musicDo(what: 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', arg?: string): void;
   finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave', id?: string): string | null;
 }
 
@@ -252,7 +259,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
 const ago = (t: number) => { const s = (Date.now() - t) / 1000; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder';
+export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder' | 'music';
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -417,6 +424,7 @@ export class Hud {
     panel('guild-panel', 'Friends', 'guild');
     panel('exchange-panel', 'The Exchange', 'exchange');
     panel('finder-panel', 'Group Finder', 'finder');
+    panel('music-panel', 'Songbook', 'music');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
     const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
     const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
@@ -1231,6 +1239,7 @@ export class Hud {
         case 'guild': this.renderGuild(); break;
         case 'exchange': this.renderExchange(); break;
         case 'finder': this.renderFinder(); break;
+        case 'music': this.renderMusic(); break;
         case 'map': this.renderMap(); break;
         case 'settings': this.renderSettings(); break;
       }
@@ -1391,7 +1400,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -1430,6 +1439,9 @@ export class Hud {
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
+    const fj2 = el('div', 'ji' + (this.selQuest === 'factions' ? ' sel' : ''), 'Factions');
+    fj2.addEventListener('click', () => { this.selQuest = 'factions'; this.renderJournal(); });
+    list.append(fj2);
     const sj = el('div', 'ji' + (this.selQuest === 'standing' ? ' sel' : ''), 'Standing');
     sj.addEventListener('click', () => { this.selQuest = 'standing'; this.renderJournal(); });
     list.append(sj);
@@ -1501,6 +1513,17 @@ export class Hud {
         if (why) page.querySelector('.calling-msg')!.textContent = why;
         else this.renderJournal();
       }));
+    } else if (this.selQuest === 'factions') {
+      const rows = this.ctx.factions();
+      page.innerHTML = '<h4>Factions</h4><div class="feat-sum">Companies you can join, each with its own hall, people and storyline. Every chapter of a storyline raises your rank; the last gives a title.</div>';
+      for (const f of rows) {
+        const row = el('div', 'feat' + (f.rankIdx === f.ranks.length - 1 ? ' done' : ''));
+        const pct = f.rankIdx < 0 ? 0 : ((f.rankIdx + 1) / f.ranks.length) * 100;
+        row.innerHTML = `<div class="ft"><b>${esc(f.name)}</b><span>${f.rank ? esc(f.rank) : f.open ? 'Not joined' : 'Not yet open'}</span></div><div class="fd">${esc(f.blurb)}</div>`
+          + (f.rankIdx >= 0 ? `<div class="bar feat-bar"><i style="width:${pct}%"></i></div><div class="fd">${esc(f.ranks.join(' · '))}</div>` : '')
+          + `<div class="fd"><b>${esc(f.where)}.</b> ${esc(f.rankIdx >= 0 ? f.next ?? 'You have risen as high as it goes.' : f.join)}</div>`;
+        page.append(row);
+      }
     } else if (this.selQuest === 'standing') {
       const rows = this.ctx.standing();
       page.innerHTML = '<h4>Standing</h4><div class="feat-sum">How well each region knows you. Its quests, parish tasks, events, rares, world boss and group dungeon all count. Trusted takes 5% off its traders\' prices, Honoured 10% and Revered 15%, and Revered gives a title.</div>';
@@ -1666,6 +1689,45 @@ export class Hud {
       const what = b.dataset.gf as 'hench' | 'find' | 'now' | 'cancel' | 'leave';
       if (what === 'leave') { this.ask('Leave the dungeon?', () => this.ctx.finderDo('leave'), () => {}, 30); return; }
       this.ctx.finderDo(what, b.dataset.id);
+    }));
+  }
+
+  private renderMusic(): void {
+    const v = this.ctx.music();
+    const body = this.q('#music-panel .body');
+    const keys = document.body.classList.contains('touch') ? 'the skill buttons' : 'keys 1 to 8';
+    this.q('#music-panel .footer').innerHTML = `<span>${document.body.classList.contains('touch') ? 'Your instrument in the pack' : 'N'} opens the songbook. With an instrument out, ${keys} play the scale${document.body.classList.contains('touch') ? '' : ' (Shift for the octave above)'}. Walking off puts it away.</span>`;
+    if (!v.owned.length) {
+      body.innerHTML = '<p class="mu-note">You don\'t carry an instrument. The Waits\' House in Ansbury, on the Charter Green, takes on apprentices, and starts them with a tin whistle.</p>';
+      return;
+    }
+    const inst = v.owned.map((o) => `<button class="btn${v.out?.item === o.item ? '' : ' ghost'} mu-inst" data-mu="take" data-a="${o.item}"><img src="${itemIcon(o.item)}" alt=""> ${esc(o.name)}</button>`).join('');
+    let html = `<div class="mu-row">${inst}${v.out ? '<button class="btn ghost" data-mu="away">Put it away</button>' : ''}</div>`;
+    if (v.playing) {
+      const t = v.tunes.find((x) => x.id === v.playing!.tune);
+      html += `<div class="mu-now"><b>Playing "${esc(t?.name ?? v.playing.tune)}"</b><span>${PART_NAMES[v.playing.part]} · ${Math.floor(v.playing.left / 60)}:${String(v.playing.left % 60).padStart(2, '0')} left</span><button class="btn ghost" data-mu="stop">Stop</button></div>`;
+    }
+    if (v.spot) html += `<p class="mu-note">You're at ${esc(v.spot)}. Play a tune through and people will stop to listen.</p>`;
+    if (v.out) {
+      // Your part, for the songbook and for the band
+      const parts = (['lead', 'harmony', 'bass', 'drum'] as PartId[]).filter((k) => v.tunes.some((t) => t.parts.includes(k)) || k === v.myPart);
+      html += `<div class="mu-row mu-parts"><span class="lbl">You play</span>${parts.map((k) => `<button class="gf-role${v.myPart === k ? ' sel' : ''}" data-mu="part" data-a="${k}"><b>${PART_NAMES[k]}</b></button>`).join('')}</div>`;
+    }
+    if (v.band) {
+      const rows = v.band.map((m) => `<li${m.me ? ' class="me"' : ''}><b>${esc(m.name)}</b><span>${m.voice ? `${esc(m.voice)} · ${PART_NAMES[m.part!]}` : 'no instrument out'}</span></li>`).join('');
+      html += `<div class="mu-band"><h5>Your band</h5><ul>${rows}</ul><p class="mu-note">${v.leader ? 'Strike up any tune in your songbook below: everyone in your group with an instrument out comes in on the same beat, each on their own part.' : 'Your group\'s leader strikes the band up. Have your instrument out, and pick your part.'}${v.online ? '' : ' Bands need the online realm.'}</p></div>`;
+    }
+    if (!v.tunes.length) html += '<p class="mu-note">No tunes in your songbook yet. You can still play by ear on the number keys.</p>';
+    else html += v.tunes.map((t) => {
+      const can = !!v.out && t.parts.includes(v.myPart);
+      const strike = v.band && v.leader && v.online ? `<button class="btn ghost" data-mu="strike" data-a="${t.id}"${v.out ? '' : ' disabled'}>Strike up the band</button>` : '';
+      return `<div class="mu-tune"><h5>${esc(t.name)}<small>${Math.floor(t.secs / 60)}:${String(t.secs % 60).padStart(2, '0')} · from ${esc(t.from)}</small></h5><p>${esc(t.desc)}</p><div class="mu-row"><button class="btn" data-mu="play" data-a="${t.id}"${can ? '' : ' disabled'} title="${v.out ? (can ? 'Play it through twice' : 'Your instrument can\'t take that part of this tune') : 'Take an instrument out first'}">Play</button>${strike}</div></div>`;
+    }).join('');
+    body.innerHTML = html;
+    body.querySelectorAll<HTMLButtonElement>('[data-mu]').forEach((b) => b.addEventListener('click', () => {
+      if (b.disabled) return;
+      this.ctx.sfx('click');
+      this.ctx.musicDo(b.dataset.mu as 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', b.dataset.a);
     }));
   }
 

@@ -9,7 +9,7 @@ export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'ques
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
 
 export interface IconSpec {
-  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots';
+  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes';
   a: string;
   b?: string;
 }
@@ -43,6 +43,8 @@ export interface ItemDef {
    * the left hand, an amulet, a ring. Its traits spend a small budget of their own (GEAR_BUDGET), on the
    * armour traits, critical hits, health drawn back, or calling skills recharging faster (haste).
    */
+  /** An instrument (data/tunes.ts): played from the songbook, or by the number keys. */
+  instrument?: import('./tunes').Voice;
   trinket?: { slot: 'offhand' | 'neck' | 'ring'; defense?: number; vigor?: number; wind?: number; roll?: number; crit?: number; leech?: number; haste?: number; model?: OffhandModel };
   /** The regional set this piece belongs to (see GEAR_SETS). */
   set?: string;

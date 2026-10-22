@@ -3,6 +3,10 @@ import { canLearn, pointsAt, spent, TALENTS, TREES } from '../data/talents';
 import type { Equip } from '../data/items';
 import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
+import { Stage } from './Stage';
+import { FACTIONS, factionRank } from '../data/factions';
+import { HEARING } from './Bard';
+import type { PartId } from '../data/tunes';
 import { FIGURE } from '../entities/humanoid';
 import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
@@ -250,6 +254,25 @@ export class Game implements GameApi {
     setFlag: (k, v) => this.setFlag(k, v),
     refreshFriends: () => this.hud.refresh('guild'),
   });
+  /** Music: instruments, the songbook, bands, and everyone near who's playing (game/Stage.ts). */
+  readonly music: Stage = new Stage({
+    audio: this.audio,
+    particles: this.particles,
+    online: () => this.online,
+    myPos: () => this.player.position,
+    myModel: () => this.player.model,
+    remote: (id) => { const r = this.online?.remotes.get(id); return r ? { pos: r.model.root.position, model: r.model } : null; },
+    npc: (id) => { const n = this.npcs.find((x) => x.id === id); return n ? { pos: n.pos, model: n.model } : null; },
+    camRight: () => { const f = this.camera.getWorldDirection(new THREE.Vector3()); return new THREE.Vector3(-f.z, 0, f.x).normalize(); },
+    group: () => this.social.group,
+    myId: () => this.online?.myId ?? -1,
+    system: (t) => this.hud.system(t),
+    refresh: () => this.hud.refresh('music'),
+    flag: (k) => this.flag(k),
+    setFlag: (k, v) => this.setFlag(k, v),
+    addMarks: (n) => this.addMarks(n),
+    played: (tune, spot, band) => this.tunePlayed(tune, spot, band),
+  }, () => this.save.inv.filter((x): x is NonNullable<typeof x> => !!x).map((x) => x.id));
   /** The auction house: one book for the realm, read at any broker. */
   readonly exchange: Exchange = new Exchange({
     net: () => this.online,
@@ -382,7 +405,7 @@ export class Game implements GameApi {
     this.save = loaded ?? newSave('Rowan', { skin: '#e0b090', hair: '#5a3a22', hairStyle: 0, eyes: '#3a5a7a', tunic: '#3a5a8a', trim: '#e0bd64', trousers: '#4a3a2c', boots: '#3a2a1c', cape: '#7a2a24' });
     this.inv = new Inventory(this.save);
     // Weapons and off-hand pieces are drawn from their items (data/weapons.ts, data/offhand.ts)
-    setGearModels((id) => ITEMS[id]?.weapon?.model ?? null, (id) => ITEMS[id]?.trinket?.model ?? null);
+    setGearModels((id) => ITEMS[id]?.weapon?.model ?? null, (id) => ITEMS[id]?.trinket?.model ?? null, (id) => ITEMS[id]?.instrument ?? null);
     this.hud = new Hud(this.uiCtx());
     new TouchControls(this.input, this.hud.root);
     this.front = new Frontend(this.frontCtx(), this.hud.root);
@@ -660,6 +683,7 @@ export class Game implements GameApi {
       dLeft: (name) => this.dungeons.onLeft(name),
       ...this.social.hooks(),
       ...this.exchange.hooks(),
+      ...this.music.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
@@ -1263,6 +1287,16 @@ export class Game implements GameApi {
       exPost: (item: string, n: number, price: number) => g.exchange.post(item, n, price),
       exTakeBack: (id: number) => g.exchange.takeBack(id),
       exReload: () => g.exchange.open(),
+      music: () => g.music.view(),
+      musicDo: (what: 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', arg?: string) => {
+        if (what === 'take' && arg) { if (g.music.out?.item === arg) g.music.away(); else g.music.take(arg); }
+        else if (what === 'away') g.music.away();
+        else if (what === 'play' && arg) g.music.play(arg);
+        else if (what === 'stop') g.music.stop();
+        else if (what === 'part' && arg) g.music.pickPart(arg as PartId);
+        else if (what === 'strike' && arg) g.music.strikeUp(arg);
+        g.hud.refresh('music');
+      },
       finder: () => g.dungeons.view(),
       finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave', id?: string) => {
         let why: string | null = null;
@@ -1308,6 +1342,13 @@ export class Game implements GameApi {
       },
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
       standing: () => g.standingView(),
+      factions: () => FACTIONS.map((f) => {
+        const r = factionRank(g, f.id);
+        const nextQ = f.storyline.find((q) => g.stage(q) !== 'done');
+        const cur = nextQ ? g.stage(nextQ) : undefined;
+        const next = !nextQ ? null : cur ? `Under way: "${QUESTS[nextQ]?.name ?? nextQ}". See its page in the journal.` : `Next: "${QUESTS[nextQ]?.name ?? nextQ}". Ask at the hall.`;
+        return { id: f.id, name: f.name, where: f.where, blurb: f.blurb, join: f.join, rank: r >= 0 ? f.ranks[r] : null, rankIdx: r, ranks: f.ranks, next, open: f.open };
+      }),
       feats: () => {
         const api = g.featApi();
         const worn = g.flag('title');
@@ -1713,6 +1754,10 @@ export class Game implements GameApi {
       this.dress();
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
+    } else if (def.instrument) {
+      this.hud.toggle('inv');
+      if (this.music.out?.item === st.id) this.music.away();
+      else { this.cancelActions(); this.emote = null; this.music.take(st.id); this.hud.show('music'); }
     } else if (def.mount) {
       this.hud.toggle('inv');
       this.toggleMount(st.id);
@@ -3248,6 +3293,7 @@ export class Game implements GameApi {
         }
       }
     }
+    this.npcMusic();
     this.activities.update(dt);
     this.dungeons.update(dt);
     this.hazards.update(dt);
@@ -3386,9 +3432,15 @@ export class Game implements GameApi {
     if (I.wheel) this.rig.zoom(I.wheel);
     if (this.dead) return;
 
-    for (let k = 1; k <= 8; k++) if (I.pressedOnce('Digit' + k)) this.useAbility(k - 1);
-    if (I.pressedOnce('KeyQ')) this.useAbility(8);
-    if (I.pressedOnce('KeyF')) this.useAbility(9);
+    if (I.pressedOnce('KeyN')) this.hud.toggle('music');
+    if (this.music.out) {
+      const up = I.held('ShiftLeft') || I.held('ShiftRight');
+      for (let k = 1; k <= 8; k++) if (I.pressedOnce('Digit' + k)) this.music.key(k - 1, up);
+    } else {
+      for (let k = 1; k <= 8; k++) if (I.pressedOnce('Digit' + k)) this.useAbility(k - 1);
+      if (I.pressedOnce('KeyQ')) this.useAbility(8);
+      if (I.pressedOnce('KeyF')) this.useAbility(9);
+    }
     if (I.pressedOnce('Tab')) this.cycleTarget();
     if (I.pressedOnce('KeyG')) this.toggleMount();
 
@@ -3529,7 +3581,8 @@ export class Game implements GameApi {
     if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;
     if (this.fx.has('drover') && this.elapsed - this.lastCombat > 3) speed *= 1.12;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
-    // Moving, jumping, fighting or working ends an emote; the short ones also end on their own
+    // Moving, jumping, fighting or working puts an instrument away, and ends an emote (the short ones end on their own)
+    if (this.music.out && (mv.lengthSq() > 0.01 || jump || this.attack || this.action || this.craftAction || P.swimming || this.horse || this.dead)) this.music.away();
     if (this.emote) {
       this.emote.left -= dt;
       if (mv.lengthSq() > 0.01 || jump || this.attack || this.action || this.craftAction || P.swimming || this.horse || this.hitAnim > 0 || (this.emote.left <= 0 && emoteById(this.emote.id)!.secs > 0)) this.emote = null;
@@ -3635,6 +3688,7 @@ export class Game implements GameApi {
     if (P.rolling > 0) M.setState('roll');
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');
+    else if (this.music.out && !this.horse) { M.setState('perform'); held = this.music.out.item; }
     else if (this.emote && !this.horse) M.setState(this.emote.id);
     else if (this.action) {
       held = ITEMS[this.action.tool].tool!.held;
@@ -3654,6 +3708,7 @@ export class Game implements GameApi {
     M.swimPitch = P.swimPitch;
     M.update(dt, P.speed, !P.onGround && !P.swimming);
     this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null, pillion: this.pillion });
+    this.music.update();
 
     // Interaction candidate
     this.candidate = this.dialogue ? null : this.findCandidate();
@@ -3868,6 +3923,32 @@ export class Game implements GameApi {
     if (this.online.status === 'online') { this.online.chat(text, 'emote'); return; }
     this.hud.chat(this.save.name, text, 'emote');
     this.addBubble(-1, `${this.save.name} ${text}`, true);
+  }
+
+  /**
+   * The Waits, and anyone else with tunes in their day, play on the realm clock: a tune starts every
+   * forty seconds, the same one for everyone, so all who stand near hear the same bar.
+   */
+  private npcMusic(): void {
+    const now = realmNow(), P = this.player.position;
+    for (const n of this.npcs) {
+      const play = n.performing, who = 'npc:' + n.id;
+      const voice = play ? ITEMS[n.model.heldKind]?.instrument : undefined;
+      if (!play || !voice || n.pos.distanceTo(P) > HEARING + 10) { if (this.music.bard.playing(who)) this.music.bard.stop(who); continue; }
+      const slot = Math.floor(now / 40_000), start = slot * 40_000;
+      if (this.music.bard.playing(who)?.start === start || now - start > 32_000) continue;
+      this.music.bard.start(who, { tune: play.tunes[slot % play.tunes.length], part: play.part, voice, start, reps: 1 });
+    }
+  }
+
+  /** A tune played through to the end: noted for the quests (data/content/waits.ts reads these flags). */
+  private tunePlayed(tune: string, spot: string | null, band: number): void {
+    this.setFlag('played:' + tune, true);
+    if (spot) this.setFlag(`played:${tune}@${spot}`, true);
+    const hour = this.world.sky.hour;
+    if (spot && hour >= 4.5 && hour < 8) this.setFlag(`played:${tune}@${spot}:dawn`, true);
+    if (band > 1) this.setFlag('playedBand:' + tune, Math.max(band, Number(this.flag('playedBand:' + tune) ?? 0)));
+    this.setFlag('tunesPlayed', Number(this.flag('tunesPlayed') ?? 0) + 1);
   }
 
   doEmote(id: string): void {

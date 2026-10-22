@@ -408,6 +408,28 @@ Four chapters after the Weatherholms. The quest ids are `storyLowWater`, `storyR
 
 Every ending: Sela writes Holmsey at the front of the Kirk's book of names, the player rings the bell while Tamar reads the last names, and Tamar gives the player a length of the bell rope (`holmsey_rope`).
 
+## The factions
+
+Companies you can join, each with its own hall, people and storyline, in the manner of the Elder Scrolls guilds but grown out of the Charter Counties. Each storyline chapter raises your rank and the last gives a title (`src/data/factions.ts`). Open: the Waits [in game]. Planned: the Collegium (crystal, the old words and weather, Guild Ward), the Muster (the laid-off toll riders' hiring hall at the tilt-yard, against Harrowgate's "Company Wardens"), the Lamplighters (who light Ansbury's lamps and rob the debt-holders by the same ladders, the Shambles), the Passing Bell (an old moor practice: ring the passing bell for someone the law can't reach), and the Ushers (the Speaker's doorkeepers in the Charter Hall, and her eyes). [planned]
+
+### The Waits of Ansbury [in game]
+
+The town's musicians. The Charter pays six Waits to play the hours on the Charter Green at dawn and dusk, walk in front of the Speaker at a sitting, and play whatever else the town needs. They are five when you arrive. The Waits' House stands on the north side of the Charter Green, with a low stage, benches, the instrument cupboard and the **Great Book** of the counties' tunes. Twelve years ago the Collegium borrowed the Book to copy and sent it back thirty pages short. The Waits play on the bandstand on the Green at noon, and the hours there at dawn and dusk (`src/data/content/waits.ts`; tunes in `src/data/tunes.ts`).
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Tabitha Gant** | Master of the Waits, harp. Sixties | The Waits kept on the Charter's books | She hasn't written a tune in twenty years, until "Three Marks in Ten" |
+| **Roley Spence** | Horn, keeps the instrument cupboard. Blew the horn on the Charter Post for six years | To be the only Wait who laughs | — |
+| **Dorcas Pym** | Fiddle. Young, says little | — | — |
+| **Hal Truscott** | Drum | — | — |
+| **Amos Hollis** | Printer of broadsides, sells in the Charter Market | The debt's arithmetic done in public | Tabitha's tune is better than his words |
+| **Hugh Kellet** | Gentleman Usher of the Charter Hall | The Waits to play the March | — |
+| **Bet Polglase** | Widow on the Gullmouth quay; her husband Jory hauled boats to "Haul for Holmsey" | — | — |
+
+Storyline (each a rank): **The Audition** (Apprentice: play "Lady Day" at the bandstand), **The Missing Pages** (Journeyman: learn the lost tunes still sung by Wenna Hale at Kelderby, Bet Polglase in Gullmouth and Sefton Garrow at Fellers' Camp, who give the Hale pipes, Jory's fiddle and Sefton's frame drum), **From the Moor** (Wait: the oldest page has five dots "from the moor"; Wynn Carrow sends you to **Carne Barrow**, a long barrow east of Scarrow Tor on Tolmen Moor, for a five-holed bone whistle; played under the Ketley Arches the tune comes back off the rope grooves, which the old builders cut to sing), **Three Marks in Ten** (Senior Wait: the Charter means to stop the Waits' wage; play Amos's ballad about the debt on the keep steps, or the Speaker's March; flag `waitsEnd` = `ballad` (the wage is stopped, the town sings it) or `march` (the wage stands)), **The Hours** (Wait of the Hours: play "The Hours" on the bandstand at first light; Tabitha gives you the Waits' harp; title Wait of Ansbury).
+
+Instruments: tin whistle, Hale pipes, Jory Polglase's fiddle, Sefton's frame drum, the Ansbury lute, the post horn, the hurdy-gurdy, the Waits' harp and the Carne whistle. Anyone can play by ear on the number keys. Played through at a performance spot (the bandstand, the moot oak, the Waystation yard, the fire at Fellers' Camp, the well at Kelderby, the Gullmouth quay, the Glass Kirk, the Works yard, the Ketley Arches, the keep steps, the Minster steps), a tune brings people to listen, and they leave a few marks. A group can play as a band, each on their own part.
+
 ## Morrow, the second continent [planned]
 
 The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.

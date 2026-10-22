@@ -8,6 +8,8 @@ import type { SaveData } from '../game/state';
 import { CreatureModel } from '../entities/creatures';
 import { ITEMS } from '../data/items';
 import { currentAccount } from './Account';
+import type { Performance } from '../game/Bard';
+import type { PartId, Voice } from '../data/tunes';
 
 // Connection to an Everrealm world server (server/server.mjs).
 //   ?online               connects to ws://<this host>:8787
@@ -40,7 +42,7 @@ interface Remote {
   pillion: number;
 }
 
-interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number }
+interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
 
 /** How far behind the saddle a second rider sits, along the horse. */
 const PILLION_BACK = 0.55;
@@ -114,6 +116,12 @@ export interface OnlineHooks {
   tradeEnd?(why: string): void;
   tradeDone?(withName: string, give: TradeOffer, take: TradeOffer): void;
   status(s: OnlineStatus, players: number): void;
+  /** Music (game/Bard.ts): someone starts or stops playing, plays a note, picks a band part, or strikes up the band. */
+  perform?(id: number, p: Performance): void;
+  performStop?(id: number): void;
+  note?(id: number, m: number, voice: Voice): void;
+  bandPart?(id: number, part: PartId, voice: Voice): void;
+  bandGo?(from: number, name: string, tune: string, start: number, reps: number): void;
   /** The server has a newer copy of this character than the browser does. */
   newerSave(save: SaveData): void;
   /** A shared world boss's health, as the server keeps it. */
@@ -261,6 +269,11 @@ export class Online {
       case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
       case 'sys': this.hooks.system(String(m.text)); break;
+      case 'perform': this.hooks.perform?.(Number(m.id), { tune: String(m.tune), part: m.part as PartId, voice: m.voice as Voice, start: Number(m.start), reps: Number(m.reps) }); break;
+      case 'perfStop': this.hooks.performStop?.(Number(m.id)); break;
+      case 'note': this.hooks.note?.(Number(m.id), Number(m.m), m.voice as Voice); break;
+      case 'bandPart': this.hooks.bandPart?.(Number(m.id), m.part as PartId, m.voice as Voice); break;
+      case 'bandGo': this.hooks.bandGo?.(Number(m.from), String(m.name), String(m.tune), Number(m.start), Number(m.reps)); break;
       case 'exBook': this.hooks.exBook?.(Array.isArray(m.rows) ? (m.rows as ExRow[]) : [], Array.isArray(m.mine) ? (m.mine as number[]) : []); break;
       case 'exPosted': this.hooks.exPosted?.(m.row as ExRow); break;
       case 'exRefused': this.hooks.exRefused?.(String(m.item), Number(m.n) || 0, String(m.why ?? '')); break;
@@ -291,6 +304,7 @@ export class Online {
     this.hooks.scene.add(model.root);
     const mount = p.mount && ITEMS[p.mount]?.mount ? p.mount : null;
     this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0 });
+    if (p.perf) this.hooks.perform?.(p.id, p.perf);
   }
 
   private replaceModel(r: Remote, look: Appearance): void {
@@ -438,6 +452,15 @@ export class Online {
   private chatTimer = 0;
 
   /** Send a chat line. The server drops lines closer together than 600 ms, so they're paced here instead of lost. */
+  /** Start playing (the realm passes it to everyone), or stop. */
+  perform(p: Performance, ms: number): void { this.emit({ t: 'perform', ...p, ms: Math.round(ms) }); }
+  performStop(): void { this.emit({ t: 'perfStop' }); }
+  /** A free-play note, to everyone in earshot. */
+  note(m: number, voice: Voice): void { this.emit({ t: 'note', m, voice }); }
+  /** Your part in your group's band, and striking it up. */
+  bandPart(part: PartId, voice: Voice): void { this.emit({ t: 'bandPart', part, voice }); }
+  bandGo(tune: string, start: number, reps: number): void { this.emit({ t: 'bandGo', tune, start, reps }); }
+
   chat(text: string, kind: 'say' | 'emote' = 'say'): void {
     if (this.status !== 'online' || !this.ws) return;
     if (this.chatQueue.length >= 6) { this.hooks.system('You are talking too fast: wait a moment.'); return; }

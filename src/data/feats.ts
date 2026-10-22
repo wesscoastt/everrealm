@@ -1,6 +1,7 @@
 import { EVENTS, TASKS, WORLD_BOSSES } from './activities';
 import { ITEMS } from './items';
 import { RANKS, REVERED_TITLE } from './standing';
+import { FACTIONS } from './factions';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 
 // Feats: long goals for exploring and joining in, kept in the journal. Each one pays out marks
@@ -20,7 +21,7 @@ export interface FeatApi {
 export interface FeatDef {
   id: string;
   name: string;
-  group: 'Exploration' | 'The open world' | 'Stable' | 'Craft and trade';
+  group: 'Exploration' | 'The open world' | 'Stable' | 'Craft and trade' | 'Factions';
   desc: string;
   need: number;
   have(g: FeatApi): number;
@@ -53,5 +54,7 @@ export const FEATS: FeatDef[] = [
   { id: 'level', name: 'Turned Your Hand', group: 'Craft and trade', desc: 'Reach a total level of 100 across your skills.', need: 100, have: (g) => g.totalLevel, marks: 100, title: 'Journeyman' },
   { id: 'level2', name: 'Master of None', group: 'Craft and trade', desc: 'Reach a total level of 250 across your skills.', need: 250, have: (g) => g.totalLevel, marks: 250, title: 'Many-Handed' },
   // Standing (data/standing.ts): the last rank in a region gives its title
+  // Factions (data/factions.ts): the last rank gives its title
+  ...FACTIONS.filter((f) => f.open).map((f): FeatDef => ({ id: 'fac_' + f.id, name: f.ranks[f.ranks.length - 1], group: 'Factions', desc: `Rise to ${f.ranks[f.ranks.length - 1]} in ${f.name}, through its whole storyline.`, need: f.ranks.length, have: (g) => { const r = g.flag('fac:' + f.id); return typeof r === 'number' ? r + 1 : 0; }, marks: 150, title: f.title })),
   ...(Object.keys(REVERED_TITLE) as RegionId[]).map((r): FeatDef => ({ id: 'rep_' + r, name: 'Revered in ' + REGION_INFO[r].name, group: 'The open world', desc: `Reach Revered standing in ${REGION_INFO[r].name}: its quests, parish tasks, events, rares and world boss all count.`, need: RANKS[RANKS.length - 1].at, have: (g) => Number(g.flag('rep:' + r) ?? 0), marks: 100, title: REVERED_TITLE[r] })),
 ];

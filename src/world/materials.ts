@@ -76,7 +76,8 @@ totalEmissiveRadiance += texel.rgb * glassMask * nightK * 1.3;`);
   return mat;
 }
 
-/** Stylised water: depth tint, animated ripples, sky fresnel, shoreline foam, falling-sheet streaks. */
+/** Stylised water: depth tint, animated ripples, sky fresnel, shoreline foam, falling-sheet streaks. It darkens
+ *  with the day (the sky's night value rides on uGlow), to a moonlit navy at night. */
 export function createWaterMaterial(shared: SharedUniforms): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -123,6 +124,7 @@ export function createWaterMaterial(shared: SharedUniforms): THREE.ShaderMateria
       uniform vec3 uSkyColor;
       uniform vec3 uSunColor;
       uniform vec3 uSunDir;
+      uniform float uGlow;
       varying vec2 vUv;
       varying vec3 vWater;
       varying vec3 vWorld;
@@ -137,11 +139,16 @@ export function createWaterMaterial(shared: SharedUniforms): THREE.ShaderMateria
       void main() {
         float depth = clamp((vWater.x - 1.0) / 5.0, 0.0, 1.0);
         vec3 V = normalize(cameraPosition - vWorld);
+        // Night: the body of the water goes to a moonlit navy, and foam and glints dim with it
+        float night = clamp((uGlow - 0.22) / 1.25, 0.0, 1.0);
+        vec3 shallow = mix(uShallow, vec3(0.06, 0.15, 0.22), night);
+        vec3 deepC = mix(uDeep, vec3(0.02, 0.05, 0.11), night);
+        vec3 foamC = uFoam * mix(1.0, 0.32, night);
         if (vWater.z > 0.5) {
           // Falling sheet
           float streak = vn(vec2(vUv.x * 6.0, vUv.y * 0.8 + uTime * 3.2));
           float streak2 = vn(vec2(vUv.x * 13.0 + 3.0, vUv.y * 1.6 + uTime * 4.6));
-          vec3 c = mix(uShallow * 1.1, uFoam, smoothstep(0.45, 0.85, streak * 0.6 + streak2 * 0.5));
+          vec3 c = mix(shallow * 1.1, foamC, smoothstep(0.45, 0.85, streak * 0.6 + streak2 * 0.5));
           gl_FragColor = vec4(c, 0.82);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -153,18 +160,18 @@ export function createWaterMaterial(shared: SharedUniforms): THREE.ShaderMateria
         float n2 = vn(p * 2.1 - vec2(uTime * 0.25, uTime * 0.45));
         vec3 N = normalize(vec3((n1 - 0.5) * 0.35 + (n2 - 0.5) * 0.2, 1.0, (n2 - 0.5) * 0.35));
         float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
-        vec3 base = mix(uShallow, uDeep, depth);
+        vec3 base = mix(shallow, deepC, depth);
         vec3 col = mix(base, uSkyColor * 1.05, fres * 0.65);
         vec3 R = reflect(-uSunDir, N);
         float spec = pow(max(dot(R, V), 0.0), 90.0);
         col += uSunColor * spec * 0.9;
         // Sparkle bands
         float band = smoothstep(0.72, 0.9, vn(p * 3.0 + uTime * 0.6) * n1);
-        col += band * 0.08;
+        col += band * 0.08 * (1.0 - night * 0.75);
         // Shore foam with a breathing edge
         float foamEdge = vWater.y * (0.75 + 0.25 * sin(uTime * 2.0 + p.x * 1.7 + p.y * 1.3));
         float foam = smoothstep(0.25, 0.75, foamEdge + (n2 - 0.5) * 0.4);
-        col = mix(col, uFoam, foam * 0.75);
+        col = mix(col, foamC, foam * 0.75);
         float alpha = mix(0.62, 0.9, depth) + fres * 0.08 + foam * 0.2;
         gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.97));
         #include <tonemapping_fragment>
@@ -180,4 +187,5 @@ export function bindWaterUniforms(mat: THREE.ShaderMaterial, shared: SharedUnifo
   mat.uniforms.uSkyColor = shared.uSkyColor;
   mat.uniforms.uSunColor = shared.uSunColor;
   mat.uniforms.uSunDir = shared.uSunDir;
+  mat.uniforms.uGlow = shared.uGlow;
 }

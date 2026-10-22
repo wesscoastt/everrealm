@@ -147,6 +147,46 @@ function paint(spec: IconSpec): string {
       px(22, 7, 3, 3, shade(a, 1.3));
       break;
     }
+    case 'fiddle': {
+      // A stringed body on the slant, its neck up to the right: fiddle, lute or gurdy by colour
+      x.save(); x.translate(16, 17); x.rotate(-0.7);
+      x.fillStyle = outline; x.beginPath(); x.ellipse(0, 5, 8, 9, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(0, 5, 6.5, 7.5, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = outline; x.fillRect(-2, -14, 4, 13); x.fillRect(-1.5, 2, 3, 3);
+      x.fillStyle = b; x.fillRect(-1, -13, 2, 12); x.fillRect(-2.5, -16, 5, 3);
+      x.fillStyle = '#f0e0b0'; x.fillRect(-0.5, -12, 1, 18);
+      x.restore();
+      break;
+    }
+    case 'harp': {
+      x.strokeStyle = outline; x.lineWidth = 5; x.beginPath(); x.moveTo(8, 28); x.lineTo(8, 6); x.quadraticCurveTo(18, 4, 25, 12); x.lineTo(14, 28); x.closePath(); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 3; x.stroke();
+      x.fillStyle = b; for (let i = 0; i < 4; i++) x.fillRect(11 + i * 3, 9 + i * 2, 1, 16 - i * 3);
+      break;
+    }
+    case 'drum': {
+      x.fillStyle = outline; x.beginPath(); x.arc(16, 16, 12, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.arc(16, 16, 10.5, 0, Math.PI * 2); x.fill();
+      x.fillStyle = b; x.beginPath(); x.arc(16, 16, 8.5, 0, Math.PI * 2); x.fill();
+      px(11, 11, 3, 2, '#fff6dc');
+      diag(19, 28, 9, 2, outline); px(26, 18, 4, 4, outline); px(27, 19, 2, 2, '#c8b088');
+      break;
+    }
+    case 'horn': {
+      x.strokeStyle = outline; x.lineWidth = 6; x.beginPath(); x.arc(14, 16, 8, 0, Math.PI * 2); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 3; x.beginPath(); x.arc(14, 16, 8, 0, Math.PI * 2); x.stroke();
+      x.fillStyle = outline; x.beginPath(); x.moveTo(20, 18); x.lineTo(30, 12); x.lineTo(30, 26); x.closePath(); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(21, 18.5); x.lineTo(29, 14); x.lineTo(29, 24); x.closePath(); x.fill();
+      px(4, 15, 4, 2, b);
+      break;
+    }
+    case 'pipes': {
+      x.fillStyle = outline; x.beginPath(); x.ellipse(13, 20, 9, 7, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(13, 20, 7.5, 5.5, 0, 0, Math.PI * 2); x.fill();
+      for (const [ox, len] of [[17, 16], [21, 13], [25, 10]]) { px(ox, 18 - len, 3, len, outline); px(ox + 1, 19 - len, 1, len - 2, b); px(ox - 1, 17 - len, 5, 2, '#e8dcc0'); }
+      px(9, 25, 3, 6, outline); px(10, 25, 1, 5, b);
+      break;
+    }
     case 'gel': {
       x.fillStyle = outline; x.beginPath(); x.arc(16, 18, 11, 0, Math.PI * 2); x.fill();
       x.fillStyle = a; x.beginPath(); x.arc(16, 18, 9, 0, Math.PI * 2); x.fill();

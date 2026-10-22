@@ -144,6 +144,11 @@ export class Particles {
     }
   }
 
+  /** A note rising over a performer, drifting as it goes. */
+  note(at: THREE.Vector3, color: string): void {
+    this.glow.spawn({ pos: at, vel: new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.9 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6), color, size: 0.09, max: 1.5, gravity: -0.15, drag: 0.4, spin: 2 });
+  }
+
   burst(at: THREE.Vector3, color: string, n = 26): void {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;

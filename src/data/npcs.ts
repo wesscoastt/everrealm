@@ -1,5 +1,6 @@
 import type { Appearance, AnimState, HeldItem } from '../entities/humanoid';
 import type { GameApi } from '../game/api';
+import type { PartId } from './tunes';
 import { ALDERMERE as A, CAMP, COLD, FOLD, GULL, LIGHT, MOSSGATE, STARWATCH, TEMPLE, WORKS as W } from './places_regional';
 
 export interface ScheduleSlot {
@@ -8,7 +9,10 @@ export interface ScheduleSlot {
   at: [number, number];
   face: [number, number];
   anim: AnimState;
-  held?: HeldItem;
+  /** A tool by name, or an item by its id (a weapon, an instrument). */
+  held?: HeldItem | string;
+  /** Playing these tunes in turn on the realm clock while here (anim 'perform', an instrument held): game/Stage.ts. */
+  play?: { tunes: string[]; part: PartId };
   /** Waypoints walked (in order) when moving into this slot. */
   path?: [number, number][];
   /** Hidden indoors. */

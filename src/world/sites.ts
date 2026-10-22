@@ -7,6 +7,7 @@ import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
+import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 import { hazards, stamp } from '../data/hazards';
@@ -390,6 +391,8 @@ export function plan(): Plan {
     { id: 'sc-arch', name: 'The Kelpie Arch', x: -310, z: 700, r0: 0, r1: 0, build: (s) => buildSeaArch(s) },
     { id: 'sc-colossus', name: 'The Stone King', x: 1365, z: 1054, r0: 30, r1: 44, build: (s, b) => buildColossus(s, b) },
     { id: 'sc-drowned', name: 'The Drowned Bell-tower', x: 1560, z: 1500, r0: 0, r1: 0, build: (s) => buildDrownedTower(s) },
+    // A long barrow on Tolmen Moor that the frost cracked open (the Waits' storyline: data/content/waits.ts)
+    { id: 'carne', name: 'Carne Barrow', x: CARNE.x, z: CARNE.z, r0: 0, r1: 0, build: (s) => buildCarne(s) },
     // Under the sea: the parish the tower belonged to, and a reef that wrecks ships off the Fleet Coast
     // The outer lands' towns, at the far ends of the roads over the necks
     { id: 'cragsby', name: 'Cragsby', x: CRAGSBY.x, z: CRAGSBY.z, r0: 22, r1: 34, build: (s, b) => buildOuterTown(s, b, 'cragsby') },
@@ -971,6 +974,24 @@ export function plan(): Plan {
     claim(646, 386, 728, 474);
     charterGreen(south, 648, 388, 726, 472, base);
 
+    // ---- The Waits' House, on the north side of the Charter Green: one tall hall with a low stage at
+    // the back, benches for anyone who comes to listen, the Great Book on its lectern and the
+    // instrument cupboard. The bandstand stands on the Green's west lawn. (data/content/waits.ts)
+    {
+      const W = WAITS_HOUSE, ws = wardAt(W.x0 + W.w / 2, W.z0 + W.d / 2);
+      claim(W.x0 - 2, W.z0 - 2, W.x0 + W.w + 1, W.z0 + W.d + 5);
+      house(ws, W.x0, W.z0, W.w, W.d, 1, base, 'slate', 's', { wall: B.StoneBrick, role: 'vacant' });
+      for (let x = W.x0 + 1; x < W.x0 + W.w - 1; x++) for (let z = W.z0 + 1; z <= W.z0 + 2; z++) O.set(x, base, z, B.DarkPlanks); // the stage
+      for (const [bx, bz] of [[W.x0 + 3.5, W.z0 + 6.5], [W.x0 + 11.5, W.z0 + 6.5], [W.x0 + 3.5, W.z0 + 8.5], [W.x0 + 11.5, W.z0 + 8.5]]) ws.props.push({ t: 'bench', x: bx, y: base, z: bz, ry: 0 });
+      ws.props.push({ t: 'furn', item: 'desk', x: W.x0 + 2.5, y: base, z: W.z0 + 4.5, ry: 0 }); // the Great Book's lectern
+      ws.props.push({ t: 'furn', item: 'shelves', x: W.x0 + W.w - 1.6, y: base, z: W.z0 + 5, ry: -Math.PI / 2 }); // the instrument cupboard
+      for (const lz of [W.z0 + 4, W.z0 + 8]) ws.props.push({ t: 'furn', item: 'lamp', x: W.x0 + W.w / 2, y: base + 3.9, z: lz, ry: 0 });
+      for (const bx of [W.x0 + 1.2, W.x0 + W.w - 1.2]) ws.props.push({ t: 'banner', x: bx, y: base + 3, z: W.z0 + 2.5, kind: 'aldermere', ry: Math.PI / 2 });
+      ws.props.push({ t: 'sign', x: W.x0 + W.w / 2 + 2.6, y: base, z: W.z0 + W.d + 0.9, ry: 0, text: 'The Waits\' House' });
+      for (let x = W.x0 + 5; x <= W.x0 + 9; x++) for (let z = W.z0 + W.d; z <= W.z0 + W.d + 4; z++) O.set(x, base - 1, z, (x + z) % 3 ? B.Gravel : B.Path);
+      bandstand(south, BANDSTAND.x, BANDSTAND.z, base);
+    }
+
     // ---- The Shambles: the covered market and its yard
     claim(648, 242, 702, 295);
     pave(650, 244, 700, 293, base, 'cobble');
@@ -1164,6 +1185,73 @@ export function plan(): Plan {
     for (const [bx, bz, ry] of [[mx - 5, mz - 3, 0], [mx + 5, mz + 3, Math.PI], [mx - 3, mz + 5, Math.PI / 2], [mx + 3, mz - 5, -Math.PI / 2]] as const) s.props.push({ t: 'bench', x: bx, y: base, z: bz, ry });
     for (const [lx, lz] of [[mx - 2.5, z0 + 6], [mx + 2.5, z1 - 6], [x0 + 6, mz - 2.5], [x1 - 6, mz + 2.5]]) s.props.push({ t: 'lantern', x: lx, y: base, z: lz });
     s.props.push({ t: 'sign', x: mx + 3.5, y: base, z: z0 + 2.5, ry: 0, text: 'The Charter Green' });
+  }
+
+  /** A bandstand: an eight-sided stage a step up off the grass, six posts and a pointed roof. */
+  function bandstand(s: Site, cx: number, cz: number, base: number) {
+    const fx = Math.floor(cx), fz = Math.floor(cz);
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const r = Math.max(Math.abs(dx), Math.abs(dz)) * 0.9 + Math.min(Math.abs(dx), Math.abs(dz)) * 0.42;
+      if (r > 4) continue;
+      const x = fx + dx, z = fz + dz;
+      foundation(x, z, base, B.StoneBrick);
+      O.set(x, base, z, r > 3.2 ? B.StoneBrick : B.Planks);
+      clearUp(x, z, base + 1, base + 6);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + Math.PI / 6, x = fx + Math.round(Math.cos(a) * 3.2), z = fz + Math.round(Math.sin(a) * 3.2);
+      if (z > fz + 2) continue; // the front stays open toward the Green
+      for (let y = base + 1; y <= base + 3; y++) O.set(x, y, z, B.OakLog);
+    }
+    s.props.push({ t: 'cone', x: cx, y: base + 4, z: cz, r: 5, h: 3, mat: 'red' });
+    s.props.push({ t: 'lantern', x: cx + 4.6, y: base, z: cz + 3.6, ry: Math.PI });
+    rect(s, fx - 5, fz - 5, fx + 5, fz + 5);
+  }
+
+  /**
+   * Carne Barrow: a long grass mound on Tolmen Moor, a stone passage into it from the east between
+   * two standing stones, and a chamber at the far end. The frost brought part of the chamber roof
+   * down last winter, so a little daylight gets in. A niche in the chamber's north wall held a bone
+   * whistle (data/content/waits.ts).
+   */
+  function buildCarne(s: Site) {
+    const cx = CARNE.x, cz = CARNE.z, G = CARNE_FLOOR;
+    s.r = 140;
+    rect(s, cx - 16, cz - 10, cx + 16, cz + 10);
+    // Level ground under the mound, then the mound itself, highest along the middle
+    for (let z = cz - 8; z <= cz + 8; z++) for (let x = cx - 14; x <= cx + 15; x++) {
+      const h = heightAt(x, z);
+      for (let y = Math.min(h, G) - 2; y < G; y++) O.set(x, y, z, B.Dirt);
+      for (let y = G; y < Math.max(h, G) + 2; y++) O.set(x, y, z, B.Air);
+      O.set(x, G - 1, z, B.Grass);
+      const k = 1 - Math.pow((x - cx) / 12, 2) - Math.pow((z - cz) / 6, 2);
+      const top = Math.round(5 * k);
+      for (let y = 0; y < top; y++) O.set(x, G + y, z, y === top - 1 ? B.Grass : B.Dirt);
+    }
+    // The passage: in from the east end, two wide and three high, lined and roofed with stone
+    for (let x = cx - 2; x <= cx + 13; x++) {
+      for (let z = cz - 1; z <= cz + 2; z++) for (let y = G; y <= G + 3; y++) {
+        const side = z === cz - 1 || z === cz + 2, roof = y === G + 3;
+        O.set(x, y, z, side || roof ? (hash2(x, y * 3 + z, 61) < 0.4 ? B.MossyStone : B.StoneBrick) : B.Air);
+      }
+      for (let z = cz; z <= cz + 1; z++) O.set(x, G - 1, z, B.Cobble);
+    }
+    // The way in: the mound's end cut back, two standing stones and a lintel
+    for (let z = cz - 1; z <= cz + 2; z++) for (let y = G; y <= G + 5; y++) for (let x = cx + 12; x <= cx + 15; x++) if (z === cz || z === cz + 1 || y > G + 3) O.set(x, y, z, B.Air);
+    for (const z of [cz - 1, cz + 2]) for (let y = G; y <= G + 3; y++) O.set(cx + 13, y, z, B.StoneBrick);
+    for (let z = cz - 1; z <= cz + 2; z++) O.set(cx + 13, G + 4, z, B.StoneBrick);
+    // The chamber, and the hole the frost made in its roof
+    for (let x = cx - 7; x <= cx - 1; x++) for (let z = cz - 3; z <= cz + 4; z++) for (let y = G - 1; y <= G + 4; y++) {
+      const wall = x === cx - 7 || x === cx - 1 && (z < cz || z > cz + 1) || z === cz - 3 || z === cz + 4;
+      if (y === G - 1) O.set(x, y, z, B.Cobble);
+      else if (y === G + 4 || wall) O.set(x, y, z, hash2(x, y * 5 + z, 67) < 0.45 ? B.MossyStone : B.StoneBrick);
+      else O.set(x, y, z, B.Air);
+    }
+    for (let x = cx - 5; x <= cx - 4; x++) for (let z = cz; z <= cz + 1; z++) for (let y = G + 4; y <= G + 7; y++) O.set(x, y, z, B.Air);
+    for (const [x, z] of [[cx - 5, cz + 2], [cx - 3, cz], [cx - 6, cz - 1]]) O.set(x, G, z, B.MossyCobble); // the fallen roof
+    // The niche in the north wall, and a faint light in it
+    O.set(cx - 4, G + 1, cz - 3, B.Air);
+    s.props.push({ t: 'glow', x: cx - 3.5, y: G + 1.4, z: cz - 2.4, r: 1.6, color: '#d8e8ff' });
   }
 
   // ---------------------------------------------------------------- Dungeons, delves, vistas, wonders

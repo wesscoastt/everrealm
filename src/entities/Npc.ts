@@ -36,6 +36,11 @@ export class Npc {
     return y;
   }
 
+  /** The tunes this person is playing now, if they're at their post with an instrument out (game/Stage.ts). */
+  get performing(): ScheduleSlot['play'] | null {
+    return this.slot?.play && !this.talking && this.model.state === 'perform' ? this.slot.play : null;
+  }
+
   private slotFor(hour: number): ScheduleSlot {
     for (const s of this.def.schedule) {
       if (s.from < s.to ? hour >= s.from && hour < s.to : hour >= s.from || hour < s.to) return s;

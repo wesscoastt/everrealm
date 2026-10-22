@@ -1,4 +1,5 @@
 import { MusicContext, Score, Sting } from './music/Score';
+import { Instruments } from './music/Instruments';
 
 // Procedural Web Audio: every sound is synthesised, so there are no asset licences to track.
 
@@ -20,6 +21,10 @@ export class AudioSystem {
   private fireGain!: GainNode;
   private nextBird = 0;
   score: Score | null = null;
+  /** Instruments people play (the game's performers: game/Bard.ts), on the sound-effects volume. */
+  instruments: Instruments | null = null;
+  private perf!: GainNode;
+  private ducked = 0;
   private stepFlip = false;
   volumes = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45 };
 
@@ -36,6 +41,8 @@ export class AudioSystem {
     this.amb = ctx.createGain(); this.amb.connect(comp);
     this.music = ctx.createGain(); this.music.connect(comp);
     this.score = new Score(ctx, this.music);
+    this.perf = ctx.createGain(); this.perf.connect(comp);
+    this.instruments = new Instruments(ctx, this.perf);
     this.applyVolumes();
     const len = ctx.sampleRate * 2;
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -52,7 +59,15 @@ export class AudioSystem {
     this.master.gain.value = this.volumes.master;
     this.sfx.gain.value = this.volumes.sfx;
     this.amb.gain.value = this.volumes.ambience;
-    this.music.gain.value = this.volumes.music;
+    this.music.gain.value = this.volumes.music * (1 - this.ducked * 0.85);
+    this.perf.gain.value = this.volumes.sfx;
+  }
+
+  /** Lower the score under live music nearby (0 leaves it, 1 nearly silences it). */
+  duck(amount: number): void {
+    if (!this.ctx || Math.abs(amount - this.ducked) < 0.02) return;
+    this.ducked += Math.sign(amount - this.ducked) * Math.min(Math.abs(amount - this.ducked), 0.05);
+    this.music.gain.setTargetAtTime(this.volumes.music * (1 - this.ducked * 0.85), this.ctx.currentTime, 0.3);
   }
 
   private loopNoise(freq: number, q: number, type: BiquadFilterType): GainNode {

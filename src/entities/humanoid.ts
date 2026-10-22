@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { EmoteAnim } from '../data/emotes';
+import type { Voice as InstrumentVoice } from '../data/tunes';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 
@@ -87,7 +88,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -193,7 +194,11 @@ export interface OffhandModel { family: OffhandFamily; face: string; rim: string
 /** Items to models: set once by the game, so anyone holding an item by its id is drawn with it. */
 let weaponModelOf: (id: string) => WeaponModel | null = () => null;
 let offhandModelOf: (id: string) => OffhandModel | null = () => null;
-export function setGearModels(weapon: (id: string) => WeaponModel | null, offhand: (id: string) => OffhandModel | null): void { weaponModelOf = weapon; offhandModelOf = offhand; }
+let instrumentOf: (id: string) => InstrumentVoice | null = () => null;
+export function setGearModels(weapon: (id: string) => WeaponModel | null, offhand: (id: string) => OffhandModel | null, instrument?: (id: string) => InstrumentVoice | null): void {
+  weaponModelOf = weapon; offhandModelOf = offhand;
+  if (instrument) instrumentOf = instrument;
+}
 
 /** A weapon in the right hand. Its +y runs from the grip out along the blade or the haft; the edge
  *  (and an axe's bit) faces +z, the flat of the blade faces x. Each maker has its own guard, pommel
@@ -539,6 +544,131 @@ function offhandMesh(o: OffhandModel): THREE.Group {
   return g;
 }
 
+/**
+ * An instrument being played: the body is carried on the torso where it's played from (a whistle at
+ * the mouth, a lute across the belly, the pipes' bag under the left arm), and anything worked by the
+ * right hand (a bow, a beater, the gurdy's crank) goes in the hand. The torso faces +z.
+ */
+function instrumentMesh(v: InstrumentVoice): { body: THREE.Group; hand: THREE.Group | null } {
+  const body = new THREE.Group(), hand = new THREE.Group();
+  const put = (gr: THREE.Group, geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, lam(color));
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true;
+    gr.add(m);
+    return m;
+  };
+  const wood = '#8a4a22', dark = '#3a2414', brass = '#d8a84a', gut = '#e8dcb0';
+  switch (v) {
+    case 'whistle':
+    case 'bone': {
+      // From the lips, down and forward, with the finger holes on top
+      const pipe = new THREE.Group();
+      pipe.position.set(0, 0.95, 0.27);
+      pipe.rotation.x = 1.05;
+      body.add(pipe);
+      const c = v === 'bone' ? '#e8dcc0' : '#c8ccd0';
+      put(pipe, rbox(0.035, 0.36, 0.035, 0.01), c, 0, -0.18, 0);
+      put(pipe, rbox(0.042, 0.06, 0.042, 0.01), v === 'bone' ? '#b8a888' : '#3a3d42', 0, -0.01, 0);
+      for (let i = 0; i < 6; i++) put(pipe, rbox(0.012, 0.012, 0.01, 0.003), '#2a2622', 0, -0.12 - i * 0.035, 0.018);
+      if (v === 'bone') for (const y of [-0.1, -0.3]) put(pipe, rbox(0.04, 0.012, 0.04, 0.004), '#8a7a5a', 0, y, 0); // carved bands
+      return { body, hand: null };
+    }
+    case 'fiddle': {
+      // Under the chin on the left shoulder, the neck out along the left arm
+      const f = new THREE.Group();
+      f.position.set(0.14, 0.66, 0.2);
+      f.rotation.set(0, -0.5, Math.PI / 2 - 0.25);
+      body.add(f);
+      put(f, rbox(0.17, 0.13, 0.07, 0.03), wood, 0, 0.07, 0);
+      put(f, rbox(0.13, 0.05, 0.068, 0.015), shade(wood, 0.85), 0, 0, 0); // the waist
+      put(f, rbox(0.19, 0.15, 0.07, 0.035), wood, 0, -0.08, 0);
+      put(f, rbox(0.03, 0.04, 0.012, 0.005), dark, 0, -0.04, 0.036); // the bridge
+      put(f, rbox(0.04, 0.26, 0.03, 0.01), dark, 0, 0.27, 0.01); // the neck
+      put(f, rbox(0.045, 0.06, 0.05, 0.02), dark, 0, 0.42, 0); // the scroll
+      put(f, rbox(0.04, 0.12, 0.01, 0.004), '#1a1410', 0, -0.13, 0.036); // the chin rest
+      // The bow, in the right hand, across the strings
+      put(hand, rbox(0.012, 0.6, 0.012, 0.004), dark, 0, -0.04, 0.24, Math.PI / 2 - 0.15);
+      put(hand, rbox(0.006, 0.54, 0.02, 0.002), gut, 0, -0.07, 0.25, Math.PI / 2 - 0.15);
+      return { body, hand };
+    }
+    case 'lute':
+    case 'gurdy': {
+      // Across the belly, the neck up and out to the left
+      const l = new THREE.Group();
+      l.position.set(-0.02, 0.32, 0.24);
+      l.rotation.set(0.15, 0, v === 'lute' ? -0.85 : -1.45);
+      body.add(l);
+      if (v === 'lute') {
+        put(l, rbox(0.3, 0.34, 0.16, 0.12), '#a0602a', 0, -0.04, 0);
+        put(l, rbox(0.07, 0.07, 0.01, 0.03), '#2a1810', 0, 0, 0.081); // the rose
+        put(l, rbox(0.05, 0.36, 0.035, 0.01), dark, 0, 0.3, 0.02);
+        put(l, rbox(0.06, 0.12, 0.03, 0.01), dark, 0, 0.5, -0.03, -0.6); // the pegbox, bent back
+        for (const x of [-0.015, 0, 0.015]) put(l, rbox(0.003, 0.5, 0.003, 0.001), gut, x, 0.15, 0.045);
+      } else {
+        // Hurdy-gurdy: a deep box, the key-box on top, the wheel's cover, and the crank
+        put(l, rbox(0.24, 0.42, 0.16, 0.06), '#7a4a26', 0, 0, 0);
+        put(l, rbox(0.1, 0.3, 0.05, 0.015), dark, 0, 0.04, 0.09);
+        for (let i = 0; i < 6; i++) put(l, rbox(0.02, 0.02, 0.03, 0.005), '#e8dcc0', 0.06, -0.06 + i * 0.04, 0.1);
+        put(l, rbox(0.2, 0.08, 0.17, 0.04), shade('#7a4a26', 0.8), 0, -0.22, 0);
+        put(hand, rbox(0.03, 0.03, 0.1, 0.008), brass, 0, -0.02, 0.05); // the crank handle
+      }
+      return { body, hand: v === 'gurdy' ? hand : null };
+    }
+    case 'harp': {
+      // A small harp on the chest: soundbox, neck and pillar, strings between
+      const h = new THREE.Group();
+      h.position.set(0.04, 0.42, 0.28);
+      h.rotation.set(0, 0.25, 0);
+      body.add(h);
+      put(h, rbox(0.06, 0.46, 0.09, 0.02), wood, 0.12, 0, 0, 0, 0, 0.2); // soundbox, leaning
+      put(h, rbox(0.3, 0.05, 0.05, 0.02), wood, 0.0, 0.24, 0, 0, 0, -0.15); // neck
+      put(h, rbox(0.04, 0.44, 0.04, 0.015), dark, -0.14, 0.02, 0); // pillar
+      put(h, rbox(0.05, 0.05, 0.05, 0.02), brass, -0.14, 0.26, 0);
+      for (let i = 0; i < 6; i++) put(h, rbox(0.004, 0.36 - i * 0.04, 0.004, 0.001), brass, 0.08 - i * 0.04, 0.02 + i * 0.02, 0);
+      return { body, hand: null };
+    }
+    case 'drum': {
+      // A frame drum held up in the left hand, struck with a beater in the right
+      const d = new THREE.Group();
+      d.position.set(0.22, 0.52, 0.3);
+      d.rotation.set(0, -0.6, 0);
+      body.add(d);
+      put(d, new THREE.CylinderGeometry(0.2, 0.2, 0.06, 18), '#6a4a2a', 0, 0, 0, Math.PI / 2);
+      put(d, new THREE.CylinderGeometry(0.186, 0.186, 0.066, 18), '#e0cfa0', 0, 0, 0.002, Math.PI / 2); // the skin
+      put(d, rbox(0.04, 0.2, 0.02, 0.008), dark, 0, 0, -0.04); // the cross-brace behind
+      put(hand, rbox(0.02, 0.26, 0.02, 0.006), dark, 0, -0.02, 0.1, Math.PI / 2);
+      put(hand, rbox(0.045, 0.06, 0.045, 0.02), '#c8b088', 0, -0.02, 0.24);
+      return { body, hand };
+    }
+    case 'horn': {
+      // A coiled post horn at the mouth, the bell forward
+      const h = new THREE.Group();
+      h.position.set(0, 0.9, 0.28);
+      body.add(h);
+      put(h, rbox(0.03, 0.03, 0.12, 0.01), brass, 0, 0, 0);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; put(h, rbox(0.035, 0.035, 0.07, 0.012), brass, Math.cos(a) * 0.09, -0.06 + Math.sin(a) * 0.09, 0.12, 0, a, 0); }
+      put(h, new THREE.ConeGeometry(0.08, 0.14, 10, 1, true), brass, 0, -0.06, 0.28, Math.PI / 2);
+      return { body, hand: null };
+    }
+    case 'pipes': {
+      // The bag under the left arm, three drones over the shoulder, the chanter down in front
+      put(body, rbox(0.2, 0.2, 0.26, 0.08), '#4a2a3a', 0.3, 0.42, 0.04);
+      for (let i = 0; i < 3; i++) {
+        const len = [0.62, 0.48, 0.48][i];
+        put(body, rbox(0.035, len, 0.035, 0.01), dark, 0.3 + i * 0.03 - 0.03, 0.5 + len / 2, -0.06 - i * 0.06, -0.35, 0, -0.25);
+        put(body, rbox(0.05, 0.04, 0.05, 0.015), '#e8dcc0', 0.3 + i * 0.03 - 0.03 - Math.sin(0.25) * len, 0.5 + len - 0.02, -0.06 - i * 0.06 - Math.sin(0.35) * len * 0.5);
+      }
+      put(body, rbox(0.035, 0.4, 0.035, 0.01), dark, 0.04, 0.6, 0.3, 0.35);
+      put(body, rbox(0.05, 0.05, 0.05, 0.015), '#e8dcc0', 0.04, 0.42, 0.37);
+      put(body, rbox(0.02, 0.14, 0.02, 0.006), dark, 0.0, 0.9, 0.24, 0.9); // the blowpipe
+      return { body, hand: null };
+    }
+  }
+  return { body, hand: null };
+}
+
 const TOOLS = new Set<string>(['sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
 function heldMesh(kind: HeldItem): THREE.Group {
@@ -609,6 +739,10 @@ export class Humanoid {
   /** A tool by name, or a weapon by its item id (its model comes from data/weapons.ts). */
   heldKind: HeldItem | string = 'none';
   private offhand: THREE.Group | null = null;
+  /** An instrument being played: its body on the torso, and what the right hand works (a bow, a beater). */
+  private instr: { voice: InstrumentVoice; body: THREE.Group; hand: THREE.Group | null } | null = null;
+  /** A note just played, fading: drives a strike or a pluck in the pose. */
+  private pulse = 0;
   offhandKind: string | null = null;
   private phase = 0;
   private blink = 1 + Math.random() * 3;
@@ -1089,6 +1223,18 @@ export class Humanoid {
   setHeld(kind: HeldItem | string): void {
     if (kind === this.heldKind) return;
     if (this.held) this.handR.remove(this.held);
+    if (this.instr) { this.torso.remove(this.instr.body); if (this.instr.hand) this.handR.remove(this.instr.hand); this.instr = null; }
+    // An instrument by its item id: played from the torso, not carried in the hand
+    const voice = TOOLS.has(kind) ? null : instrumentOf(kind);
+    if (voice) {
+      const m = instrumentMesh(voice);
+      this.instr = { voice, ...m };
+      this.torso.add(m.body);
+      if (m.hand) this.handR.add(m.hand);
+      this.held = null;
+      this.heldKind = kind;
+      return;
+    }
     const model = TOOLS.has(kind) ? null : weaponModelOf(kind);
     this.held = kind === 'none' ? null : model ? weaponMesh(model) : heldMesh(TOOLS.has(kind) ? (kind as HeldItem) : 'sword');
     if (this.held) {
@@ -1097,6 +1243,11 @@ export class Humanoid {
     }
     this.heldKind = kind;
   }
+
+  /** A note was played: a beat for the strike or the pluck. */
+  pluck(): void { this.pulse = 1; }
+  /** The instrument being played, if any. */
+  get instrument(): InstrumentVoice | null { return this.instr?.voice ?? null; }
 
   /** Something in the left hand by its item id (a shield, a lantern, a tome), or nothing. */
   setOffhand(id: string | null): void {
@@ -1143,6 +1294,13 @@ export class Humanoid {
       const blade = !TOOLS.has(this.heldKind) || this.heldKind === 'sword' || this.heldKind === 'bronzeSword';
       P.held.rotation.set(blade && resting ? Math.PI / 2 + 0.38 : Math.PI / 2, 0, 0);
     }
+
+    if (this.instr) {
+      const on = this.state === 'perform';
+      this.instr.body.visible = on;
+      if (this.instr.hand) this.instr.hand.visible = on;
+    }
+    this.pulse = Math.max(0, this.pulse - dt * 6);
 
     const stride = Math.min(1, speed / 6);
     if (speed > 0.2) this.phase += dt * (4.5 + speed * 1.15);
@@ -1443,6 +1601,42 @@ export class Humanoid {
         P.legR.rotation.x = -0.05 * k; P.shinR.rotation.x = 1.55 * k;
         P.torso.rotation.x = 0.1 * k; P.head.rotation.x = 0.3 * k;
         P.armL.rotation.x = -0.5 * k; P.foreL.rotation.x = -0.8 * k; P.armR.rotation.x = -0.2 * k;
+        break;
+      }
+      case 'perform': {
+        // Each instrument held the way it's played; a note just played moves the hand that plays it
+        const k = Math.min(1, t / 0.35), q = this.pulse, v = this.instr?.voice;
+        P.torso.position.y = 0.06 + breathe;
+        if (v === 'whistle' || v === 'bone' || v === 'horn') {
+          P.armL.rotation.x = -1.15 * k; P.armR.rotation.x = -1.05 * k;
+          P.armL.rotation.z = -0.38 * k; P.armR.rotation.z = 0.38 * k;
+          P.foreL.rotation.x = -1.25 * k; P.foreR.rotation.x = -1.05 * k - q * 0.08;
+          P.head.rotation.x = (v === 'horn' ? -0.12 : 0.08) * k;
+        } else if (v === 'fiddle') {
+          const bow = Math.sin(t * 2.6);
+          P.armL.rotation.x = -1.35 * k; P.armL.rotation.z = 0.25 * k; P.foreL.rotation.x = -0.45 * k;
+          P.armR.rotation.x = -0.95 * k; P.armR.rotation.z = (-0.15 + bow * 0.32) * k; P.foreR.rotation.x = (-1.15 + bow * 0.2) * k;
+          P.head.rotation.z = 0.22 * k; P.head.rotation.x = 0.12 * k;
+        } else if (v === 'lute' || v === 'gurdy') {
+          P.armL.rotation.x = -0.75 * k; P.armL.rotation.z = 0.45 * k; P.foreL.rotation.x = -0.95 * k;
+          P.armR.rotation.x = -0.45 * k; P.armR.rotation.z = 0.28 * k;
+          P.foreR.rotation.x = (v === 'gurdy' ? -1.2 + Math.sin(t * 6) * 0.25 : -1.25 - q * 0.3) * k;
+          P.head.rotation.x = 0.18 * k;
+        } else if (v === 'harp') {
+          P.armL.rotation.x = -0.85 * k; P.armR.rotation.x = -0.85 * k;
+          P.armL.rotation.z = -0.1 * k; P.armR.rotation.z = 0.25 * k;
+          P.foreL.rotation.x = (-0.8 + Math.sin(t * 5) * 0.08) * k; P.foreR.rotation.x = (-0.85 - q * 0.25) * k;
+          P.head.rotation.x = 0.15 * k;
+        } else if (v === 'drum') {
+          P.armL.rotation.x = -1.15 * k; P.armL.rotation.z = 0.15 * k; P.foreL.rotation.x = -0.55 * k;
+          P.armR.rotation.x = (-0.95 + q * 0.45) * k; P.armR.rotation.z = 0.2 * k; P.foreR.rotation.x = (-1.05 - q * 0.35) * k;
+        } else if (v === 'pipes') {
+          P.armL.rotation.x = -0.65 * k; P.armL.rotation.z = 0.12 * k; P.foreL.rotation.x = -1.05 * k;
+          P.armR.rotation.x = -0.55 * k; P.armR.rotation.z = 0.3 * k; P.foreR.rotation.x = -1.15 * k;
+          P.head.rotation.x = 0.1 * k;
+        }
+        // A tap of the foot on the beat
+        P.legR.rotation.x = -q * 0.12;
         break;
       }
       case 'sleep': {

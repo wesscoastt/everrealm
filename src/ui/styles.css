@@ -860,3 +860,23 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .bsk.off { opacity: 0.72; cursor: pointer; }
 .bsk.off:hover { opacity: 1; border-color: #6a5432; }
 .bar-msg { color: #9a3a1a; font: 600 12px var(--body); min-height: 1em; }
+
+/* The songbook (game/Stage.ts) */
+#music-panel { left: 50%; top: 92px; transform: translateX(-50%); width: 520px; }
+#music-panel .body { max-height: min(64vh, 600px); overflow-y: auto; }
+#music-panel .mu-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+#music-panel .mu-inst img { width: 18px; height: 18px; image-rendering: pixelated; vertical-align: -4px; margin-right: 2px; }
+#music-panel .mu-now { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; padding: 8px 10px; margin: 8px 0; border: 1px solid var(--gold); border-radius: 4px; background: rgba(243, 213, 138, 0.06); }
+#music-panel .mu-now b { font: 600 14px var(--body); color: var(--cream); }
+#music-panel .mu-now span { grid-column: 1; font: 500 12px var(--body); color: var(--cream-d); }
+#music-panel .mu-now .btn { grid-column: 2; grid-row: 1 / span 2; }
+#music-panel .mu-parts .lbl { font: 600 12px var(--body); color: var(--cream-d); margin-right: 4px; }
+#music-panel .mu-band { margin: 10px 0; padding: 8px 10px; border: 1px solid rgba(243, 213, 138, 0.25); border-radius: 4px; }
+#music-panel .mu-band h5, #music-panel .mu-tune h5 { margin: 0 0 4px; font: 600 14px var(--body); color: var(--cream); }
+#music-panel .mu-band ul { list-style: none; margin: 0; padding: 0; }
+#music-panel .mu-band li { display: flex; justify-content: space-between; font: 500 13px var(--body); color: var(--cream-d); padding: 2px 0; }
+#music-panel .mu-band li.me b { color: var(--gold); }
+#music-panel .mu-tune { padding: 8px 0; border-top: 1px solid rgba(243, 213, 138, 0.15); }
+#music-panel .mu-tune small { display: block; font: 500 11px var(--body); color: var(--cream-d); margin-top: 2px; }
+#music-panel .mu-tune p, #music-panel .mu-note { font: 500 13px var(--body); color: var(--cream-d); margin: 4px 0; }
+@media (max-width: 640px) { #music-panel { width: calc(100vw - 32px); } }
