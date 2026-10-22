@@ -7,6 +7,7 @@ import type { AudioSystem } from '../systems/Audio';
 import type { Particles } from '../systems/Particles';
 import type { Humanoid } from '../entities/humanoid';
 import type { GroupView, Online, OnlineHooks } from '../net/Online';
+import { TAVERN_SPOTS } from '../data/content/taverns';
 
 // Playing music: taking an instrument out, playing a tune from the songbook or note by note on the
 // number keys, playing with your group as a band, and being heard by everyone near (Bard.ts does
@@ -16,6 +17,8 @@ import type { GroupView, Online, OnlineHooks } from '../net/Online';
 export interface Spot { id: string; name: string; x: number; z: number; r: number }
 
 export const SPOTS: Spot[] = [
+  // Every tavern: a musician earns their supper
+  ...TAVERN_SPOTS.map((t) => ({ id: t.id, name: t.name, x: t.x, z: t.z, r: t.r })),
   { id: 'green', name: 'the bandstand on the Charter Green', x: 659.5, z: 414.5, r: 8 },
   { id: 'moot', name: 'the moot oak at Hollin Ford', x: 147.5, z: 179.5, r: 9 },
   { id: 'waystation', name: 'the Waystation yard', x: 708.5, z: 576.5, r: 9 },

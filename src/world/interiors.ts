@@ -174,7 +174,8 @@ export function fitOut(h: HouseShape): FitOut {
       if (D > 4) for (let u = 0; u < W; u += 2) put('barrel', u, backV, 0, [[u, backV]], 0.5, 0.5);
       for (let v = 1; v + 1 < D - 1; v += 3) for (let u = 0; u + 1 < W; u += 3) {
         if (u <= du && du <= u + 1) continue;
-        if (put('table', u, v, facing.left, [[u, v], [u + 1, v]])) {
+        // (the table lies along its two cells, so the benches fit either side of it)
+        if (put('table', u, v, facing.front, [[u, v], [u + 1, v]])) {
           put('bench', u, v + 1, facing.front, [[u, v + 1], [u + 1, v + 1]], 0.5, 0.5, false);
           if (v - 1 >= 0) put('bench', u, v - 1, facing.back, [[u, v - 1], [u + 1, v - 1]], 0.5, 0.5, false);
         }

@@ -88,7 +88,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -1582,6 +1582,20 @@ export class Humanoid {
         P.legL.rotation.x = Math.max(0, Math.sin(b)) * -0.5; P.shinL.rotation.x = Math.max(0, Math.sin(b)) * 0.9;
         P.legR.rotation.x = Math.max(0, -Math.sin(b)) * -0.5; P.shinR.rotation.x = Math.max(0, -Math.sin(b)) * 0.9;
         P.head.rotation.z = Math.sin(b) * 0.1;
+        break;
+      }
+      case 'seated': {
+        // On a bench at a table: thighs level, shins down, forearms on the table; now and then a drink
+        P.body.position.y = -0.36;
+        P.legL.rotation.set(-1.5, 0, 0.06); P.legR.rotation.set(-1.5, 0, -0.06);
+        P.shinL.rotation.x = 1.5; P.shinR.rotation.x = 1.5;
+        const sip = Math.max(0, Math.sin(performance.now() * 0.0007 + this.phase * 3) - 0.85) / 0.15;
+        P.armL.rotation.x = -0.55; P.foreL.rotation.x = -0.75;
+        P.armR.rotation.x = -0.55 - sip * 0.75; P.foreR.rotation.x = -0.75 - sip * 0.9;
+        P.armL.rotation.z = -0.12; P.armR.rotation.z = 0.12;
+        P.torso.position.y = 0.06 + breathe;
+        P.head.rotation.x = -sip * 0.25;
+        P.head.rotation.y = sip > 0 ? 0 : Math.sin(performance.now() * 0.0004 + this.phase) * 0.35;
         break;
       }
       case 'sit': {

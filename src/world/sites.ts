@@ -8,6 +8,7 @@ import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
+import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 import { hazards, stamp } from '../data/hazards';
@@ -577,6 +578,12 @@ export function plan(): Plan {
   stamp(hz, O);
   footings(O);
   const chests = hideChests(O, sites);
+  // The taverns' signs, by their doors (data/content/taverns.ts)
+  for (const t of TAVERN_SIGNS) {
+    let best: Site | null = null, bd = 160;
+    for (const st of sites) { const d = Math.hypot(st.x - t.x, st.z - t.z); if (d < bd) { bd = d; best = st; } }
+    best?.props.push({ t: 'sign', x: t.x, y: heightAt(Math.floor(t.x), Math.floor(t.z)), z: t.z, ry: t.ry, text: t.text });
+  }
 
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
   // (trees keep off the hazards and the puzzles too)

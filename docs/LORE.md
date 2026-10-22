@@ -430,6 +430,22 @@ Storyline (each a rank): **The Audition** (Apprentice: play "Lady Day" at the ba
 
 Instruments: tin whistle, Hale pipes, Jory Polglase's fiddle, Sefton's frame drum, the Ansbury lute, the post horn, the hurdy-gurdy, the Waits' harp and the Carne whistle. Anyone can play by ear on the number keys. Played through at a performance spot (the bandstand, the moot oak, the Waystation yard, the fire at Fellers' Camp, the well at Kelderby, the Gullmouth quay, the Glass Kirk, the Works yard, the Ketley Arches, the keep steps, the Minster steps), a tune brings people to listen, and they leave a few marks. A group can play as a band, each on their own part.
 
+## Taverns [in game]
+
+The towns' inns, kept and drunk in (`src/data/content/taverns.ts`). Each keeper sells drink and food, passes on the day's talk (true things about the counties, changing with the realm's day, among them where Mercy Haddow is), and two regulars sit at the tables. A musician playing in any of them earns a few marks.
+
+| Tavern | Town | Keeper | Regulars |
+| --- | --- | --- | --- |
+| **The Low Water** | Hollin Ford | Agnes Pole | — |
+| **The Charter Arms** | Ansbury, on the keep square | Nan Pargeter: forty years on the square, keeps a book of everyone's tab | Clement Fry (Toll Office clerk), Margery Pettifer (glover; the Collegium buys her thick gloves for handling crystal) |
+| **The Long Stretch** | the Waystation | Ivo Rendle, a laid-off toll rider who put his severance into the roof | Josiah Yeo (carter), Hester Vowles (drover) |
+| **The Company Canteen** | Harrowgate Works | Doll Hobday, the Company's cook since before the Daughters' name was on the gate | Rob Haig (smelter man), Ada Cleave (rail gang) |
+| **The Coiled Rope** | Cragsby | Morwen Tregear; a hook on the wall for every climmer who went over | Wat Kemp (climmer, the "Wat" of the knot board), Loveday Tonkin (egg-gatherer) |
+| **The Eel and Punt** | Holme Staithe | Sim Fenner; three generations of eel smoke in the walls | Obed Gedge (puntsman), Tilly Brewer (reed cutter; the Levels' drains silt up and nobody pays to dig them) |
+| **The Peat Fire** | Scarrow Tor | Kerensa Garth; the fire hasn't gone out in five generations | Joss Trewin (shepherd; heard the Carne Cross bell), Win Polwhele (peat cutter) |
+
+Drink and food: small beer, brown ale, Hollin cider (the Ashcrofts' orchard), Levels porter, mulled wine, bread and cheese, stew, pickled gull eggs, eel pie, mutton pie.
+
 ## Lore books [in game]
 
 Twenty-four books lie open on stands by the places they're about, and go into the journal's Library when read (`src/data/lorebooks.ts`). What they establish:
