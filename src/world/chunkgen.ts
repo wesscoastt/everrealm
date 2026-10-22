@@ -146,13 +146,16 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     },
   };
   const CELLT = 5;
+  // Trees rooted in the neighbouring chunks reach in with their crowns: grow every tree whose
+  // crown can touch this chunk (an ancient's is eleven across from the trunk), keeping what lands here
+  const TM = 13;
   const candidates: { x: number; z: number; kind: TreeKind; seed: number }[] = [];
-  const gx0 = Math.floor((ox - M) / CELLT), gx1 = Math.floor((ox + CHUNK + M) / CELLT);
-  const gz0 = Math.floor((oz - M) / CELLT), gz1 = Math.floor((oz + CHUNK + M) / CELLT);
+  const gx0 = Math.floor((ox - TM) / CELLT), gx1 = Math.floor((ox + CHUNK + TM) / CELLT);
+  const gz0 = Math.floor((oz - TM) / CELLT), gz1 = Math.floor((oz + CHUNK + TM) / CELLT);
   for (let gz = gz0; gz <= gz1; gz++) for (let gx = gx0; gx <= gx1; gx++) {
     const x = gx * CELLT + Math.floor(hash2(gx, gz, 710) * CELLT);
     const z = gz * CELLT + Math.floor(hash2(gx, gz, 711) * CELLT);
-    if (x < ox - M || x >= ox + CHUNK + M || z < oz - M || z >= oz + CHUNK + M) continue;
+    if (x < ox - TM || x >= ox + CHUNK + TM || z < oz - TM || z >= oz + CHUNK + TM) continue;
     if (x < GW + 2 && z < GW + 2) continue;
     const reg = regionAt(x, z).a;
     const h = hAt(x, z);
@@ -170,11 +173,14 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     let kind: TreeKind = 'oak';
     const k = hash2(gx, gz, 714);
     if (reg === 'starfall' || h > 50) kind = h > 62 ? 'pine' : k < 0.85 ? 'pine' : 'birch';
-    else if (reg === 'brambledeep') kind = k < 0.12 && gx % 3 === 0 && gz % 3 === 0 ? 'giant' : k < 0.3 ? 'birch' : 'oak';
+    // Hagworm Wood: an ancient every twenty blocks or so, giants between, oak and birch under them
+    else if (reg === 'brambledeep') kind = gx % 4 === 0 && gz % 4 === 0 && k < 0.45 ? 'ancient' : k < 0.3 && gx % 2 === 0 && gz % 2 === 0 ? 'giant' : k < 0.45 ? 'birch' : 'oak';
     else if (reg === 'saltwind') kind = k < 0.6 ? 'pine' : 'oak';
     else if (reg === 'redstone') kind = 'pine';
     else if (reg === 'wrath') kind = 'birch';
     else kind = k < 0.25 ? 'birch' : 'oak';
+    // An ancient needs room for its roots and crown: near a road or a building it grows as a giant
+    if (kind === 'ancient' && (roadDist(x, z) < 10 || inRects(chunkRects(x >> 5, z >> 5), x, z, 8))) kind = 'giant';
     if (h > 66) continue;
     candidates.push({ x, z, kind, seed: Math.floor(hash2(x, z, 715) * 1e9) });
   }

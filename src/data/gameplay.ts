@@ -94,6 +94,8 @@ export const TREE_INFO = {
   pine: { item: 'pine_logs', level: 7, xp: 45, respawn: 60, name: 'Pine' },
   moot: { item: 'oak_logs', level: 99, xp: 0, respawn: 0, name: 'The Moot Oak' },
   giant: { item: 'elder_logs', level: 20, xp: 90, respawn: 120, name: 'Elder oak' },
+  // Hagworm's ancients: not for felling (level out of reach, like the Moot Oak)
+  ancient: { item: 'elder_logs', level: 99, xp: 0, respawn: 0, name: 'Ancient oak' },
 } as const;
 
 export const FISH_TABLE: Record<'wend' | 'spill' | 'eelpool' | 'lake' | 'sea' | 'highland', { item: string; level: number; xp: number; weight: number }[]> = {

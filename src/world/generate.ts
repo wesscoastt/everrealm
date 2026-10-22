@@ -26,7 +26,7 @@ export const ROADS: [number, number][][] = [
   [[154, 182], [152, 166], [132, 146], [112, 128], [104, 117]], // Spill path
 ];
 
-export type TreeKind = 'oak' | 'birch' | 'pine' | 'moot' | 'giant';
+export type TreeKind = 'oak' | 'birch' | 'pine' | 'moot' | 'giant' | 'ancient';
 
 /** Anything trees can be written into: the authoring grid or a chunk being generated. */
 export interface VoxelSink { get(x: number, y: number, z: number): number; put(x: number, y: number, z: number, id: number): void }
@@ -378,6 +378,50 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
       for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) if (dx * dx + dz * dz <= r * r + 0.5) addLeaf(x + dx, y + i, z + dz);
     }
     addLeaf(x, y + hgt, z); addLeaf(x, y + hgt + 1, z);
+  } else if (kind === 'ancient') {
+    // Hagworm's ancients: a trunk three blocks across rising twenty-odd, roots buttressing out over
+    // the forest floor, limbs reaching out with their own clumps of leaf, and a crown twenty across
+    const hgt = 18 + Math.floor(rnd() * 9);
+    for (let i = 0; i < hgt; i++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      if (i > hgt - 4 && Math.abs(dx) + Math.abs(dz) === 2) continue; // the trunk rounds off into the crown
+      addLog(x + dx, y + i, z + dz);
+    }
+    const roots = 5 + Math.floor(rnd() * 3);
+    for (let r = 0; r < roots; r++) {
+      const a = (r / roots) * Math.PI * 2 + rnd() * 0.5, len = 3 + Math.floor(rnd() * 3);
+      for (let k = 1; k <= len; k++) {
+        const rx = x + Math.round(Math.cos(a) * (1 + k)), rz = z + Math.round(Math.sin(a) * (1 + k));
+        const top = Math.max(0, 2 - Math.floor(k * 0.7));
+        for (let h = -1; h <= top; h++) addLog(rx, y + h, rz);
+      }
+    }
+    const clump = (cx: number, cy: number, cz: number, r: number) => {
+      const R = Math.ceil(r);
+      for (let dx = -R; dx <= R; dx++) for (let dy = -2; dy <= R - 1; dy++) for (let dz = -R; dz <= R; dz++) {
+        if (Math.sqrt(dx * dx + (dy * 1.3) ** 2 + dz * dz) <= r + (rnd() - 0.5) * 0.8) addLeaf(cx + dx, cy + dy, cz + dz);
+      }
+    };
+    const limbs = 5 + Math.floor(rnd() * 3);
+    for (let l = 0; l < limbs; l++) {
+      const a = (l / limbs) * Math.PI * 2 + rnd() * 0.6, from = Math.floor(hgt * (0.5 + rnd() * 0.35)), len = 4 + Math.floor(rnd() * 4);
+      let lx = x, lz = z, ly = y + from;
+      for (let k = 1; k <= len; k++) {
+        lx = x + Math.round(Math.cos(a) * (1 + k)); lz = z + Math.round(Math.sin(a) * (1 + k)); ly = y + from + Math.floor(k / 2);
+        addLog(lx, ly, lz);
+      }
+      clump(lx, ly + 1, lz, 2.6 + rnd() * 1.2);
+    }
+    // The crown, and moss-green leaf hanging from its underside
+    const cy = y + hgt, cr = 64 + rnd() * 36;
+    for (let dx = -11; dx <= 11; dx++) for (let dy = -3; dy <= 5; dy++) for (let dz = -11; dz <= 11; dz++) {
+      const d = (dx * dx) / cr + (dy * dy) / (dy < 0 ? 8 : 22) + (dz * dz) / cr;
+      if (d < 1 + (rnd() - 0.5) * 0.22) addLeaf(x + dx, cy + dy, z + dz);
+    }
+    for (let k = 0; k < 14; k++) {
+      const a = rnd() * Math.PI * 2, r = 3 + rnd() * 6, hx = x + Math.round(Math.cos(a) * r), hz = z + Math.round(Math.sin(a) * r);
+      const len = 1 + Math.floor(rnd() * 3);
+      for (let h = 1; h <= len; h++) addLeaf(hx, cy - 3 - h, hz);
+    }
   } else if (kind === 'moot' || kind === 'giant') {
     const hgt = kind === 'moot' ? 8 : 10 + Math.floor(rnd() * 5);
     const cr = kind === 'moot' ? 42 : 30 + rnd() * 18;
@@ -414,9 +458,10 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
   }
   return {
     id: 0, kind, x, y, z, trunk, leaves,
-    logs: kind === 'moot' ? 0 : kind === 'giant' ? 6 + Math.floor(rnd() * 3) : 2 + Math.floor(rnd() * 3),
+    logs: kind === 'moot' || kind === 'ancient' ? 0 : kind === 'giant' ? 6 + Math.floor(rnd() * 3) : 2 + Math.floor(rnd() * 3),
     depletedUntil: 0,
-    choppable: kind !== 'moot',
+    // The Moot Oak and Hagworm's ancients aren't for felling
+    choppable: kind !== 'moot' && kind !== 'ancient',
   };
 }
 
