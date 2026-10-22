@@ -4,6 +4,7 @@ import type { Equip } from '../data/items';
 import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
 import { Stage } from './Stage';
+import { Chests, TIERS } from './Chests';
 import { FACTIONS, factionRank } from '../data/factions';
 import { HEARING } from './Bard';
 import type { PartId } from '../data/tunes';
@@ -185,6 +186,8 @@ export class Game implements GameApi {
   enemies: Enemy[] = [];
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
+  /** Hidden chests across the land (game/Chests.ts). */
+  private chests!: Chests;
   private crowd!: Crowd;
   private roadfolk!: Roadfolk;
   private doll = new Doll();
@@ -528,6 +531,26 @@ export class Game implements GameApi {
         if (d > 0.8 && this.world.voxels.raycast(p.x, p.y + 1.2, p.z, dx / d, dy / d, dz / d, d - 0.6)) { this.hud.system('Something is in the way.'); this.sfx('fail'); return false; }
         return true;
       },
+    });
+    this.chests = new Chests({
+      scene: this.scene,
+      voxels: this.world.voxels,
+      player: () => this.player.position,
+      flag: (k) => this.flag(k),
+      setFlag: (k, v) => this.setFlag(k, v),
+      count: (id) => this.inv.count(id),
+      take: (id, n) => this.take(id, n),
+      reward: (marks0, items, why) => {
+        const k = rewardScale(this.level('melee'), regionLevel(regionAt(this.player.position.x, this.player.position.z).a));
+        const marks = Math.round(marks0 * k);
+        if (marks) this.addMarks(marks);
+        for (const it of items) this.give(it.source ? this.dropped(it.id, it.source) : it.id, 1);
+        this.hud.system(`${why}: ${marks} marks${items.length ? ' and ' + items.map((it) => ITEMS[it.id]?.name ?? it.id).join(', ') : ''}.`);
+      },
+      system: (t) => this.hud.system(t),
+      sound: (n) => this.sfx(n),
+      lockpick: (tier, picks, snap) => { const T = TIERS[tier]; return this.hud.lockpick(T.name, T.pins, T.zone, T.speed, picks, snap); },
+      known: (id) => this.inv.count(id) > 0,
     });
     this.activities = new Activities({
       daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
@@ -2223,6 +2246,7 @@ export class Game implements GameApi {
         if (mine && t.until > Date.now() && dc < 2) consider({ kind: 'act', label: 'Open your chest', pos: new THREE.Vector3(cx + 0.5, base + 1, cz + 0.5), act: () => { this.hud.closeAll(); void this.bank.show(`your chest, ${L.name}`, cx + 0.5, cz + 0.5); } }, dc);
       });
     }
+    for (const a of this.chests.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const wt of WORLD_THINGS) {
@@ -3432,6 +3456,7 @@ export class Game implements GameApi {
     if (I.wheel) this.rig.zoom(I.wheel);
     if (this.dead) return;
 
+    if (this.hud.picking) return; // the lock has your hands
     if (I.pressedOnce('KeyN')) this.hud.toggle('music');
     if (this.music.out) {
       const up = I.held('ShiftLeft') || I.held('ShiftRight');
@@ -3709,9 +3734,10 @@ export class Game implements GameApi {
     M.update(dt, P.speed, !P.onGround && !P.swimming);
     this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
+    this.chests.update();
 
     // Interaction candidate
-    this.candidate = this.dialogue ? null : this.findCandidate();
+    this.candidate = this.dialogue || this.hud.picking ? null : this.findCandidate();
     if (this.candidate?.kind === 'ore') {
       this.outline.visible = true;
       this.outline.position.set(this.candidate.ore!.x + 0.5, this.candidate.ore!.y + 0.5, this.candidate.ore!.z + 0.5);

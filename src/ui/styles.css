@@ -880,3 +880,17 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #music-panel .mu-tune small { display: block; font: 500 11px var(--body); color: var(--cream-d); margin-top: 2px; }
 #music-panel .mu-tune p, #music-panel .mu-note { font: 500 13px var(--body); color: var(--cream-d); margin: 4px 0; }
 @media (max-width: 640px) { #music-panel { width: calc(100vw - 32px); } }
+
+/* Picking a lock (game/Chests.ts) */
+#lockpick { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); padding: 14px 18px 12px; z-index: 40; text-align: center; min-width: 300px; }
+#lockpick h4 { margin: 0 0 10px; font: 600 16px var(--body); color: var(--cream); }
+#lockpick .lp-pins { display: flex; gap: 14px; justify-content: center; }
+#lockpick .lp-pin { position: relative; width: 34px; height: 150px; background: linear-gradient(#1a1410, #2a2018); border: 2px solid #5a4630; border-radius: 4px; }
+#lockpick .lp-pin.on { border-color: var(--gold); box-shadow: 0 0 10px rgba(243, 213, 138, 0.35); }
+#lockpick .lp-line { position: absolute; left: 0; right: 0; background: rgba(120, 200, 120, 0.28); border-top: 1px solid #8ad08a; border-bottom: 1px solid #8ad08a; }
+#lockpick .lp-tumbler { position: absolute; left: 4px; right: 4px; height: 14px; bottom: -7px; background: linear-gradient(#e8e0cc, #a8a090); border: 1px solid #1a120c; border-radius: 2px; }
+#lockpick .lp-pin.set .lp-tumbler { background: linear-gradient(#ffe8a0, #d8a840); }
+#lockpick .lp-pin.set .lp-line { background: rgba(216, 168, 64, 0.35); border-color: var(--gold); }
+#lockpick .lp-pin.slip { animation: lp-slip 0.25s; }
+@keyframes lp-slip { 0%, 100% { transform: none; } 30% { transform: translateX(-4px); border-color: #c84a3a; } 70% { transform: translateX(4px); } }
+#lockpick .lp-help { margin: 10px 0 0; font: 500 12px var(--body); color: var(--cream-d); }

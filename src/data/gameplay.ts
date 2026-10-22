@@ -211,6 +211,7 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'furn_candles', price: 10 },
   { item: 'furn_rug_red', price: 20 },
   { item: 'furn_barrel', price: 14 },
+  { item: 'lockpick', price: 3 },
   ...['w_hollin_sword', 'w_hollin_dagger', 'w_hollin_spear', 'w_hollin_staff', 'w_hollin_axe'].map((item) => ({ item, price: 30 })),
 ];
 

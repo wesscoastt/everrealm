@@ -139,8 +139,13 @@ export class Overrides {
 /** A waymark: its shrine, and where travellers are set down beside it (or on a vista's top). */
 export interface WaymarkSpot { id: string; name: string; x: number; z: number; y: number; ax: number; az: number; ay?: number; theme: RegionId; ry: number }
 
+/** A chest hidden in the wilds or tucked by a ruin (game/Chests.ts): found, picked and looted. */
+export interface HiddenChest { id: number; x: number; y: number; z: number; tier: 0 | 1 | 2; region: RegionId; ry: number }
+
 export interface Plan {
   sites: Site[];
+  /** Hidden chests across the land. */
+  chests: HiddenChest[];
   overrides: Overrides;
   /** Every waymark shrine, Hollin Ford's included. */
   waymarks: WaymarkSpot[];
@@ -234,6 +239,60 @@ function footings(O: Overrides): void {
     const fill = id === B.Planks || id === B.DarkPlanks || id === B.Timber || id === B.Thatch || id === B.Plaster || id === B.Window ? B.Cobble : id;
     for (let k = g + 1; k < y; k++) { O.set(x, k, z, fill); last.set(col(x, z) + k * KEY_W * KEY_W, fill); }
   }
+}
+
+/**
+ * Hidden chests, the way ESO scatters them: one by most of the small places (a ruin, a ring of
+ * stones, a camp, a shrine), tucked a few strides off, and more out in the wilds, one in a square
+ * of land here and there. Each stands on untouched ground (nothing built there), off the roads, out
+ * of the towns, on a level spot. Most are plain; some are iron-bound; a few are ornate and worth
+ * the trouble. The same seed puts them in the same places for everyone.
+ */
+function hideChests(O: Overrides, sites: Site[]): HiddenChest[] {
+  const out: HiddenChest[] = [];
+  const chunks = new Map<number, Set<number>>();
+  /** Columns the plan has built in (any block at all), so chests keep to bare ground. */
+  const built = (x: number, z: number): boolean => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = chunks.get(k);
+    if (!m) { m = new Set(); const a = O.map.get(k) ?? []; for (let i = 0; i < a.length; i += 2) m.add(a[i] % (CHUNK * CHUNK)); chunks.set(k, m); }
+    return m.has(localIdx(x & 31, 0, z & 31));
+  };
+  const towns = sites.filter((t) => t.named || t.id.startsWith('ansbury') || t.id.startsWith('st-') || t.id.startsWith('lg-'));
+  const inRect = (x: number, z: number) => sites.some((t) => Math.hypot(t.x - x, t.z - z) < t.r + 60 && t.rects.some((r) => x >= r[0] - 2 && x <= r[2] + 2 && z >= r[1] - 2 && z <= r[3] + 2));
+  const tryAt = (fx: number, fz: number, tier: 0 | 1 | 2, seed: number): boolean => {
+    const x = Math.floor(fx), z = Math.floor(fz);
+    if (x < GW + 40 && z < GW + 40) return false; // the authored valley has its own
+    if (!inWorld(x, z)) return false;
+    const h = heightAt(x, z);
+    if (h <= SEA + 2 || roadDist(x, z) < 6 || riverDist(x, z) < 4 || lakeDist(x, z) < 4) return false;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (Math.abs(heightAt(x + dx, z + dz) - h) > 1) return false;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (built(x + dx, z + dz)) return false;
+    if (towns.some((t) => Math.hypot(t.x - x, t.z - z) < Math.max(70, t.r * 0.6))) return false;
+    if (inRect(x, z)) return false;
+    if (out.some((c) => Math.hypot(c.x - x, c.z - z) < 36)) return false;
+    out.push({ id: out.length, x: x + 0.5, y: h, z: z + 0.5, tier, region: regionAt(x, z).a, ry: hash2(x, z, seed + 3) * Math.PI * 2 });
+    return true;
+  };
+  const tierFor = (r: number, near: boolean): 0 | 1 | 2 => (r < (near ? 0.12 : 0.06) ? 2 : r < (near ? 0.45 : 0.32) ? 1 : 0);
+  // By the small places
+  for (const t of sites) {
+    if (!t.id.startsWith('poi')) continue;
+    for (let k = 0; k < 8; k++) {
+      const a = hash2(t.x, t.z, 101 + k) * Math.PI * 2, r = 7 + hash2(t.x, t.z, 131 + k) * 7;
+      if (tryAt(t.x + Math.cos(a) * r, t.z + Math.sin(a) * r, tierFor(hash2(t.x, t.z, 151), true), 151 + k)) break;
+    }
+  }
+  // Out in the wilds
+  const CELL = 170;
+  for (let cz = Math.floor(WMIN / CELL); cz <= Math.floor(WMAX / CELL); cz++) for (let cx = Math.floor(WMIN / CELL); cx <= Math.floor(WMAX / CELL); cx++) {
+    if (hash2(cx, cz, 171) > 0.72) continue;
+    for (let k = 0; k < 9; k++) {
+      const x = (cx + 0.1 + hash2(cx, cz, 181 + k) * 0.8) * CELL, z = (cz + 0.1 + hash2(cx, cz, 191 + k) * 0.8) * CELL;
+      if (tryAt(x, z, tierFor(hash2(cx, cz, 201), false), 211 + k)) break;
+    }
+  }
+  return out;
 }
 
 /** Where a road runs into a lake or over a river (the Turnpike over the Millpond, the Waystation road west):
@@ -517,18 +576,21 @@ export function plan(): Plan {
   const hz = hazards({ sites, waymarks, overrides: O });
   stamp(hz, O);
   footings(O);
+  const chests = hideChests(O, sites);
 
   const rectsByChunk = new Map<number, [number, number, number, number][]>();
   // (trees keep off the hazards and the puzzles too)
   const hzRects = [...hz, ...PUZZLES.map((q) => ({ x: q.x, z: q.z, r: 7 }))].map((h): [number, number, number, number] => [Math.floor(h.x - h.r), Math.floor(h.z - h.r), Math.floor(h.x + h.r), Math.floor(h.z + h.r)]);
-  for (const r of [...sites.flatMap((s) => s.rects), ...hzRects]) {
+  // (and off the chests, so none is grown into a tree)
+  const chestRects = chests.map((c): [number, number, number, number] => [Math.floor(c.x) - 1, Math.floor(c.z) - 1, Math.floor(c.x) + 1, Math.floor(c.z) + 1]);
+  for (const r of [...sites.flatMap((s) => s.rects), ...hzRects, ...chestRects]) {
     for (let cz = r[1] >> 5; cz <= r[3] >> 5; cz++) for (let cx = r[0] >> 5; cx <= r[2] >> 5; cx++) {
       const k = chunkKey(cx, cz);
       if (!rectsByChunk.has(k)) rectsByChunk.set(k, []);
       rectsByChunk.get(k)!.push(r);
     }
   }
-  cached = { sites, overrides: O, rectsByChunk, waymarks };
+  cached = { sites, chests, overrides: O, rectsByChunk, waymarks };
   return cached;
 
   // ================================================================ Builders

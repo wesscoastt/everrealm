@@ -54,6 +54,7 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'bett', name: 'Rook\'s Chandlery', owner: 'bett',
     stock: [
       { item: 'fishing_rod', price: 14 },
+      { item: 'lockpick', price: 3 },
       { item: 'bread', price: 5 },
       { item: 'cooked_mackerel', price: 18 },
       { item: 'cooked_seabass', price: 34 },
@@ -66,6 +67,7 @@ export const SHOPS: Record<string, ShopDef> = {
   company: {
     id: 'company', name: 'Harrowgate Company Store', owner: 'tamFeld',
     stock: [
+      { item: 'lockpick', price: 3 },
       { item: 'iron_pickaxe', price: 120 },
       { item: 'iron_hatchet', price: 90 },
       { item: 'bronze_pickaxe', price: 40 },
@@ -85,6 +87,7 @@ export const SHOPS: Record<string, ShopDef> = {
   odo: {
     id: 'odo', name: 'Camp Stores', owner: 'odo',
     stock: [
+      { item: 'lockpick', price: 3 },
       { item: 'bread', price: 5 },
       { item: 'cooked_trout', price: 14 },
       { item: 'bronze_hatchet', price: 40 },
@@ -97,6 +100,7 @@ export const SHOPS: Record<string, ShopDef> = {
   cai: {
     id: 'cai', name: 'Morgan\'s Sledge', owner: 'cai',
     stock: [
+      { item: 'lockpick', price: 4 },
       { item: 'bread', price: 7 },
       { item: 'cooked_char', price: 48 },
       { item: 'cooked_trout', price: 18 },

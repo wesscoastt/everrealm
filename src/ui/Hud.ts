@@ -2179,6 +2179,73 @@ export class Hud {
     this.q('#settings-panel .footer').innerHTML = '<span>Progress saves to this browser automatically</span>';
   }
 
+  /** True while the lockpicking overlay is up (the game ignores its own keys then). */
+  picking = false;
+
+  /**
+   * Picking a lock: a row of pins, each tumbler bobbing past the shear line. Press E, Space or
+   * click as it crosses the line to set the pin. A slip snaps a pick and the pin drops back.
+   * Resolves true when the last pin sets, false on Esc or when the picks run out.
+   */
+  lockpick(title: string, pins: number, zone: number, speed: number, picks: () => number, snap: () => void): Promise<boolean> {
+    const box = el('div', 'frame');
+    box.id = 'lockpick';
+    const lines = Array.from({ length: pins }, (_, i) => 0.28 + ((Math.sin(i * 12.9898 + pins * 7.1) + 1) / 2) * 0.44);
+    box.innerHTML = `<h4>${esc(title)}</h4><div class="lp-pins">${lines.map((b) => `<div class="lp-pin"><i class="lp-line" style="bottom:calc(${(b - zone / 2) * 100}% );height:${zone * 100}%"></i><b class="lp-tumbler"></b></div>`).join('')}</div><p class="lp-help"></p>`;
+    this.root.append(box);
+    this.picking = true;
+    const cols = [...box.querySelectorAll<HTMLElement>('.lp-pin')];
+    const help = box.querySelector<HTMLElement>('.lp-help')!;
+    let i = 0, t0 = performance.now(), raf = 0, done = false, y = 0;
+    const touch = document.body.classList.contains('touch');
+    const say = () => { help.textContent = `Lockpicks: ${picks()} · ${touch ? 'Tap' : 'E, Space or click'} as the pin crosses the line · ${touch ? 'Back' : 'Esc'} to stop`; };
+    say();
+    return new Promise<boolean>((resolve) => {
+      const finish = (ok: boolean) => {
+        if (done) return;
+        done = true;
+        cancelAnimationFrame(raf);
+        window.removeEventListener('keydown', key, true);
+        setTimeout(() => { box.remove(); this.picking = false; resolve(ok); }, ok ? 380 : 120);
+      };
+      const press = () => {
+        if (done || i >= pins) return;
+        if (Math.abs(y - lines[i]) <= zone / 2) {
+          cols[i].classList.add('set');
+          cols[i].querySelector<HTMLElement>('.lp-tumbler')!.style.bottom = `calc(${lines[i] * 100}% - 7px)`;
+          this.ctx.sfx('click');
+          i++;
+          t0 = performance.now();
+          if (i >= pins) finish(true);
+        } else {
+          snap();
+          cols[i].classList.remove('slip'); void cols[i].offsetWidth; cols[i].classList.add('slip');
+          if (picks() < 1) { help.textContent = 'The last pick snaps.'; finish(false); return; }
+          say();
+          t0 = performance.now();
+        }
+      };
+      const key = (e: KeyboardEvent) => {
+        if (e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); return; }
+        if (e.code === 'KeyE' || e.code === 'Space') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) press(); }
+      };
+      window.addEventListener('keydown', key, true);
+      box.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
+      const frame = () => {
+        if (done) return;
+        if (i < pins) {
+          // The tumbler bobs up and down, a little quicker on each pin
+          const t = (performance.now() - t0) / 1000;
+          y = 0.5 - Math.cos(t * speed * (2.2 + i * 0.25)) * 0.45;
+          cols[i].querySelector<HTMLElement>('.lp-tumbler')!.style.bottom = `calc(${y * 100}% - 7px)`;
+          cols.forEach((c, k) => c.classList.toggle('on', k === i));
+        }
+        raf = requestAnimationFrame(frame);
+      };
+      raf = requestAnimationFrame(frame);
+    });
+  }
+
   showReadable(title: string, text: string): void {
     const p = this.q('#read-panel');
     p.querySelector('h3')!.textContent = title;
