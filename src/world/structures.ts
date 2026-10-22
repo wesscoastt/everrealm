@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { B } from './blocks';
+import { B, isSolid } from './blocks';
 import { EX, Layout, ROADS } from './generate';
 import { distToPolyline, hash2 } from './noise';
 import * as P from './props';
@@ -77,6 +77,14 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   const house = (o: HouseOpts) => {
     const { x0, z0, w, d, floors } = o;
     const top = BASE + floors * 4;
+    // Ease the ground down to the house a block a step, so a house on a slope never sits in a
+    // trench you can't climb out of (rings beyond the first that belong to another house are left)
+    for (let ring = 4; ring >= 2; ring--) for (let z = z0 - ring; z < z0 + d + ring; z++) for (let x = x0 - ring; x < x0 + w + ring; x++) {
+      if (x > x0 - ring && x < x0 + w + ring - 1 && z > z0 - ring && z < z0 + d + ring - 1) continue;
+      if (x < 0 || z < 0 || x >= SX || z >= 320 || layout.exclusion[x + z * SX] === EX.Building) continue;
+      const lim = BASE + ring - 1;
+      if (ground(x, z) > lim) { clearAbove(x, z, lim); world.put(x, lim - 1, z, B.Grass); }
+    }
     mark(x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
     for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearAbove(x, z, BASE);
     for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
@@ -102,7 +110,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
         else if (along % 3 === 0) id = B.Timber;
         else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1 && !(f === 0 && ly === 2 && along === span - 2)) id = B.Window;
         // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
-        if (x === doorX && z === doorZ && f === 0 && ly <= 2) id = B.Air;
+        if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = B.Air;
+        else if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
         world.put(x, y, z, id);
       }
     }
@@ -352,6 +361,12 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   lights.push(new THREE.Vector3(181.5, BASE + 0.8, 193.5));
   smoke.push(new THREE.Vector3(181.5, BASE + 1.3, 193.5));
   interactables.push({ id: 'hearth', kind: 'hearth', x: 181.5, y: BASE + 0.6, z: 193.5, label: 'Cook at the fire', radius: 2.4 });
+  // The bank drops away toward the river here: make good the ground the fireside benches stand on
+  for (let z = 191; z <= 197; z++) for (let x = 178; x <= 184; x++) {
+    if (world.get(x, BASE - 1, z) === B.Water) continue;
+    for (let y = ground(x, z); y < BASE - 1; y++) world.put(x, y, z, B.Dirt);
+    if (ground(x, z) < BASE) world.put(x, BASE - 1, z, B.Grass);
+  }
   place(P.bench(M, 1.6), 179.3, BASE, 193.5, Math.PI / 2);
   place(P.bench(M, 1.6), 181.5, BASE, 196, 0);
   place(P.barrel(M), 183.4, BASE, 186.9);
@@ -485,34 +500,59 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   pave([[112, 186], [140, 184], [163, 184]], 114, 161);
   pave([[179, 184], [196, 184], [226, 188]], 182, 222);
 
-  // Door paths: grass worn to dirt along each route to the street
-  const worn = (pts: [number, number][]) => {
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
-      const n = Math.ceil(Math.hypot(bx - ax, bz - az) * 2);
-      for (let k = 0; k <= n; k++) {
-        const x = Math.floor(ax + ((bx - ax) * k) / n), z = Math.floor(az + ((bz - az) * k) / n);
-        const y = surfaceY(x, z);
-        if (y >= 0 && (world.get(x, y, z) === B.Grass || world.get(x, y, z) === B.Dirt)) world.put(x, y, z, B.Path);
+  // From every door, a path worn to the nearest street: the shortest walkable way, round other
+  // houses and fences rather than through them
+  const paved = new Set<number>([B.Cobble, B.StoneBrick, B.MossyCobble]);
+  for (const d of doors) {
+    const nx = Math.round(Math.sin(d.open)), nz = Math.round(Math.cos(d.open));
+    const sx = Math.floor(d.hinge.x + nx * 1.0 + nz * 0.42), sz = Math.floor(d.hinge.z + nz * 1.0 - nx * 0.42);
+    const top = (x: number, z: number) => world.topSolid(x, z);
+    const walk = (x: number, z: number) => {
+      const y = top(x, z);
+      return y >= BASE - 3 && y <= BASE + 2 && !isSolid(world.get(x, y + 1, z)) && !isSolid(world.get(x, y + 2, z)) && world.get(x, y, z) !== B.Water && world.get(x, y, z) !== B.Barrier;
+    };
+    if (!walk(sx, sz)) continue;
+    const prev = new Map<number, number>(), q = [sx + sz * SX];
+    prev.set(q[0], -1);
+    let found = -1;
+    for (let qi = 0; qi < q.length && qi < 2400; qi++) {
+      const i = q[qi], x = i % SX, z = Math.floor(i / SX);
+      if (paved.has(world.get(x, top(x, z), z)) || (qi > 0 && world.get(x, top(x, z), z) === B.Path)) { found = i; break; }
+      for (const [dx, dz] of [[nx, nz], [nz, -nx], [-nz, nx], [-nx, -nz]]) {
+        const X = x + dx, Z = z + dz, j = X + Z * SX;
+        if (prev.has(j) || X < 0 || Z < 0 || X >= SX || Z >= 320 || !walk(X, Z) || Math.abs(top(X, Z) - top(x, z)) > 1) continue;
+        prev.set(j, i); q.push(j);
       }
     }
-  };
-  for (const p of [
-    [[159.5, 176.5], [159.5, 183]], [[131.5, 176.5], [131.5, 184]], [[129.5, 188.5], [129.5, 186]],
-    [[155.5, 196.5], [155.5, 194]], [[163.5, 201.5], [164.5, 196]], [[141.5, 188.5], [141.5, 185.5]],
-    [[121.5, 188.5], [121.5, 186.5]], [[119.5, 180.5], [119.5, 185]], [[208.5, 182.5], [208.5, 184.5]],
-    [[211.5, 189.5], [211.5, 187.5]], [[218.5, 181.5], [218.5, 186]], [[200.5, 178.5], [200.5, 183.5]],
-    [[198.5, 193.5], [197.5, 193.5], [197.5, 186.5]], [[199.5, 199.5], [197.5, 198.5], [197.5, 193.5]],
-    [[189.5, 187.5], [189.5, 185.5]],
-  ] as [number, number][][]) worn(p);
+    if (found < 0) continue;
+    for (let i = found; i >= 0; i = prev.get(i)!) {
+      const x = i % SX, z = Math.floor(i / SX), y = top(x, z);
+      if (world.get(x, y, z) === B.Grass || world.get(x, y, z) === B.Dirt) world.put(x, y, z, B.Path);
+    }
+  }
 
   // Fenced kitchen gardens behind the new houses, and a front yard for the cottage by the green
   const garden = (x0: number, z0: number, x1: number, z1: number, gate: 'n' | 's') => {
-    for (let z = z0 + 1; z < z1; z++) for (let x = x0 + 1; x < x1; x++) {
-      clearAbove(x, z, BASE);
-      for (let y = BASE - 3; y < BASE - 1; y++) if (world.get(x, y, z) === B.Air) world.put(x, y, z, B.Dirt);
-      world.put(x, BASE - 1, z, (z - z0) % 3 === 0 ? B.Dirt : B.Farmland);
-      layout.exclusion[x + z * SX] = EX.Farm;
+    // Laid out at the ground's own level (the middle of the plot), not dug in at the town's floor
+    // height: on a slope that left the beds two blocks down, and nobody could climb out of them.
+    const hs: number[] = [];
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) hs.push(ground(x, z));
+    hs.sort((a, b) => a - b);
+    const gy = hs[hs.length >> 1];
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      clearAbove(x, z, gy);
+      for (let y = gy - 3; y < gy; y++) if (world.get(x, y, z) === B.Air) world.put(x, y, z, B.Dirt);
+      if (z > z0 && z < z1 && x > x0 && x < x1) {
+        world.put(x, gy - 1, z, (z - z0) % 3 === 0 ? B.Dirt : B.Farmland);
+        layout.exclusion[x + z * SX] = EX.Farm;
+      } else world.put(x, gy - 1, z, B.Grass);
+    }
+    // ...and the ground round it eased down (or up) to meet it, a block a step
+    for (let ring = 1; ring <= 3; ring++) for (let z = z0 - ring; z <= z1 + ring; z++) for (let x = x0 - ring; x <= x1 + ring; x++) {
+      if (x > x0 - ring && x < x1 + ring && z > z0 - ring && z < z1 + ring) continue;
+      if (layout.exclusion[x + z * SX] === EX.Building) continue;
+      const h = ground(x, z);
+      if (h > gy + ring) { clearAbove(x, z, gy + ring); world.put(x, gy + ring - 1, z, B.Grass); }
     }
     const gx = (x0 + x1) / 2;
     fenceLine(x0, z0, x0, z1); fenceLine(x1, z0, x1, z1);
@@ -565,7 +605,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   group.add(sails);
   place(P.door(M), MX + 5.05, mBase, MZ + 0.5, Math.PI / 2);
   poi.mill = new THREE.Vector3(MX + 6.5, mBase, MZ + 0.5);
-  for (let i = 0; i < 3; i++) place(P.crate(M, 0.6), MX + 6.2, mBase + i * 0.6, MZ - 2 + (i % 2) * 0.2, i);
+  const crateY = ground(MX + 6, MZ - 2);
+  for (let i = 0; i < 3; i++) place(P.crate(M, 0.6), MX + 6.2, crateY + i * 0.6, MZ - 2 + (i % 2) * 0.2, i);
 
   // -------------------------------------------------------------- Sallow Pit mouth
   const pitY = 22;
@@ -575,8 +616,17 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   place(P.cart(M, false), 220.6, pitY, 121.5, 0.6);
   barrier(218, pitY, 114); barrier(220, pitY, 121);
   for (const [x, y, z] of layout.mineLights) {
-    place(P.wallLantern(M), x, y - 0.4, z, 0);
-    lights.push(new THREE.Vector3(x, y - 0.3, z + 0.42));
+    // Hung on the nearest tunnel wall, facing out into the tunnel (not in the middle of the air)
+    const yy = Math.floor(y - 0.4);
+    let best: [number, number] | null = null, bd = 9;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+      for (let k = 1; k <= 8; k++) if (isSolid(world.get(Math.floor(x) + dx * k, yy, Math.floor(z) + dz * k))) { if (k < bd) { bd = k; best = [dx, dz]; } break; }
+    }
+    const [wx, wz] = best ?? [0, -1];
+    const lx = Math.floor(x) + 0.5 + wx * (bd - 0.5), lz = Math.floor(z) + 0.5 + wz * (bd - 0.5);
+    const ry = Math.atan2(-wx, -wz);
+    place(P.wallLantern(M), lx, y - 0.4, lz, ry);
+    lights.push(new THREE.Vector3(lx - wx * 0.42, y - 0.3, lz - wz * 0.42));
   }
   const harrowMat = P.createBannerMaterial(P.bannerTexture('harrow'), time);
   for (const bx of [214.6, 222.4]) {

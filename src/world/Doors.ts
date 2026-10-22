@@ -27,7 +27,7 @@ export function makeDoor(M: P.PropMaterials, x: number, y: number, z: number, ry
   const hinge = new THREE.Vector3(x + nx * 0.45, y, z + nz * 0.45);
   const pivot = new THREE.Group();
   pivot.position.copy(hinge);
-  const leaf = P.openDoor(M);
+  const leaf = P.openDoor(M, 2);
   leaf.position.z = -0.45;
   pivot.add(leaf);
   const shut = ry - Math.PI / 2;

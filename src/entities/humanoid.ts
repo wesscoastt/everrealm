@@ -2,6 +2,13 @@ import * as THREE from 'three';
 import type { EmoteAnim } from '../data/emotes';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
+
+/**
+ * Everyone's overall scale. A figure at height 1 stands about 1.85 blocks to the top of the hair,
+ * under the lintel of a two-high door (the player's collider is 1.8 blocks).
+ */
+export const FIGURE = 0.82;
+
 export interface Appearance {
   skin: string;
   hair: string;
@@ -218,7 +225,7 @@ export class Humanoid {
 
   constructor(public look: Appearance) {
     const build = look.build ?? 1;
-    const s = look.height ?? 1;
+    const s = (look.height ?? 1) * FIGURE;
     this.root.add(this.body);
     this.body.scale.setScalar(s);
 
@@ -534,7 +541,8 @@ export class Humanoid {
         P.armL.rotation.x = -0.65; P.armR.rotation.x = -0.65;
         P.armL.rotation.z = 0.12; P.armR.rotation.z = -0.12;
         P.foreL.rotation.x = -0.55; P.foreR.rotation.x = -0.55;
-        P.body.position.y = Math.abs(Math.sin(s)) * 0.07 * gait;
+        // (raised by what the figure's scale takes off the hips, so a rider sits on the saddle)
+        P.body.position.y = Math.abs(Math.sin(s)) * 0.07 * gait + 0.86 * (1 - P.body.scale.y);
         P.torso.rotation.x = 0.08 + gait * 0.14;
         P.head.rotation.x = -gait * 0.1;
         break;

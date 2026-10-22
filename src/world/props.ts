@@ -633,12 +633,13 @@ export function chest(M: PropMaterials): THREE.Group {
   return g;
 }
 
-export function door(M: PropMaterials): THREE.Group {
+export function door(M: PropMaterials, high = 2): THREE.Group {
   const g = new THREE.Group();
-  // Fills a three-block doorway
-  g.add(mesh(box(0.92, 2.9, 0.1), M.darkWood, 0, 1.45, 0));
-  for (const y of [0.45, 1.45, 2.45]) g.add(mesh(box(0.7, 0.07, 0.04), M.iron, -0.06, y, 0.06));
-  g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), M.iron, 0.32, 1.2, 0.08));
+  // Fills a doorway `high` blocks tall
+  const t = high - 0.08;
+  g.add(mesh(box(0.92, t, 0.1), M.darkWood, 0, t / 2, 0));
+  for (const y of high > 2 ? [0.45, 1.45, 2.45] : [0.35, 1.55]) g.add(mesh(box(0.7, 0.07, 0.04), M.iron, -0.06, y, 0.06));
+  g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), M.iron, 0.32, 1.0, 0.08));
   return g;
 }
 
@@ -779,11 +780,12 @@ export function highChair(M: PropMaterials): THREE.Group {
 }
 
 /** The door leaf standing open against the jamb (an open door, seen edge-on from outside). */
-export function openDoor(M: PropMaterials): THREE.Group {
+export function openDoor(M: PropMaterials, high = 3): THREE.Group {
   const g = new THREE.Group();
-  // The leaf of a three-block doorway, swung open against the wall
-  g.add(mesh(box(0.1, 2.9, 0.9), M.darkWood, 0, 1.45, 0));
-  for (const y of [0.45, 1.45, 2.45]) g.add(mesh(box(0.04, 0.07, 0.7), M.iron, 0.06, y, 0.05));
+  // The leaf of a doorway `high` blocks tall, swung open against the wall
+  const t = high - 0.08;
+  g.add(mesh(box(0.1, t, 0.9), M.darkWood, 0, t / 2, 0));
+  for (const y of high > 2 ? [0.45, 1.45, 2.45] : [0.35, 1.55]) g.add(mesh(box(0.04, 0.07, 0.7), M.iron, 0.06, y, 0.05));
   return g;
 }
 

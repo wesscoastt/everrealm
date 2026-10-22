@@ -55,7 +55,7 @@ export class CameraRig {
     this.distance += (this.targetDistance - this.distance) * (1 - Math.exp(-dt * 8));
     if (this.firstPerson) {
       // Eyes a little forward of the head, looking where the mouse points
-      const eye = this.camera.position.set(target.x, target.y + 1.62, target.z);
+      const eye = this.camera.position.set(target.x, target.y + 1.55, target.z);
       eye.x -= Math.sin(this.yaw) * 0.18; eye.z -= Math.cos(this.yaw) * 0.18;
       this.focus.copy(eye);
       this.actualDistance = 0;

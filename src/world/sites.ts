@@ -2665,8 +2665,9 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
       else if (f === 0 && ly === 0) id = B.Cobble;
       else if (along % 3 === 0) id = frame;
       else if ((ly === 1 || ly === 2) && along % 3 === 1 && along > 0 && along < span - 1) id = B.Window;
-      // The doorway: three blocks high so a tall character walks in without ducking (the floor beam is its lintel)
-      if (x === doorX && z === doorZ && f === 0 && ly <= 2) id = opts.closed ? B.Barrier : B.Air;
+      // The doorway: two blocks high, under a dark lintel
+      if (x === doorX && z === doorZ && f === 0 && ly <= 1) id = opts.closed ? B.Barrier : B.Air;
+      else if (x === doorX && z === doorZ && f === 0 && ly === 2) id = B.DarkPlanks;
       O.set(x, y, z, id);
     }
   }

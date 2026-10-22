@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FIGURE } from '../entities/humanoid';
 import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
 import { Activities } from './Activities';
@@ -3174,7 +3175,7 @@ export class Game implements GameApi {
     for (const n of this.npcs) {
       const d = n.pos.distanceTo(P);
       if (d > 28 || !n.model.root.visible) continue;
-      const s = project(n.pos.x, n.pos.y + 2.25 * (n.def.look.height ?? 1), n.pos.z);
+      const s = project(n.pos.x, n.pos.y + 2.3 * FIGURE * (n.def.look.height ?? 1), n.pos.z);
       if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: n.def.name, sub: d < 12 ? n.def.title : undefined, kind: 'npc', mark: this.npcMark(n) });
     }
     for (const e of this.enemies) {
@@ -3188,7 +3189,7 @@ export class Game implements GameApi {
     for (const r of this.online.remotes.values()) {
       const rp = r.model.root.position;
       if (rp.distanceTo(P) > 40) continue;
-      const s = project(rp.x, rp.y + 2.25 * (r.model.look.height ?? 1), rp.z);
+      const s = project(rp.x, rp.y + 2.3 * FIGURE * (r.model.look.height ?? 1), rp.z);
       if (s) plates.push({ key: 'p' + r.id, x: s.x, y: s.y, name: r.name, sub: r.guild ? `<${r.guild}>` : undefined, kind: 'player' });
     }
     this.hud.updatePlates(plates);
