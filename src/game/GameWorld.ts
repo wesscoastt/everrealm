@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createSeededRandom } from '../utils/random';
 import { B } from '../world/blocks';
 import { ChunkResult, MAP_COLORS } from '../world/chunkgen';
-import { EX, FishSpot, generateTerrain, growTree, Layout, OreNode, placeTrees, TreeNode } from '../world/generate';
+import { EX, fellTree, FishSpot, generateTerrain, growTree, Layout, OreNode, placeTrees, TreeNode } from '../world/generate';
 import { Grid, SX as GSX, SY as GSY, SZ as GSZ } from '../world/grid';
 import { bindWaterUniforms, createSharedUniforms, createVoxelMaterial, createWaterMaterial, SharedUniforms } from '../world/materials';
 import { realmNow } from '../world/clock';
@@ -147,6 +147,9 @@ export class GameWorld {
   }
 
   // ---------------------------------------------------------------- Nodes
+  /** Worked nodes out in the streamed world, by place, kept while their chunk is unloaded: walking away and back doesn't bring them back early. */
+  private spent = new Map<string, number>();
+
   private bucket(x: number, z: number, persistent = false): NodeBucket {
     const key = chunkKey(Math.floor(x) >> 5, Math.floor(z) >> 5);
     let b = this.buckets.get(key);
@@ -208,6 +211,21 @@ export class GameWorld {
         for (let i = 0; i < t.leaves.length; i += 4) leaves.push([t.leaves[i], t.leaves[i + 1], t.leaves[i + 2], t.leaves[i + 3]]);
         return { id: this.nodeId++, kind: t.kind, x: t.x, y: t.y, z: t.z, trunk, leaves, logs: t.logs, depletedUntil: 0, choppable: true } as TreeNode;
       });
+      // Put back what was worked here before the chunk last went
+      for (const o of b.ores) {
+        const until = this.spent.get(`o${o.x},${o.y},${o.z}`);
+        if (until === undefined) continue;
+        this.spent.delete(`o${o.x},${o.y},${o.z}`);
+        o.depletedUntil = until;
+        this.voxels.set(o.x, o.y, o.z, B.Depleted);
+      }
+      for (const t of b.trees) {
+        const until = this.spent.get(`t${t.x},${t.y},${t.z}`);
+        if (until === undefined) continue;
+        this.spent.delete(`t${t.x},${t.y},${t.z}`);
+        t.depletedUntil = until;
+        fellTree(this.voxels, t);
+      }
       b.fish = r.fish.map((f) => ({ id: this.nodeId++, x: f.x, y: f.y, z: f.z, water: f.water } as FishSpot));
       b.forage = (r.forage ?? []).map((f) => ({ x: f.x, y: f.y, z: f.z, kind: f.kind, bareUntil: 0 }));
     }
@@ -217,7 +235,11 @@ export class GameWorld {
   private chunkUnloaded(cx: number, cz: number): void {
     const key = chunkKey(cx, cz);
     const b = this.buckets.get(key);
-    if (b && !b.persistent) this.buckets.delete(key);
+    if (b && !b.persistent) {
+      for (const o of b.ores) if (o.depletedUntil) this.spent.set(`o${o.x},${o.y},${o.z}`, o.depletedUntil);
+      for (const t of b.trees) if (t.depletedUntil) this.spent.set(`t${t.x},${t.y},${t.z}`, t.depletedUntil);
+      this.buckets.delete(key);
+    }
     this.onChunkGone?.(cx, cz);
   }
 

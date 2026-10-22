@@ -87,21 +87,23 @@ export const UNLOCKS: Record<SkillId, { level: number; text: string }[]> = {
 };
 
 // ------------------------------------------------------------- Gathering
+// respawn: seconds until a worked node comes back, minutes as in WoW and ESO, so a seam is worth
+// finding and a good spot is worth a round of its own
 
 export const ORE_INFO = {
-  copper: { item: 'copper_ore', level: 1, xp: 22, respawn: 22, name: 'Copper deposit' },
-  tin: { item: 'tin_ore', level: 1, xp: 22, respawn: 22, name: 'Tin deposit' },
-  silver: { item: 'silver_ore', level: 10, xp: 60, respawn: 70, name: 'Silver seam' },
-  iron: { item: 'iron_ore', level: 15, xp: 75, respawn: 45, name: 'Iron deposit' },
-  crystal: { item: 'star_crystal', level: 30, xp: 150, respawn: 120, name: 'Star crystal' },
+  copper: { item: 'copper_ore', level: 1, xp: 22, respawn: 180, name: 'Copper deposit' },
+  tin: { item: 'tin_ore', level: 1, xp: 22, respawn: 180, name: 'Tin deposit' },
+  silver: { item: 'silver_ore', level: 10, xp: 60, respawn: 300, name: 'Silver seam' },
+  iron: { item: 'iron_ore', level: 15, xp: 75, respawn: 240, name: 'Iron deposit' },
+  crystal: { item: 'star_crystal', level: 30, xp: 150, respawn: 480, name: 'Star crystal' },
 } as const;
 
 export const TREE_INFO = {
-  oak: { item: 'oak_logs', level: 1, xp: 25, respawn: 45, name: 'Oak' },
-  birch: { item: 'birch_logs', level: 3, xp: 32, respawn: 50, name: 'Birch' },
-  pine: { item: 'pine_logs', level: 7, xp: 45, respawn: 60, name: 'Pine' },
+  oak: { item: 'oak_logs', level: 1, xp: 25, respawn: 150, name: 'Oak' },
+  birch: { item: 'birch_logs', level: 3, xp: 32, respawn: 180, name: 'Birch' },
+  pine: { item: 'pine_logs', level: 7, xp: 45, respawn: 210, name: 'Pine' },
   moot: { item: 'oak_logs', level: 99, xp: 0, respawn: 0, name: 'The Moot Oak' },
-  giant: { item: 'elder_logs', level: 20, xp: 90, respawn: 120, name: 'Elder oak' },
+  giant: { item: 'elder_logs', level: 20, xp: 90, respawn: 420, name: 'Elder oak' },
   // Hagworm's ancients: not for felling (level out of reach, like the Moot Oak)
   ancient: { item: 'elder_logs', level: 99, xp: 0, respawn: 0, name: 'Ancient oak' },
 } as const;
