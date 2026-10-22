@@ -1152,6 +1152,12 @@ export class Game implements GameApi {
     return { defense: a.defense, weights: w.join('; ') || 'none', set: s };
   }
 
+  /** Put the worn look on the character, and show it to everyone else. */
+  private dress(): void {
+    const look = this.wornLook();
+    this.player.setAppearance(look, this.scene);
+    this.online.setLook(look);
+  }
   /** The look the character shows: their own, with what they're wearing over it. */
   private wornLook(): Appearance {
     const e = this.save.equip;
@@ -1566,7 +1572,7 @@ export class Game implements GameApi {
     this.hud.hideTitle();
     this.hud.setHudHidden(true);
     this.hud.setCinema(true, true);
-    this.player.setAppearance(this.wornLook(), this.scene);
+    this.dress();
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
     // A new character's first time: the storybook of the land, then down the Wend into Hollin Ford
@@ -1634,7 +1640,7 @@ export class Game implements GameApi {
     this.startPending = null;
     this.mode = 'play';
     this.hud.hideTitle();
-    this.player.setAppearance(this.wornLook(), this.scene);
+    this.dress();
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
     this.rig.yaw = this.save.yaw + Math.PI;
@@ -1659,7 +1665,7 @@ export class Game implements GameApi {
     }
     this.audio.unlock();
     this.hud.setTracker(this.questEntries());
-    if (this.online.enabled && this.online.status === 'off') this.online.connect(this.save.name, this.save.look, this.save.playTime);
+    if (this.online.enabled && this.online.status === 'off') this.online.connect(this.save.name, this.wornLook(), this.save.playTime);
     // The day's login reward, waiting in the journal. A new character gets to see the world first;
     // someone coming back gets the journal opened for them, as long as nothing else is on screen.
     if (this.dailies.loginReady) setTimeout(() => {
@@ -1704,7 +1710,7 @@ export class Game implements GameApi {
       this.save.equip[slot] = st.id;
       if (old) this.inv.add(old, 1);
       this.hp = Math.min(this.hp, this.maxHp);
-      this.player.setAppearance(this.wornLook(), this.scene);
+      this.dress();
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.mount) {
@@ -1730,7 +1736,7 @@ export class Game implements GameApi {
     this.inv.add(id);
     this.save.equip[slot] = null;
     this.hp = Math.min(this.hp, this.maxHp);
-    if (slot !== 'weapon') this.player.setAppearance(this.wornLook(), this.scene);
+    if (slot !== 'weapon') this.dress();
     this.hud.refresh();
   }
 

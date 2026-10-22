@@ -187,6 +187,13 @@ export class Online {
     };
   }
 
+  /** What the character now looks like, armour and all: everyone else redraws them. */
+  setLook(look: Appearance): void {
+    if (!this.me) return;
+    this.me.look = look;
+    this.emit({ t: 'look', look });
+  }
+
   disconnect(): void {
     window.clearTimeout(this.retryTimer);
     this.me = null;
