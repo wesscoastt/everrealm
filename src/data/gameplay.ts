@@ -1,4 +1,5 @@
 import type { CreatureKind, Palette } from '../entities/creatures';
+import type { Appearance, HeldItem } from '../entities/humanoid';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
 
@@ -200,13 +201,17 @@ export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'road
   | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden' | 'keelglass'
   | 'huss' | 'conger' | 'thornray' | 'lionsmane' | 'porbeagle' | 'blueshark' | 'bellmane' | 'sexton'
   | 'clifffox' | 'cragboar' | 'fenjelly' | 'bogboar' | 'moorwolf' | 'graniteback'
-  | 'r_brindle' | 'r_barley' | 'r_mosscap' | 'r_barnacle' | 'r_pitdog' | 'r_whiteface' | 'r_eggthief' | 'r_mudgut' | 'r_torhound' | 'r_bigmary';
+  | 'r_brindle' | 'r_barley' | 'r_mosscap' | 'r_barnacle' | 'r_pitdog' | 'r_whiteface' | 'r_eggthief' | 'r_mudgut' | 'r_torhound' | 'r_bigmary'
+  | 'footpad' | 'poacher' | 'wrecker' | 'claimjumper' | 'cliffrobber' | 'fenpoacher' | 'tinthief';
 
 export interface EnemyDef {
   type: EnemyType;
   /** Body plan and colours; defaults to the type name. */
   model?: CreatureKind;
   palette?: Palette;
+  /** A bandit's clothes (face and hair vary by foe) and what it fights with. */
+  look?: Partial<Appearance>;
+  held?: HeldItem;
   scale?: number;
   name: string;
   level: number;
@@ -273,6 +278,14 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   bogboar: { type: 'bogboar', model: 'boar', palette: { a: '#3a3024', b: '#1e1812', c: '#8a7a5a' }, scale: 1.15, name: 'Bog boar', level: 18, hp: 300, damage: 24, speed: 4.4, aggro: 9, leash: 28, attack: 'charge', windup: 0.7, range: 7, cooldown: 2.3, xp: 200, loot: [{ item: 'boar_hide', chance: 0.7 }, { item: 'oilskin_hat', chance: 0.02 }], marks: [5, 10], respawn: 120 },
   moorwolf: { type: 'moorwolf', model: 'wolf', palette: { a: '#7a7064', b: '#4a443c', c: '#c8beb0' }, scale: 1.25, name: 'Moor wolf', level: 30, hp: 600, damage: 40, speed: 6.6, aggro: 15, leash: 36, attack: 'lunge', windup: 0.45, range: 3, cooldown: 1.3, xp: 430, loot: [{ item: 'frost_pelt', chance: 0.4 }, { item: 'frost_cowl', chance: 0.02 }], marks: [12, 20], respawn: 140 },
   graniteback: { type: 'graniteback', model: 'rustback', palette: { a: '#5a5a5e', b: '#8a8a90' }, scale: 1.5, name: 'Graniteback', level: 32, hp: 720, damage: 44, speed: 3.6, aggro: 9, leash: 26, attack: 'charge', windup: 0.75, range: 8.5, cooldown: 2.2, xp: 500, loot: [{ item: 'iron_ore', chance: 0.5, min: 1, max: 2 }, { item: 'star_crystal', chance: 0.1 }, { item: 'starglass_edge', chance: 0.02 }], marks: [14, 24], respawn: 150 },
+  // Bandits in their camps (sites.ts buildSmallCamp): people, built from the humanoid body
+  footpad: { type: 'footpad', model: 'bandit', look: { tunic: '#4a3a2a', trim: '#8a6a3a', trousers: '#3a3430', hat: 'kerchief', hatColor: '#7a2a22' }, held: 'sword', name: 'Turnpike footpad', level: 9, hp: 160, damage: 15, speed: 5.4, aggro: 12, leash: 30, attack: 'lunge', windup: 0.55, range: 2.6, cooldown: 1.6, xp: 95, loot: [{ item: 'bread', chance: 0.4 }, { item: 'toll_sabre', chance: 0.03 }], marks: [4, 9], respawn: 150 },
+  poacher: { type: 'poacher', model: 'bandit', look: { tunic: '#3e4a2a', trim: '#6a5a3a', trousers: '#3a3a2a', hat: 'hood', hatColor: '#2e3a1e' }, held: 'hatchet', name: 'Hagworm poacher', level: 14, hp: 240, damage: 20, speed: 5.6, aggro: 13, leash: 30, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 160, loot: [{ item: 'wolf_pelt', chance: 0.4 }, { item: 'thorn_blade', chance: 0.03 }, { item: 'moss_hood', chance: 0.03 }], marks: [6, 12], respawn: 150 },
+  wrecker: { type: 'wrecker', model: 'bandit', look: { tunic: '#2e3a4a', trim: '#a8a090', trousers: '#2a2a30', hat: 'wide', hatColor: '#2a2a2a' }, held: 'bronzeSword', name: 'Fleet wrecker', level: 16, hp: 270, damage: 22, speed: 5.4, aggro: 13, leash: 30, attack: 'lunge', windup: 0.5, range: 2.7, cooldown: 1.5, xp: 185, loot: [{ item: 'raw_mackerel', chance: 0.5 }, { item: 'brine_cutlass', chance: 0.03 }, { item: 'oilskin_hat', chance: 0.03 }], marks: [7, 13], respawn: 150 },
+  claimjumper: { type: 'claimjumper', model: 'bandit', look: { tunic: '#7a4a2a', trim: '#c87a3a', trousers: '#4a3a2a', hat: 'cap', hatColor: '#5a3a1a' }, held: 'pickaxe', name: 'Claim-jumper', level: 21, hp: 360, damage: 28, speed: 5.4, aggro: 13, leash: 30, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 250, loot: [{ item: 'iron_ore', chance: 0.5 }, { item: 'harrow_cleaver', chance: 0.03 }, { item: 'redback_helm', chance: 0.03 }], marks: [8, 15], respawn: 150 },
+  cliffrobber: { type: 'cliffrobber', model: 'bandit', look: { tunic: '#5a5a5a', trim: '#9a8a6a', trousers: '#3a3434', hat: 'kerchief', hatColor: '#3a3a3a' }, held: 'sword', name: 'Cliff robber', level: 12, hp: 200, damage: 18, speed: 5.6, aggro: 12, leash: 30, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 130, loot: [{ item: 'gannet_egg', chance: 0.5 }, { item: 'wolfskin_hood', chance: 0.03 }], marks: [5, 11], respawn: 150 },
+  fenpoacher: { type: 'fenpoacher', model: 'bandit', look: { tunic: '#4a5a3a', trim: '#8a7a4a', trousers: '#3a3a2a', hat: 'straw' }, held: 'hatchet', name: 'Levels poacher', level: 17, hp: 290, damage: 24, speed: 5.4, aggro: 13, leash: 30, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 200, loot: [{ item: 'smoked_eel', chance: 0.4 }, { item: 'oilskin_hat', chance: 0.03 }], marks: [7, 13], respawn: 150 },
+  tinthief: { type: 'tinthief', model: 'bandit', look: { tunic: '#4a4a52', trim: '#8a8a7a', trousers: '#3a3434', hat: 'hood', hatColor: '#3a3a44' }, held: 'pickaxe', name: 'Tin thief', level: 31, hp: 580, damage: 40, speed: 5.6, aggro: 14, leash: 32, attack: 'lunge', windup: 0.45, range: 2.7, cooldown: 1.4, xp: 420, loot: [{ item: 'iron_ore', chance: 0.5 }, { item: 'moor_pasty', chance: 0.3 }, { item: 'frost_cowl', chance: 0.03 }], marks: [12, 20], respawn: 150 },
   // Rares (data/wilds.ts): one to a region, turning up at its landmarks
   r_brindle: { type: 'r_brindle', model: 'wolf', palette: { a: '#6a5040', b: '#3a2a20', c: '#b8a080' }, scale: 1.4, name: 'Old Brindle', level: 7, hp: 380, damage: 16, speed: 5.8, aggro: 16, leash: 40, attack: 'lunge', windup: 0.5, range: 2.8, cooldown: 1.5, xp: 300, elite: true, loot: [{ item: 'brindle_tail', chance: 1 }, { item: 'tmap_greenwake_1', chance: 0.5 }, { item: 'tmap_greenwake_2', chance: 0.5 }, { item: 'wolfskin_hood', chance: 0.3 }], marks: [15, 25], respawn: 99999 },
   r_barley: { type: 'r_barley', model: 'boar', palette: { a: '#8a6a3a', b: '#5a4020', c: '#d8b080' }, scale: 1.8, name: 'The Barley Boar', level: 12, hp: 720, damage: 22, speed: 4.6, aggro: 16, leash: 40, attack: 'charge', windup: 0.7, range: 8, cooldown: 2.2, xp: 520, elite: true, loot: [{ item: 'barley_tusk', chance: 1 }, { item: 'tmap_crownroad_1', chance: 0.5 }, { item: 'tmap_crownroad_2', chance: 0.5 }, { item: 'toll_sabre', chance: 0.3 }], marks: [20, 32], respawn: 99999 },

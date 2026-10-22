@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse'
-  | 'shark' | 'eel' | 'ray' | 'medusa';
+  | 'shark' | 'eel' | 'ray' | 'medusa'
+  /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
+  | 'bandit';
 
 /** Body plans that live in the sea: they swim in three dimensions and never come ashore. */
 export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'ray', 'medusa']);

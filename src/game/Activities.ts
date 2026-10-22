@@ -387,7 +387,7 @@ export class Activities {
   private populateDungeons(P: THREE.Vector3): void {
     for (const s of this.sites) {
       const a = s.act!;
-      if (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'dive') continue;
+      if (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'dive' && a.kind !== 'camp') continue;
       const near = Math.hypot(P.x - s.x, P.z - s.z) < 70 && this.host.voxels.isLoaded(s.x, s.z);
       const list = this.dungeons.get(s.id);
       if (near && !list) {
@@ -570,7 +570,7 @@ export class Activities {
   private foundWonders(P: THREE.Vector3): void {
     for (const s of this.sites) {
       const a = s.act!;
-      if (a.kind === 'vista' || this.host.flag('found:' + s.id)) continue;
+      if (a.kind === 'vista' || a.kind === 'camp' || this.host.flag('found:' + s.id)) continue;
       if (Math.hypot(P.x - s.x, P.z - s.z) > 40) continue;
       this.host.setFlag('found:' + s.id, 1);
       const what = a.kind === 'dungeon' ? 'Public dungeon' : a.kind === 'delve' ? 'Delve' : a.kind === 'dive' ? 'Dive site' : 'Wonder';

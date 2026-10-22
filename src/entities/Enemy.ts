@@ -3,6 +3,7 @@ import { EnemyDef } from '../data/gameplay';
 import { B, isSolid } from '../world/blocks';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { CreatureKind, CreatureModel, SWIM_KINDS } from './creatures';
+import { FoeModel } from './foes';
 
 export type EnemyState = 'idle' | 'wander' | 'chase' | 'windup' | 'attack' | 'recover' | 'return' | 'dead';
 
@@ -28,7 +29,7 @@ let nextId = 1;
 
 export class Enemy {
   readonly id = nextId++;
-  readonly model: CreatureModel;
+  readonly model: CreatureModel | FoeModel;
   readonly pos = new THREE.Vector3();
   readonly home = new THREE.Vector3();
   yaw = Math.random() * Math.PI * 2;
@@ -77,7 +78,7 @@ export class Enemy {
   /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
   constructor(readonly def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
     const kind = def.model ?? (def.type as CreatureKind);
-    this.model = new CreatureModel(kind, def.palette, def.scale);
+    this.model = kind === 'bandit' ? new FoeModel(def.look ?? {}, def.held ?? 'sword', x * 31 + z * 17) : new CreatureModel(kind, def.palette, def.scale);
     this.hp = def.hp;
     this.swims = SWIM_KINDS.has(kind);
     const src = ground ?? world;

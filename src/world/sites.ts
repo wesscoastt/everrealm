@@ -70,7 +70,7 @@ export interface Site {
 
 /** What an activity site holds for the game (see game/Activities.ts). */
 export interface SiteActivity {
-  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive';
+  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive' | 'camp';
   /** Creatures that live here and come back after a while: [x, floorY, z, enemy type]. */
   spawns?: [number, number, number, string][];
   /** The champion at the end: [x, floorY, z, enemy type]. */
@@ -314,7 +314,7 @@ export function plan(): Plan {
   }
   // The outer lands' own scatter, numbered after the heart's so the heart's keep their ids
   const OCELL = 240;
-  const outerKinds: Partial<Record<RegionId, string[]>> = { gannet: ['shrine', 'ruintower', 'camp', 'stones'], wrath: ['mossruin', 'camp', 'shrine', 'farm'], tolmen: ['stones', 'ruintower', 'crystals', 'mine'] };
+  const outerKinds: Partial<Record<RegionId, string[]>> = { gannet: ['shrine', 'ruintower', 'camp', 'stones'], wrath: ['mossruin', 'camp', 'shrine', 'farm'], tolmen: ['stones', 'ruintower', 'camp', 'mine'] };
   for (let cz = Math.floor(WMIN / OCELL); cz * OCELL < WMAX; cz++) for (let cx = Math.floor(WMIN / OCELL); cx * OCELL < WMAX; cx++) {
     if (hash2(cx, cz, 511) > 0.7) continue;
     const x = Math.floor(cx * OCELL + 30 + hash2(cx, cz, 512) * (OCELL - 60)), z = Math.floor(cz * OCELL + 30 + hash2(cx, cz, 513) * (OCELL - 60));
@@ -3132,6 +3132,18 @@ export function plan(): Plan {
     for (let i = 0; i < 3; i++) s.props.push({ t: 'crate', x: lx + 1 + i * 0.8, y: heightAt(lx, lz) + (i === 1 ? 0.6 : 0), z: lz + 1.5 + (i % 2) * 0.4 });
     s.props.push({ t: 'barrel', x: lx + 2.5, y: heightAt(lx, lz), z: lz + 2.8 }, { t: 'cart', x: x - 8, y: heightAt(x - 8, z + 5), z: z + 5, ry: 0.8 }, { t: 'lantern', x: x + 3.5, y: base, z: z - 3.5 });
     rect(s, x - 10, z - 10, x + 13, z + 10);
+    // Whoever keeps the camp, and what they've taken: the region's bandits round the fire, their
+    // chest under the lean-to
+    const who: Partial<Record<RegionId, string>> = { crownroad: 'footpad', brambledeep: 'poacher', saltwind: 'wrecker', redstone: 'claimjumper', gannet: 'cliffrobber', wrath: 'fenpoacher', tolmen: 'tinthief' };
+    const type = who[s.region];
+    if (type) {
+      const spawns: [number, number, number, string][] = [[x - 4.5, 0, z + 1.5, type], [x + 5.5, 0, z + 0.5, type], [x + 0.5, 0, z - 4.5, type], [x + 1.5, 0, z + 5.5, type]];
+      for (const p of spawns) p[1] = heightAt(Math.floor(p[0]), Math.floor(p[2]));
+      const cx = lx + 2.5, cz = lz + 0.6, cy = heightAt(Math.floor(cx), Math.floor(cz));
+      clearUp(Math.floor(cx), Math.floor(cz), cy, cy + 3);
+      s.props.push({ t: 'furn', item: 'chest', x: cx, y: cy, z: cz, ry: 0 });
+      s.act = { kind: 'camp', spawns, chest: [cx, cy, cz] };
+    }
   }
 
   /**
