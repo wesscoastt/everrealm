@@ -83,6 +83,7 @@ import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, HouseSpec, Lot, LOT_
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
+import { Mail } from './Mail';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
@@ -301,6 +302,35 @@ export class Game implements GameApi {
     persist: () => this.persist(),
     refresh: () => this.hud.refresh('exchange'),
   });
+  /** Letters by the Charter Post, read and posted at its boxes. */
+  readonly mail: Mail = new Mail({
+    net: () => this.online,
+    online: () => this.online?.status === 'online',
+    myName: () => this.save.name,
+    system: (t) => this.hud.system(t),
+    count: (id) => this.inv.count(id),
+    take: (id, n) => this.inv.remove(id, n),
+    give: (id, n) => this.give(id, n),
+    room: (stacks) => {
+      let need = 0;
+      const seen = new Set<string>();
+      for (const st of stacks) {
+        const d = ITEMS[st.id];
+        if (!d) continue;
+        if (!d.stack) need += st.n;
+        else if (!seen.has(st.id) && this.inv.count(st.id) === 0) need++;
+        seen.add(st.id);
+      }
+      return this.inv.freeSlots() >= need;
+    },
+    marks: () => this.save.marks,
+    addMarks: (n) => { if (n > 0) this.addMarks(n); else { this.save.marks = Math.max(0, this.save.marks + n); this.hud.refresh(); } },
+    sound: (n) => this.sfx(n),
+    persist: () => this.persist(),
+    refresh: () => { this.hud.refresh('mail'); this.hud.setMailBadge(this.mail.unread); },
+  });
+  /** Where the post box is that the letters page was opened at. */
+  private mailAt: { x: number; z: number } | null = null;
   /** Set while a writ pays its experience, so the payment doesn't count toward other writs. */
   private writXp = false;
   private travelled = 0;
@@ -737,6 +767,7 @@ export class Game implements GameApi {
       dLeft: (name) => this.dungeons.onLeft(name),
       ...this.social.hooks(),
       ...this.exchange.hooks(),
+      ...this.mail.hooks(),
       ...this.music.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
@@ -1097,6 +1128,13 @@ export class Game implements GameApi {
     this.showPackBeside();
   }
 
+  openMail(): void {
+    this.hud.closeAll();
+    this.mailAt = { x: this.player.position.x, z: this.player.position.z };
+    this.mail.open();
+    this.hud.show('mail');
+  }
+
   openBank(id: string): void {
     const b = BANKS.find((x) => x.id === id);
     if (!b) return;
@@ -1341,6 +1379,19 @@ export class Game implements GameApi {
       exPost: (item: string, n: number, price: number) => g.exchange.post(item, n, price),
       exTakeBack: (id: number) => g.exchange.takeBack(id),
       exReload: () => g.exchange.open(),
+      mail: () => g.mail.view(),
+      mailDo: (what: 'read' | 'back' | 'write' | 'reply' | 'attach' | 'send' | 'take' | 'delete' | 'return' | 'reload', id?: number, item?: string, n?: number) => {
+        if (what === 'read' && id !== undefined) g.mail.read(id);
+        else if (what === 'back') g.mail.back();
+        else if (what === 'write') g.mail.write();
+        else if (what === 'reply' && id !== undefined) g.mail.reply(id);
+        else if (what === 'attach' && item) g.mail.attach(item, n ?? 1);
+        else if (what === 'send') g.mail.send();
+        else if (what === 'take' && id !== undefined) g.mail.takeFrom(id);
+        else if (what === 'delete' && id !== undefined) g.mail.remove(id);
+        else if (what === 'return' && id !== undefined) g.mail.sendBack(id);
+        else if (what === 'reload') g.mail.open();
+      },
       music: () => g.music.view(),
       musicDo: (what: 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', arg?: string) => {
         if (what === 'take' && arg) { if (g.music.out?.item === arg) g.music.away(); else g.music.take(arg); }
@@ -3557,7 +3608,8 @@ export class Game implements GameApi {
       const p = POSTS.find((x) => x.id === this.currentPost);
       if (!p || Math.hypot(p.x - this.player.position.x, p.z - this.player.position.z) > 5) this.hud.close('travel');
     }
-    // The book closes when you walk away from the broker
+    // The letters close when you walk away from the post box, and the book when you leave the broker
+    if (this.hud.isOpen('mail') && this.mailAt && Math.hypot(this.mailAt.x - this.player.position.x, this.mailAt.z - this.player.position.z) > 5) this.hud.close('mail');
     if (this.hud.isOpen('exchange') && !this.npcs.some((n) => (n.id === 'wray' || n.id === 'tregear' || n.id === 'pound') && n.pos.distanceTo(this.player.position) < 6)) this.hud.close('exchange');
     if (this.hud.isOpen('shop')) {
       if (this.currentShop === 'festival') { if (!this.festivals.stallNear(this.player.position, 6)) this.hud.close('shop'); }

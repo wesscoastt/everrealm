@@ -38,6 +38,8 @@ export interface GameApi {
   openBank(id: string): void;
   /** The Exchange's book, from a broker. */
   openExchange(): void;
+  /** Your letters, at a Charter Post box. */
+  openMail(): void;
 }
 
 export interface DOption {

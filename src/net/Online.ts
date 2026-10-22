@@ -87,6 +87,8 @@ export interface TradeView { id: number; with: string; mine: TradeOffer; theirs:
 export type GuildRank = 'leader' | 'officer' | 'member';
 /** A stack in the Exchange's book, and what the book owes you (takings, or a stack sent back). */
 export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number }
+/** A letter by the Charter Post (server/mail.mjs): from a character, or from the Post itself when one comes back. */
+export interface Letter { id: number; from: string; fromKey: string | null; toName: string; subject: string; body: string; items: { id: string; n: number }[]; marks: number; at: number; read: boolean; returned?: boolean }
 export interface ExOwed { kind: 'sold' | 'back'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number }
 export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[] }
 
@@ -142,6 +144,14 @@ export interface OnlineHooks {
   exBack?(row: ExRow): void;
   exGone?(id: number): void;
   exOwed?(rows: ExOwed[]): void;
+  /** The Charter Post (game/Mail.ts): your box, a new letter, one posted or refused, things taken out, one gone, how many are unread. */
+  mailBox?(letters: Letter[]): void;
+  mailNew?(letter: Letter, unread: number): void;
+  mailSent?(to: string): void;
+  mailRefused?(items: { id: string; n: number }[], marks: number, postage: number, why: string): void;
+  mailTaken?(id: number, items: { id: string; n: number }[], marks: number): void;
+  mailGone?(id: number, unread: number | null): void;
+  mailUnread?(n: number): void;
   /** The Group Finder (game/Dungeons.ts): the queue, a group ready, a run starting, and the run's blows and kills. */
   qStatus?(dungeon: string | null, n: number): void;
   qReady?(run: number, dungeon: string, names: string[], henchmen: number, secs: number): void;
@@ -280,6 +290,13 @@ export class Online {
       case 'exBought': this.hooks.exBought?.(m.row as ExRow); break;
       case 'exBack': this.hooks.exBack?.(m.row as ExRow); break;
       case 'exGone': this.hooks.exGone?.(Number(m.id)); break;
+      case 'mailBox': this.hooks.mailBox?.(Array.isArray(m.letters) ? (m.letters as Letter[]) : []); break;
+      case 'mailNew': this.hooks.mailNew?.(m.letter as Letter, Number(m.unread) || 0); break;
+      case 'mailSent': this.hooks.mailSent?.(String(m.to)); break;
+      case 'mailRefused': this.hooks.mailRefused?.(Array.isArray(m.items) ? (m.items as { id: string; n: number }[]) : [], Number(m.marks) || 0, Number(m.postage) || 0, String(m.why ?? '')); break;
+      case 'mailTaken': this.hooks.mailTaken?.(Number(m.id), Array.isArray(m.items) ? (m.items as { id: string; n: number }[]) : [], Number(m.marks) || 0); break;
+      case 'mailGone': this.hooks.mailGone?.(Number(m.id), typeof m.unread === 'number' ? m.unread : null); break;
+      case 'mailUnread': this.hooks.mailUnread?.(Number(m.n) || 0); break;
       case 'exOwed': this.hooks.exOwed?.(Array.isArray(m.rows) ? (m.rows as ExOwed[]) : []); break;
       case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
       case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left)); break;
@@ -443,6 +460,13 @@ export class Online {
   exPost(item: string, n: number, price: number): void { this.emit({ t: 'exPost', item, n, price }); }
   exBuy(id: number): void { this.emit({ t: 'exBuy', id }); }
   exCancel(id: number): void { this.emit({ t: 'exCancel', id }); }
+  // The Charter Post (server/mail.mjs)
+  mailBox(): void { this.emit({ t: 'mailBox' }); }
+  mailSend(to: string, subject: string, body: string, items: { id: string; n: number }[], marks: number, postage: number): void { this.emit({ t: 'mailSend', to, subject, body, items, marks, postage }); }
+  mailRead(id: number): void { this.emit({ t: 'mailRead', id }); }
+  mailTake(id: number): void { this.emit({ t: 'mailTake', id }); }
+  mailDelete(id: number): void { this.emit({ t: 'mailDelete', id }); }
+  mailReturn(id: number): void { this.emit({ t: 'mailReturn', id }); }
 
   /** Your id on the server (to know your own echoed chat). */
   myId = -1;

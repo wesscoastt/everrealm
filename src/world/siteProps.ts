@@ -125,6 +125,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'bench': place(P.bench(M, 1.6), d.x, d.y, d.z, d.ry); break;
       case 'windowBox': place(P.windowBox(M), d.x, d.y, d.z, d.ry); break;
       case 'doorstep': place(P.doorstep(M), d.x, d.y, d.z, d.ry); break;
+      case 'postBox': place(P.postBox(M), d.x, d.y, d.z, d.ry); break;
       case 'shutter': place(P.shutter(M, d.color ?? '#3a5a7a'), d.x, d.y, d.z, d.ry); break;
       case 'barrel': place(P.barrel(M), d.x, d.y, d.z, d.ry); break;
       case 'crate': place(P.crate(M, 0.6), d.x, d.y, d.z, d.ry ?? (d.x * 7) % 1); break;

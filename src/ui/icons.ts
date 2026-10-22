@@ -198,6 +198,16 @@ function paint(spec: IconSpec): string {
       x.fillStyle = a; x.beginPath(); x.moveTo(11, 6); x.quadraticCurveTo(23, 9, 19, 26); x.lineTo(16, 24.5); x.quadraticCurveTo(18, 12, 9, 7.5); x.fill();
       break;
     }
+    case 'letter': {
+      // A folded letter, its flap's creases running down to a wax seal
+      px(4, 8, 24, 17, outline);
+      px(5, 9, 22, 15, a);
+      px(5, 21, 22, 3, shade(a, 0.82));
+      for (let i = 0; i < 10; i++) { px(5 + i, 9 + Math.floor(i * 0.6), 1, 1, shade(a, 0.62)); px(26 - i, 9 + Math.floor(i * 0.6), 1, 1, shade(a, 0.62)); }
+      px(14, 13, 4, 6, outline); px(13, 14, 6, 4, outline);
+      px(14, 14, 4, 4, b); px(15, 14, 1, 1, shade(b, 1.5));
+      break;
+    }
     case 'coin': {
       x.fillStyle = outline; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.fill();
       x.fillStyle = a; x.beginPath(); x.arc(16, 16, 9, 0, Math.PI * 2); x.fill();

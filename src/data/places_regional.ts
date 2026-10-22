@@ -1,7 +1,7 @@
 import type { GameApi } from '../game/api';
 import type { EnemyType } from './gameplay';
 import { coastX } from '../world/terrain';
-import { POSTS } from './travel';
+import { POSTS, postBoxOf } from './travel';
 
 // Fixed points in the regional towns: where people stand, what can be examined, and where quest
 // creatures appear. Coordinates come from the site builders in src/world/sites.ts.
@@ -65,6 +65,8 @@ export interface WorldThing {
 
 export const WORLD_THINGS: WorldThing[] = [
   ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: p.ferryFrom ? 'Take the ferry' : 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
+  // A post box by every Post sign: letters to other characters, and what came in theirs (game/Mail.ts)
+  ...POSTS.map((p): WorldThing => { const b = postBoxOf(p); return { id: 'mail:' + p.id, x: b.x + Math.sin(b.ry), z: b.z + Math.cos(b.ry), label: 'Read your post', radius: 1.6, use: (g) => g.openMail() }; }),
   // Gullmouth's ferry steps, on the south jetty (the ferry berths beside it: world/Ferry.ts)
   { id: 'ferry:gullmouth', x: GULL.coast - 8.5, z: 607.5, label: 'Take the ferry to the Mewstones', radius: 2.6, use: (g) => g.openTravel('gullmouth') },
   { id: 'homeBuy', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d + 1.5, label: 'Read the For Sale notice', radius: 2.4, when: (g) => !g.flag('home'), use: (g) => g.buyHome() },

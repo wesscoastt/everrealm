@@ -716,6 +716,24 @@ export function shutter(M: PropMaterials, color: string): THREE.Group {
   return g;
 }
 
+/** A Charter Post box on its stake: painted the Post's blue, a sloped lid, a brass slot, and the Post's horn on its face. */
+export function postBox(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const paint = flat('#2c4a6a'), brass = flat('#c9a24a');
+  g.add(mesh(box(0.16, 0.95, 0.16), M.darkWood, 0, 0.475, 0));
+  g.add(mesh(box(0.64, 0.56, 0.46), paint, 0, 1.22, 0));
+  g.add(mesh(box(0.72, 0.07, 0.58), paint, 0, 1.53, -0.01, 0.16, 0, 0));
+  g.add(mesh(box(0.74, 0.05, 0.05), M.darkWood, 0, 0.95, 0.21));
+  // The slot, and the horn (a ring and its bell) under it
+  g.add(mesh(box(0.36, 0.09, 0.02), brass, 0, 1.38, 0.235));
+  g.add(mesh(box(0.28, 0.03, 0.03), flat('#141414'), 0, 1.38, 0.24));
+  g.add(mesh(new THREE.TorusGeometry(0.07, 0.018, 4, 10), brass, -0.04, 1.14, 0.235));
+  g.add(mesh(cyl(0.012, 0.05, 0.14, 6), brass, 0.09, 1.14, 0.235, 0, 0, Math.PI / 2));
+  // The clerk's lock on the side
+  g.add(mesh(box(0.03, 0.1, 0.08), M.iron, 0.33, 1.2, 0.1));
+  return g;
+}
+
 export function windowBox(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(box(0.9, 0.22, 0.3), M.darkWood, 0, 0, 0.15));

@@ -8,6 +8,7 @@ import { Door, makeDoor } from './Doors';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
+import { POSTS, postBoxOf } from '../data/travel';
 
 export type InteractKind = 'furnace' | 'anvil' | 'hearth' | 'ledger' | 'chest' | 'bell' | 'notice' | 'gauge' | 'minenotice' | 'bellframe';
 
@@ -421,6 +422,13 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   // Lantern posts along the village road, leaning out over it; the pair at the bridge stand on the
   // banks at either end of it, not up on the parapet
   for (const [x, z] of [[147.5, 182.2], [160.6, 186.4], [160.6, 181.6], [182.6, 186.6], [184.4, 182.2], [195.6, 186.8], [140.5, 186.8]] as [number, number][]) lantern(x, z);
+
+  // The Charter Post box by the Post sign on the square
+  {
+    const b = postBoxOf(POSTS.find((q) => q.id === 'hollin')!), y = ground(Math.floor(b.x), Math.floor(b.z));
+    place(P.postBox(M), b.x, y, b.z, b.ry);
+    barrier(b.x, y, b.z, 2);
+  }
 
   // Signposts at the two junctions
   const sign = (x: number, z: number, arms: { text: string; to: [number, number] }[]) => {

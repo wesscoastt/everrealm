@@ -1,5 +1,5 @@
 import { B, BLOCKS } from './blocks';
-import { CRAGSBY, HOLME, POSTS, SCARROW } from '../data/travel';
+import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
@@ -30,7 +30,9 @@ export type PropType = 'roof' | 'door' | 'lantern' | 'wallLantern' | 'banner' | 
   /** A window box of flowers, and a painted shutter (color), on a house front. */
   | 'windowBox' | 'shutter'
   /** A half-block stone step before a door a block above the ground. */
-  | 'doorstep';
+  | 'doorstep'
+  /** A Charter Post box, where letters are posted and read. */
+  | 'postBox';
 
 export interface PropDesc {
   t: PropType;
@@ -554,6 +556,12 @@ export function plan(): Plan {
   for (const p of POSTS) {
     const site = sites.find((x) => x.id === p.place);
     if (site) site.props.push({ t: 'sign', x: p.x, y: heightAt(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
+    // ...and its post box beside it, where letters are posted and read
+    if (site && p.id !== 'hollin') {
+      const b = postBoxOf(p), g = heightAt(Math.floor(b.x), Math.floor(b.z));
+      site.props.push({ t: 'postBox', x: b.x, y: g, z: b.z, ry: b.ry });
+      O.set(Math.floor(b.x), g, Math.floor(b.z), B.Barrier); O.set(Math.floor(b.x), g + 1, Math.floor(b.z), B.Barrier);
+    }
   }
   pois.forEach((p, i) => {
     const s: Site = { id: `poi${i}`, name: '', region: p.region, x: p.x, z: p.z, r: 160, named: false, props: [], rects: [], impostor: [] };

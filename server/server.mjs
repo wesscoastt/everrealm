@@ -8,6 +8,7 @@
 //   - groups of up to five and trades between two players (server/social.mjs)
 //   - guilds, kept between sessions (server/guilds.mjs)
 //   - the Exchange: one auction house book for the realm (server/exchange.mjs)
+//   - the Charter Post's letters between characters, with things sent in them (server/mail.mjs)
 //   - named pieces: how many of each the realm has given out, and to whom (server/uniques.mjs)
 //   - characters: a copy of each character's save, owned by an account (or, for players without
 //     one, claimed by a per-browser secret as before)
@@ -43,6 +44,7 @@ import path from 'node:path';
 import { socialInit } from './social.mjs';
 import { guildsInit } from './guilds.mjs';
 import { exchangeInit } from './exchange.mjs';
+import { mailInit } from './mail.mjs';
 import { finderInit } from './finder.mjs';
 import { musicInit } from './music.mjs';
 import { uniquesInit } from './uniques.mjs';
@@ -304,6 +306,7 @@ function broadcast(msg, except) {
 const social = socialInit({ players, send });
 const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataDir: DATA, mirrorDelete: (file) => mirror(file, null), log });
 const exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log });
+const mail = mailInit({ players, send, readJson, writeJson, dataDir: DATA, keyFor, nameOf: (key) => loadChar(key)?.name ?? null, log });
 const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const music = musicInit({ players, send, social });
@@ -351,13 +354,14 @@ wss.on('connection', (ws, req) => {
       guilds.join(me);
       social.join(me);
       exchange.join(me);
+      mail.join(me);
       broadcast({ t: 'join', player: pub(me) }, me);
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD[0], WORLD[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);

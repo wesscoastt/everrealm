@@ -13,6 +13,7 @@ import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
 import type { GroupRow, TradeUi } from '../game/Social';
 import type { ExchangeView } from '../game/Exchange';
+import { MAIL_STACKS, postage, type MailView } from '../game/Mail';
 import type { FinderView } from '../game/Dungeons';
 import type { MusicView } from '../game/Stage';
 import { PART_NAMES, type PartId } from '../data/tunes';
@@ -228,6 +229,9 @@ export interface UiCtx {
   exPost(item: string, n: number, price: number): void;
   exTakeBack(id: number): void;
   exReload(): void;
+  /** Letters by the Charter Post (game/Mail.ts). */
+  mail(): MailView;
+  mailDo(what: 'read' | 'back' | 'write' | 'reply' | 'attach' | 'send' | 'take' | 'delete' | 'return' | 'reload', id?: number, item?: string, n?: number): void;
   /** The Group Finder (game/Dungeons.ts). */
   finder(): FinderView;
   /** The songbook: instruments, tunes, the band (game/Stage.ts). */
@@ -262,7 +266,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
 const ago = (t: number) => { const s = (Date.now() - t) / 1000; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder' | 'music';
+export type PanelId = 'inv' | 'skills' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder' | 'music' | 'mail';
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -340,7 +344,7 @@ export class Hud {
     r.append(evp);
     this.eventEl = evp;
     const mmw = el('div', 'minimap-wrap hud-only');
-    mmw.innerHTML = `<div class="zone-label">Hollindale</div><div class="minimap" title="Click to open the map (M)"><canvas width="352" height="352"></canvas><button class="mm-b mm-in" title="Zoom in">+</button><button class="mm-b mm-out" title="Zoom out">−</button><button class="mm-b mm-rot" title="Turn the map with the camera">⟲</button></div><div class="mm-row"><span class="clock">08:30</span><span class="daypart">Morning</span><span class="net"></span></div>`;
+    mmw.innerHTML = `<div class="zone-label">Hollindale</div><div class="minimap" title="Click to open the map (M)"><canvas width="352" height="352"></canvas><button class="mm-b mm-in" title="Zoom in">+</button><button class="mm-b mm-out" title="Zoom out">−</button><button class="mm-b mm-rot" title="Turn the map with the camera">⟲</button></div><div class="mm-row"><span class="clock">08:30</span><span class="daypart">Morning</span><span class="net"></span></div><div class="mm-mail" title="Letters waiting at the Charter Post"><img alt=""><b></b></div>`;
     r.append(mmw);
     this.mm = mmw.querySelector('canvas')!;
     this.mmCtx = this.mm.getContext('2d')!;
@@ -426,6 +430,7 @@ export class Hud {
     panel('trade-panel', 'Trade', 'trade').querySelector('.x')!.addEventListener('click', () => this.ctx.tradeCancel());
     panel('guild-panel', 'Friends', 'guild');
     panel('exchange-panel', 'The Exchange', 'exchange');
+    panel('mail-panel', 'The Charter Post', 'mail');
     panel('finder-panel', 'Group Finder', 'finder');
     panel('music-panel', 'Songbook', 'music');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
@@ -1257,6 +1262,7 @@ export class Hud {
         case 'trade': this.renderTrade(); break;
         case 'guild': this.renderGuild(); break;
         case 'exchange': this.renderExchange(); break;
+        case 'mail': this.renderMail(); break;
         case 'finder': this.renderFinder(); break;
         case 'music': this.renderMusic(); break;
         case 'map': this.renderMap(); break;
@@ -1764,6 +1770,137 @@ export class Hud {
       this.ctx.sfx('click');
       this.ctx.musicDo(b.dataset.mu as 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', b.dataset.a);
     }));
+  }
+
+  /** The envelope by the minimap while letters wait unread at the Charter Post. */
+  setMailBadge(n: number): void {
+    const b = this.q('.mm-mail') as HTMLElement | null;
+    if (!b) return;
+    if (!b.querySelector('img')!.getAttribute('src')) b.querySelector('img')!.src = shapeIcon('letter', '#efe4c8', '#b03a2e');
+    b.classList.toggle('show', n > 0);
+    b.querySelector('b')!.textContent = n > 1 ? String(n) : '';
+    b.title = n === 1 ? 'A letter waits for you at the Charter Post' : `${n} letters wait for you at the Charter Post`;
+  }
+
+  private renderMail(): void {
+    const v = this.ctx.mail();
+    const body = this.q('#mail-panel .body');
+    body.innerHTML = '';
+    const marks = this.ctx.save.marks;
+    this.q('#mail-panel .footer').innerHTML = `<span>Postage: a mark a letter, and a mark for each stack sent with it</span><span class="coin">${marks} marks</span>`;
+    if (!v.online) {
+      body.append(el('p', 'ex-note', 'The Charter Post keeps everyone\'s letters on the realm server. You\'re playing offline, so the clerk has nothing to hand you. Play online to read and send letters.'));
+      return;
+    }
+    const slot = (id: string, n: number) => `<div class="slot r-${ITEMS[id]?.rarity ?? 'common'}" data-tip="${id}"><img src="${itemIcon(id)}" alt="">${n > 1 ? `<span class="n">${n}</span>` : ''}</div>`;
+    const tips = (root: HTMLElement) => root.querySelectorAll<HTMLElement>('[data-tip]').forEach((s) => {
+      s.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(s.dataset.tip!), e.clientX, e.clientY));
+      s.addEventListener('mouseleave', () => this.hideTooltip());
+    });
+    const stopKeys = (i: HTMLElement) => i.addEventListener('keydown', (e) => e.stopPropagation());
+    const tabs = el('div', 'tabs');
+    const tab = (label: string, on: boolean, go: () => void) => { const t = el('div', 'tab' + (on ? ' sel' : ''), label); t.addEventListener('click', () => { this.ctx.sfx('click'); go(); }); tabs.append(t); };
+    tab(`Letters${v.unread ? ` (${v.unread} new)` : ''}`, !v.writing, () => this.ctx.mailDo('back'));
+    tab('Write a letter', v.writing, () => this.ctx.mailDo('write'));
+    const reload = el('button', 'btn ghost ex-reload', 'Refresh');
+    reload.addEventListener('click', () => this.ctx.mailDo('reload'));
+    tabs.append(reload);
+    body.append(tabs);
+
+    // ---- Writing
+    if (v.writing) {
+      const d = v.draft;
+      const form = el('div', 'ml-write');
+      form.innerHTML = `<label>To <input class="ml-to" maxlength="20" placeholder="A character's name"></label>
+        <label>Subject <input class="ml-subj" maxlength="60"></label>
+        <textarea class="ml-body" maxlength="1200" placeholder="Dear…"></textarea>`;
+      const to = form.querySelector('.ml-to') as HTMLInputElement, subj = form.querySelector('.ml-subj') as HTMLInputElement, text = form.querySelector('.ml-body') as HTMLTextAreaElement;
+      to.value = d.to; subj.value = d.subject; text.value = d.body;
+      for (const i of [to, subj, text]) stopKeys(i);
+      to.addEventListener('input', () => { d.to = to.value; });
+      subj.addEventListener('input', () => { d.subject = subj.value; });
+      text.addEventListener('input', () => { d.body = text.value; });
+      body.append(form);
+      // What goes with it
+      body.append(el('h6', 'ex-h', `Sent with it (${d.items.length} of ${MAIL_STACKS} stacks)`));
+      const sent = el('div', 'ml-with');
+      for (const st of d.items) {
+        const have = this.ctx.save.inv.reduce((a, x) => a + (x && x.id === st.id ? x.n : 0), 0);
+        const row = el('div', 'shop-row');
+        row.innerHTML = `${slot(st.id, st.n)}<div><div class="nm" style="color:${RARITY_COLOR[ITEMS[st.id]?.rarity ?? 'common']}">${esc(ITEMS[st.id]?.name ?? st.id)}</div><div class="d">You have ${have}</div></div>${have > 1 ? `<input type="number" class="ml-n" min="1" max="${have}" value="${st.n}">` : '<span></span>'}<button class="btn ghost">Take out</button>`;
+        const nIn = row.querySelector('.ml-n') as HTMLInputElement | null;
+        if (nIn) { stopKeys(nIn); nIn.addEventListener('change', () => { st.n = Math.min(have, Math.max(1, Math.floor(Number(nIn.value) || 1))); nIn.value = String(st.n); this.renderMail(); }); }
+        row.querySelector('button')!.addEventListener('click', () => this.ctx.mailDo('attach', undefined, st.id));
+        sent.append(row);
+      }
+      const mk = el('label', 'ml-marks');
+      mk.innerHTML = `Marks <input type="number" min="0" max="1000000" value="${d.marks || 0}">`;
+      const mIn = mk.querySelector('input') as HTMLInputElement;
+      stopKeys(mIn);
+      mIn.addEventListener('change', () => { d.marks = Math.max(0, Math.min(1_000_000, Math.floor(Number(mIn.value) || 0))); this.renderMail(); });
+      sent.append(mk);
+      body.append(sent);
+      const cost = postage(d.items.length);
+      const go = el('div', 'ml-go');
+      go.innerHTML = `<span>Postage ${cost} ${cost === 1 ? 'mark' : 'marks'}${d.marks ? `, and ${d.marks} sent` : ''}</span><button class="btn">${v.sending ? 'Posting…' : 'Post it'}</button>`;
+      const b = go.querySelector('button')!;
+      b.disabled = v.sending || marks < cost + (d.marks || 0);
+      b.addEventListener('click', () => { d.to = to.value; d.subject = subj.value; d.body = text.value; this.ctx.mailDo('send'); });
+      body.append(go);
+      // Your pack, to choose from
+      body.append(el('h6', 'ex-h', 'From your pack'));
+      const grid = el('div', 'ml-pack');
+      const seen = new Map<string, number>();
+      for (const st of this.ctx.save.inv) if (st && ITEMS[st.id] && ITEMS[st.id].kind !== 'quest') seen.set(st.id, (seen.get(st.id) ?? 0) + st.n);
+      if (!seen.size) grid.append(el('p', 'ex-note', 'Nothing in your pack the Post will carry.'));
+      for (const [id, n] of seen) {
+        const cell = el('div', 'ml-cell' + (d.items.some((x) => x.id === id) ? ' on' : ''));
+        cell.innerHTML = slot(id, n);
+        cell.addEventListener('click', () => this.ctx.mailDo('attach', undefined, id, n));
+        grid.append(cell);
+      }
+      body.append(grid);
+      tips(body);
+      return;
+    }
+
+    // ---- Reading one
+    const l = v.reading;
+    if (l) {
+      const card = el('div', 'ml-letter');
+      card.innerHTML = `<div class="ml-head"><b>${esc(l.subject)}</b><span>${l.returned ? 'The Charter Post' : 'From ' + esc(l.from)} · ${ago(l.at)}</span></div><div class="ml-text">${esc(l.body) || '<i>No letter, only what came with it.</i>'}</div>`;
+      if (l.items.length || l.marks) {
+        const w = el('div', 'ml-in');
+        w.innerHTML = `<span>In the letter</span>${l.items.map((x) => slot(x.id, x.n)).join('')}${l.marks ? `<span class="coin">${l.marks}</span>` : ''}<button class="btn">Take it out</button>`;
+        w.querySelector('button')!.addEventListener('click', () => this.ctx.mailDo('take', l.id));
+        card.append(w);
+      }
+      const acts = el('div', 'ml-acts');
+      const act = (label: string, ghost: boolean, go: () => void) => { const b = el('button', 'btn' + (ghost ? ' ghost' : ''), label); b.addEventListener('click', go); acts.append(b); };
+      act('Back to the letters', true, () => this.ctx.mailDo('back'));
+      if (l.fromKey) act('Reply', false, () => this.ctx.mailDo('reply', l.id));
+      if (l.fromKey && !l.returned) act('Send it back', true, () => this.ctx.mailDo('return', l.id));
+      if (!l.items.length && !l.marks) act('Throw away', true, () => this.ctx.mailDo('delete', l.id));
+      card.append(acts);
+      body.append(card);
+      tips(card);
+      return;
+    }
+
+    // ---- The box
+    if (!v.letters.length) {
+      body.append(el('p', 'ex-note', v.loading ? 'The clerk is looking through the pigeonholes…' : 'Nothing has come for you. Letters other players send you wait here, at any Charter Post box.'));
+      return;
+    }
+    const list = el('div', 'ex-list');
+    for (const x of v.letters) {
+      const row = el('div', 'shop-row ml-row' + (x.read ? '' : ' unread'));
+      const holds = x.items.length || x.marks;
+      row.innerHTML = `<div class="slot"><img src="${shapeIcon('letter', x.read ? '#d8cfb6' : '#f4ead0', x.returned ? '#6a6a6a' : '#b03a2e')}" alt=""></div><div><div class="nm">${esc(x.subject)}</div><div class="d">${x.returned ? 'Returned by the Post' : esc(x.from)} · ${ago(x.at)}${holds ? ' · something in it' : ''}</div></div><span></span><button class="btn ghost">Read</button>`;
+      row.addEventListener('click', () => this.ctx.mailDo('read', x.id));
+      list.append(row);
+    }
+    body.append(list);
   }
 
   private renderExchange(): void {
