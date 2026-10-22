@@ -734,3 +734,6 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #guild-panel .fadd input { flex: 1; }
 .cb-line.whisper b, .cb-line.whisperTo b { color: #e8a0e0; }
 .cb-line.whisper, .cb-line.whisperTo { color: #f0c8ec; }
+
+/* The Early Access tag under the title */
+.logo .ea { display: inline-block; margin-top: 18px; padding: 4px 14px 5px; font: 700 14px var(--px); letter-spacing: 4px; text-transform: uppercase; color: #1d150c; background: linear-gradient(#ffe9a0, #e0b84a); border: 2px solid var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,0.45); }

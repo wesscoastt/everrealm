@@ -49,6 +49,29 @@ export interface FrontCtx {
   skipIntro(): void;
 }
 
+type HomeTab = 'start' | 'world' | 'callings' | 'homes' | 'together' | 'new';
+const HOME_TABS: [HomeTab, string][] = [['world', 'The World'], ['callings', 'Callings'], ['homes', 'Homes'], ['together', 'Together'], ['new', 'What\'s new']];
+/** The front page's words: a short pitch, then a page for each part of the game. */
+const HOME_PAGES: Record<HomeTab, string> = {
+  start: `<h2>A whole realm to wander</h2>
+    <p>Step off the Charter Post in Hollin Ford with a few marks and a long road ahead. Fish the Wend, work the forge, take a house on the Ford road, and ride out to Ansbury, the coast and the high country beyond.</p>
+    <p>When the world bosses rise, everyone nearby fights together. When the fair comes to town, everyone dances.</p>`,
+  world: `<h2>The Charter Counties</h2>
+    <p>Six regions in one seamless world, from the green vale of Hollindale to the walled capital of Ansbury, the fishing harbours of the Fleet Coast, the dark trees of Hagworm Wood, the red mines of the Raddle Barrens and the snow of the Scarth Highlands.</p>
+    <ul><li>Dungeons, delves and caves to clear with friends</li><li>World bosses on a schedule the whole realm shares</li><li>Five festivals on the real calendar</li><li>Horses, Charter Posts and waymarks to get you there</li></ul>`,
+  callings: `<h2>Four callings</h2>
+    <ul><li><b>Warden.</b> Shield and steadiness. Soak the blow and hold the line.</li><li><b>Reaver.</b> Close-in fury. Bleed them, leap in, and live off the fight.</li><li><b>Ashcaller.</b> Fire from a distance. Build heat, then call down a star.</li><li><b>Pathfinder.</b> Arrows and quick feet. Mark your prey and step behind it.</li></ul>
+    <p>Change calling whenever you're out of a fight. Your skills, gear and progress come with you.</p>`,
+  homes: `<h2>A place of your own</h2>
+    <p>Buy Wendside Cottage, or lease a lot from the Charter and have the Ansbury builders raise a house to your plans: size, storeys, stone or timber, thatch or slate.</p>
+    <ul><li>Furnish every room, or make the furniture yourself at the joiner's bench</li><li>Sleep in your own bed to wake well rested</li><li>Invite friends round to see what you've done with it</li></ul>`,
+  together: `<h2>Better with friends</h2>
+    <ul><li>Groups, with a bonus for playing side by side</li><li>Guilds with ranks, a roster and their own chat</li><li>Friends lists and whispers</li><li>Trading, and one bank vault for all your characters</li><li>Shared events and world bosses, with a medal for everyone who helped</li></ul>`,
+  new: `<h2>What's new</h2>
+    <ul><li><b>Homes.</b> Lease a lot and build your own house, room by room.</li><li><b>Friends and whispers.</b> See who's online and where, and send a private word.</li><li><b>One realm clock.</b> Dawn and dusk come for everyone at once, and creatures stay down when someone kills them.</li><li><b>The Charter Bank.</b> One vault, every character.</li></ul>
+    <p>Everrealm is in early access: new regions, dungeons and story chapters are on the way.</p>`,
+};
+
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!));
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
@@ -123,7 +146,10 @@ const playTime = (s: number) => {
 
 export class Frontend {
   private root: HTMLElement;
-  private screen: 'none' | 'select' | 'creator' | 'intro' = 'none';
+  private screen: 'none' | 'home' | 'select' | 'creator' | 'intro' = 'none';
+  private homeTab: HomeTab = 'start';
+  /** Players in the world on the chosen realm (null: not asked yet, or no realm). */
+  private realmOnline: number | null = null;
   private look = defaultLook();
   private origin = ORIGINS[0].id;
   private calling: CallingId = 'warden';
@@ -148,6 +174,43 @@ export class Frontend {
     this.root.innerHTML = '';
   }
 
+  // ------------------------------------------------------------------ Front page
+  /** The front page: what Everrealm is, and the way in. The live vale stands behind it. */
+  showHome(tab: HomeTab = this.homeTab): void {
+    this.screen = 'home';
+    this.homeTab = tab;
+    const realm = this.ctx.realmUrl;
+    if (realm && this.realmOnline === null) this.askOnline(realm);
+    const status = realm
+      ? `<span class="dot ${this.realmOnline === null ? 'checking' : this.realmOnline >= 0 ? 'up' : 'down'}"></span>${this.realmOnline === null ? 'Finding the realm…' : this.realmOnline < 0 ? 'The realm isn\'t answering' : this.realmOnline === 0 ? 'The realm is open' : `${this.realmOnline} in the world now`}`
+      : '<span class="dot offline"></span>Playing offline, in this browser';
+    const nav = HOME_TABS.map(([id, label]) => `<button class="hn ${id === tab ? 'sel' : ''}" data-h="${id}">${label}</button>`).join('');
+    this.root.innerHTML = `<div class="fe fe-home">
+      <header class="hm-top"><div class="hm-mark"><div class="gem"></div><b>EVER<span>REALM</span></b></div><nav>${nav}</nav><button class="btn hm-playsm" data-a="play">Play now</button></header>
+      <section class="hm-card${tab === 'start' ? '' : ' compact'}">
+        <div class="hm-brand"><div class="gem"></div><h1>EVER<span>REALM</span></h1><div class="hm-ea">Early Access</div></div>
+        <div class="hm-body">${HOME_PAGES[tab]}</div>
+        <button class="btn big hm-play" data-a="play">▶ Play now</button>
+        <div class="hm-realm">${status}</div>
+        <p class="hm-small">Free in your browser · Nothing to download · No pay-to-win, ever</p>
+      </section>
+      <nav class="fe-foot"><button class="link" data-a="settings">Settings</button><button class="link" data-a="credits">Credits</button></nav>
+    </div>`;
+    this.root.querySelectorAll<HTMLElement>('[data-h]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.showHome(b.dataset.h as HomeTab); }));
+    this.root.querySelectorAll<HTMLElement>('[data-a]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.a === 'play') { this.ctx.sfx('click'); this.showSelect(); } else this.act(b.dataset.a!, null);
+    }));
+  }
+
+  /** How many are in the world on this realm (its /health page says), for the front page. */
+  private askOnline(url: string): void {
+    this.realmOnline = null;
+    const base = url.replace(/^ws(s?):\/\//, 'http$1://').replace(/\/+$/, '');
+    const done = (n: number) => { this.realmOnline = n; if (this.screen === 'home') this.showHome(); };
+    const timer = setTimeout(() => done(-1), 6000);
+    fetch(base + '/health').then((r) => r.json()).then((j: { online?: number }) => { clearTimeout(timer); done(typeof j.online === 'number' ? j.online : 0); }).catch(() => { clearTimeout(timer); done(-1); });
+  }
+
   // ------------------------------------------------------------------ Character select
   showSelect(): void {
     this.screen = 'select';
@@ -158,7 +221,8 @@ export class Frontend {
     const full = chars.length >= this.ctx.maxCharacters;
     const realm = this.ctx.realmUrl;
     this.root.innerHTML = `<div class="fe fe-select">
-      <div class="fe-brand"><div class="gem"></div><b>EVER<span>REALM</span></b></div>
+      <div class="fe-brand"><div class="gem"></div><b>EVER<span>REALM</span></b><i class="ea">Early Access</i></div>
+      <button class="link fe-back" data-a="home">‹ Front page</button>
       <div class="fe-realm frame">
         <div><small>REALM</small><b>${realm ? 'Charter realm' : 'Hearth'}</b></div>
         <div class="st"><i class="dot ${realm ? this.realmState : 'offline'}"></i><span>${realm ? esc(realm.replace(/^wss?:\/\//, '')) + (this.realmState === 'checking' ? ' · checking' : this.realmState === 'up' ? ' · reachable' : this.realmState === 'down' ? ' · not answering' : '') : 'Offline · this browser'}</span></div>
@@ -189,7 +253,7 @@ export class Frontend {
         ? `<div class="who"><h2>${esc(cur.name)}</h2><p>${cur.origin ? `${esc(originById(cur.origin).title)} from ${esc(originById(cur.origin).place)} · ` : ''}total level ${cur.level} · ${esc(cur.place)}</p></div><button class="btn big" data-a="enter">Enter world</button><small class="hint">Enter to play · arrows to choose</small>`
         : `<div class="who"><h2>Welcome to the Charter Counties</h2><p>Make a character to begin in Hollindale.</p></div><button class="btn big" data-a="new">Create a character</button>`}</div>
       <nav class="fe-foot"><button class="link" data-a="settings">Settings</button><button class="link" data-a="credits">Credits</button></nav>
-      <div class="fe-ver">Milestone 2 · ${realm ? 'online realm' : 'single-player'}</div>
+      <div class="fe-ver">Early Access · ${realm ? 'online realm' : 'single-player'}</div>
     </div>`;
     this.root.querySelectorAll<HTMLCanvasElement>('canvas[data-face]').forEach((cv) => {
       const c = chars.find((x) => x.id === cv.dataset.face);
@@ -209,6 +273,7 @@ export class Frontend {
     else if (a === 'restyle' && cur) this.showCreator(cur);
     else if (a === 'delete' && cur) this.confirmDelete(cur);
     else if (a === 'settings') this.ctx.openSettings();
+    else if (a === 'home') this.showHome();
     else if (a === 'credits') this.credits();
     else if (a === 'realm') this.realmPicker();
     else if (a === 'signin') this.accountForm();
@@ -495,6 +560,7 @@ export class Frontend {
       return;
     }
     if (this.screen === 'intro' && (e.key === ' ' || e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); this.ctx.skipIntro(); }
+    if (this.screen === 'home' && e.key === 'Enter') { e.preventDefault(); this.ctx.sfx('click'); this.showSelect(); return; }
     if (this.screen === 'select') {
       if (e.key === 'ArrowDown') { e.preventDefault(); this.moveSelection(1); }
       if (e.key === 'ArrowUp') { e.preventDefault(); this.moveSelection(-1); }

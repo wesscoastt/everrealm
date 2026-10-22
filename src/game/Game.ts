@@ -1022,8 +1022,10 @@ export class Game implements GameApi {
     this.hud.hideTitle();
     this.hud.setHudHidden(true);
     this.selectCharacter(this.charId);
-    this.front.showSelect();
+    // The front page the first time; straight to the characters after that (leaving the world)
+    if (!this.homeShown) { this.homeShown = true; this.front.showHome(); } else this.front.showSelect();
   }
+  private homeShown = false;
 
   /** Load a character from the roster into this.save and stand them in the scene. */
   private selectCharacter(id: string | null): void {

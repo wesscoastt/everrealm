@@ -1855,7 +1855,7 @@ export class Hud {
     let t = this.root.querySelector<HTMLElement>('.title-screen');
     if (!t) {
       t = el('div', 'title-screen');
-      t.innerHTML = `<div class="logo"><div class="gem"></div><h1>EVER<span>REALM</span></h1><p>EXPLORE<i></i>CRAFT<i></i>BUILD<i></i>BELONG</p></div><div class="loading"></div>`;
+      t.innerHTML = `<div class="logo"><div class="gem"></div><h1>EVER<span>REALM</span></h1><div class="ea">Early Access</div><p>EXPLORE<i></i>CRAFT<i></i>BUILD<i></i>BELONG</p></div><div class="loading"></div>`;
       this.root.append(t);
     }
     t.classList.remove('hide');
