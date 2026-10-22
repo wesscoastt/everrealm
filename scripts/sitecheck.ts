@@ -1,6 +1,7 @@
 // Placement check for the streamed world's settlements and landmarks.
 //   npm run sites            list every problem
 //   npm run sites -- --all   also list every point that stands on something built
+//   npm run sites -- --raised  also list the people who stand on a raised floor of their own
 //
 // Runs the site planner in Node and checks that every fixed point the game relies on (where people
 // stand and walk, things to examine, Charter Post stops, quest creatures, dungeon creatures and
@@ -64,8 +65,19 @@ function check(label: string, x: number, z: number, opts: { y?: number; water?: 
   }
 }
 
+// People stand where the game puts them (entities/Npc.ts groundAt): on the first solid block down
+// from high above, through leaves. Someone on a raised floor of their own (a tower's planks, an
+// isle) is checked there, floor and headroom, rather than against the ground under it.
+const npcFloor = (x: number, z: number): number => {
+  let y = 95;
+  while (y > 1 && (!solid(x, y - 1, z) || LEAVES.has(cells.get(key(x, y - 1, z)) ?? -1))) y--;
+  return y;
+};
 for (const n of NPCS) n.schedule.forEach((s, i) => {
-  check(`npc ${n.id} slot ${i}`, s.at[0], s.at[1]);
+  const f = npcFloor(s.at[0], s.at[1]);
+  if (process.argv.includes('--raised') && f - heightAt(Math.floor(s.at[0]), Math.floor(s.at[1])) >= 4) console.log(`raised: npc ${n.id} slot ${i} at ${f}`);
+  if (f - heightAt(Math.floor(s.at[0]), Math.floor(s.at[1])) >= 4 && !(s.at[0] >= 0 && s.at[1] >= 0 && s.at[0] < GW + 40 && s.at[1] < GW + 40)) check(`npc ${n.id} slot ${i}`, s.at[0], s.at[1], { y: f });
+  else check(`npc ${n.id} slot ${i}`, s.at[0], s.at[1]);
   s.path?.forEach((p, k) => check(`npc ${n.id} slot ${i} path ${k}`, p[0], p[1]));
 });
 for (const t of WORLD_THINGS) if (t.radius > 0) check(`thing ${t.id}`, t.x, t.z, { y: t.y });

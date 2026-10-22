@@ -53,7 +53,7 @@ export const CALLINGS: CallingDef[] = [
     pros: 'Highest damage; heals by fighting', cons: 'Takes more harm; melee only',
   },
   {
-    id: 'ashcaller', name: 'Ashcaller', role: 'Fire from a distance',
+    id: 'ashcaller', name: 'Kindler', role: 'Fire from a distance',
     blurb: 'Calls fire and falling stars from a distance. The Glass Kirk teaches it to anyone who can sit still long enough to listen to a star.',
     mechanic: { name: 'Kindling', desc: 'Each Ember Bolt adds Kindling. The third bursts in a ball of fire that scorches everything near the target.', color: '#f0a040' },
     skills: [

@@ -94,7 +94,7 @@ export interface SiteActivity {
 }
 
 /** The lairs where the world bosses rise. */
-const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Tidewright Sands', 'wb-cinderhorn': 'Cinderhorn Pit', 'wb-rimeglass': 'The Rime Bowl' };
+const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl' };
 
 /** Underworks themes: depth and reach, stone, light, who lives there, and what's left lying about. */
 const UNDERWORKS = {
@@ -278,7 +278,7 @@ export function plan(): Plan {
     // Group dungeons: buried halls, entered by a door elsewhere (the Old Man's from Sallow Pit's chamber)
     { id: 'gd-oldman', name: 'The Old Man\'s Workings', x: 254, z: -58, r0: 0, r1: 0, under: true, build: (s) => buildOldMan(s) },
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
-    { id: 'sc-crater', name: 'The Great Starfall', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
+    { id: 'sc-crater', name: 'The Kettle', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
     // World bosses' lairs and the Shardfalls' landing grounds (data/activities.ts says when they're used)
     ...WORLD_BOSSES.map((b): Named => ({ id: 'lair-' + b.id, name: LAIR_NAMES[b.id], x: b.x, z: b.z, r0: 20, r1: 32, build: (s, g) => buildLair(s, g, b.type) })),
     ...SHARDFALLS.map(([x, z], i): Named => ({ id: 'shardfall-' + i, name: 'Shardfall ground', x, z, r0: 12, r1: 22, build: (s, g) => buildShardGround(s, g) })),
@@ -1788,7 +1788,7 @@ export function plan(): Plan {
     s.act = { kind: 'scenic' };
   }
 
-  /** The Great Starfall: a crater blown in the highland, crystal spires grown where the star lay. */
+  /** The Kettle: the crater a star blew in the highland, crystal spires grown where it lay. */
   function buildGreatStarfall(s: Site, G: number) {
     const cx = Math.round(s.x), cz = Math.round(s.z);
     rect(s, cx - 34, cz - 34, cx + 34, cz + 34);

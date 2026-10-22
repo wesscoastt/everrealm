@@ -60,7 +60,7 @@ const HOME_PAGES: Record<HomeTab, string> = {
     <p>Six regions in one seamless world, from the green vale of Hollindale to the walled capital of Ansbury, the fishing harbours of the Fleet Coast, the dark trees of Hagworm Wood, the red mines of the Raddle Barrens and the snow of the Scarth Highlands.</p>
     <ul><li>Dungeons, delves and caves to clear with friends</li><li>World bosses on a schedule the whole realm shares</li><li>Five festivals on the real calendar</li><li>Horses, Charter Posts and waymarks to get you there</li></ul>`,
   callings: `<h2>Four callings</h2>
-    <ul><li><b>Warden.</b> Shield and steadiness. Soak the blow and hold the line.</li><li><b>Reaver.</b> Close-in fury. Bleed them, leap in, and live off the fight.</li><li><b>Ashcaller.</b> Fire from a distance. Build heat, then call down a star.</li><li><b>Pathfinder.</b> Arrows and quick feet. Mark your prey and step behind it.</li></ul>
+    <ul><li><b>Warden.</b> Shield and steadiness. Soak the blow and hold the line.</li><li><b>Reaver.</b> Close-in fury. Bleed them, leap in, and live off the fight.</li><li><b>Kindler.</b> Fire from a distance. Build heat, then call down a star.</li><li><b>Pathfinder.</b> Arrows and quick feet. Mark your prey and step behind it.</li></ul>
     <p>Change calling whenever you're out of a fight. Your skills, gear and progress come with you.</p>`,
   homes: `<h2>A place of your own</h2>
     <p>Buy Wendside Cottage, or lease a lot from the Charter and have the Ansbury builders raise a house to your plans: size, storeys, stone or timber, thatch or slate.</p>
@@ -244,7 +244,7 @@ export class Frontend {
         <header><h3>In this build</h3></header>
         <ul>
           <li><b>The Weatherholms.</b> The main story's second act: six new chapters after the sitting, up a hoist to the floating isles.</li>
-          <li><b>Callings.</b> Warden, Reaver, Ashcaller or Pathfinder, each with its own mechanic and three skills. Change any time out of a fight.</li>
+          <li><b>Callings.</b> Warden, Reaver, Kindler or Pathfinder, each with its own mechanic and three skills. Change any time out of a fight.</li>
           <li><b>Festivals.</b> Five fairs on the real calendar, with stalls, tokens, dyes and a horse each. The journal says what's on.</li>
           <li><b>Chat and emotes.</b> Press Enter to talk, or /wave, /dance, /sit and more. Other players see them.</li>
         </ul>

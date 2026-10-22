@@ -367,6 +367,36 @@ Six chapters after the sitting. The quest ids are `storyStride`, `storyHoist`, `
 
 Every ending: Delyth cuts a forty-second stroke on the last stone and gives the player her chisel (`holm_mark`), and the basket is open to the player for good.
 
+## The main story, Act III: The Drowned Parish [in game]
+
+Four chapters after the Weatherholms. The quest ids are `storyLowWater`, `storyRegister`, `storyLoads` and `storyBell`. Everything is in `src/data/content/holmsey.ts`; Holmsey and its bell-tower are built in `src/world/sites.ts` (`buildHolmsey`, `buildDrownedTower`). It starts from Nessa Crane at Gullmouth once Act II is done.
+
+### What is true in the world
+
+- **Holmsey** was a parish on the marsh under the Gulf Cliffs: a lane, a market cross, the Bell inn, the reeve's house, a churchyard and a church whose tower still stands out of the sea. It went under a hundred and twelve years ago.
+- **The white.** At Michaelmas that year the Fennick estate's agent let the Glass Kirk's builders dig the white (star crystal) out of the marsh pits, at a mark the load. Thirty-eight loads went up the Kirk road by Martinmas. Crystal is lift: the ground went down a foot a month, the dyke broke by the Bell at Twelfth Night, and the parish left for the cliff top after Lady Day.
+- **The register** was kept to the end by the clerk, **Ralph Sweet**. Its last dry pages record Ann Vosper buried in the high corner of the churchyard, and Mary, daughter of Ralph and Jane Sweet, baptised in the tower at Candlemas because the nave was under.
+- **The Kirk's floor** is Holmsey's white. The Kirk's building book records the thirty-eight loads, and the floor was blessed at that same Candlemas.
+- **The bell** came down off its beam long ago and lies on the drowned ringing-chamber floor. Since the Kirk floor came up, the ground under the Gulf has let go a little and Holmsey is rising, about an inch a month: at low water the bell's crown is clear, and the swell rings it. Tamar has measured the lane at the cross: four fathoms when she started diving it, three and a half now.
+- Every boat from Gullmouth to the Raddle smelter goes down the Gulf over Holmsey.
+
+### People
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Tamar Sweet** | Salvage diver from Gullmouth; has slept in the bell-tower since midsummer. Ralph Sweet's great-great-granddaughter | Holmsey left alone to come up | She's been diving her own family's parish for twelve years |
+| **Nessa Crane** | Harbourmaster (Fleet Coast) | Her lane | She hates the dredging more than the bill |
+| **Sela Orme** | Keeper of the Glass Kirk | The floor where it is | — |
+| **Hilda Harrowgate** | Harrowgate & Daughters | To dredge the white while it's shallow, paying the Charter a fifth | — |
+
+### Endings (`parishEnd`)
+
+- `rise`: Nessa buoys a new channel west of Holmsey (half a day longer to the smelter) and the parish is left to come up.
+- `hold`: Gullmouth's lighters lay stone from the quarry at the stacks along the lane until it stops rising. The bell rings at every low water.
+- `sink`: Harrowgate dredges the white and pays the Charter a fifth; the player gets 150 marks; the parish will go back under. Tamar leaves the tower.
+
+Every ending: Sela writes Holmsey at the front of the Kirk's book of names, the player rings the bell while Tamar reads the last names, and Tamar gives the player a length of the bell rope (`holmsey_rope`).
+
 ## Terminology
 
 - "reeve", not "mayor". "moot", not "council".

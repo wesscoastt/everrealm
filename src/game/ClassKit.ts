@@ -208,7 +208,7 @@ export class ClassKit {
         this.redUntil = this.clock + T.redhour.secs;
         H.particles.burst(P.clone().setY(P.y + 1), '#c02a1a', 30); H.sfx('growl');
         return true;
-      // Ashcaller
+      // Kindler
       case 'ward':
         this.wardUntil = this.clock + T.ward.secs; this.wardTick = 0;
         H.anim('heal'); H.sfx('heal');

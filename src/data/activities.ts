@@ -56,8 +56,8 @@ export interface BossDef {
 
 export const WORLD_BOSSES: BossDef[] = [
   { id: 'wb-bramblemaw', type: 'bramblemaw', x: 120, z: 1157, where: 'the Bramble Ring, Hagworm Wood', every: 1800, offset: 0, adds: 'thornwolf' },
-  { id: 'wb-tidewright', type: 'tidewright', x: 1708, z: 1004, where: 'Tidewright Sands, the Fleet Coast', every: 1800, offset: 450, adds: 'crab' },
-  { id: 'wb-cinderhorn', type: 'cinderhorn', x: 1245, z: 1375, where: 'Cinderhorn Pit, the Raddle Barrens', every: 1800, offset: 900, adds: 'dustwolf' },
+  { id: 'wb-tidewright', type: 'tidewright', x: 1708, z: 1004, where: 'Jenny\'s Strand, the Fleet Coast', every: 1800, offset: 450, adds: 'crab' },
+  { id: 'wb-cinderhorn', type: 'cinderhorn', x: 1245, z: 1375, where: 'Clinker Bottom, the Raddle Barrens', every: 1800, offset: 900, adds: 'dustwolf' },
   { id: 'wb-rimeglass', type: 'rimeglass', x: 957, z: 1734, where: 'the Rime Bowl, Scarth', every: 1800, offset: 1350, adds: 'shardjelly' },
 ];
 /** How long a world boss stays up once it has risen, and how long before that it is announced (seconds). */
