@@ -4,14 +4,15 @@
 //
 // Checks: every house door has level ground outside it (no pits you can drop into and not climb
 // out of, no drops), worn paths and paving don't run into buildings, and props stand on something
-// (not floating) unless they hang on a wall.
+// (not floating) unless they hang on a wall, and every leaf on Haverwood's trees hangs on wood.
 
 import './canvas-stub.mjs';
 import * as THREE from 'three';
 import zlib from 'node:zlib';
 import fs from 'node:fs';
 import { Grid, SX, SY, SZ, WATER_LEVEL } from '../src/world/grid';
-import { generateTerrain, EX, ROADS } from '../src/world/generate';
+import { generateTerrain, EX, ROADS, growTree, placeTrees } from '../src/world/generate';
+import { createSeededRandom } from '../src/utils/random';
 import { buildStructures } from '../src/world/structures';
 import { Batcher, createPropMaterials } from '../src/world/props';
 import { B, isSolid } from '../src/world/blocks';
@@ -37,6 +38,12 @@ Batcher.prototype.addGroup = function (g: THREE.Object3D, m: THREE.Matrix4) {
 const grid = new Grid();
 const layout = generateTerrain(grid);
 const res = buildStructures(grid, layout, createPropMaterials(), { value: 0 });
+// Plant the trees as the game does (the moot oak, then Haverwood)
+{
+  const rnd = createSeededRandom(1337);
+  growTree(grid, 'moot', 144, grid.topSolid(144, 175) + 1, 175, rnd);
+  placeTrees(grid, layout, rnd);
+}
 const problems: string[] = [];
 
 // ---- Doors: the ground just outside each one
@@ -92,6 +99,27 @@ for (const road of ROADS) for (let i = 0; i < road.length - 1; i++) {
 for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) for (let y = 1; y < SY; y++) {
   const id = grid.get(x, y, z);
   if (id && id !== B.Barrier && id !== B.Water && grid.get(x, y - 1, z) === B.Barrier) problems.push(`block on a barrier at (${x}, ${y}, ${z})`);
+}
+
+// ---- Leaves that float: flood from every log through leaves touching face to face
+{
+  const LEAF = new Set<number>([B.OakLeaves, B.BirchLeaves, B.PineLeaves]), LOG = new Set<number>([B.OakLog, B.BirchLog, B.PineLog]);
+  const at = (x: number, y: number, z: number) => x + SX * (z + SZ * y);
+  const seen = new Uint8Array(SX * SY * SZ);
+  const q: [number, number, number][] = [];
+  for (let y = 0; y < SY; y++) for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) if (LOG.has(grid.get(x, y, z))) { seen[at(x, y, z)] = 1; q.push([x, y, z]); }
+  while (q.length) {
+    const [x, y, z] = q.pop()!;
+    for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      if (nx < 0 || nz < 0 || ny < 0 || nx >= SX || nz >= SZ || ny >= SY || seen[at(nx, ny, nz)] || !LEAF.has(grid.get(nx, ny, nz))) continue;
+      seen[at(nx, ny, nz)] = 1;
+      q.push([nx, ny, nz]);
+    }
+  }
+  for (let y = 0; y < SY; y++) for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
+    if (LEAF.has(grid.get(x, y, z)) && !seen[at(x, y, z)]) problems.push(`leaf floating at (${x}, ${y}, ${z}), on no tree`);
+  }
 }
 
 // ---- Props that float (nothing under them, and no wall beside them to hang on)

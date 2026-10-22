@@ -354,6 +354,7 @@ export function generateTerrain(world: Grid): Layout {
   return { heights, exclusion, tint, trees: [], ores, fish, mineLights, caveLights };
 }
 
+const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]] as const;
 const ONE: [number, number, number] = [1, 1, 1];
 const scratch: [number, number, number] = [1, 1, 1];
 export function makeTintFn(layout: Layout) {
@@ -375,9 +376,13 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
   const leaves: [number, number, number, number][] = [];
   const leaf = kind === 'birch' ? B.BirchLeaves : kind === 'pine' ? B.PineLeaves : B.OakLeaves;
   const log = kind === 'birch' ? B.BirchLog : kind === 'pine' ? B.PineLog : B.OakLog;
+  const key = (lx: number, ly: number, lz: number) => ((lx + 4096) * 8192 + lz + 4096) * 128 + ly;
+  const mine = new Map<number, number>();
   const addLeaf = (lx: number, ly: number, lz: number) => {
-    if (world.get(lx, ly, lz) === B.Air) { world.put(lx, ly, lz, leaf); leaves.push([lx, ly, lz, leaf]); }
+    if (world.get(lx, ly, lz) === B.Air) { world.put(lx, ly, lz, leaf); mine.set(key(lx, ly, lz), leaves.length); leaves.push([lx, ly, lz, leaf]); }
   };
+  /** The lowest leaf of this tree's crown in a column, if any. */
+  const underside = (lx: number, lz: number, from: number, to: number) => { for (let yy = from; yy <= to; yy++) if (mine.has(key(lx, yy, lz))) return yy; return -1; };
   const addLog = (lx: number, ly: number, lz: number) => { world.put(lx, ly, lz, log); trunk.push([lx, ly, lz]); };
 
   if (kind === 'pine') {
@@ -430,7 +435,8 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
     for (let k = 0; k < 14; k++) {
       const a = rnd() * Math.PI * 2, r = 3 + rnd() * 6, hx = x + Math.round(Math.cos(a) * r), hz = z + Math.round(Math.sin(a) * r);
       const len = 1 + Math.floor(rnd() * 3);
-      for (let h = 1; h <= len; h++) addLeaf(hx, cy - 3 - h, hz);
+      const low = underside(hx, hz, cy - 3, cy + 5);
+      if (low >= 0) for (let h = 1; h <= len; h++) addLeaf(hx, low - h, hz);
     }
   } else if (kind === 'moot' || kind === 'giant') {
     const hgt = kind === 'moot' ? 8 : 10 + Math.floor(rnd() * 5);
@@ -460,11 +466,31 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
       const d = Math.sqrt(dx * dx + (dy * (birch ? 0.75 : 1.15)) ** 2 + dz * dz);
       if (d <= r + (rnd() - 0.5) * 0.9) addLeaf(x + dx, cy + dy, z + dz);
     }
-    // A few drooping clumps break the silhouette
+    // A few drooping clumps break the silhouette, each hung under the crown's lower edge
     for (let k = 0; k < 3; k++) {
       const a = rnd() * Math.PI * 2;
-      addLeaf(x + Math.round(Math.cos(a) * (r + 0.6)), cy - 1, z + Math.round(Math.sin(a) * (r + 0.6)));
+      for (let d = Math.ceil(r) + 1; d >= 1; d--) {
+        const hx = x + Math.round(Math.cos(a) * d), hz = z + Math.round(Math.sin(a) * d);
+        const low = underside(hx, hz, cy - 2, cy);
+        if (low >= 0) { addLeaf(hx, low - 1, hz); break; }
+      }
     }
+  }
+  // Every leaf hangs on the tree: the crown's ragged edge can leave a block touching nothing of its
+  // own but air, so keep only what reaches the wood face to face, leaf by leaf
+  const held = new Uint8Array(leaves.length);
+  const q = trunk.map(([a, b, c]) => [a, b, c]);
+  while (q.length) {
+    const [qx, qy, qz] = q.pop()!;
+    for (const [dx, dy, dz] of FACES) {
+      const i = mine.get(key(qx + dx, qy + dy, qz + dz));
+      if (i !== undefined && !held[i]) { held[i] = 1; q.push([qx + dx, qy + dy, qz + dz]); }
+    }
+  }
+  if (held.includes(0)) {
+    const kept = leaves.filter((l, i) => { if (!held[i]) world.put(l[0], l[1], l[2], B.Air); return held[i]; });
+    leaves.length = 0;
+    leaves.push(...kept);
   }
   return {
     id: 0, kind, x, y, z, trunk, leaves,
