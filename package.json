@@ -15,7 +15,8 @@
     "paths": "rolldown scripts/pathcheck.ts --platform node --format esm --file .walker/pathcheck.mjs --logLevel warn && node .walker/pathcheck.mjs",
     "balance": "rolldown scripts/classbalance.ts --platform node --format esm --file .walker/classbalance.mjs --logLevel warn && node .walker/classbalance.mjs",
     "furniture": "rolldown scripts/furncheck.ts --platform node --format esm --file .walker/furncheck.mjs --logLevel warn && node .walker/furncheck.mjs",
-    "vale": "rolldown scripts/valecheck.ts --platform node --format esm --file .walker/valecheck.mjs --logLevel warn && node .walker/valecheck.mjs"
+    "vale": "rolldown scripts/valecheck.ts --platform node --format esm --file .walker/valecheck.mjs --logLevel warn && node .walker/valecheck.mjs",
+    "stairs": "rolldown scripts/stairscheck.ts --platform node --format esm --file .walker/stairscheck.mjs --logLevel warn && node .walker/stairscheck.mjs"
   },
   "dependencies": {
     "three": "^0.184.0",

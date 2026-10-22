@@ -114,6 +114,16 @@ for (const s of P.sites) for (const p of s.props as PropDesc[]) {
   if (open) problems.push(`fence in ${s.id} at (${p.x.toFixed(1)}, ${p.z.toFixed(1)}): ${open} of ${n} cells have no barrier (can be walked through)`);
 }
 
+// Blocks you can see resting on an invisible barrier (paving or a step laid over a post's barrier)
+for (const [k, id] of cells) {
+  if (id === B.Barrier || id === B.Air || id === B.Water) continue;
+  const [x, y, z] = k.split(',').map(Number);
+  if (cells.get(key(x, y - 1, z)) !== B.Barrier) continue;
+  // Part of a wall (a lintel over a shut door, a course over a gate) holds itself up
+  const wall = (dx: number, dz: number) => { const o = cells.get(key(x + dx, y, z + dz)); return o !== undefined ? o !== B.Air && o !== B.Barrier && !!BLOCKS[o]?.solid : y < heightAt(x + dx, z + dz); };
+  if ((wall(1, 0) && wall(-1, 0)) || (wall(0, 1) && wall(0, -1))) continue;
+  problems.push(`block on a barrier at (${x}, ${y}, ${z}): ${BLOCKS[id]?.name}`);
+}
 console.log(`${checked} points checked across ${P.sites.length} sites.`);
 if (all && raised.length) { console.log(`\nStanding on something built (2-3 blocks up, usually a step, floor or jetty):`); for (const r of raised) console.log('  ' + r); }
 if (problems.length) { console.log(`\n${problems.length} problem(s):`); for (const p of problems) console.log('  ' + p); process.exitCode = 1; }

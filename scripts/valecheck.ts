@@ -62,6 +62,12 @@ for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
   }
 }
 
+// ---- Blocks you can see resting on an invisible barrier (they look as if they float)
+for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) for (let y = 1; y < SY; y++) {
+  const id = grid.get(x, y, z);
+  if (id && id !== B.Barrier && id !== B.Water && grid.get(x, y - 1, z) === B.Barrier) problems.push(`block on a barrier at (${x}, ${y}, ${z})`);
+}
+
 // ---- Props that float (nothing under them, and no wall beside them to hang on)
 let floating = 0;
 for (const { box } of placed) {

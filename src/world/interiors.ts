@@ -95,8 +95,11 @@ export function fitOut(h: HouseShape): FitOut {
         const u = right ? W - 1 - (3 - s) : 3 - s; // ascending away from the door side
         const [x, z] = F.cell(u, D - 1);
         for (let yy = y; yy <= y + s; yy++) out.blocks.push([x, yy, z, 'step']);
-        used.add(k(u, D - 1));
-        if (s >= 1 && s <= 2) out.blocks.push([x, y + 3, z, 'air']); // headroom through the floor above
+        // The climb and the row beside it stay clear of furniture
+        used.add(k(u, D - 1)); used.add(k(u, D - 2));
+        // Headroom through the floor above: over the first three steps and the row beside them, as
+        // a body is wider than its feet and overlaps the step it's leaving (see the stairwell below)
+        if (s <= 2) for (const v of [D - 1, D - 2]) { const [hx, hz] = F.cell(u, v); out.blocks.push([hx, y + 3, hz, 'air']); }
       }
       used.add(k(right ? W - 5 : 4, D - 1)); // landing at the foot of the stairs stays clear
       used.add(k(right ? W - 4 : 3, D - 2));
@@ -107,11 +110,17 @@ export function fitOut(h: HouseShape): FitOut {
         const [x, z] = F.cell(u, v);
         out.blocks.push([x, y - 1, z, 'floor']);
       }
-      // The stairwell from below stays open
+      // The stairwell from below stays open, three steps long and two rows wide, with a rail round
+      // it (invisible, a block high) so nobody walks off the edge upstairs
       if (W >= 5 && D >= 3) {
         const right = du < W / 2;
-        for (const s of [1, 2]) { const u = right ? W - 1 - (3 - s) : 3 - s; const [x, z] = F.cell(u, D - 1); out.blocks.push([x, y - 1, z, 'air']); used.add(k(u, D - 1)); }
-        const top = right ? W - 1 : 0; used.add(k(top, D - 1));
+        const uOf = (s: number) => (right ? W - 1 - (3 - s) : 3 - s);
+        for (const st of [0, 1, 2]) for (const v of [D - 1, D - 2]) { const [x, z] = F.cell(uOf(st), v); out.blocks.push([x, y - 1, z, 'air']); used.add(k(uOf(st), v)); }
+        for (const st of [0, 1, 2]) if (D - 3 >= 0) { const [x, z] = F.cell(uOf(st), D - 3); out.blocks.push([x, y, z, 'barrier']); used.add(k(uOf(st), D - 3)); }
+        const outer = uOf(-1);
+        if (outer >= 0 && outer < W) for (const v of [D - 1, D - 2]) { const [x, z] = F.cell(outer, v); out.blocks.push([x, y, z, 'barrier']); used.add(k(outer, v)); }
+        // The top step and the floor beside it: the way off the stairs
+        used.add(k(uOf(3), D - 1)); used.add(k(uOf(3), D - 2));
       }
     }
     const put = (item: FurnItem, u: number, v: number, ry: number, cells: [number, number][] = [[u, v]], du2 = 0.5, dv2 = 0.5, solid = true, tint?: number) => {

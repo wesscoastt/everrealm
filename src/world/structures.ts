@@ -76,27 +76,34 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
 
   const house = (o: HouseOpts) => {
     const { x0, z0, w, d, floors } = o;
-    const top = BASE + floors * 4;
+    // The floor goes in at the town's level, unless the house stands on rising ground: then at the
+    // ground's own level (the middle of its footprint), so it isn't sunk in a hollow it was dug into
+    const hs: number[] = [];
+    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) hs.push(ground(x, z));
+    hs.sort((a, b) => a - b);
+    const mid = hs[hs.length >> 1];
+    const HB = mid >= BASE + 2 ? mid : BASE;
+    const top = HB + floors * 4;
     // Ease the ground down to the house a block a step, so a house on a slope never sits in a
     // trench you can't climb out of (rings beyond the first that belong to another house are left)
     for (let ring = 4; ring >= 2; ring--) for (let z = z0 - ring; z < z0 + d + ring; z++) for (let x = x0 - ring; x < x0 + w + ring; x++) {
       if (x > x0 - ring && x < x0 + w + ring - 1 && z > z0 - ring && z < z0 + d + ring - 1) continue;
       if (x < 0 || z < 0 || x >= SX || z >= 320 || layout.exclusion[x + z * SX] === EX.Building) continue;
-      const lim = BASE + ring - 1;
+      const lim = HB + ring - 1;
       if (ground(x, z) > lim) { clearAbove(x, z, lim); world.put(x, lim - 1, z, B.Grass); }
     }
     mark(x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
-    for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearAbove(x, z, BASE);
+    for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearAbove(x, z, HB);
     for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
-      for (let y = ground(x, z); y < BASE; y++) world.put(x, y, z, B.Cobble);
-      world.put(x, BASE - 1, z, B.Cobble);
+      for (let y = ground(x, z); y < HB; y++) world.put(x, y, z, B.Cobble);
+      world.put(x, HB - 1, z, B.Cobble);
     }
     // Door cell along the chosen wall
     const doorX = o.door === 'n' || o.door === 's' ? x0 + Math.floor(w / 2) : o.door === 'e' ? x0 + w - 1 : x0;
     const doorZ = o.door === 'e' || o.door === 'w' ? z0 + Math.floor(d / 2) : o.door === 's' ? z0 + d - 1 : z0;
-    for (let y = BASE; y < top; y++) {
-      const ly = (y - BASE) % 4;
-      const f = Math.floor((y - BASE) / 4);
+    for (let y = HB; y < top; y++) {
+      const ly = (y - HB) % 4;
+      const f = Math.floor((y - HB) / 4);
       for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
         const edgeX = x === x0 || x === x0 + w - 1;
         const edgeZ = z === z0 || z === z0 + d - 1;
@@ -116,10 +123,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       }
     }
     // Inside: a boarded floor, upper storeys and stairs, furniture and lamplight
-    for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) world.put(x, BASE - 1, z, B.Planks);
-    world.put(doorX, BASE - 1, doorZ, B.StoneBrick);
+    for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) world.put(x, HB - 1, z, B.Planks);
+    world.put(doorX, HB - 1, doorZ, B.StoneBrick);
     const chim = o.chimney ? chimneyCell({ x0, z0, w, d, door: o.door }) : undefined;
-    const shape = { x0, z0, w, d, floors, base: BASE, door: o.door, doorX, doorZ, role: o.role, tint: Math.floor(hash2(x0, z0, 5) * 3), chimney: chim };
+    const shape = { x0, z0, w, d, floors, base: HB, door: o.door, doorX, doorZ, role: o.role, tint: Math.floor(hash2(x0, z0, 5) * 3), chimney: chim };
     const fit = fitOut(shape);
     for (const [bx, by, bz, kind] of fit.blocks) world.put(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
     for (const f of fit.furn) { const g = P.furniture(M, f.item, f.tint ?? shape.tint); if (g) place(g, f.x, f.y, f.z, f.ry); }
@@ -130,11 +137,11 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const dx = o.door === 'e' ? dOff : o.door === 'w' ? -dOff : 0;
     const dz = o.door === 's' ? dOff : o.door === 'n' ? -dOff : 0;
     const leaf = openDoorPlace(shape);
-    { const dr = makeDoor(M, leaf.x, BASE, leaf.z, leaf.ry); group.add(dr.pivot); doors.push(dr); }
+    { const dr = makeDoor(M, leaf.x, HB, leaf.z, leaf.ry); group.add(dr.pivot); doors.push(dr); }
     const side = o.door === 'n' || o.door === 's' ? [1.2, 0] : [0, 1.2];
     const wl = P.wallLantern(M);
-    place(wl, doorX + 0.5 + dx * 0.9 + side[0], BASE + 1.8, doorZ + 0.5 + dz * 0.9 + side[1], doorRot);
-    lights.push(new THREE.Vector3(doorX + 0.5 + dx * 1.7 + side[0], BASE + 1.85, doorZ + 0.5 + dz * 1.7 + side[1]));
+    place(wl, doorX + 0.5 + dx * 0.9 + side[0], HB + 1.8, doorZ + 0.5 + dz * 0.9 + side[1], doorRot);
+    lights.push(new THREE.Vector3(doorX + 0.5 + dx * 1.7 + side[0], HB + 1.85, doorZ + 0.5 + dz * 1.7 + side[1]));
 
     // Roof. Dormers go on the slope that faces the door, when there is one.
     const alongX = w >= d;
@@ -149,16 +156,16 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       const [wx, wz] = chim;
       const ox = wx === x0 ? -1 : wx === x0 + w - 1 ? 1 : 0, oz = ox ? 0 : wz === z0 ? -1 : 1;
       const cx = wx + ox, cz = wz + oz;
-      for (let y = BASE; y < top; y++) world.put(wx, y, wz, B.Cobble);
-      for (let y = Math.min(ground(cx, cz), BASE) - 1; y < top + apex + 1.5; y++) world.put(cx, y, cz, y < top + apex + 0.5 ? B.Cobble : B.StoneBrick);
+      for (let y = HB; y < top; y++) world.put(wx, y, wz, B.Cobble);
+      for (let y = Math.min(ground(cx, cz), HB) - 1; y < top + apex + 1.5; y++) world.put(cx, y, cz, y < top + apex + 0.5 ? B.Cobble : B.StoneBrick);
       smoke.push(new THREE.Vector3(cx + 0.5, Math.ceil(top + apex + 1.5) + 0.2, cz + 0.5));
     }
     if (o.windowBoxes) {
       const wz = o.door === 's' ? z0 + d + 0.02 : z0 - 0.02;
       const ry = o.door === 's' ? 0 : Math.PI;
-      for (let a = 1; a < w - 1; a += 3) place(P.windowBox(M), x0 + a + 1.5, BASE + 1.0, wz, ry);
+      for (let a = 1; a < w - 1; a += 3) place(P.windowBox(M), x0 + a + 1.5, HB + 1.0, wz, ry);
     }
-    return { doorX, doorZ };
+    return { doorX, doorZ, base: HB };
   };
 
   // -------------------------------------------------------------- Hollin Ford, west bank
@@ -482,8 +489,11 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   infill.forEach(house);
 
   // Cobbles down the middle of the street, worn path along its edges
+  // The ground's surface, under any barrier (a signpost's or a lantern's): paving must never land
+  // on top of one, or it hangs in the air beside the post
   const surfaceY = (x: number, z: number) => {
-    const y = world.topSolid(x, z);
+    let y = world.topSolid(x, z);
+    while (y > 0 && world.get(x, y, z) === B.Barrier) y--;
     return y >= BASE - 3 && y <= BASE + 1 ? y : -1;
   };
   const pave = (road: [number, number][], x0: number, x1: number) => {
@@ -494,7 +504,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       if (y < 0 || world.get(x, y, z) === B.Water) continue;
       const h = hash2(x, z, 11);
       world.put(x, y, z, d > 1.5 ? B.Path : h < 0.12 ? B.MossyCobble : h < 0.3 ? B.StoneBrick : B.Cobble);
-      clearAbove(x, z, y + 1);
+      for (let yy = y + 1; yy < SY; yy++) if (world.get(x, yy, z) !== B.Barrier) world.put(x, yy, z, B.Air);
     }
   };
   pave([[112, 186], [140, 184], [163, 184]], 114, 161);

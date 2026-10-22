@@ -656,7 +656,10 @@ export function plan(): Plan {
     const isFree = (x0: number, z0: number, x1: number, z1: number) => !taken.some((r) => x0 <= r[2] && x1 >= r[0] && z0 <= r[3] && z1 >= r[1]);
     claim(X0 - 17, Z0 - 17, X1 + 17, Z1 + 17); // the old city and the walk round its walls
     // Older things the town grew round: wayside shrines, the old toll tower, farm fields
-    for (const q of pois) if (q.x > OX0 - 14 && q.x < OX1 + 14 && q.z > OZ0 - 14 && q.z < OZ1 + 14) claim(q.x - 14, q.z - 14, q.x + 14, q.z + 14);
+    // (a farm's fields reach well south of its yard: see buildFarm)
+    for (const q of pois) if (q.x > OX0 - 20 && q.x < OX1 + 20 && q.z > OZ0 - 36 && q.z < OZ1 + 14) {
+      if (q.kind === 'farm') claim(q.x - 20, q.z - 14, q.x + 19, q.z + 35); else claim(q.x - 14, q.z - 14, q.x + 14, q.z + 14);
+    }
     // And the south road's quest spots: Bess Tull's letters and the wolves on the verge
     claim(780, 444, 800, 466);
     claim(OX0 - 2, OZ0 - 2, OX1 + 2, OZ0 + 6); claim(OX0 - 2, OZ1 - 6, OX1 + 2, OZ1 + 2); // inside the new wall, a lane all round
@@ -1115,7 +1118,11 @@ export function plan(): Plan {
     }
     // A footbridge over the top pool, trees on the banks
     for (let x = cx - 9; x <= cx + 9; x++) O.set(x, G - 1, z0 + 5, B.Planks);
-    for (let x = cx - 9; x <= cx + 9; x++) for (const z of [z0 + 4, z0 + 6]) { O.set(x, G, z, x % 3 === 0 ? B.Timber : B.DarkPlanks); O.set(x, G + 1, z, B.Barrier); } // parapets
+    // Parapets along the bridge, only over the gap (not running on into the rock walls)
+    for (let x = cx - 9; x <= cx + 9; x++) for (const z of [z0 + 4, z0 + 6]) {
+      if (Math.abs(x - cx) > 7 + Math.round(Math.sin((z + x * 0.3) * 0.35) * 1.5)) continue;
+      O.set(x, G, z, x % 3 === 0 ? B.Timber : B.DarkPlanks); O.set(x, G + 1, z, B.Barrier);
+    }
     for (const [tx, tz] of [[cx - 14, z0 + 8], [cx + 14, z0 + 20], [cx - 14, z0 + 36], [cx + 14, z0 + 50]]) plantTree(tx, tz, heightAt(tx, tz), 0.6);
     s.act = { kind: 'scenic' };
   }
