@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse'
   | 'shark' | 'eel' | 'ray' | 'medusa'
@@ -28,7 +29,8 @@ const lam = (c: string, extra: THREE.MeshLambertMaterialParameters = {}) => {
  * its grain and stitching. Cached by kind and colour.
  */
 const horseMats = new Map<string, THREE.MeshLambertMaterial>();
-function horseMat(kind: 'coat' | 'mane' | 'cloth' | 'leather', color: string, extra: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
+type Surface = 'coat' | 'fur' | 'mane' | 'cloth' | 'leather' | 'shell' | 'scale' | 'wool';
+function horseMat(kind: Surface, color: string, extra: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
   const key = kind + color + JSON.stringify(extra);
   const hit = horseMats.get(key);
   if (hit) return hit;
@@ -55,6 +57,22 @@ function horseMat(kind: 'coat' | 'mane' | 'cloth' | 'leather', color: string, ex
       // A woven check, and a pale border round the edge
       dl = ((i + j) % 2 ? 0.02 : -0.02) + (rnd() - 0.5) * 0.02;
       if (i < 2 || j < 2 || i > N - 3 || j > N - 3) dl = i === 0 || j === 0 || i === N - 1 || j === N - 1 ? -0.08 : 0.22;
+    } else if (kind === 'fur') {
+      // Guard hairs: short streaks down each column, dark and pale ones mixed, darker where each starts
+      const o = (i * 7) % 4, run = Math.floor((j + o) / 4);
+      const h = ((i * 73856093) ^ (run * 19349663)) >>> 0;
+      dl = [-0.1, -0.05, 0, 0.04, 0.08][h % 5] + ((j + o) % 4 === 0 ? -0.03 : 0) + (rnd() - 0.5) * 0.03;
+    } else if (kind === 'shell') {
+      // Plates of chitin: a dark seam every few pixels, each plate lighter along its top edge
+      const pj = j % 4, pi = (i + (Math.floor(j / 4) % 2) * 4) % 8;
+      dl = pj === 3 || pi === 7 ? -0.12 : pj === 0 ? 0.08 : (rnd() - 0.5) * 0.04;
+    } else if (kind === 'scale') {
+      // Overlapping scales in offset rows, each with a pale lip
+      const row = Math.floor(j / 4), ci = (i + (row % 2) * 2) % 4;
+      dl = j % 4 === 0 && ci !== 0 ? 0.035 : ci === 0 ? -0.03 : (rnd() - 0.5) * 0.03;
+    } else if (kind === 'wool') {
+      // Curls: little bright knots on a darker fleece
+      dl = ((i * 3 + j * 5) % 8 < 2 ? 0.05 : (i * 3 + j * 5) % 8 === 4 ? -0.12 : -0.05) + (rnd() - 0.5) * 0.05;
     } else {
       // Grain, and a row of stitches a pixel in from the edge
       dl = (rnd() - 0.5) * 0.07;
@@ -73,6 +91,7 @@ function horseMat(kind: 'coat' | 'mane' | 'cloth' | 'leather', color: string, ex
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.MeshLambertMaterial({ map: t, ...extra });
   horseMats.set(key, m);
@@ -80,6 +99,61 @@ function horseMat(kind: 'coat' | 'mane' | 'cloth' | 'leather', color: string, ex
 }
 
 const rb = (w: number, h: number, d: number, r = 0.05) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+
+/** Narrows a box toward its back (-z) end: to `wide` across and `deep` from the bottom up, keeping the top line. */
+function taper(g: THREE.BufferGeometry, wide: number, deep: number): THREE.BufferGeometry {
+  g.computeBoundingBox();
+  const b = g.boundingBox!, p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const k = (b.max.z - p.getZ(i)) / (b.max.z - b.min.z);
+    p.setX(i, p.getX(i) * (1 - (1 - wide) * k));
+    p.setY(i, b.max.y - (b.max.y - p.getY(i)) * (1 - (1 - deep) * k));
+  }
+  p.needsUpdate = true;
+  return g;
+}
+
+/** Lays a texture on by each face's own position, `perUnit` tiles a block: big parts and small ones get the same size of pixel. */
+function boxUV(g: THREE.BufferGeometry, perUnit: number): void {
+  const p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
+  if (!uv) return;
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    if (ax >= ay && ax >= az) uv.setXY(i, p.getZ(i) * perUnit, p.getY(i) * perUnit);
+    else if (ay >= az) uv.setXY(i, p.getX(i) * perUnit, p.getZ(i) * perUnit);
+    else uv.setXY(i, p.getX(i) * perUnit, p.getY(i) * perUnit);
+  }
+  uv.needsUpdate = true;
+}
+
+/** Joins the parts on each joint that share a material into one mesh: a creature is a handful of draw calls, not forty. */
+function mergeParts(root: THREE.Object3D, keep: Set<THREE.Object3D>): void {
+  const joints: THREE.Object3D[] = [];
+  root.traverse((o) => { if (!(o as THREE.Mesh).isMesh) joints.push(o); });
+  for (const j of joints) {
+    const byMat = new Map<THREE.Material, THREE.Mesh[]>();
+    for (const c of j.children) {
+      const m = c as THREE.Mesh;
+      if (!m.isMesh || m.children.length || keep.has(m) || !m.visible || Array.isArray(m.material) || m.material.transparent) continue;
+      let list = byMat.get(m.material);
+      if (!list) byMat.set(m.material, (list = []));
+      list.push(m);
+    }
+    for (const [mat, list] of byMat) {
+      if (list.length < 2) continue;
+      const merged = mergeGeometries(list.map((m) => {
+        const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        m.updateMatrix();
+        return g.applyMatrix4(m.matrix);
+      }), false);
+      if (!merged) continue;
+      for (const m of list) { j.remove(m); m.geometry.dispose(); }
+      const one = new THREE.Mesh(merged, mat);
+      one.castShadow = true;
+      j.add(one);
+    }
+  }
+}
 
 function add(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0): THREE.Mesh {
   const m = new THREE.Mesh(geo, mat);
@@ -127,6 +201,18 @@ export class CreatureModel {
       case 'ray': this.buildRay(); break;
       case 'medusa': this.buildMedusa(); break;
     }
+    // Texture the plain surfaces (fur, chitin, scales, fleece) so nothing looks moulded out of putty;
+    // glowing parts (eyes, a jelly's bell) and see-through ones keep their own look
+    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale' };
+    const skin = surface[kind];
+    if (skin) this.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      const mat = m.material as THREE.MeshLambertMaterial;
+      if (!m.isMesh || m.userData.plain || !mat?.isMeshLambertMaterial || mat.map || mat.transparent || mat.emissive.getHex() !== 0) return;
+      m.material = horseMat(skin, '#' + mat.color.getHexString());
+      boxUV(m.geometry, 2);
+    });
+    mergeParts(this.root, new Set<THREE.Object3D>([...this.legs, ...this.segs, this.head, this.tail, this.jaw].filter((o): o is THREE.Object3D => !!o)));
     // Per-instance materials for hit flashes
     this.root.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -143,37 +229,72 @@ export class CreatureModel {
     const fur = this.pal.a ?? (elite ? '#5a5048' : '#8a7c6a');
     const dark = this.pal.b ?? (elite ? '#3a332e' : '#5e5446');
     const belly = this.pal.c ?? (elite ? '#8a8072' : '#c8bca6');
+    const F = lam(fur), D = lam(dark), L = lam(belly);
     const s = (elite ? 1.45 : 1) * this.extraScale;
     this.body.scale.setScalar(s);
-    this.plateHeight = 1.3 * s;
-    add(this.body, rb(0.48, 0.44, 1.0, 0.1), lam(fur), 0, 0.72, 0);
-    add(this.body, rb(0.52, 0.5, 0.42, 0.12), lam(dark), 0, 0.8, 0.32); // ruff
-    add(this.body, rb(0.4, 0.12, 0.8, 0.05), lam(belly), 0, 0.5, 0);
+    this.plateHeight = 1.45 * s;
+    // One body from a deep chest back to a tucked waist, a dark saddle along the top and a pale chest
+    add(this.body, taper(rb(0.44, 0.52, 1.02, 0.05), 0.8, 0.7), F, 0, 0.8, -0.1);
+    add(this.body, rb(0.3, 0.06, 0.82, 0.02), D, 0, 1.065, -0.12);
+    add(this.body, rb(0.3, 0.06, 0.36, 0.02), L, 0, 0.55, 0.14);
+    add(this.body, rb(0.3, 0.32, 0.06, 0.02), L, 0, 0.72, 0.41);
+    // The ruff, a thick collar of darker fur wider than the chest, and the neck rising out of it
+    add(this.body, rb(0.52, 0.48, 0.22, 0.05), D, 0, 0.94, 0.33);
+    add(this.body, rb(0.3, 0.32, 0.3, 0.04), F, 0, 1.04, 0.5, -0.5);
     const head = new THREE.Group();
-    head.position.set(0, 0.92, 0.6);
+    head.position.set(0, 1.18, 0.7);
+    head.scale.setScalar(1.15);
     this.body.add(head);
-    add(head, rb(0.38, 0.34, 0.36, 0.08), lam(fur), 0, 0, 0.08);
-    add(head, rb(0.22, 0.18, 0.3, 0.05), lam(belly), 0, -0.07, 0.36);
-    add(head, rb(0.1, 0.08, 0.08, 0.03), lam('#1a1410'), 0, -0.02, 0.52);
+    add(head, rb(0.32, 0.26, 0.28, 0.04), F, 0, 0, 0);
+    add(head, rb(0.4, 0.16, 0.14, 0.04), F, 0, -0.07, -0.06); // cheek fur
+    add(head, taper(rb(0.18, 0.13, 0.3, 0.03), 0.75, 0.8), F, 0, -0.05, 0.25, 0, Math.PI); // muzzle, narrowing to the nose
+    add(head, rb(0.1, 0.04, 0.26, 0.015), D, 0, 0.02, 0.23); // the ridge down the nose
+    add(head, rb(0.15, 0.04, 0.2, 0.015), L, 0, -0.1, 0.22); // pale lips
+    const nose = add(head, rb(0.08, 0.06, 0.05, 0.02), lam('#16110e'), 0, -0.01, 0.4);
+    nose.userData.plain = true;
     for (const sd of [1, -1]) {
-      const ear = add(head, new THREE.ConeGeometry(0.08, 0.2, 4), lam(dark), sd * 0.12, 0.24, 0.0, 0, Math.PI / 4, sd * -0.15);
-      if (elite && sd === 1) ear.scale.set(1, 0.55, 1);
-      add(head, rb(0.08, 0.05, 0.02, 0.01), lam(elite ? '#e8a030' : '#e8d070', { emissive: new THREE.Color(elite ? '#552200' : '#332a00') }), sd * 0.1, 0.05, 0.27);
+      // Slanted amber eyes under a dark brow, and tall ears set back on the skull
+      add(head, rb(0.055, 0.028, 0.02, 0.008), lam(elite ? '#e8a030' : '#e8c060', { emissive: new THREE.Color(elite ? '#552200' : '#3a2c00') }), sd * 0.085, 0.045, 0.145, 0, 0, sd * 0.25);
+      add(head, rb(0.09, 0.03, 0.05, 0.01), D, sd * 0.085, 0.08, 0.13, 0, 0, sd * 0.2);
+      const ear = add(head, new THREE.ConeGeometry(0.075, 0.24, 4), D, sd * 0.1, 0.22, -0.05, -0.15, Math.PI / 4, sd * -0.12);
+      const inner = add(head, new THREE.ConeGeometry(0.045, 0.16, 4), lam('#3a2a26'), sd * 0.1, 0.2, -0.015, -0.15, Math.PI / 4, sd * -0.12);
+      inner.userData.plain = true;
+      if (elite && sd === 1) { ear.scale.set(1, 0.55, 1); inner.scale.set(1, 0.5, 1); }
     }
-    if (elite) add(head, rb(0.02, 0.18, 0.02, 0.005), lam('#d8cfc0'), 0.12, 0.04, 0.27, 0, 0, 0.4); // scar
+    if (elite) add(head, rb(0.02, 0.18, 0.02, 0.005), lam('#d8cfc0'), 0.12, 0.04, 0.16, 0, 0, 0.4); // scar
+    for (const sd of [1, -1]) { const fang = add(head, new THREE.ConeGeometry(0.014, 0.05, 4), lam('#efe8d8'), sd * 0.05, -0.135, 0.35, Math.PI); fang.userData.plain = true; }
+    // The lower jaw hinges open to bite
+    const jaw = new THREE.Group();
+    jaw.position.set(0, -0.11, 0.1);
+    head.add(jaw);
+    add(jaw, rb(0.12, 0.045, 0.24, 0.015), L, 0, -0.02, 0.12);
+    const teeth = add(jaw, rb(0.1, 0.025, 0.02, 0.005), lam('#efe8d8'), 0, 0.012, 0.23);
+    teeth.userData.plain = true;
     this.head = head;
+    this.jaw = jaw;
+    // Carried low and thick with fur, curving down from the rump to a dark tip
     const tail = new THREE.Group();
-    tail.position.set(0, 0.86, -0.5);
+    tail.position.set(0, 0.96, -0.58);
     this.body.add(tail);
-    add(tail, rb(0.14, 0.14, 0.5, 0.06), lam(fur), 0, -0.08, -0.22, 0.6);
-    add(tail, rb(0.12, 0.12, 0.16, 0.05), lam(belly), 0, -0.24, -0.42, 0.8);
+    add(tail, rb(0.14, 0.14, 0.26, 0.04), F, 0, -0.073, -0.107, -0.6);
+    add(tail, rb(0.19, 0.19, 0.3, 0.05), F, 0, -0.256, -0.285, -1.0);
+    add(tail, rb(0.15, 0.15, 0.16, 0.04), D, 0, -0.43, -0.384, -1.2);
     this.tail = tail;
-    for (const [x, z] of [[0.16, 0.36], [-0.16, 0.36], [0.16, -0.36], [-0.16, -0.36]]) {
+    // Forelegs straight under the shoulder; hind legs with a thick thigh and the hock bent back
+    for (const [x, z, hind] of [[0.15, 0.3, 0], [-0.15, 0.3, 0], [0.14, -0.44, 1], [-0.14, -0.44, 1]] as const) {
       const leg = new THREE.Group();
-      leg.position.set(x, 0.56, z);
+      leg.position.set(x, 0.72, z);
       this.body.add(leg);
-      add(leg, rb(0.14, 0.52, 0.16, 0.04), lam(fur), 0, -0.26, 0);
-      add(leg, rb(0.15, 0.08, 0.2, 0.03), lam(dark), 0, -0.52, 0.03);
+      if (hind) {
+        add(leg, rb(0.16, 0.36, 0.26, 0.04), F, 0, -0.1, 0);
+        add(leg, rb(0.09, 0.3, 0.1, 0.03), F, 0, -0.38, -0.06, 0.3);
+        add(leg, rb(0.08, 0.22, 0.09, 0.03), D, 0, -0.62, -0.09, -0.12);
+        add(leg, rb(0.12, 0.06, 0.16, 0.02), D, 0, -0.69, -0.03);
+      } else {
+        add(leg, rb(0.14, 0.3, 0.16, 0.04), F, 0, -0.12, 0);
+        add(leg, rb(0.09, 0.42, 0.1, 0.03), F, 0, -0.46, 0.01);
+        add(leg, rb(0.12, 0.06, 0.16, 0.02), D, 0, -0.69, 0.04);
+      }
       this.legs.push(leg);
     }
   }
@@ -737,6 +858,8 @@ export class CreatureModel {
     }
     if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * 0.008) * (this.anim === 'run' ? 0.5 : 0.2);
     if (this.head) this.head.rotation.set(0, 0, 0);
+    // A wolf pants as it stands, and its jaw opens as it gathers to bite
+    if (this.jaw) this.jaw.rotation.x = this.anim === 'idle' ? 0.08 + Math.sin(t * 9) * 0.05 : this.anim === 'windup' ? 0.35 * Math.min(1, t / 0.4) : this.anim === 'attack' ? 0.55 * (1 - Math.min(1, t / 0.3)) : this.anim === 'dead' ? 0.3 : 0.05;
 
     switch (this.anim) {
       case 'idle':
