@@ -57,7 +57,7 @@ const KEEPERS: Record<string, { name: string; title: string; look: NpcDef['look'
     look: { skin: '#e2b894', hair: '#8a6a4a', hairStyle: 3, eyes: '#4a5a6a', tunic: '#4a5a3a', trim: '#a8906a', trousers: '#3a3430', boots: '#2a1e14', cape: '#4a4a3a', build: 1.05, age: 0.4 },
     bark: 'Mind the antlers.',
     hello: 'You came all this way for a horse? We\'ve got one. We\'ve also got elk.',
-    about: 'My grandad caught the first elk on the headland and broke it to the saddle for a bet. They go anywhere a horse goes. They just look at you like you chose the path badly.',
+    about: 'Grandad broke the first elk to the saddle for a bet. They go anywhere a horse goes, and they judge every path you pick.',
   },
   'st-holme': {
     name: 'Martha Gedge', title: 'Horse-wife, Holme Staithe',
