@@ -71,6 +71,8 @@ import { Social } from './Social';
 import { Exchange } from './Exchange';
 import { Dungeons } from './Dungeons';
 import { henchmenFor, Role } from '../data/dungeons';
+import { GAINS, rankFor } from '../data/standing';
+import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
@@ -462,7 +464,7 @@ export class Game implements GameApi {
       skillHaste: () => this.armour.haste,
     });
     this.activities = new Activities({
-      daily: (k) => this.dailies.bump(k),
+      daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
       killed: (e) => this.onEnemyKilled(e),
       count: (id) => this.inv.count(id),
       take: (id, n = 1) => { const ok = this.inv.remove(id, n); if (ok) this.persist(); return ok; },
@@ -552,6 +554,7 @@ export class Game implements GameApi {
       flag: (k) => this.flag(k),
       setFlag: (k, v) => this.setFlag(k, v),
       persist: () => this.persist(),
+      standing: (region, n) => this.gainStanding(region as RegionId, n),
       net: {
         on: () => this.online.status === 'online',
         queue: (d, role) => this.online.qJoin(d, role),
@@ -650,8 +653,34 @@ export class Game implements GameApi {
       this.hud.system(`${def.name}: updated`);
       this.sfx('pickup');
     }
+    if (s === 'done') {
+      const reg = def.region && def.region in REGION_INFO ? (def.region as RegionId) : regionAt(this.player.position.x, this.player.position.z).a;
+      this.gainStanding(reg, def.story ? GAINS.story : GAINS[def.depth ?? 'quest']);
+    }
     this.hud.setJournalAlert(true);
     this.persist();
+  }
+
+  // =================================================================== Standing (data/standing.ts)
+  /** Standing in a region goes up; a new rank is announced. */
+  gainStanding(region: RegionId, n: number): void {
+    if (!REGION_INFO[region] || n <= 0) return;
+    const k = 'rep:' + region, before = Number(this.flag(k) ?? 0), after = before + n;
+    this.setFlag(k, after);
+    const a = rankFor(before), b = rankFor(after);
+    if (b.i > a.i) {
+      this.hud.banner(`${b.rank.name} in ${REGION_INFO[region].name}`, b.rank.off ? `Its traders sell to you for ${Math.round(b.rank.off * 100)}% less` : 'People there know your name now', true);
+      this.sfx('levelUp', 0.6);
+    }
+  }
+  /** What the shops of a region take off for you. */
+  private standingOff(region: RegionId): number { return rankFor(Number(this.flag('rep:' + region) ?? 0)).rank.off; }
+  /** The journal's Standing page. */
+  standingView() {
+    return (Object.keys(REGION_INFO) as RegionId[]).map((r) => {
+      const points = Number(this.flag('rep:' + r) ?? 0), x = rankFor(points);
+      return { id: r, name: REGION_INFO[r].name, points, rank: x.rank.name, off: x.rank.off, from: x.rank.at, next: x.next ? { name: x.next.name, at: x.next.at, off: x.next.off } : null };
+    });
   }
   count(item: string): number { return this.inv.count(item); }
   has(item: string, n = 1): boolean { return this.inv.count(item) >= n; }
@@ -1098,6 +1127,7 @@ export class Game implements GameApi {
         else g.social.guildMotto(a ?? '');
       },
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
+      standing: () => g.standingView(),
       feats: () => {
         const api = g.featApi();
         const worn = g.flag('title');
@@ -1524,12 +1554,15 @@ export class Game implements GameApi {
   private shopView(): ShopView {
     const shop = SHOPS[this.currentShop];
     const owner = NPCS.find((n) => n.id === shop.owner);
+    // Standing in the trader's region takes a share off (not off festival tokens)
+    const where = owner ? regionAt(owner.schedule[0].at[0], owner.schedule[0].at[1]).a : null;
+    const off = where && !shop.currency ? this.standingOff(where) : 0;
     return {
       name: shop.name,
       who: shop.who ?? (owner ? owner.name.split(' ')[0] : shop.name),
-      stock: shop.stock.filter((x) => !x.when || x.when(this)).map((x) => ({ item: x.item, price: shopPrice(this, shop, x.price) })),
+      stock: shop.stock.filter((x) => !x.when || x.when(this)).map((x) => ({ item: x.item, price: Math.max(1, Math.round(shopPrice(this, shop, x.price) * (1 - off))) })),
       sellPrice: (id: string) => shopBuyPrice(this, shop, id),
-      footer: shop.footer(this),
+      footer: shop.footer(this) + (off ? ` · ${rankFor(Number(this.flag('rep:' + where) ?? 0)).rank.name} in ${REGION_INFO[where!].name}: ${Math.round(off * 100)}% off` : ''),
       currency: shop.currency ? { id: shop.currency, name: FESTIVALS.find((f) => f.token === shop.currency)?.tokenPlural ?? ITEMS[shop.currency].name, have: this.inv.count(shop.currency) } : undefined,
     };
   }
@@ -2602,6 +2635,8 @@ export class Game implements GameApi {
     const m = lo + Math.floor(Math.random() * (hi - lo + 1));
     if (m > 0) this.addMarks(m);
     const reg = regionAt(e.home.x, e.home.z).a, pieces = REGION_ARMOUR[reg];
+    if (e.def.type.startsWith('r_')) this.gainStanding(reg, GAINS.rare);
+    else if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.gainStanding(reg, GAINS.boss);
     if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(pieces[Math.floor(Math.random() * pieces.length)], 1);
     for (const l of e.def.loot) {
       if (Math.random() < l.chance) {

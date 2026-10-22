@@ -69,6 +69,8 @@ export interface DungeonHost {
   flag(k: string): unknown;
   setFlag(k: string, v: unknown): void;
   persist(): void;
+  /** Standing in a region goes up (data/standing.ts). */
+  standing(region: string, n: number): void;
   net: DungeonNet;
   /** Other players' avatars, by id. */
   remote(id: number): THREE.Vector3 | null;
@@ -588,6 +590,7 @@ export class Dungeons {
     r.done = true;
     const k = 'gdClears:' + r.def.id, n = Number(this.host.flag(k) ?? 0) + 1;
     this.host.setFlag(k, n);
+    this.host.standing(r.site.region, 100);
     this.host.sfx('levelUp', 0.8);
     this.host.system(`${r.def.name} cleared${n > 1 ? ` (${n} times now)` : ' for the first time'}. The chest by the far wall is yours, and the ladder is back where you came in.`);
     this.host.persist();

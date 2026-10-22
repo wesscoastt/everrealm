@@ -169,6 +169,8 @@ export interface UiCtx {
   groupLeader(): boolean;
   claimLogin(): void;
   feats(): FeatView[];
+  /** Standing in each region (data/standing.ts). */
+  standing(): { id: string; name: string; points: number; rank: string; off: number; from: number; next: { name: string; at: number; off: number } | null }[];
   calling(): CallingId;
   /** The calling's talent trees: points to spend, and each talent's state (why it can't be learned yet, if not). */
   talents(): { points: number; total: number; trees: { name: string; desc: string; talents: { id: string; name: string; desc: string; cost: number; capstone: boolean; learned: boolean; why: string | null }[] }[] };
@@ -1326,7 +1328,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -1365,6 +1367,9 @@ export class Hud {
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
+    const sj = el('div', 'ji' + (this.selQuest === 'standing' ? ' sel' : ''), 'Standing');
+    sj.addEventListener('click', () => { this.selQuest = 'standing'; this.renderJournal(); });
+    list.append(sj);
     const page = el('div', 'jbody');
     if (this.selQuest === 'writs' || this.selQuest === 'login') {
       const d = this.ctx.daily();
@@ -1421,6 +1426,17 @@ export class Hud {
         if (why) page.querySelector('.calling-msg')!.textContent = why;
         else this.renderJournal();
       }));
+    } else if (this.selQuest === 'standing') {
+      const rows = this.ctx.standing();
+      page.innerHTML = '<h4>Standing</h4><div class="feat-sum">How well each region knows you. Its quests, parish tasks, events, rares, world boss and group dungeon all count. Trusted takes 5% off its traders\' prices, Honoured 10% and Revered 15%, and Revered gives a title.</div>';
+      for (const r of rows) {
+        const row = el('div', 'feat' + (r.next ? '' : ' done'));
+        const pct = r.next ? Math.min(100, ((r.points - r.from) / Math.max(1, r.next.at - r.from)) * 100) : 100;
+        const pc = (n: number) => `${Math.round(n * 100)}% off`;
+        row.innerHTML = `<div class="ft"><b>${esc(r.name)}</b><span>${esc(r.rank)}${r.off ? ' · ' + pc(r.off) : ''}</span></div>`
+          + (r.next ? `<div class="bar feat-bar"><i style="width:${pct}%"></i></div><div class="fd">${r.points.toLocaleString()} of ${r.next.at.toLocaleString()} to ${esc(r.next.name)}${r.next.off ? ` (${pc(r.next.off)})` : ''}</div>` : `<div class="fd">${r.points.toLocaleString()} standing: as high as it goes.</div>`);
+        page.append(row);
+      }
     } else if (this.selQuest === 'feats') {
       const fs = this.ctx.feats();
       const done = fs.filter((f) => f.done).length;

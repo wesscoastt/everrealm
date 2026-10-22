@@ -1,5 +1,7 @@
 import { EVENTS, TASKS, WORLD_BOSSES } from './activities';
 import { ITEMS } from './items';
+import { RANKS, REVERED_TITLE } from './standing';
+import { REGION_INFO, type RegionId } from '../world/terrain';
 
 // Feats: long goals for exploring and joining in, kept in the journal. Each one pays out marks
 // once and gives a title to wear under your name. Nothing here makes a character stronger.
@@ -50,4 +52,6 @@ export const FEATS: FeatDef[] = [
   { id: 'stable', name: 'The Whole Stable', group: 'Stable', desc: 'Own every horse in the counties, the Cinder-shod mare included.', need: HALTERS.length, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 150, title: 'Horse-Lord' },
   { id: 'level', name: 'Turned Your Hand', group: 'Craft and trade', desc: 'Reach a total level of 100 across your skills.', need: 100, have: (g) => g.totalLevel, marks: 100, title: 'Journeyman' },
   { id: 'level2', name: 'Master of None', group: 'Craft and trade', desc: 'Reach a total level of 250 across your skills.', need: 250, have: (g) => g.totalLevel, marks: 250, title: 'Many-Handed' },
+  // Standing (data/standing.ts): the last rank in a region gives its title
+  ...(Object.keys(REVERED_TITLE) as RegionId[]).map((r): FeatDef => ({ id: 'rep_' + r, name: 'Revered in ' + REGION_INFO[r].name, group: 'The open world', desc: `Reach Revered standing in ${REGION_INFO[r].name}: its quests, parish tasks, events, rares and world boss all count.`, need: RANKS[RANKS.length - 1].at, have: (g) => Number(g.flag('rep:' + r) ?? 0), marks: 100, title: REVERED_TITLE[r] })),
 ];
