@@ -118,7 +118,7 @@ export class Input {
 
   private onKeyDown = (e: KeyboardEvent) => {
     const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (!this.down.has(e.code)) this.pressed.add(e.code);
     this.down.add(e.code);
     if (['Space', 'Tab', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();

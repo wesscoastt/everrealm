@@ -8,7 +8,7 @@ import { serverUrl } from './Online';
 const KEY = 'everrealm.account';
 const UPLOAD_GAP_MS = 15_000;
 
-export interface AccountInfo { user: string; token: string; server: string }
+export interface AccountInfo { user: string; token: string; server: string; dev?: boolean }
 
 /** The realm's HTTP address: the same host and port as its world socket. */
 export function apiBase(ws = serverUrl()): string | null {
@@ -51,8 +51,18 @@ async function call(method: string, path: string, body?: unknown, keepalive = fa
 export async function signIn(user: string, pass: string, create: boolean): Promise<string | null> {
   const r = await call('POST', create ? '/api/register' : '/api/login', { user, pass });
   if (r.status !== 200) return String(r.data.error ?? 'Something went wrong.');
-  remember({ user: String(r.data.user), token: String(r.data.token), server: apiBase()! });
+  remember({ user: String(r.data.user), token: String(r.data.token), server: apiBase()!, dev: r.data.dev === true });
   return null;
+}
+
+/**
+ * May this player open the dev tools? A developer's account (the server says so when they sign in),
+ * or anyone running a build on their own machine with ?dev in the address.
+ */
+export function isDevAccount(): boolean {
+  if (currentAccount()?.dev) return true;
+  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  return local && new URLSearchParams(location.search).has('dev');
 }
 
 /** The bank vault shared by the account's characters, or null if the server can't be reached. */
@@ -79,7 +89,11 @@ export async function signOut(): Promise<void> {
 export async function remoteCharacters(): Promise<{ name: string; save: SaveData | null }[] | null> {
   if (!currentAccount()) return null;
   const r = await call('GET', '/api/me');
-  return r.status === 200 ? (r.data.characters as { name: string; save: SaveData | null }[]) : null;
+  if (r.status !== 200) return null;
+  // The server's word on dev tools is the latest one (an account can be added or taken off)
+  const acc = currentAccount();
+  if (acc && !!acc.dev !== (r.data.dev === true)) remember({ ...acc, dev: r.data.dev === true });
+  return r.data.characters as { name: string; save: SaveData | null }[];
 }
 
 let lastUpload = 0;

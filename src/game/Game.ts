@@ -83,7 +83,8 @@ import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingId, callingById, TUNE, UNLOCK_AT, UNLOCK_NAMES, weaponLine } from '../data/classes';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { currentAccount, deleteRemote, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
+import { currentAccount, deleteRemote, isDevAccount, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
+import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
 
@@ -335,6 +336,9 @@ export class Game implements GameApi {
   private stepTimer = 0;
   private regionTimer = 0;
   private currentRegion = '';
+  /** Dev tools (ui/DevPanel.ts): F8, for developers' accounts only. */
+  private devPanel!: DevPanel;
+  private dev = { god: false, fast: false };
   private autosave = 0;
   private hudTimer = 0;
   private lastSkill: SkillId = 'melee';
@@ -362,6 +366,7 @@ export class Game implements GameApi {
     this.hud = new Hud(this.uiCtx());
     new TouchControls(this.input, this.hud.root);
     this.front = new Frontend(this.frontCtx(), this.hud.root);
+    this.devPanel = new DevPanel(this.hud.root, this.devHost(), isDevAccount);
     this.hud.showTitle('Preparing Hollindale');
 
     const outlineGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.04, 1.04, 1.04));
@@ -2853,7 +2858,7 @@ export class Game implements GameApi {
   }
 
   private hitPlayer(dmg: number, from: Enemy): void {
-    if (this.dead) return;
+    if (this.dead || this.dev.god) return;
     if (this.iframes > 0) {
       // Brine: an attack rolled through gives back a little health, once a roll
       if (this.gearSet === 'brine' && !this.rolledThrough) {
@@ -3063,6 +3068,7 @@ export class Game implements GameApi {
     if (this.hitstop > 0) { this.hitstop -= dt; dt *= 0.15; }
     this.save.playTime += dt;
     this.handleInput(dt);
+    this.devPanel.update(dt);
     this.updatePlayer(dt);
     this.updateGather(dt);
     this.updateCraft(dt);
@@ -3201,6 +3207,7 @@ export class Game implements GameApi {
       if (I.wheel) this.rig.zoom(I.wheel);
       return;
     }
+    if (I.pressedOnce('F8')) this.devPanel.toggle();
     if (this.planner.lot && I.pressedOnce('Escape')) this.planner.close();
     if (this.bank.open && I.pressedOnce('Escape')) this.bank.close();
     if (this.home.active) {
@@ -3211,7 +3218,7 @@ export class Game implements GameApi {
       if (I.pressedOnce('Escape')) this.home.stop();
     }
     if (I.pressedOnce('Escape')) {
-      if (!this.hud.closeAll()) {
+      if (!this.devPanel.close() && !this.hud.closeAll()) {
         if (this.target) this.target = null;
         else this.hud.show('settings');
       }
@@ -3370,6 +3377,7 @@ export class Game implements GameApi {
     if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind));
     if (this.attack) speed *= 0.35;
+    if (this.dev.fast) speed *= 2.5;
     speed *= this.hazards.slow;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
     // Moving, jumping, fighting or working ends an emote; the short ones also end on their own
@@ -3446,7 +3454,7 @@ export class Game implements GameApi {
       this.wakeTimer -= dt;
       if (this.wakeTimer <= 0) { this.wakeTimer = 0.28; this.particles.ripple(tmpV.set(P.position.x, P.waterTop - 0.05, P.position.z)); }
     }
-    if (fall > 5) {
+    if (fall > 5 && !this.dev.god) {
       const dmg = Math.round((fall - 4) * 7);
       this.hp -= dmg;
       this.floatAt(P.position, 2.2, `-${dmg}`, 'player');
@@ -3912,6 +3920,56 @@ export class Game implements GameApi {
   }
 
   // =================================================================== Debug hooks (used for automated checks)
+  /** What the dev tools can do, all of it to your own character. A jump goes the way a waymark does. */
+  private devHost(): DevHost {
+    const dev = this.dev;
+    return {
+      waymarks: () => waymarks().map((w) => ({ name: w.name, x: w.ax, y: w.ay ?? heightAt(w.ax, w.az) + 1, z: w.az })),
+      teleport: (x, z, y) => {
+        if (this.dungeons.active) return null;
+        const V = this.world.voxels;
+        const gy = y ?? (V.isLoaded(Math.floor(x), Math.floor(z)) ? V.groundBelow(x, 94, z) : heightAt(Math.floor(x), Math.floor(z)) + 1);
+        this.devPanel.close();
+        this.dismount(true);
+        this.hud.closeAll();
+        this.cancelActions();
+        this.target = null;
+        this.save.pos = [x, gy + 0.5, z];
+        this.save.hour = this.world.sky.hour;
+        this.save.hp = this.hp;
+        this.startPlay(false, 'Going there…');
+        return `Off to ${Math.round(x)}, ${Math.round(z)}.`;
+      },
+      where: () => { const p = this.player.position, r = regionAt(p.x, p.z).a; return { x: p.x, y: p.y, z: p.z, region: REGION_INFO[r]?.name ?? r }; },
+      setLevel: (L) => {
+        for (const s of SKILLS) this.save.xp[s.id] = xpForLevel(L);
+        this.applyCalling();
+        this.hp = this.maxHp;
+        this.hud.refresh();
+        this.persist();
+      },
+      heal: () => { this.hp = this.maxHp; this.energy = 100; this.hud.refresh(); },
+      give: (id, n) => { const ok = this.give(id, n); this.hud.refresh(); this.persist(); return ok; },
+      addMarks: (n) => { this.addMarks(n); this.persist(); },
+      hour: () => this.world.sky.hour,
+      setHour: (h) => { this.world.sky.hour = h; },
+      get god() { return dev.god; },
+      set god(v) { dev.god = v; },
+      get fast() { return dev.fast; },
+      set fast(v) { dev.fast = v; },
+      clearFoes: () => {
+        let n = 0;
+        for (const e of this.enemies) {
+          if (!e.alive || e.pos.distanceTo(this.player.position) > 40) continue;
+          e.takeDamage(e.hp + 1, this.player.position, this.elapsed);
+          if (e.justDied) this.onEnemyKilled(e);
+          n++;
+        }
+        return n;
+      },
+    };
+  }
+
   private debugApi() {
     return {
       game: this,

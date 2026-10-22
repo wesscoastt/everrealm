@@ -264,6 +264,8 @@ export class Hud {
   /** Minimap zoom step (MM_ZOOM) and whether it turns with the camera; remembered in this browser. */
   private mmZoom = 2;
   private mmRotate = false;
+  /** Listening for full screen ending (Esc, F11), so the Settings box stays right. */
+  private fsWatch = false;
   private eventEl!: HTMLElement;
   private eventKey = '';
   /** Attuned waymarks where they were last drawn on the world map (canvas pixels), for clicks. */
@@ -2022,6 +2024,10 @@ export class Hud {
   }
 
   private renderSettings(): void {
+    if (!this.fsWatch) {
+      this.fsWatch = true;
+      document.addEventListener('fullscreenchange', () => { const b = this.root.querySelector<HTMLInputElement>('#settings-panel input[data-fs]'); if (b) b.checked = !!document.fullscreenElement; });
+    }
     const body = this.q('#settings-panel .body');
     const st = this.ctx.save.settings;
     const sliders: [keyof typeof st, string, number, number, number][] = [
@@ -2031,6 +2037,8 @@ export class Hud {
     ];
     body.innerHTML = sliders.map(([k, label, min, max, step]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`).join('')
       + `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`
+      // Full screen on a computer (phones and tablets go full screen their own way, or can't)
+      + (document.fullscreenEnabled && !document.body.classList.contains('touch') ? `<div class="setting"><span>Full screen</span><input type="checkbox" ${document.fullscreenElement ? 'checked' : ''} data-fs><span></span></div>` : '')
       + `<h4 class="sec">Controls</h4><div class="help-grid">
         <kbd>W A S D</kbd><span>Move (relative to the camera)</span>
         <kbd>Mouse drag</kbd><span>Turn the camera · wheel zooms</span>
@@ -2038,12 +2046,14 @@ export class Hud {
         <kbd>Space</kbd><span>Jump</span>
         <kbd>Click / 1</kbd><span>Strike · three-hit combo</span>
         <kbd>2</kbd><span>Cleave: spin attack</span>
-        <kbd>3</kbd><kbd>4</kbd><kbd>5</kbd><span>Your calling's skills: heal or guard, signature, elite</span>
+        <kbd>3 – 8</kbd><span>Weapon skill, heal, your calling's skills and elite, as you reach their levels</span>
         <kbd>Q</kbd><span>Dodge roll, invulnerable while rolling</span>
         <kbd>Tab</kbd><span>Target the nearest enemy</span>
         <kbd>G</kbd><span>Call your horse, or get down (halters are sold in the towns)</span>
         <kbd>E</kbd><span>Talk, gather, use, pull in a bite</span>
         <kbd>Enter</kbd><span>Chat, when playing online</span>
+        <kbd>P</kbd><span>Group finder</span>
+        <kbd>O</kbd><span>Guild</span>
         <kbd>F</kbd><span>Eat food</span>
         <kbd>Touch</kbd><span>Left thumb moves · drag elsewhere to look · pinch to zoom · tap the action bar for skills</span>
         <kbd>B / I</kbd><span>Pack</span>
@@ -2053,7 +2063,11 @@ export class Hud {
         <kbd>Esc</kbd><span>Close windows</span>
       </div>
       ${this.ctx.inMenu ? '' : '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn ghost" data-act="title">Save and quit to character select</button><button class="btn danger" data-act="reset">Delete character</button></div>'}`;
-    body.querySelectorAll<HTMLInputElement>('input').forEach((inp) => {
+    body.querySelector<HTMLInputElement>('input[data-fs]')?.addEventListener('change', (e) => {
+      const on = (e.target as HTMLInputElement).checked;
+      (on ? document.documentElement.requestFullscreen() : document.exitFullscreen()).catch(() => { (e.target as HTMLInputElement).checked = !!document.fullscreenElement; });
+    });
+    body.querySelectorAll<HTMLInputElement>('input[data-k]').forEach((inp) => {
       inp.addEventListener('input', () => {
         const k = inp.dataset.k as keyof typeof st;
         if (inp.type === 'checkbox') (st as unknown as Record<string, unknown>)[k] = inp.checked;

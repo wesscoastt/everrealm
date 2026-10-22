@@ -15,10 +15,14 @@
 // skills and quests; the server stores what it is sent, after basic shape and size checks.
 //
 // HTTP (same port as the socket):
-//   POST /api/register {user, pass}      -> {user, token}
-//   POST /api/login    {user, pass}      -> {user, token}
+//   POST /api/register {user, pass}      -> {user, token, dev}
+//   POST /api/login    {user, pass}      -> {user, token, dev}
 //   POST /api/logout                     (Authorization: Bearer <token>)
-//   GET  /api/me                         -> {user, characters: [{name, save, updated}]}
+//   GET  /api/me                         -> {user, dev, characters: [{name, save, updated}]}
+//
+// dev is true for the accounts named in DEV_ACCOUNTS (a comma-separated list; the owner's account
+// when it isn't set). Their game opens the dev tools on F8. The tools only change the player's own
+// character, which the browser already owns (see above), so nothing here trusts the flag further.
 //   PUT  /api/characters/<name> {save}   -> {ok}
 //   DELETE /api/characters/<name>        -> {ok}
 //   GET  /api/vault                      -> {vault, ver}   (the bank vault all the account's characters share)
@@ -56,6 +60,7 @@ const MAX_SAVE = 512_000;
 const CHAT_GAP_MS = 600;
 const SESSION_DAYS = 60;
 const MAX_CHARS = 6;
+const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const WORLD = [-2304, 4096]; // the world's edges on x and z (src/world/VoxelWorld.ts)
 const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
@@ -201,7 +206,7 @@ async function api(req, res) {
       storeAccount(acc);
       log(`new account ${user}`);
     } else if (!acc || !passMatches(acc, pass)) return reply(res, 401, { error: 'That name and password don\'t match.' });
-    return reply(res, 200, { user: acc.user, token: newSession(acc.user) });
+    return reply(res, 200, { user: acc.user, token: newSession(acc.user), dev: DEV_ACCOUNTS.has(accKey(acc.user)) });
   }
 
   const user = sessionUser(bearer(req));
@@ -216,7 +221,7 @@ async function api(req, res) {
   }
   if (req.method === 'GET' && url.pathname === '/api/me') {
     const characters = acc.chars.map((k) => loadChar(k)).filter((r) => r && r.owner === acc.user).map((r) => ({ name: r.name, save: r.save, updated: r.updated ?? r.created }));
-    return reply(res, 200, { user: acc.user, characters });
+    return reply(res, 200, { user: acc.user, dev: DEV_ACCOUNTS.has(accKey(acc.user)), characters });
   }
   if (url.pathname === '/api/vault') {
     if (req.method === 'GET') return reply(res, 200, { vault: acc.vault ?? { items: {}, marks: 0 }, ver: acc.vaultVer ?? 0 });
