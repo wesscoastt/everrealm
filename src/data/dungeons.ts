@@ -39,8 +39,8 @@ export interface BossPlan {
   chance: number;
 }
 
-/** A line once, the first time the group comes into a place: Bet says it if she's along, otherwise it's what you see. */
-export interface Note { x: number; z: number; r: number; said: string; seen: string }
+/** A line once, the first time the group comes into a place: a henchman says it if they're along (Bet, unless another is named), otherwise it's what you see. */
+export interface Note { x: number; z: number; r: number; said: string; seen: string; who?: string }
 
 export interface DungeonDef {
   /** The site the halls are built at (sites.ts). */
@@ -61,6 +61,7 @@ export interface DungeonDef {
 }
 
 const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap'];
+const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood'];
 
 export const DUNGEONS: DungeonDef[] = [
   {
@@ -104,6 +105,45 @@ export const DUNGEONS: DungeonDef[] = [
       { x: 280, z: -40, r: 8, said: 'That\'s the old man. Fire-set, look at the soot. Nobody\'s cut rock like that in a hundred years.', seen: 'Old workings, older than the Pit: the walls are black where fires were lit against the rock to crack it.' },
     ],
     chest: { xp: 1400, marks: 60, items: ['copper_ore', 'copper_ore', 'copper_ore', 'rustback_shell', 'bronze_bar', 'bronze_bar'] },
+  },
+  {
+    id: 'gd-kettle', name: 'Under the Kettle', where: 'The Kettle, Scarth Highlands', levels: [28, 32], level: 30,
+    blurb: 'Kelderby folds its ewes in the crack in the Kettle\'s north wall every winter. This winter something came up out of the back of the crack and took nine, and the shepherds have seen a light down there that they don\'t like.',
+    door: [807.5, 51, 2040.5], out: [807.5, 51, 2043.5, 0],
+    bosses: [
+      {
+        pull: ['', 'A grey wolf the size of a pony stands up on the ledge. The pack looks at it before it looks at you.'],
+        adds: [{ at: 0.5, types: ['frostwolf', 'frostwolf'], line: ['', 'Brack howls, and two more come down off the ledges.'] }],
+        hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 60, color: '#dde6ee', line: 'Brack\'s howl shakes ice loose from the roof.' },
+        fall: ['', 'Brack goes down. The rest of the pack is gone before it lands.'],
+        drops: ['fell_knife', ...KETTLE_GEAR], chance: 0.6,
+      },
+      {
+        pull: ['', 'Something grinds in the seep, stone on glass. A graniteback the size of a cart turns round, chewing.'],
+        adds: [{ at: 0.5, types: ['graniteback', 'graniteback'], line: ['', 'Two younger granitebacks back out of the walls.'] }],
+        hazard: { every: 8, count: 2, r: 3.2, windup: 1.8, damage: 64, color: '#a8b0b8', line: 'Millstone rams the wall, and rock comes down.' },
+        fall: ['', 'Millstone stops chewing.'],
+        drops: KETTLE_GEAR, chance: 0.6,
+      },
+      {
+        pull: ['', 'The light at the bottom of the Kettle moves, and comes toward you. It\'s a jelly, grown in the crystal, and you can see through it.'],
+        adds: [
+          { at: 0.75, types: ['shardjelly', 'shardjelly'], line: ['', 'Pieces of the Glim break off and go on without it.'] },
+          { at: 0.5, types: ['shardjelly', 'shardjelly'], line: ['', 'More pieces break off.'] },
+          { at: 0.25, types: ['shardjelly', 'shardjelly'], line: ['', 'The Glim is coming apart, and every piece is still alive.'] },
+        ],
+        hazard: { every: 9, count: 2, r: 3.5, windup: 1.8, damage: 60, color: '#9fe8ff', line: 'Shards of crystal come down from the roof where the Glim touches it.' },
+        fall: ['', 'The Glim goes dark, and the cave goes dark with it, until your eyes find the lanterns again.'],
+        drops: KETTLE_GEAR, chance: 1,
+      },
+    ],
+    notes: [
+      { x: 732, z: 1990, r: 7, who: 'osgood', said: 'Wolves have been laying up in here. Mind the bones.', seen: 'Wool and bones on the floor: the wolves have been laying up in here.' },
+      { x: 744, z: 1972, r: 9, who: 'osgood', said: 'There. On the ledge. That\'s the big one.', seen: 'A ledge runs round the back of the cave, and something big is lying on it.' },
+      { x: 770, z: 1963, r: 9, who: 'osgood', said: 'That\'s not ice. That\'s glass, grown. I\'ve cut stone thirty years and never seen that.', seen: 'The ice here has grown into glass: clear columns standing up out of the floor.' },
+      { x: 784, z: 2006, r: 8, who: 'osgood', said: 'Light down there. Nobody look straight at it.', seen: 'Light comes up the drift from below, white and steady.' },
+    ],
+    chest: { xp: 4800, marks: 140, items: ['star_crystal', 'star_crystal', 'frost_pelt', 'iron_bar', 'iron_bar'] },
   },
 ];
 

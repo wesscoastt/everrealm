@@ -1568,7 +1568,7 @@ export class Hud {
     }).join('');
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
     body.innerHTML = status + roles + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
-    this.q('#finder-panel .footer').innerHTML = '<span>P opens this anywhere. The Old Man\'s door is in Sallow Pit\'s chamber.</span>';
+    this.q('#finder-panel .footer').innerHTML = '<span>P opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit\'s chamber, and the crack in the Kettle\'s north wall.</span>';
     body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
     body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return;

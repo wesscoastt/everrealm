@@ -411,7 +411,9 @@ export class Dungeons {
     if (!this.run || !this.owns(e)) return null;
     const v = this.victim(e);
     const engagedBefore = e.state === 'chase' || e.state === 'windup' || e.state === 'attack' || e.state === 'recover';
-    const splash = (at: THREE.Vector3, rad: number, dmg: number, from: Enemy) => {
+    // Others caught in the circle take most of it; whoever it was aimed at takes it all (in Enemy)
+    const splash = (at: THREE.Vector3, rad: number, full: number, from: Enemy) => {
+      const dmg = full * 0.7;
       for (const m of this.members()) {
         if (m.k === v.k || !m.up || Math.hypot(m.pos.x - at.x, m.pos.z - at.z) > rad || Math.abs(m.pos.y - at.y) > 2.5) continue;
         if (m.k === 'me') { if (!this.host.invulnerable()) this.host.hurtPlayer(dmg, from); }
@@ -473,8 +475,8 @@ export class Dungeons {
     r.def.notes.forEach((n, i) => {
       if (r.seen.has(i) || Math.hypot(P.x - n.x, P.z - n.z) > n.r) return;
       r.seen.add(i);
-      const bet = r.allies.find((a) => a.def.id === 'bet' && !a.down);
-      if (bet) this.host.say(bet.name, n.said, bet.bubble); else this.host.say('', n.seen);
+      const who = r.allies.find((a) => a.def.id === (n.who ?? 'bet') && !a.down);
+      if (who) this.host.say(who.name, n.said, who.bubble); else this.host.say('', n.seen);
     });
 
     // Packs pull together; a boss's crew comes with it

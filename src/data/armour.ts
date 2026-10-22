@@ -163,6 +163,37 @@ const LINES: Line[] = [
       feet: ['Verdigris boots', 'Shod with shell at the toe. They don\'t rust; they\'re rust already.'],
     },
   },
+  // Under the Kettle (group dungeon): Kelderby's fold, its bosses drop these
+  {
+    id: 'fleece', weight: 'light', set: 'fold', dungeon: 'gd-kettle', rarity: 'epic', value: 90, colour: '#e8e2d2', trim: '#6a5a4a',
+    look: { chest: { top: 7, tunic: '#e8e2d2', trim: '#6a5a4a', shirt: '#c8c0b0' }, legs: { trousers: '#8a8070', legs: 0 }, hands: { gloves: '#d8d0c0' }, feet: { boots: '#4a3a2a', shoes: 1 } },
+    pieces: {
+      chest: ['Kelderby fleece', 'A long coat of unwashed fleece, the grease left in. Rain runs off it like off a ewe.'],
+      legs: ['Fleece leggings', 'Knitted from the same wool, with leather at the knee for kneeling in snow.'],
+      hands: ['Lambing mitts', 'One finger free on the right hand. Shepherds know why.'],
+      feet: ['Fell clogs', 'Ash soles and iron rims, for ice on the high pasture.'],
+    },
+  },
+  {
+    id: 'packhide', weight: 'medium', set: 'fold', dungeon: 'gd-kettle', rarity: 'epic', value: 90, colour: '#5a5a5e', trim: '#2a2a2e',
+    look: { chest: { top: 6, tunic: '#5a5a5e', trim: '#2a2a2e', shoulderPads: '#8a8a90' }, legs: { trousers: '#3e3e42', legs: 1, hose: '#2a2a2e' }, hands: { gloves: '#4a4a4e' }, feet: { boots: '#1e1e22', shoes: 1 } },
+    pieces: {
+      chest: ['Brack\'s-pack jerkin', 'Wolf hide from the pack that ran the Kettle, grey on grey. It still smells of them when it\'s wet.'],
+      legs: ['Pack-hide breeches', 'Hide outside, fleece in. Warm and loud with every step.'],
+      hands: ['Pack-hide gloves', 'The fur left on the backs. You stop noticing the cold in your knuckles.'],
+      feet: ['Pack-hide boots', 'Soft soles, laced to the knee.'],
+    },
+  },
+  {
+    id: 'kettleglass', weight: 'heavy', set: 'fold', dungeon: 'gd-kettle', rarity: 'epic', value: 110, colour: '#9fd8e8', trim: '#3a4a52',
+    look: { chest: { top: 4, tunic: '#3a4a52', trim: '#9fd8e8', shoulderPads: '#c8f4ff' }, legs: { trousers: '#2a3a42', legs: 0 }, hands: { gloves: '#9fd8e8' }, feet: { boots: '#1e2a30', shoes: 1 } },
+    pieces: {
+      chest: ['Kettle-glass plate', 'Plates of crystal from under the Kettle, set in iron. Lighter than they look; that\'s the crystal.'],
+      legs: ['Kettle-glass greaves', 'Crystal over the shin. It hums faintly when something hits it.'],
+      hands: ['Kettle-glass gauntlets', 'Iron fingers, a crystal plate on the back of each hand.'],
+      feet: ['Kettle-glass boots', 'Iron-shod, crystal at the toe. Heavy, then not.'],
+    },
+  },
 ];
 
 const SHAPES = { chest: 'chest', legs: 'legs', hands: 'gloves', feet: 'boots' } as const;
@@ -195,6 +226,7 @@ export const HELM_WEIGHTS: Record<string, { weight: ArmourWeight; look: Partial<
   frost_cowl: { weight: 'light', look: { hat: 'hood', hatColor: '#dde6ee' } },
   moss_hood: { weight: 'light', look: { hat: 'hood', hatColor: '#5a7a3a' } },
   pitlamp_cap: { weight: 'light', look: { hat: 'cap', hatColor: '#5a564c' } },
+  shepherd_hood: { weight: 'medium', look: { hat: 'hood', hatColor: '#d8d0c0' } },
 };
 
 /** Smithed at an anvil: bronze and iron. [line, bars for the chest, legs, hands, feet, smithing level]. */

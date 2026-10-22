@@ -20,6 +20,7 @@ import { POSTS } from '../src/data/travel';
 import { BOARDS } from '../src/data/content';
 import { ENEMIES, EnemyType } from '../src/data/gameplay';
 import { RARES, rareLairs, TREASURE_MAPS, treasureSpot } from '../src/data/wilds';
+import { DUNGEONS } from '../src/data/dungeons';
 
 // Record every override as the planner writes it (the last write to a cell wins, as in the game).
 const cells = new Map<string, number>();
@@ -167,6 +168,8 @@ function reachable(id: string, a: NonNullable<(typeof P.sites)[number]['act']>) 
   }
   if (a.kind !== 'group' && !sky) problems.push(`act ${id}: the chest can't be walked out to the open air`);
 }
+// A group dungeon's door (outside) and where you come back out
+for (const d of DUNGEONS) { check(`dungeon ${d.id} door`, d.door[0], d.door[2], { y: d.door[1] }); check(`dungeon ${d.id} way out`, d.out[0], d.out[2], { y: d.out[1] }); }
 // Rares' lairs and treasure maps' dig spots: open ground (the sea rare's waters are open water)
 for (const r of RARES) if (!r.sea) rareLairs(r, P).forEach(([x, z], i) => check(`rare ${r.id} lair ${i}`, x, z));
 for (const m of TREASURE_MAPS) { const s = treasureSpot(m, P); if (!s) problems.push(`treasure ${m.id}: no landmark to draw it from`); else check(`treasure ${m.id}`, s.x, s.z); }

@@ -101,6 +101,16 @@ Behind the boarded door at the east end of Sallow Pit's chamber. For four player
 - **Verdigris**: a rustback the size of a cart, green right through from eating nothing but copper. Rustbacks eat metal (Hesk, from the start of the game); this one ate a seam. Its young nest in the walls.
 - After a clear, Hesk tells the company Number Four is flooded ("It very nearly is") and gives the player a pit lamp cap. Flag `heskN4Done`; clears are counted in `gdClears:gd-oldman`.
 
+## Under the Kettle (group dungeon) [in game]
+
+Behind the crack in the north wall of the Kettle (the crater where a star came down, in Scarth). Levels 28 to 32. Halls in `src/world/sites.ts` (`buildUnderKettle`), fights in `src/data/dungeons.ts`.
+
+- **The fold.** Kelderby folds its ewes in the crack every winter, behind hurdles. **Nia Prosser** keeps them there. At Martinmas nine went in one night with no blood at the hurdles.
+- **Brack**: a grey wolf the size of a pony that leads the pack laying up behind the fold.
+- **Millstone**: a graniteback the size of a cart in the seep, where the ice has grown into glass. It chews the crystal.
+- **The Glim**: Nia's gran's name for the light at the bottom of the crack. A jelly grown in the crystal that came down with the star; pieces of it go on living when they break off. Nia's gran said the star was still down there and the light was it breathing. Nobody in the game says whether that's true.
+- The dungeon's set is **the Fold** (Kelderby fleece, Brack's-pack hide, Kettle-glass plate, the fell knife and the shepherd's hood). Clears are counted in `gdClears:gd-kettle`.
+
 ### Henchmen
 
 Hesk's four regulars, who go down anywhere for a day's rate. Whoever's free comes: a tank, a healer, then Bet, then Tom.

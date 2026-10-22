@@ -2490,6 +2490,10 @@ export class Game implements GameApi {
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
     e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
     this.dungeons.onPlayerHit(e, dmg);
+    if (this.gearSet === 'fold' && !this.dead && e.alive && (e.state === 'chase' || e.state === 'windup' || e.state === 'attack' || e.state === 'recover') && !this.dungeons.onSomeoneElse(e)) {
+      const h = Math.min(this.maxHp - this.hp, Math.round(dmg * 0.05));
+      if (h > 0) this.hp += h;
+    }
     this.kit.landed();
     this.lastCombat = this.elapsed;
     this.target = this.target && this.target.alive ? this.target : e;

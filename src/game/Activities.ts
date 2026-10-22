@@ -514,7 +514,7 @@ export class Activities {
     const lvl = Number((REGION_INFO[m.region].levels.split(/[–-]/)[0]) || 1);
     const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'gannet_egg', wrath: 'smoked_eel', tolmen: 'iron_ore' };
     const items = [mats[m.region], mats[m.region]];
-    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && d.set !== 'oldman');
+    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && !DUNGEON_SETS.has(d.set));
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === m.region);
     if (Math.random() < 0.4) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
     this.host.reward(300 + lvl * 30, 20 + lvl * 3, items, `Treasure dug up in ${REGION_INFO[m.region].name}`);
@@ -534,7 +534,7 @@ export class Activities {
     this.host.setFlag('chest:' + s.id, Date.now());
     const big = s.act!.kind === 'dungeon';
     const reg = s.region;
-    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && d.set !== 'oldman');
+    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && !DUNGEON_SETS.has(d.set));
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === reg);
     const items: string[] = [];
     if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
@@ -707,6 +707,9 @@ function dirtMound(): THREE.Group {
 function waveSizes(def: EventDef): number[] {
   return def.waves.map((w, i) => w.count + (i === def.waves.length - 1 && def.leader ? 1 : 0));
 }
+
+/** Group dungeons' sets drop only in their dungeons. */
+const DUNGEON_SETS = new Set(['oldman', 'fold']);
 
 /** Which region each gear set comes from (dungeon chests favour their own region's pieces). */
 const GEAR_REGION: Record<string, string> = { tollriders: 'crownroad', thornback: 'brambledeep', brine: 'saltwind', harrow: 'redstone', starglass: 'starfall' };

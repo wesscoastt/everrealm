@@ -279,6 +279,8 @@ export function plan(): Plan {
     { id: 'gd-oldman', name: 'The Old Man\'s Workings', x: 254, z: -58, r0: 0, r1: 0, under: true, build: (s) => buildOldMan(s) },
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
     { id: 'sc-crater', name: 'The Kettle', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
+    // (after the Kettle, so the crack into its north wall is cut through the crater's rim)
+    { id: 'gd-kettle', name: 'Under the Kettle', x: 760, z: 1990, r0: 0, r1: 0, under: true, build: (s) => buildUnderKettle(s) },
     // World bosses' lairs and the Shardfalls' landing grounds (data/activities.ts says when they're used)
     ...WORLD_BOSSES.map((b): Named => ({ id: 'lair-' + b.id, name: LAIR_NAMES[b.id], x: b.x, z: b.z, r0: 20, r1: 32, build: (s, g) => buildLair(s, g, b.type) })),
     ...SHARDFALLS.map(([x, z], i): Named => ({ id: 'shardfall-' + i, name: 'Shardfall ground', x, z, r0: 12, r1: 22, build: (s, g) => buildShardGround(s, g) })),
@@ -1210,6 +1212,93 @@ export function plan(): Plan {
         { at: at(73, 33), type: 'dg_verdigris' },
       ],
       chest: at(73, 41),
+      covered,
+    };
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+  }
+
+  /**
+   * Under the Kettle, north of the crater: the crack in the Kettle's north wall that Kelderby folds
+   * its ewes in over winter, the wolves' den behind it, Brack's ledge, the seep where the ice has
+   * grown into glass, and at the bottom the crystal that came down with the star, where the Glim
+   * lives. Entered by the crack (press E); the halls themselves are buried.
+   */
+  function buildUnderKettle(s: Site) {
+    const OX = 712, OZ = 1990, F = 40;
+    const FOLD: DigTheme = { wall: B.Stone, wall2: B.MossyStone, floor: B.Gravel, floor2: B.Dirt, light: '#ffc880' };
+    const ICE: DigTheme = { wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff' };
+    const HEART: DigTheme = { wall: B.Basalt, wall2: B.Crystal, floor: B.Basalt, floor2: B.Crystal, light: '#c8f4ff' };
+    const { hall, run, finish } = digger(s, OX, OZ, F, FOLD);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, F, OZ + z + 0.5];
+    const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
+    const covered: [number, number, number, number, number][] = [];
+    const room = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false, th = FOLD) => {
+      hall(x0, z0, x1, z1, h, pillars, th);
+      covered.push([OX + x0 - 1, OZ + z0 - 1, OX + x1 + 1, OZ + z1 + 1, F + h]);
+    };
+    const prop = (t: PropType, x: number, z: number, ry = 0) => s.props.push({ t, x: OX + x + 0.5, y: F, z: OZ + z + 0.5, ry });
+    const furn = (item: string, x: number, z: number, ry = 0) => s.props.push({ t: 'furn', item, x: OX + x + 0.5, y: F, z: OZ + z + 0.5, ry });
+
+    // The way in from the crater: a crack in the Kettle's north wall, the shepherds' winter fold
+    {
+      const cx = 807, z0 = 2038, z1 = 2045, y = 51;
+      for (let z = z0; z <= z1; z++) for (let x = cx - 1; x <= cx + 1; x++) {
+        O.set(x, y - 1, z, B.Gravel);
+        for (let k = 0; k < 4; k++) O.set(x, y + k, z, B.Air);
+      }
+      for (let x = cx - 1; x <= cx + 1; x++) for (let k = 0; k < 4; k++) O.set(x, y + k, z0 - 1, k < 3 ? B.Planks : B.Basalt); // hurdles across the back
+      s.props.push({ t: 'lantern', x: cx + 1.5, y, z: z1 + 0.5, ry: 0 }, { t: 'sign', x: cx - 1.6, y, z: z1 + 0.6, ry: Math.PI, text: 'The Fold' });
+    }
+
+    // The shepherds' cave, where a group comes in through the hurdles
+    room(0, -4, 9, 4, 5);
+    furn('candles', 7, -3); prop('crate', 7, 3, 0.4); prop('barrel', 8, 2.6);
+    // The den: wool, bones, and what the wolves dragged in
+    run(10, 0, 19, 0);
+    room(20, -8, 44, 8, 7, true);
+    furn('mushrooms', 22, 7); prop('crate', 43, -7, 0.8);
+    // Brack's ledge, up the north passage
+    run(32, -9, 32, -17);
+    room(20, -36, 44, -18, 8);
+    prop('barrel', 22, -35); furn('candles', 42, -20);
+    // The seep: the ice here has grown into glass
+    run(45, -27, 58, -27);
+    room(59, -38, 85, -14, 10, false, ICE);
+    for (let i = 0; i < 7; i++) {
+      const x = 62 + ((i * 7) % 21), z = -36 + ((i * 5) % 20), h = 2 + (i % 3);
+      for (let y = F; y < F + h; y++) O.set(OX + x, y, OZ + z, B.Crystal);
+      s.props.push({ t: 'glow', x: OX + x + 0.5, y: F + h, z: OZ + z + 0.5, r: 2.4, color: '#9fe8ff' });
+    }
+    // The drift down
+    run(72, -13, 72, -1);
+    room(66, 0, 78, 8, 5, false, ICE);
+    // The heart of the fall: the crystal the star brought down, and the Glim in it
+    run(72, 9, 72, 16);
+    room(55, 17, 92, 38, 13, true, HEART);
+    for (const [x, z, h] of [[60, 21, 5], [87, 21, 6], [60, 35, 4], [87, 35, 5], [64, 28, 3], [83, 28, 3]] as const) {
+      for (let y = F; y < F + h; y++) for (const [dx, dz] of y < F + h - 2 ? [[0, 0], [1, 0], [0, 1]] : [[0, 0]]) O.set(OX + x + dx, y, OZ + z + dz, B.Crystal);
+      s.props.push({ t: 'glow', x: OX + x + 0.5, y: F + h, z: OZ + z + 0.5, r: 3.2, color: '#c8f4ff' });
+    }
+    finish();
+
+    s.act = {
+      kind: 'group',
+      arrive: at(2, 0),
+      exit: at(1, 0),
+      packs: [
+        [mob(27, -2, 'frostwolf'), mob(29, 3, 'frostwolf'), mob(25, 2, 'frostwolf')],
+        [mob(40, 3, 'frostwolf'), mob(41, -3, 'moorwolf'), mob(38, 0, 'frostwolf')],
+        [mob(64, -22, 'shardjelly'), mob(64, -30, 'shardjelly'), mob(66, -26, 'shardjelly')],
+        [mob(70, 3, 'shardjelly'), mob(74, 5, 'graniteback'), mob(72, 7, 'shardjelly')],
+        [mob(61, 24, 'graniteback'), mob(63, 22, 'shardjelly')],
+        [mob(86, 24, 'graniteback'), mob(84, 22, 'shardjelly')],
+      ],
+      bosses: [
+        { at: at(33, -28), type: 'dg_brack', crew: [mob(29, -24, 'frostwolf'), mob(37, -24, 'frostwolf')] },
+        { at: at(72, -24), type: 'dg_millstone' },
+        { at: at(73, 30), type: 'dg_glim' },
+      ],
+      chest: at(73, 36),
       covered,
     };
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
