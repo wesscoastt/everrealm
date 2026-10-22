@@ -108,9 +108,12 @@ export class Sky {
         uSunDir: shared.uSunDir,
         uSunColor: shared.uSunColor,
         uNight: { value: 0 },
+        // Under the water the whole sky is the water's own murk (fog doesn't reach a sky dome)
+        uUnder: { value: 0 },
+        uFog: { value: new THREE.Color() },
       },
       vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position.z = gl_Position.w; }`,
-      fragmentShader: `uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uSunDir; uniform vec3 uSunColor; uniform float uNight; varying vec3 vDir;
+      fragmentShader: `uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uSunDir; uniform vec3 uSunColor; uniform float uNight; uniform float uUnder; uniform vec3 uFog; varying vec3 vDir;
       void main(){
         float h = clamp(vDir.y, -0.2, 1.0);
         vec3 col = mix(uHorizon, uZenith, pow(max(h, 0.0), 0.55));
@@ -126,6 +129,7 @@ export class Sky {
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, uFog, uUnder);
       }`,
     });
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(2200, 32, 16), this.domeMat);
@@ -302,6 +306,11 @@ export class Sky {
 
     this.night = THREE.MathUtils.clamp(1 - (elev + 0.15) / 0.35, 0, 1);
     this.domeMat.uniforms.uNight.value = this.night;
+    this.domeMat.uniforms.uUnder.value = this.underwater ? 1 : 0;
+    // (mixed in after the output conversion, as the fog is, so it wants the screen-space colour)
+    this.domeMat.uniforms.uFog.value.copy(this.fog.color).convertLinearToSRGB();
+    this.clouds.visible = !this.underwater;
+    this.stars.visible = !this.underwater;
     this.shared.uGlow.value = 0.22 + this.night * 1.25;
     (this.stars.material as THREE.PointsMaterial).opacity = this.night * 0.9;
     // White by day, warmed by a low sun, blue-grey and dim at night

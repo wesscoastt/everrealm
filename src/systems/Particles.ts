@@ -151,6 +151,13 @@ export class Particles {
     }
   }
 
+  /** Underwater: a kick or a blow leaves bubbles that wobble up toward the surface. */
+  bubbles(at: THREE.Vector3, n = 10): void {
+    for (let i = 0; i < n; i++) {
+      this.glow.spawn({ pos: v.set(at.x + rnd(0.4), at.y + rnd(0.4), at.z + rnd(0.4)), vel: new THREE.Vector3(rnd(0.6), 1.2 + Math.random() * 1.4, rnd(0.6)), color: i % 3 ? '#cfefff' : '#ffffff', size: 0.04 + Math.random() * 0.07, max: 0.9 + Math.random() * 0.8, gravity: -1.5, drag: 1.2, spin: 2 });
+    }
+  }
+
   dust(at: THREE.Vector3, n = 6): void {
     for (let i = 0; i < n; i++) {
       this.soft.spawn({ pos: v.set(at.x + rnd(0.3), at.y + 0.05, at.z + rnd(0.3)), vel: new THREE.Vector3(rnd(1), 0.4, rnd(1)), color: '#c8b896', size: 0.12, grow: 0.3, max: 0.6, gravity: 0, drag: 2, spin: 1 });

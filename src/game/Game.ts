@@ -415,7 +415,7 @@ export class Game implements GameApi {
       canReach: (e) => {
         // Leaps and steps go to a creature you could walk to: not up a cliff, not through a wall
         const p = this.player.position;
-        const why = Math.abs(e.pos.y - p.y) > 3 ? (e.pos.y > p.y ? "It's too far above you." : "It's too far below you.") : null;
+        const why = Math.abs(e.pos.y - p.y) > (this.player.swimming && e.swims ? 8 : 3) ? (e.pos.y > p.y ? "It's too far above you." : "It's too far below you.") : null;
         const dx = e.pos.x - p.x, dy = e.pos.y + 0.9 - (p.y + 1.2), dz = e.pos.z - p.z, d = Math.hypot(dx, dy, dz);
         const hit = d > 0.8 ? this.world.voxels.raycast(p.x, p.y + 1.2, p.z, dx / d, dy / d, dz / d, d - 0.6) : null;
         const msg = why ?? (hit ? 'Something is in the way.' : null);
@@ -2147,7 +2147,7 @@ export class Game implements GameApi {
     this.hud.pressAbility(i);
     if (i === 0) this.strike();
     else if (i === 1) this.cleave();
-    else if (i <= 4) { if (!this.attack && !this.dash && !this.player.swimming) { this.cancelActions(); if (this.kit.use(i - 2)) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; } } }
+    else if (i <= 4) { if (!this.attack && !this.dash) { this.cancelActions(); if (this.kit.use(i - 2)) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; } } }
     else if (i === 5) this.roll();
     else if (i === 6) this.eat();
   }
@@ -2174,7 +2174,13 @@ export class Game implements GameApi {
     if (this.action || this.craftAction) this.cancelActions();
     if (this.attack) { this.queuedStrike = true; return; }
     if (this.cds.strike > 0) return;
-    this.faceTarget(4.5);
+    const at = this.faceTarget(this.player.swimming ? 6 : 4.5);
+    if (this.player.swimming && at) {
+      const P = this.player.position;
+      const to = tmpV.set(at.pos.x - P.x, at.pos.y + 0.4 - (P.y + 0.9), at.pos.z - P.z);
+      const d = to.length();
+      if (d > 2 && d < 7.5) this.player.velocity.addScaledVector(to.normalize(), Math.min(7, d * 1.5));
+    }
     const combo = this.comboWindow > 0 ? (this.comboIndex + 1) % 3 : 0;
     this.comboIndex = combo;
     const dur = (combo === 2 ? 0.55 : 0.42) / (this.blade?.speed ?? 1);
@@ -2222,17 +2228,21 @@ export class Game implements GameApi {
   }
 
   private roll(): void {
-    if (this.cds.roll > 0 || this.energy < 25 || this.player.swimming) return;
+    if (this.cds.roll > 0 || this.energy < 25) return;
     this.cancelActions();
     this.energy -= 25;
     this.cds.roll = 0.8;
     this.iframes = 0.46 + (this.helm?.roll ?? 0);
     this.rolledThrough = false;
+    const P = this.player;
     const mv = this.moveVector();
-    this.player.startRoll(mv.lengthSq() > 0.01 ? mv : new THREE.Vector3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw)));
+    const dir = mv.lengthSq() > 0.01 ? mv.clone() : new THREE.Vector3(Math.sin(P.yaw), 0, Math.cos(P.yaw));
+    // Under the surface the kick goes the way you're swimming, along the camera's aim
+    if (P.swimming && mv.lengthSq() > 0.01 && (P.underwater || P.swimAim < -0.45)) dir.set(mv.x * Math.cos(P.swimAim), Math.sin(P.swimAim), mv.z * Math.cos(P.swimAim));
+    P.startRoll(dir);
     this.attack = null;
-    this.sfx('roll');
-    this.particles.dust(this.player.position, 8);
+    if (P.swimming) { this.sfx('splash', 0.5); this.particles.bubbles(tmpV.copy(P.position).setY(P.position.y + 0.9), 14); }
+    else { this.sfx('roll'); this.particles.dust(P.position, 8); }
   }
 
   private resolveAttack(): void {
@@ -2242,18 +2252,20 @@ export class Game implements GameApi {
     const blade = this.blade;
     const power = this.swingPower();
     const bonus = a.kind === 'strike' ? this.kit.strikeBonus() : { mult: 1, crit: false };
+    const swim = this.player.swimming;
     let drawn = 0;
     let any = false;
     for (const e of this.enemies) {
       if (!e.alive) continue;
       const to = tmpV.subVectors(e.pos, P);
-      const dist = Math.hypot(to.x, to.z);
-      if (Math.abs(to.y) > 2.2) continue;
+      const flat = Math.hypot(to.x, to.z);
+      if (!swim && Math.abs(to.y) > 2.2) continue;
+      const dist = swim ? Math.hypot(flat, e.pos.y + (e.swims ? 0.4 : 0.8) - (P.y + 0.9)) : flat;
       const reach = (a.kind === 'cleave' ? 3.4 : 2.7 + (e.def.elite ? 0.6 : 0)) + (blade?.reach ?? 0);
       if (dist > reach) continue;
       if (a.kind === 'strike') {
-        const ang = Math.acos(THREE.MathUtils.clamp((to.x * face.x + to.z * face.z) / Math.max(0.01, dist), -1, 1));
-        if (ang > 1.35 && dist > 1.1) continue;
+        const ang = Math.acos(THREE.MathUtils.clamp((to.x * face.x + to.z * face.z) / Math.max(0.01, flat), -1, 1));
+        if (ang > 1.35 && flat > 1.1) continue;
       }
       const mult = a.kind === 'cleave' ? 1.5 : [1, 1.1, 1.5][a.combo];
       const crit = bonus.crit || Math.random() < 0.12 + (blade?.crit ?? 0) || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
@@ -2522,6 +2534,7 @@ export class Game implements GameApi {
       player: P,
       playerAlive: !this.dead,
       playerInvulnerable: this.iframes > 0,
+      playerSwimming: this.player.swimming,
       hitPlayer: (d: number, from: Enemy) => this.hitPlayer(d, from),
       sound: (name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3) => this.audio.playAt(name, at.distanceTo(P), 0.8),
     };
@@ -2837,10 +2850,17 @@ export class Game implements GameApi {
       const d = this.dash, V = this.world.voxels;
       d.t += dt;
       const k = Math.min(1, d.t / d.dur);
-      const gy = Math.max(d.fy, P.position.y);
-      P.position.set(d.fx + (d.tx - d.fx) * k, gy + (d.dur > 0.2 ? Math.sin(Math.PI * k) * 2.2 : 0), d.fz + (d.tz - d.fz) * k);
+      const wet = V.get(Math.floor(d.tx), Math.floor(d.ty + 1), Math.floor(d.tz)) === B.Water && P.swimming;
+      const gy = wet ? d.fy + (d.ty - d.fy) * k : Math.max(d.fy, P.position.y);
+      P.position.set(d.fx + (d.tx - d.fx) * k, gy + (d.dur > 0.2 && !wet ? Math.sin(Math.PI * k) * 2.2 : 0), d.fz + (d.tz - d.fz) * k);
       P.velocity.set(0, 0, 0);
-      if (k >= 1) {
+      if (k >= 1 && wet) {
+        // In the water there's no ground to land on: stop where the leap was going, if there's room
+        this.dash = null;
+        const tx = Math.floor(d.tx), ty = Math.floor(d.ty), tz = Math.floor(d.tz);
+        if (isSolid(V.get(tx, ty, tz)) || isSolid(V.get(tx, ty + 1, tz))) P.position.set(d.fx, d.fy, d.fz);
+        this.particles.bubbles(tmpV.copy(P.position).setY(P.position.y + 0.9), 12);
+      } else if (k >= 1) {
         this.dash = null;
         // Land where there's room to stand, at the target's height: next to it if the spot itself is
         // taken, back where you started if nowhere near is free. Never up onto a roof or a hilltop.
@@ -2858,6 +2878,11 @@ export class Game implements GameApi {
       fall = P.update(dt, new THREE.Vector3(), 0, false);
     } else fall = P.update(dt, mv, speed, jump);
     if (P.swimming !== wasSwimming) document.body.classList.toggle('swimming', P.swimming);
+    // The first dive: how fighting works down here
+    if (P.underwater && !this.flag('tipDive')) {
+      this.setFlag('tipDive', 1);
+      this.hud.system('Underwater you fight as you do on land, and your dodge is a kick in any direction. Sea creatures only hunt swimmers: climb out and they leave you be.');
+    }
     this.travelled += P.speed * dt;
     if (this.travelled >= 50) { this.dailies.bump('travel', Math.floor(this.travelled)); this.travelled %= 1; }
     document.body.classList.toggle('riding', !!this.horse);
@@ -3309,7 +3334,8 @@ export class Game implements GameApi {
         this.animals.push(a);
         this.scene.add(a.model.root);
       } else {
-        const type = table.enemies[Math.floor(s.roll * table.enemies.length)];
+        const from = s.sea ? table.sea : table.enemies;
+        const type = from[Math.floor(s.roll * from.length)];
         const e = new Enemy(ENEMIES[type], Math.floor(s.x), Math.floor(s.z), this.world.voxels);
         e.spawnKey = `${type}@${Math.floor(s.x)},${Math.floor(s.z)}`;
         this.applyLedger(e);

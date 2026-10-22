@@ -17,6 +17,7 @@ import { NPCS } from '../src/data/npcs';
 import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { POSTS } from '../src/data/travel';
 import { BOARDS } from '../src/data/content';
+import { ENEMIES, EnemyType } from '../src/data/gameplay';
 
 // Record every override as the planner writes it (the last write to a cell wins, as in the game).
 const cells = new Map<string, number>();
@@ -80,13 +81,24 @@ for (const w of waymarks()) {
   check(`waymark ${w.id} dais`, w.x + Math.sin(w.ry) * 2.2, w.z + Math.cos(w.ry) * 2.2);
   check(`waymark ${w.id} arrival`, w.ax, w.az, w.ay !== undefined ? { y: w.ay } : undefined);
 }
-// Dungeons and delves: every creature, champion and chest stands on a floor with room above it
+// Dungeons, delves and dive sites: every creature, champion and chest stands on a floor with room
+// above it. Sea creatures start in open water instead: water where they are and the cell over it.
+const SWIMMERS = new Set(['shark', 'eel', 'ray', 'medusa']);
+const water = (x: number, y: number, z: number) => { const o = cells.get(key(x, y, z)); return o !== undefined ? o === B.Water : y >= heightAt(Math.floor(x), Math.floor(z)) && y < SEA; };
+const creature = (label: string, p: [number, number, number, string]) => {
+  const d = ENEMIES[p[3] as EnemyType];
+  if (!d) { problems.push(`${label}: no such creature ${p[3]}`); return; }
+  if (!SWIMMERS.has(d.model ?? '')) { check(label, p[0], p[2], { y: p[1] }); return; }
+  checked++;
+  if (!water(p[0], p[1], p[2]) || !water(p[0], p[1] + 1, p[2])) problems.push(`${label} (${p[0].toFixed(1)}, ${p[1]}, ${p[2].toFixed(1)}): a sea creature out of open water`);
+};
 for (const st of P.sites) {
   const a = st.act;
   if (!a) continue;
-  a.spawns?.forEach((p, i) => check(`act ${st.id} spawn ${i}`, p[0], p[2], { y: p[1] }));
-  if (a.boss) check(`act ${st.id} champion`, a.boss[0], a.boss[2], { y: a.boss[1] });
+  a.spawns?.forEach((p, i) => creature(`act ${st.id} spawn ${i}`, p));
+  if (a.boss) creature(`act ${st.id} champion`, a.boss);
   if (a.chest) check(`act ${st.id} chest`, a.chest[0], a.chest[2], { y: a.chest[1] });
+  a.caches?.forEach((c, i) => check(`act ${st.id} cache ${i}`, c[0], c[2], { y: c[1] }));
 }
 // Boards are read from beside the post: one of the four neighbouring cells must be open ground.
 for (const b of BOARDS) {

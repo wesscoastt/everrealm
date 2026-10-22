@@ -39,6 +39,8 @@ export class Player {
   /** Lock movement while doing something (gathering, talking, dead). */
   locked = false;
   rolling = 0;
+  /** A swim-kick's climb or dive. */
+  private rollVy = 0;
   private rollDir = new THREE.Vector3();
   fallStartY = 0;
   /** In the saddle: the rider sits this high over the ground (0 on foot). */
@@ -132,9 +134,12 @@ export class Player {
 
   startRoll(dir: THREE.Vector3): void {
     this.rolling = ROLL_TIME;
-    this.rollDir.copy(dir).setY(0).normalize();
+    // In the water the dodge is a kick any way at all, up and down included
+    this.rollDir.copy(dir);
+    if (!this.swimming) this.rollDir.setY(0);
+    this.rollDir.normalize();
     if (this.rollDir.lengthSq() < 0.1) this.rollDir.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
+    if (Math.hypot(this.rollDir.x, this.rollDir.z) > 0.05) this.yaw = Math.atan2(this.rollDir.x, this.rollDir.z);
   }
 
   /**
@@ -163,10 +168,11 @@ export class Player {
     let vx = 0, vz = 0;
     if (this.rolling > 0) {
       // Strong push off, easing as the roll comes up into a crouch
-      const sp = 12 * (0.35 + 0.65 * (this.rolling / ROLL_TIME));
+      const sp = (this.swimming ? 10 : 12) * (0.35 + 0.65 * (this.rolling / ROLL_TIME));
       this.rolling -= dt;
       vx = this.rollDir.x * sp;
       vz = this.rollDir.z * sp;
+      this.rollVy = this.rollDir.y * sp;
     } else if (!this.locked) {
       const sp = wantSpeed * (this.swimming ? 0.62 : this.inWater ? 0.8 : 1) * (diving ? Math.cos(aim) : 1);
       vx = move.x * sp;
@@ -180,12 +186,14 @@ export class Player {
 
     if (this.swimming) {
       let want: number;
-      if (this.sink) want = -3.4;
+      if (this.rolling > 0 && this.rollVy !== 0) want = this.rollVy;
+      else if (this.sink) want = -3.4;
       else if (this.rise) want = 3.6;
       else if (diving) want = Math.sin(aim) * wantSpeed * 0.62;
       else if (submerged) want = 0.35; // near neutral, drifting slowly up
       else want = THREE.MathUtils.clamp((floatY - this.position.y) * 3, -2, 2.4);
-      this.velocity.y += (want - this.velocity.y) * Math.min(1, dt * 4);
+      this.velocity.y += (want - this.velocity.y) * Math.min(1, dt * (this.rolling > 0 ? 14 : 4));
+      if (this.rolling <= 0) this.rollVy = 0;
       // At the surface Space kicks up hard enough to climb out onto a bank
       if (jump && !submerged) this.velocity.y = 6.2;
       // The body follows the stroke: level at the surface, pitched along the dive below it

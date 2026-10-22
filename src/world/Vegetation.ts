@@ -4,9 +4,9 @@ import { EX, Layout, LOWER_WEND } from './generate';
 import { distToPolyline, fbm2, hash2, smoothstep } from './noise';
 import { SX, SZ, Grid, WATER_LEVEL } from './grid';
 
-// Sprite atlas: 8 cells of 32x32 in a 256x32 canvas.
-const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed }
-const CELLS = 8;
+// Sprite atlas: 10 cells of 32x32 in a 320x32 canvas.
+const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass }
+const CELLS = 10;
 
 function paintAtlas(): THREE.Texture {
   const c = document.createElement('canvas');
@@ -49,6 +49,15 @@ function paintAtlas(): THREE.Texture {
     blade(32 * S.Reed, bx, 22 + (i % 4) * 2, (i % 3) - 1, i % 2 ? '#5e8a3a' : '#749a44', 2);
     if (i % 3 === 0) { x.fillStyle = '#6a4424'; x.fillRect(32 * S.Reed + bx - 1.5, 4 + (i % 4), 3, 7); }
   }
+  // Kelp: broad olive ribbons with gas bladders, drawn to be stretched tall up from the sea bed
+  for (let i = 0; i < 5; i++) {
+    const bx = 4 + i * 6;
+    blade(32 * S.Kelp, bx, 30 + (i % 2) * 2, ((i * 3) % 5) - 2, ['#5a6a2a', '#6e7a30', '#4a5a22'][i % 3], 3.5);
+    x.fillStyle = '#8a8a3a';
+    for (let k = 0; k < 3; k++) { x.beginPath(); x.arc(32 * S.Kelp + bx + ((i * 3) % 5) - 2, 8 + k * 8 + (i % 2) * 3, 1.6, 0, 7); x.fill(); }
+  }
+  // Sea grass: thin green ribbons in the sandy shallows
+  for (let i = 0; i < 12; i++) blade(32 * S.SeaGrass, 3 + i * 2.3, 18 + (i * 7) % 10, ((i * 5) % 7) - 3, i % 2 ? '#3e7a4a' : '#4f8a52', 1.6);
   // Bleed opaque colours into transparent pixels so mipmaps don't fringe the sprites black.
   const img = x.getImageData(0, 0, c.width, c.height);
   const d = new Uint8Array(img.data);
@@ -107,7 +116,7 @@ export function vegMaterial(time: { value: number }): THREE.MeshLambertMaterial 
       s.uniforms.uTime = time;
       s.vertexShader = s.vertexShader
         .replace('#include <common>', '#include <common>\nuniform float uTime;\nattribute float aCell;')
-        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv = vec2((uv.x + aCell) / 8.0, uv.y);')
+        .replace('#include <uv_vertex>', `#include <uv_vertex>\nvMapUv = vec2((uv.x + aCell) / ${CELLS.toFixed(1)}, uv.y);`)
         .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
 vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
 float w = position.y * position.y;
@@ -133,7 +142,10 @@ export function buildVegMesh(data: Float32Array, time: { value: number }): THREE
   for (let i = 0; i < n; i++) {
     const o = i * 9, cell = data[o + 3], sc = data[o + 4];
     const tall = cell === 1 || cell === 6 || cell === 7;
-    m.compose(p.set(data[o], data[o + 1], data[o + 2]), q.setFromAxisAngle(up, data[o + 5]), s.set(sc, sc * (tall ? 1.25 : 0.85), sc));
+    // Kelp's scale is its height in blocks
+    if (cell === S.Kelp) s.set(1.1, sc, 1.1);
+    else s.set(sc, sc * (tall ? 1.25 : 0.85), sc);
+    m.compose(p.set(data[o], data[o + 1], data[o + 2]), q.setFromAxisAngle(up, data[o + 5]), s);
     mesh.setMatrixAt(i, m);
     mesh.setColorAt(i, c.setRGB(data[o + 6], data[o + 7], data[o + 8]));
     cells[i] = cell;

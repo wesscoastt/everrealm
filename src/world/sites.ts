@@ -70,13 +70,15 @@ export interface Site {
 
 /** What an activity site holds for the game (see game/Activities.ts). */
 export interface SiteActivity {
-  kind: 'dungeon' | 'delve' | 'vista' | 'scenic';
+  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive';
   /** Creatures that live here and come back after a while: [x, floorY, z, enemy type]. */
   spawns?: [number, number, number, string][];
   /** The champion at the end: [x, floorY, z, enemy type]. */
   boss?: [number, number, number, string];
   /** The chest behind the champion: [x, floorY, z]. */
   chest?: [number, number, number];
+  /** Sunken caches to find and open (each refills on its own): [x, floorY, z]. */
+  caches?: [number, number, number][];
   /** A vista: where to stand, and the point the camera circles [x, y, z, x, y, z]. */
   view?: [number, number, number, number, number, number];
 }
@@ -214,7 +216,8 @@ export function plan(): Plan {
   // ---------------------------------------------------------------- Named sites
   const gullZ = 600, gullCoast = coastX(gullZ);
   const lightZ = 330, lightCoast = coastX(lightZ);
-  interface Named { id: string; name: string; x: number; z: number; r0: number; r1: number; h?: number; build: (s: Site, base: number) => void }
+  /** A landmark to build (sea: it's on the sea bed, and the land's points of interest ignore it). */
+  interface Named { id: string; name: string; x: number; z: number; r0: number; r1: number; h?: number; sea?: boolean; build: (s: Site, base: number) => void }
   const named: Named[] = [
     { id: 'aldermere', name: 'Ansbury', x: 820, z: 300, r0: 205, r1: 250, h: 24, build: (s, b) => { buildAldermere(s, b); buildNewTown(b, extra); } },
     { id: 'cotters', name: 'Cotter\'s End', x: 486, z: 252, r0: 20, r1: 34, build: (s, b) => buildHamlet(s, b, 486, 252, 'thatch', 4) },
@@ -255,6 +258,9 @@ export function plan(): Plan {
     { id: 'sc-arch', name: 'The Kelpie Arch', x: -310, z: 700, r0: 0, r1: 0, build: (s) => buildSeaArch(s) },
     { id: 'sc-colossus', name: 'The Stone King', x: 1365, z: 1054, r0: 30, r1: 44, build: (s, b) => buildColossus(s, b) },
     { id: 'sc-drowned', name: 'The Drowned Bell-tower', x: 1560, z: 1500, r0: 0, r1: 0, build: (s) => buildDrownedTower(s) },
+    // Under the sea: the parish the tower belonged to, and a reef that wrecks ships off the Fleet Coast
+    { id: 'delve-holmsey', name: 'Holmsey', x: 1512, z: 1500, r0: 0, r1: 0, sea: true, build: (s) => buildHolmsey(s) },
+    { id: 'dive-grindles', name: 'The Grindles', x: 1905, z: 1032, r0: 0, r1: 0, sea: true, build: (s) => buildGrindles(s) },
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
     { id: 'sc-crater', name: 'The Great Starfall', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
     // World bosses' lairs and the Shardfalls' landing grounds (data/activities.ts says when they're used)
@@ -288,7 +294,7 @@ export function plan(): Plan {
     const reg = regionAt(x, z).a;
     const h = baseHeight(x, z);
     if (h <= SEA + 1 || roadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
-    if (named.some((n) => Math.hypot(n.x - x, n.z - z) < 80)) continue;
+    if (named.some((n) => !n.sea && Math.hypot(n.x - x, n.z - z) < 80)) continue;
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
@@ -1277,6 +1283,242 @@ export function plan(): Plan {
     s.props.push({ t: 'glow', x: cx + 0.5, y: SEA + 13, z: cz + 0.5, r: 4, color: '#ffd8a0' }, { t: 'furn', item: 'gull', x: cx + 2.5, y: SEA + 12, z: cz + 2.5, ry: 1 });
     s.impostor.push({ x: cx + 0.5, y: SEA + 6, z: cz + 0.5, w: 7, h: 12, d: 7, color: '#7a7e86' });
     s.act = { kind: 'scenic' };
+  }
+
+  /** Mortar and stone for drowned walls: mostly weed-grown, some still dressed. */
+  function drownedStone(x: number, y: number, z: number): number {
+    const r = hash2(x * 5 + y, z, 333);
+    return r < 0.5 ? B.MossyCobble : r < 0.75 ? B.Cobble : r < 0.9 ? B.StoneBrick : B.MossyStone;
+  }
+
+  /**
+   * A cottage gone under the sea: four walls broken off at different heights, the door gap, a
+   * window or two, the chimney end standing tallest and its fallen stones on the sea bed. Built on
+   * a level floor cut into the slope. Returns the floor height.
+   */
+  function drownedCottage(s: Site, x0: number, z0: number, w: number, d: number, door: 'n' | 's') {
+    const x1 = x0 + w - 1, z1 = z0 + d - 1;
+    let sum = 0, n = 0;
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) { sum += heightAt(x, z); n++; }
+    const F = Math.round(sum / n);
+    const doorX = x0 + Math.floor(w / 2), doorZ = door === 'n' ? z0 : z1;
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      const g = heightAt(x, z);
+      for (let y = Math.min(g, F) - 1; y < F; y++) O.set(x, y, z, y === F - 1 ? (hash2(x, z, 334) < 0.6 ? B.Cobble : B.Gravel) : B.Stone);
+      for (let y = F; y < g; y++) O.set(x, y, z, B.Water);
+      const edge = x === x0 || x === x1 || z === z0 || z === z1;
+      if (!edge) continue;
+      const corner = (x === x0 || x === x1) && (z === z0 || z === z1);
+      const chimney = x === x1 && !corner;
+      const top = Math.min(SEA - 3, F + (corner ? 4 : chimney ? 5 : 1 + Math.floor(hash2(x, z, 335) * 3)));
+      for (let y = F; y < top; y++) {
+        if (x === doorX && z === doorZ && y < F + 2) continue; // the doorway
+        if (!corner && y === F + 1 && (x + z) % 4 === 0 && !(z === doorZ && Math.abs(x - doorX) < 2)) continue; // a window
+        O.set(x, y, z, drownedStone(x, y, z));
+      }
+    }
+    // The chimney's fallen stones, scattered off the gable end
+    for (let k = 0; k < 4; k++) {
+      const fx = x1 + 1 + Math.floor(hash2(x0, k, 336) * 3), fz = z0 + Math.floor(hash2(z0, k, 337) * d);
+      O.set(fx, heightAt(fx, fz), fz, drownedStone(fx, 0, fz));
+    }
+    rect(s, x0, z0, x1, z1);
+    return F;
+  }
+
+  /**
+   * Holmsey, the drowned parish: the sea came in over the village round the bell-tower long ago,
+   * and the cottages stand roofless down the slope of the sea bed, the lane still cobbled between
+   * them and the churchyard's stones leaning. Sharks hunt the lane and the bell-manes drift over the
+   * square; the conger the Gullmouth boats call Old Sexton lives in the nave. A delve you swim.
+   */
+  function buildHolmsey(s: Site) {
+    const T = { x: 1560, z: 1500 }; // the bell-tower (buildDrownedTower)
+    const spawns: [number, number, number, string][] = [];
+    const caches: [number, number, number][] = [];
+    const glow = (x: number, y: number, z: number, color = '#7fe8d0', r = 3) => s.props.push({ t: 'glow', x, y, z, r, color });
+    // The lane, east from the shallows to the church door, widening into the market square
+    const lane = [[1474, 1500], [1500, 1500], [1508, 1500], [1530, 1501], [1548, 1503], [1554, 1506]];
+    for (let i = 0; i < lane.length - 1; i++) {
+      const [ax, az] = lane[i], [bx, bz] = lane[i + 1];
+      const steps = Math.max(Math.abs(bx - ax), Math.abs(bz - az));
+      for (let k = 0; k <= steps; k++) {
+        const x = Math.round(ax + ((bx - ax) * k) / steps), z = Math.round(az + ((bz - az) * k) / steps);
+        const half = x >= 1498 && x <= 1510 ? 4 : 1;
+        for (let w = -half; w <= half; w++) {
+          const Z = z + w;
+          if (hash2(x, Z, 338) < 0.12) continue; // stones lifted by the sea
+          O.set(x, heightAt(x, Z) - 1, Z, hash2(x, Z, 339) < 0.55 ? B.MossyCobble : hash2(x, Z, 340) < 0.5 ? B.Cobble : B.Gravel);
+        }
+      }
+    }
+    // The market cross in the square: three steps, a shaft, the arms
+    {
+      const cx = 1504, cz = 1500, g = heightAt(cx, cz);
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) O.set(cx + dx, g, cz + dz, B.StoneBrick);
+      const top = Math.min(SEA - 2, g + 6);
+      for (let y = g + 1; y < top; y++) O.set(cx, y, cz, y === g + 1 ? B.StoneBrick : B.MossyStone);
+      O.set(cx - 1, top - 2, cz, B.MossyStone); O.set(cx + 1, top - 2, cz, B.MossyStone);
+      glow(cx + 0.5, top, cz + 0.5);
+      rect(s, cx - 1, cz - 1, cx + 1, cz + 1);
+    }
+    // The cottages either side of the lane, the reeve's house and the Bell inn the biggest
+    const houses: [number, number, number, number, 'n' | 's'][] = [
+      [1478, 1489, 7, 5, 's'], [1489, 1490, 6, 5, 's'], [1480, 1504, 7, 6, 'n'], [1492, 1505, 6, 5, 'n'],
+      [1512, 1487, 8, 6, 's'], [1515, 1506, 6, 5, 'n'], [1524, 1507, 7, 5, 'n'], [1523, 1484, 9, 7, 's'],
+    ];
+    houses.forEach(([x, z, w, d, door], i) => {
+      const F = drownedCottage(s, x, z, w, d, door);
+      const mx = x + w / 2, mz = z + d / 2;
+      // A table and a stool still where they were; the reeve's strongbox and the inn's cash chest
+      s.props.push({ t: 'furn', item: i % 2 ? 'stool' : 'table', x: mx - 1, y: F, z: mz, ry: i });
+      if (i === 4 || i === 7) {
+        caches.push([x + 1.5, F, z + 1.5]);
+        s.props.push({ t: 'furn', item: 'chest', x: x + 1.5, y: F, z: z + 1.5, ry: Math.PI / 2 });
+        glow(x + 1.5, F + 1, z + 1.5, '#ffd890', 2);
+      }
+      if (i % 3 === 0) spawns.push([mx, F + 2.5, mz + (door === 's' ? 6 : -6), i % 2 ? 'porbeagle' : 'blueshark']);
+    });
+    // The churchyard north of the lane: a low wall, a lychgate gap, the stones leaning every way
+    {
+      const x0 = 1534, z0 = 1480, x1 = 1550, z1 = 1494;
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+        const edge = x === x0 || x === x1 || z === z0 || z === z1;
+        if (edge && !(z === z1 && (x === 1541 || x === 1542))) O.set(x, heightAt(x, z), z, drownedStone(x, 1, z));
+        else if (!edge && x % 3 === 0 && z % 3 === 1 && hash2(x, z, 341) < 0.8) {
+          const g = heightAt(x, z), h = hash2(x, z, 342) < 0.3 ? 1 : 2;
+          for (let y = g; y < g + h; y++) O.set(x, y, z, hash2(x, z, 343) < 0.5 ? B.MossyStone : B.StoneBrick);
+        }
+      }
+      rect(s, x0, z0, x1, z1);
+    }
+    // The nave: Old Sexton's, with what the parish saved behind him
+    const nave = { x: T.x + 0.5, z: T.z + 15.5 };
+    const ng = heightAt(Math.floor(nave.x), Math.floor(nave.z));
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -5; dx <= 5; dx++) O.set(T.x + dx, heightAt(T.x + dx, T.z + 15 + dz) - 1, T.z + 15 + dz, (dx + dz) % 3 ? B.StoneBrick : B.MossyStone); // flagstones
+    glow(nave.x, ng + 3, nave.z, '#9fe8ff', 4);
+    s.props.push({ t: 'furn', item: 'chest', x: T.x + 0.5, y: heightAt(T.x, T.z + 19), z: T.z + 19.5, ry: Math.PI });
+    rect(s, T.x - 6, T.z - 8, T.x + 6, T.z + 20);
+    // Over the square, the bell-manes; down the slope, the sharks
+    spawns.push([1504.5, heightAt(1504, 1496) + 4, 1496.5, 'bellmane'], [1520.5, heightAt(1520, 1500) + 4, 1500.5, 'bellmane'], [1540.5, heightAt(1540, 1500) + 5, 1500.5, 'blueshark']);
+    s.act = { kind: 'delve', spawns, boss: [nave.x, ng + 2, nave.z, 'sexton'], chest: [T.x + 0.5, heightAt(T.x, T.z + 19), T.z + 19.5], caches };
+  }
+
+  /**
+   * A hull settled on the sea bed, keel along x (or z) with the bow at the far end: narrow at the
+   * keel and flaring out to the gunwale, fine at the bow with a stem post standing proud, square at
+   * the transom, ribs every third frame, planks stove in between them, and heeled over by `heel`
+   * blocks at the rail. `broken`: the frame where she broke her back (two frames gone, ragged either side).
+   */
+  function sunkenHull(x0: number, z0: number, len: number, alongZ: boolean, heel: number, broken = -1): number {
+    const at = (i: number, w: number): [number, number] => (alongZ ? [x0 + w, z0 + i] : [x0 + i, z0 + w]);
+    const D = 4;
+    const beam = (i: number) => { const t = i / (len - 1); return t > 0.68 ? 3 * Math.cos(((t - 0.68) / 0.32) * (Math.PI / 2)) + 0.4 : t < 0.1 ? 2.4 + (t / 0.1) * 0.6 : 3; };
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += heightAt(...at(i, 0));
+    const ky = Math.round(sum / len);
+    for (let i = 0; i < len; i++) {
+      if (i === broken || i === broken + 1) continue;
+      const ragged = broken >= 0 && (i === broken - 1 || i === broken + 2);
+      const rib = i % 3 === 0;
+      for (let k = 0; k <= D; k++) {
+        const hw = Math.round(beam(i) * (0.3 + 0.7 * Math.sqrt(k / D)));
+        const off = Math.round((heel * k) / D), y = Math.min(SEA - 2, ky + k);
+        if (ragged && k > 1 && hash2(i, k, 348) < 0.6) continue;
+        for (let w = -hw; w <= hw; w++) {
+          const [X, Z] = at(i, w + off);
+          const shell = Math.abs(w) === hw;
+          if (k === 0) {
+            O.set(X, y, Z, w === 0 ? B.Timber : B.Planks);
+            for (let yy = heightAt(X, Z); yy < y; yy++) O.set(X, yy, Z, B.Sand); // she's settled into a bank of sand
+            continue;
+          }
+          if (!shell) {
+            if (k === 1) O.set(X, y, Z, B.Planks); // the floor of the hold
+            else if (k === D && i % 4 === 2) O.set(X, y, Z, B.Timber); // what's left of the deck beams
+            else if (i === 0) O.set(X, y, Z, B.Planks); // the transom
+            continue;
+          }
+          if (!rib && k > 1 && k < D && hash2(X * 3 + y, Z, 344) < 0.2) continue; // stove-in planks
+          O.set(X, y, Z, k === D || rib ? B.Timber : k % 2 ? B.Planks : B.DarkPlanks);
+        }
+      }
+    }
+    // The stem post, standing up past the rail at the bow
+    if (broken !== len - 2) for (let k = D; k <= D + 2; k++) {
+      const [X, Z] = at(len - 1, Math.round(heel * Math.min(1, k / D)));
+      O.set(X, Math.min(SEA - 2, ky + k), Z, B.Timber);
+    }
+    return ky;
+  }
+
+  /**
+   * The Grindles: a reef of black rock off the Fleet Coast, one stack just breaking the surface to
+   * mark it, and on the sand between the stacks the ships it caught: the brig Margery on her side,
+   * a fishing smack broken in two, a stone barge with her cargo spilled. Congers live in the rock and
+   * thornbacks lie on the sand. Sunken chests in all three wrecks and one in the reef.
+   */
+  function buildGrindles(s: Site) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    const caches: [number, number, number][] = [];
+    const spawns: [number, number, number, string][] = [];
+    const glow = (x: number, y: number, z: number, color = '#ffd890', r = 2) => s.props.push({ t: 'glow', x, y, z, r, color });
+    // The reef: stacks of dark rock, ragged-sided, the Grindle Stone itself standing out of the water
+    const stacks: [number, number, number, number][] = [[cx, cz, 4, SEA + 3], [cx - 18, cz + 10, 3, SEA - 3], [cx + 16, cz - 12, 3, SEA - 4], [cx + 22, cz + 14, 2, SEA - 5], [cx - 10, cz - 20, 3, SEA - 4], [cx - 26, cz - 6, 2, SEA - 6]];
+    for (const [sx, sz, r, top] of stacks) {
+      for (let dz = -r - 1; dz <= r + 1; dz++) for (let dx = -r - 1; dx <= r + 1; dx++) {
+        const d = Math.hypot(dx, dz) + hash2(sx + dx, sz + dz, 345) * 1.4;
+        if (d > r + 0.6) continue;
+        const X = sx + dx, Z = sz + dz;
+        const h = Math.round(top - (d / (r + 0.6)) ** 2 * (top - heightAt(X, Z)) * 0.9);
+        for (let y = heightAt(X, Z) - 1; y < h; y++) O.set(X, y, Z, hash2(X, y, Z * 3) < 0.25 ? B.MossyStone : hash2(X, y, Z) < 0.5 ? B.Basalt : B.Stone);
+      }
+      rect(s, sx - r - 1, sz - r - 1, sx + r + 1, sz + r + 1);
+      spawns.push([sx + r + 2.5, heightAt(sx + r + 2, sz) + 1.5, sz + 0.5, 'conger']);
+    }
+    s.props.push({ t: 'furn', item: 'gull', x: cx + 0.5, y: SEA + 3, z: cz + 0.5, ry: 2 });
+    // A cache in a crevice of the Grindle Stone's foot
+    {
+      const x = cx + 5, z = cz + 2, y = heightAt(x, z);
+      caches.push([x + 0.5, y, z + 0.5]);
+      s.props.push({ t: 'furn', item: 'chest', x: x + 0.5, y, z: z + 0.5, ry: -Math.PI / 2 });
+      glow(x + 0.5, y + 1, z + 0.5);
+    }
+    // The Margery, on her side between the stacks
+    const margery = sunkenHull(cx - 14, cz + 18, 22, false, 2);
+    for (let k = 0; k < 9; k++) O.set(cx - 2 + k, heightAt(cx - 2 + k, cz + 24), cz + 24, B.OakLog); // her mainmast, fallen across the sand
+    {
+      const x = cx - 4, z = cz + 18, y = margery + 2;
+      caches.push([x + 0.5, y, z + 0.5]);
+      s.props.push({ t: 'furn', item: 'chest', x: x + 0.5, y, z: z + 0.5, ry: 0 }, { t: 'barrel', x: x - 2.5, y, z: z + 0.5, ry: 0.4 }, { t: 'crate', x: x + 3.5, y, z: z + 1.5, ry: 0.2 });
+      glow(x + 0.5, y + 1, z + 0.5);
+    }
+    rect(s, cx - 15, cz + 14, cx + 9, cz + 25);
+    // The smack, broken in two
+    const smack = sunkenHull(cx + 10, cz - 4, 12, true, -1, 5);
+    {
+      const x = cx + 10, z = cz + 4, y = smack + 2; // in her hold, forward of the break
+      caches.push([x + 0.5, y, z + 0.5]);
+      s.props.push({ t: 'furn', item: 'chest', x: x + 0.5, y, z: z + 0.5, ry: Math.PI / 2 });
+      glow(x + 0.5, y + 1, z + 0.5);
+    }
+    rect(s, cx + 6, cz - 5, cx + 14, cz + 9);
+    // The barge, her cargo of dressed stone spilled down the sand
+    sunkenHull(cx - 30, cz - 18, 12, true, 0);
+    for (let k = 0; k < 7; k++) {
+      const x = cx - 26 + Math.floor(hash2(k, 1, 346) * 6), z = cz - 12 + Math.floor(hash2(k, 2, 347) * 8);
+      O.set(x, heightAt(x, z), z, B.StoneBrick);
+    }
+    {
+      const x = cx - 24, z = cz - 9, y = heightAt(x, z);
+      caches.push([x + 0.5, y, z + 0.5]);
+      s.props.push({ t: 'furn', item: 'chest', x: x + 0.5, y, z: z + 0.5, ry: 1.2 }, { t: 'crate', x: x + 2.5, y, z: z + 1.5, ry: 0.7 });
+      glow(x + 0.5, y + 1, z + 0.5);
+    }
+    rect(s, cx - 33, cz - 19, cx - 20, cz - 5);
+    spawns.push([cx - 6.5, heightAt(cx - 6, cz) + 0.8, cz + 0.5, 'thornray'], [cx + 2.5, heightAt(cx + 2, cz - 14) + 0.8, cz - 13.5, 'thornray']);
+    s.act = { kind: 'dive', spawns, caches };
+    s.impostor.push({ x: cx + 0.5, y: SEA + 1.5, z: cz + 0.5, w: 6, h: 3, d: 6, color: '#3a3a3e' });
   }
 
   /** The Kingfisher Steps: terraced pools of pale mineral stone, each spilling into the one below. */

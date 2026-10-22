@@ -378,7 +378,7 @@ export class Activities {
   private populateDungeons(P: THREE.Vector3): void {
     for (const s of this.sites) {
       const a = s.act!;
-      if (a.kind !== 'dungeon' && a.kind !== 'delve') continue;
+      if (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'dive') continue;
       const near = Math.hypot(P.x - s.x, P.z - s.z) < 70 && this.host.voxels.isLoaded(s.x, s.z);
       const list = this.dungeons.get(s.id);
       if (near && !list) {
@@ -404,6 +404,11 @@ export class Activities {
         const ready = Date.now() - opened > 30 * 60 * 1000;
         out.push({ label: ready ? 'Open the chest' : 'The chest is empty (it fills again in a while)', pos: new THREE.Vector3(a.chest[0], a.chest[1] + 0.5, a.chest[2]), use: () => ready && this.openChest(s) });
       }
+      a.caches?.forEach((c, i) => {
+        if (Math.hypot(P.x - c[0], P.z - c[2]) > 2.6 || Math.abs(P.y - c[1]) > 2.8) return;
+        const ready = Date.now() - Number(this.host.flag(`cache:${s.id}:${i}`) ?? 0) > 45 * 60 * 1000;
+        out.push({ label: ready ? 'Open the sunken chest' : 'Empty (the sea brings more in a while)', pos: new THREE.Vector3(c[0], c[1] + 0.5, c[2]), use: () => ready && this.openCache(s, i) });
+      });
       if (a.view && Math.hypot(P.x - a.view[0], P.z - a.view[2]) < 3 && Math.abs(P.y - a.view[1]) < 2.5) {
         const seen = !!this.host.flag('vista:' + s.id);
         out.push({ label: seen ? 'Take in the view again' : 'Take in the view', pos: new THREE.Vector3(a.view[0], a.view[1] + 1, a.view[2]), use: () => this.vista(s, seen) });
@@ -426,6 +431,18 @@ export class Activities {
     this.host.sound('open');
   }
 
+  /** A sunken chest: marks, what the sea grows, and now and then a piece of the coast's gear. */
+  private openCache(s: Site, i: number): void {
+    this.host.setFlag(`cache:${s.id}:${i}`, Date.now());
+    const deep = s.region === 'starfall' || s.region === 'tolmen' || s.region === 'redstone';
+    const sea = deep ? ['shark_tooth', 'shark_tooth', 'ray_barb', 'raw_seabass'] : ['conger_skin', 'ray_barb', 'raw_mackerel', 'raw_huss'];
+    const items = [sea[Math.floor(Math.random() * sea.length)], sea[Math.floor(Math.random() * sea.length)]];
+    const gear = Object.values(ITEMS).filter((d) => d.set && (GEAR_REGION[d.set] === s.region || d.set === 'brine'));
+    if (gear.length && Math.random() < 0.25) items.push(gear[Math.floor(Math.random() * gear.length)].id);
+    this.host.reward(deep ? 520 : 300, deep ? 34 : 20, items, `A sunken chest at ${s.name}`);
+    this.host.sound('open');
+  }
+
   private vista(s: Site, seen: boolean): void {
     this.host.cinematic(s.act!.view!, () => {
       if (seen) return;
@@ -442,7 +459,7 @@ export class Activities {
       if (a.kind === 'vista' || this.host.flag('found:' + s.id)) continue;
       if (Math.hypot(P.x - s.x, P.z - s.z) > 40) continue;
       this.host.setFlag('found:' + s.id, 1);
-      const what = a.kind === 'dungeon' ? 'Public dungeon' : a.kind === 'delve' ? 'Delve' : 'Wonder';
+      const what = a.kind === 'dungeon' ? 'Public dungeon' : a.kind === 'delve' ? 'Delve' : a.kind === 'dive' ? 'Dive site' : 'Wonder';
       this.host.reward(a.kind === 'scenic' ? 500 : 250, 0, [], `${what} found: ${s.name}`);
       this.host.banner(s.name, what + ' discovered');
       this.host.sound('discover');

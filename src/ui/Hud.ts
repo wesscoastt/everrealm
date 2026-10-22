@@ -62,12 +62,18 @@ function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: numbe
   c.restore();
 }
 
-/** Glyphs for dungeons (a dark gate), delves (a cave mouth) and vistas (a peak); false for others. */
+/** Glyphs for dungeons (a dark gate), delves (a cave mouth), vistas (a peak) and dive sites (an anchor); false for others. */
 function placeGlyph(c: CanvasRenderingContext2D, id: string, x: number, y: number, s: number): boolean {
-  const kind = id.startsWith('pd-') ? 'pd' : id.startsWith('delve-') ? 'delve' : id.startsWith('vista-') ? 'vista' : '';
+  const kind = id.startsWith('pd-') ? 'pd' : id.startsWith('delve-') ? 'delve' : id.startsWith('vista-') ? 'vista' : id.startsWith('dive-') ? 'dive' : '';
   if (!kind) return false;
   c.save(); c.translate(x, y); c.scale(s, s); c.strokeStyle = '#1e1208'; c.lineWidth = 1.6;
-  if (kind === 'vista') {
+  if (kind === 'dive') {
+    c.fillStyle = '#3aa8b8';
+    c.beginPath(); c.arc(0, 0, 7, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.strokeStyle = '#f4ecd8'; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(0, -4.5); c.lineTo(0, 4.5); c.moveTo(-2.5, -2.5); c.lineTo(2.5, -2.5); c.moveTo(-4, 1.5); c.quadraticCurveTo(0, 6.5, 4, 1.5); c.stroke();
+    c.beginPath(); c.arc(0, -5, 1.2, 0, Math.PI * 2); c.stroke();
+  } else if (kind === 'vista') {
     c.fillStyle = '#c070d8';
     c.beginPath(); c.moveTo(0, -7); c.lineTo(7, 5); c.lineTo(-7, 5); c.closePath(); c.fill(); c.stroke();
     c.fillStyle = '#f4ecd8'; c.beginPath(); c.moveTo(0, -7); c.lineTo(2.6, -2.5); c.lineTo(-2.6, -2.5); c.closePath(); c.fill();

@@ -24,7 +24,8 @@ export interface ShopDef {
   footer: (g: GameApi) => string;
 }
 
-const FISH = new Set(['raw_minnow', 'raw_trout', 'raw_pike', 'glass_eel', 'raw_mackerel', 'raw_seabass', 'raw_char']);
+// The chandler pays well for fish and for what comes up out of the sea
+const FISH = new Set(['raw_minnow', 'raw_trout', 'raw_pike', 'glass_eel', 'raw_mackerel', 'raw_seabass', 'raw_char', 'raw_huss', 'conger_skin', 'ray_barb', 'shark_tooth']);
 
 export const SHOPS: Record<string, ShopDef> = {
   tamsin: {

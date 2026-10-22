@@ -15,7 +15,7 @@ const smoothCopse = (x: number, z: number) => { const v = fbm2(x / 140, z / 140,
 export interface GenTree { kind: TreeKind; x: number; y: number; z: number; trunk: number[]; leaves: number[]; logs: number }
 export interface GenOre { kind: 'copper' | 'tin' | 'silver' | 'iron' | 'crystal'; x: number; y: number; z: number }
 export interface GenFish { x: number; y: number; z: number; water: 'wend' | 'lake' | 'sea' | 'highland' }
-export interface GenSpawn { x: number; z: number; region: RegionId; roll: number; animal: boolean }
+export interface GenSpawn { x: number; z: number; region: RegionId; roll: number; animal: boolean; sea?: boolean }
 
 export interface ChunkResult {
   cx: number;
@@ -269,6 +269,21 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
       for (const [dx, dz] of [[3, 0], [-3, 0], [0, 3], [0, -3]]) if (hAt(x + dx, z + dz) > SEA) shore = true;
       if (shore) fish.push({ x: x + 0.5, y: SEA, z: z + 0.5, water: REGION_INFO[reg].water === 'river' ? 'wend' : REGION_INFO[reg].water });
     }
+    // The sea bed: kelp forests in water four to fourteen deep, sea grass in the sandy shallows
+    if (id === B.Water && y === SEA - 1) {
+      let fl = y;
+      while (fl > 0 && data[localIdx(lx, fl, lz)] === B.Water) fl--;
+      const depth = SEA - 1 - fl, bed = data[localIdx(lx, fl, lz)], r = hash2(x, z, 913);
+      if (bed !== B.Sand && bed !== B.Gravel && bed !== B.Stone && bed !== B.Dirt && bed !== B.Clay) continue;
+      const forest = fbm2(x / 70, z / 70, 2, 914);
+      if (depth >= 4 && depth <= 14 && forest > 0.56 && r < (forest - 0.52) * 2.2) {
+        const tall = Math.min(depth - 1.2, 2.5 + hash2(x, z, 915) * (depth - 2.5)); // never up through the surface
+        veg.push(x + 0.2 + r * 0.6, fl + 1, z + 0.2 + hash2(x, z, 916) * 0.6, 8, tall, r * 6.28, 0.85 + r * 0.3, 0.9 + r * 0.2, 0.85);
+      } else if (depth >= 1 && depth <= 5 && bed === B.Sand && r < 0.18) {
+        veg.push(x + 0.5, fl + 1, z + 0.5, 9, 0.9 + r * 2, r * 31, 1, 1, 1);
+      }
+      continue;
+    }
     if (above !== B.Air) continue;
     const r = hash2(x, z, 909), r2 = hash2(x, z, 910);
     const t = tint.subarray((lz * CHUNK + lx) * 6);
@@ -303,6 +318,18 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     if (x < GW + 20 && z < GW + 20) continue;
     if (i !== 2 && safeZones().some(([sx, sz, r]) => Math.hypot(x - sx, z - sz) < r)) continue;
     spawns.push({ x: x + 0.5, z: z + 0.5, region: regions[lx + lz * CHUNK], roll: hash2(x, z, 743), animal: i === 2 });
+  }
+  // Sea creatures, in open water at least six deep (never in a harbour or off a bathing beach)
+  for (let i = 0; i < 2; i++) {
+    if (hash2(cx * 11 + i, cz, 744) > 0.32) continue; // sparser than on land: the sea is open and you see far
+    const lx = Math.floor(hash2(cx, cz + i * 19, 745) * 28) + 2, lz = Math.floor(hash2(cx + i * 23, cz, 746) * 28) + 2;
+    const x = ox + lx, z = oz + lz;
+    if (tops[lx + lz * CHUNK] !== SEA - 1 || data[localIdx(lx, SEA - 1, lz)] !== B.Water) continue;
+    let floor = SEA - 1;
+    while (floor > 0 && data[localIdx(lx, floor, lz)] === B.Water) floor--;
+    if (SEA - 1 - floor < 6 || inRects(rects, x, z, 16)) continue;
+    if (safeZones().some(([sx, sz, r]) => Math.hypot(x - sx, z - sz) < r + 30)) continue;
+    spawns.push({ x: x + 0.5, z: z + 0.5, region: regions[lx + lz * CHUNK], roll: hash2(x, z, 747), animal: false, sea: true });
   }
 
   mark("surface");

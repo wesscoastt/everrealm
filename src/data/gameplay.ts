@@ -162,6 +162,7 @@ export const RECIPES: Recipe[] = [
   { id: 'cooked_mackerel', station: 'hearth', skill: 'cooking', level: 8, xp: 50, inputs: { raw_mackerel: 1 }, output: 'cooked_mackerel', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_seabass', station: 'hearth', skill: 'cooking', level: 15, xp: 90, inputs: { raw_seabass: 1 }, output: 'cooked_seabass', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cooked_char', station: 'hearth', skill: 'cooking', level: 25, xp: 150, inputs: { raw_char: 1 }, output: 'cooked_char', count: 1, time: 2.4, failAtReq: 0.45, failItem: 'burnt_fish' },
+  { id: 'cooked_huss', station: 'hearth', skill: 'cooking', level: 6, xp: 42, inputs: { raw_huss: 1 }, output: 'cooked_huss', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_pike', station: 'hearth', skill: 'cooking', level: 10, xp: 65, inputs: { raw_pike: 1 }, output: 'cooked_pike', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   // Joinery, at the bench by Wendside Cottage: furniture from the logs you cut
   { id: 'j_stool', station: 'bench', skill: 'woodcutting', level: 1, xp: 12, inputs: { oak_logs: 2 }, output: 'furn_stool', count: 1, time: 2 },
@@ -196,7 +197,8 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
 // ------------------------------------------------------------- Enemies
 
 export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'roadwolf' | 'thornwolf' | 'sporejelly' | 'crab' | 'brinejelly' | 'dustwolf' | 'redback' | 'frostwolf' | 'shardjelly' | 'rustqueen' | 'oldglass'
-  | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden' | 'keelglass';
+  | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden' | 'keelglass'
+  | 'huss' | 'conger' | 'thornray' | 'lionsmane' | 'porbeagle' | 'blueshark' | 'bellmane' | 'sexton';
 
 export interface EnemyDef {
   type: EnemyType;
@@ -255,21 +257,32 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   cinderhorn: { type: 'cinderhorn', model: 'boar', palette: { a: '#5a1e10', b: '#d0582a', c: '#f0c070' }, scale: 3.6, name: 'Cinderhorn', level: 23, hp: 7200, damage: 42, speed: 4.6, aggro: 22, leash: 60, attack: 'charge', windup: 0.8, range: 12, cooldown: 2.4, xp: 2600, elite: true, loot: [{ item: 'harrow_cleaver', chance: 0.35 }, { item: 'redback_helm', chance: 0.35 }, { item: 'halter_ember', chance: 0.2 }, { item: 'iron_ore', chance: 1, min: 5, max: 5 }], marks: [60, 95], respawn: 99999 },
   rimeglass: { type: 'rimeglass', model: 'jelly', palette: { a: '#d8f6ff', b: '#4ab0d8', glow: true }, scale: 3.6, name: 'Rimeglass', level: 32, hp: 9800, damage: 48, speed: 2.8, aggro: 22, leash: 60, attack: 'slam', windup: 1.0, range: 6.5, cooldown: 2.3, xp: 3800, elite: true, loot: [{ item: 'starglass_edge', chance: 0.35 }, { item: 'frost_cowl', chance: 0.35 }, { item: 'star_crystal', chance: 1, min: 4, max: 4 }], marks: [80, 120], respawn: 99999 },
   shardwarden: { type: 'shardwarden', model: 'jelly', palette: { a: '#b8f4ff', b: '#2a8ab0', glow: true }, scale: 2.1, name: 'Shardwarden', level: 28, hp: 1900, damage: 38, speed: 3.2, aggro: 14, leash: 40, attack: 'slam', windup: 0.8, range: 4.2, cooldown: 2.0, xp: 900, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 2, max: 2 }, { item: 'starglass_edge', chance: 0.06 }], marks: [20, 34], respawn: 99999 },
+  // The sea: these swim, and go only after swimmers (a boat, a jetty or the shore is safe)
+  huss: { type: 'huss', model: 'shark', palette: { a: '#8a7a5e', b: '#e0d8c4', c: '#6e604a' }, scale: 0.7, name: 'Huss', level: 6, hp: 95, damage: 11, speed: 5, aggro: 10, leash: 28, attack: 'lunge', windup: 0.55, range: 2.4, cooldown: 1.6, xp: 60, loot: [{ item: 'raw_huss', chance: 0.7 }], marks: [1, 4], respawn: 100 },
+  conger: { type: 'conger', model: 'eel', name: 'Conger', level: 12, hp: 200, damage: 18, speed: 5.6, aggro: 9, leash: 24, attack: 'lunge', windup: 0.45, range: 3.0, cooldown: 1.8, xp: 120, loot: [{ item: 'conger_skin', chance: 0.6 }, { item: 'brine_cutlass', chance: 0.02 }], marks: [3, 7], respawn: 110 },
+  thornray: { type: 'thornray', model: 'ray', scale: 1.15, name: 'Thornback ray', level: 15, hp: 260, damage: 21, speed: 4, aggro: 8, leash: 26, attack: 'slam', windup: 0.8, range: 3.0, cooldown: 2.2, xp: 160, loot: [{ item: 'ray_barb', chance: 0.6 }, { item: 'oilskin_hat', chance: 0.03 }], marks: [4, 8], respawn: 110 },
+  lionsmane: { type: 'lionsmane', model: 'medusa', name: 'Lion\'s mane', level: 17, hp: 280, damage: 23, speed: 1.8, aggro: 7, leash: 18, attack: 'slam', windup: 0.95, range: 3.6, cooldown: 2.4, xp: 190, loot: [{ item: 'jelly_residue', chance: 0.8 }, { item: 'brine_cutlass', chance: 0.03 }], marks: [5, 9], respawn: 110 },
+  porbeagle: { type: 'porbeagle', model: 'shark', palette: { a: '#3e4a58', b: '#e8ecee', c: '#2e3844' }, scale: 1.1, name: 'Porbeagle', level: 20, hp: 360, damage: 27, speed: 6.4, aggro: 14, leash: 36, attack: 'charge', windup: 0.7, range: 8, cooldown: 2.4, xp: 240, loot: [{ item: 'shark_tooth', chance: 0.6 }, { item: 'raw_seabass', chance: 0.3 }], marks: [6, 11], respawn: 130 },
+  blueshark: { type: 'blueshark', model: 'shark', palette: { a: '#2a4a8a', b: '#e8eef6', c: '#1e3a72' }, scale: 1.3, name: 'Blue shark', level: 27, hp: 540, damage: 36, speed: 6.8, aggro: 15, leash: 38, attack: 'charge', windup: 0.6, range: 9, cooldown: 2.2, xp: 390, loot: [{ item: 'shark_tooth', chance: 0.7, min: 1, max: 2 }, { item: 'frost_cowl', chance: 0.02 }], marks: [10, 18], respawn: 140 },
+  // Holmsey, the drowned parish: the pale jellies over its square, and the conger in its nave
+  bellmane: { type: 'bellmane', model: 'medusa', palette: { a: '#bfe8d8', b: '#5aa890', c: '#e0fff4', glow: true }, scale: 1.2, name: 'Bell-mane', level: 27, hp: 500, damage: 35, speed: 2, aggro: 8, leash: 20, attack: 'slam', windup: 0.9, range: 4.2, cooldown: 2.3, xp: 380, loot: [{ item: 'jelly_residue', chance: 0.8 }, { item: 'star_crystal', chance: 0.15 }, { item: 'frost_cowl', chance: 0.02 }], marks: [10, 17], respawn: 140 },
+  sexton: { type: 'sexton', model: 'eel', palette: { a: '#3a3e38', b: '#8a9480', c: '#22261f' }, scale: 1.6, name: 'Old Sexton', level: 29, hp: 560, damage: 34, speed: 5.4, aggro: 12, leash: 22, attack: 'lunge', windup: 0.6, range: 4.2, cooldown: 1.9, xp: 600, elite: true, loot: [{ item: 'shark_tooth', chance: 1, min: 2, max: 3 }, { item: 'conger_skin', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 0.2 }, { item: 'frost_cowl', chance: 0.2 }], marks: [30, 45], respawn: 300 },
   shardjelly: { type: 'shardjelly', model: 'jelly', palette: { a: '#7fe0f4', b: '#2a8ab0', glow: true }, scale: 1.3, name: 'Shard jelly', level: 26, hp: 460, damage: 34, speed: 3, aggro: 9, leash: 26, attack: 'slam', windup: 0.75, range: 3.2, cooldown: 2, xp: 340, loot: [{ item: 'star_crystal', chance: 0.25 }, { item: 'jelly_residue', chance: 0.8 }, { item: 'starglass_edge', chance: 0.02 }], marks: [8, 16], respawn: 120 },
 };
 
 /** Which creatures turn up where in the streamed regions. */
-export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('deer' | 'rabbit' | 'sheep' | 'chicken')[] }> = {
-  greenwake: { enemies: ['wolf'], animals: ['rabbit', 'deer'] },
-  crownroad: { enemies: ['boar', 'roadwolf', 'boar'], animals: ['rabbit', 'sheep', 'deer'] },
-  brambledeep: { enemies: ['thornwolf', 'sporejelly'], animals: ['deer', 'rabbit'] },
-  saltwind: { enemies: ['crab', 'brinejelly'], animals: ['rabbit'] },
-  redstone: { enemies: ['dustwolf', 'redback'], animals: ['rabbit'] },
-  starfall: { enemies: ['frostwolf', 'shardjelly'], animals: ['deer'] },
+/** Which creatures turn up where in the streamed regions (sea: in deep water off that region's coast). */
+export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('deer' | 'rabbit' | 'sheep' | 'chicken')[]; sea: EnemyType[] }> = {
+  greenwake: { enemies: ['wolf'], animals: ['rabbit', 'deer'], sea: ['huss'] },
+  crownroad: { enemies: ['boar', 'roadwolf', 'boar'], animals: ['rabbit', 'sheep', 'deer'], sea: ['huss', 'huss', 'conger'] },
+  brambledeep: { enemies: ['thornwolf', 'sporejelly'], animals: ['deer', 'rabbit'], sea: ['conger', 'conger', 'thornray'] },
+  saltwind: { enemies: ['crab', 'brinejelly'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
+  redstone: { enemies: ['dustwolf', 'redback'], animals: ['rabbit'], sea: ['porbeagle', 'thornray', 'lionsmane'] },
+  starfall: { enemies: ['frostwolf', 'shardjelly'], animals: ['deer'], sea: ['blueshark', 'blueshark', 'porbeagle'] },
   // The outer lands: borrowed creatures of the right levels until their own are written
-  gannet: { enemies: ['boar', 'roadwolf', 'crab'], animals: ['sheep', 'rabbit'] },
-  wrath: { enemies: ['brinejelly', 'sporejelly', 'thornwolf'], animals: ['rabbit'] },
-  tolmen: { enemies: ['frostwolf', 'shardjelly'], animals: ['sheep', 'deer'] },
+  gannet: { enemies: ['boar', 'roadwolf', 'crab'], animals: ['sheep', 'rabbit'], sea: ['huss', 'conger', 'thornray'] },
+  wrath: { enemies: ['brinejelly', 'sporejelly', 'thornwolf'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
+  tolmen: { enemies: ['frostwolf', 'shardjelly'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
 };
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [
