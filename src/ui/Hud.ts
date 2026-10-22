@@ -36,8 +36,8 @@ function mapPin(c: CanvasRenderingContext2D, x: number, y: number, s: number): v
 }
 
 /** Colours for activity markers. */
-const ACT_COLOR: Record<string, string> = { event: '#ff9a2a', boss: '#e8402e', bossSoon: '#c0786a', shard: '#7fe0f4', task: '#ffd23a', taskDone: '#b8a878' };
-const ACT_KINDS = new Set(['event', 'boss', 'bossSoon', 'shard', 'task', 'taskDone']);
+const ACT_COLOR: Record<string, string> = { event: '#ff9a2a', boss: '#e8402e', bossSoon: '#c0786a', shard: '#7fe0f4', task: '#ffd23a', taskDone: '#b8a878', treasure: '#d8402a' };
+const ACT_KINDS = new Set(['event', 'boss', 'bossSoon', 'shard', 'task', 'taskDone', 'treasure']);
 
 /** An activity marker: an event's shield, a world boss's crowned skull, the Shardfall's crystal. */
 function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: number, s: number): void {
@@ -53,6 +53,11 @@ function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: numbe
     if (kind === 'task') { c.fillStyle = '#1e1208'; c.beginPath(); c.moveTo(0, 2.6); c.bezierCurveTo(-3.6, -0.2, -2.8, -3.4, 0, -1.4); c.bezierCurveTo(2.8, -3.4, 3.6, -0.2, 0, 2.6); c.fill(); }
   } else if (kind === 'shard') {
     c.beginPath(); c.moveTo(0, -8); c.lineTo(4, 0); c.lineTo(0, 8); c.lineTo(-4, 0); c.closePath(); c.fill(); c.stroke();
+  } else if (kind === 'treasure') {
+    // An X on a scrap of parchment
+    c.fillStyle = '#e8d8a8'; c.fillRect(-6.5, -6.5, 13, 13); c.strokeRect(-6.5, -6.5, 13, 13);
+    c.strokeStyle = ACT_COLOR.treasure; c.lineWidth = 2.6;
+    c.beginPath(); c.moveTo(-4, -4); c.lineTo(4, 4); c.moveTo(4, -4); c.lineTo(-4, 4); c.stroke();
   } else {
     c.globalAlpha = kind === 'bossSoon' ? 0.75 : 1;
     c.beginPath(); c.arc(0, 0, 6.5, 0, Math.PI * 2); c.fill(); c.stroke();
@@ -124,7 +129,7 @@ import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally'; label?: string; yaw?: number; id?: string }
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'treasure' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally'; label?: string; yaw?: number; id?: string }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -1018,7 +1023,7 @@ export class Hud {
       if (!ACT_KINDS.has(m.kind)) continue;
       const [x, y] = at(m.x, m.z), d = Math.hypot(x, y);
       if (d > inside) {
-        if (m.kind === 'bossSoon' || m.kind === 'task' || m.kind === 'taskDone') continue;
+        if (m.kind === 'bossSoon' || m.kind === 'task' || m.kind === 'taskDone' || m.kind === 'treasure') continue;
         const ux = x / d, uy = y / d;
         c.save(); c.translate(ux * (R - 16), uy * (R - 16)); c.rotate(Math.atan2(uy, ux) + Math.PI / 2);
         c.fillStyle = ACT_COLOR[m.kind]; c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
@@ -1740,11 +1745,11 @@ export class Hud {
     }
     for (const m of markers) {
       if (!ACT_KINDS.has(m.kind)) continue;
-      if (!on(m.kind === 'event' ? 'events' : m.kind === 'task' || m.kind === 'taskDone' ? 'tasks' : 'bosses')) continue;
+      if (!on(m.kind === 'event' ? 'events' : m.kind === 'task' || m.kind === 'taskDone' || m.kind === 'treasure' ? 'tasks' : 'bosses')) continue;
       const X = sx(m.x), Y = sy(m.z);
       actGlyph(x, m.kind, X, Y, dpr * 1.5);
       if (m.label && (z > 0.5 || (m.kind !== 'event' && m.kind !== 'taskDone' && m.kind !== 'task'))) label(m.label, X, Y + px(20), `700 ${px(14)}px "Alegreya", serif`, ACT_COLOR[m.kind] === '#ffd23a' ? '#5a3a00' : '#3a1008');
-      hits.push({ x: X, y: Y, name: m.label ?? '', sub: m.kind === 'task' ? 'Parish task: the locals want a hand' : m.kind === 'taskDone' ? 'Parish task: done' : m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' });
+      hits.push({ x: X, y: Y, name: m.label ?? '', sub: m.kind === 'treasure' ? 'Dig a few strides from the landmark here' : m.kind === 'task' ? 'Parish task: the locals want a hand' : m.kind === 'taskDone' ? 'Parish task: done' : m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' });
     }
     if (on('quests') && z > 1.1) for (const m of markers) {
       if (m.kind !== 'giver') continue;

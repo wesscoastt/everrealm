@@ -8,6 +8,8 @@ import type { MapMarker } from '../ui/Hud';
 import { plan, Site } from '../world/sites';
 import { REGION_INFO, RegionId } from '../world/terrain';
 import { Tasks } from './Tasks';
+import { RARES, RareDef, rareLairs, TREASURE_MAPS, TreasureMap, treasureSpot } from '../data/wilds';
+import { hash2 } from '../world/noise';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
 // The world's activities, in the manner of the big online games:
@@ -17,7 +19,9 @@ import type { VoxelWorld } from '../world/VoxelWorld';
 //     ahead, with ground quakes to dodge and adds called in as they weaken;
 //   Shardfalls (ESO's dark anchors, reworked): a star comes down in Scarth, one site after another;
 //   public dungeons and delves (ESO): creatures that live there and come back, a champion, a chest;
-//   vistas (GW2): climb, look, and the camera takes in the view; wonders pay for being found.
+//   vistas (GW2): climb, look, and the camera takes in the view; wonders pay for being found;
+//   rares and treasure maps (data/wilds.ts): named creatures that turn up at landmarks, and maps
+//     that mark where something was buried.
 
 export interface ActivityHost {
   scene: THREE.Scene;
@@ -40,6 +44,9 @@ export interface ActivityHost {
   killed?(e: Enemy): void;
   /** Work toward the day's writs. */
   daily?(kind: 'event' | 'chore'): void;
+  /** The pack: treasure maps are read from it, and spent when dug. */
+  count(item: string): number;
+  take(item: string, n?: number): boolean;
   /** Online: the world boss's health is the server's, shared with every player there. */
   shared?: {
     on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void;
@@ -99,7 +106,9 @@ export class Activities {
       this.runShardfall(P);
       this.populateDungeons(P);
       this.foundWonders(P);
+      this.runRares(P);
     }
+    this.tickTreasure(P);
     this.tickEvents(P);
     this.tickBoss(dt, P);
     this.tickShard(dt, P);
@@ -404,6 +413,7 @@ export class Activities {
         const ready = Date.now() - opened > 30 * 60 * 1000;
         out.push({ label: ready ? 'Open the chest' : 'The chest is empty (it fills again in a while)', pos: new THREE.Vector3(a.chest[0], a.chest[1] + 0.5, a.chest[2]), use: () => ready && this.openChest(s) });
       }
+      // (treasure: below, once per map)
       a.caches?.forEach((c, i) => {
         if (Math.hypot(P.x - c[0], P.z - c[2]) > 2.6 || Math.abs(P.y - c[1]) > 2.8) return;
         const ready = Date.now() - Number(this.host.flag(`cache:${s.id}:${i}`) ?? 0) > 45 * 60 * 1000;
@@ -414,7 +424,110 @@ export class Activities {
         out.push({ label: seen ? 'Take in the view again' : 'Take in the view', pos: new THREE.Vector3(a.view[0], a.view[1] + 1, a.view[2]), use: () => this.vista(s, seen) });
       }
     }
+    for (const m of TREASURE_MAPS) {
+      if (this.host.count(m.id) === 0) continue;
+      const s = this.spotOf(m);
+      if (s && Math.hypot(P.x - s.x, P.z - s.z) < 3 && Math.abs(P.y - (this.host.voxels.topSolid(s.x, s.z) + 1)) < 3) out.push({ label: 'Dig at the turned earth', pos: new THREE.Vector3(s.x, P.y + 0.3, s.z), use: () => this.dig(m) });
+    }
     return out;
+  }
+
+  // ---------------------------------------------------------------- Rares
+  private rares = new Map<string, { enemy: Enemy; lair: number; seen: boolean; deadFor: number }>();
+  private lairCache = new Map<string, [number, number][]>();
+
+  private lairsOf(r: RareDef): [number, number][] {
+    let l = this.lairCache.get(r.id);
+    if (!l) { l = rareLairs(r, plan()); this.lairCache.set(r.id, l); }
+    return l;
+  }
+
+  /** Rares turn up at one lair at a time, the same one for everybody (it moves on every forty minutes). */
+  private runRares(P: THREE.Vector3): void {
+    const now = this.now();
+    for (const r of RARES) {
+      const lairs = this.lairsOf(r);
+      if (!lairs.length) continue;
+      const idx = Math.floor(now / 2400 + hash2(r.id.length, r.id.charCodeAt(1), 902) * lairs.length) % lairs.length;
+      const [lx, lz] = lairs[idx];
+      const live = this.rares.get(r.id);
+      if (live) {
+        if (!live.enemy.alive) {
+          // Killed: gone for this player for twenty-five minutes, counted for the feat
+          if (live.deadFor === 0) {
+            this.host.setFlag('rareAt:' + r.id, realmNow());
+            this.host.setFlag('rareKill:' + r.id, Number(this.host.flag('rareKill:' + r.id) ?? 0) + 1);
+            this.host.banner(r.name, 'Rare · slain');
+          }
+          live.deadFor += 1;
+          if (live.deadFor > 8) { this.host.removeEnemy(live.enemy); this.rares.delete(r.id); }
+          continue;
+        }
+        if (live.lair !== idx || Math.hypot(P.x - live.enemy.pos.x, P.z - live.enemy.pos.z) > 240) { this.host.removeEnemy(live.enemy); this.rares.delete(r.id); continue; }
+        if (!live.seen && live.enemy.pos.distanceTo(P) < 48) {
+          live.seen = true;
+          this.host.banner(r.name, `Rare · ${REGION_INFO[r.region].name}`);
+          this.host.sound('bell');
+        }
+        continue;
+      }
+      if (realmNow() - Number(this.host.flag('rareAt:' + r.id) ?? 0) < 25 * 60 * 1000) continue;
+      if (Math.hypot(P.x - lx, P.z - lz) > 160 || !this.host.voxels.isLoaded(lx, lz)) continue;
+      const e = this.spawn(ENEMIES[r.type], lx, lz, true);
+      this.rares.set(r.id, { enemy: e, lair: idx, seen: false, deadFor: 0 });
+    }
+  }
+
+  // ---------------------------------------------------------------- Treasure maps
+  private spots = new Map<string, { x: number; z: number }>();
+  private mounds = new Map<string, THREE.Group>();
+
+  spotOf(m: TreasureMap): { x: number; z: number } | null {
+    let s = this.spots.get(m.id);
+    if (s === undefined) { s = treasureSpot(m, plan()) ?? undefined; if (s) this.spots.set(m.id, s); }
+    return s ?? null;
+  }
+
+  /** The turned earth over each held map's X, shown once you're near it. */
+  private tickTreasure(P: THREE.Vector3): void {
+    for (const m of TREASURE_MAPS) {
+      const s = this.host.count(m.id) > 0 ? this.spotOf(m) : null;
+      const near = !!s && Math.hypot(P.x - s.x, P.z - s.z) < 60 && this.host.voxels.isLoaded(s.x, s.z);
+      let g = this.mounds.get(m.id);
+      if (near && !g) {
+        g = dirtMound();
+        g.position.set(s!.x, this.host.voxels.topSolid(s!.x, s!.z) + 1, s!.z);
+        this.host.scene.add(g);
+        this.mounds.set(m.id, g);
+      } else if (!near && g) {
+        this.host.scene.remove(g);
+        this.mounds.delete(m.id);
+      }
+      if (g) g.children[1].rotation.y += 0.02;
+    }
+  }
+
+  /** Dig at a held map's X. */
+  private dig(m: TreasureMap): void {
+    if (!this.host.take(m.id, 1)) return;
+    this.host.setFlag('dug:' + m.id, Number(this.host.flag('dug:' + m.id) ?? 0) + 1);
+    const lvl = Number((REGION_INFO[m.region].levels.split(/[–-]/)[0]) || 1);
+    const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'gannet_egg', wrath: 'smoked_eel', tolmen: 'iron_ore' };
+    const items = [mats[m.region], mats[m.region]];
+    const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley');
+    const regional = gear.filter((d) => GEAR_REGION[d.set!] === m.region);
+    if (Math.random() < 0.4) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
+    this.host.reward(300 + lvl * 30, 20 + lvl * 3, items, `Treasure dug up in ${REGION_INFO[m.region].name}`);
+    this.host.sound('open');
+    const g = this.mounds.get(m.id);
+    if (g) { this.host.scene.remove(g); this.mounds.delete(m.id); }
+  }
+
+  /** A treasure map, now and then, from a chest: one of that region's you don't have. */
+  private mapFrom(region: RegionId, chance: number): string[] {
+    if (Math.random() >= chance) return [];
+    const own = TREASURE_MAPS.filter((m) => m.region === region && this.host.count(m.id) === 0);
+    return own.length ? [own[Math.floor(Math.random() * own.length)].id] : [];
   }
 
   private openChest(s: Site): void {
@@ -426,7 +539,7 @@ export class Activities {
     const items: string[] = [];
     if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
     const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'boar_hide', wrath: 'jelly_residue', tolmen: 'iron_ore' };
-    items.push(mats[reg], mats[reg]);
+    items.push(mats[reg], mats[reg], ...this.mapFrom(reg, 0.3));
     this.host.reward(big ? 900 : 450, big ? 60 : 30, items, `The chest in ${s.name}`);
     this.host.sound('open');
   }
@@ -439,6 +552,7 @@ export class Activities {
     const items = [sea[Math.floor(Math.random() * sea.length)], sea[Math.floor(Math.random() * sea.length)]];
     const gear = Object.values(ITEMS).filter((d) => d.set && (GEAR_REGION[d.set] === s.region || d.set === 'brine'));
     if (gear.length && Math.random() < 0.25) items.push(gear[Math.floor(Math.random() * gear.length)].id);
+    items.push(...this.mapFrom(s.region, 0.25));
     this.host.reward(deep ? 520 : 300, deep ? 34 : 20, items, `A sunken chest at ${s.name}`);
     this.host.sound('open');
   }
@@ -567,8 +681,26 @@ export class Activities {
     const cycle = Math.floor(this.now() / SHARDFALL_EVERY);
     if (this.host.flag('shard') !== cycle) { const [sx, sz] = SHARDFALLS[cycle % SHARDFALLS.length]; out.push({ x: sx, z: sz, kind: 'shard', label: 'Shardfall' }); }
     out.push(...this.tasks.markers());
+    // The X on every treasure map in the pack
+    for (const m of TREASURE_MAPS) {
+      if (this.host.count(m.id) === 0) continue;
+      const s = this.spotOf(m);
+      if (s) out.push({ x: s.x, z: s.z, kind: 'treasure', label: 'Treasure map' });
+    }
     return out;
   }
+}
+
+/** Turned earth over a treasure map's X: a low mound of soil and a slow gold glint above it. */
+function dirtMound(): THREE.Group {
+  const g = new THREE.Group();
+  const soil = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#5a4028' }));
+  soil.scale.set(1, 0.35, 1);
+  g.add(soil);
+  const glint = new THREE.Mesh(new THREE.OctahedronGeometry(0.16), new THREE.MeshBasicMaterial({ color: '#ffd860' }));
+  glint.position.y = 0.9;
+  g.add(glint);
+  return g;
 }
 
 /** How many creatures each wave brings (the leader comes with the last). */

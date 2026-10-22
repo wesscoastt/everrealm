@@ -190,6 +190,10 @@ export const RARITY_COLOR: Record<Rarity, string> = {
 import { CONTENT } from './content';
 for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
 
+// Rares' trophies and treasure maps (src/data/wilds.ts).
+import { MAP_ITEMS, TROPHIES } from './wilds';
+for (const d of [...TROPHIES, ...MAP_ITEMS]) ITEMS[d.id] = d;
+
 // Festival tokens, fare, dyes and horses (src/data/festivals.ts).
 import { FESTIVAL_ITEMS } from './festivals';
 for (const d of FESTIVAL_ITEMS) ITEMS[d.id] = d;

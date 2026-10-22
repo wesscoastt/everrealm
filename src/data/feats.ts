@@ -30,6 +30,8 @@ const HALTERS = Object.values(ITEMS).filter((d) => d.mount).map((d) => d.id);
 
 export const FEATS: FeatDef[] = [
   { id: 'vistas', name: 'Eyes on the Horizon', group: 'Exploration', desc: 'Stand at every vista: the headlands, the summits and the passes.', need: 8, have: (g) => g.countFlags('vista:'), marks: 80, title: 'Horizon-Walker' },
+  { id: 'rares', name: 'Rare Hunter', group: 'The open world', desc: 'Kill five different rares: the named creatures that turn up at the landmarks.', need: 5, have: (g) => g.countFlags('rareKill:'), marks: 120, title: 'the Tracker' },
+  { id: 'treasure', name: 'X Marks It', group: 'Exploration', desc: 'Dig up the treasure from six different maps.', need: 6, have: (g) => g.countFlags('dug:'), marks: 100, title: 'the Digger' },
   { id: 'wonders', name: 'Stumbled Upon', group: 'Exploration', desc: 'Find the six wonders: the Weeping Stair, the Kelpie Arch, the Stone King, the Drowned Bell-tower, the Kingfisher Steps and the Great Starfall.', need: 6, have: (g) => g.countFlags('found:sc-'), marks: 100, title: 'the Wide-Eyed' },
   { id: 'delves', name: 'Lamp and Rope', group: 'Exploration', desc: 'Open the chest at the bottom of all six delves.', need: 6, have: (g) => g.countFlags('chest:delve-'), marks: 90, title: 'Delver' },
   { id: 'dungeons', name: 'The Deep Halls', group: 'Exploration', desc: 'Open the chest in Mortlake Cellars and in the Black Cut.', need: 2, have: (g) => g.countFlags('chest:pd-'), marks: 90, title: 'of the Deep Halls' },

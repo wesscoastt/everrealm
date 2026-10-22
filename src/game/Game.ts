@@ -443,6 +443,8 @@ export class Game implements GameApi {
     this.activities = new Activities({
       daily: (k) => this.dailies.bump(k),
       killed: (e) => this.onEnemyKilled(e),
+      count: (id) => this.inv.count(id),
+      take: (id, n = 1) => { const ok = this.inv.remove(id, n); if (ok) this.persist(); return ok; },
       shared: {
         on: () => !!this.online?.online,
         sync: (id, cycle, max) => this.online.bossSync(id, cycle, max),

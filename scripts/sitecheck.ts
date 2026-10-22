@@ -18,6 +18,7 @@ import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { POSTS } from '../src/data/travel';
 import { BOARDS } from '../src/data/content';
 import { ENEMIES, EnemyType } from '../src/data/gameplay';
+import { RARES, rareLairs, TREASURE_MAPS, treasureSpot } from '../src/data/wilds';
 
 // Record every override as the planner writes it (the last write to a cell wins, as in the game).
 const cells = new Map<string, number>();
@@ -100,6 +101,9 @@ for (const st of P.sites) {
   if (a.chest) check(`act ${st.id} chest`, a.chest[0], a.chest[2], { y: a.chest[1] });
   a.caches?.forEach((c, i) => check(`act ${st.id} cache ${i}`, c[0], c[2], { y: c[1] }));
 }
+// Rares' lairs and treasure maps' dig spots: open ground (the sea rare's waters are open water)
+for (const r of RARES) if (!r.sea) rareLairs(r, P).forEach(([x, z], i) => check(`rare ${r.id} lair ${i}`, x, z));
+for (const m of TREASURE_MAPS) { const s = treasureSpot(m, P); if (!s) problems.push(`treasure ${m.id}: no landmark to draw it from`); else check(`treasure ${m.id}`, s.x, s.z); }
 // Boards are read from beside the post: one of the four neighbouring cells must be open ground.
 for (const b of BOARDS) {
   if (b.interactable) continue;
