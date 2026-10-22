@@ -16,8 +16,31 @@ interface Entry {
   solid?: THREE.Mesh;
   water?: THREE.Mesh;
   veg?: THREE.InstancedMesh | null;
+  /** Stone treads on the roads' steep runs. */
+  steps?: THREE.InstancedMesh | null;
   meshState: 'none' | 'pending' | 'done';
   dirty: boolean;
+}
+
+/** A road step's tread: a block wide, half deep, half high, standing on the lower cell against the rise. */
+let treadGeo: THREE.BufferGeometry | null = null;
+let treadMat: THREE.MeshLambertMaterial | null = null;
+function buildSteps(d: Float32Array | undefined): THREE.InstancedMesh | null {
+  const n = d ? d.length / 4 : 0;
+  if (!d || !n) return null;
+  treadGeo ??= new THREE.BoxGeometry(1, 0.5, 0.5).translate(0, 0.25, 0);
+  treadMat ??= new THREE.MeshLambertMaterial({ color: '#9a968c' });
+  const mesh = new THREE.InstancedMesh(treadGeo, treadMat, n);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    m.compose(p.set(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]), q.setFromAxisAngle(up, d[i * 4 + 3]), one);
+    mesh.setMatrixAt(i, m);
+    const k = 0.9 + (((i * 7919) % 13) / 13) * 0.2;
+    mesh.setColorAt(i, c.setRGB(k, k * 0.98, k * 0.94));
+  }
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.computeBoundingSphere();
+  return mesh;
 }
 
 export interface ChunkEvents {
@@ -180,6 +203,8 @@ export class ChunkManager {
       const e: Entry = { cx, cz, tint: r.tint, meshState: 'none', dirty: false };
       e.veg = buildVegMesh(r.veg, this.time);
       if (e.veg) this.group.add(e.veg);
+      e.steps = buildSteps(r.steps);
+      if (e.steps) this.group.add(e.steps);
       this.entries.set(key, e);
       this.events.onMapTile(cx, cz, r.map);
       this.events.onLoaded(cx, cz, r);
@@ -268,6 +293,7 @@ export class ChunkManager {
   private unload(key: number, e: Entry): void {
     for (const m of [e.solid, e.water]) if (m) { this.group.remove(m); m.geometry.dispose(); }
     if (e.veg) { this.group.remove(e.veg); e.veg.geometry.dispose(); e.veg.dispose(); }
+    if (e.steps) { this.group.remove(e.steps); e.steps.dispose(); }
     this.entries.delete(key);
     this.voxels.chunks.delete(key);
     this.events.onUnloaded(e.cx, e.cz);

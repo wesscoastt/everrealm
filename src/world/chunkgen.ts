@@ -29,6 +29,8 @@ export interface ChunkResult {
   ores: GenOre[];
   fish: GenFish[];
   veg: Float32Array;
+  /** Stone treads on the roads' steep runs: x, y, z and the way down, four numbers a tread (ChunkManager draws them). */
+  steps: Float32Array;
   map: Uint8ClampedArray;
   spawns: GenSpawn[];
   forage: GenForage[];
@@ -77,6 +79,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   const tint = new Float32Array(CHUNK * CHUNK * 6);
   const regions: RegionId[] = new Array(CHUNK * CHUNK);
   const roads = new Uint8Array(CHUNK * CHUNK);
+  const steps: number[] = [];
 
   mark("heights");
   // ------------------------------------------------------------ Terrain columns
@@ -92,12 +95,16 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     roads[lx + lz * CHUNK] = rd < 4 ? 1 : 0;
     let maxDiff = 0;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) maxDiff = Math.max(maxDiff, h - hAt(x + dx, z + dz));
-    let { top, sub } = columnBlocks(x, z, h, maxDiff, reg, road);
-    // Where the road climbs a block a block, each rise is a stone step: a stair up the hill
+    const { top } = columnBlocks(x, z, h, maxDiff, reg, road);
+    let { sub } = columnBlocks(x, z, h, maxDiff, reg, road);
+    // Where the road climbs a block a block, it's a stair: a stone tread half a block high in front
+    // of each rise, so the climb reads as steps (walking it is the same: a rise is still one block)
     if (road && maxDiff >= 1) {
-      let run = false;
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (h - hAt(x + dx, z + dz) >= 1 && (hAt(x - dx, z - dz) > h || h - hAt(x + 2 * dx, z + 2 * dz) >= 2)) run = true;
-      if (run) { top = reg === 'redstone' ? B.TerraCream : B.Cobble; sub = B.Stone; }
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const lower = hAt(x + dx, z + dz);
+        if (h - lower === 1 && (hAt(x - dx, z - dz) > h || h - hAt(x + 2 * dx, z + 2 * dz) >= 2) && roadDist(x + dx, z + dz) < 1.5) steps.push(x + dx + 0.5 - dx * 0.25, lower, z + dz + 0.5 - dz * 0.25, Math.atan2(dx, dz));
+      }
+      sub = B.Stone;
     }
     for (let y = 0; y < h; y++) {
       let id: number;
@@ -364,7 +371,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   }
 
   mark("surface");
-  return { cx, cz, data, tint, trees, ores: liveOres, fish, forage, veg: new Float32Array(veg), map, spawns };
+  return { cx, cz, data, tint, trees, ores: liveOres, fish, forage, veg: new Float32Array(veg), steps: new Float32Array(steps), map, spawns };
 }
 
 /** Coarse heights and colours for the far-terrain mesh (step 8 over the whole world, from WMIN). */

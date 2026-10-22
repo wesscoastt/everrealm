@@ -18,7 +18,7 @@ self.onmessage = (e: MessageEvent) => {
   if (m.type === 'gen') {
     const t0 = performance.now();
     const r = generateChunk(m.cx, m.cz);
-    self.postMessage({ type: 'gen', id: m.id, result: r, ms: performance.now() - t0 }, [r.data.buffer, r.tint.buffer, r.veg.buffer, r.map.buffer]);
+    self.postMessage({ type: 'gen', id: m.id, result: r, ms: performance.now() - t0 }, [r.data.buffer, r.tint.buffer, r.veg.buffer, r.steps.buffer, r.map.buffer]);
   } else if (m.type === 'mesh') {
     const t0 = performance.now();
     const a = meshPadded(m.pad, SY, m.ox, m.oz, m.tint);
