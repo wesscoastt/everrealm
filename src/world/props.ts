@@ -274,14 +274,15 @@ export function gableRoof(len: number, span: number, rise: number, overhang = 0.
       for (const ex of [-L, L]) {
         const s = ex < 0 ? -1 : 1;
         const a = [ex, t0, zz0], b = [ex, y0, zz0], c = [ex, y1, zz1], d = [ex, t1, zz1];
-        if (s * side > 0) quad(a, d, c, b, [0, 0], [seg, 0], [seg, thick], [0, thick]);
-        else quad(a, b, c, d, [0, 0], [0, thick], [seg, thick], [seg, 0]);
+        // (wound to face out of the roof, so the ends show from outside)
+        if (s * side > 0) quad(a, b, c, d, [0, 0], [0, thick], [seg, thick], [seg, 0]);
+        else quad(a, d, c, b, [0, 0], [seg, 0], [seg, thick], [0, thick]);
       }
     }
     // Eave fascia
     const [ze, ye] = prof[0];
     const z = ze * side;
-    if (side < 0) quad([L, ye - thick, z], [-L, ye - thick, z], [-L, ye, z], [L, ye, z], [0, 0], [len, 0], [len, thick], [0, thick]);
+    if (side > 0) quad([L, ye - thick, z], [-L, ye - thick, z], [-L, ye, z], [L, ye, z], [0, 0], [len, 0], [len, thick], [0, thick]);
     else quad([-L, ye - thick, z], [L, ye - thick, z], [L, ye, z], [-L, ye, z], [0, 0], [len, 0], [len, thick], [0, thick]);
   }
   const g = new THREE.BufferGeometry();
