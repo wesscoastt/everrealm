@@ -475,79 +475,112 @@ export class CreatureModel {
 
   /** A riding horse: a = coat, b = mane, tail and lower legs, c = saddle cloth; glow lights the hooves. */
   private buildHorse(): void {
-    this.plateHeight = 2.4;
+    this.plateHeight = 2.6;
     const coat = horseMat('coat', this.pal.a ?? '#7a4a2a'), dark = horseMat('mane', this.pal.b ?? '#2a1e16'), cloth = horseMat('cloth', this.pal.c ?? '#2e4a7a');
-    const leather = horseMat('leather', '#4a3020'), brass = lam('#c8a050');
-    const hoof = this.pal.glow ? lam('#ff9a3a', { emissive: new THREE.Color('#c84a10') }) : lam('#26201a');
-    add(this.body, rb(0.7, 0.72, 1.62, 0.16), coat, 0, 1.36, 0);
-    add(this.body, rb(0.64, 0.6, 0.5, 0.14), coat, 0, 1.4, 0.7); // chest
-    add(this.body, rb(0.62, 0.56, 0.5, 0.14), coat, 0, 1.4, -0.66); // quarters
-    // Neck and head, the neck reaching forward and up
-    add(this.body, rb(0.34, 0.95, 0.44, 0.1), coat, 0, 1.92, 0.98, 0.55);
-    add(this.body, rb(0.1, 0.92, 0.2, 0.04), dark, 0, 2.0, 0.84, 0.55); // mane
+    const leather = horseMat('leather', '#4a3020'), brass = lam('#c8a050'), black = lam('#120c08');
+    const hoof = this.pal.glow ? lam('#ff9a3a', { emissive: new THREE.Color('#c84a10') }) : lam('#2a221c');
+    // The body: a deep chest, the barrel tucking up toward the flank, the withers and the croup
+    // standing above the back, and rounded quarters
+    add(this.body, taper(rb(0.68, 0.74, 1.3, 0.16), 0.92, 0.84), coat, 0, 1.4, 0.06);
+    add(this.body, rb(0.62, 0.7, 0.46, 0.18), coat, 0, 1.36, 0.7); // chest
+    add(this.body, rb(0.4, 0.2, 0.42, 0.08), coat, 0, 1.79, 0.56); // withers
+    add(this.body, rb(0.7, 0.66, 0.62, 0.2), coat, 0, 1.44, -0.62); // quarters
+    add(this.body, rb(0.52, 0.18, 0.5, 0.08), coat, 0, 1.79, -0.62); // croup
+    add(this.body, rb(0.6, 0.5, 0.22, 0.14), coat, 0, 1.4, -0.96); // round of the rump
+    // The neck, crested and rising, its mane falling in strands down one side
+    add(this.body, rb(0.44, 0.64, 0.5, 0.14), coat, 0, 1.82, 0.94, 0.68);
+    add(this.body, rb(0.34, 0.56, 0.4, 0.12), coat, 0, 2.18, 1.16, 0.42);
+    for (let i = 0; i < 6; i++) add(this.body, rb(0.07, 0.34 + (i % 2) * 0.08, 0.16, 0.03), dark, 0.13 + (i % 3) * 0.02, 2.36 - i * 0.12, 1.12 - i * 0.09, 0.5);
+    add(this.body, rb(0.1, 0.84, 0.16, 0.04), dark, 0, 2.08, 0.92, 0.55); // along the crest
+    // The head hangs from the poll; the skull inside it is set nose-down, so turning and grazing move it whole
     const head = new THREE.Group();
-    head.position.set(0, 2.32, 1.24);
+    head.position.set(0, 2.44, 1.3);
     this.body.add(head);
-    add(head, rb(0.34, 0.36, 0.62, 0.1), coat, 0, 0, 0.16, 0.5);
-    add(head, rb(0.3, 0.3, 0.28, 0.08), coat, 0, -0.2, 0.42, 0.5); // muzzle
-    add(head, rb(0.24, 0.1, 0.12, 0.03), dark, 0, -0.3, 0.55, 0.5);
-    add(head, rb(0.36, 0.05, 0.05, 0.01), leather, 0, -0.1, 0.36, 0.5); // noseband
+    const skull = new THREE.Group();
+    skull.rotation.x = 0.85;
+    head.add(skull);
+    add(skull, rb(0.36, 0.34, 0.36, 0.12), coat, 0, 0, 0.04); // forehead and cheeks
+    add(skull, rb(0.32, 0.22, 0.3, 0.1), coat, 0, -0.14, 0.02); // the jowl
+    add(skull, taper(rb(0.28, 0.24, 0.46, 0.08), 0.85, 0.9), coat, 0, -0.02, 0.36, 0, Math.PI); // the long face, narrowing
+    add(skull, rb(0.27, 0.26, 0.2, 0.1), coat, 0, -0.05, 0.6); // muzzle
+    add(skull, rb(0.22, 0.08, 0.16, 0.04), dark, 0, -0.16, 0.6); // soft lower lip
     for (const sd of [1, -1]) {
-      add(head, new THREE.ConeGeometry(0.06, 0.2, 4), coat, sd * 0.11, 0.24, -0.04, -0.2, Math.PI / 4, sd * -0.15);
-      add(head, rb(0.04, 0.07, 0.07, 0.02), lam('#120c08'), sd * 0.17, 0.06, 0.12, 0.5);
-      add(head, rb(0.03, 0.03, 0.03, 0.01), brass, sd * 0.17, -0.12, 0.4);
+      add(skull, rb(0.04, 0.05, 0.06, 0.015), black, sd * 0.09, 0.0, 0.7); // nostrils
+      add(skull, rb(0.05, 0.08, 0.09, 0.02), black, sd * 0.18, 0.06, 0.08); // eyes
+      add(skull, rb(0.02, 0.025, 0.03, 0.01), lam('#f4f0e8'), sd * 0.2, 0.08, 0.1); // the light in them
+      // Bridle: cheek straps, the brow band and the bit rings
+      add(skull, rb(0.02, 0.32, 0.03, 0.005), leather, sd * 0.17, -0.04, 0.22, -0.4);
+      add(skull, rb(0.04, 0.04, 0.04, 0.01), brass, sd * 0.15, -0.12, 0.58);
     }
-    add(head, rb(0.12, 0.14, 0.24, 0.04), dark, 0, 0.2, -0.06, 0.3); // forelock
+    add(skull, rb(0.38, 0.04, 0.04, 0.01), leather, 0, 0.12, -0.08); // brow band
+    add(skull, rb(0.3, 0.04, 0.04, 0.01), leather, 0, -0.04, 0.48); // noseband
+    add(skull, rb(0.14, 0.12, 0.26, 0.04), dark, 0, 0.17, 0.08); // forelock
+    for (const sd of [1, -1]) add(head, new THREE.ConeGeometry(0.06, 0.24, 4), coat, sd * 0.11, 0.14, 0.02, -0.2, Math.PI / 4, sd * -0.18); // ears, pricked
     this.head = head;
-    // Reins from the bit back to the pommel
-    for (const sd of [1, -1]) add(this.body, rb(0.02, 0.02, 0.9, 0.005), leather, sd * 0.16, 1.98, 0.86, -0.42);
-    // Tail
+    // Reins from the bit, slack under the neck, back to the pommel
+    for (const sd of [1, -1]) {
+      add(this.body, rb(0.02, 0.02, 0.66, 0.005), leather, sd * 0.15, 1.9, 1.28, 0, 0, 0).rotation.x = -0.25;
+      add(this.body, rb(0.02, 0.02, 0.68, 0.005), leather, sd * 0.13, 1.86, 0.64, 0.15);
+    }
+    // The tail: set high, a short dock, then the hair falling in strands
     const tail = new THREE.Group();
-    tail.position.set(0, 1.62, -0.92);
+    tail.position.set(0, 1.7, -0.98);
     this.body.add(tail);
-    add(tail, rb(0.16, 0.24, 0.2, 0.06), dark, 0, 0, -0.04, -0.4);
-    add(tail, rb(0.2, 0.8, 0.16, 0.07), dark, 0, -0.44, -0.18, 0.25);
+    add(tail, rb(0.14, 0.14, 0.26, 0.05), dark, 0, 0, -0.08, -0.5);
+    for (const [x, l, r] of [[0, 0.82, 0.18], [0.05, 0.72, 0.26], [-0.05, 0.76, 0.1], [0.02, 0.62, 0.34]]) add(tail, rb(0.09, l, 0.1, 0.035), dark, x, -l / 2 + 0.02, -0.1 - r * 0.2, r);
     this.tail = tail;
-    // Saddle on a cloth
-    add(this.body, rb(0.78, 0.05, 0.74, 0.02), cloth, 0, 1.73, 0.04);
-    add(this.body, rb(0.8, 0.26, 0.06, 0.02), cloth, 0, 1.6, -0.32);
-    add(this.body, rb(0.5, 0.12, 0.56, 0.05), leather, 0, 1.8, 0.04);
-    add(this.body, rb(0.42, 0.16, 0.08, 0.03), leather, 0, 1.9, -0.22); // cantle
-    add(this.body, rb(0.2, 0.16, 0.1, 0.03), leather, 0, 1.9, 0.3); // pommel
+    // Saddle on a cloth, with its girth under the belly
+    add(this.body, rb(0.78, 0.05, 0.74, 0.02), cloth, 0, 1.79, 0.04);
+    add(this.body, rb(0.8, 0.26, 0.06, 0.02), cloth, 0, 1.66, -0.32);
+    add(this.body, rb(0.5, 0.12, 0.56, 0.05), leather, 0, 1.84, 0.04);
+    add(this.body, rb(0.42, 0.16, 0.08, 0.03), leather, 0, 1.94, -0.22); // cantle
+    add(this.body, rb(0.2, 0.16, 0.1, 0.03), leather, 0, 1.94, 0.3); // pommel
+    add(this.body, rb(0.72, 0.05, 0.1, 0.01), leather, 0, 1.04, 0.24); // girth
+    for (const sd of [1, -1]) add(this.body, rb(0.03, 0.72, 0.1, 0.01), leather, sd * 0.35, 1.4, 0.24);
     if (this.pal.pillion) {
       // A pillion pad behind the cantle, on its own cloth, for a second rider
-      add(this.body, rb(0.7, 0.05, 0.42, 0.02), cloth, 0, 1.72, -0.5);
-      add(this.body, rb(0.46, 0.1, 0.38, 0.04), leather, 0, 1.79, -0.52);
+      add(this.body, rb(0.7, 0.05, 0.42, 0.02), cloth, 0, 1.78, -0.5);
+      add(this.body, rb(0.46, 0.1, 0.38, 0.04), leather, 0, 1.85, -0.52);
     }
     for (const sd of [1, -1]) {
-      add(this.body, rb(0.03, 0.42, 0.04, 0.01), leather, sd * 0.4, 1.55, 0.06);
-      add(this.body, rb(0.12, 0.04, 0.1, 0.01), brass, sd * 0.42, 1.33, 0.06);
+      add(this.body, rb(0.03, 0.42, 0.04, 0.01), leather, sd * 0.4, 1.58, 0.06); // stirrup leathers
+      add(this.body, rb(0.12, 0.04, 0.1, 0.01), brass, sd * 0.42, 1.36, 0.06); // irons
     }
-    for (const [x, z] of [[0.21, 0.62], [-0.21, 0.62], [0.21, -0.6], [-0.21, -0.6]]) {
+    // Legs: the forelegs straight, with a knee; the hind legs with a strong thigh and the hock bent back.
+    // Each ends in a fetlock, a short pastern and a hoof that flares at the ground.
+    for (const [x, z, hind] of [[0.2, 0.66, 0], [-0.2, 0.66, 0], [0.21, -0.64, 1], [-0.21, -0.64, 1]] as const) {
       const leg = new THREE.Group();
       leg.position.set(x, 1.12, z);
       this.body.add(leg);
-      add(leg, rb(0.2, 0.56, 0.26, 0.06), coat, 0, -0.26, 0);
-      add(leg, rb(0.14, 0.44, 0.16, 0.04), dark, 0, -0.74, 0.01);
-      add(leg, rb(0.18, 0.12, 0.2, 0.03), hoof, 0, -1.04, 0.02);
+      if (hind) {
+        add(leg, rb(0.2, 0.56, 0.28, 0.08), coat, 0, -0.16, -0.02, -0.12); // gaskin, its top in the quarters
+        add(leg, rb(0.15, 0.14, 0.19, 0.05), coat, 0, -0.5, -0.1); // hock
+        add(leg, rb(0.12, 0.4, 0.13, 0.04), dark, 0, -0.74, -0.08, -0.06);
+      } else {
+        add(leg, rb(0.18, 0.56, 0.22, 0.07), coat, 0, -0.18, 0); // forearm, its top in the chest
+        add(leg, rb(0.15, 0.11, 0.17, 0.04), coat, 0, -0.5, 0.01); // knee
+        add(leg, rb(0.12, 0.42, 0.13, 0.04), dark, 0, -0.74, 0.01);
+      }
+      add(leg, rb(0.16, 0.1, 0.18, 0.04), dark, 0, -0.96, hind ? -0.03 : 0.02); // fetlock
+      add(leg, rb(0.19, 0.12, 0.23, 0.03), hoof, 0, -1.06, hind ? 0.0 : 0.04);
       this.legs.push(leg);
     }
-    if (this.pal.breed) this.horseBreed(this.pal.breed, head);
+    if (this.pal.breed) this.horseBreed(this.pal.breed, head, skull);
   }
 
   /** What a breed adds to the horse: the seat stays where it is, so anyone rides any of them. */
-  private horseBreed(breed: Breed, head: THREE.Group): void {
+  private horseBreed(breed: Breed, head: THREE.Group, skull: THREE.Group): void {
     const white = horseMat('coat', '#f0ece4');
     if (breed === 'pied') {
       // White patches over the barrel, the quarters and the neck
       add(this.body, rb(0.73, 0.46, 0.62, 0.14), white, 0, 1.38, 0.18);
       add(this.body, rb(0.65, 0.4, 0.34, 0.12), white, 0, 1.48, -0.7);
       add(this.body, rb(0.36, 0.42, 0.3, 0.08), white, 0, 1.78, 0.86, 0.55);
-      add(head, rb(0.12, 0.2, 0.5, 0.04), white, 0, 0.08, 0.3, 0.5); // blaze
+      add(skull, rb(0.12, 0.04, 0.6, 0.02), white, 0, 0.12, 0.34); // blaze
     } else if (breed === 'shire') {
       // Heavy white feathering round the hooves and a broad blaze
       for (const leg of this.legs) add(leg, rb(0.26, 0.3, 0.3, 0.08), white, 0, -0.9, 0.02);
-      add(head, rb(0.16, 0.24, 0.52, 0.05), white, 0, 0.06, 0.3, 0.5);
+      add(skull, rb(0.17, 0.04, 0.62, 0.02), white, 0, 0.11, 0.34); // a broad blaze
     } else if (breed === 'elk') {
       // A shaggy throat and broad, branching antlers
       const horn = lam(this.pal.glow ? '#e8f4ff' : '#d8c8a8', this.pal.glow ? { emissive: new THREE.Color('#4a6a8a') } : undefined);
@@ -578,7 +611,7 @@ export class CreatureModel {
       // Weed hanging from the mane, and eyes that glow like a lamp under water
       const weed = lam('#2e5a3a');
       for (let i = 0; i < 5; i++) add(this.body, rb(0.05, 0.4 + (i % 2) * 0.2, 0.06, 0.02), weed, (i % 2 ? 0.08 : -0.08), 1.86 - i * 0.02, 0.6 + i * 0.12, 0.3);
-      for (const sd of [1, -1]) add(head, rb(0.05, 0.06, 0.06, 0.02), lam('#9af0e0', { emissive: new THREE.Color('#2aa890') }), sd * 0.18, 0.06, 0.12, 0.5);
+      for (const sd of [1, -1]) add(skull, rb(0.055, 0.085, 0.095, 0.02), lam('#9af0e0', { emissive: new THREE.Color('#2aa890') }), sd * 0.185, 0.06, 0.08);
     }
   }
 
