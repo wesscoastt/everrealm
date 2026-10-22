@@ -36,9 +36,14 @@ interface Remote {
   horseOf: string | null;
   /** Their guild's name, shown under their name. */
   guild: string | null;
+  /** Riding behind someone on a two-seat mount: that rider's id, or 0. */
+  pillion: number;
 }
 
-interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null }
+interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number }
+
+/** How far behind the saddle a second rider sits, along the horse. */
+const PILLION_BACK = 0.55;
 
 const SEAT = 1.08;
 
@@ -135,6 +140,8 @@ export interface OnlineHooks {
   dStart?(run: number, dungeon: string, members: { id: number; name: string; role: string }[], missing: string[]): void;
   dEv?(from: number, k: 'hit' | 'kill', i: number, dmg: number): void;
   dLeft?(name: string): void;
+  /** Our own mount's saddle, for drawing whoever rides behind us. */
+  mySeat?(): { x: number; y: number; z: number; yaw: number } | null;
   /** The realm's answer to a named piece dropping: its number, or none left (gone) / asked too soon. */
   uGrant?(id: string, ok: boolean, n: number, cap: number, first: string, gone: boolean): void;
   /** Every named piece: how many the realm holds, and who has found the ones given out. */
@@ -217,7 +224,7 @@ export class Online {
       case 'leave': this.removeRemote(m.id as number); this.setStatus('online'); break;
       case 'look': { const r = this.remotes.get(m.id as number); if (r) this.replaceModel(r, m.look as Appearance); break; }
       case 'snap':
-        for (const [id, x, y, z, yaw, anim, held, mount] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined][]) {
+        for (const [id, x, y, z, yaw, anim, held, mount, pillion] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined, number | undefined][]) {
           const r = this.remotes.get(id);
           if (!r) continue;
           r.from.copy(r.model.root.position);
@@ -227,6 +234,7 @@ export class Online {
           r.t = 0;
           r.speed = r.from.distanceTo(r.to) / 0.1;
           r.yaw = yaw; r.anim = anim; r.held = held;
+          r.pillion = typeof pillion === 'number' ? pillion : 0;
         }
         break;
       case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
@@ -275,7 +283,7 @@ export class Online {
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
     const mount = p.mount && ITEMS[p.mount]?.mount ? p.mount : null;
-    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null });
+    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0 });
   }
 
   private replaceModel(r: Remote, look: Appearance): void {
@@ -299,12 +307,22 @@ export class Online {
   }
 
   /** Called every frame while playing: send our state, move everyone else. */
-  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null }): void {
+  /** The second seat on a rider's mount: where it is and which way it faces (null if they aren't on a two-seat mount here). */
+  seatOf(riderId: number): { x: number; y: number; z: number; yaw: number } | null {
+    if (riderId === this.myId) { const s = this.hooks.mySeat?.(); return s ? this.behind(s.x, s.y, s.z, s.yaw) : null; }
+    const r = this.remotes.get(riderId);
+    if (!r?.horse || !r.mount || ITEMS[r.mount]?.mount?.seats !== 2) return null;
+    const h = r.horse.root;
+    return this.behind(h.position.x, h.position.y, h.position.z, h.rotation.y);
+  }
+  private behind(x: number, y: number, z: number, yaw: number) { return { x: x - Math.sin(yaw) * PILLION_BACK, y, z: z - Math.cos(yaw) * PILLION_BACK, yaw }; }
+
+  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; pillion?: number | null }): void {
     if (this.status !== 'online' || !this.ws) return;
     this.sendT -= dt * 1000;
     if (this.sendT <= 0) {
       this.sendT = SEND_MS;
-      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount: me.mount ?? null }));
+      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount: me.mount ?? null, pillion: me.pillion ?? 0 }));
     }
     for (const r of this.remotes.values()) {
       r.t = Math.min(1, r.t + dt / 0.1);
@@ -313,7 +331,7 @@ export class Online {
       if (r.mount !== r.horseOf) {
         if (r.horse) this.hooks.scene.remove(r.horse.root);
         const m = r.mount ? ITEMS[r.mount].mount! : null;
-        r.horse = m ? new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed }) : null;
+        r.horse = m ? new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 }) : null;
         if (r.horse) this.hooks.scene.add(r.horse.root);
         r.horseOf = r.mount;
       }
@@ -325,6 +343,9 @@ export class Online {
         r.horse.update(dt, sp);
         r.model.root.position.y += SEAT;
       }
+      // Riding behind someone: in the second seat of their mount, wherever we see it
+      const seat = r.pillion ? this.seatOf(r.pillion) : null;
+      if (seat) { r.model.root.position.set(seat.x, seat.y + SEAT, seat.z); r.model.root.rotation.y = seat.yaw; r.yaw = seat.yaw; r.anim = 'ride'; r.held = 'none'; }
       // Turn the short way round.
       let dy = r.yaw - r.model.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));

@@ -10,14 +10,18 @@ import type { RegionContent } from './types';
 // for a few score marks; the far towns over the necks sell what only they breed, for hundreds.
 
 const SAME = 'Use it, or press G, to ride. Every mount keeps the same pace.';
-const halter = (id: string, name: string, rarity: ItemDef['rarity'], coat: string, mane: string, cloth: string, desc: string, extra: { glow?: boolean; breed?: NonNullable<ItemDef['mount']>['breed'] } = {}): ItemDef => ({
+const TWO = 'Seats two: someone in your group can ride behind you (E beside you). Use it, or press G, to ride. Every mount keeps the same pace.';
+const halter = (id: string, name: string, rarity: ItemDef['rarity'], coat: string, mane: string, cloth: string, desc: string, extra: { glow?: boolean; breed?: NonNullable<ItemDef['mount']>['breed']; seats?: number } = {}): ItemDef => ({
   id, name, kind: 'collectible', rarity, stack: false, value: 0, icon: { shape: 'shoe', a: coat, b: cloth },
-  mount: { coat, mane, cloth, ...extra }, desc, stats: SAME,
+  mount: { coat, mane, cloth, ...extra }, desc, stats: extra.seats === 2 ? TWO : SAME,
 });
 
 const ITEMS: ItemDef[] = [
   halter('halter_piebald', 'Fair-day piebald', 'uncommon', '#3a2a20', '#1a1410', '#7a2a24', 'Black and white in patches no two people describe the same way. Bought and sold at the Ansbury fair more times than anyone has counted.', { breed: 'pied' }),
   halter('halter_carriage', 'Ansbury carriage black', 'uncommon', '#1a1618', '#0e0c0c', '#c8a040', 'Bred to pull a town carriage through a crowd without blinking. Takes the same attitude to everything else.'),
+  // Two to a saddle: a pillion pad behind for a friend
+  halter('halter_cob', 'Market cob', 'uncommon', '#7a5a3a', '#2a1e14', '#4a6a3a', 'A broad, steady cob with a pillion pad behind the saddle, the way farm families ride in to market. Takes two without noticing, and a basket of eggs if you ask nicely.', { seats: 2 }),
+  halter('halter_dray', 'Quay dray', 'rare', '#5a3a24', '#e8e0d0', '#2a4a6a', 'A dray horse off the Gullmouth quays with a second saddle strapped on behind. Built to haul a hogshead up the harbour steps, so two riders are a rest day.', { breed: 'shire', seats: 2 }),
   halter('halter_sorrel', 'Harbour sorrel', 'uncommon', '#b0602a', '#d8a060', '#2a4a6a', 'Red-gold with a flaxen mane. Stands still on a quay while a crate swings over her head.'),
   halter('halter_cream', 'Saltmarsh cream', 'rare', '#e8d8b0', '#f4ecd8', '#3a6a6a', 'Pale as sand. Raised on the marsh behind Gullmouth and never quite dry.'),
   halter('halter_shire', 'Company shire', 'rare', '#3a2418', '#1a1210', '#7a2e22', 'A heavy horse off the ore carts, with white feathered feet the size of buckets.', { breed: 'shire' }),

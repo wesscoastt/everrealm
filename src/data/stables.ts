@@ -19,8 +19,8 @@ export interface StableDef {
 }
 
 export const STABLES: StableDef[] = [
-  { id: 'st-ansbury', name: 'Ansbury Stables', town: 'Ansbury', x: 614, z: 313, face: 'n', stock: [{ item: 'halter_bay', price: 60 }, { item: 'halter_piebald', price: 120 }, { item: 'halter_carriage', price: 160 }] },
-  { id: 'st-gullmouth', name: 'Gullmouth Stables', town: 'Gullmouth', x: 1481, z: 550, face: 'n', stock: [{ item: 'halter_grey', price: 80 }, { item: 'halter_sorrel', price: 110 }, { item: 'halter_cream', price: 150 }] },
+  { id: 'st-ansbury', name: 'Ansbury Stables', town: 'Ansbury', x: 614, z: 313, face: 'n', stock: [{ item: 'halter_bay', price: 60 }, { item: 'halter_piebald', price: 120 }, { item: 'halter_carriage', price: 160 }, { item: 'halter_cob', price: 220 }] },
+  { id: 'st-gullmouth', name: 'Gullmouth Stables', town: 'Gullmouth', x: 1481, z: 550, face: 'n', stock: [{ item: 'halter_grey', price: 80 }, { item: 'halter_sorrel', price: 110 }, { item: 'halter_cream', price: 150 }, { item: 'halter_dray', price: 320 }] },
   { id: 'st-harrowgate', name: 'Company Stables', town: 'Harrowgate Works', x: 1063, z: 972, face: 's', stock: [{ item: 'halter_chestnut', price: 80 }, { item: 'halter_shire', price: 180 }] },
   { id: 'st-cragsby', name: 'Cragsby Stables', town: 'Cragsby', x: 231, z: -955, face: 'e', stock: [{ item: 'halter_seafret', price: 600 }, { item: 'mount_elk', price: 900 }] },
   { id: 'st-holme', name: 'Staithe Stables', town: 'Holme Staithe', x: -818, z: 1020, face: 'n', stock: [{ item: 'halter_fen', price: 600 }, { item: 'mount_kelpie', price: 1400 }] },

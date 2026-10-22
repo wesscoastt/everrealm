@@ -34,7 +34,7 @@ export interface ItemDef {
   /** Armour traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll; its weight and how it shows (data/armour.ts). */
   armor?: { slot: ArmourSlot; defense: number; vigor?: number; wind?: number; roll?: number; weight?: ArmourWeight; look?: Partial<Appearance> };
   /** A halter: the horse it calls (every horse runs at the same pace; only the look differs). */
-  mount?: { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed };
+  mount?: { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed; seats?: number };
   /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
   dye?: { color: string; name: string };
   /** The regional set this piece belongs to (see GEAR_SETS). */

@@ -270,6 +270,8 @@ export class Game implements GameApi {
   private weatherT = 0;
   /** The horse under the player, while riding. */
   private horse: CreatureModel | null = null;
+  /** Riding behind someone in your group on their two-seat mount: their id on the realm, or null. */
+  private pillion: number | null = null;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
   private cine: { view: [number, number, number, number, number, number]; t: number; then: () => void } | null = null;
   animals: Animal[] = [];
@@ -633,6 +635,10 @@ export class Game implements GameApi {
     });
     this.online = new Online({
       scene: this.scene,
+      mySeat: () => {
+        const m = this.horse ? ITEMS[this.flag('mount') as string]?.mount : undefined;
+        return this.horse && m?.seats === 2 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y } : null;
+      },
       system: (t) => this.hud.system(t),
       qStatus: (d, n) => this.dungeons.onQueue(d, n),
       uGrant: (id, ok, n, cap, first) => {
@@ -2083,6 +2089,15 @@ export class Game implements GameApi {
       const score = dist + ang * 1.2;
       if (score < bestScore) { bestScore = score; best = c; }
     };
+    // Someone in your group on a two-seat mount, with the seat behind them free
+    if (!this.horse && this.pillion === null && this.social.group) {
+      for (const r of this.online.remotes.values()) {
+        if (!r.mount || ITEMS[r.mount]?.mount?.seats !== 2 || !this.social.group.members.some((m) => m.id === r.id)) continue;
+        if ([...this.online.remotes.values()].some((o) => o.pillion === r.id)) continue;
+        const at = r.model.root.position, d = Math.hypot(at.x - p.x, at.z - p.z);
+        if (d < 3) consider({ kind: 'act', label: `Ride behind ${r.name}`, pos: at.clone(), act: () => this.takePillion(r.id, r.name) }, d);
+      }
+    }
     for (const n of this.npcs) {
       const d = n.pos.distanceTo(p);
       if (d < 3.6 && n.model.root.visible) consider({ kind: 'npc', label: `Talk to ${n.def.name}`, pos: n.pos, npc: n }, d);
@@ -2587,6 +2602,7 @@ export class Game implements GameApi {
 
   /** Call your horse and get up, or get down. */
   private toggleMount(which?: string): void {
+    if (this.pillion !== null) { this.leavePillion(); return; }
     if (this.horse && !which) { this.dismount(); return; }
     const id = which ?? this.halters()[0];
     if (!id) { this.hud.system('You have no horse. The stables outside Ansbury, Gullmouth and Harrowgate Works sell them, and so does Cai Morgan in Kelderby. The far towns over the necks breed rarer ones.'); return; }
@@ -2598,7 +2614,7 @@ export class Game implements GameApi {
     this.dismount(true);
     this.cancelActions();
     const m = ITEMS[id].mount!;
-    const horse = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed });
+    const horse = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 });
     P.footPosition(horse.root.position);
     horse.root.rotation.y = P.facing;
     this.scene.add(horse.root);
@@ -2615,6 +2631,28 @@ export class Game implements GameApi {
     this.horse = null;
     this.player.seat = 0;
     if (!quiet) this.particles.dust(this.player.position, 8);
+  }
+
+  /** Up behind a friend on their two-seat mount: you go where they ride until you jump down (Space or G). */
+  private takePillion(id: number, name: string): void {
+    if (this.dead || this.dialogue || this.elapsed - this.lastCombat < 5) { this.hud.system('Not while you\'re fighting.'); return; }
+    this.dismount(true);
+    this.cancelActions();
+    this.pillion = id;
+    this.player.seat = 1.08;
+    this.hud.system(`You climb up behind ${name}. Jump, or press G, to get down.`);
+    this.sfx('pickup', 0.5);
+  }
+
+  private leavePillion(): void {
+    if (this.pillion === null) return;
+    this.pillion = null;
+    this.player.seat = 0;
+    // Down beside the horse, on the ground
+    const P = this.player.position, side = new THREE.Vector3(Math.cos(this.player.yaw), 0, -Math.sin(this.player.yaw)).multiplyScalar(1.2);
+    const x = P.x + side.x, z = P.z + side.z;
+    this.player.teleport(x, this.world.voxels.groundBelow(x, P.y + 2.5, z), z);
+    this.particles.dust(this.player.position, 8);
   }
 
   /** Headroom for a rider: nothing solid over the saddle. */
@@ -3490,7 +3528,15 @@ export class Game implements GameApi {
     P.sink = !this.dialogue && this.input.held('KeyC');
     P.swimAim = THREE.MathUtils.clamp((0.32 - this.rig.pitch) * 1.2, -1.2, 1.2);
     let fall: number;
-    if (this.dash) {
+    const seat = this.pillion !== null ? this.online.seatOf(this.pillion) : null;
+    if (this.pillion !== null && (!seat || jump || this.dead)) this.leavePillion();
+    if (this.pillion !== null && seat) {
+      P.position.set(seat.x, seat.y, seat.z);
+      P.velocity.set(0, 0, 0);
+      P.yaw = seat.yaw;
+      P.fallStartY = seat.y;
+      fall = 0;
+    } else if (this.dash) {
       // A leap arcs; a shadowstep is near enough instant
       const d = this.dash, V = this.world.voxels;
       d.t += dt;
@@ -3584,7 +3630,7 @@ export class Game implements GameApi {
       const st = this.craftAction.station;
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
-    } else if (this.horse) { M.setState('ride'); held = 'none'; }
+    } else if (this.horse || this.pillion !== null) { M.setState('ride'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
     else if (!P.onGround && !P.swimming) M.setState('jump');
@@ -3593,7 +3639,7 @@ export class Game implements GameApi {
     M.setHeld(P.swimming && (M.state === 'swim' || M.state === 'tread') ? 'none' : held);
     M.swimPitch = P.swimPitch;
     M.update(dt, P.speed, !P.onGround && !P.swimming);
-    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null });
+    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null, pillion: this.pillion });
 
     // Interaction candidate
     this.candidate = this.dialogue ? null : this.findCandidate();

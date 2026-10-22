@@ -13,7 +13,7 @@ export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'r
 /** Colour overrides so one body plan can serve several regional species. */
 /** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed. */
 export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie';
-export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed }
+export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean }
 export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze';
 
 const mats = new Map<string, THREE.Material>();
@@ -514,6 +514,11 @@ export class CreatureModel {
     add(this.body, rb(0.5, 0.12, 0.56, 0.05), leather, 0, 1.8, 0.04);
     add(this.body, rb(0.42, 0.16, 0.08, 0.03), leather, 0, 1.9, -0.22); // cantle
     add(this.body, rb(0.2, 0.16, 0.1, 0.03), leather, 0, 1.9, 0.3); // pommel
+    if (this.pal.pillion) {
+      // A pillion pad behind the cantle, on its own cloth, for a second rider
+      add(this.body, rb(0.7, 0.05, 0.42, 0.02), cloth, 0, 1.72, -0.5);
+      add(this.body, rb(0.46, 0.1, 0.38, 0.04), leather, 0, 1.79, -0.52);
+    }
     for (const sd of [1, -1]) {
       add(this.body, rb(0.03, 0.42, 0.04, 0.01), leather, sd * 0.4, 1.55, 0.06);
       add(this.body, rb(0.12, 0.04, 0.1, 0.01), brass, sd * 0.42, 1.33, 0.06);

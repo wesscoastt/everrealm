@@ -62,6 +62,8 @@ const MAX_SAVE = 512_000;
 const CHAT_GAP_MS = 600;
 const SESSION_DAYS = 60;
 const MAX_CHARS = 6;
+/** Mounts with a second seat (src/data/content/stables.ts, seats: 2). */
+const TWO_SEAT = new Set(['halter_cob', 'halter_dray']);
 const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const WORLD = [-2304, 4096]; // the world's edges on x and z (src/world/VoxelWorld.ts)
 const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep']);
@@ -303,7 +305,7 @@ const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataD
 const exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
-const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null });
+const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0 });
 
 wss.on('connection', (ws, req) => {
   let me = null;
@@ -362,7 +364,12 @@ wss.on('connection', (ws, req) => {
         if (ANIMS.has(msg.anim)) me.anim = msg.anim;
         if (HELD.has(msg.held)) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
-        me.mount = typeof msg.mount === 'string' && /^halter_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
+        me.mount = typeof msg.mount === 'string' && /^(halter|mount)_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
+        // Riding behind someone in your group, on a two-seat mount, close by, with the seat free
+        const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
+        const group = rider && social.groupIds(me);
+        me.pillion = rider && rider !== me && TWO_SEAT.has(rider.mount) && group?.members.includes(rider.id) && Math.hypot(rider.x - me.x, rider.z - me.z) < 8
+          && ![...players.values()].some((p) => p !== me && p.pillion === rider.id) ? rider.id : 0;
         me.dirty = true;
         break;
       }
@@ -510,7 +517,7 @@ setInterval(() => {
   if (!moved.length) return;
   for (const p of moved) p.dirty = false;
   for (const to of players.values()) {
-    const rows = moved.filter((p) => p !== to).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0]);
+    const rows = moved.filter((p) => p !== to).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0]);
     if (rows.length) send(to.ws, { t: 'snap', p: rows });
   }
 }, TICK_MS);
