@@ -72,6 +72,7 @@ import { Exchange } from './Exchange';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
+import { lodgeAt, lodgeBase, LODGINGS, MAX_WEEKS, readTenancy, ROOMS, roomShape, WEEK } from '../data/lodgings';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
 import { regionLevel, rewardScale } from '../data/scaling';
@@ -913,7 +914,61 @@ export class Game implements GameApi {
 
   /** Your home: the house on your lot once it's built, otherwise Wendside Cottage if you bought it. */
   private myHome(): HomeShape | null {
-    return plotShape(readPlot(this.flag('plot'))) ?? (this.flag('home') ? COTTAGE_SHAPE : null);
+    const plot = plotShape(readPlot(this.flag('plot')));
+    if (plot) return plot;
+    // A room let by the week is home while the rent is paid
+    const t = readTenancy(this.flag('flat'));
+    if (t) return t.until > Date.now() ? roomShape(LODGINGS.find((l) => l.id === t.house)!, t.room) : null;
+    return this.flag('home') ? COTTAGE_SHAPE : null;
+  }
+
+  /** Whether the room you rent is paid up (watched, so its furniture goes when the rent runs out). */
+  private letPaid = false;
+
+  /** A lodging room's door: rent it, pay another week, or move into it from another. */
+  private roomDoor(house: string, room: number): void {
+    const L = LODGINGS.find((l) => l.id === house)!;
+    const name = ROOMS[room].name;
+    const t = readTenancy(this.flag('flat'));
+    const until = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    if (t && t.house === house && t.room === room) {
+      const from = Math.max(Date.now(), t.until);
+      if (from - Date.now() >= (MAX_WEEKS - 1) * WEEK) { this.hud.system(`${name} is yours until ${until(t.until)}. The landlord won't take more than ${MAX_WEEKS} weeks ahead.`); return; }
+      this.hud.ask(`${name}, ${L.name}: ${t.until > Date.now() ? `paid until ${until(t.until)}` : 'the rent has run out, and the door is shut on your things'}. Pay a week for ${L.rent} marks?`, () => {
+        if (this.save.marks < L.rent) { this.hud.system(`A week is ${L.rent} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
+        this.addMarks(-L.rent);
+        this.setFlag('flat', { house, room, until: Math.max(Date.now(), t.until) + WEEK });
+        this.sfx('open');
+        this.hud.system(`Paid. ${name} is yours until ${until(Math.max(Date.now(), t.until) + WEEK)}.`);
+        this.persist();
+      }, () => {}, 30);
+      return;
+    }
+    if (readPlot(this.flag('plot'))?.spec || (this.flag('home') && !t)) { this.hud.system(`${name}: to let by the week. You have a home of your own.`); return; }
+    if (t && this.home.pieces().length) { this.hud.system(`You already rent ${ROOMS[t.room].name} at ${LODGINGS.find((l) => l.id === t.house)!.name}. Pick up your furniture there first (Arrange the furniture, then X), and you can move.`); return; }
+    this.hud.ask(`${name}, ${L.name}: a room of your own, ${L.rent} marks a week. Furnish it, sleep in it, keep things in the chest.${t ? ' You give up your other room.' : ''} Rent it?`, () => {
+      if (this.save.marks < L.rent) { this.hud.system(`A week is ${L.rent} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
+      this.addMarks(-L.rent);
+      this.setFlag('flat', { house, room, until: Date.now() + WEEK });
+      if (!Array.isArray(this.flag('home'))) this.setFlag('home', []);
+      this.letPaid = true;
+      this.home.render();
+      this.hud.banner(name, `${L.name}, ${L.town}`, true);
+      this.sfx('discover');
+      this.hud.system(`The key's yours until ${until(Date.now() + WEEK)}. Inside, use the prompt to arrange furniture; the chest by the wall opens your Charter Bank vault. Pay again at the door any time.`);
+      this.hud.refresh();
+      this.persist();
+    }, () => {}, 30);
+  }
+
+  /** Give up a let room (moving into a house of your own): false if its furniture is still out. */
+  private leaveRoom(): boolean {
+    if (!readTenancy(this.flag('flat'))) return true;
+    if (this.home.pieces().length) { this.hud.system('Your furniture is still set out in your rented room. Pick it up first (Arrange the furniture, then X).'); this.sfx('fail'); return false; }
+    this.setFlag('flat', null);
+    this.setFlag('home', null);
+    this.hud.system('You hand back the key to your rented room.');
+    return true;
   }
 
   openExchange(): void {
@@ -962,6 +1017,7 @@ export class Game implements GameApi {
     for (const [id, n] of Object.entries(cost.items)) if (this.inv.count(id) < n) { this.hud.system(`The builders need ${n} ${ITEMS[id].name} and you have ${this.inv.count(id)}.`); this.sfx('fail'); return; }
     if (this.save.marks < cost.marks) { this.hud.system(`The builders want ${cost.marks} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
     const rebuild = !!mine.spec;
+    if (!rebuild && !this.leaveRoom()) return;
     const fromCottage = !rebuild && !!this.flag('home');
     for (const [id, n] of Object.entries(cost.items)) this.inv.remove(id, n);
     this.addMarks(-cost.marks);
@@ -977,6 +1033,7 @@ export class Game implements GameApi {
   }
 
   buyHome(): void {
+    if (readTenancy(this.flag('flat')) && !this.leaveRoom()) return;
     if (this.home.owned) return;
     const price = COTTAGE.price;
     if (this.save.marks < price) { this.hud.system(`"Wendside Cottage. Two rooms' worth of floor, a sound roof, a good hearth. ${price} marks to the Charter." You have ${this.save.marks}.`); this.sfx('fail'); return; }
@@ -2008,6 +2065,21 @@ export class Game implements GameApi {
     if (bed && this.home.inside(p) && Math.abs(bed.y - p.y) < 2) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, bed.y + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
     // Indoors at home: arrange the furniture from anywhere in the house
     if (!this.home.active && !this.home.visiting && this.home.owned && this.home.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
+    // Lodging houses: every room's door, and your own room's chest
+    for (const L of LODGINGS) {
+      if (Math.hypot(L.x - p.x, L.z - p.z) > 20) continue;
+      const t = readTenancy(this.flag('flat'));
+      const base = lodgeBase(L);
+      ROOMS.forEach((r, i) => {
+        const [dx, dz] = lodgeAt(L, r.door[0], r.door[1]);
+        const d = Math.hypot(dx + 0.5 - p.x, dz + 0.5 - p.z);
+        const mine = t?.house === L.id && t.room === i;
+        if (d < 1.8 && Math.abs(p.y - base) < 2) consider({ kind: 'act', label: mine ? `${r.name}: yours (pay rent)` : `${r.name}: rent it (${L.rent} marks a week)`, pos: new THREE.Vector3(dx + 0.5, base + 2.2, dz + 0.5), act: () => this.roomDoor(L.id, i) }, d);
+        const [cx, cz] = lodgeAt(L, r.chest[0], r.chest[1]);
+        const dc = Math.hypot(cx + 0.5 - p.x, cz + 0.5 - p.z);
+        if (mine && t.until > Date.now() && dc < 2) consider({ kind: 'act', label: 'Open your chest', pos: new THREE.Vector3(cx + 0.5, base + 1, cz + 0.5), act: () => { this.hud.closeAll(); void this.bank.show(`your chest, ${L.name}`, cx + 0.5, cz + 0.5); } }, dc);
+      });
+    }
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const wt of WORLD_THINGS) {
@@ -3023,6 +3095,9 @@ export class Game implements GameApi {
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
     this.home.update();
+    // A let room's furniture goes when the rent runs out, and comes back when it's paid
+    const paid = !!readTenancy(this.flag('flat')) && (readTenancy(this.flag('flat'))!.until > Date.now());
+    if (paid !== this.letPaid) { this.letPaid = paid; if (!this.home.visiting) this.home.render(); if (!paid && readTenancy(this.flag('flat'))) this.hud.system('The rent on your room has run out. Your things are safe; pay at the door to get back in.'); }
     this.planner.update();
     this.bank.update();
     // The house on the lots: a host's while you visit them, otherwise your own

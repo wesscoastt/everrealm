@@ -12,6 +12,7 @@ import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
+import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, ROOMS, type LodgingDef } from '../data/lodgings';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -316,6 +317,8 @@ export function plan(): Plan {
     { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
     // Stables outside the towns (data/stables.ts)
     ...STABLES.map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
+    // Lodging houses, rooms let by the week (data/lodgings.ts)
+    ...LODGINGS.map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
   ];
   for (const n of named) {
     if (n.r1 > 0) flats.push({ x: n.x, z: n.z, r0: n.r0, r1: n.r1, h: n.h ?? Math.max(SEA + 2, Math.round(baseHeight(n.x, n.z))) });
@@ -3388,6 +3391,51 @@ export function plan(): Plan {
     s.props.push({ t: 'sign', ...at(1, 4), ry: stableYaw(st), text: st.name });
     const [rx0, rz0, rx1, rz1] = box(-13, -10, 13, 4);
     rect(s, rx0, rz0, rx1, rz1);
+  }
+
+  /** A lodging house: a stone front door to a corridor, five rooms off it, windows in every room, a slate roof. */
+  function buildLodging(s: Site, L: LodgingDef) {
+    const base = lodgeBase(L);
+    const W = (u: number, v: number) => lodgeAt(L, u, v);
+    const set = (u: number, v: number, y: number, id: number) => { const [x, z] = W(u, v); O.set(x, y, z, id); };
+    const doors = new Set(ROOMS.map((r) => r.door.join(',')));
+    for (let v = -LODGE_V; v <= LODGE_V; v++) for (let u = -LODGE_U; u <= LODGE_U; u++) {
+      const [x, z] = W(u, v);
+      foundation(x, z, base, B.StoneBrick);
+      const edge = Math.abs(u) === LODGE_U || Math.abs(v) === LODGE_V;
+      const room = ROOMS.find((r) => u > r.u0 && u < r.u1 && v > r.v0 && v < r.v1);
+      O.set(x, base - 1, z, room ? B.Planks : B.StoneBrick);
+      // Walls: the outside, the corridor's two sides, the rooms' partitions and the entrance passage's sides
+      const inner = (v === 1 || v === -2) || ((u === -2 || u === 2) && v >= 1) || ((u === -4 || u === 4) && v <= -2);
+      const wall = edge || inner;
+      const doorway = doors.has(`${u},${v}`) || (u === 0 && v === LODGE_V) || (Math.abs(u) <= 1 && v === 1);
+      for (let y = base; y < base + LODGE_H; y++) {
+        let id: number = B.Air;
+        if (wall && !(doorway && y < base + 2)) {
+          // Windows in the outside walls of each room, a block up
+          const win = edge && room === undefined && ROOMS.some((r) => u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1) && (y === base + 1 || y === base + 2) && ((Math.abs(v) === LODGE_V && Math.abs(u) % 3 === 1) || (Math.abs(u) === LODGE_U && Math.abs(v) === 4));
+          id = win ? B.Window : y === base ? B.StoneBrick : edge ? B.Plaster : B.Planks;
+        }
+        O.set(x, y, z, id);
+      }
+      O.set(x, base + LODGE_H, z, B.Air);
+    }
+    // The roof, long side to the street
+    const [ax, az] = W(-LODGE_U, -LODGE_V), [bx, bz] = W(LODGE_U, LODGE_V);
+    const x0 = Math.min(ax, bx), z0 = Math.min(az, bz), w = Math.abs(bx - ax) + 1, d = Math.abs(bz - az) + 1;
+    const alongX = L.face === 'n' || L.face === 's';
+    s.props.push({ t: 'roof', x: x0 + w / 2, y: base + LODGE_H, z: z0 + d / 2, len: alongX ? w : d, span: alongX ? d : w, rise: roofRise(alongX ? d : w), ry: alongX ? 0 : Math.PI / 2, mat: 'slate' });
+    // Lamps along the corridor and either side of the front door, the sign by the street, a chest in each room
+    const yawOut = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 }[L.face];
+    const at = (u: number, v: number, y: number) => { const [x, z] = W(u, v); return { x: x + 0.5, y, z: z + 0.5 }; };
+    for (const u of [-9, -3, 3, 9]) s.props.push({ t: 'glow', ...at(u, -0.5, base + 3) });
+    for (const u of [-2, 2]) { const [x, z] = W(u, LODGE_V + 1); s.props.push({ t: 'lantern', x: x + 0.5, y: heightAt(x, z), z: z + 0.5 }); }
+    { const [x, z] = W(4, LODGE_V + 2); s.props.push({ t: 'sign', x: x + 0.5, y: heightAt(x, z), z: z + 0.5, ry: yawOut, text: 'Rooms to let' }); }
+    for (const r of ROOMS) s.props.push({ t: 'furn', item: 'chest', ...at(r.chest[0], r.chest[1], base), ry: yawOut });
+    // A path from the street to the door
+    for (let v = LODGE_V + 1; v <= LODGE_V + 3; v++) for (let u = -1; u <= 1; u++) { const [x, z] = W(u, v); O.set(x, Math.floor(heightAt(x, z)) - 1, z, B.Path); }
+    void set;
+    rect(s, x0 - 1, z0 - 1, x0 + w, z0 + d);
   }
 
   /** A travellers' or workers' camp: tents round a fire with log seats, bedrolls, a lean-to and stores. */
