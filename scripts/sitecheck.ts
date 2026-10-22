@@ -22,6 +22,7 @@ import { ENEMIES, EnemyType } from '../src/data/gameplay';
 import { RARES, rareLairs, TREASURE_MAPS, treasureSpot } from '../src/data/wilds';
 import { DUNGEONS } from '../src/data/dungeons';
 import { hazards } from '../src/data/hazards';
+import { ESCORTS } from '../src/data/escorts';
 
 // Record every override as the planner writes it (the last write to a cell wins, as in the game).
 const cells = new Map<string, number>();
@@ -174,6 +175,11 @@ for (const d of DUNGEONS) { check(`dungeon ${d.id} door`, d.door[0], d.door[2], 
 // Rares' lairs and treasure maps' dig spots: open ground (the sea rare's waters are open water)
 for (const r of RARES) if (!r.sea) rareLairs(r, P).forEach(([x, z], i) => check(`rare ${r.id} lair ${i}`, x, z));
 for (const m of TREASURE_MAPS) { const s = treasureSpot(m, P); if (!s) problems.push(`treasure ${m.id}: no landmark to draw it from`); else check(`treasure ${m.id}`, s.x, s.z); }
+// Escorts: every point of the walk is open, dry ground, and so is the road between (or a bridge)
+for (const es of ESCORTS) es.route.forEach(([x, z], i) => {
+  check(`escort ${es.id} point ${i}`, x + 0.5, z + 0.5);
+  if (i) for (let t = 0.1; t < 1; t += 0.1) { const [px, pz] = es.route[i - 1], qx = px + (x - px) * t, qz = pz + (z - pz) * t; if (heightAt(Math.floor(qx), Math.floor(qz)) <= SEA && ![0, 1, 2, 3, 4].some((dy) => solid(qx, SEA - 1 + dy, qz))) problems.push(`escort ${es.id} leg ${i}: water at (${qx.toFixed(0)}, ${qz.toFixed(0)})`); }
+});
 // Vents, bogs and loose cliffs: open ground, and clear of anywhere people stand or things happen
 const HZ = hazards(P);
 const busy: [string, number, number][] = [

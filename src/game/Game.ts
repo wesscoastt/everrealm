@@ -513,6 +513,10 @@ export class Game implements GameApi {
       discovered: (id) => this.save.discovered.includes(id),
       cinematic: (view, then) => { this.cine = { view, t: 0, then }; this.player.locked = true; this.hud.setHudHidden(true); },
       setEvent: (panel) => this.hud.setEvent(panel),
+      say: (who, text, bubble) => {
+        this.hud.chat(who, text, 'say');
+        if (bubble !== undefined) this.addBubble(bubble, text, false);
+      },
     });
     this.scene.add(this.player.model.root);
     this.player.model.root.visible = false;
@@ -2613,6 +2617,7 @@ export class Game implements GameApi {
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
     e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
     this.dungeons.onPlayerHit(e, dmg);
+    this.activities.escorts.onPlayerHit(e);
     if (this.gearSet === 'fold' && !this.dead && e.alive && (e.state === 'chase' || e.state === 'windup' || e.state === 'attack' || e.state === 'recover') && !this.dungeons.onSomeoneElse(e)) {
       const h = Math.min(this.maxHp - this.hp, Math.round(dmg * 0.05));
       if (h > 0) this.hp += h;
@@ -2985,7 +2990,7 @@ export class Game implements GameApi {
       const d = e.pos.distanceTo(P);
       if (d > 90 && e.state !== 'dead') { e.model.root.visible = false; continue; }
       e.model.root.visible = e.state !== 'dead' || e.model.root.visible;
-      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? ctx);
+      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? ctx);
       characterDetail(e.model.root, e.pos.distanceTo(this.camera.position));
     }
     for (const n of this.npcs) {
@@ -3621,7 +3626,7 @@ export class Game implements GameApi {
   private placeBubbles(): void {
     const fwd = this.camera.getWorldDirection(tmpV2);
     this.bubbles = this.bubbles.filter((b) => {
-      const pos = b.who === -1 ? this.player.position : b.who <= -100 ? this.dungeons.bubbleAt(b.who) : this.online.remotes.get(b.who)?.model.root.position;
+      const pos = b.who === -1 ? this.player.position : b.who <= -100 ? this.dungeons.bubbleAt(b.who) ?? this.activities.escorts.bubbleAt(b.who) : this.online.remotes.get(b.who)?.model.root.position;
       if (!pos || this.elapsed > b.until) { b.el.remove(); return false; }
       const lift = b.who === -1 ? 2.35 + (this.horse ? 1.1 : 0) : 2.35;
       tmpV.set(pos.x, pos.y + lift, pos.z);

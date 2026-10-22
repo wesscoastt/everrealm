@@ -136,7 +136,7 @@ export interface QuestEntry { id: string; name: string; notes: string; objective
 export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'treasure' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally'; label?: string; yaw?: number; id?: string }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
-export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task'; title: string; goal: string; progress: number; count: string; time?: number }
+export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escort'; title: string; goal: string; progress: number; count: string; time?: number }
 export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean }
 export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
 
@@ -965,7 +965,7 @@ export class Hud {
       this.eventKey = key;
       requestAnimationFrame(() => this.stackTracker());
       p.dataset.kind = ev.kind;
-      (p.querySelector('.ev-kind') as HTMLElement).textContent = ev.kind === 'event' ? 'Event' : ev.kind === 'boss' ? 'World boss' : ev.kind === 'task' ? 'Parish task' : 'Shardfall';
+      (p.querySelector('.ev-kind') as HTMLElement).textContent = ev.kind === 'event' ? 'Event' : ev.kind === 'boss' ? 'World boss' : ev.kind === 'task' ? 'Parish task' : ev.kind === 'escort' ? 'Escort' : 'Shardfall';
       (p.querySelector('.ev-title') as HTMLElement).textContent = ev.title;
     }
     (p.querySelector('.ev-goal') as HTMLElement).textContent = ev.goal;

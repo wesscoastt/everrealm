@@ -187,6 +187,32 @@ function clearRoads(O: Overrides, sites: Site[]): void {
  * out over the road; the towns light their own streets. They're grouped into stretches so only the
  * lamps near the player are built and lit.
  */
+/** Where a road runs into a lake (the Turnpike over the Millpond): a timber bridge, three planks wide at
+ *  the bank's height, on posts down to the bed, with a post standing up at the side every four blocks. */
+function lakeBridges(O: Overrides): void {
+  for (const line of WORLD_ROADS) for (let i = 0; i < line.length - 1; i++) {
+    const [ax, az] = line[i], [bx, bz] = line[i + 1];
+    const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+    if (lakeDist((ax + bx) / 2, (az + bz) / 2) > len / 2 + 20) continue;
+    let n = 0;
+    for (let s = 0; s <= len; s += 0.5) {
+      const cx = ax + ux * s, cz = az + uz * s;
+      // Out to a block past the water each side, so the deck meets the bank
+      const wet = [-1.5, 0, 1.5].some((k) => heightAt(Math.floor(cx + ux * k), Math.floor(cz + uz * k)) <= SEA);
+      if (!wet || lakeDist(cx, cz) > 6) continue;
+      for (let w = -1.5; w <= 1.5; w += 0.5) {
+        const x = Math.floor(cx - uz * w), z = Math.floor(cz + ux * w);
+        O.set(x, SEA, z, B.Planks);
+        O.set(x, SEA + 1, z, B.Air); O.set(x, SEA + 2, z, B.Air);
+      }
+      if (n++ % 8 === 0) for (const side of [-2.2, 2.2]) {
+        const x = Math.floor(cx - uz * side), z = Math.floor(cz + ux * side);
+        for (let y = Math.max(1, Math.floor(heightAt(x, z))); y <= SEA + 1; y++) O.set(x, y, z, B.OakLog);
+      }
+    }
+  }
+}
+
 function roadLamps(O: Overrides, sites: Site[]): void {
   const towns = sites.filter((s) => s.named);
   let n = 0, side = 1, stretch: Site | null = null;
@@ -379,6 +405,7 @@ export function plan(): Plan {
   });
 
   clearRoads(O, sites);
+  lakeBridges(O);
   roadLamps(O, sites);
   const waymarks = placeWaymarks(O, sites);
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
