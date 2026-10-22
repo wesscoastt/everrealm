@@ -29,6 +29,7 @@ import { Particles } from '../systems/Particles';
 import { CreatureModel, type CreatureKind } from '../entities/creatures';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
+import { Roadfolk } from './Roadfolk';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
@@ -179,6 +180,7 @@ export class Game implements GameApi {
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
   private crowd!: Crowd;
+  private roadfolk!: Roadfolk;
   readonly dailies = new Dailies({
     flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
     addMarks: (n) => this.addMarks(n), addXp: (s, n) => { this.writXp = true; this.addXp(s, n); this.writXp = false; },
@@ -425,6 +427,7 @@ export class Game implements GameApi {
       this.sfx('discover');
     });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.roadfolk = new Roadfolk(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.festivals = new Festivals({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -3198,6 +3201,7 @@ export class Game implements GameApi {
     this.hazards.update(dt);
     this.stables.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
+    this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
