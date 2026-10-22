@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { EnemyDef, EnemyType, ENEMIES } from '../data/gameplay';
 import { ITEMS } from '../data/items';
@@ -85,7 +86,7 @@ export class Activities {
     host.scene.add(ring);
   }
 
-  private now(): number { return Date.now() / 1000; }
+  private now(): number { return realmNow() / 1000; }
 
   update(dt: number): void {
     this.clock += dt;

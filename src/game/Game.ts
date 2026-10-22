@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
 import { Activities } from './Activities';
 import { legacyChunkKey } from '../world/VoxelWorld';
@@ -444,6 +445,7 @@ export class Game implements GameApi {
     }
     for (const s of ENEMY_SPAWNS) {
       const e = new Enemy(ENEMIES[s.type], s.x, s.z, this.world.voxels, this.world.grid);
+      e.spawnKey = `${s.type}@${s.x},${s.z}`;
       this.enemies.push(e);
       this.scene.add(e.model.root, e.telegraph);
     }
@@ -456,6 +458,8 @@ export class Game implements GameApi {
       scene: this.scene,
       system: (t) => this.hud.system(t),
       ...this.social.hooks(),
+      mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
+      mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
         this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces(), readPlot(this.flag('plot'))), () => this.online.homeShow(from, false, null), 60);
@@ -659,7 +663,6 @@ export class Game implements GameApi {
     const x = there.x + fx * 2, z = there.z + fz * 2;
     this.save.pos = [x, heightAt(x, z) + 1, z];
     this.save.yaw = Math.atan2(fx, fz);
-    this.save.hour = (this.world.sky.hour + postHours(here, there)) % 24;
     this.save.hp = this.hp;
     this.arriving = there.name;
     this.arrivingBy = 'post';
@@ -1070,7 +1073,6 @@ export class Game implements GameApi {
     this.player.setAppearance(this.save.look, this.scene);
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
-    this.world.sky.hour = this.save.hour;
     this.intro = { t: 0, shot: -1 };
     this.front.showIntro();
   }
@@ -1135,7 +1137,6 @@ export class Game implements GameApi {
     this.player.yaw = this.save.yaw;
     this.rig.yaw = this.save.yaw + Math.PI;
     this.rig.snap(this.player.position);
-    this.world.sky.hour = this.save.hour;
     this.hp = Math.min(this.maxHp, Math.max(1, this.save.hp));
     for (const n of this.npcs) n.placed = false;
     // Old Notch stays dead across sessions.
@@ -2212,7 +2213,33 @@ export class Game implements GameApi {
     }
   }
 
+  /**
+   * Spawn points remember their dead: a creature killed here stays gone for its full respawn time,
+   * even if its chunk streams out and back in, and (online) a kill anyone makes counts for everyone.
+   */
+  private readonly ledger = new Map<string, number>();
+  private applyLedger(e: Enemy): void {
+    const until = e.spawnKey ? this.ledger.get(e.spawnKey) : undefined;
+    if (until === undefined) return;
+    const left = (until - realmNow()) / 1000;
+    if (left <= 0) { this.ledger.delete(e.spawnKey!); return; }
+    e.vanish(left);
+  }
+  /** Another player killed the creature at this spawn point: ours goes too, unless it's fighting us. */
+  private mobDeadElsewhere(key: string, leftMs: number): void {
+    this.ledger.set(key, realmNow() + leftMs);
+    const e = this.enemies.find((x) => x.spawnKey === key);
+    if (e && e.alive && (e.state === 'idle' || e.state === 'wander' || e.state === 'return')) {
+      if (this.target === e) this.target = null;
+      e.vanish(leftMs / 1000);
+    }
+  }
+
   private onEnemyKilled(e: Enemy): void {
+    if (e.spawnKey && !e.questTag && Number.isFinite(e.def.respawn) && e.def.respawn < 99999) {
+      this.ledger.set(e.spawnKey, realmNow() + e.def.respawn * 1000);
+      this.online.mobDead(e.spawnKey, e.def.respawn);
+    }
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
     if (e.def.elite) this.audio.sting('victory');
@@ -3200,6 +3227,8 @@ export class Game implements GameApi {
       } else {
         const type = table.enemies[Math.floor(s.roll * table.enemies.length)];
         const e = new Enemy(ENEMIES[type], Math.floor(s.x), Math.floor(s.z), this.world.voxels);
+        e.spawnKey = `${type}@${Math.floor(s.x)},${Math.floor(s.z)}`;
+        this.applyLedger(e);
         list.enemies.push(e);
         this.enemies.push(e);
         this.scene.add(e.model.root, e.telegraph);

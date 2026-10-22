@@ -1,4 +1,5 @@
 import type { RegionId } from './terrain';
+import { realmNow } from './clock';
 
 // Weather, region by region, off the real clock so every player in a region sees the same sky.
 // Every seven minutes each region rolls its weather for the next stretch from its own climate:
@@ -34,7 +35,7 @@ function hash(n: number): number {
 }
 
 /** The weather a region is heading for now (the sky eases toward it). */
-export function weatherAt(region: RegionId, hour: number, now = Date.now() / 1000): WeatherState {
+export function weatherAt(region: RegionId, hour: number, now = realmNow() / 1000): WeatherState {
   const c = CLIMATE[region];
   const slot = Math.floor(now / SLOT);
   const r = hash(slot * 31 + REGION_N[region] * 7), k = hash(slot * 17 + REGION_N[region] * 3);

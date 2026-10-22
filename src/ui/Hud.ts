@@ -1724,7 +1724,7 @@ export class Hud {
     const sliders: [keyof typeof st, string, number, number, number][] = [
       ['viewDist', 'View distance', 4, 10, 1],
       ['master', 'Master volume', 0, 1, 0.05], ['sfx', 'Effects', 0, 1, 0.05], ['ambience', 'Ambience', 0, 1, 0.05], ['music', 'Music', 0, 1, 0.05],
-      ['renderScale', 'Render scale', 0.5, 1, 0.05], ['dayLength', 'Day length (min)', 6, 60, 1],
+      ['renderScale', 'Render scale', 0.5, 1, 0.05],
     ];
     body.innerHTML = sliders.map(([k, label, min, max, step]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`).join('')
       + `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setRealmTime } from '../world/clock';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
 import { CreatureModel } from '../entities/creatures';
@@ -88,6 +89,9 @@ export interface OnlineHooks {
   group?(v: GroupView): void;
   groupInvited?(from: string): void;
   tradeAsked?(from: string): void;
+  /** A creature someone else killed, and how long (ms) until it's back; the whole list on joining. */
+  mobDead?(key: string, leftMs: number): void;
+  mobLedger?(list: [string, number][]): void;
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
   homeAsked?(from: string): void;
   homeShow?(owner: string, pieces: unknown[], plot: unknown): void;
@@ -167,6 +171,8 @@ export class Online {
     switch (m.t) {
       case 'welcome': {
         this.myId = typeof m.id === 'number' ? m.id : -1;
+        if (typeof m.now === 'number') setRealmTime(m.now);
+        if (Array.isArray(m.mobs)) this.hooks.mobLedger?.(m.mobs as [string, number][]);
         for (const p of m.players as PlayerPub[]) this.addRemote(p);
         this.setStatus('online');
         const others = this.remotes.size;
@@ -201,6 +207,7 @@ export class Online {
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
+      case 'mobDead': if (typeof m.key === 'string' && typeof m.left === 'number') this.hooks.mobDead?.(m.key, m.left); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
       case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
       case 'hShow': this.hooks.homeShow?.(String(m.owner), Array.isArray(m.pieces) ? m.pieces : [], m.plot ?? null); break;
@@ -313,6 +320,8 @@ export class Online {
   groupChat(text: string): void { this.emit({ t: 'gChat', text }); }
   vitals(hp: number, max: number, level: number, calling: string): void { this.emit({ t: 'vitals', hp, max, level, calling }); }
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
+  /** Tell the realm a creature at this spawn point died; it's gone for everyone for `secs`. */
+  mobDead(key: string, secs: number): void { this.emit({ t: 'mobDead', key, secs }); }
   homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }
   homeShow(name: string, accept: boolean, pieces: unknown[] | null, plot: unknown = null): void { this.emit({ t: 'hShow', name, accept, pieces, plot }); }
   tradeAnswer(name: string, accept: boolean): void { this.emit({ t: 'tAnswer', name, accept }); }

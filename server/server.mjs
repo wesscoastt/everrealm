@@ -330,7 +330,7 @@ wss.on('connection', (ws, req) => {
       };
       players.set(me.id, me);
       me.guildName = null;
-      send(ws, { t: 'welcome', id: me.id, players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
+      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
       guilds.join(me);
       broadcast({ t: 'join', player: pub(me) }, me);
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
@@ -391,6 +391,18 @@ wss.on('connection', (ws, req) => {
         if (ev.killed >= ev.total) endEvent(ev, true); else broadcast(evState(ev));
         break;
       }
+      case 'mobDead': {
+        // A creature died at a spawn point: it stays gone for everyone until its time is up
+        const key = typeof msg.key === 'string' && /^[a-z]{2,20}@-?\d{1,5},-?\d{1,5}$/.test(msg.key) ? msg.key : null;
+        const secs = num(msg.secs, 10, 3600);
+        if (!key || secs === null) return;
+        const until = Date.now() + secs * 1000;
+        if ((deadMobs.get(key) ?? 0) > Date.now()) return; // already dead: the first kill's clock stands
+        if (deadMobs.size > 20000) for (const [k, u] of deadMobs) if (u < Date.now()) deadMobs.delete(k);
+        deadMobs.set(key, until);
+        broadcast({ t: 'mobDead', key, left: secs * 1000 }, me);
+        break;
+      }
       case 'bossSync': {
         // A player has the boss in front of them: tell them where its health stands
         const b = bossFor(msg.id, msg.cycle, msg.max);
@@ -437,6 +449,11 @@ wss.on('connection', (ws, req) => {
     log(`${me.name} left (${players.size} online)`);
   });
 });
+
+// Creatures at their spawn points are shared in one way: when someone kills one, it stays dead for
+// everyone until its respawn time is up (the server keeps the list and hands it to newcomers).
+const deadMobs = new Map(); // "type@x,z" -> ms when it's back
+function mobList() { const now = Date.now(), out = []; for (const [k, u] of deadMobs) if (u > now) out.push([k, u - now]); else deadMobs.delete(k); return out; }
 
 // World bosses are shared: the server keeps each one's health for the cycle it's up in. Every hit
 // is sent here, everyone is told the new health, and the boss falls when the server says so.

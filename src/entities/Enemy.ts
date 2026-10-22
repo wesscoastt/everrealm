@@ -46,6 +46,8 @@ export class Enemy {
   lastHitAt = -99;
   /** Set when a quest put this creature in the world; its kills are counted and it does not respawn. */
   questTag?: string;
+  /** Where it spawns ("type@x,z"): the key the spawn ledger and the realm server know it by. */
+  spawnKey?: string;
   /** Set true for one frame when the enemy dies so the game can grant rewards. */
   justDied = false;
   /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
@@ -87,6 +89,17 @@ export class Enemy {
     this.telegraph.add(this.teleOutline, this.teleFill, this.bigRing, this.bigFill);
     this.telegraph.visible = false;
     this.syncModel();
+  }
+
+  /** Gone for now without a death scene: dead, hidden, and back after `secs`. */
+  vanish(secs: number): void {
+    this.hp = 0;
+    this.state = 'dead';
+    this.timer = 99;
+    this.respawnIn = secs;
+    this.justDied = false;
+    this.telegraph.visible = false;
+    this.model.root.visible = false;
   }
 
   /** World bosses and story bosses (not ordinary elites like Old Notch): boss bar, enrage, signature attack. */

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { realmHour } from './clock';
 import type { WeatherState } from './weather';
 import { precipitation } from './precip';
 import { SharedUniforms } from './materials';
@@ -60,7 +61,11 @@ export class Sky {
   private stars: THREE.Points;
   private farMats: THREE.MeshBasicMaterial[] = [];
   readonly sunDir = new THREE.Vector3();
-  hour = 8.5;
+  /** Hours added to the realm clock (only the debug hook sets it). */
+  private hourOffset = 0;
+  /** The hour of the day: the realm's, shared by everyone online (see world/clock.ts). */
+  get hour(): number { return (((realmHour() + this.hourOffset) % 24) + 24) % 24; }
+  set hour(h: number) { this.hourOffset = h - realmHour(); }
   /** 0 at midday, 1 at full night. */
   night = 0;
   /** The camera is under water: a close blue-green fog closes in. */
@@ -245,7 +250,7 @@ export class Sky {
   }
 
   update(dt: number, center: THREE.Vector3, timeScale: number): void {
-    this.hour = (this.hour + (dt * timeScale) / 3600 * 24) % 24;
+    void timeScale;
     const h = this.hour;
     let i = 0;
     while (i < KEYS.length - 2 && KEYS[i + 1].t <= h) i++;
