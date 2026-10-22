@@ -408,6 +408,10 @@ Four chapters after the Weatherholms. The quest ids are `storyLowWater`, `storyR
 
 Every ending: Sela writes Holmsey at the front of the Kirk's book of names, the player rings the bell while Tamar reads the last names, and Tamar gives the player a length of the bell rope (`holmsey_rope`).
 
+## Morrow, the second continent [planned]
+
+The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.
+
 ## Terminology
 
 - "reeve", not "mayor". "moot", not "council".
