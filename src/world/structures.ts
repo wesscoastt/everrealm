@@ -391,7 +391,6 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   for (let z = 191; z <= 197; z++) for (let x = 178; x <= 184; x++) {
     if (world.get(x, BASE - 1, z) === B.Water) continue;
     const lvl = z === 197 ? BASE - 1 : BASE;
-    clearAbove(x, z, lvl);
     for (let y = ground(x, z); y < lvl - 1; y++) world.put(x, y, z, B.Dirt);
     if (ground(x, z) < lvl) world.put(x, lvl - 1, z, B.Grass);
   }
