@@ -137,6 +137,8 @@
 .ab-slot .cd { position: absolute; left: 4px; right: 4px; bottom: 4px; height: calc(var(--p, 0) * (100% - 8px)); background: rgba(8, 6, 4, 0.74); box-shadow: 0 -2px 0 rgba(255, 220, 160, 0.45); }
 .ab-slot .cdt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; font: 700 18px var(--px); color: #fff; text-shadow: var(--hard); }
 .ab-slot.disabled img { filter: grayscale(1) brightness(0.45); }
+.ab-slot.locked img { filter: grayscale(1) brightness(0.3); }
+.ab-slot.locked::after { content: attr(data-lock); position: absolute; inset: 0; display: grid; place-items: center; font: 700 12px var(--px); color: #e8dcc0; text-shadow: var(--hard1); pointer-events: none; }
 #ab-gauge { position: relative; width: 220px; height: 12px; margin: -3px 0 -2px; background: #0b0907; border: 2px solid var(--ink); overflow: hidden; }
 #ab-gauge i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; transition: width 0.15s; }
 #ab-gauge span { position: absolute; inset: -2px 0 0; text-align: center; font: 600 9px var(--px); color: #fff; text-shadow: var(--hard1); letter-spacing: 0.5px; line-height: 12px; }

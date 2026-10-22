@@ -15,8 +15,12 @@ export interface CharSummary {
   look: Appearance;
   /** Null for characters made before origins existed. */
   origin: string | null;
-  /** Total of all skill levels. */
+  /** Character level: the fighting (Melee) level, 1 to 100. */
   level: number;
+  /** Total of all skill levels. */
+  total: number;
+  /** The calling's name (Warden, Wizard...). */
+  calling: string;
   /** Region the character last stood in. */
   place: string;
   playTime: number;
@@ -235,7 +239,7 @@ export class Frontend {
         <header><h3>Characters</h3><small>${chars.length} / ${this.ctx.maxCharacters}</small></header>
         <div class="list">${chars.length ? chars.map((c) => {
           const o = c.origin ? originById(c.origin) : null;
-          return `<button class="card ${c.id === sel ? 'sel' : ''}" data-id="${c.id}"><canvas data-face="${c.id}"></canvas><span class="t"><b>${esc(c.name)}</b><small>${o ? esc(o.title) + ' · ' : ''}total level ${c.level}</small><small>${esc(c.place)} · ${playTime(c.playTime)}</small></span></button>`;
+          return `<button class="card ${c.id === sel ? 'sel' : ''}" data-id="${c.id}"><canvas data-face="${c.id}"></canvas><span class="t"><b>${esc(c.name)}</b><small><em class="clv">Level ${c.level}</em> ${esc(c.calling)}${o ? ' · ' + esc(o.title) : ''}</small><small>${esc(c.place)} · ${playTime(c.playTime)}</small></span></button>`;
         }).join('') : '<p class="empty">No characters in this browser yet.</p>'}</div>
         <div class="row"><button class="btn ghost" data-a="new" ${full ? 'disabled' : ''}>${full ? 'All six slots are used' : 'Create new character'}</button></div>
         ${cur ? '<div class="row2"><button class="link" data-a="restyle">Change look</button><button class="link danger" data-a="delete">Delete character</button></div>' : ''}
@@ -250,7 +254,7 @@ export class Frontend {
         </ul>
       </aside>
       <div class="fe-enter">${cur
-        ? `<div class="who"><h2>${esc(cur.name)}</h2><p>${cur.origin ? `${esc(originById(cur.origin).title)} from ${esc(originById(cur.origin).place)} · ` : ''}total level ${cur.level} · ${esc(cur.place)}</p></div><button class="btn big" data-a="enter">Enter world</button><small class="hint">Enter to play · arrows to choose</small>`
+        ? `<div class="who"><h2>${esc(cur.name)}</h2><p><b class="clv">Level ${cur.level} ${esc(cur.calling)}</b> · ${cur.origin ? `${esc(originById(cur.origin).title)} from ${esc(originById(cur.origin).place)} · ` : ''}${esc(cur.place)} · skills ${cur.total}</p></div><button class="btn big" data-a="enter">Enter world</button><small class="hint">Enter to play · arrows to choose</small>`
         : `<div class="who"><h2>Welcome to the Charter Counties</h2><p>Make a character to begin in Hollindale.</p></div><button class="btn big" data-a="new">Create a character</button>`}</div>
       <nav class="fe-foot"><button class="link" data-a="settings">Settings</button><button class="link" data-a="credits">Credits</button></nav>
       <div class="fe-ver">Early Access · ${realm ? 'online realm' : 'single-player'}</div>

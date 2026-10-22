@@ -172,6 +172,16 @@ export const TUNE = {
   sunder: { dmg: 2.4, r: 2.6, stun: 0.8, delay: 0.35, range: 6 },
 };
 
+/**
+ * The bar fills as you level, as in the big online games: Strike from the start, then Cleave, the
+ * calling's heal, its signature, the weapon skill, the two utilities and last the elite. By bar key
+ * (useAbility's index: 0 Strike, 1 Cleave, 2 the weapon skill, 3 the heal, 4 the signature, 5 and 6
+ * the utilities, 7 the elite); the dodge roll and eating are there from the start.
+ */
+export const UNLOCK_AT = [1, 2, 6, 3, 4, 8, 12, 16];
+/** What each key's skill is called while it's still locked (the calling's own names come in once known). */
+export const UNLOCK_NAMES = ['Strike', 'Cleave', 'your weapon skill', 'your calling\'s heal', 'your calling\'s signature skill', 'a utility skill', 'a second utility skill', 'your calling\'s elite skill'];
+
 /** A weapon's line, by how it swings: quick, heavy, or balanced (data/items.ts weapon.speed). */
 export type WeaponLine = 'balanced' | 'quick' | 'heavy';
 export function weaponLine(speed: number | undefined): WeaponLine {

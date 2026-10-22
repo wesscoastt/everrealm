@@ -80,7 +80,7 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingId, callingById, TUNE, weaponLine } from '../data/classes';
+import { CallingId, callingById, TUNE, UNLOCK_AT, UNLOCK_NAMES, weaponLine } from '../data/classes';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
 import { currentAccount, deleteRemote, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
@@ -1067,7 +1067,16 @@ export class Game implements GameApi {
       this.hud.banner(`${name} ${after}`, 'Level up', true);
       this.sfx('levelUp');
       this.particles.burst(tmpV.copy(this.player.position).setY(this.player.position.y + 1.2), SKILLS.find((s) => s.id === skill)!.color, 40);
-      if (skill === 'melee') this.hp = this.maxHp;
+      if (skill === 'melee') {
+        this.hp = this.maxHp;
+        // A new skill on the bar
+        UNLOCK_AT.forEach((lv, i) => {
+          if (lv <= before || lv > after) return;
+          const s = i === 2 ? this.kit.weaponSkill : i >= 3 ? this.kit.bar[i - 3] : null;
+          this.hud.system(`New skill: ${s?.name ?? UNLOCK_NAMES[i]}, on key ${i + 1}.`);
+          this.hud.banner(s?.name ?? UNLOCK_NAMES[i], `New skill · key ${i + 1}`, true);
+        });
+      }
     }
     this.hud.refresh('skills');
   }
@@ -1266,9 +1275,11 @@ export class Game implements GameApi {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const g = this;
     const summary = (id: string, s: SaveData): CharSummary => {
-      const level = (Object.values(s.xp) as number[]).reduce((a, xp) => a + levelForXp(xp), 0);
+      const total = (Object.values(s.xp) as number[]).reduce((a, xp) => a + levelForXp(xp), 0);
+      const level = levelForXp(s.xp.melee ?? 0);
+      const calling = callingById(s.flags?.class)?.name ?? 'Warden';
       const dyes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('dye:')).map((k) => k.slice(4));
-      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes };
+      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes };
     };
     return {
       characters: () => listCharacters().map((c) => summary(c.id, c.save)),
@@ -2552,6 +2563,7 @@ export class Game implements GameApi {
 
   private useAbility(i: number): void {
     if (this.mode !== 'play' || this.dead) return;
+    if (i < UNLOCK_AT.length && this.level('melee') < UNLOCK_AT[i]) { this.hud.system(`That skill comes at level ${UNLOCK_AT[i]}.`); this.sfx('fail'); return; }
     this.dismount();
     this.hud.pressAbility(i);
     if (i === 0) this.strike();
@@ -3752,11 +3764,13 @@ export class Game implements GameApi {
     const t = this.target;
     this.hud.setTarget(t ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite } : null);
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);
+    const L = this.level('melee');
+    const lock = <T extends object>(c: T, i: number): T & { locked?: number } => (L < UNLOCK_AT[i] ? { ...c, locked: UNLOCK_AT[i] } : c);
     this.hud.setAbilities([
-      { left: this.cds.strike, total: 0.5 },
-      { left: this.cds.cleave, total: 6 },
-      this.kit.weaponSlot(),
-      ...this.kit.slots(),
+      lock({ left: this.cds.strike, total: 0.5 }, 0),
+      lock({ left: this.cds.cleave, total: 6 }, 1),
+      lock(this.kit.weaponSlot(), 2),
+      ...this.kit.slots().map((c, k) => lock(c, 3 + k)),
       { left: this.cds.roll, total: 0.8, disabled: this.energy < this.armour.rollCost },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);

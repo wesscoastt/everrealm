@@ -426,7 +426,8 @@ export class Hud {
 
   setPlayer(name: string, level: number, hp: number, maxHp: number, energy: number): void {
     this.q('#player-frame .pn').textContent = name;
-    this.q('#player-frame .lvl').textContent = String(level);
+    const lv = this.q('#player-frame .lvl');
+    if (lv.textContent !== String(level)) { lv.textContent = String(level); lv.title = `Level ${level}`; }
     const pct = Math.max(0, hp / maxHp) * 100;
     (this.q('#player-frame .bar.hp .fill') as HTMLElement).style.width = pct + '%';
     (this.q('#player-frame .bar.hp .lag') as HTMLElement).style.width = pct + '%';
@@ -456,10 +457,13 @@ export class Hud {
     this.q('#xpbar b').textContent = `${xp - a} / ${b - a} XP`;
   }
 
-  setAbilities(cds: { left: number; total: number; disabled?: boolean; count?: number }[]): void {
+  setAbilities(cds: { left: number; total: number; disabled?: boolean; count?: number; locked?: number }[]): void {
     this.root.querySelectorAll<HTMLElement>('.ab-slot').forEach((s, i) => {
       const c = cds[i];
       if (!c) return;
+      // Not yet learned: dark, with the level it comes at
+      const lockText = c.locked ? `Lv ${c.locked}` : '';
+      if ((s.dataset.lock ?? '') !== lockText) { s.dataset.lock = lockText; s.classList.toggle('locked', !!c.locked); }
       const p = c.total > 0 ? Math.max(0, c.left / c.total) : 0;
       (s.querySelector('.cd') as HTMLElement).style.setProperty('--p', String(p));
       (s.querySelector('.cdt') as HTMLElement).textContent = c.left > 0.05 && c.total > 1.5 ? Math.ceil(c.left).toString() : '';
@@ -1437,7 +1441,7 @@ export class Hud {
       const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><h5>${esc(t.name)}<small>${esc(t.desc)}</small></h5>${t.talents.map((d) => `<button class="tal${d.learned ? ' got' : d.why ? ' no' : ' can'}${d.capstone ? ' cap' : ''}" data-tal="${d.id}" title="${esc(d.why ?? (d.learned ? 'Learned' : 'Click to learn'))}"><b>${esc(d.name)}</b><span>${esc(d.desc)}</span><i>${d.learned ? 'Learned' : d.cost + (d.cost === 1 ? ' point' : ' points')}${d.capstone ? ' · capstone' : ''}</i></button>`).join('')}</div>`;
       const bv = this.ctx.bar();
       const sk = (s: SkillDef, key: string, extra = '') => `<button class="bsk${extra}" data-u="${s.id}" title="${esc(s.desc)}"><img src="${abilityIcon(s.icon)}" alt=""><span><b>${key ? key + ' · ' : ''}${esc(s.name)}${s.aim ? ' <i>aimed</i>' : ''}</b><small>${esc(s.desc)} ${s.cd >= 2 ? `(${s.cd} s)` : ''}</small></span></button>`;
-      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). Aimed skills land where the cursor points. Click a utility to put it on the bar, out of a fight.</div>
+      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility to put it on the bar, out of a fight.</div>
         <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', bv.chosen.includes(s.id) ? ' on' : ' off')).join('')}${sk(bv.elite, '8')}</div><div class="bar-msg"></div>
         <h4>Your calling</h4><div class="feat-sum">How you fight. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>
         <h4 class="tal-h">Talents <span>${tv.points} of ${tv.total} points to spend</span><button class="btn ghost tal-reset">Unlearn all</button></h4>

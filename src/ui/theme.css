@@ -80,6 +80,9 @@
 .slot.drag-over { box-shadow: inset 0 0 0 2px var(--gild-l); }
 .portrait, .dlg .face { border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 30%, #23325c, var(--slate)); border: 1px solid var(--ink); box-shadow: inset 0 0 0 2px var(--gild), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.4); }
 .portrait canvas, .dlg .face canvas { border-radius: 50%; padding: 4px; }
+/* The player's level sits on the portrait's rim, outside the circle (the circle clips only the face) */
+#player-frame .portrait { overflow: visible; }
+#player-frame .portrait .lvl { right: -8px; bottom: -7px; z-index: 3; min-width: 28px; height: 22px; border-radius: 11px; border: 1px solid var(--ink); box-shadow: 0 0 0 1px var(--gild), 0 2px 4px rgba(0, 0, 0, 0.5); font-size: 13px; }
 #tooltip { background: rgba(12, 18, 36, 0.97); border: 1px solid var(--ink); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--gild-line), 0 8px 20px rgba(0, 0, 0, 0.5); }
 .loot-line img, .skill img { background: #0b1122; border-radius: 5px; border-color: var(--ink); }
 

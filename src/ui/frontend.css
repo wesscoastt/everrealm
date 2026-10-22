@@ -254,3 +254,6 @@
 .fe-home .hm-card.compact .hm-brand .gem { display: none; }
 .fe-home .hm-card.compact .hm-brand h1 { font-size: 34px; }
 .fe-home .hm-card.compact .hm-ea { margin-top: 0; font-size: 11px; letter-spacing: 2px; padding: 2px 8px 3px; }
+
+/* The character level on the select screen */
+.clv { font-style: normal; color: #f0c860; font-weight: 700; }
