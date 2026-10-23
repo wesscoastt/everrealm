@@ -980,3 +980,10 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #lawfade { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; transition: opacity 0.6s; pointer-events: none; }
 #lawfade.on { opacity: 1; }
 #ui #map-panel .map-ctl .mm-b.wide { width: auto; padding: 0 12px; font: 700 13px var(--body); letter-spacing: 0.04em; }
+
+/* Meals, drinks and being winded, under the player frame (Hud.setBuffs) */
+#buffs { position: absolute; left: 22px; top: 96px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 280px; pointer-events: none; }
+#buffs .bf { padding: 2px 8px; border-radius: 999px; font: 600 11px var(--body); color: #f4ead0; background: rgba(20, 16, 10, 0.78); border: 1px solid rgba(232, 192, 80, 0.45); }
+#buffs .bf i { font-style: normal; color: var(--gold); margin-left: 3px; }
+#buffs .bf.drink { border-color: rgba(120, 190, 220, 0.6); }
+#buffs .bf.winded { border-color: #c84a3a; color: #ffb0a0; }

@@ -1417,7 +1417,38 @@ export class Game implements GameApi {
     this.hud.refresh('skills');
   }
 
-  get maxHp(): number { return 100 + (this.level('melee') - 1) * 6 + this.armour.vigor; }
+  get maxHp(): number { return Math.round((100 + (this.level('melee') - 1) * 6 + this.armour.vigor) * (1 + this.buffSum('hp'))); }
+
+  /** A meal's and a drink's good together (data/items.ts buff). */
+  private buffSum(k: 'hp' | 'regen' | 'power'): number {
+    let n = 0;
+    for (const slot of ['food', 'drink'] as const) {
+      const b = this.flag('buff:' + slot) as { id: string; left: number } | undefined;
+      if (b && b.left > 0) n += ITEMS[b.id]?.buff?.[k] ?? 0;
+    }
+    return n;
+  }
+  /** Time the meals and drinks down, and say when one wears off. */
+  private tickBuffs(dt: number): void {
+    for (const slot of ['food', 'drink'] as const) {
+      const b = this.flag('buff:' + slot) as { id: string; left: number } | undefined;
+      if (!b || b.left <= 0) continue;
+      b.left -= dt;
+      if (b.left <= 0) { this.setFlag('buff:' + slot, null); this.hp = Math.min(this.hp, this.maxHp); this.hud.system(`${ITEMS[b.id]?.name ?? 'It'} has worn off.`); }
+    }
+  }
+  /** What's working on you now, for the frame under your health. */
+  buffList(): { name: string; left: number; kind: string }[] {
+    const out: { name: string; left: number; kind: string }[] = [];
+    for (const slot of ['food', 'drink'] as const) {
+      const b = this.flag('buff:' + slot) as { id: string; left: number } | undefined;
+      if (b && b.left > 0) out.push({ name: ITEMS[b.id]?.name ?? b.id, left: b.left, kind: slot });
+    }
+    if (this.winded) out.push({ name: 'Winded', left: 0, kind: 'winded' });
+    return out;
+  }
+  /** Out of breath: run dry and you trudge until a third of it is back. */
+  private winded = false;
 
   /**
    * Everything the armour adds up to (data/armour.ts): defense off each hit, health, energy, roll
@@ -2257,7 +2288,8 @@ export class Game implements GameApi {
 
   private eat(id?: string): void {
     if (this.cds.eat > 0 || this.dead) return;
-    if (this.hp >= this.maxHp) { this.hud.system('You\'re not hungry.'); return; }
+    // A meal or a brew with lasting good is always welcome; plain food only when you're hurt
+    if (this.hp >= this.maxHp && !(id && ITEMS[id]?.buff)) { this.hud.system('You\'re not hungry.'); return; }
     let best = id ?? null;
     if (!best) {
       let heal = 0;
@@ -2269,6 +2301,11 @@ export class Game implements GameApi {
     if (!best) { this.hud.system('You have nothing to eat.'); return; }
     const def = ITEMS[best];
     this.inv.remove(best, 1);
+    if (def.buff) {
+      this.setFlag('buff:' + def.buff.slot, { id: best, left: def.buff.mins * 60 });
+      const parts = [def.buff.hp ? `${Math.round(def.buff.hp * 100)}% more health` : '', def.buff.regen ? `stamina back ${Math.round(def.buff.regen * 100)}% faster` : '', def.buff.power ? `blows ${Math.round(def.buff.power * 100)}% harder` : ''].filter(Boolean);
+      this.hud.system(`${def.name}: ${parts.join(', ')}, for ${def.buff.mins} minutes.`);
+    }
     this.hp = Math.min(this.maxHp, this.hp + (def.heal ?? 0));
     this.cds.eat = 1.5;
     this.sfx(/(_ale|_beer|_porter|_wine|_cider)$/.test(best) ? 'drink' : 'eat', 0.8);
@@ -3366,7 +3403,7 @@ export class Game implements GameApi {
   /** An ordinary swing's damage at this level with this weapon, before the roll and crits. */
   private swingPower(): number {
     const lvl = this.level('melee');
-    return (7 + lvl * 1.45 + (this.blade?.damage ?? 0)) * (1 + (lvl - 1) * 0.02);
+    return (7 + lvl * 1.45 + (this.blade?.damage ?? 0)) * (1 + (lvl - 1) * 0.02) * (1 + this.buffSum('power'));
   }
 
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
@@ -4156,9 +4193,13 @@ export class Game implements GameApi {
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
     // A wagon rolls a little slower than a horse alone
     const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
-    let speed = this.horse ? 9.6 * haul : 5.4;
-    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 * haul : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
-    else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind));
+    if (this.energy <= 0.5 && !this.winded) { this.winded = true; this.hud.system('You\'re winded. Walk it off.'); }
+    else if (this.winded && this.energy >= 50) this.winded = false;
+    let speed = this.horse ? 9.6 * haul : this.winded ? 3.6 : 5.4;
+    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1 && !this.winded) { speed = this.horse ? 13 * haul : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
+    else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind + this.buffSum('regen')) * (this.winded ? 0.5 : 1));
+    this.tickBuffs(dt);
+    this.hud.setBuffs(this.buffList());
     if (this.attack) speed *= 0.35;
     if (this.dev.fast) speed *= 2.5;
     if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;

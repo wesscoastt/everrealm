@@ -458,6 +458,17 @@ export class Hud {
     drawFace(this.portrait, look);
   }
 
+  /** The meals, drinks and states working on you, under your health bar. */
+  private buffKey = '';
+  setBuffs(list: { name: string; left: number; kind: string }[]): void {
+    const key = list.map((b) => b.name + Math.ceil(b.left / 60)).join('|');
+    if (key === this.buffKey) return;
+    this.buffKey = key;
+    let box = document.getElementById('buffs');
+    if (!box) { box = el('div', 'hud-only'); box.id = 'buffs'; this.root.append(box); }
+    box.innerHTML = list.map((b) => `<span class="bf ${b.kind}">${esc(b.name)}${b.left > 0 ? ` <i>${Math.ceil(b.left / 60)}m</i>` : ''}</span>`).join('');
+  }
+
   setPlayer(name: string, level: number, hp: number, maxHp: number, energy: number): void {
     this.q('#player-frame .pn').textContent = name;
     const lv = this.q('#player-frame .lvl');
