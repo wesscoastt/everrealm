@@ -6,6 +6,8 @@ import { callingCard } from './callingCard';
 import { drawFace } from './skin';
 import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
+import { currentAccount, storeCatalog, storeCheckout, type StoreItem } from '../net/Account';
+import { ITEMS } from '../data/items';
 
 // The screens around the game: character select (the main menu), the character creator, and the
 // arrival intro's captions. The 3D side (who stands in the scene, where the camera is) belongs to
@@ -59,10 +61,14 @@ export interface FrontCtx {
   skipIntro(): void;
 }
 
-type HomeTab = 'start' | 'world' | 'callings' | 'homes' | 'together' | 'new';
-const HOME_TABS: [HomeTab, string][] = [['world', 'The World'], ['callings', 'Callings'], ['homes', 'Homes'], ['together', 'Together'], ['new', 'What\'s new']];
+type HomeTab = 'start' | 'world' | 'callings' | 'homes' | 'together' | 'new' | 'store';
+const HOME_TABS: [HomeTab, string][] = [['world', 'The World'], ['callings', 'Callings'], ['homes', 'Homes'], ['together', 'Together'], ['new', 'What\'s new'], ['store', 'Store']];
 /** The front page's words: a short pitch, then a page for each part of the game. */
 const HOME_PAGES: Record<HomeTab, string> = {
+  store: `<h2>The Everrealm store</h2>
+    <p>Looks, never strength. Every mount here runs at the same pace as the one you buy for three hundred marks in Ansbury; nothing here makes anyone hit harder, level faster or skip a step. What you buy keeps the realm's lights on.</p>
+    <div class="st-safe"><b>Paying safely.</b> You pay on Stripe's own page; your card never touches Everrealm. What you bought comes to every character on your account the next time you enter the world, once the payment has gone through.</div>
+    <div id="hm-store" class="st-grid"><p class="st-wait">Asking the realm what's for sale…</p></div>`,
   start: `<h2>A whole realm to wander</h2>
     <p>Step off the Charter Post in Hollin Ford with a few marks and a long road ahead. Fish the Wend, work the forge, take a house on the Ford road, and ride out to Ansbury, the coast and the high country beyond.</p>
     <p>When the world bosses rise, everyone nearby fights together. When the fair comes to town, everyone dances.</p>`,
@@ -210,8 +216,45 @@ export class Frontend {
       <nav class="fe-foot"><button class="link" data-a="settings">Settings</button><button class="link" data-a="credits">Credits</button></nav>
     </div>`;
     this.root.querySelectorAll<HTMLElement>('[data-h]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.showHome(b.dataset.h as HomeTab); }));
+    if (tab === 'store') void this.fillStore();
     this.root.querySelectorAll<HTMLElement>('[data-a]').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.a === 'play') { this.ctx.sfx('click'); this.showSelect(); } else this.act(b.dataset.a!, null);
+    }));
+  }
+
+  /** Back from the payment page: a word of thanks, or of nothing having happened. */
+  private storeNote = ((): string => {
+    try {
+      const q = new URLSearchParams(location.search).get('store');
+      if (q === 'thanks') return 'Thank you. Once the payment has gone through, what you bought comes to your characters the next time you enter the world.';
+      if (q === 'cancelled') return 'Nothing was bought, and nothing was charged.';
+    } catch { /* no address */ }
+    return '';
+  })();
+
+  /** The store's goods from the realm, each with what's in it, its price and the way to buy. */
+  private async fillStore(): Promise<void> {
+    const box = this.root.querySelector('#hm-store');
+    if (!box) return;
+    const cat = await storeCatalog();
+    if (this.homeTab !== 'store' || !box.isConnected) return;
+    if (!cat) { box.innerHTML = '<p class="st-wait">The store lives on the online realm, and the realm isn\'t answering just now.</p>'; return; }
+    const signed = !!currentAccount();
+    const card = (it: StoreItem) => `<div class="st-card"><div class="st-h"><b>${esc(it.name)}</b><span class="st-price">US$${(it.price / 100).toFixed(2)}</span></div>
+      <p>${esc(it.blurb)}</p>
+      ${it.items.length > 1 ? `<ul>${it.items.map((id) => `<li>${esc(ITEMS[id]?.name ?? id)}</li>`).join('')}</ul>` : ''}
+      <button class="btn" data-buy="${it.id}"${cat.open ? '' : ' disabled'}>${cat.open ? (signed ? 'Buy' : 'Sign in to buy') : 'Opening soon'}</button></div>`;
+    box.innerHTML = (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + cat.items.map(card).join('') + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
+    box.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach((b) => b.addEventListener('click', async () => {
+      if (b.disabled) return;
+      this.ctx.sfx('click');
+      if (!currentAccount()) { this.showSelect(); return; }
+      b.disabled = true; b.textContent = 'Opening the payment page…';
+      const r = await storeCheckout(b.dataset.buy!);
+      if (r.url) { location.href = r.url; return; }
+      b.disabled = false; b.textContent = 'Buy';
+      const note = document.createElement('p'); note.className = 'st-err'; note.textContent = r.error ?? 'Something went wrong. Nothing was charged.';
+      b.after(note);
     }));
   }
 

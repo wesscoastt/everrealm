@@ -48,6 +48,7 @@ import { mailInit } from './mail.mjs';
 import { finderInit } from './finder.mjs';
 import { musicInit } from './music.mjs';
 import { uniquesInit } from './uniques.mjs';
+import { storeInit } from './store.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -192,6 +193,16 @@ function readBody(req) {
   });
 }
 const bearer = (req) => (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+/** A body as it came, for checking a signature over it (Stripe's webhook). */
+function readRaw(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => { size += c.length; if (size <= MAX_MSG) chunks.push(c); });
+    req.on('end', () => resolve(size > MAX_MSG ? null : Buffer.concat(chunks).toString('utf8')));
+  });
+}
+const store = storeInit({ loadAccount, storeAccount, log });
 
 async function api(req, res) {
   const url = new URL(req.url, 'http://x');
@@ -216,11 +227,26 @@ async function api(req, res) {
     return reply(res, 200, { user: acc.user, token: newSession(acc.user), dev: DEV_ACCOUNTS.has(accKey(acc.user)) });
   }
 
+  // The store (server/store.mjs): anyone may look; Stripe's word that a payment went through is checked by its signature
+  if (req.method === 'GET' && url.pathname === '/api/store/catalog') return reply(res, 200, store.catalog());
+  if (req.method === 'POST' && url.pathname === '/api/store/webhook') {
+    const raw = await readRaw(req);
+    const r = store.webhook(raw ?? '', req.headers['stripe-signature']);
+    return reply(res, r.status, r.body);
+  }
+
   const user = sessionUser(bearer(req));
   if (url.pathname.startsWith('/api/') && !user) return reply(res, 401, { error: 'Sign in again.' });
   const acc = user && loadAccount(user);
   if (user && !acc) return reply(res, 401, { error: 'Sign in again.' });
 
+  if (req.method === 'POST' && url.pathname === '/api/store/checkout') {
+    if (limited(ip)) return reply(res, 429, { error: 'Too many tries. Wait a minute.' });
+    const body = await readBody(req);
+    const r = await store.checkout(acc.user, String(body?.sku ?? ''));
+    return reply(res, r.status, r.body);
+  }
+  if (req.method === 'GET' && url.pathname === '/api/store/owned') return reply(res, 200, { owned: store.owned(acc) });
   if (req.method === 'POST' && url.pathname === '/api/logout') {
     sessions.delete(hash(bearer(req)));
     saveSessions();

@@ -116,7 +116,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UN
 import { MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { currentAccount, deleteRemote, isDevAccount, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
+import { currentAccount, deleteRemote, isDevAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
@@ -2006,6 +2006,13 @@ export class Game implements GameApi {
     this.startPending = null;
     this.mode = 'play';
     this.hud.hideTitle();
+    // What the account owns from the store, to this character (once each; the server says what's owned)
+    void storeOwned().then((owned) => {
+      for (const id of owned ?? []) {
+        if (!ITEMS[id] || this.flag('store:' + id)) continue;
+        if (this.give(id, 1)) { this.setFlag('store:' + id, true); this.hud.system(`From the Everrealm store: ${ITEMS[id].name}. Thank you for keeping the lights on.`); }
+      }
+    });
     // In from the sea, if you came by the packet: her deck until she's tied up, then the quay
     if (this.flag('voyage') === LAND) {
       this.setFlag('voyage', null);

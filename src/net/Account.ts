@@ -109,3 +109,22 @@ export function uploadSave(save: SaveData, force = false): Promise<string | null
 export async function deleteRemote(name: string): Promise<void> {
   if (currentAccount()) await call('DELETE', '/api/characters/' + encodeURIComponent(name));
 }
+
+// ---------------------------------------------------------------- The store (server/store.mjs)
+export interface StoreItem { id: string; name: string; price: number; blurb: string; items: string[] }
+/** What the store sells, and whether it's open for payments yet. */
+export async function storeCatalog(): Promise<{ open: boolean; items: StoreItem[] } | null> {
+  const r = await call('GET', '/api/store/catalog');
+  return r.status === 200 ? (r.data as unknown as { open: boolean; items: StoreItem[] }) : null;
+}
+/** Asks for a payment page for one item: its address, or why not. The page is Stripe's own. */
+export async function storeCheckout(sku: string): Promise<{ url?: string; error?: string }> {
+  const r = await call('POST', '/api/store/checkout', { sku });
+  return r.status === 200 ? { url: String(r.data.url) } : { error: String(r.data.error ?? 'The store couldn\'t be reached.') };
+}
+/** The items this account owns from the store (the server's word, not this browser's). */
+export async function storeOwned(): Promise<string[] | null> {
+  if (!currentAccount()) return null;
+  const r = await call('GET', '/api/store/owned');
+  return r.status === 200 && Array.isArray(r.data.owned) ? (r.data.owned as string[]) : null;
+}
