@@ -486,11 +486,11 @@ export class Frontend {
     const chips = (attr: string, items: [string, unknown][], cur: unknown) => `<div class="chips">${items.map(([t, v], i) => `<button class="chip ${cur === v ? 'sel' : ''}" data-${attr}="${i}">${t}</button>`).join('')}</div>`;
     const slider = (k: 'build' | 'height', label: string, min: number, max: number, lo: string, hi: string) => `<label>${label}</label><div class="slide"><small>${lo}</small><input type="range" min="${min}" max="${max}" step="0.01" value="${L[k] ?? 1}" data-s="${k}"><small>${hi}</small></div>`;
     if (this.tab === 'origin') {
-      pane.innerHTML = `<p class="lead">Everyone in the Charter Counties comes from somewhere. Where did you grow up?</p>${ORIGINS.map((o) => `<button class="origin ${o.id === this.origin ? 'sel' : ''}" data-o="${o.id}"><span class="h"><b>${esc(o.title)}</b><small>${esc(o.place)} · ${esc(o.region)}</small></span><span class="d">${esc(o.blurb)}</span><span class="s">${esc(o.startText)}</span></button>`).join('')}`;
+      pane.innerHTML = `<label>MALE OR FEMALE</label>${chips('frame', [['Male', 'm'], ['Female', 'f']], L.frame ?? 'm')}<p class="lead">Everyone in the Charter Counties comes from somewhere. Where did you grow up?</p>${ORIGINS.map((o) => `<button class="origin ${o.id === this.origin ? 'sel' : ''}" data-o="${o.id}"><span class="h"><b>${esc(o.title)}</b><small>${esc(o.place)} · ${esc(o.region)}</small></span><span class="d">${esc(o.blurb)}</span><span class="s">${esc(o.startText)}</span></button>`).join('')}`;
     } else if (this.tab === 'calling') {
       pane.innerHTML = `<p class="lead">How do you fight? No calling is stronger than another, and you can change yours later from the journal, whenever you're not in a fight.</p>${CALLINGS.map((c) => callingCard(c, c.id === this.calling)).join('')}`;
     } else if (this.tab === 'body') {
-      pane.innerHTML = `<label>BODY TYPE</label>${chips('frame', [['Masculine', 'm'], ['Feminine', 'f']], L.frame ?? 'm')}
+      pane.innerHTML = `<label>MALE OR FEMALE</label>${chips('frame', [['Male', 'm'], ['Female', 'f']], L.frame ?? 'm')}
         <label>SKIN</label>${sw('skin', L.skin)}
         ${slider('build', 'BUILD', 0.86, 1.16, 'Slight', 'Broad')}${slider('height', 'HEIGHT', 0.9, 1.08, 'Short', 'Tall')}
         <label>AGE</label>${chips('age', AGES, L.age)}`;
@@ -530,7 +530,15 @@ export class Frontend {
       void items; changed();
     }));
     pickNum('facial', 'facial', FACIAL); pickNum('brows', 'brows', BROWS); pickNum('top', 'top', TOPS); pickNum('legs', 'legs', LEGS); pickNum('shoes', 'shoes', SHOES);
-    pane.querySelectorAll<HTMLElement>('[data-frame]').forEach((b) => b.addEventListener('click', () => { this.look.frame = Number(b.dataset.frame) === 1 ? 'f' : 'm'; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-frame]').forEach((b) => b.addEventListener('click', () => {
+      const f = Number(b.dataset.frame) === 1 ? 'f' : 'm';
+      if (f === this.look.frame) return;
+      this.look.frame = f;
+      // A switch brings the usual look with it (hair, lashes, a beard), which can all be changed after
+      if (f === 'f') { this.look.facial = 0; this.look.beard = false; this.look.lashes = true; if ([0, 2, 3, 9, 10].includes(this.look.hairStyle ?? 0)) this.look.hairStyle = 1; }
+      else { this.look.lashes = false; if ([1, 4, 5, 6, 7, 11].includes(this.look.hairStyle ?? 0)) this.look.hairStyle = 0; }
+      changed();
+    }));
     pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = hats[Number(b.dataset.hat)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));

@@ -847,10 +847,10 @@ export class Humanoid {
     this.hips.add(this.torso);
     // The upper body, by cut: a vest shows its shirt, a doublet is closer-fitted and buttoned
     const body = top === 3 ? shirt : look.tunic;
-    const chestW = (fem ? 0.5 : 0.6) * build, waistW = (fem ? 0.46 : 0.54) * build;
+    const chestW = (fem ? 0.48 : 0.6) * build, waistW = (fem ? 0.41 : 0.54) * build;
     part(this.torso, rbox(waistW, 0.38, 0.32, 0.06), body, 0, 0.36, 0);
     part(this.torso, rbox(chestW, 0.24, 0.34, 0.07), body, 0, 0.58, 0);
-    if (fem) part(this.torso, rbox(0.4 * build, 0.15, 0.08, 0.04), body, 0, 0.5, 0.16);
+    if (fem) part(this.torso, rbox(0.4 * build, 0.16, 0.09, 0.045), body, 0, 0.51, 0.165);
     part(this.torso, rbox(waistW + 0.02, 0.09, 0.35, 0.03), belt, 0, 0.16, 0);
     part(this.torso, rbox(0.1, 0.08, 0.04, 0.015), '#c8a040', 0, 0.16, 0.18);
     const hem = shade(look.tunic, 0.9);
