@@ -31,7 +31,8 @@ jobs:
       - run: npm run sites
       - run: npm run build
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # Served at the root of its own domain, everrealm.quest (set in Settings > Pages)
+          BASE_PATH: /
           VITE_REALM: ${{ vars.VITE_REALM }}
       - uses: actions/upload-pages-artifact@v3
         with:

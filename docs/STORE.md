@@ -48,7 +48,7 @@ These steps are yours: they need your identity, your bank details and your keys.
 2. **Test first.** In test mode, copy the secret key (`sk_test_...`).
 3. **Set the keys on Render.** In the everrealm-realm service, under Environment, set:
    - `STRIPE_SECRET_KEY`: the key from step 2.
-   - `STORE_RETURN_URL`: the game's page, `https://wesscoastt.github.io/everrealm/`.
+   - `STORE_RETURN_URL`: the game's page, `https://everrealm.quest/`.
 4. **Add the webhook.** In Stripe, go to Developers, then Webhooks, and add an endpoint:
    - URL: `https://everrealm-realm.onrender.com/api/store/webhook`.
    - Event: `checkout.session.completed` (add `checkout.session.async_payment_succeeded` too).
