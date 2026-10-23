@@ -504,6 +504,7 @@ export class Game implements GameApi {
 
   private buildWorld(): void {
     this.world = new GameWorld(this.scene, (l) => this.hud.showTitle(l + '…'));
+    this.hud.mapLabels = this.world.buildingLabels();
     this.rig = new CameraRig(this.camera, this.world.voxels);
     this.player = new Player(this.world.voxels, this.save.look);
     this.waymarkStones = new Waymarks(this.scene, this.world.voxels, (id) => !!this.flag(id), (w) => {

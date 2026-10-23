@@ -278,6 +278,8 @@ export class Hud {
   private mmCtx!: CanvasRenderingContext2D;
   /** Minimap zoom step (MM_ZOOM) and whether it turns with the camera; remembered in this browser. */
   private mmZoom = 2;
+  /** Buildings' names, shown on the minimap at the two closest zooms (GameWorld.buildingLabels). */
+  mapLabels: { x: number; z: number; text: string }[] = [];
   private mmRotate = false;
   /** Listening for full screen ending (Esc, F11), so the Settings box stays right. */
   private fsWatch = false;
@@ -1109,6 +1111,22 @@ export class Hud {
       c.fillStyle = '#c8803a'; c.strokeStyle = '#1e1208'; c.lineWidth = 2;
       c.fillRect(x - 2, y - 3, 4, 14); c.strokeRect(x - 2, y - 3, 4, 14);
       c.fillRect(x - 9, y - 10, 18, 8); c.strokeRect(x - 9, y - 10, 18, 8);
+    }
+    // Close in, the buildings' names: nearest first, and none drawn over another
+    if (this.mmZoom >= 3) {
+      c.font = '600 19px "Alegreya Sans", sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+      const taken: [number, number, number, number][] = [];
+      const near = this.mapLabels.map((L) => ({ L, p: at(L.x, L.z) })).filter((e) => Math.hypot(e.p[0], e.p[1]) < inside - 18).sort((a, b) => Math.hypot(a.p[0], a.p[1]) - Math.hypot(b.p[0], b.p[1]));
+      for (const { L, p: [x, y] } of near) {
+        const w = c.measureText(L.text).width / 2 + 4, ty = y - 14;
+        if (Math.hypot(Math.abs(x) + w, Math.abs(ty) + 10) > R - 8) continue; // whole, inside the rim
+        if (taken.some((r) => x - w < r[2] && x + w > r[0] && ty - 11 < r[3] && ty + 11 > r[1])) continue;
+        taken.push([x - w, ty - 11, x + w, ty + 11]);
+        c.lineWidth = 5; c.strokeStyle = 'rgba(16, 12, 8, 0.85)'; c.strokeText(L.text, x, ty);
+        c.fillStyle = '#f2e4bc'; c.fillText(L.text, x, ty);
+        c.fillStyle = '#f2e4bc'; c.beginPath(); c.arc(x, y, 3, 0, Math.PI * 2); c.fill();
+      }
     }
     // Events, world bosses, the Shardfall: glyphs, or arrows on the rim when they're out of range
     for (const m of markers) {

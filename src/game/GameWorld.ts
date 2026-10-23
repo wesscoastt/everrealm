@@ -10,6 +10,8 @@ import { Ferry } from '../world/Ferry';
 import { createPropMaterials, FIRE_TIME, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
 import { BuiltSite, buildImpostor, buildSiteProps, IMPOSTOR_MAT } from '../world/siteProps';
+import { LODGINGS } from '../data/lodgings';
+import { BANKS } from '../data/places_regional';
 import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
@@ -390,6 +392,30 @@ export class GameWorld {
     x.fillStyle = g;
     x.fillRect(0, 0, 64, 64);
     return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
+  }
+
+  /**
+   * Names of buildings for the minimap close up: what the signs say (taverns, stables, halls), the
+   * lodging houses and banks, and Hollin Ford's own buildings. Signs that only name the town, stand
+   * at the Charter Post (which has its own glyph), or aren't a building's name are left out.
+   */
+  buildingLabels(): { x: number; z: number; text: string }[] {
+    const out: { x: number; z: number; text: string }[] = [];
+    const skip = /^(Charter Post|FOR SALE|LOT \d|Rooms to let|The Grey\. Stop\.|Shaft ladder)/;
+    for (const s of this.sites) for (const d of s.props) {
+      if (d.t !== 'sign' || !d.text) continue;
+      const text = d.text.replace(/\s*\n\s*/g, ' ');
+      if (skip.test(text) || text === s.name) continue;
+      out.push({ x: d.x, z: d.z, text });
+    }
+    for (const L of LODGINGS) out.push({ x: L.x, z: L.z, text: L.name });
+    for (const b of BANKS) out.push({ x: b.x, z: b.z, text: 'Charter Bank' });
+    const P = this.structures.poi;
+    for (const [k, text] of [['reeveDoor', "The Reeve's House"], ['pellDoor', "Pell Garrow's"], ['stall', "Tamsin's Stall"], ['smithy', 'The Smithy'], ['innDoor', 'The Low Water'], ['mill', 'Gorse Mill'], ['fordMill', 'Ford Mill'], ['lantern', 'The Lantern'], ['mootOak', 'The Moot Oak'], ['farm', 'Ashcroft Farm']] as const) {
+      const v = P[k];
+      if (v) out.push({ x: v.x, z: v.z, text });
+    }
+    return out;
   }
 
   /** Smoke emitters near the player (Hollindale chimneys plus active settlements). */
