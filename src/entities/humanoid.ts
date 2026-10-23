@@ -90,7 +90,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -183,7 +183,7 @@ function facialOf(a: Appearance): number {
 }
 
 /** How a weapon looks in the hand (data/weapons.ts gives each its own). */
-export type WeaponFamily = 'sword' | 'sabre' | 'longsword' | 'greatsword' | 'dagger' | 'falchion' | 'cleaver' | 'axe' | 'greataxe' | 'mace' | 'hammer' | 'spear' | 'staff';
+export type WeaponFamily = 'sword' | 'sabre' | 'longsword' | 'greatsword' | 'dagger' | 'falchion' | 'cleaver' | 'axe' | 'greataxe' | 'mace' | 'hammer' | 'spear' | 'staff' | 'bow';
 /** A maker's shapes: the guard, the pommel, and the head (a blade's profile, an axe's bit, a mace's head, a staff's top). */
 export type WeaponGuard = 'bar' | 'crescent' | 'disc' | 'swept' | 'none';
 export type WeaponPommel = 'cube' | 'wheel' | 'fishtail' | 'gem' | 'ring' | 'cap';
@@ -205,6 +205,22 @@ export function setGearModels(weapon: (id: string) => WeaponModel | null, offhan
 /** A weapon in the right hand. Its +y runs from the grip out along the blade or the haft; the edge
  *  (and an axe's bit) faces +z, the flat of the blade faces x. Each maker has its own guard, pommel
  *  and head (data/weapons.ts), so a Charter sword and a Barrow sword differ in shape, not just colour. */
+/** A leather quiver slung on the back, its arrows' fletchings over the right shoulder. */
+function quiverMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const add = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number) => { const m = new THREE.Mesh(geo, lam(color)); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+  add(rbox(0.17, 0.56, 0.15, 0.04), '#6a4a2a', 0, 0, 0);
+  add(rbox(0.19, 0.05, 0.17, 0.015), '#3a2a1a', 0, 0.26, 0);
+  add(rbox(0.19, 0.05, 0.17, 0.015), '#3a2a1a', 0, -0.2, 0);
+  for (const [x, z, c] of [[-0.04, -0.03, '#f0ece0'], [0.04, 0.02, '#c8402a'], [0, 0.04, '#f0ece0'], [0.05, -0.04, '#2a4a7a'], [-0.05, 0.03, '#c8402a']] as const) {
+    add(rbox(0.012, 0.16, 0.012, 0.003), '#8a6a3a', x, 0.34, z);
+    add(rbox(0.035, 0.08, 0.008, 0.002), c, x, 0.4, z);
+  }
+  g.position.set(-0.16, 0.24, -0.34); // over a cape, if there is one
+  g.rotation.z = -0.35;
+  return g;
+}
+
 function weaponMesh(w: WeaponModel): THREE.Group {
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, color: string | THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0) => {
@@ -417,6 +433,25 @@ function weaponMesh(w: WeaponModel): THREE.Group {
         }
       }
       add(rbox(0.07, 0.06, 0.07, 0.02), glow ?? A, 0, -0.14, 0);
+      break;
+    }
+    case 'bow': {
+      // Two limbs bending back toward the archer from a wrapped grip, horn nocks at the tips, and the
+      // string straight across behind them (local +Z is toward the mark)
+      const wood = shade(G, 1.25), dark2 = shade(G, 0.8);
+      add(rbox(0.06, 0.18, 0.07, 0.02), H, 0, 0, 0);
+      for (const sgn of [1, -1]) {
+        for (let k = 0; k < 7; k++) {
+          const t0 = k / 7, t1 = (k + 1) / 7;
+          const y0 = sgn * (0.08 + t0 * 0.66), y1 = sgn * (0.08 + t1 * 0.66);
+          const z0 = -0.2 * t0 * t0, z1 = -0.2 * t1 * t1;
+          const seg = add(rbox(0.045 - k * 0.003, Math.hypot(y1 - y0, z1 - z0) + 0.02, 0.05 - k * 0.003, 0.012), k % 3 === 2 ? dark2 : wood, 0, (y0 + y1) / 2, (z0 + z1) / 2);
+          seg.rotation.x = -Math.atan2(z1 - z0, y1 - y0) * sgn;
+        }
+        add(rbox(0.05, 0.07, 0.05, 0.015), A, 0, sgn * 0.77, -0.19); // the nock
+      }
+      add(rbox(0.008, 1.52, 0.008, 0.002), '#e8e0cc', 0, 0, -0.2); // the string
+      add(rbox(0.02, 0.03, 0.06, 0.006), M, 0, 0.1, 0.03); // the arrow rest
       break;
     }
     case 'spear': {
@@ -738,6 +773,9 @@ export class Humanoid {
   private handL = new THREE.Group();
   private cape: THREE.Mesh | null = null;
   private held: THREE.Group | null = null;
+  /** Holding a bow (drawn upright in front when shooting), and the quiver that goes with it. */
+  private bow = false;
+  private quiver: THREE.Group | null = null;
   /** A tool by name, or a weapon by its item id (its model comes from data/weapons.ts). */
   heldKind: HeldItem | string = 'none';
   private offhand: THREE.Group | null = null;
@@ -1300,10 +1338,14 @@ export class Humanoid {
     }
     const model = TOOLS.has(kind) ? null : weaponModelOf(kind);
     this.held = kind === 'none' ? null : model ? weaponMesh(model) : heldMesh(TOOLS.has(kind) ? (kind as HeldItem) : 'sword');
+    this.bow = model?.family === 'bow';
     if (this.held) {
       this.held.rotation.x = Math.PI / 2;
       this.handR.add(this.held);
     }
+    // A quiver of arrows on the back while a bow is held
+    if (this.quiver) { this.torso.remove(this.quiver); this.quiver = null; }
+    if (this.bow) this.torso.add((this.quiver = quiverMesh()));
     this.heldKind = kind;
   }
 
@@ -1356,6 +1398,8 @@ export class Humanoid {
       const resting = ['idle', 'walk', 'run', 'jump', 'talk', 'hit'].includes(this.state);
       const blade = !TOOLS.has(this.heldKind) || this.heldKind === 'sword' || this.heldKind === 'bronzeSword';
       P.held.rotation.set(blade && resting ? Math.PI / 2 + 0.38 : Math.PI / 2, 0, 0);
+      // A bow hangs upright at your side, and comes up level with the eye when it's drawn
+      if (this.bow) P.held.rotation.set(this.state === 'shoot' ? Math.PI / 2 : 0.1, 0, 0);
     }
 
     if (this.instr) {
@@ -1559,6 +1603,14 @@ export class Humanoid {
         P.head.rotation.x = -0.3 * k;
         P.armL.rotation.z = 0.6 * k;
         P.armR.rotation.z = -0.6 * k;
+        break;
+      }
+      case 'shoot': {
+        // The bow arm straight out at the mark, the other hand drawn back to the cheek
+        const k = Math.min(1, t / 0.12);
+        P.armR.rotation.x = -1.55 * k; P.armR.rotation.z = -0.12;
+        P.armL.rotation.x = -1.45 * k; P.armL.rotation.z = -0.62 * k; P.foreL.rotation.x = -1.35 * k;
+        P.head.rotation.y = 0.12 * k;
         break;
       }
       case 'heal': {

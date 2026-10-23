@@ -519,6 +519,10 @@ No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cott
 
 Pale blue heavy plate cut square on every face, with a small square mark inside each piece: helm, plate, greaves, gauntlets and boots. Nobody in the counties knows who made it or how many suits there are; pieces turn up among what any creature leaves behind, anywhere, about once in four thousand kills, and never one you already have. Worn in twos it brings up one ore or crystal in five as two. (An affectionate nod to a certain other game's diamond armour.) `data/armour.ts` (brightcut), `game/Game.ts` (onEnemyKilled).
 
+## Bows [in game]
+
+Bows are made where people hunt: the Hollin smithy's **hunting bow**, the Hagworm fellers' **yew longbow**, the Gullmouth coast trackers' bow, the Wrath Levels **fowling bow** and the Tolmen Moor **horn bow**. With a bow in hand, Strike looses an arrow at your target up to twenty-four blocks off instead of swinging; a quiver rides on your back while you carry one. Pathfinders start with a hunting bow. `data/weapons.ts` (bow), `entities/humanoid.ts`, `game/Game.ts` (loose).
+
 ## Roadside inns [in game]
 
 Out on the roads, a day's walk from any town, four inns keep a taproom and let rooms: **The Packhorse** on the Hagworm Wood road (Tamsyn Lugg; carriers stop going into the wood and coming out), **The Half Way House** on the north road to Cragsby (Osric Penhale, who came to work the egg cliffs and stopped for a drink), **The Dyke End** where the Wrath Levels road turns into a bank (Judith Fenner, Sim Fenner's niece; porter and eel pie from Holme Staithe), and **The Bield** on the Tolmen Moor road (Robert Trewin; bield is moor speech for shelter, and there's no other roof till Scarrow Tor). Each has a bar, tables, a hearth and a stair to five rooms let by the week (120 marks), rented at the room's door like a lodging house's. `data/lodgings.ts` (inn), `world/sites.ts` (buildLodging, tavernRoom), `data/content/inns.ts`.

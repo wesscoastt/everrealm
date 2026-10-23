@@ -570,6 +570,7 @@ export class Game implements GameApi {
         this.dungeons.shareHeal(n);
       },
       maxHp: () => this.maxHp,
+      bow: () => this.bowInHand,
       anim: (st) => {
         if (st === 'heal') { this.healAnim = 0.6; return; }
         this.player.model.setState(st); this.player.model.stateTime = 0; this.healAnim = 0;
@@ -1758,6 +1759,8 @@ export class Game implements GameApi {
     this.save.settings = settings;
     this.save.origin = origin;
     this.save.flags.class = calling;
+    // A Pathfinder starts with a hunting bow from the Hollin smithy, the old sword in the pack beside it
+    if (calling === 'pathfinder' && ITEMS.w_hollin_bow) { this.save.equip.weapon = 'w_hollin_bow'; const slot = this.save.inv.indexOf(null); if (slot >= 0) this.save.inv[slot] = { id: 'worn_sword', n: 1 }; }
     const o = originById(origin);
     if ('marks' in o.start) this.save.marks += o.start.marks;
     else this.save.xp[o.start.skill] = xpForLevel(o.start.level, o.start.skill);
@@ -3020,8 +3023,12 @@ export class Game implements GameApi {
     return best;
   }
 
+  /** Whether the weapon in hand is a bow (Strike looses an arrow instead of swinging). */
+  private get bowInHand(): boolean { return this.blade?.model?.family === 'bow'; }
+
   private strike(): void {
     if (this.action || this.craftAction) this.cancelActions();
+    if (this.bowInHand) { this.loose(); return; }
     if (this.attack) { this.queuedStrike = true; return; }
     if (this.cds.strike > 0) return;
     const at = this.faceTarget(this.player.swimming ? 6 : 4.5);
@@ -3040,6 +3047,21 @@ export class Game implements GameApi {
     this.player.model.stateTime = 0;
     this.cds.strike = dur * 0.9;
     this.sfx('swing');
+    this.lastCombat = this.elapsed;
+  }
+
+  /** A bow's Strike: an arrow at the target, up to twenty-four blocks off, a little slower than a swing. */
+  private loose(): void {
+    if (this.cds.strike > 0) return;
+    const e = this.faceTarget(24);
+    if (!e) { this.hud.system('Nothing in range to shoot at: target something (Tab) within twenty-four blocks.'); this.cds.strike = 0.6; return; }
+    const dur = 0.62 / this.pace;
+    this.cds.strike = dur;
+    this.player.model.setState('shoot');
+    this.player.model.stateTime = 0;
+    const crit = Math.random() < 0.08 + (this.blade?.crit ?? 0) + this.armour.crit;
+    this.kit.loose(e, this.swingPower() * (0.9 + Math.random() * 0.2), crit);
+    this.sfx('swing', 1.6);
     this.lastCombat = this.elapsed;
   }
 

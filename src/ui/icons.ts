@@ -62,6 +62,17 @@ function paint(spec: IconSpec): string {
       px(3, 28, 3, 3, '#c8a040');
       break;
     }
+    case 'bow': {
+      // A bow on the diagonal, its string straight across behind, an arrow nocked
+      x.lineCap = 'round';
+      x.strokeStyle = outline; x.lineWidth = 5; x.beginPath(); x.moveTo(7, 26); x.quadraticCurveTo(6, 6, 26, 7); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 3; x.beginPath(); x.moveTo(7, 26); x.quadraticCurveTo(6, 6, 26, 7); x.stroke();
+      x.strokeStyle = '#efe6cf'; x.lineWidth = 1; x.beginPath(); x.moveTo(7, 26); x.lineTo(26, 7); x.stroke();
+      x.strokeStyle = outline; x.lineWidth = 3; x.beginPath(); x.moveTo(11, 22); x.lineTo(25, 26); x.stroke();
+      x.strokeStyle = '#c8b090'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(11, 22); x.lineTo(25, 26); x.stroke();
+      px(9, 20, 3, 3, b); px(24, 25, 3, 3, '#c8c8d0');
+      break;
+    }
     case 'pick': {
       diag(6, 28, 18, 3, outline); diag(7, 27, 17, 2, b);
       x.strokeStyle = outline; x.lineWidth = 5; x.beginPath(); x.moveTo(8, 9); x.quadraticCurveTo(18, 3, 29, 12); x.stroke();

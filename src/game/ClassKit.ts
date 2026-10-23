@@ -26,7 +26,9 @@ export interface KitHost {
   hit(e: Enemy, dmg: number, opts?: { crit?: boolean; quiet?: boolean }): number;
   heal(n: number): void;
   maxHp(): number;
-  anim(state: 'attack' | 'cleave' | 'heal'): void;
+  anim(state: 'attack' | 'cleave' | 'heal' | 'shoot'): void;
+  /** A bow in hand (the Pathfinder's arrows are loosed from it). */
+  bow?(): boolean;
   sfx(name: 'swing' | 'hitHeavy' | 'heal' | 'bell' | 'splash' | 'growl'): void;
   /** Move the player to a point over a short time (a leap or a step). */
   moveTo(x: number, z: number, secs: number, y?: number): void;
@@ -45,7 +47,7 @@ export interface KitHost {
   clear(at: THREE.Vector3): boolean;
 }
 
-interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean }
+interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean }
 interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
 /** Ground that hurts for a while (a ring of fire, a rain of arrows, cinders), or a snare waiting for a foot. */
@@ -124,6 +126,16 @@ export class ClassKit {
 
   // ---------------------------------------------------------------- What the game asks
   /** Change damage the player is about to deal to e. */
+  /** One arrow from a bow (a Strike with a bow in hand): it flies to the target and hits there. */
+  loose(e: Enemy, dmg: number, crit: boolean): void {
+    const P = this.host.player();
+    const m = new THREE.Mesh(ARROW_GEO, new THREE.MeshBasicMaterial({ color: '#e8dcc0' }));
+    m.position.copy(P).setY(P.y + 1.45);
+    m.visible = false;
+    this.host.scene.add(m);
+    this.flying.push({ mesh: m, to: e, speed: 38, dmg, crit, burst: -0.12 });
+  }
+
   outgoing(e: Enemy, dmg: number): number {
     let k = 1;
     if (this.redUntil > this.clock) k *= T.redhour.dealt;
@@ -357,6 +369,7 @@ export class ClassKit {
         return true;
       case 'volley': {
         const e = H.faceTarget(T.volley.range);
+        if (H.bow?.()) H.anim('shoot');
         if (!e) return false;
         H.anim('attack'); H.sfx('swing');
         for (let k = 0; k < T.volley.arrows; k++) {
@@ -589,7 +602,7 @@ export class ClassKit {
         if (f.to.alive) {
           // An Ice Lance on a frozen foe (stunned, by frost or anything else) hits far harder
           const frozen = f.lance && f.to.stun > 0;
-          H.hit(f.to, f.dmg * (frozen ? T.icelance.frozen : 1), frozen ? { crit: true } : undefined);
+          H.hit(f.to, f.dmg * (frozen ? T.icelance.frozen : 1), frozen || f.crit ? { crit: true } : undefined);
           if (f.lance) H.particles.burst(to, '#dff6ff', frozen ? 24 : 10);
           if (f.chill) this.addChill(f.to);
           if (f.stun) f.to.stun = Math.max(f.to.stun, f.stun);

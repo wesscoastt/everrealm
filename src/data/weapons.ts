@@ -25,6 +25,7 @@ const FAMILIES: Record<WeaponFamily, { pts: Partial<Record<Trait, number>>; noun
   mace: { pts: { damage: 8 }, noun: 'mace', held: 'bronzeSword', lines: ['A heavy head on a short haft. Armour dents, and whoever is inside it finds out why.', 'No edge to keep and nothing to sharpen. You only need to be the one swinging it.'] },
   hammer: { pts: { damage: 11, speed: -4, reach: 1 }, noun: 'war hammer', held: 'bronzeSword', lines: ['A hammer with a spike behind the face, on a long haft.', 'The face for plate, the spike for anything else.'] },
   spear: { pts: { damage: 3, reach: 5 }, noun: 'spear', held: 'sword', lines: ['A spear. Whatever it is, it\'s further from you.', 'Ash shaft, iron head. The oldest answer there is.'] },
+  bow: { pts: { damage: 4, speed: 2, crit: 2 }, noun: 'bow', held: 'sword', lines: ['A short bow of ash, backed with horn. It throws an arrow further than you can see to aim it.', 'A bow, strung and waxed, the grip wrapped where years of hands have held it.'] },
   staff: { pts: { damage: 2, reach: 3, speed: 2, leech: 1 }, noun: 'staff', held: 'sword', lines: ['A walking staff shod at both ends. Quick in good hands, and long.', 'A long staff, bound at the grips. It keeps a fight at arm\'s length and then some.'] },
 };
 
@@ -53,8 +54,8 @@ interface Source {
 const SOURCES: Source[] = [
   {
     id: 'hollin', name: 'Hollin', region: 'greenwake', rarity: 'common', value: 18, colours: { metal: '#9aa0a8', hilt: '#5a4a3a', grip: '#6e4a2c' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'hatchet', mace: 'knob', hammer: 'maul', staff: 'crook', spear: 'leaf' },
-    nouns: { cleaver: 'billhook', staff: 'crook', falchion: 'hedge blade' },
-    families: ['sword', 'dagger', 'axe', 'spear', 'staff', 'mace', 'falchion', 'cleaver', 'hammer', 'sabre'],
+    nouns: { bow: 'hunting bow', cleaver: 'billhook', staff: 'crook', falchion: 'hedge blade' },
+    families: ['sword', 'dagger', 'axe', 'spear', 'staff', 'mace', 'falchion', 'cleaver', 'hammer', 'sabre', 'bow'],
     lines: ['Hammered out by the Hollin Ford smithy between ploughshares.', 'Farm iron, honest and a little soft. It holds an edge if you hold the stone to it.', 'Made in the valley, for the valley: wolves, mostly, and the odd fox.'],
   },
   {
@@ -76,14 +77,14 @@ const SOURCES: Source[] = [
   },
   {
     id: 'hagworm', name: 'Hagworm', region: 'brambledeep', rarity: 'rare', value: 60, lean: 'crit', colours: { metal: '#8a9a7a', hilt: '#3a2a1a', grip: '#4a3a24', accent: '#5a7a3a' }, style: { guard: 'bar', pommel: 'ring', blade: 'tapered', axe: 'bearded', mace: 'knob', hammer: 'maul', staff: 'gnarled', spear: 'winged' },
-    nouns: { spear: 'boar spear', staff: 'thornwood staff', cleaver: 'fellers\' billhook', greataxe: 'felling axe' },
-    families: ['spear', 'axe', 'greataxe', 'staff', 'dagger', 'falchion', 'sword', 'hammer', 'cleaver', 'mace', 'sabre'],
+    nouns: { bow: 'yew longbow', spear: 'boar spear', staff: 'thornwood staff', cleaver: 'fellers\' billhook', greataxe: 'felling axe' },
+    families: ['spear', 'axe', 'greataxe', 'staff', 'dagger', 'falchion', 'sword', 'hammer', 'cleaver', 'mace', 'sabre', 'bow'],
     lines: ['Hagworm iron, quenched in the bog. It finds the gap in a hide the way a root finds a crack.', 'The fellers keep these for what lives under the ancients, and say a dull one is worse than none.', 'Bog-oak at the grip, black and hard as horn.'],
   },
   {
     id: 'gullmouth', name: 'Gullmouth', region: 'saltwind', rarity: 'rare', value: 60, lean: 'leech', colours: { metal: '#9ad0e0', hilt: '#c8a050', grip: '#5a3a24', accent: '#c8a050' }, style: { guard: 'disc', pommel: 'cap', blade: 'fuller', axe: 'hatchet', mace: 'studded', hammer: 'maul', spear: 'harpoon' },
-    nouns: { sabre: 'cutlass', spear: 'harpoon', cleaver: 'boarding cleaver', axe: 'boarding axe', dagger: 'rigging knife' },
-    families: ['sabre', 'cleaver', 'dagger', 'spear', 'axe', 'falchion', 'mace', 'sword', 'longsword', 'hammer'],
+    nouns: { bow: "tracker's bow", sabre: 'cutlass', spear: 'harpoon', cleaver: 'boarding cleaver', axe: 'boarding axe', dagger: 'rigging knife' },
+    families: ['sabre', 'cleaver', 'dagger', 'spear', 'axe', 'falchion', 'mace', 'sword', 'longsword', 'hammer', 'bow'],
     lines: ['Salt-pitted and brass-fitted, from a chandler on the Gullmouth quay. Sailors say a blade that has been in the sea gives back what it takes.', 'Gullmouth work, made for a slippery deck and a short fight.', 'Brass and sea-steel. It smells faintly of tar, whatever you clean it with.'],
   },
   {
@@ -105,14 +106,14 @@ const SOURCES: Source[] = [
   },
   {
     id: 'fen', name: 'Fen', region: 'wrath', rarity: 'rare', value: 58, lean: 'leech', colours: { metal: '#8a7a4a', hilt: '#3a4a2e', grip: '#2a2014', accent: '#4a5a2a' }, style: { guard: 'none', pommel: 'ring', blade: 'leaf', axe: 'bearded', mace: 'knob', staff: 'forked', spear: 'gig' },
-    nouns: { spear: 'eel gig', staff: 'punt staff', cleaver: 'reed hook' },
-    families: ['spear', 'staff', 'axe', 'dagger', 'mace', 'cleaver', 'falchion', 'sword'],
+    nouns: { bow: 'fowling bow', spear: 'eel gig', staff: 'punt staff', cleaver: 'reed hook' },
+    families: ['spear', 'staff', 'axe', 'dagger', 'mace', 'cleaver', 'falchion', 'sword', 'bow'],
     lines: ['Bog bronze from the Wrath Levels, eel-skin at the grip so it doesn\'t slip when it\'s wet, which is always.', 'Made in Holme Staithe by people who mostly fight eels.'],
   },
   {
     id: 'barrow', name: 'Barrow', region: 'tolmen', rarity: 'epic', value: 90, lean: 'damage', colours: { metal: '#8a6a3a', hilt: '#3a5a4a', grip: '#2e241c', accent: '#3a5a4a' }, style: { guard: 'none', pommel: 'cap', blade: 'leaf', axe: 'crescent', mace: 'knob', hammer: 'lucerne', spear: 'leaf' },
-    nouns: { greatsword: 'barrow blade', sword: 'barrow sword' },
-    families: ['sword', 'greatsword', 'axe', 'greataxe', 'spear', 'mace', 'hammer', 'dagger', 'falchion'],
+    nouns: { bow: 'horn bow', greatsword: 'barrow blade', sword: 'barrow sword' },
+    families: ['sword', 'greatsword', 'axe', 'greataxe', 'spear', 'mace', 'hammer', 'dagger', 'falchion', 'bow'],
     lines: ['Old bronze from a barrow on Tolmen Moor, green at the edges, older than the Charter. It still takes an edge.', 'The moor folk say the man it was buried with hasn\'t asked for it back. Yet.'],
   },
   {
@@ -187,7 +188,7 @@ SOURCES.forEach((s) => s.families.forEach((f, k) => {
   const id = `w_${s.id}_${f}`;
   WEAPON_ITEMS.push({
     id, name: `${s.name} ${noun}`, kind: 'weapon', rarity: s.rarity, stack: false, value: Math.round(s.value * (f === 'greatsword' || f === 'greataxe' || f === 'hammer' ? 1.3 : f === 'dagger' ? 0.7 : 1)),
-    icon: { shape: 'sword', a: s.colours.metal, b: s.colours.grip }, desc: `${F.lines[k % F.lines.length]} ${s.lines[k % s.lines.length]}`,
+    icon: { shape: f === 'bow' ? 'bow' : 'sword', a: f === 'bow' ? s.colours.grip : s.colours.metal, b: s.colours.hilt }, desc: `${F.lines[k % F.lines.length]} ${s.lines[k % s.lines.length]}`,
     weapon, stats: describe(weapon),
   });
   if (s.region) (REGION_WEAPONS[s.region] ??= []).push(id);
