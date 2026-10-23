@@ -54,6 +54,8 @@ export class Sky {
   private dome: THREE.Mesh;
   private domeMat: THREE.ShaderMaterial;
   private clouds: THREE.InstancedMesh;
+  /** Rock overhead (a cave, a dungeon): no clouds, which would otherwise show through it. */
+  underground = false;
   private cloudMat: THREE.MeshBasicMaterial;
   private cloudSet: Cloud[] = [];
   private cloudTime = 0;
@@ -314,7 +316,7 @@ export class Sky {
     this.domeMat.uniforms.uUnder.value = this.underwater ? 1 : 0;
     // (mixed in after the output conversion, as the fog is, so it wants the screen-space colour)
     this.domeMat.uniforms.uFog.value.copy(this.fog.color).convertLinearToSRGB();
-    this.clouds.visible = !this.underwater;
+    this.clouds.visible = !this.underwater && !this.underground;
     this.stars.visible = !this.underwater;
     this.shared.uGlow.value = 0.22 + this.night * 1.25;
     (this.stars.material as THREE.PointsMaterial).opacity = this.night * 0.9;

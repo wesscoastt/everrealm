@@ -3,6 +3,7 @@ import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
+import { caveKit, type CaveTheme } from './caves';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
@@ -64,6 +65,8 @@ export interface PropDesc {
   r?: number;
   h?: number;
   text?: string;
+  /** A glow that also casts light (joins the lamp lights, in its own colour). */
+  lit?: boolean;
 }
 
 export interface ImpostorBox { x: number; y: number; z: number; w: number; h: number; d: number; color: string; cone?: boolean }
@@ -1959,170 +1962,198 @@ export function plan(): Plan {
   }
 
   /**
-   * The Old Man's Workings, under the hills north of Sallow Pit: the Pit's shut Number Four gallery,
-   * the night shift's room, the flooded sump, a low drift, and at the bottom the old man itself
-   * (miners' word for workings older than anyone's records), sooted black by fire-setting, where
-   * Verdigris nests on the copper. Reached only through the boarded door in the Pit's chamber.
+   * The Old Man's Workings, under the hills north of Sallow Pit. It begins as a mine: the shaft foot
+   * where the lamps were kept, and Number Four, the shut gallery, square-cut and timbered, rails down
+   * the middle and a fall of roof across one side. Off it the night shift broke into natural cave and
+   * made a room of it. Past that the old drift runs on to the sump, a cavern the pumps kept dry
+   * until Candlemas, now half a lake; across a flooded shaft on a bridge the night shift laid; and
+   * down to the old man itself (miners' word for workings older than anyone's records): a cavern
+   * black with the soot of fire-setting, copper showing in every band of the rock, where Verdigris
+   * nests. Reached only through the boarded door in the Pit's chamber.
    */
   function buildOldMan(s: Site) {
     const OX = 208, OZ = -60, F = 5;
-    const PIT: DigTheme = { wall: B.Stone, wall2: B.Timber, floor: B.Gravel, floor2: B.Stone, light: '#ffc880' };
-    const SUMP: DigTheme = { wall: B.MossyStone, wall2: B.MossyCobble, floor: B.Clay, floor2: B.Gravel, light: '#b8ffc8' };
-    const OLD: DigTheme = { wall: B.Basalt, wall2: B.Stone, floor: B.Stone, floor2: B.Gravel, light: '#ffb070' };
-    const { hall, run, finish } = digger(s, OX, OZ, F, PIT);
-    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, F, OZ + z + 0.5];
+    const PIT: CaveTheme = { wall: B.Stone, wall2: B.DeepStone, band: B.Gravel, floor: B.Gravel, floor2: B.Stone, spike: B.Stone, rubble: B.Cobble, light: '#ffc880' };
+    const CAVE: CaveTheme = { wall: B.Stone, wall2: B.MossyStone, band: B.Dirt, floor: B.Gravel, floor2: B.Dirt, spike: B.Stone, rubble: B.MossyCobble, light: '#ffc880' };
+    const SUMP: CaveTheme = { wall: B.MossyStone, wall2: B.DeepStone, band: B.Gravel, floor: B.Gravel, floor2: B.MossyCobble, spike: B.MossyStone, rubble: B.MossyCobble, light: '#b8ffc8' };
+    const OLD: CaveTheme = { wall: B.Basalt, wall2: B.DeepStone, band: B.CopperOre, floor: B.Gravel, floor2: B.Stone, spike: B.Basalt, rubble: B.Cobble, light: '#ffb070' };
+    const k = caveKit(O, s.props, OX, OZ, F);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, k.floorAt(x, z) ?? F, OZ + z + 0.5];
     const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
-    const covered: [number, number, number, number, number][] = [];
-    const room = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false, th = PIT) => {
-      hall(x0, z0, x1, z1, h, pillars, th);
-      covered.push([OX + x0 - 1, OZ + z0 - 1, OX + x1 + 1, OZ + z1 + 1, F + h]);
-    };
-    const prop = (t: PropType, x: number, z: number, ry = 0, y = F) => s.props.push({ t, x: OX + x + 0.5, y, z: OZ + z + 0.5, ry });
-    const furn = (item: string, x: number, z: number, ry = 0) => s.props.push({ t: 'furn', item, x: OX + x + 0.5, y: F, z: OZ + z + 0.5, ry });
+    const prop = (t: PropType, x: number, z: number, ry = 0) => s.props.push({ t, x: OX + x + 0.5, y: k.floorAt(x, z) ?? F, z: OZ + z + 0.5, ry });
+    const furn = (item: string, x: number, z: number, ry = 0, tint = 0) => s.props.push({ t: 'furn', item, x: OX + x + 0.5, y: k.floorAt(x, z) ?? F, z: OZ + z + 0.5, ry, tint });
 
-    // The lamp room, where a group comes down the shaft ladder
-    room(0, -4, 9, 4, 5);
-    for (let y = F; y < F + 5; y++) for (const z of [-2, 2]) O.set(OX, y, OZ + z, B.Timber); // the ladder's frame on the west wall
+    // The shaft foot, where the lamps were kept: square-cut, timbered, the ladder up on the west wall
+    k.tunnel([[1, 0], [9, 0]], 7, 5, PIT, { mine: true });
+    // Number Four: the shut gallery, east, rails down the middle; it opens out where the night shift turned off
+    k.tunnel([[9, 0], [44, 0]], 5, 5, PIT, { mine: true });
+    k.chamber(38, 0, 8, 6, 7, CAVE, { seed: 4 });
+    // The night shift's room, broken into natural cave off the gallery's north side
+    k.tunnel([[36, -4], [34, -12], [33, -17]], 4, 5, CAVE);
+    k.chamber(33, -27, 12, 9, 10, CAVE, { pillars: [[25, -31, 1.3], [42, -22, 1.5]], seed: 9 });
+    // The old drift east to the sump, and the sump: a cavern half full of water since the pumps stopped
+    k.tunnel([[44, -27], [52, -24], [59, -27]], 4, 5, CAVE);
+    k.chamber(73, -27, 14, 12, 12, SUMP, { pillars: [[63, -37, 1.6], [84, -17, 1.4]], seed: 17 });
+    k.pool(80, -35, 4.5); k.pool(64, -18, 2.5);
+    // South from the sump, over the flooded shaft on the night shift's bridge, to the hatchlings' drift
+    k.tunnel([[73, -15], [73, -2]], 5, 5, SUMP);
+    k.pit(70, -10, 76, -5, 6, true);
+    k.bridge(73, -11, 73, -4, 3);
+    k.chamber(72, 4, 7, 5, 6, CAVE, { seed: 23 });
+    // The old man: a cavern black with fire-setting, copper in every band of the rock
+    k.tunnel([[72, 8], [73, 13], [73, 18]], 4, 5, OLD);
+    k.chamber(73, 31, 19, 14, 15, OLD, { pillars: [[59, 27, 1.9], [87, 27, 1.9], [62, 38, 1.4], [84, 38, 1.4]], seed: 31 });
+
+    // Lamps: the mine's every few sets, the caves' where somebody needed to see
+    for (const x of [4, 14, 22, 30]) k.lamp(x, -2);
+    for (const [x, z] of [[34, 4], [43, -4], [26, -23], [40, -31], [33, -18], [52, -24], [62, -27], [82, -22], [73, -14], [70, 6], [62, 22], [84, 22], [66, 42], [80, 42]] as const) k.lamp(x, z);
+    // The sump's water gives back a green light; the old man is lit by the braziers the night shift left
+    k.glow(80, -35, F + 2, 1.4, '#9ae8b0', true); k.glow(66, -20, F + 2, 1.2, '#9ae8b0', true);
+    k.finish({ spikes: 0.05, rubble: 0.12 });
+
+    // The ladder's frame on the west wall of the shaft foot
+    for (let y = F; y < F + 5; y++) for (const z of [-2, 2]) O.set(OX, y, OZ + z, B.Timber);
     for (let z = -2; z <= 2; z++) O.set(OX, F + 4, OZ + z, B.Timber);
     s.props.push({ t: 'sign', x: OX + 1.2, y: F, z: OZ + 3.4, ry: Math.PI / 2, text: 'Shaft ladder' });
-    furn('candles', 6, -3); prop('crate', 7, 3, 0.4); prop('barrel', 8, 2.6); prop('crate', 6, 3.2, 1.2);
-    // Number Four, the shut gallery: rails down the middle, a cart left where it stopped
-    run(10, 0, 19, 0);
-    room(20, -7, 46, 7, 7, true);
-    s.props.push({ t: 'rails', x: OX + 33.5, y: F, z: OZ + 0.5, ry: Math.PI / 2, len: 24 } as PropDesc);
-    prop('cart', 36, 0, Math.PI / 2); prop('crate', 22, -6, 0.3); prop('barrel', 45, 6); furn('candles', 30, 6);
-    // The night shift's room: where Coll Bray's crew sorted the copper they carried up at night
-    run(33, -8, 33, -17);
-    room(22, -33, 44, -18, 7);
-    for (const [x, z, r] of [[25, -31, 0.2], [27, -31, 1.1], [41, -31, 0.6], [42, -29, 1.7], [24, -20, 0.9]] as const) prop('crate', x, z, r);
-    furn('candles', 33, -32); prop('barrel', 40, -20); prop('cart', 29, -30, 0.2);
-    // The sump: the pumps have been off since the roof came in, and the water's coming back
-    run(45, -26, 58, -26);
-    room(59, -40, 85, -12, 9, false, SUMP);
-    for (let z = -39; z <= -36; z++) for (let x = 80; x <= 84; x++) { O.set(OX + x, F - 2, OZ + z, B.Clay); O.set(OX + x, F - 1, OZ + z, B.Water); }
-    prop('barrel', 61, -38); prop('crate', 62, -14, 0.5); furn('mushrooms', 66, -39); furn('mushrooms', 83, -14);
-    // The drift: low, and full of the rustbacks' young
-    run(72, -11, 72, 0);
-    room(66, 1, 78, 9, 5);
-    furn('mushrooms', 67, 8);
-    // The old man: workings older than the Pit, black with the soot of fire-setting, copper in the walls
-    run(72, 10, 72, 17);
-    room(55, 18, 92, 44, 11, true, OLD);
-    for (let z = 18; z <= 44; z++) for (const x of [54, 93]) for (let y = F + 1; y < F + 5; y++) if (hash2(x * 7 + y, z, 951) < 0.18) O.set(OX + x, y, OZ + z, B.CopperOre);
-    for (let x = 55; x <= 92; x++) for (let y = F + 1; y < F + 5; y++) if (hash2(x * 5 + y, 45, 952) < 0.16) O.set(OX + x, y, OZ + 45, B.CopperOre);
-    // A tally on the east wall, cut by whoever worked it first: strokes in fives, a bar across each
-    for (let i = 0; i < 23; i++) { const z = 24 + i + Math.floor(i / 5); if (z > 41) break; const bar = i % 5 === 4; for (let y = F + 2; y < F + 4; y++) O.set(OX + 93, y, OZ + z, bar ? B.Stone : B.Sand); }
-    furn('candles', 74, 43); prop('crate', 58, 42, 0.8); prop('barrel', 90, 42);
-    finish();
+    furn('candles', 6, -3); prop('crate', 7, 3, 0.4); prop('barrel', 8, 2.6); prop('crate', 6, 3.2, 1.2); furn('shelves', 4, -3);
+    // Number Four: rails, the cart left where it stopped, and the fall of roof that shut the gallery
+    s.props.push({ t: 'rails', x: OX + 26.5, y: F, z: OZ + 0.5, ry: Math.PI / 2, len: 34 } as PropDesc);
+    prop('cart', 33, 0, Math.PI / 2); prop('crate', 20, -2, 0.3); prop('barrel', 43, 2);
+    for (const [x, z, h] of [[24, 1, 2], [25, 2, 1], [23, 2, 1], [26, 1, 1], [24, 2, 1]] as const) for (let y = 0; y < h; y++) O.set(OX + x, F + y, OZ + z, y ? B.Gravel : B.Cobble);
+    furn('coil', 41, -3); furn('candles', 39, 5);
+    // The night shift's room: copper sorted by hand, a table, the stove they kept going
+    for (const [x, z, r] of [[25, -34, 0.2], [27, -34, 1.1], [41, -33, 0.6], [43, -31, 1.7], [24, -21, 0.9], [26, -20, 0.2]] as const) prop('crate', x, z, r);
+    furn('table', 36, -33, 0.2); furn('stool', 35, -32, 0.5); furn('stool', 37, -34, 2.1); furn('candles', 36, -33);
+    prop('firepit', 30, -33); prop('cart', 29, -20, 0.2); prop('barrel', 40, -20);
+    // The sump: the pump's frame by the deep water, its barrels, a boat nobody will use again
+    for (const [x, z] of [[78, -31], [82, -31]] as const) for (let y = F; y < F + 5; y++) O.set(OX + x, y, OZ + z, B.Timber);
+    for (let x = 78; x <= 82; x++) O.set(OX + x, F + 4, OZ - 31, B.Timber);
+    prop('barrel', 77, -30); prop('barrel', 83, -30, 1); furn('coil', 80, -30);
+    furn('mushrooms', 63, -32, 0, 1); furn('mushrooms', 86, -24, 2, 1); furn('mushrooms', 70, -16, 4, 1);
+    // The drift: the hatchlings have been at the walls
+    furn('bones', 70, 2, 0.4); furn('mushrooms', 76, 6);
+    // The old man: rotten props from whoever worked it first, the tally they cut, the nest
+    for (const [x, z] of [[58, 21], [88, 21], [57, 34], [89, 34]] as const) for (let y = F; y < F + 6; y++) O.set(OX + x, y, OZ + z, B.Timber);
+    for (let i = 0; i < 4; i++) { const z = 24 + i * 2; for (let y = F + 2; y < F + 4; y++) if (!k.isOpen(OX + 93, y, OZ + z)) O.set(OX + 93, y, OZ + z, B.Sand); }
+    for (const [x, z] of [[62, 28], [84, 28], [66, 39], [80, 39]] as const) prop('firepit', x, z);
+    furn('bones', 66, 36, 1.2, 1); furn('bones', 80, 25, 2.6, 1); furn('candles', 73, 44); prop('crate', 58, 40, 0.8); prop('barrel', 88, 40);
+    for (const [x, z] of [[68, 43], [69, 44], [77, 44], [78, 43]] as const) O.set(OX + x, F, OZ + z, B.CopperOre);
 
     s.act = {
       kind: 'group',
       arrive: at(2, 0),
       exit: at(1, 0),
       packs: [
-        [mob(27, -2, 'dg_rustback'), mob(29, 2, 'dg_rustback'), mob(25, 1, 'dg_rustback')],
-        [mob(40, 3, 'dg_rustback'), mob(42, -2, 'dg_rustback'), mob(41, 0, 'dg_seep')],
-        [mob(64, -23, 'dg_seep'), mob(64, -29, 'dg_seep'), mob(62, -26, 'dg_rustback')],
-        [mob(70, 4, 'dg_hatchling'), mob(74, 4, 'dg_hatchling'), mob(70, 7, 'dg_hatchling'), mob(74, 7, 'dg_hatchling'), mob(72, 6, 'dg_rustback')],
-        [mob(60, 22, 'dg_rustback'), mob(62, 24, 'dg_rustback')],
-        [mob(86, 22, 'dg_rustback'), mob(88, 24, 'dg_rustback')],
+        [mob(16, -1, 'dg_rustback'), mob(18, 1, 'dg_rustback'), mob(14, 1, 'dg_rustback')],
+        [mob(37, 3, 'dg_rustback'), mob(40, -2, 'dg_rustback'), mob(39, 1, 'dg_seep')],
+        [mob(64, -24, 'dg_seep'), mob(64, -29, 'dg_seep'), mob(62, -26, 'dg_rustback')],
+        [mob(70, 4, 'dg_hatchling'), mob(74, 4, 'dg_hatchling'), mob(71, 6, 'dg_hatchling'), mob(74, 6, 'dg_hatchling'), mob(72, 5, 'dg_rustback')],
+        [mob(63, 23, 'dg_rustback'), mob(65, 25, 'dg_rustback')],
+        [mob(83, 23, 'dg_rustback'), mob(85, 25, 'dg_rustback')],
       ],
       bosses: [
-        { at: at(33, -27), type: 'dg_coll', crew: [mob(29, -24, 'dg_nightman'), mob(37, -24, 'dg_nightman')] },
-        { at: at(74, -27), type: 'dg_sump' },
-        { at: at(73, 33), type: 'dg_verdigris' },
+        { at: at(33, -28), type: 'dg_coll', crew: [mob(29, -25, 'dg_nightman'), mob(37, -25, 'dg_nightman')] },
+        { at: at(72, -25), type: 'dg_sump' },
+        { at: at(73, 31), type: 'dg_verdigris' },
       ],
       chest: at(73, 41),
-      covered,
+      covered: k.covered(),
     };
-    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
   /**
-   * Under the Kettle, north of the crater: the crack in the Kettle's north wall that Kelderby folds
-   * its ewes in over winter, the wolves' den behind it, Brack's ledge, the seep where the ice has
-   * grown into glass, and at the bottom the crystal that came down with the star, where the Glim
-   * lives. Entered by the crack (press E); the halls themselves are buried.
+   * Under the Kettle, north of the crater, going down all the way. The crack in the Kettle's north
+   * wall is the shepherds' winter fold, hurdled across. Behind it the wolves' den winds back to a
+   * cave with a ledge round its far side, where Brack lies up. From there an ice ramp drops to the
+   * seep, where the meltwater froze into glass and kept growing; and a second ramp drops again to
+   * the heart of the fall, eight blocks below the fold, where the crystal the star brought down
+   * fills a cavern and the Glim lives in its light. Entered by the crack (press E); buried.
    */
   function buildUnderKettle(s: Site) {
     const OX = 712, OZ = 1990, F = 40;
-    const FOLD: DigTheme = { wall: B.Stone, wall2: B.MossyStone, floor: B.Gravel, floor2: B.Dirt, light: '#ffc880' };
-    const ICE: DigTheme = { wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff' };
-    const HEART: DigTheme = { wall: B.Basalt, wall2: B.Crystal, floor: B.Basalt, floor2: B.Crystal, light: '#c8f4ff' };
-    const { hall, run, finish } = digger(s, OX, OZ, F, FOLD);
-    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, F, OZ + z + 0.5];
+    const FOLD: CaveTheme = { wall: B.Stone, wall2: B.MossyStone, band: B.Gravel, floor: B.Gravel, floor2: B.Dirt, spike: B.Stone, rubble: B.MossyCobble, light: '#ffc880' };
+    const DEN: CaveTheme = { wall: B.Stone, wall2: B.DeepStone, band: B.Snow, floor: B.Gravel, floor2: B.Stone, spike: B.Ice, rubble: B.Cobble, light: '#ffd8a0' };
+    const ICE: CaveTheme = { wall: B.Ice, wall2: B.DeepStone, band: B.Crystal, floor: B.Snow, floor2: B.Ice, spike: B.Ice, rubble: B.Snow, light: '#9fe8ff' };
+    const HEART: CaveTheme = { wall: B.Basalt, wall2: B.DeepStone, band: B.Crystal, floor: B.Gravel, floor2: B.Ice, spike: B.Crystal, rubble: B.Ice, light: '#c8f4ff' };
+    const k = caveKit(O, s.props, OX, OZ, F);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, k.floorAt(x, z) ?? F, OZ + z + 0.5];
     const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
-    const covered: [number, number, number, number, number][] = [];
-    const room = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false, th = FOLD) => {
-      hall(x0, z0, x1, z1, h, pillars, th);
-      covered.push([OX + x0 - 1, OZ + z0 - 1, OX + x1 + 1, OZ + z1 + 1, F + h]);
-    };
-    const prop = (t: PropType, x: number, z: number, ry = 0) => s.props.push({ t, x: OX + x + 0.5, y: F, z: OZ + z + 0.5, ry });
-    const furn = (item: string, x: number, z: number, ry = 0) => s.props.push({ t: 'furn', item, x: OX + x + 0.5, y: F, z: OZ + z + 0.5, ry });
+    const prop = (t: PropType, x: number, z: number, ry = 0) => s.props.push({ t, x: OX + x + 0.5, y: k.floorAt(x, z) ?? F, z: OZ + z + 0.5, ry });
+    const furn = (item: string, x: number, z: number, ry = 0, tint = 0) => s.props.push({ t: 'furn', item, x: OX + x + 0.5, y: k.floorAt(x, z) ?? F, z: OZ + z + 0.5, ry, tint });
 
     // The way in from the crater: a crack in the Kettle's north wall, the shepherds' winter fold
     {
       const cx = 807, z0 = 2038, z1 = 2045, y = 51;
       for (let z = z0; z <= z1; z++) for (let x = cx - 1; x <= cx + 1; x++) {
         O.set(x, y - 1, z, B.Gravel);
-        for (let k = 0; k < 4; k++) O.set(x, y + k, z, B.Air);
+        for (let n = 0; n < 4; n++) O.set(x, y + n, z, B.Air);
       }
-      for (let x = cx - 1; x <= cx + 1; x++) for (let k = 0; k < 4; k++) O.set(x, y + k, z0 - 1, k < 3 ? B.Planks : B.Basalt); // hurdles across the back
+      for (let x = cx - 1; x <= cx + 1; x++) for (let n = 0; n < 4; n++) O.set(x, y + n, z0 - 1, n < 3 ? B.Planks : B.Basalt); // hurdles across the back
       s.props.push({ t: 'lantern', x: cx + 1.5, y, z: z1 + 0.5, ry: 0 }, { t: 'sign', x: cx - 1.6, y, z: z1 + 0.6, ry: Math.PI, text: 'The Fold' });
     }
 
-    // The shepherds' cave, where a group comes in through the hurdles
-    room(0, -4, 9, 4, 5);
-    furn('candles', 7, -3); prop('crate', 7, 3, 0.4); prop('barrel', 8, 2.6);
-    // The den: wool, bones, and what the wolves dragged in
-    run(10, 0, 19, 0);
-    room(20, -8, 44, 8, 7, true);
-    furn('mushrooms', 22, 7); prop('crate', 43, -7, 0.8);
-    // Brack's ledge, up the north passage
-    run(32, -9, 32, -17);
-    room(20, -36, 44, -18, 8);
-    prop('barrel', 22, -35); furn('candles', 42, -20);
-    // The seep: the ice here has grown into glass
-    run(45, -27, 58, -27);
-    room(59, -38, 85, -14, 10, false, ICE);
-    for (let i = 0; i < 7; i++) {
-      const x = 62 + ((i * 7) % 21), z = -36 + ((i * 5) % 20), h = 2 + (i % 3);
-      for (let y = F; y < F + h; y++) O.set(OX + x, y, OZ + z, B.Crystal);
-      s.props.push({ t: 'glow', x: OX + x + 0.5, y: F + h, z: OZ + z + 0.5, r: 2.4, color: '#9fe8ff' });
-    }
-    // The drift down
-    run(72, -13, 72, -1);
-    room(66, 0, 78, 8, 5, false, ICE);
+    // The fold, where a group comes in through the hurdles
+    k.tunnel([[1, 0], [6, 0]], 5, 5, FOLD);
+    k.chamber(7, 0, 7, 6, 7, FOLD, { seed: 3 });
+    // The den: a winding crawl back into the hill, then the wolves' cave
+    k.tunnel([[13, 0], [18, 4], [24, -1], [27, 0]], 4, 5, DEN);
+    k.chamber(34, 0, 10, 8, 9, DEN, { pillars: [[30, 5, 1.2]], seed: 7 });
+    // Brack's cave, up the north passage, with the ledge round its back a step up
+    k.tunnel([[34, -7], [31, -13], [33, -18]], 4, 5, DEN);
+    k.chamber(33, -24, 12, 7, 11, DEN, { seed: 11 });
+    k.chamber(33, -34, 10, 4, 9, DEN, { f: F + 1, seed: 12 });
+    // The first ramp, down to the seep, where the ice grew into glass
+    k.tunnel([[45, -27, F], [52, -26, F - 2], [58, -27, F - 3]], 4, 5, ICE);
+    k.chamber(72, -26, 14, 12, 13, ICE, { f: F - 3, pillars: [[64, -33, 1.4], [79, -32, 1.1], [82, -19, 1.5], [65, -17, 1.0]], seed: 19 });
+    // The second ramp down, and the drift where the jellies drift
+    k.tunnel([[72, -14, F - 3], [72, -7, F - 5], [72, 0, F - 7], [72, 4, F - 8]], 4, 5, ICE);
+    k.chamber(72, 6, 6, 4, 6, ICE, { f: F - 8, seed: 21 });
     // The heart of the fall: the crystal the star brought down, and the Glim in it
-    run(72, 9, 72, 16);
-    room(55, 17, 92, 38, 13, true, HEART);
-    for (const [x, z, h] of [[60, 21, 5], [87, 21, 6], [60, 35, 4], [87, 35, 5], [64, 28, 3], [83, 28, 3]] as const) {
-      for (let y = F; y < F + h; y++) for (const [dx, dz] of y < F + h - 2 ? [[0, 0], [1, 0], [0, 1]] : [[0, 0]]) O.set(OX + x + dx, y, OZ + z + dz, B.Crystal);
-      s.props.push({ t: 'glow', x: OX + x + 0.5, y: F + h, z: OZ + z + 0.5, r: 3.2, color: '#c8f4ff' });
+    k.tunnel([[72, 9, F - 8], [72, 16, F - 8]], 5, 6, HEART);
+    k.chamber(73, 29, 19, 13, 16, HEART, { f: F - 8, pillars: [[59, 22, 1.6], [87, 22, 1.8], [60, 36, 1.3], [86, 36, 1.4]], seed: 29 });
+
+    for (const [x, z] of [[4, -3], [10, 4], [20, 3], [32, -6], [40, 6], [28, -21], [38, -21], [33, -36]] as const) k.lamp(x, z, k.floorAt(x, z) ?? F);
+    // Below the den nobody hung lamps: the light is the crystal's
+    for (const [x, z, y] of [[61, -22, F], [84, -28, F + 1], [70, -36, F - 1], [77, -16, F - 1], [72, 6, F - 5], [57, 29, F - 3], [89, 29, F - 2], [66, 19, F - 5], [80, 19, F - 5], [64, 40, F - 4], [82, 40, F - 4]] as const) k.glow(x, z, y, 1.3, '#9fe8ff', true);
+    k.finish({ spikes: 0.07, rubble: 0.1 });
+
+    // The fold: hurdles, hay, the shepherds' things
+    furn('hurdle', 3, -3, 0); furn('hurdle', 5, -3.5, 0.1); furn('hayrack', 9, 4, 0); furn('coil', 11, -3);
+    prop('crate', 12, 3, 0.4); prop('barrel', 12, -4); furn('candles', 4, 3);
+    for (const [x, z] of [[9, -4], [10, -4], [9, -5]] as const) O.set(OX + x, F, OZ + z, B.Hay);
+    // The den: what the wolves dragged in
+    for (const [x, z, r] of [[30, -3, 0.3], [37, 4, 1.4], [40, -4, 2.2], [27, 3, 0.9], [36, -6, 2.8]] as const) furn('bones', x, z, r);
+    // Brack's cave: wool and bones heaped on the ledge
+    for (const [x, z, r] of [[29, -34, 0.5], [36, -35, 1.6], [33, -36, 2.4]] as const) furn('bones', x, z, r);
+    for (const [x, z] of [[31, -35], [32, -35], [35, -34]] as const) O.set(OX + x, F + 1, OZ + z, B.Snow);
+    // The seep and the heart: glass growing out of the floor
+    for (const [x, z, h] of [[61, -22, 3], [84, -28, 4], [70, -36, 2], [77, -16, 2]] as const) for (let y = 0; y < h; y++) O.set(OX + x, F - 3 + y, OZ + z, B.Crystal);
+    for (const [x, z, h] of [[57, 29, 5], [89, 29, 6], [66, 19, 3], [80, 19, 3], [64, 40, 4], [82, 40, 4]] as const) {
+      for (let y = 0; y < h; y++) for (const [dx, dz] of y < h - 2 ? [[0, 0], [1, 0], [0, 1]] : [[0, 0]]) O.set(OX + x + dx, F - 8 + y, OZ + z + dz, B.Crystal);
     }
-    finish();
 
     s.act = {
       kind: 'group',
       arrive: at(2, 0),
       exit: at(1, 0),
       packs: [
-        [mob(27, -2, 'frostwolf'), mob(29, 3, 'frostwolf'), mob(25, 2, 'frostwolf')],
-        [mob(40, 3, 'frostwolf'), mob(41, -3, 'moorwolf'), mob(38, 0, 'frostwolf')],
-        [mob(64, -22, 'shardjelly'), mob(64, -30, 'shardjelly'), mob(66, -26, 'shardjelly')],
-        [mob(70, 3, 'shardjelly'), mob(74, 5, 'graniteback'), mob(72, 7, 'shardjelly')],
-        [mob(61, 24, 'graniteback'), mob(63, 22, 'shardjelly')],
-        [mob(86, 24, 'graniteback'), mob(84, 22, 'shardjelly')],
+        [mob(30, -1, 'frostwolf'), mob(33, 3, 'frostwolf'), mob(29, 2, 'frostwolf')],
+        [mob(39, 2, 'frostwolf'), mob(40, -3, 'moorwolf'), mob(37, 0, 'frostwolf')],
+        [mob(64, -23, 'shardjelly'), mob(66, -28, 'shardjelly'), mob(67, -25, 'shardjelly')],
+        [mob(70, 5, 'shardjelly'), mob(74, 6, 'graniteback'), mob(72, 7, 'shardjelly')],
+        [mob(63, 25, 'graniteback'), mob(65, 23, 'shardjelly')],
+        [mob(83, 25, 'graniteback'), mob(81, 23, 'shardjelly')],
       ],
       bosses: [
-        { at: at(33, -28), type: 'dg_brack', crew: [mob(29, -24, 'frostwolf'), mob(37, -24, 'frostwolf')] },
-        { at: at(72, -24), type: 'dg_millstone' },
-        { at: at(73, 30), type: 'dg_glim' },
+        { at: at(33, -33), type: 'dg_brack', crew: [mob(28, -25, 'frostwolf'), mob(38, -25, 'frostwolf')] },
+        { at: at(73, -25), type: 'dg_millstone' },
+        { at: at(73, 29), type: 'dg_glim' },
       ],
-      chest: at(73, 36),
-      covered,
+      chest: at(73, 38),
+      covered: k.covered(),
     };
-    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
   /** A world boss's lair: a levelled clearing ringed with whatever suits the creature. */

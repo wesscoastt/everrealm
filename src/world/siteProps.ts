@@ -37,15 +37,19 @@ const clothMats = new Map<string, THREE.Material>();
  */
 const glowPointMats = new WeakMap<THREE.SpriteMaterial, THREE.ShaderMaterial>();
 const _buf = new THREE.Vector2();
+/** A lamp's own colour, where it isn't the lantern orange (a crystal's light, a cave's). */
+export const LAMP_TINT = new WeakMap<THREE.Vector3, THREE.Color>();
+
 function glowPoints(glowMat: THREE.SpriteMaterial, pos: number[], size: number[], col: number[]): THREE.Points {
   let mat = glowPointMats.get(glowMat);
   if (!mat) {
     mat = new THREE.ShaderMaterial({
       uniforms: { uMap: { value: glowMat.map }, uOpacity: { value: 0 }, uScale: { value: 400 } },
-      vertexShader: `attribute float aSize; attribute vec3 aColor; varying vec3 vColor; uniform float uScale;
-        void main() { vColor = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSize * uScale / max(0.5, -mv.z); }`,
-      fragmentShader: `uniform sampler2D uMap; uniform float uOpacity; varying vec3 vColor;
-        void main() { vec4 t = texture2D(uMap, gl_PointCoord); gl_FragColor = vec4(t.rgb * vColor, t.a * uOpacity); }`,
+      // A halo is a thing seen from off: it stops growing and fades out as you come right up to the lamp
+      vertexShader: `attribute float aSize; attribute vec3 aColor; varying vec3 vColor; varying float vNear; uniform float uScale;
+        void main() { vColor = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = min(aSize * uScale / max(0.5, -mv.z), 150.0); vNear = smoothstep(1.5, 5.0, -mv.z); }`,
+      fragmentShader: `uniform sampler2D uMap; uniform float uOpacity; varying vec3 vColor; varying float vNear;
+        void main() { vec4 t = texture2D(uMap, gl_PointCoord); gl_FragColor = vec4(t.rgb * vColor, t.a * uOpacity * vNear); }`,
       blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
     });
     glowPointMats.set(glowMat, mat);
@@ -189,7 +193,11 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       }
       case 'rope': place(P.strand(M.rope, d.len ?? 4, d.h ?? 0, d.r ?? 0.4, 0.035), d.x, d.y, d.z, d.ry); break;
       case 'root': place(P.strand(M.bark, d.len ?? 0.5, d.h ?? 3, d.r ?? 0.3, 0.13, 0.03, 6), d.x, d.y, d.z, d.ry); break;
-      case 'glow': glow(d.x, d.y, d.z, (d.r ?? 2.4) * 1.2, d.color); break;
+      case 'glow': {
+        glow(d.x, d.y, d.z, (d.r ?? 2.4) * 1.2, d.color);
+        if (d.lit) { const v = new THREE.Vector3(d.x, d.y, d.z); lamps.push(v); if (d.color) LAMP_TINT.set(v, new THREE.Color(d.color)); }
+        break;
+      }
       case 'smoke': smoke.push(new THREE.Vector3(d.x, d.y, d.z)); break;
     }
   }

@@ -1055,6 +1055,7 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'coil': return ropeCoil(M);
     case 'hayrack': return hayRack(M);
     case 'hurdle': return hurdle(M);
+    case 'bones': return bones(tint);
     default: return null;
   }
 }
@@ -1353,6 +1354,21 @@ export function gull(): THREE.Group {
 export function ropeCoil(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 3; i++) g.add(mesh(new THREE.TorusGeometry(0.28 - i * 0.04, 0.035, 5, 14), M.rope, 0, 0.04 + i * 0.06, 0, 0, Math.PI / 2));
+  return g;
+}
+
+/** Bones on a cave floor: long bones crossed, ribs, and a skull (a sheep's, or worse, by tint). */
+export function bones(tint = 0): THREE.Group {
+  const g = new THREE.Group();
+  const bone = flat(tint ? '#d8ccb0' : '#e8e0cc');
+  const r = (k: number) => Math.sin(k * 12.9898 + tint * 78.233) * 0.5 + 0.5;
+  for (let i = 0; i < 5; i++) {
+    const m = mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.5 + r(i) * 0.3, 5), bone, (r(i + 1) - 0.5) * 0.8, 0.04, (r(i + 2) - 0.5) * 0.8, r(i + 3) * Math.PI, 0, Math.PI / 2);
+    g.add(m);
+  }
+  for (let i = 0; i < 4; i++) g.add(mesh(new THREE.TorusGeometry(0.18, 0.02, 4, 10, Math.PI), bone, 0.3, 0.02 + i * 0.001, -0.25 + i * 0.12, 0, -Math.PI / 2, 0));
+  g.add(mesh(box(0.2, 0.16, 0.28), bone, -0.32, 0.08, 0.22, 0.6));
+  g.add(mesh(box(0.12, 0.08, 0.14), bone, -0.32, 0.06, 0.4, 0.6));
   return g;
 }
 

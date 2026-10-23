@@ -9,13 +9,13 @@ import { realmNow } from '../world/clock';
 import { Ferry } from '../world/Ferry';
 import { createPropMaterials, FIRE_TIME, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
-import { BuiltSite, buildImpostor, buildSiteProps, IMPOSTOR_MAT } from '../world/siteProps';
+import { BuiltSite, buildImpostor, buildSiteProps, IMPOSTOR_MAT, LAMP_TINT } from '../world/siteProps';
 import { LODGINGS } from '../data/lodgings';
 import { BANKS } from '../data/places_regional';
 import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
-import { GW, landDist, SEA } from '../world/terrain';
+import { GW, heightAt, landDist, SEA } from '../world/terrain';
 import { buildBlockTextureArray } from '../world/textures';
 import { Vegetation } from '../world/Vegetation';
 import { CHUNK, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMIN, WSIZE } from '../world/VoxelWorld';
@@ -26,6 +26,9 @@ const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
 const LAMP_LIGHTS = 12, LAMP_REACH = 16, LAMP_POWER = 12;
+const LAMP_ORANGE = new THREE.Color('#ffb05a');
+/** The light in a cave: a dim cool fill from above, warmer from the floor; the fog goes nearly black. */
+const CAVE_SKY = new THREE.Color('#8a94a4'), CAVE_GROUND = new THREE.Color('#4a4038'), CAVE_FOG = new THREE.Color('#0b0c0f');
 
 /** Something growing to pick: bare (picked) until `bareUntil` (game time). */
 export interface ForageSpot { x: number; y: number; z: number; kind: string; bareUntil: number }
@@ -442,6 +445,21 @@ export class GameWorld {
     this.shared.uTime.value = elapsed;
     FIRE_TIME.value = elapsed;
     this.sky.update(dt, center, timeScale);
+    // Underground (a dungeon, a delve, a mine) there's no sky: the same dim cave light at any hour,
+    // no sun, the fog gone to dark, and the lamps burning full
+    // (well below the land's surface, with rock overhead: not a quarry or a pit open to the sky)
+    let below = 0;
+    if (heightAt(center.x, center.z) - center.y > 5) for (let y = 2; y < 24; y++) if (this.voxels.solidAt(center.x, center.y + y, center.z)) { below = 1; break; }
+    this.under += (below - this.under) * Math.min(1, dt * 2);
+    this.sky.underground = below === 1;
+    if (this.under > 0.01) {
+      const u = this.under, h = this.sky.hemi;
+      h.color.lerp(CAVE_SKY, u); h.groundColor.lerp(CAVE_GROUND, u);
+      h.intensity += (1.7 - h.intensity) * u;
+      this.sky.sun.intensity *= 1 - u;
+      this.sky.fog.color.lerp(CAVE_FOG, u);
+      this.sky.fog.near += (24 - this.sky.fog.near) * u; this.sky.fog.far += (140 - this.sky.fog.far) * u;
+    }
     this.chunks.update(center.x, center.z);
     this.lodUniforms.uCenter.value.set(center.x, center.z);
     this.lodUniforms.uRadius.value = this.chunks.coveredRadius;
@@ -492,8 +510,10 @@ export class GameWorld {
       if (imp) imp.visible = d + (this.siteReach.get(s.id) ?? 0) > this.chunks.coveredRadius;
     }
     for (const s of this.activeSites.values()) { for (const f of s.fires) f.scale.set(1, flick, 1); for (const sl of s.sails) sl.rotation.z += dt * 0.5; }
-    this.placeLamps(center, glow, flick);
+    this.placeLamps(center, Math.max(glow, this.under), flick);
   }
+  /** How far underground the player is, eased (0 in the open, 1 well below the surface). */
+  private under = 0;
 
   /**
    * Hang the light pool on the lamps nearest the player: every interior lamp, lantern and fire in
@@ -521,6 +541,7 @@ export class GameWorld {
       const l = this.lampLights[i];
       if (i >= best.length) { l.intensity = 0; continue; }
       l.position.copy(best[i]);
+      l.color.copy(LAMP_TINT.get(best[i]) ?? LAMP_ORANGE);
       l.intensity = level * Math.min(1, (edge - Math.sqrt(dist[i])) / 6);
     }
   }
