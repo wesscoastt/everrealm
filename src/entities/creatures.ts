@@ -602,7 +602,7 @@ export class CreatureModel {
 
   private buildRabbit(): void {
     this.plateHeight = 0.6;
-    const fur = lam('#9a8670');
+    const fur = lam(this.pal.a ?? '#9a8670');
     add(this.body, rb(0.26, 0.24, 0.38, 0.08), fur, 0, 0.18, 0);
     const head = new THREE.Group();
     head.position.set(0, 0.32, 0.18);

@@ -111,7 +111,7 @@ export async function deleteRemote(name: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------- The store (server/store.mjs)
-export interface StoreItem { id: string; name: string; price: number; blurb: string; items: string[] }
+export interface StoreItem { id: string; cat?: string; name: string; price: number; blurb: string; items: string[] }
 /** What the store sells, and whether it's open for payments yet. */
 export async function storeCatalog(): Promise<{ open: boolean; items: StoreItem[] } | null> {
   const r = await call('GET', '/api/store/catalog');

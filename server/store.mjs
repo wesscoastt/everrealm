@@ -24,11 +24,17 @@ import crypto from 'node:crypto';
 
 /** What's for sale, by its id: the price in cents (USD), and the game items it grants. */
 export const CATALOG = {
-  starstag: { name: 'Starlit stag', price: 999, items: ['mount_store_starstag'], blurb: 'A stag the colour of the night sky, its antlers lit from within. Keeps the same pace as every other mount.' },
-  lanterncat: { name: 'Lantern kilncat', price: 999, items: ['mount_store_lanterncat'], blurb: 'A kilncat whose stripes glow like coals in a lantern. Keeps the same pace as every other mount.' },
-  gildgriffin: { name: 'Gilded griffin', price: 1499, items: ['mount_store_gildgriffin'], blurb: 'A tower griffin in gold and white, its eyes bright. Keeps the same pace as every other mount.' },
-  hen: { name: 'Speckled hen', price: 0, items: ['pet_hen'], blurb: 'A pet hen who has decided you\'re hers. She follows you everywhere, dungeons included, and is no help at all. Free, once per account.' },
-  founders: { name: 'Founder\'s pack', price: 2499, items: ['mount_store_starstag', 'mount_store_lanterncat', 'mount_store_gildgriffin', 'cape_founder'], blurb: 'All three store mounts and the Founder\'s cloak, a lamp with its light round it, to say you were here early and helped keep the lights on.' },
+  starstag: { cat: 'mounts', name: 'Starlit stag', price: 999, items: ['mount_store_starstag'], blurb: 'A stag the colour of the night sky, its antlers lit from within. Keeps the same pace as every other mount.' },
+  lanterncat: { cat: 'mounts', name: 'Lantern kilncat', price: 999, items: ['mount_store_lanterncat'], blurb: 'A kilncat whose stripes glow like coals in a lantern. Keeps the same pace as every other mount.' },
+  gildgriffin: { cat: 'mounts', name: 'Gilded griffin', price: 1499, items: ['mount_store_gildgriffin'], blurb: 'A tower griffin in gold and white, its eyes bright. Keeps the same pace as every other mount.' },
+  hen: { cat: 'pets', name: 'Speckled hen', price: 0, items: ['pet_hen'], blurb: 'A pet hen who has decided you\'re hers. She follows you everywhere, dungeons included, and is no help at all. Free, once per account.' },
+  kitten: { cat: 'pets', name: 'Hearth kitten', price: 399, items: ['pet_kitten'], blurb: 'A ginger kitten at your heels. Sits on every warm stone you pass. Looks only: pets never fight.' },
+  pup: { cat: 'pets', name: 'Shepherd\'s pup', price: 399, items: ['pet_pup'], blurb: 'A black and white collie pup from the fells, too young to work and too keen to sit still. Looks only.' },
+  duckling: { cat: 'pets', name: 'Puddle duckling', price: 399, items: ['pet_duckling'], blurb: 'A yellow duckling who thinks you\'re its mother. Waddles to keep up. Looks only.' },
+  hare: { cat: 'pets', name: 'Moon hare', price: 499, items: ['pet_hare'], blurb: 'A white hare the dales say is a witch who forgot her way home. Looks only.' },
+  piglet: { cat: 'pets', name: 'Truffle piglet', price: 399, items: ['pet_piglet'], blurb: 'A small pink piglet, certain there\'s something buried under every tree you stop by. Looks only.' },
+  petpack: { cat: 'bundles', name: 'The whole litter', price: 1299, items: ['pet_kitten', 'pet_pup', 'pet_duckling', 'pet_hare', 'pet_piglet'], blurb: 'All five store pets at once, for less than four of them. Change which one follows you any time.' },
+  founders: { cat: 'bundles', name: 'Founder\'s pack', price: 2499, items: ['mount_store_starstag', 'mount_store_lanterncat', 'mount_store_gildgriffin', 'cape_founder'], blurb: 'All three store mounts and the Founder\'s cloak, a lamp with its light round it, to say you were here early and helped keep the lights on.' },
 };
 
 const SKEY = () => process.env.STRIPE_SECRET_KEY ?? '';
@@ -89,7 +95,7 @@ export function storeInit({ loadAccount, storeAccount, log }) {
   return {
     /** The goods, for the store page (no account needed to look). */
     catalog() {
-      return { open: !!(SKEY() && WHSEC() && RETURN()), items: Object.entries(CATALOG).map(([id, c]) => ({ id, name: c.name, price: c.price, blurb: c.blurb, items: c.items })) };
+      return { open: !!(SKEY() && WHSEC() && RETURN()), items: Object.entries(CATALOG).map(([id, c]) => ({ id, cat: c.cat ?? 'other', name: c.name, price: c.price, blurb: c.blurb, items: c.items })) };
     },
     /** What an account owns, for the game to hand out. */
     owned(acc) { return acc.store?.owned ?? []; },

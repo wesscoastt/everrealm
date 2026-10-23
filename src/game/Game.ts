@@ -1752,6 +1752,7 @@ export class Game implements GameApi {
       return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes, costumes, pets };
     };
     return {
+      renderer: () => g.renderer,
       characters: () => listCharacters().map((c) => summary(c.id, c.save)),
       maxCharacters: MAX_CHARACTERS,
       selected: () => g.charId,

@@ -17,6 +17,17 @@ const ITEMS: ItemDef[] = [
   mount('mount_store_gildgriffin', 'Gilded griffin', { coat: '#d8b050', mane: '#f8f4ec', cloth: '#2a3a6a', breed: 'griffin', glow: true }, 'A tower griffin in gold and white, from the oldest eyrie in Callis. Its eyes catch the light like the Assembly\'s seal.'),
 ];
 
+const pet = (id: string, name: string, a: string, b: string, desc: string): ItemDef => ({
+  id: 'pet_' + id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'bag', a, b }, pet: id, desc,
+  stats: 'From the Everrealm store. Use it to add them to your wardrobe for good: call them under Pet with Change look. Looks only.',
+});
+ITEMS.push(
+  pet('kitten', 'Hearth kitten', '#e8a050', '#f8f0e0', 'A ginger kitten who will follow you to the end of the world, providing the end of the world has a warm stone to sit on.'),
+  pet('pup', 'Shepherd\'s pup', '#1e1a18', '#f4eee4', 'A collie pup from the fells, too young to work and too keen to sit still. Herds you, mostly.'),
+  pet('duckling', 'Puddle duckling', '#e8d060', '#c8a030', 'Hatched under a hen in Hollin Ford and has never once wondered why the hen was a hen.'),
+  pet('hare', 'Moon hare', '#f2f0ea', '#cfd8e8', 'A white hare, which the dales say is a witch who forgot the way back. She doesn\'t seem to mind.'),
+  pet('piglet', 'Truffle piglet', '#e8b0a0', '#6a4a3a', 'Small, pink, and certain there is something buried under every tree you stop beside.'),
+);
 ITEMS.push({
   id: 'pet_hen', name: 'Speckled hen', kind: 'collectible', rarity: 'rare', stack: false, value: 0, icon: { shape: 'bag', a: '#c8a070', b: '#d84a2a' }, pet: 'hen',
   desc: 'A speckled hen who has decided you\'re hers. Where she came from, she won\'t say.',

@@ -1,4 +1,5 @@
 import type { Appearance } from '../entities/humanoid';
+import { StoreShowcase } from './StoreShowcase';
 import { PETS } from '../data/pets';
 import { COSTUMES } from '../data/costumes';
 import { ORIGINS, originById } from '../data/origins';
@@ -60,6 +61,8 @@ export interface FrontCtx {
   realmUrl: string | null;
   /** The signed-in account's name on this realm, if any. */
   account(): string | null;
+  /** The game's renderer, for the store's windows (each item drawn as the game draws it). */
+  renderer(): import('three').WebGLRenderer;
   signIn(user: string, pass: string, create: boolean): Promise<string | null>;
   signOut(): Promise<void>;
   openSettings(): void;
@@ -240,6 +243,9 @@ export class Frontend {
   })();
 
   /** The store's goods from the realm, each with what's in it, its price and the way to buy. */
+  /** The store's section on show, and its windows. */
+  private storeCat = 'all';
+  private showcase: StoreShowcase | null = null;
   private async fillStore(): Promise<void> {
     const box = this.root.querySelector('#hm-store');
     if (!box) return;
@@ -247,13 +253,23 @@ export class Frontend {
     if (this.homeTab !== 'store' || !box.isConnected) return;
     if (!cat) { box.innerHTML = '<p class="st-wait">The store lives on the online realm, and the realm isn\'t answering just now.</p>'; return; }
     const signed = !!currentAccount();
-    const card = (it: StoreItem) => it.price === 0 ? `<div class="st-card st-free"><div class="st-h"><b>${esc(it.name)}</b><span class="st-price">Free</span></div>
+    const view = (it: StoreItem) => `<canvas class="st-view" data-view="${esc(it.items[0])}"></canvas>`;
+    const kind = (id: string) => (ITEMS[id]?.mount ? 'Mount' : ITEMS[id]?.pet ? 'Pet' : ITEMS[id]?.capeDesign ? 'Cloak' : 'Item');
+    const card = (it: StoreItem) => it.price === 0 ? `<div class="st-card st-free" data-cat="${esc(it.cat ?? '')}">${view(it)}<div class="st-h"><b>${esc(it.name)}</b><span class="st-price">Free</span></div>
       <p>${esc(it.blurb)}</p>
-      <button class="btn" data-claim="${it.id}">${signed ? 'Claim for free' : 'Sign in to claim'}</button></div>` : `<div class="st-card"><div class="st-h"><b>${esc(it.name)}</b><span class="st-price">US${(it.price / 100).toFixed(2)}</span></div>
+      <button class="btn" data-claim="${it.id}">${signed ? 'Claim for free' : 'Sign in to claim'}</button></div>` : `<div class="st-card" data-cat="${esc(it.cat ?? '')}">${view(it)}<div class="st-h"><b>${esc(it.name)}</b><span class="st-price">US$${(it.price / 100).toFixed(2)}</span></div>
       <p>${esc(it.blurb)}</p>
-      ${it.items.length > 1 ? `<ul>${it.items.map((id) => `<li>${esc(ITEMS[id]?.name ?? id)}</li>`).join('')}</ul>` : ''}
+      ${it.items.length > 1 ? `<ul>${it.items.map((id) => `<li><i>${kind(id)}</i> ${esc(ITEMS[id]?.name ?? id)}</li>`).join('')}</ul>` : `<small class="st-kind">${kind(it.items[0])} · yours on every character</small>`}
       <button class="btn" data-buy="${it.id}"${cat.open ? '' : ' disabled'}>${cat.open ? (signed ? 'Buy' : 'Sign in to buy') : 'Opening soon'}</button></div>`;
-    box.innerHTML = (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + [...cat.items].sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)).map(card).join('') + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
+    const sections: [string, string][] = [['all', 'Everything'], ['mounts', 'Mounts'], ['pets', 'Pets'], ['bundles', 'Bundles']];
+    const tabs = `<div class="st-tabs">${sections.filter(([k]) => k === 'all' || cat.items.some((i) => i.cat === k)).map(([k, t]) => `<button class="st-tab${k === this.storeCat ? ' on' : ''}" data-scat="${k}">${t}</button>`).join('')}</div>`;
+    const shown = cat.items.filter((i) => this.storeCat === 'all' || i.cat === this.storeCat);
+    this.showcase?.clear();
+    box.innerHTML = tabs + (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + [...shown].sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)).map(card).join('') + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
+    box.querySelectorAll<HTMLButtonElement>('[data-scat]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.storeCat = b.dataset.scat!; void this.fillStore(); }));
+    // Each card's window: the model itself, turning while the pointer is on the card
+    this.showcase ??= new StoreShowcase(this.ctx.renderer());
+    box.querySelectorAll<HTMLCanvasElement>('canvas[data-view]').forEach((cv) => this.showcase!.attach(cv, cv.dataset.view!, cv.closest('.st-card') as HTMLElement));
     box.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((b) => b.addEventListener('click', async () => {
       if (b.disabled) return;
       this.ctx.sfx('click');
