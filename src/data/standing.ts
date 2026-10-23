@@ -21,7 +21,7 @@ export const GAINS = { story: 120, storyline: 90, quest: 60, short: 30, task: 25
 /** The title the last rank gives in each region. */
 export const REVERED_TITLE: Record<RegionId, string> = {
   greenwake: 'of Hollin Ford', crownroad: 'Friend of the Turnpike', brambledeep: 'of the Fellers', saltwind: 'of the Fleet',
-  redstone: 'of the Raddle', starfall: 'of Scarth', gannet: 'of the Cliffs', wrath: 'of the Levels', tolmen: 'of the Moor', inkholm: 'of the Holm',
+  redstone: 'of the Raddle', starfall: 'of Scarth', gannet: 'of the Cliffs', wrath: 'of the Levels', tolmen: 'of the Moor', inkholm: 'of the Holm', kell: 'Friend of the Kiln',
 };
 
 /** The rank for so many points, and the next one up (if any). */

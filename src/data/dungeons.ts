@@ -91,6 +91,7 @@ export interface DungeonDef {
 
 const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap', ...(DUNGEON_WEAPONS['gd-oldman'] ?? [])];
 const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood', ...(DUNGEON_WEAPONS['gd-kettle'] ?? [])];
+const ESC_GEAR = [...dungeonArmour('gd-escapement'), ...(DUNGEON_WEAPONS['gd-escapement'] ?? [])];
 
 export const DUNGEONS: DungeonDef[] = [
   {
@@ -208,6 +209,66 @@ export const DUNGEONS: DungeonDef[] = [
       { x: 784, z: 2006, r: 8, who: 'osgood', said: 'Light down there. Nobody look straight at it.', seen: 'Light comes up the drift from below, white and steady.' },
     ],
     chest: { xp: 4800, marks: 140, items: ['star_crystal', 'star_crystal', 'frost_pelt', 'iron_bar', 'iron_bar'] },
+  },
+  {
+    id: 'gd-escapement', name: 'The Escapement', where: 'The Kiln, Isle of Kell', level: 40,
+    blurb: 'The engine under the Kiln lets the mountain breathe out a tick at a time. Since spring it has been ticking too fast: the vents scald, the old automata are up and working, and they will not let anyone down to stop it.',
+    door: [2738.5, 58, -673.5], out: [2738.5, 58, -670.5, 0],
+    bosses: [
+      {
+        title: 'Lamplighter of the Escapement',
+        pull: ['', 'An automaton in a wide hat turns from the lamp it is trimming. It holds up its hook, and every lamp in the gallery brightens at once.'],
+        adds: [{ at: 0.5, types: ['dg_spring', 'dg_spring'], line: ['', 'Old Tallow strikes the floor with its hook. Two springs uncoil out of the walls.'] }],
+        moves: [
+          { kind: 'cone', every: 10, windup: 1.2, damage: 76, r: 5, w: 100, color: '#ffc060', line: 'Old Tallow swings its lamp-hook round, wide.' },
+          { kind: 'charge', every: 15, windup: 1.2, damage: 84, r: 14, w: 2.6, color: '#ffb040', line: 'Old Tallow strides at {name}, hook raised.' },
+        ],
+        phase: ['', 'Old Tallow\'s lamps gutter and go out. In the dark you can hear it winding itself tighter.'],
+        hazard: { every: 9, count: 2, r: 3, windup: 1.6, damage: 70, color: '#ffb040', line: 'Oil drips from the lamps and catches.' },
+        fall: ['', 'Old Tallow sets its hook down on the floor, carefully, and stops. The lamps stay lit.'],
+        drops: ESC_GEAR, chance: 0.6,
+      },
+      {
+        title: 'Keeper of the speed',
+        pull: ['', 'The thing in the middle of the chamber is a regulator the size of a cart: two brass arms with a weight on each, spinning. The weights are crystal. They should hang lower than that.'],
+        adds: [
+          { at: 0.66, types: ['dg_boiler', 'dg_boiler'], line: ['', 'Valves open round the walls, and the steam that comes out gets up and walks.'] },
+          { at: 0.33, types: ['dg_boiler', 'dg_boiler'], line: ['', 'More valves blow.'] },
+        ],
+        moves: [
+          { kind: 'nova', every: 14, windup: 2.0, damage: 90, r: 7, color: '#e8c878', line: 'The Governor spins up, and its weights swing out wide. Get clear of it.' },
+          { kind: 'stack', every: 17, windup: 3.0, damage: 150, r: 3.2, color: '#ffe8a0', line: 'The Governor locks onto {name}. Stand with them and share it.' },
+        ],
+        phase: ['', 'One of the crystal weights cracks. The Governor runs faster on one arm than the other, and the whole chamber shakes with it.'],
+        hazard: { every: 10, count: 2, r: 3.2, windup: 1.8, damage: 70, color: '#ffffff', line: 'Steam bursts up through the floor plates.' },
+        fall: ['', 'The Governor\'s arms drop. It turns, slower, slower, and stops, its crystal weights hanging no lower than they did.'],
+        drops: ESC_GEAR, chance: 0.6,
+      },
+      {
+        title: 'The heart of the Escapement',
+        pull: ['', 'The great wheel on the far wall turns a tooth, and the floor jumps. Under it, something coiled the size of a barn lets go a turn, and comes for you.'],
+        adds: [
+          { at: 0.75, types: ['dg_spring', 'dg_spring', 'dg_spring'], line: ['', 'Loose springs come off the Mainspring and bounce across the floor.'] },
+          { at: 0.5, types: ['dg_warder', 'dg_warder'], line: ['', 'Two wardens come down the stair from the Governor\'s chamber, hammers up.'] },
+          { at: 0.25, types: ['dg_spring', 'dg_spring', 'dg_spring', 'dg_spring'], line: ['', 'The Mainspring sheds coil after coil.'] },
+        ],
+        moves: [
+          { kind: 'charge', every: 11, windup: 1.3, damage: 100, r: 18, w: 3.2, color: '#d07a44', line: 'The Mainspring winds back to throw itself at {name}.' },
+          { kind: 'stack', every: 18, windup: 3.0, damage: 170, r: 3.2, color: '#8ad8c0', line: 'The great wheel ticks, and the floor round {name} lifts. Stand with them.' },
+          { kind: 'nova', every: 21, windup: 2.2, damage: 100, r: 8, color: '#e8c878', line: 'The Mainspring tightens on itself, every coil grinding. Get away from it.' },
+        ],
+        phase: ['', 'The great wheel stops. For a breath the Escapement is silent. Then the Mainspring lets go all at once.'],
+        fall: ['', 'The Mainspring runs down, coil by coil, until it lies still. Somewhere above, the great wheel ticks once, then again, a long breath apart. Slow.'],
+        drops: ESC_GEAR, chance: 1,
+      },
+    ],
+    notes: [
+      { x: 2704, z: -690, r: 8, who: 'osgood', said: 'Listen to that. Every wheel in here\'s turning. Something wants to run.', seen: 'Every wheel along the gallery is turning, too fast, and the floor hums with it.' },
+      { x: 2745, z: -690, r: 9, who: 'edith', said: 'Somebody\'s kept these lamps trimmed. Recently.', seen: 'The lamps round the gallery are trimmed and lit. Somebody keeps them.' },
+      { x: 2745, z: -661, r: 9, who: 'osgood', said: 'That\'s a boiler, that is. Or it was. Mind the pit.', seen: 'The Deep: a pit of live rock under the plates, and the heat coming off it like an oven door.' },
+      { x: 2781, z: -702, r: 10, who: 'tom', said: 'That wheel\'s the size of a mill. And it\'s ticking like a pocket watch.', seen: 'The great wheel fills the far wall. It ticks, fast and hard, and the floor jumps with every tick.' },
+    ],
+    chest: { xp: 9000, marks: 260, items: ['brass_cog', 'brass_cog', 'brass_cog', 'iron_bar', 'iron_bar', 'star_crystal'] },
   },
 ];
 

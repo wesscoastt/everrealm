@@ -91,6 +91,7 @@ export const GEAR_SETS: Record<string, { name: string; where: string; bonus: str
   starglass: { name: 'Kirkglass', where: 'Scarth Highlands and Old Glass', bonus: 'Critical hits give back 6 energy.' },
   fold: { name: 'The Fold', where: 'Under the Kettle, the group dungeon in Scarth', bonus: 'Your blows on a foe that is after you heal you for a twentieth of the damage.' },
   brightcut: { name: 'Bright-cut', where: 'Anywhere: any creature, very rarely', bonus: 'One ore or crystal in five you mine comes out as two.' },
+  escapement: { name: 'The Escapement', where: 'The Escapement, the group dungeon under the Kiln on Kell', bonus: 'Your calling\'s skills recharge a tenth faster.' },
   oldman: { name: 'The Old Man', where: 'The Old Man\'s Workings, the group dungeon under Sallow Pit', bonus: 'Your blows hit a tenth harder on a foe that is fighting someone else.' },
 };
 /** Everything worn: the weapon and the five armour slots (older saves only have the first two). */

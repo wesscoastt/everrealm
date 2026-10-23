@@ -123,6 +123,12 @@ const SOURCES: Source[] = [
     lines: ['From the Old Man\'s Workings under Sallow Pit, where Coll Bray\'s night shift kept the tools they took.', 'A miner\'s tool made into something else. The handle still has the shift number burnt in.'],
   },
   {
+    id: 'escapement', name: 'Kilnwright', dungeon: 'gd-escapement', rarity: 'epic', value: 120, lean: 'speed', colours: { metal: '#d8b050', hilt: '#3e8a74', grip: '#3a2a1e', accent: '#3e8a74' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'crescent', mace: 'star', hammer: 'maul', staff: 'orb', spear: 'glaive' },
+    nouns: { hammer: 'fitter\'s maul', staff: 'gauge-staff' },
+    families: ['hammer', 'mace', 'greataxe', 'staff', 'spear', 'longsword', 'dagger'],
+    lines: ['Brass from the Escapement under the Kiln, made by the Kilnfolk for the Works and not, at first, for this.', 'Kilnfolk work: every rivet set flush, the maker\'s mark a small cog stamped by the grip.'],
+  },
+  {
     id: 'kettle', name: 'Kettle', dungeon: 'gd-kettle', rarity: 'epic', value: 95, lean: 'crit', colours: { metal: '#c8f4ff', hilt: '#d8d0c0', grip: '#4a3a2a', glow: '#c8f4ff' }, style: { guard: 'crescent', pommel: 'gem', blade: 'leaf', axe: 'crescent', mace: 'star', staff: 'orb', spear: 'glaive' },
     nouns: { staff: 'shepherd\'s light' },
     families: ['spear', 'sword', 'greataxe', 'staff', 'dagger', 'longsword', 'mace'],

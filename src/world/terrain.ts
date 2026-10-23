@@ -10,7 +10,7 @@ export const WORLD = 2048;
 export const SEA = 16;
 export const GW = 320; // Hollindale grid size; x,z < GW is authored terrain
 
-export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm';
+export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell';
 
 export interface RegionInfo {
   id: RegionId;
@@ -34,6 +34,7 @@ export const REGION_INFO: Record<RegionId, RegionInfo> = {
   tolmen: { id: 'tolmen', name: 'Tolmen Moor', levels: '28–35', tint: [1.04, 0.9, 0.86], leafTint: [0.9, 0.88, 0.8], water: 'highland' },
   // Off Gullmouth, past the Mewstones: the mushroom isle
   inkholm: { id: 'inkholm', name: 'Inkholm', levels: '20–28', tint: [0.9, 0.86, 1.0], leafTint: [0.88, 0.84, 1.0], water: 'sea' },
+  kell: { id: 'kell', name: 'Isle of Kell', levels: '35–42', tint: [1.02, 0.96, 0.9], leafTint: [0.92, 0.9, 0.82], water: 'sea' },
 };
 
 // Seeds of each region; several per region shape them into irregular territories.
@@ -80,6 +81,7 @@ const inHeart = (x: number, z: number) => x > 300 && x < 1250 && z > 400 && z < 
 
 const VALE: RegionSample = { a: 'greenwake', b: 'greenwake', t: 0 };
 const INK: RegionSample = { a: 'inkholm', b: 'inkholm', t: 0 };
+const KEL: RegionSample = { a: 'kell', b: 'kell', t: 0 };
 
 // ------------------------------------------------------------------ Inkholm
 // The mushroom isle, south-east of Gullmouth past the Mewstones: overlapping lobes with a ragged
@@ -101,11 +103,36 @@ export function inkDist(x: number, z: number): number {
   return d;
 }
 
+// ------------------------------------------------------------------ Kell
+// The clockwork isle, north-east past the Fleet Coast: one old volcano, the Kiln, with a flat crater
+// where the Kilnfolk's Works stand over the Escapement; lava channels down its cone, black ash on
+// the shore, short grass on the lower slopes, and Brasswick, the Kilnfolk's harbour town, on the
+// south-west shore facing the mainland (LORE.md "Kell").
+export const KELL = { x: 2700, z: -650 };
+/** The Kiln: its cone's middle and reach, and the crater's radius. */
+export const KILN = { x: 2738, z: -690, r: 215, crater: 46 };
+/** The crater's floor. */
+export const KILN_FLOOR = SEA + 42;
+const KELL_LOBES = [
+  { x: 2705, z: -660, r: 270 }, { x: 2480, z: -560, r: 150 }, { x: 2890, z: -830, r: 150 },
+  { x: 2870, z: -470, r: 120 }, { x: 2600, z: -880, r: 110 },
+];
+/** Inland distance from Kell's shore (negative at sea). */
+export function kellDist(x: number, z: number): number {
+  if (Math.abs(x - KELL.x) > 600 || Math.abs(z - KELL.z) > 600) return -999;
+  const qx = x + (fbm2(x / 90, z / 90, 2, 781) - 0.5) * 70, qz = z + (fbm2(x / 90 + 5, z / 90, 2, 782) - 0.5) * 70;
+  const k = 0.84 + fbm2(x / 50, z / 50, 2, 783) * 0.3;
+  let d = -999;
+  for (const l of KELL_LOBES) d = Math.max(d, l.r * k - Math.hypot(qx - l.x, qz - l.z));
+  return d;
+}
+
 export function regionAt(x: number, z: number): RegionSample {
   // Hollindale: the vale, and the hills and shore beyond its north and west edges
   const vale = x < GW && z < GW;
   if (vale && x >= 0 && z >= 0) return VALE;
   if (inkDist(x, z) > -120) return INK;
+  if (kellDist(x, z) > -120) return KEL;
   const wx = warpX(x, z), wz = warpZ(x, z);
   if (inHeart(x, z)) return nearestRegion(wx, wz, SEEDS);
   // Out across the sound the outer lands' regions take over, blending partway across the water
@@ -156,6 +183,8 @@ export const WORLD_ROADS: [number, number][][] = [
   // South from Kelderby down the Scarth highlands, over the neck and up onto Tolmen Moor to Scarrow Tor
   // (down the highlands' gentle western shoulder: further east they end in a sixty-foot cliff)
   [[300, 1478], [292, 1560], [268, 1640], [252, 1720], [240, 1800], [226, 1880], [204, 1960], [186, 2040], [196, 2120], [244, 2170], [296, 2230], [326, 2300], [288, 2470], [318, 2620], [302, 2770], [310, 2840], [328, 2910], [338, 2952]],
+  // Kell: out of Brasswick's east end and up the Kiln, through a cutting in the rim and down to the Works
+  [[2432, -556], [2490, -580], [2560, -620], [2630, -650], [2690, -668], [2738, -668]],
 ];
 /** How many of WORLD_ROADS are the heart's own (the outer lands' come after). */
 export const HEART_ROADS = 7;
@@ -350,6 +379,16 @@ function regionHeight(id: RegionId, x: number, z: number): number {
       const dell = smoothstep(0.62, 0.8, fbm2(x / 70, z / 70, 2, 761));
       return SEA + 7 + (n1 - 0.5) * 12 + (n2 - 0.5) * 6 + fell * fell * 34 - dell * 11;
     }
+    case 'kell': {
+      // The Kiln's cone over rolling lower ground, lava channels ridging its slopes, and the crater
+      const d = Math.hypot(x - KILN.x, z - KILN.z);
+      const cone = Math.pow(Math.max(0, 1 - d / KILN.r), 1.35);
+      let h = SEA + 6 + (n1 - 0.5) * 8 + (n2 - 0.5) * 3 + cone * 78;
+      const flow = Math.abs(fbm2(x / 60, z / 60, 2, 771) - 0.5);
+      h += smoothstep(0.08, 0, flow) * 3 * cone;
+      if (d < KILN.crater + 12) h += (KILN_FLOOR + (fbm2(x / 20, z / 20, 2, 772) - 0.5) * 1.2 - h) * smoothstep(KILN.crater + 12, KILN.crater - 4, d);
+      return h;
+    }
     case 'tolmen': {
       // High moor: broad granite ground, boggy hollows, and tors standing out of the heather
       const bog = smoothstep(0.62, 0.78, fbm2(x / 120, z / 120, 2, 723));
@@ -466,7 +505,7 @@ export function outerLandDist(x: number, z: number): number {
     const qx = x + (fbm2(x / 90, z / 90, 2, 718) - 0.5) * 90, qz = z + (fbm2(x / 90 + 5, z / 90, 2, 719) - 0.5) * 90;
     d = Math.max(d, r - Math.hypot(qx - m.x, qz - m.z));
   }
-  return Math.max(d, inkDist(x, z));
+  return Math.max(d, inkDist(x, z), kellDist(x, z));
 }
 
 /** Positive on a neck of land across the sound (its distance in from the neck's edge). */
@@ -657,6 +696,19 @@ export function columnBlocks(x: number, z: number, h: number, maxDiff: number, r
       if (beach) return { top: hash2(x, z, 6) < 0.4 ? B.Gravel : B.Sand, sub: B.Sand };
       if (maxDiff >= 3) return { top: stony > 0.5 ? B.MossyStone : B.Stone, sub: B.Stone };
       return { top: stony > 0.7 ? B.Loam : B.Mycelium, sub: B.Dirt };
+    case 'kell': {
+      // Black ash on the shore and in the crater (with live rock showing through), bare rock and ash
+      // on the upper cone, short grass below
+      const d = Math.hypot(x - KILN.x, z - KILN.z);
+      if (beach) return { top: B.Ash, sub: B.Ash };
+      if (d < KILN.crater + 2) return { top: hash2(x, z, 7) < 0.08 ? B.Emberstone : B.Ash, sub: B.Stone };
+      if (maxDiff >= 3) return { top: stony > 0.5 ? B.DeepStone : B.Stone, sub: B.Stone };
+      // Lava channels down the cone, live rock at their bottoms; the upper cone all ash and bare rock
+      if (d < KILN.r * 0.85 && Math.abs(fbm2(x / 60, z / 60, 2, 771) - 0.5) < 0.012) return { top: B.Emberstone, sub: B.DeepStone };
+      if (d < KILN.r * 0.72) return { top: stony > 0.55 ? B.DeepStone : B.Ash, sub: B.Stone };
+      if (d < KILN.r * 0.84) return { top: stony > 0.45 ? B.Ash : stony > 0.35 ? B.Loam : B.Grass, sub: B.Dirt };
+      return { top: stony > 0.72 ? B.Ash : stony > 0.6 ? B.Loam : B.Grass, sub: B.Dirt };
+    }
     case 'tolmen':
       // Granite wherever the ground is steep (the tors), stony patches in the heather
       if (maxDiff >= 3) return { top: B.Stone, sub: B.Stone };

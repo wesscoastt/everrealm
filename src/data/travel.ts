@@ -55,6 +55,8 @@ export const POSTS: PostStop[] = [
   { id: 'mewstones', name: 'The Mewstones (ferry)', place: 'mewstones', ferryFrom: 'gullmouth', x: 2345.5, z: 728.5, ry: -Math.PI / 2 },
   // Inkholm, past the Mewstones: the Charter stopped the crossing for the Grey; Reuben Hoskin will run it (data/content/inkholm.ts)
   { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2, gate: 'inkFerry' },
+  // Kell, past the Fleet Coast: Jory Tallack's boat, once the Wheel has sent for you (data/content/kell.ts)
+  { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2, gate: 'kellFerry' },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */

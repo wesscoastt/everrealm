@@ -18,11 +18,12 @@ import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { FORTS, type Fort } from '../data/forts';
 import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm';
+import { BRASSWICK, ESC, GATE, VENTS, WORKS } from '../data/kell';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
-export type PropType = 'roof' | 'door' | 'sails' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
+export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
@@ -55,7 +56,7 @@ export interface PropDesc {
   swing?: boolean;
   /** Roof dormers: +1 or -1 picks the slope, 0 or absent for none. */
   dormers?: number;
-  mat?: 'red' | 'blue' | 'thatch' | 'slate';
+  mat?: 'red' | 'blue' | 'thatch' | 'slate' | 'copper';
   color?: string;
   kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally';
   /** A ship's sails ('bare': a hull on the slip, no masts yet). */
@@ -510,6 +511,11 @@ export function plan(): Plan {
     { id: 'ink-hythe', name: 'Black Hythe', x: HYTHE.x, z: HYTHE.z, r0: 22, r1: 34, h: SEA + 5, build: (s, b) => buildBlackHythe(s, b) },
     { id: 'ink-priory', name: 'Corra Priory', x: PRIORY.x, z: PRIORY.z, r0: 15, r1: 27, h: PRIORY.y, build: (s, b) => buildPriory(s, b) },
     ...REEKS.map((r): Named => ({ id: 'reek-' + r.id, name: r.name, x: r.x, z: r.z, r0: 7, r1: 13, build: (s, b) => buildReek(s, b, r) })),
+    // Kell, the clockwork isle (data/kell.ts)
+    { id: 'kell-brasswick', name: 'Brasswick', x: BRASSWICK.x, z: BRASSWICK.z, r0: 42, r1: 58, h: BRASSWICK.y, build: (s, b) => buildBrasswick(s, b) },
+    { id: 'kell-works', name: 'The Works', x: WORKS.x, z: WORKS.z, r0: 28, r1: 42, h: WORKS.y, build: (s, b) => buildKilnWorks(s, b) },
+    ...VENTS.map((v): Named => ({ id: 'vent-' + v.id, name: v.name, x: v.x, z: v.z, r0: 7, r1: 13, build: (s, b) => buildVent(s, b, v) })),
+    { id: 'gd-escapement', name: 'The Escapement', x: WORKS.x + 20, z: WORKS.z - 10, r0: 0, r1: 0, under: true, build: (s) => buildEscapement(s) },
     // Bandit forts in the back country (data/forts.ts)
     ...FORTS.map((f): Named => ({ id: 'fort-' + f.id, name: f.name, x: f.x, z: f.z, r0: 22, r1: 34, build: (s, b) => buildBanditFort(s, b, f) })),
     // Lodging houses, rooms let by the week (data/lodgings.ts)
@@ -549,7 +555,7 @@ export function plan(): Plan {
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
-      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'],
+      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'], kell: ['mine', 'stones'],
     };
     const list = kinds[reg];
     const kind = list[Math.floor(hash2(cx, cz, 504) * list.length)];
@@ -2212,6 +2218,212 @@ export function plan(): Plan {
         { at: at(73, 29), type: 'dg_glim' },
       ],
       chest: at(73, 38),
+      covered: k.covered(),
+    };
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
+  }
+
+  /**
+   * Brasswick, the Kilnfolk's harbour town on Kell's south-west shore, cut into the hillside under
+   * the Kiln. Low, broad houses of dark stone framed in brass, with copper roofs gone green; brass
+   * stacks letting off the Works' steam; the Wheelhouse, where the Wheel sits, with the town's cog
+   * turning on its gable; the Lamp & Spanner; Agnes Lusty's forge; Harrowgate's office, which the
+   * Kilnfolk let to the company for the iron trade; and the quay where Jory Tallack's boat comes in.
+   */
+  function buildBrasswick(s: Site, base: number) {
+    const cx = BRASSWICK.x, cz = BRASSWICK.z;
+    rect(s, cx - 52, cz - 38, cx + 44, cz + 38);
+    pave(cx - 34, cz - 2, cx + 38, cz + 2, base, 'flag');
+    pave(cx + 5, cz - 30, cx + 8, cz + 30, base, 'flag');
+    const kiln = (dx: number, dz: number, w: number, d: number, floors: number, door: 'n' | 's' | 'e' | 'w', role: Role, wall: number = B.DeepStone) =>
+      house(s, cx + dx, cz + dz, w, d, floors, base, 'copper', door, { wall, role, frame: B.Brass, front: 'quoined' });
+    // North of the high street
+    kiln(-30, -13, 8, 8, 1, 's', 'home');
+    kiln(-18, -16, 11, 9, 2, 's', 'office', B.StoneBrick); // Harrowgate & Daughters, let to the company
+    kiln(10, -26, 16, 12, 2, 's', 'shop', B.StoneBrick); // the Wheelhouse
+    kiln(-4, -13, 8, 8, 1, 's', 'home');
+    kiln(28, -15, 10, 9, 1, 's', 'shop'); // Gerens Tonkin, brass and instruments
+    // South of it
+    kiln(-28, 6, 8, 8, 1, 'n', 'home');
+    kiln(-16, 6, 12, 10, 2, 'n', 'inn'); // the Lamp & Spanner
+    kiln(12, 6, 8, 8, 1, 'n', 'home');
+    kiln(28, 18, 8, 8, 1, 'n', 'home');
+    kiln(-2, 14, 7, 7, 1, 'n', 'home');
+    // The Wheelhouse's cog, turning on its gable over the square
+    s.props.push({ t: 'cog', x: cx + 18.5, y: base + 11, z: cz - 13.6, ry: 0, r: 2.4 });
+    s.props.push({ t: 'cog', x: cx + 13.4, y: base + 8.2, z: cz - 13.7, ry: 0, r: 1.1, tint: 1 });
+    // Agnes Lusty's forge: open on the street, under a copper lean-to
+    const fx = cx + 18, fz = cz + 6;
+    for (let x = fx; x <= fx + 8; x++) for (let z = fz; z <= fz + 6; z++) {
+      O.set(x, base - 1, z, B.StoneBrick);
+      const post = (x === fx || x === fx + 8) && (z === fz || z === fz + 6);
+      for (let y = base; y < base + 4; y++) O.set(x, y, z, post ? B.Brass : B.Air);
+      if (z === fz + 6 && !post) for (let y = base; y < base + 2; y++) O.set(x, y, z, B.DeepStone);
+      O.set(x, base + 4, z, B.Copper);
+    }
+    s.props.push({ t: 'anvil', x: fx + 3.5, y: base, z: fz + 2.5, ry: 0 }, { t: 'bellows', x: fx + 6.2, y: base, z: fz + 4.6, ry: Math.PI }, { t: 'firepit', x: fx + 6.5, y: base, z: fz + 3.2 });
+    s.stations = [...(s.stations ?? []), { station: 'anvil', x: fx + 3.5, y: base, z: fz + 2.5 }];
+    // Brass stacks letting off the Works' steam, and pipes along the fronts
+    for (const [dx, dz] of [[-24, -4], [2, -4], [24, -4], [-10, 4], [18, 4]] as const) {
+      for (let y = base; y < base + 7; y++) O.set(cx + dx, y, cz + dz, y === base + 6 ? B.Copper : B.Brass);
+      s.props.push({ t: 'smoke', x: cx + dx + 0.5, y: base + 7.5, z: cz + dz + 0.5 });
+    }
+    for (const [x0, z, len] of [[-30, -4.3, 24], [-4, -4.3, 30], [-28, 4.6, 14], [10, 4.6, 8]] as const) s.props.push({ t: 'pipe', x: cx + x0, y: base + 3.4, z: cz + z, ry: Math.PI / 2, len, r: 0.16 });
+    for (const [dx, dz, ry] of [[-26, -4.6, 0], [-1, -4.6, 0], [32, -5.6, 0], [-24, 5.6, Math.PI], [15, 5.6, Math.PI]] as const) s.props.push({ t: 'cog', x: cx + dx, y: base + 4.6, z: cz + dz, ry, r: 0.7, tint: dx > 0 ? 1 : 0 });
+    // The quay: west out over the black sand to deep water, a crane at its end
+    const Q0 = cx - 34, Q1 = cx - 60;
+    for (let x = Q1; x <= Q0; x++) for (let z = cz - 2; z <= cz + 2; z++) {
+      const g = heightAt(x, z);
+      for (let y = Math.min(g, base) - 3; y < base - 1; y++) O.set(x, y, z, hash2(x * 3 + y, z, 851) < 0.25 ? B.DeepStone : B.StoneBrick);
+      O.set(x, base - 1, z, (x + z) % 4 === 0 ? B.Brass : B.StoneBrick);
+      clearUp(x, z, base, base + 8);
+      if ((z === cz - 2 || z === cz + 2) && (x - Q1) % 5 === 2) O.set(x, base, z, B.Brass); // bollards
+    }
+    for (let y = base; y < base + 7; y++) O.set(Q1 + 2, y, cz - 2, B.Timber);
+    for (let x = Q1 - 2; x <= Q1 + 2; x++) O.set(x, base + 7, cz - 2, B.Timber);
+    s.props.push({ t: 'cog', x: Q1 + 2.5, y: base + 5, z: cz - 1.3, ry: 0, r: 0.9 }, { t: 'rope', x: Q1 - 1.5, y: base + 7.6, z: cz - 1.5, ry: 0, len: 0.2, h: 4.5, r: 0.03 });
+    s.props.push({ t: 'boat', x: Q1 - 3, y: SEA - 0.55, z: cz + 5.5, ry: 0.2 }, { t: 'boat', x: Q1 + 6, y: SEA - 0.55, z: cz - 6, ry: -0.2 });
+    s.props.push({ t: 'lantern', x: Q1 + 1.5, y: base, z: cz + 1.5 }, { t: 'lantern', x: Q0 - 1.5, y: base, z: cz - 1.5 });
+    for (let i = 0; i < 5; i++) s.props.push({ t: i % 2 ? 'crate' : 'barrel', x: Q0 - 5.5 - i * 1.1, y: base, z: cz + 1.3, ry: i * 0.7 });
+    s.props.push({ t: 'notice', x: cx - 6.5, y: base, z: cz - 3.4, ry: 0 }, { t: 'sign', x: cx + 40.5, y: base, z: cz + 3.5, ry: -Math.PI / 2, text: 'Brasswick' }, { t: 'sign', x: cx + 40.5, y: base, z: cz - 3.5, ry: -Math.PI / 2, text: 'The Works, up the Kiln' });
+    for (const [x, z] of [[cx - 20.5, cz - 2.5], [cx - 4.5, cz + 2.5], [cx + 12.5, cz - 2.5], [cx + 30.5, cz + 2.5], [cx + 7.5, cz - 20.5], [cx + 7.5, cz + 22.5]]) s.props.push({ t: 'lantern', x, y: base, z });
+    s.props.push({ t: 'banner', x: cx - 15.5, y: base + 6, z: cz - 6.6, ry: 0, kind: 'harrow' });
+  }
+
+  /**
+   * The Works, on the floor of the Kiln's crater: the Escapement Gate in the middle, a squat brass
+   * house over the stair down; behind it the Great Wheel turning in its stone frame, the Escapement's
+   * tick made visible; the pipes that carry the Kiln's breath out to the vents; steam stacks round
+   * the rim of the yard.
+   */
+  function buildKilnWorks(s: Site, base: number) {
+    const cx = WORKS.x, cz = WORKS.z;
+    rect(s, cx - 30, cz - 30, cx + 30, cz + 30);
+    pave(cx - 16, cz - 14, cx + 16, cz + 20, base, 'yard');
+    // The Gate: a squat house of stone banded in brass, its door facing the road up from Brasswick
+    const gx = GATE.x, gz = GATE.z;
+    for (let x = gx - 3; x <= gx + 3; x++) for (let z = gz - 3; z <= gz + 3; z++) {
+      const edge = Math.abs(x - gx) === 3 || Math.abs(z - gz) === 3;
+      for (let y = base; y < base + 6; y++) O.set(x, y, z, edge ? (y === base + 2 || y === base + 5 ? B.Brass : B.DeepStone) : y === base + 5 ? B.Copper : B.Air);
+      O.set(x, base + 6, z, Math.abs(x - gx) + Math.abs(z - gz) <= 3 ? B.Copper : B.Brass);
+    }
+    for (let x = gx - 1; x <= gx + 1; x++) for (let y = base; y < base + 3; y++) O.set(x, y, gz + 3, B.Air);
+    for (let x = gx - 2; x <= gx + 2; x++) for (let z = gz - 2; z <= gz + 2; z++) O.set(x, base - 1, z, B.Brass);
+    s.props.push({ t: 'sign', x: gx + 3.6, y: base, z: gz + 4.6, ry: 0, text: 'The Escapement' }, { t: 'lantern', x: gx - 2.5, y: base, z: gz + 4.5 }, { t: 'lantern', x: gx + 2.5, y: base, z: gz + 4.5 });
+    // The Great Wheel, behind the Gate in a frame of stone
+    const wz = cz - 8;
+    // (high enough that the wheel turns clear above the Gate's roof, seen from the road)
+    for (const dx of [-8, 8]) for (let y = base; y < base + 20; y++) for (const ddz of [0, 1]) O.set(cx + dx, y, wz + ddz, y % 5 === 4 ? B.Brass : B.DeepStone);
+    for (let x = cx - 8; x <= cx + 8; x++) for (const ddz of [0, 1]) O.set(x, base + 20, wz + ddz, Math.abs(x - cx) % 3 === 0 ? B.Brass : B.DeepStone);
+    s.props.push({ t: 'cog', x: cx + 0.5, y: base + 13, z: wz + 1, ry: 0, r: 6.4 });
+    s.props.push({ t: 'cog', x: cx + 6.4, y: base + 5.6, z: wz + 1.6, ry: 0, r: 1.8, tint: 1 });
+    // The Kiln's breath, going up out of the crater where everyone on the coast can see it
+    for (const [dx, dz, h] of [[-3, -16, 26], [4, -20, 30], [-8, -22, 34], [2, -12, 22]] as const) s.props.push({ t: 'smoke', x: cx + dx + 0.5, y: base + h, z: cz + dz + 0.5 });
+    // The pipes out to the vents, along the crater floor; steam stacks round the yard
+    for (const [x0, z0, ry, len] of [[cx + 3, cz + 2, Math.PI / 2, 26], [cx - 3, cz + 2, -Math.PI / 2, 26], [cx, cz - 12, Math.PI, 16]] as const) s.props.push({ t: 'pipe', x: x0 + 0.5, y: base + 0.5, z: z0 + 0.5, ry, len, r: 0.45 });
+    for (const [dx, dz] of [[-14, -12], [14, -12], [-14, 16], [14, 16], [-20, 2], [20, 2]] as const) {
+      for (let y = base; y < base + 9; y++) O.set(cx + dx, y, cz + dz, y % 3 === 0 ? B.Copper : B.Brass);
+      s.props.push({ t: 'smoke', x: cx + dx + 0.5, y: base + 9.5, z: cz + dz + 0.5 });
+    }
+    for (const [x, z] of [[cx - 10.5, cz + 6.5], [cx + 10.5, cz + 6.5], [cx - 8.5, cz - 4.5], [cx + 8.5, cz - 4.5], [cx + 0.5, cz + 19.5]]) s.props.push({ t: 'lantern', x, y: base, z });
+    s.props.push({ t: 'crate', x: cx - 12.5, y: base, z: cz + 12.5, ry: 0.3 }, { t: 'barrel', x: cx - 11.4, y: base, z: cz + 13.6 }, { t: 'crate', x: cx + 12.5, y: base, z: cz - 6.5, ry: 1.1 });
+  }
+
+  /** A relief vent on the Kiln's slope: a ring of live rock round a brass valve-house, steam pouring out. */
+  function buildVent(s: Site, base: number, v: (typeof VENTS)[number]) {
+    const cx = v.x, cz = v.z;
+    rect(s, cx - 7, cz - 7, cx + 7, cz + 7);
+    for (let x = cx - 6; x <= cx + 6; x++) for (let z = cz - 6; z <= cz + 6; z++) {
+      const d = Math.hypot(x - cx, z - cz);
+      if (d < 6 && d > 2.2) O.set(x, base - 1, z, hash2(x, z, 861) < 0.5 ? B.Emberstone : B.Ash);
+    }
+    for (let x = cx - 1; x <= cx + 1; x++) for (let z = cz - 1; z <= cz + 1; z++) {
+      O.set(x, base, z, B.Brass);
+      O.set(x, base + 1, z, x === cx && z === cz ? B.Copper : B.Brass);
+    }
+    s.props.push({ t: 'cog', x: cx + 0.5, y: base + 1.6, z: cz + 2.05, ry: 0, r: 0.7 }, { t: 'smoke', x: cx + 0.5, y: base + 2.4, z: cz + 0.5 }, { t: 'smoke', x: cx + 1.5, y: base + 1, z: cz - 1.5 });
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + 0.6, z: cz + 3.5, r: 1.3, color: '#ff9a50', lit: true });
+    s.props.push({ t: 'sign', x: cx + 4.5, y: base, z: cz + 4.5, ry: 0, text: v.name });
+  }
+
+  /**
+   * The Escapement, under the Kiln: the engine the Kilnfolk built to let the mountain breathe out
+   * slowly. Its halls are plated, brass and copper in bands. The Gate Stair comes down to the
+   * Gearhall, a long gallery of wheels; then the Lamp Gallery, where Old Tallow lights the lamps;
+   * the Boiler Deep round its pit; the Governor's chamber; and the Escapement itself, the great
+   * wheel on the far wall, where the Mainspring is.
+   */
+  function buildEscapement(s: Site) {
+    const OX = ESC.x, OZ = ESC.z, F = ESC.f;
+    const PLATE: CaveTheme = { wall: B.Brass, wall2: B.Copper, band: B.DeepStone, floor: B.StoneBrick, floor2: B.Brass, spike: B.Brass, rubble: B.Cobble, light: '#ffc070' };
+    const BOIL: CaveTheme = { wall: B.DeepStone, wall2: B.Copper, band: B.Emberstone, floor: B.StoneBrick, floor2: B.DeepStone, spike: B.DeepStone, rubble: B.Cobble, light: '#ff9a50' };
+    const HALL: CaveTheme = { wall: B.Copper, wall2: B.Brass, band: B.DeepStone, floor: B.Brass, floor2: B.StoneBrick, spike: B.Copper, rubble: B.Cobble, light: '#ffc070' };
+    const k = caveKit(O, s.props, OX, OZ, F);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, k.floorAt(x, z) ?? F, OZ + z + 0.5];
+    const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
+    const P = (t: PropType, x: number, y: number, z: number, extra: Partial<PropDesc> = {}) => s.props.push({ t, x: OX + x + 0.5, y, z: OZ + z + 0.5, ...extra });
+
+    // The Gate Stair's foot, then the Gearhall: a long gallery, ribbed in stone every four
+    k.tunnel([[1, 0], [9, 0]], 7, 7, PLATE, { mine: true, frame: B.Brass });
+    k.chamber(6, 0, 6, 6, 8, PLATE, { round: true });
+    k.tunnel([[10, 0], [45, 0]], 9, 12, PLATE, { mine: true, frame: B.DeepStone });
+    // The Lamp Gallery, round and tall
+    k.chamber(57, 0, 12, 12, 16, PLATE, { round: true });
+    // South to the Boiler Deep, round its pit
+    k.tunnel([[57, 11], [57, 18]], 5, 6, PLATE, { mine: true, frame: B.Brass });
+    k.chamber(57, 29, 12, 11, 14, BOIL, { round: true });
+    k.pit(54, 26, 60, 32, 4, false);
+    k.bridge(57, 21, 57, 37, 3);
+    // East to the Governor
+    k.tunnel([[68, 29], [81, 29]], 5, 6, PLATE, { mine: true, frame: B.Brass });
+    k.chamber(93, 29, 12, 12, 18, PLATE, { round: true });
+    // North to the Escapement itself
+    k.tunnel([[93, 17], [93, 3]], 6, 8, PLATE, { mine: true, frame: B.Brass });
+    k.chamber(93, -12, 18, 15, 26, HALL, { round: true });
+
+    for (const [x, z] of [[4, -3], [4, 3], [16, -4], [24, 4], [32, -4], [40, 4], [50, -8], [64, -8], [50, 8], [64, 8], [57, 15], [48, 23], [66, 23], [48, 35], [66, 35], [74, 27], [86, 21], [100, 21], [86, 37], [100, 37], [93, 10], [80, -4], [106, -4], [78, -18], [108, -18]] as const) k.lamp(x, z);
+    k.glow(57, 29, F - 2, 1.6, '#ff8a40', true);
+    k.glow(93, -24, F + 8, 1.6, '#ffc070', true);
+    k.finish({ spikes: 0, rubble: 0 });
+
+    // The pit's bottom: live rock, and the boiler's steam coming up out of it
+    for (let x = 54; x <= 60; x++) for (let z = 26; z <= 32; z++) O.set(OX + x, F - 5, OZ + z, B.Emberstone);
+    for (const [x, z] of [[55, 27], [59, 31], [58, 27]] as const) P('smoke', x, F - 3.5, z);
+    // The Gearhall's wheels along both walls, pipes overhead
+    [14, 22, 30, 38].forEach((x, i) => {
+      P('cog', x, F + 6, -4.0, { ry: 0, r: 3, tint: i % 2 });
+      P('cog', x + 4, F + 6, 4.0, { ry: Math.PI, r: 3, tint: (i + 1) % 2 });
+    });
+    for (const z of [-3.4, 3.4]) P('pipe', 10, F + 10, z, { ry: Math.PI / 2, len: 34, r: 0.3 });
+    // The Lamp Gallery: a ring of lamp-posts Old Tallow keeps lit, and small wheels round the walls
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; P('lantern', 57 + Math.cos(a) * 8.5, F, Math.sin(a) * 8.5); }
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.5; P('cog', 57 + Math.cos(a) * 11.3, F + 5, Math.sin(a) * 11.3, { ry: Math.atan2(-Math.cos(a), -Math.sin(a)), r: 1.4, tint: i % 2 }); }
+    // The Governor's chamber: four big wheels facing in, a ring of pipe
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; P('cog', 93 + Math.cos(a) * 11, F + 7, 29 + Math.sin(a) * 11, { ry: Math.atan2(-Math.cos(a), -Math.sin(a)), r: 2.6, tint: i % 2 }); }
+    // The Escapement: the great wheel on the far wall, two pallet-arms either side, the pipes out
+    P('cog', 93, F + 13, -25.4, { ry: 0, r: 8.5 });
+    P('cog', 81, F + 6, -22.6, { ry: 0.5, r: 3.2, tint: 1 });
+    P('cog', 105, F + 6, -22.6, { ry: -0.5, r: 3.2, tint: 1 });
+    for (const x of [76, 110]) for (let y = F; y < F + 16; y++) O.set(OX + x, y, OZ - 12, y % 4 === 0 ? B.Brass : B.DeepStone);
+    for (const x of [78, 108]) P('pipe', x, F + 18, -24, { ry: 0, len: 20, r: 0.5 });
+
+    s.act = {
+      kind: 'group',
+      arrive: at(2, 0),
+      exit: at(1, 0),
+      packs: [
+        [mob(19, -2, 'dg_warder'), mob(21, 2, 'dg_warder'), mob(17, 0, 'dg_spring')],
+        [mob(31, -3, 'dg_spring'), mob(33, 3, 'dg_spring'), mob(35, 0, 'dg_warder'), mob(41, -3, 'dg_boiler')],
+        [mob(49, 26, 'dg_boiler'), mob(50, 33, 'dg_warder')],
+        [mob(65, 26, 'dg_boiler'), mob(64, 33, 'dg_warder'), mob(64, 29, 'dg_spring')],
+        [mob(84, -4, 'dg_warder'), mob(102, -4, 'dg_warder'), mob(93, 0, 'dg_spring')],
+      ],
+      bosses: [
+        { at: at(59, 0), type: 'dg_tallow', crew: [mob(52, -6, 'dg_spring'), mob(52, 6, 'dg_spring')] },
+        { at: at(93, 29), type: 'dg_governor' },
+        { at: at(93, -13), type: 'dg_mainspring' },
+      ],
+      chest: at(93, -23),
       covered: k.covered(),
     };
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
@@ -4856,7 +5068,7 @@ function gradeRoads(): Flatten[] {
 }
 
 /** Roof colours for a house's far-away stand-in. */
-const ROOF_TONE: Record<string, string> = { red: '#9a4a36', blue: '#3e5a86', slate: '#4a4e58', thatch: '#b89a58' };
+const ROOF_TONE: Record<string, string> = { red: '#9a4a36', blue: '#3e5a86', slate: '#4a4e58', thatch: '#b89a58', copper: '#3e7a66' };
 
 /** Settlements where hostile creatures never spawn: [x, z, radius]. */
 const SAFE_R: Record<string, number> = { cragsby: 64, holme: 60, scarrow: 64, aldermere: 270, cotters: 34, waystation: 30, gullmouth: 125, harrowgate: 95, coldhearth: 34, starwatch: 26, lighthouse: 18, hollowoak: 16, woodcamp: 20 };

@@ -18,6 +18,7 @@ export const SHRINE_RUNE: Record<RegionId, { shape: 'band' | 'orb' | 'disc'; y: 
   wrath: { shape: 'band', y: 2.3, w: 0.8, h: 0.24, d: 0.8, color: '#e8d870' },
   tolmen: { shape: 'disc', y: 2.3, w: 0.62, h: 0, d: 0, color: '#d0a0ff' },
   inkholm: { shape: 'orb', y: 2.4, w: 0.4, h: 0, d: 0, color: '#c8a8ff' },
+  kell: { shape: 'disc', y: 2.5, w: 0.6, h: 0, d: 0, color: '#ffb040' },
 };
 
 /** Solid cells (offsets from the centre cell, for a shrine facing +z) and how many blocks high. */
@@ -32,4 +33,5 @@ export const SHRINE_SOLID: Record<RegionId, { cells: [number, number][]; h: numb
   wrath: { cells: [[0, 0]], h: 4 },
   tolmen: { cells: [[-1, 0], [0, 0], [1, 0]], h: 3 },
   inkholm: { cells: [[0, 0]], h: 4 },
+  kell: { cells: [[0, 0]], h: 4 },
 };

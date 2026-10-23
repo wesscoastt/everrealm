@@ -19,6 +19,7 @@ const INK: Record<RegionId, [number, number, number]> = {
   wrath: [146, 156, 110],
   tolmen: [158, 130, 128],
   inkholm: [140, 128, 156],
+  kell: [132, 120, 112],
 };
 
 let chart: HTMLCanvasElement | null = null;

@@ -17,6 +17,8 @@ export interface PropMaterials {
   roofRed: THREE.MeshLambertMaterial;
   roofBlue: THREE.MeshLambertMaterial;
   roofSlate: THREE.MeshLambertMaterial;
+  /** Kell's roofs: copper sheet gone green. */
+  roofCopper: THREE.MeshLambertMaterial;
   thatch: THREE.MeshLambertMaterial;
   glow: THREE.MeshLambertMaterial;
   fire: THREE.ShaderMaterial;
@@ -46,6 +48,7 @@ export function createPropMaterials(): PropMaterials {
     roofRed: lam({ map: tex('roofRed') }),
     roofBlue: lam({ map: tex('roofBlue') }),
     roofSlate: lam({ map: tex('roofSlate') }),
+    roofCopper: lam({ map: tex('roofCopper') }),
     thatch: lam({ map: tex('thatch') }),
     glow: lam({ color: '#3a2a10', emissive: new THREE.Color('#ffb24a'), emissiveIntensity: 0.4 }),
     fire: fireMaterial(),
@@ -1354,6 +1357,39 @@ export function gull(): THREE.Group {
 export function ropeCoil(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 3; i++) g.add(mesh(new THREE.TorusGeometry(0.28 - i * 0.04, 0.035, 5, 14), M.rope, 0, 0.04 + i * 0.06, 0, 0, Math.PI / 2));
+  return g;
+}
+
+/**
+ * A gear wheel standing upright (in the XY plane, turning about z): a toothed rim, six spokes and an
+ * iron hub. r is its radius to the teeth. The Kilnfolk's machines are made of them.
+ */
+export function cog(M: PropMaterials, r = 1.5): THREE.Group {
+  const g = new THREE.Group();
+  const t = Math.max(0.12, r * 0.1);
+  const n = Math.max(8, Math.round(r * 7));
+  g.add(mesh(new THREE.TorusGeometry(r * 0.82, r * 0.11, 6, 36), M.bronze));
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const m = mesh(box(r * 0.2, r * 0.22, t * 2), M.bronze, Math.cos(a) * r * 0.96, Math.sin(a) * r * 0.96, 0);
+    m.rotation.z = a;
+    g.add(m);
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const m = mesh(box(r * 0.8, r * 0.1, t * 1.2), M.bronze, Math.cos(a) * r * 0.4, Math.sin(a) * r * 0.4, 0);
+    m.rotation.z = a;
+    g.add(m);
+  }
+  g.add(mesh(new THREE.CylinderGeometry(r * 0.17, r * 0.17, t * 3, 12), M.iron, 0, 0, 0, 0, Math.PI / 2, 0));
+  return g;
+}
+
+/** A run of pipe along +z for len, flanged every two blocks, r thick. */
+export function pipe(M: PropMaterials, len: number, r = 0.18): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(r, r, len, 10), M.bronze, 0, 0, len / 2, 0, Math.PI / 2, 0));
+  for (let k = 0; k <= len + 0.01; k += 2) g.add(mesh(new THREE.CylinderGeometry(r * 1.4, r * 1.4, 0.12, 10), M.iron, 0, 0, k, 0, Math.PI / 2, 0));
   return g;
 }
 

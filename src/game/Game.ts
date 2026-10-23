@@ -115,7 +115,7 @@ const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() 
 /** The music for each region; the outer lands borrow a neighbour's until their own is written. */
 const REGION_THEME: Record<RegionId, ThemeId> = {
   greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
-  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep',
+  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep', kell: 'redstone',
 };
 
 /** Where townsfolk walk, and how many of them, busiest in the capital. */
@@ -596,7 +596,7 @@ export class Game implements GameApi {
       },
       inCombat: () => { this.lastCombat = this.elapsed; this.dismount(); },
       sustainScale: () => (this.gearSet === 'tolley' ? 2 / 3 : 1),
-      skillHaste: () => this.armour.haste,
+      skillHaste: () => this.armour.haste * (this.gearSet === 'escapement' ? 1.1 : 1),
       aim: (range) => this.aimPoint(range),
       dash: (dir, dist) => this.springAlong(dir, dist),
       clear: (at) => {

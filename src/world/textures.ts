@@ -422,6 +422,39 @@ const painters: Record<number, (p: Px) => void> = {
     base(p, '#c4a88e', '#d2b69c', '#dec4aa', 501, 0.05);
     for (let x = 0; x < TILE; x += 2) for (let y = 0; y < TILE; y++) set(p, x, y, mul(get(p, x, y), 0.82));
   },
+  [T.Brass]: (p) => {
+    // Riveted brass plate: brushed up and down, a seam every sixteen, a rivet at each plate's corners
+    base(p, '#8a6a2a', '#b08a3a', '#d4ac56', 531, 0.05);
+    for (let x = 0; x < TILE; x++) { const f = 0.94 + vnoise(x, 0, 2, 532) * 0.12; for (let y = 0; y < TILE; y++) set(p, x, y, mul(get(p, x, y), f)); }
+    for (let i = 0; i < TILE; i++) { set(p, i, 0, hex('#5a4418')); set(p, i, 16, hex('#5a4418')); set(p, 0, i, hex('#6a5020')); set(p, 16, i, hex('#6a5020')); set(p, i, 1, hex('#e8c878')); set(p, i, 17, hex('#e8c878')); }
+    for (const [cx, cy] of [[3, 3], [13, 3], [3, 13], [13, 13], [19, 3], [29, 3], [19, 13], [29, 13], [3, 19], [13, 19], [3, 29], [13, 29], [19, 19], [29, 19], [19, 29], [29, 29]]) { set(p, cx, cy, hex('#f4dc98')); set(p, cx + 1, cy + 1, hex('#5a4418')); set(p, cx + 1, cy, hex('#c8a050')); set(p, cx, cy + 1, hex('#c8a050')); }
+  },
+  [T.Copper]: (p) => {
+    // Copper plate gone green: verdigris over it, the copper showing through where it's handled
+    base(p, '#356e60', '#448e78', '#62ac94', 541, 0.07);
+    // Copper shows through in worn streaks, run downward like weathering, not in spots
+    for (let x = 0; x < TILE; x++) { const n = vnoise(x, 0, 4, 542); if (n < 0.7) continue; for (let y = 0; y < TILE; y++) if (vnoise(x, y, 8, 543) > 0.45) set(p, x, y, mix(hex('#9a6a44'), hex('#c8926a'), vnoise(x, y, 4, 544) * (n - 0.7) * 3)); }
+    for (let i = 0; i < TILE; i++) { set(p, i, 0, hex('#1e4a40')); set(p, 0, i, hex('#1e4a40')); set(p, i, 16, hex('#1e4a40')); }
+    for (const [cx, cy] of [[3, 3], [28, 3], [3, 13], [28, 13], [3, 19], [28, 19], [3, 29], [28, 29]]) { set(p, cx, cy, hex('#8ad8c0')); set(p, cx + 1, cy + 1, hex('#1e4a40')); }
+  },
+  [T.Ash]: (p) => {
+    // Volcanic ash and black sand: fine grey-black grain, a few pale grains and a few darker clinkers
+    base(p, '#2e2e32', '#3a3a3e', '#4a4a50', 551, 0.16);
+    speckle(p, '#6a6a72', 26);
+    speckle(p, '#1a1a1e', 30, 2);
+  },
+  [T.Emberstone]: (p) => {
+    // Rock with live cracks: near black, the cracks orange and glowing, brighter at their hearts
+    base(p, '#1a1616', '#262020', '#322a28', 561, 0.1);
+    for (let k = 0; k < 4; k++) {
+      let x = Math.floor(p.rnd() * TILE), y = Math.floor(p.rnd() * TILE);
+      for (let i = 0; i < 14; i++) {
+        set(p, x, y, hex(i % 3 ? '#ff8a30' : '#ffc860'), EMIT_A);
+        set(p, x + 1, y, hex('#c84a1a'), EMIT_A);
+        x += Math.floor(p.rnd() * 3) - 1; y += p.rnd() < 0.7 ? 1 : -1;
+      }
+    }
+  },
   [T.Basalt]: (p) => { base(p, '#2a2a30', '#36363e', '#44444c', 431, 0.1); for (let y = 0; y < TILE; y += 8) for (let x = 0; x < TILE; x++) set(p, x, y, hex('#1e1e24')); for (let x = 0; x < TILE; x += 8) for (let y = 0; y < TILE; y++) set(p, x + ((Math.floor(y / 8)) % 2) * 4, y, hex('#1e1e24')); },
 };
 
@@ -497,7 +530,7 @@ function thatchRoof(p: Px): void {
 }
 
 /** A standalone repeating canvas texture for authored meshes (roofs, cloth, wood trim). */
-export function paintCanvasTexture(kind: 'roofRed' | 'roofBlue' | 'roofSlate' | 'thatch' | 'planks' | 'darkPlanks' | 'stone' | 'plaster' | 'cobble' | 'bark' | 'iron', size = 64): THREE.CanvasTexture {
+export function paintCanvasTexture(kind: 'roofRed' | 'roofBlue' | 'roofSlate' | 'roofCopper' | 'thatch' | 'planks' | 'darkPlanks' | 'stone' | 'plaster' | 'cobble' | 'bark' | 'iron', size = 64): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = TILE;
   const ctx = canvas.getContext('2d')!;
@@ -507,6 +540,7 @@ export function paintCanvasTexture(kind: 'roofRed' | 'roofBlue' | 'roofSlate' | 
     case 'roofRed': roofTile(px, '#6e2a1f', '#9c3e2c', '#bd5a3d'); break;
     case 'roofBlue': roofTile(px, '#1f3352', '#2f4c78', '#46679a'); break;
     case 'roofSlate': roofTile(px, '#2e3238', '#43484f', '#5a6068'); break;
+    case 'roofCopper': roofTile(px, '#265446', '#357462', '#4e9a80'); break;
     case 'thatch': thatchRoof(px); break;
     case 'planks': painters[T.Planks](px); break;
     case 'darkPlanks': painters[T.DarkPlanks](px); break;

@@ -54,7 +54,7 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
    * A chamber: an ellipse rx by rz round (x, z), its outline pushed in and out, domed to h at the
    * middle. Pillars of living rock ([x, z, r]) stand floor to roof. f: its floor (default F).
    */
-  const chamber = (x: number, z: number, rx: number, rz: number, h: number, th: CaveTheme, opt: { f?: number; pillars?: [number, number, number][]; seed?: number } = {}) => {
+  const chamber = (x: number, z: number, rx: number, rz: number, h: number, th: CaveTheme, opt: { f?: number; pillars?: [number, number, number][]; seed?: number; round?: boolean } = {}) => {
     const f = opt.f ?? F, seed = opt.seed ?? Math.round(x * 31 + z * 17);
     for (const [px, pz, pr] of opt.pillars ?? []) {
       for (let dx = -Math.ceil(pr) - 2; dx <= Math.ceil(pr) + 2; dx++) for (let dz = -Math.ceil(pr) - 2; dz <= Math.ceil(pr) + 2; dz++) {
@@ -68,10 +68,11 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
     }
     for (let dx = -Math.ceil(rx * 1.35); dx <= Math.ceil(rx * 1.35); dx++) for (let dz = -Math.ceil(rz * 1.35); dz <= Math.ceil(rz * 1.35); dz++) {
       const a = Math.atan2(dz / rz, dx / rx);
-      const d = Math.hypot(dx / rx, dz / rz) / (1 + 0.16 * wobble(a, seed));
+      // (round: something built, a true ellipse with a smooth dome)
+      const d = Math.hypot(dx / rx, dz / rz) / (opt.round ? 1 : 1 + 0.16 * wobble(a, seed));
       if (d >= 1) continue;
       const X = OX + x + dx, Z = OZ + z + dz;
-      const roof = Math.max(4, Math.round(h * (1 - 0.62 * d * d) + (hash2(X, Z, 715) - 0.5) * 1.6));
+      const roof = opt.round ? Math.max(4, Math.round(h * (1 - 0.35 * d * d))) : Math.max(4, Math.round(h * (1 - 0.62 * d * d) + (hash2(X, Z, 715) - 0.5) * 1.6));
       for (let y = f; y < f + roof; y++) openCell(X, y, Z, th);
     }
   };
@@ -81,7 +82,7 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
    * little and have round roofs; a mine's is square, with timber sets every few blocks. The floor
    * runs straight between the points' floors, so a tunnel can be a ramp.
    */
-  const tunnel = (pts: ([number, number] | [number, number, number])[], w: number, h: number, th: CaveTheme, opt: { mine?: boolean; seed?: number } = {}) => {
+  const tunnel = (pts: ([number, number] | [number, number, number])[], w: number, h: number, th: CaveTheme, opt: { mine?: boolean; seed?: number; frame?: number } = {}) => {
     const seed = opt.seed ?? Math.round(pts[0][0] * 13 + pts[0][1] * 7);
     let along = 0;
     for (let i = 0; i + 1 < pts.length; i++) {
@@ -103,12 +104,12 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
           for (let y = f; y < f + roof; y++) openCell(X, y, Z, th);
         }
         // Timber sets in a mine: two posts and a cap, every four blocks
-        if (opt.mine && Math.round((along + t * len) * 2) % 8 === 0) sets.push({ x: OX + cx, z: OZ + cz, nx, nz, f, w, h });
+        if (opt.mine && Math.round((along + t * len) * 2) % 8 === 0) sets.push({ x: OX + cx, z: OZ + cz, nx, nz, f, w, h, frame: opt.frame ?? B.Timber });
       }
       along += len;
     }
   };
-  const sets: { x: number; z: number; nx: number; nz: number; f: number; w: number; h: number }[] = [];
+  const sets: { x: number; z: number; nx: number; nz: number; f: number; w: number; h: number; frame: number }[] = [];
 
   /** A pit across the way (a flooded shaft, a crack), depth deep, with water in the bottom if wet. */
   const pits: { x0: number; z0: number; x1: number; z1: number; depth: number; wet: boolean }[] = [];
@@ -203,9 +204,9 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
       const half = Math.floor(st.w / 2);
       for (const side of [-half, half]) {
         const X = Math.round(st.x + st.nx * side), Z = Math.round(st.z + st.nz * side);
-        for (let y = st.f; y < st.f + st.h; y++) O.set(X, y, Z, B.Timber);
+        for (let y = st.f; y < st.f + st.h; y++) O.set(X, y, Z, st.frame);
       }
-      for (let k = -half; k <= half; k++) O.set(Math.round(st.x + st.nx * k), st.f + st.h - 1, Math.round(st.z + st.nz * k), B.Timber);
+      for (let k = -half; k <= half; k++) O.set(Math.round(st.x + st.nx * k), st.f + st.h - 1, Math.round(st.z + st.nz * k), st.frame);
     }
     // Lamps: on the nearest rock within six blocks of the spot, at head height
     for (const l of lamps) {

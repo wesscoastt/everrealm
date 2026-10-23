@@ -197,6 +197,38 @@ const LINES: Line[] = [
     },
   },
 
+  // The Escapement (group dungeon, Kell): the Kilnfolk's work, from the Works' own stores
+  {
+    id: 'kilnweave', weight: 'light', set: 'escapement', dungeon: 'gd-escapement', rarity: 'epic', value: 120, colour: '#5a4a3a', trim: '#d8b050',
+    look: { chest: { top: 7, tunic: '#4a3e30', trim: '#d8b050', shirt: '#2e2620' }, legs: { trousers: '#3a3028', legs: 0 }, hands: { gloves: '#6a5020' }, feet: { boots: '#2a2018', shoes: 1 } },
+    pieces: {
+      chest: ['Kilnweave coat', 'Wool woven with brass wire, the way the Kilnfolk weave for the Works. Sparks roll off it.'],
+      legs: ['Kilnweave breeches', 'Heavy wool, wire in the weft. Warm on the slope, cool by the boilers. Nobody can say how.'],
+      hands: ['Kilnweave mitts', 'Fingerless, so you can feel the teeth of a wheel before you trust it.'],
+      feet: ['Kilnweave boots', 'Soled with cork against the hot plates of the Deep.'],
+    },
+  },
+  {
+    id: 'gearleather', weight: 'medium', set: 'escapement', dungeon: 'gd-escapement', rarity: 'epic', value: 120, colour: '#6a4a2a', trim: '#b08a3a',
+    look: { chest: { top: 6, tunic: '#5a3e24', trim: '#b08a3a', chestArmour: { style: 'brigandine', color: '#6a4a2a', trim: '#d8b050' }, shoulders: { style: 'leather', color: '#5a3e24' } }, legs: { trousers: '#3e2e20', legs: 1, hose: '#2a2018' }, hands: { gloves: '#5a3e24', bracers: { style: 'leather', color: '#6a4a2a', trim: '#d8b050' } }, feet: { boots: '#2a2018', shoes: 1 } },
+    pieces: {
+      chest: ['Fitter\'s brigandine', 'Leather over brass scales, riveted by someone who rivets for a living. Every scale sits flat.'],
+      legs: ['Fitter\'s leggings', 'Pockets down both thighs for spanners. The spanners are gone.'],
+      hands: ['Fitter\'s gloves', 'Brass caps on the knuckles, the palms worn shiny on a thousand handles.'],
+      feet: ['Fitter\'s boots', 'Laced to the knee, a steel shank in the sole for standing on rungs all day.'],
+    },
+  },
+  {
+    id: 'kilnwright', weight: 'heavy', set: 'escapement', dungeon: 'gd-escapement', rarity: 'epic', value: 140, colour: '#b08a3a', trim: '#3e8a74',
+    look: { chest: { top: 4, tunic: '#3a3020', trim: '#3e8a74', chestArmour: { style: 'plate', color: '#b08a3a', trim: '#3e8a74' }, shoulders: { style: 'layered', color: '#c8a050', trim: '#3e8a74' } }, legs: { trousers: '#3a3020', legs: 0, legArmour: { style: 'plate', color: '#b08a3a' } }, hands: { gloves: '#3a3020', bracers: { style: 'plate', color: '#c8a050' } }, feet: { boots: '#2a2018', shoes: 1, sabatons: { color: '#b08a3a' } } },
+    pieces: {
+      chest: ['Kilnwright plate', 'Brass plate from the Escapement\'s own wardens, refitted for someone who breathes. The copper edging has gone green.'],
+      legs: ['Kilnwright greaves', 'Brass over the shin, hinged at the knee with a pin you can take out with your thumb.'],
+      hands: ['Kilnwright gauntlets', 'Each finger a jointed brass tube. They close with a sound like a lock.'],
+      feet: ['Kilnwright sabatons', 'Heavy enough that the springs underfoot don\'t get under them.'],
+    },
+  },
+
   // ---- New lines: the regions' own, and one from the anvil
   {
     id: 'charter', weight: 'heavy', region: 'crownroad', rarity: 'rare', value: 72, colour: '#b8bcc4', trim: '#2a4a8a',

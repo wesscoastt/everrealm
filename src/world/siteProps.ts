@@ -79,7 +79,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   const fires: THREE.Object3D[] = [];
   const sails: THREE.Object3D[] = [];
   const doors: Door[] = [];
-  const roofMat = (m?: string) => (m === 'blue' ? M.roofBlue : m === 'thatch' ? M.thatch : m === 'slate' ? M.roofSlate : M.roofRed);
+  const roofMat = (m?: string) => (m === 'blue' ? M.roofBlue : m === 'thatch' ? M.thatch : m === 'slate' ? M.roofSlate : m === 'copper' ? M.roofCopper : M.roofRed);
   const place = (g: THREE.Object3D, x: number, y: number, z: number, ry = 0) => batch.addGroup(g, P.mat4(x, y, z, ry));
   const gPos: number[] = [], gSize: number[] = [], gCol: number[] = [];
   const _c = new THREE.Color();
@@ -175,6 +175,18 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         sails.push(sl);
         break;
       }
+      case 'cog': {
+        // Upright, facing ry, turning about its axle with the sails (tint 1: the other way)
+        const pivot = new THREE.Group();
+        pivot.position.set(d.x, d.y, d.z);
+        pivot.rotation.y = (d.ry ?? 0) + (d.tint === 1 ? Math.PI : 0);
+        const c = P.cog(M, d.r ?? 1.5);
+        pivot.add(c);
+        group.add(pivot);
+        sails.push(c);
+        break;
+      }
+      case 'pipe': place(P.pipe(M, d.len ?? 4, d.r ?? 0.18), d.x, d.y, d.z, d.ry); break;
       case 'grave': place(P.gravestone(M, d.tint ?? 0), d.x, d.y, d.z, d.ry); break;
       case 'bellows': place(P.bellows(M), d.x, d.y, d.z, d.ry); break;
       case 'flame': {

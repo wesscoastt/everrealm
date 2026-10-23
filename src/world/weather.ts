@@ -31,8 +31,10 @@ const CLIMATE: Record<RegionId, Climate> = {
   tolmen: { wet: 0.42, grey: 0.4, mist: 0.7 },
   // Inkholm: mist nearly always, and a soft rain off the sea
   inkholm: { wet: 0.34, grey: 0.5, mist: 0.97, murk: 0.6 },
+  // Kell: dry, the Kiln's haze hanging over it most days
+  kell: { wet: 0.12, grey: 0.45, mist: 0.5, murk: 0.3 },
 };
-const REGION_N: Record<RegionId, number> = { greenwake: 1, crownroad: 2, brambledeep: 3, saltwind: 4, redstone: 5, starfall: 6, gannet: 7, wrath: 8, tolmen: 9, inkholm: 10 };
+const REGION_N: Record<RegionId, number> = { greenwake: 1, crownroad: 2, brambledeep: 3, saltwind: 4, redstone: 5, starfall: 6, gannet: 7, wrath: 8, tolmen: 9, inkholm: 10, kell: 11 };
 
 function hash(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
