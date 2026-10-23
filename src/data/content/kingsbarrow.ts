@@ -88,13 +88,17 @@ const deliaNodes: Record<string, DNode> = {
 
 // After the end: what Morrow says about it
 const salaNodes: Record<string, DNode> = {
-  sEnd: { text: (g) => by(g, { back: 'We\'re taking down the Old Tower, a storey at a time. Marta measures every course. The Assembly hasn\'t forgiven anyone, and it keeps a list.', hold: 'The towers stand. The black comes in under licence, stamped and taxed. Callis need never ask where it came from again. I find that restful.', sink: 'The towers are coming down anyway. The black is at the bottom of the sea, and the Brethren are telling everyone. I\'m told there\'s a song.' }) },
+  sEnd: { next: 'sGriffin', text: (g) => by(g, { back: 'We\'re taking down the Old Tower, a storey at a time. Marta measures every course. The Assembly hasn\'t forgiven anyone, and it keeps a list.', hold: 'The towers stand. The black comes in under licence, stamped and taxed. Callis need never ask where it came from again. I find that restful.', sink: 'The towers are coming down anyway. The black is at the bottom of the sea, and the Brethren are telling everyone. I\'m told there\'s a song.' }) },
+};
+salaNodes.sGriffin = {
+  text: (g) => (g.flag('towerGriffin') ? 'The griffin\'s eating well, I hope. They sulk if you feed them fish.' : 'And the Assembly keeps its debts, whatever else it does. One of the tower griffins is yours. Don\'t let it eat the pigeons.'),
+  effect: (g) => { if (!g.flag('towerGriffin')) { g.setFlag('towerGriffin', true); g.give('mount_griffin_white'); } },
 };
 const nedNodes: Record<string, DNode> = {
   nEnd: { text: (g) => by(g, { back: 'You put it back. Good. Nothing pays when the dead walk.', hold: 'Licensed black. Harrowgate ships it now, under Assembly seal. We\'ll carry something else. We always do.', sink: 'Deep water off the Keys. Nobody digs there. Nobody but me knows where, and I\'ve a bad memory for things I\'m paid to forget.' }) },
 };
 const maudNodes: Record<string, DNode> = {
-  mEnd: { text: (g) => by(g, { back: 'They\'ve lain down, all of them, up on the plateau. I\'ve opened the gate. I don\'t know what to do with my hands.', hold: 'The gate stays shut and the Held stays up there. The wall\'s three hundred years old, and it\'s finally earning its keep.', sink: 'They\'re lying down, slowly. The gate\'s still shut. I\'ll open it when the last one\'s still, and not before.' }) },
+  mEnd: { options: [{ text: 'The barracks has cats, I hear.', effect: (g) => g.openShop('maud_hale') }, { text: 'Bye.' }], text: (g) => by(g, { back: 'They\'ve lain down, all of them, up on the plateau. I\'ve opened the gate. I don\'t know what to do with my hands.', hold: 'The gate stays shut and the Held stays up there. The wall\'s three hundred years old, and it\'s finally earning its keep.', sink: 'They\'re lying down, slowly. The gate\'s still shut. I\'ll open it when the last one\'s still, and not before.' }) },
 };
 
 const quests: Record<string, QuestDef> = {

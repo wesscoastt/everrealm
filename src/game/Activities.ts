@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FORT_BY_ID, FORT_RESPAWN } from '../data/forts';
+import { Duels } from './Duels';
 import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES } from '../data/activities';
@@ -96,10 +97,12 @@ export class Activities {
   readonly tasks: Tasks;
   readonly escorts: Escorts;
   readonly puzzles: Puzzles;
+  readonly duels: Duels;
 
   constructor(private host: ActivityHost) {
     this.tasks = new Tasks(host, (def, x, z) => this.spawn(def, x, z, false));
     this.escorts = new Escorts(host, (def, x, z) => this.spawn(def, x, z, false));
+    this.duels = new Duels(host, (def, x, z) => this.spawn(def, x, z, false));
     this.puzzles = new Puzzles(host);
     this.sites = plan().sites.filter((s) => s.act);
     const ring = new THREE.Mesh(new THREE.CircleGeometry(QUAKE_R, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.3, depthWrite: false }));
@@ -132,6 +135,7 @@ export class Activities {
     this.tasks.update(dt, P);
     this.escorts.update(dt, P);
     this.puzzles.update(dt, P);
+    this.duels.update();
     this.panel(P);
   }
 

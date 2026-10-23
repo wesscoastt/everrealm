@@ -56,10 +56,10 @@ export const POSTS: PostStop[] = [
   { id: 'holme', name: 'Holme Staithe', place: 'holme', x: -883.5, z: 1013.5, ry: -Math.PI / 2 },
   { id: 'scarrow', name: 'Scarrow Tor', place: 'scarrow', x: 338.5, z: 2959.5, ry: Math.PI },
   { id: 'mewstones', name: 'The Mewstones (ferry)', place: 'mewstones', ferryFrom: 'gullmouth', x: 2345.5, z: 728.5, ry: -Math.PI / 2 },
-  // Inkholm, past the Mewstones: the Charter stopped the crossing for the Grey; Reuben Hoskin will run it (data/content/inkholm.ts)
-  { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2, gate: 'inkFerry' },
-  // Kell, past the Fleet Coast: Jory Tallack's boat, once the Wheel has sent for you (data/content/kell.ts)
-  { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2, gate: 'kellFerry' },
+  // Inkholm, past the Mewstones, and Kell, past the Fleet Coast: Davey Penrose's island boat runs to both
+  // from Gullmouth for anyone (data/content/boatman.ts); the stories that send you there start on the quay
+  { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2 },
+  { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2 },
   // Morrow (world/land.ts): Callis, on the south side of the Assembly's plaza (world/morrow.ts CALLIS_SPOTS)
   { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: 2132.5, z: 1077.5, ry: 0 },
   // Saltpenny Key, by the packet from Callis once the Speaker has told you about the Kittiwake (world/morrow.ts SALT_LANDING)

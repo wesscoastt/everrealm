@@ -159,7 +159,11 @@ const marta: DialogueTree = {
     return 'm0';
   },
   nodes: {
-    m0: { text: (g) => (at(g, CAL) === 'done' ? 'Two fingers in a summer. I measure every morning now, and every morning I hope I\'ve read it wrong.' : 'Marta Vidal, Warden of the Towers. If you\'re lost, the plaza\'s south. Everyone\'s lost here the first day.') },
+    m0: {
+      text: (g) => (at(g, CAL) === 'done' ? 'Two fingers in a summer. I measure every morning now, and every morning I hope I\'ve read it wrong.' : 'Marta Vidal, Warden of the Towers. If you\'re lost, the plaza\'s south. Everyone\'s lost here the first day.'),
+      options: [{ text: 'The griffins in the eyrie?', next: 'mEyrie' }, { text: 'Bye.' }],
+    },
+    mEyrie: { text: 'The Old Tower\'s eyrie. I measure them too. I sell one now and then, to someone the coast thinks well of. Very well of.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('marta_vidal') }, { text: 'Bye.' }] },
     m1: { text: 'Marta Vidal. I keep the towers standing. This year that means keeping them sitting down.', next: 'm2' },
     m2: { text: 'Nine hundred weight of black. That\'s where it went. Into the courses, a pin at a time. Every tower on the plaza is lifting.', next: 'm3' },
     m3: { text: 'The white in the old walls has been settling for three hundred years. Settled crystal wants to go up. Ours has started.', next: 'm4' },
@@ -229,7 +233,7 @@ const isidre: DialogueTree = {
 const jaume: DialogueTree = {
   start: (g) => (letterFor(g, 'jaume_roig') ? 'jLetter' : 'j0'),
   nodes: {
-    j0: { text: 'Jaume Roig. I cut the black for the tower pins and set iron in it. And I sell iron, if that\'s what you\'re after.' },
+    j0: { text: 'Jaume Roig. I cut the black for the tower pins and set iron in it. And I sell iron, if that\'s what you\'re after.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('jaume_roig') }, { text: 'Bye.' }] },
     jLetter: { text: 'A letter? The Assembly\'s seal. That\'ll be an order.', next: 'jLetter2', effect: hand('jaume_roig') },
     jLetter2: { text: 'Forty more pins, the long pattern. That\'s four hundred this year.', next: 'jLetter3' },
     jLetter3: { text: 'I used to cut four a year and be glad of the work. I\'m not glad.' },
@@ -239,7 +243,7 @@ const jaume: DialogueTree = {
 const pere: DialogueTree = {
   start: () => 'e0',
   nodes: {
-    e0: { text: 'Pere Coll. Sardines off the morning boats, bread from the ovens on Tanners\' Stair, and the red from up the coast. Eat something. You look like a mainlander.' },
+    e0: { text: 'Pere Coll. Sardines off the morning boats, bread from the ovens on Tanners\' Stair, and the red from up the coast. Eat something. You look like a mainlander.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('pere_coll') }, { text: 'Bye.' }] },
   },
 };
 

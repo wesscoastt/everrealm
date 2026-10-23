@@ -4,6 +4,7 @@ import type { QuestDef } from '../quests';
 import type { ShopDef } from '../shops';
 import { at, killed, type Marks } from './kit';
 import type { RegionContent } from './types';
+import { KELL_MOUNT_STOCK } from './mounts';
 import { BRASSWICK, ESC, VENTS, WORKS } from '../kell';
 
 // KELL, the clockwork isle north-east of the Fleet Coast (world/terrain.ts KELL, data/kell.ts,
@@ -372,13 +373,13 @@ export const KELL_CONTENT: RegionContent = {
     } as ShopDef,
     agnes_lusty: {
       id: 'agnes_lusty', name: 'Agnes Lusty\'s forge', owner: 'agnes_lusty',
-      stock: [{ item: 'iron_bar', price: 60 }, { item: 'iron_pickaxe', price: 300 }, { item: 'iron_hatchet', price: 240 }],
+      stock: [{ item: 'iron_bar', price: 60 }, { item: 'iron_pickaxe', price: 300 }, { item: 'iron_hatchet', price: 240 }, ...KELL_MOUNT_STOCK.agnes],
       buyRate: () => 0.55,
       footer: () => 'Agnes pays a little over half for iron and steel',
     } as ShopDef,
     gerens_tonkin: {
       id: 'gerens_tonkin', name: 'Tonkin\'s, brass and instruments', owner: 'gerens_tonkin',
-      stock: [{ item: 'lockpick', price: 4 }, { item: 'bronze_bar', price: 30 }, { item: 'fishing_rod', price: 20 }],
+      stock: [{ item: 'lockpick', price: 4 }, { item: 'bronze_bar', price: 30 }, { item: 'fishing_rod', price: 20 }, ...KELL_MOUNT_STOCK.gerens],
       buyRate: (_g, item) => (item === 'brass_cog' ? 0.9 : 0.5),
       footer: () => 'Gerens pays well for brass cogs',
     } as ShopDef,

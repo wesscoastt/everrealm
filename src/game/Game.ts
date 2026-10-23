@@ -1010,6 +1010,7 @@ export class Game implements GameApi {
 
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
+  duel(id: string): void { this.activities.duels.start(id); }
   crossLand(to: LandId): void {
     if (this.inCombat()) { this.hud.system('Not in the middle of a fight.'); return; }
     // Where the packet sets you down: the end of Callis's packet pier, or Gullmouth's quay
@@ -3368,6 +3369,8 @@ export class Game implements GameApi {
     if (fx.has('stone_skin') && this.elapsed - this.lastHurt > 8) taken = Math.max(1, Math.round(taken * 0.5));
     this.lastHurt = this.elapsed;
     this.hp -= taken;
+    // In the Cockpit nobody dies: a duellist's blow that leaves you at a quarter, and you yield
+    if (this.activities.duels.playerHit(from, this.hp, this.maxHp)) this.hp = Math.max(this.hp, 1);
     // The Rust Queen's gauntlets give a third of it back; the sexton's helm wards you below half health
     if (fx.has('thorns') && from.alive) this.dealDamage(from, taken * 0.33, false, true);
     if (fx.has('glassward') && this.hp > 0 && this.hp < this.maxHp / 2 && this.elapsed - this.glassAt > 60) {

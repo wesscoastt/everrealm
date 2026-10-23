@@ -4,6 +4,7 @@ import type { QuestDef } from '../quests';
 import type { ShopDef } from '../shops';
 import { at, killed, type Marks } from './kit';
 import type { RegionContent } from './types';
+import { DUELISTS, LADDER_PRIZE } from '../duels';
 import { BIGHT, BIGHT_BOAT, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_PIERS, SALTPENNY } from '../../world/morrow';
 
 // SALTPENNY KEY, the Brethren's city of wrecks at the far end of the Keys (world/sites.ts
@@ -143,8 +144,8 @@ const dinah: DialogueTree = {
     c3: { text: 'You found her. Tell me.', next: 'c4' },
     c4: { speaker: 'narrator', text: 'You tell her: an iron box, a brass compass, and a cloak folded on top with a compass rose sewn on it.', next: 'c5' },
     c5: { text: 'Keep the cloak. She\'d want it worn, not framed. I\'ll keep the compass. I\'ll want it for the drawing.', next: 'c6', effect: (g) => { g.give('cape_rose'); g.addMarks(250); g.setStage(D3, 'done'); } },
-    c6: { text: 'And now I\'ve maps to sell, if you\'ve marks. Every land in Morrow. Pay first, dig after.' },
-    z0: { text: 'Maps of every land in Morrow, from wreckers\' talk and drowned men\'s charts. Pay first, dig after.' },
+    c6: { text: 'And now I\'ve maps to sell, if you\'ve marks. Every land in Morrow. Pay first, dig after.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('dinah_lowry') }, { text: 'Bye.' }] },
+    z0: { text: 'Maps of every land in Morrow, from wreckers\' talk and drowned men\'s charts. Pay first, dig after.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('dinah_lowry') }, { text: 'Bye.' }] },
   },
 };
 
@@ -153,7 +154,7 @@ const dinah: DialogueTree = {
 const gil: DialogueTree = {
   start: () => 'g0',
   nodes: {
-    g0: { text: 'Gil Fenner. I buy what you\'ve got, and I don\'t ask where it was. I pay better than Callis, and I don\'t write it down.' },
+    g0: { text: 'Gil Fenner. I buy what you\'ve got, and I don\'t ask where it was. I pay better than Callis, and I don\'t write it down.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('gil_fenner') }, { text: 'Bye.' }] },
   },
 };
 const annie: DialogueTree = {
@@ -161,19 +162,32 @@ const annie: DialogueTree = {
   nodes: {
     a0: {
       text: 'The Leaning Mast. Rum, chowder, and no fighting. Fighting\'s at the Cockpit, and you pay Jago for it.',
-      options: [{ text: 'Why is it leaning?', next: 'a1' }, { text: 'Bye.' }],
+      options: [{ text: 'What have you got?', effect: (g) => g.openShop('annie_coe') }, { text: 'Why is it leaning?', next: 'a1' }, { text: 'Bye.' }],
     },
     a1: { text: 'She ran up the beach in a gale forty years back and settled on her side. We put the bar on the low end. Saves on chairs.' },
   },
 };
+const won = (g: GameApi, id: string) => !!g.flag('duelWon:' + id);
 const jago: DialogueTree = {
   start: () => 'j0',
   nodes: {
     j0: {
-      text: 'Jago Sweeney. I keep the Cockpit. Captains don\'t take each other to law. They take each other here.',
-      options: [{ text: 'To the death?', next: 'j1' }, { text: 'Bye.' }],
+      text: (g) => (won(g, 'coyle') ? 'The one who beat Mara Coyle. The Mast hasn\'t stopped talking about it. What\'ll it be?' : 'Jago Sweeney. I keep the Cockpit. Captains don\'t take each other to law. They take each other here.'),
+      options: [{ text: 'I\'ll fight.', next: 'jList' }, { text: 'What are the rules?', next: 'j1' }, { text: 'Bye.' }],
     },
-    j1: { text: 'To first blood, and the loser buys a round at the Mast. We\'re thieves, not animals. Dead men don\'t pay for rounds.' },
+    j1: { text: 'First blood: they yield at half, you yield at a quarter, and nobody dies. Step out of the ring and it\'s forfeit.', next: 'j2' },
+    j2: { text: 'The loser buys a round at the Mast. We\'re thieves, not animals. Dead men don\'t pay for rounds.', next: 'j0' },
+    jList: {
+      text: 'You work up the ladder. Nobody fights Mara Coyle who hasn\'t beaten the rest. Step into the ring when I call it.',
+      options: [
+        ...DUELISTS.map((d, i) => ({
+          text: (g: GameApi) => `${d.name}, ${d.title}${won(g, d.id) ? ' (beaten)' : ''}`,
+          cond: (g: GameApi) => i === 0 || won(g, DUELISTS[i - 1].id),
+          effect: (g: GameApi) => g.duel(d.id),
+        })),
+        { text: 'Not today.' },
+      ],
+    },
   },
 };
 
@@ -230,6 +244,7 @@ const quests: Record<string, QuestDef> = {
 
 const items: ItemDef[] = [
   { id: 'brethren_rum', name: 'Brethren rum', kind: 'food', rarity: 'common', stack: true, value: 26, icon: { shape: 'gel', a: '#8a4a1e', b: '#3a1a0a' }, desc: 'Dark, sweet and thick, from a cask with somebody else\'s mark burnt into it.', heal: 160, stats: 'Restores 160 health.' },
+  { id: LADDER_PRIZE, name: 'The Cockpit\'s ribbon', kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'letter', a: '#a83a2a', b: '#d8b050' }, desc: 'A strip of red sailcloth with two oars crossed in gold thread, tied on by Jago Sweeney himself. Every captain in Saltpenny knows what it means: you beat Mara Coyle in the ring.' },
   { id: 'conch_chowder', name: 'Conch chowder', kind: 'food', rarity: 'uncommon', stack: true, value: 40, icon: { shape: 'cooked', a: '#e8d0a0', b: '#c87a4a' }, desc: 'The Leaning Mast\'s, in a bowl that was a helmet once. Annie Coe won\'t say whose.', heal: 260, stats: 'Restores 260 health.' },
 ];
 

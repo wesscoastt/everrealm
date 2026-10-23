@@ -686,6 +686,8 @@ export function plan(): Plan {
     for (let z = CALLIS.z - 190; z <= CALLIS.z + 220; z += 30) callisFlats.push({ x: CALLIS_QUAY_X + 37, z, r0: 36, r1: 38, h: SEA - 4 });
     return [
       { id: 'callis', name: 'Callis', x: CALLIS.x, z: CALLIS.z, r0: 205, r1: 250, h: SEA + 6, flats: callisFlats, build: (s, b) => buildCallis(s, b, extra) },
+      // Inns and lodgings in Morrow (data/lodgings.ts), after the towns they stand in
+      ...LODGINGS.map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
       { id: 'saltpenny', name: 'Saltpenny Key', x: SALTPENNY.x, z: SALTPENNY.z, r0: 118, r1: 150, h: SALT_FLOOR, build: (s, b) => buildSaltpenny(s, b) },
       { id: 'bight', name: 'Wreckers\' Bight', x: BIGHT.x, z: BIGHT.z, r0: 16, r1: 26, build: (s, b) => buildBight(s, b) },
       { id: 'coldharbour', name: 'Cold Harbour', x: COLD_HARBOUR.x, z: COLD_HARBOUR.z, r0: 26, r1: 42, h: SEA + 2, build: (s, b) => buildColdHarbour(s, b) },
@@ -3593,6 +3595,8 @@ export function plan(): Plan {
     market.props.push({ t: 'roof', x: MX + 0.5, y: base + 6, z: MZ + 0.5, len: 21, span: 15, ry: 0, mat: 'red' });
     for (let i = 0; i < 6; i++) market.props.push({ t: i % 2 ? 'crate' : 'barrel', x: MX - 6 + i * 2.4, y: base, z: MZ + (i % 2 ? 2.5 : -2.5), ry: i });
     market.props.push({ t: 'sign', x: MX + 0.5, y: base, z: MZ + 21.5, ry: 0, text: 'The Market' });
+    // The Black Pin's plot, on the square's east side (data/lodgings.ts: the inn is built after the city)
+    claim(MX + 28, MZ - 12, MX + 45, MZ + 12);
 
     // ---- The Hall of the Two Stones, on its rise south-west of the river
     const TX = CALLIS_SPOTS.temple.x, TZ = CALLIS_SPOTS.temple.z;
@@ -5792,7 +5796,7 @@ export function plan(): Plan {
         for (let y = ground; y < base - 1; y++) {
           const win = edge && (y === ground + 1) && ((Math.abs(v) === LODGE_V && Math.abs(u) % 3 === 1 && u !== 0) || (Math.abs(u) === LODGE_U && Math.abs(v) % 3 === 1));
           const door = u === 0 && v === LODGE_V && y < ground + 2;
-          O.set(x, y, z, edge && !door ? (win ? B.Window : y === ground ? B.StoneBrick : B.Plaster) : B.Air);
+          O.set(x, y, z, edge && !door ? (win ? B.Window : y === ground ? (L.white ? B.Blackstone : B.StoneBrick) : L.white ? B.Whitestone : B.Plaster) : B.Air);
         }
         // The upper floor (open over the stair)
         const well = v === stairV && STAIR.includes(u);
@@ -5807,7 +5811,7 @@ export function plan(): Plan {
         if (wall && !(doorway && y < base + 2)) {
           // Windows in the outside walls of each room, a block up
           const win = edge && room === undefined && ROOMS.some((r) => u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1) && (y === base + 1 || y === base + 2) && ((Math.abs(v) === LODGE_V && Math.abs(u) % 3 === 1) || (Math.abs(u) === LODGE_U && Math.abs(v) === 4));
-          id = win ? B.Window : y === base ? B.StoneBrick : edge ? B.Plaster : B.Planks;
+          id = win ? B.Window : y === base ? (L.white ? B.TerraCream : B.StoneBrick) : edge ? (L.white ? B.Whitestone : B.Plaster) : B.Planks;
         }
         O.set(x, y, z, id);
       }
@@ -5822,7 +5826,7 @@ export function plan(): Plan {
     const [ax, az] = W(-LODGE_U, -LODGE_V), [bx, bz] = W(LODGE_U, LODGE_V);
     const x0 = Math.min(ax, bx), z0 = Math.min(az, bz), w = Math.abs(bx - ax) + 1, d = Math.abs(bz - az) + 1;
     const alongX = L.face === 'n' || L.face === 's';
-    s.props.push({ t: 'roof', x: x0 + w / 2, y: base + LODGE_H, z: z0 + d / 2, len: alongX ? w : d, span: alongX ? d : w, rise: roofRise(alongX ? d : w), ry: alongX ? 0 : Math.PI / 2, mat: 'slate' });
+    s.props.push({ t: 'roof', x: x0 + w / 2, y: base + LODGE_H, z: z0 + d / 2, len: alongX ? w : d, span: alongX ? d : w, rise: roofRise(alongX ? d : w), ry: alongX ? 0 : Math.PI / 2, mat: L.white ? 'red' : 'slate', plain: L.white || undefined });
     // Lamps along the corridor and either side of the front door, the sign by the street, a chest in each room
     const yawOut = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 }[L.face];
     const at = (u: number, v: number, y: number) => { const [x, z] = W(u, v); return { x: x + 0.5, y, z: z + 0.5 }; };

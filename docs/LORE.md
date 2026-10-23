@@ -673,6 +673,13 @@ Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; 
 - **Dinah's maps.** `dinahSalt` (a map of the key itself; a tin of her own buttons under the X), `dinahKeys` (two maps of the Keys; a page of Gale's log in the second chest), `dinahGale` (Gale's hoard by Heron Mere in the Glades: an iron box, a brass compass Dinah keeps, and Gale's cloak with the compass rose, which the player keeps). After that Dinah sells maps of every region in Morrow; there are two to each region, as in the Counties.
 - **Wreckers' Bight** is the camp on a key east along the causeway where Pryce's wreckers lie up.
 
+### The Black Pin, the Cockpit, and the far places' mounts [in game]
+
+- **The Black Pin** is Callis's inn, on the east side of the Market square, white stone under a red roof: a taproom and five rooms to let upstairs. **Roser Puig** keeps it and keeps the peace with soup; the Assembly and the dockers drink there and don't sit where the other lot sits. It's named for the pins in the towers, the thing that holds everything else up.
+- **The Cockpit's ladder** (`src/data/duels.ts`): Kit Rowe, a deckhand who has never drawn first blood off anyone; Hannah Skerry, the Kittiwake's bosun; Ruth Abel, a gunner who throws what she can't shoot; Mattias Crowe, captain of the Long Shilling, who has never lost a ship over a dispute; and Mara Coyle, who doesn't fight in the Cockpit and makes an exception. First blood: they yield at half, you yield at a quarter, nobody dies, and stepping out of the ring forfeits. Beating Mara wins the Cockpit's ribbon.
+- **Davey Penrose** runs the island boat from Gullmouth's quay to the Mewstones, Inkholm and Kell. The Charter stopped the Inkholm crossing; the Charter doesn't row.
+- **Mounts** (`src/data/content/mounts.ts`): the Kilnfolk breed great cats (kilncats) on the Kiln's warm slopes and build clockwork striders in the Works; the Held's herders ride sabre-toothed fell cats; the Glass Flats' caravans ride drakes that walk; the Keys ride their turtles (Old Shell is older than Saltpenny); the Sunder's skyfarmers keep slabbacks, oxen plated with the stone they graze; the Assembly keeps griffins in the eyries at the tops of its towers; and the grave-wyrms slept curled round the old king's bier. Stags come from both continents' woods.
+
 ### Morrow's towns and villages [in game]
 
 `src/world/sites.ts` (buildReedwater and the rest); their people in `src/data/content/morrowTowns.ts`.

@@ -5,6 +5,7 @@ import type { QuestDef } from '../quests';
 import type { ShopDef } from '../shops';
 import { at, killed, type Marks } from './kit';
 import type { RegionContent } from './types';
+import { KELL_MOUNT_STOCK } from './mounts';
 import { REED_DECK, SLAB_MARKS, TOWNS } from '../../world/morrow';
 
 // Morrow's towns and villages (world/sites.ts buildReedwater and the rest): the people in each, a job
@@ -137,15 +138,15 @@ const pol: DialogueTree = {
     r1: { speaker: 'narrator', text: 'You tell him: a hand and a half on the first and the big one, two hands on the falls slab. All since the spring.', next: 'r2' },
     r2: { text: 'Same as the towers in Callis, near enough. The white in the old walls and the white under these: it\'s all waking up at once.', next: 'r3' },
     r3: { text: 'I\'ll write to her. Here. Honey off the big slab. The bees don\'t know anything\'s wrong.', effect: (g) => { g.addMarks(170); g.give('sky_honey', 3); g.setStage(SLABQ, 'done'); } },
-    pDone: { text: 'Mother wrote back. Two words: "measure again." So I measure again.' },
+    pDone: { text: 'Mother wrote back. Two words: "measure again." So I measure again.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('pol_vidal') }, { text: 'Bye.' }] },
   },
 };
 /** A quest-giver's tree: the job on offer, waiting, thanks, and what they say after. */
-function giver(after: string, qid: string): DialogueTree {
+function giver(after: string, qid: string, shop?: string): DialogueTree {
   const job = JOBS.find((j) => j.quest.id === qid)!;
   return {
     start: (g) => { const s = at(g, qid); return !s ? `${qid}_o0` : s === 'back' ? `${qid}_t0` : s === 'done' ? 'after' : `${qid}_wait`; },
-    nodes: { ...job.nodes, after: { text: after } },
+    nodes: { ...job.nodes, after: { text: after, options: shop ? [{ text: 'What have you got?', effect: (g) => g.openShop(shop) }, { text: 'Bye.' }] : undefined } },
   };
 }
 
@@ -153,7 +154,7 @@ function giver(after: string, qid: string): DialogueTree {
 
 const shopkeep = (id: string, line: string, more?: [string, string]): DialogueTree => ({
   start: () => 'a',
-  nodes: { a: { text: line, options: more ? [{ text: more[0], next: 'b' }, { text: 'Bye.' }] : undefined }, ...(more ? { b: { text: more[1] } } : {}) },
+  nodes: { a: { text: line, options: [{ text: 'What have you got?', effect: (g) => g.openShop(id) }, ...(more ? [{ text: more[0], next: 'b' }] : []), { text: 'Bye.' }] }, ...(more ? { b: { text: more[1], next: 'a' } } : {}) },
 });
 
 const items: ItemDef[] = [
@@ -184,10 +185,10 @@ export const MORROW_TOWNS: RegionContent = {
   ],
   dialogue: {
     orla_pike: giver('The walks are quiet at night again. I sleep through, mostly.', 'reedLizards'),
-    ivo_larch: giver('Every doorpost in Branchley, glowing. You can see us from the old road.', 'woldLamps'),
+    ivo_larch: giver('Every doorpost in Branchley, glowing. You can see us from the old road.', 'woldLamps', 'ivo_larch'),
     nuria_pujol: giver('Full racks, every morning. I\'ve stopped counting. No, I haven\'t.', 'calaJackals'),
-    cass_moran: giver('Two trains out this week and both came back. Tenwells remembers.', 'tenReavers'),
-    sal_mudge: giver('Another clutch hatched last night. Thirty-one. I counted.', 'conchCrabs'),
+    cass_moran: giver('Two trains out this week and both came back. Tenwells remembers.', 'tenReavers', 'cass_moran'),
+    sal_mudge: giver('Another clutch hatched last night. Thirty-one. I counted.', 'conchCrabs', 'sal_mudge'),
     tam_rush: shopkeep('tam_rush', 'Tam Rush. Reed beer, smoked eel, and a bed over the water. The bed doesn\'t move. The water does.', ['Why stilts?', 'Because the Glades come up every spring and go down every autumn, and we got tired of moving.']),
     mags_briar: shopkeep('mags_briar', 'Mags Briar. Acorn bread, cider, and the gossip of the whole Wold, which is mostly about acorns.', ['Who lives up the trees?', 'Whoever got there first. Ivo, the Larches, the Thornes before them. Nobody\'s fallen off in my lifetime. Nearly, once.']),
     toni_rius: shopkeep('toni_rius', 'Toni Rius. Whatever the boats brought in this morning, and nothing older. If it\'s older, it\'s Callis\'s.'),
@@ -202,7 +203,7 @@ export const MORROW_TOWNS: RegionContent = {
     toni_rius: { id: 'toni_rius', name: 'Cala Roja fish market', owner: 'toni_rius', stock: [{ item: 'callis_sardines', price: 44 }, { item: 'cooked_seabass', price: 40 }, { item: 'olive_bread', price: 27 }], buyRate: (_g, item) => (/raw_|cooked_/.test(item) ? 0.7 : 0.5), footer: () => 'Toni pays well for fish' } as ShopDef,
     ada_moss: { id: 'ada_moss', name: 'Skyfarm honey', owner: 'ada_moss', stock: [{ item: 'sky_honey', price: 60 }, { item: 'bread', price: 5 }], buyRate: () => 0.5, footer: () => 'Ada pays half of an item\'s worth' } as ShopDef,
     ennis_wade: { id: 'ennis_wade', name: 'Tenwells provisions', owner: 'ennis_wade', stock: [{ item: 'caravan_dates', price: 46 }, { item: 'brethren_rum', price: 44 }, { item: 'lockpick', price: 6 }], buyRate: () => 0.5, footer: () => 'Ennis pays half of an item\'s worth' } as ShopDef,
-    sal_mudge: { id: 'sal_mudge', name: 'Sal Mudge\'s pot', owner: 'sal_mudge', stock: [{ item: 'conch_chowder', price: 60 }], buyRate: () => 0.5, footer: () => 'Sal pays half of an item\'s worth' } as ShopDef,
+    sal_mudge: { id: 'sal_mudge', name: 'Sal Mudge\'s pot', owner: 'sal_mudge', stock: [{ item: 'conch_chowder', price: 60 }, ...KELL_MOUNT_STOCK.sal], buyRate: () => 0.5, footer: () => 'Sal pays half of an item\'s worth' } as ShopDef,
   },
   readables: {
     fellLetter: {

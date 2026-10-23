@@ -45,6 +45,14 @@ const KEEPERS: Keeper[] = [
     about: 'Built of moor stone by drovers, for drovers. I keep the fire in all year. On the moor you need it in August.',
     menu: [{ item: 'small_beer', price: 1 }, { item: 'brown_ale', price: 3 }, { item: 'mutton_pie', price: 8 }, { item: 'mulled_wine', price: 6 }],
   },
+  {
+    inn: 'inn-blackpin', id: 'inn_roser', name: 'Roser Puig',
+    look: { frame: 'f', skin: '#c8946a', hair: '#1a1410', hairStyle: 2, tunic: '#e8e2d4', trim: '#1a1a1e', trousers: '#2a2a30', boots: '#1e1a16', apron: true, lashes: true, build: 1.05, age: 0.5 },
+    barks: ['Sit anywhere but the Speaker\'s chair.', 'The red\'s from up the coast.'],
+    hello: 'The Black Pin. Named for the pins in the towers: the thing that holds everything else up. Sit down.',
+    about: 'Nineteen years. The Assembly drinks here, and the dockers, and nobody sits where the other lot sits. I keep the peace with soup.',
+    menu: [{ item: 'callis_red', price: 36 }, { item: 'olive_bread', price: 28 }, { item: 'callis_sardines', price: 46 }, { item: 'tavern_stew', price: 14 }],
+  },
 ];
 
 const NPCS_I: NpcDef[] = [];
@@ -57,7 +65,7 @@ KEEPERS.forEach((k, i) => {
   if (!L) return;
   // Behind the bar (world/sites.ts tavernRoom: the bar runs u -7 to -3 at v -5), facing the room
   const [bx, bz] = lodgeAt(L, -5, -6), [fx, fz] = lodgeAt(L, -5, 0);
-  NPCS_I.push({ id: k.id, name: k.name, title: L.name, look: { ...BASE_LOOK, ...k.look } as Appearance, schedule: [{ from: 0, to: 24, at: [bx + 0.5, bz + 0.5], face: [fx + 0.5, fz + 0.5], anim: 'idle', y: lodgeBase(L) }], barks: k.barks });
+  NPCS_I.push({ land: L.land, id: k.id, name: k.name, title: L.name, look: { ...BASE_LOOK, ...k.look } as Appearance, schedule: [{ from: 0, to: 24, at: [bx + 0.5, bz + 0.5], face: [fx + 0.5, fz + 0.5], anim: 'idle', y: lodgeBase(L) }], barks: k.barks });
   SHOPS_I['inn_' + k.id] = { id: 'inn_' + k.id, name: L.name, owner: k.id, who: k.name.split(' ')[0], stock: k.menu, buyRate: () => 0.25, footer: () => `${k.name.split(' ')[0]} buys at a quarter of an item's worth.` };
   DIALOGUE_I[k.id] = {
     start: () => 'hello',

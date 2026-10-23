@@ -74,6 +74,7 @@ class Mock implements GameApi {
   openCrafting() {}
   openTravel() {}
   crossLand() {}
+  duel() {}
   openBoard(id: string) { if (!BOARDS.some((b) => b.id === id)) err('board:' + id, `${this.where}: opens unknown board "${id}"`); }
   startCasting() { this.s.flags.__casting = true; }
   ride() {}

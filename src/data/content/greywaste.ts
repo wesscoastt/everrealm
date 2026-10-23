@@ -77,7 +77,8 @@ const maud: DialogueTree = {
     m6: { text: 'Then you know what happens if he opens the king\'s barrow. Every dead man in the Held gets up at once.', next: 'm6b' },
     m6b: { text: 'And my wall stops being old and starts being short.', next: 'm7' },
     m7: { text: 'The postern\'s open to you. Shut it behind you. I mean that.', effect: (g) => { g.setFlag('postern', true); g.addMarks(300); g.setStage(HELD, 'done'); } },
-    mDone: { text: 'The postern\'s yours, as long as you shut it.' },
+    mDone: { text: 'The postern\'s yours, as long as you shut it.', options: [{ text: 'The barracks has cats, I hear.', next: 'mCats' }, { text: 'Bye.' }] },
+    mCats: { text: 'Fell sabres. The herders ride them over the drifts. I\'ll sell you one. You\'ve earned a better beast than whatever brought you.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('maud_hale') }, { text: 'Bye.' }] },
   },
 };
 

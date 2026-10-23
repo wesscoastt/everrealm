@@ -23,6 +23,8 @@ export interface GameApi {
   openTravel(from: string): void;
   /** Take the packet to the other land (Gullmouth to Callis, or back): the page reloads into it. */
   crossLand(to: import('../world/land').LandId): void;
+  /** Jago calls a duel in the Cockpit at Saltpenny (an id from data/duels.ts). */
+  duel(id: string): void;
   /** Opens a notice board (an id from the content BOARDS). */
   openBoard(id: string): void;
   startCasting(): void;

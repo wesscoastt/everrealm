@@ -14,7 +14,10 @@ export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'r
 
 /** Colour overrides so one body plan can serve several regional species. */
 /** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed, a pack pony's load. */
-export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack';
+export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack'
+  /** Mounts that aren't horses at all (beastMount): the same seat, a different animal under it. */
+  | 'cat' | 'sabre' | 'drake' | 'turtle' | 'slabback' | 'strider' | 'griffin' | 'wyrm';
+const BEASTS: ReadonlySet<Breed> = new Set<Breed>(['cat', 'sabre', 'drake', 'turtle', 'slabback', 'strider', 'griffin', 'wyrm']);
 export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean }
 export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze' | 'sit' | 'swim';
 
@@ -813,6 +816,7 @@ export class CreatureModel {
 
   /** A riding horse: a = coat, b = mane, tail and lower legs, c = saddle cloth; glow lights the hooves. */
   private buildHorse(): void {
+    if (this.pal.breed && BEASTS.has(this.pal.breed)) { this.buildBeast(this.pal.breed); return; }
     this.plateHeight = 2.6;
     const coat = horseMat('coat', this.pal.a ?? '#7a4a2a'), dark = horseMat('mane', this.pal.b ?? '#2a1e16'), cloth = horseMat('cloth', this.pal.c ?? '#2e4a7a');
     const leather = horseMat('leather', '#4a3020'), brass = lam('#c8a050'), black = lam('#120c08');
@@ -904,6 +908,199 @@ export class CreatureModel {
       this.legs.push(leg);
     }
     if (this.pal.breed) this.horseBreed(this.pal.breed, head, skull);
+  }
+
+  /**
+   * A mount that isn't a horse: the great cats of the Kiln and the Held, the glass drake, the key
+   * turtle, the slabback, the Kilnfolk's clockwork strider, the tower griffin and the grave-wyrm. Each
+   * keeps the horse's saddle height (the rider sits where they always do) and four legs in the horse's
+   * order (fore pair, then hind), so the gaits fit. a = hide or metal, b = markings, mane and plates,
+   * c = saddle cloth; glow lights eyes and markings.
+   */
+  private buildBeast(breed: Breed): void {
+    this.plateHeight = 2.6;
+    const P = this.pal, glow = !!P.glow;
+    const surf: Surface = breed === 'drake' || breed === 'wyrm' ? 'scale' : breed === 'turtle' ? 'shell' : breed === 'strider' ? 'leather' : 'fur';
+    const A = breed === 'strider' ? lam(P.a ?? '#c8a050') : horseMat(surf, P.a ?? '#8a5a2e');
+    const Bm = glow ? lam(P.b ?? '#ff7a30', { emissive: new THREE.Color(P.b ?? '#ff7a30').multiplyScalar(0.7) }) : breed === 'strider' ? lam(P.b ?? '#3a2a1e') : horseMat(surf === 'fur' ? 'mane' : surf, P.b ?? '#2a1e16');
+    const cloth = horseMat('cloth', P.c ?? '#2e4a7a'), leather = horseMat('leather', '#4a3020'), brass = lam('#c8a050');
+    const ivory = lam('#efe6d0'), black = lam('#120c08');
+    const eyeC = glow ? (P.b ?? '#ff7a30') : breed === 'strider' ? '#ffc060' : '#e8c040';
+    const eye = lam(eyeC, { emissive: new THREE.Color(eyeC).multiplyScalar(glow || breed === 'strider' ? 0.9 : 0.25) });
+    const head = new THREE.Group(), tail = new THREE.Group();
+    this.body.add(head); this.body.add(tail);
+    this.head = head; this.tail = tail;
+    /** The saddle, on its cloth, at the horse's height: everyone sits at 1.08 over the ground. */
+    const saddle = (y: number, z = 0.04, wide = 0.8) => {
+      add(this.body, rb(wide, 0.05, 0.74, 0.02), cloth, 0, y - 0.05, z);
+      add(this.body, rb(wide + 0.02, 0.26, 0.06, 0.02), cloth, 0, y - 0.18, z - 0.36);
+      add(this.body, rb(0.5, 0.12, 0.56, 0.05), leather, 0, y, z);
+      add(this.body, rb(0.42, 0.16, 0.08, 0.03), leather, 0, y + 0.1, z - 0.26);
+      add(this.body, rb(0.2, 0.16, 0.1, 0.03), leather, 0, y + 0.1, z + 0.26);
+      for (const sd of [1, -1]) { add(this.body, rb(0.03, 0.42, 0.04, 0.01), leather, sd * (wide / 2 + 0.02), y - 0.26, z + 0.02); add(this.body, rb(0.12, 0.04, 0.1, 0.01), brass, sd * (wide / 2 + 0.04), y - 0.48, z + 0.02); }
+      if (P.pillion) { add(this.body, rb(wide - 0.1, 0.05, 0.42, 0.02), cloth, 0, y - 0.06, z - 0.54); add(this.body, rb(0.46, 0.1, 0.38, 0.04), leather, 0, y + 0.01, z - 0.56); }
+    };
+    /** A leg hung from its top: upper, lower and foot, the foot on the ground at y 0. */
+    const leg = (x: number, z: number, top: number, w: number, upper: THREE.Material, lower: THREE.Material, foot: THREE.Material, hind: boolean, claws = true) => {
+      const g = new THREE.Group();
+      g.position.set(x, top, z);
+      this.body.add(g);
+      const h = top;
+      add(g, rb(w * 1.25, h * 0.55, w * 1.35, w * 0.3), upper, 0, -h * 0.25, hind ? -0.04 : 0);
+      add(g, rb(w, h * 0.5, w * 1.05, w * 0.25), lower, 0, -h * 0.68, hind ? -0.07 : 0.02);
+      add(g, rb(w * 1.3, 0.12, w * 1.55, 0.04), foot, 0, -h + 0.06, 0.06);
+      if (claws) for (const cx of [-1, 0, 1]) add(g, new THREE.ConeGeometry(0.03, 0.12, 4), ivory, cx * w * 0.4, -h + 0.06, w * 0.85, Math.PI / 2).userData.plain = true;
+      this.legs.push(g);
+    };
+    if (breed === 'cat' || breed === 'sabre') {
+      // A great cat: deep chest, a long back, heavy shoulders, banded down its flanks
+      const pale = horseMat('fur', breed === 'sabre' ? '#f0f0ec' : '#f0e2c4');
+      add(this.body, taper(rb(0.76, 0.88, 1.5, 0.24), 0.94, 0.86), A, 0, 1.32, -0.05);
+      add(this.body, rb(0.82, 0.92, 0.56, 0.26), A, 0, 1.32, 0.66);
+      add(this.body, rb(0.66, 0.24, 0.5, 0.1), A, 0, 1.76, 0.56);
+      add(this.body, rb(0.8, 0.88, 0.6, 0.26), A, 0, 1.34, -0.72);
+      add(this.body, rb(0.62, 0.12, 1.3, 0.05), pale, 0, 0.88, 0); // belly
+      for (let i = 0; i < 6; i++) add(this.body, rb(0.84, 0.72, 0.08, 0.03), Bm, 0, 1.38, 0.72 - i * 0.3, 0.12);
+      if (breed === 'sabre') add(this.body, rb(0.92, 0.66, 0.42, 0.2), Bm, 0, 1.58, 0.86); // the ruff
+      head.position.set(0, 1.78, 1.12);
+      add(head, rb(0.54, 0.46, 0.46, 0.16), A, 0, 0, 0);
+      add(head, rb(0.36, 0.24, 0.3, 0.1), pale, 0, -0.1, 0.3);
+      add(head, rb(0.14, 0.08, 0.06, 0.03), black, 0, -0.02, 0.46).userData.plain = true;
+      for (const sd of [1, -1]) {
+        add(head, rb(0.09, 0.06, 0.04, 0.02), eye, sd * 0.15, 0.08, 0.23).userData.plain = true;
+        add(head, new THREE.ConeGeometry(0.09, 0.2, 4), A, sd * 0.18, 0.3, -0.06, -0.15, Math.PI / 4, sd * -0.3);
+        add(head, rb(0.2, 0.06, 0.2, 0.02), Bm, sd * 0.22, 0.04, 0.0); // cheek tufts
+        if (breed === 'sabre') add(head, new THREE.ConeGeometry(0.045, 0.42, 5), ivory, sd * 0.1, -0.36, 0.36, Math.PI).userData.plain = true;
+      }
+      saddle(1.88, -0.02);
+      for (const [x, z, hind] of [[0.26, 0.66, 0], [-0.26, 0.66, 0], [0.27, -0.72, 1], [-0.27, -0.72, 1]] as const) leg(x, z, 1.0, hind ? 0.28 : 0.25, A, A, Bm, !!hind);
+      tail.position.set(0, 1.6, -1.02);
+      for (let i = 0; i < 5; i++) add(tail, rb(0.14 - i * 0.012, 0.14 - i * 0.012, 0.3, 0.05), i === 4 ? Bm : A, 0, -0.12 * i + (i > 3 ? 0.1 : 0), -0.14 - i * 0.24, 0.4 - i * 0.15);
+    } else if (breed === 'drake' || breed === 'wyrm') {
+      // A drake: a dragon of the Flats that walks, wings folded, a crest of spines down a long neck.
+      // A grave-wyrm: longer and lower, no wings, a mane of horn and a tail it drags.
+      const wyrm = breed === 'wyrm';
+      add(this.body, taper(rb(0.86, 0.92, wyrm ? 1.9 : 1.6, 0.24), 0.9, 0.85), A, 0, 1.3, -0.05);
+      add(this.body, rb(0.9, 0.94, 0.6, 0.26), A, 0, 1.3, 0.66);
+      add(this.body, rb(0.68, 0.16, wyrm ? 1.5 : 1.2, 0.06), Bm, 0, 0.84, 0); // the belly plates
+      for (let i = 0; i < 9; i++) { const z = 1.0 - i * 0.26; if (Math.abs(z) < 0.45) continue; add(this.body, new THREE.ConeGeometry(0.08, 0.26, 4), Bm, 0, 1.82, z, -0.3); }
+      // The neck, rising, and the head with its horns
+      add(this.body, rb(0.44, 0.6, 0.5, 0.16), A, 0, 1.84, 0.98, 0.6);
+      add(this.body, rb(0.36, 0.5, 0.4, 0.14), A, 0, 2.18, 1.2, 0.35);
+      head.position.set(0, 2.38, 1.36);
+      add(head, rb(0.46, 0.36, 0.42, 0.12), A, 0, 0, 0);
+      add(head, taper(rb(0.34, 0.24, 0.5, 0.08), 0.75, 0.8), A, 0, -0.06, 0.38, 0, Math.PI);
+      for (const sd of [1, -1]) {
+        add(head, rb(0.08, 0.06, 0.05, 0.02), eye, sd * 0.17, 0.08, 0.16).userData.plain = true;
+        add(head, new THREE.ConeGeometry(0.07, wyrm ? 0.6 : 0.42, 5), wyrm ? ivory : Bm, sd * 0.15, 0.3, -0.18, -0.9, 0, sd * -0.25).userData.plain = wyrm;
+        add(head, new THREE.ConeGeometry(0.025, 0.08, 4), ivory, sd * 0.08, -0.2, 0.52, Math.PI).userData.plain = true;
+      }
+      if (wyrm) for (let i = 0; i < 5; i++) add(head, new THREE.ConeGeometry(0.05, 0.3 - i * 0.03, 4), ivory, 0, 0.22 - i * 0.02, -0.12 - i * 0.12, -1.2).userData.plain = true;
+      saddle(1.9, -0.04, 0.86);
+      for (const [x, z, hind] of [[0.3, 0.66, 0], [-0.3, 0.66, 0], [0.32, -0.7, 1], [-0.32, -0.7, 1]] as const) leg(x, z, 0.94, hind ? 0.32 : 0.28, A, A, Bm, !!hind);
+      // Wings, folded along the flanks: a bone along the top and the web hanging below it
+      if (!wyrm) for (const sd of [1, -1]) {
+        const w = new THREE.Group();
+        w.position.set(sd * 0.42, 1.78, 0.6);
+        w.userData.sd = sd;
+        this.body.add(w);
+        add(w, rb(0.08, 0.1, 1.5, 0.03), A, 0, 0.1, -0.6, 0.18);
+        add(w, rb(0.04, 0.6, 1.4, 0.02), Bm, sd * 0.02, -0.2, -0.62, 0.15);
+        this.segs.push(w);
+      }
+      tail.position.set(0, 1.5, -1.0);
+      const n = wyrm ? 7 : 5;
+      for (let i = 0; i < n; i++) add(tail, rb(0.32 - i * 0.04, 0.28 - i * 0.032, 0.42, 0.06), A, 0, -0.14 * Math.min(i, 3), -0.2 - i * 0.36, 0.25 - i * 0.04);
+    } else if (breed === 'turtle') {
+      // A key turtle, the size of a cart: a high domed shell, the saddle strapped to the crown of it
+      add(this.body, rb(1.5, 0.42, 1.9, 0.2), Bm, 0, 1.06, 0); // the rim
+      add(this.body, rb(1.36, 0.42, 1.74, 0.24), A, 0, 1.38, 0);
+      add(this.body, rb(1.0, 0.3, 1.36, 0.2), A, 0, 1.68, -0.04);
+      for (const [x, z] of [[0, 0.5], [0, -0.55], [0.38, 0], [-0.38, 0], [0.4, 0.6], [-0.4, 0.6], [0.4, -0.6], [-0.4, -0.6]] as const) add(this.body, rb(0.34, 0.06, 0.34, 0.04), Bm, x, x === 0 ? 1.84 : 1.6, z);
+      add(this.body, rb(1.0, 0.16, 1.4, 0.06), horseMat('shell', '#d8c890'), 0, 0.84, 0); // the plastron
+      head.position.set(0, 1.12, 1.16);
+      add(head, rb(0.34, 0.32, 0.5, 0.14), A === Bm ? A : horseMat('scale', P.b ?? '#5a6a3a'), 0, 0, 0.12);
+      add(head, rb(0.26, 0.14, 0.2, 0.06), lam('#3a3a2e'), 0, -0.08, 0.38);
+      for (const sd of [1, -1]) add(head, rb(0.06, 0.06, 0.04, 0.02), eye, sd * 0.14, 0.06, 0.28).userData.plain = true;
+      saddle(1.98, -0.04, 0.9);
+      const skin = horseMat('scale', P.b ?? '#5a6a3a');
+      for (const [x, z, hind] of [[0.62, 0.6, 0], [-0.62, 0.6, 0], [0.6, -0.62, 1], [-0.6, -0.62, 1]] as const) leg(x, z, 0.9, 0.28, skin, skin, skin, !!hind, false);
+      tail.position.set(0, 0.9, -0.98);
+      add(tail, new THREE.ConeGeometry(0.14, 0.4, 5), skin, 0, -0.05, -0.16, -Math.PI / 2 - 0.3);
+    } else if (breed === 'slabback') {
+      // A slabback of the Sunder: an ox the size of a hut, plated with the stone it grazes, two horns
+      add(this.body, taper(rb(0.98, 0.9, 1.7, 0.26), 0.9, 0.86), A, 0, 1.3, -0.05);
+      add(this.body, rb(1.04, 0.96, 0.7, 0.28), A, 0, 1.34, 0.6); // the hump of the shoulders
+      for (const [z, w, y] of [[0.8, 0.9, 1.84], [-0.62, 0.84, 1.74], [-1.0, 0.7, 1.6]] as const) add(this.body, rb(w, 0.26, 0.42, 0.06), Bm, 0, y, z); // stone plates
+      for (const sd of [1, -1]) add(this.body, rb(0.1, 0.5, 1.1, 0.04), Bm, sd * 0.5, 1.46, -0.1);
+      head.position.set(0, 1.34, 1.1);
+      add(head, rb(0.62, 0.56, 0.6, 0.18), A, 0, 0, 0.12);
+      add(head, rb(0.5, 0.36, 0.3, 0.12), lam('#5a4a3a'), 0, -0.14, 0.44);
+      add(head, rb(0.64, 0.18, 0.4, 0.06), Bm, 0, 0.3, 0.04); // the brow plate
+      for (const sd of [1, -1]) {
+        add(head, rb(0.08, 0.06, 0.04, 0.02), eye, sd * 0.24, 0.08, 0.42).userData.plain = true;
+        add(head, new THREE.ConeGeometry(0.1, 0.62, 5), ivory, sd * 0.34, 0.32, 0.18, -0.5, 0, sd * -1.0).userData.plain = true;
+        add(head, new THREE.ConeGeometry(0.05, 0.26, 4), ivory, sd * 0.16, -0.24, 0.56, 0.6).userData.plain = true;
+      }
+      saddle(1.98, -0.12, 0.96);
+      for (const [x, z, hind] of [[0.32, 0.62, 0], [-0.32, 0.62, 0], [0.34, -0.68, 1], [-0.34, -0.68, 1]] as const) leg(x, z, 0.96, 0.36, A, A, black, !!hind, false);
+      tail.position.set(0, 1.5, -0.96);
+      add(tail, rb(0.1, 0.5, 0.1, 0.03), A, 0, -0.25, -0.06, 0.3);
+      add(tail, rb(0.16, 0.16, 0.16, 0.05), Bm, 0, -0.52, -0.14);
+    } else if (breed === 'strider') {
+      // The Kilnfolk's clockwork strider: a brass boiler for a body on four jointed legs, a wheel
+      // turning in each flank, a lamp of a head with two slits of light, and a stack for a tail
+      const dark = lam(P.b ?? '#3a2a1e'), copper = lam('#5ea08a');
+      add(this.body, rb(0.7, 0.66, 1.6, 0.3), A, 0, 1.42, 0);
+      for (const z of [0.6, 0.1, -0.4]) add(this.body, rb(0.74, 0.7, 0.08, 0.3), dark, 0, 1.42, z); // the bands
+      for (const sd of [1, -1]) { add(this.body, rb(0.04, 0.5, 0.5, 0.2), copper, sd * 0.38, 1.4, -0.1); add(this.body, rb(0.05, 0.12, 0.12, 0.03), brass, sd * 0.4, 1.4, -0.1); }
+      add(this.body, rb(0.1, 0.1, 1.2, 0.04), copper, 0.2, 1.8, 0); add(this.body, rb(0.1, 0.1, 1.2, 0.04), copper, -0.2, 1.8, 0); // pipes along the back
+      add(this.body, rb(0.3, 0.5, 0.3, 0.1), A, 0, 1.86, 0.84, 0.4); // the neck
+      head.position.set(0, 2.16, 1.04);
+      add(head, rb(0.42, 0.34, 0.5, 0.08), A, 0, 0, 0.1);
+      add(head, rb(0.44, 0.06, 0.52, 0.02), dark, 0, 0.17, 0.1);
+      for (const sd of [1, -1]) add(head, rb(0.12, 0.04, 0.02, 0.01), eye, sd * 0.1, 0.02, 0.36).userData.plain = true;
+      saddle(1.92, -0.06);
+      for (const [x, z, hind] of [[0.26, 0.62, 0], [-0.26, 0.62, 0], [0.26, -0.62, 1], [-0.26, -0.62, 1]] as const) {
+        const g = new THREE.Group();
+        g.position.set(x, 1.14, z);
+        this.body.add(g);
+        add(g, rb(0.16, 0.16, 0.16, 0.06), brass, 0, 0, 0);
+        add(g, rb(0.08, 0.56, 0.08, 0.03), dark, 0, -0.3, hind ? -0.06 : 0.04);
+        add(g, rb(0.14, 0.14, 0.14, 0.05), brass, 0, -0.6, hind ? -0.1 : 0.06);
+        add(g, rb(0.07, 0.46, 0.07, 0.03), A, 0, -0.84, 0.02);
+        add(g, rb(0.24, 0.08, 0.3, 0.03), dark, 0, -1.1, 0.06);
+        this.legs.push(g);
+      }
+      tail.position.set(0, 1.7, -0.82);
+      add(tail, rb(0.16, 0.5, 0.16, 0.06), dark, 0, 0.2, 0);
+    } else if (breed === 'griffin') {
+      // A tower griffin of Callis: a lion behind, an eagle before, feathered breast and great wings folded
+      const plume = horseMat('mane', P.b ?? '#f0ece4'), beak = lam('#e0b040'), talon = lam('#c8a040');
+      add(this.body, taper(rb(0.76, 0.88, 1.3, 0.24), 0.94, 0.86), A, 0, 1.32, -0.2);
+      add(this.body, rb(0.82, 0.98, 0.66, 0.28), plume, 0, 1.36, 0.6); // the feathered breast
+      for (let i = 0; i < 4; i++) add(this.body, rb(0.78 - i * 0.06, 0.12, 0.2, 0.04), plume, 0, 1.2 - i * 0.02, 0.86 - i * 0.12);
+      add(this.body, rb(0.5, 0.6, 0.44, 0.16), plume, 0, 1.94, 0.92, 0.4); // the neck
+      head.position.set(0, 2.32, 1.12);
+      add(head, rb(0.42, 0.4, 0.44, 0.16), plume, 0, 0, 0);
+      add(head, taper(rb(0.18, 0.2, 0.3, 0.05), 0.6, 0.5), beak, 0, -0.04, 0.32, 0, Math.PI);
+      add(head, new THREE.ConeGeometry(0.06, 0.16, 4), beak, 0, -0.14, 0.46, Math.PI * 0.9).userData.plain = true;
+      for (const sd of [1, -1]) { add(head, rb(0.08, 0.07, 0.05, 0.02), eye, sd * 0.17, 0.08, 0.14).userData.plain = true; add(head, new THREE.ConeGeometry(0.06, 0.3, 4), plume, sd * 0.14, 0.26, -0.18, -1.0, 0, sd * -0.2); }
+      saddle(1.9, -0.18);
+      for (const [x, z, hind] of [[0.24, 0.62, 0], [-0.24, 0.62, 0], [0.25, -0.66, 1], [-0.25, -0.66, 1]] as const) leg(x, z, 1.0, hind ? 0.28 : 0.22, hind ? A : plume, hind ? A : talon, hind ? A : talon, !!hind);
+      for (const sd of [1, -1]) {
+        const w = new THREE.Group();
+        w.position.set(sd * 0.4, 1.86, 0.62);
+        w.userData.sd = sd;
+        this.body.add(w);
+        add(w, rb(0.12, 0.24, 1.6, 0.06), plume, 0, 0, -0.7, 0.12);
+        for (let i = 0; i < 5; i++) add(w, rb(0.05, 0.5, 0.36, 0.02), i % 2 ? Bm : A, sd * 0.03, -0.3, -0.1 - i * 0.32, 0.25);
+        this.segs.push(w);
+      }
+      tail.position.set(0, 1.6, -0.86);
+      add(tail, rb(0.08, 0.08, 0.7, 0.03), A, 0, -0.1, -0.3, 0.4);
+      add(tail, rb(0.18, 0.2, 0.22, 0.06), plume, 0, -0.32, -0.62);
+    }
   }
 
   /** What a breed adds to the horse: the seat stays where it is, so anyone rides any of them. */

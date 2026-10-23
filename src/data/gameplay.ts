@@ -1,3 +1,4 @@
+import { MOUNT_DROPS } from './content/mounts';
 import { countiesOnly } from '../world/land';
 import type { CreatureKind, Palette } from '../entities/creatures';
 import type { Appearance, HeldItem } from '../entities/humanoid';
@@ -247,6 +248,8 @@ export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'road
   | 'dg_brack' | 'dg_millstone' | 'dg_glim' | 'dg_lampman' | 'dg_spitter'
   // Kell, and the Escapement under the Kiln
   | 'cinderhound' | 'ashcrawler' | 'brassmite' | 'ventjelly' | 'dg_warder' | 'dg_spring' | 'dg_boiler' | 'dg_tallow' | 'dg_governor' | 'dg_mainspring'
+  // The Cockpit's duellists at Saltpenny Key (data/duels.ts)
+  | 'duel_rowe' | 'duel_skerry' | 'duel_abel' | 'duel_crowe' | 'duel_coyle'
   // Kingsbarrow, the old king's halls (group dungeon)
   | 'dg_digger' | 'dg_barrowdead' | 'dg_wight' | 'dg_venn' | 'dg_barrowwarden' | 'dg_oldking'
   // Morrow, region by region (world/morrow.ts)
@@ -415,6 +418,13 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   bellmane: { type: 'bellmane', model: 'medusa', palette: { a: '#bfe8d8', b: '#5aa890', c: '#e0fff4', glow: true }, scale: 1.2, name: 'Bell-mane', level: 27, hp: 500, damage: 35, speed: 2, aggro: 8, leash: 20, attack: 'slam', windup: 0.9, range: 4.2, cooldown: 2.3, xp: 380, loot: [{ item: 'jelly_residue', chance: 0.8 }, { item: 'star_crystal', chance: 0.15 }, { item: 'frost_cowl', chance: 0.02 }], marks: [10, 17], respawn: 140 },
   sexton: { type: 'sexton', model: 'eel', palette: { a: '#3a3e38', b: '#8a9480', c: '#22261f' }, scale: 1.6, name: 'Old Sexton', level: 29, hp: 560, damage: 34, speed: 5.4, aggro: 12, leash: 22, attack: 'lunge', windup: 0.6, range: 4.2, cooldown: 1.9, xp: 600, elite: true, loot: [{ item: 'shark_tooth', chance: 1, min: 2, max: 3 }, { item: 'conger_skin', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 0.2 }, { item: 'frost_cowl', chance: 0.2 }], marks: [30, 45], respawn: 300 },
   shardjelly: { type: 'shardjelly', model: 'jelly', palette: { a: '#7fe0f4', b: '#2a8ab0', glow: true }, scale: 1.3, name: 'Shard jelly', level: 26, hp: 460, damage: 34, speed: 3, aggro: 9, leash: 26, attack: 'slam', windup: 0.75, range: 3.2, cooldown: 2, xp: 340, loot: [{ item: 'star_crystal', chance: 0.25 }, { item: 'jelly_residue', chance: 0.8 }, { item: 'starglass_edge', chance: 0.02 }], marks: [8, 16], respawn: 120 },
+  // The Cockpit's duellists (data/duels.ts, game/Duels.ts): they yield at half their health, so each is
+  // written with more of it than a creature of their level, rising up the ladder.
+  duel_rowe: { type: 'duel_rowe', model: 'bandit', look: { skin: '#c8946a', hair: '#7a4a2a', hairStyle: 1, tunic: '#5a6a7a', trim: '#e0d4b0', trousers: '#3a3a30', hat: 'kerchief', hatColor: '#2a4a6a', age: 0.15, build: 0.95 }, held: 'sword', level: 44, hp: 1160, damage: 34, xp: 310, marks: [0, 0], name: 'Kit Rowe', speed: 5.6, aggro: 20, leash: 14, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, elite: true, loot: [], respawn: 99999 },
+  duel_skerry: { type: 'duel_skerry', model: 'bandit', look: { frame: 'f', skin: '#d8a880', hair: '#3a2a1e', hairStyle: 4, tunic: '#2a3a4a', trim: '#a8a090', trousers: '#2a2a30', hat: 'kerchief', hatColor: '#7a2a22', lashes: true, scar: true, build: 1.1 }, held: 'bronzeSword', level: 44, hp: 1430, damage: 40, xp: 310, marks: [0, 0], name: 'Hannah Skerry', speed: 5.6, aggro: 20, leash: 14, attack: 'lunge', windup: 0.45, range: 2.7, cooldown: 1.4, elite: true, loot: [], respawn: 99999 },
+  duel_abel: { type: 'duel_abel', model: 'bandit', look: { frame: 'f', skin: '#a8704a', hair: '#1a1410', hairStyle: 2, tunic: '#4a2a22', trim: '#c8a050', trousers: '#2e2a26', hat: 'wide', hatColor: '#2a1e18', lashes: true, build: 1.0 }, held: 'none', level: 44, hp: 1520, damage: 42, xp: 310, marks: [0, 0], name: 'Ruth Abel', speed: 5.2, aggro: 20, leash: 14, attack: 'throw', blast: 1.8, shot: '#c8a050', windup: 0.9, range: 11, cooldown: 2.2, elite: true, loot: [], respawn: 99999 },
+  duel_crowe: { type: 'duel_crowe', model: 'bandit', look: { skin: '#e0b894', hair: '#5a4a3a', hairStyle: 3, facial: 4, tunic: '#1e2a3a', trim: '#d8b050', trousers: '#22222a', cape: '#2a3a4a', hat: 'wide', hatColor: '#1a1a1a', build: 1.1, height: 1.05, age: 0.5 }, held: 'sword', level: 44, hp: 1880, damage: 48, xp: 310, marks: [0, 0], name: 'Mattias Crowe', speed: 5.4, aggro: 20, leash: 14, attack: 'charge', windup: 0.7, range: 8, cooldown: 2.0, elite: true, loot: [], respawn: 99999 },
+  duel_coyle: { type: 'duel_coyle', model: 'bandit', look: { frame: 'f', skin: '#c8946a', hair: '#2a1e16', hairStyle: 4, tunic: '#2a3a4a', trim: '#a8a090', trousers: '#2a2a30', boots: '#1e1a16', hat: 'kerchief', hatColor: '#7a2a22', lashes: true, scar: true, build: 1.0, age: 0.45 }, held: 'bronzeSword', level: 44, hp: 2320, damage: 54, xp: 310, marks: [0, 0], name: 'Mara Coyle', speed: 5.8, aggro: 20, leash: 14, attack: 'lunge', windup: 0.4, range: 2.8, cooldown: 1.2, elite: true, loot: [], respawn: 99999 },
   // Kingsbarrow: the halls under the old king's barrow (group dungeon, level 95). Garrow Venn's diggers,
   // the barrow dead and the king's guard, Venn, the Barrow-warden, and the Old King.
   dg_digger: { type: 'dg_digger', model: 'bandit', look: { skin: '#c8a080', tunic: '#4a4a40', trim: '#6a5a40', trousers: '#3a3430', boots: '#2a2018', hat: 'cap', hatColor: '#3a3430', build: 1.15 }, held: 'pickaxe', level: 94, hp: 3040, damage: 106, xp: 1250, marks: [21, 39], name: 'Venn\'s digger', speed: 5.2, aggro: 13, leash: 60, attack: 'lunge', windup: 0.55, range: 2.7, cooldown: 1.6, loot: [{ item: 'black_shard', chance: 0.5 }], respawn: 99999 },
@@ -527,3 +537,6 @@ export const REGIONS: { id: string; name: string; sub: string; x: number; z: num
 // Hollindale's own creatures and animals, placed by hand: the Counties only (world/land.ts)
 countiesOnly(ENEMY_SPAWNS);
 countiesOnly(ANIMAL_SPAWNS);
+
+// The far places' rare mounts, now and then off the creatures of their country (data/content/mounts.ts)
+for (const [type, item, chance] of MOUNT_DROPS) ENEMIES[type as EnemyType]?.loot.push({ item, chance });
