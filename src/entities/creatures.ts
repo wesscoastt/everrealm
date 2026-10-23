@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { voxelize } from './voxelize';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildVoxMount, buildVoxWagon, WHEEL_R, type WagonLook } from './voxmounts';
@@ -217,6 +218,8 @@ export class CreatureModel {
       case 'lizard': this.buildLizard(); break;
       case 'moth': this.buildMoth(); break;
     }
+    // Every creature in cubes, the world's own pixel size, joints and all (entities/voxelize.ts)
+    voxelize(this.root, kind + JSON.stringify(pal) + extraScale, new Set<THREE.Object3D>([...this.legs, ...this.segs, this.head, this.tail, this.jaw].filter((o): o is THREE.Object3D => !!o)));
     // Texture the plain surfaces (fur, chitin, scales, fleece) so nothing looks moulded out of putty;
     // glowing parts (eyes, a jelly's bell) and see-through ones keep their own look
     const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', cow: 'fur', pig: 'fur', dog: 'fur', cat: 'fur', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale', lizard: 'scale', moth: 'fur' };
