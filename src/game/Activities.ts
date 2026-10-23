@@ -771,7 +771,7 @@ function waveSizes(def: EventDef): number[] {
 }
 
 /** Group dungeons' sets drop only in their dungeons. */
-const DUNGEON_SETS = new Set(['oldman', 'fold', 'escapement']);
+const DUNGEON_SETS = new Set(['oldman', 'fold', 'escapement', 'barrow']);
 
 /** Which region each gear set comes from (dungeon chests favour their own region's pieces). */
 const GEAR_REGION: Record<string, string> = { tollriders: 'crownroad', thornback: 'brambledeep', brine: 'saltwind', harrow: 'redstone', starglass: 'starfall' };

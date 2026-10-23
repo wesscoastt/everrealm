@@ -123,6 +123,12 @@ const SOURCES: Source[] = [
     lines: ['From the Old Man\'s Workings under Sallow Pit, where Coll Bray\'s night shift kept the tools they took.', 'A miner\'s tool made into something else. The handle still has the shift number burnt in.'],
   },
   {
+    id: 'barrow', name: 'Barrowborn', dungeon: 'gd-kingsbarrow', rarity: 'epic', value: 160, lean: 'leech', colours: { metal: '#8a9098', hilt: '#d8b050', grip: '#1a1a20', accent: '#9fe8ff' }, style: { guard: 'disc', pommel: 'wheel', blade: 'fuller', axe: 'bearded', mace: 'flanged', hammer: 'maul', staff: 'orb', spear: 'leaf' },
+    nouns: { longsword: 'guard\'s sword', staff: 'barrow-staff' },
+    families: ['longsword', 'greatsword', 'axe', 'mace', 'staff', 'spear', 'dagger'],
+    lines: ['From the king\'s guard under Kingsbarrow, laid down with them three hundred years ago and not meant to be picked up.', 'Old-kingdom steel, grey and fine. A sliver of the black is set in the grip, and it sits heavy in the hand.'],
+  },
+  {
     id: 'escapement', name: 'Kilnwright', dungeon: 'gd-escapement', rarity: 'epic', value: 120, lean: 'speed', colours: { metal: '#d8b050', hilt: '#3e8a74', grip: '#3a2a1e', accent: '#3e8a74' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'crescent', mace: 'star', hammer: 'maul', staff: 'orb', spear: 'glaive' },
     nouns: { hammer: 'fitter\'s maul', staff: 'gauge-staff' },
     families: ['hammer', 'mace', 'greataxe', 'staff', 'spear', 'longsword', 'dagger'],

@@ -3168,6 +3168,8 @@ export class Game implements GameApi {
     e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
     this.dungeons.onPlayerHit(e, dmg);
     this.activities.escorts.onPlayerHit(e);
+    // Barrowborn: below half health, a tenth of every blow comes back to you
+    if (this.gearSet === 'barrow' && !this.dead && this.hp < this.maxHp / 2) this.hp = Math.min(this.maxHp, this.hp + Math.round(dmg * 0.1));
     if (this.gearSet === 'fold' && !this.dead && e.alive && (e.state === 'chase' || e.state === 'windup' || e.state === 'attack' || e.state === 'recover') && !this.dungeons.onSomeoneElse(e)) {
       const h = Math.min(this.maxHp - this.hp, Math.round(dmg * 0.05));
       if (h > 0) this.hp += h;

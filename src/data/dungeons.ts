@@ -95,6 +95,7 @@ export interface DungeonDef {
 const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap', ...(DUNGEON_WEAPONS['gd-oldman'] ?? [])];
 const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood', ...(DUNGEON_WEAPONS['gd-kettle'] ?? [])];
 const ESC_GEAR = [...dungeonArmour('gd-escapement'), ...(DUNGEON_WEAPONS['gd-escapement'] ?? [])];
+const KB_GEAR = [...dungeonArmour('gd-kingsbarrow'), ...(DUNGEON_WEAPONS['gd-kingsbarrow'] ?? [])];
 
 export const DUNGEONS: DungeonDef[] = [
   {
@@ -272,6 +273,67 @@ export const DUNGEONS: DungeonDef[] = [
       { x: 2781, z: -702, r: 10, who: 'tom', said: 'That wheel\'s the size of a mill. And it\'s ticking like a pocket watch.', seen: 'The great wheel fills the far wall. It ticks, fast and hard, and the floor jumps with every tick.' },
     ],
     chest: { xp: 9000, marks: 260, items: ['brass_cog', 'brass_cog', 'brass_cog', 'iron_bar', 'iron_bar', 'star_crystal'] },
+  },
+  {
+    land: 'morrow', id: 'gd-kingsbarrow', name: 'Kingsbarrow', where: 'The king\'s barrow, the Held Country, Morrow', level: 95,
+    blurb: 'Under the deepest black in Morrow the old king of the Held lies on his bier. Aubrey Pryce has taken his diggers down to lift it, and every dead thing in the Held is waiting to see if he does.',
+    door: [860.5, 40, -1845.5], out: [860.5, 40, -1841.5, 0],
+    bosses: [
+      {
+        title: 'Pryce\'s foreman',
+        pull: ['Garrow Venn', 'We were paid to dig. Nobody said a word about stopping.'],
+        adds: [{ at: 0.5, types: ['dg_digger', 'dg_digger'], line: ['Garrow Venn', 'Lads! Leave the slabs and get over here!'] }],
+        moves: [
+          { kind: 'cone', every: 10, windup: 1.2, damage: 150, r: 5, w: 100, color: '#ffb060', line: 'Garrow Venn swings his maul round, wide.' },
+          { kind: 'charge', every: 15, windup: 1.2, damage: 165, r: 14, w: 2.6, color: '#ff8a40', line: 'Garrow Venn puts his head down and goes for {name}.' },
+        ],
+        hazard: { every: 9, count: 2, r: 3, windup: 1.7, damage: 140, color: '#6a5a8a', line: 'A slab of black comes loose from the roof.' },
+        phase: ['Garrow Venn', 'Double, he said. Double!'],
+        fall: ['Garrow Venn', 'He\'s down with the king. He wouldn\'t stop. I\'d have stopped. Tell them I\'d have stopped.'],
+        drops: KB_GEAR, chance: 0.6,
+      },
+      {
+        title: 'The king\'s champion',
+        pull: ['', 'Rows of the old dead kneel in the hall, facing north. One stands. It has kept this door three hundred years, and the black over it is gone.'],
+        adds: [
+          { at: 0.66, types: ['dg_barrowdead', 'dg_barrowdead'], line: ['', 'Two of the kneeling dead get up.'] },
+          { at: 0.33, types: ['dg_barrowdead', 'dg_barrowdead'], line: ['', 'Two more get up, slower than the first.'] },
+        ],
+        moves: [
+          { kind: 'stack', every: 16, windup: 3.0, damage: 300, r: 3.2, color: '#9fe8ff', line: 'The Barrow-warden marks {name} with its sword. Stand with them and share it.' },
+          { kind: 'nova', every: 20, windup: 2.0, damage: 180, r: 7, color: '#cfe8f0', line: 'The cold comes off the Barrow-warden in a ring. Get clear of it.' },
+        ],
+        hazard: { every: 10, count: 2, r: 3.2, windup: 1.8, damage: 140, color: '#9fe8ff', line: 'The cold comes up through the flags.' },
+        phase: ['', 'The Barrow-warden lifts its sword in both hands, and every kneeling figure in the hall turns its head.'],
+        fall: ['', 'The Barrow-warden goes down on one knee, among the others, and is still.'],
+        drops: KB_GEAR, chance: 0.6,
+      },
+      {
+        title: 'The king under the black',
+        pull: ['', 'The last slab of black lies broken on the floor. Pryce stands back from it with his lamp. On the bier, the old king sits up.'],
+        adds: [
+          { at: 0.75, types: ['dg_barrowdead', 'dg_barrowdead'], line: ['', 'The dead from the Hall of the Kneeling come up the Black Stair.'] },
+          { at: 0.5, types: ['dg_wight', 'dg_barrowdead'], line: ['', 'One of the king\'s guard comes in from the dark behind the columns.'] },
+          { at: 0.25, types: ['dg_barrowdead', 'dg_barrowdead'], line: ['', 'More come. They don\'t stop coming.'] },
+        ],
+        moves: [
+          { kind: 'cone', every: 11, windup: 1.3, damage: 180, r: 6, w: 110, color: '#9fe8ff', line: 'The Old King sweeps his sword round, wide and slow.' },
+          { kind: 'charge', every: 14, windup: 1.3, damage: 200, r: 18, w: 3.2, color: '#cfe8f0', line: 'The Old King comes down off his step at {name}.' },
+          { kind: 'stack', every: 18, windup: 3.0, damage: 330, r: 3.2, color: '#d8b050', line: 'The Old King points at {name}. Stand with them.' },
+          { kind: 'nova', every: 22, windup: 2.2, damage: 200, r: 8, color: '#9fe8ff', line: 'The Old King lifts his hands, and the black in the walls groans. Get away from him.' },
+        ],
+        phase: ['', 'The king stands up straight, and every dead thing in the Held turns toward Kingsbarrow.'],
+        fall: ['', 'The king sits back down on his bier, slowly, like an old man at the end of a long day, and lies back, and is still. For now.'],
+        drops: KB_GEAR, chance: 1,
+      },
+    ],
+    notes: [
+      { x: 820, z: -1880, r: 9, who: 'tom', said: 'Niches all down the walls. Every one of them\'s empty.', seen: 'Niches line the gallery walls. Every one is empty, its black smashed on the floor.' },
+      { x: 857, z: -1880, r: 10, who: 'osgood', said: 'Pick-marks, fresh. And lamp oil. They\'re not long gone.', seen: 'Fresh pick-marks on every wall, and the smell of lamp oil.' },
+      { x: 857, z: -1851, r: 10, who: 'edith', said: 'They\'re all kneeling. All of them. Facing the same way.', seen: 'The old dead kneel in rows on low plinths, all facing north.' },
+      { x: 893, z: -1886, r: 11, said: 'That\'s a bier. And that\'s a king on it. And that\'s your Mr Pryce.', seen: 'At the far end of the hall, a bier on a stone step, and a long man in a grey coat beside it with a lamp.' },
+    ],
+    chest: { xp: 26000, marks: 600, items: ['grave_iron', 'grave_iron', 'grave_iron', 'black_shard', 'black_shard', 'troll_hide'] },
   },
 ];
 

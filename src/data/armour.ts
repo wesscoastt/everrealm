@@ -229,6 +229,38 @@ const LINES: Line[] = [
     },
   },
 
+  // Kingsbarrow (group dungeon, the Held): what the old king's guard wore, three hundred years under the black
+  {
+    id: 'gravecloth', weight: 'light', set: 'barrow', dungeon: 'gd-kingsbarrow', rarity: 'epic', value: 160, colour: '#2a2a32', trim: '#b8a878',
+    look: { chest: { top: 7, tunic: '#22222a', trim: '#b8a878', shirt: '#1a1a20' }, legs: { trousers: '#1e1e24', legs: 0 }, hands: { gloves: '#3a3a42' }, feet: { boots: '#16161a', shoes: 1 } },
+    pieces: {
+      chest: ['Gravecloth robe', 'Woven three hundred years ago for someone who was never meant to get up again. It hasn\'t rotted. Nobody can say why.'],
+      legs: ['Gravecloth wraps', 'Bound at the shin with thread of the black. Cold, whatever the weather.'],
+      hands: ['Gravecloth gloves', 'Thin as paper, and you can\'t tear them.'],
+      feet: ['Gravecloth shoes', 'Soft-soled, for walking where nobody should hear you.'],
+    },
+  },
+  {
+    id: 'wightleather', weight: 'medium', set: 'barrow', dungeon: 'gd-kingsbarrow', rarity: 'epic', value: 160, colour: '#3a3a42', trim: '#9fe8ff',
+    look: { chest: { top: 6, tunic: '#2a2a32', trim: '#9fe8ff', chestArmour: { style: 'brigandine', color: '#3a3a42', trim: '#b8a878' }, shoulders: { style: 'leather', color: '#2a2a32' } }, legs: { trousers: '#22222a', legs: 1, hose: '#1a1a20' }, hands: { gloves: '#2a2a32', bracers: { style: 'leather', color: '#3a3a42', trim: '#b8a878' } }, feet: { boots: '#16161a', shoes: 1 } },
+    pieces: {
+      chest: ['Guard\'s brigandine', 'Grey leather over plates of the black, from the king\'s guard. Heavy for its size. Everything from the barrow is.'],
+      legs: ['Guard\'s leggings', 'Kneed with black plates. They spent three hundred years kneeling.'],
+      hands: ['Guard\'s gloves', 'Black studs on the knuckles. The leather is cold to put on and stays cold.'],
+      feet: ['Guard\'s boots', 'Old-kingdom work: the soles stitched, not nailed.'],
+    },
+  },
+  {
+    id: 'kingsmail', weight: 'heavy', set: 'barrow', dungeon: 'gd-kingsbarrow', rarity: 'epic', value: 180, colour: '#4a4a52', trim: '#d8b050',
+    look: { chest: { top: 4, tunic: '#22222a', trim: '#d8b050', chestArmour: { style: 'plate', color: '#4a4a52', trim: '#d8b050' }, shoulders: { style: 'layered', color: '#3a3a44', trim: '#d8b050' } }, legs: { trousers: '#22222a', legs: 0, legArmour: { style: 'plate', color: '#4a4a52' } }, hands: { gloves: '#22222a', bracers: { style: 'plate', color: '#3a3a44' } }, feet: { boots: '#16161a', shoes: 1, sabatons: { color: '#4a4a52' } } },
+    pieces: {
+      chest: ['Kingsmail', 'Grey plate edged in gold, the old king\'s guard\'s own. There\'s a slab of the black riveted inside the breastplate, over the heart.'],
+      legs: ['Kingsmail greaves', 'Old work, and better than new. The gold is real.'],
+      hands: ['Kingsmail gauntlets', 'Close them and they hold. Open them and they let go, slowly.'],
+      feet: ['Kingsmail sabatons', 'Each one has a little black in the heel. You don\'t fall over in them.'],
+    },
+  },
+
   // ---- New lines: the regions' own, and one from the anvil
   {
     id: 'charter', weight: 'heavy', region: 'crownroad', rarity: 'rare', value: 72, colour: '#b8bcc4', trim: '#2a4a8a',

@@ -98,6 +98,17 @@ export const NG_WALL = { z: -1380, x0: 372, x1: 668 };
 export const NG_GATE = { x: 520, z: -1380 };
 export const NG_ARCHIVE = { x: 566, z: -1306 };
 export const NG_CATHEDRAL = { x: 584, z: -1262 };
+/**
+ * Kingsbarrow, the old kingdom's city of the dead on the Held's plateau: an avenue of standing stones
+ * north between rows of barrows to the king's own, a hill of a barrow with a stone portal in its south
+ * face. Pryce's diggers camped east of the king's barrow, where the carts hauled its black. Its level ground is KB_FLOOR.
+ */
+export const KB_FLOOR = 40;
+export const KB_KING = { x: 860, z: -1872, r: 24 };
+export const KB_PORTAL = { x: 860, z: -1846 };
+export const KB_CAMP = { x: 914, z: -1884 };
+/** The halls under the king's barrow (the group dungeon gd-kingsbarrow): their origin and floor. */
+export const KB_HALLS = { x: 800, z: -1880, f: 8 };
 /** Kingsbarrow, the city of the dead, in the Held Country. */
 export const KINGSBARROW = { x: 860, z: -1830 };
 /** The Sunder's rift runs east to west along this line. */
@@ -183,6 +194,8 @@ export const MORROW_ROADS: [number, number][][] = [
   [[2080, 1180], [1980, 1500], [1840, 1820], [1640, 2180], [1360, 2460], [1000, 2640]],
   // The old road west through the Amberwold, up toward the spine
   [[1840, 1290], [1400, 1420], [960, 1560], [520, 1700], [120, 1780], [-260, 1820]],
+  // On north through Northgate's gate, over the Held's plateau to Kingsbarrow
+  [[NORTHGATE.x, NORTHGATE.z - 26], [600, -1500], [700, -1640], [800, -1720], [860, -1742]],
   // The Glades to the causeway's head, and out along the Keys to Saltpenny
   [[1000, 2640], [640, 2840], [300, 3040], [-120, 3260], [-560, 3440], [-1000, 3580], [-1380, 3660]],
 ];

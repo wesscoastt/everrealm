@@ -4,7 +4,7 @@ import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
 import { LAND } from './land';
-import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
+import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
@@ -690,6 +690,8 @@ export function plan(): Plan {
       { id: 'bight', name: 'Wreckers\' Bight', x: BIGHT.x, z: BIGHT.z, r0: 16, r1: 26, build: (s, b) => buildBight(s, b) },
       { id: 'coldharbour', name: 'Cold Harbour', x: COLD_HARBOUR.x, z: COLD_HARBOUR.z, r0: 26, r1: 42, h: SEA + 2, build: (s, b) => buildColdHarbour(s, b) },
       { id: 'hollowfell', name: 'Hollow Fell', x: HOLLOW_FELL.x, z: HOLLOW_FELL.z, r0: 0, r1: 0, build: (s) => buildHollowFell(s) },
+      { id: 'kingsbarrow', name: 'Kingsbarrow', x: 860, z: -1830, r0: 92, r1: 122, h: KB_FLOOR, build: (s, b) => buildKingsbarrow(s, b) },
+      { id: 'gd-kingsbarrow', name: 'Kingsbarrow: the king\'s barrow', x: KB_HALLS.x + 56, z: KB_HALLS.z, r0: 0, r1: 0, under: true, build: (s) => buildKingsHalls(s) },
       { id: 'northgate', name: 'Northgate', x: NORTHGATE_TOWN.x, z: NORTHGATE_TOWN.z, r0: 84, r1: 104, h: 28, build: (s, b) => buildNorthgate(s, b) },
     ];
   }
@@ -2735,7 +2737,23 @@ export function plan(): Plan {
    */
   function buildHollowFell(s: Site) {
     rect(s, HOLLOW_FELL.x - 50, HOLLOW_FELL.z - 60, HOLLOW_FELL.x + 46, HOLLOW_FELL.z + 46);
-    for (const [bx, bz, r, state] of FELL_BARROWS) {
+    for (const [bx, bz, r, state] of FELL_BARROWS) barrowMound(bx, bz, r, state);
+    // Standing stones on the moor round the field, leaning
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2, x = Math.round(HOLLOW_FELL.x + Math.cos(a) * 52), z = Math.round(HOLLOW_FELL.z - 20 + Math.sin(a) * 44), g = heightAt(x, z);
+      for (let y = g; y < g + 3 + (i % 2); y++) O.set(x, y, z, B.MossyStone);
+    }
+    s.props.push({ t: 'cart', x: 2008.5, y: heightAt(2008, -1150), z: -1149.5, ry: 0.4 });
+  }
+
+  /**
+   * One of the old kingdom's barrows: a low round mound with a stone-framed door on its south side and
+   * a kerb of standing stones. 'shut': still capped with the black, its door slabbed with black.
+   * Stripped ('open' or 'ma'): the turf cut back to the stone, the crown broken open, and the black
+   * heaped beside it.
+   */
+  function barrowMound(bx: number, bz: number, r: number, state: 'shut' | 'open' | 'ma') {
+    {
       const g = heightAt(bx, bz);
       for (let dz = -r - 1; dz <= r + 1; dz++) for (let dx = -r - 1; dx <= r + 1; dx++) {
         const d = Math.hypot(dx, dz);
@@ -2762,12 +2780,145 @@ export function plan(): Plan {
         if (i % 3 === 1) O.set(hx, hg + 1, hz, B.Blackstone);
       }
     }
-    // Standing stones on the moor round the field, leaning
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2, x = Math.round(HOLLOW_FELL.x + Math.cos(a) * 52), z = Math.round(HOLLOW_FELL.z - 20 + Math.sin(a) * 44), g = heightAt(x, z);
-      for (let y = g; y < g + 3 + (i % 2); y++) O.set(x, y, z, B.MossyStone);
+  }
+
+  /**
+   * Kingsbarrow: the old kingdom's city of the dead. An avenue of standing stones runs north from the
+   * road between rows of barrows, most of them stripped by Pryce's diggers, to the king's own: a hill
+   * of a barrow, kerbed with great stones, half its black cap torn off, and a portal of three stones
+   * in its south face where the diggers went in. Stone tomb-houses stand among the barrows. The
+   * diggers' camp is east of the king's barrow, where the carts hauled its black: tents, carts, a fire gone out.
+   */
+  function buildKingsbarrow(s: Site, base: number) {
+    const cx = 860, cz = -1830;
+    rect(s, cx - 110, cz - 110, cx + 110, cz + 110);
+    // The avenue, and its stones
+    for (let z = KB_PORTAL.z + 2; z <= cz + 90; z++) for (let x = cx - 3; x <= cx + 3; x++) {
+      O.set(x, base - 1, z, (x + z) % 5 === 0 ? B.MossyStone : hash2(x, z, 961) < 0.3 ? B.MossyCobble : B.StoneBrick);
+      clearUp(x, z, base, base + 6);
     }
-    s.props.push({ t: 'cart', x: 2008.5, y: heightAt(2008, -1150), z: -1149.5, ry: 0.4 });
+    streets.push([cx - 3, KB_PORTAL.z + 2, cx + 3, cz + 90]);
+    for (let z = KB_PORTAL.z + 6; z <= cz + 88; z += 8) for (const x of [cx - 5, cx + 5]) for (let y = base; y < base + 3 + ((z / 8) & 1); y++) O.set(x, y, z, B.MossyStone);
+    // Rows of barrows either side
+    for (let i = 0; i < 6; i++) for (const dx of [-18, -36, -56, 18, 36, 56]) {
+      const bx = cx + dx + Math.round((hash2(i, dx, 962) - 0.5) * 4), bz = cz + 76 - i * 15, r = 4 + Math.floor(hash2(dx, i, 963) * 3);
+      barrowMound(bx, bz, r, hash2(i, dx, 964) < 0.3 ? 'shut' : 'open');
+    }
+    // Tomb-houses among them: stone, a dark doorway, a slab roof
+    for (const [tx, tz] of [[cx - 27, cz + 52], [cx + 27, cz + 22], [cx - 46, cz + 8], [cx + 46, cz + 60], [cx - 27, cz - 8]] as const) {
+      for (let x = tx - 2; x <= tx + 2; x++) for (let z = tz - 2; z <= tz + 3; z++) {
+        const edge = x === tx - 2 || x === tx + 2 || z === tz - 2 || z === tz + 3;
+        for (let y = base; y < base + 4; y++) O.set(x, y, z, edge && !(z === tz + 3 && x === tx && y < base + 2) ? (y === base + 3 ? B.MossyStone : B.StoneBrick) : B.Air);
+        O.set(x, base + 4, z, B.MossyStone);
+      }
+    }
+    // The king's barrow: a hill, kerbed in great stones, half its black cap gone
+    const K = KB_KING;
+    for (let dz = -K.r - 1; dz <= K.r + 1; dz++) for (let dx = -K.r - 1; dx <= K.r + 1; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > K.r + 0.5) continue;
+      const h = Math.round(Math.sqrt(Math.max(0, K.r * K.r - d * d)) * 0.55);
+      const x = K.x + dx, z = K.z + dz;
+      for (let y = base - 1; y < base + h; y++) O.set(x, y, z, y === base + h - 1 ? B.Grass : B.Dirt);
+      const capped = d < K.r * 0.62 && (dx < 0 || hash2(x, z, 965) < 0.18);
+      if (capped) O.set(x, base + h - 1, z, B.Blackstone);
+      if (d > K.r - 0.5 && Math.round(Math.atan2(dz, dx) * 6) % 2 === 0) for (let y = base; y < base + 3; y++) O.set(x, y, z, B.MossyStone);
+    }
+    // The torn-off black, heaped down the east side where the carts could reach it
+    for (let i = 0; i < 30; i++) {
+      const hx = K.x + K.r + 3 + (i % 5), hz = K.z - 6 + Math.floor(i / 5) * 2;
+      for (let y = base; y < base + 1 + (i % 3 === 0 ? 1 : 0); y++) O.set(hx, y, hz, B.Blackstone);
+    }
+    // The portal: three great stones in the south face, and the way in cut behind them
+    const PX = KB_PORTAL.x, PZ = KB_PORTAL.z;
+    for (let z = PZ - 6; z <= PZ; z++) for (let x = PX - 2; x <= PX + 2; x++) for (let y = base; y < base + 5; y++) O.set(x, y, z, B.Air);
+    for (let z = PZ - 6; z <= PZ; z++) for (let x = PX - 2; x <= PX + 2; x++) O.set(x, base - 1, z, B.StoneBrick);
+    for (const x of [PX - 3, PX + 3]) for (let y = base; y < base + 6; y++) for (const z of [PZ, PZ - 1]) O.set(x, y, z, B.MossyStone);
+    for (let x = PX - 4; x <= PX + 4; x++) for (const z of [PZ, PZ - 1]) O.set(x, base + 6, z, B.MossyStone);
+    for (let x = PX - 2; x <= PX + 2; x++) for (let y = base; y < base + 5; y++) O.set(x, y, PZ - 7, y < base + 4 ? B.Blackstone : B.MossyStone);
+    s.props.push({ t: 'glow', x: PX + 0.5, y: base + 2.5, z: PZ - 5.5, r: 2, color: '#9fe8ff', lit: true });
+    s.props.push({ t: 'lantern', x: PX - 4.5, y: base, z: PZ + 2.5, ry: 0 }, { t: 'lantern', x: PX + 5.5, y: base, z: PZ + 2.5, ry: 0 });
+    // The diggers' camp
+    const C = KB_CAMP;
+    s.props.push(
+      { t: 'tent', x: C.x - 4, y: base, z: C.z - 4, ry: 0.3, color: '#5a5a50' }, { t: 'tent', x: C.x + 5, y: base, z: C.z - 6, ry: -0.5, color: '#6a6a5e' }, { t: 'tent', x: C.x + 1, y: base, z: C.z + 8, ry: 2.8, color: '#4a4a44' },
+      { t: 'firepit', x: C.x + 0.5, y: base, z: C.z + 0.5 },
+      { t: 'cart', x: C.x - 9.5, y: base, z: C.z + 3.5, ry: 1.2 }, { t: 'cart', x: C.x - 12.5, y: base, z: C.z - 6.5, ry: 0.6 },
+      { t: 'crate', x: C.x + 7.5, y: base, z: C.z + 2.5, ry: 0.4 }, { t: 'barrel', x: C.x + 8.6, y: base, z: C.z + 3.6 },
+      { t: 'lantern', x: C.x - 3.5, y: base, z: C.z + 4.5 },
+    );
+    s.props.push({ t: 'sign', x: cx + 4.5, y: base, z: cz + 92.5, ry: 0, text: 'Kingsbarrow' });
+  }
+
+  /**
+   * The halls under the king's barrow (gd-kingsbarrow): dressed stone, vaulted, older than anything in
+   * Morrow, with the black still banded in the walls where the diggers haven't reached. The Long
+   * Barrow, a gallery of empty niches; the Diggers' Cut, where Garrow Venn's men broke through; the
+   * Hall of the Kneeling, the old king's guard on their knees in rows; the Black Stair; and the King's
+   * Hall, his bier at the far end.
+   */
+  function buildKingsHalls(s: Site) {
+    const OX = KB_HALLS.x, OZ = KB_HALLS.z, F = KB_HALLS.f;
+    const VAULT: CaveTheme = { wall: B.StoneBrick, wall2: B.MossyStone, band: B.Blackstone, floor: B.StoneBrick, floor2: B.MossyCobble, spike: B.MossyStone, rubble: B.Cobble, light: '#9fe8ff' };
+    const CUT: CaveTheme = { wall: B.Stone, wall2: B.StoneBrick, band: B.Blackstone, floor: B.Cobble, floor2: B.Gravel, spike: B.Stone, rubble: B.Blackstone, light: '#ffc070' };
+    const HALL: CaveTheme = { wall: B.Blackstone, wall2: B.StoneBrick, band: B.MossyStone, floor: B.StoneBrick, floor2: B.Blackstone, spike: B.Blackstone, rubble: B.MossyCobble, light: '#9fe8ff' };
+    const k = caveKit(O, s.props, OX, OZ, F);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, k.floorAt(x, z) ?? F, OZ + z + 0.5];
+    const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
+    const P = (t: PropType, x: number, y: number, z: number, extra: Partial<PropDesc> = {}) => s.props.push({ t, x: OX + x + 0.5, y, z: OZ + z + 0.5, ...extra });
+
+    k.tunnel([[1, 0], [9, 0]], 7, 7, VAULT, { mine: true, frame: B.MossyStone });
+    k.chamber(6, 0, 6, 6, 8, VAULT, { round: true });
+    // The Long Barrow: a high gallery, ribbed
+    k.tunnel([[10, 0], [45, 0]], 9, 11, VAULT, { mine: true, frame: B.Blackstone });
+    // The Diggers' Cut: rough-hewn where the diggers broke through
+    k.chamber(57, 0, 12, 12, 14, CUT, { round: true });
+    // South to the Hall of the Kneeling
+    k.tunnel([[57, 11], [57, 18]], 5, 6, VAULT, { mine: true, frame: B.MossyStone });
+    k.chamber(57, 29, 13, 11, 14, VAULT);
+    // East: the Black Stair
+    k.tunnel([[69, 29], [81, 29]], 5, 6, VAULT, { mine: true, frame: B.Blackstone });
+    k.chamber(93, 29, 11, 11, 14, HALL, { round: true });
+    // North to the King's Hall
+    k.tunnel([[93, 17], [93, 3]], 6, 8, VAULT, { mine: true, frame: B.Blackstone });
+    k.chamber(93, -12, 18, 14, 20, HALL);
+    for (const [x, z] of [[4, -3], [4, 3], [16, -4], [24, 4], [32, -4], [40, 4], [50, -8], [64, -8], [50, 8], [64, 8], [57, 15], [47, 23], [67, 23], [47, 35], [67, 35], [75, 27], [86, 21], [100, 21], [86, 37], [100, 37], [93, 10], [80, -4], [106, -4], [80, -20], [106, -20]] as const) k.lamp(x, z);
+    k.glow(93, -24, F + 5, 1.6, '#9fe8ff', true);
+    k.finish({ spikes: 0, rubble: 0.3 });
+
+    // Niches down both walls of the Long Barrow, every one empty, its black smashed on the floor
+    for (let x = 12; x <= 43; x += 3) for (const z of [-4, 4]) {
+      for (let y = F + 1; y < F + 3; y++) O.set(OX + x, y, OZ + z + Math.sign(z), B.Air);
+      if (x % 6 === 0) O.set(OX + x, F, OZ + z - Math.sign(z), B.Blackstone);
+    }
+    // The Hall of the Kneeling: low plinths in rows, facing north
+    for (let x = 49; x <= 65; x += 4) for (const z of [24, 28, 32, 36]) O.set(OX + x, F - 1, OZ + z, B.Blackstone);
+    // The King's Hall: the bier at the far end on its step, columns down both sides
+    for (let x = 89; x <= 97; x++) for (let z = -25; z <= -21; z++) { O.set(OX + x, F, OZ + z, B.StoneBrick); if (x >= 91 && x <= 95 && z >= -24 && z <= -22) O.set(OX + x, F + 1, OZ + z, B.Blackstone); }
+    for (const x of [82, 104]) for (const z of [-20, -12, -4]) for (let y = F; y < F + 16; y++) O.set(OX + x, y, OZ + z, y % 5 === 0 ? B.Blackstone : B.StoneBrick);
+    // Pryce's diggers' things left in the Cut: lamps, a cart, picks
+    P('cart', 52, F, -5, { ry: 0.5 }); P('crate', 62, F, 6, { ry: 0.2 }); P('barrel', 63, F, 7.2, {});
+
+    s.act = {
+      kind: 'group',
+      arrive: at(2, 0),
+      exit: at(1, 0),
+      packs: [
+        [mob(19, -2, 'dg_barrowdead'), mob(21, 2, 'dg_barrowdead'), mob(17, 0, 'dg_digger')],
+        [mob(31, -3, 'dg_digger'), mob(33, 3, 'dg_digger'), mob(35, 0, 'dg_barrowdead'), mob(41, -3, 'dg_wight')],
+        [mob(73, 28, 'dg_barrowdead'), mob(77, 30, 'dg_barrowdead'), mob(79, 28, 'dg_wight')],
+        [mob(88, 24, 'dg_wight'), mob(98, 34, 'dg_wight'), mob(93, 29, 'dg_barrowdead')],
+        [mob(84, -4, 'dg_wight'), mob(102, -4, 'dg_wight'), mob(93, 0, 'dg_barrowdead')],
+      ],
+      bosses: [
+        { at: at(59, 0), type: 'dg_venn', crew: [mob(52, -6, 'dg_digger'), mob(52, 6, 'dg_digger')] },
+        { at: at(57, 31), type: 'dg_barrowwarden' },
+        { at: at(93, -15), type: 'dg_oldking' },
+      ],
+      chest: at(98, -23),
+      covered: k.covered(),
+    };
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
   /**

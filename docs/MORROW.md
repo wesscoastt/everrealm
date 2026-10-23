@@ -1,6 +1,6 @@
 # Morrow: the second continent (plan)
 
-Everything here is **[planned]** unless marked otherwise. The crossing, Callis, Saltpenny Key, Morrow's creatures and chapters XVII to XIX are in the game now (LORE.md, "Morrow, the second continent"). When a piece is built, move
+Everything here is **[planned]** unless marked otherwise. The crossing, Callis, Saltpenny Key, Cold Harbour, Northgate, Kingsbarrow and its dungeon, Morrow's creatures, and the whole of the Third Daughter (chapters XVII to XXII, with its three endings) are in the game now (LORE.md, "Morrow, the second continent"). When a piece is built, move
 it into LORE.md and mark it [in game]. The rules in LORE.md and NARRATIVE_STYLE.md hold here too:
 plain names, plain speech, no world-ending prophecy, and the trouble always has a human cause.
 
@@ -80,7 +80,7 @@ Five chapters after Act III, from Nessa Crane at Gullmouth.
 4. **Lie Still** (XX) [in game]. The black was dug out of the northern barrows. The old kingdom buried its dead
    under black so they would lie still. Take the black away and they don't: these are the **Held**.
    The villages emptied one by one, and Northgate has shut its gate.
-5. **Kingsbarrow.** Pryce is in the city of the dead with his diggers, still digging, because the
+5. **The King's Black** (XXI) [in game], then **His Book** (XXII) [in game]. Pryce is in the city of the dead with his diggers, still digging, because the
    Assembly has already paid. The old king's barrow is the last and deepest seam.
 
 **Endings** (as in the earlier acts, the choice changes the world):
