@@ -723,7 +723,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     if (!shell) continue;
     const brokenTop = y > lBase + 9 + Math.floor(hash2(x, z, 41) * 4);
     if (brokenTop) continue;
-    if (x === LX + 2 && z === LZ && y < lBase + 2) continue; // doorway facing the vale
+    // The doorway, facing the vale: three high, as the first stair starts just inside it and you step up onto it as you go in
+    if (x === LX + 2 && z === LZ && y < lBase + 3) continue;
     if (y === lBase + 5 && (x === LX || z === LZ)) { world.put(x, y, z, B.Air); continue; } // arrow slits
     world.put(x, y, z, hash2(x, y * 7, z) < 0.35 ? B.MossyStone : B.StoneBrick);
   }
