@@ -1475,8 +1475,9 @@ export class Game implements GameApi {
         g.hud.refresh('music');
       },
       finder: () => g.dungeons.view(),
-      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave', id?: string) => {
+      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet', id?: string) => {
         let why: string | null = null;
+        if (what === 'vet') g.dungeons.setVet(id === '1');
         if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
         else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
         else if (what === 'find' && id) why = g.dungeons.findGroup(id);

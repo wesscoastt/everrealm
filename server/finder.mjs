@@ -15,7 +15,7 @@ const PARTY = ['tank', 'healer', 'damage', 'damage'];
 const ROLES = new Set(Object.keys(NEED));
 const FILL_MS = 90_000;
 const READY_MS = 30_000;
-const DUNGEON = /^gd-[a-z]{2,20}$/;
+const DUNGEON = /^gd-[a-z]{2,20}(-vet)?$/; // "-vet": the dungeon's veteran mode, queued apart
 const EVENTS_PER_SEC = 40;
 
 /** The places a group is short of, given the roles it has (as data/dungeons.ts missingRoles). */

@@ -579,6 +579,7 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 - **The Charter Market tailor** in Ansbury sells the plain heraldic ones: bordered, quartered, chevron and chequy. The chevron is a roof, whatever the Charter clerks say. The Weighhouse men wear chequy on quarter-day.
 - **Deeds.** Burning all seven bandit forts earns the tally (four strokes and a fifth across, the bandits' own count). Finding the six wonders earns the star. Bringing down every festival creature earns the lantern. Burning the Old Bed on Inkholm earns the Reekers' flame.
 - **Under the hills.** The Kettle's frost star and the Sallow Pit miners' crossed picks come up rarely from those dungeons' bosses.
+- **The Laurel.** A wreath of bay, the old sign for someone who went back down a second time and did it the hard way: the first veteran clear of any group dungeon.
 - **Revered standing** with a region earns its own sign: Hollindale's mill wheel, the Turnpike's toll-key, Hagworm's oak leaf, the Fleet Coast's three waves, the Harrowgate Company's anvil, the Scarth peak, the gannet of the cliff villages, the reeds of the Wrath Levels, Tolmen's three stones and the Inkholm cap.
 
 ## Morrow, the second continent [planned]

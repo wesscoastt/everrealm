@@ -213,6 +213,17 @@ export const DUNGEONS: DungeonDef[] = [
 
 export const DUNGEON_BY_ID: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
 
+/**
+ * Veteran, as ESO has it: the same halls, harder. Open on a dungeon once you've cleared it. Its
+ * creatures have more health and hit harder, its bosses' big moves come sooner and land heavier,
+ * and it pays better: more from the chest, a better chance at each boss's piece, and the Laurel
+ * cloak the first time. The realm's queue keeps veteran apart: its id carries VET on the end.
+ */
+export const VETERAN = { hp: 1.7, damage: 1.35, moveEvery: 0.8, moveDamage: 1.3, chestXp: 1.4, chestMarks: 1.6, dropChance: 0.25 };
+export const VET = '-vet';
+/** A queue or run id's dungeon, and whether it's veteran. */
+export const splitRunId = (id: string): { id: string; vet: boolean } => (id.endsWith(VET) ? { id: id.slice(0, -VET.length), vet: true } : { id, vet: false });
+
 // ---------------------------------------------------------------- Henchmen
 /** What a henchman says: going in, hurt, after a kill, going down, getting up, and (a healer) mending. */
 export interface Barks { pull: string[]; low: string[]; kill: string[]; down: string; up: string; mend?: string[] }

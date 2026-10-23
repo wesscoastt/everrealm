@@ -241,7 +241,7 @@ export interface UiCtx {
   /** The songbook: instruments, tunes, the band (game/Stage.ts). */
   music(): MusicView;
   musicDo(what: 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', arg?: string): void;
-  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave', id?: string): string | null;
+  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet', id?: string): string | null;
 }
 
 export interface TravelView {
@@ -1745,6 +1745,8 @@ export class Hud {
       status = `<div class="gf-status"><b>Looking for players: ${esc(d?.name ?? '')}</b><span>${v.queue.count} of 4 queued · ${mm(v.queue.secs)}${left ? ` · henchmen fill the empty places in ${mm(left)}` : ' · filling with henchmen'}</span><div class="gf-btns"><button class="btn" data-gf="now" title="Go in with whoever is queued; henchmen take the other places">Go now</button><button class="btn ghost" data-gf="cancel">Stop looking</button></div></div>`;
     }
     const roles = `<div class="gf-roles"><span class="lbl">Go in as</span>${ROLES.map((r) => `<button class="gf-role${v.role === r ? ' sel' : ''}" data-role="${r}" title="${esc(ROLE_DESC[r])}"><b>${ROLE_NAMES[r]}</b></button>`).join('')}<small>${esc(ROLE_DESC[v.role])}${v.role === 'healer' ? ' Six tenths of the damage you deal goes to them, and your calling\'s heal (key 4) mends everyone near you as well.' : v.role === 'tank' ? ' What you hit stays on you: your blows count three times for keeping its attention.' : ''}</small></div>`;
+    const anyVet = v.dungeons.some((d) => d.clears > 0);
+    const vetRow = `<div class="gf-roles"><span class="lbl">Difficulty</span><button class="gf-role${v.vet ? '' : ' sel'}" data-vet="0"><b>Normal</b></button><button class="gf-role${v.vet ? ' sel' : ''}" data-vet="1"${anyVet ? '' : ' disabled'} title="${anyVet ? 'Harder creatures, faster boss moves, better rewards' : 'Clear a dungeon once to open its veteran mode'}"><b>Veteran</b></button><small>${anyVet ? (v.vet ? 'Veteran: creatures have 70% more health and hit a third harder, bosses\' big moves come sooner and land heavier. The chest pays more, every boss is likelier to drop its piece, and the first veteran clear gives the Laurel cloak. Only for dungeons you\'ve cleared.' : 'The dungeons as they come.') : 'Clear a dungeon once and its veteran mode opens: harder, and better paid.'}</small></div>`;
     const order = [...v.dungeons].sort((a, b) => Number(b.id === this.finderAt) - Number(a.id === this.finderAt));
     const cards = order.map((d) => {
       const busy = !!v.run || !!v.queue;
@@ -1752,13 +1754,14 @@ export class Hud {
       const findOff = busy || !v.online || (!!v.group && !v.group.leader);
       return `<div class="gf-card${d.id === this.finderAt ? ' sel' : ''}"><h5>${esc(d.name)}<small>${esc(d.where)} · for four · at your level</small></h5>
         <p>${esc(d.blurb)}</p>
-        <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}. The day's first clear pays half again.` : 'Not cleared yet.'}</div>
+        <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}${d.vetClears ? `, ${d.vetClears === 1 ? 'once' : d.vetClears + ' times'} on veteran` : ''}. The day's first clear pays half again.${v.vet ? ' You\'ll go in on veteran.' : ''}` : `Not cleared yet.${v.vet ? ' Veteran opens once you have: this one goes in on normal.' : ''}`}</div>
         <div class="gf-go"><button class="btn" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? 'Real players first; henchmen take any place still empty after a minute and a half' : 'Finding other players needs the online realm.'}">${findLabel}</button><button class="btn ghost" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go alone with henchmen</button></div>${v.online && !v.group ? '<div class="gf-meta">Real players first. Any place still empty after 1:30 goes to a henchman, so you might go in two and two.</div>' : ''}</div>`;
     }).join('');
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
-    body.innerHTML = status + roles + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
+    body.innerHTML = status + roles + vetRow + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
     this.q('#finder-panel .footer').innerHTML = `<span>${document.body.classList.contains('touch') ? 'The Group button' : 'P'} opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit's chamber, and the crack in the Kettle's north wall.</span>`;
     body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
+    body.querySelectorAll<HTMLButtonElement>('[data-vet]').forEach((b) => b.addEventListener('click', () => { if (b.disabled) return; this.ctx.sfx('click'); this.ctx.finderDo('vet', b.dataset.vet); }));
     body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return;
       this.ctx.sfx('click');

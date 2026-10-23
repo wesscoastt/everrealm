@@ -4,7 +4,7 @@ import { damageScale, marksScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
 import { ENEMIES, EnemyType } from '../data/gameplay';
-import { BossMove, BossPlan, CALLING_ROLE, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
+import { BossMove, BossPlan, CALLING_ROLE, splitRunId, VET, VETERAN, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
 import type { CallingId } from '../data/classes';
 import { ITEMS } from '../data/items';
 import { plan, Site, SiteActivity } from '../world/sites';
@@ -100,6 +100,8 @@ interface Hazard {
 }
 interface Run {
   def: DungeonDef;
+  /** Veteran (data/dungeons.ts VETERAN). */
+  vet: boolean;
   act: SiteActivity;
   site: Site;
   /** The realm's id for an online run; 0 for henchmen only. */
@@ -133,8 +135,10 @@ export interface FinderView {
   group: { leader: boolean; size: number } | null;
   queue: { dungeon: string; secs: number; count: number } | null;
   run: { name: string; done: boolean; henchmen: string[]; others: string[] } | null;
-  dungeons: { id: string; name: string; where: string; blurb: string; clears: number }[];
+  dungeons: { id: string; name: string; where: string; blurb: string; clears: number; vetClears: number }[];
   level: number;
+  /** Going in on veteran (where it's open). */
+  vet: boolean;
 }
 
 const HAZARD_RING = new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
@@ -165,14 +169,21 @@ export class Dungeons {
 
   setRole(r: Role): void { this.host.setFlag('gdRole', r); this.host.refresh(); }
 
+  /** Veteran chosen (it applies only where the dungeon has been cleared). */
+  get vet(): boolean { return !!this.host.flag('gdVet'); }
+  setVet(on: boolean): void { this.host.setFlag('gdVet', on ? 1 : 0); this.host.refresh(); }
+  /** Veteran for this dungeon: chosen, and the dungeon cleared at least once. */
+  private vetFor(id: string): boolean { return this.vet && Number(this.host.flag('gdClears:' + id) ?? 0) > 0; }
+
   // ---------------------------------------------------------------- The finder
   view(): FinderView {
     const r = this.run;
     return {
       online: this.host.net.on(), role: this.role, group: this.host.group(), level: this.host.level(),
-      queue: this.queued ? { dungeon: this.queued.dungeon, secs: Math.floor(this.clock - this.queued.since), count: this.queued.count } : null,
-      run: r ? { name: r.def.name, done: r.done, henchmen: r.allies.map((a) => `${a.name} (${ROLE_NAMES[a.role]})`), others: r.others.map((o) => `${o.name} (${ROLE_NAMES[o.role]})`) } : null,
-      dungeons: DUNGEONS.map((d) => ({ id: d.id, name: d.name, where: d.where, blurb: d.blurb, clears: Number(this.host.flag('gdClears:' + d.id) ?? 0) })),
+      queue: this.queued ? { dungeon: splitRunId(this.queued.dungeon).id, secs: Math.floor(this.clock - this.queued.since), count: this.queued.count } : null,
+      vet: this.vet,
+      run: r ? { name: r.def.name + (r.vet ? ' (veteran)' : ''), done: r.done, henchmen: r.allies.map((a) => `${a.name} (${ROLE_NAMES[a.role]})`), others: r.others.map((o) => `${o.name} (${ROLE_NAMES[o.role]})`) } : null,
+      dungeons: DUNGEONS.map((d) => ({ id: d.id, name: d.name, where: d.where, blurb: d.blurb, clears: Number(this.host.flag('gdClears:' + d.id) ?? 0), vetClears: Number(this.host.flag('gdVetClears:' + d.id) ?? 0) })),
     };
   }
 
@@ -189,7 +200,7 @@ export class Dungeons {
     const why = this.blocked();
     if (why) return why;
     if (this.queued) this.unqueue();
-    this.begin(DUNGEON_BY_ID[id], 0, [], henchmenFor(missingRoles([this.role])).map((h) => h.id));
+    this.begin(DUNGEON_BY_ID[id], 0, [], henchmenFor(missingRoles([this.role])).map((h) => h.id), this.vetFor(id));
     return null;
   }
 
@@ -202,13 +213,14 @@ export class Dungeons {
     if (g && !g.leader) return 'You\'re in a group: its leader takes the group in.';
     if (g) {
       if (g.size > 4) return 'A group dungeon is for four. Your group is ' + g.size + '.';
-      this.host.net.groupGo(id);
+      this.host.net.groupGo(id + (this.vetFor(id) ? VET : ''));
       this.host.system(`Asking your group whether they're ready for ${DUNGEON_BY_ID[id].name}.`);
       return null;
     }
-    this.host.net.queue(id, this.role);
-    this.queued = { dungeon: id, since: this.clock, count: 1 };
-    this.host.system(`Looking for players for ${DUNGEON_BY_ID[id].name}, as ${ROLE_NAMES[this.role].toLowerCase()}. Henchmen fill the places nobody takes after a minute and a half, or now if you say go.`);
+    const qid = id + (this.vetFor(id) ? VET : '');
+    this.host.net.queue(qid, this.role);
+    this.queued = { dungeon: qid, since: this.clock, count: 1 };
+    this.host.system(`Looking for players for ${DUNGEON_BY_ID[id].name}${this.vetFor(id) ? ' on veteran' : ''}, as ${ROLE_NAMES[this.role].toLowerCase()}. Henchmen fill the places nobody takes after a minute and a half, or now if you say go.`);
     this.host.refresh();
     return null;
   }
@@ -237,12 +249,13 @@ export class Dungeons {
 
   /** The server: a group is ready; answer within the time. */
   onReady(run: number, dungeon: string, names: string[], henchmen: number, secs: number): void {
-    const d = DUNGEON_BY_ID[dungeon];
+    const sp = splitRunId(dungeon);
+    const d = DUNGEON_BY_ID[sp.id];
     if (!d) return;
     const who = names.length ? names.join(', ') : 'you';
     const fill = henchmen ? `, with ${henchmen === 1 ? 'a henchman' : henchmen + ' henchmen'} to make four` : '';
     this.host.sfx('bell');
-    this.host.ask(`Your group for ${d.name} is ready: ${who}${fill}. Go in as ${ROLE_NAMES[this.role].toLowerCase()}?`, () => {
+    this.host.ask(`Your group for ${d.name}${sp.vet ? ' (veteran)' : ''} is ready: ${who}${fill}. Go in as ${ROLE_NAMES[this.role].toLowerCase()}?`, () => {
       const why = this.blocked();
       if (why) { this.host.system(why); this.host.net.answer(run, false, this.role); return; }
       this.host.net.answer(run, true, this.role);
@@ -251,10 +264,11 @@ export class Dungeons {
 
   /** The server: everyone said yes. In we go. */
   onStart(run: number, dungeon: string, others: { id: number; name: string; role: Role }[], henchmen: string[]): void {
-    const d = DUNGEON_BY_ID[dungeon];
+    const sp = splitRunId(dungeon);
+    const d = DUNGEON_BY_ID[sp.id];
     this.queued = null;
     if (!d || this.run) return;
-    this.begin(d, run, others, henchmen);
+    this.begin(d, run, others, henchmen, sp.vet);
   }
 
   /** Another member's blow or kill. */
@@ -287,25 +301,25 @@ export class Dungeons {
   }
 
   // ---------------------------------------------------------------- A run
-  private begin(def: DungeonDef, id: number, others: { id: number; name: string; role: Role }[], henchmen: string[]): void {
+  private begin(def: DungeonDef, id: number, others: { id: number; name: string; role: Role }[], henchmen: string[], vet = false): void {
     const site = plan().sites.find((s) => s.id === def.id);
     const act = site?.act;
     if (!site || !act || act.kind !== 'group' || !act.arrive) return;
     const lvl = Math.max(1, this.host.level());
     const allies = henchmen.filter((h) => HENCH[h]).map((h) => new Ally(HENCH[h], lvl, this.host.voxels));
     this.run = {
-      def, act, site, id, role: this.role, allies, others, mobs: [], packOf: new Map(), bosses: [], adds: [], threat: new Map(),
+      def, vet, act, site, id, role: this.role, allies, others, mobs: [], packOf: new Map(), bosses: [], adds: [], threat: new Map(),
       spawned: false, seen: new Set(), hazards: [], done: false, chest: false, trail: [], calm: 0, raiseIn: -1, wipeIn: -1,
       hits: new Map(), sendT: 0, rowsT: 0,
     };
-    this.host.travel(act.arrive, Math.PI / 2, def.name, `Group dungeon · ${def.where}`);
+    this.host.travel(act.arrive, Math.PI / 2, def.name, `${vet ? 'Veteran' : 'Group dungeon'} · ${def.where}`);
     this.host.refresh();
   }
 
   private spawn(): void {
     const r = this.run!, a = r.act;
     const make = (x: number, y: number, z: number, type: string): Enemy => {
-      const e = new Enemy({ ...ENEMIES[type as EnemyType] }, Math.floor(x), Math.floor(z), this.host.voxels);
+      const e = new Enemy(this.vetDef(type), Math.floor(x), Math.floor(z), this.host.voxels);
       e.home.set(Math.floor(x) + 0.5, y, Math.floor(z) + 0.5);
       e.pos.copy(e.home);
       e.questTag = 'dungeon';
@@ -337,6 +351,13 @@ export class Dungeons {
     for (const al of r.allies) if (Math.random() < 0.5) { this.bark(al, al.def.barks.pull); break; }
     r.spawned = true;
     this.host.refresh();
+  }
+
+  /** A creature's numbers for this run: veteran's are tougher, and pay a little better. */
+  private vetDef(type: string) {
+    const d = { ...ENEMIES[type as EnemyType] };
+    if (!this.run?.vet) return d;
+    return { ...d, hp: Math.round(d.hp * VETERAN.hp), damage: Math.round(d.damage * VETERAN.damage), xp: Math.round(d.xp * 1.3), marks: [Math.round(d.marks[0] * 1.5), Math.round(d.marks[1] * 1.5)] as [number, number] };
   }
 
   private end(): void {
@@ -574,7 +595,7 @@ export class Dungeons {
         call.types.forEach((t, k) => {
           const ang = (k / call.types.length) * Math.PI * 2 + b.calls;
           const x = e.pos.x + Math.cos(ang) * 4.5, z = e.pos.z + Math.sin(ang) * 4.5;
-          const add = new Enemy({ ...ENEMIES[t as EnemyType] }, Math.floor(x), Math.floor(z), this.host.voxels);
+          const add = new Enemy(this.vetDef(t), Math.floor(x), Math.floor(z), this.host.voxels);
           add.home.set(Math.floor(e.home.x) + 0.5, e.home.y, Math.floor(e.home.z) + 0.5);
           add.pos.set(Math.floor(x) + 0.5, e.pos.y, Math.floor(z) + 0.5);
           add.questTag = 'dungeon';
@@ -596,7 +617,7 @@ export class Dungeons {
       (b.plan.moves ?? []).forEach((m, i) => {
         if (this.clock < b.next[i]) return;
         if (this.clock < b.busy || e.stun > 0) { b.next[i] = Math.max(b.busy, this.clock) + 0.6; return; }
-        b.next[i] = this.clock + m.every * (e.enraged ? 0.72 : 1);
+        b.next[i] = this.clock + m.every * (e.enraged ? 0.72 : 1) * (r.vet ? VETERAN.moveEvery : 1);
         if (this.bossMove(b, m)) b.busy = this.clock + m.windup + 1.2;
       });
       const hz = b.plan.hazard;
@@ -615,7 +636,7 @@ export class Dungeons {
   /** A boss's big move: mark it on the floor and hold the boss to it. Whether it went. */
   private bossMove(b: LiveBoss, m: BossMove): boolean {
     const r = this.run!, e = b.enemy;
-    const dmg = Math.round(m.damage * damageScale(this.host.level(), r.def.level));
+    const dmg = Math.round(m.damage * damageScale(this.host.level(), r.def.level) * (r.vet ? VETERAN.moveDamage : 1));
     const ms = this.members().filter((x) => x.up && (x.k === 'me' || x.ally || x.k.startsWith('r')));
     if (!ms.length) return false;
     const v = this.victim(e);
@@ -720,7 +741,7 @@ export class Dungeons {
     r.hazards = [];
     const last = r.bosses.every((x) => x.done);
     const items: string[] = [];
-    if (Math.random() < b.plan.chance || last) items.push(b.plan.drops[Math.floor(Math.random() * b.plan.drops.length)]);
+    if (Math.random() < b.plan.chance + (r.vet ? VETERAN.dropChance : 0) || last) items.push(b.plan.drops[Math.floor(Math.random() * b.plan.drops.length)]);
     this.host.reward(0, 0, items, `${b.enemy.name} · ${r.def.name}`);
     for (const id of items) { const d = ITEMS[id]; if (d?.stats) this.host.system(`${d.name}: ${d.stats}`); }
     this.host.banner(b.enemy.name, last ? 'Defeated · the way to the chest is open' : 'Defeated');
@@ -732,6 +753,11 @@ export class Dungeons {
     r.done = true;
     const k = 'gdClears:' + r.def.id, n = Number(this.host.flag(k) ?? 0) + 1;
     this.host.setFlag(k, n);
+    if (r.vet) {
+      const vk = 'gdVetClears:' + r.def.id, vn = Number(this.host.flag(vk) ?? 0) + 1;
+      this.host.setFlag(vk, vn);
+      if (vn === 1) this.host.reward(0, 0, ['cape_laurel'], `${r.def.name}: cleared on veteran`);
+    }
     this.host.standing(r.site.region, 100);
     this.host.sfx('levelUp', 0.8);
     this.host.system(`${r.def.name} cleared${n > 1 ? ` (${n} times now)` : ' for the first time'}. The chest by the far wall is yours, and the ladder is back where you came in.`);
@@ -1058,7 +1084,8 @@ export class Dungeons {
     const daily = this.host.flag('gdDaily') !== today;
     if (daily) this.host.setFlag('gdDaily', today);
     const k = rewardScale(this.host.level(), r.def.level);
-    this.host.reward(Math.round(c.xp * k * (daily ? 1.5 : 1)), Math.round((c.marks + (daily ? 60 : 0)) * marksScale(this.host.level(), r.def.level)), c.items, daily ? `${r.def.name}: the chest, and the day's first dungeon` : `${r.def.name}: the chest`);
+    const vx = r.vet ? VETERAN.chestXp : 1, vm = r.vet ? VETERAN.chestMarks : 1;
+    this.host.reward(Math.round(c.xp * k * (daily ? 1.5 : 1) * vx), Math.round((c.marks + (daily ? 60 : 0)) * marksScale(this.host.level(), r.def.level) * vm), r.vet ? [...c.items, ...c.items] : c.items, daily ? `${r.def.name}: the chest, and the day's first dungeon` : `${r.def.name}: the chest`);
     this.host.sfx('open');
     this.host.persist();
   }
