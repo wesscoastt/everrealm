@@ -918,6 +918,107 @@ export function windowBox(M: PropMaterials): THREE.Group {
   return g;
 }
 
+// ---- The street kit: what makes a town street look lived in (world/sites.ts houseInto and the
+// towns' dressing). Each stands on its own frame with +z out from the wall it's fixed to.
+
+/**
+ * A trade's sign on an iron bracket, hung out from the wall beside the door so it reads from up and
+ * down the street: a painted board with the trade's emblem on both faces. emblem: 0 an inn's tankard,
+ * 1 a shop's loaf, 2 a workshop's hammer, 3 an office's scroll, 4 a key, 5 a boot.
+ */
+export function shopSign(M: PropMaterials, color: string, emblem = 0): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.08, 0.08, 1.15), M.iron, 0, 0, 0.58));
+  g.add(mesh(box(0.06, 0.5, 0.06), M.iron, 0, -0.22, 0.06));
+  g.add(mesh(box(0.05, 0.05, 0.7), M.iron, 0, -0.26, 0.38, 0, -0.62));
+  for (const z of [0.42, 1.0]) g.add(mesh(box(0.03, 0.18, 0.03), M.iron, 0, -0.1, z));
+  const board = flat(color), ink = flat('#1e1610'), gilt = flat('#e0bd64');
+  g.add(mesh(box(0.08, 0.66, 0.78), board, 0, -0.52, 0.71));
+  g.add(mesh(box(0.1, 0.72, 0.06), gilt, 0, -0.52, 0.31));
+  g.add(mesh(box(0.1, 0.72, 0.06), gilt, 0, -0.52, 1.11));
+  g.add(mesh(box(0.1, 0.06, 0.86), gilt, 0, -0.17, 0.71));
+  g.add(mesh(box(0.1, 0.06, 0.86), gilt, 0, -0.87, 0.71));
+  const icon = (w: number, h: number, y: number, z: number, m: THREE.Material = ink) => g.add(mesh(box(0.11, h, w), m, 0, -0.52 + y, 0.71 + z));
+  if (emblem === 0) { icon(0.26, 0.3, -0.02, -0.04, gilt); icon(0.06, 0.18, 0, 0.16, gilt); icon(0.3, 0.06, 0.16, -0.04, flat('#f4f0e0')); }
+  else if (emblem === 1) { icon(0.44, 0.18, -0.04, 0, flat('#c8863a')); icon(0.34, 0.08, 0.08, 0, flat('#c8863a')); for (const z of [-0.1, 0.02, 0.14]) icon(0.03, 0.12, 0.02, z); }
+  else if (emblem === 2) { icon(0.06, 0.36, -0.06, 0, flat('#8a5a32')); icon(0.32, 0.12, 0.14, 0, flat('#9aa0a6')); }
+  else if (emblem === 3) { icon(0.4, 0.26, 0, 0, flat('#f4ecd8')); icon(0.06, 0.32, 0, -0.2, flat('#c8a050')); icon(0.06, 0.32, 0, 0.2, flat('#c8a050')); icon(0.24, 0.03, 0.04, 0); icon(0.2, 0.03, -0.04, 0); }
+  else if (emblem === 4) { icon(0.16, 0.16, 0.08, -0.12, gilt); icon(0.32, 0.05, 0.08, 0.1, gilt); icon(0.05, 0.1, 0.0, 0.2, gilt); }
+  else { icon(0.12, 0.3, 0.04, -0.08, flat('#5a3a22')); icon(0.3, 0.12, -0.1, 0.02, flat('#5a3a22')); }
+  return g;
+}
+
+/** A striped canvas awning over a shop window or a stall front, len wide, on two iron stays. */
+export function awning(M: PropMaterials, color: string, len = 2.4): THREE.Group {
+  const g = new THREE.Group();
+  const a = flat(color, { side: THREE.DoubleSide }), b = flat('#efe6cf', { side: THREE.DoubleSide });
+  const n = Math.max(3, Math.round(len / 0.32));
+  for (let i = 0; i < n; i++) {
+    const x = -len / 2 + (i + 0.5) * (len / n);
+    g.add(mesh(box(len / n, 0.04, 1.15), i % 2 ? b : a, x, -0.28, 0.55, 0, 0.48));
+    g.add(mesh(box(len / n, 0.22, 0.03), i % 2 ? b : a, x, -0.62, 1.07)); // the valance
+  }
+  for (const k of [-1, 1]) g.add(mesh(box(0.04, 0.04, 1.2), M.iron, k * (len / 2 - 0.05), -0.55, 0.5, 0, -0.1));
+  return g;
+}
+
+/** A planter of flowers: a stone trough (tint 0) or a painted box (1), full of colour. */
+export function planter(M: PropMaterials, tint = 0): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(1.5, 0.5, 0.55), tint ? M.darkWood : M.stone, 0, 0.25, 0));
+  g.add(mesh(box(1.38, 0.08, 0.44), flat('#4a3a26'), 0, 0.5, 0));
+  g.add(mesh(box(1.3, 0.22, 0.4), flat('#3f7a34'), 0, 0.62, 0));
+  const cols = [['#d44a5a', '#f2c03a', '#f4f0f8'], ['#9a5ad8', '#f29a3a', '#f4e04a'], ['#e46aa0', '#ffffff', '#d44a5a']][Math.abs(Math.round(tint * 7)) % 3];
+  for (let i = 0; i < 9; i++) g.add(mesh(box(0.12, 0.12, 0.12), flat(cols[i % 3]), -0.56 + i * 0.14, 0.78 + (i % 2) * 0.05, (i % 3 - 1) * 0.11));
+  return g;
+}
+
+/** A washing line between two posts, len long, with the day's wash pegged out on it. */
+export function washLine(M: PropMaterials, len = 4): THREE.Group {
+  const g = new THREE.Group();
+  for (const k of [-1, 1]) { g.add(mesh(box(0.1, 2.1, 0.1), M.darkWood, k * len / 2, 1.05, 0)); g.add(mesh(box(0.08, 0.08, 0.4), M.darkWood, k * len / 2, 2.0, 0)); }
+  g.add(mesh(box(len, 0.02, 0.02), M.rope, 0, 1.96, 0));
+  const cloths = ['#f4f0e4', '#7a2a24', '#3a5a8a', '#e8dcc0', '#5a7a3a', '#c8a050'];
+  let x = -len / 2 + 0.35;
+  for (let i = 0; x < len / 2 - 0.4; i++) {
+    const w = 0.4 + ((i * 37) % 5) * 0.08, h = 0.45 + ((i * 53) % 4) * 0.12;
+    g.add(mesh(box(w, h, 0.02), flat(cloths[i % cloths.length], { side: THREE.DoubleSide }), x + w / 2, 1.94 - h / 2, 0));
+    x += w + 0.12;
+  }
+  return g;
+}
+
+/** Split logs stacked against a wall under a lean-to of boards. */
+export function woodpile(M: PropMaterials, len = 2): THREE.Group {
+  const g = new THREE.Group();
+  const logs = Math.max(3, Math.round(len / 0.28));
+  for (let row = 0; row < 4; row++) for (let i = 0; i < logs - (row % 2); i++) {
+    const m = mesh(cyl(0.13, 0.13, 0.8, 6), (i + row) % 3 ? M.bark : M.wood, -len / 2 + 0.15 + i * 0.27 + (row % 2) * 0.13, 0.13 + row * 0.24, 0.2, 0, 0, Math.PI / 2);
+    m.rotation.set(Math.PI / 2, 0, 0);
+    g.add(m);
+  }
+  g.add(mesh(box(len + 0.3, 0.06, 0.9), M.darkWood, 0, 1.2, 0.22, 0, 0.2));
+  return g;
+}
+
+/** A statue on a plinth: a figure in a long coat, one hand on a sword, the other holding up a book. */
+export function statue(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const st = flat('#c8c6be'), dk = flat('#9a988e');
+  g.add(mesh(box(2.2, 0.4, 2.2), dk, 0, 0.2, 0));
+  g.add(mesh(box(1.6, 1.4, 1.6), st, 0, 1.1, 0));
+  g.add(mesh(box(1.9, 0.2, 1.9), dk, 0, 1.9, 0));
+  g.add(mesh(box(0.9, 1.4, 0.6), st, 0, 2.7, 0)); // the coat
+  g.add(mesh(box(0.8, 0.8, 0.5), st, 0, 3.75, 0)); // the chest
+  g.add(mesh(box(0.42, 0.46, 0.42), st, 0, 4.4, 0)); // the head
+  g.add(mesh(box(0.22, 0.75, 0.22), st, -0.55, 3.55, 0.05, 0, 0, 0.1));
+  g.add(mesh(box(0.22, 0.75, 0.22), st, 0.55, 4.05, 0.1, 0, 0, -2.6));
+  g.add(mesh(box(0.34, 0.42, 0.1), dk, 0.75, 4.5, 0.15)); // the book
+  g.add(mesh(box(0.08, 1.3, 0.08), dk, -0.62, 2.9, 0.18)); // the sword
+  g.add(mesh(box(0.3, 0.06, 0.08), dk, -0.62, 3.5, 0.18));
+  return g;
+}
+
 export function bellows(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(box(0.9, 0.2, 0.6), M.darkWood, 0, 0.6, 0));

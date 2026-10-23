@@ -9,8 +9,10 @@ import { currentAccount, getVault, putVault } from '../net/Account';
 // (another of your characters got there first), so nothing is counted twice. Not signed in, the
 // characters in this browser share a vault kept here.
 
-export interface Vault { items: Record<string, number>; marks: number }
+export interface Vault { items: Record<string, number>; marks: number; /** Room bought past the first eighty kinds. */ room?: number }
 export const VAULT_KINDS = 80;
+/** What each ten more kinds costs, in turn: the vault grows from 80 to 200 kinds. */
+export const ROOM_PRICES = [400, 1200, 2500, 5000, 9000, 15000, 24000, 36000, 50000, 70000, 95000, 120000];
 const LOCAL_KEY = 'everrealm.vault';
 
 /** Somewhere else the panel can open on, kept by the game (a wagon's bed): goods only, no coin. */
@@ -35,7 +37,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const clean = (v: Partial<Vault> | null | undefined): Vault => {
   const items: Record<string, number> = {};
   for (const [k, n] of Object.entries(v?.items ?? {})) if (ITEMS[k] && Number.isFinite(n) && n > 0) items[k] = Math.floor(n);
-  return { items, marks: Math.max(0, Math.floor(Number(v?.marks) || 0)) };
+  return { items, marks: Math.max(0, Math.floor(Number(v?.marks) || 0)), room: Math.max(0, Math.min(ROOM_PRICES.length * 10, Math.floor(Number(v?.room) || 0))) };
 };
 
 function readLocal(): Vault {
@@ -54,7 +56,16 @@ export class Bank {
   private busy = false;
   private status = '';
   private store: Store | null = null;
-  private get kinds(): number { return this.store?.kinds ?? VAULT_KINDS; }
+  private get kinds(): number { return this.store?.kinds ?? VAULT_KINDS + (this.v.room ?? 0); }
+  /** The next ten kinds' price (null: the vault is as big as it gets). */
+  private get roomPrice(): number | null { return ROOM_PRICES[Math.floor((this.v.room ?? 0) / 10)] ?? null; }
+  private buyRoom(): void {
+    const price = this.roomPrice;
+    if (price === null || this.store) return;
+    if (this.host.marks() < price) { this.host.system(`Ten more kinds of room costs ${price} marks.`); this.host.sound('fail'); return; }
+    const next = clean({ items: this.v.items, marks: this.v.marks, room: (this.v.room ?? 0) + 10 });
+    void this.commit(next, () => { this.host.addMarks(-price); this.host.sound('coin'); this.host.system(`The clerk takes ${price} marks and another ledger page: the vault holds ${VAULT_KINDS + (next.room ?? 0)} kinds now, for every character on your account.`); });
+  }
   private get what(): string { return this.store ? 'The bed' : 'The vault'; }
 
   constructor(private host: BankHost) {}
@@ -127,7 +138,7 @@ export class Bank {
     n = Math.min(n, this.host.count(id));
     if (n <= 0) return;
     if (!this.v.items[id] && Object.keys(this.v.items).length >= this.kinds) { this.host.system(`${this.what} holds ${this.kinds} kinds of things. Take something out first.`); this.host.sound('fail'); return; }
-    const next = clean({ items: { ...this.v.items, [id]: (this.v.items[id] ?? 0) + n }, marks: this.v.marks });
+    const next = clean({ items: { ...this.v.items, [id]: (this.v.items[id] ?? 0) + n }, marks: this.v.marks, room: this.v.room });
     void this.commit(next, () => { this.host.take(id, n); this.host.sound('click'); });
   }
 
@@ -135,7 +146,7 @@ export class Bank {
     n = Math.min(n, this.v.items[id] ?? 0);
     while (n > 0 && !this.host.canAdd(id, n)) n--;
     if (n <= 0) { this.host.system('Your pack is full.'); this.host.sound('fail'); return; }
-    const next = clean({ items: { ...this.v.items, [id]: (this.v.items[id] ?? 0) - n }, marks: this.v.marks });
+    const next = clean({ items: { ...this.v.items, [id]: (this.v.items[id] ?? 0) - n }, marks: this.v.marks, room: this.v.room });
     void this.commit(next, () => { this.host.give(id, n); this.host.sound('click'); });
   }
 
@@ -143,7 +154,7 @@ export class Bank {
     if (n > 0) n = Math.min(n, this.host.marks());
     else n = -Math.min(-n, this.v.marks);
     if (!n) return;
-    const next = clean({ items: this.v.items, marks: this.v.marks + n });
+    const next = clean({ items: this.v.items, marks: this.v.marks + n, room: this.v.room });
     void this.commit(next, () => { this.host.addMarks(-n); this.host.sound('coin'); });
   }
 
@@ -157,7 +168,7 @@ export class Bank {
       items[s.id] = (items[s.id] ?? 0) + s.n;
       moved.push([s.id, s.n]);
     }
-    await this.commit(clean({ items, marks: this.v.marks }), () => { for (const [id, n] of moved) this.host.take(id, n); this.host.sound('click'); });
+    await this.commit(clean({ items, marks: this.v.marks, room: this.v.room }), () => { for (const [id, n] of moved) this.host.take(id, n); this.host.sound('click'); });
   }
 
   private render(): void {
@@ -181,7 +192,9 @@ export class Bank {
       </div>
       <div class="bk-marks"${S ? ' hidden' : ''}><img class="ric" src="${coin}" alt=""><span>Purse <b>${this.host.marks()}</b> · Vault <b>${v.marks}</b></span>
         <span class="bk-mb"><button data-m="10"${dis}>Pay in 10</button><button data-m="100"${dis}>100</button><button data-m="all"${dis}>All</button></span>
-        <span class="bk-mb"><button data-m="-10"${dis}>Draw 10</button><button data-m="-100"${dis}>100</button><button data-m="-all"${dis}>All</button></span></div>`;
+        <span class="bk-mb"><button data-m="-10"${dis}>Draw 10</button><button data-m="-100"${dis}>100</button><button data-m="-all"${dis}>All</button></span>
+        ${this.roomPrice !== null ? `<span class="bk-mb"><button data-room${dis}>Ten more kinds of room: ${this.roomPrice} marks</button></span>` : '<span class="bk-mb"><i>The vault is as big as the Charter makes them.</i></span>'}</div>`;
+    this.el.querySelector('[data-room]')?.addEventListener('click', () => this.buyRoom());
     const shiftN = (e: MouseEvent, n: number) => (e.shiftKey ? 1 : n);
     this.el.querySelectorAll<HTMLElement>('[data-in]').forEach((b) => b.addEventListener('click', (e) => this.deposit(b.dataset.in!, shiftN(e, this.host.count(b.dataset.in!)))));
     this.el.querySelectorAll<HTMLElement>('[data-out]').forEach((b) => b.addEventListener('click', (e) => this.withdraw(b.dataset.out!, shiftN(e, this.v.items[b.dataset.out!] ?? 0))));

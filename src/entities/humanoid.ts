@@ -1365,6 +1365,76 @@ export class Humanoid {
   /** The instrument being played, if any. */
   get instrument(): InstrumentVoice | null { return this.instr?.voice ?? null; }
 
+  /** A torch in the left hand (riding at night): a pitch-wrapped brand with its flame, held up off the reins. */
+  private torch: THREE.Group | null = null;
+  private torchFlame: THREE.Mesh | null = null;
+  get torchLit(): boolean { return !!this.torch; }
+  setTorch(on: boolean): void {
+    if (on === !!this.torch) return;
+    if (!on) { this.handL.remove(this.torch!); this.torch = null; this.torchFlame = null; if (this.offhand) this.offhand.visible = true; return; }
+    const g = new THREE.Group();
+    const wood = new THREE.MeshLambertMaterial({ color: '#5a3a22' }), wrap = new THREE.MeshLambertMaterial({ color: '#2a2018' });
+    const stick = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.62, 0.06), wood); stick.position.set(0, 0.1, 0.06); g.add(stick);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.1), wrap); head.position.set(0, 0.42, 0.06); g.add(head);
+    const flame = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.34, 0.2), new THREE.MeshBasicMaterial({ color: '#ff9a30' }));
+    flame.position.set(0, 0.64, 0.06); g.add(flame);
+    const core = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.2, 0.11), new THREE.MeshBasicMaterial({ color: '#fff2b8' }));
+    core.position.set(0, -0.04, 0); flame.add(core);
+    for (const m of [stick, head, flame, core]) m.userData.plain = true;
+    if (this.offhand) this.offhand.visible = false;
+    this.handL.add(g);
+    this.torch = g; this.torchFlame = flame;
+  }
+  /** The flame's place in the world, for the light it throws. */
+  torchAt(out: THREE.Vector3): THREE.Vector3 | null { return this.torchFlame ? this.torchFlame.getWorldPosition(out) : null; }
+
+  /** A backpack on the shoulders (look 1..6: satchel to haversack), or none. */
+  private pack: THREE.Group | null = null;
+  private packLook = 0;
+  setPack(look: number): void {
+    if (look === this.packLook) return;
+    if (this.pack) { this.torso.remove(this.pack); this.pack = null; }
+    this.packLook = look;
+    if (!look) return;
+    const g = new THREE.Group();
+    const add = (w: number, h: number, d: number, color: string, x: number, y: number, z: number) => { const m = new THREE.Mesh(rbox(w, h, d, Math.min(w, h, d) * 0.25), lam(color)); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+    const hide = ['#8a5a32', '#7a5a3a', '#5a4a3a', '#3a4a3a', '#2a4a6a', '#6a2a24'][look - 1], trim = ['#5a3a22', '#3a2a1a', '#c8a050', '#d8b050', '#e8dcc0', '#e0bd64'][look - 1];
+    if (look === 1) {
+      // A satchel at the hip on a strap across the chest
+      add(0.3, 0.26, 0.12, hide, 0.24, -0.18, -0.12); add(0.32, 0.08, 0.14, trim, 0.24, -0.06, -0.12);
+      const strap = add(0.05, 0.62, 0.04, trim, 0.02, 0.14, 0.14); strap.rotation.z = 0.7;
+    } else {
+      const k = 0.85 + look * 0.09, w = 0.42 * k, h = 0.5 * k, d = 0.22 * k;
+      add(w, h, d, hide, 0, 0.16, -0.18 - d / 2);
+      add(w * 1.02, h * 0.28, d * 1.05, shade(hide, 0.8), 0, 0.16 + h * 0.36, -0.18 - d / 2); // the flap
+      for (const sx of [-1, 1]) add(0.05, h * 0.9, 0.04, trim, sx * w * 0.32, 0.18, -0.16);
+      if (look >= 3) { const roll = add(w * 1.15, 0.14, 0.14, look === 5 ? '#e8dcc0' : '#5a6a4a', 0, 0.2 + h * 0.62, -0.18 - d / 2); roll.rotation.z = 0; }
+      if (look >= 4) for (const sx of [-1, 1]) add(0.06, 0.06, 0.06, '#c8a050', sx * w * 0.5, 0.16 + h * 0.4, -0.18);
+      if (look === 6) for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add(0.06, 0.06, 0.06, '#e0bd64', x * w * 0.48, 0.16 + y * h * 0.46, -0.18 - d);
+    }
+    this.torso.add(g);
+    this.pack = g;
+  }
+
+  /** A lantern hung on the belt at the left hip, hands free: for a shield or a bow in hand. */
+  private lantern: THREE.Group | null = null;
+  private lanternGlow: THREE.Mesh | null = null;
+  setLantern(on: boolean): void {
+    if (on === !!this.lantern) return;
+    if (!on) { this.hips.remove(this.lantern!); this.lantern = null; this.lanternGlow = null; return; }
+    const g = new THREE.Group(), iron = new THREE.MeshLambertMaterial({ color: '#2a2a2e' });
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.13, 0.11), new THREE.MeshBasicMaterial({ color: '#ffd078' }));
+    g.add(glow);
+    for (const [x, y, z, w, h, d] of [[0, 0.09, 0, 0.15, 0.03, 0.15], [0, -0.08, 0, 0.15, 0.03, 0.15], [0.065, 0, 0.065, 0.02, 0.16, 0.02], [-0.065, 0, 0.065, 0.02, 0.16, 0.02], [0.065, 0, -0.065, 0.02, 0.16, 0.02], [-0.065, 0, -0.065, 0.02, 0.16, 0.02], [0, 0.14, 0, 0.02, 0.07, 0.02]] as const) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), iron); m.position.set(x, y, z); g.add(m);
+    }
+    g.traverse((o) => { o.userData.plain = true; });
+    g.position.set(0.31, -0.14, 0.06);
+    this.hips.add(g);
+    this.lantern = g; this.lanternGlow = glow;
+  }
+  lanternAt(out: THREE.Vector3): THREE.Vector3 | null { return this.lanternGlow ? this.lanternGlow.getWorldPosition(out) : null; }
+
   /** Something in the left hand by its item id (a shield, a lantern, a tome), or nothing. */
   setOffhand(id: string | null): void {
     if (id === this.offhandKind) return;
@@ -1385,6 +1455,7 @@ export class Humanoid {
 
   /** speed is horizontal speed in m/s; used to drive the stride. */
   update(dt: number, speed: number, airborne = false): void {
+    if (this.torchFlame) { const f = 0.85 + Math.sin(performance.now() * 0.023) * 0.08 + Math.sin(performance.now() * 0.051) * 0.07; this.torchFlame.scale.set(f, 0.8 + f * 0.4, f); }
     this.stateTime += dt;
     const t = this.stateTime;
     this.blink -= dt;
@@ -1473,6 +1544,8 @@ export class Humanoid {
         P.armL.rotation.x = -0.65; P.armR.rotation.x = -0.65;
         P.armL.rotation.z = 0.12; P.armR.rotation.z = -0.12;
         P.foreL.rotation.x = -0.55; P.foreR.rotation.x = -0.55;
+        // A torch held up and out to the side, clear of the horse's head
+        if (this.torch) { P.armL.rotation.set(-1.25, 0, 0.42); P.foreL.rotation.x = -0.35; }
         // (raised by what the figure's scale takes off the hips, so a rider sits on the saddle)
         P.body.position.y = Math.abs(Math.sin(s)) * 0.07 * gait + 0.86 * (1 - P.body.scale.y);
         P.torso.rotation.x = 0.08 + gait * 0.14;
@@ -1801,6 +1874,12 @@ export class Humanoid {
     if (airborne && this.state !== 'roll' && this.state !== 'attack' && this.state !== 'cleave') {
       P.legL.rotation.x = -0.5; P.shinL.rotation.x = 0.9; P.legR.rotation.x = 0.2; P.shinR.rotation.x = 0.4;
     }
+    // A torch on foot: held up and forward in the left hand, whatever the legs are doing
+    if (this.torch && this.state !== 'ride' && this.state !== 'roll' && this.state !== 'swim' && this.state !== 'tread' && this.state !== 'dead') {
+      P.armL.rotation.set(-0.95 + Math.sin(this.phase * 0.5) * 0.03, 0, 0.22); P.foreL.rotation.x = -0.55;
+    }
+    // A belt lantern swings a little as you go
+    if (this.lantern) this.lantern.rotation.x = Math.sin(performance.now() * 0.008 + this.phase) * Math.min(1, speed / 4) * 0.35;
     if (this.cape) {
       const target = 0.15 + Math.min(1, speed / 7) * 0.9 + (airborne ? 0.4 : 0);
       this.capeSwing += (target - this.capeSwing) * Math.min(1, dt * 5);

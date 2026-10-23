@@ -307,7 +307,7 @@ export const SALTPENNY_CONTENT: RegionContent = {
     } as ShopDef,
     gil_fenner: {
       id: 'gil_fenner', name: 'Low Tide', owner: 'gil_fenner',
-      stock: [{ item: 'lockpick', price: 6 }, { item: 'black_shard', price: 64 }, { item: 'callis_red', price: 38 }],
+      stock: [{ item: 'lockpick', price: 6 }, { item: 'black_shard', price: 64 }, { item: 'callis_red', price: 38 }, { item: 'pack_seabag', price: 6000 }],
       buyRate: () => 0.65,
       footer: () => 'Gil pays well over half, and asks nothing',
     } as ShopDef,

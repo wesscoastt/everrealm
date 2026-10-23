@@ -24,9 +24,9 @@ function chartOf(land: LandId, redraw: () => void): LandChart {
 /** How each land's chart is cut and placed: the share of its square kept (left to right), and where it goes in the world. */
 const CUT: Record<LandId, { u0: number; u1: number; at: number }> = {
   counties: { u0: 0, u1: 0.86, at: 0 },
-  morrow: { u0: 0.12, u1: 1, at: 0.86 },
+  morrow: { u0: 0.04, u1: 1, at: 0.86 },
 };
-const WIDTH = 0.86 + 0.88;
+const WIDTH = 0.86 + 0.96;
 
 /** The sea lanes, in each land's own coordinates. */
 const GULL: [number, number] = [1784, 600];

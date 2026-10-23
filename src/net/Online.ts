@@ -162,6 +162,8 @@ export interface OnlineHooks {
   /** Our own mount's saddle, for drawing whoever rides behind us. */
   /** The mount we're on (where it stands, its halter), or null. */
   mySeat?(): { x: number; y: number; z: number; yaw: number; mount: string } | null;
+  /** How dark it is (0 day, 1 night): riders carry torches after dark. */
+  night?(): number;
   /** The realm's answer to a named piece dropping: its number, or none left (gone) / asked too soon. */
   uGrant?(id: string, ok: boolean, n: number, cap: number, first: string, gone: boolean): void;
   /** Every named piece: how many the realm holds, and who has found the ones given out. */
@@ -409,6 +411,7 @@ export class Online {
       r.model.root.rotation.y += dy * Math.min(1, dt * 12);
       r.model.setState(r.anim);
       r.model.setHeld(r.held);
+      r.model.setTorch((!!r.horse || !!r.pillion) && (this.hooks.night?.() ?? 0) > 0.45);
       r.model.update(dt, r.t < 1 ? r.speed : 0, r.anim === 'jump');
     }
   }

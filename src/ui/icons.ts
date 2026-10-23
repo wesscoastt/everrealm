@@ -152,6 +152,20 @@ function paint(spec: IconSpec): string {
       px(14, 24, 4, 6, outline); px(15, 25, 2, 5, b ?? a);
       break;
     }
+    case 'torch': {
+      // A brand: the stave, the wrapped head, the flame
+      diag(9, 27, 12, 5, outline); diag(10, 26, 11, 3, b ?? '#5a3a22');
+      px(18, 9, 6, 6, outline); px(19, 10, 4, 4, '#2a2018');
+      px(18, 2, 6, 7, outline); px(19, 3, 4, 6, a); px(20, 4, 2, 4, '#fff0b0');
+      break;
+    }
+    case 'lantern': {
+      // A lantern on its hook
+      px(15, 3, 2, 4, outline); px(10, 7, 12, 3, outline); px(10, 24, 12, 3, outline);
+      px(10, 10, 12, 14, outline); px(12, 11, 8, 12, a); px(14, 13, 4, 8, '#fff6d0');
+      px(11, 8, 10, 1, b ?? '#2a2a2e'); px(11, 25, 10, 1, b ?? '#2a2a2e');
+      break;
+    }
     case 'wheel': {
       // A cartwheel: an iron tyre on a painted rim, spokes to the hub
       x.strokeStyle = outline; x.lineWidth = 6; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.stroke();

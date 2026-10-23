@@ -29,7 +29,7 @@ const pieces = [...new Set(DUNGEONS.flatMap((d) => d.bosses.flatMap((b) => b.dro
 for (const owner of ['ruth_penhale', 'xisca_mir']) {
   SHOPS[owner] = {
     id: owner, name: 'The Lamp Company', owner, currency: LAMP_KEY,
-    stock: pieces.map((id) => ({ item: id, price: ITEMS[id].weapon ? 5 : ITEMS[id].armor?.slot === 'chest' || ITEMS[id].armor?.slot === 'legs' ? 4 : 3 })),
+    stock: [{ item: 'pack_delver', price: 8 }, { item: 'pack_haversack', price: 30 }, ...pieces.map((id) => ({ item: id, price: ITEMS[id].weapon ? 5 : ITEMS[id].armor?.slot === 'chest' || ITEMS[id].armor?.slot === 'legs' ? 4 : 3 }))],
     buyRate: () => 0,
     footer: () => 'Priced in Lamp keys: the Company\'s pledges pay them, and so does the day\'s first random dungeon',
   };

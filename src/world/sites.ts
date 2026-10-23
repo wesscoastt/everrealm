@@ -30,6 +30,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
   | 'bars' | 'hatch'
+  /** The street kit (world/props.ts): a trade's hanging sign (color, tint = emblem), a striped awning (color, len), a planter of flowers, a washing line (len), a woodpile (len), a statue on its plinth. */
+  | 'shopSign' | 'awning' | 'planter' | 'washLine' | 'woodpile' | 'statue'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
@@ -1470,6 +1472,7 @@ export function plan(): Plan {
           if (lz < Z0 + 5 || lz > Z1 - 5 || inBuilding(x, lz)) continue;
           const h = hash2(x, lz, 23);
           O.set(x, base - 1, lz, h < 0.6 ? B.Path : h < 0.85 ? B.Gravel : B.Cobble);
+          claim(x, lz, x, lz);
         }
       }
     };
@@ -1503,6 +1506,15 @@ export function plan(): Plan {
     s.props.push({ t: 'desk', x: cx - 9.5, y: base, z: Z1 - 7.5 }); // the Toll Office table, inside the gate
     rect(s, cx - 10, Z1 + 3, cx - 7, Z1 + 6);
     rect(s, cx + 7, Z1 + 3, cx + 10, Z1 + 6);
+
+    // ---- Pavements from the street to the house fronts, and the backs dressed (dressBacks)
+    const flags = (ax: number, az: number, bx: number, bz: number) => { for (let z = az; z <= bz; z++) for (let x = ax; x <= bx; x++) if (!inBuilding(x, z)) O.set(x, base - 1, z, (x * 7 + z * 3) % 5 ? B.StoneBrick : B.Cobble); };
+    flags(X0 + 4, cz - 5, cx - 22, cz - 4); flags(X0 + 4, cz + 4, cx - 22, cz + 5);
+    flags(cx + 22, cz - 5, X1 - 4, cz - 4); flags(cx + 22, cz + 4, cx + 22 + (X1 - 4 - cx - 22), cz + 5);
+    flags(cx - 5, Z0 + 4, cx - 4, cz - 22); flags(cx + 4, Z0 + 4, cx + 5, cz - 22);
+    flags(cx - 5, cz + 56, cx - 4, Z1 - 14); flags(cx + 4, cz + 56, cx + 5, Z1 - 14);
+    claim(844, 356, 853, 365); // the lawn by the south gate where the waymark shrine stands (placeWaymarks)
+    dressBacks(() => s, taken, X0 + 5, Z0 + 5, X1 - 5, Z1 - 5, base);
 
     // ---- Lamps along the streets
     for (let i = 0; i < 10; i++) s.props.push({ t: 'lantern', x: cx + (i % 2 ? 4.6 : -4.4), y: base, z: Z0 + 16 + i * 14, ry: i % 2 ? Math.PI : 0 });
@@ -1681,7 +1693,7 @@ export function plan(): Plan {
       const open = front ? h < 0.35 : h < 0.2;
       const s = wardAt(x0 + w / 2, z0 + d / 2);
       house(s, x0, z0, w, d, h < 0.55 ? 2 : h < 0.62 ? 3 : 1, base, roofs[n % roofs.length], door, {
-        wall: walls[Math.floor(h * 113) % walls.length], closed: !open,
+        wall: walls[Math.floor(h * 113) % walls.length], closed: !open, signs: front && !open && hash2(x0, z0, 97) < 0.55 ? Math.floor(hash2(x0, z0, 99) * 6) : undefined,
         role: open ? (front ? (h < 0.06 ? 'inn' : h < 0.24 ? 'shop' : 'workshop') : h < 0.05 ? 'inn' : h < 0.1 ? 'shop' : h < 0.14 ? 'workshop' : 'home') : undefined,
       });
       n++;
@@ -1692,10 +1704,10 @@ export function plan(): Plan {
     const pavement = (x0: number, z0: number, x1: number, z1: number) => {
       for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (!(Math.abs(x - cx) <= 3 && Math.abs(z - cz) <= 3)) O.set(x, base - 1, z, (x + z) % 3 ? B.StoneBrick : B.Cobble);
     };
-    pavement(OX0 + 4, cz - 6, X0 - 16, cz - 4); pavement(OX0 + 4, cz + 4, X0 - 16, cz + 6);
-    pavement(X1 + 16, cz - 6, OX1 - 4, cz - 4); pavement(X1 + 16, cz + 4, OX1 - 4, cz + 6);
-    pavement(cx - 6, OZ0 + 4, cx - 4, Z0 - 16); pavement(cx + 4, OZ0 + 4, cx + 6, Z0 - 16);
-    pavement(cx - 6, Z1 + 16, cx - 4, OZ1 - 4); pavement(cx + 4, Z1 + 16, cx + 6, OZ1 - 4);
+    pavement(OX0 + 4, cz - 7, X0 - 16, cz - 4); pavement(OX0 + 4, cz + 4, X0 - 16, cz + 7);
+    pavement(X1 + 16, cz - 7, OX1 - 4, cz - 4); pavement(X1 + 16, cz + 4, OX1 - 4, cz + 7);
+    pavement(cx - 7, OZ0 + 4, cx - 4, Z0 - 16); pavement(cx + 4, OZ0 + 4, cx + 7, Z0 - 16);
+    pavement(cx - 7, Z1 + 16, cx - 4, OZ1 - 4); pavement(cx + 4, Z1 + 16, cx + 7, OZ1 - 4);
     const fw = (x: number, z: number) => 7 + Math.floor(hash2(x, z, 77) * 3);
     for (let x = OX0 + 8; x + 10 <= X0 - 18; x += 0) { const w = fw(x, cz); plot(x, cz - 14, w, 7, 's', true); plot(x, cz + 8, w, 7, 'n', true); x += w + 1; }
     for (let x = X1 + 19; x + 10 <= OX1 - 6; x += 0) { const w = fw(x, cz); plot(x, cz - 14, w, 7, 's', true); plot(x, cz + 8, w, 7, 'n', true); x += w + 1; }
@@ -1713,6 +1725,7 @@ export function plan(): Plan {
           if (!isFree(lx, lz, lx, lz)) continue;
           const hh = hash2(lx, lz, 61);
           O.set(lx, base - 1, lz, hh < 0.55 ? B.Path : hh < 0.85 ? B.Gravel : B.Cobble);
+          claim(lx, lz, lx, lz);
         }
         if (a && hash2(x, z, 67) < 0.25 && isFree(x + 4, z - 4, x + 4, z - 4)) ward0.props.push({ t: 'lantern', x: x + 4.5, y: base, z: z - 3.5, ry: 0 });
         // A kitchen garden or a tree in the gap behind the pair
@@ -1722,6 +1735,9 @@ export function plan(): Plan {
         } else if (a && b && hash2(x, z, 73) < 0.4 && isFree(x + 4, z + 18, x + 4, z + 18)) { plantTree(x + 4, z + 18, base, 0.45); claim(x + 1, z + 15, x + 7, z + 21); }
       }
     }
+
+    // ---- The backs: no bare lawn inside the walls (dressBacks)
+    dressBacks(wardAt, taken, OX0 + 8, OZ0 + 8, OX1 - 8, OZ1 - 8, base);
 
     // Seen from across the plains: the new wall, the minster tower, the clock tower
     north.impostor.push(
@@ -1733,6 +1749,95 @@ export function plan(): Plan {
       { x: 836, y: base + 38, z: 432, w: 8, h: 11, d: 8, color: '#4a5260', cone: true },
       { x: 798, y: base + 15, z: 142, w: 7, h: 30, d: 7, color: '#9a9ea6' },
     );
+  }
+
+  /**
+   * The backs of a town: whatever its streets, houses and squares leave over inside x0..x1, z0..z1
+   * becomes yards and gardens, six blocks at a time (dressPlot), then what's too narrow for that
+   * three at a time: a shrub in a bed of flowers, a planter, a bench, a woodpile, a stack of barrels.
+   */
+  function dressBacks(siteAt: (x: number, z: number) => Site, taken: [number, number, number, number][], x0: number, z0: number, x1: number, z1: number, base: number) {
+    // What's taken, as a grid over the area: a town keeps hundreds of claims, and this asks about every cell
+    const W = x1 - x0 + 1, H = z1 - z0 + 1, grid = new Uint8Array(W * H);
+    const mark = (a: number, b: number, c: number, d: number) => { for (let z = Math.max(b, z0); z <= Math.min(d, z1); z++) for (let x = Math.max(a, x0); x <= Math.min(c, x1); x++) grid[(z - z0) * W + (x - x0)] = 1; };
+    for (const r of taken) mark(r[0], r[1], r[2], r[3]);
+    const isFree = (a: number, b: number, c: number, d: number) => {
+      if (a < x0 || b < z0 || c > x1 || d > z1) return false;
+      for (let z = b; z <= d; z++) for (let x = a; x <= c; x++) if (grid[(z - z0) * W + (x - x0)]) return false;
+      return true;
+    };
+    const claim = (a: number, b: number, c: number, d: number) => { mark(a, b, c, d); taken.push([a, b, c, d]); };
+    for (let z = z0; z + 6 <= z1; z += 6) for (let x = x0; x + 6 <= x1; x += 6) {
+      if (!isFree(x, z, x + 5, z + 5)) continue;
+      claim(x, z, x + 5, z + 5);
+      dressPlot(siteAt(x + 3, z + 3), x, z, base, hash2(x, z, 131));
+    }
+    for (let z = z0; z + 3 <= z1; z += 3) for (let x = x0; x + 3 <= x1; x += 3) {
+      if (!isFree(x, z, x + 2, z + 2)) continue;
+      claim(x, z, x + 2, z + 2);
+      const h = hash2(x, z, 139), st = siteAt(x + 1, z + 1);
+      if (h < 0.3) {
+        // A shrub in a bed of turned earth with flowers round it
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) O.set(x + i, base - 1, z + j, B.Farmland);
+        O.set(x + 1, base, z + 1, B.OakLeaves);
+        st.props.push({ t: 'windowBox', x: x + 1.5, y: base - 0.1, z: z + 0.45, ry: Math.PI }, { t: 'windowBox', x: x + 1.5, y: base - 0.1, z: z + 2.55, ry: 0 });
+      } else if (h < 0.48) st.props.push({ t: 'planter', x: x + 1.5, y: base, z: z + 1.5, ry: h * 40 > 9 ? Math.PI / 2 : 0, tint: Math.floor(h * 100) % 2 });
+      else if (h < 0.6) { for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) O.set(x + i, base - 1, z + j, B.Gravel); st.props.push({ t: 'bench', x: x + 1.5, y: base, z: z + 1.5, ry: h * 77 > 40 ? Math.PI / 2 : 0 }); }
+      else if (h < 0.7) st.props.push({ t: 'woodpile', x: x + 1.5, y: base, z: z + 1.2, ry: h * 99 > 60 ? Math.PI : 0, len: 2 });
+      else if (h < 0.8) { for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) O.set(x + i, base - 1, z + j, B.Cobble); st.props.push({ t: 'barrel', x: x + 1, y: base, z: z + 1 }, { t: 'barrel', x: x + 1.9, y: base, z: z + 1.5 }, { t: 'crate', x: x + 1.3, y: base, z: z + 2.1, ry: h * 7 }); }
+      else if (h < 0.9) O.set(x + 1, base, z + 1, B.OakLeaves);
+    }
+    // Whatever is still bare ground is a town's ground: setts and cobbles, worn to gravel here and there
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      if (!isFree(x, z, x, z)) continue;
+      const h = hash2(x, z, 141);
+      O.set(x, base - 1, z, h < 0.5 ? B.Cobble : h < 0.8 ? B.StoneBrick : h < 0.93 ? B.Gravel : B.MossyCobble);
+    }
+  }
+
+  /**
+   * A six-block patch of a town's backs, with a walk round it: a hedged garden with flowers, a
+   * cobbled yard (woodpile, barrels, the washing), a little flagged square with a well or a statue
+   * and benches, an allotment in rows, or an old fruit tree on the grass. h picks which.
+   */
+  function dressPlot(s: Site, x: number, z: number, base: number, h: number) {
+    const walk = (cx: number, cz: number) => O.set(cx, base - 1, cz, hash2(cx, cz, 133) < 0.6 ? B.Gravel : B.Path);
+    for (let i = 0; i < 6; i++) { walk(x + i, z); walk(x + i, z + 5); walk(x, z + i); walk(x + 5, z + i); }
+    const X = x + 1, Z = z + 1; // the 4 x 4 inside
+    const ring = (f: (cx: number, cz: number) => void) => { for (let i = 0; i < 4; i++) { f(X + i, Z); f(X + i, Z + 3); } for (let i = 1; i < 3; i++) { f(X, Z + i); f(X + 3, Z + i); } };
+    if (h < 0.28) {
+      // A garden inside a clipped hedge, the gate in the middle of the south side
+      ring((cx, cz) => { if (cz === Z + 3 && (cx === X + 1 || cx === X + 2)) { O.set(cx, base - 1, cz, B.Path); return; } O.set(cx, base, cz, B.OakLeaves); });
+      s.props.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.6, ry: 0, tint: Math.floor(h * 30) % 2 });
+      if (h < 0.14) s.props.push({ t: 'bench', x: X + 2, y: base, z: Z + 2.5, ry: 0 });
+    } else if (h < 0.52) {
+      // A working yard: cobbles, a woodpile against the back, barrels, the washing out
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, hash2(X + i, Z + j, 137) < 0.65 ? B.Cobble : B.Gravel);
+      s.props.push({ t: 'woodpile', x: X + 2, y: base, z: Z + 0.2, ry: 0, len: 2.4 });
+      s.props.push({ t: 'barrel', x: X + 0.6, y: base, z: Z + 3.3 }, { t: 'crate', x: X + 3.3, y: base, z: Z + 3.2, ry: h * 9 });
+      if (h < 0.4) s.props.push({ t: 'washLine', x: X + 2, y: base, z: Z + 2, ry: 0, len: 3.6 });
+      else s.props.push({ t: 'cart', x: X + 2, y: base, z: Z + 2.2, ry: Math.PI / 2 + (h - 0.45) * 3 });
+    } else if (h < 0.7) {
+      // A little square: flagstones, a well or a statue in the middle, benches and flowers
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, (i + j) % 2 ? B.StoneBrick : B.Cobble);
+      if (h < 0.6) {
+        s.props.push({ t: 'well', x: X + 2, y: base, z: Z + 2 });
+        for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) O.set(bx, base, bz, B.Barrier);
+      } else {
+        s.props.push({ t: 'statue', x: X + 2, y: base, z: Z + 2, ry: Math.floor(h * 40) * (Math.PI / 2) });
+        for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) for (let y = base; y < base + 3; y++) O.set(bx, y, bz, B.Barrier);
+      }
+      s.props.push({ t: 'planter', x: X + 2, y: base, z: Z + 3.55, ry: 0, tint: 1 });
+      s.props.push({ t: 'bench', x: X + 0.3, y: base, z: Z + 2, ry: Math.PI / 2 });
+    } else if (h < 0.86) {
+      // An allotment: dug rows and a path between, a water butt at the end
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, i % 2 ? B.Path : B.Farmland);
+      s.props.push({ t: 'barrel', x: X + 3.4, y: base, z: Z + 0.5 });
+    } else {
+      // An old fruit tree on the grass, and a bench under it
+      plantTree(X + 2, Z + 2, base, 0.35);
+      s.props.push({ t: 'bench', x: X + 2, y: base, z: Z + 3.4, ry: 0 });
+    }
   }
 
   /** A stone hall with tall lancet windows, buttress lines and a broad doorway (no door leaf). */
@@ -6456,7 +6561,7 @@ export { CHUNK };
 export type FrontId = 'framed' | 'studded' | 'quoined' | 'boarded' | 'white';
 /** What dresses a front: a hood over the door, shutters, window boxes. */
 export type TrimId = 'hood' | 'shutters' | 'boxes';
-export interface HouseOpts { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean; front?: FrontId; trim?: TrimId[] }
+export interface HouseOpts { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean; front?: FrontId; trim?: TrimId[]; /** No trade sign or awning (false); or a trade's sign on a shut house front (its emblem, props.shopSign). */ signs?: boolean | number }
 /** Somewhere to write a house's blocks: the plan's overrides, or a live world (a player's own house). */
 export interface BlockWriter { set(x: number, y: number, z: number, id: number): void }
 export type HouseSink = Pick<Site, 'props' | 'rects' | 'impostor'>;
@@ -6483,7 +6588,7 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   const style: FrontId = opts.front ?? (opts.wall === B.StoneBrick ? (pick < 0.5 ? 'quoined' : 'framed') : opts.wall === B.Planks ? (pick < 0.6 ? 'boarded' : 'framed') : opts.wall === B.Cobble ? 'quoined' : pick < 0.4 ? 'studded' : 'framed');
   const wall = opts.wall ?? (style === 'boarded' ? B.Planks : style === 'quoined' ? B.StoneBrick : style === 'white' ? B.Whitestone : B.Plaster);
   const frame = opts.frame ?? B.Timber;
-  const trim = opts.trim ?? [...(hash2(x0, z0, 79) < 0.4 ? ['hood'] : []), ...(hash2(x0, z0, 81) < 0.32 && style !== 'boarded' ? ['shutters'] : []), ...(hash2(x0, z0, 83) < 0.28 ? ['boxes'] : [])] as TrimId[];
+  const trim = opts.trim ?? [...(hash2(x0, z0, 79) < 0.4 ? ['hood'] : []), ...(hash2(x0, z0, 81) < 0.32 && style !== 'boarded' ? ['shutters'] : []), ...(hash2(x0, z0, 83) < 0.45 ? ['boxes'] : [])] as TrimId[];
   const doorX = door === 'n' || door === 's' ? x0 + Math.floor(w / 2) : door === 'e' ? x0 + w - 1 : x0;
   const doorZ = door === 'e' || door === 'w' ? z0 + Math.floor(d / 2) : door === 's' ? z0 + d - 1 : z0;
   /** The front's windows, for the shutters and the window boxes: [x, z, storey]. */
@@ -6554,10 +6659,12 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   }
   // The porch lantern goes on whichever side of the door has bare wall, never over a window
   const glazed = new Set(fronts.filter(([, , f]) => f === 0).map(([x, z]) => x + ',' + z));
+  let lampK = 0;
   for (const k of [1, -1]) {
     const lx = doorX + (oz ? k : 0), lz = doorZ + (ox ? k : 0);
     // (nor where the next window's shutter folds back)
     if (glazed.has(lx + ',' + lz) || (trim.includes('shutters') && glazed.has((lx + (oz ? k : 0)) + ',' + (lz + (ox ? k : 0))))) continue;
+    lampK = k;
     s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 * k : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 * k : 0), ry });
     break;
   }
@@ -6589,6 +6696,21 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
       s.props.push({ t: 'shutter', x: cx + sx * k * 0.74, y: base + f * 4 + 1, z: cz + sz * k * 0.74, ry, color: shutterTone });
     }
     if (trim.includes('boxes') && f === 0) s.props.push({ t: 'windowBox', x: cx, y: base + 0.95, z: cz, ry });
+  }
+  // A trade hangs its sign out beside the door, on the side the lantern isn't, and a shop puts an
+  // awning over its front window
+  const trade = typeof opts.signs === 'number' ? opts.signs : opts.role === 'inn' ? 0 : opts.role === 'shop' ? 1 : opts.role === 'workshop' ? 2 : opts.role === 'office' ? 3 : -1;
+  if (trade >= 0 && opts.signs !== false) {
+    const sideK = lampK ? -lampK : 1;
+    const [hx, hz] = faceAt(doorX, doorZ);
+    const tx = out[1] !== 0 ? 1 : 0, tz = out[0] !== 0 ? 1 : 0;
+    const sx = hx + tx * sideK * 1.5, sz = hz + tz * sideK * 1.5;
+    const tone = ['#7a2a24', '#2f528f', '#3f6a3a', '#5a3a6a', '#2a2a30', '#8a5a1e'][Math.floor(hash2(x0, z0, 89) * 6)];
+    s.props.push({ t: 'shopSign', x: sx, y: base + 3.1, z: sz, ry, color: tone, tint: trade === 1 && hash2(x0, z0, 91) < 0.3 ? 5 : trade === 2 && hash2(x0, z0, 93) < 0.3 ? 4 : trade });
+    if (trade === 1 || (trade === 0 && hash2(x0, z0, 95) < 0.5)) {
+      const win = fronts.find(([fx, fz, f]) => f === 0 && Math.abs(fx - doorX) + Math.abs(fz - doorZ) >= 2);
+      if (win) { const [ax, az] = faceAt(win[0], win[1]); s.props.push({ t: 'awning', x: ax, y: base + 2.85, z: az, ry, color: tone, len: 2.2 }); }
+    }
   }
   const alongX = w >= d;
   const span = alongX ? d : w;

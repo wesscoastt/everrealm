@@ -200,6 +200,9 @@ export interface UiCtx {
   unequip(slot: keyof Equip): void;
   /** The armour worn: what it takes off a hit, the weights and what they do, the set in force. */
   armourSummary(): { defense: number; weights: string; set: string | null };
+  /** The backpack you wear (null: none yet), and hiding or showing it. */
+  packInfo(): { name: string; slots: number; hidden: boolean } | null;
+  togglePack(): void;
   dropSlot(i: number): void;
   craft(recipe: string, count: number): void;
   buy(item: string): void;
@@ -1398,7 +1401,10 @@ export class Hud {
     // Gear is horizontal: show the weapon's style, the armour's weights and the set in force, not a bigger number
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();
-    eq.append(el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b>`));
+    const pk = this.ctx.packInfo();
+    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}`);
+    stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
+    eq.append(stats);
     body.append(eq);
     body.append(this.armoury());
     const grid = el('div', 'inv-grid');

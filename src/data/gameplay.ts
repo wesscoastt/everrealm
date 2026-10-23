@@ -202,6 +202,11 @@ export const RECIPES: Recipe[] = [
   { id: 'cooked_huss', station: 'hearth', skill: 'cooking', level: 6, xp: 42, inputs: { raw_huss: 1 }, output: 'cooked_huss', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_pike', station: 'hearth', skill: 'cooking', level: 10, xp: 65, inputs: { raw_pike: 1 }, output: 'cooked_pike', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   // Joinery, at the bench by Wendside Cottage: furniture from the logs you cut
+  { id: 'pack_satchel', station: 'bench', skill: 'woodcutting', level: 2, xp: 14, inputs: { wolf_pelt: 2 }, output: 'pack_satchel', count: 1, time: 2 },
+  { id: 'pack_carrier', station: 'bench', skill: 'woodcutting', level: 8, xp: 30, inputs: { boar_hide: 3, wolf_pelt: 2 }, output: 'pack_carrier', count: 1, time: 2.6 },
+  { id: 'pack_drover', station: 'bench', skill: 'woodcutting', level: 15, xp: 55, inputs: { boar_hide: 5, iron_bar: 1, oak_logs: 2 }, output: 'pack_drover', count: 1, time: 3 },
+  { id: 'torch', station: 'bench', skill: 'woodcutting', level: 1, xp: 6, inputs: { oak_logs: 1 }, output: 'torch', count: 1, time: 1.2 },
+  { id: 'belt_lantern', station: 'anvil', skill: 'smithing', level: 6, xp: 40, inputs: { iron_bar: 1, bronze_bar: 1 }, output: 'belt_lantern', count: 1, time: 2.6 },
   { id: 'j_stool', station: 'bench', skill: 'woodcutting', level: 1, xp: 12, inputs: { oak_logs: 2 }, output: 'furn_stool', count: 1, time: 2 },
   { id: 'j_chair', station: 'bench', skill: 'woodcutting', level: 3, xp: 22, inputs: { oak_logs: 3 }, output: 'furn_chair', count: 1, time: 2.4 },
   { id: 'j_table', station: 'bench', skill: 'woodcutting', level: 4, xp: 30, inputs: { oak_logs: 4 }, output: 'furn_table', count: 1, time: 2.8 },
@@ -219,6 +224,11 @@ export const STATION_NAMES: Record<Station, string> = { furnace: 'Furnace', anvi
 
 export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'bread', price: 4 },
+  { item: 'torch', price: 3 },
+  { item: 'belt_lantern', price: 60 },
+  { item: 'pack_satchel', price: 40 },
+  { item: 'pack_carrier', price: 220 },
+  { item: 'pack_drover', price: 900 },
   { item: 'farm_hatchet', price: 10 },
   { item: 'bronze_hatchet', price: 45 },
   { item: 'worn_pickaxe', price: 12 },

@@ -265,10 +265,11 @@ async function api(req, res) {
       if (Number(body?.ver) !== (acc.vaultVer ?? 0)) return reply(res, 409, { vault: acc.vault ?? { items: {}, marks: 0 }, ver: acc.vaultVer ?? 0 });
       const items = {};
       const entries = v && typeof v.items === 'object' && v.items ? Object.entries(v.items) : [];
-      if (entries.length > 80) return reply(res, 400, { error: 'The vault holds 80 kinds of things.' });
+      const room = Number.isInteger(v?.room) && v.room >= 0 && v.room <= 120 ? v.room : (acc.vault?.room ?? 0);
+      if (entries.length > 80 + room) return reply(res, 400, { error: `The vault holds ${80 + room} kinds of things.` });
       for (const [k, n] of entries) if (/^[a-z0-9_]{1,40}$/.test(k) && Number.isInteger(n) && n > 0 && n <= 1e6) items[k] = n;
       const marks = Number.isInteger(v?.marks) && v.marks >= 0 && v.marks <= 1e9 ? v.marks : 0;
-      acc.vault = { items, marks };
+      acc.vault = { items, marks, room: Math.max(room, acc.vault?.room ?? 0) };
       acc.vaultVer = (acc.vaultVer ?? 0) + 1;
       storeAccount(acc);
       return reply(res, 200, { ok: true, ver: acc.vaultVer });

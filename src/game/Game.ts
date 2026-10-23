@@ -82,7 +82,7 @@ import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
 import type { ChunkResult } from '../world/chunkgen';
 import { chunkKey } from '../world/VoxelWorld';
-import { filterLanguage, fixSave, Inventory, newSave, SaveData, writeSave } from './state';
+import { filterLanguage, fixSave, Inventory, newSave, SaveData, writeSave, INV_SIZE } from './state';
 import { MAX_CHARACTERS, deleteCharacter, lastPlayed, listCharacters, newCharacterId, rememberCharacter, saveKeyFor, setLastPlayed } from './roster';
 import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
@@ -233,6 +233,10 @@ export class Game implements GameApi {
   private roadfolk!: Roadfolk;
   /** The law: prices on your head, the watch, the wagon and the cells (game/Justice.ts). */
   justice!: Justice;
+  /** The light of a torch carried on horseback at night (always in the scene, dark when unused, so nothing recompiles). */
+  private torchLight = new THREE.PointLight('#ffb060', 0, 16, 1.4);
+  private darkT = 0;
+  private underCover = false;
   /** The Constant under way with you aboard, between the lands (game/Voyage.ts). */
   voyage!: Voyage;
   /** A pose the law holds you in (on the wagon's bench, picking oakum, lying in a cell). */
@@ -551,6 +555,7 @@ export class Game implements GameApi {
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     this.roadfolk = new Roadfolk(this.scene, this.world.voxels, LAND === 'counties' ? crowdZones() : JURISDICTIONS.map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r })), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.scene.add(this.torchLight);
     this.voyage = new Voyage({
       scene: this.scene, props: this.world.props, player: this.player,
       sfx: (n, v) => this.sfx(n as Sfx, v), banner: (t, sub) => this.hud.banner(t, sub, true),
@@ -845,6 +850,7 @@ export class Game implements GameApi {
     });
     this.online = new Online({
       scene: this.scene,
+      night: () => this.world.sky.night,
       mySeat: () => {
         const id = this.flag('mount') as string;
         return this.horse && spareSeats(ITEMS[id]?.mount) > 0 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y, mount: id } : null;
@@ -1447,6 +1453,20 @@ export class Game implements GameApi {
     this.player.setAppearance(look, this.scene);
     this.online.setLook(look);
   }
+  /** The pack's room: the base slots and whatever the pack you've strapped on adds. */
+  private fitPack(): void {
+    const want = INV_SIZE + Number(this.flag('packSlots') ?? 0);
+    while (this.save.inv.length < want) this.save.inv.push(null);
+  }
+  /** The pack you wear, for the pack panel; and hiding it (it still holds what it holds). */
+  packInfo(): { name: string; slots: number; hidden: boolean } | null {
+    const look = Number(this.flag('packLook') ?? 0);
+    if (!look) return null;
+    const def = Object.values(ITEMS).find((d) => d.pack?.look === look);
+    return { name: def?.name ?? 'Pack', slots: Number(this.flag('packSlots') ?? 0), hidden: !!this.flag('hidePack') };
+  }
+  togglePack(): void { this.setFlag('hidePack', !this.flag('hidePack')); this.hud.refresh(); }
+
   /** The look the character shows: their own, with what they're wearing over it. */
   private wornLook(): Appearance {
     const e = this.save.equip;
@@ -1650,6 +1670,8 @@ export class Game implements GameApi {
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: keyof Equip) => g.unequip(slot),
       armourSummary: () => g.armourSummary(),
+      packInfo: () => g.packInfo(),
+      togglePack: () => g.togglePack(),
       dropSlot: (i: number) => g.dropSlot(i),
       craft: (r: string, n: number) => g.startCraft(r, n),
       buy: (item: string) => g.buy(item),
@@ -2006,6 +2028,9 @@ export class Game implements GameApi {
     this.startPending = null;
     this.mode = 'play';
     this.hud.hideTitle();
+    this.fitPack();
+    // A torch for everyone (it comes out after dark); given once to characters made before torches
+    if (!this.flag('gotTorch')) { if (this.inv.count('torch') > 0 || this.give('torch', 1)) this.setFlag('gotTorch', true); }
     // What the account owns from the store, to this character (once each; the server says what's owned)
     void storeOwned().then((owned) => {
       for (const id of owned ?? []) {
@@ -2114,6 +2139,17 @@ export class Game implements GameApi {
       const what = this.seasons.openBag(st.id);
       if (what) this.hud.system(what);
       this.sfx('pickup');
+    } else if (def.pack) {
+      // A bigger pack: strapped on for good, the old one left behind
+      const have = Number(this.flag('packSlots') ?? 0);
+      if (def.pack.slots <= have) { this.hud.system(`Your pack already holds more than the ${def.name.toLowerCase()} would.`); return; }
+      this.inv.removeAt(i, 1);
+      this.setFlag('packSlots', def.pack.slots);
+      this.setFlag('packLook', def.pack.look);
+      this.fitPack();
+      this.hud.banner(def.name, `${INV_SIZE + def.pack.slots} slots in your pack now`, true);
+      this.sfx('equip');
+      this.hud.refresh();
     } else if (def.capeDesign) {
       this.inv.removeAt(i, 1);
       this.unlockCape(def.capeDesign);
@@ -3978,6 +4014,12 @@ export class Game implements GameApi {
     }
     if (I.pressedOnce('Tab')) this.cycleTarget();
     if (I.pressedOnce('KeyG')) this.toggleMount();
+    if (I.pressedOnce('KeyL') && (this.inv.count('torch') > 0 || this.inv.count('belt_lantern') > 0)) {
+      const off = !this.flag('lightOff');
+      this.setFlag('lightOff', off);
+      this.hud.system(off ? 'You put your light out.' : 'You light your light again. It burns once it\'s dark.');
+      this.sfx(off ? 'snort' as Sfx : 'click');
+    }
 
     const ePressed = I.pressedOnce('KeyE');
     if (ePressed) {
@@ -4192,6 +4234,20 @@ export class Game implements GameApi {
     this.travelled += P.speed * dt;
     if (this.travelled >= 50) { this.dailies.bump('travel', Math.floor(this.travelled)); this.travelled %= 1; }
     document.body.classList.toggle('riding', !!this.horse);
+    // After dark or underground, the light you carry: a torch in your free hand (on foot or riding),
+    // or the lantern at your belt when a bow fills both hands; L puts it out
+    {
+      if ((this.darkT -= dt) <= 0) { this.darkT = 0.5; this.underCover = this.world.voxels.topSolid(P.position.x, P.position.z) > P.position.y + 3; }
+      const want = !this.flag('lightOff') && (this.world.sky.night > 0.45 || this.underCover) && !P.swimming && !this.dead && !this.justice.jailed;
+      const hand = want && this.inv.count('torch') > 0 && !this.bowInHand && !this.music.out;
+      const belt = want && !hand && this.inv.count('belt_lantern') > 0;
+      P.model.setTorch(hand);
+      P.model.setLantern(belt);
+      P.model.setPack(this.flag('hidePack') ? 0 : Number(this.flag('packLook') ?? 0));
+      const at = hand ? P.model.torchAt(tmpV2) : belt ? P.model.lanternAt(tmpV2) : null;
+      if (at) { this.torchLight.position.copy(at); this.torchLight.intensity = (hand ? 10 : 7) + Math.sin(performance.now() * 0.02) * 0.8 + Math.sin(performance.now() * 0.047) * 0.6; }
+      else this.torchLight.intensity = 0;
+    }
     if (this.horse) {
       if (P.swimming || !this.roomForHorse()) this.dismount();
       else {
