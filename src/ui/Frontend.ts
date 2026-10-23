@@ -27,6 +27,8 @@ export interface CharSummary {
   playTime: number;
   /** Festival dye colours this character has unlocked for the wardrobe. */
   dyes?: string[];
+  /** Festival hats this character has unlocked (data/seasons.ts). */
+  hats?: string[];
 }
 
 export interface FrontCtx {
@@ -109,6 +111,8 @@ const LEGS = ['Trousers', 'Breeches', 'Kilt', 'Wide trousers'];
 const SHOES = ['Boots', 'Tall boots', 'Shoes'];
 const AGES: [string, number][] = [['Young', 0.05], ['Grown', 0.35], ['Weathered', 0.62], ['Old', 0.9]];
 const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band']];
+/** Festival hats: in the list only for a character that has unlocked them. */
+const FEST_HATS: [string, Appearance['hat']][] = [["Fool's cap", 'fool'], ['Garland', 'garland'], ['Antlers', 'antlers'], ['Harvest crown', 'sheaf'], ['Turnip lantern', 'turnip'], ['Goose Fair hat', 'feathered'], ['Bobble hat', 'bobble']];
 const PADS: [string, string | null][] = [['None', null], ['Iron', '#8c939d'], ['Leather', '#6a4a2a']];
 const NAMES = ['Rowan', 'Merrin', 'Corwen', 'Ysolde', 'Hallam', 'Briony', 'Teague', 'Linden', 'Osgar', 'Wilmot', 'Sabeth', 'Edric', 'Nettle', 'Clement', 'Avice', 'Hesper', 'Tamar', 'Gethin', 'Orla', 'Piran'];
 
@@ -478,6 +482,7 @@ export class Frontend {
     // Festival dyes join every cloth swatch, for the character that owns them
     const dyed = (k: keyof typeof OPT) => (DYEABLE.has(k) && this.editing?.dyes?.length ? [...OPT[k], ...this.editing.dyes.filter((d) => !OPT[k].includes(d))] : OPT[k]);
     const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${dyed(k).map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
+    const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.editing?.hats?.includes(id as string))];
     const chips = (attr: string, items: [string, unknown][], cur: unknown) => `<div class="chips">${items.map(([t, v], i) => `<button class="chip ${cur === v ? 'sel' : ''}" data-${attr}="${i}">${t}</button>`).join('')}</div>`;
     const slider = (k: 'build' | 'height', label: string, min: number, max: number, lo: string, hi: string) => `<label>${label}</label><div class="slide"><small>${lo}</small><input type="range" min="${min}" max="${max}" step="0.01" value="${L[k] ?? 1}" data-s="${k}"><small>${hi}</small></div>`;
     if (this.tab === 'origin') {
@@ -507,7 +512,7 @@ export class Frontend {
         ${L.legs === 1 || L.legs === 2 ? `<label>HOSE</label>${sw('hose', L.hose ?? null)}` : ''}
         <label>FOOTWEAR</label>${chips('shoes', SHOES.map((t, i) => [t, i]), L.shoes ?? 0)}${sw('boots', L.boots)}
         <label>GLOVES</label>${sw('gloves', L.gloves)}<label>BELT</label>${sw('belt', L.belt ?? '#3b2618')}
-        <label>HEADWEAR</label>${chips('hat', HATS, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' ? sw('hatColor', L.hatColor) : ''}`;
+        <label>HEADWEAR</label>${chips('hat', hats, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' && L.hat !== 'turnip' ? sw('hatColor', L.hatColor) : ''}`;
     }
     const changed = () => { this.ctx.sfx('click'); this.ctx.preview(this.look); this.renderPane(); };
     pane.querySelectorAll<HTMLElement>('.sw').forEach((b) => b.addEventListener('click', () => {
@@ -526,7 +531,7 @@ export class Frontend {
     }));
     pickNum('facial', 'facial', FACIAL); pickNum('brows', 'brows', BROWS); pickNum('top', 'top', TOPS); pickNum('legs', 'legs', LEGS); pickNum('shoes', 'shoes', SHOES);
     pane.querySelectorAll<HTMLElement>('[data-frame]').forEach((b) => b.addEventListener('click', () => { this.look.frame = Number(b.dataset.frame) === 1 ? 'f' : 'm'; changed(); }));
-    pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = HATS[Number(b.dataset.hat)][1]; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = hats[Number(b.dataset.hat)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
     pane.querySelectorAll<HTMLInputElement>('[data-s]').forEach((s) => s.addEventListener('input', () => {

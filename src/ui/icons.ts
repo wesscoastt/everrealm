@@ -198,6 +198,15 @@ function paint(spec: IconSpec): string {
       x.fillStyle = a; x.beginPath(); x.moveTo(11, 6); x.quadraticCurveTo(23, 9, 19, 26); x.lineTo(16, 24.5); x.quadraticCurveTo(18, 12, 9, 7.5); x.fill();
       break;
     }
+    case 'bag': {
+      // A sack tied at the neck
+      x.fillStyle = outline; x.beginPath(); x.moveTo(9, 12); x.quadraticCurveTo(3, 28, 16, 28); x.quadraticCurveTo(29, 28, 23, 12); x.closePath(); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(10.5, 13); x.quadraticCurveTo(5, 26.5, 16, 26.5); x.quadraticCurveTo(27, 26.5, 21.5, 13); x.closePath(); x.fill();
+      px(11, 9, 10, 4, outline); px(12, 10, 8, 2, a);
+      px(11, 12, 10, 2, b); px(14, 4, 4, 6, outline); px(15, 5, 2, 4, a);
+      px(12, 16, 2, 6, shade(a, 1.25));
+      break;
+    }
     case 'letter': {
       // A folded letter, its flap's creases running down to a wax seal
       px(4, 8, 24, 17, outline);

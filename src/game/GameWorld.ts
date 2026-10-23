@@ -7,7 +7,7 @@ import { Grid, SX as GSX, SY as GSY, SZ as GSZ } from '../world/grid';
 import { bindWaterUniforms, createSharedUniforms, createVoxelMaterial, createWaterMaterial, SharedUniforms } from '../world/materials';
 import { realmNow } from '../world/clock';
 import { Ferry } from '../world/Ferry';
-import { createPropMaterials, PropMaterials } from '../world/props';
+import { createPropMaterials, FIRE_TIME, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
 import { BuiltSite, buildImpostor, buildSiteProps } from '../world/siteProps';
 import { plan, Site } from '../world/sites';
@@ -407,6 +407,7 @@ export class GameWorld {
 
   update(dt: number, center: THREE.Vector3, elapsed: number, timeScale: number): void {
     this.shared.uTime.value = elapsed;
+    FIRE_TIME.value = elapsed;
     this.sky.update(dt, center, timeScale);
     this.chunks.update(center.x, center.z);
     this.lodUniforms.uCenter.value.set(center.x, center.z);

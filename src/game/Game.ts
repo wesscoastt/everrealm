@@ -64,6 +64,7 @@ import { Interactable } from '../world/structures';
 import { DialogueTree, DNode, GameApi } from './api';
 import { GameWorld , ForageSpot } from './GameWorld';
 import { places } from '../data/places';
+import { fireMaterial, flameCard, furniture } from '../world/props';
 import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist, SEA } from '../world/terrain';
 import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
@@ -84,6 +85,7 @@ import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
 import { Mail } from './Mail';
+import { Seasons } from './Seasons';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
@@ -212,6 +214,8 @@ export class Game implements GameApi {
   });
   /** The festival that's on, its stalls and its writ. */
   festivals!: Festivals;
+  /** The festival's round, boss, bags and hats (data/seasons.ts). */
+  seasons!: Seasons;
   home!: Home;
   building!: Building;
   planner!: Planner;
@@ -514,6 +518,20 @@ export class Game implements GameApi {
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
       give: (it, n) => this.give(it, n), count: (it) => this.inv.count(it), addMarks: (n) => this.addMarks(n),
       banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), sound: (n) => this.sfx(n),
+    });
+    this.seasons = new Seasons({
+      scene: this.scene, voxels: this.world.voxels, particles: this.particles, fest: () => this.festivals.fest,
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+      give: (it, n) => this.give(it, n), count: (it) => this.inv.count(it), addMarks: (n) => this.addMarks(n),
+      banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), toast: (t) => this.hud.system(t), sound: (n) => this.sfx(n),
+      doorsNear: (x, z, r) => [...this.world.doors()].filter((d) => Math.hypot(d.hinge.x - x, d.hinge.z - z) < r).map((d) => {
+        // The way out of a door, from the angle it opens to (see world/Doors.ts)
+        const nx = Math.round(Math.sin(d.open)), nz = Math.round(Math.cos(d.open));
+        return { x: d.hinge.x + nz * 0.42, y: d.hinge.y, z: d.hinge.z - nx * 0.42, ry: Math.atan2(nx, nz) };
+      }),
+      addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
+      removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
+      hour: () => this.world.sky.hour,
     });
     this.home = new Home({
       scene: this.scene, flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1383,7 +1401,7 @@ export class Game implements GameApi {
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
       daily: () => g.dailies.view(),
-      festival: () => g.festivals.view(),
+      festival: () => ({ ...g.festivals.view(), extra: g.seasons.journal() }),
       trade: () => g.social.ui(),
       tradeAdd: (id: string) => g.social.add(id),
       tradeRemove: (i: number) => g.social.remove(i),
@@ -1518,7 +1536,8 @@ export class Game implements GameApi {
       const level = levelForXp(s.xp.melee ?? 0);
       const calling = callingById(s.flags?.class)?.name ?? 'Warden';
       const dyes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('dye:')).map((k) => k.slice(4));
-      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes };
+      const hats = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('hat:')).map((k) => k.slice(4));
+      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats };
     };
     return {
       characters: () => listCharacters().map((c) => summary(c.id, c.save)),
@@ -1892,6 +1911,19 @@ export class Game implements GameApi {
       this.setFlag('dye:' + def.dye.color, def.dye.name);
       this.hud.banner(def.dye.name, 'Added to your wardrobe', true);
       this.hud.system(`${def.dye.name} is in your wardrobe now: pick it from any cloth swatch with Change look, on the character screen.`);
+      this.sfx('discover');
+    } else if (def.bag) {
+      // A festival bag: opened from the pack (game/Seasons.ts)
+      this.inv.removeAt(i, 1);
+      const what = this.seasons.openBag(st.id);
+      if (what) this.hud.system(what);
+      this.sfx('pickup');
+    } else if (def.hat) {
+      // A festival hat joins the wardrobe for good
+      this.inv.removeAt(i, 1);
+      this.setFlag('hat:' + def.hat, 1);
+      this.hud.banner(def.name, 'Added to your wardrobe', true);
+      this.hud.system(`${def.name} is in your wardrobe now: pick it under Headwear with Change look, on the character screen.`);
       this.sfx('discover');
     } else if (st.id === 'wren_whistle') {
       this.sfx('whistle');
@@ -2330,6 +2362,8 @@ export class Game implements GameApi {
     }
     const stall = this.festivals.stallNear(p);
     if (stall && this.festivals.fest) consider({ kind: 'act', label: `Browse the ${this.festivals.fest.name} stall`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
+    // The festival's round: a spot near you (game/Seasons.ts)
+    for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     // A pedlar on the road: they stop for you, and open their pack
     for (const pd of this.roadfolk.pedlarsNear(p, 3.4)) consider({ kind: 'act', label: `Trade with ${pd.name}`, sub: pd.title, pos: new THREE.Vector3(pd.pos.x, pd.pos.y + 1, pd.pos.z), act: () => this.openPedlar(pd.id) }, Math.hypot(pd.pos.x - p.x, pd.pos.z - p.z));
     const bed = !this.home.active && this.home.bed();
@@ -3447,6 +3481,7 @@ export class Game implements GameApi {
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
+    this.seasons.update(dt, P);
     this.home.update();
     // A let room's furniture goes when the rent runs out, and comes back when it's paid
     const paid = !!readTenancy(this.flag('flat')) && (readTenancy(this.flag('flat'))!.until > Date.now());
@@ -3961,11 +3996,10 @@ export class Game implements GameApi {
       let f = this.reekFlames.get(r.id);
       if (on && !f) {
         f = new THREE.Group();
-        const flame = new THREE.MeshBasicMaterial({ color: '#ffb24a', transparent: true, opacity: 0.92, depthWrite: false });
-        const core = new THREE.MeshBasicMaterial({ color: '#fff0b0', transparent: true, opacity: 0.95, depthWrite: false });
+        const flame = fireMaterial(), core = flame;
         for (let i = 0; i < 4; i++) {
-          const c = new THREE.Mesh(new THREE.ConeGeometry(0.34 - i * 0.05, 1.1 + (i % 2) * 0.4, 6), i === 3 ? core : flame);
-          c.position.set(Math.cos(i * 2.1) * 0.18, 0.95, Math.sin(i * 2.1) * 0.18);
+          const c = new THREE.Mesh(flameCard(0.8 - i * 0.1, 1.5 + (i % 2) * 0.4, 0, 0, i * 0.7), i === 3 ? core : flame);
+          c.position.set(Math.cos(i * 2.1) * 0.18, 0.4, Math.sin(i * 2.1) * 0.18);
           f.add(c);
         }
         if (!this.reekGlow) {
@@ -4099,7 +4133,7 @@ export class Game implements GameApi {
     if (!full) for (const e of this.enemies) if (e.alive && e.pos.distanceTo(this.player.position) < 55) out.push({ x: e.pos.x, z: e.pos.z, kind: e.def.elite ? 'elite' : 'enemy' });
     for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: this.social.isAlly(r.id) ? 'ally' : 'other', label: full || this.social.isAlly(r.id) ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
-    out.push(...this.activities.markers());
+    out.push(...this.activities.markers(), ...this.seasons.markers());
     out.push(...this.waymarkStones.markers());
     out.push(...this.festivals.markers());
     if (full) out.push({ x: this.player.position.x, z: this.player.position.z, kind: 'player', yaw: this.player.yaw });
@@ -4502,6 +4536,7 @@ export class Game implements GameApi {
       hour: (h: number) => { this.world.sky.hour = h; },
       creature: (kind: CreatureKind, pal = {}) => new CreatureModel(kind, pal),
       figure: (look: Appearance) => new Humanoid(look),
+      prop: (item: string) => furniture(this.world.props, item, 0),
       state: () => ({
         mode: this.mode, hp: this.hp, pos: this.player?.position.toArray().map((v) => +v.toFixed(2)), quests: { ...this.save.quests }, flags: { ...this.save.flags },
         marks: this.save.marks, inv: this.save.inv.filter(Boolean), levels: Object.fromEntries(SKILLS.map((s) => [s.id, this.level(s.id)])),

@@ -1510,6 +1510,7 @@ export class Hud {
           <div class="feat${on.writ.done ? ' done' : ''}"><div class="ft"><b>Festival writ: ${esc(on.writ.name)}</b><span>${on.writ.done ? 'Done' : `${on.writ.have.toLocaleString()} / ${on.writ.need.toLocaleString()}`}</span></div><div class="fd">${esc(on.writ.desc)}</div>${on.writ.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (on.writ.have / on.writ.need) * 100)}%"></i></div>`}<div class="fr"><img class="ric" src="${itemIcon(on.token)}" alt="">8 ${esc(on.tokenName)} and <img class="ric" src="${COIN_ICON()}" alt="">20 marks · a new one every day</div></div>
           <div class="feat"><div class="ft"><b><img class="tok" src="${itemIcon(on.token)}" alt=""> ${on.have} ${esc(on.tokenName)}</b></div><div class="fd">Creatures drop them while the festival's on (big ones always do). Spend them at the festival stall beside any Charter Post: the pennant on your map.</div></div>`
         : `<h4>Festivals</h4><div class="feat-sum">No festival is on just now. They come round every year on the same days, for everyone.</div>`;
+      for (const x of fv.extra ?? []) page.append(el('div', 'feat', `<div class="ft"><b>${esc(x.title)}</b></div><div class="fd">${esc(x.text)}</div>`));
       page.append(el('h5', 'feat-group', 'The festival year'));
       for (const y of fv.year) page.append(el('div', 'feat' + (y.on ? ' done' : ''), `<div class="ft"><b>${esc(y.name)}</b><span>${y.on ? 'On now' : esc(y.when)}</span></div>`));
     } else if (this.selQuest === 'calling') {

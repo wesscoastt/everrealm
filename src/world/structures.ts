@@ -148,6 +148,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     for (const [bx, by, bz, kind] of fit.blocks) world.put(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
     for (const f of fit.furn) { const g = P.furniture(M, f.item, f.tint ?? shape.tint); if (g) place(g, f.x, f.y, f.z, f.ry); }
     for (const [lx, ly, lz] of fit.lights) lights.push(new THREE.Vector3(lx, ly, lz));
+    // A fire in the hearth lights the room
+    for (const f of fit.furn) if (f.item === 'hearth') lights.push(new THREE.Vector3(f.x, f.y + 0.6, f.z));
     // Open door and porch lantern
     const doorRot = o.door === 'n' ? Math.PI : o.door === 's' ? 0 : o.door === 'e' ? Math.PI / 2 : -Math.PI / 2;
     const dOff = 0.52;
@@ -386,11 +388,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   place(P.firepit(M), 181.5, BASE, 193.5);
   for (const [x, z] of [[181, 193], [182, 193], [181, 194], [182, 194]]) barrier(x, BASE, z);
   const flame = new THREE.Group();
-  for (let i = 0; i < 3; i++) {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(0.22 - i * 0.05, 0.6 - i * 0.12, 6), M.fire);
-    f.position.set((i - 1) * 0.12, 0.35 + i * 0.05, (i % 2) * 0.1 - 0.05);
-    flame.add(f);
-  }
+  flame.add(new THREE.Mesh(P.campFlame(), M.fire));
   flame.position.set(181.5, BASE, 193.5);
   group.add(flame);
   fires.push(flame);

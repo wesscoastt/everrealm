@@ -34,6 +34,8 @@ export interface FestivalHost {
 export interface FestivalView {
   on: { name: string; blurb: string; closes: string; token: string; tokenName: string; have: number; writ: { name: string; desc: string; have: number; need: number; done: boolean } } | null;
   year: { name: string; when: string; on: boolean }[];
+  /** The festival's round and boss (game/Seasons.ts), for the journal. */
+  extra?: { title: string; text: string }[];
 }
 
 interface Stall { post: string; x: number; y: number; z: number; ry: number; group: THREE.Group }

@@ -9,7 +9,7 @@ export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'ques
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
 
 export interface IconSpec {
-  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter';
+  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag';
   a: string;
   b?: string;
 }
@@ -38,6 +38,10 @@ export interface ItemDef {
   mount?: { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed; seats?: number };
   /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
   dye?: { color: string; name: string };
+  /** A festival bag (data/seasons.ts): using it opens it. */
+  bag?: import('./festivals').FestivalId;
+  /** A festival hat (data/seasons.ts): using it adds the style to the wardrobe for good. */
+  hat?: import('./seasons').HatStyle;
   /**
    * Carried or worn besides weapon and armour (data/offhand.ts): a shield, lantern, tome, horn or focus in
    * the left hand, an amulet, a ring. Its traits spend a small budget of their own (GEAR_BUDGET), on the
@@ -277,3 +281,5 @@ for (const d of [...TROPHIES, ...MAP_ITEMS]) ITEMS[d.id] = d;
 // Festival tokens, fare, dyes and horses (src/data/festivals.ts).
 import { FESTIVAL_ITEMS } from './festivals';
 for (const d of FESTIVAL_ITEMS) ITEMS[d.id] = d;
+import { SEASON_ITEMS } from './seasons';
+for (const d of SEASON_ITEMS) ITEMS[d.id] = d;

@@ -22,7 +22,9 @@ export interface Appearance {
   cape?: string | null;
   beard?: boolean;
   apron?: boolean;
-  hat?: 'none' | 'hood' | 'cap' | 'kerchief' | 'wide' | 'straw' | 'beret' | 'circlet' | 'coif' | 'band';
+  hat?: 'none' | 'hood' | 'cap' | 'kerchief' | 'wide' | 'straw' | 'beret' | 'circlet' | 'coif' | 'band'
+    /** Festival hats (data/seasons.ts), unlocked into the wardrobe. */
+    | 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble';
   hatColor?: string;
   /** Body shape: the broader-shouldered frame, or the narrower one with a fuller chest and hips. */
   frame?: 'm' | 'f';
@@ -1090,7 +1092,7 @@ export class Humanoid {
     }
   }
 
-  private buildHair(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
+  private buildHair(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh): void {
     if (this.look.helm) return; // the helm covers it
     const h = this.look.hair;
     const hat = this.look.hat ?? 'none';
@@ -1106,6 +1108,17 @@ export class Humanoid {
       for (const s of [1, -1]) part(this.head, rbox(0.06, 0.52, 0.42, 0.03), mail, s * 0.25, 0.26, 0);
       return;
     }
+    if (hat === 'turnip') {
+      // A carved turnip over the whole head: cream flesh, a purple crown, leaves, and the candle showing through
+      const glow = new THREE.MeshLambertMaterial({ color: '#ffc060', emissive: new THREE.Color('#ff8a20'), emissiveIntensity: 1.3 });
+      part(this.head, rbox(0.66, 0.5, 0.64, 0.16), '#e8dcc0', 0, 0.27, 0.01);
+      part(this.head, rbox(0.6, 0.16, 0.58, 0.12), '#7a3a6a', 0, 0.56, 0.01);
+      for (const [x, rz] of [[-0.06, 0.3], [0.04, -0.2], [0.1, -0.5]] as const) { const l = part(this.head, rbox(0.06, 0.26, 0.04, 0.02), '#5a8a3a', x, 0.76, 0); l.rotation.z = rz; }
+      for (const sx of [-0.13, 0.13]) part(this.head, rbox(0.11, 0.09, 0.03, 0.01), glow, sx, 0.35, 0.335);
+      part(this.head, rbox(0.3, 0.06, 0.03, 0.01), glow, 0, 0.16, 0.335);
+      for (const sx of [-0.1, 0, 0.1]) part(this.head, rbox(0.05, 0.04, 0.03, 0.01), glow, sx, 0.2, 0.335);
+      return;
+    }
     if (hat === 'hood') {
       const c = this.look.hatColor ?? '#4a5a3a';
       part(this.head, rbox(0.52, 0.32, 0.5, 0.1), c, 0, 0.48, -0.02);
@@ -1115,7 +1128,7 @@ export class Humanoid {
       if (style !== 3 && style !== 9) p(0.3, 0.05, 0.03, -0.03, 0.47, 0.222, 1.0, 0.012);
       return;
     }
-    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief';
+    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble';
     const shaved = style === 3 || style === 9;
     if (shaved) {
       p(0.45, 0.035, 0.43, 0, 0.515, 0, 0.78, 0.015);
@@ -1218,6 +1231,56 @@ export class Humanoid {
     }
     if (hat === 'band') part(this.head, rbox(0.5, 0.06, 0.48, 0.02), this.look.hatColor ?? '#a8382c', 0, 0.49, 0);
     if (hat === 'kerchief') { part(this.head, rbox(0.52, 0.14, 0.5, 0.06), this.look.hatColor ?? '#a8382c', 0, 0.57, -0.02); part(this.head, rbox(0.14, 0.14, 0.08, 0.03), this.look.hatColor ?? '#a8382c', 0, 0.44, -0.27); }
+    // Festival hats (data/seasons.ts)
+    if (hat === 'fool') {
+      part(this.head, rbox(0.52, 0.14, 0.5, 0.06), '#c8401e', 0, 0.58, 0);
+      for (const [sx, c] of [[1, '#c8401e'], [-1, '#f2d75a']] as const) {
+        const horn = part(this.head, rbox(0.12, 0.42, 0.12, 0.05), c, sx * 0.17, 0.78, 0);
+        horn.rotation.z = -sx * 0.7;
+        part(this.head, rbox(0.09, 0.09, 0.09, 0.04), '#e8c040', sx * 0.33, 0.92, 0);
+      }
+    }
+    if (hat === 'garland') {
+      const cols = ['#f0a0b8', '#f2d75a', '#f4f0e4', '#f2d75a'];
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        part(this.head, rbox(0.1, 0.07, 0.1, 0.03), i % 2 ? cols[(i >> 1) % cols.length] : '#5a8a3a', Math.cos(a) * 0.26, 0.55, Math.sin(a) * 0.25);
+      }
+    }
+    if (hat === 'antlers') {
+      part(this.head, rbox(0.5, 0.06, 0.48, 0.02), '#5a3a22', 0, 0.52, 0);
+      for (const sx of [1, -1]) {
+        const beam = part(this.head, rbox(0.06, 0.42, 0.06, 0.02), '#8a6a4a', sx * 0.22, 0.74, -0.02);
+        beam.rotation.z = -sx * 0.35;
+        const t1 = part(this.head, rbox(0.05, 0.2, 0.05, 0.02), '#8a6a4a', sx * 0.36, 0.86, 0.05);
+        t1.rotation.z = -sx * 0.9;
+        const t2 = part(this.head, rbox(0.05, 0.16, 0.05, 0.02), '#8a6a4a', sx * 0.3, 0.98, -0.06);
+        t2.rotation.x = -0.6;
+      }
+    }
+    if (hat === 'sheaf') {
+      part(this.head, rbox(0.52, 0.06, 0.5, 0.02), '#c89838', 0, 0.53, 0);
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const ear = part(this.head, rbox(0.045, 0.2, 0.045, 0.02), '#e0c060', Math.cos(a) * 0.26, 0.64, Math.sin(a) * 0.25);
+        ear.rotation.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3);
+      }
+    }
+    if (hat === 'feathered') {
+      const c = this.look.hatColor ?? '#2a2420';
+      part(this.head, rbox(0.66, 0.04, 0.66, 0.02), c, 0, 0.58, 0);
+      part(this.head, rbox(0.44, 0.38, 0.44, 0.04), c, 0, 0.79, 0);
+      part(this.head, rbox(0.45, 0.07, 0.45, 0.02), '#4a3a2a', 0, 0.64, 0);
+      part(this.head, rbox(0.1, 0.07, 0.03, 0.01), '#d8b04a', 0, 0.64, 0.228);
+      const quill = part(this.head, rbox(0.035, 0.42, 0.08, 0.02), '#f4f0e4', 0.23, 0.86, -0.06);
+      quill.rotation.z = -0.35;
+    }
+    if (hat === 'bobble') {
+      const c = this.look.hatColor ?? '#b0202a';
+      part(this.head, rbox(0.52, 0.22, 0.5, 0.1), c, 0, 0.6, -0.01);
+      part(this.head, rbox(0.54, 0.09, 0.52, 0.04), '#f4f8fc', 0, 0.5, -0.01);
+      part(this.head, rbox(0.17, 0.17, 0.17, 0.08), '#f4f8fc', 0, 0.78, -0.02);
+    }
   }
 
   setHeld(kind: HeldItem | string): void {

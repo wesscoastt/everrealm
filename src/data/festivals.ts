@@ -1,14 +1,14 @@
 import type { ItemDef } from './items';
 import type { WritKind } from './calendar';
 
-// The festival year: five fairs on the real calendar, the same days for everyone (as in ESO's and
+// The festival year: seven fairs on the real calendar, the same days for everyone (as in ESO's and
 // GW2's annual events). While one is on, every town with a Charter Post sets up a festival stall
 // with bunting and its own centrepiece; creatures drop the festival's token; there's a festival
 // writ each day; and the stall trades tokens for things you can't get any other way: a horse, two
 // dyes for the wardrobe, and a festival dish. Everything is cosmetic or for comfort, never power,
 // and each festival comes back every year with the same goods.
 
-export type FestivalId = 'lambing' | 'midsummer' | 'harvest' | 'lantern' | 'frostfair';
+export type FestivalId = 'shrove' | 'lambing' | 'midsummer' | 'harvest' | 'lantern' | 'goose' | 'frostfair';
 
 export interface FestivalDef {
   id: FestivalId;
@@ -30,6 +30,16 @@ export interface FestivalDef {
 }
 
 export const FESTIVALS: FestivalDef[] = [
+  {
+    id: 'shrove', name: 'Shrovetide', from: [2, 2], to: [2, 24],
+    blurb: 'Pancakes before the lean weeks, a race when the pancake bell rings at eleven, and a straw man on a pole that everyone throws things at. The stalls take pancake tokens, stamped tin from the race.',
+    token: 'pancake_token', tokenPlural: 'pancake tokens',
+    colors: ['#f2d75a', '#c8401e', '#2a4a8a', '#f4f0e4'], centre: 'bonfire',
+    writ: { name: 'Run for the Bell', desc: 'Get about the counties: travel 1,000 blocks.', kind: 'travel', need: 1000 },
+    stall: [
+      { item: 'pancake', price: 3 }, { item: 'dye_shrove', price: 15 }, { item: 'dye_motley', price: 15 }, { item: 'halter_shrove', price: 40 },
+    ],
+  },
   {
     id: 'lambing', name: 'The Lambing Fair', from: [3, 20], to: [4, 20],
     blurb: 'Spring in the Charter Counties: the first lambs, ribbons on the gateposts and a maypole on every green. The shepherds pay their help in fair ribbons, and the stalls take nothing else.',
@@ -68,6 +78,16 @@ export const FESTIVALS: FestivalDef[] = [
     writ: { name: 'Sit Up With the Dead', desc: 'Answer the bell: see a world event through.', kind: 'event', need: 1 },
     stall: [
       { item: 'soul_cake', price: 3 }, { item: 'dye_wakeviolet', price: 15 }, { item: 'dye_lanternorange', price: 15 }, { item: 'halter_lantern', price: 40 },
+    ],
+  },
+  {
+    id: 'goose', name: 'Goose Fair', from: [11, 14], to: [12, 3],
+    blurb: 'Geese walk in from every farm in the counties to be sold, and half of them get loose. A feast for the end of the year\'s work, and a goose quill for anyone who catches one.',
+    token: 'goose_quill', tokenPlural: 'goose quills',
+    colors: ['#f4f0e4', '#a0522d', '#e8a020', '#5a6a3a'], centre: 'harvest',
+    writ: { name: 'Mind the Geese', desc: 'Help out across the counties: do four chores for parish tasks.', kind: 'chore', need: 4 },
+    stall: [
+      { item: 'roast_goose', price: 3 }, { item: 'dye_goosegrey', price: 15 }, { item: 'dye_cranberry', price: 15 }, { item: 'halter_goose', price: 40 },
     ],
   },
   {
@@ -126,12 +146,20 @@ export const FESTIVAL_ITEMS: ItemDef[] = [
   token('watch_ember', 'Watch-fire ember', '#e8a020', '#c8401e', 'Still warm in a pinch of clay. Carried home from the Midsummer fires for luck.'),
   token('corn_dolly', 'Corn dolly', '#d8b050', '#a0522d', 'Plaited from the last sheaf of the harvest. Every town plaits its own shape.'),
   token('wake_candle', 'Wake candle', '#e8e0c8', '#e8701a', 'A stub of tallow candle, lit once for someone and kept.'),
+  token('pancake_token', 'Pancake token', '#d8d0c0', '#c8401e', 'Stamped tin with a frying pan on one side and a bell on the other. Given out at the end of the pancake race.'),
+  token('goose_quill', 'Goose quill', '#f4f0e4', '#a0522d', 'A long white flight feather, trimmed for writing. The Goose Fair pays in them.'),
   token('frost_penny', 'Frost penny', '#cfe8f4', '#9ab0c8', 'Struck on the ice at the Frostfair and good there and nowhere else.'),
   food('simnel_cake', 'Simnel cake', '#e8c070', 'Fruit cake with eleven marzipan balls on top, one for each honest apostle.'),
   food('strawberry_tart', 'Strawberry tart', '#d84050', 'The first strawberries, in pastry that crumbles if you look at it.'),
   food('harvest_loaf', 'Harvest loaf', '#c8903a', 'Baked in the shape of a wheatsheaf, with a mouse hidden somewhere in the plait.'),
   food('soul_cake', 'Soul cake', '#d8b070', 'Spiced and marked with a cross. You\'re supposed to say a name when you eat one.'),
+  food('pancake', 'Pancake', '#e8c070', 'Thin, lemon and sugar, rolled. Eaten standing up, which is the point.'),
+  food('roast_goose', 'Roast goose', '#c8803a', 'A leg of goose off the fair\'s spit, with a slice of apple stuck to it.'),
   food('roast_chestnuts', 'Roast chestnuts', '#7a4a2a', 'Hot from the brazier on the ice, in a twist of paper.'),
+  dye('dye_shrove', 'Pancake-lemon dye', '#f2e06a', 'The pale yellow of a lemon squeezed over a pancake.'),
+  dye('dye_motley', 'Motley red dye', '#c8401e', 'The red of a fool\'s cap, worn one day a year.'),
+  dye('dye_goosegrey', 'Goose-grey dye', '#9a9a90', 'The soft grey of a greylag\'s back.'),
+  dye('dye_cranberry', 'Cranberry dye', '#8a1e2a', 'Deep red, from the bog berries the fen people bring to the Goose Fair.'),
   dye('dye_primrose', 'Primrose dye', '#f2d75a', 'A soft spring yellow, from the hedgebanks in April.'),
   dye('dye_lambswool', 'Lamb\'s-wool dye', '#f4efe2', 'Not quite white: the colour of new fleece.'),
   dye('dye_solstice', 'Solstice gold dye', '#e8a020', 'Gold as the fires at two in the morning.'),
@@ -142,6 +170,8 @@ export const FESTIVAL_ITEMS: ItemDef[] = [
   dye('dye_lanternorange', 'Turnip-lantern dye', '#e8701a', 'Orange as a candle seen through a carved turnip.'),
   dye('dye_hollyred', 'Holly red dye', '#b0202a', 'Berry red, bright against snow.'),
   dye('dye_rime', 'Rime dye', '#cfe8f4', 'The pale blue of frost on a gate in the morning.'),
+  horse('halter_shrove', 'Pancake piebald', '#f0e8d8', '#3a2a1e', '#f2d75a', 'Black and white in patches, like a pancake the first time you toss it. Ran the race once and won.'),
+  horse('halter_goose', 'Goose-down cream', '#ece4d4', '#c8bca8', '#a0522d', 'Cream as a goose\'s breast, and every bit as sure it\'s in charge.'),
   horse('halter_lambing', 'Maypole grey', '#e8e4dc', '#f4f0e4', '#9ad06a', 'A dapple grey with spring ribbons plaited into her mane, who expects to be admired.'),
   horse('halter_midsummer', 'Watch-fire bay', '#8a4a1e', '#2a1408', '#e8a020', 'A bay who stayed up all night at the fires and has been bright-eyed ever since.', true),
   horse('halter_harvest', 'Last-sheaf chestnut', '#a0522d', '#e8d8a0', '#d8a040', 'Pulled the last cart of the harvest home and was garlanded for it. Still wears the garland.'),

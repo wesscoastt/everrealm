@@ -18,7 +18,9 @@ export interface PropMaterials {
   roofSlate: THREE.MeshLambertMaterial;
   thatch: THREE.MeshLambertMaterial;
   glow: THREE.MeshLambertMaterial;
-  fire: THREE.MeshBasicMaterial;
+  fire: THREE.ShaderMaterial;
+  /** A bed of glowing coals under a fire. */
+  embers: THREE.MeshBasicMaterial;
   bronze: THREE.MeshStandardMaterial;
   rope: THREE.MeshLambertMaterial;
   clothGreen: THREE.MeshLambertMaterial;
@@ -45,7 +47,8 @@ export function createPropMaterials(): PropMaterials {
     roofSlate: lam({ map: tex('roofSlate') }),
     thatch: lam({ map: tex('thatch') }),
     glow: lam({ color: '#3a2a10', emissive: new THREE.Color('#ffb24a'), emissiveIntensity: 0.4 }),
-    fire: new THREE.MeshBasicMaterial({ color: '#ff8a2a' }),
+    fire: fireMaterial(),
+    embers: emberMaterial(),
     bronze: new THREE.MeshStandardMaterial({ color: '#b8873a', metalness: 0.75, roughness: 0.38 }),
     rope: lam({ color: '#a88b5a' }),
     clothGreen: lam({ color: '#3f7a3a', side: THREE.DoubleSide }),
@@ -55,6 +58,105 @@ export function createPropMaterials(): PropMaterials {
     produce: lam({ vertexColors: true }),
     paper: lam({ color: '#efe6cf' }),
   };
+}
+
+/** Every flame's clock in seconds, stepped by GameWorld.update. */
+export const FIRE_TIME = { value: 0 };
+let fireMat: THREE.ShaderMaterial | null = null;
+
+/**
+ * The material every flame shares, drawn on flame cards (flameCard): a teardrop of fire, white-gold
+ * at the heart, orange through the body and red at the edges, that bends, licks and breaks into
+ * tongues at the top on its own clock. Each flame flickers out of step with the next by where it
+ * stands, so it works in merged batches too.
+ */
+export function fireMaterial(): THREE.ShaderMaterial {
+  if (fireMat) return fireMat;
+  const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog]);
+  uniforms.uTime = FIRE_TIME;
+  fireMat = new THREE.ShaderMaterial({
+    uniforms, fog: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    vertexShader: `#include <common>
+#include <fog_pars_vertex>
+uniform float uTime;
+varying vec2 vUv;
+varying float vSeed;
+void main() {
+  vUv = uv;
+  vec4 p = vec4(position, 1.0);
+  #ifdef USE_INSTANCING
+  p = instanceMatrix * p;
+  #endif
+  vec4 wp = modelMatrix * p;
+  float seed = wp.x * 1.7 + wp.z * 2.3;
+  vSeed = seed;
+  float h = clamp(uv.y, 0.0, 1.0);
+  wp.x += sin(uTime * 5.3 + seed) * 0.02 * h * h;
+  wp.z += cos(uTime * 4.1 + seed * 1.3) * 0.016 * h * h;
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`,
+    fragmentShader: `#include <common>
+#include <fog_pars_fragment>
+uniform float uTime;
+varying vec2 vUv;
+varying float vSeed;
+void main() {
+  float y = clamp(vUv.y, 0.0, 1.0);
+  float t = uTime + vSeed;
+  float x = vUv.x * 2.0 - 1.0;
+  // The flame bends and licks, more the higher it goes
+  x += (sin(y * 6.0 - t * 5.0) * 0.16 + sin(y * 11.0 - t * 8.3 + 1.3) * 0.08) * y;
+  // A teardrop: narrow at the root, widest a third of the way up, drawn to a point
+  float width = 1.6 * sqrt(y + 0.02) * (1.0 - y);
+  float d = abs(x) / max(width, 0.001);
+  // The top breaks into tongues that rise and go out
+  float tongues = 0.5 + 0.5 * sin(x * 7.0 + t * 3.0) * sin(y * 5.0 - t * 6.5);
+  float heat = (1.0 - d) * (1.0 - y * (0.55 + 0.35 * tongues));
+  if (heat <= 0.02) discard;
+  vec3 col = mix(vec3(0.75, 0.16, 0.04), vec3(1.0, 0.5, 0.1), smoothstep(0.05, 0.3, heat));
+  col = mix(col, vec3(1.0, 0.8, 0.3), smoothstep(0.3, 0.55, heat));
+  col = mix(col, vec3(1.0, 0.97, 0.85), smoothstep(0.55, 0.85, heat));
+  gl_FragColor = vec4(col, smoothstep(0.02, 0.2, heat));
+  #include <fog_fragment>
+}`,
+  });
+  return fireMat;
+}
+
+/** A flame card for fireMaterial: two planes crossed, w wide and h tall, standing on y = 0. */
+export function flameCard(w: number, h: number, x = 0, z = 0, turn = 0): THREE.BufferGeometry {
+  const a = new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0).rotateY(turn);
+  const b = a.clone().rotateY(Math.PI / 2);
+  const g = mergeGeometries([a, b], false)!;
+  return g.translate(x, 0, z);
+}
+
+/** A cook fire's or camp fire's flames, as one shape standing on its own origin. */
+export function campFlame(): THREE.BufferGeometry {
+  return mergeGeometries([flameCard(0.62, 0.9, 0, 0, 0.3), flameCard(0.44, 0.66, -0.16, 0.06, 0.9), flameCard(0.46, 0.7, 0.15, -0.05, 1.4), flameCard(0.3, 0.45, 0.03, 0.15, 0.6)], false)!;
+}
+
+let emberMat: THREE.MeshBasicMaterial | null = null;
+/** Coals: black and grey, with orange and gold where they're burning through. */
+function emberMaterial(): THREE.MeshBasicMaterial {
+  if (emberMat) return emberMat;
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  const x = c.getContext('2d')!;
+  let r = 9;
+  const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) {
+    const v = rnd();
+    x.fillStyle = v < 0.3 ? '#1c1410' : v < 0.45 ? '#3a2a22' : v < 0.7 ? '#b8380e' : v < 0.88 ? '#f07a1a' : '#ffc850';
+    x.fillRect(i, j, 1, 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  emberMat = new THREE.MeshBasicMaterial({ map: tex });
+  return emberMat;
 }
 
 const flatMats = new Map<string, THREE.MeshLambertMaterial>();
@@ -789,7 +891,7 @@ export function table(M: PropMaterials, len = 1.6): THREE.Group {
   g.add(mesh(box(0.3, 0.12, 0.18), M.produce, -0.35, 0.88, 0.05, 0.3));
   g.add(mesh(cyl(0.07, 0.09, 0.22, 8), M.clothCream, 0.3, 0.93, -0.1));
   g.add(mesh(cyl(0.035, 0.035, 0.14, 6), M.paper, 0.05, 0.89, 0.12));
-  g.add(mesh(box(0.03, 0.05, 0.03), M.fire, 0.05, 0.98, 0.12));
+  g.add(mesh(flameCard(0.07, 0.11), M.fire, 0.05, 0.965, 0.12));
   return g;
 }
 
@@ -827,8 +929,13 @@ export function fireplace(M: PropMaterials): THREE.Group {
   g.add(mesh(box(1.1, 1.3, 0.12), M.stone, 0, 0.65, -0.26));
   g.add(mesh(box(1.9, 0.12, 0.72), M.darkWood, 0, 1.7, 0.02));
   g.add(mesh(box(1.3, 1.4, 0.5), M.cobble, 0, 2.45, -0.06));
-  for (let i = 0; i < 3; i++) g.add(mesh(new THREE.ConeGeometry(0.16 - i * 0.03, 0.42 - i * 0.08, 6), M.fire, (i - 1) * 0.12, 0.33 + i * 0.03, (i % 2) * 0.06));
-  for (const x of [-0.18, 0.18]) g.add(mesh(box(0.5, 0.1, 0.1), M.bark, x, 0.17, 0.05, 0.4 * Math.sign(x)));
+  g.add(mesh(box(0.88, 0.95, 0.02), flat('#1e1a18'), 0, 0.6, -0.195));
+  g.add(mesh(box(0.66, 0.05, 0.34), M.embers, 0, 0.145, 0.02));
+  for (const x of [-0.18, 0.18]) g.add(mesh(box(0.5, 0.1, 0.1), M.bark, x, 0.2, 0.05, 0.4 * Math.sign(x)));
+  g.add(mesh(box(0.62, 0.11, 0.11), M.bark, 0, 0.2, -0.1));
+  for (const [x, z, w, h, turn] of [[0, 0, 0.44, 0.66, 0.3], [-0.16, 0.04, 0.32, 0.48, 0.9], [0.16, -0.02, 0.34, 0.52, 1.4], [-0.07, -0.09, 0.24, 0.36, 0.1], [0.08, 0.09, 0.2, 0.3, 1.1]]) {
+    g.add(mesh(flameCard(w, h, x, z, turn), M.fire, 0, 0.17, 0));
+  }
   g.add(mesh(cyl(0.16, 0.12, 0.2, 8), M.iron, 0, 0.75, 0.02));
   g.add(mesh(box(0.02, 0.4, 0.02), M.iron, 0, 1.05, 0.02));
   for (let i = 0; i < 3; i++) g.add(mesh(cyl(0.05, 0.06, 0.16, 6), i === 1 ? M.bronze : M.clothCream, -0.5 + i * 0.5, 1.84, 0.05));
@@ -1160,7 +1267,7 @@ export function candles(M: PropMaterials): THREE.Group {
   const wax = flat('#efe6cf');
   for (const [x, z, h] of [[-0.14, 0.04, 0.22], [0.04, -0.06, 0.32], [0.16, 0.07, 0.16]]) {
     g.add(mesh(cyl(0.035, 0.04, h, 6), wax, x, 0.06 + h / 2, z));
-    g.add(mesh(new THREE.ConeGeometry(0.025, 0.07, 5), M.fire, x, 0.1 + h, z));
+    g.add(mesh(flameCard(0.07, 0.12), M.fire, x, 0.065 + h, z));
   }
   return g;
 }

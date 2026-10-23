@@ -20,9 +20,7 @@ export interface BuiltSite {
 
 /** A fire's three flame tongues as one shape (scaled on the fire's own origin to flicker). */
 const FLAME_GEO = (() => {
-  const parts: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < 3; i++) parts.push(new THREE.ConeGeometry(0.22 - i * 0.05, 0.6 - i * 0.12, 6).translate((i - 1) * 0.12, 0.35 + i * 0.05, (i % 2) * 0.1 - 0.05));
-  const g = mergeGeometries(parts, false)!;
+  const g = P.campFlame();
   g.userData.shared = true;
   return g;
 })();
@@ -143,6 +141,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         if (g) place(g, d.x, d.y, d.z, d.ry);
         // A room's hanging lamp: a small glow round the lantern box and a light under it
         if (d.item === 'lamp') { glow(d.x, d.y - 0.68, d.z, 1.1); lamps.push(new THREE.Vector3(d.x, d.y - 0.9, d.z)); }
+        // A fire in the hearth lights the room
+        if (d.item === 'hearth') { glow(d.x, d.y + 0.45, d.z, 1.4, '#ff9a40'); lamps.push(new THREE.Vector3(d.x, d.y + 0.6, d.z)); }
         break;
       }
       case 'firepit': {

@@ -509,6 +509,25 @@ Every troubled region has a gang, and every gang worth the name has a fort well 
 | **Stilt Fort** | Wrath Levels | the Stilt Fort poachers | **Agnes Mardle**; eel traps, not carts, the rag waxed against the wet |
 | **Carrack Pale** | Tolmen Moor | the Carrack tinners | **Kit Pascoe**; two rags sewn together, the first ran out |
 
+## The festival year [in game]
+
+Seven fairs, on the real calendar, each kept at every Charter Post: bunting, a stall that takes the fair's own token, a centrepiece, and a writ. `data/festivals.ts`, `game/Festivals.ts`; the rounds, creatures, bags and hats in `data/seasons.ts` and `game/Seasons.ts`; the stories in `data/content/seasons.ts`.
+
+- **The round.** Every fair has a round to make about each town, once a realm day: griddles, eggs, fires, sheaves, doors or geese. Each call pays a token or two, sometimes the fair's food, and now and then a festival bag.
+- **The creature.** Every fair has a creature out of the counties' own stories that comes on the realm clock to one place. Its followers come first, then itself. It shows on the map while it's out and for a few minutes before. Once a realm day; it pays 12 tokens and a bag.
+- **Bags and hats.** A bag holds tokens, food, now and then a fair's dye, and very rarely its hat. Every fair's hat also comes from its story. A hat goes into the wardrobe for good.
+- **The stories.** While a fair is on, someone comes to Hollin Ford square with a job round the vale that ends at the fair's creature. Done once; they come back every year.
+
+| Fair | Dates | Round | Creature (where, realm hours) | Story (Hollin Ford square) | Hat |
+|---|---|---|---|---|---|
+| **Shrovetide** | 2–24 Feb | tossing pancakes at the griddles | **Jack-a-Lent**, the straw man everyone throws things at, with his strawlings (the Wetlings green, 11–15) | **Hannah Brock** rings the pancake bell; her three pans are lent out round the vale | the fool's cap |
+| **The Lambing Fair** | 20 Mar – 20 Apr | finding pace eggs | **Red Reynard** and his family (the fold below Ashcroft, 18–22) | **Ezra Dunn**, shepherd; three ewes have gone up the hill to lamb | the garland |
+| **Midsummer Watch** | 14 Jun – 10 Jul | lighting the watch-fires | **The Hob** and his will-lights (the Hollow Oak, Hagworm Wood, 22–3) | **Kezia Lusk**, herb-woman; fern seed, which falls only on Midsummer night | the horn-dance antlers |
+| **Harvest Home** | 18 Sep – 20 Oct | gleaning sheaves | **The Corn Wolf**, let out of the last sheaf, with its whelps (the fields by Cotter's End, 15–20) | **Nathaniel Crouch**, farmer; nobody will cut his last sheaf | the harvest crown |
+| **The Lantern Wake** | 24 Oct – 10 Nov | souling at doors with a candle | **The Lantern Man**, a fen light that leads people into the water, with his wisps (the Lantern, 20–4) | **Absalom Pinnock**, the Wake bellman; a straight path of candles | the turnip lantern |
+| **Goose Fair** | 14 Nov – 3 Dec | catching loose geese | **Old Hissing Jack**, the fair's champion gander, with his wives (the Waystation green, 9–14) | **Martha Gooding**, goose-girl; Jack's three wives are loose | the goose fair hat |
+| **The Frostfair** | 12 Dec – 6 Jan | carolling at wreathed doors | **Old Rime**, out of Peg's Water in a hard winter, with rime-jellies (Peg's Water shore, 16–23) | **Prudence Holt**, fair-warden of the ice; it froze in a night | the bobble hat |
+
 ## Morrow, the second continent [planned]
 
 The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.
