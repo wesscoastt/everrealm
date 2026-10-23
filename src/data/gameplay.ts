@@ -243,7 +243,7 @@ export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'road
   | 'greyed' | 'greybrother' | 'puffball' | 'greyhog' | 'gillcrab' | 'greyabbot'
   | 'jackalent' | 'strawling' | 'reynard' | 'fairfox' | 'hob' | 'willight' | 'cornwolf' | 'cornwhelp' | 'lanternman' | 'wisp' | 'gander' | 'fairgoose' | 'oldrime' | 'rimejelly'
   | 'dg_rustback' | 'dg_hatchling' | 'dg_seep' | 'dg_nightman' | 'dg_coll' | 'dg_sump' | 'dg_verdigris'
-  | 'dg_brack' | 'dg_millstone' | 'dg_glim';
+  | 'dg_brack' | 'dg_millstone' | 'dg_glim' | 'dg_lampman' | 'dg_spitter';
 
 export interface EnemyDef {
   type: EnemyType;
@@ -261,7 +261,14 @@ export interface EnemyDef {
   speed: number;
   aggro: number;
   leash: number;
-  attack: 'lunge' | 'slam' | 'charge';
+  /**
+   * lunge: a short dash at you; slam: a circle round itself; charge: a long rush down a lane;
+   * throw: from a distance, a circle marked where you stand, then something lobbed into it.
+   */
+  attack: 'lunge' | 'slam' | 'charge' | 'throw';
+  /** A thrower's circle (radius), and the colour of what it throws. */
+  blast?: number;
+  shot?: string;
   windup: number;
   range: number;
   cooldown: number;
@@ -332,6 +339,9 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   dg_hatchling: { type: 'dg_hatchling', model: 'rustback', palette: { a: '#3e6a52', b: '#8ac8a4' }, scale: 0.6, name: 'Rustback hatchling', level: 8, hp: 60, damage: 10, speed: 4.4, aggro: 14, leash: 60, attack: 'charge', windup: 0.6, range: 4, cooldown: 1.8, xp: 25, loot: [], marks: [0, 1], respawn: 99999 },
   dg_seep: { type: 'dg_seep', model: 'jelly', palette: { a: '#6a9a6a', b: '#2a4a3a' }, scale: 1.1, name: 'Sump jelly', level: 9, hp: 170, damage: 17, speed: 2.8, aggro: 8, leash: 60, attack: 'slam', windup: 0.8, range: 2.8, cooldown: 2.2, xp: 90, loot: [{ item: 'jelly_residue', chance: 0.8 }], marks: [2, 4], respawn: 99999 },
   dg_nightman: { type: 'dg_nightman', model: 'bandit', look: { tunic: '#3a3a36', trim: '#7a6a4a', trousers: '#2e2a26', hat: 'cap', hatColor: '#2a2a2a' }, held: 'pickaxe', name: 'Night-shift hand', level: 10, hp: 210, damage: 19, speed: 5.2, aggro: 12, leash: 60, attack: 'lunge', windup: 0.55, range: 2.6, cooldown: 1.6, xp: 110, loot: [{ item: 'copper_ore', chance: 0.6 }, { item: 'bread', chance: 0.3 }], marks: [3, 7], respawn: 99999 },
+  // Throwers: they keep their distance and lob something into a circle where you stood
+  dg_lampman: { type: 'dg_lampman', model: 'bandit', look: { tunic: '#4a3e2e', trim: '#c8a050', trousers: '#2e2a26', hat: 'cap', hatColor: '#3a2e20' }, held: 'none', name: 'Night-shift lampman', level: 10, hp: 160, damage: 22, speed: 4.6, aggro: 14, leash: 60, attack: 'throw', blast: 1.9, shot: '#ffb040', windup: 1.0, range: 12, cooldown: 2.6, xp: 105, loot: [{ item: 'copper_ore', chance: 0.5 }, { item: 'bread', chance: 0.3 }], marks: [3, 7], respawn: 99999 },
+  dg_spitter: { type: 'dg_spitter', model: 'jelly', palette: { a: '#c8f4ff', b: '#4a8ab8', glow: true }, scale: 0.95, name: 'Glass spitter', level: 30, hp: 520, damage: 50, speed: 2.4, aggro: 14, leash: 60, attack: 'throw', blast: 2.1, shot: '#9fe8ff', windup: 1.1, range: 13, cooldown: 2.8, xp: 520, loot: [{ item: 'star_crystal', chance: 0.25 }, { item: 'jelly_residue', chance: 0.8 }], marks: [8, 16], respawn: 99999 },
   dg_coll: { type: 'dg_coll', model: 'bandit', look: { tunic: '#5a3a2a', trim: '#c8a050', trousers: '#3a3026', hat: 'wide', hatColor: '#3a2a1a', beard: true, build: 1.15 }, held: 'pickaxe', scale: 1.1, name: 'Coll Bray', level: 11, hp: 2600, damage: 34, speed: 5.2, aggro: 14, leash: 40, attack: 'lunge', windup: 0.6, range: 3.0, cooldown: 1.8, xp: 900, elite: true, loot: [], marks: [25, 40], respawn: 99999 },
   dg_sump: { type: 'dg_sump', model: 'jelly', palette: { a: '#5a8a5a', b: '#1e3a2a' }, scale: 2.6, name: 'Old Sump', level: 11, hp: 3400, damage: 36, speed: 2.4, aggro: 14, leash: 40, attack: 'slam', windup: 0.95, range: 4.4, cooldown: 2.3, xp: 1100, elite: true, loot: [{ item: 'jelly_residue', chance: 1, min: 3, max: 3 }], marks: [30, 46], respawn: 99999 },
   dg_verdigris: { type: 'dg_verdigris', model: 'rustback', palette: { a: '#24503e', b: '#7ac8a0' }, scale: 2.6, name: 'Verdigris', level: 12, hp: 5200, damage: 43, speed: 3.6, aggro: 16, leash: 50, attack: 'charge', windup: 0.9, range: 10, cooldown: 2.5, xp: 1800, elite: true, loot: [{ item: 'rustback_shell', chance: 1, min: 3, max: 3 }, { item: 'copper_ore', chance: 1, min: 4, max: 4 }], marks: [45, 70], respawn: 99999 },

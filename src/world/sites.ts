@@ -2045,14 +2045,14 @@ export function plan(): Plan {
       exit: at(1, 0),
       packs: [
         [mob(16, -1, 'dg_rustback'), mob(18, 1, 'dg_rustback'), mob(14, 1, 'dg_rustback')],
-        [mob(37, 3, 'dg_rustback'), mob(40, -2, 'dg_rustback'), mob(39, 1, 'dg_seep')],
+        [mob(37, 3, 'dg_rustback'), mob(40, -2, 'dg_rustback'), mob(39, 1, 'dg_seep'), mob(43, 3, 'dg_lampman')],
         [mob(64, -24, 'dg_seep'), mob(64, -29, 'dg_seep'), mob(62, -26, 'dg_rustback')],
         [mob(70, 4, 'dg_hatchling'), mob(74, 4, 'dg_hatchling'), mob(71, 6, 'dg_hatchling'), mob(74, 6, 'dg_hatchling'), mob(72, 5, 'dg_rustback')],
         [mob(63, 23, 'dg_rustback'), mob(65, 25, 'dg_rustback')],
         [mob(83, 23, 'dg_rustback'), mob(85, 25, 'dg_rustback')],
       ],
       bosses: [
-        { at: at(33, -28), type: 'dg_coll', crew: [mob(29, -25, 'dg_nightman'), mob(37, -25, 'dg_nightman')] },
+        { at: at(33, -28), type: 'dg_coll', crew: [mob(29, -25, 'dg_nightman'), mob(37, -25, 'dg_nightman'), mob(41, -31, 'dg_lampman')] },
         { at: at(72, -25), type: 'dg_sump' },
         { at: at(73, 31), type: 'dg_verdigris' },
       ],
@@ -2140,9 +2140,9 @@ export function plan(): Plan {
       packs: [
         [mob(30, -1, 'frostwolf'), mob(33, 3, 'frostwolf'), mob(29, 2, 'frostwolf')],
         [mob(39, 2, 'frostwolf'), mob(40, -3, 'moorwolf'), mob(37, 0, 'frostwolf')],
-        [mob(64, -23, 'shardjelly'), mob(66, -28, 'shardjelly'), mob(67, -25, 'shardjelly')],
+        [mob(64, -23, 'shardjelly'), mob(66, -28, 'shardjelly'), mob(67, -25, 'dg_spitter')],
         [mob(70, 5, 'shardjelly'), mob(74, 6, 'graniteback'), mob(72, 7, 'shardjelly')],
-        [mob(63, 25, 'graniteback'), mob(65, 23, 'shardjelly')],
+        [mob(63, 25, 'graniteback'), mob(65, 23, 'shardjelly'), mob(60, 30, 'dg_spitter')],
         [mob(83, 25, 'graniteback'), mob(81, 23, 'shardjelly')],
       ],
       bosses: [

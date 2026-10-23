@@ -25,6 +25,8 @@ export const CALLING_ROLE: Record<CallingId, Role> = { warden: 'tank', reaver: '
 
 /** A boss's fight: what's said, the creatures it calls in, and what it throws at the floor. */
 export interface BossPlan {
+  /** Its epithet, on the title card when the fight starts. */
+  title?: string;
   /** Said when the fight starts, and when it ends: [speaker ('' for what you see), line]. */
   pull: [string, string];
   fall: [string, string];
@@ -97,6 +99,7 @@ export const DUNGEONS: DungeonDef[] = [
     door: [256.5, 22, 92.5], out: [253.5, 22, 92.5, -Math.PI / 2],
     bosses: [
       {
+        title: 'Foreman of the night shift',
         pull: ['Coll Bray', 'Company sent you, did they? Company can come down itself.'],
         adds: [{ at: 0.5, types: ['dg_nightman'], line: ['Coll Bray', 'Ned! Leave the crates, get over here!'] }],
         hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 36, color: '#ffb040', line: 'Coll Bray throws a lit lamp.' },
@@ -109,6 +112,7 @@ export const DUNGEONS: DungeonDef[] = [
         drops: ['bray_hanger', 'cape_picks', ...OLDMAN_GEAR], chance: 0.6,
       },
       {
+        title: 'What the pumps held back',
         pull: ['', 'The water in the sump heaves, and most of it gets up.'],
         adds: [
           { at: 0.66, types: ['dg_seep', 'dg_seep'], line: ['', 'Two lumps of Old Sump slide off into the water and come back out on their own.'] },
@@ -123,6 +127,7 @@ export const DUNGEONS: DungeonDef[] = [
         drops: OLDMAN_GEAR, chance: 0.6,
       },
       {
+        title: 'Mother of the seam',
         pull: ['', 'The copper in the wall moves. It isn\'t copper: it\'s a rustback the size of a cart, green right through.'],
         adds: [
           { at: 0.75, types: ['dg_hatchling', 'dg_hatchling', 'dg_hatchling'], line: ['', 'A clutch splits open in the wall.'] },
@@ -153,6 +158,7 @@ export const DUNGEONS: DungeonDef[] = [
     door: [807.5, 51, 2040.5], out: [807.5, 51, 2043.5, 0],
     bosses: [
       {
+        title: 'First of the pack',
         pull: ['', 'A grey wolf the size of a pony stands up on the ledge. The pack looks at it before it looks at you.'],
         adds: [{ at: 0.5, types: ['frostwolf', 'frostwolf'], line: ['', 'Brack howls, and two more come down off the ledges.'] }],
         hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 60, color: '#dde6ee', line: 'Brack\'s howl shakes ice loose from the roof.' },
@@ -165,6 +171,7 @@ export const DUNGEONS: DungeonDef[] = [
         drops: ['fell_knife', 'cape_snowflake', ...KETTLE_GEAR], chance: 0.6,
       },
       {
+        title: 'Eater of the seep',
         pull: ['', 'Something grinds in the seep, stone on glass. A graniteback the size of a cart turns round, chewing.'],
         adds: [{ at: 0.5, types: ['graniteback', 'graniteback'], line: ['', 'Two younger granitebacks back out of the walls.'] }],
         hazard: { every: 8, count: 2, r: 3.2, windup: 1.8, damage: 64, color: '#a8b0b8', line: 'Millstone rams the wall, and rock comes down.' },
@@ -177,6 +184,7 @@ export const DUNGEONS: DungeonDef[] = [
         drops: KETTLE_GEAR, chance: 0.6,
       },
       {
+        title: 'Light of the fallen star',
         pull: ['', 'The light at the bottom of the Kettle moves, and comes toward you. It\'s a jelly, grown in the crystal, and you can see through it.'],
         adds: [
           { at: 0.75, types: ['shardjelly', 'shardjelly'], line: ['', 'Pieces of the Glim break off and go on without it.'] },

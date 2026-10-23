@@ -29,6 +29,8 @@ export interface EnemyContext {
 const telegraphMat = new THREE.MeshBasicMaterial({ color: '#ff3a24', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
 const telegraphFill = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
 const RING_GEO = new THREE.RingGeometry(0.93, 1, 48).rotateX(-Math.PI / 2);
+/** What a thrower lobs (a lit lamp, a shard of glass): a small block. */
+const SHOT_GEO = new THREE.BoxGeometry(0.28, 0.28, 0.28);
 const DISC_GEO = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
 const FILL_FROM = new THREE.Color('#ff5a2a'), FILL_TO = new THREE.Color('#ff2a10'), FILL_NOW = new THREE.Color('#fff0c0');
 /** A boss's signature attack: a wide circle round it, wound up slowly, every fourth attack. */
@@ -94,6 +96,9 @@ export class Enemy {
   private swimH = 0.9;
   private dry = 0;
   private attackDir3 = new THREE.Vector3();
+  /** A thrower's shot, flying from its hand to the circle (a child of the telegraph, so local to the circle). */
+  private shotMesh: THREE.Mesh | null = null;
+  private shotFrom = new THREE.Vector3();
 
   /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
   constructor(def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
@@ -120,8 +125,8 @@ export class Enemy {
     this.pos.copy(this.home);
     this.wanderTarget.copy(this.home);
 
-    const isCircle = def.attack === 'slam';
-    const outlineGeo = isCircle ? new THREE.CircleGeometry(def.range, 28) : new THREE.PlaneGeometry(1.6, def.range);
+    const isCircle = def.attack === 'slam' || def.attack === 'throw';
+    const outlineGeo = isCircle ? new THREE.CircleGeometry(def.attack === 'throw' ? def.blast ?? 1.8 : def.range, 28) : new THREE.PlaneGeometry(1.6, def.range);
     if (!isCircle) outlineGeo.translate(0, def.range / 2, 0);
     outlineGeo.rotateX(-Math.PI / 2);
     this.teleOutline = new THREE.Mesh(outlineGeo, telegraphMat);
@@ -130,6 +135,11 @@ export class Enemy {
     this.bigFill = new THREE.Mesh(DISC_GEO, this.fillMat);
     this.bigRing.visible = this.bigFill.visible = false;
     this.telegraph.add(this.teleOutline, this.teleFill, this.bigRing, this.bigFill);
+    if (def.attack === 'throw') {
+      this.shotMesh = new THREE.Mesh(SHOT_GEO, new THREE.MeshBasicMaterial({ color: def.shot ?? '#ffb040' }));
+      this.shotMesh.visible = false;
+      this.telegraph.add(this.shotMesh);
+    }
     this.telegraph.visible = false;
     this.syncModel();
   }
@@ -522,14 +532,15 @@ export class Enemy {
           this.teleOutline.visible = this.teleFill.visible = !this.signature;
           this.bigRing.visible = this.bigFill.visible = this.signature;
           if (this.signature) { this.bigRing.scale.setScalar(this.signatureRadius); ctx.sound('growl', this.pos); }
-          this.attackOrigin.copy(this.pos);
+          this.attackOrigin.copy(def.attack === 'throw' && !this.signature ? ctx.player : this.pos);
           this.attackDir.set(toPlayer.x, 0, toPlayer.z).normalize();
           this.yaw = Math.atan2(this.attackDir.x, this.attackDir.z);
           this.telegraph.visible = true;
           this.model.setAnim('windup');
           break;
         }
-        const keep = def.attack === 'charge' ? def.range * 0.6 : def.range * 0.6;
+        // A thrower stands off at about half its throw; the rest come in close
+        const keep = def.attack === 'throw' ? def.range * 0.5 : def.range * 0.6;
         const pace = def.speed * (this.enraged ? 1.15 : 1) * (this.slowLeft > 0 ? 0.67 : 1);
         if (distP > keep) {
           const moved = this.stepToward(ctx.player.x, ctx.player.z, pace, dt);
@@ -547,7 +558,8 @@ export class Enemy {
           }
         }
         this.teleFill.scale.setScalar(Math.max(0.01, k));
-        if (def.attack !== 'slam') this.teleFill.scale.set(1, 1, Math.max(0.01, k));
+        if (def.attack !== 'slam' && def.attack !== 'throw') this.teleFill.scale.set(1, 1, Math.max(0.01, k));
+        if (def.attack === 'throw') this.yaw = Math.atan2(this.attackOrigin.x - this.pos.x, this.attackOrigin.z - this.pos.z);
         this.bigFill.scale.setScalar(Math.max(0.01, k) * this.signatureRadius);
         // The fill reddens and thickens as it comes, and flashes pale in the last moment: that's the cue to roll
         if (k > 0.82) { this.fillMat.color.copy(FILL_NOW); this.fillMat.opacity = 0.6; }
@@ -556,14 +568,21 @@ export class Enemy {
           this.state = 'attack';
           this.timer = 0;
           this.hitDone = false;
-          this.attackOrigin.copy(this.pos);
+          if (def.attack !== 'throw' || this.signature) this.attackOrigin.copy(this.pos);
+          else if (this.shotMesh) { this.shotFrom.copy(this.pos).sub(this.attackOrigin).setY(this.pos.y - this.attackOrigin.y + 1.4); this.shotMesh.visible = true; }
           this.model.setAnim('attack');
           ctx.sound('swing', this.pos);
         }
         break;
       }
       case 'attack': {
-        const dur = this.signature ? 0.5 : def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : 0.45;
+        const dur = this.signature ? 0.5 : def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : def.attack === 'throw' ? 0.6 : 0.45;
+        // The shot in flight: an arc from the hand down into the circle
+        if (this.shotMesh?.visible) {
+          const t = Math.min(1, this.timer / 0.5);
+          this.shotMesh.position.copy(this.shotFrom).multiplyScalar(1 - t).setY(this.shotFrom.y * (1 - t) + Math.sin(t * Math.PI) * 2.2);
+          if (t >= 1) this.shotMesh.visible = false;
+        }
         if (this.signature) {
           if (!this.hitDone && this.timer > 0.2) {
             this.hitDone = true;
@@ -571,7 +590,7 @@ export class Enemy {
             ctx.splash?.(this.pos, this.signatureRadius, def.damage * SIGNATURE.damage, this);
             ctx.sound('squelch', this.pos);
           }
-        } else if (def.attack !== 'slam') {
+        } else if (def.attack === 'charge' || def.attack === 'lunge') {
           const speed = def.attack === 'charge' ? 13 : (def.range * 0.95) / 0.26;
           this.stepToward(this.pos.x + this.attackDir.x, this.pos.z + this.attackDir.z, speed, dt);
           moveSpeed = speed;
@@ -585,6 +604,15 @@ export class Enemy {
               this.hitDone = true;
               ctx.hitPlayer(def.damage, this);
             }
+          }
+        } else if (def.attack === 'throw') {
+          // It lands in the circle, wherever you are now
+          if (!this.hitDone && this.timer > 0.5) {
+            this.hitDone = true;
+            const r = def.blast ?? 1.8, o = this.attackOrigin;
+            if (ctx.playerAlive && !ctx.playerInvulnerable && Math.hypot(ctx.player.x - o.x, ctx.player.z - o.z) < r && Math.abs(ctx.player.y - o.y) < 2) ctx.hitPlayer(def.damage, this);
+            ctx.splash?.(o, r, def.damage, this);
+            ctx.sound('squelch', o);
           }
         } else if (!this.hitDone && this.timer > 0.4) {
           this.hitDone = true;
@@ -637,7 +665,7 @@ export class Enemy {
     } else if (this.model.root.scale.x !== 1) this.model.root.scale.setScalar(1);
     if (this.telegraph.visible) {
       this.telegraph.position.set(this.attackOrigin.x, this.attackOrigin.y + 0.06, this.attackOrigin.z);
-      this.telegraph.rotation.y = this.def.attack === 'slam' ? 0 : Math.atan2(this.attackDir.x, this.attackDir.z) + Math.PI;
+      this.telegraph.rotation.y = this.def.attack === 'slam' || this.def.attack === 'throw' ? 0 : Math.atan2(this.attackDir.x, this.attackDir.z) + Math.PI;
       if (this.state === 'windup' && (this.def.attack === 'slam' || this.signature)) this.telegraph.position.copy(this.pos).setY(this.pos.y + 0.06);
       if (this.signature) this.telegraph.rotation.y = 0;
       // In the water the warning hangs at the creature's own depth, tilted along the line of its rush

@@ -560,6 +560,7 @@ export class Dungeons {
         b.nextHazard = this.clock + (b.plan.hazard?.every ?? 99) * 0.6;
         b.next = (b.plan.moves ?? []).map((m, i) => this.clock + m.every * (0.45 + 0.2 * i));
         this.host.say(b.plan.pull[0], b.plan.pull[1]);
+        if (b.plan.title) this.host.banner(e.name, b.plan.title);
         this.host.sound('growl', e.pos);
         for (const c of b.crew) if (c.alive && c.state === 'idle') c.state = 'chase';
       }
