@@ -62,6 +62,8 @@ export const POSTS: PostStop[] = [
   { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2, gate: 'kellFerry' },
   // Morrow (world/land.ts): Callis, on the south side of the Assembly's plaza (world/morrow.ts CALLIS_SPOTS)
   { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: 2132.5, z: 1077.5, ry: 0 },
+  // Saltpenny Key, by the packet from Callis once the Speaker has told you about the Kittiwake (world/morrow.ts SALT_LANDING)
+  { land: 'morrow', id: 'saltpenny', name: 'Saltpenny Key (packet)', place: 'saltpenny', ferryFrom: 'callis', x: -1433.5, z: 3692.5, ry: 0, gate: 'saltFerry' },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */

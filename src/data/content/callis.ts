@@ -199,7 +199,7 @@ const sala: DialogueTree = {
     s6: { text: 'The Kittiwake is a Brethren hull, out of Saltpenny Key. You\'ll have heard of the Brethren. Everyone has.', next: 's7' },
     s7: { text: 'They carry what pays. This pays. I\'d rather buy black from thieves than watch the Old Tower walk off into the sky.', next: 's8' },
     s8: { text: 'Your Mr Pryce went south with them in the summer. If you want him, Saltpenny is where the Kittiwake loads.', next: 's9' },
-    s9: { text: 'Go carefully. The Brethren don\'t pay taxes, and they don\'t forgive debts. They\'re honest about both.', effect: (g) => { g.take('committee_lines', 1); g.addMarks(250); g.setStage(CAL, 'done'); } },
+    s9: { text: 'Go carefully. The Brethren don\'t pay taxes, and they don\'t forgive debts. They\'re honest about both.', effect: (g) => { g.take('committee_lines', 1); g.addMarks(250); g.setFlag('saltFerry', true); g.setStage(CAL, 'done'); } },
     sDone: { text: 'The towers stand. Ask me again next year.' },
   },
 };
@@ -262,7 +262,7 @@ const quests: Record<string, QuestDef> = {
     walk: { cast: ['sennen_gull', 'pau_ferrer'], from: { quests: { storyBell: 'done' }, flags: { parishEnd: 'rise' } } },
   },
   [CAL]: {
-    id: CAL, name: 'Nine Hundred Weight', region: 'bright', story: { chapter: 18, title: 'Nine Hundred Weight', act: ACT },
+    id: CAL, name: 'Nine Hundred Weight', region: 'bright', story: { chapter: 18, title: 'Nine Hundred Weight', act: ACT }, next: ['tdSalt', 'sail'],
     notes: (g, s) => {
       if (s === 'clerk') return 'Whatever the Third Daughter brought to Callis, Pryce took it to the Assembly. If anyone wrote it down, it was the Assembly\'s clerks, on the plaza under the towers.';
       if (s === 'warden') return 'The Assembly\'s Works Committee has bought nine hundred weight of the black since midsummer, against forty in a usual year: from A. Pryce, for Harrowgate & Daughters, delivered by the Kittiwake. Clara Oms says to ask the Warden of the Towers why.';

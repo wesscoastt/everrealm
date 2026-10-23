@@ -1,6 +1,6 @@
 # Morrow: the second continent (plan)
 
-Everything here is **[planned]** unless marked otherwise. The crossing, Callis and chapters XVII and XVIII are in the game now (LORE.md, "Morrow, the second continent"). When a piece is built, move
+Everything here is **[planned]** unless marked otherwise. The crossing, Callis, Saltpenny Key, Morrow's creatures and chapters XVII to XIX are in the game now (LORE.md, "Morrow, the second continent"). When a piece is built, move
 it into LORE.md and mark it [in game]. The rules in LORE.md and NARRATIVE_STYLE.md hold here too:
 plain names, plain speech, no world-ending prophecy, and the trouble always has a human cause.
 
@@ -74,7 +74,7 @@ Five chapters after Act III, from Nessa Crane at Gullmouth.
 2. **Nine Hundred Weight** (XVIII) [in game]. The great city. The Assembly's towers have been buying black, more than they've ever
    needed, to hold down towers that have started to lift as the white in them settles. Pryce has
    been here: he sold the Assembly the black, and nobody asked where it came from.
-3. **Saltpenny.** The black comes up the coast in Brethren hulls. Ned Vey will tell you where they
+3. **What Pays** (XIX) [in game]. The black comes up the coast in Brethren hulls. Ned Vey will tell you where they
    load it, for a price: a Harrowgate convoy, or a favour later. The Brethren didn't dig it. They
    only carry it.
 4. **The Greywaste.** The black was dug out of the northern barrows. The old kingdom buried its dead

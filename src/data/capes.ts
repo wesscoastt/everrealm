@@ -7,7 +7,8 @@ import type { RegionId } from '../world/terrain';
 // standing give the rest. entities/capes.ts draws them.
 
 export type CapeDesign = 'border' | 'quartered' | 'chevron' | 'chequy' | 'tally' | 'star' | 'lantern' | 'flame' | 'snowflake' | 'picks'
-  | 'wheel' | 'key' | 'oak' | 'waves' | 'anvil' | 'peak' | 'gull' | 'reed' | 'stones' | 'mushroom' | 'laurel' | 'cog';
+  | 'wheel' | 'key' | 'oak' | 'waves' | 'anvil' | 'peak' | 'gull' | 'reed' | 'stones' | 'mushroom' | 'laurel' | 'cog'
+  | 'oars' | 'rose' | 'pair';
 
 export const CAPE_DESIGNS: Record<CapeDesign, { name: string; desc: string; from: string }> = {
   border: { name: 'Bordered cloak', desc: 'A plain border worked round the edge, a hand in from the hem.', from: 'The Charter Market, Ansbury' },
@@ -32,11 +33,14 @@ export const CAPE_DESIGNS: Record<CapeDesign, { name: string; desc: string; from
   cog: { name: 'Kiln cloak', desc: 'A brass cog, the Kilnfolk\'s Wheel. They don\'t sew it for mainlanders, as a rule.', from: 'Revered on Kell' },
   laurel: { name: 'Laurel cloak', desc: 'A wreath of bay, the old sign for someone who went back down and did it the hard way.', from: 'Any group dungeon, cleared on veteran' },
   mushroom: { name: 'Holm cloak', desc: 'A broad cap, the Inkholm islanders\' own badge.', from: 'Revered on Inkholm' },
+  oars: { name: 'Brethren cloak', desc: 'Two oars crossed, the Brethren\'s sign: every captain started out pulling one.', from: 'Revered in the Keys' },
+  rose: { name: 'Gale\'s cloak', desc: 'A compass rose, sewn by Ysolde Gale herself, and buried with the rest of what she kept.', from: 'Dinah Lowry\'s last map, Saltpenny' },
+  pair: { name: 'Two Stones cloak', desc: 'A white stone and a black, side by side: the sign of Callis, which needs both.', from: 'Revered on the Bright Coast' },
 };
 
 /** The design a region gives at Revered (data/standing.ts). */
 export const REGION_CAPE: Partial<Record<RegionId, CapeDesign>> = {
-  greenwake: 'wheel', crownroad: 'key', brambledeep: 'oak', saltwind: 'waves', redstone: 'anvil', starfall: 'peak', gannet: 'gull', wrath: 'reed', tolmen: 'stones', inkholm: 'mushroom', kell: 'cog',
+  greenwake: 'wheel', crownroad: 'key', brambledeep: 'oak', saltwind: 'waves', redstone: 'anvil', starfall: 'peak', gannet: 'gull', wrath: 'reed', tolmen: 'stones', inkholm: 'mushroom', kell: 'cog', keys: 'oars', bright: 'pair',
 };
 
 /** The design a feat gives (data/feats.ts). */

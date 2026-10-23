@@ -4,6 +4,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse' | 'dog' | 'cat' | 'duck' | 'cow' | 'pig'
   | 'shark' | 'eel' | 'ray' | 'medusa'
+  /** Morrow's: a lizard, low and long-tailed; a moth the size of a dog, that flies. */
+  | 'lizard' | 'moth'
   /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
   | 'bandit';
 
@@ -205,10 +207,12 @@ export class CreatureModel {
       case 'eel': this.buildEel(); break;
       case 'ray': this.buildRay(); break;
       case 'medusa': this.buildMedusa(); break;
+      case 'lizard': this.buildLizard(); break;
+      case 'moth': this.buildMoth(); break;
     }
     // Texture the plain surfaces (fur, chitin, scales, fleece) so nothing looks moulded out of putty;
     // glowing parts (eyes, a jelly's bell) and see-through ones keep their own look
-    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', cow: 'fur', pig: 'fur', dog: 'fur', cat: 'fur', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale' };
+    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', cow: 'fur', pig: 'fur', dog: 'fur', cat: 'fur', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale', lizard: 'scale', moth: 'fur' };
     const skin = surface[kind];
     if (skin) this.root.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -351,6 +355,102 @@ export class CreatureModel {
       add(leg, rb(0.36, 0.08, 0.08, 0.02), lam('#3a2414'), side * 0.16, 0, 0, 0, 0, side * -0.5);
       add(leg, rb(0.07, 0.3, 0.07, 0.02), lam('#3a2414'), side * 0.32, -0.2, 0);
       this.legs.push(leg);
+    }
+  }
+
+  /**
+   * A lizard: a long low body slung between splayed legs, a flat wedge of a head with a hinged jaw
+   * and a dewlap, a crest of scutes down the spine, and a long tail in segments that swings as it
+   * walks. a = hide, b = belly and throat, c = crest, bands and feet.
+   */
+  private buildLizard(): void {
+    const s = this.extraScale;
+    this.body.scale.setScalar(s);
+    this.plateHeight = 1.0 * s;
+    const H = lam(this.pal.a ?? '#6a8a4a'), P = lam(this.pal.b ?? '#d8cc90'), C = lam(this.pal.c ?? '#2e3a22');
+    add(this.body, taper(rb(0.5, 0.3, 1.1, 0.1), 0.85, 0.8), H, 0, 0.42, 0);
+    add(this.body, rb(0.42, 0.06, 0.92, 0.03), P, 0, 0.28, 0.02); // the belly
+    for (let i = 0; i < 6; i++) add(this.body, new THREE.ConeGeometry(0.045, 0.15 - i * 0.012, 4), C, 0, 0.62 - i * 0.008, 0.46 - i * 0.18);
+    for (const z of [0.22, -0.08, -0.38]) add(this.body, rb(0.5, 0.05, 0.09, 0.02), C, 0, 0.555, z); // bands over the back
+    add(this.body, rb(0.3, 0.22, 0.3, 0.06), H, 0, 0.45, 0.62); // the neck
+    const head = new THREE.Group();
+    head.position.set(0, 0.48, 0.8);
+    this.body.add(head);
+    add(head, taper(rb(0.32, 0.17, 0.44, 0.05), 0.7, 0.8), H, 0, 0.03, 0.14, 0, Math.PI);
+    add(head, rb(0.2, 0.1, 0.22, 0.03), P, 0, -0.1, 0.0); // the dewlap
+    for (const sd of [1, -1]) {
+      add(head, rb(0.06, 0.05, 0.05, 0.015), lam('#e8c040', { emissive: new THREE.Color('#3a2a00') }), sd * 0.12, 0.09, 0.12).userData.plain = true;
+      add(head, rb(0.08, 0.03, 0.12, 0.01), C, sd * 0.11, 0.13, 0.12); // the brow ridge
+    }
+    const jaw = new THREE.Group();
+    jaw.position.set(0, -0.05, 0.06);
+    head.add(jaw);
+    add(jaw, rb(0.24, 0.05, 0.34, 0.02), P, 0, -0.02, 0.14);
+    for (const sd of [1, -1]) add(jaw, new THREE.ConeGeometry(0.012, 0.04, 4), lam('#efe8d8'), sd * 0.07, 0.02, 0.26).userData.plain = true;
+    this.head = head;
+    this.jaw = jaw;
+    // The tail: five segments, each hung from the last, thinning to a point
+    let parent: THREE.Object3D = this.body, z = -0.55;
+    for (let i = 0; i < 5; i++) {
+      const seg = new THREE.Group();
+      seg.position.set(0, i === 0 ? 0.4 : 0, z);
+      parent.add(seg);
+      const k = 1 - i * 0.17;
+      add(seg, rb(0.26 * k, 0.2 * k, 0.36, 0.04 * k), i % 2 ? C : H, 0, -0.02 * i, -0.16);
+      this.segs.push(seg);
+      parent = seg;
+      z = -0.32;
+    }
+    this.tail = this.segs[0];
+    for (const [x, zz] of [[0.28, 0.32], [-0.28, 0.32], [0.28, -0.32], [-0.28, -0.32]]) {
+      const sd = Math.sign(x);
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.32, zz);
+      this.body.add(leg);
+      add(leg, rb(0.26, 0.11, 0.13, 0.03), H, sd * 0.11, 0, 0); // out to the side from the shoulder
+      add(leg, rb(0.11, 0.24, 0.11, 0.03), H, sd * 0.24, -0.12, 0); // and down to the ground
+      add(leg, rb(0.17, 0.04, 0.22, 0.015), C, sd * 0.26, -0.25, 0.05); // the splayed foot
+      this.legs.push(leg);
+    }
+  }
+
+  /**
+   * A moth the size of a dog: a furred thorax over a glowing abdomen, feathered antennae, two pairs
+   * of broad wings with eye-spots, and thin legs folded under. It flies: the body hangs well above
+   * the ground and bobs while the wings beat (see updateMoth). a = wings, b = the glow, c = fur.
+   */
+  private buildMoth(): void {
+    this.body.scale.setScalar(this.extraScale);
+    this.plateHeight = 2.3 * this.extraScale;
+    const glow = this.pal.b ?? '#ffb040';
+    const W = lam(this.pal.a ?? '#7a5a3a'), F = lam(this.pal.c ?? '#5a4030');
+    const G = lam(glow, { emissive: new THREE.Color(glow).multiplyScalar(0.75) });
+    add(this.body, rb(0.34, 0.32, 0.42, 0.12), F, 0, 0, 0.08); // the thorax
+    add(this.body, taper(rb(0.28, 0.26, 0.66, 0.11), 0.6, 0.6), G, 0, -0.06, -0.42); // the abdomen
+    for (let i = 0; i < 3; i++) add(this.body, rb(0.3, 0.04, 0.05, 0.02), F, 0, 0.06 - i * 0.01, -0.26 - i * 0.16); // its rings
+    const head = new THREE.Group();
+    head.position.set(0, 0.02, 0.36);
+    this.body.add(head);
+    add(head, rb(0.24, 0.2, 0.18, 0.07), F, 0, 0, 0);
+    for (const sd of [1, -1]) {
+      add(head, rb(0.1, 0.12, 0.1, 0.04), lam('#140e0a'), sd * 0.1, 0.02, 0.06).userData.plain = true;
+      // Feathered antennae: a stalk and a broad comb
+      add(head, rb(0.02, 0.02, 0.36, 0.008), F, sd * 0.07, 0.16, 0.18, -0.6, sd * 0.35);
+      add(head, rb(0.12, 0.012, 0.26, 0.005), F, sd * 0.14, 0.27, 0.3, -0.6, sd * 0.35);
+      for (const lz of [0.08, -0.04, -0.16]) add(this.body, rb(0.025, 0.3, 0.025, 0.008), lam('#2a2018'), sd * 0.12, -0.24, lz, 0.25, 0, sd * 0.35).userData.plain = true;
+    }
+    this.head = head;
+    // The wings: a fore and a hind pair, hinged at the thorax; each wing reaches out from its hinge
+    for (const [z, len, span, hind] of [[0.16, 1.2, 0.72, 0], [-0.1, 0.9, 0.6, 1]] as const) for (const sd of [1, -1]) {
+      const w = new THREE.Group();
+      w.position.set(sd * 0.15, 0.1, z);
+      w.userData.sd = sd;
+      w.userData.hind = hind;
+      this.body.add(w);
+      add(w, rb(len, 0.025, span, 0.01), W, sd * len / 2, 0, hind ? -span * 0.25 : 0, 0, sd * (hind ? 0.3 : -0.15));
+      add(w, rb(0.2, 0.03, 0.2, 0.01), G, sd * len * 0.62, 0.004, hind ? -span * 0.3 : 0.02).userData.plain = true; // the eye-spot
+      add(w, rb(len * 0.9, 0.03, 0.05, 0.01), F, sd * len * 0.45, 0.003, hind ? -span * 0.05 : span * 0.4 - 0.03); // the leading edge
+      this.segs.push(w);
     }
   }
 
@@ -1102,6 +1202,23 @@ export class CreatureModel {
     }
   }
 
+  /** A moth hangs in the air and bobs, its wings beating; it climbs to wind up, dives to strike, and falls when it dies. */
+  private updateMoth(t: number): void {
+    const now = performance.now() * 0.001;
+    let y = 1.3 + Math.sin(now * 2.1 + this.phase) * 0.12, pitch = 0, roll = 0, beat = 1;
+    if (this.anim === 'windup') { const k = Math.min(1, t / 0.5); y += 0.45 * k; pitch = -0.35 * k; }
+    else if (this.anim === 'attack') { const k = Math.sin(Math.min(1, t / 0.35) * Math.PI); y -= 0.6 * k; pitch = 0.55 * k; }
+    else if (this.anim === 'hit') pitch = -0.3 * Math.max(0, 1 - t / 0.25);
+    else if (this.anim === 'dead') { const d = Math.min(1, t / 0.7); y = 1.3 * (1 - d) * (1 - d) + 0.12 * d; roll = (Math.PI / 2) * d; beat = 1 - d; }
+    const fast = this.anim === 'run' || this.anim === 'attack' || this.anim === 'windup' ? 24 : 16;
+    this.body.position.y = y * this.extraScale;
+    this.body.rotation.set(pitch, 0, roll);
+    for (const w of this.segs) {
+      const f = Math.sin(now * fast + this.phase - (w.userData.hind ? 0.5 : 0));
+      w.rotation.z = w.userData.sd * (0.1 + f * 0.7 * beat) - w.userData.sd * (1 - beat) * 0.2;
+    }
+  }
+
   update(dt: number, speed: number): void {
     this.animTime += dt;
     if (SWIM_KINDS.has(this.kind)) { this.updateFlash(dt); this.updateSwim(dt, speed); return; }
@@ -1110,7 +1227,7 @@ export class CreatureModel {
     const sw = Math.sin(this.phase);
     this.body.position.set(0, 0, 0);
     this.body.rotation.set(0, 0, 0);
-    if (this.kind !== 'notch' && this.kind !== 'wolf' && this.kind !== 'boar') this.body.scale.setScalar(this.kind === 'jelly' || this.kind === 'rustback' ? this.extraScale : 1);
+    if (this.kind !== 'notch' && this.kind !== 'wolf' && this.kind !== 'boar') this.body.scale.setScalar(this.kind === 'jelly' || this.kind === 'rustback' || this.kind === 'lizard' || this.kind === 'moth' ? this.extraScale : 1);
 
     this.updateFlash(dt);
 
@@ -1137,6 +1254,8 @@ export class CreatureModel {
       return;
     }
 
+    if (this.kind === 'moth') { this.updateMoth(t); return; }
+
     if (this.kind === 'duck' && this.anim !== 'swim') for (const l of this.legs) l.visible = true;
     const legAmp = this.anim === 'run' ? 0.8 : this.anim === 'walk' ? 0.45 : 0;
     this.legs.forEach((leg, i) => {
@@ -1150,7 +1269,13 @@ export class CreatureModel {
       this.body.rotation.x = Math.sin(this.phase) * 0.07;
       this.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(this.phase + (i < 2 ? 0 : 2.2) + (i % 2) * 0.35) * 0.75; });
     }
-    if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * (this.kind === 'dog' ? 0.016 : this.kind === 'cat' ? 0.002 : 0.008)) * (this.anim === 'run' ? 0.5 : this.kind === 'dog' ? 0.45 : 0.2);
+    if (this.kind === 'lizard') {
+      // A lizard walks with its whole body: the trunk sways, and the tail swings behind in a wave
+      const walking = legAmp > 0;
+      this.body.rotation.y = walking ? Math.sin(this.phase) * 0.1 : 0;
+      const swing = 0.08 + legAmp * 0.3, wave = walking ? this.phase : performance.now() * 0.0012;
+      this.segs.forEach((g, i) => { g.rotation.y = Math.sin(wave - i * 0.8) * swing; });
+    } else if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * (this.kind === 'dog' ? 0.016 : this.kind === 'cat' ? 0.002 : 0.008)) * (this.anim === 'run' ? 0.5 : this.kind === 'dog' ? 0.45 : 0.2);
     if (this.head) this.head.rotation.set(0, 0, 0);
     // A wolf pants as it stands, and its jaw opens as it gathers to bite
     if (this.jaw) this.jaw.rotation.x = this.anim === 'idle' ? 0.08 + Math.sin(t * 9) * 0.05 : this.anim === 'windup' ? 0.35 * Math.min(1, t / 0.4) : this.anim === 'attack' ? 0.55 * (1 - Math.min(1, t / 0.3)) : this.anim === 'dead' ? 0.3 : 0.05;

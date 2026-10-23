@@ -4,7 +4,7 @@ import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
 import { LAND } from './land';
-import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS } from './morrow';
+import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
@@ -686,6 +686,8 @@ export function plan(): Plan {
     for (let z = CALLIS.z - 190; z <= CALLIS.z + 220; z += 30) callisFlats.push({ x: CALLIS_QUAY_X + 37, z, r0: 36, r1: 38, h: SEA - 4 });
     return [
       { id: 'callis', name: 'Callis', x: CALLIS.x, z: CALLIS.z, r0: 205, r1: 250, h: SEA + 6, flats: callisFlats, build: (s, b) => buildCallis(s, b, extra) },
+      { id: 'saltpenny', name: 'Saltpenny Key', x: SALTPENNY.x, z: SALTPENNY.z, r0: 118, r1: 150, h: SALT_FLOOR, build: (s, b) => buildSaltpenny(s, b) },
+      { id: 'bight', name: 'Wreckers\' Bight', x: BIGHT.x, z: BIGHT.z, r0: 16, r1: 26, build: (s, b) => buildBight(s, b) },
     ];
   }
 
@@ -2455,6 +2457,256 @@ export function plan(): Plan {
       covered: k.covered(),
     };
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
+  }
+
+  /**
+   * Saltpenny Key, the Brethren's city on the outermost of the Keys (docs/MORROW.md), built out of and
+   * on top of wrecked ships. The Mercy, a galleon run up the beach, is the market, her hold full of
+   * stalls; smaller hulls hold the Leaning Mast (the tavern), the Captains' Table, where the Brethren's
+   * captains sit, and Low Tide, the fence's. Rope bridges run between their decks, shacks of salvaged
+   * timber line the boardwalks, the Cockpit is dug in the sand for settling things, and the Brethren's
+   * ships lie at the piers on the lee side.
+   */
+  function buildSaltpenny(s: Site, base: number) {
+    const cx = SALTPENNY.x, cz = SALTPENNY.z, HL = SALT_HULLS;
+    rect(s, cx - 165, cz - 165, cx + 165, cz + 165);
+    const taken: [number, number, number, number][] = [];
+    const claim = (x0: number, z0: number, x1: number, z1: number) => taken.push([x0, z0, x1, z1]);
+    const isFree = (x0: number, z0: number, x1: number, z1: number) => !taken.some((r) => x0 <= r[2] && x1 >= r[0] && z0 <= r[3] && z1 >= r[1]);
+    const land = (x: number, z: number) => heightAt(x, z) >= base;
+    const mine: [number, number, number, number][] = [];
+    /** A boardwalk: planks over the sand, a dark board here and there. */
+    const walk = (x0: number, z0: number, x1: number, z1: number) => {
+      const r: [number, number, number, number] = [Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)];
+      streets.push(r); mine.push(r); claim(r[0], r[1], r[2], r[3]);
+      for (let z = r[1]; z <= r[3]; z++) for (let x = r[0]; x <= r[2]; x++) {
+        if (!land(x, z)) continue;
+        O.set(x, base - 1, z, hash2(x, z, 931) < 0.15 ? B.DarkPlanks : B.Planks);
+        clearUp(x, z, base, base + 6);
+      }
+    };
+    const DECK = base + 8;
+
+    // ---- The boardwalks: the Long Walk from the causeway across the key, the cross walk, two lanes,
+    // and a spur to each hull's door
+    walk(cx - 104, cz - 2, cx + 122, cz + 2);
+    walk(cx + 18, cz - 100, cx + 21, cz + 100);
+    walk(cx - 70, cz - 72, cx + 100, cz - 69);
+    walk(cx - 90, cz + 52, cx + 100, cz + 55);
+    walk(cx - 58, cz - 100, cx - 55, cz - 72);
+    walk(cx - 58, cz + 55, cx - 55, cz + 100);
+    const spur = (h: { x: number; z: number; len: number; beam: number }, side: 'n' | 's') => {
+      const dx = hullDoorX(h), edge = h.z + 0.5 + (side === 'n' ? -1 : 1) * (h.beam / 2 + 1);
+      walk(dx - 1, Math.round(Math.min(edge, side === 'n' ? cz + 2 : cz - 2)), dx + 1, Math.round(Math.max(edge, side === 'n' ? cz + 2 : cz - 2)));
+    };
+    spur(HL.mercy, 's'); spur(HL.mast, 'n'); spur(HL.table, 'n'); spur(HL.lowtide, 's');
+    walk(hullDoorX(HL.mercy) - 1, cz - 69, hullDoorX(HL.mercy) + 1, Math.round(HL.mercy.z - HL.mercy.beam / 2 - 1));
+    // The landing by the causeway, where the packet's sign stands
+    walk(SALT_LANDING.x - 8, SALT_LANDING.z - 6, SALT_LANDING.x + 10, cz - 3);
+    claim(SALT_LANDING.x - 9, SALT_LANDING.z - 16, SALT_LANDING.x + 11, cz - 3);
+
+    // ---- The hulls. Each is laid stern to bow along x, keel three blocks down in the sand; the shell
+    // rounds in toward the keel, the bow closes to a point and the stern is a flat transom.
+    const hull = (h: { x: number; z: number; len: number; beam: number }, o: { doors: ('n' | 's')[]; ramp: 'n' | 's'; tar?: boolean; masts: [number, number][]; cabin?: boolean }) => {
+      const { x: x0, z: z0, len, beam } = h;
+      const zc = z0 + 0.5, yk = base - 3, doorX = hullDoorX(h);
+      const hw = (t: number) => (beam / 2) * (t > 0.68 ? Math.sqrt(Math.max(0, 1 - ((t - 0.68) / 0.32) ** 2)) : t < 0.08 ? 0.82 + t * 2.25 : 1);
+      const width = (x: number, y: number) => { const t = (x + 0.5 - x0) / len; return t < 0 || t > 1 ? -1 : hw(t) * (0.5 + 0.5 * Math.sqrt(Math.max(0, (y - yk) / (DECK - yk)))); };
+      const inside = (x: number, y: number, z: number) => Math.abs(z + 0.5 - zc) <= width(x, y);
+      claim(x0 - 1, Math.floor(zc - beam / 2) - 3, x0 + len + 7, Math.ceil(zc + beam / 2) + 3);
+      const Z0 = Math.floor(zc - beam / 2) - 1, Z1 = Math.ceil(zc + beam / 2) + 1;
+      for (let x = x0; x < x0 + len; x++) for (let z = Z0; z <= Z1; z++) {
+        clearUp(x, z, base, DECK + 6);
+        for (let y = yk; y <= DECK + 1; y++) {
+          if (y === DECK + 1) {
+            // The rail round the deck's edge
+            if (inside(x, DECK, z) && (!inside(x, DECK, z - 1) || !inside(x, DECK, z + 1) || x === x0 || !inside(x + 1, DECK, z))) O.set(x, y, z, B.DarkPlanks);
+            continue;
+          }
+          if (!inside(x, y, z)) continue;
+          const edge = !inside(x, y, z - 1) || !inside(x, y, z + 1) || x === x0 || !inside(x + 1, y, z) || y === yk;
+          let id: number;
+          if (y === DECK) id = B.Planks;
+          else if (y < base - 1) id = B.Planks; // under the hold's floor: ballast and sand
+          else if (y === base - 1) id = edge ? B.DarkPlanks : B.Planks; // the hold's floor
+          else if (!edge) id = B.Air;
+          else id = (y - base) % 3 === 1 ? (o.tar ? B.Planks : B.DarkPlanks) : (o.tar ? B.DarkPlanks : B.Planks);
+          // A row of gunports along each side
+          if (edge && y === base + 4 && (x - x0) % 4 === 2 && Math.abs(x - doorX) > 2 && inside(x + 1, y, z) && x !== x0) id = B.Window;
+          O.set(x, y, z, id);
+        }
+      }
+      // The doors: three wide and three high through the side, at the middle
+      for (const side of o.doors) {
+        const sg = side === 'n' ? -1 : 1;
+        for (let x = doorX - 1; x <= doorX + 1; x++) for (let y = base; y <= base + 2; y++) {
+          const w = width(x, y);
+          for (let k = Math.floor(w - 2); k <= Math.ceil(w + 1); k++) O.set(x, y, Math.floor(zc + sg * (k + 0.5)), B.Air);
+        }
+      }
+      // Masts, one broken off short: a log from the hold's floor up through the deck, with a yard
+      for (const [m, mh] of o.masts) {
+        const mx = x0 + Math.floor(len * m);
+        for (let y = base; y < DECK + mh; y++) O.set(mx, y, z0, B.OakLog);
+        if (mh > 8) for (let dz = -Math.floor(beam * 0.4); dz <= Math.floor(beam * 0.4); dz++) O.set(mx, DECK + mh - 3, z0 + dz, B.OakLog);
+      }
+      // The bowsprit, out over the sand
+      for (let i = 1; i <= 6; i++) O.set(x0 + len - 1 + i, DECK + Math.floor(i / 2), z0, B.OakLog);
+      // A cabin over the stern: walls, windows, a roof, and a door looking forward
+      if (o.cabin) {
+        const xe = x0 + Math.floor(len * 0.2);
+        for (let x = x0; x <= xe; x++) for (let z = Z0; z <= Z1; z++) {
+          if (!inside(x, DECK, z)) continue;
+          const wall = x === x0 || x === xe || !inside(x, DECK, z - 1) || !inside(x, DECK, z + 1);
+          for (let y = DECK + 1; y <= DECK + 3; y++) O.set(x, y, z, wall ? (y === DECK + 2 && (x + z) % 3 === 0 ? B.Window : B.DarkPlanks) : B.Air);
+          O.set(x, DECK + 4, z, B.Planks);
+        }
+        for (let y = DECK + 1; y <= DECK + 2; y++) O.set(xe, y, z0, B.Air);
+        s.props.push({ t: 'wallLantern', x: xe + 1.05, y: DECK + 3.3, z: z0 + 1.5, ry: Math.PI / 2 });
+      }
+      // The gangway: two planks wide, up the side from the sand to a gap in the rail
+      const sg = o.ramp === 'n' ? -1 : 1, xs = doorX + 4;
+      const outer = Math.floor(zc + sg * (beam / 2 + 0.5));
+      for (let k = 1; k <= 9; k++) for (const r of [1, 2]) {
+        const x = xs + k - 1, z = outer + sg * r;
+        for (let y = base - 1; y < base + k; y++) O.set(x, y, z, r === 2 || y < base + k - 1 ? B.DarkPlanks : B.Planks);
+        clearUp(x, z, base + k, base + k + 4);
+      }
+      for (let x = xs + 7; x <= xs + 10; x++) for (let z = Z0; z <= Z1; z++) if (Math.sign(z + 0.5 - zc) === sg) { O.set(x, DECK + 1, z, B.Air); O.set(x, DECK + 2, z, B.Air); }
+      // Lamps hung in the hold, and gulls on the rail
+      for (const f of [0.3, 0.62]) s.props.push({ t: 'glow', x: x0 + len * f, y: base + 5.5, z: zc, r: 2.6, color: '#ffc070', lit: true });
+      for (let i = 0; i < 3; i++) {
+        const gx = x0 + Math.floor(len * (0.3 + i * 0.2)), gz = Math.floor(zc + (i % 2 ? 1 : -1) * (width(gx, DECK) - 0.5));
+        s.props.push({ t: 'furn', item: 'gull', x: gx + 0.5, y: DECK + 2, z: gz + 0.5, ry: i * 1.7 });
+      }
+      return { doorX, zc };
+    };
+    const mercy = hull(HL.mercy, { doors: ['n', 's'], ramp: 'n', masts: [[0.32, 16], [0.62, 6]], cabin: true });
+    const mast = hull(HL.mast, { doors: ['n'], ramp: 's', tar: true, masts: [[0.5, 12]], cabin: true });
+    const table = hull(HL.table, { doors: ['n'], ramp: 's', masts: [[0.45, 7]], cabin: true });
+    const low = hull(HL.lowtide, { doors: ['s'], ramp: 'n', tar: true, masts: [[0.55, 10]] });
+
+    // ---- The Mercy's hold: the market, stalls down both sides and an aisle between
+    const STALL = ['#a8382c', '#2f4a7a', '#c8a050', '#2f5a3a', '#e8dcc0', '#7a3a6a', '#3a6a7a'];
+    for (let i = 0; i < 6; i++) for (const sd of [-1, 1]) {
+      const x = HL.mercy.x + 8 + i * 6;
+      if (Math.abs(x - mercy.doorX) < 4) continue;
+      s.props.push({ t: 'stall', x: x + 0.5, y: base, z: mercy.zc + sd * 3.6, ry: sd < 0 ? 0 : Math.PI, color: STALL[(i * 2 + (sd > 0 ? 1 : 0)) % STALL.length] });
+    }
+    s.props.push({ t: 'sign', x: mercy.doorX + 3.5, y: base, z: Math.ceil(mercy.zc + HL.mercy.beam / 2) + 2.5, ry: 0, text: 'The Mercy: the market' });
+    // The Leaning Mast: tables and chairs, a counter at the stern end, barrels behind it, a stove
+    for (let i = 0; i < 4; i++) {
+      const tx = HL.mast.x + 9 + i * 4.5;
+      s.props.push({ t: 'furn', item: 'table', x: tx, y: base, z: mast.zc + (i % 2 ? 1.6 : -1.6), ry: 0 });
+      s.props.push({ t: 'furn', item: 'chair', x: tx + 1.1, y: base, z: mast.zc + (i % 2 ? 1.6 : -1.6), ry: -Math.PI / 2 });
+    }
+    s.props.push({ t: 'furn', item: 'counter', x: HL.mast.x + 4.5, y: base, z: mast.zc, ry: Math.PI / 2 });
+    for (const dz of [-2.4, 2.4]) s.props.push({ t: 'barrel', x: HL.mast.x + 2.5, y: base, z: mast.zc + dz, ry: 0 });
+    s.props.push({ t: 'sign', x: mast.doorX + 3.5, y: base, z: Math.floor(mast.zc - HL.mast.beam / 2) - 2.5, ry: Math.PI, text: 'The Leaning Mast' });
+    // The Captains' Table: one long table down the hold, chairs along it, a sea-chest at the head
+    for (let i = 0; i < 5; i++) {
+      const tx = HL.table.x + 7 + i * 2.2;
+      s.props.push({ t: 'furn', item: 'table', x: tx, y: base, z: table.zc, ry: 0 });
+      for (const sd of [-1, 1]) s.props.push({ t: 'furn', item: 'chair', x: tx, y: base, z: table.zc + sd * 1.3, ry: sd > 0 ? Math.PI : 0 });
+    }
+    s.props.push({ t: 'furn', item: 'chest', x: HL.table.x + 4.5, y: base, z: table.zc, ry: Math.PI / 2 }, { t: 'furn', item: 'coil', x: HL.table.x + 24.5, y: base, z: table.zc + 2.6, ry: 0 });
+    s.props.push({ t: 'sign', x: table.doorX + 3.5, y: base, z: Math.floor(table.zc - HL.table.beam / 2) - 2.5, ry: Math.PI, text: 'The Captains\' Table' });
+    // Low Tide: a counter across the hold, shelves and chests behind it
+    s.props.push({ t: 'furn', item: 'counter', x: HL.lowtide.x + 12.5, y: base, z: low.zc - 1.6, ry: 0 });
+    for (const dx of [7.5, 10.5, 13.5]) s.props.push({ t: 'furn', item: 'shelves', x: HL.lowtide.x + dx, y: base, z: low.zc - 2.6, ry: 0 });
+    s.props.push({ t: 'furn', item: 'chest', x: HL.lowtide.x + 5.5, y: base, z: low.zc, ry: Math.PI / 2 });
+    s.props.push({ t: 'sign', x: low.doorX + 3.5, y: base, z: Math.ceil(low.zc + HL.lowtide.beam / 2) + 2.5, ry: 0, text: 'Low Tide' });
+
+    // ---- Rope bridges between the decks: three planks wide, posts and a rope along each side
+    const bridge = (x0: number, z0: number, x1: number, z1: number) => {
+      const alongX = z0 === z1, n = alongX ? x1 - x0 : z1 - z0;
+      for (let i = 0; i <= n; i++) for (const k of [-1, 0, 1]) {
+        const x = alongX ? x0 + i : x0 + k, z = alongX ? z0 + k : z0 + i;
+        O.set(x, DECK, z, B.Planks);
+        for (let y = DECK + 1; y <= DECK + 3; y++) O.set(x, y, z, B.Air);
+        if (k !== 0) O.set(x, DECK + 1, z, i % 6 === 0 ? B.OakLog : B.Barrier);
+      }
+      for (const k of [-1, 1]) s.props.push({ t: 'rope', x: (alongX ? x0 : x0 + k) + 0.5, y: DECK + 1.9, z: (alongX ? z0 + k : z0) + 0.5, ry: alongX ? 0 : -Math.PI / 2, len: n, h: 0, r: Math.min(1.2, n / 30) });
+    };
+    bridge(HL.mercy.x + HL.mercy.len - 4, HL.lowtide.z + 1, HL.lowtide.x + 3, HL.lowtide.z + 1);
+    bridge(HL.mercy.x + 31, HL.mercy.z + 4, HL.mercy.x + 31, HL.table.z - 2);
+
+    // ---- The piers on the lee side, and the Brethren's ships at them
+    SALT_PIERS.forEach((pz, i) => {
+      for (let x = cx - 175; x <= cx - 96; x++) for (let z = pz - 2; z <= pz + 2; z++) {
+        const wet = heightAt(x, z) < base;
+        if (wet && (x - cx) % 5 === 0 && Math.abs(z - pz) === 2) for (let y = SEA - 5; y < base - 1; y++) O.set(x, y, z, B.OakLog);
+        O.set(x, base - 1, z, B.Planks);
+        clearUp(x, z, base, base + 8);
+      }
+      streets.push([cx - 175, pz - 2, cx - 96, pz + 2]);
+      claim(cx - 176, pz - 3, cx - 95, pz + 3);
+      s.props.push({ t: 'lantern', x: cx - 174.5, y: base, z: pz + 1.5 });
+      if (heightAt(cx - 150, pz + 8) < SEA) s.props.push({ t: 'ship', x: cx - 150, y: SEA - 0.6, z: pz + 8, ry: Math.PI, sails: i === 1 ? 'furled' : 'set', color: i === 1 ? '#1e1e24' : i === 0 ? '#7a2a1e' : '#2a5a4a' });
+      for (let k = 0; k < 4; k++) s.props.push({ t: k % 2 ? 'barrel' : 'crate', x: cx - 104.5 - k * 1.3, y: base, z: pz - 1.4 + (k % 2) * 0.4, ry: k });
+    });
+    s.props.push({ t: 'sign', x: cx - 120.5, y: base, z: SALT_PIERS[1] - 3.5, ry: Math.PI, text: 'The Kittiwake' });
+    for (let x = cx - 104; x <= cx - 96; x++) for (const pz of SALT_PIERS) if (land(x, pz)) walk(x, pz - 2, x, pz + 2);
+    walk(cx - 106, SALT_PIERS[0], cx - 103, SALT_PIERS[2]); // the quay along the pier heads
+
+    // ---- The Cockpit: a ring of salvaged timber round a floor of sand, posts with lamps, benches outside
+    const CP = SALT_COCKPIT;
+    for (let dz = -CP.r - 4; dz <= CP.r + 4; dz++) for (let dx = -CP.r - 4; dx <= CP.r + 4; dx++) {
+      const d = Math.hypot(dx, dz), x = CP.x + dx, z = CP.z + dz;
+      if (d > CP.r + 3.5) continue;
+      clearUp(x, z, base, base + 6);
+      O.set(x, base - 1, z, d < CP.r ? B.Sand : B.Planks);
+      const gap = Math.abs(dz) <= 1;
+      if (d >= CP.r - 0.5 && d < CP.r + 0.5 && !gap) O.set(x, base, z, B.DarkPlanks);
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8, px = Math.round(CP.x + Math.cos(a) * (CP.r + 1)), pzz = Math.round(CP.z + Math.sin(a) * (CP.r + 1));
+      for (let y = base; y < base + 4; y++) O.set(px, y, pzz, B.OakLog);
+      s.props.push({ t: 'glow', x: px + 0.5, y: base + 4.4, z: pzz + 0.5, r: 2, color: '#ffb060', lit: i % 2 === 0 });
+      s.props.push({ t: 'bench', x: CP.x + Math.cos(a + 0.4) * (CP.r + 2.6), y: base, z: CP.z + Math.sin(a + 0.4) * (CP.r + 2.6), ry: -a - 0.4 + Math.PI / 2 });
+    }
+    claim(CP.x - CP.r - 5, CP.z - CP.r - 5, CP.x + CP.r + 5, CP.z + CP.r + 5);
+    mine.push([CP.x - CP.r - 3, CP.z - CP.r - 3, CP.x + CP.r + 3, CP.z + CP.r + 3]);
+    walk(CP.x - CP.r - 4, CP.z - 1, CP.x - CP.r - 3, CP.z + 1); walk(CP.x - CP.r - 3, cz + 55, CP.x - CP.r - 3, CP.z - 1);
+    s.props.push({ t: 'sign', x: CP.x - CP.r - 4.5, y: base, z: CP.z + 3.5, ry: -Math.PI / 2, text: 'The Cockpit' });
+
+    // ---- Shacks of salvaged timber, each facing a boardwalk, closed up on most
+    const onWalk = (x: number, z: number) => mine.some((r) => x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]);
+    const roofs: PropDesc['mat'][] = ['thatch', 'slate', 'thatch', 'red'];
+    let n = 0;
+    for (let z = cz - 112; z < cz + 112; z += 3) for (let x = cx - 112; x < cx + 112; x += 3) {
+      const w = 6 + Math.floor(hash2(x, z, 932) * 3), d = 6 + Math.floor(hash2(z, x, 933) * 2);
+      if (!isFree(x - 1, z - 1, x + w, z + d)) continue;
+      if (![[x, z], [x + w, z], [x, z + d], [x + w, z + d]].every(([a, b]) => land(a, b) && heightAt(a, b) === base)) continue;
+      const mx = x + Math.floor(w / 2), mz = z + Math.floor(d / 2);
+      const door: 'n' | 's' | 'e' | 'w' | null = onWalk(mx, z - 2) ? 'n' : onWalk(mx, z + d + 1) ? 's' : onWalk(x - 2, mz) ? 'w' : onWalk(x + w + 1, mz) ? 'e' : null;
+      if (!door) continue;
+      claim(x - 1, z - 1, x + w, z + d);
+      const k = n++;
+      house(s, x, z, w, d, hash2(x, z, 934) < 0.25 ? 2 : 1, base, roofs[k % roofs.length], door, { wall: k % 3 ? B.Planks : B.DarkPlanks, front: 'boarded', role: k % 9 === 0 ? 'shop' : 'home', closed: k % 3 !== 0 });
+    }
+
+    // ---- Lamps down the Long Walk, a sign at the causeway, the odd barrel, crate and coil of rope
+    for (let x = cx - 96; x <= cx + 116; x += 14) if (onWalk(x, cz)) { s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: cz - 2.6, ry: 0 }); s.props.push({ t: 'lantern', x: x + 7.5, y: base, z: cz + 3.6, ry: Math.PI }); }
+    s.props.push({ t: 'sign', x: cx + 116.5, y: base, z: cz + 4.5, ry: -Math.PI / 2, text: 'Saltpenny Key' });
+  }
+
+  /**
+   * Wreckers' Bight: the camp where Pryce's Key wreckers lie up, on a key east along the causeway from
+   * Saltpenny. Two tents, a fire, salvage stacked under a sail, and their boat drawn up on the sand.
+   */
+  function buildBight(s: Site, base: number) {
+    const cx = BIGHT.x, cz = BIGHT.z;
+    rect(s, cx - 12, cz - 12, cx + 14, cz + 12);
+    s.props.push(
+      { t: 'tent', x: cx - 5, y: base, z: cz - 4, ry: 0.4, color: '#8a7a5a' },
+      { t: 'tent', x: cx + 2, y: base, z: cz - 7, ry: -0.3, color: '#6a5a4a' },
+      { t: 'firepit', x: cx + 0.5, y: base, z: cz + 0.5 },
+      { t: 'boat', x: BIGHT_BOAT.x, y: base, z: BIGHT_BOAT.z, ry: 0.9 },
+      { t: 'crate', x: cx - 6.5, y: base, z: cz + 3.5, ry: 0.3 }, { t: 'crate', x: cx - 7.6, y: base, z: cz + 4.6, ry: 1.1 },
+      { t: 'barrel', x: cx - 5.4, y: base, z: cz + 5.2 }, { t: 'barrel', x: cx + 6.5, y: base, z: cz - 2.5 },
+      { t: 'lantern', x: cx + 3.5, y: base, z: cz + 3.5 },
+    );
   }
 
   /**

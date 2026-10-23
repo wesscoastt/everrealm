@@ -42,6 +42,31 @@ export const CALLIS_TOWERS = {
 };
 /** Saltpenny Key: the outermost of the Keys, the Brethren's city of wrecks. */
 export const SALTPENNY = { x: -1540, z: 3700 };
+/** Saltpenny's street level: the key is levelled a couple of blocks over the sea (world/sites.ts buildSaltpenny). */
+export const SALT_FLOOR = SEA + 2;
+/**
+ * Saltpenny's beached hulls, each with its stern at x and its bow to the east, keel along z: the Mercy
+ * (the market), the Leaning Mast (the tavern), the Captains' Table, and Low Tide (the fence's).
+ * Their holds are rooms at street level, a door in the middle of the side (doorX); their decks are
+ * eight blocks up.
+ */
+export const SALT_HULLS = {
+  mercy: { x: SALTPENNY.x - 50, z: SALTPENNY.z - 22, len: 52, beam: 16 },
+  mast: { x: SALTPENNY.x + 30, z: SALTPENNY.z + 22, len: 30, beam: 10 },
+  table: { x: SALTPENNY.x - 78, z: SALTPENNY.z + 22, len: 34, beam: 11 },
+  lowtide: { x: SALTPENNY.x + 40, z: SALTPENNY.z - 26, len: 22, beam: 8 },
+};
+/** Where a hull's side door is, along it. */
+export const hullDoorX = (h: { x: number; len: number }) => h.x + Math.floor(h.len * 0.45);
+/** The Cockpit, the ring dug in the sand where the Brethren settle things. */
+export const SALT_COCKPIT = { x: SALTPENNY.x + 70, z: SALTPENNY.z + 80, r: 10 };
+/** The piers on the lee side, out from the west shore; the Kittiwake lies at the middle one. */
+export const SALT_PIERS = [SALTPENNY.z - 40, SALTPENNY.z, SALTPENNY.z + 40];
+/** Saltpenny's landing, by the causeway: the packet's sign stands here. */
+export const SALT_LANDING = { x: SALTPENNY.x + 106, z: SALTPENNY.z - 8 };
+/** Wreckers' Bight: the camp on a key east along the causeway where Pryce's wreckers lie up, and their boat. */
+export const BIGHT = { x: -1250, z: 3420 };
+export const BIGHT_BOAT = { x: BIGHT.x + 7.5, z: BIGHT.z + 6.5 };
 /** Northgate, across the only pass into the Held Country. */
 export const NORTHGATE = { x: 520, z: -1360 };
 /** Kingsbarrow, the city of the dead, in the Held Country. */

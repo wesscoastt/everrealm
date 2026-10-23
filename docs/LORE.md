@@ -627,7 +627,40 @@ The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, King
 Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; everything is in `src/data/content/callis.ts`.
 
 - **XVII, Half a Crew.** Once the Drowned Parish is done, Nessa Crane has news: a Morrow ship, the Good Return, came into Gullmouth half-crewed with northern passengers who won't say what they left, and her master asked after the Third Daughter. Aubrey Pryce talked Delia into one ship, one season, buying crystal in Morrow out of the Charter's reach; the Third Daughter sailed while the player was at Holmsey, with Delia's signature on his papers, and Pryce is gone from the Works. Delia pays the player's passage on the Constant (flag `tdPassage`: crossings are free on her account). Joan, separately and without telling Delia, gives forty marks and her plumb bob and wants numbers on Morrow's towers (`tdJoan`; the letter goes back through Pau Ferrer on the packet). Pau Ferrer remembers the Third Daughter: she came in at midsummer, her buyer went straight to the Assembly, and she sailed two days later, empty.
-- **XVIII, Nine Hundred Weight.** Clara Oms shows the Committee's lines and gives the player a copy. Marta Vidal explains the lift and sends the player to read the three gauges. The Speaker, shown the lines, admits the Kittiwake is a Brethren hull, that the Brethren carry the black to Callis, and that Pryce went south with them to Saltpenny Key in the summer. Benet Sala: he would rather buy black from thieves than watch the Old Tower walk off into the sky.
+- **XVIII, Nine Hundred Weight.** Clara Oms shows the Committee's lines and gives the player a copy. Marta Vidal explains the lift and sends the player to read the three gauges. The Speaker, shown the lines, admits the Kittiwake is a Brethren hull, that the Brethren carry the black to Callis, and that Pryce went south with them to Saltpenny Key in the summer. Benet Sala: he would rather buy black from thieves than watch the Old Tower walk off into the sky. From then on the packet runs from Callis to Saltpenny (flag `saltFerry`).
+- **XIX, What Pays** (`tdSalt`, `src/data/content/saltpenny.ts`). Mara Coyle of the Kittiwake loads the black in the north and won't say where: cargo is the Captains' Table's business. Ned Vey will tell, for a price. Pryce has started running black past the Brethren with Key wreckers, who don't fly Brethren colours and have sunk two Brethren boats this summer. The player either drives off the wreckers at Wreckers' Bight and burns their boat, or owes Ned a favour (flag `tdFavour`, owed when a Brethren captain asks; it matters at the end). The black loads at **Cold Harbour**, a cove under the Greywaste cliffs, two days north of Callis. Diggers bring it down from the barrows in carts, and Pryce pays and signs for every load. He went north with the last load a month ago and didn't come down. The diggers say the dead got up where they dug, and they have stopped coming down too.
+
+### Saltpenny Key [in game]
+
+- The Brethren's city on the outermost of the Keys (`buildSaltpenny` in `src/world/sites.ts`), built out of and on top of wrecked ships, reached by the causeway along the Keys or the packet from Callis. Boardwalks run between beached hulls and shacks of salvaged timber, with rope bridges between the hulls' decks.
+- **The Mercy**, a galleon run up the beach, is the market; her hold is full of stalls. **The Leaning Mast** is the tavern: she ran up the beach in a gale forty years ago and settled on her side, and the bar is at the low end. **The Captains' Table** is a hull with one long table down its hold. **Low Tide** is the fence's. **The Cockpit** is a ring dug in the sand, where captains settle things to first blood and the loser buys a round. The Brethren's ships lie at three piers on the lee side; the Kittiwake is at the middle one.
+- **Ysolde Gale** was the first of the Brethren, sixty years dead. She sank more Assembly ships than anyone since, and buried what she took. Her sign was a compass rose. The Brethren's own sign is two crossed oars, because every captain started out pulling one.
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Ned Vey** | Speaks for the captains at the Captains' Table | Whatever pays, as long as his crews come home | He'd sell you anything except his crew |
+| **Mara Coyle** | Master of the Kittiwake | To be paid, by everyone | She hates Cold Harbour |
+| **Dinah Lowry** | Draws maps in the Mercy's hold, from wreckers' talk and drowned men's charts | Gale's hoard found, and drawn | She learned to draw by copying Gale's hand |
+| **Gil Fenner** | The fence, at Low Tide | — | — |
+| **Annie Coe** | Keeps the Leaning Mast | No fighting in her bar | — |
+| **Jago Sweeney** | Keeps the Cockpit | — | — |
+
+- **Dinah's maps.** `dinahSalt` (a map of the key itself; a tin of her own buttons under the X), `dinahKeys` (two maps of the Keys; a page of Gale's log in the second chest), `dinahGale` (Gale's hoard by Heron Mere in the Glades: an iron box, a brass compass Dinah keeps, and Gale's cloak with the compass rose, which the player keeps). After that Dinah sells maps of every region in Morrow; there are two to each region, as in the Counties.
+- **Wreckers' Bight** is the camp on a key east along the causeway where Pryce's wreckers lie up.
+
+### Morrow's creatures [in game]
+
+Written at their regions' levels in `src/data/gameplay.ts`, south to north. Two new body plans in `src/entities/creatures.ts`: the lizard, and the lamp-moth, which flies.
+
+- **The Keys:** mangrove crabs, key lizards, reef jellies, and Key wreckers, who don't fly the Brethren's colours.
+- **The Glades:** sawgrass lizards, the glade glims that light the water at night, marsh moths.
+- **The Amberwold:** lamp-moths at dusk (the Wold folk paint their doorposts with the dust), amber lynx, leafback boars.
+- **The Bright Coast:** terrace jackals, quarry beetles in the white quarries, and black-runners carrying the black up the coast.
+- **The Sunder:** slab-crawlers and lift-moths off the hanging stone, rift wolves.
+- **The Glass Flats:** glass basilisks, glassbacks, and salt reavers.
+- **The Greywaste:** waste hounds, fen-damps, and the **Risen**, the first of the Held.
+- **The Held Country:** barrow-wights, the Risen, and the fell trolls of the high snow.
+- What they leave: lizard hide, moth dust, chips of the white (it floats), shards of the black (heavy as a fist), black glass (lightning-melted salt crust), grave iron (the smiths at Northgate won't work it), and fell troll hide.
 
 ## Terminology
 

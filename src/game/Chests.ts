@@ -4,7 +4,7 @@ import type { VoxelWorld } from '../world/VoxelWorld';
 import { regionAt, type RegionId } from '../world/terrain';
 import { REGION_ARMOUR } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
-import { TREASURE_MAPS } from '../data/wilds';
+import { LOOSE_MAPS } from '../data/wilds';
 import type { DropSource } from '../data/gear';
 
 // Hidden chests, the way ESO scatters them (world/sites.ts hideChests places them): find one, pick
@@ -138,7 +138,7 @@ export class Chests {
     const pool = [...(REGION_ARMOUR[reg] ?? []), ...(REGION_WEAPONS[reg] ?? [])];
     if (pool.length && Math.random() < gearChance) items.push({ id: pick(pool), source: (['mob', 'elite', 'boss'] as const)[c.tier] });
     if (Math.random() < [0.06, 0.12, 0.25][c.tier]) {
-      const maps = TREASURE_MAPS.filter((m) => m.region === reg && !this.host.known(m.id));
+      const maps = LOOSE_MAPS.filter((m) => m.region === reg && !this.host.known(m.id));
       if (maps.length) items.push({ id: pick(maps).id });
     }
     const marks = [[6, 14], [18, 34], [50, 90]][c.tier];

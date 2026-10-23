@@ -1,6 +1,6 @@
 import type { ItemDef } from './items';
 import type { EnemyType } from './gameplay';
-import { countiesOnly } from '../world/land';
+import { countiesOnly, LAND, type LandId } from '../world/land';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 import { hash2 } from '../world/noise';
 import type { Plan, Site } from '../world/sites';
@@ -63,15 +63,40 @@ export const TROPHIES: ItemDef[] = [
 /** Regions with treasure maps, in the order their maps are numbered. */
 export const MAP_REGIONS: RegionId[] = ['greenwake', 'crownroad', 'brambledeep', 'saltwind', 'redstone', 'starfall', 'gannet', 'wrath', 'tolmen'];
 
-export interface TreasureMap { id: string; region: RegionId; n: 1 | 2 }
-/** Hollindale's maps, drawn in the valley: the meadow east of the village, and below the Lantern. */
-export const FIXED_SPOTS: Record<string, { x: number; z: number }> = { tmap_greenwake_1: { x: 214.5, z: 158.5 }, tmap_greenwake_2: { x: 100.5, z: 252.5 } };
-export const TREASURE_MAPS: TreasureMap[] = countiesOnly(MAP_REGIONS.flatMap((region) => ([1, 2] as const).map((n) => ({ id: `tmap_${region}_${n}`, region, n }))));
+/** Morrow's regions, two maps to each (sold by Dinah Lowry in Saltpenny, data/content/saltpenny.ts). */
+export const MORROW_MAP_REGIONS: RegionId[] = ['keys', 'glades', 'amberwold', 'bright', 'sunder', 'glassflats', 'greywaste', 'held'];
 
-export const MAP_ITEMS: ItemDef[] = TREASURE_MAPS.map((m) => ({
-  id: m.id, name: `Treasure map: ${REGION_INFO[m.region].name}${m.n === 2 ? ' (second)' : ''}`, kind: 'collectible', rarity: 'uncommon', stack: false, value: 20,
+export interface TreasureMap {
+  id: string; region: RegionId; n: 1 | 2;
+  /** The land it's in (world/land.ts); none given, the Counties. */
+  land?: LandId;
+  /** A quest's own map, with its own name and story: never found in chests or dropped. */
+  quest?: { name: string; desc: string };
+}
+/**
+ * Maps whose X is drawn at a fixed place: Hollindale's two (the meadow east of the village, and below
+ * the Lantern), and Dinah Lowry's (behind Saltpenny's piers, and Ysolde Gale's by Heron Mere).
+ */
+export const FIXED_SPOTS: Record<string, { x: number; z: number }> = {
+  tmap_greenwake_1: { x: 214.5, z: 158.5 }, tmap_greenwake_2: { x: 100.5, z: 252.5 },
+  tmap_salt: { x: -1619.5, z: 3655.5 }, tmap_gale: { x: 210.5, z: 2440.5 },
+};
+const ALL_MAPS: TreasureMap[] = [
+  ...MAP_REGIONS.flatMap((region) => ([1, 2] as const).map((n) => ({ id: `tmap_${region}_${n}`, region, n }))),
+  ...MORROW_MAP_REGIONS.flatMap((region) => ([1, 2] as const).map((n): TreasureMap => ({ id: `tmap_${region}_${n}`, region, n, land: 'morrow' }))),
+  { id: 'tmap_salt', region: 'keys', n: 1, land: 'morrow', quest: { name: 'Dinah Lowry\'s map of Saltpenny Key', desc: 'Saltpenny Key in Dinah Lowry\'s fine hand, every hull and pier drawn in, and an X behind the piers on the lee side.' } },
+  { id: 'tmap_gale', region: 'glades', n: 1, land: 'morrow', quest: { name: 'Ysolde Gale\'s map', desc: 'Dinah Lowry\'s fair copy of a page from Captain Gale\'s log: Heron Mere in the Glades, a dead tree drawn as a cross, and an X under it.' } },
+];
+/** This land's maps: the ones whose X can be dug here. */
+export const TREASURE_MAPS: TreasureMap[] = ALL_MAPS.filter((m) => (m.land ?? 'counties') === LAND);
+/** Maps that turn up in chests and drops: not a quest's own. */
+export const LOOSE_MAPS: TreasureMap[] = TREASURE_MAPS.filter((m) => !m.quest);
+
+// Every land's map is an item everywhere (one can be carried across the sea)
+export const MAP_ITEMS: ItemDef[] = ALL_MAPS.map((m) => ({
+  id: m.id, name: m.quest?.name ?? `Treasure map: ${REGION_INFO[m.region].name}${m.n === 2 ? ' (second)' : ''}`, kind: m.quest ? 'quest' : 'collectible', rarity: 'uncommon', stack: false, value: m.quest ? 0 : 20,
   icon: { shape: 'bread', a: '#e8d8a8', b: '#a83a24' },
-  desc: `A rough drawing of a landmark in ${REGION_INFO[m.region].name}, and an X a few strides south of it, gone over twice in ink.`,
+  desc: m.quest?.desc ?? `A rough drawing of a landmark in ${REGION_INFO[m.region].name}, and an X a few strides south of it, gone over twice in ink.`,
   stats: 'While it\'s in your pack, the place is marked on your map. Dig at the turned earth.',
 }));
 
