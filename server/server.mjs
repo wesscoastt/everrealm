@@ -347,6 +347,8 @@ wss.on('connection', (ws, req) => {
       me = {
         id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
         x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', mount: null, lastChat: 0, dirty: true,
+        // The keeper's own accounts may read reports; what each player said lately goes with a report about them
+        dev: !!user && DEV_ACCOUNTS.has(accKey(user)), recent: [], lastReport: 0,
       };
       players.set(me.id, me);
       me.guildName = null;
@@ -390,8 +392,33 @@ wss.on('connection', (ws, req) => {
         const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, kind === 'emote' ? 120 : 200) : '';
         if (!text || now - me.lastChat < CHAT_GAP_MS) return;
         me.lastChat = now;
+        me.recent = [...me.recent, `${new Date(now).toISOString().slice(0, 16)} ${text}`].slice(-20);
         // Everyone gets it, the speaker too (that's their confirmation); id puts the bubble over the right head
         broadcast({ t: 'chat', from: me.name, id: me.id, text, kind });
+        break;
+      }
+      case 'report': {
+        // A player reports another: kept with what the reported player said lately, for the keeper to read
+        const now = Date.now();
+        if (now - me.lastReport < 30_000) { send(ws, { t: 'sys', text: 'You sent a report a moment ago: wait half a minute before the next.' }); return; }
+        const who = typeof msg.name === 'string' ? msg.name.trim().slice(0, 20) : '';
+        const reason = typeof msg.reason === 'string' ? msg.reason.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+        if (!who || !reason) return;
+        me.lastReport = now;
+        const target = [...players.values()].find((p) => p.name.toLowerCase() === who.toLowerCase());
+        const file = path.join(DATA, 'reports.json');
+        const list = readJson(file) ?? [];
+        list.push({ at: new Date(now).toISOString(), by: me.name, who: target?.name ?? who, reason, said: target?.recent ?? [] });
+        writeJson(file, list.slice(-500));
+        log(`report: ${me.name} about ${who}: ${reason}`);
+        send(ws, { t: 'sys', text: `Thank you. Your report about ${target?.name ?? who} has gone to the realm's keeper, with what they've said lately.` });
+        break;
+      }
+      case 'reports': {
+        if (!me.dev) return;
+        const list = (readJson(path.join(DATA, 'reports.json')) ?? []).slice(-10);
+        if (!list.length) { send(ws, { t: 'sys', text: 'No reports.' }); return; }
+        for (const r of list) send(ws, { t: 'sys', text: `[${r.at.slice(0, 16)}] ${r.by} about ${r.who}: ${r.reason}${r.said.length ? ' | said: ' + r.said.slice(-3).join(' / ') : ''}` });
         break;
       }
       case 'evStart': {

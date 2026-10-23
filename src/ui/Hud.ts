@@ -2321,9 +2321,13 @@ export class Hud {
       ['viewDist', 'View distance', 4, 10, 1],
       ['master', 'Master volume', 0, 1, 0.05], ['sfx', 'Effects', 0, 1, 0.05], ['ambience', 'Ambience', 0, 1, 0.05], ['music', 'Music', 0, 1, 0.05],
       ['renderScale', 'Render scale', 0.5, 1, 0.05],
+      ['mouseSens', 'Mouse look speed', 0.3, 2.5, 0.05],
     ];
     body.innerHTML = sliders.map(([k, label, min, max, step]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`).join('')
       + `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`
+      + `<div class="setting"><span>Invert mouse look</span><input type="checkbox" ${st.invertY ? 'checked' : ''} data-k="invertY"><span></span></div>`
+      + `<div class="setting"><span>Filter strong language</span><input type="checkbox" ${st.filterChat ? 'checked' : ''} data-k="filterChat"><span></span></div>`
+      + (st.ignored.length ? `<div class="setting"><span>Ignoring</span><span class="v" style="flex:2">${st.ignored.map(esc).join(', ')} <small>(/unignore name)</small></span></div>` : '')
       // Full screen on a computer (phones and tablets go full screen their own way, or can't)
       + (document.fullscreenEnabled && !document.body.classList.contains('touch') ? `<div class="setting"><span>Full screen</span><input type="checkbox" ${document.fullscreenElement ? 'checked' : ''} data-fs><span></span></div>` : '')
       + `<h4 class="sec">Controls</h4><div class="help-grid">

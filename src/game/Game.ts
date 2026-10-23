@@ -71,7 +71,7 @@ import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
 import type { ChunkResult } from '../world/chunkgen';
 import { chunkKey } from '../world/VoxelWorld';
-import { fixSave, Inventory, newSave, SaveData, writeSave } from './state';
+import { filterLanguage, fixSave, Inventory, newSave, SaveData, writeSave } from './state';
 import { MAX_CHARACTERS, deleteCharacter, lastPlayed, listCharacters, newCharacterId, rememberCharacter, saveKeyFor, setLastPlayed } from './roster';
 import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
@@ -814,7 +814,10 @@ export class Game implements GameApi {
         this.home.visit(owner, pieces as Piece[], shape);
         this.hud.system(hp?.spec ? `${owner}'s house stands on ${LOTS.find((l) => l.id === hp.lot)!.name}, the Wendside lots east of Hollin Ford.` : `${owner}'s home is Wendside Cottage, on the road east of Hollin Ford.`);
       },
-      chat: (from, t, id, kind) => {
+      chat: (from, t0, id, kind) => {
+        // Someone you've ignored isn't heard, aloud or in a whisper
+        if (from !== this.save.name && this.isIgnored(from)) return;
+        const t = this.save.settings.filterChat ? filterLanguage(t0) : t0;
         this.hud.chat(from, t, kind);
         if (kind === 'whisper') { this.social.lastWhisper = from; this.sfx('click'); }
         // Only what's said aloud shows over a head: group, guild and whispers are private
@@ -1370,6 +1373,7 @@ export class Game implements GameApi {
   // =================================================================== Settings and save
   private applySettings(): void {
     const s = this.save.settings;
+    if (this.rig) { this.rig.sens = s.mouseSens ?? 1; this.rig.invertY = !!s.invertY; }
     // A phone or tablet starts on lighter settings, once per browser; Settings can raise them again
     const TUNED = 'everrealm.phoneTuned';
     let tuned = true;
@@ -3669,6 +3673,8 @@ export class Game implements GameApi {
           ...(this.social.isFriend(name) ? [] : [{ label: 'Add friend', act: () => this.social.addFriend(name) }]),
           { label: 'Visit their home', act: () => this.online.homeAsk(name) },
           { label: 'Wave', act: () => this.doEmote('wave') },
+          this.isIgnored(name) ? { label: 'Stop ignoring', act: () => this.say('/unignore ' + name) } : { label: 'Ignore', act: () => this.say('/ignore ' + name) },
+          { label: 'Report…', act: () => this.hud.openChat((t) => this.say(t), `/report ${name} `) },
         ]);
         return;
       }
@@ -4179,6 +4185,7 @@ export class Game implements GameApi {
         case 'help': case '?':
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
+          this.hud.system('Safety: /ignore <name> hides someone\'s chat and whispers (/unignore, /ignored); /report <name> <what happened> tells the realm\'s keeper. Or click them.');
           this.hud.system('Chat: just type and press Enter. Commands: /me <action> (e.g. /me tips a hat), /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
           return;
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
@@ -4214,6 +4221,31 @@ export class Game implements GameApi {
         case 'friend': case 'addfriend': if (arg) this.social.addFriend(arg); else this.hud.system('Who? /friend <name>, or click them and choose Add friend.'); return;
         case 'unfriend': case 'removefriend': if (arg) this.social.removeFriend(arg); return;
         case 'kick': if (arg) this.social.kick(arg); return;
+        case 'ignore': case 'block': {
+          if (!arg) { this.hud.system('Ignore whom? /ignore <name>. /ignored lists them, /unignore <name> lets them back.'); return; }
+          const n = arg.trim().toLowerCase();
+          if (n === this.save.name.toLowerCase()) return;
+          if (!this.save.settings.ignored.includes(n)) this.save.settings.ignored.push(n);
+          this.persist();
+          this.hud.system(`You won't see ${arg.trim()}'s chat or whispers now. /unignore ${arg.trim()} to undo it.`);
+          return;
+        }
+        case 'unignore': case 'unblock': {
+          const n = arg.trim().toLowerCase();
+          this.save.settings.ignored = this.save.settings.ignored.filter((x) => x !== n);
+          this.persist();
+          this.hud.system(arg ? `${arg.trim()} is no longer ignored.` : 'Unignore whom? /unignore <name>.');
+          return;
+        }
+        case 'ignored': this.hud.system(this.save.settings.ignored.length ? 'Ignoring: ' + this.save.settings.ignored.join(', ') + '.' : "You aren't ignoring anyone."); return;
+        case 'report': {
+          const sp = arg.indexOf(' ');
+          if (sp < 1) { this.hud.system('Report: /report <name> <what happened>. It goes to the realm\'s keeper with what they said lately.'); return; }
+          if (this.online.status !== 'online') { this.hud.system('Reports go to the realm server: you need to be playing online.'); return; }
+          this.online.report(arg.slice(0, sp), arg.slice(sp + 1));
+          return;
+        }
+        case 'reports': this.online.reportsList(); return;
         case 'p': case 'party': case 'g': case 'group': if (arg) this.social.say(arg); return;
         case 'trade': if (arg) this.social.ask(arg); else this.hud.system('Who? /trade <name>, or click them and choose Trade.'); return;
         case 'gu': case 'gc': if (arg) this.social.guildSay(arg); return;
@@ -4227,6 +4259,8 @@ export class Game implements GameApi {
     }
     this.speak(text);
   }
+
+  private isIgnored(name: string): boolean { return this.save.settings.ignored.includes(name.toLowerCase()); }
 
   private speak(text: string): void {
     if (this.online.status === 'online') { this.online.chat(text, 'say'); return; } // the server echoes it back to everyone, you included

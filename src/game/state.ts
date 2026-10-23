@@ -17,6 +17,13 @@ export interface Settings {
   renderScale: number;
   dayLength: number; // real minutes per in-game day
   viewDist: number; // chunks
+  /** Mouse look speed (1 is the old speed), and whether up on the mouse looks down. */
+  mouseSens: number;
+  invertY: boolean;
+  /** Strong language in chat shows as asterisks. */
+  filterChat: boolean;
+  /** Players whose chat, whispers and invitations you don't see (by name, lower case). */
+  ignored: string[];
 }
 
 export interface SaveData {
@@ -42,7 +49,7 @@ export interface SaveData {
   origin?: string;
 }
 
-export const DEFAULT_SETTINGS: Settings = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45, shadows: true, renderScale: 1, dayLength: 24, viewDist: 6 };
+export const DEFAULT_SETTINGS: Settings = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45, shadows: true, renderScale: 1, dayLength: 24, viewDist: 6, mouseSens: 1, invertY: false, filterChat: true, ignored: [] };
 
 export function newSave(name: string, look: Appearance): SaveData {
   const inv: (Stack | null)[] = new Array(INV_SIZE).fill(null);
@@ -95,6 +102,13 @@ export function fixSave(d: SaveData): void {
     }
     f['xpCurve2'] = 1;
   }
+}
+
+// Strong language and slurs, masked in chat when the filter is on (Settings.filterChat): the first
+// letter kept, the rest starred. Matches the word and its endings.
+const STRONG = /\b(fuck|shit|cunt|bitch|bastard|dick|cock|piss|twat|wank|slut|whore|fag|nigg|retard|spastic|tranny|kike|chink|paki)\w*/gi;
+export function filterLanguage(text: string): string {
+  return text.replace(STRONG, (w) => w[0] + '*'.repeat(w.length - 1));
 }
 
 export function writeSave(d: SaveData, key = SAVE_KEY): boolean {

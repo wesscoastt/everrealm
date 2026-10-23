@@ -20,6 +20,9 @@ export class CameraRig {
   actualDistance = 8;
   /** Whether the camera's focus is under a roof (see update). */
   indoor = false;
+  /** Mouse look speed, and whether up on the mouse looks down (Settings). */
+  sens = 1;
+  invertY = false;
 
   constructor(readonly camera: THREE.PerspectiveCamera, private world: VoxelWorld) {}
 
@@ -28,8 +31,8 @@ export class CameraRig {
   }
 
   rotate(dx: number, dy: number): void {
-    this.yaw -= dx * 0.0055;
-    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.0045, this.firstPerson ? -1.3 : -0.55, 1.35);
+    this.yaw -= dx * 0.0055 * this.sens;
+    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.0045 * this.sens * (this.invertY ? -1 : 1), this.firstPerson ? -1.3 : -0.55, 1.35);
   }
 
   /** Zoomed all the way in: you see through your character's eyes. */

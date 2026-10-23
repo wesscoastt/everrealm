@@ -430,6 +430,10 @@ export class Online {
   /** Tell the realm a creature at this spawn point died; it's gone for everyone for `secs`. */
   mobDead(key: string, secs: number): void { this.emit({ t: 'mobDead', key, secs }); }
   homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }
+  /** A report about a player, for the realm's keeper (server: data/reports.json). */
+  report(name: string, reason: string): void { this.emit({ t: 'report', name, reason }); }
+  /** The latest reports (the keeper's accounts only). */
+  reportsList(): void { this.emit({ t: 'reports' }); }
   homeShow(name: string, accept: boolean, pieces: unknown[] | null, plot: unknown = null): void { this.emit({ t: 'hShow', name, accept, pieces, plot }); }
   tradeAnswer(name: string, accept: boolean): void { this.emit({ t: 'tAnswer', name, accept }); }
   tradeOffer(items: { id: string; n: number }[], marks: number): void { this.emit({ t: 'tOffer', items, marks }); }
