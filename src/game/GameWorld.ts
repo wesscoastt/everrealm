@@ -23,7 +23,7 @@ import { ChunkManager } from './ChunkManager';
 const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
-const LAMP_LIGHTS = 8, LAMP_REACH = 11, LAMP_POWER = 9;
+const LAMP_LIGHTS = 12, LAMP_REACH = 16, LAMP_POWER = 12;
 
 /** Something growing to pick: bare (picked) until `bareUntil` (game time). */
 export interface ForageSpot { x: number; y: number; z: number; kind: string; bareUntil: number }

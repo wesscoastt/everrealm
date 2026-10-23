@@ -622,6 +622,7 @@ export function plan(): Plan {
       rectsByChunk.get(k)!.push(r);
     }
   }
+  settleBanners(sites, O);
   cached = { sites, chests, overrides: O, rectsByChunk, waymarks };
   return cached;
 
@@ -4380,5 +4381,53 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
     foundation(cx, cz, base, B.Cobble);
     for (let y = base; y < top + apex + 1.5; y++) O.set(cx, y, cz, y < top + apex + 0.5 ? B.Cobble : B.StoneBrick);
     s.props.push({ t: 'smoke', x: cx + 0.5, y: Math.ceil(top + apex + 1.5) + 0.2, z: cz + 0.5 });
+  }
+}
+
+/**
+ * Every banner hangs clear of the stone it's fixed to. Builders place them by eye, and a cloth set a
+ * few tenths into a wall, or long enough to reach the ground, cuts through it. Each banner whose
+ * cloth (1 wide, 2.2 long, plus the room it waves in) or rod meets a solid block is eased out from
+ * the wall along its own normal, a twentieth at a time, then lifted if it still drags; one that
+ * can't be settled within a block is taken down. scripts/sitecheck.ts checks the result.
+ */
+function settleBanners(sites: Site[], O: Overrides): void {
+  const index = new Map<number, Map<number, number>>();
+  const cellOf = (x: number, y: number, z: number): number | undefined => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = index.get(k);
+    if (!m) {
+      m = new Map();
+      const a = O.map.get(k) ?? [];
+      for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]);
+      index.set(k, m);
+    }
+    return m.get(localIdx(x & 31, y, z & 31));
+  };
+  const solid = (x: number, y: number, z: number): boolean => {
+    const fx = Math.floor(x), fy = Math.floor(y), fz = Math.floor(z);
+    const o = cellOf(fx, fy, fz);
+    if (o !== undefined) return o !== B.Air && o !== B.Water && !!BLOCKS[o]?.solid && o !== B.OakLeaves && o !== B.BirchLeaves && o !== B.PineLeaves;
+    return fy < heightAt(fx, fz);
+  };
+  const clear = (x: number, y: number, z: number, c: number, s: number): boolean => {
+    const at = (u: number, v: number, n: number) => solid(x + u * c + n * s, y + v, z - u * s + n * c);
+    for (let u = -0.45; u <= 0.46; u += 0.15) for (let v = -0.1; v >= -2.15; v -= 0.25) for (const n of [-0.12, 0, 0.12]) if (at(u, v, n)) return false;
+    for (const u of [-0.58, 0, 0.58]) if (at(u, 0.05, 0)) return false;
+    return true;
+  };
+  for (const site of sites) {
+    site.props = site.props.filter((d) => {
+      if (d.t !== 'banner') return true;
+      const ry = d.ry ?? 0, c = Math.cos(ry), s = Math.sin(ry);
+      if (clear(d.x, d.y, d.z, c, s)) return true;
+      for (const lift of [0, 0.5, 1]) for (let i = 1; i <= 20; i++) for (const sign of [1, -1]) {
+        const off = sign * i * 0.05, x = d.x + off * s, z = d.z + off * c;
+        if (!clear(x, d.y + lift, z, c, s)) continue;
+        d.x = x; d.z = z; d.y += lift;
+        return true;
+      }
+      return false;
+    });
   }
 }

@@ -313,6 +313,23 @@ for (const [k, id] of cells) {
   if (gaps.length) problems.push(...gaps.slice(0, 40), ...(gaps.length > 40 ? [`... and ${gaps.length - 40} more`] : []));
 }
 
+// Banners: the cloth (1 wide, 2.2 long, hanging from its rod) and the room it waves in, a little in
+// front of it and behind, must be clear of walls; so must the rod.
+let banners = 0;
+for (const site of P.sites) for (const d of site.props) {
+  if (d.t !== 'banner') continue;
+  banners++;
+  const ry = d.ry ?? 0, c = Math.cos(ry), sn = Math.sin(ry);
+  const at = (u: number, v: number, n: number): [number, number, number] => [d.x + u * c + n * sn, d.y + v, d.z - u * sn + n * c];
+  let hit: number[] | null = null;
+  for (let u = -0.45; u <= 0.46 && !hit; u += 0.15) for (let v = -0.1; v >= -2.15 && !hit; v -= 0.25) for (const n of [-0.1, 0, 0.1]) {
+    const q = at(u, v, n);
+    if (solid(...q)) { hit = q; break; }
+  }
+  for (const u of [-0.58, 0, 0.58]) if (!hit) { const q = at(u, 0.05, 0); if (solid(...q)) hit = q; }
+  if (hit) problems.push(`banner (${site.id}) at (${d.x.toFixed(1)}, ${d.y}, ${d.z.toFixed(1)}) turned ${ry.toFixed(2)}: into a wall at (${hit.map((v) => v.toFixed(1)).join(', ')})`);
+}
+console.log(`${banners} banners checked.`);
 console.log(`${checked} points checked across ${P.sites.length} sites.`);
 if (all && raised.length) { console.log(`\nStanding on something built (2-3 blocks up, usually a step, floor or jetty):`); for (const r of raised) console.log('  ' + r); }
 if (problems.length) { console.log(`\n${problems.length} problem(s):`); for (const p of problems) console.log('  ' + p); process.exitCode = 1; }
