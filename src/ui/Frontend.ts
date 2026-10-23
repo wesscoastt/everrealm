@@ -253,7 +253,7 @@ export class Frontend {
     if (this.homeTab !== 'store' || !box.isConnected) return;
     if (!cat) { box.innerHTML = '<p class="st-wait">The store lives on the online realm, and the realm isn\'t answering just now.</p>'; return; }
     const signed = !!currentAccount();
-    const view = (it: StoreItem) => `<canvas class="st-view" data-view="${esc(it.items[0])}"></canvas>`;
+    const view = (it: StoreItem) => `<canvas class="st-view" data-view="${esc(it.items.join(','))}"></canvas>`;
     const kind = (id: string) => (ITEMS[id]?.mount ? 'Mount' : ITEMS[id]?.pet ? 'Pet' : ITEMS[id]?.capeDesign ? 'Cloak' : 'Item');
     const card = (it: StoreItem) => it.price === 0 ? `<div class="st-card st-free" data-cat="${esc(it.cat ?? '')}">${view(it)}<div class="st-h"><b>${esc(it.name)}</b><span class="st-price">Free</span></div>
       <p>${esc(it.blurb)}</p>

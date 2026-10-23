@@ -12,6 +12,9 @@ import { Humanoid, type Appearance } from '../entities/humanoid';
 
 const W = 300, H = 190;
 
+/** What a window holds: the model, how it moves, and (a bundle) how its things each turn. */
+interface Shown { root: THREE.Object3D; update?: (dt: number) => void; cam: [number, number, number, number]; spin?: (yaw: number) => void }
+
 /** A figure to wear a cloak in the window, seen from behind. */
 const WEARER: Appearance = { skin: '#d8a882', hair: '#4a2a18', hairStyle: 1, eyes: '#3a5a7a', tunic: '#3a4a5a', trim: '#c8a050', trousers: '#2e2a26', boots: '#2a1e14', frame: 'm' };
 
@@ -21,11 +24,12 @@ export class StoreShowcase {
   private target = new THREE.WebGLRenderTarget(W, H);
   private pixels = new Uint8Array(W * H * 4);
   private pivot = new THREE.Group();
+  private ground = new THREE.Mesh(new THREE.CircleGeometry(4, 40), new THREE.MeshLambertMaterial({ color: '#3e5a2e' }));
   private windows: { cv: HTMLCanvasElement; item: string; yaw: number }[] = [];
   private hot: HTMLCanvasElement | null = null;
   private raf = 0;
   private last = 0;
-  private built = new Map<string, { root: THREE.Object3D; update?: (dt: number) => void; cam: [number, number, number, number] }>();
+  private built = new Map<string, Shown>();
 
   constructor(private renderer: THREE.WebGLRenderer) {
     this.target.texture.colorSpace = THREE.SRGBColorSpace;
@@ -34,9 +38,8 @@ export class StoreShowcase {
     const sun = new THREE.DirectionalLight('#fff4e0', 2.3);
     sun.position.set(4, 8, 5);
     this.scene.add(sun);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 40), new THREE.MeshLambertMaterial({ color: '#3e5a2e' }));
-    ground.rotation.x = -Math.PI / 2;
-    this.scene.add(ground, this.pivot);
+    this.ground.rotation.x = -Math.PI / 2;
+    this.scene.add(this.ground, this.pivot);
   }
 
   /** Puts the item's model in this canvas, and turns it while the pointer is over the card. */
@@ -70,12 +73,35 @@ export class StoreShowcase {
     this.raf = requestAnimationFrame(loop);
   }
 
-  /** The model an item shows: a mount, a pet, or a cloak on someone's back. */
-  private model(item: string): { root: THREE.Object3D; update?: (dt: number) => void; cam: [number, number, number, number] } | null {
+  /** The model a window shows: one item, or a bundle's items side by side (ids joined with commas). */
+  private model(item: string): Shown | null {
     const hit = this.built.get(item);
     if (hit) return hit;
+    const ids = item.split(',');
+    const made = ids.length === 1 ? this.make(item) : this.row(ids);
+    if (made) this.built.set(item, made);
+    return made;
+  }
+
+  /** A bundle: everything in it stood in a row, each a little apart, so you see all of what you get. */
+  private row(ids: string[]): Shown | null {
+    const g = new THREE.Group(), parts = ids.map((id) => this.make(id)).filter((m): m is NonNullable<typeof m> => !!m);
+    if (!parts.length) return null;
+    let x = 0;
+    for (const m of parts) {
+      const w = new THREE.Box3().setFromObject(m.root).getSize(new THREE.Vector3());
+      const half = Math.max(w.x, w.z) / 2 + 0.15;
+      x += half; m.root.position.x = x; x += half;
+      g.add(m.root);
+    }
+    for (const m of parts) m.root.position.x -= x / 2;
+    return { root: g, update: (dt) => { for (const m of parts) m.update?.(dt); }, cam: [0, 0, 0, 0], spin: (yaw) => { for (const m of parts) m.root.rotation.y = yaw + (m.root.userData.face ?? 0); } };
+  }
+
+  /** One item's model: a mount, a pet, or a cloak on someone's back. */
+  private make(item: string): Shown | null {
     const def = ITEMS[item];
-    let made: { root: THREE.Object3D; update?: (dt: number) => void; cam: [number, number, number, number] } | null = null;
+    let made: Shown | null = null;
     if (def?.mount) {
       const look = mountLook(item, 0, 0);
       const m = look ? mountModel(look) : null;
@@ -87,10 +113,9 @@ export class StoreShowcase {
       made = { root: c.root, update: (dt) => c.update(dt, 0), cam: [2.4, 1.3, 2.4, 0.45] };
     } else if (def?.capeDesign) {
       const h = new Humanoid({ ...WEARER, cape: '#2a3a5a', capeDesign: def.capeDesign });
-      h.root.rotation.y = Math.PI;
+      h.root.rotation.y = Math.PI; h.root.userData.face = Math.PI;
       made = { root: h.root, cam: [3.4, 1.9, 3.4, 1.2] };
     }
-    if (made) this.built.set(item, made);
     return made;
   }
 
@@ -99,12 +124,16 @@ export class StoreShowcase {
     if (!m) return;
     this.pivot.clear();
     this.pivot.add(m.root);
-    this.pivot.rotation.y = w.yaw;
+    // A bundle is seen from the front, its things each turning in place; one thing turns whole
+    if (m.spin) { this.pivot.rotation.y = 0; m.spin(w.yaw); } else this.pivot.rotation.y = w.yaw;
     m.update?.(dt);
     // Framed by its own size: the whole of it in view, a little from above and to the side
     const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-    const d = Math.max(size.x, size.y * 1.4, size.z) * 1.9 + 0.3;
-    this.camera.position.set(mid.x + d * 0.62, mid.y + d * 0.32, mid.z + d * 0.62);
+    // (a row is fitted to the window's width: its half-angle across is about 23 degrees)
+    const d = m.spin ? Math.max(size.x * 1.3, size.y * 2.6) + size.z * 0.5 + 0.4 : Math.max(size.x, size.y * 1.4, size.z) * 1.9 + 0.3;
+    this.ground.scale.setScalar(Math.max(1, Math.max(size.x, size.z) / 6));
+    if (m.spin) this.camera.position.set(mid.x, mid.y + d * 0.3, mid.z + d);
+    else this.camera.position.set(mid.x + d * 0.62, mid.y + d * 0.32, mid.z + d * 0.62);
     this.camera.lookAt(mid.x, mid.y, mid.z);
     const r = this.renderer, was = r.getRenderTarget();
     r.setRenderTarget(this.target);
