@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Sfx } from '../systems/Audio';
-import { damageScale, rewardScale } from '../data/scaling';
+import { damageScale, marksScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
 import { ENEMIES, EnemyType } from '../data/gameplay';
@@ -894,7 +894,7 @@ export class Dungeons {
     const daily = this.host.flag('gdDaily') !== today;
     if (daily) this.host.setFlag('gdDaily', today);
     const k = rewardScale(this.host.level(), r.def.level);
-    this.host.reward(Math.round(c.xp * k * (daily ? 1.5 : 1)), Math.round((c.marks + (daily ? 60 : 0)) * k), c.items, daily ? `${r.def.name}: the chest, and the day's first dungeon` : `${r.def.name}: the chest`);
+    this.host.reward(Math.round(c.xp * k * (daily ? 1.5 : 1)), Math.round((c.marks + (daily ? 60 : 0)) * marksScale(this.host.level(), r.def.level)), c.items, daily ? `${r.def.name}: the chest, and the day's first dungeon` : `${r.def.name}: the chest`);
     this.host.sfx('open');
     this.host.persist();
   }

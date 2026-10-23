@@ -7,7 +7,7 @@ import type { RegionContent } from './types';
 
 // THE STABLES: a stablemaster at each stable outside the towns (data/stables.ts says where), the
 // horses they sell, and what they have to say about them. The heartland towns sell working horses
-// for a few score marks; the far towns over the necks sell what only they breed, for hundreds.
+// for a few hundred marks; the far towns over the necks sell what only they breed, for thousands.
 
 const SAME = 'Use it, or press G, to ride. Every mount keeps the same pace.';
 const TWO = 'Seats two: someone in your group can ride behind you (E beside you). Use it, or press G, to ride. Every mount keeps the same pace.';

@@ -474,8 +474,8 @@ export class Hud {
 
 /** The level bar over the action bar: your level, always (the trades show their own, briefly, above it). */
   setXpBar(xp: number): void {
-    const lv = levelForXp(xp);
-    const a = xpForLevel(lv), b = xpForLevel(lv + 1);
+    const lv = levelForXp(xp, 'melee');
+    const a = xpForLevel(lv, 'melee'), b = xpForLevel(lv + 1, 'melee');
     const top = lv >= MAX_LEVEL;
     this.q('#xpbar > .label').textContent = `Level ${lv}`;
     (this.q('#xpbar > .bar > i') as HTMLElement).style.width = (top ? 100 : ((xp - a) / (b - a)) * 100) + '%';
@@ -485,7 +485,7 @@ export class Hud {
   /** A trade's progress, shown for a few seconds over the level bar when it earns experience. */
   skillXp(skill: SkillId, xp: number): void {
     const s = SKILLS.find((k) => k.id === skill)!;
-    const lv = levelForXp(xp), a = xpForLevel(lv), b = xpForLevel(lv + 1);
+    const lv = levelForXp(xp, skill), a = xpForLevel(lv, skill), b = xpForLevel(lv + 1, skill);
     const box = this.q('#skillxp');
     box.querySelector('span')!.textContent = `${s.name} ${lv}`;
     const fill = box.querySelector('i') as HTMLElement;
@@ -1427,9 +1427,9 @@ export class Hud {
     let total = 0;
     for (const s of SKILLS) {
       const xp = this.ctx.save.xp[s.id];
-      const lv = levelForXp(xp);
+      const lv = levelForXp(xp, s.id);
       total += lv;
-      const a = xpForLevel(lv), b = xpForLevel(lv + 1);
+      const a = xpForLevel(lv, s.id), b = xpForLevel(lv + 1, s.id);
       const row = el('div', 'skill' + (this.openSkill === s.id ? ' open' : ''));
       row.innerHTML = `<img src="${shapeIcon(s.icon as 'ore', s.color)}" alt=""><div class="nm">${s.name}</div><div class="lv">${lv}</div>
         <div class="bar xp"><i style="width:${((xp - a) / (b - a)) * 100}%;background:linear-gradient(180deg,${s.color},#2a1a10)"></i></div>

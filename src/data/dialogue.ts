@@ -1680,7 +1680,7 @@ DIALOGUE.kitFar = DIALOGUE.kit;
 export const READABLES: Record<string, { title: string; body: string | ((g: GameApi) => string); effect?: (g: GameApi) => void }> = {
   landBoard: {
     title: 'Charter of Hollindale: Lots to Let',
-    body: 'Five lots on the Ford road, laid out by the moot and staked at the corners. Each let for ninety-nine years at three hundred marks, the money to the bridge.\n\nThe leaseholder may build as they please, by the Ansbury builders, who supply the stone, lime, thatch and glazing, and want the timber and ironwork found for them, and their wages.\n\nOne home to a household. Anyone holding Wendside Cottage may give it back to the Charter, which will pay two hundred marks for it, once their own house is built.\n\nEnquire at the stake of any lot.\n\n– M. Ashby, Reeve',
+    body: 'Five lots on the Ford road, laid out by the moot and staked at the corners. Each let for ninety-nine years at two thousand marks, the money to the bridge.\n\nThe leaseholder may build as they please, by the Ansbury builders, who supply the stone, lime, thatch and glazing, and want the timber and ironwork found for them, and their wages.\n\nOne home to a household. Anyone holding Wendside Cottage may give it back to the Charter, which will pay twelve hundred and fifty marks for it, once their own house is built.\n\nEnquire at the stake of any lot.\n\n– M. Ashby, Reeve',
   },
   notice: {
     title: 'Notice board, Hollin Ford',

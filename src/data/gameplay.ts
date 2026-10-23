@@ -4,6 +4,7 @@ import { ARMOUR_SMITHING } from './armour';
 import { WEAPON_SMITHING } from './weapons';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
+import { killsForLevel, killXp, SKILL_PACE } from './pacing';
 
 // ------------------------------------------------------------- Skills
 
@@ -18,16 +19,27 @@ export const SKILLS: { id: SkillId; name: string; color: string; icon: string }[
 
 export const MAX_LEVEL = 100;
 
-/** Total XP needed to reach a level. Gentle early, steep late; level 100 is about 1.1M XP. */
-export function xpForLevel(level: number): number {
+/** The first curve (every skill, before 2026-10-23): kept so old saves keep their levels (state.ts fixSave). */
+export function xpForLevelV1(level: number): number {
   if (level <= 1) return 0;
   const n = level - 1;
   return Math.round(55 * Math.pow(n, 2.15) + 45 * n);
 }
 
-export function levelForXp(xp: number): number {
+/** Your level (melee) is paced in kills' worth (data/pacing.ts); a running total per level. */
+const CHAR_XP: number[] = [0, 0];
+for (let L = 1; L < MAX_LEVEL; L++) CHAR_XP[L + 1] = CHAR_XP[L] + Math.round(killXp(L) * killsForLevel(L));
+
+/** Total XP needed to reach a level: your level from data/pacing.ts, a trade's from the old curve at SKILL_PACE. */
+export function xpForLevel(level: number, skill: SkillId): number {
+  if (level <= 1) return 0;
+  if (skill === 'melee') return CHAR_XP[Math.min(level, MAX_LEVEL)];
+  return Math.round(xpForLevelV1(level) * SKILL_PACE);
+}
+
+export function levelForXp(xp: number, skill: SkillId): number {
   let lv = 1;
-  while (lv < MAX_LEVEL && xp >= xpForLevel(lv + 1)) lv++;
+  while (lv < MAX_LEVEL && xp >= xpForLevel(lv + 1, skill)) lv++;
   return lv;
 }
 

@@ -25,16 +25,25 @@ export const curve = {
   xp: (L: number) => 14 * L,
 };
 
+/**
+ * Money doesn't keep pace with level as experience does: a creature or a chest written for level w
+ * pays (L / w)^0.6 times its marks at level L, so a wolf is worth more to a veteran than to a
+ * beginner, but not so much more that prices stop meaning anything (see scripts/economy.ts).
+ */
+export function marksScale(L: number, written: number): number {
+  return Math.pow(Math.max(1, L) / Math.max(1, written), 0.6);
+}
+
 /** A creature as written, met at level L. */
 export function scaleDef(base: EnemyDef, L: number): EnemyDef {
   const k = (f: (l: number) => number) => f(L) / f(base.level);
-  const x = k(curve.xp);
+  const x = marksScale(L, base.level);
   return {
     ...base,
     level: L,
     hp: Math.max(1, Math.round(base.hp * k(curve.hp))),
     damage: Math.max(1, Math.round(base.damage * k(curve.damage))),
-    xp: Math.max(1, Math.round(base.xp * x)),
+    xp: Math.max(1, Math.round(base.xp * k(curve.xp))),
     marks: [Math.round(base.marks[0] * x), Math.max(Math.round(base.marks[0] * x), Math.round(base.marks[1] * x))],
   };
 }
@@ -45,9 +54,10 @@ export function regionLevel(r: RegionId): number {
   return n.length ? (n[0] + n[n.length - 1]) / 2 : 10;
 }
 
-/** What a reward written for level `written` is worth to a player of level L. */
+/** What experience written for level `written` is worth to a player of level L: the same in kills' worth. */
 export function rewardScale(L: number, written: number): number {
-  return curve.xp(Math.max(1, L)) / curve.xp(Math.max(1, written));
+  const kx = (l: number) => curve.xp(l) + 0.4 * curve.hp(l);
+  return kx(Math.max(1, L)) / kx(Math.max(1, written));
 }
 
 /** Damage written for level `written`, met at level L (a dungeon's ground circles). */

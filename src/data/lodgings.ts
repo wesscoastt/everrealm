@@ -20,9 +20,9 @@ export interface LodgingDef {
 }
 
 export const LODGINGS: LodgingDef[] = [
-  { id: 'lg-ansbury', name: 'Southgate Lodgings', town: 'Ansbury', x: 842, z: 491, face: 'w', rent: 40 },
-  { id: 'lg-gullmouth', name: 'Upper Town Rooms', town: 'Gullmouth', x: 1570, z: 601, face: 'n', rent: 30 },
-  { id: 'lg-harrowgate', name: 'Company Lodgings', town: 'Harrowgate Works', x: 987, z: 951, face: 's', rent: 25 },
+  { id: 'lg-ansbury', name: 'Southgate Lodgings', town: 'Ansbury', x: 842, z: 491, face: 'w', rent: 200 },
+  { id: 'lg-gullmouth', name: 'Upper Town Rooms', town: 'Gullmouth', x: 1570, z: 601, face: 'n', rent: 150 },
+  { id: 'lg-harrowgate', name: 'Company Lodgings', town: 'Harrowgate Works', x: 987, z: 951, face: 's', rent: 125 },
 ];
 
 /** A week, in milliseconds; rent can be paid up to four weeks ahead. */

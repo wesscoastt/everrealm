@@ -2,7 +2,7 @@ import { B } from '../world/blocks';
 import type { FrontId, TrimId } from '../world/sites';
 
 /** Wendside Cottage, the house for sale on the road east of Hollin Ford: its walls and floor height. */
-export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 400, bench: { x: 412.6, z: 199.5 } };
+export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 2500, bench: { x: 412.6, z: 199.5 } };
 
 // Homes. Two ways to have one: buy Wendside Cottage as it stands, or lease a lot from the Charter
 // and have a house built to your own plans. The Charter is selling the waste ground along the
@@ -24,9 +24,9 @@ export const LOTS: Lot[] = [
   { id: 'l4', name: 'Lot 4, Brook Side', x0: 402, z0: 224, door: 'n' },
   { id: 'l5', name: 'Lot 5, Brook Side', x0: 418, z0: 230, door: 'n' },
 ];
-export const LOT_PRICE = 300;
+export const LOT_PRICE = 2000;
 /** What the Charter pays when you give up Wendside Cottage to move into a house of your own. */
-export const COTTAGE_BUYBACK = 200;
+export const COTTAGE_BUYBACK = 1250;
 /** Where the land agent's board stands: by the road, between the two rows of lots. */
 export const LAND_BOARD = { x: 413.5, z: 209.5 };
 
@@ -38,23 +38,23 @@ export type RoofId = 'thatch' | 'red' | 'slate' | 'blue';
 export interface HouseSpec { size: SizeId; floors: 1 | 2; wall: WallId; roof: RoofId; /** How the front is built (older plans: as the walls suggest). */ front?: FrontId; /** What dresses it. */ trim?: TrimId[] }
 
 export const SIZES: Record<SizeId, { name: string; w: number; d: number; floors: (1 | 2)[]; blurb: string; cost: Cost }> = {
-  cottage: { name: 'Cottage', w: 7, d: 6, floors: [1], blurb: 'One room and a hearth. Cheap to build, easy to keep warm.', cost: { items: { oak_logs: 24, bronze_bar: 2 }, marks: 120 } },
-  house: { name: 'House', w: 9, d: 7, floors: [1, 2], blurb: 'Room to spread out, and a loft if you want one.', cost: { items: { oak_logs: 36, birch_logs: 12, bronze_bar: 3 }, marks: 200 } },
-  hall: { name: 'Long house', w: 11, d: 8, floors: [1, 2], blurb: 'A long room under a big roof: a hall for a guild, or for a lot of furniture.', cost: { items: { oak_logs: 48, pine_logs: 20, iron_bar: 2 }, marks: 320 } },
+  cottage: { name: 'Cottage', w: 7, d: 6, floors: [1], blurb: 'One room and a hearth. Cheap to build, easy to keep warm.', cost: { items: { oak_logs: 24, bronze_bar: 2 }, marks: 700 } },
+  house: { name: 'House', w: 9, d: 7, floors: [1, 2], blurb: 'Room to spread out, and a loft if you want one.', cost: { items: { oak_logs: 36, birch_logs: 12, bronze_bar: 3 }, marks: 1200 } },
+  hall: { name: 'Long house', w: 11, d: 8, floors: [1, 2], blurb: 'A long room under a big roof: a hall for a guild, or for a lot of furniture.', cost: { items: { oak_logs: 48, pine_logs: 20, iron_bar: 2 }, marks: 2000 } },
 };
 
 export const WALLS: Record<WallId, { name: string; block: number; blurb: string; cost: Cost }> = {
   plaster: { name: 'Lime plaster', block: B.Plaster, blurb: 'Wattle, daub and a lime wash.', cost: { items: {}, marks: 0 } },
   planks: { name: 'Weatherboard', block: B.Planks, blurb: 'Birch boards, lapped against the rain.', cost: { items: { birch_logs: 16 }, marks: 0 } },
-  cobble: { name: 'Fieldstone', block: B.Cobble, blurb: 'Stone picked off the fields and laid dry.', cost: { items: {}, marks: 60 } },
-  stone: { name: 'Dressed stone', block: B.StoneBrick, blurb: 'Squared blocks carted from Kelderby. It will outlast the lease.', cost: { items: {}, marks: 150 } },
+  cobble: { name: 'Fieldstone', block: B.Cobble, blurb: 'Stone picked off the fields and laid dry.', cost: { items: {}, marks: 360 } },
+  stone: { name: 'Dressed stone', block: B.StoneBrick, blurb: 'Squared blocks carted from Kelderby. It will outlast the lease.', cost: { items: {}, marks: 900 } },
 };
 
 export const ROOFS: Record<RoofId, { name: string; cost: Cost }> = {
   thatch: { name: 'Reed thatch', cost: { items: {}, marks: 0 } },
-  red: { name: 'Red tile', cost: { items: {}, marks: 60 } },
-  blue: { name: 'Blue glaze', cost: { items: {}, marks: 80 } },
-  slate: { name: 'Slate', cost: { items: {}, marks: 100 } },
+  red: { name: 'Red tile', cost: { items: {}, marks: 360 } },
+  blue: { name: 'Blue glaze', cost: { items: {}, marks: 480 } },
+  slate: { name: 'Slate', cost: { items: {}, marks: 600 } },
 };
 
 export interface Cost { items: Record<string, number>; marks: number }
@@ -62,13 +62,13 @@ export interface Cost { items: Record<string, number>; marks: number }
 export const FRONTS: Record<FrontId, { name: string; blurb: string; cost: Cost }> = {
   framed: { name: 'Timber-framed', blurb: 'Posts every third block, windows between.', cost: { items: {}, marks: 0 } },
   studded: { name: 'Close-studded', blurb: 'A post every other block and small windows: the old way, and dear in timber.', cost: { items: { oak_logs: 10 }, marks: 30 } },
-  quoined: { name: 'Quoined', blurb: 'No posts: the corners dressed in alternate courses, a string course between storeys.', cost: { items: {}, marks: 50 } },
+  quoined: { name: 'Quoined', blurb: 'No posts: the corners dressed in alternate courses, a string course between storeys.', cost: { items: {}, marks: 300 } },
   boarded: { name: 'Weatherboard', blurb: 'Posts only at the corners and the door, windows in pairs.', cost: { items: { birch_logs: 8 }, marks: 0 } },
 };
 export const TRIMS: Record<TrimId, { name: string; cost: Cost }> = {
   hood: { name: 'Door hood', cost: { items: { oak_logs: 4 }, marks: 20 } },
   shutters: { name: 'Shutters', cost: { items: { birch_logs: 4 }, marks: 15 } },
-  boxes: { name: 'Window boxes', cost: { items: {}, marks: 10 } },
+  boxes: { name: 'Window boxes', cost: { items: {}, marks: 60 } },
 };
 
 /** Everything the builders need for these plans: timber and ironwork from you, marks for their labour. */

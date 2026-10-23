@@ -18,7 +18,8 @@
     "vale": "rolldown scripts/valecheck.ts --platform node --format esm --file .walker/valecheck.mjs --logLevel warn && node .walker/valecheck.mjs",
     "stairs": "rolldown scripts/stairscheck.ts --platform node --format esm --file .walker/stairscheck.mjs --logLevel warn && node .walker/stairscheck.mjs",
     "heights": "rolldown scripts/heightcheck.ts --platform node --format esm --file .walker/heightcheck.mjs --logLevel warn && node .walker/heightcheck.mjs",
-    "gear": "rolldown scripts/gearcheck.ts --platform node --format esm --file .walker/gearcheck.mjs --logLevel warn && node .walker/gearcheck.mjs"
+    "gear": "rolldown scripts/gearcheck.ts --platform node --format esm --file .walker/gearcheck.mjs --logLevel warn && node .walker/gearcheck.mjs",
+    "economy": "rolldown scripts/economy.ts --platform node --format esm --file .walker/economy.mjs --logLevel warn && node .walker/economy.mjs"
   },
   "dependencies": {
     "three": "^0.184.0",

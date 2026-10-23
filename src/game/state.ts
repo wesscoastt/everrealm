@@ -1,7 +1,7 @@
 import type { Equip } from '../data/items';
 import type { Appearance } from '../entities/humanoid';
 import { ITEMS, SkillId } from '../data/items';
-import { levelForXp } from '../data/gameplay';
+import { levelForXp, MAX_LEVEL, SKILLS, xpForLevel, xpForLevelV1 } from '../data/gameplay';
 
 export const INV_SIZE = 28;
 export const SAVE_KEY = 'everrealm.save.v1';
@@ -53,7 +53,7 @@ export function newSave(name: string, look: Appearance): SaveData {
     pos: [150.5, 19, 187.5], yaw: Math.PI, hour: 8.5, hp: 100,
     xp: { melee: 0, mining: 0, smithing: 0, fishing: 0, cooking: 0, woodcutting: 0 },
     inv, equip: { weapon: 'worn_sword', head: null },
-    marks: 12, flags: {}, quests: {}, discovered: [], playTime: 0,
+    marks: 12, flags: { xpCurve2: 1, 'moved:southgate': 1 }, quests: {}, discovered: [], playTime: 0,
     settings: { ...DEFAULT_SETTINGS },
   };
 }
@@ -82,6 +82,19 @@ export function fixSave(d: SaveData): void {
     for (const pc of f.home as [string, number, number][]) if (pc[1] >= 833 && pc[1] <= 843 && pc[2] >= 475 && pc[2] <= 488.5) pc[2] += 4;
   }
   f['moved:southgate'] = 1;
+  // The level curves changed (data/pacing.ts): everyone keeps the level they had, and how far into it
+  if (!f['xpCurve2']) {
+    for (const s of SKILLS) {
+      const xp = Number(d.xp[s.id] ?? 0);
+      let L = 1;
+      while (L < MAX_LEVEL && xp >= xpForLevelV1(L + 1)) L++;
+      const a = xpForLevelV1(L), b = xpForLevelV1(L + 1);
+      const frac = L >= MAX_LEVEL ? 0 : Math.min(0.999, (xp - a) / Math.max(1, b - a));
+      const na = xpForLevel(L, s.id), nb = xpForLevel(L + 1, s.id);
+      d.xp[s.id] = Math.round(na + (L >= MAX_LEVEL ? 0 : frac * (nb - na)));
+    }
+    f['xpCurve2'] = 1;
+  }
 }
 
 export function writeSave(d: SaveData, key = SAVE_KEY): boolean {
@@ -179,5 +192,5 @@ export class Inventory {
 }
 
 export function skillLevel(d: SaveData, skill: SkillId): number {
-  return levelForXp(d.xp[skill]);
+  return levelForXp(d.xp[skill], skill);
 }

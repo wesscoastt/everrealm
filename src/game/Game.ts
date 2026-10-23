@@ -94,7 +94,8 @@ import { Stables } from './Stables';
 import { lodgeAt, lodgeBase, LODGINGS, MAX_WEEKS, readTenancy, ROOMS, roomShape, WEEK } from '../data/lodgings';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
-import { regionLevel, rewardScale } from '../data/scaling';
+import { marksScale, regionLevel, rewardScale } from '../data/scaling';
+import { HIT_XP, killXp, QUEST_KILLS } from '../data/pacing';
 import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
@@ -609,8 +610,7 @@ export class Game implements GameApi {
       count: (id) => this.inv.count(id),
       take: (id, n) => this.take(id, n),
       reward: (marks0, items, why) => {
-        const k = rewardScale(this.level('melee'), regionLevel(regionAt(this.player.position.x, this.player.position.z).a));
-        const marks = Math.round(marks0 * k);
+        const marks = Math.round(marks0 * marksScale(this.level('melee'), regionLevel(regionAt(this.player.position.x, this.player.position.z).a)));
         if (marks) this.addMarks(marks);
         for (const it of items) this.give(it.source ? this.dropped(it.id, it.source) : it.id, 1);
         this.hud.system(`${why}: ${marks} marks${items.length ? ' and ' + items.map((it) => ITEMS[it.id]?.name ?? it.id).join(', ') : ''}.`);
@@ -655,8 +655,8 @@ export class Game implements GameApi {
       hitPlayer: (d, from) => this.hitPlayer(d, from),
       reward: (xp0, marks0, items, why) => {
         // Written for the region's own level, paid at yours (data/scaling.ts)
-        const k = rewardScale(this.level('melee'), regionLevel(regionAt(this.player.position.x, this.player.position.z).a));
-        const xp = Math.round(xp0 * k), marks = Math.round(marks0 * k);
+        const w = regionLevel(regionAt(this.player.position.x, this.player.position.z).a);
+        const xp = Math.round(xp0 * rewardScale(this.level('melee'), w)), marks = Math.round(marks0 * marksScale(this.level('melee'), w));
         if (xp) this.addXp('melee', xp);
         if (marks) this.addMarks(marks);
         for (const it of items) this.give(this.dropped(it, 'elite'), 1);
@@ -873,6 +873,13 @@ export class Game implements GameApi {
       this.hud.system(`${def.name}: updated`);
       this.sfx('pickup');
     }
+    if (s === 'done' && !this.flag('qxp:' + q)) {
+      // A finished quest is worth so many kills at your level (data/pacing.ts), once
+      this.setFlag('qxp:' + q, 1);
+      const xp = Math.round(killXp(this.level('melee')) * (def.story ? QUEST_KILLS.story : QUEST_KILLS[def.depth ?? 'quest']));
+      this.addXp('melee', xp);
+      this.hud.system(`${def.name}: +${xp.toLocaleString()} XP`);
+    }
     if (s === 'done') {
       const reg = def.region && def.region in REGION_INFO ? (def.region as RegionId) : regionAt(this.player.position.x, this.player.position.z).a;
       this.gainStanding(reg, def.story ? GAINS.story : GAINS[def.depth ?? 'quest']);
@@ -926,7 +933,7 @@ export class Game implements GameApi {
     if (n > 0) { this.hud.system(`+${n} marks`); this.sfx('coin'); }
     this.hud.refresh();
   }
-  level(s: SkillId): number { return levelForXp(this.save.xp[s]); }
+  level(s: SkillId): number { return levelForXp(this.save.xp[s], s); }
   hasTool(s: SkillId): boolean {
     return this.save.inv.some((st) => st && ITEMS[st.id].tool?.skill === s);
   }
@@ -1534,8 +1541,9 @@ export class Game implements GameApi {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const g = this;
     const summary = (id: string, s: SaveData): CharSummary => {
-      const total = (Object.values(s.xp) as number[]).reduce((a, xp) => a + levelForXp(xp), 0);
-      const level = levelForXp(s.xp.melee ?? 0);
+      fixSave(s); // (a character from the realm server may predate a change)
+      const total = SKILLS.reduce((a, k) => a + levelForXp(s.xp[k.id] ?? 0, k.id), 0);
+      const level = levelForXp(s.xp.melee ?? 0, 'melee');
       const calling = callingById(s.flags?.class)?.name ?? 'Warden';
       const dyes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('dye:')).map((k) => k.slice(4));
       const hats = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('hat:')).map((k) => k.slice(4));
@@ -1740,7 +1748,7 @@ export class Game implements GameApi {
     this.save.flags.class = calling;
     const o = originById(origin);
     if ('marks' in o.start) this.save.marks += o.start.marks;
-    else this.save.xp[o.start.skill] = xpForLevel(o.start.level);
+    else this.save.xp[o.start.skill] = xpForLevel(o.start.level, o.start.skill);
     this.inv = new Inventory(this.save);
     (this.hud as unknown as { ctx: unknown }).ctx = this.uiCtx();
     writeSave(this.save, saveKeyFor(this.charId));
@@ -2803,7 +2811,7 @@ export class Game implements GameApi {
       countFlags: (prefix) => Object.keys(flags).filter((k) => k.startsWith(prefix) && flags[k]).length,
       explored: this.save.explored?.length ?? 0,
       owns: (id) => this.inv.count(id) > 0,
-      totalLevel: (Object.values(this.save.xp) as number[]).reduce((a, xp) => a + levelForXp(xp), 0),
+      totalLevel: SKILLS.reduce((a, k) => a + this.level(k.id), 0),
     };
   }
 
@@ -3057,7 +3065,7 @@ export class Game implements GameApi {
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
     if (crit) { e.punch = Math.max(e.punch, e.def.elite ? 0.12 : 0.24); this.hitstop = Math.max(this.hitstop, 0.08); this.rig.addShake(0.16); this.sfx('crit', 0.7); }
     if (!quiet && e.alive && this.elapsed - (this.voiced.get(e) ?? -9) > 0.9) { this.voiced.set(e, this.elapsed); this.audio.playAt(voiceOf(e.def.model ?? e.def.type, 'hurt'), e.pos.distanceTo(this.player.position), 0.7); }
-    this.addXp('melee', Math.max(1, Math.round(dmg * 0.4)));
+    this.addXp('melee', Math.max(1, Math.round(dmg * HIT_XP)));
     if (!quiet) {
       if (fx.has('bleed') && e.alive) this.kit.addDot(e, (dmg * 0.33) / 4, 4);
       if (fx.has('chill')) e.slowLeft = 3;
@@ -4497,7 +4505,7 @@ export class Game implements GameApi {
       },
       where: () => { const p = this.player.position, r = regionAt(p.x, p.z).a; return { x: p.x, y: p.y, z: p.z, region: REGION_INFO[r]?.name ?? r }; },
       setLevel: (L) => {
-        for (const s of SKILLS) this.save.xp[s.id] = xpForLevel(L);
+        for (const s of SKILLS) this.save.xp[s.id] = xpForLevel(L, s.id);
         this.applyCalling();
         this.hp = this.maxHp;
         this.hud.refresh();
