@@ -35,9 +35,36 @@ export interface BossPlan {
    * is still in it when it lands takes the damage. Move or roll out.
    */
   hazard?: { every: number; count: number; r: number; windup: number; damage: number; color: string; line: string };
+  /** Its big moves, each on its own clock (see BossMove). */
+  moves?: BossMove[];
+  /** Said when it turns (below 35% health it fights faster, and its moves come sooner). */
+  phase?: [string, string];
   /** What it can drop: a piece for you, at this chance (always at least one from the last boss). */
   drops: string[];
   chance: number;
+}
+
+/**
+ * A boss's big move, in the manner of the big games: marked on the floor while it winds up (the boss
+ * stands and faces where it means to strike), then it lands on whoever is still inside.
+ * - cone: a sweep in front of it, at whoever it's fighting (they take half: they're braced for it).
+ * - charge: a lane at someone not holding it; it rushes down the lane when the wind-up ends.
+ * - nova: everything round it: get out.
+ * - stack: a circle on someone not holding it, that follows them until just before it lands; its
+ *   damage is shared between everyone inside (alone, it's half again as much): get together.
+ * {name} in the line is who it's aimed at.
+ */
+export interface BossMove {
+  kind: 'cone' | 'charge' | 'nova' | 'stack';
+  every: number;
+  windup: number;
+  damage: number;
+  /** Reach: the cone's and the nova's radius, the lane's length, the stack circle's radius. */
+  r: number;
+  /** The cone's arc (degrees) or the lane's width. */
+  w?: number;
+  color: string;
+  line: string;
 }
 
 /** A line once, the first time the group comes into a place: a henchman says it if they're along (Bet, unless another is named), otherwise it's what you see. */
@@ -74,6 +101,11 @@ export const DUNGEONS: DungeonDef[] = [
         adds: [{ at: 0.5, types: ['dg_nightman'], line: ['Coll Bray', 'Ned! Leave the crates, get over here!'] }],
         hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 36, color: '#ffb040', line: 'Coll Bray throws a lit lamp.' },
         fall: ['Coll Bray', 'We only took what was lying loose. Something else is eating the seam. Go and look if you don\'t believe me.'],
+        moves: [
+          { kind: 'cone', every: 11, windup: 1.3, damage: 30, r: 4.5, w: 100, color: '#ff9a50', line: 'Coll Bray swings his pick round, wide.' },
+          { kind: 'charge', every: 16, windup: 1.3, damage: 34, r: 13, w: 2.4, color: '#ff7a40', line: 'Coll Bray puts his head down at {name}.' },
+        ],
+        phase: ['Coll Bray', 'Right. No more being nice about it.'],
         drops: ['bray_hanger', 'cape_picks', ...OLDMAN_GEAR], chance: 0.6,
       },
       {
@@ -84,6 +116,10 @@ export const DUNGEONS: DungeonDef[] = [
         ],
         hazard: { every: 8, count: 2, r: 3.2, windup: 1.8, damage: 34, color: '#7ac07a', line: 'The floor bulges where the water is coming up.' },
         fall: ['', 'Old Sump goes flat and runs away between the stones.'],
+        moves: [
+          { kind: 'nova', every: 15, windup: 2.0, damage: 40, r: 6.5, color: '#7ac07a', line: 'Old Sump draws itself in, shaking. Get away from it.' },
+        ],
+        phase: ['', 'Old Sump heaves, and the water in the pool comes up to meet it.'],
         drops: OLDMAN_GEAR, chance: 0.6,
       },
       {
@@ -95,6 +131,11 @@ export const DUNGEONS: DungeonDef[] = [
         ],
         hazard: { every: 10, count: 2, r: 3.5, windup: 1.8, damage: 42, color: '#c8b090', line: 'Grit pours from the roof where Verdigris hit the wall.' },
         fall: ['', 'Verdigris goes down on its side, and the hatchlings scatter into the cracks.'],
+        moves: [
+          { kind: 'charge', every: 12, windup: 1.4, damage: 46, r: 16, w: 3, color: '#7ac8a0', line: 'Verdigris scrapes the floor and lowers its head at {name}.' },
+          { kind: 'stack', every: 18, windup: 3.0, damage: 70, r: 3, color: '#c8f060', line: 'Verdigris spits a clot of green at {name}. Get round them and share it.' },
+        ],
+        phase: ['', 'Verdigris sheds its old shell. Underneath, the new one is still soft, and it is angrier.'],
         drops: OLDMAN_GEAR, chance: 1,
       },
     ],
@@ -116,6 +157,11 @@ export const DUNGEONS: DungeonDef[] = [
         adds: [{ at: 0.5, types: ['frostwolf', 'frostwolf'], line: ['', 'Brack howls, and two more come down off the ledges.'] }],
         hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 60, color: '#dde6ee', line: 'Brack\'s howl shakes ice loose from the roof.' },
         fall: ['', 'Brack goes down. The rest of the pack is gone before it lands.'],
+        moves: [
+          { kind: 'charge', every: 10, windup: 1.0, damage: 62, r: 14, w: 2.6, color: '#dde6ee', line: 'Brack crouches to spring at {name}.' },
+          { kind: 'cone', every: 13, windup: 1.1, damage: 58, r: 4.5, w: 80, color: '#c8ccd2', line: 'Brack snaps left and right.' },
+        ],
+        phase: ['', 'Brack throws its head back and howls, and the whole cave answers.'],
         drops: ['fell_knife', 'cape_snowflake', ...KETTLE_GEAR], chance: 0.6,
       },
       {
@@ -123,6 +169,11 @@ export const DUNGEONS: DungeonDef[] = [
         adds: [{ at: 0.5, types: ['graniteback', 'graniteback'], line: ['', 'Two younger granitebacks back out of the walls.'] }],
         hazard: { every: 8, count: 2, r: 3.2, windup: 1.8, damage: 64, color: '#a8b0b8', line: 'Millstone rams the wall, and rock comes down.' },
         fall: ['', 'Millstone stops chewing.'],
+        moves: [
+          { kind: 'cone', every: 9, windup: 1.2, damage: 60, r: 5.5, w: 120, color: '#a8b0b8', line: 'Millstone swings its tail round.' },
+          { kind: 'nova', every: 14, windup: 1.8, damage: 70, r: 6, color: '#c8ccd0', line: 'Millstone curls up, grinding. Get clear.' },
+        ],
+        phase: ['', 'Millstone stops chewing and starts to roll.'],
         drops: KETTLE_GEAR, chance: 0.6,
       },
       {
@@ -134,6 +185,11 @@ export const DUNGEONS: DungeonDef[] = [
         ],
         hazard: { every: 9, count: 2, r: 3.5, windup: 1.8, damage: 60, color: '#9fe8ff', line: 'Shards of crystal come down from the roof where the Glim touches it.' },
         fall: ['', 'The Glim goes dark, and the cave goes dark with it, until your eyes find the lanterns again.'],
+        moves: [
+          { kind: 'stack', every: 16, windup: 3.2, damage: 120, r: 3.2, color: '#c8f4ff', line: 'The Glim\'s light gathers on {name}. Stand with them.' },
+          { kind: 'nova', every: 18, windup: 2.2, damage: 80, r: 7, color: '#9fe8ff', line: 'The Glim brightens until it hurts to look at. Get away from it.' },
+        ],
+        phase: ['', 'The Glim goes white. Every crystal in the cave lights with it.'],
         drops: KETTLE_GEAR, chance: 1,
       },
     ],

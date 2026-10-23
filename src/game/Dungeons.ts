@@ -4,7 +4,7 @@ import { damageScale, marksScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
 import { ENEMIES, EnemyType } from '../data/gameplay';
-import { BossPlan, CALLING_ROLE, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
+import { BossMove, BossPlan, CALLING_ROLE, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
 import type { CallingId } from '../data/classes';
 import { ITEMS } from '../data/items';
 import { plan, Site, SiteActivity } from '../world/sites';
@@ -85,8 +85,19 @@ export interface DungeonHost {
 }
 
 type Key = string; // 'me', 'a<bubble id>' for a henchman, 'r<player id>' for another player
-interface LiveBoss { plan: BossPlan; enemy: Enemy; crew: Enemy[]; calls: number; nextHazard: number; engaged: boolean; done: boolean }
-interface Hazard { at: THREE.Vector3; r: number; t: number; windup: number; dmg: number; from: Enemy; mesh: THREE.Group }
+interface LiveBoss { plan: BossPlan; enemy: Enemy; crew: Enemy[]; calls: number; nextHazard: number; engaged: boolean; done: boolean; next: number[]; busy: number; turned: boolean }
+/**
+ * Something marked on the floor that lands when its wind-up ends: a circle (thrown, or a boss's nova
+ * round it), a cone, a lane, or a shared circle that follows its mark. yaw: the cone's or lane's way.
+ */
+interface Hazard {
+  at: THREE.Vector3; r: number; t: number; windup: number; dmg: number; from: Enemy; mesh: THREE.Group;
+  shape?: 'disc' | 'cone' | 'lane' | 'stack'; yaw?: number; w?: number;
+  /** A shared circle's mark (follows them until just before it lands); a cone's braced victim. */
+  mark?: string;
+  /** A charge: the boss rushes down the lane when it lands. */
+  dash?: boolean;
+}
 interface Run {
   def: DungeonDef;
   act: SiteActivity;
@@ -130,6 +141,9 @@ const HAZARD_RING = new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
 /** Blows passed between members are a share of the creature's health, in ten-thousandths. */
 const SHARE = 10000;
 const HAZARD_DISC = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
+/** A lane a block long from its start, along +z (scaled to width and length). */
+const LANE_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
+const _v = new THREE.Vector3();
 const FILL_MS = 90;
 
 export class Dungeons {
@@ -306,7 +320,7 @@ export class Dungeons {
     (a.bosses ?? []).forEach((b, i) => {
       const e = make(b.at[0], b.at[1], b.at[2], b.type);
       r.mobs.push(e);
-      r.bosses.push({ plan: r.def.bosses[i], enemy: e, crew: [], calls: 0, nextHazard: 0, engaged: false, done: false });
+      r.bosses.push({ plan: r.def.bosses[i], enemy: e, crew: [], calls: 0, nextHazard: 0, engaged: false, done: false, next: [], busy: 0, turned: false });
     });
     (a.bosses ?? []).forEach((b, i) => {
       const crew = (b.crew ?? []).map(([x, y, z, t]) => make(x, y, z, t));
@@ -544,6 +558,7 @@ export class Dungeons {
       if (fighting && !b.engaged) {
         b.engaged = true;
         b.nextHazard = this.clock + (b.plan.hazard?.every ?? 99) * 0.6;
+        b.next = (b.plan.moves ?? []).map((m, i) => this.clock + m.every * (0.45 + 0.2 * i));
         this.host.say(b.plan.pull[0], b.plan.pull[1]);
         this.host.sound('growl', e.pos);
         for (const c of b.crew) if (c.alive && c.state === 'idle') c.state = 'chase';
@@ -568,6 +583,21 @@ export class Dungeons {
           this.host.particles.burst(add.pos.clone().setY(add.pos.y + 0.5), '#c8b090', 12);
         });
       }
+      // Turning: below 35% it fights faster, says so, and its moves come sooner
+      if (e.enraged && !b.turned) {
+        b.turned = true;
+        if (b.plan.phase) this.host.say(b.plan.phase[0], b.plan.phase[1]);
+        this.host.particles.burst(e.pos.clone().setY(e.pos.y + 1.2), '#ff6a4a', 40);
+        this.host.sound('growl', e.pos);
+        for (let i = 0; i < b.next.length; i++) b.next[i] = Math.min(b.next[i], this.clock + 2 + i * 2);
+      }
+      // Its big moves, one at a time
+      (b.plan.moves ?? []).forEach((m, i) => {
+        if (this.clock < b.next[i]) return;
+        if (this.clock < b.busy || e.stun > 0) { b.next[i] = Math.max(b.busy, this.clock) + 0.6; return; }
+        b.next[i] = this.clock + m.every * (e.enraged ? 0.72 : 1);
+        if (this.bossMove(b, m)) b.busy = this.clock + m.windup + 1.2;
+      });
       const hz = b.plan.hazard;
       if (hz && this.clock >= b.nextHazard) {
         b.nextHazard = this.clock + hz.every * (e.enraged ? 0.7 : 1);
@@ -581,10 +611,97 @@ export class Dungeons {
     }
   }
 
+  /** A boss's big move: mark it on the floor and hold the boss to it. Whether it went. */
+  private bossMove(b: LiveBoss, m: BossMove): boolean {
+    const r = this.run!, e = b.enemy;
+    const dmg = Math.round(m.damage * damageScale(this.host.level(), r.def.level));
+    const ms = this.members().filter((x) => x.up && (x.k === 'me' || x.ally || x.k.startsWith('r')));
+    if (!ms.length) return false;
+    const v = this.victim(e);
+    const others = ms.filter((x) => x.k !== v.k && !(x.ally?.role === 'tank' || (x.k === 'me' && r.role === 'tank')));
+    const pick = (others.length ? others : ms)[Math.floor(Math.random() * (others.length || ms.length))];
+    const nameOf = (k: string) => k === 'me' ? 'you' : r.allies.find((a) => 'a' + a.bubble === k)?.name ?? r.others.find((o) => 'r' + o.id === k)?.name ?? 'someone';
+    const at = e.pos.clone();
+    let yaw = e.yaw, aimK = v.k;
+    if (m.kind === 'cone') yaw = Math.atan2(v.pos.x - at.x, v.pos.z - at.z);
+    if (m.kind === 'charge') { yaw = Math.atan2(pick.pos.x - at.x, pick.pos.z - at.z); aimK = pick.k; }
+    if (m.kind === 'stack') aimK = pick.k;
+    this.host.system(m.line.replace('{name}', nameOf(aimK)));
+    if (m.kind !== 'stack') { e.hold = m.windup; e.holdYaw = yaw; }
+    // A charge runs as far as the floor goes, up to its length
+    let len = m.r;
+    if (m.kind === 'charge') {
+      for (let d = 1; d <= m.r; d += 0.5) {
+        _v.set(at.x + Math.sin(yaw) * d, at.y + 1, at.z + Math.cos(yaw) * d);
+        if (this.host.voxels.solidAt(_v.x, _v.y, _v.z) || !this.host.voxels.solidAt(_v.x, at.y - 0.5, _v.z)) { len = d - 0.5; break; }
+      }
+      if (len < 3) return false;
+    }
+    const shape = m.kind === 'cone' ? 'cone' : m.kind === 'charge' ? 'lane' : m.kind === 'stack' ? 'stack' : 'disc';
+    this.addShape(shape, m.kind === 'stack' ? pick.pos.clone() : at, m.kind === 'charge' ? len : m.r, m.windup, dmg, e, m.color, yaw, m.w, m.kind === 'stack' ? pick.k : m.kind === 'cone' ? v.k : undefined, m.kind === 'charge');
+    this.host.sound('growl', e.pos);
+    return true;
+  }
+
+  /** Mark a shaped hazard on the floor. */
+  private addShape(shape: 'disc' | 'cone' | 'lane' | 'stack', at: THREE.Vector3, r: number, windup: number, dmg: number, from: Enemy, color: string, yaw = 0, w = 90, mark?: string, dash = false): void {
+    const g = new THREE.Group();
+    const mat = (o: number, f: number) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: o, depthWrite: false, polygonOffset: true, polygonOffsetFactor: f, side: THREE.DoubleSide });
+    if (shape === 'cone') {
+      const arc = (w * Math.PI) / 180;
+      const edge = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 32, 1, -arc / 2, arc).rotateX(-Math.PI / 2), mat(0.85, -2));
+      const base = new THREE.Mesh(new THREE.CircleGeometry(1, 32, -arc / 2, arc).rotateX(-Math.PI / 2), mat(0.14, -2));
+      const fill = new THREE.Mesh(new THREE.CircleGeometry(1, 32, -arc / 2, arc).rotateX(-Math.PI / 2), mat(0.34, -3));
+      fill.scale.setScalar(0.01);
+      g.add(edge, base, fill);
+      g.scale.setScalar(r);
+      g.rotation.y = yaw - Math.PI / 2;
+    } else if (shape === 'lane') {
+      const base = new THREE.Mesh(LANE_GEO, mat(0.16, -2));
+      const fill = new THREE.Mesh(LANE_GEO, mat(0.36, -3));
+      fill.scale.set(1, 1, 0.01);
+      g.add(base, fill);
+      g.scale.set(w, 1, r);
+      g.rotation.y = yaw;
+    } else {
+      const ring = new THREE.Mesh(HAZARD_RING, mat(0.85, -2));
+      const fill = new THREE.Mesh(HAZARD_DISC, mat(shape === 'stack' ? 0.22 : 0.32, -3));
+      fill.scale.setScalar(0.01);
+      g.add(ring, fill);
+      if (shape === 'stack') { const inner = new THREE.Mesh(HAZARD_RING, mat(0.85, -2)); inner.scale.setScalar(0.55); g.add(inner); }
+      g.scale.setScalar(r);
+    }
+    g.position.set(at.x, at.y + 0.07, at.z);
+    g.renderOrder = 3;
+    this.host.scene.add(g);
+    this.run!.hazards.push({ at: at.clone(), r, t: 0, windup, dmg, from, mesh: g, shape, yaw, w, mark, dash });
+  }
+
+  /** Is p inside hazard h? */
+  private inside(h: Hazard, p: THREE.Vector3, pad = 0): boolean {
+    if (Math.abs(p.y - h.at.y) > 2.5) return false;
+    const dx = p.x - h.at.x, dz = p.z - h.at.z, d = Math.hypot(dx, dz);
+    if (h.shape === 'cone') {
+      if (d > h.r + pad) return false;
+      if (d < 0.8) return true;
+      let a = Math.atan2(dx, dz) - (h.yaw ?? 0);
+      a = Math.atan2(Math.sin(a), Math.cos(a));
+      return Math.abs(a) < (((h.w ?? 90) * Math.PI) / 180) / 2 + pad * 0.15;
+    }
+    if (h.shape === 'lane') {
+      const fx = Math.sin(h.yaw ?? 0), fz = Math.cos(h.yaw ?? 0);
+      const t = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
+      return t > -0.6 && t < h.r + 0.6 && side < (h.w ?? 2) / 2 + 0.3 + pad;
+    }
+    return d < h.r + pad;
+  }
+
   private resetBoss(b: LiveBoss): void {
     const r = this.run!;
     b.engaged = false;
     b.calls = 0;
+    b.turned = false;
+    b.enemy.hold = 0;
     for (const a of r.adds) this.host.removeEnemy(a);
     r.adds = [];
     for (const h of r.hazards) this.host.scene.remove(h.mesh);
@@ -632,7 +749,7 @@ export class Dungeons {
     g.position.set(at.x, at.y + 0.07, at.z);
     g.renderOrder = 3;
     this.host.scene.add(g);
-    this.run!.hazards.push({ at, r, t: 0, windup, dmg, from, mesh: g });
+    this.run!.hazards.push({ at, r, t: 0, windup, dmg, from, mesh: g, shape: 'disc' });
   }
 
   private tickHazards(dt: number): void {
@@ -640,22 +757,59 @@ export class Dungeons {
     r.hazards = r.hazards.filter((h) => {
       h.t += dt;
       const k = Math.min(1, h.t / h.windup);
-      (h.mesh.children[1] as THREE.Mesh).scale.setScalar(Math.max(0.01, k));
+      const fill = (h.shape === 'cone' ? h.mesh.children[2] : h.mesh.children[1]) as THREE.Mesh;
+      if (h.shape === 'lane') fill.scale.set(1, 1, Math.max(0.01, k)); else fill.scale.setScalar(Math.max(0.01, k));
+      // A shared circle follows its mark until just before it lands
+      if (h.shape === 'stack' && h.mark && h.windup - h.t > 0.5) {
+        const m = this.members().find((x) => x.k === h.mark && x.up);
+        if (m) { h.at.copy(m.pos); h.mesh.position.set(m.pos.x, m.pos.y + 0.07, m.pos.z); }
+      }
       if (h.t < h.windup) return true;
       this.host.scene.remove(h.mesh);
-      this.host.particles.burst(h.at.clone().setY(h.at.y + 0.3), '#c8b090', 14);
-      for (const m of this.members()) {
-        if (!m.up || Math.hypot(m.pos.x - h.at.x, m.pos.z - h.at.z) > h.r || Math.abs(m.pos.y - h.at.y) > 2.5) continue;
-        if (m.k === 'me') this.host.hurtPlayer(h.dmg, h.from);
-        else if (m.ally) this.hurtAlly(m.ally, h.dmg);
+      const col = ((h.mesh.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.getStyle();
+      this.host.particles.burst(h.at.clone().setY(h.at.y + 0.3), col, h.shape === 'disc' && h.r > 5 ? 50 : 18);
+      if (h.dash) this.dash(h);
+      const caught = this.members().filter((m) => m.up && this.inside(h, m.pos));
+      // Shared: split between everyone in it (alone, half again as much); a cone's braced victim takes half
+      const each = h.shape === 'stack' ? (h.dmg * 1.5) / Math.max(1, caught.length) * (caught.length > 1 ? 0.8 : 1) : h.dmg;
+      if (h.shape === 'stack') this.host.system(caught.length > 1 ? `Shared between ${caught.length}.` : 'Nobody shared it.');
+      for (const m of caught) {
+        const d = Math.round(h.shape === 'cone' && m.k === h.mark ? each * 0.5 : each);
+        if (m.k === 'me') { if (!this.host.invulnerable()) this.host.hurtPlayer(d, h.from); }
+        else if (m.ally) this.hurtAlly(m.ally, d);
       }
       return false;
     });
+    // Charges in flight
+    for (const c of this.dashes) {
+      c.t += dt;
+      const k = Math.min(1, c.t / c.secs);
+      c.e.pos.lerpVectors(c.from, c.to, k * (2 - k));
+      c.e.hold = Math.max(c.e.hold, 0.05);
+      if (k >= 1) c.done = true;
+    }
+    this.dashes = this.dashes.filter((c) => !c.done);
+  }
+  private dashes: { e: Enemy; from: THREE.Vector3; to: THREE.Vector3; t: number; secs: number; done?: boolean }[] = [];
+
+  /** A charge: the boss runs down its lane. */
+  private dash(h: Hazard): void {
+    const e = h.from;
+    if (!e.alive) return;
+    const to = h.at.clone().add(new THREE.Vector3(Math.sin(h.yaw ?? 0) * h.r, 0, Math.cos(h.yaw ?? 0) * h.r));
+    this.dashes.push({ e, from: e.pos.clone(), to, t: 0, secs: 0.35 + h.r * 0.02 });
+    this.host.sound('growl', e.pos);
+    for (let i = 0; i < 6; i++) this.host.particles.dust(h.at.clone().lerp(to, i / 5), 6);
   }
 
   /** The hazard a henchman is standing in, if any: they step out of what they can see coming. */
   private inHazard(p: THREE.Vector3): Hazard | null {
-    for (const h of this.run!.hazards) if (Math.hypot(p.x - h.at.x, p.z - h.at.z) < h.r + 0.6) return h;
+    for (const h of this.run!.hazards) if (h.shape !== 'stack' && this.inside(h, p, 0.6)) return h;
+    return null;
+  }
+  /** A shared circle to get into, if one is coming down. */
+  private stackNear(p: THREE.Vector3): Hazard | null {
+    for (const h of this.run!.hazards) if (h.shape === 'stack' && h.windup - h.t < 2.4 && Math.hypot(p.x - h.at.x, p.z - h.at.z) < 18) return h;
     return null;
   }
 
@@ -668,11 +822,20 @@ export class Dungeons {
     // Out of a circle before anything else
     const hz = this.inHazard(a.pos);
     if (hz) {
+      // Out the nearest way: sideways from a lane, round the side of a cone, straight out of a circle
       const away = new THREE.Vector3(a.pos.x - hz.at.x, 0, a.pos.z - hz.at.z);
+      if (hz.shape === 'lane' || hz.shape === 'cone') {
+        const fx = Math.sin(hz.yaw ?? 0), fz = Math.cos(hz.yaw ?? 0);
+        const side = Math.sign(away.x * fz - away.z * fx) || (i % 2 ? 1 : -1);
+        away.set(fz * side, 0, -fx * side);
+        if (hz.shape === 'cone') away.addScaledVector(new THREE.Vector3(-fx, 0, -fz), 0.6);
+      }
       if (away.lengthSq() < 0.01) away.set(Math.cos(i * 2.1), 0, Math.sin(i * 2.1));
       away.normalize().multiplyScalar(4);
       return a.stepToward(a.pos.x + away.x, a.pos.z + away.z, 6.5, dt) ? 6.5 : 0;
     }
+    const st = this.stackNear(a.pos);
+    if (st && Math.hypot(a.pos.x - st.at.x, a.pos.z - st.at.z) > st.r * 0.6) return a.stepToward(st.at.x, st.at.z, 6.5, dt) ? 6.5 : 0;
     if (!engaged.length) {
       if (r.calm > 3) a.heal(a.max * 0.3 * dt);
       return this.follow(a, i, dt);

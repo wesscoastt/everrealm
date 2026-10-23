@@ -1974,7 +1974,7 @@ export function plan(): Plan {
   function buildOldMan(s: Site) {
     const OX = 208, OZ = -60, F = 5;
     const PIT: CaveTheme = { wall: B.Stone, wall2: B.DeepStone, band: B.Gravel, floor: B.Gravel, floor2: B.Stone, spike: B.Stone, rubble: B.Cobble, light: '#ffc880' };
-    const CAVE: CaveTheme = { wall: B.Stone, wall2: B.MossyStone, band: B.Dirt, floor: B.Gravel, floor2: B.Dirt, spike: B.Stone, rubble: B.MossyCobble, light: '#ffc880' };
+    const CAVE: CaveTheme = { wall: B.Stone, wall2: B.MossyStone, band: B.Gravel, floor: B.Gravel, floor2: B.Stone, spike: B.Stone, rubble: B.MossyCobble, light: '#ffc880' };
     const SUMP: CaveTheme = { wall: B.MossyStone, wall2: B.DeepStone, band: B.Gravel, floor: B.Gravel, floor2: B.MossyCobble, spike: B.MossyStone, rubble: B.MossyCobble, light: '#b8ffc8' };
     const OLD: CaveTheme = { wall: B.Basalt, wall2: B.DeepStone, band: B.CopperOre, floor: B.Gravel, floor2: B.Stone, spike: B.Basalt, rubble: B.Cobble, light: '#ffb070' };
     const k = caveKit(O, s.props, OX, OZ, F);

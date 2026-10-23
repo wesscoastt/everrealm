@@ -68,6 +68,9 @@ export class Enemy {
   justDied = false;
   /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
   stun = 0;
+  /** Seconds left holding still for one of its own big moves (a boss winding up): it faces holdYaw and waits. */
+  hold = 0;
+  holdYaw = 0;
   /** Seconds left chilled by a named piece: it moves at two thirds of its pace. */
   slowLeft = 0;
   /** Seconds left tarnished by a named piece: its blows do 15% less. */
@@ -259,6 +262,17 @@ export class Enemy {
       if (this.swimOk(nx, this.pos.y, nz)) { this.pos.x = nx; this.pos.z = nz; }
       this.knock.multiplyScalar(Math.exp(-dt * 8));
     }
+    // Holding still for its own big move: it faces where it means to strike and gathers itself
+    if (this.hold > 0 && this.state !== 'dead') {
+      this.hold -= dt;
+      this.telegraph.visible = false;
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.4); }
+      this.yaw = this.holdYaw;
+      this.model.setAnim('windup');
+      this.model.update(dt, 0);
+      this.syncModel();
+      return;
+    }
     if (this.stun > 0 && this.state !== 'dead') {
       this.stun -= dt;
       this.telegraph.visible = false;
@@ -440,6 +454,17 @@ export class Enemy {
     }
 
     // Stunned: stands dazed, any wind-up lost
+    // Holding still for its own big move: it faces where it means to strike and gathers itself
+    if (this.hold > 0 && this.state !== 'dead') {
+      this.hold -= dt;
+      this.telegraph.visible = false;
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.4); }
+      this.yaw = this.holdYaw;
+      this.model.setAnim('windup');
+      this.model.update(dt, 0);
+      this.syncModel();
+      return;
+    }
     if (this.stun > 0 && this.state !== 'dead') {
       this.stun -= dt;
       this.telegraph.visible = false;
