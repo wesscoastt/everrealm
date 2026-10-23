@@ -138,7 +138,17 @@ import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
 export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
-export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'treasure' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally'; label?: string; yaw?: number; id?: string }
+/** How each service shows on the maps: a badge with a letter. */
+const SERVICE_LOOK: Record<NonNullable<MapMarker['svc']>, { bg: string; fg: string; letter: string; name: string }> = {
+  bank: { bg: '#e8c040', fg: '#2a1a00', letter: 'B', name: 'Bank' },
+  craft: { bg: '#8a96a8', fg: '#101418', letter: 'C', name: 'Crafting' },
+  shop: { bg: '#5fbf6a', fg: '#0a2410', letter: 'M', name: 'Merchant' },
+  stable: { bg: '#b07a48', fg: '#2a1406', letter: 'S', name: 'Stable' },
+};
+
+export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'treasure' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally' | 'service'; label?: string; yaw?: number; id?: string;
+  /** A service (kind 'service'): a bank, a place to craft, a merchant, a stable. */
+  svc?: 'bank' | 'craft' | 'shop' | 'stable' }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escort'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -1173,6 +1183,16 @@ export class Hud {
         c.fillStyle = '#3a2400'; c.fillRect(gx - 1.2, gy - 4, 2.4, 5); c.fillRect(gx - 1.2, gy + 2, 2.4, 2);
         continue;
       }
+      if (m.kind === 'service') {
+        const [sx2, sy2] = at(m.x, m.z);
+        if (Math.hypot(sx2, sy2) > inside) continue;
+        const st = SERVICE_LOOK[m.svc ?? 'shop'];
+        c.fillStyle = st.bg; c.strokeStyle = '#0b1122'; c.lineWidth = 2;
+        c.beginPath(); c.roundRect(sx2 - 6.5, sy2 - 6.5, 13, 13, 3); c.fill(); c.stroke();
+        c.fillStyle = st.fg; c.font = '700 10px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(st.letter, sx2, sy2 + 0.5);
+        continue;
+      }
       if (m.kind === 'fair') {
         const [fx, fy] = at(m.x, m.z);
         if (Math.hypot(fx, fy) > inside) continue;
@@ -2194,6 +2214,14 @@ export class Hud {
         const fare = lit && m.id ? this.ctx.waymarkFare(m.id) : null;
         hits.push({ x: X, y: Y, name: m.label ?? 'Waymark', sub: lit ? (fare !== null ? `Waymark · click to travel (${fare} marks)` : 'Waymark') : 'Waymark · walk up to it to attune' });
         if (lit && m.id) this.wmHits.push({ x: X, y: Y, id: m.id, name: m.label ?? 'Waymark' });
+      } else if (m.kind === 'service' && on('services')) {
+        const st = SERVICE_LOOK[m.svc ?? 'shop'], r = px(8);
+        x.fillStyle = st.bg; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
+        x.beginPath(); x.roundRect(X - r, Y - r, r * 2, r * 2, px(3)); x.fill(); x.stroke();
+        x.fillStyle = st.fg; x.font = `700 ${px(12)}px "Alegreya Sans", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillText(st.letter, X, Y + px(0.5));
+        if (m.label && z > 1.6) label(m.label, X, Y + px(18), `600 ${px(12)}px "Alegreya Sans", sans-serif`, '#2a1a0a');
+        hits.push({ x: X, y: Y, name: m.label ?? st.name, sub: st.name });
       } else if (m.kind === 'fair' && on('post')) {
         x.fillStyle = '#4a3020'; x.fillRect(X - px(1.5), Y - px(12), px(3), px(22));
         x.fillStyle = '#e8a020'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
@@ -2294,7 +2322,7 @@ export class Hud {
     const ctl = el('div', 'map-ctl');
     ctl.innerHTML = '<button class="mm-b wide" data-world title="The whole known world, and the ships between its lands">World</button><button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
     const legend = el('div', 'map-legend');
-    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
+    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['services', 'Banks, crafting, shops'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
       const chip = el('button', 'chip on', name);
       chip.addEventListener('click', () => { if (V.hidden.has(f)) V.hidden.delete(f); else V.hidden.add(f); chip.classList.toggle('on', !V.hidden.has(f)); this.ctx.sfx('click'); });
       legend.append(chip);

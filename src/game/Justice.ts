@@ -142,9 +142,13 @@ export class Justice {
     if (this.ride) { this.updateRide(dt); this.updateBadge(); return; }
     const jail = this.jail;
     if (jail && !jail.escaped) { this.updateJail(dt, jail); this.updateBadge(); return; }
-    // Prices fade, once a second
+    // Prices fade, once a second; time away counts too, as in ESO (half the rate, and the books never
+    // forget more than a day's worth at once)
     if (this.tick >= 1) {
-      const fade = (DECAY_PER_MIN / 60) * this.tick;
+      const seen = Number(this.host.flag('lawSeen') ?? 0), now = Date.now();
+      const away = seen ? Math.min(24 * 60, Math.max(0, (now - seen) / 60000 - 1)) * 0.5 : 0;
+      this.host.setFlag('lawSeen', now);
+      const fade = (DECAY_PER_MIN / 60) * this.tick + DECAY_PER_MIN * away;
       for (const j of JURISDICTIONS) {
         const n = Number(this.host.flag('bounty:' + j.id) ?? 0);
         if (n > 0 && this.arrest?.j.id !== j.id) this.setBounty(j.id, n - fade < 0.5 ? 0 : n - fade);

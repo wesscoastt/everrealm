@@ -59,6 +59,7 @@ import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
+import { STABLES } from '../data/stables';
 import { POSTS, postFare, postHours, postKnown } from '../data/travel';
 import { Online } from '../net/Online';
 import { BOARDS } from '../data/content';
@@ -400,6 +401,9 @@ export class Game implements GameApi {
   private pillion: number | null = null;
   /** How a passenger sits: astride behind a saddle, or on a wagon's bench. */
   private pillionPose: SeatPose = 'ride';
+  /** Every bench, chair and stool in the world (sit on one with E), and the seat you're on. */
+  private seats: { x: number; y: number; z: number; ry: number; half: number; both: boolean }[] = [];
+  private seated: { x: number; y: number; z: number; yaw: number } | null = null;
   /** A wagon left standing where you got down from it: its bed opens beside it, and G drives it on. */
   private parked: { id: string; model: CreatureModel } | null = null;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
@@ -787,6 +791,10 @@ export class Game implements GameApi {
       const spots: [number, number][] = [[171.5, 188.5], [147.5, 183.5], [182.5, 196.5], ...POSTS.filter((q) => !q.ferryFrom).flatMap((q): [number, number][] => [[q.x + 4.5, q.z + 3.5], [q.x - 4.5, q.z + 2.5]]), [687.5, 420.5], [675.5, 286.5], [787.5, 182.5]];
       spots.forEach(([x, z], i) => this.pets.push({ kind: i % 3 === 1 ? 'dog' : 'cat', x, z, pal: i % 3 === 1 ? dogCoats[i % dogCoats.length] : catCoats[(i * 7) % catCoats.length], a: null }));
       for (const st of this.world.sites) for (const ws of st.stations ?? []) this.worldStations.push(ws);
+      for (const st of this.world.sites) for (const d of st.props) {
+        if (d.t === 'bench') this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: (d.len ?? 1.6) / 2 - 0.3, both: true });
+        else if (d.t === 'furn' && (d.item === 'chair' || d.item === 'stool' || d.item === 'bench')) this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: d.item === 'bench' ? 0.6 : 0, both: d.item !== 'chair' });
+      }
       for (const st of this.world.sites) for (const an of st.animals ?? []) this.pets.push({ kind: an.kind, x: an.x, z: an.z, r: an.r, pal: an.pal ?? {}, a: null });
     }
     Animal.voice = (kind, at) => this.audio.playAt(({ dog: 'bark', cat: 'meow', duck: 'quack', sheep: 'baa', cow: 'moo', pig: 'oink' } as Record<string, Sfx>)[kind] ?? 'click', at.distanceTo(this.player.position), 0.8);
@@ -2665,6 +2673,19 @@ export class Game implements GameApi {
         consider({ kind: 'tree', label: `Chop ${info.name.toLowerCase()}`, pos: new THREE.Vector3(t.x + 0.5, t.y + 1, t.z + 0.5), tree: t, warn: !tool ? 'Needs a hatchet' : this.level('woodcutting') < info.level ? `Needs Woodcutting ${info.level}` : '' }, d);
       }
     }
+    // A bench, chair or stool to sit on: the nearest place along it, facing out from the side you're on
+    if (!this.horse && !this.seated && !this.player.swimming) {
+      let best: { x: number; y: number; z: number; yaw: number } | null = null, bd = 1.9;
+      for (const st of this.seats) {
+        if (Math.abs(st.y - p.y) > 1.2 || Math.abs(st.x - p.x) > 4 || Math.abs(st.z - p.z) > 4) continue;
+        const ax = Math.cos(st.ry), az = -Math.sin(st.ry), nx = Math.sin(st.ry), nz = Math.cos(st.ry);
+        const along = THREE.MathUtils.clamp((p.x - st.x) * ax + (p.z - st.z) * az, -st.half, st.half);
+        const side = st.both && (p.x - st.x) * nx + (p.z - st.z) * nz < 0 ? -1 : 1;
+        const sx = st.x + ax * along, sz = st.z + az * along, dd = Math.hypot(sx - p.x, sz - p.z);
+        if (dd < bd) { bd = dd; best = { x: sx, y: st.y, z: sz, yaw: Math.atan2(nx * side, nz * side) }; }
+      }
+      if (best) { const b = best; consider({ kind: 'act', label: 'Sit', pos: new THREE.Vector3(b.x, b.y + 0.7, b.z), act: () => this.sitDown(b) }, bd + 0.4); }
+    }
     // Forage: berries, mushrooms and herbs, picked by hand
     for (const f of near.flatMap((b) => b.forage)) {
       if (f.bareUntil > this.elapsed) continue;
@@ -3244,6 +3265,20 @@ export class Game implements GameApi {
     this.pillion = id;
     this.hud.system(`You climb up behind ${name}. Jump, or press G, to get down.`);
     this.sfx('pickup', 0.5);
+  }
+
+  /** Sit on a seat: held there until you move or jump (the same way a pillion rider is). */
+  private sitDown(at: { x: number; y: number; z: number; yaw: number }): void {
+    if (this.horse || this.dead || this.inCombat()) return;
+    this.cancelActions();
+    this.seated = { ...at };
+  }
+  private standUp(): void {
+    const s = this.seated;
+    if (!s) return;
+    this.seated = null;
+    // Up and a step forward, clear of the seat
+    this.player.position.set(s.x + Math.sin(s.yaw) * 0.85, s.y + 0.05, s.z + Math.cos(s.yaw) * 0.85);
   }
 
   private leavePillion(): void {
@@ -4245,7 +4280,17 @@ export class Game implements GameApi {
     let fall: number;
     const seat = this.pillion !== null ? this.online.seatOf(this.pillion) : null;
     if (this.pillion !== null && (!seat || jump || this.dead)) this.leavePillion();
-    if (this.pillion !== null && seat) {
+    // On a bench: any step, a jump, a fight or a fall and you're up again
+    const stepping = !this.dialogue && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((k) => this.input.held(k));
+    if (this.seated && (jump || stepping || this.dead || this.horse || this.elapsed - this.lastCombat < 0.5)) this.standUp();
+    if (this.seated) {
+      const s = this.seated;
+      P.position.set(s.x, s.y, s.z);
+      P.velocity.set(0, 0, 0);
+      P.yaw = s.yaw;
+      P.fallStartY = s.y;
+      fall = 0;
+    } else if (this.pillion !== null && seat) {
       P.seat = seat.lift;
       this.pillionPose = seat.pose;
       P.position.set(seat.x, seat.y, seat.z);
@@ -4375,6 +4420,7 @@ export class Game implements GameApi {
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
     } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
+    else if (this.seated) { M.setState('seated'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
     else if (!P.onGround && !P.swimming) M.setState('jump');
@@ -4612,6 +4658,37 @@ export class Game implements GameApi {
     this.hud.floater((v.x * 0.5 + 0.5) * window.innerWidth, (-v.y * 0.5 + 0.5) * window.innerHeight, text, cls);
   }
 
+  /**
+   * Banks, places to craft, merchants and stables, for the maps: in places you've found. A workshop's
+   * stations (furnace, anvil, bench, hearth) show as one badge with what's there.
+   */
+  private serviceList: MapMarker[] | null = null;
+  private serviceSeen = -1;
+  private serviceMarkers(): MapMarker[] {
+    if (this.serviceList && this.serviceSeen === this.save.discovered.length) return this.serviceList;
+    const found = (x: number, z: number) => places().some((p) => p.kind === 'place' && this.save.discovered.includes(p.id) && Math.hypot(p.x - x, p.z - z) < p.r + 30);
+    const out: MapMarker[] = [];
+    for (const t of WORLD_THINGS) if (t.id.startsWith('bank:') && (t.land ?? 'counties') === LAND && found(t.x, t.z)) out.push({ x: t.x, z: t.z, kind: 'service', svc: 'bank', label: 'Bank' });
+    const shops: { x: number; z: number; n: string[] }[] = [];
+    for (const ws of this.worldStations) {
+      if (!found(ws.x, ws.z)) continue;
+      const near = shops.find((c) => Math.hypot(c.x - ws.x, c.z - ws.z) < 10);
+      const nm = ws.station === 'bench' ? 'workbench' : ws.station === 'hearth' ? 'cook fire' : ws.station;
+      if (near) { if (!near.n.includes(nm)) near.n.push(nm); } else shops.push({ x: ws.x, z: ws.z, n: [nm] });
+    }
+    for (const c of shops) out.push({ x: c.x, z: c.z, kind: 'service', svc: 'craft', label: 'Crafting: ' + c.n.join(', ') });
+    for (const n of this.npcs) {
+      const shop = SHOPS[n.def.id];
+      if (!shop || (n.def.when && !n.def.when(this))) continue;
+      const [hx, hz] = n.def.schedule[0].at;
+      if (found(hx, hz)) out.push({ x: hx, z: hz, kind: 'service', svc: 'shop', label: shop.name });
+    }
+    for (const st of STABLES) if (found(st.x, st.z)) out.push({ x: st.x, z: st.z, kind: 'service', svc: 'stable', label: st.name });
+    this.serviceList = out;
+    this.serviceSeen = this.save.discovered.length;
+    return out;
+  }
+
   private mapMarkers(full = false): MapMarker[] {
     const out: MapMarker[] = [];
     for (const q of this.questMarkers()) out.push({ x: q.p.x, z: q.p.z, kind: q.giver ? 'giver' : 'quest' });
@@ -4630,6 +4707,7 @@ export class Game implements GameApi {
     out.push(...this.activities.markers(), ...this.seasons.markers());
     out.push(...this.waymarkStones.markers());
     out.push(...this.festivals.markers());
+    out.push(...this.serviceMarkers().filter((m) => full || Math.hypot(m.x - this.player.position.x, m.z - this.player.position.z) < 160));
     if (full) out.push({ x: this.player.position.x, z: this.player.position.z, kind: 'player', yaw: this.player.yaw });
     return out;
   }

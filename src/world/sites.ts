@@ -7,7 +7,7 @@ import { LAND } from './land';
 import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
-import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
+import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
@@ -660,6 +660,8 @@ export function plan(): Plan {
   const waymarks = placeWaymarks(O, sites);
   // Every town's leftover lawn, dressed in its own way (after the waymarks have taken their spots)
   dressTowns(O, sites);
+  // Benches, stalls, barrels and the rest stand in your way, the way walls do
+  propCollision(O, sites);
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
   const hz = hazards({ sites, waymarks, overrides: O });
   stamp(hz, O);
@@ -6577,6 +6579,64 @@ function dressTowns(O: Overrides, sites: Site[]): void {
       else if (T === 'works') { if (v === 0) P.push({ t: 'woodpile', x: cx, y: base, z: cz, ry: h * 7 > 3 ? Math.PI / 2 : 0, len: 2 }); else P.push(v === 1 ? { t: 'crate', x: cx, y: base, z: cz, ry: h * 3 } : { t: 'barrel', x: cx, y: base, z: cz }); }
       else if (T === 'village') { if (v === 0) P.push({ t: 'woodpile', x: cx, y: base, z: cz, ry: h * 7 > 3 ? Math.PI / 2 : 0, len: 2 }); else P.push(v === 1 ? { t: 'planter', x: cx, y: base, z: cz, ry: h * 7 > 3 ? Math.PI / 2 : 0, tint: 0 } : { t: 'beehive', x: cx, y: base, z: cz, ry: h }); }
       else { if (v === 0) cypress(x + 1, z + 1); else P.push({ t: 'planter', x: cx, y: base, z: cz, ry: v === 1 ? 0 : Math.PI / 2, tint: 1 }); }
+    }
+  }
+}
+
+/**
+ * Props are drawn on top of the world's blocks, so on their own you walk through them. This gives
+ * each solid one invisible barrier blocks under its footprint (its own size, turned with it), in
+ * open air only, so it stops you the way a wall does: low things (a bench, a barrel, a cart, a
+ * table) one block high, which you can step up onto as onto any block; a stall's counter one high
+ * and its posts two; a lamp post or a sign post one cell, two high; a statue three.
+ */
+function propCollision(O: Overrides, sites: Site[]): void {
+  const decoded = new Map<number, Map<number, number>>();
+  const block = (x: number, y: number, z: number): number | undefined => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = decoded.get(k);
+    if (!m) { m = new Map(); const a = O.map.get(k); if (a) for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]); decoded.set(k, m); }
+    return m.get(localIdx(x & 31, y, z & 31));
+  };
+  /** Bar the cells under a rectangle (centre cx, cz and half sizes hx, hz in the prop's own frame), h high. */
+  const bar = (d: PropDesc, cx: number, cz: number, hx: number, hz: number, h: number) => {
+    const ry = d.ry ?? 0, c = Math.cos(ry), sn = Math.sin(ry), y0 = Math.floor(d.y + 0.05);
+    const cells = new Set<number>();
+    // Sample the footprint every quarter block, so a bench thinner than a block still lands on its cells
+    for (let u = -hx; u <= hx + 1e-6; u += Math.min(0.25, hx || 0.25)) for (let w = -hz; w <= hz + 1e-6; w += Math.min(0.25, hz || 0.25)) {
+      const lx = cx + u, lz = cz + w;
+      const x = Math.floor(d.x + lx * c + lz * sn), z = Math.floor(d.z - lx * sn + lz * c);
+      cells.add(x * 100000 + z);
+    }
+    for (const k of cells) {
+      const x = Math.floor(k / 100000), z = k - x * 100000;
+      if (POSTS.some((pt) => Math.abs(pt.x - (x + 0.5)) < 1.6 && Math.abs(pt.z - (z + 0.5)) < 1.6)) continue; // a Charter Post's spot stays open
+      for (let y = y0; y < y0 + h; y++) {
+        const id = block(x, y, z);
+        if ((id === undefined && y >= heightAt(x, z)) || id === B.Air) O.set(x, y, z, B.Barrier);
+      }
+    }
+  };
+  // (the wild's camps and ruins, the delves and dungeons keep their clutter walkable: a chest or a find often
+  // sits among the crates; so do the gaols' cells, where people sit on the benches, and the cramped sky isles)
+  for (const st of sites) if (!st.id.startsWith('poi') && !st.id.startsWith('gaol-') && st.id !== 'skyisles' && !st.act) for (const d of st.props) {
+    switch (d.t) {
+      case 'bench': bar(d, 0, 0, (d.len ?? 1.6) / 2, 0.2, 1); break;
+      case 'stall': bar(d, 0, 0.6, 1.5, 0.4, 1); for (const x of [-1.4, 1.4]) for (const z of [-0.8, 0.8]) bar(d, x, z, 0, 0, 2); break;
+      case 'cart': bar(d, 0, 0, 0.4, 0.52, 1); break;
+      case 'well': bar(d, 0, 0, 1.05, 1.05, 1); for (const x of [-1, 1]) bar(d, x, 0, 0, 0, 2); break;
+      case 'statue': bar(d, 0, 0, 1.0, 1.0, 3); break;
+      case 'planter': bar(d, 0, 0, 0.72, 0.26, 1); break;
+      case 'woodpile': bar(d, 0, 0, ((d.len ?? 2) + 0.3) / 2, 0.42, 1); break;
+      case 'barrel': case 'crate': case 'beehive': if (st.named && st.id !== 'bight') bar(d, 0, 0, 0.28, 0.28, 1); break; // (in the wild, and in the Bight's wreckers' camp, they're clutter to fight among)
+      case 'lobsterPots': bar(d, 0, 0, 0.4, 0.4, 1); break;
+      case 'furn': {
+        const it = d.item as FurnItem | undefined;
+        if (!it || !(it in FURN_SIZE) || it === 'rug' || it === 'lamp' || it === 'candles' || it === 'hearth') break;
+        const [w, dp] = FURN_SIZE[it];
+        bar(d, 0, 0, w / 2 - 0.05, dp / 2 - 0.05, it === 'shelves' || it === 'dresser' ? 2 : 1);
+        break;
+      }
     }
   }
 }
