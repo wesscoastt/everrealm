@@ -987,3 +987,7 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #buffs .bf i { font-style: normal; color: var(--gold); margin-left: 3px; }
 #buffs .bf.drink { border-color: rgba(120, 190, 220, 0.6); }
 #buffs .bf.winded { border-color: #c84a3a; color: #ffb0a0; }
+
+/* The store's terms, refunds, privacy and contact links (public/legal) */
+.st-legal { margin-top: 14px; font-size: 14px; color: #c8b896; }
+.st-legal a { color: var(--gold); pointer-events: auto; }
