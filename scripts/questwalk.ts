@@ -23,7 +23,13 @@ import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { QUESTS, type QuestDef } from '../src/data/quests';
 import { SHOPS } from '../src/data/shops';
 import { BOARDS } from '../src/data/content';
+import { offLand } from '../src/world/land';
 import type { DNode, GameApi } from '../src/game/api';
+
+// The walker walks both lands' quests at once: put back the people, things and creatures placed in the other land
+NPCS.push(...offLand(NPCS));
+WORLD_THINGS.push(...offLand(WORLD_THINGS));
+QUEST_SPAWNS.push(...offLand(QUEST_SPAWNS));
 
 // ---------------------------------------------------------------- State and the mock game
 
@@ -67,6 +73,7 @@ class Mock implements GameApi {
   openShop(id?: string) { if (id && !SHOPS[id]) err('shop:' + id, `${this.where}: opens unknown shop "${id}"`); }
   openCrafting() {}
   openTravel() {}
+  crossLand() {}
   openBoard(id: string) { if (!BOARDS.some((b) => b.id === id)) err('board:' + id, `${this.where}: opens unknown board "${id}"`); }
   startCasting() { this.s.flags.__casting = true; }
   ride() {}

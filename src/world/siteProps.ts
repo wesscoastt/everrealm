@@ -91,7 +91,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   for (const d of site.props) {
     switch (d.t) {
       case 'roof': {
-        P.addHouseRoof(batch, M, { x: d.x, y: d.y, z: d.z, len: d.len!, span: d.span!, ry: d.ry ?? 0, mat: roofMat(d.mat), thatch: d.mat === 'thatch', dormers: d.dormers ?? 0 });
+        P.addHouseRoof(batch, M, { x: d.x, y: d.y, z: d.z, len: d.len!, span: d.span!, ry: d.ry ?? 0, mat: roofMat(d.mat), thatch: d.mat === 'thatch', dormers: d.dormers ?? 0, plain: d.plain });
         break;
       }
       case 'door': place(P.door(M), d.x, d.y, d.z, d.ry); break;

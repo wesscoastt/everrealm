@@ -18,6 +18,28 @@ export const MORROW_REGIONS: MorrowRegion[] = ['keys', 'glades', 'amberwold', 'b
 
 /** Callis, at the mouth of the Call on the Bright Coast: the packet ship from Gullmouth comes in here. */
 export const CALLIS = { x: 2140, z: 1150 };
+/** The Call's middle through Callis, the harbour's quay line, and the packet's berth at the end of its pier. */
+export const CALLIS_RIVER_Z = 1160;
+export const CALLIS_QUAY_X = 2296;
+export const CALLIS_PACKET = { x: CALLIS_QUAY_X + 36, z: 1240 };
+/** Callis's street level (the city is built flat, on its own ground: world/sites.ts buildCallis). */
+export const CALLIS_FLOOR = SEA + 6;
+/**
+ * Where Callis's landmarks stand, shared by the builder and the people (data/content/callis.ts):
+ * the middle of the Assembly's plaza, of the Market square, and of the Hall of the Two Stones, which
+ * stands on a rise three blocks over the street.
+ */
+export const CALLIS_SPOTS = {
+  plaza: { x: CALLIS.x - 20, z: CALLIS.z - 95 },
+  market: { x: CALLIS.x + 20, z: CALLIS.z + 60 },
+  temple: { x: CALLIS.x - 120, z: CALLIS.z + 100, rise: 3 },
+};
+/** The three towers whose plumb gauges the Warden keeps, off the plaza's middle (size: the tower's width). */
+export const CALLIS_TOWERS = {
+  old: { name: 'the Old Tower', dx: 2, dz: -52 },
+  morning: { name: 'the Morning Tower', dx: 42, dz: -18 },
+  evening: { name: 'the Evening Tower', dx: -42, dz: -18 },
+};
 /** Saltpenny Key: the outermost of the Keys, the Brethren's city of wrecks. */
 export const SALTPENNY = { x: -1540, z: 3700 };
 /** Northgate, across the only pass into the Held Country. */

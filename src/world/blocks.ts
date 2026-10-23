@@ -9,7 +9,9 @@ export enum T {
   RedSand, TerraOrange, TerraCream, TerraBrown, IronOre, Crystal, Ice, Loam, Basalt,
   MyceliumTop, MyceliumSide, MushStem, StemTop, CapBrown, CapInk, CapRed, Gills, CapGlow,
   // Kell: the Kilnfolk's brass and copper plate, the volcano's ash and its ember rock
-  Brass, Copper, Ash, Emberstone, Count,
+  Brass, Copper, Ash, Emberstone,
+  // Morrow: the white stone that lifts, worked smooth, and the black that holds it down
+  Whitestone, Blackstone, Count,
 }
 
 export enum B {
@@ -25,6 +27,8 @@ export enum B {
   Mycelium, MushStem, CapBrown, CapInk, CapRed, Gills, CapGlow,
   // Kell (the clockwork isle): riveted brass and verdigris copper plate, black ash, rock with live cracks
   Brass, Copper, Ash, Emberstone,
+  // Morrow (the second continent): dressed white crystal-stone, and the black keystone that holds it
+  Whitestone, Blackstone,
   Count,
 }
 
@@ -105,6 +109,8 @@ BLOCKS[B.Brass] = D('brass plate', T.Brass, T.Brass, T.Brass, { jitter: 0.02 });
 BLOCKS[B.Copper] = D('copper plate', T.Copper, T.Copper, T.Copper, { jitter: 0.03 });
 BLOCKS[B.Ash] = D('ash', T.Ash, T.Ash, T.Ash, { jitter: 0.05 });
 BLOCKS[B.Emberstone] = D('ember rock', T.Emberstone, T.Emberstone, T.Emberstone, { jitter: 0.03, emissive: 1 });
+BLOCKS[B.Whitestone] = D('whitestone', T.Whitestone, T.Whitestone, T.Whitestone, { jitter: 0.03 });
+BLOCKS[B.Blackstone] = D('blackstone', T.Blackstone, T.Blackstone, T.Blackstone, { jitter: 0.02 });
 
 export function isSolid(id: number): boolean {
   return BLOCKS[id]?.solid ?? false;

@@ -594,9 +594,40 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 - **The Laurel.** A wreath of bay, the old sign for someone who went back down a second time and did it the hard way: the first veteran clear of any group dungeon.
 - **Revered standing** with a region earns its own sign: Hollindale's mill wheel, the Turnpike's toll-key, Hagworm's oak leaf, the Fleet Coast's three waves, the Harrowgate Company's anvil, the Scarth peak, the gannet of the cliff villages, the reeds of the Wrath Levels, Tolmen's three stones and the Inkholm cap.
 
-## Morrow, the second continent [planned]
+## Morrow, the second continent
 
-The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.
+The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, Kingsbarrow, the Brethren, ships and the later chapters) is still planned in docs/MORROW.md.
+
+### The crossing [in game]
+
+- Morrow is its own land (`src/world/land.ts`, `src/world/morrow.ts`). The packet ship **the Constant** runs Gullmouth to Callis and back, a day and a night each way. **Hal Sennen** is her master; she was his mother's before him, and he has sailed her twenty-two years. The fare is 20 marks, and he takes nobody under level 30.
+
+### Callis [in game]
+
+- The Assembly city at the mouth of the Call, on the Bright Coast (`buildCallis` in `src/world/sites.ts`). The river runs through its middle between stone quays, under three bridges. North of it: the Towers, five white towers pinned with black at every course, round the Assembly's plaza and the domed Assembly Hall. South of it: the Market and the Hall of the Two Stones on its rise. Along the sea: the docks, four piers and the light at the harbour mouth.
+- Houses are white stone with cream quoins, a cream band at each floor and a black stone plinth: the two stones of Callis. Players can build their own house front this way ("Callis stone").
+- Callis names are short and plain: Ferrer, Oms, Sala, Vidal, Mas, Coll, Roig.
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Pau Ferrer** | Harbourmaster | To be told what comes through his harbour | — |
+| **Clara Oms** | Clerk to the Assembly's Works Committee | Not to be the one who wrote it down | She copied the lines for you on purpose |
+| **Benet Sala** | Speaker of the Assembly | The towers standing, whatever it costs and whoever carries it | He knows exactly who the Brethren are |
+| **Marta Vidal** | Warden of the Towers | The truth about the lift, said out loud | She hopes every morning she's read the gauge wrong |
+| **Isidre Mas** | Keeper of the Hall of the Two Stones | People to remember the stones come as a pair | — |
+| **Jaume Roig** | Cuts the black for the tower pins; sells iron | — | He isn't glad of the work |
+| **Pere Coll** | Sardines, olive bread and Callis red in the Market | — | — |
+
+- **The Two Stones.** The white lifts; the black holds. Callis's old builders raised the towers in a lifetime on the white and pinned them with the black. The white in the old walls has been settling for three hundred years, and settled crystal lifts: since midsummer the Old Tower has risen two fingers, the Morning Tower a finger and a half, the Evening Tower a finger (the Warden's plumb gauges).
+- **The black.** The Works Committee has bought nine hundred weight of the black since midsummer, against forty in a usual year: "A. Pryce, for Harrowgate & Daughters", delivered by the **Kittiwake**, a Brethren hull out of Saltpenny Key. Jaume Roig has cut four hundred pins this year.
+- Letters off the packet: Isidre's sister writes that Northgate has shut its gate "for the winter", which it has never done; Marta's son on the Sunder's skyfarms writes that the slabs are higher this summer.
+
+### The Third Daughter, chapters XVII and XVIII [in game]
+
+Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; everything is in `src/data/content/callis.ts`.
+
+- **XVII, Half a Crew.** Once the Drowned Parish is done, Nessa Crane has news: a Morrow ship, the Good Return, came into Gullmouth half-crewed with northern passengers who won't say what they left, and her master asked after the Third Daughter. Aubrey Pryce talked Delia into one ship, one season, buying crystal in Morrow out of the Charter's reach; the Third Daughter sailed while the player was at Holmsey, with Delia's signature on his papers, and Pryce is gone from the Works. Delia pays the player's passage on the Constant (flag `tdPassage`: crossings are free on her account). Joan, separately and without telling Delia, gives forty marks and her plumb bob and wants numbers on Morrow's towers (`tdJoan`; the letter goes back through Pau Ferrer on the packet). Pau Ferrer remembers the Third Daughter: she came in at midsummer, her buyer went straight to the Assembly, and she sailed two days later, empty.
+- **XVIII, Nine Hundred Weight.** Clara Oms shows the Committee's lines and gives the player a copy. Marta Vidal explains the lift and sends the player to read the three gauges. The Speaker, shown the lines, admits the Kittiwake is a Brethren hull, that the Brethren carry the black to Callis, and that Pryce went south with them to Saltpenny Key in the summer. Benet Sala: he would rather buy black from thieves than watch the Old Tower walk off into the sky.
 
 ## Terminology
 

@@ -173,6 +173,8 @@ export const NPCS: NpcDef[] = [
     look: { skin: '#e8c4a4', hair: '#4a3a2a', hairStyle: 0, eyes: '#6a5a3a', tunic: '#4a4a52', trim: '#c8c8c0', trousers: '#2a2a30', boots: '#1a1614', cape: '#2a2a32', build: 0.9, height: 1.05, age: 0.5 },
     schedule: [{ from: 0, to: 24, at: [W.cx - 14.5, W.cz - 3.5], face: [W.cx - 12.5, W.cz - 3.5], anim: 'idle' }],
     barks: ['Buying. Not selling.'],
+    // He sails for Morrow on the Third Daughter (data/content/callis.ts): gone once Nessa has the news, unless Wick's pick is still between you
+    when: (g) => !g.stage('tdCrew') || (!!g.stage('fairPrice') && g.stage('fairPrice') !== 'done'),
   },
   {
     id: 'delia', name: 'Delia Harrowgate', title: 'Partner, Harrowgate & Daughters',

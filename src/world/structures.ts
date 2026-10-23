@@ -428,8 +428,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   for (const [x, z] of [[147.5, 182.2], [160.6, 186.4], [160.6, 181.6], [182.6, 186.6], [184.4, 182.2], [195.6, 186.8], [140.5, 186.8]] as [number, number][]) lantern(x, z);
 
   // The Charter Post box by the Post sign on the square
-  {
-    const b = postBoxOf(POSTS.find((q) => q.id === 'hollin')!), y = ground(Math.floor(b.x), Math.floor(b.z));
+  // (Hollin Ford's own stop: in Morrow the post list is Morrow's, and the valley isn't shown)
+  const hollinPost = POSTS.find((q) => q.id === 'hollin');
+  if (hollinPost) {
+    const b = postBoxOf(hollinPost), y = ground(Math.floor(b.x), Math.floor(b.z));
     place(P.postBox(M), b.x, y, b.z, b.ry);
     barrier(b.x, y, b.z, 2);
   }

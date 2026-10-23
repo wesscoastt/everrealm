@@ -455,6 +455,21 @@ const painters: Record<number, (p: Px) => void> = {
       }
     }
   },
+  [T.Whitestone]: (p) => {
+    // Morrow's white stone, dressed: near white, a faint cool sheen, fine coursing, and a thread of crystal here and there
+    base(p, '#d8d6d0', '#e6e4de', '#f2f0ea', 571, 0.04);
+    for (let x = 0; x < TILE; x++) { set(p, x, 15, hex('#c4c2bc')); set(p, x, 31, hex('#c4c2bc')); }
+    for (let y = 0; y < 15; y++) set(p, 10, y, hex('#cac8c2'));
+    for (let y = 16; y < 31; y++) set(p, 24, y, hex('#cac8c2'));
+    let x = 4 + Math.floor(p.rnd() * 20), y = 2;
+    for (let i = 0; i < 9; i++) { set(p, x, y, hex('#c8eef8')); x += Math.floor(p.rnd() * 3) - 1; y += 1 + Math.floor(p.rnd() * 2); }
+  },
+  [T.Blackstone]: (p) => {
+    // The black: dense, glassy, a faint violet in it where the light catches
+    base(p, '#141218', '#1e1a24', '#2a2432', 581, 0.06);
+    for (let i = 0; i < 18; i++) { const cx = Math.floor(p.rnd() * TILE), cy = Math.floor(p.rnd() * TILE); set(p, cx, cy, hex('#5a4a78')); set(p, cx + 1, cy, hex('#3a3050')); }
+    for (let x = 0; x < TILE; x++) set(p, x, x, mix(get(p, x, x), hex('#6a5a8a'), 0.35));
+  },
   [T.Basalt]: (p) => { base(p, '#2a2a30', '#36363e', '#44444c', 431, 0.1); for (let y = 0; y < TILE; y += 8) for (let x = 0; x < TILE; x++) set(p, x, y, hex('#1e1e24')); for (let x = 0; x < TILE; x += 8) for (let y = 0; y < TILE; y++) set(p, x + ((Math.floor(y / 8)) % 2) * 4, y, hex('#1e1e24')); },
 };
 

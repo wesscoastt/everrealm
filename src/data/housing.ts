@@ -64,6 +64,7 @@ export const FRONTS: Record<FrontId, { name: string; blurb: string; cost: Cost }
   studded: { name: 'Close-studded', blurb: 'A post every other block and small windows: the old way, and dear in timber.', cost: { items: { oak_logs: 10 }, marks: 30 } },
   quoined: { name: 'Quoined', blurb: 'No posts: the corners dressed in alternate courses, a string course between storeys.', cost: { items: {}, marks: 300 } },
   boarded: { name: 'Weatherboard', blurb: 'Posts only at the corners and the door, windows in pairs.', cost: { items: { birch_logs: 8 }, marks: 0 } },
+  white: { name: 'Callis stone', blurb: 'The way they build in Callis: cream corners, a cream band at each floor, a black stone plinth, and plain gables.', cost: { items: {}, marks: 420 } },
 };
 export const TRIMS: Record<TrimId, { name: string; cost: Cost }> = {
   hood: { name: 'Door hood', cost: { items: { oak_logs: 4 }, marks: 20 } },

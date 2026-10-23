@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
-import { LAND } from '../world/land';
+import { LAND, LAND_FORCED, setNextLand, type LandId } from '../world/land';
+import { CALLIS_PACKET } from '../world/morrow';
+/** Session storage: the character to go straight into after crossing between lands. */
+const ENTER_KEY = 'everrealm.enter';
 import type { Equip } from '../data/items';
 import { BRIGHTCUT, REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
@@ -855,7 +858,11 @@ export class Game implements GameApi {
     this.mode = 'title';
     this.applySettings();
     // Keep the loading screen up until the square is built, so the menu never shows half a village.
-    this.hud.showTitle('Raising Hollin Ford…');
+    // (Come here to cross from the other land: straight back into the character who crossed.)
+    try { this.autoEnter = sessionStorage.getItem(ENTER_KEY); sessionStorage.removeItem(ENTER_KEY); } catch { this.autoEnter = null; }
+    // The menu is in the Counties: a page in Morrow with nobody to bring in goes back there
+    if (LAND !== 'counties' && !this.autoEnter && !LAND_FORCED) { setNextLand('counties'); setTimeout(() => location.reload(), 50); }
+    this.hud.showTitle(this.autoEnter ? (LAND === 'morrow' ? 'Coming ashore at Callis…' : 'Coming ashore at Gullmouth…') : 'Raising Hollin Ford…');
     this.menuPending = true;
   }
 
@@ -1003,6 +1010,14 @@ export class Game implements GameApi {
 
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
+  crossLand(to: LandId): void {
+    if (this.inCombat()) { this.hud.system('Not in the middle of a fight.'); return; }
+    // Where the packet sets you down: the end of Callis's packet pier, or Gullmouth's quay
+    const at: [number, number, number] = to === 'morrow' ? [CALLIS_PACKET.x - 6.5, 23, CALLIS_PACKET.z + 0.5] : [1724.5, 24, 597.5];
+    this.save.pos = at;
+    this.save.yaw = to === 'morrow' ? -Math.PI / 2 : Math.PI / 2;
+    this.switchLand(to, to === 'morrow' ? 'The Constant, a day and a night out of Gullmouth…' : 'The Constant, a day and a night out of Callis…');
+  }
 
   /** A notice board talks like a person with no face: the dialogue panel, headed with the board's name. */
   openBoard(id: string): void {
@@ -1660,6 +1675,8 @@ export class Game implements GameApi {
     if (!this.homeShown) { this.homeShown = true; this.front.showHome(); } else this.front.showSelect();
   }
   private homeShown = false;
+  /** A character to go straight into once the world is built (back from a crossing). */
+  private autoEnter: string | null = null;
 
   /** Load a character from the roster into this.save and stand them in the scene. */
   private selectCharacter(id: string | null): void {
@@ -1864,6 +1881,8 @@ export class Game implements GameApi {
 
   private startPlay(fresh = false, title = 'Finding your feet…'): void {
     if (!this.world || this.startPending) return;
+    // A character in the other land: reload into that land, and come straight back to them
+    if (!LAND_FORCED && (this.save.land ?? 'counties') !== LAND) { this.switchLand(this.save.land ?? 'counties'); return; }
     this.previewLook(null);
     this.front.hide();
     const [sx, , sz] = this.save.pos;
@@ -1878,6 +1897,22 @@ export class Game implements GameApi {
     this.startPending = { fresh };
     this.hud.showTitle(title);
     void sx; void sz;
+  }
+
+  /**
+   * Go to the other land (world/land.ts): the page reloads into it behind a loading screen, and then
+   * goes straight into this character there. The save already holds where they arrive.
+   */
+  switchLand(land: LandId, title = land === 'morrow' ? 'Crossing to Morrow…' : 'Crossing to the Counties…'): void {
+    this.save.land = land === 'counties' ? undefined : land;
+    this.persist();
+    if (this.mode === 'play') uploadSave(this.save, true);
+    this.online.save(this.save, true);
+    setNextLand(land);
+    try { sessionStorage.setItem(ENTER_KEY, this.charId ?? 'main'); } catch { /* the menu, then */ }
+    this.restoring = true;
+    this.hud.showTitle(title);
+    setTimeout(() => location.reload(), 500);
   }
 
   /** Called once the chunks around the player are generated and meshed. */
@@ -2414,7 +2449,7 @@ export class Game implements GameApi {
         }
       }
     }
-    for (const it of this.world.structures.interactables) {
+    for (const it of LAND === 'counties' ? this.world.structures.interactables : []) {
       const pos = new THREE.Vector3(it.x, it.y, it.z);
       const d = Math.hypot(it.x - p.x, it.z - p.z);
       if (d < it.radius && Math.abs(it.y - p.y - 1) < 2.5) {
@@ -3502,7 +3537,16 @@ export class Game implements GameApi {
         this.camera.lookAt(cx, 22, cz);
       }
       const focus = this.startPending || this.mode === 'intro' ? this.player.position.clone() : new THREE.Vector3(166, 19, 184);
-      if (this.menuPending && this.world.chunks.isReady(STAGE.x, STAGE.z, 2)) { this.menuPending = false; this.showMenu(); }
+      if (this.menuPending && this.autoEnter) {
+        // Back from a crossing: into the world at once
+        this.menuPending = false;
+        const id = this.autoEnter;
+        this.autoEnter = null;
+        this.selectCharacter(id);
+        if (id) setLastPlayed(id);
+        this.front.hide();
+        this.startPlay(false, LAND === 'morrow' ? 'Coming ashore…' : 'Coming home…');
+      } else if (this.menuPending && this.world.chunks.isReady(STAGE.x, STAGE.z, 2)) { this.menuPending = false; this.showMenu(); }
       this.world.update(dt, focus, this.elapsed, timeScale * 0.3);
       if (this.startPending && this.world.chunks.isReady(focus.x, focus.z, 2)) {
         // Drop the player onto solid ground if the saved height is stale

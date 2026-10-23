@@ -66,7 +66,7 @@ export const MAP_REGIONS: RegionId[] = ['greenwake', 'crownroad', 'brambledeep',
 export interface TreasureMap { id: string; region: RegionId; n: 1 | 2 }
 /** Hollindale's maps, drawn in the valley: the meadow east of the village, and below the Lantern. */
 export const FIXED_SPOTS: Record<string, { x: number; z: number }> = { tmap_greenwake_1: { x: 214.5, z: 158.5 }, tmap_greenwake_2: { x: 100.5, z: 252.5 } };
-export const TREASURE_MAPS: TreasureMap[] = MAP_REGIONS.flatMap((region) => ([1, 2] as const).map((n) => ({ id: `tmap_${region}_${n}`, region, n })));
+export const TREASURE_MAPS: TreasureMap[] = countiesOnly(MAP_REGIONS.flatMap((region) => ([1, 2] as const).map((n) => ({ id: `tmap_${region}_${n}`, region, n }))));
 
 export const MAP_ITEMS: ItemDef[] = TREASURE_MAPS.map((m) => ({
   id: m.id, name: `Treasure map: ${REGION_INFO[m.region].name}${m.n === 2 ? ' (second)' : ''}`, kind: 'collectible', rarity: 'uncommon', stack: false, value: 20,

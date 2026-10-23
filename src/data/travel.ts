@@ -60,6 +60,8 @@ export const POSTS: PostStop[] = [
   { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2, gate: 'inkFerry' },
   // Kell, past the Fleet Coast: Jory Tallack's boat, once the Wheel has sent for you (data/content/kell.ts)
   { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2, gate: 'kellFerry' },
+  // Morrow (world/land.ts): Callis, on the south side of the Assembly's plaza (world/morrow.ts CALLIS_SPOTS)
+  { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: 2132.5, z: 1077.5, ry: 0 },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */

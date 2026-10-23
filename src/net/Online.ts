@@ -3,6 +3,7 @@ import * as THREE from 'three';
 /** What a chat line is: said aloud, an emote, to the group or guild, or a whisper (received, or sent). */
 export type ChatKind = 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo';
 import { setRealmTime } from '../world/clock';
+import { LAND } from '../world/land';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
 import { CreatureModel } from '../entities/creatures';
@@ -42,7 +43,7 @@ interface Remote {
   pillion: number;
 }
 
-interface PlayerPub { id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
+interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
 
 /** How far behind the saddle a second rider sits, along the horse. */
 const PILLION_BACK = 0.55;
@@ -189,7 +190,7 @@ export class Online {
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
-      ws.send(JSON.stringify({ t: 'hello', name, token: tokenFor(name), session: currentAccount()?.token, look }));
+      ws.send(JSON.stringify({ t: 'hello', name, token: tokenFor(name), session: currentAccount()?.token, look, land: LAND }));
     };
     ws.onmessage = (e) => this.onMessage(typeof e.data === 'string' ? e.data : '');
     ws.onclose = () => {
@@ -315,6 +316,8 @@ export class Online {
 
   private addRemote(p: PlayerPub): void {
     this.removeRemote(p.id);
+    // Someone in the other land isn't here to see (world/land.ts)
+    if ((p.land ?? 'counties') !== LAND) return;
     const model = new Humanoid(p.look);
     const pos = new THREE.Vector3(p.x, p.y, p.z);
     model.root.position.copy(pos);

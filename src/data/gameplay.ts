@@ -1,3 +1,4 @@
+import { countiesOnly } from '../world/land';
 import type { CreatureKind, Palette } from '../entities/creatures';
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import { ARMOUR_SMITHING } from './armour';
@@ -478,3 +479,7 @@ export const REGIONS: { id: string; name: string; sub: string; x: number; z: num
   { id: 'wetlings', name: 'The Wetlings', sub: 'Low fields', x: 200, z: 240, r: 22 },
   { id: 'haverwood', name: 'Haverwood', sub: 'Hollindale', x: 252, z: 238, r: 40 },
 ];
+
+// Hollindale's own creatures and animals, placed by hand: the Counties only (world/land.ts)
+countiesOnly(ENEMY_SPAWNS);
+countiesOnly(ANIMAL_SPAWNS);

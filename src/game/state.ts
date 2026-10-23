@@ -30,6 +30,8 @@ export interface SaveData {
   v: 1;
   name: string;
   look: Appearance;
+  /** Which land pos is in (world/land.ts); none: the Counties. */
+  land?: import('../world/land').LandId;
   pos: [number, number, number];
   yaw: number;
   hour: number;

@@ -409,6 +409,8 @@ export interface HouseRoof {
   thatch?: boolean;
   /** Dormers on one slope: +1 or -1 picks the slope (local +Z or -Z), 0 for none. */
   dormers?: number;
+  /** Plain gable ends, no timbers: a stone house (Morrow's). */
+  plain?: boolean;
 }
 
 /**
@@ -457,6 +459,7 @@ export function addHouseRoof(batch: Batcher, M: PropMaterials, r: HouseRoof): vo
   const gw = gableWall(span, gh, 0.9);
   for (const s of [-1, 1]) {
     put(gw, M.plaster, s * (len / 2 - 0.45), 0, 0, Math.PI / 2);
+    if (r.plain) { if (gh > 2.2) put(box(0.1, 0.7, 0.5), M.glow, s * (len / 2 + 0.03) + s * 0.01, gh * 0.45, 0); continue; }
     const fx = s * (len / 2 + 0.03);
     put(box(0.12, 0.24, span), M.darkWood, fx, 0.12, 0);
     put(box(0.12, gh * 0.82, 0.22), M.darkWood, fx, gh * 0.41, 0);

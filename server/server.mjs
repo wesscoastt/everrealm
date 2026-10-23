@@ -310,7 +310,7 @@ const mail = mailInit({ players, send, readJson, writeJson, dataDir: DATA, keyFo
 const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const music = musicInit({ players, send, social });
-const pub = (p) => ({ id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, perf: music.perfOf(p) });
+const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, perf: music.perfOf(p) });
 
 wss.on('connection', (ws, req) => {
   let me = null;
@@ -346,6 +346,8 @@ wss.on('connection', (ws, req) => {
       }
       me = {
         id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
+        // The land they're in (the Counties or Morrow): others only see them in the same one
+        land: msg.land === 'morrow' ? 'morrow' : 'counties',
         x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', mount: null, lastChat: 0, dirty: true,
         // The keeper's own accounts may read reports; what each player said lately goes with a report about them
         dev: !!user && DEV_ACCOUNTS.has(accKey(user)), recent: [], lastReport: 0,

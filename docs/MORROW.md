@@ -1,6 +1,6 @@
 # Morrow: the second continent (plan)
 
-Everything here is **[planned]**. Nothing in the game contradicts it yet. When a piece is built, move
+Everything here is **[planned]** unless marked otherwise. The crossing, Callis and chapters XVII and XVIII are in the game now (LORE.md, "Morrow, the second continent"). When a piece is built, move
 it into LORE.md and mark it [in game]. The rules in LORE.md and NARRATIVE_STYLE.md hold here too:
 plain names, plain speech, no world-ending prophecy, and the trouble always has a human cause.
 
@@ -66,12 +66,12 @@ Each is several times the size of Ansbury, built to be walked around for an hour
 
 Five chapters after Act III, from Nessa Crane at Gullmouth.
 
-1. **Low Water.** A Morrow ship comes into Gullmouth half-crewed, carrying passengers from the north
-   who won't say what they left. A year ago Harrowgate & Daughters sent a ship east for crystal: the
-   *Third Daughter*, with **Mr Pryce** aboard as the company's buyer and Delia Harrowgate's signature
-   on his papers. Nothing has been heard since. Delia wants to know what her name has been signed to.
-   She pays your passage, and so does Joan, separately, without telling each other.
-2. **Callis.** The great city. The Assembly's towers have been buying black, more than they've ever
+1. **Half a Crew** (XVII) [in game]. A Morrow ship comes into Gullmouth half-crewed, carrying passengers
+   from the north who won't say what they left. While the player was at Holmsey, Harrowgate & Daughters
+   sent a ship east for crystal: the *Third Daughter*, with **Mr Pryce** aboard as the company's buyer
+   and Delia Harrowgate's signature on his papers. Delia wants to know what her name has been signed to.
+   She pays your passage, and Joan pays too, separately, without telling her.
+2. **Nine Hundred Weight** (XVIII) [in game]. The great city. The Assembly's towers have been buying black, more than they've ever
    needed, to hold down towers that have started to lift as the white in them settles. Pryce has
    been here: he sold the Assembly the black, and nobody asked where it came from.
 3. **Saltpenny.** The black comes up the coast in Brethren hulls. Ned Vey will tell you where they

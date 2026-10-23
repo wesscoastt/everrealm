@@ -349,6 +349,7 @@ export class Activities {
 
   // ---------------------------------------------------------------- Shardfalls
   private runShardfall(P: THREE.Vector3): void {
+    if (!SHARDFALLS.length) return; // (none in this land)
     const t = this.now(), cycle = Math.floor(t / SHARDFALL_EVERY), idx = cycle % SHARDFALLS.length;
     const [sx, sz] = SHARDFALLS[idx];
     if (this.shard && this.shard.cycle !== cycle) this.endShard();
@@ -740,7 +741,7 @@ export class Activities {
       else if (until < 600) out.push({ x: def.x, z: def.z, kind: 'bossSoon', label: `${name} in ${Math.floor(until / 60)}:${String(Math.floor(until % 60)).padStart(2, '0')}` });
     }
     const cycle = Math.floor(this.now() / SHARDFALL_EVERY);
-    if (this.host.flag('shard') !== cycle) { const [sx, sz] = SHARDFALLS[cycle % SHARDFALLS.length]; out.push({ x: sx, z: sz, kind: 'shard', label: 'Shardfall' }); }
+    if (SHARDFALLS.length && this.host.flag('shard') !== cycle) { const [sx, sz] = SHARDFALLS[cycle % SHARDFALLS.length]; out.push({ x: sx, z: sz, kind: 'shard', label: 'Shardfall' }); }
     out.push(...this.tasks.markers(), ...this.escorts.markers(), ...this.puzzles.markers());
     // The X on every treasure map in the pack
     for (const m of TREASURE_MAPS) {

@@ -13,8 +13,20 @@ export const LAND_NAMES: Record<LandId, string> = { counties: 'The Charter Count
 
 const KEY = 'everrealm.land';
 
+/** A land asked for in the page's address (?land=morrow): for testing; the menu stays where it is. */
+function asked(): LandId | null {
+  try {
+    const q = new URLSearchParams((globalThis as unknown as { location?: { search?: string } }).location?.search ?? '').get('land');
+    return q === 'morrow' || q === 'counties' ? q : null;
+  } catch { return null; }
+}
+/** The land was forced by the address (testing): no crossing back and forth on entering. */
+export const LAND_FORCED = asked() !== null;
+
 function detect(): LandId {
   try {
+    const a = asked();
+    if (a) return a;
     const g = globalThis as unknown as { name?: unknown; localStorage?: Storage; __everrealmLand?: unknown };
     if (g.__everrealmLand === 'morrow') return 'morrow';
     if (typeof g.name === 'string' && g.name.startsWith('land:')) return g.name.slice(5) === 'morrow' ? 'morrow' : 'counties';
@@ -34,9 +46,15 @@ export function setNextLand(l: LandId): void {
   try { localStorage.setItem(KEY, l); } catch { /* nothing to do */ }
 }
 
+/** What keepOnLand took out of each list: the other land's share. */
+const away = new WeakMap<object, unknown[]>();
+/** The other land's share of a list keepOnLand filtered (for checks that walk both lands at once). */
+export function offLand<T>(list: T[]): T[] { return (away.get(list) as T[] | undefined) ?? []; }
+
 /** Keep only what is in this land (no land given: the Counties), in place, so every holder of the list sees it. */
 export function keepOnLand<T extends { land?: LandId }>(list: T[]): T[] {
   const keep = list.filter(onLand);
+  away.set(list, list.filter((x) => !onLand(x)));
   list.length = 0;
   list.push(...keep);
   return list;
