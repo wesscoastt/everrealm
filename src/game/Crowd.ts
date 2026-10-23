@@ -271,6 +271,9 @@ export class Crowd {
   }
 
   /** Everyone indoors (used when the scene changes under them). */
+  /** How many townsfolk are out within r of a point (witnesses, for the law). */
+  near(p: THREE.Vector3, r: number): number { return this.walkers.filter((w) => w.model.root.parent && w.pos.distanceTo(p) < r).length; }
+
   clear(): void {
     for (let i = this.walkers.length - 1; i >= 0; i--) this.drop(i);
   }

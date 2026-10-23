@@ -139,6 +139,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'anvil': place(P.anvil(M), d.x, d.y, d.z, d.ry); break;
       case 'well': place(P.well(M), d.x, d.y, d.z, d.ry); break;
       case 'fence': place(P.fenceRun(M, d.len ?? 6), d.x, d.y, d.z, d.ry); break;
+      case 'bars': place(P.ironBars(M, d.len ?? 3, d.rise ?? 4), d.x, d.y, d.z, d.ry); break;
+      case 'hatch': place(P.cellarHatch(M), d.x, d.y, d.z, d.ry); break;
       case 'rails': place(P.rails(M, d.len ?? 6), d.x, d.y, d.z, d.ry); break;
       case 'sign': place(P.standingSign(M, d.text ?? ''), d.x, d.y, d.z, d.ry); break;
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;

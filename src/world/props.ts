@@ -573,6 +573,35 @@ export function fenceRun(M: PropMaterials, len: number): THREE.Group {
   return g;
 }
 
+/** Iron bars across a cell's front, len along x and h high: uprights a hand apart, flats top, middle and foot. */
+export function ironBars(M: PropMaterials, len: number, h = 4): THREE.Group {
+  const g = new THREE.Group();
+  const n = Math.max(2, Math.round(len / 0.24));
+  for (let i = 0; i <= n; i++) g.add(mesh(box(0.07, h, 0.07), M.iron, -len / 2 + (i * len) / n, h / 2, 0));
+  for (const y of [0.1, h * 0.5, h - 0.1]) g.add(mesh(box(len, 0.1, 0.12), M.iron, 0, y, 0));
+  // The cell door's lock, a hand's height above the middle flat
+  g.add(mesh(box(0.22, 0.26, 0.18), M.iron, len * 0.3, h * 0.5 + 0.2, 0));
+  return g;
+}
+
+/** A cellar hatch in the street: two plank leaves in an iron-bound frame, one propped open on its stay, dark below. */
+export function cellarHatch(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(1.5, 0.12, 1.3), M.darkWood, 0, 0.06, 0));
+  g.add(mesh(box(1.3, 0.04, 1.1), new THREE.MeshBasicMaterial({ color: '#0a0806' }), 0, 0.13, 0));
+  g.add(mesh(box(0.66, 0.08, 1.12), M.wood, -0.34, 0.16, 0));
+  const leaf = mesh(box(0.66, 0.08, 1.12), M.wood, 0, 0, 0);
+  const hinge = new THREE.Group();
+  hinge.position.set(0.66, 0.16, 0);
+  hinge.rotation.z = 1.15;
+  leaf.position.set(-0.33, 0, 0);
+  hinge.add(leaf);
+  for (const z of [-0.4, 0.4]) hinge.add(mesh(box(0.6, 0.1, 0.06), M.iron, -0.33, 0.05, z));
+  g.add(hinge);
+  for (const z of [-0.4, 0.4]) g.add(mesh(box(0.6, 0.1, 0.06), M.iron, -0.34, 0.2, z));
+  return g;
+}
+
 export function bellFrame(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (const x of [-1, 1]) {

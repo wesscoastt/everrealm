@@ -49,6 +49,11 @@ interface Beat {
 interface Figure {
   id: string;
   kind: 'traveller' | 'guard' | 'post' | 'pedlar';
+  /** The town a guard keeps the peace in (data/justice.ts). */
+  town?: string;
+  /** Sent after someone by the law (game/Justice.ts): running at them instead of walking the beat; then easing back onto it. */
+  chasing?: boolean;
+  back?: { from: THREE.Vector3; t: number };
   look: Appearance;
   held: HeldItem;
   lines: readonly string[];
@@ -123,6 +128,11 @@ const WATCH: Record<string, { tunic: string; trim: string; lines: string[] }> = 
   harrowgate: { tunic: '#8a3a1a', trim: '#2a2a2a', lines: ['Company ground. Mind where you dig.', 'Shift changes on the bell. Stay out of the yard when it goes.', 'If you\'re looking for work, the office is by the gate. If you\'re looking for trouble, I\'m right here.'] },
   hollinford: { tunic: '#4a6a2a', trim: '#c8a060', lines: ['Quiet day. I like a quiet day.', 'If you\'re for the Pit, it\'s up past the smithy.', 'Maud says I\'m to keep an eye on strangers. Consider yourself kept an eye on.'] },
   kelderby: { tunic: '#5a5a6a', trim: '#d8d0c0', lines: ['Wolves came down past the fold last night.', 'Wind\'s got teeth up here. Keep your hood up.'] },
+  // Morrow's towns
+  callis: { tunic: '#e8e4d8', trim: '#2a3a6a', lines: ['The Assembly keeps the peace in Callis. Help it.', 'Mind the river stairs after dark.', 'If you\'re lost, the plaza\'s south. Everyone is, the first day.'] },
+  northgate: { tunic: '#5a5a6a', trim: '#c8c0a8', lines: ['Gate shuts at dusk. Be on the right side of it.', 'The Held\'s quiet. I don\'t like it quiet.'] },
+  coldharbour: { tunic: '#3a4a5a', trim: '#d8d0c0', lines: ['Ice in the harbour mouth again.', 'Nobody rows out after dark. Nobody.'] },
+  tenwells: { tunic: '#b8862a', trim: '#5a3a1e', lines: ['Water\'s counted here. Don\'t waste it.', 'Reavers were seen on the Flats. Keep inside the wells.'] },
 };
 const WATCH_ANY = { tunic: '#4a4a5a', trim: '#b8a070', lines: ['Stay on the road after dark.', 'Evening. Keep out of trouble and we\'ll get on.'] };
 
@@ -205,14 +215,14 @@ export class Roadfolk {
         const line = pieces[k % pieces.length];
         const len = beatOf(line, 1, 0, 0, false, 0).len;
         const speed = 1.15 + r() * 0.2, rest = 6 + r() * 6;
-        this.add({ id, kind: 'guard', look: this.lookFor(r, uniform(r)), held: 'sword', lines: W.lines, night: true, beat: beatOf(line, speed, rest, r() * 2 * (len / speed + rest), false, k % 2 ? 1.2 : -1.2) });
+        this.add({ id, kind: 'guard', town: t.id, look: this.lookFor(r, uniform(r)), held: 'sword', lines: W.lines, night: true, beat: beatOf(line, speed, rest, r() * 2 * (len / speed + rest), false, k % 2 ? 1.2 : -1.2) });
       }
       // Two at each way into a walled-size town
       if (t.r >= 60) gates.forEach((g, gi) => {
         const l = Math.hypot(g.ox, g.oz) || 1, ux = g.ox / l, uz = g.oz / l;
         for (const s of [1, -1]) {
           const id = `g.${t.id}.${gi}.${s}`, r = seeded(hashStr(id));
-          this.add({ id, kind: 'post', look: this.lookFor(r, uniform(r)), held: 'sword', lines: W.lines, night: true, post: { x: g.x - uz * 2.4 * s, z: g.z + ux * 2.4 * s, yaw: Math.atan2(ux, uz) } });
+          this.add({ id, kind: 'post', town: t.id, look: this.lookFor(r, uniform(r)), held: 'sword', lines: W.lines, night: true, post: { x: g.x - uz * 2.4 * s, z: g.z + ux * 2.4 * s, yaw: Math.atan2(ux, uz) } });
         }
       });
     }
@@ -288,8 +298,24 @@ export class Roadfolk {
     const near: Figure[] = [];
     for (const f of this.figures) {
       let out = !night || f.night;
-      if (out && f.beat) out = this.place(f, f.beat, t);
-      else if (out && f.post) { f.pos.x = f.post.x; f.pos.z = f.post.z; f.yaw = f.post.yaw; f.moving = 0; }
+      if (f.chasing && this.chaseTo) {
+        // After someone: run at them, and stop at arm's length
+        const dx = this.chaseTo.x - f.pos.x, dz = this.chaseTo.z - f.pos.z, d = Math.hypot(dx, dz) || 1;
+        const step = d > 1.6 ? Math.min(d - 1.6, 5.6 * dt) : 0;
+        f.pos.x += (dx / d) * step; f.pos.z += (dz / d) * step;
+        f.yaw = Math.atan2(dx, dz);
+        f.moving = step > 0 ? 5.6 : 0;
+        out = true;
+      } else {
+        if (out && f.beat) out = this.place(f, f.beat, t);
+        else if (out && f.post) { f.pos.x = f.post.x; f.pos.z = f.post.z; f.yaw = f.post.yaw; f.moving = 0; }
+        // Back from a chase: ease over to where the beat has them now
+        if (f.back) {
+          f.back.t += dt / 3;
+          if (f.back.t >= 1 || !out) f.back = undefined;
+          else { const k = f.back.t; f.pos.x = f.back.from.x + (f.pos.x - f.back.from.x) * k; f.pos.z = f.back.from.z + (f.pos.z - f.back.from.z) * k; f.moving = Math.max(f.moving, 1.2); out = true; }
+        }
+      }
       const d = Math.hypot(f.pos.x - player.x, f.pos.z - player.z);
       if (f.pedlar) {
         // Someone to deal with: stand and face them (the clock runs on without us); then catch up
@@ -324,7 +350,7 @@ export class Roadfolk {
         }
       }
       const busy = f.swing > 0.6;
-      if (!busy) f.model.setState(f.moving > 0 ? 'walk' : 'idle');
+      if (!busy) f.model.setState(f.moving > 4 ? 'run' : f.moving > 0 ? 'walk' : 'idle');
       f.model.update(dt, f.moving);
       f.model.root.position.copy(f.pos);
       if (f.pedlar) this.lead(f, dt);
@@ -375,6 +401,31 @@ export class Roadfolk {
     }
     f.pony.setAnim(step > 0 ? 'walk' : 'idle');
     f.pony.update(dt, step / Math.max(dt, 1e-3));
+  }
+
+  private chaseTo: THREE.Vector3 | null = null;
+
+  /** The watch near a point, built and in sight: for the law (game/Justice.ts). */
+  guards(p: THREE.Vector3, r: number): { id: string; town: string; pos: THREE.Vector3 }[] {
+    const out: { id: string; town: string; pos: THREE.Vector3 }[] = [];
+    for (const f of this.figures) if ((f.kind === 'guard' || f.kind === 'post') && f.shown && f.town && f.pos.distanceTo(p) < r) out.push({ id: f.id, town: f.town, pos: f.pos });
+    return out;
+  }
+
+  /** Sends one of the watch after a point (or calls them all off): the rest keep their beats. */
+  chase(id: string | null, target: THREE.Vector3 | null): void {
+    this.chaseTo = target ? target.clone() : null;
+    for (const f of this.figures) {
+      const on = !!id && f.id === id;
+      if (f.chasing && !on) f.back = { from: f.pos.clone(), t: 0 };
+      f.chasing = on;
+    }
+  }
+
+  /** One of the watch swings their blade. */
+  swing(id: string): void {
+    const f = this.figures.find((x) => x.id === id);
+    if (f?.model) { f.swing = 1.1; f.model.setState('attack'); }
   }
 
   /** Pedlars standing within reach of a point: for dealing with, and their name plates. */

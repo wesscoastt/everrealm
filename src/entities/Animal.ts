@@ -94,6 +94,11 @@ export class Animal {
   /** Stroked or patted: it's pleased about it. */
   pet(): void { this.glad = 1.2; this.mode = this.kind === 'dog' ? 'sit' : 'idle'; this.timer = 4; }
 
+  /** Struck: it bolts away from whoever did it. */
+  scare(from: THREE.Vector3): void {
+    if (this.pickTarget(from)) { this.mode = 'flee'; this.timer = 3.5; }
+  }
+
   update(dt: number, player: THREE.Vector3, playerSpeed = 0): void {
     this.timer -= dt;
     this.glad = Math.max(0, this.glad - dt);

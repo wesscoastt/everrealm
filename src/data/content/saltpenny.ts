@@ -4,6 +4,7 @@ import type { QuestDef } from '../quests';
 import type { ShopDef } from '../shops';
 import { at, killed, type Marks } from './kit';
 import type { RegionContent } from './types';
+import { GIL_CLEAR } from './justice';
 import { DUELISTS, LADDER_PRIZE } from '../duels';
 import { BIGHT, BIGHT_BOAT, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_PIERS, SALTPENNY } from '../../world/morrow';
 
@@ -154,7 +155,8 @@ const dinah: DialogueTree = {
 const gil: DialogueTree = {
   start: () => 'g0',
   nodes: {
-    g0: { text: 'Gil Fenner. I buy what you\'ve got, and I don\'t ask where it was. I pay better than Callis, and I don\'t write it down.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('gil_fenner') }, { text: 'Bye.' }] },
+    g0: { text: 'Gil Fenner. I buy what you\'ve got, and I don\'t ask where it was. I pay better than Callis, and I don\'t write it down.', options: [{ text: 'What have you got?', effect: (g) => g.openShop('gil_fenner') }, { text: 'Can the Brethren get my name off the books?', next: 'gf0' }, { text: 'Bye.' }] },
+    ...GIL_CLEAR,
   },
 };
 const annie: DialogueTree = {

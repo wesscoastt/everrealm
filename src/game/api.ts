@@ -25,6 +25,9 @@ export interface GameApi {
   crossLand(to: import('../world/land').LandId): void;
   /** Jago calls a duel in the Cockpit at Saltpenny (an id from data/duels.ts). */
   duel(id: string): void;
+  /** The law (game/Justice.ts): every town's price on you, and a fixer's fee to clear it all; clearing it. */
+  bounties(): { total: number; fee: number };
+  clearName(): boolean;
   /** Opens a notice board (an id from the content BOARDS). */
   openBoard(id: string): void;
   startCasting(): void;

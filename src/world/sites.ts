@@ -21,12 +21,15 @@ import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOM
 import { FORTS, type Fort } from '../data/forts';
 import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm';
 import { BRASSWICK, ESC, GATE, VENTS, WORKS } from '../data/kell';
+import { GAOL, GAOLS, REFUGE, REFUGES, type GaolDef, type RefugeDef } from '../data/justice';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
+  /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
+  | 'bars' | 'hatch'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
@@ -502,6 +505,9 @@ export function plan(): Plan {
     { id: 'dive-grindles', name: 'The Grindles', x: 1905, z: 1032, r0: 0, r1: 0, sea: true, build: (s) => buildGrindles(s) },
     // Group dungeons: buried halls, entered by a door elsewhere (the Old Man's from Sallow Pit's chamber)
     { id: 'gd-oldman', name: 'The Old Man\'s Workings', x: 254, z: -58, r0: 0, r1: 0, under: true, build: (s) => buildOldMan(s) },
+    // The law (data/justice.ts): the Charter's cells under the Weighhouse, and the Ropewalk Cellar under Gullmouth
+    ...GAOLS.map((g): Named => ({ id: g.id, name: 'The gaol', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
+    ...REFUGES.map((r): Named => ({ id: r.id, name: r.name, x: r.x, z: r.z, r0: 0, r1: 0, under: true, build: (s) => buildRefuge(s, r) })),
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
     { id: 'sc-crater', name: 'The Kettle', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
     // (after the Kettle, so the crack into its north wall is cut through the crater's rim)
@@ -698,6 +704,8 @@ export function plan(): Plan {
       { id: 'branchley', name: 'Branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r0: 44, r1: 64, h: 22, build: (s, b) => buildBranchley(s, b) },
       { id: 'cala', name: 'Cala Roja', x: TOWNS.cala.x, z: TOWNS.cala.z, r0: 36, r1: 52, h: SEA + 3, flats: [{ x: TOWNS.cala.x + 52, z: TOWNS.cala.z, r0: 18, r1: 22, h: SEA - 3 }], build: (s, b) => buildCala(s, b) },
       { id: 'slabs', name: 'The hanging slabs', x: 1466, z: 404, r0: 0, r1: 0, build: (s) => buildSlabs(s) },
+      // The Tolbooth's cells under Callis (data/justice.ts)
+      ...GAOLS.map((g): Named => ({ id: g.id, name: 'The Tolbooth', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
       { id: 'liftwick', name: 'Liftwick', x: TOWNS.liftwick.x, z: TOWNS.liftwick.z, r0: 34, r1: 48, h: 45, build: (s, b) => buildLiftwick(s, b) },
       { id: 'tenwells', name: 'Tenwells', x: TOWNS.tenwells.x, z: TOWNS.tenwells.z, r0: 40, r1: 56, h: 24, build: (s, b) => buildTenwells(s, b) },
       { id: 'fellside', name: 'Fellside', x: TOWNS.fellside.x, z: TOWNS.fellside.z, r0: 28, r1: 42, h: 25, build: (s, b) => buildFellside(s, b) },
@@ -1980,6 +1988,65 @@ export function plan(): Plan {
       for (const l of lanterns) if (!open.has(K(l.wx, l.wz))) s.props.push({ t: 'wallLantern', x: l.x, y: F + 2.4, z: l.z, ry: l.ry });
     };
     return { hall, run, finish, lamp, wallMat, opened, isOpen };
+  }
+
+  /**
+   * A gaol cut into the rock under a town (data/justice.ts): a guard room with the gaoler's desk, a
+   * passage north, three cells either side of it behind iron bars, straw on their floors. No stair:
+   * only the watch's wagon brings anyone here, and the gaoler walks them up when they're let go.
+   */
+  function buildGaol(s: Site, g: GaolDef) {
+    const cx = g.x, cz = g.z, F = g.floor;
+    const T: DigTheme = { wall: B.StoneBrick, wall2: B.MossyCobble, floor: B.Cobble, floor2: B.MossyCobble, light: '#ffcf8a' };
+    const { hall, run, finish } = digger(s, cx, cz, F, T);
+    hall(-6, -5, 6, 3, 5);
+    run(0, 4, 0, 18);
+    for (const [x0, x1] of [[3, 5], [-5, -3]]) for (const z0 of [7, 11, 15]) hall(x0, z0, x1, z0 + 2, 4);
+    finish();
+    // The bars between each cell and the passage; straw down, a plank bed along the back wall, a pail
+    for (const [bx, back, ry] of [[2, 5, 0], [-2, -5, Math.PI]] as const) for (const z0 of [7, 11, 15]) {
+      for (let z = z0; z <= z0 + 2; z++) for (let y = F; y < F + 4; y++) O.set(cx + bx, y, cz + z, B.Barrier);
+      s.props.push({ t: 'bars', x: cx + bx + 0.5, y: F, z: cz + z0 + 1.5, ry: Math.PI / 2, len: 3, rise: 4 });
+      for (let z = z0; z <= z0 + 2; z++) for (let x = bx > 0 ? 3 : -5; x <= (bx > 0 ? 5 : -3); x++) if (hash2(cx + x, cz + z, 311) < 0.6) O.set(cx + x, F - 1, cz + z, B.Hay);
+      s.props.push({ t: 'bench', x: cx + (bx > 0 ? 5.5 : -4.5), y: F, z: cz + z0 + 1.5, ry: Math.PI / 2 + ry });
+      s.props.push({ t: 'barrel', x: cx + (bx > 0 ? 3.6 : -2.6), y: F, z: cz + z0 + 0.4, ry: 0 });
+    }
+    // The guard room: the gaoler's desk and stool, the keys on the wall, the book of names, the way up
+    s.props.push({ t: 'desk', x: cx + GAOL.gaoler[0], y: F, z: cz + GAOL.gaoler[1] + 1.4, ry: Math.PI });
+    s.props.push({ t: 'notice', x: cx + 3.5, y: F, z: cz - 4.4, ry: 0 });
+    s.props.push({ t: 'furn', item: 'chest', x: cx + 5, y: F, z: cz - 3.5, ry: -Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'shelves', x: cx - 5.4, y: F, z: cz - 3.5, ry: Math.PI / 2 });
+    s.props.push({ t: 'bench', x: cx + 4.5, y: F, z: cz + 1.6, ry: 0 });
+    s.props.push({ t: 'crate', x: cx - 5, y: F, z: cz + 2, ry: 0.3 });
+    s.props.push({ t: 'glow', x: cx + 0.5, y: F + 2.6, z: cz + 12.5, r: 2.2, color: T.light } as PropDesc);
+  }
+
+  /**
+   * An outlaws' cellar under a town (data/justice.ts REFUGES): down through a hatch in the street to a
+   * long low room of barrels and rope, the fixer at one table and the fence at another, and a back room.
+   */
+  function buildRefuge(s: Site, r: RefugeDef) {
+    const cx = r.x, cz = r.z, F = r.floor;
+    const T: DigTheme = { wall: B.StoneBrick, wall2: B.Cobble, floor: B.Planks, floor2: B.DarkPlanks, light: '#ffb070' };
+    const { hall, run, finish } = digger(s, cx, cz, F, T);
+    hall(-8, -6, 8, 5, 5, true);
+    hall(-4, 9, 4, 13, 4);
+    run(0, 5, 0, 9);
+    finish();
+    s.props.push({ t: 'hatch', x: r.hatch[0], y: heightAt(Math.floor(r.hatch[0]), Math.floor(r.hatch[1])), z: r.hatch[1], ry: 0 });
+    // A ladder's foot where you come down, and the room's furniture
+    for (let y = F; y < F + 4; y++) O.set(cx + REFUGE.foot[0] - 0.5, y, cz + REFUGE.foot[1] - 1.5, B.DarkPlanks);
+    s.props.push({ t: 'desk', x: cx + REFUGE.fixer[0], y: F, z: cz + REFUGE.fixer[1] - 1.3, ry: 0 });
+    s.props.push({ t: 'desk', x: cx + REFUGE.fence[0], y: F, z: cz + REFUGE.fence[1] - 1.3, ry: 0 });
+    for (const [x, z, t] of [[-7, -5, 'barrel'], [-7, -3.6, 'barrel'], [-6, -5, 'barrel'], [7, -5, 'crate'], [7, -3.8, 'crate'], [6.8, 4, 'barrel'], [-6.8, 4, 'crate'], [0, 4.2, 'barrel']] as const) s.props.push({ t, x: cx + x + 0.5, y: F, z: cz + z + 0.5, ry: (x * 7) % 1 });
+    for (const [x, z] of [[-2, 0], [2, 0]] as const) s.props.push({ t: 'bench', x: cx + x + 0.5, y: F, z: cz + z + 0.5, ry: Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'candles', x: cx - 4, y: F + 1, z: cz + 1.2, ry: 0 });
+    s.props.push({ t: 'furn', item: 'candles', x: cx + 5, y: F + 1, z: cz + 1.2, ry: 0 });
+    s.props.push({ t: 'furn', item: 'shelves', x: cx + 2, y: F, z: cz + 12.4, ry: Math.PI });
+    s.props.push({ t: 'furn', item: 'chest', x: cx - 2, y: F, z: cz + 12.4, ry: Math.PI });
+    // Coils of the ropewalk's rope, hung along the beams
+    s.props.push({ t: 'rope', x: cx - 7.5, y: F + 4.4, z: cz - 5.5, ry: Math.PI / 2, len: 11, h: 0.5, r: 0.04 } as PropDesc);
+    s.props.push({ t: 'rope', x: cx + 7.5, y: F + 4.4, z: cz - 5.5, ry: Math.PI / 2, len: 11, h: 0.5, r: 0.04 } as PropDesc);
   }
 
   function buildUnderworks(s: Site, G: number, theme: keyof typeof UNDERWORKS) {

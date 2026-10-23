@@ -12,7 +12,7 @@ type V3 = [number, number, number];
 export interface VoxMountHost { body: THREE.Group; legs: THREE.Object3D[]; segs: THREE.Object3D[] }
 export interface VoxMountPal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string; pillion?: boolean; /** In the shafts of a wagon: a harness, not a saddle. */ harness?: boolean }
 /** A wagon behind the animal: an open cart or a wagon with a canvas tilt; paint for the boards and wheels. */
-export interface WagonLook { kind: 'cart' | 'covered'; paint?: string; canvas?: string }
+export interface WagonLook { kind: 'cart' | 'covered' | 'cage'; paint?: string; canvas?: string }
 
 const S = 1 / 16;
 const geoms = new Map<string, THREE.BufferGeometry | null>();
@@ -544,7 +544,7 @@ const WHEEL_R = 0.52;
  * wagon behind it. Returns the four wheels, to turn as it rolls.
  */
 export function buildVoxWagon(root: THREE.Object3D, body: THREE.Object3D, breed: string, W: WagonLook): THREE.Object3D[] {
-  const lead = wagonLead(breed), covered = W.kind === 'covered';
+  const lead = wagonLead(breed), covered = W.kind === 'covered', cage = W.kind === 'cage';
   const paint = W.paint ?? '#7a2a24', canvas = W.canvas ?? '#e8dcc0';
   const wood = '#8a5a32', dark = '#4a3020', iron = '#3a3a3c', leather = '#4a2a16';
   const k = new Kit(['wagon', W.kind, paint, canvas, lead].join('|'));
@@ -578,13 +578,24 @@ export function buildVoxWagon(root: THREE.Object3D, body: THREE.Object3D, breed:
     v.box([-0.62, WAGON_BOX - 0.12, -0.1], [0.62, WAGON_BOX, 0.26], (_x, _y, _z, n) => shade(paint, 0.95 + n * 0.1));
     v.box([-0.6, 0.98, 0.55], [0.6, 1.04, 0.86], boards);
     // Benches in the back for passengers
-    for (const r of covered ? WAGON_ROWS : WAGON_ROWS.slice(0, 1)) v.box([-0.66, WAGON_BENCH - 0.1, -r - 0.1], [0.66, WAGON_BENCH, -r + 0.12], (_x, _y, _z, n) => shade(wood, 0.92 + n * 0.1));
+    for (const r of covered || cage ? WAGON_ROWS : WAGON_ROWS.slice(0, 1)) v.box([-0.66, WAGON_BENCH - 0.1, -r - 0.1], [0.66, WAGON_BENCH, -r + 0.12], (_x, _y, _z, n) => shade(wood, 0.92 + n * 0.1));
     // Goods at the tail: sacks and a crate
     v.ellipsoid([-0.4, 1.06, -2.24], [0.2, 0.16, 0.18], (_x, y, _z, n) => shade('#b8a070', 0.88 + n * 0.12 + (y > 1.15 ? 0.06 : 0)));
     v.ellipsoid([-0.1, 1.02, -2.3], [0.16, 0.12, 0.15], (_x, _y, _z, n) => shade('#a89060', 0.88 + n * 0.12));
     v.box([0.22, 0.9, -2.42], [0.64, 1.3, -2.06], (x, y, z, n) => (Math.abs(x - 0.43) > 0.17 || Math.abs(y - 1.1) > 0.16 || Math.abs(z + 2.24) > 0.14 ? shade(dark, 0.95 + n * 0.1) : shade(wood, 0.95 + n * 0.1)));
     // A lamp on a post at the front corner
     v.box([-0.7, 1.24, 0.44], [-0.62, 1.86, 0.52], flat(dark));
+    if (cage) {
+      // The watch's wagon: an iron cage over the bed, bars a hand apart, a plank roof, the door at the back
+      const bar = (u: number) => ((((u + 4) * 5) % 1) + 1) % 1 < 0.32;
+      v.fill([-0.8, 1.32, -2.5], [0.8, 2.44, -0.28], (x, y, z) => {
+        if (y > 2.32) return Math.abs(x) <= 0.8;
+        const sideWall = Math.abs(x) > 0.7, endWall = z < -2.44 || z > -0.34;
+        if (!sideWall && !endWall) return false;
+        if (y > 1.8 && y < 1.9) return true;
+        return sideWall ? bar(z) : bar(x);
+      }, (_x, y, _z, n) => (y > 2.32 ? shade(dark, 0.95 + n * 0.1) : shade(iron, 0.85 + n * 0.2)));
+    }
     if (covered) {
       // The tilt: canvas stretched over five bows, sagging a little between them, open at both ends
       const bows = [-2.4, -1.875, -1.35, -0.825, -0.3];

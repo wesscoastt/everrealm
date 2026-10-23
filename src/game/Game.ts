@@ -32,7 +32,7 @@ import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal, type AnimalKind } from '../entities/Animal';
 import { Enemy } from '../entities/Enemy';
-import { Appearance, HeldItem, Humanoid, setGearModels } from '../entities/humanoid';
+import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '../entities/humanoid';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
 import { AudioSystem, Sfx, voiceOf, type Soundscape } from '../systems/Audio';
@@ -47,6 +47,8 @@ import { MountChooser } from '../ui/MountChooser';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
+import { Justice } from './Justice';
+import { CRIME, JURISDICTIONS, jurisdictionAt } from '../data/justice';
 import { Doll } from '../ui/Doll';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
@@ -221,6 +223,10 @@ export class Game implements GameApi {
   private fish!: FishSchools;
   private crowd!: Crowd;
   private roadfolk!: Roadfolk;
+  /** The law: prices on your head, the watch, the wagon and the cells (game/Justice.ts). */
+  justice!: Justice;
+  /** A pose the law holds you in (on the wagon's bench, picking oakum, lying in a cell). */
+  private lawPose: AnimState | null = null;
   private doll = new Doll();
   readonly dailies = new Dailies({
     flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -533,7 +539,37 @@ export class Game implements GameApi {
       this.sfx('discover');
     });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
-    this.roadfolk = new Roadfolk(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
+    this.roadfolk = new Roadfolk(this.scene, this.world.voxels, LAND === 'counties' ? crowdZones() : JURISDICTIONS.map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r })), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.justice = new Justice({
+      scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
+      setPose: (st) => { this.lawPose = st; },
+      marks: () => this.save.marks, spend: (n) => { this.save.marks = Math.max(0, this.save.marks - n); this.hud.refresh(); },
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+      system: (t) => this.hud.system(t), banner: (t, sub) => this.hud.banner(t, sub, true), sfx: (n, v) => this.sfx(n as Sfx, v),
+      say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
+      hp: () => [this.hp, this.maxHp],
+      hurt: (n, from) => {
+        if (this.dead) return;
+        this.hp = Math.max(1, this.hp - n);
+        this.hitAnim = 0.3;
+        this.sfx('hurt');
+        this.rig.addShake(0.2);
+        this.floatAt(this.player.position, 2.2, `-${n}`, 'player');
+        this.hud.hurt(n / this.maxHp);
+        this.player.velocity.addScaledVector(tmpV.subVectors(this.player.position, from).setY(0).normalize(), 3);
+        this.lastCombat = this.elapsed;
+      },
+      guards: (p, r) => this.roadfolk.guards(p, r),
+      chase: (id, target) => this.roadfolk.chase(id, target),
+      swing: (id) => this.roadfolk.swing(id),
+      witnesses: (p, r) => this.crowd.near(p, r) + this.npcs.filter((n) => n.placed !== false && n.model.root.visible && n.pos.distanceTo(p) < r).length,
+      ground: (x, z, fromY) => this.world.voxels.groundBelow(x, fromY, z),
+      dismount: () => { this.dismount(true); if (this.pillion !== null) this.leavePillion(); },
+      hudHidden: (on) => this.hud.setHudHidden(on),
+      lockpick: () => { const T = TIERS[1]; return this.hud.lockpick(T.name, T.pins, T.zone, T.speed, () => this.inv.count('lockpick'), () => { this.inv.remove('lockpick', 1); this.sfx('pickSnap' as Sfx); }); },
+      busy: () => !!this.dialogue || this.dead || !!this.cine,
+    });
     this.festivals = new Festivals({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1018,6 +1054,18 @@ export class Game implements GameApi {
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
   duel(id: string): void { this.activities.duels.start(id); }
+  /** Every town's price on you added up, and what a fixer charges to make it go away. */
+  bounties(): { total: number; fee: number } { return { total: this.justice.total, fee: this.justice.fixerPrice }; }
+  /** A fixer clears every book, if you can pay. */
+  clearName(): boolean {
+    const fee = this.justice.fixerPrice;
+    if (fee <= 0 || this.save.marks < fee) return false;
+    this.save.marks -= fee;
+    this.justice.clearAll();
+    this.sfx('coin');
+    this.hud.refresh();
+    return true;
+  }
   crossLand(to: LandId): void {
     if (this.inCombat()) { this.hud.system('Not in the middle of a fight.'); return; }
     // Where the packet sets you down: the end of Callis's packet pier, or Gullmouth's quay
@@ -1062,6 +1110,7 @@ export class Game implements GameApi {
 
   /** Go by waymark: pay, and the world loads round the stone. */
   travelWaymark(id: string): void {
+    if (this.justice.jailed) { this.hud.system('Not from a cell.'); return; }
     const w = waymarks().find((x) => x.id === id);
     const fare = this.waymarkFareTo(id);
     if (!w || fare === null) { this.hud.system('You can\'t travel by waymark just now (not in a fight, not in a conversation).'); return; }
@@ -2533,6 +2582,7 @@ export class Game implements GameApi {
     }
     for (const a of this.books.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.chests.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
+    for (const a of this.justice.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     // A town smithy's stations
@@ -2980,6 +3030,7 @@ export class Game implements GameApi {
   /** Call your horse and get up, or get down. */
   private toggleMount(which?: string): void {
     if (this.pillion !== null) { this.leavePillion(); return; }
+    if (this.justice.jailed || this.justice.busy) { this.hud.system('Not now.'); return; }
     if (this.horse && !which) { this.dismount(); return; }
     // Near your parked wagon, G drives it on
     const pk = this.parked, nearWagon = pk && pk.model.root.position.distanceTo(this.player.position) < 9 ? pk.id : undefined;
@@ -3327,6 +3378,21 @@ export class Game implements GameApi {
       const dmg = this.dealDamage(e, power * mult * bonus.mult * (0.9 + Math.random() * 0.2), crit);
       drawn += dmg * (blade?.leech ?? 0);
       any = true;
+    }
+    // Nothing hostile in reach: a blow at the town itself, its watch, its people or its beasts, goes in its book (game/Justice.ts)
+    if (!any && jurisdictionAt(P.x, P.z)) {
+      const reach = (a.kind === 'cleave' ? 3.4 : 2.7) + (blade?.reach ?? 0);
+      const inFront = (q: THREE.Vector3) => {
+        const to = tmpV.subVectors(q, P), flat = Math.hypot(to.x, to.z);
+        if (flat > reach || Math.abs(to.y) > 2.2) return false;
+        return a.kind === 'cleave' || flat < 1.1 || Math.acos(THREE.MathUtils.clamp((to.x * face.x + to.z * face.z) / Math.max(0.01, flat), -1, 1)) <= 1.1;
+      };
+      const guard = this.roadfolk.guards(P, reach + 1).find((g) => inFront(g.pos));
+      const npc = !guard && this.npcs.find((n) => n.placed !== false && n.model.root.visible && inFront(n.pos));
+      const beast = !guard && !npc && this.animals.find((x) => x.kind in CRIME.beast && inFront(x.pos));
+      if (guard) { this.sfx('hit'); this.justice.crime('guard', guard.pos, undefined, guard.id); }
+      else if (npc) { this.sfx('hit'); this.floatAt(npc.pos, 2.3, ['Ow!', 'Watch! Watch!', 'What was that for?'][Math.floor(Math.random() * 3)], 'chatter'); this.justice.crime('assault', npc.pos); }
+      else if (beast) { this.sfx('hit', 0.7); beast.scare(P); this.particles.dust(beast.pos, 6); this.justice.crime('beast', beast.pos, beast.kind); }
     }
     if (drawn >= 1 && !this.dead) {
       const healed = Math.min(this.maxHp - this.hp, Math.round(drawn));
@@ -3766,8 +3832,9 @@ export class Game implements GameApi {
       this.camera.lookAt(lx, ly, lz);
       if (c.t >= DUR) { this.cine = null; this.player.locked = false; this.hud.setHudHidden(false); c.then(); }
     }
+    this.justice.update(dt);
     this.world.sky.underwater = this.world.voxels.isWater(this.camera.position.x, this.camera.position.y, this.camera.position.z);
-    this.player.model.root.visible = this.rig.actualDistance > 1.1;
+    this.player.model.root.visible = this.rig.actualDistance > 1.1 || this.justice.busy;
     // In first person you face where you look
     if (this.rig.firstPerson && !this.dialogue && !this.action && !this.craftAction) this.player.yaw = this.rig.yaw - Math.PI;
     this.ambientFx(dt);
@@ -4125,7 +4192,8 @@ export class Game implements GameApi {
     // A weapon by its id, so it's drawn as itself (and others see it so); tools by name
     const wid = this.save.equip.weapon;
     let held: HeldItem | string = wid ? (ITEMS[wid]?.weapon?.model ? wid : ITEMS[wid]?.weapon?.held ?? 'none') : 'none';
-    if (P.rolling > 0) M.setState('roll');
+    if (this.lawPose) { M.setState(this.lawPose); held = 'none'; }
+    else if (P.rolling > 0) M.setState('roll');
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');
     else if (this.music.out && !this.horse) { M.setState('perform'); held = this.music.out.item; }
