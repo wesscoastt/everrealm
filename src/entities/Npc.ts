@@ -66,7 +66,7 @@ export class Npc {
     const s = this.slotFor(hour);
     this.slot = s;
     this.route = [];
-    this.pos.set(s.at[0], this.groundAt(s.at[0], s.at[1]), s.at[1]);
+    this.pos.set(s.at[0], s.y ?? this.groundAt(s.at[0], s.at[1]), s.at[1]);
   }
 
   update(dt: number, hour: number, player: THREE.Vector3): void {
@@ -75,7 +75,7 @@ export class Npc {
     if (s !== this.slot) {
       this.slot = s;
       this.route = [...(s.path ?? []), s.at];
-      if (far) { this.route = []; this.pos.set(s.at[0], this.groundAt(s.at[0], s.at[1]), s.at[1]); }
+      if (far) { this.route = []; this.pos.set(s.at[0], s.y ?? this.groundAt(s.at[0], s.at[1]), s.at[1]); }
     }
     let speed = 0;
     if (this.route.length && !this.talking) {

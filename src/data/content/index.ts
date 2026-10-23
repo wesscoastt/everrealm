@@ -13,8 +13,9 @@ import { PEDLAR_CONTENT } from './pedlars';
 import { FORT_CONTENT } from './forts';
 import { INKHOLM_CONTENT } from './inkholm';
 import { SEASON_CONTENT } from './seasons';
+import { INN_CONTENT } from './inns';
 
 // Every region's side content. Add a region by writing its module and listing it here.
-export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER, STABLE_CONTENT, WAITS, TAVERN_CONTENT, PEDLAR_CONTENT, FORT_CONTENT, INKHOLM_CONTENT, SEASON_CONTENT];
+export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER, STABLE_CONTENT, WAITS, TAVERN_CONTENT, PEDLAR_CONTENT, FORT_CONTENT, INKHOLM_CONTENT, SEASON_CONTENT, INN_CONTENT];
 
 export const BOARDS: Board[] = CONTENT.flatMap((c) => c.boards ?? []);

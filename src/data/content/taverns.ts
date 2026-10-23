@@ -166,7 +166,7 @@ const RUMOURS: ((g: GameApi) => string)[] = [
   () => 'A sergeant called Holroyd has put up a roll at the tilt-yard for anyone who\'ll take a contract. The Company Wardens don\'t like it.',
   () => 'The dogs in this town know everybody. Stop and say hello to one. It\'s the best thing that\'ll happen to you all day.',
 ];
-const rumourFor = (g: GameApi, k: number) => RUMOURS[(Math.floor(realmNow() / (DAY_MINUTES * 60_000)) + k) % RUMOURS.length](g);
+export const rumourFor = (g: GameApi, k: number) => RUMOURS[(Math.floor(realmNow() / (DAY_MINUTES * 60_000)) + k) % RUMOURS.length](g);
 
 function keeperTree(t: Tavern, k: number): DialogueTree {
   return {

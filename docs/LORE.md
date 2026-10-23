@@ -519,6 +519,10 @@ No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cott
 
 Pale blue heavy plate cut square on every face, with a small square mark inside each piece: helm, plate, greaves, gauntlets and boots. Nobody in the counties knows who made it or how many suits there are; pieces turn up among what any creature leaves behind, anywhere, about once in four thousand kills, and never one you already have. Worn in twos it brings up one ore or crystal in five as two. (An affectionate nod to a certain other game's diamond armour.) `data/armour.ts` (brightcut), `game/Game.ts` (onEnemyKilled).
 
+## Roadside inns [in game]
+
+Out on the roads, a day's walk from any town, four inns keep a taproom and let rooms: **The Packhorse** on the Hagworm Wood road (Tamsyn Lugg; carriers stop going into the wood and coming out), **The Half Way House** on the north road to Cragsby (Osric Penhale, who came to work the egg cliffs and stopped for a drink), **The Dyke End** where the Wrath Levels road turns into a bank (Judith Fenner, Sim Fenner's niece; porter and eel pie from Holme Staithe), and **The Bield** on the Tolmen Moor road (Robert Trewin; bield is moor speech for shelter, and there's no other roof till Scarrow Tor). Each has a bar, tables, a hearth and a stair to five rooms let by the week (120 marks), rented at the room's door like a lodging house's. `data/lodgings.ts` (inn), `world/sites.ts` (buildLodging, tavernRoom), `data/content/inns.ts`.
+
 ## Smithies [in game]
 
 Besides the smithy in Hollin Ford, every town of any size keeps a smithy by its Charter Post that anyone may work in: Ansbury (inside the south gate), Gullmouth, Harrowgate Works, the Waystation, Fellers' Camp, Kelderby, Cragsby, Holme Staithe, Scarrow Tor, Gillsby Staithe and Cotter's End. Each is an open-sided shed under slate with a brick furnace (fire in its mouth, a flue through the roof), bellows, an anvil and a quench barrel, a joiner's bench, and a cook fire in the yard. `world/sites.ts` (buildSmithies).

@@ -17,12 +17,19 @@ export interface LodgingDef {
   face: Door;
   /** Marks a week. */
   rent: number;
+  /** An inn: a taproom on the ground floor (a keeper, food and drink, a hearth) and the rooms up the stairs. */
+  inn?: boolean;
 }
 
 export const LODGINGS: LodgingDef[] = [
   { id: 'lg-ansbury', name: 'Southgate Lodgings', town: 'Ansbury', x: 842, z: 491, face: 'w', rent: 200 },
   { id: 'lg-gullmouth', name: 'Upper Town Rooms', town: 'Gullmouth', x: 1570, z: 601, face: 'n', rent: 150 },
   { id: 'lg-harrowgate', name: 'Company Lodgings', town: 'Harrowgate Works', x: 987, z: 951, face: 's', rent: 125 },
+  // Inns out on the roads, a day's walk from anywhere (sited by .walker/innspots.ts: level, dry, the road at the door)
+  { id: 'inn-packhorse', name: 'The Packhorse', town: 'the Hagworm Wood road', x: 232, z: 430, face: 'e', rent: 120, inn: true },
+  { id: 'inn-halfway', name: 'The Half Way House', town: 'the north road', x: 249, z: -222, face: 'e', rent: 120, inn: true },
+  { id: 'inn-dykeend', name: 'The Dyke End', town: 'the Wrath Levels', x: -446, z: 980, face: 'n', rent: 120, inn: true },
+  { id: 'inn-bield', name: 'The Bield', town: 'the Tolmen Moor road', x: 289, z: 2405, face: 'e', rent: 120, inn: true },
 ];
 
 /** A week, in milliseconds; rent can be paid up to four weeks ahead. */
@@ -51,8 +58,10 @@ export function lodgeAt(L: LodgingDef, u: number, v: number): [number, number] {
   }
 }
 
-/** The floor everyone stands on inside. */
+/** The floor everyone stands on inside (an inn's taproom). */
 export const lodgeBase = (L: LodgingDef): number => Math.floor(heightAt(L.x, L.z));
+/** The floor the rooms are on: the ground floor, or an inn's upper floor. */
+export const roomBase = (L: LodgingDef): number => lodgeBase(L) + (L.inn ? LODGE_H : 0);
 
 /** The side of the world a direction in the house's frame points to (+v: out of the front door). */
 function side(L: LodgingDef, towardFront: boolean): Door {
@@ -66,7 +75,7 @@ export function roomShape(L: LodgingDef, i: number): HomeShape {
   const [ax, az] = lodgeAt(L, r.u0, r.v0), [bx, bz] = lodgeAt(L, r.u1, r.v1);
   return {
     name: `your room at ${L.name}`, x0: Math.min(ax, bx), z0: Math.min(az, bz), w: Math.abs(bx - ax) + 1, d: Math.abs(bz - az) + 1,
-    floors: 1, base: lodgeBase(L), door: side(L, !r.front),
+    floors: 1, base: roomBase(L), door: side(L, !r.front),
   };
 }
 

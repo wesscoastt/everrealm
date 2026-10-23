@@ -91,7 +91,7 @@ import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
-import { lodgeAt, lodgeBase, LODGINGS, MAX_WEEKS, readTenancy, ROOMS, roomShape, WEEK } from '../data/lodgings';
+import { lodgeAt, LODGINGS, MAX_WEEKS, readTenancy, roomBase, ROOMS, roomShape, WEEK } from '../data/lodgings';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
 import { marksScale, regionLevel, rewardScale } from '../data/scaling';
@@ -2397,7 +2397,7 @@ export class Game implements GameApi {
     for (const L of LODGINGS) {
       if (Math.hypot(L.x - p.x, L.z - p.z) > 20) continue;
       const t = readTenancy(this.flag('flat'));
-      const base = lodgeBase(L);
+      const base = roomBase(L);
       ROOMS.forEach((r, i) => {
         const [dx, dz] = lodgeAt(L, r.door[0], r.door[1]);
         const d = Math.hypot(dx + 0.5 - p.x, dz + 0.5 - p.z);

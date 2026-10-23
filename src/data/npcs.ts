@@ -17,6 +17,8 @@ export interface ScheduleSlot {
   path?: [number, number][];
   /** Hidden indoors. */
   indoors?: boolean;
+  /** The floor to stand on, where looking down from the sky would find the wrong one (under an upper floor, a canopy). */
+  y?: number;
 }
 
 export interface NpcDef {
