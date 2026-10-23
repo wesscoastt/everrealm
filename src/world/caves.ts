@@ -36,6 +36,8 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
   const floorOf = new Map<string, number>();
   const ceilOf = new Map<string, number>();
   const solid = new Set<string>(); // cells kept as rock inside a chamber (pillars), never opened
+  /** Cells cut by someone else (a stair down): never painted over. */
+  const kept = new Set<string>();
   const ck = (x: number, z: number) => x + ',' + z;
   const k3 = (x: number, y: number, z: number) => x + ',' + y + ',' + z;
 
@@ -142,7 +144,7 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
       O.set(X, y, Z, B.Air);
       for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]] as const) {
         const nX = X + dx, ny = y + dy, nZ = Z + dz;
-        if (open.has(k3(nX, ny, nZ))) continue;
+        if (open.has(k3(nX, ny, nZ)) || kept.has(k3(nX, ny, nZ))) continue;
         // The second floor lies in patches (coarse noise with finer edges), not as single blocks
         if (dy === -1) O.set(nX, ny, nZ, (hash2(nX >> 2, nZ >> 2, 725) + hash2(nX >> 1, nZ >> 1, 726) * 0.6 + hash2(nX, nZ, 724) * 0.3) / 1.9 > 0.62 ? th.floor2 : th.floor);
         else O.set(nX, ny, nZ, rock(th, nX, ny, nZ));
@@ -230,5 +232,5 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
     return out;
   };
 
-  return { chamber, tunnel, pit, bridge, pool, lamp, glow, finish, covered, isOpen, floorAt: (x: number, z: number) => floorOf.get(ck(OX + x, OZ + z)) };
+  return { keep: (x: number, y: number, z: number) => { kept.add(k3(x, y, z)); }, chamber, tunnel, pit, bridge, pool, lamp, glow, finish, covered, isOpen, floorAt: (x: number, z: number) => floorOf.get(ck(OX + x, OZ + z)) };
 }

@@ -125,15 +125,24 @@ export interface SiteActivity {
 const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl' };
 
 /** Underworks themes: depth and reach, stone, light, who lives there, and what's left lying about. */
+/** The rock of the underworks that are caves or mines (the built ones keep their dressed stone). */
+const CAVE_LOOK: Partial<Record<string, CaveTheme>> = {
+  badger: { wall: B.Dirt, wall2: B.Loam, band: B.Gravel, floor: B.Dirt, floor2: B.Loam, spike: B.Dirt, rubble: B.Gravel, light: '#ffc880' },
+  smugglers: { wall: B.Stone, wall2: B.MossyStone, band: B.Sand, floor: B.Sand, floor2: B.Gravel, spike: B.Stone, rubble: B.Cobble, light: '#ffd890' },
+  seep: { wall: B.Ice, wall2: B.DeepStone, band: B.Crystal, floor: B.Snow, floor2: B.Ice, spike: B.Ice, rubble: B.Snow, light: '#9fe8ff' },
+  tinner: { wall: B.TerraOrange, wall2: B.TerraBrown, band: B.TinOre, floor: B.Gravel, floor2: B.Stone, spike: B.TerraOrange, rubble: B.Cobble, light: '#ffb070' },
+  blackcut: { wall: B.TerraBrown, wall2: B.DeepStone, band: B.IronOre, floor: B.Gravel, floor2: B.Stone, spike: B.TerraBrown, rubble: B.Cobble, light: '#ffb070' },
+};
+
 const UNDERWORKS = {
-  mortlake: { pub: true, depth: 18, reach: 32, wall: B.MossyStone, wall2: B.StoneBrick, floor: B.StoneBrick, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['sporejelly', 'thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['mushrooms', 'candles', 'chest', 'barrel'] },
-  blackcut: { pub: true, depth: 18, reach: 32, wall: B.TerraBrown, wall2: B.Timber, floor: B.Gravel, floor2: B.IronOre, light: '#ffb070', mobs: ['redback', 'dustwolf', 'redback'], boss: 'redback', clutter: ['cart', 'rails', 'crate', 'barrel'] },
-  badger: { pub: false, depth: 13, reach: 19, wall: B.Dirt, wall2: B.OakLog, floor: B.Path, floor2: B.Gravel, light: '#ffc880', mobs: ['boar', 'roadwolf'], boss: 'boar', clutter: ['crate', 'barrel', 'mushrooms'] },
-  culvert: { pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.MossyCobble, floor: B.Cobble, floor2: B.Clay, light: '#c8e8ff', mobs: ['jelly', 'roadwolf'], boss: 'roadwolf', clutter: ['barrel', 'crate', 'candles'] },
-  smugglers: { pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.Planks, floor: B.Sand, floor2: B.Planks, light: '#ffd890', mobs: ['crab', 'brinejelly'], boss: 'crab', clutter: ['barrel', 'crate', 'chest', 'barrel'] },
-  tinner: { pub: false, depth: 13, reach: 19, wall: B.TerraOrange, wall2: B.Timber, floor: B.Gravel, floor2: B.TinOre, light: '#ffb070', mobs: ['dustwolf', 'redback'], boss: 'dustwolf', clutter: ['cart', 'crate', 'rails'] },
-  seep: { pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff', mobs: ['shardjelly', 'frostwolf'], boss: 'frostwolf', clutter: ['candles', 'chest'] },
-  hob: { pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
+  mortlake: { kind: 'built', pub: true, depth: 18, reach: 32, wall: B.MossyStone, wall2: B.StoneBrick, floor: B.StoneBrick, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['sporejelly', 'thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['mushrooms', 'candles', 'chest', 'barrel'] },
+  blackcut: { kind: 'mine', pub: true, depth: 18, reach: 32, wall: B.TerraBrown, wall2: B.Timber, floor: B.Gravel, floor2: B.IronOre, light: '#ffb070', mobs: ['redback', 'dustwolf', 'redback'], boss: 'redback', clutter: ['cart', 'rails', 'crate', 'barrel'] },
+  badger: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Dirt, wall2: B.OakLog, floor: B.Path, floor2: B.Gravel, light: '#ffc880', mobs: ['boar', 'roadwolf'], boss: 'boar', clutter: ['crate', 'barrel', 'mushrooms'] },
+  culvert: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.MossyCobble, floor: B.Cobble, floor2: B.Clay, light: '#c8e8ff', mobs: ['jelly', 'roadwolf'], boss: 'roadwolf', clutter: ['barrel', 'crate', 'candles'] },
+  smugglers: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.Planks, floor: B.Sand, floor2: B.Planks, light: '#ffd890', mobs: ['crab', 'brinejelly'], boss: 'crab', clutter: ['barrel', 'crate', 'chest', 'barrel'] },
+  tinner: { kind: 'mine', pub: false, depth: 13, reach: 19, wall: B.TerraOrange, wall2: B.Timber, floor: B.Gravel, floor2: B.TinOre, light: '#ffb070', mobs: ['dustwolf', 'redback'], boss: 'dustwolf', clutter: ['cart', 'crate', 'rails'] },
+  seep: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff', mobs: ['shardjelly', 'frostwolf'], boss: 'frostwolf', clutter: ['candles', 'chest'] },
+  hob: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
 
 /** Row width for a cell's key: wider than the world, so no two cells share one. */
@@ -1891,6 +1900,20 @@ export function plan(): Plan {
     };
     const hall = (x0: number, z0: number, x1: number, z1: number, h: number, pillars = false, th = T) => {
       carve(x0, z0, x1, z1, h, th);
+      // A vault: the roof steps in a block at each side, and ribs of the second stone cross it every four
+      if (h >= 5) {
+        const alongX = x1 - x0 >= z1 - z0;
+        for (let a = alongX ? x0 : z0; a <= (alongX ? x1 : z1); a++) {
+          const rib = (a - (alongX ? x0 : z0)) % 4 === 1;
+          for (let b = alongX ? z0 : x0; b <= (alongX ? z1 : x1); b++) {
+            const edge = Math.min(b - (alongX ? z0 : x0), (alongX ? z1 : x1) - b);
+            const X = cx + (alongX ? a : b), Z = cz + (alongX ? b : a);
+            if (edge === 0) { O.set(X, F + h - 1, Z, th.wall2); O.set(X, F + h - 2, Z, rib ? th.wall2 : th.wall); }
+            else if (edge === 1) O.set(X, F + h - 1, Z, rib ? th.wall2 : th.wall);
+            else if (rib) O.set(X, F + h, Z, th.wall2);
+          }
+        }
+      }
       if (pillars) for (let z = z0 + 3; z <= z1 - 3; z += 5) for (const x of [x0 + 3, x1 - 3]) for (let y = F; y < F + h; y++) O.set(cx + x, y, cz + z, th.wall2);
       // Lanterns along the long walls
       for (let x = x0 + 2; x <= x1 - 2; x += 6) for (const [z, ry] of [[z0, 0], [z1, Math.PI]] as const) lanterns.push({ x: cx + x + 0.5, z: cz + z + (ry ? 0.92 : 0.08), ry, wx: cx + x, wz: cz + z + (ry ? 1 : -1) });
@@ -1941,6 +1964,44 @@ export function plan(): Plan {
     s.props.push({ t: 'sign', x: cx + 5.5, y: G, z: cz + ez - 1.5, ry: 0, text: s.name.length > 15 ? s.name.replace('The ', '') : s.name });
     const stairEnd = ez + 2 + T.depth; // local z where the stair meets the floor
 
+    if (T.kind !== 'built') {
+      const mine = T.kind === 'mine';
+      const CT = CAVE_LOOK[theme] ?? { wall: T.wall, wall2: B.Stone, band: T.floor2, floor: T.floor, floor2: B.Stone, spike: T.wall, rubble: B.Cobble, light: T.light };
+      const k = caveKit(O, s.props, cx, cz, F);
+      // The stair down is already cut: the kit leaves its cells be
+      for (let z = cz + ez + 2; z < cz + stairEnd; z++) for (let x = cx - 1; x <= cx + 1; x++) for (let y = F; y < G + 5; y++) k.keep(x, y, z);
+      const tun = (pts: [number, number][]) => k.tunnel(pts, mine ? 4 : 4, 5, CT, { mine });
+      const room = (x: number, z: number, rx: number, rz: number, h: number, pillars?: [number, number, number][]) => k.chamber(x, z, rx, rz, h, CT, { pillars });
+      // Clutter only where there's floor and head room all round it
+      const room3 = (x: number, z: number) => { for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (!k.isOpen(cx + x + dx, F, cz + z + dz) || !k.isOpen(cx + x + dx, F + 1, cz + z + dz)) return false; return true; };
+      if (T.pub) {
+        tun([[0, stairEnd + 1], [0, -9]]);
+        room(0, -5, 7, 5, 7);
+        tun([[-6, -5], [-11, -7], [-15, -6]]); room(-22, -5, 8, 10, 10, [[-28, -13, 1.2], [-16, 3, 1.0]]);
+        tun([[6, -5], [11, -3], [15, -6]]); room(22, -5, 8, 10, 10, [[28, -13, 1.2], [16, 3, 1.0]]);
+        tun([[0, 0], [2, 5], [0, 10]]); room(0, 21, 14, 12, 13, [[-11, 13, 1.4], [11, 13, 1.4], [-10, 27, 1.3], [10, 27, 1.3]]);
+        put(0, -5, 2, T.mobs); put(-22, -8, 4, T.mobs); put(-22, 0, 2, T.mobs); put(22, -8, 4, T.mobs); put(22, 0, 2, T.mobs); put(-5, 16, 2, T.mobs); put(5, 16, 2, T.mobs);
+        for (const [x, z] of [[-4, -8], [4, -2], [-26, -2], [-18, -12], [26, -2], [18, -12], [-11, 22], [11, 22], [-6, 28], [6, 28]] as const) k.lamp(x, z);
+        if (mine) s.props.push({ t: 'rails', x: cx + 0.5, y: F, z: cz + 2.5, ry: 0, len: 12 } as PropDesc);
+        s.act = { kind: 'dungeon', spawns, boss: [cx + 0.5, F, cz + 22.5, T.boss], chest: [cx + 0.5, F, cz + 28.5] };
+        for (const [x, z] of [[-26, -12], [26, -12], [-26, 2], [26, 2], [-4, -8], [-10, 26], [10, 26], [-24, -2], [24, -2], [-8, 30], [8, 30]]) if (room3(x, z)) clutter(x, z);
+      } else {
+        tun([[0, stairEnd + 1], [0, -2]]);
+        room(0, 1, 6, 5, 6);
+        tun([[-5, 1], [-8, -1], [-9, 0]]); room(-14, 0, 6, 6, 7, theme === 'seep' ? [[-18, 4, 0.9]] : undefined);
+        tun([[5, 1], [8, 3], [9, 1]]); room(15, 2, 7, 7, 8, [[10, 7, 0.9]]);
+        put(0, 1, 2, T.mobs); put(-14, 0, 3, T.mobs); put(13, -2, 2, T.mobs);
+        for (const [x, z] of [[-3, -2], [3, 4], [-17, -3], [-11, 4], [17, -3], [12, 6]] as const) k.lamp(x, z);
+        if (theme === 'smugglers') k.pool(-16, 3, 2.6);
+        if (theme === 'seep') for (const [x, z] of [[-12, -4], [16, 6], [3, -2]] as const) k.glow(x, z, F + 2, 1.2, T.light, true);
+        if (mine) s.props.push({ t: 'rails', x: cx + 7.5, y: F, z: cz + 2.5, ry: Math.PI / 2, len: 8 } as PropDesc);
+        s.act = { kind: 'delve', spawns, boss: [cx + 14.5, F, cz + 2.5, T.boss], chest: [cx + 17.5, F, cz + 5.5] };
+        for (const [x, z] of [[-15, -4], [-11, 4], [3, -3], [16, 5], [-13, 3], [18, 0]]) if (room3(x, z)) clutter(x, z);
+      }
+      k.finish({ spikes: T.kind === 'cave' ? 0.06 : 0.02, rubble: 0.1 });
+      s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+      return;
+    }
     if (T.pub) {
       // Antechamber, two wings, the great hall
       run(0, stairEnd, 0, -12); hall(-6, -11, 6, -1, 6); put(0, -6, 2, T.mobs);
