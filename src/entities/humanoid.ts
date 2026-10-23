@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { wearing } from '../data/costumes';
 import { capeTexture } from './capes';
 import type { EmoteAnim } from '../data/emotes';
 import type { Voice as InstrumentVoice } from '../data/tunes';
@@ -29,8 +30,12 @@ export interface Appearance {
   apron?: boolean;
   hat?: 'none' | 'hood' | 'cap' | 'kerchief' | 'wide' | 'straw' | 'beret' | 'circlet' | 'coif' | 'band'
     /** Festival hats (data/seasons.ts), unlocked into the wardrobe. */
-    | 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble';
+    | 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble'
+    /** Costume headwear (data/costumes.ts): the witch's hat, the skull, the scarecrow's sack, the ghost's sheet, the crow mask. */
+    | 'witch' | 'skull' | 'sack' | 'sheet' | 'crow';
   hatColor?: string;
+  /** A costume worn over all of it (data/costumes.ts), or none. */
+  costume?: string | null;
   /** Body shape: the broader-shouldered frame, or the narrower one with a fuller chest and hips. */
   frame?: 'm' | 'f';
   /** 0 none, 1 full beard, 2 stubble, 3 moustache, 4 goatee, 5 chinstrap, 6 long beard, 7 mutton chops, 8 forked beard. Old saves use `beard`. */
@@ -802,6 +807,8 @@ export class Humanoid {
   private eyeLids: THREE.Mesh;
 
   constructor(public look: Appearance) {
+    // A costume goes on over the clothes and armour; the figure is built from what shows
+    this.look = look = wearing(look);
     const build = look.build ?? 1;
     const s = (look.height ?? 1) * FIGURE;
     this.root.add(this.body);
@@ -1166,6 +1173,54 @@ export class Humanoid {
       for (const sx of [-0.1, 0, 0.1]) part(this.head, rbox(0.05, 0.04, 0.03, 0.01), glow, sx, 0.2, 0.335);
       return;
     }
+    // Costume heads (data/costumes.ts): each covers the whole head, so no hair under it
+    if (hat === 'skull') {
+      const bone = '#e8e2d0', hole = '#141016';
+      part(this.head, rbox(0.54, 0.34, 0.52, 0.14), bone, 0, 0.38, 0.01);               // the brow and crown
+      part(this.head, rbox(0.46, 0.2, 0.46, 0.08), bone, 0, 0.17, 0.03);                // cheekbones and jaw
+      for (const sx of [-0.12, 0.12]) part(this.head, rbox(0.14, 0.13, 0.03, 0.03), hole, sx, 0.33, 0.27);
+      part(this.head, rbox(0.06, 0.07, 0.03, 0.01), hole, 0, 0.23, 0.27);                // the nose
+      part(this.head, rbox(0.3, 0.07, 0.03, 0.01), bone, 0, 0.12, 0.265);
+      for (let k = -2; k <= 2; k++) part(this.head, rbox(0.012, 0.07, 0.03, 0.002), hole, k * 0.06, 0.12, 0.275); // the teeth
+      // A black hood behind the mask
+      part(this.head, rbox(0.58, 0.5, 0.2, 0.08), '#16141a', 0, 0.32, -0.2);
+      for (const sd of [1, -1]) part(this.head, rbox(0.06, 0.5, 0.36, 0.03), '#16141a', sd * 0.29, 0.3, -0.04);
+      return;
+    }
+    if (hat === 'sack') {
+      const sack = '#b89a68', stitch = '#3a2a1e';
+      part(this.head, rbox(0.56, 0.56, 0.54, 0.16), sack, 0, 0.29, 0.01);
+      for (const sx of [-0.12, 0.12]) { const a = part(this.head, rbox(0.12, 0.025, 0.02, 0.005), stitch, sx, 0.34, 0.28); a.rotation.z = 0.7; const b = part(this.head, rbox(0.12, 0.025, 0.02, 0.005), stitch, sx, 0.34, 0.28); b.rotation.z = -0.7; }
+      part(this.head, rbox(0.28, 0.025, 0.02, 0.005), stitch, 0, 0.17, 0.28);
+      for (let k = -3; k <= 3; k++) part(this.head, rbox(0.012, 0.07, 0.02, 0.002), stitch, k * 0.04, 0.17, 0.285);
+      part(this.head, rbox(0.5, 0.06, 0.48, 0.02), '#8a6a3a', 0, 0.04, 0.01);           // tied at the neck with twine
+      // The straw hat on top, and straw coming out from under it
+      part(this.head, rbox(0.82, 0.04, 0.8, 0.02), '#d8b860', 0, 0.58, 0);
+      part(this.head, rbox(0.44, 0.2, 0.44, 0.05), '#c8a850', 0, 0.69, 0);
+      for (const [x, z, rz] of [[-0.3, 0.1, 0.9], [0.3, 0.05, -0.9], [-0.28, -0.12, 1.2], [0.29, -0.1, -1.1], [0.05, 0.3, 0]] as const) { const t = part(this.head, rbox(0.04, 0.16, 0.04, 0.01), '#e8c860', x, 0.06, z); t.rotation.z = rz; }
+      return;
+    }
+    if (hat === 'sheet') {
+      const lin = '#f4f2ec';
+      part(this.head, rbox(0.62, 0.64, 0.6, 0.24), lin, 0, 0.3, 0);
+      part(this.head, rbox(0.7, 0.14, 0.66, 0.06), lin, 0, -0.02, 0);                   // where it falls to the shoulders
+      for (const sx of [-0.11, 0.11]) part(this.head, rbox(0.1, 0.13, 0.03, 0.04), '#141016', sx, 0.34, 0.3);
+      return;
+    }
+    if (hat === 'crow') {
+      const c = this.look.hatColor ?? '#16141a';
+      part(this.head, rbox(0.54, 0.34, 0.52, 0.12), c, 0, 0.44, -0.01);
+      part(this.head, rbox(0.54, 0.46, 0.2, 0.06), c, 0, 0.28, -0.18);
+      for (const sd of [1, -1]) part(this.head, rbox(0.06, 0.46, 0.44, 0.03), c, sd * 0.27, 0.3, 0);
+      part(this.head, rbox(0.46, 0.22, 0.06, 0.04), '#2a2420', 0, 0.3, 0.24);           // the mask over the face
+      const glass = new THREE.MeshLambertMaterial({ color: '#e8a030', emissive: new THREE.Color('#a05010'), emissiveIntensity: 0.8 });
+      for (const sx of [-0.11, 0.11]) part(this.head, rbox(0.1, 0.1, 0.03, 0.04), glass, sx, 0.33, 0.275);
+      const beak = part(this.head, rbox(0.14, 0.12, 0.42, 0.03), '#6a4a2a', 0, 0.2, 0.44);
+      beak.rotation.x = 0.35;
+      const tip = part(this.head, rbox(0.08, 0.07, 0.16, 0.02), '#4a3220', 0, 0.08, 0.64);
+      tip.rotation.x = 0.6;
+      return;
+    }
     if (hat === 'hood') {
       const c = this.look.hatColor ?? '#4a5a3a';
       part(this.head, rbox(0.52, 0.32, 0.5, 0.1), c, 0, 0.48, -0.02);
@@ -1175,7 +1230,7 @@ export class Humanoid {
       if (style !== 3 && style !== 9) p(0.3, 0.05, 0.03, -0.03, 0.47, 0.222, 1.0, 0.012);
       return;
     }
-    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble';
+    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch';
     const shaved = style === 3 || style === 9;
     if (shaved) {
       p(0.45, 0.035, 0.43, 0, 0.515, 0, 0.78, 0.015);
@@ -1323,6 +1378,15 @@ export class Humanoid {
       part(this.head, rbox(0.1, 0.07, 0.03, 0.01), '#d8b04a', 0, 0.64, 0.228);
       const quill = part(this.head, rbox(0.035, 0.42, 0.08, 0.02), '#f4f0e4', 0.23, 0.86, -0.06);
       quill.rotation.z = -0.35;
+    }
+    if (hat === 'witch') {
+      // Broad brim, and a crown that goes up a long way and gives up at the top
+      const c = this.look.hatColor ?? '#2a2030';
+      part(this.head, rbox(0.86, 0.04, 0.84, 0.02), c, 0, 0.57, 0);
+      part(this.head, rbox(0.46, 0.18, 0.46, 0.05), c, 0, 0.67, -0.01);
+      part(this.head, rbox(0.47, 0.06, 0.47, 0.02), '#5a3a22', 0, 0.62, -0.01);
+      part(this.head, rbox(0.1, 0.08, 0.03, 0.01), '#c8a040', 0, 0.62, 0.235);
+      for (const [w, y, z, rx] of [[0.36, 0.82, -0.04, -0.12], [0.26, 0.96, -0.09, -0.25], [0.17, 1.07, -0.16, -0.5], [0.09, 1.13, -0.25, -0.9]] as const) { const t = part(this.head, rbox(w, 0.16, w, 0.04), c, 0, y, z); t.rotation.x = rx; }
     }
     if (hat === 'bobble') {
       const c = this.look.hatColor ?? '#b0202a';

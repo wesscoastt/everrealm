@@ -12,7 +12,7 @@ import type { VoxelWorld } from '../world/VoxelWorld';
 import { B, isSolid } from '../world/blocks';
 import { roadDist } from '../world/terrain';
 import { DAY_MINUTES, realmNow } from '../world/clock';
-import { campFlame, fireMaterial } from '../world/props';
+import { campFlame, carvedTurnip, createPropMaterials, fireMaterial, gourdPile, scarecrow, type PropMaterials } from '../world/props';
 import type { Particles } from '../systems/Particles';
 import type { MapMarker } from '../ui/Hud';
 
@@ -45,10 +45,16 @@ export interface SeasonHost {
   removeEnemy(e: Enemy): void;
   /** The hour of the day as the sky shows it: the realm's clock (world/clock.ts). */
   hour(): number;
+  /** Points the world's lamp pool lights at night (shared with the festival stalls). */
+  lamps: THREE.Vector3[];
 }
 
 interface Spot { key: string; kind: SpotKind; x: number; y: number; z: number; ry: number; mesh?: THREE.Object3D; lit?: THREE.Object3D }
-interface Town { post: string; spots: Spot[]; decor: THREE.Group | null; built: boolean }
+interface Town {
+  post: string; spots: Spot[]; decor: THREE.Group | null; built: boolean; lamps: THREE.Vector3[]; wisps: THREE.Object3D[];
+  /** The Wake's lantern posts and scarecrows found so far, and when to look again (the land round a town loads a piece at a time). */
+  posts: THREE.Vector3[]; crows: THREE.Vector3[]; lookAt: number; looks: number;
+}
 interface Fight { fest: string; adds: Enemy[]; boss: Enemy | null; t: number; over: boolean }
 
 const realmDay = () => Math.floor(realmNow() / (DAY_MINUTES * 60_000));
@@ -145,6 +151,7 @@ export class Seasons {
         this.host.setFlag('sbossKills:' + S.id, Number(this.host.flag('sbossKills:' + S.id) ?? 0) + 1);
         this.host.give(f!.token, 12);
         this.host.give(S.bag, 1);
+        if (S.id === 'lantern' && !this.host.flag('costume:lanternman') && !this.host.count('costume_lanternman') && Math.random() < 0.08) { this.host.give('costume_lanternman', 1); this.host.system('He left his coat behind. It\'s still warm.'); this.host.sound('discover'); }
         this.host.addMarks(25);
         this.host.banner(`${ENEMIES[S.boss.type as EnemyType].name} is down`, `12 ${f!.tokenPlural} and a ${ITEMS[S.bag].name.toLowerCase()}`);
       }
@@ -213,6 +220,19 @@ export class Seasons {
       if (!near) { if (t?.built) this.hideTown(t); continue; }
       if (!this.host.voxels.isLoaded(post.x, post.z)) continue;
       if (!t || !t.built) this.buildTown(post.id, post.x, post.z, S);
+      else if (S.id === 'lantern' && t.decor && (t.posts.length < 10 || t.crows.length < 3) && t.looks < 30 && this.clock > t.lookAt) {
+        t.lookAt = this.clock + 2; t.looks++;
+        this.wakeExtras(t, post.id, post.x, post.z);
+      }
+    }
+    // The Wake's wisps, after dark
+    const h = this.host.hour(), night = h >= 19 || h < 5;
+    for (const t of this.towns.values()) for (const w of t.wisps) {
+      w.visible = night;
+      if (!night) continue;
+      const u = w.userData as { cx: number; cz: number; y: number; ph: number }, k = this.clock * 0.25 + u.ph;
+      w.position.set(u.cx + Math.sin(k) * 5 + Math.sin(k * 2.3) * 1.5, u.y + Math.sin(k * 1.7) * 0.5, u.cz + Math.cos(k * 0.8) * 5);
+      if (Math.random() < dt * 2) this.host.particles.sparks(w.position, 2, '#cfe8ff');
     }
     // Lit watch-fires and candles flicker; geese wander a little
     for (const t of this.towns.values()) for (const s of t.spots) {
@@ -231,6 +251,8 @@ export class Seasons {
   }
   private hideTown(t: Town): void {
     if (t.decor) this.host.scene.remove(t.decor);
+    for (const l of t.lamps) { const i = this.host.lamps.indexOf(l); if (i >= 0) this.host.lamps.splice(i, 1); }
+    t.lamps = []; t.wisps = []; t.posts = []; t.crows = []; t.looks = 0;
     for (const s of t.spots) { if (s.mesh) this.host.scene.remove(s.mesh); s.mesh = undefined; s.lit = undefined; }
     t.built = false;
   }
@@ -269,17 +291,90 @@ export class Seasons {
           }
         }
       }
-      t = { post, spots, decor: null, built: false };
+      t = { post, spots, decor: null, built: false, lamps: [], wisps: [], posts: [], crows: [], lookAt: 0, looks: 0 };
       this.towns.set(post, t);
     }
     // The doors dressed for the festival
     if (S.decor) {
       t.decor = new THREE.Group();
-      for (const d of this.host.doorsNear(px, pz, 40).slice(0, 16)) t.decor.add(decorAt(S.decor, d));
+      if (S.id === 'lantern') this.dressWake(t, post, px, pz);
+      else for (const d of this.host.doorsNear(px, pz, 40).slice(0, 16)) t.decor.add(decorAt(S.decor, d));
       this.host.scene.add(t.decor);
     }
     for (const s of t.spots) { s.mesh = spotMesh(s); this.host.scene.add(s.mesh); this.dress(s, this.done(s.key)); }
     t.built = true;
+  }
+
+  /**
+   * The Lantern Wake's town, ESO's Witches Festival way: a carved turnip, a heap of gourds or a candle
+   * in a jar by most doors; turnip lanterns hung from posts along the streets, lit after dark; a
+   * scarecrow or two on the green; and, at night, will-o'-the-wisps drifting between the houses.
+   */
+  private dressWake(t: Town, post: string, px: number, pz: number): void {
+    const g = t.decor!;
+    const M = propMats();
+    // The doors
+    this.host.doorsNear(px, pz, 48).slice(0, 30).forEach((d, k) => {
+      const nx = Math.sin(d.ry), nz = Math.cos(d.ry), side = k % 2 ? 1 : -1;
+      const v = Math.floor(hash(`${post}:wd:${k}`) * 3);
+      const o = v === 0 ? carvedTurnip() : v === 1 ? gourdPile(M) : candleJar();
+      o.position.set(d.x + nx * 0.55 + nz * 0.95 * side, d.y, d.z + nz * 0.55 - nx * 0.95 * side);
+      o.rotation.y = d.ry;
+      g.add(o);
+    });
+    this.wakeExtras(t, post, px, pz);
+    // Will-o'-the-wisps: small pale lights that drift about after dark
+    const wispMat = new THREE.MeshBasicMaterial({ color: '#cfe8ff', transparent: true, opacity: 0.85 });
+    for (let k = 0; k < 5; k++) {
+      const w = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), wispMat);
+      const a = hash(`${post}:ww:${k}`) * Math.PI * 2, r = 10 + hash(`${post}:ww:${k}:r`) * 22;
+      w.userData = { cx: px + Math.cos(a) * r, cz: pz + Math.sin(a) * r, y: (this.ground(px, pz) ?? 20) + 1.6, ph: k * 1.7 };
+      w.visible = false;
+      g.add(w); t.wisps.push(w);
+    }
+  }
+
+  /**
+   * Lantern posts at the edges of the streets and scarecrows on the green, as many as the loaded land
+   * has room for so far; called again as more of it loads, until the town has its share.
+   */
+  private wakeExtras(t: Town, post: string, px: number, pz: number): void {
+    const g = t.decor!, M = propMats(), V = this.host.voxels;
+    const STREET = new Set<number>([B.Path, B.Cobble, B.StoneBrick, B.MossyCobble, B.Gravel]);
+    const street = (x: number, y: number, z: number) => STREET.has(V.get(Math.floor(x), y - 1, Math.floor(z)));
+    const fresh: THREE.Vector3[] = [], freshCrows: THREE.Vector3[] = [];
+    const g0 = this.ground(px, pz);
+    for (let k = 0; k < 160 && (t.posts.length < 10 || t.crows.length < 3); k++) {
+      const a = hash(`${post}:wl:${k}`) * Math.PI * 2, r = 8 + hash(`${post}:wl:${k}:r`) * 40;
+      const x = Math.floor(px + Math.cos(a) * r) + 0.5, z = Math.floor(pz + Math.sin(a) * r) + 0.5;
+      if (!V.isLoaded(x, z)) continue;
+      const y = this.ground(x, z);
+      if (y === null || (g0 !== null && Math.abs(y - g0) > 8)) continue;
+      const rd = roadDist(x, z);
+      // At a street's edge: just off a road, or on unpaved ground with paving beside it
+      const verge = (rd > 2.6 && rd < 4.4) || (!street(x, y, z) && [[2, 0], [-2, 0], [0, 2], [0, -2]].some(([dx, dz]) => this.ground(x + dx, z + dz) === y && street(x + dx, y, z + dz)));
+      const all = [...t.posts, ...t.crows];
+      if (verge && t.posts.length < 10 && t.posts.every((q) => Math.hypot(q.x - x, q.z - z) > 8) && all.every((q) => Math.hypot(q.x - x, q.z - z) > 3)) { const q = new THREE.Vector3(x, y, z); t.posts.push(q); fresh.push(q); }
+      else if (!verge && rd > 4.5 && !street(x, y, z) && t.crows.length < 3 && all.every((q) => Math.hypot(q.x - x, q.z - z) > 10)) { const q = new THREE.Vector3(x, y, z); t.crows.push(q); freshCrows.push(q); }
+    }
+    for (const q of fresh) {
+      const o = new THREE.Group();
+      o.position.copy(q);
+      // The arm reaches out over open ground (toward the street where there is one), never into a wall
+      const open = (dx: number, dz: number) => V.get(Math.floor(q.x + dx), q.y + 1, Math.floor(q.z + dz)) === B.Air && V.get(Math.floor(q.x + dx), q.y + 2, Math.floor(q.z + dz)) === B.Air;
+      const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]].filter(([dx, dz]) => open(dx, dz));
+      const [ax, az] = dirs.find(([dx, dz]) => street(q.x + dx * 2, q.y, q.z + dz * 2)) ?? dirs[0] ?? [0, 1];
+      o.rotation.y = Math.atan2(ax, az);
+      box(o, 0.12, 2.7, 0.12, '#2a2018', 0, 1.35, 0);
+      box(o, 0.08, 0.08, 0.8, '#2a2018', 0, 2.6, 0.36);
+      box(o, 0.02, 0.32, 0.02, '#8a7a5a', 0, 2.42, 0.68);
+      const lamp = carvedTurnip(true); lamp.position.set(0, 1.94, 0.68); lamp.scale.setScalar(1.4); o.add(lamp);
+      box(o, 0.5, 0.06, 0.08, '#5b3a8a', 0, 2.3, 0.02); // a violet ribbon tied round the post
+      g.add(o);
+      const l = new THREE.Vector3(q.x, q.y + 2.2, q.z);
+      t.lamps.push(l); this.host.lamps.push(l);
+    }
+    for (const q of freshCrows) { const o = scarecrow(M); o.position.copy(q); o.rotation.y = hash(`${post}:sc:${q.x}`) * Math.PI * 2; g.add(o); }
   }
 
   /** How a spot looks before and after it's been done today. */
@@ -360,6 +455,18 @@ function spotMesh(s: Spot): THREE.Group {
       break;
     }
   }
+  return g;
+}
+
+let PROP_MATS: PropMaterials | null = null;
+const propMats = () => (PROP_MATS ??= createPropMaterials());
+
+/** A candle in a jar of green glass, for a doorstep on the Wake. */
+function candleJar(): THREE.Group {
+  const g = new THREE.Group();
+  box(g, 0.24, 0.3, 0.24, '#5a8a6a', 0, 0.15, 0);
+  box(g, 0.1, 0.18, 0.1, '#ffd890', 0, 0.2, 0, true);
+  box(g, 0.26, 0.04, 0.26, '#3a2a1e', 0, 0.31, 0);
   return g;
 }
 

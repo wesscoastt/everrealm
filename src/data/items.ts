@@ -64,6 +64,8 @@ export interface ItemDef {
   set?: string;
   /** Furniture for a home: the prop it becomes (see props.furniture) and its cloth tint. */
   furn?: { model: string; tint?: number };
+  /** A costume (data/costumes.ts): used, it goes into the wardrobe for good, under Costume with Change look. */
+  costume?: string;
   /** A rolled piece (data/gear.ts): the piece it was rolled from, its quality (0 Worn to 3 Masterwork) and its leaning. */
   base?: string;
   quality?: number;

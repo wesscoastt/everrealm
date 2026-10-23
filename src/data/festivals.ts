@@ -78,6 +78,10 @@ export const FESTIVALS: FestivalDef[] = [
     writ: { name: 'Sit Up With the Dead', desc: 'Answer the bell: see a world event through.', kind: 'event', need: 1 },
     stall: [
       { item: 'soul_cake', price: 3 }, { item: 'dye_wakeviolet', price: 15 }, { item: 'dye_lanternorange', price: 15 }, { item: 'halter_lantern', price: 40 },
+      { item: 'parkin', price: 4 }, { item: 'toffee_apple', price: 4 }, { item: 'mulled_cider', price: 5 },
+      { item: 'furn_turnip', price: 6 }, { item: 'furn_gourds', price: 10 }, { item: 'furn_scarecrow', price: 20 },
+      { item: 'costume_scarecrow', price: 60 }, { item: 'costume_ghost', price: 60 }, { item: 'costume_skeleton', price: 70 },
+      { item: 'costume_witch', price: 70 }, { item: 'costume_crow', price: 90 }, { item: 'costume_lanternman', price: 140 },
     ],
   },
   {
@@ -140,6 +144,11 @@ const dye = (id: string, name: string, color: string, desc: string): ItemDef =>
 const horse = (id: string, name: string, coat: string, mane: string, cloth: string, desc: string, glow = false): ItemDef =>
   ({ id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'shoe', a: coat, b: cloth }, mount: { coat, mane, cloth, glow }, desc, stats: 'A festival horse. Use it, or press G, to ride. Every horse keeps the same pace.' });
 
+const costume = (id: string, name: string, a: string, b: string, desc: string): ItemDef =>
+  ({ id: 'costume_' + id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'chest', a, b }, desc, costume: id, stats: 'Use it to add it to your wardrobe for good: put it on under Costume with Change look, on the character screen. It goes over your clothes and armour; looks only.' });
+const decor = (id: string, name: string, model: string, a: string, b: string, desc: string): ItemDef =>
+  ({ id: 'furn_' + id, name, kind: 'collectible', rarity: 'uncommon', stack: true, value: 0, icon: { shape: 'log', a, b }, desc, furn: { model }, stats: 'Furniture: set it down in a house of your own' });
+
 /** Everything the festivals add (merged into ITEMS). */
 export const FESTIVAL_ITEMS: ItemDef[] = [
   token('fair_ribbon', 'Fair ribbon', '#f0a0b8', '#9ad06a', 'A rosette of spring ribbon. The shepherds pin them on anyone who\'s been useful.'),
@@ -156,6 +165,21 @@ export const FESTIVAL_ITEMS: ItemDef[] = [
   food('pancake', 'Pancake', '#e8c070', 'Thin, lemon and sugar, rolled. Eaten standing up, which is the point.'),
   food('roast_goose', 'Roast goose', '#c8803a', 'A leg of goose off the fair\'s spit, with a slice of apple stuck to it.'),
   food('roast_chestnuts', 'Roast chestnuts', '#7a4a2a', 'Hot from the brazier on the ice, in a twist of paper.'),
+  // The Lantern Wake's treats: a meal's good and a drink's (see items.ts buff)
+  { id: 'parkin', name: 'Parkin', kind: 'food', rarity: 'uncommon', stack: true, value: 4, icon: { shape: 'bread', a: '#7a4a22' }, heal: 50, buff: { slot: 'food', regen: 0.15, mins: 30 }, desc: 'Oat and treacle cake, sticky and dark. Better the third day than the first.', stats: 'Restores 50 health; stamina back 15% faster for 30 minutes.' },
+  { id: 'toffee_apple', name: 'Toffee apple', kind: 'food', rarity: 'uncommon', stack: true, value: 4, icon: { shape: 'bread', a: '#a0281e' }, heal: 40, buff: { slot: 'food', hp: 0.08, mins: 30 }, desc: 'A sour apple on a stick under a glass of red toffee. Mind your teeth.', stats: 'Restores 40 health; 8% more health for 30 minutes.' },
+  { id: 'mulled_cider', name: 'Mulled cider', kind: 'food', rarity: 'uncommon', stack: true, value: 5, icon: { shape: 'gel', a: '#c8701e', b: '#e8dcc0' }, heal: 30, buff: { slot: 'drink', power: 0.05, hp: 0.05, mins: 12 }, desc: 'Hot cider with clove and a curl of orange peel. Drunk at the door while you wait for them to find the cakes.', stats: 'Restores 30 health; blows 5% harder and 5% more health for 12 minutes.' },
+  // ...its guising clothes (data/costumes.ts)
+  costume('scarecrow', 'Scarecrow costume', '#b89a68', '#5a7a3a', 'A feed sack with a face stitched on, and straw you\'ll be picking out of your collar till Martinmas.'),
+  costume('ghost', 'Bedsheet ghost', '#f4f2ec', '#141016', 'A good linen sheet with two holes cut in it. Somebody\'s mother is going to want to know where it went.'),
+  costume('skeleton', 'Skeleton costume', '#16141a', '#e8e2d0', 'Black wool with the bones chalked on. The chalk comes off on everyone you dance with.'),
+  costume('witch', 'Hedge-witch costume', '#3a2a4a', '#7a9a3a', 'The hat is the important part. The rest is somebody\'s gran\'s Sunday best, dyed.'),
+  costume('crow', 'Crow costume', '#16141a', '#e8a030', 'A black coat and a beaked mask of boiled leather. In the fens they say crows carry word to the dead. Children run from it, then come back for another look.'),
+  costume('lanternman', 'Lantern Man\'s coat', '#1e1a22', '#e8701a', 'Black coat, black hat, and the orange lining the fen children swear they saw. Wear it on the Wake and somebody will throw a turnip at you.'),
+  // ...and the Wake brought indoors
+  decor('turnip', 'Carved turnip', 'turnip', '#e8dcc0', '#e8701a', 'A swede with a face cut in it and a candle inside. Lasts till about Martinmas, then it doesn\'t.'),
+  decor('gourds', 'Gourds and a sheaf', 'gourds', '#e8801e', '#e0c060', 'Marrows, gourds and a sheaf of oats, piled by the hearth for the Wake.'),
+  decor('scarecrow', 'Wake scarecrow', 'scarecrow', '#b89a68', '#5a7a3a', 'A straw man in an old coat with a turnip head. Mostly he frightens the people who come to visit.'),
   dye('dye_shrove', 'Pancake-lemon dye', '#f2e06a', 'The pale yellow of a lemon squeezed over a pancake.'),
   dye('dye_motley', 'Motley red dye', '#c8401e', 'The red of a fool\'s cap, worn one day a year.'),
   dye('dye_goosegrey', 'Goose-grey dye', '#9a9a90', 'The soft grey of a greylag\'s back.'),

@@ -261,7 +261,7 @@ export class Justice {
     wagon.root.position.copy(at);
     wagon.root.rotation.y = yaw;
     this.host.scene.add(wagon.root);
-    const driver = new Humanoid({ ...this.host.look, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', top: 4, cape: '#2a3a5a', facial: 2, frame: 'm', lashes: false, hair: '#3a2a1e', skin: '#d8a882' } as Appearance);
+    const driver = new Humanoid({ ...this.host.look, costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', top: 4, cape: '#2a3a5a', facial: 2, frame: 'm', lashes: false, hair: '#3a2a1e', skin: '#d8a882' } as Appearance);
     driver.setState('seated');
     this.host.scene.add(driver.root);
     this.ride = { gaol, t: 0, wagon, driver, yaw, from: at.clone(), secs: Math.round(sentence(bounty) * longer), town: j.id, bounty };

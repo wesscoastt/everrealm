@@ -1,4 +1,5 @@
 import type { Appearance } from '../entities/humanoid';
+import { COSTUMES } from '../data/costumes';
 import { ORIGINS, originById } from '../data/origins';
 import { CAPE_DESIGNS, type CapeDesign } from '../data/capes';
 import { CALLINGS, CallingId } from '../data/classes';
@@ -34,6 +35,8 @@ export interface CharSummary {
   hats?: string[];
   /** Cloak designs this character has unlocked (data/capes.ts). */
   capes?: string[];
+  /** Costumes this character has unlocked (data/costumes.ts). */
+  costumes?: string[];
 }
 
 export interface FrontCtx {
@@ -530,6 +533,7 @@ export class Frontend {
     const dyed = (k: keyof typeof OPT) => (DYEABLE.has(k) && this.editing?.dyes?.length ? [...OPT[k], ...this.editing.dyes.filter((d) => !OPT[k].includes(d))] : OPT[k]);
     const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${dyed(k).map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
     const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.editing?.hats?.includes(id as string))];
+    const costumes: [string, string | null][] = [['None', null], ...Object.values(COSTUMES).filter((c) => this.editing?.costumes?.includes(c.id)).map((c): [string, string] => [c.name, c.id])];
     // Cloak designs: plain, and whatever this character has collected
     const capes: [string, string | null][] = [['Plain', null], ...(Object.keys(CAPE_DESIGNS) as CapeDesign[]).filter((id) => this.editing?.capes?.includes(id)).map((id): [string, string] => [CAPE_DESIGNS[id].name.replace(/ cloak$/, ''), id])];
     const chips = (attr: string, items: [string, unknown][], cur: unknown) => `<div class="chips">${items.map(([t, v], i) => `<button class="chip ${cur === v ? 'sel' : ''}" data-${attr}="${i}">${t}</button>`).join('')}</div>`;
@@ -561,6 +565,7 @@ export class Frontend {
         ${L.legs === 1 || L.legs === 2 ? `<label>HOSE</label>${sw('hose', L.hose ?? null)}` : ''}
         <label>FOOTWEAR</label>${chips('shoes', SHOES.map((t, i) => [t, i]), L.shoes ?? 0)}${sw('boots', L.boots)}
         <label>GLOVES</label>${sw('gloves', L.gloves)}<label>BELT</label>${sw('belt', L.belt ?? '#3b2618')}
+${costumes.length > 1 ? `<label>COSTUME</label>${chips('cos', costumes, L.costume ?? null)}<p class="lead">Worn over your clothes and armour. Looks only.</p>` : ''}
         <label>HEADWEAR</label>${chips('hat', hats, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' && L.hat !== 'turnip' ? sw('hatColor', L.hatColor) : ''}`;
     }
     const changed = () => { this.ctx.sfx('click'); this.ctx.preview(this.look); this.renderPane(); };
@@ -590,6 +595,7 @@ export class Frontend {
     }));
     pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = hats[Number(b.dataset.hat)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-cdes]').forEach((b) => b.addEventListener('click', () => { this.look.capeDesign = capes[Number(b.dataset.cdes)][1]; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-cos]').forEach((b) => b.addEventListener('click', () => { this.look.costume = costumes[Number(b.dataset.cos)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
     pane.querySelectorAll<HTMLInputElement>('[data-s]').forEach((s) => s.addEventListener('input', () => {

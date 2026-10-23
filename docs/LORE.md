@@ -576,6 +576,12 @@ Seven fairs, on the real calendar, each kept at every Charter Post: bunting, a s
 | **Goose Fair** | 14 Nov – 3 Dec | catching loose geese | **Old Hissing Jack**, the fair's champion gander, with his wives (the Waystation green, 9–14) | **Martha Gooding**, goose-girl; Jack's three wives are loose | the goose fair hat |
 | **The Frostfair** | 12 Dec – 6 Jan | carolling at wreathed doors | **Old Rime**, out of Peg's Water in a hard winter, with rime-jellies (Peg's Water shore, 16–23) | **Prudence Holt**, fair-warden of the ice; it froze in a night | the bobble hat |
 
+### Guising on the Wake [in game]
+
+On the Wake nights children go round the doors in costume, which the dales call guising: whoever answers has to guess who you are before they hand over a soul cake. The towns put a carved turnip on the step, hang turnip lanterns from posts along the streets, and stand a scarecrow on the green to keep the Lantern Man off. After dark, pale lights drift between the houses. Nobody admits to knowing what they are.
+
+The Wake stall sells the guising clothes for wake candles: Scarecrow, Bedsheet ghost, Skeleton, Hedge-witch, Crow, and the Lantern Man's coat. The Lantern Man sometimes leaves his coat behind when he's driven off. A costume goes on over your clothes and armour under Costume, with Change look, and is for looks only. The stall also sells parkin, toffee apples and mulled cider, plus a carved turnip, gourds and a scarecrow for your own house. Collecting all six costumes earns the title Guiser.
+
 ## Kell [in game]
 
 An island north-east of the Fleet Coast, a day out from Gullmouth with a fair wind: one old volcano, the Kiln, with a flat crater on top. Sailors call it the island that smokes. `world/terrain.ts` (KELL, KILN), `data/kell.ts`, `data/content/kell.ts`.

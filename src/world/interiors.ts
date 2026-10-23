@@ -4,7 +4,7 @@
 // blocks and props in their own way.
 
 export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant' | 'chapel';
-export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles';
+export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles' | 'turnip' | 'gourds' | 'scarecrow';
 
 export interface HouseShape {
   x0: number; z0: number; w: number; d: number; floors: number; base: number;
@@ -23,7 +23,7 @@ export interface HouseShape {
 export const FURN_SIZE: Record<FurnItem, [number, number]> = {
   bed: [1, 2], table: [1.6, 0.86], stool: [0.4, 0.4], dresser: [1.5, 0.56], hearth: [1.9, 0.9], rug: [1.8, 1.2], chest: [0.8, 0.54],
   barrel: [0.72, 0.72], crate: [0.72, 0.72], counter: [2.5, 0.7], shelves: [1.42, 0.43], lamp: [0.28, 0.28], bench: [1.8, 0.42], desk: [1.6, 0.8],
-  chair: [1, 0.83], candles: [0.4, 0.4],
+  chair: [1, 0.83], candles: [0.4, 0.4], turnip: [0.4, 0.4], gourds: [1, 0.8], scarecrow: [0.9, 0.5],
 };
 
 /** World cells a piece covers: those its footprint overlaps by more than a sliver. */

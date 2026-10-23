@@ -608,6 +608,7 @@ export class Game implements GameApi {
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
       removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
       hour: () => this.world.sky.hour,
+      lamps: this.world.extraLamps,
     });
     this.home = new Home({
       scene: this.scene, flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1736,7 +1737,8 @@ export class Game implements GameApi {
       const dyes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('dye:')).map((k) => k.slice(4));
       const hats = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('hat:')).map((k) => k.slice(4));
       const capes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('capeD:')).map((k) => k.slice(6));
-      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes };
+      const costumes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('costume:')).map((k) => k.slice(8));
+      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes, costumes };
     };
     return {
       characters: () => listCharacters().map((c) => summary(c.id, c.save)),
@@ -2184,6 +2186,13 @@ export class Game implements GameApi {
     } else if (def.capeDesign) {
       this.inv.removeAt(i, 1);
       this.unlockCape(def.capeDesign);
+    } else if (def.costume) {
+      // A costume joins the wardrobe for good
+      this.inv.removeAt(i, 1);
+      this.setFlag('costume:' + def.costume, 1);
+      this.hud.banner(def.name, 'Added to your wardrobe', true);
+      this.hud.system(`${def.name} is in your wardrobe now: put it on under Costume with Change look, on the character screen. It goes over your clothes and armour.`);
+      this.sfx('discover');
     } else if (def.hat) {
       // A festival hat joins the wardrobe for good
       this.inv.removeAt(i, 1);

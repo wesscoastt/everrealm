@@ -1046,6 +1046,55 @@ export function lobsterPots(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/** A carved turnip with a candle in it, the face lit. The Lantern Wake's, on a step or a sill; hung on a post, it's cut all round. */
+export function carvedTurnip(allRound = false): THREE.Group {
+  const g = new THREE.Group();
+  const glow = new THREE.MeshBasicMaterial({ color: '#ffb040' });
+  g.add(mesh(box(0.34, 0.3, 0.32), flat('#e8dcc0'), 0, 0.15, 0));
+  g.add(mesh(box(0.3, 0.08, 0.28), flat('#7a3a6a'), 0, 0.32, 0));
+  g.add(mesh(box(0.04, 0.12, 0.04), flat('#5a8a3a'), 0.03, 0.42, 0));
+  for (let k = 0; k < (allRound ? 4 : 1); k++) {
+    const face = new THREE.Group();
+    for (const sx of [-0.07, 0.07]) face.add(mesh(box(0.06, 0.05, 0.02), glow, sx, 0.19, 0.165));
+    face.add(mesh(box(0.16, 0.03, 0.02), glow, 0, 0.09, 0.165));
+    face.rotation.y = k * Math.PI / 2;
+    g.add(face);
+  }
+  return g;
+}
+
+/** Gourds and marrows heaped round a sheaf of oats, with a carved turnip in front. */
+export function gourdPile(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.34, 0.9, 0.3), flat('#d8b050'), -0.2, 0.45, -0.15));
+  g.add(mesh(box(0.38, 0.08, 0.34), flat('#a0522d'), -0.2, 0.55, -0.15));
+  for (const [x, z, sz, c] of [[0.2, -0.1, 0.36, '#e8801e'], [0.3, 0.22, 0.26, '#c8a040'], [-0.3, 0.2, 0.3, '#5a7a3a'], [0.05, 0.25, 0.2, '#e8a030']] as const) {
+    g.add(mesh(box(sz, sz * 0.8, sz), flat(c), x, sz * 0.4, z));
+    g.add(mesh(box(0.05, 0.1, 0.05), flat('#4a6a2a'), x, sz * 0.8 + 0.05, z));
+  }
+  const t = carvedTurnip(); t.position.set(-0.05, 0, 0.32); t.scale.setScalar(0.8); g.add(t);
+  void M;
+  return g;
+}
+
+/** A straw man on a pole in an old coat, with a turnip for a head and a hat gone soft with rain. */
+export function scarecrow(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.1, 1.9, 0.1), M.darkWood, 0, 0.95, 0));
+  g.add(mesh(box(1.2, 0.08, 0.08), M.darkWood, 0, 1.45, 0));
+  g.add(mesh(box(0.46, 0.66, 0.26), flat('#5a4a3a'), 0, 1.25, 0));           // the coat
+  for (const sx of [-1, 1]) {
+    g.add(mesh(box(0.42, 0.18, 0.2), flat('#5a4a3a'), sx * 0.4, 1.45, 0));     // its sleeves
+    g.add(mesh(box(0.08, 0.16, 0.06), flat('#e8c860'), sx * 0.64, 1.42, 0));   // straw out of the cuffs
+  }
+  g.add(mesh(box(0.14, 0.14, 0.02), flat('#7a9a3a'), 0.1, 1.2, 0.135));       // a patch
+  g.add(mesh(box(0.1, 0.22, 0.06), flat('#e8c860'), 0, 0.84, 0));             // straw out of the hem
+  const head = carvedTurnip(); head.position.set(0, 1.58, 0); head.scale.setScalar(1.15); g.add(head);
+  g.add(mesh(box(0.62, 0.04, 0.6), flat('#3a3028'), 0, 2.02, 0));
+  const crown = mesh(box(0.32, 0.2, 0.32), flat('#3a3028'), 0.02, 2.13, 0); crown.rotation.z = 0.12; g.add(crown);
+  return g;
+}
+
 /** A straw beehive on its stand: a skep in coils, with its little door. */
 export function beehive(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
@@ -1229,6 +1278,9 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'hayrack': return hayRack(M);
     case 'hurdle': return hurdle(M);
     case 'bones': return bones(tint);
+    case 'turnip': return carvedTurnip();
+    case 'gourds': return gourdPile(M);
+    case 'scarecrow': return scarecrow(M);
     default: return null;
   }
 }

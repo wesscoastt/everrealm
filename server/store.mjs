@@ -92,6 +92,8 @@ export function storeInit({ loadAccount, storeAccount, log }) {
     },
     /** What an account owns, for the game to hand out. */
     owned(acc) { return acc.store?.owned ?? []; },
+    /** Every item the store sells: the owner's account (DEV_ACCOUNTS) has them all, without paying. */
+    everything() { return [...new Set(Object.values(CATALOG).flatMap((c) => c.items))]; },
     async checkout(user, sku) {
       if (!CATALOG[sku]) return { status: 400, body: { error: 'Nothing like that for sale.' } };
       if (!SKEY() || !RETURN()) return { status: 503, body: { error: 'The store isn\'t open yet.' } };
