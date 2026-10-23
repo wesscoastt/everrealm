@@ -17,4 +17,10 @@ const ITEMS: ItemDef[] = [
   mount('mount_store_gildgriffin', 'Gilded griffin', { coat: '#d8b050', mane: '#f8f4ec', cloth: '#2a3a6a', breed: 'griffin', glow: true }, 'A tower griffin in gold and white, from the oldest eyrie in Callis. Its eyes catch the light like the Assembly\'s seal.'),
 ];
 
+ITEMS.push({
+  id: 'pet_hen', name: 'Speckled hen', kind: 'collectible', rarity: 'rare', stack: false, value: 0, icon: { shape: 'bag', a: '#c8a070', b: '#d84a2a' }, pet: 'hen',
+  desc: 'A speckled hen who has decided you\'re hers. Where she came from, she won\'t say.',
+  stats: 'Use it to add her to your wardrobe for good: call her under Pet with Change look, on the character screen. Looks only.',
+});
+
 export const STORE_CONTENT: RegionContent = { id: 'store', items: ITEMS };

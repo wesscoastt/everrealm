@@ -800,12 +800,15 @@ export class CreatureModel {
 
   private buildChicken(): void {
     this.plateHeight = 0.6;
-    add(this.body, rb(0.28, 0.28, 0.36, 0.08), lam('#f4efe4'), 0, 0.3, 0);
-    add(this.body, rb(0.2, 0.2, 0.12, 0.05), lam('#f4efe4'), 0, 0.38, -0.2, -0.5);
+    // White farmyard birds; a pet hen (data/pets.ts) in her own colour, speckled with a second
+    const feather = this.pal.a ?? '#f4efe4';
+    add(this.body, rb(0.28, 0.28, 0.36, 0.08), lam(feather), 0, 0.3, 0);
+    add(this.body, rb(0.2, 0.2, 0.12, 0.05), lam(feather), 0, 0.38, -0.2, -0.5);
+    if (this.pal.c) for (const [x, y, z] of [[0.141, 0.34, 0.05], [-0.141, 0.3, -0.06], [0.141, 0.26, -0.1], [-0.141, 0.38, 0.08], [0.06, 0.445, -0.02], [-0.05, 0.445, 0.1]]) add(this.body, rb(0.05, 0.05, 0.05, 0.01), lam(this.pal.c), x, y, z);
     const head = new THREE.Group();
     head.position.set(0, 0.5, 0.14);
     this.body.add(head);
-    add(head, rb(0.16, 0.18, 0.16, 0.05), lam('#f4efe4'), 0, 0, 0);
+    add(head, rb(0.16, 0.18, 0.16, 0.05), lam(feather), 0, 0, 0);
     add(head, rb(0.06, 0.05, 0.08, 0.02), lam('#e8a030'), 0, -0.01, 0.11);
     add(head, rb(0.04, 0.08, 0.1, 0.02), lam('#d8362a'), 0, 0.12, 0.01);
     this.head = head;

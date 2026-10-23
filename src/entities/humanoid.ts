@@ -36,6 +36,8 @@ export interface Appearance {
   hatColor?: string;
   /** A costume worn over all of it (data/costumes.ts), or none. */
   costume?: string | null;
+  /** The pet at their heels (data/pets.ts), or none. Not drawn on the figure: game/Game.ts and net/Online.ts walk it beside them. */
+  pet?: string | null;
   /** Body shape: the broader-shouldered frame, or the narrower one with a fuller chest and hips. */
   frame?: 'm' | 'f';
   /** 0 none, 1 full beard, 2 stubble, 3 moustache, 4 goatee, 5 chinstrap, 6 long beard, 7 mutton chops, 8 forked beard. Old saves use `beard`. */

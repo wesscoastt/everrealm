@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { PETS } from '../data/pets';
+import { Companion } from '../entities/Companion';
 import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
 import { LAND, LAND_FORCED, setNextLand, type LandId } from '../world/land';
 import { CALLIS_PACKET } from '../world/morrow';
@@ -221,6 +223,14 @@ export class Game implements GameApi {
   /** Hidden chests across the land (game/Chests.ts). */
   private chests!: Chests;
   /** The towns' dogs and cats, spawned near the player (one list, so each keeps its place). */
+  /** Your pet, following you (data/pets.ts), if one is out. */
+  private companion: Companion | null = null;
+  /** Where feet stand at (x, z) near a height: the floor under a step's reach, for a pet at your heels. */
+  private footing(x: number, z: number, near: number): number | null {
+    const V = this.world.voxels, ix = Math.floor(x), iz = Math.floor(z);
+    for (let y = Math.floor(near) + 2; y > Math.floor(near) - 5; y--) if (isSolid(V.get(ix, y - 1, iz)) && !isSolid(V.get(ix, y, iz))) return y;
+    return null;
+  }
   /** Town pets, and farm stock (world/sites.ts Site.animals): put out as you come near, each keeping its own spot. */
   /** Whether the Leave dungeon button is up. */
   private leaveShown = false;
@@ -1738,7 +1748,8 @@ export class Game implements GameApi {
       const hats = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('hat:')).map((k) => k.slice(4));
       const capes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('capeD:')).map((k) => k.slice(6));
       const costumes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('costume:')).map((k) => k.slice(8));
-      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes, costumes };
+      const pets = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('petOwn:')).map((k) => k.slice(7));
+      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes, costumes, pets };
     };
     return {
       characters: () => listCharacters().map((c) => summary(c.id, c.save)),
@@ -2186,6 +2197,14 @@ export class Game implements GameApi {
     } else if (def.capeDesign) {
       this.inv.removeAt(i, 1);
       this.unlockCape(def.capeDesign);
+    } else if (def.pet) {
+      // A pet joins the wardrobe for good, and comes to heel at once if none is out
+      this.inv.removeAt(i, 1);
+      this.setFlag('petOwn:' + def.pet, 1);
+      if (!this.save.look.pet) { this.save.look.pet = def.pet; this.dress(); }
+      this.hud.banner(def.name, 'Your pet now', true);
+      this.hud.system(`${def.name} is yours now and follows you about. Change pets, or send her home, under Pet with Change look, on the character screen.`);
+      this.sfx('discover');
     } else if (def.costume) {
       // A costume joins the wardrobe for good
       this.inv.removeAt(i, 1);
@@ -4368,6 +4387,14 @@ export class Game implements GameApi {
     this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
+    // Your own pet at your heels (data/pets.ts), the one your look names
+    const petId = this.save.look.pet && PETS[this.save.look.pet] ? this.save.look.pet : null;
+    if ((this.companion?.pet ?? null) !== petId) {
+      if (this.companion) this.scene.remove(this.companion.model.root);
+      this.companion = petId ? new Companion(petId, P.position) : null;
+      if (this.companion) this.scene.add(this.companion.model.root);
+    }
+    this.companion?.update(dt, P.position, P.yaw, (x, z, near) => this.footing(x, z, near));
     // Town pets come and go with you, each keeping its own spot
     for (const pt of this.pets) {
       const d = Math.hypot(pt.x - this.player.position.x, pt.z - this.player.position.z);

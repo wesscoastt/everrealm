@@ -19,6 +19,9 @@ Cosmetics for real money, to pay for the realm. **Looks, never strength**: every
   | Lantern kilncat | US$9.99 |
   | Gilded griffin | US$14.99 |
   | Founder's pack: all three mounts and the Founder's cloak | US$24.99 |
+  | Speckled hen (a pet): claimed once per account | Free |
+
+  Free goods have a **Claim for free** button. `POST /api/store/claim` (signed in) grants them at once, once per account, with no payment page. Checkout refuses them.
 
 ## Why it's safe
 

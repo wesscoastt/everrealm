@@ -122,6 +122,11 @@ export async function storeCheckout(sku: string): Promise<{ url?: string; error?
   const r = await call('POST', '/api/store/checkout', { sku });
   return r.status === 200 ? { url: String(r.data.url) } : { error: String(r.data.error ?? 'The store couldn\'t be reached.') };
 }
+/** Claims a free item from the store for this account (once): true when it's the account's. */
+export async function storeClaim(sku: string): Promise<{ ok: boolean; again?: boolean; error?: string }> {
+  const r = await call('POST', '/api/store/claim', { sku });
+  return r.status === 200 ? { ok: true, again: !!r.data.again } : { ok: false, error: String(r.data.error ?? 'The store couldn\'t be reached.') };
+}
 /** The items this account owns from the store (the server's word, not this browser's). */
 export async function storeOwned(): Promise<string[] | null> {
   if (!currentAccount()) return null;

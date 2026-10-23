@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { PETS } from '../data/pets';
+import { Companion } from '../entities/Companion';
 
 /** What a chat line is: said aloud, an emote, to the group or guild, or a whisper (received, or sent). */
 export type ChatKind = 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo';
@@ -43,6 +45,8 @@ interface Remote {
   guild: string | null;
   /** Riding behind someone on a two-seat mount: that rider's id, or 0. */
   pillion: number;
+  /** Their pet at their heels (data/pets.ts), if one is out. */
+  pet: Companion | null;
 }
 
 interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
@@ -326,12 +330,24 @@ export class Online {
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
     const mount = p.mount && ITEMS[p.mount]?.mount ? p.mount : null;
-    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0 });
+    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0, pet: this.petFor(p.look, pos) });
     if (p.perf) this.hooks.perform?.(p.id, p.perf);
+  }
+
+  /** A pet for someone whose look names one. */
+  private petFor(look: Appearance, at: THREE.Vector3): Companion | null {
+    if (!look.pet || !PETS[look.pet]) return null;
+    const c = new Companion(look.pet, at);
+    this.hooks.scene.add(c.model.root);
+    return c;
   }
 
   private replaceModel(r: Remote, look: Appearance): void {
     const pos = r.model.root.position.clone();
+    if ((r.pet?.pet ?? null) !== (look.pet && PETS[look.pet] ? look.pet : null)) {
+      if (r.pet) this.hooks.scene.remove(r.pet.model.root);
+      r.pet = this.petFor(look, pos);
+    }
     this.hooks.scene.remove(r.model.root);
     r.model = new Humanoid(look);
     r.model.root.position.copy(pos);
@@ -343,6 +359,7 @@ export class Online {
     if (!r) return;
     this.hooks.scene.remove(r.model.root);
     if (r.horse) this.hooks.scene.remove(r.horse.root);
+    if (r.pet) this.hooks.scene.remove(r.pet.model.root);
     this.remotes.delete(id);
   }
 
@@ -405,6 +422,7 @@ export class Online {
       // Riding behind someone: in the second seat of their mount, wherever we see it
       const seat = r.pillion ? this.seatOf(r.pillion, r.id) : null;
       if (seat) { r.model.root.position.set(seat.x, seat.y + seat.lift, seat.z); r.model.root.rotation.y = seat.yaw; r.yaw = seat.yaw; r.anim = seat.pose; r.held = 'none'; }
+      r.pet?.update(dt, r.model.root.position, r.model.root.rotation.y);
       // Turn the short way round.
       let dy = r.yaw - r.model.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));

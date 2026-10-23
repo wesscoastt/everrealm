@@ -27,6 +27,7 @@ export const CATALOG = {
   starstag: { name: 'Starlit stag', price: 999, items: ['mount_store_starstag'], blurb: 'A stag the colour of the night sky, its antlers lit from within. Keeps the same pace as every other mount.' },
   lanterncat: { name: 'Lantern kilncat', price: 999, items: ['mount_store_lanterncat'], blurb: 'A kilncat whose stripes glow like coals in a lantern. Keeps the same pace as every other mount.' },
   gildgriffin: { name: 'Gilded griffin', price: 1499, items: ['mount_store_gildgriffin'], blurb: 'A tower griffin in gold and white, its eyes bright. Keeps the same pace as every other mount.' },
+  hen: { name: 'Speckled hen', price: 0, items: ['pet_hen'], blurb: 'A pet hen who has decided you\'re hers. She follows you everywhere, dungeons included, and is no help at all. Free, once per account.' },
   founders: { name: 'Founder\'s pack', price: 2499, items: ['mount_store_starstag', 'mount_store_lanterncat', 'mount_store_gildgriffin', 'cape_founder'], blurb: 'All three store mounts and the Founder\'s cloak, a lamp with its light round it, to say you were here early and helped keep the lights on.' },
 };
 
@@ -94,8 +95,19 @@ export function storeInit({ loadAccount, storeAccount, log }) {
     owned(acc) { return acc.store?.owned ?? []; },
     /** Every item the store sells: the owner's account (DEV_ACCOUNTS) has them all, without paying. */
     everything() { return [...new Set(Object.values(CATALOG).flatMap((c) => c.items))]; },
+    /** A free item: given at once, once per account, no payment page. */
+    claim(user, sku) {
+      const item = CATALOG[sku];
+      if (!item) return { status: 400, body: { error: 'Nothing like that in the store.' } };
+      if (item.price !== 0) return { status: 400, body: { error: 'That one isn\'t free.' } };
+      const acc = loadAccount(user);
+      if (acc?.store?.orders?.['free:' + sku]) return { status: 200, body: { ok: true, again: true } };
+      grant(user, sku, 'free:' + sku);
+      return { status: 200, body: { ok: true } };
+    },
     async checkout(user, sku) {
       if (!CATALOG[sku]) return { status: 400, body: { error: 'Nothing like that for sale.' } };
+      if (CATALOG[sku].price === 0) return { status: 400, body: { error: 'That one\'s free: claim it instead.' } };
       if (!SKEY() || !RETURN()) return { status: 503, body: { error: 'The store isn\'t open yet.' } };
       const url = await checkout(user, sku);
       return url ? { status: 200, body: { url } } : { status: 502, body: { error: 'The payment page couldn\'t be opened just now. Nothing was charged.' } };

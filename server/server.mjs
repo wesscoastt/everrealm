@@ -246,6 +246,12 @@ async function api(req, res) {
     const r = await store.checkout(acc.user, String(body?.sku ?? ''));
     return reply(res, r.status, r.body);
   }
+  if (req.method === 'POST' && url.pathname === '/api/store/claim') {
+    if (limited(ip)) return reply(res, 429, { error: 'Too many tries. Wait a minute.' });
+    const body = await readBody(req);
+    const r = store.claim(acc.user, String(body?.sku ?? ''));
+    return reply(res, r.status, r.body);
+  }
   if (req.method === 'GET' && url.pathname === '/api/store/owned') return reply(res, 200, { owned: DEV_ACCOUNTS.has(accKey(acc.user)) ? [...new Set([...store.owned(acc), ...store.everything()])] : store.owned(acc) });
   if (req.method === 'POST' && url.pathname === '/api/logout') {
     sessions.delete(hash(bearer(req)));

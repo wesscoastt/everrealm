@@ -1,4 +1,5 @@
 import type { Appearance } from '../entities/humanoid';
+import { PETS } from '../data/pets';
 import { COSTUMES } from '../data/costumes';
 import { ORIGINS, originById } from '../data/origins';
 import { CAPE_DESIGNS, type CapeDesign } from '../data/capes';
@@ -7,7 +8,7 @@ import { callingCard } from './callingCard';
 import { drawFace } from './skin';
 import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
-import { currentAccount, storeCatalog, storeCheckout, type StoreItem } from '../net/Account';
+import { currentAccount, storeCatalog, storeCheckout, storeClaim, type StoreItem } from '../net/Account';
 import { ITEMS } from '../data/items';
 
 // The screens around the game: character select (the main menu), the character creator, and the
@@ -37,6 +38,8 @@ export interface CharSummary {
   capes?: string[];
   /** Costumes this character has unlocked (data/costumes.ts). */
   costumes?: string[];
+  /** Pets this character has (data/pets.ts). */
+  pets?: string[];
 }
 
 export interface FrontCtx {
@@ -243,11 +246,24 @@ export class Frontend {
     if (this.homeTab !== 'store' || !box.isConnected) return;
     if (!cat) { box.innerHTML = '<p class="st-wait">The store lives on the online realm, and the realm isn\'t answering just now.</p>'; return; }
     const signed = !!currentAccount();
-    const card = (it: StoreItem) => `<div class="st-card"><div class="st-h"><b>${esc(it.name)}</b><span class="st-price">US$${(it.price / 100).toFixed(2)}</span></div>
+    const card = (it: StoreItem) => it.price === 0 ? `<div class="st-card st-free"><div class="st-h"><b>${esc(it.name)}</b><span class="st-price">Free</span></div>
+      <p>${esc(it.blurb)}</p>
+      <button class="btn" data-claim="${it.id}">${signed ? 'Claim for free' : 'Sign in to claim'}</button></div>` : `<div class="st-card"><div class="st-h"><b>${esc(it.name)}</b><span class="st-price">US${(it.price / 100).toFixed(2)}</span></div>
       <p>${esc(it.blurb)}</p>
       ${it.items.length > 1 ? `<ul>${it.items.map((id) => `<li>${esc(ITEMS[id]?.name ?? id)}</li>`).join('')}</ul>` : ''}
       <button class="btn" data-buy="${it.id}"${cat.open ? '' : ' disabled'}>${cat.open ? (signed ? 'Buy' : 'Sign in to buy') : 'Opening soon'}</button></div>`;
-    box.innerHTML = (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + cat.items.map(card).join('') + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
+    box.innerHTML = (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + [...cat.items].sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)).map(card).join('') + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
+    box.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((b) => b.addEventListener('click', async () => {
+      if (b.disabled) return;
+      this.ctx.sfx('click');
+      if (!currentAccount()) { this.showSelect(); return; }
+      b.disabled = true; b.textContent = 'Claiming…';
+      const r = await storeClaim(b.dataset.claim!);
+      if (r.ok) { b.textContent = r.again ? 'Already yours' : 'Claimed: she\'ll be waiting in your pack'; return; }
+      b.disabled = false; b.textContent = 'Claim for free';
+      const note = document.createElement('p'); note.className = 'st-err'; note.textContent = r.error ?? 'Something went wrong.';
+      b.after(note);
+    }));
     box.querySelectorAll<HTMLButtonElement>('[data-buy]').forEach((b) => b.addEventListener('click', async () => {
       if (b.disabled) return;
       this.ctx.sfx('click');
@@ -534,6 +550,7 @@ export class Frontend {
     const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${dyed(k).map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
     const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.editing?.hats?.includes(id as string))];
     const costumes: [string, string | null][] = [['None', null], ...Object.values(COSTUMES).filter((c) => this.editing?.costumes?.includes(c.id)).map((c): [string, string] => [c.name, c.id])];
+    const pets: [string, string | null][] = [['None', null], ...Object.values(PETS).filter((c) => this.editing?.pets?.includes(c.id)).map((c): [string, string] => [c.name, c.id])];
     // Cloak designs: plain, and whatever this character has collected
     const capes: [string, string | null][] = [['Plain', null], ...(Object.keys(CAPE_DESIGNS) as CapeDesign[]).filter((id) => this.editing?.capes?.includes(id)).map((id): [string, string] => [CAPE_DESIGNS[id].name.replace(/ cloak$/, ''), id])];
     const chips = (attr: string, items: [string, unknown][], cur: unknown) => `<div class="chips">${items.map(([t, v], i) => `<button class="chip ${cur === v ? 'sel' : ''}" data-${attr}="${i}">${t}</button>`).join('')}</div>`;
@@ -565,7 +582,7 @@ export class Frontend {
         ${L.legs === 1 || L.legs === 2 ? `<label>HOSE</label>${sw('hose', L.hose ?? null)}` : ''}
         <label>FOOTWEAR</label>${chips('shoes', SHOES.map((t, i) => [t, i]), L.shoes ?? 0)}${sw('boots', L.boots)}
         <label>GLOVES</label>${sw('gloves', L.gloves)}<label>BELT</label>${sw('belt', L.belt ?? '#3b2618')}
-${costumes.length > 1 ? `<label>COSTUME</label>${chips('cos', costumes, L.costume ?? null)}<p class="lead">Worn over your clothes and armour. Looks only.</p>` : ''}
+${pets.length > 1 ? `<label>PET</label>${chips('pet', pets, L.pet ?? null)}` : ''}${costumes.length > 1 ? `<label>COSTUME</label>${chips('cos', costumes, L.costume ?? null)}<p class="lead">Worn over your clothes and armour. Looks only.</p>` : ''}
         <label>HEADWEAR</label>${chips('hat', hats, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' && L.hat !== 'turnip' ? sw('hatColor', L.hatColor) : ''}`;
     }
     const changed = () => { this.ctx.sfx('click'); this.ctx.preview(this.look); this.renderPane(); };
@@ -595,6 +612,7 @@ ${costumes.length > 1 ? `<label>COSTUME</label>${chips('cos', costumes, L.costum
     }));
     pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = hats[Number(b.dataset.hat)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-cdes]').forEach((b) => b.addEventListener('click', () => { this.look.capeDesign = capes[Number(b.dataset.cdes)][1]; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-pet]').forEach((b) => b.addEventListener('click', () => { this.look.pet = pets[Number(b.dataset.pet)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-cos]').forEach((b) => b.addEventListener('click', () => { this.look.costume = costumes[Number(b.dataset.cos)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
