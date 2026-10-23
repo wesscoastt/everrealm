@@ -67,11 +67,11 @@ const HOME_PAGES: Record<HomeTab, string> = {
     <p>Step off the Charter Post in Hollin Ford with a few marks and a long road ahead. Fish the Wend, work the forge, take a house on the Ford road, and ride out to Ansbury, the coast and the high country beyond.</p>
     <p>When the world bosses rise, everyone nearby fights together. When the fair comes to town, everyone dances.</p>`,
   world: `<h2>The Charter Counties</h2>
-    <p>Six regions in one seamless world, from the green vale of Hollindale to the walled capital of Ansbury, the fishing harbours of the Fleet Coast, the dark trees of Hagworm Wood, the red mines of the Raddle Barrens and the snow of the Scarth Highlands.</p>
-    <ul><li>Dungeons, delves and caves to clear with friends</li><li>World bosses on a schedule the whole realm shares</li><li>Five festivals on the real calendar</li><li>Horses, Charter Posts and waymarks to get you there</li></ul>`,
-  callings: `<h2>Four callings</h2>
-    <ul><li><b>Warden.</b> Shield and steadiness. Soak the blow and hold the line.</li><li><b>Reaver.</b> Close-in fury. Bleed them, leap in, and live off the fight.</li><li><b>Kindler.</b> Fire from a distance. Build heat, then call down a star.</li><li><b>Pathfinder.</b> Arrows and quick feet. Mark your prey and step behind it.</li></ul>
-    <p>Change calling whenever you're out of a fight. Your skills, gear and progress come with you.</p>`,
+    <p>Ten regions in one seamless world, from the green vale of Hollindale to the walled capital of Ansbury, the fishing harbours of the Fleet Coast, the dark trees of Hagworm Wood, the red mines of the Raddle Barrens, the snow of the Scarth Highlands, the Gannet Cliffs, the drowned Wrath Levels, Tolmen Moor, and the island of Inkholm across the water.</p>
+    <ul><li>Dungeons, delves and caves to clear with friends</li><li>World bosses on a schedule the whole realm shares</li><li>Seven festivals on the real calendar</li><li>Horses, Charter Posts and waymarks to get you there</li></ul>`,
+  callings: `<h2>Five callings</h2>
+    <ul><li><b>Warden.</b> Shield and steadiness. Soak the blow and hold the line.</li><li><b>Reaver.</b> Close-in fury. Bleed them, leap in, and live off the fight.</li><li><b>Kindler.</b> Fire from a distance. Build heat, then call down a star.</li><li><b>Pathfinder.</b> Arrows and quick feet. Mark your prey and step behind it.</li><li><b>Wizard.</b> Frost and the old words. Chill them, freeze them, and crack them open.</li></ul>
+    <p>A calling is for life. Each has three talent trees, one for each way of playing it, and from level 25 a master of another calling will teach you one of their skills.</p>`,
   homes: `<h2>A place of your own</h2>
     <p>Buy Wendside Cottage, or lease a lot from the Charter and have the Ansbury builders raise a house to your plans: size, storeys, stone or timber, thatch or slate.</p>
     <ul><li>Furnish every room, or make the furniture yourself at the joiner's bench</li><li>Sleep in your own bed to wake well rested</li><li>Invite friends round to see what you've done with it</li></ul>`,
