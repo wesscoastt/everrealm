@@ -595,6 +595,7 @@ export function plan(): Plan {
 
   // Fields, orchards, ribbon houses, mills and churchyards round the towns
   buildAllOutskirts();
+  buildHarbourLights();
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
@@ -1032,6 +1033,71 @@ export function plan(): Plan {
     town('cragsby', 34, { roof: 'slate', wall: B.StoneBrick, stone: true, gallows: true });
     town('holme', 34, { fields: 3, mill: true });
     town('scarrow', 34, { fields: 2, orchards: 0, roof: 'slate', wall: B.StoneBrick, stone: true });
+  }
+
+  // ---------------------------------------------------------------- Harbour lights
+  /**
+   * A light for every harbour: on the nearest dry point near the town that has the most open water
+   * round it (a headland or the end of the shore), a banded tower of sixteen blocks with a glazed
+   * lantern room, a cap, a light that shows at night, and the keeper's woodpile. Fleet Light on the
+   * Fleet Coast is the big one (buildLighthouse); these are the ports' own.
+   */
+  function buildHarbourLights() {
+    const ports: [string, string, number, number][] = [];
+    for (const [id, name] of [['gullmouth', 'Gullmouth Light'], ['cragsby', 'Cragsby Light'], ['holme', 'Staithe Light'], ['ink-gillsby', 'Gillsby Light']] as const) {
+      const t = sites.find((x) => x.id === id);
+      if (t) ports.push([id, name, t.x, t.z]);
+    }
+    for (const [id, name, tx, tz] of ports) {
+      const near = sites.flatMap((t) => t.rects).filter((r) => r[2] > tx - 140 && r[0] < tx + 140 && r[3] > tz - 140 && r[1] < tz + 140);
+      let best: [number, number, number] | null = null;
+      for (let x = Math.floor(tx - 110); x <= tx + 110; x += 3) for (let z = Math.floor(tz - 110); z <= tz + 110; z += 3) {
+        const d = Math.hypot(x - tx, z - tz);
+        if (d < 30 || d > 110) continue;
+        const h = heightAt(x, z);
+        if (h <= SEA + 1 || h > SEA + 34) continue; // (a cliff top will do where the coast is all cliff)
+        let lo = Infinity, hi = -Infinity, ok = true;
+        for (let dx = -4; dx <= 4 && ok; dx += 2) for (let dz = -4; dz <= 4; dz += 2) { const g = heightAt(x + dx, z + dz); if (g <= SEA) { ok = false; break; } lo = Math.min(lo, g); hi = Math.max(hi, g); }
+        if (!ok || hi - lo > 3 || roadDist(x, z) < 6) continue;
+        if (near.some((r) => x - 6 <= r[2] && x + 6 >= r[0] && z - 6 <= r[3] && z + 6 >= r[1])) continue;
+        // Open water round it, out to twenty blocks
+        let wet = 0;
+        for (let a = 0; a < 16; a++) for (const rr of [10, 15, 20]) if (heightAt(Math.round(x + Math.cos((a / 8) * Math.PI) * rr), Math.round(z + Math.sin((a / 8) * Math.PI) * rr)) <= SEA) wet++;
+        const score = wet - d * 0.08 - (h - SEA) * 0.15;
+        if (wet >= 14 && (!best || score > best[2])) best = [x, z, score];
+      }
+      if (!best) continue;
+      const [cx, cz] = best;
+      const s: Site = { id: 'light-' + id, name, region: regionAt(cx, cz).a, x: cx, z: cz, r: 160, named: false, props: [], rects: [], impostor: [] };
+      sites.push(s);
+      harbourLight(s, cx, cz, Math.floor(heightAt(cx, cz)) + 1, Math.atan2(tx - cx, tz - cz));
+    }
+  }
+
+  function harbourLight(s: Site, cx: number, cz: number, base: number, toTown: number) {
+    const H = 16;
+    for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) clearUp(cx + dx, cz + dz, base, base + H + 8);
+    for (let y = base - 4; y < base + H + 3; y++) for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+      const d = Math.hypot(dx, dz);
+      const r = y < base + H ? 3.1 - (y - base) * 0.03 : 2.4;
+      if (d > r) continue;
+      const shell = d > r - 1.1;
+      if (!shell && y >= base) { O.set(cx + dx, y, cz + dz, y === base + H ? B.Planks : B.Air); continue; }
+      let id: number = Math.floor((y - base) / 3) % 2 === 0 ? B.Plaster : B.Clay;
+      if (y < base + 2) id = B.StoneBrick;
+      if (y >= base + H + 1) id = (dx + dz) % 2 === 0 ? B.Window : B.Timber;
+      O.set(cx + dx, y, cz + dz, id);
+    }
+    // A stair winding up inside, and the door toward the town
+    for (let y = base; y < base + H; y++) { const a = (y - base) * 0.8; O.set(cx + Math.round(Math.cos(a) * 1.3), y, cz + Math.round(Math.sin(a) * 1.3), B.Planks); }
+    const ddx = Math.round(Math.sin(toTown) * 3), ddz = Math.round(Math.cos(toTown) * 3);
+    O.set(cx + ddx, base, cz + ddz, B.Air); O.set(cx + ddx, base + 1, cz + ddz, B.Air);
+    s.props.push({ t: 'cone', x: cx + 0.5, y: base + H + 3, z: cz + 0.5, r: 3, h: 3.2, mat: 'red' });
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + H + 1.8, z: cz + 0.5, r: 5, color: '#ffe0a0' });
+    // The keeper's woodpile and a bench by the door
+    s.props.push({ t: 'bench', x: cx + 0.5 + Math.sin(toTown) * 5 + Math.cos(toTown) * 2, y: heightAt(Math.floor(cx + Math.sin(toTown) * 5), Math.floor(cz + Math.cos(toTown) * 5)), z: cz + 0.5 + Math.cos(toTown) * 5 - Math.sin(toTown) * 2, ry: toTown + Math.PI });
+    s.impostor.push({ x: cx + 0.5, y: base + H / 2, z: cz + 0.5, w: 6, h: H + 3, d: 6, color: '#e8dcc8' }, { x: cx + 0.5, y: base + H + 4, z: cz + 0.5, w: 6, h: 3, d: 6, color: '#a8382c', cone: true });
+    rect(s, cx - 6, cz - 6, cx + 6, cz + 6);
   }
 
   /** Stone arch over a gate gap in a wall: a lintel course at the top of the wall with crenels. */

@@ -511,9 +511,13 @@ Every troubled region has a gang, and every gang worth the name has a fort well 
 
 ## Outskirts and churchyards [in game]
 
-No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cotter's End, the Waystation, Kelderby, Cragsby, Holme Staithe and Scarrow Tor the land is worked: cottages strung along the roads out of town, strip fields with a headland path every few rows (walled in dry stone in the highlands), orchards, market gardens, haystacks and woodpiles. Ansbury, Gullmouth, Cotter's End and Holme Staithe have a tower mill on the highest dry ground near them; Ansbury, Gullmouth and Cragsby a gallows on a rise by the road.  (buildOutskirts).
+No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cotter's End, the Waystation, Kelderby, Cragsby, Holme Staithe and Scarrow Tor the land is worked: cottages strung along the roads out of town, strip fields with a headland path every few rows (walled in dry stone in the highlands), orchards, market gardens, haystacks and woodpiles. Ansbury, Gullmouth, Cotter's End and Holme Staithe have a tower mill on the highest dry ground near them; Ansbury, Gullmouth and Cragsby a gallows on a rise by the road. `world/sites.ts` (buildOutskirts).
 
 - **Churchyards.** Every town but the Waystation and Scarrow Tor buries its dead outside the houses, near a road: a dry-stone wall with a lychgate, a small stone chapel at the far end (an altar with candles, benches either side of the aisle), and rows of graves facing the gate: round-topped headstones, crosses, slates, a chest tomb or two, and the oldest slabs leaning. Yews in the corners. The sign at the gate names it: Ansbury Churchyard, Kelderby Churchyard and so on.
+
+## Harbour lights [in game]
+
+Besides Fleet Light on the Fleet Coast, every harbour keeps a light of its own on the nearest headland: **Gullmouth Light**, **Staithe Light** (Holme Staithe) and **Gillsby Light** (Inkholm). Each is a banded tower of red and white with a glazed lantern room that shows at night. Cragsby, for all its cliffs, is inland and has none. `world/sites.ts` (buildHarbourLights).
 
 ## The festival year [in game]
 
