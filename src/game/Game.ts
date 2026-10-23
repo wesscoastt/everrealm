@@ -40,7 +40,8 @@ import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
 import { Particles } from '../systems/Particles';
-import { CreatureModel, type CreatureKind } from '../entities/creatures';
+import { CreatureModel, mountModel, type CreatureKind } from '../entities/creatures';
+import { riderLift, riderPose, spareSeats, type SeatPose } from '../entities/seats';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
@@ -363,8 +364,12 @@ export class Game implements GameApi {
   private weatherT = 0;
   /** The horse under the player, while riding. */
   private horse: CreatureModel | null = null;
-  /** Riding behind someone in your group on their two-seat mount: their id on the realm, or null. */
+  /** Riding with someone in your group, behind their saddle or in their wagon: their id on the realm, or null. */
   private pillion: number | null = null;
+  /** How a passenger sits: astride behind a saddle, or on a wagon's bench. */
+  private pillionPose: SeatPose = 'ride';
+  /** A wagon left standing where you got down from it: its bed opens beside it, and G drives it on. */
+  private parked: { id: string; model: CreatureModel } | null = null;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
   private cine: { view: [number, number, number, number, number, number]; t: number; then: () => void } | null = null;
   animals: Animal[] = [];
@@ -789,8 +794,8 @@ export class Game implements GameApi {
     this.online = new Online({
       scene: this.scene,
       mySeat: () => {
-        const m = this.horse ? ITEMS[this.flag('mount') as string]?.mount : undefined;
-        return this.horse && m?.seats === 2 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y } : null;
+        const id = this.flag('mount') as string;
+        return this.horse && spareSeats(ITEMS[id]?.mount) > 0 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y, mount: id } : null;
       },
       system: (t) => this.hud.system(t),
       qStatus: (d, n) => this.dungeons.onQueue(d, n),
@@ -2401,13 +2406,25 @@ export class Game implements GameApi {
       const score = dist + ang * 1.2;
       if (score < bestScore) { bestScore = score; best = c; }
     };
-    // Someone in your group on a two-seat mount, with the seat behind them free
+    // Someone in your group on a mount with a seat free: behind the saddle, or in the back of the wagon
     if (!this.horse && this.pillion === null && this.social.group) {
       for (const r of this.online.remotes.values()) {
-        if (!r.mount || ITEMS[r.mount]?.mount?.seats !== 2 || !this.social.group.members.some((m) => m.id === r.id)) continue;
-        if ([...this.online.remotes.values()].some((o) => o.pillion === r.id)) continue;
-        const at = r.model.root.position, d = Math.hypot(at.x - p.x, at.z - p.z);
-        if (d < 3) consider({ kind: 'act', label: `Ride behind ${r.name}`, pos: at.clone(), act: () => this.takePillion(r.id, r.name) }, d);
+        const rm = r.mount ? ITEMS[r.mount]?.mount : undefined;
+        if (!rm || !spareSeats(rm) || !this.social.group.members.some((m) => m.id === r.id)) continue;
+        if (this.online.passengers(r.id).length >= spareSeats(rm)) continue;
+        const at = r.model.root.position, back = rm.wagon ? 1.3 : 0;
+        const d = Math.hypot(at.x - Math.sin(r.model.root.rotation.y) * back - p.x, at.z - Math.cos(r.model.root.rotation.y) * back - p.z);
+        if (d < (rm.wagon ? 3.2 : 3)) consider({ kind: 'act', label: rm.wagon ? `Climb into ${r.name}'s wagon` : `Ride behind ${r.name}`, pos: at.clone(), act: () => this.takePillion(r.id, r.name) }, d);
+      }
+    }
+    // Your own wagon, standing where you left it: its bed to load, its box to climb back onto
+    if (this.parked && !this.horse) {
+      const pk = this.parked, at = pk.model.root.position, yaw = pk.model.root.rotation.y;
+      const bx = at.x - Math.sin(yaw) * 1.3, bz = at.z - Math.cos(yaw) * 1.3, d = Math.hypot(bx - p.x, bz - p.z);
+      if (d < 3.4) {
+        const def = ITEMS[pk.id];
+        consider({ kind: 'act', label: `Open the ${def.name.toLowerCase()}'s bed`, pos: new THREE.Vector3(bx, at.y + 1.2, bz), act: () => this.openWagonBed() }, d);
+        consider({ kind: 'act', label: `Drive the ${def.name.toLowerCase()}`, pos: new THREE.Vector3(at.x, at.y + 1.4, at.z), act: () => this.toggleMount(pk.id) }, d + 0.5);
       }
     }
     for (const n of this.npcs) {
@@ -2940,7 +2957,9 @@ export class Game implements GameApi {
   private toggleMount(which?: string): void {
     if (this.pillion !== null) { this.leavePillion(); return; }
     if (this.horse && !which) { this.dismount(); return; }
-    const id = which ?? this.halters()[0];
+    // Near your parked wagon, G drives it on
+    const pk = this.parked, nearWagon = pk && pk.model.root.position.distanceTo(this.player.position) < 9 ? pk.id : undefined;
+    const id = which ?? nearWagon ?? this.halters()[0];
     if (!id) { this.hud.system('You have no horse. The stables outside Ansbury, Gullmouth and Harrowgate Works sell them, and so does Cai Morgan in Kelderby. The far towns over the necks breed rarer ones.'); return; }
     const P = this.player;
     if (this.dialogue || this.dead || this.mode !== 'play') return;
@@ -2950,12 +2969,24 @@ export class Game implements GameApi {
     this.dismount(true);
     this.cancelActions();
     const m = ITEMS[id].mount!;
-    const horse = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 });
-    P.footPosition(horse.root.position);
-    horse.root.rotation.y = P.facing;
-    this.scene.add(horse.root);
+    let horse: CreatureModel;
+    if (this.parked?.id === id && this.parked.model.root.position.distanceTo(P.position) < 9) {
+      // Back up onto the box of the wagon where it stands
+      horse = this.parked.model;
+      this.parked = null;
+      const at = horse.root.position;
+      P.teleport(at.x, at.y, at.z);
+      P.yaw = horse.root.rotation.y;
+    } else {
+      // A wagon called from somewhere else comes round with its bed as you left it
+      if (this.parked?.id === id) { this.scene.remove(this.parked.model.root); this.parked = null; }
+      horse = mountModel(m);
+      P.footPosition(horse.root.position);
+      horse.root.rotation.y = P.facing;
+      this.scene.add(horse.root);
+    }
     this.horse = horse;
-    P.seat = 1.08;
+    P.seat = riderLift(m);
     this.setFlag('mount', id);
     this.particles.dust(P.position, 14);
     this.sfx('whistle', 0.6);
@@ -2964,6 +2995,20 @@ export class Game implements GameApi {
 
   private dismount(quiet = false): void {
     if (!this.horse) return;
+    const id = this.flag('mount') as string;
+    if (ITEMS[id]?.mount?.wagon) {
+      // A wagon stays where you leave it; you step down beside the box
+      if (this.parked) this.scene.remove(this.parked.model.root);
+      this.parked = { id, model: this.horse };
+      this.horse.setAnim('idle');
+      this.horse = null;
+      this.player.seat = 0;
+      const P = this.player.position, yaw = this.parked.model.root.rotation.y;
+      const x = P.x - Math.cos(yaw) * 1.3, z = P.z + Math.sin(yaw) * 1.3;
+      this.player.teleport(x, this.world.voxels.groundBelow(x, P.y + 2.5, z), z);
+      if (!quiet) { this.sfx('snort', 0.5); this.hud.system('The wagon stands where you left it. Load its bed beside it; G drives it on.'); }
+      return;
+    }
     this.scene.remove(this.horse.root);
     this.horse = null;
     this.player.seat = 0;
@@ -2976,7 +3021,6 @@ export class Game implements GameApi {
     this.dismount(true);
     this.cancelActions();
     this.pillion = id;
-    this.player.seat = 1.08;
     this.hud.system(`You climb up behind ${name}. Jump, or press G, to get down.`);
     this.sfx('pickup', 0.5);
   }
@@ -2990,6 +3034,19 @@ export class Game implements GameApi {
     const x = P.x + side.x, z = P.z + side.z;
     this.player.teleport(x, this.world.voxels.groundBelow(x, P.y + 2.5, z), z);
     this.particles.dust(this.player.position, 8);
+  }
+
+  /** Your parked wagon's bed: goods kept in it stay with that wagon, wherever it stands. */
+  private openWagonBed(): void {
+    const pk = this.parked;
+    if (!pk) return;
+    const def = ITEMS[pk.id], at = pk.model.root.position, yaw = pk.model.root.rotation.y, key = `wagon:${pk.id}`;
+    this.hud.closeAll();
+    void this.bank.show(def.name, at.x - Math.sin(yaw) * 1.3, at.z - Math.cos(yaw) * 1.3, {
+      title: `${def.name}: the bed`, kinds: def.mount!.wagon!.bed, note: 'What you load stays with this wagon, wherever you leave it.',
+      load: () => ({ ...((this.flag(key) as Record<string, number> | undefined) ?? {}) }),
+      save: (items) => this.setFlag(key, items),
+    });
   }
 
   /** Headroom for a rider: nothing solid over the saddle. */
@@ -3649,6 +3706,7 @@ export class Game implements GameApi {
     if (paid !== this.letPaid) { this.letPaid = paid; if (!this.home.visiting) this.home.render(); if (!paid && readTenancy(this.flag('flat'))) this.hud.system('The rent on your room has run out. Your things are safe; pay at the door to get back in.'); }
     this.planner.update();
     this.bank.update();
+    if (this.parked && this.parked.model.root.position.distanceTo(this.player.position) < 90) this.parked.model.update(dt, 0);
     // The house on the lots: a host's while you visit them, otherwise your own
     if (!this.home.visiting) this.visitPlot = null;
     this.building.show(this.home.visiting ? this.visitPlot : readPlot(this.flag('plot')));
@@ -3918,8 +3976,10 @@ export class Game implements GameApi {
 
     const mv = this.dialogue || this.attack?.kind === 'cleave' ? new THREE.Vector3() : this.moveVector();
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
-    let speed = this.horse ? 9.6 : 5.4;
-    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
+    // A wagon rolls a little slower than a horse alone
+    const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
+    let speed = this.horse ? 9.6 * haul : 5.4;
+    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1) { speed = this.horse ? 13 * haul : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind));
     if (this.attack) speed *= 0.35;
     if (this.dev.fast) speed *= 2.5;
@@ -3941,6 +4001,8 @@ export class Game implements GameApi {
     const seat = this.pillion !== null ? this.online.seatOf(this.pillion) : null;
     if (this.pillion !== null && (!seat || jump || this.dead)) this.leavePillion();
     if (this.pillion !== null && seat) {
+      P.seat = seat.lift;
+      this.pillionPose = seat.pose;
       P.position.set(seat.x, seat.y, seat.z);
       P.velocity.set(0, 0, 0);
       P.yaw = seat.yaw;
@@ -4051,7 +4113,7 @@ export class Game implements GameApi {
       const st = this.craftAction.station;
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
-    } else if (this.horse || this.pillion !== null) { M.setState('ride'); held = 'none'; }
+    } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
     else if (!P.onGround && !P.swimming) M.setState('jump');

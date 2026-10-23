@@ -744,6 +744,7 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #bankpanel .bk-all { margin-top: 8px; }
 #bankpanel .bk-marks { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 #bankpanel .bk-marks b { color: var(--gold); }
+#bankpanel .bk-marks[hidden] { display: none; }
 #bankpanel .bk-mb { display: flex; gap: 4px; }
 @media (max-width: 600px) { #bankpanel .bk-cols { grid-template-columns: 1fr; } }
 

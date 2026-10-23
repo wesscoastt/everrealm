@@ -152,6 +152,15 @@ function paint(spec: IconSpec): string {
       px(14, 24, 4, 6, outline); px(15, 25, 2, 5, b ?? a);
       break;
     }
+    case 'wheel': {
+      // A cartwheel: an iron tyre on a painted rim, spokes to the hub
+      x.strokeStyle = outline; x.lineWidth = 6; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 3; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.stroke();
+      x.strokeStyle = b ?? a; x.lineWidth = 2;
+      for (let i = 0; i < 4; i++) { const t = (i * Math.PI) / 4; x.beginPath(); x.moveTo(16 - Math.cos(t) * 10, 16 - Math.sin(t) * 10); x.lineTo(16 + Math.cos(t) * 10, 16 + Math.sin(t) * 10); x.stroke(); }
+      px(13, 13, 6, 6, outline); px(14, 14, 4, 4, '#8a8a8c');
+      break;
+    }
     case 'whistle': {
       diag(7, 24, 14, 5, outline); diag(8, 23, 13, 3, a);
       px(13, 16, 3, 3, outline);

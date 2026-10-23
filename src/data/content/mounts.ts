@@ -73,6 +73,7 @@ export const MOUNT_CONTENT: RegionContent = {
     cass_moran: mountShop('cass_moran', 'Tenwells drake pens', [
       { item: 'mount_drake_sun', price: 14000, when: (g) => g.stage('tenReavers') === 'done' },
       { item: 'mount_drake_storm', price: 19000, when: (g) => rep(g, 'glassflats', REVERED) },
+      { item: 'wagon_caravan', price: 12000, when: (g) => g.stage('tenReavers') === 'done' },
       { item: 'caravan_dates', price: 46 },
     ], 'Cass'),
     pol_vidal: mountShop('pol_vidal', 'Liftwick slabbacks', [

@@ -6,7 +6,8 @@ import { setRealmTime } from '../world/clock';
 import { LAND } from '../world/land';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
-import { CreatureModel } from '../entities/creatures';
+import { CreatureModel, mountModel } from '../entities/creatures';
+import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { ITEMS } from '../data/items';
 import { currentAccount } from './Account';
 import type { Performance } from '../game/Bard';
@@ -45,10 +46,8 @@ interface Remote {
 
 interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
 
-/** How far behind the saddle a second rider sits, along the horse. */
-const PILLION_BACK = 0.55;
-
-const SEAT = 1.08;
+/** How high a rider sits on someone's mount, by its halter's id. */
+const liftOf = (mount: string | null) => riderLift(mount ? ITEMS[mount]?.mount : null);
 
 const TOKENS_KEY = 'everrealm.netTokens';
 const SEND_MS = 120;
@@ -160,7 +159,8 @@ export interface OnlineHooks {
   dEv?(from: number, k: 'hit' | 'kill', i: number, dmg: number): void;
   dLeft?(name: string): void;
   /** Our own mount's saddle, for drawing whoever rides behind us. */
-  mySeat?(): { x: number; y: number; z: number; yaw: number } | null;
+  /** The mount we're on (where it stands, its halter), or null. */
+  mySeat?(): { x: number; y: number; z: number; yaw: number; mount: string } | null;
   /** The realm's answer to a named piece dropping: its number, or none left (gone) / asked too soon. */
   uGrant?(id: string, ok: boolean, n: number, cap: number, first: string, gone: boolean): void;
   /** Every named piece: how many the realm holds, and who has found the ones given out. */
@@ -254,7 +254,7 @@ export class Online {
           const r = this.remotes.get(id);
           if (!r) continue;
           r.from.copy(r.model.root.position);
-          if (r.horse) r.from.y -= SEAT;
+          if (r.horse) r.from.y -= liftOf(r.horseOf);
           r.mount = typeof mount === 'string' && ITEMS[mount]?.mount ? mount : null;
           r.to.set(x, y, z);
           r.t = 0;
@@ -348,17 +348,32 @@ export class Online {
   }
 
   /** Called every frame while playing: send our state, move everyone else. */
-  /** The second seat on a rider's mount: where it is and which way it faces (null if they aren't on a two-seat mount here). */
-  seatOf(riderId: number): { x: number; y: number; z: number; yaw: number } | null {
-    if (riderId === this.myId) { const s = this.hooks.mySeat?.(); return s ? this.behind(s.x, s.y, s.z, s.yaw) : null; }
-    const r = this.remotes.get(riderId);
-    if (!r?.horse || !r.mount || ITEMS[r.mount]?.mount?.seats !== 2) return null;
-    const h = r.horse.root;
-    return this.behind(h.position.x, h.position.y, h.position.z, h.rotation.y);
+  /**
+   * Passenger `who`'s seat on a rider's mount (null if there's no seat for them here). Passengers take
+   * the seats in the order of their ids, so every game puts each of them in the same place.
+   */
+  seatOf(riderId: number, who = this.myId): Seat | null {
+    let at: { x: number; y: number; z: number; yaw: number }, mount: string;
+    if (riderId === this.myId) { const s = this.hooks.mySeat?.(); if (!s) return null; at = s; mount = s.mount; }
+    else {
+      const r = this.remotes.get(riderId);
+      if (!r?.horse || !r.mount) return null;
+      const h = r.horse.root;
+      at = { x: h.position.x, y: h.position.y, z: h.position.z, yaw: h.rotation.y };
+      mount = r.mount;
+    }
+    return passengerSeat(ITEMS[mount]?.mount, this.passengers(riderId).indexOf(who), at.x, at.y, at.z, at.yaw);
   }
-  private behind(x: number, y: number, z: number, yaw: number) { return { x: x - Math.sin(yaw) * PILLION_BACK, y, z: z - Math.cos(yaw) * PILLION_BACK, yaw }; }
+  /** Everyone riding with a rider, by id. */
+  passengers(riderId: number): number[] {
+    const ids = [...this.remotes.values()].filter((o) => o.pillion === riderId).map((o) => o.id);
+    if (this.myPillion === riderId) ids.push(this.myId);
+    return ids.sort((a, b) => a - b);
+  }
+  private myPillion: number | null = null;
 
   update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem | string; mount?: string | null; pillion?: number | null }): void {
+    this.myPillion = me.pillion ?? null;
     if (this.status !== 'online' || !this.ws) return;
     this.sendT -= dt * 1000;
     if (this.sendT <= 0) {
@@ -372,7 +387,7 @@ export class Online {
       if (r.mount !== r.horseOf) {
         if (r.horse) this.hooks.scene.remove(r.horse.root);
         const m = r.mount ? ITEMS[r.mount].mount! : null;
-        r.horse = m ? new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 }) : null;
+        r.horse = m ? mountModel(m) : null;
         if (r.horse) this.hooks.scene.add(r.horse.root);
         r.horseOf = r.mount;
       }
@@ -382,11 +397,11 @@ export class Online {
         const sp = r.t < 1 ? r.speed : 0;
         r.horse.setAnim(sp > 10.5 ? 'run' : sp > 0.4 ? 'walk' : 'idle');
         r.horse.update(dt, sp);
-        r.model.root.position.y += SEAT;
+        r.model.root.position.y += liftOf(r.mount);
       }
       // Riding behind someone: in the second seat of their mount, wherever we see it
-      const seat = r.pillion ? this.seatOf(r.pillion) : null;
-      if (seat) { r.model.root.position.set(seat.x, seat.y + SEAT, seat.z); r.model.root.rotation.y = seat.yaw; r.yaw = seat.yaw; r.anim = 'ride'; r.held = 'none'; }
+      const seat = r.pillion ? this.seatOf(r.pillion, r.id) : null;
+      if (seat) { r.model.root.position.set(seat.x, seat.y + seat.lift, seat.z); r.model.root.rotation.y = seat.yaw; r.yaw = seat.yaw; r.anim = seat.pose; r.held = 'none'; }
       // Turn the short way round.
       let dy = r.yaw - r.model.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));

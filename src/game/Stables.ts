@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ITEMS } from '../data/items';
 import { PADDOCK_SPOTS, stableAt, STABLES, type StableDef } from '../data/stables';
-import { CreatureModel } from '../entities/creatures';
+import { mountModel, type CreatureModel } from '../entities/creatures';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
 // The horses for sale, standing in each stable's paddock (data/stables.ts) while you're near: you
@@ -37,7 +37,7 @@ export class Stables {
       if (!m) return;
       const [u, v] = PADDOCK_SPOTS[i % PADDOCK_SPOTS.length];
       const [x, z] = stableAt(st, u, v);
-      const model = new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 });
+      const model = mountModel(m);
       model.root.position.set(x + 0.5, this.voxels.groundBelow(x + 0.5, 140, z + 0.5), z + 0.5);
       const yaw = Math.random() * Math.PI * 2;
       model.root.rotation.y = yaw;

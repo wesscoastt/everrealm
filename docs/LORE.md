@@ -594,6 +594,11 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 - **The Laurel.** A wreath of bay, the old sign for someone who went back down a second time and did it the hard way: the first veteran clear of any group dungeon.
 - **Revered standing** with a region earns its own sign: Hollindale's mill wheel, the Turnpike's toll-key, Hagworm's oak leaf, the Fleet Coast's three waves, the Harrowgate Company's anvil, the Scarth peak, the gannet of the cliff villages, the reeds of the Wrath Levels, Tolmen's three stones and the Inkholm cap.
 
+## Wagons [in game]
+
+- **Wagons** (`src/data/content/wagons.ts`): carriers, drovers and caravan masters drive their own wagons where the Charter's carts don't go. A wagon is bought like a horse and called like one; the driver sits on the box, friends ride on the benches in the back, and the bed carries goods. Left standing, it waits where it was left, which is how a miner works a seam all day and drives the lot home at dusk.
+- **The Carrier's cart** (Ansbury Stables): open, a bench across the back, the carriers' cart between the market towns. **The Drover's wagon** (Company Stables, Harrowgate): a canvas tilt over five bows and a company shire in the shafts; drovers live in them from spring to Goose Fair. **The Tenwells caravan** (Cass Moran, Tenwells, once the reavers are dealt with): a dune-dyed tilt and a slabback that has never hurried; the trains between the wells carry a season's water in them.
+
 ## Morrow, the second continent
 
 The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, Kingsbarrow, the Brethren, ships and the later chapters) is still planned in docs/MORROW.md.

@@ -10,7 +10,9 @@ import { shade, Vox, VOX_MAT, type Paint } from './vox';
 
 type V3 = [number, number, number];
 export interface VoxMountHost { body: THREE.Group; legs: THREE.Object3D[]; segs: THREE.Object3D[] }
-export interface VoxMountPal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string; pillion?: boolean }
+export interface VoxMountPal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string; pillion?: boolean; /** In the shafts of a wagon: a harness, not a saddle. */ harness?: boolean }
+/** A wagon behind the animal: an open cart or a wagon with a canvas tilt; paint for the boards and wheels. */
+export interface WagonLook { kind: 'cart' | 'covered'; paint?: string; canvas?: string }
 
 const S = 1 / 16;
 const geoms = new Map<string, THREE.BufferGeometry | null>();
@@ -94,8 +96,15 @@ function ring(v: Vox, a: V3, b: V3, r: number, t0: number, w: number, paint: Pai
  * The saddle: a cloth over the back, its border woven in gold; a dished seat with the cantle rising
  * behind and the pommel in front, stirrups hanging either side. `within` keeps the cloth to the back.
  */
-function saddle(v: Vox, y: number, z: number, cloth: string, within: (x: number, y: number, z: number) => boolean, half = 0.42, pillion = false) {
-  const trim = '#d8b050', leather = '#7a4a28', dark = '#4a2a16';
+function saddle(v: Vox, y: number, z: number, cloth: string, within: (x: number, y: number, z: number) => boolean, half = 0.42, P: VoxMountPal = {}) {
+  const trim = '#d8b050', leather = '#7a4a28', dark = '#4a2a16', pillion = !!P.pillion;
+  if (P.harness) {
+    // In harness: a padded back-band with its girth, brass rings on top for the reins to run through
+    v.fill([-half - 0.12, y - 0.8, z - 0.1], [half + 0.12, y + 0.04, z + 0.1], (px, py, pz) => within(px, py, pz) && Math.abs(pz - z) < 0.08, (_x, _y, _z, n) => shade(dark, 0.9 + n * 0.12));
+    v.box([-0.18, y - 0.02, z - 0.14], [0.18, y + 0.08, z + 0.14], (_x, _y, _z, n) => shade(cloth, 0.9 + n * 0.1));
+    for (const sd of [1, -1]) v.box([sd * 0.12 - 0.04, y + 0.08, z - 0.04], [sd * 0.12 + 0.04, y + 0.16, z + 0.04], flat('#c8a050'));
+    return;
+  }
   const drape = (z0: number, z1: number) => v.fill([-half - 0.1, y - 0.46, z0], [half + 0.1, y + 0.04, z1], (px, py, pz) => within(px, py, pz) && py > y - 0.46,
     (_x, py, pz, n) => (py < y - 0.39 || Math.abs(pz - (z0 + z1) / 2) > (z1 - z0) / 2 - 0.07 ? shade(trim, 0.9 + n * 0.15) : shade(cloth, 0.88 + n * 0.12)));
   drape(z - 0.36, z + 0.36);
@@ -151,9 +160,9 @@ function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): { hea
       }
       if (kelpie) for (let i = 0; i < 5; i++) v.capsule([0.12, 1.98 + i * 0.1, 0.74 + i * 0.08], [0.2, 1.62 + i * 0.08, 0.8 + i * 0.08], 0.05, 0.045, flat('#2e5a3a', 0.25));
     }
-    saddle(v, 1.84, 0.04, c, inBarrel, 0.38, P.pillion);
+    saddle(v, 1.84, 0.04, c, inBarrel, 0.38, P);
     // Reins from the bit back to the pommel
-    for (const sd of [1, -1]) { v.capsule([sd * 0.15, 2.02, 1.66], [sd * 0.18, 1.86, 1.12], 0.045, 0.045, flat(leather)); v.capsule([sd * 0.18, 1.86, 1.12], [sd * 0.12, 2.0, 0.42], 0.045, 0.045, flat(leather)); }
+    for (const sd of [1, -1]) { v.capsule([sd * 0.15, 2.02, 1.66], [sd * 0.18, 1.86, 1.12], 0.045, 0.045, flat(leather)); if (!P.harness) v.capsule([sd * 0.18, 1.86, 1.12], [sd * 0.12, 2.0, 0.42], 0.045, 0.045, flat(leather)); }
     if (pack) {
       // A canvas pannier either side, a bedroll behind the saddle, a kettle and a pan
       for (const sd of [1, -1]) {
@@ -259,7 +268,7 @@ function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): { hea
 
 export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal): { head: THREE.Group; tail: THREE.Group } {
   const a = P.a ?? '#8a5a2e', b = P.b ?? '#2a1e16', c = P.c ?? '#2e4a7a', glow = !!P.glow;
-  const k = new Kit([breed, a, b, c, glow ? 1 : 0, P.pillion ? 1 : 0].join('|'));
+  const k = new Kit([breed, a, b, c, glow ? 1 : 0, P.pillion ? 1 : 0, P.harness ? 1 : 0].join('|'));
   const B = host.body;
   const leg = (at: V3, build: (v: Vox) => void) => { host.legs.push(k.part(B, at, build)); };
   let head: THREE.Group, tail: THREE.Group;
@@ -277,7 +286,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.ellipsoid([0, 1.3, 0.6], [0.47, 0.5, 0.42], bodyP);
       v.ellipsoid([0, 1.36, -0.68], [0.45, 0.48, 0.42], bodyP);
       if (sabre) v.ellipsoid([0, 1.48, 0.82], [0.5, 0.5, 0.28], shag(b)); // the ruff
-      saddle(v, 1.84, -0.04, c, inBody, 0.44, P.pillion);
+      saddle(v, 1.84, -0.04, c, inBody, 0.44, P);
     });
     head = k.part(B, [0, 1.6, 1.1], (v) => {
       v.ellipsoid([0, 0, 0], [0.33, 0.29, 0.29], (x, y, _z, n) => (y > 0.06 && Math.sin(x * 26) > 0.45 ? shade(b, 0.9 + n * 0.1) : shade(a, 0.92 + n * 0.1)));
@@ -328,7 +337,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
         const top = z > 0.8 ? 1.5 + (z - 0.8) * (neckTop[1] - 1.5) / (neckTop[2] - 0.8) + 0.24 : 1.3 + 0.5 * Math.sqrt(Math.max(0, 1 - (z / (len + 0.3)) ** 2));
         v.cone([0, top - 0.05, z], [0, top + 0.2, z - 0.12], 0.06, flat(wyrm ? ivory : shade(b, 0.8)));
       }
-      saddle(v, 1.86, -0.06, c, inBody, 0.46, P.pillion);
+      saddle(v, 1.86, -0.06, c, inBody, 0.46, P);
     });
     head = k.part(B, [0, neckTop[1] + 0.08, neckTop[2] + 0.12], (v) => {
       v.ellipsoid([0, 0, 0], [0.24, 0.21, 0.26], skin);
@@ -387,7 +396,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.fill([-0.8, 0.94, -1.0], [0.8, 1.84, 1.0], (x, y, z) => (x / 0.78) ** 2 + ((y - 1.22) / 0.6) ** 2 + (z / 0.98) ** 2 <= 1 && y > 0.94, scute);
       v.ellipsoid([0, 0.94, 0], [0.66, 0.12, 0.84], flat('#d8c890')); // the plastron
       v.capsule([0, 1.0, 0.82], [0, 1.08, 1.12], 0.17, 0.15, skinP);
-      saddle(v, 1.86, -0.04, c, inShell, 0.5, P.pillion);
+      saddle(v, 1.86, -0.04, c, inShell, 0.5, P);
     });
     head = k.part(B, [0, 1.1, 1.24], (v) => {
       v.ellipsoid([0, 0, 0.04], [0.18, 0.16, 0.22], skinP);
@@ -409,7 +418,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.ellipsoid([0, 1.58, 0.48], [0.5, 0.36, 0.42], fur); // the hump
       v.fill([-0.5, 0.6, -0.9], [0.5, 0.8, 0.9], (x, y, z) => (x / 0.5) ** 2 + (z / 0.9) ** 2 < 0.8 && y > 0.66 + Math.abs(Math.sin(x * 23 + z * 17)) * 0.14, shag(shade(a, 0.85))); // the fringe under the belly
       for (const [cx, cy, cz, rx, ry, rz] of [[0, 1.86, 0.82, 0.42, 0.13, 0.26], [0, 1.78, -0.62, 0.44, 0.13, 0.3], [0, 1.62, -1.0, 0.34, 0.12, 0.2], [0.56, 1.4, 0, 0.08, 0.3, 0.5], [-0.56, 1.4, 0, 0.08, 0.3, 0.5]] as const) v.ellipsoid([cx, cy, cz], [rx, ry, rz], stone);
-      saddle(v, 1.96, -0.12, c, inBody, 0.58, P.pillion);
+      saddle(v, 1.96, -0.12, c, inBody, 0.58, P);
     });
     head = k.part(B, [0, 1.3, 1.08], (v) => {
       v.ellipsoid([0, 0, 0.1], [0.33, 0.29, 0.33], fur);
@@ -445,7 +454,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.capsule([0, 1.62, 0.8], [0, 2.0, 1.04], 0.14, 0.12, flat(b));
       v.capsule([0, 1.7, -0.8], [0, 2.14, -0.86], 0.1, 0.09, flat(b));
       v.box([-0.12, 2.12, -0.98], [0.12, 2.18, -0.74], flat('#c8a050'));
-      saddle(v, 1.86, -0.06, c, (x, y, z) => x * x + (y - 1.42) ** 2 < 0.44 ** 2 && z > -0.8 && z < 0.7, 0.42, P.pillion);
+      saddle(v, 1.86, -0.06, c, (x, y, z) => x * x + (y - 1.42) ** 2 < 0.44 ** 2 && z > -0.8 && z < 0.7, 0.42, P);
     });
     head = k.part(B, [0, 2.12, 1.1], (v) => {
       v.box([-0.2, -0.15, -0.2], [0.2, 0.15, 0.28], brass);
@@ -470,7 +479,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.ellipsoid([0, 1.34, -0.38], [0.44, 0.46, 0.6], lion);
       v.ellipsoid([0, 1.4, 0.42], [0.47, 0.54, 0.48], feathers(plume));
       v.capsule([0, 1.62, 0.72], [0, 1.94, 1.06], 0.3, 0.24, feathers(plume));
-      saddle(v, 1.88, -0.2, c, inBody, 0.44, P.pillion);
+      saddle(v, 1.88, -0.2, c, inBody, 0.44, P);
     });
     head = k.part(B, [0, 2.06, 1.2], (v) => {
       v.ellipsoid([0, 0, 0], [0.25, 0.24, 0.28], feathers(plume));
@@ -517,3 +526,101 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
   }
   return { head, tail };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Wagons: an open carrier's cart or a covered wagon, with the animal out in front in the shafts.
+// The model's origin is the driver's box, where the player sits; the animal walks ahead of it.
+
+/** How far ahead of the box the animal stands. */
+export const wagonLead = (breed: string) => (breed === 'slabback' || breed === 'turtle' ? 2.85 : 2.5);
+/** Benches in the back: how many rows of two, how far behind the box, how high the seat. */
+export const WAGON_ROWS = [0.9, 1.75];
+export const WAGON_BENCH = 1.18;
+export const WAGON_BOX = 1.38;
+const WHEEL_R = 0.52;
+
+/**
+ * Builds the wagon onto a mount's root: moves the animal's body forward into the shafts and lays the
+ * wagon behind it. Returns the four wheels, to turn as it rolls.
+ */
+export function buildVoxWagon(root: THREE.Object3D, body: THREE.Object3D, breed: string, W: WagonLook): THREE.Object3D[] {
+  const lead = wagonLead(breed), covered = W.kind === 'covered';
+  const paint = W.paint ?? '#7a2a24', canvas = W.canvas ?? '#e8dcc0';
+  const wood = '#8a5a32', dark = '#4a3020', iron = '#3a3a3c', leather = '#4a2a16';
+  const k = new Kit(['wagon', W.kind, paint, canvas, lead].join('|'));
+  const front = new THREE.Group();
+  front.position.z = lead;
+  root.remove(body);
+  front.add(body);
+  root.add(front);
+
+  const chassis = k.part(root, [0, 0, 0], (v) => {
+    const boards: Paint = (x, _y, _z, n) => shade(wood, (Math.floor(x * 7) & 1 ? 0.88 : 1.0) + n * 0.08);
+    const sideP: Paint = (_x, y, z, n) => {
+      if (y > 1.26) return shade(paint, 0.92 + n * 0.1); // the top rail
+      if (Math.abs((((z + 2.5) * 1.6) % 1) - 0.5) > 0.42) return shade(dark, 0.95 + n * 0.1); // the stakes
+      return shade(wood, (Math.floor((y - 0.9) * 8) & 1 ? 0.86 : 1.0) + n * 0.08);
+    };
+    v.box([-0.72, 0.78, -2.5], [0.72, 0.9, 0.55], boards); // the floor
+    for (const sd of [1, -1]) {
+      v.box([sd > 0 ? 0.66 : -0.78, 0.9, -2.5], [sd > 0 ? 0.78 : -0.66, 1.32, 0.55], sideP);
+      v.box([sd * 0.36 - 0.05, 0.62, -2.6], [sd * 0.36 + 0.05, 0.78, 0.7], flat(dark)); // the beams
+      // The shafts, out to the animal's shoulders
+      v.capsule([sd * 0.5, 0.95, 0.55], [sd * 0.48, 1.32, lead + 0.75], 0.055, 0.05, flat(wood));
+      // The reins, from the bit back to the driver's hands
+      v.capsule([sd * 0.18, 1.86, lead + 1.12], [sd * 0.16, 1.72, 0.36], 0.045, 0.045, flat(leather));
+    }
+    v.box([-0.78, 0.9, -2.56], [0.78, 1.32, -2.44], sideP); // the tailboard
+    v.box([-0.78, 0.9, 0.49], [0.78, 1.24, 0.61], sideP); // the front board
+    for (const az of [0.05, -1.95]) v.box([-0.92, 0.46, az - 0.06], [0.92, 0.58, az + 0.06], flat(iron)); // the axles
+    // The driver's box: a painted bench on its riser, a footboard over the shafts
+    v.box([-0.5, 0.9, -0.06], [0.5, WAGON_BOX - 0.12, 0.2], flat(dark));
+    v.box([-0.62, WAGON_BOX - 0.12, -0.1], [0.62, WAGON_BOX, 0.26], (_x, _y, _z, n) => shade(paint, 0.95 + n * 0.1));
+    v.box([-0.6, 0.98, 0.55], [0.6, 1.04, 0.86], boards);
+    // Benches in the back for passengers
+    for (const r of covered ? WAGON_ROWS : WAGON_ROWS.slice(0, 1)) v.box([-0.66, WAGON_BENCH - 0.1, -r - 0.1], [0.66, WAGON_BENCH, -r + 0.12], (_x, _y, _z, n) => shade(wood, 0.92 + n * 0.1));
+    // Goods at the tail: sacks and a crate
+    v.ellipsoid([-0.4, 1.06, -2.24], [0.2, 0.16, 0.18], (_x, y, _z, n) => shade('#b8a070', 0.88 + n * 0.12 + (y > 1.15 ? 0.06 : 0)));
+    v.ellipsoid([-0.1, 1.02, -2.3], [0.16, 0.12, 0.15], (_x, _y, _z, n) => shade('#a89060', 0.88 + n * 0.12));
+    v.box([0.22, 0.9, -2.42], [0.64, 1.3, -2.06], (x, y, z, n) => (Math.abs(x - 0.43) > 0.17 || Math.abs(y - 1.1) > 0.16 || Math.abs(z + 2.24) > 0.14 ? shade(dark, 0.95 + n * 0.1) : shade(wood, 0.95 + n * 0.1)));
+    // A lamp on a post at the front corner
+    v.box([-0.7, 1.24, 0.44], [-0.62, 1.86, 0.52], flat(dark));
+    if (covered) {
+      // The tilt: canvas stretched over five bows, sagging a little between them, open at both ends
+      const bows = [-2.4, -1.875, -1.35, -0.825, -0.3];
+      v.fill([-0.84, 1.3, -2.45], [0.84, 2.42, -0.28], (x, y, z) => {
+        if (y < 1.3) return false;
+        const sag = Math.min(...bows.map((b) => Math.abs(z - b))) * 0.06;
+        const e = (x / (0.8 - sag)) ** 2 + ((y - 1.3) / (1.08 - sag)) ** 2;
+        return e <= 1 && (x / (0.72 - sag)) ** 2 + ((y - 1.3) / (1.0 - sag)) ** 2 > 1;
+      }, (_x, y, z, n) => {
+        const near = Math.min(...bows.map((b) => Math.abs(z - b)));
+        if (near < 0.05) return shade(dark, 0.95 + n * 0.1);
+        return shade(canvas, 0.86 + n * 0.06 + Math.min(0.12, near * 0.4) + (y > 2.2 ? 0.04 : 0));
+      });
+    }
+  });
+  const lampM = new THREE.MeshLambertMaterial({ color: '#ffd890', emissive: new THREE.Color('#c88a30') });
+  const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.14), lampM);
+  lamp.position.set(-0.66, 1.95, 0.48);
+  lamp.userData.plain = true;
+  chassis.add(lamp);
+
+  // The wheels: an iron tyre on a painted felloe, eight spokes, an iron hub
+  const wheels: THREE.Object3D[] = [];
+  for (const [x, z] of [[0.86, 0.05], [-0.86, 0.05], [0.86, -1.95], [-0.86, -1.95]] as const) wheels.push(k.part(root, [x, WHEEL_R, z], (v) => {
+    v.fill([-0.1, -WHEEL_R - 0.02, -WHEEL_R - 0.02], [0.1, WHEEL_R + 0.02, WHEEL_R + 0.02], (px, y, zz) => {
+      const r = Math.hypot(y, zz);
+      if (Math.abs(px) > 0.05) return r < 0.11;
+      if (r <= WHEEL_R && r >= 0.4) return true;
+      if (r < 0.11) return true;
+      return Math.abs(Math.sin(Math.atan2(y, zz) * 4)) * r < 0.04;
+    }, (_x, y, zz, n) => {
+      const r = Math.hypot(y, zz);
+      return r > 0.47 || r < 0.11 ? shade(iron, 0.9 + n * 0.15) : shade(paint, 0.88 + n * 0.12);
+    });
+  }));
+  return wheels;
+}
+
+export { WHEEL_R };

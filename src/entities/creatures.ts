@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildVoxMount } from './voxmounts';
+import { buildVoxMount, buildVoxWagon, WHEEL_R, type WagonLook } from './voxmounts';
 
 export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse' | 'dog' | 'cat' | 'duck' | 'cow' | 'pig'
   | 'shark' | 'eel' | 'ray' | 'medusa'
@@ -18,7 +18,9 @@ export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'r
 export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack'
   /** Mounts that aren't horses at all (beastMount): the same seat, a different animal under it. */
   | 'cat' | 'sabre' | 'drake' | 'turtle' | 'slabback' | 'strider' | 'griffin' | 'wyrm';
-export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean }
+export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean; /** A wagon behind, the animal in its shafts. */ wagon?: WagonLook }
+/** What a halter calls (data/items.ts mount): enough to build the model. */
+export interface MountLook { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed; seats?: number; wagon?: WagonLook & { bed: number } }
 export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze' | 'sit' | 'swim';
 
 const mats = new Map<string, THREE.Material>();
@@ -178,6 +180,8 @@ export class CreatureModel {
   /** A swimmer's jaw (opens to bite) and its rippling segments (an eel's body, a jellyfish's arms). */
   jaw: THREE.Object3D | null = null;
   segs: THREE.Object3D[] = [];
+  /** A wagon's wheels, turned as it rolls. */
+  wheels: THREE.Object3D[] = [];
   private phase = Math.random() * 10;
   anim: CreatureAnim = 'idle';
   animTime = 0;
@@ -821,9 +825,11 @@ export class CreatureModel {
    * markings, c = saddle cloth; glow lights hooves, eyes or antlers. Everyone sits at the same height.
    */
   private buildHorse(): void {
-    this.plateHeight = 2.6;
-    const { head, tail } = buildVoxMount(this, this.pal.breed ?? 'horse', this.pal);
+    this.plateHeight = this.pal.wagon?.kind === 'covered' ? 2.9 : 2.6;
+    const breed = this.pal.breed ?? 'horse';
+    const { head, tail } = buildVoxMount(this, breed, { ...this.pal, harness: !!this.pal.wagon });
     this.head = head; this.tail = tail;
+    if (this.pal.wagon) this.wheels = buildVoxWagon(this.root, this.body, breed, this.pal.wagon);
   }
 
   /** Sharks (the huss, the porbeagle, the blue): a = back, b = belly, c = fins. */
@@ -1077,6 +1083,7 @@ export class CreatureModel {
 
   update(dt: number, speed: number): void {
     this.animTime += dt;
+    for (const w of this.wheels) w.rotation.x += (dt * speed) / WHEEL_R;
     if (SWIM_KINDS.has(this.kind)) { this.updateFlash(dt); this.updateSwim(dt, speed); return; }
     const t = this.animTime;
     this.phase += dt * (speed > 0.1 ? (this.kind === 'horse' ? 3.4 + speed * 0.62 : 3 + speed * 1.6) : 0);
@@ -1188,4 +1195,9 @@ export class CreatureModel {
       }
     }
   }
+}
+
+/** The model a halter calls: a horse, a beast, or either one in the shafts of a wagon. */
+export function mountModel(m: MountLook): CreatureModel {
+  return new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 && !m.wagon, wagon: m.wagon });
 }

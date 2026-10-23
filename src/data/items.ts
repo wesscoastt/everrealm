@@ -9,7 +9,7 @@ export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'ques
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
 
 export interface IconSpec {
-  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag' | 'bow';
+  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag' | 'bow' | 'wheel';
   a: string;
   b?: string;
 }
@@ -35,7 +35,7 @@ export interface ItemDef {
   /** Armour traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll; its weight and how it shows (data/armour.ts). */
   armor?: { slot: ArmourSlot; defense: number; vigor?: number; wind?: number; roll?: number; weight?: ArmourWeight; look?: Partial<Appearance> };
   /** A halter: the horse it calls (every horse runs at the same pace; only the look differs). */
-  mount?: { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed; seats?: number };
+  mount?: import('../entities/creatures').MountLook;
   /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
   dye?: { color: string; name: string };
   /** A festival bag (data/seasons.ts): using it opens it. */

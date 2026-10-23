@@ -13,6 +13,9 @@ export interface Vault { items: Record<string, number>; marks: number }
 export const VAULT_KINDS = 80;
 const LOCAL_KEY = 'everrealm.vault';
 
+/** Somewhere else the panel can open on, kept by the game (a wagon's bed): goods only, no coin. */
+export interface Store { title: string; kinds: number; note: string; load(): Record<string, number>; save(items: Record<string, number>): void }
+
 export interface BankHost {
   pack(): { id: string; n: number }[];
   count(id: string): number;
@@ -50,14 +53,18 @@ export class Bank {
   /** Waiting on the server: buttons are held until it answers. */
   private busy = false;
   private status = '';
+  private store: Store | null = null;
+  private get kinds(): number { return this.store?.kinds ?? VAULT_KINDS; }
+  private get what(): string { return this.store ? 'The bed' : 'The vault'; }
 
   constructor(private host: BankHost) {}
 
   get open(): boolean { return !!this.el; }
   private get remote(): boolean { return !!currentAccount(); }
 
-  async show(name: string, x: number, z: number): Promise<void> {
+  async show(name: string, x: number, z: number, store?: Store): Promise<void> {
     this.at = { x, z, name };
+    this.store = store ?? null;
     if (!this.el) {
       this.el = document.createElement('div');
       this.el.id = 'bankpanel';
@@ -68,6 +75,7 @@ export class Bank {
   }
 
   private async load(): Promise<void> {
+    if (this.store) { this.v = clean({ items: this.store.load(), marks: 0 }); this.ver = 0; this.status = this.store.note; this.render(); return; }
     if (!this.remote) { this.v = readLocal(); this.status = 'Shared by the characters in this browser. Sign in to an account to keep it on the realm.'; this.render(); return; }
     this.busy = true; this.status = 'Opening the vault…'; this.render();
     const r = await getVault();
@@ -81,6 +89,7 @@ export class Bank {
     this.el.remove();
     this.el = null;
     this.at = null;
+    this.store = null;
     this.host.sound('close');
   }
 
@@ -97,6 +106,7 @@ export class Bank {
    */
   private async commit(next: Vault, apply: () => void): Promise<void> {
     if (this.busy || this.ver < 0) return;
+    if (this.store) { this.store.save(next.items); this.v = next; apply(); this.after(); return; }
     if (!this.remote) { writeLocal(next); this.v = next; apply(); this.after(); return; }
     this.busy = true;
     const r = await putVault(next, this.ver);
@@ -116,7 +126,7 @@ export class Bank {
   private deposit(id: string, n: number): void {
     n = Math.min(n, this.host.count(id));
     if (n <= 0) return;
-    if (!this.v.items[id] && Object.keys(this.v.items).length >= VAULT_KINDS) { this.host.system(`The vault holds ${VAULT_KINDS} kinds of things. Take something out first.`); this.host.sound('fail'); return; }
+    if (!this.v.items[id] && Object.keys(this.v.items).length >= this.kinds) { this.host.system(`${this.what} holds ${this.kinds} kinds of things. Take something out first.`); this.host.sound('fail'); return; }
     const next = clean({ items: { ...this.v.items, [id]: (this.v.items[id] ?? 0) + n }, marks: this.v.marks });
     void this.commit(next, () => { this.host.take(id, n); this.host.sound('click'); });
   }
@@ -143,7 +153,7 @@ export class Bank {
     const items = { ...this.v.items };
     const moved: [string, number][] = [];
     for (const s of mats) {
-      if (!items[s.id] && Object.keys(items).length >= VAULT_KINDS) continue;
+      if (!items[s.id] && Object.keys(items).length >= this.kinds) continue;
       items[s.id] = (items[s.id] ?? 0) + s.n;
       moved.push([s.id, s.n]);
     }
@@ -161,14 +171,15 @@ export class Bank {
     const pack = this.host.pack();
     const coin = shapeIcon('coin', '#e8c050', '#a87a20');
     const dis = this.busy || this.ver < 0 ? ' disabled' : '';
-    this.el.innerHTML = `<div class="bk-head"><b>Charter Bank · ${esc(this.at.name)}</b><button class="bk-x" data-close>✕</button></div>
+    const S = this.store;
+    this.el.innerHTML = `<div class="bk-head"><b>${S ? esc(S.title) : `Charter Bank · ${esc(this.at.name)}`}</b><button class="bk-x" data-close>✕</button></div>
       <p class="bk-sub">${esc(this.status)} Click a stack to move it; shift-click moves one.</p>
       <div class="bk-cols">
         <div><h6>Your pack</h6><div class="bk-grid">${pack.map((s) => slot(s.id, s.n, 'in')).join('') || '<em>Empty</em>'}</div>
           <button class="bk-all" data-allin${dis}>Deposit all materials</button></div>
-        <div><h6>The vault <i>${vaultIds.length}/${VAULT_KINDS} kinds</i></h6><div class="bk-grid">${vaultIds.map((id) => slot(id, v.items[id], 'out')).join('') || '<em>Nothing kept here yet.</em>'}</div></div>
+        <div><h6>${this.what} <i>${vaultIds.length}/${this.kinds} kinds</i></h6><div class="bk-grid">${vaultIds.map((id) => slot(id, v.items[id], 'out')).join('') || '<em>Nothing kept here yet.</em>'}</div></div>
       </div>
-      <div class="bk-marks"><img class="ric" src="${coin}" alt=""><span>Purse <b>${this.host.marks()}</b> · Vault <b>${v.marks}</b></span>
+      <div class="bk-marks"${S ? ' hidden' : ''}><img class="ric" src="${coin}" alt=""><span>Purse <b>${this.host.marks()}</b> · Vault <b>${v.marks}</b></span>
         <span class="bk-mb"><button data-m="10"${dis}>Pay in 10</button><button data-m="100"${dis}>100</button><button data-m="all"${dis}>All</button></span>
         <span class="bk-mb"><button data-m="-10"${dis}>Draw 10</button><button data-m="-100"${dis}>100</button><button data-m="-all"${dis}>All</button></span></div>`;
     const shiftN = (e: MouseEvent, n: number) => (e.shiftKey ? 1 : n);

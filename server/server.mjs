@@ -65,8 +65,8 @@ const MAX_SAVE = 512_000;
 const CHAT_GAP_MS = 600;
 const SESSION_DAYS = 60;
 const MAX_CHARS = 6;
-/** Mounts with a second seat (src/data/content/stables.ts, seats: 2). */
-const TWO_SEAT = new Set(['halter_cob', 'halter_dray']);
+/** Mounts with room for more than the rider, and how many in all (src/data/content/stables.ts and wagons.ts, seats). */
+const SEATS = new Map([['halter_cob', 2], ['halter_dray', 2], ['wagon_cart', 3], ['wagon_covered', 5], ['wagon_caravan', 5]]);
 const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const WORLD = [-2304, 4096]; // the world's edges on x and z (src/world/VoxelWorld.ts)
 const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated']);
@@ -375,12 +375,13 @@ wss.on('connection', (ws, req) => {
         // A tool by name, or a weapon by its item id (drawn from the item in each game)
         if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
-        me.mount = typeof msg.mount === 'string' && /^(halter|mount)_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
-        // Riding behind someone in your group, on a two-seat mount, close by, with the seat free
+        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon)_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
+        // Riding with someone in your group, close by, on a mount with a seat still free
         const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
         const group = rider && social.groupIds(me);
-        me.pillion = rider && rider !== me && TWO_SEAT.has(rider.mount) && group?.members.includes(rider.id) && Math.hypot(rider.x - me.x, rider.z - me.z) < 8
-          && ![...players.values()].some((p) => p !== me && p.pillion === rider.id) ? rider.id : 0;
+        const seats = rider ? SEATS.get(rider.mount) ?? 1 : 1;
+        me.pillion = rider && rider !== me && seats > 1 && group?.members.includes(rider.id) && Math.hypot(rider.x - me.x, rider.z - me.z) < 8
+          && [...players.values()].filter((p) => p !== me && p.pillion === rider.id).length < seats - 1 ? rider.id : 0;
         me.dirty = true;
         break;
       }
