@@ -90,7 +90,7 @@ const ned: DialogueTree = {
     t2: { text: 'Diggers bring the black down to the shingle in carts. A long man with Harrowgate paper pays them and signs for every load.', next: 't3' },
     t3: { text: 'Pryce. Yes. He went up with the last load, a month back, and didn\'t come down.', next: 't4' },
     t4: { text: 'The diggers say the dead got up where they were digging. Diggers say a lot of things. They\'ve also stopped coming down.', next: 't5' },
-    t5: { text: 'We carry what pays. If the dead are walking, nothing pays. Go and look, and tell me what you see.', effect: (g) => { g.addMarks(300); g.setStage(SALT, 'done'); } },
+    t5: { text: 'We carry what pays. If the dead are walking, nothing pays. Go and look, and tell me what you see.', effect: (g) => { g.addMarks(300); g.setFlag('coldFerry', true); g.setStage(SALT, 'done'); } },
     nDone: { text: 'Cold Harbour. And if you see Pryce, tell him the Table wants a word with him. A long one.' },
   },
 };
@@ -181,7 +181,7 @@ const jago: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [SALT]: {
-    id: SALT, name: 'What Pays', region: 'keys', story: { chapter: 19, title: 'What Pays', act: ACT },
+    id: SALT, name: 'What Pays', region: 'keys', story: { chapter: 19, title: 'What Pays', act: ACT }, next: ['tdHeld', 'harbour'],
     notes: (g, s) => {
       if (s === 'sail') return 'The Kittiwake is a Brethren hull out of Saltpenny Key, at the far end of the Keys. The black comes to Callis in her hold, and Pryce went south with the Brethren. The packet from Callis runs to Saltpenny now.';
       if (s === 'vey') return 'Mara Coyle, the Kittiwake\'s master, loads the black somewhere in the north, and won\'t say where. Cargo is the Captains\' Table\'s business, and the Table is Ned Vey.';

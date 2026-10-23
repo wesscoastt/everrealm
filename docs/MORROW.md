@@ -77,7 +77,7 @@ Five chapters after Act III, from Nessa Crane at Gullmouth.
 3. **What Pays** (XIX) [in game]. The black comes up the coast in Brethren hulls. Ned Vey will tell you where they
    load it, for a price: a Harrowgate convoy, or a favour later. The Brethren didn't dig it. They
    only carry it.
-4. **The Greywaste.** The black was dug out of the northern barrows. The old kingdom buried its dead
+4. **Lie Still** (XX) [in game]. The black was dug out of the northern barrows. The old kingdom buried its dead
    under black so they would lie still. Take the black away and they don't: these are the **Held**.
    The villages emptied one by one, and Northgate has shut its gate.
 5. **Kingsbarrow.** Pryce is in the city of the dead with his diggers, still digging, because the

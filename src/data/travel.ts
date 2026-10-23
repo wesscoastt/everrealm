@@ -64,6 +64,10 @@ export const POSTS: PostStop[] = [
   { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: 2132.5, z: 1077.5, ry: 0 },
   // Saltpenny Key, by the packet from Callis once the Speaker has told you about the Kittiwake (world/morrow.ts SALT_LANDING)
   { land: 'morrow', id: 'saltpenny', name: 'Saltpenny Key (packet)', place: 'saltpenny', ferryFrom: 'callis', x: -1433.5, z: 3692.5, ry: 0, gate: 'saltFerry' },
+  // Cold Harbour, on the Kittiwake from Saltpenny once Ned Vey has told you where the black loads
+  { land: 'morrow', id: 'coldharbour', name: 'Cold Harbour (the Kittiwake)', place: 'coldharbour', ferryFrom: 'saltpenny', x: 2186.5, z: -1098.5, ry: Math.PI / 2, gate: 'coldFerry' },
+  // Northgate, by cart up the coast road from Callis
+  { land: 'morrow', id: 'northgate', name: 'Northgate', place: 'northgate', x: 507.5, z: -1225.5, ry: 0 },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */

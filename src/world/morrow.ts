@@ -67,8 +67,37 @@ export const SALT_LANDING = { x: SALTPENNY.x + 106, z: SALTPENNY.z - 8 };
 /** Wreckers' Bight: the camp on a key east along the causeway where Pryce's wreckers lie up, and their boat. */
 export const BIGHT = { x: -1250, z: 3420 };
 export const BIGHT_BOAT = { x: BIGHT.x + 7.5, z: BIGHT.z + 6.5 };
+/**
+ * Cold Harbour: the cove under the Greywaste's low cliffs where the black comes down to the shingle
+ * and the Brethren load it. The diggers' shed, the jetty, and the heaps of black nobody has shipped.
+ */
+export const COLD_HARBOUR = { x: 2196, z: -1100 };
+export const COLD_SHED = { x: 2172, z: -1113, w: 9, d: 7 };
+export const COLD_TALLY = { x: 2190.5, z: -1103.5 };
+/**
+ * Hollow Fell: the old kingdom's barrow-field on the moor above Cold Harbour, where the diggers took
+ * the black off the dead. Each barrow is [x, z, radius, state]: 'shut' (still under its black),
+ * 'open' (stripped, the black heaped beside it) or 'ma' (the one Wat Aske's diggers opened last).
+ */
+export const HOLLOW_FELL = { x: 2010, z: -1170 };
+export const FELL_BARROWS: [number, number, number, 'shut' | 'open' | 'ma'][] = [
+  [1972, -1196, 6, 'open'], [1990, -1214, 5, 'shut'], [2014, -1206, 7, 'open'], [2040, -1192, 5, 'open'],
+  [1978, -1160, 5, 'shut'], [2006, -1170, 6, 'ma'], [2036, -1150, 6, 'open'], [1996, -1134, 5, 'open'],
+];
+/** Where the black is laid back over the last barrow opened (Ma's): beside its south side. */
+export const FELL_LAY = { x: 2006.5, z: -1162.5 };
 /** Northgate, across the only pass into the Held Country. */
 export const NORTHGATE = { x: 520, z: -1360 };
+/**
+ * Northgate's town, below the scarp where the Held Country's plateau starts, and the wall along the
+ * top of it: three hundred years old, never needed until now. The gate is shut; the postern beside
+ * it is the Gatekeeper's to open. The ramp climbs from the town to the gate.
+ */
+export const NORTHGATE_TOWN = { x: 520, z: -1236 };
+export const NG_WALL = { z: -1380, x0: 372, x1: 668 };
+export const NG_GATE = { x: 520, z: -1380 };
+export const NG_ARCHIVE = { x: 566, z: -1306 };
+export const NG_CATHEDRAL = { x: 584, z: -1262 };
 /** Kingsbarrow, the city of the dead, in the Held Country. */
 export const KINGSBARROW = { x: 860, z: -1830 };
 /** The Sunder's rift runs east to west along this line. */
