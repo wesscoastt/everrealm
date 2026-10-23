@@ -4,7 +4,7 @@ import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
 import { LAND } from './land';
-import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
+import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
@@ -692,6 +692,14 @@ export function plan(): Plan {
       { id: 'hollowfell', name: 'Hollow Fell', x: HOLLOW_FELL.x, z: HOLLOW_FELL.z, r0: 0, r1: 0, build: (s) => buildHollowFell(s) },
       { id: 'kingsbarrow', name: 'Kingsbarrow', x: 860, z: -1830, r0: 92, r1: 122, h: KB_FLOOR, build: (s, b) => buildKingsbarrow(s, b) },
       { id: 'gd-kingsbarrow', name: 'Kingsbarrow: the king\'s barrow', x: KB_HALLS.x + 56, z: KB_HALLS.z, r0: 0, r1: 0, under: true, build: (s) => buildKingsHalls(s) },
+      { id: 'reedwater', name: 'Reedwater', x: TOWNS.reedwater.x, z: TOWNS.reedwater.z, r0: 0, r1: 0, build: (s) => buildReedwater(s) },
+      { id: 'branchley', name: 'Branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r0: 44, r1: 64, h: 22, build: (s, b) => buildBranchley(s, b) },
+      { id: 'cala', name: 'Cala Roja', x: TOWNS.cala.x, z: TOWNS.cala.z, r0: 36, r1: 52, h: SEA + 3, flats: [{ x: TOWNS.cala.x + 52, z: TOWNS.cala.z, r0: 18, r1: 22, h: SEA - 3 }], build: (s, b) => buildCala(s, b) },
+      { id: 'slabs', name: 'The hanging slabs', x: 1466, z: 404, r0: 0, r1: 0, build: (s) => buildSlabs(s) },
+      { id: 'liftwick', name: 'Liftwick', x: TOWNS.liftwick.x, z: TOWNS.liftwick.z, r0: 34, r1: 48, h: 45, build: (s, b) => buildLiftwick(s, b) },
+      { id: 'tenwells', name: 'Tenwells', x: TOWNS.tenwells.x, z: TOWNS.tenwells.z, r0: 40, r1: 56, h: 24, build: (s, b) => buildTenwells(s, b) },
+      { id: 'fellside', name: 'Fellside', x: TOWNS.fellside.x, z: TOWNS.fellside.z, r0: 28, r1: 42, h: 25, build: (s, b) => buildFellside(s, b) },
+      { id: 'conch', name: 'Conch Key', x: TOWNS.conch.x, z: TOWNS.conch.z, r0: 20, r1: 32, h: SEA + 2, build: (s, b) => buildConch(s, b) },
       { id: 'northgate', name: 'Northgate', x: NORTHGATE_TOWN.x, z: NORTHGATE_TOWN.z, r0: 84, r1: 104, h: 28, build: (s, b) => buildNorthgate(s, b) },
     ];
   }
@@ -3032,6 +3040,371 @@ export function plan(): Plan {
     }
     // Lamps down the Gate Road
     for (let z = cz - 76; z <= cz + 80; z += 13) if (Math.abs(z - cz) > 14) { s.props.push({ t: 'lantern', x: cx - 3.6, y: base, z: z + 0.5, ry: Math.PI / 2 }); s.props.push({ t: 'lantern', x: cx + 4.6, y: base, z: z + 6.5, ry: -Math.PI / 2 }); }
+  }
+
+  /**
+   * A small town's bones: streets, and houses set along them, each with its door on a street. Streets
+   * are laid at a level (the ground's, or a boardwalk's), and houses go wherever a plot of their size
+   * is free and fronts a street.
+   */
+  function townKit(s: Site, base: number) {
+    const taken: [number, number, number, number][] = [];
+    const mine: [number, number, number, number][] = [];
+    const claim = (x0: number, z0: number, x1: number, z1: number) => { taken.push([x0, z0, x1, z1]); };
+    const isFree = (x0: number, z0: number, x1: number, z1: number) => !taken.some((r) => x0 <= r[2] && x1 >= r[0] && z0 <= r[3] && z1 >= r[1]);
+    const onStreet = (x: number, z: number) => mine.some((r) => x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]);
+    const street = (x0: number, z0: number, x1: number, z1: number, id: (x: number, z: number) => number, y = base - 1) => {
+      const r: [number, number, number, number] = [Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)];
+      streets.push(r); mine.push(r); claim(r[0], r[1], r[2], r[3]);
+      for (let z = r[1]; z <= r[3]; z++) for (let x = r[0]; x <= r[2]; x++) { O.set(x, y, z, id(x, z)); clearUp(x, z, y + 1, y + 8); }
+    };
+    /** Houses on every free plot in the box that fronts a street; returns their footprints. */
+    const houses = (x0: number, z0: number, x1: number, z1: number, o: { w: [number, number]; d: [number, number]; seed: number; ok?: (x: number, z: number, w: number, d: number) => boolean; make: (k: number, x: number, z: number, w: number, d: number, door: 'n' | 's' | 'e' | 'w') => void }) => {
+      const out: [number, number, number, number][] = [];
+      const flat = (x: number, z: number, w: number, d: number) => [[x, z], [x + w, z], [x, z + d], [x + w, z + d]].every(([a, b]) => heightAt(a, b) === base);
+      let k = 0;
+      for (let z = z0; z < z1; z += 3) for (let x = x0; x < x1; x += 3) {
+        const w = o.w[0] + Math.floor(hash2(x, z, o.seed) * (o.w[1] - o.w[0] + 1)), d = o.d[0] + Math.floor(hash2(z, x, o.seed + 1) * (o.d[1] - o.d[0] + 1));
+        if (!isFree(x - 1, z - 1, x + w, z + d) || !(o.ok ?? flat)(x, z, w, d)) continue;
+        const mx = x + Math.floor(w / 2), mz = z + Math.floor(d / 2);
+        const door: 'n' | 's' | 'e' | 'w' | null = onStreet(mx, z - 2) ? 'n' : onStreet(mx, z + d + 1) ? 's' : onStreet(x - 2, mz) ? 'w' : onStreet(x + w + 1, mz) ? 'e' : null;
+        if (!door) continue;
+        claim(x - 1, z - 1, x + w, z + d);
+        o.make(k++, x, z, w, d, door);
+        out.push([x, z, w, d]);
+      }
+      return out;
+    };
+    /** Keep a post sign's place clear and paved. */
+    const postSpot = (px: number, pz: number, id: number, y = base - 1) => { const x = Math.floor(px), z = Math.floor(pz); claim(x - 2, z - 2, x + 3, z + 2); for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 3; dx++) { O.set(x + dx, y, z + dz, id); clearUp(x + dx, z + dz, y + 1, y + 6); } };
+    return { claim, isFree, onStreet, street, houses, postSpot };
+  }
+
+  /**
+   * Reedwater, in the Glades: a stilt village over the sawgrass. Its houses and boardwalks stand on
+   * log stilts five blocks over the marsh, out of the floods; ladders of steps come down at the ends of
+   * the walks. At night the glims light the creeks under it.
+   */
+  function buildReedwater(s: Site) {
+    const T = TOWNS.reedwater, cx = T.x, cz = T.z, D = REED_DECK;
+    rect(s, cx - 70, cz - 50, cx + 70, cz + 50);
+    const k = townKit(s, D + 1);
+    const deck = (x: number, z: number) => (hash2(x, z, 971) < 0.18 ? B.DarkPlanks : B.Planks);
+    // Clear the marsh under a stretch of deck, and stand it on stilts
+    const stilts = (x0: number, z0: number, x1: number, z1: number) => {
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+        const g = heightAt(x, z);
+        for (let y = g; y < D; y++) O.set(x, y, z, (x === x0 || x === x1 || z === z0 || z === z1) && (x + z) % 4 === 0 ? B.OakLog : B.Air);
+      }
+    };
+    const walk = (x0: number, z0: number, x1: number, z1: number) => { k.street(x0, z0, x1, z1, deck, D); stilts(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)); };
+    walk(cx - 60, cz - 1, cx + 60, cz + 1);
+    walk(cx - 1, cz - 40, cx + 1, cz + 40);
+    walk(cx - 40, cz - 22, cx - 38, cz + 22); walk(cx + 38, cz - 22, cx + 40, cz + 22);
+    walk(cx - 6, cz - 6, cx + 6, cz + 6); // the platform in the middle
+    k.postSpot(T.post[0], T.post[1], B.Planks, heightAt(Math.floor(T.post[0]), Math.floor(T.post[1])) - 1); // on the ground, at the foot of the east steps
+    // Steps down off both ends of the long walk
+    for (const sg of [-1, 1]) for (let i = 1; i <= D - 16; i++) for (let dz = -1; dz <= 1; dz++) {
+      const x = cx + sg * (60 + i), z = cz + dz, top = D - i, g = heightAt(x, z);
+      for (let y = Math.min(g, top) - 1; y <= top; y++) O.set(x, y, z, y === top ? B.Planks : B.OakLog);
+      clearUp(x, z, top + 1, top + 6);
+    }
+    // Houses on stilts along the walks: weatherboard and thatch, the marsh cleared out from under them
+    const ok = (x: number, z: number, w: number, d: number) => [[x, z], [x + w, z], [x, z + d], [x + w, z + d], [x + (w >> 1), z + (d >> 1)]].every(([a, b]) => heightAt(a, b) <= D - 4 && heightAt(a, b) >= SEA - 2);
+    const foot = k.houses(cx - 58, cz - 38, cx + 58, cz + 38, { w: [6, 8], d: [6, 7], seed: 972, ok, make: (n, x, z, w, d, door) => {
+      house(s, x, z, w, d, 1, D + 1, n % 3 ? 'thatch' : 'slate', door, { wall: n % 2 ? B.Planks : B.DarkPlanks, front: 'boarded', role: n === 0 ? 'inn' : n % 7 === 0 ? 'shop' : 'home', closed: n % 3 === 1 });
+      // A landing from the door across to the walk, three boards wide
+      const dx = door === 'e' ? 1 : door === 'w' ? -1 : 0, dz = door === 's' ? 1 : door === 'n' ? -1 : 0;
+      const ex = door === 'n' || door === 's' ? x + Math.floor(w / 2) : door === 'e' ? x + w - 1 : x, ez = door === 'e' || door === 'w' ? z + Math.floor(d / 2) : door === 's' ? z + d - 1 : z;
+      for (let i = 1; i <= 3 && !k.onStreet(ex + dx * i, ez + dz * i); i++) for (const t of [-1, 0, 1]) { const lx = ex + dx * i + (dz ? t : 0), lz = ez + dz * i + (dx ? t : 0); O.set(lx, D, lz, B.Planks); for (let y = heightAt(lx, lz); y < D; y++) O.set(lx, y, lz, t !== 0 && i === 1 ? B.OakLog : B.Air); }
+    } });
+    for (const [x, z, w, d] of foot) for (let zz = z; zz < z + d; zz++) for (let xx = x; xx < x + w; xx++) {
+      const g = heightAt(xx, zz), post = (xx === x || xx === x + w - 1) && (zz === z || zz === z + d - 1 || (zz - z) % 3 === 0);
+      for (let y = g; y < D; y++) O.set(xx, y, zz, post ? B.OakLog : B.Air);
+    }
+    // Glims in the creeks below, and lamps along the walks
+    for (let i = 0; i < 26; i++) {
+      const gx = cx - 60 + Math.floor(hash2(i, 1, 973) * 120), gz = cz - 40 + Math.floor(hash2(i, 2, 973) * 80);
+      if (heightAt(gx, gz) < SEA) s.props.push({ t: 'glow', x: gx + 0.5, y: SEA + 0.3, z: gz + 0.5, r: 1.2, color: '#8af0a0', lit: i % 4 === 0 });
+    }
+    for (let x = cx - 56; x <= cx + 56; x += 14) s.props.push({ t: 'lantern', x: x + 0.5, y: D + 1, z: cz - 1.4, ry: 0 });
+    s.props.push({ t: 'sign', x: cx + 7.5, y: D + 1, z: cz + 2.5, ry: 0, text: 'Reedwater' });
+    for (let i = 0; i < 4; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: cx - 5 + i * 1.3, y: D + 1, z: cz + 5.3, ry: i });
+  }
+
+  /** A great tree of the Amberwold: a trunk five strides through, its roots flared, branches, a crown. */
+  function greatTree(x: number, z: number, base: number) {
+    const H = 34;
+    for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const d = Math.hypot(dx, dz);
+      const top = d < 2.7 ? base + H : d < 3.6 ? base + 3 : d < 4.3 && (Math.abs(dx) < 1 || Math.abs(dz) < 1) ? base + 1 : -1;
+      for (let y = base - 1; y < top; y++) O.set(x + dx, y, z + dz, B.OakLog);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3, y0 = base + 20 + (i % 3) * 3;
+      for (let r = 3; r < 10; r++) O.set(Math.round(x + Math.cos(a) * r), y0 + Math.floor(r / 4), Math.round(z + Math.sin(a) * r), B.OakLog);
+    }
+    for (let dy = 0; dy <= 14; dy++) for (let dz = -12; dz <= 12; dz++) for (let dx = -12; dx <= 12; dx++) {
+      const d = Math.hypot(dx, dz * 1.05, (dy - 6) * 1.4);
+      if (d < 12 && hash2(x + dx * 7 + dy, z + dz * 3 + dy, 974) > 0.12 && !(Math.hypot(dx, dz) < 2.7 && dy < 8)) O.set(x + dx, base + 24 + dy, z + dz, B.OakLeaves);
+    }
+  }
+
+  /**
+   * Branchley, in the Amberwold: Wold folk under two great trees. Plaster and timber houses along the
+   * old road, and up each tree a stair winding round the trunk to a platform, with cabins on it and the
+   * moth-dust lamps the Wold folk hang at dusk.
+   */
+  function buildBranchley(s: Site, base: number) {
+    const T = TOWNS.branchley, cx = T.x, cz = T.z;
+    rect(s, cx - 56, cz - 56, cx + 56, cz + 56);
+    const k = townKit(s, base);
+    const lane = (x: number, z: number) => (hash2(x, z, 975) < 0.55 ? B.Path : hash2(x, z, 976) < 0.6 ? B.Gravel : B.Cobble);
+    k.street(cx - 50, cz - 2, cx + 50, cz + 2, lane);
+    k.street(cx - 2, cz - 42, cx + 2, cz + 42, lane);
+    k.street(cx - 30, cz + 20, cx + 30, cz + 22, lane);
+    k.postSpot(T.post[0], T.post[1], B.Gravel);
+    for (const t of WOLD_TREES) {
+      k.claim(t.x - 13, t.z - 13, t.x + 13, t.z + 13);
+      greatTree(t.x, t.z, base);
+      const P = t.stand - 1; // the platform's boards
+      // The stair: two boards wide, a full turn and a half round the trunk, up to the platform
+      const steps = new Map<string, number>();
+      for (let u = 1; u <= P - base + 1; u += 0.04) {
+        const a = u * 0.42, h = base - 1 + Math.floor(u);
+        for (const r of [3.3, 4.3]) { const key = Math.round(t.x + Math.cos(a) * r) + ',' + Math.round(t.z + Math.sin(a) * r); steps.set(key, Math.max(steps.get(key) ?? -1, h)); }
+      }
+      for (const [key, h] of steps) { const [x, z] = key.split(',').map(Number); if (Math.hypot(x - t.x, z - t.z) < 2.8) continue; O.set(x, h, z, B.Planks); for (let y = h + 1; y < h + 4; y++) O.set(x, y, z, B.Air); }
+      // The platform, with a rail round it; a hole left over the stair where it comes up under it
+      for (let dz = -11; dz <= 11; dz++) for (let dx = -11; dx <= 11; dx++) {
+        const d = Math.hypot(dx, dz), x = t.x + dx, z = t.z + dz;
+        if (d < 2.8 || d > 10.5) continue;
+        const st = steps.get(x + ',' + z);
+        if (st !== undefined && st < P - 2) continue;
+        O.set(x, P, z, (dx + dz) % 3 === 0 ? B.DarkPlanks : B.Planks);
+        if (d > 9.6) O.set(x, P + 1, z, B.DarkPlanks);
+        for (let y = P + 1 + (d > 9.6 ? 1 : 0); y < P + 5; y++) O.set(x, y, z, B.Air);
+      }
+      // Two cabins on the platform, either side of the trunk
+      for (const sg of [-1, 1]) {
+        const x0 = t.x + (sg > 0 ? 4 : -8), z0 = t.z - 2;
+        for (let x = x0; x < x0 + 5; x++) for (let z = z0; z < z0 + 4; z++) {
+          const edge = x === x0 || x === x0 + 4 || z === z0 || z === z0 + 3;
+          const door = z === z0 + 3 && x === x0 + 2;
+          for (let y = P + 1; y < P + 4; y++) O.set(x, y, z, edge && !(door && y < P + 3) ? (y === P + 2 && x === x0 + 1 && z === z0 ? B.Window : B.Planks) : B.Air);
+        }
+        s.props.push({ t: 'roof', x: x0 + 2.5, y: P + 4, z: z0 + 2, len: 5, span: 4, ry: 0, mat: 'thatch' });
+        s.props.push({ t: 'glow', x: x0 + 2.5, y: P + 2.5, z: z0 + 4.6, r: 1.6, color: '#ffb040', lit: true });
+      }
+      s.props.push({ t: 'glow', x: t.x + 0.5, y: P + 3, z: t.z + 7.5, r: 2, color: '#ffb040', lit: true });
+    }
+    k.houses(cx - 52, cz - 52, cx + 52, cz + 52, { w: [6, 8], d: [6, 8], seed: 977, make: (n, x, z, w, d, door) => house(s, x, z, w, d, n % 4 === 0 ? 2 : 1, base, n % 3 ? 'thatch' : 'red', door, { role: n === 0 ? 'inn' : n % 8 === 0 ? 'shop' : 'home', closed: n % 3 === 1 }) });
+    for (let x = cx - 46; x <= cx + 46; x += 15) s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: cz - 2.6, ry: 0 });
+    s.props.push({ t: 'sign', x: cx + 4.5, y: base, z: cz + 3.5, ry: 0, text: 'Branchley' });
+  }
+
+  /**
+   * Cala Roja, on the Bright Coast: a fishing town of white houses running down to a quay. Its boats
+   * lie in the basin; nets hang to dry along the quay, and the fish market's stalls stand at its end.
+   */
+  function buildCala(s: Site, base: number) {
+    const T = TOWNS.cala, cx = T.x, cz = T.z, QX = cx + 32;
+    rect(s, cx - 48, cz - 48, cx + 70, cz + 48);
+    const k = townKit(s, base);
+    const sett = (x: number, z: number) => (hash2(x, z, 978) < 0.75 ? B.Whitestone : hash2(x, z, 979) < 0.5 ? B.TerraCream : B.StoneBrick);
+    // The quay: a white stone wall down into the basin, the quayside on top
+    for (let z = cz - 26; z <= cz + 26; z++) for (let x = QX - 5; x <= QX; x++) { for (let y = SEA - 4; y < base - 1; y++) O.set(x, y, z, B.Whitestone); O.set(x, base - 1, z, x === QX ? B.Whitestone : sett(x, z)); clearUp(x, z, base, base + 8); if (x === QX && z % 6 === 0) O.set(x, base, z, B.Blackstone); }
+    k.street(QX - 5, cz - 26, QX - 1, cz + 26, sett);
+    for (const z of [cz - 16, cz, cz + 16]) k.street(cx - 34, z - 1, QX - 6, z + 1, sett);
+    k.street(cx - 12, cz - 30, cx - 10, cz + 30, sett);
+    k.postSpot(T.post[0], T.post[1], B.Whitestone);
+    k.houses(cx - 40, cz - 40, QX - 7, cz + 40, { w: [6, 8], d: [6, 7], seed: 980, make: (n, x, z, w, d, door) => house(s, x, z, w, d, n % 3 === 0 ? 2 : 1, base, n % 4 === 3 ? 'blue' : 'red', door, { wall: B.Whitestone, front: 'white', role: n === 0 ? 'inn' : n % 7 === 0 ? 'shop' : 'home', closed: n % 3 !== 0, trim: hash2(x, z, 981) < 0.6 ? ['shutters'] : [] }) });
+    // Boats in the basin, nets drying on the quay, the fish market at its south end
+    for (const [z, ry] of [[cz - 18, 1.2], [cz - 8, 1.7], [cz + 4, 1.4], [cz + 14, 1.9]] as const) s.props.push({ t: 'boat', x: QX + 5.5, y: SEA - 0.4, z: z + 0.5, ry });
+    for (let z = cz - 22; z <= cz + 10; z += 8) s.props.push({ t: 'rope', x: QX - 2.5, y: base + 2.2, z: z + 0.5, ry: -Math.PI / 2, len: 5, h: 0, r: 0.5 });
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'stall', x: QX - 3, y: base, z: cz + 18 + i * 3 + 0.5, ry: -Math.PI / 2, color: ['#2f4a7a', '#a8382c', '#e8dcc0', '#2f5a3a'][i] });
+    for (let z = cz - 24; z <= cz + 24; z += 12) s.props.push({ t: 'lantern', x: QX - 0.5, y: base, z: z + 0.5, ry: -Math.PI / 2 });
+    s.props.push({ t: 'sign', x: cx - 13.5, y: base, z: cz + 2.5, ry: Math.PI / 2, text: 'Cala Roja' });
+  }
+
+  /**
+   * Liftwick, on the Sunder's north rim: the skyfarmers' village. Grey stone under slate, terraced
+   * fields along the rim, and the Assembly's lift tower at the edge, from which the bridges go out to
+   * the hanging slabs.
+   */
+  function buildLiftwick(s: Site, base: number) {
+    const T = TOWNS.liftwick, cx = T.x, cz = T.z;
+    rect(s, cx - 46, cz - 46, cx + 46, cz + 46);
+    const k = townKit(s, base);
+    const sett = (x: number, z: number) => ((x + z) % 6 === 0 ? B.StoneBrick : hash2(x, z, 982) < 0.15 ? B.MossyCobble : B.Cobble);
+    k.street(cx - 40, cz - 2, cx + 40, cz + 2, sett);
+    k.street(cx - 2, cz - 34, cx + 2, cz + 30, sett);
+    k.postSpot(T.post[0], T.post[1], B.Cobble);
+    k.claim(cx - 10, cz + 24, cx + 10, cz + 46); // the lift tower and the rim
+    k.houses(cx - 40, cz - 40, cx + 40, cz + 22, { w: [6, 8], d: [6, 7], seed: 983, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1 + (n % 3 === 0 ? 1 : 0), base, 'slate', door, { wall: B.StoneBrick, front: 'quoined', role: n === 0 ? 'inn' : n % 7 === 0 ? 'shop' : 'home', closed: n % 3 === 1 }) });
+    // Skyfarm terraces west of the village, along the rim
+    for (let i = 0; i < 3; i++) {
+      const fx = cx - 44 + i * 13, fz = cz + 18;
+      if (!k.isFree(fx, fz, fx + 10, fz + 12)) continue;
+      for (let z = fz; z <= fz + 12; z++) for (let x = fx; x <= fx + 10; x++) { const g = heightAt(x, z); if (g !== base) continue; clearUp(x, z, g, g + 4); O.set(x, g - 1, z, (z - fz) % 4 === 0 ? B.Path : B.Farmland); }
+    }
+    // The Assembly's lift tower at the rim: white, pinned with black at every course
+    const LX = cx, LZ = cz + 32, H = 22;
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+      const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3, X = LX + dx, Z = LZ + dz;
+      foundation(X, Z, base, B.Whitestone);
+      for (let y = base; y < base + H; y++) {
+        const door = dz === -3 && Math.abs(dx) <= 1 && y < base + 3;
+        O.set(X, y, Z, edge && !door ? ((y - base) % 6 === 5 || (Math.abs(dx) === 3 && Math.abs(dz) === 3) ? B.Blackstone : B.Whitestone) : B.Air);
+      }
+    }
+    s.props.push({ t: 'cone', x: LX + 0.5, y: base + H + 0.5, z: LZ + 0.5, r: 5, h: 5, mat: 'blue' });
+    s.props.push({ t: 'sign', x: cx + 3.5, y: base, z: cz + 3.5, ry: 0, text: 'Liftwick' });
+  }
+
+  /**
+   * The hanging slabs over the Sunder: ground the white tore loose and lifted. Each is a turfed top on
+   * a body of rock that narrows below to a knot of white crystal, glowing, where the lift is. Rope
+   * bridges climb from Liftwick's rim from slab to slab; the biggest is a skyfarm, furrows and hives
+   * and a hut; a waterfall spills off the fourth into the rift; the last hangs out of reach. Loose
+   * stones drift round them.
+   */
+  function buildSlabs(s: Site) {
+    rect(s, 1360, 300, 1560, 500);
+    const slab = (cx: number, cz: number, rx: number, rz: number, top: number, seed: number) => {
+      const depth = Math.round(Math.max(rx, rz) * 1.3);
+      for (let dz = -rz - 3; dz <= rz + 3; dz++) for (let dx = -rx - 3; dx <= rx + 3; dx++) {
+        const e = Math.hypot(dx / rx, dz / rz) + (hash2(cx + dx, cz + dz, seed) - 0.5) * 0.18;
+        if (e > 1) continue;
+        const x = cx + dx, z = cz + dz;
+        const bottom = top - Math.round(depth * Math.pow(1 - e, 0.7)) - Math.round(hash2(x, z, seed + 1) * 2);
+        for (let y = bottom; y <= top; y++) {
+          const fromTop = top - y, fromBottom = y - bottom;
+          O.set(x, y, z, fromTop === 0 ? B.Grass : fromTop < 3 ? B.Dirt : fromBottom < 2 && e < 0.4 ? B.Crystal : fromBottom < 4 && e < 0.55 ? B.Whitestone : hash2(x, y, seed + 2) < 0.15 ? B.Gravel : B.Stone);
+        }
+        for (let y = top + 1; y < top + 6; y++) O.set(x, y, z, B.Air);
+      }
+      s.props.push({ t: 'glow', x: cx + 0.5, y: top - depth + 1, z: cz + 0.5, r: 3.2, color: '#9fe8ff', lit: true });
+    };
+    SLABS.forEach(([x, z, rx, rz, top], i) => slab(x, z, rx, rz, top, 1001 + i * 7));
+    // Loose stones drifting round them
+    for (let i = 0; i < 14; i++) {
+      const x = 1380 + Math.floor(hash2(i, 3, 1050) * 170), z = 320 + Math.floor(hash2(i, 4, 1050) * 170), y = 40 + Math.floor(hash2(i, 5, 1050) * 40), r = 1 + Math.floor(hash2(i, 6, 1050) * 2);
+      if (SLABS.some(([sx, sz, rx, rz]) => Math.abs(x - sx) < rx + 6 && Math.abs(z - sz) < rz + 6)) continue;
+      for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= 0; dy++) if (Math.hypot(dx, dz, dy * 1.4) <= r + 0.3) O.set(x + dx, y + dy, z + dz, dy === 0 ? B.Grass : dy === -r ? B.Whitestone : B.Stone);
+    }
+    // Rope bridges: three planks wide, rising a step at a time, a rail and a rope each side
+    const bridge = (x0: number, z0: number, y0: number, x1: number, z1: number, y1: number) => {
+      const n = Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0)), alongX = Math.abs(x1 - x0) >= Math.abs(z1 - z0);
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, x = Math.round(x0 + (x1 - x0) * t), z = Math.round(z0 + (z1 - z0) * t), y = Math.round(y0 + (y1 - y0) * t);
+        for (const k of [-1, 0, 1]) {
+          const bx = alongX ? x : x + k, bz = alongX ? z + k : z;
+          O.set(bx, y, bz, (i + k) % 5 === 0 ? B.DarkPlanks : B.Planks);
+          for (let yy = y + 1; yy <= y + 4; yy++) O.set(bx, yy, bz, B.Air);
+          if (k !== 0) O.set(bx, y + 1, bz, i % 6 === 0 ? B.OakLog : B.Barrier);
+        }
+      }
+      const ry = Math.atan2(-(z1 - z0), x1 - x0), len = Math.hypot(x1 - x0, z1 - z0);
+      for (const k of [-1, 1]) {
+        const ox = alongX ? 0 : k, oz = alongX ? k : 0;
+        s.props.push({ t: 'rope', x: x0 + ox + 0.5, y: y0 + 1.9, z: z0 + oz + 0.5, ry, len, h: y0 - y1, r: Math.min(1, len / 40) });
+      }
+    };
+    const [a, b, c, d] = SLABS;
+    const rimZ = 290, rimY = heightAt(1470, rimZ) - 1;
+    bridge(1470, rimZ, rimY, 1470, a[1] - a[3] + 1, a[4]);
+    bridge(a[0] + a[2] - 2, a[1] + 2, a[4], b[0] - b[2] + 1, b[1] - 2, b[4]);
+    bridge(b[0] - 2, b[1] + b[3] - 1, b[4], c[0] + 6, c[1] - c[3] + 1, c[4]);
+    bridge(c[0] + c[2] - 1, c[1] + 6, c[4], d[0] - d[2] + 1, d[1] - 1, d[4]);
+    // The skyfarm on the big slab: furrows, a hut, hives; fences round the drop
+    const [fx, fz, frx, frz, ft] = c;
+    for (let z = fz - frz + 4; z <= fz + 1; z++) for (let x = fx - frx + 5; x <= fx + 2; x++) if (Math.hypot((x - fx) / frx, (z - fz) / frz) < 0.8) O.set(x, ft, z, (z - fz) % 4 === 0 ? B.Path : B.Farmland);
+    for (let x = fx + 5; x <= fx + 10; x++) for (let z = fz + 3; z <= fz + 7; z++) {
+      const edge = x === fx + 5 || x === fx + 10 || z === fz + 3 || z === fz + 7, door = z === fz + 3 && x === fx + 7;
+      for (let y = ft + 1; y < ft + 4; y++) O.set(x, y, z, edge && !(door && y < ft + 3) ? B.Planks : B.Air);
+    }
+    s.props.push({ t: 'roof', x: fx + 8, y: ft + 4, z: fz + 5.5, len: 6, span: 5, ry: 0, mat: 'thatch' });
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'barrel', x: fx - 8.5 + i * 2, y: ft + 1, z: fz + 7.5, ry: i });
+    s.props.push({ t: 'lantern', x: fx + 4.5, y: ft + 1, z: fz + 2.5, ry: 0 });
+    // The waterfall off the fourth slab, all the way down into the rift
+    const [wx, wz, wrx, , wt] = d;
+    const lip = wx + wrx - 1;
+    for (let x = wx + 2; x <= lip; x++) O.set(x, wt, wz, B.Water);
+    for (let y = heightAt(lip + 1, wz); y <= wt; y++) for (const dz of [0, 1]) O.set(lip + 1, y, wz + dz, B.Water);
+    s.props.push({ t: 'smoke', x: lip + 1.5, y: heightAt(lip + 1, wz) + 0.5, z: wz + 1 });
+    // The plumb marks Pol Vidal reads: a post with a line and a bob, a scale scratched on a slate
+    for (const m of SLAB_MARKS) {
+      for (let y = m.y; y < m.y + 3; y++) O.set(Math.floor(m.x) + 1, y, Math.floor(m.z), B.OakLog);
+      s.props.push({ t: 'rope', x: Math.floor(m.x) + 1.5, y: m.y + 2.6, z: Math.floor(m.z) + 0.5, ry: 0, len: 0.2, h: 1.8, r: 0.02 });
+    }
+  }
+
+  /**
+   * Tenwells, on the Glass Flats: the caravan fort. A square of salt-white walls round a yard of
+   * wells, the caravans' tents and carts, a few stone houses, and the storm-hunters' tower at the
+   * north-east corner with its copper rod.
+   */
+  function buildTenwells(s: Site, base: number) {
+    const T = TOWNS.tenwells, cx = T.x, cz = T.z, R = 30;
+    rect(s, cx - 40, cz - 40, cx + 40, cz + 40);
+    const k = townKit(s, base);
+    for (let z = cz - R + 2; z <= cz + R - 2; z++) for (let x = cx - R + 2; x <= cx + R - 2; x++) O.set(x, base - 1, z, hash2(x, z, 984) < 0.7 ? B.Sand : B.TerraCream);
+    wallLine(s, cx - R, cz - R, cx + R, cz - R, base, 6, B.TerraCream, [[cx - 3, cx + 3]]);
+    wallLine(s, cx - R, cz + R, cx + R, cz + R, base, 6, B.TerraCream, [[cx - 3, cx + 3]]);
+    wallLine(s, cx - R, cz - R, cx - R, cz + R, base, 6, B.TerraCream);
+    wallLine(s, cx + R, cz - R, cx + R, cz + R, base, 6, B.TerraCream);
+    for (const [tx, tz] of [[cx - R, cz - R], [cx - R, cz + R], [cx + R, cz + R]] as const) tower(s, tx, tz, 5, 9, base, B.TerraCream, { crenel: true, trim: B.TerraBrown });
+    tower(s, cx + R, cz - R, 7, 18, base, B.TerraCream, { crenel: true, trim: B.TerraBrown });
+    for (let y = base + 18; y < base + 23; y++) O.set(cx + R, y, cz - R, B.Copper);
+    const yard = (x: number, z: number) => (hash2(x, z, 985) < 0.6 ? B.Path : B.Gravel);
+    k.street(cx - 3, cz - R - 6, cx + 3, cz + R + 6, yard);
+    k.street(cx - R + 3, cz - 2, cx + R - 3, cz + 2, yard);
+    k.postSpot(T.post[0], T.post[1], B.Path);
+    // The wells round the yard
+    for (const [wx, wz] of [[-12, -12], [12, -12], [-12, 12], [12, 12]] as const) { k.claim(cx + wx - 2, cz + wz - 2, cx + wx + 2, cz + wz + 2); s.props.push({ t: 'well', x: cx + wx + 0.5, y: base, z: cz + wz + 0.5 }); }
+    // Caravans: tents in the colours of their houses, carts, crates
+    const TENT = ['#a8382c', '#c8a050', '#2f4a7a', '#7a3a6a', '#e8dcc0', '#2f5a3a'];
+    for (let i = 0; i < 6; i++) { const tx = cx - 22 + (i % 3) * 8, tz = cz + (i < 3 ? -22 : 20); k.claim(tx - 3, tz - 3, tx + 3, tz + 3); s.props.push({ t: 'tent', x: tx, y: base, z: tz, ry: i * 0.9, color: TENT[i] }); }
+    for (const [x, z, ry] of [[cx + 18, cz - 20, 0.4], [cx + 22, cz + 18, 1.2], [cx - 6, cz + 24, 0.1]] as const) s.props.push({ t: 'cart', x: x + 0.5, y: base, z: z + 0.5, ry });
+    k.houses(cx - R + 3, cz - R + 3, cx + R - 3, cz + R - 3, { w: [6, 7], d: [6, 7], seed: 986, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1, base, n % 2 ? 'red' : 'slate', door, { wall: B.TerraCream, front: 'quoined', role: n === 0 ? 'inn' : n === 1 ? 'shop' : 'home', closed: n > 1 && n % 2 === 0 }) });
+    s.props.push({ t: 'sign', x: cx + 4.5, y: base, z: cz + R + 3.5, ry: 0, text: 'Tenwells' });
+  }
+
+  /**
+   * Fellside, in the Greywaste: one of the villages that emptied one by one. Every door shut, the
+   * chapel tower half down, carts left in the lane, and a letter nailed to the last door.
+   */
+  function buildFellside(s: Site, base: number) {
+    const T = TOWNS.fellside, cx = T.x, cz = T.z;
+    rect(s, cx - 36, cz - 36, cx + 36, cz + 36);
+    const k = townKit(s, base);
+    const lane = (x: number, z: number) => (hash2(x, z, 987) < 0.4 ? B.Gravel : hash2(x, z, 988) < 0.5 ? B.MossyCobble : B.Dirt);
+    k.street(cx - 30, cz - 2, cx + 30, cz + 1, lane);
+    k.street(cx - 1, cz - 26, cx + 1, cz + 26, lane);
+    k.houses(cx - 30, cz - 30, cx + 30, cz + 30, { w: [6, 7], d: [6, 7], seed: 989, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1, base, 'slate', door, { wall: n % 3 ? B.StoneBrick : B.Cobble, front: 'quoined', role: 'home', closed: true, chimney: n % 2 === 0 }) });
+    k.claim(cx + 14, cz + 10, cx + 24, cz + 20);
+    tower(s, cx + 19, cz + 15, 7, 14, base, B.MossyStone, { broken: true, hollow: true, door: 'w' });
+    for (const [x, z, ry] of [[cx - 14, cz + 0, 1.5], [cx + 8, cz - 1, 0.2]] as const) s.props.push({ t: 'cart', x: x + 0.5, y: base, z: z + 0.5, ry });
+    s.props.push({ t: 'notice', x: cx - 4.5, y: base, z: cz + 2.6, ry: 0 }, { t: 'sign', x: cx + 31.5, y: base, z: cz + 2.5, ry: Math.PI / 2, text: 'Fellside' });
+  }
+
+  /**
+   * Conch Key: a hamlet on one of the Keys along the causeway. Beach huts of salvaged boards and
+   * thatch, racks of fish drying, boats drawn up, and the turtle beach below it the turtle-watchers mind.
+   */
+  function buildConch(s: Site, base: number) {
+    const T = TOWNS.conch, cx = T.x, cz = T.z;
+    rect(s, cx - 30, cz - 30, cx + 30, cz + 30);
+    const k = townKit(s, base);
+    const sand = (x: number, z: number) => (hash2(x, z, 990) < 0.25 ? B.Planks : B.Sand);
+    k.street(cx - 22, cz - 1, cx + 22, cz + 1, sand);
+    k.street(cx - 1, cz - 16, cx + 1, cz + 16, sand);
+    k.postSpot(T.post[0], T.post[1], B.Planks);
+    k.houses(cx - 22, cz - 18, cx + 22, cz + 18, { w: [5, 7], d: [5, 6], seed: 991, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1, base, 'thatch', door, { wall: n % 2 ? B.Planks : B.DarkPlanks, front: 'boarded', role: n === 0 ? 'inn' : 'home', closed: n % 2 === 1, chimney: false }) });
+    for (let i = 0; i < 3; i++) s.props.push({ t: 'rope', x: cx - 18.5 + i * 5, y: base + 1.8, z: cz + 19.5, ry: 0, len: 4, h: 0, r: 0.4 });
+    for (const [x, z, ry] of [[cx + 22, cz + 20, 0.6], [cx + 26, cz + 14, 1.2]] as const) s.props.push({ t: 'boat', x: x + 0.5, y: base, z: z + 0.5, ry });
+    s.props.push({ t: 'firepit', x: cx + 6.5, y: base, z: cz + 6.5 }, { t: 'sign', x: cx + 2.5, y: base, z: cz + 2.5, ry: 0, text: 'Conch Key' });
   }
 
   /**

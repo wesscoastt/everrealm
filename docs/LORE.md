@@ -673,6 +673,19 @@ Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; 
 - **Dinah's maps.** `dinahSalt` (a map of the key itself; a tin of her own buttons under the X), `dinahKeys` (two maps of the Keys; a page of Gale's log in the second chest), `dinahGale` (Gale's hoard by Heron Mere in the Glades: an iron box, a brass compass Dinah keeps, and Gale's cloak with the compass rose, which the player keeps). After that Dinah sells maps of every region in Morrow; there are two to each region, as in the Counties.
 - **Wreckers' Bight** is the camp on a key east along the causeway where Pryce's wreckers lie up.
 
+### Morrow's towns and villages [in game]
+
+`src/world/sites.ts` (buildReedwater and the rest); their people in `src/data/content/morrowTowns.ts`.
+
+- **Reedwater** (the Glades): a stilt village over the sawgrass, houses and boardwalks on log stilts five blocks up, out of the floods; at night the glims light the creeks under it. **Orla Pike**, the reeve, wants the sawgrass lizards that wait under the walks thinned. **Tam Rush** brews reed beer in a tub under his house.
+- **Branchley** (the Amberwold): Wold folk under two great trees, plaster and timber along the old road, a stair winding round each trunk to a platform with cabins. Before the long nights they paint every doorpost with lamp-moth dust, which glows for a week. **Ivo Larch** keeps the lamps; **Mags Briar** bakes acorn bread.
+- **Cala Roja** (the Bright Coast): white fishing town running down to a quay. **Nuria Pujol** dries the fish; the terrace jackals strip her racks at night. **Toni Rius** sells what the boats brought in that morning.
+- **Liftwick** (the Sunder's north rim): the skyfarmers' village, grey stone and slate, with the Assembly's white lift tower at the rim. **Pol Vidal**, Marta Vidal's son, farms the hanging slabs; **Ada Moss** keeps hives on them.
+- **The hanging slabs**: ground the white tore loose and lifted, hanging over the rift on knots of glowing crystal. Rope bridges climb from the rim; the biggest is a skyfarm, a waterfall spills off another, the last hangs out of reach. By Pol's plumb marks they've lifted a hand and a half to two hands since spring, as the towers in Callis have.
+- **Tenwells** (the Glass Flats): the caravan fort, salt-white walls round a yard of wells, tents and carts, and the storm-hunters' tower with its copper rod. **Cass Moran** runs the caravans north and south; the salt reavers wait for the lightning to pass and come out of the glare. **Ennis Wade** sells water, dates and rope.
+- **Fellside** (the Greywaste): emptied. A letter on the last door from R. Alden: the Dunns went up the fell, came down, and were not the Dunns.
+- **Conch Key** (the Keys): beach huts, drying racks and boats. **Sal Mudge** watches the turtle beach, where the mangrove crabs meet the hatchlings halfway to the sea.
+
 ### Morrow's creatures [in game]
 
 Written at their regions' levels in `src/data/gameplay.ts`, south to north. Two new body plans in `src/entities/creatures.ts`: the lizard, and the lamp-moth, which flies.

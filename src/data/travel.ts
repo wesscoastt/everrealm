@@ -68,6 +68,13 @@ export const POSTS: PostStop[] = [
   { land: 'morrow', id: 'coldharbour', name: 'Cold Harbour (the Kittiwake)', place: 'coldharbour', ferryFrom: 'saltpenny', x: 2186.5, z: -1098.5, ry: Math.PI / 2, gate: 'coldFerry' },
   // Northgate, by cart up the coast road from Callis
   { land: 'morrow', id: 'northgate', name: 'Northgate', place: 'northgate', x: 507.5, z: -1225.5, ry: 0 },
+  // Morrow's towns (world/morrow.ts TOWNS)
+  { land: 'morrow', id: 'reedwater', name: 'Reedwater', place: 'reedwater', x: 1320.5, z: 2536.5, ry: 0 },
+  { land: 'morrow', id: 'branchley', name: 'Branchley', place: 'branchley', x: 736.5, z: 1625.5, ry: 0 },
+  { land: 'morrow', id: 'cala', name: 'Cala Roja', place: 'cala', x: 2464.5, z: 905.5, ry: 0 },
+  { land: 'morrow', id: 'liftwick', name: 'Liftwick', place: 'liftwick', x: 1466.5, z: 233.5, ry: 0 },
+  { land: 'morrow', id: 'tenwells', name: 'Tenwells', place: 'tenwells', x: 1046.5, z: -196.5, ry: 0 },
+  { land: 'morrow', id: 'conch', name: 'Conch Key', place: 'conch', x: -1214.5, z: 3334.5, ry: 0 },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */

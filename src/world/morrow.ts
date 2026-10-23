@@ -86,6 +86,35 @@ export const FELL_BARROWS: [number, number, number, 'shut' | 'open' | 'ma'][] = 
 ];
 /** Where the black is laid back over the last barrow opened (Ma's): beside its south side. */
 export const FELL_LAY = { x: 2006.5, z: -1162.5 };
+/**
+ * Morrow's towns and villages, one or more to each region, each with its post sign's place (post):
+ * Reedwater on stilts in the Glades, Branchley round its two great trees in the Amberwold, Cala Roja
+ * on the Bright Coast's shore, Liftwick on the Sunder's north rim, Tenwells walled on the Glass
+ * Flats, Fellside empty in the Greywaste, and Conch Key on a key along the causeway.
+ */
+export const TOWNS = {
+  reedwater: { x: 1250, z: 2540, post: [1320.5, 2536.5] as [number, number] },
+  branchley: { x: 730, z: 1630, post: [736.5, 1625.5] as [number, number] },
+  cala: { x: 2460, z: 900, post: [2464.5, 905.5] as [number, number] },
+  liftwick: { x: 1470, z: 236, post: [1466.5, 233.5] as [number, number] },
+  tenwells: { x: 1040, z: -200, post: [1046.5, -196.5] as [number, number] },
+  fellside: { x: 680, z: -830, post: [0, 0] as [number, number] },
+  conch: { x: -1220, z: 3330, post: [-1214.5, 3334.5] as [number, number] },
+};
+/** Reedwater's boardwalks and floors stand this high, on stilts over the marsh. */
+export const REED_DECK = SEA + 7;
+/** Branchley's two great trees: trunk, and the platform's level (where you stand on it). */
+export const WOLD_TREES = [{ x: 712, z: 1608, stand: 0 }, { x: 750, z: 1654, stand: 0 }].map((t) => ({ ...t, stand: 22 + 14 }));
+/**
+ * The hanging slabs over the Sunder by Liftwick: ground the white tore loose and lifted, still
+ * hanging on its crystal. Each is [x, z, rx, rz, top] (top: the level of its turf). The first three
+ * are farmed and bridged from Liftwick's rim; the fourth spills a waterfall into the rift; the last
+ * hangs too high to reach. The plumb marks Pol Vidal reads stand on the farmed ones (SLAB_MARKS).
+ */
+export const SLABS: [number, number, number, number, number][] = [
+  [1470, 326, 13, 10, 46], [1514, 376, 11, 9, 54], [1450, 428, 18, 14, 61], [1526, 474, 10, 9, 57], [1396, 372, 8, 7, 74],
+];
+export const SLAB_MARKS = [0, 2, 3].map((i) => ({ x: SLABS[i][0] + 3.5, z: SLABS[i][1] - 2.5, y: SLABS[i][4] + 1 }));
 /** Northgate, across the only pass into the Held Country. */
 export const NORTHGATE = { x: 520, z: -1360 };
 /**
