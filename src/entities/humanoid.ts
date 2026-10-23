@@ -13,6 +13,8 @@ export const FIGURE = 0.82;
 export interface Appearance {
   skin: string;
   hair: string;
+  /** Bright roots (hair style 13): the colour of the top, over the rest of the hair. */
+  hairRoots?: string;
   hairStyle: number; // 0 short, 1 long, 2 topknot, 3 shaved, 4 braids
   eyes: string;
   tunic: string;
@@ -1137,7 +1139,9 @@ export class Humanoid {
     const style = this.look.hairStyle;
     const fem = this.look.frame === 'f';
     /** A piece of hair: shade above 1 for the lit tops, below for the undersides. */
-    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => part(this.head, rbox(w, ht, d, r), tone === 1 ? h : shade(h, tone), x, y, z);
+    // Bright roots (style 13): the hair over the top of the head, crown and fringe, grows out in a second colour
+    const roots = style === 13 ? this.look.hairRoots ?? '#7fe05a' : null;
+    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => { const c = roots && y > 0.47 ? roots : h; return part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z); };
     if (hat === 'coif') {
       // A mail coif: the whole head but the face
       const mail = this.look.hatColor ?? '#9aa0a8';
@@ -1189,7 +1193,7 @@ export class Humanoid {
     const fringe = (pieces: [number, number, number][]) => { for (const [x, w, ht] of pieces) p(w, ht, 0.045, x, 0.515 - ht / 2, Z, 1.02, 0.015); };
     switch (style) {
       case 0: fringe([[-0.15, 0.14, 0.1], [-0.02, 0.14, 0.08], [0.11, 0.13, 0.06], [0.19, 0.06, 0.04]]); if (!covered) { p(0.32, 0.07, 0.14, -0.04, 0.625, 0.13, 1.1, 0.03); p(0.18, 0.05, 0.1, 0.12, 0.615, 0.15, 1.04, 0.02); } break;
-      case 1: case 4: case 11: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
+      case 1: case 4: case 11: case 13: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
       case 5: fringe([[-0.12, 0.2, 0.1], [0.08, 0.2, 0.1], [0.19, 0.06, 0.08]]); break;
       case 8: for (const [x, y] of [[-0.14, 0.49], [0.0, 0.5], [0.14, 0.49]]) p(0.12, 0.1, 0.08, x, y, 0.21, 1.04, 0.04); break;
       case 10: fringe([[0.04, 0.32, 0.06]]); p(0.13, 0.15, 0.05, 0.14, 0.45, Z, 1.04, 0.015); break;
@@ -1198,6 +1202,7 @@ export class Humanoid {
     }
     // What hangs down, by style
     switch (style) {
+      case 13: // bright roots: long and loose like 1, the top another colour (below)
       case 1: // long, loose
         for (const s of [1, -1]) { p(0.07, 0.42, 0.22, s * 0.24, 0.25, 0.04, 0.96); p(0.06, 0.08, 0.16, s * 0.24, 0.0, 0.05, 0.9); }
         p(0.48, 0.5, 0.1, 0, 0.2, -0.21, 0.94);
@@ -1254,6 +1259,7 @@ export class Humanoid {
         for (const [x, z] of [[-0.18, 0.1], [0.05, 0.14], [0.2, -0.05], [-0.1, -0.2]]) p(0.12, 0.08, 0.12, x, 0.69, z, 1.1, 0.04);
         break;
     }
+
     if (hat === 'cap') part(this.head, rbox(0.5, 0.12, 0.5, 0.05), this.look.hatColor ?? '#6a3a2a', 0, 0.6, 0);
     if (hat === 'wide' || hat === 'straw') {
       const c = hat === 'straw' ? '#d8b860' : this.look.hatColor ?? '#3a3a32';

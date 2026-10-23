@@ -830,6 +830,7 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .ml-in { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 2px; padding: 8px; background: rgba(0,0,0,0.3); font: 600 12px var(--px); color: var(--cream-d); }
 .ml-in .btn { margin-left: auto; }
 .ml-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+#leave-btn { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 40; padding: 8px 18px; font-size: 15px; pointer-events: auto; animation: gaugepulse 1.2s ease-in-out infinite alternate; }
 .mm-mail { display: none; position: absolute; left: -14px; top: 44px; width: 40px; height: 40px; z-index: 3; cursor: default; }
 .mm-mail.show { display: block; animation: gaugepulse 1.2s ease-in-out infinite alternate; }
 .mm-mail img { width: 40px; height: 40px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.6)); }

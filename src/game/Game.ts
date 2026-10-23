@@ -202,6 +202,8 @@ export class Game implements GameApi {
   private chests!: Chests;
   /** The towns' dogs and cats, spawned near the player (one list, so each keeps its place). */
   /** Town pets, and farm stock (world/sites.ts Site.animals): put out as you come near, each keeping its own spot. */
+  /** Whether the Leave dungeon button is up. */
+  private leaveShown = false;
   private pets: { kind: AnimalKind; x: number; z: number; r?: number; pal: Palette; a: Animal | null }[] = [];
   /** Lore books lying open by the places they're about (game/LoreBooks.ts). */
   private books!: LoreBooks;
@@ -3553,6 +3555,9 @@ export class Game implements GameApi {
     this.npcMusic();
     this.activities.update(dt);
     this.dungeons.update(dt);
+    // Out of a cleared dungeon with a click, not a walk back to the ladder
+    const cleared = !!this.dungeons.run?.done;
+    if (cleared !== this.leaveShown) { this.leaveShown = cleared; this.hud.setLeaveButton(cleared ? `Leave ${this.dungeons.run!.def.name}` : null, () => this.dungeons.leave()); }
     this.hazards.update(dt);
     this.stables.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);

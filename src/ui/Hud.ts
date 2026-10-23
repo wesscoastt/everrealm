@@ -1799,6 +1799,19 @@ export class Hud {
     }));
   }
 
+  /**
+   * A button at the top of the screen that takes you out of a group dungeon once it's cleared
+   * (Dungeons: the last boss down), so nobody has to walk back to the ladder. Null hides it.
+   */
+  setLeaveButton(label: string | null, onClick?: () => void): void {
+    let b = document.getElementById('leave-btn') as HTMLButtonElement | null;
+    if (!label) { if (b) b.style.display = 'none'; return; }
+    if (!b) { b = document.createElement('button'); b.id = 'leave-btn'; b.className = 'btn hud-only'; this.root.append(b); }
+    b.textContent = label;
+    b.style.display = '';
+    b.onclick = () => { this.ctx.sfx('click'); onClick?.(); };
+  }
+
   /** The envelope by the minimap while letters wait unread at the Charter Post. */
   setMailBadge(n: number): void {
     const b = this.q('.mm-mail') as HTMLElement | null;

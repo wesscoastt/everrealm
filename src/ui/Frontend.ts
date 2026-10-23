@@ -85,6 +85,7 @@ const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)]
 const CLOTH = ['#3a5a8a', '#2e3a5a', '#1e2a4a', '#5a7aa8', '#7a2a24', '#a8382c', '#8a4a3a', '#c86a3a', '#3f6a3a', '#2a4a2a', '#4a5a3a', '#7a8a4a', '#5a2f6a', '#7a4a8a', '#8a6a2a', '#c8a050', '#5a5048', '#3a3a3a', '#1e1a18', '#e8dcc0', '#c8c0a8', '#6a3a4a'];
 const DYEABLE = new Set(['tunic', 'shirt', 'trim', 'trousers', 'hose', 'boots', 'cape', 'hatColor', 'gloves', 'belt']);
 const OPT = {
+  hairRoots: ['#7fe05a', '#3ad8c8', '#e84ab8', '#f2d75a', '#4a8aff', '#f4f4f4', '#c83030', '#a86ae8'],
   skin: ['#fbe3cf', '#f6d8bc', '#f0c8a0', '#e8b48a', '#e0b090', '#d09870', '#c88a62', '#a8704a', '#8a5636', '#6a4028', '#5a3420', '#4a2a18'],
   eyes: ['#3a5a7a', '#4a7a8a', '#7a8a9a', '#3a6a3a', '#5a3a1a', '#8a6a2a', '#6a6a7a', '#2a2a2a', '#7a5a2a'],
   hair: ['#0e0c0c', '#1e1612', '#3a2418', '#5a3a22', '#7a5a3a', '#6a2a1a', '#a8642e', '#c87a3a', '#e2c070', '#f0e0b0', '#cfc8b8', '#e8e4dc', '#9a948c', '#3a2a5a', '#2a3a6a', '#5a1a2a'],
@@ -103,7 +104,7 @@ const OPT = {
 };
 type Tab = 'origin' | 'calling' | 'body' | 'face' | 'hair' | 'outfit' | 'gear';
 const TAB_NAME: Record<Tab, string> = { origin: 'Origin', calling: 'Calling', body: 'Body', face: 'Face', hair: 'Hair', outfit: 'Outfit', gear: 'Gear' };
-const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids', 'Bob', 'Ponytail', 'Bun', 'Curls', 'Mohawk', 'Undercut', 'Twin tails', 'Wild mane'];
+const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids', 'Bob', 'Ponytail', 'Bun', 'Curls', 'Mohawk', 'Undercut', 'Twin tails', 'Wild mane', 'Bright roots'];
 const FACIAL = ['None', 'Full beard', 'Stubble', 'Moustache', 'Goatee', 'Chinstrap', 'Long beard', 'Mutton chops', 'Forked beard'];
 const BROWS = ['Straight', 'Heavy', 'Arched', 'Fine'];
 const TOPS = ['Tunic', 'Doublet', 'Robe', 'Vest', 'Gambeson', 'Gown', 'Jerkin', 'Long coat'];
@@ -501,7 +502,7 @@ export class Frontend {
         <label>FACE PAINT</label>${sw('paint', L.paint)}
         <label>EARRING</label>${sw('earring', L.earring)}`;
     } else if (this.tab === 'hair') {
-      pane.innerHTML = `<label>STYLE</label>${chips('hs', HAIR_STYLES.map((t, i) => [t, i]), L.hairStyle)}<label>COLOUR</label>${sw('hair', L.hair)}
+      pane.innerHTML = `<label>STYLE</label>${chips('hs', HAIR_STYLES.map((t, i) => [t, i]), L.hairStyle)}<label>COLOUR</label>${sw('hair', L.hair)}${L.hairStyle === 13 ? `<label>ROOTS</label>${sw('hairRoots', L.hairRoots ?? '#7fe05a')}` : ''}
         <label>FACIAL HAIR</label>${chips('facial', FACIAL.map((t, i) => [t, i]), L.facial ?? (L.beard ? 1 : 0))}`;
     } else if (this.tab === 'outfit') {
       pane.innerHTML = `<label>TOP</label>${chips('top', TOPS.map((t, i) => [t, i]), L.top ?? 0)}
