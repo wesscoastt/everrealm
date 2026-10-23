@@ -623,11 +623,22 @@ export function textTexture(text: string, w: number, h: number, bg: string, fg: 
   ctx.lineWidth = 4;
   ctx.strokeRect(2, 2, w - 4, h - 4);
   ctx.fillStyle = fg;
-  ctx.font = `bold ${size}px ${font}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const lines = text.split('\n');
-  lines.forEach((ln, i) => ctx.fillText(ln, w / 2, h / 2 + (i - (lines.length - 1) / 2) * size * 1.15));
+  // The words fit the board: a long name breaks onto two lines at the middle space, and the type
+  // comes down until the widest line and the lines' height sit inside the margins
+  let lines = text.split('\n');
+  const widest = (px: number) => { ctx.font = `bold ${px}px ${font}`; return Math.max(...lines.map((ln) => ctx.measureText(ln).width)); };
+  if (lines.length === 1 && widest(size) > w * 0.88 && text.includes(' ')) {
+    const mid = text.length / 2;
+    let at = -1;
+    for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (at < 0 || Math.abs(i - mid) < Math.abs(at - mid))) at = i;
+    lines = [text.slice(0, at), text.slice(at + 1)];
+  }
+  let px = size;
+  while (px > 10 && (widest(px) > w * 0.88 || lines.length * px * 1.15 > h * 0.86)) px -= 2;
+  ctx.font = `bold ${px}px ${font}`;
+  lines.forEach((ln, i) => ctx.fillText(ln, w / 2, h / 2 + (i - (lines.length - 1) / 2) * px * 1.15));
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;

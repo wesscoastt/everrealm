@@ -3,7 +3,7 @@ import { B, isSolid } from '../world/blocks';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { CreatureModel, type Palette } from './creatures';
 
-export type AnimalKind = 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'dog' | 'cat' | 'duck';
+export type AnimalKind = 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'dog' | 'cat' | 'duck' | 'cow' | 'pig';
 
 /**
  * Peaceful wildlife and livestock: wander, graze, and flee from the player when skittish. Dogs come
@@ -31,7 +31,7 @@ export class Animal {
     this.pos.copy(this.home);
     this.target.copy(this.home);
     this.skittish = kind === 'deer' || kind === 'rabbit';
-    this.speed = kind === 'deer' ? 2.2 : kind === 'rabbit' ? 2.6 : kind === 'sheep' ? 1.0 : kind === 'dog' ? 2.2 : kind === 'cat' ? 1.3 : kind === 'duck' ? 0.7 : 1.4;
+    this.speed = kind === 'deer' ? 2.2 : kind === 'rabbit' ? 2.6 : kind === 'sheep' ? 1.0 : kind === 'dog' ? 2.2 : kind === 'cat' ? 1.3 : kind === 'duck' ? 0.7 : kind === 'cow' ? 0.7 : kind === 'pig' ? 1.1 : 1.4;
   }
 
   /** The top of the water at (x, z), if there's water there two deep (a duck's floor). */
@@ -101,7 +101,7 @@ export class Animal {
     if (this.voiceIn <= 0) {
       this.voiceIn = (this.kind === 'cat' ? 25 : 12) + Math.random() * 30;
       const near = Math.hypot(player.x - this.pos.x, player.z - this.pos.z) < 30;
-      if (near && (this.kind === 'dog' || this.kind === 'cat' || this.kind === 'duck' || this.kind === 'sheep')) Animal.voice?.(this.kind, this.pos);
+      if (near && (this.kind === 'dog' || this.kind === 'cat' || this.kind === 'duck' || this.kind === 'sheep' || this.kind === 'cow' || this.kind === 'pig')) Animal.voice?.(this.kind, this.pos);
     }
     // A dog trots over to see who you are, and sits by you; a cat slinks off if you come at it fast
     const dpl = Math.hypot(player.x - this.pos.x, player.z - this.pos.z);

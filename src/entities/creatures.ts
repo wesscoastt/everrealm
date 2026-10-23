@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse' | 'dog' | 'cat' | 'duck'
+export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'rabbit' | 'sheep' | 'chicken' | 'boar' | 'horse' | 'dog' | 'cat' | 'duck' | 'cow' | 'pig'
   | 'shark' | 'eel' | 'ray' | 'medusa'
   /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
   | 'bandit';
@@ -194,6 +194,8 @@ export class CreatureModel {
       case 'deer': this.buildDeer(); break;
       case 'rabbit': this.buildRabbit(); break;
       case 'sheep': this.buildSheep(); break;
+      case 'cow': this.buildCow(); break;
+      case 'pig': this.buildPig(); break;
       case 'dog': this.buildDog(); break;
       case 'cat': this.buildCat(); break;
       case 'duck': this.buildDuck(); break;
@@ -206,7 +208,7 @@ export class CreatureModel {
     }
     // Texture the plain surfaces (fur, chitin, scales, fleece) so nothing looks moulded out of putty;
     // glowing parts (eyes, a jelly's bell) and see-through ones keep their own look
-    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', dog: 'fur', cat: 'fur', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale' };
+    const surface: Partial<Record<CreatureKind, Surface>> = { wolf: 'fur', notch: 'fur', boar: 'fur', deer: 'fur', rabbit: 'fur', chicken: 'scale', sheep: 'wool', cow: 'fur', pig: 'fur', dog: 'fur', cat: 'fur', rustback: 'shell', shark: 'scale', eel: 'scale', ray: 'scale' };
     const skin = surface[kind];
     if (skin) this.root.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -381,6 +383,84 @@ export class CreatureModel {
       this.body.add(leg);
       add(leg, rb(0.16, 0.42, 0.18, 0.04), lam(hide), 0, -0.21, 0);
       add(leg, rb(0.17, 0.06, 0.2, 0.02), lam('#1e1612'), 0, -0.42, 0.02);
+      this.legs.push(leg);
+    }
+  }
+
+  /**
+   * A dairy cow: a deep barrel of a body with hips and shoulders showing, a long head with a pale
+   * muzzle, short horns, ears out sideways, an udder, and a tail ending in a tuft. a = coat,
+   * b = the patches (white on a dun or black cow), c = muzzle and udder.
+   */
+  private buildCow(): void {
+    this.plateHeight = 1.75;
+    const C = lam(this.pal.a ?? '#8a5a36'), P = lam(this.pal.b ?? '#efe8dc'), M = lam(this.pal.c ?? '#e8d6c4');
+    add(this.body, rb(0.78, 0.74, 1.62, 0.2), C, 0, 1.08, -0.02);
+    add(this.body, rb(0.7, 0.3, 1.2, 0.1), C, 0, 0.78, 0); // the belly
+    add(this.body, rb(0.8, 0.22, 0.34, 0.08), C, 0, 1.4, -0.62); // the hips
+    // The patches: sections of white that wrap the body, a touch proud of the coat so they read on both flanks
+    for (const [y, z, h, d] of [[1.12, 0.3, 0.5, 0.42], [0.98, -0.42, 0.42, 0.36]] as const) add(this.body, rb(0.83, h, d, 0.19), P, 0, y, z);
+    add(this.body, rb(0.34, 0.2, 0.36, 0.08), M, 0, 0.62, -0.42); // the udder
+    for (const [x, z] of [[0.08, -0.34], [-0.08, -0.34], [0.08, -0.5], [-0.08, -0.5]]) add(this.body, rb(0.04, 0.1, 0.04, 0.015), M, x, 0.5, z);
+    add(this.body, rb(0.36, 0.42, 0.34, 0.1), C, 0, 1.2, 0.84); // the neck, dropping to the head
+    const head = new THREE.Group();
+    head.position.set(0, 1.22, 1.02);
+    this.body.add(head);
+    add(head, taper(rb(0.36, 0.42, 0.56, 0.1), 0.85, 0.9), C, 0, -0.04, 0.16);
+    add(head, rb(0.3, 0.22, 0.16, 0.07), M, 0, -0.18, 0.44); // the muzzle
+    add(head, rb(0.22, 0.16, 0.2, 0.05), P, 0, 0.14, 0.2); // a blaze on the brow
+    for (const sd of [1, -1]) {
+      add(head, rb(0.05, 0.05, 0.02, 0.01), lam('#141010'), sd * 0.16, 0.06, 0.32).userData.plain = true;
+      add(head, rb(0.04, 0.04, 0.02, 0.01), lam('#3a2a2a'), sd * 0.06, -0.2, 0.53).userData.plain = true; // nostrils
+      add(head, rb(0.22, 0.07, 0.12, 0.03), C, sd * 0.25, 0.1, 0.02, 0, 0, sd * -0.15); // ears
+      add(head, new THREE.ConeGeometry(0.035, 0.16, 6), lam('#e8dcc0'), sd * 0.15, 0.26, 0.02, 0, 0, sd * -0.9).userData.plain = true; // horns
+    }
+    this.head = head;
+    const tail = new THREE.Group();
+    tail.position.set(0, 1.42, -0.82);
+    this.body.add(tail);
+    add(tail, rb(0.05, 0.62, 0.05, 0.02), C, 0, -0.32, -0.02, 0.08);
+    add(tail, rb(0.1, 0.16, 0.1, 0.04), lam('#2a1e16'), 0, -0.66, -0.04);
+    this.tail = tail;
+    for (const [x, z] of [[0.24, 0.6], [-0.24, 0.6], [0.24, -0.62], [-0.24, -0.62]]) {
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.74, z);
+      this.body.add(leg);
+      add(leg, rb(0.18, 0.5, 0.2, 0.05), C, 0, -0.24, 0);
+      add(leg, rb(0.13, 0.22, 0.14, 0.03), P, 0, -0.56, 0.01);
+      add(leg, rb(0.15, 0.07, 0.17, 0.02), lam('#1e1612'), 0, -0.71, 0.02);
+      this.legs.push(leg);
+    }
+  }
+
+  /** A pig: pink and round, a flat snout, ears flopped forward over the eyes, a curl of a tail. a = skin, b = spots. */
+  private buildPig(): void {
+    this.plateHeight = 1.0;
+    const S = lam(this.pal.a ?? '#e8a8a0'), D = lam(new THREE.Color(this.pal.a ?? '#e8a8a0').multiplyScalar(0.86).getStyle());
+    add(this.body, rb(0.62, 0.56, 1.02, 0.2), S, 0, 0.6, -0.02);
+    if (this.pal.b) for (const [x, y, z] of [[0.312, 0.66, 0.12], [-0.312, 0.56, -0.2], [0, 0.885, -0.28]] as const) add(this.body, rb(x ? 0.02 : 0.26, x ? 0.22 : 0.02, 0.26, 0.008), lam(this.pal.b), x, y, z);
+    const head = new THREE.Group();
+    head.position.set(0, 0.62, 0.52);
+    this.body.add(head);
+    add(head, rb(0.42, 0.38, 0.34, 0.12), S, 0, 0, 0.08);
+    add(head, rb(0.2, 0.16, 0.08, 0.05), D, 0, -0.06, 0.28); // the snout
+    for (const sd of [1, -1]) {
+      add(head, rb(0.035, 0.05, 0.02, 0.01), lam('#5a2a2a'), sd * 0.045, -0.06, 0.325).userData.plain = true;
+      add(head, rb(0.04, 0.04, 0.02, 0.01), lam('#141010'), sd * 0.12, 0.06, 0.25).userData.plain = true;
+      add(head, rb(0.16, 0.04, 0.18, 0.02), D, sd * 0.14, 0.2, 0.14, 0.7, 0, sd * -0.25); // ears, flopped forward
+    }
+    this.head = head;
+    const tail = new THREE.Group();
+    tail.position.set(0, 0.74, -0.52);
+    this.body.add(tail);
+    for (let k = 0; k < 4; k++) add(tail, rb(0.04, 0.04, 0.06, 0.015), D, Math.sin(k * 1.6) * 0.04, Math.cos(k * 1.6) * 0.04, -0.02 - k * 0.02);
+    this.tail = tail;
+    for (const [x, z] of [[0.18, 0.3], [-0.18, 0.3], [0.18, -0.32], [-0.18, -0.32]]) {
+      const leg = new THREE.Group();
+      leg.position.set(x, 0.36, z);
+      this.body.add(leg);
+      add(leg, rb(0.13, 0.32, 0.14, 0.04), S, 0, -0.16, 0);
+      add(leg, rb(0.14, 0.05, 0.15, 0.02), lam('#5a3a32'), 0, -0.33, 0.02);
       this.legs.push(leg);
     }
   }

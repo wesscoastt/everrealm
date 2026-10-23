@@ -82,7 +82,12 @@ export interface Site {
   impostor: ImpostorBox[];
   /** Dungeons, delves, vistas and wonders: what the game's activities find here. */
   act?: SiteActivity;
+  /** Stock kept here (a farm's cows, pigs, sheep and hens): the game puts them out as you come near. */
+  animals?: AnimalSpot[];
 }
+
+/** A beast that lives at a site, wandering r blocks from (x, z), in its own coat (entities/creatures.ts Palette). */
+export interface AnimalSpot { kind: 'cow' | 'pig' | 'sheep' | 'chicken'; x: number; z: number; r: number; pal?: { a?: string; b?: string; c?: string } }
 
 /** What an activity site holds for the game (see game/Activities.ts). */
 export interface SiteActivity {
@@ -596,6 +601,7 @@ export function plan(): Plan {
   // Fields, orchards, ribbon houses, mills and churchyards round the towns
   buildAllOutskirts();
   buildHarbourLights();
+  buildCityFarms();
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
@@ -983,7 +989,9 @@ export function plan(): Plan {
     const ns = gate === 'n' || gate === 's', g0 = heightAt(gapAt[0], gapAt[1]);
     for (const k of [-2, 2]) for (let y = 0; y < 3; y++) O.set(ns ? gapAt[0] + k : gapAt[0], g0 + y, ns ? gapAt[1] : gapAt[1] + k, B.OakLog);
     s.props.push({ t: 'roof', x: gapAt[0] + 0.5, y: g0 + 3, z: gapAt[1] + 0.5, len: 5.4, span: 2.4, rise: 1, ry: ns ? 0 : Math.PI / 2, mat: roof });
-    s.props.push({ t: 'sign', x: gapAt[0] + 0.5 + (ns ? 3.2 : gate === 'w' ? -1.5 : 1.5), y: heightAt(gapAt[0] + (ns ? 3 : 0), gapAt[1]), z: gapAt[1] + 0.5 + (ns ? (gate === 'n' ? -1.5 : 1.5) : 3.2), ry: gate === 'n' ? Math.PI : gate === 'e' ? Math.PI / 2 : gate === 'w' ? -Math.PI / 2 : 0, text: name });
+    // The name board stands out from the wall, beside the way in
+    const sgx = gapAt[0] + (ns ? 3.2 : gate === 'w' ? -2.6 : 2.6), sgz = gapAt[1] + (ns ? (gate === 'n' ? -2.6 : 2.6) : 3.2);
+    s.props.push({ t: 'sign', x: sgx + 0.5, y: heightAt(Math.floor(sgx), Math.floor(sgz)), z: sgz + 0.5, ry: gate === 'n' ? Math.PI : gate === 'e' ? Math.PI / 2 : gate === 'w' ? -Math.PI / 2 : 0, text: name });
     // The chapel at the far end from the gate
     const cw = 7, cd = 9;
     const cX = gate === 'w' ? x1 - cd - 1 : gate === 'e' ? x0 + 2 : gx - Math.floor(cw / 2);
@@ -1098,6 +1106,84 @@ export function plan(): Plan {
     s.props.push({ t: 'bench', x: cx + 0.5 + Math.sin(toTown) * 5 + Math.cos(toTown) * 2, y: heightAt(Math.floor(cx + Math.sin(toTown) * 5), Math.floor(cz + Math.cos(toTown) * 5)), z: cz + 0.5 + Math.cos(toTown) * 5 - Math.sin(toTown) * 2, ry: toTown + Math.PI });
     s.impostor.push({ x: cx + 0.5, y: base + H / 2, z: cz + 0.5, w: 6, h: H + 3, d: 6, color: '#e8dcc8' }, { x: cx + 0.5, y: base + H + 4, z: cz + 0.5, w: 6, h: 3, d: 6, color: '#a8382c', cone: true });
     rect(s, cx - 6, cz - 6, cx + 6, cz + 6);
+  }
+
+  // ---------------------------------------------------------------- The farms that feed the towns
+  /**
+   * A city eats more than its walls can grow: round Ansbury and the bigger towns the land is let in
+   * farms. Each is a farmstead (house, barn, yard, well, hay, fields: buildFarm) with a paddock of
+   * stock (cows, pigs, sheep, hens: Site.animals, put out by the game as you come near), a pigsty,
+   * and its name on a board at the gate. They stand a field or two back from the roads, on dry,
+   * fairly level ground clear of everything else, between the outskirts and the wild.
+   */
+  function buildCityFarms() {
+    const FARM_NAMES = ['Lower Farm', 'Highfield', 'Oxleaze', 'Copse Farm', 'Long Acre', 'Mill Farm', 'Coldharbour', 'Pease Hill', 'Rookery Farm', 'Dove House Farm', 'Withy Farm', 'Brook Farm',
+      'Sedge End', 'Hollins Farm', 'Stonecross', 'Ashlea', 'Kiln Farm', 'Wheatley', 'Bean Close', 'Moor End', 'Hanger Farm', 'Newland', 'Thornbury', 'Lane End', 'Barrow Farm', 'Furzedown'];
+    let named = 0;
+    const towns: [string, number, number, number][] = [
+      // town, farms, how far out (from its middle) they start and stop
+      ['aldermere', 8, 215, 430], ['gullmouth', 4, 70, 230], ['harrowgate', 2, 80, 220], ['cotters', 2, 60, 200], ['holme', 2, 55, 200], ['cragsby', 2, 55, 200], ['scarrow', 1, 55, 200], ['coldhearth', 1, 55, 190],
+    ];
+    for (const [id, want, r0, r1] of towns) {
+      const t = sites.find((x) => x.id === id);
+      if (!t) continue;
+      const near = sites.flatMap((x) => x.rects).filter((r) => r[2] > t.x - r1 - 60 && r[0] < t.x + r1 + 60 && r[3] > t.z - r1 - 60 && r[1] < t.z + r1 + 60);
+      const placed: [number, number, number, number][] = [];
+      const cands: [number, number, number][] = [];
+      for (let x = Math.floor(t.x - r1); x <= t.x + r1; x += 7) for (let z = Math.floor(t.z - r1); z <= t.z + r1; z += 7) {
+        const d = Math.hypot(x - t.x, z - t.z);
+        if (d >= r0 && d <= r1) cands.push([x, z, hash2(x, z, 440)]);
+      }
+      cands.sort((a, b) => a[2] - b[2]);
+      let n = 0;
+      for (const [x, z] of cands) {
+        if (n >= want) break;
+        // The farm's whole lot: buildFarm's yard and fields, and the paddock and sty east of them
+        const b: [number, number, number, number] = [x - 21, z - 15, x + 34, z + 36];
+        if ([...near, ...placed].some((r) => b[0] - 2 <= r[2] && b[2] + 2 >= r[0] && b[1] - 2 <= r[3] && b[3] + 2 >= r[1])) continue;
+        let lo = Infinity, hi = -Infinity, ok = true;
+        for (let px = b[0]; px <= b[2] && ok; px += 3) for (let pz = b[1]; pz <= b[3]; pz += 3) {
+          const h = heightAt(px, pz);
+          if (h <= SEA + 1 || roadDist(px, pz) < 5 || riverDist(px, pz) < 5 || lakeDist(px, pz) < 5) { ok = false; break; }
+          lo = Math.min(lo, h); hi = Math.max(hi, h);
+        }
+        // Not too far off a road: a farm sends its carts to market
+        if (!ok || hi - lo > 7 || roadDist(x, z) > 90) continue;
+        // The yard and the house and barn plots must be near level; the fields can roll
+        const spread = (x0: number, z0: number, x1: number, z1: number) => { let l = Infinity, h = -Infinity; for (let px = x0; px <= x1; px++) for (let pz = z0; pz <= z1; pz++) { const g = heightAt(px, pz); l = Math.min(l, g); h = Math.max(h, g); } return h - l; };
+        if (spread(x - 8, z - 6, x + 8, z + 5) > 1 || spread(x - 13, z - 11, x - 4, z - 3) > 2 || spread(x + 2, z - 13, x + 14, z - 4) > 2 || spread(x + 12, z + 6, x + 32, z + 22) > 3) continue;
+        const name = FARM_NAMES[named++ % FARM_NAMES.length];
+        const s: Site = { id: `farm-${id}-${n}`, name: '', region: regionAt(x, z).a, x, z, r: 160, named: false, props: [], rects: [], impostor: [], animals: [] };
+        sites.push(s);
+        buildFarm(s, x, z, heightAt(x, z));
+        stockyard(s, x, z);
+        s.props.push({ t: 'sign', x: x + 0.5, y: heightAt(x, z + 4), z: z + 4.6, ry: 0, text: name });
+        placed.push(b);
+        n++;
+      }
+    }
+  }
+
+  /** East of a farm's yard: a fenced paddock with its stock, a pigsty, and a hen run by the house. */
+  function stockyard(s: Site, x: number, z: number) {
+    const px0 = x + 12, pz0 = z + 6, px1 = x + 32, pz1 = z + 22;
+    for (let pz = pz0 + 1; pz < pz1; pz++) for (let px = px0 + 1; px < px1; px++) { const g = heightAt(px, pz); clearUp(px, pz, g, g + 6); }
+    fence(s, px0, pz0, px0 + 8, pz0); fence(s, px0 + 11, pz0, px1, pz0); fence(s, px0, pz1, px1, pz1); fence(s, px0, pz0, px0, pz1); fence(s, px1, pz0, px1, pz1);
+    // Most farms run cattle; some sheep; every one keeps a few pigs and hens
+    const h = hash2(x, z, 441);
+    const herd: AnimalSpot['kind'] = h < 0.65 ? 'cow' : 'sheep';
+    const coats: AnimalSpot['pal'][] = herd === 'cow' ? [{}, { a: '#26211e', b: '#efe8dc' }, { a: '#b87a4a', b: '#f2ece0' }, { a: '#5a3a26' }] : [{}, {}, { a: '#4a443e', b: '#221e1a' }];
+    for (let i = 0; i < (herd === 'cow' ? 4 : 6); i++) s.animals!.push({ kind: herd, x: px0 + 4 + (i % 3) * 5 + 0.5, z: pz0 + 4 + Math.floor(i / 3) * 6 + 0.5, r: 6, pal: coats[i % coats.length] });
+    s.props.push({ t: 'barrel', x: px0 + 2.5, y: heightAt(px0 + 2, pz0 + 2), z: pz0 + 2.5 }); // the trough
+    // The sty: a low stone pen with a lean-to, in the paddock's far corner
+    const sx0 = px1 - 7, sz0 = pz1 - 6;
+    drystone(sx0, sz0, px1 - 1, sz0); drystone(sx0, sz0, sx0, pz1 - 1);
+    for (let sx = sx0 + 1; sx < px1; sx++) for (let sz = sz0 + 1; sz < pz1; sz++) O.set(sx, heightAt(sx, sz) - 1, sz, B.Dirt);
+    s.props.push({ t: 'roof', x: px1 - 2, y: heightAt(px1 - 2, pz1 - 2) + 2.2, z: pz1 - 2.5, len: 4, span: 3, rise: 0.8, ry: 0, mat: 'thatch' });
+    for (let i = 0; i < 3; i++) s.animals!.push({ kind: 'pig', x: sx0 + 2.5 + i * 1.5, z: sz0 + 2.5, r: 2, pal: i === 2 ? { b: '#3a2a26' } : {} });
+    // Hens loose in the yard
+    for (let i = 0; i < 4; i++) s.animals!.push({ kind: 'chicken', x: x - 4.5 + i * 2, z: z + 0.5, r: 4 });
+    rect(s, x - 21, z - 15, x + 34, z + 36);
   }
 
   /** Stone arch over a gate gap in a wall: a lintel course at the top of the wall with crenels. */
@@ -3946,8 +4032,9 @@ export function plan(): Plan {
     house(s, x - 12, z - 10, 7, 6, 1, heightAt(x - 9, z - 7), 'thatch', 's');
     house(s, x + 3, z - 12, 10, 7, 1, heightAt(x + 8, z - 9), 'red', 's', { wall: B.Planks, role: 'store', chimney: false });
     pave(x - 6, z - 4, x + 6, z + 3, heightAt(x, z), 'yard');
-    s.props.push({ t: 'well', x: x + 0.5, y: heightAt(x, z), z: z + 0.5 }, { t: 'cart', x: x + 4.5, y: heightAt(x + 4, z), z: z + 1.5, ry: 0.6 });
-    for (const [bx, bz] of [[x, z], [x - 1, z], [x, z - 1], [x - 1, z - 1]]) { const g = heightAt(bx, bz); O.set(bx, g, bz, B.Barrier); O.set(bx, g + 1, bz, B.Barrier); }
+    // (everything in the yard stands on the yard's own level)
+    s.props.push({ t: 'well', x: x + 0.5, y: base, z: z + 0.5 }, { t: 'cart', x: x + 4.5, y: base, z: z + 1.5, ry: 0.6 });
+    for (const [bx, bz] of [[x, z], [x - 1, z], [x, z - 1], [x - 1, z - 1]]) { O.set(bx, base, bz, B.Barrier); O.set(bx, base + 1, bz, B.Barrier); }
     // Haystacks by the barn
     for (const [hx, hz, h] of [[x + 14, z - 7, 3], [x + 14, z - 4, 2], [x + 16, z - 6, 2]]) for (let y = 0; y < h; y++) for (const [ddx, ddz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (y < h - 1 || ddx + ddz === 0) O.set(hx + ddx, heightAt(hx, hz) + y, hz + ddz, B.Hay);
     // Fields: furrowed rows, a ditch every fifth row, fenced with a gate on the yard side
@@ -3965,7 +4052,7 @@ export function plan(): Plan {
     field(x - 18, z + 6, x - 2, z + 16);
     field(x - 18, z + 18, x + 8, z + 33);
     // A trough and a lamp in the yard
-    s.props.push({ t: 'barrel', x: x - 5.5, y: heightAt(x - 6, z + 2), z: z + 2.5 }, { t: 'crate', x: x - 4.6, y: heightAt(x - 5, z + 2), z: z + 2.8 }, { t: 'lantern', x: x - 3.5, y: heightAt(x - 4, z - 2), z: z - 2.5 });
+    s.props.push({ t: 'barrel', x: x - 5.5, y: base, z: z + 2.5 }, { t: 'crate', x: x - 4.6, y: base, z: z + 2.8 }, { t: 'lantern', x: x - 3.5, y: base, z: z - 2.5 });
     rect(s, x - 20, z - 14, x + 18, z + 35);
   }
 

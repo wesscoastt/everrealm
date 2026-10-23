@@ -7,7 +7,7 @@ export type Sfx =
   | 'swing' | 'hit' | 'hitHeavy' | 'hurt' | 'clink' | 'oreBreak' | 'chop' | 'treeFall' | 'cast' | 'splash' | 'bite' | 'catch'
   | 'bell' | 'coin' | 'levelUp' | 'click' | 'open' | 'close' | 'step' | 'growl' | 'squelch' | 'skitter' | 'heal' | 'roll'
   | 'anvil' | 'sizzle' | 'quest' | 'discover' | 'whistle' | 'death' | 'pickup' | 'fail' | 'thunder'
-  | 'bark' | 'meow' | 'quack' | 'baa' | 'purr'
+  | 'bark' | 'meow' | 'quack' | 'baa' | 'purr' | 'moo' | 'oink'
   // Feet on what they're on, a horse's hooves, and the body
   | 'stepGrass' | 'stepStone' | 'stepWood' | 'stepGravel' | 'stepSand' | 'stepSnow' | 'stepWater' | 'hoof' | 'jump' | 'land' | 'swim'
   // Blows, and things in the hands
@@ -264,6 +264,9 @@ export class AudioSystem {
       case 'meow': this.tone(560, 'triangle', 0.32, 0.07 * v, 0, 820); this.tone(760, 'sine', 0.2, 0.04 * v, 0.14, 480); break;
       case 'quack': for (let i = 0; i < 2; i++) { this.tone(330, 'square', 0.1, 0.05 * v, i * 0.14, 260); this.burst(1100, 4, 0.09, 0.12 * v, 'bandpass', i * 0.14); } break;
       case 'baa': for (let i = 0; i < 5; i++) this.tone(300 + (i % 2) * 30, 'sawtooth', 0.12, 0.04 * v, i * 0.09, 290); break;
+      // A low moo that rises and falls; a pig's two short grunts
+      case 'moo': this.tone(150, 'sawtooth', 0.9, 0.05 * v, 0, 118); this.tone(120, 'sawtooth', 0.7, 0.035 * v, 0.2, 100); break;
+      case 'oink': for (let i = 0; i < 2; i++) { this.burst(380, 4, 0.08, 0.12 * v, 'bandpass', i * 0.14); this.tone(210, 'square', 0.07, 0.025 * v, i * 0.14, 170); } break;
       case 'purr': for (let i = 0; i < 10; i++) this.burst(140, 3, 0.07, 0.18 * v, 'lowpass', i * 0.09); break;
       // ---- Feet: grass swishes, stone taps, boards knock, gravel and snow crunch, sand hushes, water splashes
       case 'stepGrass': { this.stepFlip = !this.stepFlip; this.burst(this.stepFlip ? 2600 : 2200, 0.7, 0.1, 0.06 * v, 'highpass'); this.burst(420, 1, 0.05, 0.05 * v, 'lowpass'); break; }

@@ -26,7 +26,7 @@ import { activeSet, ITEMS, SkillId } from '../data/items';
 import { baseOf, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
-import { Animal } from '../entities/Animal';
+import { Animal, type AnimalKind } from '../entities/Animal';
 import { Enemy } from '../entities/Enemy';
 import { Appearance, HeldItem, Humanoid, setGearModels } from '../entities/humanoid';
 import { Npc } from '../entities/Npc';
@@ -200,7 +200,8 @@ export class Game implements GameApi {
   /** Hidden chests across the land (game/Chests.ts). */
   private chests!: Chests;
   /** The towns' dogs and cats, spawned near the player (one list, so each keeps its place). */
-  private pets: { kind: 'dog' | 'cat'; x: number; z: number; pal: Palette; a: Animal | null }[] = [];
+  /** Town pets, and farm stock (world/sites.ts Site.animals): put out as you come near, each keeping its own spot. */
+  private pets: { kind: AnimalKind; x: number; z: number; r?: number; pal: Palette; a: Animal | null }[] = [];
   /** Lore books lying open by the places they're about (game/LoreBooks.ts). */
   private books!: LoreBooks;
   /** Schools of fish in the water near you (game/FishSchools.ts). */
@@ -701,8 +702,9 @@ export class Game implements GameApi {
       const catCoats: Palette[] = [{ a: '#d8843a', b: '#9a5420', c: '#f2e8d8' }, { a: '#2a2626', b: '#1a1616', c: '#3a3434' }, { a: '#8a8a8e', b: '#5a5a60', c: '#d8d8dc' }, { a: '#f0ece4', b: '#c8843a', c: '#ffffff' }];
       const spots: [number, number][] = [[171.5, 188.5], [147.5, 183.5], [182.5, 196.5], ...POSTS.filter((q) => !q.ferryFrom).flatMap((q): [number, number][] => [[q.x + 4.5, q.z + 3.5], [q.x - 4.5, q.z + 2.5]]), [687.5, 420.5], [675.5, 286.5], [787.5, 182.5]];
       spots.forEach(([x, z], i) => this.pets.push({ kind: i % 3 === 1 ? 'dog' : 'cat', x, z, pal: i % 3 === 1 ? dogCoats[i % dogCoats.length] : catCoats[(i * 7) % catCoats.length], a: null }));
+      for (const st of this.world.sites) for (const an of st.animals ?? []) this.pets.push({ kind: an.kind, x: an.x, z: an.z, r: an.r, pal: an.pal ?? {}, a: null });
     }
-    Animal.voice = (kind, at) => this.audio.playAt(({ dog: 'bark', cat: 'meow', duck: 'quack', sheep: 'baa' } as Record<string, Sfx>)[kind] ?? 'click', at.distanceTo(this.player.position), 0.8);
+    Animal.voice = (kind, at) => this.audio.playAt(({ dog: 'bark', cat: 'meow', duck: 'quack', sheep: 'baa', cow: 'moo', pig: 'oink' } as Record<string, Sfx>)[kind] ?? 'click', at.distanceTo(this.player.position), 0.8);
     this.hazards = new Hazards({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -3915,7 +3917,7 @@ export class Game implements GameApi {
     for (const pt of this.pets) {
       const d = Math.hypot(pt.x - this.player.position.x, pt.z - this.player.position.z);
       if (!pt.a && d < 90 && this.world.voxels.isLoaded(pt.x, pt.z)) {
-        pt.a = new Animal(pt.kind, pt.x, pt.z, pt.kind === 'dog' ? 9 : 5, this.world.voxels, undefined, pt.pal);
+        pt.a = new Animal(pt.kind, pt.x, pt.z, pt.r ?? (pt.kind === 'dog' ? 9 : 5), this.world.voxels, undefined, pt.pal);
         this.animals.push(pt.a);
         this.scene.add(pt.a.model.root);
       } else if (pt.a && d > 130) {
