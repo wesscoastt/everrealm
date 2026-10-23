@@ -515,6 +515,10 @@ No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cott
 
 - **Churchyards.** Every town but the Waystation and Scarrow Tor buries its dead outside the houses, near a road: a dry-stone wall with a lychgate, a small stone chapel at the far end (an altar with candles, benches either side of the aisle), and rows of graves facing the gate: round-topped headstones, crosses, slates, a chest tomb or two, and the oldest slabs leaning. Yews in the corners. The sign at the gate names it: Ansbury Churchyard, Kelderby Churchyard and so on.
 
+## Bright-cut [in game]
+
+Pale blue heavy plate cut square on every face, with a small square mark inside each piece: helm, plate, greaves, gauntlets and boots. Nobody in the counties knows who made it or how many suits there are; pieces turn up among what any creature leaves behind, anywhere, about once in four thousand kills, and never one you already have. Worn in twos it brings up one ore or crystal in five as two. (An affectionate nod to a certain other game's diamond armour.) `data/armour.ts` (brightcut), `game/Game.ts` (onEnemyKilled).
+
 ## Smithies [in game]
 
 Besides the smithy in Hollin Ford, every town of any size keeps a smithy by its Charter Post that anyone may work in: Ansbury (inside the south gate), Gullmouth, Harrowgate Works, the Waystation, Fellers' Camp, Kelderby, Cragsby, Holme Staithe, Scarrow Tor, Gillsby Staithe and Cotter's End. Each is an open-sided shed under slate with a brick furnace (fire in its mouth, a flue through the roof), bellows, an anvil and a quench barrel, a joiner's bench, and a cook fire in the yard. `world/sites.ts` (buildSmithies).

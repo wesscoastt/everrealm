@@ -308,7 +308,23 @@ const LINES: Line[] = [
     },
     helm: ['Kirkward great helm', 'A closed white helm with a white plume. You can see out of it better than anyone can see in.', { helm: { style: 'great', color: '#e8ecf0', trim: '#5fb8d8', plume: '#f4f2ea' } }],
   },
+  {
+    // Bright-cut: square-cut pale blue plate that turns up anywhere, from anything, very rarely (Game:
+    // onEnemyKilled). Nobody in the counties knows who made it.
+    id: 'brightcut', weight: 'heavy', set: 'brightcut', rarity: 'legendary', value: 400, colour: '#6fe3d8', trim: '#2a9a94',
+    look: { chest: { top: 4, tunic: '#1e4a50', trim: '#6fe3d8', chestArmour: { style: 'plate', color: '#6fe3d8', trim: '#2a9a94' }, shoulders: { style: 'round', color: '#8ff0e6', trim: '#2a9a94' } }, legs: { trousers: '#1e4a50', legs: 0, legArmour: { style: 'plate', color: '#6fe3d8' } }, hands: { gloves: '#1e4a50', bracers: { style: 'plate', color: '#8ff0e6' } }, feet: { boots: '#1e4a50', shoes: 1, sabatons: { color: '#6fe3d8' } } },
+    pieces: {
+      chest: ['Bright-cut plate', 'Pale blue plate with every face cut flat and square, like a stone a jeweller couldn\'t leave alone. A small square mark inside the collar. Someone dug very deep for this.'],
+      legs: ['Bright-cut greaves', 'Squared plates over the shins. They chime against each other when you walk.'],
+      hands: ['Bright-cut gauntlets', 'Square-cut, blue, and lighter than steel. Good for digging, oddly.'],
+      feet: ['Bright-cut boots', 'Flat-topped and square at the toe, blue to the heel. They leave square prints.'],
+    },
+    helm: ['Bright-cut helm', 'A blue helm cut square, open at the face. Nobody knows who made it, or how many there are.', { helm: { style: 'barbute', color: '#6fe3d8', trim: '#2a9a94' } }],
+  },
 ];
+
+/** The Bright-cut pieces: any creature anywhere may drop one, very rarely. */
+export const BRIGHTCUT = ['brightcut_helm', 'brightcut_chest', 'brightcut_legs', 'brightcut_hands', 'brightcut_feet'];
 
 /** A line's helm spends the helm budget (GEAR_BUDGET.head, 4) the way its weight would. */
 const HELM_TRAITS: Record<ArmourWeight, { defense: number; vigor?: number; wind?: number; roll?: number; stats: string }> = {

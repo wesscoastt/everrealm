@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { canLearn, pointsAt, spent, TALENTS, TREES } from '../data/talents';
 import type { Equip } from '../data/items';
-import { REGION_ARMOUR, WEIGHTS } from '../data/armour';
+import { BRIGHTCUT, REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
 import { Stage } from './Stage';
 import { Chests, TIERS } from './Chests';
@@ -2775,7 +2775,7 @@ export class Game implements GameApi {
       const info = ORE_INFO[a.ore.kind];
       if (!this.inv.canAdd(info.item)) { this.hud.system('Your pack is full.'); this.cancelActions(); return; }
       this.give(info.item);
-      if (this.fx.has('prospector') && Math.random() < 0.2 && this.inv.canAdd(info.item)) this.give(info.item);
+      if ((this.fx.has('prospector') || this.gearSet === 'brightcut') && Math.random() < 0.2 && this.inv.canAdd(info.item)) this.give(info.item);
       this.addXp('mining', info.xp);
       this.sfx('oreBreak');
       this.particles.debris(new THREE.Vector3(a.ore.x + 0.5, a.ore.y + 0.5, a.ore.z + 0.5), ['#7f8389', '#5d6066'], 14, 4);
@@ -2786,7 +2786,7 @@ export class Game implements GameApi {
       const info = TREE_INFO[a.tree.kind];
       if (!this.inv.canAdd(info.item)) { this.hud.system('Your pack is full.'); this.cancelActions(); return; }
       this.give(info.item);
-      if (this.fx.has('prospector') && Math.random() < 0.2 && this.inv.canAdd(info.item)) this.give(info.item);
+      if ((this.fx.has('prospector') || this.gearSet === 'brightcut') && Math.random() < 0.2 && this.inv.canAdd(info.item)) this.give(info.item);
       this.addXp('woodcutting', info.xp);
       a.tree.logs--;
       if (a.tree.logs <= 0) {
@@ -3193,6 +3193,19 @@ export class Game implements GameApi {
     if (e.def.elite) this.audio.sting('victory');
     this.activities.onKilled(e);
     this.dungeons.onKilled(e);
+    // A Bright-cut piece (data/armour.ts): anything, anywhere, about one kill in four thousand, and
+    // always a piece you haven't found before
+    if (Math.random() < 1 / 4000) {
+      const left = BRIGHTCUT.filter((id) => !this.flag('brightcut:' + id));
+      if (left.length && this.inv.canAdd(left[0])) {
+        const id = left[Math.floor(Math.random() * left.length)];
+        this.setFlag('brightcut:' + id, 1);
+        this.give(id, 1);
+        this.hud.banner(ITEMS[id].name, 'Something very rare', true);
+        this.audio.sting('victory');
+        this.hud.system(`Among what the ${e.def.name.toLowerCase()} left behind: ${ITEMS[id].name}. Pale blue, cut square. Nobody knows who made it. (${5 - left.length + 1} of 5)`);
+      }
+    }
     this.addXp('melee', e.def.xp);
     const [lo, hi] = e.def.marks;
     const m = Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (this.fx.has('fortune') ? 1.33 : 1));
