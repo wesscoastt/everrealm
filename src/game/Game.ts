@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Birds } from './Birds';
 import { PETS } from '../data/pets';
 import { Companion } from '../entities/Companion';
 import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
@@ -401,6 +402,8 @@ export class Game implements GameApi {
   private pillion: number | null = null;
   /** How a passenger sits: astride behind a saddle, or on a wagon's bench. */
   private pillionPose: SeatPose = 'ride';
+  /** The birds over the land round you, the same for everyone (game/Birds.ts). */
+  private birds!: Birds;
   /** Every bench, chair and stool in the world (sit on one with E), and the seat you're on. */
   private seats: { x: number; y: number; z: number; ry: number; half: number; both: boolean }[] = [];
   private seated: { x: number; y: number; z: number; yaw: number } | null = null;
@@ -609,6 +612,7 @@ export class Game implements GameApi {
       give: (it, n) => this.give(it, n), count: (it) => this.inv.count(it), addMarks: (n) => this.addMarks(n),
       banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), sound: (n) => this.sfx(n),
     });
+    this.birds = new Birds(this.scene);
     this.seasons = new Seasons({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, fest: () => this.festivals.fest,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -3961,6 +3965,7 @@ export class Game implements GameApi {
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
     this.seasons.update(dt, P);
+    this.birds.update(dt, P, this.underCover ? 1 : this.world.sky.night);
     if (this.flag('apprentice') !== this.appliedApprentice) this.applyCalling();
     if (this.flag('talentsRedrawn')) {
       this.setFlag('talentsRedrawn', 0);
