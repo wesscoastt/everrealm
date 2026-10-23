@@ -8,6 +8,7 @@ import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid'
 import type { SaveData } from '../game/state';
 import { CreatureModel, mountModel } from '../entities/creatures';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
+import { mountOf } from '../data/mountLooks';
 import { ITEMS } from '../data/items';
 import { currentAccount } from './Account';
 import type { Performance } from '../game/Bard';
@@ -47,7 +48,7 @@ interface Remote {
 interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
 
 /** How high a rider sits on someone's mount, by its halter's id. */
-const liftOf = (mount: string | null) => riderLift(mount ? ITEMS[mount]?.mount : null);
+const liftOf = (mount: string | null) => riderLift(mountOf(mount));
 
 const TOKENS_KEY = 'everrealm.netTokens';
 const SEND_MS = 120;
@@ -255,7 +256,7 @@ export class Online {
           if (!r) continue;
           r.from.copy(r.model.root.position);
           if (r.horse) r.from.y -= liftOf(r.horseOf);
-          r.mount = typeof mount === 'string' && ITEMS[mount]?.mount ? mount : null;
+          r.mount = typeof mount === 'string' && mountOf(mount) ? mount : null;
           r.to.set(x, y, z);
           r.t = 0;
           r.speed = r.from.distanceTo(r.to) / 0.1;
@@ -362,7 +363,7 @@ export class Online {
       at = { x: h.position.x, y: h.position.y, z: h.position.z, yaw: h.rotation.y };
       mount = r.mount;
     }
-    return passengerSeat(ITEMS[mount]?.mount, this.passengers(riderId).indexOf(who), at.x, at.y, at.z, at.yaw);
+    return passengerSeat(mountOf(mount), this.passengers(riderId).indexOf(who), at.x, at.y, at.z, at.yaw);
   }
   /** Everyone riding with a rider, by id. */
   passengers(riderId: number): number[] {
@@ -386,7 +387,7 @@ export class Online {
       // A rider: their horse underfoot, and them in the saddle
       if (r.mount !== r.horseOf) {
         if (r.horse) this.hooks.scene.remove(r.horse.root);
-        const m = r.mount ? ITEMS[r.mount].mount! : null;
+        const m = mountOf(r.mount);
         r.horse = m ? mountModel(m) : null;
         if (r.horse) this.hooks.scene.add(r.horse.root);
         r.horseOf = r.mount;

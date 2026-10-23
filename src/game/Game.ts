@@ -42,6 +42,8 @@ import { Input } from '../systems/Input';
 import { Particles } from '../systems/Particles';
 import { CreatureModel, mountModel, type CreatureKind } from '../entities/creatures';
 import { riderLift, riderPose, spareSeats, type SeatPose } from '../entities/seats';
+import { mountKey, mountOf } from '../data/mountLooks';
+import { MountChooser } from '../ui/MountChooser';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
@@ -2090,11 +2092,27 @@ export class Game implements GameApi {
     }
     if (this.save.marks < s.price) return;
     if (!this.inv.canAdd(item)) { this.hud.system('Your pack is full.'); return; }
+    if (ITEMS[item]?.mount && !this.mountPick.open) {
+      // A mount: choose its coat and cloth before paying
+      this.mountPick.show(item, `${s.price} marks`, true, (coat, cloth) => {
+        if (this.save.marks < s.price || !this.inv.canAdd(item)) return;
+        this.save.marks -= s.price;
+        this.give(item, 1);
+        this.setFlag('look:' + item, `${Math.min(9, coat)}${Math.min(9, cloth)}`);
+        this.sfx('coin');
+        this.hud.refresh();
+      });
+      return;
+    }
     this.save.marks -= s.price;
     this.give(item, 1);
     this.sfx('coin');
     this.hud.refresh();
   }
+
+  /** The look chooser for a mount on sale (ui/MountChooser.ts). */
+  private _mountPick: MountChooser | null = null;
+  private get mountPick(): MountChooser { return (this._mountPick ??= new MountChooser(this.renderer)); }
 
   private sell(slot: number): void {
     const st = this.save.inv[slot];
@@ -2409,7 +2427,7 @@ export class Game implements GameApi {
     // Someone in your group on a mount with a seat free: behind the saddle, or in the back of the wagon
     if (!this.horse && this.pillion === null && this.social.group) {
       for (const r of this.online.remotes.values()) {
-        const rm = r.mount ? ITEMS[r.mount]?.mount : undefined;
+        const rm = mountOf(r.mount);
         if (!rm || !spareSeats(rm) || !this.social.group.members.some((m) => m.id === r.id)) continue;
         if (this.online.passengers(r.id).length >= spareSeats(rm)) continue;
         const at = r.model.root.position, back = rm.wagon ? 1.3 : 0;
@@ -2947,6 +2965,12 @@ export class Game implements GameApi {
   }
 
   /** The halters in the pack, the chosen one first. */
+  /** Your mount's key as others see it: its halter and the coat and cloth you chose. */
+  private mountKeyOf(id: string): string {
+    const v = String(this.flag('look:' + id) ?? '');
+    return v ? mountKey(id, Number(v[0]) || 0, Number(v[1]) || 0) : id;
+  }
+
   private halters(): string[] {
     const own = this.save.inv.filter((st) => st && ITEMS[st.id]?.mount).map((st) => st!.id);
     const pick = this.flag('mount') as string | undefined;
@@ -2980,7 +3004,7 @@ export class Game implements GameApi {
     } else {
       // A wagon called from somewhere else comes round with its bed as you left it
       if (this.parked?.id === id) { this.scene.remove(this.parked.model.root); this.parked = null; }
-      horse = mountModel(m);
+      horse = mountModel(mountOf(this.mountKeyOf(id)) ?? m);
       P.footPosition(horse.root.position);
       horse.root.rotation.y = P.facing;
       this.scene.add(horse.root);
@@ -3801,6 +3825,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('F8')) this.devPanel.toggle();
     if (this.planner.lot && I.pressedOnce('Escape')) this.planner.close();
     if (this.bank.open && I.pressedOnce('Escape')) this.bank.close();
+    if (this._mountPick?.open && I.pressedOnce('Escape')) this._mountPick.close();
     if (this.home.active) {
       // Arranging the house: E sets the held piece down, R turns it, X picks up the nearest
       if (I.pressedOnce('KeyE')) { this.home.place(); this.hud.refresh(); this.persist(); }
@@ -4122,7 +4147,7 @@ export class Game implements GameApi {
     M.setHeld(P.swimming && (M.state === 'swim' || M.state === 'tread') ? 'none' : held);
     M.swimPitch = P.swimPitch;
     M.update(dt, P.speed, !P.onGround && !P.swimming);
-    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? (this.flag('mount') as string) : null, pillion: this.pillion });
+    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
     // Town pets come and go with you, each keeping its own spot

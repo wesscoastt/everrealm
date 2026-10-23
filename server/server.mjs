@@ -375,11 +375,11 @@ wss.on('connection', (ws, req) => {
         // A tool by name, or a weapon by its item id (drawn from the item in each game)
         if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
-        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon)_[a-z]{2,16}$/.test(msg.mount) ? msg.mount : null;
+        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon)_[a-z]{2,16}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
         // Riding with someone in your group, close by, on a mount with a seat still free
         const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
         const group = rider && social.groupIds(me);
-        const seats = rider ? SEATS.get(rider.mount) ?? 1 : 1;
+        const seats = rider ? SEATS.get(String(rider.mount).split('.')[0]) ?? 1 : 1;
         me.pillion = rider && rider !== me && seats > 1 && group?.members.includes(rider.id) && Math.hypot(rider.x - me.x, rider.z - me.z) < 8
           && [...players.values()].filter((p) => p !== me && p.pillion === rider.id).length < seats - 1 ? rider.id : 0;
         me.dirty = true;

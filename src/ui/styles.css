@@ -953,3 +953,18 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #lockpick .lp-pin.slip { animation: lp-slip 0.25s; }
 @keyframes lp-slip { 0%, 100% { transform: none; } 30% { transform: translateX(-4px); border-color: #c84a3a; } 70% { transform: translateX(4px); } }
 #lockpick .lp-help { margin: 10px 0 0; font: 500 12px var(--body); color: var(--cream-d); }
+
+/* Choosing a mount's look before buying (ui/MountChooser.ts) */
+#mountpick { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 392px; max-width: calc(100vw - 24px); max-height: calc(100vh - 80px); overflow-y: auto; z-index: 40; padding: 12px 14px; background: linear-gradient(rgba(14, 20, 40, 0.97), rgba(8, 10, 20, 0.97)); border: 1px solid var(--ink); border-radius: 10px; color: var(--cream-d); font: 500 13px var(--body); pointer-events: auto; }
+#mountpick .mp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+#mountpick .mp-head b { color: var(--gold); font: 600 16px var(--display, var(--body)); }
+#mountpick .mp-x { background: none; border: 0; color: var(--cream-d); font-size: 16px; cursor: pointer; }
+#mountpick canvas { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); }
+#mountpick h6 { margin: 10px 0 6px; font: 600 12px var(--body); color: var(--cream); text-transform: uppercase; letter-spacing: 0.06em; }
+#mountpick h6 i { font-style: normal; color: var(--gold); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+#mountpick .mp-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#mountpick .mp-sw { width: 30px; height: 30px; padding: 3px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.05); cursor: pointer; }
+#mountpick .mp-sw span { display: block; width: 100%; height: 100%; border-radius: 4px; }
+#mountpick .mp-sw.on { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(232, 192, 80, 0.45); }
+#mountpick .mp-foot { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-top: 12px; }
+#mountpick .mp-foot span { font-size: 11px; color: var(--muted, #9aa); }
