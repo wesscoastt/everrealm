@@ -20,7 +20,7 @@ export interface MailHost {
   room(stacks: { id: string; n: number }[]): boolean;
   marks(): number;
   addMarks(n: number): void;
-  sound(name: 'coin' | 'click' | 'pickup'): void;
+  sound(name: 'coin' | 'click' | 'pickup' | 'mail'): void;
   persist(): void;
   /** Redraw the panel if it's open, and the unread mark by the map. */
   refresh(): void;
@@ -69,7 +69,7 @@ export class Mail {
         this.letters = [...this.letters.filter((l) => l.id !== letter.id), letter];
         this.unread = unread;
         this.host.system(letter.returned ? `A letter has come back to you by the Charter Post: ${letter.subject}.` : `A letter from ${letter.from} has come for you by the Charter Post. Read it at any post box.`);
-        this.host.sound('click');
+        this.host.sound('mail');
         this.host.refresh();
       },
       mailSent: (to: string) => {

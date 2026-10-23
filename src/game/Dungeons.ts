@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Sfx } from '../systems/Audio';
 import { damageScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
@@ -66,7 +67,7 @@ export interface DungeonHost {
   /** A line in the log under a name, and (bubble) over a henchman's head. */
   say(who: string, text: string, bubble?: number): void;
   float(at: THREE.Vector3, h: number, text: string, cls: string): void;
-  sound(name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3): void;
+  sound(name: Sfx, at: THREE.Vector3): void;
   sfx(name: 'open' | 'levelUp' | 'heal' | 'bell' | 'click' | 'discover', vol?: number): void;
   ask(text: string, yes: () => void, no: () => void, secs: number): void;
   flag(k: string): unknown;

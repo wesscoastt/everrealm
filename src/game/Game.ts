@@ -31,7 +31,7 @@ import { Enemy } from '../entities/Enemy';
 import { Appearance, HeldItem, Humanoid, setGearModels } from '../entities/humanoid';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
-import { AudioSystem, Sfx } from '../systems/Audio';
+import { AudioSystem, Sfx, voiceOf, type Soundscape } from '../systems/Audio';
 import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
@@ -329,6 +329,13 @@ export class Game implements GameApi {
     persist: () => this.persist(),
     refresh: () => { this.hud.refresh('mail'); this.hud.setMailBadge(this.mail.unread); },
   });
+  /** Swimming strokes, every other ripple; and what's round the listener (see listen()). */
+  private strokes = 0;
+  private listenT = 0;
+  private scape: Partial<Soundscape> = {};
+  private readonly towns = crowdZones();
+  /** When each creature last cried out at a blow (so a flurry isn't a chorus). */
+  private voiced = new WeakMap<Enemy, number>();
   /** Where the post box is that the letters page was opened at. */
   private mailAt: { x: number; z: number } | null = null;
   /** Set while a writ pays its experience, so the payment doesn't count toward other writs. */
@@ -1867,6 +1874,7 @@ export class Game implements GameApi {
       if (old) this.inv.add(old, 1);
       this.hp = Math.min(this.hp, this.maxHp);
       this.dress();
+      this.sfx('equip');
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.instrument) {
@@ -1978,7 +1986,8 @@ export class Game implements GameApi {
     this.inv.remove(best, 1);
     this.hp = Math.min(this.maxHp, this.hp + (def.heal ?? 0));
     this.cds.eat = 1.5;
-    this.sfx('heal', 0.6);
+    this.sfx(/(_ale|_beer|_porter|_wine|_cider)$/.test(best) ? 'drink' : 'eat', 0.8);
+    this.sfx('heal', 0.35);
     this.floatAt(this.player.position, 2.2, `+${def.heal}`, 'heal');
     this.hud.refresh('inv');
   }
@@ -2807,6 +2816,7 @@ export class Game implements GameApi {
     this.setFlag('mount', id);
     this.particles.dust(P.position, 14);
     this.sfx('whistle', 0.6);
+    setTimeout(() => this.sfx('neigh', 0.7), 450);
   }
 
   private dismount(quiet = false): void {
@@ -2814,7 +2824,7 @@ export class Game implements GameApi {
     this.scene.remove(this.horse.root);
     this.horse = null;
     this.player.seat = 0;
-    if (!quiet) this.particles.dust(this.player.position, 8);
+    if (!quiet) { this.particles.dust(this.player.position, 8); this.sfx('snort', 0.5); }
   }
 
   /** Up behind a friend on their two-seat mount: you go where they ride until you jump down (Space or G). */
@@ -3006,7 +3016,8 @@ export class Game implements GameApi {
     this.target = this.target && this.target.alive ? this.target : e;
     this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : quiet ? 'tick' : '');
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
-    if (crit) { e.punch = Math.max(e.punch, e.def.elite ? 0.12 : 0.24); this.hitstop = Math.max(this.hitstop, 0.08); this.rig.addShake(0.16); }
+    if (crit) { e.punch = Math.max(e.punch, e.def.elite ? 0.12 : 0.24); this.hitstop = Math.max(this.hitstop, 0.08); this.rig.addShake(0.16); this.sfx('crit', 0.7); }
+    if (!quiet && e.alive && this.elapsed - (this.voiced.get(e) ?? -9) > 0.9) { this.voiced.set(e, this.elapsed); this.audio.playAt(voiceOf(e.def.model ?? e.def.type, 'hurt'), e.pos.distanceTo(this.player.position), 0.7); }
     this.addXp('melee', Math.max(1, Math.round(dmg * 0.4)));
     if (!quiet) {
       if (fx.has('bleed') && e.alive) this.kit.addDot(e, (dmg * 0.33) / 4, 4);
@@ -3107,6 +3118,7 @@ export class Game implements GameApi {
   }
 
   private onEnemyKilled(e: Enemy): void {
+    this.audio.playAt(voiceOf(e.def.model ?? e.def.type, 'die'), e.pos.distanceTo(this.player.position), 0.9);
     if (e.spawnKey && !e.questTag && Number.isFinite(e.def.respawn) && e.def.respawn < 99999) {
       this.ledger.set(e.spawnKey, realmNow() + e.def.respawn * 1000);
       this.online.mobDead(e.spawnKey, e.def.respawn);
@@ -3461,7 +3473,7 @@ export class Game implements GameApi {
     this.world.update(dt, P, this.elapsed, timeScale);
     // Doors open for anyone walking up to them: you, other players, the villagers
     const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos)];
-    updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'open' : 'close', 0.5));
+    updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'doorOpen' : 'doorShut', 0.6));
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
     this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
     const ind = this.world.shared.uIndoor;
@@ -3768,7 +3780,11 @@ export class Game implements GameApi {
       // A leap, a step or a spring is never a fall
       fall = 0;
       P.fallStartY = P.position.y;
-    } else fall = P.update(dt, mv, speed, jump);
+    } else {
+      const grounded = P.onGround;
+      fall = P.update(dt, mv, speed, jump);
+      if (jump && grounded && !P.onGround && !P.swimming && !this.horse) this.sfx('jump', 0.6);
+    }
     if (P.swimming !== wasSwimming) document.body.classList.toggle('swimming', P.swimming);
     // The first dive: how fighting works down here
     if (P.underwater && !this.flag('tipDive')) {
@@ -3795,7 +3811,11 @@ export class Game implements GameApi {
     }
     if (P.swimming && !P.underwater && P.speed > 1) {
       this.wakeTimer -= dt;
-      if (this.wakeTimer <= 0) { this.wakeTimer = 0.28; this.particles.ripple(tmpV.set(P.position.x, P.waterTop - 0.05, P.position.z)); }
+      if (this.wakeTimer <= 0) {
+        this.wakeTimer = 0.28;
+        this.particles.ripple(tmpV.set(P.position.x, P.waterTop - 0.05, P.position.z));
+        if ((this.strokes = (this.strokes + 1) % 2) === 0) this.sfx('swim', 0.4);
+      }
     }
     if (fall > 5 && !this.dev.god) {
       const dmg = Math.round((fall - 4) * 7);
@@ -3805,12 +3825,12 @@ export class Game implements GameApi {
       this.rig.addShake(0.2);
       if (this.hp <= 0) this.die();
     }
-    if (fall > 1.5) this.particles.dust(P.position, 6);
+    if (fall > 1.5) { this.particles.dust(P.position, 6); this.sfx('land', Math.min(1, fall / 4)); }
 
     // Footsteps
     if (P.onGround && P.speed > 1) {
       this.stepTimer -= dt * (P.speed / 5);
-      if (this.stepTimer <= 0) { this.stepTimer = 0.36; this.sfx('step', 0.5); }
+      if (this.stepTimer <= 0) { this.stepTimer = this.horse ? 0.62 : 0.36; this.sfx(this.horse ? 'hoof' : this.stepSound(), this.horse ? 0.6 : 0.5); }
     }
 
     // Animation state
@@ -3922,8 +3942,54 @@ export class Game implements GameApi {
       sky.flash = 1;
       setTimeout(() => this.sfx('thunder', 0.8), 600 + Math.random() * 2200);
     }
-    this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin', rain: underground ? 0 : wet * (sky.sheltered ? 0.45 : 1) });
+    this.listenT -= dt;
+    if (this.listenT <= 0) { this.listenT = 1; this.listen(P, sky.night, sky.sheltered); }
+    this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin' || (this.scape.crowd ?? 0) > 0, rain: underground ? 0 : wet * (sky.sheltered ? 0.45 : 1), ...this.scape });
     this.audio.musicContext({ theme: this.musicTheme(underground), combat: this.inCombat(), boss: this.bossFight() });
+  }
+
+  /** What the feet are on: grass, stone, boards, gravel, sand, snow, or shallow water. */
+  private stepSound(): Sfx {
+    const P = this.player.position, V = this.world.voxels;
+    if (V.get(Math.floor(P.x), Math.floor(P.y + 0.1), Math.floor(P.z)) === B.Water) return 'stepWater';
+    const ix = Math.floor(P.x), iz = Math.floor(P.z);
+    let under = V.get(ix, Math.floor(P.y - 0.1), iz);
+    if (under === B.Air) under = V.get(ix, Math.floor(P.y - 1.1), iz);
+    switch (under) {
+      case B.Stone: case B.Cobble: case B.StoneBrick: case B.MossyCobble: case B.MossyStone: case B.DeepStone: case B.Basalt: case B.Ice: case B.Crystal:
+      case B.TerraOrange: case B.TerraCream: case B.TerraBrown: case B.CopperOre: case B.TinOre: case B.SilverOre: case B.IronOre: case B.Depleted:
+        return 'stepStone';
+      case B.Planks: case B.DarkPlanks: case B.Timber: case B.OakLog: case B.BirchLog: case B.PineLog: case B.Hay: case B.Barrier:
+        return 'stepWood';
+      case B.Gravel: case B.Path: return 'stepGravel';
+      case B.Sand: case B.RedSand: case B.Clay: return 'stepSand';
+      case B.Snow: case B.SnowGrass: return 'stepSnow';
+      default: return 'stepGrass';
+    }
+  }
+
+  /** What's round the listener, for the ambience, looked at once a second: sea, woods, falls, a crowd. */
+  private listen(P: THREE.Vector3, night: number, sheltered: boolean): void {
+    const V = this.world.voxels;
+    let sea = 0, wood = 0, n = 0;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      for (const r of [9, 26, 48]) {
+        const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r;
+        n++;
+        if (heightAt(Math.floor(x), Math.floor(z)) < SEA - 1) sea++;
+        const top = V.topSolid(x, z);
+        const id = top > 0 ? V.get(Math.floor(x), top, Math.floor(z)) : 0;
+        if (id === B.OakLeaves || id === B.BirchLeaves || id === B.PineLeaves) wood++;
+      }
+    }
+    const town = this.towns.find((t) => Math.hypot(t.x - P.x, t.z - P.z) < t.r);
+    this.scape = {
+      coast: Math.min(1, (sea / n) * 3.5), forest: Math.min(1, (wood / n) * 4),
+      falls: Math.max(0, 1 - Math.hypot(P.x - 94, P.z - 95) / 38),
+      crowd: town ? (night < 0.5 ? (town.r > 100 ? 1 : 0.6) : sheltered ? 0.9 : 0.1) : 0,
+      indoors: sheltered,
+    };
   }
 
   /** Theme for where the player is and the time of day. */

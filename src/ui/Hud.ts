@@ -202,7 +202,7 @@ export interface UiCtx {
   quests(): QuestEntry[];
   dialogueChoose(i: number): void;
   settingsChanged(): void;
-  sfx(name: 'click' | 'open' | 'close'): void;
+  sfx(name: 'click' | 'open' | 'close' | 'page'): void;
   /** Deletes the character being played and goes back to character select. */
   resetSave(): void;
   ability(i: number): void;
@@ -1224,7 +1224,7 @@ export class Hud {
     if (p === 'map' || p === 'journal' || p === 'settings') for (const o of ['craft', 'shop', 'travel', 'exchange', 'finder', 'map', 'journal', 'settings'] as PanelId[]) if (o !== p) this.close(o);
     this.open.add(p);
     this.panelEl(p).classList.add('show');
-    this.ctx.sfx('open');
+    this.ctx.sfx(p === 'journal' || p === 'map' || p === 'read' || p === 'mail' ? 'page' : 'open');
     this.refresh(p);
     if (p === 'journal') this.setJournalAlert(false);
     if (p === 'map') this.mapView.fresh = true;

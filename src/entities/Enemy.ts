@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { voiceOf, type Sfx } from '../systems/Audio';
 import { scaleDef } from '../data/scaling';
 import { EnemyDef } from '../data/gameplay';
 import { B, isSolid } from '../world/blocks';
@@ -15,7 +16,7 @@ export interface EnemyContext {
   /** The player is in the water (sea creatures only go after swimmers). */
   playerSwimming: boolean;
   hitPlayer(damage: number, from: Enemy): void;
-  sound(name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3): void;
+  sound(name: Sfx, at: THREE.Vector3): void;
   /** The player's level: every creature meets you at it (data/scaling.ts). */
   level?: number;
   /**
@@ -289,7 +290,7 @@ export class Enemy {
       case 'wander': {
         if (reachable && distP < def.aggro) {
           this.state = 'chase';
-          ctx.sound(def.model === 'medusa' ? 'squelch' : 'growl', this.pos);
+          ctx.sound(voiceOf(def.model ?? def.type, 'aggro'), this.pos);
           break;
         }
         if (this.state === 'idle' && this.timer > 1.5 + Math.random() * 3) {
@@ -469,7 +470,7 @@ export class Enemy {
       case 'wander': {
         if (ctx.playerAlive && distP < def.aggro && Math.abs(toPlayer.y) < 4) {
           this.state = 'chase';
-          ctx.sound(def.type === 'jelly' ? 'squelch' : def.type === 'rustback' ? 'skitter' : 'growl', this.pos);
+          ctx.sound(voiceOf(def.model ?? def.type, 'aggro'), this.pos);
           break;
         }
         if (this.state === 'idle' && this.timer > 2 + Math.random() * 4) {

@@ -43,7 +43,7 @@ export interface ChestHost {
   /** Pay out: marks scaled to the region, items rolled for quality from this source. */
   reward(marks: number, items: { id: string; source?: DropSource }[], why: string): void;
   system(text: string): void;
-  sound(name: 'open' | 'click' | 'fail' | 'coin'): void;
+  sound(name: 'open' | 'click' | 'fail' | 'coin' | 'chest' | 'unlock' | 'pickSnap'): void;
   /** The lockpicking: resolves true when the last pin sets, false if you give up or run out of picks. */
   lockpick(tier: 0 | 1 | 2, picks: () => number, snap: () => void): Promise<boolean>;
   known(item: string): boolean;
@@ -110,12 +110,13 @@ export class Chests {
     if (this.busy) return;
     if (this.host.count('lockpick') < 1) { this.host.system('You need a lockpick. General traders and smiths sell them.'); this.host.sound('fail'); return; }
     this.busy = true;
-    const ok = await this.host.lockpick(c.tier, () => this.host.count('lockpick'), () => { this.host.take('lockpick', 1); this.host.sound('fail'); });
+    const ok = await this.host.lockpick(c.tier, () => this.host.count('lockpick'), () => { this.host.take('lockpick', 1); this.host.sound('pickSnap'); });
     this.busy = false;
     if (!ok) return;
     this.host.setFlag('hc:' + c.id, Date.now());
     this.host.setFlag('chestsOpened', Number(this.host.flag('chestsOpened') ?? 0) + 1);
-    this.host.sound('open');
+    this.host.sound('unlock');
+    setTimeout(() => this.host.sound('chest'), 320);
     this.loot(c);
     this.update();
   }
