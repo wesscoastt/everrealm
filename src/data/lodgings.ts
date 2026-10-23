@@ -20,7 +20,7 @@ export interface LodgingDef {
 }
 
 export const LODGINGS: LodgingDef[] = [
-  { id: 'lg-ansbury', name: 'Southgate Lodgings', town: 'Ansbury', x: 842, z: 487, face: 'w', rent: 40 },
+  { id: 'lg-ansbury', name: 'Southgate Lodgings', town: 'Ansbury', x: 842, z: 491, face: 'w', rent: 40 },
   { id: 'lg-gullmouth', name: 'Upper Town Rooms', town: 'Gullmouth', x: 1570, z: 601, face: 'n', rent: 30 },
   { id: 'lg-harrowgate', name: 'Company Lodgings', town: 'Harrowgate Works', x: 987, z: 951, face: 's', rent: 25 },
 ];

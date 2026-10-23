@@ -67,10 +67,21 @@ export function loadSave(key = SAVE_KEY): SaveData | null {
     d.settings = { ...DEFAULT_SETTINGS, ...(d.settings ?? {}) };
     d.inv = d.inv.map((s) => (s && ITEMS[s.id] ? s : null));
     while (d.inv.length < INV_SIZE) d.inv.push(null);
+    fixSave(d);
     return d;
   } catch {
     return null;
   }
+}
+
+/** Fixes for things that have moved in the world since a save was made. */
+export function fixSave(d: SaveData): void {
+  const f = (d.flags ??= {}) as Record<string, unknown>;
+  // Southgate Lodgings moved four blocks south, off Ansbury's wall: furniture in its rooms goes with it
+  if (!f['moved:southgate'] && Array.isArray(f.home)) {
+    for (const pc of f.home as [string, number, number][]) if (pc[1] >= 833 && pc[1] <= 843 && pc[2] >= 475 && pc[2] <= 488.5) pc[2] += 4;
+  }
+  f['moved:southgate'] = 1;
 }
 
 export function writeSave(d: SaveData, key = SAVE_KEY): boolean {

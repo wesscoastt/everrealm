@@ -4327,7 +4327,15 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
     const leaf = openDoorPlace(shape);
     s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
   }
-  s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 : 0), ry });
+  // The porch lantern goes on whichever side of the door has bare wall, never over a window
+  const glazed = new Set(fronts.filter(([, , f]) => f === 0).map(([x, z]) => x + ',' + z));
+  for (const k of [1, -1]) {
+    const lx = doorX + (oz ? k : 0), lz = doorZ + (ox ? k : 0);
+    // (nor where the next window's shutter folds back)
+    if (glazed.has(lx + ',' + lz) || (trim.includes('shutters') && glazed.has((lx + (oz ? k : 0)) + ',' + (lz + (ox ? k : 0))))) continue;
+    s.props.push({ t: 'wallLantern', x: doorX + 0.5 + ox * 0.9 + (oz ? 1.2 * k : 0), y: base + 2.3, z: doorZ + 0.5 + oz * 0.9 + (ox ? 1.2 * k : 0), ry });
+    break;
+  }
   // A door a block over the ground outside gets a half step; two blocks, a stone step and a half step before it
   const out: [number, number] = door === 's' ? [0, 1] : door === 'n' ? [0, -1] : door === 'e' ? [1, 0] : [-1, 0];
   {
@@ -4348,7 +4356,13 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   for (const [fx, fz, f] of fronts) {
     const [cx, cz] = faceAt(fx, fz);
     const sx = out[1] !== 0 ? 1 : 0, sz = out[0] !== 0 ? 1 : 0;
-    if (trim.includes('shutters') && style !== 'studded' && style !== 'boarded') for (const k of [-1, 1]) s.props.push({ t: 'shutter', x: cx + sx * k * 0.74, y: base + f * 4 + 1, z: cz + sz * k * 0.74, ry, color: shutterTone });
+    // A shutter folds back against the wall beside its window: not over the door, nor over the next window
+    const glass = new Set(fronts.filter((w) => w[2] === f).map(([x, z]) => x + ',' + z));
+    if (trim.includes('shutters') && style !== 'studded' && style !== 'boarded') for (const k of [-1, 1]) {
+      const nx = fx + sx * k, nz = fz + sz * k;
+      if ((f === 0 && nx === doorX && nz === doorZ) || glass.has(nx + ',' + nz)) continue;
+      s.props.push({ t: 'shutter', x: cx + sx * k * 0.74, y: base + f * 4 + 1, z: cz + sz * k * 0.74, ry, color: shutterTone });
+    }
     if (trim.includes('boxes') && f === 0) s.props.push({ t: 'windowBox', x: cx, y: base + 0.95, z: cz, ry });
   }
   const alongX = w >= d;

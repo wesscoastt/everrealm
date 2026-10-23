@@ -1204,8 +1204,13 @@ export function tent(M: PropMaterials, color: string): THREE.Group {
 
 export function well(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(cyl(1.1, 1.15, 0.9, 12), M.cobble, 0, 0.45, 0));
-  g.add(mesh(cyl(0.85, 0.85, 0.05, 12), flat('#1e3a4a'), 0, 0.75, 0));
+  // A ring of cobble round an open shaft, capped with dressed stone, and dark water well down it
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    g.add(mesh(box(0.56, 0.9, 0.3), M.cobble, Math.cos(a) * 0.95, 0.45, Math.sin(a) * 0.95, -a - Math.PI / 2));
+    g.add(mesh(box(0.6, 0.1, 0.4), M.stone, Math.cos(a) * 0.97, 0.95, Math.sin(a) * 0.97, -a - Math.PI / 2));
+  }
+  g.add(mesh(cyl(0.82, 0.82, 0.04, 16), flat('#0e2430'), 0, 0.12, 0));
   for (const x of [-1, 1]) g.add(mesh(box(0.14, 2.2, 0.14), M.darkWood, x, 1.1, 0));
   g.add(mesh(cyl(0.12, 0.12, 2.1, 8), M.darkWood, 0, 1.8, 0, 0, 0, Math.PI / 2));
   g.add(mesh(gableRoof(2.4, 1.6, 0.7, 0.2, 0.08, 0.15), M.roofRed, 0, 2.2, 0, Math.PI / 2));

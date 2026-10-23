@@ -71,7 +71,7 @@ import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
 import type { ChunkResult } from '../world/chunkgen';
 import { chunkKey } from '../world/VoxelWorld';
-import { Inventory, newSave, SaveData, writeSave } from './state';
+import { fixSave, Inventory, newSave, SaveData, writeSave } from './state';
 import { MAX_CHARACTERS, deleteCharacter, lastPlayed, listCharacters, newCharacterId, rememberCharacter, saveKeyFor, setLastPlayed } from './roster';
 import { CharSummary, FrontCtx, Frontend } from '../ui/Frontend';
 import { originById } from '../data/origins';
@@ -1630,6 +1630,7 @@ export class Game implements GameApi {
       const settings = this.save.settings;
       this.charId = c.id;
       this.save = c.save;
+      fixSave(this.save);
       // Volume and graphics are the browser's, not the character's: keep them across a switch.
       this.save.settings = settings;
       this.inv = new Inventory(this.save);

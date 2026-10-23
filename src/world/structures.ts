@@ -158,7 +158,11 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const dz = o.door === 's' ? dOff : o.door === 'n' ? -dOff : 0;
     const leaf = openDoorPlace(shape);
     { const dr = makeDoor(M, leaf.x, HB, leaf.z, leaf.ry); group.add(dr.pivot); doors.push(dr); }
-    const side = o.door === 'n' || o.door === 's' ? [1.2, 0] : [0, 1.2];
+    // The porch lantern on the side of the door with bare wall, not over a window (see the walls above)
+    const ns = o.door === 'n' || o.door === 's', dAlong = ns ? doorX - x0 : doorZ - z0, dSpan = ns ? w : d;
+    const glazedAt = (a: number) => a % 3 === 1 && a > 0 && a < dSpan - 1;
+    const k = glazedAt(dAlong + 1) && !glazedAt(dAlong - 1) ? -1 : 1;
+    const side = ns ? [1.2 * k, 0] : [0, 1.2 * k];
     const wl = P.wallLantern(M);
     place(wl, doorX + 0.5 + dx * 0.9 + side[0], HB + 1.8, doorZ + 0.5 + dz * 0.9 + side[1], doorRot);
     lights.push(new THREE.Vector3(doorX + 0.5 + dx * 1.7 + side[0], HB + 1.85, doorZ + 0.5 + dz * 1.7 + side[1]));
@@ -613,7 +617,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     place(kind === 'barrel' ? P.barrel(M) : P.crate(M, 0.65), x, y, z, hash2(Math.floor(x), Math.floor(z), 5) * 3);
     barrier(x, y, z);
   }
-  place(P.well(M), 134.5, ground(134, 192), 192.5, 0.3);
+  place(P.well(M), 135, ground(134, 192), 192.5);
   for (const [x, z] of [[134, 192], [135, 192], [134, 193], [135, 193]]) barrier(x, ground(x, z), z, 2);
   for (const [x, z] of [[125.5, 183.0], [203.5, 183.0], [213.5, 184.2]] as [number, number][]) lantern(x, z);
 
