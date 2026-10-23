@@ -234,7 +234,7 @@ export class Game implements GameApi {
   /** The law: prices on your head, the watch, the wagon and the cells (game/Justice.ts). */
   justice!: Justice;
   /** The light of a torch carried on horseback at night (always in the scene, dark when unused, so nothing recompiles). */
-  private torchLight = new THREE.PointLight('#ffb060', 0, 16, 1.4);
+  private torchLight = new THREE.PointLight('#ffb060', 0, 24, 1.1);
   private darkT = 0;
   private underCover = false;
   /** The Constant under way with you aboard, between the lands (game/Voyage.ts). */
@@ -4286,7 +4286,7 @@ export class Game implements GameApi {
       P.model.setLantern(belt);
       P.model.setPack(this.flag('hidePack') ? 0 : Number(this.flag('packLook') ?? 0));
       const at = hand ? P.model.torchAt(tmpV2) : belt ? P.model.lanternAt(tmpV2) : null;
-      if (at) { this.torchLight.position.copy(at); this.torchLight.intensity = (hand ? 10 : 7) + Math.sin(performance.now() * 0.02) * 0.8 + Math.sin(performance.now() * 0.047) * 0.6; }
+      if (at) { this.torchLight.position.copy(at); this.torchLight.intensity = (hand ? 12 : 9) + Math.sin(performance.now() * 0.02) * 0.8 + Math.sin(performance.now() * 0.047) * 0.6; }
       else this.torchLight.intensity = 0;
     }
     if (this.horse) {

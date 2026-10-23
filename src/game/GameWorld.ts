@@ -26,7 +26,7 @@ import { ChunkManager } from './ChunkManager';
 const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
-const LAMP_LIGHTS = 12, LAMP_REACH = 16, LAMP_POWER = 12;
+const LAMP_LIGHTS = 18, LAMP_REACH = 26, LAMP_POWER = 14, LAMP_DECAY = 1.15;
 const LAMP_ORANGE = new THREE.Color('#ffb05a');
 /** The light in a cave: a dim cool fill from above, warmer from the floor; the fog goes nearly black. */
 const CAVE_SKY = new THREE.Color('#8a94a4'), CAVE_GROUND = new THREE.Color('#4a4038'), CAVE_FOG = new THREE.Color('#0b0c0f');
@@ -134,7 +134,7 @@ export class GameWorld {
     this.sky = new Sky(scene, this.shared);
     // A fixed pool, so the lit shaders compile once; unused lights sit at zero intensity.
     for (let i = 0; i < LAMP_LIGHTS; i++) {
-      const l = new THREE.PointLight('#ffb05a', 0, LAMP_REACH, 1.6);
+      const l = new THREE.PointLight('#ffb05a', 0, LAMP_REACH, LAMP_DECAY);
       scene.add(l);
       this.lampLights.push(l);
     }
@@ -142,7 +142,7 @@ export class GameWorld {
     for (const p of [...this.structures.lights, ...this.layout.caveLights.map(([x, y, z]) => new THREE.Vector3(x, y, z))]) {
       const s = new THREE.Sprite(this.glowMat);
       s.position.copy(p);
-      s.scale.setScalar(2.4);
+      s.scale.setScalar(3);
       this.structures.group.add(s);
       this.lanternGlows.push(s);
     }

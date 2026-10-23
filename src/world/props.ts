@@ -1019,6 +1019,43 @@ export function statue(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/** A rack of nets hung out to dry between two posts, len long, floats along the top. */
+export function netRack(M: PropMaterials, len = 3): THREE.Group {
+  const g = new THREE.Group();
+  for (const k of [-1, 1]) g.add(mesh(box(0.12, 2, 0.12), M.darkWood, k * len / 2, 1, 0));
+  g.add(mesh(box(len + 0.2, 0.1, 0.1), M.darkWood, 0, 1.95, 0));
+  const net = flat('#6a7a6a', { transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+  g.add(mesh(box(len - 0.1, 1.5, 0.02), net, 0, 1.18, 0));
+  for (let i = 0; i < Math.round(len / 0.4); i++) g.add(mesh(box(0.14, 0.1, 0.14), flat(i % 2 ? '#c8402a' : '#e8dcc0'), -len / 2 + 0.3 + i * 0.4, 1.86, 0.06));
+  return g;
+}
+
+/** Lobster pots stacked on the quay: willow cages with their rope. */
+export function lobsterPots(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const cage = flat('#7a5a32');
+  for (const [x, y, z, r] of [[-0.35, 0.22, 0, 0], [0.35, 0.22, 0.05, 0.3], [0, 0.66, 0.02, 0.15], [0.1, 0.22, -0.6, -0.2]] as const) {
+    const pot = new THREE.Group();
+    pot.add(mesh(box(0.6, 0.06, 0.5), cage, 0, -0.18, 0));
+    for (const k of [-0.25, 0, 0.25]) pot.add(mesh(box(0.05, 0.04, 0.52), cage, k, 0.2, 0, 0, 0, 0));
+    for (const kx of [-0.28, 0.28]) for (const kz of [-0.22, 0.22]) pot.add(mesh(box(0.04, 0.4, 0.04), cage, kx, 0, kz));
+    pot.position.set(x, y, z); pot.rotation.y = r;
+    g.add(pot);
+  }
+  g.add(mesh(cyl(0.18, 0.18, 0.14, 8), M.rope, 0.6, 0.07, -0.5));
+  return g;
+}
+
+/** A straw beehive on its stand: a skep in coils, with its little door. */
+export function beehive(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.7, 0.5, 0.7), M.darkWood, 0, 0.25, 0));
+  const straw = flat('#c8a050');
+  for (let i = 0; i < 4; i++) g.add(mesh(cyl(0.34 - i * 0.07, 0.36 - i * 0.07, 0.16, 10), i % 2 ? straw : flat('#b8903a'), 0, 0.58 + i * 0.15, 0));
+  g.add(mesh(box(0.12, 0.08, 0.04), flat('#1e1610'), 0, 0.56, 0.35));
+  return g;
+}
+
 export function bellows(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(box(0.9, 0.2, 0.6), M.darkWood, 0, 0.6, 0));

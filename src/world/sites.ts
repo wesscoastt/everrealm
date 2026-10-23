@@ -32,6 +32,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   | 'bars' | 'hatch'
   /** The street kit (world/props.ts): a trade's hanging sign (color, tint = emblem), a striped awning (color, len), a planter of flowers, a washing line (len), a woodpile (len), a statue on its plinth. */
   | 'shopSign' | 'awning' | 'planter' | 'washLine' | 'woodpile' | 'statue'
+  /** A harbour's nets drying (len), its lobster pots; a village's beehive. */
+  | 'netRack' | 'lobsterPots' | 'beehive'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
@@ -560,7 +562,8 @@ export function plan(): Plan {
     const W = NEW_WALL;
     if (x > W.x0 - 9 && x < W.x1 + 9 && z > W.z0 - 9 && z < W.z1 + 9) {
       const d = [Math.abs(x - W.x0), Math.abs(x - W.x1), Math.abs(z - W.z0), Math.abs(z - W.z1)], m = Math.min(...d);
-      if (m < 9) { if (m === d[0]) x = W.x0 - 18; else if (m === d[1]) x = W.x1 + 18; else if (m === d[2]) z = W.z0 - 18; else z = W.z1 + 18; }
+      // (twenty-eight out: the ring walk and its bank reach well past the wall, and a shrine jammed into their corner sits in a hole)
+      if (m < 9) { if (m === d[0]) x = W.x0 - 28; else if (m === d[1]) x = W.x1 + 28; else if (m === d[2]) z = W.z0 - 28; else z = W.z1 + 28; }
     }
     if (x < GW + 40 && z < GW + 40) continue;
     if (x > 1800 || z < 50 || x < 50 || z > OLD_EDGE - 60) continue;
@@ -655,6 +658,8 @@ export function plan(): Plan {
   roadLamps(O, sites);
   aimLamps(O, sites);
   const waymarks = placeWaymarks(O, sites);
+  // Every town's leftover lawn, dressed in its own way (after the waymarks have taken their spots)
+  dressTowns(O, sites);
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
   const hz = hazards({ sites, waymarks, overrides: O });
   stamp(hz, O);
@@ -1613,7 +1618,9 @@ export function plan(): Plan {
         const x = Math.round(tx), z = Math.round(tz);
         if (Math.abs(x - cx) < 8 || Math.abs(z - cz) < 8) continue; // keep the gateways open
         if (Math.abs(z - (Z1 + 6)) < 1 && Math.abs(x - cx) < 26) continue; // and the south gate square
-        plantTree(x, z, base, 0.55);
+        const g = heightAt(x, z);
+        if (Math.abs(g - base) > 1) continue; // (where the walk dips off the bank, no tree: it would hang in the air)
+        plantTree(x, z, g, 0.55);
       }
     }
     const lamp = (x: number, z: number, ry = 0) => wardAt(x, z).props.push({ t: 'lantern', x, y: base, z, ry });
@@ -6426,6 +6433,154 @@ export function plan(): Plan {
  * streets and water, clear of buildings and props), facing back toward the place it serves, with its
  * pillars solid. Hollin Ford's is placed by hand in the authored vale.
  */
+/**
+ * A town's leftover ground, dressed in its own way: what a town's builder left as bare lawn (no
+ * block laid on it, level with the town, off the roads, clear of every prop) becomes six-block yards
+ * and gardens with a walk round each, then three-block touches, a share of it (cover) so a village
+ * keeps its green. Themes: a harbour's net racks, lobster pots, fish yards and boats drawn up; the
+ * Works' ore heaps, timber yards and carts; a village's cottage gardens, beehives, vegetable plots
+ * and washing; Morrow's white towns, with cypresses, flowers in stone troughs and mosaic floors.
+ */
+type TownTheme = 'harbour' | 'works' | 'village' | 'white';
+function dressTowns(O: Overrides, sites: Site[]): void {
+  const jobs: { id: string; x: number; z: number; r: number; theme: TownTheme; cover: number }[] = LAND === 'counties' ? [
+    { id: 'gullmouth', x: Math.floor(coastX(600)) - 70, z: 600, r: 78, theme: 'harbour', cover: 0.85 },
+    { id: 'harrowgate', x: 975, z: 1003, r: 62, theme: 'works', cover: 0.8 },
+    { id: 'coldhearth', x: 300, z: 1460, r: 30, theme: 'village', cover: 0.5 },
+    { id: 'cotters', x: 486, z: 252, r: 26, theme: 'village', cover: 0.5 },
+    { id: 'waystation', x: 708, z: 572, r: 22, theme: 'village', cover: 0.55 },
+    { id: 'cragsby', x: CRAGSBY.x, z: CRAGSBY.z, r: 40, theme: 'harbour', cover: 0.7 },
+    { id: 'holme', x: HOLME.x, z: HOLME.z, r: 40, theme: 'harbour', cover: 0.7 },
+    { id: 'scarrow', x: SCARROW.x, z: SCARROW.z, r: 40, theme: 'village', cover: 0.55 },
+  ] : [
+    { id: 'callis', x: CALLIS.x, z: CALLIS.z, r: 200, theme: 'white', cover: 0.75 },
+    { id: 'cala', x: TOWNS.cala.x, z: TOWNS.cala.z, r: 50, theme: 'harbour', cover: 0.7 },
+    { id: 'conch', x: TOWNS.conch.x, z: TOWNS.conch.z, r: 30, theme: 'harbour', cover: 0.7 },
+    { id: 'branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r: 60, theme: 'village', cover: 0.5 },
+    { id: 'liftwick', x: TOWNS.liftwick.x, z: TOWNS.liftwick.z, r: 46, theme: 'village', cover: 0.55 },
+    { id: 'tenwells', x: TOWNS.tenwells.x, z: TOWNS.tenwells.z, r: 54, theme: 'works', cover: 0.6 },
+    { id: 'fellside', x: TOWNS.fellside.x, z: TOWNS.fellside.z, r: 40, theme: 'village', cover: 0.5 },
+    { id: 'coldharbour', x: COLD_HARBOUR.x, z: COLD_HARBOUR.z, r: 40, theme: 'harbour', cover: 0.7 },
+    { id: 'northgate', x: NORTHGATE_TOWN.x, z: NORTHGATE_TOWN.z, r: 90, theme: 'works', cover: 0.65 },
+  ];
+  // The planner's blocks, decoded a chunk at a time (last write wins, as in the game)
+  const decoded = new Map<number, Map<number, number>>();
+  const block = (x: number, y: number, z: number): number | undefined => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = decoded.get(k);
+    if (!m) { m = new Map(); const a = O.map.get(k); if (a) for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]); decoded.set(k, m); }
+    return m.get(localIdx(x & 31, y, z & 31));
+  };
+  const IGNORE = new Set<PropType>(['roof', 'glow', 'smoke', 'rope', 'root', 'banner', 'wallLantern', 'cone', 'windowBox', 'shutter', 'shopSign', 'awning']);
+  for (const j of jobs) {
+    const host = sites.find((st) => st.id === j.id);
+    if (!host) continue;
+    // The town's own level, and each tile's (a yard may sit a block or two up or down the slope)
+    const b0 = heightAt(Math.floor(j.x), Math.floor(j.z));
+    let base = b0;
+    const x0 = Math.floor(j.x - j.r), z0 = Math.floor(j.z - j.r), W = Math.ceil(j.r * 2) + 1;
+    const taken = new Uint8Array(W * W);
+    const Hh = new Int16Array(W * W);
+    // How far each cell is from a built wall: yards and clutter keep close to the houses, as they do
+    const wd = new Int16Array(W * W).fill(999);
+    const queue: number[] = [];
+    const mark = (x: number, z: number) => { const i = x - x0, k = z - z0; if (i >= 0 && k >= 0 && i < W && k < W) taken[k * W + i] = 1; };
+    for (let k = 0; k < W; k++) for (let i = 0; i < W; i++) {
+      const x = x0 + i, z = z0 + k, hh = heightAt(x, z);
+      Hh[k * W + i] = hh;
+      if (block(x, hh + 1, z) !== undefined && block(x, hh + 2, z) !== undefined) { wd[k * W + i] = 0; queue.push(k * W + i); }
+      let open = Math.hypot(x - j.x, z - j.z) <= j.r && Math.abs(hh - b0) <= 2 && hh > SEA + 1 && roadDist(x, z) > 3.5;
+      if (open) open = block(x, hh - 1, z) === undefined;
+      if (open) for (let y = hh; y < hh + 4 && open; y++) if (block(x, y, z) !== undefined) open = false;
+      if (!open) taken[k * W + i] = 1;
+    }
+    for (let q = 0; q < queue.length; q++) {
+      const c = queue[q], i = c % W, k = (c - i) / W, d = wd[c] + 1;
+      if (d > 14) continue;
+      for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ii = i + di, kk = k + dk;
+        if (ii < 0 || kk < 0 || ii >= W || kk >= W || wd[kk * W + ii] <= d) continue;
+        wd[kk * W + ii] = d; queue.push(kk * W + ii);
+      }
+    }
+    const nearWall = (x: number, z: number) => wd[Math.min(W - 1, Math.max(0, z - z0)) * W + Math.min(W - 1, Math.max(0, x - x0))];
+    // Thinning out toward the edge of town, so the dressing fades into the fields instead of stopping in a ring
+    const fade = (x: number, z: number) => { const d = Math.hypot(x - j.x, z - j.z) / j.r; return d < 0.7 ? 1 : Math.max(0, (1 - d) / 0.3); };
+    for (const st of sites) if (Math.abs(st.x - j.x) < j.r + 120 && Math.abs(st.z - j.z) < j.r + 120) for (const pr of st.props) {
+      if (IGNORE.has(pr.t)) continue;
+      const rr = pr.t === 'stall' || pr.t === 'cart' || pr.t === 'ship' || pr.t === 'boat' || pr.t === 'tent' || pr.t === 'well' || pr.t === 'statue' || pr.t === 'waymark' ? 3 : pr.t === 'sign' || pr.t === 'postBox' || pr.t === 'notice' ? 2.5 : 1.6;
+      for (let dz = -Math.ceil(rr); dz <= Math.ceil(rr); dz++) for (let dx = -Math.ceil(rr); dx <= Math.ceil(rr); dx++) if (Math.hypot(dx, dz) <= rr) mark(Math.floor(pr.x) + dx, Math.floor(pr.z) + dz);
+    }
+    const free = (a: number, b: number, c: number, d: number) => {
+      const h0 = a - x0 >= 0 && b - z0 >= 0 && a - x0 < W && b - z0 < W ? Hh[(b - z0) * W + (a - x0)] : -1;
+      for (let z = b; z <= d; z++) for (let x = a; x <= c; x++) { const i = x - x0, k = z - z0; if (i < 0 || k < 0 || i >= W || k >= W || taken[k * W + i] || Hh[k * W + i] !== h0) return false; }
+      return true;
+    };
+    const claimBox = (a: number, b: number, c: number, d: number) => { for (let z = b; z <= d; z++) for (let x = a; x <= c; x++) mark(x, z); };
+    const ground = (x: number, z: number, id: number) => O.set(x, base - 1, z, id);
+    const P = host.props;
+    const T = j.theme;
+    const walkId = (x: number, z: number) => (T === 'white' ? ((x + z) % 2 ? B.Whitestone : B.TerraCream) : T === 'works' ? (hash2(x, z, 151) < 0.6 ? B.Gravel : B.Path) : T === 'harbour' ? (hash2(x, z, 151) < 0.5 ? B.Gravel : B.Sand) : (hash2(x, z, 151) < 0.7 ? B.Path : B.Gravel));
+    const cypress = (x: number, z: number) => { O.set(x, base, z, B.OakLog); for (let y = base + 1; y < base + 6; y++) O.set(x, y, z, B.PineLeaves); };
+    const mound = (x: number, z: number, id: number) => { for (let dz = 0; dz < 3; dz++) for (let dx = 0; dx < 3; dx++) O.set(x + dx, base, z + dz, id); O.set(x + 1, base + 1, z + 1, id); };
+    // Six-block yards and gardens
+    for (let z = z0; z + 6 <= z0 + W; z += 6) for (let x = x0; x + 6 <= x0 + W; x += 6) {
+      if (!free(x, z, x + 5, z + 5) || nearWall(x + 3, z + 3) > 11) continue;
+      const h = hash2(x, z, 157);
+      if (h > j.cover * fade(x + 3, z + 3)) continue;
+      base = Hh[(z - z0) * W + (x - x0)];
+      claimBox(x, z, x + 5, z + 5);
+      for (let i = 0; i < 6; i++) { ground(x + i, z, walkId(x + i, z)); ground(x + i, z + 5, walkId(x + i, z + 5)); ground(x, z + i, walkId(x, z + i)); ground(x + 5, z + i, walkId(x + 5, z + i)); }
+      const X = x + 1, Z = z + 1, v = Math.floor(hash2(x, z, 163) * 4);
+      if (T === 'harbour') {
+        if (v === 0) { P.push({ t: 'netRack', x: X + 2, y: base, z: Z + 0.6, ry: 0, len: 3.4 }, { t: 'netRack', x: X + 2, y: base, z: Z + 2.8, ry: 0, len: 3.4 }, { t: 'lobsterPots', x: X + 3, y: base, z: Z + 3.6, ry: h * 6 }); for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, B.Sand); }
+        else if (v === 1) { for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, B.Cobble); P.push({ t: 'crate', x: X + 0.6, y: base, z: Z + 0.6, ry: h }, { t: 'crate', x: X + 1.3, y: base, z: Z + 0.6, ry: h * 2 }, { t: 'barrel', x: X + 3.3, y: base, z: Z + 0.6 }, { t: 'barrel', x: X + 3.3, y: base, z: Z + 1.5 }, { t: 'washLine', x: X + 2, y: base, z: Z + 2.8, ry: 0, len: 3.6 }); }
+        else if (v === 2) { for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, B.Sand); P.push({ t: 'boat', x: X + 2, y: base - 0.2, z: Z + 2, ry: Math.PI / 2 + h }, { t: 'lobsterPots', x: X + 0.6, y: base, z: Z + 3.4, ry: 0 }); }
+        else { for (let i = 0; i < 4; i++) { O.set(X + i, base, Z, B.OakLeaves); O.set(X + i, base, Z + 3, B.OakLeaves); } O.set(X, base, Z + 1, B.OakLeaves); O.set(X + 3, base, Z + 1, B.OakLeaves); P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.7, ry: 0, tint: 1 }); }
+      } else if (T === 'works') {
+        for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, hash2(X + i, Z + k, 167) < 0.5 ? B.Gravel : B.TerraBrown);
+        if (v === 0) mound(X, Z, B.IronOre);
+        else if (v === 1) P.push({ t: 'woodpile', x: X + 2, y: base, z: Z + 0.3, ry: 0, len: 3 }, { t: 'woodpile', x: X + 2, y: base, z: Z + 2.6, ry: Math.PI, len: 3 });
+        else if (v === 2) P.push({ t: 'rails', x: X + 2, y: base, z: Z + 2, ry: 0, len: 4 }, { t: 'cart', x: X + 2, y: base, z: Z + 2, ry: 0 }, { t: 'crate', x: X + 0.5, y: base, z: Z + 0.5 });
+        else mound(X, Z, B.Basalt);
+      } else if (T === 'village') {
+        if (v === 0) {
+          // A fenced cottage garden, a block at a time so each post stands on its barrier, the gate on the south side
+          for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) {
+            if ((i > 0 && i < 3 && k > 0 && k < 3) || (i === 1 && k === 3)) continue;
+            P.push({ t: 'fence', x: X + i + 0.5, y: base, z: Z + k + 0.5, ry: k === 0 || k === 3 ? 0 : Math.PI / 2, len: 1 });
+            O.set(X + i, base, Z + k, B.Barrier); O.set(X + i, base + 1, Z + k, B.Barrier);
+          }
+          ground(X + 1, Z + 1, B.Farmland); ground(X + 2, Z + 1, B.Farmland);
+          P.push({ t: 'beehive', x: X + 2.5, y: base, z: Z + 2.5, ry: 0 });
+        }
+        else if (v === 1) { for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, i % 2 ? B.Path : B.Farmland); P.push({ t: 'barrel', x: X + 3.4, y: base, z: Z + 0.5 }); }
+        else if (v === 2) { P.push({ t: 'beehive', x: X + 0.8, y: base, z: Z + 0.8, ry: 0 }, { t: 'beehive', x: X + 2.4, y: base, z: Z + 0.8, ry: 0.3 }, { t: 'bench', x: X + 2, y: base, z: Z + 3, ry: 0 }); }
+        else P.push({ t: 'woodpile', x: X + 2, y: base, z: Z + 0.3, ry: 0, len: 2.6 }, { t: 'washLine', x: X + 2, y: base, z: Z + 2.6, ry: 0, len: 3.6 });
+      } else {
+        for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, (i + k) % 2 ? B.Whitestone : (v === 3 ? B.Blackstone : B.TerraCream));
+        if (v === 0) { cypress(X, Z); cypress(X + 3, Z + 3); P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.5, ry: 0, tint: 1 }); }
+        else if (v === 1) { P.push({ t: 'statue', x: X + 2, y: base, z: Z + 2, ry: Math.floor(h * 40) * (Math.PI / 2) }); for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) for (let y = base; y < base + 3; y++) O.set(bx, y, bz, B.Barrier); }
+        else if (v === 2) { for (let i = 0; i < 4; i++) { O.set(X + i, base, Z, B.OakLeaves); O.set(X + i, base, Z + 3, B.OakLeaves); } P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.6, ry: 0, tint: 1 }, { t: 'bench', x: X + 2, y: base, z: Z + 2.5, ry: 0 }); }
+        else { cypress(X + 1, Z + 1); cypress(X + 2, Z + 2); }
+      }
+    }
+    // Three-block touches in what's left
+    for (let z = z0; z + 3 <= z0 + W; z += 3) for (let x = x0; x + 3 <= x0 + W; x += 3) {
+      if (!free(x, z, x + 2, z + 2) || nearWall(x + 1, z + 1) > 4) continue;
+      const h = hash2(x, z, 173);
+      if (h > j.cover * 0.8 * fade(x + 1, z + 1)) continue;
+      base = Hh[(z - z0) * W + (x - x0)];
+      claimBox(x, z, x + 2, z + 2);
+      const cx = x + 1.5, cz = z + 1.5, v = Math.floor(hash2(x, z, 179) * 3);
+      if (T === 'harbour') P.push(v === 0 ? { t: 'lobsterPots', x: cx, y: base, z: cz, ry: h * 6 } : v === 1 ? { t: 'barrel', x: cx, y: base, z: cz } : { t: 'crate', x: cx, y: base, z: cz, ry: h * 4 });
+      else if (T === 'works') { if (v === 0) P.push({ t: 'woodpile', x: cx, y: base, z: cz, ry: h * 7 > 3 ? Math.PI / 2 : 0, len: 2 }); else P.push(v === 1 ? { t: 'crate', x: cx, y: base, z: cz, ry: h * 3 } : { t: 'barrel', x: cx, y: base, z: cz }); }
+      else if (T === 'village') { if (v === 0) P.push({ t: 'woodpile', x: cx, y: base, z: cz, ry: h * 7 > 3 ? Math.PI / 2 : 0, len: 2 }); else P.push(v === 1 ? { t: 'planter', x: cx, y: base, z: cz, ry: h * 7 > 3 ? Math.PI / 2 : 0, tint: 0 } : { t: 'beehive', x: cx, y: base, z: cz, ry: h }); }
+      else { if (v === 0) cypress(x + 1, z + 1); else P.push({ t: 'planter', x: cx, y: base, z: cz, ry: v === 1 ? 0 : Math.PI / 2, tint: 1 }); }
+    }
+  }
+}
+
 function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
   // The planner's blocks near a spot, decoded a chunk at a time (last write wins, as in the game)
   const decoded = new Map<number, Map<number, number>>();
