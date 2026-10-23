@@ -130,7 +130,7 @@ for (const s of streets) {
 }
 
 // ---------------------------------------------------------------- Bulky props in streets and on roads
-const BULKY = new Set(['cart', 'barrel', 'crate', 'stall', 'well', 'firepit', 'anvil', 'boat', 'tent', 'headframe', 'bench', 'fence']);
+const BULKY = new Set(['cart', 'barrel', 'crate', 'stall', 'well', 'firepit', 'anvil', 'boat', 'tent', 'headframe', 'bench', 'fence', 'postBox']);
 let bulky = 0;
 for (const site of P.sites) for (const pr of site.props) {
   if (!BULKY.has(pr.t)) continue;
@@ -139,7 +139,7 @@ for (const site of P.sites) for (const pr of site.props) {
   if (!onRoad && !inStreet) continue;
   bulky++;
   const line = `${pr.t} standing in ${onRoad ? 'the road' : 'a street'} at (${pr.x.toFixed(1)}, ${pr.z.toFixed(1)}) in ${site.name}`;
-  if (onRoad && (pr.t === 'cart' || pr.t === 'stall' || pr.t === 'tent' || pr.t === 'fence')) problems.push(line); else notes.push(line);
+  if (onRoad && (pr.t === 'cart' || pr.t === 'stall' || pr.t === 'tent' || pr.t === 'fence' || pr.t === 'postBox')) problems.push(line); else notes.push(line);
 }
 
 console.log(`${sections} road cross-sections and ${streetSections} street cross-sections checked; ${bulky} bulky props in the way.`);

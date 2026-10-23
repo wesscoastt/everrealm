@@ -26,16 +26,19 @@ export interface PostStop {
   box?: number;
   /** A crossing that only runs once this flag is set (a story opens it). */
   gate?: string;
+  /** Where the post box stands, where beside the sign won't do (x, z, the way it faces). */
+  boxAt?: [number, number, number];
 }
 
 /** Where a stop's post box stands: a couple of blocks to one side of the sign, facing the same way. */
 export function postBoxOf(p: PostStop): { x: number; z: number; ry: number } {
+  if (p.boxAt) return { x: p.boxAt[0], z: p.boxAt[1], ry: p.boxAt[2] };
   const s = p.box ?? 2.2;
   return { x: Math.floor(p.x + Math.cos(p.ry) * s) + 0.5, z: Math.floor(p.z - Math.sin(p.ry) * s) + 0.5, ry: p.ry };
 }
 
 export const POSTS: PostStop[] = [
-  { id: 'hollin', name: 'Hollin Ford', place: 'hollin', x: 162.5, z: 186.5, ry: Math.PI, box: 4 },
+  { id: 'hollin', name: 'Hollin Ford', place: 'hollin', x: 162.5, z: 186.5, ry: Math.PI, boxAt: [164.5, 188.5, -Math.PI / 2] }, // (on the grass by the bank, clear of the notice board and the bridge path)
   { id: 'aldermere', name: 'Ansbury, south gate', place: 'aldermere', x: 832.5, z: 375.5, ry: 0 },
   { id: 'waystation', name: 'The Waystation', place: 'waystation', x: 703.5, z: 574.5, ry: 0 },
   { id: 'woodcamp', name: 'Fellers\' Camp', place: 'woodcamp', x: 449.5, z: 511.5, ry: Math.PI },
