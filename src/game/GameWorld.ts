@@ -376,6 +376,7 @@ export class GameWorld {
     this.scene.add(this.lod);
     IMPOSTOR_MAT.onBeforeCompile = mat.onBeforeCompile;
     IMPOSTOR_MAT.customProgramCacheKey = () => 'everrealm-impostor';
+    IMPOSTOR_MAT.needsUpdate = true; // (it may have been drawn already, before the far terrain was built)
   }
 
   private makeGlowMaterial(): THREE.SpriteMaterial {
