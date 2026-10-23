@@ -197,7 +197,7 @@ export class CreatureModel {
   constructor(readonly kind: CreatureKind, private pal: Palette = {}, private extraScale = 1) {
     this.root.add(this.body);
     // The ones you meet up close are sculpted in cubes (entities/voxcreatures.ts); the rest are filled from their smooth build
-    if (!buildVoxCreature(this, kind, this.pal)) switch (kind) {
+    if (!buildVoxCreature(this, kind, this.pal, extraScale)) switch (kind) {
       case 'wolf':
       case 'notch': this.buildWolf(kind === 'notch'); break;
       case 'jelly': this.buildJelly(); break;

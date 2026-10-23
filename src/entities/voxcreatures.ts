@@ -17,7 +17,7 @@ export interface VoxCreatureHost {
   jaw: THREE.Object3D | null;
   plateHeight: number;
 }
-export interface VoxCreaturePal { a?: string; b?: string; c?: string; glow?: boolean }
+export interface VoxCreaturePal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string }
 
 const geoms = new Map<string, THREE.BufferGeometry | null>();
 
@@ -82,7 +82,7 @@ const feathers = (hex: string, fleck?: string): Paint => (x, y, z, n) => {
 };
 
 /** Builds the sculpted creatures; false for any it hasn't a sculpt for. */
-export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreaturePal): boolean {
+export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreaturePal, scale = 1): boolean {
   const key = kind + JSON.stringify(pal);
   switch (kind) {
     case 'chicken': hen(h, new Kit(key, 1 / 24), pal); return true;
@@ -91,6 +91,11 @@ export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreat
     case 'cat': cat(h, new Kit(key, 1 / 24), pal); return true;
     case 'dog': dog(h, new Kit(key, 1 / 20), pal); return true;
     case 'pig': pig(h, new Kit(key, 1 / 20), pal); return true;
+    case 'wolf': case 'notch': wolf(h, new Kit(key + scale, 1 / 16), pal, kind === 'notch', scale); return true;
+    case 'sheep': sheep(h, new Kit(key, 1 / 16), pal); return true;
+    case 'cow': cow(h, new Kit(key, 1 / 16), pal); return true;
+    case 'boar': boar(h, new Kit(key + scale, 1 / 16), pal, scale); return true;
+    case 'deer': deer(h, new Kit(key, 1 / 16)); return true;
   }
   return false;
 }
@@ -308,6 +313,230 @@ function pig(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
       v.capsule([0, 0.06, 0], [0, -0.29, 0.01], 0.075, 0.062, skin);
       v.box([-0.06, -0.36, -0.055], [0.06, -0.3, 0.07], flat(hoof));                         // the trotter...
       v.carve((cx, cy, cz) => Math.abs(cx) < 0.012 && cy < -0.3 && cz > 0.0);               // ...cloven
+    });
+    h.legs.push(leg);
+  }
+}
+
+// ---------------------------------------------------------------- The wild and the field, at the mounts' own cube size
+
+/** A wolf: a deep chest to a tucked waist, a dark saddle and ruff, a pale belly, amber eyes, fangs and a jaw that opens, a brush tail. The pack leader (elite) is bigger, darker, one ear torn. a = fur, b = saddle and ruff, c = belly. */
+function wolf(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, elite: boolean, scale: number): void {
+  const F = pal.a ?? (elite ? '#5a5048' : '#8a7c6a'), D = pal.b ?? (elite ? '#3a332e' : '#5e5446'), L = pal.c ?? (elite ? '#8a8072' : '#c8bca6');
+  const s = (elite ? 1.45 : 1) * scale;
+  h.body.scale.setScalar(s);
+  h.plateHeight = 1.45 * s;
+  const pelt: Paint = (x, y, z, n) => (y > 1.0 ? shag(D)(x, y, z, n) : y < 0.64 ? shag(L)(x, y, z, n) : shag(F)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.capsule([0, 0.86, 0.26], [0, 0.86, -0.5], 0.24, 0.16, pelt);
+    v.ellipsoid([0, 0.78, 0.28], [0.21, 0.27, 0.19], pelt);                                      // the deep chest
+    v.ellipsoid([0, 0.95, 0.36], [0.27, 0.26, 0.16], shag(D));                                   // the ruff
+    v.capsule([0, 0.98, 0.42], [0, 1.12, 0.62], 0.14, 0.12, pelt);                               // the neck
+  });
+  const head = joint(h.body, [0, 1.18, 0.7]);
+  head.scale.setScalar(1.15);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0], [0.15, 0.12, 0.14], shag(F));
+    v.ellipsoid([0, -0.06, -0.05], [0.2, 0.09, 0.08], shag(F));                                  // cheek fur
+    v.capsule([0, -0.04, 0.12], [0, -0.06, 0.36], 0.075, 0.05, (x, y, z, n) => (y < -0.085 ? shag(L)(x, y, z, n) : Math.abs(x) < 0.03 && y > -0.02 ? coat(D, 9)(x, y, z, n) : coat(F, 9)(x, y, z, n))); // the muzzle, a dark ridge, pale lips
+    v.box([-0.035, -0.06, 0.37], [0.035, -0.01, 0.41], flat('#16110e', 0.05));                  // the nose
+    for (const sd of [1, -1]) {
+      v.cone([sd * 0.09, 0.09, -0.04], [sd * 0.12, elite && sd === 1 ? 0.2 : 0.3, -0.07], 0.06, coat(D, 9)); // ears (the leader's right one torn)
+      v.cone([sd * 0.05, -0.1, 0.32], [sd * 0.05, -0.17, 0.335], 0.018, flat('#efe8d8', 0.04)); // fangs
+      v.box([sd * 0.085 - 0.045, 0.07, 0.11], [sd * 0.085 + 0.045, 0.09, 0.15], coat(D, 9));     // the dark brow
+    }
+    if (elite) v.capsule([0.1, -0.02, 0.15], [0.14, 0.1, 0.12], 0.012, 0.012, flat('#d8cfc0'));  // the scar
+  });
+  eyes(head, 0.085, 0.045, 0.145, elite ? '#e8a030' : '#e8c060', 0.034, 0.4, true);
+  const jaw = joint(head, [0, -0.11, 0.1]);
+  k.part(jaw, [0, 0, 0], (v) => {
+    v.capsule([0, -0.02, 0.02], [0, -0.03, 0.24], 0.045, 0.034, shag(L));
+    v.box([-0.04, 0.0, 0.2], [0.04, 0.02, 0.23], flat('#efe8d8', 0.04));                        // teeth
+  });
+  h.head = head; h.jaw = jaw;
+  const tail = joint(h.body, [0, 0.96, -0.58]);
+  k.part(tail, [0, 0, 0], (v) => {
+    v.capsule([0, 0, 0], [0, -0.13, -0.15], 0.07, 0.09, shag(F));
+    v.capsule([0, -0.13, -0.15], [0, -0.32, -0.3], 0.09, 0.08, shag(F));
+    v.capsule([0, -0.32, -0.3], [0, -0.45, -0.38], 0.07, 0.04, shag(D));                         // the dark tip
+  });
+  h.tail = tail;
+  for (const [x, z, hind] of [[0.15, 0.3, 0], [-0.15, 0.3, 0], [0.14, -0.44, 1], [-0.14, -0.44, 1]] as const) {
+    const leg = joint(h.body, [x, 0.72, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      if (hind) {
+        v.ellipsoid([0, -0.1, 0], [0.09, 0.19, 0.13], shag(F));                                  // the thigh
+        v.capsule([0, -0.25, -0.02], [0, -0.5, -0.1], 0.055, 0.045, coat(F, 9));                 // the hock, bent back
+        v.capsule([0, -0.5, -0.1], [0, -0.66, -0.06], 0.042, 0.04, coat(D, 9));
+      } else {
+        v.capsule([0, 0.02, 0], [0, -0.3, 0.02], 0.08, 0.06, shag(F));
+        v.capsule([0, -0.3, 0.02], [0, -0.66, 0.03], 0.05, 0.042, coat(F, 9));
+      }
+      v.ellipsoid([0, -0.69, hind ? -0.02 : 0.05], [0.06, 0.03, 0.08], coat(D, 9));             // paws
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A sheep: a lumpy fleece in tufts, a long dark face with a woolly poll, ears out sideways, pale eyes, wool to the knee, cloven hooves; a ram's horns curl round the ear. a = fleece, b = face and legs. */
+function sheep(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
+  h.plateHeight = 1.25;
+  const W = pal.a ?? '#ece6d8', F = pal.b ?? '#2e2a26', hoof = '#1e1a16';
+  const wool: Paint = (_x, y, _z, n) => shade(W, n < 0.2 ? 0.8 : 0.93 + n * 0.1 - (y < 0.62 ? 0.05 : 0));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.8, -0.02], [0.36, 0.31, 0.52], wool);
+    for (const [x, y, z, r] of [[0, 1.06, 0.28, 0.18], [0.18, 1.04, -0.02, 0.17], [-0.18, 1.04, -0.02, 0.17], [0, 1.08, -0.3, 0.18], [0.2, 1.0, -0.42, 0.15], [-0.2, 1.0, -0.42, 0.15],
+      [0.34, 0.86, 0.2, 0.15], [-0.34, 0.86, 0.2, 0.15], [0.36, 0.82, -0.22, 0.16], [-0.36, 0.82, -0.22, 0.16], [0, 0.88, 0.48, 0.17], [0, 0.82, -0.52, 0.17],
+      [0.26, 0.6, 0.28, 0.13], [-0.26, 0.6, 0.28, 0.13], [0.27, 0.58, -0.3, 0.13], [-0.27, 0.58, -0.3, 0.13]] as const) v.ellipsoid([x, y, z], [r, r * 0.85, r], wool); // the tufts, so the outline is lumpy
+  });
+  const head = joint(h.body, [0, 0.98, 0.56]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.capsule([0, -0.02, -0.02], [0, -0.08, 0.28], 0.11, 0.07, coat(F, 9));                   // the long face
+    v.ellipsoid([0, 0.12, -0.04], [0.15, 0.08, 0.11], wool);                                     // the woolly poll
+    v.box([-0.05, -0.12, 0.31], [0.05, -0.07, 0.34], flat('#1a1614', 0.04));                    // the nose
+    for (const sd of [1, -1]) {
+      v.capsule([sd * 0.09, 0.05, -0.02], [sd * 0.22, 0.0, -0.02], 0.035, 0.03, coat(F, 9));    // ears out to the side
+      if (pal.breed === 'ram') {
+        let prev: V3 = [sd * 0.12, 0.13, -0.02];
+        for (let i = 1; i <= 7; i++) {
+          const a = i * 0.85, next: V3 = [sd * (0.14 + i * 0.012), 0.06 + Math.cos(a) * 0.09, -0.06 - Math.sin(a) * 0.09];
+          v.capsule(prev, next, 0.045 - i * 0.003, 0.042 - i * 0.003, flat('#c8b890'));         // the horn, curling back and round
+          prev = next;
+        }
+      }
+    }
+  });
+  eyes(head, 0.11, 0.035, 0.08, '#d8c890', 0.04, 0.35);
+  h.head = head;
+  const tail = joint(h.body, [0, 0.86, -0.56]);
+  k.part(tail, [0, 0, 0], (v) => { v.ellipsoid([0, -0.08, -0.04], [0.07, 0.1, 0.06], wool); });
+  h.tail = tail;
+  for (const [x, z] of [[0.2, 0.32], [-0.2, 0.32], [0.2, -0.34], [-0.2, -0.34]] as const) {
+    const leg = joint(h.body, [x, 0.56, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.ellipsoid([0, -0.06, 0], [0.09, 0.11, 0.09], wool);                                     // wool to the knee
+      v.capsule([0, -0.14, 0], [0, -0.5, 0.01], 0.04, 0.036, coat(F, 9));
+      v.box([-0.05, -0.56, -0.045], [0.05, -0.5, 0.06], flat(hoof));
+      v.carve((cx, cy, cz) => Math.abs(cx) < 0.01 && cy < -0.5 && cz > 0.0);                   // cloven
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A dairy cow: a deep barrel with hips and shoulders showing, patches, an udder, a long head with a white face and pale muzzle, short horns, ears out sideways, white socks, a tufted tail. a = coat, b = patches, c = muzzle and udder. */
+function cow(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
+  h.plateHeight = 1.75;
+  const C = pal.a ?? '#8a5a36', P = pal.b ?? '#efe8dc', M = pal.c ?? '#e8d6c4', hoof = '#1e1612';
+  const hide: Paint = (x, y, z, n) => (Math.sin(x * 4 + 1) * Math.sin(z * 3 + y * 2) + Math.sin(z * 2.3 - x * 3) * 0.5 > 0.45 ? shade(P, 0.93 + n * 0.1) : coat(C, 1.38)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 1.08, -0.02], [0.39, 0.37, 0.84], hide);
+    v.ellipsoid([0, 0.88, 0.0], [0.35, 0.24, 0.62], hide);                                     // the belly
+    v.ellipsoid([0, 1.36, -0.6], [0.4, 0.13, 0.2], hide);                                      // the hips
+    v.ellipsoid([0, 1.32, 0.5], [0.36, 0.12, 0.2], hide);                                      // the shoulders
+    v.ellipsoid([0, 0.68, -0.42], [0.17, 0.12, 0.18], coat(M, 9));                              // the udder
+    for (const [x, z] of [[0.07, -0.34], [-0.07, -0.34], [0.07, -0.5], [-0.07, -0.5]] as const) v.capsule([x, 0.6, z], [x, 0.52, z], 0.022, 0.02, coat(M, 9));
+    v.capsule([0, 1.15, 0.72], [0, 1.22, 1.0], 0.2, 0.17, hide);                               // the neck
+  });
+  const head = joint(h.body, [0, 1.22, 1.02]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.capsule([0, 0.02, 0], [0, -0.08, 0.36], 0.17, 0.14, (x, y, z, n) => (Math.abs(x) < 0.08 && y > -0.02 && z < 0.3 ? shade(P, 0.93 + n * 0.1) : coat(C, 9)(x, y, z, n))); // a white face
+    v.ellipsoid([0, -0.17, 0.44], [0.15, 0.11, 0.09], coat(M, 9));                              // the muzzle
+    for (const sd of [1, -1]) {
+      v.box([sd * 0.055 - 0.02, -0.21, 0.52], [sd * 0.055 + 0.02, -0.17, 0.54], flat('#3a2a2a', 0.04)); // nostrils
+      v.capsule([sd * 0.15, 0.08, 0.02], [sd * 0.32, 0.06, 0.03], 0.05, 0.035, coat(C, 9));     // ears
+      v.cone([sd * 0.12, 0.16, 0.02], [sd * 0.26, 0.3, 0.0], 0.036, flat('#e8dcc0'));            // horns
+    }
+  });
+  eyes(head, 0.15, 0.05, 0.3, '#141010', 0.045, 0.6);
+  h.head = head;
+  const tail = joint(h.body, [0, 1.42, -0.82]);
+  k.part(tail, [0, 0, 0], (v) => {
+    v.capsule([0, 0, 0], [0, -0.6, -0.04], 0.032, 0.03, coat(C, 9));
+    v.ellipsoid([0, -0.66, -0.04], [0.05, 0.09, 0.05], shag('#2a1e16'));                       // the tuft
+  });
+  h.tail = tail;
+  for (const [x, z] of [[0.24, 0.6], [-0.24, 0.6], [0.24, -0.62], [-0.24, -0.62]] as const) {
+    const leg = joint(h.body, [x, 0.74, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.04, 0], [0, -0.5, 0.01], 0.1, 0.075, coat(C, 9));
+      v.capsule([0, -0.5, 0.01], [0, -0.66, 0.01], 0.07, 0.065, coat(P, 9));                    // white socks
+      v.box([-0.08, -0.74, -0.07], [0.08, -0.66, 0.09], flat(hoof));
+      v.carve((cx, cy, cz) => Math.abs(cx) < 0.012 && cy < -0.66 && cz > 0.01);
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A boar: a heavy hump at the shoulder with a bristle crest along the spine, a wedge of a head, a flat snout, tusks curving up, short legs. a = hide, b = bristles, c = snout. */
+function boar(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 1.25 * scale;
+  const Hd = pal.a ?? '#5a3e2a', B = pal.b ?? '#3a281a', Sn = pal.c ?? '#b8867a', hoof = '#1e1612';
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.68, -0.04], [0.31, 0.31, 0.56], shag(Hd));
+    v.ellipsoid([0, 0.84, 0.26], [0.3, 0.27, 0.28], shag(Hd));                                  // the hump
+    for (let z = -0.42; z <= 0.44; z += 0.07) {
+      const top = 0.96 + Math.max(0, 0.12 - Math.abs(z - 0.25) * 0.2);
+      v.cone([0, top - 0.04, z], [0, top + 0.12, z - 0.03], 0.045, shag(B));                     // the bristle crest
+    }
+  });
+  const head = joint(h.body, [0, 0.7, 0.62]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.capsule([0, 0.04, 0], [0, -0.06, 0.3], 0.22, 0.13, shag(Hd));
+    v.box([-0.12, -0.16, 0.34], [0.12, 0.0, 0.42], coat(Sn, 9));                               // the snout
+    for (const sd of [1, -1]) {
+      v.box([sd * 0.05 - 0.02, -0.1, 0.42], [sd * 0.05 + 0.02, -0.06, 0.43], flat('#3a2a2a', 0.04));
+      v.cone([sd * 0.12, -0.12, 0.3], [sd * 0.2, 0.04, 0.4], 0.03, flat('#efe6cf'));             // tusks, curving up
+      v.capsule([sd * 0.13, 0.18, -0.02], [sd * 0.2, 0.3, -0.06], 0.05, 0.03, shag(B));          // ears
+    }
+  });
+  eyes(head, 0.14, 0.08, 0.24, '#1a1410', 0.04, 0.6);
+  h.head = head;
+  const tail = joint(h.body, [0, 0.84, -0.56]);
+  k.part(tail, [0, 0, 0], (v) => { v.capsule([0, 0, 0], [0, -0.18, -0.06], 0.026, 0.024, shag(B)); v.ellipsoid([0, -0.22, -0.07], [0.035, 0.05, 0.035], shag(B)); });
+  h.tail = tail;
+  for (const [x, z] of [[0.2, 0.36], [-0.2, 0.36], [0.2, -0.36], [-0.2, -0.36]] as const) {
+    const leg = joint(h.body, [x, 0.42, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.04, 0], [0, -0.38, 0.01], 0.085, 0.065, shag(Hd));
+      v.box([-0.075, -0.45, -0.06], [0.075, -0.38, 0.085], flat(hoof));
+      v.carve((cx, cy, cz) => Math.abs(cx) < 0.012 && cy < -0.38 && cz > 0.0);
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A red deer stag: slim and long-legged, a pale belly and white rump, a long neck, big ears and branching antlers. */
+function deer(h: VoxCreatureHost, k: Kit): void {
+  h.plateHeight = 1.8;
+  const F = '#a8723e', Bl = '#e8d4b4', Ant = '#6a5038', hoof = '#2a2018';
+  const pelt: Paint = (x, y, z, n) => (y < 0.86 ? coat(Bl, 9)(x, y, z, n) : coat(F, 1.16)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.capsule([0, 1.02, 0.36], [0, 1.0, -0.44], 0.21, 0.19, pelt);
+    v.ellipsoid([0, 1.06, -0.5], [0.15, 0.15, 0.09], coat(Bl, 9));                              // the white rump
+    v.ellipsoid([0, 1.14, -0.58], [0.05, 0.08, 0.045], coat(F, 9));                             // the tail
+  });
+  const head = joint(h.body, [0, 1.3, 0.55]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.capsule([0, -0.14, -0.1], [0, 0.28, 0.1], 0.09, 0.075, coat(F, 9));                      // the neck
+    v.capsule([0, 0.34, 0.05], [0, 0.3, 0.34], 0.11, 0.06, coat(F, 9));                         // the head, narrowing to the nose
+    v.box([-0.035, 0.28, 0.37], [0.035, 0.33, 0.4], flat('#1a1410', 0.04));
+    for (const sd of [1, -1]) {
+      v.capsule([sd * 0.08, 0.42, 0.04], [sd * 0.2, 0.47, 0.02], 0.04, 0.03, coat(F, 9));       // ears
+      v.capsule([sd * 0.06, 0.4, 0.04], [sd * 0.16, 0.8, -0.02], 0.048, 0.04, flat(Ant));      // the main beam
+      v.capsule([sd * 0.08, 0.5, 0.05], [sd * 0.09, 0.55, 0.19], 0.04, 0.034, flat(Ant));        // brow tine
+      v.capsule([sd * 0.11, 0.62, 0.02], [sd * 0.07, 0.75, 0.15], 0.04, 0.034, flat(Ant));
+      v.capsule([sd * 0.14, 0.72, 0.0], [sd * 0.25, 0.86, 0.06], 0.038, 0.032, flat(Ant));       // the crown
+    }
+  });
+  eyes(head, 0.085, 0.36, 0.2, '#1a1410', 0.036, 0.7);
+  h.head = head;
+  for (const [x, z] of [[0.14, 0.38], [-0.14, 0.38], [0.14, -0.38], [-0.14, -0.38]] as const) {
+    const leg = joint(h.body, [x, 0.82, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.04, 0], [0, -0.42, 0], 0.065, 0.045, coat(F, 9));
+      v.capsule([0, -0.42, 0], [0, -0.76, 0.01], 0.036, 0.034, coat(F, 9));
+      v.box([-0.04, -0.82, -0.04], [0.04, -0.76, 0.05], flat(hoof));
     });
     h.legs.push(leg);
   }
