@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FORT_BY_ID, FORT_RESPAWN } from '../data/forts';
 import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES } from '../data/activities';
@@ -40,6 +41,8 @@ export interface ActivityHost {
   banner(title: string, sub: string): void;
   system(text: string): void;
   sound(name: 'discover' | 'levelUp' | 'bell' | 'open'): void;
+  /** Standing in a region goes up (game/Game.ts gainStanding). */
+  standing?(region: string, n: number): void;
   flag(key: string): unknown;
   setFlag(key: string, value: unknown): void;
   discovered(id: string): boolean;
@@ -118,6 +121,7 @@ export class Activities {
       this.scheduleBosses(P);
       this.runShardfall(P);
       this.populateDungeons(P);
+      this.checkForts();
       this.foundWonders(P);
       this.runRares(P);
     }
@@ -402,11 +406,21 @@ export class Activities {
   private populateDungeons(P: THREE.Vector3): void {
     for (const s of this.sites) {
       const a = s.act!;
-      if (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'dive' && a.kind !== 'camp') continue;
+      if (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'dive' && a.kind !== 'camp' && a.kind !== 'fort') continue;
       const near = Math.hypot(P.x - s.x, P.z - s.z) < 70 && this.host.voxels.isLoaded(s.x, s.z);
       const list = this.dungeons.get(s.id);
       if (near && !list) {
         const out: Enemy[] = [];
+        if (a.kind === 'fort') {
+          // A gang: its members, the chief's two seconds, and the chief; when emptied, they drift back together
+          const f = FORT_BY_ID[s.id.slice(5)];
+          for (const [x, y, z, type] of a.spawns ?? []) out.push(this.spawnAt({ ...ENEMIES[type as EnemyType], respawn: FORT_RESPAWN }, x, y, z));
+          for (const [x, y, z, type] of a.guards ?? []) out.push(this.spawnAt({ ...championOf(type as EnemyType, 1.12), name: `${f?.gangName ?? 'Gang'} lieutenant`, respawn: FORT_RESPAWN }, x, y, z));
+          if (a.boss) out.push(this.spawnAt({ ...ENEMIES[a.boss[3] as EnemyType] }, a.boss[0], a.boss[1], a.boss[2]));
+          this.fortDone.delete(s.id);
+          this.dungeons.set(s.id, out);
+          continue;
+        }
         for (const [x, y, z, type] of a.spawns ?? []) out.push(this.spawnAt({ ...ENEMIES[type as EnemyType], respawn: 150 }, x, y, z));
         if (a.boss) out.push(this.spawnAt(championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45), a.boss[0], a.boss[1], a.boss[2]));
         this.dungeons.set(s.id, out);
@@ -417,12 +431,41 @@ export class Activities {
     }
   }
 
+  // ---------------------------------------------------------------- Bandit forts
+  /** Forts emptied of their gang (until any of it comes back). */
+  private fortDone = new Set<string>();
+
+  /** A fort with every one of its gang down is cleared: the region's thanks, and the chest opens. */
+  private checkForts(): void {
+    for (const s of this.sites) {
+      if (s.act?.kind !== 'fort') continue;
+      const list = this.dungeons.get(s.id);
+      if (!list?.length) continue;
+      const down = list.every((e) => !e.alive);
+      if (!down) { this.fortDone.delete(s.id); continue; }
+      if (this.fortDone.has(s.id)) continue;
+      this.fortDone.add(s.id);
+      const f = FORT_BY_ID[s.id.slice(5)];
+      const first = !this.host.flag('fort:' + f.id);
+      this.host.setFlag('fort:' + f.id, Date.now());
+      this.host.setFlag('fortClears', Number(this.host.flag('fortClears') ?? 0) + 1);
+      this.host.banner(`${f.name} cleared`, first ? `The ${f.gangName} are broken. The chief's chest is yours.` : `The ${f.gangName} are scattered again, for now.`);
+      this.host.sound('levelUp');
+      this.host.reward(first ? 1600 : 500, first ? 90 : 25, [], `Clearing ${f.name}`);
+      this.host.standing?.(f.region, first ? 120 : 30);
+    }
+  }
+
   // ---------------------------------------------------------------- Chests, vistas, wonders
   /** Things to press E on: dungeon chests (refill each half hour) and vistas (once each). */
   candidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
     const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.escorts.candidates(P), ...this.puzzles.candidates(P), ...this.tasks.candidates(P)];
     for (const s of this.sites) {
       const a = s.act!;
+      if (a.chest && a.kind === 'fort' && !this.fortDone.has(s.id) && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
+        out.push({ label: 'The chief\'s chest is locked (clear the fort first)', pos: new THREE.Vector3(a.chest[0], a.chest[1] + 0.5, a.chest[2]), use: () => {} });
+        continue;
+      }
       if (a.chest && a.kind !== 'group' && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
         const opened = Number(this.host.flag('chest:' + s.id) ?? 0);
         const ready = Date.now() - opened > 30 * 60 * 1000;
@@ -547,7 +590,7 @@ export class Activities {
 
   private openChest(s: Site): void {
     this.host.setFlag('chest:' + s.id, Date.now());
-    const big = s.act!.kind === 'dungeon';
+    const big = s.act!.kind === 'dungeon' || s.act!.kind === 'fort';
     const reg = s.region;
     const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && !DUNGEON_SETS.has(d.set));
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === reg);
@@ -588,7 +631,7 @@ export class Activities {
       if (a.kind === 'vista' || a.kind === 'camp' || a.kind === 'group' || this.host.flag('found:' + s.id)) continue;
       if (Math.hypot(P.x - s.x, P.z - s.z) > 40) continue;
       this.host.setFlag('found:' + s.id, 1);
-      const what = a.kind === 'dungeon' ? 'Public dungeon' : a.kind === 'delve' ? 'Delve' : a.kind === 'dive' ? 'Dive site' : 'Wonder';
+      const what = a.kind === 'dungeon' ? 'Public dungeon' : a.kind === 'delve' ? 'Delve' : a.kind === 'dive' ? 'Dive site' : a.kind === 'fort' ? 'Bandit fort' : 'Wonder';
       this.host.reward(a.kind === 'scenic' ? 500 : 250, 0, [], `${what} found: ${s.name}`);
       this.host.banner(s.name, what + ' discovered');
       this.host.sound('discover');

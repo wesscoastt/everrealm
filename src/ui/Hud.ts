@@ -4,7 +4,7 @@ import type { Equip } from '../data/items';
 import './theme.css';
 import { activeSet, GEAR_SETS, ITEMS, RARITY_COLOR, SkillId } from '../data/items';
 import { baseOf, QUALITY } from '../data/gear';
-import { levelForXp, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
+import { levelForXp, MAX_LEVEL, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
 import { MAP_SCALE, WMIN, WSIZE } from '../world/VoxelWorld';
@@ -474,9 +474,10 @@ export class Hud {
   setXpBar(xp: number): void {
     const lv = levelForXp(xp);
     const a = xpForLevel(lv), b = xpForLevel(lv + 1);
+    const top = lv >= MAX_LEVEL;
     this.q('#xpbar > .label').textContent = `Level ${lv}`;
-    (this.q('#xpbar > .bar > i') as HTMLElement).style.width = ((xp - a) / (b - a)) * 100 + '%';
-    this.q('#xpbar > .bar > b').textContent = `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()} XP`;
+    (this.q('#xpbar > .bar > i') as HTMLElement).style.width = (top ? 100 : ((xp - a) / (b - a)) * 100) + '%';
+    this.q('#xpbar > .bar > b').textContent = top ? 'The highest level there is' : `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()} XP`;
   }
 
   /** A trade's progress, shown for a few seconds over the level bar when it earns experience. */
@@ -486,9 +487,9 @@ export class Hud {
     const box = this.q('#skillxp');
     box.querySelector('span')!.textContent = `${s.name} ${lv}`;
     const fill = box.querySelector('i') as HTMLElement;
-    fill.style.width = ((xp - a) / (b - a)) * 100 + '%';
+    fill.style.width = (lv >= MAX_LEVEL ? 100 : ((xp - a) / (b - a)) * 100) + '%';
     fill.style.background = `linear-gradient(#ffffff55 0 2px, ${s.color} 2px 65%, #00000040 65%)`;
-    box.querySelector('b')!.textContent = `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()}`;
+    box.querySelector('b')!.textContent = lv >= MAX_LEVEL ? 'Mastered' : `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()}`;
     box.classList.add('show');
     clearTimeout(this.skillXpT);
     this.skillXpT = window.setTimeout(() => box.classList.remove('show'), 4500);

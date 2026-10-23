@@ -15,6 +15,7 @@ import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, ROOMS, type LodgingDef } from '../data/lodgings';
+import { FORTS, type Fort } from '../data/forts';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -52,7 +53,7 @@ export interface PropDesc {
   dormers?: number;
   mat?: 'red' | 'blue' | 'thatch' | 'slate';
   color?: string;
-  kind?: 'hollin' | 'harrow' | 'aldermere';
+  kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally';
   /** A ship's sails ('bare': a hull on the slip, no masts yet). */
   sails?: 'set' | 'furled' | 'bare';
   /** A waymark shrine's style. */
@@ -82,11 +83,13 @@ export interface Site {
 
 /** What an activity site holds for the game (see game/Activities.ts). */
 export interface SiteActivity {
-  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive' | 'camp' | 'group';
+  kind: 'dungeon' | 'delve' | 'vista' | 'scenic' | 'dive' | 'camp' | 'group' | 'fort';
   /** Creatures that live here and come back after a while: [x, floorY, z, enemy type]. */
   spawns?: [number, number, number, string][];
   /** The champion at the end: [x, floorY, z, enemy type]. */
   boss?: [number, number, number, string];
+  /** A fort's lieutenants, by the chief's hall: [x, floorY, z, enemy type]. */
+  guards?: [number, number, number, string][];
   /** The chest behind the champion: [x, floorY, z]. */
   chest?: [number, number, number];
   /** Sunken caches to find and open (each refills on its own): [x, floorY, z]. */
@@ -478,6 +481,8 @@ export function plan(): Plan {
     { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
     // Stables outside the towns (data/stables.ts)
     ...STABLES.map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
+    // Bandit forts in the back country (data/forts.ts)
+    ...FORTS.map((f): Named => ({ id: 'fort-' + f.id, name: f.name, x: f.x, z: f.z, r0: 22, r1: 34, build: (s, b) => buildBanditFort(s, b, f) })),
     // Lodging houses, rooms let by the week (data/lodgings.ts)
     ...LODGINGS.map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
   ];
@@ -3704,6 +3709,98 @@ export function plan(): Plan {
   }
 
   /** A travellers' or workers' camp: tents round a fire with log seats, bedrolls, a lean-to and stores. */
+  /**
+   * A bandit fort (data/forts.ts): a log palisade with its gate toward the nearest road and a
+   * watchtower either side inside it, tents and a fire in the yard, carts of what they've taken, and
+   * the chief's hall at the back: open at the front, the gang's tally over its back wall, their
+   * chest under it. Built in a frame of its own: u along the gate wall, v from the back to the gate.
+   */
+  function buildBanditFort(s: Site, base: number, f: Fort) {
+    const cx = f.x, cz = f.z, H = 15;
+    let way: [number, number] = [0, 1], bd = 1e9;
+    for (const road of WORLD_ROADS) for (const [rx, rz] of road) { const d = Math.hypot(rx - cx, rz - cz); if (d < bd) { bd = d; way = [rx - cx, rz - cz]; } }
+    const gz = Math.abs(way[1]) >= Math.abs(way[0]);
+    const gs = (gz ? Math.sign(way[1]) : Math.sign(way[0])) || 1;
+    const at = (u: number, v: number): [number, number] => (gz ? [cx + u, cz + v * gs] : [cx + v * gs, cz + u]);
+    /** A prop's place and its facing (out of the gate when turn is 0). */
+    const put = (u: number, v: number): { x: number; z: number } => { const [x, z] = at(u, v); return { x: x + 0.5, z: z + 0.5 }; };
+    const out = gz ? (gs > 0 ? 0 : Math.PI) : (gs > 0 ? Math.PI / 2 : -Math.PI / 2);
+    const logs = f.region === 'tolmen' || f.region === 'gannet' ? B.PineLog : B.OakLog;
+    // The yard, trodden and cleared
+    for (let u = -H + 1; u <= H - 1; u++) for (let v = -H + 1; v <= H - 1; v++) {
+      const [x, z] = at(u, v);
+      foundation(x, z, base);
+      const h = hash2(x, z, 303);
+      O.set(x, base - 1, z, h < 0.55 ? B.Path : h < 0.8 ? B.Dirt : B.Gravel);
+      clearUp(x, z, base, base + 12);
+    }
+    // The palisade: logs four and five high, the gate three wide under a lintel between tall posts
+    for (let u = -H; u <= H; u++) for (let v = -H; v <= H; v++) {
+      if (Math.abs(u) !== H && Math.abs(v) !== H) continue;
+      const [x, z] = at(u, v);
+      foundation(x, z, base, logs);
+      const gate = v === H && Math.abs(u) <= 1, post = v === H && Math.abs(u) === 2;
+      const top = post ? base + 7 : gate ? base + 5 : base + 4 + (hash2(x, z, 301) < 0.5 ? 1 : 0);
+      for (let y = base; y < top; y++) O.set(x, y, z, gate ? (y < base + 4 ? B.Air : B.Timber) : post ? B.Timber : logs);
+      clearUp(x, z, top, top + 8);
+    }
+    // The tally over the gate, on both posts, facing the road
+    for (const u of [-2, 2]) { const q = put(u, H + 0.6); s.props.push({ t: 'banner', x: q.x, y: base + 6.4, z: q.z, ry: out, kind: 'tally' }); }
+    // Watchtowers inside the gate corners: four posts, a floor, a thatch over
+    for (const su of [-1, 1]) {
+      const tu = su * (H - 3), tv = H - 3;
+      for (const du of [-1, 1]) for (const dv of [-1, 1]) { const [x, z] = at(tu + du, tv + dv); for (let y = base; y < base + 8; y++) O.set(x, y, z, B.Timber); }
+      for (let du = -1; du <= 1; du++) for (let dv = -1; dv <= 1; dv++) { const [x, z] = at(tu + du, tv + dv); O.set(x, base + 5, z, B.Planks); }
+      const q = put(tu, tv);
+      s.props.push({ t: 'roof', x: q.x, y: base + 8, z: q.z, len: 3.8, span: 3.8, rise: 1.3, ry: out, mat: 'thatch' });
+    }
+    // The chief's hall: back and sides of plank on a timber frame, the front open on posts
+    const HW = 6, V0 = -H + 1, V1 = -H + 7;
+    for (let u = -HW; u <= HW; u++) for (let v = V0; v <= V1; v++) {
+      const [x, z] = at(u, v);
+      O.set(x, base - 1, z, B.Planks);
+      const back = v === V0, side = Math.abs(u) === HW, front = v === V1;
+      if (!back && !side && !(front && Math.abs(u) === 3)) continue;
+      const corner = (back || front) && (side || Math.abs(u) === 3);
+      for (let y = base; y < base + 4; y++) O.set(x, y, z, corner || front ? B.Timber : y === base ? B.Cobble : B.DarkPlanks);
+    }
+    const hall = put(0, (V0 + V1) / 2 - 0.5);
+    s.props.push({ t: 'roof', x: hall.x, y: base + 4, z: hall.z, len: HW * 2 + 2.4, span: V1 - V0 + 2.4, rise: 2.6, ry: gz ? 0 : Math.PI / 2, mat: 'thatch' });
+    { const q = put(0, V0 + 0.7); s.props.push({ t: 'banner', x: q.x, y: base + 3.6, z: q.z, ry: out, kind: 'tally' }); }
+    const furn = (item: string, u: number, v: number, turn = 0) => { const q = put(u, v); s.props.push({ t: 'furn', item, x: q.x, y: base, z: q.z, ry: out + turn }); };
+    furn('table', -3.5, V0 + 3); furn('bench', -3.5, V0 + 4, 0); furn('bench', -3.5, V0 + 2, Math.PI);
+    furn('chair', 0, V0 + 1.6); furn('barrel', HW - 1, V0 + 1); furn('barrel', HW - 1, V0 + 2); furn('crate', -HW + 1, V0 + 1); furn('rug', 0, V0 + 4);
+    const chest = put(2, V0 + 1);
+    s.props.push({ t: 'furn', item: 'chest', x: chest.x, y: base, z: chest.z, ry: out });
+    // The yard: a fire with log seats, tents along the sides, the carts they've taken, lamps
+    const fire = put(0, 3);
+    s.props.push({ t: 'firepit', x: fire.x, y: base, z: fire.z });
+    for (const [du, dv] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const [x, z] = at(du, 3 + dv - 1); O.set(x, base, z, B.Barrier); O.set(x, base + 1, z, B.Barrier); }
+    for (const [u, v] of [[-3, 2], [-3, 3], [3, 2], [3, 3]]) { const [x, z] = at(u, v); O.set(x, base, z, logs); }
+    const tents: [number, number][] = [[-10, -2], [10, -2], [-10, 5], [10, 5]];
+    const colors = ['#6a5a3a', '#5a4a3a', '#7a6a4a', '#4a4a3a'];
+    tents.forEach(([u, v], i) => { const q = put(u, v); s.props.push({ t: 'tent', x: q.x, y: base, z: q.z, ry: out + (u < 0 ? Math.PI / 2 : -Math.PI / 2), color: colors[i] }); });
+    for (const [u, v, turn] of [[-6, 9, 0.6], [7, 10, -0.4]] as const) {
+      const q = put(u, v);
+      s.props.push({ t: 'cart', x: q.x, y: base, z: q.z, ry: out + turn });
+      s.props.push({ t: 'crate', x: q.x + 1.6, y: base, z: q.z + 0.4 }, { t: 'barrel', x: q.x - 1.5, y: base, z: q.z - 0.6 });
+    }
+    for (const [u, v] of [[-4, H - 1], [4, H - 1], [-HW - 1, V1 + 1], [HW + 1, V1 + 1]]) { const q = put(u, v); s.props.push({ t: 'lantern', x: q.x, y: base, z: q.z }); }
+    rect(s, cx - H - 3, cz - H - 3, cx + H + 3, cz + H + 3);
+    // A trodden track out of the gate, kept clear of trees
+    for (let v = H + 1; v <= H + 14; v++) for (let u = -2; u <= 2; u++) {
+      const [x, z] = at(u, v), g = heightAt(x, z);
+      if (Math.abs(u) <= 1 && hash2(x, z, 305) < 0.75) O.set(x, g - 1, z, B.Path);
+      clearUp(x, z, g, g + 10);
+    }
+    { const [ax, az] = at(-3, H + 1), [bx, bz] = at(3, H + 14); rect(s, Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz)); }
+    // Who holds it: the gang round the yard, two seconds by the hall, the chief in it, the chest behind
+    const g = f.gang, at3 = (u: number, v: number, t: string): [number, number, number, string] => { const q = put(u, v); return [q.x, base, q.z, t]; };
+    const spawns = [at3(-1, H - 2, g), at3(1, H - 2, g), at3(-3, 5, g), at3(3, 5, g), at3(0, 7, g), at3(-2, 0, g), at3(-8, 1, g), at3(8, 1, g), at3(-6, -5, g), at3(6, -5, g)];
+    const guards = [at3(-2, V1 + 1.5, g), at3(2, V1 + 1.5, g)];
+    s.act = { kind: 'fort', spawns, guards, boss: at3(0, V0 + 4, f.chief), chest: [chest.x, base, chest.z] };
+  }
+
   function buildSmallCamp(s: Site, x: number, z: number) {
     const base = heightAt(x, z);
     pave(x - 3, z - 3, x + 3, z + 3, base, 'yard');

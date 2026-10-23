@@ -479,6 +479,23 @@ Twenty-four books lie open on stands by the places they're about, and go into th
 - **The Collegium's letter** to Tabitha Gant: the pages were taken by a student who has since left; the Collegium keeps its own copy of the tunes, for scholars, by appointment.
 - **Tomorrow's Coast**: a Morrow sailor at the Mewstones; their tall cities held down with black stone, and an island of wrecks where nobody pays a toll.
 
+## Bandit forts [in game]
+
+Every troubled region has a gang, and every gang worth the name has a fort well off the road: a log palisade with a gate toward the road, a watchtower either side of it, tents and a fire in the yard, carts of what they've taken, and the chief's hall at the back with the gang's chest. `src/data/forts.ts`, `world/sites.ts` (buildBanditFort), `game/Activities.ts`.
+
+- **The tally.** Every gang on the Charter roads hangs a tally over its gate: an oxblood rag with a chalked stroke for every cart it has taken. The Charter pays a bounty by the stroke, so chiefs keep the tally on them, and any trader pays well for one.
+- **Clearing a fort.** Kill every member of the gang, the chief's two lieutenants and the chief, and the fort is cleared: the region's standing rises, the chief's chest unlocks, and the first clear of each fort pays well. An empty fort fills again in time; gangs drift back.
+
+| Fort | Region | Gang | Chief |
+|---|---|---|---|
+| **Gibbet Knoll** | Turnpike | the Knoll crew (footpads) | **Captain Saul Rudd**, who kept the tally folded inside his coat |
+| **Breakneck Stockade** | Hagworm Wood | the Breakneck poachers | **Jem Garside**; the strokes are knife cuts, and some are deer |
+| **Blackwater Pale** | Fleet Coast | the Blackwater wreckers | **Bettany Crane**; every stroke is a ship, and a name under the last is crossed out |
+| **Red Dog Redoubt** | Raddle Barrens | the Red Dog claim-jumpers | **Josiah Kell**; the strokes are Company claims dug first |
+| **Gaunt's Eyrie** | Gannet Cliffs | the Eyrie robbers | **Matty Gaunt**, who marked small so the rag would last |
+| **Stilt Fort** | Wrath Levels | the Stilt Fort poachers | **Agnes Mardle**; eel traps, not carts, the rag waxed against the wet |
+| **Carrack Pale** | Tolmen Moor | the Carrack tinners | **Kit Pascoe**; two rags sewn together, the first ran out |
+
 ## Morrow, the second continent [planned]
 
 The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.

@@ -613,6 +613,7 @@ export class Game implements GameApi {
       sparkle: (at) => this.particles.note(at, '#fff4d0'),
     });
     this.activities = new Activities({
+      standing: (r, n) => this.gainStanding(r as RegionId, n),
       daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
       killed: (e) => this.onEnemyKilled(e),
       count: (id) => this.inv.count(id),

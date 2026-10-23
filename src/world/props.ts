@@ -936,10 +936,31 @@ export function mineHeadframe(M: PropMaterials, text = 'SALLOW PIT\nHarrowgate &
 }
 
 /** Hanging banner with a painted emblem. Returned mesh uses a shared wave material. */
-export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere'): THREE.CanvasTexture {
+export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere' | 'tally'): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 128;
   const x = c.getContext('2d')!;
+  if (kind === 'tally') {
+    // A gang's tally: an oxblood rag, frayed, with a stroke chalked for every cart they've taken
+    x.fillStyle = '#4a1a16'; x.fillRect(0, 0, 64, 128);
+    x.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let i = 0; i < 128; i += 3) x.fillRect(0, i, 64, 1);
+    x.strokeStyle = '#e8e0cc'; x.lineWidth = 3; x.lineCap = 'round';
+    for (let g = 0; g < 4; g++) {
+      const ox = 10 + (g % 2) * 24, oy = 14 + Math.floor(g / 2) * 34;
+      x.beginPath();
+      for (let k = 0; k < 4; k++) { x.moveTo(ox + k * 4.5, oy); x.lineTo(ox + k * 4.5 + (k % 2 ? 1 : -1), oy + 22); }
+      x.moveTo(ox - 3, oy + 18); x.lineTo(ox + 18, oy + 4);
+      x.stroke();
+    }
+    x.beginPath(); x.moveTo(12, 92); x.lineTo(12, 112); x.moveTo(17, 92); x.lineTo(18, 112); x.stroke();
+    // Frayed bottom
+    x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 64; i += 4) x.fillRect(i, 118 + ((i * 7) % 9), 3, 12);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
   const bg = kind === 'hollin' ? '#2f6a3a' : kind === 'harrow' ? '#7a2e22' : '#2a4a86';
   x.fillStyle = bg; x.fillRect(0, 0, 64, 128);
   x.fillStyle = 'rgba(0,0,0,0.15)';
