@@ -767,6 +767,9 @@ function heldMesh(kind: HeldItem): THREE.Group {
   return g;
 }
 
+/** How far the thighs open (radians) for each metre a mount is wider than a horse. */
+const SPREAD = 2.6;
+
 export class Humanoid {
   readonly root = new THREE.Group();
   readonly body = new THREE.Group();
@@ -1515,6 +1518,15 @@ export class Humanoid {
   private swimPhase = 0;
   swimPitch = 0;
 
+  /** The half-width of what you're riding, so the legs go round it rather than into it (CreatureModel.girth). */
+  straddle = 0.38;
+  /** Where the hands are (world), for the reins: left then right. A torch in the left hand gives both reins to the right. */
+  handsAt(l: THREE.Vector3, r: THREE.Vector3): [THREE.Vector3, THREE.Vector3] {
+    this.handR.getWorldPosition(r);
+    if (this.torch) l.copy(r); else this.handL.getWorldPosition(l);
+    return [l, r];
+  }
+
   setState(s: AnimState): void {
     if (s !== this.state) { this.state = s; this.stateTime = 0; }
   }
@@ -1534,6 +1546,7 @@ export class Humanoid {
     P.body.rotation.set(0, 0, 0);
     P.hips.rotation.set(0, 0, 0);
     P.torso.rotation.set(0, 0, 0);
+    P.torso.position.y = 0.06; // (a shrug or a breath leaves it raised otherwise, a gap at the waist)
     P.head.rotation.set(0, 0, 0);
     for (const g of [P.armL, P.armR, P.foreL, P.foreR, P.legL, P.legR, P.shinL, P.shinR]) g.rotation.set(0, 0, 0);
     P.armL.rotation.z = 0.08;
@@ -1605,8 +1618,10 @@ export class Humanoid {
         const gait = Math.min(1, speed / 9);
         if (speed > 0.2) this.swimPhase += dt * (3.4 + speed * 0.62);
         const s = this.swimPhase;
-        P.legL.rotation.set(-1.05, 0, 0.5); P.legR.rotation.set(-1.05, 0, -0.5);
-        P.shinL.rotation.x = 1.25; P.shinR.rotation.x = 1.25;
+        // The wider the beast, the wider the knees; the shins come back in to hang down its sides
+        const wide = Math.max(0, this.straddle - 0.38);
+        P.legL.rotation.set(-1.05, 0, 0.5 + wide * SPREAD); P.legR.rotation.set(-1.05, 0, -0.5 - wide * SPREAD);
+        P.shinL.rotation.set(1.25, 0, -wide * SPREAD * 0.6); P.shinR.rotation.set(1.25, 0, wide * SPREAD * 0.6);
         P.armL.rotation.x = -0.65; P.armR.rotation.x = -0.65;
         P.armL.rotation.z = 0.12; P.armR.rotation.z = -0.12;
         P.foreL.rotation.x = -0.55; P.foreR.rotation.x = -0.55;

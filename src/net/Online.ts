@@ -52,6 +52,7 @@ interface Remote {
 interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
 
 /** How high a rider sits on someone's mount, by its halter's id. */
+const handL = new THREE.Vector3(), handR = new THREE.Vector3();
 const liftOf = (mount: string | null) => riderLift(mountOf(mount));
 
 const TOKENS_KEY = 'everrealm.netTokens';
@@ -430,7 +431,9 @@ export class Online {
       r.model.setState(r.anim);
       r.model.setHeld(r.held);
       r.model.setTorch((!!r.horse || !!r.pillion) && (this.hooks.night?.() ?? 0) > 0.45);
+      r.model.straddle = r.horse?.girth ?? 0.38;
       r.model.update(dt, r.t < 1 ? r.speed : 0, r.anim === 'jump');
+      r.horse?.holdReins(r.model.state === 'ride' ? r.model.handsAt(handL, handR) : null);
     }
   }
 

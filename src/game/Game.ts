@@ -204,6 +204,7 @@ interface CraftAction { recipe: string; left: number; t: number; station: Statio
 const UP = new THREE.Vector3(0, 1, 0);
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
+const handL = new THREE.Vector3(), handR = new THREE.Vector3();
 
 export class Game implements GameApi {
   readonly renderer: THREE.WebGLRenderer;
@@ -4433,7 +4434,9 @@ export class Game implements GameApi {
     else M.setState('idle');
     M.setHeld(P.swimming && (M.state === 'swim' || M.state === 'tread') ? 'none' : held);
     M.swimPitch = P.swimPitch;
+    M.straddle = this.horse?.girth ?? 0.38;
     M.update(dt, P.speed, !P.onGround && !P.swimming);
+    this.horse?.holdReins(M.state === 'ride' ? M.handsAt(handL, handR) : null);
     this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();

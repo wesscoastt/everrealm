@@ -80,6 +80,17 @@ function eyes(head: THREE.Group, x: number, y: number, z: number, colour: string
   }
 }
 
+/**
+ * A bridle on a beast's head (head-local): a brass ring either side at the bit, where the reins start,
+ * and a cheek strap from each ring back up the head.
+ */
+function bridle(v: Vox, bit: V3, cheek: V3) {
+  for (const sd of [1, -1]) {
+    v.capsule([sd * bit[0], bit[1], bit[2]], [sd * cheek[0], cheek[1], cheek[2]], 0.035, 0.035, flat('#4a2a16'));
+    v.box([sd * bit[0] - 0.04, bit[1] - 0.04, bit[2] - 0.04], [sd * bit[0] + 0.04, bit[1] + 0.04, bit[2] + 0.04], flat('#c8a050'));
+  }
+}
+
 /** A band round a limb or a muzzle (a noseband, a horn's ridges): the cubes near the capsule a-b's skin, at t0 along it. */
 function ring(v: Vox, a: V3, b: V3, r: number, t0: number, w: number, paint: Paint) {
   const d: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L2 = d[0] ** 2 + d[1] ** 2 + d[2] ** 2;
@@ -126,7 +137,7 @@ function saddle(v: Vox, y: number, z: number, cloth: string, within: (x: number,
 // ---------------------------------------------------------------------------------------------
 // Horses, and what rides like one: the piebald, the shire, the stag, the ram, the kelpie, the pack pony
 
-function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): { head: THREE.Group; tail: THREE.Group } {
+function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): VoxMountParts {
   const B = host.body, glow = !!P.glow;
   const a = P.a ?? '#7a4a2a', b = P.b ?? '#2a1e16', c = P.c ?? '#2e4a7a';
   const pied = breed === 'pied', shire = breed === 'shire', elk = breed === 'elk', ram = breed === 'ram', kelpie = breed === 'kelpie', pack = breed === 'pack';
@@ -161,8 +172,8 @@ function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): { hea
       if (kelpie) for (let i = 0; i < 5; i++) v.capsule([0.12, 1.98 + i * 0.1, 0.74 + i * 0.08], [0.2, 1.62 + i * 0.08, 0.8 + i * 0.08], 0.05, 0.045, flat('#2e5a3a', 0.25));
     }
     saddle(v, 1.84, 0.04, c, inBarrel, 0.38, P);
-    // Reins from the bit back to the pommel
-    for (const sd of [1, -1]) { v.capsule([sd * 0.15, 2.02, 1.66], [sd * 0.18, 1.86, 1.12], 0.045, 0.045, flat(leather)); if (!P.harness) v.capsule([sd * 0.18, 1.86, 1.12], [sd * 0.12, 2.0, 0.42], 0.045, 0.045, flat(leather)); }
+    // In harness, the reins from the bit along the neck to the band (ridden, the rider holds them: CreatureModel.holdReins)
+    if (P.harness) for (const sd of [1, -1]) v.capsule([sd * 0.15, 2.02, 1.66], [sd * 0.18, 1.86, 1.12], 0.045, 0.045, flat(leather));
     if (pack) {
       // A canvas pannier either side, a bedroll behind the saddle, a kettle and a pan
       for (const sd of [1, -1]) {
@@ -260,18 +271,22 @@ function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): { hea
     v.capsule([0, 0, 0], [0, -0.12, -0.16], 0.08, 0.08, maneP);
     for (const [x, len, back] of [[0, 0.86, 0.22], [0.05, 0.76, 0.3], [-0.05, 0.8, 0.14], [0.02, 0.66, 0.36], [-0.03, 0.7, 0.26]] as const) v.capsule([x, -0.1, -0.16], [x * 2, -0.1 - len, -0.16 - back], 0.065, 0.05, maneP);
   });
-  return { head, tail };
+  return { head, tail, bit: [0.15, -0.43, 0.46], girth: 0.38 };
 }
 
 // ---------------------------------------------------------------------------------------------
 // The far places' mounts
 
-export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal): { head: THREE.Group; tail: THREE.Group } {
+/** What a mount's build hands back: its head and tail, the right-hand bit ring (head-local; the left
+ * is its mirror) where the reins start, and its half-width where the rider's legs go round it. */
+export interface VoxMountParts { head: THREE.Group; tail: THREE.Group; bit: V3; girth: number }
+
+export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal): VoxMountParts {
   const a = P.a ?? '#8a5a2e', b = P.b ?? '#2a1e16', c = P.c ?? '#2e4a7a', glow = !!P.glow;
   const k = new Kit([breed, a, b, c, glow ? 1 : 0, P.pillion ? 1 : 0, P.harness ? 1 : 0].join('|'));
   const B = host.body;
   const leg = (at: V3, build: (v: Vox) => void) => { host.legs.push(k.part(B, at, build)); };
-  let head: THREE.Group, tail: THREE.Group;
+  let head: THREE.Group, tail: THREE.Group, bit: V3, girth: number;
 
   if (breed === 'cat' || breed === 'sabre') {
     // ---- A great cat: the kilncat of the Kiln's slopes, or the Held's sabre-toothed fell cat.
@@ -299,7 +314,10 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.ellipsoid([0, -0.1, 0.24], [0.18, 0.13, 0.15], flat(pale));
       v.ellipsoid([0, -0.2, 0.2], [0.12, 0.06, 0.1], flat(pale)); // the chin
       v.box([-0.06, -0.04, 0.36], [0.06, 0.03, 0.4], flat('#5a2a2a')); // the nose
+      ring(v, [0, -0.1, 0.02], [0, -0.1, 0.42], 0.17, 0.6, 0.035, flat('#4a2a16')); // the noseband
+      bridle(v, [0.19, -0.1, 0.26], [0.23, 0.12, -0.06]);
     });
+    bit = [0.19, -0.1, 0.26]; girth = sabre ? 0.5 : 0.48;
     eyes(head, 0.13, 0.06, 0.26, glow ? b : '#e8c040', glow, 0.08);
     for (const [x, z, hind] of [[0.25, 0.62, 0], [-0.25, 0.62, 0], [0.27, -0.72, 1], [-0.27, -0.72, 1]] as const) leg([x, 1.0, z], (v) => {
       const lp: Paint = (px, py, pz, n) => coatC(px + x, py + 1.0, pz + z, n);
@@ -339,10 +357,12 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       }
       saddle(v, 1.86, -0.06, c, inBody, 0.46, P);
     });
+    bit = [0.18, -0.09, 0.3]; girth = 0.5;
     head = k.part(B, [0, neckTop[1] + 0.08, neckTop[2] + 0.12], (v) => {
       v.ellipsoid([0, 0, 0], [0.24, 0.21, 0.26], skin);
       v.ellipsoid([0, -0.04, 0.32], [0.17, 0.13, 0.24], skin); // the snout
       v.box([-0.14, -0.2, 0.08], [0.14, -0.12, 0.52], flat(shade(plate, 0.85))); // the jaw
+      bridle(v, [0.18, -0.09, 0.3], [0.21, 0.04, -0.02]);
       for (const sd of [1, -1]) {
         v.box([sd * 0.07 - 0.03, -0.02, 0.52], [sd * 0.07 + 0.03, 0.03, 0.56], flat('#1a1410')); // nostrils
         v.box([sd * 0.15 - 0.05, 0.1, 0.04], [sd * 0.15 + 0.05, 0.16, 0.22], flat(shade(hide, 0.7))); // the brow ridge
@@ -401,7 +421,9 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
     head = k.part(B, [0, 1.1, 1.24], (v) => {
       v.ellipsoid([0, 0, 0.04], [0.18, 0.16, 0.22], skinP);
       v.box([-0.12, -0.1, 0.18], [0.12, -0.03, 0.27], flat('#3a3a2e')); // the beak
+      bridle(v, [0.16, -0.06, 0.14], [0.17, 0.06, -0.08]);
     });
+    bit = [0.16, -0.06, 0.14]; girth = 0.8;
     eyes(head, 0.13, 0.04, 0.12, '#1a1a14', false, 0.06);
     for (const [x, z, hind] of [[0.6, 0.6, 0], [-0.6, 0.6, 0], [0.58, -0.62, 1], [-0.58, -0.62, 1]] as const) leg([x, 0.92, z], (v) => {
       v.capsule([0, 0, 0], [Math.sign(x) * 0.06, -0.8, hind ? -0.04 : 0.06], 0.22, 0.18, skinP);
@@ -420,9 +442,11 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       for (const [cx, cy, cz, rx, ry, rz] of [[0, 1.86, 0.82, 0.42, 0.13, 0.26], [0, 1.78, -0.62, 0.44, 0.13, 0.3], [0, 1.62, -1.0, 0.34, 0.12, 0.2], [0.56, 1.4, 0, 0.08, 0.3, 0.5], [-0.56, 1.4, 0, 0.08, 0.3, 0.5]] as const) v.ellipsoid([cx, cy, cz], [rx, ry, rz], stone);
       saddle(v, 1.96, -0.12, c, inBody, 0.58, P);
     });
+    bit = [0.22, -0.12, 0.38]; girth = 0.66;
     head = k.part(B, [0, 1.3, 1.08], (v) => {
       v.ellipsoid([0, 0, 0.1], [0.33, 0.29, 0.33], fur);
       v.ellipsoid([0, -0.12, 0.38], [0.22, 0.16, 0.14], flat('#5a4a3a'));
+      bridle(v, [0.22, -0.12, 0.38], [0.33, 0.02, 0.08]);
       v.ellipsoid([0, 0.26, 0.06], [0.34, 0.1, 0.22], stone); // the brow plate
       for (const sd of [1, -1]) {
         v.capsule([sd * 0.26, 0.16, 0.0], [sd * 0.54, 0.3, 0.14], 0.09, 0.07, flat('#efe6d0'));
@@ -460,7 +484,9 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.box([-0.2, -0.15, -0.2], [0.2, 0.15, 0.28], brass);
       v.box([-0.22, 0.12, -0.22], [0.22, 0.17, 0.3], flat(b));
       v.box([-0.06, 0.17, -0.06], [0.06, 0.25, 0.06], flat('#c8a050'));
+      bridle(v, [0.22, -0.06, 0.2], [0.22, -0.06, -0.12]);
     });
+    bit = [0.22, -0.06, 0.2]; girth = 0.42;
     eyes(head, 0.1, 0.02, 0.3, '#ffc060', true, 0.12);
     for (const [x, z, hind] of [[0.26, 0.6, 0], [-0.26, 0.6, 0], [0.26, -0.62, 1], [-0.26, -0.62, 1]] as const) leg([x, 1.14, z], (v) => {
       v.ellipsoid([0, 0, 0], [0.12, 0.12, 0.12], flat('#c8a050'));
@@ -481,11 +507,13 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
       v.capsule([0, 1.62, 0.72], [0, 1.94, 1.06], 0.3, 0.24, feathers(plume));
       saddle(v, 1.88, -0.2, c, inBody, 0.44, P);
     });
+    bit = [0.14, -0.06, 0.26]; girth = 0.48;
     head = k.part(B, [0, 2.06, 1.2], (v) => {
       v.ellipsoid([0, 0, 0], [0.25, 0.24, 0.28], feathers(plume));
       v.capsule([0, 0.0, 0.2], [0, -0.03, 0.48], 0.12, 0.07, flat('#e0b040')); // the beak
       v.capsule([0, -0.03, 0.48], [0, -0.18, 0.54], 0.07, 0.04, flat('#a87020')); // its hook
       v.box([-0.08, -0.14, 0.2], [0.08, -0.08, 0.4], flat('#c89030')); // the lower beak
+      bridle(v, [0.14, -0.06, 0.26], [0.24, 0.02, -0.02]);
       for (const sd of [1, -1]) {
         v.box([sd * 0.2 - 0.04, 0.04, 0.0], [sd * 0.2 + 0.04, 0.09, 0.16], flat(shade(a, 0.6))); // the dark brow
         v.cone([sd * 0.12, 0.12, -0.16], [sd * 0.2, 0.2, -0.48], 0.07, flat(shade(plume, 0.85))); // crest feathers
@@ -524,7 +552,7 @@ export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal)
   } else {
     return horse(k, host, P, breed);
   }
-  return { head, tail };
+  return { head, tail, bit, girth };
 }
 
 // ---------------------------------------------------------------------------------------------

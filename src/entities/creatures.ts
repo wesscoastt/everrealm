@@ -173,6 +173,11 @@ function add(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Mater
   return m;
 }
 
+// Reins: a strap a cube wide, stretched between the bit and the hand
+const REIN_GEO = new THREE.BoxGeometry(1 / 16, 1 / 32, 1);
+const REIN_MAT = new THREE.MeshLambertMaterial({ color: '#4a2a16' });
+const reinA = new THREE.Vector3(), reinB = new THREE.Vector3(), reinC = new THREE.Vector3();
+
 export class CreatureModel {
   readonly root = new THREE.Group();
   readonly body = new THREE.Group();
@@ -184,6 +189,10 @@ export class CreatureModel {
   segs: THREE.Object3D[] = [];
   /** A wagon's wheels, turned as it rolls. */
   wheels: THREE.Object3D[] = [];
+  /** A mount's right-hand bit ring on its head (the left is its mirror), and its half-width where a rider's legs go. */
+  bit: [number, number, number] | null = null;
+  girth = 0.38;
+  private reins: THREE.Mesh[] = [];
   private phase = Math.random() * 10;
   anim: CreatureAnim = 'idle';
   animTime = 0;
@@ -835,8 +844,9 @@ export class CreatureModel {
   private buildHorse(): void {
     this.plateHeight = this.pal.wagon?.kind === 'covered' ? 2.9 : 2.6;
     const breed = this.pal.breed ?? 'horse';
-    const { head, tail } = buildVoxMount(this, breed, { ...this.pal, harness: !!this.pal.wagon });
+    const { head, tail, bit, girth } = buildVoxMount(this, breed, { ...this.pal, harness: !!this.pal.wagon });
     this.head = head; this.tail = tail;
+    if (!this.pal.wagon) { this.bit = bit; this.girth = girth; }
     if (this.pal.wagon) this.wheels = buildVoxWagon(this.root, this.body, breed, this.pal.wagon);
   }
 
@@ -985,6 +995,36 @@ export class CreatureModel {
       this.body.add(t);
       add(t, rb(0.04, len, 0.04, 0.01), thread, 0, -len / 2, 0);
       this.legs.push(t);
+    }
+  }
+
+  /**
+   * The reins, from the bit rings to the rider's hands (world positions, left then right), drawn fresh
+   * each frame so they follow the head and the hands; null lets them go (nobody up, or a wagon).
+   */
+  holdReins(hands: [THREE.Vector3, THREE.Vector3] | null): void {
+    if (!this.bit || !this.head || !hands) { for (const r of this.reins) r.visible = false; return; }
+    if (!this.reins.length) {
+      for (let i = 0; i < 2; i++) {
+        const m = new THREE.Mesh(REIN_GEO, REIN_MAT);
+        m.castShadow = true;
+        this.reins.push(m);
+        this.root.add(m);
+      }
+    }
+    this.root.updateMatrixWorld();
+    for (let i = 0; i < 2; i++) {
+      const sd = i === 0 ? -1 : 1, r = this.reins[i];
+      const from = this.head.localToWorld(reinA.set(sd * this.bit[0], this.bit[1], this.bit[2]));
+      this.root.worldToLocal(from);
+      const to = this.root.worldToLocal(reinB.copy(hands[i]));
+      const len = from.distanceTo(to);
+      // Too far apart means the rider isn't really up (a frame between seats): leave them hanging off
+      r.visible = len > 0.05 && len < 2.6;
+      if (!r.visible) continue;
+      r.position.copy(from).add(to).multiplyScalar(0.5);
+      r.scale.set(1, 1, len);
+      r.lookAt(reinC.copy(to).applyMatrix4(this.root.matrixWorld));
     }
   }
 
