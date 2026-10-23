@@ -9,7 +9,7 @@ import { realmNow } from '../world/clock';
 import { Ferry } from '../world/Ferry';
 import { createPropMaterials, FIRE_TIME, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
-import { BuiltSite, buildImpostor, buildSiteProps } from '../world/siteProps';
+import { BuiltSite, buildImpostor, buildSiteProps, IMPOSTOR_MAT } from '../world/siteProps';
 import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
@@ -61,6 +61,7 @@ export class GameWorld {
   readonly extraLamps: THREE.Vector3[] = [];
   private activeSites = new Map<string, BuiltSite>();
   private impostors = new Map<string, THREE.Group>();
+  private siteReach = new Map<string, number>();
   private lod: THREE.Group | null = null;
   private readonly ferry: Ferry;
   private lodUniforms = { uCenter: { value: new THREE.Vector2() }, uRadius: { value: 0 } };
@@ -139,6 +140,8 @@ export class GameWorld {
     }
     for (const s of this.sites) {
       if (!s.impostor.length) continue;
+      // How far the site reaches from its middle: its props are built once any of it is in the chunks
+      this.siteReach.set(s.id, Math.max(0, ...s.impostor.map((b) => Math.hypot(b.x - s.x, b.z - s.z) + Math.max(b.w, b.d) / 2)));
       const g = buildImpostor(s.impostor);
       this.impostors.set(s.id, g);
       scene.add(g);
@@ -318,7 +321,8 @@ export class GameWorld {
     // sea and lakes alike, is one flat sheet underneath
     const TILE = 64;
     const group = new THREE.Group();
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    // Pushed back in depth: where it meets the chunks (see SharedUniforms.uClip) they win
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 });
     const addMesh = (pos: number[], col: number[], nor: number[]) => {
       if (!pos.length) return;
       const g = new THREE.BufferGeometry();
@@ -370,6 +374,8 @@ export class GameWorld {
     };
     this.lod = group;
     this.scene.add(this.lod);
+    IMPOSTOR_MAT.onBeforeCompile = mat.onBeforeCompile;
+    IMPOSTOR_MAT.customProgramCacheKey = () => 'everrealm-impostor';
   }
 
   private makeGlowMaterial(): THREE.SpriteMaterial {
@@ -412,6 +418,9 @@ export class GameWorld {
     this.chunks.update(center.x, center.z);
     this.lodUniforms.uCenter.value.set(center.x, center.z);
     this.lodUniforms.uRadius.value = this.chunks.coveredRadius;
+    // The chunks stop a block past where the far terrain starts; the far terrain is pushed back in
+    // depth, so in that block the chunks always win
+    this.shared.uClip.value.set(center.x, center.z, this.chunks.coveredRadius > 0 ? this.chunks.coveredRadius + 1 : 1e9);
 
     const glow = this.sky.night;
     this.glowMat.opacity = 0.15 + glow * 0.75;
@@ -433,7 +442,8 @@ export class GameWorld {
     for (const s of this.sites) {
       const d = Math.hypot(s.x - center.x, s.z - center.z);
       const active = this.activeSites.get(s.id);
-      const near = d < Math.min(s.r, this.chunks.viewRadius * CHUNK - 10);
+      // Near enough, or any of it inside the loaded chunks (else its voxel houses stand there roofless)
+      const near = d < Math.min(s.r, this.chunks.viewRadius * CHUNK - 10) || d - (this.siteReach.get(s.id) ?? 0) < this.chunks.coveredRadius;
       if (near && !active && s.props.length) {
         const built = buildSiteProps(s, this.props, this.shared.uTime, this.glowMat);
         this.scene.add(built.group);
@@ -449,18 +459,10 @@ export class GameWorld {
         });
         this.activeSites.delete(s.id);
       }
+      // A stand-in draws only beyond the loaded chunks (its material is clipped to the far terrain's
+      // circle), so it never overlaps the real town; out past it, all of it shows
       const imp = this.impostors.get(s.id);
-      if (imp) {
-        const far = this.chunks.coveredRadius + 20;
-        imp.visible = true;
-        // A long piece (a wall) hides as you come near it, wherever the town's middle is; the rest with the site
-        for (const m of imp.children) {
-          const b = m.userData.box as { x: number; z: number; w: number; d: number } | undefined;
-          if (!b) { m.visible = d > far; continue; }
-          const dx = Math.max(0, Math.abs(center.x - b.x) - b.w / 2), dz = Math.max(0, Math.abs(center.z - b.z) - b.d / 2);
-          m.visible = Math.hypot(dx, dz) > far;
-        }
-      }
+      if (imp) imp.visible = d + (this.siteReach.get(s.id) ?? 0) > this.chunks.coveredRadius;
     }
     for (const s of this.activeSites.values()) for (const f of s.fires) f.scale.set(1, flick, 1);
     this.placeLamps(center, glow, flick);

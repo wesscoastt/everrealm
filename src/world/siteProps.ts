@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as P from './props';
+import { addConeVolume } from './roofVolumes';
 import { waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { ImpostorBox, Site } from './sites';
@@ -157,6 +158,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       }
       case 'cone': {
         batch.add(P.cyl(0.15, d.r ?? 4, d.h ?? 6, 8), roofMat(d.mat), P.mat4(d.x, d.y + (d.h ?? 6) / 2, d.z));
+        addConeVolume(d.x, d.y, d.z, d.r ?? 4, d.h ?? 6);
         break;
       }
       case 'rope': place(P.strand(M.rope, d.len ?? 4, d.h ?? 0, d.r ?? 0.4, 0.035), d.x, d.y, d.z, d.ry); break;
@@ -216,4 +218,5 @@ export function buildImpostor(boxes: ImpostorBox[]): THREE.Group {
   return g;
 }
 
-const IMPOSTOR_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
+/** Pushed back in depth so real geometry always wins a tie; GameWorld clips it to beyond the loaded chunks. */
+export const IMPOSTOR_MAT = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 });

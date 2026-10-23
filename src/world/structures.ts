@@ -3,6 +3,7 @@ import { B, isSolid } from './blocks';
 import { EX, Layout, ROADS } from './generate';
 import { distToPolyline, hash2 } from './noise';
 import * as P from './props';
+import { addGableVolume } from './roofVolumes';
 import { HOLLIN_SHRINE, SHRINE_SOLID, waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
@@ -368,6 +369,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   poi.bellowsStand = new THREE.Vector3(184.8, BASE, 178.1);
   const smithRoof = P.gableRoof(SX1 - SX0 + 1, SZ1 - SZ0 + 1, 3.2, 0.7, 0.22, 0.35);
   batch.add(smithRoof, M.roofSlate, P.mat4((SX0 + SX1 + 1) / 2, BASE + 4, (SZ0 + SZ1 + 1) / 2));
+  addGableVolume((SX0 + SX1 + 1) / 2, BASE + 4, (SZ0 + SZ1 + 1) / 2, SX1 - SX0 + 1, SZ1 - SZ0 + 1, 3.2, 0.7, 0, 0.22, 0.35);
   batch.add(P.gableWall(SZ1 - SZ0 + 1, 3.5, 0.6), M.darkWood, P.mat4(SX0 + 0.3, BASE + 4, (SZ0 + SZ1 + 1) / 2, Math.PI / 2));
   batch.add(P.gableWall(SZ1 - SZ0 + 1, 3.5, 0.6), M.darkWood, P.mat4(SX1 + 0.7, BASE + 4, (SZ0 + SZ1 + 1) / 2, Math.PI / 2));
   lights.push(new THREE.Vector3(187, BASE + 1, 178.6));

@@ -8,6 +8,12 @@ export interface SharedUniforms {
   uSunColor: { value: THREE.Color };
   /** 0 outdoors .. 1 with the camera inside a building: window glass turns see-through. */
   uIndoor: { value: number };
+  /**
+   * Where the loaded chunks hand over to the far terrain: x and z of the centre, and the radius.
+   * Chunks and their water draw only inside it and the far terrain only outside, so the two never
+   * overlap (where they did, the same hillside drawn twice flickered in the distance).
+   */
+  uClip: { value: THREE.Vector3 };
 }
 
 export function createSharedUniforms(): SharedUniforms {
@@ -18,6 +24,7 @@ export function createSharedUniforms(): SharedUniforms {
     uSkyColor: { value: new THREE.Color('#8fc4ec') },
     uSunColor: { value: new THREE.Color('#fff1d6') },
     uIndoor: { value: 0 },
+    uClip: { value: new THREE.Vector3(0, 0, 1e9) },
   };
 }
 
@@ -29,11 +36,13 @@ export function createVoxelMaterial(atlas: THREE.DataArrayTexture, shared: Share
     shader.uniforms.uTime = shared.uTime;
     shader.uniforms.uGlow = shared.uGlow;
     shader.uniforms.uIndoor = shared.uIndoor;
+    shader.uniforms.uClip = shared.uClip;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 attribute vec2 aMeta;
 attribute vec2 aUv;
 uniform float uTime;
+varying vec2 vClipXZ;
 varying float vLayer;
 varying float vSway;
 varying vec2 vTileUv;`)
@@ -46,16 +55,21 @@ if (aMeta.y > 0.5) {
 }
 vLayer = aMeta.x;
 vSway = aMeta.y;
-vTileUv = aUv;`);
+vTileUv = aUv;
+vClipXZ = (modelMatrix * vec4(position, 1.0)).xz;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 precision highp sampler2DArray;
 uniform sampler2DArray uAtlas;
 uniform float uGlow;
 uniform float uIndoor;
+uniform vec3 uClip;
+varying vec2 vClipXZ;
 varying float vLayer;
 varying float vSway;
 varying vec2 vTileUv;`)
+      .replace('void main() {', `void main() {
+  if (distance(vClipXZ, uClip.xy) > uClip.z) discard;`)
       .replace('#include <map_fragment>', `vec4 texel = texture(uAtlas, vec3(vTileUv, floor(vLayer + 0.5)));
 if (texel.a < 0.3) discard;
 // Leaves (the swaying blocks) have soft alpha edges, which must not read as glow
@@ -125,6 +139,7 @@ export function createWaterMaterial(shared: SharedUniforms): THREE.ShaderMateria
       uniform vec3 uSunColor;
       uniform vec3 uSunDir;
       uniform float uGlow;
+      uniform vec3 uClip;
       varying vec2 vUv;
       varying vec3 vWater;
       varying vec3 vWorld;
@@ -137,6 +152,7 @@ export function createWaterMaterial(shared: SharedUniforms): THREE.ShaderMateria
         return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y);
       }
       void main() {
+        if (distance(vWorld.xz, uClip.xy) > uClip.z) discard;
         float depth = clamp((vWater.x - 1.0) / 5.0, 0.0, 1.0);
         vec3 V = normalize(cameraPosition - vWorld);
         // Night: the body of the water goes to a moonlit navy, and foam and glints dim with it
@@ -188,4 +204,5 @@ export function bindWaterUniforms(mat: THREE.ShaderMaterial, shared: SharedUnifo
   mat.uniforms.uSunColor = shared.uSunColor;
   mat.uniforms.uSunDir = shared.uSunDir;
   mat.uniforms.uGlow = shared.uGlow;
+  mat.uniforms.uClip = shared.uClip;
 }

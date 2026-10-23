@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { paintCanvasTexture } from './textures';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
+import { addGableVolume } from './roofVolumes';
 
 // Authored (non-voxel) props. Static pieces are batched per material into single meshes.
 
@@ -421,6 +422,8 @@ export function addHouseRoof(batch: Batcher, M: PropMaterials, r: HouseRoof): vo
   const base = mat4(r.x, r.y, r.z, r.ry);
   const put = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, ry = 0, rx = 0, rz = 0) =>
     batch.add(geo, mat, new THREE.Matrix4().multiplyMatrices(base, mat4(x, y, z, ry, rx, rz)));
+  // Solid to the camera (world/roofVolumes.ts)
+  addGableVolume(r.x, r.y, r.z, len, span, rise, ov, r.ry, thatch ? 0.55 : 0.62, thatch ? 0 : 0.42);
 
   if (thatch) {
     // Thick, soft-edged thatch with no upturn, and a rolled ridge

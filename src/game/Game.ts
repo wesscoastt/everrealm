@@ -65,6 +65,7 @@ import { DialogueTree, DNode, GameApi } from './api';
 import { GameWorld , ForageSpot } from './GameWorld';
 import { places } from '../data/places';
 import { fireMaterial, flameCard, furniture } from '../world/props';
+import { inRoof } from '../world/roofVolumes';
 import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist, SEA } from '../world/terrain';
 import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
@@ -4537,6 +4538,7 @@ export class Game implements GameApi {
       creature: (kind: CreatureKind, pal = {}) => new CreatureModel(kind, pal),
       figure: (look: Appearance) => new Humanoid(look),
       prop: (item: string) => furniture(this.world.props, item, 0),
+      inRoof: (x: number, y: number, z: number, m = 0) => inRoof(x, y, z, m),
       state: () => ({
         mode: this.mode, hp: this.hp, pos: this.player?.position.toArray().map((v) => +v.toFixed(2)), quests: { ...this.save.quests }, flags: { ...this.save.flags },
         marks: this.save.marks, inv: this.save.inv.filter(Boolean), levels: Object.fromEntries(SKILLS.map((s) => [s.id, this.level(s.id)])),

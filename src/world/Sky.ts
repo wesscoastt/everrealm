@@ -44,6 +44,7 @@ function lerpColor(a: string, b: string, t: number, out: THREE.Color): THREE.Col
 
 const GREY = new THREE.Color('#8e97a2');
 const tmpC = new THREE.Color();
+const UP = new THREE.Vector3(0, 1, 0), lx = new THREE.Vector3(), ly = new THREE.Vector3(), lc = new THREE.Vector3();
 
 export class Sky {
   readonly group = new THREE.Group();
@@ -297,7 +298,11 @@ export class Sky {
     const elev = Math.sin(ang);
     this.sunDir.set(Math.cos(ang), elev, 0.35).normalize();
     const isNight = elev < -0.05;
-    const lightDir = isNight ? this.sunDir.clone().multiplyScalar(-1) : this.sunDir.clone();
+    // The light that casts shadows steps along the sun's path (every 1.5 realm minutes) instead of
+    // gliding, so shadows hold still between steps rather than crawling a texel at a time
+    const qa = ((Math.round(h * 40) / 40 - 6) / 12) * Math.PI;
+    const lightDir = new THREE.Vector3(Math.cos(qa), Math.sin(qa), 0.35).normalize();
+    if (isNight) lightDir.multiplyScalar(-1);
     if (lightDir.y < 0.18) lightDir.y = 0.18;
     lightDir.normalize();
     this.shared.uSunDir.value.copy(this.sunDir);
@@ -317,11 +322,16 @@ export class Sky {
     this.cloudMat.color.set('#ffffff').lerp(this.sun.color, 0.3 * (1 - this.night)).lerp(this.fog.color, 0.12).lerp(GREY, this.weather.cloud * 0.55).multiplyScalar(1 - this.night * 0.78);
     this.cloudMat.opacity = 0.85 + this.weather.cloud * 0.12;
 
-    // Shadow frustum follows the player, snapped to texels to avoid shimmer.
+    // Shadow frustum follows the player, snapped to whole shadow-map texels in the light's own frame
+    // (its x and y as the shadow camera sees them), so walking never slides the shadows by part of
+    // a texel: that slide is what makes shadow edges shimmer
     const snap = 96 / 2048;
-    const cx = Math.round(center.x / snap) * snap, cz = Math.round(center.z / snap) * snap;
-    this.sun.target.position.set(cx, center.y, cz);
-    this.sun.position.set(cx + lightDir.x * 120, center.y + lightDir.y * 120, cz + lightDir.z * 120);
+    lx.crossVectors(UP, lightDir).normalize();
+    ly.crossVectors(lightDir, lx);
+    const u = Math.round(center.dot(lx) / snap) * snap, v = Math.round(center.dot(ly) / snap) * snap, w = center.dot(lightDir);
+    lc.copy(lx).multiplyScalar(u).addScaledVector(ly, v).addScaledVector(lightDir, w);
+    this.sun.target.position.copy(lc);
+    this.sun.position.copy(lc).addScaledVector(lightDir, 120);
     this.sun.target.updateMatrixWorld();
 
     this.group.position.set(center.x, 0, center.z);

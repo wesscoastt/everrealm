@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { BLOCKS, isSolid } from '../world/blocks';
+import { inRoof } from '../world/roofVolumes';
 
 /** Third-person orbit camera with voxel collision and soft follow. */
 export class CameraRig {
@@ -69,10 +70,17 @@ export class CameraRig {
 
     // Pull in when a block is between the player and the camera. In tight spaces (the Pit),
     // try flatter and steeper angles and use whichever leaves the most room.
+    // Roofs are meshes over the voxels: walk the line out and stop short of the first one, unless
+    // the player's own head is in one (up on a ridge), which would pin the camera to them
+    const roofFree = !inRoof(this.focus.x, this.focus.y, this.focus.z, 0.1);
     const free = (pitch: number, yawOff: number) => {
       const d = new THREE.Vector3(Math.sin(this.yaw + yawOff) * Math.cos(pitch), Math.sin(pitch), Math.cos(this.yaw + yawOff) * Math.cos(pitch));
       const hit = this.world.raycast(this.focus.x, this.focus.y, this.focus.z, d.x, d.y, d.z, this.distance + 0.4);
-      return { d, dist: hit ? Math.max(0.6, hit.distance - 0.35) : this.distance };
+      let dist = hit ? Math.max(0.6, hit.distance - 0.35) : this.distance;
+      if (roofFree) for (let t = 0.3; t <= dist + 0.3; t += 0.2) {
+        if (inRoof(this.focus.x + d.x * t, this.focus.y + d.y * t, this.focus.z + d.z * t)) { dist = Math.max(0.6, t - 0.2); break; }
+      }
+      return { d, dist };
     };
     let best = free(this.pitch, 0);
     // Indoors (a ceiling close overhead), rooms are small: look along the room's longest open line,
