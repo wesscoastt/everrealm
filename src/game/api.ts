@@ -27,6 +27,10 @@ export interface GameApi {
   duel(id: string): void;
   /** The law (game/Justice.ts): every town's price on you, and a fixer's fee to clear it all; clearing it. */
   bounties(): { total: number; fee: number };
+  /** The Lamp Company (data/pledges.ts): today's pledge and how it stands; taking it; going back with it cleared (keys paid). */
+  pledge(): { name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null;
+  takePledge(): void;
+  turnInPledge(): number;
   clearName(): boolean;
   /** Opens a notice board (an id from the content BOARDS). */
   openBoard(id: string): void;

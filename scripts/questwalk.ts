@@ -22,6 +22,7 @@ import { NPCS } from '../src/data/npcs';
 import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { QUESTS, type QuestDef } from '../src/data/quests';
 import { SHOPS } from '../src/data/shops';
+import '../src/data/pledges';
 import { BOARDS } from '../src/data/content';
 import { offLand } from '../src/world/land';
 import type { DNode, GameApi } from '../src/game/api';
@@ -76,6 +77,9 @@ class Mock implements GameApi {
   crossLand() {}
   duel() {}
   bounties() { return { total: 0, fee: 0 }; }
+  pledge() { return null; }
+  takePledge() {}
+  turnInPledge() { return 0; }
   clearName() { return false; }
   openBoard(id: string) { if (!BOARDS.some((b) => b.id === id)) err('board:' + id, `${this.where}: opens unknown board "${id}"`); }
   startCasting() { this.s.flags.__casting = true; }

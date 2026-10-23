@@ -241,7 +241,7 @@ export interface UiCtx {
   /** The songbook: instruments, tunes, the band (game/Stage.ts). */
   music(): MusicView;
   musicDo(what: 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', arg?: string): void;
-  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet', id?: string): string | null;
+  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind', id?: string): string | null;
 }
 
 export interface TravelView {
@@ -1748,6 +1748,13 @@ export class Hud {
     const anyVet = v.dungeons.some((d) => d.clears > 0);
     const vetRow = `<div class="gf-roles"><span class="lbl">Difficulty</span><button class="gf-role${v.vet ? '' : ' sel'}" data-vet="0"><b>Normal</b></button><button class="gf-role${v.vet ? ' sel' : ''}" data-vet="1"${anyVet ? '' : ' disabled'} title="${anyVet ? 'Harder creatures, faster boss moves, better rewards' : 'Clear a dungeon once to open its veteran mode'}"><b>Veteran</b></button><small>${anyVet ? (v.vet ? 'Veteran: creatures have 70% more health and hit a third harder, bosses\' big moves come sooner and land heavier. The chest pays more, every boss is likelier to drop its piece, and the first veteran clear gives the Laurel cloak. Only for dungeons you\'ve cleared.' : 'The dungeons as they come.') : 'Clear a dungeon once and its veteran mode opens: harder, and better paid.'}</small></div>`;
     const order = [...v.dungeons].sort((a, b) => Number(b.id === this.finderAt) - Number(a.id === this.finderAt));
+    // The random dungeon, ESO's way: any of them, and the day's first pays the Lamp Company's bonus
+    const busyR = !!v.run || !!v.queue, findOffR = busyR || !v.online || (!!v.group && !v.group.leader);
+    const pl = v.pledge;
+    const pledgeLine = pl ? `<div class="gf-meta">The Lamp Company's pledge today: <b>${esc(pl.name)}</b>. ${pl.state === 'open' ? 'Take it from Ruth Penhale at Ansbury\'s south gate (or Xisca Mir in Callis), clear it, and go back for Lamp keys.' : pl.state === 'taken' ? 'Taken: clear it (veteran pays double), then go back for your keys.' : pl.state === 'done' ? 'Cleared: go back to the Company for your keys.' : 'Done and paid. A new one at midnight.'}</div>` : '';
+    const randomCard = `<div class="gf-card gf-random"><h5>Random dungeon<small>any of them · for four · at your level</small></h5>
+      <p>The finder picks one for you. ${v.randomReady ? 'The day\'s first random clear pays the Lamp Company\'s bonus: a heap of experience, marks, and a Lamp key.' : 'Today\'s bonus is taken; it comes back at midnight. The chest pays as always.'}</p>${pledgeLine}
+      <div class="gf-go"><button class="btn" data-gf="rfind"${findOffR ? ' disabled' : ''}>${v.group ? (v.group.leader ? `Take your group (${v.group.size})` : 'Your leader takes you in') : 'Find players'}</button><button class="btn ghost" data-gf="rhench"${busyR ? ' disabled' : ''}>Go alone with henchmen</button></div></div>`;
     const cards = order.map((d) => {
       const busy = !!v.run || !!v.queue;
       const findLabel = v.group ? (v.group.leader ? `Take your group in (${v.group.size})` : 'Your group\'s leader takes you in') : 'Find players';
@@ -1758,14 +1765,14 @@ export class Hud {
         <div class="gf-go"><button class="btn" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? 'Real players first; henchmen take any place still empty after a minute and a half' : 'Finding other players needs the online realm.'}">${findLabel}</button><button class="btn ghost" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go alone with henchmen</button></div>${v.online && !v.group ? '<div class="gf-meta">Real players first. Any place still empty after 1:30 goes to a henchman, so you might go in two and two.</div>' : ''}</div>`;
     }).join('');
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
-    body.innerHTML = status + roles + vetRow + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
+    body.innerHTML = status + roles + vetRow + randomCard + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
     this.q('#finder-panel .footer').innerHTML = `<span>${document.body.classList.contains('touch') ? 'The Group button' : 'P'} opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit's chamber, and the crack in the Kettle's north wall.</span>`;
     body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
     body.querySelectorAll<HTMLButtonElement>('[data-vet]').forEach((b) => b.addEventListener('click', () => { if (b.disabled) return; this.ctx.sfx('click'); this.ctx.finderDo('vet', b.dataset.vet); }));
     body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return;
       this.ctx.sfx('click');
-      const what = b.dataset.gf as 'hench' | 'find' | 'now' | 'cancel' | 'leave';
+      const what = b.dataset.gf as 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'rhench' | 'rfind';
       if (what === 'leave') { this.ask('Leave the dungeon?', () => this.ctx.finderDo('leave'), () => {}, 30); return; }
       this.ctx.finderDo(what, b.dataset.id);
     }));

@@ -131,6 +131,10 @@ Hesk's four regulars, who go down anywhere for a day's rate. Whoever's free come
 | **Bet Pascoe** | Pick-hand; knows the Pit | Hard, practical. "Mind your heads." |
 | **Tom Fowler** | Bird-catcher | Young, quick, talks too much. "Did you see that?" |
 
+### The Lamp Company [in game]
+
+Hesk's regulars, and the people who book them, call themselves the Lamp Company: delvers who go down where other people won't, for a day's rate and a story. They post one **pledge** a day (a dungeon to clear, the dungeons taking it in turns) with **Ruth Penhale** at Ansbury's south gate and **Xisca Mir** by the Callis post. Cleared, the pledge pays **Lamp keys** (twice as many on veteran); the day's first **random dungeon** from the Group Finder pays the Company's bonus and a key too. Keys buy any piece of any dungeon's set from either clerk (`src/data/pledges.ts`, `src/data/content/pledges.ts`).
+
 ## The bell bronze, start to finish [in game]
 
 The thread that ties the first four quests together. Every step is something the player can read or be told.

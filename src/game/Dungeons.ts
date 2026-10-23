@@ -11,6 +11,8 @@ import { plan, Site, SiteActivity } from '../world/sites';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import type { Particles } from '../systems/Particles';
 import type { GroupRow } from './Social';
+import { LAMP_KEY, PLEDGE_KEYS, pledgeToday, RANDOM_BONUS, type PledgeState } from '../data/pledges';
+import { utcDay } from '../data/calendar';
 
 // Group dungeons in play (data/dungeons.ts says what they are). A run is entered from the Group
 // Finder: alone with henchmen at once, or with players the realm server matched (server/finder.mjs),
@@ -127,6 +129,8 @@ interface Run {
   hits: Map<number, number>;
   sendT: number;
   rowsT: number;
+  /** Gone in from the finder's random dungeon (the day's first pays the Lamp Company's bonus). */
+  random: boolean;
 }
 
 export interface FinderView {
@@ -139,6 +143,9 @@ export interface FinderView {
   level: number;
   /** Going in on veteran (where it's open). */
   vet: boolean;
+  /** The day's first random dungeon still to do; today's pledge and how it stands. */
+  randomReady: boolean;
+  pledge: { id: string; name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null;
 }
 
 const HAZARD_RING = new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
@@ -156,6 +163,8 @@ export class Dungeons {
   queued: { dungeon: string; since: number; count: number; heard?: boolean } | null = null;
   private clock = 0;
   private qT = 0;
+  /** The dungeon the finder's random button picked, until we're in it. */
+  private randomPick: string | null = null;
 
   constructor(private host: DungeonHost) {}
 
@@ -182,6 +191,8 @@ export class Dungeons {
       online: this.host.net.on(), role: this.role, group: this.host.group(), level: this.host.level(),
       queue: this.queued ? { dungeon: splitRunId(this.queued.dungeon).id, secs: Math.floor(this.clock - this.queued.since), count: this.queued.count } : null,
       vet: this.vet,
+      randomReady: this.host.flag('rndDay') !== utcDay(),
+      pledge: this.pledge(),
       run: r ? { name: r.def.name + (r.vet ? ' (veteran)' : ''), done: r.done, henchmen: r.allies.map((a) => `${a.name} (${ROLE_NAMES[a.role]})`), others: r.others.map((o) => `${o.name} (${ROLE_NAMES[o.role]})`) } : null,
       dungeons: DUNGEONS.map((d) => ({ id: d.id, name: d.name, where: d.where, blurb: d.blurb, clears: Number(this.host.flag('gdClears:' + d.id) ?? 0), vetClears: Number(this.host.flag('gdVetClears:' + d.id) ?? 0) })),
     };
@@ -193,6 +204,48 @@ export class Dungeons {
     if (this.host.dead()) return 'Not while you\'re down.';
     if (this.host.inCombat()) return 'Not in the middle of a fight.';
     return null;
+  }
+
+  // ---------------------------------------------------------------- The random dungeon, and the Lamp Company's pledges
+  /** A dungeon picked at random (not the one you did last, where there's a choice): with henchmen, or looking for a group. */
+  random(how: 'hench' | 'find'): string | null {
+    const last = this.host.flag('rndLast') as string | undefined;
+    const pool = DUNGEONS.length > 1 ? DUNGEONS.filter((d) => d.id !== last) : DUNGEONS;
+    const d = pool[Math.floor(Math.random() * pool.length)];
+    if (!d) return 'There are no dungeons here to go to.';
+    this.randomPick = d.id;
+    this.host.setFlag('rndLast', d.id);
+    const why = how === 'hench' ? this.goWithHenchmen(d.id) : this.findGroup(d.id);
+    if (why) this.randomPick = null;
+    else this.host.system(`The finder picks ${d.name}${this.host.flag('rndDay') !== utcDay() ? ': the day\'s first random dungeon pays the Lamp Company\'s bonus' : ''}.`);
+    return why;
+  }
+
+  /** Today's pledge and how it stands (taken from a Lamp Company clerk; cleared; paid). */
+  pledge(): { id: string; name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null {
+    const d = pledgeToday();
+    if (!d) return null;
+    const st = this.host.flag('pledge') as PledgeState | undefined;
+    const mine = st && st.day === utcDay() && st.id === d.id ? st : null;
+    return { id: d.id, name: d.name, state: !mine ? 'open' : mine.paid ? 'paid' : mine.done ? 'done' : 'taken' };
+  }
+  takePledge(): void {
+    const d = pledgeToday();
+    if (!d || this.pledge()?.state !== 'open') return;
+    this.host.setFlag('pledge', { day: utcDay(), id: d.id, done: false, vet: false, paid: false } satisfies PledgeState);
+    this.host.refresh();
+  }
+  /** Back to the Company with a pledge cleared: keys, twice as many on veteran. */
+  turnInPledge(): number {
+    const st = this.host.flag('pledge') as PledgeState | undefined;
+    if (!st || st.day !== utcDay() || !st.done || st.paid) return 0;
+    const n = st.vet ? PLEDGE_KEYS.vet : PLEDGE_KEYS.normal;
+    this.host.setFlag('pledge', { ...st, paid: true });
+    const d = DUNGEON_BY_ID[st.id];
+    this.host.reward(Math.round(14 * (d?.level ?? 10) * 25 * rewardScale(this.host.level(), d?.level ?? 10)), 0, Array(n).fill(LAMP_KEY), `The Lamp Company's pledge: ${d?.name ?? st.id}${st.vet ? ' on veteran' : ''}`);
+    this.host.persist();
+    this.host.refresh();
+    return n;
   }
 
   /** Go in now with henchmen in every other place. */
@@ -310,8 +363,9 @@ export class Dungeons {
     this.run = {
       def, vet, act, site, id, role: this.role, allies, others, mobs: [], packOf: new Map(), bosses: [], adds: [], threat: new Map(),
       spawned: false, seen: new Set(), hazards: [], done: false, chest: false, trail: [], calm: 0, raiseIn: -1, wipeIn: -1,
-      hits: new Map(), sendT: 0, rowsT: 0,
+      hits: new Map(), sendT: 0, rowsT: 0, random: this.randomPick === def.id,
     };
+    this.randomPick = null;
     this.host.travel(act.arrive, Math.PI / 2, def.name, `${vet ? 'Veteran' : 'Group dungeon'} · ${def.where}`);
     this.host.refresh();
   }
@@ -760,6 +814,19 @@ export class Dungeons {
     }
     this.host.standing(r.site.region, 100);
     this.host.sfx('levelUp', 0.8);
+    // The day's first random dungeon: the Lamp Company's bonus, and a key
+    if (r.random && this.host.flag('rndDay') !== utcDay()) {
+      this.host.setFlag('rndDay', utcDay());
+      const B = RANDOM_BONUS;
+      this.host.reward(Math.round(14 * r.def.level * B.kills * rewardScale(this.host.level(), r.def.level)), Math.round(B.marks * marksScale(this.host.level(), r.def.level)), Array(B.keys).fill(LAMP_KEY), 'The day\'s random dungeon, for the Lamp Company');
+      this.host.banner('Random dungeon', 'The day\'s bonus is yours');
+    }
+    // Today's pledge, if this is it: back to the Company for the keys
+    const pl = this.host.flag('pledge') as PledgeState | undefined;
+    if (pl && pl.day === utcDay() && pl.id === r.def.id && !pl.done) {
+      this.host.setFlag('pledge', { ...pl, done: true, vet: r.vet });
+      this.host.system(`Today's pledge is done${r.vet ? ' on veteran' : ''}. Go back to the Lamp Company (Ruth Penhale at Ansbury's south gate, or Xisca Mir by the Callis post) for your keys.`);
+    }
     this.host.system(`${r.def.name} cleared${n > 1 ? ` (${n} times now)` : ' for the first time'}. The chest by the far wall is yours, and the ladder is back where you came in.`);
     this.host.persist();
     this.host.refresh();

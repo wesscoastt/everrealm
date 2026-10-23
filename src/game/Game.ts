@@ -49,6 +49,7 @@ import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
 import { Justice } from './Justice';
 import { CRIME, JURISDICTIONS, jurisdictionAt } from '../data/justice';
+import '../data/pledges';
 import { Doll } from '../ui/Doll';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
@@ -1054,6 +1055,10 @@ export class Game implements GameApi {
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
   duel(id: string): void { this.activities.duels.start(id); }
+  /** The Lamp Company's pledge today, and how it stands; taking it; going back with it done (keys paid). */
+  pledge(): { name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null { return this.dungeons.pledge(); }
+  takePledge(): void { this.dungeons.takePledge(); }
+  turnInPledge(): number { return this.dungeons.turnInPledge(); }
   /** Every town's price on you added up, and what a fixer charges to make it go away. */
   bounties(): { total: number; fee: number } { return { total: this.justice.total, fee: this.justice.fixerPrice }; }
   /** A fixer clears every book, if you can pay. */
@@ -1550,11 +1555,13 @@ export class Game implements GameApi {
         g.hud.refresh('music');
       },
       finder: () => g.dungeons.view(),
-      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet', id?: string) => {
+      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind', id?: string) => {
         let why: string | null = null;
         if (what === 'vet') g.dungeons.setVet(id === '1');
         if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
         else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
+        else if (what === 'rhench') why = g.dungeons.random('hench');
+        else if (what === 'rfind') why = g.dungeons.random('find');
         else if (what === 'find' && id) why = g.dungeons.findGroup(id);
         else if (what === 'now') g.dungeons.goNow();
         else if (what === 'cancel') g.dungeons.unqueue();
