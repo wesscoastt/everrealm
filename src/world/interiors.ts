@@ -3,8 +3,8 @@
 // streamed sites (sites.ts) and the authored valley (structures.ts), which each turn the result into
 // blocks and props in their own way.
 
-export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant' | 'chapel';
-export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles' | 'turnip' | 'gourds' | 'scarecrow';
+export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant' | 'chapel' | 'bank';
+export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles' | 'turnip' | 'gourds' | 'scarecrow' | 'vault' | 'strongbox';
 
 export interface HouseShape {
   x0: number; z0: number; w: number; d: number; floors: number; base: number;
@@ -23,7 +23,7 @@ export interface HouseShape {
 export const FURN_SIZE: Record<FurnItem, [number, number]> = {
   bed: [1, 2], table: [1.6, 0.86], stool: [0.4, 0.4], dresser: [1.5, 0.56], hearth: [1.9, 0.9], rug: [1.8, 1.2], chest: [0.8, 0.54],
   barrel: [0.72, 0.72], crate: [0.72, 0.72], counter: [2.5, 0.7], shelves: [1.42, 0.43], lamp: [0.28, 0.28], bench: [1.8, 0.42], desk: [1.6, 0.8],
-  chair: [1, 0.83], candles: [0.4, 0.4], turnip: [0.4, 0.4], gourds: [1, 0.8], scarecrow: [0.9, 0.5],
+  chair: [1, 0.83], candles: [0.4, 0.4], turnip: [0.4, 0.4], gourds: [1, 0.8], scarecrow: [0.9, 0.5], vault: [1.9, 0.5], strongbox: [0.8, 0.6],
 };
 
 /** World cells a piece covers: those its footprint overlaps by more than a sliver. */
@@ -203,6 +203,28 @@ export function fitOut(h: HouseShape): FitOut {
         if (du >= 2) put('bench', 0, v, facing.back, [[du - 2, v], [du - 1, v]], 0.5, 0.5, false);
         if (du + 2 < W) put('bench', du + 1, v, facing.back, [[du + 1, v], [du + 2, v]], 0.5, 0.5, false);
       }
+    } else if (role === 'bank' && ground) {
+      // A bank: the public side by the door, a counter across the room with a gap at the far end for
+      // the clerks, and behind it the strongboxes, the ledgers, the clerk's desk and the vault door in
+      // the back wall. Whoever comes in does their business at the counter, straight ahead of the door.
+      const cv = Math.min(2, D - 2);
+      for (let u = awayU === 0 ? 1 : 0; u + 2 < W; u += 3) {
+        if ([u, u + 1, u + 2].includes(awayU)) continue;
+        put('counter', u + 1, cv, facing.front, [[u, cv], [u + 1, cv], [u + 2, cv]]);
+      }
+      // The vault as near the middle of the back wall as the stairs allow, the strongboxes either side of it
+      let vu = -1;
+      for (let o = 0; o < W && vu < 0; o++) for (const u of [du - o, du + o]) if (vu < 0 && u >= 0 && u + 1 < W && put('vault', u, backV, facing.front, [[u, backV], [u + 1, backV]])) vu = u;
+      let boxes = 0;
+      for (let o = 1; o < W && boxes < 4; o++) for (const u of [vu - o, vu + 1 + o]) if (boxes < 4 && u >= 0 && u < W && put('strongbox', u, backV, facing.front, [[u, backV]])) boxes++;
+      if (backV - 1 > cv) {
+        put('desk', awayU === rightU ? W - 3 : 1, backV - 1, facing.front, [[awayU === rightU ? W - 3 : 1, backV - 1], [awayU === rightU ? W - 2 : 2, backV - 1]]);
+        put('shelves', nearU, backV - 1, towardsAway, [[nearU, backV - 1]]);
+      }
+      put('shelves', awayU, backV, facing.front, [[awayU, backV]]);
+      // The public side: a bench along the wall to wait on, a rug at the door
+      if (cv >= 2) put('bench', nearU, 0, towardsAway, [[nearU, 0], [nearU, 1]], 0.5, 0.5, false);
+      put('rug', du, 0, facing.front, [[du, 0]], 0.5, 0.5, false, h.tint);
     } else if (role === 'office' && ground) {
       put('desk', Math.max(0, du - 1), backV - (D > 3 ? 1 : 0), facing.front, [[Math.max(0, du - 1), backV - (D > 3 ? 1 : 0)], [Math.max(0, du - 1) + 1, backV - (D > 3 ? 1 : 0)]]);
       put('shelves', awayU, backV, facing.front, [[awayU, backV]]);

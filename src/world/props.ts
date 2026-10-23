@@ -1046,6 +1046,30 @@ export function lobsterPots(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/** A bank's vault door in its frame against the back wall: round, iron, a wheel to open it and bolts all round. */
+export function vaultDoor(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(1.9, 2.3, 0.2), M.stone, 0, 1.15, -0.15));                       // the frame set in the wall
+  const door = mesh(cyl(0.82, 0.82, 0.16, 20), M.iron, 0, 1.15, -0.02, 0, Math.PI / 2);
+  g.add(door);
+  g.add(mesh(cyl(0.68, 0.68, 0.04, 20), flat('#3a3a40'), 0, 1.15, 0.07, 0, Math.PI / 2)); // the door's face, darker
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; g.add(mesh(box(0.08, 0.08, 0.06), flat('#c8a050'), Math.cos(a) * 0.74, 1.15 + Math.sin(a) * 0.74, 0.08)); } // brass bolts
+  g.add(mesh(cyl(0.24, 0.24, 0.05, 12), flat('#c8a050'), 0, 1.15, 0.12, 0, Math.PI / 2)); // the wheel's hub
+  for (let i = 0; i < 4; i++) { const sp = mesh(box(0.06, 0.6, 0.05), flat('#c8a050'), 0, 1.15, 0.13); sp.rotation.z = (i * Math.PI) / 4; g.add(sp); } // its spokes
+  g.add(mesh(box(0.3, 0.08, 0.12), M.iron, 0.6, 1.15, 0.1));                        // the hinge side's great hinge
+  return g;
+}
+
+/** An iron-bound strongbox with a heavy lock. */
+export function strongbox(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.74, 0.5, 0.54), M.darkWood, 0, 0.25, 0));
+  for (const x of [-0.25, 0, 0.25]) g.add(mesh(box(0.06, 0.52, 0.56), M.iron, x, 0.25, 0));
+  g.add(mesh(box(0.76, 0.06, 0.56), M.iron, 0, 0.5, 0));
+  g.add(mesh(box(0.14, 0.16, 0.06), flat('#c8a050'), 0, 0.34, 0.29));                // the lock
+  return g;
+}
+
 /** A carved turnip with a candle in it, the face lit. The Lantern Wake's, on a step or a sill; hung on a post, it's cut all round. */
 export function carvedTurnip(allRound = false): THREE.Group {
   const g = new THREE.Group();
@@ -1279,6 +1303,8 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'hurdle': return hurdle(M);
     case 'bones': return bones(tint);
     case 'turnip': return carvedTurnip();
+    case 'vault': return vaultDoor(M);
+    case 'strongbox': return strongbox(M);
     case 'gourds': return gourdPile(M);
     case 'scarecrow': return scarecrow(M);
     default: return null;

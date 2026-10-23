@@ -43,9 +43,11 @@ export { COTTAGE };
 
 /** The Charter Bank's counters, at the doors of the main towns' counting houses. */
 export const BANKS = [
-  { id: 'ansbury', name: 'the Weighhouse, Ansbury', x: 825.5, z: 347.5 },
-  { id: 'gullmouth', name: 'the harbour office, Gullmouth', x: coastX(600) - 22.5, z: 583.5 },
-  { id: 'harrowgate', name: 'the company office, Harrowgate', x: 984.5, z: 994.5 },
+  // Inside, at the counter, straight in from the door (world/interiors.ts fits the bank room); y is the
+  // ground floor, so the floor above isn't taken for where you stand
+  { id: 'ansbury', name: 'the Weighhouse, Ansbury', x: 828.5, z: 347.5, y: 24 },
+  { id: 'gullmouth', name: 'the harbour office, Gullmouth', x: Math.floor(coastX(600) - 30) + 4.5, z: 583.5, y: 19 },
+  { id: 'harrowgate', name: 'the company office, Harrowgate', x: 984.5, z: 991.5, y: 25 },
 ];
 
 /** Something in the world the player can examine with E. */
@@ -74,7 +76,7 @@ export const WORLD_THINGS: WorldThing[] = [
   { id: 'ferry:gullmouth', x: GULL.coast - 8.5, z: 607.5, label: 'Take the ferry to the Mewstones', radius: 2.6, use: (g) => g.openTravel('gullmouth') },
   { id: 'homeBuy', x: COTTAGE.x0 + 4.5, z: COTTAGE.z0 + COTTAGE.d + 1.5, label: 'Read the For Sale notice', radius: 2.4, when: (g) => !g.flag('home'), use: (g) => g.buyHome() },
   // The Charter Bank's counters: one vault, reached from any of them
-  ...BANKS.map((b): WorldThing => ({ id: 'bank:' + b.id, x: b.x, z: b.z, label: `Use the bank (${b.name})`, radius: 2.6, use: (g) => g.openBank(b.id) })),
+  ...BANKS.map((b): WorldThing => ({ id: 'bank:' + b.id, x: b.x, z: b.z, y: b.y, label: `Use the bank (${b.name})`, radius: 1.8, use: (g) => g.openBank(b.id) })),
   { id: 'landBoard', x: LAND_BOARD.x, z: LAND_BOARD.z, label: 'Read the Charter land board', radius: 2.4, read: 'landBoard' },
   // A stake at the front of each lot: lease it, draw up plans, build
   ...LOTS.map((l): WorldThing => {

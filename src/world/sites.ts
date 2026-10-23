@@ -1432,7 +1432,7 @@ export function plan(): Plan {
     // ---- Civic buildings on the boulevard and the market
     house(s, cx - 21, Z1 - 20, 12, 9, 2, base, 'slate', 's', { wall: B.StoneBrick, role: 'office' });   // the Toll Office
     house(s, cx - 20, cz + 41, 9, 7, 1, base, 'red', 'e', { role: 'shop' });                           // chandler by the market
-    house(s, cx + 6, cz + 41, 16, 12, 2, base, 'slate', 'w', { wall: B.StoneBrick, role: 'office' });  // the Weighhouse
+    house(s, cx + 6, cz + 41, 16, 12, 2, base, 'slate', 'w', { wall: B.StoneBrick, role: 'bank' });  // the Weighhouse, with the Charter's bank in it
     s.props.push({ t: 'sign', x: cx + 4.2, y: base, z: cz + 50.5, ry: Math.PI / 2, text: 'Weighhouse' });
     s.props.push({ t: 'sign', x: cx - 15.5, y: base, z: Z1 - 10.2, ry: 0, text: 'Toll Office' });
     claim(cx - 23, Z1 - 22, cx - 7, Z1 - 10); claim(cx - 22, cz + 39, cx - 9, cz + 49); claim(cx + 4, cz + 39, cx + 24, cz + 55);
@@ -4677,8 +4677,8 @@ export function plan(): Plan {
     const z = 600;
     const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate', 'blue', 'red', 'slate'];
     const spots: [number, number, 'n' | 's' | 'e' | 'w'][] = [[-58, -22, 's'], [-44, -24, 's'], [-58, 10, 'n'], [-44, 12, 'n'], [-30, -20, 'e'], [-30, 12, 'e'], [-16, -22, 's'], [-16, 12, 'n']];
-    const roles: (Role | undefined)[] = [undefined, undefined, undefined, undefined, 'office', 'shop', 'store', undefined]; // the harbourmaster, Bett's chandlery, a fish store
-    spots.forEach(([dx, dz, door], i) => house(s, coast + dx, z + dz, 7, 6, 1 + (i === 1 || i === 4 ? 1 : 0), base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.Planks, role: roles[i] }));
+    const roles: (Role | undefined)[] = [undefined, undefined, undefined, undefined, 'bank', 'shop', 'store', undefined]; // the harbour office (the bank), Bett's chandlery, a fish store
+    spots.forEach(([dx, dz, door], i) => house(s, coast + dx, z + dz, 7, 6, 1 + (i === 1 ? 1 : 0), base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.Planks, role: roles[i] })); // (the harbour office keeps one storey: its counter needs the room)
     street(coast - 60, z - 4, coast - 12, z + 4);
     // Two jetties out over the water
     for (const jz of [z - 2, z + 6]) {
@@ -4722,7 +4722,7 @@ export function plan(): Plan {
 
   function buildHarrowgate(s: Site, base: number) {
     const cx = 1000, cz = 1000;
-    house(s, cx - 22, cz - 14, 12, 8, 2, base, 'slate', 's', { wall: B.Planks, role: 'office' }); // the office (Pryce's trestle outside)
+    house(s, cx - 22, cz - 14, 12, 8, 2, base, 'slate', 's', { wall: B.Planks, role: 'bank' }); // the company office, the Works' bank (Pryce's trestle outside)
     house(s, cx - 6, cz - 16, 9, 7, 1, base, 'slate', 's', { wall: B.Planks, role: 'store' });
     house(s, cx + 8, cz - 14, 10, 8, 1, base, 'red', 's', { wall: B.StoneBrick, role: 'shop' }); // the company store
     // Palisade
@@ -6787,6 +6787,9 @@ export type HouseSink = Pick<Site, 'props' | 'rects' | 'impostor'>;
  * settlements and by houses players build on their own lots.
  */
 export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, w: number, d: number, floors: number, base: number, roof: PropDesc['mat'], door: 'n' | 's' | 'e' | 'w', opts: HouseOpts = {}) {
+  // On the block grid (a coast or a curve can hand over a fraction): the walls are laid on whole blocks,
+  // and the door, the signs and what's inside have to line up with them
+  x0 = Math.floor(x0); z0 = Math.floor(z0);
   const rect = (_s: HouseSink, a: number, b: number, c: number, e: number) => { s.rects.push([Math.floor(a), Math.floor(b), Math.ceil(c), Math.ceil(e)]); };
   const clearUp = (x: number, z: number, from: number, to = from + 14) => { for (let y = from; y < Math.min(SY, to); y++) O.set(x, y, z, B.Air); };
   const foundation = (x: number, z: number, b: number, id: number = opts.front === 'white' ? B.Whitestone : B.Cobble) => { for (let y = Math.min(heightAt(x, z), b) - 1; y < b; y++) O.set(x, y, z, id); };
@@ -6914,8 +6917,9 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   }
   // A trade hangs its sign out beside the door, on the side the lantern isn't, and a shop puts an
   // awning over its front window
-  const trade = typeof opts.signs === 'number' ? opts.signs : opts.role === 'inn' ? 0 : opts.role === 'shop' ? 1 : opts.role === 'workshop' ? 2 : opts.role === 'office' ? 3 : -1;
-  if (trade >= 0 && opts.signs !== false) {
+  const trade = typeof opts.signs === 'number' ? opts.signs : opts.role === 'inn' ? 0 : opts.role === 'shop' ? 1 : opts.role === 'workshop' ? 2 : opts.role === 'office' || opts.role === 'bank' ? 3 : -1;
+  // (only on a building you can go into: a sign on a shut door sends people knocking at a wall)
+  if (trade >= 0 && opts.signs !== false && !opts.closed) {
     const sideK = lampK ? -lampK : 1;
     const [hx, hz] = faceAt(doorX, doorZ);
     const tx = out[1] !== 0 ? 1 : 0, tz = out[0] !== 0 ? 1 : 0;
