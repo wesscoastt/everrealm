@@ -509,6 +509,12 @@ Every troubled region has a gang, and every gang worth the name has a fort well 
 | **Stilt Fort** | Wrath Levels | the Stilt Fort poachers | **Agnes Mardle**; eel traps, not carts, the rag waxed against the wet |
 | **Carrack Pale** | Tolmen Moor | the Carrack tinners | **Kit Pascoe**; two rags sewn together, the first ran out |
 
+## Outskirts and churchyards [in game]
+
+No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cotter's End, the Waystation, Kelderby, Cragsby, Holme Staithe and Scarrow Tor the land is worked: cottages strung along the roads out of town, strip fields with a headland path every few rows (walled in dry stone in the highlands), orchards, market gardens, haystacks and woodpiles. Ansbury, Gullmouth, Cotter's End and Holme Staithe have a tower mill on the highest dry ground near them; Ansbury, Gullmouth and Cragsby a gallows on a rise by the road.  (buildOutskirts).
+
+- **Churchyards.** Every town but the Waystation and Scarrow Tor buries its dead outside the houses, near a road: a dry-stone wall with a lychgate, a small stone chapel at the far end (an altar with candles, benches either side of the aisle), and rows of graves facing the gate: round-topped headstones, crosses, slates, a chest tomb or two, and the oldest slabs leaning. Yews in the corners. The sign at the gate names it: Ansbury Churchyard, Kelderby Churchyard and so on.
+
 ## The festival year [in game]
 
 Seven fairs, on the real calendar, each kept at every Charter Post: bunting, a stall that takes the fair's own token, a centrepiece, and a writ. `data/festivals.ts`, `game/Festivals.ts`; the rounds, creatures, bags and hats in `data/seasons.ts` and `game/Seasons.ts`; the stories in `data/content/seasons.ts`.

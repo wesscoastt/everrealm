@@ -1218,6 +1218,29 @@ export function well(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/**
+ * A grave marker. 0: a round-topped headstone; 1: a cross; 2: a chest tomb, lying along the grave;
+ * 3: an old slab, mossy and leaning; 4: a small slate. Stand it at the head of the grave.
+ */
+export function gravestone(M: PropMaterials, kind = 0): THREE.Group {
+  const g = new THREE.Group();
+  if (kind === 1) {
+    g.add(mesh(box(0.14, 1.05, 0.13), M.stone, 0, 0.52, 0));
+    g.add(mesh(box(0.52, 0.13, 0.11), M.stone, 0, 0.74, 0));
+  } else if (kind === 2) {
+    g.add(mesh(box(0.8, 0.5, 1.7), M.stone, 0, 0.25, -0.75));
+    g.add(mesh(box(0.92, 0.1, 1.84), M.cobble, 0, 0.55, -0.75));
+  } else if (kind === 3) {
+    g.add(mesh(box(0.56, 0.78, 0.13), M.cobble, 0, 0.34, 0, 0, -0.22, 0.1));
+  } else if (kind === 4) {
+    g.add(mesh(box(0.42, 0.46, 0.08), flat('#4a4e56'), 0, 0.23, 0));
+  } else {
+    g.add(mesh(box(0.62, 0.66, 0.14), M.stone, 0, 0.33, 0));
+    g.add(mesh(cyl(0.31, 0.31, 0.12, 12), M.stone, 0, 0.66, 0, 0, Math.PI / 2));
+  }
+  return g;
+}
+
 export function standingSign(M: PropMaterials, text: string): THREE.Group {
   const g = new THREE.Group();
   for (const x of [-0.8, 0.8]) g.add(mesh(box(0.14, 1.9, 0.14), M.darkWood, x, 0.95, 0));

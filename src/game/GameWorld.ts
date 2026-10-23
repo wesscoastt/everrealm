@@ -491,7 +491,7 @@ export class GameWorld {
       const imp = this.impostors.get(s.id);
       if (imp) imp.visible = d + (this.siteReach.get(s.id) ?? 0) > this.chunks.coveredRadius;
     }
-    for (const s of this.activeSites.values()) for (const f of s.fires) f.scale.set(1, flick, 1);
+    for (const s of this.activeSites.values()) { for (const f of s.fires) f.scale.set(1, flick, 1); for (const sl of s.sails) sl.rotation.z += dt * 0.5; }
     this.placeLamps(center, glow, flick);
   }
 

@@ -3,7 +3,7 @@
 // streamed sites (sites.ts) and the authored valley (structures.ts), which each turn the result into
 // blocks and props in their own way.
 
-export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant';
+export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant' | 'chapel';
 export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles';
 
 export interface HouseShape {
@@ -192,6 +192,17 @@ export function fitOut(h: HouseShape): FitOut {
       put('crate', nearU, 0, 0, [[nearU, 0]]);
       put('barrel', awayU, 0, 0, [[awayU, 0]]);
       put('rug', du, cv, facing.front, [[du, cv]], 0.5, 0.5, false, h.tint);
+    } else if (role === 'chapel' && ground) {
+      // An altar against the back wall with candles on it, and benches in rows either side of the aisle, facing it
+      const au = Math.max(0, Math.min(W - 2, du));
+      if (put('table', au, backV, facing.front, [[au, backV], [au + 1, backV]])) {
+        const [a0, a1] = [F.cell(au, backV), F.cell(au + 1, backV)];
+        out.furn.push({ item: 'candles', x: (a0[0] + a1[0]) / 2 + 0.5, y: y + 0.8, z: (a0[1] + a1[1]) / 2 + 0.5, ry: 0 });
+      }
+      for (let v = backV - 2; v >= 1; v -= 2) {
+        if (du >= 2) put('bench', 0, v, facing.back, [[du - 2, v], [du - 1, v]], 0.5, 0.5, false);
+        if (du + 2 < W) put('bench', du + 1, v, facing.back, [[du + 1, v], [du + 2, v]], 0.5, 0.5, false);
+      }
     } else if (role === 'office' && ground) {
       put('desk', Math.max(0, du - 1), backV - (D > 3 ? 1 : 0), facing.front, [[Math.max(0, du - 1), backV - (D > 3 ? 1 : 0)], [Math.max(0, du - 1) + 1, backV - (D > 3 ? 1 : 0)]]);
       put('shelves', awayU, backV, facing.front, [[awayU, backV]]);

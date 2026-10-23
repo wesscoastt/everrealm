@@ -17,6 +17,8 @@ export interface BuiltSite {
   smoke: THREE.Vector3[];
   fires: THREE.Object3D[];
   doors: Door[];
+  /** Windmill sails, turned on their axles by GameWorld. */
+  sails: THREE.Object3D[];
 }
 
 /** A fire's three flame tongues as one shape (scaled on the fire's own origin to flicker). */
@@ -71,6 +73,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   const lamps: THREE.Vector3[] = [];
   const smoke: THREE.Vector3[] = [];
   const fires: THREE.Object3D[] = [];
+  const sails: THREE.Object3D[] = [];
   const doors: Door[] = [];
   const roofMat = (m?: string) => (m === 'blue' ? M.roofBlue : m === 'thatch' ? M.thatch : m === 'slate' ? M.roofSlate : M.roofRed);
   const place = (g: THREE.Object3D, x: number, y: number, z: number, ry = 0) => batch.addGroup(g, P.mat4(x, y, z, ry));
@@ -156,6 +159,19 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         smoke.push(new THREE.Vector3(d.x, d.y + 1.3, d.z));
         break;
       }
+      case 'sails': {
+        // On a pivot turned to face out, so they spin about their own axle
+        const pivot = new THREE.Group();
+        pivot.position.set(d.x, d.y, d.z);
+        pivot.rotation.y = d.ry ?? 0;
+        const sl = P.windmillSails(M);
+        sl.traverse((o) => { o.castShadow = true; });
+        pivot.add(sl);
+        group.add(pivot);
+        sails.push(sl);
+        break;
+      }
+      case 'grave': place(P.gravestone(M, d.tint ?? 0), d.x, d.y, d.z, d.ry); break;
       case 'cone': {
         batch.add(P.cyl(0.15, d.r ?? 4, d.h ?? 6, 8), roofMat(d.mat), P.mat4(d.x, d.y + (d.h ?? 6) / 2, d.z));
         addConeVolume(d.x, d.y, d.z, d.r ?? 4, d.h ?? 6);
@@ -175,7 +191,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
     group.add(b);
   }
   group.add(batch.build(true));
-  return { group, glows, lamps, smoke, fires, doors };
+  return { group, glows, lamps, smoke, fires, doors, sails };
 }
 
 /** Plain coloured boxes and cones standing in for a landmark until its chunks load (one draw call). */

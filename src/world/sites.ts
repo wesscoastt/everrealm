@@ -21,7 +21,7 @@ import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
-export type PropType = 'roof' | 'door' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
+export type PropType = 'roof' | 'door' | 'sails' | 'grave' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
@@ -593,6 +593,8 @@ export function plan(): Plan {
     sites.push(s);
   });
 
+  // Fields, orchards, ribbon houses, mills and churchyards round the towns
+  buildAllOutskirts();
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
@@ -771,6 +773,267 @@ export function plan(): Plan {
       }
     }
   }
+  // ---------------------------------------------------------------- Outskirts
+  /**
+   * The land round a town, so it doesn't stop dead at its edge the way a Daggerfall town does:
+   * houses strung along the roads out of it, strip fields and orchards, market gardens, hay and
+   * woodpiles, a windmill on the rise, a gallows by the road, and the churchyard with its chapel.
+   * Each piece goes where the ground is dry and fairly level, off the roads, and clear of everything
+   * already built. It's its own site, so it loads with the land round the town.
+   */
+  interface Outskirts {
+    id: string; name: string;
+    /** The town's own extent: nothing of the outskirts goes inside it, or within `gap` of it. */
+    box: [number, number, number, number];
+    gap: number; reach: number;
+    ribbon: number; fields: number; orchards: number; gardens: number;
+    mill: boolean; gallows: boolean; churchyard: boolean;
+    roof: PropDesc['mat']; wall: number;
+    /** Highland fields are walled in dry stone, not fenced. */
+    stone?: boolean;
+  }
+  function buildOutskirts(o: Outskirts): void {
+    const [bx0, bz0, bx1, bz1] = o.box;
+    const cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2;
+    const s: Site = { id: 'out-' + o.id, name: '', region: regionAt(cx, cz).a, x: cx, z: cz, r: 160, named: false, props: [], rects: [], impostor: [] };
+    sites.push(s);
+    // How far a point is outside the town's box (0 inside it)
+    const out = (x: number, z: number) => Math.max(bx0 - x, x - bx1, bz0 - z, z - bz1, 0);
+    const nearRects = sites.flatMap((t) => t.rects).filter((r) => r[2] > bx0 - o.reach - 40 && r[0] < bx1 + o.reach + 40 && r[3] > bz0 - o.reach - 40 && r[1] < bz1 + o.reach + 40);
+    const taken = (x0: number, z0: number, x1: number, z1: number) => [...nearRects, ...s.rects].some((r) => x0 <= r[2] && x1 >= r[0] && z0 <= r[3] && z1 >= r[1]);
+    /** Dry, within `rise` of level, `road` blocks off any road, clear of rivers and of everything built. */
+    const fits = (x0: number, z0: number, x1: number, z1: number, road = 4, rise = 2) => {
+      if (taken(x0 - 1, z0 - 1, x1 + 1, z1 + 1)) return false;
+      let lo = Infinity, hi = -Infinity;
+      for (let x = x0; x <= x1; x += 2) for (let z = z0; z <= z1; z += 2) {
+        const h = heightAt(x, z);
+        if (h <= SEA + 1 || roadDist(x, z) < road || riverDist(x, z) < 4 || lakeDist(x, z) < 4) return false;
+        lo = Math.min(lo, h); hi = Math.max(hi, h);
+      }
+      return hi - lo <= rise;
+    };
+    // Candidate spots round the ring, in an order of their own (not a sweep, so pieces spread out)
+    const ring = (lo: number, hi: number, step: number, salt: number): [number, number][] => {
+      const c: [number, number, number][] = [];
+      for (let x = Math.floor(bx0 - hi); x <= bx1 + hi; x += step) for (let z = Math.floor(bz0 - hi); z <= bz1 + hi; z += step) {
+        const d = out(x, z);
+        if (d >= lo && d <= hi) c.push([x, z, hash2(x, z, salt)]);
+      }
+      return c.sort((a, b) => a[2] - b[2]).map(([x, z]) => [x, z]);
+    };
+    const doorTo = (dx: number, dz: number): 'n' | 's' | 'e' | 'w' => (Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'e' : 'w') : dz > 0 ? 's' : 'n');
+    const roofs: PropDesc['mat'][] = [o.roof, o.roof, 'thatch', o.roof === 'slate' ? 'slate' : 'red'];
+
+    // Houses along the roads out of town, a little back from the verge, their doors to the road
+    let ribbon = 0;
+    const ribbonOn = new Map<number, number>();
+    for (const [ri, road] of WORLD_ROADS.entries()) {
+      let since = 99;
+      for (let i = 0; i + 1 < road.length; i++) {
+        const [ax, az] = road[i], [bx, bz] = road[i + 1];
+        const len = Math.hypot(bx - ax, bz - az);
+        if (len < 0.5) continue;
+        const ux = (bx - ax) / len, uz = (bz - az) / len;
+        for (let t = 0; t < len; t += 1) {
+          since++;
+          const px = ax + ux * t, pz = az + uz * t, d = out(px, pz);
+          if (d < o.gap || d > o.gap + 14 * o.ribbon || since < 13 || (ribbonOn.get(ri) ?? 0) >= o.ribbon * 2) continue;
+          for (const side of [1, -1]) {
+            const hx = Math.round(px - uz * side * 9.5), hz = Math.round(pz + ux * side * 9.5);
+            const w = 7 + (hash2(hx, hz, 401) < 0.4 ? 1 : 0), dd = 6;
+            const x0 = hx - Math.floor(w / 2), z0 = hz - 3;
+            if (!fits(x0, z0, x0 + w - 1, z0 + dd - 1, 3.5)) continue;
+            const door = doorTo(uz * side, -ux * side);
+            house(s, x0, z0, w, dd, hash2(hx, hz, 402) < 0.3 ? 2 : 1, Math.floor(heightAt(hx, hz)), roofs[Math.floor(hash2(hx, hz, 403) * roofs.length)], door, { wall: hash2(hx, hz, 404) < 0.6 ? o.wall : B.Plaster });
+            // A woodpile or a cart by the house, on the side away from the door
+            const bxw = hx + (door === 'e' ? -w / 2 - 1.5 : door === 'w' ? w / 2 + 1.5 : 0), bzw = hz + (door === 's' ? -4.5 : door === 'n' ? 4.5 : 0);
+            if (hash2(hx, hz, 405) < 0.5 && !taken(Math.floor(bxw) - 1, Math.floor(bzw) - 1, Math.floor(bxw) + 1, Math.floor(bzw) + 1)) {
+              logStack(Math.floor(bxw), Math.floor(bzw), 3, 2, door === 'n' || door === 's');
+              rect(s, Math.floor(bxw) - 1, Math.floor(bzw) - 1, Math.floor(bxw) + 3, Math.floor(bzw) + 3);
+            }
+            ribbon++; ribbonOn.set(ri, (ribbonOn.get(ri) ?? 0) + 1); since = 0;
+            break;
+          }
+        }
+      }
+    }
+
+    // Strip fields: furrowed, a headland path every fifth row, fenced (or walled) with a gate gap
+    const field = (x0: number, z0: number, x1: number, z1: number) => {
+      for (let z = z0 + 1; z < z1; z++) for (let x = x0 + 1; x < x1; x++) {
+        const g = heightAt(x, z);
+        clearUp(x, z, g, g + 6);
+        O.set(x, g - 1, z, (z - z0) % 5 === 0 ? B.Path : B.Farmland);
+      }
+      const gx = Math.round((x0 + x1) / 2);
+      if (o.stone) { drystone(x0, z0, x1, z0, [[gx, z0]]); drystone(x0, z1, x1, z1); drystone(x0, z0, x0, z1); drystone(x1, z0, x1, z1); }
+      else { fence(s, x0, z0, gx - 1, z0); fence(s, gx + 1, z0, x1, z0); fence(s, x0, z1, x1, z1); fence(s, x0, z0, x0, z1); fence(s, x1, z0, x1, z1); }
+      rect(s, x0, z0, x1, z1);
+      // Hay at the corner by the gate, now and then
+      if (hash2(x0, z0, 410) < 0.5 && !taken(x1 + 1, z0 - 3, x1 + 3, z0 - 1)) { haystack(x1 + 1, z0 - 3, 2 + Math.floor(hash2(x0, z0, 411) * 2)); rect(s, x1 + 1, z0 - 3, x1 + 3, z0 - 1); }
+    };
+    let fields = 0;
+    for (const [x, z] of ring(o.gap + 10, o.reach, 7, 412)) {
+      if (fields >= o.fields) break;
+      const w = 14 + Math.floor(hash2(x, z, 413) * 10), d = 10 + Math.floor(hash2(x, z, 414) * 7);
+      if (!fits(x, z, x + w, z + d, 5, 3)) continue;
+      field(x, z, x + w, z + d); fields++;
+    }
+    // Orchards: rows of small apple trees in a fence
+    let orchards = 0;
+    for (const [x, z] of ring(o.gap + 6, o.reach - 10, 7, 415)) {
+      if (orchards >= o.orchards) break;
+      if (!fits(x, z, x + 13, z + 13, 5, 2)) continue;
+      fence(s, x, z, x + 13, z); fence(s, x, z + 13, x + 13, z + 13); fence(s, x, z, x, z + 6); fence(s, x, z + 8, x, z + 13); fence(s, x + 13, z, x + 13, z + 13);
+      for (let tx = x + 2; tx <= x + 11; tx += 4) for (let tz = z + 2; tz <= z + 11; tz += 4) plantTree(tx, tz, heightAt(tx, tz), 0.15);
+      rect(s, x, z, x + 13, z + 13); orchards++;
+    }
+    // Market gardens close in: small beds and a barrow's worth of crates
+    let gardens = 0;
+    for (const [x, z] of ring(o.gap, o.gap + 18, 5, 416)) {
+      if (gardens >= o.gardens) break;
+      if (!fits(x, z, x + 7, z + 5, 4, 1)) continue;
+      for (let gz = z + 1; gz < z + 5; gz++) for (let gx = x + 1; gx < x + 7; gx++) { const g = heightAt(gx, gz); clearUp(gx, gz, g, g + 4); O.set(gx, g - 1, gz, gz === z + 3 ? B.Path : B.Farmland); }
+      fence(s, x, z, x + 7, z); fence(s, x, z + 5, x + 7, z + 5); fence(s, x, z, x, z + 5); fence(s, x + 7, z, x + 7, z + 2);
+      s.props.push({ t: 'crate', x: x + 8.5, y: heightAt(x + 8, z + 4), z: z + 4.5 });
+      rect(s, x, z, x + 9, z + 5); gardens++;
+    }
+
+    // A windmill on the highest dry ground going
+    if (o.mill) {
+      let best: [number, number] | null = null, bh = -Infinity;
+      for (const [x, z] of ring(o.gap + 14, o.reach, 6, 417)) {
+        if (!fits(x - 5, z - 5, x + 5, z + 5, 6, 2)) continue;
+        const h = heightAt(x, z);
+        if (h > bh) { bh = h; best = [x, z]; }
+      }
+      if (best) windmill(s, best[0], best[1], Math.atan2(best[0] - cx, best[1] - cz));
+    }
+    // A gallows on a rise by a road out of town: two posts and a beam, and the drop under it
+    if (o.gallows) {
+      for (const [x, z] of ring(o.gap + 12, o.gap + 40, 4, 418)) {
+        const rd = roadDist(x, z);
+        if (rd < 6 || rd > 14 || !fits(x - 2, z - 2, x + 2, z + 2, 5, 1)) continue;
+        const g = heightAt(x, z), along = hash2(x, z, 419) < 0.5;
+        for (let y = 0; y < 5; y++) { O.set(along ? x - 1 : x, g + y, along ? z : z - 1, B.OakLog); O.set(along ? x + 1 : x, g + y, along ? z : z + 1, B.OakLog); }
+        for (let k = -1; k <= 1; k++) O.set(along ? x + k : x, g + 5, along ? z : z + k, B.DarkPlanks);
+        s.props.push({ t: 'rope', x: x + 0.5, y: g + 5, z: z + 0.5, ry: along ? 0 : Math.PI / 2, len: 0.2, h: 1.6, r: 0.02 });
+        rect(s, x - 2, z - 2, x + 2, z + 2);
+        break;
+      }
+    }
+    // The churchyard, near a road so the dead can be carried to it
+    // (near a road if there's room; out by a track if the town's ground is tight)
+    if (o.churchyard) for (const far of [24, 48]) {
+      let done = false;
+      for (const [x, z] of ring(o.gap + 4, o.gap + 46 + (far > 24 ? 20 : 0), 4, 420)) {
+        const w = o.ribbon >= 4 ? 22 : 16, d = o.ribbon >= 4 ? 18 : 14;
+        const rd = roadDist(x + w / 2, z + d / 2);
+        if (rd < 8 || rd > far || !fits(x, z, x + w, z + d, 5, 2)) continue;
+        // The gate on the side facing the nearest road
+        let gate: 'n' | 's' | 'e' | 'w' = 'n', gd = Infinity;
+        for (const [g, gx, gz] of [['n', x + w / 2, z - 4], ['s', x + w / 2, z + d + 4], ['w', x - 4, z + d / 2], ['e', x + w + 4, z + d / 2]] as const) { const r = roadDist(gx, gz); if (r < gd) { gd = r; gate = g; } }
+        churchyard(s, x, z, w, d, gate, `${o.name} Churchyard`, o.roof);
+        done = true;
+        break;
+      }
+      if (done) break;
+    }
+  }
+
+  /** A tower mill like the Gorse Mill: a round shell of plaster banded with timber, a thatched cap, sails that turn. */
+  function windmill(s: Site, MX: number, MZ: number, face: number) {
+    const base = Math.floor(heightAt(MX, MZ)) + 1;
+    const fx = Math.round(Math.sin(face) * 4), fz = Math.round(Math.cos(face) * 4);
+    const dist = (x: number, z: number) => Math.max(Math.abs(x - MX), Math.abs(z - MZ)) * 0.72 + Math.min(Math.abs(x - MX), Math.abs(z - MZ)) * 0.42;
+    for (let z = MZ - 4; z <= MZ + 4; z++) for (let x = MX - 4; x <= MX + 4; x++) {
+      if (dist(x, z) > 3.4) continue;
+      foundation(x, z, base, B.StoneBrick);
+      clearUp(x, z, base, base + 16);
+    }
+    for (let y = base; y < base + 11; y++) {
+      const r = 3.4 - (y - base) * 0.05;
+      for (let z = MZ - 4; z <= MZ + 4; z++) for (let x = MX - 4; x <= MX + 4; x++) {
+        const d = dist(x, z);
+        if (d > r) continue;
+        const shell = d > r - 1, door = x === MX - Math.sign(fx) * 3 && z === MZ - Math.sign(fz) * 3 && y < base + 2;
+        O.set(x, y, z, !shell || door ? B.Air : y < base + 3 ? B.StoneBrick : (y - base) % 4 === 3 ? B.DarkPlanks : (x + z + y) % 7 === 0 ? B.Window : B.Plaster);
+      }
+    }
+    for (let z = MZ - 3; z <= MZ + 3; z++) for (let x = MX - 3; x <= MX + 3; x++) if (dist(x, z) <= 2.4) O.set(x, base - 1, z, B.Planks);
+    s.props.push({ t: 'cone', x: MX + 0.5, y: base + 10.9, z: MZ + 0.5, r: 5, h: 3.8, mat: 'thatch' });
+    s.props.push({ t: 'sails', x: MX + 0.5 + Math.sin(face) * 5.1, y: base + 9, z: MZ + 0.5 + Math.cos(face) * 5.1, ry: face });
+    rect(s, MX - 6, MZ - 6, MX + 6, MZ + 6);
+    void fx;
+  }
+
+  /**
+   * A churchyard: a dry-stone wall with a lychgate, rows of graves (headstones, crosses, a chest tomb
+   * or two, the oldest leaning), yews by the wall, and a small stone chapel at the far end.
+   */
+  function churchyard(s: Site, x0: number, z0: number, w: number, d: number, gate: 'n' | 's' | 'e' | 'w', name: string, roof: PropDesc['mat']) {
+    const x1 = x0 + w, z1 = z0 + d;
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) { const g = heightAt(x, z); clearUp(x, z, g, g + 10); }
+    const gx = Math.round((x0 + x1) / 2), gz = Math.round((z0 + z1) / 2);
+    const gapAt: [number, number] = gate === 'n' ? [gx, z0] : gate === 's' ? [gx, z1] : gate === 'w' ? [x0, gz] : [x1, gz];
+    drystone(x0, z0, x1, z0, gate === 'n' ? [gapAt] : []); drystone(x0, z1, x1, z1, gate === 's' ? [gapAt] : []);
+    drystone(x0, z0, x0, z1, gate === 'w' ? [gapAt] : []); drystone(x1, z0, x1, z1, gate === 'e' ? [gapAt] : []);
+    // The lychgate: two posts and a little roof over the way in
+    const ns = gate === 'n' || gate === 's', g0 = heightAt(gapAt[0], gapAt[1]);
+    for (const k of [-2, 2]) for (let y = 0; y < 3; y++) O.set(ns ? gapAt[0] + k : gapAt[0], g0 + y, ns ? gapAt[1] : gapAt[1] + k, B.OakLog);
+    s.props.push({ t: 'roof', x: gapAt[0] + 0.5, y: g0 + 3, z: gapAt[1] + 0.5, len: 5.4, span: 2.4, rise: 1, ry: ns ? 0 : Math.PI / 2, mat: roof });
+    s.props.push({ t: 'sign', x: gapAt[0] + 0.5 + (ns ? 3.2 : gate === 'w' ? -1.5 : 1.5), y: heightAt(gapAt[0] + (ns ? 3 : 0), gapAt[1]), z: gapAt[1] + 0.5 + (ns ? (gate === 'n' ? -1.5 : 1.5) : 3.2), ry: gate === 'n' ? Math.PI : gate === 'e' ? Math.PI / 2 : gate === 'w' ? -Math.PI / 2 : 0, text: name });
+    // The chapel at the far end from the gate
+    const cw = 7, cd = 9;
+    const cX = gate === 'w' ? x1 - cd - 1 : gate === 'e' ? x0 + 2 : gx - Math.floor(cw / 2);
+    const cZ = gate === 'n' ? z1 - cd - 1 : gate === 's' ? z0 + 2 : gz - Math.floor(cw / 2);
+    const cW = ns ? cw : cd, cD = ns ? cd : cw;
+    house(s, cX, cZ, cW, cD, 1, Math.floor(heightAt(cX + cW / 2, cZ + cD / 2)), roof, gate, { wall: B.StoneBrick, role: 'chapel', chimney: false });
+    // Graves in rows across the yard, facing the gate side, clear of the path to the chapel door
+    const inChapel = (x: number, z: number) => x >= cX - 1 && x <= cX + cW && z >= cZ - 1 && z <= cZ + cD;
+    const ry = gate === 'n' ? Math.PI : gate === 'e' ? Math.PI / 2 : gate === 'w' ? -Math.PI / 2 : 0;
+    for (let z = z0 + 2; z <= z1 - 2; z += ns ? 3 : 2) for (let x = x0 + 2; x <= x1 - 2; x += ns ? 2 : 3) {
+      if (inChapel(x, z) || (ns ? Math.abs(x - gx) <= 1 : Math.abs(z - gz) <= 1)) continue;
+      const hsh = hash2(x, z, 430);
+      if (hsh < 0.12) continue; // a gap in the row
+      const g = heightAt(x, z);
+      const kind = hsh < 0.5 ? 0 : hsh < 0.68 ? 1 : hsh < 0.8 ? 3 : hsh < 0.93 ? 4 : 2;
+      s.props.push({ t: 'grave', x: x + 0.5, y: g, z: z + 0.5, ry: ry + (kind === 3 ? (hsh - 0.7) * 2 : 0), tint: kind });
+      O.set(x, g, z, B.Barrier);
+      // The plot in front of the stone, a little mounded and bare
+      const [mx, mz] = gate === 'n' ? [x, z - 1] : gate === 's' ? [x, z + 1] : gate === 'w' ? [x - 1, z] : [x + 1, z];
+      if (kind !== 2 && !inChapel(mx, mz)) O.set(mx, heightAt(mx, mz) - 1, mz, B.Dirt);
+      if (kind === 2) O.set(mx, g, mz, B.Barrier);
+    }
+    // Yews in the corners away from the gate
+    for (const [tx, tz] of [[x0 + 1, z0 + 1], [x1 - 1, z0 + 1], [x0 + 1, z1 - 1], [x1 - 1, z1 - 1]]) {
+      if (Math.hypot(tx - gapAt[0], tz - gapAt[1]) < 6 || inChapel(tx, tz)) continue;
+      plantTree(tx, tz, heightAt(tx, tz), 0.35);
+    }
+    const [ox, oz] = gate === 'n' ? [0, -1.6] : gate === 's' ? [0, 1.6] : gate === 'w' ? [-1.6, 0] : [1.6, 0];
+    s.props.push({ t: 'lantern', x: gapAt[0] + 0.5 + ox + (ns ? -3 : 0), y: heightAt(Math.floor(gapAt[0] + ox + (ns ? -3 : 0)), Math.floor(gapAt[1] + oz + (ns ? 0 : -3))), z: gapAt[1] + 0.5 + oz + (ns ? 0 : -3) });
+    rect(s, x0 - 1, z0 - 1, x1 + 1, z1 + 1);
+  }
+
+  function buildAllOutskirts() {
+    const named = (id: string) => sites.find((t) => t.id === id);
+    const W = NEW_WALL;
+    buildOutskirts({ id: 'ansbury', name: 'Ansbury', box: [W.x0, W.z0, W.x1, W.z1], gap: 8, reach: 75, ribbon: 5, fields: 9, orchards: 3, gardens: 5, mill: true, gallows: true, churchyard: true, roof: 'red', wall: B.Plaster });
+    const town = (id: string, half: number, o: Partial<Outskirts>) => {
+      const t = named(id);
+      if (!t) return;
+      buildOutskirts({ id, name: t.name, box: [t.x - half, t.z - half, t.x + half, t.z + half], gap: 6, reach: 55, ribbon: 3, fields: 4, orchards: 1, gardens: 2, mill: false, gallows: false, churchyard: true, roof: 'thatch', wall: B.Plaster, ...o });
+    };
+    town('gullmouth', 44, { ribbon: 4, fields: 4, orchards: 1, gardens: 3, mill: true, gallows: true, roof: 'slate', wall: B.StoneBrick });
+    town('harrowgate', 50, { fields: 0, orchards: 0, gardens: 2, roof: 'slate', wall: B.StoneBrick });
+    town('cotters', 34, { ribbon: 2, fields: 4, orchards: 2, gardens: 1, mill: true });
+    town('waystation', 28, { ribbon: 2, fields: 3, orchards: 1, gardens: 1, churchyard: false });
+    town('coldhearth', 32, { ribbon: 2, fields: 3, orchards: 0, gardens: 1, roof: 'slate', wall: B.StoneBrick, stone: true });
+    town('cragsby', 34, { roof: 'slate', wall: B.StoneBrick, stone: true, gallows: true });
+    town('holme', 34, { fields: 3, mill: true });
+    town('scarrow', 34, { fields: 2, orchards: 0, roof: 'slate', wall: B.StoneBrick, stone: true });
+  }
+
   /** Stone arch over a gate gap in a wall: a lintel course at the top of the wall with crenels. */
   function gateArch(alongX: boolean, a0: number, a1: number, at: number, base: number, height: number) {
     for (let a = a0; a <= a1; a++) for (let t = -1; t <= 1; t++) {
