@@ -48,6 +48,7 @@ import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
 import { Justice } from './Justice';
+import { Voyage, type Harbour } from './Voyage';
 import { CRIME, JURISDICTIONS, jurisdictionAt } from '../data/justice';
 import '../data/pledges';
 import { Doll } from '../ui/Doll';
@@ -130,6 +131,12 @@ const REGION_THEME: Record<RegionId, ThemeId> = {
 };
 
 /** Where townsfolk walk, and how many of them, busiest in the capital. */
+/** Each land's packet harbour: where the Constant lies at the quay, and the way out to the open sea (east, both). */
+const HARBOURS: Record<LandId, Harbour> = {
+  counties: { berth: [1822, 590.5], heading: Math.PI / 2 },
+  morrow: { berth: [CALLIS_PACKET.x + 12, CALLIS_PACKET.z], heading: Math.PI / 2 },
+};
+
 function crowdZones(): CrowdZone[] {
   if (LAND !== 'counties') return [];
   return [
@@ -226,6 +233,8 @@ export class Game implements GameApi {
   private roadfolk!: Roadfolk;
   /** The law: prices on your head, the watch, the wagon and the cells (game/Justice.ts). */
   justice!: Justice;
+  /** The Constant under way with you aboard, between the lands (game/Voyage.ts). */
+  voyage!: Voyage;
   /** A pose the law holds you in (on the wagon's bench, picking oakum, lying in a cell). */
   private lawPose: AnimState | null = null;
   private doll = new Doll();
@@ -542,6 +551,10 @@ export class Game implements GameApi {
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     this.roadfolk = new Roadfolk(this.scene, this.world.voxels, LAND === 'counties' ? crowdZones() : JURISDICTIONS.map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r })), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.voyage = new Voyage({
+      scene: this.scene, props: this.world.props, player: this.player,
+      sfx: (n, v) => this.sfx(n as Sfx, v), banner: (t, sub) => this.hud.banner(t, sub, true),
+    });
     this.justice = new Justice({
       scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
       setPose: (st) => { this.lawPose = st; },
@@ -1073,11 +1086,20 @@ export class Game implements GameApi {
   }
   crossLand(to: LandId): void {
     if (this.inCombat()) { this.hud.system('Not in the middle of a fight.'); return; }
+    if (this.voyage.active) return;
     // Where the packet sets you down: the end of Callis's packet pier, or Gullmouth's quay
     const at: [number, number, number] = to === 'morrow' ? [CALLIS_PACKET.x - 6.5, 23, CALLIS_PACKET.z + 0.5] : [1724.5, 24, 597.5];
-    this.save.pos = at;
-    this.save.yaw = to === 'morrow' ? -Math.PI / 2 : Math.PI / 2;
-    this.switchLand(to, to === 'morrow' ? 'The Constant, a day and a night out of Gullmouth…' : 'The Constant, a day and a night out of Callis…');
+    const yaw = to === 'morrow' ? -Math.PI / 2 : Math.PI / 2;
+    this.dismount(true);
+    this.hud.closeAll();
+    // Out to sea with you on her deck; the crossing itself is the loading screen; then in from the sea on the far side
+    this.setFlag('voyage', to);
+    this.rig.yaw = HARBOURS[LAND].heading + Math.PI;
+    this.voyage.depart(HARBOURS[LAND], () => {
+      this.player.teleport(at[0], at[1], at[2]);
+      this.player.yaw = yaw;
+      this.switchLand(to, to === 'morrow' ? 'The Constant, a day and a night out of Gullmouth…' : 'The Constant, a day and a night out of Callis…');
+    });
   }
 
   /** A notice board talks like a person with no face: the dialogue panel, headed with the board's name. */
@@ -1984,6 +2006,13 @@ export class Game implements GameApi {
     this.startPending = null;
     this.mode = 'play';
     this.hud.hideTitle();
+    // In from the sea, if you came by the packet: her deck until she's tied up, then the quay
+    if (this.flag('voyage') === LAND) {
+      this.setFlag('voyage', null);
+      const at = [...this.save.pos] as [number, number, number], yaw = this.save.yaw;
+      this.rig.yaw = HARBOURS[LAND].heading;
+      this.voyage.arrive(HARBOURS[LAND], () => { this.player.teleport(at[0], at[1], at[2]); this.player.yaw = yaw; this.hud.banner(LAND === 'morrow' ? 'Callis' : 'Gullmouth', 'Ashore'); });
+    }
     this.dress();
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
@@ -3827,6 +3856,7 @@ export class Game implements GameApi {
     // Doors open for anyone walking up to them: you, other players, the villagers
     const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos)];
     updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'doorOpen' : 'doorShut', 0.6));
+    this.voyage.update(dt);
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
     this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
     const ind = this.world.shared.uIndoor;
@@ -4243,7 +4273,7 @@ export class Game implements GameApi {
     this.fish.update(dt, this.player.position);
 
     // Interaction candidate
-    this.candidate = this.dialogue || this.hud.picking ? null : this.findCandidate();
+    this.candidate = this.dialogue || this.hud.picking || this.voyage.active || this.justice.busy ? null : this.findCandidate();
     if (this.candidate?.kind === 'ore') {
       this.outline.visible = true;
       this.outline.position.set(this.candidate.ore!.x + 0.5, this.candidate.ore!.y + 0.5, this.candidate.ore!.z + 0.5);

@@ -7,6 +7,7 @@ import { baseOf, QUALITY } from '../data/gear';
 import { levelForXp, MAX_LEVEL, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
+import { drawWorldMap } from './worldMap';
 import { MAP_SCALE, WMIN, WSIZE } from '../world/VoxelWorld';
 import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
@@ -292,7 +293,7 @@ export class Hud {
   /** Attuned waymarks where they were last drawn on the world map (canvas pixels), for clicks. */
   private wmHits: { x: number; y: number; id: string; name: string }[] = [];
   /** The world map's view (centre, canvas pixels per block, zoom limits), hover point and hidden icon kinds. */
-  private mapView = { cx: 1024, cz: 1024, k: 1, kMin: 0.2, kMax: 7, dpr: 1, fresh: true, hover: null as { x: number; y: number } | null, hits: [] as { x: number; y: number; name: string; sub: string }[], hidden: new Set<string>() };
+  private mapView = { cx: 1024, cz: 1024, k: 1, kMin: 0.2, kMax: 7, dpr: 1, fresh: true, world: false, hover: null as { x: number; y: number } | null, hits: [] as { x: number; y: number; name: string; sub: string }[], hidden: new Set<string>() };
   /** A waypoint the player dropped on the map; it shows on the minimap too. */
   pin: { x: number; z: number } | null = null;
   private portrait!: HTMLCanvasElement;
@@ -2097,6 +2098,13 @@ export class Hud {
     const kMin = Math.min(cw, ch) / WORLD * 0.92, kMax = 7 * dpr;
     const markers = this.ctx.mapMarkers();
     const me = markers.find((m) => m.kind === 'player');
+    // The World view: every land on one sea, and the ships between them (ui/worldMap.ts)
+    if (V.world) {
+      V.hits = [];
+      drawWorldMap(c, dpr, me ? { x: me.x, z: me.z } : null, V.hover, () => { if (this.isOpen('map')) this.renderMap(); });
+      this.q('#map-panel .footer').innerHTML = '<span>The whole known world: the Charter Counties and Morrow, and the ships between. Back to the land you are in with the button at the top.</span><span>M to close</span>';
+      return;
+    }
     if (V.fresh && me) { V.fresh = false; V.cx = me.x; V.cz = me.z; V.k = Math.max(kMin, 1.1 * dpr); }
     V.k = Math.max(kMin, Math.min(kMax, V.k));
     V.kMin = kMin; V.kMax = kMax; V.dpr = dpr;
@@ -2267,7 +2275,7 @@ export class Hud {
     const c = document.createElement('canvas');
     const V = this.mapView;
     const ctl = el('div', 'map-ctl');
-    ctl.innerHTML = '<button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
+    ctl.innerHTML = '<button class="mm-b wide" data-world title="The whole known world, and the ships between its lands">World</button><button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
     const legend = el('div', 'map-legend');
     for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
       const chip = el('button', 'chip on', name);
@@ -2281,7 +2289,9 @@ export class Hud {
       V.cx = before.x - (mx * V.dpr - c.width / 2) / V.k; V.cz = before.z - (my * V.dpr - c.height / 2) / V.k;
     };
     ctl.querySelectorAll('[data-z]').forEach((btn) => btn.addEventListener('click', () => zoomAt((btn as HTMLElement).dataset.z === '1' ? 1.6 : 1 / 1.6, c.clientWidth / 2, c.clientHeight / 2)));
-    ctl.querySelector('.me')!.addEventListener('click', () => { V.fresh = true; });
+    ctl.querySelector('.me')!.addEventListener('click', () => { V.fresh = true; V.world = false; this.renderMap(); });
+    const wb = ctl.querySelector<HTMLElement>('[data-world]')!;
+    wb.addEventListener('click', () => { V.world = !V.world; wb.textContent = V.world ? 'Here' : 'World'; wb.title = V.world ? 'Back to the land you are in' : 'The whole known world, and the ships between its lands'; this.ctx.sfx('click'); this.renderMap(); });
     c.addEventListener('wheel', (e) => { e.preventDefault(); const r = c.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
     // Pointer events, so a finger drags the map and two fingers pinch it, as a mouse drags and wheels it
     let drag: { x: number; y: number; moved: number } | null = null;
@@ -2318,7 +2328,7 @@ export class Hud {
       if (!drag) return;
       const click = drag.moved < 5;
       drag = null; c.style.cursor = '';
-      if (!click) return;
+      if (!click || V.world) return;
       const r = c.getBoundingClientRect();
       const wx = V.cx + ((e.clientX - r.left) * V.dpr - c.width / 2) / V.k, wz = V.cz + ((e.clientY - r.top) * V.dpr - c.height / 2) / V.k;
       // A waymark under the click: offer the trip instead of setting a waypoint

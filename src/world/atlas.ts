@@ -28,13 +28,22 @@ let chart: HTMLCanvasElement | null = null;
 /** Covers the whole world, WMIN..WMAX on both axes, at sixteen blocks a pixel. */
 export function continentChart(size = WSIZE / 16): HTMLCanvasElement {
   if (chart) return chart;
-  const step = WSIZE / size;
-  const h = new Float32Array(size * size);
-  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) h[j * size + i] = baseHeight(WMIN + (i + 0.5) * step, WMIN + (j + 0.5) * step);
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const x = c.getContext('2d')!;
   const img = x.createImageData(size, size);
+  img.data.set(chartPixels(size));
+  x.putImageData(img, 0, 0);
+  chart = c;
+  return c;
+}
+
+/** The chart's pixels (RGBA, size by size): for the canvas above, and for the world map's images of each land (scripts/charts.ts). */
+export function chartPixels(size: number): Uint8ClampedArray {
+  const step = WSIZE / size;
+  const h = new Float32Array(size * size);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) h[j * size + i] = baseHeight(WMIN + (i + 0.5) * step, WMIN + (j + 0.5) * step);
+  const data = new Uint8ClampedArray(size * size * 4);
   const rnd = createSeededRandom(4242);
   for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
     const wx = WMIN + (i + 0.5) * step, wz = WMIN + (j + 0.5) * step, k = j * size + i, o = k * 4;
@@ -65,10 +74,8 @@ export function continentChart(size = WSIZE / 16): HTMLCanvasElement {
     }
     // Paper grain
     const n = (rnd() - 0.5) * 10;
-    img.data[o] = r + n; img.data[o + 1] = g + n; img.data[o + 2] = b + n; img.data[o + 3] = 255;
+    data[o] = r + n; data[o + 1] = g + n; data[o + 2] = b + n; data[o + 3] = 255;
   }
-  x.putImageData(img, 0, 0);
-  chart = c;
-  return c;
+  return data;
 }
 

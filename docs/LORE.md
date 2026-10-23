@@ -616,6 +616,7 @@ The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, King
 ### The crossing [in game]
 
 - Morrow is its own land (`src/world/land.ts`, `src/world/morrow.ts`). The packet ship **the Constant** runs Gullmouth to Callis and back, a day and a night each way. **Hal Sennen** is her master; she was his mother's before him, and he has sailed her twenty-two years. The fare is 20 marks, and he takes nobody under level 30.
+- The voyage is played: you board at the quay, she casts off and stands out to sea with you on her deck (`src/game/Voyage.ts`), the long crossing passes behind a loading screen, and on the far side you come in on her from the open sea and step off onto the quay. The world map's **World** view shows both lands on one sea, the Charter Counties to the west and Morrow to the east, with the Constant's lane from Gullmouth south about the Keys into Callis, and the island boat's lanes out to the Mewstones, Inkholm and Kell (`src/ui/worldMap.ts`, charts from `npm run charts`).
 
 ### Callis [in game]
 

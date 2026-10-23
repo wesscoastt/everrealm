@@ -979,3 +979,4 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #arrestpanel i { display: block; margin-top: 10px; font-size: 11px; color: var(--muted, #9aa); font-style: normal; }
 #lawfade { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; transition: opacity 0.6s; pointer-events: none; }
 #lawfade.on { opacity: 1; }
+#ui #map-panel .map-ctl .mm-b.wide { width: auto; padding: 0 12px; font: 700 13px var(--body); letter-spacing: 0.04em; }
