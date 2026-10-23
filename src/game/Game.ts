@@ -702,6 +702,7 @@ export class Game implements GameApi {
       const catCoats: Palette[] = [{ a: '#d8843a', b: '#9a5420', c: '#f2e8d8' }, { a: '#2a2626', b: '#1a1616', c: '#3a3434' }, { a: '#8a8a8e', b: '#5a5a60', c: '#d8d8dc' }, { a: '#f0ece4', b: '#c8843a', c: '#ffffff' }];
       const spots: [number, number][] = [[171.5, 188.5], [147.5, 183.5], [182.5, 196.5], ...POSTS.filter((q) => !q.ferryFrom).flatMap((q): [number, number][] => [[q.x + 4.5, q.z + 3.5], [q.x - 4.5, q.z + 2.5]]), [687.5, 420.5], [675.5, 286.5], [787.5, 182.5]];
       spots.forEach(([x, z], i) => this.pets.push({ kind: i % 3 === 1 ? 'dog' : 'cat', x, z, pal: i % 3 === 1 ? dogCoats[i % dogCoats.length] : catCoats[(i * 7) % catCoats.length], a: null }));
+      for (const st of this.world.sites) for (const ws of st.stations ?? []) this.worldStations.push(ws);
       for (const st of this.world.sites) for (const an of st.animals ?? []) this.pets.push({ kind: an.kind, x: an.x, z: an.z, r: an.r, pal: an.pal ?? {}, a: null });
     }
     Animal.voice = (kind, at) => this.audio.playAt(({ dog: 'bark', cat: 'meow', duck: 'quack', sheep: 'baa', cow: 'moo', pig: 'oink' } as Record<string, Sfx>)[kind] ?? 'click', at.distanceTo(this.player.position), 0.8);
@@ -1084,11 +1085,16 @@ export class Game implements GameApi {
 
   /** Where a crafting station stands: the joiner's bench is at the cottage, the rest in Hollin Ford. */
   private stationAt(st: Station): { x: number; y: number; z: number } {
+    if (this.stationPos) return this.stationPos;
     if (st === 'bench') return { ...COTTAGE.bench, y: COTTAGE.floor };
     return this.world.structures.interactables.find((i) => i.kind === st)!;
   }
 
-  openCrafting(st: Station): void { this.currentStation = st; this.hud.show('craft'); this.showPackBeside(); }
+  /** Where the station you're working at stands, when it isn't Hollin Ford's (a town smithy's: world/sites.ts). */
+  private stationPos: { x: number; y: number; z: number } | null = null;
+  /** Every station anyone can use out in the world. */
+  private worldStations: { station: Station; x: number; y: number; z: number }[] = [];
+  openCrafting(st: Station, at?: { x: number; y: number; z: number }): void { this.currentStation = st; this.stationPos = at ?? null; this.hud.show('craft'); this.showPackBeside(); }
   startCasting(): void { this.casting = { t: 0, dur: 30 }; }
   get playerName(): string { return this.save.name; }
 
@@ -2413,6 +2419,12 @@ export class Game implements GameApi {
     for (const a of this.chests.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
+    // A town smithy's stations
+    for (const ws of this.worldStations) {
+      const d = Math.hypot(ws.x - p.x, ws.z - p.z);
+      if (d > 2.4 || Math.abs(ws.y - p.y) > 2.5) continue;
+      consider({ kind: 'act', label: ws.station === 'furnace' ? 'Use the furnace' : ws.station === 'anvil' ? 'Use the anvil' : ws.station === 'bench' ? "Work at the joiner's bench" : 'Cook at the fire', pos: new THREE.Vector3(ws.x, ws.y + 0.4, ws.z), act: () => this.openCrafting(ws.station, ws) }, d);
+    }
     for (const wt of WORLD_THINGS) {
       const d = Math.hypot(wt.x - p.x, wt.z - p.z);
       if (d > wt.radius || (wt.when && !wt.when(this))) continue;

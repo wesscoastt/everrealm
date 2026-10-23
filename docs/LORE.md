@@ -515,6 +515,10 @@ No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cott
 
 - **Churchyards.** Every town but the Waystation and Scarrow Tor buries its dead outside the houses, near a road: a dry-stone wall with a lychgate, a small stone chapel at the far end (an altar with candles, benches either side of the aisle), and rows of graves facing the gate: round-topped headstones, crosses, slates, a chest tomb or two, and the oldest slabs leaning. Yews in the corners. The sign at the gate names it: Ansbury Churchyard, Kelderby Churchyard and so on.
 
+## Smithies [in game]
+
+Besides the smithy in Hollin Ford, every town of any size keeps a smithy by its Charter Post that anyone may work in: Ansbury (inside the south gate), Gullmouth, Harrowgate Works, the Waystation, Fellers' Camp, Kelderby, Cragsby, Holme Staithe, Scarrow Tor, Gillsby Staithe and Cotter's End. Each is an open-sided shed under slate with a brick furnace (fire in its mouth, a flue through the roof), bellows, an anvil and a quench barrel, a joiner's bench, and a cook fire in the yard. `world/sites.ts` (buildSmithies).
+
 ## The farms [in game]
 
 The towns are fed from farms let out round them: six round Ansbury (Lower Farm, Highfield, Oxleaze, Copse Farm, Long Acre, Mill Farm), two round Gullmouth (Coldharbour, Pease Hill) and two round Harrowgate Works (Rookery Farm, Dove House Farm). Each has a thatched farmhouse, a barn, a yard with a well and a cart, hay, fenced strip fields, a paddock of cattle (or sheep), a stone pigsty with a lean-to, hens loose in the yard, and its name on a board at the gate. Cows and pigs are kept only on farms. `world/sites.ts` (buildCityFarms).

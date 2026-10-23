@@ -172,6 +172,16 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         break;
       }
       case 'grave': place(P.gravestone(M, d.tint ?? 0), d.x, d.y, d.z, d.ry); break;
+      case 'bellows': place(P.bellows(M), d.x, d.y, d.z, d.ry); break;
+      case 'flame': {
+        // A fire on its own (a furnace's mouth): it flickers with the rest
+        const f = new THREE.Mesh(FLAME_GEO, M.fire);
+        f.position.set(d.x, d.y, d.z);
+        f.scale.setScalar(d.r ?? 1);
+        group.add(f);
+        fires.push(f);
+        break;
+      }
       case 'cone': {
         batch.add(P.cyl(0.15, d.r ?? 4, d.h ?? 6, 8), roofMat(d.mat), P.mat4(d.x, d.y + (d.h ?? 6) / 2, d.z));
         addConeVolume(d.x, d.y, d.z, d.r ?? 4, d.h ?? 6);

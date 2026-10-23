@@ -21,7 +21,7 @@ import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
-export type PropType = 'roof' | 'door' | 'sails' | 'grave' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
+export type PropType = 'roof' | 'door' | 'sails' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
@@ -84,6 +84,8 @@ export interface Site {
   act?: SiteActivity;
   /** Stock kept here (a farm's cows, pigs, sheep and hens): the game puts them out as you come near. */
   animals?: AnimalSpot[];
+  /** Crafting stations anyone can use here (a town smithy's furnace, anvil, bench and cook fire). */
+  stations?: { station: 'furnace' | 'anvil' | 'hearth' | 'bench'; x: number; y: number; z: number }[];
 }
 
 /** A beast that lives at a site, wandering r blocks from (x, z), in its own coat (entities/creatures.ts Palette). */
@@ -421,6 +423,8 @@ export function plan(): Plan {
   if (cached) return cached;
   const sites: Site[] = [];
   const O = new Overrides();
+  /** Every town street laid so far, so later builders keep off them. */
+  const streets: [number, number, number, number][] = [];
   const flats: Flatten[] = [];
 
   // ---------------------------------------------------------------- Named sites
@@ -602,6 +606,7 @@ export function plan(): Plan {
   buildAllOutskirts();
   buildHarbourLights();
   buildCityFarms();
+  buildSmithies();
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
@@ -744,6 +749,7 @@ export function plan(): Plan {
   }
   function street(x0: number, z0: number, x1: number, z1: number) {
     streetHook?.(x0, z0, x1, z1, 'street');
+    streets.push([Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       const g = heightAt(x, z);
       O.set(x, g - 1, z, (x + z) % 5 === 0 ? B.StoneBrick : hash2(x, z, 3) < 0.12 ? B.MossyCobble : B.Cobble);
@@ -1184,6 +1190,84 @@ export function plan(): Plan {
     // Hens loose in the yard
     for (let i = 0; i < 4; i++) s.animals!.push({ kind: 'chicken', x: x - 4.5 + i * 2, z: z + 0.5, r: 4 });
     rect(s, x - 21, z - 15, x + 34, z + 36);
+  }
+
+  // ---------------------------------------------------------------- Smithies
+  /**
+   * Every town of any size keeps a smithy by its Charter Post where anyone can work: an open-sided
+   * shed under a slate roof with a brick furnace (a fire in its mouth, a flue through the roof) and
+   * bellows, an anvil with a quench barrel, a joiner's bench along the back, and a cook fire out in
+   * front. Each is a crafting station where it stands (Site.stations; Game opens crafting there).
+   */
+  function buildSmithies() {
+    const towns = ['aldermere', 'gullmouth', 'harrowgate', 'waystation', 'woodcamp', 'coldhearth', 'cragsby', 'holme', 'scarrow', 'ink-gillsby', 'cotters'];
+    for (const id of towns) {
+      const t = sites.find((x) => x.id === id);
+      if (!t) continue;
+      const post = POSTS.find((p) => p.place === id);
+      const ax = post ? post.x : t.x, az = post ? post.z : t.z;
+      // (a whole walled town's keep-the-wild-out rect is no bar: the gaps between its buildings are)
+      const near = [...sites.flatMap((x) => x.rects).filter((r) => (r[2] - r[0]) * (r[3] - r[1]) < 20000), ...streets].filter((r) => r[2] > ax - 130 && r[0] < ax + 130 && r[3] > az - 130 && r[1] < az + 130);
+      let best: [number, number, 'n' | 's', number] | null = null;
+      for (let x = Math.floor(ax - 110); x <= ax + 110; x += 2) for (let z = Math.floor(az - 110); z <= az + 110; z += 2) {
+        const d = Math.hypot(x + 5 - ax, z + 3.5 - az);
+        if (d < 9 || d > 110 || (best && d >= best[3])) continue;
+        const face: 'n' | 's' = az > z + 3.5 ? 's' : 'n';
+        // The shed and the yard in front of it (where the cook fire is)
+        const b: [number, number, number, number] = face === 's' ? [x - 1, z - 1, x + 10, z + 11] : [x - 1, z - 5, x + 10, z + 7];
+        if (near.some((r) => b[0] <= r[2] && b[2] >= r[0] && b[1] <= r[3] && b[3] >= r[1])) continue;
+        let lo = Infinity, hi = -Infinity, ok = true;
+        for (let px = b[0]; px <= b[2] && ok; px++) for (let pz = b[1]; pz <= b[3]; pz++) {
+          const h = heightAt(px, pz);
+          if (h <= SEA + 1 || roadDist(px, pz) < 2.5 || riverDist(px, pz) < 3) { ok = false; break; }
+          lo = Math.min(lo, h); hi = Math.max(hi, h);
+        }
+        if (ok && hi - lo <= 1) best = [x, z, face, d];
+      }
+      if (!best) continue;
+      const s: Site = { id: 'smithy-' + id, name: '', region: regionAt(best[0], best[1]).a, x: best[0] + 5, z: best[1] + 3, r: 160, named: false, props: [], rects: [], impostor: [], stations: [] };
+      sites.push(s);
+      smithy(s, best[0], best[1], best[2]);
+    }
+  }
+
+  function smithy(s: Site, x0: number, z0: number, face: 'n' | 's') {
+    const W = 10, D = 7, base = Math.floor(heightAt(x0 + 5, z0 + 3));
+    // v runs from the back wall (0) to the open front (D - 1)
+    const Z = (v: number) => (face === 's' ? z0 + v : z0 + D - 1 - v);
+    const zf = (v: number) => (face === 's' ? z0 + v : z0 + D - v); // a prop's z, from a v measured in blocks
+    const ry = face === 's' ? 0 : Math.PI;
+    const out = face === 's' ? 1 : -1;
+    pave(x0, Math.min(Z(0), Z(D - 1)), x0 + W - 1, Math.max(Z(0), Z(D - 1)), base, 'flag');
+    // Posts, a low stone back wall, the roof
+    for (const [u, v] of [[0, 0], [W - 1, 0], [0, D - 1], [W - 1, D - 1], [5, D - 1]]) for (let y = base; y < base + 4; y++) O.set(x0 + u, y, Z(v), B.OakLog);
+    for (let u = 1; u < W - 1; u++) for (let y = base; y < base + 2; y++) O.set(x0 + u, y, Z(0), B.StoneBrick);
+    for (const u of [0, W - 1]) for (let v = 1; v < D - 1; v++) O.set(x0 + u, base, Z(v), B.StoneBrick);
+    s.props.push({ t: 'roof', x: x0 + W / 2, y: base + 4, z: z0 + D / 2, len: W, span: D, rise: roofRise(D), ry: 0, mat: 'slate' });
+    // The furnace: three bricks wide, two deep, its mouth open to the front with the fire in it, a flue up through the roof
+    for (let u = 1; u <= 3; u++) for (let v = 1; v <= 2; v++) for (let y = base; y < base + 3; y++) O.set(x0 + u, y, Z(v), y === base + 2 ? B.Cobble : B.StoneBrick);
+    O.set(x0 + 2, base, Z(2), B.Air);
+    for (let y = base + 3; y < base + 9; y++) O.set(x0 + 2, y, Z(1), B.Cobble);
+    s.props.push({ t: 'flame', x: x0 + 2.5, y: base, z: zf(2) + 0.5 * out, r: 0.55 });
+    s.props.push({ t: 'glow', x: x0 + 2.5, y: base + 0.8, z: zf(3), r: 1.6, color: '#ff8a3a' }, { t: 'smoke', x: x0 + 2.5, y: base + 9.3, z: zf(1) + 0.5 * out });
+    s.props.push({ t: 'bellows', x: x0 + 4.4, y: base, z: zf(1.6), ry });
+    // The anvil, the quench barrel by it, and the joiner's bench along the back
+    s.props.push({ t: 'anvil', x: x0 + 5.5, y: base, z: zf(3.6), ry: ry + 0.2 }, { t: 'barrel', x: x0 + 4.4, y: base, z: zf(4.6) });
+    s.props.push({ t: 'desk', x: x0 + 7.9, y: base, z: zf(1.6), ry });
+    for (const [u, v] of [[5, 3], [4, 4], [7, 1], [8, 1], [4, 1]]) { O.set(x0 + u, base, Z(v), B.Barrier); O.set(x0 + u, base + 1, Z(v), B.Barrier); }
+    // The cook fire in the yard in front
+    s.props.push({ t: 'firepit', x: x0 + 7.5, y: heightAt(x0 + 7, Z(D + 2)), z: zf(D + 2.5) });
+    for (const [u, v] of [[7, D + 2]]) { const g = heightAt(x0 + u, Z(v)); O.set(x0 + u, g, Z(v), B.Barrier); }
+    s.props.push({ t: 'sign', x: x0 + 1.5, y: heightAt(x0 + 1, Z(D + 1)), z: zf(D + 1.5), ry, text: 'Smithy' });
+    s.props.push({ t: 'lantern', x: x0 + 9.5, y: heightAt(x0 + 9, Z(D + 1)), z: zf(D + 1.5) });
+    // Where each station works from
+    s.stations!.push(
+      { station: 'furnace', x: x0 + 2.5, y: base + 0.8, z: zf(3) + 0.4 * out },
+      { station: 'anvil', x: x0 + 5.5, y: base + 0.9, z: zf(3.6) },
+      { station: 'bench', x: x0 + 7.9, y: base + 0.9, z: zf(1.6) },
+      { station: 'hearth', x: x0 + 7.5, y: heightAt(x0 + 7, Z(D + 2)) + 0.6, z: zf(D + 2.5) },
+    );
+    rect(s, x0 - 1, Math.min(Z(0), Z(D + 3)) - 1, x0 + W, Math.max(Z(0), Z(D + 3)) + 1);
   }
 
   /** Stone arch over a gate gap in a wall: a lintel course at the top of the wall with crenels. */
