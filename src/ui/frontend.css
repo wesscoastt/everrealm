@@ -30,12 +30,14 @@
 .fe-brand b { font: 700 34px var(--px); letter-spacing: 3px; color: var(--cream); text-shadow: 0 3px 0 #9c8458, 0 6px 0 #3a2c1a, 0 10px 16px rgba(0,0,0,0.6); }
 .fe-brand b span { color: var(--moss); }
 
-.fe-realm { position: absolute; top: 18px; right: 22px; display: flex; align-items: center; gap: 14px; padding: 8px 12px 8px 14px; }
+.fe-right { position: absolute; top: 18px; right: 22px; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; max-width: 470px; z-index: 2; }
+.fe-realm { display: flex; align-items: center; gap: 14px; padding: 8px 12px 8px 14px; }
 .fe-realm small { display: block; font: 600 10px var(--px); color: var(--muted); letter-spacing: 1.5px; }
 .fe-realm b { font: 600 16px var(--px); color: var(--cream); text-shadow: var(--hard1); }
 .fe-realm .st { display: flex; align-items: center; gap: 7px; font: 500 13px var(--body); color: var(--cream-d); max-width: 230px; }
 .fe-realm .st span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fe-realm { flex-wrap: wrap; max-width: 470px; }
+.fe-realm { flex-wrap: wrap; max-width: 400px; }
+.fe-realm .acct .x { display: none; }
 .fe-realm .acct { flex-basis: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); font: 500 13px var(--body); color: var(--cream-d); }
 .fe-realm .acct b { font: 600 13px var(--body); color: var(--wheat); text-shadow: none; }
 .fe-realm .acct small { font: 500 12px var(--body); letter-spacing: 0; color: var(--muted); }
@@ -66,7 +68,7 @@
 .fe-roster .row .btn { width: 100%; padding: 9px; }
 .fe-roster .link.danger { align-self: center; margin-top: 8px; }
 
-.fe-news { position: absolute; right: 22px; top: 92px; width: 280px; padding-bottom: 10px; }
+.fe-news { width: 280px; padding-bottom: 10px; }
 .fe-news ul { margin: 0; padding: 10px 14px 0 30px; font: 500 14.5px/1.35 var(--body); color: var(--cream-d); }
 .fe-news li { margin-bottom: 8px; }
 .fe-news li::marker { color: var(--teal); }
@@ -136,7 +138,8 @@
 /* ------------------------------------------------------------------ Narrow screens */
 @media (max-width: 860px) {
   .fe-brand { top: 10px; } .fe-brand b { font-size: 24px; }
-  .fe-realm { top: auto; bottom: 14px; right: 12px; left: auto; padding: 6px 8px; gap: 8px; }
+  .fe-right { top: auto; bottom: 14px; right: 12px; left: auto; }
+  .fe-realm { padding: 6px 8px; gap: 8px; }
   .fe-realm .st { display: none; }
   .fe-realm .acct { padding-top: 4px; gap: 8px; } .fe-realm .acct small, .fe-realm .acct .x { display: none; }
   .fe-news { display: none; }
@@ -167,7 +170,8 @@
   .fe-enter { left: auto; right: 12px; transform: none; width: min(320px, 50vw); bottom: 92px; gap: 6px; }
   .fe-enter h2 { font-size: 22px; } .fe-enter p { font-size: 13px; } .fe-enter .hint { display: none; }
   .fe-enter .btn.big { padding: 8px 20px; }
-  .fe-realm { top: auto; bottom: 10px; right: 12px; left: auto; max-width: min(320px, 50vw); }
+  .fe-right { top: auto; bottom: 10px; right: 12px; left: auto; }
+  .fe-realm { max-width: min(320px, 50vw); }
   .fe-foot { left: auto; right: 12px; top: 10px; bottom: auto; }
   .fe-steps { left: 12px; top: 10px; bottom: 10px; height: auto; width: min(320px, 46vw); }
   .fe-namebar { left: auto; right: 12px; top: auto; bottom: 10px; width: min(300px, 46vw); padding-bottom: 10px; }

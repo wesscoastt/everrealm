@@ -8,7 +8,7 @@ import { callingCard } from './callingCard';
 import { drawFace } from './skin';
 import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
-import { currentAccount, storeCatalog, storeCheckout, storeClaim, type StoreItem } from '../net/Account';
+import { currentAccount, isDevAccount, storeCatalog, storeCheckout, storeClaim, type StoreItem } from '../net/Account';
 import { ITEMS } from '../data/items';
 
 // The screens around the game: character select (the main menu), the character creator, and the
@@ -299,14 +299,23 @@ export class Frontend {
     this.root.innerHTML = `<div class="fe fe-select">
       <div class="fe-brand"><div class="gem"></div><b>EVER<span>REALM</span></b><i class="ea">Early Access</i></div>
       <button class="link fe-back" data-a="home">‹ Front page</button>
-      <div class="fe-realm frame">
+      <div class="fe-right"><div class="fe-realm frame">
         <div><small>REALM</small><b>${realm ? 'Charter realm' : 'Hearth'}</b></div>
-        <div class="st"><i class="dot ${realm ? this.realmState : 'offline'}"></i><span>${realm ? esc(realm.replace(/^wss?:\/\//, '')) + (this.realmState === 'checking' ? ' · checking' : this.realmState === 'up' ? ' · reachable' : this.realmState === 'down' ? ' · not answering' : '') : 'Offline · this browser'}</span></div>
-        <button class="btn ghost sm" data-a="realm">Change</button>
+        <div class="st"><i class="dot ${realm ? this.realmState : 'offline'}"></i><span>${realm ? (isDevAccount() || import.meta.env.DEV ? esc(realm.replace(/^wss?:\/\//, '')) + (this.realmState === 'checking' ? ' · checking' : this.realmState === 'up' ? ' · reachable' : this.realmState === 'down' ? ' · not answering' : '') : this.realmState === 'down' ? 'Not answering' : this.realmState === 'checking' ? 'Checking…' : 'Online') : 'Offline · this browser'}</span></div>
+        ${isDevAccount() || import.meta.env.DEV ? '<button class="btn ghost sm" data-a="realm">Change</button>' : ''}
         ${realm ? (this.ctx.account()
           ? `<div class="acct">Signed in as <b>${esc(this.ctx.account()!)}</b><span class="x"> · characters follow you to any device</span> <button class="link" data-a="signout">Sign out</button></div>`
           : '<div class="acct"><button class="btn sm" data-a="signin">Sign in or create an account</button><small>Play the same characters on any PC or phone</small></div>') : ''}
       </div>
+      <aside class="fe-news frame">
+        <header><h3>In this build</h3></header>
+        <ul>
+          <li><b>The Lantern Wake.</b> Until 10 November: turnip lanterns in every town, six costumes to go guising in, and the Lantern Man walking after dark.</li>
+          <li><b>Pets.</b> Claim a free speckled hen from the store. She follows you everywhere and is no help at all.</li>
+          <li><b>Justice.</b> Every town keeps its own bounties. Pay them off, hide in the hideouts, or ride to gaol in the prison cart.</li>
+          <li><b>The Lamp Company.</b> A pledge dungeon every day, and a bonus for the day's first random dungeon.</li>
+        </ul>
+      </aside></div>
       <aside class="fe-roster frame">
         <header><h3>Characters</h3><small>${chars.length} / ${this.ctx.maxCharacters}</small></header>
         <div class="list">${chars.length ? chars.map((c) => {
@@ -315,15 +324,6 @@ export class Frontend {
         }).join('') : '<p class="empty">No characters in this browser yet.</p>'}</div>
         <div class="row"><button class="btn ghost" data-a="new" ${full ? 'disabled' : ''}>${full ? 'All six slots are used' : 'Create new character'}</button></div>
         ${cur ? '<div class="row2"><button class="link" data-a="restyle">Change look</button><button class="link danger" data-a="delete">Delete character</button></div>' : ''}
-      </aside>
-      <aside class="fe-news frame">
-        <header><h3>In this build</h3></header>
-        <ul>
-          <li><b>The Weatherholms.</b> The main story's second act: six new chapters after the sitting, up a hoist to the floating isles.</li>
-          <li><b>Callings.</b> Warden, Reaver, Kindler or Pathfinder, each with its own mechanic and three skills. Change any time out of a fight.</li>
-          <li><b>Festivals.</b> Five fairs on the real calendar, with stalls, tokens, dyes and a horse each. The journal says what's on.</li>
-          <li><b>Chat and emotes.</b> Press Enter to talk, or /wave, /dance, /sit and more. Other players see them.</li>
-        </ul>
       </aside>
       <div class="fe-enter">${cur
         ? `<div class="who"><h2>${esc(cur.name)}</h2><p><b class="clv">Level ${cur.level} ${esc(cur.calling)}</b> · ${cur.origin ? `${esc(originById(cur.origin).title)} from ${esc(originById(cur.origin).place)} · ` : ''}${esc(cur.place)} · skills ${cur.total}</p></div><button class="btn big" data-a="enter">Enter world</button><small class="hint">Enter to play · arrows to choose</small>`
