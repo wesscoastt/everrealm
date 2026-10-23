@@ -40,6 +40,8 @@ export const CATALOG = {
 const SKEY = () => process.env.STRIPE_SECRET_KEY ?? '';
 const WHSEC = () => process.env.STRIPE_WEBHOOK_SECRET ?? '';
 const RETURN = () => process.env.STORE_RETURN_URL ?? '';
+/** The store's terms and refund policy (public/legal), linked from the checkout tick box. */
+const TERMS_URL = 'https://everrealm.quest/legal/terms.html', REFUNDS_URL = 'https://everrealm.quest/legal/refunds.html';
 /** How old a webhook's signature may be before it's turned away (seconds). */
 const TOLERANCE = 300;
 
@@ -86,8 +88,20 @@ export function storeInit({ loadAccount, storeAccount, log }) {
       'line_items[0][price_data][product_data][name]': `Everrealm: ${item.name}`,
       'line_items[0][price_data][product_data][description]': item.blurb,
     });
-    const r = await fetch('https://api.stripe.com/v1/checkout/sessions', { method: 'POST', headers: { Authorization: `Bearer ${SKEY()}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body: form });
-    const j = await r.json().catch(() => ({}));
+    // The tick box before paying: the terms, and delivery at once with no right to cancel after
+    // (what UK and EU law asks for before digital goods are handed over straight away). Stripe needs
+    // the account's terms of service link set in its dashboard to show it; without that, sell anyway.
+    const consent = new URLSearchParams(form);
+    consent.set('consent_collection[terms_of_service]', 'required');
+    consent.set('custom_text[terms_of_service_acceptance][message]', `I agree to the [terms of sale](${TERMS_URL}). My item is delivered to my account at once, and I give up the right to cancel once it has been. All sales are final, as the [refund policy](${REFUNDS_URL}) explains.`);
+    const ask = (body) => fetch('https://api.stripe.com/v1/checkout/sessions', { method: 'POST', headers: { Authorization: `Bearer ${SKEY()}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    let r = await ask(consent);
+    let j = await r.json().catch(() => ({}));
+    if (!r.ok && /terms of service/i.test(j.error?.message ?? '')) {
+      log('store: no terms of service link set in Stripe, so no consent box:', j.error.message);
+      r = await ask(form);
+      j = await r.json().catch(() => ({}));
+    }
     if (!r.ok || !j.url) { log('store: checkout refused', r.status, j.error?.message ?? ''); return null; }
     return j.url;
   }
