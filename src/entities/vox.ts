@@ -34,17 +34,21 @@ export const VOX_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 
 export class Vox {
   private cells = new Map<number, string>();
-  constructor(readonly s = 0.07) {}
+  /** Where a cube's centre sits in its cell: half way (the mounts' grid), or on the grid point itself
+   *  (centred: a cube straddles the midline, so a part thinner than a cube still lands on one). */
+  private readonly o: number;
+  constructor(readonly s = 0.07, centred = false) { this.o = centred ? 0 : 0.5; }
   private key(i: number, j: number, k: number) { return ((i + 512) * 1024 + (j + 512)) * 1024 + (k + 512); }
   private put(i: number, j: number, k: number, paint: Paint) {
     const s = this.s;
-    this.cells.set(this.key(i, j, k), paint((i + 0.5) * s, (j + 0.5) * s, (k + 0.5) * s, hash3(i, j, k)));
+    const o = this.o;
+    this.cells.set(this.key(i, j, k), paint((i + o) * s, (j + o) * s, (k + o) * s, hash3(i, j, k)));
   }
   /** Fill every cube whose centre passes the test, inside the box. */
   fill(lo: V3, hi: V3, inside: (x: number, y: number, z: number) => boolean, paint: Paint): this {
     const s = this.s;
     for (let i = Math.floor(lo[0] / s); i <= Math.ceil(hi[0] / s); i++) for (let j = Math.floor(lo[1] / s); j <= Math.ceil(hi[1] / s); j++) for (let k = Math.floor(lo[2] / s); k <= Math.ceil(hi[2] / s); k++) {
-      if (inside((i + 0.5) * s, (j + 0.5) * s, (k + 0.5) * s)) this.put(i, j, k, paint);
+      if (inside((i + this.o) * s, (j + this.o) * s, (k + this.o) * s)) this.put(i, j, k, paint);
     }
     return this;
   }
@@ -83,7 +87,7 @@ export class Vox {
     const s = this.s;
     for (const k of [...this.cells.keys()]) {
       const i = Math.floor(k / (1024 * 1024)) - 512, j = (Math.floor(k / 1024) % 1024) - 512, kk = (k % 1024) - 512;
-      if (inside((i + 0.5) * s, (j + 0.5) * s, (kk + 0.5) * s)) this.cells.delete(k);
+      if (inside((i + this.o) * s, (j + this.o) * s, (kk + this.o) * s)) this.cells.delete(k);
     }
     return this;
   }
@@ -97,7 +101,8 @@ export class Vox {
       for (const f of FACES) {
         if (this.cells.has(this.key(i + f.n[0], j + f.n[1], kk + f.n[2]))) continue;
         const v0 = pos.length / 3, b = f.light * (0.93 + n * 0.12);
-        for (const [cx, cy, cz] of f.c) { pos.push((i + cx) * s, (j + cy) * s, (kk + cz) * s); nor.push(...f.n); clr.push(c.r * b, c.g * b, c.b * b); }
+        const d = this.o - 0.5;
+        for (const [cx, cy, cz] of f.c) { pos.push((i + cx + d) * s, (j + cy + d) * s, (kk + cz + d) * s); nor.push(...f.n); clr.push(c.r * b, c.g * b, c.b * b); }
         idx.push(v0, v0 + 1, v0 + 2, v0, v0 + 2, v0 + 3);
       }
     }

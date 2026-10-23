@@ -44,7 +44,7 @@ function solid(o: THREE.Object3D): o is THREE.Mesh {
 
 /** The cubes for some parts: in their joint's frame, or (own) each in its own frame. */
 function cubesOf(parts: THREE.Mesh[], own: boolean): THREE.BufferGeometry | null {
-  const v = new Vox(S), p = new THREE.Vector3();
+  const v = new Vox(S, true), p = new THREE.Vector3();
   for (const m of parts) {
     m.updateMatrix();
     const place = own ? new THREE.Matrix4() : m.matrix;
