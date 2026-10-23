@@ -721,8 +721,11 @@ export function plan(): Plan {
     }
     const steps = Math.ceil(len * 3);
     const done = new Set<string>();
+    // (sampled a hair inside each end: a fence ending on a cell's edge leaves the gap beyond it open)
+    const e = Math.min(0.02, len / 4) / len;
     for (let i = 0; i <= steps; i++) {
-      const x = Math.floor(x0 + ((x1 - x0) * i) / steps), z = Math.floor(z0 + ((z1 - z0) * i) / steps);
+      const t = e + (i / steps) * (1 - 2 * e);
+      const x = Math.floor(x0 + (x1 - x0) * t), z = Math.floor(z0 + (z1 - z0) * t);
       if (done.has(x + ',' + z)) continue;
       done.add(x + ',' + z);
       const g = heightAt(x, z);

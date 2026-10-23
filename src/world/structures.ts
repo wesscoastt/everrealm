@@ -485,8 +485,12 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       place(P.fenceRun(M, len / runs), mx, ground(Math.floor(mx), Math.floor(mz)), mz, -Math.atan2(z1 - z0, x1 - x0));
     }
     const steps = Math.ceil(len * 3);
+    // Sampled a hair inside each end, so a fence that ends on a cell's edge (beside a gap left for a
+    // gate) stops there, and doesn't leave an invisible block standing in the gap
+    const e = Math.min(0.02, len / 4) / len;
     for (let i = 0; i <= steps; i++) {
-      const x = Math.floor(x0 + ((x1 - x0) * i) / steps), z = Math.floor(z0 + ((z1 - z0) * i) / steps);
+      const t = e + (i / steps) * (1 - 2 * e);
+      const x = Math.floor(x0 + (x1 - x0) * t), z = Math.floor(z0 + (z1 - z0) * t);
       // One barrier per cell: the ground under a barrier already placed is the barrier's own cell
       let y = ground(x, z);
       while (y > 0 && world.get(x, y - 1, z) === B.Barrier) y--;
