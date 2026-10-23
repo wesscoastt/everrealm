@@ -5,14 +5,14 @@
 //
 // Units: damage in P (one ordinary swing at your level); health as a fraction of your own.
 import { CALLINGS, CallingId, chosenUtilities, type SkillDef, TUNE as BASE } from '../src/data/classes';
-import { TREES, tuned, type Tune } from '../src/data/talents';
+import { fullTree, TREES, tuned, type Tune } from '../src/data/talents';
 
 const DT = 0.05;
 const CRIT = 0.12, CRIT_MULT = 1.6;
 const CHAIN = [{ m: 1, d: 0.42 }, { m: 1.1, d: 0.42 }, { m: 1.5, d: 0.55 }];
 const CLEAVE = { m: 1.5, d: 0.6, cd: 6 };
 
-interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number }
+interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number; burned?: boolean }
 interface Fight { name: string; foes: () => Foe[]; secs: number; ranged: boolean; dummy: boolean }
 
 /** Fights: a training dummy, four dummies, a strong elite toe to toe, and a pack of four. */
@@ -37,7 +37,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   const cds = [0, 0, 0, 0, 0];
   let holdUntil = 0, rushUntil = 0, critNext = false, boltMult = 1;
   /** Burning or arrow-struck ground: so much a second to everything caught, until then. */
-  const zones: { until: number; per: number; tick: number; chill?: boolean }[] = [];
+  const zones: { until: number; per: number; tick: number; chill?: boolean; fire?: boolean; mark?: boolean }[] = [];
+  let shieldKind = '', hotUntil = 0, star2 = -1;
   let evadeUntil = 0;
   let t = 0, hp = 1, busy = 0, chain = 0, cleaveCd = 0, dealt = 0;
   let resolve = 0, resolveAt = -99, fury = 0, kindling = 0, shield = 0, shieldUntil = 0, oathUntil = 0, oathTick = 0;
@@ -47,8 +48,9 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     let d = p * (crit ? CRIT_MULT : 1);
     if (redUntil > t) d *= TUNE.redhour.dealt;
     if (e.mark > t) d *= 1 + TUNE.volley.markBonus;
+    if (id === 'warden') d *= 1 + resolve * TUNE.resolve.dmg;
     e.hp -= d; dealt += d;
-    if (id === 'reaver') fury = Math.min(100, fury + TUNE.fury.perHit);
+    if (id === 'reaver') fury = Math.min(100, fury + TUNE.fury.perHit * (redUntil > t ? TUNE.fury.red : 1));
     return d;
   };
   const heal = (n: number) => { hp = Math.min(1, hp + n); };
@@ -68,11 +70,24 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (id === 'warden' && t - resolveAt > TUNE.resolve.fade) resolve = 0;
 
     // Effects over time
-    if (oathUntil > t && (oathTick -= DT) <= 0) { oathTick = 1; aoe(caught(), TUNE.oath.burn); }
+    if (oathUntil > t && (oathTick -= DT) <= 0) { oathTick = 1; aoe(caught(), TUNE.oath.burn); heal(TUNE.oath.heal); }
+    if (shield > 0 && shieldUntil <= t) { if (shieldKind === 'bulwark') heal(shield * TUNE.bulwark.mend); shield = 0; }
+    if (hotUntil > t) heal(TUNE.dressing.hot / 5 * DT);
+    if (star2 >= 0 && (star2 -= DT) < 0) { star2 = -1; aoe(caught(), TUNE.starfall.dmg * TUNE.starfall.twice); }
     if (wardUntil > t && (wardTick -= DT) <= 0) { wardTick = 1; heal(TUNE.ward.heal / TUNE.ward.secs); if (!ranged) aoe(caught(), TUNE.ward.burn); }
-    for (const e of L) if (e.bleed > 0) { e.bleed -= DT; hit(e, e.bleedPer * DT, false); heal(TUNE.bleed.heal * DT); }
-    if (pendingStar >= 0 && (pendingStar -= DT) < 0) { pendingStar = -1; aoe(caught(), TUNE.starfall.dmg); }
-    for (const z of zones) if (z.until > t && (z.tick -= DT) <= 0) { z.tick = 1; aoe(caught(), z.per); if (z.chill) live().slice(0, caught()).forEach(chill); }
+    for (const e of L) if (e.bleed > 0) {
+      e.bleed -= DT; hit(e, e.bleedPer * DT, false); heal(TUNE.bleed.heal * DT);
+      // Exsanguinate: the bleed finds the next
+      if (e.hp <= 0 && TUNE.bleed.spread > 0) { const n = live().find((o) => o.bleed <= 0); if (n) { n.bleed = e.bleed; n.bleedPer = e.bleedPer; } }
+    }
+    if (pendingStar >= 0 && (pendingStar -= DT) < 0) { pendingStar = -1; aoe(caught(), TUNE.starfall.dmg); if (TUNE.starfall.twice > 0) star2 = 0.7; }
+    for (const z of zones) if (z.until > t && (z.tick -= DT) <= 0) {
+      z.tick = 1; aoe(caught(), z.per);
+      if (z.chill) for (let k = 0; k < TUNE.blizzard.chills; k++) live().slice(0, caught()).forEach(chill);
+      if (z.mark) live().slice(0, caught()).forEach((e) => { e.mark = t + TUNE.volley.mark; });
+      // Hearth: only up close is the Kindler standing in its own fire
+      if (z.fire && !ranged) heal(TUNE.firewall.heal);
+    }
 
     // Incoming blows (rate = share of your health per second, landing every ~1.2 s)
     if (!f.dummy) for (const e of L) {
@@ -89,7 +104,15 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       }
       if (redUntil > t) d *= TUNE.redhour.taken;
       if (holdUntil > t) d *= TUNE.holdfast.taken;
-      if (shield > 0 && shieldUntil > t) { const s = Math.min(shield, d); shield -= s; d -= s; }
+      if (shield > 0 && shieldUntil > t) {
+        if (shieldKind === 'ice' && Math.random() < TUNE.icebarrier.bite) chill(e);
+        const s = Math.min(shield, d); shield -= s; d -= s;
+        if (shield <= 0) {
+          if (shieldKind === 'bulwark' && TUNE.bulwark.burst > 0) live().slice(0, caught()).forEach((o) => { hit(o, TUNE.bulwark.burst); o.stun = Math.max(o.stun, TUNE.bulwark.burstStun); });
+          if (shieldKind === 'ice' && TUNE.icebarrier.nova > 0 && !ranged) live().slice(0, caught()).forEach((o) => { hit(o, TUNE.frostnova.dmg); o.stun = Math.max(o.stun, TUNE.frostnova.freeze); });
+          shieldKind = '';
+        }
+      }
       hp -= d;
       if (hp <= 0) return { dealt, secs: t, hpLeft: 0, won: false };
     }
@@ -101,11 +124,11 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       const s = bar[i];
       const furyK = id === 'reaver' && fury >= 100 && s.id !== 'redhour' ? TUNE.fury.mult : 1;
       switch (s.id) {
-        case 'bulwark': if (f.dummy || hp > 0.85) return false; shield = TUNE.bulwark.shield; shieldUntil = t + TUNE.bulwark.secs; break;
-        case 'bash': if (ranged) return false; hit(tgt, TUNE.bash.dmg); tgt.stun = Math.max(tgt.stun, TUNE.bash.stun); break;
+        case 'bulwark': if (f.dummy || hp > 0.85) return false; shield = TUNE.bulwark.shield; shieldUntil = t + TUNE.bulwark.secs; shieldKind = 'bulwark'; break;
+        case 'bash': if (ranged) return false; (TUNE.bash.cleave > 0 ? live().slice(0, caught()) : [tgt]).forEach((o) => { hit(o, TUNE.bash.dmg); o.stun = Math.max(o.stun, TUNE.bash.stun); }); break;
         case 'oath': if (ranged) return false; oathUntil = t + TUNE.oath.secs; oathTick = 0; break;
-        case 'bleed': if (ranged) return false; hit(tgt, TUNE.bleed.dmg * furyK); heal(TUNE.bleed.heal); tgt.bleed = TUNE.bleed.secs; tgt.bleedPer = TUNE.bleed.dot * furyK; break;
-        case 'leap': aoe(caught(), TUNE.leap.dmg * furyK); break;
+        case 'bleed': if (ranged) return false; hit(tgt, TUNE.bleed.dmg * furyK); heal(TUNE.bleed.cutHeal); tgt.bleed = TUNE.bleed.secs; tgt.bleedPer = TUNE.bleed.dot * furyK; break;
+        case 'leap': aoe(caught(), TUNE.leap.dmg * furyK); if (TUNE.leap.stun) live().slice(0, caught()).forEach((o) => { o.stun = Math.max(o.stun, TUNE.leap.stun); }); break;
         case 'redhour': redUntil = t + TUNE.redhour.secs; break;
         case 'ward': if (!f.dummy && hp > 0.8) return false; wardUntil = t + TUNE.ward.secs; wardTick = 0; break;
         case 'bolt': {
@@ -114,22 +137,22 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
           break;
         }
         case 'starfall': pendingStar = TUNE.starfall.delay; break;
-        case 'dressing': if (f.dummy || hp > 0.65) return false; heal(TUNE.dressing.heal); break;
+        case 'dressing': if (f.dummy || hp > 0.65) return false; heal(TUNE.dressing.heal); if (TUNE.dressing.hot) hotUntil = t + 5; break;
         case 'volley': for (let k = 0; k < TUNE.volley.arrows; k++) hit(tgt, TUNE.volley.dmg); live().slice(0, caught()).forEach((e) => { e.mark = t + TUNE.volley.mark; }); break;
-        case 'shadowstep': if (ranged) return false; tgt.stun = Math.max(tgt.stun, TUNE.shadowstep.stun); stepUntil = t + TUNE.shadowstep.window; break;
+        case 'shadowstep': if (ranged) return false; tgt.stun = Math.max(tgt.stun, TUNE.shadowstep.stun); stepUntil = t + TUNE.shadowstep.window; if (TUNE.quickstep.evade) evadeUntil = t + TUNE.quickstep.evade; break;
         case 'holdfast': if (f.dummy || hp > 0.9) return false; holdUntil = t + TUNE.holdfast.secs; break;
-        case 'shieldthrow': hit(tgt, TUNE.shieldthrow.dmg); tgt.stun = Math.max(tgt.stun, TUNE.shieldthrow.stun); break;
+        case 'shieldthrow': live().slice(0, 1 + Math.min(TUNE.shieldthrow.bounce, caught() - 1)).forEach((o) => { hit(o, TUNE.shieldthrow.dmg); o.stun = Math.max(o.stun, TUNE.shieldthrow.stun); }); break;
         case 'rally': if (f.dummy || hp > 0.8) return false; heal(TUNE.rally.heal); resolve = TUNE.resolve.max; resolveAt = t; break;
         case 'rend': if (ranged) return false; aoe(caught(), TUNE.rend.dmg * furyK); zones.push({ until: t + TUNE.rend.secs, per: TUNE.rend.dot, tick: 1 }); break;
         case 'rush': rushUntil = t + TUNE.rush.secs; break;
         case 'hamstring': if (ranged) return false; hit(tgt, TUNE.hamstring.dmg * furyK); tgt.stun = Math.max(tgt.stun, TUNE.hamstring.stun); break;
-        case 'firewall': zones.push({ until: t + TUNE.firewall.secs, per: TUNE.firewall.burn, tick: 0.2 }); break;
-        case 'cinderstep': if (f.dummy) return false; zones.push({ until: t + TUNE.cinderstep.secs, per: TUNE.cinderstep.burn, tick: 0.2 }); break;
+        case 'firewall': zones.push({ until: t + TUNE.firewall.secs, per: TUNE.firewall.burn, tick: 0.2, fire: true }); break;
+        case 'cinderstep': if (f.dummy) return false; zones.push({ until: t + TUNE.cinderstep.secs, per: TUNE.cinderstep.burn, tick: 0.2, fire: true }); break;
         case 'kindle': kindling = Math.min(TUNE.bolt.every - 1, kindling + TUNE.kindle.stacks); boltMult = TUNE.kindle.mult; break;
         case 'snare': hit(tgt, TUNE.snare.dmg); tgt.stun = Math.max(tgt.stun, TUNE.snare.stun); break;
-        case 'rain': zones.push({ until: t + TUNE.rain.secs, per: TUNE.rain.dmg, tick: 0.2 }); break;
-        case 'quickstep': stepUntil = t + TUNE.quickstep.window; break;
-        case 'icebarrier': if (f.dummy || hp > 0.85) return false; shield = TUNE.icebarrier.shield; shieldUntil = t + TUNE.icebarrier.secs; break;
+        case 'rain': zones.push({ until: t + TUNE.rain.secs, per: TUNE.rain.dmg, tick: 0.2, mark: TUNE.rain.mark > 0 }); break;
+        case 'quickstep': stepUntil = t + TUNE.quickstep.window; if (TUNE.quickstep.evade && !f.dummy) evadeUntil = t + TUNE.quickstep.evade; break;
+        case 'icebarrier': if (f.dummy || hp > 0.85) return false; shield = TUNE.icebarrier.shield; shieldUntil = t + TUNE.icebarrier.secs; shieldKind = 'ice'; break;
         case 'frostbolt': hit(tgt, TUNE.frostbolt.dmg); chill(tgt); break;
         case 'blizzard': zones.push({ until: t + TUNE.blizzard.secs, per: TUNE.blizzard.dmg, tick: 0.2, chill: true }); break;
         // Blink: a moment untouchable, and they have to come to you again
@@ -138,7 +161,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'frostnova': if (ranged) return false; aoe(caught(), TUNE.frostnova.dmg); live().slice(0, caught()).forEach((e) => { e.stun = Math.max(e.stun, TUNE.frostnova.freeze); }); break;
       }
       if (furyK > 1) fury = 0;
-      cds[i] = s.cd;
+      cds[i] = s.cd * (TUNE.cd[s.id] ?? 1);
       busy = TUNE.skillLock;
       return true;
     };
@@ -200,19 +223,20 @@ for (const c of CALLINGS) {
 }
 console.log(bad ? `${bad} balance problem(s)` : 'Balanced: every calling within 7% overall');
 
-// Talent trees: each calling with each of its trees learned in full (capstone too), scored against
-// the twelve builds' average the same way. Every tree has to stay within 7% of it, and no tree may be
+// Talent trees: each calling with each of its trees learned in full (every rank, capstone too) and
+// the two utilities the tree wants, scored against the fifteen builds' average the same way. Every tree has to stay within 7% of it, and no tree may be
 // best at everything.
 const builds: { calling: CallingId; tree: string; cells: number[] }[] = [];
 for (const c of CALLINGS) for (const tree of TREES[c.id]) {
-  const T = tuned(tree.talents.map((t) => t.id));
+  const T = tuned(fullTree(tree));
+  const treeBar = barOf(c.id, tree.bar);
   const cells = FIGHTS.map((f) => {
     const modes = rangedCallings.has(c.id) && !f.dummy ? [false, true] : [false];
     let best = -Infinity;
     for (const ranged of modes) {
       let score = 0;
       for (let r = 0; r < RUNS; r++) {
-        const res = run(c.id, f, ranged, T);
+        const res = run(c.id, f, ranged, T, treeBar);
         if (f.dummy) score += res.dealt / res.secs;
         else score += res.won ? res.hpLeft : -(f.foes().reduce((sum, e) => sum + e.hp, 0) - res.dealt) / f.foes().reduce((sum, e) => sum + e.hp, 0);
       }

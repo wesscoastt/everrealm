@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { canLearn, pointsAt, spent, TALENTS, TREES } from '../data/talents';
+import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
 import type { Equip } from '../data/items';
 import { BRIGHTCUT, REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
@@ -1757,7 +1757,8 @@ export class Game implements GameApi {
       points: pointsAt(lvl) - spent(have), total: pointsAt(lvl),
       trees: TREES[this.calling].map((t) => ({
         name: t.name, desc: t.desc,
-        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, cost: d.cost, capstone: !!d.capstone, learned: have.includes(d.id), why: have.includes(d.id) ? null : canLearn(d.id, have, this.calling, lvl) })),
+        spent: spent(have, t.id), gate: TIER_GATE, bar: t.bar.map((u) => this.kit.calling.utilities.find((s) => s.id === u)?.name ?? u),
+        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, tier: d.tier, ranks: d.ranks, rank: rankOf(d.id, have), capstone: !!d.capstone, why: canLearn(d.id, have, this.calling, lvl) })),
       })),
     };
   }
@@ -3584,6 +3585,11 @@ export class Game implements GameApi {
     this.festivals.update(dt, P);
     this.seasons.update(dt, P);
     if (this.flag('apprentice') !== this.appliedApprentice) this.applyCalling();
+    if (this.flag('talentsRedrawn')) {
+      this.setFlag('talentsRedrawn', 0);
+      this.hud.banner('Talents redrawn', 'Your points are back to spend', true);
+      this.hud.system('The talent trees have been redrawn: six tiers each, with ranks, and a capstone that changes how your calling plays. Your old picks are gone and every point is back. Spend them in the journal, under Calling.');
+    }
     this.home.update();
     // A let room's furniture goes when the rent runs out, and comes back when it's paid
     const paid = !!readTenancy(this.flag('flat')) && (readTenancy(this.flag('flat'))!.until > Date.now());

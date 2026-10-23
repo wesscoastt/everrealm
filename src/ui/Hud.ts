@@ -182,7 +182,7 @@ export interface UiCtx {
   standing(): { id: string; name: string; points: number; rank: string; off: number; from: number; next: { name: string; at: number; off: number } | null }[];
   calling(): CallingId;
   /** The calling's talent trees: points to spend, and each talent's state (why it can't be learned yet, if not). */
-  talents(): { points: number; total: number; trees: { name: string; desc: string; talents: { id: string; name: string; desc: string; cost: number; capstone: boolean; learned: boolean; why: string | null }[] }[] };
+  talents(): { points: number; total: number; trees: { name: string; desc: string; spent: number; gate: number; bar: string[]; talents: { id: string; name: string; desc: string; tier: number; ranks: number; rank: number; capstone: boolean; why: string | null }[] }[] };
   learnTalent(id: string): string | null;
   resetTalents(): string | null;
   /** The bar: the two utilities chosen, the three to choose from, the signature, heal and elite, and the weapon skill. */
@@ -298,6 +298,8 @@ export class Hud {
   private portrait!: HTMLCanvasElement;
   open = new Set<PanelId>();
   private selQuest = '';
+  /** The talent tree open on the Calling page (by index), or -1 for the one with the most points in it. */
+  private talTree = -1;
   private openSkill: SkillId | null = null;
   private shopTab: 'buy' | 'sell' = 'buy';
   /** The Exchange panel: which page, what's typed in the search, the stack being priced. */
@@ -1537,7 +1539,10 @@ export class Hud {
       for (const y of fv.year) page.append(el('div', 'feat' + (y.on ? ' done' : ''), `<div class="ft"><b>${esc(y.name)}</b><span>${y.on ? 'On now' : esc(y.when)}</span></div>`));
     } else if (this.selQuest === 'calling') {
       const tv = this.ctx.talents();
-      const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><h5>${esc(t.name)}<small>${esc(t.desc)}</small></h5>${t.talents.map((d) => `<button class="tal${d.learned ? ' got' : d.why ? ' no' : ' can'}${d.capstone ? ' cap' : ''}" data-tal="${d.id}" title="${esc(d.why ?? (d.learned ? 'Learned' : 'Click to learn'))}"><b>${esc(d.name)}</b><span>${esc(d.desc)}</span><i>${d.learned ? 'Learned' : d.cost + (d.cost === 1 ? ' point' : ' points')}${d.capstone ? ' · capstone' : ''}</i></button>`).join('')}</div>`;
+      const tal = (d: (typeof tv.trees)[number]['talents'][number]) => { const full = d.rank >= d.ranks; return `<button class="tal${full ? ' got' : d.rank ? ' part' : ''}${!full && !d.why ? ' can' : ''}${!full && d.why ? ' no' : ''}${d.capstone ? ' cap' : ''}" data-tal="${d.id}" title="${esc(full ? 'Every rank learned' : d.why ?? 'Click to learn a rank')}"><b>${esc(d.name)}</b><span>${d.ranks > 1 ? 'Each rank: ' : ''}${esc(d.desc)}</span><i>${d.capstone ? (full ? 'Capstone · learned' : 'Capstone') : `Rank ${d.rank} of ${d.ranks}`}</i></button>`; };
+      if (this.talTree < 0 || this.talTree >= tv.trees.length) this.talTree = tv.trees.reduce((b, t, i) => (t.spent > tv.trees[b].spent ? i : b), 0);
+      const tabs = `<div class="ttabs">${tv.trees.map((t, i) => `<button class="ttab${i === this.talTree ? ' on' : ''}" data-ttab="${i}">${esc(t.name)}<em>${t.spent}</em></button>`).join('')}</div>`;
+      const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><div class="tdesc">${esc(t.desc)} <b>Wants ${t.bar.map(esc).join(' and ')} on the bar.</b></div>${[0, 1, 2, 3, 4, 5].map((k) => `<div class="ttier${t.spent < k * t.gate ? ' shut' : ''}"><u>${k ? `Tier ${k + 1} · opens at ${k * t.gate} points in ${esc(t.name)}` : 'Tier 1'}</u><div class="trow">${t.talents.filter((d) => d.tier === k).map(tal).join('')}</div></div>`).join('')}</div>`;
       const bv = this.ctx.bar();
       const sk = (s: SkillDef, key: string, extra = '') => `<button class="bsk${extra}" data-u="${s.id}" title="${esc(s.desc)}"><img src="${abilityIcon(s.icon)}" alt=""><span><b>${key ? key + ' · ' : ''}${esc(s.name)}${s.aim ? ' <i>aimed</i>' : ''}</b><small>${esc(s.desc)} ${s.cd >= 2 ? `(${s.cd} s)` : ''}</small></span></button>`;
       page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility to put it on the bar, out of a fight.</div>
@@ -1547,8 +1552,8 @@ export class Hud {
           : `<div class="callings">${CALLINGS.filter((c) => c.id === this.ctx.calling()).map((c) => callingCard(c, true)).join('')}</div>`}
         <div class="feat-sum">${((ap) => ap ? `<b>Apprenticed to ${esc(ap.master)}</b> (${esc(ap.name)}): one of their skills, marked above, can take your second utility key.` : `<b>Apprenticeship.</b> Your calling is for life, but from level 25 a master of another calling will teach you their skills, for 500 marks: one can take your second utility key. Hugh Caddick at the Waystation toll (Warden), Bet Hollis in the Harrowgate slag yard (Reaver), Tobias Fenwick at the Glass Kirk (Kindler), Ned Thackery at Fellers' Camp (Pathfinder), Rosalind Eyre at Kelderby (Wizard).`)(this.ctx.apprentice())}</div><div class="calling-msg"></div>
         <h4 class="tal-h">Talents <span>${tv.points} of ${tv.total} points to spend</span><button class="btn ghost tal-reset">Unlearn all</button></h4>
-        <div class="feat-sum">A point a level from level 3. Talents go in order down each tree, and you can hold one capstone. Unlearning costs nothing, out of a fight.</div>
-        <div class="ttrees">${tv.trees.map(tree).join('')}</div>`;
+        <div class="feat-sum">Three points for every five levels, from level 3: fifty-nine by level 100, and a full tree takes twenty-nine, so by the end you have one tree and most of a second. Each point buys a rank. A tier opens once five points are in that tree for every tier above it, and you can hold only one capstone. Unlearning costs nothing, out of a fight.</div>
+        ${tabs}<div class="tal-msg"></div>${tree(tv.trees[this.talTree])}`;
       page.querySelectorAll<HTMLElement>('.bsk.on, .bsk.off').forEach((b) => b.addEventListener('click', () => {
         // Swap a utility in: it takes the place of the one chosen longest ago that isn't it
         const id = b.dataset.u!, cur = bv.chosen;
@@ -1557,9 +1562,12 @@ export class Hud {
         this.ctx.sfx('click');
         if (why) page.querySelector('.bar-msg')!.textContent = why; else this.renderJournal();
       }));
+      // Learning keeps your place on the page
+      const again = () => { const sc = page.scrollTop; this.renderJournal(); const pg = this.q('#journal-panel .jbody'); if (pg) pg.scrollTop = sc; };
+      page.querySelectorAll<HTMLElement>('[data-ttab]').forEach((b) => b.addEventListener('click', () => { this.talTree = Number(b.dataset.ttab); this.ctx.sfx('click'); again(); }));
       page.querySelectorAll<HTMLElement>('[data-tal]').forEach((b) => b.addEventListener('click', () => {
         const why = this.ctx.learnTalent(b.dataset.tal!);
-        if (why) page.querySelector('.calling-msg')!.textContent = why; else this.renderJournal();
+        if (why) page.querySelector('.tal-msg')!.textContent = why; else again();
       }));
       page.querySelector('.tal-reset')?.addEventListener('click', () => { const why = this.ctx.resetTalents(); if (why) page.querySelector('.calling-msg')!.textContent = why; else this.renderJournal(); });
       page.querySelectorAll<HTMLElement>('[data-calling]').forEach((b) => b.addEventListener('click', () => {

@@ -852,19 +852,32 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .tal-h { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .tal-h span { font: 500 13px var(--body); color: var(--muted); }
 .tal-h .tal-reset { margin-left: auto; padding: 3px 10px; font-size: 12px; }
-.ttrees { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.ttree h5 { margin: 0 0 6px; font: 600 14px var(--px); color: var(--cream); display: flex; flex-direction: column; }
-.ttree h5 small { font: 500 11px var(--body); color: var(--muted); }
-.ttree .tal { display: block; width: 100%; text-align: left; margin-bottom: 5px; padding: 6px 7px; background: rgba(0,0,0,0.3); border: 1px solid var(--ink); border-radius: 5px; color: var(--cream); cursor: pointer; }
-.ttree .tal b { display: block; font: 600 12px var(--px); }
-.ttree .tal span { display: block; font: 500 11px var(--body); color: var(--muted); margin: 2px 0; }
-.ttree .tal i { font: 600 10px var(--px); color: var(--cream-d); font-style: normal; text-transform: uppercase; letter-spacing: 0.5px; }
-.ttree .tal.can { box-shadow: inset 0 0 0 1px var(--gold); }
-.ttree .tal.can:hover { background: rgba(232, 192, 96, 0.12); }
-.ttree .tal.got { background: rgba(127, 191, 77, 0.16); box-shadow: inset 0 0 0 1px rgba(127, 191, 77, 0.6); cursor: default; }
-.ttree .tal.no { opacity: 0.55; cursor: default; }
-.ttree .tal.cap b { color: #f3d58a; }
-@media (max-width: 640px) { .ttrees { grid-template-columns: 1fr; } }
+/* Talent trees (on the parchment page): one tree at a time, by tab; tiers of two ranked talents, the capstone across */
+.ttabs { display: flex; gap: 4px; margin: 6px 0 4px; }
+.ttab { flex: 1; padding: 6px 8px; background: rgba(255, 250, 235, 0.45); border: 1px solid #a8946a; border-radius: 4px 4px 0 0; color: #5a4a34; font: 700 13px var(--body); cursor: pointer; display: flex; justify-content: space-between; }
+.ttab em { font-style: normal; color: #9a6a1a; }
+.ttab.on { background: rgba(255, 236, 190, 0.85); color: #2a2016; border-bottom-color: transparent; box-shadow: inset 0 2px 0 #b8862a; }
+.tal-msg { color: #8a2a1a; font: 600 12px var(--body); min-height: 2px; }
+.ttree .tdesc { font: 500 12px var(--body); color: #5a4a34; margin-bottom: 6px; line-height: 1.4; }
+.ttree .tdesc b { color: #2a2016; }
+.ttree .ttier { border-top: 1px solid rgba(90, 70, 40, 0.25); padding: 5px 0 6px; }
+.ttree .ttier u { display: block; text-decoration: none; font: 700 10px var(--body); color: #7a6a4a; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+.ttree .ttier.shut u { color: #a0503a; }
+.ttree .ttier.shut .tal { opacity: 0.5; }
+.ttree .trow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ttree .tal { display: block; width: 100%; text-align: left; padding: 6px 8px; background: rgba(255, 250, 235, 0.55); border: 1px solid #a8946a; border-radius: 4px; color: #2a2016; cursor: default; }
+.ttree .tal b { display: block; font: 700 13px var(--body); color: #2a2016; }
+.ttree .tal span { display: block; font: 500 12px var(--body); color: #5a4a34; margin: 2px 0 3px; line-height: 1.35; }
+.ttree .tal i { font: 700 10px var(--body); color: #7a6a4a; font-style: normal; text-transform: uppercase; letter-spacing: 0.5px; }
+.ttree .tal.can { cursor: pointer; border-color: #9a6a1a; box-shadow: inset 0 0 0 1px rgba(200, 140, 40, 0.6); }
+.ttree .tal.can:hover { background: rgba(255, 236, 190, 0.85); }
+.ttree .tal.part { background: rgba(232, 214, 160, 0.7); }
+.ttree .tal.part i { color: #9a6a1a; }
+.ttree .tal.got { background: rgba(196, 220, 160, 0.6); border-color: #5a8a3a; }
+.ttree .tal.got i { color: #3a6a2a; }
+.ttree .tal.cap { grid-column: 1 / -1; border-width: 2px; }
+.ttree .tal.cap b { color: #7a4a0a; }
+@media (max-width: 640px) { .ttree .trow { grid-template-columns: 1fr; } }
 
 /* The Group Finder */
 #finder-panel { left: 50%; top: 92px; transform: translateX(-50%); width: 560px; }

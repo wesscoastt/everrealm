@@ -47,11 +47,11 @@ export interface KitHost {
   clear(at: THREE.Vector3): boolean;
 }
 
-interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean }
+interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean; bounce?: number }
 interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
 /** Ground that hurts for a while (a ring of fire, a rain of arrows, cinders), or a snare waiting for a foot. */
-interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number }; chill?: boolean }
+interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number }; chill?: boolean; fire?: boolean; mark?: boolean }
 interface Cut { e: Enemy; t: number; dmg: number }
 
 const RING_GEO = new THREE.RingGeometry(0.85, 1, 40).rotateX(-Math.PI / 2);
@@ -77,6 +77,10 @@ export class ClassKit {
   private evadeUntil = 0;
   // Effects
   private shield = 0; private shieldUntil = 0;
+  /** Whose the shield is: a Bulwark and an Ice Barrier each do something of their own when it breaks or runs out (talents). */
+  private shieldKind: 'bulwark' | 'ice' | 'other' = 'other';
+  /** Survivor: healing still to come from a Field Dressing, a share of health a second, until then. */
+  private hot = 0; private hotUntil = 0; private hotTick = 0;
   private oathUntil = 0; private oathTick = 0;
   private redUntil = 0;
   private wardUntil = 0; private wardTick = 0;
@@ -107,7 +111,8 @@ export class ClassKit {
     // Nothing carries over from the old calling
     this.fury = this.kindling = this.resolve = this.shield = 0;
     this.shieldUntil = this.oathUntil = this.redUntil = this.wardUntil = this.stepStrike = 0;
-    this.holdUntil = this.rushUntil = this.riposteUntil = 0;
+    this.holdUntil = this.rushUntil = this.riposteUntil = this.hotUntil = 0;
+    this.shieldKind = 'other';
     this.boltMult = 1;
     this.dots = [];
     this.marks.clear();
@@ -140,12 +145,13 @@ export class ClassKit {
     let k = 1;
     if (this.redUntil > this.clock) k *= T.redhour.dealt;
     if ((this.marks.get(e) ?? 0) > this.clock) k *= 1 + T.volley.markBonus;
+    if (this.calling.id === 'warden') k *= 1 + this.resolve * T.resolve.dmg;
     return dmg * k;
   }
 
   /** A blow of the player's landed (any source): mechanics that feed on hits. */
   landed(): void {
-    if (this.calling.id === 'reaver') this.fury = Math.min(100, this.fury + T.fury.perHit);
+    if (this.calling.id === 'reaver') this.fury = Math.min(100, this.fury + T.fury.perHit * (this.redUntil > this.clock ? T.fury.red : 1));
   }
 
   /** Damage about to be taken: a Riposte turns it aside; Resolve, the Oath, Hold Fast, the Red Hour; then the shield soaks what it can. */
@@ -170,13 +176,42 @@ export class ClassKit {
     }
     if (this.redUntil > this.clock) d *= T.redhour.taken;
     if (this.shield > 0 && this.shieldUntil > this.clock) {
+      // Frostbite: the ice bites back
+      if (this.shieldKind === 'ice' && from && Math.random() < T.icebarrier.bite) this.addChill(from);
       const soak = Math.min(this.shield, d);
       this.shield -= soak;
       d -= soak;
       this.host.particles.sparks(this.host.player().clone().setY(this.host.player().y + 1.2), 6, '#bfe4ff');
+      if (this.shield <= 0) this.shieldBroken();
     }
     return d;
   }
+
+  /** A shield broken by a blow: Unbroken's burst, or Shatter Shell's nova. */
+  private shieldBroken(): void {
+    const H = this.host, P = H.player();
+    if (this.shieldKind === 'bulwark' && T.bulwark.burst > 0) {
+      this.ring(P, 4, '#cfe6ff', 0.5);
+      H.particles.burst(P.clone().setY(P.y + 1), '#cfe6ff', 30); H.sfx('hitHeavy');
+      for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < 4) { H.hit(e, H.power() * T.bulwark.burst); e.stun = Math.max(e.stun, T.bulwark.burstStun); }
+    }
+    if (this.shieldKind === 'ice' && T.icebarrier.nova > 0) this.nova(P, H.power());
+    this.shieldKind = 'other';
+  }
+
+  /** Frost Nova: cold bursting out of you. Whether anything was caught. */
+  private nova(P: THREE.Vector3, pw: number): boolean {
+    const H = this.host;
+    H.anim('cleave'); H.sfx('hitHeavy');
+    this.ring(P, T.frostnova.r, '#bfe4ff', 0.6);
+    H.particles.burst(P.clone().setY(P.y + 0.6), '#dff6ff', 40);
+    let any = false;
+    for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.frostnova.r) { H.hit(e, pw * T.frostnova.dmg); e.stun = Math.max(e.stun, T.frostnova.freeze); any = true; }
+    return any;
+  }
+
+  /** A skill's cooldown, with its talents. */
+  private cdOf(s: SkillDef, i: number): number { return (i === 0 ? s.cd * this.host.sustainScale() : s.cd) * (T.cd[s.id] ?? 1); }
 
   /** Hold Fast: nothing knocks you back. */
   steady(): boolean { return this.holdUntil > this.clock; }
@@ -186,7 +221,7 @@ export class ClassKit {
   /** A wound from outside the calling (a named piece's): it ticks with the calling's own. */
   addDot(e: Enemy, perSec: number, secs: number): void { this.dots.push({ e, perSec, left: secs, tick: 1 }); }
   /** A ward from outside the calling (a named piece's): it takes blows until it's spent or runs out. */
-  addShield(amount: number, secs: number): void { this.shield = Math.max(this.shield, amount); this.shieldUntil = Math.max(this.shieldUntil, this.clock + secs); }
+  addShield(amount: number, secs: number): void { this.shield = Math.max(this.shield, amount); this.shieldUntil = Math.max(this.shieldUntil, this.clock + secs); this.shieldKind = 'other'; }
 
   /** A Strike is about to land: Shadowstep's heavy blow. */
   strikeBonus(): { mult: number; crit: boolean } {
@@ -218,7 +253,7 @@ export class ClassKit {
   setTalents(learned: string[]): void { T = tuned(learned); }
 
   slots(): { left: number; total: number }[] {
-    return this.bar.map((s, i) => ({ left: this.cds[i], total: i === 0 ? s.cd * this.host.sustainScale() : s.cd }));
+    return this.bar.map((s, i) => ({ left: this.cds[i], total: this.cdOf(s, i) }));
   }
 
   weaponSlot(): { left: number; total: number } { return { left: this.wcd, total: this.weaponSkill.cd }; }
@@ -245,7 +280,7 @@ export class ClassKit {
     const ok = this.cast(s.id, P, pw);
     if (!ok) return false;
     if (fury > 1) { this.fury = 0; this.host.particles.burst(P.clone().setY(P.y + 1), '#ff5a3a', 20); }
-    this.cds[i] = i === 0 ? s.cd * this.host.sustainScale() : s.cd;
+    this.cds[i] = this.cdOf(s, i);
     if (i > 0) this.host.inCombat();
     return true;
   }
@@ -255,7 +290,7 @@ export class ClassKit {
     switch (id) {
       // Warden
       case 'bulwark':
-        this.shield = H.maxHp() * T.bulwark.shield; this.shieldUntil = this.clock + T.bulwark.secs;
+        this.shield = H.maxHp() * T.bulwark.shield; this.shieldUntil = this.clock + T.bulwark.secs; this.shieldKind = 'bulwark';
         H.anim('heal'); H.sfx('bell');
         return true;
       case 'bash': {
@@ -264,6 +299,8 @@ export class ClassKit {
         H.anim('attack'); H.sfx('hitHeavy');
         H.hit(e, pw * T.bash.dmg);
         e.stun = Math.max(e.stun, T.bash.stun);
+        // Toll Due: everything close to the target takes it too
+        if (T.bash.cleave > 0) for (const o of H.enemies()) if (o !== e && o.alive && o.pos.distanceTo(e.pos) < T.bash.cleave) { H.hit(o, pw * T.bash.dmg); o.stun = Math.max(o.stun, T.bash.stun); }
         H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 14, '#cfe6ff');
         return true;
       }
@@ -280,7 +317,7 @@ export class ClassKit {
         H.hit(e, pw * T.bleed.dmg);
         this.dots = this.dots.filter((d) => d.e !== e);
         this.dots.push({ e, perSec: pw * T.bleed.dot, left: T.bleed.secs, tick: 1 });
-        H.heal(H.maxHp() * T.bleed.heal);
+        H.heal(H.maxHp() * T.bleed.cutHeal);
         return true;
       }
       case 'leap': {
@@ -288,7 +325,7 @@ export class ClassKit {
         if (at.distanceTo(P) < 1.5 || Math.abs(at.y - P.y) > 4 || !H.clear(at)) return false;
         H.moveTo(at.x, at.z, 0.32, at.y);
         H.anim('cleave'); H.sfx('swing');
-        this.pending.push({ at: at.clone(), t: 0.32, ring: this.ring(at, T.leap.r, '#e0583a', 0.32), r: T.leap.r, dmg: pw * T.leap.dmg });
+        this.pending.push({ at: at.clone(), t: 0.32, ring: this.ring(at, T.leap.r, '#e0583a', 0.32), r: T.leap.r, dmg: pw * T.leap.dmg, stun: T.leap.stun || undefined });
         return true;
       }
       case 'redhour':
@@ -320,11 +357,13 @@ export class ClassKit {
         const at = H.aim(T.starfall.range);
         H.anim('heal'); H.sfx('bell');
         this.pending.push({ at, t: T.starfall.delay, ring: this.ring(at, T.starfall.r, '#ffd27a', T.starfall.delay), r: T.starfall.r, dmg: pw * T.starfall.dmg });
+        // Two Stars: another behind it
+        if (T.starfall.twice > 0) this.pending.push({ at: at.clone(), t: T.starfall.delay + 0.7, ring: this.ring(at, T.starfall.r, '#ffe8b0', T.starfall.delay + 0.7), r: T.starfall.r, dmg: pw * T.starfall.dmg * T.starfall.twice });
         return true;
       }
       // Wizard
       case 'icebarrier':
-        this.shield = H.maxHp() * T.icebarrier.shield; this.shieldUntil = this.clock + T.icebarrier.secs;
+        this.shield = H.maxHp() * T.icebarrier.shield; this.shieldUntil = this.clock + T.icebarrier.secs; this.shieldKind = 'ice';
         H.anim('heal'); H.sfx('bell');
         H.particles.burst(P.clone().setY(P.y + 1), '#cfefff', 18);
         return true;
@@ -355,17 +394,12 @@ export class ClassKit {
         H.particles.burst(at.clone().setY(at.y + 1), '#b8a8ff', 20);
         return true;
       }
-      case 'frostnova': {
-        H.anim('cleave'); H.sfx('hitHeavy');
-        this.ring(P, T.frostnova.r, '#bfe4ff', 0.6);
-        H.particles.burst(P.clone().setY(P.y + 0.6), '#dff6ff', 40);
-        let any = false;
-        for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.frostnova.r) { H.hit(e, pw * T.frostnova.dmg); e.stun = Math.max(e.stun, T.frostnova.freeze); any = true; }
-        return any || !!H.faceTarget(T.frostnova.r);
-      }
+      case 'frostnova':
+        return this.nova(P, pw) || !!H.faceTarget(T.frostnova.r);
       // Pathfinder
       case 'dressing':
         H.heal(H.maxHp() * T.dressing.heal); H.anim('heal'); H.sfx('heal'); H.particles.heal(P);
+        if (T.dressing.hot > 0) { this.hot = T.dressing.hot / 5; this.hotUntil = this.clock + 5; this.hotTick = 1; }
         return true;
       case 'volley': {
         const e = H.faceTarget(T.volley.range);
@@ -390,6 +424,7 @@ export class ClassKit {
         H.moveTo(e.pos.x - back.x * 1.6, e.pos.z - back.z * 1.6, 0.08, e.pos.y);
         e.stun = Math.max(e.stun, T.shadowstep.stun);
         this.stepStrike = this.clock + T.shadowstep.window;
+        if (T.quickstep.evade > 0) this.evadeUntil = this.clock + T.quickstep.evade;
         return true;
       }
       // Warden utilities
@@ -405,7 +440,7 @@ export class ClassKit {
         const m = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.08, 10).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#8aa0c0' }));
         m.position.copy(P).setY(P.y + 1.3);
         H.scene.add(m);
-        this.flying.push({ mesh: m, to: e, speed: 24, dmg: pw * T.shieldthrow.dmg, stun: T.shieldthrow.stun });
+        this.flying.push({ mesh: m, to: e, speed: 24, dmg: pw * T.shieldthrow.dmg, stun: T.shieldthrow.stun, bounce: T.shieldthrow.bounce });
         return true;
       }
       case 'rally':
@@ -448,6 +483,7 @@ export class ClassKit {
         const at = H.aim(T.firewall.range);
         H.anim('heal'); H.sfx('bell');
         this.zone(at, T.firewall.r, T.firewall.secs, pw * T.firewall.burn, '#ff7a30');
+        this.zones[this.zones.length - 1].fire = true;
         return true;
       }
       case 'cinderstep': {
@@ -455,6 +491,7 @@ export class ClassKit {
         const from = P.clone();
         if (!H.dash(back, T.cinderstep.dist)) return false;
         this.zone(from, T.cinderstep.r, T.cinderstep.secs, pw * T.cinderstep.burn, '#ff9a40');
+        this.zones[this.zones.length - 1].fire = true;
         H.particles.fire(from.clone().setY(from.y + 0.3));
         return true;
       }
@@ -474,12 +511,14 @@ export class ClassKit {
         const at = H.aim(T.rain.range);
         H.anim('attack'); H.sfx('swing');
         this.zone(at, T.rain.r, T.rain.secs, pw * T.rain.dmg, '#e8dcc0');
+        this.zones[this.zones.length - 1].mark = T.rain.mark > 0;
         return true;
       }
       case 'quickstep': {
         const back = new THREE.Vector3(-Math.sin(H.yaw()), 0, -Math.cos(H.yaw()));
         if (!H.dash(back, T.quickstep.dist)) return false;
         this.stepStrike = this.clock + T.quickstep.window;
+        if (T.quickstep.evade > 0) this.evadeUntil = this.clock + T.quickstep.evade;
         H.particles.dust(P, 8);
         return true;
       }
@@ -560,7 +599,13 @@ export class ClassKit {
       }
       if ((z.tick -= dt) > 0) continue;
       z.tick = 1;
-      for (const e of H.enemies()) if (e.alive && Math.hypot(e.pos.x - z.at.x, e.pos.z - z.at.z) < z.r && Math.abs(e.pos.y - z.at.y) < 3) { H.hit(e, z.dmg, { quiet: true }); if (z.chill) this.addChill(e); }
+      for (const e of H.enemies()) if (e.alive && Math.hypot(e.pos.x - z.at.x, e.pos.z - z.at.z) < z.r && Math.abs(e.pos.y - z.at.y) < 3) {
+        H.hit(e, z.dmg, { quiet: true });
+        if (z.chill) for (let k = 0; k < T.blizzard.chills; k++) this.addChill(e);
+        if (z.mark) this.marks.set(e, this.clock + T.volley.mark);
+      }
+      // Hearth: your own fire mends you while you stand in it
+      if (z.fire && T.firewall.heal > 0 && Math.hypot(P.x - z.at.x, P.z - z.at.z) < z.r) H.heal(H.maxHp() * T.firewall.heal);
       if (z.chill) for (let k = 0; k < 3; k++) H.particles.dust(z.at.clone().add(new THREE.Vector3((Math.random() - 0.5) * z.r * 1.6, 4, (Math.random() - 0.5) * z.r * 1.6)), 6);
       else H.particles.sparks(z.at.clone().setY(z.at.y + 0.4), 6, '#ffb060');
     }
@@ -569,6 +614,13 @@ export class ClassKit {
     for (const [e, until] of this.marks) if (until <= this.clock || !e.alive) this.marks.delete(e);
     for (const [e, c] of this.chill) if (c.until <= this.clock || !e.alive) this.chill.delete(e);
     if (this.calling.id === 'warden' && this.resolve > 0 && this.clock - this.resolveAt > T.resolve.fade) this.resolve = 0;
+    // A Bulwark running out: Mending Ward gives back some of what was left
+    if (this.shield > 0 && this.shieldUntil <= this.clock) {
+      if (this.shieldKind === 'bulwark' && T.bulwark.mend > 0) H.heal(this.shield * T.bulwark.mend);
+      this.shield = 0; this.shieldKind = 'other';
+    }
+    // Survivor: the rest of a Field Dressing
+    if (this.hotUntil > this.clock && (this.hotTick -= dt) <= 0) { this.hotTick = 1; H.heal(H.maxHp() * this.hot); }
     // Shield bubble
     const shielded = this.shield > 0 && this.shieldUntil > this.clock;
     this.shieldMesh.visible = shielded || this.oathUntil > this.clock;
@@ -577,6 +629,7 @@ export class ClassKit {
     if (this.oathUntil > this.clock && (this.oathTick -= dt) <= 0) {
       this.oathTick = 1;
       for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.oath.r) H.hit(e, H.power() * T.oath.burn, { quiet: true });
+      if (T.oath.heal > 0) H.heal(H.maxHp() * T.oath.heal);
     }
     // Cinder Ward: healing and a burning circle
     if (this.wardUntil > this.clock && (this.wardTick -= dt) <= 0) {
@@ -589,6 +642,13 @@ export class ClassKit {
     for (const d of this.dots) {
       d.left -= dt; d.tick -= dt;
       if (d.tick <= 0 && d.e.alive) { d.tick = 1; H.hit(d.e, d.perSec, { quiet: true }); H.heal(H.maxHp() * T.bleed.heal); H.particles.sparks(d.e.pos.clone().setY(d.e.pos.y + 0.6), 4, '#a01a1a'); }
+    }
+    // Exsanguinate: a bleed outlives what it was in, and finds the next
+    if (T.bleed.spread > 0) for (const d of this.dots) {
+      if (d.e.alive || d.left <= 0) continue;
+      let near: Enemy | null = null, best = T.bleed.spread;
+      for (const o of H.enemies()) { const k = o.pos.distanceTo(d.e.pos); if (o.alive && k < best && !this.dots.some((x) => x.e === o)) { near = o; best = k; } }
+      if (near) { H.particles.sparks(near.pos.clone().setY(near.pos.y + 0.8), 10, '#a01a1a'); this.dots.push({ e: near, perSec: d.perSec, left: d.left, tick: 1 }); }
     }
     this.dots = this.dots.filter((d) => d.left > 0 && d.e.alive);
     // Bolts and arrows (an arrow's burst field holds its launch delay)
@@ -606,6 +666,16 @@ export class ClassKit {
           if (f.lance) H.particles.burst(to, '#dff6ff', frozen ? 24 : 10);
           if (f.chill) this.addChill(f.to);
           if (f.stun) f.to.stun = Math.max(f.to.stun, f.stun);
+          // Toll Due: the shield springs on to the next foe
+          if (f.bounce) {
+            let next: Enemy | null = null, best = 8;
+            for (const o of H.enemies()) { const k = o.pos.distanceTo(f.to.pos); if (o !== f.to && o.alive && k < best) { next = o; best = k; } }
+            if (next) {
+              const m = (f.mesh as THREE.Mesh).clone();
+              m.position.copy(to); H.scene.add(m);
+              this.flying.push({ mesh: m, to: next, speed: f.speed, dmg: f.dmg, stun: f.stun, bounce: f.bounce - 1 });
+            }
+          }
           if (f.burst) {
             H.particles.burst(to, '#ffb040', 26);
             for (const e of H.enemies()) if (e !== f.to && e.alive && e.pos.distanceTo(f.to.pos) < T.bolt.r) H.hit(e, f.burst);

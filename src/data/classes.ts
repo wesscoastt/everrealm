@@ -6,8 +6,9 @@
 // the dodge roll (Q) and eating (F). Each calling also has a mechanic, in the manner of a GW2
 // profession, and plays one of ESO's roles. None is stronger than another: they
 // trade damage, safety and reach (see scripts/classbalance.ts for the numbers they're tuned to).
-// You can change calling at any time out of a fight, from the journal: it's a choice of how to
-// play, not a slot you're locked into.
+// A calling is chosen when a character is made and kept for life, as in WoW and ESO. From level 25
+// a master of another calling will teach an apprentice one of their utilities (data/content/masters.ts).
+// Each calling has three talent trees (data/talents.ts), one for each way of playing it.
 
 export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard';
 
@@ -131,38 +132,51 @@ export const callingById = (id: unknown): CallingDef | null => CALLINGS.find((c)
 export const TUNE = {
   /** Using a calling skill costs this much swinging time, so skills trade against Strike for everyone. */
   skillLock: 0.5,
-  resolve: { per: 0.05, max: 5, fade: 6 },
-  bulwark: { shield: 0.3, secs: 8 },
-  bash: { dmg: 1.8, stun: 1.5, range: 3.6 },
-  oath: { secs: 6, taken: 0.6, burn: 0.6, r: 5 },
-  fury: { perHit: 8, mult: 1.5 },
-  bleed: { dmg: 1.4, dot: 0.4, secs: 6, heal: 0.03, range: 3.2 },
-  leap: { dmg: 2.4, r: 2.8, range: 10 },
+  /** Skills recharging faster (talents): a multiplier on the cooldown, by skill id. */
+  cd: {} as Record<string, number>,
+  /** dmg: share added to the damage you deal, for each Resolve (talents). */
+  resolve: { per: 0.05, max: 5, fade: 6, dmg: 0 },
+  /** burst: the blow when it's broken (0 none); mend: share of what's left that heals you when it runs out. */
+  bulwark: { shield: 0.3, secs: 8, burst: 0, burstStun: 0, mend: 0 },
+  /** cleave: the radius round the target it also strikes (0 none). */
+  bash: { dmg: 1.8, stun: 1.5, range: 3.6, cleave: 0 },
+  /** heal: share of your health a second while it holds. */
+  oath: { secs: 6, taken: 0.6, burn: 0.6, r: 5, heal: 0 },
+  /** red: Fury gained in the Red Hour, as a multiple. */
+  fury: { perHit: 8, mult: 1.5, red: 1 },
+  /** heal: a second of bleeding; cutHeal: the cut itself; spread: how far a bleed jumps from the dead (0 not). */
+  bleed: { dmg: 1.4, dot: 0.4, secs: 6, heal: 0.03, cutHeal: 0.03, range: 3.2, spread: 0 },
+  leap: { dmg: 2.4, r: 2.8, range: 10, stun: 0 },
   redhour: { secs: 10, dealt: 1.4, taken: 1.2 },
   ward: { heal: 0.33, secs: 5, burn: 0.35, r: 4 },
   bolt: { dmg: 1.5, range: 22, burst: 1.2, r: 3, every: 3 },
-  starfall: { dmg: 5, r: 4.5, delay: 1.1, range: 22 },
-  dressing: { heal: 0.45 },
+  /** twice: a second star's strength (0 none). */
+  starfall: { dmg: 5, r: 4.5, delay: 1.1, range: 22, twice: 0 },
+  /** hot: a further share of health over five seconds. */
+  dressing: { heal: 0.45, hot: 0 },
   volley: { arrows: 3, dmg: 0.8, range: 22, mark: 6, markBonus: 0.15, markR: 4 },
   shadowstep: { stun: 0.8, mult: 3, window: 3, range: 16 },
-  // Utilities (each calling picks three of its four)
+  // Utilities (each calling puts two of its three beside the signature)
   holdfast: { secs: 4, taken: 0.7 },
-  shieldthrow: { dmg: 1.5, stun: 0.8, range: 14 },
+  shieldthrow: { dmg: 1.5, stun: 0.8, range: 14, bounce: 0 },
   rally: { heal: 0.17 },
   rend: { dmg: 1.4, dot: 0.25, secs: 4, r: 3.4 },
   rush: { secs: 6, speed: 1.4 },
   hamstring: { dmg: 1.2, stun: 1.3, range: 3.4 },
-  firewall: { r: 3.5, secs: 5, burn: 0.45, range: 18 },
+  /** heal: share of your health a second standing in your own fire (the ring or cinders). */
+  firewall: { r: 3.5, secs: 5, burn: 0.45, range: 18, heal: 0 },
   cinderstep: { dist: 7, r: 3, secs: 3, burn: 0.7 },
   kindle: { stacks: 2, mult: 2 },
   snare: { r: 1.6, stun: 2, dmg: 1.5, secs: 20, range: 14 },
-  rain: { r: 4, secs: 4, dmg: 0.55, range: 20 },
-  quickstep: { dist: 6, window: 4 },
+  rain: { r: 4, secs: 4, dmg: 0.55, range: 20, mark: 0 },
+  /** evade: seconds untouchable after it, or after a Shadowstep. */
+  quickstep: { dist: 6, window: 4, evade: 0 },
   // Wizard
   chill: { max: 3, freeze: 1.2, shatter: 1.0, fade: 8 },
-  icebarrier: { shield: 0.3, secs: 10 },
+  /** nova: a Frost Nova when it breaks; bite: the chance a blow on it chills the attacker. */
+  icebarrier: { shield: 0.3, secs: 10, nova: 0, bite: 0 },
   frostbolt: { dmg: 1.4, range: 22 },
-  blizzard: { r: 5, secs: 6, dmg: 0.75, range: 20 },
+  blizzard: { r: 5, secs: 6, dmg: 0.75, range: 20, chills: 1 },
   blink: { range: 10, evade: 1 },
   icelance: { dmg: 1.6, frozen: 2.2, range: 22 },
   frostnova: { r: 5, dmg: 0.8, freeze: 2 },
@@ -193,7 +207,6 @@ export const WEAPON_SKILLS: Record<WeaponLine, SkillDef> = {
   quick: { id: 'flurry', name: 'Flurry', icon: 'flurry', cd: 10, desc: 'Four quick cuts at your target.' },
   heavy: { id: 'sunder', name: 'Sunder', icon: 'sunder', cd: 12, aim: 6, desc: 'Bring the blade down where you aim: everything there takes a heavy blow and is knocked off its feet.' },
 };
-/** The utilities on a calling's bar: its signature, then the two chosen (by id) from the other three, or the first two. */
 /** Cross-classing (data/content/masters.ts): the level an apprenticeship can start, and its fee. */
 export const APPRENTICE_LEVEL = 25, APPRENTICE_FEE = 500;
 /** Skills that only work through their own calling's craft, so no master teaches them. */

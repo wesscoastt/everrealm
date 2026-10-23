@@ -60,7 +60,7 @@ export function newSave(name: string, look: Appearance): SaveData {
     pos: [150.5, 19, 187.5], yaw: Math.PI, hour: 8.5, hp: 100,
     xp: { melee: 0, mining: 0, smithing: 0, fishing: 0, cooking: 0, woodcutting: 0 },
     inv, equip: { weapon: 'worn_sword', head: null },
-    marks: 12, flags: { xpCurve2: 1, 'moved:southgate': 1 }, quests: {}, discovered: [], playTime: 0,
+    marks: 12, flags: { xpCurve2: 1, talents2: 1, 'moved:southgate': 1 }, quests: {}, discovered: [], playTime: 0,
     settings: { ...DEFAULT_SETTINGS },
   };
 }
@@ -101,6 +101,14 @@ export function fixSave(d: SaveData): void {
       d.xp[s.id] = Math.round(na + (L >= MAX_LEVEL ? 0 : frac * (nb - na)));
     }
     f['xpCurve2'] = 1;
+  }
+  // The talent trees were redrawn in tiers with ranks (data/talents.ts): old picks go, and every point
+  // comes back to spend again (Game tells the player once, by 'talentsRedrawn')
+  if (!f['talents2']) {
+    let had = false;
+    for (const k of Object.keys(f)) if (k.startsWith('talents:')) { had ||= Array.isArray(f[k]) && (f[k] as unknown[]).length > 0; delete f[k]; }
+    if (had) f['talentsRedrawn'] = 1;
+    f['talents2'] = 1;
   }
 }
 
