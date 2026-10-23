@@ -1,5 +1,6 @@
 import type { Appearance } from '../entities/humanoid';
 import { ORIGINS, originById } from '../data/origins';
+import { CAPE_DESIGNS, type CapeDesign } from '../data/capes';
 import { CALLINGS, CallingId } from '../data/classes';
 import { callingCard } from './callingCard';
 import { drawFace } from './skin';
@@ -29,6 +30,8 @@ export interface CharSummary {
   dyes?: string[];
   /** Festival hats this character has unlocked (data/seasons.ts). */
   hats?: string[];
+  /** Cloak designs this character has unlocked (data/capes.ts). */
+  capes?: string[];
 }
 
 export interface FrontCtx {
@@ -484,6 +487,8 @@ export class Frontend {
     const dyed = (k: keyof typeof OPT) => (DYEABLE.has(k) && this.editing?.dyes?.length ? [...OPT[k], ...this.editing.dyes.filter((d) => !OPT[k].includes(d))] : OPT[k]);
     const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${dyed(k).map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
     const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.editing?.hats?.includes(id as string))];
+    // Cloak designs: plain, and whatever this character has collected
+    const capes: [string, string | null][] = [['Plain', null], ...(Object.keys(CAPE_DESIGNS) as CapeDesign[]).filter((id) => this.editing?.capes?.includes(id)).map((id): [string, string] => [CAPE_DESIGNS[id].name.replace(/ cloak$/, ''), id])];
     const chips = (attr: string, items: [string, unknown][], cur: unknown) => `<div class="chips">${items.map(([t, v], i) => `<button class="chip ${cur === v ? 'sel' : ''}" data-${attr}="${i}">${t}</button>`).join('')}</div>`;
     const slider = (k: 'build' | 'height', label: string, min: number, max: number, lo: string, hi: string) => `<label>${label}</label><div class="slide"><small>${lo}</small><input type="range" min="${min}" max="${max}" step="0.01" value="${L[k] ?? 1}" data-s="${k}"><small>${hi}</small></div>`;
     if (this.tab === 'origin') {
@@ -507,7 +512,7 @@ export class Frontend {
     } else if (this.tab === 'outfit') {
       pane.innerHTML = `<label>TOP</label>${chips('top', TOPS.map((t, i) => [t, i]), L.top ?? 0)}
         <label>MAIN CLOTH</label>${sw('tunic', L.tunic)}<label>SHIRT AND SLEEVES</label>${sw('shirt', L.shirt ?? null)}<label>TRIM</label>${sw('trim', L.trim)}
-        <label>CLOAK</label>${sw('cape', L.cape)}<label>SHOULDERS</label>${chips('pad', PADS, L.shoulderPads ?? null)}`;
+        <label>CLOAK</label>${sw('cape', L.cape)}${L.cape && capes.length > 1 ? `<label>CLOAK DESIGN</label>${chips('cdes', capes, L.capeDesign ?? null)}` : ''}<label>SHOULDERS</label>${chips('pad', PADS, L.shoulderPads ?? null)}`;
     } else {
       pane.innerHTML = `<label>LEGS</label>${chips('legs', LEGS.map((t, i) => [t, i]), L.legs ?? 0)}<label>TROUSERS</label>${sw('trousers', L.trousers)}
         ${L.legs === 1 || L.legs === 2 ? `<label>HOSE</label>${sw('hose', L.hose ?? null)}` : ''}
@@ -541,6 +546,7 @@ export class Frontend {
       changed();
     }));
     pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = hats[Number(b.dataset.hat)][1]; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-cdes]').forEach((b) => b.addEventListener('click', () => { this.look.capeDesign = capes[Number(b.dataset.cdes)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
     pane.querySelectorAll<HTMLInputElement>('[data-s]').forEach((s) => s.addEventListener('input', () => {

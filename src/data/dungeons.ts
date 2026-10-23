@@ -74,7 +74,7 @@ export const DUNGEONS: DungeonDef[] = [
         adds: [{ at: 0.5, types: ['dg_nightman'], line: ['Coll Bray', 'Ned! Leave the crates, get over here!'] }],
         hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 36, color: '#ffb040', line: 'Coll Bray throws a lit lamp.' },
         fall: ['Coll Bray', 'We only took what was lying loose. Something else is eating the seam. Go and look if you don\'t believe me.'],
-        drops: ['bray_hanger', ...OLDMAN_GEAR], chance: 0.6,
+        drops: ['bray_hanger', 'cape_picks', ...OLDMAN_GEAR], chance: 0.6,
       },
       {
         pull: ['', 'The water in the sump heaves, and most of it gets up.'],
@@ -116,7 +116,7 @@ export const DUNGEONS: DungeonDef[] = [
         adds: [{ at: 0.5, types: ['frostwolf', 'frostwolf'], line: ['', 'Brack howls, and two more come down off the ledges.'] }],
         hazard: { every: 9, count: 1, r: 3, windup: 1.6, damage: 60, color: '#dde6ee', line: 'Brack\'s howl shakes ice loose from the roof.' },
         fall: ['', 'Brack goes down. The rest of the pack is gone before it lands.'],
-        drops: ['fell_knife', ...KETTLE_GEAR], chance: 0.6,
+        drops: ['fell_knife', 'cape_snowflake', ...KETTLE_GEAR], chance: 0.6,
       },
       {
         pull: ['', 'Something grinds in the seep, stone on glass. A graniteback the size of a cart turns round, chewing.'],

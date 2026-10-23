@@ -572,6 +572,15 @@ Seven fairs, on the real calendar, each kept at every Charter Post: bunting, a s
 | **Goose Fair** | 14 Nov – 3 Dec | catching loose geese | **Old Hissing Jack**, the fair's champion gander, with his wives (the Waystation green, 9–14) | **Martha Gooding**, goose-girl; Jack's three wives are loose | the goose fair hat |
 | **The Frostfair** | 12 Dec – 6 Jan | carolling at wreathed doors | **Old Rime**, out of Peg's Water in a hard winter, with rime-jellies (Peg's Water shore, 16–23) | **Prudence Holt**, fair-warden of the ice; it froze in a night | the bobble hat |
 
+## Cloak devices [in game]
+
+A cloak may carry a device worked in its trim colour. Folk in the counties read them as badges, so a device is earned or bought rather than chosen idly.
+
+- **The Charter Market tailor** in Ansbury sells the plain heraldic ones: bordered, quartered, chevron and chequy. The chevron is a roof, whatever the Charter clerks say. The Weighhouse men wear chequy on quarter-day.
+- **Deeds.** Burning all seven bandit forts earns the tally (four strokes and a fifth across, the bandits' own count). Finding the six wonders earns the star. Bringing down every festival creature earns the lantern. Burning the Old Bed on Inkholm earns the Reekers' flame.
+- **Under the hills.** The Kettle's frost star and the Sallow Pit miners' crossed picks come up rarely from those dungeons' bosses.
+- **Revered standing** with a region earns its own sign: Hollindale's mill wheel, the Turnpike's toll-key, Hagworm's oak leaf, the Fleet Coast's three waves, the Harrowgate Company's anvil, the Scarth peak, the gannet of the cliff villages, the reeds of the Wrath Levels, Tolmen's three stones and the Inkholm cap.
+
 ## Morrow, the second continent [planned]
 
 The expansion across the eastern sea: its land, its great cities, the Brethren of Saltpenny, ships and the story (The Third Daughter) are planned in docs/MORROW.md.

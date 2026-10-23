@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { capeTexture } from './capes';
 import type { EmoteAnim } from '../data/emotes';
 import type { Voice as InstrumentVoice } from '../data/tunes';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -22,6 +23,8 @@ export interface Appearance {
   trousers: string;
   boots: string;
   cape?: string | null;
+  /** A design worked on the cloak in the trim colour (data/capes.ts), collected into the wardrobe. */
+  capeDesign?: string | null;
   beard?: boolean;
   apron?: boolean;
   hat?: 'none' | 'hood' | 'cap' | 'kerchief' | 'wide' | 'straw' | 'beret' | 'circlet' | 'coif' | 'band'
@@ -935,7 +938,9 @@ export class Humanoid {
     if (look.cape) {
       const capeGeo = new THREE.PlaneGeometry(0.62 * build, 1.0, 2, 6);
       capeGeo.translate(0, -0.5, 0);
-      this.cape = new THREE.Mesh(capeGeo, new THREE.MeshLambertMaterial({ color: look.cape, side: THREE.DoubleSide }));
+      this.cape = new THREE.Mesh(capeGeo, look.capeDesign
+        ? new THREE.MeshLambertMaterial({ map: capeTexture(look.cape, look.trim, look.capeDesign), side: THREE.DoubleSide })
+        : new THREE.MeshLambertMaterial({ color: look.cape, side: THREE.DoubleSide }));
       this.cape.position.set(0, 0.72, -0.18);
       this.cape.castShadow = true;
       this.torso.add(this.cape);

@@ -45,6 +45,8 @@ export const SHOPS: Record<string, ShopDef> = {
       ...['w_charter_sword', 'w_charter_longsword', 'w_charter_spear', 'w_charter_mace', 'w_collegium_staff', 'w_collegium_dagger'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 40) * 2.2) })),
       ...['linen_chest', 'linen_legs', 'linen_hands', 'linen_feet', 'leather_chest', 'leather_legs', 'leather_hands', 'leather_feet'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 20) * 2) })),
       ...['furn_chair', 'furn_bench', 'furn_dresser', 'furn_shelves', 'furn_chest', 'furn_rug_blue', 'furn_rug_green'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 10) * 1.8) })),
+      // The tailor's stall: the plain heraldic cloak designs
+      { item: 'cape_border', price: 400 }, { item: 'cape_quartered', price: 600 }, { item: 'cape_chevron', price: 600 }, { item: 'cape_chequy', price: 900 },
     ],
     buyRate: () => 0.6,
     priceMult: (g) => (g.flag('hwChoice') === 'refund' ? 0.9 : 1),

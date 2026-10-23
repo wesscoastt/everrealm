@@ -94,6 +94,7 @@ import { Stables } from './Stables';
 import { lodgeAt, LODGINGS, MAX_WEEKS, readTenancy, roomBase, ROOMS, roomShape, WEEK } from '../data/lodgings';
 import { henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
+import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
 import { marksScale, regionLevel, rewardScale } from '../data/scaling';
 import { HIT_XP, killXp, QUEST_KILLS } from '../data/pacing';
 import { WORLD_BOSSES } from '../data/activities';
@@ -908,7 +909,18 @@ export class Game implements GameApi {
     if (b.i > a.i) {
       this.hud.banner(`${b.rank.name} in ${REGION_INFO[region].name}`, b.rank.off ? `Its traders sell to you for ${Math.round(b.rank.off * 100)}% less` : 'People there know your name now', true);
       this.sfx('levelUp', 0.6);
+      const cape = REGION_CAPE[region];
+      if (cape && b.next === null) this.unlockCape(cape);
     }
+  }
+  /** Add a cloak design to the wardrobe for good (data/capes.ts). */
+  private unlockCape(id: CapeDesign): void {
+    const d = CAPE_DESIGNS[id];
+    if (!d || this.flag('capeD:' + id)) return;
+    this.setFlag('capeD:' + id, 1);
+    this.hud.banner(d.name, 'Added to your wardrobe', true);
+    this.hud.system(`${d.name} is in your wardrobe now: pick it under Cloak with Change look, on the character screen. It is worked in your trim colour.`);
+    this.sfx('discover');
   }
   /** What the shops of a region take off for you. */
   private standingOff(region: RegionId): number { return rankFor(Number(this.flag('rep:' + region) ?? 0)).rank.off; }
@@ -1565,7 +1577,8 @@ export class Game implements GameApi {
       const calling = callingById(s.flags?.class)?.name ?? 'Warden';
       const dyes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('dye:')).map((k) => k.slice(4));
       const hats = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('hat:')).map((k) => k.slice(4));
-      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats };
+      const capes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('capeD:')).map((k) => k.slice(6));
+      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes };
     };
     return {
       characters: () => listCharacters().map((c) => summary(c.id, c.save)),
@@ -1961,6 +1974,9 @@ export class Game implements GameApi {
       const what = this.seasons.openBag(st.id);
       if (what) this.hud.system(what);
       this.sfx('pickup');
+    } else if (def.capeDesign) {
+      this.inv.removeAt(i, 1);
+      this.unlockCape(def.capeDesign);
     } else if (def.hat) {
       // A festival hat joins the wardrobe for good
       this.inv.removeAt(i, 1);
@@ -2866,6 +2882,7 @@ export class Game implements GameApi {
       this.addMarks(f.marks);
       this.hud.banner('Feat', f.name, true);
       this.hud.system(`Feat: ${f.name}. ${f.marks} marks, and the title "${f.title}" (wear it from the journal's Feats page).`);
+      if (FEAT_CAPE[f.id]) this.unlockCape(FEAT_CAPE[f.id]);
       this.sfx('quest');
       break;
     }

@@ -42,6 +42,8 @@ export interface ItemDef {
   bag?: import('./festivals').FestivalId;
   /** A festival hat (data/seasons.ts): using it adds the style to the wardrobe for good. */
   hat?: import('./seasons').HatStyle;
+  /** A cloak design (data/capes.ts): using it adds the design to the wardrobe for good. */
+  capeDesign?: import('./capes').CapeDesign;
   /**
    * Carried or worn besides weapon and armour (data/offhand.ts): a shield, lantern, tome, horn or focus in
    * the left hand, an amulet, a ring. Its traits spend a small budget of their own (GEAR_BUDGET), on the
@@ -284,3 +286,6 @@ import { FESTIVAL_ITEMS } from './festivals';
 for (const d of FESTIVAL_ITEMS) ITEMS[d.id] = d;
 import { SEASON_ITEMS } from './seasons';
 for (const d of SEASON_ITEMS) ITEMS[d.id] = d;
+// Cloak designs (src/data/capes.ts).
+import { CAPE_ITEMS } from './capes';
+for (const d of CAPE_ITEMS) ITEMS[d.id] = d;
