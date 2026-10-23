@@ -96,6 +96,8 @@ export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreat
     case 'cow': cow(h, new Kit(key, 1 / 16), pal); return true;
     case 'boar': boar(h, new Kit(key + scale, 1 / 16), pal, scale); return true;
     case 'deer': deer(h, new Kit(key, 1 / 16)); return true;
+    case 'shark': shark(h, new Kit(key + scale, 1 / 16), pal, scale); return true;
+    case 'ray': ray(h, new Kit(key + scale, 1 / 16), pal, scale); return true;
   }
   return false;
 }
@@ -540,4 +542,67 @@ function deer(h: VoxCreatureHost, k: Kit): void {
     });
     h.legs.push(leg);
   }
+}
+
+// ---------------------------------------------------------------- The sea
+
+/** A shark: dark above and pale below, a raked dorsal fin, pectoral fins out to the sides, gill slits, a jaw full of teeth, a tall upper tail lobe. a = back, b = belly, c = fins. */
+function shark(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 1.1 * scale;
+  const Bk = pal.a ?? '#5a6670', Bl = pal.b ?? '#d8dcd8', Fn = pal.c ?? '#46525c';
+  const hide = (under: number): Paint => (x, y, z, n) => (y < under ? coat(Bl, 9)(x, y, z, n) : coat(Bk, 9)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.capsule([0, 0.46, 0.5], [0, 0.47, -0.5], 0.27, 0.2, hide(0.38));
+    v.tri([0, 0.66, 0.26], [0, 0.66, -0.06], [0, 1.08, -0.16], 0.07, coat(Fn, 9));             // the dorsal fin, raked back
+    for (const sd of [1, -1]) v.tri([sd * 0.2, 0.3, 0.42], [sd * 0.2, 0.3, 0.14], [sd * 0.72, 0.12, 0.04], 0.06, coat(Fn, 9)); // pectoral fins
+  });
+  const head = joint(h.body, [0, 0.47, 0.72]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.capsule([0, 0.02, 0.0], [0, 0.04, 0.48], 0.23, 0.12, (x, y, z, n) => (Math.abs(x) > 0.17 && z < -0.0 && z > -0.2 && Math.floor(z * 30) % 2 === 0 ? shade('#2a3238', 0.95) : hide(-0.08)(x, y, z, n))); // the gill slits
+  });
+  eyes(head, 0.19, 0.1, 0.3, '#0c0e10', 0.05, 0.9);
+  const jaw = joint(head, [0, -0.16, 0.06]);
+  k.part(jaw, [0, 0, 0], (v) => {
+    v.capsule([0, -0.02, 0.05], [0, -0.03, 0.36], 0.12, 0.07, coat(Bl, 9));
+    v.box([-0.09, 0.0, 0.33], [0.09, 0.05, 0.38], flat('#f4f0e4', 0.04));                      // teeth
+  });
+  h.head = head; h.jaw = jaw;
+  const tail = joint(h.body, [0, 0.47, -0.55]);
+  k.part(tail, [0, 0, 0], (v) => {
+    v.capsule([0, 0, 0], [0, 0.02, -0.76], 0.19, 0.07, hide(-0.06));
+    v.tri([0, 0.04, -0.6], [0, 0.04, -0.84], [0, 0.64, -1.12], 0.06, coat(Fn, 9));            // the long upper lobe
+    v.tri([0, -0.02, -0.66], [0, -0.02, -0.84], [0, -0.36, -0.98], 0.06, coat(Fn, 9));        // and the short lower one
+    v.tri([0, 0.14, -0.38], [0, 0.14, -0.52], [0, 0.3, -0.56], 0.05, coat(Fn, 9));            // the second dorsal
+  });
+  h.tail = tail;
+}
+
+/** A ray: a broad flat disc of wings hinged either side, spotted on top and pale beneath, thorns down the spine, a long whip of a tail with its sting. a = back, b = belly, c = spots. */
+function ray(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 0.8 * scale;
+  const Bk = pal.a ?? '#7a6a4a', Bl = pal.b ?? '#e8e2d2', Sp = pal.c ?? '#b8a478', thorn = '#efe6cc';
+  const skin = (under: number): Paint => (x, y, z, n) => (y < under ? coat(Bl, 9)(x, y, z, n) : n < 0.09 ? shade(Sp, 0.95 + n) : coat(Bk, 9)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.3, 0.04], [0.33, 0.09, 0.43], skin(0.27));
+    v.ellipsoid([0, 0.32, 0.5], [0.15, 0.07, 0.13], skin(0.29));                                // the snout
+    for (let z = 0.3; z >= -0.34; z -= 0.16) v.cone([0, 0.36, z], [0, 0.45, z - 0.02], 0.03, flat(thorn)); // thorns down the spine
+  });
+  eyes(h.body, 0.11, 0.42, 0.34, '#1a1610', 0.05, 0);
+  for (const sd of [1, -1]) {
+    const wing = joint(h.body, [sd * 0.32, 0.3, 0.04]);
+    k.part(wing, [0, 0, 0], (v) => {
+      v.ellipsoid([sd * 0.42, 0, -0.02], [0.48, 0.045, 0.38], skin(-0.02));
+      v.tri([sd * 0.72, 0, 0.12], [sd * 0.72, 0, -0.26], [sd * 1.04, 0, -0.12], 0.05, skin(-0.02)); // the wingtip
+    });
+    h.legs.push(wing);
+  }
+  const tail = joint(h.body, [0, 0.3, -0.4]);
+  k.part(tail, [0, 0, 0], (v) => {
+    v.capsule([0, 0, 0], [0, 0, -1.04], 0.055, 0.02, coat(Bk, 9));
+    for (let z = -0.1; z > -0.95; z -= 0.17) v.cone([0, 0.03, z], [0, 0.1, z - 0.03], 0.025, flat(thorn));
+    v.tri([0, 0.02, -0.98], [0, 0.02, -1.1], [0, 0.12, -1.06], 0.03, coat(Sp, 9));             // the sting
+  });
+  h.tail = tail;
 }

@@ -42,6 +42,19 @@ function solid(o: THREE.Object3D): o is THREE.Mesh {
   return !!m.isMesh && !m.userData.plain && !m.children.length && m.visible && !Array.isArray(mat) && !!mat?.isMeshLambertMaterial && !mat.transparent && !mat.map && mat.emissive.getHex() === 0;
 }
 
+/** A see-through part (a jelly's bell, a slime): filled in cubes too, keeping its glassiness and glow. */
+function glassy(o: THREE.Object3D): o is THREE.Mesh {
+  const m = o as THREE.Mesh, mat = m.material as THREE.MeshLambertMaterial;
+  return !!m.isMesh && !m.userData.plain && !m.children.length && m.visible && !Array.isArray(mat) && !!mat?.isMeshLambertMaterial && mat.transparent && !mat.map;
+}
+const glassMats = new Map<string, THREE.Material>();
+function glassOf(src: THREE.MeshLambertMaterial): THREE.Material {
+  const k = src.opacity.toFixed(2) + src.emissive.getHexString() + src.emissiveIntensity;
+  let m = glassMats.get(k);
+  if (!m) { m = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: src.opacity, emissive: src.emissive.clone(), emissiveIntensity: src.emissiveIntensity, depthWrite: false }); glassMats.set(k, m); }
+  return m;
+}
+
 /** The cubes for some parts: in their joint's frame, or (own) each in its own frame. */
 function cubesOf(parts: THREE.Mesh[], own: boolean): THREE.BufferGeometry | null {
   const v = new Vox(S, true), p = new THREE.Vector3();
@@ -79,6 +92,20 @@ export function voxelize(root: THREE.Object3D, key: string, keep: Set<THREE.Obje
   root.traverse((o) => { if (!(o as THREE.Mesh).isMesh) joints.push(o); else if (keep.has(o) && solid(o)) own.push(o); });
   const known = cache.get(key), geos = known ?? [];
   joints.forEach((j, ji) => {
+    // The see-through parts, grouped by their look, each group one mesh of cubes in the joint's frame
+    const glass = j.children.filter((c): c is THREE.Mesh => !keep.has(c) && glassy(c));
+    if (glass.length) {
+      const groups = new Map<THREE.Material, THREE.Mesh[]>();
+      for (const m of glass) { const gm = glassOf(m.material as THREE.MeshLambertMaterial); let l = groups.get(gm); if (!l) groups.set(gm, (l = [])); l.push(m); }
+      let gi = 0;
+      for (const [gm, list] of groups) {
+        const slot = 100000 + ji * 16 + gi++;
+        if (!known) geos[slot] = cubesOf(list, false);
+        for (const m of list) j.remove(m);
+        const geo = geos[slot];
+        if (geo) { const mesh = new THREE.Mesh(geo, gm); mesh.userData.plain = true; j.add(mesh); }
+      }
+    }
     const parts = j.children.filter((c): c is THREE.Mesh => !keep.has(c) && solid(c));
     if (!parts.length) return;
     if (!known) geos[ji] = cubesOf(parts, false);

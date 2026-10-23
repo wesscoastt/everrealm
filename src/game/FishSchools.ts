@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { shade, Vox } from '../entities/vox';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { B } from '../world/blocks';
 import { lakeDist, SEA } from '../world/terrain';
@@ -38,15 +38,15 @@ export class FishSchools {
   private one = new THREE.Vector3(1, 1, 1);
 
   constructor(scene: THREE.Scene, private readonly voxels: VoxelWorld) {
-    // A fish: a body narrowing to the tail, and a tail fin
-    const body = new THREE.BoxGeometry(0.09, 0.12, 0.32);
-    const p = body.attributes.position;
-    for (let i = 0; i < p.count; i++) if (p.getZ(i) < 0) { p.setX(i, p.getX(i) * 0.45); p.setY(i, p.getY(i) * 0.55); }
-    const tail = new THREE.BoxGeometry(0.02, 0.14, 0.1);
-    tail.translate(0, 0, -0.2);
-    const geo = mergeGeometries([body.toNonIndexed(), tail.toNonIndexed()])!;
-    geo.computeVertexNormals();
-    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: '#ffffff' }), CAP);
+    // A fish in cubes, nose to +z: a body narrowing to a forked tail, a fin on the back, a darker back
+    // over a pale belly, an eye. Its colour comes from each fish's own (the cubes are in greys)
+    const v = new Vox(0.024, true);
+    v.ellipsoid([0, 0, 0.02], [0.045, 0.065, 0.16], (_x, y, _z, n) => shade(y > 0.02 ? '#9a9a9a' : y < -0.025 ? '#ffffff' : '#d8d8d8', 0.94 + n * 0.08));
+    v.tri([0, 0, -0.12], [0, 0.075, -0.24], [0, -0.075, -0.24], 0.024, (_x, _y, _z, n) => shade('#8a8a8a', 0.94 + n * 0.08)); // the tail
+    v.tri([0, 0.055, 0.06], [0, 0.055, -0.06], [0, 0.11, -0.03], 0.024, (_x, _y, _z, n) => shade('#8a8a8a', 0.94 + n * 0.08)); // the fin on its back
+    v.box([-0.05, 0.005, 0.11], [0.05, 0.03, 0.135], () => '#181818');                      // eyes
+    const geo = v.mesh().geometry;
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), CAP);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.mesh.count = 0;
