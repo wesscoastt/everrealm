@@ -1944,6 +1944,9 @@ export class Humanoid {
     if (this.torch && this.state !== 'ride' && this.state !== 'roll' && this.state !== 'swim' && this.state !== 'tread' && this.state !== 'dead') {
       P.armL.rotation.set(-0.95 + Math.sin(this.phase * 0.5) * 0.03, 0, 0.22); P.foreL.rotation.x = -0.55;
     }
+    // The torch stands upright whatever the arm is doing (it hangs from the hand, which tips forward
+    // as the arm lifts): turn it back by the arm's lift and spread, and the body's lean, flame on top
+    if (this.torch) this.torch.rotation.set(-(P.torso.rotation.x + P.armL.rotation.x + P.foreL.rotation.x) + 0.1, 0, -P.armL.rotation.z);
     // A belt lantern swings a little as you go
     if (this.lantern) this.lantern.rotation.x = Math.sin(performance.now() * 0.008 + this.phase) * Math.min(1, speed / 4) * 0.35;
     if (this.cape) {

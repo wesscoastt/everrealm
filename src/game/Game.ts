@@ -3184,7 +3184,8 @@ export class Game implements GameApi {
     const P = this.player;
     if (this.dialogue || this.dead || this.mode !== 'play') return;
     if (P.swimming) { this.hud.system('Not in the water.'); return; }
-    if (this.elapsed - this.lastCombat < 5) { this.hud.system('Not while you\'re fighting.'); return; }
+    // Fighting means a hit given or taken lately, or something hostile after you: not a swing at the air
+    if (this.inCombat()) { this.hud.system('Not while you\'re fighting.'); return; }
     if (!this.roomForHorse()) { this.hud.system('There\'s no room for a horse here.'); return; }
     this.dismount(true);
     this.cancelActions();
@@ -3399,7 +3400,6 @@ export class Game implements GameApi {
     this.player.model.stateTime = 0;
     this.cds.strike = dur * 0.9;
     this.sfx('swing');
-    this.lastCombat = this.elapsed;
   }
 
   /** A bow's Strike: an arrow at the target, up to twenty-four blocks off, a little slower than a swing. */
@@ -3414,7 +3414,6 @@ export class Game implements GameApi {
     const crit = Math.random() < 0.08 + (this.blade?.crit ?? 0) + this.armour.crit;
     this.kit.loose(e, this.swingPower() * (0.9 + Math.random() * 0.2), crit);
     this.sfx('swing', 1.6);
-    this.lastCombat = this.elapsed;
   }
 
   private cleave(): void {
@@ -3426,7 +3425,6 @@ export class Game implements GameApi {
     this.player.model.stateTime = 0;
     this.cds.cleave = this.gearSet === 'harrow' ? 4 : 6;
     this.sfx('swing', 1.3);
-    this.lastCombat = this.elapsed;
   }
 
   /** An ordinary swing's damage at this level with this weapon, before the roll and crits. */
@@ -3453,7 +3451,6 @@ export class Game implements GameApi {
       if (h > 0) this.hp += h;
     }
     this.kit.landed();
-    this.lastCombat = this.elapsed;
     this.target = this.target && this.target.alive ? this.target : e;
     this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : quiet ? 'tick' : '');
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
@@ -4083,7 +4080,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyL') && (this.inv.count('torch') > 0 || this.inv.count('belt_lantern') > 0)) {
       const off = !this.flag('lightOff');
       this.setFlag('lightOff', off);
-      this.hud.system(off ? 'You put your light out.' : 'You light your light again. It burns once it\'s dark.');
+      this.hud.system(off ? 'You put your light away. Press L to take it out again.' : 'You take your light out again. It burns once it\'s dark; L puts it away.');
       this.sfx(off ? 'snort' as Sfx : 'click');
     }
 
@@ -4313,6 +4310,7 @@ export class Game implements GameApi {
       const belt = want && !hand && this.inv.count('belt_lantern') > 0;
       P.model.setTorch(hand);
       P.model.setLantern(belt);
+      if ((hand || belt) && !this.flag('lightHint')) { this.setFlag('lightHint', 1); this.hud.system('Your light is lit for the dark. Press L to put it away, or to take it out again.'); }
       P.model.setPack(this.flag('hidePack') ? 0 : Number(this.flag('packLook') ?? 0));
       const at = hand ? P.model.torchAt(tmpV2) : belt ? P.model.lanternAt(tmpV2) : null;
       if (at) { this.torchLight.position.copy(at); this.torchLight.intensity = (hand ? 12 : 9) + Math.sin(performance.now() * 0.02) * 0.8 + Math.sin(performance.now() * 0.047) * 0.6; }
