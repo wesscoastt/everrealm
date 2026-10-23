@@ -115,9 +115,9 @@ export class ClassKit {
     this.evadeUntil = 0;
   }
 
-  /** Put these utilities (ids, three of the calling's four) on the bar. */
-  setUtilities(ids: unknown): void {
-    const u = chosenUtilities(this.calling, ids);
+  /** Put these utilities on the bar (the calling's own, and one of a master's for an apprentice). */
+  setUtilities(ids: unknown, ap: CallingDef | null = null): void {
+    const u = chosenUtilities(this.calling, ids, ap);
     this.bar = [this.calling.skills[0], ...u, this.calling.skills[2]];
   }
 

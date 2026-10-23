@@ -100,7 +100,8 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingId, callingById, TUNE, UNLOCK_AT, UNLOCK_NAMES, weaponLine } from '../data/classes';
+import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, weaponLine } from '../data/classes';
+import { MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
 import { currentAccount, deleteRemote, isDevAccount, remoteCharacters, signIn, signOut, uploadSave } from '../net/Account';
@@ -1521,7 +1522,9 @@ export class Game implements GameApi {
       calling: () => g.calling,
       setCalling: (id: CallingId) => g.setCalling(id),
       talents: () => g.talentView(),
-      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: g.kit.calling.utilities, signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
+      callingFree: () => !g.flag('callingSet'),
+      apprentice: () => { const a = g.apprentice; return a ? { name: a.name, master: MASTER_OF[a.id]?.name ?? '' } : null; },
+      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
       setUtilities: (ids: string[]) => g.setUtilities(ids),
       learnTalent: (id: string) => g.learnTalent(id),
       resetTalents: () => g.resetTalents(),
@@ -1678,10 +1681,18 @@ export class Game implements GameApi {
   /** The character's calling (characters made before callings start as Wardens until they choose). */
   get calling(): CallingId { return callingById(this.flag('class'))?.id ?? 'warden'; }
 
+  /** The calling you're apprenticed to (data/content/masters.ts), if any and if it isn't your own. */
+  private get apprentice(): CallingDef | null {
+    const a = this.flag('apprentice') as CallingId | undefined;
+    return a && a !== this.calling ? callingById(a) ?? null : null;
+  }
+  private appliedApprentice: unknown = undefined;
+
   private applyCalling(): void {
     this.kit.set(this.calling);
     this.kit.setTalents(this.learned());
-    this.kit.setUtilities(this.flag('bar:' + this.calling));
+    this.kit.setUtilities(this.flag('bar:' + this.calling), this.apprentice);
+    this.appliedApprentice = this.flag('apprentice');
     this.kit.weapon = weaponLine(this.blade?.speed);
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
   }
@@ -1690,7 +1701,7 @@ export class Game implements GameApi {
   setUtilities(ids: string[]): string | null {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('bar:' + this.calling, ids.slice(0, 2));
-    this.kit.setUtilities(ids);
+    this.kit.setUtilities(ids, this.apprentice);
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
     this.persist();
     return null;
@@ -1741,6 +1752,9 @@ export class Game implements GameApi {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     const c = callingById(id);
     if (!c) return 'No such calling.';
+    // A calling is for life, as in WoW and ESO. Characters made before that keep one change.
+    if (this.mode === 'play' && this.flag('callingSet')) return 'Your calling is yours for life. To learn another\'s skills, apprentice yourself to one of its masters from level 25.';
+    if (this.mode === 'play') this.setFlag('callingSet', 1);
     this.setFlag('class', id);
     this.applyCalling();
     if (this.mode === 'play') {
@@ -1759,6 +1773,7 @@ export class Game implements GameApi {
     this.save.settings = settings;
     this.save.origin = origin;
     this.save.flags.class = calling;
+    this.save.flags.callingSet = 1; // chosen at creation, for life
     // A Pathfinder starts with a hunting bow from the Hollin smithy, the old sword in the pack beside it
     if (calling === 'pathfinder' && ITEMS.w_hollin_bow) { this.save.equip.weapon = 'w_hollin_bow'; const slot = this.save.inv.indexOf(null); if (slot >= 0) this.save.inv[slot] = { id: 'worn_sword', n: 1 }; }
     const o = originById(origin);
@@ -3546,6 +3561,7 @@ export class Game implements GameApi {
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
     this.seasons.update(dt, P);
+    if (this.flag('apprentice') !== this.appliedApprentice) this.applyCalling();
     this.home.update();
     // A let room's furniture goes when the rent runs out, and comes back when it's paid
     const paid = !!readTenancy(this.flag('flat')) && (readTenancy(this.flag('flat'))!.until > Date.now());

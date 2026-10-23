@@ -186,10 +186,14 @@ export interface UiCtx {
   learnTalent(id: string): string | null;
   resetTalents(): string | null;
   /** The bar: the two utilities chosen, the three to choose from, the signature, heal and elite, and the weapon skill. */
-  bar(): { chosen: string[]; pool: SkillDef[]; signature: SkillDef; heal: SkillDef; elite: SkillDef; weapon: SkillDef };
+  bar(): { chosen: string[]; pool: SkillDef[]; cross: string[]; signature: SkillDef; heal: SkillDef; elite: SkillDef; weapon: SkillDef };
   setUtilities(ids: string[]): string | null;
   /** Change calling; returns why it can't be done, or null. */
   setCalling(id: CallingId): string | null;
+  /** Whether this character still has its one change of calling (characters from before callings were for life). */
+  callingFree(): boolean;
+  /** The calling you're apprenticed to, and the master who taught you. */
+  apprentice(): { name: string; master: string } | null;
   /** Wear a feat's title (null for none). */
   wearTitle(id: string | null): void;
   unequip(slot: keyof Equip): void;
@@ -1537,8 +1541,11 @@ export class Hud {
       const bv = this.ctx.bar();
       const sk = (s: SkillDef, key: string, extra = '') => `<button class="bsk${extra}" data-u="${s.id}" title="${esc(s.desc)}"><img src="${abilityIcon(s.icon)}" alt=""><span><b>${key ? key + ' · ' : ''}${esc(s.name)}${s.aim ? ' <i>aimed</i>' : ''}</b><small>${esc(s.desc)} ${s.cd >= 2 ? `(${s.cd} s)` : ''}</small></span></button>`;
       page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility to put it on the bar, out of a fight.</div>
-        <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', bv.chosen.includes(s.id) ? ' on' : ' off')).join('')}${sk(bv.elite, '8')}</div><div class="bar-msg"></div>
-        <h4>Your calling</h4><div class="feat-sum">How you fight. Change it whenever you're out of a fight; your gear, levels and everything else stay the same.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div><div class="calling-msg"></div>
+        <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', (bv.chosen.includes(s.id) ? ' on' : ' off') + (bv.cross.includes(s.id) ? ' cross' : ''))).join('')}${sk(bv.elite, '8')}</div><div class="bar-msg"></div>
+        <h4>Your calling</h4>${this.ctx.callingFree()
+          ? `<div class="feat-sum">A calling is for life now. Because yours was chosen when callings could still be changed, you may change it once more, out of a fight.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div>`
+          : `<div class="callings">${CALLINGS.filter((c) => c.id === this.ctx.calling()).map((c) => callingCard(c, true)).join('')}</div>`}
+        <div class="feat-sum">${((ap) => ap ? `<b>Apprenticed to ${esc(ap.master)}</b> (${esc(ap.name)}): one of their skills, marked above, can take your second utility key.` : `<b>Apprenticeship.</b> Your calling is for life, but from level 25 a master of another calling will teach you their skills, for 500 marks: one can take your second utility key. Hugh Caddick at the Waystation toll (Warden), Bet Hollis in the Harrowgate slag yard (Reaver), Tobias Fenwick at the Glass Kirk (Kindler), Ned Thackery at Fellers' Camp (Pathfinder), Rosalind Eyre at Kelderby (Wizard).`)(this.ctx.apprentice())}</div><div class="calling-msg"></div>
         <h4 class="tal-h">Talents <span>${tv.points} of ${tv.total} points to spend</span><button class="btn ghost tal-reset">Unlearn all</button></h4>
         <div class="feat-sum">A point a level from level 3. Talents go in order down each tree, and you can hold one capstone. Unlearning costs nothing, out of a fight.</div>
         <div class="ttrees">${tv.trees.map(tree).join('')}</div>`;

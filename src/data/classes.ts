@@ -194,9 +194,28 @@ export const WEAPON_SKILLS: Record<WeaponLine, SkillDef> = {
   heavy: { id: 'sunder', name: 'Sunder', icon: 'sunder', cd: 12, aim: 6, desc: 'Bring the blade down where you aim: everything there takes a heavy blow and is knocked off its feet.' },
 };
 /** The utilities on a calling's bar: its signature, then the two chosen (by id) from the other three, or the first two. */
-export function chosenUtilities(c: CallingDef, ids: unknown): SkillDef[] {
+/** Cross-classing (data/content/masters.ts): the level an apprenticeship can start, and its fee. */
+export const APPRENTICE_LEVEL = 25, APPRENTICE_FEE = 500;
+/** Skills that only work through their own calling's craft, so no master teaches them. */
+const NOT_TAUGHT = new Set(['kindle', 'rally']);
+/** What a master of a calling teaches an apprentice: its utilities, less those. */
+export function crossUtilities(ap: CallingDef | null | undefined): SkillDef[] {
+  return ap ? ap.utilities.filter((s) => !NOT_TAUGHT.has(s.id)) : [];
+}
+
+/**
+ * The signature and the two utilities beside it: the calling's own, and (for an apprentice) at most
+ * one of the master's.
+ */
+export function chosenUtilities(c: CallingDef, ids: unknown, ap: CallingDef | null = null): SkillDef[] {
   const want = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
-  const picked = [...new Set(want)].map((id) => c.utilities.find((s) => s.id === id)).filter((s): s is SkillDef => !!s).slice(0, 2);
+  const cross = crossUtilities(ap && ap.id !== c.id ? ap : null);
+  let crossed = 0;
+  const picked = [...new Set(want)].map((id) => c.utilities.find((s) => s.id === id) ?? cross.find((s) => s.id === id)).filter((s): s is SkillDef => {
+    if (!s) return false;
+    if (cross.includes(s)) { if (crossed) return false; crossed++; }
+    return true;
+  }).slice(0, 2);
   for (const s of c.utilities) if (picked.length < 2 && !picked.includes(s)) picked.push(s);
   return [c.skills[1], ...picked];
 }

@@ -902,6 +902,7 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .bsk.on { border-color: #9a6a1a; box-shadow: inset 0 0 0 2px rgba(200, 140, 40, 0.55); background: rgba(255, 236, 190, 0.7); cursor: default; }
 .bsk.off { opacity: 0.72; cursor: pointer; }
 .bsk.off:hover { opacity: 1; border-color: #6a5432; }
+.bsk.cross { border-style: dashed; border-color: #8a6ad0; } /* a master's skill, for an apprentice */
 .bar-msg { color: #9a3a1a; font: 600 12px var(--body); min-height: 1em; }
 
 /* The songbook (game/Stage.ts) */

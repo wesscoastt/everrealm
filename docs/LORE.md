@@ -519,6 +519,20 @@ No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cott
 
 Pale blue heavy plate cut square on every face, with a small square mark inside each piece: helm, plate, greaves, gauntlets and boots. Nobody in the counties knows who made it or how many suits there are; pieces turn up among what any creature leaves behind, anywhere, about once in four thousand kills, and never one you already have. Worn in twos it brings up one ore or crystal in five as two. (An affectionate nod to a certain other game's diamond armour.) `data/armour.ts` (brightcut), `game/Game.ts` (onEnemyKilled).
 
+## Callings and their masters [in game]
+
+A calling is for life: chosen when a character is made, as in WoW and ESO (characters from before keep one change). From level 25 anyone may apprentice themselves to a master of another calling, for 500 marks, and learn their utility skills: one can take the second utility key (7). One master at a time; a new one means going to them and paying again. Skills that only work through their own calling's craft (Kindle, Rally) aren't taught.
+
+| Calling | Master | Where |
+|---|---|---|
+| Warden | **Hugh Caddick**, warden-sergeant | the Waystation toll |
+| Reaver | **Bet Hollis**, keeps the ring | the Harrowgate slag yard |
+| Kindler | **Tobias Fenwick**, teaches the fire | the Glass Kirk |
+| Pathfinder | **Ned Thackery**, tracker | Fellers' Camp |
+| Wizard | **Rosalind Eyre**, keeper of Scarth Watch | Kelderby, where she comes down for the post |
+
+`data/classes.ts` (chosenUtilities, crossUtilities), `data/content/masters.ts`.
+
 ## Bows [in game]
 
 Bows are made where people hunt: the Hollin smithy's **hunting bow**, the Hagworm fellers' **yew longbow**, the Gullmouth coast trackers' bow, the Wrath Levels **fowling bow** and the Tolmen Moor **horn bow**. With a bow in hand, Strike looses an arrow at your target up to twenty-four blocks off instead of swinging; a quiver rides on your back while you carry one. Pathfinders start with a hunting bow. `data/weapons.ts` (bow), `entities/humanoid.ts`, `game/Game.ts` (loose).
