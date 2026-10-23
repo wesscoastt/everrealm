@@ -30,6 +30,7 @@ const MATS: Record<RegionId, string[]> = {
   greenwake: ['copper_ore', 'tin_ore', 'oak_logs'], crownroad: ['boar_hide', 'birch_logs', 'tin_ore'], brambledeep: ['elder_logs', 'boar_hide', 'jelly_residue'],
   saltwind: ['crab_shell', 'pine_logs', 'raw_mackerel'], redstone: ['iron_ore', 'copper_ore', 'jelly_residue'], starfall: ['star_crystal', 'iron_ore', 'pine_logs'],
   gannet: ['boar_hide', 'crab_shell', 'pine_logs'], wrath: ['jelly_residue', 'elder_logs', 'raw_trout'], tolmen: ['iron_ore', 'boar_hide', 'pine_logs'],
+  inkholm: ['stemwood', 'chanterelles', 'jelly_residue'],
 };
 
 export interface ChestHost {

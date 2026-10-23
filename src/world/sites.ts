@@ -16,6 +16,7 @@ import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, ROOMS, type LodgingDef } from '../data/lodgings';
 import { FORTS, type Fort } from '../data/forts';
+import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -33,7 +34,9 @@ export type PropType = 'roof' | 'door' | 'lantern' | 'wallLantern' | 'banner' | 
   /** A half-block stone step before a door a block above the ground. */
   | 'doorstep'
   /** A Charter Post box, where letters are posted and read. */
-  | 'postBox';
+  | 'postBox'
+  /** A reek-fire's hearth on Inkholm (lit by the game when its fire's been relit). */
+  | 'reekhearth';
 
 export interface PropDesc {
   t: PropType;
@@ -481,6 +484,11 @@ export function plan(): Plan {
     { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
     // Stables outside the towns (data/stables.ts)
     ...STABLES.map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
+    // Inkholm, the mushroom isle (data/inkholm.ts)
+    { id: 'ink-gillsby', name: 'Gillsby Staithe', x: GILLSBY.x, z: GILLSBY.z, r0: 26, r1: 38, h: SEA + 4, build: (s, b) => buildGillsby(s, b) },
+    { id: 'ink-hythe', name: 'Black Hythe', x: HYTHE.x, z: HYTHE.z, r0: 22, r1: 34, h: SEA + 5, build: (s, b) => buildBlackHythe(s, b) },
+    { id: 'ink-priory', name: 'Corra Priory', x: PRIORY.x, z: PRIORY.z, r0: 15, r1: 27, h: PRIORY.y, build: (s, b) => buildPriory(s, b) },
+    ...REEKS.map((r): Named => ({ id: 'reek-' + r.id, name: r.name, x: r.x, z: r.z, r0: 7, r1: 13, build: (s, b) => buildReek(s, b, r) })),
     // Bandit forts in the back country (data/forts.ts)
     ...FORTS.map((f): Named => ({ id: 'fort-' + f.id, name: f.name, x: f.x, z: f.z, r0: 22, r1: 34, build: (s, b) => buildBanditFort(s, b, f) })),
     // Lodging houses, rooms let by the week (data/lodgings.ts)
@@ -520,7 +528,7 @@ export function plan(): Plan {
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
-      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'],
+      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'],
     };
     const list = kinds[reg];
     const kind = list[Math.floor(hash2(cx, cz, 504) * list.length)];
@@ -3709,6 +3717,218 @@ export function plan(): Plan {
   }
 
   /** A travellers' or workers' camp: tents round a fire with log seats, bedrolls, a lean-to and stores. */
+  // ---------------------------------------------------------------- Inkholm (data/inkholm.ts; LORE.md "Inkholm")
+  /**
+   * Gillsby Staithe: a stone quay out over the shingle to deep water, a lane of cottages up from it,
+   * the reek-house at the top where the island's burners kept their bundles, and beyond it a fence
+   * and a rope across the lane with the Grey on the far side.
+   */
+  function buildGillsby(s: Site, base: number) {
+    const cx = GILLSBY.x, cz = GILLSBY.z;
+    rect(s, cx - 50, cz - 26, cx + 30, cz + 26);
+    pave(cx - 28, cz - 1, cx + 22, cz + 1, base, 'yard');
+    const homes: [number, number, number, number, 'n' | 's', PropDesc['mat'], number, Role][] = [
+      [-20, -10, 7, 6, 's', 'slate', B.StoneBrick, 'home'], [-10, -11, 8, 7, 's', 'thatch', B.Plaster, 'home'], [1, -10, 7, 6, 's', 'slate', B.Plaster, 'home'], [11, -11, 7, 7, 's', 'slate', B.StoneBrick, 'home'],
+      [-19, 5, 8, 6, 'n', 'thatch', B.Plaster, 'home'], [-7, 5, 7, 6, 'n', 'slate', B.StoneBrick, 'inn'], [4, 5, 10, 7, 'n', 'slate', B.StoneBrick, 'workshop'],
+    ];
+    for (const [dx, dz, w, d, door, roof, wall, role] of homes) house(s, cx + dx, cz + dz, w, d, 1, base, roof, door, { wall, role });
+    // The reek-house's chimney still smokes: Bryony Kitto keeps a bundle burning on the hearth
+    s.props.push({ t: 'smoke', x: cx + 9.5, y: base + 7.5, z: cz + 9.5 });
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'crate', x: cx + 15.5 + (i % 2) * 0.9, y: base + (i > 1 ? 0.6 : 0), z: cz + 4.2 + (i % 2) * 0.3, ry: i * 0.4 });
+    // The quay: a stone pier out over the shingle, steps down to the boats at its end
+    const Q0 = cx - 28, Q1 = cx - 46;
+    for (let x = Q1; x <= Q0; x++) for (let z = cz - 2; z <= cz + 2; z++) {
+      const g = heightAt(x, z);
+      for (let y = Math.min(g, base) - 2; y < base - 1; y++) O.set(x, y, z, hash2(x * 3 + y, z, 841) < 0.3 ? B.MossyCobble : B.StoneBrick);
+      O.set(x, base - 1, z, (x + z) % 3 === 0 ? B.Cobble : B.StoneBrick);
+      clearUp(x, z, base, base + 8);
+      if ((z === cz - 2 || z === cz + 2) && (x - Q1) % 5 === 2) O.set(x, base, z, B.Timber); // bollards
+    }
+    for (let k = 1; k <= 3; k++) for (let z = cz - 1; z <= cz + 1; z++) {
+      const x = Q1 - k;
+      for (let y = Math.min(heightAt(x, z), base) - 2; y < base - 1 - k; y++) O.set(x, y, z, B.StoneBrick);
+      clearUp(x, z, base - 1 - k, base + 8);
+    }
+    s.props.push({ t: 'boat', x: Q1 - 3, y: SEA - 0.55, z: cz + 5.5, ry: 0.2 }, { t: 'boat', x: Q1 + 5, y: SEA - 0.55, z: cz - 5.5, ry: -0.15 });
+    s.props.push({ t: 'lantern', x: Q1 + 1.5, y: base, z: cz - 1.5 }, { t: 'lantern', x: Q0 - 1.5, y: base, z: cz + 1.5 });
+    s.props.push({ t: 'barrel', x: Q0 - 4.5, y: base, z: cz - 1.4 }, { t: 'crate', x: Q0 - 7.5, y: base, z: cz - 1.3, ry: 0.3 }, { t: 'crate', x: Q0 - 7.6, y: base + 0.6, z: cz - 1.3, ry: 0.9 });
+    s.props.push({ t: 'notice', x: cx - 3.5, y: base, z: cz - 3, ry: 0 }, { t: 'well', x: cx - 1.5, y: base, z: cz + 3.5 });
+    rect(s, cx - 3, cz + 2, cx, cz + 5);
+    for (const [x, z] of [[cx - 15.5, cz - 2.5], [cx + 0.5, cz + 2.5], [cx + 17.5, cz - 2.5]]) s.props.push({ t: 'lantern', x, y: base, z });
+    // The line: a fence across the top of the village, a rope across the lane, and a board
+    fence(s, cx + 24, cz - 22, cx + 24, cz - 3);
+    fence(s, cx + 24, cz + 3, cx + 24, cz + 22);
+    s.props.push({ t: 'rope', x: cx + 24.5, y: base + 1.15, z: cz - 2.4, ry: -Math.PI / 2, len: 5.8, h: 0, r: 0.25 });
+    s.props.push({ t: 'sign', x: cx + 22.5, y: base, z: cz + 4.5, ry: Math.PI / 2, text: 'The Grey. Stop.' });
+  }
+
+  /**
+   * Black Hythe: Harrowgate & Daughters' ink works on the east shore. Drying sheds for the caps, the
+   * vat house and its chimney, the manager's office, open tubs of ink in the yard and the yard black
+   * round them, the jetty the ink goes out from, and over a boarded shaft the headframe of the Deep
+   * Gill, which went down further than anyone on the Holm wanted it to.
+   */
+  function buildBlackHythe(s: Site, base: number) {
+    const cx = HYTHE.x, cz = HYTHE.z;
+    rect(s, cx - 28, cz - 26, cx + 42, cz + 26);
+    pave(cx - 22, cz - 20, cx + 20, cz + 20, base, 'yard');
+    for (let z = cz - 4; z <= cz + 10; z++) for (let x = cx - 7; x <= cx + 6; x++) if (hash2(x, z, 811) < 0.4 + 0.3 * (1 - Math.hypot(x - cx, z - cz - 3) / 9)) O.set(x, base - 1, z, B.Basalt);
+    house(s, cx - 20, cz - 18, 16, 9, 1, base, 'slate', 's', { wall: B.DarkPlanks, role: 'store', front: 'boarded' });
+    house(s, cx - 20, cz + 9, 13, 9, 1, base, 'slate', 'n', { wall: B.DarkPlanks, role: 'workshop', front: 'boarded' });
+    house(s, cx + 3, cz - 18, 9, 7, 2, base, 'slate', 's', { wall: B.StoneBrick, role: 'office', front: 'quoined' });
+    for (let y = base; y < base + 16; y++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) O.set(cx + 6 + dx, y, cz + 12 + dz, y >= base + 15 ? B.Cobble : B.StoneBrick);
+    s.props.push({ t: 'smoke', x: cx + 7, y: base + 16.5, z: cz + 13 });
+    for (let i = 0; i < 6; i++) s.props.push({ t: 'barrel', x: cx - 3.5 + (i % 3) * 2.3, y: base, z: cz + 1.5 + Math.floor(i / 3) * 2.6, ry: i });
+    for (let k = 0; k < 3; k++) fence(s, cx + 9, cz - 8 + k * 3, cx + 15, cz - 8 + k * 3);
+    // The Deep Gill shaft, boarded over under its headframe
+    const sx = cx + 13, sz = cz + 13;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      for (let y = base - 10; y < base - 1; y++) O.set(sx + dx, y, sz + dz, B.Air);
+      O.set(sx + dx, base - 1, sz + dz, (dx + dz) % 2 ? B.Planks : B.DarkPlanks);
+    }
+    s.props.push({ t: 'headframe', x: sx + 0.5, y: base, z: sz + 0.5, ry: 0, text: 'HARROWGATE & DAUGHTERS\nThe Deep Gill' });
+    // The jetty, out east to deep water: plank deck on timber legs
+    for (let x = cx + 21; x <= cx + 40; x++) for (let z = cz - 1; z <= cz + 1; z++) {
+      const g = heightAt(x, z);
+      if (z !== cz && (x - cx) % 4 === 0) for (let y = Math.min(g, base) - 2; y < base - 1; y++) O.set(x, y, z, B.Timber);
+      O.set(x, base - 1, z, B.Planks);
+      clearUp(x, z, base, base + 8);
+    }
+    s.props.push({ t: 'boat', x: cx + 37, y: SEA - 0.55, z: cz + 4.5, ry: 1.3 });
+    s.props.push({ t: 'sign', x: cx - 4.5, y: base, z: cz + 21.5, ry: 0, text: 'Black Hythe' });
+    s.props.push({ t: 'banner', x: cx + 4.5, y: base + 6, z: cz - 10.6, ry: 0, kind: 'harrow' }, { t: 'banner', x: cx + 10.5, y: base + 6, z: cz - 10.6, ry: 0, kind: 'harrow' });
+    for (const [x, z] of [[cx - 10.5, cz - 7.5], [cx + 16.5, cz + 6.5], [cx + 20.5, cz - 1.5]]) s.props.push({ t: 'lantern', x, y: base, z });
+  }
+
+  /**
+   * Corra Priory on the top of Corra Fell: the roofless nave of the brothers' church, an arcade down
+   * one side, Abbot Wystan's tomb in the chancel with its slab cracked and pushed aside, and under it
+   * the crypt stair: three flights down to the Undercroft, where the brothers' cells, their ink
+   * cistern and, deepest, the Old Bed are (data/inkholm.ts). The Grey grows from the Old Bed.
+   */
+  function buildPriory(s: Site, base: number) {
+    const cx = PRIORY.x, cz = PRIORY.z;
+    rect(s, cx - 18, cz - 16, cx + 18, cz + 18);
+    for (let z = cz - 9; z <= cz + 9; z++) for (let x = cx - 5; x <= cx + 5; x++) {
+      const wall = x === cx - 5 || x === cx + 5 || z === cz - 9 || z === cz + 9;
+      O.set(x, base - 1, z, hash2(x, z, 821) < 0.35 ? B.MossyCobble : hash2(x, z, 822) < 0.55 ? B.Cobble : B.Grass);
+      clearUp(x, z, base, base + 14);
+      if (!wall) continue;
+      const gable = z === cz - 9 ? Math.max(0, 4 - Math.abs(x - cx)) : 0;
+      const top = base + 7 + gable - Math.floor(Math.max(0, (x - cx) * 0.5 + (z - cz) * 0.25 + hash2(x, z, 823) * 4));
+      for (let y = base; y < top; y++) {
+        const door = z === cz + 9 && Math.abs(x - cx) <= 1 && y < base + 4;
+        const tall = z === cz - 9 && Math.abs(x - cx) <= 1 && y >= base + 3 && y < base + 9;
+        const win = (x === cx - 5 || x === cx + 5) && (z - cz) % 4 === 0 && y >= base + 2 && y < base + 5;
+        if (!door && !tall && !win) O.set(x, y, z, weathered(x, y, z, 824, 0.35));
+      }
+    }
+    // The arcade down the west side of the nave, some of it fallen
+    for (const z of [-6, -2, 2, 6]) { const h = 3 + Math.floor(hash2(cx, cz + z, 825) * 3); for (let y = base; y < base + h; y++) O.set(cx - 3, y, cz + z, B.StoneBrick); }
+    // Abbot Wystan's tomb, its slab cracked and pushed aside off the stair
+    for (const [x, z] of [[cx - 1, cz - 8], [cx, cz - 8], [cx + 1, cz - 8], [cx - 2, cz - 7], [cx - 3, cz - 7]]) O.set(x, base, z, B.StoneBrick);
+    // The crypt stair: three flights and two landings, walled in dressed stone
+    const opened: [number, number][] = [];
+    const cut = (x: number, z: number, floor: number, wallSides: [number, number][]) => {
+      O.set(x, floor - 1, z, B.StoneBrick);
+      for (let y = floor; y < Math.min(base, floor + 4); y++) O.set(x, y, z, B.Air);
+      if (floor + 4 < base) O.set(x, floor + 4, z, B.StoneBrick);
+      for (const [wx, wz] of wallSides) for (let y = floor - 1; y < Math.min(base, floor + 5); y++) O.set(wx, y, wz, weathered(wx, y, wz, 826, 0.25));
+    };
+    let depth = 0;
+    const flight = (x0: number, z0: number, dir: 1 | -1, n: number) => {
+      for (let k = 0; k < n; k++, depth++) for (let dx = 0; dx < 3; dx++) {
+        const x = cx + x0 + dx, z = cz + z0 + dir * k, f = base - 1 - depth;
+        cut(x, z, f, dx === 0 ? [[x - 1, z]] : dx === 2 ? [[x + 1, z]] : []);
+      }
+    };
+    const landing = (x0: number, z0: number, x1: number, z1: number) => {
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) cut(cx + x, cz + z, base - 1 - depth, []);
+      for (let z = z0 - 1; z <= z1 + 1; z++) for (let x = x0 - 1; x <= x1 + 1; x++) if (x < x0 || x > x1 || z < z0 || z > z1) {
+        const k = (cx + x) * 4096 + cz + z;
+        if (!stairCells.has(k)) for (let y = base - 2 - depth; y < base + 3 - depth; y++) O.set(cx + x, y, cz + z, weathered(cx + x, y, cz + z, 826, 0.25));
+      }
+    };
+    const stairCells = new Set<number>();
+    const mark = (x0: number, z0: number, x1: number, z1: number) => { for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) for (let x = x0; x <= x1; x++) stairCells.add((cx + x) * 4096 + cz + z); };
+    mark(-1, -6, 1, 5); mark(-1, 6, 5, 8); mark(3, 5, 5, -5); mark(3, -8, 9, -6); mark(7, -5, 9, 6);
+    flight(-1, -6, 1, 12);
+    landing(-1, 6, 5, 8);
+    flight(3, 5, -1, 11);
+    landing(3, -8, 9, -6);
+    flight(7, -5, 1, 12);
+    const F = base - 1 - depth + 1;
+    void opened;
+    // Graves on the fell top east of the church, and fallen stone round it
+    for (let i = 0; i < 7; i++) { const x = cx + 9 + (i % 4) * 2, z = cz - 5 + Math.floor(i / 4) * 4 + (i % 2); O.set(x, base, z, i % 3 ? B.StoneBrick : B.MossyStone); }
+    for (let i = 0; i < 6; i++) { const a = hash2(i, cx, 827) * Math.PI * 2, r = 11 + hash2(i, cz, 828) * 4; rubble(Math.round(cx + Math.cos(a) * r), Math.round(cz + Math.sin(a) * r), 829 + i); }
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + 1, z: cz - 5.5, r: 2.4, color: '#9ff0d8' });
+    buildPrioryUndercroft(s, cx, cz, F === UNDER_F ? F : UNDER_F);
+  }
+
+  /** The Undercroft (see buildPriory): its halls dug at UNDER_F under the fell top. */
+  function buildPrioryUndercroft(s: Site, cx: number, cz: number, F: number) {
+    const CRYPT: DigTheme = { wall: B.StoneBrick, wall2: B.MossyStone, floor: B.Cobble, floor2: B.MossyCobble, light: '#9ff0d8' };
+    const BED: DigTheme = { wall: B.Loam, wall2: B.Mycelium, floor: B.Mycelium, floor2: B.Loam, light: '#7affd0' };
+    const { hall, run, finish, opened } = digger(s, cx, cz, F, CRYPT);
+    for (let x = 7; x <= 9; x++) for (let z = 3; z <= 6; z++) opened(cx + x, cz + z);
+    const mob = (x: number, z: number, t: string): [number, number, number, string] => [cx + x + 0.5, F, cz + z + 0.5, t];
+    const furn = (item: string, x: number, z: number, ry = 0) => s.props.push({ t: 'furn', item, x: cx + x + 0.5, y: F, z: cz + z + 0.5, ry });
+    // The brothers' cells
+    run(8, 7, 8, 10);
+    hall(2, 11, 16, 22, 5, true);
+    for (const [x, z] of [[4, 21], [9, 21], [14, 21]]) furn('bed', x, z, Math.PI);
+    furn('candles', 9, 12); furn('desk', 4, 12); furn('shelves', 14, 12);
+    // The ink cistern: the brothers' own ink, in a pool still black
+    run(1, 16, -6, 16);
+    hall(-16, 10, -7, 26, 7);
+    for (let z = 14; z <= 22; z++) for (let x = -14; x <= -9; x++) { O.set(cx + x, F - 1, cz + z, B.Water); O.set(cx + x, F - 2, cz + z, B.Water); O.set(cx + x, F - 3, cz + z, B.Basalt); }
+    // The Old Bed: a cavern where the Grey grows out of the rock, under stems that reach the roof
+    run(-12, 9, -12, 4);
+    hall(-34, -22, -6, 3, 10, false, BED);
+    for (const [x, z] of [[-29, -17], [-12, -18], [-29, 0], [-11, -1]]) {
+      for (let y = F; y < F + 9; y++) for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) O.set(cx + x + dx, y, cz + z + dz, B.MushStem);
+      for (let dx = -3; dx <= 4; dx++) for (let dz = -3; dz <= 4; dz++) { const d = Math.hypot(dx - 0.5, dz - 0.5); if (d < 3.6) O.set(cx + x + dx, F + 9, cz + z + dz, d < 2.4 ? B.Gills : B.CapGlow); }
+    }
+    for (let i = 0; i < 40; i++) {
+      const x = -34 + Math.floor(hash2(i, 1, 851) * 29), z = -22 + Math.floor(hash2(i, 2, 851) * 26);
+      const side = hash2(i, 3, 851);
+      const X = side < 0.25 ? cx - 35 : side < 0.5 ? cx - 5 : cx + x, Z = side < 0.25 || side < 0.5 ? cz + z : side < 0.75 ? cz - 23 : cz + 4;
+      O.set(X, F + 1 + Math.floor(hash2(i, 4, 851) * 6), Z, hash2(i, 5, 851) < 0.5 ? B.CapGlow : B.Glowcap);
+    }
+    // The bed itself: a mound of gill and cap and grey flesh, glowing where it's newest
+    const bx = OLD_BED.x - cx, bz = OLD_BED.z - cz;
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+      const d = Math.hypot(dx, dz), h = Math.max(0, Math.round(3.2 - d * 0.75 + hash2(dx, dz, 852)));
+      for (let y = 0; y < h; y++) O.set(cx + bx + dx, F + y, cz + bz + dz, y === h - 1 ? (hash2(dx, dz + y, 853) < 0.3 ? B.CapGlow : hash2(dx, dz, 854) < 0.5 ? B.Gills : B.CapInk) : B.Mycelium);
+    }
+    s.props.push({ t: 'glow', x: OLD_BED.x + 0.5, y: F + 4, z: OLD_BED.z + 0.5, r: 3.4, color: '#7affd0' });
+    finish();
+    const spawns = [mob(7, 14, 'greybrother'), mob(13, 15, 'greybrother'), mob(9, 19, 'greybrother'), mob(-12, 12, 'puffball'), mob(-10, 24, 'puffball'), mob(-15, 19, 'greyed'), mob(-26, -14, 'greybrother'), mob(-26, 0, 'greybrother'), mob(-9, -16, 'puffball')];
+    const chest: [number, number, number] = [cx - 31.5, F, cz - 5.5];
+    s.props.push({ t: 'furn', item: 'chest', x: chest[0], y: F, z: chest[2], ry: Math.PI / 2 });
+    s.act = { kind: 'delve', spawns, boss: mob(-14, -6, 'greyabbot'), chest };
+  }
+
+  /** A reek-fire: a ring of standing stones on swept ground round a hearth heaped with reek. */
+  function buildReek(s: Site, base: number, r: { x: number; z: number }) {
+    const cx = r.x, cz = r.z;
+    rect(s, cx - 9, cz - 9, cx + 9, cz + 9);
+    for (let dz = -7; dz <= 7; dz++) for (let dx = -7; dx <= 7; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 7.2) continue;
+      foundation(cx + dx, cz + dz, base, B.Dirt);
+      O.set(cx + dx, base - 1, cz + dz, d < 2.2 ? B.Cobble : hash2(cx + dx, cz + dz, 832) < 0.5 ? B.Gravel : B.Loam);
+      clearUp(cx + dx, cz + dz, base, base + 14);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3, x = Math.round(cx + Math.cos(a) * 4.8), z = Math.round(cz + Math.sin(a) * 4.8);
+      for (let y = base; y < base + 2 + (hash2(x, z, 831) < 0.5 ? 1 : 0); y++) O.set(x, y, z, B.MossyStone);
+    }
+    s.props.push({ t: 'reekhearth', x: cx + 0.5, y: base, z: cz + 0.5, ry: hash2(cx, cz, 833) * 6 });
+    O.set(cx, base, cz, B.Barrier);
+  }
+
   /**
    * A bandit fort (data/forts.ts): a log palisade with its gate toward the nearest road and a
    * watchtower either side inside it, tents and a fire in the yard, carts of what they've taken, and

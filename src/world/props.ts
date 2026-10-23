@@ -717,6 +717,31 @@ export function shutter(M: PropMaterials, color: string): THREE.Group {
 }
 
 /** A Charter Post box on its stake: painted the Post's blue, a sloped lid, a brass slot, and the Post's horn on its face. */
+/**
+ * A reek-fire's hearth on Inkholm: a raised ring of stones heaped with bundles of dried reek (the
+ * bitter herb the Reekers burn against the Grey), an iron basket on a pole over it. Cold until lit
+ * (game/Game.ts sets the flames on it).
+ */
+export function reekHearth(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    g.add(mesh(box(0.4, 0.42, 0.36), M.cobble, Math.cos(a) * 0.82, 0.21, Math.sin(a) * 0.82, -a));
+  }
+  const reek = flat('#4a5a3a'), tie = flat('#8a6a3a');
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const b = mesh(cyl(0.11, 0.13, 0.9, 6), reek, Math.cos(a) * 0.32, 0.5, Math.sin(a) * 0.32, 0.5 * Math.cos(a), 0, 0.5 * Math.sin(a));
+    g.add(b);
+    g.add(mesh(cyl(0.135, 0.135, 0.06, 6), tie, Math.cos(a) * 0.32, 0.5, Math.sin(a) * 0.32, 0.5 * Math.cos(a), 0, 0.5 * Math.sin(a)));
+  }
+  g.add(mesh(box(0.08, 2.2, 0.08), M.iron, 1.1, 1.1, 0));
+  g.add(mesh(box(0.7, 0.06, 0.06), M.iron, 0.8, 2.15, 0));
+  for (const [dx, dz] of [[-0.15, -0.15], [0.15, -0.15], [-0.15, 0.15], [0.15, 0.15]]) g.add(mesh(box(0.03, 0.34, 0.03), M.iron, 0.45 + dx, 1.95, dz));
+  g.add(mesh(box(0.36, 0.04, 0.36), M.iron, 0.45, 1.78, 0));
+  return g;
+}
+
 export function postBox(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   const paint = flat('#2c4a6a'), brass = flat('#c9a24a');

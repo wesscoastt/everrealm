@@ -479,6 +479,19 @@ Twenty-four books lie open on stands by the places they're about, and go into th
 - **The Collegium's letter** to Tabitha Gant: the pages were taken by a student who has since left; the Collegium keeps its own copy of the tunes, for scholars, by appointment.
 - **Tomorrow's Coast**: a Morrow sailor at the Mewstones; their tall cities held down with black stone, and an island of wrecks where nobody pays a toll.
 
+## Inkholm [in game]
+
+An island south-east of Gullmouth, past the Mewstones, about six hundred blocks across. Locals call it the Holm. `world/terrain.ts` (INKHOLM), `data/inkholm.ts`, `data/content/inkholm.ts`.
+
+- **The woods.** Inkholm grows mushrooms, not trees: broad caps in a cep's brown or (one in four) red with white flecks; tall ink caps whose rims run to black; and lantern caps that glow sea-green after dark. Mycelium covers the ground. Mist hangs over the island most of the day, and it's easy to lose your way: keep the sea on one side.
+- **Ink.** Ripe ink caps melt into black ink. Boiled and settled at Black Hythe, it's what the Charter writes its ledgers in. Harrowgate & Daughters bought the works from the island's ink guild.
+- **Corra Priory.** Ruins on top of Corra Fell. The brothers made ink and copied books. Three hundred years ago a grey mould came up out of the fell and took them. **Abbot Wystan** sealed the Old Bed under the priory, burned the first reek, and went down to see it out. His tomb says to burn it again if the stone is ever moved.
+- **The Reekers.** The families who keep the fires: every autumn they burn reek (a bitter shore herb that smells like a wet dog's breath) on five rings of standing stones round the Holm: the Gull Reek, Hesketh's Reek, the Low Reek, Barrow Reek and the Long Reek. The smoke keeps the Grey in the ground. **Bryony Kitto** is the last of them.
+- **The Grey.** A mould that roots in the lungs and sheds in the dry: a cough, then grey skin, then people walk into the woods and stand still until caps grow out of them (the greyed). Reek smoke breaks it down; the Collegium's **Doctor Lettice Hale** proved it.
+- **What happened.** Last autumn Black Hythe's manager, **Aubrey Vosper**, paid the island council forty marks a month to let the fires lapse (reek smoke browns the drying caps), and sank the Deep Gill shaft toward the fell, where the warm air grows first-grade caps. At forty fathoms it broke into the priory's Undercroft. The Grey came up; the Charter stopped the crossing.
+- **The Grey (the questline).** The Crossing: Doctor Hale and the ferryman **Reuben Hoskin** at Gullmouth's Post sign. Gillsby Staithe: Bryony, and grey caps for the doctor. Reek-Fires: relight all five. Black Hythe: Vosper's ledger, and the choice of who gets it (flag `inkLedger`: `charter`, Hale sends it to the Speaker and Vosper goes; `bryony`, she reads it out at the council, the council pays the money back and the works stay on the island's terms). Corra Priory: the tomb, the crypt stair, Abbot Wystan grey through in the Old Bed, and the bed burned with reek. Afterwards Bryony's grandson **Joss** is up and well, and she's teaching him the fires.
+- **Gillsby Staithe** (the harbour): a stone quay, a lane of cottages, the Staithe Inn (**Wenna Rowse**), the reek-house, and a rope across the top of the lane. **Silas Hoskin**, Reuben's brother, keeps the quay ropes.
+
 ## Bandit forts [in game]
 
 Every troubled region has a gang, and every gang worth the name has a fort well off the road: a log palisade with a gate toward the road, a watchtower either side of it, tents and a fire in the yard, carts of what they've taken, and the chief's hall at the back with the gang's chest. `src/data/forts.ts`, `world/sites.ts` (buildBanditFort), `game/Activities.ts`.

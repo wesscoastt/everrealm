@@ -84,6 +84,7 @@ import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
 import { Mail } from './Mail';
+import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
@@ -108,7 +109,7 @@ const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() 
 /** The music for each region; the outer lands borrow a neighbour's until their own is written. */
 const REGION_THEME: Record<RegionId, ThemeId> = {
   greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
-  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall',
+  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep',
 };
 
 /** Where townsfolk walk, and how many of them, busiest in the capital. */
@@ -970,7 +971,7 @@ export class Game implements GameApi {
       from: here.name,
       stops: POSTS.map((p) => ({
         id: p.id, name: p.name, here: p.id === here.id,
-        known: postKnown(p, this.save.discovered),
+        known: postKnown(p, this.save.discovered) && (!p.gate || !!this.flag(p.gate)),
         fare: postFare(here, p), hours: postHours(here, p),
       })),
     };
@@ -1030,7 +1031,7 @@ export class Game implements GameApi {
   private travelTo(id: string): void {
     const here = POSTS.find((p) => p.id === this.currentPost);
     const there = POSTS.find((p) => p.id === id);
-    if (!here || !there || here === there || !postKnown(there, this.save.discovered)) return;
+    if (!here || !there || here === there || !postKnown(there, this.save.discovered) || (there.gate && !this.flag(there.gate))) return;
     const fare = postFare(here, there);
     if (this.save.marks < fare || this.dead || this.dialogue) return;
     this.save.marks -= fare;
@@ -3878,6 +3879,7 @@ export class Game implements GameApi {
       }
     }
     this.books.update(dt);
+    this.updateReekFires(dt);
     this.fish.update(dt, this.player.position);
 
     // Interaction candidate
@@ -3947,6 +3949,44 @@ export class Game implements GameApi {
     if (this.listenT <= 0) { this.listenT = 1; this.listen(P, sky.night, sky.sheltered); }
     this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin' || (this.scape.crowd ?? 0) > 0, rain: underground ? 0 : wet * (sky.sheltered ? 0.45 : 1), ...this.scape });
     this.audio.musicContext({ theme: this.musicTheme(underground), combat: this.inCombat(), boss: this.bossFight() });
+  }
+
+  /** Inkholm's relit reek-fires (data/inkholm.ts): flames on the hearth and a glow, built near the player. */
+  private reekFlames = new Map<string, THREE.Group>();
+  private reekGlow: THREE.Texture | null = null;
+  private updateReekFires(dt: number): void {
+    const P = this.player.position;
+    for (const r of REEKS) {
+      const on = !!this.flag('reekLit:' + r.id) && Math.hypot(P.x - r.x, P.z - r.z) < 150;
+      let f = this.reekFlames.get(r.id);
+      if (on && !f) {
+        f = new THREE.Group();
+        const flame = new THREE.MeshBasicMaterial({ color: '#ffb24a', transparent: true, opacity: 0.92, depthWrite: false });
+        const core = new THREE.MeshBasicMaterial({ color: '#fff0b0', transparent: true, opacity: 0.95, depthWrite: false });
+        for (let i = 0; i < 4; i++) {
+          const c = new THREE.Mesh(new THREE.ConeGeometry(0.34 - i * 0.05, 1.1 + (i % 2) * 0.4, 6), i === 3 ? core : flame);
+          c.position.set(Math.cos(i * 2.1) * 0.18, 0.95, Math.sin(i * 2.1) * 0.18);
+          f.add(c);
+        }
+        if (!this.reekGlow) {
+          const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+          const x = cv.getContext('2d')!, gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+          gr.addColorStop(0, 'rgba(255,190,110,0.85)'); gr.addColorStop(1, 'rgba(255,140,60,0)');
+          x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+          this.reekGlow = new THREE.CanvasTexture(cv);
+        }
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.reekGlow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        glow.scale.setScalar(5.5); glow.position.y = 1.3;
+        f.add(glow);
+        f.position.set(r.x + 0.5, heightAt(r.x, r.z), r.z + 0.5);
+        this.scene.add(f);
+        this.reekFlames.set(r.id, f);
+      } else if (!on && f) { this.scene.remove(f); this.reekFlames.delete(r.id); f = undefined; }
+      if (!f) continue;
+      const t = this.elapsed;
+      f.children.forEach((c, i) => { if (c instanceof THREE.Mesh) { c.scale.y = 0.85 + Math.sin(t * 9 + i * 1.7) * 0.18; c.rotation.y += dt * (1 + i * 0.3); } });
+      if (Math.random() < dt * 3) this.particles.sparks(tmpV.set(f.position.x, f.position.y + 1.4, f.position.z), 2, '#ffd080');
+    }
   }
 
   /** What the feet are on: grass, stone, boards, gravel, sand, snow, or shallow water. */

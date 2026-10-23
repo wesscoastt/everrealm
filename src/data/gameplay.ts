@@ -107,6 +107,10 @@ export const TREE_INFO = {
   giant: { item: 'elder_logs', level: 20, xp: 90, respawn: 420, name: 'Elder oak' },
   // Hagworm's ancients: not for felling (level out of reach, like the Moot Oak)
   ancient: { item: 'elder_logs', level: 99, xp: 0, respawn: 0, name: 'Ancient oak' },
+  // Inkholm's mushrooms: the broad caps and the ink caps fell for stemwood; the lantern caps are left alone
+  capshroom: { item: 'stemwood', level: 6, xp: 42, respawn: 240, name: 'Giant mushroom' },
+  inkcap: { item: 'stemwood', level: 9, xp: 52, respawn: 260, name: 'Ink cap' },
+  lanterncap: { item: 'stemwood', level: 99, xp: 0, respawn: 0, name: 'Lantern cap' },
 } as const;
 
 export const FISH_TABLE: Record<'wend' | 'spill' | 'eelpool' | 'lake' | 'sea' | 'highland', { item: string; level: number; xp: number; weight: number }[]> = {
@@ -224,6 +228,7 @@ export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'road
   | 'r_brindle' | 'r_barley' | 'r_mosscap' | 'r_barnacle' | 'r_pitdog' | 'r_whiteface' | 'r_eggthief' | 'r_mudgut' | 'r_torhound' | 'r_bigmary'
   | 'footpad' | 'poacher' | 'wrecker' | 'claimjumper' | 'cliffrobber' | 'fenpoacher' | 'tinthief'
   | 'chief_gibbet' | 'chief_breakneck' | 'chief_blackwater' | 'chief_reddog' | 'chief_eyrie' | 'chief_stilts' | 'chief_carrack'
+  | 'greyed' | 'greybrother' | 'puffball' | 'greyhog' | 'gillcrab' | 'greyabbot'
   | 'dg_rustback' | 'dg_hatchling' | 'dg_seep' | 'dg_nightman' | 'dg_coll' | 'dg_sump' | 'dg_verdigris'
   | 'dg_brack' | 'dg_millstone' | 'dg_glim';
 
@@ -331,7 +336,14 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   chief_eyrie: { type: 'chief_eyrie', model: 'bandit', look: { tunic: '#3a3a3a', trim: '#b8a878', trousers: '#2a2626', hat: 'kerchief', hatColor: '#5a1e1e', cape: '#5a5a5a', facial: 3, build: 0.98, height: 1.08 }, held: 'sword', scale: 1.08, name: 'Matty Gaunt', level: 13, hp: 800, damage: 24, speed: 5.8, aggro: 14, leash: 24, attack: 'lunge', windup: 0.45, range: 2.9, cooldown: 1.3, xp: 680, elite: true, loot: [{ item: 'tally_eyrie', chance: 1 }, { item: 'wolfskin_hood', chance: 0.25 }], marks: [28, 44], respawn: 1500 },
   chief_stilts: { type: 'chief_stilts', model: 'bandit', look: { frame: 'f', tunic: '#3a4a2a', trim: '#9a8a4a', trousers: '#2e2e22', hat: 'straw', cape: '#4a3a2a', age: 0.7, build: 1.08 }, held: 'hatchet', scale: 1.08, name: 'Agnes Mardle', level: 18, hp: 1160, damage: 31, speed: 5.4, aggro: 14, leash: 24, attack: 'lunge', windup: 0.5, range: 2.9, cooldown: 1.4, xp: 1000, elite: true, loot: [{ item: 'tally_stilts', chance: 1 }, { item: 'oilskin_hat', chance: 0.25 }], marks: [34, 52], respawn: 1500 },
   chief_carrack: { type: 'chief_carrack', model: 'bandit', look: { tunic: '#3a3a44', trim: '#a8a898', trousers: '#2a2a30', hat: 'hood', hatColor: '#2a2a34', cape: '#4a4a52', facial: 1, build: 1.12 }, held: 'pickaxe', scale: 1.12, name: 'Kit Pascoe', level: 32, hp: 2300, damage: 52, speed: 5.6, aggro: 14, leash: 24, attack: 'lunge', windup: 0.45, range: 3.0, cooldown: 1.3, xp: 2100, elite: true, loot: [{ item: 'tally_carrack', chance: 1 }, { item: 'frost_cowl', chance: 0.25 }], marks: [46, 70], respawn: 1500 },
-  // Rares (data/wilds.ts): one to a region, turning up at its landmarks
+  // Inkholm: the greyed (islanders the Grey has taken), the brothers under the priory, puffballs,
+  // the island's hogs gone grey, gill crabs on the shore, and Abbot Wystan in the Old Bed
+  greyed: { type: 'greyed', model: 'bandit', look: { skin: '#a4aa9c', tunic: '#5e5c56', trim: '#86847a', trousers: '#4a4844', hat: 'wide', hatColor: '#d4ccbc', build: 0.95 }, held: 'none', name: 'Greyed islander', level: 22, hp: 320, damage: 26, speed: 4.2, aggro: 11, leash: 26, attack: 'lunge', windup: 0.7, range: 2.5, cooldown: 1.8, xp: 270, loot: [{ item: 'grey_cap', chance: 0.6 }, { item: 'stemwood', chance: 0.3 }], marks: [6, 12], respawn: 140 },
+  greybrother: { type: 'greybrother', model: 'bandit', look: { skin: '#9ea498', tunic: '#3a2e26', trim: '#5a4a3a', trousers: '#2e241e', hat: 'hood', hatColor: '#3a2e26', cape: '#2e241e', age: 0.8 }, held: 'none', name: 'Grey brother', level: 25, hp: 380, damage: 30, speed: 4.0, aggro: 11, leash: 30, attack: 'lunge', windup: 0.75, range: 2.6, cooldown: 1.9, xp: 330, loot: [{ item: 'grey_cap', chance: 0.7 }, { item: 'furn_candles', chance: 0.05 }], marks: [8, 14], respawn: 160 },
+  puffball: { type: 'puffball', model: 'jelly', palette: { a: '#e2dac6', b: '#a89c84' }, scale: 1.2, name: 'Puffball', level: 23, hp: 280, damage: 24, speed: 2.6, aggro: 8, leash: 22, attack: 'slam', windup: 0.9, range: 3.0, cooldown: 2.3, xp: 250, loot: [{ item: 'grey_cap', chance: 0.4 }, { item: 'jelly_residue', chance: 0.5 }], marks: [5, 10], respawn: 120 },
+  greyhog: { type: 'greyhog', model: 'boar', palette: { a: '#6e6a62', b: '#d0c8b6', c: '#a8a090' }, scale: 1.1, name: 'Grey hog', level: 24, hp: 340, damage: 28, speed: 4.4, aggro: 9, leash: 26, attack: 'charge', windup: 0.7, range: 6.5, cooldown: 2.4, xp: 300, loot: [{ item: 'boar_hide', chance: 0.6 }, { item: 'grey_cap', chance: 0.25 }], marks: [6, 12], respawn: 130 },
+  gillcrab: { type: 'gillcrab', model: 'rustback', palette: { a: '#c8a890', b: '#e8d0b8' }, scale: 1.05, name: 'Gill crab', level: 21, hp: 300, damage: 25, speed: 3.6, aggro: 8, leash: 24, attack: 'charge', windup: 0.75, range: 7, cooldown: 2.4, xp: 260, loot: [{ item: 'crab_shell', chance: 0.7 }], marks: [5, 10], respawn: 120 },
+  greyabbot: { type: 'greyabbot', model: 'bandit', look: { skin: '#b4baae', tunic: '#2a221c', trim: '#c8b890', trousers: '#221a14', hat: 'hood', hatColor: '#2a221c', cape: '#1e1814', age: 0.95, build: 1.1, height: 1.08 }, held: 'none', scale: 1.15, name: 'Abbot Wystan', level: 28, hp: 1500, damage: 40, speed: 4.2, aggro: 13, leash: 24, attack: 'slam', windup: 0.8, range: 3.4, cooldown: 1.8, xp: 1400, elite: true, loot: [{ item: 'wystan_crook', chance: 1 }, { item: 'grey_cap', chance: 1, min: 2, max: 3 }], marks: [40, 60], respawn: 900 },  // Rares (data/wilds.ts): one to a region, turning up at its landmarks
   r_brindle: { type: 'r_brindle', model: 'wolf', palette: { a: '#6a5040', b: '#3a2a20', c: '#b8a080' }, scale: 1.4, name: 'Old Brindle', level: 7, hp: 380, damage: 16, speed: 5.8, aggro: 16, leash: 40, attack: 'lunge', windup: 0.5, range: 2.8, cooldown: 1.5, xp: 300, elite: true, loot: [{ item: 'brindle_tail', chance: 1 }, { item: 'tmap_greenwake_1', chance: 0.5 }, { item: 'tmap_greenwake_2', chance: 0.5 }, { item: 'wolfskin_hood', chance: 0.3 }], marks: [15, 25], respawn: 99999 },
   r_barley: { type: 'r_barley', model: 'boar', palette: { a: '#8a6a3a', b: '#5a4020', c: '#d8b080' }, scale: 1.8, name: 'The Barley Boar', level: 12, hp: 720, damage: 22, speed: 4.6, aggro: 16, leash: 40, attack: 'charge', windup: 0.7, range: 8, cooldown: 2.2, xp: 520, elite: true, loot: [{ item: 'barley_tusk', chance: 1 }, { item: 'tmap_crownroad_1', chance: 0.5 }, { item: 'tmap_crownroad_2', chance: 0.5 }, { item: 'toll_sabre', chance: 0.3 }], marks: [20, 32], respawn: 99999 },
   r_mosscap: { type: 'r_mosscap', model: 'jelly', palette: { a: '#5a8a3a', b: '#2a4a1a' }, scale: 2, name: 'Mosscap', level: 16, hp: 900, damage: 26, speed: 2.8, aggro: 16, leash: 40, attack: 'slam', windup: 0.85, range: 3.6, cooldown: 2.2, xp: 700, elite: true, loot: [{ item: 'mosscap_heart', chance: 1 }, { item: 'tmap_brambledeep_1', chance: 0.5 }, { item: 'tmap_brambledeep_2', chance: 0.5 }, { item: 'moss_hood', chance: 0.3 }], marks: [24, 38], respawn: 99999 },
@@ -361,6 +373,7 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
   gannet: { enemies: ['clifffox', 'cragboar', 'clifffox'], animals: ['sheep', 'rabbit'], sea: ['huss', 'conger', 'conger'] },
   wrath: { enemies: ['fenjelly', 'bogboar', 'fenjelly'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
   tolmen: { enemies: ['moorwolf', 'graniteback', 'moorwolf'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
+  inkholm: { enemies: ['greyed', 'puffball', 'greyhog', 'greyed', 'gillcrab'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
 };
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [

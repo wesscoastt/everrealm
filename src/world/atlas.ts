@@ -18,6 +18,7 @@ const INK: Record<RegionId, [number, number, number]> = {
   gannet: [172, 192, 128],
   wrath: [146, 156, 110],
   tolmen: [158, 130, 128],
+  inkholm: [140, 128, 156],
 };
 
 let chart: HTMLCanvasElement | null = null;

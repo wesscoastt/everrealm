@@ -11,7 +11,7 @@ export interface Place { id: string; name: string; sub: string; x: number; z: nu
 const REGION_LABELS: Record<RegionId, [number, number]> = {
   greenwake: [150, 140], crownroad: [700, 210], brambledeep: [270, 760], saltwind: [1560, 470],
   redstone: [1060, 1120], starfall: [760, 1820],
-  gannet: [500, -1100], wrath: [-1250, 900], tolmen: [700, 3050],
+  gannet: [500, -1100], wrath: [-1250, 900], tolmen: [700, 3050], inkholm: [2760, 1520],
 };
 
 let cache: Place[] | null = null;
@@ -21,6 +21,7 @@ const REGION_SUB: Record<RegionId, string> = {
   greenwake: 'Farms and the Pit along the Wend', crownroad: 'Ansbury and the toll road', brambledeep: 'Giant trees and the fellers',
   saltwind: 'Gullmouth and the fishing coast', redstone: 'Harrowgate Works and red rock', starfall: 'High pasture and the Kettle',
   gannet: 'Seabird cliffs in the north', wrath: 'Fens and sluices in the west', tolmen: 'Stones and moorland in the south',
+  inkholm: 'The mushroom isle off Gullmouth',
 };
 
 export function places(): Place[] {

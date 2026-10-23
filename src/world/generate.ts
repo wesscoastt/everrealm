@@ -27,7 +27,7 @@ export const ROADS: [number, number][][] = [
   [[154, 182], [152, 166], [130.5, 146], [110.5, 128], [104, 117]], // Spill path, back from the stream's edge
 ];
 
-export type TreeKind = 'oak' | 'birch' | 'pine' | 'moot' | 'giant' | 'ancient';
+export type TreeKind = 'oak' | 'birch' | 'pine' | 'moot' | 'giant' | 'ancient' | 'capshroom' | 'inkcap' | 'lanterncap';
 
 /** Anything trees can be written into: the authoring grid or a chunk being generated. */
 export interface VoxelSink { get(x: number, y: number, z: number): number; put(x: number, y: number, z: number, id: number): void }
@@ -423,7 +423,59 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
   const underside = (lx: number, lz: number, from: number, to: number) => { for (let yy = from; yy <= to; yy++) if (mine.has(key(lx, yy, lz))) return yy; return -1; };
   const addLog = (lx: number, ly: number, lz: number) => { world.put(lx, ly, lz, log); trunk.push([lx, ly, lz]); };
 
-  if (kind === 'pine') {
+  if (kind === 'capshroom' || kind === 'inkcap' || kind === 'lanterncap') {
+    // Inkholm's giant mushrooms: a pale stem and a cap. Broad caps are a cep's brown or, one in four,
+    // red with white flecks, gills under the rim; ink caps stand tall and narrow, their rims running
+    // to black; lantern caps are small and glow (data in LORE.md)
+    const addPart = (lx: number, ly: number, lz: number, id: number) => {
+      if (world.get(lx, ly, lz) !== B.Air) return;
+      world.put(lx, ly, lz, id); mine.set(key(lx, ly, lz), leaves.length); leaves.push([lx, ly, lz, id]);
+    };
+    const addStem = (lx: number, ly: number, lz: number) => { world.put(lx, ly, lz, B.MushStem); trunk.push([lx, ly, lz]); };
+    const lx0 = rnd() - 0.5, lz0 = rnd() - 0.5;
+    const at = (i: number) => [x + Math.round(lx0 * i * 0.3), z + Math.round(lz0 * i * 0.3)] as const;
+    if (kind === 'capshroom') {
+      const big = rnd() < 0.45;
+      const hgt = big ? 10 + Math.floor(rnd() * 6) : 5 + Math.floor(rnd() * 4);
+      const R = big ? 5 + rnd() * 2.2 : 2.6 + rnd() * 1.4;
+      const cap = rnd() < 0.25 ? B.CapRed : B.CapBrown;
+      for (let i = 0; i < hgt; i++) {
+        const [sx, sz] = at(i);
+        addStem(sx, y + i, sz);
+        if (big && i < hgt * 0.7) for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) addStem(sx + dx, y + i, sz + dz);
+      }
+      const [cx, cz] = at(hgt), cy = y + hgt, H = R * 0.55 + 0.5, Rc = Math.ceil(R);
+      for (let dx = -Rc; dx <= Rc; dx++) for (let dz = -Rc; dz <= Rc; dz++) {
+        const d = Math.hypot(dx, dz);
+        if (d <= R && d > R - 1.1) addPart(cx + dx, cy - 1, cz + dz, cap); // the rim turned down
+        if (d <= R) addPart(cx + dx, cy, cz + dz, d < R - 1 ? B.Gills : cap);
+        for (let dy = 1; dy <= Math.ceil(H); dy++) if (d <= R * Math.sqrt(Math.max(0, 1 - (dy / H) ** 2))) addPart(cx + dx, cy + dy, cz + dz, cap);
+      }
+    } else if (kind === 'inkcap') {
+      const hgt = 4 + Math.floor(rnd() * 4), tall = 6 + Math.floor(rnd() * 3), R = 1.6 + rnd() * 0.9;
+      for (let i = 0; i < hgt; i++) { const [sx, sz] = at(i); addStem(sx, y + i, sz); }
+      const [cx, cz] = at(hgt), base0 = y + hgt - 3;
+      for (let k = 0; k < tall; k++) {
+        const r = R * (1 - (k / tall) * 0.75) + 0.3;
+        const rr = Math.ceil(r);
+        for (let dx = -rr; dx <= rr; dx++) for (let dz = -rr; dz <= rr; dz++) if (Math.hypot(dx, dz) <= r) addPart(cx + dx, base0 + k, cz + dz, B.CapInk);
+      }
+      // Ink running off the rim
+      for (let a = 0; a < 6; a++) {
+        const t = (a / 6) * Math.PI * 2 + rnd(), dx = Math.round(Math.cos(t) * (R + 0.3)), dz = Math.round(Math.sin(t) * (R + 0.3));
+        for (let k = 1; k <= 1 + Math.floor(rnd() * 2); k++) addPart(cx + dx, base0 - k, cz + dz, B.CapInk);
+      }
+    } else {
+      const hgt = 3 + Math.floor(rnd() * 4), R = 1.8 + rnd() * 0.9;
+      for (let i = 0; i < hgt; i++) { const [sx, sz] = at(i); addStem(sx, y + i, sz); }
+      const [cx, cz] = at(hgt), cy = y + hgt, Rc = Math.ceil(R);
+      for (let dx = -Rc; dx <= Rc; dx++) for (let dz = -Rc; dz <= Rc; dz++) {
+        const d = Math.hypot(dx, dz);
+        if (d <= R) addPart(cx + dx, cy, cz + dz, d < R - 1 ? B.Gills : B.CapGlow);
+        if (d <= R * 0.7) addPart(cx + dx, cy + 1, cz + dz, B.CapGlow);
+      }
+    }
+  } else if (kind === 'pine') {
     const hgt = 7 + Math.floor(rnd() * 4);
     for (let i = 0; i < hgt; i++) addLog(x, y + i, z);
     for (let i = 2; i <= hgt; i++) {
@@ -532,10 +584,10 @@ export function growTree(world: VoxelSink, kind: TreeKind, x: number, y: number,
   }
   return {
     id: 0, kind, x, y, z, trunk, leaves,
-    logs: kind === 'moot' || kind === 'ancient' ? 0 : kind === 'giant' ? 6 + Math.floor(rnd() * 3) : 2 + Math.floor(rnd() * 3),
+    logs: kind === 'moot' || kind === 'ancient' || kind === 'lanterncap' ? 0 : kind === 'giant' ? 6 + Math.floor(rnd() * 3) : 2 + Math.floor(rnd() * 3),
     depletedUntil: 0,
     // The Moot Oak and Hagworm's ancients aren't for felling
-    choppable: kind !== 'moot' && kind !== 'ancient',
+    choppable: kind !== 'moot' && kind !== 'ancient' && kind !== 'lanterncap',
   };
 }
 

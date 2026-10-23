@@ -120,7 +120,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'ship': place(P.ship(M, d.sails ?? 'furled', d.color), d.x, d.y, d.z, d.ry); break;
       case 'waymark': place(waymarkShrine(M, d.theme ?? 'crownroad'), d.x, d.y, d.z, d.ry); break;
       case 'tent': place(P.tent(M, d.color ?? '#8a6a3a'), d.x, d.y, d.z, d.ry); break;
-      case 'headframe': place(P.mineHeadframe(M, 'HARROWGATE WORKS\nNo. 1 Drift'), d.x, d.y, d.z, d.ry); break;
+      case 'headframe': place(P.mineHeadframe(M, d.text ?? 'HARROWGATE WORKS\nNo. 1 Drift'), d.x, d.y, d.z, d.ry); break;
+      case 'reekhearth': place(P.reekHearth(M), d.x, d.y, d.z, d.ry); break;
       case 'cart': place(P.cart(M), d.x, d.y, d.z, d.ry); break;
       case 'bench': place(P.bench(M, 1.6), d.x, d.y, d.z, d.ry); break;
       case 'windowBox': place(P.windowBox(M), d.x, d.y, d.z, d.ry); break;

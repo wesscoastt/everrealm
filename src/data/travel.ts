@@ -24,6 +24,8 @@ export interface PostStop {
   ferryFrom?: string;
   /** How far to the side of the sign its post box stands, where the usual 2.2 is in the way (negative: the other side). */
   box?: number;
+  /** A crossing that only runs once this flag is set (a story opens it). */
+  gate?: string;
 }
 
 /** Where a stop's post box stands: a couple of blocks to one side of the sign, facing the same way. */
@@ -48,6 +50,8 @@ export const POSTS: PostStop[] = [
   { id: 'holme', name: 'Holme Staithe', place: 'holme', x: -883.5, z: 1013.5, ry: -Math.PI / 2 },
   { id: 'scarrow', name: 'Scarrow Tor', place: 'scarrow', x: 338.5, z: 2959.5, ry: Math.PI },
   { id: 'mewstones', name: 'The Mewstones (ferry)', place: 'mewstones', ferryFrom: 'gullmouth', x: 2345.5, z: 728.5, ry: -Math.PI / 2 },
+  // Inkholm, past the Mewstones: the Charter stopped the crossing for the Grey; Reuben Hoskin will run it (data/content/inkholm.ts)
+  { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2, gate: 'inkFerry' },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */

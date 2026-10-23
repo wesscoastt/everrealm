@@ -370,6 +370,58 @@ const painters: Record<number, (p: Px) => void> = {
   },
   [T.Ice]: (p) => { base(p, '#8ab8d8', '#a8d0ea', '#c8e6f6', 411, 0.05); for (let i = 0; i < 5; i++) crack(p, '#e8f6ff', 10); },
   [T.Loam]: (p) => { base(p, '#2e2418', '#3a2e1e', '#4a3a26', 421, 0.12); for (let i = 0; i < 26; i++) blob(p, Math.floor(p.rnd() * TILE), Math.floor(p.rnd() * TILE), 1, p.rnd() < 0.5 ? hex('#5a6a2a') : hex('#7a4a22')); },
+  [T.MyceliumTop]: (p) => {
+    // Grey-violet felt of mycelium over the soil, white threads through it, and the odd pinhead cap
+    base(p, '#4e4656', '#5e5466', '#6e6478', 441, 0.14);
+    for (let i = 0; i < 18; i++) crack(p, '#c8c0d0', 6);
+    speckle(p, '#e8e0ec', 22);
+    for (let i = 0; i < 5; i++) blob(p, Math.floor(p.rnd() * TILE), Math.floor(p.rnd() * TILE), 1, hex('#d8b890'), hex('#f0d8b0'));
+  },
+  [T.MyceliumSide]: (p) => {
+    painters[T.Dirt](p);
+    for (let x = 0; x < TILE; x++) {
+      const depth = 3 + Math.floor(vnoise(x, 0, 4, 12) * 4);
+      for (let y = 0; y < depth; y++) set(p, x, y, mul(hex('#5e5466'), 0.9 + p.rnd() * 0.2));
+      if (p.rnd() < 0.3) for (let y = depth; y < depth + 4; y++) set(p, x, y, hex('#b8b0c4'));
+    }
+  },
+  [T.MushStem]: (p) => {
+    // Pale, stringy flesh with long fibres running up it
+    base(p, '#cfc6b0', '#ddd5c2', '#ebe4d4', 451, 0.06);
+    for (let x = 0; x < TILE; x += 2 + Math.floor(p.rnd() * 3)) for (let y = 0; y < TILE; y++) if (vnoise(x, y, 6, 452) > 0.45) set(p, x, y, mul(get(p, x, y), 0.9));
+    speckle(p, '#b8ae98', 12);
+  },
+  [T.StemTop]: (p) => {
+    base(p, '#d8d0bc', '#e4dccb', '#efe8da', 461, 0.05);
+    for (let r = 4; r < 16; r += 4) for (let a = 0; a < 64; a++) { const t = (a / 64) * Math.PI * 2; set(p, Math.round(16 + Math.cos(t) * r), Math.round(16 + Math.sin(t) * r), hex('#c4baa4')); }
+  },
+  [T.CapBrown]: (p) => {
+    // A cep's brown: suede with pale flecks and the faint cracks of a dry cap
+    base(p, '#5e3a22', '#74492c', '#8a5a38', 471, 0.1);
+    speckle(p, '#a8784e', 26);
+    for (let i = 0; i < 6; i++) crack(p, '#4a2c18', 8);
+  },
+  [T.CapInk]: (p) => {
+    // A shaggy ink cap: grey-white scales over dark, the rim running to black ink
+    base(p, '#8a8890', '#a2a0a8', '#bcbac2', 481, 0.08);
+    for (let i = 0; i < 40; i++) { const x = Math.floor(p.rnd() * TILE), y = Math.floor(p.rnd() * TILE); set(p, x, y, hex('#e8e6ec')); set(p, x, y + 1, hex('#6a6870')); }
+    for (let x = 0; x < TILE; x++) { const run = 4 + Math.floor(vnoise(x, 3, 3, 482) * 12); for (let y = TILE - run; y < TILE; y++) set(p, x, y, mix(hex('#2a2830'), hex('#141218'), (y - (TILE - run)) / run)); }
+  },
+  [T.CapRed]: (p) => {
+    // The red cap with white flecks that nobody on the Holm eats twice
+    base(p, '#8a1c18', '#a82820', '#c03628', 491, 0.08);
+    for (let i = 0; i < 9; i++) blob(p, 3 + Math.floor(p.rnd() * 26), 3 + Math.floor(p.rnd() * 26), 1 + Math.floor(p.rnd() * 2), hex('#efe8dc'), hex('#ffffff'));
+  },
+  [T.CapGlow]: (p) => {
+    // A lantern cap: pale sea-green flesh with brighter flecks, and all of it glowing as dusk comes
+    base(p, '#2e7c74', '#3a948a', '#4aaa9e', 511, 0.08);
+    for (let i = 0; i < 10; i++) blob(p, 3 + Math.floor(p.rnd() * 26), 3 + Math.floor(p.rnd() * 26), 1 + Math.floor(p.rnd() * 2), hex('#c8fff4'), hex('#f0fffc'));
+    for (let i = 3; i < p.data.length; i += 4) p.data[i] = EMIT_A;
+  },
+  [T.Gills]: (p) => {
+    base(p, '#c4a88e', '#d2b69c', '#dec4aa', 501, 0.05);
+    for (let x = 0; x < TILE; x += 2) for (let y = 0; y < TILE; y++) set(p, x, y, mul(get(p, x, y), 0.82));
+  },
   [T.Basalt]: (p) => { base(p, '#2a2a30', '#36363e', '#44444c', 431, 0.1); for (let y = 0; y < TILE; y += 8) for (let x = 0; x < TILE; x++) set(p, x, y, hex('#1e1e24')); for (let x = 0; x < TILE; x += 8) for (let y = 0; y < TILE; y++) set(p, x + ((Math.floor(y / 8)) % 2) * 4, y, hex('#1e1e24')); },
 };
 

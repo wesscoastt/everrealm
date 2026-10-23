@@ -6,7 +6,8 @@ export enum T {
   CopperOre, TinOre, SilverOre, Depleted, BirchLog, BirchLeaves, PineLeaves, Clay,
   MossyStone, Window, Thatch, Farmland, HayTop, HaySide, MossyCobble, SnowSide,
   DeepStone, PineLog, Timber, Glowcap, RoofRed,
-  RedSand, TerraOrange, TerraCream, TerraBrown, IronOre, Crystal, Ice, Loam, Basalt, Count,
+  RedSand, TerraOrange, TerraCream, TerraBrown, IronOre, Crystal, Ice, Loam, Basalt,
+  MyceliumTop, MyceliumSide, MushStem, StemTop, CapBrown, CapInk, CapRed, Gills, CapGlow, Count,
 }
 
 export enum B {
@@ -18,6 +19,8 @@ export enum B {
   Window, Thatch, Farmland, Hay, MossyCobble, DeepStone, Timber, Glowcap,
   Water, Barrier, SnowGrass,
   RedSand, TerraOrange, TerraCream, TerraBrown, IronOre, Crystal, Ice, Loam, Basalt,
+  // Inkholm: the mushroom isle's ground, and its giant mushrooms' stems, caps and gills
+  Mycelium, MushStem, CapBrown, CapInk, CapRed, Gills, CapGlow,
   Count,
 }
 
@@ -87,6 +90,13 @@ BLOCKS[B.Crystal] = D('star crystal', T.Crystal, T.Crystal, T.Crystal, { jitter:
 BLOCKS[B.Ice] = D('ice', T.Ice, T.Ice, T.Ice, { jitter: 0.02 });
 BLOCKS[B.Loam] = D('forest loam', T.Loam, T.Dirt, T.Dirt, { jitter: 0.05 });
 BLOCKS[B.Basalt] = D('basalt', T.Basalt, T.Basalt, T.Basalt);
+BLOCKS[B.Mycelium] = D('mycelium', T.MyceliumTop, T.MyceliumSide, T.Dirt, { jitter: 0.05 });
+BLOCKS[B.MushStem] = D('mushroom stem', T.StemTop, T.MushStem, T.StemTop, { jitter: 0.03 });
+BLOCKS[B.CapBrown] = D('mushroom cap', T.CapBrown, T.CapBrown, T.Gills, { jitter: 0.05 });
+BLOCKS[B.CapInk] = D('ink cap', T.CapInk, T.CapInk, T.CapInk, { jitter: 0.04 });
+BLOCKS[B.CapRed] = D('red cap', T.CapRed, T.CapRed, T.Gills, { jitter: 0.04 });
+BLOCKS[B.Gills] = D('gills', T.Gills, T.Gills, T.Gills, { jitter: 0.03 });
+BLOCKS[B.CapGlow] = D('lantern cap', T.CapGlow, T.CapGlow, T.Gills, { jitter: 0.03, emissive: 0.9 });
 
 export function isSolid(id: number): boolean {
   return BLOCKS[id]?.solid ?? false;

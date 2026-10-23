@@ -10,7 +10,7 @@ export const WORLD = 2048;
 export const SEA = 16;
 export const GW = 320; // Hollindale grid size; x,z < GW is authored terrain
 
-export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen';
+export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm';
 
 export interface RegionInfo {
   id: RegionId;
@@ -32,6 +32,8 @@ export const REGION_INFO: Record<RegionId, RegionInfo> = {
   gannet: { id: 'gannet', name: 'Gannet Cliffs', levels: '8–14', tint: [1.02, 1.07, 0.86], leafTint: [0.96, 1.04, 0.88], water: 'sea' },
   wrath: { id: 'wrath', name: 'Wrath Levels', levels: '14–20', tint: [0.9, 0.98, 0.78], leafTint: [0.84, 0.94, 0.78], water: 'sea' },
   tolmen: { id: 'tolmen', name: 'Tolmen Moor', levels: '28–35', tint: [1.04, 0.9, 0.86], leafTint: [0.9, 0.88, 0.8], water: 'highland' },
+  // Off Gullmouth, past the Mewstones: the mushroom isle
+  inkholm: { id: 'inkholm', name: 'Inkholm', levels: '20–28', tint: [0.9, 0.86, 1.0], leafTint: [0.88, 0.84, 1.0], water: 'sea' },
 };
 
 // Seeds of each region; several per region shape them into irregular territories.
@@ -77,11 +79,33 @@ function nearestRegion(wx: number, wz: number, seeds: { id: RegionId; x: number;
 const inHeart = (x: number, z: number) => x > 300 && x < 1250 && z > 400 && z < 1750;
 
 const VALE: RegionSample = { a: 'greenwake', b: 'greenwake', t: 0 };
+const INK: RegionSample = { a: 'inkholm', b: 'inkholm', t: 0 };
+
+// ------------------------------------------------------------------ Inkholm
+// The mushroom isle, south-east of Gullmouth past the Mewstones: overlapping lobes with a ragged
+// shore, rolling ground under mushroom woods, dells that hold black meres, and Corra Fell in the
+// middle with the old priory on its top (data in LORE.md).
+export const INKHOLM = { x: 2720, z: 1600 };
+export const INK_FELL = { x: 2745, z: 1640, r: 135 };
+const INK_LOBES = [
+  { x: 2720, z: 1600, r: 250 }, { x: 2560, z: 1800, r: 170 }, { x: 2910, z: 1440, r: 160 },
+  { x: 2900, z: 1810, r: 140 }, { x: 2580, z: 1500, r: 120 }, { x: 2760, z: 1340, r: 100 },
+];
+/** Inland distance from Inkholm's shore (negative at sea). */
+export function inkDist(x: number, z: number): number {
+  if (Math.abs(x - INKHOLM.x) > 560 || Math.abs(z - INKHOLM.z) > 560) return -999;
+  const qx = x + (fbm2(x / 90, z / 90, 2, 762) - 0.5) * 80, qz = z + (fbm2(x / 90 + 5, z / 90, 2, 763) - 0.5) * 80;
+  const k = 0.82 + fbm2(x / 50, z / 50, 2, 764) * 0.34;
+  let d = -999;
+  for (const l of INK_LOBES) d = Math.max(d, l.r * k - Math.hypot(qx - l.x, qz - l.z));
+  return d;
+}
 
 export function regionAt(x: number, z: number): RegionSample {
   // Hollindale: the vale, and the hills and shore beyond its north and west edges
   const vale = x < GW && z < GW;
   if (vale && x >= 0 && z >= 0) return VALE;
+  if (inkDist(x, z) > -120) return INK;
   const wx = warpX(x, z), wz = warpZ(x, z);
   if (inHeart(x, z)) return nearestRegion(wx, wz, SEEDS);
   // Out across the sound the outer lands' regions take over, blending partway across the water
@@ -320,6 +344,12 @@ function regionHeight(id: RegionId, x: number, z: number): number {
       if (fbm2(x / 80, z / 80, 2, 726) > 0.83) return SEA - 1; // a mere
       return SEA + 2.2 + (n1 - 0.5) * 5 + (n2 - 0.5) * 2.5;
     }
+    case 'inkholm': {
+      // Rolling ground under the mushroom woods, dells deep enough to hold black meres, and Corra Fell
+      const fell = Math.max(0, 1 - Math.hypot(x - INK_FELL.x, z - INK_FELL.z) / INK_FELL.r);
+      const dell = smoothstep(0.62, 0.8, fbm2(x / 70, z / 70, 2, 761));
+      return SEA + 7 + (n1 - 0.5) * 12 + (n2 - 0.5) * 6 + fell * fell * 34 - dell * 11;
+    }
     case 'tolmen': {
       // High moor: broad granite ground, boggy hollows, and tors standing out of the heather
       const bog = smoothstep(0.62, 0.78, fbm2(x / 120, z / 120, 2, 723));
@@ -436,7 +466,7 @@ export function outerLandDist(x: number, z: number): number {
     const qx = x + (fbm2(x / 90, z / 90, 2, 718) - 0.5) * 90, qz = z + (fbm2(x / 90 + 5, z / 90, 2, 719) - 0.5) * 90;
     d = Math.max(d, r - Math.hypot(qx - m.x, qz - m.z));
   }
-  return d;
+  return Math.max(d, inkDist(x, z));
 }
 
 /** Positive on a neck of land across the sound (its distance in from the neck's edge). */
@@ -622,6 +652,11 @@ export function columnBlocks(x: number, z: number, h: number, maxDiff: number, r
       // Mud at the tide line, then marsh grass on peaty ground
       if (h <= SEA + 1) return { top: B.Clay, sub: B.Clay };
       return { top: stony > 0.6 ? B.Loam : B.Grass, sub: B.Loam };
+    case 'inkholm':
+      // Mycelium over everything the mushrooms grow on, dark loam in patches, sand and shingle on the shore
+      if (beach) return { top: hash2(x, z, 6) < 0.4 ? B.Gravel : B.Sand, sub: B.Sand };
+      if (maxDiff >= 3) return { top: stony > 0.5 ? B.MossyStone : B.Stone, sub: B.Stone };
+      return { top: stony > 0.7 ? B.Loam : B.Mycelium, sub: B.Dirt };
     case 'tolmen':
       // Granite wherever the ground is steep (the tors), stony patches in the heather
       if (maxDiff >= 3) return { top: B.Stone, sub: B.Stone };
