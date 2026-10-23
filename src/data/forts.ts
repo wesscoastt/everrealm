@@ -1,3 +1,4 @@
+import { countiesOnly } from '../world/land';
 import type { EnemyType } from './gameplay';
 
 // Bandit forts: a palisade in the back country of each troubled region, held by that region's
@@ -35,3 +36,6 @@ export const FORTS: Fort[] = [
 export const FORT_BY_ID: Record<string, Fort> = Object.fromEntries(FORTS.map((f) => [f.id, f]));
 /** How long an emptied fort stands empty before its gang drifts back, in seconds. */
 export const FORT_RESPAWN = 1500;
+
+// Placed on the first continent: none of them in Morrow (world/land.ts)
+countiesOnly(FORTS);

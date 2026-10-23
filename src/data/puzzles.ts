@@ -1,3 +1,4 @@
+import { countiesOnly } from '../world/land';
 import type { RegionId } from '../world/terrain';
 
 // Puzzles: a handful of things to press in the right order, with the order written down nearby in
@@ -63,3 +64,6 @@ export const PUZZLES: PuzzleDef[] = [
     xp: 900, marks: 38, loot: ['iron_ore', 'iron_ore'],
   },
 ];
+
+// Placed on the first continent: none of them in Morrow (world/land.ts)
+countiesOnly(PUZZLES);

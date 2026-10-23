@@ -1,3 +1,4 @@
+import { countiesOnly } from '../world/land';
 // Stables outside the towns: a stable block, a paddock with the horses for sale standing in it, and
 // a stablemaster who sells them. Each town breeds its own; the far towns over the necks sell rarer
 // mounts at far higher prices. Every mount keeps the same pace: what you pay for is the look.
@@ -44,3 +45,6 @@ export function stableYaw(st: StableDef): number {
 
 /** Where each horse for sale stands in the paddock (u, v), in stock order. */
 export const PADDOCK_SPOTS: [number, number][] = [[4, -5], [8, -3], [6, 0], [10, -7]];
+
+// Placed on the first continent: none of them in Morrow (world/land.ts)
+countiesOnly(STABLES);

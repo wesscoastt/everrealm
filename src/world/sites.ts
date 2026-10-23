@@ -556,6 +556,8 @@ export function plan(): Plan {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
       gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'], kell: ['mine', 'stones'],
+      keys: ['camp', 'ruintower'], glades: ['mossruin', 'camp'], amberwold: ['mossruin', 'shrine', 'camp'], bright: ['ruintower', 'farm', 'shrine'],
+      sunder: ['crystals', 'ruintower', 'stones'], glassflats: ['mesaruin', 'camp'], greywaste: ['mossruin', 'stones'], held: ['stones', 'ruintower'],
     };
     const list = kinds[reg];
     const kind = list[Math.floor(hash2(cx, cz, 504) * list.length)];

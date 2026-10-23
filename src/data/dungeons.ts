@@ -1,5 +1,6 @@
 import type { CallingId } from './classes';
 import type { Appearance, HeldItem } from '../entities/humanoid';
+import { keepOnLand } from '../world/land';
 import { dungeonArmour } from './armour';
 import { DUNGEON_WEAPONS } from './weapons';
 
@@ -73,6 +74,8 @@ export interface BossMove {
 export interface Note { x: number; z: number; r: number; said: string; seen: string; who?: string }
 
 export interface DungeonDef {
+  /** The land it's in (world/land.ts); none given, the Counties. */
+  land?: import('../world/land').LandId;
   /** The site the halls are built at (sites.ts). */
   id: string;
   name: string;
@@ -272,6 +275,8 @@ export const DUNGEONS: DungeonDef[] = [
   },
 ];
 
+// Only this land's
+keepOnLand(DUNGEONS);
 export const DUNGEON_BY_ID: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
 
 /**

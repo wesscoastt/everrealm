@@ -22,6 +22,7 @@ export const GAINS = { story: 120, storyline: 90, quest: 60, short: 30, task: 25
 export const REVERED_TITLE: Record<RegionId, string> = {
   greenwake: 'of Hollin Ford', crownroad: 'Friend of the Turnpike', brambledeep: 'of the Fellers', saltwind: 'of the Fleet',
   redstone: 'of the Raddle', starfall: 'of Scarth', gannet: 'of the Cliffs', wrath: 'of the Levels', tolmen: 'of the Moor', inkholm: 'of the Holm', kell: 'Friend of the Kiln',
+  keys: 'of the Keys', glades: 'of the Glades', amberwold: 'of the Wold', bright: 'of the Bright Coast', sunder: 'of the Sunder', glassflats: 'of the Flats', greywaste: 'of the Greywaste', held: 'of the Held',
 };
 
 /** The rank for so many points, and the next one up (if any). */

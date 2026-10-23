@@ -16,6 +16,7 @@ import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
 import { GW, heightAt, landDist, SEA } from '../world/terrain';
+import { LAND } from '../world/land';
 import { buildBlockTextureArray } from '../world/textures';
 import { Vegetation } from '../world/Vegetation';
 import { CHUNK, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMIN, WSIZE } from '../world/VoxelWorld';
@@ -94,10 +95,12 @@ export class GameWorld {
     this.scene.add(this.ferry.root);
     this.stats.genMs = performance.now() - t0;
 
-    // Hollindale's nodes live for the whole session, bucketed by chunk
-    for (const o of this.layout.ores) this.bucket(o.x, o.z, true).ores.push(o);
-    for (const t of this.layout.trees) this.bucket(t.x, t.z, true).trees.push(t);
-    for (const f of this.layout.fish) this.bucket(f.x, f.z, true).fish.push(f);
+    // Hollindale's nodes live for the whole session, bucketed by chunk (the Counties only)
+    if (LAND === 'counties') {
+      for (const o of this.layout.ores) this.bucket(o.x, o.z, true).ores.push(o);
+      for (const t of this.layout.trees) this.bucket(t.x, t.z, true).trees.push(t);
+      for (const f of this.layout.fish) this.bucket(f.x, f.z, true).fish.push(f);
+    }
 
     const atlas = buildBlockTextureArray();
     this.voxelMat = createVoxelMaterial(atlas, this.shared);
@@ -114,7 +117,7 @@ export class GameWorld {
     this.mapCtx = this.mapImage.getContext('2d')!;
 
     this.chunks = new ChunkManager(this.voxels, this.voxelMat, this.waterMat, this.shared.uTime, {
-      isGreenwake: (cx, cz) => cx >= 0 && cz >= 0 && cx * CHUNK < GW && cz * CHUNK < GW,
+      isGreenwake: (cx, cz) => LAND === 'counties' && cx >= 0 && cz >= 0 && cx * CHUNK < GW && cz * CHUNK < GW,
       fill: (cx, cz) => this.fillFromGrid(cx, cz),
     }, {
       onLoaded: (cx, cz, r) => this.chunkLoaded(cx, cz, r),
@@ -480,7 +483,7 @@ export class GameWorld {
 
     // The authored vale's props and grass only show while its chunks are around
     const gwDist = Math.hypot(Math.max(0, center.x - GW), Math.max(0, center.z - GW));
-    this.structures.group.visible = gwDist < this.chunks.viewRadius * CHUNK - 40;
+    this.structures.group.visible = LAND === 'counties' && gwDist < this.chunks.viewRadius * CHUNK - 40;
     this.vegetation.update(center.x, center.z, this.chunks.viewRadius * CHUNK - 30);
 
     // Settlements build their props when the player approaches; landmarks swap their stand-ins

@@ -1,5 +1,6 @@
 import type { ItemDef } from './items';
 import type { EnemyType } from './gameplay';
+import { countiesOnly } from '../world/land';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 import { hash2 } from '../world/noise';
 import type { Plan, Site } from '../world/sites';
@@ -122,3 +123,6 @@ export function treasureSpot(m: TreasureMap, P: Plan): { x: number; z: number } 
   const [x, z] = beside(p, P, m.n === 1 ? 1 : -1);
   return { x, z };
 }
+
+// Placed on the first continent: none of them in Morrow (world/land.ts)
+countiesOnly(RARES);

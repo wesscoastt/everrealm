@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
+import { LAND } from '../world/land';
 import type { Equip } from '../data/items';
 import { BRIGHTCUT, REGION_ARMOUR, WEIGHTS } from '../data/armour';
 import { REGION_WEAPONS } from '../data/weapons';
@@ -116,10 +117,12 @@ const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() 
 const REGION_THEME: Record<RegionId, ThemeId> = {
   greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
   gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep', kell: 'redstone',
+  keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'starfall', glassflats: 'redstone', greywaste: 'starfall', held: 'starfall',
 };
 
 /** Where townsfolk walk, and how many of them, busiest in the capital. */
 function crowdZones(): CrowdZone[] {
+  if (LAND !== 'counties') return [];
   return [
     { id: 'ansbury', x: 820, z: 300, r: 196, n: 30, lines: [
       'The minster bell\'s cracked. You can hear it on the low note.',

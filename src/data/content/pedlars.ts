@@ -1,5 +1,6 @@
 import type { GameApi } from '../../game/api';
 import type { Appearance } from '../../entities/humanoid';
+import { countiesOnly } from '../../world/land';
 import type { ItemDef } from '../items';
 import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
@@ -177,3 +178,6 @@ export const PEDLAR_CONTENT: RegionContent = {
     footer: () => `${p.footer}. Some of the pack changes every day.`,
   }])),
 };
+
+// Placed on the first continent: none of them in Morrow (world/land.ts)
+countiesOnly(PEDLARS);

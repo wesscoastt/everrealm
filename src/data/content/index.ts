@@ -1,5 +1,6 @@
 import type { Board, RegionContent } from './types';
 import { CROWNROAD } from './crownroad';
+import { onLand } from '../../world/land';
 import { GREENWAKE } from './greenwake';
 import { OUTER } from './outer';
 import { WEATHERHOLMS } from './weatherholms';
@@ -20,4 +21,4 @@ import { MASTER_CONTENT } from './masters';
 // Every region's side content. Add a region by writing its module and listing it here.
 export const CONTENT: RegionContent[] = [GREENWAKE, CROWNROAD, WEATHERHOLMS, HOLMSEY, KETTLE, PACKWOMAN, OUTER, STABLE_CONTENT, WAITS, TAVERN_CONTENT, PEDLAR_CONTENT, FORT_CONTENT, INKHOLM_CONTENT, KELL_CONTENT, SEASON_CONTENT, INN_CONTENT, MASTER_CONTENT];
 
-export const BOARDS: Board[] = CONTENT.flatMap((c) => c.boards ?? []);
+export const BOARDS: Board[] = CONTENT.flatMap((c) => c.boards ?? []).filter(onLand);

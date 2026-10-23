@@ -20,6 +20,7 @@ const INK: Record<RegionId, [number, number, number]> = {
   tolmen: [158, 130, 128],
   inkholm: [140, 128, 156],
   kell: [132, 120, 112],
+  keys: [214, 204, 150], glades: [120, 150, 96], amberwold: [186, 132, 70], bright: [190, 184, 130], sunder: [150, 160, 140], glassflats: [210, 190, 150], greywaste: [126, 132, 124], held: [200, 208, 216],
 };
 
 let chart: HTMLCanvasElement | null = null;

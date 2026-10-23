@@ -129,6 +129,8 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     gannet: [['tin', 0.002], ['copper', 0.0015]], wrath: [], tolmen: [['tin', 0.003], ['silver', 0.0025], ['iron', 0.002]],
     inkholm: [['silver', 0.0015]],
     kell: [['iron', 0.004], ['copper', 0.002], ['silver', 0.0015]],
+    keys: [], glades: [], amberwold: [['copper', 0.0015], ['silver', 0.001]], bright: [['copper', 0.002], ['tin', 0.002]],
+    sunder: [['crystal', 0.002], ['iron', 0.003], ['silver', 0.002]], glassflats: [['iron', 0.003]], greywaste: [['iron', 0.003], ['tin', 0.002]], held: [['iron', 0.003], ['silver', 0.003]],
   };
   const ORE_BLOCK: Record<GenOre['kind'], number> = { copper: B.CopperOre, tin: B.TinOre, silver: B.SilverOre, iron: B.IronOre, crystal: B.Crystal };
   for (let lz = 0; lz < CHUNK; lz++) for (let lx = 0; lx < CHUNK; lx++) {
@@ -181,7 +183,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     const reg = regionAt(x, z).a;
     const h = hAt(x, z);
     if (h <= SEA + 1) continue;
-    const density: Record<RegionId, number> = { greenwake: 0.1, crownroad: 0.07, brambledeep: 0.7, saltwind: 0.12, redstone: 0.03, starfall: 0.3, gannet: 0.04, wrath: 0.06, tolmen: 0.03, inkholm: 0.62, kell: 0.025 };
+    const density: Record<RegionId, number> = { greenwake: 0.1, crownroad: 0.07, brambledeep: 0.7, saltwind: 0.12, redstone: 0.03, starfall: 0.3, gannet: 0.04, wrath: 0.06, tolmen: 0.03, inkholm: 0.62, kell: 0.025, keys: 0.05, glades: 0.08, amberwold: 0.72, bright: 0.07, sunder: 0.06, glassflats: 0, greywaste: 0.05, held: 0.03 };
     const forest = hash2(Math.floor(x / 60), Math.floor(z / 60), 712) * 0.18;
     // The outer lands grow their trees in copses: beech hangers on the downs, willow clumps in the marsh, stands on the moor
     const copse = reg === 'gannet' || reg === 'wrath' || reg === 'tolmen' ? smoothCopse(x, z) * (reg === 'gannet' ? 0.55 : reg === 'wrath' ? 0.3 : 0.18) : 0;
@@ -197,6 +199,10 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     if (reg === 'inkholm') { if (h <= SEA + 3) continue; kind = k < 0.48 ? 'capshroom' : k < 0.8 ? 'inkcap' : 'lanterncap'; }
     // Kell: a few wind-bent pines on the lower slopes, nothing on the upper cone
     else if (reg === 'kell') { if (h > SEA + 30) continue; kind = 'pine'; }
+    // Morrow: the Amberwold's giants (its leaves stay gold all year), birch in the Greywaste, pine up north and on the spine
+    else if (reg === 'amberwold') kind = gx % 4 === 0 && gz % 4 === 0 && k < 0.4 ? 'ancient' : k < 0.35 && gx % 2 === 0 && gz % 2 === 0 ? 'giant' : k < 0.5 ? 'birch' : 'oak';
+    else if (reg === 'greywaste') kind = 'birch';
+    else if (reg === 'held' || reg === 'sunder') kind = 'pine';
     else if (reg === 'starfall' || h > 50) kind = h > 62 ? 'pine' : k < 0.85 ? 'pine' : 'birch';
     // Hagworm Wood: an ancient every twenty blocks or so, giants between, oak and birch under them
     else if (reg === 'brambledeep') kind = gx % 4 === 0 && gz % 4 === 0 && k < 0.45 ? 'ancient' : k < 0.3 && gx % 2 === 0 && gz % 2 === 0 ? 'giant' : k < 0.45 ? 'birch' : 'oak';
@@ -259,6 +265,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     saltwind: ['blackberries'], starfall: ['bilberries', 'cloudberries'], gannet: ['blackberries'], wrath: ['chanterelles'], tolmen: ['bilberries', 'cloudberries'],
     inkholm: ['chanterelles', 'chanterelles', 'wild_garlic'],
     kell: ['bilberries'],
+    keys: [], glades: ['wild_garlic'], amberwold: ['chanterelles', 'blackberries', 'chanterelles'], bright: ['blackberries', 'wild_garlic'], sunder: ['bilberries'], greywaste: ['bilberries'], held: ['cloudberries'],
   };
   const FORAGE_TINT: Record<string, [number, number, number, number]> = {
     blackberries: [10, 1, 1, 1], bilberries: [13, 1, 1, 1], cloudberries: [14, 1, 1, 1],
@@ -345,7 +352,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
         veg.push(x + 0.5, y + 1, z + 0.5, 11, 0.7 + r2 * 0.9, r * 6.28, tt[0], tt[1], tt[2]);
       }
     } else if (id === B.Grass || id === B.SnowGrass || id === B.Loam) {
-      const dens: Record<RegionId, number> = { greenwake: 0.4, crownroad: 0.42, brambledeep: 0.55, saltwind: 0.38, redstone: 0.18, starfall: 0.22, gannet: 0.42, wrath: 0.6, tolmen: 0.3, inkholm: 0.4, kell: 0.22 };
+      const dens: Record<RegionId, number> = { greenwake: 0.4, crownroad: 0.42, brambledeep: 0.55, saltwind: 0.38, redstone: 0.18, starfall: 0.22, gannet: 0.42, wrath: 0.6, tolmen: 0.3, inkholm: 0.4, kell: 0.22, keys: 0.3, glades: 0.7, amberwold: 0.45, bright: 0.42, sunder: 0.32, glassflats: 0.02, greywaste: 0.3, held: 0.1 };
       if (r < dens[reg] && id !== B.SnowGrass) {
         const tall = r2 < (reg === 'brambledeep' ? 0.55 : 0.18);
         veg.push(x + 0.2 + r * 0.6, y + 1, z + 0.2 + r2 * 0.6, tall ? 1 : 0, 0.9 + r2 * 0.5, r * 6.28, t[0], t[1], t[2]);

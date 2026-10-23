@@ -1,5 +1,6 @@
 import type { GameApi } from '../game/api';
 import type { EnemyType } from './gameplay';
+import { keepOnLand, type LandId } from '../world/land';
 import { coastX } from '../world/terrain';
 import { POSTS, postBoxOf } from './travel';
 
@@ -49,6 +50,8 @@ export const BANKS = [
 
 /** Something in the world the player can examine with E. */
 export interface WorldThing {
+  /** The land it's in (world/land.ts); none given, the Counties. */
+  land?: LandId;
   id: string;
   x: number;
   z: number;
@@ -64,7 +67,7 @@ export interface WorldThing {
 }
 
 export const WORLD_THINGS: WorldThing[] = [
-  ...POSTS.map((p): WorldThing => ({ id: 'post:' + p.id, x: p.x, z: p.z, label: p.ferryFrom ? 'Take the ferry' : 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
+  ...POSTS.map((p): WorldThing => ({ land: p.land, id: 'post:' + p.id, x: p.x, z: p.z, label: p.ferryFrom ? 'Take the ferry' : 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
   // A post box by every Post sign: letters to other characters, and what came in theirs (game/Mail.ts)
   ...POSTS.map((p): WorldThing => { const b = postBoxOf(p); return { id: 'mail:' + p.id, x: b.x + Math.sin(b.ry), z: b.z + Math.cos(b.ry), label: 'Read your post', radius: 1.6, use: (g) => g.openMail() }; }),
   // Gullmouth's ferry steps, on the south jetty (the ferry berths beside it: world/Ferry.ts)
@@ -110,6 +113,8 @@ export const WORLD_THINGS: WorldThing[] = [
 
 /** Creatures a quest puts in the world while it needs them. */
 export interface QuestSpawn {
+  /** The land it's in (world/land.ts); none given, the Counties. */
+  land?: LandId;
   tag: string;
   type: EnemyType;
   at: [number, number][];
@@ -155,5 +160,8 @@ import { BOARDS, CONTENT } from './content';
 for (const c of CONTENT) { WORLD_THINGS.push(...(c.things ?? [])); QUEST_SPAWNS.push(...(c.spawns ?? [])); }
 for (const b of BOARDS) {
   if (b.interactable) continue; // opened from the authored interactable (see Game.useThing)
-  WORLD_THINGS.push({ id: 'board:' + b.id, x: b.x, z: b.z, y: b.y, label: 'Read the notice board', radius: 2.4, use: (g) => g.openBoard(b.id) });
+  WORLD_THINGS.push({ land: b.land, id: 'board:' + b.id, x: b.x, z: b.z, y: b.y, label: 'Read the notice board', radius: 2.4, use: (g) => g.openBoard(b.id) });
 }
+// Only this land's
+keepOnLand(WORLD_THINGS);
+keepOnLand(QUEST_SPAWNS);

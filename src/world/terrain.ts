@@ -1,5 +1,10 @@
 import { B } from './blocks';
 import { fbm2, hash2, smoothstep, valueNoise } from './noise';
+import { LAND } from './land';
+import { MORROW_LAKES, MORROW_RIVERS, MORROW_ROADS, morrowColumn, morrowHeight, morrowLandDist, morrowRegionId, type MorrowRegion } from './morrow';
+
+/** This page is Morrow (world/land.ts): the functions below hand their questions to world/morrow.ts. */
+const MORROW = LAND === 'morrow';
 
 // Pure, deterministic terrain for the whole continent outside the authored Hollindale grid.
 // Shared by generation workers (blocks) and the main thread (LOD, labels, placement).
@@ -10,7 +15,7 @@ export const WORLD = 2048;
 export const SEA = 16;
 export const GW = 320; // Hollindale grid size; x,z < GW is authored terrain
 
-export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell';
+export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell' | MorrowRegion;
 
 export interface RegionInfo {
   id: RegionId;
@@ -35,6 +40,15 @@ export const REGION_INFO: Record<RegionId, RegionInfo> = {
   // Off Gullmouth, past the Mewstones: the mushroom isle
   inkholm: { id: 'inkholm', name: 'Inkholm', levels: '20–28', tint: [0.9, 0.86, 1.0], leafTint: [0.88, 0.84, 1.0], water: 'sea' },
   kell: { id: 'kell', name: 'Isle of Kell', levels: '35–42', tint: [1.02, 0.96, 0.9], leafTint: [0.92, 0.9, 0.82], water: 'sea' },
+  // Morrow (world/morrow.ts), south to north
+  keys: { id: 'keys', name: 'The Keys', levels: '40–48', tint: [1.0, 1.06, 0.84], leafTint: [0.9, 1.06, 0.8], water: 'sea' },
+  glades: { id: 'glades', name: 'The Glades', levels: '46–54', tint: [0.86, 1.0, 0.7], leafTint: [0.8, 0.96, 0.7], water: 'sea' },
+  amberwold: { id: 'amberwold', name: 'The Amberwold', levels: '52–60', tint: [1.1, 0.96, 0.62], leafTint: [1.42, 0.78, 0.32], water: 'lake' },
+  bright: { id: 'bright', name: 'The Bright Coast', levels: '56–64', tint: [1.06, 1.03, 0.8], leafTint: [1.0, 1.04, 0.84], water: 'sea' },
+  sunder: { id: 'sunder', name: 'The Sunder', levels: '62–72', tint: [0.96, 1.02, 0.92], leafTint: [0.92, 1.0, 0.9], water: 'river' },
+  glassflats: { id: 'glassflats', name: 'The Glass Flats', levels: '70–80', tint: [1.18, 1.04, 0.8], leafTint: [1.1, 1.0, 0.8], water: 'lake' },
+  greywaste: { id: 'greywaste', name: 'The Greywaste', levels: '78–90', tint: [0.76, 0.8, 0.76], leafTint: [0.7, 0.72, 0.7], water: 'river' },
+  held: { id: 'held', name: 'The Held Country', levels: '88–100', tint: [0.92, 0.96, 1.04], leafTint: [0.86, 0.92, 0.96], water: 'highland' },
 };
 
 // Seeds of each region; several per region shape them into irregular territories.
@@ -128,6 +142,7 @@ export function kellDist(x: number, z: number): number {
 }
 
 export function regionAt(x: number, z: number): RegionSample {
+  if (MORROW) { const r = morrowRegionId(x, z); return { a: r, b: r, t: 0 }; }
   // Hollindale: the vale, and the hills and shore beyond its north and west edges
   const vale = x < GW && z < GW;
   if (vale && x >= 0 && z >= 0) return VALE;
@@ -147,20 +162,20 @@ export function regionAt(x: number, z: number): RegionSample {
 
 // ------------------------------------------------------------------ Rivers and roads
 
-export const RIVERS: [number, number][][] = [
+const COUNTIES_RIVERS: [number, number][][] = [
   // The Wend leaves the vale and cuts a ravine south through Hagworm Wood to Peg's Water.
   [[259, 312], [266, 360], [300, 430], [340, 520], [372, 620], [396, 720], [410, 820], [420, 880]],
   // The Rill runs off Scarth through the Raddle canyons to the sea.
   [[860, 1560], [930, 1430], [1040, 1320], [1180, 1240], [1330, 1120], [1470, 1010], [1620, 940], [1780, 900], [1900, 880]],
 ];
 
-export const LAKES: { x: number; z: number; r: number; name: string }[] = [
+const COUNTIES_LAKES: { x: number; z: number; r: number; name: string }[] = [
   { x: 430, z: 920, r: 48, name: 'Peg\'s Water' },
   { x: 700, z: 640, r: 26, name: 'Millpond' },
   { x: 520, z: 1470, r: 30, name: 'Coldwater Tarn' },
 ];
 
-export const WORLD_ROADS: [number, number][][] = [
+const COUNTIES_ROADS: [number, number][][] = [
   // Hollindale east road to Ansbury: in at the New Town's west gate and along the avenue to the old west gate
   [[320, 197], [380, 205], [460, 228], [560, 250], [604, 292], [630, 300], [748, 300]],
   // Ansbury east gate, out through the New Town's east gate, to Gullmouth
@@ -186,8 +201,12 @@ export const WORLD_ROADS: [number, number][][] = [
   // Kell: out of Brasswick's east end and up the Kiln, through a cutting in the rim and down to the Works
   [[2432, -556], [2490, -580], [2560, -620], [2630, -650], [2690, -668], [2738, -668]],
 ];
-/** How many of WORLD_ROADS are the heart's own (the outer lands' come after). */
-export const HEART_ROADS = 7;
+export const RIVERS: [number, number][][] = MORROW ? MORROW_RIVERS : COUNTIES_RIVERS;
+export const LAKES: { x: number; z: number; r: number; name: string }[] = MORROW ? MORROW_LAKES : COUNTIES_LAKES;
+/** The land's roads (Morrow's are its own). */
+export const WORLD_ROADS: [number, number][][] = MORROW ? MORROW_ROADS : COUNTIES_ROADS;
+/** How many of WORLD_ROADS are the heart's own (the outer lands' come after); all of Morrow's. */
+export const HEART_ROADS = MORROW ? MORROW_ROADS.length : 7;
 
 /** Precomputed segment boxes so per-column distance tests only touch nearby segments. */
 interface Seg { ax: number; az: number; bx: number; bz: number; minX: number; maxX: number; minZ: number; maxZ: number }
@@ -251,6 +270,7 @@ const bump = (v: number, c: number, r: number) => smoothstep(r, 0, Math.abs(v - 
  * with a bay on the west coast below Hagworm Wood and headlands to the north and south.
  */
 export function coastDistWNS(x: number, z: number): number {
+  if (MORROW) return morrowLandDist(x, z);
   // Broad ragged shores, then the named features: a western cape and bay, a northern bay between
   // two headlands, and a southern headland beside a deep bay under the Kirk's plateau.
   const west = x - (-170 + (fbm2(z / 340, 1.3, 3, 701) - 0.5) * 300 + bump(z, 1250, 230) * 160 - bump(z, 640, 200) * 150 - bump(z, 1760, 150) * 90);
@@ -261,6 +281,7 @@ export function coastDistWNS(x: number, z: number): number {
 
 /** Distance inland from the nearest shore of the continent, the Fleet coast included. */
 export function coastDist(x: number, z: number): number {
+  if (MORROW) return morrowLandDist(x, z);
   return smin(coastDistWNS(x, z), coastX(z) + 36 - x, 170);
 }
 
@@ -389,6 +410,8 @@ function regionHeight(id: RegionId, x: number, z: number): number {
       if (d < KILN.crater + 12) h += (KILN_FLOOR + (fbm2(x / 20, z / 20, 2, 772) - 0.5) * 1.2 - h) * smoothstep(KILN.crater + 12, KILN.crater - 4, d);
       return h;
     }
+    case 'keys': case 'glades': case 'amberwold': case 'bright': case 'sunder': case 'glassflats': case 'greywaste': case 'held':
+      return morrowHeight(x, z); // (Morrow's own: never reached in the Counties)
     case 'tolmen': {
       // High moor: broad granite ground, boggy hollows, and tors standing out of the heather
       const bog = smoothstep(0.62, 0.78, fbm2(x / 120, z / 120, 2, 723));
@@ -470,7 +493,7 @@ const MEWSTONES = [
   { x: 2420, z: 1080, r: 170 }, { x: 2780, z: 960, r: 110 }, { x: 2180, z: 1330, r: 95 },
 ];
 /** The necks: each from just inside the old shore to well inside the outer land, bending as it goes. */
-export const NECKS: [number, number][][] = [
+export const NECKS: [number, number][][] = MORROW ? [] : [
   [[240, -70], [262, -250], [226, -430], [252, -620], [238, -840]], // north, from the hills above Hollindale to Gannet Cliffs
   [[-120, 980], [-280, 1006], [-440, 966], [-650, 990]], // west, from Hagworm Wood to the Wrath Levels
   [[300, 2130], [326, 2300], [288, 2470], [318, 2620], [302, 2770]], // south, from the Scarth Highlands to Tolmen Moor
@@ -482,6 +505,7 @@ const wander = (t: number, s: number) => (fbm2(t / 1000, s, 3, 716) - 0.5) * 800
 
 /** Inland distance from the outer lands' own shores (negative at sea, the sound included). */
 export function outerLandDist(x: number, z: number): number {
+  if (MORROW) return morrowLandDist(x, z);
   const d0 = coastDist(x, z);
   const sound = 280 + fbm2(x / 300, z / 300, 3, 710) * 420;
   const inner = -d0 - sound;
@@ -510,11 +534,13 @@ export function outerLandDist(x: number, z: number): number {
 
 /** Positive on a neck of land across the sound (its distance in from the neck's edge). */
 export function neckDist(x: number, z: number): number {
+  if (MORROW) return -999;
   return 80 + fbm2(x / 70, z / 70, 3, 731) * 50 - segDist(x, z, NECK_SEGS);
 }
 
 /** Inland distance from the nearest shore anywhere: the heartland, the outer lands or a neck. */
 export function landDist(x: number, z: number): number {
+  if (MORROW) return morrowLandDist(x, z);
   return Math.max(coastDist(x, z), outerLandDist(x, z), neckDist(x, z));
 }
 
@@ -545,6 +571,7 @@ function neckHeight(x: number, z: number, n: number): number {
 
 /** Base terrain height before site flattening (also used to place sites). */
 export function baseHeight(x: number, z: number): number {
+  if (MORROW) return morrowHeight(x, z);
   const h0 = heartHeight(x, z);
   if (inHeart(x, z)) return h0;
   const d0 = coastDist(x, z);
@@ -630,7 +657,7 @@ export function heightAt(x: number, z: number): number {
   if (rg && h > SEA + 1 && rg.h > SEA + 1) {
     // Fading out toward Hollindale's authored valley, so the land still meets the valley's edge
     const out = Math.max(-x, x - GW, -z, z - GW);
-    const seam = Math.max(0, Math.min(1, out / 10));
+    const seam = MORROW ? 1 : Math.max(0, Math.min(1, out / 10));
     h += (rg.h - h) * rg.w * seam;
   }
   const list = FLAT_BUCKETS.get(Math.floor(x / FLAT_CELL) + Math.floor(z / FLAT_CELL) * 1000);
@@ -666,6 +693,7 @@ export function columnBlocks(x: number, z: number, h: number, maxDiff: number, r
   }
   if (road) return { top: hash2(x, z, 8) < 0.1 ? B.Gravel : B.Path, sub: B.Dirt };
   const beach = h <= SEA + 2;
+  if (MORROW) { const m = morrowColumn(x, z, h, maxDiff, region as MorrowRegion, stony, beach); if (m) return m; }
   switch (region) {
     case 'redstone':
       if (maxDiff >= 2) return { top: B.TerraOrange, sub: B.TerraOrange };

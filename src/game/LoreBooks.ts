@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { LORE_BOOKS, type LoreBook } from '../data/lorebooks';
+import { LAND } from '../world/land';
 import type { GameApi } from './api';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { GW, heightAt } from '../world/terrain';
@@ -52,7 +53,7 @@ export class LoreBooks {
 
   update(dt: number): void {
     const P = this.host.player();
-    for (const b of LORE_BOOKS) {
+    for (const b of LAND === 'counties' ? LORE_BOOKS : []) {
       const near = Math.abs(b.x - P.x) < 70 && Math.abs(b.z - P.z) < 70;
       const g = this.shown.get(b.id);
       if (near && !g && this.host.voxels.isLoaded(b.x, b.z)) {

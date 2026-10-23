@@ -19,6 +19,10 @@ export const SHRINE_RUNE: Record<RegionId, { shape: 'band' | 'orb' | 'disc'; y: 
   tolmen: { shape: 'disc', y: 2.3, w: 0.62, h: 0, d: 0, color: '#d0a0ff' },
   inkholm: { shape: 'orb', y: 2.4, w: 0.4, h: 0, d: 0, color: '#c8a8ff' },
   kell: { shape: 'disc', y: 2.5, w: 0.6, h: 0, d: 0, color: '#ffb040' },
+  keys: { shape: 'disc', y: 2.2, w: 0.6, h: 0, d: 0, color: '#7af0e0' }, glades: { shape: 'orb', y: 2.3, w: 0.4, h: 0, d: 0, color: '#b0ff9a' },
+  amberwold: { shape: 'orb', y: 2.6, w: 0.42, h: 0, d: 0, color: '#ffb84a' }, bright: { shape: 'band', y: 2.6, w: 1.04, h: 0.26, d: 1.04, color: '#fff0b0' },
+  sunder: { shape: 'orb', y: 2.4, w: 0.4, h: 0, d: 0, color: '#e8fbff' }, glassflats: { shape: 'disc', y: 2.4, w: 0.6, h: 0, d: 0, color: '#c8a0ff' },
+  greywaste: { shape: 'band', y: 2.2, w: 0.9, h: 0.24, d: 0.9, color: '#c8d0c8' }, held: { shape: 'disc', y: 2.5, w: 0.62, h: 0, d: 0, color: '#9ad0ff' },
 };
 
 /** Solid cells (offsets from the centre cell, for a shrine facing +z) and how many blocks high. */
@@ -34,4 +38,6 @@ export const SHRINE_SOLID: Record<RegionId, { cells: [number, number][]; h: numb
   tolmen: { cells: [[-1, 0], [0, 0], [1, 0]], h: 3 },
   inkholm: { cells: [[0, 0]], h: 4 },
   kell: { cells: [[0, 0]], h: 4 },
+  keys: { cells: [[0, 0]], h: 3 }, glades: { cells: [[0, 0]], h: 3 }, amberwold: { cells: [[-2, 0], [2, 0]], h: 4 }, bright: { cells: [[0, 0]], h: 4 },
+  sunder: { cells: [[0, 0], [-1, 0], [1, 0], [0, -1]], h: 3 }, glassflats: { cells: [[0, 0]], h: 4 }, greywaste: { cells: [[-1, 0], [1, 0]], h: 4 }, held: { cells: [[-1, 0], [0, 0], [1, 0]], h: 3 },
 };

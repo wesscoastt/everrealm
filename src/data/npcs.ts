@@ -1,5 +1,6 @@
 import type { Appearance, AnimState, HeldItem } from '../entities/humanoid';
 import type { GameApi } from '../game/api';
+import { keepOnLand, type LandId } from '../world/land';
 import type { PartId } from './tunes';
 import { ALDERMERE as A, CAMP, COLD, FOLD, GULL, LIGHT, MOSSGATE, STARWATCH, TEMPLE, WORKS as W } from './places_regional';
 
@@ -22,6 +23,8 @@ export interface ScheduleSlot {
 }
 
 export interface NpcDef {
+  /** The land they live in (world/land.ts); none given, the Counties. */
+  land?: LandId;
   id: string;
   name: string;
   title: string;
@@ -310,3 +313,5 @@ export const NPCS: NpcDef[] = [
 // Side content people (src/data/content).
 import { CONTENT } from './content';
 for (const c of CONTENT) NPCS.push(...(c.npcs ?? []));
+// Only this land's people
+keepOnLand(NPCS);

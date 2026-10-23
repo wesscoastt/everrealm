@@ -1,3 +1,4 @@
+import { keepOnLand, type LandId } from '../world/land';
 import { coastX } from '../world/terrain';
 
 // The Charter Post: carts that run between the settlements on the Charter's roads. A stop can be
@@ -28,6 +29,8 @@ export interface PostStop {
   gate?: string;
   /** Where the post box stands, where beside the sign won't do (x, z, the way it faces). */
   boxAt?: [number, number, number];
+  /** The land the stop is in (world/land.ts); none given, the Counties. */
+  land?: LandId;
 }
 
 /** Where a stop's post box stands: a couple of blocks to one side of the sign, facing the same way. */
@@ -75,3 +78,6 @@ export function postFare(a: PostStop, b: PostStop): number {
 export function postHours(a: PostStop, b: PostStop): number {
   return Math.max(1, Math.round(Math.hypot(a.x - b.x, a.z - b.z) / 250));
 }
+
+// Only this land's stops
+keepOnLand(POSTS);

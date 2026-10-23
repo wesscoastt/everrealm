@@ -27,6 +27,8 @@ export interface Posting {
 }
 
 export interface Board {
+  /** The land it's in (world/land.ts); none given, the Counties. */
+  land?: import('../../world/land').LandId;
   id: string;
   name: string;
   x: number;

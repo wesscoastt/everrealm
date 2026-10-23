@@ -427,6 +427,15 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
   tolmen: { enemies: ['moorwolf', 'graniteback', 'moorwolf'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
   inkholm: { enemies: ['greyed', 'puffball', 'greyhog', 'greyed', 'gillcrab'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
   kell: { enemies: ['cinderhound', 'ashcrawler', 'brassmite', 'cinderhound', 'ventjelly'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
+  // Morrow
+  keys: { enemies: ['crab', 'brinejelly', 'gillcrab'], animals: ['chicken'], sea: ['blueshark', 'thornray', 'lionsmane'] },
+  glades: { enemies: ['fenjelly', 'bogboar', 'fenjelly'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
+  amberwold: { enemies: ['thornwolf', 'sporejelly', 'thornwolf'], animals: ['deer', 'rabbit'], sea: ['conger'] },
+  bright: { enemies: ['clifffox', 'cragboar', 'clifffox'], animals: ['sheep', 'rabbit', 'chicken'], sea: ['huss', 'conger', 'porbeagle'] },
+  sunder: { enemies: ['shardjelly', 'graniteback', 'shardjelly'], animals: ['deer'], sea: ['porbeagle'] },
+  glassflats: { enemies: ['dustwolf', 'redback', 'dustwolf'], animals: ['rabbit'], sea: ['blueshark'] },
+  greywaste: { enemies: ['moorwolf', 'greyed', 'moorwolf'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
+  held: { enemies: ['frostwolf', 'graniteback', 'frostwolf'], animals: ['deer'], sea: ['blueshark'] },
 };
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [

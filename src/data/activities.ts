@@ -1,5 +1,6 @@
 import type { EnemyType } from './gameplay';
 import type { RegionId } from '../world/terrain';
+import { countiesOnly } from '../world/land';
 
 // Things that happen in the world whether or not anyone is there to see them start (the runtime is
 // game/Activities.ts). Dynamic events flare up when you come near and run on a timer; world bosses
@@ -104,3 +105,9 @@ export const TASKS: TaskDef[] = [
   { id: 'tk-peat', name: 'Kelder Peat Hags', region: 'starfall', x: 659, z: 1889, r: 24, goal: 'Cut and stack peat for the winter and keep the frost wolves back.', verb: 'Cut', noun: 'peat bank', prop: 'peat', pests: { type: 'frostwolf', max: 2 }, xp: 1300, marks: 48, loot: ['frost_pelt', 'cooked_char'] },
   { id: 'tk-cairns', name: 'The Cairn Road', region: 'starfall', x: 143, z: 1573, r: 24, goal: 'Build the fallen waymark cairns back up and shatter the shard jellies.', verb: 'Rebuild', noun: 'fallen cairn', prop: 'cairn', pests: { type: 'shardjelly', max: 3 }, xp: 1300, marks: 48, loot: ['star_crystal', 'cooked_char'] },
 ];
+
+// Placed on the first continent: none of them in Morrow (world/land.ts)
+countiesOnly(EVENTS);
+countiesOnly(WORLD_BOSSES);
+countiesOnly(SHARDFALLS);
+countiesOnly(TASKS);
