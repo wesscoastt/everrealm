@@ -633,3 +633,12 @@ export const REGIONS: { id: string; name: string; sub: string; x: number; z: num
 
 // The far places' rare mounts, now and then off the creatures of their country (data/content/mounts.ts)
 for (const [type, item, chance] of MOUNT_DROPS) ENEMIES[type as EnemyType]?.loot.push({ item, chance });
+
+/**
+ * Horsemanship: the rider's, not the horse's, so every mount (the store's too) is the same under you.
+ * Blocks ridden to reach each rank; each rank past the first is a little more pace and a gallop that
+ * tires you less, up to rank 10 (game/Game.ts).
+ */
+export const RIDE_RANKS = [0, 2000, 5000, 10000, 18000, 30000, 45000, 65000, 90000, 120000];
+export const rideRank = (dist: number) => RIDE_RANKS.filter((d) => dist >= d).length;
+export const RIDE_PACE = 0.012, RIDE_WIND = 0.05;

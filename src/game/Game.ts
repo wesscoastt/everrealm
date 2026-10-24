@@ -30,7 +30,7 @@ import { legacyChunkKey, v2ChunkKey } from '../world/VoxelWorld';
 import { createRenderer } from '../core/Renderer';
 import { DIALOGUE, READABLES } from '../data/dialogue';
 import {
-  ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, STATION_NAMES, SHOP_STOCK, SKILLS, Station, TREE_INFO,
+  ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, STATION_NAMES, SHOP_STOCK, SKILLS, Station, TREE_INFO, RIDE_PACE, RIDE_RANKS, RIDE_WIND, rideRank,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
 import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
@@ -2381,12 +2381,41 @@ export class Game implements GameApi {
     return { name: def?.name ?? 'Pack', slots: Number(this.flag('packSlots') ?? 0), hidden: !!this.flag('hidePack') };
   }
   togglePack(): void { this.setFlag('hidePack', !this.flag('hidePack')); this.hud.refresh(); }
+  /** Horsemanship: your rank, and how far to the next (blocks), for the pack panel. */
+  ridingInfo(): { rank: number; next: number | null } {
+    const d = Number(this.flag('rideDist') ?? 0), rank = rideRank(d);
+    return { rank, next: rank < RIDE_RANKS.length ? RIDE_RANKS[rank] - d : null };
+  }
+  /** Ground covered in the saddle counts toward horsemanship; a new rank is announced. */
+  private rodeOn(dist: number): void {
+    if (dist <= 0 || dist > 20) return;
+    const was = Number(this.flag('rideDist') ?? 0), now = was + dist;
+    this.save.flags.rideDist = now;
+    const a = rideRank(was), b = rideRank(now);
+    if (b > a) {
+      this.hud.banner(`Horsemanship ${b}`, b >= RIDE_RANKS.length ? 'As good in the saddle as anyone in the realm' : 'A surer seat: a little more pace, and the gallop tires you less', true);
+      this.sfx('levelUp');
+      this.hud.refresh();
+    }
+  }
+  private rideLast: THREE.Vector3 | null = null;
+  /** Your helm and gloves: shown, or hidden (they still guard you). */
+  gearShown(): { head: boolean; hands: boolean } { return { head: !this.flag('hideHead'), hands: !this.flag('hideHands') }; }
+  toggleGearShown(slot: 'head' | 'hands'): void {
+    const k = slot === 'head' ? 'hideHead' : 'hideHands';
+    this.setFlag(k, !this.flag(k));
+    this.dress();
+    this.hud.refresh();
+    this.persist();
+  }
 
   /** The look the character shows: their own, with what they're wearing over it. */
   private wornLook(): Appearance {
     const e = this.save.equip;
     const look: Appearance = { ...this.save.look };
     for (const slot of ['chest', 'legs', 'hands', 'feet', 'head'] as const) {
+      // (a helm or gloves you'd rather not see still guard you: they just aren't drawn)
+      if ((slot === 'head' && this.flag('hideHead')) || (slot === 'hands' && this.flag('hideHands'))) continue;
       const id = e[slot];
       const l = id ? ITEMS[id]?.armor?.look : undefined;
       if (l) Object.assign(look, dyeLook(slot, l, this.gearDye(slot)));
@@ -2630,6 +2659,9 @@ export class Game implements GameApi {
       armourSummary: () => g.armourSummary(),
       packInfo: () => g.packInfo(),
       togglePack: () => g.togglePack(),
+      gearShown: () => g.gearShown(),
+      ridingInfo: () => g.ridingInfo(),
+      toggleGearShown: (slot: 'head' | 'hands') => g.toggleGearShown(slot),
       dropSlot: (i: number) => g.dropSlot(i),
       craft: (r: string, n: number, o?: CraftOpts) => g.startCraft(r, n, o),
       craftView: () => g.craftView(),
@@ -5533,6 +5565,7 @@ export class Game implements GameApi {
     updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'doorOpen' : 'doorShut', 0.6));
     this.voyage.update(dt);
     this.sailing.update(dt, P);
+    if (this.horse && !this.dead) { if (this.rideLast) this.rodeOn(Math.hypot(P.x - this.rideLast.x, P.z - this.rideLast.z)); (this.rideLast ??= new THREE.Vector3()).copy(P); } else this.rideLast = null;
     this.updateShipPanel(dt);
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
     this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
@@ -5817,8 +5850,11 @@ export class Game implements GameApi {
     const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
     if (this.energy <= 0.5 && !this.winded) { this.winded = true; this.hud.system('You\'re winded. Walk it off.'); }
     else if (this.winded && this.energy >= 50) this.winded = false;
-    let speed = this.horse ? 9.6 * haul : this.winded ? 3.6 : 5.4;
-    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1 && !this.winded) { speed = this.horse ? 13 * haul : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 : 1)); }
+    // (horsemanship: a little more pace each rank, and the gallop tires you less)
+    const rank = this.horse ? rideRank(Number(this.flag('rideDist') ?? 0)) : 1;
+    const sure = 1 + (rank - 1) * RIDE_PACE, wind = 1 - (rank - 1) * RIDE_WIND;
+    let speed = this.horse ? 9.6 * haul * sure : this.winded ? 3.6 : 5.4;
+    if (sprint && mv.lengthSq() > 0.01 && this.energy > 1 && !this.winded) { speed = this.horse ? 13 * haul * sure : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 * wind : 1)); }
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind + this.buffSum('regen')) * (this.winded ? 0.5 : 1));
     this.tickBuffs(dt);
     this.hud.setBuffs(this.buffList());

@@ -13,10 +13,15 @@
 //    anything is read, and each payment is granted once however many times Stripe repeats it.
 //  - What you own lives with your account on the server, so it follows you to every character and
 //    device, and the game asks the server what you own rather than trusting the browser.
+//  - A refund or a chargeback takes the order back: a full refund (charge.refunded) or a dispute opened
+//    (charge.dispute.created) removes what that order granted, unless another order of the account's
+//    also granted it; a dispute that goes the store's way (charge.dispute.closed, won) gives it back.
+//    The order is found from the payment through Stripe's own record of the checkout.
 //
 // The keys are the owner's: STRIPE_SECRET_KEY (sk_test_... while testing, sk_live_... once open),
 // STRIPE_WEBHOOK_SECRET (whsec_..., from the webhook's page in Stripe's dashboard, pointed at
-// <realm>/api/store/webhook for checkout.session.completed), and STORE_RETURN_URL (the game's page).
+// <realm>/api/store/webhook for checkout.session.completed, checkout.session.async_payment_succeeded,
+// charge.refunded, charge.dispute.created and charge.dispute.closed), and STORE_RETURN_URL (the game's page).
 // They're set in the host's environment (Render), never in the repository or the browser. Without
 // them the store shows its goods and says it isn't open yet.
 
@@ -54,17 +59,50 @@ const TOLERANCE = 300;
 
 export function storeInit({ loadAccount, storeAccount, log }) {
   /** Gives an account what a paid order bought, once per order. */
-  function grant(user, sku, order) {
+  function grant(user, sku, order, pi = null) {
     const acc = loadAccount(user);
     const item = CATALOG[sku];
     if (!acc || !item) { log(`store: order ${order} for unknown ${user}/${sku}`); return false; }
     acc.store ??= { owned: [], orders: {} };
     if (acc.store.orders[order]) return true; // already granted (Stripe repeats itself)
-    acc.store.orders[order] = { sku, at: Date.now() };
+    acc.store.orders[order] = { sku, at: Date.now(), ...(pi ? { pi } : {}) };
     for (const id of item.items) if (!acc.store.owned.includes(id)) acc.store.owned.push(id);
     storeAccount(acc);
     log(`store: ${user} bought ${sku} (${order})`);
     return true;
+  }
+
+  /**
+   * Takes an order back (refunded, or disputed), or gives it again (a dispute won): what the account owns
+   * is what its standing orders granted, so an item another order also bought stays.
+   */
+  function standing(user, order, revoked, why) {
+    const acc = loadAccount(user);
+    const o = acc?.store?.orders?.[order];
+    if (!o) { log(`store: ${why} for an order not on ${user}'s books (${order})`); return; }
+    if (!!o.revoked === revoked) return;
+    if (revoked) o.revoked = why; else delete o.revoked;
+    const keep = new Set();
+    for (const r of Object.values(acc.store.orders)) if (!r.revoked) for (const id of CATALOG[r.sku]?.items ?? []) keep.add(id);
+    acc.store.owned = [...keep];
+    storeAccount(acc);
+    log(`store: ${user}'s ${o.sku} (${order}) ${revoked ? 'taken back: ' + why : 'given back: ' + why}`);
+  }
+
+  /** The checkout (and so the account and the order) behind a payment, from Stripe's record of it. */
+  async function sessionFor(pi) {
+    if (!pi || !SKEY()) return null;
+    const r = await fetch(`https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(pi)}&limit=1`, { headers: { Authorization: `Bearer ${SKEY()}` } });
+    const j = await r.json().catch(() => ({}));
+    const sess = j?.data?.[0];
+    return sess ? { user: sess.metadata?.user ?? sess.client_reference_id, order: sess.id } : null;
+  }
+  async function retake(pi, revoked, why) {
+    try {
+      const f = await sessionFor(pi);
+      if (f?.user) standing(f.user, f.order, revoked, why);
+      else log(`store: ${why}, but no checkout found for ${pi}`);
+    } catch (e) { log('store: couldn\'t look up a payment for', why, e?.message ?? e); }
   }
 
   /** Stripe's signature on a webhook: v1 = HMAC-SHA256(secret, timestamp + "." + body), recent. */
@@ -147,8 +185,13 @@ export function storeInit({ loadAccount, storeAccount, log }) {
       const s = ev?.data?.object;
       if ((ev.type === 'checkout.session.completed' || ev.type === 'checkout.session.async_payment_succeeded') && s?.payment_status === 'paid') {
         const user = s.metadata?.user ?? s.client_reference_id, sku = s.metadata?.sku;
-        if (user && sku) grant(user, sku, s.id);
+        if (user && sku) grant(user, sku, s.id, s.payment_intent ?? null);
       }
+      // Money back: all of it refunded, or a chargeback opened, takes the order back; a dispute won restores it
+      // (looked up after the reply: Stripe only needs to hear the webhook arrived)
+      if (ev.type === 'charge.refunded' && s?.refunded && s.amount_refunded >= s.amount) void retake(s.payment_intent, true, 'refunded');
+      if (ev.type === 'charge.dispute.created') void retake(s?.payment_intent, true, 'disputed');
+      if (ev.type === 'charge.dispute.closed' && s?.status === 'won') void retake(s?.payment_intent, false, 'dispute won');
       return { status: 200, body: { received: true } };
     },
   };

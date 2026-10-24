@@ -252,6 +252,11 @@ export interface UiCtx {
   /** The backpack you wear (null: none yet), and hiding or showing it. */
   packInfo(): { name: string; slots: number; hidden: boolean } | null;
   togglePack(): void;
+  /** Helm and gloves drawn or hidden (they guard you either way). */
+  gearShown(): { head: boolean; hands: boolean };
+  /** Horsemanship rank, and blocks to the next (null at the top). */
+  ridingInfo(): { rank: number; next: number | null };
+  toggleGearShown(slot: 'head' | 'hands'): void;
   dropSlot(i: number): void;
   craft(recipe: string, count: number, opts?: { affix?: string; q?: number }): void;
   /** The crafting window's state (game/Game.ts craftView): known recipes and their colours, leanings, research. */
@@ -1552,8 +1557,9 @@ export class Hud {
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();
     const pk = this.ctx.packInfo();
-    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}`);
+    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
     stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
+    stats.querySelectorAll<HTMLElement>('[data-showgear]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.toggleGearShown(b.dataset.showgear as 'head' | 'hands'); }));
     eq.append(stats);
     body.append(eq);
     body.append(this.armoury());
