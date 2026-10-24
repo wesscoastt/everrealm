@@ -34,6 +34,9 @@ export interface PropMaterials {
   clothCream: THREE.MeshLambertMaterial;
   produce: THREE.MeshLambertMaterial;
   paper: THREE.MeshLambertMaterial;
+  /** Fired clay, and a potter's blue glaze. */
+  clay: THREE.MeshLambertMaterial;
+  glaze: THREE.MeshStandardMaterial;
 }
 
 export function createPropMaterials(): PropMaterials {
@@ -63,6 +66,8 @@ export function createPropMaterials(): PropMaterials {
     clothCream: lam({ color: '#efe3c4', side: THREE.DoubleSide }),
     produce: lam({ vertexColors: true }),
     paper: lam({ color: '#efe6cf' }),
+    clay: lam({ color: '#b8683e' }),
+    glaze: new THREE.MeshStandardMaterial({ color: '#3f6a94', roughness: 0.35, metalness: 0.05 }),
   };
 }
 
@@ -1739,6 +1744,7 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'ribbons': return ribbons(M, tint);
     case 'gull': return gull();
     case 'coil': return ropeCoil(M);
+    case 'crocks': return crocks(M, tint);
     case 'hayrack': return hayRack(M);
     case 'hurdle': return hurdle(M);
     case 'bones': return bones(tint);
@@ -2043,6 +2049,23 @@ export function gull(): THREE.Group {
 }
 
 /** A coil of rope lying on the ground. */
+/** A potter's turned profile (radius, height) pairs, as a lathe solid. */
+function turned(pts: [number, number][], mat: THREE.Material, x = 0, z = 0): THREE.Mesh {
+  return mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 14), mat, x, 0, z);
+}
+
+/**
+ * Crocks from the potter's: a tall storage jar, a jug with its lip, and a wide bowl; terracotta (tint 0)
+ * or glazed blue (tint 1).
+ */
+export function crocks(M: PropMaterials, tint = 0): THREE.Group {
+  const g = new THREE.Group(), mat = tint ? M.glaze : M.clay;
+  g.add(turned([[0, 0], [0.13, 0], [0.19, 0.12], [0.2, 0.3], [0.15, 0.46], [0.1, 0.5], [0.11, 0.54], [0, 0.54]], mat, -0.18, 0));
+  g.add(turned([[0, 0], [0.09, 0], [0.13, 0.1], [0.12, 0.22], [0.07, 0.3], [0.08, 0.36], [0, 0.36]], mat, 0.14, 0.06));
+  g.add(turned([[0, 0], [0.1, 0], [0.18, 0.06], [0.2, 0.12], [0.18, 0.12], [0, 0.04]], mat, 0.06, -0.2));
+  return g;
+}
+
 export function ropeCoil(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 3; i++) g.add(mesh(new THREE.TorusGeometry(0.28 - i * 0.04, 0.035, 5, 14), M.rope, 0, 0.04 + i * 0.06, 0, 0, Math.PI / 2));

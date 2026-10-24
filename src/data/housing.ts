@@ -1,29 +1,51 @@
 import { B } from '../world/blocks';
 import type { FrontId, TrimId } from '../world/sites';
+import { ESTATES } from './estates';
 
 /** Wendside Cottage, the house for sale on the road east of Hollin Ford: its walls and floor height. */
 export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 2500, bench: { x: 412.6, z: 199.5 } };
 
 // Homes. Two ways to have one: buy Wendside Cottage as it stands, or lease a lot from the Charter
 // and have a house built to your own plans. The Charter is selling the waste ground along the
-// Ford road to pay down the bridge debt (see docs/LORE.md): ninety-nine years, a stake at each
-// corner, and the moot's seal on the lease.
+// Ford road to pay down the bridge debt (see docs/LORE.md), and has laid out small estates of lots
+// by every Post town besides (data/estates.ts): ninety-nine years, a stake at each corner, and the
+// moot's seal on the lease.
 //
-// Everyone's lot and house stand in the same place; what you see there is your own (or, on a
-// visit, your host's), the same way everyone sees their own furniture in the cottage.
+// Each home has one holder, the realm over (the realm server keeps the book: server/homes.mjs), and
+// everyone sees the house they built. A lease left untouched for three months goes back on sale.
 
 export type Door = 'n' | 's' | 'e' | 'w';
 
-/** A building lot: its corner, and the side that faces the road (where the front door goes). */
-export interface Lot { id: string; name: string; x0: number; z0: number; door: Door }
+/**
+ * A building lot: its corner, the side that faces the road (where the front door goes), the height
+ * its ground is levelled to, and the estate it's on (and the Post town that estate is by).
+ * A lot is LOT_W along x and LOT_D along z, whichever way it faces.
+ */
+export interface Lot { id: string; name: string; x0: number; z0: number; door: Door; base: number; estate: string; town: string }
 export const LOT_W = 15, LOT_D = 13, LOT_BASE = 20;
-export const LOTS: Lot[] = [
-  { id: 'l1', name: 'Lot 1, Oak Side', x0: 414, z0: 194, door: 's' },
-  { id: 'l2', name: 'Lot 2, Oak Side', x0: 432, z0: 198, door: 's' },
-  { id: 'l3', name: 'Lot 3, Brook Side', x0: 386, z0: 224, door: 'n' },
-  { id: 'l4', name: 'Lot 4, Brook Side', x0: 402, z0: 224, door: 'n' },
-  { id: 'l5', name: 'Lot 5, Brook Side', x0: 418, z0: 230, door: 'n' },
+const wendside = (id: string, name: string, x0: number, z0: number, door: Door): Lot => ({ id, name, x0, z0, door, base: LOT_BASE, estate: 'the Wendside lots', town: 'hollin' });
+/** The first lots: along the Ford road at Wendside, east of Hollin Ford. */
+export const WENDSIDE_LOTS: Lot[] = [
+  wendside('l1', 'Lot 1, Oak Side', 414, 194, 's'),
+  wendside('l2', 'Lot 2, Oak Side', 432, 198, 's'),
+  wendside('l3', 'Lot 3, Brook Side', 386, 224, 'n'),
+  wendside('l4', 'Lot 4, Brook Side', 402, 224, 'n'),
+  wendside('l5', 'Lot 5, Brook Side', 418, 230, 'n'),
 ];
+/** Every lot: Wendside's, and each estate's in turn (ids like gr3: Gull Rise, lot 3). */
+export const LOTS: Lot[] = [
+  ...WENDSIDE_LOTS,
+  ...ESTATES.flatMap((e) => e.lots.map(([x0, z0, base], i): Lot => ({ id: e.id + (i + 1), name: `Lot ${i + 1}, ${e.name}`, x0, z0, door: e.door, base, estate: e.name, town: e.town }))),
+];
+/** Lots by id. */
+export const LOT_BY_ID = new Map(LOTS.map((l) => [l.id, l]));
+/** The middle of a lot's road edge, where its stake and number board stand, and the way the board faces. */
+export function lotFront(l: Lot): { x: number; z: number; ry: number } {
+  if (l.door === 's') return { x: l.x0 + LOT_W / 2, z: l.z0 + LOT_D - 0.5, ry: 0 };
+  if (l.door === 'n') return { x: l.x0 + LOT_W / 2, z: l.z0 + 0.5, ry: Math.PI };
+  if (l.door === 'e') return { x: l.x0 + LOT_W - 0.5, z: l.z0 + LOT_D / 2, ry: Math.PI / 2 };
+  return { x: l.x0 + 0.5, z: l.z0 + LOT_D / 2, ry: -Math.PI / 2 };
+}
 export const LOT_PRICE = 2000;
 /** What the Charter pays when you give up Wendside Cottage to move into a house of your own. */
 export const COTTAGE_BUYBACK = 1250;
@@ -94,9 +116,10 @@ export function costOf(spec: HouseSpec): Cost {
 /** Where a house with these plans stands on its lot: set back from the road, with a front garden. */
 export function housePlace(lot: Lot, spec: HouseSpec): { x0: number; z0: number; w: number; d: number; floors: number; base: number; door: Door } {
   const { w, d } = SIZES[spec.size];
-  const x0 = lot.x0 + Math.floor((LOT_W - w) / 2);
-  const z0 = lot.door === 's' ? lot.z0 + 1 : lot.z0 + LOT_D - d - 1;
-  return { x0, z0, w, d, floors: spec.floors, base: LOT_BASE, door: lot.door };
+  const across = lot.door === 'n' || lot.door === 's';
+  const x0 = across ? lot.x0 + Math.floor((LOT_W - w) / 2) : lot.door === 'e' ? lot.x0 + 1 : lot.x0 + LOT_W - w - 1;
+  const z0 = across ? (lot.door === 's' ? lot.z0 + 1 : lot.z0 + LOT_D - d - 1) : lot.z0 + Math.floor((LOT_D - d) / 2);
+  return { x0, z0, w, d, floors: spec.floors, base: lot.base, door: lot.door };
 }
 
 /** A plain house shape for the furnishing code: corner, size, storeys, floor height, door. */

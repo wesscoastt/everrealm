@@ -5,7 +5,7 @@ import { plan } from '../world/sites';
 import { coastX, SEA } from '../world/terrain';
 import { Enemy } from '../entities/Enemy';
 import { ENEMIES } from '../data/gameplay';
-import { isSolid } from '../world/blocks';
+import { isLeaves, isSolid } from '../world/blocks';
 import { inRoof } from '../world/roofVolumes';
 
 // The Everrealm trailer, made in the engine (previews/trailer.mjs drives it; ?trailer in the address
@@ -228,15 +228,19 @@ function compose(c2: CanvasRenderingContext2D, gl: HTMLCanvasElement, shot: Shot
   c2.globalAlpha = 1;
 }
 
-/** Run the frames of the game by hand while the world around a point loads. */
-async function settle(g: G, f: THREE.Vector3, secs = 90): Promise<void> {
+/**
+ * Run the frames of the game by hand while the world around a point loads: its blocks, and the
+ * chunks meshed out far enough that no stand-in box shows over the real town (GameWorld's impostors
+ * draw beyond the meshed radius).
+ */
+async function settle(g: G, f: THREE.Vector3, secs = 120, reach = 90): Promise<void> {
   const until = performance.now() + secs * 1000;
   const ring = [[0, 0], [60, 0], [-60, 0], [0, 60], [0, -60], [40, 40], [-40, -40]];
   let ok = 0;
   while (performance.now() < until) {
     g.frame(0.05);
     await new Promise((r) => setTimeout(r, 0));
-    if (ring.every(([dx, dz]) => g.world.voxels.isLoaded(f.x + dx, f.z + dz))) { if (++ok > 60) return; }
+    if (ring.every(([dx, dz]) => g.world.voxels.isLoaded(f.x + dx, f.z + dz)) && g.world.chunks.coveredRadius >= reach) { if (++ok > 60) return; }
   }
 }
 
@@ -279,11 +283,11 @@ export async function makeTrailer(g: G, E: G, progress: (s: string) => void, qui
     progress(`shot ${si + 1}/${SHOTS.length}: loading`);
     E.hour(shot.hour);
     g.player.teleport(fx + 0.5, (wm?.y ?? 80) + 1, fz + 0.5);
-    await settle(g, V3(fx, 0, fz), quick ? 8 : 40);
+    await settle(g, V3(fx, 0, fz), quick ? 8 : 120);
     const fy = g.world.voxels.groundBelow(fx + 0.5, 140, fz + 0.5);
     const f = V3(fx + 0.5, fy, fz + 0.5);
     if (!wm) g.player.teleport(f.x, fy + 0.2, f.z);
-    await settle(g, f, 8);
+    await settle(g, f, quick ? 8 : 30);
     shot.setup?.(g, f);
     E.hour(shot.hour);
     const frames = quick ? 8 : Math.round(shot.dur * FPS);
@@ -292,7 +296,9 @@ export async function makeTrailer(g: G, E: G, progress: (s: string) => void, qui
       const t = k / FPS;
       const cam = shot.cam(k / frames, f, g);
       // Never inside a wall or the ground: up until there's air round the lens
-      for (let up = 0; up < 40 && [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].some(([dx, dz]) => isSolid(g.world.voxels.get(Math.floor(cam.pos.x + dx), Math.floor(cam.pos.y), Math.floor(cam.pos.z + dz)))); up++) cam.pos.y += 1;
+      // (leaves too: a lens in a tree's crown sees nothing but leaf)
+      const thick = (id: number) => isSolid(id) || isLeaves(id);
+      for (let up = 0; up < 40 && [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].some(([dx, dz]) => thick(g.world.voxels.get(Math.floor(cam.pos.x + dx), Math.floor(cam.pos.y), Math.floor(cam.pos.z + dz)))); up++) cam.pos.y += 1;
       {
         const d = cam.pos.clone().sub(cam.look), len = d.length();
         let clear = 1;

@@ -299,6 +299,8 @@ export interface UiCtx {
   exPost(item: string, n: number, price: number): void;
   exTakeBack(id: number): void;
   exReload(): void;
+  /** Take your stall down (its stock comes back to your pack). */
+  exStallDown(): void;
   /** Letters by the Charter Post (game/Mail.ts). */
   mail(): MailView;
   mailDo(what: 'read' | 'back' | 'write' | 'reply' | 'attach' | 'send' | 'take' | 'delete' | 'return' | 'reload', id?: number, item?: string, n?: number): void;
@@ -2261,13 +2263,17 @@ export class Hud {
     const body = this.q('#exchange-panel .body');
     body.innerHTML = '';
     const marks = this.ctx.save.marks;
-    this.q('#exchange-panel .footer').innerHTML = `<span>A mark in twenty of every sale goes to the Exchange</span><span class="coin">${marks} marks</span>`;
+    // A stall's page: whose it is in the title, no cut, and only the side of it that's yours to use
+    const stall = v.stall;
+    this.q('#exchange-panel header h3').textContent = stall ? (stall.mine ? 'Your stall' : `${stall.owner}'s stall`) : 'The Exchange';
+    if (stall) this.exTab = stall.mine ? 'sell' : 'buy';
+    this.q('#exchange-panel .footer').innerHTML = `<span>${stall ? (stall.mine ? 'No cut: a stall\'s takings are all yours' : `Paid to ${esc(stall.owner)}, there or not`) : 'A mark in twenty of every sale goes to the Exchange'}</span><span class="coin">${marks} marks</span>`;
     if (!v.online) {
       body.append(el('p', 'ex-note', 'The Exchange keeps one book for the whole realm, on the realm server. You\'re playing offline, so the broker can\'t read it to you. Play online to buy and sell here.'));
       return;
     }
     const tabs = el('div', 'tabs');
-    for (const t of ['buy', 'sell'] as const) {
+    for (const t of (stall ? [this.exTab] : ['buy', 'sell']) as ('buy' | 'sell')[]) {
       const e = el('div', 'tab' + (this.exTab === t ? ' sel' : ''), t === 'buy' ? 'Buy' : `Sell${v.mine.length ? ` (${v.mine.length})` : ''}`);
       e.addEventListener('click', () => { this.exTab = t; this.ctx.sfx('click'); this.renderExchange(); });
       tabs.append(e);
@@ -2292,13 +2298,18 @@ export class Hud {
       const list = el('div', 'ex-list');
       body.append(list);
       this.renderExchangeRows(list, v.rows, marks, slot, tip);
-      if (!v.rows.length) list.append(el('p', 'ex-note', v.loading ? 'The broker is finding the page…' : 'Nothing is for sale in the book just now. Be the first: the Sell page posts a stack.'));
+      if (!v.rows.length) list.append(el('p', 'ex-note', v.loading ? (stall ? 'Looking over the stall…' : 'The broker is finding the page…') : stall ? `Nothing on ${esc(stall.owner)}'s stall just now.` : 'Nothing is for sale in the book just now. Be the first: the Sell page posts a stack.'));
       setTimeout(() => { if (this.exQuery) search.focus(); }, 0);
       return;
     }
     // Sell: your stacks in the book, then your pack
-    body.append(el('h6', 'ex-h', `Your stacks in the book (${v.mine.length} of 20)`));
-    if (!v.mine.length) body.append(el('p', 'ex-note', 'None. Choose something from your pack below to post it.'));
+    body.append(el('h6', 'ex-h', stall ? `On your stall (${v.mine.length} of 24)` : `Your stacks in the book (${v.mine.length} of 20)`));
+    if (!v.mine.length) body.append(el('p', 'ex-note', stall ? 'Nothing yet. Choose something from your pack below to set it out.' : 'None. Choose something from your pack below to post it.'));
+    if (stall) {
+      const down = el('button', 'btn ghost ex-reload', 'Take the stall down');
+      down.addEventListener('click', () => this.ctx.exStallDown());
+      body.append(down);
+    }
     for (const r of v.mine) {
       const d = ITEMS[r.item];
       const row = el('div', 'shop-row');
@@ -2326,7 +2337,7 @@ export class Hud {
       const form = el('div', 'ex-form');
       form.innerHTML = `<label>How many <input type="number" class="ex-n" min="1" max="${have}" value="${have}"></label><label>Price for the stack <input type="number" class="ex-p" min="1" max="1000000" value="${guide * have}"></label><span class="ex-net"></span><button class="btn ex-post">Post</button>`;
       const nIn = form.querySelector('.ex-n') as HTMLInputElement, pIn = form.querySelector('.ex-p') as HTMLInputElement, net = form.querySelector('.ex-net') as HTMLElement;
-      const upd = () => { const p = Math.max(0, Math.floor(Number(pIn.value) || 0)); net.textContent = `You get ${p - Math.floor(p * 0.05)} when it sells`; };
+      const upd = () => { const p = Math.max(0, Math.floor(Number(pIn.value) || 0)); net.textContent = `You get ${stall ? p : p - Math.floor(p * 0.05)} when it sells`; };
       for (const i of [nIn, pIn]) { i.addEventListener('keydown', (e) => e.stopPropagation()); i.addEventListener('input', upd); }
       nIn.addEventListener('change', () => { const n = Math.min(have, Math.max(1, Math.floor(Number(nIn.value) || 1))); nIn.value = String(n); pIn.value = String(guide * n); upd(); });
       upd();

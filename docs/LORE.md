@@ -251,6 +251,8 @@ Either way, Nessa pays the player a 20-mark finder's share for the chest.
 
 - **The Merchants' Hall** by the west gate: built after the Charter put a counting house on every quay in the Counties but Gullmouth's. Every cargo through the west gate is written down twice, once for the Charter and once for the Hall. Josiah Penhale, its clerk, keeps a copy of the Exchange book; Harriet Combe, wool factor, buys hides, pelts and silk for Callis's looms; Thomas Varcoe, ship's agent, knows every hull in the harbour (the Lantern Rose at the north jetty, Callis-built and waiting on Corlett's wine; the Charter's galleon, which anchors so as not to pay dues; the hull on the slip, for a Saltpenny house that hasn't paid). Edmund Lusk and Agnes Treloar have been arguing about pilchards at the long table since the morning.
 - **Dan Ruddle**, boatman, hires rowing boats by the hour from the beach below the shipyard and sells them outright. His boat has never sunk, and he'd know.
+- **Rook's Ropewalk** outside the town: a shed eighty blocks long and seven wide where the harbour's rope is laid. The jack at the head twists three yarns; the ropemaker walks them out backwards to the foot, the traveller lays them together, and the tar kettle does the rest. After the Morning Post, **Jem Mallow** lays rope here for Bett Rook, and if **Rosie Penhallow** came with him she keeps its books on the bench by the jack (`src/data/content/ropewalk.ts`).
+- **Gull Castle** on the cliff above the terraces. The Fleet lords built it to keep the harbour; the last of them sold it to the Charter for his debts, and the Charter keeps a garrison in it, paid for thirty and twenty-two strong. The great hall has a dais and high table under the Charter's banners, long tables down both sides, and the hearth in the west wall; the harbour court sits there on the first of the month. **Edith Penberthy** captains the garrison and rows out to count the Charter galleon's guns; she asked Ansbury for the Light's oil in two reports and never sent a third. **Simon Teague**, steward, keeps copies of everything, including the replies that never came. **Kit Hocking** stands the gate; **Mary Opie** keeps the hall (`src/data/content/gullCastle.ts`).
 
 ## Raddle Barrens: Harrowgate Works [in game]
 
@@ -272,6 +274,7 @@ The home works of **Harrowgate & Daughters**, behind a palisade, with the No. 1 
 | **Corrie Dunmore** | Boss of No. 1 Drift. Sister of Hesk Dunmore at Sallow Pit | The roof props sound and her crew whole | Pryce signs her wages, and that keeps her quiet |
 | **Wick Abery** | Miner. Broke his wrist when a cart came off the rail | His pick back. He burned WICK into the grip and taped the split himself | — |
 | **Tam Feld** | Runs the company store | Not to be blamed for company prices | — |
+| **Dora Hurst** | Potter, outside the palisade. Fires crucibles for the furnaces and crocks for anyone | The company to keep buying crucibles at its price and leave her crocks at hers | She takes her blue glaze from the slag heap, which belongs to the company |
 
 ### Posted Rate [in game]
 
@@ -551,6 +554,14 @@ A calling is for life: chosen when a character is made, as in WoW and ESO (chara
 ## Bows [in game]
 
 Bows are made where people hunt: the Hollin smithy's **hunting bow**, the Hagworm fellers' **yew longbow**, the Gullmouth coast trackers' bow, the Wrath Levels **fowling bow** and the Tolmen Moor **horn bow**. With a bow in hand, Strike looses an arrow at your target up to twenty-four blocks off instead of swinging; a quiver rides on your back while you carry one. Pathfinders start with a hunting bow. `data/weapons.ts` (bow), `entities/humanoid.ts`, `game/Game.ts` (loose).
+
+## Homes [in game]
+
+- **Wendside Cottage**, on the Ford road east of Hollin Ford: one room and a hearth, sold as it stands. **The Wendside lots** beside it: five plots the Charter is letting to pay down the bridge debt, with the land board between the rows.
+- **The Charter's estates**: a row or two of lots by every Post town, levelled, staked at the corners and roped along the front, on a lane of their own with a track out to the road and the estate's name where it meets the road. Tenter Field and Bell Croft by Ansbury, Carters' Close and Drovers' Garth by the Waystation, Sawpit Row and Bark Lane by Fellers' Camp, Gull Rise and Netloft Lane by Gullmouth, Ore Lane and Furnace Close by the Works, High Garth and Fold End by Kelderby, Crag End and Scree Row by Cragsby, Staithe Close and Reed Garth by Holme Staithe, Tor View by Scarrow Tor. In Morrow the Assembly lets lots on the Charter's terms by treaty: Sala Gardens and Roig Terrace by Callis, Scarp Row and Archive Close by Northgate, Larch Row and Wold End by Branchley, Rim Row and Plumb Close by Liftwick, Well Row and Caravan Close by Tenwells (`src/data/estates.ts` from `scripts/estates.ts`).
+- A lease is ninety-nine years and 2,000 marks, and you build to your own plans at the lot's stake. **One home to a character, and one holder to a home**: the realm keeps one book (`server/homes.mjs`), everyone sees the house its holder built and their name on the board at the gate, and only the holder and their guests go in. Anyone can knock; the holder is asked to let them in. **A lease nobody comes back to for three months lapses** and goes back on sale; the holder's furniture goes ahead by the Charter Post.
+- **Building by hand**: on your own lot you can lay blocks and dig them out, anywhere inside the stakes, from three blocks under the floor to twenty-four above it, the builders' walls included. The land clerks sell stone, brick, timber, plaster, glass and garden earth from the builders' yard, a block apiece (`src/game/LotBuild.ts`, `src/data/content/buildyard.ts`). **Marti Coll** keeps the Assembly's book by the Post in Callis.
+- **A stall at the gate**: a lot's holder can put up a stall in the front garden and set out what they'd sell at their own prices. Anyone passing can buy, holder there or not, and the takings are paid to them in full; a stall takes no cut, unlike the Exchange's brokers, and keeps its stock a month. Give up the lot, or let the lease lapse, and the stall's stock comes home (`server/exchange.mjs`).
 
 ## Roadside inns [in game]
 

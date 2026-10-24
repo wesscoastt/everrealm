@@ -38,7 +38,7 @@ export const CROWN = { x: 1250, z: 1250, hallFloor: 7, cutFloor: 3 };
 /** Glass Kirk: crystal mass at the centre of a paved floor at y 89. */
 export const TEMPLE = { x: 1190, z: 1800 };
 
-import { COTTAGE, LAND_BOARD, LOT_D, LOT_W, LOTS } from './housing';
+import { COTTAGE, LAND_BOARD, lotFront, LOTS } from './housing';
 export { COTTAGE };
 
 /** The Charter Bank's counters, at the doors of the main towns' counting houses. */
@@ -80,8 +80,8 @@ export const WORLD_THINGS: WorldThing[] = [
   { id: 'landBoard', x: LAND_BOARD.x, z: LAND_BOARD.z, label: 'Read the Charter land board', radius: 2.4, read: 'landBoard' },
   // A stake at the front of each lot: lease it, draw up plans, build
   ...LOTS.map((l): WorldThing => {
-    const fx = l.x0 + LOT_W / 2, fz = l.door === 's' ? l.z0 + LOT_D - 0.5 : l.z0 + 0.5;
-    return { id: 'lot:' + l.id, x: fx, z: fz, label: `Look at ${l.name}`, radius: 2.6, use: (g) => g.lotAction(l.id) };
+    const f = lotFront(l);
+    return { id: 'lot:' + l.id, x: f.x, z: f.z, label: `Look at ${l.name}`, radius: 2.6, use: (g) => g.lotAction(l.id) };
   }),
   { id: 'homeBench', x: COTTAGE.bench.x, z: COTTAGE.bench.z, label: "Work at the joiner's bench", radius: 2.4, when: (g) => !!g.flag('home'), use: (g) => g.openCrafting('bench') },
   { id: 'aldermereToll', x: ALDERMERE.cx + 8.5, z: ALDERMERE.south + 4.5, label: 'Read the toll board', radius: 2.4, read: 'aldermereToll' },

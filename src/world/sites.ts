@@ -3,7 +3,7 @@ import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
-import { landOf } from './land';
+import { landAt, landOf } from './land';
 import { MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
@@ -16,7 +16,10 @@ import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMAX_X, WMIN } 
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
-import { LAND_BOARD, LOT_D, LOT_W, LOTS } from '../data/housing';
+import { LAND_BOARD, lotFront, LOT_D, LOT_W, LOTS, WENDSIDE_LOTS, type Lot } from '../data/housing';
+import { ESTATES, type Estate } from '../data/estates';
+import { ROPEWALK } from '../data/ropewalk';
+import { POTTERY, POTTERY_D, POTTERY_W, potteryAt } from '../data/pottery';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -517,7 +520,7 @@ export function plan(): Plan {
     { id: 'hollowoak', name: 'The Hollow Oak', x: 304, z: 600, r0: 14, r1: 24, build: (s, b) => buildHollowOak(s, b) },
     { id: 'mossgate', name: 'Ketley Arches', x: 176, z: 860, r0: 18, r1: 30, build: (s, b) => buildMossgate(s, b) },
     { id: 'wendside', name: 'Wendside Cottage', x: 408, z: 200, r0: 10, r1: 18, h: 20, build: (s, b) => buildCottage(s, b) },
-    { id: 'lots', name: 'Wendside Lots', x: 416, z: 214, r0: 0, r1: 0, build: (s) => buildLots(s) },
+    { id: 'lots', name: 'Wendside Lots', x: 416, z: 214, r0: 0, r1: 0, build: (s) => buildLots(s, WENDSIDE_LOTS) },
     { id: 'woodcamp', name: 'Fellers\' Camp', x: 446, z: 520, r0: 12, r1: 22, build: (s) => { buildCamp(s, 446, 520, true); fellersExtras(s); } },
     { id: 'gullmouth', name: 'Gullmouth', x: gullCoast - 34, z: gullZ, r0: 26, r1: 40, h: SEA + 3, build: (s, b) => buildGullmouth(s, b, gullCoast) },
     { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
@@ -598,6 +601,15 @@ export function plan(): Plan {
     ...LODGINGS.filter((L) => landOf(L) === 'counties').map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
     // Morrow's, east across the sea
     ...morrowNamed(),
+    // Bett Rook's ropewalk outside Gullmouth, and Dora Hurst's pottery outside the Works (data/ropewalk.ts, data/pottery.ts)
+    { id: 'ropewalk', name: 'Rook\'s Ropewalk', x: ROPEWALK.alongX ? ROPEWALK.x0 + ROPEWALK.len / 2 : ROPEWALK.x0 + 3.5, z: ROPEWALK.alongX ? ROPEWALK.z0 + 3.5 : ROPEWALK.z0 + ROPEWALK.len / 2, r0: 0, r1: 0, build: (s) => buildRopewalk(s) },
+    { id: 'pottery', name: 'Hurst\'s Pottery', x: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[0], z: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[1], r0: 0, r1: 0, build: (s) => buildPottery(s) },
+    // The Charter's estates by the Post towns, each a site of its own (data/estates.ts)
+    ...ESTATES.map((e): Named => {
+      const lots = LOTS.filter((l) => l.estate === e.name && l.town === e.town);
+      const x = lots.reduce((a, l) => a + l.x0 + LOT_W / 2, 0) / lots.length, z = lots.reduce((a, l) => a + l.z0 + LOT_D / 2, 0) / lots.length;
+      return { id: 'estate-' + e.id, name: e.name, x, z, r0: 0, r1: 0, build: (s) => buildLots(s, lots, e) };
+    }),
   ];
   for (const n of named) {
     if (n.r1 > 0) flats.push({ x: n.x, z: n.z, r0: n.r0, r1: n.r1, h: n.h ?? Math.max(SEA + 2, Math.round(baseHeight(n.x, n.z))) });
@@ -609,6 +621,8 @@ export function plan(): Plan {
     // Gullmouth's upper town inland of the harbour; Harrowgate's Company Row west of the palisade
     flats.push({ x: Math.floor(gullCoast) - 100, z: gullZ, r0: 44, r1: 64, h: SEA + 3 });
     flats.push({ x: 952, z: 1006, r0: 30, r1: 44, h: Math.max(SEA + 2, Math.round(baseHeight(1000, 1000))) });
+    // The Charter's estates: each lot levelled to its floor (data/estates.ts), easing back into the land round it
+    for (const l of LOTS) if (!WENDSIDE_LOTS.includes(l)) flats.push({ x: l.x0 + LOT_W / 2, z: l.z0 + LOT_D / 2, r0: 10, r1: 15, h: l.base });
   }
 
   // ---------------------------------------------------------------- Scattered points of interest
@@ -5492,22 +5506,157 @@ export function plan(): Plan {
     s.props.push({ t: 'crate', x: 412.7, y: base, z: 201.4 });
   }
 
-  /** The Wendside lots: five plots let by the Charter along the Ford road, and the land board. */
-  function buildLots(s: Site) {
-    LOTS.forEach((l, i) => {
+  /**
+   * The Charter's lots: the five at Wendside along the Ford road with the land board, and the estates
+   * by the Post towns (data/estates.ts), each a row of lots levelled flat with their fronts on a lane of
+   * their own and a track out to the road, the estate's name on a board where it meets the road. A
+   * stake at each corner of a lot, a rope along its front and its number on a board; who holds it is
+   * shown over that by the house that goes up (game/Building.ts).
+   */
+  function buildLots(s: Site, lots: Lot[], estate?: Estate) {
+    for (const l of lots) {
       rect(s, l.x0, l.z0, l.x0 + LOT_W, l.z0 + LOT_D);
       for (const [cx, cz] of [[l.x0, l.z0], [l.x0 + LOT_W - 1, l.z0], [l.x0, l.z0 + LOT_D - 1], [l.x0 + LOT_W - 1, l.z0 + LOT_D - 1]]) {
         const y = heightAt(cx, cz);
         O.set(cx, y, cz, B.OakLog);
       }
       // The road side: a rope between the front stakes, and the lot's number on a board
-      const fz = l.door === 's' ? l.z0 + LOT_D - 0.5 : l.z0 + 0.5;
-      const y = heightAt(l.x0 + 7, Math.floor(fz));
-      // (a strand runs along +x before it's turned, so ry 0 lays it between the two front stakes)
-      s.props.push({ t: 'rope', x: l.x0 + 0.5, y: y + 0.9, z: fz, ry: 0, len: LOT_W - 1, h: 0, r: 0.25 });
-      s.props.push({ t: 'sign', x: l.x0 + LOT_W / 2 + 0.5, y, z: fz + (l.door === 's' ? 0.6 : -0.6), ry: l.door === 's' ? 0 : Math.PI, text: `LOT ${i + 1}\nTo let` });
-    });
-    s.props.push({ t: 'notice', x: LAND_BOARD.x, y: heightAt(LAND_BOARD.x, LAND_BOARD.z), z: LAND_BOARD.z, ry: 0 });
+      const f = lotFront(l), across = l.door === 'n' || l.door === 's';
+      const y = heightAt(Math.floor(f.x), Math.floor(f.z));
+      const n = l.name.match(/^Lot (\d+)/)![1];
+      // (a strand runs along +x before it's turned: ry 0 lays it along x, -PI/2 along z)
+      s.props.push(across ? { t: 'rope', x: l.x0 + 0.5, y: y + 0.9, z: f.z, ry: 0, len: LOT_W - 1, h: 0, r: 0.25 } : { t: 'rope', x: f.x, y: y + 0.9, z: l.z0 + 0.5, ry: -Math.PI / 2, len: LOT_D - 1, h: 0, r: 0.25 });
+      const out = 0.6;
+      s.props.push({ t: 'sign', x: f.x + (across ? 0.5 : Math.sin(f.ry) * out), y, z: f.z + (across ? Math.cos(f.ry) * out : 0.5), ry: f.ry, text: `LOT ${n}` });
+    }
+    if (!estate) { s.props.push({ t: 'notice', x: LAND_BOARD.x, y: heightAt(LAND_BOARD.x, LAND_BOARD.z), z: LAND_BOARD.z, ry: 0 }); return; }
+    // The estate's lane along the lots' fronts, three wide, and a track two wide out to the road
+    const pathLine = (ax: number, az: number, bx: number, bz: number, half: number, trees: boolean) => {
+      const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+      for (let t = 0; t <= L; t += 0.5) for (let o = -half; o <= half; o += 0.5) {
+        const x = Math.floor(ax + ux * t - uz * o), z = Math.floor(az + uz * t + ux * o);
+        const y = heightAt(x, z);
+        if (y > SEA) O.set(x, y - 1, z, hash2(x, z, 913) < 0.18 ? B.Gravel : B.Path);
+      }
+      // (kept clear of trees in short pieces, so a slanting track doesn't clear a great box round it)
+      if (trees) for (let t = 0; t < L; t += 4) { const x = ax + ux * t, z = az + uz * t; rect(s, x - 2, z - 2, x + 2, z + 2); }
+    };
+    {
+      const e = estate;
+      const [[ax, az], [bx, bz]] = e.lane, [[tx, tz], [rx, rz]] = e.track;
+      pathLine(ax, az, bx, bz, 1, true);
+      pathLine(tx, tz, rx, rz, 0.5, true);
+      // The estate's name where the track leaves the road, beside it, facing the road
+      const L = Math.hypot(tx - rx, tz - rz), ux = (tx - rx) / L, uz = (tz - rz) / L;
+      const sx = rx + ux * 4 + uz * 2, sz = rz + uz * 4 - ux * 2;
+      s.props.push({ t: 'sign', x: sx, y: heightAt(Math.floor(sx), Math.floor(sz)), z: sz, ry: Math.atan2(-ux, -uz), text: `${e.name.toUpperCase()}\nLots let by the ${landAt(rx) === 'morrow' ? 'Assembly' : 'Charter'}` });
+    }
+  }
+
+  /**
+   * Bett Rook's ropewalk outside Gullmouth: a long open shed where the harbour's rope is laid. At its
+   * head the spinning jack, a timber frame whose hooks a crank turns; down the walk the strands
+   * stretched over the stakes, with the traveller (the sledge that lays them together) partway along;
+   * at the foot the tar kettle, the finished coils and the hemp waiting to be spun (the people:
+   * data/content/ropewalk.ts). Along +u from its head; v across it.
+   */
+  function buildRopewalk(s: Site) {
+    const { x0, z0, len, alongX, base } = ROPEWALK, W = 7;
+    const at = (u: number, v: number): [number, number] => (alongX ? [x0 + u, z0 + v] : [x0 + v, z0 + u]);
+    // (a strand runs along +x before it's turned: ry 0 lays it along x, -PI/2 along z)
+    const ryU = alongX ? 0 : -Math.PI / 2, ryV = alongX ? -Math.PI / 2 : 0;
+    const P = (u: number, v: number) => { const [x, z] = at(u, v); return { x: x + 0.5, z: z + 0.5 }; };
+    for (let u = -2; u < len + 2; u++) for (let v = -1; v <= W; v++) {
+      const [x, z] = at(u, v);
+      foundation(x, z, base, B.Dirt);
+      O.set(x, base - 1, z, v < 0 || v >= W || u < 0 || u >= len ? B.Path : hash2(x, z, 515) < 0.25 ? B.Gravel : B.Dirt);
+      clearUp(x, z, base, base + 9);
+      if (u < 0 || u >= len || v < 0 || v >= W) continue;
+      // Posts every four along both sides under the roof, a knee wall of boards along the weather side
+      const side = v === 0 || v === W - 1;
+      if (side && u % 4 === 0) for (let y = base; y < base + 4; y++) O.set(x, y, z, B.OakLog);
+      else if (v === W - 1 && u > 3 && u < len - 3) O.set(x, base, z, B.Planks);
+    }
+    const mid = P(len / 2 - 0.5, W / 2 - 0.5);
+    s.props.push({ t: 'roof', x: mid.x, y: base + 4, z: mid.z, len, span: W, rise: roofRise(W), ry: alongX ? 0 : Math.PI / 2, mat: 'slate' });
+    // The jack at the head: two posts and a crossbeam, its three hooks the strands start from
+    for (const v of [1, 5]) for (let y = base; y < base + 3; y++) { const [x, z] = at(2, v); O.set(x, y, z, B.Timber); }
+    for (let v = 1; v <= 5; v++) { const [x, z] = at(2, v); O.set(x, base + 3, z, B.DarkPlanks); }
+    // The strands, stretched down the walk over a stake every eight
+    for (const v of [2, 3, 4]) { const a = P(2.6, v); s.props.push({ t: 'rope', x: a.x, y: base + 1.7, z: a.z, ry: ryU, len: len - 9, h: 0, r: 0.12 }); }
+    for (let u = 10; u < len - 7; u += 8) { const [x, z] = at(u, 3); O.set(x, base, z, B.OakLog); }
+    // The traveller: a sledge with a top laying the three strands together, a third of the way down
+    const tr = P(Math.round(len / 3), 3);
+    s.props.push({ t: 'furn', item: 'crate', x: tr.x, y: base, z: tr.z, ry: ryU });
+    s.props.push({ t: 'furn', item: 'coil', x: tr.x, y: base + 0.7, z: tr.z, ry: 0 });
+    // The foot: the tar kettle on its fire, coils of finished rope, hemp bales, a bench
+    const k = P(len - 3, 1.5);
+    s.props.push({ t: 'firepit', x: k.x, y: base, z: k.z }, { t: 'smoke', x: k.x, y: base + 1.2, z: k.z });
+    s.props.push({ t: 'barrel', x: k.x + (alongX ? 0 : 1.2), y: base, z: k.z + (alongX ? 1.2 : 0) });
+    for (const [u, v] of [[len - 5, 4.6], [len - 4, 5.2], [len - 6, 5.0], [len - 5, 5.6]] as const) { const c = P(u, v); s.props.push({ t: 'furn', item: 'coil', x: c.x, y: base, z: c.z, ry: u * 0.7 }); }
+    for (const [u, v] of [[len - 9, 5.3], [len - 10, 5.3]] as const) { const c = P(u, v); O.set(Math.floor(c.x), base, Math.floor(c.z), B.Hay); }
+    const b = P(4, 5.4);
+    s.props.push({ t: 'bench', x: b.x, y: base, z: b.z, ry: ryU });
+    for (const u of [6, 42, len - 10]) { const l = P(u, 0.2); s.props.push({ t: 'lantern', x: l.x, y: base + 3.2, z: l.z }); }
+    { const g = P(-1.2, 1); s.props.push({ t: 'sign', x: g.x, y: base, z: g.z, ry: alongX ? -Math.PI / 2 : Math.PI, text: 'ROOK\'S ROPEWALK\nRope laid to order' }); }
+    { const [ax, az] = at(-2, -1), [bx, bz] = at(len + 1, W); rect(s, Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx) + 1, Math.max(az, bz) + 1); }
+  }
+
+  /**
+   * Dora Hurst's pottery outside Harrowgate Works: a yard walled knee high in fieldstone with its gate on
+   * the road side, the bottle kiln in the back corner (a round brick hovel drawn in above to its neck,
+   * the fire in its mouth and smoke at the top), the open shed with the wheel and the drying racks, the
+   * clay pit, and the day's ware set out by the gate (the people: data/content/pottery.ts).
+   */
+  function buildPottery(s: Site) {
+    const { base, face } = POTTERY, W = POTTERY_W, D = POTTERY_D;
+    const cell = (u: number, v: number): [number, number] => { const [x, z] = potteryAt(u, v); return [Math.floor(x), Math.floor(z)]; };
+    const pt = (u: number, v: number) => { const [x, z] = potteryAt(u, v); return { x: x + 0.5, z: z + 0.5 }; };
+    /** Facing out of the gate, toward the road. */
+    const out = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 }[face];
+    const F = (item: string, u: number, v: number, ry = out, y = base, tint = 0) => { const p = pt(u, v); s.props.push({ t: 'furn', item, x: p.x, y, z: p.z, ry, tint }); };
+    for (let u = -1; u <= W; u++) for (let v = -1; v <= D; v++) {
+      const [x, z] = cell(u, v);
+      foundation(x, z, base, B.Dirt);
+      O.set(x, base - 1, z, hash2(x, z, 717) < 0.35 ? B.Gravel : B.Path);
+      clearUp(x, z, base, base + 14);
+      // The yard wall, knee high, the gate in the front
+      const back = u === -1 || u === W || v === D, front = v === -1 && (u < W / 2 - 2 || u > W / 2 + 1);
+      if (back || front) O.set(x, base, z, hash2(x, z, 718) < 0.25 ? B.MossyCobble : B.Cobble);
+    }
+    // The bottle kiln: a round brick hovel, drawn in above to its neck, its firemouth toward the yard
+    const KU = 16, KV = 10, R = [3.5, 3.5, 3.5, 3.5, 3.1, 2.7, 2.3, 2.0, 1.7, 1.5, 1.5];
+    for (let dy = 0; dy < R.length; dy++) for (let du = -4; du <= 4; du++) for (let dv = -4; dv <= 4; dv++) {
+      const d = Math.hypot(du, dv), r = R[dy];
+      if (d > r + 0.2) continue;
+      const [x, z] = cell(KU + du, KV + dv);
+      const mouth = dy <= 1 && dv < 0 && Math.abs(du) <= 0 && d > r - 2.2;
+      O.set(x, base + dy, z, mouth || d < r - 1.6 ? B.Air : dy === R.length - 1 ? B.CarvedStone : B.RedBrick);
+    }
+    { const c = pt(KU, KV); s.props.push({ t: 'firepit', x: c.x, y: base, z: c.z }, { t: 'smoke', x: c.x, y: base + R.length + 0.3, z: c.z }); }
+    // The shed: the wheel, the drying racks full of ware, the clay bins
+    {
+      const [ax, az] = cell(1, 9), [bx, bz] = cell(10, 15);
+      shelter(s, Math.min(ax, bx), Math.min(az, bz), Math.abs(bx - ax) + 1, Math.abs(bz - az) + 1, base, 'red');
+      F('stool', 6, 12.4, out + Math.PI); F('table', 6, 13.3, out);
+      F('crocks', 6, 13.3, out, base + 0.86);
+      for (const u of [2.5, 4.5, 8.5]) { F('shelves', u, 13.8, out); F('crocks', u - 0.2, 13.8, out, base + 0.92, u > 5 ? 1 : 0); }
+      F('barrel', 2, 10.2); F('barrel', 2.8, 10.4); F('crate', 9.5, 10.3);
+    }
+    // The clay pit, a block down, wet in the corner
+    for (let u = 2; u <= 7; u++) for (let v = 2; v <= 5; v++) {
+      const [x, z] = cell(u, v);
+      O.set(x, base - 1, z, B.Air);
+      O.set(x, base - 2, z, u === 2 && v === 5 ? B.Water : B.Clay);
+      if (u === 2 && v === 5) O.set(x, base - 3, z, B.Clay);
+    }
+    // The day's ware by the gate, and the sign
+    F('table', 13, 1.6, out); F('table', 15, 1.6, out);
+    F('crocks', 12.8, 1.6, out, base + 0.86, 0); F('crocks', 15.2, 1.6, out, base + 0.86, 1);
+    F('crate', 17.2, 1.4); F('crate', 17.6, 2.3);
+    { const g = pt(W / 2 + 3, -1.8); s.props.push({ t: 'sign', x: g.x, y: base, z: g.z, ry: out, text: 'HURST\'S POTTERY\nCrocks, jugs, crucibles' }); }
+    for (const u of [W / 2 - 2.5, W / 2 + 2.5]) { const l = pt(u, -1); s.props.push({ t: 'lantern', x: l.x, y: base + 1, z: l.z }); }
+    { const [ax, az] = cell(-1, -2), [bx, bz] = cell(W, D); rect(s, Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx) + 1, Math.max(az, bz) + 1); }
   }
 
   /** Hale's Fold: a shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. */
@@ -5952,6 +6101,45 @@ export function plan(): Plan {
     tower(s, 1766, 694, 5, 10, TC, B.StoneBrick, { crenel: true });
     stoneHall(s, 1746, 708, 20, 16, 10, TC, 'n');
     s.props.push({ t: 'roof', x: 1756, y: TC + 10, z: 716, len: 20, span: 16, rise: roofRise(16), ry: 0, mat: 'slate' });
+    // The great hall, where the garrison eats and the harbour court sits (the people: data/content/gullCastle.ts):
+    // the dais across the south end with the high table under the Charter's banners, long tables and
+    // benches down both sides, the hearth in the west wall with its chimney up through the gable, the
+    // steward's desk and the garrison's chests along the east wall, lamps hung over the tables
+    {
+      const F = (item: string, x: number, z: number, ry = 0, y = TC, tint = 0) => s.props.push({ t: 'furn', item, x, y, z, ry, tint });
+      const D = TC + 1;
+      for (let x = 1747; x <= 1764; x++) for (let z = 719; z <= 722; z++) O.set(x, TC, z, z === 719 ? B.CarvedStone : B.Flagstone);
+      for (const x of [1752.7, 1754.3, 1755.9, 1757.5, 1759.1]) F('table', x, 720.4, 0, D);
+      for (const x of [1752.9, 1754.6, 1757.2, 1758.9]) F('chair', x, 721.5, Math.PI, D);
+      F('chair', 1755.9, 721.6, Math.PI, D, 1);
+      for (const x of [1753.5, 1756.7, 1758.6]) F('candles', x, 720.4, 0, D + 0.86);
+      F('letters', 1755.2, 720.3, 0, D + 0.86, 2);
+      for (const x of [1750.5, 1756, 1761.5]) s.props.push({ t: 'banner', x, y: D + 4.4, z: 722.9, kind: 'aldermere' });
+      F('chest', 1748.4, 721.8, Math.PI, D); F('chest', 1763.6, 721.8, Math.PI, D, 1);
+      // Down the hall: two long tables, benches both sides
+      for (const x of [1750.5, 1760.5]) {
+        for (const z of [711.3, 712.9, 714.5, 716.1]) F('table', x, z, Math.PI / 2);
+        for (const z of [711.9, 713.7, 715.5]) { F('bench', x - 1.0, z, Math.PI / 2); F('bench', x + 1.0, z, -Math.PI / 2); }
+        F('candles', x, 712.9, 0, TC + 0.86); F('candles', x, 716.1, 0, TC + 0.86);
+      }
+      for (const z of [710.5, 713, 715.5]) F('rug', 1755.5, z, Math.PI / 2);
+      // The hearth, and its chimney up the west gable
+      F('hearth', 1747.5, 715.5, Math.PI / 2);
+      for (let y = TC + 10; y < TC + 10 + roofRise(16) + 2; y++) for (const z of [715, 716]) O.set(1746, y, z, B.Cobble);
+      s.props.push({ t: 'smoke', x: 1746.5, y: TC + 10 + roofRise(16) + 2.2, z: 716 });
+      s.props.push({ t: 'woodpile', x: 1747.6, y: TC, z: 718.2, ry: Math.PI / 2, len: 1.6 });
+      // The steward's desk, the shelves of rolls and the garrison's chests along the east wall
+      F('desk', 1763.3, 711.5, -Math.PI / 2); F('chair', 1762.1, 711.5, Math.PI / 2);
+      F('letters', 1763.3, 711.3, 0, TC + 0.82, 1);
+      for (const z of [713.4, 714.9]) F('shelves', 1763.6, z, -Math.PI / 2, TC, 1);
+      F('chest', 1763.5, 716.6, -Math.PI / 2); F('strongbox', 1763.5, 717.6, -Math.PI / 2);
+      F('barrel', 1747.6, 709.6); F('barrel', 1748.4, 709.5); F('crate', 1763.4, 709.6);
+      for (const [x, z, y] of [[1750.5, 713.7, TC + 6.5], [1760.5, 713.7, TC + 6.5], [1755.5, 711, TC + 7], [1755.5, 717, TC + 7], [1755.9, 720.4, D + 6]] as const) F('lamp', x, z, 0, y);
+    }
+    // The courtyard: the well, wood stacked against the hall, the stores' cart by the tower, a bench in the sun
+    s.props.push({ t: 'well', x: 1742.5, y: TC, z: 701.5 }, { t: 'woodpile', x: 1744, y: TC, z: 712, ry: Math.PI / 2 }, { t: 'cart', x: 1779, y: TC, z: 703, ry: 0.3 }, { t: 'bench', x: 1748, y: TC, z: 703, ry: 0 });
+    for (const [bx, bz] of [[1742, 701], [1743, 701], [1742, 702], [1743, 702]]) block2(bx, bz, TC);
+    s.props.push({ t: 'crate', x: 1781, y: TC, z: 705.5 }, { t: 'barrel', x: 1782.2, y: TC, z: 705.2 }, { t: 'barrel', x: 1781.6, y: TC, z: 706.3 });
     tower(s, 1773, 712, 7, 20, TC, B.StoneBrick, { crenel: true });
     for (const [bx, bz] of [[1760, 694], [1733, 695], [1787, 695], [1773, 712]]) s.props.push({ t: 'banner', x: bx + 0.5, y: TC + (bx === 1773 ? 21 : bx === 1760 ? 8 : 13), z: bz - 1.2, kind: 'aldermere' });
     for (const [lx, lz] of [[1756, 700], [1764, 700], [1756, 726], [1776, 726]]) s.props.push({ t: 'lantern', x: lx + 0.5, y: TC, z: lz + 0.5 });

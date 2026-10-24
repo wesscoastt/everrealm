@@ -17,6 +17,8 @@ export interface Door {
   hinge: THREE.Vector3;
   /** What the building is (interiors.Role: home, inn, shop...), where it's known: the townsfolk go in by it. */
   role?: string;
+  /** Someone else's home that you're not a guest in: it stays shut. */
+  locked?: boolean;
 }
 
 /**
@@ -44,7 +46,7 @@ export function makeDoor(M: P.PropMaterials, x: number, y: number, z: number, ry
 export function updateDoors(doors: Iterable<Door>, dt: number, movers: THREE.Vector3[], me: THREE.Vector3 | null, sound?: (open: boolean) => void): void {
   for (const d of doors) {
     let want = 0;
-    for (const m of movers) {
+    if (!d.locked) for (const m of movers) {
       if (Math.abs(m.y - d.hinge.y) > 3) continue;
       if (Math.abs(m.x - d.hinge.x) < REACH && Math.abs(m.z - d.hinge.z) < REACH && Math.hypot(m.x - d.hinge.x, m.z - d.hinge.z) < REACH) { want = 1; break; }
     }

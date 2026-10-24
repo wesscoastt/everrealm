@@ -97,6 +97,7 @@ class Mock implements GameApi {
   compRole() {}
   compStory() {}
   markOnMap() {}
+  homeHolder() { return null; }
   hireBoat() {}
   fairOn() { return true; }
   fairPlay() {}

@@ -7,6 +7,9 @@ import { tradable } from './Social';
 // Harrowgate opens it. Buying: pay the price, take the stack. Selling: the stack leaves your pack
 // when you post it; your takings, less a mark in twenty, come to you when it sells (or the stack
 // comes back if you take it down, or nobody buys it in three days).
+//
+// A stall at the gate of someone's lot is a page of the same book (game/Building.ts puts it up): its
+// holder sets out stacks at their own prices with no cut, and anyone passing can buy, holder there or not.
 
 export interface ExchangeHost {
   net(): Online;
@@ -31,7 +34,14 @@ export interface ExchangeView {
   mine: ExRow[];
   /** The cheapest stack of each item for sale, per one (a guide to pricing). */
   cheapest: Map<string, number>;
+  /** A stall's page rather than the brokers': whose, and whether it's yours. */
+  stall: Stall | null;
 }
+
+/** A stall at a lot's gate: the lot, its holder, and whether you're them. */
+export interface Stall { id: string; owner: string; mine: boolean }
+/** Stacks a stall holds. */
+export const STALL_MAX = 24;
 
 /** The Exchange's cut of every sale. */
 export const EXCHANGE_CUT = 0.05;
@@ -40,15 +50,19 @@ export class Exchange {
   private rows: ExRow[] = [];
   private mine = new Set<number>();
   private loading = false;
+  private stall: Stall | null = null;
 
   constructor(private host: ExchangeHost) {}
 
   hooks() {
     return {
-      exBook: (rows: ExRow[], mine: number[]) => { this.rows = rows; this.mine = new Set(mine); this.loading = false; this.host.refresh(); },
+      exBook: (rows: ExRow[], mine: number[], shop: string | null) => {
+        if ((shop ?? null) !== (this.stall?.id ?? null)) return;
+        this.rows = rows; this.mine = new Set(mine); this.loading = false; this.host.refresh();
+      },
       exPosted: (row: ExRow) => {
         this.rows.push(row); this.mine.add(row.id);
-        this.host.system(`Posted at the Exchange: ${this.name(row)} for ${row.price} marks.`);
+        this.host.system(row.shop ? `Set out on your stall: ${this.name(row)} for ${row.price} marks.` : `Posted at the Exchange: ${this.name(row)} for ${row.price} marks.`);
         this.host.sound('coin'); this.host.refresh();
       },
       exRefused: (item: string, n: number, why: string) => {
@@ -60,13 +74,13 @@ export class Exchange {
         this.drop(row.id);
         this.host.addMarks(-Math.min(row.price, this.host.marks()));
         if (ITEMS[row.item]) this.host.give(row.item, row.n);
-        this.host.system(`Bought at the Exchange: ${this.name(row)} from ${row.seller} for ${row.price} marks.`);
+        this.host.system(row.shop ? `Bought from ${row.seller}'s stall: ${this.name(row)} for ${row.price} marks.` : `Bought at the Exchange: ${this.name(row)} from ${row.seller} for ${row.price} marks.`);
         this.host.sound('coin'); this.host.persist(); this.host.refresh();
       },
       exBack: (row: ExRow) => {
         this.drop(row.id);
         if (ITEMS[row.item]) this.host.give(row.item, row.n);
-        this.host.system(`Taken back from the Exchange: ${this.name(row)}.`);
+        this.host.system(row.shop ? `Taken off your stall: ${this.name(row)}.` : `Taken back from the Exchange: ${this.name(row)}.`);
         this.host.persist(); this.host.refresh();
       },
       exGone: (id: number) => { this.drop(id); this.host.system('Someone else got there first: that stack has gone.'); this.host.refresh(); },
@@ -76,10 +90,10 @@ export class Exchange {
           if (r.id !== undefined) this.drop(r.id);
           if (r.kind === 'sold') {
             marks += r.marks ?? 0;
-            this.host.system(`The Exchange sold your ${this.name(r)} to ${r.buyer ?? 'a buyer'}: ${r.marks} marks after the Exchange's cut.`);
+            this.host.system(r.shop ? `Your stall sold ${this.name(r)} to ${r.buyer ?? 'a passer-by'}: ${r.marks} marks.` : `The Exchange sold your ${this.name(r)} to ${r.buyer ?? 'a buyer'}: ${r.marks} marks after the Exchange's cut.`);
           } else if (ITEMS[r.item]) {
             this.host.give(r.item, r.n);
-            this.host.system(`Nobody bought your ${this.name(r)} in three days, so the Exchange sent it back.`);
+            this.host.system(r.shop ? `Your stall's ${this.name(r)} came back to your pack.` : `Nobody bought your ${this.name(r)} in three days, so the Exchange sent it back.`);
           }
         }
         if (marks) { this.host.addMarks(marks); this.host.sound('coin'); }
@@ -88,18 +102,26 @@ export class Exchange {
     };
   }
 
-  /** Ask the realm for the book (the panel shows what it had meanwhile). */
-  open(): void {
+  /** Ask the realm for the book, or a stall's page of it (the panel shows what it had meanwhile, if it's the same page). */
+  open(stall: Stall | null = null): void {
+    if ((stall?.id ?? null) !== (this.stall?.id ?? null)) { this.rows = []; this.mine.clear(); }
+    this.stall = stall;
     if (!this.host.online()) return;
     this.loading = true;
-    this.host.net().exList();
+    this.host.net().exList(stall?.id);
+  }
+
+  /** Taking a stall down: everything on it comes back to your pack. */
+  clearStall(): void {
+    if (!this.stall?.mine || !this.host.online()) return;
+    for (const id of this.mine) this.host.net().exCancel(id);
   }
 
   view(): ExchangeView {
     const cheapest = new Map<string, number>();
     for (const r of this.rows) { const each = r.price / r.n; if (!cheapest.has(r.item) || each < cheapest.get(r.item)!) cheapest.set(r.item, each); }
     return {
-      online: this.host.online(), loading: this.loading,
+      online: this.host.online(), loading: this.loading, stall: this.stall,
       rows: this.rows.filter((r) => !this.mine.has(r.id)).sort((a, b) => a.price / a.n - b.price / b.n),
       mine: this.rows.filter((r) => this.mine.has(r.id)),
       cheapest,
@@ -108,6 +130,7 @@ export class Exchange {
 
   post(item: string, n: number, price: number): void {
     if (!this.host.online()) { this.host.system('The Exchange keeps its book on the realm server. Play online to sell there.'); return; }
+    if (this.stall && (!this.stall.mine || this.mine.size >= STALL_MAX)) { this.host.system(this.stall.mine ? `Your stall holds ${STALL_MAX} stacks. Take something off it first.` : 'That stall isn\'t yours.'); return; }
     const d = ITEMS[item];
     n = Math.floor(n); price = Math.floor(price);
     if (!d || !tradable(item)) { this.host.system('The broker won\'t take that.'); return; }
@@ -115,7 +138,7 @@ export class Exchange {
     if (!(price >= 1) || price > 1_000_000) { this.host.system('Set a price between 1 and a million marks.'); return; }
     if (!this.host.take(item, n)) return;
     this.host.persist();
-    this.host.net().exPost(item, n, price);
+    this.host.net().exPost(item, n, price, this.stall?.id);
   }
 
   buy(id: number): void {

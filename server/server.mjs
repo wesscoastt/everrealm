@@ -10,6 +10,7 @@
 //   - the Exchange: one auction house book for the realm (server/exchange.mjs)
 //   - the Charter Post's letters between characters, with things sent in them (server/mail.mjs)
 //   - named pieces: how many of each the realm has given out, and to whom (server/uniques.mjs)
+//   - homes: who holds each building lot and Wendside Cottage, and what stands on it (server/homes.mjs)
 //   - characters: a copy of each character's save, owned by an account (or, for players without
 //     one, claimed by a per-browser secret as before)
 //
@@ -62,6 +63,7 @@ import { finderInit } from './finder.mjs';
 import { musicInit } from './music.mjs';
 import { uniquesInit } from './uniques.mjs';
 import { storeInit } from './store.mjs';
+import { homesInit } from './homes.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -482,7 +484,7 @@ async function api(req, res) {
       return reply(res, 200, { ok: true });
     }
     if (req.method === 'DELETE') {
-      if (rec) { fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true }); mirror(path.join(CHAR_DIR, key + '.json'), null); }
+      if (rec) { fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true }); mirror(path.join(CHAR_DIR, key + '.json'), null); homes.forget(key); }
       acc.chars = acc.chars.filter((k) => k !== key);
       storeAccount(acc);
       return reply(res, 200, { ok: true });
@@ -508,7 +510,10 @@ function broadcast(msg, except) {
 }
 const social = socialInit({ players, send });
 const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataDir: DATA, mirrorDelete: (file) => mirror(file, null), log });
-const exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log });
+// (the homes book and the Exchange know each other: a stall sells through the Exchange, and a lot given up sends its stall's stock home)
+let exchange = null;
+const homes = homesInit({ players, send, readJson, writeJson, dataDir: DATA, log, onVacate: (key, id) => exchange?.closeStall(key, id) });
+exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log, homeOf: (key) => homes.mineOf(key) });
 const mail = mailInit({ players, send, readJson, writeJson, dataDir: DATA, keyFor, nameOf: (key) => loadChar(key)?.name ?? null, log });
 const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
@@ -562,13 +567,14 @@ wss.on('connection', (ws, req) => {
       social.join(me);
       exchange.join(me);
       mail.join(me);
+      homes.join(me);
       for (const p of players.values()) if (p !== me && p.land === me.land) send(p.ws, { t: 'join', player: pub(me) });
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);

@@ -15,6 +15,8 @@ export interface GameApi {
   /** The Wake Fair (game/WakeFair.ts): is it up, step up to a game, prized plays left today, the day's guess made. */
   /** Pin a place on the map (the land book's "show me"). */
   markOnMap(x: number, z: number, label: string): void;
+  /** Who holds a home (a lot's id, or 'cottage'), or null: free, or not known offline. */
+  homeHolder(id: string): string | null;
   /** Hire a rowing boat from the nearest boatman (data/content/boats.ts) and put the player in her. */
   hireBoat(): void;
   fairOn(): boolean;

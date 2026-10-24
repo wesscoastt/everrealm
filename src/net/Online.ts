@@ -86,15 +86,17 @@ function tokenFor(name: string): string {
 }
 
 export interface TradeOffer { items: { id: string; n: number }[]; marks: number }
+/** A home in the realm's book: who holds it, the plans it's built to (none yet: just leased), and the blocks laid on it by hand. */
+export interface HomeHeld { owner: string; spec: unknown; blocks: [number, number, number, number][]; /** A stall up at the gate. */ stall?: boolean }
 export interface GroupView { id: number; leader: number; members: { id: number; name: string; hp: number; max: number; level: number; calling: string; x: number; z: number }[] }
 export interface TradeView { id: number; with: string; mine: TradeOffer; theirs: TradeOffer; myLock: boolean; theirLock: boolean; myAccept: boolean; theirAccept: boolean }
 
 export type GuildRank = 'leader' | 'officer' | 'member';
 /** A stack in the Exchange's book, and what the book owes you (takings, or a stack sent back). */
-export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number }
+export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number; /** On a stall at this lot's gate, not in the brokers' book. */ shop?: string | null }
 /** A letter by the Charter Post (server/mail.mjs): from a character, or from the Post itself when one comes back. */
 export interface Letter { id: number; from: string; fromKey: string | null; toName: string; subject: string; body: string; items: { id: string; n: number }[]; marks: number; at: number; read: boolean; returned?: boolean }
-export interface ExOwed { kind: 'sold' | 'back'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number }
+export interface ExOwed { kind: 'sold' | 'back'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number; shop?: string }
 export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[] }
 
 export interface OnlineHooks {
@@ -123,6 +125,10 @@ export interface OnlineHooks {
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
   homeAsked?(from: string): void;
   homeShow?(owner: string, pieces: unknown[], plot: unknown): void;
+  /** The realm's book of homes (server/homes.mjs): all of it on coming in, then each change, and the answer to a claim. */
+  homes?(list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null): void;
+  home?(id: string, home: HomeHeld | null): void;
+  homeClaimed?(id: string, ok: boolean, why: string, owner: string): void;
   trade?(v: TradeView): void;
   tradeEnd?(why: string): void;
   tradeDone?(withName: string, give: TradeOffer, take: TradeOffer): void;
@@ -146,7 +152,7 @@ export interface OnlineHooks {
   /** That event ran lately and is resting for so many seconds. */
   eventCool?(id: string, left: number): void;
   /** The Exchange (game/Exchange.ts). */
-  exBook?(rows: ExRow[], mine: number[]): void;
+  exBook?(rows: ExRow[], mine: number[], shop: string | null): void;
   exPosted?(row: ExRow): void;
   exRefused?(item: string, n: number, why: string): void;
   exBought?(row: ExRow): void;
@@ -287,6 +293,9 @@ export class Online {
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
       case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
       case 'hShow': this.hooks.homeShow?.(String(m.owner), Array.isArray(m.pieces) ? m.pieces : [], m.plot ?? null); break;
+      case 'homes': this.hooks.homes?.((m.list ?? {}) as Record<string, HomeHeld>, typeof m.mine === 'string' ? m.mine : null, typeof m.lapsed === 'string' ? m.lapsed : null); break;
+      case 'home': if (typeof m.id === 'string') this.hooks.home?.(m.id, (m.home ?? null) as HomeHeld | null); break;
+      case 'hClaimed': if (typeof m.id === 'string') this.hooks.homeClaimed?.(m.id, !!m.ok, String(m.why ?? ''), String(m.owner ?? '')); break;
       case 'trade': this.hooks.trade?.(m as unknown as TradeView); break;
       case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
@@ -298,7 +307,7 @@ export class Online {
       case 'note': this.hooks.note?.(Number(m.id), Number(m.m), m.voice as Voice); break;
       case 'bandPart': this.hooks.bandPart?.(Number(m.id), m.part as PartId, m.voice as Voice); break;
       case 'bandGo': this.hooks.bandGo?.(Number(m.from), String(m.name), String(m.tune), Number(m.start), Number(m.reps)); break;
-      case 'exBook': this.hooks.exBook?.(Array.isArray(m.rows) ? (m.rows as ExRow[]) : [], Array.isArray(m.mine) ? (m.mine as number[]) : []); break;
+      case 'exBook': this.hooks.exBook?.(Array.isArray(m.rows) ? (m.rows as ExRow[]) : [], Array.isArray(m.mine) ? (m.mine as number[]) : [], typeof m.shop === 'string' ? m.shop : null); break;
       case 'exPosted': this.hooks.exPosted?.(m.row as ExRow); break;
       case 'exRefused': this.hooks.exRefused?.(String(m.item), Number(m.n) || 0, String(m.why ?? '')); break;
       case 'exBought': this.hooks.exBought?.(m.row as ExRow); break;
@@ -492,6 +501,12 @@ export class Online {
   /** The latest reports (the keeper's accounts only). */
   reportsList(): void { this.emit({ t: 'reports' }); }
   homeShow(name: string, accept: boolean, pieces: unknown[] | null, plot: unknown = null): void { this.emit({ t: 'hShow', name, accept, pieces, plot }); }
+  /** The book of homes: lease one (spec: plans it's already built to), give it up, build or rebuild, lay blocks by hand. */
+  homeClaim(id: string, spec?: unknown, blocks?: unknown): void { this.emit({ t: 'hClaim', id, spec, blocks }); }
+  homeRelease(id: string): void { this.emit({ t: 'hRelease', id }); }
+  homeSpec(id: string, spec: unknown): void { this.emit({ t: 'hSpec', id, spec }); }
+  homeBlocks(id: string, blocks: unknown): void { this.emit({ t: 'hBlocks', id, blocks }); }
+  homeStall(id: string, open: boolean): void { this.emit({ t: 'hStall', id, open }); }
   tradeAnswer(name: string, accept: boolean): void { this.emit({ t: 'tAnswer', name, accept }); }
   tradeOffer(items: { id: string; n: number }[], marks: number): void { this.emit({ t: 'tOffer', items, marks }); }
   tradeLock(on: boolean): void { this.emit({ t: 'tLock', on }); }
@@ -505,7 +520,8 @@ export class Online {
   guildRank(name: string, rank: GuildRank): void { this.emit({ t: 'uRank', name, rank }); }
   guildMotto(text: string): void { this.emit({ t: 'uMotto', text }); }
   guildChat(text: string): void { this.emit({ t: 'uChat', text }); }
-  exList(): void { this.emit({ t: 'exList' }); }
+  /** The brokers' book, or one stall's (by its lot). */
+  exList(shop?: string): void { this.emit({ t: 'exList', shop }); }
   // The Group Finder (server/finder.mjs)
   qJoin(dungeon: string, role: string): void { this.emit({ t: 'qJoin', dungeon, role }); }
   qLeave(): void { this.emit({ t: 'qLeave' }); }
@@ -518,7 +534,7 @@ export class Online {
   qAnswer(run: number, yes: boolean, role: string): void { this.emit({ t: 'qAnswer', run, yes, role }); }
   dEv(run: number, k: 'hit' | 'kill', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }
   dLeave(run: number): void { this.emit({ t: 'dLeave', run }); }
-  exPost(item: string, n: number, price: number): void { this.emit({ t: 'exPost', item, n, price }); }
+  exPost(item: string, n: number, price: number, shop?: string): void { this.emit({ t: 'exPost', item, n, price, shop }); }
   exBuy(id: number): void { this.emit({ t: 'exBuy', id }); }
   exCancel(id: number): void { this.emit({ t: 'exCancel', id }); }
   // The Charter Post (server/mail.mjs)
