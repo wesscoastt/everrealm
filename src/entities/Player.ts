@@ -98,6 +98,21 @@ export class Player {
     return true;
   }
 
+  /**
+   * Carried by something moving under you (the ferry's deck): moved and turned with it this frame, the
+   * figure as well. (The figure was placed for the frame before the deck moved; left there, it's drawn
+   * a step behind the deck it stands on, and jitters.)
+   */
+  carried(to: THREE.Vector3, turn: number): void {
+    const r = this.model.root;
+    r.position.x += to.x - this.position.x; r.position.y += to.y - this.position.y; r.position.z += to.z - this.position.z;
+    this.position.copy(to);
+    this.yaw += turn;
+    this.visualYaw += turn;
+    r.rotation.y = this.visualYaw;
+    this.fallStartY = to.y;
+  }
+
   /** Something solid that isn't blocks and moves (the ferry): feet at (x, y, z), half the body's width, its height. */
   extraSolid: ((x: number, y: number, z: number, half: number, height: number) => boolean) | null = null;
 

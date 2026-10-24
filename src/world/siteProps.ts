@@ -6,7 +6,7 @@ import { waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { ImpostorBox, Site } from './sites';
 import { festivalAt } from '../data/festivals';
-import { shipModel, SHIPS } from './ships';
+import { shipDeckY, shipModel, SHIPS } from './ships';
 import { POSTS } from '../data/travel';
 
 // Turns a site's prop descriptors into meshes when the player comes near, and builds the
@@ -192,7 +192,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'boat': place(P.boat(M), d.x, d.y, d.z, d.ry); break;
       case 'ship': {
         const kind = d.ship ?? 'carrack';
-        place(shipModel(M, kind, { sails: d.sails ?? 'furled', wale: d.color, hull: d.hull, sail: d.sail }), d.x, d.deck !== undefined ? d.deck - SHIPS[kind].deck : d.y, d.z, d.ry);
+        // (her deck on a whole block, where the planner made it solid to: sites.propCollision)
+        place(shipModel(M, kind, { sails: d.sails ?? 'furled', wale: d.color, hull: d.hull, sail: d.sail }), d.x, shipDeckY(kind, d.y, d.deck) - SHIPS[kind].deck, d.z, d.ry);
         break;
       }
       case 'waymark': place(waymarkShrine(M, d.theme ?? 'crownroad'), d.x, d.y, d.z, d.ry); break;
@@ -237,7 +238,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;
       case 'desk': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'furn': {
-        if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0, d.doorKind, d.color); group.add(dr.pivot); doors.push(dr); break; }
+        if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0, d.doorKind, d.color); dr.role = d.role; group.add(dr.pivot); doors.push(dr); break; }
         if (d.item === 'doorOpen' && d.doorKind) { place(P.openDoor(M, 3, d.doorKind, d.color), d.x, d.y, d.z, d.ry); break; }
         const g = P.furniture(M, d.item ?? '', d.tint ?? 0);
         if (g) place(g, d.x, d.y, d.z, d.ry);

@@ -13,6 +13,10 @@ export interface GameApi {
   take(item: string, n?: number): boolean;
   readonly marks: number;
   /** The Wake Fair (game/WakeFair.ts): is it up, step up to a game, prized plays left today, the day's guess made. */
+  /** Pin a place on the map (the land book's "show me"). */
+  markOnMap(x: number, z: number, label: string): void;
+  /** Hire a rowing boat from the nearest boatman (data/content/boats.ts) and put the player in her. */
+  hireBoat(): void;
   fairOn(): boolean;
   fairPlay(game: string): void;
   fairPlaysLeft(game: string): number;

@@ -84,9 +84,9 @@ const LINES: Record<string, [string, string]> = {
 };
 
 const STOCK: Record<string, { name: string; stock: { item: string; price: number }[]; buyRate?: (item: string) => number; footer: string }> = {
-  biz_hester: { name: 'Corlett\'s cellar door', stock: [{ item: 'corlett_red', price: 48 }, { item: 'corlett_white', price: 48 }], footer: 'Hester pays half of an item\'s worth' },
-  biz_simeon: { name: 'Fallow Hill', stock: [{ item: 'fallow_white', price: 60 }, { item: 'fallow_brandy', price: 100 }], footer: 'Simeon pays half of an item\'s worth' },
-  biz_ned: { name: 'Garrow\'s tap room', stock: [{ item: 'garrow_bitter', price: 20 }, { item: 'garrow_porter', price: 28 }], footer: 'Ned pays half of an item\'s worth' },
+  biz_hester: { name: 'Corlett\'s cellar door', stock: [{ item: 'corlett_red', price: 48 }, { item: 'corlett_white', price: 48 }], buyRate: (item) => (item === 'grapes' ? 0.9 : 0.5), footer: 'Hester pays well for grapes, and half of anything else\'s worth' },
+  biz_simeon: { name: 'Fallow Hill', stock: [{ item: 'fallow_white', price: 60 }, { item: 'fallow_brandy', price: 100 }], buyRate: (item) => (item === 'grapes' ? 0.9 : 0.5), footer: 'Simeon pays well for grapes, and half of anything else\'s worth' },
+  biz_ned: { name: 'Garrow\'s tap room', stock: [{ item: 'garrow_bitter', price: 20 }, { item: 'garrow_porter', price: 28 }], buyRate: (item) => (item === 'barley' || item === 'hops' || item === 'wheat' ? 0.9 : 0.5), footer: 'Ned pays well for barley, hops and wheat, and half of anything else\'s worth' },
   biz_ruth: { name: 'Mardle Dairy', stock: [{ item: 'mardle_hard', price: 32 }, { item: 'mardle_blue', price: 56 }], footer: 'Ruth pays half of an item\'s worth' },
   biz_tobias: { name: 'Wren\'s Glasshouse', stock: [{ item: 'furn_glasslamp', price: 220 }], footer: 'Tobias pays half of an item\'s worth' },
   biz_agnes: { name: 'Pruett\'s Bee Garden', stock: [{ item: 'pruett_mead', price: 56 }, { item: 'honeycomb', price: 16 }], footer: 'Agnes pays half of an item\'s worth' },

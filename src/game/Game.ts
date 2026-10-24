@@ -109,6 +109,9 @@ import { Exchange } from './Exchange';
 import { Mail } from './Mail';
 import { Seasons } from './Seasons';
 import { WakeFair } from './WakeFair';
+import { Farming, farmPatches } from './Farming';
+import { Rowboat } from './Rowboat';
+import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
@@ -159,7 +162,7 @@ const HARBOURS: Record<LandId, Harbour> = {
 function crowdZones(): CrowdZone[] {
   if (LAND !== 'counties') return [];
   return [
-    { id: 'ansbury', x: 820, z: 300, r: 196, n: 30, lines: [
+    { id: 'ansbury', x: 820, z: 300, r: 196, n: 40, lines: [
       'The minster bell\'s cracked. You can hear it on the low note.',
       'They\'re tilting Saturday. My money\'s on the Harrowgate lad.',
       'Wipe your boots before the Charter Hall, they take your name.',
@@ -167,16 +170,16 @@ function crowdZones(): CrowdZone[] {
       'The guildhall clock\'s five minutes fast. It always is.',
       'If the Weighhouse says a pound, it\'s a pound.',
     ] },
-    { id: 'hollinford', x: 165, z: 182, r: 42, n: 6, lines: [
+    { id: 'hollinford', x: 165, z: 182, r: 42, n: 8, lines: [
       'The ford\'s up to my knees today.',
       'Haverwood\'s thick with mushrooms after the rain.',
     ] },
-    { id: 'gullmouth', x: coastX(600) - 80, z: 600, r: 72, n: 11, lines: [
+    { id: 'gullmouth', x: coastX(600) - 80, z: 600, r: 72, n: 16, lines: [
       'Tide\'s turning. Get the nets in.',
       'The light wants oil again.',
       'A gull had my pie. The whole pie.',
     ] },
-    { id: 'harrowgate', x: 975, z: 1003, r: 60, n: 8, lines: [
+    { id: 'harrowgate', x: 975, z: 1003, r: 60, n: 12, lines: [
       'Shift bell\'s in ten.',
       'Company store\'s put candles up again.',
       'Slag\'s still warm. Don\'t sit on it.',
@@ -286,7 +289,52 @@ export class Game implements GameApi {
   seasons!: Seasons;
   /** The Wake Fair at Hollin Ford, and its games, while the Lantern Wake is on. */
   private fair!: WakeFair;
+  /** Your farming patches (data/farming.ts). */
+  private farming!: Farming;
+  /** Your rowing boat, or the one you've hired (game/Rowboat.ts). */
+  private boat!: Rowboat;
   fairOn(): boolean { return !!this.fair?.on; }
+  /** Hire a rowing boat from the boatman you're talking to: into the water and you in her. */
+  hireBoat(): void {
+    const P = this.player.position;
+    const bm = BOATMEN.slice().sort((a, b) => Math.hypot(a.at[0] - P.x, a.at[1] - P.z) - Math.hypot(b.at[0] - P.x, b.at[1] - P.z))[0];
+    if (!bm) return;
+    if (this.boat.aboard) { this.hud.system('You\'re in a boat already.'); return; }
+    if (this.save.marks < BOAT_HIRE) { this.hud.system(`A boat's ${BOAT_HIRE} marks for the hour.`); return; }
+    const surf = this.boat.surface(bm.water[0], bm.water[1], P.y);
+    if (surf === null) return;
+    this.addMarks(-BOAT_HIRE);
+    this.setFlag('boatHire', Date.now() + BOAT_HIRE_MS);
+    this.persist();
+    this.boat.launch(bm.water[0], bm.water[1], surf, bm.yaw, true);
+    this.boardBoat();
+    this.hud.system('Dan pushes you off. An hour, and both oars back. W and S row, A and D turn; E by the shore to step out.');
+  }
+  private boardBoat(): void {
+    if (this.horse) { this.hud.system('Get down off your mount first.'); return; }
+    this.cancelActions();
+    this.seated = null;
+    this.emote = null;
+    this.boat.aboard = true;
+    // Into her seat at once (out of reach of it, you'd count as carried off and be put back out)
+    this.boat.seat(this.player.position);
+    this.player.velocity.set(0, 0, 0);
+    this.sfx('click');
+  }
+  /** Out of the boat: onto the shore beside her, or over the side into the water. */
+  private leaveBoat(to: THREE.Vector3 | null): void {
+    const b = this.boat;
+    if (!b.aboard) return;
+    b.aboard = false;
+    const P = this.player;
+    if (to) P.teleport(to.x, to.y, to.z);
+    else P.position.y -= 0.4;
+    P.velocity.set(0, 0, 0);
+    P.fallStartY = P.position.y;
+    // A hired boat whose hour is up goes back to the boatman once you're out of her
+    if (b.hired && Number(this.flag('boatHire') ?? 0) < Date.now()) { b.stow(); this.hud.system('Dan\'s boy rows her back.'); }
+  }
+  markOnMap(x: number, z: number, label: string): void { this.hud.pin = { x, z }; this.hud.system(`${label}: pinned on your map (M).`); this.sfx('click'); }
   fairPlay(game: string): void { this.fair.play(game as FairGameId); }
   fairPlaysLeft(game: string): number { return this.fair.playsLeft(game as FairGameId); }
   fairGuessed(): boolean { return this.fair.guessedToday(); }
@@ -605,7 +653,7 @@ export class Game implements GameApi {
       this.hud.system(`Waymark attuned: ${w.name}. Open the map (M) and click it to travel here from anywhere.`);
       this.sfx('discover');
     });
-    this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors());
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     this.roadfolk = new Roadfolk(this.scene, this.world.voxels, LAND === 'counties' ? crowdZones() : JURISDICTIONS.map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r })), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.scene.add(this.torchLight);
@@ -666,6 +714,15 @@ export class Game implements GameApi {
       lamps: this.world.extraLamps,
     });
     this.player.extraSolid = (x, y, z, half, height) => this.world.ferry.blocks(x, y, z, half, height);
+    this.farming = new Farming({
+      scene: this.scene, voxels: this.world.voxels,
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+      give: (it, n) => this.give(it, n), take: (it, n) => this.take(it, n), count: (it) => this.inv.count(it),
+      level: (sk) => this.level(sk), addXp: (sk, n) => this.addXp(sk, n),
+      system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
+      player: () => this.player.position,
+    }, farmPatches(sitePlan().sites));
+    this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.fair = new WakeFair({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
       fest: () => this.festivals.fest,
@@ -3277,6 +3334,24 @@ export class Game implements GameApi {
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    for (const c of this.farming.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.5);
+    // The rowing boat: step out of her, climb into her, take her up, or launch her (game/Rowboat.ts)
+    {
+      const b = this.boat;
+      if (b.aboard) {
+        const to = b.shore();
+        if (to) consider({ kind: 'act', label: 'Step ashore', pos: to.clone().setY(to.y + 0.6), act: () => this.leaveBoat(to) }, 0.1);
+      } else {
+        const d = b.afloat ? Math.hypot(b.pos.x - p.x, b.pos.z - p.z) : Infinity;
+        if (d < 3) {
+          consider({ kind: 'act', label: b.hired ? 'Climb into the hired boat' : 'Climb into your boat', pos: b.pos.clone().setY(b.pos.y + 0.8), act: () => this.boardBoat() }, d);
+          if (!b.hired) consider({ kind: 'act', label: 'Haul your boat out', pos: b.pos.clone().setY(b.pos.y + 0.5), act: () => { b.stow(); this.hud.system('You haul her out and stow her.'); } }, d + 0.3);
+        } else if (this.inv.count('rowboat') > 0 && !this.horse) {
+          const at = b.launchSpot(p);
+          if (at) consider({ kind: 'act', label: 'Launch your rowing boat', pos: new THREE.Vector3(at.x, at.surf + 0.6, at.z), act: () => { b.launch(at.x, at.z, at.surf, at.yaw, false); this.boardBoat(); } }, 2.5);
+        }
+      }
+    }
     // A parcel waiting: collect it at any post box
     if (this.parcel.length) for (const pt of POSTS) {
       const b = postBoxOf(pt), d = Math.hypot(b.x - p.x, b.z - p.z);
@@ -4665,6 +4740,12 @@ export class Game implements GameApi {
     this.festivals.update(dt, P);
     this.seasons.update(dt, P);
     this.fair.update(dt, this.world.sky.night);
+    this.farming.update(dt);
+    // A boat left at the shore rocks at her mooring; a hired one goes home when the hour's up
+    if (this.boat.afloat && !this.boat.aboard) {
+      this.boat.place(dt);
+      if (this.boat.hired && Number(this.flag('boatHire') ?? 0) < Date.now()) { this.boat.stow(); this.hud.system('Your hour\'s up: Dan\'s boy has rowed the boat back.'); }
+    }
     // Every carved face glows brighter as it gets dark
     PUMPKIN_GLOW.emissiveIntensity = 0.3 + this.world.sky.night * 1.4;
     this.birds.update(dt, P, this.underCover ? 1 : this.world.sky.night);
@@ -4704,10 +4785,10 @@ export class Game implements GameApi {
     // Standing on the ferry's deck, you go where she goes
     {
       const ride = this.horse ? null : this.world.ferry.carry(this.player.position, this.player.onGround);
-      if (ride) { this.player.position.copy(ride.pos); this.player.yaw += ride.turn; this.player.fallStartY = ride.pos.y; }
+      if (ride) this.player.carried(ride.pos, ride.turn);
     }
     // Doors open for anyone walking up to them: you, other players, the villagers
-    const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos)];
+    const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos), ...this.crowd.movers()];
     updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'doorOpen' : 'doorShut', 0.6));
     this.voyage.update(dt);
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
@@ -5013,7 +5094,23 @@ export class Game implements GameApi {
     const stepping = !this.dialogue && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((k) => this.input.held(k));
     if (this.seated && (jump || stepping || this.dead || this.horse || this.elapsed - this.lastCombat < 0.5)) this.standUp();
     this.keepReviving(dt, jump || stepping);
-    if (this.seated) {
+    // Out of the boat if you've died, or been carried off elsewhere (a waymark, a summons)
+    if (this.boat.aboard && (this.dead || P.position.distanceTo(this.boat.seat(new THREE.Vector3())) > 3)) this.boat.aboard = false;
+    if (this.boat.aboard) {
+      // Rowing: W and S pull and back the oars, A and D turn her, Space over the side (game/Rowboat.ts)
+      const b = this.boat, I = this.input, free = !this.dialogue && !this.fair.playing;
+      const pull = free ? (I.held('KeyW') || I.held('ArrowUp') ? 1 : 0) - (I.held('KeyS') || I.held('ArrowDown') ? 1 : 0) : 0;
+      const turn = free ? (I.held('KeyA') || I.held('ArrowLeft') ? 1 : 0) - (I.held('KeyD') || I.held('ArrowRight') ? 1 : 0) : 0;
+      b.row(dt, pull, turn);
+      b.seat(P.position);
+      P.velocity.set(0, 0, 0);
+      P.yaw = b.yaw;
+      P.fallStartY = P.position.y;
+      P.model.root.position.copy(P.position);
+      P.model.root.rotation.y = b.yaw;
+      fall = 0;
+      if (jump) this.leaveBoat(null);
+    } else if (this.seated) {
       const s = this.seated;
       P.position.set(s.x, s.y, s.z);
       P.velocity.set(0, 0, 0);
@@ -5150,7 +5247,7 @@ export class Game implements GameApi {
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
     } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
-    else if (this.seated) { M.setState('seated'); held = 'none'; }
+    else if (this.seated || this.boat.aboard) { M.setState('seated'); held = 'none'; }
     else if (this.reviving) { M.setState('kneel'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
@@ -5454,7 +5551,7 @@ export class Game implements GameApi {
     if (!full) for (const e of this.enemies) if (e.alive && e.pos.distanceTo(this.player.position) < 55) out.push({ x: e.pos.x, z: e.pos.z, kind: e.def.elite ? 'elite' : 'enemy' });
     for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: this.social.isAlly(r.id) ? 'ally' : 'other', label: full || this.social.isAlly(r.id) ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
-    out.push(...this.activities.markers(), ...this.seasons.markers(), ...this.fair.markers());
+    out.push(...this.activities.markers(), ...this.seasons.markers(), ...this.fair.markers(), ...this.farming.markers());
     out.push(...this.waymarkStones.markers());
     out.push(...this.festivals.markers());
     out.push(...this.serviceMarkers().filter((m) => full || Math.hypot(m.x - this.player.position.x, m.z - this.player.position.z) < 160));

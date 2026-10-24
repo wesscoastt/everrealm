@@ -37,7 +37,8 @@ export class Ferry {
     // (her deck on a whole block's height, so a walker stands on it as on any floor)
     const C = coastX(600), J = mewJetty(), y = Math.round(SEA + SHIPS[KIND].deck) - SHIPS[KIND].deck;
     // Gullmouth: off the south jetty's head heading south. The Mewstones: off their jetty's head heading north.
-    const gull: [number, number] = [C + 38, 607], mew: [number, number] = [J.x1 - 5, J.z + 1];
+    // (at the Mewstones she lies right alongside the jetty's end, her side a stride from its boards)
+    const gull: [number, number] = [C + 38, 607], mew: [number, number] = [J.x1 - 3, J.z + 1];
     const pts: [number, number][] = [
       gull, [C + 58, 618], [1900, 628], [2000, 690], [2120, 740], [2215, 785], [J.x1 - 34, J.z + 30],
       mew, [J.x1 - 14, J.z - 42], [2150, 648], [1990, 618], [C + 70, 606], [C + 50, 600],
@@ -64,9 +65,10 @@ export class Ferry {
     this.root.rotation.y = heading(this.path.getTangentAt(u, this.tan));
     this.sailing.visible = !docked;
     this.moored.visible = docked;
-    // A little swell under her (only to look at: her deck stays where you stand on it)
-    this.hull.position.y = Math.sin(now * 0.9) * 0.06;
-    this.hull.rotation.x = Math.sin(now * 0.7) * (docked ? 0.012 : 0.03);
+    // A little swell under her (only to look at: her deck stays where you stand on it, so it's kept small
+    // enough that nobody standing there seems to sink into the boards and rise out of them)
+    this.hull.position.y = Math.sin(now * 0.9) * 0.025;
+    this.hull.rotation.x = Math.sin(now * 0.7) * (docked ? 0.005 : 0.012);
     this.root.updateMatrixWorld(true);
     this.inv.copy(this.root.matrixWorld).invert();
   }
@@ -84,7 +86,8 @@ export class Ferry {
     if (hw < 0 || ly < -S.draft - 0.3 || Math.abs(lz) > hw + half) return false;
     if (ly < S.deck) return true;
     const end = Math.abs(lx) > S.len / 2 - 0.5;
-    if (ly < S.deck + 0.95 && (end || Math.abs(lz) > hw - 0.3 - half)) return true;
+    // The bulwarks, with a gangway through them amidships on either side to step aboard from a jetty
+    if (ly < S.deck + 0.95 && (end || (Math.abs(lz) > hw - 0.3 - half && Math.abs(lx) > 1.2))) return true;
     return CASTLES.some(([a, b, h]) => lx > a - half && lx < b + half && ly < S.deck + h);
   }
 

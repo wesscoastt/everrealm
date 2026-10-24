@@ -249,6 +249,9 @@ The Light Fund cart brought six barrels of oil in February where nine were order
 
 Either way, Nessa pays the player a 20-mark finder's share for the chest.
 
+- **The Merchants' Hall** by the west gate: built after the Charter put a counting house on every quay in the Counties but Gullmouth's. Every cargo through the west gate is written down twice, once for the Charter and once for the Hall. Josiah Penhale, its clerk, keeps a copy of the Exchange book; Harriet Combe, wool factor, buys hides, pelts and silk for Callis's looms; Thomas Varcoe, ship's agent, knows every hull in the harbour (the Lantern Rose at the north jetty, Callis-built and waiting on Corlett's wine; the Charter's galleon, which anchors so as not to pay dues; the hull on the slip, for a Saltpenny house that hasn't paid). Edmund Lusk and Agnes Treloar have been arguing about pilchards at the long table since the morning.
+- **Dan Ruddle**, boatman, hires rowing boats by the hour from the beach below the shipyard and sells them outright. His boat has never sunk, and he'd know.
+
 ## Raddle Barrens: Harrowgate Works [in game]
 
 The home works of **Harrowgate & Daughters**, behind a palisade, with the No. 1 Drift running into the slope.
@@ -556,6 +559,10 @@ The towns are fed from farms let out round them: six round Ansbury (Lower Farm, 
 ## Harbour lights [in game]
 
 Besides Fleet Light on the Fleet Coast, every harbour keeps a light of its own on the nearest headland: **Gullmouth Light**, **Staithe Light** (Holme Staithe) and **Gillsby Light** (Inkholm). Each is a banded tower of red and white with a glazed lantern room that shows at night. Cragsby, for all its cliffs, is inland and has none. `world/sites.ts` (buildHarbourLights).
+
+## The wilds' heavier kinds [in game]
+
+Each country has a kind or two beyond its wolves and boars: brown bears on the Crown Road, white bears in Starfall, cave bears in the Held; great spiders (the bramble weavers of Hagworm Wood, raft spiders in the fens, grey weavers on Inkholm, glade spiders and barrow spiders in Morrow); bats in the sea caves, on the Gannet cliffs, over Kell's ash and in Morrow's quarries; heath, fen and red adders, and the mangrove snakes of the Keys; and on the Glass Flats the wild drakes, cousins of the caravans' walking drakes. On the high moors, the frozen north, the slag of the Raddle and the Sunder, **the old cairns sometimes get up and walk**: boulders held together by moss and roots, a mark nobody alive can read cut into the stones and lit from inside. Nobody knows who raised them. The Tolmen shepherds leave them be and walk round.
 
 ## The festival year [in game]
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { B, isSolid } from '../world/blocks';
+import { B, isSolid, isLeaves } from '../world/blocks';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { CreatureModel, type Palette } from './creatures';
 
@@ -53,7 +53,8 @@ export class Animal {
     const ix = Math.floor(x), iz = Math.floor(z), tall = this.kind === 'deer' ? 3 : 2;
     for (const dy of [0, 1, -1]) {
       const fy = Math.floor(y + 0.1) + dy;
-      if (!isSolid(this.world.get(ix, fy - 1, iz)) || this.world.get(ix, fy, iz) === B.Water) continue;
+      const below = this.world.get(ix, fy - 1, iz);
+      if (!isSolid(below) || isLeaves(below) || this.world.get(ix, fy, iz) === B.Water) continue;
       let open = true;
       for (let h = 0; h < tall; h++) if (isSolid(this.world.get(ix, fy + h, iz))) open = false;
       if (open) return fy;
@@ -151,7 +152,7 @@ export class Animal {
       }
     }
     if (this.kind !== 'duck') {
-      const g = this.world.groundBelow(this.pos.x, this.pos.y + 0.6, this.pos.z);
+      const g = this.world.groundBelow(this.pos.x, this.pos.y + 0.6, this.pos.z, true);
       this.pos.y += (g - this.pos.y) * Math.min(1, dt * 12);
     }
     this.model.setAnim(this.kind === 'duck' ? 'swim' : moving > 0 ? (this.mode === 'flee' ? 'run' : 'walk') : this.mode === 'sit' ? 'sit' : this.mode === 'graze' ? 'graze' : 'idle');

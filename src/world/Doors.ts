@@ -15,6 +15,8 @@ export interface Door {
   /** 0 shut .. 1 open */
   t: number;
   hinge: THREE.Vector3;
+  /** What the building is (interiors.Role: home, inn, shop...), where it's known: the townsfolk go in by it. */
+  role?: string;
 }
 
 /**

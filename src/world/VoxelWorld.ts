@@ -1,4 +1,4 @@
-import { B, isSolid } from './blocks';
+import { B, isSolid, isLeaves } from './blocks';
 
 // The streamed continent. Chunks are 32 x SY x 32 columns held sparsely: only chunks near the
 // player exist in memory. Unloaded space reads as air above sea level and stone below, which
@@ -149,10 +149,12 @@ export class VoxelWorld {
     return y;
   }
 
-  groundBelow(x: number, y: number, z: number): number {
+  groundBelow(x: number, y: number, z: number, throughLeaves = false): number {
     const ix = Math.floor(x), iz = Math.floor(z);
     for (let yy = Math.min(SY - 1, Math.floor(y)); yy >= 0; yy--) {
-      if (isSolid(this.get(ix, yy, iz))) return yy + 1;
+      const id = this.get(ix, yy, iz);
+      // (a creature falls through a canopy to the ground: it was never meant to be up there)
+      if (isSolid(id) && !(throughLeaves && isLeaves(id))) return yy + 1;
     }
     return 0;
   }

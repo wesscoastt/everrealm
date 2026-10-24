@@ -62,7 +62,7 @@ export function newSave(name: string, look: Appearance): SaveData {
   return {
     v: 1, name, look,
     pos: [150.5, 19, 187.5], yaw: Math.PI, hour: 8.5, hp: 100,
-    xp: { melee: 0, mining: 0, smithing: 0, fishing: 0, cooking: 0, woodcutting: 0 },
+    xp: { melee: 0, mining: 0, smithing: 0, fishing: 0, cooking: 0, woodcutting: 0, farming: 0 },
     inv, equip: { weapon: 'worn_sword', head: null },
     marks: 12, flags: { xpCurve2: 1, talents2: 1, 'moved:southgate': 1 }, quests: {}, discovered: [], playTime: 0,
     settings: { ...DEFAULT_SETTINGS },
@@ -87,6 +87,8 @@ export function loadSave(key = SAVE_KEY): SaveData | null {
 
 /** Fixes for things that have moved in the world since a save was made. */
 export function fixSave(d: SaveData): void {
+  // (Farming came later: older characters start it at nothing)
+  if (d.xp && d.xp.farming === undefined) d.xp.farming = 0;
   const f = (d.flags ??= {}) as Record<string, unknown>;
   // Southgate Lodgings moved four blocks south, off Ansbury's wall: furniture in its rooms goes with it
   if (!f['moved:southgate'] && Array.isArray(f.home)) {

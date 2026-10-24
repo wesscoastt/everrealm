@@ -18,7 +18,7 @@ export type Sfx =
 
 /** What a creature sounds like when it sees you, when it's hit, and when it dies, by its body plan. */
 export function voiceOf(model: string, what: 'aggro' | 'hurt' | 'die'): Sfx {
-  const fam = model === 'wolf' || model === 'notch' || model === 'dog' ? 'wolf' : model === 'boar' ? 'boar' : model === 'rustback' ? 'crab'
+  const fam = model === 'wolf' || model === 'notch' || model === 'dog' ? 'wolf' : model === 'boar' ? 'boar' : model === 'rustback' || model === 'spider' ? 'crab'
     : model === 'jelly' || model === 'medusa' ? 'jelly' : model === 'bandit' ? 'man' : model === 'shark' || model === 'eel' || model === 'ray' ? 'fish' : 'beast';
   const V: Record<string, Record<'aggro' | 'hurt' | 'die', Sfx>> = {
     wolf: { aggro: 'wolfSnarl', hurt: 'wolfYelp', die: 'wolfDie' },

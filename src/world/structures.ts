@@ -161,7 +161,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     // The door its trade deserves (props.doorLeaf); a home's painted or bare by where it stands
     const dk: P.DoorKind = o.role === 'inn' ? 'dutch' : o.role === 'office' ? 'panelled' : o.role === 'workshop' ? 'studded' : o.role === 'shop' ? 'glazed' : hash2(x0, z0, 97) < 0.45 ? 'cottage' : 'painted';
     const paint = dk === 'cottage' || dk === 'studded' || dk === 'dutch' ? undefined : DOOR_PAINTS[Math.floor(hash2(x0, z0, 99) * DOOR_PAINTS.length)];
-    { const dr = makeDoor(M, leaf.x, HB, leaf.z, leaf.ry, dk, paint); group.add(dr.pivot); doors.push(dr); }
+    { const dr = makeDoor(M, leaf.x, HB, leaf.z, leaf.ry, dk, paint); dr.role = o.role ?? 'home'; group.add(dr.pivot); doors.push(dr); }
     // The porch lantern on the side of the door with bare wall, not over a window (see the walls above)
     const ns = o.door === 'n' || o.door === 's', dAlong = ns ? doorX - x0 : doorZ - z0, dSpan = ns ? w : d;
     const glazedAt = (a: number) => a % 3 === 1 && a > 0 && a < dSpan - 1;

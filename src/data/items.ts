@@ -6,7 +6,7 @@ import { gearVariant, NAMED_ITEMS, type NamedInfo } from './gear';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'quest' | 'collectible' | 'trophy';
-export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting';
+export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting' | 'farming';
 
 export interface IconSpec {
   shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag' | 'bow' | 'wheel' | 'torch' | 'lantern';

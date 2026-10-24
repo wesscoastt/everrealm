@@ -7,7 +7,7 @@ import { LAND } from './land';
 import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
-import type { ShipKind } from './ships';
+import { hullHalf, shipDeckY, SHIPS, type ShipKind } from './shipHull';
 import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/businesses';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
@@ -74,6 +74,8 @@ export interface PropDesc {
   tint?: number;
   /** A house door ('furn' doorOpen) that swings shut when nobody's near (see world/Doors.ts). */
   swing?: boolean;
+  /** A swinging door's building (interiors.Role), so the townsfolk know a home from the inn. */
+  role?: string;
   /** A door's kind (props.doorLeaf), for 'door' and a swinging 'furn' doorOpen; its paint is `color`. */
   doorKind?: DoorKind;
   /** Roof dormers: +1 or -1 picks the slope, 0 or absent for none. */
@@ -701,7 +703,9 @@ export function plan(): Plan {
   const hzRects = [...hz, ...PUZZLES.map((q) => ({ x: q.x, z: q.z, r: 7 }))].map((h): [number, number, number, number] => [Math.floor(h.x - h.r), Math.floor(h.z - h.r), Math.floor(h.x + h.r), Math.floor(h.z + h.r)]);
   // (and off the chests, so none is grown into a tree)
   const chestRects = chests.map((c): [number, number, number, number] => [Math.floor(c.x) - 1, Math.floor(c.z) - 1, Math.floor(c.x) + 1, Math.floor(c.z) + 1]);
-  for (const r of [...sites.flatMap((s) => s.rects), ...hzRects, ...chestRects]) {
+  // (and off the streets, wherever they run: a street laid through a wood cut the trunks, and left the crowns in the air)
+  const streetRects = streets.map((r): [number, number, number, number] => [r[0] - 3, r[1] - 3, r[2] + 3, r[3] + 3]);
+  for (const r of [...sites.flatMap((s) => s.rects), ...hzRects, ...chestRects, ...streetRects]) {
     for (let cz = r[1] >> 5; cz <= r[3] >> 5; cz++) for (let cx = r[0] >> 5; cx <= r[2] >> 5; cx++) {
       const k = chunkKey(cx, cz);
       if (!rectsByChunk.has(k)) rectsByChunk.set(k, []);
@@ -5733,10 +5737,10 @@ export function plan(): Plan {
       streetHook?.(x0, za, x1, zb, 'street');
     };
 
-    // ---- Ships: a merchantman at the north jetty, her deck on barriers so you can walk it
+    // ---- Ships: a merchantman at the north jetty (her hull solid and her deck walkable: propCollision)
     const D = SEA + 2; // deck height
     s.props.push({ t: 'ship', ship: 'carrack', x: C + 26, y: SEA - 0.14, deck: D, z: 594.5, ry: 0, sails: 'furled', color: '#7a2a1e' });
-    for (let x = C + 19; x <= C + 33; x++) for (let z = 593; z <= 596; z++) { O.set(x, SEA, z, B.Barrier); O.set(x, SEA + 1, z, B.Barrier); clearUp(x, z, SEA + 2, SEA + 6); }
+    for (let x = C + 19; x <= C + 33; x++) for (let z = 593; z <= 596; z++) clearUp(x, z, SEA + 2, SEA + 6);
     for (const x of [C + 25, C + 26]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank, a step down from the jetty
     quay(s, base, C);
     gullmouthLife(s, base, C);
@@ -5752,12 +5756,17 @@ export function plan(): Plan {
       O.set(x, g - 1, z, z === 527 || z === 535 ? B.Timber : B.Planks);
       clearUp(x, z, g, g + 16);
     }
-    s.props.push({ t: 'ship', ship: 'carrack', x: C + 6, y: yg, deck: yg + 2, z: 531, ry: 0, sails: 'bare', color: '#5a6a3a' });
-    for (let x = C - 1; x <= C + 13; x++) for (let z = 529; z <= 533; z++) { O.set(x, yg, z, B.Barrier); O.set(x, yg + 1, z, B.Barrier); }
-    // Scaffold either side of her: posts and a plank walk at deck height
+    // She stands on the stocks, not in the boards: her keel on a row of keel blocks, timber shores
+    // either side, her deck four blocks up (her hull is solid to it: propCollision)
+    const SD = yg + 4;
+    s.props.push({ t: 'ship', ship: 'carrack', x: C + 6, y: yg, deck: SD, z: 531, ry: 0, sails: 'bare', color: '#5a6a3a' });
+    const slip = (x: number) => Math.max(Math.min(heightAt(x, 531), yg), SEA);
+    for (let x = C - 2; x <= C + 14; x++) for (let y = slip(x); y <= yg; y++) O.set(x, y, 531, B.Timber);
+    for (const x of [C - 1, C + 3, C + 7, C + 11]) for (const z of [528, 534]) for (let y = slip(x); y <= yg + 1; y++) O.set(x, y, z, B.Timber);
+    // Scaffold either side of her: posts, a plank walk at her deck, and steps up to it at the land end
     for (const z of [526, 536]) {
-      for (let x = C - 2; x <= C + 14; x++) { O.set(x, yg + 1, z, B.Planks); clearUp(x, z, yg + 2, yg + 6); }
-      for (let x = C - 2; x <= C + 14; x += 4) { O.set(x, yg, z, B.Timber); }
+      for (let x = C - 2; x <= C + 14; x++) { for (let y = slip(x); y < SD - 1; y++) if ((x - C + 2) % 4 === 0) O.set(x, y, z, B.Timber); O.set(x, SD - 1, z, B.Planks); clearUp(x, z, SD, SD + 4); }
+      for (let i = 1; i <= 3; i++) { const x = C - 2 - i; for (let y = Math.min(heightAt(x, z), yg) - 1; y < SD - 1 - i; y++) O.set(x, y, z, B.Timber); O.set(x, SD - 1 - i, z, B.Planks); clearUp(x, z, SD - i, SD + 3); }
     }
     shelter(s, C - 18, 512, 12, 8, yg, 'slate', 4);
     logStack(C - 16, 522, 6, 2, true);
@@ -5810,6 +5819,65 @@ export function plan(): Plan {
       }
       streets.push([X0, 587, X1, 604]);
       streetHook?.(X0, 587, X1, 604, 'street');
+    }
+
+    // ---- The west gate and the street inside it, made to meet. The quarter was cut two blocks into the
+    // ground, so the street ran between dirt banks to a two-block step under the arch. Now the passage is
+    // flagged level with the street, a little flagged place opens inside the gate, the banks come down to
+    // the kerbs, and outside the road comes down to the gate a step at a time between dressed stone edges.
+    {
+      const tower = (x: number, z: number) => x >= 1590 && x <= 1594 && ((z >= 579 && z <= 583) || (z >= 599 && z <= 603));
+      const flag = (x: number, z: number, y: number, edge: boolean) => {
+        foundation(x, z, y, B.Cobble);
+        O.set(x, y - 1, z, edge ? B.StoneBrick : hash2(x, z, 163) < 0.08 ? B.MossyCobble : B.Flagstone);
+        clearUp(x, z, y, Math.max(y + 4, heightAt(x, z) + 2));
+      };
+      // The passage under the arch and the place inside it (the street keeps its own setts)
+      for (let z = 584; z <= 598; z++) for (let x = 1586; x <= 1596; x++) {
+        if (x >= 1594 && z >= 588 && z <= 594) continue;
+        flag(x, z, bm, z === 584 || z === 598);
+      }
+      // Outside, a step up toward the field
+      for (let z = 584; z <= 598; z++) for (const x of [1584, 1585]) flag(x, z, bm + 1, z === 584 || z === 598);
+      for (let z = 584; z <= 598; z++) O.set(1583, bm + 1, z, B.StoneBrick);
+      // Dressed edges where the field stands above the road outside
+      for (let x = 1583; x <= 1589; x++) for (const z of [583, 599]) for (let y = bm; y < heightAt(x, z); y++) O.set(x, y, z, B.StoneBrick);
+      // The banks inside: down to the street's level, grassed, between the gate, the yard and the forecourt
+      for (let z = 584; z <= 606; z++) for (let x = 1597; x <= 1603; x++) {
+        if (tower(x, z) || (z >= 588 && z <= 594) || z <= 587 || (x === 1603 && z >= 598) || heightAt(x, z) <= bm) continue;
+        clearUp(x, z, bm, heightAt(x, z) + 3);
+        O.set(x, bm - 1, z, B.Grass);
+      }
+      for (let z = 599; z <= 606; z++) for (let x = 1594; x <= 1596; x++) {
+        if (tower(x, z) || heightAt(x, z) <= bm) continue;
+        clearUp(x, z, bm, heightAt(x, z) + 3);
+        O.set(x, bm - 1, z, B.Grass);
+      }
+      // A footway from the Upper Town Rooms' door to the gate
+      for (let x = 1571; x <= 1582; x++) for (let z = 590; z <= 592; z++) if (heightAt(x, z) === bm + 2) O.set(x, bm + 1, z, hash2(x, z, 164) < 0.3 ? B.Gravel : B.Path);
+      streetHook?.(1583, 583, 1597, 599, 'street');
+    }
+
+    // ---- The Merchants' Hall, fitted out: the clerks' counter across the back with the ledgers on the
+    // shelves behind, the factors' desks down both walls, a long table where the bargains are struck,
+    // a fire, lamps, and the samples by the door (the people: data/content/merchantsHall.ts)
+    {
+      const y = bm, F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+      for (const x of [1608.4, 1610.8, 1613.2]) F('counter', x, 618.5, Math.PI);
+      for (const x of [1606.5, 1608.5, 1610.5, 1612.5, 1614.5]) F('shelves', x, 621.6, Math.PI, 1);
+      F('strongbox', 1615.4, 620.4, Math.PI); F('chest', 1606.3, 620.4, Math.PI);
+      F('letters', 1609.6, 618.5, 0, 1, y + 1.02); F('letters', 1613.8, 618.5, 0, 2, y + 1.02);
+      for (const z of [610.5, 614.5]) {
+        F('desk', 1605.7, z, Math.PI / 2); F('chair', 1606.9, z, -Math.PI / 2);
+        F('desk', 1615.3, z, -Math.PI / 2); F('chair', 1614.1, z, Math.PI / 2);
+      }
+      F('table', 1610.7, 613.5); F('table', 1612.3, 613.5);
+      F('bench', 1611.5, 612.4, 0); F('bench', 1611.5, 614.6, Math.PI);
+      F('rug', 1611.5, 608.5, 0, 0); F('rug', 1611.5, 611, 0, 0);
+      F('hearth', 1605.5, 618.5, Math.PI / 2);
+      for (const [x, z] of [[1611.5, 610.5], [1611.5, 616.5], [1606.5, 612.5], [1614.5, 612.5]] as const) F('lamp', x, z, 0, 0, y + 5.2);
+      F('crate', 1606.2, 607.8); F('crate', 1607.0, 608.2); F('barrel', 1615.4, 607.9); F('barrel', 1614.6, 608.1); F('crate', 1615.3, 609.0);
+      s.props.push({ t: 'banner', x: 1611.5, y: y + 5.5, z: 621.9, kind: 'aldermere' });
     }
 
     // ---- The terraces: the town's high ground to the south, two levels of houses and stairs between
@@ -6970,6 +7038,23 @@ function propCollision(O: Overrides, sites: Site[]): void {
       case 'woodpile': bar(d, 0, 0, ((d.len ?? 2) + 0.3) / 2, 0.42, 1); break;
       case 'barrel': case 'crate': case 'beehive': if (st.named && st.id !== 'bight') bar(d, 0, 0, 0.28, 0.28, 1); break; // (in the wild, and in the Bight's wreckers' camp, they're clutter to fight among)
       case 'lobsterPots': bar(d, 0, 0, 0.4, 0.4, 1); break;
+      case 'ship': {
+        // A moored ship: her hull solid from the water (or her slip) up to her deck, so you can't swim
+        // through her and can walk her deck once aboard. The deck is a whole block (shipDeckY), and her
+        // model is set to it (siteProps).
+        const kind = d.ship ?? 'carrack', deckY = shipDeckY(kind, d.y, d.deck);
+        const c = Math.cos(d.ry ?? 0), sn = Math.sin(d.ry ?? 0), R = SHIPS[kind].len / 2 + 1;
+        for (let x = Math.floor(d.x - R); x <= Math.ceil(d.x + R); x++) for (let z = Math.floor(d.z - R); z <= Math.ceil(d.z + R); z++) {
+          const dx = x + 0.5 - d.x, dz = z + 0.5 - d.z, lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+          const half = hullHalf(kind, lx);
+          if (half < 0 || Math.abs(lz) > half - 0.15) continue;
+          for (let y = Math.max(SEA, deckY - 5); y < deckY; y++) {
+            const id = block(x, y, z);
+            if ((id === undefined && y >= heightAt(x, z)) || id === B.Air) O.set(x, y, z, B.Barrier);
+          }
+        }
+        break;
+      }
       case 'furn': {
         const it = d.item as FurnItem | undefined;
         if (!it || !(it in FURN_SIZE) || it === 'rug' || it === 'lamp' || it === 'candles' || it === 'hearth') break;
@@ -7229,7 +7314,7 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
     for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
     for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint, altar: f.altar });
     const leaf = openDoorPlace(shape);
-    s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true, doorKind, color: doorPaint });
+    s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true, doorKind, color: doorPaint, role: opts.role ?? 'home' });
   }
   // The porch lantern goes on whichever side of the door has bare wall, never over a window
   const glazed = new Set(fronts.filter(([, , f]) => f === 0).map(([x, z]) => x + ',' + z));

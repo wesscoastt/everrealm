@@ -5,6 +5,7 @@ import type { Appearance, HeldItem } from '../entities/humanoid';
 import { ARMOUR_SMITHING } from './armour';
 import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
+import { CROPS, FARM_RECIPES } from './farming';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
 import { killsForLevel, killXp, SKILL_PACE } from './pacing';
@@ -18,6 +19,7 @@ export const SKILLS: { id: SkillId; name: string; color: string; icon: string }[
   { id: 'fishing', name: 'Fishing', color: '#4fa8d8', icon: 'fish' },
   { id: 'cooking', name: 'Cooking', color: '#e0a040', icon: 'cooked' },
   { id: 'woodcutting', name: 'Woodcutting', color: '#6aa13a', icon: 'hatchet' },
+  { id: 'farming', name: 'Farming', color: '#a8b83a', icon: 'bread' },
 ];
 
 export const MAX_LEVEL = 100;
@@ -100,6 +102,8 @@ export const UNLOCKS: Record<SkillId, { level: number; text: string }[]> = {
     { level: 7, text: 'Pine' },
     { level: 20, text: 'Elder oak (Hagworm Wood)' },
   ],
+  // (from data/farming.ts: every crop, at the level it can be planted)
+  farming: CROPS.map((c) => ({ level: c.level, text: c.patch === 'orchard' ? `${c.name} (an orchard patch)` : c.name })),
 };
 
 // ------------------------------------------------------------- Gathering
@@ -190,6 +194,8 @@ export const RECIPES: Recipe[] = [
   { id: 'bronze_sword', station: 'anvil', skill: 'smithing', level: 4, xp: 45, inputs: { bronze_bar: 2 }, output: 'bronze_sword', count: 1, time: 3.0 },
   { id: 'bronze_helm', station: 'anvil', skill: 'smithing', level: 6, xp: 60, inputs: { bronze_bar: 3 }, output: 'bronze_helm', count: 1, time: 3.2 },
   // Armour at the anvil: bronze and iron, chest, legs, hands and feet (data/armour.ts)
+  // The hearth's dishes from a patch's produce (data/farming.ts)
+  ...FARM_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   ...WEAPON_SMITHING.map((w): Recipe => ({ id: w.id, station: 'anvil', skill: 'smithing', level: w.level, xp: 30 + w.bars * 22, inputs: { [w.bar]: w.bars }, output: w.id, count: 1, time: 2.4 + w.bars * 0.4 })),
   ...ARMOUR_SMITHING.flatMap(([line, bar, n, lvl]) => (['chest', 'legs', 'hands', 'feet'] as const).map((slot, k): Recipe => ({ id: `${line}_${slot}`, station: 'anvil', skill: 'smithing', level: lvl + [2, 1, 0, 0][k], xp: 30 + n[k] * 22, inputs: { [bar]: n[k] }, output: `${line}_${slot}`, count: 1, time: 2.4 + n[k] * 0.4 }))),
   { id: 'iron_bar', station: 'furnace', skill: 'smithing', level: 15, xp: 50, inputs: { iron_ore: 2 }, output: 'iron_bar', count: 1, time: 2.2 },
@@ -286,7 +292,9 @@ export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'road
   // Kingsbarrow, the old king's halls (group dungeon)
   | 'dg_digger' | 'dg_barrowdead' | 'dg_wight' | 'dg_venn' | 'dg_barrowwarden' | 'dg_oldking'
   // Morrow, region by region (world/morrow.ts)
-  | 'mangrovecrab' | 'keylizard' | 'reefjelly' | 'keywrecker' | 'gladelizard' | 'glim' | 'marshmoth' | 'lampmoth' | 'amberlynx' | 'leafback' | 'terracejackal' | 'quarrybeetle' | 'blackrunner' | 'slabcrawler' | 'liftmoth' | 'riftwolf' | 'basilisk' | 'glassback' | 'saltreaver' | 'wastehound' | 'risen' | 'fendamp' | 'barrowwight' | 'felltroll';
+  | 'mangrovecrab' | 'keylizard' | 'reefjelly' | 'keywrecker' | 'gladelizard' | 'glim' | 'marshmoth' | 'lampmoth' | 'amberlynx' | 'leafback' | 'terracejackal' | 'quarrybeetle' | 'blackrunner' | 'slabcrawler' | 'liftmoth' | 'riftwolf' | 'basilisk' | 'glassback' | 'saltreaver' | 'wastehound' | 'risen' | 'fendamp' | 'barrowwight' | 'felltroll'
+  // The wilds' bears, great spiders, bats, woken cairns, adders and drakes, a kind or two to each country
+  | 'heathadder' | 'brownbear' | 'weaver' | 'cavebat' | 'cliffbat' | 'fenadder' | 'raftspider' | 'redadder' | 'slagcairn' | 'greyweaver' | 'whitebear' | 'rimecairn' | 'torcairn' | 'ashbat' | 'mangrovesnake' | 'gladespider' | 'amberbear' | 'quarrybat' | 'riftcairn' | 'flatsdrake' | 'barrowspider' | 'cavebear';
 
 export interface EnemyDef {
   type: EnemyType;
@@ -498,32 +506,55 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   fendamp: { type: 'fendamp', model: 'jelly', palette: { a: '#8a908a', b: '#3a3e3a' }, scale: 1.3, level: 84, hp: 2000, damage: 70, xp: 1060, marks: [17, 30], name: 'Fen-damp', speed: 2.4, aggro: 9, leash: 24, attack: 'slam', windup: 0.85, range: 3, cooldown: 2.2, loot: [{ item: 'jelly_residue', chance: 0.8 }], respawn: 120 },
   barrowwight: { type: 'barrowwight', model: 'bandit', look: { skin: '#c0c8c8', eyes: '#9fe8ff', tunic: '#2a2a30', trim: '#b8a878', trousers: '#22222a', boots: '#1a1a1e', cape: '#1e1e24', hat: 'circlet', hatColor: '#b8a878', age: 0.95, build: 1.0, height: 1.06 }, held: 'sword', level: 95, hp: 2950, damage: 89, xp: 1465, marks: [18, 32], name: 'Barrow-wight', speed: 4.6, aggro: 14, leash: 30, attack: 'lunge', windup: 0.55, range: 2.9, cooldown: 1.5, loot: [{ item: 'grave_iron', chance: 0.6 }], respawn: 120 },
   felltroll: { type: 'felltroll', model: 'bandit', look: { skin: '#7a8a8a', hair: '#3a4040', hairStyle: 3, facial: 8, eyes: '#e8c040', tunic: '#4a4038', trim: '#6a5a48', trousers: '#3a3430', boots: '#2a2420', build: 1.5, height: 1.05 }, held: 'none', scale: 1.9, level: 96, hp: 6000, damage: 108, xp: 2420, marks: [18, 32], name: 'Fell troll', speed: 4.2, aggro: 13, leash: 26, attack: 'slam', windup: 0.9, range: 3.8, cooldown: 2.0, loot: [{ item: 'troll_hide', chance: 0.7 }, { item: 'grave_iron', chance: 0.2 }], respawn: 240 },
+  // The wilds' heavier and stranger kinds (entities/voxcreatures.ts): one or two to each country, in its level
+  heathadder: { type: 'heathadder', model: 'adder', palette: { a: '#8a7a4a', b: '#2a2218', c: '#d8c890' }, scale: 0.7, name: 'Heath adder', level: 5, hp: 80, damage: 10, speed: 3.6, aggro: 8, leash: 24, attack: 'lunge', windup: 0.6, range: 2.6, cooldown: 1.8, xp: 48, loot: [{ item: 'adder_skin', chance: 0.5 }], marks: [1, 4], respawn: 100 },
+  brownbear: { type: 'brownbear', model: 'bear', name: 'Brown bear', level: 11, hp: 260, damage: 19, speed: 4.8, aggro: 9, leash: 28, attack: 'slam', windup: 0.85, range: 2.8, cooldown: 2.4, xp: 140, loot: [{ item: 'bear_pelt', chance: 0.6 }], marks: [3, 7], respawn: 130 },
+  weaver: { type: 'weaver', model: 'spider', palette: { a: '#2e3a22', b: '#a8b05a', c: '#c8d040' }, name: 'Bramble weaver', level: 13, hp: 190, damage: 19, speed: 5.4, aggro: 12, leash: 28, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 130, loot: [{ item: 'spider_silk', chance: 0.65 }, { item: 'moss_hood', chance: 0.02 }], marks: [4, 8], respawn: 110 },
+  cavebat: { type: 'cavebat', model: 'bat', palette: { a: '#4a3e36', b: '#2a2420', c: '#e8a030' }, name: 'Sea-cave bat', level: 14, hp: 170, damage: 18, speed: 5.8, aggro: 12, leash: 28, attack: 'lunge', windup: 0.45, range: 2.4, cooldown: 1.4, xp: 140, loot: [{ item: 'bat_wing', chance: 0.5 }], marks: [4, 8], respawn: 110 },
+  cliffbat: { type: 'cliffbat', model: 'bat', palette: { a: '#7a5a3a', b: '#3a2a1e', c: '#e8c060' }, scale: 0.8, name: 'Cliff bat', level: 11, hp: 140, damage: 15, speed: 5.8, aggro: 11, leash: 28, attack: 'lunge', windup: 0.45, range: 2.2, cooldown: 1.4, xp: 95, loot: [{ item: 'bat_wing', chance: 0.5 }], marks: [3, 6], respawn: 100 },
+  fenadder: { type: 'fenadder', model: 'adder', palette: { a: '#3a3a24', b: '#141410', c: '#8a8a5a' }, scale: 0.85, name: 'Fen adder', level: 16, hp: 240, damage: 22, speed: 4, aggro: 9, leash: 26, attack: 'lunge', windup: 0.55, range: 2.8, cooldown: 1.6, xp: 170, loot: [{ item: 'adder_skin', chance: 0.6 }], marks: [5, 9], respawn: 110 },
+  raftspider: { type: 'raftspider', model: 'spider', palette: { a: '#3a2a1a', b: '#e8d8a8', c: '#2a1a10' }, scale: 0.9, name: 'Raft spider', level: 17, hp: 270, damage: 23, speed: 5.4, aggro: 11, leash: 26, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 185, loot: [{ item: 'spider_silk', chance: 0.6 }], marks: [5, 10], respawn: 110 },
+  redadder: { type: 'redadder', model: 'adder', palette: { a: '#9a4a2a', b: '#3a1a10', c: '#e0b07a' }, scale: 0.9, name: 'Red adder', level: 19, hp: 300, damage: 26, speed: 4.2, aggro: 10, leash: 26, attack: 'lunge', windup: 0.5, range: 2.8, cooldown: 1.6, xp: 215, loot: [{ item: 'adder_skin', chance: 0.6 }, { item: 'harrow_cleaver', chance: 0.02 }], marks: [6, 11], respawn: 120 },
+  slagcairn: { type: 'slagcairn', model: 'golem', palette: { a: '#4a3a34', b: '#7a3a22', c: '#ff7a30' }, scale: 0.85, name: 'Slag cairn', level: 22, hp: 520, damage: 32, speed: 2.8, aggro: 8, leash: 22, attack: 'slam', windup: 1.0, range: 3.2, cooldown: 2.8, xp: 300, loot: [{ item: 'cairn_stone', chance: 0.4 }, { item: 'iron_ore', chance: 0.5, min: 1, max: 2 }], marks: [7, 13], respawn: 140 },
+  greyweaver: { type: 'greyweaver', model: 'spider', palette: { a: '#8a867c', b: '#d8d0c0', c: '#a8c8c0', glow: true }, name: 'Grey weaver', level: 23, hp: 320, damage: 28, speed: 5.4, aggro: 12, leash: 28, attack: 'lunge', windup: 0.5, range: 2.6, cooldown: 1.5, xp: 290, loot: [{ item: 'spider_silk', chance: 0.6 }, { item: 'grey_cap', chance: 0.15 }], marks: [6, 12], respawn: 130 },
+  whitebear: { type: 'whitebear', model: 'bear', palette: { a: '#ece8dc', b: '#cfc8b8', c: '#3a3430' }, scale: 1.2, name: 'White bear', level: 28, hp: 640, damage: 40, speed: 5, aggro: 10, leash: 30, attack: 'slam', windup: 0.85, range: 3, cooldown: 2.4, xp: 430, loot: [{ item: 'bear_pelt', chance: 0.7 }, { item: 'frost_pelt', chance: 0.3 }, { item: 'frost_cowl', chance: 0.03 }], marks: [11, 19], respawn: 150 },
+  rimecairn: { type: 'rimecairn', model: 'golem', palette: { a: '#a8b8c4', b: '#e8f0f4', c: '#9fe8ff' }, name: 'Rime cairn', level: 29, hp: 700, damage: 40, speed: 2.8, aggro: 8, leash: 22, attack: 'slam', windup: 1.0, range: 3.4, cooldown: 2.8, xp: 450, loot: [{ item: 'cairn_stone', chance: 0.5 }], marks: [11, 19], respawn: 150 },
+  torcairn: { type: 'torcairn', model: 'golem', palette: { a: '#6a6a66', b: '#5a7a3a', c: '#c8e88a' }, scale: 1.1, name: 'Tor cairn', level: 31, hp: 760, damage: 42, speed: 2.8, aggro: 8, leash: 22, attack: 'slam', windup: 1.0, range: 3.5, cooldown: 2.8, xp: 480, loot: [{ item: 'cairn_stone', chance: 0.5 }, { item: 'iron_ore', chance: 0.3 }], marks: [12, 20], respawn: 150 },
+  ashbat: { type: 'ashbat', model: 'bat', palette: { a: '#2a2422', b: '#3a1a12', c: '#ff7a30' }, scale: 1.15, name: 'Ash bat', level: 36, hp: 460, damage: 44, speed: 6, aggro: 13, leash: 30, attack: 'lunge', windup: 0.45, range: 2.6, cooldown: 1.4, xp: 410, loot: [{ item: 'bat_wing', chance: 0.5 }, { item: 'cinder_pelt', chance: 0.1 }], marks: [10, 18], respawn: 120 },
+  mangrovesnake: { type: 'mangrovesnake', model: 'adder', palette: { a: '#4a6a3a', b: '#e8d8a0', c: '#c8d0a0' }, level: 44, hp: 720, damage: 45, xp: 525, marks: [11, 20], name: 'Mangrove snake', speed: 4.4, aggro: 11, leash: 28, attack: 'lunge', windup: 0.5, range: 2.8, cooldown: 1.6, loot: [{ item: 'adder_skin', chance: 0.6 }, { item: 'lizard_hide', chance: 0.2 }], respawn: 120 },
+  gladespider: { type: 'gladespider', model: 'spider', palette: { a: '#1e2a1a', b: '#8af0a0', c: '#8af0a0', glow: true }, scale: 1.1, level: 50, hp: 900, damage: 50, xp: 600, marks: [12, 22], name: 'Glade spider', speed: 5.6, aggro: 12, leash: 28, attack: 'lunge', windup: 0.5, range: 2.8, cooldown: 1.5, loot: [{ item: 'spider_silk', chance: 0.7 }, { item: 'moth_dust', chance: 0.2 }], respawn: 120 },
+  amberbear: { type: 'amberbear', model: 'bear', palette: { a: '#b0703a', b: '#7a4622', c: '#e8c890' }, scale: 1.1, level: 56, hp: 1400, damage: 64, xp: 760, marks: [13, 23], name: 'Amber bear', speed: 5, aggro: 10, leash: 30, attack: 'slam', windup: 0.85, range: 3, cooldown: 2.4, loot: [{ item: 'bear_pelt', chance: 0.7 }], respawn: 140 },
+  quarrybat: { type: 'quarrybat', model: 'bat', palette: { a: '#8a7a64', b: '#4a3e30', c: '#f0c060' }, level: 59, hp: 900, damage: 60, xp: 690, marks: [14, 24], name: 'Quarry bat', speed: 6, aggro: 12, leash: 30, attack: 'lunge', windup: 0.45, range: 2.6, cooldown: 1.4, loot: [{ item: 'bat_wing', chance: 0.5 }], respawn: 120 },
+  riftcairn: { type: 'riftcairn', model: 'golem', palette: { a: '#5a6470', b: '#8a96a0', c: '#f0f4f4' }, scale: 1.15, level: 69, hp: 1900, damage: 74, xp: 980, marks: [15, 26], name: 'Rift cairn', speed: 2.8, aggro: 8, leash: 22, attack: 'slam', windup: 1.0, range: 3.6, cooldown: 2.8, loot: [{ item: 'cairn_stone', chance: 0.5 }, { item: 'white_chip', chance: 0.2 }], respawn: 150 },
+  flatsdrake: { type: 'flatsdrake', model: 'drake', palette: { a: '#8a5a3a', b: '#e0c08a', c: '#ff8a30' }, level: 77, hp: 2200, damage: 76, xp: 1200, marks: [16, 28], name: 'Flats drake', speed: 4.8, aggro: 13, leash: 30, attack: 'throw', blast: 2.0, shot: '#ff8a30', windup: 1.0, range: 12, cooldown: 2.6, loot: [{ item: 'drake_scale', chance: 0.6 }, { item: 'black_glass', chance: 0.2 }], respawn: 150 },
+  barrowspider: { type: 'barrowspider', model: 'spider', palette: { a: '#2a2a2e', b: '#b8b8a8', c: '#9fe8ff', glow: true }, scale: 1.25, level: 84, hp: 1700, damage: 82, xp: 1050, marks: [17, 30], name: 'Barrow spider', speed: 5.4, aggro: 13, leash: 30, attack: 'lunge', windup: 0.5, range: 3, cooldown: 1.5, loot: [{ item: 'spider_silk', chance: 0.7 }, { item: 'grave_iron', chance: 0.15 }], respawn: 130 },
+  cavebear: { type: 'cavebear', model: 'bear', palette: { a: '#4a3a30', b: '#2e241e', c: '#7a6a58' }, scale: 1.35, level: 94, hp: 3400, damage: 92, xp: 1500, marks: [18, 32], name: 'Cave bear', speed: 5, aggro: 11, leash: 30, attack: 'slam', windup: 0.85, range: 3.4, cooldown: 2.4, loot: [{ item: 'bear_pelt', chance: 1 }, { item: 'bear_pelt', chance: 0.4 }], respawn: 160 },
 };
 
 /** Which creatures turn up where in the streamed regions. */
 /** Which creatures turn up where in the streamed regions (sea: in deep water off that region's coast). */
 export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('deer' | 'rabbit' | 'sheep' | 'chicken')[]; sea: EnemyType[] }> = {
-  greenwake: { enemies: ['wolf'], animals: ['rabbit', 'deer'], sea: ['huss'] },
-  crownroad: { enemies: ['boar', 'roadwolf', 'boar'], animals: ['rabbit', 'sheep', 'deer'], sea: ['huss', 'huss', 'conger'] },
-  brambledeep: { enemies: ['thornwolf', 'sporejelly'], animals: ['deer', 'rabbit'], sea: ['conger', 'conger', 'thornray'] },
-  saltwind: { enemies: ['crab', 'brinejelly'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
-  redstone: { enemies: ['dustwolf', 'redback'], animals: ['rabbit'], sea: ['porbeagle', 'thornray', 'lionsmane'] },
-  starfall: { enemies: ['frostwolf', 'shardjelly'], animals: ['deer'], sea: ['blueshark', 'blueshark', 'porbeagle'] },
+  greenwake: { enemies: ['wolf', 'heathadder'], animals: ['rabbit', 'deer'], sea: ['huss'] },
+  crownroad: { enemies: ['boar', 'roadwolf', 'boar', 'brownbear'], animals: ['rabbit', 'sheep', 'deer'], sea: ['huss', 'huss', 'conger'] },
+  brambledeep: { enemies: ['thornwolf', 'sporejelly', 'weaver'], animals: ['deer', 'rabbit'], sea: ['conger', 'conger', 'thornray'] },
+  saltwind: { enemies: ['crab', 'brinejelly', 'cavebat'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
+  redstone: { enemies: ['dustwolf', 'redback', 'redadder', 'slagcairn'], animals: ['rabbit'], sea: ['porbeagle', 'thornray', 'lionsmane'] },
+  starfall: { enemies: ['frostwolf', 'shardjelly', 'whitebear', 'rimecairn'], animals: ['deer'], sea: ['blueshark', 'blueshark', 'porbeagle'] },
   // The outer lands
-  gannet: { enemies: ['clifffox', 'cragboar', 'clifffox'], animals: ['sheep', 'rabbit'], sea: ['huss', 'conger', 'conger'] },
-  wrath: { enemies: ['fenjelly', 'bogboar', 'fenjelly'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
-  tolmen: { enemies: ['moorwolf', 'graniteback', 'moorwolf'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
-  inkholm: { enemies: ['greyed', 'puffball', 'greyhog', 'greyed', 'gillcrab'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
-  kell: { enemies: ['cinderhound', 'ashcrawler', 'brassmite', 'cinderhound', 'ventjelly'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
+  gannet: { enemies: ['clifffox', 'cragboar', 'clifffox', 'cliffbat'], animals: ['sheep', 'rabbit'], sea: ['huss', 'conger', 'conger'] },
+  wrath: { enemies: ['fenjelly', 'bogboar', 'fenjelly', 'fenadder', 'raftspider'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
+  tolmen: { enemies: ['moorwolf', 'graniteback', 'moorwolf', 'torcairn'], animals: ['sheep', 'deer'], sea: ['blueshark', 'porbeagle'] },
+  inkholm: { enemies: ['greyed', 'puffball', 'greyhog', 'greyed', 'gillcrab', 'greyweaver'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
+  kell: { enemies: ['cinderhound', 'ashcrawler', 'brassmite', 'cinderhound', 'ventjelly', 'ashbat'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
   // Morrow
-  keys: { enemies: ['mangrovecrab', 'keylizard', 'reefjelly', 'keylizard', 'keywrecker'], animals: ['chicken'], sea: ['blueshark', 'thornray', 'lionsmane'] },
-  glades: { enemies: ['gladelizard', 'glim', 'marshmoth', 'glim'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
-  amberwold: { enemies: ['lampmoth', 'amberlynx', 'leafback', 'amberlynx'], animals: ['deer', 'rabbit'], sea: ['conger'] },
-  bright: { enemies: ['terracejackal', 'quarrybeetle', 'terracejackal', 'blackrunner'], animals: ['sheep', 'rabbit', 'chicken'], sea: ['huss', 'conger', 'porbeagle'] },
-  sunder: { enemies: ['slabcrawler', 'liftmoth', 'riftwolf', 'liftmoth'], animals: ['deer'], sea: ['porbeagle'] },
-  glassflats: { enemies: ['basilisk', 'glassback', 'saltreaver', 'glassback'], animals: ['rabbit'], sea: ['blueshark'] },
-  greywaste: { enemies: ['wastehound', 'risen', 'fendamp', 'risen'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
-  held: { enemies: ['barrowwight', 'risen', 'barrowwight', 'felltroll'], animals: ['deer'], sea: ['blueshark'] },
+  keys: { enemies: ['mangrovecrab', 'keylizard', 'reefjelly', 'keylizard', 'keywrecker', 'mangrovesnake'], animals: ['chicken'], sea: ['blueshark', 'thornray', 'lionsmane'] },
+  glades: { enemies: ['gladelizard', 'glim', 'marshmoth', 'glim', 'gladespider'], animals: ['rabbit'], sea: ['conger', 'thornray'] },
+  amberwold: { enemies: ['lampmoth', 'amberlynx', 'leafback', 'amberlynx', 'amberbear'], animals: ['deer', 'rabbit'], sea: ['conger'] },
+  bright: { enemies: ['terracejackal', 'quarrybeetle', 'terracejackal', 'blackrunner', 'quarrybat'], animals: ['sheep', 'rabbit', 'chicken'], sea: ['huss', 'conger', 'porbeagle'] },
+  sunder: { enemies: ['slabcrawler', 'liftmoth', 'riftwolf', 'liftmoth', 'riftcairn'], animals: ['deer'], sea: ['porbeagle'] },
+  glassflats: { enemies: ['basilisk', 'glassback', 'saltreaver', 'glassback', 'flatsdrake'], animals: ['rabbit'], sea: ['blueshark'] },
+  greywaste: { enemies: ['wastehound', 'risen', 'fendamp', 'risen', 'barrowspider'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
+  held: { enemies: ['barrowwight', 'risen', 'barrowwight', 'felltroll', 'cavebear'], animals: ['deer'], sea: ['blueshark'] },
 };
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [

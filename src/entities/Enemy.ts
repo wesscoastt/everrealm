@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { voiceOf, type Sfx } from '../systems/Audio';
 import { scaleDef } from '../data/scaling';
 import { EnemyDef } from '../data/gameplay';
-import { B, isSolid } from '../world/blocks';
+import { B, isSolid, isLeaves } from '../world/blocks';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { CreatureKind, CreatureModel, SWIM_KINDS } from './creatures';
 import { FoeModel } from './foes';
@@ -209,7 +209,8 @@ export class Enemy {
     for (const dy of [0, 1, -1, -2]) {
       const fy = Math.floor(y) + dy;
       const below = this.world.get(ix, fy - 1, iz);
-      if (isSolid(below) && !isSolid(this.world.get(ix, fy, iz)) && !isSolid(this.world.get(ix, fy + 1, iz))) {
+      // (never up onto leaves: a step onto a low bough, then the next, and a boar's up a tree)
+      if (isSolid(below) && !isLeaves(below) && !isSolid(this.world.get(ix, fy, iz)) && !isSolid(this.world.get(ix, fy + 1, iz))) {
         if (this.world.get(ix, fy, iz) === B.Water) return null;
         return fy;
       }
@@ -455,7 +456,7 @@ export class Enemy {
       if (fy !== null) { this.pos.x += kx; this.pos.z += kz; }
       this.knock.multiplyScalar(Math.exp(-dt * 8));
     }
-    const ground = this.world.groundBelow(this.pos.x, this.pos.y + 0.6, this.pos.z);
+    const ground = this.world.groundBelow(this.pos.x, this.pos.y + 0.6, this.pos.z, !this.swims);
     if (this.pos.y > ground + 0.01) {
       this.vy -= 25 * dt;
       this.pos.y = Math.max(ground, this.pos.y + this.vy * dt);

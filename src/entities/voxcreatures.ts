@@ -15,6 +15,8 @@ export interface VoxCreatureHost {
   head: THREE.Object3D | null;
   tail: THREE.Object3D | null;
   jaw: THREE.Object3D | null;
+  /** Wings, arms, or a snake's run of joints. */
+  segs: THREE.Object3D[];
   plateHeight: number;
 }
 export interface VoxCreaturePal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string }
@@ -98,6 +100,12 @@ export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreat
     case 'deer': deer(h, new Kit(key, 1 / 16)); return true;
     case 'shark': shark(h, new Kit(key + scale, 1 / 16), pal, scale); return true;
     case 'ray': ray(h, new Kit(key + scale, 1 / 16), pal, scale); return true;
+    case 'bear': bear(h, new Kit(key, 1 / 16), pal, scale); return true;
+    case 'spider': spider(h, new Kit(key, 1 / 18), pal, scale); return true;
+    case 'bat': bat(h, new Kit(key, 1 / 20), pal, scale); return true;
+    case 'golem': golem(h, new Kit(key, 1 / 14), pal, scale); return true;
+    case 'drake': drake(h, new Kit(key, 1 / 16), pal, scale); return true;
+    case 'adder': adder(h, new Kit(key, 1 / 18), pal, scale); return true;
   }
   return false;
 }
@@ -605,4 +613,298 @@ function ray(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): vo
     v.tri([0, 0.02, -0.98], [0, 0.02, -1.1], [0, 0.12, -1.06], 0.03, coat(Sp, 9));             // the sting
   });
   h.tail = tail;
+}
+
+/** A part that glows (a rune, a throat full of fire): a plain box with its own light, not cubes. */
+function glowBox(parent: THREE.Object3D, at: V3, size: V3, colour: string): void {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshLambertMaterial({ color: colour, emissive: new THREE.Color(colour).multiplyScalar(0.9) }));
+  m.position.set(...at);
+  m.userData.plain = true;
+  parent.add(m);
+}
+
+/**
+ * A bear: a heavy barrel of a body under a shoulder hump, a broad dished face with small round ears,
+ * thick legs on wide paws with pale claws. a = coat, b = the darker legs and hump, c = the muzzle.
+ */
+function bear(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 1.75 * scale;
+  const F = pal.a ?? '#6a4a2e', D = pal.b ?? '#46301c', M = pal.c ?? '#a8865e', claw = '#d8ccb0';
+  const pelt: Paint = (x, y, z, n) => (y < 0.62 ? shag(D)(x, y, z, n) : y > 1.2 ? shag(shade(F, 0.88))(x, y, z, n) : shag(F)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.94, -0.14], [0.42, 0.4, 0.7], pelt);                                       // the barrel
+    v.ellipsoid([0, 1.1, 0.3], [0.38, 0.36, 0.36], pelt);                                        // the shoulders
+    v.ellipsoid([0, 1.22, 0.26], [0.26, 0.2, 0.26], shag(D));                                    // the hump over them
+    v.ellipsoid([0, 0.88, 0.5], [0.33, 0.36, 0.24], pelt);                                       // the chest
+    v.ellipsoid([0, 0.98, -0.66], [0.36, 0.36, 0.26], pelt);                                     // the haunches
+  });
+  const head = joint(h.body, [0, 1.06, 0.78]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.04, 0], [0.25, 0.23, 0.23], shag(F));                                      // the skull, broad across
+    v.ellipsoid([0, 0, -0.08], [0.28, 0.24, 0.16], shag(F));                                     // the ruff at the cheeks
+    v.capsule([0, -0.02, 0.12], [0, -0.06, 0.34], 0.13, 0.1, coat(M, 9));                        // the muzzle
+    v.box([-0.055, -0.06, 0.4], [0.055, 0.01, 0.45], flat('#1a1210', 0.04));                     // the nose
+    for (const sd of [1, -1]) v.ellipsoid([sd * 0.17, 0.22, -0.04], [0.065, 0.07, 0.04], shag(D)); // round ears
+  });
+  eyes(head, 0.11, 0.1, 0.18, '#1a1008', 0.04, 0.5);
+  const jaw = joint(head, [0, -0.1, 0.1]);
+  k.part(jaw, [0, 0, 0], (v) => {
+    v.capsule([0, -0.02, 0], [0, -0.04, 0.22], 0.08, 0.06, coat(M, 9));
+    for (const sd of [1, -1]) v.cone([sd * 0.05, 0, 0.2], [sd * 0.05, 0.07, 0.21], 0.018, flat('#f0e8d8')); // the lower fangs
+  });
+  h.jaw = jaw;
+  h.head = head;
+  const tail = joint(h.body, [0, 1.0, -0.9]);
+  k.part(tail, [0, 0, 0], (v) => { v.ellipsoid([0, -0.02, -0.03], [0.07, 0.07, 0.06], shag(F)); });
+  h.tail = tail;
+  for (const [x, z] of [[0.26, 0.48], [-0.26, 0.48], [0.26, -0.6], [-0.26, -0.6]] as const) {
+    const leg = joint(h.body, [x, 0.66, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.12, 0], [0, -0.54, 0.02], 0.16, 0.13, shag(D));
+      v.ellipsoid([0, -0.6, 0.06], [0.14, 0.07, 0.17], shag(D));                                 // the paw
+      for (const cx of [-0.08, -0.027, 0.027, 0.08]) v.cone([cx, -0.62, 0.2], [cx, -0.66, 0.27], 0.02, flat(claw));
+    });
+    h.legs.push(leg);
+  }
+}
+
+/**
+ * A great spider: a domed head-and-chest with a cluster of eyes and two hooked fangs, a heavy abdomen
+ * behind with pale chevrons down its back, and eight long banded legs, each kneed up above the body and
+ * down to the ground. a = body, b = the chevrons and leg bands, c = the eyes (they shine, with glow).
+ */
+function spider(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 1.25 * scale;
+  const A = pal.a ?? '#3a2e24', Mk = pal.b ?? '#b8862a', E = pal.c ?? '#c83a2a';
+  const hairy: Paint = (_x, _y, _z, n) => shade(A, n < 0.2 ? 0.75 : 0.92 + n * 0.12);
+  // Chevrons pointing forward down the back of the abdomen
+  const abdomen: Paint = (x, y, z, n) => (y > 0.78 && (-z * 5 + Math.abs(x) * 3) % 1 < 0.24 ? shade(Mk, 0.9 + n * 0.15) : hairy(x, y, z, n));
+  const banded: Paint = (x, y, z, n) => ((Math.abs(x) * 6 + 10) % 1 < 0.2 ? shade(Mk, 0.85 + n * 0.12) : hairy(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.56, 0.2], [0.26, 0.19, 0.28], hairy);                                     // the head and chest
+    v.capsule([0, 0.58, -0.02], [0, 0.62, -0.12], 0.08, 0.08, hairy);                           // the waist
+    v.ellipsoid([0, 0.66, -0.4], [0.36, 0.32, 0.42], abdomen);                                  // the abdomen
+    v.cone([0, 0.6, -0.8], [0, 0.56, -0.88], 0.04, hairy);                                      // the spinnerets
+  });
+  const head = joint(h.body, [0, 0.58, 0.44]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.02, 0], [0.15, 0.12, 0.1], hairy);
+    for (const sd of [1, -1]) {
+      v.capsule([sd * 0.06, -0.04, 0.06], [sd * 0.06, -0.16, 0.12], 0.045, 0.035, hairy);       // the jaws
+      v.cone([sd * 0.06, -0.16, 0.12], [sd * 0.03, -0.25, 0.08], 0.025, flat('#1a1410'));        // the fangs, hooked in
+      v.capsule([sd * 0.1, -0.06, 0.06], [sd * 0.17, -0.14, 0.17], 0.025, 0.02, banded);         // the feelers
+    }
+  });
+  // Eight eyes: two great ones in front, six smaller round them
+  eyes(head, 0.045, 0.08, 0.09, E, 0.05, 0.2, !!pal.glow);
+  eyes(head, 0.1, 0.1, 0.06, E, 0.03, 0.6, !!pal.glow);
+  eyes(head, 0.06, 0.13, 0.05, E, 0.025, 0.3, !!pal.glow);
+  eyes(head, 0.11, 0.05, 0.03, E, 0.022, 0.9, !!pal.glow);
+  h.head = head;
+  const rows = [0.36, 0.25, 0.13, 0.0], reach = [0.62, 0.26, -0.2, -0.58];
+  for (let r = 0; r < 4; r++) for (const sd of [1, -1]) {
+    const leg = joint(h.body, [sd * 0.2, 0.56, rows[r]]);
+    k.part(leg, [0, 0, 0], (v) => {
+      const knee: V3 = [sd * 0.5, 0.36, reach[r] * 0.45], foot: V3 = [sd * 0.92, -0.56, reach[r]];
+      v.capsule([0, 0, 0], knee, 0.06, 0.05, banded);
+      v.capsule(knee, foot, 0.05, 0.025, banded);
+    });
+    h.legs.push(leg);
+  }
+}
+
+/**
+ * A great bat: a furred body and a big-eared, snub-nosed head, and two wings of skin stretched over the
+ * long finger bones, a hooked thumb at each wrist. a = fur, b = the wings, c = the eyes. It flies the
+ * way the moths do (CreatureModel.updateMoth): its wings are its segments.
+ */
+function bat(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 2.1 * scale;
+  const F = pal.a ?? '#4a3a30', W = pal.b ?? '#2e2420', E = pal.c ?? '#e8a030';
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, -0.02], [0.17, 0.16, 0.26], shag(F));
+    v.capsule([0, -0.04, -0.24], [0, -0.1, -0.4], 0.07, 0.03, shag(F));                          // the rump, tucked
+    for (const sd of [1, -1]) v.capsule([sd * 0.08, -0.12, -0.3], [sd * 0.1, -0.24, -0.4], 0.025, 0.015, flat(W)); // the feet, trailing
+  });
+  const head = joint(h.body, [0, 0.04, 0.24]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0.02], [0.12, 0.11, 0.11], shag(F));
+    v.capsule([0, -0.02, 0.08], [0, -0.04, 0.16], 0.06, 0.04, shag(shade(F, 0.85)));             // the snout
+    for (const sd of [1, -1]) {
+      v.tri([sd * 0.05, 0.08, 0], [sd * 0.14, 0.08, -0.02], [sd * 0.12, 0.3, -0.04], 0.03, flat(W)); // tall ears
+      v.cone([sd * 0.025, -0.08, 0.15], [sd * 0.025, -0.13, 0.15], 0.012, flat('#f0e8d8'));        // fangs
+    }
+  });
+  eyes(head, 0.06, 0.03, 0.1, E, 0.035, 0.4, true);
+  h.head = head;
+  for (const sd of [1, -1]) {
+    const w = joint(h.body, [sd * 0.12, 0.04, 0.04]);
+    w.userData.sd = sd;
+    w.userData.hind = 0;
+    k.part(w, [0, 0, 0], (v) => {
+      // The arm out to the wrist, the long fingers fanned from it, and the skin between them and down to the flank
+      const wrist: V3 = [sd * 0.42, 0.06, 0.08];
+      const tips: V3[] = [[sd * 0.95, 0, 0.18], [sd * 0.98, -0.02, -0.12], [sd * 0.8, -0.04, -0.38], [sd * 0.45, -0.04, -0.42]];
+      v.capsule([0, 0, 0], wrist, 0.035, 0.025, flat(F));
+      for (const t of tips) v.capsule(wrist, t, 0.016, 0.01, flat(shade(W, 0.8)));
+      for (let i = 0; i < tips.length - 1; i++) v.tri(wrist, tips[i], tips[i + 1], 0.03, flat(W, 0.12));
+      v.tri([0, 0, 0], wrist, tips[3], 0.03, flat(W, 0.12));
+      v.tri([0, 0, 0], tips[3], [sd * 0.06, -0.06, -0.3], 0.03, flat(W, 0.12));
+      v.cone(wrist, [sd * 0.46, 0.12, 0.14], 0.02, flat('#d8ccb8'));                             // the thumb's hook
+    });
+    h.segs.push(w);
+  }
+}
+
+/**
+ * A cairn woken: boulders stacked into a body, shoulders and a head, held together by moss and old
+ * roots, with rune-light burning in a crack in its chest and in its eyes. It walks on two pillars of
+ * stone and fights with its fists (its arms are its segments). a = the stone, b = the moss, c = the light.
+ */
+function golem(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 2.9 * scale;
+  const S = pal.a ?? '#7a7a74', Ms = pal.b ?? '#4a6a2e', R = pal.c ?? '#7fd8f0';
+  // Stone in courses, as a dry-stone wall is; moss in patches on the upper stones
+  const stone: Paint = (x, y, _z, n) => shade(S, 0.82 + n * 0.22 - ((Math.floor(y * 9 + Math.abs(x) * 3) & 1) ? 0.05 : 0));
+  const mossy: Paint = (x, y, z, n) => (n < 0.3 ? shade(Ms, 0.8 + n * 0.6) : stone(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 1.1, 0], [0.36, 0.2, 0.26], stone);                                         // the hips
+    v.ellipsoid([0, 1.38, 0], [0.42, 0.3, 0.3], stone);                                         // the belly stone
+    v.ellipsoid([0, 1.84, 0.02], [0.6, 0.36, 0.38], stone);                                     // the chest, one great slab
+    v.ellipsoid([0, 2.04, -0.06], [0.44, 0.2, 0.3], mossy);                                     // moss across the shoulders
+    v.carve((x, y, z) => z > 0.28 && Math.abs(x) < 0.07 && y > 1.66 && y < 1.98);               // the crack the light shows through
+  });
+  glowBox(h.body, [0, 1.82, 0.32], [0.12, 0.3, 0.1], R);
+  const head = joint(h.body, [0, 2.14, 0.12]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.14, 0], [0.22, 0.18, 0.2], mossy);
+    v.box([-0.2, 0.2, 0.1], [0.2, 0.27, 0.2], stone);                                           // the brow, overhanging
+  });
+  eyes(head, 0.08, 0.12, 0.19, R, 0.06, 0.1, true);
+  h.head = head;
+  for (const sd of [1, -1]) {
+    const arm = joint(h.body, [sd * 0.62, 1.94, 0.02]);
+    k.part(arm, [0, 0, 0], (v) => {
+      v.ellipsoid([sd * 0.04, 0.04, 0], [0.24, 0.22, 0.24], mossy);                             // the shoulder
+      v.capsule([sd * 0.08, -0.1, 0], [sd * 0.12, -0.62, 0.04], 0.17, 0.15, stone);
+      v.capsule([sd * 0.12, -0.66, 0.04], [sd * 0.12, -1.0, 0.08], 0.15, 0.14, stone);
+      v.ellipsoid([sd * 0.12, -1.16, 0.08], [0.22, 0.22, 0.24], mossy);                         // the fist
+    });
+    h.segs.push(arm);
+  }
+  for (const sd of [1, -1]) {
+    const leg = joint(h.body, [sd * 0.24, 1.0, 0]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0, 0], [0, -0.66, 0.02], 0.2, 0.18, stone);
+      v.box([-0.2, -1.0, -0.18], [0.2, -0.72, 0.26], mossy);                                    // the foot, a block
+    });
+    h.legs.push(leg);
+  }
+}
+
+/**
+ * A drake: a small dragon the size of a pony, on four clawed legs, with a long neck and a horned head, a
+ * ridge of spines down its back and a spade at the tip of its tail, and leathery wings folded along its
+ * sides that it opens as it rears to spit fire (the wings are its segments). a = scales, b = belly and
+ * wing skin, c = the fire in its throat.
+ */
+function drake(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 2.0 * scale;
+  const Sc = pal.a ?? '#6a2a1e', Bl = pal.b ?? '#c89a5a', Fi = pal.c ?? '#ff8a30', spine = shade(Sc, 0.7);
+  const scales: Paint = (_x, y, z, n) => { const row = Math.floor(z * 14 + (Math.floor(y * 14) & 1) * 0.5); return shade(Sc, 0.86 + (((row * 7) % 5) + 5) % 5 / 30 + n * 0.08); };
+  const belly: Paint = (x, y, z, n) => (y < 0.84 ? shade(Bl, 0.9 + ((Math.floor(z * 12) & 1) ? 0.06 : 0) + n * 0.05) : scales(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.capsule([0, 0.98, 0.34], [0, 1.0, -0.5], 0.32, 0.26, belly);                              // the body
+    v.capsule([0, 1.08, 0.42], [0, 1.5, 0.72], 0.18, 0.13, belly);                              // the neck, raised
+    for (let z = -0.5; z <= 0.36; z += 0.1) v.cone([0, 1.22, z], [0, 1.38, z - 0.06], 0.04, flat(spine));
+    for (let t = 0.2; t <= 0.8; t += 0.2) v.cone([0, 1.2 + t * 0.4, 0.42 + t * 0.3], [0, 1.32 + t * 0.4, 0.38 + t * 0.3], 0.03, flat(spine));
+  });
+  const head = joint(h.body, [0, 1.56, 0.78]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.capsule([0, 0.02, -0.04], [0, -0.02, 0.3], 0.14, 0.09, scales);                           // the skull and snout
+    for (const sd of [1, -1]) {
+      v.cone([sd * 0.08, 0.1, -0.04], [sd * 0.16, 0.2, -0.32], 0.035, flat('#d8ccb0'));          // horns, swept back
+      v.cone([sd * 0.1, 0, 0.06], [sd * 0.2, 0.04, -0.02], 0.025, flat(spine));                  // the frills at its cheeks
+    }
+  });
+  eyes(head, 0.09, 0.06, 0.14, '#f0c030', 0.035, 0.5, true);
+  const jaw = joint(head, [0, -0.08, 0.02]);
+  k.part(jaw, [0, 0, 0], (v) => {
+    v.capsule([0, -0.02, 0], [0, -0.03, 0.28], 0.07, 0.05, belly);
+    for (const sd of [1, -1]) for (const z of [0.12, 0.19, 0.25]) v.cone([sd * 0.045, 0, z], [sd * 0.045, 0.05, z], 0.012, flat('#f0e8d8'));
+  });
+  glowBox(jaw, [0, 0.01, 0.14], [0.07, 0.03, 0.16], Fi);
+  h.jaw = jaw;
+  h.head = head;
+  const tail = joint(h.body, [0, 0.98, -0.72]);
+  k.part(tail, [0, 0, 0], (v) => {
+    v.capsule([0, 0, 0], [0, -0.3, -0.7], 0.16, 0.08, scales);
+    v.capsule([0, -0.3, -0.7], [0, -0.5, -1.2], 0.08, 0.03, scales);
+    v.tri([0, -0.48, -1.12], [0.14, -0.52, -1.3], [-0.14, -0.52, -1.3], 0.03, flat(spine));     // the spade
+  });
+  h.tail = tail;
+  for (const sd of [1, -1]) {
+    const w = joint(h.body, [sd * 0.24, 1.18, 0.24]);
+    w.userData.sd = sd;
+    k.part(w, [0, 0, 0], (v) => {
+      const wrist: V3 = [sd * 0.5, 0.25, 0];
+      const tips: V3[] = [[sd * 1.15, 0.1, -0.1], [sd * 1.1, -0.1, -0.45], [sd * 0.75, -0.2, -0.65]];
+      v.capsule([0, 0, 0], wrist, 0.06, 0.04, scales);
+      for (const t of tips) v.capsule(wrist, t, 0.025, 0.012, flat(spine));
+      for (let i = 0; i < tips.length - 1; i++) v.tri(wrist, tips[i], tips[i + 1], 0.03, flat(Bl, 0.14));
+      v.tri([0, 0, 0], wrist, tips[2], 0.03, flat(Bl, 0.14));
+      v.tri([0, 0, 0], tips[2], [sd * 0.05, -0.1, -0.5], 0.03, flat(Bl, 0.14));
+      v.cone(wrist, [sd * 0.54, 0.38, 0.06], 0.03, flat('#d8ccb0'));                             // the claw at the wrist
+    });
+    h.segs.push(w);
+  }
+  for (const [x, z] of [[0.26, 0.34], [-0.26, 0.34], [0.26, -0.42], [-0.26, -0.42]] as const) {
+    const leg = joint(h.body, [x, 0.62, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.12, 0], [0, -0.28, -0.06], 0.13, 0.09, scales);                           // the thigh
+      v.capsule([0, -0.28, -0.06], [0, -0.58, 0.04], 0.08, 0.07, scales);
+      for (const cx of [-0.06, 0, 0.06]) v.cone([cx, -0.6, 0.06], [cx, -0.64, 0.18], 0.025, flat('#2a2018'));
+    });
+    h.legs.push(leg);
+  }
+}
+
+/**
+ * A great adder: long and heavy, marked with a dark zigzag down its back over a pale belly, with a broad
+ * head and a forked tongue. Its body is a chain of joints, each hung on the one before, so the lizard's
+ * wave (CreatureModel) runs down it as an S. It rears its head to strike. a = scales, b = zigzag, c = belly.
+ */
+function adder(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+  h.body.scale.setScalar(scale);
+  h.plateHeight = 0.9 * scale;
+  const Sc = pal.a ?? '#8a7a4a', Zz = pal.b ?? '#2a2218', Bl = pal.c ?? '#d8c890';
+  const skin = (r: number): Paint => (x, y, z, n) => {
+    if (y < -r * 0.45) return shade(Bl, 0.92 + n * 0.08);
+    if (y > r * 0.3 && Math.abs(x - Math.sin(z * 18) * r * 0.45) < r * 0.28) return shade(Zz, 0.9 + n * 0.1);
+    return shade(Sc, 0.88 + n * 0.14);
+  };
+  const R = [0.11, 0.13, 0.14, 0.14, 0.13, 0.11, 0.09, 0.07, 0.05, 0.035], L = 0.26;
+  let parent: THREE.Object3D = h.body, at: V3 = [0, 0.14, 0.5];
+  for (let i = 0; i < R.length; i++) {
+    const seg = joint(parent, at);
+    const r = R[i], r2 = R[i + 1] ?? 0.02;
+    k.part(seg, [0, 0, 0], (v) => { v.capsule([0, 0, 0], [0, 0, -L], r, r2, skin(r)); });
+    h.segs.push(seg);
+    parent = seg;
+    at = [0, 0, -L];
+  }
+  const head = joint(h.body, [0, 0.16, 0.56]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0.06], [0.12, 0.07, 0.14], skin(0.12));
+    v.box([-0.05, 0.05, 0.0], [0.05, 0.08, 0.12], flat(Zz));                                    // the dark crown
+    v.capsule([0, -0.02, 0.2], [0, -0.02, 0.3], 0.012, 0.008, flat('#c82a3a'));                // the tongue
+    for (const sd of [1, -1]) v.capsule([0, -0.02, 0.3], [sd * 0.03, -0.02, 0.35], 0.008, 0.006, flat('#c82a3a'));
+  });
+  eyes(head, 0.08, 0.03, 0.12, '#c8a020', 0.03, 0.6);
+  h.head = head;
 }

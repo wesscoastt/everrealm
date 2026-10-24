@@ -9,6 +9,8 @@ export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'r
   | 'shark' | 'eel' | 'ray' | 'medusa'
   /** Morrow's: a lizard, low and long-tailed; a moth the size of a dog, that flies. */
   | 'lizard' | 'moth'
+  /** The wilds' heavier and stranger kinds: bears, great spiders, bats, woken cairns, drakes, adders (entities/voxcreatures.ts). */
+  | 'bear' | 'spider' | 'bat' | 'golem' | 'drake' | 'adder'
   /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
   | 'bandit';
 
@@ -177,6 +179,9 @@ function add(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Mater
 const REIN_GEO = new THREE.BoxGeometry(1 / 16, 1 / 32, 1);
 const REIN_MAT = new THREE.MeshLambertMaterial({ color: '#4a2a16' });
 const reinA = new THREE.Vector3(), reinB = new THREE.Vector3(), reinC = new THREE.Vector3();
+
+/** Body plans whose size the model's scale sets (the rest are one size, or size themselves). */
+const SCALED: ReadonlySet<CreatureKind> = new Set(['jelly', 'rustback', 'lizard', 'moth', 'bear', 'spider', 'bat', 'golem', 'drake', 'adder']);
 
 export class CreatureModel {
   readonly root = new THREE.Group();
@@ -1138,7 +1143,7 @@ export class CreatureModel {
     const sw = Math.sin(this.phase);
     this.body.position.set(0, 0, 0);
     this.body.rotation.set(0, 0, 0);
-    if (this.kind !== 'notch' && this.kind !== 'wolf' && this.kind !== 'boar') this.body.scale.setScalar(this.kind === 'jelly' || this.kind === 'rustback' || this.kind === 'lizard' || this.kind === 'moth' ? this.extraScale : 1);
+    if (this.kind !== 'notch' && this.kind !== 'wolf' && this.kind !== 'boar') this.body.scale.setScalar(SCALED.has(this.kind) ? this.extraScale : 1);
 
     this.updateFlash(dt);
 
@@ -1165,14 +1170,15 @@ export class CreatureModel {
       return;
     }
 
-    if (this.kind === 'moth') { this.updateMoth(t); return; }
+    if (this.kind === 'moth' || this.kind === 'bat') { this.updateMoth(t); return; }
 
     if (this.kind === 'duck' && this.anim !== 'swim') for (const l of this.legs) l.visible = true;
     const legAmp = this.anim === 'run' ? 0.8 : this.anim === 'walk' ? 0.45 : 0;
     this.legs.forEach((leg, i) => {
-      const off = this.kind === 'rustback' ? (i % 2) * Math.PI : i === 0 || i === 3 ? 0 : Math.PI;
-      leg.rotation.x = Math.sin(this.phase + off) * legAmp;
-      if (this.kind === 'rustback') leg.rotation.y = Math.sin(this.phase + off) * legAmp * 0.6;
+      // (a spider's legs go in two sets of four, each side's first and third with the other side's second and fourth)
+      const off = this.kind === 'spider' ? ((i + (i >> 1)) % 2) * Math.PI : this.kind === 'rustback' ? (i % 2) * Math.PI : i === 0 || i === 3 ? 0 : Math.PI;
+      leg.rotation.x = Math.sin(this.phase + off) * legAmp * (this.kind === 'golem' ? 0.6 : 1);
+      if (this.kind === 'rustback' || this.kind === 'spider') leg.rotation.y = Math.sin(this.phase + off) * legAmp * 0.6;
     });
     if (this.anim === 'walk' || this.anim === 'run') this.body.position.y = Math.abs(Math.cos(this.phase)) * (this.kind === 'rabbit' ? 0.18 : this.kind === 'horse' && this.anim === 'run' ? 0.1 : 0.04);
     // A gallop rocks the horse fore and aft, front legs paired against the hind
@@ -1180,7 +1186,7 @@ export class CreatureModel {
       this.body.rotation.x = Math.sin(this.phase) * 0.07;
       this.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(this.phase + (i < 2 ? 0 : 2.2) + (i % 2) * 0.35) * 0.75; });
     }
-    if (this.kind === 'lizard') {
+    if (this.kind === 'lizard' || this.kind === 'adder') {
       // A lizard walks with its whole body: the trunk sways, and the tail swings behind in a wave
       const walking = legAmp > 0;
       this.body.rotation.y = walking ? Math.sin(this.phase) * 0.1 : 0;
@@ -1241,6 +1247,31 @@ export class CreatureModel {
         this.body.position.y = 0.1 * k;
         break;
       }
+    }
+    this.limbs(t, legAmp);
+  }
+
+  /** What the newer body plans do with their arms, wings and heads over the common walk. */
+  private limbs(t: number, legAmp: number): void {
+    const k = this.anim === 'windup' ? Math.min(1, t / 0.5) : 0;
+    const a = this.anim === 'attack' ? Math.min(1, t / 0.25) : 0;
+    if (this.kind === 'golem') {
+      // Arms swing against the legs; both fists go up over its head and come down together
+      this.segs.forEach((arm, i) => {
+        const swing = Math.sin(this.phase + (i === 0 ? Math.PI : 0)) * legAmp * 0.6;
+        arm.rotation.set(this.anim === 'windup' ? -2.5 * k : this.anim === 'attack' ? -2.5 + 2.8 * a : this.anim === 'dead' ? 0 : swing, 0, 0);
+      });
+    } else if (this.kind === 'drake') {
+      // Folded back along its sides; opened and beating as it rears to spit
+      const open = this.anim === 'windup' ? k : this.anim === 'attack' ? 1 - 0.5 * Math.min(1, t / 0.6) : 0;
+      const beat = open > 0.5 ? Math.sin(performance.now() * 0.02) * 0.3 * open : 0;
+      for (const w of this.segs) { const sd = w.userData.sd as number; w.rotation.set(0, sd * (1.25 - 1.05 * open), sd * (-0.15 + 0.55 * open + beat)); }
+      if (this.anim === 'windup') { this.body.rotation.x = -0.25 * k; this.body.position.y = 0.1 * k; }
+    } else if (this.kind === 'adder' && this.head) {
+      // Up off the ground, drawn back, then the strike
+      const up = this.anim === 'windup' ? k : this.anim === 'attack' ? 1 - a : 0;
+      this.head.position.set(0, 0.16 + 0.42 * up, 0.56 - 0.12 * up + (this.anim === 'attack' ? 0.5 * Math.sin(a * Math.PI) : 0));
+      this.head.rotation.x = 0.35 * up;
     }
   }
 }
