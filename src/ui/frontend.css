@@ -302,6 +302,17 @@
 .fe-home .st-tabs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
 .fe-home .st-tab { padding: 5px 12px; border-radius: 999px; background: rgba(10, 14, 28, 0.6); border: 1px solid rgba(232, 192, 80, 0.3); color: var(--cream); font: 600 13px var(--body); cursor: pointer; }
 .fe-home .st-tab.on { background: rgba(232, 192, 80, 0.22); border-color: var(--gold); color: #fff4d0; }
+.fe-home .st-tab span { opacity: 0.65; font-weight: 500; margin-left: 2px; }
+/* Search, sort and the owned filter */
+.fe-home .st-tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.fe-home .st-find { flex: 1 1 200px; min-width: 0; padding: 7px 11px; border-radius: 8px; background: rgba(10, 14, 28, 0.7); border: 1px solid rgba(232, 192, 80, 0.3); color: #fff4d0; font: 500 14px var(--body); }
+.fe-home .st-find:focus { outline: none; border-color: var(--gold); }
+.fe-home .st-sort, .fe-home .st-hide { display: flex; align-items: center; gap: 6px; font: 600 13px var(--body); color: #d8d0b8; cursor: pointer; }
+.fe-home .st-sort select { padding: 6px 8px; border-radius: 8px; background: rgba(10, 14, 28, 0.7); border: 1px solid rgba(232, 192, 80, 0.3); color: #fff4d0; font: 500 13px var(--body); cursor: pointer; }
+.fe-home .st-hide input { accent-color: var(--gold); }
+.fe-home .st-card[hidden], .fe-home .st-none[hidden] { display: none; }
+.fe-home .st-none { grid-column: 1 / -1; font: 500 14px var(--body); color: #c8c2d4; }
+.fe-home .st-card .st-own { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: rgba(95, 191, 106, 0.2); border: 1px solid rgba(95, 191, 106, 0.6); color: #c8f0c8; font: 600 12px var(--body); }
 .fe-home .st-card .st-view { width: 100%; aspect-ratio: 300 / 190; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.6); background: #1e2738; display: block; }
 .fe-home .st-card .st-kind { font: 500 12.5px var(--body); color: #b8b0a0; }
 .fe-home .st-card li i { font-style: normal; color: #b8b0a0; margin-right: 4px; }

@@ -9,7 +9,7 @@ import { callingCard } from './callingCard';
 import { drawFace } from './skin';
 import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
-import { currentAccount, isDevAccount, storeCatalog, storeCheckout, storeClaim, type StoreItem } from '../net/Account';
+import { currentAccount, isDevAccount, storeCatalog, storeCheckout, storeClaim, storeOwned, type StoreItem } from '../net/Account';
 import { ITEMS } from '../data/items';
 
 // The screens around the game: character select (the main menu), the character creator, and the
@@ -70,6 +70,7 @@ export interface FrontCtx {
   skipIntro(): void;
 }
 
+type StoreSort = 'featured' | 'low' | 'high' | 'new' | 'name';
 type HomeTab = 'start' | 'world' | 'callings' | 'homes' | 'together' | 'new' | 'store';
 const HOME_TABS: [HomeTab, string][] = [['world', 'The World'], ['callings', 'Callings'], ['homes', 'Homes'], ['together', 'Together'], ['new', 'What\'s new'], ['store', 'Store']];
 /** The front page's words: a short pitch, then a page for each part of the game. */
@@ -245,6 +246,10 @@ export class Frontend {
   /** The store's goods from the realm, each with what's in it, its price and the way to buy. */
   /** The store's section on show, and its windows. */
   private storeCat = 'all';
+  /** How the goods are ordered, what's typed in the search, and whether what you own is left out. */
+  private storeSort: StoreSort = 'featured';
+  private storeFind = '';
+  private storeHideOwned = false;
   private showcase: StoreShowcase | null = null;
   private async fillStore(): Promise<void> {
     const box = this.root.querySelector('#hm-store');
@@ -255,18 +260,68 @@ export class Frontend {
     const signed = !!currentAccount();
     const view = (it: StoreItem) => `<canvas class="st-view" data-view="${esc(it.items.join(','))}"></canvas>`;
     const kind = (id: string) => (ITEMS[id]?.mount ? 'Mount' : ITEMS[id]?.pet ? 'Pet' : ITEMS[id]?.capeDesign ? 'Cloak' : 'Item');
-    const card = (it: StoreItem) => it.price === 0 ? `<div class="st-card st-free" data-cat="${esc(it.cat ?? '')}">${view(it)}<div class="st-h"><b>${esc(it.name)}</b><span class="st-price">Free</span></div>
+    const owned = new Set((signed ? await storeOwned() : null) ?? []);
+    if (this.homeTab !== 'store' || !box.isConnected) return;
+    const has = (it: StoreItem) => it.items.every((id) => owned.has(id));
+    const data = (it: StoreItem, i: number) => `data-sku="${esc(it.id)}" data-cat="${esc(it.cat ?? '')}" data-i="${i}"${has(it) ? ' data-owned="1"' : ''}`;
+    const mine = (it: StoreItem) => (has(it) ? '<span class="st-own">Yours</span>' : '');
+    const card = (it: StoreItem, i: number) => it.price === 0 ? `<div class="st-card st-free" ${data(it, i)}>${view(it)}<div class="st-h"><b>${esc(it.name)}</b>${mine(it)}<span class="st-price">Free</span></div>
       <p>${esc(it.blurb)}</p>
-      <button class="btn" data-claim="${it.id}">${signed ? 'Claim for free' : 'Sign in to claim'}</button></div>` : `<div class="st-card" data-cat="${esc(it.cat ?? '')}">${view(it)}<div class="st-h"><b>${esc(it.name)}</b><span class="st-price">US$${(it.price / 100).toFixed(2)}</span></div>
+      <button class="btn" data-claim="${it.id}"${has(it) ? ' disabled' : ''}>${has(it) ? 'Already yours' : signed ? 'Claim for free' : 'Sign in to claim'}</button></div>` : `<div class="st-card" ${data(it, i)}>${view(it)}<div class="st-h"><b>${esc(it.name)}</b>${mine(it)}<span class="st-price">US$${(it.price / 100).toFixed(2)}</span></div>
       <p>${esc(it.blurb)}</p>
       ${it.items.length > 1 ? `<ul>${it.items.map((id) => `<li><i>${kind(id)}</i> ${esc(ITEMS[id]?.name ?? id)}</li>`).join('')}</ul>` : `<small class="st-kind">${kind(it.items[0])} · yours on every character</small>`}
-      <button class="btn" data-buy="${it.id}"${cat.open ? '' : ' disabled'}>${cat.open ? (signed ? 'Buy' : 'Sign in to buy') : 'Opening soon'}</button></div>`;
+      <button class="btn" data-buy="${it.id}"${cat.open && !has(it) ? '' : ' disabled'}>${has(it) ? 'Already yours' : cat.open ? (signed ? 'Buy' : 'Sign in to buy') : 'Opening soon'}</button></div>`;
     const sections: [string, string][] = [['all', 'Everything'], ['mounts', 'Mounts'], ['pets', 'Pets'], ['bundles', 'Bundles']];
-    const tabs = `<div class="st-tabs">${sections.filter(([k]) => k === 'all' || cat.items.some((i) => i.cat === k)).map(([k, t]) => `<button class="st-tab${k === this.storeCat ? ' on' : ''}" data-scat="${k}">${t}</button>`).join('')}</div>`;
-    const shown = cat.items.filter((i) => this.storeCat === 'all' || i.cat === this.storeCat);
+    const count = (k: string) => cat.items.filter((i) => k === 'all' || i.cat === k).length;
+    const tabs = `<div class="st-tabs">${sections.filter(([k]) => k === 'all' || count(k)).map(([k, t]) => `<button class="st-tab${k === this.storeCat ? ' on' : ''}" data-scat="${k}">${t} <span>${count(k)}</span></button>`).join('')}</div>`;
+    const sorts: [StoreSort, string][] = [['featured', 'Featured'], ['low', 'Price: low to high'], ['high', 'Price: high to low'], ['new', 'Newest'], ['name', 'Name']];
+    const tools = `<div class="st-tools">
+      <input class="st-find" type="search" placeholder="Search the store" aria-label="Search the store" value="${esc(this.storeFind)}">
+      <label class="st-sort">Sort <select aria-label="Sort the store">${sorts.map(([k, t]) => `<option value="${k}"${k === this.storeSort ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+      ${signed && owned.size ? `<label class="st-hide"><input type="checkbox"${this.storeHideOwned ? ' checked' : ''}> Hide what I own</label>` : ''}
+    </div>`;
     this.showcase?.clear();
-    box.innerHTML = tabs + (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + [...shown].sort((a, b) => (a.price === 0 ? 0 : 1) - (b.price === 0 ? 0 : 1)).map(card).join('') + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
-    box.querySelectorAll<HTMLButtonElement>('[data-scat]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.storeCat = b.dataset.scat!; void this.fillStore(); }));
+    box.innerHTML = tabs + tools + (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + cat.items.map(card).join('') + '<p class="st-none" hidden>Nothing in the store matches that.</p>' + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
+    // Featured: free first, then the bundles (the best value), the mounts, the pets, the rest; dearest first in each
+    const rank: Record<string, number> = { bundles: 1, mounts: 2, pets: 3 };
+    const byId = new Map(cat.items.map((it, i) => [it.id, { it, i }]));
+    const order = () => {
+      const cards = [...box.querySelectorAll<HTMLElement>('.st-card')];
+      const q = this.storeFind.trim().toLowerCase();
+      let any = false;
+      for (const c of cards) {
+        const { it } = byId.get(c.dataset.sku!)!;
+        const show = (this.storeCat === 'all' || it.cat === this.storeCat)
+          && (!q || `${it.name} ${it.blurb} ${it.items.map((id) => ITEMS[id]?.name ?? '').join(' ')}`.toLowerCase().includes(q))
+          && !(this.storeHideOwned && c.dataset.owned);
+        c.hidden = !show;
+        any ||= show;
+      }
+      const key = (c: HTMLElement) => byId.get(c.dataset.sku!)!;
+      cards.sort((a, b) => {
+        const A = key(a), Bk = key(b);
+        switch (this.storeSort) {
+          case 'low': return A.it.price - Bk.it.price || A.i - Bk.i;
+          case 'high': return Bk.it.price - A.it.price || A.i - Bk.i;
+          case 'new': return Bk.i - A.i; // (the catalog lists the goods in the order they came in)
+          case 'name': return A.it.name.localeCompare(Bk.it.name);
+          default: return (A.it.price === 0 ? 0 : rank[A.it.cat ?? ''] ?? 4) - (Bk.it.price === 0 ? 0 : rank[Bk.it.cat ?? ''] ?? 4) || Bk.it.price - A.it.price || A.i - Bk.i;
+        }
+      });
+      const none = box.querySelector<HTMLElement>('.st-none')!;
+      for (const c of cards) box.insertBefore(c, none);
+      none.hidden = any;
+    };
+    order();
+    box.querySelectorAll<HTMLButtonElement>('[data-scat]').forEach((b) => b.addEventListener('click', () => {
+      this.ctx.sfx('click');
+      this.storeCat = b.dataset.scat!;
+      box.querySelectorAll('.st-tab').forEach((t) => t.classList.toggle('on', t === b));
+      order();
+    }));
+    box.querySelector<HTMLInputElement>('.st-find')!.addEventListener('input', (e) => { this.storeFind = (e.target as HTMLInputElement).value; order(); });
+    box.querySelector<HTMLSelectElement>('.st-sort select')!.addEventListener('change', (e) => { this.storeSort = (e.target as HTMLSelectElement).value as StoreSort; order(); });
+    box.querySelector<HTMLInputElement>('.st-hide input')?.addEventListener('change', (e) => { this.storeHideOwned = (e.target as HTMLInputElement).checked; order(); });
     // Each card's window: the model itself, turning while the pointer is on the card
     this.showcase ??= new StoreShowcase(this.ctx.renderer());
     box.querySelectorAll<HTMLCanvasElement>('canvas[data-view]').forEach((cv) => this.showcase!.attach(cv, cv.dataset.view!, cv.closest('.st-card') as HTMLElement));
