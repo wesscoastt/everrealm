@@ -413,6 +413,8 @@ export interface HouseRoof {
   dormers?: number;
   /** Plain gable ends, no timbers: a stone house (Morrow's). */
   plain?: boolean;
+  /** Only the roof: no gable ends, no attic (an open shelter). */
+  open?: boolean;
 }
 
 /**
@@ -444,6 +446,8 @@ export function addHouseRoof(batch: Batcher, M: PropMaterials, r: HouseRoof): vo
     put(box(len + ov * 2 + 0.25, 0.28, 0.36), M.darkWood, 0, apex + 0.04, 0);
   }
 
+  // An open roof (a lean-to, a market shelter): only the roof itself, nothing under it to look like a house
+  if (r.open) return;
   // Close the attic: a five-sided timber wedge from the wall plate up to just under the lowest roof
   // skin (the trim's, or the thatch's), parallel to it. Without it there's a slit between the
   // walls and the eaves, and from under the eaves you could look up into the rooms.
@@ -804,6 +808,20 @@ export function ship(M: PropMaterials, sails: 'set' | 'furled' | 'bare' = 'furle
   };
   stay(0.2, 15.6, 5.0, 12.0); stay(5.0, 12.0, 12.4, 4.0); stay(0.2, 15.6, -6.9, 4.8);
   g.add(mesh(box(0.04, 0.5, 1.4), flat(flag), 0.2, 16.1, 0.7));
+  return g;
+}
+
+/** A fish box on the quay: a shallow crate of the morning's catch on ice, silver and slate-blue. */
+export function fishBox(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.9, 0.22, 0.6), M.wood, 0, 0.11, 0));
+  g.add(mesh(box(0.84, 0.04, 0.54), flat('#dfeaf0'), 0, 0.2, 0));
+  const tones = ['#9aa8b4', '#6a7a8a', '#b8c4cc', '#7a8a7a'];
+  for (let k = 0; k < 6; k++) {
+    const x = -0.3 + (k % 3) * 0.3, z = k < 3 ? -0.12 : 0.13, ry = (k % 2 ? 0.3 : -0.25);
+    g.add(mesh(box(0.26, 0.06, 0.08), flat(tones[k % 4]), x, 0.25, z, ry));
+    g.add(mesh(box(0.06, 0.05, 0.1), flat(tones[k % 4]), x - 0.15 * Math.cos(ry), 0.25, z + 0.15 * Math.sin(ry), ry));
+  }
   return g;
 }
 

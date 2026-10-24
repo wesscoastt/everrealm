@@ -158,7 +158,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   for (const d of site.props) {
     switch (d.t) {
       case 'roof': {
-        P.addHouseRoof(batch, M, { x: d.x, y: d.y, z: d.z, len: d.len!, span: d.span!, ry: d.ry ?? 0, mat: roofMat(d.mat), thatch: d.mat === 'thatch', dormers: d.dormers ?? 0, plain: d.plain });
+        P.addHouseRoof(batch, M, { x: d.x, y: d.y, z: d.z, len: d.len!, span: d.span!, ry: d.ry ?? 0, mat: roofMat(d.mat), thatch: d.mat === 'thatch', dormers: d.dormers ?? 0, plain: d.plain, open: d.open });
         break;
       }
       case 'door': place(P.door(M, 2, d.doorKind, d.color), d.x, d.y, d.z, d.ry); break;
@@ -210,6 +210,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'statue': place(P.statue(M), d.x, d.y, d.z, d.ry); break;
       case 'netRack': place(P.netRack(M, d.len ?? 3), d.x, d.y, d.z, d.ry); break;
       case 'bollard': place(P.bollard(M), d.x, d.y, d.z, d.ry); break;
+      case 'fishBox': place(P.fishBox(M), d.x, d.y, d.z, d.ry); break;
       case 'crane': place(P.dockCrane(M), d.x, d.y, d.z, d.ry); break;
       case 'lobsterPots': place(P.lobsterPots(M), d.x, d.y, d.z, d.ry); break;
       case 'beehive': place(P.beehive(M), d.x, d.y, d.z, d.ry); break;

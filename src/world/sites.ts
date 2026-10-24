@@ -38,6 +38,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   | 'netRack' | 'lobsterPots' | 'beehive'
   /** A harbour's mooring bollard, and a timber dock crane with its treadwheel (jib toward +x). */
   | 'bollard' | 'crane'
+  /** A box of fish on ice. */
+  | 'fishBox'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
@@ -75,6 +77,8 @@ export interface PropDesc {
   dormers?: number;
   /** A house roof with plain gable ends, no half-timbering (Morrow's stone houses). */
   plain?: boolean;
+  /** A roof with nothing under it: an open shelter or a lean-to (no gable ends, no attic). */
+  open?: boolean;
   mat?: 'red' | 'blue' | 'thatch' | 'slate' | 'copper';
   color?: string;
   kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally';
@@ -1305,11 +1309,26 @@ export function plan(): Plan {
     const coats: AnimalSpot['pal'][] = herd === 'cow' ? [{}, { a: '#26211e', b: '#efe8dc' }, { a: '#b87a4a', b: '#f2ece0' }, { a: '#5a3a26' }] : [{}, {}, { a: '#4a443e', b: '#221e1a' }];
     for (let i = 0; i < (herd === 'cow' ? 4 : 6); i++) s.animals!.push({ kind: herd, x: px0 + 4 + (i % 3) * 5 + 0.5, z: pz0 + 4 + Math.floor(i / 3) * 6 + 0.5, r: 6, pal: coats[i % coats.length] });
     s.props.push({ t: 'barrel', x: px0 + 2.5, y: heightAt(px0 + 2, pz0 + 2), z: pz0 + 2.5 }); // the trough
-    // The sty: a low stone pen with a lean-to, in the paddock's far corner
-    const sx0 = px1 - 7, sz0 = pz1 - 6;
-    drystone(sx0, sz0, px1 - 1, sz0); drystone(sx0, sz0, sx0, pz1 - 1);
-    for (let sx = sx0 + 1; sx < px1; sx++) for (let sz = sz0 + 1; sz < pz1; sz++) O.set(sx, heightAt(sx, sz) - 1, sz, B.Dirt);
-    s.props.push({ t: 'roof', x: px1 - 2, y: heightAt(px1 - 2, pz1 - 2) + 2.2, z: pz1 - 2.5, len: 4, span: 3, rise: 0.8, ry: 0, mat: 'thatch' });
+    // The sty, in the paddock's far corner: a low stone wall all round with a gate to the paddock, a
+    // lean-to of posts and thatch over the back of it, mud, and a trough
+    const sx0 = px1 - 7, sz0 = pz1 - 6, sx1 = px1 - 1, sz1 = pz1 - 1;
+    // (a sty's wall is knee high: you lean on it to look at the pigs)
+    const lowWall = (ax: number, az: number, bx: number, bz: number, gap?: [number, number]) => {
+      const n = Math.max(Math.abs(bx - ax), Math.abs(bz - az));
+      for (let i = 0; i <= n; i++) {
+        const x = Math.round(ax + ((bx - ax) * i) / n), z = Math.round(az + ((bz - az) * i) / n);
+        if (gap && Math.abs(gap[0] - x) + Math.abs(gap[1] - z) <= 1) continue;
+        O.set(x, heightAt(x, z), z, hash2(x, z, 182) < 0.35 ? B.MossyCobble : B.Cobble);
+      }
+    };
+    lowWall(sx0, sz0, sx1, sz0, [sx0 + 3, sz0]); lowWall(sx0, sz0, sx0, sz1); lowWall(sx1, sz0, sx1, sz1); lowWall(sx0, sz1, sx1, sz1);
+    for (let sx = sx0 + 1; sx < sx1; sx++) for (let sz = sz0 + 1; sz < sz1; sz++) { O.set(sx, heightAt(sx, sz) - 1, sz, hash2(sx, sz, 443) < 0.7 ? B.Dirt : B.Loam); clearUp(sx, sz, heightAt(sx, sz), heightAt(sx, sz) + 6); }
+    {
+      const ly = Math.round(heightAt(sx1 - 2, sz1 - 2));
+      for (const [qx, qz] of [[sx0 + 1, sz1 - 1], [sx1 - 1, sz1 - 1], [sx0 + 1, sz1 - 3], [sx1 - 1, sz1 - 3]]) for (let y = ly; y < ly + 3; y++) O.set(qx, y, qz, B.Timber);
+      s.props.push({ t: 'roof', x: (sx0 + sx1) / 2 + 0.5, y: ly + 3, z: sz1 - 1.5, len: sx1 - sx0 - 1.2, span: 2.6, rise: 0.6, ry: 0, mat: 'thatch', open: true });
+      s.props.push({ t: 'furn', item: 'counter', x: sx0 + 2.5, y: heightAt(sx0 + 2, sz0 + 1), z: sz0 + 1.4, ry: 0 }); // the trough along the wall
+    }
     for (let i = 0; i < 3; i++) s.animals!.push({ kind: 'pig', x: sx0 + 2.5 + i * 1.5, z: sz0 + 2.5, r: 2, pal: i === 2 ? { b: '#3a2a26' } : {} });
     // Hens loose in the yard
     for (let i = 0; i < 4; i++) s.animals!.push({ kind: 'chicken', x: x - 4.5 + i * 2, z: z + 0.5, r: 4 });
@@ -4732,15 +4751,19 @@ export function plan(): Plan {
     street(coast - 60, z - 4, coast - 12, z + 4);
     // Two jetties out from the quay (gullmouthHarbour builds it), at its height on timber piles
     for (const jz of [z - 2, z + 6]) {
-      for (let x = Math.floor(coast) - 2; x < coast + 34; x++) for (let w = 0; w < 3; w++) {
+      // (the north jetty runs the merchantman's length; the south one stops short of the ferry's berth off its head)
+      const end = jz < z ? 42 : 34;
+      for (let x = Math.floor(coast) - 2; x < coast + end; x++) for (let w = 0; w < 3; w++) {
         O.set(x, base - 1, jz + w, (x + w) % 9 === 0 ? B.DarkPlanks : B.Planks);
         clearUp(x, jz + w, base, base + 6);
-        if ((x - Math.floor(coast)) % 5 === 0 && (w === 0 || w === 2)) { for (let y = 2; y < base - 1; y++) O.set(x, y, jz + w, B.Timber); O.set(x, base, jz + w, B.Timber); }
+        if ((x - Math.floor(coast)) % 5 === 0 && (w === 0 || w === 2)) for (let y = 2; y < base - 1; y++) O.set(x, y, jz + w, B.Timber);
       }
-      s.props.push({ t: 'lantern', x: coast + 33, y: base, z: jz + 1.5 });
+      for (let x = Math.floor(coast) + 18; x < coast + end; x += 6) for (const w of [0, 2]) s.props.push({ t: 'bollard', x: x + 0.5, y: base, z: jz + w + 0.5 + (w ? 0.25 : -0.25), ry: 0 });
+      s.props.push({ t: 'lantern', x: coast + end - 1, y: base, z: jz + 1.5 });
     }
     // Rowing boats tied up along the jetties
-    s.props.push({ t: 'boat', x: coast + 12, y: SEA - 0.55, z: z - 4.4, ry: 0.05 }, { t: 'boat', x: coast + 20, y: SEA - 0.55, z: z + 10.3, ry: -0.1 }, { t: 'boat', x: coast + 6, y: SEA - 0.55, z: z + 10.4, ry: 0.08 });
+    // (in the channel between the jetties, and north of the merchantman's berth, clear of the quay)
+    s.props.push({ t: 'boat', x: coast + 24, y: SEA - 0.55, z: z + 3.5, ry: 0.05 }, { t: 'boat', x: coast + 34, y: SEA - 0.55, z: z + 3.4, ry: -0.08 }, { t: 'boat', x: coast + 22, y: SEA - 0.55, z: z - 11, ry: 0.1 });
     for (let i = 0; i < 4; i++) s.props.push({ t: 'barrel', x: coast + 2 + i * 1.1, y: base, z: z + 5 }, { t: 'crate', x: coast + 8, y: base, z: z - 4 + i * 0.5 });
     s.props.push({ t: 'sign', x: coast - 62, y: heightAt(coast - 62, z), z: z - 5, text: 'Gullmouth' });
     rect(s, coast - 62, z - 26, coast + 34, z + 20);
@@ -4760,7 +4783,14 @@ export function plan(): Plan {
     // The face: a little out into the water from where the beach ends, eased so it runs straight-ish
     const raw: number[] = [];
     for (let z = Z0 - 4; z <= Z1 + 4; z++) { let x = C - 10; while (x < C + 40 && heightAt(x, z) >= SEA - 1) x++; raw.push(x + 1); }
-    const face = (z: number) => { let a = 0; for (let k = -4; k <= 4; k++) a += raw[z - (Z0 - 4) + k]; return Math.round(a / 9); };
+    // The face in three straight runs: along the jetties as far out as the beach goes there, and north and
+    // south of them where the beach ends at the run's jetty end (beyond that the shore curves away and the
+    // sand shows past the quay's corner). A clean line with two corners, not a block-by-block zig-zag.
+    const runs: [number, number][] = [[Z0, 585], [586, 620], [621, Z1]];
+    const rawAt = (z: number) => raw[z - (Z0 - 4)];
+    let mid = -Infinity; for (let z = 586; z <= 620; z++) mid = Math.max(mid, rawAt(z));
+    const runX = [Math.min(mid, rawAt(585)), mid, Math.min(mid, rawAt(621))];
+    const face = (z: number) => runX[runs.findIndex(([a, b]) => z >= a && z <= b)] ?? runX[1];
     // Buildings already on the waterfront keep their ground: the warehouses at each end, two houses
     const keep: [number, number, number, number][] = [[C - 27, 561, C - 3, 570], [C - 27, 627, C - 3, 636], [C - 17, 577, C - 8, 584], [C - 17, 611, C - 8, 618]];
     for (let z = Z0; z <= Z1; z++) {
@@ -4790,6 +4820,69 @@ export function plan(): Plan {
     // Lamps along the quay
     for (let z = Z0 + 6; z < Z1; z += 14) if (!(z > 594 && z < 612)) s.props.push({ t: 'lantern', x: face(z) - 3.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
     rect(s, C - 12, Z0, face(600) + 2, Z1);
+  }
+
+  /**
+   * What makes Gullmouth a port and not a beach with houses near it: on the quay a fish market under
+   * an open roof (boxes of the catch on ice, the gutting bench, the scales), the harbourmaster's office
+   * by the north jetty, cargo in stacks by the cranes, sacks, nets and pots, benches facing the water,
+   * gulls on the bollards; and in the town every strip of bare ground along a wall paved into a lane
+   * or a yard, as a town that's been walked on for three hundred years is.
+   */
+  function gullmouthLife(s: Site, base: number, C: number) {
+    // ---- The fish market: an open roof on the quay south of the jetties, the catch laid out under it
+    shelter(s, C - 9, 612, 12, 7, base, 'slate', 4);
+    for (let i = 0; i < 6; i++) s.props.push({ t: 'fishBox', x: C - 7.5 + i * 1.9, y: base, z: 614.6, ry: (i % 2) * 0.1 }, { t: 'fishBox', x: C - 7.5 + i * 1.9, y: base, z: 616.6, ry: 0.05 });
+    s.props.push({ t: 'furn', item: 'counter', x: C - 3, y: base, z: 618.2, ry: Math.PI }, { t: 'barrel', x: C - 6.7, y: base, z: 617.6 }, { t: 'barrel', x: C + 1.4, y: base, z: 618.3 });
+    s.props.push({ t: 'sign', x: C - 10.5, y: base, z: 611.2, ry: 0, text: 'Fish Market' });
+    // ---- The harbourmaster's office at the root of the north jetty, its door on the quay
+    house(s, C - 7, 578, 6, 5, 2, base, 'slate', 's', { wall: B.StoneBrick, role: 'office', front: 'quoined', trim: ['hood', 'shutters'] });
+    s.props.push({ t: 'notice', x: C - 0.5, y: base, z: 584.2, ry: 0 }, { t: 'sign', x: C - 8.5, y: base, z: 584.4, ry: 0, text: 'Harbourmaster' });
+    // ---- Cargo: crates stacked two high, sacks, barrels in rows, a cart being loaded
+    const cargo = (x: number, z: number) => {
+      for (let k = 0; k < 6; k++) { const cx = x + (k % 3) * 0.75, cz = z + (k > 2 ? 0.8 : 0); s.props.push({ t: 'crate', x: cx, y: base, z: cz, ry: 0 }); if (k % 2 === 0) s.props.push({ t: 'crate', x: cx, y: base + 0.6, z: cz, ry: 0.2 }); }
+      for (let k = 0; k < 4; k++) s.props.push({ t: 'barrel', x: x + 3 + (k % 2) * 0.8, y: base, z: z + Math.floor(k / 2) * 0.8 });
+      for (let bx = Math.floor(x); bx <= Math.floor(x + 4); bx++) for (let bz = Math.floor(z); bz <= Math.floor(z + 1); bz++) { O.set(bx, base, bz, B.Barrier); O.set(bx, base + 1, bz, B.Barrier); }
+    };
+    cargo(C + 2, 572.5); cargo(C + 4, 624.5); cargo(C - 6, 603.6);
+    s.props.push({ t: 'cart', x: C - 2, y: base, z: 576.5, ry: 1.5 }, { t: 'cart', x: C + 1, y: base, z: 630.5, ry: -1.4 });
+    // ---- The quay market: rope, sailcloth, tar, lanterns and hooks, either side of the jetties' roots
+    const stallCols = ['#2f528f', '#a8382c', '#c8a03a', '#3f7a3a', '#5a3a6a', '#2a5a5a'];
+    [[C - 2, 591.5, Math.PI], [C + 3, 591.5, Math.PI], [C + 8, 591.5, Math.PI], [C - 2, 612.5, 0], [C + 3, 612.5, 0], [C + 8, 612.5, 0]].forEach(([x, z, ry], i) => {
+      s.props.push({ t: 'stall', x, y: base, z, ry, color: stallCols[i] });
+      s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: x + 1.6, y: base, z: z + (ry ? -0.9 : 0.9), ry: i });
+    });
+    // ---- Benches facing the water, nets drying, pots, gulls on the bollards
+    for (const z of [579, 585, 621, 633]) s.props.push({ t: 'bench', x: C + 7.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
+    for (const z of [566, 636]) s.props.push({ t: 'netRack', x: C + 3, y: base, z: z + 0.5, len: 5, ry: 0 }, { t: 'lobsterPots', x: C + 6.2, y: base, z: z + 1.4, ry: z * 0.3 });
+    for (const d of [...s.props]) if (d.t === 'bollard' && hash2(Math.floor(d.x), Math.floor(d.z), 199) < 0.35) s.props.push({ t: 'furn', item: 'gull', x: d.x, y: d.y + 0.65, z: d.z, ry: hash2(Math.floor(d.z), 1, 201) * 6 });
+
+    // ---- The lanes: every strip of bare ground within two of a wall in the town, paved
+    {
+      const X0 = 1650, X1 = C - 9, Z0 = 556, Z1 = 644;
+      const decoded = new Map<number, Map<number, number>>();
+      const at = (x: number, y: number, z: number): number | undefined => {
+        const k = chunkKey(x >> 5, z >> 5);
+        let m = decoded.get(k);
+        if (!m) { m = new Map(); const a = O.map.get(k); if (a) for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]); decoded.set(k, m); }
+        return m.get(localIdx(x & 31, y, z & 31));
+      };
+      const wall = (x: number, z: number) => { const v = at(x, base + 1, z); return v !== undefined && v !== B.Air && v !== B.Barrier; };
+      const paved: [number, number][] = [];
+      for (let z = Z0; z <= Z1; z++) for (let x = X0; x <= X1; x++) {
+        const g = Math.round(heightAt(x, z));
+        if (Math.abs(g - base) > 1 || at(x, g - 1, z) !== undefined || at(x, g, z) !== undefined || at(x, g + 1, z) !== undefined) continue;
+        let near = false;
+        for (let dz = -3; dz <= 3 && !near; dz++) for (let dx = -3; dx <= 3 && !near; dx++) if (wall(x + dx, z + dz)) near = true;
+        // (or a strip between a street's paving and a wall, a block or two wide)
+        if (!near) for (const [ax, az] of [[1, 0], [0, 1]]) for (let k = 1; k <= 3 && !near; k++) if (at(x - ax * k, g - 1, z - az * k) !== undefined && at(x + ax * k, g - 1, z + az * k) !== undefined) near = true;
+        if (near) paved.push([x, z]);
+      }
+      for (const [x, z] of paved) {
+        const g = Math.round(heightAt(x, z)), h = hash2(x, z, 203);
+        O.set(x, g - 1, z, h < 0.62 ? B.Cobble : h < 0.8 ? B.Path : h < 0.9 ? B.MossyCobble : B.Gravel);
+      }
+    }
   }
 
   function buildLighthouse(s: Site, base: number) {
@@ -5296,7 +5389,7 @@ export function plan(): Plan {
     for (const [px, pz] of posts) for (let y = base; y < base + h; y++) O.set(px, y, pz, B.Timber);
     for (let x = x0; x < x0 + w; x++) for (const z of [z0, z0 + d - 1]) O.set(x, base + h - 1, z, B.DarkPlanks);
     const alongX = w >= d;
-    s.props.push({ t: 'roof', x: x0 + w / 2, y: base + h, z: z0 + d / 2, len: alongX ? w : d, span: alongX ? d : w, rise: roofRise(alongX ? d : w), ry: alongX ? 0 : Math.PI / 2, mat: roof });
+    s.props.push({ t: 'roof', x: x0 + w / 2, y: base + h, z: z0 + d / 2, len: alongX ? w : d, span: alongX ? d : w, rise: roofRise(alongX ? d : w), ry: alongX ? 0 : Math.PI / 2, mat: roof, open: true });
     rect(s, x0 - 1, z0 - 1, x0 + w, z0 + d);
   }
   /** A stack of cut logs, ends out. */
@@ -5519,6 +5612,7 @@ export function plan(): Plan {
     for (let x = C + 19; x <= C + 33; x++) for (let z = 593; z <= 596; z++) { O.set(x, SEA, z, B.Barrier); O.set(x, SEA + 1, z, B.Barrier); clearUp(x, z, SEA + 2, SEA + 6); }
     for (const x of [C + 25, C + 26]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank, a step down from the jetty
     quay(s, base, C);
+    gullmouthLife(s, base, C);
     // Fishing smacks tied up along the south side of the south jetty, their nets over the rail
     s.props.push({ t: 'ship', ship: 'smack', x: C + 16, y: SEA - 0.14, z: 612.2, ry: Math.PI, sails: 'furled', color: '#2f528f' }, { t: 'ship', ship: 'smack', x: C + 27, y: SEA - 0.14, z: 612.6, ry: Math.PI - 0.08, sails: 'set', color: '#7a2a1e', sail: '#9a5a34' });
     s.props.push({ t: 'ship', ship: 'galleon', x: C + 30, y: SEA - 0.14, z: 580, ry: 0.15, sails: 'furled', color: '#2f528f' }); // the Charter's galleon at anchor inside the breakwater, clear of the ferry's course
@@ -6564,7 +6658,7 @@ export function plan(): Plan {
 type TownTheme = 'harbour' | 'works' | 'village' | 'white';
 function dressTowns(O: Overrides, sites: Site[]): void {
   const jobs: { id: string; x: number; z: number; r: number; theme: TownTheme; cover: number }[] = LAND === 'counties' ? [
-    { id: 'gullmouth', x: Math.floor(coastX(600)) - 70, z: 600, r: 78, theme: 'harbour', cover: 0.85 },
+    { id: 'gullmouth', x: Math.floor(coastX(600)) - 70, z: 600, r: 84, theme: 'harbour', cover: 1 },
     { id: 'harrowgate', x: 975, z: 1003, r: 62, theme: 'works', cover: 0.8 },
     { id: 'coldhearth', x: 300, z: 1460, r: 30, theme: 'village', cover: 0.5 },
     { id: 'cotters', x: 486, z: 252, r: 26, theme: 'village', cover: 0.5 },
