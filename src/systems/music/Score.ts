@@ -17,11 +17,37 @@ type Quality = 'maj' | 'min' | 'sus2' | 'sus4' | 'add9';
 interface Chord { deg: number; q?: Quality; bars?: number }
 
 export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'night' | 'deep'
-  | 'ansbury' | 'harbour' | 'works' | 'hearth' | 'kirk' | 'holms' | 'inn' | 'festival';
+  | 'ansbury' | 'harbour' | 'works' | 'hearth' | 'kirk' | 'holms' | 'inn' | 'festival'
+  /** The long pieces: whole movements in several parts (see Part). */
+  | 'heartland' | 'wildwood' | 'highlands' | 'dawn' | 'dusk';
 type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings';
+
+/**
+ * One part of a long piece: its own progression and line, in its own key (a turn to the subdominant, a
+ * lift to the relative major), quiet or with the whole orchestra in (tutti: horns doubling the line an
+ * octave down, the choir holding the chords, timpani at each change, the strings swelling under it).
+ * A piece's parts are played straight through, so it develops over three or four minutes instead of
+ * stating a tune and stopping: a quiet opening, the theme, a development, a climax, a coda.
+ */
+interface Part {
+  /** Semitones from the piece's own root. */
+  key?: number;
+  prog: Chord[];
+  motif?: string;
+  lead?: Lead;
+  /** Bars a chord (2 if not given). */
+  bars?: number;
+  /** Rolling harp or celesta under it. */
+  arp?: boolean;
+  tutti?: boolean;
+  /** Loudness against the piece's own (1). */
+  dyn?: number;
+}
 
 interface Theme {
   id: ThemeId;
+  /** A long piece: its parts, played through in order after the opening swell. */
+  parts?: Part[];
   root: number; // MIDI of degree 0 in the pad octave
   mode: number[];
   bpm: number;
@@ -211,6 +237,73 @@ const THEMES: Record<ThemeId, Theme> = {
     ],
     lead: ['flute', 'flute', 'strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.6, rest: [4, 8], level: 0.65,
   },
+  // ---- The long pieces. Original themes in the manner of the great open-world scores: warm modal
+  // harmony, long-breathed lines, the orchestra gathering to a climax and falling away. Each plays
+  // about three to four minutes before the quiet comes back.
+
+  // "The Charter Road": D major, for the open country of the heartland. Strings and harp, then the
+  // horns take the tune into G, then everyone together, then the choir alone.
+  heartland: {
+    id: 'heartland', root: 50, mode: MODES.ionian, bpm: 66,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }],
+    motifs: [], lead: ['flute'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.6, rest: [30, 50], level: 1,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }, { deg: 0 }, { deg: 2 }, { deg: 3 }, { deg: 4 }], motif: '0:2 1:1 2:1 4:4 3:2 2:2 1:4 r:2 2:2 3:2 4:2 5:4 4:2 2:2 3:6 r:2', lead: 'flute', arp: true, dyn: 0.85 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 3, q: 'add9' }, { deg: 4, q: 'sus4' }], motif: '4:3 5:1 4:2 2:2 0:4 r:2 1:2 2:2 3:3 2:1 1:4 r:2 4:2 7:2 6:2 5:2 4:6 r:2', lead: 'horn' },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 0 }], motif: '7:4 6:2 4:2 5:4 4:2 2:2 3:4 4:2 5:2 4:8 r:2 2:2 4:2 7:6 r:2', lead: 'strings', tutti: true, dyn: 0.7 },
+      { prog: [{ deg: 3, q: 'add9', bars: 3 }, { deg: 0, bars: 3 }, { deg: 3, bars: 3 }, { deg: 0, q: 'sus2', bars: 4 }], motif: '4:4 2:4 1:4 0:8', lead: 'choir', dyn: 0.7 },
+    ],
+  },
+  // "The Deep Wood": E Dorian, for Hagworm and the forests. Flute in the undergrowth, the choir in G,
+  // the strings and horns rising out of it, and the celesta left alone at the end.
+  wildwood: {
+    id: 'wildwood', root: 52, mode: MODES.dorian, bpm: 58,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 0 }, { deg: 6 }],
+    motifs: [], lead: ['flute'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'celesta', brightness: 0.4, rest: [30, 50], level: 0.95,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 3 }, { deg: 0 }, { deg: 6 }, { deg: 0 }, { deg: 2 }, { deg: 3 }, { deg: 4 }], motif: '0:2 2:2 3:3 2:1 0:4 r:2 4:2 3:2 2:2 3:2 1:6 r:2', lead: 'flute', arp: true, dyn: 0.85 },
+      { key: 3, prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 5 }, { deg: 1 }, { deg: 4, q: 'sus4' }], motif: '4:4 5:2 4:2 2:4 r:2 3:2 4:2 2:2 0:8 r:2', lead: 'choir' },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }, { deg: 0 }], motif: '7:3 8:1 7:2 5:2 4:4 3:2 4:2 5:4 4:2 3:2 2:4 r:2 0:4 1:2 2:2 0:8', lead: 'strings', tutti: true, dyn: 0.74 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 3 }, { deg: 3, bars: 3 }, { deg: 0, q: 'sus2', bars: 4 }], motif: '4:2 3:2 2:4 0:8', lead: 'celesta', arp: true, dyn: 0.6 },
+    ],
+  },
+  // "The High Places": A minor, for the Scarth and the hard country. Horn over drums at a distance,
+  // the choir in D, the whole orchestra at full stretch, then a horn alone on the wind.
+  highlands: {
+    id: 'highlands', root: 45, mode: MODES.aeolian, bpm: 60,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }],
+    motifs: [], lead: ['horn'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.55, rest: [30, 50], drone: true, level: 1,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }], motif: '0:2 2:2 3:4 4:2 3:2 2:4 r:2 0:2 -1:2 0:2 2:6 r:2', lead: 'horn', dyn: 0.9 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 4, q: 'sus4' }], motif: '4:4 3:2 2:2 3:4 1:4 r:2 2:2 3:2 4:2 5:6 r:2', lead: 'choir', arp: true },
+      { prog: [{ deg: 5 }, { deg: 6 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'maj' }], motif: '7:4 9:2 7:2 5:4 4:2 5:2 7:6 r:2 9:2 7:2 5:2 4:2 3:4 2:2 0:6', lead: 'strings', tutti: true, dyn: 0.62 },
+      { prog: [{ deg: 0, q: 'sus4', bars: 3 }, { deg: 5, bars: 3 }, { deg: 6, bars: 3 }, { deg: 0, bars: 4 }], motif: '4:4 2:4 0:8', lead: 'horn', dyn: 0.65 },
+    ],
+  },
+  // "First Light": G Lydian, for the early morning. The flute over a slow harp, the strings in D,
+  // and a celesta going quietly back to the start.
+  dawn: {
+    id: 'dawn', root: 55, mode: MODES.lydian, bpm: 62,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 4 }],
+    motifs: [], lead: ['flute'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.55, rest: [30, 50], level: 0.85,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 0, q: 'add9' }, { deg: 4, q: 'sus4' }], motif: '4:2 6:2 7:4 6:2 4:2 2:4 r:2 1:2 2:2 4:4 r:4', lead: 'flute', arp: true, dyn: 0.8 },
+      { key: 7, prog: [{ deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 1 }, { deg: 4 }], motif: '0:2 2:2 4:2 5:2 4:4 2:4 r:2 3:2 4:2 2:2 1:6', lead: 'strings' },
+      { prog: [{ deg: 0, q: 'add9', bars: 4 }, { deg: 1, q: 'maj', bars: 4 }, { deg: 0, bars: 4 }], motif: '7:4 6:4 4:8', lead: 'celesta', arp: true, dyn: 0.65 },
+    ],
+  },
+  // "Evensong": B Dorian, for the end of the day. Strings carrying it, the horn answering a tone
+  // lower, the choir to put it to bed.
+  dusk: {
+    id: 'dusk', root: 47, mode: MODES.dorian, bpm: 56,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 2 }],
+    motifs: [], lead: ['strings'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'harp', brightness: 0.4, rest: [30, 50], level: 0.85,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 2 }, { deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 0 }], motif: '2:2 3:2 4:4 3:2 2:2 0:4 r:2 -1:2 0:2 2:2 1:6 r:2', lead: 'strings', arp: true, dyn: 0.85 },
+      { key: -2, prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'sus4' }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 0 }], motif: '4:4 5:2 4:2 3:4 2:4 r:2 1:2 2:2 0:8', lead: 'horn' },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 3, bars: 4 }, { deg: 0, bars: 4 }], motif: '4:4 2:4 0:8', lead: 'choir', dyn: 0.7 },
+    ],
+  },
   // Underground: no tune at all, just held low voices and the odd pluck.
   deep: {
     id: 'deep', root: 48, mode: MODES.phrygian, bpm: 40,
@@ -378,6 +471,13 @@ export class Score {
     const t = cur.theme;
     const beat = 60 / t.bpm;
     const bar = beat * 4;
+    // A long piece: the swell, its parts in order, then a long quiet
+    if (t.parts) {
+      const n = t.parts.length, k = cur.step % (n + 2);
+      cur.step++;
+      if (k === n + 1) { const [a, b] = t.rest; const len = a + this.rnd() * (b - a); if (t.drone) this.orch.bass(start + 1, degToMidi(t, 0, -1), len - 2, 0.03, cur.bus, 3); return start + len; }
+      if (k > 0) return this.schedulePart(cur, start, t.parts[k - 1]);
+    }
     // Section order: swell, statement, interlude, rest, statement, rest ...
     const order: Section[] = t.motifs.length ? ['swell', 'statement', 'interlude', 'rest', 'statement', 'rest'] : ['swell', 'interlude', 'rest'];
     const sec = order[cur.step % order.length];
@@ -433,6 +533,61 @@ export class Score {
           }
           // Harp doubles the first beat of long notes for definition
           if (n.beats >= 3 && t.arp === 'harp') this.orch.harp(m, midi + 12, 0.11, cur.bus);
+        }
+        m += d;
+      }
+    }
+    return time + bar * 0.5;
+  }
+
+  /** A part of a long piece: its chords under it, its line over it, the orchestra gathered if it's the climax. */
+  private schedulePart(cur: { theme: Theme; bus: GainNode }, start: number, p: Part): number {
+    const t: Theme = { ...cur.theme, root: cur.theme.root + (p.key ?? 0) };
+    const beat = 60 / t.bpm, bar = beat * 4, dyn = p.dyn ?? 1, bus = cur.bus;
+    let time = start, prev = t.root + 12;
+    for (const c of p.prog) {
+      const len = bar * (c.bars ?? p.bars ?? 2);
+      const notes = voice(chordNotes(t, c), prev);
+      prev = notes[1] ?? prev;
+      this.orch.strings(time, notes, len, (p.tutti ? 0.15 : 0.12) * dyn, bus, { attack: Math.min(2.2, len * 0.4), release: 2.8, bright: t.brightness + (p.tutti ? 0.15 : 0) });
+      if (t.pad.includes('choir') || p.tutti) this.orch.choir(time, notes.slice(0, 3).map((n) => n + (t.root < 48 ? 12 : 0)), len - 0.8, (p.tutti ? 0.1 : 0.065) * dyn, bus, t.vowel, 2.2);
+      this.orch.bass(time, degToMidi(t, c.deg, -1), len, 0.05 * dyn, bus);
+      if (p.tutti) {
+        // Timpani at the change, the horns holding the root and fifth under the line
+        this.orch.timpani(time, degToMidi(t, c.deg, -2), 0.18 * dyn, bus);
+        this.orch.horn(time, degToMidi(t, c.deg, 0), len * 0.95, 0.07 * dyn, bus);
+        this.orch.horn(time, degToMidi(t, c.deg + 4, 0), len * 0.95, 0.05 * dyn, bus);
+      }
+      if (p.arp && t.arp) {
+        const arpNotes = [...notes, ...notes.map((n) => n + 12)];
+        const step = beat / (t.bpm > 65 ? 2 : 1);
+        let i = 0;
+        for (let k = time; k < time + len - step * 0.5; k += step, i++) {
+          const n = arpNotes[i % arpNotes.length] + 12;
+          if (t.arp === 'harp') this.orch.harp(k, n, 0.18 * dyn, bus); else this.orch.celesta(k, n + 12, 0.065 * dyn, bus);
+        }
+      }
+      time += len;
+    }
+    // (a cymbal swell into the climax)
+    if (p.tutti) this.orch.swell(Math.max(0, start - bar), bar, 0.05 * dyn, bus);
+    if (p.motif) {
+      // The line enters a bar in; in the climax the horns double it an octave down
+      let m = start + bar;
+      const lead = p.lead ?? t.lead[0];
+      for (const n of parseMotif(p.motif)) {
+        const d = n.beats * beat;
+        if (n.deg !== null && m + d < time) {
+          const midi = degToMidi(t, n.deg, 1);
+          switch (lead) {
+            case 'flute': this.orch.flute(m, midi + 12, d * 0.95, 0.22 * dyn, bus); break;
+            case 'horn': this.orch.horn(m, midi, d * 0.98, 0.21 * dyn, bus); break;
+            case 'choir': this.orch.choir(m, [midi + 12], d * 0.9, 0.2 * dyn, bus, t.vowel, Math.min(0.6, d * 0.3)); break;
+            case 'celesta': this.orch.celesta(m, midi + 12, 0.16 * dyn, bus); break;
+            case 'strings': this.orch.strings(m, [midi + 12], d, 0.18 * dyn, bus, { attack: Math.min(0.5, d * 0.3), release: 1.4, bright: t.brightness + 0.2 }); break;
+          }
+          if (p.tutti) this.orch.horn(m, midi, d * 0.95, 0.09 * dyn, bus);
+          if (n.beats >= 3 && t.arp === 'harp') this.orch.harp(m, midi + 12, 0.1 * dyn, bus);
         }
         m += d;
       }

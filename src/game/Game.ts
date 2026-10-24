@@ -67,7 +67,7 @@ import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
-import { POSTS, postFare, postHours, postKnown } from '../data/travel';
+import { POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
 import { Online } from '../net/Online';
 import { BOARDS } from '../data/content';
 
@@ -140,6 +140,13 @@ const REGION_THEME: Record<RegionId, ThemeId> = {
   greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
   gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep', kell: 'redstone',
   keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'starfall', glassflats: 'redstone', greywaste: 'starfall', held: 'starfall',
+};
+
+/** Each region's long piece, played in turn with its own theme (a stretch of each, on the realm clock). */
+const REGION_PIECE: Partial<Record<RegionId, ThemeId>> = {
+  greenwake: 'heartland', crownroad: 'heartland', gannet: 'heartland', bright: 'heartland', saltwind: 'heartland', keys: 'heartland',
+  brambledeep: 'wildwood', wrath: 'wildwood', inkholm: 'wildwood', glades: 'wildwood', amberwold: 'wildwood',
+  starfall: 'highlands', tolmen: 'highlands', sunder: 'highlands', greywaste: 'highlands', held: 'highlands', redstone: 'highlands', kell: 'highlands', glassflats: 'highlands',
 };
 
 /** Where townsfolk walk, and how many of them, busiest in the capital. */
@@ -1112,10 +1119,43 @@ export class Game implements GameApi {
       this.hud.loot(item, n); this.sfx('pickup');
       const d = ITEMS[item];
       if (d.weapon || d.armor) this.setFlag('found:' + baseOf(item)); // the armoury remembers every piece
+    } else if (ITEMS[item]) {
+      // A full pack loses nothing: it goes ahead by Charter Post, to be collected at any post box
+      this.toParcel(item, n);
+      this.hud.refresh('inv');
+      return true;
     }
-    else this.hud.system('Your pack is full.');
     this.hud.refresh('inv');
     return ok;
+  }
+
+  /** What wouldn't fit in the pack, held at the Charter Post until it's collected at any post box. */
+  private get parcel(): { id: string; n: number }[] { return (this.save.flags.parcel as { id: string; n: number }[] | undefined) ?? []; }
+  private toParcel(item: string, n: number): void {
+    const p = this.parcel.map((x) => ({ ...x }));
+    const same = ITEMS[item]?.stack ? p.find((x) => x.id === item) : undefined;
+    if (same) same.n += n; else p.push({ id: item, n });
+    this.setFlag('parcel', p);
+    this.persist();
+    this.hud.system(`Your pack is full, so ${ITEMS[item].name}${n > 1 ? ` ×${n}` : ''} has gone ahead by Charter Post. Collect it at any post box.`);
+    this.sfx('click');
+  }
+  /** Take what will fit out of the parcel. */
+  private collectParcel(): void {
+    const left: { id: string; n: number }[] = [];
+    let got = 0;
+    for (const st of this.parcel) {
+      if (!ITEMS[st.id]) continue;
+      if (ITEMS[st.id].stack) { if (this.inv.canAdd(st.id, st.n)) { this.inv.add(st.id, st.n); got += st.n; } else left.push(st); continue; }
+      let k = st.n;
+      while (k > 0 && this.inv.canAdd(st.id, 1)) { this.inv.add(st.id, 1); k--; got++; }
+      if (k > 0) left.push({ id: st.id, n: k });
+    }
+    if (left.length) this.setFlag('parcel', left); else delete this.save.flags.parcel;
+    this.persist();
+    this.hud.refresh('inv');
+    if (got) this.sfx('pickup');
+    this.hud.system(left.length ? `You take what fits. ${left.reduce((a, x) => a + x.n, 0)} still waiting: make some room and come back.` : got ? 'Your parcel, all of it.' : 'Nothing will fit. Make some room first.');
   }
   take(item: string, n = 1): boolean {
     const ok = this.inv.remove(item, n);
@@ -2638,7 +2678,6 @@ export class Game implements GameApi {
     if (!s) return;
     if (view.currency) {
       if (view.currency.have < s.price) return;
-      if (!this.inv.canAdd(item)) { this.hud.system('Your pack is full.'); return; }
       this.inv.remove(view.currency.id, s.price);
       this.give(item, 1);
       this.sfx('coin');
@@ -2646,7 +2685,7 @@ export class Game implements GameApi {
       return;
     }
     if (this.save.marks < s.price) return;
-    if (!this.inv.canAdd(item)) { this.hud.system('Your pack is full.'); return; }
+    if (ITEMS[item]?.mount && !this.inv.canAdd(item)) { this.hud.system('Your pack is full.'); return; }
     if (ITEMS[item]?.mount && !this.mountPick.open) {
       // A mount: choose its coat and cloth before paying
       this.mountPick.show(item, `${s.price} marks`, true, (coat, cloth) => {
@@ -3238,6 +3277,11 @@ export class Game implements GameApi {
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    // A parcel waiting: collect it at any post box
+    if (this.parcel.length) for (const pt of POSTS) {
+      const b = postBoxOf(pt), d = Math.hypot(b.x - p.x, b.z - p.z);
+      if (d < 2.4) consider({ kind: 'act', label: `Collect your parcel (${this.parcel.reduce((a, x) => a + x.n, 0)})`, pos: new THREE.Vector3(b.x, p.y + 1.4, b.z), act: () => this.collectParcel() }, d - 0.2);
+    }
     // A pedlar on the road: they stop for you, and open their pack
     for (const pd of this.roadfolk.pedlarsNear(p, 3.4)) consider({ kind: 'act', label: `Trade with ${pd.name}`, sub: pd.title, pos: new THREE.Vector3(pd.pos.x, pd.pos.y + 1, pd.pos.z), act: () => this.openPedlar(pd.id) }, Math.hypot(pd.pos.x - p.x, pd.pos.z - p.z));
     const bed = !this.home.active && this.home.bed();
@@ -5329,7 +5373,13 @@ export class Game implements GameApi {
     if (place && place !== 'holms' && place !== 'kirk' && this.world.sky.sheltered) return 'inn';
     if (place) return place;
     if (this.world.sky.night > 0.65) return 'night';
-    return this.regionTheme();
+    // First light and evening have pieces of their own
+    const h = this.world.sky.hour;
+    if (h >= 5.6 && h < 7.8) return 'dawn';
+    if (h >= 18.4 && h < 20.2) return 'dusk';
+    // Out in the country, the region's own theme and its long piece take turns, eight minutes each
+    const own = this.regionTheme(), r = regionAt(P.x, P.z), piece = REGION_PIECE[r.t < 0.35 ? r.a : r.b];
+    return piece && Math.floor(Date.now() / 480000) % 2 === 1 ? piece : own;
   }
 
   /** In a fight with something big: an elite, a story boss or a world boss nearby and awake. */
