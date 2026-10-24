@@ -163,7 +163,8 @@ export function homesInit(ctx) {
         case 'hBlocks': {
           const id = typeof msg.id === 'string' ? msg.id : '';
           const h = homes[id], blocks = cleanBlocks(msg.blocks);
-          if (h?.key !== p.key || !blocks || id === 'cottage') return true;
+          // (the cottage and the Mirador's houses stand as built: blocks are laid only on a lot)
+          if (h?.key !== p.key || !blocks || id === 'cottage' || id.startsWith('hv')) return true;
           h.blocks = blocks;
           h.seen = Date.now();
           store();

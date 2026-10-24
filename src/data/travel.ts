@@ -61,6 +61,7 @@ export const POSTS: PostStop[] = [
   // Inkholm, past the Mewstones, and Kell, past the Fleet Coast: Davey Penrose's island boat runs to both
   // from Gullmouth for anyone (data/content/boatman.ts); the stories that send you there start on the quay
   { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2 },
+  { id: 'sickle', name: 'Hookness, the Sickle (ferry)', place: 'sickle-hookness', ferryFrom: 'gullmouth', x: 3268.5, z: -1603.5, ry: -Math.PI / 2 },
   { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2 },
   // Morrow (world/land.ts): Callis, on the south side of the Assembly's plaza (world/morrow.ts CALLIS_SPOTS)
   { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: MORROW_OX + 2132.5, z: 1077.5, ry: 0 },

@@ -161,6 +161,14 @@ function mainDist(x: number, z: number): number {
   return smin(smin(smin(east, west, 420), north, 420), south, 420);
 }
 
+/**
+ * The Teeth: Gallows Key, the Careen, Smoke Key and Ysolde's Chair, a scatter of islands west and south of
+ * Saltpenny off the end of the Keys (data/teeth.ts places them in the world).
+ */
+export const TEETH_ISLES: { x: number; z: number; r: number }[] = [
+  { x: -1960, z: 3760, r: 105 }, { x: -1830, z: 3905, r: 50 }, { x: -2085, z: 3600, r: 58 }, { x: -2055, z: 3925, r: 20 },
+];
+
 /** The Keys: islands along a curve from the south coast round to Saltpenny. */
 const KEY_ISLES: { x: number; z: number; r: number }[] = (() => {
   const out: { x: number; z: number; r: number }[] = [];
@@ -177,6 +185,8 @@ const KEY_ISLES: { x: number; z: number; r: number }[] = (() => {
     t += 0.045 + hash2(i, 9, 812) * 0.03;
   }
   out.push({ x: SALTPENNY.x, z: SALTPENNY.z, r: 140 });
+  // The Teeth, west and south of Saltpenny, where the captains the Table won't sit with lie up (data/teeth.ts)
+  out.push(...TEETH_ISLES);
   return out;
 })();
 

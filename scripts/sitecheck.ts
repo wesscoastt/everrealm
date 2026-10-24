@@ -250,7 +250,8 @@ for (const s of P.sites) for (const d of s.props as PropDesc[]) {
   if (ox < GW + 40 && oz < GW + 40) continue; // authored valley (npm run vale)
   checked++;
   const floor = d.y;
-  let top = floor + 4; while (top > floor - 6 && !solid(ox, top, oz)) top--;
+  // (from the doorway's own height down: a beam or a porch roof over the step isn't ground)
+  let top = floor + 1; while (top > floor - 6 && !solid(ox, top, oz)) top--;
   const stand = top + 1;
   if (stand - floor >= 2) problems.push(`door in ${s.id} at (${ox}, ${oz}): ground outside is ${stand - floor} blocks above the floor`);
   else if (floor - stand >= 2) problems.push(`door in ${s.id} at (${ox}, ${oz}): a ${floor - stand}-block drop outside`);

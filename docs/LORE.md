@@ -562,6 +562,7 @@ Bows are made where people hunt: the Hollin smithy's **hunting bow**, the Hagwor
 - A lease is ninety-nine years and 2,000 marks, and you build to your own plans at the lot's stake. **One home to a character, and one holder to a home**: the realm keeps one book (`server/homes.mjs`), everyone sees the house its holder built and their name on the board at the gate, and only the holder and their guests go in. Anyone can knock; the holder is asked to let them in. **A lease nobody comes back to for three months lapses** and goes back on sale; the holder's furniture goes ahead by the Charter Post.
 - **Building by hand**: on your own lot you can lay blocks and dig them out, anywhere inside the stakes, from three blocks under the floor to twenty-four above it, the builders' walls included. The land clerks sell stone, brick, timber, plaster, glass and garden earth from the builders' yard, a block apiece (`src/game/LotBuild.ts`, `src/data/content/buildyard.ts`). **Marti Coll** keeps the Assembly's book by the Post in Callis.
 - **A stall at the gate**: a lot's holder can put up a stall in the front garden and set out what they'd sell at their own prices. Anyone passing can buy, holder there or not, and the takings are paid to them in full; a stall takes no cut, unlike the Exchange's brokers, and keeps its stock a month. Give up the lot, or let the lease lapse, and the stall's stock comes home (`server/exchange.mjs`).
+- **Stations of your own**: a joiner's bench, an iron cooking range, an anvil and a house forge are furniture like any other, made at the town bench and anvil (woodcutting 12, smithing 14 to 20). Set one down in your own house and it works like the town's, so a holder can cut, cook, smith and smelt without leaving home.
 
 ## Roadside inns [in game]
 
@@ -622,6 +623,29 @@ Six years ago a Morrow ship put in at Gullmouth with pumpkin seed in her hold, a
 
 The games pay in wake candles (the first three goes a day at each), now and then a toffee apple, and rarely the fair's top prize off the pole: a **pumpkin head** to wear.
 
+## The Sickle [in game]
+
+The frozen isle in the far north sea, past Kell: a crescent of snow fells round a sheltered bay, **Sickle Water**, its horns pointing south toward the mainland. Broad and high across the north, narrowing and dropping to the horns; the bay's shallows freeze, and a few stunted pines grow low in its lee. Levels 42 to 50. Davey Penrose's island boat runs out from Gullmouth. (`src/world/terrain.ts` SICKLE, `src/data/sickle.ts`, `src/data/content/sickle.ts`, `src/data/content/sickleSide.ts`)
+
+- **Hookness**, the whaling town on the inner shore of the east horn, cut into the fell's foot: one street up from the quay between dark-timbered houses under slate, the Flensing Knife and the reeve's house, the try-works (brick furnaces, the oil casks, a whale's jaws for a gate), and the chapel at the street's head. Whaleboats on the shingle; an ice-fishers' camp out on the frozen shallows.
+- **Westhorn Tower**, off the tip of the west horn: a watchtower of the old kingdom the sea came up round. Its ringers rang the boats home through fog for three hundred years. The last, **Ebba Lind**, stayed at the rope as the water rose and rang until it took her.
+- **The Snowbarrows** on the crest across the north: five barrows kerbed with stones, each cut with a bell. They are the Westhorn ringers' graves: Aud, Hallvard, Tora, Ivo and Brand Lind, Ebba's father. There is none for Ebba.
+- **The Steam Wells**, hot springs in a fold of the north-west fells where the snow won't lie. The water smells of iron and eggs, and Hookness swears by it for the lung fever.
+- **The Glimmer**, an ice cave in the north-east fells, and **Grey Meg** at the bottom of it, a she-wolf the size of a pony.
+- The drowned of the old kingdom come up the shore on still nights as **rimewights**. Ice wolves, ice bears and fell cairns walk the fells.
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Annis Kettlewell** | Reeve of Hookness; owns the try-works | The bell at the bottom of the sea | She's frightened of it |
+| **Ida Coulter** | Keeps the chapel and the drowned tally | The drowned rung home | — |
+| **Bram Ellery** | Harpooner. His brother Alf went through the ice off the west horn | His brother's iron back | He thinks Alf is out there |
+| **Elsie Fenwick** | Ice-fisher | Pip off the thin ice | She showed Pip the char hole first |
+| **Robin Grice** | Keeps the Flensing Knife | Full casks | — |
+| **Tobias Gunn** | Foreman at the try-works | The passage south | He's drawing off oil for the Kittiwake |
+
+- **The Bell Under the Ice** (`sickleBell`): the bell rings under the ice off the west horn and the rimewights come up toward it. Annis wants it cut down; Ida lends the ringers' book. At the top of the tower the Ringer is still at the rope. `sickleBell`: `cut` (the bell goes into the sea; the drowned stop coming, and Hookness comes home by the sound of the surf in a fog) or `rung` (the home peal from Ebba's last page; the ice goes still, and Ida keeps the bell as the fog bell).
+- Side stories: **Iron for Alf** (`alfIron`: Bram throws his brother's harpoon again, or it stays on a cairn on the horn), **Past the Red Flags** (`pipTold`: Pip barred from the ice, or Elsie's char hole), **Short Measure** (`oilTold`: Tobias Gunn sent south, or paying Robin back and owing you), **Grey Meg**, **The Names on the Stones**, **Warm Water**.
+
 ## Kell [in game]
 
 An island north-east of the Fleet Coast, a day out from Gullmouth with a fair wind: one old volcano, the Kiln, with a flat crater on top. Sailors call it the island that smokes. `world/terrain.ts` (KELL, KILN), `data/kell.ts`, `data/content/kell.ts`.
@@ -662,7 +686,7 @@ The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, King
 ### The crossing [in game]
 
 - The world is one world: Morrow lies east of the Counties over open sea (`src/world/land.ts`, `src/world/morrow.ts`), and you could row there, or swim, if you had the days. The packet ship **the Constant** runs Gullmouth to Callis and back, a day and a night each way. **Hal Sennen** is her master; she was his mother's before him, and he has sailed her twenty-two years. The fare is 20 marks, and he takes nobody under level 30.
-- The voyage is played the whole way: you board at the quay, she casts off and stands out to sea with you on her deck, and she sails the real sea between the lands, south inside the Mewstones, out across the open water to the south-east and up Morrow's east coast, with the coasts going by, until she comes into Callis and you step off onto the quay (`src/game/Voyage.ts`; her course is `PACKET_COURSE` in `src/data/travel.ts`). The world map's **World** view shows both lands on one sea, the Charter Counties to the west and Morrow to the east, with the Constant's course drawn as she sails it, and the island boat's lanes out to the Mewstones, Inkholm and Kell (`src/ui/worldMap.ts`, charts from `npm run charts`).
+- The voyage is played the whole way: you board at the quay, she casts off and stands out to sea with you on her deck, and she sails the real sea between the lands, south inside the Mewstones, out across the open water to the south-east and up Morrow's east coast, with the coasts going by, until she comes into Callis and you step off onto the quay (`src/game/Voyage.ts`; her course is `PACKET_COURSE` in `src/data/travel.ts`). The world map's **World** view shows both lands on one sea, the Charter Counties to the west and Morrow to the east, with the Constant's course drawn as she sails it, and the island boat's lanes out to the Mewstones, Inkholm, Kell and the Sickle (`src/ui/worldMap.ts`, charts from `npm run charts`).
 
 ### Callis [in game]
 
@@ -700,6 +724,21 @@ Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; 
   - `sink`: Ned Vey sinks the black in deep water off the Keys (if the player owes him, this is his favour). The Held lie down slowly, one a night, the towers come down anyway, and Saltpenny is owed by everyone. Pryce comes home in irons on a Brethren cutter and waits on the spring assizes in Ansbury gaol.
 - **XXII, His Book** (`tdHome`). Delia Harrowgate reads Pryce's book at last: every line he signed with her name, and the two prices on each. She always knew what was in it; she didn't want to know which lines. The player keeps the last volume ("One king. A.P."). Benet Sala, Ned Vey, Maud Hale and Ebba Thorne each say how it went.
 
+### The Mirador [in game]
+
+- North of Callis the Sunder's plateau ends in a sheer scarp, twenty-five blocks of grey rock, and along its lip the shipping families built their summer houses, every one with a deck hung out over the drop and the whole city, the river mouth and the bay under it (`buildMirador` in `src/world/sites.ts`, `src/data/mirador.ts`). A flagged lane runs along the lip from the coast road, through a white gatehouse, past the houses, to a public lookout at its end.
+- The salt trade went to the Brethren ten years ago (they pay no duty), and the families that did couldn't sell salt for what it cost them. Most have gone. **Teresa Mas** sells their houses for them from the office by the gatehouse, outright, no lease: an empty house stands open for anyone to walk round.
+- The houses, west to east: **the Stair House** (three stone terraces down the face under it, and a private stair to the foot with a gate onto the Callis road), the Roigs', **the Point** (the dearest: the lip comes furthest out there, a white stone deck with a bay and a fire, a loggia on the west wing), **the Long Deck** (the Ferrers' supper deck, end to end, under a vine pergola), **the Lantern House** (glass all round the upper floor and a balcony hung with lamps; the harbour looks up at it at night), the Vidals', **the Tower House** (the Assembly's old lookout tower, standing on the cliff foot and rising past the roofs, with a house built against it), **the Cistern House** (the Oms': sandstone, long pools in the walled court, a bathing pool let into the deck, spring water piped from the plateau) and **the Cypress House** (dressed stone, an arcade along the cliff side, a deck in two steps).
+- Buying one is one home to a household like any other: the Charter takes back a cottage or a lot and pays for it. Teresa buys a house back for its family at two thirds of its price.
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Teresa Mas** | Sells the Mirador's houses | A neighbour for Nina who has suppers | She grew up in the Cistern House |
+| **Bernat Roig** | Last of the Roig shipowners | The Bona Sort home | He signed the book that says she sank |
+| **Nina Vidal** | Painter, thirty years at the same view | To get the light right once | She likes the Lantern House lit |
+
+- **The Bona Sort** (Bernat Roig): his last ship, black hull and white band, went to the Keys for salt. Pau Ferrer says she went onto Ysolde's Chair in the Teeth five years ago with all hands, and Bernat signed the harbour book himself. You tell him the truth (he gives you the spyglass and looks at the city instead) or you don't (he keeps watching, and pays you for your legs).
+
 ### Kingsbarrow [in game]
 
 - The old kingdom's city of the dead on the Held's plateau, north of Northgate by the road through the gate. An avenue of standing stones runs north between rows of barrows, most stripped by Pryce's diggers, past stone tomb-houses, to the **king's barrow**: a hill kerbed with great stones, half its black cap torn off and heaped down the east side where the carts could reach it, and a portal of three stones in its south face. The diggers' camp is beside it.
@@ -735,11 +774,22 @@ Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; 
 - **Dinah's maps.** `dinahSalt` (a map of the key itself; a tin of her own buttons under the X), `dinahKeys` (two maps of the Keys; a page of Gale's log in the second chest), `dinahGale` (Gale's hoard by Heron Mere in the Glades: an iron box, a brass compass Dinah keeps, and Gale's cloak with the compass rose, which the player keeps). After that Dinah sells maps of every region in Morrow; there are two to each region, as in the Counties.
 - **Wreckers' Bight** is the camp on a key east along the causeway where Pryce's wreckers lie up.
 
+### The Teeth [in game]
+
+West and south of Saltpenny, off the end of the Keys: **Gallows Key**, **the Careen**, **Smoke Key** and **Ysolde's Chair**, where the captains the Captains' Table won't sit with lie up (`src/world/morrowLocal.ts` TEETH_ISLES, `src/data/teeth.ts`, `src/data/content/teeth.ts`).
+
+- **Gallows Key**: an Assembly signal fort from before the Brethren, white stone pinned with black, its walls broken in three places and stopped up with logs. **Hob Merrick** holds it with the crews the Table cast out for taking a Brethren prize, forty of them Callis-born. The gallows by the gate gave the key its name; nobody uses it any more. His prize lies at anchor off the beach.
+- **The Careen**: a shingle beach where the Teeth's ships are hauled out to be scraped and tarred. **Kester Bligh** is the shipwright; Mattias Crowe's Long Shilling is up on the shingle.
+- **Smoke Key**: the beacon on its crown, and **Gert Vosse**, who keeps it and lights it for whoever pays. Ten years ago she lit it for the night the Morning Star went down off the Teeth, with her son Wilf aboard as ship's boy. She has lit it every night since.
+- **Ysolde's Chair**: a stack of black rock with a stair cut round it, and Ysolde Gale's compass rose cut in its top. Gale's log: "North for the sea, west for the dead, south for the wind, east for home."
+- **The Unpaid** (`teethUnpaid`, Ned Vey): three Brethren ships lost near the Teeth. It isn't Merrick taking them but the Assembly's revenue cutter, and Merrick's beacon brings them onto her for a pardon a ship. Her boat lands on Gallows beach under **Lieutenant Arnau Sabat**. `teethEnd`: `table` (Merrick stands before the Table; his crews scatter) or `pardon` (he takes them home to Callis on Assembly paper; Ned Vey doesn't forget it).
+- Side stories: **Before the Tide** (rope from Rook's Ropewalk to float the Long Shilling), **False Lights** (`gertLight`: the beacon's glass broken, or Gert's secret kept), **The Compass Rose** (Gale's spyglass, for Dinah Lowry), **Prize Crew** (**Joan Sabater**, an Assembly customs clerk nobody in Callis would ransom).
+
 ### The Black Pin, the Cockpit, and the far places' mounts [in game]
 
 - **The Black Pin** is Callis's inn, on the east side of the Market square, white stone under a red roof: a taproom and five rooms to let upstairs. **Roser Puig** keeps it and keeps the peace with soup; the Assembly and the dockers drink there and don't sit where the other lot sits. It's named for the pins in the towers, the thing that holds everything else up.
 - **The Cockpit's ladder** (`src/data/duels.ts`): Kit Rowe, a deckhand who has never drawn first blood off anyone; Hannah Skerry, the Kittiwake's bosun; Ruth Abel, a gunner who throws what she can't shoot; Mattias Crowe, captain of the Long Shilling, who has never lost a ship over a dispute; and Mara Coyle, who doesn't fight in the Cockpit and makes an exception. First blood: they yield at half, you yield at a quarter, nobody dies, and stepping out of the ring forfeits. Beating Mara wins the Cockpit's ribbon.
-- **Davey Penrose** runs the island boat from Gullmouth's quay to the Mewstones, Inkholm and Kell. The Charter stopped the Inkholm crossing; the Charter doesn't row.
+- **Davey Penrose** runs the island boat from Gullmouth's quay to the Mewstones, Inkholm, Kell and the Sickle. The Charter stopped the Inkholm crossing; the Charter doesn't row.
 - **Mounts** (`src/data/content/mounts.ts`): the Kilnfolk breed great cats (kilncats) on the Kiln's warm slopes and build clockwork striders in the Works; the Held's herders ride sabre-toothed fell cats; the Glass Flats' caravans ride drakes that walk; the Keys ride their turtles (Old Shell is older than Saltpenny); the Sunder's skyfarmers keep slabbacks, oxen plated with the stone they graze; the Assembly keeps griffins in the eyries at the tops of its towers; and the grave-wyrms slept curled round the old king's bier. Stags come from both continents' woods.
 
 ### Morrow's towns and villages [in game]
@@ -765,6 +815,7 @@ Written at their regions' levels in `src/data/gameplay.ts`, south to north. Two 
 - **The Bright Coast:** terrace jackals, quarry beetles in the white quarries, and black-runners carrying the black up the coast.
 - **The Sunder:** slab-crawlers and lift-moths off the hanging stone, rift wolves.
 - **The Glass Flats:** glass basilisks, glassbacks, and salt reavers.
+- **The Glassmother** [in game, world boss]: the one dragon anyone has seen, as long as a ropewalk shed with wings to match, who comes down every so often on **the Mother's Bed**, a ring of black glass spires deep in the Flats, with her brood of wild drakes round her. The storm-hunters at Tenwells hold that the black glass is lightning-melted salt; the caravan folk say it's where she lay down, and that the drakes are her get. Neither side has gone close enough to settle it.
 - **The Greywaste:** waste hounds, fen-damps, and the **Risen**, the first of the Held.
 - **The Held Country:** barrow-wights, the Risen, and the fell trolls of the high snow.
 - What they leave: lizard hide, moth dust, chips of the white (it floats), shards of the black (heavy as a fist), black glass (lightning-melted salt crust), grave iron (the smiths at Northgate won't work it), and fell troll hide.

@@ -12,7 +12,7 @@ export interface Place { id: string; name: string; sub: string; x: number; z: nu
 const REGION_LABELS: Record<RegionId, [number, number]> = {
   greenwake: [150, 140], crownroad: [700, 210], brambledeep: [270, 760], saltwind: [1560, 470],
   redstone: [1060, 1120], starfall: [760, 1820],
-  gannet: [500, -1100], wrath: [-1250, 900], tolmen: [700, 3050], inkholm: [2760, 1520], kell: [2700, -760],
+  gannet: [500, -1100], wrath: [-1250, 900], tolmen: [700, 3050], inkholm: [2760, 1520], kell: [2700, -760], sickle: [3000, -2000],
   keys: [-500, 3480], glades: [900, 2560], amberwold: [300, 1700], bright: [1800, 1150], sunder: [700, 430], glassflats: [1000, -280], greywaste: [900, -1000], held: [700, -1720],
 };
 
@@ -23,7 +23,7 @@ const REGION_SUB: Record<RegionId, string> = {
   greenwake: 'Farms and the Pit along the Wend', crownroad: 'Ansbury and the toll road', brambledeep: 'Giant trees and the fellers',
   saltwind: 'Gullmouth and the fishing coast', redstone: 'Harrowgate Works and red rock', starfall: 'High pasture and the Kettle',
   gannet: 'Seabird cliffs in the north', wrath: 'Fens and sluices in the west', tolmen: 'Stones and moorland in the south',
-  inkholm: 'The mushroom isle off Gullmouth', kell: 'The Kilnfolk\'s volcano, north-east of the Fleet Coast',
+  inkholm: 'The mushroom isle off Gullmouth', kell: 'The Kilnfolk\'s volcano, north-east of the Fleet Coast', sickle: 'The frozen crescent in the far north sea',
   keys: 'Low islands, causeways and wrecks', glades: 'Sawgrass and slow rivers', amberwold: 'The autumn forest', bright: 'Callis and the vineyards', sunder: 'The rift, and the stone that floats', glassflats: 'Salt and black glass', greywaste: 'Where the black was dug out', held: 'Snowfields and the barrows of the old kingdom',
 };
 

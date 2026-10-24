@@ -104,6 +104,7 @@ import { Building, doorCell, stallAt, type LaidBlock, type LotHouse } from './Bu
 import { LotBuild } from './LotBuild';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
+import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaShape, VILLAS } from '../data/mirador';
 import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_PRICE, LOTS, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
@@ -145,7 +146,7 @@ const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() 
 /** The music for each region; the outer lands borrow a neighbour's until their own is written. */
 const REGION_THEME: Record<RegionId, ThemeId> = {
   greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
-  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep', kell: 'redstone',
+  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep', kell: 'redstone', sickle: 'starfall',
   keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'starfall', glassflats: 'redstone', greywaste: 'starfall', held: 'starfall',
 };
 
@@ -153,7 +154,15 @@ const REGION_THEME: Record<RegionId, ThemeId> = {
 const REGION_PIECE: Partial<Record<RegionId, ThemeId>> = {
   greenwake: 'heartland', crownroad: 'heartland', gannet: 'heartland', bright: 'heartland', saltwind: 'heartland', keys: 'heartland',
   brambledeep: 'wildwood', wrath: 'wildwood', inkholm: 'wildwood', glades: 'wildwood', amberwold: 'wildwood',
-  starfall: 'highlands', tolmen: 'highlands', sunder: 'highlands', greywaste: 'highlands', held: 'highlands', redstone: 'highlands', kell: 'highlands', glassflats: 'highlands',
+  starfall: 'highlands', tolmen: 'highlands', sunder: 'highlands', greywaste: 'highlands', held: 'highlands', redstone: 'highlands', kell: 'highlands', sickle: 'highlands', glassflats: 'highlands',
+};
+
+/** Furniture that works as a crafting station once it's set down at home, and what using it says. */
+const HOME_STATIONS: Record<string, { station: Station; label: string }> = {
+  furn_workbench: { station: 'bench', label: 'Work at your bench' },
+  furn_range: { station: 'hearth', label: 'Cook at your range' },
+  furn_anvil: { station: 'anvil', label: 'Use your anvil' },
+  furn_forge: { station: 'furnace', label: 'Use your forge' },
 };
 
 /** Hand-laid blocks as saved (in the 'lotBlocks' flag, or the book): anything malformed is dropped. */
@@ -1152,15 +1161,17 @@ export class Game implements GameApi {
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
-        this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces(), readPlot(this.flag('plot'))), () => this.online.homeShow(from, false, null), 60);
+        const where = this.myVilla() ? { lot: this.myVilla()!.id } : readPlot(this.flag('plot'));
+        this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces(), where), () => this.online.homeShow(from, false, null), 60);
       },
       homeShow: (owner: string, pieces: unknown[], plot: unknown) => {
-        const hp = readPlot(plot);
-        const shape = plotShape(hp) ?? COTTAGE_SHAPE;
-        this.visitLot = hp?.spec ? hp.lot : 'cottage';
+        const vl = VILLA_BY_ID.get(String((plot as { lot?: unknown } | null)?.lot ?? ''));
+        const hp = vl ? null : readPlot(plot);
+        const shape = vl ? villaShape(vl) : plotShape(hp) ?? COTTAGE_SHAPE;
+        this.visitLot = vl ? vl.id! : hp?.spec ? hp.lot : 'cottage';
         this.home.visit(owner, pieces as Piece[], shape);
         const lot = hp?.spec ? LOTS.find((l) => l.id === hp.lot)! : null;
-        this.hud.system(lot ? `${owner}'s house stands on ${lot.name}, ${WENDSIDE_LOTS.includes(lot) ? 'east of Hollin Ford' : `by ${(POSTS.find((q) => q.id === lot.town)?.name ?? 'the road').split(',')[0]}`}. The door's open to you.` : `${owner}'s home is Wendside Cottage, on the road east of Hollin Ford. The door's open to you.`);
+        this.hud.system(vl ? `${owner}'s home is ${vl.name} on the Mirador, above Callis. The door's open to you.` : lot ? `${owner}'s house stands on ${lot.name}, ${WENDSIDE_LOTS.includes(lot) ? 'east of Hollin Ford' : `by ${(POSTS.find((q) => q.id === lot.town)?.name ?? 'the road').split(',')[0]}`}. The door's open to you.` : `${owner}'s home is Wendside Cottage, on the road east of Hollin Ford. The door's open to you.`);
         this.hud.pin = { x: shape.x0 + shape.w / 2, z: shape.z0 + shape.d / 2 };
       },
       homes: (list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null) => {
@@ -1611,6 +1622,8 @@ export class Game implements GameApi {
   private myHome(): HomeShape | null {
     const plot = plotShape(readPlot(this.flag('plot')));
     if (plot) return plot;
+    const villa = this.myVilla();
+    if (villa) return villaShape(villa);
     // A room let by the week is home while the rent is paid
     const t = readTenancy(this.flag('flat'));
     if (t) return t.until > Date.now() ? roomShape(LODGINGS.find((l) => l.id === t.house)!, t.room) : null;
@@ -1695,6 +1708,7 @@ export class Game implements GameApi {
     const held = this.homesBook?.get(id);
     if (held) { this.hud.system(held.spec ? `${lot.name}: ${held.owner}'s house.` : `${lot.name}: leased to ${held.owner}, not built on yet.`); return; }
     if (mine) { this.hud.system(`${lot.name}: to let. You already hold ${LOTS.find((l) => l.id === mine.lot)!.name}; one home to a household.`); return; }
+    if (this.myVilla()) { this.hud.system(`${lot.name}: to let. You hold ${this.myVilla()!.name} on the Mirador; one home to a household. Teresa Mas will buy it back at the gate.`); return; }
     // Moving out of Wendside Cottage: the Charter takes it back when you lease, empty
     const cottage = this.myHomeId() === 'cottage';
     if (cottage && this.home.pieces().length) { this.hud.system(`${lot.name}: to let. You hold Wendside Cottage: pick up your furniture there first (Arrange the furniture, then X), and the Charter will buy it back when you lease.`); this.sfx('fail'); return; }
@@ -1754,6 +1768,8 @@ export class Game implements GameApi {
   private myHomeId(): string | null {
     const plot = readPlot(this.flag('plot'));
     if (plot) return plot.lot;
+    const villa = this.myVilla();
+    if (villa) return villa.id;
     return this.flag('home') && !readTenancy(this.flag('flat')) ? 'cottage' : null;
   }
 
@@ -1762,7 +1778,82 @@ export class Game implements GameApi {
     if (this.myHomeId() === id) return this.save.name;
     return this.homesBook?.get(id)?.owner ?? null;
   }
-  private homeName(id: string): string { return id === 'cottage' ? 'Wendside Cottage' : LOTS.find((l) => l.id === id)?.name ?? id; }
+  private homeName(id: string): string { const v = VILLA_BY_ID.get(id); return id === 'cottage' ? 'Wendside Cottage' : v ? v.name[0].toUpperCase() + v.name.slice(1) : LOTS.find((l) => l.id === id)?.name ?? id; }
+  /** The house on the Mirador that's yours, if one is. */
+  private myVilla() { return VILLA_BY_ID.get(String(this.flag('villa') ?? '')) ?? null; }
+
+  /**
+   * Buy a house on the Mirador outright from the family selling it. One home to a household, so the one
+   * you have goes: Wendside Cottage back to the Charter for what it pays, a lot's lease back to the
+   * Charter for half what it cost (the house on it comes down), another villa back to its family for two
+   * thirds, a let room simply given up.
+   */
+  buyVilla(id: string): void {
+    const v = VILLA_BY_ID.get(id);
+    if (!v) return;
+    const name = this.homeName(id);
+    if (this.myHomeId() === id) return;
+    const held = this.homesBook?.get(id);
+    if (held) { this.hud.system(`${name} is ${held.owner}'s.`); return; }
+    const was = this.myHomeId(), plot = readPlot(this.flag('plot')), other = this.myVilla();
+    if (was && this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.myHome()?.name ?? 'home'}. Pick it up first (Arrange the furniture, then X), and you can move.`); this.sfx('fail'); return; }
+    const back = was === 'cottage' ? COTTAGE_BUYBACK : plot ? Math.round(LOT_PRICE / 2) : other ? Math.round(other.price * VILLA_RESALE) : 0;
+    const cost = v.price - back;
+    if (this.save.marks < cost) { this.hud.system(`${name}: ${v.price.toLocaleString()} marks${back ? ` (${cost.toLocaleString()} once your home is paid back)` : ''}. You have ${this.save.marks.toLocaleString()}.`); this.sfx('fail'); return; }
+    const leaving = was === 'cottage' ? ' The Charter takes Wendside Cottage back and pays you ' + COTTAGE_BUYBACK + '.'
+      : plot ? ` The Charter takes back your lease on ${LOT_BY_ID.get(plot.lot)?.name ?? 'your lot'} for ${back} marks, and the house on it comes down.`
+      : other ? ` ${this.homeName(other.id!)} goes back to its family for ${back.toLocaleString()}.` : '';
+    this.hud.ask(`Buy ${v.name} for ${v.price.toLocaleString()} marks? It's yours for good: furnish it however you like.${leaving}`, () => {
+      if (this.myHomeId() === id || this.homesBook?.get(id) || this.save.marks < cost) return;
+      if (readTenancy(this.flag('flat')) && !this.leaveRoom()) return;
+      this.claimHome(id, () => {
+        if (this.myHomeId() === id || this.save.marks < cost) return;
+        this.addMarks(-cost);
+        this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null);
+        this.setFlag('villa', id);
+        this.setFlag('home', []);
+        this.home.render();
+        this.hud.banner(name, 'Your house on the Mirador', true);
+        this.sfx('discover');
+        this.hud.system(`Teresa Mas hands you the keys. ${name} is yours: inside, use the prompt to arrange the furniture.`);
+        this.hud.refresh();
+        this.persist();
+      }, was);
+    }, () => {}, 30);
+  }
+
+  /** Sell your house on the Mirador back to its family, for two thirds of what it cost. */
+  sellVilla(): void {
+    const v = this.myVilla();
+    if (!v) return;
+    if (this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.homeName(v.id!)}. Pick it up first (Arrange the furniture, then X).`); this.sfx('fail'); return; }
+    const back = Math.round(v.price * VILLA_RESALE);
+    this.hud.ask(`Sell ${v.name} back to its family for ${back.toLocaleString()} marks? Someone else can buy it after.`, () => {
+      if (this.myVilla() !== v) return;
+      if (this.homesBook && this.online.online) this.online.homeRelease(v.id!);
+      this.addMarks(back);
+      this.setFlag('villa', null);
+      this.setFlag('home', null);
+      this.home.render();
+      this.sfx('coin');
+      this.hud.system(`Teresa Mas takes the keys back and counts out ${back.toLocaleString()} marks.`);
+      this.hud.refresh();
+      this.persist();
+    }, () => {}, 30);
+  }
+
+  /** Someone else's purchase of your villa got into the book first: the family pays you back in full. */
+  private villaLost(id: string, owner: string): void {
+    const v = VILLA_BY_ID.get(id);
+    if (!v) return;
+    this.furnitureBack(false);
+    this.setFlag('villa', null);
+    this.setFlag('home', null);
+    this.addMarks(v.price);
+    this.hud.system(`${this.homeName(id)} was sold to ${owner} before your money reached the family. They've paid you back all ${v.price.toLocaleString()} marks, and your furniture is in your pack.`);
+    this.hud.refresh();
+    this.persist();
+  }
 
   /** Ask the book for a home (giving up the one you're leaving), and act once it's yours. Offline it's yours at once. */
   private claimHome(id: string, then: () => void, leaving: string | null = null, spec?: HouseSpec): void {
@@ -1790,6 +1881,7 @@ export class Game implements GameApi {
     if (mine && !local && !readTenancy(this.flag('flat'))) {
       const held = this.homesBook?.get(mine), spec = held && mine !== 'cottage' ? readPlot({ lot: mine, spec: held.spec })?.spec : undefined;
       if (mine === 'cottage') this.setFlag('home', this.home.pieces());
+      else if (VILLA_BY_ID.has(mine)) { this.setFlag('villa', mine); this.setFlag('home', this.home.pieces()); }
       else this.setFlag('plot', { lot: mine, ...(spec ? { spec } : {}) });
       if (held?.blocks?.length) this.setFlag('lotBlocks', held.blocks);
       if (held?.stall) this.setFlag('stall', true);
@@ -1800,8 +1892,9 @@ export class Game implements GameApi {
     if (mine && mine !== local) this.online.homeRelease(mine);
     if (!local) return;
     const other = this.homesBook?.get(local);
-    if (!other) { this.pendingClaim = { id: local, then: () => { if (this.flag('stall') && plot) this.online.homeStall(local, true); }, fail: () => this.moveHome(local, this.homesBook?.get(local)?.owner ?? 'someone', 0) }; this.online.homeClaim(local, plot?.spec, this.flag('lotBlocks')); return; }
-    this.moveHome(local, other.owner, 0);
+    const lost = (owner: string) => (VILLA_BY_ID.has(local) ? this.villaLost(local, owner) : this.moveHome(local, owner, 0));
+    if (!other) { this.pendingClaim = { id: local, then: () => { if (this.flag('stall') && plot) this.online.homeStall(local, true); }, fail: () => lost(this.homesBook?.get(local)?.owner ?? 'someone') }; this.online.homeClaim(local, plot?.spec, plot ? this.flag('lotBlocks') : undefined); return; }
+    lost(other.owner);
   }
 
   /**
@@ -1854,6 +1947,7 @@ export class Game implements GameApi {
     this.furnitureBack(true);
     this.setFlag('home', null);
     this.setFlag('plot', null);
+    this.setFlag('villa', null);
     this.setFlag('lotBlocks', null);
     this.setFlag('stall', null);
     this.hud.system(`You were away three months and more, and the Charter took ${name} back and put it up for sale. Your furniture went ahead by the Charter Post: collect it at any post box.`);
@@ -1864,6 +1958,8 @@ export class Game implements GameApi {
   /** The step outside a held home's front door (for knocking), or null for a lot not built on. */
   private homeDoorOutside(id: string, h: HomeHeld): { x: number; y: number; z: number } | null {
     if (id === 'cottage') return { x: COTTAGE.x0 + Math.floor(COTTAGE.w / 2) + 0.5, y: COTTAGE.floor, z: COTTAGE.z0 + COTTAGE.d + 0.5 };
+    const v = VILLA_BY_ID.get(id);
+    if (v) { const [dx, dz] = villaDoor(v); return { x: dx + 0.5, y: v.base, z: dz - 0.7 }; }
     const lot = LOT_BY_ID.get(id), spec = lot && readPlot({ lot: id, spec: h.spec })?.spec;
     if (!lot || !spec) return null;
     const at = housePlace(lot, spec), [dx, dz] = doorCell(at);
@@ -1902,6 +1998,17 @@ export class Game implements GameApi {
       else if (!lock && b === B.Barrier) V.set(dx, y, dz, B.Air);
     }
     for (const d of this.world.doors()) if (Math.abs(d.hinge.x - dx - 0.5) < 1.6 && Math.abs(d.hinge.z - dz - 0.5) < 1.6) d.locked = lock;
+    // The houses on the Mirador: every door into one (an empty one stands open for anyone to look round)
+    const P = this.player.position;
+    for (const v of VILLAS) {
+      if (!v.id || Math.abs(v.x0 - P.x) > 200 || Math.abs(v.z0 - P.z) > 200) continue;
+      const shut = !!this.homesBook?.get(v.id) && this.myHomeId() !== v.id && this.visitLot !== v.id;
+      for (const [x, y0, z] of villaLocks(v)) {
+        if (!V.isLoaded(x, z)) continue;
+        for (const y of [y0, y0 + 1]) { const b = V.get(x, y, z); if (shut && b === B.Air) V.set(x, y, z, B.Barrier); else if (!shut && b === B.Barrier) V.set(x, y, z, B.Air); }
+        for (const d of this.world.doors()) if (Math.abs(d.hinge.y - y0) < 2 && Math.abs(d.hinge.x - x - 0.5) < 1.6 && Math.abs(d.hinge.z - z - 0.5) < 1.6) d.locked = shut;
+      }
+    }
   }
 
   /** The builders raise the house: they take the timber, ironwork and wages, and it stands. */
@@ -1933,6 +2040,7 @@ export class Game implements GameApi {
   buyHome(): void {
     const held = this.homesBook?.get('cottage');
     if (held && this.myHomeId() !== 'cottage') { this.hud.system(`Wendside Cottage is ${held.owner}'s now. The Charter has lots to let by every Post town: ask a land clerk.`); return; }
+    if (this.myVilla()) { this.hud.system(`You hold ${this.myVilla()!.name} on the Mirador; one home to a household.`); return; }
     if (readTenancy(this.flag('flat')) && !this.leaveRoom()) return;
     if (this.home.owned) return;
     const price = COTTAGE.price;
@@ -2926,7 +3034,7 @@ export class Game implements GameApi {
     const st = this.save.inv[i];
     if (!st) return;
     const def = ITEMS[st.id];
-    if (def.furn) { this.hud.system(this.home.owned ? 'Furniture goes down at home: press E inside Wendside Cottage and choose Arrange the furniture.' : 'Furniture needs a house to go in. There\'s a cottage for sale on the road east of Hollin Ford.'); return; }
+    if (def.furn) { this.hud.system(this.home.owned ? `Furniture goes down at home: press E inside ${this.myHome()?.name ?? 'your home'} and choose Arrange the furniture.` : 'Furniture needs a house to go in. There\'s a cottage for sale on the road east of Hollin Ford.'); return; }
     if (def.kind === 'food') this.eat(st.id);
     else if (def.weapon) {
       const old = this.save.equip.weapon;
@@ -3713,12 +3821,23 @@ export class Game implements GameApi {
     if (bed && this.home.inside(p) && Math.abs(bed.y - p.y) < 2) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, bed.y + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
     // Someone else's house: knock, and if they're in the world they're asked to let you in
     if (this.homesBook && !this.home.visiting) for (const [id, h] of this.homesBook) {
-      const lt = LOT_BY_ID.get(id), cx = lt ? lt.x0 + 7 : COTTAGE.x0 + 4, cz = lt ? lt.z0 + 6 : COTTAGE.z0 + 4;
+      const lt = LOT_BY_ID.get(id), vl = VILLA_BY_ID.get(id);
+      const cx = lt ? lt.x0 + 7 : vl ? vl.x0 + vl.w / 2 : COTTAGE.x0 + 4, cz = lt ? lt.z0 + 6 : vl ? vl.z0 + vl.d / 2 : COTTAGE.z0 + 4;
       if (Math.abs(cx - p.x) > 16 || Math.abs(cz - p.z) > 16) continue;
       const at = this.homeDoorOutside(id, h);
       if (!at || id === this.myHomeId()) continue;
       const d = Math.hypot(at.x - p.x, at.z - p.z);
       if (d < 2.4 && Math.abs(at.y - p.y) < 3) consider({ kind: 'act', label: `Knock at ${h.owner}'s door`, pos: new THREE.Vector3(at.x, at.y + 1.4, at.z), act: () => { this.online.homeAsk(h.owner); this.sfx('click'); } }, d);
+    }
+    // At a gate on the Mirador: a house for sale to buy (the door stands open to look round first), or yours to sell back
+    for (const v of VILLAS) {
+      if (!v.id || Math.abs(v.x0 - p.x) > 20 || Math.abs(v.z0 - p.z) > 20) continue;
+      const g = villaGate(v), d = Math.hypot(g.x - p.x, g.z - p.z);
+      if (d > 2.6 || Math.abs(v.base - p.y) > 3) continue;
+      const name = this.homeName(v.id);
+      if (this.myHomeId() === v.id) consider({ kind: 'act', label: `Sell ${v.name} back (${Math.round(v.price * VILLA_RESALE).toLocaleString()} marks)`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.sellVilla() }, d + 0.5);
+      else if (!this.homesBook?.get(v.id)) consider({ kind: 'act', label: `Buy ${v.name}`, sub: `For sale, ${v.price.toLocaleString()} marks`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.buyVilla(v.id!) }, d);
+      else consider({ kind: 'act', label: name, sub: `${this.homesBook.get(v.id)!.owner}'s house`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.hud.system(`${name}: ${this.homesBook!.get(v.id!)!.owner}'s house. Knock at the door if you'd like to be let in.`) }, d + 0.5);
     }
     // Stalls at the lots' gates: put one up at yours and mind it; browse anyone else's
     {
@@ -3739,6 +3858,16 @@ export class Game implements GameApi {
     }
     // On your own lot: lay blocks and dig them out by hand
     if (!this.lotBuild.active && !this.home.active && this.lotBuild.onLot(p)) consider({ kind: 'act', label: 'Build on your lot', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => { this.hud.closeAll(); this.lotBuild.start(); } }, 2.2);
+    // Stations of your own at home: a bench, a range, an anvil, a forge, each works like the town's
+    if (!this.home.active && !this.home.visiting && this.home.owned) {
+      const h = this.home.where();
+      if (h) for (const [item, x, z, , f] of this.home.pieces()) {
+        const st = HOME_STATIONS[item];
+        if (!st) continue;
+        const y = h.base + (f ?? 0) * 4, d = Math.hypot(x - p.x, z - p.z);
+        if (d < 2.2 && Math.abs(y - p.y) < 2) consider({ kind: 'act', label: st.label, pos: new THREE.Vector3(x, y + 1, z), act: () => this.openCrafting(st.station, { x, y, z }) }, d);
+      }
+    }
     // Indoors at home: arrange the furniture from anywhere in the house
     if (!this.home.active && !this.home.visiting && this.home.owned && this.home.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
     // Lodging houses: every room's door, and your own room's chest

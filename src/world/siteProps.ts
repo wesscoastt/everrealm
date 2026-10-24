@@ -231,6 +231,10 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'anvil': place(P.anvil(M), d.x, d.y, d.z, d.ry); break;
       case 'well': place(P.well(M), d.x, d.y, d.z, d.ry); break;
       case 'fence': place(P.fenceRun(M, d.len ?? 6), d.x, d.y, d.z, d.ry); break;
+      case 'balustrade': place(P.balustrade(M, d.len ?? 4), d.x, d.y, d.z, d.ry); break;
+      case 'deckRail': place(P.deckRail(M, d.len ?? 4), d.x, d.y, d.z, d.ry); break;
+      case 'parasol': place(P.parasol(M, d.color ?? '#a8382c'), d.x, d.y, d.z, d.ry); break;
+      case 'stringLights': place(P.stringLights(M, d.len ?? 6, d.h ?? 0.4), d.x, d.y, d.z, d.ry); break;
       case 'bars': place(P.ironBars(M, d.len ?? 3, d.rise ?? 4), d.x, d.y, d.z, d.ry); break;
       case 'hatch': place(P.cellarHatch(M), d.x, d.y, d.z, d.ry); break;
       case 'rails': place(P.rails(M, d.len ?? 6), d.x, d.y, d.z, d.ry); break;

@@ -35,12 +35,13 @@ const CLIMATE: Record<RegionId, Climate> = {
   inkholm: { wet: 0.34, grey: 0.5, mist: 0.97, murk: 0.6 },
   // Kell: dry, the Kiln's haze hanging over it most days
   kell: { wet: 0.12, grey: 0.45, mist: 0.5, murk: 0.3 },
+  sickle: { wet: 0.42, grey: 0.5, snow: true, mist: 0.45 },
   // Morrow: warm wet south, dry salt flats, a cold grey north
   keys: { wet: 0.3, grey: 0.15, mist: 0.2 }, glades: { wet: 0.4, grey: 0.3, mist: 0.8 }, amberwold: { wet: 0.26, grey: 0.25, mist: 0.6 },
   bright: { wet: 0.15, grey: 0.15, mist: 0.25, fret: true }, sunder: { wet: 0.3, grey: 0.3, mist: 0.55 }, glassflats: { wet: 0.08, grey: 0.35, mist: 0.1 },
   greywaste: { wet: 0.3, grey: 0.6, mist: 0.75, murk: 0.4 }, held: { wet: 0.45, grey: 0.5, snow: true, mist: 0.4 },
 };
-const REGION_N: Record<RegionId, number> = { greenwake: 1, crownroad: 2, brambledeep: 3, saltwind: 4, redstone: 5, starfall: 6, gannet: 7, wrath: 8, tolmen: 9, inkholm: 10, kell: 11, keys: 12, glades: 13, amberwold: 14, bright: 15, sunder: 16, glassflats: 17, greywaste: 18, held: 19 };
+const REGION_N: Record<RegionId, number> = { greenwake: 1, crownroad: 2, brambledeep: 3, saltwind: 4, redstone: 5, starfall: 6, gannet: 7, wrath: 8, tolmen: 9, inkholm: 10, kell: 11, keys: 12, glades: 13, amberwold: 14, bright: 15, sunder: 16, glassflats: 17, greywaste: 18, held: 19, sickle: 20 };
 
 function hash(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;

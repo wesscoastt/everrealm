@@ -575,7 +575,7 @@ export class Activities {
     if (!this.host.take(m.id, 1)) return;
     this.host.setFlag('dug:' + m.id, Number(this.host.flag('dug:' + m.id) ?? 0) + 1);
     const lvl = regionLevel(m.region);
-    const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'gannet_egg', wrath: 'smoked_eel', tolmen: 'iron_ore', inkholm: 'chanterelles', kell: 'brass_cog', keys: 'lizard_hide', glades: 'lizard_hide', amberwold: 'moth_dust', bright: 'white_chip', sunder: 'white_chip', glassflats: 'black_glass', greywaste: 'grave_iron', held: 'grave_iron' };
+    const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'gannet_egg', wrath: 'smoked_eel', tolmen: 'iron_ore', inkholm: 'chanterelles', kell: 'brass_cog', sickle: 'star_crystal', keys: 'lizard_hide', glades: 'lizard_hide', amberwold: 'moth_dust', bright: 'white_chip', sunder: 'white_chip', glassflats: 'black_glass', greywaste: 'grave_iron', held: 'grave_iron' };
     const items = [mats[m.region], mats[m.region]];
     const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && !DUNGEON_SETS.has(d.set));
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === m.region);
@@ -601,7 +601,7 @@ export class Activities {
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === reg);
     const items: string[] = [];
     if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
-    const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'boar_hide', wrath: 'jelly_residue', tolmen: 'iron_ore', inkholm: 'stemwood', kell: 'brass_cog', keys: 'black_shard', glades: 'lizard_hide', amberwold: 'moth_dust', bright: 'white_chip', sunder: 'white_chip', glassflats: 'black_glass', greywaste: 'grave_iron', held: 'troll_hide' };
+    const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'boar_hide', wrath: 'jelly_residue', tolmen: 'iron_ore', inkholm: 'stemwood', kell: 'brass_cog', sickle: 'star_crystal', keys: 'black_shard', glades: 'lizard_hide', amberwold: 'moth_dust', bright: 'white_chip', sunder: 'white_chip', glassflats: 'black_glass', greywaste: 'grave_iron', held: 'troll_hide' };
     items.push(mats[reg], mats[reg], ...this.mapFrom(reg, 0.3));
     this.host.reward(big ? 900 : 450, big ? 60 : 30, items, `The chest in ${s.name}`);
     this.host.sound('open');

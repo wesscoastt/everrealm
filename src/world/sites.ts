@@ -20,6 +20,7 @@ import { LAND_BOARD, lotFront, LOT_D, LOT_W, LOTS, WENDSIDE_LOTS, type Lot } fro
 import { ESTATES, type Estate } from '../data/estates';
 import { ROPEWALK } from '../data/ropewalk';
 import { POTTERY, POTTERY_D, POTTERY_W, potteryAt } from '../data/pottery';
+import { MIRADOR_GATE, MIRADOR_LANE, MIRADOR_LOOKOUT, VILLAS, villaBack, villaDoor, type Villa } from '../data/mirador';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -27,6 +28,8 @@ import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOM
 import { FORTS, type Fort } from '../data/forts';
 import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm';
 import { BRASSWICK, ESC, GATE, VENTS, WORKS } from '../data/kell';
+import { CAREEN, CHAIR, GALLOWS, SMOKE } from '../data/teeth';
+import { WESTHORN, GLIMMER, HOOKNESS, HOOK_QUAY, SNOWBARROWS, STEAM_WELLS } from '../data/sickle';
 import { GAOL, GAOLS, REFUGE, REFUGES, type GaolDef, type RefugeDef } from '../data/justice';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
@@ -34,6 +37,8 @@ import { GAOL, GAOLS, REFUGE, REFUGES, type GaolDef, type RefugeDef } from '../d
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
+  /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
+  | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
   | 'bars' | 'hatch'
   /** The street kit (world/props.ts): a trade's hanging sign (color, tint = emblem), a striped awning (color, len), a planter of flowers, a washing line (len), a woodpile (len), a statue on its plinth. */
@@ -89,7 +94,7 @@ export interface PropDesc {
   open?: boolean;
   mat?: 'red' | 'blue' | 'thatch' | 'slate' | 'copper';
   color?: string;
-  kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally';
+  kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly';
   /** A ship's sails ('bare': a hull on the slip, no masts yet). */
   sails?: 'set' | 'furled' | 'bare';
   /** A ship's kind (world/ships.ts; a carrack if none); her hull's colour; and the deck's height where it has to meet a walk (else y is the waterline). */
@@ -159,7 +164,7 @@ export interface SiteActivity {
 }
 
 /** The lairs where the world bosses rise. */
-const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl' };
+const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl', 'wb-glassmother': 'The Mother\'s Bed' };
 
 /** Underworks themes: depth and reach, stone, light, who lives there, and what's left lying about. */
 /** The rock of the underworks that are caves or mines (the built ones keep their dressed stone). */
@@ -179,6 +184,7 @@ const UNDERWORKS = {
   smugglers: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.Planks, floor: B.Sand, floor2: B.Planks, light: '#ffd890', mobs: ['crab', 'brinejelly'], boss: 'crab', clutter: ['barrel', 'crate', 'chest', 'barrel'] },
   tinner: { kind: 'mine', pub: false, depth: 13, reach: 19, wall: B.TerraOrange, wall2: B.Timber, floor: B.Gravel, floor2: B.TinOre, light: '#ffb070', mobs: ['dustwolf', 'redback'], boss: 'dustwolf', clutter: ['cart', 'crate', 'rails'] },
   seep: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff', mobs: ['shardjelly', 'frostwolf'], boss: 'frostwolf', clutter: ['candles', 'chest'] },
+  glimmer: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Snow, floor: B.Ice, floor2: B.Snow, light: '#bff4ff', mobs: ['rimewight', 'icewolf', 'rimewight'], boss: 'greymeg', clutter: ['bones', 'chest', 'candles'] },
   gullery: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.MossyStone, floor: B.Gravel, floor2: B.Sand, light: '#c8e8ff', mobs: ['cavebat', 'brinejelly', 'cavebat'], boss: 'leatherwing', clutter: ['bones', 'barrel', 'chest'] },
   hob: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
@@ -590,6 +596,17 @@ export function plan(): Plan {
     { id: 'ink-hythe', name: 'Black Hythe', x: HYTHE.x, z: HYTHE.z, r0: 22, r1: 34, h: SEA + 5, build: (s, b) => buildBlackHythe(s, b) },
     { id: 'ink-priory', name: 'Corra Priory', x: PRIORY.x, z: PRIORY.z, r0: 15, r1: 27, h: PRIORY.y, build: (s, b) => buildPriory(s, b) },
     ...REEKS.map((r): Named => ({ id: 'reek-' + r.id, name: r.name, x: r.x, z: r.z, r0: 7, r1: 13, build: (s, b) => buildReek(s, b, r) })),
+    // The Teeth, off Saltpenny, where the captains the Table won't sit with lie up (data/teeth.ts)
+    { id: 'teeth-gallows', name: 'Gallows Key', x: GALLOWS.x, z: GALLOWS.z, r0: 30, r1: 46, h: GALLOWS.y, build: (s, b) => buildGallows(s, b) },
+    { id: 'teeth-careen', name: 'The Careen', x: CAREEN.x, z: CAREEN.z, r0: 14, r1: 22, h: CAREEN.y, build: (s, b) => buildCareen(s, b) },
+    { id: 'teeth-smoke', name: 'Smoke Key', x: SMOKE.x, z: SMOKE.z, r0: 10, r1: 18, h: SMOKE.y, build: (s, b) => buildSmokeKey(s, b) },
+    { id: 'teeth-chair', name: 'Ysolde\'s Chair', x: CHAIR.x, z: CHAIR.z, r0: 0, r1: 0, build: (s) => buildChair(s) },
+    // The Sickle, the frozen isle in the far north sea (data/sickle.ts)
+    { id: 'sickle-hookness', name: 'Hookness', x: HOOKNESS.x, z: HOOKNESS.z, r0: 46, r1: 66, h: HOOKNESS.y, build: (s, b) => buildHookness(s, b) },
+    { id: 'sickle-westhorn', name: 'Westhorn Tower', x: WESTHORN.x, z: WESTHORN.z, r0: 0, r1: 0, build: (s) => buildWesthornTower(s) },
+    { id: 'sickle-barrows', name: 'The Snowbarrows', x: SNOWBARROWS.x, z: SNOWBARROWS.z, r0: 26, r1: 40, build: (s, b) => buildSnowbarrows(s, b) },
+    { id: 'sickle-wells', name: 'The Steam Wells', x: STEAM_WELLS.x, z: STEAM_WELLS.z, r0: 16, r1: 26, build: (s, b) => buildSteamWells(s, b) },
+    { id: 'delve-glimmer', name: 'The Glimmer', x: GLIMMER.x, z: GLIMMER.z, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'glimmer') },
     // Kell, the clockwork isle (data/kell.ts)
     { id: 'kell-brasswick', name: 'Brasswick', x: BRASSWICK.x, z: BRASSWICK.z, r0: 42, r1: 58, h: BRASSWICK.y, build: (s, b) => buildBrasswick(s, b) },
     { id: 'kell-works', name: 'The Works', x: WORKS.x, z: WORKS.z, r0: 28, r1: 42, h: WORKS.y, build: (s, b) => buildKilnWorks(s, b) },
@@ -603,6 +620,8 @@ export function plan(): Plan {
     ...morrowNamed(),
     // Bett Rook's ropewalk outside Gullmouth, and Dora Hurst's pottery outside the Works (data/ropewalk.ts, data/pottery.ts)
     { id: 'ropewalk', name: 'Rook\'s Ropewalk', x: ROPEWALK.alongX ? ROPEWALK.x0 + ROPEWALK.len / 2 : ROPEWALK.x0 + 3.5, z: ROPEWALK.alongX ? ROPEWALK.z0 + 3.5 : ROPEWALK.z0 + ROPEWALK.len / 2, r0: 0, r1: 0, build: (s) => buildRopewalk(s) },
+    // The Mirador, the houses on the scarp above Callis (data/mirador.ts)
+    { id: 'callis-mirador', name: 'The Mirador', x: 8590, z: 796, r0: 0, r1: 0, build: (s) => buildMirador(s) },
     { id: 'pottery', name: 'Hurst\'s Pottery', x: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[0], z: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[1], r0: 0, r1: 0, build: (s) => buildPottery(s) },
     // The Charter's estates by the Post towns, each a site of its own (data/estates.ts)
     ...ESTATES.map((e): Named => {
@@ -652,7 +671,7 @@ export function plan(): Plan {
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
-      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'], kell: ['mine', 'stones'],
+      gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'], kell: ['mine', 'stones'], sickle: ['stones', 'ruintower'],
       keys: ['camp', 'ruintower'], glades: ['mossruin', 'camp'], amberwold: ['mossruin', 'shrine', 'camp'], bright: ['ruintower', 'farm', 'shrine'],
       sunder: ['crystals', 'ruintower', 'stones'], glassflats: ['mesaruin', 'camp'], greywaste: ['mossruin', 'stones'], held: ['stones', 'ruintower'],
     };
@@ -4048,6 +4067,7 @@ export function plan(): Plan {
       const floor = type === 'bramblemaw' ? (h < 0.5 ? B.Loam : h < 0.8 ? B.Grass : B.MossyCobble)
         : type === 'tidewright' ? (h < 0.8 ? B.Sand : B.Gravel)
           : type === 'cinderhorn' ? (h < 0.6 ? B.RedSand : h < 0.85 ? B.TerraOrange : B.Basalt)
+            : type === 'glassmother' ? (h < 0.55 ? B.Blackstone : h < 0.85 ? B.Basalt : B.Emberstone)
             : (h < 0.6 ? B.Ice : h < 0.85 ? B.Snow : B.Basalt);
       if (d <= R) O.set(x, G - 1, z, floor);
     }
@@ -4062,6 +4082,11 @@ export function plan(): Plan {
       } else if (type === 'tidewright') {
         for (let y = G - 1; y < G + h - 2; y++) for (const [ox, oz] of [[0, 0], [1, 0], [0, 1]]) O.set(x + ox, y, z + oz, y > G + 1 ? B.Stone : B.MossyStone);
         if (i % 4 === 0) s.props.push({ t: 'boat', x: x + 0.5 - Math.cos(a) * 4, y: G + 0.5, z: z + 0.5 - Math.sin(a) * 4, ry: a });
+      } else if (type === 'glassmother') {
+        // Spires of sand her fire fused to black glass, leaning outward from where she lies; old bones at their feet
+        for (let y = G - 1; y < G + h + 2; y++) O.set(x + Math.round(Math.cos(a) * (y - G) * 0.15), y, z + Math.round(Math.sin(a) * (y - G) * 0.15), y > G + h ? B.Crystal : B.Blackstone);
+        s.props.push({ t: 'glow', x: x + 0.5, y: G + 0.6, z: z + 0.5, r: 2.4, color: '#ff8a30' });
+        if (i % 3 === 0) s.props.push({ t: 'furn', item: 'bones', x: x + 0.5 - Math.cos(a) * 3, y: G, z: z + 0.5 - Math.sin(a) * 3, ry: a });
       } else if (type === 'cinderhorn') {
         for (let y = G - 1; y < G + h; y++) O.set(x, y, z, y > G + h - 3 ? B.TerraBrown : B.Basalt);
         s.props.push({ t: 'glow', x: x + 0.5, y: G + 0.6, z: z + 0.5, r: 2.2, color: '#ff7a3a' }, { t: 'smoke', x: x + 0.5, y: G + h + 0.4, z: z + 0.5 });
@@ -5603,6 +5628,405 @@ export function plan(): Plan {
   }
 
   /**
+   * The Mirador above Callis (data/mirador.ts): the lane along the scarp's lip with its gatehouse and
+   * lamps, the houses on it, each built its own way with a deck out over the drop, and the public
+   * lookout at the lane's end. The people: data/content/mirador.ts.
+   */
+  function buildMirador(s: Site) {
+    const P = (d: PropDesc) => { s.props.push(d); };
+    const F = (item: string, x: number, y: number, z: number, ry = 0, tint = 0) => P({ t: 'furn', item, x, y, z, ry, tint });
+    /** A cypress: a dark green spire on a short trunk, h high, fuller toward the foot. */
+    const cypress = (x: number, z: number, h = 7) => {
+      const y = heightAtO(x, z);
+      O.set(x, y, z, B.PineLog); O.set(x, y + 1, z, B.PineLog);
+      for (let k = 2; k <= h; k++) {
+        O.set(x, y + k, z, B.PineLeaves);
+        if (k >= 2 && k <= h - 3) for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) O.set(x + dx, y + k, z + dz, B.PineLeaves);
+      }
+      rect(s, x - 1, z - 1, x + 2, z + 2);
+    };
+    // (the ground as the builder has left it so far: the plan's own blocks first, the land under them after)
+    const laid = new Map<string, number>();
+    const heightAtO = (x: number, z: number) => laid.get(x + ',' + z) ?? heightAt(x, z);
+    const level = (x: number, z: number, y: number, top: number, fill: number = B.Stone) => {
+      foundation(x, z, y, fill);
+      O.set(x, y - 1, z, top);
+      clearUp(x, z, y, y + 18);
+      laid.set(x + ',' + z, y);
+    };
+
+    // ------------------------------------------------------------------ the lane
+    for (let i = 0; i + 1 < MIRADOR_LANE.length; i++) {
+      const [ax, az] = MIRADOR_LANE[i], [bx, bz] = MIRADOR_LANE[i + 1];
+      const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+      for (let t = 0; t <= L; t += 0.5) for (let o = -2; o <= 2; o += 0.5) {
+        const x = Math.floor(ax + ux * t - uz * o), z = Math.floor(az + uz * t + ux * o);
+        const y = heightAt(x, z);
+        O.set(x, y - 1, z, Math.abs(o) > 1.6 ? B.Cobble : B.Flagstone);
+        clearUp(x, z, y, y + 6);
+      }
+      for (let t = 0; t < L; t += 4) { const x = ax + ux * t, z = az + uz * t; rect(s, x - 3, z - 3, x + 3, z + 3); }
+    }
+    // Lamps along the north side every twenty-odd blocks, the arm out over the lane; a cypress between every other pair
+    {
+      let run = 10;
+      for (let i = 0; i + 1 < MIRADOR_LANE.length; i++) {
+        const [ax, az] = MIRADOR_LANE[i], [bx, bz] = MIRADOR_LANE[i + 1];
+        const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+        for (let t = 0; t < L; t += 1) {
+          if (--run > 0) continue;
+          run = 22;
+          const x = ax + ux * t + uz * 3.2, z = az + uz * t - ux * 3.2;
+          if (Math.abs(x - MIRADOR_GATE.x) < 8) { run = 3; continue; }
+          P({ t: 'lantern', x, y: heightAt(Math.floor(x), Math.floor(z)), z, ry: -Math.PI / 2 });
+          if (Math.floor(ax + t) % 2 === 0) cypress(Math.floor(ax + ux * t + uz * 6 + 9), Math.floor(az + uz * t - ux * 6), 7 + (i % 2));
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------ the gatehouse and the office
+    {
+      const gx = MIRADOR_GATE.x, gz = MIRADOR_GATE.z, gy = heightAt(gx, gz);
+      // Two white piers either side of the lane and a lintel over it, a band of carved stone under the coping
+      for (let x = gx - 1; x <= gx + 1; x++) {
+        for (const [za, zb] of [[gz - 5, gz - 3], [gz + 3, gz + 5]]) for (let z = za; z <= zb; z++) {
+          foundation(x, z, gy, B.Whitestone);
+          for (let y = gy; y < gy + 7; y++) O.set(x, y, z, y === gy ? B.Blackstone : y === gy + 5 ? B.CarvedStone : B.Whitestone);
+        }
+        for (let z = gz - 2; z <= gz + 2; z++) { O.set(x, gy + 5, z, B.CarvedStone); O.set(x, gy + 6, z, B.Whitestone); }
+      }
+      P({ t: 'wallLantern', x: gx - 1.6, y: gy + 3.2, z: gz - 3.5, ry: -Math.PI / 2 }, );
+      P({ t: 'wallLantern', x: gx - 1.6, y: gy + 3.2, z: gz + 3.5, ry: -Math.PI / 2 });
+      P({ t: 'sign', x: gx - 4, y: heightAt(gx - 4, gz - 4), z: gz - 4.2, ry: -Math.PI / 2, text: 'THE MIRADOR\nPrivate houses\nAsk at the office' });
+      // The office: Teresa Mas's, on the north side of the lane just inside the gate
+      const ox = gx + 5, oz = gz - 12, oy = heightAt(ox + 3, oz + 3);
+      houseInto(O, s, ox, oz, 7, 6, 1, oy, 'red', 's', { role: 'office', front: 'white', wall: B.Whitestone, trim: ['boxes'], signs: false });
+      for (let z = oz + 6; z < gz - 2; z++) { const y = heightAt(ox + 3, z); O.set(ox + 3, y - 1, z, B.Flagstone); }
+      P({ t: 'planter', x: ox + 1.5, y: oy, z: oz + 6.8, ry: 0, tint: 1 });
+      P({ t: 'planter', x: ox + 5.5, y: oy, z: oz + 6.8, ry: 0, tint: 2 });
+    }
+
+    // ------------------------------------------------------------------ the houses
+    /** Where the lip is at x: the first row out from the house where the ground has fallen away. */
+    const lipAt = (x: number, from: number, base: number) => { let z = from - 6; while (z < from + 12 && heightAt(x, z) > base - 6) z++; return z; };
+    /** A deck's floor over x xa..xb, z za..zb (standing at y), of mat; the rows over the drop held up underneath. */
+    const deck = (v: Villa, xa: number, xb: number, za: number, zb: number, y: number, mat: number, stone: boolean) => {
+      for (let x = xa; x <= xb; x++) for (let z = za; z <= zb; z++) { O.set(x, y - 1, z, mat); clearUp(x, z, y, y + 5); }
+      for (let x = xa; x <= xb; x++) {
+        const e = lipAt(x, v.edge, v.base);
+        if (zb < e) continue;
+        // A beam out under the floor from the lip, and every third a brace from the outer end back down to the rock
+        for (let z = e; z <= zb; z++) O.set(x, y - 2, z, stone ? B.StoneBrick : B.DarkPlanks);
+        if ((x - xa) % 3 !== 0 && x !== xb) continue;
+        for (let k = 1; ; k++) { const z = zb - k + 1, yy = y - 2 - k; if (z < e || yy < 3) break; O.set(x, yy, z, stone ? B.StoneBrick : B.OakLog); }
+      }
+    };
+    /** A rail along x (z fixed) or along z (x fixed): invisible barrier two high in its cells, the look of it as props between the gaps. */
+    const rail = (along: 'x' | 'z', a: number, b: number, at: number, y: number, stone: boolean, gaps: number[] = []) => {
+      let run: number | null = null;
+      for (let i = a; i <= b + 1; i++) {
+        const gap = i > b || gaps.includes(i);
+        if (!gap) {
+          const [x, z] = along === 'x' ? [i, at] : [at, i];
+          O.set(x, y, z, B.Barrier); O.set(x, y + 1, z, B.Barrier);
+          if (run === null) run = i;
+        } else if (run !== null) {
+          const len = i - run, mid = run + len / 2;
+          P(along === 'x' ? { t: stone ? 'balustrade' : 'deckRail', x: mid, y, z: at + 0.5, ry: 0, len } : { t: stone ? 'balustrade' : 'deckRail', x: at + 0.5, y, z: mid, ry: Math.PI / 2, len });
+          run = null;
+        }
+      }
+    };
+    const lit = (x: number, y: number, z: number, color = '#ffc070') => P({ t: 'glow', x, y, z, r: 2.6, color, lit: true });
+    /** A swinging door leaf in a doorway made by hand (houseInto makes the front one). */
+    const leaf = (v: Villa, x: number, z: number, y: number, kind: DoorKind) => {
+      const l = openDoorPlace({ x0: v.x0, z0: v.z0, w: v.w, d: v.d, floors: v.floors, base: v.base, door: 's', doorX: x, doorZ: z });
+      P({ t: 'furn', item: 'doorOpen', x: l.x, y, z: l.z, ry: l.ry, swing: true, doorKind: kind, role: 'home' });
+    };
+    const doorway = (x: number, y: number, z: number) => { O.set(x, y, z, B.Air); O.set(x, y + 1, z, B.Air); O.set(x, y + 2, z, B.DarkPlanks); };
+
+    for (const v of VILLAS) {
+      const { x0, z0, w, d, base: Y, edge: E } = v;
+      const padL = v.kind === 'point' ? 11 : 4, padR = v.kind === 'tower' ? 7 : 4;
+      const [dx] = villaDoor(v);
+      // The grounds: levelled from the garden wall to the lip, lawn with a flagged path up the middle
+      const front = z0 - 6;
+      for (let x = x0 - padL; x < x0 + w + padR; x++) for (let z = front; z <= E - 1; z++) {
+        if (z > E - 3 && heightAt(x, z) < Y - 6) continue;
+        level(x, z, Y, Math.abs(x - dx) <= 1 && z < z0 ? B.Flagstone : hash2(x, z, 4401) < 0.2 ? B.FlowerGrass : B.Grass);
+      }
+      rect(s, x0 - padL - 1, front - 1, x0 + w + padR + 1, E + 14);
+      // The garden wall along the lane, knee high, with a gate in it; steps down to the lane where it's lower
+      const wallId = v.kind === 'cistern' ? B.Sandstone : v.kind === 'point' || v.kind === 'roig' ? B.Whitestone : v.kind === 'vidal' || v.kind === 'longdeck' ? B.OchrePlaster : B.StoneBrick;
+      for (let x = x0 - padL; x < x0 + w + padR; x++) {
+        if (Math.abs(x - dx) <= 1) continue;
+        O.set(x, Y, front, wallId);
+        if (Math.abs(x - dx) === 2) { O.set(x, Y + 1, front, wallId); O.set(x, Y + 2, front, B.CarvedStone); lit(x + 0.5, Y + 3.3, front + 0.5); }
+      }
+      for (const x of [x0 - padL, x0 + w + padR - 1]) for (let z = front + 1; z <= E - 2; z++) O.set(x, Y, z, v.kind === 'cypress' || v.kind === 'stair' ? B.PineLeaves : wallId);
+      {
+        const ly = heightAt(dx, front - 1), rise = Y - ly;
+        for (let r = 1; r < rise; r++) for (let x = dx - 1; x <= dx + 1; x++) for (let k = 0; k < r; k++) O.set(x, ly + k, front - 1 - (rise - 1 - r), B.StoneBrick);
+      }
+
+      // The house
+      const role = v.id ? 'vacant' : 'home';
+      const roof: PropDesc['mat'] = v.kind === 'lantern' ? 'blue' : v.kind === 'point' || v.kind === 'cistern' || v.kind === 'roig' || v.kind === 'vidal' ? 'red' : 'slate';
+      const wall = v.kind === 'point' || v.kind === 'roig' ? B.Whitestone : v.kind === 'cistern' ? B.Sandstone : v.kind === 'stair' || v.kind === 'tower' ? B.Cobble : v.kind === 'vidal' ? B.OchrePlaster : v.kind === 'longdeck' ? B.Plaster : B.StoneBrick;
+      const frontId: FrontId = v.kind === 'point' || v.kind === 'roig' ? 'white' : v.kind === 'longdeck' || v.kind === 'vidal' ? 'framed' : 'quoined';
+      houseInto(O, s, x0, z0, w, d, v.floors, Y, roof, 'n', { role, wall, front: frontId, trim: v.kind === 'stair' || v.kind === 'tower' ? ['hood'] : ['shutters', 'boxes'], doorKind: 'panelled' });
+      const [bx, bz] = villaBack(v);
+      doorway(bx, Y, bz);
+      leaf(v, bx, bz, Y, 'glazed');
+      // A lamp either side of the back door, and the garden: planters along the front, a cypress at each back corner
+      P({ t: 'wallLantern', x: bx + 0.5 + 1.2, y: Y + 2.3, z: bz + 1.05, ry: 0 });
+      // (the Cistern House's court is all pool: its cypresses stand either side of the house instead)
+      if (v.kind === 'cistern') { cypress(x0 - 3, z0 + 3, 8); cypress(x0 + w + 2, z0 + 3, 8); }
+      else {
+        P({ t: 'planter', x: x0 - 1.5, y: Y, z: z0 - 2.5, ry: Math.PI / 2, tint: (x0 % 3) });
+        P({ t: 'planter', x: x0 + w + 0.5, y: Y, z: z0 - 2.5, ry: Math.PI / 2, tint: (x0 % 3) + 1 });
+        if (v.kind !== 'tower') cypress(x0 + w + padR - 3, front + 2, 8);
+        cypress(x0 - padL + 2, front + 2, 7);
+      }
+
+      if (v.kind === 'stair') {
+        // A timber deck, then three stone terraces down the face, a flight of steps between each, and the
+        // last flight to the foot through a gate
+        deck(v, x0, x0 + w - 1, E - 1, E + 1, Y, B.Planks, false);
+        rail('x', x0, x0 + w - 1, E + 1, Y, false, [x0 + w - 1]);
+        rail('z', x0, E, E, Y, false); rail('z', x0 + w - 1, E, E, Y, false);
+        const S = [Y, Y - 6, Y - 12, Y - 18];
+        const rows = [[E, E + 3], [E + 4, E + 7], [E + 8, E + 11]];
+        for (let k = 1; k <= 3; k++) {
+          const [za, zb] = rows[k - 1], top = S[k];
+          for (let x = x0 - 1; x <= x0 + w; x++) for (let z = za; z <= zb; z++) {
+            for (let y = Math.min(heightAt(x, z), top) - 1; y < top - 1; y++) O.set(x, y, z, B.StoneBrick);
+            const side = x === x0 - 1 || x === x0 + w;
+            O.set(x, top - 1, z, side ? B.StoneBrick : hash2(x, z, 4402) < 0.25 ? B.FlowerGrass : B.Grass);
+            for (let y = top; y < (k === 1 ? Y - 1 : S[k - 1]); y++) O.set(x, y, z, side ? (y === top ? B.StoneBrick : B.Air) : B.Air);
+            if (side) O.set(x, top + 1, z, B.Barrier);
+          }
+          rect(s, x0 - 2, za - 1, x0 + w + 2, zb + 2);
+          // The flight down onto this terrace, along its first row, from the side the last one came down
+          const east = k !== 2, z = za + (k === 1 ? 2 : 0), hi = S[k - 1];
+          for (let j = 0; j < 6; j++) {
+            const x = east ? x0 + w - 1 - j : x0 + j;
+            for (let y = top - 1; y < hi - 1 - j; y++) O.set(x, y, z, B.StoneBrick);
+          }
+          rail('x', x0, x0 + w - 1, zb, top, true, [k === 1 ? x0 : k === 2 ? x0 + w - 1 : x0]);
+          P({ t: 'bench', x: x0 + (east ? 2 : w - 3) + 0.5, y: top, z: zb - 1 + 0.2, ry: Math.PI });
+          P({ t: 'planter', x: x0 + w / 2, y: top, z: za + 1.6, ry: 0, tint: k });
+          lit(x0 + w / 2, top + 1.2, zb - 0.5);
+        }
+        // The gate at the foot of the third terrace, and the last flight down to the Callis road
+        {
+          const gx = x0, gz = E + 11, top = S[3];
+          F('doorOpen', gx + 0.5, top, gz + 0.1, 0);
+          s.props[s.props.length - 1].swing = true; s.props[s.props.length - 1].doorKind = 'iron'; s.props[s.props.length - 1].role = 'home';
+          const fz = E + 12;
+          for (let j = 0; ; j++) {
+            const x = x0 + j, stand = top - 1 - j;
+            if (stand <= heightAt(x, fz) || j > w + 6) break;
+            for (let y = heightAt(x, fz) - 1; y < stand - 1 + 1; y++) O.set(x, y, fz, B.StoneBrick);
+            for (let y = stand; y < stand + 4; y++) O.set(x, y, fz, B.Air);
+          }
+          P({ t: 'sign', x: x0 + w + 1.5, y: heightAt(x0 + w + 1, fz + 1), z: fz + 1.5, ry: 0, text: 'THE STAIR HOUSE\nPrivate stair' });
+        }
+        F('table', x0 + 5.5, Y, E - 0.2, 0); F('chair', x0 + 4.5, Y, E - 0.2, Math.PI / 2); F('chair', x0 + 6.5, Y, E - 0.2, -Math.PI / 2);
+        lit(x0 + 4.5, Y + 2, E + 0.5);
+      } else if (v.kind === 'point') {
+        // The loggia on the west wing: white piers under a flat stone roof, the afternoon side
+        const lx0 = x0 - 8, lx1 = x0 - 2, lz0 = z0 + 2, lz1 = z0 + d - 1;
+        for (let x = lx0; x <= lx1; x++) for (let z = lz0; z <= lz1; z++) {
+          O.set(x, Y - 1, z, B.Flagstone);
+          const pier = (x - lx0) % 3 === 0 && (z === lz0 || z === lz1 || (z - lz0) % 3 === 0) && (x === lx0 || x === lx1 || z === lz0 || z === lz1);
+          for (let y = Y; y < Y + 4; y++) O.set(x, y, z, pier ? (y === Y ? B.Blackstone : B.Whitestone) : B.Air);
+          O.set(x, Y + 4, z, x === lx0 || x === lx1 || z === lz0 || z === lz1 ? B.TerraCream : B.Whitestone);
+        }
+        F('lounger', lx0 + 1.5, Y, lz1 - 1.2, 0, 1); F('lounger', lx0 + 3.5, Y, lz1 - 1.2, 0, 1);
+        F('table', lx0 + 3.5, Y, lz0 + 2.5, 0); F('chair', lx0 + 2.5, Y, lz0 + 2.5, Math.PI / 2); F('chair', lx0 + 4.5, Y, lz0 + 2.5, -Math.PI / 2);
+        P({ t: 'wallLantern', x: lx1 + 0.5, y: Y + 3.2, z: lz0 + 1.5, ry: -Math.PI / 2 });
+        // The deck: white stone on corbels, its middle running out in a bay past the rest
+        const dx0 = lx0, dx1 = x0 + w, bay0 = x0 + 3, bay1 = x0 + w - 4;
+        deck(v, dx0, dx1, E - 1, E + 4, Y, B.Flagstone, true);
+        deck(v, bay0, bay1, E + 5, E + 6, Y, B.Flagstone, true);
+        rail('x', dx0, dx1, E + 4, Y, true, Array.from({ length: bay1 - bay0 + 1 }, (_, i) => bay0 + i));
+        rail('x', bay0, bay1, E + 6, Y, true);
+        rail('z', bay0, E + 5, E + 5, Y, true); rail('z', bay1, E + 5, E + 5, Y, true);
+        rail('z', dx0, E, E + 3, Y, true); rail('z', dx1, E, E + 3, Y, true);
+        P({ t: 'firepit', x: (bay0 + bay1) / 2 + 0.5, y: Y, z: E + 5.5 });
+        P({ t: 'bench', x: bay0 + 1.5, y: Y, z: E + 5.5, ry: Math.PI / 2 }); P({ t: 'bench', x: bay1 - 0.5, y: Y, z: E + 5.5, ry: -Math.PI / 2 });
+        P({ t: 'parasol', x: lx0 + 3.5, y: Y, z: E + 1.5, color: '#b8463a' });
+        F('table', lx0 + 3.5, Y, E + 1.5, 0); F('chair', lx0 + 2.5, Y, E + 1.5, Math.PI / 2); F('chair', lx0 + 4.5, Y, E + 1.5, -Math.PI / 2); F('chair', lx0 + 3.5, Y, E + 2.5, Math.PI);
+        for (const x of [x0 + 1, x0 + w - 2]) F('lounger', x + 0.5, Y, E + 1.8, 0, 2);
+        for (const x of [dx0 + 1, x0 + 1, x0 + w - 2, dx1 - 1]) P({ t: 'planter', x: x + 0.5, y: Y, z: E - 0.4, ry: 0, tint: x % 3 });
+        for (const x of [dx0 + 0.5, bay0 + 0.5, bay1 + 0.5, dx1 + 0.5]) lit(x, Y + 1.4, E + (x === bay0 + 0.5 || x === bay1 + 0.5 ? 6.5 : 4.5));
+      } else if (v.kind === 'longdeck') {
+        // The longest deck on the hill, timber on braces, a pergola over its west half with the vines on it
+        const dx0 = x0 - 5, dx1 = x0 + w + 4;
+        deck(v, dx0, dx1, E - 1, E + 4, Y, B.Planks, false);
+        rail('x', dx0, dx1, E + 4, Y, false);
+        rail('z', dx0, E, E + 3, Y, false); rail('z', dx1, E, E + 3, Y, false);
+        const px1 = x0 + 6;
+        // (its posts stand clear of the house wall, a row out, so the back door opens under the sky)
+        for (const x of [dx0, dx0 + 4, dx0 + 8, px1]) for (const z of [E, E + 3]) for (let y = Y; y < Y + 3; y++) O.set(x, y, z, B.OakLog);
+        for (let x = dx0; x <= px1; x++) for (const z of [E, E + 3]) O.set(x, Y + 3, z, B.DarkPlanks);
+        for (const x of [dx0, dx0 + 4, dx0 + 8, px1]) for (let z = E + 1; z <= E + 2; z++) O.set(x, Y + 3, z, B.DarkPlanks);
+        for (let x = dx0; x <= px1; x++) for (let z = E; z <= E + 3; z++) if (hash2(x, z, 4403) < 0.45) O.set(x, Y + 4, z, B.OakLeaves);
+        P({ t: 'stringLights', x: (dx0 + px1) / 2 + 0.5, y: Y + 2.9, z: E + 1.5, ry: 0, len: px1 - dx0, h: 0.35 });
+        for (const x of [dx0 + 3, dx0 + 8]) lit(x + 0.5, Y + 2.6, E + 1.5);
+        // The supper table under it: two tables end to end, chairs down both sides, a bench at each end
+        for (const x of [dx0 + 4, dx0 + 6]) { F('table', x + 0.5, Y, E + 1.5, 0); F('chair', x + 0.5, Y, E + 0.5, 0); F('chair', x + 0.5, Y, E + 2.5, Math.PI); F('chair', x + 1.5, Y, E + 0.5, 0); F('chair', x + 1.5, Y, E + 2.5, Math.PI); }
+        F('chair', dx0 + 3.5, Y, E + 1.5, Math.PI / 2); F('chair', dx0 + 8.5, Y, E + 1.5, -Math.PI / 2);
+        for (const x of [x0 + 8, x0 + 10, x0 + 12]) F('lounger', x + 0.5, Y, E + 1.8, 0, x % 3);
+        P({ t: 'parasol', x: dx1 - 1.5, y: Y, z: E + 1.5, color: '#2f5a8a' });
+        F('table', dx1 - 1.5, Y, E + 1.5, 0); F('chair', dx1 - 1.5, Y, E + 0.5, 0);
+        lit(dx1 - 0.5, Y + 1.4, E + 4.5);
+      } else if (v.kind === 'lantern') {
+        // Glass all round the upper floor, between stone posts at the corners and every fourth block
+        for (let y = Y + 5; y <= Y + 6; y++) for (let x = x0; x < x0 + w; x++) for (let z = z0; z < z0 + d; z++) {
+          const ex = x === x0 || x === x0 + w - 1, ez = z === z0 || z === z0 + d - 1;
+          if (!(ex || ez) || (ex && ez)) continue;
+          if (x === x0 && z === z0 + Math.floor(d / 2)) continue; // the chimney
+          const along = ez ? x - x0 : z - z0;
+          O.set(x, y, z, along % 4 === 0 ? B.StoneBrick : B.Window);
+        }
+        // A stone terrace at the garden's level, and over it the balcony off the upper floor, hung with lamps
+        deck(v, x0, x0 + w - 1, E - 1, E + 1, Y, B.Flagstone, true);
+        // (the balcony stands on three oak posts along the terrace's edge, the rail between them)
+        const posts = [x0, x0 + Math.floor(w / 2), x0 + w - 1];
+        rail('x', x0, x0 + w - 1, E + 1, Y, true, posts);
+        rail('z', x0, E, E, Y, true); rail('z', x0 + w - 1, E, E, Y, true);
+        for (const x of posts) for (let y = Y; y < Y + 3; y++) O.set(x, y, E + 1, B.OakLog);
+        doorway(bx, Y + 4, bz);
+        leaf(v, bx, bz, Y + 4, 'glazed');
+        for (let x = x0; x < x0 + w; x++) for (let z = E - 1; z <= E + 1; z++) { O.set(x, Y + 3, z, B.DarkPlanks); clearUp(x, z, Y + 4, Y + 8); }
+        rail('x', x0, x0 + w - 1, E + 1, Y + 4, false);
+        rail('z', x0, E - 1, E, Y + 4, false); rail('z', x0 + w - 1, E - 1, E, Y + 4, false);
+        P({ t: 'stringLights', x: x0 + w / 2, y: Y + 7.1, z: E + 1.4, ry: 0, len: w - 1, h: 0.5 });
+        for (const x of [x0 + 2, x0 + w / 2, x0 + w - 2]) lit(x, Y + 6.5, E + 1.2, '#ffd890');
+        F('chair', x0 + 5.5, Y + 4, E - 0.5, 0); F('chair', x0 + 7.5, Y + 4, E - 0.5, 0); F('table', x0 + 6.5, Y + 4, E - 0.5, 0);
+        // (nothing set down on the terrace under it: the balcony's three blocks over, and the footings would take a chair for ground)
+        // Lit inside all night: the house the harbour looks up at
+        for (const x of [x0 + 2.5, x0 + w - 2.5]) lit(x, Y + 6, z0 + d / 2, '#ffe2a8');
+      } else if (v.kind === 'tower') {
+        // The old lookout tower on the cliff foot, the house built against its north-west side
+        const tx0 = x0 + w + 1, tz0 = E - 3, T = Y + 12;
+        for (let x = tx0; x < tx0 + 5; x++) for (let z = tz0; z < tz0 + 5; z++) {
+          const wallC = x === tx0 || x === tx0 + 4 || z === tz0 || z === tz0 + 4;
+          for (let y = Math.min(heightAt(x, z), Y) - 1; y < Y - 1; y++) O.set(x, y, z, B.StoneBrick);
+          O.set(x, Y - 1, z, wallC ? B.StoneBrick : B.Flagstone);
+          for (let y = Y; y < T; y++) O.set(x, y, z, wallC ? (hash2(x, y * 31 + z, 4404) < 0.2 ? B.MossyCobble : B.StoneBrick) : B.Air);
+          O.set(x, T - 1, z, wallC ? B.StoneBrick : B.Flagstone);
+          if (wallC) { O.set(x, T, z, B.StoneBrick); if ((x + z) % 2 === 0) O.set(x, T + 1, z, B.StoneBrick); }
+          clearUp(x, z, wallC ? T + 2 : T, T + 6);
+        }
+        rect(s, tx0 - 1, tz0 - 1, tx0 + 6, tz0 + 6);
+        // The stair: round the newel in the middle, a step a block, a turn and a half to the top
+        const cx = tx0 + 2, cz = tz0 + 2;
+        for (let y = Y; y < T - 1; y++) O.set(cx, y, cz, B.StoneBrick);
+        const ring: [number, number][] = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
+        for (let i = 1; i <= 12; i++) { const [ox, oz] = ring[(7 + i) % 8]; O.set(cx + ox, Y + i - 1, cz + oz, B.DarkPlanks); }
+        for (const i of [9, 10, 11]) { const [ox, oz] = ring[(7 + i) % 8]; O.set(cx + ox, T - 1, cz + oz, B.Air); }
+        // The way in off the deck, slits for windows, the Assembly's old banner at the top
+        doorway(tx0, Y, cz);
+        leaf({ ...v, x0: tx0, z0: tz0, w: 5, d: 5 }, tx0, cz, Y, 'studded');
+        s.props[s.props.length - 1].ry = -Math.PI / 2;
+        for (const [x, y, z] of [[cx, Y + 3, tz0 + 4], [cx, Y + 7, tz0 + 4], [tx0 + 4, Y + 5, cz], [tx0 + 4, Y + 9, cz], [cx, Y + 9, tz0]]) O.set(x, y, z, B.Window);
+        lit(cx + 0.5, Y + 6, cz + 0.5, '#ffb860');
+        P({ t: 'banner', x: cx + 0.5, y: T + 1.6, z: tz0 + 4.62, ry: 0, kind: 'assembly' } as PropDesc);
+        // The deck between the house and the tower
+        deck(v, x0, x0 + w - 1, E - 1, E + 2, Y, B.Planks, false);
+        rail('x', x0, x0 + w - 1, E + 2, Y, false);
+        rail('z', x0, E, E + 1, Y, false);
+        F('table', x0 + 4.5, Y, E + 0.5, 0); F('chair', x0 + 3.5, Y, E + 0.5, Math.PI / 2); F('chair', x0 + 5.5, Y, E + 0.5, -Math.PI / 2);
+        F('lounger', x0 + 1.5, Y, E + 0.5, 0, 0);
+        lit(x0 + 0.5, Y + 1.4, E + 2.5);
+      } else if (v.kind === 'cistern') {
+        // The walled court in front: a long pool either side of the path, wall to path, in sandstone kerbs
+        for (const [xa, xb] of [[x0 - padL + 1, dx - 2], [dx + 2, x0 + w + padR - 2]]) {
+          for (let x = xa; x <= xb; x++) for (let z = front + 1; z <= z0 - 2; z++) {
+            const kerb = x === xa || x === xb || z === front + 1 || z === z0 - 2;
+            O.set(x, Y - 1, z, kerb ? B.Sandstone : B.Water);
+            if (!kerb) { O.set(x, Y - 2, z, B.Water); O.set(x, Y - 3, z, B.Sandstone); }
+          }
+        }
+        // The deck: sandstone on corbels, with a bathing pool let into it
+        const dx0 = x0 - 2, dx1 = x0 + w + 1;
+        deck(v, dx0, dx1, E - 1, E + 3, Y, B.Sandstone, true);
+        for (let x = x0 + w - 6; x <= x0 + w - 1; x++) for (let z = E - 1; z <= E + 2; z++) {
+          const kerb = x === x0 + w - 6 || x === x0 + w - 1 || z === E - 1 || z === E + 2;
+          if (kerb) { O.set(x, Y - 1, z, B.Sandstone); continue; }
+          O.set(x, Y - 1, z, B.Water); O.set(x, Y - 2, z, B.Water); O.set(x, Y - 3, z, B.Sandstone);
+        }
+        for (let x = x0 + w - 6; x <= x0 + w - 1; x++) O.set(x, Y - 3, E + 3, B.Sandstone);
+        rail('x', dx0, dx1, E + 3, Y, true);
+        rail('z', dx0, E, E + 2, Y, true); rail('z', dx1, E, E + 2, Y, true);
+        F('lounger', x0 + 1.5, Y, E + 1.4, 0, 0); F('lounger', x0 + 3.5, Y, E + 1.4, 0, 0);
+        P({ t: 'parasol', x: x0 + 2.5, y: Y, z: E - 0.4, color: '#c8a050' });
+        lit(dx0 + 0.5, Y + 1.4, E + 3.5); lit(dx1 + 0.5, Y + 1.4, E + 3.5);
+        lit(x0 + w - 3.5, Y - 0.6, E + 0.5, '#9ad8ff');
+      } else if (v.kind === 'cypress') {
+        // An arcade along the cliff side: piers every third block under a stone lintel, two deep
+        for (let x = x0; x < x0 + w; x++) {
+          for (const z of [E - 1, E]) { level(x, z, Y, B.Flagstone, B.StoneBrick); }
+          const pier = (x - x0) % 3 === 0 || x === x0 + w - 1;
+          for (let y = Y; y < Y + 3; y++) O.set(x, y, E, pier ? B.StoneBrick : y === Y + 2 ? B.CarvedStone : B.Air);
+          for (const z of [E - 1, E]) O.set(x, Y + 3, z, z === E ? B.CarvedStone : B.StoneBrick);
+        }
+        // Below it the deck in two steps: a stone walk, then the lower deck out over the drop
+        deck(v, x0 - 1, x0 + w, E + 1, E + 3, Y, B.Flagstone, true);
+        const mid = x0 + Math.floor(w / 2);
+        rail('x', x0 - 1, x0 + w, E + 3, Y, true, [mid - 1, mid, mid + 1]);
+        rail('z', x0 - 1, E + 1, E + 2, Y, true); rail('z', x0 + w, E + 1, E + 2, Y, true);
+        deck(v, x0 - 2, x0 + w + 1, E + 4, E + 7, Y - 2, B.Flagstone, true);
+        for (let x = mid - 1; x <= mid + 1; x++) { O.set(x, Y - 2, E + 4, B.StoneBrick); O.set(x, Y - 1, E + 3, B.Flagstone); }
+        rail('x', x0 - 2, x0 + w + 1, E + 7, Y - 2, true);
+        rail('z', x0 - 2, E + 4, E + 6, Y - 2, true); rail('z', x0 + w + 1, E + 4, E + 6, Y - 2, true);
+        P({ t: 'parasol', x: x0 + 1.5, y: Y - 2, z: E + 5.5, color: '#3f6a3a' });
+        F('table', x0 + 1.5, Y - 2, E + 5.5, 0); F('chair', x0 + 0.5, Y - 2, E + 5.5, Math.PI / 2); F('chair', x0 + 2.5, Y - 2, E + 5.5, -Math.PI / 2);
+        P({ t: 'bench', x: x0 + w - 2.5, y: Y - 2, z: E + 6.2, ry: Math.PI });
+        for (const x of [x0 - 1, x0 + w]) P({ t: 'planter', x: x + 0.5, y: Y - 2, z: E + 4.5, ry: 0, tint: 2 });
+        F('lounger', x0 + 2.5, Y, E + 1.4, 0, 2); F('lounger', x0 + w - 3.5, Y, E + 1.4, 0, 2);
+        P({ t: 'wallLantern', x: x0 + 3.5, y: Y + 2.2, z: E - 0.2, ry: 0 }); P({ t: 'wallLantern', x: x0 + w - 3.5, y: Y + 2.2, z: E - 0.2, ry: 0 });
+        lit(x0 - 1.5, Y - 0.6, E + 7.5); lit(x0 + w + 1.5, Y - 0.6, E + 7.5);
+        // The cypresses stepping down the garden either side of the house
+        for (const [x, z] of [[x0 - 3, z0], [x0 - 3, z0 + 4], [x0 + w + 2, z0 + 1], [x0 + w + 2, z0 + 5]]) cypress(x, z, 9);
+      } else if (v.kind === 'roig') {
+        deck(v, x0 - 1, x0 + w, E - 1, E + 2, Y, B.Flagstone, true);
+        rail('x', x0 - 1, x0 + w, E + 2, Y, true);
+        rail('z', x0 - 1, E, E + 1, Y, true); rail('z', x0 + w, E, E + 1, Y, true);
+        F('spyglass', x0 + 5.5, Y, E + 1.2, 0);
+        F('chair', x0 + 3.5, Y, E + 0.6, 0); F('table', x0 + 2.5, Y, E + 0.6, 0);
+        for (const x of [x0 - 0.5, x0 + w + 0.5]) lit(x, Y + 1.4, E + 2.5);
+      } else if (v.kind === 'vidal') {
+        deck(v, x0, x0 + w - 1, E, E + 2, Y, B.Planks, false);
+        rail('x', x0, x0 + w - 1, E + 2, Y, false);
+        rail('z', x0, E, E + 1, Y, false); rail('z', x0 + w - 1, E, E + 1, Y, false);
+        F('easel', x0 + 4.5, Y, E + 1.1, Math.PI);
+        F('stool', x0 + 4.5, Y, E + 0.2, 0);
+        P({ t: 'washLine', x: x0 + w + 2, y: Y, z: z0 + 3, ry: Math.PI / 2, len: 4 });
+        lit(x0 + 0.5, Y + 1.4, E + 2.5);
+      }
+    }
+
+    // ------------------------------------------------------------------ the lookout at the lane's end
+    {
+      const { x: lx, z: lz, edge: le } = MIRADOR_LOOKOUT, y = heightAt(lx, lz - 4);
+      for (let x = lx - 7; x <= lx + 7; x++) for (let z = lz - 6; z <= le - 1; z++) if (heightAt(x, z) > y - 6) level(x, z, y, (x + z) % 2 ? B.Flagstone : B.Cobble);
+      const look = { ...VILLAS[0], x0: lx - 7, z0: lz - 6, w: 15, d: 3, base: y, edge: le };
+      deck(look, lx - 7, lx + 7, le, le + 3, y, B.Flagstone, true);
+      rail('x', lx - 7, lx + 7, le + 3, y, true);
+      rail('z', lx - 7, le, le + 2, y, true); rail('z', lx + 7, le, le + 2, y, true);
+      for (const x of [lx - 4, lx, lx + 4]) P({ t: 'bench', x: x + 0.5, y, z: le + 0.8, ry: 0 });
+      F('spyglass', lx + 6.5, y, le + 2.2, 0);
+      P({ t: 'sign', x: lx - 6, y, z: lz - 4.5, ry: Math.PI, text: 'THE MIRADOR\nCallis and the bay\nby the Assembly\'s leave' });
+      for (const x of [lx - 7, lx + 7]) P({ t: 'lantern', x: x + 0.5, y, z: lz - 5.5, ry: Math.PI / 2 });
+      rect(s, lx - 9, lz - 8, lx + 9, le + 6);
+    }
+  }
+
+  /**
    * Dora Hurst's pottery outside Harrowgate Works: a yard walled knee high in fieldstone with its gate on
    * the road side, the bottle kiln in the back corner (a round brick hovel drawn in above to its neck,
    * the fire in its mouth and smoke at the top), the open shed with the wheel and the drying racks, the
@@ -5657,6 +6081,262 @@ export function plan(): Plan {
     { const g = pt(W / 2 + 3, -1.8); s.props.push({ t: 'sign', x: g.x, y: base, z: g.z, ry: out, text: 'HURST\'S POTTERY\nCrocks, jugs, crucibles' }); }
     for (const u of [W / 2 - 2.5, W / 2 + 2.5]) { const l = pt(u, -1); s.props.push({ t: 'lantern', x: l.x, y: base + 1, z: l.z }); }
     { const [ax, az] = cell(-1, -2), [bx, bz] = cell(W, D); rect(s, Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx) + 1, Math.max(az, bz) + 1); }
+  }
+
+  /**
+   * Hookness, the whaling town on the Sickle's east horn, cut into the fell's foot on the inner shore and
+   * facing west over Sickle Water: one street up from the quay between dark-timbered houses under slate,
+   * the Flensing Knife and the reeve's house on its north side, the try-works on its south (brick furnaces,
+   * the oil casks, a whale's jaws for a gate), the chapel where Ida Coulter keeps the drowned tally at its
+   * head, the whaleboats drawn up on the shingle, and the ice-fishers' camp out on the frozen shallows
+   * (the people: data/content/sickle.ts).
+   */
+  function buildHookness(s: Site, base: number) {
+    const cx = HOOKNESS.x, cz = HOOKNESS.z;
+    rect(s, cx - 30, cz - 32, cx + 44, cz + 20);
+    pave(cx - 26, cz - 2, cx + 40, cz + 2, base, 'flag');
+    const timber = (x0: number, z0: number, w: number, d: number, floors: number, door: 'n' | 's' | 'w', role: Role, roof: PropDesc['mat'] = 'slate') =>
+      house(s, x0, z0, w, d, floors, base, roof, door, { wall: B.DarkPlanks, role, front: 'boarded', frame: B.Timber });
+    // North of the street
+    timber(cx - 22, cz - 13, 8, 8, 1, 's', 'home');
+    timber(cx - 11, cz - 14, 10, 9, 2, 's', 'inn'); // the Flensing Knife
+    timber(cx + 2, cz - 13, 8, 8, 2, 's', 'office'); // the reeve's house
+    timber(cx + 13, cz - 13, 8, 8, 2, 's', 'home');
+    timber(cx + 24, cz - 13, 7, 8, 1, 's', 'home');
+    // South of it
+    timber(cx - 22, cz + 5, 8, 8, 1, 'n', 'home');
+    timber(cx - 11, cz + 5, 8, 8, 2, 'n', 'home');
+    timber(cx + 20, cz + 5, 8, 8, 1, 'n', 'home');
+    // The try-works: an open shed over two brick furnaces, the casks, and a whale's jaws for its gate
+    shelter(s, cx + 2, cz + 6, 14, 8, base, 'slate');
+    for (const fx of [cx + 5, cx + 11]) {
+      for (let x = fx; x < fx + 3; x++) for (let z = cz + 9; z < cz + 12; z++) for (let y = base; y < base + 2; y++) O.set(x, y, z, x === fx + 1 && z === cz + 9 && y === base ? B.Air : B.RedBrick);
+      s.props.push({ t: 'firepit', x: fx + 1.5, y: base, z: cz + 8.3 }, { t: 'smoke', x: fx + 1.5, y: base + 3.2, z: cz + 10.5 });
+    }
+    for (let i = 0; i < 7; i++) s.props.push({ t: 'barrel', x: cx + 3.2 + i * 1.6, y: base, z: cz + 12.1, ry: i * 0.8 });
+    for (const side of [-1, 1]) for (let k = 0; k < 6; k++) {
+      // the jawbones: two pale arcs leaning together over the yard's gate
+      const x = cx + 9 + side * (2 - Math.round(Math.sin((k / 5) * Math.PI * 0.5) * 2)), y = base + k;
+      O.set(x, y, cz + 5, B.TerraCream);
+    }
+    s.props.push({ t: 'smokeRack', x: cx - 4, y: base, z: cz + 9, ry: 0 }, { t: 'smokeRack', x: cx - 4, y: base, z: cz + 12, ry: 0 });
+    // The chapel at the street's head, its door on the street
+    stoneHall(s, cx + 32, cz - 10, 10, 16, 8, base, 'w');
+    s.props.push({ t: 'roof', x: cx + 37, y: base + 8, z: cz - 2, len: 16, span: 10, rise: roofRise(10), ry: Math.PI / 2, mat: 'slate' });
+    s.props.push({ t: 'furn', item: 'candles', x: cx + 40.4, y: base, z: cz - 2, ry: 0 }, { t: 'furn', item: 'letters', x: cx + 39.6, y: base, z: cz - 5.5, ry: 0 });
+    for (const z of [cz - 6, cz - 3, cz, cz + 3]) s.props.push({ t: 'bench', x: cx + 36, y: base, z, ry: Math.PI / 2 });
+    // The quay, west out over the shingle into the bay, the boats at it and drawn up beside it
+    const Q0 = HOOK_QUAY.x0, Q1 = HOOK_QUAY.x1;
+    for (let x = Q1; x <= Q0 + 2; x++) for (let z = cz - 2; z <= cz + 2; z++) {
+      const g = heightAt(x, z);
+      for (let y = Math.min(g, base) - 4; y < base - 1; y++) O.set(x, y, z, hash2(x * 3 + y, z, 951) < 0.3 ? B.MossyCobble : B.Cobble);
+      O.set(x, base - 1, z, B.Planks);
+      clearUp(x, z, base, base + 8);
+      if ((z === cz - 2 || z === cz + 2) && (x - Q1) % 6 === 2) O.set(x, base, z, B.OakLog);
+    }
+    s.props.push({ t: 'boat', x: Q1 + 4, y: SEA - 0.55, z: cz + 5.5, ry: 0.3 }, { t: 'boat', x: Q1 + 12, y: SEA - 0.55, z: cz - 6, ry: -0.2 });
+    s.props.push({ t: 'boat', x: Q0 + 4, y: heightAt(Q0 + 4, cz + 9), z: cz + 9, ry: 1.2 }, { t: 'boat', x: Q0 + 2, y: heightAt(Q0 + 2, cz - 10), z: cz - 10, ry: 1.9 });
+    for (let i = 0; i < 4; i++) s.props.push({ t: i % 2 ? 'crate' : 'barrel', x: Q0 - 3.5 - i * 1.2, y: base, z: cz + 1.4, ry: i });
+    s.props.push({ t: 'lantern', x: Q1 + 1.5, y: base, z: cz - 1.5 }, { t: 'lantern', x: Q0 - 1.5, y: base, z: cz + 1.5 });
+    // The ice-fishers' camp out on the frozen shallows south of the quay: a tent, holes cut, a creel
+    s.props.push({ t: 'tent', x: Q0 - 12, y: SEA, z: cz + 12, ry: 0.4 }, { t: 'furn', item: 'crate', x: Q0 - 9.5, y: SEA, z: cz + 11, ry: 0 });
+    for (const [dx, dz] of [[-10, 9], [-14, 10], [-7, 13]] as const) O.set(Q0 + dx, SEA - 1, cz + dz, B.Water);
+    // The notice, the town's lamps, its name where the street meets the quay
+    s.props.push({ t: 'notice', x: cx + 2.5, y: base, z: cz - 3.4, ry: 0 }, { t: 'sign', x: cx - 26.5, y: base, z: cz - 3.5, ry: -Math.PI / 2, text: 'HOOKNESS' });
+    for (const [x, z] of [[cx - 18.5, cz - 2.5], [cx - 3.5, cz + 2.5], [cx + 10.5, cz - 2.5], [cx + 24.5, cz + 2.5], [cx + 30.5, cz - 2.5]]) s.props.push({ t: 'lantern', x, y: base, z });
+  }
+
+  /**
+   * Westhorn Tower off the tip of the west horn: a watchtower of the old kingdom that the sea came up
+   * round. A round shaft of mossy stone rising out of the water, a breach in its foot at the tide line
+   * that the broken causeway from the horn still reaches, a stair climbing round inside it, ice on its
+   * floors, and the bell chamber at the top open to the weather on four arches, the bell still hanging
+   * there (the Ringer, and the choice: data/content/sickle.ts).
+   */
+  function buildWesthornTower(s: Site) {
+    const cx = WESTHORN.x, cz = WESTHORN.z, R = WESTHORN.r, TOP = 46;
+    rect(s, cx - R - 2, cz - R - 2, cx + R + 2, cz + R + 2);
+    const bed = Math.min(heightAt(cx, cz), SEA - 2);
+    for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+      const d = Math.hypot(dx, dz), x = cx + dx, z = cz + dz;
+      if (d > R + 0.3) continue;
+      for (let y = bed - 2; y < TOP + 6; y++) {
+        const wall = d > R - 1.3;
+        // the shaft; the breach facing the horn at the tide line; windows up the walls; the open arches at the top
+        const breach = wall && dx <= -R + 2 && Math.abs(dz) <= 1 && y >= SEA && y <= SEA + 3;
+        const arch = wall && y >= TOP && y < TOP + 4 && (Math.abs(dx) <= 1 || Math.abs(dz) <= 1);
+        const win = wall && (y - SEA) % 8 === 4 && (Math.abs(dx) <= 0 || Math.abs(dz) <= 0) && y < TOP;
+        if (wall) O.set(x, y, z, breach || arch || win ? B.Air : y >= TOP + 4 ? (y === TOP + 5 && (dx + dz) % 2 ? B.Air : B.StoneBrick) : hash2(x * 7 + y, z, 961) < 0.3 ? B.MossyStone : hash2(x, z * 3 + y, 962) < 0.15 ? B.MossyCobble : B.StoneBrick);
+        else if (y < SEA) O.set(x, y, z, B.Water);
+        else O.set(x, y, z, y === TOP - 1 ? B.Planks : y === SEA - 1 ? B.Ice : B.Air);
+      }
+    }
+    // The stair: round the inside of the wall, a block up each step, from the water to the bell chamber's floor
+    const steps = TOP - SEA;
+    for (let i = 0; i < steps; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      for (const rr of [R - 2, R - 2.8]) {
+        const x = Math.round(cx + Math.sin(a) * rr), z = Math.round(cz + Math.cos(a) * rr);
+        O.set(x, SEA + i - 1, z, i % 6 === 5 ? B.Ice : B.StoneBrick);
+        for (let y = SEA + i; y < SEA + i + 3; y++) if (y < TOP - 1) O.set(x, y, z, B.Air);
+      }
+    }
+    // The hole in the chamber floor the stair comes up through
+    { const a = ((steps - 1) / 14) * Math.PI * 2; for (const rr of [R - 2, R - 2.8]) { const x = Math.round(cx + Math.sin(a) * rr), z = Math.round(cz + Math.cos(a) * rr); O.set(x, TOP - 1, z, B.Air); } }
+    // The bell: bronze, hung from a beam across the chamber, its rope going down into the dark
+    for (let x = cx - 2; x <= cx + 2; x++) O.set(x, TOP + 5, cz, B.DarkPlanks);
+    for (let y = TOP + 2; y <= TOP + 4; y++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (y === TOP + 4 ? !dx && !dz : y === TOP + 3 || Math.abs(dx) + Math.abs(dz) < 2) O.set(cx + dx, y, cz + dz, B.Brass);
+    s.props.push({ t: 'rope', x: cx + 0.5, y: TOP + 2, z: cz + 0.5, ry: 0, len: 0.1, h: 1.6, r: 0.04 });
+    // The broken causeway: stones at the tide line from the horn's tip to the breach
+    for (let k = 0; k < 16; k++) {
+      const x = cx - R - 2 - k, z = cz - Math.round(k * 0.9);
+      if (hash2(x, z, 963) < 0.18) continue;
+      for (let y = Math.min(heightAt(x, z), SEA - 1) - 1; y < SEA; y++) O.set(x, y, z, hash2(x, y, 964) < 0.4 ? B.MossyCobble : B.Cobble);
+      O.set(x, SEA, z, B.Air);
+    }
+    s.props.push({ t: 'lantern', x: cx - R - 1.5, y: SEA, z: cz + 1.5 });
+  }
+
+  /** The Snowbarrows: the old kingdom's dead under the crest across the Sickle's north, low mounds kerbed with standing stones, snow on everything. */
+  function buildSnowbarrows(s: Site, base: number) {
+    const cx = SNOWBARROWS.x, cz = SNOWBARROWS.z;
+    rect(s, cx - 26, cz - 26, cx + 26, cz + 26);
+    for (const [bx, bz, r] of [[-12, -6, 6], [8, -10, 5], [-2, 10, 7], [16, 8, 4], [-18, 12, 4]] as const) {
+      for (let dx = -r - 1; dx <= r + 1; dx++) for (let dz = -r - 1; dz <= r + 1; dz++) {
+        const d = Math.hypot(dx, dz), x = cx + bx + dx, z = cz + bz + dz;
+        if (d > r + 0.5) continue;
+        const h = Math.round((1 - (d / r) ** 2) * (r * 0.45));
+        for (let y = base; y < base + h; y++) O.set(x, y, z, y === base + h - 1 ? B.Snow : B.Dirt);
+      }
+      // the kerb: stones every few blocks round its foot, and the way in on its south side
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2, x = Math.round(cx + bx + Math.sin(a) * (r + 1)), z = Math.round(cz + bz + Math.cos(a) * (r + 1));
+        if (k === 0) continue;
+        for (let y = base; y < base + 2 + (k % 3 === 0 ? 1 : 0); y++) O.set(x, y, z, y === base + 2 ? B.Snow : B.Granite);
+      }
+      for (let y = base; y < base + 2; y++) O.set(cx + bx, y, cz + bz + r, B.Air);
+      O.set(cx + bx - 1, base + 2, cz + bz + r, B.Granite); O.set(cx + bx + 1, base + 2, cz + bz + r, B.Granite); O.set(cx + bx, base + 2, cz + bz + r, B.Granite);
+    }
+  }
+
+  /** The Steam Wells: hot springs in a fold of the fell where the snow won't lie, the pools smoking in the cold. */
+  function buildSteamWells(s: Site, base: number) {
+    const cx = STEAM_WELLS.x, cz = STEAM_WELLS.z;
+    rect(s, cx - 16, cz - 16, cx + 16, cz + 16);
+    for (let dx = -14; dx <= 14; dx++) for (let dz = -14; dz <= 14; dz++) {
+      const x = cx + dx, z = cz + dz, d = Math.hypot(dx, dz);
+      if (d > 14) continue;
+      O.set(x, base - 1, z, hash2(x, z, 971) < 0.3 ? B.Stone : hash2(x, z, 972) < 0.5 ? B.Loam : B.Grass);
+    }
+    for (const [px, pz, r] of [[-4, -3, 3.4], [5, 2, 2.6], [-2, 6, 2.2]] as const) {
+      for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+        const d = Math.hypot(dx, dz), x = cx + px + dx, z = cz + pz + dz;
+        if (d > r + 1) continue;
+        if (d <= r) { O.set(x, base - 2, z, B.Stone); O.set(x, base - 1, z, B.Water); }
+        else O.set(x, base - 1, z, hash2(x, z, 973) < 0.5 ? B.MossyStone : B.Stone);
+      }
+      s.props.push({ t: 'smoke', x: cx + px + 0.5, y: base + 0.2, z: cz + pz + 0.5 });
+    }
+  }
+
+  /**
+   * Gallows Key: an Assembly signal fort from before the Brethren, its white-and-black walls broken in
+   * three places and stopped up with logs, held now by Hob Merrick and the crews the Captains' Table
+   * cast out. The signal tower at its north corner, the old commandant's hall, a stone cell with bars,
+   * tents and fires in the yard, the gallows by the gate that gave the key its name and that nobody
+   * uses any more, and Merrick's prize at anchor off the beach (the people: data/content/teeth.ts).
+   */
+  function buildGallows(s: Site, base: number) {
+    const cx = GALLOWS.x, cz = GALLOWS.z, R = 15;
+    rect(s, cx - R - 4, cz - R - 4, cx + R + 4, cz + R + 12);
+    pave(cx - R + 1, cz - R + 1, cx + R - 1, cz + R - 1, base, 'yard');
+    // The curtain: white stone pinned with black every fourth course, breaches stopped with logs, the gate south
+    for (let x = cx - R; x <= cx + R; x++) for (let z = cz - R; z <= cz + R; z++) {
+      if (x !== cx - R && x !== cx + R && z !== cz - R && z !== cz + R) continue;
+      const gate = z === cz + R && Math.abs(x - cx) <= 1;
+      const breach = (x === cx + R && z > cz - 6 && z < cz - 1) || (z === cz - R && x > cx + 3 && x < cx + 8) || (x === cx - R && z > cz + 4 && z < cz + 9);
+      foundation(x, z, base, B.Whitestone);
+      for (let y = base; y < base + 6; y++) {
+        if (gate && y < base + 4) { O.set(x, y, z, B.Air); continue; }
+        if (breach) { O.set(x, y, z, y < base + 4 ? B.OakLog : B.Air); continue; }
+        O.set(x, y, z, (y - base) % 4 === 3 ? B.Blackstone : B.Whitestone);
+      }
+      if (!breach && (x + z) % 2 === 0) O.set(x, base + 6, z, B.Whitestone);
+    }
+    tower(s, cx - R, cz - R, 6, 14, base, B.Whitestone, { crenel: true });
+    // The commandant's hall, and the cell beside it
+    house(s, cx - 3, cz - R + 2, 12, 9, 1, base, 'red', 's', { wall: B.Whitestone, role: 'home', front: 'white' });
+    for (let x = cx + 10; x <= cx + 13; x++) for (let z = cz - R + 2; z <= cz - R + 5; z++) for (let y = base; y < base + 4; y++) {
+      const edge = x === cx + 10 || x === cx + 13 || z === cz - R + 2 || z === cz - R + 5;
+      O.set(x, y, z, !edge ? B.Air : y === base + 3 ? B.Blackstone : z === cz - R + 5 && (x === cx + 11 || x === cx + 12) && y < base + 3 ? B.Air : B.Whitestone);
+    }
+    s.props.push({ t: 'bars', x: cx + 12, y: base, z: cz - R + 5.4, ry: 0 });
+    // The yard: tents, fires, the crews' gear; the gallows by the gate
+    for (const [dx, dz, ry] of [[-9, 2, 0.3], [-9, 8, -0.2], [7, 6, 1.4], [9, 0, 1.6]] as const) s.props.push({ t: 'tent', x: cx + dx, y: base, z: cz + dz, ry });
+    for (const [dx, dz] of [[-4, 4], [4, 9]] as const) s.props.push({ t: 'firepit', x: cx + dx + 0.5, y: base, z: cz + dz + 0.5 }, { t: 'smoke', x: cx + dx + 0.5, y: base + 1, z: cz + dz + 0.5 });
+    for (let i = 0; i < 6; i++) s.props.push({ t: i % 3 ? 'barrel' : 'crate', x: cx + 11.5 - (i % 3) * 1.1, y: base, z: cz + 9 + Math.floor(i / 3) * 1.2, ry: i });
+    for (let y = base; y < base + 5; y++) { O.set(cx + 5, y, cz + R + 3, B.Timber); O.set(cx + 8, y, cz + R + 3, B.Timber); }
+    for (let x = cx + 5; x <= cx + 8; x++) O.set(x, base + 5, cz + R + 3, B.Timber);
+    s.props.push({ t: 'rope', x: cx + 6.5, y: base + 5, z: cz + R + 3.5, ry: 0, len: 0.1, h: 1.8, r: 0.02 });
+    for (const [dx, dz] of [[-2, R + 1], [2, R + 1], [-7, -12], [0, 0]] as const) s.props.push({ t: 'lantern', x: cx + dx + 0.5, y: base, z: cz + dz + 0.5 });
+    s.props.push({ t: 'banner', x: cx - 1 + 0.5, y: base + 8, z: cz - R + 1.4, ry: 0, kind: 'brethren' });
+    // Merrick's prize at anchor off the south beach
+    s.props.push({ t: 'ship', x: cx + 4, y: SEA, z: cz + R + 30, ry: Math.PI / 2, ship: 'carrack' });
+  }
+
+  /**
+   * The Careen: a shingle beach on the south-east island where the Teeth's ships are hauled out to be
+   * scraped and tarred, a ship up on the shingle now with her timbers shored either side, tar fires
+   * smoking, the shipwright's lean-to and his gear.
+   */
+  function buildCareen(s: Site, base: number) {
+    const cx = CAREEN.x, cz = CAREEN.z;
+    rect(s, cx - 18, cz - 14, cx + 18, cz + 14);
+    s.props.push({ t: 'ship', x: cx, y: base, z: cz + 4, ry: Math.PI / 2, ship: 'cog' });
+    for (const dx of [-8, -3, 3, 8]) for (const side of [-1, 1]) {
+      const x = cx + dx, z = cz + 4 + side * 6;
+      for (let y = base; y < base + 3; y++) O.set(x, y, z, B.OakLog);
+    }
+    for (const [dx, dz] of [[-12, -6], [12, -5]] as const) s.props.push({ t: 'firepit', x: cx + dx + 0.5, y: base, z: cz + dz + 0.5 }, { t: 'smoke', x: cx + dx + 0.5, y: base + 1, z: cz + dz + 0.5 }, { t: 'barrel', x: cx + dx + 1.8, y: base, z: cz + dz + 0.5 });
+    shelter(s, cx - 6, cz - 12, 8, 5, base, 'thatch');
+    s.props.push({ t: 'furn', item: 'coil', x: cx - 4, y: base, z: cz - 10, ry: 0 }, { t: 'furn', item: 'crate', x: cx - 1.5, y: base, z: cz - 10.5, ry: 0.3 }, { t: 'woodpile', x: cx + 4, y: base, z: cz - 9, ry: 0 });
+  }
+
+  /** Smoke Key: the beacon on the island's crown, a fire basket on a stone stand, a keeper's hut, wood stacked for burning. */
+  function buildSmokeKey(s: Site, base: number) {
+    const cx = SMOKE.x, cz = SMOKE.z;
+    rect(s, cx - 10, cz - 10, cx + 10, cz + 10);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (let y = base; y < base + 4; y++) O.set(cx + dx, y, cz + dz, y === base + 3 ? B.Blackstone : B.Cobble);
+    s.props.push({ t: 'firepit', x: cx + 0.5, y: base + 4, z: cz + 0.5 }, { t: 'smoke', x: cx + 0.5, y: base + 5, z: cz + 0.5 });
+    house(s, cx - 8, cz + 4, 6, 5, 1, base, 'thatch', 'n', { wall: B.Planks, role: 'home', front: 'boarded' });
+    s.props.push({ t: 'woodpile', x: cx + 5, y: base, z: cz + 3, ry: Math.PI / 2, len: 3 }, { t: 'woodpile', x: cx + 5, y: base, z: cz - 3, ry: Math.PI / 2, len: 3 }, { t: 'lantern', x: cx - 2.5, y: base, z: cz + 2.5 });
+  }
+
+  /**
+   * Ysolde's Chair: a stack of black rock off the south-west island, a stair cut round its outside to a
+   * flat top where Ysolde Gale cut her compass rose, its four points set as stones you can press.
+   */
+  function buildChair(s: Site) {
+    const cx = CHAIR.x, cz = CHAIR.z, TOP = CHAIR.top, R = 6;
+    rect(s, cx - R - 3, cz - R - 3, cx + R + 3, cz + R + 3);
+    const bed = Math.min(heightAt(cx, cz), SEA - 1);
+    for (let dx = -R - 2; dx <= R + 2; dx++) for (let dz = -R - 2; dz <= R + 2; dz++) {
+      const d = Math.hypot(dx, dz), x = cx + dx, z = cz + dz;
+      for (let y = bed - 1; y < TOP; y++) {
+        const r = R + 0.4 - (y - SEA) * 0.03 + hash2(x, z * 3 + y, 981) * 0.6;
+        if (d <= r) O.set(x, y, z, hash2(x * 5 + y, z, 982) < 0.25 ? B.Basalt : B.Stone);
+      }
+    }
+    // The stair, round the outside, a block up a step
+    for (let i = 0; i <= TOP - SEA; i++) {
+      const a = (i / 18) * Math.PI * 2, rr = R + 1.2;
+      const x = Math.round(cx + Math.sin(a) * rr), z = Math.round(cz + Math.cos(a) * rr);
+      O.set(x, SEA + i - 1, z, B.Cobble);
+      for (let y = SEA + i; y < SEA + i + 3; y++) O.set(x, y, z, B.Air);
+    }
+    // The top: the rose's four points, a stone at each, and the hollow under its middle where the cache is
+    for (let dx = -R + 1; dx <= R - 1; dx++) for (let dz = -R + 1; dz <= R - 1; dz++) if (Math.hypot(dx, dz) <= R - 1) O.set(cx + dx, TOP - 1, cz + dz, Math.abs(dx) === Math.abs(dz) || !dx || !dz ? B.Blackstone : B.Stone);
+    for (const [dx, dz] of [[0, -3], [3, 0], [0, 3], [-3, 0]] as const) O.set(cx + dx, TOP - 1, cz + dz, B.CarvedStone);
   }
 
   /** Hale's Fold: a shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. */

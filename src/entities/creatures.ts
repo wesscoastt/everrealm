@@ -11,6 +11,8 @@ export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'r
   | 'lizard' | 'moth'
   /** The wilds' heavier and stranger kinds: bears, great spiders, bats, woken cairns, drakes, adders (entities/voxcreatures.ts). */
   | 'bear' | 'spider' | 'bat' | 'golem' | 'drake' | 'adder'
+  /** A true dragon: the drake's kind grown huge, its wings broad enough to carry it (entities/voxcreatures.ts). */
+  | 'dragon'
   /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
   | 'bandit';
 
@@ -181,7 +183,7 @@ const REIN_MAT = new THREE.MeshLambertMaterial({ color: '#4a2a16' });
 const reinA = new THREE.Vector3(), reinB = new THREE.Vector3(), reinC = new THREE.Vector3();
 
 /** Body plans whose size the model's scale sets (the rest are one size, or size themselves). */
-const SCALED: ReadonlySet<CreatureKind> = new Set(['jelly', 'rustback', 'lizard', 'moth', 'bear', 'spider', 'bat', 'golem', 'drake', 'adder']);
+const SCALED: ReadonlySet<CreatureKind> = new Set(['jelly', 'rustback', 'lizard', 'moth', 'bear', 'spider', 'bat', 'golem', 'drake', 'adder', 'dragon']);
 
 export class CreatureModel {
   readonly root = new THREE.Group();
@@ -1261,12 +1263,14 @@ export class CreatureModel {
         const swing = Math.sin(this.phase + (i === 0 ? Math.PI : 0)) * legAmp * 0.6;
         arm.rotation.set(this.anim === 'windup' ? -2.5 * k : this.anim === 'attack' ? -2.5 + 2.8 * a : this.anim === 'dead' ? 0 : swing, 0, 0);
       });
-    } else if (this.kind === 'drake') {
-      // Folded back along its sides; opened and beating as it rears to spit
-      const open = this.anim === 'windup' ? k : this.anim === 'attack' ? 1 - 0.5 * Math.min(1, t / 0.6) : 0;
-      const beat = open > 0.5 ? Math.sin(performance.now() * 0.02) * 0.3 * open : 0;
+    } else if (this.kind === 'drake' || this.kind === 'dragon') {
+      // Folded back along its sides; opened and beating as it rears to spit. A dragon rears right up, half
+      // off the ground on the beat of its wings, before it breathes.
+      const great = this.kind === 'dragon';
+      const open = this.anim === 'windup' ? k : this.anim === 'attack' ? 1 - 0.5 * Math.min(1, t / 0.6) : great ? 0.12 : 0;
+      const beat = open > 0.5 ? Math.sin(performance.now() * (great ? 0.008 : 0.02)) * (great ? 0.45 : 0.3) * open : 0;
       for (const w of this.segs) { const sd = w.userData.sd as number; w.rotation.set(0, sd * (1.25 - 1.05 * open), sd * (-0.15 + 0.55 * open + beat)); }
-      if (this.anim === 'windup') { this.body.rotation.x = -0.25 * k; this.body.position.y = 0.1 * k; }
+      if (this.anim === 'windup') { this.body.rotation.x = (great ? -0.5 : -0.25) * k; this.body.position.y = (great ? 0.5 + Math.max(0, beat) * 0.6 : 0.1) * k; }
     } else if (this.kind === 'adder' && this.head) {
       // Up off the ground, drawn back, then the strike
       const up = this.anim === 'windup' ? k : this.anim === 'attack' ? 1 - a : 0;

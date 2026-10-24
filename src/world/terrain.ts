@@ -14,7 +14,7 @@ export const WORLD = 2048;
 export const SEA = 16;
 export const GW = 320; // Hollindale grid size; x,z < GW is authored terrain
 
-export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell' | MorrowRegion;
+export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell' | 'sickle' | MorrowRegion;
 
 export interface RegionInfo {
   id: RegionId;
@@ -39,6 +39,8 @@ export const REGION_INFO: Record<RegionId, RegionInfo> = {
   // Off Gullmouth, past the Mewstones: the mushroom isle
   inkholm: { id: 'inkholm', name: 'Inkholm', levels: '20–28', tint: [0.9, 0.86, 1.0], leafTint: [0.88, 0.84, 1.0], water: 'sea' },
   kell: { id: 'kell', name: 'Isle of Kell', levels: '35–42', tint: [1.02, 0.96, 0.9], leafTint: [0.92, 0.9, 0.82], water: 'sea' },
+  // The frozen isle in the far north sea
+  sickle: { id: 'sickle', name: 'The Sickle', levels: '42–50', tint: [0.9, 0.98, 1.08], leafTint: [0.8, 0.9, 0.98], water: 'sea' },
   // Morrow (world/morrow.ts), south to north
   keys: { id: 'keys', name: 'The Keys', levels: '40–48', tint: [1.0, 1.06, 0.84], leafTint: [0.9, 1.06, 0.8], water: 'sea' },
   glades: { id: 'glades', name: 'The Glades', levels: '46–54', tint: [0.86, 1.0, 0.7], leafTint: [0.8, 0.96, 0.7], water: 'sea' },
@@ -95,6 +97,7 @@ const inHeart = (x: number, z: number) => x > 300 && x < 1250 && z > 400 && z < 
 const VALE: RegionSample = { a: 'greenwake', b: 'greenwake', t: 0 };
 const INK: RegionSample = { a: 'inkholm', b: 'inkholm', t: 0 };
 const KEL: RegionSample = { a: 'kell', b: 'kell', t: 0 };
+const SIC: RegionSample = { a: 'sickle', b: 'sickle', t: 0 };
 
 // ------------------------------------------------------------------ Inkholm
 // The mushroom isle, south-east of Gullmouth past the Mewstones: overlapping lobes with a ragged
@@ -140,6 +143,33 @@ export function kellDist(x: number, z: number): number {
   return d;
 }
 
+// ------------------------------------------------------------------ The Sickle
+// The frozen isle in the far north sea, past Kell: a crescent of snow fells round a sheltered bay,
+// Sickle Water, its horns pointing south toward the mainland. The crescent is broad and high across
+// its north and narrows and drops to the horns; the bay's shallows freeze (LORE.md "The Sickle").
+export const SICKLE = { x: 3000, z: -1640 };
+/** The crescent's middle line (its radius from SICKLE), and how far either side of it the land reaches at its broadest. */
+export const SICKLE_R = 360;
+const SICKLE_HALF = 130;
+/** How far round from due south each horn ends (radians): the mouth of the bay between them. */
+const SICKLE_MOUTH = 0.95;
+/** A point's angle round the crescent (0 due south, toward +z; ±PI due north) and its radius. */
+export function sickleAt(x: number, z: number): { a: number; r: number; north: number } {
+  const dx = x - SICKLE.x, dz = z - SICKLE.z, a = Math.atan2(dx, dz);
+  return { a, r: Math.hypot(dx, dz), north: (1 - Math.cos(a)) / 2 };
+}
+/** The crescent's half-width at this angle (before the shore's own wander). */
+const sickleHalf = (north: number) => SICKLE_HALF * (0.55 + 0.6 * north);
+/** Inland distance from the Sickle's shore (negative at sea, Sickle Water included). */
+export function sickleDist(x: number, z: number): number {
+  if (Math.abs(x - SICKLE.x) > 700 || Math.abs(z - SICKLE.z) > 700) return -999;
+  const qx = x + (fbm2(x / 110, z / 110, 2, 791) - 0.5) * 90, qz = z + (fbm2(x / 110 + 5, z / 110, 2, 792) - 0.5) * 90;
+  const { a, r, north } = sickleAt(qx, qz);
+  const half = sickleHalf(north) * (0.85 + fbm2(x / 60, z / 60, 2, 793) * 0.3);
+  // The band of land, and the mouth between the horns (their tips rounded off by the warp)
+  return Math.min(half - Math.abs(r - SICKLE_R), (Math.abs(a) - SICKLE_MOUTH) * r);
+}
+
 export function regionAt(x: number, z: number): RegionSample {
   if (inMorrow(x)) { const r = morrowRegionId(x, z); return { a: r, b: r, t: 0 }; }
   // Hollindale: the vale, and the hills and shore beyond its north and west edges
@@ -147,6 +177,7 @@ export function regionAt(x: number, z: number): RegionSample {
   if (vale && x >= 0 && z >= 0) return VALE;
   if (inkDist(x, z) > -120) return INK;
   if (kellDist(x, z) > -120) return KEL;
+  if (sickleDist(x, z) > -140) return SIC;
   const wx = warpX(x, z), wz = warpZ(x, z);
   if (inHeart(x, z)) return nearestRegion(wx, wz, SEEDS);
   // Out across the sound the outer lands' regions take over, blending partway across the water
@@ -409,6 +440,12 @@ function regionHeight(id: RegionId, x: number, z: number): number {
       if (d < KILN.crater + 12) h += (KILN_FLOOR + (fbm2(x / 20, z / 20, 2, 772) - 0.5) * 1.2 - h) * smoothstep(KILN.crater + 12, KILN.crater - 4, d);
       return h;
     }
+    case 'sickle': {
+      // Snow fells along the crescent, highest across its north where it's broadest, falling away to the horns
+      const { r, north } = sickleAt(x, z);
+      const across = Math.max(0, 1 - Math.abs(r - SICKLE_R) / sickleHalf(north));
+      return SEA + 5 + Math.pow(across, 1.4) * (14 + north * 44) + (n1 - 0.5) * 10 + (n2 - 0.5) * 4;
+    }
     case 'keys': case 'glades': case 'amberwold': case 'bright': case 'sunder': case 'glassflats': case 'greywaste': case 'held':
       return morrowHeight(x, z); // (Morrow's own: never reached in the Counties)
     case 'tolmen': {
@@ -528,7 +565,7 @@ export function outerLandDist(x: number, z: number): number {
     const qx = x + (fbm2(x / 90, z / 90, 2, 718) - 0.5) * 90, qz = z + (fbm2(x / 90 + 5, z / 90, 2, 719) - 0.5) * 90;
     d = Math.max(d, r - Math.hypot(qx - m.x, qz - m.z));
   }
-  return Math.max(d, inkDist(x, z), kellDist(x, z));
+  return Math.max(d, inkDist(x, z), kellDist(x, z), sickleDist(x, z));
 }
 
 /** Positive on a neck of land across the sound (its distance in from the neck's edge). */
@@ -736,6 +773,13 @@ export function columnBlocks(x: number, z: number, h: number, maxDiff: number, r
       if (d < KILN.r * 0.84) return { top: stony > 0.45 ? B.Ash : stony > 0.35 ? B.Loam : B.Grass, sub: B.Dirt };
       return { top: stony > 0.72 ? B.Ash : stony > 0.6 ? B.Loam : B.Grass, sub: B.Dirt };
     }
+    case 'sickle':
+      // Shingle and snow at the tide line, snow over everything above it, rock where it's steep, and a
+      // little snow-bitten grass low down in the lee of the bay
+      if (beach) return { top: hash2(x, z, 9) < 0.5 ? B.Gravel : B.Snow, sub: B.Gravel };
+      if (maxDiff >= 3) return { top: stony > 0.6 ? B.Granite : B.Stone, sub: B.Stone };
+      if (h < SEA + 9 && stony < 0.35) return { top: B.SnowGrass, sub: B.Dirt };
+      return { top: B.Snow, sub: B.Dirt };
     case 'tolmen':
       // Granite wherever the ground is steep (the tors), stony patches in the heather
       if (maxDiff >= 3) return { top: B.Stone, sub: B.Stone };

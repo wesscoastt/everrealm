@@ -35,7 +35,7 @@ const WIDTH = 0.86 + 0.96;
 /** The sea lanes' ends (world coordinates). */
 const GULL: [number, number] = [1784, 600];
 const CALLIS: [number, number] = [CALLIS_PACKET.x - 6, CALLIS_PACKET.z];
-const ISLES: [string, number, number][] = [['The Mewstones', 2345, 728], ['Inkholm', 2486, 1647], ['Kell', 2363, -552]];
+const ISLES: [string, number, number][] = [['The Mewstones', 2345, 728], ['Inkholm', 2486, 1647], ['Kell', 2363, -552], ['The Sickle', 3268, -1603]];
 
 export interface WorldMapState { hover: { x: number; y: number } | null }
 

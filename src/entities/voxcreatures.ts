@@ -105,6 +105,7 @@ export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreat
     case 'bat': bat(h, new Kit(key, 1 / 20), pal, scale); return true;
     case 'golem': golem(h, new Kit(key, 1 / 14), pal, scale); return true;
     case 'drake': drake(h, new Kit(key, 1 / 16), pal, scale); return true;
+    case 'dragon': drake(h, new Kit(key, 1 / 16), pal, scale, true); return true;
     case 'adder': adder(h, new Kit(key, 1 / 18), pal, scale); return true;
   }
   return false;
@@ -812,7 +813,10 @@ function golem(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): 
  * sides that it opens as it rears to spit fire (the wings are its segments). a = scales, b = belly and
  * wing skin, c = the fire in its throat.
  */
-function drake(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
+function drake(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number, great = false): void {
+  // A dragon (great) is the same beast grown into its wings: they reach more than twice as far, a second
+  // pair of horns curls back behind the first, and a crest of plates runs down its skull
+  const W = great ? 2.4 : 1;
   h.body.scale.setScalar(scale);
   h.plateHeight = 2.0 * scale;
   const Sc = pal.a ?? '#6a2a1e', Bl = pal.b ?? '#c89a5a', Fi = pal.c ?? '#ff8a30', spine = shade(Sc, 0.7);
@@ -829,6 +833,7 @@ function drake(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): 
     v.capsule([0, 0.02, -0.04], [0, -0.02, 0.3], 0.14, 0.09, scales);                           // the skull and snout
     for (const sd of [1, -1]) {
       v.cone([sd * 0.08, 0.1, -0.04], [sd * 0.16, 0.2, -0.32], 0.035, flat('#d8ccb0'));          // horns, swept back
+      if (great) v.cone([sd * 0.06, 0.04, -0.08], [sd * 0.22, 0.02, -0.4], 0.03, flat('#c8bca0'));  // the second pair, lower
       v.cone([sd * 0.1, 0, 0.06], [sd * 0.2, 0.04, -0.02], 0.025, flat(spine));                  // the frills at its cheeks
     }
   });
@@ -852,8 +857,8 @@ function drake(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): 
     const w = joint(h.body, [sd * 0.24, 1.18, 0.24]);
     w.userData.sd = sd;
     k.part(w, [0, 0, 0], (v) => {
-      const wrist: V3 = [sd * 0.5, 0.25, 0];
-      const tips: V3[] = [[sd * 1.15, 0.1, -0.1], [sd * 1.1, -0.1, -0.45], [sd * 0.75, -0.2, -0.65]];
+      const wrist: V3 = [sd * 0.5 * (great ? 1.5 : 1), 0.25 * (great ? 1.4 : 1), 0];
+      const tips: V3[] = ([[1.15, 0.1, -0.1], [1.1, -0.1, -0.45], [0.75, -0.2, -0.65]] as V3[]).map(([x, y, z]) => [sd * x * W, y * (great ? 1.6 : 1), z * (great ? 1.6 : 1)] as V3);
       v.capsule([0, 0, 0], wrist, 0.06, 0.04, scales);
       for (const t of tips) v.capsule(wrist, t, 0.025, 0.012, flat(spine));
       for (let i = 0; i < tips.length - 1; i++) v.tri(wrist, tips[i], tips[i + 1], 0.03, flat(Bl, 0.14));

@@ -1353,6 +1353,65 @@ export function planter(M: PropMaterials, tint = 0): THREE.Group {
   return g;
 }
 
+/** A stone balustrade len long along x: a plinth, turned balusters a hand apart, a broad rail on top, a pier at each end. */
+export function balustrade(M: PropMaterials, len: number): THREE.Group {
+  const g = new THREE.Group();
+  const st = flat('#e4ddcc'), dk = flat('#c4bca8');
+  g.add(mesh(box(len, 0.16, 0.42), dk, 0, 0.08, 0));
+  g.add(mesh(box(len + 0.1, 0.14, 0.5), st, 0, 0.98, 0));
+  const n = Math.max(2, Math.round(len / 0.32));
+  for (let i = 0; i < n; i++) {
+    const x = -len / 2 + (i + 0.5) * (len / n);
+    g.add(mesh(cyl(0.07, 0.1, 0.24, 6), st, x, 0.28, 0));
+    g.add(mesh(cyl(0.11, 0.07, 0.3, 6), st, x, 0.55, 0));
+    g.add(mesh(cyl(0.06, 0.08, 0.2, 6), st, x, 0.8, 0));
+  }
+  for (const k of [-1, 1]) g.add(mesh(box(0.34, 1.12, 0.48), dk, k * (len / 2 - 0.12), 0.56, 0));
+  return g;
+}
+
+/** A deck's rail len long along x: a cap rail on square posts every block and a half, square balusters between, a bottom rail. */
+export function deckRail(M: PropMaterials, len: number): THREE.Group {
+  const g = new THREE.Group();
+  const posts = Math.max(1, Math.round(len / 1.5));
+  for (let i = 0; i <= posts; i++) g.add(mesh(box(0.14, 1.1, 0.14), M.darkWood, -len / 2 + (i * len) / posts, 0.55, 0));
+  g.add(mesh(box(len + 0.12, 0.08, 0.2), M.darkWood, 0, 1.08, 0));
+  g.add(mesh(box(len, 0.06, 0.08), M.wood, 0, 0.12, 0));
+  const n = Math.max(2, Math.round(len / 0.2));
+  for (let i = 1; i < n; i++) g.add(mesh(box(0.05, 0.9, 0.05), M.wood, -len / 2 + (i * len) / n, 0.6, 0));
+  return g;
+}
+
+/** A canvas sunshade over a table: a pole, the cloth in the colour given with a pale trim round its edge. */
+export function parasol(M: PropMaterials, color: string): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(cyl(0.04, 0.04, 2.5, 6), M.darkWood, 0, 1.25, 0));
+  const cloth = new THREE.Mesh(new THREE.ConeGeometry(1.35, 0.5, 8, 1, true), flat(color, { side: THREE.DoubleSide }));
+  cloth.position.y = 2.45;
+  g.add(cloth);
+  const trim = new THREE.Mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.14, 8, 1, true), flat('#f2ead8', { side: THREE.DoubleSide }));
+  trim.position.y = 2.15;
+  g.add(trim);
+  g.add(mesh(box(0.1, 0.1, 0.1), M.darkWood, 0, 2.74, 0));
+  return g;
+}
+
+/** Lamps strung on a line len long along x, sagging in the middle: small glass lamps, lit. */
+export function stringLights(M: PropMaterials, len: number, sag = 0.4): THREE.Group {
+  const g = new THREE.Group();
+  const n = Math.max(3, Math.round(len / 0.9));
+  const yAt = (t: number) => -sag * 4 * t * (1 - t);
+  for (let i = 0; i < n; i++) {
+    const t0 = i / n, t1 = (i + 1) / n;
+    const x0 = -len / 2 + t0 * len, x1 = -len / 2 + t1 * len, y0 = yAt(t0), y1 = yAt(t1);
+    const seg = mesh(box(Math.hypot(x1 - x0, y1 - y0), 0.02, 0.02), M.rope, (x0 + x1) / 2, (y0 + y1) / 2, 0);
+    seg.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+    g.add(seg);
+    if (i > 0) { g.add(mesh(box(0.03, 0.12, 0.03), M.iron, x0, y0 - 0.06, 0)); g.add(mesh(box(0.12, 0.14, 0.12), M.glow, x0, y0 - 0.18, 0)); }
+  }
+  return g;
+}
+
 /** A washing line between two posts, len long, with the day's wash pegged out on it. */
 export function washLine(M: PropMaterials, len = 4): THREE.Group {
   const g = new THREE.Group();
@@ -1744,6 +1803,11 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'ribbons': return ribbons(M, tint);
     case 'gull': return gull();
     case 'coil': return ropeCoil(M);
+    case 'lounger': return lounger(M, tint);
+    case 'easel': return easel(M);
+    case 'spyglass': return spyglass(M);
+    case 'anvil': return anvil(M);
+    case 'forge': return homeForge(M);
     case 'crocks': return crocks(M, tint);
     case 'hayrack': return hayRack(M);
     case 'hurdle': return hurdle(M);
@@ -1781,7 +1845,7 @@ export function mineHeadframe(M: PropMaterials, text = 'SALLOW PIT\nHarrowgate &
 }
 
 /** Hanging banner with a painted emblem. Returned mesh uses a shared wave material. */
-export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere' | 'tally'): THREE.CanvasTexture {
+export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly'): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 128;
   const x = c.getContext('2d')!;
@@ -1802,6 +1866,42 @@ export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere' | 'tally')
     // Frayed bottom
     x.globalCompositeOperation = 'destination-out';
     for (let i = 0; i < 64; i += 4) x.fillRect(i, 118 + ((i * 7) % 9), 3, 12);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  if (kind === 'assembly') {
+    // The Assembly's: the two stones of Callis, a black block set on a white one, on white cloth with a
+    // black hem; old and weathered, as the one on the Mirador's tower is
+    x.fillStyle = '#ece6d6'; x.fillRect(0, 0, 64, 128);
+    x.fillStyle = 'rgba(0,0,0,0.04)';
+    for (let i = 0; i < 128; i += 3) x.fillRect(0, i, 64, 1);
+    x.fillStyle = '#d8d0bc'; x.fillRect(16, 58, 32, 26);
+    x.strokeStyle = '#a8a08c'; x.lineWidth = 2; x.strokeRect(16, 58, 32, 26);
+    x.fillStyle = '#1c1c20'; x.fillRect(20, 34, 24, 24);
+    x.fillStyle = '#1c1c20'; x.fillRect(0, 112, 64, 10);
+    x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 64; i += 4) x.fillRect(i, 121 + ((i * 3) % 5), 2, 8);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  if (kind === 'brethren') {
+    // The Brethren's sign: two crossed oars, because every captain started out pulling one, on sea-dark
+    // cloth gone grey at the edges, the hem ragged from the wind
+    x.fillStyle = '#1e2a30'; x.fillRect(0, 0, 64, 128);
+    x.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 0; i < 128; i += 3) x.fillRect(0, i, 64, 1);
+    x.strokeStyle = '#d8ccb0'; x.lineCap = 'round';
+    for (const [ax, ay, bx, by] of [[14, 30, 50, 92], [50, 30, 14, 92]]) {
+      x.lineWidth = 4; x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke();
+      // the blade at the lower end
+      const ux = (bx - ax) / Math.hypot(bx - ax, by - ay), uy = (by - ay) / Math.hypot(bx - ax, by - ay);
+      x.fillStyle = '#d8ccb0'; x.beginPath();
+      x.ellipse(bx - ux * 6, by - uy * 6, 4, 10, Math.atan2(uy, ux) - Math.PI / 2, 0, Math.PI * 2); x.fill();
+    }
+    x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 64; i += 3) x.fillRect(i, 116 + ((i * 5) % 11), 2, 14);
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
@@ -2063,6 +2163,56 @@ export function crocks(M: PropMaterials, tint = 0): THREE.Group {
   g.add(turned([[0, 0], [0.13, 0], [0.19, 0.12], [0.2, 0.3], [0.15, 0.46], [0.1, 0.5], [0.11, 0.54], [0, 0.54]], mat, -0.18, 0));
   g.add(turned([[0, 0], [0.09, 0], [0.13, 0.1], [0.12, 0.22], [0.07, 0.3], [0.08, 0.36], [0, 0.36]], mat, 0.14, 0.06));
   g.add(turned([[0, 0], [0.1, 0], [0.18, 0.06], [0.2, 0.12], [0.18, 0.12], [0, 0.04]], mat, 0.06, -0.2));
+  return g;
+}
+
+/** A forge for a house: a brick hearth waist high, the fire glowing in its mouth, a hood and a flue over it, the bellows at its side. */
+export function homeForge(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const brick = new THREE.MeshLambertMaterial({ color: '#8a3e2a' });
+  g.add(mesh(box(1.2, 0.9, 1.0), brick, 0, 0.45, 0));
+  g.add(mesh(box(0.7, 0.32, 0.12), M.glow, 0, 0.62, 0.45));
+  g.add(mesh(box(0.5, 0.06, 0.5), M.embers, 0, 0.93, 0));
+  g.add(mesh(box(1.0, 0.5, 0.8), brick, 0, 1.8, -0.05));
+  g.add(mesh(box(0.4, 0.9, 0.4), brick, 0, 2.5, -0.1));
+  const bl = bellows(M);
+  bl.scale.setScalar(0.6); bl.position.set(0.85, 0, 0.1); bl.rotation.y = -Math.PI / 2;
+  g.add(bl);
+  return g;
+}
+
+/** A lounging chair for a deck: a slatted seat that tilts back into a long back, on a low frame, a cushion on it. */
+export function lounger(M: PropMaterials, tint = 0): THREE.Group {
+  const g = new THREE.Group();
+  for (const k of [-1, 1]) g.add(mesh(box(0.06, 0.3, 1.7), M.darkWood, k * 0.3, 0.15, 0));
+  g.add(mesh(box(0.66, 0.06, 1.1), M.wood, 0, 0.32, 0.3));
+  g.add(mesh(box(0.66, 0.06, 0.8), M.wood, 0, 0.55, -0.62, 0, -0.55));
+  const cush = flat(['#e8dcc0', '#3a5a8a', '#7a2a24'][Math.abs(tint) % 3]);
+  g.add(mesh(box(0.58, 0.07, 1.0), cush, 0, 0.38, 0.3));
+  g.add(mesh(box(0.58, 0.07, 0.7), cush, 0, 0.61, -0.6, 0, -0.55));
+  return g;
+}
+
+/** A painter's easel: three legs, a ledge, and a canvas on it half done (the bay, by the colours). */
+export function easel(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.05, 1.8, 0.05), M.wood, -0.3, 0.88, 0, 0, 0.12, 0.1));
+  g.add(mesh(box(0.05, 1.8, 0.05), M.wood, 0.3, 0.88, 0, 0, 0.12, -0.1));
+  g.add(mesh(box(0.05, 1.7, 0.05), M.wood, 0, 0.8, -0.35, 0, -0.35));
+  g.add(mesh(box(0.8, 0.05, 0.12), M.darkWood, 0, 0.8, 0.12));
+  g.add(mesh(box(0.74, 0.56, 0.03), flat('#f2ead8'), 0, 1.12, 0.14, 0, 0.12));
+  g.add(mesh(box(0.7, 0.22, 0.01), flat('#3a6a9a'), 0, 1.0, 0.17, 0, 0.12));
+  g.add(mesh(box(0.7, 0.14, 0.01), flat('#e8e4d8'), 0, 1.16, 0.15, 0, 0.12));
+  g.add(mesh(box(0.7, 0.16, 0.01), flat('#9ac0dc'), 0, 1.31, 0.13, 0, 0.12));
+  return g;
+}
+
+/** A brass spyglass on a tripod, aimed out to sea. */
+export function spyglass(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; g.add(mesh(box(0.04, 1.3, 0.04), M.darkWood, Math.sin(a) * 0.22, 0.62, Math.cos(a) * 0.22, 0, Math.cos(a) * 0.18, -Math.sin(a) * 0.18)); }
+  g.add(mesh(cyl(0.05, 0.07, 0.9, 8), M.bronze, 0, 1.36, 0.1, 0, Math.PI / 2 - 0.12));
+  g.add(mesh(cyl(0.075, 0.075, 0.1, 8), M.bronze, 0, 1.42, 0.55, 0, Math.PI / 2 - 0.12));
   return g;
 }
 
