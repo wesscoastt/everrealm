@@ -268,11 +268,12 @@ export const spent = (learned: string[], tree?: string) => learned.filter((id) =
  * Whether a rank of a talent can be learned now: the calling's own, ranks left, a point to spend, its
  * tier open (five points in the tree for each tier above), and for a capstone, no other capstone held.
  */
-export function canLearn(id: string, learned: string[], calling: CallingId, level: number): string | null {
+export function canLearn(id: string, learned: string[], calling: CallingId, level: number, extra = 0): string | null {
   const t = TALENTS[id];
   if (!t || t.calling !== calling) return 'That isn\'t one of your calling\'s talents.';
   if (rankOf(id, learned) >= t.def.ranks) return 'You have every rank of it already.';
-  if (pointsAt(level) - spent(learned) < 1) return 'No points left to spend. You get three every five levels.';
+  // (extra: the points the rest of the pool leaves over: data/skillpoints.ts, game/Game.ts skillPool)
+  if (pointsAt(level) + extra - spent(learned) < 1) return 'No skill points left to spend. They come with levels and with Insight.';
   const need = t.def.tier * TIER_GATE, have = spent(learned, t.tree.id);
   if (have < need) return `Spend ${need} points in ${t.tree.name} to open this tier (${have} so far).`;
   if (t.def.capstone && learned.some((x) => TALENTS[x]?.def.capstone)) return 'You can hold only one capstone. Unlearn the other first.';

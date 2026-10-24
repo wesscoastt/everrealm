@@ -6,6 +6,7 @@
 // Units: damage in P (one ordinary swing at your level); health as a fraction of your own.
 import { CALLINGS, CallingId, chosenUtilities, type SkillDef, TUNE as BASE } from '../src/data/classes';
 import { fullTree, TREES, tuned, type Tune } from '../src/data/talents';
+import { applyRank, MORPHS } from '../src/data/skillpoints';
 
 const DT = 0.05;
 const CRIT = 0.12, CRIT_MULT = 1.6;
@@ -292,4 +293,44 @@ bars.forEach((b, k) => console.log(pad(b.calling + ' / ' + b.name, 34) + b.cells
 let bbad = 0;
 bars.forEach((b, k) => { const off = bover[k] / bmean - 1; if (Math.abs(off) > 0.1) { console.log(`  ${b.calling} / ${b.name} is ${(off * 100).toFixed(0)}% off the average`); bbad++; } });
 console.log(bbad ? `${bbad} bar balance problem(s)` : 'Utility bars balanced: every choice within 10% overall');
-process.exit(bad || tbad || bbad ? 1 : 0);
+// Morphs (data/skillpoints.ts): every calling skill at rank IV, then each morph of each skill in turn,
+// played with that skill on the bar. A morph is a different lean, not an upgrade: each has to stay
+// within 7% of the same calling at rank IV unmorphed, and a skill's two morphs within 8% of each other.
+const score = (id: CallingId, T: Tune, bar: SkillDef[]) => {
+  const cells = FIGHTS.map((f) => {
+    const modes = rangedCallings.has(id) && !f.dummy ? [false, true] : [false];
+    let best = -Infinity;
+    for (const ranged of modes) {
+      let sc = 0;
+      for (let r = 0; r < RUNS; r++) {
+        const res = run(id, f, ranged, T, bar);
+        if (f.dummy) sc += res.dealt / res.secs;
+        else sc += res.won ? res.hpLeft : -(f.foes().reduce((sum, e) => sum + e.hp, 0) - res.dealt) / f.foes().reduce((sum, e) => sum + e.hp, 0);
+      }
+      best = Math.max(best, sc / RUNS);
+    }
+    return best;
+  });
+  return cells;
+};
+const rel = (cells: number[], base: number[]) => cells.map((v, i) => FIGHTS[i].dummy ? v / base[i] : 1 + (v - base[i])).reduce((sum, v) => sum + v, 0) / FIGHTS.length;
+console.log('\nmorphs, each against its calling at rank IV unmorphed');
+let mbad = 0;
+for (const c of CALLINGS) {
+  const ids = [...c.skills, ...c.utilities].map((x) => x.id);
+  const rankIV = () => { const T = tuned([]); for (const id of ids) applyRank(T, id, 4); return T; };
+  for (const sk of [...c.skills, ...c.utilities]) {
+    const pair = MORPHS[sk.id];
+    if (!pair) continue;
+    const others = c.utilities.filter((u) => u.id !== sk.id).map((u) => u.id);
+    const bar = barOf(c.id, c.utilities.some((u) => u.id === sk.id) ? [sk.id, others[0]] : undefined);
+    const base = score(c.id, rankIV(), bar);
+    const vals = pair.map((m) => { const T = rankIV(); m.mod(T); return rel(score(c.id, T, bar), base); });
+    const line = pad(c.id + ' / ' + sk.name, 30) + pair.map((m, k) => pad(m.name + ' ' + vals[k].toFixed(3), 30)).join('');
+    console.log(line);
+    for (let k = 0; k < 2; k++) if (Math.abs(vals[k] - 1) > 0.07) { console.log(`  ${pair[k].name} is ${((vals[k] - 1) * 100).toFixed(0)}% off its calling`); mbad++; }
+    if (Math.abs(vals[0] - vals[1]) > 0.08) { console.log(`  ${sk.name}'s morphs are ${(Math.abs(vals[0] - vals[1]) * 100).toFixed(0)}% apart`); mbad++; }
+  }
+}
+console.log(mbad ? `${mbad} morph balance problem(s)` : 'Morphs balanced: every morph within 7% of its calling, and each pair within 8%');
+process.exit(bad || tbad || bbad || mbad ? 1 : 0);

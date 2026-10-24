@@ -39,7 +39,7 @@ export function furnCells(item: FurnItem, x: number, z: number, ry: number): [nu
   return out;
 }
 
-export interface Furn { item: FurnItem; x: number; y: number; z: number; ry: number; tint?: number }
+export interface Furn { item: FurnItem; x: number; y: number; z: number; ry: number; tint?: number; /** A chapel's altar candles: where to kneel and pray (game/Game.ts temples). */ altar?: boolean }
 export interface FitOut {
   furn: Furn[];
   /** Block edits: upper floors, stair steps, and invisible barriers under solid furniture. */
@@ -197,7 +197,7 @@ export function fitOut(h: HouseShape): FitOut {
       const au = Math.max(0, Math.min(W - 2, du));
       if (put('table', au, backV, facing.front, [[au, backV], [au + 1, backV]])) {
         const [a0, a1] = [F.cell(au, backV), F.cell(au + 1, backV)];
-        out.furn.push({ item: 'candles', x: (a0[0] + a1[0]) / 2 + 0.5, y: y + 0.8, z: (a0[1] + a1[1]) / 2 + 0.5, ry: 0 });
+        out.furn.push({ item: 'candles', x: (a0[0] + a1[0]) / 2 + 0.5, y: y + 0.8, z: (a0[1] + a1[1]) / 2 + 0.5, ry: 0, altar: true });
       }
       for (let v = backV - 2; v >= 1; v -= 2) {
         if (du >= 2) put('bench', 0, v, facing.back, [[du - 2, v], [du - 1, v]], 0.5, 0.5, false);

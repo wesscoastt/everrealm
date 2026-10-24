@@ -157,6 +157,14 @@ export interface DialogueView { speaker: string; title: string; text: string; na
 
 export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean }
 
+/** One skill as the Skills page shows it. */
+export interface SkillCard { id: string; name: string; base: string; icon: string; desc: string; kind: string; need: number; open: boolean; unlocked: boolean; free: boolean; rank: number; uses: number; next: number | null; from: number; morph: 'a' | 'b' | null; morphs: { key: 'a' | 'b'; name: string; desc: string }[] }
+export interface SkillsView {
+  pool: { total: number; left: number; insight: number; skills: number; morphs: number; talents: number };
+  temple: boolean; respec: number;
+  calling: SkillCard[]; utilities: SkillCard[]; weapons: SkillCard[];
+}
+
 /** The talent screen's view of a calling's trees (game/Game.ts talentView). */
 export interface TalentView {
   points: number; total: number; level: number;
@@ -213,6 +221,10 @@ export interface UiCtx {
   calling(): CallingId;
   /** The calling's talent trees: points to spend, and each talent's state (why it can't be learned yet, if not). */
   talents(): TalentView;
+  /** Skills (ESO's): unlocked with points, ranked by use, morphed at rank IV (game/Game.ts skillsView). */
+  skillsView(): SkillsView;
+  unlockSkill(id: string): string | null;
+  morphSkill(id: string, which: 'a' | 'b'): string | null;
   /** Builds: save what's learned (and the utilities) into slot i, or put slot i's back. */
   saveBuild(i: number): string | null;
   loadBuild(i: number): string | null;
@@ -562,12 +574,13 @@ export class Hud {
   }
   private skillXpT = 0;
 
+  /** locked: the level a key opens at; -1, open but not unlocked with a skill point yet. */
   setAbilities(cds: { left: number; total: number; disabled?: boolean; count?: number; locked?: number }[]): void {
     this.root.querySelectorAll<HTMLElement>('.ab-slot').forEach((s, i) => {
       const c = cds[i];
       if (!c) return;
       // Not yet learned: dark, with the level it comes at
-      const lockText = c.locked ? `Lv ${c.locked}` : '';
+      const lockText = c.locked === -1 ? 'T' : c.locked ? `Lv ${c.locked}` : '';
       if ((s.dataset.lock ?? '') !== lockText) { s.dataset.lock = lockText; s.classList.toggle('locked', !!c.locked); }
       const p = c.total > 0 ? Math.max(0, c.left / c.total) : 0;
       (s.querySelector('.cd') as HTMLElement).style.setProperty('--p', String(p));
@@ -1508,6 +1521,8 @@ export class Hud {
 
   /** Which build slot's menu is open on the talent screen, and the talent under the pointer. */
   private talHover: string | null = null;
+  /** The talent screen's page: the skills (ESO's lines) or the talent trees. */
+  private talTab: 'skills' | 'talents' = 'skills';
   /**
    * The talent screen (T): the calling's three trees side by side, each a column of six tiers that open
    * as points go in, its capstone at the foot; the details of whatever's under the pointer; points to
@@ -1517,6 +1532,7 @@ export class Hud {
     const panel = this.q('#talents-panel');
     const body = panel.querySelector('.body') as HTMLElement, foot = panel.querySelector('.footer') as HTMLElement;
     const tv = this.ctx.talents();
+    const sv = this.ctx.skillsView();
     const all = tv.trees.flatMap((t) => t.talents.map((d) => ({ d, t })));
     panel.style.setProperty('--cc', tv.calling.color);
     const pips = (d: TalentView['trees'][number]['talents'][number]) => d.ranks > 1 ? `<span class="tn-pips">${Array.from({ length: d.ranks }, (_, k) => `<i class="${k < d.rank ? 'on' : ''}"></i>`).join('')}</span>` : '';
@@ -1537,12 +1553,13 @@ export class Hud {
     })() : `<div><h5>${esc(tv.calling.name)} <em>${esc(tv.calling.role)}</em></h5><p>Point at a talent to read it; click to learn a rank. A tier opens once five points are in that tree for every tier above it, and you can hold one capstone. Three points come every five levels, from level 3. Unlearning is free, out of a fight.</p></div>`; };
     body.innerHTML = `<div class="tl-top">
         <div class="tl-calling"><span class="tl-crest"><img src="${abilityIcon(tv.calling.icon)}" alt=""></span><div><b>${esc(tv.calling.name)}</b><small>${esc(tv.calling.role)} · level ${tv.level}</small></div></div>
-        <div class="tl-points${tv.points > 0 ? ' some' : ''}"><b>${tv.points}</b><small>${tv.points === 1 ? 'point' : 'points'} to spend<br>of ${tv.total} earned</small></div>
-        <div class="tl-builds">${tv.builds.map((b, i) => `<div class="tl-build${b?.on ? ' on' : ''}"><span class="tl-bn">${i + 1}</span><div><b>${b ? esc(b.name) : 'Empty'}</b><small>${b ? esc(b.sum) : 'Save what you have here'}</small></div><button class="btn ghost sm" data-bsave="${i}" title="Save your talents and utilities here">Save</button>${b ? `<button class="btn sm" data-bload="${i}"${b.on || tv.fighting ? ' disabled' : ''} title="${tv.fighting ? 'Not while you are fighting' : 'Switch to this build'}">${b.on ? 'In use' : 'Use'}</button>` : ''}</div>`).join('')}</div>
+        <div class="tl-points${tv.points > 0 ? ' some' : ''}" title="Skill points come with levels, and with Insight: every waymark attuned, vista stood on and wonder found is a shard, and three shards make a point."><b>${tv.points}</b><small>skill ${tv.points === 1 ? 'point' : 'points'} to spend<br>of ${tv.total} · Insight ${sv.pool.insight}</small></div>
+        <div class="tl-builds">${tv.builds.map((b, i) => `<div class="tl-build${b?.on ? ' on' : ''}"><span class="tl-bn">${i + 1}</span><div><b>${b ? esc(b.name) : 'Empty'}</b><small>${b ? esc(b.sum) : 'Save what you have here'}</small></div><button class="btn ghost sm" data-bsave="${i}" title="Save your talents and utilities here">Save</button>${b ? `<button class="btn sm" data-bload="${i}"${b.on || tv.fighting || !sv.temple ? ' disabled' : ''} title="${tv.fighting ? 'Not while you are fighting' : !sv.temple ? 'Builds are changed kneeling at a temple\'s altar' : 'Switch to this build'}">${b.on ? 'In use' : 'Use'}</button>` : ''}</div>`).join('')}</div>
       </div>
-      <div class="tl-trees">${tv.trees.map(tree).join('')}</div>
+      <div class="tl-tabs"><button class="tl-tab${this.talTab === 'skills' ? ' on' : ''}" data-ttab="skills">Skills</button><button class="tl-tab${this.talTab === 'talents' ? ' on' : ''}" data-ttab="talents">Talents</button>${sv.temple ? '<span class="tl-temple">You kneel at the altar: unlearning and builds can be done here</span>' : ''}</div>
+      ${this.talTab === 'talents' ? `<div class="tl-trees">${tv.trees.map(tree).join('')}</div>` : this.skillsPage(sv)}
       <p class="tl-msg"></p>`;
-    foot.innerHTML = `<span>Click a talent to learn a rank · a tier opens at five points per tier above · one capstone at a time · T to close</span><button class="btn ghost sm tl-reset"${tv.fighting ? ' disabled' : ''}>Unlearn all</button>`;
+    foot.innerHTML = `<span>${this.talTab === 'talents' ? 'Click a talent to learn a rank · a tier opens at five points per tier above · one capstone at a time' : 'Skills rank up as you use them; at rank IV they morph one of two ways'} · T to close</span>${sv.temple ? `<button class="btn ghost sm tl-reset"${tv.fighting ? ' disabled' : ''}>Unlearn everything (${sv.respec} marks)</button>` : '<span class="tl-hint">Unlearn at a temple: kneel at any chapel\'s altar</span>'}`;
     const msg = (t: string) => { body.querySelector('.tl-msg')!.textContent = t; };
     body.querySelectorAll<HTMLElement>('[data-tal]').forEach((b) => {
       // The talent's card, floating beside it (to the left of it near the right edge)
@@ -1567,7 +1584,26 @@ export class Hud {
     });
     body.querySelectorAll<HTMLElement>('[data-bsave]').forEach((b) => b.addEventListener('click', () => { this.ctx.saveBuild(Number(b.dataset.bsave)); this.ctx.sfx('click'); this.renderTalents(); }));
     body.querySelectorAll<HTMLElement>('[data-bload]').forEach((b) => b.addEventListener('click', () => { const why = this.ctx.loadBuild(Number(b.dataset.bload)); this.renderTalents(); if (why) msg(why); }));
-    foot.querySelector('.tl-reset')?.addEventListener('click', () => this.ask('Unlearn every talent? It costs nothing, and you can save this build first.', () => { const why = this.ctx.resetTalents(); this.renderTalents(); if (why) msg(why); }, () => {}, 20));
+    foot.querySelector('.tl-reset')?.addEventListener('click', () => this.ask(`Unlearn every talent, skill and morph for ${sv.respec} marks? Save this build first if you want it back.`, () => { const why = this.ctx.resetTalents(); this.renderTalents(); if (why) msg(why); }, () => {}, 20));
+    body.querySelectorAll<HTMLElement>('[data-ttab]').forEach((b) => b.addEventListener('click', () => { this.talTab = b.dataset.ttab as 'skills' | 'talents'; this.ctx.sfx('click'); this.renderTalents(); }));
+    body.querySelectorAll<HTMLElement>('[data-sunlock]').forEach((b) => b.addEventListener('click', () => { const why = this.ctx.unlockSkill(b.dataset.sunlock!); this.renderTalents(); if (why) msg(why); }));
+    body.querySelectorAll<HTMLElement>('[data-smorph]').forEach((b) => b.addEventListener('click', () => { const [id, w] = b.dataset.smorph!.split(':'); const why = this.ctx.morphSkill(id, w as 'a' | 'b'); this.renderTalents(); if (why) msg(why); }));
+  }
+
+  /** The Skills page: each skill's rank, its progress, unlocking it, and its morphs at rank IV. */
+  private skillsPage(sv: SkillsView): string {
+    const card = (k: SkillCard) => {
+      const state = !k.open ? 'shut' : !k.unlocked ? 'locked' : k.morph ? 'morphed' : k.rank >= 4 ? 'ready' : 'got';
+      const pct = k.next === null ? 100 : Math.round(((k.uses - k.from) / Math.max(1, k.next - k.from)) * 100);
+      const rank = k.unlocked ? `<div class="sk-rank"><span class="sk-pips">${[1, 2, 3, 4].map((r) => `<i class="${r <= k.rank ? 'on' : ''}"></i>`).join('')}</span><em>Rank ${['I', 'II', 'III', 'IV'][k.rank - 1]}</em>${k.next !== null ? `<span class="sk-bar"><i style="width:${pct}%"></i></span><small>${k.uses}/${k.next} uses</small>` : ''}</div>` : '';
+      const act = !k.open ? `<p class="sk-why">Opens at level ${k.need}</p>`
+        : !k.unlocked ? `<button class="btn sm" data-sunlock="${k.id}"${sv.pool.left < 1 ? ' disabled' : ''}>Unlock · 1 point</button>`
+        : k.morph ? `<p class="sk-morph"><b>Morphed:</b> ${esc(k.morphs.find((m) => m.key === k.morph)?.desc ?? '')}</p>`
+        : k.morphs.length ? `<div class="sk-morphs${k.rank < 4 ? ' far' : ''}">${k.morphs.map((m) => `<button class="sk-mo" data-smorph="${k.id}:${m.key}"${k.rank < 4 || sv.pool.left < 1 ? ' disabled' : ''}><b>${esc(m.name)}</b><span>${esc(m.desc)}</span></button>`).join('')}</div>${k.rank < 4 ? '<p class="sk-why">Morphs at rank IV</p>' : ''}` : '';
+      return `<div class="sk-card ${state}"><img src="${abilityIcon(k.icon)}" alt=""><div><b>${esc(k.name)}</b>${k.morph ? `<small class="sk-was">${esc(k.base)}</small>` : ''}<small>${esc(k.kind)}${k.free ? ' · comes with the weapon' : ''}</small><p>${esc(k.desc)}</p>${rank}${act}</div></div>`;
+    };
+    const col = (title: string, list: SkillCard[]) => `<section class="sk-col"><h4>${title}</h4>${list.map(card).join('')}</section>`;
+    return `<div class="sk-page">${col('Your calling', sv.calling)}${col('Utilities', sv.utilities)}${col('Weapon skills', sv.weapons)}</div>`;
   }
 
   private renderSkills(): void {

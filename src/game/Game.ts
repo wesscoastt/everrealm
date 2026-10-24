@@ -5,6 +5,8 @@ import { Companion } from '../entities/Companion';
 import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
 import { LAND, LAND_FORCED, setNextLand, type LandId } from '../world/land';
 import { CALLIS_PACKET } from '../world/morrow';
+import { plan as sitePlan } from '../world/sites';
+import { applyRank, earlyPoints, MORPHS, RANK_AT, RANK_NAMES, rankFor as skillRankFor, RESPEC_PER_POINT, SHARDS_PER_POINT } from '../data/skillpoints';
 /** Session storage: the character to go straight into after crossing between lands. */
 const ENTER_KEY = 'everrealm.enter';
 import type { Equip } from '../data/items';
@@ -117,7 +119,7 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, weaponLine } from '../data/classes';
+import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponLine } from '../data/classes';
 import { MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
@@ -701,6 +703,7 @@ export class Game implements GameApi {
       skillHaste: () => this.armour.haste * (this.gearSet === 'escapement' ? 1.1 : 1),
       aim: (range) => this.aimPoint(range),
       dash: (dir, dist) => this.springAlong(dir, dist),
+      used: (id) => this.skillUsed(id),
       clear: (at) => {
         const p = this.player.position;
         if (Math.abs(at.y - p.y) > 3) { this.hud.system(at.y > p.y ? "That's too far above you." : "That's too far below you."); this.sfx('fail'); return false; }
@@ -1737,6 +1740,9 @@ export class Game implements GameApi {
       bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
       setUtilities: (ids: string[]) => g.setUtilities(ids),
       learnTalent: (id: string) => g.learnTalent(id),
+      skillsView: () => g.skillsView(),
+      unlockSkill: (id: string) => g.unlockSkill(id),
+      morphSkill: (id: string, w: 'a' | 'b') => g.morphSkill(id, w),
       saveBuild: (i: number) => g.saveBuild(i),
       loadBuild: (i: number) => g.loadBuild(i),
       resetTalents: () => g.resetTalents(),
@@ -1920,8 +1926,9 @@ export class Game implements GameApi {
 
   private applyCalling(): void {
     this.kit.set(this.calling);
-    this.kit.setTalents(this.learned());
     this.kit.setUtilities(this.flag('bar:' + this.calling), this.apprentice);
+    this.migrateSkills();
+    this.retune();
     this.appliedApprentice = this.flag('apprentice');
     this.kit.weapon = weaponLine(this.blade?.speed);
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
@@ -1947,22 +1954,166 @@ export class Game implements GameApi {
   /** Learn a talent; returns why not, or null. */
   learnTalent(id: string): string | null {
     const have = this.learned();
-    const why = canLearn(id, have, this.calling, this.level('melee'));
+    const why = canLearn(id, have, this.calling, this.level('melee'), this.poolExtra());
     if (why) return why;
     this.setFlag('talents:' + this.calling, [...have, id]);
-    this.kit.setTalents(this.learned());
+    this.retune();
     this.sfx('levelUp', 0.6);
     this.persist();
     return null;
   }
 
-  /** Unlearn every talent of the current calling, for nothing: only out of a fight. */
+  /**
+   * Unlearn everything for the current calling (talents, unlocked skills, morphs) and have the points
+   * back: only kneeling at a temple's altar, out of a fight, for a few marks a point (ESO's shrines).
+   */
   resetTalents(): string | null {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    if (this.mode === 'play' && !this.atTemple()) return 'Unlearning is done at a temple: kneel at the altar of any chapel, the Glass Kirk or the Hall of the Two Stones in Callis.';
+    const pool = this.skillPool(), cost = (pool.total - pool.left) * RESPEC_PER_POINT;
+    if (this.mode === 'play' && this.save.marks < cost) return `It costs ${cost} marks to unlearn ${pool.total - pool.left} points. You have ${this.save.marks}.`;
+    if (this.mode === 'play') this.save.marks -= cost;
     this.setFlag('talents:' + this.calling, []);
-    this.kit.setTalents([]);
+    for (const id of [...this.skillIds(), ...this.weaponSkillIds()]) { this.setFlag('skun:' + id, null); this.setFlag('skmorph:' + id, null); }
+    this.retune();
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    if (this.mode === 'play') { this.hud.banner('Unlearned', 'Your points are yours to spend again', true); this.sfx('quest', 0.6); }
     this.persist();
     return null;
+  }
+
+  // =================================================================== Skill points, ranks and morphs (data/skillpoints.ts)
+  /** Shards of Insight: every waymark attuned, every vista stood on, every wonder found (ESO's skyshards). */
+  private insight(): number {
+    const f = this.save.flags;
+    return Object.keys(f).filter((k) => f[k] && (k.startsWith('wm-') || k.startsWith('vista:') || k.startsWith('found:sc-'))).length;
+  }
+  /** The calling's skills the points unlock: its heal, signature, elite and utilities, and an apprentice's borrowed ones. */
+  private skillIds(): string[] {
+    const c = this.kit.calling;
+    return [...c.skills.map((x) => x.id), ...c.utilities.map((x) => x.id), ...crossUtilities(this.apprentice).map((x) => x.id)];
+  }
+  private weaponSkillIds(): string[] { return Object.values(WEAPON_SKILLS).map((x) => x.id); }
+  /** Is a calling skill unlocked (weapon skills come with the weapon)? */
+  skillUnlocked(id: string): boolean { return this.weaponSkillIds().includes(id) || !!this.flag('skun:' + id); }
+  private skillRank(id: string): number { return skillRankFor(Number(this.flag('skuse:' + id) ?? 0)); }
+  private morphOf(id: string): 'a' | 'b' | null { const m = this.flag('skmorph:' + id); return m === 'a' || m === 'b' ? m : null; }
+  /** The pool: points from levels (the talents' own and the early ones) and Insight, and what's spent of it. */
+  skillPool(): { total: number; left: number; insight: number; skills: number; morphs: number; talents: number } {
+    const lvl = this.level('melee'), ins = this.insight();
+    const total = pointsAt(lvl) + earlyPoints(lvl) + Math.floor(ins / SHARDS_PER_POINT);
+    const skills = this.skillIds().filter((id) => this.flag('skun:' + id)).length;
+    const morphs = [...this.skillIds(), ...this.weaponSkillIds()].filter((id) => this.morphOf(id)).length;
+    const talents = spent(this.learned());
+    return { total, left: total - skills - morphs - talents, insight: ins, skills, morphs, talents };
+  }
+  /** What the pool holds for talents beyond the talents' own level points (for canLearn). */
+  private poolExtra(): number {
+    const P = this.skillPool();
+    return P.total - pointsAt(this.level('melee')) - P.skills - P.morphs;
+  }
+  /** The kit's numbers: talents, then each skill's rank and morph. */
+  private retune(): void {
+    const ids = [...this.skillIds(), ...this.weaponSkillIds()];
+    this.kit.setTalents(this.learned(), (t) => {
+      for (const id of ids) {
+        applyRank(t, id, this.skillRank(id));
+        const m = this.morphOf(id);
+        if (m && MORPHS[id]) MORPHS[id][m === 'a' ? 0 : 1].mod(t);
+      }
+    });
+  }
+  /** A skill went off: it counts towards its next rank. */
+  private skillUsed(id: string): void {
+    const before = this.skillRank(id);
+    const uses = Number(this.flag('skuse:' + id) ?? 0) + 1;
+    this.setFlag('skuse:' + id, uses);
+    const after = skillRankFor(uses);
+    if (after > before) {
+      const name = [...this.kit.calling.skills, ...this.kit.calling.utilities, ...Object.values(WEAPON_SKILLS), ...crossUtilities(this.apprentice)].find((x) => x.id === id)?.name ?? id;
+      this.hud.banner(`${name} ${RANK_NAMES[after - 1]}`, after === 4 ? 'Ready to morph: open your skills (T)' : 'Rank up', true);
+      this.sfx('levelUp', 0.5);
+      this.retune();
+    }
+  }
+  /** Unlock a calling skill for a point, once your level allows it. */
+  unlockSkill(id: string): string | null {
+    if (!this.skillIds().includes(id)) return 'That isn\'t one of your skills.';
+    if (this.skillUnlocked(id)) return 'Already unlocked.';
+    const c = this.kit.calling, lvl = this.level('melee');
+    const need = id === c.skills[0].id ? UNLOCK_AT[3] : id === c.skills[1].id ? UNLOCK_AT[4] : id === c.skills[2].id ? UNLOCK_AT[7] : UNLOCK_AT[5];
+    if (lvl < need) return `That opens at level ${need}.`;
+    if (this.skillPool().left < 1) return 'No skill points left to spend. They come with levels and with Insight.';
+    this.setFlag('skun:' + id, 1);
+    this.retune();
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.sfx('levelUp', 0.6);
+    this.persist();
+    return null;
+  }
+  /** Morph a rank IV skill one of its two ways, for a point. Changing your mind is done at a temple. */
+  morphSkill(id: string, which: 'a' | 'b'): string | null {
+    if (!MORPHS[id]) return 'That skill doesn\'t morph.';
+    if (!this.skillUnlocked(id)) return 'Unlock it first.';
+    if (this.skillRank(id) < 4) return `Use it more: it morphs at rank IV (${RANK_AT[3]} uses).`;
+    if (this.morphOf(id)) return 'Already morphed. Unlearn it at a temple to choose again.';
+    if (this.skillPool().left < 1) return 'No skill points left to spend.';
+    this.setFlag('skmorph:' + id, which);
+    this.retune();
+    const m = MORPHS[id][which === 'a' ? 0 : 1];
+    this.hud.banner(m.name, 'Morphed', true);
+    this.sfx('discover');
+    this.persist();
+    return null;
+  }
+  /** Characters from before skill points: what their level had opened on the bar is unlocked, from the new early points. */
+  private migrateSkills(): void {
+    const key = 'skv2:' + this.calling;
+    if (this.flag(key)) return;
+    const lvl = this.level('melee'), c = this.kit.calling;
+    if (lvl >= UNLOCK_AT[3]) this.setFlag('skun:' + c.skills[0].id, 1);
+    if (lvl >= UNLOCK_AT[4]) this.setFlag('skun:' + c.skills[1].id, 1);
+    if (lvl >= UNLOCK_AT[7]) this.setFlag('skun:' + c.skills[2].id, 1);
+    const bar = this.kit.bar.slice(2, 4).map((x) => x.id);
+    if (lvl >= UNLOCK_AT[5] && bar[0]) this.setFlag('skun:' + bar[0], 1);
+    if (lvl >= UNLOCK_AT[6] && bar[1]) this.setFlag('skun:' + bar[1], 1);
+    this.setFlag(key, 1);
+  }
+  /** Every skill as the Skills page shows it: unlocked or not, rank and progress, morphs. */
+  skillsView() {
+    const c = this.kit.calling, lvl = this.level('melee');
+    const one = (sk: { id: string; name: string; icon: string; desc: string }, need: number, kind: string) => {
+      const uses = Number(this.flag('skuse:' + sk.id) ?? 0), rank = skillRankFor(uses), m = this.morphOf(sk.id);
+      const next = RANK_AT[rank] ?? null;
+      return {
+        id: sk.id, name: m ? MORPHS[sk.id][m === 'a' ? 0 : 1].name : sk.name, base: sk.name, icon: sk.icon, desc: sk.desc, kind, need,
+        open: lvl >= need, unlocked: this.skillUnlocked(sk.id), free: this.weaponSkillIds().includes(sk.id),
+        rank, uses, next, from: RANK_AT[rank - 1], morph: m,
+        morphs: (MORPHS[sk.id] ?? []).map((x, i) => ({ key: (i ? 'b' : 'a') as 'a' | 'b', name: x.name, desc: x.desc })),
+      };
+    };
+    const cross = crossUtilities(this.apprentice);
+    return {
+      pool: this.skillPool(), temple: this.atTemple(), respec: (this.skillPool().total - this.skillPool().left) * RESPEC_PER_POINT,
+      calling: [one(c.skills[0], UNLOCK_AT[3], 'Heal · key 4'), one(c.skills[1], UNLOCK_AT[4], 'Signature · key 5'), one(c.skills[2], UNLOCK_AT[7], 'Elite · key 8')],
+      utilities: [...c.utilities, ...cross].map((u) => one(u, UNLOCK_AT[5], cross.includes(u) ? 'Borrowed from your master' : 'Utility · keys 6 and 7')),
+      weapons: Object.values(WEAPON_SKILLS).map((w) => one(w, UNLOCK_AT[2], 'Weapon skill · key 3')),
+    };
+  }
+
+  // ---- Temples: kneel at the altar to unlearn, or to change build
+  private templeSpots: { x: number; y: number; z: number }[] | null = null;
+  private temples(): { x: number; y: number; z: number }[] {
+    if (this.templeSpots) return this.templeSpots;
+    const out: { x: number; y: number; z: number }[] = [];
+    for (const site of sitePlan().sites) for (const pr of site.props) if (pr.altar) out.push({ x: pr.x, y: pr.y, z: pr.z });
+    if (LAND === 'counties') out.push({ x: TEMPLE.x + 0.5, y: heightAt(TEMPLE.x, TEMPLE.z), z: TEMPLE.z + 0.5 });
+    return (this.templeSpots = out);
+  }
+  /** Kneeling distance from an altar. */
+  atTemple(): boolean {
+    const p = this.player.position;
+    return this.temples().some((t) => Math.hypot(t.x - p.x, t.z - p.z) < 6 && Math.abs(t.y - p.y) < 4);
   }
 
   /** What the talent screen shows of the trees: each talent with the icon of the skill it changes, and the saved builds. */
@@ -1972,13 +2123,13 @@ export class Game implements GameApi {
     // A talent's icon: the skill its words name, or the calling's signature for its mechanic and the rest
     const iconFor = (text: string) => skills.find((sk) => text.includes(sk.name))?.icon ?? c.skills[1].icon;
     return {
-      points: pointsAt(lvl) - spent(have), total: pointsAt(lvl), level: lvl,
+      points: this.skillPool().left, total: this.skillPool().total, level: lvl,
       calling: { name: c.name, role: c.role, color: c.mechanic.color, icon: c.skills[1].icon, mechanic: c.mechanic.name },
       fighting: this.mode === 'play' && this.elapsed - this.lastCombat < 6,
       trees: TREES[this.calling].map((t) => ({
         id: t.id, name: t.name, desc: t.desc, icon: iconFor(t.desc),
         spent: spent(have, t.id), gate: TIER_GATE, bar: t.bar.map((u) => c.utilities.find((s) => s.id === u)?.name ?? u),
-        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, tier: d.tier, ranks: d.ranks, rank: rankOf(d.id, have), capstone: !!d.capstone, why: canLearn(d.id, have, this.calling, lvl), icon: iconFor(d.name + ' ' + d.desc) })),
+        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, tier: d.tier, ranks: d.ranks, rank: rankOf(d.id, have), capstone: !!d.capstone, why: canLearn(d.id, have, this.calling, lvl, this.poolExtra()), icon: iconFor(d.name + ' ' + d.desc) })),
       })),
       builds: this.builds().map((b) => b && {
         name: b.name,
@@ -2010,12 +2161,14 @@ export class Game implements GameApi {
     const b = this.builds()[i];
     if (!b) return 'Nothing saved there yet.';
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    if (this.mode === 'play' && !this.atTemple()) return 'Builds are changed at a temple: kneel at the altar of any chapel, the Glass Kirk or the Hall of the Two Stones.';
     // Learned again in order, as far as the points and tiers allow now (a build saved at a higher level
     // than you are fills what it can)
     const lvl = this.level('melee'), got: string[] = [];
-    for (const id of b.talents) if (!canLearn(id, got, this.calling, lvl)) got.push(id);
+    this.setFlag('talents:' + this.calling, []);
+    for (const id of b.talents) if (!canLearn(id, got, this.calling, lvl, this.poolExtra())) got.push(id);
     this.setFlag('talents:' + this.calling, got);
-    this.kit.setTalents(got);
+    this.retune();
     this.setUtilities(b.bar);
     this.sfx('levelUp', 0.5);
     this.persist();
@@ -2859,6 +3012,11 @@ export class Game implements GameApi {
       const score = dist + ang * 1.2;
       if (score < bestScore) { bestScore = score; best = c; }
     };
+    // An altar: kneel and pray, to unlearn or change build (the talent screen, in the temple's light)
+    if (!this.horse) for (const t of this.temples()) {
+      const d = Math.hypot(t.x - p.x, t.z - p.z);
+      if (d < 3.2 && Math.abs(t.y - p.y) < 3) consider({ kind: 'act', label: 'Pray at the altar', pos: new THREE.Vector3(t.x, t.y + 1, t.z), act: () => this.pray() }, d);
+    }
     // Someone down: kneel and help them up
     if (!this.horse && !this.reviving) for (const r of this.online.remotes.values()) {
       if (r.anim !== 'dead') continue;
@@ -3506,6 +3664,15 @@ export class Game implements GameApi {
     this.sfx('pickup', 0.5);
   }
 
+  /** Kneel at an altar: the talent screen opens, where unlearning and builds can be done here. */
+  private pray(): void {
+    this.cancelActions();
+    this.emote = { id: 'kneel', left: 4 } as typeof this.emote;
+    this.hud.show('talents');
+    this.hud.system('You kneel at the altar. Here you can unlearn your talents, skills and morphs, or change to a saved build.');
+    this.sfx('bell', 0.4);
+  }
+
   /** Kneeling by someone who's down, helping them up: who, and how long you've been at it. */
   private reviving: { id: number; name: string; t: number } | null = null;
   private startRevive(id: number, name: string): void {
@@ -3596,6 +3763,10 @@ export class Game implements GameApi {
         this.attack = null;
       }
       this.cancelActions();
+      if (i > 2) {
+        const sk = this.kit.bar[i - 3];
+        if (sk && !this.skillUnlocked(sk.id)) { this.hud.system(`${sk.name} isn't unlocked yet: spend a skill point on it in your skills (T).`); this.sfx('fail'); return; }
+      }
       const ok = i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
       if (ok) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; }
     }
@@ -5250,7 +5421,8 @@ export class Game implements GameApi {
       lock({ left: this.cds.strike, total: 0.5 }, 0),
       lock({ left: this.cds.cleave, total: 6 }, 1),
       lock(this.kit.weaponSlot(), 2),
-      ...this.kit.slots().map((c, k) => lock(c, 3 + k)),
+      // (open by level but not unlocked with a point: marked for the skills page, T)
+      ...this.kit.slots().map((c, k) => (L >= UNLOCK_AT[3 + k] && this.kit.bar[k] && !this.skillUnlocked(this.kit.bar[k].id) ? { ...c, locked: -1 } : lock(c, 3 + k))),
       { left: this.cds.roll, total: 0.8, disabled: this.energy < this.armour.rollCost },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);

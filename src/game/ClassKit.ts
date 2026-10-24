@@ -45,6 +45,8 @@ export interface KitHost {
   dash(dir: THREE.Vector3, dist: number): boolean;
   /** A straight, open way from you to a ground point (no wall between, not up a cliff). */
   clear(at: THREE.Vector3): boolean;
+  /** A skill went off: it counts towards its rank (data/skillpoints.ts). */
+  used?(id: string): void;
 }
 
 interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean; bounce?: number }
@@ -250,7 +252,7 @@ export class ClassKit {
   }
 
   /** Apply the talents learned for this calling. */
-  setTalents(learned: string[]): void { T = tuned(learned); }
+  setTalents(learned: string[], extra?: (t: Tune) => void): void { T = tuned(learned); extra?.(T); }
 
   slots(): { left: number; total: number }[] {
     return this.bar.map((s, i) => ({ left: this.cds[i], total: this.cdOf(s, i) }));
@@ -263,6 +265,7 @@ export class ClassKit {
     if (this.wcd > 0) return false;
     const s = this.weaponSkill;
     if (!this.cast(s.id, this.host.player(), this.host.power())) return false;
+    this.host.used?.(s.id);
     this.wcd = s.cd;
     this.host.inCombat();
     return true;
@@ -279,6 +282,7 @@ export class ClassKit {
     const pw = this.host.power() * fury;
     const ok = this.cast(s.id, P, pw);
     if (!ok) return false;
+    this.host.used?.(s.id);
     if (fury > 1) { this.fury = 0; this.host.particles.burst(P.clone().setY(P.y + 1), '#ff5a3a', 20); }
     this.cds[i] = this.cdOf(s, i);
     if (i > 0) this.host.inCombat();

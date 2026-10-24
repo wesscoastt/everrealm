@@ -51,6 +51,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
 
 export interface PropDesc {
   t: PropType;
+  /** An altar to kneel at (a chapel's candles, a temple's): where talents and skills are unlearned. */
+  altar?: boolean;
   x: number;
   y: number;
   z: number;
@@ -3803,7 +3805,7 @@ export function plan(): Plan {
     // Inside: the white stone and the black stone, side by side on a dais
     for (let y = tb; y < tb + 4; y++) { O.set(TX - 2, y, TZ - 9, B.Whitestone); O.set(TX + 2, y, TZ - 9, B.Blackstone); }
     for (let i = 0; i < 8; i++) temple.props.push({ t: 'bench', x: TX + (i % 2 ? 5 : -5), y: tb, z: TZ - 4 + Math.floor(i / 2) * 3, ry: Math.PI });
-    temple.props.push({ t: 'furn', item: 'candles', x: TX + 0.5, y: tb, z: TZ - 8.5, ry: 0 }, { t: 'sign', x: TX + 7.5, y: tb, z: TZ + 10.5, ry: 0, text: 'The Hall of the Two Stones' });
+    temple.props.push({ t: 'furn', item: 'candles', x: TX + 0.5, y: tb, z: TZ - 8.5, ry: 0, altar: true }, { t: 'sign', x: TX + 7.5, y: tb, z: TZ + 10.5, ry: 0, text: 'The Hall of the Two Stones' });
     for (const [x, z] of [[TX - 14, TZ + 12], [TX + 14, TZ + 12], [TX - 14, TZ - 14], [TX + 14, TZ - 14]]) plantTree(x, z, tb, 0.6);
 
     // ---- The harbour: the quay along the sea, four piers out into it, ships, the packet berth
@@ -6871,7 +6873,7 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
     for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) O.set(x, base - 1, z, B.Planks);
     const fit = fitOut(shape);
     for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
-    for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint });
+    for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint, altar: f.altar });
     const leaf = openDoorPlace(shape);
     s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
   }
