@@ -261,7 +261,7 @@ export class Frontend {
     if (!cat) { box.innerHTML = '<p class="st-wait">The store lives on the online realm, and the realm isn\'t answering just now.</p>'; return; }
     const signed = !!currentAccount();
     const view = (it: StoreItem) => `<canvas class="st-view" data-view="${esc(it.items.join(','))}"></canvas>`;
-    const kind = (id: string) => (ITEMS[id]?.mount ? 'Mount' : ITEMS[id]?.pet ? 'Pet' : ITEMS[id]?.capeDesign ? 'Cloak' : 'Item');
+    const kind = (id: string) => (ITEMS[id]?.mount ? 'Mount' : ITEMS[id]?.pet ? 'Pet' : ITEMS[id]?.costume ? 'Costume' : ITEMS[id]?.capeDesign ? 'Cloak' : 'Item');
     const owned = new Set((signed ? await storeOwned() : null) ?? []);
     if (this.homeTab !== 'store' || !box.isConnected) return;
     const has = (it: StoreItem) => it.items.every((id) => owned.has(id));
@@ -273,7 +273,7 @@ export class Frontend {
       <p>${esc(it.blurb)}</p>
       ${it.items.length > 1 ? `<ul>${it.items.map((id) => `<li><i>${kind(id)}</i> ${esc(ITEMS[id]?.name ?? id)}</li>`).join('')}</ul>` : `<small class="st-kind">${kind(it.items[0])} · yours on every character</small>`}
       <button class="btn" data-buy="${it.id}"${cat.open && !has(it) ? '' : ' disabled'}>${has(it) ? 'Already yours' : cat.open ? (signed ? 'Buy' : 'Sign in to buy') : 'Opening soon'}</button></div>`;
-    const sections: [string, string][] = [['all', 'Everything'], ['mounts', 'Mounts'], ['pets', 'Pets'], ['bundles', 'Bundles']];
+    const sections: [string, string][] = [['all', 'Everything'], ['costumes', 'Costumes'], ['mounts', 'Mounts'], ['pets', 'Pets'], ['bundles', 'Bundles']];
     const count = (k: string) => cat.items.filter((i) => k === 'all' || i.cat === k).length;
     const tabs = `<div class="st-tabs">${sections.filter(([k]) => k === 'all' || count(k)).map(([k, t]) => `<button class="st-tab${k === this.storeCat ? ' on' : ''}" data-scat="${k}">${t} <span>${count(k)}</span></button>`).join('')}</div>`;
     const sorts: [StoreSort, string][] = [['featured', 'Featured'], ['low', 'Price: low to high'], ['high', 'Price: high to low'], ['new', 'Newest'], ['name', 'Name']];
@@ -284,8 +284,8 @@ export class Frontend {
     </div>`;
     this.showcase?.clear();
     box.innerHTML = tabs + tools + (this.storeNote ? `<div class="st-note">${esc(this.storeNote)}</div>` : '') + cat.items.map(card).join('') + '<p class="st-none" hidden>Nothing in the store matches that.</p>' + (cat.open ? '' : '<p class="st-wait">The store isn\'t taking payments yet. Everything here is what it will sell.</p>');
-    // Featured: free first, then the bundles (the best value), the mounts, the pets, the rest; dearest first in each
-    const rank: Record<string, number> = { bundles: 1, mounts: 2, pets: 3 };
+    // Featured: free first, then the bundles (the best value), the costumes, the mounts, the pets, the rest; dearest first in each
+    const rank: Record<string, number> = { bundles: 1, costumes: 2, mounts: 3, pets: 4 };
     const byId = new Map(cat.items.map((it, i) => [it.id, { it, i }]));
     const order = () => {
       const cards = [...box.querySelectorAll<HTMLElement>('.st-card')];

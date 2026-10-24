@@ -17,6 +17,19 @@ const ITEMS: ItemDef[] = [
   mount('mount_store_gildgriffin', 'Gilded griffin', { coat: '#d8b050', mane: '#f8f4ec', cloth: '#2a3a6a', breed: 'griffin', glow: true }, 'A tower griffin in gold and white, from the oldest eyrie in Callis. Its eyes catch the light like the Assembly\'s seal.'),
 ];
 
+const costume = (id: string, name: string, a: string, b: string, desc: string): ItemDef => ({
+  id: 'costume_' + id, name, kind: 'collectible', rarity: 'legendary', stack: false, value: 0, icon: { shape: 'chest', a, b }, costume: id, desc,
+  stats: 'From the Everrealm store. Use it to add it to your wardrobe for good: put it on under Costume with Change look. It goes over your clothes and armour; looks only.',
+});
+ITEMS.push(
+  costume('kilnplate', 'Kilnfolk forge plate', '#b07a36', '#ffb040', 'Brass plate hammered out on the Kiln\'s own anvils and quenched in the hot springs under Brasswick. The Kilnfolk wear it to the forge on feast days and nowhere else.'),
+  costume('towerknight', 'Callis tower knight', '#e8e6e0', '#2a3a6a', 'White plate and gold, the harness of the knights who keep the Assembly\'s towers. The blue plume means you\'ve stood a night watch on the sea wall.'),
+  costume('barrowguard', 'Kingsbarrow honour guard', '#2a2a34', '#9fe8ff', 'Blackened scale, cut to the pattern the Old King\'s guard were buried in. The pale trim is the colour the barrow-lights burn.'),
+  costume('heldfur', 'Held herder\'s furs', '#e8ecf0', '#8a9aa8', 'A long coat and a deep hood, the way the herders of the Held dress to follow the sabres over the snow. Warm enough to sleep out in.'),
+  costume('corsair', 'Saltpenny corsair', '#5a1418', '#d8b050', 'A red coat with the braid still on it, a plumed hat, and a gold ring in the ear. Nobody in the Keys asks where the coat came from.'),
+  costume('forester', 'Hagworm forester', '#3a4a2a', '#5a4028', 'Waxed leather and a green hood, the fellers\' and keepers\' dress in Hagworm Wood. Good for not being seen, by deer or by anyone else.'),
+);
+
 const pet = (id: string, name: string, a: string, b: string, desc: string): ItemDef => ({
   id: 'pet_' + id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'bag', a, b }, pet: id, desc,
   stats: 'From the Everrealm store. Use it to add them to your wardrobe for good: call them under Pet with Change look. Looks only.',

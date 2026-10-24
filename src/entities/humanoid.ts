@@ -65,7 +65,9 @@ export interface Appearance {
     /** Festival hats (data/seasons.ts), unlocked into the wardrobe. */
     | 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble'
     /** Costume headwear (data/costumes.ts): the witch's hat, the skull, the scarecrow's sack, the ghost's sheet, the crow mask. */
-    | 'witch' | 'skull' | 'sack' | 'sheet' | 'crow';
+    | 'witch' | 'skull' | 'sack' | 'sheet' | 'crow'
+    /** The corsair's (data/costumes.ts): three sides of the brim turned up, a plume over one. */
+    | 'tricorn';
   hatColor?: string;
   /** A costume worn over all of it (data/costumes.ts), or none. */
   costume?: string | null;
@@ -1162,18 +1164,19 @@ export class Humanoid {
         part(H, rbox(0.47, 0.13, 0.07, 0.03), shade(c, 0.92), 0, 0.33, 0.225); // the visor
         part(H, rbox(0.36, 0.022, 0.012, 0.004), dark, 0, 0.335, 0.262); // its slit
         break;
+      // (the closed helms stand forward of the face, nose and all, and out past the ears, so nothing of the head shows through)
       case 'barbute':
-        part(H, rbox(0.49, 0.5, 0.47, 0.13), c, 0, 0.3, 0);
-        part(H, rbox(0.3, 0.045, 0.012, 0.004), dark, 0, 0.32, 0.237); // the T of the opening
-        part(H, rbox(0.09, 0.2, 0.012, 0.004), dark, 0, 0.2, 0.237);
-        part(H, rbox(0.04, 0.24, 0.03, 0.01), shade(c, 1.15), 0, 0.47, 0.2);
+        part(H, rbox(0.55, 0.52, 0.5, 0.13), c, 0, 0.3, 0.012);
+        part(H, rbox(0.3, 0.045, 0.012, 0.004), dark, 0, 0.32, 0.264); // the T of the opening
+        part(H, rbox(0.09, 0.2, 0.012, 0.004), dark, 0, 0.2, 0.264);
+        part(H, rbox(0.04, 0.24, 0.03, 0.01), shade(c, 1.15), 0, 0.47, 0.22);
         break;
       case 'great':
-        part(H, rbox(0.5, 0.52, 0.48, 0.07), c, 0, 0.29, 0);
-        part(H, rbox(0.52, 0.05, 0.5, 0.01), t, 0, 0.42, 0); // reinforcing band
-        part(H, rbox(0.38, 0.03, 0.012, 0.004), dark, 0, 0.335, 0.247); // the sight
-        for (let k = 0; k < 3; k++) for (const sd of [1, -1]) part(H, rbox(0.025, 0.025, 0.012, 0.004), dark, sd * (0.06 + k * 0.05), 0.2, 0.247); // breaths
-        part(H, rbox(0.04, 0.2, 0.012, 0.004), t, 0, 0.18, 0.247);
+        part(H, rbox(0.55, 0.52, 0.5, 0.07), c, 0, 0.29, 0.012);
+        part(H, rbox(0.57, 0.05, 0.52, 0.01), t, 0, 0.42, 0.012); // reinforcing band
+        part(H, rbox(0.38, 0.03, 0.012, 0.004), dark, 0, 0.335, 0.264); // the sight
+        for (let k = 0; k < 3; k++) for (const sd of [1, -1]) part(H, rbox(0.025, 0.025, 0.012, 0.004), dark, sd * (0.06 + k * 0.05), 0.2, 0.264); // breaths
+        part(H, rbox(0.04, 0.2, 0.012, 0.004), t, 0, 0.18, 0.264);
         break;
     }
     if (hm.plume) {
@@ -1268,7 +1271,7 @@ export class Humanoid {
       if (style !== 3 && style !== 9) p(0.3, 0.05, 0.03, -0.03, 0.47, 0.222, 1.0, 0.012);
       return;
     }
-    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch';
+    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch' || hat === 'tricorn';
     const shaved = style === 3 || style === 9;
     if (shaved) {
       p(0.45, 0.035, 0.43, 0, 0.515, 0, 0.78, 0.015);
@@ -1416,6 +1419,19 @@ export class Humanoid {
       part(this.head, rbox(0.1, 0.07, 0.03, 0.01), '#d8b04a', 0, 0.64, 0.228);
       const quill = part(this.head, rbox(0.035, 0.42, 0.08, 0.02), '#f4f0e4', 0.23, 0.86, -0.06);
       quill.rotation.z = -0.35;
+    }
+    if (hat === 'tricorn') {
+      // A low crown, and the brim turned up on three sides: one at the front, coming to a point, and one
+      // each side behind; gold braid along the edges, and a plume curling back over the left
+      const c = this.look.hatColor ?? '#1a1418', braid = '#d8b050';
+      part(this.head, rbox(0.5, 0.16, 0.5, 0.06), c, 0, 0.64, 0);
+      part(this.head, rbox(0.52, 0.04, 0.52, 0.02), c, 0, 0.57, 0);
+      for (const [a, x, z] of [[0, 0, 0.26], [2.1, 0.23, -0.15], [-2.1, -0.23, -0.15]] as const) {
+        const g = new THREE.Group(); g.position.set(x, 0.58, z); g.rotation.y = a; this.head.add(g);
+        const wall = part(g, rbox(0.56, 0.17, 0.04, 0.02), c, 0, 0.07, 0); wall.rotation.x = -0.32;
+        const edge = part(g, rbox(0.57, 0.025, 0.05, 0.01), braid, 0, 0.15, -0.03); edge.rotation.x = -0.32;
+      }
+      const plume = part(this.head, rbox(0.07, 0.07, 0.42, 0.03), '#f4f0e4', -0.2, 0.74, -0.08); plume.rotation.set(0.4, 0.3, 0.3);
     }
     if (hat === 'witch') {
       // Broad brim, and a crown that goes up a long way and gives up at the top

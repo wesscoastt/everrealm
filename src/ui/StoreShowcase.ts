@@ -13,7 +13,9 @@ import { Humanoid, type Appearance } from '../entities/humanoid';
 const W = 300, H = 190;
 
 /** What a window holds: the model, how it moves, and (a bundle) how its things each turn. */
-interface Shown { root: THREE.Object3D; update?: (dt: number) => void; cam: [number, number, number, number]; spin?: (yaw: number) => void }
+interface Shown { root: THREE.Object3D; update?: (dt: number) => void; cam: [number, number, number, number]; spin?: (yaw: number) => void;
+  /** Someone standing: framed closer, turned to face the window to begin with. */
+  figure?: boolean }
 
 /** A figure to wear a cloak in the window, seen from behind. */
 const WEARER: Appearance = { skin: '#d8a882', hair: '#4a2a18', hairStyle: 1, eyes: '#3a5a7a', tunic: '#3a4a5a', trim: '#c8a050', trousers: '#2e2a26', boots: '#2a1e14', frame: 'm' };
@@ -98,7 +100,7 @@ export class StoreShowcase {
     return { root: g, update: (dt) => { for (const m of parts) m.update?.(dt); }, cam: [0, 0, 0, 0], spin: (yaw) => { for (const m of parts) m.root.rotation.y = yaw + (m.root.userData.face ?? 0); } };
   }
 
-  /** One item's model: a mount, a pet, or a cloak on someone's back. */
+  /** One item's model: a mount, a pet, a costume on someone, or a cloak on someone's back. */
   private make(item: string): Shown | null {
     const def = ITEMS[item];
     let made: Shown | null = null;
@@ -111,6 +113,11 @@ export class StoreShowcase {
       const c = new CreatureModel(p.kind, p.pal);
       c.root.scale.multiplyScalar(p.scale);
       made = { root: c.root, update: (dt) => c.update(dt, 0), cam: [2.4, 1.3, 2.4, 0.45] };
+    } else if (def?.costume) {
+      // Someone wearing it, turned three-quarters so the cloak and the front both show
+      const h = new Humanoid({ ...WEARER, costume: def.costume });
+      h.root.userData.face = -0.5;
+      made = { root: h.root, update: (dt) => h.update(dt, 0), cam: [3.4, 1.9, 3.4, 1.2], figure: true };
     } else if (def?.capeDesign) {
       const h = new Humanoid({ ...WEARER, cape: '#2a3a5a', capeDesign: def.capeDesign });
       h.root.rotation.y = Math.PI; h.root.userData.face = Math.PI;
@@ -125,14 +132,15 @@ export class StoreShowcase {
     this.pivot.clear();
     this.pivot.add(m.root);
     // A bundle is seen from the front, its things each turning in place; one thing turns whole
-    if (m.spin) { this.pivot.rotation.y = 0; m.spin(w.yaw); } else this.pivot.rotation.y = w.yaw;
+    if (m.spin) { this.pivot.rotation.y = 0; m.spin(w.yaw); } else this.pivot.rotation.y = w.yaw + (m.figure ? Math.PI / 4 + 0.7 : 0);
     m.update?.(dt);
     // Framed by its own size: the whole of it in view, a little from above and to the side
     const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
     // (a row is fitted to the window's width: its half-angle across is about 23 degrees)
-    const d = m.spin ? Math.max(size.x * 1.3, size.y * 2.6) + size.z * 0.5 + 0.4 : Math.max(size.x, size.y * 1.4, size.z) * 1.9 + 0.3;
+    const d = m.spin ? Math.max(size.x * 1.3, size.y * 2.6) + size.z * 0.5 + 0.4 : m.figure ? size.y * 2.4 : Math.max(size.x, size.y * 1.4, size.z) * 1.9 + 0.3;
     this.ground.scale.setScalar(Math.max(1, Math.max(size.x, size.z) / 6));
     if (m.spin) this.camera.position.set(mid.x, mid.y + d * 0.3, mid.z + d);
+    else if (m.figure) this.camera.position.set(mid.x + d * 0.68, mid.y + d * 0.12, mid.z + d * 0.68);
     else this.camera.position.set(mid.x + d * 0.62, mid.y + d * 0.32, mid.z + d * 0.62);
     this.camera.lookAt(mid.x, mid.y, mid.z);
     const r = this.renderer, was = r.getRenderTarget();
