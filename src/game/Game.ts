@@ -204,6 +204,8 @@ interface CraftAction { recipe: string; left: number; t: number; station: Statio
 const UP = new THREE.Vector3(0, 1, 0);
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
+/** How far a melee Strike reaches for its foe: from a few blocks off, the swing lunges in. */
+const MELEE_REACH = 5.5;
 const handL = new THREE.Vector3(), handR = new THREE.Vector3();
 
 export class Game implements GameApi {
@@ -442,6 +444,15 @@ export class Game implements GameApi {
   private comboIndex = 0;
   private comboWindow = 0;
   private queuedStrike = false;
+  /** A skill pressed mid-swing: it fires the moment the swing lands (ESO's weaving), not after the follow-through. */
+  private queuedSkill = -1;
+  /**
+   * Auto-attack (GW2's): Strike once at a foe and you keep striking it, moving or not, until it falls,
+   * you turn to something else, or it gets well away. Off in Settings for those who'd rather press.
+   */
+  private autoFoe: Enemy | null = null;
+  /** A blow rolled through clean opens a riposte: the next Strike within it is a sure critical. */
+  private riposteUntil = 0;
   private healOverTime = { left: 0, perSec: 0 };
   private healAnim = 0;
   private hitAnim = 0;
@@ -1723,6 +1734,8 @@ export class Game implements GameApi {
       bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
       setUtilities: (ids: string[]) => g.setUtilities(ids),
       learnTalent: (id: string) => g.learnTalent(id),
+      saveBuild: (i: number) => g.saveBuild(i),
+      loadBuild: (i: number) => g.loadBuild(i),
       resetTalents: () => g.resetTalents(),
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: keyof Equip) => g.unequip(slot),
@@ -1944,17 +1957,61 @@ export class Game implements GameApi {
     return null;
   }
 
-  /** What the Calling page shows of the trees. */
+  /** What the talent screen shows of the trees: each talent with the icon of the skill it changes, and the saved builds. */
   talentView() {
-    const have = this.learned(), lvl = this.level('melee');
+    const have = this.learned(), lvl = this.level('melee'), c = this.kit.calling;
+    const skills = [...c.skills, ...c.utilities, this.kit.weaponSkill];
+    // A talent's icon: the skill its words name, or the calling's signature for its mechanic and the rest
+    const iconFor = (text: string) => skills.find((sk) => text.includes(sk.name))?.icon ?? c.skills[1].icon;
     return {
-      points: pointsAt(lvl) - spent(have), total: pointsAt(lvl),
+      points: pointsAt(lvl) - spent(have), total: pointsAt(lvl), level: lvl,
+      calling: { name: c.name, role: c.role, color: c.mechanic.color, icon: c.skills[1].icon, mechanic: c.mechanic.name },
+      fighting: this.mode === 'play' && this.elapsed - this.lastCombat < 6,
       trees: TREES[this.calling].map((t) => ({
-        name: t.name, desc: t.desc,
-        spent: spent(have, t.id), gate: TIER_GATE, bar: t.bar.map((u) => this.kit.calling.utilities.find((s) => s.id === u)?.name ?? u),
-        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, tier: d.tier, ranks: d.ranks, rank: rankOf(d.id, have), capstone: !!d.capstone, why: canLearn(d.id, have, this.calling, lvl) })),
+        id: t.id, name: t.name, desc: t.desc, icon: iconFor(t.desc),
+        spent: spent(have, t.id), gate: TIER_GATE, bar: t.bar.map((u) => c.utilities.find((s) => s.id === u)?.name ?? u),
+        talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, tier: d.tier, ranks: d.ranks, rank: rankOf(d.id, have), capstone: !!d.capstone, why: canLearn(d.id, have, this.calling, lvl), icon: iconFor(d.name + ' ' + d.desc) })),
       })),
+      builds: this.builds().map((b) => b && {
+        name: b.name,
+        // (how it's spread: the tree names and their points, most first)
+        sum: TREES[this.calling].map((t) => [t.name, spent(b.talents, t.id)] as const).filter(([, n]) => n > 0).sort((a, z) => z[1] - a[1]).map(([n, k]) => `${n} ${k}`).join(' · ') || 'No talents',
+        on: b.talents.length === have.length && [...b.talents].sort().join() === [...have].sort().join() && b.bar.join() === this.kit.bar.slice(2, 4).map((x) => x.id).join(),
+      }),
     };
+  }
+
+  // Builds (GW2's build templates): three saved sets of talents and utilities for each calling, to
+  // switch between out of a fight, so a Warden can hold the line in a dungeon and go back to the
+  // Toll for the open world without learning it all again.
+  private builds(): ({ name: string; talents: string[]; bar: string[] } | null)[] {
+    const v = this.flag('builds:' + this.calling);
+    const list = Array.isArray(v) ? (v as ({ name: string; talents: string[]; bar: string[] } | null)[]) : [];
+    return [0, 1, 2].map((i) => list[i] ?? null);
+  }
+  saveBuild(i: number): string | null {
+    if (i < 0 || i > 2) return null;
+    const list = this.builds(), have = this.learned();
+    const top = TREES[this.calling].map((t) => [t.name, spent(have, t.id)] as const).sort((a, z) => z[1] - a[1])[0];
+    list[i] = { name: have.length ? top[0] : 'Untrained', talents: have, bar: this.kit.bar.slice(2, 4).map((x) => x.id) };
+    this.setFlag('builds:' + this.calling, list);
+    this.persist();
+    return null;
+  }
+  loadBuild(i: number): string | null {
+    const b = this.builds()[i];
+    if (!b) return 'Nothing saved there yet.';
+    if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    // Learned again in order, as far as the points and tiers allow now (a build saved at a higher level
+    // than you are fills what it can)
+    const lvl = this.level('melee'), got: string[] = [];
+    for (const id of b.talents) if (!canLearn(id, got, this.calling, lvl)) got.push(id);
+    this.setFlag('talents:' + this.calling, got);
+    this.kit.setTalents(got);
+    this.setUtilities(b.bar);
+    this.sfx('levelUp', 0.5);
+    this.persist();
+    return got.length < b.talents.length ? `Some of that build needs a higher level: ${got.length} of its ${b.talents.length} points are in.` : null;
   }
 
   /** Change calling: only out of a fight. Returns why not, or null. */
@@ -3367,7 +3424,13 @@ export class Game implements GameApi {
     if (i === 0) this.strike();
     else if (i === 1) this.cleave();
     else if (i <= 7) {
-      if (this.attack || this.dash) return;
+      if (this.dash) return;
+      // Mid-swing: once the blow has landed the follow-through is cut short for the skill; before
+      // that, the skill waits for the blow and goes the instant it lands
+      if (this.attack) {
+        if (!this.attack.hit) { this.queuedSkill = i; return; }
+        this.attack = null;
+      }
       this.cancelActions();
       const ok = i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
       if (ok) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; }
@@ -3442,11 +3505,16 @@ export class Game implements GameApi {
     let best: Enemy | null = null;
     if (this.target && this.target.alive && this.target.pos.distanceTo(this.player.position) < range + 1.5) best = this.target;
     else {
-      let bd = range;
-      for (const e of this.enemies) {
-        if (!e.alive) continue;
-        const d = e.pos.distanceTo(this.player.position);
-        if (d < bd) { bd = d; best = e; }
+      // The foe you're looking at first: nearest and most in front of the camera (targetOrder), within reach;
+      // failing that, whatever's nearest
+      best = this.targetOrder().find((e) => e.pos.distanceTo(this.player.position) < range) ?? null;
+      if (!best) {
+        let bd = range;
+        for (const e of this.enemies) {
+          if (!e.alive) continue;
+          const d = e.pos.distanceTo(this.player.position);
+          if (d < bd) { bd = d; best = e; }
+        }
       }
     }
     if (best) {
@@ -3464,7 +3532,11 @@ export class Game implements GameApi {
     if (this.bowInHand) { this.loose(); return; }
     if (this.attack) { this.queuedStrike = true; return; }
     if (this.cds.strike > 0) return;
-    const at = this.faceTarget(this.player.swimming ? 6 : 4.5);
+    const at = this.faceTarget(this.player.swimming ? 6 : MELEE_REACH);
+    if (at) this.autoFoe = at;
+    // A few blocks off: close the gap in a quick lunge, so a swing never whiffs at the air in front of you
+    const lunge = at && this.lungeTo(at);
+    if (lunge) { this.dash = lunge; this.particles.dust(this.player.position, 4); }
     if (this.player.swimming && at) {
       const P = this.player.position;
       const to = tmpV.set(at.pos.x - P.x, at.pos.y + 0.4 - (P.y + 0.9), at.pos.z - P.z);
@@ -3482,11 +3554,24 @@ export class Game implements GameApi {
     this.sfx('swing');
   }
 
+  /** Where a Strike's lunge would carry you to reach this foe, if it's a few blocks off over open, level-enough ground. */
+  private lungeTo(at: Enemy): { fx: number; fy: number; fz: number; tx: number; tz: number; ty: number; t: number; dur: number } | null {
+    if (this.player.swimming || this.horse || !this.player.onGround) return null;
+    const P0 = this.player.position, dx = at.pos.x - P0.x, dz = at.pos.z - P0.z, d = Math.hypot(dx, dz);
+    const stop = 1.3 + (at.def.elite ? 0.5 : 0);
+    if (d <= 2.4 || d > MELEE_REACH || Math.abs(at.pos.y - P0.y) > 1.6) return null;
+    const k = (d - stop) / d, tx = P0.x + dx * k, tz = P0.z + dz * k;
+    const ty = this.world.voxels.groundBelow(tx, P0.y + 2, tz);
+    if (Math.abs(ty - P0.y) >= 1.6 || this.world.voxels.raycast(P0.x, P0.y + 1, P0.z, dx / d, 0, dz / d, d - stop)) return null;
+    return { fx: P0.x, fy: P0.y, fz: P0.z, tx, tz, ty, t: 0, dur: 0.14 };
+  }
+
   /** A bow's Strike: an arrow at the target, up to twenty-four blocks off, a little slower than a swing. */
   private loose(): void {
     if (this.cds.strike > 0) return;
     const e = this.faceTarget(24);
     if (!e) { this.hud.system('Nothing in range to shoot at: target something (Tab) within twenty-four blocks.'); this.cds.strike = 0.6; return; }
+    this.autoFoe = e;
     const dur = 0.62 / this.pace;
     this.cds.strike = dur;
     this.player.model.setState('shoot');
@@ -3579,6 +3664,9 @@ export class Game implements GameApi {
     const blade = this.blade;
     const power = this.swingPower();
     const bonus = a.kind === 'strike' ? this.kit.strikeBonus() : { mult: 1, crit: false };
+    // A riposte after a clean dodge: this blow is a sure critical
+    const riposte = a.kind === 'strike' && this.riposteUntil > this.elapsed;
+    if (riposte) { this.riposteUntil = 0; bonus.crit = true; }
     const swim = this.player.swimming;
     let drawn = 0;
     let any = false;
@@ -3719,6 +3807,13 @@ export class Game implements GameApi {
   private hitPlayer(dmg: number, from: Enemy): void {
     if (this.dead || this.dev.god) return;
     if (this.iframes > 0) {
+      // Rolled clean through a blow: a riposte is open, and a little wind comes back
+      if (this.player.rolling > 0 && this.riposteUntil < this.elapsed) {
+        this.riposteUntil = this.elapsed + 1.8;
+        this.energy = Math.min(100, this.energy + 8);
+        this.floatAt(this.player.position, 2.4, 'Dodged!', 'dodge');
+        this.sfx('click', 0.6);
+      }
       // Brine: an attack rolled through gives back a little health, once a roll
       if (this.gearSet === 'brine' && !this.rolledThrough) {
         this.rolledThrough = true;
@@ -4140,6 +4235,7 @@ export class Game implements GameApi {
     }
     if (I.pressedOnce('KeyI') || I.pressedOnce('KeyB')) this.hud.toggle('inv');
     if (I.pressedOnce('KeyK')) this.hud.toggle('skills');
+    if (I.pressedOnce('KeyT')) this.hud.toggle('talents');
     if (I.pressedOnce('KeyJ')) this.hud.toggle('journal');
     if (I.pressedOnce('KeyM')) this.hud.toggle('map');
     if (I.pressedOnce('KeyO')) this.hud.toggle('guild');
@@ -4288,12 +4384,24 @@ export class Game implements GameApi {
     if (this.attack) {
       const a = this.attack;
       a.t += dt;
-      if (!a.hit && a.t >= a.hitAt) { a.hit = true; this.resolveAttack(); }
-      if (a.t >= a.dur) {
+      if (!a.hit && a.t >= a.hitAt) {
+        a.hit = true; this.resolveAttack();
+        if (this.queuedSkill >= 0) { const q = this.queuedSkill; this.queuedSkill = -1; this.attack = null; this.useAbility(q); }
+      }
+      if (this.attack && a.t >= a.dur) {
         this.attack = null;
         this.comboWindow = 0.6;
         if (this.queuedStrike) { this.queuedStrike = false; this.cds.strike = 0; this.strike(); }
       }
+    }
+
+    // Auto-attack: keep at the foe you struck while it's up, in reach and still your target
+    if (this.autoFoe) {
+      const e = this.autoFoe, d = Math.hypot(e.pos.x - P.position.x, e.pos.z - P.position.z);
+      const bow = this.bowInHand, reach = bow ? 24 : MELEE_REACH;
+      if (!e.alive || this.target !== e || this.dead || this.horse || this.dialogue || this.action || this.craftAction || d > reach + (bow ? 2 : 6) || this.save.settings.autoAttack === false) this.autoFoe = null;
+      // (in reach of a swing, or of a lunge; out of both, you close in yourself and it picks up again)
+      else if (!this.attack && !this.dash && P.rolling <= 0 && this.cds.strike <= 0 && (bow ? d <= reach : d <= 3 || !!this.lungeTo(e))) this.strike();
     }
 
     // Healing
@@ -4306,7 +4414,7 @@ export class Game implements GameApi {
     const moss = this.fx.has('regrowth');
     if (this.elapsed - this.lastCombat > (moss ? 3 : 6) && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.035 * (moss ? 1.5 : 1) * dt);
 
-    const mv = this.dialogue || this.attack?.kind === 'cleave' ? new THREE.Vector3() : this.moveVector();
+    const mv = this.dialogue ? new THREE.Vector3() : this.moveVector();
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
     // A wagon rolls a little slower than a horse alone
     const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
@@ -4317,7 +4425,7 @@ export class Game implements GameApi {
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind + this.buffSum('regen')) * (this.winded ? 0.5 : 1));
     this.tickBuffs(dt);
     this.hud.setBuffs(this.buffList());
-    if (this.attack) speed *= 0.35;
+    if (this.attack) speed *= this.attack.kind === 'cleave' ? 0.6 : 0.85;
     if (this.dev.fast) speed *= 2.5;
     if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;
     if (this.fx.has('drover') && this.elapsed - this.lastCombat > 3) speed *= 1.12;

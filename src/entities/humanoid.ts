@@ -1773,7 +1773,9 @@ export class Humanoid {
           P.torso.rotation.x = -0.2 * wind + 0.45 * strike;
         }
         P.foreR.rotation.x = -0.4;
-        P.legL.rotation.x = -0.35; P.legR.rotation.x = 0.3; P.shinR.rotation.x = 0.3;
+        // On the move the legs keep their stride under the swing (GW2's and ESO's way); standing, a lunge
+        if (speed > 0.6) legs(0.55 + stride * 0.25);
+        else { P.legL.rotation.x = -0.35; P.legR.rotation.x = 0.3; P.shinR.rotation.x = 0.3; }
         break;
       }
       case 'cleave': {
@@ -1782,8 +1784,8 @@ export class Humanoid {
         P.armR.rotation.x = -1.5;
         P.armR.rotation.z = -1.3;
         P.armL.rotation.z = 1.2;
-        P.legL.rotation.x = -0.4; P.legR.rotation.x = 0.4;
-        P.body.position.y = Math.sin(k * Math.PI) * 0.15;
+        if (speed > 0.6) legs(0.5); else { P.legL.rotation.x = -0.4; P.legR.rotation.x = 0.4; }
+        P.body.position.y += Math.sin(k * Math.PI) * 0.15;
         break;
       }
       case 'mine':
@@ -1852,6 +1854,7 @@ export class Humanoid {
         P.armR.rotation.x = -1.55 * k; P.armR.rotation.z = -0.12;
         P.armL.rotation.x = -1.45 * k; P.armL.rotation.z = -0.62 * k; P.foreL.rotation.x = -1.35 * k;
         P.head.rotation.y = 0.12 * k;
+        if (speed > 0.6) legs(0.5);
         break;
       }
       case 'heal': {

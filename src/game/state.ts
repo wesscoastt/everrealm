@@ -22,6 +22,8 @@ export interface Settings {
   invertY: boolean;
   /** Strong language in chat shows as asterisks. */
   filterChat: boolean;
+  /** Strike keeps striking the foe you hit until it falls (GW2's auto-attack); off, every swing is a key press. Unset is on. */
+  autoAttack?: boolean;
   /** Players whose chat, whispers and invitations you don't see (by name, lower case). */
   ignored: string[];
 }
