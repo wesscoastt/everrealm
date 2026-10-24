@@ -74,6 +74,10 @@ export interface ItemDef {
   base?: string;
   quality?: number;
   affix?: string;
+  /** An enchantment worked into a piece (data/gear.ts ENCHANTS): which, and its strength 1 to 3. */
+  enchant?: { id: string; tier: number };
+  /** A glyph (data/content/glyphs.ts): used, it enchants the weapon in hand or a piece of armour worn. */
+  glyph?: { id: string; tier: number };
   /** A named piece (data/gear.ts): what it does, how many the realm holds and what drops it; and this copy's number. */
   named?: NamedInfo;
   serial?: number;

@@ -32,7 +32,7 @@ import {
   ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, STATION_NAMES, SHOP_STOCK, SKILLS, Station, TREE_INFO,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
-import { affixFits, AFFIXES, baseOf, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
+import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
 import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIVES, QUALITY_STEPS, researchMinutes, WEAPON_LEANINGS } from '../data/crafting';
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
@@ -1499,10 +1499,16 @@ export class Game implements GameApi {
    */
   private get armour() {
     const e = this.save.equip;
-    const a = { defense: 0, vigor: 0, wind: 0, roll: 0, crit: 0, rollCost: 25, haste: 1, light: 0, medium: 0, heavy: 0 };
+    const a = { defense: 0, vigor: 0, wind: 0, roll: 0, crit: 0, rollCost: 25, haste: 1, light: 0, medium: 0, heavy: 0, thorns: 0, swift: 0 };
     for (const id of [e.head, e.chest, e.legs, e.hands, e.feet]) {
       const r = id ? ITEMS[id]?.armor : undefined;
       if (!r) continue;
+      // Its enchantment, if it has one (data/gear.ts ENCHANTS)
+      const en = ITEMS[id!]?.enchant;
+      if (en?.id === 'warding') a.vigor += [15, 25, 35][en.tier - 1];
+      else if (en?.id === 'vigour') a.wind += [0.05, 0.08, 0.11][en.tier - 1];
+      else if (en?.id === 'thorns') a.thorns += [0.06, 0.09, 0.12][en.tier - 1];
+      else if (en?.id === 'swift') a.swift = Math.min(0.08, a.swift + [0.02, 0.03, 0.04][en.tier - 1]);
       a.defense += r.defense; a.vigor += r.vigor ?? 0; a.wind += r.wind ?? 0; a.roll += r.roll ?? 0;
       if (r.weight) a[r.weight]++;
     }
@@ -2444,6 +2450,27 @@ export class Game implements GameApi {
       this.hud.banner(def.name, 'Your pet now', true);
       this.hud.system(`${def.name} is yours now and follows you about. Change pets, or send her home, under Pet with Change look, on the character screen.`);
       this.sfx('discover');
+    } else if (def.glyph) {
+      // A glyph: into the weapon in hand, or into a piece of armour worn (the first without one, chest first)
+      const E = ENCHANTS[def.glyph.id];
+      const eq = this.save.equip;
+      let slot: keyof typeof eq | null = null;
+      if (E.kind === 'weapon') slot = eq.weapon && ITEMS[eq.weapon]?.weapon && !ITEMS[eq.weapon]?.named ? 'weapon' : null;
+      else {
+        const worn = (['chest', 'legs', 'head', 'hands', 'feet'] as const).filter((k) => eq[k] && ITEMS[eq[k]!]?.armor && !ITEMS[eq[k]!]?.named);
+        slot = worn.find((k) => !ITEMS[eq[k]!]?.enchant) ?? worn[0] ?? null;
+      }
+      if (!slot) { this.hud.system(E.kind === 'weapon' ? 'Hold the weapon you want to enchant first (named pieces can\'t take a glyph).' : 'Wear the armour you want to enchant first (named pieces can\'t take a glyph).'); return; }
+      const old = eq[slot]!, now = enchantedId(old, def.glyph.id, def.glyph.tier);
+      if (!ITEMS[now]) { this.hud.system('That piece won\'t take an enchantment.'); return; }
+      this.inv.removeAt(i, 1);
+      (eq as unknown as Record<string, string | null | undefined>)[slot] = now;
+      this.hud.banner(ITEMS[now].name, 'Enchanted', true);
+      this.hud.system(`${def.name} goes into ${ITEMS[old].name}: ${E.text(def.glyph.tier)}`);
+      this.particles.burst(tmpV.copy(this.player.position).setY(this.player.position.y + 1.2), '#c8a0ff', 22);
+      this.sfx('discover');
+      this.dress();
+      this.hud.refresh();
     } else if (def.teaches) {
       // A recipe card: learned for good, the card used up
       if (this.flag('recipe:' + def.teaches)) { this.hud.system('You already know that one.'); return; }
@@ -3959,6 +3986,15 @@ export class Game implements GameApi {
     this.addXp('melee', Math.max(1, Math.round(dmg * HIT_XP)));
     if (!quiet) {
       if (fx.has('bleed') && e.alive) this.kit.addDot(e, (dmg * 0.33) / 4, 4);
+      // The weapon's enchantment (data/gear.ts ENCHANTS)
+      const en = ITEMS[this.save.equip.weapon ?? '']?.enchant;
+      if (en && e.alive) {
+        const k = en.tier - 1;
+        if (en.id === 'flame') this.kit.addDot(e, dmg * [0.06, 0.09, 0.12][k], 3);
+        else if (en.id === 'frost' && Math.random() < [0.2, 0.25, 0.33][k]) { e.slowLeft = 3; this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), 6, '#c8f4ff'); }
+        else if (en.id === 'leech') this.healSelf(dmg * [0.02, 0.03, 0.04][k]);
+        else if (en.id === 'storm' && Math.random() < 0.125 && !this.chaining) { this.chaining = true; this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 1.4), 16, '#d8d0ff'); this.dealDamage(e, raw * [0.3, 0.45, 0.6][k], false, true); this.chaining = false; }
+      }
       if (fx.has('chill')) e.slowLeft = 3;
       if (fx.has('weaken')) e.weakLeft = 4;
       if (crit && fx.has('crit_heal')) this.healSelf(this.maxHp * 0.02);
@@ -4109,6 +4145,11 @@ export class Game implements GameApi {
     else if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.gainStanding(reg, GAINS.boss);
     const source: DropSource = e.isBoss ? 'boss' : e.def.elite || e.def.type.startsWith('r_') ? 'elite' : 'mob';
     if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(this.dropped(pieces[Math.floor(Math.random() * pieces.length)], source), 1);
+    // A glyph, now and then: elites and bosses more often, and stronger
+    if (!e.questTag && Math.random() < (source === 'boss' ? 0.5 : source === 'elite' ? 0.12 : 0.015)) {
+      const kinds = Object.keys(ENCHANTS), tier = source === 'boss' ? (Math.random() < 0.5 ? 3 : 2) : source === 'elite' ? (Math.random() < 0.3 ? 2 : 1) : 1;
+      this.give(`glyph_${kinds[Math.floor(Math.random() * kinds.length)]}_${tier}`, 1);
+    }
     // The region's own weapons, now and then
     const arms = REGION_WEAPONS[reg];
     if (arms && !e.questTag && Math.random() < (e.def.elite ? 0.15 : 0.02)) this.give(this.dropped(arms[Math.floor(Math.random() * arms.length)], source), 1);
@@ -4172,6 +4213,7 @@ export class Game implements GameApi {
     if (this.activities.duels.playerHit(from, this.hp, this.maxHp)) this.hp = Math.max(this.hp, 1);
     // The Rust Queen's gauntlets give a third of it back; the sexton's helm wards you below half health
     if (fx.has('thorns') && from.alive) this.dealDamage(from, taken * 0.33, false, true);
+    else if (this.armour.thorns > 0 && from.alive) this.dealDamage(from, taken * this.armour.thorns, false, true);
     if (fx.has('glassward') && this.hp > 0 && this.hp < this.maxHp / 2 && this.elapsed - this.glassAt > 60) {
       this.glassAt = this.elapsed;
       this.kit.addShield(this.maxHp * 0.2, 8);
@@ -4764,6 +4806,7 @@ export class Game implements GameApi {
     if (this.attack) speed *= this.attack.kind === 'cleave' ? 0.6 : 0.85;
     if (this.dev.fast) speed *= 2.5;
     if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;
+    speed *= 1 + this.armour.swift;
     if (this.fx.has('drover') && this.elapsed - this.lastCombat > 3) speed *= 1.12;
     const jump = this.input.pressedOnce('Space') && !this.dialogue;
     // Moving, jumping, fighting or working puts an instrument away, and ends an emote (the short ones end on their own)

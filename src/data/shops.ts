@@ -49,6 +49,8 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'cape_border', price: 400 }, { item: 'cape_quartered', price: 600 }, { item: 'cape_chevron', price: 600 }, { item: 'cape_chequy', price: 900 },
       // The cook's stall: recipe cards (data/content/recipes.ts)
       { item: 'recipe_harvest_supper', price: 120 }, { item: 'recipe_bilberry_cordial', price: 160 },
+      // The glyph-cutter's tray: the minor glyphs (data/content/glyphs.ts)
+      ...['flame', 'frost', 'leech', 'storm', 'warding', 'vigour', 'thorns', 'swift'].map((k) => ({ item: `glyph_${k}_1`, price: 150 })),
     ],
     buyRate: () => 0.6,
     priceMult: (g) => (g.flag('hwChoice') === 'refund' ? 0.9 : 1),

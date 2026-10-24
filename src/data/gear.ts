@@ -39,6 +39,31 @@ export const AFFIXES: Record<string, { word: string; weapon?: WTrait; armour?: A
   nimble: { word: 'Nimble', armour: 'roll' },
 };
 
+// ------------------------------------------------------------------ Enchantments
+// Worked into a weapon or a piece of armour with a glyph (data/content/glyphs.ts), or found already in
+// one. Three strengths. An enchanted piece reads a rarity higher, carries the enchantment's name ("of
+// Flame"), and is worth more. Its id carries it after the roll: "iron_sword__keen2_flame2".
+export const ENCHANTS: Record<string, { word: string; kind: 'weapon' | 'armour'; text: (tier: number) => string }> = {
+  flame: { word: 'Flame', kind: 'weapon', text: (k) => `Blows burn for ${[6, 9, 12][k - 1]}% of the blow each second for three seconds.` },
+  frost: { word: 'Frost', kind: 'weapon', text: (k) => `One blow in ${[5, 4, 3][k - 1]} chills the foe to two thirds of its pace for three seconds.` },
+  leech: { word: 'Leeching', kind: 'weapon', text: (k) => `Blows heal you ${[2, 3, 4][k - 1]}% of the damage they do.` },
+  storm: { word: 'Storm', kind: 'weapon', text: (k) => `One blow in eight brings lightning down on the foe, for ${[30, 45, 60][k - 1]}% of it again.` },
+  warding: { word: 'Warding', kind: 'armour', text: (k) => `Maximum health +${[15, 25, 35][k - 1]}.` },
+  vigour: { word: 'Vigour', kind: 'armour', text: (k) => `Energy comes back ${[5, 8, 11][k - 1]}% faster.` },
+  thorns: { word: 'Thorns', kind: 'armour', text: (k) => `Whatever strikes you takes ${[6, 9, 12][k - 1]}% of the blow back.` },
+  swift: { word: 'Swiftness', kind: 'armour', text: (k) => `You move ${[2, 3, 4][k - 1]}% faster (no more than 8% from all your armour).` },
+};
+export const TIER_WORDS = ['Minor', '', 'Greater'];
+const RARITY_UP: Record<string, ItemDef['rarity']> = { common: 'uncommon', uncommon: 'rare', rare: 'epic', epic: 'legendary', legendary: 'legendary' };
+/** Does an enchantment go on this piece? Weapon enchantments on weapons, armour ones on armour. */
+export const enchantFits = (d: ItemDef, ench: string) => !!ENCHANTS[ench] && (ENCHANTS[ench].kind === 'weapon' ? !!d.weapon : !!d.armor);
+/** The id of a piece with this enchantment worked in, keeping its quality and leaning. */
+export function enchantedId(id: string, ench: string, tier: number): string {
+  const m = /^([a-z0-9_]+?)(?:__([a-z]*)([0-3]))?(?:_[a-z]+[1-3])?$/.exec(id);
+  if (!m) return id;
+  return `${m[1]}__${m[2] ?? ''}${m[3] ?? '1'}_${ench}${tier}`;
+}
+
 /** Can this piece drop rolled? Weapons and armour, not the starter sword, not a named piece. */
 export function rollable(d: ItemDef | undefined): boolean {
   return !!d && !d.stack && !!(d.weapon || d.armor) && !d.named && d.id !== 'worn_sword' && !d.id.includes('__');
@@ -96,7 +121,7 @@ function armourStats(a: NonNullable<ItemDef['armor']>): string {
 }
 
 /** A piece rolled from `base` at quality q (0 worn .. 3 masterwork) with a leaning (or none). */
-function rolled(base: ItemDef, q: number, affix: string): ItemDef {
+function rolled(base: ItemDef, q: number, affix: string, ench = '', tier = 0): ItemDef {
   const Q = QUALITY[q], A = affix ? AFFIXES[affix] : undefined;
   const d: ItemDef = { ...base, id: affix || q !== 1 ? `${base.id}__${affix}${q}` : base.id, base: base.id, quality: q, affix: affix || undefined, rarity: Q.rarity, value: Math.max(1, Math.round(base.value * Q.value)), name: rolledName(base, q, affix) };
   if (base.weapon) {
@@ -121,6 +146,16 @@ function rolled(base: ItemDef, q: number, affix: string): ItemDef {
     for (const t of ['vigor', 'wind', 'roll'] as const) { const v = Math.round(p[t] * A_PER[t] * 100) / 100; if (v) d.armor[t] = v; else delete d.armor[t]; }
     d.stats = armourStats(d.armor);
   }
+  // An enchantment: a rarity higher, its name after the piece's, and what it does under the stats
+  if (ench && ENCHANTS[ench]) {
+    const E = ENCHANTS[ench];
+    d.id = `${base.id}__${affix}${q}_${ench}${tier}`;
+    d.enchant = { id: ench, tier };
+    d.rarity = RARITY_UP[d.rarity];
+    d.value = Math.round(d.value * (1.3 + tier * 0.3));
+    d.name = `${d.name} of ${E.word}`;
+    d.stats = `${d.stats ?? ''} Enchanted${TIER_WORDS[tier - 1] ? ' (' + TIER_WORDS[tier - 1].toLowerCase() + ')' : ''}: ${E.text(tier)}`.trim();
+  }
   return d;
 }
 
@@ -134,16 +169,18 @@ export function baseOf(id: string): string {
 export function gearVariant(id: string, lookup: (id: string) => ItemDef | undefined): ItemDef | null {
   const n = /^(u_[a-z0-9_]+)__n(\d{1,3})$/.exec(id);
   if (n) { const d = lookup(n[1]); return d?.named ? { ...d, id, serial: Number(n[2]) } : null; }
-  const m = /^([a-z0-9_]+?)__([a-z]*)([0-3])$/.exec(id);
+  const m = /^([a-z0-9_]+?)__([a-z]*)([0-3])(?:_([a-z]+)([1-3]))?$/.exec(id);
   if (!m) return null;
   const base = lookup(m[1]);
-  if (!base || !rollable(base) || (m[2] && !affixFits(base, m[2])) || (!m[2] && m[3] === '1')) return null;
-  return rolled(base, Number(m[3]), m[2]);
+  if (!base || !rollable(base) || (m[2] && !affixFits(base, m[2])) || (!m[2] && m[3] === '1' && !m[4]) || (m[4] && !enchantFits(base, m[4]))) return null;
+  return rolled(base, Number(m[3]), m[2], m[4] ?? '', Number(m[5] ?? 0));
 }
 
 /** How likely each quality is, by what dropped it. */
 const ODDS = { mob: [35, 45, 16, 4], elite: [10, 45, 33, 12], boss: [0, 30, 45, 25] };
 export type DropSource = keyof typeof ODDS;
+/** How often a dropped piece comes enchanted, by what dropped it. */
+const ENCHANT_ODDS: Record<DropSource, number> = { mob: 0.04, elite: 0.15, boss: 0.35 };
 
 /** Roll a piece that has dropped: its quality by the source, its leaning at random (or none). */
 export function rollGear(base: ItemDef, source: DropSource, rnd: () => number = Math.random): string {
@@ -153,6 +190,12 @@ export function rollGear(base: ItemDef, source: DropSource, rnd: () => number = 
   while (q < 3 && r >= w[q]) { r -= w[q]; q++; }
   const fits = Object.keys(AFFIXES).filter((a) => affixFits(base, a));
   const affix = !fits.length || rnd() < 0.2 ? '' : fits[Math.floor(rnd() * fits.length)];
+  // Now and then it's found enchanted: more often off elites, and from bosses stronger
+  if (rnd() < ENCHANT_ODDS[source]) {
+    const can = Object.keys(ENCHANTS).filter((k) => enchantFits(base, k));
+    const ench = can[Math.floor(rnd() * can.length)], tier = source === 'boss' ? 2 + (rnd() < 0.4 ? 1 : 0) : source === 'elite' ? 1 + (rnd() < 0.35 ? 1 : 0) : 1;
+    if (ench) return `${base.id}__${affix}${q}_${ench}${tier}`;
+  }
   return affix || q !== 1 ? `${base.id}__${affix}${q}` : base.id;
 }
 
