@@ -120,7 +120,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UN
 import { MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { currentAccount, deleteRemote, isDevAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
+import { currentAccount, deleteRemote, isDevAccount, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
@@ -1799,8 +1799,13 @@ export class Game implements GameApi {
       spin: (r) => { g.previewSpin += r; },
       realmUrl: serverUrl(),
       account: () => currentAccount()?.user ?? null,
-      signIn: async (user, pass, create) => {
-        const err = await signIn(user, pass, create);
+      signIn: async (user, pass, create, code) => {
+        const err = await signIn(user, pass, create, code);
+        if (!err) await g.syncAccount();
+        return err;
+      },
+      recover: async (user, code, pass) => {
+        const err = await recoverAccount(user, code, pass);
         if (!err) await g.syncAccount();
         return err;
       },

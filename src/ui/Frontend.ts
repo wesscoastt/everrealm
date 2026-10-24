@@ -9,7 +9,7 @@ import { callingCard } from './callingCard';
 import { drawFace } from './skin';
 import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
-import { currentAccount, isDevAccount, storeCatalog, storeCheckout, storeClaim, storeOwned, type StoreItem } from '../net/Account';
+import { accountSafety, changePassword, currentAccount, isDevAccount, makeRecoveryCodes, NEED_CODE, signOutOthers, storeCatalog, storeCheckout, storeClaim, storeOwned, twoStepKey, twoStepOff, twoStepOn, type StoreItem } from '../net/Account';
 import { ITEMS } from '../data/items';
 
 // The screens around the game: character select (the main menu), the character creator, and the
@@ -63,7 +63,9 @@ export interface FrontCtx {
   account(): string | null;
   /** The game's renderer, for the store's windows (each item drawn as the game draws it). */
   renderer(): import('three').WebGLRenderer;
-  signIn(user: string, pass: string, create: boolean): Promise<string | null>;
+  signIn(user: string, pass: string, create: boolean, code?: string): Promise<string | null>;
+  /** A forgotten password: an account's recovery code sets a new one, and signs in. */
+  recover(user: string, code: string, pass: string): Promise<string | null>;
   signOut(): Promise<void>;
   openSettings(): void;
   sfx(n: 'click' | 'open' | 'close'): void;
@@ -375,7 +377,7 @@ export class Frontend {
         <div class="st"><i class="dot ${realm ? this.realmState : 'offline'}"></i><span>${realm ? (isDevAccount() || import.meta.env.DEV ? esc(realm.replace(/^wss?:\/\//, '')) + (this.realmState === 'checking' ? ' · checking' : this.realmState === 'up' ? ' · reachable' : this.realmState === 'down' ? ' · not answering' : '') : this.realmState === 'down' ? 'Not answering' : this.realmState === 'checking' ? 'Checking…' : 'Online') : 'Offline · this browser'}</span></div>
         ${isDevAccount() || import.meta.env.DEV ? '<button class="btn ghost sm" data-a="realm">Change</button>' : ''}
         ${realm ? (this.ctx.account()
-          ? `<div class="acct">Signed in as <b>${esc(this.ctx.account()!)}</b><span class="x"> · characters follow you to any device</span> <button class="link" data-a="signout">Sign out</button></div>`
+          ? `<div class="acct">Signed in as <b>${esc(this.ctx.account()!)}</b><span class="x"> · characters follow you to any device</span> <button class="link" data-a="safety">Account safety</button> · <button class="link" data-a="signout">Sign out</button></div>`
           : '<div class="acct"><button class="btn sm" data-a="signin">Sign in or create an account</button><small>Play the same characters on any PC or phone</small></div>') : ''}
       </div>
       <aside class="fe-news frame">
@@ -425,6 +427,7 @@ export class Frontend {
     else if (a === 'realm') this.realmPicker();
     else if (a === 'signin') this.accountForm();
     else if (a === 'signout') void this.ctx.signOut().then(() => this.showSelect());
+    else if (a === 'safety') void this.safetyPage();
   }
 
   private moveSelection(d: number): void {
@@ -477,21 +480,137 @@ export class Frontend {
       <p class="note">An account keeps your characters on the realm's server, so you can sign in and carry on from any PC or phone.</p>
       <label>Account name</label><input type="text" class="u" maxlength="20" autocomplete="username" spellcheck="false" placeholder="3 to 20 letters, digits or _">
       <label>Password</label><input type="password" class="p" maxlength="200" autocomplete="current-password" placeholder="At least 8 characters">
+      <div class="code-row" hidden><label>Code from your authenticator app</label><input type="text" class="c" maxlength="7" inputmode="numeric" autocomplete="one-time-code" placeholder="6 digits"></div>
       <p class="err"></p>
+      <p class="forgot"><button class="link rec">Forgotten your password?</button></p>
       <div class="actions"><button class="btn ghost no">Cancel</button><button class="btn ghost mk">Create account</button><button class="btn in">Sign in</button></div></div>`, (m, close) => {
-      const u = m.querySelector<HTMLInputElement>('.u')!, p = m.querySelector<HTMLInputElement>('.p')!, err = m.querySelector<HTMLElement>('.err')!;
+      const u = m.querySelector<HTMLInputElement>('.u')!, p = m.querySelector<HTMLInputElement>('.p')!, c = m.querySelector<HTMLInputElement>('.c')!, err = m.querySelector<HTMLElement>('.err')!;
+      const row = m.querySelector<HTMLElement>('.code-row')!;
       const go = async (create: boolean) => {
         err.textContent = create ? 'Making the account…' : 'Signing in…';
-        const e = await this.ctx.signIn(u.value.trim(), p.value, create);
+        const e = await this.ctx.signIn(u.value.trim(), p.value, create, row.hidden ? undefined : c.value.trim());
+        if (e === NEED_CODE) { row.hidden = false; err.textContent = e; c.focus(); return; }
         if (e) { err.textContent = e; return; }
         close();
         this.showSelect();
       };
-      for (const i of [u, p]) i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') void go(false); });
+      m.querySelector('.rec')!.addEventListener('click', () => { close(); this.recoverForm(u.value.trim()); });
+      for (const i of [u, p, c]) i.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') void go(false); });
       m.querySelector('.in')!.addEventListener('click', () => void go(false));
       m.querySelector('.mk')!.addEventListener('click', () => void go(true));
       m.querySelector('.no')!.addEventListener('click', close);
       setTimeout(() => u.focus(), 30);
+    });
+  }
+
+  /** Back in without the password: the account, one of its recovery codes, and a new password. */
+  private recoverForm(user = ''): void {
+    this.modal(`<header><h3>Forgotten your password</h3></header><div class="body acct-form">
+      <p class="note">Use one of the recovery codes you saved when you made them under Account safety. Each code works once. Using one also turns off two-step sign-in, in case you've lost the phone, and signs your account out everywhere else.</p>
+      <label>Account name</label><input type="text" class="u" maxlength="20" autocomplete="username" spellcheck="false" value="${esc(user)}">
+      <label>Recovery code</label><input type="text" class="c" maxlength="12" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX">
+      <label>New password</label><input type="password" class="p" maxlength="200" autocomplete="new-password" placeholder="At least 8 characters">
+      <p class="err"></p>
+      <p class="note small">No recovery codes saved? The realm keeps no email address for you, so write to us from the <a href="legal/contact.html" target="_blank" rel="noopener">contact page</a> with your account name and your characters' names.</p>
+      <div class="actions"><button class="btn ghost no">Cancel</button><button class="btn go">Set the new password</button></div></div>`, (m, close) => {
+      const q = (k: string) => m.querySelector<HTMLInputElement>(k)!, err = m.querySelector<HTMLElement>('.err')!;
+      const go = async () => {
+        err.textContent = 'Checking…';
+        const e = await this.ctx.recover(q('.u').value.trim(), q('.c').value.trim(), q('.p').value);
+        if (e) { err.textContent = e; return; }
+        close();
+        this.showSelect();
+      };
+      for (const k of ['.u', '.c', '.p']) q(k).addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') void go(); });
+      m.querySelector('.go')!.addEventListener('click', () => void go());
+      m.querySelector('.no')!.addEventListener('click', close);
+      setTimeout(() => (user ? q('.c') : q('.u')).focus(), 30);
+    });
+  }
+
+  /** Account safety: the password, two-step sign-in, recovery codes, and the other devices signed in. */
+  private async safetyPage(): Promise<void> {
+    const sf = await accountSafety();
+    if (!sf) { this.showSelect(); return; }
+    const day = (t: number | null) => (t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null);
+    this.modal(`<header><h3>Account safety</h3></header><div class="body acct-form safety">
+      <p class="note">Your account is a name and a password; the realm keeps no email address or payment details (the store's payments are Stripe's). Passwords are stored scrambled with scrypt, never as you typed them. A device that hasn't been used for 60 days is signed out on its own.</p>
+      <section><h4>Password</h4><p>${sf.passChanged ? `Last changed ${day(sf.passChanged)}.` : `Set when the account was made${sf.created ? ', ' + day(sf.created) : ''}.`}</p>
+        <button class="btn ghost sm" data-s="pass">Change password</button></section>
+      <section><h4>Two-step sign-in</h4><p>${sf.twoStep ? '<b class="on">On.</b> Signing in asks for the code from your authenticator app as well as your password.' : 'Off. Turn it on and signing in also asks for a code from an authenticator app on your phone (Google Authenticator, Microsoft Authenticator, Authy, 1Password and others).'}</p>
+        <button class="btn ghost sm" data-s="${sf.twoStep ? 'off' : 'on'}">${sf.twoStep ? 'Turn off' : 'Turn on'}</button></section>
+      <section><h4>Recovery codes</h4><p>${sf.recoveryLeft ? `<b class="on">${sf.recoveryLeft} unused.</b> Each one lets you set a new password if you forget yours.` : 'None yet. Make some and keep them somewhere safe: they\'re the only way back in if you forget your password.'}</p>
+        <button class="btn ghost sm" data-s="codes">${sf.recoveryLeft ? 'Make new codes' : 'Make recovery codes'}</button></section>
+      <section><h4>Other devices</h4><p>${sf.otherSessions ? `Signed in on ${sf.otherSessions} other browser${sf.otherSessions === 1 ? '' : 's'} or device${sf.otherSessions === 1 ? '' : 's'}.` : 'Signed in here only.'}</p>
+        ${sf.otherSessions ? '<button class="btn ghost sm" data-s="others">Sign out everywhere else</button>' : ''}</section>
+      <div class="pane" hidden></div>
+      <p class="err"></p>
+      <div class="actions"><button class="btn ghost no">Close</button></div></div>`, (m, close) => {
+      const pane = m.querySelector<HTMLElement>('.pane')!, err = m.querySelector<HTMLElement>('.err')!;
+      const again = () => { close(); void this.safetyPage(); };
+      const keys = (root: HTMLElement) => root.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
+      const show = (html: string, wire: (q: (k: string) => HTMLInputElement) => void) => {
+        pane.hidden = false; pane.innerHTML = html; err.textContent = '';
+        keys(pane);
+        wire((k) => pane.querySelector<HTMLInputElement>(k)!);
+        pane.querySelector<HTMLInputElement>('input')?.focus();
+      };
+      m.querySelector('.no')!.addEventListener('click', close);
+      m.querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) => b.addEventListener('click', async () => {
+        this.ctx.sfx('click');
+        switch (b.dataset.s) {
+          case 'pass': show(`<label>Current password</label><input type="password" class="o" autocomplete="current-password">
+            <label>New password</label><input type="password" class="n" autocomplete="new-password" placeholder="At least 8 characters">
+            <div class="actions"><button class="btn go">Change it</button></div>`, (q) => pane.querySelector('.go')!.addEventListener('click', async () => {
+              err.textContent = 'Changing…';
+              const e = await changePassword(q('.o').value, q('.n').value);
+              if (e) { err.textContent = e; return; }
+              pane.innerHTML = '<p class="good">Changed. Every other device has been signed out; sign in there with the new password.</p>';
+              err.textContent = '';
+            })); break;
+          case 'others': { const n = await signOutOthers(); if (typeof n === 'string') err.textContent = n; else again(); break; }
+          case 'codes': show(`<label>Your password</label><input type="password" class="o" autocomplete="current-password">
+            <div class="actions"><button class="btn go">Make the codes</button></div>`, (q) => pane.querySelector('.go')!.addEventListener('click', async () => {
+              err.textContent = 'Making them…';
+              const r = await makeRecoveryCodes(q('.o').value);
+              if (typeof r === 'string') { err.textContent = r; return; }
+              err.textContent = '';
+              pane.innerHTML = `<p class="good">Save these now: they won't be shown again, and any codes you had before no longer work. Each works once.</p>
+                <pre class="codes">${r.join('\n')}</pre><div class="actions"><button class="btn ghost cp">Copy them</button><button class="btn ghost dl">Save as a file</button></div>`;
+              pane.querySelector('.cp')!.addEventListener('click', () => { void navigator.clipboard?.writeText(r.join('\n')); (pane.querySelector('.cp') as HTMLElement).textContent = 'Copied'; });
+              pane.querySelector('.dl')!.addEventListener('click', () => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([`Everrealm recovery codes for ${currentAccount()?.user ?? ''}\nEach works once.\n\n${r.join('\n')}\n`], { type: 'text/plain' }));
+                a.download = 'everrealm-recovery-codes.txt'; a.click();
+              });
+            })); break;
+          case 'on': show(`<label>Your password</label><input type="password" class="o" autocomplete="current-password">
+            <div class="actions"><button class="btn go">Next</button></div>`, (q) => pane.querySelector('.go')!.addEventListener('click', async () => {
+              err.textContent = 'Asking for a key…';
+              const r = await twoStepKey(q('.o').value);
+              if (typeof r === 'string') { err.textContent = r; return; }
+              err.textContent = '';
+              show(`<p>In your authenticator app, add an account and type in this key (or open the link on your phone):</p>
+                <pre class="codes">${r.secret.replace(/(.{4})/g, '$1 ').trim()}</pre>
+                <p class="small"><a href="${esc(r.uri)}">Open in an authenticator app</a></p>
+                <label>Then type the six-digit code it shows</label><input type="text" class="c" maxlength="7" inputmode="numeric" autocomplete="one-time-code">
+                <div class="actions"><button class="btn go2">Turn it on</button></div>`, (q2) => pane.querySelector('.go2')!.addEventListener('click', async () => {
+                  err.textContent = 'Checking…';
+                  const e = await twoStepOn(q2('.c').value.trim());
+                  if (e) { err.textContent = e; return; }
+                  again();
+                }));
+            })); break;
+          case 'off': show(`<label>Your password</label><input type="password" class="o" autocomplete="current-password">
+            <label>A code from your authenticator app</label><input type="text" class="c" maxlength="7" inputmode="numeric" autocomplete="one-time-code">
+            <div class="actions"><button class="btn danger go">Turn it off</button></div>`, (q) => pane.querySelector('.go')!.addEventListener('click', async () => {
+              err.textContent = 'Checking…';
+              const e = await twoStepOff(q('.o').value, q('.c').value.trim());
+              if (e) { err.textContent = e; return; }
+              again();
+            })); break;
+        }
+      }));
     });
   }
 

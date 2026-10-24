@@ -47,13 +47,52 @@ async function call(method: string, path: string, body?: unknown, keepalive = fa
   }
 }
 
+/** What signIn says when the account has two-step sign-in on and the app's code is wanted. */
+export const NEED_CODE = 'Enter the six-digit code from your authenticator app.';
+
 /** Sign in (or make the account first). Returns an error message, or null when signed in. */
-export async function signIn(user: string, pass: string, create: boolean): Promise<string | null> {
-  const r = await call('POST', create ? '/api/register' : '/api/login', { user, pass });
+export async function signIn(user: string, pass: string, create: boolean, code?: string): Promise<string | null> {
+  const r = await call('POST', create ? '/api/register' : '/api/login', { user, pass, ...(code ? { code } : {}) });
+  if (r.status !== 200) return r.data.need2fa && !code ? NEED_CODE : String(r.data.error ?? 'Something went wrong.');
+  remember({ user: String(r.data.user), token: String(r.data.token), server: apiBase()!, dev: r.data.dev === true });
+  return null;
+}
+
+// ---------------------------------------------------------------- Keeping the account safe
+/** How safe the account is (server/server.mjs /api/me): never the secrets themselves. */
+export interface Safety { twoStep: boolean; recoveryLeft: number; otherSessions: number; created: number | null; passChanged: number | null }
+export async function accountSafety(): Promise<Safety | null> {
+  if (!currentAccount()) return null;
+  const r = await call('GET', '/api/me');
+  return r.status === 200 && r.data.safety ? (r.data.safety as unknown as Safety) : null;
+}
+const said = (r: { status: number; data: Record<string, unknown> }) => (r.status === 200 ? null : String(r.data.error ?? 'Something went wrong.'));
+/** A new password (the current one to prove it's you); every other device is signed out. */
+export async function changePassword(old: string, pass: string): Promise<string | null> { return said(await call('POST', '/api/password', { old, pass })); }
+/** Sign out every other browser and device; how many were signed out, or an error. */
+export async function signOutOthers(): Promise<number | string> {
+  const r = await call('POST', '/api/signout-others');
+  return r.status === 200 ? Number(r.data.n) || 0 : String(r.data.error ?? 'Something went wrong.');
+}
+/** Eight one-use recovery codes, replacing any before; shown once. */
+export async function makeRecoveryCodes(pass: string): Promise<string[] | string> {
+  const r = await call('POST', '/api/recovery', { pass });
+  return r.status === 200 && Array.isArray(r.data.codes) ? (r.data.codes as string[]) : String(r.data.error ?? 'Something went wrong.');
+}
+/** A forgotten password: a recovery code sets a new one (and turns two-step sign-in off). Signs in. */
+export async function recoverAccount(user: string, code: string, pass: string): Promise<string | null> {
+  const r = await call('POST', '/api/recover', { user, code, pass });
   if (r.status !== 200) return String(r.data.error ?? 'Something went wrong.');
   remember({ user: String(r.data.user), token: String(r.data.token), server: apiBase()!, dev: r.data.dev === true });
   return null;
 }
+/** Two-step sign-in: a key for the authenticator app, then its first code to turn it on; or off again. */
+export async function twoStepKey(pass: string): Promise<{ secret: string; uri: string } | string> {
+  const r = await call('POST', '/api/2fa/setup', { pass });
+  return r.status === 200 ? { secret: String(r.data.secret), uri: String(r.data.uri) } : String(r.data.error ?? 'Something went wrong.');
+}
+export async function twoStepOn(code: string): Promise<string | null> { return said(await call('POST', '/api/2fa/enable', { code })); }
+export async function twoStepOff(pass: string, code: string): Promise<string | null> { return said(await call('POST', '/api/2fa/disable', { pass, code })); }
 
 /**
  * May this player open the dev tools? A developer's account (the server says so when they sign in),

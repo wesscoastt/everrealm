@@ -20,7 +20,20 @@
 //   POST /api/register {user, pass}      -> {user, token, dev}
 //   POST /api/login    {user, pass}      -> {user, token, dev}
 //   POST /api/logout                     (Authorization: Bearer <token>)
-//   GET  /api/me                         -> {user, dev, characters: [{name, save, updated}]}
+//   GET  /api/me                         -> {user, dev, characters: [{name, save, updated}], safety}
+//
+// Keeping an account safe (none of it needs an email address, which the realm never asks for):
+//   POST /api/password  {old, pass}      -> {ok}     every other session is signed out
+//   POST /api/signout-others             -> {ok, n}  every session but this one
+//   POST /api/recovery  {pass}           -> {codes}  eight one-use codes, shown once; replaces any old ones
+//   POST /api/recover   {user, code, pass} -> {user, token, dev}  a forgotten password: a recovery code sets a
+//                                           new one, turns off two-step sign-in and signs out everywhere else
+//   POST /api/2fa/setup {pass}           -> {secret, uri}  an authenticator app's key (TOTP, RFC 6238)
+//   POST /api/2fa/enable {code}          -> {ok}     once the app's first code matches
+//   POST /api/2fa/disable {pass, code}   -> {ok}
+// With two-step sign-in on, /api/login wants {code} too and answers 401 {need2fa: true} without it.
+// A session lapses after SESSION_DAYS without being used (each use pushes it on); ten wrong passwords
+// for one account in a quarter hour rest that account's sign-in for a quarter hour.
 //
 // dev is true for the accounts named in DEV_ACCOUNTS (a comma-separated list; the owner's account
 // when it isn't set). Their game opens the dev tools on F8. The tools only change the player's own
@@ -159,9 +172,68 @@ function sessionUser(token) {
   if (typeof token !== 'string' || token.length < 32) return null;
   const s = sessions.get(hash(token));
   if (!s) return null;
-  if (s.exp < Date.now()) { sessions.delete(hash(token)); saveSessions(); return null; }
+  const now = Date.now();
+  if (s.exp < now) { sessions.delete(hash(token)); saveSessions(); return null; }
+  // In use: push the lapse on, a day at a time, so only a long absence ends a session
+  if (s.exp - now < (SESSION_DAYS - 1) * 864e5) { s.exp = now + SESSION_DAYS * 864e5; saveSessions(); }
   return s.user;
 }
+/** Ends every session of an account's but the one kept (by its token's hash): how many went. */
+function endSessions(user, keep = null) {
+  let n = 0;
+  for (const [k, s] of sessions) if (accKey(s.user) === accKey(user) && k !== keep) { sessions.delete(k); n++; }
+  if (n) saveSessions();
+  return n;
+}
+
+// ---------------------------------------------------------------- Two-step sign-in (TOTP, RFC 6238)
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32(buf) {
+  let bits = 0, val = 0, out = '';
+  for (const b of buf) { val = (val << 8) | b; bits += 8; while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; } }
+  if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+  return out;
+}
+function unbase32(str) {
+  let bits = 0, val = 0; const out = [];
+  for (const c of str.replace(/=+$/, '').toUpperCase()) { const i = B32.indexOf(c); if (i < 0) continue; val = (val << 5) | i; bits += 5; if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; } }
+  return Buffer.from(out);
+}
+function totpAt(secret, step) {
+  const msg = Buffer.alloc(8); msg.writeBigUInt64BE(BigInt(step));
+  const h = crypto.createHmac('sha1', unbase32(secret)).update(msg).digest();
+  const o = h[h.length - 1] & 15;
+  return String(((h.readUInt32BE(o) & 0x7fffffff) % 1e6)).padStart(6, '0');
+}
+/** A code from the app, allowing one 30-second step either side for a slow clock; never the same step twice. */
+function totpOk(acc, secret, code) {
+  if (typeof code !== 'string' || !/^\d{6}$/.test(code.replace(/\s/g, ''))) return false;
+  code = code.replace(/\s/g, '');
+  const now = Math.floor(Date.now() / 30000);
+  for (const step of [now - 1, now, now + 1]) {
+    if (step <= (acc.totpLast ?? 0)) continue;
+    const a = Buffer.from(totpAt(secret, step)), b = Buffer.from(code);
+    if (crypto.timingSafeEqual(a, b)) { acc.totpLast = step; return true; }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------- Recovery codes
+/** Eight codes like K7QM-2XRP, from letters and digits that can't be mistaken for each other. */
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function recoveryCodes() {
+  return Array.from({ length: 8 }, () => { const b = crypto.randomBytes(8); let c = ''; for (let i = 0; i < 8; i++) c += CODE_CHARS[b[i] % 32]; return c.slice(0, 4) + '-' + c.slice(4); });
+}
+/** Codes are kept hashed with a salt of their own (the password's changes when one is used). */
+const codeHash = (acc, code) => hash((acc.codeSalt ?? '') + ':' + String(code).toUpperCase().replace(/[^A-Z0-9]/g, ''));
+
+/** Wrong passwords for an account: ten in a quarter hour and its sign-in rests for a quarter hour. */
+function resting(acc) {
+  const now = Date.now();
+  acc.failed = (acc.failed ?? []).filter((t) => now - t < 15 * 60_000);
+  return acc.failed.length >= 10 ? Math.ceil((acc.failed[0] + 15 * 60_000 - now) / 60_000) : 0;
+}
+function failed(acc) { (acc.failed ??= []).push(Date.now()); storeAccount(acc); }
 const validUser = (u) => typeof u === 'string' && /^[A-Za-z0-9_]{3,20}$/.test(u);
 const validPass = (p) => typeof p === 'string' && p.length >= 8 && p.length <= 200;
 
@@ -223,7 +295,45 @@ async function api(req, res) {
       acc = { user, salt, hash: hashPass(pass, salt), created: Date.now(), chars: [] };
       storeAccount(acc);
       log(`new account ${user}`);
-    } else if (!acc || !passMatches(acc, pass)) return reply(res, 401, { error: 'That name and password don\'t match.' });
+    } else {
+      if (!acc) return reply(res, 401, { error: 'That name and password don\'t match.' });
+      const wait = resting(acc);
+      if (wait) return reply(res, 429, { error: `Too many wrong passwords for this account. Try again in ${wait} minute${wait === 1 ? '' : 's'}, or use a recovery code.` });
+      if (!passMatches(acc, pass)) { failed(acc); return reply(res, 401, { error: 'That name and password don\'t match.' }); }
+      if (acc.totp) {
+        if (!body.code) return reply(res, 401, { error: 'Enter the six-digit code from your authenticator app.', need2fa: true });
+        if (!totpOk(acc, acc.totp, String(body.code))) { failed(acc); return reply(res, 401, { error: 'That code isn\'t right. Codes change every 30 seconds.', need2fa: true }); }
+      }
+      if (acc.failed?.length) acc.failed = [];
+      acc.lastSignIn = Date.now();
+      storeAccount(acc);
+    }
+    return reply(res, 200, { user: acc.user, token: newSession(acc.user), dev: DEV_ACCOUNTS.has(accKey(acc.user)) });
+  }
+
+  // A forgotten password: one of the account's recovery codes sets a new one
+  if (req.method === 'POST' && url.pathname === '/api/recover') {
+    if (limited(ip)) return reply(res, 429, { error: 'Too many tries. Wait a minute.' });
+    const body = await readBody(req);
+    const user = body?.user, pass = body?.pass;
+    if (!validUser(user)) return reply(res, 400, { error: 'Account names are 3 to 20 letters, digits or underscores.' });
+    if (!validPass(pass)) return reply(res, 400, { error: 'The new password needs at least 8 characters.' });
+    const acc = loadAccount(user);
+    const bad = () => reply(res, 401, { error: 'That account and recovery code don\'t match.' });
+    if (!acc) return bad();
+    const wait = resting(acc);
+    if (wait) return reply(res, 429, { error: `Too many wrong tries for this account. Try again in ${wait} minute${wait === 1 ? '' : 's'}.` });
+    const h = codeHash(acc, body?.code ?? '');
+    const i = (acc.recovery ?? []).indexOf(h);
+    if (i < 0) { failed(acc); return bad(); }
+    acc.recovery.splice(i, 1);
+    acc.salt = crypto.randomBytes(16).toString('hex');
+    acc.hash = hashPass(pass, acc.salt);
+    delete acc.totp; delete acc.totpPending; acc.failed = [];
+    acc.passChanged = Date.now();
+    storeAccount(acc);
+    endSessions(acc.user);
+    log(`account ${acc.user} recovered with a code (${acc.recovery.length} left)`);
     return reply(res, 200, { user: acc.user, token: newSession(acc.user), dev: DEV_ACCOUNTS.has(accKey(acc.user)) });
   }
 
@@ -258,9 +368,68 @@ async function api(req, res) {
     saveSessions();
     return reply(res, 200, { ok: true });
   }
+  // Keeping the account safe: each change that matters asks for the password again
+  if (req.method === 'POST' && ['/api/password', '/api/signout-others', '/api/recovery', '/api/2fa/setup', '/api/2fa/enable', '/api/2fa/disable'].includes(url.pathname)) {
+    if (limited(ip)) return reply(res, 429, { error: 'Too many tries. Wait a minute.' });
+    const body = (await readBody(req)) ?? {};
+    const me = hash(bearer(req));
+    const wait = resting(acc);
+    if (wait && url.pathname !== '/api/signout-others') return reply(res, 429, { error: `Too many wrong passwords. Try again in ${wait} minute${wait === 1 ? '' : 's'}.` });
+    const checkPass = (pw) => { if (typeof pw === 'string' && passMatches(acc, pw)) return true; failed(acc); return false; };
+    switch (url.pathname) {
+      case '/api/password': {
+        if (!checkPass(body.old)) return reply(res, 401, { error: 'Your current password isn\'t right.' });
+        if (!validPass(body.pass)) return reply(res, 400, { error: 'The new password needs at least 8 characters.' });
+        if (body.pass === body.old) return reply(res, 400, { error: 'That\'s the password you have now.' });
+        acc.salt = crypto.randomBytes(16).toString('hex');
+        acc.hash = hashPass(body.pass, acc.salt);
+        acc.passChanged = Date.now();
+        storeAccount(acc);
+        const n = endSessions(acc.user, me);
+        log(`account ${acc.user} changed its password (${n} other session(s) ended)`);
+        return reply(res, 200, { ok: true, ended: n });
+      }
+      case '/api/signout-others': return reply(res, 200, { ok: true, n: endSessions(acc.user, me) });
+      case '/api/recovery': {
+        if (!checkPass(body.pass)) return reply(res, 401, { error: 'That password isn\'t right.' });
+        const codes = recoveryCodes();
+        acc.codeSalt = crypto.randomBytes(16).toString('hex');
+        acc.recovery = codes.map((c) => codeHash(acc, c));
+        storeAccount(acc);
+        return reply(res, 200, { codes });
+      }
+      case '/api/2fa/setup': {
+        if (!checkPass(body.pass)) return reply(res, 401, { error: 'That password isn\'t right.' });
+        if (acc.totp) return reply(res, 400, { error: 'Two-step sign-in is already on.' });
+        acc.totpPending = base32(crypto.randomBytes(20));
+        storeAccount(acc);
+        return reply(res, 200, { secret: acc.totpPending, uri: `otpauth://totp/Everrealm:${encodeURIComponent(acc.user)}?secret=${acc.totpPending}&issuer=Everrealm` });
+      }
+      case '/api/2fa/enable': {
+        if (!acc.totpPending) return reply(res, 400, { error: 'Start again: ask for a new key.' });
+        if (!totpOk(acc, acc.totpPending, String(body.code ?? ''))) { storeAccount(acc); return reply(res, 401, { error: 'That code isn\'t right. Check the app shows Everrealm, and try the newest code.' }); }
+        acc.totp = acc.totpPending; delete acc.totpPending;
+        storeAccount(acc);
+        log(`account ${acc.user} turned on two-step sign-in`);
+        return reply(res, 200, { ok: true });
+      }
+      case '/api/2fa/disable': {
+        if (!acc.totp) return reply(res, 400, { error: 'Two-step sign-in is already off.' });
+        if (!checkPass(body.pass)) return reply(res, 401, { error: 'That password isn\'t right.' });
+        if (!totpOk(acc, acc.totp, String(body.code ?? ''))) { failed(acc); return reply(res, 401, { error: 'That code isn\'t right.' }); }
+        delete acc.totp;
+        storeAccount(acc);
+        return reply(res, 200, { ok: true });
+      }
+    }
+  }
   if (req.method === 'GET' && url.pathname === '/api/me') {
     const characters = acc.chars.map((k) => loadChar(k)).filter((r) => r && r.owner === acc.user).map((r) => ({ name: r.name, save: r.save, updated: r.updated ?? r.created }));
-    return reply(res, 200, { user: acc.user, dev: DEV_ACCOUNTS.has(accKey(acc.user)), characters });
+    // How safe the account is, for its page: never the secrets themselves
+    let others = 0;
+    for (const [k, sn] of sessions) if (accKey(sn.user) === accKey(acc.user) && k !== hash(bearer(req))) others++;
+    const safety = { twoStep: !!acc.totp, recoveryLeft: acc.recovery?.length ?? 0, otherSessions: others, created: acc.created ?? null, passChanged: acc.passChanged ?? null };
+    return reply(res, 200, { user: acc.user, dev: DEV_ACCOUNTS.has(accKey(acc.user)), characters, safety });
   }
   if (url.pathname === '/api/vault') {
     if (req.method === 'GET') return reply(res, 200, { vault: acc.vault ?? { items: {}, marks: 0 }, ver: acc.vaultVer ?? 0 });
