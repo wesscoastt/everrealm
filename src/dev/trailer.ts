@@ -56,7 +56,8 @@ export const SHOTS: Shot[] = [
     done: (g) => { g.input.down.delete('KeyW'); g.input.down.delete('ShiftLeft'); g.dismount(true); },
   },
   { at: [GULL.x + 10, GULL.z], hour: 15, dur: 7, cam: (t) => { const k = ease(t); return { pos: V3(GULL.x + 44 - 24 * k, SEA + 14 - 8 * k, GULL.z + 26 - 10 * k), look: V3(GULL.x - 12, SEA + 4, GULL.z - 2) }; } },
-  { at: 'wm-vista-hagworm', hour: 7.8, dur: 6, cam: dolly([-24, 3, -22], [-9, 4, -7], [8, 3, 8], [16, 2, 16]) },
+  // The Mirador above Callis at golden hour: up from the city to the houses on the lip
+  { at: [8600, 796], hour: 16.9, dur: 6, cam: dolly([14, -12, 74], [8, 5, 23], [2, 2, 14], [-40, -1, 18]), card: { text: 'A HOUSE ABOVE THE CITY', sub: 'Buy one outright, or build your own' } },
   {
     at: [714, 578], hour: 13, dur: 8, cam: orbit(8, 3.6, 0.4, 1.6, 1.2), card: { text: 'FIVE CALLINGS. FIFTEEN WAYS TO FIGHT.' },
     setup: (g, f) => {
@@ -313,6 +314,9 @@ export async function makeTrailer(g: G, E: G, progress: (s: string) => void, qui
       }
       g.camera.position.copy(cam.pos); g.camera.lookAt(cam.look);
       shot.each?.(g, k, f);
+      // The hour held where the shot wants it: a frame takes far longer to render than it lasts, and
+      // the sky follows the realm's clock, so a slow shot would otherwise run on into the night
+      E.hour(shot.hour + t * 0.01);
       g.frame(1 / FPS);
       compose(c2, gl, shot, t, si === 0 ? 1.2 : 0.35, si === SHOTS.length - 1 ? 0.01 : 0.35);
       const vf = new VideoFrame(comp, { timestamp: Math.round((n / FPS) * 1e6), duration: Math.round(1e6 / FPS) });

@@ -165,6 +165,8 @@ export class ChunkManager {
       if (this.neighboursLoaded(e.cx, e.cz)) meshable.push([d, e]);
     }
     for (const [, cx, cz] of want) covered = Math.min(covered, Math.hypot(cx - pcx, cz - pcz));
+    // (and those still being generated: after a long jump the nearest are in flight, and nothing's covered yet)
+    for (const key of this.genInFlight) { const [cx, cz] = keyChunk(key); covered = Math.min(covered, Math.hypot(cx - pcx, cz - pcz)); }
     this.coveredRadius = Math.max(0, (Math.min(covered, R + 0.5) - 0.8) * CHUNK);
     meshable.sort((a, b) => a[0] - b[0]);
     for (const [, e] of meshable) {
