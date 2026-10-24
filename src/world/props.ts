@@ -811,6 +811,118 @@ export function ship(M: PropMaterials, sails: 'set' | 'furled' | 'bare' = 'furle
   return g;
 }
 
+// ------------------------------------------------------------ The trades (world/sites.ts buildBusiness)
+
+/**
+ * A row of vines on a trellis, len long along x: posts, two wires, leafy growth along them and grape
+ * bunches hanging under (dark for a red vineyard, pale green-gold for a white). Hops, tall, the same
+ * way (hops: true): taller poles and the bines climbing them, cones instead of grapes.
+ */
+export function vineRow(M: PropMaterials, len = 12, white = false, hops = false): THREE.Group {
+  const g = new THREE.Group();
+  const H = hops ? 4.2 : 1.6;
+  const leaf = [flat('#3f6a2a'), flat('#4f7a32'), flat('#5a8a3a')];
+  const fruit = hops ? flat('#a8c870') : flat(white ? '#c8c86a' : '#4a2a4a');
+  for (let x = -len / 2; x <= len / 2 + 0.01; x += 3) g.add(mesh(box(0.12, H, 0.12), M.darkWood, x, H / 2, 0));
+  for (const y of hops ? [H - 0.1] : [0.8, 1.45]) g.add(mesh(box(len, 0.02, 0.02), M.iron, 0, y, 0));
+  let k = 0;
+  for (let x = -len / 2 + 0.3; x < len / 2; x += 0.55, k++) {
+    const hh = hops ? 0.6 + ((k * 7) % 5) * 0.65 : 0.7 + ((k * 3) % 4) * 0.22;
+    g.add(mesh(box(0.5, hops ? 0.5 : 0.42, 0.42), leaf[k % 3], x, hh, ((k * 5) % 3 - 1) * 0.05));
+    if (hops) g.add(mesh(box(0.04, H, 0.04), leaf[0], x, H / 2, 0.1));
+    if (k % 2 === 0) g.add(mesh(box(0.14, hops ? 0.14 : 0.22, 0.14), fruit, x + 0.1, hh - (hops ? 0.2 : 0.32), 0.18 * (k % 4 === 0 ? 1 : -1)));
+  }
+  return g;
+}
+
+/** A wine press: a slatted oak basket on a stone bed, the great screw and its bar over it, a tub at the spout. */
+export function winePress(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(1.8, 0.4, 1.8), M.stone, 0, 0.2, 0));
+  for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; g.add(mesh(box(0.12, 0.9, 0.2), M.wood, Math.cos(a) * 0.55, 0.85, Math.sin(a) * 0.55, -a)); }
+  for (const y of [0.55, 1.15]) g.add(mesh(new THREE.TorusGeometry(0.6, 0.04, 5, 16), M.iron, 0, y, 0, 0, Math.PI / 2));
+  g.add(mesh(box(0.25, 2.6, 0.25), M.darkWood, -0.95, 1.3, 0)); g.add(mesh(box(0.25, 2.6, 0.25), M.darkWood, 0.95, 1.3, 0));
+  g.add(mesh(box(2.3, 0.3, 0.3), M.darkWood, 0, 2.5, 0));
+  g.add(mesh(cyl(0.1, 0.1, 1.2, 8), M.darkWood, 0, 1.9, 0));
+  g.add(mesh(box(1.6, 0.08, 0.08), M.wood, 0, 1.6, 0, 0.4));
+  g.add(mesh(box(0.3, 0.06, 0.2), M.stone, 0, 0.35, 1.0));
+  g.add(mesh(cyl(0.32, 0.28, 0.4, 10), M.wood, 0, 0.2, 1.4));
+  g.add(mesh(cyl(0.28, 0.28, 0.04, 10), flat('#4a1a2a'), 0, 0.38, 1.4));
+  return g;
+}
+
+/** Barrels on their sides in a cradle, two high, len long along x: a cellar's or a brewery's racks. */
+export function barrelRack(M: PropMaterials, len = 4): THREE.Group {
+  const g = new THREE.Group();
+  for (const z of [-0.45, 0.45]) g.add(mesh(box(len, 0.14, 0.12), M.darkWood, 0, 0.1, z));
+  for (let row = 0; row < 2; row++) for (let x = -len / 2 + 0.45; x <= len / 2 - 0.4; x += 0.85) {
+    const b = new THREE.Group();
+    b.add(mesh(cyl(0.38, 0.38, 1.0, 10), M.wood));
+    for (const y of [-0.38, 0, 0.38]) b.add(mesh(cyl(0.4, 0.4, 0.06, 10), M.iron, 0, y, 0));
+    b.add(mesh(cyl(0.3, 0.3, 1.02, 10), M.darkWood));
+    b.rotation.x = Math.PI / 2;
+    b.position.set(x + row * 0.42, 0.55 + row * 0.7, 0);
+    g.add(b);
+  }
+  return g;
+}
+
+/** A rack of cheeses maturing: shelves of wheels, pale rinds and a few waxed red ones. */
+export function cheeseRack(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  for (const x of [-0.85, 0.85]) g.add(mesh(box(0.1, 2.0, 0.6), M.wood, x, 1.0, 0));
+  for (const y of [0.3, 0.9, 1.5]) {
+    g.add(mesh(box(1.8, 0.06, 0.6), M.wood, 0, y, 0));
+    for (let k = 0; k < 3; k++) g.add(mesh(cyl(0.22, 0.22, 0.16, 12), flat((k + Math.round(y * 3)) % 4 === 0 ? '#a8382c' : '#e8d8a0'), -0.55 + k * 0.55, y + 0.11, 0));
+  }
+  return g;
+}
+
+/** A fish rack: a timber frame with rows of split fish hanging to cure in the smoke and the wind. */
+export function smokeRack(M: PropMaterials, len = 3): THREE.Group {
+  const g = new THREE.Group();
+  for (const x of [-len / 2, len / 2]) g.add(mesh(box(0.12, 2.2, 0.12), M.darkWood, x, 1.1, 0));
+  for (const y of [1.3, 2.0]) {
+    g.add(mesh(box(len, 0.06, 0.06), M.darkWood, 0, y, 0));
+    for (let x = -len / 2 + 0.25; x < len / 2; x += 0.3) g.add(mesh(box(0.12, 0.5, 0.03), flat(y > 1.5 ? '#c8904a' : '#a8702a'), x, y - 0.3, 0));
+  }
+  return g;
+}
+
+/** A tan-pit's vat: a timbered square sunk to the brim, the liquor in it the colour of oak bark. */
+export function tanVat(M: PropMaterials, color = '#6a4a22'): THREE.Group {
+  const g = new THREE.Group();
+  for (const [x, z, w, d] of [[0, -0.95, 2, 0.1], [0, 0.95, 2, 0.1], [-0.95, 0, 0.1, 2], [0.95, 0, 0.1, 2]] as const) g.add(mesh(box(w, 0.35, d), M.darkWood, x, 0.17, z));
+  g.add(mesh(box(1.8, 0.04, 1.8), flat(color), 0, 0.26, 0));
+  g.add(mesh(box(1.2, 0.03, 0.6), flat('#b8906a'), 0.1, 0.29, -0.2, 0.3));
+  return g;
+}
+
+/** Hides stretched on a frame to dry, two to a frame. */
+export function hideFrame(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  for (const x of [-1.2, 1.2]) g.add(mesh(box(0.1, 2.0, 0.1), M.darkWood, x, 1.0, 0));
+  g.add(mesh(box(2.5, 0.08, 0.08), M.darkWood, 0, 1.95, 0));
+  g.add(mesh(box(2.5, 0.08, 0.08), M.darkWood, 0, 0.35, 0));
+  g.add(mesh(box(1.0, 1.4, 0.03), flat('#a8784a'), -0.55, 1.15, 0));
+  g.add(mesh(box(0.9, 1.3, 0.03), flat('#c8a070'), 0.55, 1.12, 0, 0, 0, 0.05));
+  return g;
+}
+
+/** A copper pot still: the round-bellied pot on its brick firebox, the neck, the lyne arm to the worm tub. */
+export function potStill(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const copper = new THREE.MeshStandardMaterial({ color: '#c87a4a', metalness: 0.7, roughness: 0.35 });
+  g.add(mesh(box(1.6, 0.8, 1.6), flat('#8a4a3a'), 0, 0.4, 0));
+  g.add(mesh(box(0.5, 0.35, 0.05), M.glow, 0, 0.35, 0.81));
+  g.add(mesh(new THREE.SphereGeometry(0.75, 12, 8), copper, 0, 1.5, 0));
+  g.add(mesh(cyl(0.18, 0.4, 0.9, 10), copper, 0, 2.4, 0));
+  g.add(mesh(cyl(0.12, 0.12, 1.4, 8), copper, 0.6, 2.95, 0, 0, 0, -1.25));
+  g.add(mesh(cyl(0.45, 0.45, 1.2, 10), M.wood, 1.5, 0.6, 0));
+  for (const y of [0.3, 0.9]) g.add(mesh(cyl(0.47, 0.47, 0.05, 10), M.iron, 1.5, y, 0));
+  return g;
+}
+
 /** A fish box on the quay: a shallow crate of the morning's catch on ice, silver and slate-blue. */
 export function fishBox(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();

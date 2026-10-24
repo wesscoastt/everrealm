@@ -211,6 +211,14 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'netRack': place(P.netRack(M, d.len ?? 3), d.x, d.y, d.z, d.ry); break;
       case 'bollard': place(P.bollard(M), d.x, d.y, d.z, d.ry); break;
       case 'fishBox': place(P.fishBox(M), d.x, d.y, d.z, d.ry); break;
+      case 'vineRow': place(P.vineRow(M, d.len ?? 12, d.tint === 1, d.tint === 2), d.x, d.y, d.z, d.ry); break;
+      case 'winePress': place(P.winePress(M), d.x, d.y, d.z, d.ry); break;
+      case 'barrelRack': place(P.barrelRack(M, d.len ?? 4), d.x, d.y, d.z, d.ry); break;
+      case 'cheeseRack': place(P.cheeseRack(M), d.x, d.y, d.z, d.ry); break;
+      case 'smokeRack': place(P.smokeRack(M, d.len ?? 3), d.x, d.y, d.z, d.ry); break;
+      case 'tanVat': place(P.tanVat(M, d.color), d.x, d.y, d.z, d.ry); break;
+      case 'hideFrame': place(P.hideFrame(M), d.x, d.y, d.z, d.ry); break;
+      case 'potStill': place(P.potStill(M), d.x, d.y, d.z, d.ry); break;
       case 'crane': place(P.dockCrane(M), d.x, d.y, d.z, d.ry); break;
       case 'lobsterPots': place(P.lobsterPots(M), d.x, d.y, d.z, d.ry); break;
       case 'beehive': place(P.beehive(M), d.x, d.y, d.z, d.ry); break;

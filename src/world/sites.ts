@@ -8,6 +8,7 @@ import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CAL
 import { caveKit, type CaveTheme } from './caves';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
 import type { ShipKind } from './ships';
+import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/businesses';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
@@ -40,6 +41,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   | 'bollard' | 'crane'
   /** A box of fish on ice. */
   | 'fishBox'
+  /** The trades (buildBusiness): vines or hops on a trellis (len; tint 1 white grapes, 2 hops), a wine press, barrel racks (len), cheese racks, fish racks (len), a tan-pit vat (color), hides on a frame, a pot still. */
+  | 'vineRow' | 'winePress' | 'barrelRack' | 'cheeseRack' | 'smokeRack' | 'tanVat' | 'hideFrame' | 'potStill'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
@@ -539,6 +542,8 @@ export function plan(): Plan {
     { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
     // Stables outside the towns (data/stables.ts)
     ...STABLES.map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
+    // The trades in the country: vineyards, the brewhouse, the dairy, the glasshouse... (data/businesses.ts)
+    ...BUSINESSES.map((b): Named => ({ id: 'bz-' + b.id, name: b.name, x: b.x, z: b.z, r0: 26, r1: 38, build: (s, g) => buildBusiness(s, g, b) })),
     // Inkholm, the mushroom isle (data/inkholm.ts)
     { id: 'ink-gillsby', name: 'Gillsby Staithe', x: GILLSBY.x, z: GILLSBY.z, r0: 26, r1: 38, h: SEA + 4, build: (s, b) => buildGillsby(s, b) },
     { id: 'ink-hythe', name: 'Black Hythe', x: HYTHE.x, z: HYTHE.z, r0: 22, r1: 34, h: SEA + 5, build: (s, b) => buildBlackHythe(s, b) },
@@ -589,7 +594,7 @@ export function plan(): Plan {
     // (by the heart's own roads: the outer lands' roads came later, and mustn't move these)
     if (h <= SEA + 1 || heartRoadDist(x, z) < 16 || riverDist(x, z) < 20 || lakeDist(x, z) < 10) continue;
     // (Stables and lodging houses came later, and were placed clear of these: they don't move them)
-    if (named.some((n) => !n.sea && !n.under && !/^(st|lg)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < 80)) continue;
+    if (named.some((n) => !n.sea && !n.under && !/^(st|lg|bz)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < 80)) continue;
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
       saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
@@ -618,7 +623,7 @@ export function plan(): Plan {
     if (h <= SEA + 1 || roadDist(x, z) < 16 || [[10, 0], [-10, 0], [0, 10], [0, -10]].some(([dx, dz]) => Math.abs(baseHeight(x + dx, z + dz) - h) > 3)) continue;
     // (Stables and lodging houses came later, and were placed clear of these: they don't move them)
     // (In Morrow, clear of each town's whole ground: Callis is a city, far wider than 90)
-    if (named.some((n) => !/^(st|lg)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < (LAND === 'morrow' ? Math.max(90, n.r1 + 20) : 90))) continue;
+    if (named.some((n) => !/^(st|lg|bz)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < (LAND === 'morrow' ? Math.max(90, n.r1 + 20) : 90))) continue;
     pois.push({ x, z, kind: list[Math.floor(hash2(cx, cz, 514) * list.length)], region: reg });
     flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
   }
@@ -4883,6 +4888,128 @@ export function plan(): Plan {
         O.set(x, g - 1, z, h < 0.62 ? B.Cobble : h < 0.8 ? B.Path : h < 0.9 ? B.MossyCobble : B.Gravel);
       }
     }
+  }
+
+  /**
+   * A trade's place (data/businesses.ts), laid out in its own frame (u across, v toward its road) and
+   * turned to front the road: the shop and the keeper's door, the workshops, what the trade does out
+   * of doors (vines, hops, vats, racks, a kiln's cone), a paved yard, and a lane down to the road with
+   * the place's name on a sign where it meets it.
+   */
+  function buildBusiness(s: Site, base: number, b: BusinessDef) {
+    const F = ({ n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] } as const)[b.face];
+    const at = (u: number, v: number) => bizAt(b, u, v);
+    const ry = Math.atan2(F[0], F[1]), along = F[0] === 0;
+    const box = (u: number, v: number, w: number, d: number): [number, number, number, number] => { const [cx, cz] = at(u, v), W = along ? w : d, D = along ? d : w; return [Math.round(cx - W / 2), Math.round(cz - D / 2), W, D]; };
+    const bhouse = (u: number, v: number, w: number, d: number, floors: number, roof: PropDesc['mat'], opts: HouseOpts) => { const [x0, z0, W, D] = box(u, v, w, d); house(s, x0, z0, W, D, floors, base, roof, b.face, opts); };
+    const bshelter = (u: number, v: number, w: number, d: number, roof: PropDesc['mat'], h = 3) => { const [x0, z0, W, D] = box(u, v, w, d); shelter(s, x0, z0, W, D, base, roof, h); };
+    const prop = (t: PropType, u: number, v: number, extra: Partial<PropDesc> = {}) => { const [x, z] = at(u, v); s.props.push({ t, x: x + 0.5, y: base, z: z + 0.5, ry, ...extra }); };
+    const fill = (u0: number, v0: number, u1: number, v1: number, id: (u: number, v: number) => number) => {
+      for (let v = Math.min(v0, v1); v <= Math.max(v0, v1); v++) for (let u = Math.min(u0, u1); u <= Math.max(u0, u1); u++) { const [x, z] = at(u, v); foundation(x, z, base); O.set(x, base - 1, z, id(u, v)); clearUp(x, z, base, base + 8); }
+    };
+    const S = SHOP_PLAN[b.kind];
+    const front = S.v + S.d / 2;
+    // The yard before the buildings, and the shop
+    fill(-16, front - 2, 16, front + 3, (u, v) => (hash2(u + b.x, v + b.z, 211) < 0.6 ? B.Gravel : B.Path));
+    bhouse(S.u, S.v, S.w, S.d, S.floors, S.roof, { role: b.kind === 'brewery' ? 'inn' : 'shop', trim: ['hood', 'boxes'] });
+    switch (b.kind) {
+      case 'winery': {
+        bhouse(-12, 7, 7, 6, 1, 'red', { role: 'workshop', wall: B.StoneBrick });
+        bhouse(12, 7, 7, 6, 1, 'slate', { role: 'store', wall: B.StoneBrick });
+        // The vines, red and white in turn, the earth dug along each row
+        for (let v = -4, k = 0; v >= -22; v -= 3, k++) { fill(-14, v, 14, v, () => B.Dirt); prop('vineRow', 0, v, { len: 26, tint: k % 3 === 2 ? 1 : 0 }); }
+        prop('winePress', -12, 12.5); prop('barrelRack', 12, 12.5, { len: 5 });
+        for (const u of [-3.5, 3.5]) { prop('furn', u, 13, { item: 'table' }); prop('bench', u, 14.1, {}); }
+        prop('lantern', 6, 14); prop('lantern', -6, 14);
+        break;
+      }
+      case 'vinery': {
+        bshelter(8.5, 5.5, 5, 5, 'thatch', 3);
+        prop('winePress', 8.5, 5.5); prop('barrelRack', -7, 9.5, { len: 4 });
+        for (let v = -3; v >= -18; v -= 3) { fill(-10, v, 10, v, () => B.Dirt); prop('vineRow', 0, v, { len: 20, tint: 1 }); }
+        prop('lantern', 4, 11);
+        break;
+      }
+      case 'brewery': {
+        bhouse(-6, 4, 10, 7, 2, 'slate', { role: 'workshop', wall: B.RedBrick });
+        // The oast: a round brick kiln with its cone, where the hops are dried
+        { const [ox, oz] = at(9, -3); for (let y = base; y < base + 7; y++) for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) { const d = Math.hypot(dx, dz); if (d <= 3.2) O.set(ox + dx, y, oz + dz, d > 2.2 ? (y === base + 6 ? B.Plaster : B.RedBrick) : B.Air); }
+          s.props.push({ t: 'cone', x: ox + 0.5, y: base + 7, z: oz + 0.5, r: 3.6, h: 4.5, mat: 'red' }, { t: 'smoke', x: ox + 0.5, y: base + 11.6, z: oz + 0.5 });
+          s.impostor.push({ x: ox + 0.5, y: base + 3.5, z: oz + 0.5, w: 6, h: 7, d: 6, color: '#a8483a' }); }
+        for (let v = -9, k = 0; v >= -24; v -= 3, k++) prop('vineRow', -4, v, { len: 18, tint: 2 });
+        prop('barrelRack', -6, 10, { len: 5 }); prop('cart', 1, 12, { ry: ry + 0.4 });
+        break;
+      }
+      case 'dairy': {
+        bhouse(-10, 5, 6, 6, 1, 'slate', { role: 'workshop' });
+        bshelter(9.5, 5.5, 5, 5, 'slate', 3);
+        prop('cheeseRack', 8.5, 5.5); prop('cheeseRack', 10.5, 5.5);
+        // The cows' pasture behind
+        { const a = at(-14, -4), c = at(14, -22); const [x0, x1] = [Math.min(a[0], c[0]), Math.max(a[0], c[0])], [z0, z1] = [Math.min(a[1], c[1]), Math.max(a[1], c[1])];
+          fence(s, x0, z0, x1, z0); fence(s, x0, z1, x1, z1); fence(s, x0, z0, x0, z1); fence(s, x1, z0, x1, z1);
+          for (let i = 0; i < 5; i++) (s.animals ??= []).push({ kind: 'cow', x: (x0 + x1) / 2 + (i - 2) * 4, z: (z0 + z1) / 2 + (i % 2) * 4 - 2, r: 7, pal: i % 2 ? { a: '#b87a4a', b: '#f2ece0' } : {} }); }
+        for (let k = 0; k < 3; k++) prop('barrel', -6 + k * 0.8, 9.5);
+        break;
+      }
+      case 'glass': {
+        // The glass cone: a brick cone over the furnace, its mouth glowing, smoke from its top
+        const [gx, gz] = at(2, -1);
+        for (let y = base; y < base + 13; y++) { const r = 5 - (y - base) * 0.26; for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) { const d = Math.hypot(dx, dz); if (d <= r) O.set(gx + dx, y, gz + dz, d > r - 1.05 ? B.RedBrick : B.Air); } }
+        { const [dx, dz] = F; for (let y = base; y < base + 3; y++) for (let k = -1; k <= 1; k++) O.set(gx + dx * 4 + (dz ? k : 0), y, gz + dz * 4 + (dx ? k : 0), B.Air); }
+        s.props.push({ t: 'glow', x: gx + 0.5, y: base + 1, z: gz + 0.5, r: 3.6, color: '#ff8a30', lit: true }, { t: 'firepit', x: gx + 0.5, y: base, z: gz + 0.5 }, { t: 'smoke', x: gx + 0.5, y: base + 13.5, z: gz + 0.5 });
+        s.impostor.push({ x: gx + 0.5, y: base + 6.5, z: gz + 0.5, w: 8, h: 13, d: 8, color: '#9a4a3a' });
+        { const [mx, mz] = at(11, 3); for (let dz = 0; dz < 3; dz++) for (let dx = 0; dx < 3; dx++) O.set(mx + dx, base, mz + dz, B.Sand); O.set(mx + 1, base + 1, mz + 1, B.Sand); }
+        for (let k = 0; k < 4; k++) prop('crate', 10 + (k % 2) * 0.8, 9 + Math.floor(k / 2) * 0.8);
+        break;
+      }
+      case 'meadery': {
+        // The bee garden behind, in flower, the hives in rows; the mead under a lean-to
+        fill(-11, -2, 11, -17, (u, v) => (hash2(u, v, 213) < 0.85 ? B.FlowerGrass : B.Path));
+        for (let v = -4; v >= -15; v -= 5) for (let u = -8; u <= 8; u += 4) prop('beehive', u + ((v / 5) % 2 ? 1 : 0), v);
+        { const a = at(-12, -1), c = at(12, -18); fence(s, Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.min(a[1], c[1])); fence(s, Math.min(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])); }
+        bshelter(-9, 6, 4, 4, 'thatch', 3);
+        prop('barrelRack', -9, 6, { len: 3 });
+        break;
+      }
+      case 'smokehouse': {
+        bhouse(-5, 3, 6, 6, 2, 'slate', { role: 'workshop', wall: B.StoneBrick });
+        { const [x, z] = at(-5, 3); s.props.push({ t: 'smoke', x: x + 0.5, y: base + 10, z: z + 0.5 }, { t: 'smoke', x: x + 1.5, y: base + 10, z: z - 0.5 }); }
+        for (const v of [-4, -8]) for (const u of [-10, -6, -2, 2]) prop('smokeRack', u, v, { len: 3 });
+        for (let k = 0; k < 4; k++) prop('fishBox', 2 + k * 1.1, 11.6);
+        prop('woodpile', -11, 8, { len: 3 });
+        break;
+      }
+      case 'tannery': {
+        bhouse(-7, 4, 9, 6, 1, 'slate', { role: 'workshop', wall: B.Planks });
+        const liquor = ['#6a4a22', '#8a6a2a', '#4a3a2a', '#c8c0a8'];
+        for (let v = -4, k = 0; v >= -13; v -= 3) for (let u = -8; u <= 8; u += 3, k++) prop('tanVat', u, v, { color: liquor[k % 4] });
+        prop('hideFrame', 12, 2); prop('hideFrame', 12, -2); prop('hideFrame', 12, -6);
+        break;
+      }
+      case 'distillery': {
+        bhouse(-6, 3, 9, 7, 1, 'slate', { role: 'workshop', wall: B.StoneBrick });
+        bhouse(8, 1, 8, 6, 2, 'slate', { role: 'store', wall: B.StoneBrick });
+        bshelter(-6, 12.5, 6, 4, 'slate', 3);
+        prop('potStill', -6, 12.5);
+        { const [px, pz] = at(-16, -2); for (let k = 0; k < 4; k++) for (let y = 0; y < 2; y++) for (let w = 0; w < 2; w++) O.set(px + (along ? k : w), base + y, pz + (along ? w : k), B.Peat); }
+        prop('barrelRack', 8, -5, { len: 6 }); prop('barrelRack', 8, -7.5, { len: 6 });
+        break;
+      }
+    }
+    // The lane down to the road, three wide, and the name on a sign where it meets it
+    {
+      const [sx, sz] = at(0, front + 3);
+      let x = Math.round(sx), z = Math.round(sz);
+      for (let i = 0; i < 140 && roadDist(x, z) > 2.2; i++) {
+        let nx = x, nz = z, bd = roadDist(x, z);
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const d = roadDist(x + dx, z + dz); if (d < bd) { bd = d; nx = x + dx; nz = z + dz; } }
+        if (nx === x && nz === z) break;
+        x = nx; z = nz;
+        for (let oz = -1; oz <= 1; oz++) for (let ox = -1; ox <= 1; ox++) { const g = heightAt(x + ox, z + oz); if (g <= SEA) continue; O.set(x + ox, g - 1, z + oz, hash2(x + ox, z + oz, 215) < 0.7 ? B.Path : B.Gravel); clearUp(x + ox, z + oz, g, g + 5); }
+      }
+      s.props.push({ t: 'sign', x: x + 0.5 + F[0] * 2, y: heightAt(x + F[0] * 2, z + F[1] * 2), z: z + 0.5 + F[1] * 2, ry, text: b.name });
+    }
+    { const a = at(-18, -26), c = at(18, front + 5); rect(s, Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])); }
   }
 
   function buildLighthouse(s: Site, base: number) {
