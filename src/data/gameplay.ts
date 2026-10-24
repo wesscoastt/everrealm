@@ -4,6 +4,7 @@ import type { CreatureKind, Palette } from '../entities/creatures';
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import { ARMOUR_SMITHING } from './armour';
 import { WEAPON_SMITHING } from './weapons';
+import { SET_CRAFT } from './crafting';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
 import { killsForLevel, killXp, SKILL_PACE } from './pacing';
@@ -173,6 +174,12 @@ export interface Recipe {
   /** Chance to fail (burn) at the required level, falling as level rises. */
   failAtReq?: number;
   failItem?: string;
+  /** Not known until learned from a recipe card (data/content/recipes.ts): where the card comes from. */
+  learn?: string;
+  /** A regional set piece (data/crafting.ts SET_CRAFT): made only at an anvil in this region... */
+  region?: RegionId;
+  /** ...with this many armour leanings researched. */
+  research?: number;
 }
 
 export const RECIPES: Recipe[] = [
@@ -220,6 +227,17 @@ export const RECIPES: Recipe[] = [
   { id: 'j_barrel', station: 'bench', skill: 'woodcutting', level: 10, xp: 50, inputs: { oak_logs: 3, bronze_bar: 1 }, output: 'furn_barrel', count: 1, time: 3 },
   { id: 'j_bed', station: 'bench', skill: 'woodcutting', level: 12, xp: 70, inputs: { pine_logs: 5 }, output: 'furn_bed', count: 1, time: 3.4 },
   { id: 'j_dresser', station: 'bench', skill: 'woodcutting', level: 15, xp: 90, inputs: { pine_logs: 4, birch_logs: 3 }, output: 'furn_dresser', count: 1, time: 3.6 },
+  // Learned from cards (data/content/recipes.ts): the cook trainers' dishes, and the great beasts'
+  { id: 'harvest_supper', station: 'hearth', skill: 'cooking', level: 12, xp: 80, inputs: { bread: 1, chanterelles: 2, wild_garlic: 1, cooked_trout: 1 }, output: 'harvest_supper', count: 1, time: 2.4, failAtReq: 0.3, failItem: 'burnt_fish', learn: 'Perrin sells the card at the Charter Market, Ansbury.' },
+  { id: 'bilberry_cordial', station: 'hearth', skill: 'cooking', level: 18, xp: 105, inputs: { bilberries: 3, cloudberries: 1 }, output: 'bilberry_cordial', count: 1, time: 2.4, learn: 'Perrin sells the card at the Charter Market, Ansbury.' },
+  { id: 'fishermans_pie', station: 'hearth', skill: 'cooking', level: 20, xp: 125, inputs: { raw_mackerel: 2, bread: 1, samphire: 1 }, output: 'fishermans_pie', count: 1, time: 2.6, failAtReq: 0.35, failItem: 'burnt_fish', learn: 'Bett sells the card at Rook\'s Chandlery, Gullmouth.' },
+  { id: 'pike_broth', station: 'hearth', skill: 'cooking', level: 26, xp: 165, inputs: { raw_pike: 1, wild_garlic: 2, chanterelles: 1 }, output: 'pike_broth', count: 1, time: 2.8, failAtReq: 0.4, failItem: 'burnt_fish', learn: 'The Bramble Maw in Hagworm Wood carries the card.' },
+  { id: 'char_glaze', station: 'hearth', skill: 'cooking', level: 32, xp: 210, inputs: { raw_char: 1, cloudberries: 2 }, output: 'char_glaze', count: 1, time: 3, failAtReq: 0.4, failItem: 'burnt_fish', learn: 'Rimeglass in the Scarth Highlands carries the card.' },
+  // The regional sets, made at an anvil in their region once enough armour leanings are known (data/crafting.ts)
+  ...SET_CRAFT.flatMap((c) => (['chest', 'legs', 'hands', 'feet'] as const).map((slot, k): Recipe => ({
+    id: `set_${c.line}_${slot}`, station: 'anvil', skill: 'smithing', level: c.level + [2, 1, 0, 0][k], xp: 60 + c.per[k] * 30,
+    inputs: { [c.main]: c.per[k], ...(c.bind ? { [c.bind]: 1 } : {}) }, output: `${c.line}_${slot}`, count: 1, time: 3 + c.per[k] * 0.4, region: c.region, research: c.research,
+  }))),
 ];
 
 export const STATION_NAMES: Record<Station, string> = { furnace: 'Furnace', anvil: 'Anvil', hearth: 'Cook fire', bench: "Joiner's bench" };
@@ -332,10 +350,10 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   keelglass: { type: 'keelglass', model: 'jelly', palette: { a: '#d0c4ff', b: '#5a3ab0', glow: true }, scale: 2.8, name: 'The Keel', level: 31, hp: 2600, damage: 44, speed: 2.4, aggro: 12, leash: 18, attack: 'slam', windup: 1.0, range: 4.6, cooldown: 2.3, xp: 1600, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 0.5 }], marks: [60, 90], respawn: 600 },
   // World bosses (see data/activities.ts): they rise on a schedule every player shares, and their
   // loot is their region's gear. The Shardwarden leads the Shardfalls in Scarth.
-  bramblemaw: { type: 'bramblemaw', model: 'wolf', palette: { a: '#2e3a1e', b: '#16200e', c: '#9ab07a' }, scale: 3.4, name: 'The Bramblemaw', level: 16, hp: 5200, damage: 34, speed: 6.2, aggro: 24, leash: 60, attack: 'lunge', windup: 0.8, range: 5.5, cooldown: 2.0, xp: 1600, elite: true, loot: [{ item: 'thorn_blade', chance: 0.35 }, { item: 'moss_hood', chance: 0.35 }, { item: 'elder_logs', chance: 1, min: 3, max: 3 }], marks: [45, 70], respawn: 99999 },
+  bramblemaw: { type: 'bramblemaw', model: 'wolf', palette: { a: '#2e3a1e', b: '#16200e', c: '#9ab07a' }, scale: 3.4, name: 'The Bramblemaw', level: 16, hp: 5200, damage: 34, speed: 6.2, aggro: 24, leash: 60, attack: 'lunge', windup: 0.8, range: 5.5, cooldown: 2.0, xp: 1600, elite: true, loot: [{ item: 'thorn_blade', chance: 0.35 }, { item: 'moss_hood', chance: 0.35 }, { item: 'elder_logs', chance: 1, min: 3, max: 3 }, { item: 'recipe_pike_broth', chance: 0.5 }], marks: [45, 70], respawn: 99999 },
   tidewright: { type: 'tidewright', model: 'rustback', palette: { a: '#7a2414', b: '#f08a4a' }, scale: 3.6, name: 'Blind Jenny', level: 20, hp: 6400, damage: 38, speed: 3.8, aggro: 22, leash: 60, attack: 'charge', windup: 0.9, range: 12, cooldown: 2.6, xp: 2100, elite: true, loot: [{ item: 'brine_cutlass', chance: 0.35 }, { item: 'oilskin_hat', chance: 0.35 }, { item: 'crab_shell', chance: 1, min: 4, max: 4 }], marks: [55, 85], respawn: 99999 },
   cinderhorn: { type: 'cinderhorn', model: 'boar', palette: { a: '#5a1e10', b: '#d0582a', c: '#f0c070' }, scale: 3.6, name: 'Old Clinker', level: 23, hp: 7200, damage: 42, speed: 4.6, aggro: 22, leash: 60, attack: 'charge', windup: 0.8, range: 12, cooldown: 2.4, xp: 2600, elite: true, loot: [{ item: 'harrow_cleaver', chance: 0.35 }, { item: 'redback_helm', chance: 0.35 }, { item: 'halter_ember', chance: 0.2 }, { item: 'iron_ore', chance: 1, min: 5, max: 5 }], marks: [60, 95], respawn: 99999 },
-  rimeglass: { type: 'rimeglass', model: 'jelly', palette: { a: '#d8f6ff', b: '#4ab0d8', glow: true }, scale: 3.6, name: 'Rimeglass', level: 32, hp: 9800, damage: 48, speed: 2.8, aggro: 22, leash: 60, attack: 'slam', windup: 1.0, range: 6.5, cooldown: 2.3, xp: 3800, elite: true, loot: [{ item: 'starglass_edge', chance: 0.35 }, { item: 'frost_cowl', chance: 0.35 }, { item: 'star_crystal', chance: 1, min: 4, max: 4 }], marks: [80, 120], respawn: 99999 },
+  rimeglass: { type: 'rimeglass', model: 'jelly', palette: { a: '#d8f6ff', b: '#4ab0d8', glow: true }, scale: 3.6, name: 'Rimeglass', level: 32, hp: 9800, damage: 48, speed: 2.8, aggro: 22, leash: 60, attack: 'slam', windup: 1.0, range: 6.5, cooldown: 2.3, xp: 3800, elite: true, loot: [{ item: 'starglass_edge', chance: 0.35 }, { item: 'frost_cowl', chance: 0.35 }, { item: 'star_crystal', chance: 1, min: 4, max: 4 }, { item: 'recipe_char_glaze', chance: 0.5 }], marks: [80, 120], respawn: 99999 },
   shardwarden: { type: 'shardwarden', model: 'jelly', palette: { a: '#b8f4ff', b: '#2a8ab0', glow: true }, scale: 2.1, name: 'Shardwarden', level: 28, hp: 1900, damage: 38, speed: 3.2, aggro: 14, leash: 40, attack: 'slam', windup: 0.8, range: 4.2, cooldown: 2.0, xp: 900, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 2, max: 2 }, { item: 'starglass_edge', chance: 0.06 }], marks: [20, 34], respawn: 99999 },
   // The sea: these swim, and go only after swimmers (a boat, a jetty or the shore is safe)
   huss: { type: 'huss', model: 'shark', palette: { a: '#8a7a5e', b: '#e0d8c4', c: '#6e604a' }, scale: 0.7, name: 'Huss', level: 6, hp: 95, damage: 11, speed: 5, aggro: 10, leash: 28, attack: 'lunge', windup: 0.55, range: 2.4, cooldown: 1.6, xp: 60, loot: [{ item: 'raw_huss', chance: 0.7 }], marks: [1, 4], respawn: 100 },

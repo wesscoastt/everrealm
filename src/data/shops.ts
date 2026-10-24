@@ -47,6 +47,8 @@ export const SHOPS: Record<string, ShopDef> = {
       ...['furn_chair', 'furn_bench', 'furn_dresser', 'furn_shelves', 'furn_chest', 'furn_rug_blue', 'furn_rug_green'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 10) * 1.8) })),
       // The tailor's stall: the plain heraldic cloak designs
       { item: 'cape_border', price: 400 }, { item: 'cape_quartered', price: 600 }, { item: 'cape_chevron', price: 600 }, { item: 'cape_chequy', price: 900 },
+      // The cook's stall: recipe cards (data/content/recipes.ts)
+      { item: 'recipe_harvest_supper', price: 120 }, { item: 'recipe_bilberry_cordial', price: 160 },
     ],
     buyRate: () => 0.6,
     priceMult: (g) => (g.flag('hwChoice') === 'refund' ? 0.9 : 1),
@@ -55,6 +57,7 @@ export const SHOPS: Record<string, ShopDef> = {
   bett: {
     id: 'bett', name: 'Rook\'s Chandlery', owner: 'bett',
     stock: [
+      { item: 'recipe_fishermans_pie', price: 180 },
       { item: 'fishing_rod', price: 14 },
       { item: 'lockpick', price: 3 },
       { item: 'bread', price: 5 },

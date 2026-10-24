@@ -27,10 +27,11 @@ import { legacyChunkKey, v2ChunkKey } from '../world/VoxelWorld';
 import { createRenderer } from '../core/Renderer';
 import { DIALOGUE, READABLES } from '../data/dialogue';
 import {
-  ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, SHOP_STOCK, SKILLS, Station, TREE_INFO,
+  ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, STATION_NAMES, SHOP_STOCK, SKILLS, Station, TREE_INFO,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
-import { baseOf, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
+import { affixFits, AFFIXES, baseOf, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
+import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIVES, QUALITY_STEPS, researchMinutes, WEAPON_LEANINGS } from '../data/crafting';
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal, type AnimalKind } from '../entities/Animal';
@@ -199,7 +200,9 @@ interface GatherAction {
   waitFor: number;
 }
 
-interface CraftAction { recipe: string; left: number; t: number; station: Station }
+interface CraftAction { recipe: string; left: number; t: number; station: Station; cost: Record<string, number>; out: string; xp: number; time: number }
+/** How a piece at the anvil is to be made: a researched leaning worked in, and its quality (data/crafting.ts). */
+export interface CraftOpts { affix?: string; q?: number }
 
 const UP = new THREE.Vector3(0, 1, 0);
 const tmpV = new THREE.Vector3();
@@ -1629,7 +1632,7 @@ export class Game implements GameApi {
       daily: () => g.dailies.view(),
       festival: () => ({ ...g.festivals.view(), extra: g.seasons.journal() }),
       trade: () => g.social.ui(),
-      tradeAdd: (id: string) => g.social.add(id),
+      tradeAdd: (id: string, n?: number) => g.social.add(id, n),
       tradeRemove: (i: number) => g.social.remove(i),
       tradeMarks: (n: number) => g.social.setMarks(n),
       tradeLock: () => g.social.lock(),
@@ -1743,7 +1746,12 @@ export class Game implements GameApi {
       packInfo: () => g.packInfo(),
       togglePack: () => g.togglePack(),
       dropSlot: (i: number) => g.dropSlot(i),
-      craft: (r: string, n: number) => g.startCraft(r, n),
+      craft: (r: string, n: number, o?: CraftOpts) => g.startCraft(r, n, o),
+      craftView: () => g.craftView(),
+      craftCost: (id: string, o: CraftOpts) => g.costOf(id, o),
+      takeApart: (id: string) => g.takeApart(id),
+      passivesOf: (k: SkillId) => g.passivesOf(k),
+      learnPassive: (id: string) => g.learnPassive(id),
       buy: (item: string) => g.buy(item),
       sell: (slot: number) => g.sell(slot),
       quests: () => g.questEntries(),
@@ -2283,6 +2291,15 @@ export class Game implements GameApi {
       this.hud.banner(def.name, 'Your pet now', true);
       this.hud.system(`${def.name} is yours now and follows you about. Change pets, or send her home, under Pet with Change look, on the character screen.`);
       this.sfx('discover');
+    } else if (def.teaches) {
+      // A recipe card: learned for good, the card used up
+      if (this.flag('recipe:' + def.teaches)) { this.hud.system('You already know that one.'); return; }
+      this.inv.removeAt(i, 1);
+      this.setFlag('recipe:' + def.teaches, 1);
+      const r = RECIPES.find((x) => x.id === def.teaches);
+      this.hud.banner(ITEMS[r?.output ?? '']?.name ?? def.name, 'Recipe learned', true);
+      this.hud.system(`You learn ${ITEMS[r?.output ?? '']?.name ?? 'the recipe'}: it's at any ${r ? STATION_NAMES[r.station].toLowerCase() : 'station'} now.`);
+      this.sfx('discover');
     } else if (def.costume) {
       // A costume joins the wardrobe for good
       this.inv.removeAt(i, 1);
@@ -2408,7 +2425,8 @@ export class Game implements GameApi {
     const def = ITEMS[best];
     this.inv.remove(best, 1);
     if (def.buff) {
-      this.setFlag('buff:' + def.buff.slot, { id: best, left: def.buff.mins * 60 });
+      const longer = [1, 1.25, 1.5][this.passive(def.buff.slot === 'food' ? 'ck_chef' : 'ck_brewer')];
+      this.setFlag('buff:' + def.buff.slot, { id: best, left: def.buff.mins * 60 * longer });
       const parts = [def.buff.hp ? `${Math.round(def.buff.hp * 100)}% more health` : '', def.buff.regen ? `stamina back ${Math.round(def.buff.regen * 100)}% faster` : '', def.buff.power ? `blows ${Math.round(def.buff.power * 100)}% harder` : ''].filter(Boolean);
       this.hud.system(`${def.name}: ${parts.join(', ')}, for ${def.buff.mins} minutes.`);
     }
@@ -2421,13 +2439,71 @@ export class Game implements GameApi {
   }
 
   // =================================================================== Crafting
-  private startCraft(id: string, count: number): void {
+  /** Is this recipe known? Most are from the start; a card teaches the rest (data/content/recipes.ts). */
+  recipeKnown(id: string): boolean {
     const r = RECIPES.find((x) => x.id === id);
-    if (!r || this.level(r.skill) < r.level) return;
-    const can = Math.min(...Object.entries(r.inputs).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
+    return !!r && (!r.learn || !!this.flag('recipe:' + id));
+  }
+  /** Leanings researched, for weapons ('w') or armour ('a'). */
+  leanings(kind: 'w' | 'a'): string[] {
+    return (kind === 'w' ? WEAPON_LEANINGS : ARMOUR_LEANINGS).filter((a) => this.flag(`known:${kind}:${a}`));
+  }
+  /** A craft passive's rank (data/crafting.ts PASSIVES). */
+  passive(id: string): number { return Number(this.flag('cpass:' + id) ?? 0); }
+  /** What a recipe costs made this way: its inputs, the extra metal a better quality takes, a silver bar for Masterwork. */
+  private craftCost(r: (typeof RECIPES)[number], o: CraftOpts): Record<string, number> {
+    const cost = { ...r.inputs };
+    const step = QUALITY_STEPS.find((x) => x.q === (o.q ?? 1)) ?? QUALITY_STEPS[0];
+    if (step.extra) {
+      const [main, n] = Object.entries(r.inputs).sort((a, b) => b[1] - a[1])[0];
+      const thrift = [1, 2 / 3, 1 / 2][this.passive('sm_thrift')];
+      cost[main] = n + Math.max(1, Math.ceil(n * step.extra * thrift));
+    }
+    if (step.silver) cost.silver_bar = (cost.silver_bar ?? 0) + step.silver;
+    return cost;
+  }
+  /** What a recipe costs made this way (for the crafting window). */
+  costOf(id: string, o: CraftOpts): Record<string, number> {
+    const r = RECIPES.find((x) => x.id === id);
+    return r ? this.craftCost(r, o) : {};
+  }
+  /** Why this recipe can't be made here and now, made this way (null: it can). */
+  craftBlock(id: string, o: CraftOpts = {}): string | null {
+    const r = RECIPES.find((x) => x.id === id);
+    if (!r) return 'No such recipe.';
+    if (!this.recipeKnown(id)) return 'You don\'t know this recipe yet.';
+    const lv = this.level(r.skill);
+    if (lv < r.level) return `Needs ${SKILLS.find((k) => k.id === r.skill)!.name} ${r.level}.`;
+    if (r.region) {
+      const st = this.stationAt(r.station), here = regionAt(st.x, st.z).a;
+      if (here !== r.region) return `Made only at an anvil in ${REGION_INFO[r.region].name}.`;
+      if (this.leanings('a').length < (r.research ?? 0)) return `Needs ${r.research} armour leanings researched (you have ${this.leanings('a').length}).`;
+    }
+    const out = ITEMS[r.output];
+    if (o.affix) {
+      const kind = out?.weapon ? 'w' : out?.armor ? 'a' : null;
+      if (!kind || !this.leanings(kind).includes(o.affix) || !affixFits(out, o.affix)) return 'That leaning can\'t go into this.';
+    }
+    const step = QUALITY_STEPS.find((x) => x.q === (o.q ?? 1));
+    if (!step || ((o.q ?? 1) !== 1 && !(out?.weapon || out?.armor))) return 'No such quality.';
+    if (lv < r.level + step.over) return `${step.word} needs ${SKILLS.find((k) => k.id === r.skill)!.name} ${r.level + step.over}.`;
+    return null;
+  }
+  private startCraft(id: string, count: number, o: CraftOpts = {}): void {
+    const r = RECIPES.find((x) => x.id === id);
+    if (!r) return;
+    const why = this.craftBlock(id, o);
+    if (why) { this.hud.system(why); return; }
+    const cost = this.craftCost(r, o);
+    const can = Math.min(...Object.entries(cost).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
     if (can < 1) return;
+    const q = o.q ?? 1, step = QUALITY_STEPS.find((x) => x.q === q)!;
+    const out = o.affix || q !== 1 ? `${r.output}__${o.affix ?? ''}${q}` : r.output;
+    // Experience: the recipe's colour for you (WoW's), more for a better piece or a leaning worked in
+    const xp = Math.max(1, Math.round(r.xp * craftColour(this.level(r.skill), r.level).xp * step.xp * (o.affix ? 1.1 : 1)));
+    const time = r.time / (r.station === 'bench' ? [1, 1.2, 1.33][this.passive('wc_quick')] : 1);
     this.cancelActions();
-    this.craftAction = { recipe: id, left: Math.min(count, can), t: 0, station: r.station };
+    this.craftAction = { recipe: id, left: Math.min(count, can), t: 0, station: r.station, cost, out, xp, time };
     this.player.locked = true;
   }
 
@@ -2447,32 +2523,120 @@ export class Game implements GameApi {
       }
     } else if (c.station === 'furnace' && Math.random() < dt * 8) this.particles.fire(tmpV.set(st.x, st.y, st.z - 0.4));
     else if (c.station === 'hearth' && Math.random() < dt * 3) this.sfx('sizzle', 0.5);
-    this.hud.setCast(`${ITEMS[r.output].name} (${c.left} left)`, c.t / r.time);
-    if (c.t < r.time) return;
+    this.hud.setCast(`${ITEMS[c.out]?.name ?? ITEMS[r.output].name} (${c.left} left)`, c.t / c.time);
+    if (c.t < c.time) return;
     c.t = 0;
-    for (const [k, n] of Object.entries(r.inputs)) this.inv.remove(k, n);
-    let out = r.output;
+    for (const [k, n] of Object.entries(c.cost)) this.inv.remove(k, n);
+    let out = c.out;
     if (r.failAtReq !== undefined) {
-      const fail = Math.max(0, r.failAtReq - (this.level(r.skill) - r.level) * 0.05);
+      const fail = Math.max(0, r.failAtReq - (this.level(r.skill) - r.level) * 0.05) * [1, 2 / 3, 1 / 3][this.passive('ck_steady')];
       if (Math.random() < fail) out = r.failItem!;
     }
-    if (out === r.output) {
-      this.give(out, r.count);
-      this.addXp(r.skill, r.xp);
+    if (out === c.out) {
+      // The passives' extras: a second bar from the furnace, one more from the pot, a log left over at the bench
+      const extra = (c.station === 'furnace' && Math.random() < [0, 0.1, 0.2][this.passive('sm_yield')]) || (c.station === 'hearth' && Math.random() < [0, 0.1, 0.2][this.passive('ck_plenty')]) ? 1 : 0;
+      this.give(out, r.count + extra);
+      if (extra) this.floatAt(this.player.position, 2.2, `+1 ${ITEMS[out].name}`, 'heal');
+      if (c.station === 'bench' && Math.random() < [0, 1 / 6, 1 / 3][this.passive('wc_saw')]) { const log = Object.keys(c.cost).find((k) => k.endsWith('_logs')); if (log) this.give(log, 1); }
+      this.addXp(r.skill, c.xp);
       if (c.station === 'furnace') this.particles.sparks(tmpV.set(st.x, st.y + 0.2, st.z), 16, '#ffd070');
     } else {
       this.give(out, 1);
       this.hud.system('You burnt it.');
-      this.addXp(r.skill, Math.round(r.xp * 0.2));
+      this.addXp(r.skill, Math.round(c.xp * 0.2));
     }
     c.left--;
-    const can = Math.min(...Object.entries(r.inputs).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
+    const can = Math.min(...Object.entries(c.cost).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
     if (c.left <= 0 || can < 1) {
       this.craftAction = null;
       this.player.locked = false;
       this.hud.setCast(null);
     }
     this.hud.refresh();
+  }
+
+  // ---- Research: take a leaning piece apart at the anvil, and in a while its leaning is yours to work in
+  /** What's being researched, by kind: each leaning and when it's done (ms, the realm's clock). */
+  research(kind: 'w' | 'a'): { affix: string; until: number }[] {
+    const v = this.flag('research:' + kind);
+    return Array.isArray(v) ? (v as { affix: string; until: number }[]) : [];
+  }
+  /** Take a piece apart for its leaning: returns why not, or null. */
+  takeApart(id: string): string | null {
+    const def = ITEMS[id];
+    if (!def?.affix || !(def.weapon || def.armor)) return 'Only a piece with a leaning teaches anything taken apart.';
+    if (!this.inv.count(id)) return 'You don\'t have that.';
+    const kind = def.weapon ? 'w' : 'a', what = kind === 'w' ? 'weapons' : 'armour';
+    const name = AFFIXES[def.affix].word;
+    if (this.leanings(kind).includes(def.affix)) return `You already know ${name} for ${what}.`;
+    const now = this.research(kind);
+    if (now.some((x) => x.affix === def.affix)) return `${name} is already being researched.`;
+    const slots = this.passive('sm_bench') ? 2 : 1;
+    if (now.length >= slots) return `You're already researching ${slots === 1 ? 'a leaning' : 'two leanings'} for ${what}. Quick Study and Two at the Bench (smithing passives) help.`;
+    const mins = researchMinutes(this.leanings(kind).length) * [1, 0.75, 0.5][this.passive('sm_study')];
+    this.inv.remove(id, 1);
+    this.setFlag('research:' + kind, [...now, { affix: def.affix, until: realmNow() + mins * 60_000 }]);
+    this.hud.system(`You take ${def.name} apart to see how it was made. ${name} for ${what} will be understood in ${Math.round(mins)} minutes, whether you're at the anvil or not.`);
+    this.sfx('anvil');
+    this.persist();
+    return null;
+  }
+  /** Research that's finished becomes known (checked every few seconds). */
+  private researchT = 0;
+  private tickResearch(dt: number): void {
+    this.researchT -= dt;
+    if (this.researchT > 0) return;
+    this.researchT = 3;
+    for (const kind of ['w', 'a'] as const) {
+      const now = this.research(kind), done = now.filter((x) => x.until <= realmNow());
+      if (!done.length) continue;
+      for (const d of done) {
+        this.setFlag(`known:${kind}:${d.affix}`, 1);
+        this.hud.banner(`${AFFIXES[d.affix].word} ${kind === 'w' ? 'weapons' : 'armour'}`, 'Research done: work it into what you smith', true);
+        this.sfx('discover');
+      }
+      this.setFlag('research:' + kind, now.filter((x) => x.until > realmNow()));
+      this.persist();
+    }
+  }
+  /** Spend a craft point on a passive (data/crafting.ts): returns why not, or null. */
+  learnPassive(id: string): string | null {
+    const p = PASSIVE[id];
+    if (!p) return 'No such passive.';
+    const have = this.passive(id);
+    if (have >= p.ranks) return 'Every rank learned.';
+    const pts = craftPoints(this.level(p.craft)) - PASSIVES.filter((x) => x.craft === p.craft).reduce((n, x) => n + this.passive(x.id), 0);
+    if (pts < 1) return `No ${SKILLS.find((k) => k.id === p.craft)!.name.toLowerCase()} points to spend: one comes every ten levels.`;
+    this.setFlag('cpass:' + id, have + 1);
+    this.sfx('levelUp', 0.5);
+    this.persist();
+    return null;
+  }
+  /** A craft's passives as the skills page shows them. */
+  passivesOf(craft: SkillId): { points: number; list: { id: string; name: string; ranks: number; rank: number; desc: string[] }[] } {
+    const list = PASSIVES.filter((x) => x.craft === craft);
+    return { points: craftPoints(this.level(craft)) - list.reduce((n, x) => n + this.passive(x.id), 0), list: list.map((x) => ({ id: x.id, name: x.name, ranks: x.ranks, rank: this.passive(x.id), desc: x.desc })) };
+  }
+  /** What the crafting window needs beyond the recipes: known recipes, colours, leanings, research, pieces to take apart. */
+  craftView() {
+    const st = this.currentStation;
+    const pos = st ? this.stationAt(st) : null;
+    const kinds = (['w', 'a'] as const).map((kind) => ({
+      kind, known: this.leanings(kind),
+      researching: this.research(kind).map((x) => ({ affix: x.affix, word: AFFIXES[x.affix].word, mins: Math.max(0, Math.ceil((x.until - realmNow()) / 60_000)) })),
+      slots: this.passive('sm_bench') ? 2 : 1,
+    }));
+    const apart = [...new Set(this.save.inv.filter((x): x is NonNullable<typeof x> => !!x).map((x) => x.id))]
+      .filter((id) => ITEMS[id]?.affix && (ITEMS[id].weapon || ITEMS[id].armor))
+      .map((id) => ({ id, name: ITEMS[id].name, kind: (ITEMS[id].weapon ? 'w' : 'a') as 'w' | 'a', affix: ITEMS[id].affix!, word: AFFIXES[ITEMS[id].affix!].word, known: this.leanings(ITEMS[id].weapon ? 'w' : 'a').includes(ITEMS[id].affix!) }));
+    return {
+      region: pos ? regionAt(pos.x, pos.z).a : null,
+      kinds, apart,
+      recipes: Object.fromEntries(RECIPES.filter((r) => r.station === st).map((r) => {
+        const c = craftColour(this.level(r.skill), r.level);
+        return [r.id, { known: this.recipeKnown(r.id), colour: c.colour, word: COLOUR_WORD[c.colour], xp: Math.max(1, Math.round(r.xp * c.xp)), block: this.craftBlock(r.id) }];
+      })),
+    };
   }
 
   // =================================================================== Dialogue
@@ -4057,6 +4221,7 @@ export class Game implements GameApi {
     this.updatePlayer(dt);
     this.updateGather(dt);
     this.updateCraft(dt);
+    this.tickResearch(dt);
     this.updateQuests(dt);
 
     const P = this.player.position;

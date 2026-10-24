@@ -64,6 +64,8 @@ export interface ItemDef {
   set?: string;
   /** Furniture for a home: the prop it becomes (see props.furniture) and its cloth tint. */
   furn?: { model: string; tint?: number };
+  /** A recipe card (data/content/recipes.ts): used, it teaches this recipe for good. */
+  teaches?: string;
   /** A costume (data/costumes.ts): used, it goes into the wardrobe for good, under Costume with Change look. */
   costume?: string;
   /** A pet (data/pets.ts): used, it goes into the wardrobe for good, under Pet with Change look. */

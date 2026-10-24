@@ -166,6 +166,14 @@ export interface TalentView {
   builds: ({ name: string; sum: string; on: boolean } | null)[];
 }
 
+/** What the crafting window shows besides the recipes themselves. */
+export interface CraftView {
+  region: string | null;
+  kinds: { kind: 'w' | 'a'; known: string[]; researching: { affix: string; word: string; mins: number }[]; slots: number }[];
+  apart: { id: string; name: string; kind: 'w' | 'a'; affix: string; word: string; known: boolean }[];
+  recipes: Record<string, { known: boolean; colour: 'orange' | 'yellow' | 'green' | 'grey'; word: string; xp: number; block: string | null }>;
+}
+
 export interface UiCtx {
   save: SaveData;
   inv: Inventory;
@@ -175,7 +183,7 @@ export interface UiCtx {
   festival(): FestivalView;
   /** The trade on the table, if any, and what to do with it. */
   trade(): TradeUi | null;
-  tradeAdd(id: string): void;
+  tradeAdd(id: string, n?: number): void;
   tradeRemove(i: number): void;
   tradeMarks(n: number): void;
   tradeLock(): void;
@@ -228,7 +236,15 @@ export interface UiCtx {
   packInfo(): { name: string; slots: number; hidden: boolean } | null;
   togglePack(): void;
   dropSlot(i: number): void;
-  craft(recipe: string, count: number): void;
+  craft(recipe: string, count: number, opts?: { affix?: string; q?: number }): void;
+  /** The crafting window's state (game/Game.ts craftView): known recipes and their colours, leanings, research. */
+  craftView(): CraftView;
+  craftCost(recipe: string, opts: { affix?: string; q?: number }): Record<string, number>;
+  /** Take a piece apart at the anvil to research its leaning: why not, or null. */
+  takeApart(id: string): string | null;
+  /** A craft's passives (data/crafting.ts), and spending a point on one. */
+  passivesOf(craft: SkillId): { points: number; list: { id: string; name: string; ranks: number; rank: number; desc: string[] }[] };
+  learnPassive(id: string): string | null;
   buy(item: string): void;
   sell(slot: number): void;
   quests(): QuestEntry[];
@@ -775,11 +791,14 @@ export class Hud {
         <div class="tmarks">${mine ? `<label>Marks <input type="number" min="0" max="${this.ctx.save.marks}" value="${o.marks}" ${locked ? 'disabled' : ''}></label>` : `<span class="coin">${o.marks} marks</span>`}</div>
       </div>`;
     body.innerHTML = `<div class="tsides">${side('You', t.mine, true, t.myLock, t.myAccept)}${side(t.with, t.theirs, false, t.theirLock, t.theirAccept)}</div>
-      <h6 class="tpack-h">Your pack: click something to put it on the table</h6>
+      <h6 class="tpack-h">Your pack: click something to put it on the table <label class="tamt">Amount <input type="number" min="1" step="1" placeholder="all" value="${this.tradeAmount ?? ''}"></label></h6>
       <div class="tpack">${t.pack.map((s) => `<div class="tslot r-${ITEMS[s.id]?.rarity ?? 'common'}" data-add="${s.id}" title="${esc(ITEMS[s.id]?.name ?? s.id)}"><img src="${itemIcon(s.id)}" alt="">${s.n > 1 ? `<span class="n">${s.n}</span>` : ''}</div>`).join('') || '<em>Nothing in your pack that can be traded.</em>'}</div>
       <p class="tnote">Changing either side unlocks both. When both of you have locked, accept.</p>`;
     if (!t.myLock) {
-      body.querySelectorAll<HTMLElement>('[data-add]').forEach((e) => e.addEventListener('click', () => this.ctx.tradeAdd(e.dataset.add!)));
+      // How many go on the table from a stack: the amount typed, or the lot
+      const amt = body.querySelector<HTMLInputElement>('.tamt input');
+      if (amt) { amt.addEventListener('keydown', (e) => e.stopPropagation()); amt.addEventListener('input', () => { const v = Math.floor(Number(amt.value)); this.tradeAmount = v > 0 ? v : null; }); }
+      body.querySelectorAll<HTMLElement>('[data-add]').forEach((e) => e.addEventListener('click', () => this.ctx.tradeAdd(e.dataset.add!, this.tradeAmount ?? undefined)));
       body.querySelectorAll<HTMLElement>('.tside [data-i]').forEach((e) => { const i = Number(e.dataset.i); if (i >= 0) e.addEventListener('click', () => this.ctx.tradeRemove(i)); });
       const inp = body.querySelector<HTMLInputElement>('.tmarks input');
       inp?.addEventListener('change', () => this.ctx.tradeMarks(Number(inp.value)));
@@ -1564,7 +1583,12 @@ export class Hud {
       row.innerHTML = `<img src="${shapeIcon(s.icon as 'ore', s.color)}" alt=""><div class="nm">${s.name}</div><div class="lv">${lv}</div>
         <div class="bar xp"><i style="width:${((xp - a) / (b - a)) * 100}%;background:linear-gradient(180deg,${s.color},#2a1a10)"></i></div>
         <div class="xpt">${xp.toLocaleString()} XP · ${(b - xp).toLocaleString()} to level ${lv + 1}</div>
-        <div class="unl">${UNLOCKS[s.id].map((u) => `<div class="${lv >= u.level ? 'got' : ''}">Level ${u.level}: ${esc(u.text)}</div>`).join('')}</div>`;
+        <div class="unl">${UNLOCKS[s.id].map((u) => `<div class="${lv >= u.level ? 'got' : ''}">Level ${u.level}: ${esc(u.text)}</div>`).join('')}${(() => {
+          const pv = this.ctx.passivesOf(s.id);
+          if (!pv.list.length) return '';
+          return `<div class="cpass"><h6>Passives <span>${pv.points} ${pv.points === 1 ? 'point' : 'points'} to spend · one every ten levels</span></h6>${pv.list.map((x) => `<div class="cp${x.rank >= x.ranks ? ' full' : ''}"><b>${esc(x.name)} <em>${x.rank}/${x.ranks}</em></b><span>${esc(x.desc[Math.min(x.rank, x.ranks - 1)])}</span>${x.rank < x.ranks ? `<button class="btn sm" data-cp="${x.id}"${pv.points < 1 ? ' disabled' : ''}>Learn</button>` : ''}</div>`).join('')}</div>`;
+        })()}</div>`;
+      row.querySelectorAll<HTMLElement>('[data-cp]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const why = this.ctx.learnPassive(b.dataset.cp!); if (why) this.system(why); this.renderSkills(); }));
       row.addEventListener('click', () => { this.openSkill = this.openSkill === s.id ? null : s.id; this.renderSkills(); });
       body.append(row);
     }
@@ -1776,34 +1800,78 @@ export class Hud {
     if (selTab && list.scrollWidth > list.clientWidth) list.scrollLeft = selTab.offsetLeft - list.clientWidth / 2 + selTab.offsetWidth / 2;
   }
 
+  /** The leaning and quality chosen for each gear recipe at the anvil, kept while the window's open. */
+  private craftPick: Record<string, { affix?: string; q?: number }> = {};
+  /** The amount typed in the trade window: how many of a stack go on the table. */
+  private tradeAmount: number | null = null;
+  /** How many the crafting window's Make makes (null: one). */
+  private craftAmount: number | null = null;
   private renderCraft(): void {
     const st = this.ctx.currentStation;
     if (!st) return;
     this.q('#craft-panel h3').textContent = STATION_NAMES[st];
     const body = this.q('#craft-panel .body');
     body.innerHTML = '';
+    const cv = this.ctx.craftView();
+    // The research bench (ESO's): what's known and being learned, and pieces to take apart for their leanings
+    if (st === 'anvil') {
+      const kindName = { w: 'Weapons', a: 'Armour' } as const;
+      const box = el('div', 'research', `<h5>Research</h5><p>Take apart a piece with a leaning to learn it; then you can work that leaning into what you smith. It takes real time, wherever you are.</p>
+        <div class="rk">${cv.kinds.map((k) => `<div><b>${kindName[k.kind]}</b> ${k.known.length ? k.known.map((a) => `<span class="lean">${esc(a[0].toUpperCase() + a.slice(1))}</span>`).join('') : '<i>none yet</i>'}${k.researching.map((x) => `<span class="lean busy">${esc(x.word)} · ${x.mins} min</span>`).join('')}</div>`).join('')}</div>
+        ${cv.apart.length ? `<div class="apart">${cv.apart.map((a) => `<button class="btn ghost sm" data-apart="${esc(a.id)}"${a.known ? ' disabled' : ''} title="${a.known ? 'Already known' : 'Take it apart: learn ' + esc(a.word)}">Take apart ${esc(a.name)}</button>`).join('')}</div>` : '<p class="none">Nothing in your pack has a leaning to learn from.</p>'}<p class="rmsg"></p>`);
+      box.querySelectorAll<HTMLElement>('[data-apart]').forEach((b) => b.addEventListener('click', () => {
+        const why = this.ctx.takeApart(b.dataset.apart!);
+        if (why) { box.querySelector('.rmsg')!.textContent = why; return; }
+        this.renderCraft();
+      }));
+      body.append(box);
+    }
     for (const r of RECIPES.filter((x) => x.station === st)) {
+      const info = cv.recipes[r.id];
       const lv = this.ctx.level(r.skill);
-      const okLevel = lv >= r.level;
-      const maxMake = Math.min(...Object.entries(r.inputs).map(([id, n]) => Math.floor(this.ctx.inv.count(id) / n)));
-      const row = el('div', 'recipe' + (okLevel ? '' : ' locked'));
       const out = ITEMS[r.output];
-      const reqs = Object.entries(r.inputs).map(([id, n]) => {
+      const skillName = SKILLS.find((s) => s.id === r.skill)!.name;
+      // Not learned yet: shown faint, with where the recipe comes from (WoW's trainers and drops)
+      if (!info?.known) {
+        const row = el('div', 'recipe locked unknown', `<div class="slot r-${out.rarity}"><img src="${itemIcon(r.output)}" alt=""></div><div><div class="nm">${esc(out.name)}</div><div class="req"><span>${skillName} ${r.level}</span><span class="src">Recipe not known. ${esc(r.learn ?? '')}</span></div></div><div></div>`);
+        body.append(row);
+        continue;
+      }
+      const gear = st === 'anvil' && !!(out.weapon || out.armor);
+      const pick = (this.craftPick[r.id] ??= {});
+      const okLevel = lv >= r.level;
+      const cost = gear ? this.ctx.craftCost(r.id, pick) : r.inputs;
+      const maxMake = Math.min(...Object.entries(cost).map(([id, n]) => Math.floor(this.ctx.inv.count(id) / n)));
+      const row = el('div', 'recipe' + (okLevel && !info.block ? '' : ' locked'));
+      const reqs = Object.entries(cost).map(([id, n]) => {
         const have = this.ctx.inv.count(id);
         return `<span class="${have >= n ? 'ok' : 'no'}"><img class="ric" src="${itemIcon(id)}" alt="">${n}× ${esc(ITEMS[id].name)} (${have})</span>`;
       }).join('');
-      const skillName = SKILLS.find((s) => s.id === r.skill)!.name;
-      row.innerHTML = `<div class="slot r-${out.rarity}"><img src="${itemIcon(r.output)}" alt=""></div><div><div class="nm" style="color:${RARITY_COLOR[out.rarity]}">${esc(out.name)}</div><div class="req"><span class="${okLevel ? 'ok' : 'no'}">${skillName} ${r.level}</span>${reqs}<span>+${r.xp} XP</span></div></div><div class="btns"><button class="btn" data-n="1">Make</button><button class="btn ghost" data-n="99">All (${Math.max(0, maxMake)})</button></div>`;
+      // A gear recipe's choices: a researched leaning that fits, and how fine to make it
+      const kind = out.weapon ? 'w' : 'a';
+      const leanings = gear ? (cv.kinds.find((k) => k.kind === kind)?.known ?? []) : [];
+      const choose = gear ? `<div class="choose"><label>Leaning <select data-pick="affix"><option value="">Plain</option>${leanings.map((a) => `<option value="${a}"${pick.affix === a ? ' selected' : ''}>${esc(a[0].toUpperCase() + a.slice(1))}</option>`).join('')}</select></label>
+        <label>Quality <select data-pick="q">${[[1, 'Fine', 0], [2, 'Superior', 8], [3, 'Masterwork', 16]].map(([q, w, o]) => `<option value="${q}"${(pick.q ?? 1) === q ? ' selected' : ''}${lv < r.level + Number(o) ? ' disabled' : ''}>${w}${o ? ` (${skillName} ${r.level + Number(o)})` : ''}</option>`).join('')}</select></label></div>` : '';
+      const where = r.region ? `<span class="${info.block ? 'no' : 'ok'}">${esc(info.block ?? 'Set piece: this region\'s anvil')}</span>` : '';
+      row.innerHTML = `<div class="slot r-${out.rarity}"><img src="${itemIcon(r.output)}" alt=""></div><div><div class="nm" style="color:${RARITY_COLOR[out.rarity]}">${esc(out.name)}</div><div class="req"><span class="dif dif-${info.colour}" title="${esc(info.word)}">${skillName} ${r.level}</span>${where}${reqs}<span>+${info.xp} XP</span></div>${choose}</div><div class="btns"><button class="btn" data-n="1">Make${this.craftAmount ? ` ${this.craftAmount}` : ''}</button><button class="btn ghost" data-n="99">All (${Math.max(0, maxMake)})</button></div>`;
+      row.querySelectorAll<HTMLSelectElement>('select[data-pick]').forEach((sel) => sel.addEventListener('change', () => {
+        if (sel.dataset.pick === 'affix') pick.affix = sel.value || undefined; else pick.q = Number(sel.value);
+        this.renderCraft();
+      }));
       row.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
-        b.disabled = !okLevel || maxMake < 1;
-        b.addEventListener('click', () => this.ctx.craft(r.id, Number(b.dataset.n)));
+        b.disabled = !okLevel || maxMake < 1 || !!info.block;
+        b.addEventListener('click', () => this.ctx.craft(r.id, b.dataset.n === '1' ? this.craftAmount ?? 1 : Number(b.dataset.n), gear ? pick : undefined));
       });
       const slot = row.querySelector('.slot') as HTMLElement;
       slot.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(r.output), e.clientX, e.clientY));
       slot.addEventListener('mouseleave', () => this.hideTooltip());
       body.append(row);
     }
-    this.q('#craft-panel .footer').innerHTML = '<span>Moving away stops crafting</span>';
+    const foot = this.q('#craft-panel .footer');
+    foot.innerHTML = `<span><i class="dif dif-orange">●</i> new <i class="dif dif-yellow">●</i> <i class="dif dif-green">●</i> <i class="dif dif-grey">●</i> outgrown: less experience</span><label class="camt">Make <input type="number" min="1" step="1" placeholder="1" value="${this.craftAmount ?? ''}"> at a time</label>`;
+    const ca = foot.querySelector<HTMLInputElement>('.camt input')!;
+    ca.addEventListener('keydown', (e) => e.stopPropagation());
+    ca.addEventListener('change', () => { const v = Math.floor(Number(ca.value)); this.craftAmount = v > 0 ? v : null; this.renderCraft(); });
   }
 
   private renderShop(): void {

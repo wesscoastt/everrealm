@@ -158,6 +158,9 @@ export class Bank {
     void this.commit(next, () => { this.host.addMarks(-n); this.host.sound('coin'); });
   }
 
+  /** The amount typed: how many a click moves (null: the whole stack). Kept while the bank stays open. */
+  private amount: number | null = null;
+
   private async depositAll(): Promise<void> {
     const mats = this.host.pack().filter((s) => ITEMS[s.id]?.kind === 'material');
     if (!mats.length) return;
@@ -184,18 +187,23 @@ export class Bank {
     const dis = this.busy || this.ver < 0 ? ' disabled' : '';
     const S = this.store;
     this.el.innerHTML = `<div class="bk-head"><b>${S ? esc(S.title) : `Charter Bank · ${esc(this.at.name)}`}</b><button class="bk-x" data-close>✕</button></div>
-      <p class="bk-sub">${esc(this.status)} Click a stack to move it; shift-click moves one.</p>
+      <p class="bk-sub">${esc(this.status)} Click a stack to move it, or type an amount first; shift-click moves one.</p>
+      <label class="bk-amt">Amount <input type="number" min="1" step="1" placeholder="all" value="${this.amount ?? ''}" data-amt></label>
       <div class="bk-cols">
         <div><h6>Your pack</h6><div class="bk-grid">${pack.map((s) => slot(s.id, s.n, 'in')).join('') || '<em>Empty</em>'}</div>
           <button class="bk-all" data-allin${dis}>Deposit all materials</button></div>
         <div><h6>${this.what} <i>${vaultIds.length}/${this.kinds} kinds</i></h6><div class="bk-grid">${vaultIds.map((id) => slot(id, v.items[id], 'out')).join('') || '<em>Nothing kept here yet.</em>'}</div></div>
       </div>
       <div class="bk-marks"${S ? ' hidden' : ''}><img class="ric" src="${coin}" alt=""><span>Purse <b>${this.host.marks()}</b> · Vault <b>${v.marks}</b></span>
-        <span class="bk-mb"><button data-m="10"${dis}>Pay in 10</button><button data-m="100"${dis}>100</button><button data-m="all"${dis}>All</button></span>
-        <span class="bk-mb"><button data-m="-10"${dis}>Draw 10</button><button data-m="-100"${dis}>100</button><button data-m="-all"${dis}>All</button></span>
+        <span class="bk-mb"><button data-m="10"${dis}>Pay in 10</button><button data-m="100"${dis}>100</button><button data-m="all"${dis}>All</button><button data-m="amt"${dis} title="Pay in the amount typed above">Amount</button></span>
+        <span class="bk-mb"><button data-m="-10"${dis}>Draw 10</button><button data-m="-100"${dis}>100</button><button data-m="-all"${dis}>All</button><button data-m="-amt"${dis} title="Draw the amount typed above">Amount</button></span>
         ${this.roomPrice !== null ? `<span class="bk-mb"><button data-room${dis}>Ten more kinds of room: ${this.roomPrice} marks</button></span>` : '<span class="bk-mb"><i>The vault is as big as the Charter makes them.</i></span>'}</div>`;
     this.el.querySelector('[data-room]')?.addEventListener('click', () => this.buyRoom());
-    const shiftN = (e: MouseEvent, n: number) => (e.shiftKey ? 1 : n);
+    // How many a click moves: one with shift, the amount typed (no more than there are), or the lot
+    const shiftN = (e: MouseEvent, n: number) => (e.shiftKey ? Math.min(1, n) : this.amount ? Math.min(this.amount, n) : n);
+    const amt = this.el.querySelector<HTMLInputElement>('[data-amt]')!;
+    amt.addEventListener('keydown', (e) => e.stopPropagation());
+    amt.addEventListener('input', () => { const v = Math.floor(Number(amt.value)); this.amount = v > 0 ? v : null; });
     this.el.querySelectorAll<HTMLElement>('[data-in]').forEach((b) => b.addEventListener('click', (e) => this.deposit(b.dataset.in!, shiftN(e, this.host.count(b.dataset.in!)))));
     this.el.querySelectorAll<HTMLElement>('[data-out]').forEach((b) => b.addEventListener('click', (e) => this.withdraw(b.dataset.out!, shiftN(e, this.v.items[b.dataset.out!] ?? 0))));
     this.el.querySelector('[data-allin]')?.addEventListener('click', () => void this.depositAll());
@@ -203,6 +211,7 @@ export class Bank {
       const m = b.dataset.m!;
       if (m === 'all') this.moveMarks(this.host.marks());
       else if (m === '-all') this.moveMarks(-this.v.marks);
+      else if (m === 'amt' || m === '-amt') { if (this.amount) this.moveMarks(m === 'amt' ? Math.min(this.amount, this.host.marks()) : -Math.min(this.amount, this.v.marks)); }
       else this.moveMarks(Number(m));
     }));
     this.el.querySelector('[data-close]')?.addEventListener('click', () => this.close());

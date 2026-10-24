@@ -322,6 +322,34 @@
 .recipe .req .ok { color: var(--moss); }
 .recipe .req .no { color: var(--bad); }
 .recipe .btns { display: flex; flex-direction: column; gap: 6px; }
+/* WoW's recipe colours: what a recipe is still worth to you */
+.dif-orange { color: #ff8a2a !important; } .dif-yellow { color: #f0d84a !important; } .dif-green { color: #5fcf5a !important; } .dif-grey { color: #9a9488 !important; }
+#craft-panel .footer i.dif { font-style: normal; }
+.recipe.unknown .nm { color: var(--faint); }
+.recipe .req .src { color: var(--cream-d); font-style: italic; }
+.recipe .choose { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; font: 600 12px var(--body); color: var(--cream-d); }
+.recipe .choose select { margin-left: 4px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--ink); color: var(--cream); font: 500 12px var(--body); padding: 2px 4px; }
+/* The research bench at the anvil */
+.research { padding: 8px 10px; margin-bottom: 8px; background: rgba(0, 0, 0, 0.35); border: 2px solid var(--ink); }
+.research h5 { margin: 0 0 3px; font: 600 14px var(--px); color: var(--gold); }
+.research p { margin: 0 0 5px; font: 500 12.5px/1.35 var(--body); color: var(--cream-d); }
+.research .rk > div { margin: 3px 0; font: 600 12.5px var(--body); color: var(--cream); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.research .rk b { min-width: 64px; }
+.research .lean { padding: 0 6px; border: 1px solid rgba(240, 200, 96, 0.5); color: var(--gold); font: 600 11.5px var(--body); }
+.research .lean.busy { border-color: rgba(95, 208, 230, 0.6); color: var(--teal); }
+.research .apart { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.research .rmsg { color: var(--bad); margin: 4px 0 0; min-height: 0; }
+.research .none { font-style: italic; }
+/* A craft's passives, on the skills page */
+.skill .cpass { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.skill .cpass h6 { margin: 0 0 4px; font: 600 12px var(--px); color: var(--gold); letter-spacing: 0.5px; }
+.skill .cpass h6 span { font: 500 11.5px var(--body); color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+.skill .cp { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: center; padding: 3px 0; }
+.skill .cp b { font: 600 12.5px var(--body); color: var(--cream); }
+.skill .cp b em { font-style: normal; color: var(--gold); margin-left: 4px; }
+.skill .cp span { grid-column: 1; font: 500 12px var(--body); color: var(--cream-d); }
+.skill .cp button { grid-column: 2; grid-row: 1 / span 2; }
+.skill .cp.full b { color: var(--gold); }
 .btn { border: 2px solid var(--ink); cursor: pointer; padding: 6px 14px; font: 600 13px var(--px); letter-spacing: 0.4px; color: #fff; text-shadow: var(--hard1); background: linear-gradient(#a8e07a 0 2px, var(--moss) 2px 55%, var(--moss-d) 55%); box-shadow: 0 3px 0 var(--ink); }
 .btn:hover { filter: brightness(1.12); }
 .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
@@ -737,6 +765,9 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #bankpanel .bk-head { display: flex; justify-content: space-between; align-items: center; }
 #bankpanel .bk-head b { color: var(--gold); font: 600 15px var(--px); }
 #bankpanel .bk-sub { margin: 4px 0 10px; opacity: 0.7; font-size: 12px; }
+/* How many a click moves */
+#bankpanel .bk-amt { display: inline-flex; align-items: center; gap: 6px; margin: -4px 0 10px; font: 600 12.5px var(--body); color: var(--cream-d); }
+#bankpanel .bk-amt input { width: 80px; padding: 3px 6px; background: rgba(0, 0, 0, 0.45); border: 2px solid var(--ink); color: var(--cream); font: 600 13px var(--body); }
 #bankpanel .bk-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 #bankpanel h6 { margin: 0 0 6px; font: 600 12px var(--px); color: var(--gold); letter-spacing: 0.5px; }
 #bankpanel h6 i { opacity: 0.6; font-style: normal; color: var(--cream-d); }
@@ -1104,3 +1135,9 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 }
 @media (max-width: 1100px) { #talents-panel { inset: 40px 8px 90px; } .tl-top { grid-template-columns: 1fr auto; } .tl-builds { grid-column: 1 / -1; } .tn { width: 84px; } }
 @media (max-width: 760px) { .tl-trees { grid-template-columns: 1fr; } }
+
+/* The trade window's amount: how many of a stack go on the table */
+.tpack-h .tamt { float: right; font: 600 12px var(--body); color: var(--cream-d); text-transform: none; letter-spacing: 0; }
+.tpack-h .tamt input { width: 70px; margin-left: 4px; padding: 2px 5px; background: rgba(0, 0, 0, 0.45); border: 2px solid var(--ink); color: var(--cream); font: 600 12px var(--body); }
+#craft-panel .camt { font: 600 12px var(--body); color: var(--cream-d); }
+#craft-panel .camt input { width: 56px; margin: 0 4px; padding: 2px 5px; background: rgba(0, 0, 0, 0.45); border: 2px solid var(--ink); color: var(--cream); font: 600 12px var(--body); }

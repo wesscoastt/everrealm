@@ -183,12 +183,14 @@ export class Social {
   private offer(o: TradeOffer): void { this.host.net().tradeOffer(o.items, o.marks); }
 
   /** Put a whole stack of something from the pack on the table (or all of it, if some is already there). */
-  add(id: string): void {
+  /** Put a stack on the table: n of it (no more than you have), or all of it. */
+  add(id: string, n?: number): void {
     const t = this.trade;
     if (!t || !tradable(id)) return;
     const items = t.mine.items.filter((s) => s.id !== id);
     if (items.length >= 8) { this.host.system('Eight kinds of thing at most in one trade.'); return; }
-    items.push({ id, n: this.host.count(id) });
+    const have = this.host.count(id);
+    items.push({ id, n: n && n > 0 ? Math.min(n, have) : have });
     this.offer({ items, marks: t.mine.marks });
   }
 
