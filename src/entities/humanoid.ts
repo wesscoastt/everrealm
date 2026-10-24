@@ -4,6 +4,39 @@ import { capeTexture } from './capes';
 import type { EmoteAnim } from '../data/emotes';
 import type { Voice as InstrumentVoice } from '../data/tunes';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { shade as voxShade, Vox } from './vox';
+
+// ---------------------------------------------------------------------------------------------
+// A torch's fire, in cubes half the world's pixel: three tongues of flame one inside another (deep
+// orange, amber, a white-yellow heart), each a teardrop that licks up and leans on its own beat,
+// sparks that climb off the top and go out, and a soft glow round it all. Unlit, so it shows at
+// night. Built once and shared by every torch.
+const FS = 1 / 32;
+let flameKit: { layers: THREE.BufferGeometry[]; spark: THREE.BufferGeometry; glow: THREE.Texture } | null = null;
+const FLAME_MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
+function flameParts() {
+  if (flameKit) return flameKit;
+  // A teardrop r wide at its belly, h tall, its tip pulled to a point; ragged at the edge
+  // Hot at the root and cooling to the tip: white-yellow, amber, orange, red at the very top
+  const heat = (t: number, n: number) => (t < 0.22 ? voxShade('#fff4c8', 0.96 + n * 0.06) : t < 0.5 ? voxShade('#ffc038', 0.94 + n * 0.1) : t < 0.8 ? voxShade('#ff7a1a', 0.92 + n * 0.12) : voxShade('#d83a14', 0.9 + n * 0.14));
+  const drop = (r: number, h: number) => new Vox(FS, true).fill([-r, 0, -r], [r, h, r], (x, y, z) => {
+    const t = y / h, w = r * Math.sin(Math.PI * Math.min(1, 0.25 + t * 0.95)) * (1 - t * 0.35);
+    return x * x + z * z <= w * w;
+  }, (_x, y, _z, n) => heat(y / h + n * 0.08, n)).mesh().geometry;
+  // The body of the fire, and two tongues that lick up beside it
+  const layers = [drop(0.1, 0.3), drop(0.065, 0.21), drop(0.06, 0.18)];
+  const spark = new THREE.BoxGeometry(FS, FS, FS);
+  // The glow: a soft round warm light, brightest in the middle
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d')!, gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,200,110,0.55)'); gr.addColorStop(0.4, 'rgba(255,140,50,0.22)'); gr.addColorStop(1, 'rgba(255,100,30,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+  const glow = new THREE.CanvasTexture(c); glow.colorSpace = THREE.SRGBColorSpace;
+  return (flameKit = { layers, spark, glow });
+}
+/** Where each part of the fire stands on the torch head: the body in the middle, the tongues off to two sides. */
+const TONGUES: [number, number][] = [[0, 0], [0.045, 0.02], [-0.035, -0.035]];
+const SPARK_MATS = ['#ffd070', '#ff9a30', '#ffe8a0'].map((c) => new THREE.MeshBasicMaterial({ color: c }));
 
 
 /**
@@ -1436,23 +1469,50 @@ export class Humanoid {
 
   /** A torch in the left hand (riding at night): a pitch-wrapped brand with its flame, held up off the reins. */
   private torch: THREE.Group | null = null;
-  private torchFlame: THREE.Mesh | null = null;
+  private torchFlame: THREE.Object3D | null = null;
+  private flameLayers: THREE.Mesh[] = [];
+  private sparks: THREE.Mesh[] = [];
   get torchLit(): boolean { return !!this.torch; }
   setTorch(on: boolean): void {
     if (on === !!this.torch) return;
-    if (!on) { this.handL.remove(this.torch!); this.torch = null; this.torchFlame = null; if (this.offhand) this.offhand.visible = true; return; }
+    if (!on) { this.handL.remove(this.torch!); this.torch = null; this.torchFlame = null; this.flameLayers = []; this.sparks = []; if (this.offhand) this.offhand.visible = true; return; }
     const g = new THREE.Group();
     const wood = new THREE.MeshLambertMaterial({ color: '#5a3a22' }), wrap = new THREE.MeshLambertMaterial({ color: '#2a2018' });
     const stick = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.62, 0.06), wood); stick.position.set(0, 0.1, 0.06); g.add(stick);
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.1), wrap); head.position.set(0, 0.42, 0.06); g.add(head);
-    const flame = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.34, 0.2), new THREE.MeshBasicMaterial({ color: '#ff9a30' }));
-    flame.position.set(0, 0.64, 0.06); g.add(flame);
-    const core = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.2, 0.11), new THREE.MeshBasicMaterial({ color: '#fff2b8' }));
-    core.position.set(0, -0.04, 0); flame.add(core);
-    for (const m of [stick, head, flame, core]) m.userData.plain = true;
+    // Two cords round the pitch-wrapped head, and its top charred and glowing where the fire sits
+    const cord = new THREE.MeshLambertMaterial({ color: '#7a5a32' });
+    for (const y of [0.37, 0.45]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.022, 0.115), cord); b.position.set(0, y, 0.06); g.add(b); b.userData.plain = true; }
+    const char = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.03, 0.11), new THREE.MeshBasicMaterial({ color: '#c84a14' })); char.position.set(0, 0.5, 0.06); g.add(char);
+    const flame = new THREE.Group();
+    flame.position.set(0, 0.5, 0.06); g.add(flame);
+    const kit = flameParts();
+    this.flameLayers = kit.layers.map((geo, i) => { const m = new THREE.Mesh(geo, FLAME_MAT); m.position.set(TONGUES[i][0], 0, TONGUES[i][1]); m.userData.plain = true; flame.add(m); return m; });
+    this.sparks = [0, 1, 2, 3, 4].map((i) => { const m = new THREE.Mesh(kit.spark, SPARK_MATS[i % 3]); m.userData.plain = true; m.userData.t = i / 5; flame.add(m); return m; });
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: kit.glow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    halo.scale.setScalar(0.75); halo.position.y = 0.14; flame.add(halo);
+    for (const m of [stick, head, char]) m.userData.plain = true;
     if (this.offhand) this.offhand.visible = false;
     this.handL.add(g);
     this.torch = g; this.torchFlame = flame;
+  }
+  /** The fire on the move: each tongue licks up and leans on its own beat; sparks climb and go out. */
+  private burn(dt: number): void {
+    const now = performance.now() * 0.001;
+    this.flameLayers.forEach((m, i) => {
+      const k = now * (7 + i * 3.1) + i * 1.7;
+      const lick = 0.88 + Math.sin(k) * 0.08 + Math.sin(k * 2.3 + 1) * 0.06 + Math.sin(k * 5.1) * 0.03;
+      m.scale.set(1 - (lick - 0.9) * 0.6, lick, 1 - (lick - 0.9) * 0.6);
+      m.rotation.set(Math.sin(k * 0.7 + 2) * 0.12, k * 0.2, Math.sin(k * 0.9) * 0.12);
+    });
+    for (const sp of this.sparks) {
+      let t = (sp.userData.t as number) + dt * (0.9 + (sp.id % 3) * 0.25);
+      if (t > 1) t -= 1;
+      sp.userData.t = t;
+      const a = sp.id * 2.4 + t * 3;
+      sp.position.set(Math.sin(a) * 0.05 * (0.4 + t), 0.2 + t * 0.42, Math.cos(a) * 0.05 * (0.4 + t));
+      sp.scale.setScalar(t < 0.8 ? 1 : (1 - t) * 5);
+    }
   }
   /** The flame's place in the world, for the light it throws. */
   torchAt(out: THREE.Vector3): THREE.Vector3 | null { return this.torchFlame ? this.torchFlame.getWorldPosition(out) : null; }
@@ -1533,7 +1593,7 @@ export class Humanoid {
 
   /** speed is horizontal speed in m/s; used to drive the stride. */
   update(dt: number, speed: number, airborne = false): void {
-    if (this.torchFlame) { const f = 0.85 + Math.sin(performance.now() * 0.023) * 0.08 + Math.sin(performance.now() * 0.051) * 0.07; this.torchFlame.scale.set(f, 0.8 + f * 0.4, f); }
+    if (this.torchFlame) this.burn(dt);
     this.stateTime += dt;
     const t = this.stateTime;
     this.blink -= dt;
