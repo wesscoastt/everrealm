@@ -402,14 +402,14 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   return { cx, cz, data, tint, trees, ores: liveOres, fish, forage, veg: new Float32Array(veg), steps: new Float32Array(steps), map, spawns };
 }
 
-/** Coarse heights and colours for the far-terrain mesh (step 8 over the whole world, from WMIN). */
-export function generateLod(step: number): { heights: Float32Array; colors: Uint8Array; n: number } {
+/** Coarse heights and colours for the far-terrain mesh: step 8 over one square of the world (from x0: WMIN, or WMAX for Morrow's). */
+export function generateLod(step: number, x0 = WMIN): { heights: Float32Array; colors: Uint8Array; n: number } {
   plan();
   const n = Math.floor(WSIZE / step) + 1;
   const heights = new Float32Array(n * n);
   const colors = new Uint8Array(n * n * 3);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const x = WMIN + Math.min(WSIZE - 1, i * step), z = WMIN + Math.min(WSIZE - 1, j * step);
+    const x = x0 + Math.min(WSIZE - 1, i * step), z = WMIN + Math.min(WSIZE - 1, j * step);
     const h = heightAt(x, z);
     heights[i + j * n] = h;
     const reg = regionAt(x, z).a;

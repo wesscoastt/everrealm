@@ -3,8 +3,8 @@ import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
 import { hash2 } from './noise';
-import { LAND } from './land';
-import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
+import { landOf } from './land';
+import { MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
 import { hullHalf, shipDeckY, SHIPS, type ShipKind } from './shipHull';
@@ -12,7 +12,7 @@ import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/business
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
-import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMIN } from './VoxelWorld';
+import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
@@ -176,11 +176,12 @@ const UNDERWORKS = {
   smugglers: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.Planks, floor: B.Sand, floor2: B.Planks, light: '#ffd890', mobs: ['crab', 'brinejelly'], boss: 'crab', clutter: ['barrel', 'crate', 'chest', 'barrel'] },
   tinner: { kind: 'mine', pub: false, depth: 13, reach: 19, wall: B.TerraOrange, wall2: B.Timber, floor: B.Gravel, floor2: B.TinOre, light: '#ffb070', mobs: ['dustwolf', 'redback'], boss: 'dustwolf', clutter: ['cart', 'crate', 'rails'] },
   seep: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff', mobs: ['shardjelly', 'frostwolf'], boss: 'frostwolf', clutter: ['candles', 'chest'] },
+  gullery: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.MossyStone, floor: B.Gravel, floor2: B.Sand, light: '#c8e8ff', mobs: ['cavebat', 'brinejelly', 'cavebat'], boss: 'leatherwing', clutter: ['bones', 'barrel', 'chest'] },
   hob: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
 
 /** Row width for a cell's key: wider than the world, so no two cells share one. */
-const KEY_W = 8192;
+const KEY_W = 16384;
 /** The world's edge before the outer lands were grown: the scattered places keep to it, so each keeps its number. */
 const OLD_EDGE = 2432;
 
@@ -349,13 +350,15 @@ function hideChests(O: Overrides, sites: Site[]): HiddenChest[] {
       if (tryAt(t.x + Math.cos(a) * r, t.z + Math.sin(a) * r, tierFor(hash2(t.x, t.z, 151), true), 151 + k)) break;
     }
   }
-  // Out in the wilds
+  // Out in the wilds: the Counties' square, then Morrow's (after, so the Counties' chests keep their numbers)
   const CELL = 170;
-  for (let cz = Math.floor(WMIN / CELL); cz <= Math.floor(WMAX / CELL); cz++) for (let cx = Math.floor(WMIN / CELL); cx <= Math.floor(WMAX / CELL); cx++) {
-    if (hash2(cx, cz, 171) > 0.72) continue;
-    for (let k = 0; k < 9; k++) {
-      const x = (cx + 0.1 + hash2(cx, cz, 181 + k) * 0.8) * CELL, z = (cz + 0.1 + hash2(cx, cz, 191 + k) * 0.8) * CELL;
-      if (tryAt(x, z, tierFor(hash2(cx, cz, 201), false), 211 + k)) break;
+  for (const [x0, x1] of [[WMIN, WMAX], [WMAX, WMAX_X]]) {
+    for (let cz = Math.floor(WMIN / CELL); cz <= Math.floor(WMAX / CELL); cz++) for (let cx = Math.floor(x0 / CELL) + (x0 === WMAX ? 1 : 0); cx <= Math.floor(x1 / CELL); cx++) {
+      if (hash2(cx, cz, 171) > 0.72) continue;
+      for (let k = 0; k < 9; k++) {
+        const x = (cx + 0.1 + hash2(cx, cz, 181 + k) * 0.8) * CELL, z = (cz + 0.1 + hash2(cx, cz, 191 + k) * 0.8) * CELL;
+        if (tryAt(x, z, tierFor(hash2(cx, cz, 201), false), 211 + k)) break;
+      }
     }
   }
   return out;
@@ -411,6 +414,8 @@ function roadLamps(O: Overrides, sites: Site[]): void {
       const g = heightAt(Math.floor(x), Math.floor(z));
       if (g <= SEA + 1 || roadDist(x, z) < 1.8 || Math.abs(g - heightAt(Math.floor(cx), Math.floor(cz))) > 2) continue;
       if (towns.some((s) => Math.hypot(s.x - x, s.z - z) < (s.id === 'aldermere' ? 260 : 40))) continue;
+      // (nor inside a place's own grounds, however wide: Kingsbarrow's avenue, Callis's walls)
+      if (towns.some((s) => s.rects.some((r) => x >= r[0] - 2 && x <= r[2] + 2 && z >= r[1] - 2 && z <= r[3] + 2))) continue;
       if (sites.some((s) => !s.named && s.id.startsWith('poi') && Math.hypot(s.x - x, s.z - z) < 24)) continue;
       if (!stretch || Math.hypot(stretch.x - x, stretch.z - z) > 90) {
         stretch = { id: 'roadlamps' + n++, name: '', region: regionAt(x, z).a, x, z, r: 170, named: false, props: [], rects: [], impostor: [] };
@@ -429,6 +434,31 @@ function roadLamps(O: Overrides, sites: Site[]): void {
  * road beside it (whichever side most of it lies), whatever its builder said. A lamp with open
  * ground all round, or paving all round (the middle of a square), keeps the way it was set.
  */
+/**
+ * A lantern a builder set down on a doorstep is moved a stride along the wall, clear of the door
+ * (a street's lamps are spaced along it, and now and then one lands in front of someone's door).
+ */
+function clearDoorsteps(sites: Site[]): void {
+  // (any site's doors: a street's lamps and the house beside it can belong to different places)
+  const doors = sites.flatMap((s) => s.props.filter((d) => d.t === 'door' || (d.t === 'furn' && d.item === 'doorOpen' && d.swing)));
+  for (const s of sites) {
+    for (const p of s.props) {
+      if (p.t !== 'lantern') continue;
+      // (a swinging door's leaf stands half a block inside: its step is a little further out)
+      const d = doors.find((q) => Math.hypot(q.x - p.x, q.z - p.z) < (q.t === 'door' ? 1.3 : 1.8));
+      if (!d) continue;
+      // Along the wall the door is in (its tangent), to whichever side is open
+      const ry = d.ry ?? 0, tx = Math.cos(ry), tz = -Math.sin(ry);
+      for (const k of [1.8, -1.8, 2.8, -2.8]) {
+        const nx = p.x + tx * k, nz = p.z + tz * k;
+        if (doors.some((q) => Math.hypot(q.x - nx, q.z - nz) < 1.8)) continue;
+        p.x = Math.floor(nx) + 0.5; p.z = Math.floor(nz) + 0.5;
+        break;
+      }
+    }
+  }
+}
+
 function aimLamps(O: Overrides, sites: Site[]): void {
   const PAVED = new Set<number>([B.Path, B.Cobble, B.StoneBrick, B.Gravel, B.MossyCobble, B.Planks, B.Whitestone]);
   const chunks = new Map<number, Map<number, number>>();
@@ -480,7 +510,7 @@ export function plan(): Plan {
   interface Named { id: string; name: string; x: number; z: number; r0: number; r1: number; h?: number; sea?: boolean; under?: boolean; build: (s: Site, base: number) => void;
     /** Further ground to level after its own (a harbour basin, a river's channel through a city). */
     flats?: Flatten[] }
-  const named: Named[] = LAND === 'morrow' ? morrowNamed() : [
+  const named: Named[] = [
     { id: 'aldermere', name: 'Ansbury', x: 820, z: 300, r0: 205, r1: 250, h: 24, build: (s, b) => { buildAldermere(s, b); buildNewTown(b, extra); } },
     { id: 'cotters', name: 'Cotter\'s End', x: 486, z: 252, r0: 20, r1: 34, build: (s, b) => buildHamlet(s, b, 486, 252, 'thatch', 4) },
     { id: 'waystation', name: 'The Waystation', x: 708, z: 572, r0: 16, r1: 28, build: (s, b) => buildWaystation(s, b) },
@@ -499,6 +529,12 @@ export function plan(): Plan {
     { id: 'bothy', name: 'Hale\'s Fold', x: 382, z: 1380, r0: 18, r1: 30, build: (s, b) => buildBothy(s, b) },
     { id: 'skyisles', name: 'The Weatherholms', x: 900, z: 1640, r0: 0, r1: 0, build: (s) => buildIslands(s) },
     { id: 'mewstones', name: 'The Mewstones', x: MEW.x, z: MEW.z, r0: 16, r1: 30, h: SEA + 8, build: (s, b) => buildMewstones(s, b) },
+    // The rest of the isle: the stones it's named for, a croft, the bat caves under the fell, a wreck, the fell top
+    { id: 'sc-mewring', name: 'The Mew Stones', x: 2735, z: 705, r0: 12, r1: 20, build: (s, b) => buildMewRing(s, b) },
+    { id: 'croft-bolitho', name: 'Bolitho\'s Croft', x: 2410, z: 775, r0: 14, r1: 22, build: (s, b) => buildMewCroft(s, b) },
+    { id: 'delve-gullery', name: 'The Gullery', x: 2480, z: 600, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'gullery') },
+    { id: 'wreck-margery', name: 'Wreck of the Margery', x: 2778, z: 585, r0: 0, r1: 0, build: (s) => buildMewWreck(s) },
+    { id: 'vista-mewfell', name: 'Vista: Mew Fell', x: 2530, z: 650, r0: 0, r1: 0, build: (s) => buildVista(s) },
     // Public dungeons and delves (open to anyone who finds them), vistas, and the wonders of the realm
     { id: 'pd-mortlake', name: 'Mortlake Cellars', x: 322, z: 1018, r0: 34, r1: 50, h: 30, build: (s, b) => buildUnderworks(s, b, 'mortlake') },
     { id: 'pd-blackcut', name: 'The Black Cut', x: 1067, z: 1180, r0: 34, r1: 50, build: (s, b) => buildUnderworks(s, b, 'blackcut') },
@@ -532,8 +568,8 @@ export function plan(): Plan {
     // Group dungeons: buried halls, entered by a door elsewhere (the Old Man's from Sallow Pit's chamber)
     { id: 'gd-oldman', name: 'The Old Man\'s Workings', x: 254, z: -58, r0: 0, r1: 0, under: true, build: (s) => buildOldMan(s) },
     // The law (data/justice.ts): the Charter's cells under the Weighhouse, and the Ropewalk Cellar under Gullmouth
-    ...GAOLS.map((g): Named => ({ id: g.id, name: 'The gaol', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
-    ...REFUGES.map((r): Named => ({ id: r.id, name: r.name, x: r.x, z: r.z, r0: 0, r1: 0, under: true, build: (s) => buildRefuge(s, r) })),
+    ...GAOLS.filter((g) => landOf(g) === 'counties').map((g): Named => ({ id: g.id, name: 'The gaol', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
+    ...REFUGES.filter((r) => landOf(r) === 'counties').map((r): Named => ({ id: r.id, name: r.name, x: r.x, z: r.z, r0: 0, r1: 0, under: true, build: (s) => buildRefuge(s, r) })),
     { id: 'sc-pools', name: 'The Kingfisher Steps', x: 266, z: 880, r0: 0, r1: 0, build: (s, b) => buildKingfisherSteps(s, b) },
     { id: 'sc-crater', name: 'The Kettle', x: 807, z: 2070, r0: 0, r1: 0, build: (s, b) => buildGreatStarfall(s, b) },
     // (after the Kettle, so the crack into its north wall is cut through the crater's rim)
@@ -559,13 +595,15 @@ export function plan(): Plan {
     // Bandit forts in the back country (data/forts.ts)
     ...FORTS.map((f): Named => ({ id: 'fort-' + f.id, name: f.name, x: f.x, z: f.z, r0: 22, r1: 34, build: (s, b) => buildBanditFort(s, b, f) })),
     // Lodging houses, rooms let by the week (data/lodgings.ts)
-    ...LODGINGS.map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
+    ...LODGINGS.filter((L) => landOf(L) === 'counties').map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
+    // Morrow's, east across the sea
+    ...morrowNamed(),
   ];
   for (const n of named) {
     if (n.r1 > 0) flats.push({ x: n.x, z: n.z, r0: n.r0, r1: n.r1, h: n.h ?? Math.max(SEA + 2, Math.round(baseHeight(n.x, n.z))) });
     if (n.flats) flats.push(...n.flats);
   }
-  if (LAND === 'counties') {
+  {
     // Holme Staithe's mere, west of the town, that its staithe runs out into
     flats.push({ x: HOLME.x - 40, z: HOLME.z + 4, r0: 9, r1: 14, h: SEA - 3 });
     // Gullmouth's upper town inland of the harbour; Harrowgate's Company Row west of the palisade
@@ -577,7 +615,7 @@ export function plan(): Plan {
   const pois: { x: number; z: number; kind: string; region: RegionId }[] = [];
   const CELL = 176;
   // (the heart's scatter: the Counties only)
-  for (let cz = 0; cz < (LAND === 'counties' ? OLD_EDGE / CELL : 0); cz++) for (let cx = 0; cx < OLD_EDGE / CELL; cx++) {
+  for (let cz = 0; cz < OLD_EDGE / CELL; cz++) for (let cx = 0; cx < OLD_EDGE / CELL; cx++) {
     if (hash2(cx, cz, 501) > 0.8) continue;
     let x = Math.floor(cx * CELL + 30 + hash2(cx, cz, 502) * (CELL - 60));
     let z = Math.floor(cz * CELL + 30 + hash2(cx, cz, 503) * (CELL - 60));
@@ -611,24 +649,29 @@ export function plan(): Plan {
   }
   // The outer lands' own scatter, numbered after the heart's so the heart's keep their ids
   const OCELL = 240;
-  const outerKinds: Partial<Record<RegionId, string[]>> = LAND === 'morrow'
+  const scatter = (morrow: boolean) => {
+  const OX = morrow ? MORROW_OX : 0;
+  const outerKinds: Partial<Record<RegionId, string[]>> = morrow
     // Morrow's scatter: what each region has standing about in it
     ? { keys: ['camp', 'ruintower', 'camp'], glades: ['mossruin', 'camp', 'shrine'], amberwold: ['mossruin', 'shrine', 'camp', 'stones'], bright: ['ruintower', 'farm', 'shrine', 'farm'],
       sunder: ['crystals', 'ruintower', 'stones', 'mine'], glassflats: ['mesaruin', 'camp', 'crystals'], greywaste: ['mossruin', 'stones', 'camp'], held: ['stones', 'ruintower', 'stones'] }
     : { gannet: ['shrine', 'ruintower', 'camp', 'stones'], wrath: ['mossruin', 'camp', 'shrine', 'farm'], tolmen: ['stones', 'ruintower', 'camp', 'mine'] };
   for (let cz = Math.floor(WMIN / OCELL); cz * OCELL < WMAX; cz++) for (let cx = Math.floor(WMIN / OCELL); cx * OCELL < WMAX; cx++) {
     if (hash2(cx, cz, 511) > 0.7) continue;
-    const x = Math.floor(cx * OCELL + 30 + hash2(cx, cz, 512) * (OCELL - 60)), z = Math.floor(cz * OCELL + 30 + hash2(cx, cz, 513) * (OCELL - 60));
+    const x = OX + Math.floor(cx * OCELL + 30 + hash2(cx, cz, 512) * (OCELL - 60)), z = Math.floor(cz * OCELL + 30 + hash2(cx, cz, 513) * (OCELL - 60));
     const reg = regionAt(x, z).a, list = outerKinds[reg];
-    if (!list || (LAND === 'counties' && x > -140 && x < OLD_EDGE + 140 && z > -140 && z < OLD_EDGE + 140)) continue;
+    if (!list || (!morrow && x > -140 && x < OLD_EDGE + 140 && z > -140 && z < OLD_EDGE + 140)) continue;
     const h = baseHeight(x, z);
     if (h <= SEA + 1 || roadDist(x, z) < 16 || [[10, 0], [-10, 0], [0, 10], [0, -10]].some(([dx, dz]) => Math.abs(baseHeight(x + dx, z + dz) - h) > 3)) continue;
     // (Stables and lodging houses came later, and were placed clear of these: they don't move them)
     // (In Morrow, clear of each town's whole ground: Callis is a city, far wider than 90)
-    if (named.some((n) => !/^(st|lg|bz)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < (LAND === 'morrow' ? Math.max(90, n.r1 + 20) : 90))) continue;
+    if (named.some((n) => !/^(st|lg|bz)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < (morrow ? Math.max(90, n.r1 + 20) : 90))) continue;
     pois.push({ x, z, kind: list[Math.floor(hash2(cx, cz, 514) * list.length)], region: reg });
     flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
   }
+  };
+  scatter(false);
+  scatter(true);
 
   setFlattenZones(flats);
   // The outer lands' roads are graded: cut through the hills and banked over the hollows, never
@@ -680,6 +723,7 @@ export function plan(): Plan {
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
+  clearDoorsteps(sites);
   aimLamps(O, sites);
   const waymarks = placeWaymarks(O, sites);
   // Every town's leftover lawn, dressed in its own way (after the waymarks have taken their spots)
@@ -728,19 +772,19 @@ export function plan(): Plan {
     return [
       { id: 'callis', name: 'Callis', x: CALLIS.x, z: CALLIS.z, r0: 205, r1: 250, h: SEA + 6, flats: callisFlats, build: (s, b) => buildCallis(s, b, extra) },
       // Inns and lodgings in Morrow (data/lodgings.ts), after the towns they stand in
-      ...LODGINGS.map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
+      ...LODGINGS.filter((L) => landOf(L) === 'morrow').map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
       { id: 'saltpenny', name: 'Saltpenny Key', x: SALTPENNY.x, z: SALTPENNY.z, r0: 118, r1: 150, h: SALT_FLOOR, build: (s, b) => buildSaltpenny(s, b) },
       { id: 'bight', name: 'Wreckers\' Bight', x: BIGHT.x, z: BIGHT.z, r0: 16, r1: 26, build: (s, b) => buildBight(s, b) },
       { id: 'coldharbour', name: 'Cold Harbour', x: COLD_HARBOUR.x, z: COLD_HARBOUR.z, r0: 26, r1: 42, h: SEA + 2, build: (s, b) => buildColdHarbour(s, b) },
       { id: 'hollowfell', name: 'Hollow Fell', x: HOLLOW_FELL.x, z: HOLLOW_FELL.z, r0: 0, r1: 0, build: (s) => buildHollowFell(s) },
-      { id: 'kingsbarrow', name: 'Kingsbarrow', x: 860, z: -1830, r0: 92, r1: 122, h: KB_FLOOR, build: (s, b) => buildKingsbarrow(s, b) },
+      { id: 'kingsbarrow', name: 'Kingsbarrow', x: KINGSBARROW.x, z: KINGSBARROW.z, r0: 92, r1: 122, h: KB_FLOOR, build: (s, b) => buildKingsbarrow(s, b) },
       { id: 'gd-kingsbarrow', name: 'Kingsbarrow: the king\'s barrow', x: KB_HALLS.x + 56, z: KB_HALLS.z, r0: 0, r1: 0, under: true, build: (s) => buildKingsHalls(s) },
       { id: 'reedwater', name: 'Reedwater', x: TOWNS.reedwater.x, z: TOWNS.reedwater.z, r0: 0, r1: 0, build: (s) => buildReedwater(s) },
       { id: 'branchley', name: 'Branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r0: 44, r1: 64, h: 22, build: (s, b) => buildBranchley(s, b) },
       { id: 'cala', name: 'Cala Roja', x: TOWNS.cala.x, z: TOWNS.cala.z, r0: 36, r1: 52, h: SEA + 3, flats: [{ x: TOWNS.cala.x + 52, z: TOWNS.cala.z, r0: 18, r1: 22, h: SEA - 3 }], build: (s, b) => buildCala(s, b) },
-      { id: 'slabs', name: 'The hanging slabs', x: 1466, z: 404, r0: 0, r1: 0, build: (s) => buildSlabs(s) },
+      { id: 'slabs', name: 'The hanging slabs', x: MORROW_OX + 1466, z: 404, r0: 0, r1: 0, build: (s) => buildSlabs(s) },
       // The Tolbooth's cells under Callis (data/justice.ts)
-      ...GAOLS.map((g): Named => ({ id: g.id, name: 'The Tolbooth', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
+      ...GAOLS.filter((g) => landOf(g) === 'morrow').map((g): Named => ({ id: g.id, name: 'The Tolbooth', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
       { id: 'liftwick', name: 'Liftwick', x: TOWNS.liftwick.x, z: TOWNS.liftwick.z, r0: 34, r1: 48, h: 45, build: (s, b) => buildLiftwick(s, b) },
       { id: 'tenwells', name: 'Tenwells', x: TOWNS.tenwells.x, z: TOWNS.tenwells.z, r0: 40, r1: 56, h: 24, build: (s, b) => buildTenwells(s, b) },
       { id: 'fellside', name: 'Fellside', x: TOWNS.fellside.x, z: TOWNS.fellside.z, r0: 28, r1: 42, h: 25, build: (s, b) => buildFellside(s, b) },
@@ -3008,7 +3052,7 @@ export function plan(): Plan {
       const a = (i / 9) * Math.PI * 2, x = Math.round(HOLLOW_FELL.x + Math.cos(a) * 52), z = Math.round(HOLLOW_FELL.z - 20 + Math.sin(a) * 44), g = heightAt(x, z);
       for (let y = g; y < g + 3 + (i % 2); y++) O.set(x, y, z, B.MossyStone);
     }
-    s.props.push({ t: 'cart', x: 2008.5, y: heightAt(2008, -1150), z: -1149.5, ry: 0.4 });
+    s.props.push({ t: 'cart', x: MORROW_OX + 2008.5, y: heightAt(MORROW_OX + 2008, -1150), z: -1149.5, ry: 0.4 });
   }
 
   /**
@@ -3055,7 +3099,7 @@ export function plan(): Plan {
    * diggers' camp is east of the king's barrow, where the carts hauled its black: tents, carts, a fire gone out.
    */
   function buildKingsbarrow(s: Site, base: number) {
-    const cx = 860, cz = -1830;
+    const cx = KINGSBARROW.x, cz = KINGSBARROW.z;
     rect(s, cx - 110, cz - 110, cx + 110, cz + 110);
     // The avenue, and its stones
     for (let z = KB_PORTAL.z + 2; z <= cz + 90; z++) for (let x = cx - 3; x <= cx + 3; x++) {
@@ -3527,7 +3571,7 @@ export function plan(): Plan {
    * stones drift round them.
    */
   function buildSlabs(s: Site) {
-    rect(s, 1360, 300, 1560, 500);
+    rect(s, MORROW_OX + 1360, 300, MORROW_OX + 1560, 500);
     const slab = (cx: number, cz: number, rx: number, rz: number, top: number, seed: number) => {
       const depth = Math.round(Math.max(rx, rz) * 1.3);
       for (let dz = -rz - 3; dz <= rz + 3; dz++) for (let dx = -rx - 3; dx <= rx + 3; dx++) {
@@ -3546,7 +3590,7 @@ export function plan(): Plan {
     SLABS.forEach(([x, z, rx, rz, top], i) => slab(x, z, rx, rz, top, 1001 + i * 7));
     // Loose stones drifting round them
     for (let i = 0; i < 14; i++) {
-      const x = 1380 + Math.floor(hash2(i, 3, 1050) * 170), z = 320 + Math.floor(hash2(i, 4, 1050) * 170), y = 40 + Math.floor(hash2(i, 5, 1050) * 40), r = 1 + Math.floor(hash2(i, 6, 1050) * 2);
+      const x = MORROW_OX + 1380 + Math.floor(hash2(i, 3, 1050) * 170), z = 320 + Math.floor(hash2(i, 4, 1050) * 170), y = 40 + Math.floor(hash2(i, 5, 1050) * 40), r = 1 + Math.floor(hash2(i, 6, 1050) * 2);
       if (SLABS.some(([sx, sz, rx, rz]) => Math.abs(x - sx) < rx + 6 && Math.abs(z - sz) < rz + 6)) continue;
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= 0; dy++) if (Math.hypot(dx, dz, dy * 1.4) <= r + 0.3) O.set(x + dx, y + dy, z + dz, dy === 0 ? B.Grass : dy === -r ? B.Whitestone : B.Stone);
     }
@@ -3569,8 +3613,8 @@ export function plan(): Plan {
       }
     };
     const [a, b, c, d] = SLABS;
-    const rimZ = 290, rimY = heightAt(1470, rimZ) - 1;
-    bridge(1470, rimZ, rimY, 1470, a[1] - a[3] + 1, a[4]);
+    const rimZ = 290, rimY = heightAt(MORROW_OX + 1470, rimZ) - 1;
+    bridge(MORROW_OX + 1470, rimZ, rimY, MORROW_OX + 1470, a[1] - a[3] + 1, a[4]);
     bridge(a[0] + a[2] - 2, a[1] + 2, a[4], b[0] - b[2] + 1, b[1] - 2, b[4]);
     bridge(b[0] - 2, b[1] + b[3] - 1, b[4], c[0] + 6, c[1] - c[3] + 1, c[4]);
     bridge(c[0] + c[2] - 1, c[1] + 6, c[4], d[0] - d[2] + 1, d[1] - 1, d[4]);
@@ -5955,6 +5999,80 @@ export function plan(): Plan {
   }
 
   /**
+   * The Mew Stones on the isle's east headland: the ring the isle is named for, nine grey stones gone
+   * white on top with the gulls that stand on them, one fallen, one leaning, and a flat stone in the
+   * middle the crofters won't sit on.
+   */
+  function buildMewRing(s: Site, base: number) {
+    const cx = Math.round(s.x), cz = Math.round(s.z), R = 8.5;
+    rect(s, cx - 12, cz - 12, cx + 12, cz + 12);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + 0.3, x = Math.round(cx + Math.cos(a) * R), z = Math.round(cz + Math.sin(a) * R);
+      // Each stone two cells along the ring, the way the old builders set them
+      const tx = Math.round(-Math.sin(a)), tz = Math.round(Math.cos(a));
+      const h = 3 + Math.floor(hash2(x, z, 401) * 3);
+      if (i === 4) {
+        // Fallen outward, lying in the grass
+        for (let k = 0; k < h; k++) for (const w of [0, 1]) { const fx = x + Math.round(Math.cos(a) * k) + tx * w, fz = z + Math.round(Math.sin(a) * k) + tz * w; O.set(fx, heightAt(fx, fz), fz, k === h - 1 ? B.MossyStone : B.Granite); }
+        continue;
+      }
+      const lean = i === 7 ? 1 : 0;
+      for (const w of [0, 1]) {
+        const sx = x + tx * w, sz = z + tz * w, g = heightAt(sx, sz);
+        for (let y = g - 2; y < g + h; y++) {
+          const off = lean && y >= g + 2 ? 1 : 0; // the leaning one: its top a block out of true
+          O.set(sx + Math.round(Math.cos(a)) * off, y, sz + Math.round(Math.sin(a)) * off, y === g + h - 1 ? (w ? B.Whitestone : B.MossyStone) : hash2(sx, y, sz) < 0.2 ? B.MossyStone : B.Granite);
+        }
+        if (w === 0) s.props.push({ t: 'furn', item: 'gull', x: sx + 0.5 + Math.round(Math.cos(a)) * lean, y: g + h, z: sz + 0.5 + Math.round(Math.sin(a)) * lean, ry: a + Math.PI });
+      }
+    }
+    // The flat stone in the middle
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (Math.abs(dx) + Math.abs(dz) < 2) O.set(cx + dx, base, cz + dz, B.Granite);
+    s.act = { kind: 'scenic' };
+    s.impostor.push({ x: cx + 0.5, y: base + 2, z: cz + 0.5, w: 18, h: 4, d: 18, color: '#9a9a94' });
+  }
+
+  /**
+   * Bolitho's Croft, half a mile up from the Mewstones: a longhouse of rough stone under thatch, the peat
+   * stack against its gable, a drystone fold with the sheep in it, a kale yard, and a bench by the door
+   * that faces the sea, because Jory says the sea is the only thing on the isle worth looking at twice.
+   */
+  function buildMewCroft(s: Site, base: number) {
+    const cx = Math.round(s.x), cz = Math.round(s.z);
+    rect(s, cx - 14, cz - 12, cx + 14, cz + 12);
+    house(s, cx - 7, cz - 4, 10, 6, 1, base, 'thatch', 's', { wall: B.Cobble, front: 'quoined', role: 'home', chimney: true });
+    // The peat stack, its turves laid in courses against the west gable
+    for (let y = 0; y < 2; y++) for (let z = cz - 3; z <= cz; z++) for (const x of [cx - 9, cx - 10]) if (y === 0 || x === cx - 9) O.set(x, base + y, z, B.Peat);
+    // The fold: drystone, a gap for the gate on the house side
+    drystone(cx + 5, cz - 9, cx + 13, cz - 9);
+    drystone(cx + 13, cz - 9, cx + 13, cz + 1);
+    drystone(cx + 5, cz + 1, cx + 13, cz + 1);
+    drystone(cx + 5, cz - 9, cx + 5, cz + 1, [[cx + 5, cz - 4]]);
+    (s.animals ??= []).push(...[0, 1, 2, 3, 4].map((i): AnimalSpot => ({ kind: 'sheep', x: cx + 8 + (i % 3) * 1.5, z: cz - 6 + (i >> 1) * 1.5, r: 3.2, pal: i === 3 ? { a: '#3a3430' } : undefined })));
+    // The kale yard: three rows dug and planted, south of the house
+    for (let z = cz + 4; z <= cz + 8; z += 2) for (let x = cx - 7; x <= cx - 1; x++) { O.set(x, base - 1, z, B.Farmland); clearUp(x, z, base, base + 3); }
+    s.props.push({ t: 'bench', x: cx - 3.5, y: base, z: cz + 2.6, ry: 0 }, { t: 'furn', item: 'coil', x: cx + 1.4, y: base, z: cz + 2.2, ry: 0.4 });
+    s.props.push({ t: 'lantern', x: cx + 2.5, y: base, z: cz + 2.5, ry: 0 }, { t: 'barrel', x: cx - 8.5, y: base, z: cz + 1.5 });
+  }
+
+  /**
+   * The wreck of the Margery on the isle's east shore: a Gullmouth cog thrown up on the shingle in the
+   * winter storms, her masts gone, her cargo strung along the tideline. You can climb aboard her.
+   */
+  function buildMewWreck(s: Site) {
+    const cx = Math.round(s.x), cz = Math.round(s.z), g = heightAt(cx, cz);
+    rect(s, cx - 12, cz - 10, cx + 12, cz + 10);
+    // Her keel on the shingle (her hull solid to her deck: propCollision)
+    s.props.push({ t: 'ship', ship: 'cog', x: cx + 0.5, y: g + SHIPS.cog.draft, z: cz + 0.5, ry: 0.5, sails: 'bare', color: '#4a4a40', hull: '#2e2620' } as PropDesc);
+    // A mast along the beach where it came down, and the cargo the sea gave back
+    for (let k = 0; k < 9; k++) { const x = cx - 6 + k, z = cz + 7 + Math.round(k * 0.3); O.set(x, heightAt(x, z), z, B.OakLog); }
+    for (const [dx, dz, t, ry] of [[-8, -4, 'barrel', 0.3], [-9, -2, 'crate', 1.1], [-7, 3, 'barrel', 2], [6, 6, 'crate', 0.5], [8, 4, 'barrel', 1.3], [-10, 1, 'crate', 0.2]] as const) {
+      s.props.push({ t, x: cx + dx + 0.5, y: heightAt(cx + dx, cz + dz), z: cz + dz + 0.5, ry });
+    }
+    s.props.push({ t: 'furn', item: 'coil', x: cx - 5.5, y: heightAt(cx - 6, cz + 4), z: cz + 4.5, ry: 0.8 }, { t: 'furn', item: 'gull', x: cx + 2.5, y: g + 4.2, z: cz + 0.5, ry: 2 });
+  }
+
+  /**
    * Harrowgate's Company Row, outside the west gate: two rows of the company's cottages on the
    * road, the meeting hall at the end, the smelter with its stack, and the slag heap.
    */
@@ -6852,7 +6970,7 @@ export function plan(): Plan {
  */
 type TownTheme = 'harbour' | 'works' | 'village' | 'white';
 function dressTowns(O: Overrides, sites: Site[]): void {
-  const jobs: { id: string; x: number; z: number; r: number; theme: TownTheme; cover: number }[] = LAND === 'counties' ? [
+  const jobs: { id: string; x: number; z: number; r: number; theme: TownTheme; cover: number }[] = [
     { id: 'gullmouth', x: Math.floor(coastX(600)) - 70, z: 600, r: 84, theme: 'harbour', cover: 1 },
     { id: 'harrowgate', x: 975, z: 1003, r: 62, theme: 'works', cover: 0.8 },
     { id: 'coldhearth', x: 300, z: 1460, r: 30, theme: 'village', cover: 0.5 },
@@ -6861,7 +6979,7 @@ function dressTowns(O: Overrides, sites: Site[]): void {
     { id: 'cragsby', x: CRAGSBY.x, z: CRAGSBY.z, r: 40, theme: 'harbour', cover: 0.7 },
     { id: 'holme', x: HOLME.x, z: HOLME.z, r: 40, theme: 'harbour', cover: 0.7 },
     { id: 'scarrow', x: SCARROW.x, z: SCARROW.z, r: 40, theme: 'village', cover: 0.55 },
-  ] : [
+    // Morrow's
     { id: 'callis', x: CALLIS.x, z: CALLIS.z, r: 200, theme: 'white', cover: 0.75 },
     { id: 'cala', x: TOWNS.cala.x, z: TOWNS.cala.z, r: 50, theme: 'harbour', cover: 0.7 },
     { id: 'conch', x: TOWNS.conch.x, z: TOWNS.conch.z, r: 30, theme: 'harbour', cover: 0.7 },

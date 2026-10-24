@@ -1,6 +1,5 @@
 import type { DialogueTree, GameApi } from '../../game/api';
 import type { Appearance } from '../../entities/humanoid';
-import { countiesOnly } from '../../world/land';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
@@ -264,5 +263,3 @@ export const TAVERN_CONTENT: RegionContent = {
 ITEMS_T.push(food('hollin_cider', 'Hollin cider', 3, 18, 'bread', '#d8b040', 'Pressed from the Ashcrofts\' orchard. Sharp, cloudy, and stronger than it tastes.'));
 
 // Placed on the first continent (world/land.ts)
-countiesOnly(TAVERN_SIGNS);
-countiesOnly(TAVERN_SPOTS);

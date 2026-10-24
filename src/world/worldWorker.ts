@@ -7,7 +7,7 @@ import { SY } from './VoxelWorld';
 // Generation and meshing off the main thread. Messages:
 //   { type: 'gen', id, cx, cz }            -> ChunkResult
 //   { type: 'mesh', id, key, pad, tint, ox, oz } -> MeshArrays
-//   { type: 'lod', id, step }              -> heights + colours
+//   { type: 'lod', id, step, x0 }          -> heights + colours (one square of the world, from x0)
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -27,7 +27,7 @@ self.onmessage = (e: MessageEvent) => {
       a.wPos.buffer, a.wNor.buffer, a.wUv.buffer, a.wExtra.buffer, a.wIdx.buffer,
     ]);
   } else if (m.type === 'lod') {
-    const r = generateLod(m.step);
+    const r = generateLod(m.step, m.x0);
     self.postMessage({ type: 'lod', id: m.id, result: r }, [r.heights.buffer, r.colors.buffer]);
   }
 };

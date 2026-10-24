@@ -1,7 +1,6 @@
 import { REGIONS } from './gameplay';
 import { DUNGEON_BY_ID } from './dungeons';
-import { LAND } from '../world/land';
-import { MORROW_REGIONS } from '../world/morrow';
+import { MORROW_OX, MORROW_REGIONS } from '../world/morrow';
 import { plan } from '../world/sites';
 import { REGION_INFO, RegionId } from '../world/terrain';
 
@@ -38,8 +37,9 @@ export function places(): Place[] {
     if (door) { out.push({ id: s.id, name: s.name, sub: 'Group dungeon', x: door[0], z: door[2], r: 8, kind: 'place' }); continue; }
     out.push({ id: s.id, name: s.name, sub: REGION_INFO[s.region].name, x: s.x, z: s.z, r: s.id === 'aldermere' ? 80 : s.id === 'skyisles' ? 70 : 34, kind: 'place' });
   }
-  for (const id of (Object.keys(REGION_LABELS) as RegionId[]).filter((r) => (MORROW_REGIONS as string[]).includes(r) === (LAND === 'morrow'))) {
-    const [x, z] = REGION_LABELS[id];
+  for (const id of Object.keys(REGION_LABELS) as RegionId[]) {
+    // (Morrow's labels are where they were drawn: set down east with it)
+    const [lx, z] = REGION_LABELS[id], x = lx + ((MORROW_REGIONS as string[]).includes(id) ? MORROW_OX : 0);
     out.push({ id: 'region:' + id, name: REGION_INFO[id].name, sub: REGION_SUB[id], x, z, r: 0, kind: 'region' });
   }
   cache = out;

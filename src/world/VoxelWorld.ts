@@ -5,13 +5,16 @@ import { B, isSolid, isLeaves } from './blocks';
 // is only ever seen by entities far outside the loaded radius.
 
 /**
- * The world spans WMIN..WMAX blocks on both axes: the heartland (the old 0..2048 square and the
- * land grown past its edges), the outer lands across the sound, and the sea all round. Coordinates
- * can be negative.
+ * The world is two squares side by side. The Counties' spans WMIN..WMAX blocks on both axes: the
+ * heartland (the old 0..2048 square and the land grown past its edges), the outer lands across the
+ * sound, and the sea all round. Morrow's lies east of it, WMAX..WMAX_X along x (world/morrow.ts), the
+ * open sea between the two coasts. Coordinates can be negative.
  */
 export const WMIN = -2304;
 export const WMAX = 4096;
 export const WSIZE = WMAX - WMIN;
+/** The east edge of Morrow's square, the far end of the world along x. */
+export const WMAX_X = WMAX + WSIZE;
 /** Blocks to a pixel of the explored map (one picture of the whole world, kept in memory). */
 export const MAP_SCALE = 2;
 /** Upper bounds (exclusive) on x and z. */
@@ -25,10 +28,13 @@ export const CSPAN = CMAX - CMIN;
 export const WATER_LEVEL = 16;
 export const CHUNK_VOL = CHUNK * CHUNK * SY;
 
-export const chunkKey = (cx: number, cz: number) => (cx - CMIN) + (cz - CMIN) * CSPAN;
-export const keyChunk = (key: number): [number, number] => [(key % CSPAN) + CMIN, Math.floor(key / CSPAN) + CMIN];
-export const inWorld = (x: number, z: number) => x >= WMIN && z >= WMIN && x < WMAX && z < WMAX;
-export const chunkInWorld = (cx: number, cz: number) => cx >= CMIN && cz >= CMIN && cx < CMAX && cz < CMAX;
+/** Morrow's square's chunks come after the Counties' (whose keys are as they always were: saves keep them). */
+const MORROW_KEYS = CSPAN * CSPAN;
+export const CMAX_X = WMAX_X / CHUNK;
+export const chunkKey = (cx: number, cz: number) => (cx < CMAX ? (cx - CMIN) + (cz - CMIN) * CSPAN : MORROW_KEYS + (cx - CMAX) + (cz - CMIN) * CSPAN);
+export const keyChunk = (key: number): [number, number] => (key < MORROW_KEYS ? [(key % CSPAN) + CMIN, Math.floor(key / CSPAN) + CMIN] : [((key - MORROW_KEYS) % CSPAN) + CMAX, Math.floor((key - MORROW_KEYS) / CSPAN) + CMIN]);
+export const inWorld = (x: number, z: number) => x >= WMIN && z >= WMIN && x < WMAX_X && z < WMAX;
+export const chunkInWorld = (cx: number, cz: number) => cx >= CMIN && cz >= CMIN && cx < CMAX_X && cz < CMAX;
 /** Chunk keys saved before the world grew past 0 (a 64-chunk square from the origin). */
 export const legacyChunkKey = (key: number) => chunkKey(key % 64, Math.floor(key / 64));
 /** Chunk keys saved before the outer lands (the world was -384..2432: chunks -12..76, 88 a row). */

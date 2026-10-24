@@ -1,8 +1,8 @@
 import type { CallingId } from './classes';
 import type { Appearance, HeldItem } from '../entities/humanoid';
-import { keepOnLand } from '../world/land';
 import { dungeonArmour } from './armour';
 import { DUNGEON_WEAPONS } from './weapons';
+import { MORROW_OX } from '../world/morrow';
 
 // Group dungeons, in the manner of ESO's: built into the world behind a door, for four (one to
 // hold the creatures, one to heal, two to do the damage). The Group Finder (key P) makes a group
@@ -277,7 +277,7 @@ export const DUNGEONS: DungeonDef[] = [
   {
     land: 'morrow', id: 'gd-kingsbarrow', name: 'Kingsbarrow', where: 'The king\'s barrow, the Held Country, Morrow', level: 95,
     blurb: 'Under the deepest black in Morrow the old king of the Held lies on his bier. Aubrey Pryce has taken his diggers down to lift it, and every dead thing in the Held is waiting to see if he does.',
-    door: [860.5, 40, -1845.5], out: [860.5, 40, -1841.5, 0],
+    door: [MORROW_OX + 860.5, 40, -1845.5], out: [MORROW_OX + 860.5, 40, -1841.5, 0],
     bosses: [
       {
         title: 'Pryce\'s foreman',
@@ -328,17 +328,15 @@ export const DUNGEONS: DungeonDef[] = [
       },
     ],
     notes: [
-      { x: 820, z: -1880, r: 9, who: 'tom', said: 'Niches all down the walls. Every one of them\'s empty.', seen: 'Niches line the gallery walls. Every one is empty, its black smashed on the floor.' },
-      { x: 857, z: -1880, r: 10, who: 'osgood', said: 'Pick-marks, fresh. And lamp oil. They\'re not long gone.', seen: 'Fresh pick-marks on every wall, and the smell of lamp oil.' },
-      { x: 857, z: -1851, r: 10, who: 'edith', said: 'They\'re all kneeling. All of them. Facing the same way.', seen: 'The old dead kneel in rows on low plinths, all facing north.' },
-      { x: 893, z: -1886, r: 11, said: 'That\'s a bier. And that\'s a king on it. And that\'s your Mr Pryce.', seen: 'At the far end of the hall, a bier on a stone step, and a long man in a grey coat beside it with a lamp.' },
+      { x: MORROW_OX + 820, z: -1880, r: 9, who: 'tom', said: 'Niches all down the walls. Every one of them\'s empty.', seen: 'Niches line the gallery walls. Every one is empty, its black smashed on the floor.' },
+      { x: MORROW_OX + 857, z: -1880, r: 10, who: 'osgood', said: 'Pick-marks, fresh. And lamp oil. They\'re not long gone.', seen: 'Fresh pick-marks on every wall, and the smell of lamp oil.' },
+      { x: MORROW_OX + 857, z: -1851, r: 10, who: 'edith', said: 'They\'re all kneeling. All of them. Facing the same way.', seen: 'The old dead kneel in rows on low plinths, all facing north.' },
+      { x: MORROW_OX + 893, z: -1886, r: 11, said: 'That\'s a bier. And that\'s a king on it. And that\'s your Mr Pryce.', seen: 'At the far end of the hall, a bier on a stone step, and a long man in a grey coat beside it with a lamp.' },
     ],
     chest: { xp: 26000, marks: 600, items: ['grave_iron', 'grave_iron', 'grave_iron', 'black_shard', 'black_shard', 'troll_hide'] },
   },
 ];
 
-// Only this land's
-keepOnLand(DUNGEONS);
 export const DUNGEON_BY_ID: Record<string, DungeonDef> = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
 
 /**

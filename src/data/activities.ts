@@ -1,6 +1,5 @@
 import type { EnemyType } from './gameplay';
 import type { RegionId } from '../world/terrain';
-import { countiesOnly } from '../world/land';
 
 // Things that happen in the world whether or not anyone is there to see them start (the runtime is
 // game/Activities.ts). Dynamic events flare up when you come near and run on a timer; world bosses
@@ -107,7 +106,3 @@ export const TASKS: TaskDef[] = [
 ];
 
 // Placed on the first continent: none of them in Morrow (world/land.ts)
-countiesOnly(EVENTS);
-countiesOnly(WORLD_BOSSES);
-countiesOnly(SHARDFALLS);
-countiesOnly(TASKS);

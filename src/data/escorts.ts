@@ -1,6 +1,5 @@
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import type { EnemyType } from './gameplay';
-import { countiesOnly } from '../world/land';
 import type { RegionId } from '../world/terrain';
 
 // Escorts (Guild Wars 2's, in our own clothes): someone waiting at a hub town needs to get down the
@@ -75,4 +74,3 @@ export const ESCORTS: EscortDef[] = [
 ];
 
 // Placed on the first continent: none of them in Morrow (world/land.ts)
-countiesOnly(ESCORTS);

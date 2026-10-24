@@ -1,6 +1,6 @@
-import { keepOnLand, type LandId } from '../world/land';
+import type { LandId } from '../world/land';
 import { coastX } from '../world/terrain';
-import { CALLIS, COLD_HARBOUR, NORTHGATE_TOWN, TOWNS } from '../world/morrow';
+import { CALLIS, COLD_HARBOUR, MORROW_OX, NORTHGATE_TOWN, TOWNS } from '../world/morrow';
 
 // THE LAW. Every town keeps its own peace and its own book: strike a hen in Ansbury market, a
 // carter in Gullmouth or one of the watch anywhere, and if anyone sees it, that town puts a price
@@ -27,7 +27,7 @@ export interface Jurisdiction {
 
 const GULL = { x: coastX(600) - 80, z: 600 };
 
-export const JURISDICTIONS: Jurisdiction[] = keepOnLand<Jurisdiction>([
+export const JURISDICTIONS: Jurisdiction[] = [
   { id: 'ansbury', name: 'Ansbury', watch: 'the Charter watch', x: 820, z: 300, r: 196, gaol: 'gaol-ansbury' },
   { id: 'hollinford', name: 'Hollin Ford', watch: 'the parish constable', x: 165, z: 182, r: 42, gaol: 'gaol-ansbury' },
   { id: 'gullmouth', name: 'Gullmouth', watch: 'the harbour watch', x: GULL.x, z: GULL.z, r: 72, gaol: 'gaol-ansbury' },
@@ -41,7 +41,7 @@ export const JURISDICTIONS: Jurisdiction[] = keepOnLand<Jurisdiction>([
   { land: 'morrow', id: 'cala', name: 'Cala Roja', watch: 'the harbour watch', x: TOWNS.cala.x, z: TOWNS.cala.z, r: 40, gaol: 'gaol-callis' },
   { land: 'morrow', id: 'liftwick', name: 'Liftwick', watch: 'the lift wardens', x: TOWNS.liftwick.x, z: TOWNS.liftwick.z, r: 40, gaol: 'gaol-callis' },
   { land: 'morrow', id: 'tenwells', name: 'Tenwells', watch: 'the caravan guard', x: TOWNS.tenwells.x, z: TOWNS.tenwells.z, r: 40, gaol: 'gaol-callis' },
-]);
+];
 
 /** The town whose peace a place is in (a little past its houses), or null out in the country. */
 export function jurisdictionAt(x: number, z: number): Jurisdiction | null {
@@ -57,10 +57,10 @@ export function jurisdictionAt(x: number, z: number): Jurisdiction | null {
  * on the east. Let out, you're walked up into the town at `out`.
  */
 export interface GaolDef { land?: LandId; id: string; name: string; x: number; z: number; floor: number; out: [number, number, number] }
-export const GAOLS: GaolDef[] = keepOnLand<GaolDef>([
+export const GAOLS: GaolDef[] = [
   { id: 'gaol-ansbury', name: 'the Weighhouse cells, Ansbury', x: 820, z: 300, floor: 8, out: [829.5, 372.5, Math.PI] },
-  { land: 'morrow', id: 'gaol-callis', name: 'the Tolbooth, Callis', x: 2140, z: 1112, floor: 8, out: [2128.5, 1080.5, Math.PI] },
-]);
+  { land: 'morrow', id: 'gaol-callis', name: 'the Tolbooth, Callis', x: MORROW_OX + 2140, z: 1112, floor: 8, out: [MORROW_OX + 2128.5, 1080.5, Math.PI] },
+];
 /** Where in a gaol (from its x, z) your cell is, the other cells, the gaoler's desk, and the way out of the cell when the door's opened. */
 export const GAOL = {
   cell: [4.5, 8.5] as [number, number],
@@ -71,9 +71,9 @@ export const GAOL = {
 
 /** An outlaws' refuge: a cellar under a town, through a hatch in the street; inside, someone who can clear your name. */
 export interface RefugeDef { land?: LandId; id: string; name: string; x: number; z: number; floor: number; hatch: [number, number] }
-export const REFUGES: RefugeDef[] = keepOnLand<RefugeDef>([
+export const REFUGES: RefugeDef[] = [
   { id: 'refuge-ropewalk', name: 'The Ropewalk Cellar', x: Math.floor(coastX(600)) - 58, z: 602, floor: 8, hatch: [Math.floor(coastX(600)) - 50, 592.5] },
-]);
+];
 /** Inside a refuge, from its x, z: where you come down, the fixer and the fence. */
 export const REFUGE = { foot: [0.5, -4.5] as [number, number], fixer: [-4.5, 2.5] as [number, number], fence: [4.5, 2.5] as [number, number] };
 

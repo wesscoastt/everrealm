@@ -1,6 +1,7 @@
 import { heightAt } from '../world/terrain';
 import type { Door, HomeShape } from './housing';
-import { keepOnLand, type LandId } from '../world/land';
+import type { LandId } from '../world/land';
+import { MORROW_OX } from '../world/morrow';
 
 // Lodging houses: a room of your own in town, rented by the week, until you can buy a house or
 // lease land. Each house has five rooms off a corridor; rent one at its door and it's your home
@@ -36,7 +37,7 @@ export const LODGINGS: LodgingDef[] = [
   { id: 'inn-dykeend', name: 'The Dyke End', town: 'the Wrath Levels', x: -446, z: 980, face: 'n', rent: 120, inn: true },
   { id: 'inn-bield', name: 'The Bield', town: 'the Tolmen Moor road', x: 289, z: 2405, face: 'e', rent: 120, inn: true },
   // Morrow: Callis's inn, on the east side of the Market square (world/sites.ts buildCallis keeps its plot)
-  { land: 'morrow', id: 'inn-blackpin', name: 'The Black Pin', town: 'Callis', x: 2196, z: 1210, face: 'w', rent: 220, inn: true, white: true },
+  { land: 'morrow', id: 'inn-blackpin', name: 'The Black Pin', town: 'Callis', x: MORROW_OX + 2196, z: 1210, face: 'w', rent: 220, inn: true, white: true },
 ];
 
 /** A week, in milliseconds; rent can be paid up to four weeks ahead. */
@@ -96,5 +97,3 @@ export function readTenancy(v: unknown): Tenancy | null {
   return { house: o.house, room: o.room, until: o.until };
 }
 
-// Only this land's (world/land.ts). A room rented in the other land isn't seen from this one.
-keepOnLand(LODGINGS);

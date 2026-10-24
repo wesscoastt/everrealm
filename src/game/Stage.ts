@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Bard, type Performance } from './Bard';
-import { countiesOnly } from '../world/land';
 import { degree, FREE_MODE, FREE_ROOT, PART_NAMES, TUNE_BY_ID, TUNES, tuneLength, VOICES, type PartId, type Voice } from '../data/tunes';
 import { ITEMS } from '../data/items';
 import { realmNow } from '../world/clock';
@@ -266,4 +265,3 @@ export class Stage {
 }
 
 // Placed on the first continent: none of them in Morrow (world/land.ts)
-countiesOnly(SPOTS);

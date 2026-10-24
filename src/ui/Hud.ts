@@ -9,7 +9,7 @@ import { levelForXp, MAX_LEVEL, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NA
 import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
 import { drawWorldMap } from './worldMap';
-import { MAP_SCALE, WMIN, WSIZE } from '../world/VoxelWorld';
+import { MAP_SCALE, WMAX, WMAX_X, WMIN, WSIZE } from '../world/VoxelWorld';
 import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
@@ -278,6 +278,8 @@ export interface UiCtx {
   /** True on the menus (character select, creator), false in the world. */
   inMenu: boolean;
   mapImage: HTMLCanvasElement;
+  /** The explored map of Morrow's half of the world, once any of it has been seen. */
+  mapImageEast: HTMLCanvasElement | null;
   mapMarkers(): MapMarker[];
   /** Marks to go to a waymark from here, or null if it can't be reached that way now. */
   waymarkFare(id: string): number | null;
@@ -288,6 +290,9 @@ export interface UiCtx {
   /** The Charter Post stop the player is standing at. */
   travel(): TravelView;
   travelTo(id: string): void;
+  /** Whether a shop's item can be tried on (worn, or a mount led out beside you), and trying it. */
+  canPreview(id: string): boolean;
+  previewItem(id: string): void;
   /** The Exchange's book (game/Exchange.ts). */
   exchange(): ExchangeView;
   exBuy(id: number): void;
@@ -307,7 +312,8 @@ export interface UiCtx {
 
 export interface TravelView {
   from: string;
-  stops: { id: string; name: string; fare: number; hours: number; known: boolean; here: boolean }[];
+  /** How each stop is reached from here: the cart along the roads, a boat crossing, or the ferry (pinned on the map). */
+  stops: { id: string; name: string; fare: number; note: string; by: 'ride' | 'cross' | 'ferry'; known: boolean; here: boolean }[];
 }
 
 export interface ShopView {
@@ -1167,12 +1173,17 @@ export class Hud {
     c.save();
     c.translate(R, R); c.rotate(rot); c.scale(k, k); c.translate(-px, -pz);
     c.imageSmoothingEnabled = true;
-    c.drawImage(continentChart(), WMIN, WMIN, WSIZE, WSIZE);
+    const span = (W / k) * 1.5;
+    // (the world is two squares: the Counties', and Morrow's east of it across the sea)
+    const east = px + span / 2 > WMAX, west = px - span / 2 < WMAX;
+    if (west) c.drawImage(continentChart(0), WMIN, WMIN, WSIZE, WSIZE);
+    if (east) c.drawImage(continentChart(1), WMAX, WMIN, WSIZE, WSIZE);
     c.fillStyle = 'rgba(236, 222, 186, 0.35)';
     c.fillRect(px - 400, pz - 400, 800, 800);
     c.imageSmoothingEnabled = k < 2.5;
-    const span = (W / k) * 1.5;
-    c.drawImage(this.ctx.mapImage, (px - span / 2 - WMIN) / MAP_SCALE, (pz - span / 2 - WMIN) / MAP_SCALE, span / MAP_SCALE, span / MAP_SCALE, px - span / 2, pz - span / 2, span, span);
+    if (west) c.drawImage(this.ctx.mapImage, (px - span / 2 - WMIN) / MAP_SCALE, (pz - span / 2 - WMIN) / MAP_SCALE, span / MAP_SCALE, span / MAP_SCALE, px - span / 2, pz - span / 2, span, span);
+    const ee = this.ctx.mapImageEast;
+    if (east && ee) c.drawImage(ee, (px - span / 2 - WMAX) / MAP_SCALE, (pz - span / 2 - WMIN) / MAP_SCALE, span / MAP_SCALE, span / MAP_SCALE, px - span / 2, pz - span / 2, span, span);
     c.restore();
     // Inner shadow at the rim
     const vg = c.createRadialGradient(R, R, R * 0.62, R, R, R);
@@ -1980,8 +1991,10 @@ export class Hud {
       for (const s of shop.stock) {
         const d = ITEMS[s.item];
         const row = el('div', 'shop-row');
-        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(s.item)}" alt=""></div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${esc(d.stats ?? d.desc)}</div></div><span class="coin">${s.price}</span><button class="btn">Buy</button>`;
-        const b = row.querySelector('button')!;
+        const tryOn = this.ctx.canPreview(s.item);
+        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(s.item)}" alt=""></div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${esc(d.stats ?? d.desc)}</div></div><span class="coin">${s.price}</span>${tryOn ? '<button class="btn ghost try" title="See it on you before you buy">Try on</button>' : ''}<button class="btn buy">Buy</button>`;
+        if (tryOn) row.querySelector('.try')!.addEventListener('click', () => this.ctx.previewItem(s.item));
+        const b = row.querySelector('.buy') as HTMLButtonElement;
         b.disabled = (shop.currency ? shop.currency.have : this.ctx.save.marks) < s.price;
         if (shop.currency) { const c = row.querySelector('.coin') as HTMLElement; c.classList.add('token'); c.innerHTML = `<img src="${itemIcon(shop.currency.id)}" alt="">${s.price}`; c.title = shop.currency.name; }
         b.addEventListener('click', () => this.ctx.buy(s.item));
@@ -2350,14 +2363,14 @@ export class Hud {
     body.innerHTML = '';
     for (const s of v.stops) {
       const row = el('div', 'shop-row' + (s.here ? ' here' : s.known ? '' : ' unknown'));
-      const sub = s.here ? 'You are here' : s.known ? `${s.hours} ${s.hours === 1 ? 'hour' : 'hours'} on the road` : 'You haven\'t been there yet';
-      row.innerHTML = `<div><div class="nm">${esc(s.name)}</div><div class="d">${sub}</div></div><span class="coin">${s.here || !s.known ? '' : s.fare}</span><button class="btn">Travel</button>`;
+      const sub = s.here ? 'You are here' : s.known ? s.note : 'You haven\'t been there yet';
+      row.innerHTML = `<div><div class="nm">${esc(s.name)}</div><div class="d">${esc(sub)}</div></div><span class="coin">${s.here || !s.known || s.by === 'ferry' ? '' : s.fare}</span><button class="btn">${s.by === 'ride' ? 'Ride' : s.by === 'ferry' ? 'Show me' : 'Cross'}</button>`;
       const b = row.querySelector('button')!;
       b.disabled = s.here || !s.known || this.ctx.save.marks < s.fare;
       b.addEventListener('click', () => this.ctx.travelTo(s.id));
       body.append(row);
     }
-    this.q('#travel-panel .footer').innerHTML = `<span>Fares by Charter. You can ride to any stop you've visited</span><span class="coin">${this.ctx.save.marks} marks</span>`;
+    this.q('#travel-panel .footer').innerHTML = `<span>Fares by Charter. Ride to any stop you've visited, and get off when you like</span><span class="coin">${this.ctx.save.marks} marks</span>`;
   }
 
   /**
@@ -2396,14 +2409,18 @@ export class Hud {
     x.fillStyle = '#0b1122';
     x.fillRect(0, 0, cw, ch);
     // The chart, faded like an old survey, and the land you've walked on top of it
-    const X0 = sx(WMIN), Y0 = sy(WMIN), SW = WORLD * k;
+    const X0 = sx(WMIN), Y0 = sy(WMIN), SW = WORLD * k, X1 = sx(WMAX);
+    // Morrow's square east of the Counties', drawn (and its chart painted) only when it's in view
+    const eastIn = X1 < cw;
     x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-    x.drawImage(continentChart(), X0, Y0, SW, SW);
+    if (X1 > 0) x.drawImage(continentChart(0), X0, Y0, SW, SW);
+    if (eastIn) x.drawImage(continentChart(1), X1, Y0, SW, SW);
     x.fillStyle = 'rgba(236, 222, 186, 0.4)';
-    x.fillRect(X0, Y0, SW, SW);
+    x.fillRect(X0, Y0, SW * (eastIn ? 2 : 1), SW);
     x.imageSmoothingEnabled = z < 1.6;
     x.globalAlpha = 0.86;
-    x.drawImage(this.ctx.mapImage, X0, Y0, SW, SW);
+    if (X1 > 0) x.drawImage(this.ctx.mapImage, X0, Y0, SW, SW);
+    if (eastIn && this.ctx.mapImageEast) x.drawImage(this.ctx.mapImageEast, X1, Y0, SW, SW);
     x.globalAlpha = 1;
     const vg = x.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.4, cw / 2, ch / 2, Math.max(cw, ch) * 0.75);
     vg.addColorStop(0, 'rgba(20, 14, 6, 0)'); vg.addColorStop(1, 'rgba(20, 14, 6, 0.45)');
@@ -2626,7 +2643,7 @@ export class Hud {
       if (wm) { this.offerWaymark(wm.id, wm.name); return; }
       // Tapping the waypoint again takes it away (a finger has no right button)
       if (this.pin && Math.hypot(this.pin.x - wx, this.pin.z - wz) * V.k / V.dpr < 16) { this.pin = null; this.ctx.sfx('click'); return; }
-      if (wx >= WMIN && wz >= WMIN && wx < WMIN + WSIZE && wz < WMIN + WSIZE) { this.pin = { x: wx, z: wz }; this.ctx.sfx('click'); }
+      if (wx >= WMIN && wz >= WMIN && wx < WMAX_X && wz < WMIN + WSIZE) { this.pin = { x: wx, z: wz }; this.ctx.sfx('click'); }
     });
     c.addEventListener('contextmenu', (e) => { e.preventDefault(); this.pin = null; });
     return c;

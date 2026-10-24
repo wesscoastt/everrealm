@@ -1,11 +1,12 @@
-// One land's chart for the world map (ui/Hud.ts): painted from the terrain as the in-game chart is,
-// written as a PNG with its towns. Run by scripts/charts.mjs once per land (Morrow's process sets
-// the land before anything imports it).
+// One land's chart for the world map's World view (ui/worldMap.ts): painted from the terrain as the
+// in-game chart is, written as a PNG with its towns, in the land's own frame (Morrow's as it was drawn,
+// before world/morrow.ts set it down east of the Counties). npx tsx scripts/chartland.ts counties|morrow
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { chartPixels } from '../src/world/atlas';
 import { POSTS } from '../src/data/travel';
-import { LAND } from '../src/world/land';
+import { landOf, type LandId } from '../src/world/land';
+import { MORROW_OX } from '../src/world/morrow';
 import { WMIN, WSIZE } from '../src/world/VoxelWorld';
 
 const SIZE = 800;
@@ -18,6 +19,7 @@ function png(w: number, h: number, rgba: Uint8ClampedArray): Buffer {
   const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
-fs.writeFileSync(`public/maps/${LAND}.png`, png(SIZE, SIZE, chartPixels(SIZE)));
-fs.writeFileSync(`public/maps/${LAND}.json`, JSON.stringify({ wmin: WMIN, wsize: WSIZE, towns: POSTS.filter((p) => !p.name.includes('(')).map((p) => ({ name: p.name.replace(/, south gate$/, ''), x: Math.round(p.x), z: Math.round(p.z) })) }));
+const LAND = (process.argv[2] ?? 'counties') as LandId, OX = LAND === 'morrow' ? MORROW_OX : 0;
+fs.writeFileSync(`public/maps/${LAND}.png`, png(SIZE, SIZE, chartPixels(SIZE, WMIN + OX)));
+fs.writeFileSync(`public/maps/${LAND}.json`, JSON.stringify({ wmin: WMIN, wsize: WSIZE, towns: POSTS.filter((p) => landOf(p) === LAND && !p.name.includes('(')).map((p) => ({ name: p.name.replace(/, south gate$/, ''), x: Math.round(p.x - OX), z: Math.round(p.z) })) }));
 console.log(LAND, 'chart written');

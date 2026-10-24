@@ -2,6 +2,7 @@ import type { DialogueTree } from '../../game/api';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { RegionContent } from './types';
+import { MORROW_OX } from '../../world/morrow';
 
 // The Lamp Company's clerks (data/pledges.ts): Ruth Penhale at Ansbury's south gate, Xisca Mir by
 // the Callis post. Each posts the day's pledge, pays Lamp keys when it's cleared, and sells any
@@ -47,7 +48,7 @@ const NPCS: NpcDef[] = [
   {
     land: 'morrow', id: 'xisca_mir', name: 'Xisca Mir', title: 'The Lamp Company, Callis',
     look: { frame: 'f', lashes: true, skin: '#c88a62', hair: '#1a1410', hairStyle: 4, eyes: '#3a2a1a', tunic: '#3a3a2a', trim: '#d8b050', trousers: '#2a2a24', boots: '#2a2018', build: 1.0, age: 0.35 },
-    schedule: [{ from: 0, to: 24, at: [2136.5, 1081.5], face: [2132.5, 1077.5], anim: 'idle' }],
+    schedule: [{ from: 0, to: 24, at: [MORROW_OX + 2136.5, 1081.5], face: [MORROW_OX + 2132.5, 1077.5], anim: 'idle' }],
     barks: ['Hesk sends his regards. And a pledge.', 'Keys, not marks.'],
   },
 ];

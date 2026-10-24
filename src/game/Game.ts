@@ -3,7 +3,8 @@ import { Birds } from './Birds';
 import { PETS } from '../data/pets';
 import { Companion } from '../entities/Companion';
 import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
-import { LAND, LAND_FORCED, setNextLand, type LandId } from '../world/land';
+import { landAt, landOf, type LandId } from '../world/land';
+import { MORROW_OX } from '../world/morrow';
 import { CALLIS_PACKET } from '../world/morrow';
 import { plan as sitePlan } from '../world/sites';
 import { applyRank, earlyPoints, MORPHS, RANK_AT, RANK_NAMES, rankFor as skillRankFor, RESPEC_PER_POINT, SHARDS_PER_POINT } from '../data/skillpoints';
@@ -67,7 +68,7 @@ import { FEATS, FeatApi } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
-import { POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
+import { PACKET_COURSE, POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
 import { Online } from '../net/Online';
 import { BOARDS } from '../data/content';
 
@@ -111,6 +112,8 @@ import { Seasons } from './Seasons';
 import { WakeFair } from './WakeFair';
 import { Farming, farmPatches } from './Farming';
 import { Rowboat } from './Rowboat';
+import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
+import { mewJetty } from '../world/sites';
 import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
@@ -160,7 +163,6 @@ const HARBOURS: Record<LandId, Harbour> = {
 };
 
 function crowdZones(): CrowdZone[] {
-  if (LAND !== 'counties') return [];
   return [
     { id: 'ansbury', x: 820, z: 300, r: 196, n: 40, lines: [
       'The minster bell\'s cracked. You can hear it on the low note.',
@@ -293,6 +295,85 @@ export class Game implements GameApi {
   private farming!: Farming;
   /** Your rowing boat, or the one you've hired (game/Rowboat.ts). */
   private boat!: Rowboat;
+  /**
+   * Trying something on at a shop, ESO's way: your own figure wearing it (or the mount led out beside
+   * you), the camera brought round in front of you, until you walk on, close the shop, or half a minute
+   * passes. Nothing is bought or kept.
+   */
+  private trying: { id: string; at: THREE.Vector3; t: number; mount: CreatureModel | null } | null = null;
+  canPreview(id: string): boolean {
+    const d = ITEMS[id];
+    return !!(d && (d.costume || d.hat || d.capeDesign || d.armor?.look || d.mount));
+  }
+  previewItem(id: string): void {
+    const d = ITEMS[id];
+    if (!d || !this.canPreview(id) || this.horse || this.dead) return;
+    this.endPreview(false);
+    const look = this.wornLook();
+    if (d.costume) look.costume = d.costume;
+    if (d.hat) look.hat = d.hat as Appearance['hat'];
+    if (d.capeDesign) { look.capeDesign = d.capeDesign; look.cape = look.cape ?? '#2a3a5a'; }
+    if (d.armor?.look) Object.assign(look, d.armor.look);
+    this.player.setAppearance(look, this.scene);
+    let mount: CreatureModel | null = null;
+    const P = this.player.position, f = this.player.facing;
+    if (d.mount) {
+      // Led out beside you, side on to the camera
+      mount = mountModel(d.mount);
+      const x = P.x + Math.cos(f) * 2.4, z = P.z - Math.sin(f) * 2.4;
+      mount.root.position.set(x, this.world.voxels.groundBelow(x, P.y + 2, z), z);
+      mount.root.rotation.y = f + Math.PI / 2;
+      this.scene.add(mount.root);
+    }
+    this.trying = { id, at: P.clone(), t: 0, mount };
+    // The camera round in front of you, a little above, to see it
+    this.rig.yaw = f + (d.capeDesign ? Math.PI * 0.85 : 0.35);
+    this.rig.pitch = 0.18;
+    this.hud.system(`Trying ${d.name}. Walk on to take it off.`);
+    this.sfx('click');
+  }
+  /** Take off whatever you were trying, and (unless something else is about to be tried) dress as you were. */
+  private endPreview(dress = true): void {
+    const t = this.trying;
+    if (!t) return;
+    if (t.mount) this.scene.remove(t.mount.root);
+    this.trying = null;
+    if (dress) this.dress();
+  }
+  /** The Charter Post cart you're riding, when you are (game/PostRide.ts). */
+  private post!: PostRide;
+  /** The way along the roads between two post stops, worked out once. */
+  private rideWays = new Map<string, [number, number][] | null>();
+  private wayBetween(a: { id: string; x: number; z: number }, b: { id: string; x: number; z: number }): [number, number][] | null {
+    const k = a.id + '>' + b.id;
+    if (!this.rideWays.has(k)) this.rideWays.set(k, roadNet().route([a.x, a.z], [b.x, b.z]));
+    return this.rideWays.get(k)!;
+  }
+  /** The Mewstones ferry runs between these two stops: she's the way across, not the board. */
+  private static ferryPair(a: string, b: string): boolean { return (a === 'gullmouth' && b === 'mewstones') || (a === 'mewstones' && b === 'gullmouth'); }
+  /** Off the post cart: set down at the stop you were bound for, or (getting off on the way) beside her. */
+  private endRide(arrived: boolean, stay = false): void {
+    const r = this.post;
+    if (!r.active) return;
+    const there = POSTS.find((x) => x.id === r.dest), s = r.seat();
+    r.end();
+    if (stay) return;
+    const P = this.player;
+    if (arrived && there) {
+      const fx = Math.sin(there.ry), fz = Math.cos(there.ry), x = there.x + fx * 2, z = there.z + fz * 2;
+      P.teleport(x, this.world.voxels.groundBelow(x, s.y + 4, z), z);
+      P.yaw = Math.atan2(fx, fz);
+      this.currentPost = there.id;
+      this.hud.banner(there.name, 'The Charter Post', true);
+    } else {
+      // Down off the side of the cart
+      const x = s.x + Math.cos(s.yaw) * 1.6, z = s.z - Math.sin(s.yaw) * 1.6;
+      P.teleport(x, this.world.voxels.groundBelow(x, s.y + 3, z), z);
+      this.hud.system('You climb down off the cart.');
+    }
+    P.velocity.set(0, 0, 0);
+    P.fallStartY = P.position.y;
+  }
   fairOn(): boolean { return !!this.fair?.on; }
   /** Hire a rowing boat from the boatman you're talking to: into the water and you in her. */
   hireBoat(): void {
@@ -655,7 +736,8 @@ export class Game implements GameApi {
     });
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors());
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
-    this.roadfolk = new Roadfolk(this.scene, this.world.voxels, LAND === 'counties' ? crowdZones() : JURISDICTIONS.map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r })), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    // (the Counties' busy towns, and Morrow's: data/justice.ts)
+    this.roadfolk = new Roadfolk(this.scene, this.world.voxels, [...crowdZones(), ...JURISDICTIONS.filter((j) => landOf(j) === 'morrow').map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r }))], (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.scene.add(this.torchLight);
     this.voyage = new Voyage({
       scene: this.scene, props: this.world.props, player: this.player,
@@ -723,6 +805,7 @@ export class Game implements GameApi {
       player: () => this.player.position,
     }, farmPatches(sitePlan().sites));
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
+    this.post = new PostRide(this.scene, this.world.voxels);
     this.fair = new WakeFair({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
       fest: () => this.festivals.fest,
@@ -1078,9 +1161,7 @@ export class Game implements GameApi {
     // Keep the loading screen up until the square is built, so the menu never shows half a village.
     // (Come here to cross from the other land: straight back into the character who crossed.)
     try { this.autoEnter = sessionStorage.getItem(ENTER_KEY); sessionStorage.removeItem(ENTER_KEY); } catch { this.autoEnter = null; }
-    // The menu is in the Counties: a page in Morrow with nobody to bring in goes back there
-    if (LAND !== 'counties' && !this.autoEnter && !LAND_FORCED) { setNextLand('counties'); setTimeout(() => location.reload(), 50); }
-    this.hud.showTitle(this.autoEnter ? (LAND === 'morrow' ? 'Coming ashore at Callis…' : 'Coming ashore at Gullmouth…') : 'Raising Hollin Ford…');
+    this.hud.showTitle(this.autoEnter ? 'Coming home…' : 'Raising Hollin Ford…');
     this.menuPending = true;
   }
 
@@ -1295,13 +1376,16 @@ export class Game implements GameApi {
     const yaw = to === 'morrow' ? -Math.PI / 2 : Math.PI / 2;
     this.dismount(true);
     this.hud.closeAll();
-    // Out to sea with you on her deck; the crossing itself is the loading screen; then in from the sea on the far side
-    this.setFlag('voyage', to);
-    this.rig.yaw = HARBOURS[LAND].heading + Math.PI;
-    this.voyage.depart(HARBOURS[LAND], () => {
-      this.player.teleport(at[0], at[1], at[2]);
-      this.player.yaw = yaw;
-      this.switchLand(to, to === 'morrow' ? 'The Constant, a day and a night out of Gullmouth…' : 'The Constant, a day and a night out of Callis…');
+    // Out to sea with you on her deck, across the sea between the lands, and in on the far side
+    const from = to === 'morrow' ? 'counties' : 'morrow';
+    this.rig.yaw = HARBOURS[from].heading + Math.PI;
+    const course = to === 'morrow' ? PACKET_COURSE : [...PACKET_COURSE].reverse();
+    this.voyage.depart(HARBOURS[from], () => {
+      this.hud.banner('The open sea', to === 'morrow' ? 'Bound for Callis' : 'Bound for Gullmouth');
+      this.voyage.cross([Voyage.offing(HARBOURS[from], Voyage.OUT), ...course, Voyage.offing(HARBOURS[to], Voyage.IN)], () => {
+        this.rig.yaw = HARBOURS[to].heading;
+        this.voyage.arrive(HARBOURS[to], () => { this.player.teleport(at[0], at[1], at[2]); this.player.yaw = yaw; this.hud.banner(to === 'morrow' ? 'Callis' : 'Gullmouth', 'Ashore'); });
+      });
     });
   }
 
@@ -1322,10 +1406,19 @@ export class Game implements GameApi {
     const here = POSTS.find((p) => p.id === this.currentPost)!;
     return {
       from: here.name,
-      stops: POSTS.map((p) => ({
+      // (this land's stops: the other land is the packet's, from Gullmouth or Callis)
+      stops: POSTS.filter((p) => landOf(p) === landOf(here)).map((p) => ({
         id: p.id, name: p.name, here: p.id === here.id,
         known: postKnown(p, this.save.discovered) && (!p.gate || !!this.flag(p.gate)),
-        fare: postFare(here, p), hours: postHours(here, p),
+        fare: postFare(here, p),
+        ...((): { note: string; by: 'ride' | 'cross' | 'ferry' } => {
+          if (p.id === here.id) return { note: '', by: 'ride' };
+          if (Game.ferryPair(here.id, p.id)) return { note: 'By the ferry from the jetty: she sails every few minutes', by: 'ferry' };
+          const way = this.wayBetween(here, p);
+          if (way) { const m = rideMinutes(wayLength(way)); return { note: `About ${m} minute${m === 1 ? '' : 's'} on the cart`, by: 'ride' }; }
+          const h = postHours(here, p);
+          return { note: `A crossing by boat, ${h} ${h === 1 ? 'hour' : 'hours'}`, by: 'cross' };
+        })(),
       })),
     };
   }
@@ -1385,7 +1478,14 @@ export class Game implements GameApi {
   private travelTo(id: string): void {
     const here = POSTS.find((p) => p.id === this.currentPost);
     const there = POSTS.find((p) => p.id === id);
-    if (!here || !there || here === there || !postKnown(there, this.save.discovered) || (there.gate && !this.flag(there.gate))) return;
+    if (!here || !there || here === there || landOf(here) !== landOf(there) || !postKnown(there, this.save.discovered) || (there.gate && !this.flag(there.gate))) return;
+    // The Mewstones ferry is a ship you board, not a ticket: show where she berths
+    if (Game.ferryPair(here.id, there.id)) {
+      const J = mewJetty(), at: [number, number] = here.id === 'gullmouth' ? [Math.floor(coastX(600)) + 34, 608] : [J.x1 + 1, J.z + 1];
+      this.hud.close('travel');
+      this.markOnMap(at[0], at[1], 'The ferry\'s berth');
+      return;
+    }
     const fare = postFare(here, there);
     if (this.save.marks < fare || this.dead || this.dialogue) return;
     this.save.marks -= fare;
@@ -1393,7 +1493,17 @@ export class Game implements GameApi {
     this.hud.closeAll();
     this.cancelActions();
     this.target = null;
-    // Set down a couple of blocks in front of the sign, facing away from it.
+    // On the cart, along the roads, in real time
+    const way = this.wayBetween(here, there);
+    if (way) {
+      this.dismount(true);
+      this.post.start(way, this.player.position.y, there.id);
+      const st = this.post.seat();
+      this.player.position.set(st.x, st.y, st.z);
+      this.hud.system(`On the Charter Post to ${there.name}, about ${rideMinutes(wayLength(way))} min. Sit back and watch the country go by; Space or E to get off.`);
+      return;
+    }
+    // No road there (an island): a crossing by boat. Set down a couple of blocks in front of the sign, facing away from it.
     const fx = Math.sin(there.ry), fz = Math.cos(there.ry);
     const x = there.x + fx * 2, z = there.z + fz * 2;
     this.save.pos = [x, heightAt(x, z) + 1, z];
@@ -1822,6 +1932,7 @@ export class Game implements GameApi {
       get inv() { return g.inv; },
       get inMenu() { return g.mode !== 'play'; },
       get mapImage() { return g.world?.mapImage ?? document.createElement('canvas'); },
+      get mapImageEast() { return g.world?.mapImageEast ?? null; },
       get currentStation() { return g.currentStation; },
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
@@ -1970,6 +2081,8 @@ export class Game implements GameApi {
       shop: () => g.shopView(),
       travel: () => g.travelView(),
       travelTo: (id: string) => g.travelTo(id),
+      canPreview: (id: string) => g.canPreview(id),
+      previewItem: (id: string) => g.previewItem(id),
     };
   }
 
@@ -2303,7 +2416,7 @@ export class Game implements GameApi {
     if (this.templeSpots) return this.templeSpots;
     const out: { x: number; y: number; z: number }[] = [];
     for (const site of sitePlan().sites) for (const pr of site.props) if (pr.altar) out.push({ x: pr.x, y: pr.y, z: pr.z });
-    if (LAND === 'counties') out.push({ x: TEMPLE.x + 0.5, y: heightAt(TEMPLE.x, TEMPLE.z), z: TEMPLE.z + 0.5 });
+    out.push({ x: TEMPLE.x + 0.5, y: heightAt(TEMPLE.x, TEMPLE.z), z: TEMPLE.z + 0.5 });
     return (this.templeSpots = out);
   }
   /** Kneeling distance from an altar. */
@@ -2468,8 +2581,8 @@ export class Game implements GameApi {
 
   private startPlay(fresh = false, title = 'Finding your feet…'): void {
     if (!this.world || this.startPending) return;
-    // A character in the other land: reload into that land, and come straight back to them
-    if (!LAND_FORCED && (this.save.land ?? 'counties') !== LAND) { this.switchLand(this.save.land ?? 'counties'); return; }
+    // A character saved in Morrow when it was a map of its own: set down where Morrow is now, east over the sea
+    if (this.save.land === 'morrow') { this.save.pos[0] += MORROW_OX; this.save.land = undefined; this.setFlag('voyage', null); }
     this.previewLook(null);
     this.front.hide();
     const [sx, , sz] = this.save.pos;
@@ -2484,22 +2597,6 @@ export class Game implements GameApi {
     this.startPending = { fresh };
     this.hud.showTitle(title);
     void sx; void sz;
-  }
-
-  /**
-   * Go to the other land (world/land.ts): the page reloads into it behind a loading screen, and then
-   * goes straight into this character there. The save already holds where they arrive.
-   */
-  switchLand(land: LandId, title = land === 'morrow' ? 'Crossing to Morrow…' : 'Crossing to the Counties…'): void {
-    this.save.land = land === 'counties' ? undefined : land;
-    this.persist();
-    if (this.mode === 'play') uploadSave(this.save, true);
-    this.online.save(this.save, true);
-    setNextLand(land);
-    try { sessionStorage.setItem(ENTER_KEY, this.charId ?? 'main'); } catch { /* the menu, then */ }
-    this.restoring = true;
-    this.hud.showTitle(title);
-    setTimeout(() => location.reload(), 500);
   }
 
   /** Called once the chunks around the player are generated and meshed. */
@@ -2517,13 +2614,6 @@ export class Game implements GameApi {
         if (this.give(id, 1)) { this.setFlag('store:' + id, true); this.hud.system(`From the Everrealm store: ${ITEMS[id].name}. Thank you for keeping the lights on.`); }
       }
     });
-    // In from the sea, if you came by the packet: her deck until she's tied up, then the quay
-    if (this.flag('voyage') === LAND) {
-      this.setFlag('voyage', null);
-      const at = [...this.save.pos] as [number, number, number], yaw = this.save.yaw;
-      this.rig.yaw = HARBOURS[LAND].heading;
-      this.voyage.arrive(HARBOURS[LAND], () => { this.player.teleport(at[0], at[1], at[2]); this.player.yaw = yaw; this.hud.banner(LAND === 'morrow' ? 'Callis' : 'Gullmouth', 'Ashore'); });
-    }
     this.dress();
     this.player.model.root.visible = true;
     this.player.yaw = this.save.yaw;
@@ -3319,7 +3409,7 @@ export class Game implements GameApi {
         }
       }
     }
-    for (const it of LAND === 'counties' ? this.world.structures.interactables : []) {
+    for (const it of this.world.structures.interactables) {
       const pos = new THREE.Vector3(it.x, it.y, it.z);
       const d = Math.hypot(it.x - p.x, it.z - p.z);
       if (d < it.radius && Math.abs(it.y - p.y - 1) < 2.5) {
@@ -3335,6 +3425,8 @@ export class Game implements GameApi {
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.farming.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.5);
+    // On the post cart: get off whenever you like
+    if (this.post.active) { const st = this.post.seat(); consider({ kind: 'act', label: 'Get off the cart', pos: new THREE.Vector3(st.x, st.y + 1.6, st.z), act: () => this.endRide(false) }, 0.05); }
     // The rowing boat: step out of her, climb into her, take her up, or launch her (game/Rowboat.ts)
     {
       const b = this.boat;
@@ -4649,7 +4741,7 @@ export class Game implements GameApi {
         this.selectCharacter(id);
         if (id) setLastPlayed(id);
         this.front.hide();
-        this.startPlay(false, LAND === 'morrow' ? 'Coming ashore…' : 'Coming home…');
+        this.startPlay(false, 'Coming home…');
       } else if (this.menuPending && this.world.chunks.isReady(STAGE.x, STAGE.z, 2)) { this.menuPending = false; this.showMenu(); }
       this.world.update(dt, focus, this.elapsed, timeScale * 0.3);
       if (this.startPending && this.world.chunks.isReady(focus.x, focus.z, 2)) {
@@ -4741,6 +4833,13 @@ export class Game implements GameApi {
     this.seasons.update(dt, P);
     this.fair.update(dt, this.world.sky.night);
     this.farming.update(dt);
+    // Trying something on: it comes off when you walk on, close the shop, or after half a minute
+    if (this.trying) {
+      const t = this.trying;
+      t.t += dt;
+      t.mount?.update(dt, 0);
+      if (t.t > 30 || this.player.position.distanceTo(t.at) > 0.8 || (!this.hud.isOpen('shop') && t.t > 0.5)) this.endPreview();
+    }
     // A boat left at the shore rocks at her mooring; a hired one goes home when the hour's up
     if (this.boat.afloat && !this.boat.aboard) {
       this.boat.place(dt);
@@ -4960,7 +5059,7 @@ export class Game implements GameApi {
     }
     // The letters close when you walk away from the post box, and the book when you leave the broker
     if (this.hud.isOpen('mail') && this.mailAt && Math.hypot(this.mailAt.x - this.player.position.x, this.mailAt.z - this.player.position.z) > 5) this.hud.close('mail');
-    if (this.hud.isOpen('exchange') && !this.npcs.some((n) => (n.id === 'wray' || n.id === 'tregear' || n.id === 'pound') && n.pos.distanceTo(this.player.position) < 6)) this.hud.close('exchange');
+    if (this.hud.isOpen('exchange') && !this.npcs.some((n) => (n.id === 'wray' || n.id === 'tregear' || n.id === 'pound' || n.id === 'hall_josiah') && n.pos.distanceTo(this.player.position) < 6)) this.hud.close('exchange');
     if (this.hud.isOpen('shop')) {
       if (this.currentShop === 'festival') { if (!this.festivals.stallNear(this.player.position, 6)) this.hud.close('shop'); }
       else if (this.currentShop.startsWith('pedlar_')) { if (!this.roadfolk.pedlarsNear(this.player.position, 6).some((x) => 'pedlar_' + x.id === this.currentShop)) this.hud.close('shop'); }
@@ -5094,9 +5193,23 @@ export class Game implements GameApi {
     const stepping = !this.dialogue && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((k) => this.input.held(k));
     if (this.seated && (jump || stepping || this.dead || this.horse || this.elapsed - this.lastCombat < 0.5)) this.standUp();
     this.keepReviving(dt, jump || stepping);
+    // Off the cart if you've died or been carried off elsewhere
+    if (this.post.active) { const st = this.post.seat(); if (this.dead || Math.hypot(P.position.x - st.x, P.position.z - st.z) > 4) this.endRide(false, true); }
     // Out of the boat if you've died, or been carried off elsewhere (a waymark, a summons)
     if (this.boat.aboard && (this.dead || P.position.distanceTo(this.boat.seat(new THREE.Vector3())) > 3)) this.boat.aboard = false;
-    if (this.boat.aboard) {
+    if (this.post.active) {
+      // On the post cart: she goes where she's going; you look about
+      const done = this.post.update(dt), st = this.post.seat();
+      P.position.set(st.x, st.y, st.z);
+      P.velocity.set(0, 0, 0);
+      P.yaw = st.yaw;
+      P.fallStartY = st.y;
+      P.model.root.position.set(st.x, st.y + st.lift, st.z);
+      P.model.root.rotation.y = st.yaw;
+      fall = 0;
+      if (done) this.endRide(true);
+      else if (jump) this.endRide(false);
+    } else if (this.boat.aboard) {
       // Rowing: W and S pull and back the oars, A and D turn her, Space over the side (game/Rowboat.ts)
       const b = this.boat, I = this.input, free = !this.dialogue && !this.fair.playing;
       const pull = free ? (I.held('KeyW') || I.held('ArrowUp') ? 1 : 0) - (I.held('KeyS') || I.held('ArrowDown') ? 1 : 0) : 0;
@@ -5247,7 +5360,7 @@ export class Game implements GameApi {
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
     } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
-    else if (this.seated || this.boat.aboard) { M.setState('seated'); held = 'none'; }
+    else if (this.seated || this.boat.aboard || this.post.active) { M.setState('seated'); held = 'none'; }
     else if (this.reviving) { M.setState('kneel'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
@@ -5515,7 +5628,7 @@ export class Game implements GameApi {
     if (this.serviceList && this.serviceSeen === this.save.discovered.length) return this.serviceList;
     const found = (x: number, z: number) => places().some((p) => p.kind === 'place' && this.save.discovered.includes(p.id) && Math.hypot(p.x - x, p.z - z) < p.r + 30);
     const out: MapMarker[] = [];
-    for (const t of WORLD_THINGS) if (t.id.startsWith('bank:') && (t.land ?? 'counties') === LAND && found(t.x, t.z)) out.push({ x: t.x, z: t.z, kind: 'service', svc: 'bank', label: 'Bank' });
+    for (const t of WORLD_THINGS) if (t.id.startsWith('bank:') && found(t.x, t.z)) out.push({ x: t.x, z: t.z, kind: 'service', svc: 'bank', label: 'Bank' });
     const shops: { x: number; z: number; n: string[] }[] = [];
     for (const ws of this.worldStations) {
       if (!found(ws.x, ws.z)) continue;

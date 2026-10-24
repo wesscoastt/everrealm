@@ -8,7 +8,7 @@ Status markers: **[in game]** means the fact is visible or playable in the curre
 
 - **The Charter Counties.** A set of regions bound to the city of **Ansbury** by trade charters rather than conquest. Each county keeps its own reeves and customs. Ansbury collects tolls on the Turnpike and settles disputes nobody else wants. When a city office fails, the Charter can put it out to tender, and Harrowgate & Daughters bids on everything. [in game]
 - **Money.** The coin is the **mark**: a small copper-silver disc stamped with a road sign. Prices in Hollindale are quoted in marks. [in game]
-- **The Charter Post.** Carts licensed by the Charter run between the settlements on its roads, stopping at a signpost marked CHARTER POST. Fares are set by the Charter: two marks to get on and a mark for every stretch of road. Stops: Hollin Ford, Ansbury (outside the south gate), the Waystation, Fellers' Camp, Gullmouth, Harrowgate Works, Kelderby, and a pilgrims' stop at the Glass Kirk. The Post is why the Lantern's beacon line was given up. It does not run to Scarth Watch, the Hollow Oak or anywhere off the roads. [in game]
+- **The Charter Post.** Carts licensed by the Charter run between the settlements on its roads, stopping at a signpost marked CHARTER POST. Fares are set by the Charter: a mark to get on and a mark for every stretch of road. The cart goes at a carter's pace along the roads and through each town by its streets, and you ride the whole way, the country going by; it's slow and it's cheap, where a waymark is quick and dear. Get off whenever you like. The island stops are by ferry (`src/game/PostRide.ts`, the roads and town legs in `src/world/roadNet.ts` and `src/data/postLegs.ts`, from `scripts/postlegs.ts`). Stops: Hollin Ford, Ansbury (outside the south gate), the Waystation, Fellers' Camp, Gullmouth, Harrowgate Works, Kelderby, and a pilgrims' stop at the Glass Kirk. The Post is why the Lantern's beacon line was given up. It does not run to Scarth Watch, the Hollow Oak or anywhere off the roads. [in game]
 - **Letters by the Post.** The carts carry the mail as well as passengers. A post box painted the Post's blue, with a brass slot and the Post's horn on its face, stands beside every Post sign; the clerks empty them at every stop, and any box will hand you what has come for you. Postage is a mark a letter and a mark for every parcel sent with it, up to six. A letter waits at the Post for thirty days; after that the Post sends back whatever was in it. A reader may send a letter back unopened, parcels and all, and the Post will carry it home free. `src/game/Mail.ts`, `server/mail.mjs`. [in game]
 - **Mercy Haddow**, packwoman, has walked the same round of the Charter roads for eleven years with a pony and a second pack: a day each at Ansbury's south gate, the Waystation, Gullmouth and Kelderby (by the Post signs), on the realm's day. She buys treasure maps for a mark off people who won't dig and sells them for sixty, and will sell the pony that carries her second pack. `src/data/content/packwoman.ts`. [in game]
 - **Pedlars on the long roads.** Six licensed pedlars walk the Charter roads with a pack pony each, town to town and back, and stop for anyone who wants to deal. What is in each pack changes from day to day. `src/data/content/pedlars.ts`. [in game]
@@ -486,6 +486,14 @@ Twenty-four books lie open on stands by the places they're about, and go into th
 - **The Collegium's letter** to Tabitha Gant: the pages were taken by a student who has since left; the Collegium keeps its own copy of the tunes, for scholars, by appointment.
 - **Tomorrow's Coast**: a Morrow sailor at the Mewstones; their tall cities held down with black stone, and an island of wrecks where nobody pays a toll.
 
+## The Mewstones [in game]
+
+The isle a short ferry from Gullmouth's quay. The hamlet by the jetty is all most people see of it; the rest is sheep, peat and wind.
+- **Bolitho's Croft**, half a mile up from the jetty: a stone longhouse under thatch with a peat stack and a fold. **Walt Bolitho** has the croft and an opinion on everything else on the isle (`src/data/content/mewIsle.ts`).
+- **The Mew Stones** on the eastern headland: nine stones in a ring, one down since Walt's grandfather's day, a flat one in the middle that nobody sits on. Nobody knows why.
+- **The Gullery**, caves right through Mew Fell, full of bats the size of a coat; at the bottom, **Old Leatherwing**, who saw off Walt's father and a ewe.
+- **The Margery**, a Gullmouth boat ashore on the east shore since the February gales, her hold full of salt fish and nobody aboard. The harbourmaster says the crew took to the boat. Walt says there was no boat.
+
 ## Inkholm [in game]
 
 An island south-east of Gullmouth, past the Mewstones, about six hundred blocks across. Locals call it the Holm. `world/terrain.ts` (INKHOLM), `data/inkholm.ts`, `data/content/inkholm.ts`.
@@ -589,6 +597,8 @@ On the Wake nights children go round the doors in costume, which the dales call 
 
 The Wake stall sells the guising clothes for wake candles: Scarecrow, Bedsheet ghost, Skeleton, Hedge-witch, Crow, and the Lantern Man's coat. The Lantern Man sometimes leaves his coat behind when he's driven off. A costume goes on over your clothes and armour under Costume, with Change look, and is for looks only. The stall also sells parkin, toffee apples and mulled cider, plus a carved turnip, gourds and a scarecrow for your own house. Collecting all six costumes earns the title Guiser.
 
+Any trader who sells clothes, armour or costumes lets you **try a piece on** before you buy: it shows on you until you walk off, close the shop or half a minute passes. The store's showcase shows its outfits and pets on the character you have chosen.
+
 ### The Wake Fair and the pumpkins [in game]
 
 Six years ago a Morrow ship put in at Gullmouth with pumpkin seed in her hold, and the Wend valley took to it. Hollin Ford now grows a patch on the meadow east of the bridge, and for the Wake it holds a fair there round it (`data/wakeFair.ts`, `game/WakeFair.ts`, `data/content/wakefair.ts`). The old families still carve turnips, and say so; the young ones carve pumpkins, which see you through to the Goose Fair. For the Wake, carved pumpkins sit at the foot of road lamps, by signposts, wells and doors right across the counties.
@@ -640,8 +650,8 @@ The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, King
 
 ### The crossing [in game]
 
-- Morrow is its own land (`src/world/land.ts`, `src/world/morrow.ts`). The packet ship **the Constant** runs Gullmouth to Callis and back, a day and a night each way. **Hal Sennen** is her master; she was his mother's before him, and he has sailed her twenty-two years. The fare is 20 marks, and he takes nobody under level 30.
-- The voyage is played: you board at the quay, she casts off and stands out to sea with you on her deck (`src/game/Voyage.ts`), the long crossing passes behind a loading screen, and on the far side you come in on her from the open sea and step off onto the quay. The world map's **World** view shows both lands on one sea, the Charter Counties to the west and Morrow to the east, with the Constant's lane from Gullmouth south about the Keys into Callis, and the island boat's lanes out to the Mewstones, Inkholm and Kell (`src/ui/worldMap.ts`, charts from `npm run charts`).
+- The world is one world: Morrow lies east of the Counties over open sea (`src/world/land.ts`, `src/world/morrow.ts`), and you could row there, or swim, if you had the days. The packet ship **the Constant** runs Gullmouth to Callis and back, a day and a night each way. **Hal Sennen** is her master; she was his mother's before him, and he has sailed her twenty-two years. The fare is 20 marks, and he takes nobody under level 30.
+- The voyage is played the whole way: you board at the quay, she casts off and stands out to sea with you on her deck, and she sails the real sea between the lands, south inside the Mewstones, out across the open water to the south-east and up Morrow's east coast, with the coasts going by, until she comes into Callis and you step off onto the quay (`src/game/Voyage.ts`; her course is `PACKET_COURSE` in `src/data/travel.ts`). The world map's **World** view shows both lands on one sea, the Charter Counties to the west and Morrow to the east, with the Constant's course drawn as she sails it, and the island boat's lanes out to the Mewstones, Inkholm and Kell (`src/ui/worldMap.ts`, charts from `npm run charts`).
 
 ### Callis [in game]
 

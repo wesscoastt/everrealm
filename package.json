@@ -12,7 +12,6 @@
     "quests": "rolldown scripts/questwalk.ts --platform node --format esm --file .walker/questwalk.mjs --logLevel warn && node .walker/questwalk.mjs",
     "quest-book": "node scripts/questbook.mjs",
     "sites": "rolldown scripts/sitecheck.ts --platform node --format esm --file .walker/sitecheck.mjs --logLevel warn && node .walker/sitecheck.mjs",
-    "sites:morrow": "rolldown scripts/_sitecheck_morrow.ts --platform node --format esm --file .walker/sitecheck_morrow.mjs --logLevel warn && node .walker/sitecheck_morrow.mjs",
     "paths": "rolldown scripts/pathcheck.ts --platform node --format esm --file .walker/pathcheck.mjs --logLevel warn && node .walker/pathcheck.mjs",
     "balance": "rolldown scripts/classbalance.ts --platform node --format esm --file .walker/classbalance.mjs --logLevel warn && node .walker/classbalance.mjs",
     "furniture": "rolldown scripts/furncheck.ts --platform node --format esm --file .walker/furncheck.mjs --logLevel warn && node .walker/furncheck.mjs",
@@ -21,7 +20,7 @@
     "heights": "rolldown scripts/heightcheck.ts --platform node --format esm --file .walker/heightcheck.mjs --logLevel warn && node .walker/heightcheck.mjs",
     "gear": "rolldown scripts/gearcheck.ts --platform node --format esm --file .walker/gearcheck.mjs --logLevel warn && node .walker/gearcheck.mjs",
     "economy": "rolldown scripts/economy.ts --platform node --format esm --file .walker/economy.mjs --logLevel warn && node .walker/economy.mjs",
-    "charts": "rolldown scripts/chartland.ts --platform node --format esm --file .walker/chartland.mjs --logLevel warn && node .walker/chartland.mjs && rolldown scripts/chartmorrow.ts --platform node --format esm --file .walker/chartmorrow.mjs --logLevel warn && node .walker/chartmorrow.mjs"
+    "charts": "rolldown scripts/chartland.ts --platform node --format esm --file .walker/chartland.mjs --logLevel warn && node .walker/chartland.mjs counties && node .walker/chartland.mjs morrow"
   },
   "dependencies": {
     "three": "^0.184.0",

@@ -5,7 +5,6 @@ import { Companion } from '../entities/Companion';
 /** What a chat line is: said aloud, an emote, to the group or guild, or a whisper (received, or sent). */
 export type ChatKind = 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo';
 import { setRealmTime } from '../world/clock';
-import { LAND } from '../world/land';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
 import { CreatureModel, mountModel } from '../entities/creatures';
@@ -202,7 +201,7 @@ export class Online {
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
-      ws.send(JSON.stringify({ t: 'hello', name, token: tokenFor(name), session: currentAccount()?.token, look, land: LAND }));
+      ws.send(JSON.stringify({ t: 'hello', name, token: tokenFor(name), session: currentAccount()?.token, look }));
     };
     ws.onmessage = (e) => this.onMessage(typeof e.data === 'string' ? e.data : '');
     ws.onclose = () => {
@@ -330,8 +329,6 @@ export class Online {
 
   private addRemote(p: PlayerPub): void {
     this.removeRemote(p.id);
-    // Someone in the other land isn't here to see (world/land.ts)
-    if ((p.land ?? 'counties') !== LAND) return;
     const model = new Humanoid(p.look);
     const pos = new THREE.Vector3(p.x, p.y, p.z);
     model.root.position.copy(pos);

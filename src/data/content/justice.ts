@@ -2,6 +2,7 @@ import type { DialogueTree, GameApi } from '../../game/api';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
+import { MORROW_OX } from '../../world/morrow';
 
 // The people of the law (data/justice.ts, game/Justice.ts): the gaolers in their guard rooms, a few
 // of their lodgers, and the Ropewalk Cellar under Gullmouth, where Nell Kitto makes a name lose
@@ -88,13 +89,13 @@ const NPCS: NpcDef[] = [
   {
     land: 'morrow', id: 'mateu_bosch', name: 'Mateu Bosch', title: 'Keeper of the Tolbooth, Callis',
     look: { skin: '#c88a62', hair: '#1a1410', hairStyle: 4, facial: 1, eyes: '#3a2a1a', tunic: '#e8e4d8', trim: '#2a3a6a', trousers: '#2a2a30', boots: '#1e1a16', build: 1.1, age: 0.6 },
-    schedule: [{ from: 0, to: 24, at: [2137.5, 1110.5], face: [2137.5, 1114], anim: 'idle', y: F }],
+    schedule: [{ from: 0, to: 24, at: [MORROW_OX + 2137.5, 1110.5], face: [MORROW_OX + 2137.5, 1114], anim: 'idle', y: F }],
     barks: ['The Assembly is patient. So am I.', 'Mind the step.'],
   },
   {
     land: 'morrow', id: 'quim_soler', name: 'Quim Soler', title: 'Smuggler, between ships',
     look: { skin: '#b87a52', hair: '#2a1e16', hairStyle: 3, facial: 5, eyes: '#3a2a1a', tunic: '#7a2a24', trim: '#d8b050', trousers: '#2a2a30', boots: '#1e1a16', hat: 'kerchief', hatColor: '#1e1a1a', build: 1.05, age: 0.4 },
-    schedule: [{ from: 0, to: 24, at: [2136.5, 1124.5], face: [2139, 1124.5], anim: 'seated', y: F }],
+    schedule: [{ from: 0, to: 24, at: [MORROW_OX + 2136.5, 1124.5], face: [MORROW_OX + 2139, 1124.5], anim: 'seated', y: F }],
     barks: ['Saltpenny will pay my fine. Saltpenny always pays.', 'The food here is better than the ship\'s.'],
   },
   {

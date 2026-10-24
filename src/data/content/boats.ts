@@ -3,7 +3,6 @@ import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
-import { LAND } from '../../world/land';
 
 // Rowing boats (game/Rowboat.ts): hired by the hour from a boatman, or bought outright and launched from
 // any shore. Dan Ruddle keeps his on the beach between Gullmouth's shipyard and the breakwater.
@@ -13,9 +12,9 @@ export const BOAT_HIRE_MS = 60 * 60 * 1000;
 
 /** Where each boatman stands, and the water he puts a hired boat into (its heading out: toward +x is PI / 2). */
 export interface Boatman { id: string; at: [number, number]; face: [number, number]; water: [number, number]; yaw: number }
-export const BOATMEN: Boatman[] = LAND === 'counties' ? [
+export const BOATMEN: Boatman[] = [
   { id: 'boat_dan', at: [1810.5, 552.5], face: [1815, 553], water: [1815.5, 553.5], yaw: Math.PI / 2 },
-] : [];
+];
 
 const items: ItemDef[] = [
   { id: 'rowboat', name: 'Rowing boat', kind: 'collectible', rarity: 'uncommon', stack: false, value: 45, icon: { shape: 'log', a: '#8a5a32', b: '#3a2a1c' },

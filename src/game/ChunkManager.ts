@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { ChunkResult } from '../world/chunkgen';
-import { LAND } from '../world/land';
 import type { MeshArrays } from '../world/meshCore';
 import { PAD } from '../world/meshCore';
 import { buildVegMesh } from '../world/Vegetation';
@@ -81,7 +80,7 @@ export class ChunkManager {
     const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
     for (let i = 0; i < n; i++) {
       // (named for the land, so the worker builds that land's plan: world/land.ts)
-      const w = new Worker(new URL('../world/worldWorker.ts', import.meta.url), { type: 'module', name: 'land:' + LAND });
+      const w = new Worker(new URL('../world/worldWorker.ts', import.meta.url), { type: 'module' });
       w.onmessage = (e) => {
         const fn = this.jobs.get(e.data.id);
         this.jobs.delete(e.data.id);
@@ -99,8 +98,8 @@ export class ChunkManager {
     });
   }
 
-  requestLod(step: number): Promise<{ heights: Float32Array; colors: Uint8Array; n: number }> {
-    return this.post({ type: 'lod', step }).then((d) => d.result);
+  requestLod(step: number, x0: number): Promise<{ heights: Float32Array; colors: Uint8Array; n: number }> {
+    return this.post({ type: 'lod', step, x0 }).then((d) => d.result);
   }
 
   /** Re-paint explored map tiles for chunks that aren't loaded (after loading a save). */

@@ -1,6 +1,6 @@
 import type { GameApi } from '../game/api';
 import type { EnemyType } from './gameplay';
-import { keepOnLand, type LandId } from '../world/land';
+import type { LandId } from '../world/land';
 import { coastX } from '../world/terrain';
 import { POSTS, postBoxOf } from './travel';
 
@@ -164,6 +164,3 @@ for (const b of BOARDS) {
   if (b.interactable) continue; // opened from the authored interactable (see Game.useThing)
   WORLD_THINGS.push({ land: b.land, id: 'board:' + b.id, x: b.x, z: b.z, y: b.y, label: 'Read the notice board', radius: 2.4, use: (g) => g.openBoard(b.id) });
 }
-// Only this land's
-keepOnLand(WORLD_THINGS);
-keepOnLand(QUEST_SPAWNS);

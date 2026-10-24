@@ -1,5 +1,4 @@
 import { MOUNT_DROPS } from './content/mounts';
-import { countiesOnly } from '../world/land';
 import type { CreatureKind, Palette } from '../entities/creatures';
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import { ARMOUR_SMITHING } from './armour';
@@ -293,6 +292,8 @@ export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'road
   | 'dg_digger' | 'dg_barrowdead' | 'dg_wight' | 'dg_venn' | 'dg_barrowwarden' | 'dg_oldking'
   // Morrow, region by region (world/morrow.ts)
   | 'mangrovecrab' | 'keylizard' | 'reefjelly' | 'keywrecker' | 'gladelizard' | 'glim' | 'marshmoth' | 'lampmoth' | 'amberlynx' | 'leafback' | 'terracejackal' | 'quarrybeetle' | 'blackrunner' | 'slabcrawler' | 'liftmoth' | 'riftwolf' | 'basilisk' | 'glassback' | 'saltreaver' | 'wastehound' | 'risen' | 'fendamp' | 'barrowwight' | 'felltroll'
+  // The bat at the bottom of the Gullery, under Mew Fell
+  | 'leatherwing'
   // The wilds' bears, great spiders, bats, woken cairns, adders and drakes, a kind or two to each country
   | 'heathadder' | 'brownbear' | 'weaver' | 'cavebat' | 'cliffbat' | 'fenadder' | 'raftspider' | 'redadder' | 'slagcairn' | 'greyweaver' | 'whitebear' | 'rimecairn' | 'torcairn' | 'ashbat' | 'mangrovesnake' | 'gladespider' | 'amberbear' | 'quarrybat' | 'riftcairn' | 'flatsdrake' | 'barrowspider' | 'cavebear';
 
@@ -506,6 +507,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   fendamp: { type: 'fendamp', model: 'jelly', palette: { a: '#8a908a', b: '#3a3e3a' }, scale: 1.3, level: 84, hp: 2000, damage: 70, xp: 1060, marks: [17, 30], name: 'Fen-damp', speed: 2.4, aggro: 9, leash: 24, attack: 'slam', windup: 0.85, range: 3, cooldown: 2.2, loot: [{ item: 'jelly_residue', chance: 0.8 }], respawn: 120 },
   barrowwight: { type: 'barrowwight', model: 'bandit', look: { skin: '#c0c8c8', eyes: '#9fe8ff', tunic: '#2a2a30', trim: '#b8a878', trousers: '#22222a', boots: '#1a1a1e', cape: '#1e1e24', hat: 'circlet', hatColor: '#b8a878', age: 0.95, build: 1.0, height: 1.06 }, held: 'sword', level: 95, hp: 2950, damage: 89, xp: 1465, marks: [18, 32], name: 'Barrow-wight', speed: 4.6, aggro: 14, leash: 30, attack: 'lunge', windup: 0.55, range: 2.9, cooldown: 1.5, loot: [{ item: 'grave_iron', chance: 0.6 }], respawn: 120 },
   felltroll: { type: 'felltroll', model: 'bandit', look: { skin: '#7a8a8a', hair: '#3a4040', hairStyle: 3, facial: 8, eyes: '#e8c040', tunic: '#4a4038', trim: '#6a5a48', trousers: '#3a3430', boots: '#2a2420', build: 1.5, height: 1.05 }, held: 'none', scale: 1.9, level: 96, hp: 6000, damage: 108, xp: 2420, marks: [18, 32], name: 'Fell troll', speed: 4.2, aggro: 13, leash: 26, attack: 'slam', windup: 0.9, range: 3.8, cooldown: 2.0, loot: [{ item: 'troll_hide', chance: 0.7 }, { item: 'grave_iron', chance: 0.2 }], respawn: 240 },
+  leatherwing: { type: 'leatherwing', model: 'bat', palette: { a: '#3a302a', b: '#241c18', c: '#ffb040' }, scale: 1.9, name: 'Old Leatherwing', level: 16, hp: 900, damage: 22, speed: 5.4, aggro: 14, leash: 26, attack: 'lunge', windup: 0.6, range: 3, cooldown: 1.5, xp: 420, elite: true, loot: [{ item: 'bat_wing', chance: 1, min: 2, max: 3 }, { item: 'oilskin_hat', chance: 0.12 }], marks: [10, 18], respawn: 300 },
   // The wilds' heavier and stranger kinds (entities/voxcreatures.ts): one or two to each country, in its level
   heathadder: { type: 'heathadder', model: 'adder', palette: { a: '#8a7a4a', b: '#2a2218', c: '#d8c890' }, scale: 0.7, name: 'Heath adder', level: 5, hp: 80, damage: 10, speed: 3.6, aggro: 8, leash: 24, attack: 'lunge', windup: 0.6, range: 2.6, cooldown: 1.8, xp: 48, loot: [{ item: 'adder_skin', chance: 0.5 }], marks: [1, 4], respawn: 100 },
   brownbear: { type: 'brownbear', model: 'bear', name: 'Brown bear', level: 11, hp: 260, damage: 19, speed: 4.8, aggro: 9, leash: 28, attack: 'slam', windup: 0.85, range: 2.8, cooldown: 2.4, xp: 140, loot: [{ item: 'bear_pelt', chance: 0.6 }], marks: [3, 7], respawn: 130 },
@@ -599,9 +601,6 @@ export const REGIONS: { id: string; name: string; sub: string; x: number; z: num
   { id: 'haverwood', name: 'Haverwood', sub: 'Hollindale', x: 252, z: 238, r: 40 },
 ];
 
-// Hollindale's own creatures and animals, placed by hand: the Counties only (world/land.ts)
-countiesOnly(ENEMY_SPAWNS);
-countiesOnly(ANIMAL_SPAWNS);
 
 // The far places' rare mounts, now and then off the creatures of their country (data/content/mounts.ts)
 for (const [type, item, chance] of MOUNT_DROPS) ENEMIES[type as EnemyType]?.loot.push({ item, chance });

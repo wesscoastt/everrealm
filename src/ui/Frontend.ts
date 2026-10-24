@@ -326,6 +326,9 @@ export class Frontend {
     box.querySelector<HTMLInputElement>('.st-hide input')?.addEventListener('change', (e) => { this.storeHideOwned = (e.target as HTMLInputElement).checked; order(); });
     // Each card's window: the model itself, turning while the pointer is on the card
     this.showcase ??= new StoreShowcase(this.ctx.renderer());
+    // Costumes and cloaks shown on the character you have chosen, so you see them on yourself
+    const me = this.ctx.characters().find((c) => c.id === this.ctx.selected());
+    this.showcase.setWearer(me?.look ?? null);
     box.querySelectorAll<HTMLCanvasElement>('canvas[data-view]').forEach((cv) => this.showcase!.attach(cv, cv.dataset.view!, cv.closest('.st-card') as HTMLElement));
     box.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((b) => b.addEventListener('click', async () => {
       if (b.disabled) return;

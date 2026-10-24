@@ -1,10 +1,14 @@
-import { LAND, LAND_NAMES, type LandId } from '../world/land';
+import { landAt, LAND_NAMES, type LandId } from '../world/land';
+import { PACKET_COURSE } from '../data/travel';
+import { CALLIS_PACKET, MORROW_OX } from '../world/morrow';
+import { WMAX } from '../world/VoxelWorld';
 
 // The world map's World view: the whole known world on one sea, as WoW's map shows both its
 // continents. Each land's chart is painted from its terrain at build time (npm run charts:
 // public/maps/<land>.png, with its towns in <land>.json); here they're laid side by side, the
 // Charter Counties to the west and Morrow over the sea to the east, with the lanes the ships keep:
-// the Constant from Gullmouth round the Keys to Callis, and the island boat out to the isles.
+// the Constant's course from Gullmouth to Callis (the one she really sails: data/travel.ts), and the
+// island boat out to the isles.
 
 interface LandChart { img: HTMLImageElement; ready: boolean; meta: { wmin: number; wsize: number; towns: { name: string; x: number; z: number }[] } | null }
 const charts: Partial<Record<LandId, LandChart>> = {};
@@ -28,9 +32,9 @@ const CUT: Record<LandId, { u0: number; u1: number; at: number }> = {
 };
 const WIDTH = 0.86 + 0.96;
 
-/** The sea lanes, in each land's own coordinates. */
+/** The sea lanes' ends (world coordinates). */
 const GULL: [number, number] = [1784, 600];
-const CALLIS: [number, number] = [2332, 1240];
+const CALLIS: [number, number] = [CALLIS_PACKET.x - 6, CALLIS_PACKET.z];
 const ISLES: [string, number, number][] = [['The Mewstones', 2345, 728], ['Inkholm', 2486, 1647], ['Kell', 2363, -552]];
 
 export interface WorldMapState { hover: { x: number; y: number } | null }
@@ -51,6 +55,8 @@ export function drawWorldMap(c: HTMLCanvasElement, dpr: number, me: { x: number;
     const u = (wx - wmin) / wsize, v = (wz - wmin) / wsize;
     return [ox + (cut.at + (u - cut.u0)) * S, oy + v * S];
   };
+  /** A point in the one world, on whichever land's chart it falls (the empty sea between them is cut out). */
+  const atWorld = (wx: number, wz: number): [number, number] => (wx < WMAX - 320 ? at('counties', wx, wz) : at('morrow', wx - MORROW_OX, wz));
   const label = (text: string, lx: number, ly: number, font: string, fill: string, halo = 'rgba(250, 242, 220, 0.85)', width = 4) => {
     x.font = font; x.lineJoin = 'round'; x.lineWidth = width * dpr; x.strokeStyle = halo; x.fillStyle = fill;
     x.strokeText(text, lx, ly); x.fillText(text, lx, ly);
@@ -70,22 +76,28 @@ export function drawWorldMap(c: HTMLCanvasElement, dpr: number, me: { x: number;
   x.fillStyle = vg; x.fillRect(0, 0, cw, ch);
   x.textAlign = 'center'; x.textBaseline = 'middle';
 
-  // The sea lanes: dashed, with a ship on each
+  // The sea lanes: dashed, rounding each corner of the course
   const lane = (pts: [number, number][], color: string) => {
     x.save(); x.strokeStyle = color; x.lineWidth = px(2.5); x.setLineDash([px(8), px(6)]);
     x.beginPath(); x.moveTo(pts[0][0], pts[0][1]);
-    if (pts.length === 4) x.bezierCurveTo(pts[1][0], pts[1][1], pts[2][0], pts[2][1], pts[3][0], pts[3][1]); else x.lineTo(pts[1][0], pts[1][1]);
+    for (let i = 1; i < pts.length - 1; i++) x.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+    x.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
     x.stroke(); x.restore();
   };
-  const g = at('counties', GULL[0], GULL[1]), cl = at('morrow', CALLIS[0], CALLIS[1]);
+  const g = atWorld(GULL[0], GULL[1]);
   if (charts.morrow?.ready && charts.counties?.ready) {
-    // The Constant: out east from Gullmouth, south about the Keys, up Morrow's east coast into Callis
-    lane([g, [g[0] + S * 0.55, g[1] + S * 0.5], [cl[0] + S * 0.3, cl[1] + S * 0.42], cl], 'rgba(243, 213, 138, 0.95)');
-    const mid: [number, number] = [g[0] + S * 0.5, g[1] + S * 0.38];
+    // The Constant: south inside the Mewstones, across the open sea, up Morrow's east coast into Callis; her ship halfway
+    const course = [g, ...PACKET_COURSE.map(([cx, cz]) => atWorld(cx, cz)), atWorld(CALLIS[0], CALLIS[1])];
+    lane(course, 'rgba(243, 213, 138, 0.95)');
+    const legs = course.slice(1).map((q, i) => Math.hypot(q[0] - course[i][0], q[1] - course[i][1]));
+    let half = legs.reduce((a, b) => a + b, 0) / 2, k = 0;
+    while (k < legs.length - 1 && half > legs[k]) half -= legs[k++];
+    const f = half / Math.max(1e-6, legs[k]);
+    const mid: [number, number] = [course[k][0] + (course[k + 1][0] - course[k][0]) * f, course[k][1] + (course[k + 1][1] - course[k][1]) * f];
     shipGlyph(x, mid[0], mid[1], dpr * 1.4);
     label('The Constant · a day and a night', mid[0], mid[1] + px(22), `700 ${px(14)}px "Alegreya", serif`, '#3a2408');
     hits.push({ x: mid[0], y: mid[1], name: 'The Constant', sub: 'Gullmouth to Callis: Hal Sennen, at either quay' });
-    for (const [name, ix, iz] of ISLES) { const p = at('counties', ix, iz); lane([g, p], 'rgba(250, 242, 220, 0.75)'); hits.push({ x: p[0], y: p[1], name, sub: 'The island boat: Davey Penrose, Gullmouth' }); }
+    for (const [name, ix, iz] of ISLES) { const p = atWorld(ix, iz); lane([g, p], 'rgba(250, 242, 220, 0.75)'); hits.push({ x: p[0], y: p[1], name, sub: 'The island boat: Davey Penrose, Gullmouth' }); }
   }
   // The lands' names, and their towns
   for (const land of ['counties', 'morrow'] as LandId[]) {
@@ -105,7 +117,8 @@ export function drawWorldMap(c: HTMLCanvasElement, dpr: number, me: { x: number;
   }
   // You
   if (me) {
-    const [mx, my] = at(LAND, me.x, me.z);
+    // (each land's chart is in its own frame: Morrow's as it was drawn, before it was set down east)
+    const land = landAt(me.x), [mx, my] = at(land, me.x - (land === 'morrow' ? MORROW_OX : 0), me.z);
     x.fillStyle = '#fff6dc'; x.strokeStyle = '#0b1122'; x.lineWidth = px(3);
     x.beginPath(); x.arc(mx, my, px(7), 0, Math.PI * 2); x.stroke(); x.fill();
     label('You are here', mx, my - px(18), `700 ${px(13)}px "Alegreya Sans", sans-serif`, '#0b1122');

@@ -1,6 +1,6 @@
 import type { ItemDef } from './items';
 import type { EnemyType } from './gameplay';
-import { countiesOnly, LAND, type LandId } from '../world/land';
+import type { LandId } from '../world/land';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 import { hash2 } from '../world/noise';
 import type { Plan, Site } from '../world/sites';
@@ -88,7 +88,7 @@ const ALL_MAPS: TreasureMap[] = [
   { id: 'tmap_gale', region: 'glades', n: 1, land: 'morrow', quest: { name: 'Ysolde Gale\'s map', desc: 'Dinah Lowry\'s fair copy of a page from Captain Gale\'s log: Heron Mere in the Glades, a dead tree drawn as a cross, and an X under it.' } },
 ];
 /** This land's maps: the ones whose X can be dug here. */
-export const TREASURE_MAPS: TreasureMap[] = ALL_MAPS.filter((m) => (m.land ?? 'counties') === LAND);
+export const TREASURE_MAPS: TreasureMap[] = ALL_MAPS;
 /** Maps that turn up in chests and drops: not a quest's own. */
 export const LOOSE_MAPS: TreasureMap[] = TREASURE_MAPS.filter((m) => !m.quest);
 
@@ -149,5 +149,3 @@ export function treasureSpot(m: TreasureMap, P: Plan): { x: number; z: number } 
   return { x, z };
 }
 
-// Placed on the first continent: none of them in Morrow (world/land.ts)
-countiesOnly(RARES);

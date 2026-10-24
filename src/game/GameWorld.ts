@@ -16,10 +16,9 @@ import { plan, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
 import { GW, heightAt, landDist, SEA } from '../world/terrain';
-import { LAND } from '../world/land';
 import { buildBlockTextureArray } from '../world/textures';
 import { Vegetation } from '../world/Vegetation';
-import { CHUNK, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMIN, WSIZE } from '../world/VoxelWorld';
+import { CHUNK, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMAX, WMIN, WSIZE } from '../world/VoxelWorld';
 import { ChunkManager } from './ChunkManager';
 
 /** Blocks between the far terrain's samples: it's only seen past the near chunks, in the haze. */
@@ -51,6 +50,9 @@ export class GameWorld {
   readonly sites: Site[];
   /** Explored-world map, painted chunk by chunk as the player sees it. */
   readonly mapImage: HTMLCanvasElement;
+  /** The explored map of Morrow's half of the world (WMAX..WMAX + WSIZE along x), once any of it's been seen. */
+  mapImageEast: HTMLCanvasElement | null = null;
+  private mapCtxEast: CanvasRenderingContext2D | null = null;
   private mapCtx: CanvasRenderingContext2D;
   private gwMap: HTMLCanvasElement;
   readonly explored = new Set<number>();
@@ -95,8 +97,8 @@ export class GameWorld {
     this.scene.add(this.ferry.root);
     this.stats.genMs = performance.now() - t0;
 
-    // Hollindale's nodes live for the whole session, bucketed by chunk (the Counties only)
-    if (LAND === 'counties') {
+    // Hollindale's nodes live for the whole session, bucketed by chunk
+    {
       for (const o of this.layout.ores) this.bucket(o.x, o.z, true).ores.push(o);
       for (const t of this.layout.trees) this.bucket(t.x, t.z, true).trees.push(t);
       for (const f of this.layout.fish) this.bucket(f.x, f.z, true).fish.push(f);
@@ -117,7 +119,7 @@ export class GameWorld {
     this.mapCtx = this.mapImage.getContext('2d')!;
 
     this.chunks = new ChunkManager(this.voxels, this.voxelMat, this.waterMat, this.shared.uTime, {
-      isGreenwake: (cx, cz) => LAND === 'counties' && cx >= 0 && cz >= 0 && cx * CHUNK < GW && cz * CHUNK < GW,
+      isGreenwake: (cx, cz) => cx >= 0 && cz >= 0 && cx * CHUNK < GW && cz * CHUNK < GW,
       fill: (cx, cz) => this.fillFromGrid(cx, cz),
     }, {
       onLoaded: (cx, cz, r) => this.chunkLoaded(cx, cz, r),
@@ -157,7 +159,7 @@ export class GameWorld {
       this.impostors.set(s.id, g);
       scene.add(g);
     }
-    this.chunks.requestLod(LOD_STEP).then((r) => this.buildLod(r));
+    this.wantLod(0);
   }
 
   // ---------------------------------------------------------------- Nodes
@@ -260,7 +262,14 @@ export class GameWorld {
   // ---------------------------------------------------------------- Map
   private paintTile(cx: number, cz: number, px: Uint8ClampedArray | null): void {
     this.explored.add(chunkKey(cx, cz));
-    const S = MAP_SCALE, n = CHUNK / S, ox = (cx * CHUNK - WMIN) / S, oz = (cz * CHUNK - WMIN) / S;
+    const east = cx * CHUNK >= WMAX;
+    if (east && !this.mapImageEast) {
+      this.mapImageEast = document.createElement('canvas');
+      this.mapImageEast.width = this.mapImageEast.height = WSIZE / MAP_SCALE;
+      this.mapCtxEast = this.mapImageEast.getContext('2d')!;
+    }
+    const ctx = east ? this.mapCtxEast! : this.mapCtx;
+    const S = MAP_SCALE, n = CHUNK / S, ox = (cx * CHUNK - (east ? WMAX : WMIN)) / S, oz = (cz * CHUNK - WMIN) / S;
     if (px) {
       // Each pixel of the map is the average of the S x S blocks under it
       const out = new Uint8ClampedArray(n * n * 4);
@@ -269,8 +278,8 @@ export class GameWorld {
         for (let dj = 0; dj < S; dj++) for (let di = 0; di < S; di++) sum += px[((j * S + dj) * CHUNK + i * S + di) * 4 + c];
         out[(j * n + i) * 4 + c] = sum / (S * S);
       }
-      this.mapCtx.putImageData(new ImageData(out, n, n), ox, oz);
-    } else this.mapCtx.drawImage(this.gwMap, cx * CHUNK, cz * CHUNK, CHUNK, CHUNK, ox, oz, n, n);
+      ctx.putImageData(new ImageData(out, n, n), ox, oz);
+    } else ctx.drawImage(this.gwMap, cx * CHUNK, cz * CHUNK, CHUNK, CHUNK, ox, oz, n, n);
   }
 
   private renderGreenwakeMap(): HTMLCanvasElement {
@@ -301,12 +310,20 @@ export class GameWorld {
   exploredKeys(): number[] { return [...this.explored]; }
 
   // ---------------------------------------------------------------- Far terrain
-  private buildLod(r: { heights: Float32Array; colors: Uint8Array; n: number }): void {
+  /** The far terrain's squares built or on their way (0 the Counties', 1 Morrow's). */
+  private lodHalves = new Set<number>();
+  private wantLod(half: 0 | 1): void {
+    if (this.lodHalves.has(half)) return;
+    this.lodHalves.add(half);
+    const x0 = WMIN + half * WSIZE;
+    this.chunks.requestLod(LOD_STEP, x0).then((r) => this.buildLod(r, x0));
+  }
+  private buildLod(r: { heights: Float32Array; colors: Uint8Array; n: number }, X0 = WMIN): void {
     const { heights, colors, n } = r;
     const step = LOD_STEP;
     // The authored vale's heights come from its grid
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-      const x = WMIN + i * step, z = WMIN + j * step;
+      const x = X0 + i * step, z = WMIN + j * step;
       if (x >= 0 && z >= 0 && x < GW && z < GW) {
         const top = this.grid.topSolid(Math.min(GSX - 1, x), Math.min(GSZ - 1, z));
         heights[i + j * n] = top + 1;
@@ -322,7 +339,7 @@ export class GameWorld {
       const k = i + j * n;
       if (heights[k] > SEA && heights[k - 1] <= SEA && heights[k + 1] <= SEA && heights[k - n] <= SEA && heights[k + n] <= SEA) heights[k] = SEA - 1;
       // Out at sea every stack is a stray: the far terrain is open water there
-      else if (heights[k] > SEA && landDist(WMIN + i * step, WMIN + j * step) < 0) heights[k] = SEA - 1;
+      else if (heights[k] > SEA && landDist(X0 + i * step, WMIN + j * step) < 0) heights[k] = SEA - 1;
     }
     const H = (i: number, j: number) => {
       const h = heights[Math.min(n - 1, Math.max(0, i)) + Math.min(n - 1, Math.max(0, j)) * n];
@@ -354,7 +371,7 @@ export class GameWorld {
       };
       for (let j = tj; j < Math.min(n - 1, tj + TILE); j++) for (let i = ti; i < Math.min(n - 1, ti + TILE); i++) {
         if (heights[i + j * n] <= SEA) continue;
-        const x0 = WMIN + i * step, z0 = WMIN + j * step, x1 = x0 + step, z1 = z0 + step;
+        const x0 = X0 + i * step, z0 = WMIN + j * step, x1 = x0 + step, z1 = z0 + step;
         const h = H(i, j);
         const o = (i + j * n) * 3;
         const cr = colors[o] / 255, cg = colors[o + 1] / 255, cb = colors[o + 2] / 255;
@@ -370,8 +387,8 @@ export class GameWorld {
       addMesh(pos, col, nor);
     }
     {
-      const y = SEA - 0.3, a = WMIN, b = WMIN + WSIZE, cr = 0.24, cg = 0.47, cb = 0.66;
-      addMesh([a, y, b, b, y, b, b, y, a, a, y, b, b, y, a, a, y, a], Array(6).fill([cr, cg, cb]).flat(), Array(6).fill([0, 1, 0]).flat());
+      const y = SEA - 0.3, a = X0, b = X0 + WSIZE, za = WMIN, zb = WMIN + WSIZE, cr = 0.24, cg = 0.47, cb = 0.66;
+      addMesh([a, y, zb, b, y, zb, b, y, za, a, y, zb, b, y, za, a, y, za], Array(6).fill([cr, cg, cb]).flat(), Array(6).fill([0, 1, 0]).flat());
     }
     mat.onBeforeCompile = (s) => {
       s.uniforms.uCenter = this.lodUniforms.uCenter;
@@ -384,7 +401,7 @@ export class GameWorld {
         .replace('void main() {', 'void main() {\n  if (distance(vLodXZ, uCenter) < uRadius) discard;');
     };
     this.lod = group;
-    this.scene.add(this.lod);
+    this.scene.add(group);
     IMPOSTOR_MAT.onBeforeCompile = mat.onBeforeCompile;
     IMPOSTOR_MAT.customProgramCacheKey = () => 'everrealm-impostor';
     IMPOSTOR_MAT.needsUpdate = true; // (it may have been drawn already, before the far terrain was built)
@@ -467,6 +484,7 @@ export class GameWorld {
       this.sky.fog.near += (24 - this.sky.fog.near) * u; this.sky.fog.far += (140 - this.sky.fog.far) * u;
     }
     this.chunks.update(center.x, center.z);
+    if (center.x > WMAX - 2600) this.wantLod(1);
     this.lodUniforms.uCenter.value.set(center.x, center.z);
     this.lodUniforms.uRadius.value = this.chunks.coveredRadius;
     // The chunks stop a block past where the far terrain starts; the far terrain is pushed back in
@@ -486,7 +504,7 @@ export class GameWorld {
 
     // The authored vale's props and grass only show while its chunks are around
     const gwDist = Math.hypot(Math.max(0, center.x - GW), Math.max(0, center.z - GW));
-    this.structures.group.visible = LAND === 'counties' && gwDist < this.chunks.viewRadius * CHUNK - 40;
+    this.structures.group.visible = gwDist < this.chunks.viewRadius * CHUNK - 40;
     this.vegetation.update(center.x, center.z, this.chunks.viewRadius * CHUNK - 30);
 
     // Settlements build their props when the player approaches; landmarks swap their stand-ins

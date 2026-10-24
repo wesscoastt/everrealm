@@ -1,10 +1,9 @@
 import { B } from './blocks';
 import { fbm2, hash2, smoothstep, valueNoise } from './noise';
-import { LAND } from './land';
-import { MORROW_LAKES, MORROW_RIVERS, MORROW_ROADS, morrowColumn, morrowHeight, morrowLandDist, morrowRegionId, type MorrowRegion } from './morrow';
+import { inMorrow, MORROW_LAKES, MORROW_RIVERS, MORROW_ROADS, morrowColumn, morrowHeight, morrowLandDist, morrowRegionId, type MorrowRegion } from './morrow';
 
-/** This page is Morrow (world/land.ts): the functions below hand their questions to world/morrow.ts. */
-const MORROW = LAND === 'morrow';
+// One world: the Counties to the west, Morrow east across the open sea (world/morrow.ts). East of the seam
+// (inMorrow) the functions below hand their questions to Morrow.
 
 // Pure, deterministic terrain for the whole continent outside the authored Hollindale grid.
 // Shared by generation workers (blocks) and the main thread (LOD, labels, placement).
@@ -142,7 +141,7 @@ export function kellDist(x: number, z: number): number {
 }
 
 export function regionAt(x: number, z: number): RegionSample {
-  if (MORROW) { const r = morrowRegionId(x, z); return { a: r, b: r, t: 0 }; }
+  if (inMorrow(x)) { const r = morrowRegionId(x, z); return { a: r, b: r, t: 0 }; }
   // Hollindale: the vale, and the hills and shore beyond its north and west edges
   const vale = x < GW && z < GW;
   if (vale && x >= 0 && z >= 0) return VALE;
@@ -201,12 +200,12 @@ const COUNTIES_ROADS: [number, number][][] = [
   // Kell: out of Brasswick's east end and up the Kiln, through a cutting in the rim and down to the Works
   [[2432, -556], [2490, -580], [2560, -620], [2630, -650], [2690, -668], [2738, -668]],
 ];
-export const RIVERS: [number, number][][] = MORROW ? MORROW_RIVERS : COUNTIES_RIVERS;
-export const LAKES: { x: number; z: number; r: number; name: string }[] = MORROW ? MORROW_LAKES : COUNTIES_LAKES;
-/** The land's roads (Morrow's are its own). */
-export const WORLD_ROADS: [number, number][][] = MORROW ? MORROW_ROADS : COUNTIES_ROADS;
-/** How many of WORLD_ROADS are the heart's own (the outer lands' come after); all of Morrow's. */
-export const HEART_ROADS = MORROW ? MORROW_ROADS.length : 7;
+export const RIVERS: [number, number][][] = [...COUNTIES_RIVERS, ...MORROW_RIVERS];
+export const LAKES: { x: number; z: number; r: number; name: string }[] = [...COUNTIES_LAKES, ...MORROW_LAKES];
+/** Both lands' roads: the Counties' heart roads, then all of Morrow's, then the Counties' outer lands' roads. */
+export const WORLD_ROADS: [number, number][][] = [...COUNTIES_ROADS.slice(0, 7), ...MORROW_ROADS, ...COUNTIES_ROADS.slice(7)];
+/** How many of WORLD_ROADS are laid as the heart's are (the outer lands' come after, graded: sites.gradeRoads). */
+export const HEART_ROADS = 7 + MORROW_ROADS.length;
 
 /** Precomputed segment boxes so per-column distance tests only touch nearby segments. */
 interface Seg { ax: number; az: number; bx: number; bz: number; minX: number; maxX: number; minZ: number; maxZ: number }
@@ -270,7 +269,7 @@ const bump = (v: number, c: number, r: number) => smoothstep(r, 0, Math.abs(v - 
  * with a bay on the west coast below Hagworm Wood and headlands to the north and south.
  */
 export function coastDistWNS(x: number, z: number): number {
-  if (MORROW) return morrowLandDist(x, z);
+  if (inMorrow(x)) return morrowLandDist(x, z);
   // Broad ragged shores, then the named features: a western cape and bay, a northern bay between
   // two headlands, and a southern headland beside a deep bay under the Kirk's plateau.
   const west = x - (-170 + (fbm2(z / 340, 1.3, 3, 701) - 0.5) * 300 + bump(z, 1250, 230) * 160 - bump(z, 640, 200) * 150 - bump(z, 1760, 150) * 90);
@@ -281,7 +280,7 @@ export function coastDistWNS(x: number, z: number): number {
 
 /** Distance inland from the nearest shore of the continent, the Fleet coast included. */
 export function coastDist(x: number, z: number): number {
-  if (MORROW) return morrowLandDist(x, z);
+  if (inMorrow(x)) return morrowLandDist(x, z);
   return smin(coastDistWNS(x, z), coastX(z) + 36 - x, 170);
 }
 
@@ -493,7 +492,7 @@ const MEWSTONES = [
   { x: 2420, z: 1080, r: 170 }, { x: 2780, z: 960, r: 110 }, { x: 2180, z: 1330, r: 95 },
 ];
 /** The necks: each from just inside the old shore to well inside the outer land, bending as it goes. */
-export const NECKS: [number, number][][] = MORROW ? [] : [
+export const NECKS: [number, number][][] = [
   [[240, -70], [262, -250], [226, -430], [252, -620], [238, -840]], // north, from the hills above Hollindale to Gannet Cliffs
   [[-120, 980], [-280, 1006], [-440, 966], [-650, 990]], // west, from Hagworm Wood to the Wrath Levels
   [[300, 2130], [326, 2300], [288, 2470], [318, 2620], [302, 2770]], // south, from the Scarth Highlands to Tolmen Moor
@@ -505,7 +504,7 @@ const wander = (t: number, s: number) => (fbm2(t / 1000, s, 3, 716) - 0.5) * 800
 
 /** Inland distance from the outer lands' own shores (negative at sea, the sound included). */
 export function outerLandDist(x: number, z: number): number {
-  if (MORROW) return morrowLandDist(x, z);
+  if (inMorrow(x)) return morrowLandDist(x, z);
   const d0 = coastDist(x, z);
   const sound = 280 + fbm2(x / 300, z / 300, 3, 710) * 420;
   const inner = -d0 - sound;
@@ -534,13 +533,13 @@ export function outerLandDist(x: number, z: number): number {
 
 /** Positive on a neck of land across the sound (its distance in from the neck's edge). */
 export function neckDist(x: number, z: number): number {
-  if (MORROW) return -999;
+  if (inMorrow(x)) return -999;
   return 80 + fbm2(x / 70, z / 70, 3, 731) * 50 - segDist(x, z, NECK_SEGS);
 }
 
 /** Inland distance from the nearest shore anywhere: the heartland, the outer lands or a neck. */
 export function landDist(x: number, z: number): number {
-  if (MORROW) return morrowLandDist(x, z);
+  if (inMorrow(x)) return morrowLandDist(x, z);
   return Math.max(coastDist(x, z), outerLandDist(x, z), neckDist(x, z));
 }
 
@@ -571,7 +570,7 @@ function neckHeight(x: number, z: number, n: number): number {
 
 /** Base terrain height before site flattening (also used to place sites). */
 export function baseHeight(x: number, z: number): number {
-  if (MORROW) return morrowHeight(x, z);
+  if (inMorrow(x)) return morrowHeight(x, z);
   const h0 = heartHeight(x, z);
   if (inHeart(x, z)) return h0;
   const d0 = coastDist(x, z);
@@ -657,7 +656,7 @@ export function heightAt(x: number, z: number): number {
   if (rg && h > SEA + 1 && rg.h > SEA + 1) {
     // Fading out toward Hollindale's authored valley, so the land still meets the valley's edge
     const out = Math.max(-x, x - GW, -z, z - GW);
-    const seam = MORROW ? 1 : Math.max(0, Math.min(1, out / 10));
+    const seam = inMorrow(x) ? 1 : Math.max(0, Math.min(1, out / 10));
     h += (rg.h - h) * rg.w * seam;
   }
   const list = FLAT_BUCKETS.get(Math.floor(x / FLAT_CELL) + Math.floor(z / FLAT_CELL) * 1000);
@@ -693,7 +692,7 @@ export function columnBlocks(x: number, z: number, h: number, maxDiff: number, r
   }
   if (road) return { top: hash2(x, z, 8) < 0.1 ? B.Gravel : B.Path, sub: B.Dirt };
   const beach = h <= SEA + 2;
-  if (MORROW) { const m = morrowColumn(x, z, h, maxDiff, region as MorrowRegion, stony, beach); if (m) return m; }
+  if (inMorrow(x)) { const m = morrowColumn(x, z, h, maxDiff, region as MorrowRegion, stony, beach); if (m) return m; }
   switch (region) {
     case 'redstone':
       if (maxDiff >= 2) return { top: B.TerraOrange, sub: B.TerraOrange };

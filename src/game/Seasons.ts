@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { FESTIVALS, type FestivalDef } from '../data/festivals';
-import { LAND } from '../world/land';
+import { landAt } from '../world/land';
 import { SEASONS, type SeasonDef, type SpotKind, type DecorKind } from '../data/seasons';
 import { utcDay } from '../data/calendar';
 import { POSTS } from '../data/travel';
@@ -133,7 +133,7 @@ export class Seasons {
   private bossDone(fest: string): boolean { return this.host.flag('sboss:' + fest) === realmDay(); }
 
   private runBoss(P: THREE.Vector3, dt: number): void {
-    if (LAND !== 'counties') return; // (the festival creatures come out on the Counties' greens)
+    if (landAt(P.x) !== 'counties') return; // (the festival creatures come out on the Counties' greens)
     const S = this.season, f = this.host.fest();
     const F = this.fight;
     if (F) {
@@ -185,7 +185,7 @@ export class Seasons {
   /** The boss on the map from anywhere: while it's out, and for a few minutes before. */
   markers(): MapMarker[] {
     const S = this.season;
-    if (!S || this.bossDone(S.id) || LAND !== 'counties') return [];
+    if (!S || this.bossDone(S.id)) return [];
     const name = ENEMIES[S.boss.type as EnemyType].name;
     if (inWindow(this.host.hour(), S.boss.from, S.boss.to)) return [{ x: S.boss.x, z: S.boss.z, kind: 'boss', label: `${name}: ${S.boss.where}` }];
     const until = secsUntil(S.boss.from, this.host.hour());

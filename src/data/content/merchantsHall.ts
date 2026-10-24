@@ -2,7 +2,6 @@ import type { DialogueTree } from '../../game/api';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
-import { LAND } from '../../world/land';
 
 // Gullmouth's Merchants' Hall by the west gate (world/sites.ts fits it out): the Hall's clerk at the
 // counter, who keeps a copy of the Exchange book; a wool factor who buys what the wilds give up; the
@@ -14,7 +13,7 @@ const look = (o: Partial<Look>): Look => ({ skin: '#d8a882', hair: '#3a2a1e', ha
 const at = (id: string, name: string, title: string, l: Look, x: number, z: number, fx: number, fz: number, barks: string[]): NpcDef =>
   ({ id, name, title, look: l, schedule: [{ from: 0, to: 24, at: [x, z], face: [fx, fz], anim: 'idle' }], barks });
 
-const npcs: NpcDef[] = LAND === 'counties' ? [
+const npcs: NpcDef[] = [
   at('hall_josiah', 'Josiah Penhale', 'Clerk of the Merchants\' Hall', look({ skin: '#e0b48e', hair: '#6a5a4a', hairStyle: 0, tunic: '#2a2a34', trim: '#a8a8b0', age: 0.65, hat: 'cap', hatColor: '#2a2a30' }), 1611.5, 620.2, 1611.5, 615,
     ['Sign there. And there.', 'Same book as the quay\'s.']),
   at('hall_harriet', 'Harriet Combe', 'Wool factor', look({ skin: '#f0d0b8', hair: '#8a4a2a', hairStyle: 2, lashes: true, tunic: '#5a3a4a', trim: '#e0d0a0', age: 0.45 }), 1607.2, 611.6, 1605.7, 610.5,
@@ -25,7 +24,7 @@ const npcs: NpcDef[] = LAND === 'counties' ? [
     ['Nine and a half, and not a farthing more.', 'I\'ve bought better pilchards off a cat.']),
   at('hall_agnes', 'Agnes Treloar', 'Merchant', look({ skin: '#c89070', hair: '#2a1e14', hairStyle: 2, lashes: true, tunic: '#2f4a3a', trim: '#e0d0a0', age: 0.5 }), 1612.8, 615.0, 1611.5, 613.5,
     ['Then you can eat them yourself, Edmund.', 'Ten, and I\'ll throw in the barrels.']),
-] : [];
+];
 
 const dialogue: Record<string, DialogueTree> = {
   hall_josiah: {

@@ -23,30 +23,34 @@ const INK: Record<RegionId, [number, number, number]> = {
   keys: [214, 204, 150], glades: [120, 150, 96], amberwold: [186, 132, 70], bright: [190, 184, 130], sunder: [150, 160, 140], glassflats: [210, 190, 150], greywaste: [126, 132, 124], held: [200, 208, 216],
 };
 
-let chart: HTMLCanvasElement | null = null;
+const charts: (HTMLCanvasElement | undefined)[] = [];
 
-/** Covers the whole world, WMIN..WMAX on both axes, at sixteen blocks a pixel. */
-export function continentChart(size = WSIZE / 16): HTMLCanvasElement {
-  if (chart) return chart;
+/**
+ * One square of the world at sixteen blocks a pixel: half 0 the Counties' (WMIN..WMAX on both axes),
+ * half 1 Morrow's east of it (WMAX..WMAX + WSIZE along x). Each is painted the first time it's wanted.
+ */
+export function continentChart(half: 0 | 1 = 0, size = WSIZE / 16): HTMLCanvasElement {
+  const hit = charts[half];
+  if (hit) return hit;
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const x = c.getContext('2d')!;
   const img = x.createImageData(size, size);
-  img.data.set(chartPixels(size));
+  img.data.set(chartPixels(size, WMIN + half * WSIZE));
   x.putImageData(img, 0, 0);
-  chart = c;
+  charts[half] = c;
   return c;
 }
 
 /** The chart's pixels (RGBA, size by size): for the canvas above, and for the world map's images of each land (scripts/charts.ts). */
-export function chartPixels(size: number): Uint8ClampedArray {
+export function chartPixels(size: number, x0 = WMIN): Uint8ClampedArray {
   const step = WSIZE / size;
   const h = new Float32Array(size * size);
-  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) h[j * size + i] = baseHeight(WMIN + (i + 0.5) * step, WMIN + (j + 0.5) * step);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) h[j * size + i] = baseHeight(x0 + (i + 0.5) * step, WMIN + (j + 0.5) * step);
   const data = new Uint8ClampedArray(size * size * 4);
   const rnd = createSeededRandom(4242);
   for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
-    const wx = WMIN + (i + 0.5) * step, wz = WMIN + (j + 0.5) * step, k = j * size + i, o = k * 4;
+    const wx = x0 + (i + 0.5) * step, wz = WMIN + (j + 0.5) * step, k = j * size + i, o = k * 4;
     const ht = h[k];
     let r: number, g: number, b: number;
     if (ht <= SEA) {

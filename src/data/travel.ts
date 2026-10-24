@@ -1,9 +1,11 @@
-import { keepOnLand, type LandId } from '../world/land';
+import type { LandId } from '../world/land';
+import { MORROW_OX } from '../world/morrow';
 import { coastX } from '../world/terrain';
 
-// The Charter Post: carts that run between the settlements on the Charter's roads. A stop can be
-// travelled to once the player has been there (its place id is in save.discovered). Fares are set
-// by distance, and the journey takes in-game hours.
+// The Charter Post: carts that run between the settlements on the Charter's roads, in real time, the
+// country going by (game/PostRide.ts); where no road runs (an island), a boat crossing instead. A stop
+// can be travelled to once the player has been there (its place id is in save.discovered). Fares are
+// set by distance, and low: the post is the slow way, a waymark the quick one.
 // Kept free of world/site imports: sites.ts reads this list to put a sign at every stop.
 
 /** The outer lands' towns (the middles of their squares): Cragsby on the Gannet Cliffs, Holme Staithe on the Wrath Levels, Scarrow Tor on Tolmen Moor. */
@@ -61,20 +63,20 @@ export const POSTS: PostStop[] = [
   { id: 'inkholm', name: 'Gillsby Staithe, Inkholm (ferry)', place: 'ink-gillsby', ferryFrom: 'gullmouth', x: 2486.5, z: 1647.5, ry: -Math.PI / 2 },
   { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2 },
   // Morrow (world/land.ts): Callis, on the south side of the Assembly's plaza (world/morrow.ts CALLIS_SPOTS)
-  { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: 2132.5, z: 1077.5, ry: 0 },
+  { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: MORROW_OX + 2132.5, z: 1077.5, ry: 0 },
   // Saltpenny Key, by the packet from Callis once the Speaker has told you about the Kittiwake (world/morrow.ts SALT_LANDING)
-  { land: 'morrow', id: 'saltpenny', name: 'Saltpenny Key (packet)', place: 'saltpenny', ferryFrom: 'callis', x: -1433.5, z: 3692.5, ry: 0, gate: 'saltFerry' },
+  { land: 'morrow', id: 'saltpenny', name: 'Saltpenny Key (packet)', place: 'saltpenny', ferryFrom: 'callis', x: MORROW_OX + -1433.5, z: 3692.5, ry: 0, gate: 'saltFerry' },
   // Cold Harbour, on the Kittiwake from Saltpenny once Ned Vey has told you where the black loads
-  { land: 'morrow', id: 'coldharbour', name: 'Cold Harbour (the Kittiwake)', place: 'coldharbour', ferryFrom: 'saltpenny', x: 2186.5, z: -1098.5, ry: Math.PI / 2, gate: 'coldFerry' },
+  { land: 'morrow', id: 'coldharbour', name: 'Cold Harbour (the Kittiwake)', place: 'coldharbour', ferryFrom: 'saltpenny', x: MORROW_OX + 2186.5, z: -1098.5, ry: Math.PI / 2, gate: 'coldFerry' },
   // Northgate, by cart up the coast road from Callis
-  { land: 'morrow', id: 'northgate', name: 'Northgate', place: 'northgate', x: 507.5, z: -1225.5, ry: 0 },
+  { land: 'morrow', id: 'northgate', name: 'Northgate', place: 'northgate', x: MORROW_OX + 507.5, z: -1225.5, ry: 0 },
   // Morrow's towns (world/morrow.ts TOWNS)
-  { land: 'morrow', id: 'reedwater', name: 'Reedwater', place: 'reedwater', x: 1320.5, z: 2536.5, ry: 0 },
-  { land: 'morrow', id: 'branchley', name: 'Branchley', place: 'branchley', x: 736.5, z: 1625.5, ry: 0 },
-  { land: 'morrow', id: 'cala', name: 'Cala Roja', place: 'cala', x: 2464.5, z: 905.5, ry: 0 },
-  { land: 'morrow', id: 'liftwick', name: 'Liftwick', place: 'liftwick', x: 1466.5, z: 233.5, ry: 0 },
-  { land: 'morrow', id: 'tenwells', name: 'Tenwells', place: 'tenwells', x: 1046.5, z: -196.5, ry: 0 },
-  { land: 'morrow', id: 'conch', name: 'Conch Key', place: 'conch', x: -1214.5, z: 3334.5, ry: 0 },
+  { land: 'morrow', id: 'reedwater', name: 'Reedwater', place: 'reedwater', x: MORROW_OX + 1320.5, z: 2536.5, ry: 0 },
+  { land: 'morrow', id: 'branchley', name: 'Branchley', place: 'branchley', x: MORROW_OX + 736.5, z: 1625.5, ry: 0 },
+  { land: 'morrow', id: 'cala', name: 'Cala Roja', place: 'cala', x: MORROW_OX + 2464.5, z: 905.5, ry: 0 },
+  { land: 'morrow', id: 'liftwick', name: 'Liftwick', place: 'liftwick', x: MORROW_OX + 1466.5, z: 233.5, ry: 0 },
+  { land: 'morrow', id: 'tenwells', name: 'Tenwells', place: 'tenwells', x: MORROW_OX + 1046.5, z: -196.5, ry: 0 },
+  { land: 'morrow', id: 'conch', name: 'Conch Key', place: 'conch', x: MORROW_OX + -1214.5, z: 3334.5, ry: 0 },
 ];
 
 /** Whether a stop can be travelled to: its place found, or for a ferry stop, the harbour it sails from. */
@@ -84,9 +86,16 @@ export function postKnown(p: PostStop, discovered: string[]): boolean {
   return !!from && discovered.includes(from.place);
 }
 
-/** Marks for the trip: two to get on, and one for every fifty blocks of road. */
+/**
+ * The packet's course between the two harbours' offings, Gullmouth's to Callis's: south inside the
+ * Mewstones, out across the open sea to the south-east, and up Morrow's east coast into Callis (it faces
+ * the far sea). Every leg keeps thirty blocks or more off any shore (worked out over the world's coasts).
+ */
+export const PACKET_COURSE: [number, number][] = [[2028, 1380], [2364, 1932], [5388, 3684], [5724, 3804], [6228, 3756], [8652, 2988], [8916, 2220], [9000, 1300]];
+
+/** Marks for the trip: one to get on, and one for every four hundred blocks. It's slow, so it's cheap (a waymark is dear). */
 export function postFare(a: PostStop, b: PostStop): number {
-  return 2 + Math.round(Math.hypot(a.x - b.x, a.z - b.z) / 50);
+  return 1 + Math.round(Math.hypot(a.x - b.x, a.z - b.z) / 400);
 }
 
 /** In-game hours on the cart: the carts make about 250 blocks an hour, and never less than one. */
@@ -94,5 +103,3 @@ export function postHours(a: PostStop, b: PostStop): number {
   return Math.max(1, Math.round(Math.hypot(a.x - b.x, a.z - b.z) / 250));
 }
 
-// Only this land's stops
-keepOnLand(POSTS);

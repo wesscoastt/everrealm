@@ -32,6 +32,15 @@ export class StoreShowcase {
   private raf = 0;
   private last = 0;
   private built = new Map<string, Shown>();
+  /** Who wears the costumes and cloaks in the windows: your own character when there is one (ESO's way), else a stranger. */
+  private wearer: Appearance = WEARER;
+  setWearer(look: Appearance | null): void {
+    const next = look ? { ...look, costume: null, capeDesign: null } : WEARER;
+    if (JSON.stringify(next) === JSON.stringify(this.wearer)) return;
+    this.wearer = next;
+    // (the costumed figures are made again on the new wearer; the rest keep)
+    for (const [k, m] of this.built) if (k.split(',').some((id) => ITEMS[id]?.costume || ITEMS[id]?.capeDesign)) { m.root.parent?.remove(m.root); this.built.delete(k); }
+  }
 
   constructor(private renderer: THREE.WebGLRenderer) {
     this.target.texture.colorSpace = THREE.SRGBColorSpace;
@@ -115,11 +124,11 @@ export class StoreShowcase {
       made = { root: c.root, update: (dt) => c.update(dt, 0), cam: [2.4, 1.3, 2.4, 0.45] };
     } else if (def?.costume) {
       // Someone wearing it, turned three-quarters so the cloak and the front both show
-      const h = new Humanoid({ ...WEARER, costume: def.costume });
+      const h = new Humanoid({ ...this.wearer, costume: def.costume });
       h.root.userData.face = -0.5;
       made = { root: h.root, update: (dt) => h.update(dt, 0), cam: [3.4, 1.9, 3.4, 1.2], figure: true };
     } else if (def?.capeDesign) {
-      const h = new Humanoid({ ...WEARER, cape: '#2a3a5a', capeDesign: def.capeDesign });
+      const h = new Humanoid({ ...this.wearer, cape: this.wearer.cape ?? '#2a3a5a', capeDesign: def.capeDesign });
       h.root.rotation.y = Math.PI; h.root.userData.face = Math.PI;
       made = { root: h.root, cam: [3.4, 1.9, 3.4, 1.2] };
     }
