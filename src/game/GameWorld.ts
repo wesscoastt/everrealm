@@ -9,7 +9,7 @@ import { realmNow } from '../world/clock';
 import { Ferry } from '../world/Ferry';
 import { createPropMaterials, FIRE_TIME, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
-import { BuiltSite, buildImpostor, buildSiteProps, IMPOSTOR_MAT, LAMP_TINT } from '../world/siteProps';
+import { BuiltSite, buildImpostor, buildSiteProps, farLights, IMPOSTOR_MAT, LAMP_TINT } from '../world/siteProps';
 import { LODGINGS } from '../data/lodgings';
 import { BANKS } from '../data/places_regional';
 import { plan, Site } from '../world/sites';
@@ -69,7 +69,7 @@ export class GameWorld {
   private impostors = new Map<string, THREE.Group>();
   private siteReach = new Map<string, number>();
   private lod: THREE.Group | null = null;
-  private readonly ferry: Ferry;
+  readonly ferry: Ferry;
   private lodUniforms = { uCenter: { value: new THREE.Vector2() }, uRadius: { value: 0 } };
   /** Fired when a streamed chunk arrives with creatures to place. */
   onChunk: ((cx: number, cz: number, r: ChunkResult | null) => void) | null = null;
@@ -151,6 +151,9 @@ export class GameWorld {
       // How far the site reaches from its middle: its props are built once any of it is in the chunks
       this.siteReach.set(s.id, Math.max(0, ...s.impostor.map((b) => Math.hypot(b.x - s.x, b.z - s.z) + Math.max(b.w, b.d) / 2)));
       const g = buildImpostor(s.impostor);
+      // Its lights, seen from far off while the town itself isn't loaded
+      const far = farLights(s, this.glowMat);
+      if (far) g.add(far);
       this.impostors.set(s.id, g);
       scene.add(g);
     }

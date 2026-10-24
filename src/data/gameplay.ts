@@ -528,8 +528,9 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [
   // Haverwood
-  { type: 'wolf', x: 236, z: 214 }, { type: 'wolf', x: 240, z: 218 }, { type: 'wolf', x: 262, z: 236 },
-  { type: 'wolf', x: 266, z: 240 }, { type: 'wolf', x: 250, z: 262 }, { type: 'wolf', x: 228, z: 248 },
+  // (the pack east of Hollin Ford keeps off the meadow where the Wake Fair goes up: data/wakeFair.ts)
+  { type: 'wolf', x: 282, z: 226 }, { type: 'wolf', x: 286, z: 232 }, { type: 'wolf', x: 272, z: 246 },
+  { type: 'wolf', x: 278, z: 250 }, { type: 'wolf', x: 250, z: 262 }, { type: 'wolf', x: 228, z: 248 },
   // Lantern approach
   { type: 'wolf', x: 92, z: 236 }, { type: 'wolf', x: 84, z: 262 },
   { type: 'notch', x: 76, z: 252 },

@@ -99,6 +99,16 @@ export class Grid {
     return -1;
   }
 
+  /** The land's top: the highest solid block that isn't a tree (leaves and trunks looked through). For where creatures stand. */
+  landTop(x: number, z: number): number {
+    let y = this.topSolid(x, z);
+    const ix = Math.floor(x), iz = Math.floor(z);
+    const tree = (id: number) => id === B.OakLeaves || id === B.BirchLeaves || id === B.PineLeaves || id === B.OakLog || id === B.BirchLog || id === B.PineLog;
+    if (y < 0 || !tree(this.get(ix, y, iz))) return y;
+    while (y > 1 && (tree(this.get(ix, y, iz)) || !isSolid(this.get(ix, y, iz)))) y--;
+    return y;
+  }
+
   /** Ground height under a point, searching down from a given height (supports caves and bridges). */
   groundBelow(x: number, y: number, z: number): number {
     const ix = Math.floor(x), iz = Math.floor(z);

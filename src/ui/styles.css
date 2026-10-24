@@ -272,6 +272,21 @@
 .armoury .got { color: var(--cream); }
 .armoury .miss { opacity: 0.5; }
 .armoury .bn { font-style: italic; }
+.dyes .dy-rows { display: grid; gap: 3px; margin: 6px 0 4px; }
+.dyes .dy-row { display: grid; grid-template-columns: 48px auto auto 1fr; gap: 6px; align-items: center; }
+.dyes .dy-row.none { opacity: 0.55; }
+.dyes .dy-slot { font: 600 12px var(--px); color: var(--cream); }
+.dyes .dy-what { font: 500 11px var(--body); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dyes .dy-chan { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 3px; font: 600 11px var(--px); color: var(--cream); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; cursor: pointer; }
+.dyes .dy-chan.on { border-color: var(--gild, #d8b86a); background: rgba(216,184,106,0.14); }
+.dyes .dy-chan i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.6); }
+.dyes .dy-chan i.own { background: repeating-linear-gradient(45deg, #555 0 3px, #888 3px 6px) !important; }
+.dyes .dy-hint { margin: 4px 0; color: var(--cream); }
+.dyes .dy-pal { display: grid; grid-template-columns: repeat(auto-fill, minmax(22px, 1fr)); gap: 4px; margin: 4px 0 6px; }
+.dyes .dy-sw { height: 22px; border: 1px solid rgba(0,0,0,0.7); border-radius: 4px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); padding: 0; }
+.dyes .dy-sw.on { outline: 2px solid var(--cream); outline-offset: 1px; }
+.dyes .dy-sw.wash { background: rgba(255,255,255,0.06); color: var(--muted); font: 600 13px var(--px); }
+.dyes .dy-note { font-style: italic; font-size: 11px; }
 
 #tooltip { position: fixed; z-index: 30; max-width: 290px; padding: 9px 11px; display: none; pointer-events: none; font: 500 13px var(--body); line-height: 1.4; background: rgba(16, 13, 10, 0.97); border: 3px solid var(--ink); box-shadow: inset 0 0 0 2px var(--iron), 0 8px 20px rgba(0,0,0,0.5); }
 #tooltip.show { display: block; }
@@ -1181,3 +1196,39 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .sk-mo b { display: block; font: 700 12px var(--px); color: var(--cream); }
 .sk-mo span { display: block; font: 500 11.5px/1.3 var(--body); }
 @media (max-width: 1100px) { .sk-page { grid-template-columns: 1fr 1fr; } }
+
+/* The Wake Fair's games (game/WakeFair.ts): one card low in the middle, one button to play */
+.fg { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 60; pointer-events: none; }
+.fg-card { pointer-events: auto; width: min(440px, 92vw); padding: 12px 16px 10px; background: linear-gradient(180deg, rgba(30, 18, 34, 0.94), rgba(16, 10, 18, 0.94)); border: 1px solid #e8701a; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(232,112,26,0.15); color: #f2e6c8; font: 500 13px var(--body); }
+.fg-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.fg-h b { font: 700 16px var(--px); color: #ffb040; letter-spacing: 0.02em; }
+.fg-score { font: 600 13px var(--px); color: #f2e6c8; }
+.fg-play { min-height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; user-select: none; }
+.fg-how { margin-top: 8px; font-size: 12px; color: #c8b8a0; line-height: 1.4; }
+.fg-keys { margin-top: 4px; font-size: 11px; color: #8a7a6a; text-align: right; }
+.fg-target { font: 600 13px var(--px); color: #ffd070; }
+.fg-meter { position: relative; width: 100%; height: 22px; background: #2a1e18; border: 1px solid #5a3a24; border-radius: 11px; overflow: hidden; }
+.fg-band { position: absolute; top: 0; bottom: 0; background: linear-gradient(180deg, #8ad06a, #4a9a3a); opacity: 0.9; }
+.fg-needle { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: #fff3d0; box-shadow: 0 0 8px #ffd070; border-radius: 2px; }
+.fg-shy { position: relative; width: 100%; height: 44px; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center; justify-items: center; background: #2a1e2a; border: 1px solid #5b3a8a; border-radius: 8px; }
+.fg-shy span { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #ffd070, #e8701a 60%, #8a3a10); box-shadow: 0 0 10px rgba(255,160,60,0.6); }
+.fg-shy span.down { background: #3a2a2a; box-shadow: none; opacity: 0.5; }
+.fg-sight { position: absolute; top: 2px; bottom: 2px; width: 3px; margin-left: -1.5px; background: #fff3d0; box-shadow: 0 0 6px #fff; }
+.fg-tub { position: relative; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #3a5a7a, #24384e 70%, #5a3a24 72%, #3a2a1c); }
+.fg-mouth { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from calc(180deg - var(--w) / 2), rgba(138,208,106,0.55) 0 var(--w), transparent var(--w)); }
+.fg-apple { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ff6a50, #b82a1e); box-shadow: 0 0 4px rgba(0,0,0,0.6); }
+.fg-breath { position: relative; width: 100%; height: 12px; background: #1e1a24; border-radius: 6px; overflow: hidden; }
+.fg-breath i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #6ab0e8, #cfe8ff); }
+.fg-breath span { position: absolute; inset: 0; font: 600 9px var(--px); color: #1a2030; text-align: center; line-height: 12px; }
+.fg-result { text-align: center; }
+.fg-result b { display: block; font: 700 15px var(--px); color: #ffd070; margin: 4px 0; }
+.fg-result p { margin: 3px 0; }
+.fg-best { color: #a89878; font-size: 12px; }
+.fg-btns { display: flex; gap: 8px; justify-content: center; margin-top: 6px; }
+.fg-btns button, .fg-guess button { font: 600 13px var(--px); padding: 6px 14px; color: #1a1010; background: linear-gradient(180deg, #ffb040, #e8701a); border: 0; border-radius: 6px; cursor: pointer; }
+.fg-btns .fg-done { background: #3a2a30; color: #f2e6c8; }
+.fg-guess { display: flex; gap: 8px; }
+.fg-guess input { width: 140px; font: 600 15px var(--px); padding: 6px 8px; background: #1e1418; color: #fff3d0; border: 1px solid #e8701a; border-radius: 6px; }
+.fg-faces { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fg-faces button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; background: #24181e; border: 1px solid #5a3a24; border-radius: 8px; color: #f2e6c8; font: 600 11px var(--px); cursor: pointer; }
+.fg-faces button:hover { border-color: #ffb040; background: #3a2418; }

@@ -1,7 +1,12 @@
 import * as THREE from 'three';
-import * as P from './props';
+import type * as P from './props';
 import { mewJetty } from './sites';
 import { coastX, SEA } from './terrain';
+import { deckAt, hullHalf, shipModel, SHIPS } from './ships';
+
+const KIND = 'cog' as const;
+/** The cog's castles (her frame): stern and bow, from x to x, standing this high over the deck. */
+const CASTLES: [number, number, number][] = [[-SHIPS.cog.len / 2 + 0.3, -SHIPS.cog.len / 2 + 3.6, 1.8], [SHIPS.cog.len / 2 - 3.4, SHIPS.cog.len / 2 - 0.8, 1.4]];
 
 // The Mewstones ferry: a two-master on a timetable between Gullmouth's south jetty and the
 // Mewstones' jetty. Where she is comes from the realm clock, so everyone sees her in the same place.
@@ -25,11 +30,12 @@ export class Ferry {
   private readonly tan = new THREE.Vector3();
 
   constructor(M: P.PropMaterials) {
-    this.sailing = P.ship(M, 'set', '#2f528f', '#d8b04a');
-    this.moored = P.ship(M, 'furled', '#2f528f', '#d8b04a');
+    this.sailing = shipModel(M, KIND, { sails: 'set', wale: '#2f528f', trim: '#d8b04a', flag: '#d8b04a' });
+    this.moored = shipModel(M, KIND, { sails: 'furled', wale: '#2f528f', trim: '#d8b04a', flag: '#d8b04a' });
     this.hull.add(this.sailing, this.moored);
     this.root.add(this.hull);
-    const C = coastX(600), J = mewJetty(), y = SEA + 2 - 2.27;
+    // (her deck on a whole block's height, so a walker stands on it as on any floor)
+    const C = coastX(600), J = mewJetty(), y = Math.round(SEA + SHIPS[KIND].deck) - SHIPS[KIND].deck;
     // Gullmouth: off the south jetty's head heading south. The Mewstones: off their jetty's head heading north.
     const gull: [number, number] = [C + 38, 607], mew: [number, number] = [J.x1 - 5, J.z + 1];
     const pts: [number, number][] = [
@@ -58,8 +64,55 @@ export class Ferry {
     this.root.rotation.y = heading(this.path.getTangentAt(u, this.tan));
     this.sailing.visible = !docked;
     this.moored.visible = docked;
-    // A little swell under her
+    // A little swell under her (only to look at: her deck stays where you stand on it)
     this.hull.position.y = Math.sin(now * 0.9) * 0.06;
     this.hull.rotation.x = Math.sin(now * 0.7) * (docked ? 0.012 : 0.03);
+    this.root.updateMatrixWorld(true);
+    this.inv.copy(this.root.matrixWorld).invert();
+  }
+
+  private readonly inv = new THREE.Matrix4();
+  private readonly prev = new THREE.Matrix4();
+  private prevYaw = 0;
+  private hasPrev = false;
+  private readonly _v = new THREE.Vector3();
+  private readonly _m = new THREE.Matrix4();
+
+  /** Whether her hull is solid at a point in her own frame: below the deck, the bulwarks, the castles. */
+  private solidLocal(lx: number, ly: number, lz: number, half: number): boolean {
+    const hw = hullHalf(KIND, lx), S = SHIPS[KIND];
+    if (hw < 0 || ly < -S.draft - 0.3 || Math.abs(lz) > hw + half) return false;
+    if (ly < S.deck) return true;
+    const end = Math.abs(lx) > S.len / 2 - 0.5;
+    if (ly < S.deck + 0.95 && (end || Math.abs(lz) > hw - 0.3 - half)) return true;
+    return CASTLES.some(([a, b, h]) => lx > a - half && lx < b + half && ly < S.deck + h);
+  }
+
+  /** Whether a body (feet at p, half its width, this tall) runs into her. */
+  blocks(px: number, py: number, pz: number, half: number, height: number): boolean {
+    if (Math.abs(px - this.root.position.x) > 18 || Math.abs(pz - this.root.position.z) > 18) return false;
+    for (const dy of [0.05, height * 0.5, height - 0.05]) {
+      const v = this._v.set(px, py + dy, pz).applyMatrix4(this.inv);
+      if (this.solidLocal(v.x, v.y, v.z, half)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Someone standing on her deck goes where she goes: where they are now (by how far she's moved and
+   * turned since the last frame) and the turn to add to their heading; null if they're not aboard.
+   */
+  carry(p: THREE.Vector3, onGround: boolean): { pos: THREE.Vector3; turn: number } | null {
+    const m = this.root.matrixWorld;
+    let out: { pos: THREE.Vector3; turn: number } | null = null;
+    if (this.hasPrev && onGround && Math.abs(p.x - this.root.position.x) < 18 && Math.abs(p.z - this.root.position.z) < 18) {
+      const local = this._v.copy(p).applyMatrix4(this._m.copy(this.prev).invert());
+      const d = deckAt(KIND, local.x, local.z);
+      if (d !== null && Math.abs(local.y - d) < 0.25) out = { pos: local.applyMatrix4(m).clone(), turn: this.root.rotation.y - this.prevYaw };
+    }
+    this.prev.copy(m);
+    this.prevYaw = this.root.rotation.y;
+    this.hasPrev = true;
+    return out;
   }
 }

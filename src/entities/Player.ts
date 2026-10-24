@@ -98,6 +98,9 @@ export class Player {
     return true;
   }
 
+  /** Something solid that isn't blocks and moves (the ferry): feet at (x, y, z), half the body's width, its height. */
+  extraSolid: ((x: number, y: number, z: number, half: number, height: number) => boolean) | null = null;
+
   private collides(px: number, py: number, pz: number): boolean {
     const x0 = Math.floor(px - HALF), x1 = Math.floor(px + HALF - 1e-4);
     const y0 = Math.floor(py), y1 = Math.floor(py + HEIGHT - 1e-4);
@@ -105,7 +108,7 @@ export class Player {
     for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       if (isSolid(this.world.get(x, y, z))) return true;
     }
-    return false;
+    return !!this.extraSolid?.(px, py, pz, HALF, HEIGHT);
   }
 
   /**

@@ -163,6 +163,14 @@ export function socialInit(ctx) {
         leaveGroup(who, 'has been removed from the group');
         return true;
       }
+      case 'gKill': {
+        // A kill in a group counts for everyone in it nearby (their quests and bounty counts): ESO's and GW2's way
+        const g = groupOf(me);
+        const type = typeof msg.type === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.type) ? msg.type : null;
+        if (!g || !type) return true;
+        for (const id of g.members) { const o = players.get(id); if (o && o !== me && o.land === me.land && Math.hypot(o.x - me.x, o.z - me.z) < 80) send(o.ws, { t: 'gKill', type, from: me.name }); }
+        return true;
+      }
       case 'gChat': {
         const g = groupOf(me);
         const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, 200) : '';

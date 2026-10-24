@@ -12,6 +12,24 @@ export interface GameApi {
   give(item: string, n?: number): boolean;
   take(item: string, n?: number): boolean;
   readonly marks: number;
+  /** The Wake Fair (game/WakeFair.ts): is it up, step up to a game, prized plays left today, the day's guess made. */
+  fairOn(): boolean;
+  fairPlay(game: string): void;
+  fairPlaysLeft(game: string): number;
+  fairGuessed(): boolean;
+  /** Companions (data/companions.ts, game/Companions.ts): bring one along, send them home, rapport and the rest. */
+  compJoin(id: string): void;
+  compDismiss(): void;
+  compLeave(id: string): void;
+  compRapport(id: string, delta: number): void;
+  compActive(): string | null;
+  /** Are you within r blocks of (x, z)? (A companion's story is told where it happened.) */
+  compNear(x: number, z: number, r: number): boolean;
+  compHour(): number;
+  compOutfit(id: string, outfit: string): void;
+  compRole(id: string, role: string): void;
+  /** A part of their story is done (2 or 3): a banner and a little more trust. */
+  compStory(id: string, part: number): void;
   addMarks(n: number): void;
   level(skill: SkillId): number;
   hasTool(skill: SkillId): boolean;

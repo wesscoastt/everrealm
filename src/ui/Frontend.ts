@@ -135,7 +135,7 @@ const SHOES = ['Boots', 'Tall boots', 'Shoes'];
 const AGES: [string, number][] = [['Young', 0.05], ['Grown', 0.35], ['Weathered', 0.62], ['Old', 0.9]];
 const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band']];
 /** Festival hats: in the list only for a character that has unlocked them. */
-const FEST_HATS: [string, Appearance['hat']][] = [["Fool's cap", 'fool'], ['Garland', 'garland'], ['Antlers', 'antlers'], ['Harvest crown', 'sheaf'], ['Turnip lantern', 'turnip'], ['Goose Fair hat', 'feathered'], ['Bobble hat', 'bobble']];
+const FEST_HATS: [string, Appearance['hat']][] = [["Fool's cap", 'fool'], ['Garland', 'garland'], ['Antlers', 'antlers'], ['Harvest crown', 'sheaf'], ['Turnip lantern', 'turnip'], ['Pumpkin head', 'pumpkin'], ['Goose Fair hat', 'feathered'], ['Bobble hat', 'bobble']];
 const PADS: [string, string | null][] = [['None', null], ['Iron', '#8c939d'], ['Leather', '#6a4a2a']];
 const NAMES = ['Rowan', 'Merrin', 'Corwen', 'Ysolde', 'Hallam', 'Briony', 'Teague', 'Linden', 'Osgar', 'Wilmot', 'Sabeth', 'Edric', 'Nettle', 'Clement', 'Avice', 'Hesper', 'Tamar', 'Gethin', 'Orla', 'Piran'];
 
@@ -774,7 +774,7 @@ export class Frontend {
         <label>FOOTWEAR</label>${chips('shoes', SHOES.map((t, i) => [t, i]), L.shoes ?? 0)}${sw('boots', L.boots)}
         <label>GLOVES</label>${sw('gloves', L.gloves)}<label>BELT</label>${sw('belt', L.belt ?? '#3b2618')}
 ${pets.length > 1 ? `<label>PET</label>${chips('pet', pets, L.pet ?? null)}` : ''}${costumes.length > 1 ? `<label>COSTUME</label>${chips('cos', costumes, L.costume ?? null)}<p class="lead">Worn over your clothes and armour. Looks only.</p>` : ''}
-        <label>HEADWEAR</label>${chips('hat', hats, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' && L.hat !== 'turnip' ? sw('hatColor', L.hatColor) : ''}`;
+        <label>HEADWEAR</label>${chips('hat', hats, L.hat ?? 'none')}${L.hat && L.hat !== 'none' && L.hat !== 'straw' && L.hat !== 'turnip' && L.hat !== 'pumpkin' ? sw('hatColor', L.hatColor) : ''}`;
     }
     const changed = () => { this.ctx.sfx('click'); this.ctx.preview(this.look); this.renderPane(); };
     pane.querySelectorAll<HTMLElement>('.sw').forEach((b) => b.addEventListener('click', () => {

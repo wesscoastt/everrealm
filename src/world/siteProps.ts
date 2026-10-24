@@ -5,6 +5,9 @@ import { addConeVolume } from './roofVolumes';
 import { waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { ImpostorBox, Site } from './sites';
+import { festivalAt } from '../data/festivals';
+import { shipModel, SHIPS } from './ships';
+import { POSTS } from '../data/travel';
 
 // Turns a site's prop descriptors into meshes when the player comes near, and builds the
 // cheap far-away stand-ins (impostors) that keep landmarks visible across the continent.
@@ -69,6 +72,69 @@ function glowPoints(glowMat: THREE.SpriteMaterial, pos: number[], size: number[]
   return pts;
 }
 
+/**
+ * A town's lights as seen from far off, for its stand-in while it isn't loaded (game/GameWorld.ts): every
+ * outdoor lantern, wall lantern, fire and lit glow, as one set of points that never shrinks below a few
+ * pixels, so a town at night shows across the valley as a scatter of warm lights. No real lights at all:
+ * one draw, and it's dark by day (the glow material's opacity follows the night).
+ */
+export function farLights(site: Site, glowMat: THREE.SpriteMaterial): THREE.Points | null {
+  const pos: number[] = [], size: number[] = [], col: number[] = [], c = new THREE.Color();
+  const add = (x: number, y: number, z: number, sz: number, color?: string) => { pos.push(x, y, z); size.push(sz); c.set(color ?? '#ffc070'); col.push(c.r, c.g, c.b); };
+  for (const d of site.props) {
+    if (d.t === 'lantern') add(d.x + Math.cos(d.ry ?? 0) * 0.52, d.y + 1.98, d.z - Math.sin(d.ry ?? 0) * 0.52, 3.2);
+    else if (d.t === 'wallLantern') add(d.x, d.y + 0.05, d.z, 2.8);
+    else if (d.t === 'firepit') add(d.x, d.y + 0.8, d.z, 4, '#ff9a40');
+    else if (d.t === 'glow' && d.lit) add(d.x, d.y, d.z, (d.r ?? 2.4) * 1.3, d.color);
+  }
+  if (!pos.length) return null;
+  const pts = glowPoints(glowMat, pos, size, col);
+  // Far off it keeps a few pixels and a little more strength, so a distant town twinkles rather than vanishes
+  pts.material = farMat(pts.material as THREE.ShaderMaterial);
+  return pts;
+}
+const farMats = new WeakMap<THREE.ShaderMaterial, THREE.ShaderMaterial>();
+function farMat(near: THREE.ShaderMaterial): THREE.ShaderMaterial {
+  let m = farMats.get(near);
+  if (m) return m;
+  m = near.clone();
+  m.uniforms = near.uniforms; // (the same opacity and scale, set each frame by the near points' hook)
+  m.vertexShader = near.vertexShader.replace('gl_PointSize = min(aSize * uScale / max(0.5, -mv.z), 150.0); vNear = smoothstep(1.5, 5.0, -mv.z);', 'gl_PointSize = clamp(aSize * uScale / max(0.5, -mv.z) * 1.6, 3.0, 60.0); vNear = 1.25;');
+  farMats.set(near, m);
+  return m;
+}
+
+/** A cheap hash of a place, for which lamp gets a pumpkin and which face it has. */
+const h3 = (x: number, z: number, k: number) => { const v = Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453; return v - Math.floor(v); };
+const PUMPKIN_TONES = ['#e8801e', '#e8801e', '#d86a14', '#f0962a', '#e8c890', '#c8641a'];
+
+/**
+ * The Lantern Wake's jack-o'-lanterns, all over the land while it's on: at the foot of road lamps and
+ * town lanterns, by signposts, notice boards and wells, under the porch lamp of a house or two in every
+ * street. (The towns round each Charter Post are dressed for the Wake by game/Seasons.ts; here it's
+ * everywhere else.) Each is merged into the site's batch, and its glow joins the site's night halos.
+ */
+function wakeLanterns(site: Site, put: (g: THREE.Object3D, x: number, y: number, z: number, ry: number) => void, glow: (x: number, y: number, z: number, scale: number, color: string) => void): void {
+  if (festivalAt()?.id !== 'lantern') return;
+  const nearPost = (x: number, z: number) => POSTS.some((q) => Math.abs(q.x - x) < 52 && Math.abs(q.z - z) < 52);
+  const one = (x: number, y: number, z: number, ry: number, k: number, size = 1) => {
+    const face = Math.floor(h3(x, z, k + 1) * 6), tone = PUMPKIN_TONES[Math.floor(h3(x, z, k + 2) * PUMPKIN_TONES.length)];
+    put(P.jackOLantern(face, size * (0.85 + h3(x, z, k + 3) * 0.35), tone), x, y, z, ry + (h3(x, z, k + 4) - 0.5) * 0.7);
+    glow(x, y + 0.25 * size, z, 0.9 * size, '#ff9a30');
+  };
+  for (const d of site.props) {
+    const ry = d.ry ?? 0, nx = Math.sin(ry), nz = Math.cos(ry), r = h3(d.x, d.z, 9);
+    switch (d.t) {
+      case 'lantern': if (r < 0.6) one(d.x + nz * 0.55, d.y, d.z - nx * 0.55, ry, 1); break;
+      case 'sign': case 'notice': if (r < 0.7) one(d.x + nz * 0.7 + nx * 0.3, d.y, d.z - nx * 0.7 + nz * 0.3, ry, 2, 0.9); break;
+      case 'well': if (r < 0.8) { one(d.x + 1.3, d.y, d.z + 0.4, 1.4, 3, 0.8); one(d.x - 1.2, d.y, d.z - 0.6, -1.9, 4, 1.1); } break;
+      case 'wallLantern': if (r < 0.35 && !nearPost(d.x, d.z)) one(d.x + nx * 0.2, d.y - 2.3, d.z + nz * 0.2, ry, 5, 0.9); break;
+      case 'bench': if (r < 0.25) one(d.x + nz * 1.15, d.y, d.z - nx * 1.15, ry, 6, 0.8); break;
+      default: break;
+    }
+  }
+}
+
 export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: number }, glowMat: THREE.SpriteMaterial): BuiltSite {
   const batch = new P.Batcher();
   const group = new THREE.Group();
@@ -87,6 +153,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
     gPos.push(x, y, z); gSize.push(scale);
     _c.set(color ?? '#ffffff'); gCol.push(_c.r, _c.g, _c.b);
   };
+  wakeLanterns(site, place, glow);
 
   for (const d of site.props) {
     switch (d.t) {
@@ -94,7 +161,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         P.addHouseRoof(batch, M, { x: d.x, y: d.y, z: d.z, len: d.len!, span: d.span!, ry: d.ry ?? 0, mat: roofMat(d.mat), thatch: d.mat === 'thatch', dormers: d.dormers ?? 0, plain: d.plain });
         break;
       }
-      case 'door': place(P.door(M), d.x, d.y, d.z, d.ry); break;
+      case 'door': place(P.door(M, 2, d.doorKind, d.color), d.x, d.y, d.z, d.ry); break;
       case 'lantern':
         place(P.lanternPost(M), d.x, d.y, d.z, d.ry);
         glows.push(new THREE.Vector3(d.x + Math.cos(d.ry ?? 0) * 0.52, d.y + 1.98, d.z - Math.sin(d.ry ?? 0) * 0.52));
@@ -123,7 +190,11 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         break;
       }
       case 'boat': place(P.boat(M), d.x, d.y, d.z, d.ry); break;
-      case 'ship': place(P.ship(M, d.sails ?? 'furled', d.color), d.x, d.y, d.z, d.ry); break;
+      case 'ship': {
+        const kind = d.ship ?? 'carrack';
+        place(shipModel(M, kind, { sails: d.sails ?? 'furled', wale: d.color, hull: d.hull, sail: d.sail }), d.x, d.deck !== undefined ? d.deck - SHIPS[kind].deck : d.y, d.z, d.ry);
+        break;
+      }
       case 'waymark': place(waymarkShrine(M, d.theme ?? 'crownroad'), d.x, d.y, d.z, d.ry); break;
       case 'tent': place(P.tent(M, d.color ?? '#8a6a3a'), d.x, d.y, d.z, d.ry); break;
       case 'headframe': place(P.mineHeadframe(M, d.text ?? 'HARROWGATE WORKS\nNo. 1 Drift'), d.x, d.y, d.z, d.ry); break;
@@ -138,6 +209,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'woodpile': place(P.woodpile(M, d.len ?? 2), d.x, d.y, d.z, d.ry); break;
       case 'statue': place(P.statue(M), d.x, d.y, d.z, d.ry); break;
       case 'netRack': place(P.netRack(M, d.len ?? 3), d.x, d.y, d.z, d.ry); break;
+      case 'bollard': place(P.bollard(M), d.x, d.y, d.z, d.ry); break;
+      case 'crane': place(P.dockCrane(M), d.x, d.y, d.z, d.ry); break;
       case 'lobsterPots': place(P.lobsterPots(M), d.x, d.y, d.z, d.ry); break;
       case 'beehive': place(P.beehive(M), d.x, d.y, d.z, d.ry); break;
       case 'doorstep': place(P.doorstep(M), d.x, d.y, d.z, d.ry); break;
@@ -155,7 +228,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;
       case 'desk': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'furn': {
-        if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0); group.add(dr.pivot); doors.push(dr); break; }
+        if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0, d.doorKind, d.color); group.add(dr.pivot); doors.push(dr); break; }
+        if (d.item === 'doorOpen' && d.doorKind) { place(P.openDoor(M, 3, d.doorKind, d.color), d.x, d.y, d.z, d.ry); break; }
         const g = P.furniture(M, d.item ?? '', d.tint ?? 0);
         if (g) place(g, d.x, d.y, d.z, d.ry);
         // A room's hanging lamp: a small glow round the lantern box and a light under it

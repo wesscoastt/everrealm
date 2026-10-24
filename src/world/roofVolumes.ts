@@ -51,6 +51,22 @@ export function addConeVolume(x: number, y: number, z: number, r: number, h: num
   add({ kind: 'cone', x, y, z, r, h }, `c${x.toFixed(2)},${y.toFixed(2)},${z.toFixed(2)}`, r);
 }
 
+/** The underside of the highest roof over (x, z), or -Infinity: where rain stops (world/precip.ts). */
+export function roofOver(px: number, pz: number): number {
+  const list = grid.get(key(Math.floor(px / CELL), Math.floor(pz / CELL)));
+  if (!list) return -Infinity;
+  let best = -Infinity;
+  for (const v of list) {
+    if (v.kind === 'cone') { if (Math.hypot(px - v.x, pz - v.z) <= v.r) best = Math.max(best, v.y); continue; }
+    const dx = px - v.x, dz = pz - v.z;
+    const lx = dx * v.c - dz * v.s, lz = dx * v.s + dz * v.c;
+    if (Math.abs(lx) > v.L || Math.abs(lz) > v.S) continue;
+    const a = Math.abs(lz);
+    best = Math.max(best, a <= v.half ? v.y : v.y + (v.rise * (v.S - a)) / v.half - v.thick);
+  }
+  return best;
+}
+
 /** Whether a point is in a roof, or within m of its surfaces. */
 export function inRoof(px: number, py: number, pz: number, m = 0.3): boolean {
   const list = grid.get(key(Math.floor(px / CELL), Math.floor(pz / CELL)));

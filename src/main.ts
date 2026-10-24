@@ -16,6 +16,11 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).has('rafshim')) 
   window.cancelAnimationFrame = () => {};
 }
 
+// The trailer maker (src/dev/trailer.ts, previews/trailer.mjs): loaded only with ?trailer on this machine
+if (new URLSearchParams(location.search).has('trailer') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost')) {
+  void import('./dev/trailer').then((m) => { (window as unknown as { __trailer: unknown }).__trailer = m; });
+}
+
 const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
 if (!canvas) throw new Error('Missing #game-canvas element.');
 

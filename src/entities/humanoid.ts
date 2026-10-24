@@ -63,7 +63,7 @@ export interface Appearance {
   apron?: boolean;
   hat?: 'none' | 'hood' | 'cap' | 'kerchief' | 'wide' | 'straw' | 'beret' | 'circlet' | 'coif' | 'band'
     /** Festival hats (data/seasons.ts), unlocked into the wardrobe. */
-    | 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble'
+    | 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble' | 'pumpkin'
     /** Costume headwear (data/costumes.ts): the witch's hat, the skull, the scarecrow's sack, the ghost's sheet, the crow mask. */
     | 'witch' | 'skull' | 'sack' | 'sheet' | 'crow'
     /** The corsair's (data/costumes.ts): three sides of the brim turned up, a plume over one. */
@@ -1212,6 +1212,19 @@ export class Humanoid {
       for (const sx of [-0.13, 0.13]) part(this.head, rbox(0.11, 0.09, 0.03, 0.01), glow, sx, 0.35, 0.335);
       part(this.head, rbox(0.3, 0.06, 0.03, 0.01), glow, 0, 0.16, 0.335);
       for (const sx of [-0.1, 0, 0.1]) part(this.head, rbox(0.05, 0.04, 0.03, 0.01), glow, sx, 0.2, 0.335);
+      return;
+    }
+    if (hat === 'pumpkin') {
+      // The Wake Fair's prize: a whole pumpkin over the head, ribbed, carved in a grin and lit from inside
+      const glow = new THREE.MeshLambertMaterial({ color: '#ffc060', emissive: new THREE.Color('#ff8a20'), emissiveIntensity: 1.3 });
+      part(this.head, rbox(0.62, 0.56, 0.6, 0.16), '#e8801e', 0, 0.28, 0.01);
+      for (const [w, d, ry] of [[0.74, 0.34, 0], [0.34, 0.72, 0], [0.7, 0.34, Math.PI / 4], [0.7, 0.34, -Math.PI / 4]] as const) { const l = part(this.head, rbox(w, 0.5, d, 0.12), '#c8641a', 0, 0.27, 0.01); l.rotation.y = ry; }
+      part(this.head, rbox(0.24, 0.06, 0.24, 0.03), '#9a4a14', 0, 0.57, 0.01);
+      { const st = part(this.head, rbox(0.08, 0.2, 0.08, 0.02), '#5a5a26', 0.02, 0.68, 0); st.rotation.z = 0.2; }
+      for (const sx of [-1, 1]) { part(this.head, rbox(0.13, 0.05, 0.03, 0.01), glow, sx * 0.13, 0.34, 0.37); part(this.head, rbox(0.07, 0.04, 0.03, 0.01), glow, sx * 0.13, 0.385, 0.37); }
+      part(this.head, rbox(0.06, 0.05, 0.03, 0.01), glow, 0, 0.26, 0.37);
+      part(this.head, rbox(0.36, 0.06, 0.03, 0.01), glow, 0, 0.15, 0.37);
+      part(this.head, rbox(0.24, 0.04, 0.03, 0.01), glow, 0, 0.11, 0.37);
       return;
     }
     // Costume heads (data/costumes.ts): each covers the whole head, so no hair under it

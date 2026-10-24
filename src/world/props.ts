@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { DoorKind } from './doorKinds';
+export type { DoorKind } from './doorKinds';
 import { paintCanvasTexture } from './textures';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { addGableVolume } from './roofVolumes';
@@ -452,7 +454,9 @@ export function addHouseRoof(batch: Batcher, M: PropMaterials, r: HouseRoof): vo
   shell.closePath();
   const attic = new THREE.ExtrudeGeometry(shell, { depth: len - 0.04, bevelEnabled: false });
   attic.translate(0, 0, -(len - 0.04) / 2);
-  put(attic, M.darkWood, 0, 0, 0, Math.PI / 2);
+  // (a hair below the gable ends' foot: the two shared a face there, and under a door's hood, where you
+  // see it, it flickered)
+  put(attic, M.darkWood, 0, -0.03, 0, Math.PI / 2);
 
   // Gable ends: plaster infill, a tie beam, king post and two braces, and a lit attic window
   const gh = apex - 0.25;
@@ -741,6 +745,8 @@ export function boat(M: PropMaterials): THREE.Group {
   const geo = new THREE.ExtrudeGeometry(hull, { depth: 1.1, bevelEnabled: false });
   geo.translate(0, 0.5, -0.55);
   g.add(mesh(geo, M.wood));
+  // Bottom boards above the waterline: a boat afloat is dry inside, not open to the sea under her
+  g.add(mesh(box(2.7, 0.05, 1.02), M.darkWood, 0.05, 0.47, 0));
   g.add(mesh(box(0.2, 0.06, 1.0), M.darkWood, -0.3, 0.55, 0));
   g.add(mesh(box(0.2, 0.06, 1.0), M.darkWood, 0.6, 0.55, 0));
   g.add(mesh(box(2.2, 0.04, 0.05), M.darkWood, 0.3, 0.75, 0.5, 0, 0, 0.25));
@@ -801,6 +807,50 @@ export function ship(M: PropMaterials, sails: 'set' | 'furled' | 'bare' = 'furle
   return g;
 }
 
+/** A mooring bollard on a quay's edge: a squat iron post with a lip, a rope's turn round it. */
+export function bollard(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const iron = flat('#2e3034');
+  g.add(mesh(cyl(0.2, 0.24, 0.55, 10), iron, 0, 0.28, 0));
+  g.add(mesh(cyl(0.28, 0.28, 0.1, 10), iron, 0, 0.6, 0));
+  g.add(mesh(new THREE.TorusGeometry(0.23, 0.04, 5, 14), M.rope, 0, 0.36, 0, 0, Math.PI / 2));
+  return g;
+}
+
+/**
+ * A harbour crane, the old way: a timber tower on a stone footing, a treadwheel at its foot, a jib
+ * reaching out over the water (toward +x) with a rope and hook, a net of cargo hanging from it.
+ */
+export function dockCrane(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(2.4, 0.5, 2.4), M.stone, 0, 0.25, 0));
+  for (const [x, z] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) g.add(mesh(box(0.28, 5.4, 0.28), M.darkWood, x, 3.2, z));
+  for (const y of [1.6, 3.4, 5.6]) { g.add(mesh(box(1.9, 0.18, 0.18), M.darkWood, 0, y, -0.8)); g.add(mesh(box(1.9, 0.18, 0.18), M.darkWood, 0, y, 0.8)); g.add(mesh(box(0.18, 0.18, 1.9), M.darkWood, -0.8, y, 0)); g.add(mesh(box(0.18, 0.18, 1.9), M.darkWood, 0.8, y, 0)); }
+  // Braces across the tower's faces
+  for (const z of [-0.8, 0.8]) g.add(mesh(box(0.14, 2.5, 0.14), M.wood, 0, 2.5, z, 0, 0, 0.62));
+  // The cap and the jib, braced from below
+  g.add(mesh(box(2.2, 0.3, 2.2), M.wood, 0, 6.05, 0));
+  g.add(mesh(box(5.6, 0.3, 0.32), M.darkWood, 2.2, 6.4, 0));
+  g.add(mesh(box(0.2, 3.0, 0.2), M.wood, 2.6, 5.2, 0, 0, 0, 0.9));
+  g.add(mesh(box(0.42, 0.42, 0.42), M.iron, 4.8, 6.2, 0));
+  // Rope down from the jib's end, a hook, a cargo net of sacks on it
+  g.add(mesh(box(0.05, 2.9, 0.05), M.rope, 4.8, 4.6, 0));
+  g.add(mesh(box(0.08, 0.3, 0.08), M.iron, 4.8, 3.05, 0));
+  g.add(mesh(box(1.0, 0.8, 0.9), flat('#a88b5a'), 4.8, 2.5, 0));
+  g.add(mesh(box(1.04, 0.06, 0.94), M.rope, 4.8, 2.6, 0));
+  g.add(mesh(box(0.06, 0.84, 0.94), M.rope, 4.8, 2.5, 0));
+  // The treadwheel at the foot, a man's height across, on its axle
+  const wheel = new THREE.Group();
+  wheel.add(mesh(new THREE.TorusGeometry(1.2, 0.09, 6, 20), M.darkWood));
+  wheel.add(mesh(new THREE.TorusGeometry(1.2, 0.09, 6, 20), M.darkWood, 0, 0, 0.9));
+  for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; wheel.add(mesh(box(0.12, 0.08, 0.95), M.wood, Math.cos(a) * 1.18, Math.sin(a) * 1.18, 0.45)); }
+  for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI; wheel.add(mesh(box(2.4, 0.08, 0.08), M.wood, 0, 0, 0, 0, 0, a)); wheel.add(mesh(box(2.4, 0.08, 0.08), M.wood, 0, 0, 0.9, 0, 0, a)); }
+  wheel.position.set(-1.9, 1.5, -0.45);
+  g.add(wheel);
+  g.add(mesh(cyl(0.08, 0.08, 1.6, 6), M.iron, -1.9, 1.5, 0, 0, Math.PI / 2));
+  return g;
+}
+
 export function firepit(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 8; i++) {
@@ -840,13 +890,208 @@ export function chest(M: PropMaterials): THREE.Group {
   return g;
 }
 
-export function door(M: PropMaterials, high = 2): THREE.Group {
+/** A shut door filling a doorway `high` blocks tall, of the kind its building deserves (see doorLeaf). */
+export function door(M: PropMaterials, high = 2, kind: DoorKind = 'cottage', paint?: string): THREE.Group {
   const g = new THREE.Group();
-  // Fills a doorway `high` blocks tall
-  const t = high - 0.08;
-  g.add(mesh(box(0.92, t, 0.1), M.darkWood, 0, t / 2, 0));
-  for (const y of high > 2 ? [0.45, 1.45, 2.45] : [0.35, 1.55]) g.add(mesh(box(0.7, 0.07, 0.04), M.iron, -0.06, y, 0.06));
-  g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), M.iron, 0.32, 1.0, 0.08));
+  // (the leaf is built across z; a shut door's runs across x, its front to +z)
+  const leaf = doorLeaf(M, high, kind, paint);
+  leaf.rotation.y = -Math.PI / 2;
+  g.add(leaf);
+  return g;
+}
+
+
+/**
+ * A door's leaf, `high` blocks tall and a block wide across z, a tenth thick across x. Hung from its +z
+ * end (see Doors.makeDoor). Its front, the +x face, carries the hinges, the handle and the knocker; the
+ * back the ledges and the bar. Built of small pieces, so it's merged per material wherever it's used.
+ */
+export function doorLeaf(M: PropMaterials, high = 2, kind: DoorKind = 'cottage', paint?: string): THREE.Group {
+  const g = new THREE.Group();
+  const t = high - 0.08, W = 0.9;
+  const paintMat = paint ? flat(paint) : null;
+  const seam = flat('#140e0a');
+  const brass = M.bronze;
+  const blackIron = flat('#26262a');
+  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0) => g.add(mesh(geo, mat, x, y, z, 0, rx));
+  /** Both faces: f is +1 for the front, -1 for the back. */
+  const faces = (fn: (f: number) => void) => { fn(1); fn(-1); };
+  // Strap hinges from the hinge end, with a spear tip, on the front; at y
+  const strap = (y: number, len = 0.62, mat: THREE.Material = blackIron, wide = 0.07) => {
+    add(box(0.025, wide, len), mat, 0.062, y, W / 2 - len / 2);
+    const tip = mesh(box(0.025, wide * 1.15, wide * 1.15), mat, 0.062, y, W / 2 - len);
+    tip.rotation.x = Math.PI / 4;
+    g.add(tip);
+  };
+  // Board joints, grooves down both faces
+  const boards = (n: number, mat: THREE.Material = seam) => faces((f) => { for (let i = 1; i < n; i++) add(box(0.006, t - 0.04, 0.016), mat, f * 0.051, t / 2, -W / 2 + (W / n) * i); });
+  // Ledges and a brace on the back
+  const ledged = (body: THREE.Material) => {
+    const ys = [0.28, t / 2, t - 0.28];
+    for (const y of ys) add(box(0.04, 0.13, W - 0.1), body, -0.07, y, 0);
+    for (let i = 0; i < 2; i++) {
+      const y0 = ys[i] + 0.06, y1 = ys[i + 1] - 0.06, dy = y1 - y0, dz = W - 0.26;
+      add(box(0.035, Math.hypot(dy, dz), 0.11), body, -0.068, (y0 + y1) / 2, 0, Math.atan2(dz, dy));
+    }
+  };
+  // A raised panel on both faces
+  const panel = (mat: THREE.Material, y0: number, y1: number, z0: number, z1: number) => faces((f) => {
+    add(box(0.022, y1 - y0, z1 - z0), mat, f * 0.058, (y0 + y1) / 2, (z0 + z1) / 2);
+    // its moulding, a darker line round it
+    add(box(0.008, 0.018, z1 - z0 + 0.03), seam, f * 0.052, y0 - 0.012, (z0 + z1) / 2);
+    add(box(0.008, 0.018, z1 - z0 + 0.03), seam, f * 0.052, y1 + 0.012, (z0 + z1) / 2);
+  });
+  const knob = (mat: THREE.Material, y: number) => faces((f) => add(new THREE.SphereGeometry(0.045, 8, 6), mat, f * 0.09, y, -W / 2 + 0.1));
+  const ring = (mat: THREE.Material, y: number, z: number, r = 0.075, f = 1) => {
+    const tor = mesh(new THREE.TorusGeometry(r, r * 0.2, 5, 12), mat, f * 0.075, y - r * 0.6, z, Math.PI / 2);
+    g.add(tor);
+    add(box(0.02, 0.06, 0.06), mat, f * 0.058, y, z);
+  };
+  const glass = (warm: boolean) => flat(warm ? '#c89a50' : '#8fb0b8', { emissive: new THREE.Color(warm ? '#6a3a10' : '#1a2a2e') });
+
+  switch (kind) {
+    case 'cottage': case 'painted': {
+      const body = kind === 'painted' && paintMat ? paintMat : M.darkWood;
+      add(box(0.1, t, W), body, 0, t / 2, 0);
+      boards(4);
+      ledged(body);
+      strap(0.32); strap(t - 0.36);
+      // A thumb latch: the grip on the front, the bar across the back
+      add(box(0.03, 0.18, 0.04), blackIron, 0.07, t * 0.52, -W / 2 + 0.12);
+      add(box(0.03, 0.04, 0.24), blackIron, -0.1, t * 0.52 + 0.05, -W / 2 + 0.16);
+      break;
+    }
+    case 'panelled': {
+      const body = paintMat ?? M.darkWood;
+      add(box(0.1, t, W), body, 0, t / 2, 0);
+      const mid = t * 0.44;
+      for (const [z0, z1] of [[-0.36, -0.04], [0.04, 0.36]]) { panel(body, 0.16, mid - 0.1, z0, z1); panel(body, mid + 0.1, t - 0.14, z0, z1); }
+      // A lock rail, the knob, a letter plate and the knocker in brass
+      faces((f) => add(box(0.012, 0.03, W - 0.08), seam, f * 0.051, mid, 0));
+      knob(brass, mid);
+      add(box(0.014, 0.05, 0.22), brass, 0.058, mid - 0.24, 0);
+      ring(brass, t * 0.7, 0, 0.07);
+      break;
+    }
+    case 'dutch': {
+      // An inn's stable door: two halves, a shelf on the lower to lean on, a lit window in the upper
+      const body = paintMat ?? M.darkWood;
+      const cut = t * 0.5;
+      add(box(0.1, cut - 0.012, W), body, 0, (cut - 0.012) / 2, 0);
+      add(box(0.1, t - cut - 0.012, W), body, 0, cut + 0.012 + (t - cut - 0.012) / 2, 0);
+      faces((f) => add(box(0.004, 0.024, W), seam, f * 0.05, cut, 0));
+      add(box(0.13, 0.045, W + 0.02), M.wood, 0.075, cut - 0.03, 0);
+      boards(3);
+      const wy = cut + (t - cut) * 0.55, wh = (t - cut) * 0.42;
+      add(box(0.104, wh, 0.42), glass(true), 0, wy, -0.08);
+      faces((f) => {
+        add(box(0.012, wh + 0.06, 0.03), body, f * 0.053, wy, -0.08);
+        add(box(0.012, 0.03, 0.48), body, f * 0.053, wy, -0.08);
+        add(box(0.012, wh + 0.06, 0.03), body, f * 0.053, wy, -0.08 - 0.225);
+        add(box(0.012, wh + 0.06, 0.03), body, f * 0.053, wy, -0.08 + 0.225);
+      });
+      strap(0.3, 0.5); strap(cut - 0.22, 0.5); strap(cut + 0.2, 0.5); strap(t - 0.24, 0.5);
+      ring(blackIron, cut - 0.14, -W / 2 + 0.16, 0.06);
+      break;
+    }
+    case 'glazed': {
+      // A shop door: a panel below, small panes above to see the goods through
+      const body = paintMat ?? M.darkWood;
+      const sill = t * 0.42, top = t - 0.1;
+      add(box(0.1, sill, W), body, 0, sill / 2, 0);
+      add(box(0.1, 0.1, W), body, 0, t - 0.05, 0);
+      faces((f) => { add(box(0.1, top - sill, 0.1), body, 0, (sill + top) / 2, (W / 2 - 0.05) * f); });
+      add(box(0.06, top - sill, W - 0.2), glass(true), 0, (sill + top) / 2, 0);
+      // glazing bars: two across, one down
+      faces((f) => {
+        for (const k of [1, 2]) add(box(0.03, 0.025, W - 0.2), body, f * 0.025, sill + ((top - sill) * k) / 3, 0);
+        add(box(0.03, top - sill, 0.025), body, f * 0.025, (sill + top) / 2, 0);
+      });
+      panel(body, 0.14, sill - 0.1, -0.33, 0.33);
+      // A brass pull and a shop bell over the door
+      add(box(0.03, 0.34, 0.03), brass, 0.1, sill + 0.05, -W / 2 + 0.12);
+      for (const dy of [-0.14, 0.14]) add(box(0.05, 0.03, 0.03), brass, 0.075, sill + 0.05 + dy, -W / 2 + 0.12);
+      add(box(0.014, 0.05, 0.2), brass, 0.058, sill - 0.24, 0);
+      break;
+    }
+    case 'studded': {
+      // A smithy's, a gaol's, a tower's: heavy boards, three iron bands, rows of nail heads
+      add(box(0.12, t, W), M.darkWood, 0, t / 2, 0);
+      boards(5);
+      const bands = [0.24, t / 2, t - 0.24];
+      faces((f) => {
+        for (const y of bands) add(box(0.025, 0.1, W), M.iron, f * 0.07, y, 0);
+        for (let y = 0.42; y < t - 0.3; y += 0.3) {
+          if (bands.some((b) => Math.abs(b - y) < 0.12)) continue;
+          for (const z of [-0.33, -0.11, 0.11, 0.33]) add(box(0.03, 0.05, 0.05), M.iron, f * 0.07, y, z);
+        }
+      });
+      ring(M.iron, t * 0.55, -W / 2 + 0.2, 0.09);
+      ring(M.iron, t * 0.55, -W / 2 + 0.2, 0.09, -1);
+      break;
+    }
+    case 'iron': {
+      // A bank's: plate on oak, riveted round the edge, a brass lock box and a bar
+      add(box(0.12, t, W), M.darkWood, 0, t / 2, 0);
+      const plate = flat('#4a4e54');
+      faces((f) => {
+        add(box(0.02, t - 0.06, W - 0.06), plate, f * 0.068, t / 2, 0);
+        for (let y = 0.12; y < t - 0.05; y += 0.2) for (const z of [-0.39, 0.39]) add(box(0.025, 0.04, 0.04), blackIron, f * 0.08, y, z);
+        for (let z = -0.3; z < 0.31; z += 0.15) for (const y of [0.1, t - 0.1, t * 0.5]) add(box(0.025, 0.04, 0.04), blackIron, f * 0.08, y, z);
+        add(box(0.02, 0.08, W - 0.06), blackIron, f * 0.08, t * 0.32, 0);
+        add(box(0.02, 0.08, W - 0.06), blackIron, f * 0.08, t * 0.72, 0);
+      });
+      add(box(0.03, 0.26, 0.18), brass, 0.09, t * 0.52, -W / 2 + 0.18);
+      add(box(0.01, 0.07, 0.025), seam, 0.106, t * 0.5, -W / 2 + 0.18);
+      ring(brass, t * 0.42, -W / 2 + 0.18, 0.06);
+      break;
+    }
+    case 'carved': {
+      // A chapel's or a hall's: oak in a carved frame, a bronze sun on the front, the hinges scrolled
+      add(box(0.11, t, W), M.wood, 0, t / 2, 0);
+      const frame = M.darkWood;
+      faces((f) => {
+        add(box(0.03, 0.08, W - 0.1), frame, f * 0.062, 0.12, 0);
+        add(box(0.03, 0.08, W - 0.1), frame, f * 0.062, t - 0.12, 0);
+        add(box(0.03, 0.08, W - 0.1), frame, f * 0.062, t * 0.4, 0);
+        for (const z of [-0.39, 0.39]) add(box(0.03, t - 0.16, 0.08), frame, f * 0.062, t / 2, z);
+        add(box(0.03, t * 0.6 - 0.16, 0.06), frame, f * 0.062, t * 0.4 + (t * 0.6 - 0.08) / 2, 0);
+      });
+      const sun = mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.03, 12), brass, 0.08, t * 0.68, 0, 0, 0, Math.PI / 2);
+      g.add(sun);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const ray = mesh(box(0.02, 0.09, 0.025), brass, 0.08, t * 0.68 + Math.cos(a) * 0.16, Math.sin(a) * 0.16);
+        ray.rotation.x = -a;
+        g.add(ray);
+      }
+      // Scrolled hinges: the strap, then two curls splitting off its end
+      for (const y of [0.34, t - 0.38]) {
+        strap(y, 0.5, blackIron, 0.06);
+        for (const k of [-1, 1]) {
+          const curl = mesh(box(0.022, 0.04, 0.2), blackIron, 0.062, y + k * 0.07, W / 2 - 0.52);
+          curl.rotation.x = k * 0.6;
+          g.add(curl);
+        }
+      }
+      ring(blackIron, t * 0.4, -W / 2 + 0.17, 0.08);
+      break;
+    }
+    case 'rough': {
+      // A store's or a shed's: boards of no great care, a Z brace, a rope loop to pull
+      const n = 4, bw = W / n;
+      for (let i = 0; i < n; i++) {
+        const h = t - [0, 0.05, 0.02, 0.07][i];
+        add(box(0.08, h, bw - 0.012), i % 2 ? M.wood : M.darkWood, 0, h / 2, -W / 2 + bw * (i + 0.5));
+      }
+      for (const y of [0.26, t - 0.3]) add(box(0.04, 0.13, W - 0.08), M.wood, -0.06, y, 0);
+      { const y0 = 0.32, y1 = t - 0.36, dz = W - 0.24; add(box(0.035, Math.hypot(y1 - y0, dz), 0.11), M.wood, -0.058, (y0 + y1) / 2, 0, Math.atan2(dz, y1 - y0)); }
+      for (const y of [0.3, t - 0.34]) add(box(0.02, 0.05, 0.16), blackIron, 0.05, y, W / 2 - 0.08);
+      const loop = mesh(new THREE.TorusGeometry(0.06, 0.014, 4, 10), M.rope, 0.06, t * 0.5, -W / 2 + 0.14, Math.PI / 2);
+      g.add(loop);
+      break;
+    }
+  }
   return g;
 }
 
@@ -1087,6 +1332,75 @@ export function carvedTurnip(allRound = false): THREE.Group {
   return g;
 }
 
+/**
+ * The light behind every carved face: one material for all the jack-o'-lanterns, so the game can turn
+ * them up after dark (Game sets emissiveIntensity from the night).
+ */
+export const PUMPKIN_GLOW = new THREE.MeshLambertMaterial({ color: '#ffc060', emissive: new THREE.Color('#ff8a20'), emissiveIntensity: 1 });
+
+/** A pumpkin `size` across (1 is about two thirds of a block): ribbed lobes round a core, a stalk, a sunken crown. */
+export function pumpkin(color = '#e8801e', size = 1, stalk = '#5a5a26'): THREE.Group {
+  const g = new THREE.Group(), s = size;
+  const body = flat(color), dark = flat(new THREE.Color(color).multiplyScalar(0.72).getStyle());
+  g.add(mesh(box(0.5 * s, 0.42 * s, 0.5 * s), body, 0, 0.21 * s, 0));
+  // Four lobes turned through the eighth-turns: eight ribs all round
+  // Lobes turned through the eighth-turns: eight ribs all round (a big one gets twelve, so it reads round, not a crate)
+  const lobes = size > 2 ? 6 : 4;
+  for (let k = 0; k < lobes; k++) g.add(mesh(box(0.6 * s, 0.36 * s, 0.3 * s), k % 2 ? body : dark, 0, 0.19 * s, 0, (k * Math.PI) / lobes));
+  g.add(mesh(box(0.24 * s, 0.05 * s, 0.24 * s), dark, 0, 0.42 * s, 0));
+  const st = mesh(box(0.07 * s, 0.17 * s, 0.07 * s), flat(stalk), 0.01 * s, 0.5 * s, 0);
+  st.rotation.z = 0.18;
+  g.add(st);
+  return g;
+}
+
+/**
+ * A pumpkin with a face cut in it and a candle inside: the faces are Gil Rudd's six (data/wakeFair.ts
+ * FACES): a grin, a fright, a scowl, all teeth, a cat and a wink.
+ */
+export function jackOLantern(face = 0, size = 1, color = '#e8801e'): THREE.Group {
+  const g = pumpkin(color, size);
+  const s = size, z = 0.302 * s, body = flat(color);
+  const cut = (w: number, h: number, x: number, y: number, rz = 0, mat: THREE.Material = PUMPKIN_GLOW) => {
+    const m = mesh(box(w * s, h * s, 0.02 * s), mat, x * s, y * s, z);
+    m.rotation.z = rz;
+    g.add(m);
+  };
+  // A triangle, near enough, in steps: wide at the foot
+  const tri = (x: number, y: number, w = 0.11) => { cut(w, 0.035, x, y); cut(w * 0.6, 0.035, x, y + 0.035); cut(w * 0.25, 0.03, x, y + 0.065); };
+  switch (((face % 6) + 6) % 6) {
+    case 0: // The grin: triangle eyes and nose, a wide mouth with two teeth left in
+      tri(-0.11, 0.27); tri(0.11, 0.27); tri(0, 0.21, 0.06);
+      cut(0.3, 0.05, 0, 0.14); cut(0.2, 0.035, 0, 0.11);
+      cut(0.04, 0.03, -0.06, 0.155, 0, body); cut(0.04, 0.03, 0.06, 0.125, 0, body);
+      break;
+    case 1: // The fright: round eyes, an O of a mouth
+      cut(0.09, 0.09, -0.11, 0.3); cut(0.09, 0.09, 0.11, 0.3);
+      cut(0.1, 0.12, 0, 0.14); cut(0.06, 0.16, 0, 0.14);
+      break;
+    case 2: // The scowl: brows down, a flat mouth turned down at the ends
+      cut(0.13, 0.045, -0.11, 0.3, -0.35); cut(0.13, 0.045, 0.11, 0.3, 0.35);
+      cut(0.24, 0.035, 0, 0.15); cut(0.04, 0.06, -0.13, 0.125); cut(0.04, 0.06, 0.13, 0.125);
+      break;
+    case 3: // All teeth: small mean eyes over a mouth full of them
+      cut(0.07, 0.06, -0.1, 0.31); cut(0.07, 0.06, 0.1, 0.31);
+      cut(0.34, 0.12, 0, 0.15);
+      for (let k = 0; k < 4; k++) { cut(0.045, 0.04, -0.12 + k * 0.08, 0.19, 0, body); cut(0.045, 0.04, -0.08 + k * 0.08, 0.11, 0, body); }
+      break;
+    case 4: // The cat: slit eyes, a little nose, a mouth like a w
+      cut(0.12, 0.04, -0.11, 0.3, 0.2); cut(0.12, 0.04, 0.11, 0.3, -0.2);
+      cut(0.025, 0.07, -0.11, 0.3, 0, body); cut(0.025, 0.07, 0.11, 0.3, 0, body);
+      tri(0, 0.21, 0.05);
+      cut(0.09, 0.03, -0.045, 0.16, -0.5); cut(0.09, 0.03, 0.045, 0.16, 0.5);
+      break;
+    case 5: // The wink: one eye shut, a crooked grin
+      tri(-0.11, 0.27); cut(0.11, 0.025, 0.11, 0.3, -0.1);
+      cut(0.28, 0.05, 0.02, 0.15, 0.14); cut(0.06, 0.04, 0.14, 0.18, 0.4);
+      break;
+  }
+  return g;
+}
+
 /** Gourds and marrows heaped round a sheaf of oats, with a carved turnip in front. */
 export function gourdPile(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
@@ -1263,13 +1577,9 @@ export function highChair(M: PropMaterials): THREE.Group {
 }
 
 /** The door leaf standing open against the jamb (an open door, seen edge-on from outside). */
-export function openDoor(M: PropMaterials, high = 3): THREE.Group {
-  const g = new THREE.Group();
-  // The leaf of a doorway `high` blocks tall, swung open against the wall
-  const t = high - 0.08;
-  g.add(mesh(box(0.1, t, 0.9), M.darkWood, 0, t / 2, 0));
-  for (const y of high > 2 ? [0.45, 1.45, 2.45] : [0.35, 1.55]) g.add(mesh(box(0.04, 0.07, 0.7), M.iron, 0.06, y, 0.05));
-  return g;
+/** The leaf of a doorway `high` blocks tall, swung open against the wall (its kind: see doorLeaf). */
+export function openDoor(M: PropMaterials, high = 3, kind: DoorKind = 'cottage', paint?: string): THREE.Group {
+  return doorLeaf(M, high, kind, paint);
 }
 
 /** An interior piece by name (see interiors.ts); tint picks the rug colour. */
@@ -1303,6 +1613,7 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'hurdle': return hurdle(M);
     case 'bones': return bones(tint);
     case 'turnip': return carvedTurnip();
+    case 'pumpkin': return jackOLantern(tint);
     case 'vault': return vaultDoor(M);
     case 'strongbox': return strongbox(M);
     case 'gourds': return gourdPile(M);
@@ -1506,7 +1817,7 @@ export function gravestone(M: PropMaterials, kind = 0): THREE.Group {
 
 export function standingSign(M: PropMaterials, text: string): THREE.Group {
   const g = new THREE.Group();
-  for (const x of [-0.8, 0.8]) g.add(mesh(box(0.14, 1.9, 0.14), M.darkWood, x, 0.95, 0));
+  for (const x of [-0.8, 0.8]) g.add(mesh(box(0.14, 1.9, 0.14), M.darkWood, x, 0.95, -0.11));
   const tex = textTexture(text, 384, 128, '#d9c79c', '#3a2414', 44);
   const board = new THREE.Mesh(box(1.9, 0.75, 0.08), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
   board.position.set(0, 1.5, 0);

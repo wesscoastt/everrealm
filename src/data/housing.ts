@@ -31,7 +31,7 @@ export const COTTAGE_BUYBACK = 1250;
 export const LAND_BOARD = { x: 413.5, z: 209.5 };
 
 export type SizeId = 'cottage' | 'house' | 'hall';
-export type WallId = 'plaster' | 'planks' | 'stone' | 'cobble';
+export type WallId = 'plaster' | 'ochre' | 'rose' | 'blue' | 'planks' | 'stone' | 'cobble' | 'brick' | 'sandstone';
 export type RoofId = 'thatch' | 'red' | 'slate' | 'blue';
 
 /** The plans: what to build on a lot. */
@@ -45,8 +45,13 @@ export const SIZES: Record<SizeId, { name: string; w: number; d: number; floors:
 
 export const WALLS: Record<WallId, { name: string; block: number; blurb: string; cost: Cost }> = {
   plaster: { name: 'Lime plaster', block: B.Plaster, blurb: 'Wattle, daub and a lime wash.', cost: { items: {}, marks: 0 } },
+  ochre: { name: 'Ochre limewash', block: B.OchrePlaster, blurb: 'Lime plaster with yellow earth in the wash. Warm on a grey day.', cost: { items: {}, marks: 120 } },
+  rose: { name: 'Pink limewash', block: B.RosePlaster, blurb: 'Washed pink the old way, with a little red earth in the lime.', cost: { items: {}, marks: 120 } },
+  blue: { name: 'Blue limewash', block: B.BluePlaster, blurb: 'A harbour colour: lime with a little blue in it, so the sea knows the house.', cost: { items: {}, marks: 160 } },
   planks: { name: 'Weatherboard', block: B.Planks, blurb: 'Birch boards, lapped against the rain.', cost: { items: { birch_logs: 16 }, marks: 0 } },
   cobble: { name: 'Fieldstone', block: B.Cobble, blurb: 'Stone picked off the fields and laid dry.', cost: { items: {}, marks: 360 } },
+  brick: { name: 'Red brick', block: B.RedBrick, blurb: 'Kiln brick from the clay pits, with stone at the corners.', cost: { items: {}, marks: 700 } },
+  sandstone: { name: 'Sandstone', block: B.Sandstone, blurb: 'Honey-coloured ashlar with a carved cornice. A house that means to be looked at.', cost: { items: {}, marks: 1200 } },
   stone: { name: 'Dressed stone', block: B.StoneBrick, blurb: 'Squared blocks carted from Kelderby. It will outlast the lease.', cost: { items: {}, marks: 900 } },
 };
 

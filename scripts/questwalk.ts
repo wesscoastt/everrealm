@@ -91,6 +91,21 @@ class Mock implements GameApi {
   openBank() {}
   openExchange() {}
   openMail() {}
+  // Companions (game/Companions.ts) and the Wake Fair (game/WakeFair.ts)
+  compJoin() {}
+  compDismiss() {}
+  compLeave() {}
+  compRapport() {}
+  compActive() { return null; }
+  compNear() { return true; }
+  compHour() { return 12; }
+  compOutfit() {}
+  compRole() {}
+  compStory() {}
+  fairOn() { return true; }
+  fairPlay() {}
+  fairPlaysLeft() { return 3; }
+  fairGuessed() { return false; }
   playerName = 'Tester';
 }
 

@@ -139,6 +139,16 @@ export class VoxelWorld {
   }
 
   /** Ground height under a point, searching down from a given height (handles caves and bridges). */
+  /** The land's top at (x, z): the highest solid block that isn't a tree (leaves and trunks are looked through). For where creatures stand. */
+  landTop(x: number, z: number): number {
+    let y = this.topSolid(x, z);
+    const ix = Math.floor(x), iz = Math.floor(z);
+    const tree = (id: number) => id === B.OakLeaves || id === B.BirchLeaves || id === B.PineLeaves || id === B.OakLog || id === B.BirchLog || id === B.PineLog;
+    if (y < 0 || !tree(this.get(ix, y, iz))) return y;
+    while (y > 1 && (tree(this.get(ix, y, iz)) || !isSolid(this.get(ix, y, iz)))) y--;
+    return y;
+  }
+
   groundBelow(x: number, y: number, z: number): number {
     const ix = Math.floor(x), iz = Math.floor(z);
     for (let yy = Math.min(SY - 1, Math.floor(y)); yy >= 0; yy--) {

@@ -52,6 +52,8 @@ export const MAP_COLORS: Record<number, [number, number, number]> = {
   [B.PineLog]: [80, 50, 40], [B.BirchLog]: [220, 216, 204], [B.Glowcap]: [80, 180, 200], [B.DeepStone]: [70, 72, 80],
   [B.Mycelium]: [104, 92, 116], [B.MushStem]: [220, 212, 192], [B.CapBrown]: [120, 76, 46], [B.CapInk]: [150, 148, 156], [B.CapRed]: [170, 44, 34], [B.Gills]: [210, 180, 156], [B.CapGlow]: [110, 200, 186],
   [B.Brass]: [190, 150, 70], [B.Copper]: [70, 140, 118], [B.Ash]: [58, 58, 62], [B.Emberstone]: [150, 70, 34], [B.Whitestone]: [226, 224, 216], [B.Blackstone]: [36, 30, 44],
+  [B.RedBrick]: [160, 70, 52], [B.Sandstone]: [200, 164, 110], [B.Flagstone]: [140, 134, 122], [B.BrickPave]: [150, 66, 48], [B.CarvedStone]: [200, 164, 110],
+  [B.OchrePlaster]: [200, 154, 76], [B.RosePlaster]: [208, 154, 138], [B.BluePlaster]: [156, 172, 186], [B.FlowerGrass]: [118, 166, 70], [B.Granite]: [148, 138, 134], [B.Peat]: [42, 32, 22],
 };
 
 const STONEY = new Set<number>([B.Stone, B.DeepStone, B.TerraOrange, B.TerraBrown, B.TerraCream, B.Basalt, B.MossyStone, B.Ash, B.Emberstone]);

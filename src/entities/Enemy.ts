@@ -101,7 +101,7 @@ export class Enemy {
   private shotFrom = new THREE.Vector3();
 
   /** ground: optional height source for placing the home point (the Hollindale grid before its chunks stream in). */
-  constructor(def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
+  constructor(def: EnemyDef, x: number, z: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; landTop?(x: number, z: number): number; groundBelow(x: number, y: number, z: number): number }) {
     this.base = def;
     this.def = { ...def };
     const kind = def.model ?? (def.type as CreatureKind);
@@ -109,7 +109,8 @@ export class Enemy {
     this.hp = def.hp;
     this.swims = SWIM_KINDS.has(kind);
     const src = ground ?? world;
-    const y = src.topSolid(x, z) + 1;
+    // (under a tree the top is the canopy: stand on the ground itself)
+    const y = (src.landTop ? src.landTop(x, z) : src.topSolid(x, z)) + 1;
     this.home.set(x + 0.5, y, z + 0.5);
     if (this.swims) {
       // Out in the water between the sea bed and the surface, lower in deep water

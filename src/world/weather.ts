@@ -17,6 +17,8 @@ export interface WeatherState {
 }
 
 const SLOT = 420;
+/** How much of each climate's wet share actually rains: the counties were wet half the day before. */
+const RAIN = 0.5;
 
 interface Climate { wet: number; grey: number; snow?: boolean; mist: number; fret?: boolean; /** Mist that never quite lifts, all day. */ murk?: number }
 const CLIMATE: Record<RegionId, Climate> = {
@@ -51,8 +53,10 @@ export function weatherAt(region: RegionId, hour: number, now = realmNow() / 100
   const slot = Math.floor(now / SLOT);
   const r = hash(slot * 31 + REGION_N[region] * 7), k = hash(slot * 17 + REGION_N[region] * 3);
   let cloud: number, precip = 0;
-  if (r < c.wet) { cloud = 0.75 + k * 0.25; precip = 0.3 + k * k * 0.7; }
-  else if (r < c.wet + c.grey) { cloud = 0.45 + k * 0.4; }
+  // (snow country keeps its snow; elsewhere showers come about half as often as the climate says, and lighter)
+  const wet = c.snow ? c.wet : c.wet * RAIN;
+  if (r < wet) { cloud = 0.75 + k * 0.25; precip = 0.25 + k * k * 0.65; }
+  else if (r < wet + c.grey) { cloud = 0.45 + k * 0.4; }
   else cloud = k * 0.25;
   // Mist gathers before sunrise and burns off by mid-morning; the coast gets a sea fret any time
   const dawn = Math.max(0, 1 - Math.abs(hour - 6.2) / 2.2);

@@ -38,6 +38,9 @@ import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal, type AnimalKind } from '../entities/Animal';
 import { Enemy } from '../entities/Enemy';
+import { Companions } from './Companions';
+import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
+import { COMPANIONS, type CompanionId, type CompanionRole } from '../data/companions';
 import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '../entities/humanoid';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
@@ -75,15 +78,15 @@ const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSit
 const LIFT = { x: 1201, z: 1800, r: 6, y: 89 };
 import { ALDERMERE, BANKS, CAMP, COLD, COTTAGE, GULL, QUEST_SPAWNS, TEMPLE, WORKS, WORLD_THINGS, WorldThing } from '../data/places_regional';
 import { bigIsle } from '../world/holms';
-import { B, isSolid } from '../world/blocks';
+import { B, isLeaves, isSolid } from '../world/blocks';
 import { fellTree, FishSpot, LOWER_WEND, OreNode, regrowTree, TreeNode } from '../world/generate';
 import { distToPolyline } from '../world/noise';
 import { Interactable } from '../world/structures';
 import { DialogueTree, DNode, GameApi } from './api';
 import { GameWorld , ForageSpot } from './GameWorld';
 import { places } from '../data/places';
-import { fireMaterial, flameCard, furniture } from '../world/props';
-import { inRoof } from '../world/roofVolumes';
+import { fireMaterial, flameCard, furniture, PUMPKIN_GLOW } from '../world/props';
+import { inRoof, roofOver } from '../world/roofVolumes';
 import { coastX, heightAt, regionAt, REGION_INFO, RegionId, riverDist, SEA } from '../world/terrain';
 import { hash2 } from '../world/noise';
 import { weatherAt } from '../world/weather';
@@ -105,6 +108,8 @@ import { Social } from './Social';
 import { Exchange } from './Exchange';
 import { Mail } from './Mail';
 import { Seasons } from './Seasons';
+import { WakeFair } from './WakeFair';
+import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
 import { Hazards } from './Hazards';
@@ -272,6 +277,12 @@ export class Game implements GameApi {
   festivals!: Festivals;
   /** The festival's round, boss, bags and hats (data/seasons.ts). */
   seasons!: Seasons;
+  /** The Wake Fair at Hollin Ford, and its games, while the Lantern Wake is on. */
+  private fair!: WakeFair;
+  fairOn(): boolean { return !!this.fair?.on; }
+  fairPlay(game: string): void { this.fair.play(game as FairGameId); }
+  fairPlaysLeft(game: string): number { return this.fair.playsLeft(game as FairGameId); }
+  fairGuessed(): boolean { return this.fair.guessedToday(); }
   home!: Home;
   building!: Building;
   planner!: Planner;
@@ -568,7 +579,8 @@ export class Game implements GameApi {
     const loop = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      this.frame(dt);
+      // (held while the trailer steps the frames itself: src/dev/trailer.ts)
+      if (!(window as unknown as { __erHold?: boolean }).__erHold) this.frame(dt);
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -595,6 +607,7 @@ export class Game implements GameApi {
       sfx: (n, v) => this.sfx(n as Sfx, v), banner: (t, sub) => this.hud.banner(t, sub, true),
     });
     this.justice = new Justice({
+      noticed: () => this.companions?.event('crime'),
       scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
       setPose: (st) => { this.lawPose = st; },
       marks: () => this.save.marks, spend: (n) => { this.save.marks = Math.max(0, this.save.marks - n); this.hud.refresh(); },
@@ -644,6 +657,16 @@ export class Game implements GameApi {
       removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
       hour: () => this.world.sky.hour,
       lamps: this.world.extraLamps,
+    });
+    this.player.extraSolid = (x, y, z, half, height) => this.world.ferry.blocks(x, y, z, half, height);
+    this.fair = new WakeFair({
+      scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
+      fest: () => this.festivals.fest,
+      flag: (k) => this.flag(k), setFlag: (k, v) => { this.setFlag(k, v); this.persist(); },
+      give: (it, n) => this.give(it, n), take: (it, n) => this.take(it, n), count: (it) => this.inv.count(it),
+      marks: () => this.save.marks, addMarks: (n) => { if (n < 0) this.save.marks = Math.max(0, this.save.marks + n); else this.addMarks(n); this.hud.refresh(); },
+      system: (t) => this.hud.system(t), banner: (t, sub) => this.hud.banner(t, sub, true), sound: (n) => this.sfx(n),
+      player: () => this.player.position,
     });
     this.home = new Home({
       scene: this.scene, flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -835,7 +858,29 @@ export class Game implements GameApi {
       sound: (name, at) => this.audio.playAt(name, at.distanceTo(this.player.position), 0.8),
       firstNear: (kind, text) => { if (this.flag('hz:' + kind)) return; this.setFlag('hz:' + kind, true); this.hud.system(text); },
     });
+    this.companions = new Companions({
+      scene: this.scene,
+      voxels: this.world.voxels,
+      player: () => ({ pos: this.player.position, yaw: this.player.yaw, speed: this.player.speed, dead: this.dead, riding: !!this.horse, swimming: this.player.swimming, hp: this.hp, max: this.maxHp }),
+      level: () => this.level('melee'),
+      target: () => this.target,
+      fighting: () => this.elapsed - this.lastCombat < 4,
+      hit: (e, d) => this.dealDamage(e, d * (0.9 + Math.random() * 0.2), Math.random() < 0.1, true),
+      healPlayer: (n) => { if (this.dead) return; const h = Math.min(this.maxHp - this.hp, Math.round(n)); if (h > 0) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); this.particles.heal(this.player.position); } },
+      flag: (k) => this.flag(k),
+      setFlag: (k, v) => this.setFlag(k, v),
+      say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
+      system: (t) => this.hud.system(t),
+      hour: () => this.world.sky.hour,
+      festival: () => (this.festivals.view().on?.name === 'The Lantern Wake' ? 'lantern' : null),
+      town: (x, z) => {
+        const towns: [string, number, number, number][] = [['ansbury', 845, 360, 70], ['gullmouth', coastX(600) - 30, 595, 60], ['harrowgate', 1000, 1010, 60], ['kelderby', 303, 1470, 40], ['kirk', 1174, 1816, 30]];
+        const t = towns.find(([, tx, tz, r]) => Math.hypot(x - tx, z - tz) < r);
+        return t ? (t[0] as never) : null;
+      },
+    });
     this.dungeons = new Dungeons({
+      companion: () => (this.companions.active ? this.companions.henchmanOf(this.companions.active) : null),
       scene: this.scene,
       voxels: this.world.voxels,
       particles: this.particles,
@@ -917,6 +962,10 @@ export class Game implements GameApi {
       ...this.mail.hooks(),
       ...this.music.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
+      groupKill: (type: string) => {
+        this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
+        this.hud.setTracker(this.questEntries());
+      },
       revived: (by: string) => { if (this.dead) { this.raise(0.5); this.hud.system(`${by} helps you to your feet.`); this.sfx('quest', 0.5); } },
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
@@ -973,7 +1022,15 @@ export class Game implements GameApi {
 
   // =================================================================== GameApi
   flag(key: string): unknown { return this.save.flags[key]; }
-  setFlag(key: string, value: unknown = true): void { this.save.flags[key] = value; }
+  setFlag(key: string, value: unknown = true): void {
+    // A companion notices the first time you stand on a vista, find a wonder, read a book
+    if (value && !this.save.flags[key] && this.companions) {
+      if (key.startsWith('vista:')) this.companions.event('vista');
+      else if (key.startsWith('found:sc-')) this.companions.event('wonder');
+      else if (key.startsWith('book:')) this.companions.event('book');
+    }
+    this.save.flags[key] = value;
+  }
   stage(q: string): string | undefined { return this.save.quests[q]; }
   setStage(q: string, s: string): void {
     const prev = this.save.quests[q];
@@ -989,6 +1046,7 @@ export class Game implements GameApi {
     } else if (s === 'done') {
       this.hud.banner('Quest complete', def.name, true);
       this.sfx('quest');
+      this.companions?.event('quest');
     } else if (!prev && def.story) {
       this.hud.chapterCard(`${def.story.act ?? 'The Charter\'s Debt'} · Chapter ${ROMAN[def.story.chapter]}`, def.story.title);
       this.sfx('levelUp');
@@ -1550,11 +1608,43 @@ export class Game implements GameApi {
   private wornLook(): Appearance {
     const e = this.save.equip;
     const look: Appearance = { ...this.save.look };
-    for (const id of [e.chest, e.legs, e.hands, e.feet, e.head]) {
+    for (const slot of ['chest', 'legs', 'hands', 'feet', 'head'] as const) {
+      const id = e[slot];
       const l = id ? ITEMS[id]?.armor?.look : undefined;
-      if (l) Object.assign(look, l);
+      if (l) Object.assign(look, dyeLook(slot, l, this.gearDye(slot)));
     }
     return look;
+  }
+  /** The dyes on a worn slot (data/gearDyes.ts). */
+  private gearDye(slot: DyeSlot): { main?: string; trim?: string } {
+    const v = this.save.flags['gdye:' + slot];
+    return v && typeof v === 'object' ? (v as { main?: string; trim?: string }) : {};
+  }
+  gearDyes(): Record<DyeSlot, { main?: string; trim?: string }> {
+    return Object.fromEntries(DYE_SLOTS.map((k) => [k, this.gearDye(k)])) as Record<DyeSlot, { main?: string; trim?: string }>;
+  }
+  /** Every dye you can use on armour: the common ones and the ones you've found. */
+  dyePalette(): { name: string; hex: string }[] {
+    const found = Object.keys(this.save.flags).filter((k) => k.startsWith('dye:')).map((k) => ({ name: String(this.save.flags[k] === true ? 'Found dye' : this.save.flags[k]), hex: k.slice(4) }));
+    return [...STARTER_DYES, ...found.filter((d) => !STARTER_DYES.some((x) => x.hex === d.hex))];
+  }
+  /** Dye one channel of a worn slot (null washes it back to the piece's own colour, free). */
+  dyeGear(slot: DyeSlot, channel: DyeChannel, hex: string | null): void {
+    if (!DYE_SLOTS.includes(slot)) return;
+    const cur = { ...this.gearDye(slot) };
+    if (hex) {
+      if (!this.dyePalette().some((d) => d.hex === hex)) return;
+      if (cur[channel] === hex) return;
+      if (this.mode === 'play' && this.save.marks < DYE_COST) { this.toast(`Dyeing costs ${DYE_COST} marks.`); this.sfx('fail'); return; }
+      if (this.mode === 'play') this.save.marks -= DYE_COST;
+      cur[channel] = hex;
+    } else delete cur[channel];
+    this.setFlag('gdye:' + slot, cur.main || cur.trim ? cur : undefined);
+    if (!cur.main && !cur.trim) delete this.save.flags['gdye:' + slot];
+    this.sfx('click');
+    this.dress();
+    this.persist();
+    this.hud.refresh();
   }
   /** The equipped weapon's and helm's traits (gear is horizontal: see GEAR_BUDGET in items.ts). */
   private get blade() { return this.save.equip.weapon ? ITEMS[this.save.equip.weapon].weapon : undefined; }
@@ -1754,6 +1844,9 @@ export class Game implements GameApi {
       resetTalents: () => g.resetTalents(),
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: keyof Equip) => g.unequip(slot),
+      gearDyes: () => g.gearDyes(),
+      dyePalette: () => g.dyePalette(),
+      dyeGear: (slot: DyeSlot, channel: DyeChannel, hex: string | null) => g.dyeGear(slot, channel, hex),
       armourSummary: () => g.armourSummary(),
       packInfo: () => g.packInfo(),
       togglePack: () => g.togglePack(),
@@ -3039,6 +3132,12 @@ export class Game implements GameApi {
       const score = dist + ang * 1.2;
       if (score < bestScore) { bestScore = score; best = c; }
     };
+    // Your companion: talk to them
+    if (this.companions.active && this.companions.body && !this.horse) {
+      const b = this.companions.body, d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z);
+      const id = this.companions.active;
+      if (d < 2.8) consider({ kind: 'act', label: `Talk to ${COMPANIONS[id].name.split(' ')[0]}`, pos: b.pos.clone().setY(b.pos.y + 1.8), act: () => this.talkToCompanion(id) }, d + 0.3);
+    }
     // An altar: kneel and pray, to unlearn or change build (the talent screen, in the temple's light)
     if (!this.horse) for (const t of this.temples()) {
       const d = Math.hypot(t.x - p.x, t.z - p.z);
@@ -3138,6 +3237,7 @@ export class Game implements GameApi {
     if (stall && this.festivals.fest) consider({ kind: 'act', label: `Browse the ${this.festivals.fest.name} stall`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     // A pedlar on the road: they stop for you, and open their pack
     for (const pd of this.roadfolk.pedlarsNear(p, 3.4)) consider({ kind: 'act', label: `Trade with ${pd.name}`, sub: pd.title, pos: new THREE.Vector3(pd.pos.x, pd.pos.y + 1, pd.pos.z), act: () => this.openPedlar(pd.id) }, Math.hypot(pd.pos.x - p.x, pd.pos.z - p.z));
     const bed = !this.home.active && this.home.bed();
@@ -3702,6 +3802,34 @@ export class Game implements GameApi {
 
   /** Kneeling by someone who's down, helping them up: who, and how long you've been at it. */
   private reviving: { id: number; name: string; t: number } | null = null;
+  /** Your companion (game/Companions.ts). */
+  private companions!: Companions;
+
+  // ---- Companions: what their conversations can ask of the game (api.ts)
+  compJoin(id: string): void { if (COMPANIONS[id as CompanionId]) { this.companions.join(id as CompanionId); this.persist(); } }
+  compDismiss(): void { this.companions.dismiss(); this.persist(); }
+  compLeave(id: string): void { this.companions.leave(id as CompanionId); this.persist(); }
+  compRapport(id: string, delta: number): void { this.companions.addRapport(id as CompanionId, delta); }
+  compActive(): string | null { return this.companions?.active ?? null; }
+  compNear(x: number, z: number, r: number): boolean { return Math.hypot(this.player.position.x - x, this.player.position.z - z) < r; }
+  compHour(): number { return this.world.sky.hour; }
+  compOutfit(id: string, outfit: string): void { this.setFlag(`comp:${id}:outfit`, outfit); this.companions.refresh(); this.persist(); }
+  compRole(id: string, role: string): void { if (COMPANIONS[id as CompanionId]?.roles.includes(role as CompanionRole)) { this.setFlag(`comp:${id}:role`, role); this.companions.refresh(); this.persist(); } }
+  compStory(id: string, part: number): void {
+    const c = COMPANIONS[id as CompanionId];
+    if (!c) return;
+    const names: Record<string, string[]> = { wenna: ['', '', 'Six Barrels', 'The Gate Book'], ottilie: ['', '', 'The Thirtieth Name', 'A True Measure'], tam: ['', '', 'The Kittiwake\'s Man', 'Clean Hands'] };
+    this.hud.banner(names[id]?.[part] ?? c.name, `${c.name} · their story, part ${part === 2 ? 'two' : 'three'}`, true);
+    this.sfx('quest');
+    this.persist();
+  }
+  /** Talk to the companion beside you: their conversation, the way you'd talk to anyone. */
+  private talkToCompanion(id: CompanionId): void {
+    const npc = this.npcs.find((n) => n.def.id === 'comp_' + id), body = this.companions.body;
+    if (!npc || !body) return;
+    npc.pos.copy(body.pos);
+    this.startDialogue(npc);
+  }
   private startRevive(id: number, name: string): void {
     if (this.dead || this.horse || this.inCombat()) { if (this.inCombat()) this.hud.system('Not while you\'re fighting.'); return; }
     this.cancelActions();
@@ -3722,6 +3850,7 @@ export class Game implements GameApi {
     this.hud.setCast(`Helping ${rv.name} up`, rv.t / 3);
     if (rv.t >= 3) {
       this.online.revive(rv.id);
+      this.companions.event('revive');
       this.hud.system(`You help ${rv.name} to their feet.`);
       this.reviving = null; this.hud.setCast(null);
     }
@@ -4117,6 +4246,8 @@ export class Game implements GameApi {
     }
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
+    if (e.isBoss || WORLD_BOSSES.some((b) => b.type === e.def.type)) this.companions?.event('boss');
+    else if (e.def.type.startsWith('r_')) this.companions?.event('rare');
     if (e.def.elite) this.audio.sting('victory');
     this.activities.onKilled(e);
     this.dungeons.onKilled(e);
@@ -4168,8 +4299,9 @@ export class Game implements GameApi {
       this.setFlag('notchKilled');
       this.hud.banner('Old Notch', 'Felled near the Lantern', true);
     }
-    // Every kill is counted by creature type, for bounties.
+    // Every kill is counted by creature type, for bounties and quests; in a group it counts for everyone near
     this.setFlag('killed:' + e.def.type, Number(this.flag('killed:' + e.def.type) ?? 0) + 1);
+    if (!e.questTag && this.social.group) this.online.groupKill(e.def.type);
     if (e.questTag) {
       const k = 'kills:' + e.questTag;
       this.setFlag(k, Number(this.flag(k) ?? 0) + 1);
@@ -4435,6 +4567,8 @@ export class Game implements GameApi {
     this.updateGather(dt);
     this.updateCraft(dt);
     this.tickResearch(dt);
+    if (this.dungeons.run) { if (this.companions.body) this.companions.body.model.root.visible = false; }
+    else { if (this.companions.body) this.companions.body.model.root.visible = true; this.companions.update(dt); }
     this.updateQuests(dt);
 
     const P = this.player.position;
@@ -4486,6 +4620,9 @@ export class Game implements GameApi {
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);
     this.seasons.update(dt, P);
+    this.fair.update(dt, this.world.sky.night);
+    // Every carved face glows brighter as it gets dark
+    PUMPKIN_GLOW.emissiveIntensity = 0.3 + this.world.sky.night * 1.4;
     this.birds.update(dt, P, this.underCover ? 1 : this.world.sky.night);
     if (this.flag('apprentice') !== this.appliedApprentice) this.applyCalling();
     if (this.flag('talentsRedrawn')) {
@@ -4520,6 +4657,11 @@ export class Game implements GameApi {
     }
     this.particles.update(dt);
     this.world.update(dt, P, this.elapsed, timeScale);
+    // Standing on the ferry's deck, you go where she goes
+    {
+      const ride = this.horse ? null : this.world.ferry.carry(this.player.position, this.player.onGround);
+      if (ride) { this.player.position.copy(ride.pos); this.player.yaw += ride.turn; this.player.fallStartY = ride.pos.y; }
+    }
     // Doors open for anyone walking up to them: you, other players, the villagers
     const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos)];
     updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'doorOpen' : 'doorShut', 0.6));
@@ -4792,7 +4934,7 @@ export class Game implements GameApi {
     const moss = this.fx.has('regrowth');
     if (this.elapsed - this.lastCombat > (moss ? 3 : 6) && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.035 * (moss ? 1.5 : 1) * dt);
 
-    const mv = this.dialogue ? new THREE.Vector3() : this.moveVector();
+    const mv = this.dialogue || this.fair.playing ? new THREE.Vector3() : this.moveVector();
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
     // A wagon rolls a little slower than a horse alone
     const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
@@ -4808,7 +4950,7 @@ export class Game implements GameApi {
     if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;
     speed *= 1 + this.armour.swift;
     if (this.fx.has('drover') && this.elapsed - this.lastCombat > 3) speed *= 1.12;
-    const jump = this.input.pressedOnce('Space') && !this.dialogue;
+    const jump = this.input.pressedOnce('Space') && !this.dialogue && !this.fair.playing;
     // Moving, jumping, fighting or working puts an instrument away, and ends an emote (the short ones end on their own)
     if (this.music.out && (mv.lengthSq() > 0.01 || jump || this.attack || this.action || this.craftAction || P.swimming || this.horse || this.dead)) this.music.away();
     if (this.emote) {
@@ -4817,7 +4959,7 @@ export class Game implements GameApi {
     }
     // Swimming: Space rises, C dives, and underwater you swim where the camera looks
     const wasSwimming = P.swimming;
-    P.rise = !this.dialogue && this.input.held('Space');
+    P.rise = !this.dialogue && !this.fair.playing && this.input.held('Space');
     P.sink = !this.dialogue && this.input.held('KeyC');
     P.swimAim = THREE.MathUtils.clamp((0.32 - this.rig.pitch) * 1.2, -1.2, 1.2);
     let fall: number;
@@ -5005,7 +5147,7 @@ export class Game implements GameApi {
     this.fish.update(dt, this.player.position);
 
     // Interaction candidate
-    this.candidate = this.dialogue || this.hud.picking || this.voyage.active || this.justice.busy ? null : this.findCandidate();
+    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.voyage.active || this.justice.busy ? null : this.findCandidate();
     if (this.candidate?.kind === 'ore') {
       this.outline.visible = true;
       this.outline.position.set(this.candidate.ore!.x + 0.5, this.candidate.ore!.y + 0.5, this.candidate.ore!.z + 0.5);
@@ -5061,7 +5203,18 @@ export class Game implements GameApi {
       sky.setWeather(w);
       this.hud.setWeather(w.name);
     }
-    sky.sheltered = this.world.voxels.topSolid(P.x, P.z) > P.y + 1.9;
+    sky.sheltered = this.world.voxels.topSolid(P.x, P.z) > P.y + 1.9 || roofOver(P.x, P.z) > P.y + 1.9;
+    if (!sky.coverAt) {
+      // Rain stops at the highest thing over a column that isn't a tree (it comes through the leaves),
+      // or under a roof (a roof is a mesh over the walls, not blocks)
+      const V = this.world.voxels;
+      sky.coverAt = (x, z) => {
+        let y = V.topSolid(x, z);
+        if (y < 0) return -1e4;
+        while (y > 0 && isLeaves(V.get(Math.floor(x), y, Math.floor(z)))) y--;
+        return Math.max(y + 1, roofOver(x, z));
+      };
+    }
     const wet = sky.weather.snow ? 0 : sky.weather.precip;
     if (wet > 0.75 && !underground && Math.random() < dt / 25) {
       sky.flash = 1;
@@ -5251,7 +5404,7 @@ export class Game implements GameApi {
     if (!full) for (const e of this.enemies) if (e.alive && e.pos.distanceTo(this.player.position) < 55) out.push({ x: e.pos.x, z: e.pos.z, kind: e.def.elite ? 'elite' : 'enemy' });
     for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: this.social.isAlly(r.id) ? 'ally' : 'other', label: full || this.social.isAlly(r.id) ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
-    out.push(...this.activities.markers(), ...this.seasons.markers());
+    out.push(...this.activities.markers(), ...this.seasons.markers(), ...this.fair.markers());
     out.push(...this.waymarkStones.markers());
     out.push(...this.festivals.markers());
     out.push(...this.serviceMarkers().filter((m) => full || Math.hypot(m.x - this.player.position.x, m.z - this.player.position.z) < 160));

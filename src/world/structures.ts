@@ -6,6 +6,7 @@ import * as P from './props';
 import { addGableVolume } from './roofVolumes';
 import { HOLLIN_SHRINE, SHRINE_SOLID, waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
+import { DOOR_PAINTS } from './doorKinds';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
@@ -157,7 +158,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const dx = o.door === 'e' ? dOff : o.door === 'w' ? -dOff : 0;
     const dz = o.door === 's' ? dOff : o.door === 'n' ? -dOff : 0;
     const leaf = openDoorPlace(shape);
-    { const dr = makeDoor(M, leaf.x, HB, leaf.z, leaf.ry); group.add(dr.pivot); doors.push(dr); }
+    // The door its trade deserves (props.doorLeaf); a home's painted or bare by where it stands
+    const dk: P.DoorKind = o.role === 'inn' ? 'dutch' : o.role === 'office' ? 'panelled' : o.role === 'workshop' ? 'studded' : o.role === 'shop' ? 'glazed' : hash2(x0, z0, 97) < 0.45 ? 'cottage' : 'painted';
+    const paint = dk === 'cottage' || dk === 'studded' || dk === 'dutch' ? undefined : DOOR_PAINTS[Math.floor(hash2(x0, z0, 99) * DOOR_PAINTS.length)];
+    { const dr = makeDoor(M, leaf.x, HB, leaf.z, leaf.ry, dk, paint); group.add(dr.pivot); doors.push(dr); }
     // The porch lantern on the side of the door with bare wall, not over a window (see the walls above)
     const ns = o.door === 'n' || o.door === 's', dAlong = ns ? doorX - x0 : doorZ - z0, dSpan = ns ? w : d;
     const glazedAt = (a: number) => a % 3 === 1 && a > 0 && a < dSpan - 1;
@@ -608,6 +612,24 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   garden(115, 166, 123, 172, 's');
   garden(204, 168, 212, 174, 's');
   garden(214, 167, 222, 173, 's');
+  // The meadow east of the bridge where the Wake Fair goes up each year (data/wakeFair.ts): levelled
+  // to its own middle height, the ground round it eased to meet it a block a step
+  {
+    const [x0, z0, x1, z1] = [216, 199, 252, 228];
+    const hs: number[] = [];
+    for (let z = z0; z <= z1; z += 2) for (let x = x0; x <= x1; x += 2) hs.push(ground(x, z));
+    hs.sort((a, b) => a - b);
+    const gy = hs[hs.length >> 1];
+    for (let z = z0 - 4; z <= z1 + 4; z++) for (let x = x0 - 4; x <= x1 + 4; x++) {
+      const ex = layout.exclusion[x + z * SX];
+      if (ex === EX.Building || ex === EX.Road || ex === EX.Farm || ex === EX.Water) continue;
+      const ring = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0), h = ground(x, z);
+      const want = ring === 0 ? gy : h > gy ? Math.min(h, gy + ring) : Math.max(h, gy - ring);
+      if (want === h) continue;
+      clearAbove(x, z, want);
+      for (let y = want - 3; y < want; y++) world.put(x, y, z, y === want - 1 ? B.Grass : B.Dirt);
+    }
+  }
   fenceLine(127, 180, 130.7, 180); fenceLine(132.3, 180, 135, 180);
   fenceLine(127, 177, 127, 180); fenceLine(135, 177, 135, 180);
 
@@ -683,6 +705,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   for (const x of [185, 189]) for (const z of [217, 220]) for (let y = 11; y < WATER_LEVEL; y++) if (!isSolid(world.get(x, y, z))) world.put(x, y, z, B.OakLog);
   for (const z of [217.5, 220.5]) place(P.fenceRun(M, 7), 186.5, WATER_LEVEL + 1, z, 0);
   mark(181, 216, 196, 221);
+  // The meadow east of the bridge where the Wake Fair goes up each year (data/wakeFair.ts): kept open
+  mark(214, 197, 254, 230, EX.Keep);
   poi.fordMill = new THREE.Vector3(167.5, BASE, 214);
 
   // -------------------------------------------------------------- Sallow Pit mouth

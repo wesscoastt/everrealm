@@ -1,5 +1,6 @@
 import './styles.css';
 import { SLOT_NAMES } from '../data/armour';
+import { DYE_COST, DYE_SLOTS, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import type { Equip } from '../data/items';
 import './theme.css';
 import { activeSet, GEAR_SETS, ITEMS, RARITY_COLOR, SkillId } from '../data/items';
@@ -242,6 +243,10 @@ export interface UiCtx {
   /** Wear a feat's title (null for none). */
   wearTitle(id: string | null): void;
   unequip(slot: keyof Equip): void;
+  /** Armour dyes (data/gearDyes.ts): what's on each slot, the dyes you have, and dyeing a channel. */
+  gearDyes(): Record<DyeSlot, { main?: string; trim?: string }>;
+  dyePalette(): { name: string; hex: string }[];
+  dyeGear(slot: DyeSlot, channel: DyeChannel, hex: string | null): void;
   /** The armour worn: what it takes off a hit, the weights and what they do, the set in force. */
   armourSummary(): { defense: number; weights: string; set: string | null };
   /** The backpack you wear (null: none yet), and hiding or showing it. */
@@ -1389,6 +1394,53 @@ export class Hud {
    * The armoury: every regional set, which pieces this character has found (they're remembered
    * after they're sold or dropped), and what each set does when its pair is worn.
    */
+  /** Dye your armour: pick a worn slot's main colour or trim, then a dye. */
+  private dyePick: { slot: DyeSlot; channel: DyeChannel } = { slot: 'chest', channel: 'main' };
+  private dyeOpen = false;
+  private dyeBox(): HTMLElement {
+    const box = el('details', 'armoury dyes') as HTMLDetailsElement;
+    box.open = this.dyeOpen;
+    box.addEventListener('toggle', () => { this.dyeOpen = box.open; });
+    box.append(el('summary', '', `Dye your armour · ${DYE_COST} marks a colour`));
+    const eq = this.ctx.save.equip, dyes = this.ctx.gearDyes(), pal = this.ctx.dyePalette();
+    const names: Record<DyeSlot, string> = { head: 'Head', chest: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet' };
+    const nameOf = (hex?: string) => (hex ? pal.find((d) => d.hex === hex)?.name ?? hex : 'its own');
+    const rows = el('div', 'dy-rows');
+    for (const slot of DYE_SLOTS) {
+      const worn = eq[slot];
+      const row = el('div', 'dy-row' + (worn ? '' : ' none'));
+      row.append(el('span', 'dy-slot', names[slot]));
+      for (const ch of ['main', 'trim'] as const) {
+        const hex = dyes[slot][ch];
+        const b = el('button', 'dy-chan' + (this.dyePick.slot === slot && this.dyePick.channel === ch ? ' on' : '')) as HTMLButtonElement;
+        b.innerHTML = `<i style="background:${hex ?? 'transparent'}"${hex ? '' : ' class="own"'}></i>${ch === 'main' ? 'Main' : 'Trim'}`;
+        b.title = `${names[slot]} ${ch === 'main' ? 'main colour' : 'trim'}: ${nameOf(hex)}`;
+        b.addEventListener('click', () => { this.ctx.sfx('click'); this.dyePick = { slot, channel: ch }; this.refresh(); });
+        row.append(b);
+      }
+      row.append(el('span', 'dy-what', worn ? ITEMS[worn]?.name ?? '' : 'nothing worn'));
+      rows.append(row);
+    }
+    box.append(rows);
+    const { slot, channel } = this.dyePick;
+    box.append(el('div', 'dy-hint', `${names[slot]}, ${channel === 'main' ? 'main colour' : 'trim'}: ${esc(nameOf(dyes[slot][channel]))}. Pick a dye.`));
+    const sw = el('div', 'dy-pal');
+    const wash = el('button', 'dy-sw wash', '×') as HTMLButtonElement;
+    wash.title = 'Wash it out (free)';
+    wash.addEventListener('click', () => this.ctx.dyeGear(slot, channel, null));
+    sw.append(wash);
+    for (const d of pal) {
+      const b = el('button', 'dy-sw' + (dyes[slot][channel] === d.hex ? ' on' : '')) as HTMLButtonElement;
+      b.style.background = d.hex;
+      b.title = d.name;
+      b.addEventListener('click', () => this.ctx.dyeGear(slot, channel, d.hex));
+      sw.append(b);
+    }
+    box.append(sw);
+    box.append(el('div', 'dy-note', 'The colour stays with the slot, so a new piece comes in it too. Festival and rare dyes join the list once you find them.'));
+    return box;
+  }
+
   private armoury(): HTMLElement {
     const save = this.ctx.save;
     // (a rolled piece counts as the piece it was rolled from)
@@ -1492,6 +1544,7 @@ export class Hud {
     eq.append(stats);
     body.append(eq);
     body.append(this.armoury());
+    body.append(this.dyeBox());
     const grid = el('div', 'inv-grid');
     save.inv.forEach((st, i) => {
       const def = st ? ITEMS[st.id] : null;

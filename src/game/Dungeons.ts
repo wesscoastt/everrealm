@@ -4,7 +4,7 @@ import { damageScale, marksScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
 import { ENEMIES, EnemyType } from '../data/gameplay';
-import { BossMove, BossPlan, CALLING_ROLE, splitRunId, VET, VETERAN, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
+import { BossMove, BossPlan, CALLING_ROLE, splitRunId, VET, VETERAN, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, type Henchman, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
 import type { CallingId } from '../data/classes';
 import { ITEMS } from '../data/items';
 import { plan, Site, SiteActivity } from '../world/sites';
@@ -41,6 +41,8 @@ export interface DungeonNet {
 
 export interface DungeonHost {
   scene: THREE.Scene;
+  /** Your companion, as a henchman, to take a place in the party (ESO's way). */
+  companion?(): Henchman | null;
   voxels: VoxelWorld;
   particles: Particles;
   player(): THREE.Vector3;
@@ -360,6 +362,12 @@ export class Dungeons {
     if (!site || !act || act.kind !== 'group' || !act.arrive) return;
     const lvl = Math.max(1, this.host.level());
     const allies = henchmen.filter((h) => HENCH[h]).map((h) => new Ally(HENCH[h], lvl, this.host.voxels));
+    // Your companion comes in in place of the henchman with their role (or the last one)
+    const comp = this.host.companion?.();
+    if (comp && allies.length) {
+      const k = Math.max(0, allies.findIndex((x) => x.role === comp.role));
+      allies[k >= 0 ? k : allies.length - 1] = new Ally(comp, lvl, this.host.voxels);
+    }
     this.run = {
       def, vet, act, site, id, role: this.role, allies, others, mobs: [], packOf: new Map(), bosses: [], adds: [], threat: new Map(),
       spawned: false, seen: new Set(), hazards: [], done: false, chest: false, trail: [], calm: 0, raiseIn: -1, wipeIn: -1,

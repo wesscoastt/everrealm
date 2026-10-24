@@ -25,9 +25,11 @@ export class Animal {
   private skittish: boolean;
   private speed: number;
 
-  constructor(readonly kind: AnimalKind, x: number, z: number, private radius: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number }, pal: Palette = {}) {
+  constructor(readonly kind: AnimalKind, x: number, z: number, private radius: number, private world: VoxelWorld, ground?: { topSolid(x: number, z: number): number; landTop?(x: number, z: number): number }, pal: Palette = {}) {
     this.model = new CreatureModel(kind, pal);
-    this.home.set(x, kind === 'duck' ? this.surface(x, z) ?? (ground ?? world).topSolid(x, z) + 1 : (ground ?? world).topSolid(x, z) + 1, z);
+    // (under a tree the top is the canopy: stand on the ground itself)
+    const src = ground ?? world, top = src.landTop ? src.landTop(x, z) : src.topSolid(x, z);
+    this.home.set(x, kind === 'duck' ? this.surface(x, z) ?? top + 1 : top + 1, z);
     this.pos.copy(this.home);
     this.target.copy(this.home);
     this.skittish = kind === 'deer' || kind === 'rabbit';

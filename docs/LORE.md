@@ -582,6 +582,18 @@ On the Wake nights children go round the doors in costume, which the dales call 
 
 The Wake stall sells the guising clothes for wake candles: Scarecrow, Bedsheet ghost, Skeleton, Hedge-witch, Crow, and the Lantern Man's coat. The Lantern Man sometimes leaves his coat behind when he's driven off. A costume goes on over your clothes and armour under Costume, with Change look, and is for looks only. The stall also sells parkin, toffee apples and mulled cider, plus a carved turnip, gourds and a scarecrow for your own house. Collecting all six costumes earns the title Guiser.
 
+### The Wake Fair and the pumpkins [in game]
+
+Six years ago a Morrow ship put in at Gullmouth with pumpkin seed in her hold, and the Wend valley took to it. Hollin Ford now grows a patch on the meadow east of the bridge, and for the Wake it holds a fair there round it (`data/wakeFair.ts`, `game/WakeFair.ts`, `data/content/wakefair.ts`). The old families still carve turnips, and say so; the young ones carve pumpkins, which see you through to the Goose Fair. For the Wake, carved pumpkins sit at the foot of road lamps, by signposts, wells and doors right across the counties.
+
+- **Hoop-la**, kept by **Dilly Marsh**: five rings over pumpkins on a stepped table, the back row worth three.
+- **The Lantern Shy**, kept by **Wat Coombe**, who has carved turnips for forty years and puts both kinds on his rail to keep the peace.
+- **Bob for Apples**, kept by **Nance Fettle**, timed by the Wake rhyme said twice (there is a second verse; she doesn't do it in front of the Reeve).
+- **The Giant Pumpkin**, judged by **Ida Pell**: one guess at its weight a day, a new pumpkin every morning. The heaviest she has weighed was 912 pounds.
+- **Carving**, by **Gil Rudd**: pick a pumpkin from the patch and he cuts the face you choose.
+
+The games pay in wake candles (the first three goes a day at each), now and then a toffee apple, and rarely the fair's top prize off the pole: a **pumpkin head** to wear.
+
 ## Kell [in game]
 
 An island north-east of the Fleet Coast, a day out from Gullmouth with a fair wind: one old volcano, the Kiln, with a flat crater on top. Sailors call it the island that smokes. `world/terrain.ts` (KELL, KILN), `data/kell.ts`, `data/content/kell.ts`.

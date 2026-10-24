@@ -9,7 +9,20 @@ export const PRECIP_BOX = new THREE.Vector3(44, 28, 44);
 
 export interface Precip { obj: THREE.LineSegments | THREE.Points; mat: THREE.ShaderMaterial }
 
-export function precipitation(kind: 'rain' | 'snow'): Precip {
+/**
+ * What's overhead round the camera, a block to a texel across COVER_N blocks: the height below which
+ * no drop falls (the ground, a floor, a roof's underside). Without it the fall goes on through roofs
+ * and ceilings and it rains in the parlour. Shared by the rain and the snow; Sky fills it.
+ */
+export const COVER_N = 48;
+export function coverTexture(): THREE.DataTexture {
+  const t = new THREE.DataTexture(new Float32Array(COVER_N * COVER_N).fill(-1e4), COVER_N, COVER_N, THREE.RedFormat, THREE.FloatType);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+export function precipitation(kind: 'rain' | 'snow', cover: THREE.DataTexture, coverAt: THREE.Vector2): Precip {
   const rain = kind === 'rain';
   const n = rain ? RAIN_N : SNOW_N, per = rain ? 2 : 1;
   const pos = new Float32Array(n * per * 3), end = new Float32Array(n * per), rnd = new Float32Array(n * per);
@@ -35,11 +48,13 @@ export function precipitation(kind: 'rain' | 'snow'): Precip {
     fog: false,
     uniforms: {
       uTime: { value: 0 }, uCam: { value: new THREE.Vector3() }, uBox: { value: PRECIP_BOX }, uAmount: { value: 0 },
+      uCover: { value: cover }, uCoverAt: { value: coverAt },
       uWind: { value: new THREE.Vector2(1.5, 0.6) }, uColor: { value: new THREE.Color(rain ? '#c4d0dc' : '#ffffff') }, uOpacity: { value: 0.5 },
     },
     vertexShader: [
       'attribute float aEnd; attribute float aRand;',
       'uniform float uTime; uniform vec3 uCam; uniform vec3 uBox; uniform float uAmount; uniform vec2 uWind;',
+      'uniform sampler2D uCover; uniform vec2 uCoverAt;',
       'varying float vOn;',
       'void main(){',
       '  vec3 p = position;',
@@ -49,6 +64,9 @@ export function precipitation(kind: 'rain' | 'snow'): Precip {
       '  p.y += uCam.y - uBox.y * 0.45;',
       rain ? '  p.y += aEnd * 0.75; p.xz += aEnd * uWind * 0.03;' : '',
       '  vOn = aRand < uAmount ? 1.0 : 0.0;',
+      // Under whatever's overhead, nothing falls
+      '  vec2 cuv = (floor(p.xz) - uCoverAt + 0.5) / ' + COVER_N.toFixed(1) + ';',
+      '  if (cuv.x > 0.0 && cuv.x < 1.0 && cuv.y > 0.0 && cuv.y < 1.0 && p.y < texture2D(uCover, cuv).r) vOn = 0.0;',
       '  vec4 mv = viewMatrix * vec4(p, 1.0);',
       rain ? '' : '  gl_PointSize = clamp(90.0 / -mv.z, 1.5, 7.0);',
       '  gl_Position = projectionMatrix * mv;',

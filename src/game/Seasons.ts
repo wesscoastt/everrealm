@@ -12,7 +12,7 @@ import type { VoxelWorld } from '../world/VoxelWorld';
 import { B, isSolid } from '../world/blocks';
 import { roadDist } from '../world/terrain';
 import { DAY_MINUTES, realmNow } from '../world/clock';
-import { campFlame, carvedTurnip, createPropMaterials, fireMaterial, gourdPile, scarecrow, type PropMaterials } from '../world/props';
+import { campFlame, carvedTurnip, createPropMaterials, fireMaterial, gourdPile, jackOLantern, scarecrow, type PropMaterials } from '../world/props';
 import type { Particles } from '../systems/Particles';
 import type { MapMarker } from '../ui/Hud';
 
@@ -275,8 +275,14 @@ export class Seasons {
       if (S.round.where === 'doors') {
         const doors = this.host.doorsNear(px, pz, 48).sort((a, b) => hash(`${post}:${a.x}:${a.z}`) - hash(`${post}:${b.x}:${b.z}`));
         doors.slice(0, S.round.perTown).forEach((d, k) => {
-          const nx = Math.sin(d.ry), nz = Math.cos(d.ry);
-          spots.push({ key: `${post}:${k}`, kind: S.round.kind, x: d.x + nx * 1.1, y: d.y, z: d.z + nz * 1.1, ry: d.ry });
+          // Beside the door on the step, not in front of it (a candle in the doorway is in everyone's way):
+          // whichever side has open ground
+          const nx = Math.sin(d.ry), nz = Math.cos(d.ry), V = this.host.voxels;
+          const at = (side: number) => [d.x + nx * 0.85 - nz * side * 1.1, d.z + nz * 0.85 + nx * side * 1.1] as const;
+          const open = ([x, z]: readonly [number, number]) => V.get(Math.floor(x), d.y, Math.floor(z)) === B.Air && V.get(Math.floor(x), d.y + 1, Math.floor(z)) === B.Air && isSolid(V.get(Math.floor(x), d.y - 1, Math.floor(z)));
+          const first = hash(`${post}:side:${k}`) < 0.5 ? 1 : -1;
+          const [x, z] = open(at(first)) ? at(first) : open(at(-first)) ? at(-first) : at(first);
+          spots.push({ key: `${post}:${k}`, kind: S.round.kind, x, y: d.y, z, ry: d.ry });
         });
       } else {
         for (let k = 0; k < S.round.perTown; k++) {
@@ -314,12 +320,20 @@ export class Seasons {
     const g = t.decor!;
     const M = propMats();
     // The doors
+    // Beside each door, clear of the doorway and of the souling candle, on open ground; skipped where there's no room
+    const V = this.host.voxels;
+    const free = (x: number, y: number, z: number) => V.get(Math.floor(x), y, Math.floor(z)) === B.Air && V.get(Math.floor(x), y + 1, Math.floor(z)) === B.Air && t.spots.every((s) => Math.hypot(s.x - x, s.z - z) > 0.9);
     this.host.doorsNear(px, pz, 48).slice(0, 30).forEach((d, k) => {
-      const nx = Math.sin(d.ry), nz = Math.cos(d.ry), side = k % 2 ? 1 : -1;
-      const v = Math.floor(hash(`${post}:wd:${k}`) * 3);
-      const o = v === 0 ? carvedTurnip() : v === 1 ? gourdPile(M) : candleJar();
-      o.position.set(d.x + nx * 0.55 + nz * 0.95 * side, d.y, d.z + nz * 0.55 - nx * 0.95 * side);
-      o.rotation.y = d.ry;
+      const nx = Math.sin(d.ry), nz = Math.cos(d.ry);
+      const at = (side: number): [number, number] => [d.x + nx * 0.6 + nz * 1.2 * side, d.z + nz * 0.6 - nx * 1.2 * side];
+      const first = k % 2 ? 1 : -1;
+      const spot = [at(first), at(-first)].find(([x, z]) => free(x, d.y, z));
+      if (!spot) return;
+      // Pumpkins most, the old turnips, a heap of gourds, a candle in a jar
+      const v = Math.floor(hash(`${post}:wd:${k}`) * 6);
+      const o = v === 0 ? carvedTurnip() : v === 1 ? gourdPile(M) : v === 2 ? candleJar() : jackOLantern(Math.floor(hash(`${post}:wf:${k}`) * 6), 0.9 + hash(`${post}:ws:${k}`) * 0.4);
+      o.position.set(spot[0], d.y, spot[1]);
+      o.rotation.y = d.ry + (hash(`${post}:wr:${k}`) - 0.5) * 0.6;
       g.add(o);
     });
     this.wakeExtras(t, post, px, pz);
@@ -368,7 +382,10 @@ export class Seasons {
       box(o, 0.12, 2.7, 0.12, '#2a2018', 0, 1.35, 0);
       box(o, 0.08, 0.08, 0.8, '#2a2018', 0, 2.6, 0.36);
       box(o, 0.02, 0.32, 0.02, '#8a7a5a', 0, 2.42, 0.68);
-      const lamp = carvedTurnip(true); lamp.position.set(0, 1.94, 0.68); lamp.scale.setScalar(1.4); o.add(lamp);
+      // A turnip lantern on the old posts, a carved pumpkin on the new (the valley's young ones grow them now)
+      const pk = hash(`${post}:wp:${q.x}:${q.z}`) < 0.5;
+      const lamp = pk ? jackOLantern(Math.floor(hash(`${post}:wpf:${q.x}`) * 6), 0.62) : carvedTurnip(true);
+      lamp.position.set(0, pk ? 1.86 : 1.94, 0.68); if (!pk) lamp.scale.setScalar(1.4); o.add(lamp);
       box(o, 0.5, 0.06, 0.08, '#5b3a8a', 0, 2.3, 0.02); // a violet ribbon tied round the post
       g.add(o);
       const l = new THREE.Vector3(q.x, q.y + 2.2, q.z);

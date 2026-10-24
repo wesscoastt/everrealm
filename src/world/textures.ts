@@ -470,6 +470,116 @@ const painters: Record<number, (p: Px) => void> = {
     for (let i = 0; i < 18; i++) { const cx = Math.floor(p.rnd() * TILE), cy = Math.floor(p.rnd() * TILE); set(p, cx, cy, hex('#5a4a78')); set(p, cx + 1, cy, hex('#3a3050')); }
     for (let x = 0; x < TILE; x++) set(p, x, x, mix(get(p, x, x), hex('#6a5a8a'), 0.35));
   },
+  [T.RedBrick]: (p) => {
+    // Red brick in stretcher bond, eight courses to the block: each brick its own shade, a few
+    // overburnt dark headers, lime mortar a little recessed
+    bricks(p, 4, 8, '#b4a896', '#8a3a28', '#a4483a', 591);
+    for (let row = 0; row < 8; row++) for (let col = 0; col < 5; col++) {
+      const off = row % 2 ? 4 : 0, f = 0.84 + hash2(row, col, 592) * 0.3, burnt = hash2(row, col, 593) < 0.12;
+      for (let y = row * 4; y < row * 4 + 3; y++) for (let x = col * 8 - off; x < col * 8 - off + 7; x++) {
+        const xx = (x + TILE) % TILE;
+        set(p, xx, y, burnt ? mul(mix(get(p, xx, y), hex('#3a1e1a'), 0.55), 1) : mul(get(p, xx, y), f));
+      }
+    }
+  },
+  [T.Sandstone]: (p) => {
+    // Honey sandstone ashlar: big blocks, warm, bedding lines faint across each
+    bricks(p, 16, 16, '#8a6e44', '#c49c62', '#d4b07a', 601);
+    for (let y = 0; y < TILE; y += 3) for (let x = 0; x < TILE; x++) if (y % 16 < 14) set(p, x, y, mul(get(p, x, y), 0.96 + vnoise(x, y, 8, 602) * 0.06));
+    speckle(p, '#a88452', 22);
+    speckle(p, '#e2c494', 10);
+  },
+  [T.Flagstone]: (p) => {
+    // Big paving flags of grey-buff stone, laid in broken courses, each its own tone, the joints dark
+    base(p, '#76726a', '#8a857a', '#9c968a', 611, 0.08);
+    const rows = [[0, 12, 0], [12, 22, 9], [22, 32, 4]] as const;
+    for (const [y0, y1, off] of rows) for (let k = -1; k < 3; k++) {
+      const x0 = k * 14 + off, x1 = x0 + 14, f = 0.86 + hash2(y0, k, 612) * 0.26;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const xx = (x + TILE * 2) % TILE;
+        if (y === y1 - 1 || x === x1 - 1) set(p, xx, y, hex('#3e3a34'));
+        else set(p, xx, y, mul(get(p, xx, y), f * (y === y0 || x === x0 ? 1.08 : 1)));
+      }
+    }
+    speckle(p, '#5e5a52', 16);
+  },
+  [T.BrickPave]: (p) => {
+    // Brick laid flat in a basket weave: pairs running across, then pairs running down
+    base(p, '#7a3428', '#94402e', '#a85038', 621, 0.1);
+    for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
+      const across = (bx + by) % 2 === 0;
+      for (let k = 0; k < 2; k++) {
+        const f = 0.84 + hash2(bx * 2 + k, by, 622) * 0.3;
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+          const px = bx * 8 + x, py = by * 8 + y;
+          const inBrick = across ? (y >= k * 4 && y < k * 4 + 4) : (x >= k * 4 && x < k * 4 + 4);
+          if (!inBrick) continue;
+          const edge = across ? (y === k * 4 + 3 || x === 7) : (x === k * 4 + 3 || y === 7);
+          set(p, px, py, edge ? hex('#4a3a30') : mul(get(p, px, py), f));
+        }
+      }
+    }
+  },
+  [T.CarvedStone]: (p) => {
+    // A carved frieze in the sandstone: a moulding top and bottom, a row of rosettes between
+    painters[T.Sandstone](p);
+    const lit = hex('#e8cc98'), dark = hex('#7a5e38');
+    for (let x = 0; x < TILE; x++) { set(p, x, 1, lit); set(p, x, 2, dark); set(p, x, 4, lit); set(p, x, 27, lit); set(p, x, 29, dark); set(p, x, 30, lit); }
+    for (const cx of [8, 24]) {
+      for (let y = -7; y <= 7; y++) for (let x = -7; x <= 7; x++) {
+        const r = Math.hypot(x, y);
+        if (r > 7.2) continue;
+        const a = Math.atan2(y, x), petal = Math.cos(a * 6) * 0.5 + 0.5;
+        const shade = r < 2 ? (x + y < 0 ? 1.18 : 0.8) : petal > 0.5 && r > 2.6 ? (x + y < 0 ? 1.14 : 0.86) : r > 6.4 ? 0.78 : 1;
+        set(p, cx + x, 16 + y, mul(get(p, cx + x, 16 + y), shade));
+      }
+    }
+    for (const cx of [0, 16]) for (let y = 12; y < 21; y++) set(p, cx, y, dark);
+  },
+  [T.OchrePlaster]: (p) => {
+    base(p, '#b8883e', '#c89a4c', '#d6aa5c', 631, 0.06);
+    crack(p, '#9a7030', 6);
+    speckle(p, '#e0bc74', 14);
+  },
+  [T.RosePlaster]: (p) => {
+    base(p, '#c08878', '#d09a8a', '#dcac9c', 641, 0.06);
+    crack(p, '#a87262', 6);
+    speckle(p, '#e8c0b2', 14);
+  },
+  [T.BluePlaster]: (p) => {
+    base(p, '#8a9cac', '#9cacba', '#aebcc8', 651, 0.06);
+    crack(p, '#74869a', 6);
+    speckle(p, '#c4d0d8', 14);
+  },
+  [T.FlowerGrass]: (p) => {
+    // Grass in flower: the grass, then flowers in small clumps, white and yellow most, a few blue and pink
+    painters[T.GrassTop](p);
+    const cols = ['#f4f0e0', '#f4f0e0', '#f0d040', '#f0d040', '#e8a030', '#8a8ae0', '#e88ab0', '#f4f0e0'];
+    for (let i = 0; i < 9; i++) {
+      const cx = Math.floor(p.rnd() * TILE), cy = Math.floor(p.rnd() * TILE), c = hex(cols[i % cols.length]);
+      for (let k = 0; k < 4; k++) {
+        const x = cx + Math.floor(p.rnd() * 5) - 2, y = cy + Math.floor(p.rnd() * 5) - 2;
+        set(p, x, y, c); set(p, x + 1, y + 1, mul(c, 0.72));
+      }
+    }
+  },
+  [T.Granite]: (p) => {
+    // Speckled granite, grey with a pink cast: black mica, white quartz, salmon feldspar
+    base(p, '#7e7472', '#948a86', '#a69c98', 661, 0.08);
+    speckle(p, '#2a2626', 46);
+    speckle(p, '#e8e4e0', 30);
+    speckle(p, '#c08070', 24, 2);
+    for (let i = 0; i < 3; i++) crack(p, '#5a5250', 5 + Math.floor(p.rnd() * 6));
+  },
+  [T.Peat]: (p) => {
+    // Black-brown peat, fibrous: fine roots and old heather stems through it
+    base(p, '#1e1610', '#2a2016', '#36281c', 671, 0.12);
+    for (let i = 0; i < 26; i++) {
+      let x = Math.floor(p.rnd() * TILE), y = Math.floor(p.rnd() * TILE);
+      const c = hex(p.rnd() < 0.6 ? '#4a3a26' : '#5e4a2e');
+      for (let k = 0; k < 5; k++) { set(p, x, y, c); x += p.rnd() < 0.5 ? 1 : -1; y += p.rnd() < 0.3 ? 1 : 0; }
+    }
+  },
   [T.Basalt]: (p) => { base(p, '#2a2a30', '#36363e', '#44444c', 431, 0.1); for (let y = 0; y < TILE; y += 8) for (let x = 0; x < TILE; x++) set(p, x, y, hex('#1e1e24')); for (let x = 0; x < TILE; x += 8) for (let y = 0; y < TILE; y++) set(p, x + ((Math.floor(y / 8)) % 2) * 4, y, hex('#1e1e24')); },
 };
 

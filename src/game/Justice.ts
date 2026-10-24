@@ -22,6 +22,8 @@ const street = (x: number, z: number) => heightAt(Math.floor(x), Math.floor(z)) 
 export interface GuardRef { id: string; town: string; pos: THREE.Vector3 }
 
 export interface JusticeHost {
+  /** A crime done where your companion could see it. */
+  noticed?(): void;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   player: { position: THREE.Vector3; yaw: number; locked: boolean; seat: number; teleport(x: number, y: number, z: number): void };
@@ -104,6 +106,8 @@ export class Justice {
   crime(kind: 'beast' | 'assault' | 'guard', at: THREE.Vector3, what?: string, guardId?: string): void {
     const j = jurisdictionAt(at.x, at.z);
     if (!j || this.ride || this.jailed) return;
+    // Your companion sees it, whoever else does (game/Companions.ts)
+    this.host.noticed?.();
     const price = kind === 'beast' ? CRIME.beast[what ?? ''] ?? 40 : kind === 'assault' ? CRIME.assault : CRIME.guard;
     const seen = kind === 'guard' || this.host.guards(at, 26).some((g) => g.town === j.id) || this.host.witnesses(at, 18) > 0;
     if (!seen) { this.host.system('Nobody saw that.'); return; }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { realmHour } from './clock';
 import type { WeatherState } from './weather';
-import { precipitation } from './precip';
+import { COVER_N, coverTexture, precipitation } from './precip';
 import { SharedUniforms } from './materials';
 import { createSeededRandom } from '../utils/random';
 
@@ -80,8 +80,14 @@ export class Sky {
   sheltered = false;
   /** Lightning: a white flash that fades. */
   flash = 0;
-  private rain = precipitation('rain');
-  private snow = precipitation('snow');
+  /** The height below which no rain or snow falls at (x, z): set by the game (ground, floors, roofs). */
+  coverAt: ((x: number, z: number) => number) | null = null;
+  private cover = coverTexture();
+  private coverOrigin = new THREE.Vector2(1e9, 1e9);
+  /** When the cover map was last filled (real milliseconds: the weather's own step is scaled). */
+  private coverAtMs = 0;
+  private rain = precipitation('rain', this.cover, this.coverOrigin);
+  private snow = precipitation('snow', this.cover, this.coverOrigin);
   private precipTime = 0;
 
   constructor(scene: THREE.Scene, private shared: SharedUniforms) {
@@ -213,6 +219,18 @@ export class Sky {
     W.mist += (T.mist - W.mist) * k;
     W.name = T.name;
     this.precipTime += dt;
+    // What's overhead, round the camera: again when it moves a block, and every second or so as the land loads
+    if (W.precip > 0.02 && this.coverAt) {
+      const ox = Math.floor(cam.x) - COVER_N / 2, oz = Math.floor(cam.z) - COVER_N / 2;
+      const now = performance.now();
+      if (now - this.coverAtMs > 1000 || ox !== this.coverOrigin.x || oz !== this.coverOrigin.y) {
+        this.coverAtMs = now;
+        const a = this.cover.image.data as Float32Array;
+        for (let j = 0; j < COVER_N; j++) for (let i = 0; i < COVER_N; i++) a[i + j * COVER_N] = this.coverAt(ox + i + 0.5, oz + j + 0.5);
+        this.cover.needsUpdate = true;
+        this.coverOrigin.set(ox, oz);
+      }
+    }
     for (const [p, on] of [[this.rain, !W.snow], [this.snow, W.snow]] as const) {
       const show = on && W.precip > 0.02 && !this.underwater;
       p.obj.visible = show;
@@ -220,8 +238,8 @@ export class Sky {
       const u = p.mat.uniforms;
       u.uTime.value = this.precipTime;
       u.uCam.value.copy(cam);
-      // Under a roof, a few drops still show at the edges of the view rather than none at all
-      u.uAmount.value = W.precip * (this.sheltered ? 0.25 : 1);
+      // (under a roof the cover map keeps the drops outside, where you see them through the door)
+      u.uAmount.value = W.precip;
       u.uOpacity.value = (W.snow ? 0.85 : 0.55) * (1 - this.night * 0.55);
     }
     this.flash = Math.max(0, this.flash - dt * 4);

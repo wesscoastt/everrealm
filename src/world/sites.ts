@@ -6,6 +6,8 @@ import { hash2 } from './noise';
 import { LAND } from './land';
 import { CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
+import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
+import type { ShipKind } from './ships';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
@@ -34,6 +36,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   | 'shopSign' | 'awning' | 'planter' | 'washLine' | 'woodpile' | 'statue'
   /** A harbour's nets drying (len), its lobster pots; a village's beehive. */
   | 'netRack' | 'lobsterPots' | 'beehive'
+  /** A harbour's mooring bollard, and a timber dock crane with its treadwheel (jib toward +x). */
+  | 'bollard' | 'crane'
   /** A sagging rope along ry for len, dropping h, sagging r; a root hanging h down with a bow. */
   | 'rope' | 'root'
   /** A trading ship (props.ship): color is her stripe; sails set or furled. */
@@ -65,6 +69,8 @@ export interface PropDesc {
   tint?: number;
   /** A house door ('furn' doorOpen) that swings shut when nobody's near (see world/Doors.ts). */
   swing?: boolean;
+  /** A door's kind (props.doorLeaf), for 'door' and a swinging 'furn' doorOpen; its paint is `color`. */
+  doorKind?: DoorKind;
   /** Roof dormers: +1 or -1 picks the slope, 0 or absent for none. */
   dormers?: number;
   /** A house roof with plain gable ends, no half-timbering (Morrow's stone houses). */
@@ -74,6 +80,11 @@ export interface PropDesc {
   kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally';
   /** A ship's sails ('bare': a hull on the slip, no masts yet). */
   sails?: 'set' | 'furled' | 'bare';
+  /** A ship's kind (world/ships.ts; a carrack if none); her hull's colour; and the deck's height where it has to meet a walk (else y is the waterline). */
+  ship?: ShipKind;
+  hull?: string;
+  sail?: string;
+  deck?: number;
   /** A waymark shrine's style. */
   theme?: RegionId;
   r?: number;
@@ -732,7 +743,35 @@ export function plan(): Plan {
   }
 
   function house(s: Site, x0: number, z0: number, w: number, d: number, floors: number, base: number, roof: PropDesc['mat'], door: 'n' | 's' | 'e' | 'w', opts: HouseOpts = {}) {
-    houseInto(O, s, x0, z0, w, d, floors, base, roof, door, opts);
+    houseInto(O, s, x0, z0, w, d, floors, base, roof, door, { ...opts, wall: townWall(s, x0, z0, opts) });
+  }
+
+  /**
+   * What a town builds its houses of, so no two streets are the same house over and over: plaster
+   * washed in the town's colours (a port's blues and pinks, the capital's ochre), and among the stone
+   * the capital's honey sandstone and brick, and the Works' company brick. Morrow's white stone, the
+   * chapels and the banks keep what they were given.
+   */
+  function townWall(s: Site, x0: number, z0: number, o: HouseOpts): number | undefined {
+    if (o.front === 'white' || o.role === 'chapel' || o.role === 'bank') return o.wall;
+    const id = s.id, h = hash2(Math.floor(x0), Math.floor(z0), 141);
+    const port = id.startsWith('gullmouth') || id === 'coldharbour' || id === 'bight' || id === 'conch';
+    const works = id.startsWith('harrowgate') || id === 'tenwells' || id === 'northgate' || id === 'brasswick';
+    const capital = id.startsWith('ansbury') || id.startsWith('aldermere');
+    if (o.wall === undefined || o.wall === B.Plaster) {
+      const wash = port ? [B.Plaster, B.BluePlaster, B.RosePlaster, B.OchrePlaster, B.BluePlaster, B.Plaster]
+        : capital ? [B.Plaster, B.Plaster, B.OchrePlaster, B.Plaster, B.RosePlaster, B.Plaster, B.OchrePlaster]
+          : works ? [B.Plaster, B.Plaster, B.OchrePlaster]
+            : [B.Plaster, B.Plaster, B.Plaster, B.OchrePlaster, B.Plaster, B.RosePlaster, B.Plaster, B.BluePlaster];
+      return wash[Math.floor(h * wash.length)];
+    }
+    if (o.wall === B.StoneBrick) {
+      if (works && h < 0.6) return B.RedBrick;
+      if (capital && h < 0.25) return B.Sandstone;
+      if (capital && h < 0.45) return B.RedBrick;
+      if (!port && h < 0.12) return B.Sandstone;
+    }
+    return o.wall;
   }
 
   function tower(s: Site, cx: number, cz: number, size: number, height: number, base: number, mat: number, opts: { hollow?: boolean; broken?: boolean; crenel?: boolean; door?: 'n' | 's' | 'e' | 'w'; trim?: number } = {}) {
@@ -762,7 +801,7 @@ export function plan(): Plan {
       if (walkIn) {
         // The leaf stands open against the jamb, inside
         const nx = Math.sign(dx), nz = Math.sign(dz), tx = -nz, tz = nx;
-        s.props.push({ t: 'furn', item: 'doorOpen', x: cx + dx + 0.5 + tx * 0.42 - nx * 0.5, y: base, z: cz + dz + 0.5 + tz * 0.42 - nz * 0.5, ry: Math.atan2(nx, nz), swing: true });
+        s.props.push({ t: 'furn', item: 'doorOpen', x: cx + dx + 0.5 + tx * 0.42 - nx * 0.5, y: base, z: cz + dz + 0.5 + tz * 0.42 - nz * 0.5, ry: Math.atan2(nx, nz), swing: true, doorKind: 'studded' });
       } else s.props.push({ t: 'door', x: cx + dx + 0.5 + Math.sign(dx) * 0.52, y: base, z: cz + dz + 0.5 + Math.sign(dz) * 0.52, ry });
     }
   }
@@ -834,7 +873,9 @@ export function plan(): Plan {
     streets.push([Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       const g = heightAt(x, z);
-      O.set(x, g - 1, z, (x + z) % 5 === 0 ? B.StoneBrick : hash2(x, z, 3) < 0.12 ? B.MossyCobble : B.Cobble);
+      // Cobbles, a dressed sett here and there and moss in the worn places (no pattern: a pattern repeats)
+      const hh = hash2(x, z, 3);
+      O.set(x, g - 1, z, hh < 0.1 ? B.MossyCobble : hh > 0.93 ? B.StoneBrick : hh > 0.9 ? B.Flagstone : B.Cobble);
       clearUp(x, z, g, g + 8);
     }
   }
@@ -847,7 +888,8 @@ export function plan(): Plan {
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       foundation(x, z, base);
       const h = hash2(x, z, 7);
-      const id = style === 'flag' ? ((x + z) % 2 === 0 ? B.StoneBrick : h < 0.15 ? B.MossyCobble : B.Cobble)
+      // A square's flags, laid in panels framed by dressed stone bands
+      const id = style === 'flag' ? (h < 0.05 ? B.MossyCobble : (x - x0) % 7 === 3 || (z - z0) % 7 === 3 ? B.StoneBrick : B.Flagstone)
         : style === 'yard' ? (h < 0.55 ? B.Path : h < 0.8 ? B.Gravel : B.Cobble)
           : (x + z) % 5 === 0 ? B.StoneBrick : h < 0.1 ? B.MossyCobble : B.Cobble;
       O.set(x, base - 1, z, id);
@@ -1703,7 +1745,7 @@ export function plan(): Plan {
       const h = hash2(x0, z0, 41);
       const open = front ? h < 0.35 : h < 0.2;
       const s = wardAt(x0 + w / 2, z0 + d / 2);
-      house(s, x0, z0, w, d, h < 0.55 ? 2 : h < 0.62 ? 3 : 1, base, roofs[n % roofs.length], door, {
+      house(s, x0, z0, w, d, h < 0.55 ? 2 : h < 0.62 ? 3 : 1, base, roofs[Math.floor(hash2(x0, z0, 143) * roofs.length)], door, {
         wall: walls[Math.floor(h * 113) % walls.length], closed: !open, signs: front && !open && hash2(x0, z0, 97) < 0.55 ? Math.floor(hash2(x0, z0, 99) * 6) : undefined,
         role: open ? (front ? (h < 0.06 ? 'inn' : h < 0.24 ? 'shop' : 'workshop') : h < 0.05 ? 'inn' : h < 0.1 ? 'shop' : h < 0.14 ? 'workshop' : 'home') : undefined,
       });
@@ -1713,7 +1755,7 @@ export function plan(): Plan {
     // Street fronts first: tall houses and shops shoulder to shoulder down both sides of each
     // avenue, doors onto it, over a flagged pavement
     const pavement = (x0: number, z0: number, x1: number, z1: number) => {
-      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (!(Math.abs(x - cx) <= 3 && Math.abs(z - cz) <= 3)) O.set(x, base - 1, z, (x + z) % 3 ? B.StoneBrick : B.Cobble);
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (!(Math.abs(x - cx) <= 3 && Math.abs(z - cz) <= 3)) O.set(x, base - 1, z, hash2(x, z, 151) < 0.08 ? B.StoneBrick : B.Flagstone);
     };
     pavement(OX0 + 4, cz - 7, X0 - 16, cz - 4); pavement(OX0 + 4, cz + 4, X0 - 16, cz + 7);
     pavement(X1 + 16, cz - 7, OX1 - 4, cz - 4); pavement(X1 + 16, cz + 4, OX1 - 4, cz + 7);
@@ -2840,7 +2882,9 @@ export function plan(): Plan {
       streets.push([cx - 175, pz - 2, cx - 96, pz + 2]);
       claim(cx - 176, pz - 3, cx - 95, pz + 3);
       s.props.push({ t: 'lantern', x: cx - 174.5, y: base, z: pz + 1.5 });
-      if (heightAt(cx - 150, pz + 8) < SEA) s.props.push({ t: 'ship', x: cx - 150, y: SEA - 0.6, z: pz + 8, ry: Math.PI, sails: i === 1 ? 'furled' : 'set', color: i === 1 ? '#1e1e24' : i === 0 ? '#7a2a1e' : '#2a5a4a' });
+      if (heightAt(cx - 150, pz + 8) < SEA) s.props.push(i === 1
+        ? { t: 'ship', ship: 'galleon', x: cx - 150, y: SEA - 0.14, z: pz + 8, ry: Math.PI, sails: 'furled', hull: '#1e1c20', color: '#a8382c', sail: '#2a2426' }
+        : { t: 'ship', ship: i === 0 ? 'carrack' : 'cog', x: cx - 150, y: SEA - 0.14, z: pz + 8, ry: Math.PI, sails: 'set', color: i === 0 ? '#7a2a1e' : '#2a5a4a' });
       for (let k = 0; k < 4; k++) s.props.push({ t: k % 2 ? 'barrel' : 'crate', x: cx - 104.5 - k * 1.3, y: base, z: pz - 1.4 + (k % 2) * 0.4, ry: k });
     });
     s.props.push({ t: 'sign', x: cx - 120.5, y: base, z: SALT_PIERS[1] - 3.5, ry: Math.PI, text: 'The Kittiwake' });
@@ -3175,7 +3219,7 @@ export function plan(): Plan {
       O.set(x, wb - 1, W.z + dz, B.StoneBrick);
     }
     O.set(gx - 2, wb, W.z, B.Air); O.set(gx - 2, wb + 1, W.z, B.Air);
-    s.props.push({ t: 'furn', item: 'doorOpen', x: gx - 2 + 0.5 - 0.42, y: wb, z: W.z + 0.5 + 0.5, ry: Math.PI, swing: true });
+    s.props.push({ t: 'furn', item: 'doorOpen', x: gx - 2 + 0.5 - 0.42, y: wb, z: W.z + 0.5 + 0.5, ry: Math.PI, swing: true, doorKind: 'studded' });
     for (const bx of [gx - 7, gx + 7]) s.props.push({ t: 'banner', x: bx + 0.5, y: wb + 12.5, z: W.z + 4.15, kind: 'aldermere', ry: 0 });
     s.props.push({ t: 'glow', x: gx + 0.5, y: wb + 7, z: W.z + 2.2, r: 2.4, color: '#ffc070', lit: true });
     // Beyond the gate, the road on north: cleared and set with stone for a stretch
@@ -3826,7 +3870,7 @@ export function plan(): Plan {
         clearUp(x, z, base, base + 8);
       }
       docks.props.push({ t: 'lantern', x: QX + len - 0.5, y: base, z: pz + 1.5 });
-      docks.props.push({ t: 'ship', x: QX + Math.round(len * 0.6), y: SEA - 0.6, z: pz + 8, ry: Math.PI / 2, sails: sails as 'set' | 'furled', color: pz === CALLIS_PACKET.z ? '#2f4a7a' : '#a8382c' });
+      docks.props.push({ t: 'ship', ship: pz === CALLIS_PACKET.z ? 'carrack' : 'clipper', x: QX + Math.round(len * 0.6), y: SEA - 0.14, z: pz + 8, ry: Math.PI / 2, sails: sails as 'set' | 'furled', color: pz === CALLIS_PACKET.z ? '#2f4a7a' : undefined });
     }
     docks.props.push({ t: 'sign', x: QX + 3.5, y: base, z: CALLIS_PACKET.z - 3.5, ry: -Math.PI / 2, text: 'The packet: Gullmouth' });
     for (let i = 0; i < 12; i++) docks.props.push({ t: i % 3 ? 'crate' : 'barrel', x: QX - 4.5 - (i % 2) * 1.2, y: base, z: cz - 140 + i * 25, ry: i * 0.6 });
@@ -4522,7 +4566,7 @@ export function plan(): Plan {
     // Doorway: three wide, four high, through the south wall, with an open pair of doors
     for (let x = cx - 1; x <= cx + 1; x++) for (let y = base; y < base + 4; y++) O.set(x, y, cz + 10, B.Air);
     for (let x = cx - 2; x <= cx + 2; x++) O.set(x, base + 4, cz + 10, B.Cobble);
-    s.props.push({ t: 'furn', item: 'doorOpen', x: cx - 1.42, y: base, z: cz + 9.4, ry: Math.PI / 2 }, { t: 'furn', item: 'doorOpen', x: cx + 2.42, y: base, z: cz + 9.4, ry: -Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'doorOpen', x: cx - 1.42, y: base, z: cz + 9.4, ry: Math.PI / 2, doorKind: 'carved' }, { t: 'furn', item: 'doorOpen', x: cx + 2.42, y: base, z: cz + 9.4, ry: -Math.PI / 2, doorKind: 'carved' });
     // Pillars down both sides
     for (const px of [cx - 5, cx + 5]) for (const pz of [cz - 1, cz + 3, cz + 7]) {
       for (let y = base; y < base + H; y++) O.set(px, y, pz, y === base || y === base + H - 1 ? B.Cobble : B.StoneBrick);
@@ -4680,24 +4724,72 @@ export function plan(): Plan {
     const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate', 'blue', 'red', 'slate'];
     const spots: [number, number, 'n' | 's' | 'e' | 'w'][] = [[-58, -22, 's'], [-44, -24, 's'], [-58, 10, 'n'], [-44, 12, 'n'], [-30, -20, 'e'], [-30, 12, 'e'], [-16, -22, 's'], [-16, 12, 'n']];
     const roles: (Role | undefined)[] = [undefined, undefined, undefined, undefined, 'bank', 'shop', 'store', undefined]; // the harbour office (the bank), Bett's chandlery, a fish store
-    spots.forEach(([dx, dz, door], i) => house(s, coast + dx, z + dz, 7, 6, 1 + (i === 1 ? 1 : 0), base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.Planks, role: roles[i] })); // (the harbour office keeps one storey: its counter needs the room)
+    // (the harbour office, the Charter Bank's counter in Gullmouth, is the grandest front on the quay: two
+    // storeys of dressed stone, room inside for the counter, the clerks' side and the vault)
+    spots.forEach(([dx, dz, door], i) => i === 4
+      ? house(s, coast + dx - 2, z + dz - 2, 9, 8, 2, base, 'slate', door, { wall: B.StoneBrick, front: 'quoined', role: 'bank', trim: ['hood'] })
+      : house(s, coast + dx, z + dz, 7, 6, 1 + (i === 1 ? 1 : 0), base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.Planks, role: roles[i] }));
     street(coast - 60, z - 4, coast - 12, z + 4);
-    // Two jetties out over the water
+    // Two jetties out from the quay (gullmouthHarbour builds it), at its height on timber piles
     for (const jz of [z - 2, z + 6]) {
-      for (let x = coast - 14; x < coast + 34; x++) for (let w = 0; w < 3; w++) {
-        O.set(x, SEA, jz + w, B.Planks);
-        clearUp(x, jz + w, SEA + 1, SEA + 6);
-        if ((x - coast) % 6 === 0 && (w === 0 || w === 2)) for (let y = 2; y < SEA; y++) O.set(x, y, jz + w, B.Timber);
+      for (let x = Math.floor(coast) - 2; x < coast + 34; x++) for (let w = 0; w < 3; w++) {
+        O.set(x, base - 1, jz + w, (x + w) % 9 === 0 ? B.DarkPlanks : B.Planks);
+        clearUp(x, jz + w, base, base + 6);
+        if ((x - Math.floor(coast)) % 5 === 0 && (w === 0 || w === 2)) { for (let y = 2; y < base - 1; y++) O.set(x, y, jz + w, B.Timber); O.set(x, base, jz + w, B.Timber); }
       }
-      s.props.push({ t: 'lantern', x: coast + 33, y: SEA + 1, z: jz + 1.5 });
+      s.props.push({ t: 'lantern', x: coast + 33, y: base, z: jz + 1.5 });
     }
-    s.props.push({ t: 'boat', x: coast + 3, y: SEA - 0.55, z: z - 5, ry: 0.1 }, { t: 'boat', x: coast + 5, y: SEA - 0.55, z: z + 12, ry: -0.2 });
-    for (let i = 0; i < 4; i++) s.props.push({ t: 'barrel', x: coast - 10 + i * 1.1, y: SEA + 1, z: z + 5 }, { t: 'crate', x: coast - 6, y: SEA + 1, z: z - 4 + i });
+    // Rowing boats tied up along the jetties
+    s.props.push({ t: 'boat', x: coast + 12, y: SEA - 0.55, z: z - 4.4, ry: 0.05 }, { t: 'boat', x: coast + 20, y: SEA - 0.55, z: z + 10.3, ry: -0.1 }, { t: 'boat', x: coast + 6, y: SEA - 0.55, z: z + 10.4, ry: 0.08 });
+    for (let i = 0; i < 4; i++) s.props.push({ t: 'barrel', x: coast + 2 + i * 1.1, y: base, z: z + 5 }, { t: 'crate', x: coast + 8, y: base, z: z - 4 + i * 0.5 });
     s.props.push({ t: 'sign', x: coast - 62, y: heightAt(coast - 62, z), z: z - 5, text: 'Gullmouth' });
     rect(s, coast - 62, z - 26, coast + 34, z + 20);
     gullmouthExtras(s, base, coast);
     gullmouthTown(s, base, coast);
     gullmouthHarbour(s, base, coast);
+  }
+
+  /**
+   * Gullmouth's quay: the beach between the end of the high street and the water built over in stone,
+   * from the north warehouses to the south ones, so the town runs straight down onto its waterfront.
+   * Flagged on top with a granite kerb at the edge and the dressed face going down into the water;
+   * bollards along it, two cranes, cargo waiting, and steps down at each end. The jetties go out from it.
+   */
+  function quay(s: Site, base: number, C: number) {
+    const Z0 = 560, Z1 = 640, top = base - 1;
+    // The face: a little out into the water from where the beach ends, eased so it runs straight-ish
+    const raw: number[] = [];
+    for (let z = Z0 - 4; z <= Z1 + 4; z++) { let x = C - 10; while (x < C + 40 && heightAt(x, z) >= SEA - 1) x++; raw.push(x + 1); }
+    const face = (z: number) => { let a = 0; for (let k = -4; k <= 4; k++) a += raw[z - (Z0 - 4) + k]; return Math.round(a / 9); };
+    // Buildings already on the waterfront keep their ground: the warehouses at each end, two houses
+    const keep: [number, number, number, number][] = [[C - 27, 561, C - 3, 570], [C - 27, 627, C - 3, 636], [C - 17, 577, C - 8, 584], [C - 17, 611, C - 8, 618]];
+    for (let z = Z0; z <= Z1; z++) {
+      const qx = face(z);
+      for (let x = C - 11; x <= qx; x++) {
+        if (keep.some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d)) continue;
+        const g = Math.min(heightAt(x, z), top);
+        for (let y = Math.max(1, g - 3); y < top; y++) O.set(x, y, z, x >= qx - 1 ? B.StoneBrick : B.Cobble);
+        // On top: big flags, a granite kerb along the edge, a gutter of setts a block in
+        O.set(x, top, z, x === qx ? B.Granite : x === qx - 1 ? B.Cobble : hash2(x, z, 131) < 0.06 ? B.MossyCobble : B.Flagstone);
+        clearUp(x, z, base, base + 10);
+      }
+      // The face goes down into the water, weeded at the tide line
+      for (let y = Math.max(1, Math.min(heightAt(qx, z), SEA) - 4); y < top; y++) O.set(qx, y, z, y === SEA - 1 ? B.MossyStone : B.StoneBrick);
+      // Bollards along the edge, clear of the jetties' roots
+      if (z % 6 === 0 && !(z >= 597 && z <= 601) && !(z >= 605 && z <= 609)) s.props.push({ t: 'bollard', x: qx - 0.5, y: base, z: z + 0.5, ry: 0 });
+    }
+    streetHook?.(C - 11, Z0, face(600), Z1, 'flag');
+    streets.push([C - 11, Z0, face(600), Z1]);
+    // Two cranes on the quay, their jibs out over the water, cargo waiting under them
+    for (const cz of [583, 622]) {
+      const cx = face(cz) - 2.5;
+      s.props.push({ t: 'crane', x: cx, y: base, z: cz + 0.5, ry: 0 });
+      for (const [bx, by, bz] of [[-2, 0, -2.4], [-2.9, 0, -2.4], [-2.4, 0.6, -2.4]]) block2(Math.floor(cx + bx), Math.floor(cz + bz), base), s.props.push({ t: 'crate', x: cx + bx, y: base + by, z: cz + bz, ry: bx });
+      s.props.push({ t: 'barrel', x: cx - 3, y: base, z: cz + 2.2 }, { t: 'barrel', x: cx - 3.8, y: base, z: cz + 2.5 });
+    }
+    // Lamps along the quay
+    for (let z = Z0 + 6; z < Z1; z += 14) if (!(z > 594 && z < 612)) s.props.push({ t: 'lantern', x: face(z) - 3.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
+    rect(s, C - 12, Z0, face(600) + 2, Z1);
   }
 
   function buildLighthouse(s: Site, base: number) {
@@ -5333,15 +5425,8 @@ export function plan(): Plan {
   /** Gullmouth: net racks along the shore, boats drawn up, fish crates, lamps up the street. */
   function gullmouthExtras(s: Site, base: number, coast: number) {
     const z = 600;
-    for (const rz of [588, 614]) {
-      for (let i = 0; i < 4; i++) {
-        const px = Math.floor(coast - 11 + i * 2.5), g = heightAt(px, rz);
-        for (let y = 0; y < 2; y++) O.set(px, g + y, rz, B.Timber);
-      }
-      s.props.push({ t: 'fence', x: coast - 7.25, y: heightAt(Math.floor(coast - 7), rz) + 0.4, z: rz + 0.5, len: 7.5, ry: 0 });
-      for (let px = Math.floor(coast - 11); px <= Math.floor(coast - 3.5); px++) block2(px, rz); // nets hung on it: solid
-    }
-    s.props.push({ t: 'boat', x: coast - 4, y: heightAt(Math.floor(coast - 4), z - 14), z: z - 14, ry: 1.4 }, { t: 'boat', x: coast - 3, y: heightAt(Math.floor(coast - 3), z + 18), z: z + 18, ry: 1.8 });
+    // Nets drying on racks along the quay
+    for (const rz of [588, 614]) s.props.push({ t: 'netRack', x: coast - 7, y: base, z: rz + 0.5, len: 6, ry: 0 }, { t: 'lobsterPots', x: coast - 2.5, y: base, z: rz + 1.6, ry: 0.4 });
     for (let i = 0; i < 5; i++) s.props.push({ t: 'crate', x: coast - 13 + (i % 3) * 0.75, y: base + (i > 2 ? 0.6 : 0), z: z - 8 + (i % 2) * 0.5 });
     s.props.push({ t: 'barrel', x: coast - 15, y: base, z: z + 8.5 }, { t: 'barrel', x: coast - 15.9, y: base, z: z + 9 });
     for (let x = coast - 56; x < coast - 14; x += 12) s.props.push({ t: 'lantern', x: Math.floor(x) + 0.5, y: base, z: z - 4.6, ry: 0 });
@@ -5368,12 +5453,11 @@ export function plan(): Plan {
     for (const [bx, bz] of [[C - 85, z + 5], [C - 84, z + 5], [C - 85, z + 6], [C - 84, z + 6]]) block2(bx, bz, base);
     // Houses along the high street and a row behind each side
     const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate'];
-    let k = 0;
     const row = (x0: number, x1: number, zz: number, door: 'n' | 's') => {
       for (let x = x0; x + 7 <= x1; x += 9) {
         if (x + 8 > C - 106 && x < C - 78 && Math.abs(zz - z) < 20) continue; // the square
         const h = hash2(x, zz, 85);
-        house(s, x, zz, 7 + Math.floor(h * 2), 6, h < 0.5 ? 2 : 1, base, roofs[k++ % roofs.length], door, { wall: h < 0.5 ? B.Plaster : B.Planks, closed: h > 0.45, role: h < 0.15 ? 'shop' : h < 0.25 ? 'inn' : 'home' });
+        house(s, x, zz, 7 + Math.floor(h * 2), 6, h < 0.5 ? 2 : 1, base, roofs[Math.floor(hash2(x, zz, 145) * roofs.length)], door, { wall: h < 0.5 ? B.Plaster : B.Planks, closed: h > 0.45, role: h < 0.15 ? 'shop' : h < 0.25 ? 'inn' : 'home' });
       }
     };
     row(C - 133, C - 63, z - 14, 's'); row(C - 133, C - 63, z + 8, 'n');
@@ -5423,7 +5507,7 @@ export function plan(): Plan {
     // Steps up along z from (x0..x1, za, ya) to zb at yb, a rise every so often
     const stairs = (x0: number, x1: number, za: number, zb: number, ya: number, yb: number) => {
       for (let z = za; z <= zb; z++) {
-        const y = ya + Math.floor(((z - za) * (yb - ya)) / (zb - za + 1));
+        const y = ya + Math.round(((z - za) * (yb - ya)) / (zb - za));
         for (let x = x0; x <= x1; x++) { foundation(x, z, y, B.StoneBrick); O.set(x, y - 1, z, B.StoneBrick); clearUp(x, z, y, y + 8); }
       }
       streetHook?.(x0, za, x1, zb, 'street');
@@ -5431,10 +5515,13 @@ export function plan(): Plan {
 
     // ---- Ships: a merchantman at the north jetty, her deck on barriers so you can walk it
     const D = SEA + 2; // deck height
-    s.props.push({ t: 'ship', x: C + 18, y: D - 2.27, z: 594.5, ry: 0, sails: 'furled', color: '#7a2a1e' });
-    for (let x = C + 11; x <= C + 25; x++) for (let z = 593; z <= 596; z++) { O.set(x, SEA, z, B.Barrier); O.set(x, SEA + 1, z, B.Barrier); clearUp(x, z, SEA + 2, SEA + 6); }
-    for (const x of [C + 17, C + 18]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank
-    s.props.push({ t: 'ship', x: C + 28, y: D - 2.27, z: 581, ry: 0.15, sails: 'furled', color: '#2f528f' }); // at anchor inside the breakwater, clear of the ferry's course
+    s.props.push({ t: 'ship', ship: 'carrack', x: C + 26, y: SEA - 0.14, deck: D, z: 594.5, ry: 0, sails: 'furled', color: '#7a2a1e' });
+    for (let x = C + 19; x <= C + 33; x++) for (let z = 593; z <= 596; z++) { O.set(x, SEA, z, B.Barrier); O.set(x, SEA + 1, z, B.Barrier); clearUp(x, z, SEA + 2, SEA + 6); }
+    for (const x of [C + 25, C + 26]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank, a step down from the jetty
+    quay(s, base, C);
+    // Fishing smacks tied up along the south side of the south jetty, their nets over the rail
+    s.props.push({ t: 'ship', ship: 'smack', x: C + 16, y: SEA - 0.14, z: 612.2, ry: Math.PI, sails: 'furled', color: '#2f528f' }, { t: 'ship', ship: 'smack', x: C + 27, y: SEA - 0.14, z: 612.6, ry: Math.PI - 0.08, sails: 'set', color: '#7a2a1e', sail: '#9a5a34' });
+    s.props.push({ t: 'ship', ship: 'galleon', x: C + 30, y: SEA - 0.14, z: 580, ry: 0.15, sails: 'furled', color: '#2f528f' }); // the Charter's galleon at anchor inside the breakwater, clear of the ferry's course
 
     // ---- The shipyard, up the shore to the north: a slipway into the water and a hull on it
     const yg = Math.round(heightAt(C - 6, 524));
@@ -5444,7 +5531,7 @@ export function plan(): Plan {
       O.set(x, g - 1, z, z === 527 || z === 535 ? B.Timber : B.Planks);
       clearUp(x, z, g, g + 16);
     }
-    s.props.push({ t: 'ship', x: C + 6, y: yg + 1.9 - 2.27, z: 531, ry: 0, sails: 'bare', color: '#5a6a3a' });
+    s.props.push({ t: 'ship', ship: 'carrack', x: C + 6, y: yg, deck: yg + 2, z: 531, ry: 0, sails: 'bare', color: '#5a6a3a' });
     for (let x = C - 1; x <= C + 13; x++) for (let z = 529; z <= 533; z++) { O.set(x, yg, z, B.Barrier); O.set(x, yg + 1, z, B.Barrier); }
     // Scaffold either side of her: posts and a plank walk at deck height
     for (const z of [526, 536]) {
@@ -5476,7 +5563,33 @@ export function plan(): Plan {
     pave(1603, 598, 1637, 605, bm, 'flag'); // the forecourt the hall and the warehouse open onto
     house(s, 1624, 606, 10, 8, 2, bm, 'slate', 'n', { wall: B.Planks, closed: true, chimney: false });
     s.props.push({ t: 'cart', x: 1638.5, y: bm, z: 609.5, ry: 1.4 }, { t: 'crate', x: 1621, y: bm, z: 603 }, { t: 'crate', x: 1621.7, y: bm, z: 603.6 }, { t: 'barrel', x: 1636, y: bm, z: 604 });
-    for (const x of [1600, 1615, 1630]) s.props.push({ t: 'lantern', x: x + 0.5, y: bm, z: 588.5, ry: 0 });
+
+    // ---- The way in: a kerbed street from the west gate to the foot of the high street (it was a track
+    // worn across the grass), bending to meet it, lamps along it on alternate sides
+    {
+      const X0 = 1594, X1 = 1651, hs = Math.round(heightAt(X1 + 2, 600));
+      const forecourt = (x: number, z: number) => x >= 1603 && x <= 1637 && z >= 598 && z <= 605;
+      // Level with the quarter's paving as far as its forecourt, then a block down every few steps to the high street
+      const level = (x: number) => (x <= 1638 ? bm : Math.round(bm + ((hs - bm) * (x - 1638)) / (X1 - 1638)));
+      for (let x = X0; x <= X1; x++) {
+        const t = (x - X0) / (X1 - X0), cz = Math.round(591 + (3 - 2 * t) * t * t * 9), g = level(x);
+        for (let dz = -3; dz <= 3; dz++) {
+          const z = cz + dz;
+          if (forecourt(x, z)) continue;
+          const hh = hash2(x, z, 157);
+          foundation(x, z, g, B.Cobble);
+          O.set(x, g - 1, z, Math.abs(dz) === 3 ? B.StoneBrick : hh < 0.1 ? B.MossyCobble : hh > 0.92 ? B.Flagstone : B.Cobble);
+          clearUp(x, z, g, g + 8);
+        }
+        // A lamp every dozen steps, one side then the other, on the kerb's outer edge (never in the forecourt)
+        if ((x - X0) % 12 === 6) {
+          const side = Math.floor((x - X0) / 12) % 2 ? 1 : -1, lz = cz + side * 4;
+          if (!forecourt(x, lz)) { foundation(x, lz, g, B.Cobble); O.set(x, g - 1, lz, B.Cobble); clearUp(x, lz, g, g + 6); s.props.push({ t: 'lantern', x: x + 0.5, y: g, z: lz + 0.5, ry: side < 0 ? 0 : Math.PI }); }
+        }
+      }
+      streets.push([X0, 587, X1, 604]);
+      streetHook?.(X0, 587, X1, 604, 'street');
+    }
 
     // ---- The terraces: the town's high ground to the south, two levels of houses and stairs between
     const T1 = 26, T2 = 30, TC = 31;
@@ -5498,6 +5611,9 @@ export function plan(): Plan {
     for (let x = 1732; x <= 1788; x++) for (const z of [694, 695, 731, 732]) if (z > 695 || x < 1757 || x > 1763) wall(x, z, TC, 6);
     for (let z = 696; z <= 730; z++) for (const x of [1732, 1733, 1787, 1788]) wall(x, z, TC, 6);
     for (let x = 1757; x <= 1763; x++) for (const z of [694, 695]) { O.set(x, TC + 5, z, B.StoneBrick); O.set(x, TC + 6, z, (x + z) % 2 ? B.StoneBrick : B.Air); }
+    // The passage under the gate, paved through from the top of the stairs to the courtyard (it was open
+    // ground there, five blocks down the cliff)
+    for (let x = 1757; x <= 1763; x++) for (const z of [693, 694, 695]) { foundation(x, z, TC, B.StoneBrick); O.set(x, TC - 1, z, z === 693 ? B.StoneBrick : B.Flagstone); clearUp(x, z, TC, TC + 5); }
     for (const [tx, tz] of [[1733, 695], [1787, 695], [1733, 731], [1787, 731]]) tower(s, tx, tz, 7, 12, TC, B.StoneBrick, { crenel: true });
     tower(s, 1754, 694, 5, 10, TC, B.StoneBrick, { crenel: true });
     tower(s, 1766, 694, 5, 10, TC, B.StoneBrick, { crenel: true });
@@ -6615,7 +6731,8 @@ function propCollision(O: Overrides, sites: Site[]): void {
       if (POSTS.some((pt) => Math.abs(pt.x - (x + 0.5)) < 1.6 && Math.abs(pt.z - (z + 0.5)) < 1.6)) continue; // a Charter Post's spot stays open
       for (let y = y0; y < y0 + h; y++) {
         const id = block(x, y, z);
-        if ((id === undefined && y >= heightAt(x, z)) || id === B.Air) O.set(x, y, z, B.Barrier);
+        // (open air only: not stone, and not the sea or a lake, which would lose its surface there)
+        if ((id === undefined && y >= heightAt(x, z) && y >= SEA) || id === B.Air) O.set(x, y, z, B.Barrier);
       }
     }
   };
@@ -6778,7 +6895,7 @@ export { CHUNK };
 export type FrontId = 'framed' | 'studded' | 'quoined' | 'boarded' | 'white';
 /** What dresses a front: a hood over the door, shutters, window boxes. */
 export type TrimId = 'hood' | 'shutters' | 'boxes';
-export interface HouseOpts { wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean; front?: FrontId; trim?: TrimId[]; /** No trade sign or awning (false); or a trade's sign on a shut house front (its emblem, props.shopSign). */ signs?: boolean | number }
+export interface HouseOpts { /** The door's kind and paint, where the role and the front don't decide it well (props.doorLeaf). */ doorKind?: DoorKind; doorPaint?: string; wall?: number; chimney?: boolean; frame?: number; role?: Role; closed?: boolean; impostor?: boolean; front?: FrontId; trim?: TrimId[]; /** No trade sign or awning (false); or a trade's sign on a shut house front (its emblem, props.shopSign). */ signs?: boolean | number }
 /** Somewhere to write a house's blocks: the plan's overrides, or a live world (a player's own house). */
 export interface BlockWriter { set(x: number, y: number, z: number, id: number): void }
 export type HouseSink = Pick<Site, 'props' | 'rects' | 'impostor'>;
@@ -6805,7 +6922,12 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   // The front: what the walls are made of decides most of it, and the house's place the rest, so a
   // street isn't one house over and over (a player's plans say it outright)
   const pick = hash2(x0, z0, 77);
-  const style: FrontId = opts.front ?? (opts.wall === B.StoneBrick ? (pick < 0.5 ? 'quoined' : 'framed') : opts.wall === B.Planks ? (pick < 0.6 ? 'boarded' : 'framed') : opts.wall === B.Cobble ? 'quoined' : pick < 0.4 ? 'studded' : 'framed');
+  const masonry = opts.wall === B.RedBrick || opts.wall === B.Sandstone;
+  const style: FrontId = opts.front ?? (opts.wall === B.StoneBrick ? (pick < 0.5 ? 'quoined' : 'framed') : masonry ? 'quoined' : opts.wall === B.Planks ? (pick < 0.6 ? 'boarded' : 'framed') : opts.wall === B.Cobble ? 'quoined' : pick < 0.4 ? 'studded' : 'framed');
+  // Dressed fronts: brick has sandstone at its corners and courses; sandstone, grey quoins and a carved cornice
+  const quoin = (ly: number) => (opts.wall === B.RedBrick ? (ly % 2 === 0 ? B.Sandstone : B.RedBrick) : opts.wall === B.Sandstone ? (ly % 2 === 0 ? B.StoneBrick : B.Sandstone) : ly % 2 === 0 ? B.Cobble : B.StoneBrick);
+  const course = (f: number) => (opts.wall === B.RedBrick ? B.Sandstone : opts.wall === B.Sandstone ? (f === floors - 1 ? B.CarvedStone : B.Sandstone) : B.Cobble);
+  const plinth = masonry ? B.StoneBrick : B.Cobble;
   const wall = opts.wall ?? (style === 'boarded' ? B.Planks : style === 'quoined' ? B.StoneBrick : style === 'white' ? B.Whitestone : B.Plaster);
   const frame = opts.frame ?? B.Timber;
   const trim = opts.trim ?? [...(hash2(x0, z0, 79) < 0.4 ? ['hood'] : []), ...(hash2(x0, z0, 81) < 0.32 && style !== 'boarded' ? ['shutters'] : []), ...(hash2(x0, z0, 83) < 0.45 ? ['boxes'] : [])] as TrimId[];
@@ -6831,9 +6953,9 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
         else if (ly === 1 && along % 4 === 1 && inner) id = B.Window;
       } else if (style === 'quoined') {
         // Dressed stone: quoins at the corners in alternate courses, a string course between storeys
-        if (ex && ez) id = ly % 2 === 0 ? B.Cobble : B.StoneBrick;
-        else if (ly === 3) id = B.Cobble;
-        else if (f === 0 && ly === 0) id = B.Cobble;
+        if (ex && ez) id = quoin(ly);
+        else if (ly === 3) id = course(f);
+        else if (f === 0 && ly === 0) id = plinth;
         else if ((ly === 1 || ly === 2) && along % 3 === 1 && inner) id = B.Window;
       } else if (style === 'white') {
         // Morrow's white stone: the two stones of Callis, the black at the foot and the white above it
@@ -6868,14 +6990,25 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
   const shape = { x0, z0, w, d, floors, base, door, doorX, doorZ, role: opts.role, tint: Math.floor(hash2(x0, z0, 5) * 3), chimney: chim };
   const ry = door === 'n' ? Math.PI : door === 's' ? 0 : door === 'e' ? Math.PI / 2 : -Math.PI / 2;
   const ox = door === 'e' ? 0.52 : door === 'w' ? -0.52 : 0, oz = door === 's' ? 0.52 : door === 'n' ? -0.52 : 0;
-  if (opts.closed) s.props.push({ t: 'door', x: doorX + 0.5 + ox, y: base, z: doorZ + 0.5 + oz, ry });
+  // The door the building deserves: its trade's, or a home's to suit its front, painted or bare
+  const dp = hash2(x0, z0, 97);
+  const doorKind: DoorKind = opts.doorKind ?? (
+    opts.role === 'inn' ? 'dutch' : opts.role === 'shop' ? 'glazed' : opts.role === 'workshop' ? 'studded' : opts.role === 'bank' ? 'iron'
+    : opts.role === 'chapel' ? 'carved' : opts.role === 'office' ? 'panelled' : opts.role === 'store' || opts.role === 'vacant' ? 'rough'
+    : style === 'white' ? (dp < 0.75 ? 'panelled' : 'painted')
+    : style === 'quoined' ? (dp < 0.55 ? 'panelled' : dp < 0.85 ? 'painted' : 'cottage')
+    : style === 'boarded' ? (dp < 0.5 ? 'cottage' : dp < 0.85 ? 'painted' : 'rough')
+    : dp < 0.4 ? 'cottage' : dp < 0.8 ? 'painted' : 'panelled');
+  const paints = style === 'white' ? MORROW_PAINTS : DOOR_PAINTS;
+  const doorPaint = opts.doorPaint ?? (doorKind === 'cottage' || doorKind === 'rough' || doorKind === 'studded' || doorKind === 'iron' || doorKind === 'carved' || (doorKind === 'dutch' && dp < 0.5) ? undefined : paints[Math.floor(hash2(x0, z0, 99) * paints.length)]);
+  if (opts.closed) s.props.push({ t: 'door', x: doorX + 0.5 + ox, y: base, z: doorZ + 0.5 + oz, ry, doorKind, color: doorPaint });
   else {
     for (let z = z0 + 1; z < z0 + d - 1; z++) for (let x = x0 + 1; x < x0 + w - 1; x++) O.set(x, base - 1, z, B.Planks);
     const fit = fitOut(shape);
     for (const [bx, by, bz, kind] of fit.blocks) O.set(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
     for (const f of fit.furn) s.props.push({ t: 'furn', item: f.item, x: f.x, y: f.y, z: f.z, ry: f.ry, tint: f.tint ?? shape.tint, altar: f.altar });
     const leaf = openDoorPlace(shape);
-    s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true });
+    s.props.push({ t: 'furn', item: 'doorOpen', x: leaf.x, y: base, z: leaf.z, ry: leaf.ry, swing: true, doorKind, color: doorPaint });
   }
   // The porch lantern goes on whichever side of the door has bare wall, never over a window
   const glazed = new Set(fronts.filter(([, , f]) => f === 0).map(([x, z]) => x + ',' + z));

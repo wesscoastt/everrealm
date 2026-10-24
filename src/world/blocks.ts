@@ -11,7 +11,12 @@ export enum T {
   // Kell: the Kilnfolk's brass and copper plate, the volcano's ash and its ember rock
   Brass, Copper, Ash, Emberstone,
   // Morrow: the white stone that lifts, worked smooth, and the black that holds it down
-  Whitestone, Blackstone, Count,
+  Whitestone, Blackstone,
+  // Towns: brick, honey sandstone, flagstones, brick paving, a carved frieze, and lime washed in colour
+  RedBrick, Sandstone, Flagstone, BrickPave, CarvedStone, OchrePlaster, RosePlaster, BluePlaster,
+  // The wilds: a meadow in flower, granite, peat
+  FlowerGrass, Granite, Peat,
+  Count,
 }
 
 export enum B {
@@ -29,6 +34,11 @@ export enum B {
   Brass, Copper, Ash, Emberstone,
   // Morrow (the second continent): dressed white crystal-stone, and the black keystone that holds it
   Whitestone, Blackstone,
+  // Towns: red brick, honey sandstone ashlar, big paving flags, brick laid in a basket weave, a carved
+  // frieze for a cornice or a string course, and plaster limewashed ochre, Suffolk pink and pale blue
+  RedBrick, Sandstone, Flagstone, BrickPave, CarvedStone, OchrePlaster, RosePlaster, BluePlaster,
+  // The wilds: grass full of flowers, speckled granite on the high ground, black peat on the moor
+  FlowerGrass, Granite, Peat,
   Count,
 }
 
@@ -111,9 +121,25 @@ BLOCKS[B.Ash] = D('ash', T.Ash, T.Ash, T.Ash, { jitter: 0.05 });
 BLOCKS[B.Emberstone] = D('ember rock', T.Emberstone, T.Emberstone, T.Emberstone, { jitter: 0.03, emissive: 1 });
 BLOCKS[B.Whitestone] = D('whitestone', T.Whitestone, T.Whitestone, T.Whitestone, { jitter: 0.03 });
 BLOCKS[B.Blackstone] = D('blackstone', T.Blackstone, T.Blackstone, T.Blackstone, { jitter: 0.02 });
+BLOCKS[B.RedBrick] = D('red brick', T.RedBrick, T.RedBrick, T.RedBrick, { jitter: 0.04 });
+BLOCKS[B.Sandstone] = D('sandstone', T.Sandstone, T.Sandstone, T.Sandstone, { jitter: 0.04 });
+BLOCKS[B.Flagstone] = D('flagstones', T.Flagstone, T.Sandstone, T.Sandstone, { jitter: 0.05 });
+BLOCKS[B.BrickPave] = D('brick paving', T.BrickPave, T.RedBrick, T.RedBrick, { jitter: 0.04 });
+BLOCKS[B.CarvedStone] = D('carved stone', T.Sandstone, T.CarvedStone, T.Sandstone, { jitter: 0.02 });
+BLOCKS[B.OchrePlaster] = D('ochre limewash', T.OchrePlaster, T.OchrePlaster, T.OchrePlaster, { jitter: 0.025 });
+BLOCKS[B.RosePlaster] = D('pink limewash', T.RosePlaster, T.RosePlaster, T.RosePlaster, { jitter: 0.025 });
+BLOCKS[B.BluePlaster] = D('blue limewash', T.BluePlaster, T.BluePlaster, T.BluePlaster, { jitter: 0.025 });
+BLOCKS[B.FlowerGrass] = D('meadow', T.FlowerGrass, T.GrassSide, T.Dirt, { jitter: 0.05 });
+BLOCKS[B.Granite] = D('granite', T.Granite, T.Granite, T.Granite, { jitter: 0.04 });
+BLOCKS[B.Peat] = D('peat', T.Peat, T.Peat, T.Peat, { jitter: 0.05 });
 
 export function isSolid(id: number): boolean {
   return BLOCKS[id]?.solid ?? false;
+}
+
+/** Plaster in any wash: a house front built of it is a plastered one (see sites.houseInto). */
+export function isPlaster(id: number | undefined): boolean {
+  return id === B.Plaster || id === B.OchrePlaster || id === B.RosePlaster || id === B.BluePlaster;
 }
 
 /** True if a face of a neighbouring opaque block should be drawn against this block. */

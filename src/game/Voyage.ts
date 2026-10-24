@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as P from '../world/props';
+import { shipModel } from '../world/ships';
 import { SEA } from '../world/terrain';
 
 // A voyage on the Constant, the way WoW's boats cross between its continents: you board at the quay,
@@ -32,7 +33,7 @@ export class Voyage {
   get active(): boolean { return !!this.leg; }
 
   private ship(heading: number): THREE.Group {
-    const s = P.ship(this.host.props, 'set', '#2f4a7a', '#e8e0c8');
+    const s = shipModel(this.host.props, 'carrack', { sails: 'set', wale: '#2f4a7a', flag: '#e8e0c8' });
     s.rotation.y = heading - Math.PI / 2;
     this.host.scene.add(s);
     return s;
@@ -41,7 +42,7 @@ export class Voyage {
   /** Cast off from a harbour and stand out to sea; `then` when she's well out (the crossing proper). */
   depart(h: Harbour, then: () => void, secs = 20): void {
     const dir = new THREE.Vector3(Math.sin(h.heading), 0, Math.cos(h.heading));
-    const from = new THREE.Vector3(h.berth[0], SEA - 0.6, h.berth[1]);
+    const from = new THREE.Vector3(h.berth[0], SEA - 0.14, h.berth[1]);
     this.start({ ship: this.ship(h.heading), t: 0, dur: secs, from, to: from.clone().addScaledVector(dir, secs * 11), heading: h.heading, then, ease: 'out' });
     this.host.sfx('bell', 0.7);
     this.host.banner('The Constant casts off', 'A day and a night at sea');
@@ -50,7 +51,7 @@ export class Voyage {
   /** In from the open sea to a harbour's berth; `then` when she's tied up. */
   arrive(h: Harbour, then: () => void, secs = 14): void {
     const dir = new THREE.Vector3(Math.sin(h.heading), 0, Math.cos(h.heading));
-    const to = new THREE.Vector3(h.berth[0], SEA - 0.6, h.berth[1]);
+    const to = new THREE.Vector3(h.berth[0], SEA - 0.14, h.berth[1]);
     this.start({ ship: this.ship(h.heading + Math.PI), t: 0, dur: secs, from: to.clone().addScaledVector(dir, secs * 9), to, heading: h.heading + Math.PI, then, ease: 'in' });
   }
 

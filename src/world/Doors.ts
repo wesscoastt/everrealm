@@ -21,13 +21,16 @@ export interface Door {
  * A door whose open leaf stands centred at (x, y, z) facing ry (the way the leaf props are placed:
  * see openDoorPlace). Shut, it turns a quarter back across the doorway.
  */
-export function makeDoor(M: P.PropMaterials, x: number, y: number, z: number, ry: number): Door {
+export function makeDoor(M: P.PropMaterials, x: number, y: number, z: number, ry: number, kind: P.DoorKind = 'cottage', paint?: string): Door {
   const nx = Math.sin(ry), nz = Math.cos(ry);
   // The hinge is the leaf's outer end; the leaf hangs from it along -z in the pivot's frame
   const hinge = new THREE.Vector3(x + nx * 0.45, y, z + nz * 0.45);
   const pivot = new THREE.Group();
   pivot.position.copy(hinge);
-  const leaf = P.openDoor(M, 2);
+  // (one mesh per material: a studded or a panelled door is many small pieces)
+  const b = new P.Batcher();
+  b.addGroup(P.openDoor(M, 2, kind, paint), new THREE.Matrix4());
+  const leaf = b.build(false);
   leaf.position.z = -0.45;
   pivot.add(leaf);
   const shut = ry - Math.PI / 2;

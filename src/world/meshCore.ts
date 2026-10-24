@@ -36,10 +36,13 @@ const OCC = new Uint8Array(256);
 const EXPOSES = new Uint8Array(256); // neighbour lets a face show
 const SEE = new Uint8Array(256);
 const LEAF = new Uint8Array(256);
+/** Rock, earth and ice over water: a cave roof or a frozen lake, under which no surface is drawn. */
+const NATURAL_ROOF = new Uint8Array(256);
 for (let id = 0; id < N_BLOCKS; id++) {
   const b = BLOCKS[id];
   if (!b) continue;
   OCC[id] = id !== B.Air && id !== B.Water && id !== B.Barrier ? 1 : 0;
+  NATURAL_ROOF[id] = id === B.Stone || id === B.DeepStone || id === B.Dirt || id === B.Sand || id === B.Gravel || id === B.Clay || id === B.Basalt || id === B.Ice || id === B.Snow ? 1 : 0;
   SEE[id] = b.seeThrough ? 1 : 0;
   EXPOSES[id] = id === B.Air || id === B.Water || id === B.Barrier ? 1 : 0;
   LEAF[id] = isLeaves(id) ? 1 : 0;
@@ -95,7 +98,9 @@ export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, 
           const above = get(x, y + 1, z);
           let depth = 1;
           while (depth < 8 && get(x, y - depth, z) === B.Water) depth++;
-          if (above === B.Air) {
+          // The surface shows under anything built over the water (a jetty, a quay, a barrier round a prop),
+          // not only open sky; a natural roof (a cave's rock) hides it, so it isn't drawn there
+          if (above !== B.Water && !NATURAL_ROOF[above]) {
             const top = y + 1 - 0.14;
             wPos.ensure(12); wNor.ensure(12); wUv.ensure(8); wExtra.ensure(12); wIdx.ensure(6);
             const corners = [0, 1, 1, 1, 1, 0, 0, 0];

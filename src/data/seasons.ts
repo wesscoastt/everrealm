@@ -13,7 +13,7 @@ import type { ItemDef } from './items';
 //   - the decorations on the doors near every Post.
 // Everything is for fun or for looks: tokens, food, dyes and hats, never power.
 
-export type HatStyle = 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble';
+export type HatStyle = 'fool' | 'garland' | 'antlers' | 'sheaf' | 'turnip' | 'feathered' | 'bobble' | 'pumpkin';
 /** What a round's spot looks like: a griddle, a painted egg, a stack for a watch-fire, a sheaf, a candle at a door, a loose goose, a wreath on a door. */
 export type SpotKind = 'griddle' | 'egg' | 'firestack' | 'sheaf' | 'candle' | 'goose' | 'wreath';
 export type DecorKind = 'garland' | 'birch' | 'dolly' | 'turnip' | 'wreath';
