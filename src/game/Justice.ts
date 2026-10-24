@@ -4,6 +4,9 @@ import { mountModel, type CreatureModel } from '../entities/creatures';
 import { Humanoid, type Appearance } from '../entities/humanoid';
 import { WAGON_BENCH, WAGON_ROWS } from '../entities/voxmounts';
 import { heightAt } from '../world/terrain';
+import { ROCK_PRICE, rockSentence } from '../data/skua';
+import type { PropMaterials } from '../world/props';
+import { Rock } from './Rock';
 
 /** Standing height out in a town: the ground, not a roof over it. */
 const street = (x: number, z: number) => heightAt(Math.floor(x), Math.floor(z)) + 3;
@@ -50,6 +53,13 @@ export interface JusticeHost {
   hudHidden(on: boolean): void;
   lockpick(): Promise<boolean>;
   busy(): boolean;
+  /** For Skua Rock (game/Rock.ts): the ship and its people, the hour, the oilskins, a cell door. */
+  props: PropMaterials;
+  hour(): number;
+  count(item: string): number;
+  give(item: string, n?: number): boolean;
+  take(item: string, n?: number): void;
+  lockDoorway(x: number, y: number, z: number, shut: boolean): void;
 }
 
 const WATCH_SAYS = {
@@ -61,7 +71,7 @@ const WATCH_SAYS = {
 const pick = <T>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 
 type Arrest = { j: Jurisdiction; guard: string; mode: 'take' | 'blades'; panel: boolean; t: number; lost: number };
-type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel; driver: Humanoid; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number };
+type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel; driver: Humanoid; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number; rock: boolean };
 interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean }
 
 export class Justice {
@@ -75,8 +85,16 @@ export class Justice {
   private oakum = 0;
   private resting = false;
   private picking = false;
+  /** Skua Rock, for the worst: the boat out, the routine, the way off. */
+  readonly rock: Rock;
 
-  constructor(private host: JusticeHost) {}
+  constructor(private host: JusticeHost) {
+    this.rock = new Rock({
+      ...host, player: host.player, look: host.look,
+      setBounty: (t, n) => this.setBounty(t, n), bounty: (t) => this.bounty(t),
+      townName: (t) => JURISDICTIONS.find((j) => j.id === t)?.name ?? 'The town',
+    }, (on) => this.blackout(on));
+  }
 
   // ------------------------------------------------------------------------------------------ books
 
@@ -95,7 +113,7 @@ export class Justice {
   private get jail(): Jail | null { return (this.host.flag('jail') as Jail | undefined) ?? null; }
   get jailed(): boolean { return !!this.jail && !this.jail.escaped; }
   /** Busy with the law (being taken in, in the wagon): the game holds other things back. */
-  get busy(): boolean { return !!this.ride || !!this.arrest?.panel; }
+  get busy(): boolean { return !!this.ride || !!this.arrest?.panel || this.rock.busy; }
 
   // ----------------------------------------------------------------------------------------- crimes
 
@@ -144,7 +162,15 @@ export class Justice {
     const P = this.host.player.position;
     this.tick += dt;
     if (this.ride) { this.updateRide(dt); this.updateBadge(); return; }
+    if (this.rock.updateBoat(dt)) { this.updateBadge(); return; }
     const jail = this.jail;
+    if (jail && !jail.escaped && Rock.is(jail)) {
+      this.rock.update(dt, jail);
+      // (time served, or a release in the warden's hand from Mags Tregear: data/content/skua.ts)
+      if ((Date.now() >= jail.until || this.host.flag('rockPapers')) && !jail.out) this.rock.release();
+      this.updateBadge();
+      return;
+    }
     if (jail && !jail.escaped) { this.updateJail(dt, jail); this.updateBadge(); return; }
     // Prices fade, once a second; time away counts too, as in ESO (half the rate, and the books never
     // forget more than a day's worth at once)
@@ -226,7 +252,7 @@ export class Justice {
     el.innerHTML = `<b>${a.j.watch[0].toUpperCase() + a.j.watch.slice(1)}, ${a.j.name}</b>
       <p>"You're on the book for ${n} marks. Pay it here and now, or you're coming with me."</p>
       <div class="ap-btns"><button class="btn" data-pay${can ? '' : ' disabled'}>Pay ${n} marks</button><button class="btn" data-go>Go quietly</button><button class="btn ghost" data-run>Run</button></div>
-      <i>Going quietly: about ${Math.ceil(sentence(n) / 60)} minute${sentence(n) > 60 ? 's' : ''} in the cells, and the price is gone. Running adds ${CRIME.resist} marks.</i>`;
+      <i>${n >= ROCK_PRICE ? `Going quietly, at that price: Skua Rock, the Charter's prison out in the bay, for about ${Math.ceil(rockSentence(n) / 60)} minutes` : `Going quietly: about ${Math.ceil(sentence(n) / 60)} minute${sentence(n) > 60 ? 's' : ''} in the cells`}, and the price is gone. Running adds ${CRIME.resist} marks.</i>`;
     document.body.appendChild(el);
     this.panel = el;
     el.querySelector('[data-pay]')!.addEventListener('click', () => {
@@ -272,7 +298,7 @@ export class Justice {
     const driver = new Humanoid({ ...this.host.look, costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', top: 4, cape: '#2a3a5a', facial: 2, frame: 'm', lashes: false, hair: '#3a2a1e', skin: '#d8a882' } as Appearance);
     driver.setState('seated');
     this.host.scene.add(driver.root);
-    this.ride = { gaol, t: 0, wagon, driver, yaw, from: at.clone(), secs: Math.round(sentence(bounty) * longer), town: j.id, bounty };
+    this.ride = { gaol, t: 0, wagon, driver, yaw, from: at.clone(), secs: Math.round(sentence(bounty) * longer), town: j.id, bounty, rock: bounty >= ROCK_PRICE };
     this.host.player.locked = true;
     this.host.hudHidden(true);
     this.host.setPose('seated');
@@ -301,6 +327,18 @@ export class Justice {
     C.position.copy(W.position).addScaledVector(sideV, 7.5).addScaledVector(fwd, 2.5 - Math.min(2, r.t * 0.3)).setY(W.position.y + 3.4);
     C.lookAt(W.position.x, W.position.y + 1.2, W.position.z);
     if (r.t > 4.2 && !this.fade) this.blackout(true);
+    if (r.t > 5.4 && r.rock) {
+      // Too big a price for the town cells: down to Gullmouth's south jetty and out to the Rock on the Tern
+      this.host.scene.remove(W);
+      this.host.scene.remove(r.driver.root);
+      this.ride = null;
+      this.setBounty(r.town, 0);
+      this.host.banner('Skua Rock', 'The Charter\'s boat is waiting at Gullmouth');
+      this.rock.sendOut(r.town, r.bounty);
+      // (dark a while longer, while the harbour loads round the boat)
+      setTimeout(() => this.blackout(false), 2200);
+      return;
+    }
     if (r.t > 5.4) {
       // At the gaol: into the cell
       this.host.scene.remove(W);
@@ -377,6 +415,7 @@ export class Justice {
   candidates(p: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
     const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [];
     const j = this.jail;
+    if (j && !j.escaped && Rock.is(j)) return this.rock.candidates(p);
     if (j && !j.escaped) {
       const g = this.gaolOf(j);
       if (!g) return out;
@@ -424,6 +463,8 @@ export class Justice {
     const j = this.jail, P = this.host.player.position, here = jurisdictionAt(P.x, P.z);
     let text = '';
     if (this.ride) text = 'In the watch\'s wagon';
+    else if (this.rock.busy) text = j && Rock.is(j) && j.out ? 'Off the Rock: paddle' : 'In irons';
+    else if (j && !j.escaped && Rock.is(j)) { const left = Math.max(0, Math.ceil((j.until - Date.now()) / 1000)); text = j.out ? 'Off the Rock: keep going' : `Skua Rock: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }
     else if (j && !j.escaped) { const left = Math.max(0, Math.ceil((j.until - Date.now()) / 1000)); text = `In the cells: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }
     else if (here && this.bounty(here.id) > 0) text = `Wanted in ${here.name}: ${this.bounty(here.id)} marks`;
     if (!text) { this.badge?.remove(); this.badge = null; return; }

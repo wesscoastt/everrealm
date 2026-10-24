@@ -20,6 +20,7 @@ import { LAND_BOARD, lotFront, LOT_D, LOT_W, LOTS, WENDSIDE_LOTS, type Lot } fro
 import { ESTATES, type Estate } from '../data/estates';
 import { ROPEWALK } from '../data/ropewalk';
 import { POTTERY, POTTERY_D, POTTERY_W, potteryAt } from '../data/pottery';
+import * as SK from '../data/skua';
 import { MIRADOR_GATE, MIRADOR_LANE, MIRADOR_LOOKOUT, VILLAS, villaBack, villaDoor, type Villa } from '../data/mirador';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
@@ -620,6 +621,8 @@ export function plan(): Plan {
     ...morrowNamed(),
     // Bett Rook's ropewalk outside Gullmouth, and Dora Hurst's pottery outside the Works (data/ropewalk.ts, data/pottery.ts)
     { id: 'ropewalk', name: 'Rook\'s Ropewalk', x: ROPEWALK.alongX ? ROPEWALK.x0 + ROPEWALK.len / 2 : ROPEWALK.x0 + 3.5, z: ROPEWALK.alongX ? ROPEWALK.z0 + 3.5 : ROPEWALK.z0 + ROPEWALK.len / 2, r0: 0, r1: 0, build: (s) => buildRopewalk(s) },
+    // Skua Rock, the Charter's prison in the bay off Gullmouth (data/skua.ts)
+    { id: 'skua-rock', name: 'Skua Rock', x: SK.SKUA.x, z: SK.SKUA.z, r0: 0, r1: 0, build: (s) => buildSkuaRock(s) },
     // The Mirador, the houses on the scarp above Callis (data/mirador.ts)
     { id: 'callis-mirador', name: 'The Mirador', x: 8590, z: 796, r0: 0, r1: 0, build: (s) => buildMirador(s) },
     { id: 'pottery', name: 'Hurst\'s Pottery', x: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[0], z: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[1], r0: 0, r1: 0, build: (s) => buildPottery(s) },
@@ -6024,6 +6027,260 @@ export function plan(): Plan {
       for (const x of [lx - 7, lx + 7]) P({ t: 'lantern', x: x + 0.5, y, z: lz - 5.5, ry: Math.PI / 2 });
       rect(s, lx - 9, lz - 8, lx + 9, le + 6);
     }
+  }
+
+  /**
+   * Skua Rock, the Charter's prison in the bay off Gullmouth (data/skua.ts): the landing and the Steps
+   * cut into the west end, the sally port, the cellhouse with its block of cells (two rows back to back
+   * with the utility corridor between, two tiers, galleries and a mess at Broadway's west end), the yard
+   * and its towers, the work shed, the quarry, the lighthouse, the warden's house and the barracks.
+   */
+  function buildSkuaRock(s: Site) {
+    const P = (d: PropDesc) => { s.props.push(d); };
+    const F = (item: string, x: number, y: number, z: number, ry = 0, tint = 0) => P({ t: 'furn', item, x, y, z, ry, tint });
+    const lit = (x: number, y: number, z: number, color = '#ffc070') => P({ t: 'glow', x, y, z, r: 2.6, color, lit: true });
+    const T = SK.TOP;
+    /** Level ground at standing height y: rock under it, the top block given, air above. */
+    const level = (x: number, z: number, y: number, top: number) => { foundation(x, z, y, B.Stone); O.set(x, y - 1, z, top); clearUp(x, z, y, y + 16); };
+    const paveLine = (ax: number, az: number, bx: number, bz: number, half = 1) => {
+      const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+      for (let t = 0; t <= L; t += 0.5) for (let o = -half; o <= half; o += 0.5) {
+        const x = Math.floor(ax + ux * t - uz * o), z = Math.floor(az + uz * t + ux * o);
+        level(x, z, T, hash2(x, z, 5101) < 0.15 ? B.Gravel : B.Flagstone);
+      }
+    };
+
+    // ------------------------------------------------------------------ the landing, the quay and the Steps
+    {
+      const L = SK.LANDING, y = SK.LANDING_Y;
+      // The shelf, cut back into the cliff at the west end
+      for (let x = L.x0; x <= L.x1; x++) for (let z = L.z0; z <= L.z1; z++) { foundation(x, z, y, B.Stone); O.set(x, y - 1, z, hash2(x, z, 5102) < 0.3 ? B.Cobble : B.Flagstone); clearUp(x, z, y, T + 8); }
+      // The quay out into the water, stone on the sea floor, bollards along it and the boat's berth on its north side
+      for (let x = L.quayX; x < L.x0; x++) for (let z = L.quayZ - 2; z <= L.quayZ + 2; z++) { for (let yy = 2; yy < y; yy++) O.set(x, yy, z, yy === y - 1 ? B.StoneBrick : B.Stone); clearUp(x, z, y, y + 6); }
+      for (const x of [L.quayX + 1, L.quayX + 5, L.quayX + 9]) P({ t: 'bollard', x: x + 0.5, y, z: L.quayZ - 2 + 0.3, ry: 0 });
+      P({ t: 'lantern', x: L.quayX + 0.5, y, z: L.quayZ + 2.5, ry: Math.PI });
+      // The guard house on the landing, the stacks of crates for the supply boat, a crane
+      houseInto(O, s, L.x0 + 2, L.z0 - 5, 7, 6, 1, y, 'slate', 's', { role: 'office', wall: B.StoneBrick, front: 'quoined', signs: false, doorKind: 'iron' });
+      for (const [x, z] of [[L.x0 + 3, L.z1 - 2], [L.x0 + 4, L.z1 - 2], [L.x0 + 3, L.z1 - 1]] as const) P({ t: 'crate', x: x + 0.5, y, z: z + 0.5 });
+      P({ t: 'crane', x: L.x0 + 1.5, y, z: L.quayZ + 4.5, ry: Math.PI });
+      P({ t: 'sign', x: L.x0 + 1, y, z: L.quayZ - 3.5, ry: -Math.PI / 2, text: 'SKUA ROCK\nThe Charter\'s prison\nNo landing without leave' });
+      rect(s, L.quayX - 2, L.z0 - 8, L.x1 + 2, L.z1 + 2);
+      // The Steps: three wide, a block a stride, walled either side, up to the sally port
+      const St = SK.STEPS;
+      for (let i = 0; i <= T - y; i++) {
+        const x = St.x0 + i, stand = Math.min(T, y + i);
+        for (let z = St.z0 - 1; z <= St.z1 + 1; z++) {
+          const wall = z === St.z0 - 1 || z === St.z1 + 1;
+          for (let yy = 2; yy < stand; yy++) O.set(x, yy, z, B.Stone);
+          O.set(x, stand - 1, z, wall ? B.StoneBrick : B.Cobble);
+          if (wall) { O.set(x, stand, z, B.StoneBrick); O.set(x, stand + 1, z, B.Barrier); }
+          clearUp(x, z, wall ? stand + 2 : stand, T + 10);
+        }
+      }
+      for (let i = 0; i <= T - y; i += 5) P({ t: 'wallLantern', x: St.x0 + i + 0.5, y: Math.min(T, y + i) + 2.4, z: St.z0 - 0.45, ry: Math.PI });
+      rect(s, St.x0 - 1, St.z0 - 2, SK.SALLY.x + 2, St.z1 + 2);
+    }
+
+    // ------------------------------------------------------------------ the top: levelled, paved paths, the sally port
+    for (let x = SK.SALLY.x - 2; x <= SK.QUARRY.x1 + 6; x++) for (let z = SK.SKUA.z - 34; z <= SK.SKUA.z + 34; z++) {
+      if (heightAt(x, z) < T - 5) continue;
+      level(x, z, T, hash2(x, z, 5103) < 0.12 ? B.Gravel : hash2(x, z, 5104) < 0.2 ? B.FlowerGrass : B.Grass);
+    }
+    rect(s, SK.SALLY.x - 3, SK.SKUA.z - 40, SK.QUARRY.x1 + 8, SK.SKUA.z + 40);
+    {
+      // The sally port: a gatehouse across the top of the Steps, an iron door in it
+      const { x, z } = SK.SALLY;
+      for (let zz = z - 4; zz <= z + 4; zz++) for (let yy = T; yy < T + 6; yy++) {
+        const gap = Math.abs(zz - z) <= 1 && yy < T + 3;
+        O.set(x, yy, zz, gap ? B.Air : yy === T + 5 && (zz + yy) % 2 === 0 ? B.Air : B.StoneBrick);
+        O.set(x + 1, yy, zz, gap ? B.Air : yy === T + 5 ? B.Air : B.StoneBrick);
+      }
+      P({ t: 'wallLantern', x: x - 0.45, y: T + 3.4, z: z - 2.5, ry: -Math.PI / 2 });
+      P({ t: 'wallLantern', x: x - 0.45, y: T + 3.4, z: z + 2.5, ry: -Math.PI / 2 });
+      P({ t: 'banner', x: x - 0.62, y: T + 5.6, z: z + 0.5, ry: -Math.PI / 2, kind: 'aldermere' });
+    }
+    const C = SK.CELLHOUSE;
+    paveLine(SK.SALLY.x + 2, SK.SALLY.z, C.x0 - 1, 469, 1);
+    paveLine(C.x0 - 6, 469, SK.WARDEN.x0 + 5, SK.WARDEN.z0 - 1, 0.5);
+    paveLine(SK.SALLY.x + 6, SK.SALLY.z, SK.LIGHT.x, SK.LIGHT.z + 4, 0.5);
+    paveLine(C.x1 + 1, 452, SK.SHED.x0 - 1, 452, 0.5);
+    paveLine(C.x1 + 1, 470, SK.QUARRY.x0 - 1, 470, 1);
+
+    // ------------------------------------------------------------------ the cellhouse
+    for (let x = C.x0; x <= C.x1; x++) for (let z = C.z0; z <= C.z1; z++) {
+      foundation(x, z, T, B.Stone);
+      O.set(x, T - 1, z, B.Flagstone);
+      const wall = x === C.x0 || x === C.x1 || z === C.z0 || z === C.z1;
+      for (let y = T; y < C.roof; y++) {
+        let id: number = B.Air;
+        if (wall) {
+          // Tall windows in pairs between the piers, high up where nobody inside can reach them
+          const along = x === C.x0 || x === C.x1 ? z - C.z0 : x - C.x0;
+          const pier = along % 4 === 0;
+          id = y === T ? B.Cobble : pier ? B.StoneBrick : y >= T + 5 && y <= T + 8 ? B.Window : B.StoneBrick;
+        }
+        O.set(x, y, z, id);
+      }
+      O.set(x, C.roof, z, wall ? B.CarvedStone : B.StoneBrick);
+      if (wall) O.set(x, C.roof + 1, z, (x + z) % 2 === 0 ? B.StoneBrick : B.Air);
+      clearUp(x, z, C.roof + (wall ? 2 : 1), C.roof + 8);
+    }
+    rect(s, C.x0 - 2, C.z0 - 2, C.x1 + 3, C.z1 + 3);
+    // Doors: the main one at the west end onto the path, and the yard door on Broadway's south wall
+    const doorAt = (x: number, z: number, ry: number) => {
+      for (let y = T; y < T + 3; y++) O.set(x, y, z, y < T + 2 ? B.Air : B.DarkPlanks);
+      P({ t: 'furn', item: 'doorOpen', x: x + 0.5 - Math.sin(ry) * 0.45 + Math.cos(ry) * 0.42, y: T, z: z + 0.5 - Math.cos(ry) * 0.45 - Math.sin(ry) * 0.42, ry, swing: true, doorKind: 'iron', role: 'home' });
+    };
+    doorAt(C.x0, 469, -Math.PI / 2);
+    doorAt(2070, C.z1, 0);
+    P({ t: 'wallLantern', x: C.x0 - 0.45, y: T + 2.6, z: 467.5, ry: -Math.PI / 2 });
+    P({ t: 'sign', x: C.x0 - 3, y: T, z: 466.5, ry: -Math.PI / 2, text: 'CELLHOUSE\nBy order of the Charter' });
+    // The block: two rows of cells back to back, the utility corridor between them, two tiers
+    const Bk = SK.BLOCK, bx0 = Bk.x0, bx1 = Bk.x0 + Bk.cells * 3;
+    for (let x = bx0; x <= bx1 + 1; x++) for (let z = Bk.nFront; z <= Bk.sFront; z++) for (let y = T; y < T + 9; y++) {
+      const floor2 = y === Bk.upper - 1;
+      const front = z === Bk.nFront || z === Bk.sFront, back = z === Bk.nBack || z === Bk.sBack, util = z === Bk.util;
+      const pier = (x - bx0) % 3 === 0 || x > bx1;
+      let id: number = B.Air;
+      if (floor2) id = util ? B.DarkPlanks : B.StoneBrick;
+      else if (util) id = x === bx0 || x > bx1 ? B.StoneBrick : B.Air;
+      else if (back || pier) id = B.StoneBrick;
+      else if (front) id = B.Barrier;
+      O.set(x, y, z, id);
+    }
+    for (let x = bx0; x <= bx1 + 1; x++) for (let z = Bk.nFront; z <= Bk.sFront; z++) O.set(x, T + 9, z, B.StoneBrick);
+    for (const row of ['n', 's'] as const) for (const tier of [0, 1] as const) for (let i = 0; i < Bk.cells; i++) {
+      const c = SK.cellOf(row, tier, i);
+      const out = row === 's' ? 1 : -1, faceRy = row === 's' ? 0 : Math.PI;
+      // Bars across the front, a bunk along the pier, a stool, and a shelf with a tin cup on it
+      // (your own, B 14, has a barred door in its first column that the guards open by day: game/Rock.ts)
+      const mine = c.row === SK.MY_CELL.row && c.tier === SK.MY_CELL.tier && c.i === SK.MY_CELL.i;
+      if (mine) {
+        P({ t: 'bars', x: c.x + 1.5, y: c.y, z: c.doorZ + 0.5 + out * 0.05, ry: faceRy, len: 1, rise: 3 });
+        O.set(c.doorX, c.y, c.doorZ, B.Air); O.set(c.doorX, c.y + 1, c.doorZ, B.Air); O.set(c.doorX, c.y + 2, c.doorZ, B.Barrier);
+        P({ t: 'furn', item: 'doorOpen', x: c.doorX + 0.08, y: c.y, z: c.doorZ + 0.05, ry: 0, swing: true, doorKind: 'iron', role: 'home' });
+      } else P({ t: 'bars', x: c.x + 1, y: c.y, z: c.doorZ + 0.5 + out * 0.05, ry: faceRy, len: 2, rise: 3 });
+      // (the bunk in the far column, so the door's column stays clear)
+      F('bed', c.x + 1.5, c.y, (c.z0 + c.z1 + 1) / 2, 0, (i + tier) % 3);
+      F('stool', c.x + 0.5, c.y, c.row === 's' ? c.z0 + 0.4 : c.z1 + 0.6, 0);
+    }
+    // The galleries along the upper tier, rails on their open side, and the stairs up at the west end
+    for (const [gz0, gz1, railZ] of [[Bk.nFront - 2, Bk.nFront - 1, Bk.nFront - 3], [Bk.sFront + 1, Bk.sFront + 2, Bk.sFront + 3]] as const) {
+      for (let x = bx0 - 3; x <= bx1 + 1; x++) for (let z = gz0; z <= gz1; z++) O.set(x, Bk.upper - 1, z, B.DarkPlanks);
+      for (let x = bx0 - 3; x <= bx1 + 1; x++) { O.set(x, Bk.upper, railZ, B.Barrier); O.set(x, Bk.upper + 1, railZ, B.Barrier); }
+      P({ t: 'deckRail', x: (bx0 - 3 + bx1 + 2) / 2, y: Bk.upper, z: railZ + 0.5, ry: 0, len: bx1 + 4 - (bx0 - 3) + 1 });
+      for (let x = bx0 - 3; x <= bx1 + 1; x += 6) for (let y = T; y < Bk.upper - 1; y++) O.set(x, y, railZ, B.DarkPlanks);
+      // (stairs: five steps along x from the floor, west of the block, rising toward it)
+      for (let k = 0; k < 5; k++) for (let z = gz0; z <= gz1; z++) for (let y = T; y <= T + k; y++) O.set(bx0 - 8 + k, y, z, B.StoneBrick);
+      for (let k = 0; k < 5; k++) for (let z = gz0; z <= gz1; z++) for (let y = T + k + 1; y < Bk.upper + 2; y++) O.set(bx0 - 8 + k, y, z, B.Air);
+      for (let z = gz0; z <= gz1; z++) O.set(bx0 - 3, Bk.upper - 1, z, B.DarkPlanks);
+    }
+    // The utility corridor's ladder at its east end, and the hatch over it in the roof (shut)
+    for (let y = T; y < C.roof; y++) O.set(SK.ESCAPE.ladder.x, y, SK.ESCAPE.ladder.z, B.Air);
+    O.set(SK.ESCAPE.ladder.x + 1, T, SK.ESCAPE.ladder.z, B.StoneBrick);
+    // Broadway: lamps along it, the mess tables at its west end under the gun gallery, the guard's desk
+    for (let x = C.x0 + 4; x < C.x1; x += 8) { lit(x + 0.5, T + 6, 476.5); lit(x + 0.5, T + 6, 458.5); }
+    for (let i = 0; i < 6; i++) {
+      const tx = C.x0 + 3 + (i % 3) * 3, tz = 475 + Math.floor(i / 3) * 3;
+      F('table', tx + 0.5, T, tz + 0.5, 0); F('bench', tx + 0.5, T, tz - 0.4, 0); F('bench', tx + 0.5, T, tz + 1.4, Math.PI);
+    }
+    F('desk', C.x1 - 4.5, T, 476.5, -Math.PI / 2); F('chair', C.x1 - 3.5, T, 476.5, -Math.PI / 2);
+    // The gun gallery across the west end: a caged walk up by the windows
+    for (let z = C.z0 + 1; z < C.z1; z++) for (const x of [C.x0 + 1, C.x0 + 2]) O.set(x, T + 5, z, B.DarkPlanks);
+    P({ t: 'bars', x: C.x0 + 3.05, y: T + 6, z: (C.z0 + C.z1) / 2 + 0.5, ry: Math.PI / 2, len: C.z1 - C.z0 - 1, rise: 2.5 });
+
+    // ------------------------------------------------------------------ the yard
+    {
+      const Y = SK.YARD;
+      for (let x = Y.x0; x <= Y.x1; x++) for (let z = C.z1 + 1; z <= Y.z1; z++) {
+        if (heightAt(x, z) < T - 8) continue;
+        const wall = (x === Y.x0 || x === Y.x1 || z === Y.z1) && z >= Y.z0;
+        foundation(x, z, T, B.Stone);
+        O.set(x, T - 1, z, z < Y.z0 ? B.Flagstone : hash2(x, z, 5105) < 0.3 ? B.Gravel : B.Cobble);
+        for (let y = T; y < T + Y.wall + 2; y++) O.set(x, y, z, wall && y < T + Y.wall ? B.StoneBrick : wall && y === T + Y.wall ? B.CarvedStone : wall ? B.Barrier : B.Air);
+      }
+      // The north side opens off the cellhouse wall: a wall either side of the yard door
+      for (let x = Y.x0; x <= Y.x1; x++) if (Math.abs(x - 2070) > 1) for (let y = T; y < T + Y.wall; y++) O.set(x, y, Y.z0, B.StoneBrick);
+      for (let y = T; y < T + 2; y++) for (const x of [2069, 2070, 2071]) O.set(x, y, Y.z0, B.Air);
+      // Stands: four steps of stone along the west wall, where the men sit in the sun
+      for (let k = 0; k < 4; k++) for (let z = Y.z0 + 2; z <= Y.z1 - 2; z++) for (let y = T; y <= T + k; y++) O.set(Y.x0 + 4 - k, y, z, B.Cobble);
+      // Towers at the two outer corners, a guard's walk along the south wall between them
+      for (const tx of [Y.x0, Y.x1 - 2]) for (let x = tx; x < tx + 3; x++) for (let z = Y.z1 - 2; z <= Y.z1; z++) {
+        for (let y = T; y < T + 10; y++) O.set(x, y, z, y === T + 9 ? B.StoneBrick : (x === tx + 1 && z === Y.z1 - 1 && y >= T + Y.wall) ? B.Air : y < T + Y.wall ? B.StoneBrick : (x === tx + 1 || z === Y.z1 - 1) && y < T + 8 ? B.Air : B.StoneBrick);
+        O.set(x, T + Y.wall - 1, z, B.StoneBrick);
+      }
+      for (const tx of [Y.x0 + 1.5, Y.x1 - 0.5]) { P({ t: 'roof', x: tx, y: T + 10, z: Y.z1 - 0.5, len: 3.6, span: 3.6, rise: 1.4, ry: 0, mat: 'slate' }); lit(tx, T + 8.5, Y.z1 - 0.5); }
+      P({ t: 'banner', x: (Y.x0 + Y.x1) / 2 + 0.5, y: T + Y.wall - 0.4, z: Y.z0 + 0.62, ry: 0, kind: 'aldermere' });
+      rect(s, Y.x0 - 1, Y.z0 - 1, Y.x1 + 2, Y.z1 + 2);
+    }
+
+    // ------------------------------------------------------------------ the work shed, the quarry, the tank
+    {
+      const S2 = SK.SHED;
+      houseInto(O, s, S2.x0, S2.z0, S2.w, S2.d, 1, T, 'slate', 'w', { role: 'workshop', wall: B.StoneBrick, front: 'quoined', signs: false, chimney: true });
+      // Oilskins drying on lines along the shed's south side: the coats the work details wear in the wet
+      for (const [x, z] of SK.OILSKIN_LINES) P({ t: 'washLine', x, y: T, z, ry: 0, len: 4 });
+      const Q = SK.QUARRY;
+      for (let x = Q.x0; x <= Q.x1; x++) for (let z = Q.z0; z <= Q.z1; z++) {
+        if (heightAt(x, z) < T - 6) continue;
+        const edge = x === Q.x0 || x === Q.x1 || z === Q.z0 || z === Q.z1;
+        foundation(x, z, Q.floor, B.Stone);
+        O.set(x, Q.floor - 1, z, hash2(x, z, 5106) < 0.4 ? B.Gravel : B.Stone);
+        clearUp(x, z, Q.floor, T + 10);
+        // (the pit's walls, the face being worked on its east side, stepped)
+        if (edge && x !== Q.x0) for (let y = Q.floor; y < T; y++) O.set(x, y, z, x === Q.x1 && y < Q.floor + 2 ? B.Cobble : B.Stone);
+      }
+      // A ramp down into it from the path at its west side
+      for (let k = 0; k < 4; k++) for (let z = 468; z <= 471; z++) { for (let y = Q.floor; y < T - k; y++) O.set(Q.x0 + k, y, z, B.Stone); O.set(Q.x0 + k, T - 1 - k, z, B.Cobble); clearUp(Q.x0 + k, z, T - k, T + 6); }
+      // Blocks to break (the stone detail), the cut stone stacked, the crane, the guard's post
+      for (const [x, z] of SK.QUARRY_STONES) { O.set(x, Q.floor, z, B.Stone); O.set(x + 1, Q.floor, z, B.Stone); O.set(x, Q.floor + 1, z, B.Stone); }
+      for (const [x, z] of [[Q.x0 + 4, Q.z0 + 2], [Q.x0 + 5, Q.z0 + 2], [Q.x0 + 4, Q.z0 + 3]] as const) O.set(x, Q.floor, z, B.StoneBrick);
+      P({ t: 'crane', x: Q.x0 + 6.5, y: Q.floor, z: Q.z1 - 2.5, ry: 0 });
+      P({ t: 'cart', x: Q.x0 + 8.5, y: Q.floor, z: Q.z0 + 2.5, ry: Math.PI / 2 });
+      rect(s, Q.x0 - 1, Q.z0 - 1, Q.x1 + 2, Q.z1 + 2);
+      // The water tank on its legs, filled from the supply boat by the hand pump
+      const K = SK.TANK;
+      for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) for (let y = T; y < T + 8; y++) O.set(K.x + dx, y, K.z + dz, B.OakLog);
+      for (let x = K.x - 2; x <= K.x + 2; x++) for (let z = K.z - 2; z <= K.z + 2; z++) for (let y = T + 8; y < T + 12; y++) {
+        const rim = Math.abs(x - K.x) === 2 || Math.abs(z - K.z) === 2;
+        O.set(x, y, z, y === T + 8 ? B.DarkPlanks : rim ? B.Planks : y === T + 11 ? B.DarkPlanks : B.Water);
+      }
+      rect(s, K.x - 3, K.z - 3, K.x + 4, K.z + 4);
+    }
+
+    // ------------------------------------------------------------------ the lighthouse, the warden's house, the barracks
+    {
+      const Lt = SK.LIGHT;
+      for (let x = Lt.x - 2; x <= Lt.x + 2; x++) for (let z = Lt.z - 2; z <= Lt.z + 2; z++) {
+        const d = Math.max(Math.abs(x - Lt.x), Math.abs(z - Lt.z)), corner = Math.abs(x - Lt.x) === 2 && Math.abs(z - Lt.z) === 2;
+        if (corner) continue;
+        foundation(x, z, T, B.Stone);
+        for (let y = T; y < T + 16; y++) O.set(x, y, z, d === 2 ? (y % 6 < 3 ? B.Whitestone : B.StoneBrick) : B.Air);
+        O.set(x, T + 15, z, B.StoneBrick);
+        if (d <= 1) for (let y = T + 16; y < T + 19; y++) O.set(x, y, z, d === 1 && y < T + 18 ? (x === Lt.x || z === Lt.z ? B.Window : B.Brass) : y === T + 18 ? B.Brass : B.Air);
+      }
+      for (let y = T; y < T + 15; y++) O.set(Lt.x, y, Lt.z, B.Timber);
+      for (let y = T; y < T + 2; y++) O.set(Lt.x, y, Lt.z + 2, B.Air);
+      P({ t: 'glow', x: Lt.x + 0.5, y: T + 17, z: Lt.z + 0.5, r: 9, color: '#fff2c0', lit: true });
+      rect(s, Lt.x - 3, Lt.z - 3, Lt.x + 4, Lt.z + 4);
+      const W = SK.WARDEN;
+      houseInto(O, s, W.x0, W.z0, W.w, W.d, 2, T, 'red', 'n', { role: 'home', wall: B.Sandstone, front: 'quoined', trim: ['shutters', 'boxes'] });
+      for (let x = W.x0 - 2; x <= W.x0 + W.w + 1; x++) if (Math.abs(x - (W.x0 + 5)) > 1) { P({ t: 'fence', x: x + 0.5, y: T, z: W.z0 - 2.5, ry: 0, len: 1 }); O.set(x, T, W.z0 - 3, B.Barrier); }
+      P({ t: 'planter', x: W.x0 + 2.5, y: T, z: W.z0 - 1.2, ry: 0, tint: 1 }); P({ t: 'planter', x: W.x0 + 8.5, y: T, z: W.z0 - 1.2, ry: 0, tint: 2 });
+      rect(s, W.x0 - 3, W.z0 - 4, W.x0 + W.w + 3, W.z0 + W.d + 2);
+      const Br = SK.BARRACKS;
+      houseInto(O, s, Br.x0, Br.z0, Br.w, Br.d, 2, T, 'slate', 's', { role: 'home', wall: B.StoneBrick, front: 'quoined', trim: ['hood'] });
+      rect(s, Br.x0 - 2, Br.z0 - 2, Br.x0 + Br.w + 2, Br.z0 + Br.d + 3);
+    }
+    // The rocks at the foot of the gully under the north-east corner: a shelf at the waterline, driftwood on it
+    {
+      const L = SK.ESCAPE.ledge;
+      for (let dx = -2; dx <= 2; dx++) for (let dz = -1; dz <= 2; dz++) { const x = L.x + dx, z = L.z + dz; for (let y = 2; y <= SEA; y++) O.set(x, y, z, y === SEA ? (hash2(x, z, 5107) < 0.4 ? B.Gravel : B.MossyStone) : B.Stone); clearUp(x, z, SEA + 1, SEA + 5); }
+      O.set(L.x - 1, SEA + 1, L.z + 1, B.OakLog); O.set(L.x, SEA + 1, L.z + 1, B.OakLog);
+      rect(s, L.x - 3, L.z - 2, L.x + 4, L.z + 4);
+    }
+    // Lamps about the top, for the night rounds
+    for (const [x, z] of [[2010, 462], [2024, 470], [2084, 466], [2104, 470], [2084, 444], [2000, 476]] as const) P({ t: 'lantern', x: x + 0.5, y: T, z: z + 0.5, ry: 0 });
   }
 
   /**

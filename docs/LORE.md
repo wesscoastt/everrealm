@@ -679,6 +679,31 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 - **Taken in**, you pay what is owed on the spot, go quietly, or run. Going quietly, or beaten down, the watch's wagon (a black horse, an iron cage) takes you to the gaol: **the Weighhouse cells** under Ansbury, kept by Ezra Gale, or **the Tolbooth** under Callis, kept by Mateu Bosch. You sit your time; picking oakum or lying on the plank bed shortens it; a lockpick gets you out sooner with a worse price on your head. Lodgers: Dick Pender (one rabbit), Moll Tretheway (one lamp, in one window), Quim Soler (waiting on Saltpenny).
 - **Clearing your name:** the **Ropewalk Cellar** under Gullmouth, down a hatch by the Charter Post: Nell Kitto has your name lose itself from every town's book for the price and a quarter again; Abe Rowse buys what you would rather not explain and sells picks. In Morrow, Gil Fenner in Saltpenny has the Brethren speak to the right clerk. Saltpenny keeps no book at all.
 
+- **Skua Rock** (`src/data/skua.ts`, `buildSkuaRock` in `src/world/sites.ts`, `src/game/Rock.ts`): the Charter's prison for the worst it catches, a sheer oval of rock three hundred blocks off Gullmouth, close enough that the convicts hear the town on a still night and see every lamp in it from the yard. Taken in with a price of 1,200 marks or more in one town's book, you don't go to the town cells: the wagon takes you down to Gullmouth's south jetty and **the Tern**, the Charter's black-hulled boat, takes you out in irons with three others and two guards. The landing is cut into the west end; the Steps go up to the sally port; on top stand the cellhouse (forty cells back to back in two rows and two tiers, the utility corridor between them, Broadway down the south side with the mess at its west end and the gun gallery over it), the walled yard with its towers, the work shed with the oilskins drying behind it, the quarry, the lighthouse, the barracks, the water tank and the warden's house. The supply boat takes visitors with the warden's leave.
+- **On the Rock** you're in **B 14** on Broadway, barred in from lights-out at nine till six. By day you have the yard, the work shed and the stone detail: a stint of six blocks broken takes a fifth off what's left of your time. Leave the prison's ground and the tower shouts you back with time added; the current takes swimmers and the guards' boat fishes them out.
+- **The way off**, as **Amos Kitto** has planned it for eleven years and is too old to take: scrape out the vent grille behind your bunk with a sharpened spoon handle, take four oilskins off the work shed's lines for a float, then through the vent into the utility corridor, up the ladder, out through the roof hatch, down the drainpipe at the north-east corner and the gully to the rocks, and push off for the dunes north of Gullmouth in the dark. Gullmouth's price on you goes up by half again and three hundred more. **Mags Tregear** will forge a release in the warden's hand for two marks a second of your time.
+
+| Name | Role | Wants | Won't admit |
+| --- | --- | --- | --- |
+| **Ruth Ashdown** | Warden of Skua Rock | Every one counted in and out | She admires the one who got away |
+| **Nance Pollard** | Sergeant of the landing | Nobody landing without leave | She can't read past the stamp |
+| **Will Yelland** | Guard, the cellhouse | Lights out on time | He's frightened of Saul Brack |
+| **Amos Kitto** | Eleven years on the Rock; robbed the Charter's pay chest | Somebody to go | Nell Kitto under the Ropewalk is his daughter, and clears every name but his |
+| **Dory Penhale** | Came out on the Tern; a boy | His mother not to worry | His brother never did six years on the Rock; Dory made it up on the boat to sound hard |
+| **Saul Brack** | Was captain of the Gannet, for the Brethren | His ship back from Ned Vey | He knows who sold him |
+| **Mags Tregear** | Forger; did the Assembly's seal for eleven months | Steady hands | She spelled Callis wrong on purpose |
+| **Jenna Penhale** | Fishwife, Gullmouth's fish quay | Her boy home | She reads his letters twice |
+
+- **A Letter for Gullmouth** (Dory Penhale): Dory won't let the warden read what he writes to his mother; carry his letter to Jenna Penhale on the fish quay when you're off the Rock.
+
+## Ships of your own [in game]
+
+- **The yards** (`src/data/naval.ts`, `src/game/Sailing.ts`, `src/data/content/naval.ts`): **Hal Treloar** on Gullmouth's quay, **Kester Bligh** at the Careen in the Teeth (Brethren-built: they sail), and **Pau Ferrer** for the Assembly's yard at Callis (everything in triplicate). Any of them hires you a ship by the hour, lays one down for you if you bring the timber, cable, sailcloth, iron fittings and tar, brings yours round to the berth, raises her if she's sunk (a tenth of what she cost), and paints and names her. Three keels to a captain.
+- **The ships:** the **cutter** (one mast, two guns a side, quick: the revenue's favourite and the smuggler's), the **brig** (two masts square-rigged, four a side: the Brethren's working ship) and the **frigate** (three masts and a gun deck, seven a side; the Assembly has four). Cable comes from Rook's Ropewalk, sailcloth and tar from Hal, fittings from any anvil, tar from pine at a furnace.
+- **Sailing:** sail set and taken in, the helm over, and the **wind**, which is everyone's and backs and veers round the compass over the hours: across it or behind it a ship runs, up into it she stops. Her guns are on her sides, so you fight her by turning her: bring the other ship abeam and fire.
+- **The lanes:** **Brethren raiders** (cutters, and brigs further out) work the sea east of the Mewstones and out across the open water toward Morrow; **revenue cutters** off Gullmouth come for captains with a price on them. Out in **the Freewater**, the open sea between the continents, any captain may fire on any other, and the realm keeps the score.
+- **First Command** (Hal Treloar): take a ship out into the lanes east of the Mewstones and put a Brethren raider on the bottom, and come back and tell Hal how she handled.
+
 ## Morrow, the second continent
 
 The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, Kingsbarrow, the Brethren, ships and the later chapters) is still planned in docs/MORROW.md.

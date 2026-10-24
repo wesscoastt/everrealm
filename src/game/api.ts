@@ -19,6 +19,8 @@ export interface GameApi {
   homeHolder(id: string): string | null;
   /** Hire a rowing boat from the nearest boatman (data/content/boats.ts) and put the player in her. */
   hireBoat(): void;
+  /** At a shipwright (data/naval.ts, game/Sailing.ts): hire, build, call round, raise, paint or name a ship. */
+  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name', arg?: string): void;
   fairOn(): boolean;
   fairPlay(game: string): void;
   fairPlaysLeft(game: string): number;

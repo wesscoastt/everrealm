@@ -80,7 +80,7 @@ const rosie: DialogueTree = {
 };
 
 const shops: Record<string, ShopDef> = {
-  jem_rope: { id: 'jem_rope', name: 'Rook\'s Ropewalk', owner: 'jem_rope', stock: [{ item: 'furn_coil', price: 18 }], buyRate: () => 0.5, footer: () => 'Laid here, tarred here' } as ShopDef,
+  jem_rope: { id: 'jem_rope', name: 'Rook\'s Ropewalk', owner: 'jem_rope', stock: [{ item: 'furn_coil', price: 18 }, { item: 'ship_cable', price: 26 }], buyRate: () => 0.5, footer: () => 'Laid here, tarred here' } as ShopDef,
 };
 
 export const ROPEWALK_CONTENT: RegionContent = { id: 'ropewalk', items, npcs, dialogue: { jem_rope: jem, rosie_rope: rosie }, shops };

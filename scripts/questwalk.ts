@@ -99,6 +99,7 @@ class Mock implements GameApi {
   markOnMap() {}
   homeHolder() { return null; }
   hireBoat() {}
+  naval() {}
   fairOn() { return true; }
   fairPlay() {}
   fairPlaysLeft() { return 3; }

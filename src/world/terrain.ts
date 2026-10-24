@@ -170,6 +170,26 @@ export function sickleDist(x: number, z: number): number {
   return Math.min(half - Math.abs(r - SICKLE_R), (Math.abs(a) - SICKLE_MOUTH) * r);
 }
 
+// ------------------------------------------------------------------ Skua Rock
+// The Charter's prison, a sheer rock in the bay three hundred blocks off Gullmouth, in sight of the
+// harbour: an oval of cliff seventeen blocks high with the prison on its flat top and a landing shelf
+// cut at the west end, facing the town (data/skua.ts, world/sites.ts buildSkuaRock).
+export const SKUA = { x: 2060, z: 470 };
+/** The rock's half-length (along x) and half-width (along z), and the height of its top. */
+export const SKUA_A = 100, SKUA_B = 45, SKUA_TOP = SEA + 18;
+/** Inland distance from Skua Rock's shore (negative at sea). */
+export function skuaDist(x: number, z: number): number {
+  if (Math.abs(x - SKUA.x) > 180 || Math.abs(z - SKUA.z) > 120) return -999;
+  const qx = x + (fbm2(x / 40, z / 40, 2, 801) - 0.5) * 14, qz = z + (fbm2(x / 40 + 7, z / 40, 2, 802) - 0.5) * 14;
+  const r = Math.hypot((qx - SKUA.x) / SKUA_A, (qz - SKUA.z) / SKUA_B);
+  return (1 - r) * SKUA_B;
+}
+/** The rock's height: sheer cliffs straight up out of the water to a flat top, a few blocks of rubble at the foot. */
+function skuaHeight(x: number, z: number, L: number): number {
+  const top = SKUA_TOP + (fbm2(x / 30, z / 30, 2, 803) - 0.5) * 3;
+  return Math.min(top, SEA + 1 + L * 3.2 + (fbm2(x / 8, z / 8, 2, 804) - 0.5) * 3);
+}
+
 export function regionAt(x: number, z: number): RegionSample {
   if (inMorrow(x)) { const r = morrowRegionId(x, z); return { a: r, b: r, t: 0 }; }
   // Hollindale: the vale, and the hills and shore beyond its north and west edges
@@ -322,7 +342,8 @@ export function coastDist(x: number, z: number): number {
 function seaBed(x: number, z: number, off: number): number {
   const n2 = fbm2(x / 55, z / 55, 3, 12);
   const floor = Math.max(3, SEA - 3 - Math.min(9, off * 0.12) - n2 * 3);
-  if (off < 6 || off > 130) return floor;
+  // (no stacks in the water round Skua Rock: the prison boat's way in, and the sea the guards watch)
+  if (off < 6 || off > 130 || skuaDist(x, z) > -80) return floor;
   const sx = Math.floor(x / 9), sz = Math.floor(z / 9);
   const stack = hash2(sx, sz, 16);
   if (stack <= 0.985) return floor;
@@ -565,7 +586,7 @@ export function outerLandDist(x: number, z: number): number {
     const qx = x + (fbm2(x / 90, z / 90, 2, 718) - 0.5) * 90, qz = z + (fbm2(x / 90 + 5, z / 90, 2, 719) - 0.5) * 90;
     d = Math.max(d, r - Math.hypot(qx - m.x, qz - m.z));
   }
-  return Math.max(d, inkDist(x, z), kellDist(x, z), sickleDist(x, z));
+  return Math.max(d, inkDist(x, z), kellDist(x, z), sickleDist(x, z), skuaDist(x, z));
 }
 
 /** Positive on a neck of land across the sound (its distance in from the neck's edge). */
@@ -584,6 +605,7 @@ export function landDist(x: number, z: number): number {
 function outerHeight(x: number, z: number, d0: number): number {
   const L = outerLandDist(x, z);
   if (L < 0) return seaBed(x, z, Math.min(-L, d0 < 0 ? -d0 : 999));
+  { const k = skuaDist(x, z); if (k >= L - 0.01) return skuaHeight(x, z, k); }
   const r = regionAt(x, z);
   // The Fleet Coast's own heights are its mainland shore; out here it's the Mewstones: rolling isles
   const rh = (id: RegionId) => id === 'saltwind' ? SEA + 8 + fbm2(x / 90, z / 90, 3, 741) * 24 + (fbm2(x / 30, z / 30, 2, 742) - 0.5) * 4 : regionHeight(id, x, z);
@@ -608,6 +630,8 @@ function neckHeight(x: number, z: number, n: number): number {
 /** Base terrain height before site flattening (also used to place sites). */
 export function baseHeight(x: number, z: number): number {
   if (inMorrow(x)) return morrowHeight(x, z);
+  // (Skua Rock stands in the heartland's own sea, inside the band where the outer lands take over)
+  { const k = skuaDist(x, z); if (k >= 0) return skuaHeight(x, z, k); }
   const h0 = heartHeight(x, z);
   if (inHeart(x, z)) return h0;
   const d0 = coastDist(x, z);

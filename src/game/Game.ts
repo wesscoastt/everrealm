@@ -59,6 +59,8 @@ import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
 import { Justice } from './Justice';
 import { Voyage, type Harbour } from './Voyage';
+import { Sailing, type ShipState } from './Sailing';
+import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
 import { CRIME, JURISDICTIONS, jurisdictionAt } from '../data/justice';
 import '../data/pledges';
 import { Doll } from '../ui/Doll';
@@ -291,6 +293,12 @@ export class Game implements GameApi {
   private underCover = false;
   /** The Constant under way with you aboard, between the lands (game/Voyage.ts). */
   voyage!: Voyage;
+  /** Ships of your own under sail, the raiders and the guns (game/Sailing.ts). */
+  sailing!: Sailing;
+  /** The camera's distance before you took a ship's helm, to go back to. */
+  private rigBeforeHelm = 0;
+  private shipPanel: HTMLDivElement | null = null;
+  private shipPanelT = 0;
   /** A pose the law holds you in (on the wagon's bench, picking oakum, lying in a cell). */
   private lawPose: AnimState | null = null;
   private doll = new Doll();
@@ -773,6 +781,17 @@ export class Game implements GameApi {
       scene: this.scene, props: this.world.props, player: this.player,
       sfx: (n, v) => this.sfx(n as Sfx, v), banner: (t, sub) => this.hud.banner(t, sub, true),
     });
+    this.sailing = new Sailing({
+      scene: this.scene, props: this.world.props, voxels: this.world.voxels,
+      sfx: (n, v) => this.sfx(n as Sfx, v), system: (t) => this.hud.system(t), banner: (t, sub) => this.hud.banner(t, sub, true),
+      floatAt: (pos, h, text, kind) => this.floatAt(pos, h, text, kind),
+      sank: (kind, name, at) => this.raiderSunk(kind.id, kind.name, kind.level, kind.marks, kind.plunder, name, at),
+      lost: () => this.shipLost(),
+      wanted: () => this.justice.prices()[0]?.n ?? 0,
+      sendState: (st) => { if (this.online.online) this.online.shipState(st); },
+      sendHit: (name, dmg) => { if (this.online.online) this.online.shipHit(name, dmg); },
+      sendSunk: (by) => { if (this.online.online) this.online.shipSunk(by); },
+    });
     this.justice = new Justice({
       noticed: () => this.companions?.event('crime'),
       scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
@@ -802,6 +821,14 @@ export class Game implements GameApi {
       hudHidden: (on) => this.hud.setHudHidden(on),
       lockpick: () => { const T = TIERS[1]; return this.hud.lockpick(T.name, T.pins, T.zone, T.speed, () => this.inv.count('lockpick'), () => { this.inv.remove('lockpick', 1); this.sfx('pickSnap' as Sfx); }); },
       busy: () => !!this.dialogue || this.dead || !!this.cine,
+      props: this.world.props, hour: () => this.world.sky.hour,
+      count: (it) => this.inv.count(it), give: (it, n = 1) => this.give(it, n), take: (it, n = 1) => { this.inv.remove(it, n); this.hud.refresh(); },
+      lockDoorway: (x, y0, z, shut) => {
+        const V = this.world.voxels;
+        if (!V.isLoaded(x, z)) return;
+        for (const y of [y0, y0 + 1]) { const b = V.get(x, y, z); if (shut && b === B.Air) V.set(x, y, z, B.Barrier); else if (!shut && b === B.Barrier) V.set(x, y, z, B.Air); }
+        for (const d of this.world.doors()) if (Math.abs(d.hinge.y - y0) < 2 && Math.abs(d.hinge.x - x - 0.5) < 1.6 && Math.abs(d.hinge.z - z - 0.5) < 1.6) d.locked = shut;
+      },
     });
     this.festivals = new Festivals({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
@@ -1163,6 +1190,13 @@ export class Game implements GameApi {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
         const where = this.myVilla() ? { lot: this.myVilla()!.id } : readPlot(this.flag('plot'));
         this.hud.ask(`${from} would like to visit your home.`, () => this.online.homeShow(from, true, this.home.pieces(), where), () => this.online.homeShow(from, false, null), 60);
+      },
+      shipState: (name: string, st: unknown) => this.sailing.remoteShip(name, st as ShipState | null),
+      shipHurt: (from: string, dmg: number) => this.sailing.hurtByRemote(dmg, from),
+      shipKill: (name: string) => {
+        this.setFlag('captainsSunk', Number(this.flag('captainsSunk') ?? 0) + 1);
+        this.hud.banner(`${name}'s ship is going down`, 'Sunk in the Freewater', true);
+        this.sfx('quest');
       },
       homeShow: (owner: string, pieces: unknown[], plot: unknown) => {
         const vl = VILLA_BY_ID.get(String((plot as { lot?: unknown } | null)?.lot ?? ''));
@@ -2056,6 +2090,178 @@ export class Game implements GameApi {
       this.hud.refresh();
       this.persist();
     }), () => {}, 30);
+  }
+
+  /** Ships of your own, as saved: what she is, how she's painted, how she was left, and whether she's on the bottom. */
+  private myShips(): { hull: HullId; livery: Livery; hp: number; sunk?: boolean }[] {
+    const v = this.flag('ships');
+    return Array.isArray(v) ? (v as { hull: HullId; livery: Livery; hp: number; sunk?: boolean }[]).filter((x) => x && x.hull in HULLS && x.livery) : [];
+  }
+  private nearestBerth() { const P = this.player.position; return BERTHS.slice().sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; }
+  private defaultLivery(id: HullId): Livery { return { hull: HULL_PAINTS[0], wale: WALE_PAINTS[0], sail: SAIL_CLOTHS[0], name: `${this.save.name}'s ${HULLS[id].name}` }; }
+
+  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name', arg?: string): void {
+    const berth = this.nearestBerth(), ships = this.myShips();
+    const sailOut = (hull: HullId, livery: Livery, hp?: number) => {
+      if (this.horse) this.dismount(true);
+      this.boat.aboard = false;
+      this.sailing.launch(hull, livery, berth.x, berth.z, berth.heading, hp);
+      this.takeHelm();
+      this.sfx('bell' as Sfx, 0.6);
+    };
+    if (action === 'hire') {
+      const id = (arg as HullId) in HULLS ? arg as HullId : 'cutter', h = HULLS[id];
+      if (this.save.marks < h.hire) { this.hud.system(`A ${h.name.toLowerCase()} is ${h.hire} marks for the hour.`); this.sfx('fail'); return; }
+      this.addMarks(-h.hire);
+      this.setFlag('shipHire', { hull: id, until: Date.now() + 3600_000 });
+      sailOut(id, { hull: '#3a2a1e', wale: '#7a2a1e', sail: '#efe3c4', name: 'Yard ' + h.name }, h.hp);
+      this.hud.system(`The yard's ${h.name.toLowerCase()} is yours for the hour. W and S set and take in sail, A and D the helm. F fires the broadside on the side you're looking at (Z port, C starboard). Mind the wind.`);
+      this.persist();
+      return;
+    }
+    if (action === 'build') {
+      const id = (arg as HullId) in HULLS ? arg as HullId : 'cutter', h = HULLS[id];
+      if (ships.length >= 3) { this.hud.system('The yard won\'t lay down a fourth keel for one captain. Three ships is a fleet.'); return; }
+      for (const [it, n] of Object.entries(h.build.items)) if (this.inv.count(it) < n) { this.hud.system(`For a ${h.name.toLowerCase()} the yard needs ${n} ${ITEMS[it]?.name ?? it}, and you have ${this.inv.count(it)}.`); this.sfx('fail'); return; }
+      if (this.save.marks < h.build.marks) { this.hud.system(`The yard wants ${h.build.marks.toLocaleString()} marks for the labour, and you have ${this.save.marks.toLocaleString()}.`); this.sfx('fail'); return; }
+      for (const [it, n] of Object.entries(h.build.items)) this.inv.remove(it, n);
+      this.addMarks(-h.build.marks);
+      this.setFlag('ships', [...ships, { hull: id, livery: this.defaultLivery(id), hp: h.hp }]);
+      this.hud.banner('Launched', `Your ${h.name.toLowerCase()} is in the water`, true);
+      this.sfx('levelUp');
+      this.hud.system('Ask at any shipwright to bring her round, paint her or name her.');
+      this.hud.refresh();
+      this.persist();
+      return;
+    }
+    const i = Math.max(0, Math.min(ships.length - 1, Number(arg ?? 0) || 0)), sh = ships[i];
+    if (!sh) { this.hud.system('You have no ship of your own at the yard.'); return; }
+    if (action === 'call') {
+      if (sh.sunk) { this.hud.system(`The ${sh.livery.name} is on the bottom. The yard can raise her for ${Math.round(HULLS[sh.hull].build.marks * SALVAGE)} marks.`); return; }
+      sailOut(sh.hull, sh.livery, sh.hp);
+      this.setFlag('shipOut', i);
+      this.hud.system(`The ${sh.livery.name} comes round to the berth.`);
+      return;
+    }
+    if (action === 'salvage') {
+      const cost = Math.round(HULLS[sh.hull].build.marks * SALVAGE);
+      if (!sh.sunk) { this.hud.system(`The ${sh.livery.name} is afloat. Nothing to raise.`); return; }
+      if (this.save.marks < cost) { this.hud.system(`Raising her is ${cost} marks. You have ${this.save.marks}.`); this.sfx('fail'); return; }
+      this.addMarks(-cost);
+      this.setFlag('ships', ships.map((x, k) => (k === i ? { ...x, sunk: false, hp: HULLS[x.hull].hp } : x)));
+      this.hud.system(`The yard's divers and the sheer hulk have her up. The ${sh.livery.name} is sound again.`);
+      this.persist();
+      return;
+    }
+    if (action === 'paint' || action === 'sail' || action === 'name') {
+      const L = { ...sh.livery };
+      if (action === 'paint') { const k = HULL_PAINTS.indexOf(L.hull); L.hull = HULL_PAINTS[(k + 1) % HULL_PAINTS.length]; L.wale = WALE_PAINTS[(WALE_PAINTS.indexOf(L.wale) + (k % 2 ? 1 : 0) + 1) % WALE_PAINTS.length]; }
+      if (action === 'sail') L.sail = SAIL_CLOTHS[(SAIL_CLOTHS.indexOf(L.sail) + 1) % SAIL_CLOTHS.length];
+      if (action === 'name') { const names = ['Plover', 'Swift', 'Constance', 'Good Intent', 'Margery', 'Kestrel', 'Second Chance', 'Fair Wind', 'Wren', 'Last Word']; L.name = names[(names.indexOf(L.name) + 1) % names.length]; }
+      this.setFlag('ships', ships.map((x, k) => (k === i ? { ...x, livery: L } : x)));
+      this.hud.system(action === 'name' ? `She's the ${L.name} now, in gilt on her stern.` : 'The yard\'s painters go over her. She\'ll be dry by morning.');
+      this.persist();
+    }
+  }
+
+  /** Take the helm of your ship: the camera pulled back to see all of her. */
+  private takeHelm(): void {
+    const sh = this.sailing.mine;
+    if (!sh) return;
+    this.cancelActions();
+    this.seated = null;
+    this.emote = null;
+    this.sailing.atHelm = true;
+    if (!this.rigBeforeHelm) this.rigBeforeHelm = this.rig.distance;
+    this.rig.distance = Math.max(this.rig.distance, 10 + sh.hull.len * 0.9);
+    sh.helm(this.player.position);
+    this.player.velocity.set(0, 0, 0);
+  }
+
+  /** Off the helm: onto the shore beside her (she's left moored there), or over the side into the sea. */
+  private leaveHelm(to: THREE.Vector3 | null): void {
+    const sh = this.sailing.mine;
+    this.sailing.atHelm = false;
+    if (this.rigBeforeHelm) { this.rig.distance = this.rigBeforeHelm; this.rigBeforeHelm = 0; }
+    const P = this.player;
+    if (to) P.teleport(to.x, to.y, to.z);
+    else if (sh) { const side = sh.side(1); P.teleport(sh.pos.x + side.x * (sh.hull.beam * 0.5 + 1.5), SEA - 0.5, sh.pos.z + side.z * (sh.hull.beam * 0.5 + 1.5)); }
+    P.velocity.set(0, 0, 0);
+    P.fallStartY = P.position.y;
+    if (!sh) return;
+    // Your own ship remembers how she was left; a hired one whose hour is up goes back to the yard
+    const out = Number(this.flag('shipOut') ?? -1), ships = this.myShips();
+    if (out >= 0 && ships[out]) this.setFlag('ships', ships.map((x, k) => (k === out ? { ...x, hp: Math.round(sh.hp) } : x)));
+    const hire = this.flag('shipHire') as { until: number } | null;
+    if (hire && hire.until < Date.now() && out < 0) { this.sailing.stow(); this.setFlag('shipHire', null); this.hud.system('The yard\'s boy takes her back round to the berth.'); }
+  }
+
+  /** Dry land beside her to step onto: within a few blocks of her side, a little above the sea. */
+  private shipShore(): THREE.Vector3 | null {
+    const sh = this.sailing.mine;
+    if (!sh) return null;
+    const V2 = this.world.voxels, r = Math.ceil(sh.hull.beam * 0.5 + 3);
+    let best: THREE.Vector3 | null = null, bd = Infinity;
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      const x = Math.floor(sh.pos.x) + dx, z = Math.floor(sh.pos.z) + dz;
+      if (!V2.isLoaded(x, z)) continue;
+      const g = V2.groundBelow(x + 0.5, SEA + 6, z + 0.5);
+      if (g < SEA + 0.5 || g > SEA + 5 || V2.get(x, g - 1, z) === B.Water || isSolid(V2.get(x, g, z)) || isSolid(V2.get(x, g + 1, z))) continue;
+      const d = Math.hypot(x + 0.5 - sh.pos.x, z + 0.5 - sh.pos.z);
+      if (d < bd) { bd = d; best = new THREE.Vector3(x + 0.5, g, z + 0.5); }
+    }
+    return best;
+  }
+
+  /** A raider sunk by your guns: what floats up, what the Charter pays for it, and the feat. */
+  private raiderSunk(id: string, kindName: string, level: number, marks: [number, number], plunder: [string, number, number][], name: string, _at: THREE.Vector3): void {
+    const m = marks[0] + Math.floor(Math.random() * (marks[1] - marks[0] + 1));
+    this.addMarks(m);
+    const got: string[] = [];
+    for (const [it, a, b] of plunder) { const n = a + Math.floor(Math.random() * (b - a + 1)); if (n > 0 && ITEMS[it] && this.give(it, n)) got.push(`${n} ${ITEMS[it].name}`); }
+    this.addXp('melee', level * 18);
+    this.setFlag('raidersSunk', Number(this.flag('raidersSunk') ?? 0) + 1);
+    this.setFlag('sunk:' + id, Number(this.flag('sunk:' + id) ?? 0) + 1);
+    this.hud.banner(`The ${name} is going down`, `${kindName}, sunk`, true);
+    this.hud.system(`You pick ${m} marks${got.length ? ' and ' + got.join(', ') : ''} out of the wreckage.`);
+    this.sfx('quest');
+    this.hud.setTracker(this.questEntries());
+  }
+
+  /** Your ship went down under you: you're in the sea where she was; your own goes on the yard's books to be raised. */
+  private shipLost(): void {
+    this.sailing.atHelm = false;
+    if (this.rigBeforeHelm) { this.rig.distance = this.rigBeforeHelm; this.rigBeforeHelm = 0; }
+    const out = Number(this.flag('shipOut') ?? -1), ships = this.myShips();
+    if (out >= 0 && ships[out]) this.setFlag('ships', ships.map((x, k) => (k === out ? { ...x, sunk: true, hp: 0 } : x)));
+    this.setFlag('shipOut', null);
+    this.setFlag('shipHire', null);
+    this.player.velocity.set(0, 0, 0);
+    this.hud.system(out >= 0 ? 'She\'s gone. Swim for it. Any shipwright can raise her again, for a tenth of what she cost.' : 'The yard\'s ship is gone, and the yard will want words. Swim for it.');
+    this.persist();
+  }
+
+  /** The panel over the hotbar while you've the helm: wind, sail, speed, hull, and the guns either side. */
+  private updateShipPanel(dt: number): void {
+    const sh = this.sailing.mine, on = !!sh && this.sailing.atHelm;
+    if (!on) { if (this.shipPanel) { this.shipPanel.remove(); this.shipPanel = null; } return; }
+    this.shipPanelT -= dt;
+    if (this.shipPanelT > 0 && this.shipPanel) return;
+    this.shipPanelT = 0.2;
+    if (!this.shipPanel) {
+      const el = document.createElement('div');
+      el.id = 'shippanel';
+      el.style.cssText = 'position:fixed;left:50%;bottom:118px;transform:translateX(-50%);padding:8px 14px;border-radius:10px;background:rgba(18,20,26,.72);color:#f2ead8;font:600 13px/1.45 Alegreya,serif;pointer-events:none;text-align:center;min-width:300px;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+      document.body.appendChild(el);
+      this.shipPanel = el;
+    }
+    const w = this.sailing.wind(), from = (w.dir + Math.PI) % (Math.PI * 2);
+    const pts = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+    // (north is -z, east +x: the wind comes from the opposite of where it blows)
+    const comp = pts[Math.round(((Math.atan2(Math.sin(from), -Math.cos(from)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
+    const gun = (i: number) => (sh!.reload[i] > 0 ? `${sh!.reload[i].toFixed(1)}s` : 'ready');
+    const foe = this.sailing.nearestFoe();
+    this.shipPanel.innerHTML = `<b>${sh!.livery.name}</b> &nbsp;·&nbsp; hull ${Math.max(0, Math.round(sh!.hp))}/${sh!.hull.hp} &nbsp;·&nbsp; ${['sails furled', 'fighting sail', 'all plain sail'][sh!.sails]} &nbsp;·&nbsp; ${(sh!.speed * 0.9).toFixed(1)} knots<br>wind from the ${comp}, ${w.strength > 0.85 ? 'fresh' : w.strength > 0.65 ? 'steady' : 'light'} &nbsp;·&nbsp; port guns ${gun(0)} &nbsp;·&nbsp; starboard guns ${gun(1)}${foe && foe.d < 300 ? ` &nbsp;·&nbsp; <span style="color:#ff9a7a">${foe.ship.npc?.name ?? foe.ship.remote ?? 'a ship'} ${Math.round(foe.d)} off</span>` : ''}`;
   }
 
   arrangeHome(): void { this.hud.closeAll(); if (this.home.active) this.home.stop(); else this.home.start(); }
@@ -3810,6 +4016,17 @@ export class Game implements GameApi {
         }
       }
     }
+    // Your ship: step ashore when she's alongside, take her helm again when she's moored and you're by her
+    {
+      const sh = this.sailing.mine;
+      if (sh && this.sailing.atHelm && sh.sinking < 0) {
+        const to = this.shipShore();
+        if (to) consider({ kind: 'act', label: 'Step ashore', pos: to.clone().setY(to.y + 0.6), act: () => this.leaveHelm(to) }, 0.1);
+      } else if (sh && !this.sailing.atHelm && sh.sinking < 0) {
+        const d = Math.hypot(sh.pos.x - p.x, sh.pos.z - p.z);
+        if (d < sh.hull.len * 0.5 + 5 && p.y > SEA - 1) consider({ kind: 'act', label: `Take the helm of the ${sh.livery.name}`, pos: sh.helm(new THREE.Vector3()).setY(p.y + 1), act: () => this.takeHelm() }, Math.max(0.5, d - sh.hull.len * 0.4));
+      }
+    }
     // A parcel waiting: collect it at any post box
     if (this.parcel.length) for (const pt of POSTS) {
       const b = postBoxOf(pt), d = Math.hypot(b.x - p.x, b.z - p.z);
@@ -5017,6 +5234,8 @@ export class Game implements GameApi {
    */
   private downFor = 3.5;
   private die(): void {
+    // (in god mode, the trailer's and the tester's, nothing puts you down: hazards and drowning included)
+    if (this.dev.god) { this.hp = this.maxHp; return; }
     this.hp = 0;
     this.dead = true;
     this.deadTimer = 0;
@@ -5313,6 +5532,8 @@ export class Game implements GameApi {
     const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos), ...this.crowd.movers()];
     updateDoors(this.world.doors(), dt, movers, P, (open) => this.sfx(open ? 'doorOpen' : 'doorShut', 0.6));
     this.voyage.update(dt);
+    this.sailing.update(dt, P);
+    this.updateShipPanel(dt);
     this.rig.ceiling = this.player.underwater ? this.player.waterTop - 0.3 : Infinity; // follow a diver down
     this.rig.update(dt, this.horse ? tmpV.set(P.x, P.y + 0.9, P.z) : P);
     const ind = this.world.shared.uIndoor;
@@ -5629,6 +5850,8 @@ export class Game implements GameApi {
     if (this.post.active) { const st = this.post.seat(); if (this.dead || Math.hypot(P.position.x - st.x, P.position.z - st.z) > 4) this.endRide(false, true); }
     // Out of the boat if you've died, or been carried off elsewhere (a waymark, a summons)
     if (this.boat.aboard && (this.dead || P.position.distanceTo(this.boat.seat(new THREE.Vector3())) > 3)) this.boat.aboard = false;
+    // ...and off a ship's helm the same way
+    if (this.sailing.atHelm && this.sailing.mine && (this.dead || P.position.distanceTo(this.sailing.mine.helm(new THREE.Vector3())) > 4)) { this.sailing.atHelm = false; if (this.rigBeforeHelm) { this.rig.distance = this.rigBeforeHelm; this.rigBeforeHelm = 0; } }
     if (this.post.active) {
       // On the post cart: she goes where she's going; you look about
       const done = this.post.update(dt), st = this.post.seat();
@@ -5641,6 +5864,25 @@ export class Game implements GameApi {
       fall = 0;
       if (done) this.endRide(true);
       else if (jump) this.endRide(false);
+    } else if (this.sailing.mine && this.sailing.atHelm) {
+      // At a ship's helm: W and S set and take in sail, A and D the helm, F fires the broadside on the side
+      // you're looking toward (Z port, C starboard), Space over the side (game/Sailing.ts)
+      const sh = this.sailing.mine, I = this.input, free = !this.dialogue && !this.fair.playing;
+      const sails = free ? (I.pressedOnce('KeyW') || I.pressedOnce('ArrowUp') ? 1 : 0) - (I.pressedOnce('KeyS') || I.pressedOnce('ArrowDown') ? 1 : 0) : 0;
+      const turn = free ? (I.held('KeyA') || I.held('ArrowLeft') ? 1 : 0) - (I.held('KeyD') || I.held('ArrowRight') ? 1 : 0) : 0;
+      let fire: -1 | 0 | 1 = 0;
+      if (free && I.pressedOnce('KeyZ')) fire = -1;
+      else if (free && I.pressedOnce('KeyC')) fire = 1;
+      else if (free && I.pressedOnce('KeyF')) { const look = this.rig.yaw - Math.PI, off = Math.atan2(Math.sin(look - sh.yaw), Math.cos(look - sh.yaw)); fire = off < 0 ? 1 : -1; }
+      this.sailing.steer(dt, sails, turn, fire);
+      sh.helm(P.position);
+      P.velocity.set(0, 0, 0);
+      P.yaw = sh.yaw;
+      P.fallStartY = P.position.y;
+      P.model.root.position.copy(P.position);
+      P.model.root.rotation.y = sh.yaw;
+      fall = 0;
+      if (jump) this.leaveHelm(null);
     } else if (this.boat.aboard) {
       // Rowing: W and S pull and back the oars, A and D turn her, Space over the side (game/Rowboat.ts)
       const b = this.boat, I = this.input, free = !this.dialogue && !this.fair.playing;

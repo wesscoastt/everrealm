@@ -125,6 +125,10 @@ export interface OnlineHooks {
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
   homeAsked?(from: string): void;
   homeShow?(owner: string, pieces: unknown[], plot: unknown): void;
+  /** Ships at sea (game/Sailing.ts, server/naval.mjs): another captain's ship (null: gone), a ball that struck yours, a ship you sank. */
+  shipState?(name: string, st: unknown): void;
+  shipHurt?(from: string, dmg: number): void;
+  shipKill?(name: string): void;
   /** The realm's book of homes (server/homes.mjs): all of it on coming in, then each change, and the answer to a claim. */
   homes?(list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null): void;
   home?(id: string, home: HomeHeld | null): void;
@@ -293,6 +297,9 @@ export class Online {
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
       case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
       case 'hShow': this.hooks.homeShow?.(String(m.owner), Array.isArray(m.pieces) ? m.pieces : [], m.plot ?? null); break;
+      case 'shS': this.hooks.shipState?.(String(m.name), m.st ?? null); break;
+      case 'shHurt': this.hooks.shipHurt?.(String(m.from), Math.max(0, Math.min(200, Number(m.dmg) || 0))); break;
+      case 'shKill': this.hooks.shipKill?.(String(m.name)); break;
       case 'homes': this.hooks.homes?.((m.list ?? {}) as Record<string, HomeHeld>, typeof m.mine === 'string' ? m.mine : null, typeof m.lapsed === 'string' ? m.lapsed : null); break;
       case 'home': if (typeof m.id === 'string') this.hooks.home?.(m.id, (m.home ?? null) as HomeHeld | null); break;
       case 'hClaimed': if (typeof m.id === 'string') this.hooks.homeClaimed?.(m.id, !!m.ok, String(m.why ?? ''), String(m.owner ?? '')); break;
@@ -501,6 +508,9 @@ export class Online {
   /** The latest reports (the keeper's accounts only). */
   reportsList(): void { this.emit({ t: 'reports' }); }
   homeShow(name: string, accept: boolean, pieces: unknown[] | null, plot: unknown = null): void { this.emit({ t: 'hShow', name, accept, pieces, plot }); }
+  shipState(st: object | null): void { this.emit({ t: 'shS', st }); }
+  shipHit(name: string, dmg: number): void { this.emit({ t: 'shHit', name, dmg }); }
+  shipSunk(by: string | null): void { this.emit({ t: 'shSunk', by }); }
   /** The book of homes: lease one (spec: plans it's already built to), give it up, build or rebuild, lay blocks by hand. */
   homeClaim(id: string, spec?: unknown, blocks?: unknown): void { this.emit({ t: 'hClaim', id, spec, blocks }); }
   homeRelease(id: string): void { this.emit({ t: 'hRelease', id }); }

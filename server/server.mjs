@@ -64,6 +64,7 @@ import { musicInit } from './music.mjs';
 import { uniquesInit } from './uniques.mjs';
 import { storeInit } from './store.mjs';
 import { homesInit } from './homes.mjs';
+import { navalInit } from './naval.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -513,6 +514,7 @@ const guilds = guildsInit({ players, send, broadcast, readJson, writeJson, dataD
 // (the homes book and the Exchange know each other: a stall sells through the Exchange, and a lot given up sends its stall's stock home)
 let exchange = null;
 const homes = homesInit({ players, send, readJson, writeJson, dataDir: DATA, log, onVacate: (key, id) => exchange?.closeStall(key, id) });
+const naval = navalInit({ players, send });
 exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log, homeOf: (key) => homes.mineOf(key) });
 const mail = mailInit({ players, send, readJson, writeJson, dataDir: DATA, keyFor, nameOf: (key) => loadChar(key)?.name ?? null, log });
 const finder = finderInit({ players, send, log, social });
@@ -574,7 +576,7 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
@@ -717,6 +719,7 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     if (!me) return;
     finder.leave(me);
+    naval.leave(me);
     social.leave(me);
     guilds.leave(me);
     players.delete(me.id);

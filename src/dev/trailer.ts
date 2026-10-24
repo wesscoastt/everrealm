@@ -248,6 +248,9 @@ async function settle(g: G, f: THREE.Vector3, secs = 120, reach = 90): Promise<v
 /** quick: a few frames a shot, to try the whole pipeline in a minute or two. */
 export async function makeTrailer(g: G, E: G, progress: (s: string) => void, quick = false): Promise<Uint8Array> {
   (window as G).__erHold = true;
+  // Nothing may kill the camera's hero while a shot loads: a death sends them home to Hollin Ford, the
+  // world loads round them there, and the shot is left looking at the stand-ins for a place nobody is in
+  g.dev.god = true;
   g.hud.closeAll();
   g.rig.update = () => {};
   g.save.settings.renderScale = 1;

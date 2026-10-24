@@ -227,6 +227,9 @@ export const RECIPES: Recipe[] = [
   { id: 'j_chair', station: 'bench', skill: 'woodcutting', level: 3, xp: 22, inputs: { oak_logs: 3 }, output: 'furn_chair', count: 1, time: 2.4 },
   { id: 'j_table', station: 'bench', skill: 'woodcutting', level: 4, xp: 30, inputs: { oak_logs: 4 }, output: 'furn_table', count: 1, time: 2.8 },
   { id: 'j_bench', station: 'bench', skill: 'woodcutting', level: 6, xp: 34, inputs: { birch_logs: 4 }, output: 'furn_bench', count: 1, time: 2.8 },
+  // For the shipyards (data/naval.ts): a ship's iron, and tar boiled out of pine
+  { id: 's_fittings', station: 'anvil', skill: 'smithing', level: 15, xp: 40, inputs: { iron_bar: 1 }, output: 'iron_fittings', count: 2, time: 2.4 },
+  { id: 'w_tar', station: 'furnace', skill: 'woodcutting', level: 10, xp: 22, inputs: { pine_logs: 3 }, output: 'pine_tar', count: 1, time: 2.6 },
   // Stations of your own, for the house
   { id: 'j_workbench', station: 'bench', skill: 'woodcutting', level: 12, xp: 80, inputs: { oak_logs: 6, iron_bar: 1 }, output: 'furn_workbench', count: 1, time: 4 },
   { id: 's_range', station: 'anvil', skill: 'smithing', level: 14, xp: 110, inputs: { iron_bar: 3, oak_logs: 2 }, output: 'furn_range', count: 1, time: 4 },
