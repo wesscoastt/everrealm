@@ -183,6 +183,8 @@ export interface UiCtx {
   /** Leading the group (for the frame's menu). */
   groupLeader(): boolean;
   claimLogin(): void;
+  /** Down and waiting for help: give up waiting and come round at the usual place. */
+  respawnNow(): void;
   feats(): FeatView[];
   /** The library: every lore book, shelf by shelf, and which you've read (data/lorebooks.ts). */
   library(): { shelf: string; books: { id: string; title: string; where: string; read: boolean }[] }[];
@@ -427,7 +429,8 @@ export class Hud {
     r.append(Object.assign(el('div', 'hud-only'), { id: 'xpdrops' }));
     r.append(Object.assign(el('div'), { id: 'banner' }));
     r.append(Object.assign(el('div', 'frame'), { id: 'tooltip' }));
-    const death = el('div', '', '<h2>Knocked out</h2><p>You come round on a bench under the Moot Oak.</p>'); death.id = 'death'; r.append(death);
+    const death = el('div', '', '<h2>Knocked out</h2><p class="dt-where">You come round on a bench under the Moot Oak.</p><p class="dt-wait"></p><button class="btn dt-up">Come round now</button>'); death.id = 'death'; r.append(death);
+    death.querySelector('.dt-up')!.addEventListener('click', () => this.ctx.respawnNow());
     r.append(Object.assign(el('div'), { id: 'fps' }));
 
     // Panels
@@ -943,8 +946,12 @@ export class Hud {
   /** The weather's word, shown with the time of day under the minimap. */
   setWeather(name: string): void { this.weatherName = name; }
 
-  setDeath(on: boolean): void {
-    this.q('#death').classList.toggle('show', on);
+  /** The knocked-out screen; wait is the seconds left to be helped up, when there's anyone near to do it. */
+  setDeath(on: boolean, wait = 0): void {
+    const d = this.q('#death');
+    d.classList.toggle('show', on);
+    d.classList.toggle('waiting', on && wait > 0);
+    if (on && wait > 0) this.q('#death .dt-wait').textContent = `Someone nearby can help you up. Waiting ${Math.ceil(wait)}s, or come round now.`;
   }
 
   setFps(text: string): void {

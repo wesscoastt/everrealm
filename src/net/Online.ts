@@ -100,6 +100,8 @@ export interface GuildView { name: string | null; motto: string; rank: GuildRank
 
 export interface OnlineHooks {
   scene: THREE.Scene;
+  /** Someone helped you up while you were down. */
+  revived?(by: string): void;
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
   /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
@@ -288,6 +290,7 @@ export class Online {
       case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
       case 'sys': this.hooks.system(String(m.text)); break;
+      case 'revived': this.hooks.revived?.(String(m.by)); break;
       case 'perform': this.hooks.perform?.(Number(m.id), { tune: String(m.tune), part: m.part as PartId, voice: m.voice as Voice, start: Number(m.start), reps: Number(m.reps) }); break;
       case 'perfStop': this.hooks.performStop?.(Number(m.id)); break;
       case 'note': this.hooks.note?.(Number(m.id), Number(m.m), m.voice as Voice); break;
@@ -438,6 +441,15 @@ export class Online {
   }
 
   get online(): boolean { return this.status === 'online' && !!this.ws; }
+
+  /** Help someone who's down back to their feet (the server checks they're down and you're beside them). */
+  revive(id: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'revive', id })); }
+  /** How many others are up and about within r of a point: who might come and help you up. */
+  standingNear(x: number, z: number, r: number): number {
+    let n = 0;
+    for (const o of this.remotes.values()) if (o.anim !== 'dead' && Math.hypot(o.model.root.position.x - x, o.model.root.position.z - z) < r) n++;
+    return n;
+  }
 
   /** Ask for a world boss's shared health (sent when it rises in front of us). */
   bossSync(id: string, cycle: number, max: number): void {

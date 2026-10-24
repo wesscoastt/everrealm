@@ -416,6 +416,10 @@
 
 #death { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: radial-gradient(ellipse, rgba(50, 8, 0, 0.3), rgba(12, 2, 0, 0.8)); z-index: 15; }
 #death.show { display: flex; }
+#death .dt-wait, #death .dt-up { display: none; }
+#death.waiting .dt-wait { display: block; font-style: normal; }
+#death.waiting .dt-up { display: block; margin-top: 10px; pointer-events: auto; }
+#death.waiting .dt-where { display: none; }
 #death h2 { font: 700 46px var(--px); color: var(--cream); margin: 0; text-shadow: 3px 3px 0 #4a1408; letter-spacing: 1px; }
 #death p { font: italic 500 18px var(--book); color: var(--cream-d); text-shadow: var(--hard1); }
 

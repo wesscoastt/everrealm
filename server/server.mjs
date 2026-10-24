@@ -418,6 +418,13 @@ wss.on('connection', (ws, req) => {
         me.dirty = true;
         break;
       }
+      case 'revive': {
+        // Helping someone up who's down near you (and not down yourself): they're told, and they get up
+        const them = Number.isInteger(msg.id) ? players.get(msg.id) : null;
+        if (!them || them === me || them.land !== me.land || them.anim !== 'dead' || me.anim === 'dead' || Math.hypot(them.x - me.x, them.z - me.z) > 5 || Math.abs(them.y - me.y) > 3) break;
+        send(them.ws, { t: 'revived', by: me.name });
+        break;
+      }
       case 'look': {
         if (msg.look && typeof msg.look === 'object' && JSON.stringify(msg.look).length < 2000) { me.look = msg.look; broadcast({ t: 'look', id: me.id, look: me.look }, me); }
         break;

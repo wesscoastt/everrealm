@@ -900,6 +900,7 @@ export class Game implements GameApi {
       ...this.mail.hooks(),
       ...this.music.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
+      revived: (by: string) => { if (this.dead) { this.raise(0.5); this.hud.system(`${by} helps you to your feet.`); this.sfx('quest', 0.5); } },
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
@@ -1698,6 +1699,7 @@ export class Game implements GameApi {
         else g.social.guildMotto(a ?? '');
       },
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
+      respawnNow: () => { if (g.dead) g.respawn(); },
       standing: () => g.standingView(),
       library: () => SHELVES.map((shelf) => ({ shelf, books: LORE_BOOKS.filter((b) => b.shelf === shelf).map((b) => ({ id: b.id, title: b.title, where: b.where, read: !!g.flag('book:' + b.id) })) })),
       readBook: (id: string) => { const b = BOOK_BY_ID[id]; if (b && g.flag('book:' + id)) g.books.open(b); },
@@ -2631,6 +2633,12 @@ export class Game implements GameApi {
       const score = dist + ang * 1.2;
       if (score < bestScore) { bestScore = score; best = c; }
     };
+    // Someone down: kneel and help them up
+    if (!this.horse && !this.reviving) for (const r of this.online.remotes.values()) {
+      if (r.anim !== 'dead') continue;
+      const at = r.model.root.position, d = Math.hypot(at.x - p.x, at.z - p.z);
+      if (d < 2.6 && Math.abs(at.y - p.y) < 2) consider({ kind: 'act', label: `Help ${r.name} up`, pos: at.clone().setY(at.y + 0.6), act: () => this.startRevive(r.id, r.name) }, d);
+    }
     // Someone in your group on a mount with a seat free: behind the saddle, or in the back of the wagon
     if (!this.horse && this.pillion === null && this.social.group) {
       for (const r of this.online.remotes.values()) {
@@ -3272,6 +3280,33 @@ export class Game implements GameApi {
     this.sfx('pickup', 0.5);
   }
 
+  /** Kneeling by someone who's down, helping them up: who, and how long you've been at it. */
+  private reviving: { id: number; name: string; t: number } | null = null;
+  private startRevive(id: number, name: string): void {
+    if (this.dead || this.horse || this.inCombat()) { if (this.inCombat()) this.hud.system('Not while you\'re fighting.'); return; }
+    this.cancelActions();
+    this.reviving = { id, name, t: 0 };
+  }
+  /** Each frame while helping: three seconds, broken off by moving, a blow, or them getting up or going. */
+  private keepReviving(dt: number, moving: boolean): void {
+    const rv = this.reviving;
+    if (!rv) return;
+    const r = this.online.remotes.get(rv.id);
+    const p = this.player.position;
+    if (!r || r.anim !== 'dead' || moving || this.dead || this.horse || this.elapsed - this.lastCombat < 0.3 || Math.hypot(r.model.root.position.x - p.x, r.model.root.position.z - p.z) > 3.2) {
+      this.reviving = null; this.hud.setCast(null); return;
+    }
+    // Face them while you work
+    this.player.yaw = Math.atan2(r.model.root.position.x - p.x, r.model.root.position.z - p.z);
+    rv.t += dt;
+    this.hud.setCast(`Helping ${rv.name} up`, rv.t / 3);
+    if (rv.t >= 3) {
+      this.online.revive(rv.id);
+      this.hud.system(`You help ${rv.name} to their feet.`);
+      this.reviving = null; this.hud.setCast(null);
+    }
+  }
+
   /** Sit on a seat: held there until you move or jump (the same way a pillion rider is). */
   private sitDown(at: { x: number; y: number; z: number; yaw: number }): void {
     if (this.horse || this.dead || this.inCombat()) return;
@@ -3741,15 +3776,22 @@ export class Game implements GameApi {
     if (this.hp <= 0) { this.hud.system(`${what}: you went down.`); this.die(); }
   }
 
+  /**
+   * How long you stay down before coming round: a minute when there's anyone up and about near you to
+   * help you up (GW2's and ESO's way), a few seconds when you're alone; a dungeon's raise has its own.
+   */
+  private downFor = 3.5;
   private die(): void {
     this.hp = 0;
     this.dead = true;
     this.deadTimer = 0;
+    const P = this.player.position;
+    this.downFor = this.dungeons.raising ? 9 : this.online.online && this.online.standingNear(P.x, P.z, 40) > 0 ? 60 : 3.5;
     this.attack = null;
     this.cancelActions();
     this.endDialogue();
     this.player.locked = true;
-    this.hud.setDeath(true);
+    this.hud.setDeath(true, this.downFor > 10 ? this.downFor : 0);
     this.sfx('death');
   }
 
@@ -4230,7 +4272,10 @@ export class Game implements GameApi {
       P.model.setState('dead');
       P.update(dt, new THREE.Vector3(), 0, false);
       P.model.update(dt, 0);
-      if (this.deadTimer > (this.dungeons.raising ? 9 : 3.5)) this.respawn();
+      // (others see you down, so they can come and help you up)
+      this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: 'dead', held: 'none', mount: null, pillion: null });
+      if (this.downFor > 10) this.hud.setDeath(true, this.downFor - this.deadTimer);
+      if (this.deadTimer > this.downFor) this.respawn();
       return;
     }
 
@@ -4289,6 +4334,7 @@ export class Game implements GameApi {
     // On a bench: any step, a jump, a fight or a fall and you're up again
     const stepping = !this.dialogue && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((k) => this.input.held(k));
     if (this.seated && (jump || stepping || this.dead || this.horse || this.elapsed - this.lastCombat < 0.5)) this.standUp();
+    this.keepReviving(dt, jump || stepping);
     if (this.seated) {
       const s = this.seated;
       P.position.set(s.x, s.y, s.z);
@@ -4427,6 +4473,7 @@ export class Game implements GameApi {
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
     } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
     else if (this.seated) { M.setState('seated'); held = 'none'; }
+    else if (this.reviving) { M.setState('kneel'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');
     else if (P.swimming) M.setState(P.speed > 0.6 || Math.abs(P.velocity.y) > 1.2 ? 'swim' : 'tread');
     else if (!P.onGround && !P.swimming) M.setState('jump');
