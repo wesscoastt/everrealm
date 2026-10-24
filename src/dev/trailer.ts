@@ -229,7 +229,7 @@ function compose(c2: CanvasRenderingContext2D, gl: HTMLCanvasElement, shot: Shot
 }
 
 /** Run the frames of the game by hand while the world around a point loads. */
-async function settle(g: G, f: THREE.Vector3, secs = 40): Promise<void> {
+async function settle(g: G, f: THREE.Vector3, secs = 90): Promise<void> {
   const until = performance.now() + secs * 1000;
   const ring = [[0, 0], [60, 0], [-60, 0], [0, 60], [0, -60], [40, 40], [-40, -40]];
   let ok = 0;

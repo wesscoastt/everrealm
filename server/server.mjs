@@ -82,7 +82,8 @@ const MAX_CHARS = 6;
 /** Mounts with room for more than the rider, and how many in all (src/data/content/stables.ts and wagons.ts, seats). */
 const SEATS = new Map([['halter_cob', 2], ['halter_dray', 2], ['wagon_cart', 3], ['wagon_covered', 5], ['wagon_caravan', 5]]);
 const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
-const WORLD = [-2304, 4096]; // the world's edges on x and z (src/world/VoxelWorld.ts)
+// The world's edges (src/world/VoxelWorld.ts): the Counties' square, and Morrow's east of it along x
+const WORLD = [-2304, 4096], WORLD_X = [-2304, 10496];
 const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
@@ -548,7 +549,7 @@ wss.on('connection', (ws, req) => {
       }
       me = {
         id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
-        // The land they're in (the Counties or Morrow): others only see them in the same one
+        // A page from before the lands were one world says 'morrow' and keeps Morrow's old coordinates: kept apart
         land: msg.land === 'morrow' ? 'morrow' : 'counties',
         x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', mount: null, lastChat: 0, dirty: true,
         // The keeper's own accounts may read reports; what each player said lately goes with a report about them
@@ -556,12 +557,12 @@ wss.on('connection', (ws, req) => {
       };
       players.set(me.id, me);
       me.guildName = null;
-      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me).map(pub), save: rec.save ?? null });
+      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me && p.land === me.land).map(pub), save: rec.save ?? null });
       guilds.join(me);
       social.join(me);
       exchange.join(me);
       mail.join(me);
-      broadcast({ t: 'join', player: pub(me) }, me);
+      for (const p of players.values()) if (p !== me && p.land === me.land) send(p.ws, { t: 'join', player: pub(me) });
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);
       return;
@@ -570,7 +571,7 @@ wss.on('connection', (ws, req) => {
     if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
-        const x = num(msg.x, WORLD[0], WORLD[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
+        const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
         if (x === null || y === null || z === null || yaw === null) return;
         me.x = x; me.y = y; me.z = z; me.yaw = yaw;
         if (ANIMS.has(msg.anim)) me.anim = msg.anim;
@@ -763,7 +764,7 @@ setInterval(() => {
   if (!moved.length) return;
   for (const p of moved) p.dirty = false;
   for (const to of players.values()) {
-    const rows = moved.filter((p) => p !== to).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0]);
+    const rows = moved.filter((p) => p !== to && p.land === to.land).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0]);
     if (rows.length) send(to.ws, { t: 'snap', p: rows });
   }
 }, TICK_MS);
