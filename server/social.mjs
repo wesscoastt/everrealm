@@ -24,6 +24,11 @@ const trades = new Map();
 let nextTrade = 1;
 /** asker -> asked, waiting for an answer */
 const tradeAsks = new Map();
+/** The world-boss finder: boss id -> ids of players looking for a group to take it on (src/game/Game.ts wbLook). */
+const wbSeekers = new Map();
+/** How long a player stays on a boss's list before they're taken off it. */
+const WB_SEEK_MS = 30 * 60_000;
+const BOSS_ID = /^wb-[a-z]{2,20}$/;
 
 const ITEM = /^[a-z0-9_]{2,40}$/;
 
@@ -124,6 +129,58 @@ export function socialInit(ctx) {
         return true;
       }
       case 'gLeave': leaveGroup(me, 'has left the group'); return true;
+      case 'wbLook': {
+        // Looking for a group for a world boss: a group already going after it takes you in; failing
+        // that, the next player who looks makes a group with you. A group's leader who looks opens
+        // their own group to the others looking.
+        const boss = typeof msg.boss === 'string' && BOSS_ID.test(msg.boss) ? msg.boss : null;
+        if (!boss) return true;
+        const name = typeof msg.name === 'string' ? msg.name.replace(/[^A-Za-z' -]/g, '').slice(0, 40) || 'the boss' : 'the boss';
+        wbDrop(me);
+        const mine = groupOf(me);
+        if (mine && mine.members[0] === me.id) {
+          mine.boss = boss;
+          for (const id of [...(wbSeekers.get(boss) ?? [])]) {
+            const o = players.get(id);
+            if (!o || mine.members.length >= GROUP_MAX) continue;
+            wbDrop(o);
+            if (o.group) leaveGroup(o, 'has left the group');
+            mine.members.push(o.id); o.group = mine.id;
+            sys(o, `You join ${me.name}'s group, going after ${name}.`);
+            send(o.ws, { t: 'wbSeek', boss: null });
+          }
+          sendGroup(mine);
+          sys(me, `Your group is open to anyone looking for ${name}.`);
+          return true;
+        }
+        if (mine && mine.boss === boss) { sys(me, `Your group is already going after ${name}.`); return true; }
+        const open = [...groups.values()].find((g) => g.boss === boss && g.members.length < GROUP_MAX && !g.members.includes(me.id));
+        if (open) {
+          if (me.group) leaveGroup(me, 'has left the group');
+          open.members.push(me.id); me.group = open.id;
+          for (const id of open.members) { const o = players.get(id); if (o && o !== me) sys(o, `${me.name} has joined the group, for ${name}.`); }
+          sys(me, `You join a group going after ${name}.`);
+          sendGroup(open);
+          send(me.ws, { t: 'wbSeek', boss: null });
+          return true;
+        }
+        const other = [...(wbSeekers.get(boss) ?? [])].map((id) => players.get(id)).find((o) => o && o !== me);
+        if (other) {
+          wbDrop(other);
+          formGroup([other.id, me.id], `You're grouped to go after ${name}.`);
+          const g = groupOf(me);
+          if (g) g.boss = boss;
+          for (const o of [other, me]) send(o.ws, { t: 'wbSeek', boss: null });
+          return true;
+        }
+        if (!wbSeekers.has(boss)) wbSeekers.set(boss, new Set());
+        wbSeekers.get(boss).add(me.id);
+        me.wbAt = Date.now();
+        send(me.ws, { t: 'wbSeek', boss });
+        sys(me, `You're on the list for ${name}. You'll be grouped with the next player who looks, or put in a group going after it.`);
+        return true;
+      }
+      case 'wbStop': wbDrop(me); send(me.ws, { t: 'wbSeek', boss: null }); return true;
       case 'gPromote': {
         const g = groupOf(me);
         const who = byName(msg.name);
@@ -301,6 +358,8 @@ export function socialInit(ctx) {
     for (const p of players.values()) if (p !== who && p.watch?.has(n)) send(p.ws, { t: on ? 'fOn' : 'fOff', name: who.name });
   }
   function join(me) { announce(me, true); }
+  /** Off every world boss's list. */
+  function wbDrop(p) { if (!p) return; for (const [k, set] of wbSeekers) { set.delete(p.id); if (!set.size) wbSeekers.delete(k); } }
 
   function leave(me) {
     announce(me, false);
@@ -309,6 +368,7 @@ export function socialInit(ctx) {
     const tr = tradeOf(me);
     if (tr) closeTrade(tr, `${me.name} has left.`);
     leaveGroup(me, 'has left the world');
+    wbDrop(me);
   }
 
   // Groups see each other's health and whereabouts twice a second; trades end if the two walk apart.
@@ -321,10 +381,11 @@ export function socialInit(ctx) {
     }
     const now = Date.now();
     for (const [id, inv] of invites) if (now - inv.at > INVITE_MS) invites.delete(id);
+    for (const set of wbSeekers.values()) for (const id of set) { const o = players.get(id); if (!o || now - (o.wbAt ?? 0) > WB_SEEK_MS) { if (o) { wbDrop(o); send(o.ws, { t: 'wbSeek', boss: null }); sys(o, 'Nobody else was looking: you are off the world boss list.'); } else set.delete(id); } }
   }, 500);
 
   /** Put these players in one group of their own (the Group Finder's), out of any they were in. */
-  function formGroup(ids) {
+  function formGroup(ids, said = 'You\'re grouped for the dungeon.') {
     const ps = ids.map((id) => players.get(id)).filter(Boolean);
     if (ps.length < 2) return;
     const g0 = groupOf(ps[0]);
@@ -332,7 +393,7 @@ export function socialInit(ctx) {
     for (const p of ps) if (p.group) leaveGroup(p, 'has left the group');
     const g = { id: nextGroup++, members: ps.map((p) => p.id) };
     groups.set(g.id, g);
-    for (const p of ps) { p.group = g.id; sys(p, 'You\'re grouped for the dungeon.'); }
+    for (const p of ps) { p.group = g.id; sys(p, said); }
     sendGroup(g);
   }
   /** A player's group: its leader and members (ids), or null. */

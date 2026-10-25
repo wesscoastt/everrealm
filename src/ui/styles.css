@@ -1273,3 +1273,9 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #dps { position: absolute; left: 50%; bottom: 168px; transform: translateX(-50%); padding: 6px 14px; background: rgba(13, 10, 6, 0.78); border: 2px solid var(--ink); box-shadow: inset 0 0 0 1px #5a4129; text-align: center; font: 500 13px var(--body); color: var(--cream-d); white-space: nowrap; }
 #dps b { font: 700 20px var(--px); color: var(--wheat); text-shadow: var(--hard1); margin: 0 3px; }
 #dps small { display: block; font-size: 12px; opacity: 0.8; }
+/* The Group Finder's world bosses: one row each, when it rises and a button to find a group */
+.gf-boss { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.gf-boss > div { flex: 1; display: flex; flex-direction: column; }
+.gf-boss small { opacity: 0.75; font-size: 12px; }
+.gf-boss .gf-when { min-width: 120px; text-align: right; font-size: 13px; color: var(--cream-d); }
+.gf-boss.up .gf-when { color: #f0a060; font-weight: 600; }

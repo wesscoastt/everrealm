@@ -122,6 +122,8 @@ export interface OnlineHooks {
   /** A creature someone else killed, and how long (ms) until it's back; the whole list on joining. */
   mobDead?(key: string, leftMs: number): void;
   mobLedger?(list: [string, number][]): void;
+  /** The world boss you're on the list for (the Group Finder), or null. */
+  wbSeek?(boss: string | null): void;
   /** Another player's blows on the creature at a spawn point, as a share of its health (game/SharedMobs.ts). */
   mobHit?(key: string, share: number, from: number): void;
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
@@ -295,6 +297,7 @@ export class Online {
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
+      case 'wbSeek': this.hooks.wbSeek?.(typeof m.boss === 'string' ? m.boss : null); break;
       case 'mobDead': if (typeof m.key === 'string' && typeof m.left === 'number') this.hooks.mobDead?.(m.key, m.left); break;
       case 'mHit': if (typeof m.key === 'string' && typeof m.share === 'number' && typeof m.from === 'number') this.hooks.mobHit?.(m.key, m.share, m.from); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
@@ -505,6 +508,9 @@ export class Online {
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
   /** Tell the realm a creature at this spawn point died; it's gone for everyone for `secs`. */
   mobDead(key: string, secs: number): void { this.emit({ t: 'mobDead', key, secs }); }
+  /** Look for a group for a world boss, or stop looking. */
+  wbLook(boss: string, name: string): void { this.emit({ t: 'wbLook', boss, name }); }
+  wbStop(): void { this.emit({ t: 'wbStop' }); }
   /** A share of a creature's health you took off: the realm passes it to the players near you. */
   mobHit(key: string, share: number): void { this.emit({ t: 'mHit', key, share: Math.round(share * 1e4) / 1e4 }); }
   homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }

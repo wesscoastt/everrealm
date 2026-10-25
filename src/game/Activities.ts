@@ -285,6 +285,11 @@ export class Activities {
     return { until: phase < BOSS_UP ? -(BOSS_UP - phase) : def.every - phase, cycle };
   }
 
+  /** Every world boss and where it is in its cycle, for the Group Finder: seconds until it rises (negative: up, for that long yet). */
+  bossBoard(): { id: string; name: string; where: string; until: number }[] {
+    return WORLD_BOSSES.map((def) => ({ id: def.id, name: ENEMIES[def.type].name, where: def.where, until: Math.round(this.bossClock(def).until) }));
+  }
+
   private scheduleBosses(P: THREE.Vector3): void {
     for (const def of WORLD_BOSSES) {
       const { until, cycle } = this.bossClock(def);

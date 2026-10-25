@@ -1230,6 +1230,7 @@ export class Game implements GameApi {
         this.hud.setTracker(this.questEntries());
       },
       revived: (by: string) => { if (this.dead) { this.raise(0.5); this.hud.system(`${by} helps you to your feet.`); this.sfx('quest', 0.5); } },
+      wbSeek: (boss: string | null) => { this.wbSeek = boss; this.hud.refresh('finder'); },
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
@@ -2258,6 +2259,10 @@ export class Game implements GameApi {
     this.hud.dpsMeter(`Training dummy · ${secs.toFixed(1)} s<b>${n(pr.total / secs)}</b>a second<small>${n(pr.total)} in ${pr.hits} blow${pr.hits === 1 ? '' : 's'} · best ${n(pr.best)}${pr.bestCrit ? ' (critical)' : ''} · it's whole again ${PRACTICE_REST} s after you stop</small>`);
   }
 
+  /** The world boss you're on the Group Finder's list for (the realm says), if any. */
+  wbSeek: string | null = null;
+  private finderTick = 0;
+
   /** The cabin you live in aboard: the kind of the ship you last went below in, while you still own one afloat. */
   private cabinHull(): HullId | null {
     const h = this.flag('cabinHull') as HullId | null;
@@ -2758,9 +2763,15 @@ export class Game implements GameApi {
         else if (what === 'strike' && arg) g.music.strikeUp(arg);
         g.hud.refresh('music');
       },
-      finder: () => g.dungeons.view(),
-      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind', id?: string) => {
+      finder: () => ({ ...g.dungeons.view(), bosses: g.activities.bossBoard(), wbSeek: g.wbSeek }),
+      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind' | 'wbfind' | 'wbstop', id?: string) => {
         let why: string | null = null;
+        if (what === 'wbfind' && id) {
+          const b = g.activities.bossBoard().find((x) => x.id === id);
+          if (!b) return null;
+          if (g.online.status !== 'online') why = 'Finding a group needs the online realm.';
+          else g.online.wbLook(b.id, b.name);
+        } else if (what === 'wbstop') g.online.wbStop();
         if (what === 'vet') g.dungeons.setVet(id === '1');
         if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
         else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
@@ -5735,6 +5746,8 @@ export class Game implements GameApi {
     }
     this.home.update();
     this.cabin.update();
+    // The Group Finder's boss clocks run while it's open
+    if (this.hud.isOpen('finder') && (this.finderTick += dt) > 1) { this.finderTick = 0; this.hud.refresh('finder'); }
     this.drawPractice();
     this.lotBuild.update();
     // What you've laid on your lot goes to the realm's book a moment after you stop

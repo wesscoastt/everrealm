@@ -148,6 +148,10 @@ export interface FinderView {
   /** The day's first random dungeon still to do; today's pledge and how it stands. */
   randomReady: boolean;
   pledge: { id: string; name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null;
+  /** The world bosses, for finding a group to take one on (filled in by the game). */
+  bosses?: { id: string; name: string; where: string; until: number }[];
+  /** The boss you're on the list for, if any. */
+  wbSeek?: string | null;
 }
 
 const HAZARD_RING = new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);

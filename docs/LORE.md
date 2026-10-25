@@ -288,6 +288,13 @@ Wick sold his pick to Pryce for 3 marks to pay a six-mark bonesetter, and Tam ha
 - `delia`: the player shows Delia the "own account" line. Tam releases the pick at the posted rate, billed to Pryce, and Pryce pays Wick the 15-mark difference from his wages. Delia pays the player 30. Pryce: "I'll remember that."
 - `leverage`: the player shows Pryce his own book. He writes Tam a no-charge slip and from then on buys from the player at 75% instead of 55%.
 
+### Side stories [in game]
+
+`src/data/content/harrowgateSide.ts`.
+- **Pryce's Oak** (Corrie Dunmore): a prop burst on the night shift. Two of the three new timber sets in No. 1 Drift are rotten, one with a P cut in the end grain: Pryce's mark for oak bought on his own account and sold on to the company. `hgProps`: `delia` (sound oak on his wages, a month docked, and Delia reads his book at last), `crew` (the night shift downs tools; Corrie's name on the stoppage) or `pryce` (he pays for sound oak himself, and for your silence).
+- **Pulled Spikes** (Ada Cleave, the rail gang): the new rail out of the smelter yard loses its spikes every night. A farrier's nail-bag in the ditch, WB on the flap: Walt Brindley's stable lads, because when the rail reaches the cuts the horses go to the knacker and the lads down the drift. `hgSpikes`: `told` (the six are turned off), `hands` (Walt walks them over to Ada's gang; the rail stops at the ford and the hill road keeps its horses) or `paid` (Walt pays you to say redbacks).
+- **Dora's Blue** (Dora Hurst): her blue glaze is slag picked from the company heap at night, and Pryce has sold the slag to a glassworks. `hgBlue`: `bucket` (you fill her bucket on the quiet) or `paper` (Delia writes her a bucket a week, the company's gift; it hangs by the kiln where Pryce reads it).
+
 ## Hagworm Wood: Fellers' Camp [in game]
 
 A logging camp in the giant-tree forest: tents, a firepit, a log stack and twelve fellers. Harrowgate & Daughters takes every log it can send.
@@ -308,6 +315,12 @@ Sefton was on the saw and Kit was calling the fall. The tree came down the wrong
 - `send`: Sefton goes home to Hollin Ford and is gone from the camp. Pell has a line about him: "He can't hear me, and I don't have to listen to him." Ide pays 30.
 - `marker`: Sefton comes off the saw and picks and marks the trees instead. He gives the player his felling axe.
 - `keep`: the player tells Ide that Sefton heard the call. Sefton stays on the saw, Kit moves to the far side of the clearing, and Ide pays 40.
+
+### Side stories [in game]
+
+`src/data/content/hagwormSide.ts`.
+- **The Hen Money** (the Hollow Oak): at the bottom of the oak, "Hannah. I owe you four marks for the speckled hen. I'll leave it here by Lammas. R.M." and under it, years later, "You never did." R.M. is Rafe Marrow, Ide's father, who died owing half the wood; Hannah was Hannah Ashcroft, Ruth's mother, dead nine years. Odo Fenn knows the initials. `hwHen`: `paid` (Ide pays a week's wage now for four marks then and writes "Paid. I.M." under it; Ruth puts it in the tin with her mother's things, and Hannah's Lammas story was "Rafe Marrow and the speckled hen") or `oak` (Ide puts it back in the oak, where he left it and Hannah answered).
+- **Where Fly Went** (Ned Thackery): his nine-year-old hound followed a thornback stalker into the rocks north-west of the camp. The prints by the brook, fur on the bramble, the den; she comes home on three legs and goes under his bench. Her last stalker.
 
 ## Scarth Highlands: Kelderby and Scarth Watch [in game]
 
@@ -336,6 +349,12 @@ Bryn went up to Hale's Fold to bring the flock down before the snow and didn't c
 - `wenna`: the player leaves it to Wenna. She chooses the ewes, and the result is the same as `flock`.
 
 Wenna pays the player 50 marks either way, plus two smoked char if the flock was saved.
+
+### Side stories [in game]
+
+`src/data/content/scarthSide.ts`.
+- **Three Quarters Late** (Ilse Blewitt): the Charter hasn't paid her stipend for the count since Candlemas, and Mr Pryce has offered a hundred and twenty marks for it. Clement Fry at the Toll Office has her in his ledger, owed, behind the debt with the Light Fund and the Weighhouse; he can pay one quarter from sundries if somebody who isn't him signs. `scStipend`: `charter` (one quarter of three; she keeps counting for Ansbury), `pryce` (thirty years of falling stars to Harrowgate; Harrowgate's men are at the next fall before the dust settles) or `posted` (she pins the count up at Kelderby, and eleven people are at the next fall by morning, arguing).
+- **Owen's Crook** (Sela Orme): an old man who gave his name as Owen died of cold on the Kirk road, having walked a long way to put his hand on the star. The crook carries the Hale mark: he was Bryn's elder brother, gone twenty years after a quarrel over which side of the fold wall the gate went. `scOwen`: `told` (Wenna gives Bryn the crook and the truth), `spring` (it goes up in the loft with the fleeces till spring) or `kirk` (it stands by the crystal under his name: he went to the star, not to them).
 
 ## The main story: The Charter's Debt [in game]
 
@@ -533,6 +552,13 @@ Every troubled region has a gang, and every gang worth the name has a fort well 
 | **Carrack Pale** | Tolmen Moor | the Carrack tinners | **Kit Pascoe**; two rags sewn together, the first ran out |
 
 ## Outskirts and churchyards [in game]
+
+### The outer towns' side stories [in game]
+
+`src/data/content/outerSide.ts`.
+- **One in Three** (Loveday Tonkin, Cragsby): the village takes one egg in three from the gannet ledges, and somebody stripped the north ledge bare. In the egg store, a basket packed for the Ansbury cart and a tally slip, "W.K. 14 doz. @ 1 mark": Wat Kemp, who owes Morwen eleven marks and hasn't been hired to climb since the road came. `otEggs`: `village` (the meeting takes his rope-share), `store` (he pays the egg store from the egg money and gives his word) or `paid` (you clear his slate).
+- **Brittle Reed** (Tilly Brewer, Holme Staithe): Harrowgate's drain has taken a yard off the mere and the reed beds are dying from the roots. A reed from the old bed snaps; one from the drain bank bends. `otReed`: `rent` (Ambrose Tilney writes to Harrowgate for a reed rent, slow but sure) or `gate` (Abner Rudd lifts the sluice a hand on Saturday nights, "when nobody counts"; the gate sticks, if anyone asks).
+- **Croup Winter** (Joss Trewin, Scarrow Tor): his girl Bess, four, barks like a seal all night. Caddy Nankervis says the holed stone at sunrise; Wenna Kitto says steam and honey, with bitter-moss from the mouth of Carne Barrow. `otCroup`: `both` (the kettle, and the stone at sunrise for Joss's sake) or `kettle` (Caddy, ninety years at the stone, says it never cured anyone: it told them where they were from).
 
 No town stops dead at its edge. Round Ansbury, Gullmouth, Harrowgate Works, Cotter's End, the Waystation, Kelderby, Cragsby, Holme Staithe and Scarrow Tor the land is worked: cottages strung along the roads out of town, strip fields with a headland path every few rows (walled in dry stone in the highlands), orchards, market gardens, haystacks and woodpiles. Ansbury, Gullmouth, Cotter's End and Holme Staithe have a tower mill on the highest dry ground near them; Ansbury, Gullmouth and Cragsby a gallows on a rise by the road. `world/sites.ts` (buildOutskirts).
 
@@ -837,6 +863,7 @@ West and south of Saltpenny, off the end of the Keys: **Gallows Key**, **the Car
 - **Liftwick** (the Sunder's north rim): the skyfarmers' village, grey stone and slate, with the Assembly's white lift tower at the rim. **Pol Vidal**, Marta Vidal's son, farms the hanging slabs; **Ada Moss** keeps hives on them.
 - **The hanging slabs**: ground the white tore loose and lifted, hanging over the rift on knots of glowing crystal. Rope bridges climb from the rim; the biggest is a skyfarm, a waterfall spills off another, the last hangs out of reach. By Pol's plumb marks they've lifted a hand and a half to two hands since spring, as the towers in Callis have.
 - **Tenwells** (the Glass Flats): the caravan fort, salt-white walls round a yard of wells, tents and carts, and the storm-hunters' tower with its copper rod. **Cass Moran** runs the caravans north and south; the salt reavers wait for the lightning to pass and come out of the glare. **Ennis Wade** sells water, dates and rope.
+- Side stories (`src/data/content/morrowSide.ts`): **The Long Nights** (after Lampwick: Ivo Larch did the trees, but his hands shake on the brush; you paint the last three doorposts on the old road, the widow Fenn comes home by them every night that week, and he gives you his brush, "next year, if you're passing") and **The Fourth Well** (one of Tenwells' ten wells goes salt overnight; rock salt in lumps, and sacks stamped with a white hand in the gully by the east gate. The reavers' own wells a day north charge a mark a skin. `mwSalt`: `ride` (you break the reavers at their wells and Cass fills them in with their own salt) or `quiet` (Ennis sinks a new well, and nobody tells the reavers it worked)).
 - **Fellside** (the Greywaste): emptied. A letter on the last door from R. Alden: the Dunns went up the fell, came down, and were not the Dunns.
 - **Conch Key** (the Keys): beach huts, drying racks and boats. **Sal Mudge** watches the turtle beach, where the mangrove crabs meet the hatchlings halfway to the sea.
 

@@ -320,7 +320,7 @@ export interface UiCtx {
   /** The songbook: instruments, tunes, the band (game/Stage.ts). */
   music(): MusicView;
   musicDo(what: 'take' | 'away' | 'play' | 'stop' | 'part' | 'strike', arg?: string): void;
-  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind', id?: string): string | null;
+  finderDo(what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind' | 'wbfind' | 'wbstop', id?: string): string | null;
 }
 
 export interface TravelView {
@@ -2092,15 +2092,20 @@ export class Hud {
         <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}${d.vetClears ? `, ${d.vetClears === 1 ? 'once' : d.vetClears + ' times'} on veteran` : ''}. The day's first clear pays half again.${v.vet ? ' You\'ll go in on veteran.' : ''}` : `Not cleared yet.${v.vet ? ' Veteran opens once you have: this one goes in on normal.' : ''}`}</div>
         <div class="gf-go"><button class="btn" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? 'Real players first; henchmen take any place still empty after a minute and a half' : 'Finding other players needs the online realm.'}">${findLabel}</button><button class="btn ghost" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go alone with henchmen</button></div>${v.online && !v.group ? '<div class="gf-meta">Real players first. Any place still empty after 1:30 goes to a henchman, so you might go in two and two.</div>' : ''}</div>`;
     }).join('');
+    // World bosses: when each rises next, and a group to take it on with
+    const bosses = v.bosses ?? [];
+    const bossCard = bosses.length ? `<div class="gf-card gf-bosses"><h5>World bosses<small>out in the world · anyone may join in · groups of up to five</small></h5>
+      <p>Find a group for one and the realm puts you in a group already going after it, or with the next player who looks. If you lead a group, looking opens yours to them.</p>
+      ${bosses.map((b) => { const up = b.until < 0, seeking = v.wbSeek === b.id; return `<div class="gf-boss${up ? ' up' : ''}"><div><b>${esc(b.name)}</b><small>${esc(b.where)}</small></div><span class="gf-when">${up ? `Up now · ${mm(-b.until)} left` : `Rises in ${mm(b.until)}`}</span>${seeking ? '<button class="btn ghost sm" data-gf="wbstop">Stop looking</button>' : `<button class="btn sm" data-gf="wbfind" data-id="${b.id}"${v.online ? '' : ' disabled'} title="${v.online ? 'Join or start a group for it' : 'Needs the online realm'}">Find a group</button>`}</div>`; }).join('')}</div>` : '';
     const hench = HENCHMEN.map((h) => `<b>${esc(h.name)}</b> (${esc(h.title.toLowerCase())}, ${ROLE_NAMES[h.role].toLowerCase()})`).join(', ');
-    body.innerHTML = status + roles + vetRow + randomCard + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
+    body.innerHTML = status + bossCard + roles + vetRow + randomCard + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
     this.q('#finder-panel .footer').innerHTML = `<span>${document.body.classList.contains('touch') ? 'The Group button' : 'P'} opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit's chamber, and the crack in the Kettle's north wall.</span>`;
     body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
     body.querySelectorAll<HTMLButtonElement>('[data-vet]').forEach((b) => b.addEventListener('click', () => { if (b.disabled) return; this.ctx.sfx('click'); this.ctx.finderDo('vet', b.dataset.vet); }));
     body.querySelectorAll<HTMLButtonElement>('[data-gf]').forEach((b) => b.addEventListener('click', () => {
       if (b.disabled) return;
       this.ctx.sfx('click');
-      const what = b.dataset.gf as 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'rhench' | 'rfind';
+      const what = b.dataset.gf as 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'rhench' | 'rfind' | 'wbfind' | 'wbstop';
       if (what === 'leave') { this.ask('Leave the dungeon?', () => this.ctx.finderDo('leave'), () => {}, 30); return; }
       this.ctx.finderDo(what, b.dataset.id);
     }));
