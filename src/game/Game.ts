@@ -64,6 +64,7 @@ import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } fr
 import { Sailing, type ShipState } from './Sailing';
 import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
 import { applyColourVision } from '../ui/colourVision';
+import { ATTACK_WAYS, BEAST_NOTES, BEAST_TIERS, bestiaryRoster } from '../data/bestiary';
 import { CABINS, CABIN_BASE, cabinAt, cabinFixtures, cabinReserved, cabinShape } from '../data/cabins';
 import { CRIME, JURISDICTIONS, jurisdictionAt } from '../data/justice';
 import '../data/pledges';
@@ -2836,6 +2837,16 @@ export class Game implements GameApi {
       setCalling: (id: CallingId) => g.setCalling(id),
       talents: () => g.talentView(),
       mastery: () => g.masteryView(),
+      bestiary: () => ({
+        tiers: BEAST_TIERS,
+        entries: bestiaryRoster().map(({ type, regions }) => {
+          const d = ENEMIES[type];
+          return {
+            type, name: d.name, level: d.level, where: regions.map((r) => REGION_INFO[r]?.name ?? r), kills: Number(g.flag('killed:' + type) ?? 0),
+            how: ATTACK_WAYS[d.attack] ?? '', loot: [...new Set(d.loot.map((l) => ITEMS[l.item]?.name).filter((n): n is string => !!n))], note: BEAST_NOTES[type],
+          };
+        }),
+      }),
       masterySpend: (id: string) => g.masterySpend(id as MasteryId | 'reset'),
       callingFree: () => !g.flag('callingSet'),
       apprentice: () => { const a = g.apprentice; return a ? { name: a.name, master: MASTER_OF[a.id]?.name ?? '' } : null; },

@@ -227,6 +227,8 @@ export interface UiCtx {
   talents(): TalentView;
   /** Mastery past level 100 (data/mastery.ts): points earned and spent, the three sets; a point into a passive, or (at a temple) all back. */
   mastery(): MasteryView;
+  /** The journal's bestiary: every creature of the wilds, with how many you've killed (data/bestiary.ts). */
+  bestiary(): { tiers: readonly number[]; entries: BestiaryEntry[] };
   masterySpend(id: string): string | null;
   /** Skills (ESO's): unlocked with points, ranked by use, morphed at rank IV (game/Game.ts skillsView). */
   skillsView(): SkillsView;
@@ -354,6 +356,8 @@ export interface MasteryView {
   open: boolean; earned: number; next: number | null; spent: number; left: number; temple: boolean;
   sets: { id: string; name: string; blurb: string; icon: string; color: string; passives: { id: string; name: string; n: number; cap: number; now: string; at: string }[] }[];
 }
+
+export interface BestiaryEntry { type: string; name: string; level: number; where: string[]; kills: number; how: string; loot: string[]; note?: string }
 
 export type PanelId = 'inv' | 'skills' | 'talents' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder' | 'music' | 'mail';
 
@@ -1731,7 +1735,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'feats' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -1753,6 +1757,9 @@ export class Hud {
     const pl = el('div', 'ji' + (this.selQuest === 'places' ? ' sel' : ''), 'Places found');
     pl.addEventListener('click', () => { this.selQuest = 'places'; this.renderJournal(); });
     list.append(pl);
+    const bj = el('div', 'ji' + (this.selQuest === 'bestiary' ? ' sel' : ''), 'Bestiary');
+    bj.addEventListener('click', () => { this.selQuest = 'bestiary'; this.renderJournal(); });
+    list.append(bj);
     list.append(el('h6', '', 'DAILY ROUND'));
     for (const [id, label] of [['writs', 'Charter writs'], ['login', 'Login rewards']] as const) {
       const d = this.ctx.daily();
@@ -1910,6 +1917,24 @@ export class Hud {
           page.append(row);
         }
       }
+    } else if (this.selQuest === 'bestiary') {
+      // Every creature of the wilds by where it lives: met ones by name, the rest a hint; each part of an
+      // entry opens at so many kills (data/bestiary.ts)
+      const v = this.ctx.bestiary();
+      const met = v.entries.filter((e) => e.kills > 0).length;
+      const groups = new Map<string, BestiaryEntry[]>();
+      for (const e of v.entries) { const k = e.where[0] ?? 'The wilds'; groups.set(k, [...(groups.get(k) ?? []), e]); }
+      const part = (open: boolean, need: number, html: string) => (open ? html : `<div class="bz-locked">Kill ${need} to learn more</div>`);
+      page.innerHTML = `<h4>Bestiary</h4><div class="feat-sum">${met} of ${v.entries.length} met. One kill writes an entry; ten tell you how it fights and what it leaves; fifty, what the hunters say.</div>`
+        + [...groups.entries()].map(([region, list]) => `<h5 class="bz-region">${esc(region)}</h5>${list.map((e) => {
+          if (!e.kills) return `<div class="bz unmet"><div class="bz-head"><b>Something in ${esc(region)}</b><span>level ${e.level}</span></div></div>`;
+          const next = v.tiers.find((t) => t > e.kills);
+          return `<div class="bz"><div class="bz-head"><b>${esc(e.name)}</b><span>level ${e.level} · ${e.kills.toLocaleString()} killed${next ? ` · ${next - e.kills} to the next` : ''}</span></div>`
+            + `<div class="bz-where">${esc(e.where.join(', '))}</div>`
+            + part(e.kills >= v.tiers[1], v.tiers[1], `<div class="bz-how">${esc(e.how)}${e.loot.length ? ` <span>Leaves: ${esc(e.loot.join(', '))}.</span>` : ''}</div>`)
+            + part(e.kills >= v.tiers[2], v.tiers[2], e.note ? `<div class="bz-note">${esc(e.note)}</div>` : '<div class="bz-note">Nobody\'s told you anything about these worth repeating.</div>')
+            + '</div>';
+        }).join('')}`).join('');
     } else if (this.selQuest === 'places') {
       const found = this.ctx.save.discovered;
       const all = places();

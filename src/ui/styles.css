@@ -1279,3 +1279,16 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .gf-boss small { opacity: 0.75; font-size: 12px; }
 .gf-boss .gf-when { min-width: 120px; text-align: right; font-size: 13px; color: var(--cream-d); }
 .gf-boss.up .gf-when { color: #f0a060; font-weight: 600; }
+/* The journal's bestiary, on the journal's parchment in its ink: a block for each creature by region; the parts not yet earned say how many more */
+.bz-region { margin: 16px 0 6px; padding-bottom: 3px; font: 600 15px var(--px); color: #6a3a10; border-bottom: 2px solid rgba(90, 60, 20, 0.3); letter-spacing: 0.4px; }
+.bz { padding: 7px 10px; margin: 5px 0; background: rgba(120, 80, 30, 0.1); border-left: 3px solid #8a5a2a; }
+.bz.unmet { border-left-color: rgba(90, 60, 20, 0.3); background: transparent; }
+.bz-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.bz-head b { color: #2a1d10; font: 600 15px var(--body); }
+.bz.unmet .bz-head b { font-style: italic; font-weight: 400; color: rgba(42, 29, 16, 0.6); }
+.bz-head span { font: 500 12px var(--body); color: rgba(42, 29, 16, 0.65); white-space: nowrap; }
+.bz-where { font: 500 12px var(--body); color: rgba(42, 29, 16, 0.65); margin-top: 1px; }
+.bz-how { font: 500 14px var(--body); line-height: 1.45; margin-top: 5px; color: #3a2814; }
+.bz-how span { color: rgba(42, 29, 16, 0.75); }
+.bz-note { font: italic 400 15px var(--book); line-height: 1.5; margin-top: 6px; color: #2a1d10; }
+.bz-locked { font: 500 12px var(--body); margin-top: 4px; color: rgba(42, 29, 16, 0.5); }
