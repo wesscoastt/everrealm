@@ -341,7 +341,7 @@ export class Roadfolk {
       // The watch: anything hostile in reach gets a blade
       f.swing -= dt;
       if (f.kind !== 'traveller' && !paused && f.swing <= 0) {
-        const foe = enemies.find((e) => e.alive && e.pos.distanceTo(f.pos) < 3.2);
+        const foe = enemies.find((e) => e.alive && !e.def.anchored && e.pos.distanceTo(f.pos) < 3.2);
         if (foe) {
           f.swing = 1.1;
           f.yaw = Math.atan2(foe.pos.x - f.pos.x, foe.pos.z - f.pos.z);

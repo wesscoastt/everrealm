@@ -13,6 +13,8 @@ export type CreatureKind = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'deer' | 'r
   | 'bear' | 'spider' | 'bat' | 'golem' | 'drake' | 'adder'
   /** A true dragon: the drake's kind grown huge, its wings broad enough to carry it (entities/voxcreatures.ts). */
   | 'dragon'
+  /** A training dummy: a sacking man on a post, for hitting (data/dummies.ts). */
+  | 'dummy'
   /** People, not creatures: an Enemy with this body is built from a humanoid (entities/foes.ts). */
   | 'bandit';
 

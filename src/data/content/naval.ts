@@ -70,6 +70,7 @@ function yard(p: string, who: string): Record<string, DNode> {
       text: (g: GameApi) => { const s = ships(g)[i]; return !s ? 'No such ship.' : s.sunk ? `The ${s.livery.name} is on the bottom. We can raise her, for a tenth of what she cost.` : `The ${s.livery.name}, a ${HULLS[s.hull].name.toLowerCase()}. What'll it be?`; },
       options: [
         { text: 'Bring her round to the berth.', effect: (g) => g.naval('call', String(i)), cond: (g) => !!ships(g)[i] && !ships(g)[i].sunk },
+        { text: 'Have the yard\'s boat row me out to her. I\'ll sleep aboard.', effect: (g) => g.naval('below', String(i)), cond: (g) => !!ships(g)[i] && !ships(g)[i].sunk },
         { text: 'Raise her.', effect: (g) => g.naval('salvage', String(i)), cond: (g) => !!ships(g)[i]?.sunk },
         { text: 'Paint her hull.', effect: (g) => g.naval('paint', String(i)), cond: (g) => !!ships(g)[i] },
         { text: 'Bend on new sails.', effect: (g) => g.naval('sail', String(i)), cond: (g) => !!ships(g)[i] },

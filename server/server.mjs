@@ -609,13 +609,18 @@ wss.on('connection', (ws, req) => {
       }
       case 'chat': {
         const now = Date.now();
-        const kind = msg.kind === 'emote' ? 'emote' : 'say';
+        // Channels: said to everyone (the default), nearby only (/s), the Trade channel (/trade), an action line (/me)
+        const kind = msg.kind === 'emote' || msg.kind === 'local' || msg.kind === 'trade' ? msg.kind : 'say';
         const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, kind === 'emote' ? 120 : 200) : '';
         if (!text || now - me.lastChat < CHAT_GAP_MS) return;
         me.lastChat = now;
         me.recent = [...me.recent, `${new Date(now).toISOString().slice(0, 16)} ${text}`].slice(-20);
-        // Everyone gets it, the speaker too (that's their confirmation); id puts the bubble over the right head
-        broadcast({ t: 'chat', from: me.name, id: me.id, text, kind });
+        // Everyone gets it, the speaker too (that's their confirmation); id puts the bubble over the right head.
+        // Nearby is everyone within shouting distance (and the speaker, wherever they are)
+        if (kind === 'local') {
+          const s = JSON.stringify({ t: 'chat', from: me.name, id: me.id, text, kind });
+          for (const q of players.values()) if (q.ws.readyState === 1 && (q === me || (q.x !== undefined && me.x !== undefined && Math.hypot(q.x - me.x, q.z - me.z) < LOCAL_CHAT))) q.ws.send(s);
+        } else broadcast({ t: 'chat', from: me.name, id: me.id, text, kind });
         break;
       }
       case 'report': {
@@ -670,7 +675,7 @@ wss.on('connection', (ws, req) => {
       }
       case 'mobDead': {
         // A creature died at a spawn point: it stays gone for everyone until its time is up
-        const key = typeof msg.key === 'string' && /^[a-z]{2,20}@-?\d{1,5},-?\d{1,5}$/.test(msg.key) ? msg.key : null;
+        const key = typeof msg.key === 'string' && MOB_KEY.test(msg.key) ? msg.key : null;
         const secs = num(msg.secs, 10, 3600);
         if (!key || secs === null) return;
         const until = Date.now() + secs * 1000;
@@ -678,6 +683,19 @@ wss.on('connection', (ws, req) => {
         if (deadMobs.size > 20000) for (const [k, u] of deadMobs) if (u < Date.now()) deadMobs.delete(k);
         deadMobs.set(key, until);
         broadcast({ t: 'mobDead', key, left: secs * 1000 }, me);
+        break;
+      }
+      case 'mHit': {
+        // Blows on a creature at a spawn point (a share of its health): the players near enough to see it
+        // take the same off theirs (src/game/SharedMobs.ts). Ten a second from anyone at most.
+        const key = typeof msg.key === 'string' && MOB_KEY.test(msg.key) ? msg.key : null;
+        const share = num(msg.share, 0.0001, 1);
+        if (!key || share === null || me.x === undefined) return;
+        const now = Date.now();
+        if (!me.mobWindow || now - me.mobWindow.at > 1000) me.mobWindow = { at: now, n: 0 };
+        if (++me.mobWindow.n > 10) return;
+        const s = JSON.stringify({ t: 'mHit', key, share, from: me.id });
+        for (const q of players.values()) if (q !== me && q.ws.readyState === 1 && q.x !== undefined && Math.hypot(q.x - me.x, q.z - me.z) < 110) q.ws.send(s);
         break;
       }
       case 'bossSync': {
@@ -737,6 +755,10 @@ function mobList() { const now = Date.now(), out = []; for (const [k, u] of dead
 // World bosses are shared: the server keeps each one's health for the cycle it's up in. Every hit
 // is sent here, everyone is told the new health, and the boss falls when the server says so.
 const bosses = new Map(); // "wb-id:cycle" -> { id, cycle, hp, max, down, hitters: Set<name>, at }
+/** How far a word said nearby (/s) carries, in blocks. */
+const LOCAL_CHAT = 60;
+/** A creature's spawn point: its kind (rares have an r_), then where it stands (src/game/Game.ts spawnKey). */
+const MOB_KEY = /^[a-z0-9_]{2,24}@-?\d{1,5},-?\d{1,5}$/;
 const BOSS_HIT_MAX = 600;     // no single blow does more than this
 const BOSS_HITS_PER_SEC = 12;
 function bossState(b) { return { t: 'boss', id: b.id, cycle: b.cycle, hp: b.hp, max: b.max, down: b.down }; }

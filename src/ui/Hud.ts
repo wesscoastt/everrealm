@@ -111,7 +111,8 @@ function mmStar(c: CanvasRenderingContext2D, x: number, y: number, r: number): v
 
 const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'woodcamp', 'gullmouth', 'harrowgate', 'coldhearth', 'cragsby', 'holme', 'scarrow']);
 import type { Appearance } from '../entities/humanoid';
-import type { Inventory, SaveData } from '../game/state';
+import type { ColourVision, Inventory, SaveData } from '../game/state';
+import { COLOUR_VISION_NAMES } from './colourVision';
 import { abilityIcon, itemIcon, shapeIcon } from './icons';
 
 /**
@@ -188,6 +189,8 @@ export interface UiCtx {
   inv: Inventory;
   level(s: SkillId): number;
   useSlot(i: number): void;
+  /** Tidy the pack: stacks together, in order. */
+  sortPack(): void;
   daily(): DailyView;
   festival(): FestivalView;
   /** The trade on the table, if any, and what to do with it. */
@@ -222,6 +225,9 @@ export interface UiCtx {
   calling(): CallingId;
   /** The calling's talent trees: points to spend, and each talent's state (why it can't be learned yet, if not). */
   talents(): TalentView;
+  /** Mastery past level 100 (data/mastery.ts): points earned and spent, the three sets; a point into a passive, or (at a temple) all back. */
+  mastery(): MasteryView;
+  masterySpend(id: string): string | null;
   /** Skills (ESO's): unlocked with points, ranked by use, morphed at rank IV (game/Game.ts skillsView). */
   skillsView(): SkillsView;
   unlockSkill(id: string): string | null;
@@ -343,6 +349,11 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''):
 /** How long ago, roughly: 'just now', '5 min ago', '3 h ago', '2 days ago'. */
 const ago = (t: number) => { const s = (Date.now() - t) / 1000; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+export interface MasteryView {
+  open: boolean; earned: number; next: number | null; spent: number; left: number; temple: boolean;
+  sets: { id: string; name: string; blurb: string; icon: string; color: string; passives: { id: string; name: string; n: number; cap: number; now: string; at: string }[] }[];
+}
 
 export type PanelId = 'inv' | 'skills' | 'talents' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder' | 'music' | 'mail';
 
@@ -668,8 +679,10 @@ export class Hud {
   }
 
   /** A chat line from a player (or yourself): said, an emote ("Ada waves."), or group chat. */
-  chat(from: string, text: string, kind: 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo' = 'say'): void {
+  chat(from: string, text: string, kind: 'say' | 'emote' | 'local' | 'trade' | 'group' | 'guild' | 'whisper' | 'whisperTo' = 'say'): void {
     this.chatLine('chat', kind === 'emote' ? `<i><b>${esc(from)}</b> ${esc(text)}</i>`
+      : kind === 'local' ? `<b>[Nearby] ${esc(from)}:</b> ${esc(text)}`
+      : kind === 'trade' ? `<b>[Trade] ${esc(from)}:</b> ${esc(text)}`
       : kind === 'group' ? `<b>[Group] ${esc(from)}:</b> ${esc(text)}`
       : kind === 'guild' ? `<b>[Guild] ${esc(from)}:</b> ${esc(text)}`
       : kind === 'whisper' ? `<b>${esc(from)} whispers:</b> ${esc(text)}`
@@ -1564,6 +1577,9 @@ export class Hud {
     body.append(eq);
     body.append(this.armoury());
     body.append(this.dyeBox());
+    const tidy = el('div', 'inv-tools', '<button class="btn ghost sm" data-sortpack>Sort the pack</button>');
+    tidy.querySelector('[data-sortpack]')!.addEventListener('click', () => { this.ctx.sfx('click'); this.hideTooltip(); this.ctx.sortPack(); });
+    body.append(tidy);
     const grid = el('div', 'inv-grid');
     save.inv.forEach((st, i) => {
       const def = st ? ITEMS[st.id] : null;
@@ -1594,7 +1610,14 @@ export class Hud {
   /** Which build slot's menu is open on the talent screen, and the talent under the pointer. */
   private talHover: string | null = null;
   /** The talent screen's page: the skills (ESO's lines) or the talent trees. */
-  private talTab: 'skills' | 'talents' = 'skills';
+  private talTab: 'skills' | 'talents' | 'mastery' = 'skills';
+  /** Mastery's page: the points, and the three sets side by side, a bar for each passive filling to its cap. */
+  private masteryPage(): string {
+    const m = this.ctx.mastery();
+    if (!m.open) return `<div class="ms-closed"><h4>Mastery opens at level 100</h4><p>Past the top, experience doesn't stop: every so much of it is a mastery point, up to three hundred, to put into the Blade, the Shield and the Hand. Small things, a little at a time, and more of them than any one character can have.</p></div>`;
+    return `<div class="ms-head"><div class="ms-pts${m.left > 0 ? ' some' : ''}"><b>${m.left}</b><small>to spend</small></div><p>${m.earned} of 300 earned · ${m.next !== null ? `${m.next.toLocaleString()} experience to the next` : 'every point earned'}<br><span>Click a passive for a point. ${m.temple ? 'You kneel at the altar: you can put every point back.' : 'Points are put back only at a temple.'}</span></p>${m.temple && m.spent ? '<button class="btn ghost sm" data-msreset>Put every point back</button>' : ''}</div>
+      <div class="ms-sets">${m.sets.map((st) => `<section class="ms-set" style="--mc:${st.color}"><header><img src="${abilityIcon(st.icon)}" alt=""><div><h4>${esc(st.name)}</h4><p>${esc(st.blurb)}</p></div></header>${st.passives.map((d) => `<button class="ms-p${d.n >= d.cap ? ' full' : d.n ? ' some' : ''}" data-ms="${d.id}"><span class="ms-row"><b>${esc(d.name)}</b><em>${d.n}/${d.cap}</em></span><i class="ms-bar"><i style="width:${Math.round((d.n / d.cap) * 100)}%"></i></i><small>${esc(d.n ? d.now : d.at)}${d.n && d.n < d.cap ? ` <span>Next: ${esc(d.at)}</span>` : ''}</small></button>`).join('')}</section>`).join('')}</div>`;
+  }
   /**
    * The talent screen (T): the calling's three trees side by side, each a column of six tiers that open
    * as points go in, its capstone at the foot; the details of whatever's under the pointer; points to
@@ -1628,10 +1651,10 @@ export class Hud {
         <div class="tl-points${tv.points > 0 ? ' some' : ''}" title="Skill points come with levels, and with Insight: every waymark attuned, vista stood on and wonder found is a shard, and three shards make a point."><b>${tv.points}</b><small>skill ${tv.points === 1 ? 'point' : 'points'} to spend<br>of ${tv.total} · Insight ${sv.pool.insight}</small></div>
         <div class="tl-builds">${tv.builds.map((b, i) => `<div class="tl-build${b?.on ? ' on' : ''}"><span class="tl-bn">${i + 1}</span><div><b>${b ? esc(b.name) : 'Empty'}</b><small>${b ? esc(b.sum) : 'Save what you have here'}</small></div><button class="btn ghost sm" data-bsave="${i}" title="Save your talents and utilities here">Save</button>${b ? `<button class="btn sm" data-bload="${i}"${b.on || tv.fighting || !sv.temple ? ' disabled' : ''} title="${tv.fighting ? 'Not while you are fighting' : !sv.temple ? 'Builds are changed kneeling at a temple\'s altar' : 'Switch to this build'}">${b.on ? 'In use' : 'Use'}</button>` : ''}</div>`).join('')}</div>
       </div>
-      <div class="tl-tabs"><button class="tl-tab${this.talTab === 'skills' ? ' on' : ''}" data-ttab="skills">Skills</button><button class="tl-tab${this.talTab === 'talents' ? ' on' : ''}" data-ttab="talents">Talents</button>${sv.temple ? '<span class="tl-temple">You kneel at the altar: unlearning and builds can be done here</span>' : ''}</div>
-      ${this.talTab === 'talents' ? `<div class="tl-trees">${tv.trees.map(tree).join('')}</div>` : this.skillsPage(sv)}
+      <div class="tl-tabs"><button class="tl-tab${this.talTab === 'skills' ? ' on' : ''}" data-ttab="skills">Skills</button><button class="tl-tab${this.talTab === 'talents' ? ' on' : ''}" data-ttab="talents">Talents</button><button class="tl-tab${this.talTab === 'mastery' ? ' on' : ''}" data-ttab="mastery">Mastery</button>${sv.temple ? '<span class="tl-temple">You kneel at the altar: unlearning and builds can be done here</span>' : ''}</div>
+      ${this.talTab === 'talents' ? `<div class="tl-trees">${tv.trees.map(tree).join('')}</div>` : this.talTab === 'mastery' ? this.masteryPage() : this.skillsPage(sv)}
       <p class="tl-msg"></p>`;
-    foot.innerHTML = `<span>${this.talTab === 'talents' ? 'Click a talent to learn a rank · a tier opens at five points per tier above · one capstone at a time' : 'Skills rank up as you use them; at rank IV they morph one of two ways'} · T to close</span>${sv.temple ? `<button class="btn ghost sm tl-reset"${tv.fighting ? ' disabled' : ''}>Unlearn everything (${sv.respec} marks)</button>` : '<span class="tl-hint">Unlearn at a temple: kneel at any chapel\'s altar</span>'}`;
+    foot.innerHTML = `<span>${this.talTab === 'talents' ? 'Click a talent to learn a rank · a tier opens at five points per tier above · one capstone at a time' : this.talTab === 'mastery' ? 'A point for every so much experience past level 100' : 'Skills rank up as you use them; at rank IV they morph one of two ways'} · T to close</span>${sv.temple ? `<button class="btn ghost sm tl-reset"${tv.fighting ? ' disabled' : ''}>Unlearn everything (${sv.respec} marks)</button>` : '<span class="tl-hint">Unlearn at a temple: kneel at any chapel\'s altar</span>'}`;
     const msg = (t: string) => { body.querySelector('.tl-msg')!.textContent = t; };
     body.querySelectorAll<HTMLElement>('[data-tal]').forEach((b) => {
       // The talent's card, floating beside it (to the left of it near the right edge)
@@ -1657,7 +1680,9 @@ export class Hud {
     body.querySelectorAll<HTMLElement>('[data-bsave]').forEach((b) => b.addEventListener('click', () => { this.ctx.saveBuild(Number(b.dataset.bsave)); this.ctx.sfx('click'); this.renderTalents(); }));
     body.querySelectorAll<HTMLElement>('[data-bload]').forEach((b) => b.addEventListener('click', () => { const why = this.ctx.loadBuild(Number(b.dataset.bload)); this.renderTalents(); if (why) msg(why); }));
     foot.querySelector('.tl-reset')?.addEventListener('click', () => this.ask(`Unlearn every talent, skill and morph for ${sv.respec} marks? Save this build first if you want it back.`, () => { const why = this.ctx.resetTalents(); this.renderTalents(); if (why) msg(why); }, () => {}, 20));
-    body.querySelectorAll<HTMLElement>('[data-ttab]').forEach((b) => b.addEventListener('click', () => { this.talTab = b.dataset.ttab as 'skills' | 'talents'; this.ctx.sfx('click'); this.renderTalents(); }));
+    body.querySelectorAll<HTMLElement>('[data-ttab]').forEach((b) => b.addEventListener('click', () => { this.talTab = b.dataset.ttab as 'skills' | 'talents' | 'mastery'; this.ctx.sfx('click'); this.renderTalents(); }));
+    body.querySelectorAll<HTMLElement>('[data-ms]').forEach((b) => b.addEventListener('click', () => { const why = this.ctx.masterySpend(b.dataset.ms!); if (why) msg(why); else this.renderTalents(); }));
+    body.querySelector('[data-msreset]')?.addEventListener('click', () => { const why = this.ctx.masterySpend('reset'); if (why) msg(why); else this.renderTalents(); });
     body.querySelectorAll<HTMLElement>('[data-sunlock]').forEach((b) => b.addEventListener('click', () => { const why = this.ctx.unlockSkill(b.dataset.sunlock!); this.renderTalents(); if (why) msg(why); }));
     body.querySelectorAll<HTMLElement>('[data-smorph]').forEach((b) => b.addEventListener('click', () => { const [id, w] = b.dataset.smorph!.split(':'); const why = this.ctx.morphSkill(id, w as 'a' | 'b'); this.renderTalents(); if (why) msg(why); }));
   }
@@ -2124,6 +2149,14 @@ export class Hud {
    * A button at the top of the screen that takes you out of a group dungeon once it's cleared
    * (Dungeons: the last boss down), so nobody has to walk back to the ladder. Null hides it.
    */
+  /** A training dummy's count over the action bar (null takes it away). */
+  dpsMeter(html: string | null): void {
+    let e = this.root.querySelector<HTMLElement>('#dps');
+    if (!html) { e?.remove(); return; }
+    if (!e) { e = el('div', 'hud-only'); e.id = 'dps'; this.root.append(e); }
+    if (e.innerHTML !== html) e.innerHTML = html;
+  }
+
   setLeaveButton(label: string | null, onClick?: () => void): void {
     let b = document.getElementById('leave-btn') as HTMLButtonElement | null;
     if (!label) { if (b) b.style.display = 'none'; return; }
@@ -2693,11 +2726,14 @@ export class Hud {
       ['master', 'Master volume', 0, 1, 0.05], ['sfx', 'Effects', 0, 1, 0.05], ['ambience', 'Ambience', 0, 1, 0.05], ['music', 'Music', 0, 1, 0.05],
       ['renderScale', 'Render scale', 0.5, 1, 0.05],
       ['mouseSens', 'Mouse look speed', 0.3, 2.5, 0.05],
+      ['uiScale', 'Interface size', 0.8, 1.3, 0.05],
     ];
     body.innerHTML = sliders.map(([k, label, min, max, step]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`).join('')
+      + `<div class="setting"><span>Colour vision</span><select data-cv>${(Object.keys(COLOUR_VISION_NAMES) as ColourVision[]).map((k) => `<option value="${k}"${(st.colourVision ?? 'standard') === k ? ' selected' : ''}>${COLOUR_VISION_NAMES[k]}</option>`).join('')}</select><span></span></div>`
       + `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`
       + `<div class="setting"><span>Invert mouse look</span><input type="checkbox" ${st.invertY ? 'checked' : ''} data-k="invertY"><span></span></div>`
       + `<div class="setting"><span>Auto-attack: Strike keeps striking your target</span><input type="checkbox" ${st.autoAttack !== false ? 'checked' : ''} data-k="autoAttack"><span></span></div>`
+      + `<div class="setting"><span>Show the Trade channel (/trade)</span><input type="checkbox" ${st.hideTrade ? '' : 'checked'} data-trade><span></span></div>`
       + `<div class="setting"><span>Filter strong language</span><input type="checkbox" ${st.filterChat ? 'checked' : ''} data-k="filterChat"><span></span></div>`
       + (st.ignored.length ? `<div class="setting"><span>Ignoring</span><span class="v" style="flex:2">${st.ignored.map(esc).join(', ')} <small>(/unignore name)</small></span></div>` : '')
       // Full screen on a computer (phones and tablets go full screen their own way, or can't)
@@ -2726,6 +2762,8 @@ export class Hud {
         <kbd>Esc</kbd><span>Close windows</span>
       </div>
       ${this.ctx.inMenu ? '' : '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn ghost" data-act="title">Save and quit to character select</button><button class="btn danger" data-act="reset">Delete character</button></div>'}`;
+    body.querySelector<HTMLInputElement>('input[data-trade]')?.addEventListener('change', (e) => { st.hideTrade = !(e.target as HTMLInputElement).checked; this.ctx.settingsChanged(); });
+    body.querySelector<HTMLSelectElement>('select[data-cv]')?.addEventListener('change', (e) => { st.colourVision = (e.target as HTMLSelectElement).value as ColourVision; this.ctx.settingsChanged(); });
     body.querySelector<HTMLInputElement>('input[data-fs]')?.addEventListener('change', (e) => {
       const on = (e.target as HTMLInputElement).checked;
       (on ? document.documentElement.requestFullscreen() : document.exitFullscreen()).catch(() => { (e.target as HTMLInputElement).checked = !!document.fullscreenElement; });

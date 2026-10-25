@@ -3,7 +3,7 @@ import { PETS } from '../data/pets';
 import { Companion } from '../entities/Companion';
 
 /** What a chat line is: said aloud, an emote, to the group or guild, or a whisper (received, or sent). */
-export type ChatKind = 'say' | 'emote' | 'group' | 'guild' | 'whisper' | 'whisperTo';
+export type ChatKind = 'say' | 'emote' | 'local' | 'trade' | 'group' | 'guild' | 'whisper' | 'whisperTo';
 import { setRealmTime } from '../world/clock';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
@@ -122,6 +122,8 @@ export interface OnlineHooks {
   /** A creature someone else killed, and how long (ms) until it's back; the whole list on joining. */
   mobDead?(key: string, leftMs: number): void;
   mobLedger?(list: [string, number][]): void;
+  /** Another player's blows on the creature at a spawn point, as a share of its health (game/SharedMobs.ts). */
+  mobHit?(key: string, share: number, from: number): void;
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
   homeAsked?(from: string): void;
   homeShow?(owner: string, pieces: unknown[], plot: unknown): void;
@@ -284,7 +286,7 @@ export class Online {
           r.pillion = typeof pillion === 'number' ? pillion : 0;
         }
         break;
-      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
+      case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'local', 'trade', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
       case 'fStatus': this.hooks.friendStatus?.(Array.isArray(m.online) ? (m.online as { name: string; x: number; z: number }[]) : []); break;
       case 'fOn': this.hooks.friendOn?.(String(m.name)); break;
       case 'fOff': this.hooks.friendOff?.(String(m.name)); break;
@@ -294,6 +296,7 @@ export class Online {
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
       case 'mobDead': if (typeof m.key === 'string' && typeof m.left === 'number') this.hooks.mobDead?.(m.key, m.left); break;
+      case 'mHit': if (typeof m.key === 'string' && typeof m.share === 'number' && typeof m.from === 'number') this.hooks.mobHit?.(m.key, m.share, m.from); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
       case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
       case 'hShow': this.hooks.homeShow?.(String(m.owner), Array.isArray(m.pieces) ? m.pieces : [], m.plot ?? null); break;
@@ -502,12 +505,16 @@ export class Online {
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
   /** Tell the realm a creature at this spawn point died; it's gone for everyone for `secs`. */
   mobDead(key: string, secs: number): void { this.emit({ t: 'mobDead', key, secs }); }
+  /** A share of a creature's health you took off: the realm passes it to the players near you. */
+  mobHit(key: string, share: number): void { this.emit({ t: 'mHit', key, share: Math.round(share * 1e4) / 1e4 }); }
   homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }
   /** A report about a player, for the realm's keeper (server: data/reports.json). */
   report(name: string, reason: string): void { this.emit({ t: 'report', name, reason }); }
   /** The latest reports (the keeper's accounts only). */
   reportsList(): void { this.emit({ t: 'reports' }); }
   homeShow(name: string, accept: boolean, pieces: unknown[] | null, plot: unknown = null): void { this.emit({ t: 'hShow', name, accept, pieces, plot }); }
+  /** Dice rolled by the realm (server/social.mjs), heard by everyone near and by the group. */
+  roll(max: number): void { this.emit({ t: 'roll', max }); }
   shipState(st: object | null): void { this.emit({ t: 'shS', st }); }
   shipHit(name: string, dmg: number): void { this.emit({ t: 'shHit', name, dmg }); }
   shipSunk(by: string | null): void { this.emit({ t: 'shSunk', by }); }
@@ -558,7 +565,7 @@ export class Online {
   /** Your id on the server (to know your own echoed chat). */
   myId = -1;
 
-  private chatQueue: { text: string; kind: 'say' | 'emote' }[] = [];
+  private chatQueue: { text: string; kind: 'say' | 'emote' | 'local' | 'trade' }[] = [];
   private chatSentAt = 0;
   private chatTimer = 0;
 
@@ -572,7 +579,7 @@ export class Online {
   bandPart(part: PartId, voice: Voice): void { this.emit({ t: 'bandPart', part, voice }); }
   bandGo(tune: string, start: number, reps: number): void { this.emit({ t: 'bandGo', tune, start, reps }); }
 
-  chat(text: string, kind: 'say' | 'emote' = 'say'): void {
+  chat(text: string, kind: 'say' | 'emote' | 'local' | 'trade' = 'say'): void {
     if (this.status !== 'online' || !this.ws) return;
     if (this.chatQueue.length >= 6) { this.hooks.system('You are talking too fast: wait a moment.'); return; }
     this.chatQueue.push({ text, kind });

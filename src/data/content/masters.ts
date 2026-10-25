@@ -106,4 +106,18 @@ export const MASTER_CONTENT: RegionContent = {
 };
 
 /** Who teaches each calling, for the journal. */
+/**
+ * Training dummies in each master's yard: three in a row on clear, level ground a few steps from where they
+ * stand, facing them, for anyone to try a build on (game/Game.ts: the count shows over the action bar while
+ * you work at one). The rows were found by a search of the built sites for open ground away from signs and stalls.
+ */
+const row = (a: [number, number], b: [number, number], c: [number, number], yaw: number) => [a, b, c].map(([x, z]) => ({ x: Math.floor(x), z: Math.floor(z), yaw }));
+export const DUMMY_SPOTS: { x: number; z: number; yaw: number }[] = [
+  ...row([701.5, 578.5], [702.5, 580.5], [703.5, 582.5], 2.16), // caddick
+  ...row([1015.5, 1035.5], [1016.5, 1032.5], [1016.5, 1030.5], -1.96), // hollis
+  ...row([1166.5, 1812.5], [1168.5, 1812.5], [1171.5, 1811.5], -2.75), // fenwick
+  ...row([458.5, 512.5], [459.5, 509.5], [459.5, 507.5], -1.77), // thackery
+  ...row([309.5, 1477.5], [311.5, 1477.5], [313.5, 1477.5], -3.14), // eyre
+];
+
 export const MASTER_OF: Record<string, { name: string; where: string }> = Object.fromEntries(MASTERS.map((m) => [m.calling, { name: m.name, where: m.title }]));

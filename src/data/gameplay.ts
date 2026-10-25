@@ -281,7 +281,7 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
 
 // ------------------------------------------------------------- Enemies
 
-export type EnemyType = 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'roadwolf' | 'thornwolf' | 'sporejelly' | 'crab' | 'brinejelly' | 'dustwolf' | 'redback' | 'frostwolf' | 'shardjelly' | 'rustqueen' | 'oldglass'
+export type EnemyType = 'dummy' | 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boar' | 'roadwolf' | 'thornwolf' | 'sporejelly' | 'crab' | 'brinejelly' | 'dustwolf' | 'redback' | 'frostwolf' | 'shardjelly' | 'rustqueen' | 'oldglass'
   | 'bramblemaw' | 'tidewright' | 'cinderhorn' | 'rimeglass' | 'shardwarden' | 'keelglass'
   | 'huss' | 'conger' | 'thornray' | 'lionsmane' | 'porbeagle' | 'blueshark' | 'bellmane' | 'sexton'
   | 'clifffox' | 'cragboar' | 'fenjelly' | 'bogboar' | 'moorwolf' | 'graniteback'
@@ -344,11 +344,15 @@ export interface EnemyDef {
   loot: { item: string; chance: number; min?: number; max?: number }[];
   marks: [number, number];
   respawn: number;
+  /** Fixed to the spot, never fights back and never falls: a training dummy (data/dummies.ts). */
+  anchored?: boolean;
 }
 
 // Each region's creatures carry that region's gear now and then (and its bosses always): the
 // same power as what you have, spent another way (see GEAR_BUDGET in items.ts).
 export const ENEMIES: Record<EnemyType, EnemyDef> = {
+  // For practice by the calling masters' yards: it takes every blow, counts them, and is whole again a few seconds after
+  dummy: { type: 'dummy', model: 'dummy', name: 'Training dummy', level: 1, hp: 50000, damage: 0, speed: 0, aggro: 0, leash: 999, attack: 'lunge', windup: 1, range: 0, cooldown: 99, xp: 0, loot: [], marks: [0, 0], respawn: 3, anchored: true },
   wolf: { type: 'wolf', name: 'Vale wolf', level: 3, hp: 55, damage: 8, speed: 5.4, aggro: 11, leash: 30, attack: 'lunge', windup: 0.55, range: 2.4, cooldown: 1.6, xp: 32, loot: [{ item: 'wolf_pelt', chance: 0.6 }, { item: 'wolfskin_hood', chance: 0.02 }], marks: [1, 4], respawn: 90 },
   notch: { type: 'notch', name: 'Old Notch', level: 7, hp: 240, damage: 15, speed: 6.0, aggro: 14, leash: 34, attack: 'lunge', windup: 0.75, range: 3.2, cooldown: 2.0, xp: 180, elite: true, loot: [{ item: 'notch_fang', chance: 1 }, { item: 'wolf_pelt', chance: 1, min: 2, max: 2 }], marks: [18, 26], respawn: 240 },
   jelly: { type: 'jelly', name: 'Mire jelly', level: 1, hp: 30, damage: 7, speed: 2.6, aggro: 7, leash: 22, attack: 'slam', windup: 0.85, range: 2.3, cooldown: 2.2, xp: 18, loot: [{ item: 'jelly_residue', chance: 0.55 }], marks: [0, 2], respawn: 75 },

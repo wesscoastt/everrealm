@@ -1,6 +1,7 @@
 import type { DialogueTree, DNode } from '../../game/api';
 import type { ItemDef } from '../items';
-import { MIRADOR_GATE, VILLAS } from '../mirador';
+import { MIRADOR_GATE, MIRADOR_LOOKOUT, VILLAS } from '../mirador';
+import type { GameApi } from '../../game/api';
 import type { NpcDef } from '../npcs';
 import type { QuestDef } from '../quests';
 import type { ShopDef } from '../shops';
@@ -18,6 +19,16 @@ import type { RegionContent } from './types';
 // 'truth' (he puts the glass away, and gives it to you) | 'kind' (he goes on watching, and pays you).
 
 const SHIP = 'miradorShip';
+// miradorLight, SOMEONE ON THE BENCH (Nina Vidal): Nina has seen someone asleep on the lookout bench at
+// the lane's end, night after night. It's Clara Ferrer, whose family built the Long Deck and lost it; she
+// comes up from the city to look at it. She asks for her mother's tin box, hidden under the deck boards
+// the night the bailiffs came. 'night' (find who it is, after dark) -> 'box' -> 'clara' -> done. Choice
+// claraTold = 'teresa' (Teresa takes her on to keep the empty houses: she lives in the office) | 'quiet'.
+const LIGHT = 'miradorLight';
+const longDeck = VILLAS.find((v) => v.kind === 'longdeck')!;
+/** Clara at the lookout's rail behind the middle bench; the tin box under the third board from the Long Deck's west end, by the rail. */
+const BENCH: [number, number] = [MIRADOR_LOOKOUT.x + 0.5, MIRADOR_LOOKOUT.edge + 2.2];
+const TIN: [number, number] = [longDeck.x0 - 2.5, longDeck.edge + 3.5];
 const roig = VILLAS.find((v) => v.kind === 'roig')!, vidal = VILLAS.find((v) => v.kind === 'vidal')!;
 /** Teresa's office door, on the lane just inside the gatehouse; Bernat's spyglass; Nina's easel. */
 const OFFICE: [number, number] = [MIRADOR_GATE.x + 8.5, MIRADOR_GATE.z - 4.8];
@@ -29,10 +40,22 @@ const look = (o: Partial<NpcDef['look']>) => o as NpcDef['look'];
 const items: ItemDef[] = [
   { id: 'furn_lounger', name: 'Deck lounger', kind: 'collectible', rarity: 'uncommon', stack: true, value: 45, icon: { shape: 'log', a: '#8a6440', b: '#e8dcc0' }, desc: 'Teak slats on a low frame, a long back that tilts, a cushion in sailcloth. The Mirador\'s families had them made in Saltpenny from old deck planking.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'lounger', tint: 0 } },
   { id: 'furn_easel', name: 'Painter\'s easel', kind: 'collectible', rarity: 'uncommon', stack: true, value: 30, icon: { shape: 'log', a: '#c8a070', b: '#3a6a9a' }, desc: 'Three legs, a ledge, and a canvas Nina Vidal started and gave up on. The bay, with the light wrong, she says.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'easel' } },
+  { id: 'ferrer_tin', name: 'A tin box', kind: 'quest', rarity: 'common', stack: false, value: 0, icon: { shape: 'chest', a: '#8a8a88', b: '#4a4a48' }, desc: 'Japanned tin, gone to rust at the corners, wrapped in oilcloth. It rattles. Not yours to open.' },
   { id: 'furn_spyglass', name: 'Captain\'s spyglass', kind: 'collectible', rarity: 'rare', stack: true, value: 120, icon: { shape: 'bar', a: '#c8a050', b: '#5a3a20' }, desc: 'Brass on an oak tripod, the lens ground in Callis. It came off the Bona Sort\'s first captain, and Bernat Roig watched the bay through it for five years.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'spyglass' } },
 ];
 
 const npcs: NpcDef[] = [
+  {
+    land: 'morrow', id: 'clara_ferrer', name: 'Clara Ferrer', title: 'Used to live here',
+    look: look({ skin: '#d8a878', hair: '#2a1e18', hairStyle: 2, eyes: '#3a2a1e', tunic: '#5a4a40', trim: '#8a7a6a', trousers: '#3a3430', boots: '#2a1e14', lashes: true, build: 0.9, age: 0.25 }),
+    // After dark on the lookout bench; by day gone down into the city (or, kept on, at Teresa's office)
+    schedule: [
+      { from: 20, to: 24, at: BENCH, face: [BENCH[0], BENCH[1] + 8], anim: 'idle' },
+      { from: 0, to: 6, at: BENCH, face: [BENCH[0], BENCH[1] + 8], anim: 'idle' },
+      { from: 6, to: 20, at: [OFFICE[0], OFFICE[1] + 1.5], face: [OFFICE[0], OFFICE[1] + 4], anim: 'idle', indoors: true },
+    ],
+    barks: ['That one was ours. The long deck.', 'You can see the whole bay from here. We used to.'],
+  },
   {
     land: 'morrow', id: 'teresa_mas', name: 'Teresa Mas', title: 'Selling the Mirador\'s houses',
     look: look({ skin: '#d8a878', hair: '#2a1e18', hairStyle: 3, eyes: '#3a2a1e', tunic: '#2a2a30', trim: '#e8e2d4', trousers: '#2a2a30', boots: '#1a1410', lashes: true, build: 0.95, age: 0.5 }),
@@ -161,6 +184,7 @@ const nina: DialogueTree = {
       options: [
         { text: 'What\'s wrong with it?', next: 'light' },
         { text: 'What are the neighbours like?', next: 'hill' },
+        { text: 'Anything wrong on the hill?', next: 'bench', cond: (g) => !at(g, LIGHT) },
         { text: 'Do you sell your easels?', effect: (g) => g.openShop('nina') },
         { text: 'Good day.' },
       ],
@@ -169,9 +193,39 @@ const nina: DialogueTree = {
       text: 'The light. In the morning it comes off the river first, then the roofs, then the sea, and by the time I\'ve mixed the river the roofs have gone. In the evening the Lantern House lights up and the whole bay turns to look at it. I\'ve asked them to draw the curtains. There\'s nobody in it to ask now.',
       options: [{ text: 'What are the neighbours like?', next: 'hill' }, { text: 'Good day.' }],
     },
+    bench: {
+      text: 'There\'s someone sleeps on the bench at the lookout. Every night this month. I see them when I go out for the moonlight on the water. Gone before Teresa\'s up. I don\'t want them moved on. I want to know they\'ve had something to eat.',
+      options: [{ text: 'I\'ll go and see, after dark.', effect: (g) => g.setStage(LIGHT, 'night') }, { text: 'Good day.' }],
+    },
     hill: {
       text: 'Fewer every year. The Ferrers had suppers on the Long Deck for fifty, with a fiddler. The Oms had a bathing pool and let the children of the whole hill in it. Old Bernat next door waits for his ship. I paint. Teresa sells. Whoever buys, I\'d like a neighbour who has a supper now and then. I\'d come.',
       options: [{ text: 'What\'s wrong with the painting?', next: 'light' }, { text: 'Good day.' }],
+    },
+  },
+};
+
+const clara: DialogueTree = {
+  start: (g) => (at(g, LIGHT) === 'clara' && g.count('ferrer_tin') > 0 ? 'back' : at(g, LIGHT) === 'night' ? 'c1' : at(g, LIGHT) === 'box' ? 'wait' : 'hello'),
+  nodes: {
+    hello: {
+      text: (g) => (g.flag('claraTold') === 'teresa' ? 'I keep the empty houses now. I air them, I sweep the decks. I sleep in the office, in a bed. Teresa snores.' : 'I\'m only sitting. It\'s a public bench. The Assembly says so on the sign.'),
+      options: [{ text: 'Good night.' }],
+    },
+    c1: {
+      text: 'I\'m not doing any harm. I come up after dark and sit, and I go before Teresa\'s up. That one there, the long deck, was ours. The Ferrers. My father lost it at cards and then lost it again to the bank, and I was nine. I come to look at it.',
+      options: [{ text: 'Is there anything you want from it?', next: 'c2' }, { text: 'Sit as long as you like.' }],
+    },
+    c2: {
+      text: 'The night the bailiffs came, my mother put a tin box under the deck boards at the west end, the ones by the rail, and told me never to tell my father. She died that winter. Nobody ever lifted the boards. Would you? I can\'t go past the gate. You can, people like you can.',
+      options: [{ text: 'I\'ll get it.', effect: (g) => g.setStage(LIGHT, 'box') }, { text: 'Not tonight.' }],
+    },
+    wait: { text: 'The west end of the deck, by the rail. The boards lift if you know which. Third from the end.', options: [{ text: 'I\'m going.' }] },
+    back: {
+      text: 'That\'s it. That\'s hers. Letters, and her ring, and forty marks in old coin she kept from him. Thank you. I don\'t know what I\'ll do with it. Nothing. Keep it. Will you tell Teresa I sleep here?',
+      options: [
+        { text: 'Teresa needs someone to keep the empty houses. I\'ll speak for you.', effect: (g) => { g.take('ferrer_tin'); g.addMarks(120); g.setFlag('claraTold', 'teresa'); g.setStage(LIGHT, 'done'); } },
+        { text: 'No. It\'s a public bench.', effect: (g) => { g.take('ferrer_tin'); g.addMarks(160); g.setFlag('claraTold', 'quiet'); g.setStage(LIGHT, 'done'); } },
+      ],
     },
   },
 };
@@ -184,6 +238,20 @@ const pauNodes: Record<string, DNode> = {
 };
 
 const quests: Record<string, QuestDef> = {
+  [LIGHT]: {
+    id: LIGHT, name: 'Someone on the Bench', region: 'bright', depth: 'quest',
+    notes: (g, s) => {
+      if (s === 'night') return 'Nina Vidal has seen someone asleep on the bench at the Mirador\'s lookout, night after night. Whoever it is comes after dark.';
+      if (s === 'box') return 'It\'s Clara Ferrer, whose family built the Long Deck and lost it. Her mother hid a tin box under the deck boards at its west end, by the rail, the night the bailiffs came.';
+      if (s === 'clara') return 'I have the tin box. Clara will be on the lookout bench after dark.';
+      return g.flag('claraTold') === 'teresa' ? 'Teresa Mas took Clara on to keep the Mirador\'s empty houses. She sleeps in the office now.' : 'Clara still sits on the lookout bench after dark. Nobody else knows.';
+    },
+    objectives: (_g, s) => (s === 'night' ? [{ text: 'Find who sleeps on the lookout bench, after dark', marker: 'clara_ferrer' }]
+      : s === 'box' ? [{ text: 'Lift the deck boards at the Long Deck\'s west end', marker: 'ferrerTin' }]
+      : s === 'clara' ? [{ text: 'Bring Clara the tin box, after dark', marker: 'clara_ferrer' }] : []),
+    marks: (_g, s): Marks => (s === 'night' || s === 'clara' ? { clara_ferrer: '?' } : {}),
+    walk: { cast: ['nina_vidal', 'clara_ferrer'] },
+  },
   [SHIP]: {
     id: SHIP, name: 'The Bona Sort', region: 'bright', depth: 'quest',
     notes: (g, s) => {
@@ -208,7 +276,14 @@ const shops: Record<string, ShopDef> = {
 
 export const MIRADOR_CONTENT: RegionContent = {
   id: 'mirador', items, npcs, quests, shops,
-  dialogue: { teresa_mas: teresa, bernat_roig: bernat, nina_vidal: nina },
+  dialogue: { teresa_mas: teresa, bernat_roig: bernat, nina_vidal: nina, clara_ferrer: clara },
+  things: [
+    {
+      id: 'ferrerTin', x: TIN[0], z: TIN[1], y: longDeck.base, label: 'Lift the deck boards by the rail', radius: 2.4,
+      when: (g: GameApi) => at(g, LIGHT) === 'box',
+      use: (g: GameApi) => { if (!g.give('ferrer_tin')) return; g.setStage(LIGHT, 'clara'); g.toast('Third board from the end lifts on a rusted nail. Under it, in the dark between the joists, oilcloth round a tin box.'); },
+    },
+  ],
   hooks: (D) => {
     hook(D, 'pau_ferrer', (g) => (at(g, SHIP) === 'pau' ? 'roig1' : undefined), pauNodes);
   },

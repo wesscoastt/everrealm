@@ -32,6 +32,7 @@ import { BRASSWICK, ESC, GATE, VENTS, WORKS } from '../data/kell';
 import { CAREEN, CHAIR, GALLOWS, SMOKE } from '../data/teeth';
 import { WESTHORN, GLIMMER, HOOKNESS, HOOK_QUAY, SNOWBARROWS, STEAM_WELLS } from '../data/sickle';
 import { GAOL, GAOLS, REFUGE, REFUGES, type GaolDef, type RefugeDef } from '../data/justice';
+import { CABINS, CABIN_ANCHOR, CABIN_BASE, cabinFixtures } from '../data/cabins';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -543,6 +544,8 @@ export function plan(): Plan {
     { id: 'sc-mewring', name: 'The Mew Stones', x: 2735, z: 705, r0: 12, r1: 20, build: (s, b) => buildMewRing(s, b) },
     { id: 'croft-bolitho', name: 'Bolitho\'s Croft', x: 2410, z: 775, r0: 14, r1: 22, build: (s, b) => buildMewCroft(s, b) },
     { id: 'delve-gullery', name: 'The Gullery', x: 2480, z: 600, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'gullery') },
+    // The great cabins of the ships players own, out in the empty north-west of the sea (data/cabins.ts)
+    { id: 'cabins', name: 'Great cabins', x: CABIN_ANCHOR.x + 7, z: CABIN_ANCHOR.z + 65, r0: 0, r1: 0, build: (s) => buildCabins(s) },
     { id: 'wreck-margery', name: 'Wreck of the Margery', x: 2778, z: 585, r0: 0, r1: 0, build: (s) => buildMewWreck(s) },
     { id: 'vista-mewfell', name: 'Vista: Mew Fell', x: 2530, z: 650, r0: 0, r1: 0, build: (s) => buildVista(s) },
     // Public dungeons and delves (open to anyone who finds them), vistas, and the wonders of the realm
@@ -7184,6 +7187,73 @@ export function plan(): Plan {
    * The wreck of the Margery on the isle's east shore: a Gullmouth cog thrown up on the shingle in the
    * winter storms, her masts gone, her cargo strung along the tideline. You can climb aboard her.
    */
+  /**
+   * The great cabins (data/cabins.ts): for each kind of hull, the stern of a ship from her keel to her
+   * quarterdeck, and in it the captain's cabin, panelled, ribbed and beamed, its stern lights on the open
+   * sea. A frigate's has a gallery outside them to sit out on. Each captain furnishes their own (Home.ts).
+   */
+  function buildCabins(s: Site) {
+    const P = (d: PropDesc) => { s.props.push(d); };
+    const Y = CABIN_BASE;
+    for (const c of Object.values(CABINS)) {
+      const { x0, z0, w, d } = c, x1 = x0 + w - 1, z1 = z0 + d - 1, fx = cabinFixtures(c.hull);
+      const gallery = c.hull === 'frigate';
+      rect(s, x0 - (gallery ? 4 : 2), z0 - 2, x1 + 6, z1 + 2);
+      // Her hull: tarred planking from below the water to the rail, the waist running on forward of the cabin
+      for (let x = x0 - 1; x <= x1 + 5; x++) for (let z = z0 - 1; z <= z1 + 1; z++) {
+        const skin = x === x0 - 1 || z === z0 - 1 || z === z1 + 1 || x === x1 + 5;
+        for (let y = SEA - 3; y < Y - 1; y++) O.set(x, y, z, skin ? (y === Y - 3 ? B.Timber : B.DarkPlanks) : B.Planks);
+        // the quarterdeck over the cabin and the main deck forward of it, a rail round both
+        O.set(x, Y - 1, z, B.Planks);
+        if (x > x1) { O.set(x, Y + 3, z, skin ? B.DarkPlanks : B.Planks); if (skin) O.set(x, Y + 4, z, B.DarkPlanks); }
+      }
+      for (let x = x0 - 1; x <= x1; x++) for (let z = z0 - 1; z <= z1 + 1; z++) {
+        O.set(x, Y + 3, z, B.Planks);
+        if (x === x0 - 1 || z === z0 - 1 || z === z1 + 1) O.set(x, Y + 4, z, B.DarkPlanks);
+      }
+      // The cabin: a wainscot of dark oak, panelling above it, a rib every other plank, beams overhead
+      for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+        const wall = x === x0 || x === x1 || z === z0 || z === z1;
+        O.set(x, Y - 1, z, (x + z) % 5 === 0 ? B.DarkPlanks : B.Planks);
+        for (let y = Y; y < Y + 3; y++) O.set(x, y, z, !wall ? B.Air : y === Y ? B.DarkPlanks : (x - x0 + z - z0) % 2 === 0 ? B.OakLog : B.Planks);
+        O.set(x, Y + 3, z, (x - x0) % 2 === 1 && !wall ? B.DarkPlanks : B.Planks);
+      }
+      // Stern lights across the west side, mullioned, open to the air but for glass you can't walk through
+      for (let z = z0 + 1; z < z1; z++) {
+        const pane = (z - z0) % 2 === 1;
+        for (let y = Y + 1; y <= Y + 2; y++) O.set(x0, y, z, pane ? B.Barrier : B.DarkPlanks);
+        if (pane) O.set(x0, Y, z, B.Timber);
+      }
+      // Ports down each side
+      for (let k = 0; k < c.ports; k++) {
+        const x = x0 + Math.round(((k + 1) * (w - 1)) / (c.ports + 1));
+        for (const z of [z0, z1]) O.set(x, Y + 1, z, B.Barrier);
+      }
+      // A frigate's stern gallery: a door out of the middle light, a walk across her stern, a balustrade
+      if (gallery) {
+        const mz = z0 + Math.floor(d / 2) - (Math.floor(d / 2) - 1) % 2;
+        for (let y = Y; y <= Y + 2; y++) O.set(x0, y, mz, B.Air);
+        for (let x = x0 - 3; x < x0; x++) for (let z = z0; z <= z1; z++) {
+          O.set(x, Y - 1, z, B.DarkPlanks);
+          for (let y = SEA - 1; y < Y - 1; y++) O.set(x, y, z, x === x0 - 3 ? B.Timber : B.DarkPlanks);
+          O.set(x, Y + 3, z, B.Planks);
+          for (let y = Y; y < Y + 3; y++) O.set(x, y, z, y === Y && (x === x0 - 3 || z === z0 || z === z1) ? B.Barrier : B.Air);
+        }
+        P({ t: 'deckRail', x: x0 - 2.5, y: Y, z: (z0 + z1) / 2 + 0.5, ry: Math.PI / 2, len: d - 1 } as PropDesc);
+        for (const z of [z0 + 0.5, z1 + 0.5]) P({ t: 'deckRail', x: x0 - 1.5, y: Y, z, ry: 0, len: 2 } as PropDesc);
+        P({ t: 'furn', item: 'lounger', x: x0 - 1.5, y: Y, z: z0 + 2, ry: -Math.PI / 2 });
+      }
+      // The way up, the cot, the sea chest, a lantern on the beam, the chart on the table
+      for (let y = Y; y < Y + 3; y++) { O.set(x1, y, Math.floor(fx.ladder.z) - 1, B.Timber); O.set(x1, y, Math.floor(fx.ladder.z) + 1, B.Timber); }
+      P({ t: 'hatch', x: fx.ladder.x - 0.5, y: Y + 2.98, z: fx.ladder.z, ry: 0 });
+      P({ t: 'furn', item: 'bed', x: fx.cot.x, y: Y, z: fx.cot.z, ry: Math.PI / 2 });
+      P({ t: 'furn', item: 'chest', x: fx.chest.x, y: Y, z: fx.chest.z, ry: Math.PI });
+      P({ t: 'glow', x: x0 + w / 2, y: Y + 2.4, z: z0 + d / 2, r: 3.4 + w * 0.15, color: '#ffc070', lit: true });
+      P({ t: 'furn', item: 'lamp', x: x0 + 1.5, y: Y, z: z1 - 0.5, ry: 0 });
+      P({ t: 'lantern', x: x1 + 3.5, y: Y + 3, z: z0 + 0.5, ry: 0 });
+    }
+  }
+
   function buildMewWreck(s: Site) {
     const cx = Math.round(s.x), cz = Math.round(s.z), g = heightAt(cx, cz);
     rect(s, cx - 12, cz - 10, cx + 12, cz + 10);

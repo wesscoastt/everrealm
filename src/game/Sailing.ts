@@ -32,6 +32,11 @@ export interface SailingHost {
   lost(at: THREE.Vector3): void;
   /** The largest price on your head in any town's book (the revenue cutters' business). */
   wanted(): number;
+  /** A raider a story wants at sea (the Black Hen, for the Margery's Bell), for the lane it works; or null. */
+  raiderName?(lane: number): string | null;
+  /** Your mastery's share in your own guns and your own hull (data/mastery.ts). */
+  gunMul?(): number;
+  hullMul?(): number;
   /** Online: your ship's state for the others, a hit you've landed on someone's ship, your ship gone down to someone. */
   sendState?(s: ShipState | null): void;
   sendHit?(name: string, dmg: number): void;
@@ -215,7 +220,7 @@ export class Sailing {
     const mesh = new THREE.Mesh(this.ballGeo, this.ballMat);
     mesh.position.copy(at);
     this.host.scene.add(mesh);
-    this.balls.push({ mesh, pos: at.clone(), vel, from: s, dmg: s.hull.shot * (0.85 + Math.random() * 0.3), life: 4 });
+    this.balls.push({ mesh, pos: at.clone(), vel, from: s, dmg: s.hull.shot * (0.85 + Math.random() * 0.3) * (s === this.mine ? this.host.gunMul?.() ?? 1 : 1), life: 4 });
     this.puff(at, side, '#d8d4cc', 1.6, 1.8);
     this.puff(at, side, '#ffb040', 0.5, 0.12);
     const d = this.mine ? at.distanceTo(this.mine.pos) : 99;
@@ -249,7 +254,7 @@ export class Sailing {
 
   /** Damage to a ship: yours (and the realm's word on it), a raider's, or a remote captain's (sent on). */
   private hit(target: Ship, dmg: number, by: Ship): void {
-    const n = Math.round(dmg);
+    const n = Math.round(target === this.mine ? dmg / (this.host.hullMul?.() ?? 1) : dmg);
     if (target.remote) { if (by === this.mine) this.host.sendHit?.(target.remote, n); this.host.floatAt(target.pos.clone().setY(SEA + target.deck + 2), 1, `-${n}`, 'enemy'); return; }
     target.hp -= n;
     this.host.floatAt(target.pos.clone().setY(SEA + target.deck + 2), 1, `-${n}`, target === this.mine ? 'player' : 'enemy');
@@ -290,7 +295,8 @@ export class Sailing {
         const a = Math.random() * Math.PI * 2, d = 180 + Math.random() * 80;
         const x = P.x + Math.sin(a) * d, z = P.z + Math.cos(a) * d;
         if (x < L.x0 || x > L.x1 || z < L.z0 || z > L.z1 || !openSea(this.host.voxels, x, z)) continue;
-        const name = kind.names[Math.floor(Math.random() * kind.names.length)];
+        const wanted = this.host.raiderName?.(li);
+        const name = wanted && !this.ships.some((x) => x.npc?.name === wanted && x.sinking < 0) ? wanted : kind.names[Math.floor(Math.random() * kind.names.length)];
         const s = new Ship(this.host.props, HULLS[kind.hull], { ...kind.livery, name });
         s.pos.set(x, SEA, z);
         s.yaw = Math.atan2(P.x - x, P.z - z) + (Math.random() - 0.5);

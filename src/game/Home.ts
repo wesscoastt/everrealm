@@ -24,6 +24,8 @@ export interface HomeHost {
   sound(name: string): void;
   /** The house you live in, if any. */
   shape(): HomeShape | null;
+  /** Floor cells (as "x,z") the place keeps for fixed things of its own: a ship's cot, her sea chest, the way up. */
+  reserved?(): Set<string>;
 }
 
 /** Pieces a house holds: a bigger house holds more. */
@@ -194,7 +196,8 @@ export class Home {
     if (x - hx < h.x0 + 1 - 0.02 || x + hx > h.x0 + h.w - 1 + 0.02 || z - hz < h.z0 + 1 - 0.02 || z + hz > h.z0 + h.d - 1 + 0.02) return false;
     if (model === 'rug') return true;
     const keep = kept(h)[floor] ?? new Set<string>();
-    if (furnCells(model, x, z, ry).some((c) => keep.has(c.join(',')))) return false;
+    const fixed = this.host.reserved?.();
+    if (furnCells(model, x, z, ry).some((c) => keep.has(c.join(',')) || !!fixed?.has(c.join(',')))) return false;
     for (const [it, px, pz, pt, pf] of list) {
       if ((pf ?? 0) !== floor) continue;
       const m = ITEMS[it]?.furn?.model as FurnItem | undefined;

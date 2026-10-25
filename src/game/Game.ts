@@ -59,8 +59,12 @@ import { Crowd, CrowdZone } from './Crowd';
 import { Roadfolk } from './Roadfolk';
 import { Justice } from './Justice';
 import { Voyage, type Harbour } from './Voyage';
+import { ISLAND_COURSES } from '../data/islandCourses';
+import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
 import { Sailing, type ShipState } from './Sailing';
 import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
+import { applyColourVision } from '../ui/colourVision';
+import { CABINS, CABIN_BASE, cabinAt, cabinFixtures, cabinReserved, cabinShape } from '../data/cabins';
 import { CRIME, JURISDICTIONS, jurisdictionAt } from '../data/justice';
 import '../data/pledges';
 import { Doll } from '../ui/Doll';
@@ -122,6 +126,7 @@ import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
+import { SharedMobs } from './SharedMobs';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
 import { lodgeAt, LODGINGS, MAX_WEEKS, readTenancy, roomBase, ROOMS, roomShape, WEEK } from '../data/lodgings';
@@ -135,7 +140,7 @@ import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponLine } from '../data/classes';
-import { MASTER_OF } from '../data/content/masters';
+import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
 import { currentAccount, deleteRemote, isDevAccount, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
@@ -242,6 +247,8 @@ export interface CraftOpts { affix?: string; q?: number }
 
 const UP = new THREE.Vector3(0, 1, 0);
 const tmpV = new THREE.Vector3();
+/** A training dummy's count starts again after this many seconds without a blow (and the dummy's whole again: Enemy.ts). */
+const PRACTICE_REST = 6;
 const tmpV2 = new THREE.Vector3();
 /** How far a melee Strike reaches for its foe: from a few blocks off, the swing lunges in. */
 const MELEE_REACH = 5.5;
@@ -264,6 +271,8 @@ export class Game implements GameApi {
   enemies: Enemy[] = [];
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
+  /** The open world's creatures, the same for every player by them (game/SharedMobs.ts). */
+  private shared!: SharedMobs;
   /** Hidden chests across the land (game/Chests.ts). */
   private chests!: Chests;
   /** The towns' dogs and cats, spawned near the player (one list, so each keeps its place). */
@@ -443,6 +452,8 @@ export class Game implements GameApi {
   fairPlaysLeft(game: string): number { return this.fair.playsLeft(game as FairGameId); }
   fairGuessed(): boolean { return this.fair.guessedToday(); }
   home!: Home;
+  /** The great cabin of a ship of your own, a second home with its own furniture (data/cabins.ts). */
+  private cabin!: Home;
   building!: Building;
   /** Laying and digging blocks by hand on your own lot. */
   lotBuild!: LotBuild;
@@ -788,6 +799,9 @@ export class Game implements GameApi {
       sank: (kind, name, at) => this.raiderSunk(kind.id, kind.name, kind.level, kind.marks, kind.plunder, name, at),
       lost: () => this.shipLost(),
       wanted: () => this.justice.prices()[0]?.n ?? 0,
+      gunMul: () => 1 + this.mastery('gunnery'), hullMul: () => 1 + this.mastery('timbers'),
+      // (the Black Hen is out east of the Mewstones while the Margery's Bell wants her: data/content/gullmouthSide.ts)
+      raiderName: (lane) => (lane === 0 && this.stage('gullMargery') === 'hen' ? 'Black Hen' : null),
       sendState: (st) => { if (this.online.online) this.online.shipState(st); },
       sendHit: (name, dmg) => { if (this.online.online) this.online.shipHit(name, dmg); },
       sendSunk: (by) => { if (this.online.online) this.online.shipSunk(by); },
@@ -878,6 +892,16 @@ export class Game implements GameApi {
       player: () => this.player.position, yaw: () => this.player.yaw,
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n as Sfx),
       shape: () => this.myHome(),
+    });
+    // (the cabin keeps its furniture under 'cabin:<hull>', one layout for each kind of ship you own)
+    const cabinFlag = (k: string) => (k === 'home' ? 'cabin:' + (this.cabinHull() ?? 'none') : k);
+    this.cabin = new Home({
+      scene: this.scene, flag: (k) => this.flag(cabinFlag(k)), setFlag: (k, v) => this.setFlag(cabinFlag(k), v),
+      count: (it) => this.inv.count(it), give: (it) => this.give(it), take: (it) => this.take(it),
+      player: () => this.player.position, yaw: () => this.player.yaw,
+      system: (t) => this.hud.system(t), sound: (n) => this.sfx(n as Sfx),
+      shape: () => { const h = this.cabinHull(); return h ? cabinShape(h) : null; },
+      reserved: () => { const h = this.cabinHull(); return h ? cabinReserved(h) : new Set(); },
     });
     this.building = new Building({ scene: this.scene, voxels: this.world.voxels, buildProps: (s) => this.world.buildProps(s) });
     this.world.extraDoors = () => this.building.doors();
@@ -1041,6 +1065,13 @@ export class Game implements GameApi {
       this.enemies.push(e);
       this.scene.add(e.model.root, e.telegraph);
     }
+    // Training dummies in the masters' yards (data/content/masters.ts)
+    for (const d of DUMMY_SPOTS) {
+      const e = new Enemy(ENEMIES.dummy, d.x, d.z, this.world.voxels, this.world.grid);
+      e.yaw = d.yaw;
+      this.enemies.push(e);
+      this.scene.add(e.model.root, e.telegraph);
+    }
     for (const a of ANIMAL_SPAWNS) {
       const an = new Animal(a.kind, a.x, a.z, a.radius, this.world.voxels, this.world.grid, a.kind === 'duck' && a.x % 2 < 1 ? {} : a.kind === 'duck' ? { a: '#8a6a4a', b: '#7a5a3a' } : {});
       this.animals.push(an);
@@ -1096,6 +1127,13 @@ export class Game implements GameApi {
         const t = towns.find(([, tx, tz, r]) => Math.hypot(x - tx, z - tz) < r);
         return t ? (t[0] as never) : null;
       },
+    });
+    this.shared = new SharedMobs({
+      others: () => [...this.online.remotes.values()].map((r) => [r.id, r.model.root.position] as [number, THREE.Vector3]),
+      me: () => this.player.position,
+      send: (key, share) => this.online.mobHit(key, share),
+      claimed: (e) => this.dungeons.owns(e),
+      now: () => this.elapsed,
     });
     this.dungeons = new Dungeons({
       companion: () => (this.companions.active ? this.companions.henchmanOf(this.companions.active) : null),
@@ -1180,6 +1218,13 @@ export class Game implements GameApi {
       ...this.mail.hooks(),
       ...this.music.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
+      mobHit: (key: string, share: number, from: number) => {
+        const e = this.shared.theirs(this.enemies, key, share, from);
+        if (!e) return;
+        if (this.target === e) this.target = null;
+        // Your blow was in it: the kill is yours too
+        if (this.shared.wasMine(e)) this.onEnemyKilled(e, true);
+      },
       groupKill: (type: string) => {
         this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
         this.hud.setTracker(this.questEntries());
@@ -1233,11 +1278,12 @@ export class Game implements GameApi {
       chat: (from, t0, id, kind) => {
         // Someone you've ignored isn't heard, aloud or in a whisper
         if (from !== this.save.name && this.isIgnored(from)) return;
+        if (kind === 'trade' && this.save.settings.hideTrade && from !== this.save.name) return;
         const t = this.save.settings.filterChat ? filterLanguage(t0) : t0;
         this.hud.chat(from, t, kind);
         if (kind === 'whisper') { this.social.lastWhisper = from; this.sfx('click'); }
         // Only what's said aloud shows over a head: group, guild and whispers are private
-        if (id !== undefined && (kind === 'say' || kind === 'emote' || !kind)) this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
+        if (id !== undefined && (kind === 'say' || kind === 'local' || kind === 'emote' || !kind)) this.addBubble(id === this.online.myId ? -1 : id, kind === 'emote' ? `${from} ${t}` : t, kind === 'emote');
       },
       status: (s, n) => {
         if (s === 'online') this.social.watch();
@@ -1607,8 +1653,28 @@ export class Game implements GameApi {
       this.hud.system(`On the Charter Post to ${there.name}, about ${rideMinutes(wayLength(way))} min. Sit back and watch the country go by; Space or E to get off.`);
       return;
     }
-    // No road there (an island): a crossing by boat. Set down a couple of blocks in front of the sign, facing away from it.
+    // No road there (an island): the island packet, the Plover, out of Gullmouth and over the sea, and in to
+    // the island's landing (or back the other way). Set down a couple of blocks in front of the sign, facing away from it.
     const fx = Math.sin(there.ry), fz = Math.cos(there.ry);
+    const isle = ISLAND_COURSES[there.id] ?? ISLAND_COURSES[here.id];
+    if (isle && !this.voyage.active) {
+      const outward = there.id in ISLAND_COURSES, island: Harbour = { berth: isle.berth, heading: isle.heading };
+      const from = outward ? HARBOURS.counties : island, to = outward ? island : HARBOURS.counties;
+      this.dismount(true);
+      this.voyage.style = { kind: 'cog', wale: '#2f528f', flag: '#d8b04a', name: 'PLOVER', banner: ['The Plover casts off', `For ${there.name.split(' (')[0]}`] };
+      this.rig.yaw = from.heading + Math.PI;
+      this.voyage.depart(from, () => this.voyage.cross(outward ? isle.course : [...isle.course].reverse(), () => {
+        this.rig.yaw = to.heading;
+        this.voyage.arrive(to, () => {
+          const x = there.x + fx * 2, z = there.z + fz * 2;
+          this.player.teleport(x, heightAt(x, z) + 1, z);
+          this.player.yaw = Math.atan2(fx, fz);
+          this.voyage.style = {};
+          this.hud.banner(there.name.split(' (')[0], 'Ashore', true);
+        });
+      }));
+      return;
+    }
     const x = there.x + fx * 2, z = there.z + fz * 2;
     this.save.pos = [x, heightAt(x, z) + 1, z];
     this.save.yaw = Math.atan2(fx, fz);
@@ -2100,7 +2166,7 @@ export class Game implements GameApi {
   private nearestBerth() { const P = this.player.position; return BERTHS.slice().sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; }
   private defaultLivery(id: HullId): Livery { return { hull: HULL_PAINTS[0], wale: WALE_PAINTS[0], sail: SAIL_CLOTHS[0], name: `${this.save.name}'s ${HULLS[id].name}` }; }
 
-  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name', arg?: string): void {
+  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name' | 'below', arg?: string): void {
     const berth = this.nearestBerth(), ships = this.myShips();
     const sailOut = (hull: HullId, livery: Livery, hp?: number) => {
       if (this.horse) this.dismount(true);
@@ -2136,6 +2202,13 @@ export class Game implements GameApi {
     }
     const i = Math.max(0, Math.min(ships.length - 1, Number(arg ?? 0) || 0)), sh = ships[i];
     if (!sh) { this.hud.system('You have no ship of your own at the yard.'); return; }
+    if (action === 'below') {
+      if (sh.sunk) { this.hud.system(`The ${sh.livery.name} is on the bottom. Nobody's sleeping aboard her.`); return; }
+      this.hud.closeAll();
+      this.hud.system(`The yard's boy rows you out to the ${sh.livery.name} where she lies at her mooring.`);
+      this.goBelow(sh.hull, this.player.position.clone());
+      return;
+    }
     if (action === 'call') {
       if (sh.sunk) { this.hud.system(`The ${sh.livery.name} is on the bottom. The yard can raise her for ${Math.round(HULLS[sh.hull].build.marks * SALVAGE)} marks.`); return; }
       sailOut(sh.hull, sh.livery, sh.hp);
@@ -2162,6 +2235,79 @@ export class Game implements GameApi {
       this.hud.system(action === 'name' ? `She's the ${L.name} now, in gilt on her stern.` : 'The yard\'s painters go over her. She\'ll be dry by morning.');
       this.persist();
     }
+  }
+
+  /** Working at a training dummy: what you've put into it since you started, and the best single blow. */
+  private practice: { first: number; last: number; total: number; hits: number; best: number; bestCrit: boolean; drawn: number } | null = null;
+  private practiced(dmg: number, crit: boolean): void {
+    const now = this.elapsed;
+    if (!this.practice || now - this.practice.last > PRACTICE_REST) this.practice = { first: now, last: now, total: 0, hits: 0, best: 0, bestCrit: false, drawn: -1 };
+    const pr = this.practice;
+    pr.last = now; pr.total += dmg; pr.hits++;
+    if (dmg > pr.best) { pr.best = dmg; pr.bestCrit = crit; }
+  }
+  /** The dummy's count over the action bar, a few times a second, gone a while after you stop. */
+  private drawPractice(): void {
+    const pr = this.practice;
+    if (!pr) return;
+    const now = this.elapsed;
+    if (now - pr.last > PRACTICE_REST) { this.practice = null; this.hud.dpsMeter(null); return; }
+    if (now - pr.drawn < 0.25) return;
+    pr.drawn = now;
+    const secs = Math.max(1, pr.last - pr.first + 0.5), n = (v: number) => Math.round(v).toLocaleString();
+    this.hud.dpsMeter(`Training dummy · ${secs.toFixed(1)} s<b>${n(pr.total / secs)}</b>a second<small>${n(pr.total)} in ${pr.hits} blow${pr.hits === 1 ? '' : 's'} · best ${n(pr.best)}${pr.bestCrit ? ' (critical)' : ''} · it's whole again ${PRACTICE_REST} s after you stop</small>`);
+  }
+
+  /** The cabin you live in aboard: the kind of the ship you last went below in, while you still own one afloat. */
+  private cabinHull(): HullId | null {
+    const h = this.flag('cabinHull') as HullId | null;
+    return h && h in CABINS && this.myShips().some((x) => x.hull === h && !x.sunk) ? h : null;
+  }
+  /** Whichever home you're standing in: your ship's cabin, or the one ashore. */
+  private get homeHere(): Home { return this.cabin.owned && this.cabin.inside(this.player.position) ? this.cabin : this.home; }
+  /** Dry land near a point (a berth's water): where you come ashore if your ship isn't there to come up on. */
+  private shoreNear(x: number, z: number): THREE.Vector3 {
+    for (let r = 0; r <= 80; r += 2) for (let a = 0; a < 16; a++) {
+      const qx = Math.floor(x + Math.cos((a / 16) * Math.PI * 2) * r), qz = Math.floor(z + Math.sin((a / 16) * Math.PI * 2) * r);
+      const top = this.world.voxels.isLoaded(qx, qz) ? this.world.voxels.groundBelow(qx + 0.5, 140, qz + 0.5) : heightAt(qx, qz);
+      if (top > SEA + 0.5) return new THREE.Vector3(qx + 0.5, top + 0.2, qz + 0.5);
+    }
+    return new THREE.Vector3(x, SEA + 2, z);
+  }
+  /** Down the companion ladder into her cabin; you come up again where she lies (or ashore by her berth, if she's gone back to the yard). */
+  private goBelow(hull: HullId, ashore: THREE.Vector3): void {
+    if (this.horse) this.dismount(true);
+    if (this.sailing.atHelm) { this.sailing.atHelm = false; if (this.rigBeforeHelm) { this.rig.distance = this.rigBeforeHelm; this.rigBeforeHelm = 0; } }
+    this.cancelActions();
+    this.setFlag('cabinHull', hull);
+    this.setFlag('cabinBack', [Math.round(ashore.x * 10) / 10, Math.round(ashore.y * 10) / 10, Math.round(ashore.z * 10) / 10]);
+    if (!Array.isArray(this.flag('cabin:' + hull))) this.setFlag('cabin:' + hull, []);
+    const fx = cabinFixtures(hull);
+    this.player.teleport(fx.ladder.x - 1.2, CABIN_BASE + 0.05, fx.ladder.z);
+    this.player.velocity.set(0, 0, 0);
+    this.player.fallStartY = this.player.position.y;
+    this.player.yaw = -Math.PI / 2;
+    this.cabin.render();
+    this.sfx('open', 0.6);
+    if (!this.flag('cabinSeen:' + hull)) {
+      this.setFlag('cabinSeen:' + hull, 1);
+      this.hud.system(`${CABINS[hull].blurb} It's yours to furnish: Arrange the furniture, as at home. The cot is made up, and the sea chest is your bank.`);
+    }
+    this.persist();
+  }
+  private goUp(): void {
+    const sh = this.sailing.mine, out = Number(this.flag('shipOut') ?? -1);
+    if (sh && sh.sinking < 0 && out >= 0 && this.myShips()[out]?.hull === this.cabinHull()) {
+      const at = sh.helm(new THREE.Vector3()), f = sh.fwd;
+      this.player.teleport(at.x + f.x * 1.5, at.y + 0.1, at.z + f.z * 1.5);
+    } else {
+      const b = this.flag('cabinBack');
+      const at = Array.isArray(b) && b.length === 3 && b.every((n) => typeof n === 'number') ? new THREE.Vector3(b[0], b[1], b[2]) : this.shoreNear(BERTHS[0].x, BERTHS[0].z);
+      this.player.teleport(at.x, at.y, at.z);
+    }
+    this.player.velocity.set(0, 0, 0);
+    this.player.fallStartY = this.player.position.y;
+    this.sfx('open', 0.6);
   }
 
   /** Take the helm of your ship: the camera pulled back to see all of her. */
@@ -2221,6 +2367,7 @@ export class Game implements GameApi {
     for (const [it, a, b] of plunder) { const n = a + Math.floor(Math.random() * (b - a + 1)); if (n > 0 && ITEMS[it] && this.give(it, n)) got.push(`${n} ${ITEMS[it].name}`); }
     this.addXp('melee', level * 18);
     this.setFlag('raidersSunk', Number(this.flag('raidersSunk') ?? 0) + 1);
+    if (name === 'Black Hen' && this.stage('gullMargery') === 'hen' && this.give('margery_bell', 1)) { this.setStage('gullMargery', 'nessa'); this.hud.system('Floating up out of the Black Hen as she goes: a ship\'s bell on a broken plank. MARGERY GULLMOUTH, cut round the lip.'); }
     this.setFlag('sunk:' + id, Number(this.flag('sunk:' + id) ?? 0) + 1);
     this.hud.banner(`The ${name} is going down`, `${kindName}, sunk`, true);
     this.hud.system(`You pick ${m} marks${got.length ? ' and ' + got.join(', ') : ''} out of the wreckage.`);
@@ -2264,12 +2411,13 @@ export class Game implements GameApi {
     this.shipPanel.innerHTML = `<b>${sh!.livery.name}</b> &nbsp;·&nbsp; hull ${Math.max(0, Math.round(sh!.hp))}/${sh!.hull.hp} &nbsp;·&nbsp; ${['sails furled', 'fighting sail', 'all plain sail'][sh!.sails]} &nbsp;·&nbsp; ${(sh!.speed * 0.9).toFixed(1)} knots<br>wind from the ${comp}, ${w.strength > 0.85 ? 'fresh' : w.strength > 0.65 ? 'steady' : 'light'} &nbsp;·&nbsp; port guns ${gun(0)} &nbsp;·&nbsp; starboard guns ${gun(1)}${foe && foe.d < 300 ? ` &nbsp;·&nbsp; <span style="color:#ff9a7a">${foe.ship.npc?.name ?? foe.ship.remote ?? 'a ship'} ${Math.round(foe.d)} off</span>` : ''}`;
   }
 
-  arrangeHome(): void { this.hud.closeAll(); if (this.home.active) this.home.stop(); else this.home.start(); }
+  arrangeHome(): void { this.hud.closeAll(); const H = this.cabin.active ? this.cabin : this.homeHere; if (H.active) H.stop(); else H.start(); }
 
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
     if (this.social.groupNearby()) amount = Math.round(amount * 1.1);
     if (Number(this.flag('rested') ?? 0) > 0) amount = Math.round(amount * 1.25);
+    if (skill !== 'melee' && this.mastery('scholar')) amount = Math.round(amount * (1 + this.mastery('scholar')));
     if (!this.writXp && skill !== 'melee') this.dailies.bump(`xp:${skill}`, Math.round(amount));
     const before = this.level(skill);
     this.save.xp[skill] += Math.round(amount);
@@ -2295,7 +2443,7 @@ export class Game implements GameApi {
     this.hud.refresh('skills');
   }
 
-  get maxHp(): number { return Math.round((100 + (this.level('melee') - 1) * 6 + this.armour.vigor) * (1 + this.buffSum('hp'))); }
+  get maxHp(): number { return Math.round((100 + (this.level('melee') - 1) * 6 + this.armour.vigor) * (1 + this.buffSum('hp')) * (1 + this.mastery('hardiness'))); }
 
   /** A meal's and a drink's good together (data/items.ts buff). */
   private buffSum(k: 'hp' | 'regen' | 'power'): number {
@@ -2381,6 +2529,38 @@ export class Game implements GameApi {
     return { name: def?.name ?? 'Pack', slots: Number(this.flag('packSlots') ?? 0), hidden: !!this.flag('hidePack') };
   }
   togglePack(): void { this.setFlag('hidePack', !this.flag('hidePack')); this.hud.refresh(); }
+  /** A mastery passive's worth (data/mastery.ts): its points times its share per point. */
+  private mastery(id: MasteryId): number {
+    const n = readMastery(this.save.flags.mastery)[id] ?? 0;
+    return n ? n * MASTERY_BY_ID.get(id)!.per : 0;
+  }
+  /** Mastery, for its tab on the talent screen. */
+  masteryView() {
+    const earned = masteryEarned(this.save.xp.melee), put = readMastery(this.save.flags.mastery);
+    const spent = Object.values(put).reduce((a, b) => a + (b ?? 0), 0);
+    return {
+      open: this.level('melee') >= 100, earned: earned.points, next: earned.next, spent, left: earned.points - spent, temple: this.atTemple(),
+      sets: MASTERY.map((st) => ({ id: st.id, name: st.name, blurb: st.blurb, icon: st.icon, color: st.color, passives: st.passives.map((d) => ({ id: d.id, name: d.name, n: put[d.id] ?? 0, cap: d.cap, now: d.desc(put[d.id] ?? 0), at: d.desc(Math.min(d.cap, (put[d.id] ?? 0) + 1)) })) })),
+    };
+  }
+  /** A point into a passive (or, at a temple, every point back). */
+  masterySpend(id: MasteryId | 'reset'): string | null {
+    const v = this.masteryView(), put = readMastery(this.save.flags.mastery);
+    if (id === 'reset') {
+      if (!v.temple && this.mode === 'play') return 'Mastery is put back at a temple: kneel at the altar of any chapel, the Glass Kirk or the Hall of the Two Stones.';
+      this.save.flags.mastery = {};
+    } else {
+      const d = MASTERY_BY_ID.get(id);
+      if (!d) return null;
+      if (v.left <= 0) return v.open ? 'No mastery points left. Every so much experience past level 100 is another.' : 'Mastery opens at level 100.';
+      if ((put[id] ?? 0) >= d.cap) return `${d.name} is as far as it goes.`;
+      this.save.flags.mastery = { ...put, [id]: (put[id] ?? 0) + 1 };
+    }
+    this.sfx(id === 'reset' ? 'open' : 'click');
+    this.hud.refresh();
+    this.persist();
+    return null;
+  }
   /** Horsemanship: your rank, and how far to the next (blocks), for the pack panel. */
   ridingInfo(): { rank: number; next: number | null } {
     const d = Number(this.flag('rideDist') ?? 0), rank = rideRank(d);
@@ -2500,6 +2680,9 @@ export class Game implements GameApi {
     }
     this.audio.volumes = { master: s.master, sfx: s.sfx, ambience: s.ambience, music: s.music };
     this.audio.applyVolumes();
+    // The interface's size (the world's own labels keep theirs), and colour vision
+    document.documentElement.style.setProperty('--ui-scale', String(Math.min(1.3, Math.max(0.8, s.uiScale ?? 1))));
+    applyColourVision(s.colourVision);
     this.renderer.shadowMap.enabled = s.shadows;
     if (this.world) this.world.chunks.viewRadius = s.viewDist;
     if (this.world) this.world.sky.sun.castShadow = s.shadows;
@@ -2536,6 +2719,7 @@ export class Game implements GameApi {
       get currentStation() { return g.currentStation; },
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
+      sortPack: () => { g.inv.sort(); g.hud.refresh(); g.persist(); },
       daily: () => g.dailies.view(),
       festival: () => ({ ...g.festivals.view(), extra: g.seasons.journal() }),
       trade: () => g.social.ui(),
@@ -2640,6 +2824,8 @@ export class Game implements GameApi {
       calling: () => g.calling,
       setCalling: (id: CallingId) => g.setCalling(id),
       talents: () => g.talentView(),
+      mastery: () => g.masteryView(),
+      masterySpend: (id: string) => g.masterySpend(id as MasteryId | 'reset'),
       callingFree: () => !g.flag('callingSet'),
       apprentice: () => { const a = g.apprentice; return a ? { name: a.name, master: MASTER_OF[a.id]?.name ?? '' } : null; },
       bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
@@ -3564,7 +3750,7 @@ export class Game implements GameApi {
     const out = o.affix || q !== 1 ? `${r.output}__${o.affix ?? ''}${q}` : r.output;
     // Experience: the recipe's colour for you (WoW's), more for a better piece or a leaning worked in
     const xp = Math.max(1, Math.round(r.xp * craftColour(this.level(r.skill), r.level).xp * step.xp * (o.affix ? 1.1 : 1)));
-    const time = r.time / (r.station === 'bench' ? [1, 1.2, 1.33][this.passive('wc_quick')] : 1);
+    const time = r.time / (r.station === 'bench' ? [1, 1.2, 1.33][this.passive('wc_quick')] : 1) / (1 + this.mastery('quick'));
     this.cancelActions();
     this.craftAction = { recipe: id, left: Math.min(count, can), t: 0, station: r.station, cost, out, xp, time };
     this.player.locked = true;
@@ -4058,6 +4244,24 @@ export class Game implements GameApi {
         const d = Math.hypot(sh.pos.x - p.x, sh.pos.z - p.z);
         if (d < sh.hull.len * 0.5 + 5 && p.y > SEA - 1) consider({ kind: 'act', label: `Take the helm of the ${sh.livery.name}`, pos: sh.helm(new THREE.Vector3()).setY(p.y + 1), act: () => this.takeHelm() }, Math.max(0.5, d - sh.hull.len * 0.4));
       }
+      // Below, to her cabin, from by the helm (yours, not a hired one: the yard keeps its cabins locked)
+      const own = this.myShips()[Number(this.flag('shipOut') ?? -1)];
+      if (sh && own && sh.sinking < 0 && p.y > SEA) {
+        const hm = sh.helm(new THREE.Vector3()), d = Math.hypot(hm.x - p.x, hm.z - p.z);
+        if (d < 3.2) consider({ kind: 'act', label: `Go below to ${CABINS[own.hull].name}`, pos: hm.clone().setY(p.y + 1), act: () => { const berth = BERTHS.slice().sort((a, b) => Math.hypot(a.x - sh.pos.x, a.z - sh.pos.z) - Math.hypot(b.x - sh.pos.x, b.z - sh.pos.z))[0]; this.goBelow(own.hull, this.shoreNear(berth.x, berth.z)); } }, 1.2 + d * 0.3);
+      }
+    }
+    // In her cabin: up the ladder, into the cot, into the sea chest
+    {
+      const hull = cabinAt(p.x, p.y, p.z);
+      if (hull) {
+        const fx = cabinFixtures(hull), near = (q: { x: number; z: number }) => Math.hypot(q.x - p.x, q.z - p.z);
+        if (near(fx.ladder) < 2.6) consider({ kind: 'act', label: 'Go up on deck', pos: new THREE.Vector3(fx.ladder.x, CABIN_BASE + 1.6, fx.ladder.z), act: () => this.goUp() }, near(fx.ladder) * 0.4);
+        if (this.cabinHull() === hull) {
+          if (near(fx.cot) < 2.6) consider({ kind: 'act', label: 'Sleep in your cot', pos: new THREE.Vector3(fx.cot.x, CABIN_BASE + 1, fx.cot.z), act: () => this.sleep() }, near(fx.cot) * 0.3);
+          if (near(fx.chest) < 2.6) consider({ kind: 'act', label: 'Open your sea chest', sub: 'Your bank, aboard', pos: new THREE.Vector3(fx.chest.x, CABIN_BASE + 1, fx.chest.z), act: () => { this.hud.closeAll(); void this.bank.show('Sea chest', fx.chest.x, fx.chest.z); } }, near(fx.chest) * 0.4);
+        }
+      }
     }
     // A parcel waiting: collect it at any post box
     if (this.parcel.length) for (const pt of POSTS) {
@@ -4066,8 +4270,9 @@ export class Game implements GameApi {
     }
     // A pedlar on the road: they stop for you, and open their pack
     for (const pd of this.roadfolk.pedlarsNear(p, 3.4)) consider({ kind: 'act', label: `Trade with ${pd.name}`, sub: pd.title, pos: new THREE.Vector3(pd.pos.x, pd.pos.y + 1, pd.pos.z), act: () => this.openPedlar(pd.id) }, Math.hypot(pd.pos.x - p.x, pd.pos.z - p.z));
-    const bed = !this.home.active && this.home.bed();
-    if (bed && this.home.inside(p) && Math.abs(bed.y - p.y) < 2) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, bed.y + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
+    const H = this.homeHere;
+    const bed = !H.active && H.bed();
+    if (bed && H.inside(p) && Math.abs(bed.y - p.y) < 2) consider({ kind: 'act', label: 'Sleep in your bed', pos: new THREE.Vector3(bed.x, bed.y + 1, bed.z), act: () => this.sleep() }, Math.hypot(bed.x - p.x, bed.z - p.z) * 0.3);
     // Someone else's house: knock, and if they're in the world they're asked to let you in
     if (this.homesBook && !this.home.visiting) for (const [id, h] of this.homesBook) {
       const lt = LOT_BY_ID.get(id), vl = VILLA_BY_ID.get(id);
@@ -4108,9 +4313,9 @@ export class Game implements GameApi {
     // On your own lot: lay blocks and dig them out by hand
     if (!this.lotBuild.active && !this.home.active && this.lotBuild.onLot(p)) consider({ kind: 'act', label: 'Build on your lot', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => { this.hud.closeAll(); this.lotBuild.start(); } }, 2.2);
     // Stations of your own at home: a bench, a range, an anvil, a forge, each works like the town's
-    if (!this.home.active && !this.home.visiting && this.home.owned) {
-      const h = this.home.where();
-      if (h) for (const [item, x, z, , f] of this.home.pieces()) {
+    if (!H.active && !H.visiting && H.owned) {
+      const h = H.where();
+      if (h) for (const [item, x, z, , f] of H.pieces()) {
         const st = HOME_STATIONS[item];
         if (!st) continue;
         const y = h.base + (f ?? 0) * 4, d = Math.hypot(x - p.x, z - p.z);
@@ -4118,7 +4323,7 @@ export class Game implements GameApi {
       }
     }
     // Indoors at home: arrange the furniture from anywhere in the house
-    if (!this.home.active && !this.home.visiting && this.home.owned && this.home.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
+    if (!H.active && !H.visiting && H.owned && H.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
     // Lodging houses: every room's door, and your own room's chest
     for (const L of LODGINGS) {
       if (Math.hypot(L.x - p.x, L.z - p.z) > 20) continue;
@@ -4942,7 +5147,7 @@ export class Game implements GameApi {
     this.cds.strike = dur;
     this.player.model.setState('shoot');
     this.player.model.stateTime = 0;
-    const crit = Math.random() < 0.08 + (this.blade?.crit ?? 0) + this.armour.crit;
+    const crit = Math.random() < 0.08 + (this.blade?.crit ?? 0) + this.armour.crit + this.mastery('keen');
     this.kit.loose(e, this.swingPower() * (0.9 + Math.random() * 0.2), crit);
     this.sfx('swing', 1.6);
   }
@@ -4961,7 +5166,7 @@ export class Game implements GameApi {
   /** An ordinary swing's damage at this level with this weapon, before the roll and crits. */
   private swingPower(): number {
     const lvl = this.level('melee');
-    return (7 + lvl * 1.45 + (this.blade?.damage ?? 0)) * (1 + (lvl - 1) * 0.02) * (1 + this.buffSum('power'));
+    return (7 + lvl * 1.45 + (this.blade?.damage ?? 0)) * (1 + (lvl - 1) * 0.02) * (1 + this.buffSum('power')) * (1 + this.mastery('edge'));
   }
 
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
@@ -4972,7 +5177,10 @@ export class Game implements GameApi {
     if (fx.has('momentum') && !quiet) { this.streak = this.streak.e === e ? { e, n: Math.min(5, this.streak.n + 1) } : { e, n: 0 }; raw *= 1 + this.streak.n * 0.05; }
     const flank = this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1;
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
-    e.takeDamage(this.activities.beforeHit(e, dmg), this.player.position, this.elapsed);
+    const landed = this.activities.beforeHit(e, dmg);
+    e.takeDamage(landed, this.player.position, this.elapsed);
+    this.shared.mine(e, landed);
+    if (e.def.anchored) this.practiced(landed, crit);
     this.dungeons.onPlayerHit(e, dmg);
     this.activities.escorts.onPlayerHit(e);
     // Barrowborn: below half health, a tenth of every blow comes back to you
@@ -4987,7 +5195,8 @@ export class Game implements GameApi {
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');
     if (crit) { e.punch = Math.max(e.punch, e.def.elite ? 0.12 : 0.24); this.hitstop = Math.max(this.hitstop, 0.08); this.rig.addShake(0.16); this.sfx('crit', 0.7); }
     if (!quiet && e.alive && this.elapsed - (this.voiced.get(e) ?? -9) > 0.9) { this.voiced.set(e, this.elapsed); this.audio.playAt(voiceOf(e.def.model ?? e.def.type, 'hurt'), e.pos.distanceTo(this.player.position), 0.7); }
-    this.addXp('melee', Math.max(1, Math.round(dmg * HIT_XP)));
+    // (a training dummy teaches you your build, not your trade: no experience off it)
+    if (!e.def.anchored) this.addXp('melee', Math.max(1, Math.round(dmg * HIT_XP)));
     if (!quiet) {
       if (fx.has('bleed') && e.alive) this.kit.addDot(e, (dmg * 0.33) / 4, 4);
       // The weapon's enchantment (data/gear.ts ENCHANTS)
@@ -5058,7 +5267,7 @@ export class Game implements GameApi {
         if (ang > 1.35 && flat > 1.1) continue;
       }
       const mult = a.kind === 'cleave' ? 1.5 : [1, 1.1, 1.5][a.combo];
-      const crit = bonus.crit || Math.random() < 0.12 + (blade?.crit ?? 0) + this.armour.crit || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
+      const crit = bonus.crit || Math.random() < 0.12 + (blade?.crit ?? 0) + this.armour.crit + this.mastery('keen') || (this.gearSet === 'thornback' && e.hp >= e.def.hp);
       if (crit && this.gearSet === 'starglass') this.energy = Math.min(100, this.energy + 6);
       const dmg = this.dealDamage(e, power * mult * bonus.mult * (0.9 + Math.random() * 0.2), crit);
       drawn += dmg * (blade?.leech ?? 0);
@@ -5113,11 +5322,12 @@ export class Game implements GameApi {
     }
   }
 
-  private onEnemyKilled(e: Enemy): void {
+  /** byOther: someone else landed the last blow on a creature you'd hurt (game/SharedMobs.ts); they tell the realm and the group. */
+  private onEnemyKilled(e: Enemy, byOther = false): void {
     this.audio.playAt(voiceOf(e.def.model ?? e.def.type, 'die'), e.pos.distanceTo(this.player.position), 0.9);
     if (e.spawnKey && !e.questTag && Number.isFinite(e.def.respawn) && e.def.respawn < 99999) {
       this.ledger.set(e.spawnKey, realmNow() + e.def.respawn * 1000);
-      this.online.mobDead(e.spawnKey, e.def.respawn);
+      if (!byOther) this.online.mobDead(e.spawnKey, e.def.respawn);
     }
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
@@ -5141,7 +5351,7 @@ export class Game implements GameApi {
     }
     this.addXp('melee', e.def.xp);
     const [lo, hi] = e.def.marks;
-    const m = Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (this.fx.has('fortune') ? 1.33 : 1));
+    const m = Math.round((lo + Math.floor(Math.random() * (hi - lo + 1))) * (this.fx.has('fortune') ? 1.33 : 1) * (1 + this.mastery('thrift')));
     if (m > 0) this.addMarks(m);
     if (this.fx.has('howl')) this.furyUntil = this.elapsed + 6;
     if (this.fx.has('second_wind')) this.healSelf(this.maxHp * 0.06);
@@ -5175,8 +5385,9 @@ export class Game implements GameApi {
       this.hud.banner('Old Notch', 'Felled near the Lantern', true);
     }
     // Every kill is counted by creature type, for bounties and quests; in a group it counts for everyone near
-    this.setFlag('killed:' + e.def.type, Number(this.flag('killed:' + e.def.type) ?? 0) + 1);
-    if (!e.questTag && this.social.group) this.online.groupKill(e.def.type);
+    // (a kill someone in your group finished is already counted, by theirs)
+    if (!byOther || !this.social.group) this.setFlag('killed:' + e.def.type, Number(this.flag('killed:' + e.def.type) ?? 0) + 1);
+    if (!e.questTag && this.social.group && !byOther) this.online.groupKill(e.def.type);
     if (e.questTag) {
       const k = 'kills:' + e.questTag;
       this.setFlag(k, Number(this.flag(k) ?? 0) + 1);
@@ -5214,6 +5425,7 @@ export class Game implements GameApi {
     // The barnacle coat when you're low; Whiteface's ruff after a quiet spell
     if (fx.has('last_stand') && this.hp < this.maxHp / 3) taken = Math.max(1, Math.round(taken * 0.75));
     if (fx.has('stone_skin') && this.elapsed - this.lastHurt > 8) taken = Math.max(1, Math.round(taken * 0.5));
+    if (this.mastery('bracing')) taken = Math.max(1, Math.round(taken * (1 - this.mastery('bracing'))));
     this.lastHurt = this.elapsed;
     this.hp -= taken;
     // In the Cockpit nobody dies: a duellist's blow that leaves you at a quarter, and you yield
@@ -5463,7 +5675,7 @@ export class Game implements GameApi {
       const d = e.pos.distanceTo(P);
       if (d > 90 && e.state !== 'dead') { e.model.root.visible = false; continue; }
       e.model.root.visible = e.state !== 'dead' || e.model.root.visible;
-      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? ctx);
+      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? this.shared.ctxFor(e, ctx) ?? ctx);
       characterDetail(e.model.root, e.pos.distanceTo(this.camera.position));
     }
     for (const n of this.npcs) {
@@ -5486,6 +5698,7 @@ export class Game implements GameApi {
     this.npcMusic();
     this.activities.update(dt);
     this.dungeons.update(dt);
+    this.shared.update(dt);
     // Out of a cleared dungeon with a click, not a walk back to the ladder
     const cleared = !!this.dungeons.run?.done;
     if (cleared !== this.leaveShown) { this.leaveShown = cleared; this.hud.setLeaveButton(cleared ? `Leave ${this.dungeons.run!.def.name}` : null, () => this.dungeons.leave()); }
@@ -5521,6 +5734,8 @@ export class Game implements GameApi {
       this.hud.system('The talent trees have been redrawn: six tiers each, with ranks, and a capstone that changes how your calling plays. Your old picks are gone and every point is back. Spend them in the journal, under Calling.');
     }
     this.home.update();
+    this.cabin.update();
+    this.drawPractice();
     this.lotBuild.update();
     // What you've laid on your lot goes to the realm's book a moment after you stop
     if (this.laidDirty >= 0 && this.elapsed - this.laidDirty > 1.5) {
@@ -5646,12 +5861,12 @@ export class Game implements GameApi {
       if (I.pressedOnce('KeyX')) { this.lotBuild.dig(); this.hud.refresh('inv'); }
       if (I.pressedOnce('Escape')) this.lotBuild.stop();
     }
-    if (this.home.active) {
+    for (const H of [this.home, this.cabin]) if (H.active) {
       // Arranging the house: E sets the held piece down, R turns it, X picks up the nearest
-      if (I.pressedOnce('KeyE')) { this.home.place(); this.hud.refresh(); this.persist(); }
-      if (I.pressedOnce('KeyR')) this.home.rotate();
-      if (I.pressedOnce('KeyX')) { this.home.pickUp(); this.hud.refresh(); this.persist(); }
-      if (I.pressedOnce('Escape')) this.home.stop();
+      if (I.pressedOnce('KeyE')) { H.place(); this.hud.refresh(); this.persist(); }
+      if (I.pressedOnce('KeyR')) H.rotate();
+      if (I.pressedOnce('KeyX')) { H.pickUp(); this.hud.refresh(); this.persist(); }
+      if (I.pressedOnce('Escape')) H.stop();
     }
     if (I.pressedOnce('Escape')) {
       if (!this.devPanel.close() && !this.hud.closeAll()) {
@@ -5855,7 +6070,7 @@ export class Game implements GameApi {
     const sure = 1 + (rank - 1) * RIDE_PACE, wind = 1 - (rank - 1) * RIDE_WIND;
     let speed = this.horse ? 9.6 * haul * sure : this.winded ? 3.6 : 5.4;
     if (sprint && mv.lengthSq() > 0.01 && this.energy > 1 && !this.winded) { speed = this.horse ? 13 * haul * sure : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 * wind : 1)); }
-    else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind + this.buffSum('regen')) * (this.winded ? 0.5 : 1));
+    else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind + this.buffSum('regen') + this.mastery('wind')) * (this.winded ? 0.5 : 1));
     this.tickBuffs(dt);
     this.hud.setBuffs(this.buffList());
     if (this.attack) speed *= this.attack.kind === 'cleave' ? 0.6 : 0.85;
@@ -6397,14 +6612,20 @@ export class Game implements GameApi {
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
           this.hud.system('Safety: /ignore <name> hides someone\'s chat and whispers (/unignore, /ignored); /report <name> <what happened> tells the realm\'s keeper. Or click them.');
-          this.hud.system('Chat: just type and press Enter. Commands: /me <action> (e.g. /me tips a hat), /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
+          this.hud.system('Chat: just type and press Enter, and everyone in the realm hears. /s <message> for those nearby only, /trade <message> for the Trade channel, /w <name> for a whisper, /g for your group and /gu for your guild. Also: /me <action> (e.g. /me tips a hat), /roll [max], /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
           return;
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
         case 'me': case 'e': case 'em':
           if (!arg) { this.hud.system('Try /me looks out over the valley.'); return; }
           this.sendEmoteLine(arg.slice(0, 120));
           return;
-        case 's': case 'say': if (arg) this.speak(arg); return;
+        case 's': case 'say': case 'near': if (arg) this.speak(arg, 'local'); else this.hud.system('Nearby: /s <message>, heard by everyone within shouting distance.'); return;
+        case '1': case 'general': if (arg) this.speak(arg); return;
+        case '2': case 'trade': case 'wts': case 'wtb':
+          if (!arg) { this.hud.system('Trade: /trade <message>, to everyone in the realm who has the Trade channel on.'); return; }
+          if (this.save.settings.hideTrade) { this.save.settings.hideTrade = false; this.hud.system('The Trade channel is on again (Settings to hide it).'); }
+          this.speak(arg, 'trade');
+          return;
         case 'who': {
           const others = [...this.online.remotes.values()].map((r) => r.name);
           this.hud.system(this.online.status !== 'online' ? 'You are playing offline.' : others.length ? `In the world with you (${others.length}): ${others.slice(0, 30).join(', ')}${others.length > 30 ? '…' : ''}` : 'Nobody else is in the world right now.');
@@ -6416,6 +6637,12 @@ export class Game implements GameApi {
           return;
         }
         case 'clear': document.querySelectorAll('#chatbox .cb-line').forEach((l) => l.remove()); return;
+        case 'roll': case 'dice': {
+          const max = Math.max(2, Math.min(1000, Math.floor(Number(arg) || 100)));
+          if (this.online.status === 'online') this.online.roll(max);
+          else this.hud.system(`${this.save.name} rolls ${1 + Math.floor(Math.random() * max)} (1-${max}).`);
+          return;
+        }
         case 'invite': case 'inv': if (arg) this.social.invite(arg); else this.hud.system('Who? /invite <name>, or click them and choose Invite.'); return;
         case 'leave': case 'leavegroup': this.social.leave(); return;
         case 'promote': if (arg) this.social.promote(arg); return;
@@ -6473,9 +6700,9 @@ export class Game implements GameApi {
 
   private isIgnored(name: string): boolean { return this.save.settings.ignored.includes(name.toLowerCase()); }
 
-  private speak(text: string): void {
-    if (this.online.status === 'online') { this.online.chat(text, 'say'); return; } // the server echoes it back to everyone, you included
-    this.hud.chat(this.save.name, text);
+  private speak(text: string, kind: 'say' | 'local' | 'trade' = 'say'): void {
+    if (this.online.status === 'online') { this.online.chat(text, kind); return; } // the server echoes it back to everyone, you included
+    this.hud.chat(this.save.name, text, kind);
     this.addBubble(-1, text, false);
   }
 

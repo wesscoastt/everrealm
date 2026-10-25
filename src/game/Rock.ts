@@ -279,9 +279,9 @@ export class Rock {
       this.host.setFlag('rockVentAt', Date.now());
       this.host.system(n >= SK.VENT_NIGHTS ? 'The last of the mortar comes away in a damp crumble, and the grille lifts out in your hands. Behind it, the dark of the utility corridor, and the smell of the sea.' : `You work the sharpened spoon round the grille's edge until your fingers bleed, and push the bunk back over the dust. ${n} of ${SK.VENT_NIGHTS}.`);
     } else if (w.kind === 'skin') {
-      this.host.give('oilskin', 1);
+      this.host.give('rock_oilskin', 1);
       this.host.setFlag('rockSkinAt', Date.now());
-      const n = this.host.count('oilskin');
+      const n = this.host.count('rock_oilskin');
       this.host.system(n >= SK.OILSKINS ? 'Four oilskins, rolled tight under your shirt in turns. Amos says that\'s enough for a float, sewn and tarred.' : `An oilskin off the line and under your shirt while the guard's looking at the sea. ${n} of ${SK.OILSKINS}.`);
     }
   }
@@ -312,7 +312,7 @@ export class Rock {
         if (d < 2.2 && Math.abs(p.y - SK.QUARRY.floor) < 2) out.push({ label: `Break stone (${done.length}/${SK.QUARRY_STONES.length})`, pos: V3(x + 0.5, SK.QUARRY.floor + 1.2, z + 0.5), use: () => busy('stone', 4, 'hammer', 'You swing the hammer down on the block. And again.', i) });
       });
       // An oilskin off the line behind the work shed, once Amos has told you what for
-      const n = this.host.count('oilskin');
+      const n = this.host.count('rock_oilskin');
       if (plan && n < SK.OILSKINS) for (const [x, z] of SK.OILSKIN_LINES) {
         const d = Math.hypot(p.x - x, p.z - z);
         if (d > 2.4) continue;
@@ -352,7 +352,7 @@ export class Rock {
   }
 
   private intoVent(): void {
-    if (this.host.count('oilskin') < SK.OILSKINS) { this.host.system(`The grille's out, but Amos is right: off the Rock you'll need something to float on. Four oilskins, from the lines behind the work shed. You have ${this.host.count('oilskin')}.`); return; }
+    if (this.host.count('rock_oilskin') < SK.OILSKINS) { this.host.system(`The grille's out, but Amos is right: off the Rock you'll need something to float on. Four oilskins, from the lines behind the work shed. You have ${this.host.count('rock_oilskin')}.`); return; }
     const c = SK.MY_CELL;
     this.step([c.ventX + 0.5, SK.TOP, SK.BLOCK.util + 0.5], Math.PI / 2, 'corridor', 'You squeeze through where the grille was, into the dark between the cells. Pipes, dripping; the backs of forty men\'s walls. At the far end, east, a ladder goes up into the black.');
   }
@@ -370,7 +370,7 @@ export class Rock {
   private pushOff(): void {
     const j = this.jail;
     if (!j) return;
-    this.host.take('oilskin', SK.OILSKINS);
+    this.host.take('rock_oilskin', SK.OILSKINS);
     const L = SK.ESCAPE.ledge, A = SK.ASHORE;
     const path = [V3(L.x + 0.5, SEA - 0.1, L.z - 4), V3(L.x - 10, SEA - 0.1, SK.SKUA.z - 56), V3(SK.SKUA.x - 110, SEA - 0.1, SK.SKUA.z - 54), V3(A.x + 14, SEA - 0.1, A.z)];
     const M = this.host.props, raft = new THREE.Group();

@@ -199,6 +199,14 @@ export function socialInit(ctx) {
         sys(me, `You ask to visit ${to.name}'s home.`);
         return true;
       }
+      case 'roll': {
+        // Dice, rolled by the realm so nobody can pick their number: everyone within forty blocks hears it, and the group
+        const max = Math.max(2, Math.min(1000, Math.floor(Number(msg.max) || 100)));
+        const n = 1 + Math.floor(Math.random() * max), text = `${me.name} rolls ${n} (1-${max}).`;
+        const g = groupOf(me);
+        for (const p of players.values()) if (p === me || (p.land === me.land && Math.hypot((p.x ?? 0) - (me.x ?? 0), (p.z ?? 0) - (me.z ?? 0)) < 40) || g?.members.includes(p.id)) sys(p, text);
+        return true;
+      }
       case 'hShow': {
         const asker = byName(msg.name);
         const ask = asker && homeAsks.get(asker.id);

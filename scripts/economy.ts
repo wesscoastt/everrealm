@@ -8,6 +8,8 @@
 // after Morrow and its islands are in, the owner asked for another full check).
 
 import { ENEMIES, MAX_LEVEL, ORE_INFO, REGION_SPAWNS, TREE_INFO, xpForLevel } from '../src/data/gameplay';
+import { VILLAS } from '../src/data/mirador';
+import { HULLS } from '../src/data/naval';
 import { ITEMS } from '../src/data/items';
 import { KILLS_PER_HOUR, killsForLevel, killXp, QUEST_KILLS } from '../src/data/pacing';
 import { QUESTS } from '../src/data/quests';
@@ -86,6 +88,12 @@ goals.push({ what: `the finest mount (${ITEMS[top.item]?.name}, ${top.town})`, p
 goals.push({ what: 'a week in lodgings (dearest)', price: Math.max(...LODGINGS.map((l) => l.rent)), at: 8, lo: 0.05, hi: 1 });
 goals.push({ what: 'Wendside Cottage', price: COTTAGE.price, at: 15, lo: 1.5, hi: 10 });
 goals.push({ what: 'a lot and a long house built on it', price: LOT_PRICE + SIZES.hall.cost.marks, at: 25, lo: 3, hi: 20 });
+// The dear things: a house on the Mirador, a ship of your own (the yard's labour; the materials are gathered)
+const villas = VILLAS.filter((v) => v.id).sort((x, y) => x.price - y.price);
+goals.push({ what: `the cheapest Mirador house (${villas[0].name})`, price: villas[0].price, at: 40, lo: 5, hi: 25 });
+goals.push({ what: `the dearest (${villas[villas.length - 1].name})`, price: villas[villas.length - 1].price, at: 60, lo: 8, hi: 30 });
+goals.push({ what: 'a cutter built (the yard labour)', price: HULLS.cutter.build.marks, at: 25, lo: 1, hi: 8 });
+goals.push({ what: 'a frigate built (the yard labour)', price: HULLS.frigate.build.marks, at: 60, lo: 6, hi: 30 });
 for (const g of goals) {
   const hrs = g.price / perHour(g.at);
   console.log(`  ${g.what.padEnd(46)} ${String(g.price).padStart(6)} marks: ${h(hrs)} at level ${g.at}`);

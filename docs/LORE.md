@@ -254,6 +254,11 @@ Either way, Nessa pays the player a 20-mark finder's share for the chest.
 - **Rook's Ropewalk** outside the town: a shed eighty blocks long and seven wide where the harbour's rope is laid. The jack at the head twists three yarns; the ropemaker walks them out backwards to the foot, the traveller lays them together, and the tar kettle does the rest. After the Morning Post, **Jem Mallow** lays rope here for Bett Rook, and if **Rosie Penhallow** came with him she keeps its books on the bench by the jack (`src/data/content/ropewalk.ts`).
 - **Gull Castle** on the cliff above the terraces. The Fleet lords built it to keep the harbour; the last of them sold it to the Charter for his debts, and the Charter keeps a garrison in it, paid for thirty and twenty-two strong. The great hall has a dais and high table under the Charter's banners, long tables down both sides, and the hearth in the west wall; the harbour court sits there on the first of the month. **Edith Penberthy** captains the garrison and rows out to count the Charter galleon's guns; she asked Ansbury for the Light's oil in two reports and never sent a third. **Simon Teague**, steward, keeps copies of everything, including the replies that never came. **Kit Hocking** stands the gate; **Mary Opie** keeps the hall (`src/data/content/gullCastle.ts`).
 
+### Gullmouth's side stories [in game]
+
+- **Nell's Father** (Nell Kitto, the Ropewalk Cellar): Nell writes twice a year to a man on Skua Rock and has never had an answer. It's Amos Kitto, her father, on the Rock for the Charter's pay chest; he keeps all twenty-two letters under his bunk and asks you to tell her he's dead, because nobody trusts a fixer whose father is on the Rock. You tell her he's dead (she stops writing), that he keeps every one (she'll write in the spring), or what he asked you to say.
+- **The Margery's Bell** (Nessa Crane): Nessa told the town the Margery's crew took to the boat, and doesn't believe it. The log in the wreck's stern cabin says the Black Hen hailed her off the Mewstones. Sink the Hen, east of the Mewstones, and the Margery's bell comes up out of her: hung in her waist as a trophy, and polished. The crew were pressed into Brethren oars and are alive out of Saltpenny; Nessa hangs the bell on the quay. **Peter Vosper** is the harbourmaster's clerk.
+
 ## Raddle Barrens: Harrowgate Works [in game]
 
 The home works of **Harrowgate & Daughters**, behind a palisade, with the No. 1 Drift running into the slope.
@@ -551,6 +556,8 @@ A calling is for life: chosen when a character is made, as in WoW and ESO (chara
 
 `data/classes.ts` (chosenUtilities, crossUtilities), `data/content/masters.ts`.
 
+Each master keeps **training dummies** in their yard, three sacking men on posts with a target daubed on the chest: hit one and the count shows over your action bar (damage a second, the total, your best blow), and it's whole again a few seconds after you stop. No experience comes off a dummy; it's for trying a build (`DUMMY_SPOTS` in `data/content/masters.ts`).
+
 ## Bows [in game]
 
 Bows are made where people hunt: the Hollin smithy's **hunting bow**, the Hagworm fellers' **yew longbow**, the Gullmouth coast trackers' bow, the Wrath Levels **fowling bow** and the Tolmen Moor **horn bow**. With a bow in hand, Strike looses an arrow at your target up to twenty-four blocks off instead of swinging; a quiver rides on your back while you carry one. Pathfinders start with a hunting bow. `data/weapons.ts` (bow), `entities/humanoid.ts`, `game/Game.ts` (loose).
@@ -703,6 +710,7 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 - **Sailing:** sail set and taken in, the helm over, and the **wind**, which is everyone's and backs and veers round the compass over the hours: across it or behind it a ship runs, up into it she stops. Her guns are on her sides, so you fight her by turning her: bring the other ship abeam and fire.
 - **The lanes:** **Brethren raiders** (cutters, and brigs further out) work the sea east of the Mewstones and out across the open water toward Morrow; **revenue cutters** off Gullmouth come for captains with a price on them. Out in **the Freewater**, the open sea between the continents, any captain may fire on any other, and the realm keeps the score.
 - **First Command** (Hal Treloar): take a ship out into the lanes east of the Mewstones and put a Brethren raider on the bottom, and come back and tell Hal how she handled.
+- **Living aboard** (`src/data/cabins.ts`): every ship of your own has her cabin under the quarterdeck, and it's a home. A cutter has **the cuddy** (room to sling a cot and stand up straight, just), a brig **the master's cabin**, panelled, and a frigate **the great cabin**, the width of her stern, with a gallery outside its windows to sit out on. Go below from beside her helm, or have the yard's boy row you out to her where she lies; come up on her deck again, or ashore by her berth if she's gone back to the yard. The cot is made up (sleep for the rested bonus), the sea chest is your bank, and the rest is yours to furnish as a house, crafting stations and all, one layout for each kind of ship you own. It's yours alongside a house ashore, not instead of one.
 
 ## Morrow, the second continent
 
@@ -761,8 +769,10 @@ Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; 
 | **Teresa Mas** | Sells the Mirador's houses | A neighbour for Nina who has suppers | She grew up in the Cistern House |
 | **Bernat Roig** | Last of the Roig shipowners | The Bona Sort home | He signed the book that says she sank |
 | **Nina Vidal** | Painter, thirty years at the same view | To get the light right once | She likes the Lantern House lit |
+| **Clara Ferrer** | The Ferrers' daughter; sleeps on the lookout bench | To look at the Long Deck | She was nine, and she remembers the bailiffs |
 
 - **The Bona Sort** (Bernat Roig): his last ship, black hull and white band, went to the Keys for salt. Pau Ferrer says she went onto Ysolde's Chair in the Teeth five years ago with all hands, and Bernat signed the harbour book himself. You tell him the truth (he gives you the spyglass and looks at the city instead) or you don't (he keeps watching, and pays you for your legs).
+- **Someone on the Bench** (Nina Vidal): someone sleeps on the lookout bench at the lane's end, night after night. It's Clara Ferrer, whose father lost the Long Deck at cards and then to the bank; she comes up after dark to look at it. Her mother hid a tin box under the deck boards the night the bailiffs came. You bring it to her, and either speak to Teresa for her (Teresa takes her on to keep the empty houses) or leave the bench a public bench.
 
 ### Kingsbarrow [in game]
 

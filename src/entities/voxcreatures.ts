@@ -107,6 +107,7 @@ export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreat
     case 'drake': drake(h, new Kit(key, 1 / 16), pal, scale); return true;
     case 'dragon': drake(h, new Kit(key, 1 / 16), pal, scale, true); return true;
     case 'adder': adder(h, new Kit(key, 1 / 18), pal, scale); return true;
+    case 'dummy': dummy(h, new Kit(key, 1 / 16)); return true;
   }
   return false;
 }
@@ -765,6 +766,51 @@ function bat(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): vo
  * roots, with rune-light burning in a crack in its chest and in its eyes. It walks on two pillars of
  * stone and fights with its fists (its arms are its segments). a = the stone, b = the moss, c = the light.
  */
+/**
+ * A training dummy: an oak post sunk in the ground with a crosspiece for arms, a sacking body stuffed
+ * with straw and bound with rope at the waist and neck, straw sticking out at the seams, a sacking head
+ * with a target daubed on its chest in red and white, and the cuts and patches of a hundred practice blows.
+ */
+function dummy(h: VoxCreatureHost, k: Kit): void {
+  h.plateHeight = 2.3;
+  const wood = flat('#6a4a2c', 0.16), sack = (x: number, y: number, z: number, n: number) => shade('#b8a07a', 0.86 + n * 0.16 - ((Math.floor(y * 16) + Math.floor(x * 16)) & 1 ? 0.04 : 0));
+  const straw = flat('#e0c060', 0.2), rope = flat('#8a7048', 0.12);
+  // The target: rings of red and white on the chest, a patch sewn over an old hole
+  const chest = (x: number, y: number, z: number, n: number) => {
+    if (z < 0.18) return sack(x, y, z, n);
+    const r = Math.hypot(x, y - 1.42);
+    if (r < 0.06) return shade('#c8302a', 0.95 + n * 0.08);
+    if (r < 0.13) return shade('#ece4d4', 0.95 + n * 0.06);
+    if (r < 0.2) return shade('#c8302a', 0.92 + n * 0.08);
+    if (x > 0.14 && x < 0.26 && y > 1.12 && y < 1.24) return shade('#7a8a5a', 0.9 + n * 0.1);
+    return sack(x, y, z, n);
+  };
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.box([-0.07, 0, -0.07], [0.07, 2.1, 0.07], wood);                                           // the post
+    v.box([-0.2, 0, -0.2], [0.2, 0.08, 0.2], flat('#5a4a32', 0.2));                               // trodden earth round its foot
+    v.ellipsoid([0, 1.4, 0], [0.3, 0.42, 0.22], chest);                                         // the body
+    v.box([-0.27, 1.02, -0.2], [0.27, 1.07, 0.2], rope);                                         // rope at the waist
+    for (const sd of [1, -1]) v.cone([sd * 0.18, 1.0, 0.1], [sd * 0.26, 0.88, 0.14], 0.04, straw); // straw out of the hem
+    v.box([-0.08, 1.8, -0.08], [0.08, 1.86, 0.08], rope);                                        // rope at the neck
+  });
+  const head = joint(h.body, [0, 1.86, 0]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.16, 0], [0.17, 0.19, 0.16], sack);
+    v.cone([0.06, 0.32, 0], [0.12, 0.44, -0.02], 0.04, straw);                                  // straw out of the top
+    v.cone([-0.04, 0.33, 0.02], [-0.1, 0.45, 0.04], 0.035, straw);
+  });
+  eyes(head, 0.06, 0.18, 0.15, '#2a1e14', 0.04, 0.2);
+  h.head = head;
+  // The crosspiece, sleeved in sacking: it swings when it's struck
+  const arms = joint(h.body, [0, 1.62, 0]);
+  k.part(arms, [0, 0, 0], (v) => {
+    v.box([-0.62, -0.04, -0.04], [0.62, 0.04, 0.04], wood);
+    for (const sd of [1, -1]) v.capsule([sd * 0.22, 0, 0], [sd * 0.5, -0.02, 0], 0.1, 0.08, sack);
+    for (const sd of [1, -1]) v.cone([sd * 0.56, -0.02, 0], [sd * 0.66, -0.1, 0.02], 0.05, straw);
+  });
+  h.segs.push(arms);
+}
+
 function golem(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal, scale: number): void {
   h.body.scale.setScalar(scale);
   h.plateHeight = 2.9 * scale;

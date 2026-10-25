@@ -107,7 +107,7 @@ const clerk = (id: string, name: string, title: string, at: [number, number], fa
 const npcs: NpcDef[] = [
   clerk('land_joan', 'Joan Pike', 'Charter land agent', [LAND_BOARD.x + 2, LAND_BOARD.z + 2], [LAND_BOARD.x, LAND_BOARD.z], look('#e2b894', '#6a4a2a', '#2f4a6a', { lashes: true, hairStyle: 2 })),
   clerk('land_thomas', 'Thomas Ashdown', 'Charter land clerk', [781.5, 158.5], [781.5, 164], look('#c89a78', '#3a2a1a', '#2a2a30', { beard: true })),
-  clerk('land_peter', 'Peter Vosper', 'Harbourmaster', [1778.5, 584.2], [1778.5, 590], look('#b8865e', '#8a847c', '#1f3a4a', { beard: true, age: 0.65, hat: 'tricorn' })),
+  clerk('land_peter', 'Peter Vosper', 'Clerk to the harbourmaster', [1778.5, 584.2], [1778.5, 590], look('#b8865e', '#8a847c', '#1f3a4a', { beard: true, age: 0.65, hat: 'tricorn' })),
   clerk('land_nell', 'Nell Grainger', 'Company clerk', [981.5, 995.2], [981.5, 1000], look('#f0d0b8', '#4a3020', '#4a3a2a', { lashes: true, hairStyle: 2, age: 0.35 })),
   // By the Post in Callis: the Assembly's clerk, who keeps the Charter's book for Morrow's lots by treaty
   clerk('land_marti', 'Marti Coll', 'Assembly land clerk', [CALLIS_POST.x + 2.5, CALLIS_POST.z + 2.5], [CALLIS_POST.x, CALLIS_POST.z], look('#d8a878', '#1a1410', '#e8e2d4', { trim: '#2a2a30', beard: true, age: 0.45 })),

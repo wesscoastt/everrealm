@@ -26,7 +26,15 @@ export interface Settings {
   autoAttack?: boolean;
   /** Players whose chat, whispers and invitations you don't see (by name, lower case). */
   ignored: string[];
+  /** The Trade channel left out of the chat box. */
+  hideTrade?: boolean;
+  /** The size of the windows, bars and frames (not the world's labels): 0.8 to 1.3. */
+  uiScale?: number;
+  /** Colour vision: the whole screen's colours shifted so what red and green (or blue and yellow) tell apart still reads (ui/colourVision.ts). */
+  colourVision?: ColourVision;
 }
+
+export type ColourVision = 'standard' | 'protan' | 'deutan' | 'tritan';
 
 export interface SaveData {
   v: 1;
@@ -53,7 +61,7 @@ export interface SaveData {
   origin?: string;
 }
 
-export const DEFAULT_SETTINGS: Settings = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45, shadows: true, renderScale: 1, dayLength: 24, viewDist: 6, mouseSens: 1, invertY: false, filterChat: true, ignored: [] };
+export const DEFAULT_SETTINGS: Settings = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45, shadows: true, renderScale: 1, dayLength: 24, viewDist: 6, mouseSens: 1, invertY: false, filterChat: true, ignored: [], uiScale: 1, colourVision: 'standard' };
 
 export function newSave(name: string, look: Appearance): SaveData {
   const inv: (Stack | null)[] = new Array(INV_SIZE).fill(null);
@@ -143,6 +151,28 @@ export class Inventory {
   constructor(private d: SaveData) {}
 
   get slots(): (Stack | null)[] { return this.d.inv; }
+
+  /**
+   * Tidies the pack: part stacks of the same thing put together, then everything in order (weapons and
+   * armour, food, materials, the rest), the rarest first within each, then by name; the gaps at the end.
+   */
+  sort(): void {
+    const KIND: Record<string, number> = { weapon: 0, armor: 1, tool: 2, food: 3, material: 4, quest: 5, collectible: 6 };
+    const RARE: Record<string, number> = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
+    const merged: Stack[] = [];
+    for (const st of this.d.inv) {
+      if (!st) continue;
+      const def = ITEMS[st.id];
+      const into = def?.stack ? merged.find((m) => m.id === st.id) : undefined;
+      if (into) into.n += st.n; else merged.push({ ...st });
+    }
+    merged.sort((a, b) => {
+      const da = ITEMS[a.id], db = ITEMS[b.id];
+      return (KIND[da?.kind ?? ''] ?? 9) - (KIND[db?.kind ?? ''] ?? 9) || (RARE[da?.rarity ?? ''] ?? 9) - (RARE[db?.rarity ?? ''] ?? 9) || (da?.name ?? a.id).localeCompare(db?.name ?? b.id);
+    });
+    const size = this.d.inv.length;
+    for (let i = 0; i < size; i++) this.d.inv[i] = merged[i] ?? null;
+  }
 
   count(id: string): number {
     let n = 0;

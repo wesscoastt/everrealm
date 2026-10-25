@@ -34,7 +34,7 @@ const amosCell = cellOf('s', 0, 7), doryCell = cellOf('s', 0, 4), saulCell = cel
 const JENNA: [number, number] = [1738.5, 600.5];
 
 const items: ItemDef[] = [
-  { id: 'oilskin', name: 'Oilskin coat', kind: 'quest', rarity: 'common', stack: true, value: 0, icon: { shape: 'bag', a: '#c8a040', b: '#7a5a20' }, desc: 'A work-detail coat of oiled canvas, stiff and stinking of fish oil. Sewn and tarred over driftwood, four of them would float a man. Amos says.' },
+  { id: 'rock_oilskin', name: 'Oilskin coat', kind: 'quest', rarity: 'common', stack: true, value: 0, icon: { shape: 'bag', a: '#c8a040', b: '#7a5a20' }, desc: 'A work-detail coat of oiled canvas, stiff and stinking of fish oil. Sewn and tarred over driftwood, four of them would float a man. Amos says.' },
   { id: 'dorys_letter', name: 'Dory\'s letter', kind: 'quest', rarity: 'common', stack: false, value: 0, icon: { shape: 'letter', a: '#e8e0cc', b: '#5a4a3a' }, desc: 'A page folded small, the writing big and careful. On the outside: "Mam. Jenna Penhale. The fish quay. Gullmouth."' },
 ];
 
@@ -125,7 +125,7 @@ const amos: DialogueTree = {
       options: [{ text: 'I\'ll go.', effect: (g) => g.setFlag('rockPlan', true) }, { text: 'I\'ll think about it.', effect: (g) => g.setFlag('rockPlan', true) }],
     },
     again: {
-      text: (g) => (g.count('oilskin') >= 4 ? 'Four oilskins. Then it\'s the grille, and then it\'s the dark, and then it\'s you and the sea. Don\'t look back from the float. It slows you.' : `The grille, a little at a time. The oilskins, one at a time: ${g.count('oilskin')} of four. Patience is the whole trick. I had eleven years of it.`),
+      text: (g) => (g.count('rock_oilskin') >= 4 ? 'Four oilskins. Then it\'s the grille, and then it\'s the dark, and then it\'s you and the sea. Don\'t look back from the float. It slows you.' : `The grille, a little at a time. The oilskins, one at a time: ${g.count('rock_oilskin')} of four. Patience is the whole trick. I had eleven years of it.`),
       options: [{ text: 'Tell me the way again.', next: 'plan1' }, { text: 'Later, Amos.' }],
     },
   },

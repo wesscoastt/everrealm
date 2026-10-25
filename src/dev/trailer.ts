@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { Orchestra } from '../systems/music/Orchestra';
 import { plan } from '../world/sites';
-import { coastX, SEA } from '../world/terrain';
+import { coastX, SEA, SKUA, SKUA_TOP } from '../world/terrain';
 import { Enemy } from '../entities/Enemy';
 import { ENEMIES } from '../data/gameplay';
 import { isLeaves, isSolid } from '../world/blocks';
@@ -32,12 +32,17 @@ interface Shot {
   setup?: (g: G, f: THREE.Vector3) => void;
   each?: (g: G, frame: number, f: THREE.Vector3) => void;
   done?: (g: G) => void;
+  /** false: the lens stays where the shot puts it, whatever stands between it and what it looks at (out over open water, where a cliff in the way is the picture). */
+  los?: false;
 }
 
 const dolly = (a: [number, number, number], b: [number, number, number], la: [number, number, number], lb: [number, number, number]) =>
   (t: number, f: THREE.Vector3) => { const k = ease(t); return { pos: V3(f.x + a[0] + (b[0] - a[0]) * k, f.y + a[1] + (b[1] - a[1]) * k, f.z + a[2] + (b[2] - a[2]) * k), look: V3(f.x + la[0] + (lb[0] - la[0]) * k, f.y + la[1] + (lb[1] - la[1]) * k, f.z + la[2] + (lb[2] - la[2]) * k) }; };
 const orbit = (r: number, h: number, a0: number, a1: number, lookY = 2, rise = 0) =>
   (t: number, f: THREE.Vector3) => { const a = a0 + (a1 - a0) * t; return { pos: V3(f.x + Math.sin(a) * r, f.y + h + rise * t, f.z + Math.cos(a) * r), look: V3(f.x, f.y + lookY, f.z) }; };
+/** A move between two fixed points in the world, the eye and where it looks both eased (for places a ground-relative dolly can't find its feet). */
+const fixed = (a: [number, number, number], b: [number, number, number], la: [number, number, number], lb: [number, number, number]) =>
+  (t: number) => { const k = ease(t), m = (u: number[], v: number[], i: number) => u[i] + (v[i] - u[i]) * k; return { pos: V3(m(a, b, 0), m(a, b, 1), m(a, b, 2)), look: V3(m(la, lb, 0), m(la, lb, 1), m(la, lb, 2)) }; };
 /** Following the player: from the side and a little behind, as they go. */
 const follow = (side: number, up: number, back: number) => (_t: number, _f: THREE.Vector3, g: G) => {
   const p = g.player.position, yaw = g.player.yaw;
@@ -57,9 +62,10 @@ export const SHOTS: Shot[] = [
   },
   { at: [GULL.x + 10, GULL.z], hour: 15, dur: 7, cam: (t) => { const k = ease(t); return { pos: V3(GULL.x + 44 - 24 * k, SEA + 14 - 8 * k, GULL.z + 26 - 10 * k), look: V3(GULL.x - 12, SEA + 4, GULL.z - 2) }; } },
   // The Mirador above Callis at golden hour: up from the city to the houses on the lip
-  { at: [8600, 796], hour: 16.9, dur: 6, cam: dolly([14, -12, 74], [8, 5, 23], [2, 2, 14], [-40, -1, 18]), card: { text: 'A HOUSE ABOVE THE CITY', sub: 'Buy one outright, or build your own' } },
+  { at: [8640, 860], hour: 16.9, dur: 6, cam: fixed([8636, 44, 905], [8694, 74, 902], [8630, 50, 806], [8624, 53, 806]), card: { text: 'A HOUSE ABOVE THE CITY', sub: 'Buy one outright, or build your own' } },
   {
-    at: [714, 578], hour: 13, dur: 8, cam: orbit(8, 3.6, 0.4, 1.6, 1.2), card: { text: 'FIVE CALLINGS. FIFTEEN WAYS TO FIGHT.' },
+    // Round the hero, wherever the fight takes them, from above the stalls' awnings
+    at: [714, 578], hour: 13, dur: 7, cam: (t, _f, g) => { const p = g.player.position, a = 0.4 + 1.1 * t; return { pos: V3(p.x + Math.sin(a) * 9, p.y + 5.4, p.z + Math.cos(a) * 9), look: V3(p.x, p.y + 1, p.z) }; }, card: { text: 'FIVE CALLINGS. FIFTEEN WAYS TO FIGHT.' },
     setup: (g, f) => {
       g.dev.god = true; g.save.xp.melee = 3_000_000;
       for (const id of ['bulwark', 'bash', 'oath', 'holdfast', 'shieldthrow']) g.setFlag('skun:' + id, 1);
@@ -73,7 +79,12 @@ export const SHOTS: Shot[] = [
     },
     each: (g, n) => { const at = [40, 95, 150, 185]; const keys = [4, 7, 3, 5]; const i = at.indexOf(n); if (i >= 0) g.useAbility(keys[i]); },
   },
-  { at: 'wm-vista-scarth', hour: 10.5, dur: 7, cam: dolly([0, 6, -8], [-26, 30, -46], [30, -4, 40], [60, -14, 70]) },
+  // Skua Rock from the water, the prison on its top, coming in under the south cliff
+  {
+    at: [SKUA.x, SKUA.z], hour: 16.9, dur: 7, los: false, card: { text: 'SERVE YOUR TIME, OR SWIM FOR IT' },
+    // (looking over the cellhouse's roof, not into it, so the line from the lens clears the cliff and the walls)
+    cam: fixed([SKUA.x + 46, SEA + 8, SKUA.z + 124], [SKUA.x - 8, SEA + 18, SKUA.z + 84], [SKUA.x - 14, SKUA_TOP + 16, SKUA.z + 20], [SKUA.x, SKUA_TOP + 16, SKUA.z + 20]),
+  },
   { at: 'wm-harrowgate', hour: 17.6, dur: 6, cam: orbit(46, 22, 2.2, 3.0, 8) },
   { at: 'wm-temple', hour: 21.5, dur: 6, cam: orbit(24, 9, 0.3, 1.2, 10), card: { text: 'UNCOVER WHAT THE OLD KINGS BURIED' } },
   { at: [234, 196], hour: 20.6, dur: 7, cam: dolly([-7, 4.5, -8], [0, 4, 3], [3, 1.5, 14], [0, 1.2, 22]), card: { text: 'THE LANTERN WAKE IS ON', sub: 'Festivals all through the year' } },
@@ -280,7 +291,10 @@ export async function makeTrailer(g: G, E: G, progress: (s: string) => void, qui
   await ae.flush();
   // The shots
   let n = 0;
+  // window.__trailerOnly = [4, 5]: only those shots (from 0), to look at a fix without the whole render
+  const only: number[] | undefined = (window as G).__trailerOnly;
   for (let si = 0; si < SHOTS.length; si++) {
+    if (only && !only.includes(si)) continue;
     const shot = SHOTS[si];
     const wm = typeof shot.at === 'string' ? plan().waymarks.find((w: G) => w.id === shot.at) : null;
     const fx = wm ? wm.x : (shot.at as [number, number])[0], fz = wm ? wm.z : (shot.at as [number, number])[1];
@@ -303,7 +317,7 @@ export async function makeTrailer(g: G, E: G, progress: (s: string) => void, qui
       // (leaves too: a lens in a tree's crown sees nothing but leaf)
       const thick = (id: number) => isSolid(id) || isLeaves(id);
       for (let up = 0; up < 40 && [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].some(([dx, dz]) => thick(g.world.voxels.get(Math.floor(cam.pos.x + dx), Math.floor(cam.pos.y), Math.floor(cam.pos.z + dz)))); up++) cam.pos.y += 1;
-      {
+      if (shot.los !== false) {
         const d = cam.pos.clone().sub(cam.look), len = d.length();
         let clear = 1;
         for (let s2 = 0.6; s2 < len; s2 += 0.4) {

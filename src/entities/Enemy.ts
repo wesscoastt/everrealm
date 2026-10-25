@@ -66,6 +66,9 @@ export class Enemy {
   questTag?: string;
   /** Where it spawns ("type@x,z"): the key the spawn ledger and the realm server know it by. */
   spawnKey?: string;
+  /** A training dummy: seconds since it was last struck. */
+  private calm = 0;
+  private planted = false;
   /** Set true for one frame when the enemy dies so the game can grant rewards. */
   justDied = false;
   /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
@@ -182,6 +185,8 @@ export class Enemy {
 
   takeDamage(amount: number, from: THREE.Vector3, now: number): boolean {
     if (!this.alive) return false;
+    // A training dummy takes it all and never falls (it's whole again once it's left alone: update)
+    if (this.def.anchored) { this.hp = Math.max(1, this.hp - amount); this.lastHitAt = now; this.calm = 0; this.model.flashHit(); this.punch = Math.max(this.punch, 0.16); this.model.setAnim('hit'); return true; }
     this.hp -= amount;
     this.lastHitAt = now;
     this.model.flashHit();
@@ -443,6 +448,16 @@ export class Enemy {
     this.timer += dt;
     this.cooldown -= dt;
     if (this.swims) { this.updateSwimmer(dt, ctx); return; }
+    if (this.def.anchored) {
+      // On its post: it rocks when struck, and a few seconds' peace makes it whole
+      // (and the first time its ground is there, it stands on it: it was set down before the land was)
+      if (!this.planted && this.world.isLoaded(this.pos.x, this.pos.z)) { const y = this.world.groundBelow(this.pos.x, 140, this.pos.z, true); if (y > 0) { this.pos.y = this.home.y = y; this.planted = true; } }
+      this.calm += dt;
+      if (this.hp < this.def.hp && this.calm > 6) this.hp = this.def.hp;
+      this.model.update(dt, 0);
+      this.syncModel();
+      return;
+    }
     const def = this.def;
     const toPlayer = new THREE.Vector3().subVectors(ctx.player, this.pos);
     const distP = Math.hypot(toPlayer.x, toPlayer.z);
