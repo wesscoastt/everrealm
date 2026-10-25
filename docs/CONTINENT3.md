@@ -18,8 +18,9 @@ a human cause. Where this draft and LORE.md disagree, LORE.md wins and this chan
   lives live a long time. Serra's history is a history of who owns the ground over the green.
 - **The Hill.** The great city, Ambry, stands on a hill in the middle of the land. The hill is warm in
   winter. Its springs come up hot. Three hundred years ago the cathedral builders dug its footings and
-  found scale. The Hill is a dragon, asleep, and the city has known it for three hundred years and
-  decided not to talk about it.
+  found scale. The Hill was a dragon, asleep, and the city knew it for three hundred years and decided
+  not to talk about it. **She's awake now.** (Owner's call, 2026-10-25: the dragon is awake from the
+  start, as in ESO's dragon year and Skyrim's opening, in a story of our own.)
 
 ### Regions, north to south
 
@@ -93,27 +94,39 @@ round properly, four or five times the size of Callis.
 
 Eight chapters, from Act IV on: the third act of the Everrealm's story, after the Third Daughter.
 It begins with a letter from Delia Harrowgate and ends with a city choosing what to do with a dragon.
+The dragon is awake from the first hour (the owner's call): the opening is a disaster you live through,
+and the rest is finding out who woke her and what to do now.
 
-1. **A Letter of Credit.** Harrowgate & Daughters has borrowed from the Corvo bank of Ambry to rebuild
-   after the Third Daughter, and the bank has called the loan early, without warning. Delia sends you
-   south with the books to find out why. At landfall on the Shingle Coast, the Corvo agent has gone and
-   so has every other bank's: they've all been called back to Ambry at once.
-2. **Warm Ground.** Ambry's springs have been running hotter for a year. The cathedral's crypt is too
+**The opening: Landfall.** Delia's letter sends you south with the Harrowgate books: the Corvo bank of
+Ambry has called her loan early, without warning. The packet comes into Stair, the herring port on the
+Shingle Coast, at dawn. The quay is full of people waiting to get *on* the ship, not off it. Halfway up
+the harbour steps the ground shakes, the bells start, and something the size of a church comes over the
+chalk cliffs from inland, low, with the sun behind it. The Old Mother doesn't attack Stair; she passes
+over it, and the wind of her wings brings down the fish market, the church tower and half the quay. Her
+brood come after her and do attack it. You get out of the town with whoever you can (a Sallow ranger
+named **Wend**, a Corvo clerk carrying the bank's ledgers in a sack, a fisherman's boy), fighting
+through streets on fire, and from the cliff path watch her circle the Hill in the far distance and land
+on it. Everything after this is played on a continent where she's awake: the sky over Serra has dragons
+in it, the towns have watchtowers and bells, and the people have opinions about whose fault it is.
+
+1. **A Letter of Credit.** In the hill town above Stair, the Corvo clerk's ledgers explain the loan:
+   every bank in Ambry called in everything it was owed in the same week, to pay for one thing. Pipes.
+2. **Warm Ground.** (What woke her.) Ambry's springs had been running hotter for a year. The cathedral's crypt is too
    hot to stand in. The Corvo have been buying every forge and furnace in the Hill Country and running
    them on hot water piped from under the Hill, cheaper than any coal, and calling in loans to pay for
    the pipes. They're drawing heat out of the dragon.
 3. **What the Wood Remembers.** The Sallows have the oldest record of the Hill, carved in a living oak:
-   the dragon lay down to sleep on the green when the land was young, and the green keeps it asleep.
+   the dragon lay down to sleep on the green when the land was young, and the green kept her asleep.
    The Corvo pipes go down to the green seam under the Hill. To reach the wood you need a Sallow to
-   speak for you, and Sallows don't speak for liars. (The companion **Wend**, a Sallow, joins here.)
+   speak for you, and Sallows don't speak for liars. (**Wend**, who got you out of Stair, speaks for you, and joins as a companion here.)
 4. **Cane and Pitch.** The Corvo pay for the pipes with sugar. On the Cane Coast, the plantation hands
    have stopped cutting: the ground has gone warm there too, and the cane is growing faster than they
    can cut it. The shanty towns over the Pitch are the only place the Corvo's enemies, the Bassa, can
    meet you without being seen. They want you to sabotage the pipes. They also own half the cane.
-5. **The Turning.** The Hill turns over in its sleep. A quarter of the old town slides; the cathedral's
-   wooden roof comes down; the dome's open now and the city looks up through it at a scaled side the
-   size of a church. Ambry has known for three hundred years and has never once said "dragon" out loud.
-   It does now.
+5. **The Empty Hill.** Ambry is standing on the hole she climbed out of. A quarter of the old town
+   slid into it; the cathedral's dome is open to the sky; the hot springs are boiling. She comes back
+   every few nights and lies on the ruin like a cat on a warm stone, and the city has to decide what to
+   do before she decides to stay.
 6. **Three Ways.** The city has three answers, and each has a people behind it:
    - the **Corvo**: wake it and kill it, while it's slow, and sell the bones and the heat for a hundred years;
    - the **Sallows**: put the green back and let it sleep, which means tearing out every pipe and
@@ -148,6 +161,7 @@ hear it said, and the Sallows will have something to say about the Glass Flats.
 ## The Debatable Land (the war zone)
 
 The Cyrodiil-style PvP region the owner asked for, attached to Serra's north coast, on top of its size.
+**Level 50 and up** (the owner's call, 2026-10-25): no scaling; you come here once you've finished growing.
 
 - **Three sides**: the **Charter** (the Counties), the **Assembly** (Morrow), and the **Ambry League**
   (Serra's cities). A character picks a side for the length of a campaign.
@@ -230,5 +244,15 @@ the story; war drums for the Debatable Land.
 ## Questions for the owner
 
 - Is **Serra** (and the sailors' "Sorrow") the right name, or would you rather name it?
-- Is the dragon as the city's hill the centrepiece you want, or should the dragon be awake from the start?
-- Should the Debatable Land be open to all levels with scaling (like ESO), or level 50 and up?
+- Answered 2026-10-25: the dragon is **awake from the start** (above), and the Debatable Land is
+  **level 50 and up**.
+
+## Dragons in the open world (ESO's dragon year, our way)
+
+With the Old Mother awake, her brood are loose. On a cycle, a dragon comes in over a region and lands at
+one of its perches (a church tower, a quarry rim, a headland); the region's bells ring, the map shows
+it, and everyone nearby can fight it, as with the world bosses (shared health and credit:
+game/SharedMobs.ts). Each has a name the locals gave it, a breath (fire, steam from the Hill's water,
+the green's thorns in the Sallow Wood), and takes off again at low health once to land somewhere near.
+Bring it down and the town it was over gives a day's thanks: a cheaper inn, the smith's discount, a
+song at the tavern with your name in it.
