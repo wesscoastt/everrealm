@@ -209,6 +209,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'washLine': place(P.washLine(M, d.len ?? 4), d.x, d.y, d.z, d.ry); break;
       case 'woodpile': place(P.woodpile(M, d.len ?? 2), d.x, d.y, d.z, d.ry); break;
       case 'statue': place(P.statue(M), d.x, d.y, d.z, d.ry); break;
+      case 'roll': place(P.rollBoard(M, d.text ?? '', d.len ?? 3.2), d.x, d.y, d.z, d.ry); break;
       case 'netRack': place(P.netRack(M, d.len ?? 3), d.x, d.y, d.z, d.ry); break;
       case 'bollard': place(P.bollard(M), d.x, d.y, d.z, d.ry); break;
       case 'fishBox': place(P.fishBox(M), d.x, d.y, d.z, d.ry); break;

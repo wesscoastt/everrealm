@@ -20,7 +20,8 @@ import type { FinderView } from '../game/Dungeons';
 import type { MusicView } from '../game/Stage';
 import { PART_NAMES, type PartId } from '../data/tunes';
 import { HENCHMEN, ROLE_DESC, ROLE_NAMES, ROLES } from '../data/dungeons';
-import type { GuildRank, GuildView } from '../net/Online';
+import type { GuildRank, GuildView, HallView } from '../net/Online';
+import { HALL_BY_ID, HALL_PROJECTS, PROJECT_BY_ID, type HallId } from '../data/guildhalls';
 
 /** Settlements the Charter's chart marks before you've been (the rest of the map waits to be found). */
 /** Minimap zoom steps, in CSS pixels per block, and the CSS width they're measured across. */
@@ -205,6 +206,9 @@ export interface UiCtx {
   /** The guild panel: your guild (null: none), whether you're online at all, and what you can do. */
   guild(): { view: GuildView | null; online: boolean };
   guildDo(what: 'found' | 'leave' | 'kick' | 'rank' | 'motto', a?: string, b?: string): void;
+  /** Your guild's hall (null: none heard, or offline), and what you can do about it. */
+  hall(): HallView | null;
+  hallDo(what: 'give' | 'vault' | 'pick' | 'go' | 'leave', a?: string | null, n?: number): void;
   /** Friends: the list (with where each online one is), and what to do with one. */
   friends(): { rows: { name: string; online: boolean; where: string | null }[]; online: boolean };
   friendDo(what: 'add' | 'remove' | 'whisper' | 'invite', name: string): void;
@@ -777,18 +781,78 @@ export class Hud {
     pm.style.top = Math.min(innerHeight - pm.offsetHeight - 8, y - 10) + 'px';
   }
 
-  /** The social panel (O) opens on Friends or Guild. */
-  private socialTab: 'friends' | 'guild' = 'friends';
+  /**
+   * The guild's hall (data/guildhalls.ts): where it is and the way there, the wings built, and the one
+   * being built with what it still wants, each line with what you've got to give toward it. Officers
+   * choose the next wing and can pay from the vault; the leader can give the hall up.
+   */
+  private renderHall(): void {
+    const body = this.q('#guild-panel .body');
+    const foot = this.q('#guild-panel .footer');
+    const { view: g, online } = this.ctx.guild();
+    const v = this.ctx.hall();
+    this.q('#guild-panel h3').textContent = g?.name ?? 'Guild hall';
+    foot.innerHTML = '';
+    if (!online || !g) {
+      body.innerHTML = `<p class="gnote">${!online ? 'Guild halls are on the online realm. You\'re playing offline.' : 'A hall is a guild\'s. Found a guild, or join one, first.'}</p>`;
+      return;
+    }
+    if (!v) { body.innerHTML = '<p class="gnote">Asking after the hall…</p>'; return; }
+    const officer = v.rank === 'leader' || v.rank === 'officer';
+    const hall = v.hall ? HALL_BY_ID.get(v.hall as HallId) : null;
+    if (!hall) {
+      body.innerHTML = `<p class="gnote">${esc(g.name ?? "Your guild")} has no hall. Walter Pinnock, Clerk of the Halls, lets the old company halls on Hall Row, outside Ansbury's south gate, for ${v.lease.toLocaleString()} marks from the guild vault. ${officer ? 'As an officer you can take the lease: see him at his desk at the head of the lane.' : 'An officer or the leader takes the lease.'}</p>
+        <div class="gcount">The vault holds ${v.vaultMarks.toLocaleString()} marks · ${v.free.length} of 8 halls free</div>`;
+      return;
+    }
+    const name = (id: string) => ITEMS[id]?.name ?? id;
+    const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
+    const built = HALL_PROJECTS.filter((pr) => v.built.includes(pr.id));
+    const cur = v.project ? PROJECT_BY_ID.get(v.project as never) : null;
+    let html = `<div class="hall-head"><b>${esc(cap(hall.name))}</b><span>Hall Row, outside Ansbury's south gate</span><button class="btn sm hgo">Go to the hall</button></div>`;
+    html += `<div class="hall-built">${HALL_PROJECTS.map((pr) => `<span class="${v.built.includes(pr.id) ? 'on' : ''}${pr.id === v.project ? ' cur' : ''}" title="${esc(pr.perk)}">${esc(pr.name)}</span>`).join('')}</div>`;
+    if (cur) {
+      const cost = v.costs[cur.id], got = v.got[cur.id] ?? {};
+      const line = (item: string | null) => {
+        const need = item ? cost.items[item] : cost.marks, have = item ? got[item] ?? 0 : got.marks ?? 0, left = Math.max(0, need - have);
+        const mine = item ? this.ctx.inv.count(item) : this.ctx.save.marks;
+        const pct = Math.min(100, Math.round((have / need) * 100));
+        return `<div class="hall-need${left ? '' : ' done'}"><div class="nm">${item ? `<img src="${itemIcon(item)}" alt="">${esc(name(item))}` : 'Marks'}</div><div class="bar"><i style="width:${pct}%"></i><span>${have.toLocaleString()} / ${need.toLocaleString()}</span></div>${left ? `<button class="btn sm" data-give="${item ?? ''}" data-n="${Math.min(left, item ? mine : Math.min(mine, 500))}"${mine > 0 ? '' : ' disabled'}>Give ${Math.min(left, item ? mine : Math.min(mine, 500)).toLocaleString()}</button>${officer ? `<button class="btn ghost sm" data-vault="${item ?? ''}" data-n="${left}" title="Pay it from the guild vault">From the vault</button>` : ''}` : '<span class="ok">Enough</span>'}</div>`;
+      };
+      html += `<div class="hall-proj"><b>Building: ${esc(cur.name)}</b><p>${esc(cur.blurb)} <i>${esc(cur.perk)}</i></p>${Object.keys(cost.items).map((k) => line(k)).join('')}${line(null)}</div>`;
+    } else if (built.length < HALL_PROJECTS.length) {
+      html += `<p class="gnote">Nothing is being built. ${officer ? 'Choose what the guild builds next:' : 'An officer chooses what the guild builds next.'}</p>`;
+      if (officer) html += HALL_PROJECTS.filter((pr) => !v.built.includes(pr.id)).map((pr) => {
+        const c = v.costs[pr.id];
+        const what = [...Object.entries(c.items).map(([k, n]) => `${n} ${name(k).toLowerCase()}`), `${c.marks.toLocaleString()} marks`].join(', ');
+        return `<div class="hall-pick"><div><b>${esc(pr.name)}</b><p>${esc(pr.blurb)} <i>${esc(pr.perk)}</i></p><small>${esc(what)}</small></div><button class="btn sm" data-pick="${pr.id}">Build this next</button></div>`;
+      }).join('');
+    } else html += '<p class="gnote">Every wing of the hall is built.</p>';
+    if (v.honour.length) html += `<p class="gnote">On the roll of honour${v.built.includes('honour') ? '' : ' (once the board is up)'}: ${v.honour.map(esc).join(', ')}.</p>`;
+    body.innerHTML = html;
+    body.querySelector('.hgo')!.addEventListener('click', () => this.ctx.hallDo('go'));
+    body.querySelectorAll<HTMLButtonElement>('[data-give]').forEach((b) => b.addEventListener('click', () => this.ctx.hallDo('give', b.dataset.give || null, Number(b.dataset.n))));
+    body.querySelectorAll<HTMLButtonElement>('[data-vault]').forEach((b) => b.addEventListener('click', () => this.ctx.hallDo('vault', b.dataset.vault || null, Number(b.dataset.n))));
+    body.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach((b) => b.addEventListener('click', () => this.ctx.hallDo('pick', b.dataset.pick)));
+    foot.innerHTML = `<span>The vault holds ${v.vaultMarks.toLocaleString()} marks</span>${v.rank === 'leader' ? '<button class="btn ghost sm hleave">Give up the hall</button>' : ''}`;
+    foot.querySelector('.hleave')?.addEventListener('click', () => this.ask(`Give up ${hall.name}? The lease isn't refunded, and everything built in it goes with it.`, () => this.ctx.hallDo('leave'), () => {}, 30));
+  }
+
+  /** The social panel (O) opens on Friends, Guild or the guild's Hall. */
+  private socialTab: 'friends' | 'guild' | 'hall' = 'friends';
+  /** Open the social panel on this page next time it's shown. */
+  socialPage(t: 'friends' | 'guild' | 'hall'): void { this.socialTab = t; }
   private renderGuild(): void {
     const panel = this.q('#guild-panel');
     let tabs = panel.querySelector<HTMLElement>('.stabs');
     if (!tabs) {
-      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button>');
+      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button><button data-st="hall">Hall</button>');
       panel.querySelector('.body')!.before(tabs);
-      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild'; this.ctx.sfx('click'); this.renderGuild(); }));
+      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild' | 'hall'; this.ctx.sfx('click'); this.renderGuild(); }));
     }
     tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.classList.toggle('sel', b.dataset.st === this.socialTab));
     if (this.socialTab === 'friends') { this.renderFriends(); return; }
+    if (this.socialTab === 'hall') { this.renderHall(); return; }
     const { view: g, online } = this.ctx.guild();
     const body = this.q('#guild-panel .body');
     const foot = this.q('#guild-panel .footer');

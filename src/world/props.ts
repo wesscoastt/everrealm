@@ -5,6 +5,7 @@ export type { DoorKind } from './doorKinds';
 import { paintCanvasTexture } from './textures';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { addGableVolume } from './roofVolumes';
+import { guildArms } from '../data/guildhalls';
 
 // Authored (non-voxel) props. Static pieces are batched per material into single meshes.
 
@@ -1845,10 +1846,33 @@ export function mineHeadframe(M: PropMaterials, text = 'SALLOW PIT\nHarrowgate &
 }
 
 /** Hanging banner with a painted emblem. Returned mesh uses a shared wave material. */
-export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly'): THREE.CanvasTexture {
+export function bannerTexture(kind: BannerKind): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 128;
   const x = c.getContext('2d')!;
+  if (kind.startsWith('guild:')) {
+    // A guild's own, from its name (data/guildhalls.ts guildArms): the field divided one of five ways,
+    // a roundel with the guild's initial on it, a gold edge, and a swallowtail
+    const a = guildArms(kind.slice(6));
+    x.fillStyle = a.field; x.fillRect(0, 0, 64, 128);
+    x.fillStyle = a.charge;
+    if (a.division === 1) x.fillRect(32, 0, 32, 128); // per pale
+    else if (a.division === 2) x.fillRect(0, 64, 64, 64); // per fess
+    else if (a.division === 3) { x.beginPath(); x.moveTo(0, 104); x.lineTo(32, 70); x.lineTo(64, 104); x.lineTo(64, 120); x.lineTo(32, 86); x.lineTo(0, 120); x.fill(); } // a chevron
+    else if (a.division === 4) { x.lineWidth = 9; x.strokeStyle = a.charge; x.beginPath(); x.moveTo(0, 6); x.lineTo(64, 122); x.moveTo(64, 6); x.lineTo(0, 122); x.stroke(); } // a saltire
+    x.fillStyle = 'rgba(0,0,0,0.12)';
+    for (let i = 0; i < 128; i += 4) x.fillRect(0, i, 64, 1);
+    x.fillStyle = a.field; x.beginPath(); x.arc(32, 46, 17, 0, Math.PI * 2); x.fill();
+    x.lineWidth = 3; x.strokeStyle = a.charge; x.stroke();
+    x.fillStyle = a.charge; x.font = 'bold 24px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(a.initial, 32, 47);
+    x.strokeStyle = '#e6c46a'; x.lineWidth = 2; x.strokeRect(3, 3, 58, 114);
+    x.globalCompositeOperation = 'destination-out';
+    x.beginPath(); x.moveTo(0, 128); x.lineTo(32, 108); x.lineTo(64, 128); x.closePath(); x.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
   if (kind === 'tally') {
     // A gang's tally: an oxblood rag, frayed, with a stroke chalked for every cart they've taken
     x.fillStyle = '#4a1a16'; x.fillRect(0, 0, 64, 128);
@@ -1933,6 +1957,38 @@ export function bannerTexture(kind: 'hollin' | 'harrow' | 'aldermere' | 'tally' 
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+/** A banner's cloth: a town's, a gang's tally, a company's, or a guild's own ('guild:' and its name). */
+export type BannerKind = 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly' | `guild:${string}`;
+
+/**
+ * A guild hall's roll of honour (data/guildhalls.ts): a dark board in a moulded frame on the wall, len
+ * wide, lettered in gold, the great beasts the guild has brought down in two columns under the heading.
+ */
+export function rollBoard(M: PropMaterials, text: string, len = 3.2): THREE.Group {
+  const g = new THREE.Group();
+  const h = len * 0.8;
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 256;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#1c2a22'; x.fillRect(0, 0, 320, 256);
+  x.strokeStyle = '#c8a050'; x.lineWidth = 3; x.strokeRect(10, 10, 300, 236);
+  x.fillStyle = '#e8c860'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = 'bold 24px Georgia, serif'; x.fillText('ROLL OF HONOUR', 160, 36);
+  x.fillRect(90, 54, 140, 2);
+  const names = text.split('\n').filter(Boolean);
+  x.font = '15px Georgia, serif';
+  if (!names.length) { x.font = 'italic 15px Georgia, serif'; x.fillStyle = '#a89058'; x.fillText('Room for the first.', 160, 140); }
+  names.slice(0, 22).forEach((n, i) => x.fillText(n, i < 11 ? 85 : 235, 76 + (i % 11) * 15.5, 140));
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(len, h), new THREE.MeshLambertMaterial({ map: tex }));
+  face.position.set(0, 1.05 + h / 2, -0.04);
+  g.add(face);
+  // The frame
+  for (const [w, hh, px, py] of [[len + 0.24, 0.12, 0, 1.05 - 0.06], [len + 0.24, 0.12, 0, 1.05 + h + 0.06], [0.12, h, -len / 2 - 0.06, 1.05 + h / 2], [0.12, h, len / 2 + 0.06, 1.05 + h / 2]] as const) g.add(mesh(box(w, hh, 0.1), M.darkWood, px, py, -0.07));
+  return g;
 }
 
 export function createBannerMaterial(tex: THREE.Texture, time: { value: number }): THREE.MeshLambertMaterial {

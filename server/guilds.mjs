@@ -12,6 +12,21 @@
 // take out what they like; a member takes out up to twenty things and two hundred marks a day. (The
 // browser keeps the pack: it sets goods or coin aside before paying in and gets them back if the vault
 // turns them down; on the way out, the vault agrees first and then the pack takes them.)
+//
+// Guild halls on Hall Row outside Ansbury (src/data/guildhalls.ts): a guild's officers lease one of the
+// eight from the guild vault, and the guild builds it out one project at a time from what its members
+// bring (or an officer pays from the vault). The hall, what's built and the roll of honour go in the
+// guild's file; every player hears the book of halls (who holds which, and what's built in each), so
+// everyone passing sees the banners and the wings. Messages, client to server:
+//   { t: 'uHallGet' }                       your guild's hall, as its members see it
+//   { t: 'uHallLease', id }                 an officer leases a free hall, from the vault
+//   { t: 'uHallPick', project }             an officer sets what the guild builds next
+//   { t: 'uHallGive', item, n, vault? }     goods (item) or marks (null) toward it: from your pack (set aside
+//                                           already; what isn't needed comes back as uHallRefund), or an
+//                                           officer's from the vault
+//   { t: 'uHonour', name }                  a great beast a member helped bring down, for the roll
+//   { t: 'uHallLeave' }                     the leader gives the hall up
+// Server to client: { t: 'halls', list } (the book, to everyone), { t: 'uHall', ... }, { t: 'uHallRefund', item, n, why }.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,6 +37,17 @@ const MAX_MEMBERS = 200;
 const ITEM = /^[a-z0-9_]{2,40}$/;
 const VAULT_KINDS = 100;
 const MEMBER_DAY = { items: 20, marks: 200 };
+const HALL_IDS = ['fullers', 'dyers', 'chandlers', 'saddlers', 'coopers', 'mercers', 'vintners', 'cordwainers'];
+const HALL_LEASE = 5000;
+/** What each wing of a hall takes to build. */
+const PROJECTS = {
+  table: { items: { oak_logs: 80, birch_logs: 40 }, marks: 1000 },
+  forge: { items: { iron_bar: 40, bronze_bar: 20, pine_logs: 60 }, marks: 1500 },
+  counting: { items: { silver_bar: 15, oak_logs: 60 }, marks: 2000 },
+  maproom: { items: { elder_logs: 30, silver_bar: 10 }, marks: 3000 },
+  honour: { items: { wolf_pelt: 30, boar_hide: 30, frost_pelt: 10 }, marks: 2000 },
+};
+const HONOUR_NAME = /^[A-Za-z][A-Za-z' ,-]{1,38}[A-Za-z]$/;
 
 export function guildsInit(ctx) {
   const { players, send, broadcast, readJson, writeJson, dataDir, mirrorDelete, log } = ctx;
@@ -61,7 +87,8 @@ export function guildsInit(ctx) {
     };
   }
   function sendAll(g) { for (const p of online(g)) send(p.ws, view(g, p)); }
-  function tag(p) { p.guildName = guildOf(p)?.name ?? null; broadcast({ t: 'gtag', id: p.id, guild: p.guildName }); }
+  /** Their guild tag for everyone (on founding, joining or leaving one), and its hall for them. */
+  function tag(p) { const g = guildOf(p); p.guildName = g?.name ?? null; broadcast({ t: 'gtag', id: p.id, guild: p.guildName }); send(p.ws, g ? hallView(g, p) : { t: 'uHall', guild: null }); }
   function tell(g, text) { for (const p of online(g)) sys(p, text); }
 
   function removeMember(g, ck) {
@@ -73,6 +100,7 @@ export function guildsInit(ctx) {
       try { fs.unlinkSync(fileOf(g.key)); } catch { /* already gone */ }
       mirrorDelete(fileOf(g.key));
       log(`guild ${g.name} disbanded`);
+      if (g.hall) broadcast({ t: 'halls', list: hallsBook() });
       return;
     }
     if (!left.some(([, m]) => m.rank === 'leader')) {
@@ -84,13 +112,57 @@ export function guildsInit(ctx) {
     store(g);
   }
 
-  /** A player has entered the world: their guild, and their tag for everyone else. */
+  // ------------------------------------------------------------------ guild halls
+  /** Who holds which hall, and what's built in each: for everyone. */
+  function hallsBook() {
+    const list = {};
+    for (const g of guilds.values()) if (g.hall) list[g.hall.id] = { guild: g.name, built: g.hall.built, honour: g.hall.honour };
+    return list;
+  }
+  const hallHolder = (id) => [...guilds.values()].find((g) => g.hall?.id === id) ?? null;
+  /** The hall as a member sees it: what's built, what's being built and how far it's got, what everything costs. */
+  function hallView(g, p) {
+    const h = g.hall;
+    const free = HALL_IDS.filter((id) => !hallHolder(id));
+    return { t: 'uHall', guild: g.name, rank: rankOf(g, p), hall: h?.id ?? null, built: h?.built ?? [], project: h?.project ?? null, got: h?.got ?? {}, honour: h?.honour ?? [], costs: PROJECTS, lease: HALL_LEASE, vaultMarks: vaultOf(g).marks, free };
+  }
+  function hallChanged(g, book = false) {
+    store(g);
+    for (const p of online(g)) send(p.ws, hallView(g, p));
+    if (book) broadcast({ t: 'halls', list: hallsBook() });
+  }
+  /** What the project still wants of a thing (item null: marks). */
+  function wanted(g, item) {
+    const h = g.hall, pr = h?.project && PROJECTS[h.project];
+    if (!pr) return 0;
+    const got = h.got[h.project] ?? {};
+    return item ? Math.max(0, (pr.items[item] ?? 0) - (got[item] ?? 0)) : Math.max(0, pr.marks - (got.marks ?? 0));
+  }
+  /** Something given toward the project; finishing it if that was the last of it. */
+  function given(g, who, item, n) {
+    const h = g.hall, got = (h.got[h.project] ??= {});
+    got[item ?? 'marks'] = (got[item ?? 'marks'] ?? 0) + n;
+    const pr = PROJECTS[h.project];
+    if ((got.marks ?? 0) >= pr.marks && Object.entries(pr.items).every(([k, v]) => (got[k] ?? 0) >= v)) {
+      h.built.push(h.project);
+      delete h.got[h.project];
+      tell(g, `The guild's hall has a new wing: ${h.project === 'table' ? 'the long table' : h.project === 'forge' ? 'the forge' : h.project === 'counting' ? 'the counting room' : h.project === 'maproom' ? 'the map room' : 'the roll of honour'} is built. ${who} brought the last of it.`);
+      log(`guild ${g.name} built ${h.project} in the ${h.id} hall`);
+      h.project = null;
+      return true;
+    }
+    return false;
+  }
+
+  /** A player has entered the world: their guild, and their tag for everyone else; and the book of halls. */
   function join(me) {
+    send(me.ws, { t: 'halls', list: hallsBook() });
     const g = guildOf(me);
     me.guildName = g?.name ?? null;
     if (!g) return;
     g.members[me.key].name = me.name;
     send(me.ws, view(g, me));
+    send(me.ws, hallView(g, me));
     for (const p of online(g)) if (p !== me) send(p.ws, view(g, p));
   }
 
@@ -124,6 +196,79 @@ export function guildsInit(ctx) {
 
   function handle(me, msg) {
     switch (msg.t) {
+      case 'uHallGet': {
+        const g = guildOf(me);
+        send(me.ws, g ? hallView(g, me) : { t: 'uHall', guild: null });
+        return true;
+      }
+      case 'uHallLease': {
+        const g = guildOf(me);
+        const id = HALL_IDS.includes(msg.id) ? msg.id : null;
+        if (!g || !atLeast(rankOf(g, me), 'officer')) { sys(me, g ? 'Only the guild\'s officers and its leader can lease a hall.' : 'You aren\'t in a guild.'); return true; }
+        if (g.hall) { sys(me, 'Your guild already has a hall.'); return true; }
+        if (!id || hallHolder(id)) { sys(me, 'That hall is let already.'); send(me.ws, hallView(g, me)); return true; }
+        const v = vaultOf(g);
+        if (v.marks < HALL_LEASE) { sys(me, `The lease is ${HALL_LEASE.toLocaleString()} marks, from the guild vault. It holds ${v.marks.toLocaleString()}.`); return true; }
+        v.marks -= HALL_LEASE;
+        note(g, `${me.name} paid ${HALL_LEASE} marks for the lease of a hall`);
+        g.hall = { id, since: Date.now(), built: [], project: null, got: {}, honour: [] };
+        tell(g, `${me.name} has leased a hall on Hall Row for ${g.name}. It's yours.`);
+        log(`guild ${g.name} leased the ${id} hall`);
+        hallChanged(g, true);
+        return true;
+      }
+      case 'uHallPick': {
+        const g = guildOf(me);
+        const pr = typeof msg.project === 'string' && PROJECTS[msg.project] ? msg.project : null;
+        if (!g?.hall || !atLeast(rankOf(g, me), 'officer')) { sys(me, g?.hall ? 'Only the guild\'s officers and its leader choose what to build.' : 'Your guild has no hall.'); return true; }
+        if (!pr || g.hall.built.includes(pr)) { sys(me, 'That\'s built already.'); return true; }
+        g.hall.project = pr;
+        tell(g, `${me.name} has set the guild to building the next wing of its hall.`);
+        hallChanged(g);
+        return true;
+      }
+      case 'uHallGive': {
+        const g = guildOf(me);
+        const item = typeof msg.item === 'string' && ITEM.test(msg.item) ? msg.item : null;
+        const n = Number.isInteger(msg.n) && msg.n >= 1 && msg.n <= 100_000 ? msg.n : null;
+        const fromVault = !!msg.vault;
+        const back = (left, why) => { if (!fromVault && left > 0) send(me.ws, { t: 'uHallRefund', item, n: left, why }); else if (why) sys(me, why); };
+        if (!g?.hall?.project) { back(n ?? 0, g?.hall ? 'Nothing is being built. An officer has to choose what\'s next.' : 'Your guild has no hall.'); return true; }
+        if (n === null) { back(0, 'The clerk can\'t make sense of that.'); return true; }
+        if (fromVault && !atLeast(rankOf(g, me), 'officer')) { sys(me, 'Only officers pay from the vault.'); return true; }
+        const want = wanted(g, item);
+        let take = Math.min(n, want);
+        if (fromVault) {
+          const v = vaultOf(g);
+          take = Math.min(take, item ? v.items[item] ?? 0 : v.marks);
+          if (take <= 0) { sys(me, want ? 'The vault hasn\'t any to give.' : 'The project doesn\'t need that.'); return true; }
+          if (item) { v.items[item] -= take; if (v.items[item] <= 0) delete v.items[item]; } else v.marks -= take;
+          note(g, `${me.name} gave ${take} ${item ? '× ' + item : 'marks'} from the vault toward the hall`);
+        }
+        if (take <= 0) { back(n, 'The project doesn\'t need that, or has all it needs of it.'); return true; }
+        given(g, me.name, item, take);
+        back(n - take, n > take ? `It only needed ${take}. The rest is back in your ${item ? 'pack' : 'purse'}.` : '');
+        hallChanged(g, !g.hall.project);
+        return true;
+      }
+      case 'uHonour': {
+        const g = guildOf(me);
+        const name = typeof msg.name === 'string' && HONOUR_NAME.test(msg.name) ? msg.name : null;
+        if (!g?.hall || !name || g.hall.honour.includes(name) || g.hall.honour.length >= 40) return true;
+        g.hall.honour.push(name);
+        if (g.hall.built.includes('honour')) tell(g, `${name} goes on the roll of honour in the hall.`);
+        hallChanged(g, true);
+        return true;
+      }
+      case 'uHallLeave': {
+        const g = guildOf(me);
+        if (!g?.hall || rankOf(g, me) !== 'leader') { sys(me, g?.hall ? 'Only the leader can give up the hall.' : 'Your guild has no hall.'); return true; }
+        tell(g, `${me.name} has given up the guild's hall. The Charter will let it to someone else.`);
+        log(`guild ${g.name} gave up the ${g.hall.id} hall`);
+        delete g.hall;
+        hallChanged(g, true);
+        return true;
+      }
       case 'uVaultGet': {
         const g = guildOf(me);
         if (!g) { send(me.ws, { t: 'uVault', guild: null }); return true; }

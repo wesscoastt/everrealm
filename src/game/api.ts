@@ -22,6 +22,12 @@ export interface GameApi {
   /** At a shipwright (data/naval.ts, game/Sailing.ts): hire, build, call round, raise, paint or name a ship. */
   /** Sit down to a game of Quarters with someone who plays (data/cards.ts OPPONENTS). */
   playQuarters(npc: string): void;
+  /** Guild halls on Hall Row (data/guildhalls.ts), as the realm last said: your guild, whether you may lease, its hall, the free ones, its vault's marks. */
+  guildHall(): { online: boolean; guild: string | null; officer: boolean; hall: string | null; free: string[]; vaultMarks: number };
+  /** Lease a hall for your guild, from its vault (an officer's or the leader's to do). */
+  leaseHall(id: string): void;
+  /** The guild panel, open on its hall page. */
+  openHallPage(): void;
   naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name' | 'below', arg?: string): void;
   fairOn(): boolean;
   fairPlay(game: string): void;

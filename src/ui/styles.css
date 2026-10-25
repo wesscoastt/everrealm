@@ -1353,3 +1353,25 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #quarters .qt-card .e.r { top: 40px; right: -2px; }
 #quarters .qt-card .nm { position: absolute; left: 2px; right: 2px; bottom: 3px; font: 600 10px var(--body); color: #2a1d10; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 640px) { #quarters .qt-table { grid-template-columns: 1fr; } #quarters .qt-col { flex-direction: row; justify-content: center; } #quarters .qt-col .qt-card + .qt-card { margin-top: 0; margin-left: -44px; } #quarters .qt-board { grid-template-columns: repeat(3, 98px); grid-template-rows: repeat(3, 122px); } }
+
+/* The guild hall page (social panel, Hall tab) */
+#guild-panel .hall-head { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px; margin: 2px 0 8px; }
+#guild-panel .hall-head b { font: 700 16px var(--px); color: var(--wheat); }
+#guild-panel .hall-head span { grid-row: 2; font: italic 500 13px var(--body); color: var(--cream-d); }
+#guild-panel .hall-head .btn { grid-row: 1 / 3; grid-column: 2; }
+#guild-panel .hall-built { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+#guild-panel .hall-built span { padding: 3px 7px; font: 600 11px var(--px); color: var(--cream-d); background: rgba(0,0,0,0.3); border: 1px dashed rgba(240,220,180,0.25); border-radius: 4px; }
+#guild-panel .hall-built span.on { color: #1a1206; background: var(--gold); border: 1px solid #8a6a20; }
+#guild-panel .hall-built span.cur { border-style: solid; border-color: var(--gold); color: var(--gold); }
+#guild-panel .hall-proj p, #guild-panel .hall-pick p { margin: 3px 0 8px; font: 500 13px var(--body); color: var(--cream); }
+#guild-panel .hall-proj p i, #guild-panel .hall-pick p i { color: var(--gold); }
+#guild-panel .hall-need { display: grid; grid-template-columns: 130px 1fr auto auto; align-items: center; gap: 6px; margin: 4px 0; }
+#guild-panel .hall-need .nm { display: flex; align-items: center; gap: 5px; font: 600 12px var(--body); color: var(--cream); }
+#guild-panel .hall-need .nm img { width: 20px; height: 20px; image-rendering: pixelated; }
+#guild-panel .hall-need .bar { position: relative; height: 16px; background: #0b1122; border: 1px solid var(--ink); border-radius: 3px; overflow: hidden; }
+#guild-panel .hall-need .bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #8a6a20, #d8b04a); }
+#guild-panel .hall-need .bar span { position: relative; display: block; text-align: center; font: 600 10.5px var(--px); color: #fff; line-height: 16px; text-shadow: 0 1px 1px #000; }
+#guild-panel .hall-need .ok { font: 600 11px var(--px); color: #8ad08a; }
+#guild-panel .hall-pick { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; margin: 4px 0; background: rgba(0,0,0,0.28); border: 1px solid rgba(0,0,0,0.5); border-radius: 5px; }
+#guild-panel .hall-pick small { font: 500 11.5px var(--body); color: var(--cream-d); }
+@media (max-width: 560px) { #guild-panel .hall-need { grid-template-columns: 1fr 1fr; } }

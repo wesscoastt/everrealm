@@ -76,7 +76,7 @@ import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
 import { PACKET_COURSE, POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
-import { Online, type HomeHeld } from '../net/Online';
+import { Online, type HallView, type HomeHeld } from '../net/Online';
 import { BOARDS } from '../data/content';
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -108,6 +108,8 @@ import { ClassKit } from './ClassKit';
 import { Festivals } from './Festivals';
 import { Home, Piece } from './Home';
 import { Building, doorCell, stallAt, type LaidBlock, type LotHouse } from './Building';
+import { GuildHalls } from './GuildHalls';
+import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
@@ -481,6 +483,11 @@ export class Game implements GameApi {
   /** The great cabin of a ship of your own, a second home with its own furniture (data/cabins.ts). */
   private cabin!: Home;
   building!: Building;
+  /** The halls on Hall Row, dressed as the realm's book has them (game/GuildHalls.ts); your guild's, as its members see it. */
+  halls!: GuildHalls;
+  hallView: HallView | null = null;
+  /** The Post's fares at half: the travel board was opened from the map room of your guild's hall. */
+  private hallFare = false;
   /** Laying and digging blocks by hand on your own lot. */
   lotBuild!: LotBuild;
   /** Blocks laid since the realm's book last heard (sent a moment after you stop). */
@@ -932,6 +939,7 @@ export class Game implements GameApi {
       reserved: () => { const h = this.cabinHull(); return h ? cabinReserved(h) : new Set(); },
     });
     this.building = new Building({ scene: this.scene, voxels: this.world.voxels, buildProps: (s) => this.world.buildProps(s) });
+    this.halls = new GuildHalls({ scene: this.scene, buildProps: (s) => this.world.buildProps(s) });
     this.world.extraDoors = () => this.building.doors();
     this.lotBuild = new LotBuild({
       scene: this.scene, voxels: this.world.voxels,
@@ -1250,6 +1258,9 @@ export class Game implements GameApi {
       guildVault: (v) => this.bank.guildState(v),
       guildRefund: (item, n, why) => this.bank.guildRefund(item, n, why),
       guildWithdrawn: (item, n) => this.bank.guildOut(item, n),
+      halls: (list) => { this.halls.book = list; },
+      hall: (v) => { this.hallView = v?.guild ? v : null; this.hud.refresh('guild'); },
+      hallRefund: (item, n, why) => { if (item) this.give(item, n); else this.save.marks += n; if (why) this.hud.system(why); this.hud.refresh(); },
       mobHit: (key: string, share: number, from: number) => {
         const e = this.shared.theirs(this.enemies, key, share, from);
         if (!e) return;
@@ -1534,7 +1545,63 @@ export class Game implements GameApi {
   }
 
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
-  openTravel(from: string): void { this.currentPost = from; this.hud.show('travel'); }
+  openTravel(from: string): void { this.currentPost = from; this.hallFare = false; this.hud.show('travel'); }
+  /** A Post fare: half, from the map room of your guild's hall. */
+  private fareOf(a: (typeof POSTS)[number], b: (typeof POSTS)[number]): number { const f = postFare(a, b); return this.hallFare ? Math.ceil(f / 2) : f; }
+
+  // =================================================================== Guild halls (data/guildhalls.ts)
+  guildHall() {
+    const v = this.hallView, rank = this.social.guild?.rank ?? null;
+    // (the free halls from the book everyone hears, so they're right for someone with no guild too)
+    const free = HALLS.filter((h) => !this.halls.holder(h.id)).map((h) => h.id);
+    return { online: this.online.status === 'online', guild: this.social.guild?.name ?? null, officer: rank === 'leader' || rank === 'officer', hall: v?.hall ?? null, free, vaultMarks: v?.vaultMarks ?? 0 };
+  }
+  leaseHall(id: string): void { if (this.online.status === 'online') this.online.hallLease(id); }
+  openHallPage(): void { this.hud.socialPage('hall'); this.hud.show('guild'); if (this.online.status === 'online') this.online.hallGet(); }
+  /** Your guild's hall, if it has one. */
+  myHall() { const id = this.hallView?.hall as HallId | undefined; return id ? HALL_BY_ID.get(id) ?? null : null; }
+  /** To your guild's hall from anywhere, once an hour: you arrive inside the front door. */
+  goToHall(): void {
+    const h = this.myHall();
+    if (!h) { this.hud.system('Your guild has no hall.'); return; }
+    const wait = 3600_000 - (Date.now() - Number(this.flag('hallGoAt') ?? 0));
+    if (wait > 0) { this.hud.system(`You can go straight to the hall again in ${Math.ceil(wait / 60000)} min. The Charter Post rides to Ansbury's south gate from anywhere.`); return; }
+    if (this.dead || this.dialogue || this.voyage.active || this.post.active) return;
+    this.dismount(true);
+    this.cancelActions();
+    this.hud.closeAll();
+    const a = hallArrive(h);
+    this.player.teleport(a.x, a.y + 0.05, a.z);
+    this.player.velocity.set(0, 0, 0);
+    this.player.fallStartY = this.player.position.y;
+    this.setFlag('hallGoAt', Date.now());
+    this.sfx('open', 0.6);
+    this.hud.system(`${h.name[0].toUpperCase() + h.name.slice(1)}, Hall Row, outside Ansbury's south gate.`);
+    this.persist();
+  }
+  /** Goods (or marks, item null) toward the hall's next wing: from your pack, or an officer's from the vault. */
+  hallGive(item: string | null, n: number, vault = false): void {
+    if (this.online.status !== 'online' || !this.hallView?.project || n <= 0) return;
+    if (!vault) {
+      if (item) { n = Math.min(n, this.inv.count(item)); if (n <= 0) return; this.inv.remove(item, n); }
+      else { n = Math.min(n, this.save.marks); if (n <= 0) return; this.save.marks -= n; }
+    }
+    this.online.hallGive(item, n, vault);
+    this.sfx('coin');
+    this.hud.refresh();
+    this.persist();
+  }
+  /** Supper at the long table, once a day. */
+  private hallSupper(): void {
+    const today = Math.floor(Date.now() / 86_400_000);
+    if (Number(this.flag('hallSupper') ?? -1) === today) { this.hud.system('You\'ve had your supper in hall today. Come back tomorrow.'); return; }
+    this.setFlag('hallSupper', today);
+    this.setFlag('buff:food', { id: 'hall_supper', left: 45 * 60 });
+    this.hp = this.maxHp;
+    this.sfx('eat', 0.8);
+    this.hud.system('Supper in hall: a tenth more health, and stamina back a quarter faster, for three-quarters of an hour.');
+    this.hud.refresh();
+  }
   duel(id: string): void { this.activities.duels.start(id); }
   /** The Lamp Company's pledge today, and how it stands; taking it; going back with it done (keys paid). */
   pledge(): { name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null { return this.dungeons.pledge(); }
@@ -1594,7 +1661,7 @@ export class Game implements GameApi {
       stops: POSTS.filter((p) => landOf(p) === landOf(here)).map((p) => ({
         id: p.id, name: p.name, here: p.id === here.id,
         known: postKnown(p, this.save.discovered) && (!p.gate || !!this.flag(p.gate)),
-        fare: postFare(here, p),
+        fare: this.fareOf(here, p),
         ...((): { note: string; by: 'ride' | 'cross' | 'ferry' } => {
           if (p.id === here.id) return { note: '', by: 'ride' };
           if (Game.ferryPair(here.id, p.id)) return { note: 'By the ferry from the jetty: she sails every few minutes', by: 'ferry' };
@@ -1670,7 +1737,7 @@ export class Game implements GameApi {
       this.markOnMap(at[0], at[1], 'The ferry\'s berth');
       return;
     }
-    const fare = postFare(here, there);
+    const fare = this.fareOf(here, there);
     if (this.save.marks < fare || this.dead || this.dialogue) return;
     this.save.marks -= fare;
     this.sfx('coin');
@@ -2844,6 +2911,13 @@ export class Game implements GameApi {
         else if (what === 'whisper' && name) g.hud.openChat((t) => g.say(t), `/w ${name} `);
       },
       groupLeader: () => !!g.social.group && g.social.group.leader === g.online.myId,
+      hall: () => (g.online.status === 'online' ? g.hallView : null),
+      hallDo: (what: 'give' | 'vault' | 'pick' | 'go' | 'leave', a?: string | null, n?: number) => {
+        if (what === 'give' || what === 'vault') g.hallGive(a ?? null, n ?? 0, what === 'vault');
+        else if (what === 'pick' && a) g.online.hallPick(a);
+        else if (what === 'go') g.goToHall();
+        else if (what === 'leave') g.online.hallLeave();
+      },
       guildDo: (what: 'found' | 'leave' | 'kick' | 'rank' | 'motto', a?: string, b?: string) => {
         if (what === 'found') g.social.guildFound(a ?? '', b ?? '');
         else if (what === 'leave') g.social.guildLeave();
@@ -4444,6 +4518,21 @@ export class Game implements GameApi {
     for (const a of this.justice.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
+    // In your guild's hall: what its wings are for
+    {
+      const hall = this.myHall(), built = new Set(this.hallView?.built ?? []);
+      if (hall && inHall(hall, p.x, p.z)) {
+        const at = (q: { x: number; y: number; z: number }, r: number) => { const d = Math.hypot(q.x - p.x, q.z - p.z); return d < r && Math.abs(q.y - p.y) < 2.5 ? d : -1; };
+        const t = hallTable(hall), c = hallCounter(hall), m = hallMaps(hall);
+        let d = at(t, 3.6);
+        if (built.has('table') && d >= 0) consider({ kind: 'act', label: 'Sit down to supper in hall', pos: new THREE.Vector3(t.x, t.y + 1, t.z), act: () => this.hallSupper() }, d);
+        if (built.has('forge')) for (const ws of forgeStations(hall)) { d = at(ws, 2.2); if (d >= 0) consider({ kind: 'act', label: ws.label, pos: new THREE.Vector3(ws.x, ws.y + 0.6, ws.z), act: () => this.openCrafting(ws.station, ws) }, d); }
+        d = at(c, 2.6);
+        if (built.has('counting') && d >= 0) consider({ kind: 'act', label: 'The counting room: your bank and the guild vault', pos: new THREE.Vector3(c.x, c.y + 1, c.z), act: () => { this.hud.closeAll(); void this.bank.show('The counting room', c.x, c.z); } }, d);
+        d = at(m, 2.6);
+        if (built.has('maproom') && d >= 0) consider({ kind: 'act', label: 'The map room: the Charter Post at half fare', pos: new THREE.Vector3(m.x, m.y + 1, m.z), act: () => { this.openTravel('aldermere'); this.hallFare = true; this.hud.refresh('travel'); } }, d);
+      }
+    }
     // A town smithy's stations
     for (const ws of this.worldStations) {
       const d = Math.hypot(ws.x - p.x, ws.z - p.z);
@@ -5421,7 +5510,7 @@ export class Game implements GameApi {
     }
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
-    if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.dailies.bump('boss');
+    if (WORLD_BOSSES.some((b) => b.type === e.def.type)) { this.dailies.bump('boss'); if (this.hallView?.hall) this.online.hallHonour(e.def.name); }
     // A Quarters tile off the great ones: Old Notch's always, a world boss's now and then
     const tileChance = TILE_DROPS[e.def.type];
     if (tileChance && TILE_BY_ID.has(e.def.type) && Math.random() < tileChance) {
@@ -5854,6 +5943,7 @@ export class Game implements GameApi {
     // The lots round you, as the book has them; a host's door open while you visit them
     if (!this.home.visiting) this.visitLot = null;
     this.syncLots();
+    this.halls.sync(this.player.position.x, this.player.position.z);
     // Well rested: half an hour of play at a quarter more experience, after a night in your own bed
     const rested = Number(this.flag('rested') ?? 0);
     if (rested > 0) {

@@ -22,6 +22,8 @@ import { ROPEWALK } from '../data/ropewalk';
 import { POTTERY, POTTERY_D, POTTERY_W, potteryAt } from '../data/pottery';
 import * as SK from '../data/skua';
 import { MIRADOR_GATE, MIRADOR_LANE, MIRADOR_LOOKOUT, VILLAS, villaBack, villaDoor, type Villa } from '../data/mirador';
+import { HALL_CLERK, HALL_LANE, HALLS, hallAt, hallFacing, type Hall } from '../data/guildhalls';
+import type { BannerKind } from './props';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -66,7 +68,9 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   /** A Charter Post box, where letters are posted and read. */
   | 'postBox'
   /** A reek-fire's hearth on Inkholm (lit by the game when its fire's been relit). */
-  | 'reekhearth';
+  | 'reekhearth'
+  /** A guild hall's roll of honour on the wall (len wide; text: the names, a line each). */
+  | 'roll';
 
 export interface PropDesc {
   t: PropType;
@@ -96,7 +100,7 @@ export interface PropDesc {
   open?: boolean;
   mat?: 'red' | 'blue' | 'thatch' | 'slate' | 'copper';
   color?: string;
-  kind?: 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly';
+  kind?: BannerKind;
   /** A ship's sails ('bare': a hull on the slip, no masts yet). */
   sails?: 'set' | 'furled' | 'bare';
   /** A ship's kind (world/ships.ts; a carrack if none); her hull's colour; and the deck's height where it has to meet a walk (else y is the waterline). */
@@ -628,6 +632,8 @@ export function plan(): Plan {
     { id: 'skua-rock', name: 'Skua Rock', x: SK.SKUA.x, z: SK.SKUA.z, r0: 0, r1: 0, build: (s) => buildSkuaRock(s) },
     // The Mirador, the houses on the scarp above Callis (data/mirador.ts)
     { id: 'callis-mirador', name: 'The Mirador', x: 8590, z: 796, r0: 0, r1: 0, build: (s) => buildMirador(s) },
+    // Hall Row outside Ansbury's south gate, the old companies' halls let to guilds (data/guildhalls.ts)
+    { id: 'ansbury-halls', name: 'Hall Row', x: 916, z: 505, r0: 0, r1: 0, build: (s) => buildHallRow(s), flats: HALLS.map((h) => ({ x: h.x0 + h.w / 2, z: h.door === 's' ? h.z0 : h.z0 + h.d, r0: 14, r1: 20, h: h.base })) },
     { id: 'pottery', name: 'Hurst\'s Pottery', x: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[0], z: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[1], r0: 0, r1: 0, build: (s) => buildPottery(s) },
     // The Charter's estates by the Post towns, each a site of its own (data/estates.ts)
     ...ESTATES.map((e): Named => {
@@ -5631,6 +5637,114 @@ export function plan(): Plan {
     for (const u of [6, 42, len - 10]) { const l = P(u, 0.2); s.props.push({ t: 'lantern', x: l.x, y: base + 3.2, z: l.z }); }
     { const g = P(-1.2, 1); s.props.push({ t: 'sign', x: g.x, y: base, z: g.z, ry: alongX ? -Math.PI / 2 : Math.PI, text: 'ROOK\'S ROPEWALK\nRope laid to order' }); }
     { const [ax, az] = at(-2, -1), [bx, bz] = at(len + 1, W); rect(s, Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx) + 1, Math.max(az, bz) + 1); }
+  }
+
+  /**
+   * Hall Row (data/guildhalls.ts): the lane off the south road under Ansbury's wall, the eight company
+   * halls either side of it, each its own company's colours with a walled yard behind through a back
+   * door, and Walter Pinnock's desk at the lane's head. What a guild has built in one comes and goes with
+   * the realm's book (game/GuildHalls.ts), and so does the board at its gate.
+   */
+  function buildHallRow(s: Site) {
+    const P = (d: PropDesc) => { s.props.push(d); };
+    const at = (h: Hall, u: number, v: number) => hallAt(h, u, v);
+    /** A hall's cell (u, v counted from its west end and its front wall, as data/guildhalls.ts hallAt). */
+    const cell = (h: Hall, u: number, v: number): [number, number] => [h.x0 + u, h.door === 's' ? h.z0 + h.d - 1 - v : h.z0 + v];
+    // ------------------------------------------------------------------ the lane
+    {
+      const [[ax, az], [bx, bz]] = HALL_LANE;
+      for (let x = ax; x <= bx; x++) for (let o = -1; o <= 1; o++) {
+        const z = Math.floor(az) + o, y = heightAt(x, z);
+        O.set(x, y - 1, z, o === 0 && hash2(x, z, 917) < 0.5 ? B.Cobble : B.Flagstone);
+        clearUp(x, z, y, y + 8);
+      }
+      rect(s, ax, az - 2, bx, bz + 2);
+      // Lamps between the halls, on alternate sides
+      [882, 916, 950, 984].forEach((x, i) => {
+        const z = i % 2 ? az + 2.4 : az - 2.4;
+        P({ t: 'lantern', x, y: heightAt(Math.floor(x), Math.floor(z)), z, ry: i % 2 ? Math.PI : 0 });
+      });
+      const sx = ax + 5, sz = az - 2.6;
+      P({ t: 'sign', x: sx, y: heightAt(Math.floor(sx), Math.floor(sz)), z: sz, ry: -Math.PI / 2, text: 'HALL ROW\nHalls let to guilds\nApply to the Clerk' });
+    }
+    // ------------------------------------------------------------------ the clerk's desk at the lane's head
+    {
+      const { desk } = HALL_CLERK, y = heightAt(Math.floor(desk.x), Math.floor(desk.z));
+      P({ t: 'furn', item: 'desk', x: desk.x, y, z: desk.z, ry: 0 });
+      P({ t: 'furn', item: 'chair', x: desk.x + 1.4, y, z: desk.z - 0.9, ry: -Math.PI / 2 });
+      P({ t: 'awning', x: desk.x, y: y + 2.9, z: desk.z - 1.2, ry: 0, len: 3.4, color: '#2f528f' });
+      P({ t: 'furn', item: 'strongbox', x: desk.x - 1.5, y, z: desk.z - 0.9, ry: 0 });
+      for (let x = Math.floor(desk.x) - 2; x <= Math.floor(desk.x) + 2; x++) for (let z = Math.floor(desk.z) - 2; z <= Math.floor(desk.z); z++) { const yy = heightAt(x, z); O.set(x, yy - 1, z, B.Flagstone); clearUp(x, z, yy, yy + 5); }
+      rect(s, desk.x - 3, desk.z - 3, desk.x + 3, desk.z + 1);
+    }
+    // ------------------------------------------------------------------ the halls
+    for (const h of HALLS) {
+      const Y = h.base, back = h.door === 's' ? 'n' : 's';
+      houseInto(O, s, h.x0, h.z0, h.w, h.d, 2, Y, h.roof, h.door, { role: 'vacant', wall: h.wall, front: h.front, trim: h.trim, impostor: false, signs: false });
+      // The front garden, from the door to the lane: flags up the middle, grass either side, a low wall along the lane
+      for (let u = -1; u <= h.w; u++) for (let v = -2; v <= -1; v++) {
+        const [x, z] = cell(h, u, v);
+        foundation(x, z, Y, B.Dirt);
+        O.set(x, Y - 1, z, Math.abs(u - 7) <= 0 ? B.Flagstone : B.Grass);
+        clearUp(x, z, Y, Y + 6);
+      }
+      // The yard behind: flagged, walled two high, a gate in the east wall and a back door from the hall
+      for (let u = 0; u < h.w; u++) for (let v = 11; v <= 20; v++) {
+        const [x, z] = cell(h, u, v);
+        foundation(x, z, Y, B.Cobble);
+        const wall = u === 0 || u === h.w - 1 || v === 20;
+        const gate = u === h.w - 1 && (v === 12 || v === 13);
+        O.set(x, Y - 1, z, wall ? B.Cobble : hash2(x, z, 919) < 0.2 ? B.Cobble : B.Flagstone);
+        clearUp(x, z, Y, Y + 8);
+        if (wall && !gate) { O.set(x, Y, z, B.Cobble); O.set(x, Y + 1, z, B.StoneBrick); }
+      }
+      {
+        // (the east gate's path out to the lane, along the hall's side)
+        for (let v = -2; v <= 13; v++) { const [x, z] = cell(h, h.w, v); foundation(x, z, Y, B.Dirt); O.set(x, Y - 1, z, B.Path); clearUp(x, z, Y, Y + 8); }
+        const [bx, bz] = cell(h, 1, 10);
+        O.set(bx, Y, bz, B.Air); O.set(bx, Y + 1, bz, B.Air); O.set(bx, Y + 2, bz, B.DarkPlanks);
+        const l = openDoorPlace({ x0: h.x0, z0: h.z0, w: h.w, d: h.d, floors: 2, base: Y, door: back, doorX: bx, doorZ: bz });
+        P({ t: 'furn', item: 'doorOpen', x: l.x, y: Y, z: l.z, ry: l.ry, swing: true, doorKind: 'rough', role: 'home' });
+      }
+      const [yx0, yz0] = cell(h, 0, 20), [yx1, yz1] = cell(h, h.w - 1, 11);
+      rect(s, Math.min(yx0, yx1), Math.min(yz0, yz1), Math.max(yx0, yx1) + 1, Math.max(yz0, yz1) + 1);
+      // The company's own
+      const F = (item: string, u: number, v: number, way: 'front' | 'back' | 'east' | 'west') => { const p = at(h, u, v); P({ t: 'furn', item, x: p.x, y: Y, z: p.z, ry: hallFacing(h, way) }); };
+      const T = (t: PropDesc['t'], u: number, v: number, way: 'front' | 'back' | 'east' | 'west', more: Partial<PropDesc> = {}) => {
+        const p = at(h, u, v);
+        P({ t, x: p.x, y: Y, z: p.z, ry: hallFacing(h, way), ...more });
+        // (a fence along x keeps you to its side of it)
+        if (t === 'fence') for (let x = Math.floor(p.x - (more.len ?? 6) / 2 + 0.2); x <= Math.floor(p.x + (more.len ?? 6) / 2 - 0.2); x++) O.set(x, Y, Math.floor(p.z), B.Barrier);
+      };
+      const alongU = hallFacing(h, 'east') - Math.PI / 2; // (a run laid along +u: fences, lines and racks lie along +x at ry 0)
+      if (h.dress === 'tenters') {
+        // Tenter frames: rails on posts, the hooks along them, where the cloth was stretched to dry
+        for (const u of [4, 10.5]) T('fence', u, 13.5, 'front', { len: 5, ry: alongU });
+        for (const u of [4, 10.5]) T('fence', u, 14.6, 'front', { len: 5, ry: alongU });
+      } else if (h.dress === 'cloths') {
+        T('washLine', 7, 13, 'front', { len: 11, ry: alongU });
+        T('washLine', 7, 14.8, 'front', { len: 11, ry: alongU });
+        T('tanVat', 12.4, 12.6, 'west', { color: '#2a4a8a' });
+      } else if (h.dress === 'lamps') {
+        for (const u of [5.6, 9.4]) { const p = at(h, u, -0.2); P({ t: 'wallLantern', x: p.x, y: Y + 2.6, z: p.z, ry: hallFacing(h, 'front') }); }
+      } else if (h.dress === 'rail') {
+        T('fence', 3.45, -1.4, 'front', { len: 4.5, ry: alongU });
+        F('barrel', 0.8, -0.8, 'front');
+      } else if (h.dress === 'casks') {
+        T('barrelRack', 4.5, 13, 'front', { len: 5, ry: alongU });
+        F('barrel', 9, 12.4, 'front'); F('barrel', 9.9, 12.6, 'front'); F('crate', 11.6, 12.4, 'front');
+        F('barrel', 2.3, -1.2, 'front');
+      } else if (h.dress === 'statue') {
+        T('statue', 3, -1.4, 'front');
+        T('planter', 9.2, -1.2, 'front', { tint: 2 });
+      } else if (h.dress === 'vines') {
+        T('vineRow', 3.6, -1.5, 'front', { len: 4.8, ry: alongU });
+        T('vineRow', 7, 13.5, 'front', { len: 10, ry: alongU, tint: 1 });
+      } else if (h.dress === 'hides') {
+        T('hideFrame', 3, 13.4, 'front'); T('hideFrame', 6, 13.4, 'front');
+        T('tanVat', 11.8, 13, 'west', { color: '#5a4024' });
+      }
+    }
   }
 
   /**

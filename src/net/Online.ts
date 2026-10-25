@@ -94,6 +94,14 @@ export interface TradeView { id: number; with: string; mine: TradeOffer; theirs:
 export type GuildRank = 'leader' | 'officer' | 'member';
 /** A stack in the Exchange's book, and what the book owes you (takings, or a stack sent back). */
 /** The guild vault as the realm sends it: left is a member's allowance for today (null: an officer's, none). */
+/** The book of guild halls (server/guilds.mjs): by hall, who holds it, what's built, the roll of honour. */
+export type HallsBook = Record<string, { guild: string; built: string[]; honour: string[] }>;
+/** Your guild's hall as its members see it: what's built and being built, what's been given toward it, what everything costs. */
+export interface HallView {
+  guild: string | null; rank: GuildRank | null; hall: string | null; built: string[]; project: string | null;
+  got: Record<string, Record<string, number>>; honour: string[];
+  costs: Record<string, { items: Record<string, number>; marks: number }>; lease: number; vaultMarks: number; free: string[];
+}
 export interface GuildVaultView { guild: string; items: Record<string, number>; marks: number; log: { at: number; text: string }[]; left: { items: number; marks: number } | null; kinds: number }
 
 export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number; /** On a stall at this lot's gate, not in the brokers' book. */ shop?: string | null; /** An order (Wanted): seller is who wants it. */ want?: boolean }
@@ -122,6 +130,10 @@ export interface OnlineHooks {
   guildRefund?(item: string | null, n: number, why: string): void;
   guildWithdrawn?(item: string | null, n: number): void;
   guildInvited?(from: string, guild: string): void;
+  /** Guild halls: the realm's book of them; your guild's; goods or coin a project didn't need. */
+  halls?(list: HallsBook): void;
+  hall?(v: HallView | null): void;
+  hallRefund?(item: string | null, n: number, why: string): void;
   /** Groups and trades (game/Social.ts). */
   group?(v: GroupView): void;
   groupInvited?(from: string): void;
@@ -308,6 +320,9 @@ export class Online {
       case 'uRefund': this.hooks.guildRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
       case 'uWithdrawn': this.hooks.guildWithdrawn?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0); break;
       case 'guild': this.hooks.guild?.({ name: null, motto: '', rank: null, founded: 0, members: [], ...(m as object) } as GuildView); break;
+      case 'halls': this.hooks.halls?.(m.list && typeof m.list === 'object' ? (m.list as HallsBook) : {}); break;
+      case 'uHall': this.hooks.hall?.(typeof m.guild === 'string' ? (m as unknown as HallView) : null); break;
+      case 'uHallRefund': this.hooks.hallRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
       case 'uInvited': this.hooks.guildInvited?.(String(m.from), String(m.guild)); break;
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
@@ -567,6 +582,13 @@ export class Online {
   guildRank(name: string, rank: GuildRank): void { this.emit({ t: 'uRank', name, rank }); }
   guildMotto(text: string): void { this.emit({ t: 'uMotto', text }); }
   guildChat(text: string): void { this.emit({ t: 'uChat', text }); }
+  /** Guild halls: ask after yours, lease one, choose the next wing, give toward it (from the pack, or an officer's from the vault), a beast for the roll, give it up. */
+  hallGet(): void { this.emit({ t: 'uHallGet' }); }
+  hallLease(id: string): void { this.emit({ t: 'uHallLease', id }); }
+  hallPick(project: string): void { this.emit({ t: 'uHallPick', project }); }
+  hallGive(item: string | null, n: number, vault = false): void { this.emit({ t: 'uHallGive', item, n, vault }); }
+  hallHonour(name: string): void { this.emit({ t: 'uHonour', name }); }
+  hallLeave(): void { this.emit({ t: 'uHallLeave' }); }
   /** The brokers' book, or one stall's (by its lot). */
   exList(shop?: string): void { this.emit({ t: 'exList', shop }); }
   // The Group Finder (server/finder.mjs)

@@ -101,6 +101,9 @@ class Mock implements GameApi {
   homeHolder() { return null; }
   hireBoat() {}
   naval() {}
+  guildHall() { return { online: false, guild: null, officer: false, hall: null, free: [], vaultMarks: 0 }; }
+  leaseHall() {}
+  openHallPage() {}
   playQuarters(npc: string) { if (!OPPONENT_BY_NPC.has(npc)) err("quarters:" + npc, `${this.where}: no Quarters player "${npc}"`); }
   fairOn() { return true; }
   fairPlay() {}
