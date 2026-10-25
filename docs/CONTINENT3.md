@@ -160,6 +160,38 @@ The Cyrodiil-style PvP region the owner asked for, attached to Serra's north coa
   and the winners' rewards are cosmetic and titles, never power (the store rule holds here too).
 - Players who don't want PvP never have to go in; Serra's story doesn't send you there.
 
+## The stones (Serra's dolmens)
+
+ESO's dolmens, Serra's way: open-world group events at old standing stones that anyone nearby joins,
+on a short cycle, marked on the map, with no human cause missing.
+
+- **What they are.** All over Serra stand dolmens: three or four upright slabs with a capstone across
+  them, older than the Sallows' oldest carving. Every one stands over a seam of the green where it
+  comes nearest the surface. The Sallows call them **the lids**. Nobody knows who set them; the Sallow
+  record says only that they were there when the trees were small, and that they're shut for a reason.
+- **What's gone wrong.** The Corvo's prospectors have worked out the same thing the stones' builders
+  did, and come at it from the other side: drive an iron **tap** down through a dolmen's floor into the
+  seam and the ground round it runs warm for a mile, and a hot farm is worth three cold ones. Some taps
+  hold. Most crack within a few days, and when one goes the green comes up through it all at once.
+- **The event.** The capstone lifts on a roaring column of green light that can be seen across the
+  region, the ground heaves, and what the surge wakes comes out of the earth in waves: rootmen (old
+  roots standing up), thornbacks, the region's own creatures grown wrong and twice the size, and swarms
+  of whatever lives under that ground. Three waves, then the **bloom**: the big thing the seam has been
+  feeding, a different one at every stone (a moss-stag the height of a house, a tar-wight drawn up from
+  the Pitch, a fire beetle queen in the Burnt Reach). Kill it, pull the tap out (a long hold-to-use
+  that a group does quicker together), and the capstone drops back with a sound you feel in your feet.
+- **The cycle.** Each region has three or four stones. The Corvo crews come back to re-drive their
+  taps, so one stone per region goes up every few minutes; the map shows a lit stone while it's open
+  and a countdown on the next. It works like the shared world bosses: everyone in reach fights the
+  same creatures and everyone who helped gets the credit (game/SharedMobs.ts).
+- **Rewards.** Every closing: experience, marks, and **green resin** (Serra's crafting reagent, for
+  the Sallow sets). The first closing of each stone each day pays a chest. Closing every stone in a
+  region is a feat with a title; closing all of them, **the Lid-Keeper**. A Sallow warden NPC turns up
+  at the first stone you close and gives a short side story about who set the stones and why (the
+  answer is a plain one: people who lived over the green a very long time ago and saw what it did).
+- **The story beat.** In chapter 3, the stones are how Wend first trusts you: you close a lid in front
+  of her that a Corvo crew opened, and catch the crew.
+
 ## Dungeons, delves and bosses
 
 - **Dungeons (five-player)**: the Corvo Counting House (its vaults go down into the Hill); the
