@@ -1298,3 +1298,11 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .jbody .cal-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font: 500 14px var(--body); color: #3a2814; border-bottom: 1px solid rgba(90, 60, 20, 0.12); }
 .jbody .cal-row span { text-align: right; color: rgba(42, 29, 16, 0.75); }
 .jbody .cal-row.up b, .jbody .cal-row.up span { color: #8a3a10; }
+/* The bank's head: a button across to the guild vault and back; the guild vault's log */
+#bankpanel .bk-tabs { margin-left: auto; margin-right: 8px; }
+#bankpanel .bk-tabs button { font: 600 12px var(--body); padding: 3px 9px; background: rgba(0, 0, 0, 0.35); color: var(--wheat); border: 1px solid #5a4129; cursor: pointer; }
+#bankpanel .bk-tabs button:hover { color: var(--cream); border-color: var(--wheat); }
+#bankpanel .bk-log { margin-top: 10px; max-height: 120px; overflow-y: auto; font-size: 12px; color: var(--cream-d); }
+#bankpanel .bk-log h6 { margin: 0 0 4px; }
+#bankpanel .bk-log div { padding: 1px 0; }
+#bankpanel .bk-log i { opacity: 0.6; margin-right: 6px; font-style: normal; }

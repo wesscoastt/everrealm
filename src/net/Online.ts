@@ -93,6 +93,9 @@ export interface TradeView { id: number; with: string; mine: TradeOffer; theirs:
 
 export type GuildRank = 'leader' | 'officer' | 'member';
 /** A stack in the Exchange's book, and what the book owes you (takings, or a stack sent back). */
+/** The guild vault as the realm sends it: left is a member's allowance for today (null: an officer's, none). */
+export interface GuildVaultView { guild: string; items: Record<string, number>; marks: number; log: { at: number; text: string }[]; left: { items: number; marks: number } | null; kinds: number }
+
 export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number; /** On a stall at this lot's gate, not in the brokers' book. */ shop?: string | null; /** An order (Wanted): seller is who wants it. */ want?: boolean }
 /** A letter by the Charter Post (server/mail.mjs): from a character, or from the Post itself when one comes back. */
 export interface Letter { id: number; from: string; fromKey: string | null; toName: string; subject: string; body: string; items: { id: string; n: number }[]; marks: number; at: number; read: boolean; returned?: boolean }
@@ -114,6 +117,10 @@ export interface OnlineHooks {
   friendOn?(name: string): void;
   friendOff?(name: string): void;
   guild?(v: GuildView): void;
+  /** The guild vault (at a bank counter): its state; goods or coin it turned down; goods or coin it let out. */
+  guildVault?(v: GuildVaultView | null): void;
+  guildRefund?(item: string | null, n: number, why: string): void;
+  guildWithdrawn?(item: string | null, n: number): void;
   guildInvited?(from: string, guild: string): void;
   /** Groups and trades (game/Social.ts). */
   group?(v: GroupView): void;
@@ -297,6 +304,9 @@ export class Online {
       case 'fStatus': this.hooks.friendStatus?.(Array.isArray(m.online) ? (m.online as { name: string; x: number; z: number }[]) : []); break;
       case 'fOn': this.hooks.friendOn?.(String(m.name)); break;
       case 'fOff': this.hooks.friendOff?.(String(m.name)); break;
+      case 'uVault': this.hooks.guildVault?.(typeof m.guild === 'string' ? (m as unknown as GuildVaultView) : null); break;
+      case 'uRefund': this.hooks.guildRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
+      case 'uWithdrawn': this.hooks.guildWithdrawn?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0); break;
       case 'guild': this.hooks.guild?.({ name: null, motto: '', rank: null, founded: 0, members: [], ...(m as object) } as GuildView); break;
       case 'uInvited': this.hooks.guildInvited?.(String(m.from), String(m.guild)); break;
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
@@ -546,6 +556,10 @@ export class Online {
   tradeAccept(): void { this.emit({ t: 'tAccept' }); }
   tradeCancel(): void { this.emit({ t: 'tCancel' }); }
   guildCreate(name: string, motto: string): void { this.emit({ t: 'uCreate', name, motto }); }
+  /** The guild vault: ask for it, pay goods or coin in (item null: marks), take them out. */
+  guildVaultGet(): void { this.emit({ t: 'uVaultGet' }); }
+  guildDeposit(item: string | null, n: number): void { this.emit({ t: 'uDeposit', item, n }); }
+  guildWithdraw(item: string | null, n: number): void { this.emit({ t: 'uWithdraw', item, n }); }
   guildInvite(name: string): void { this.emit({ t: 'uInvite', name }); }
   guildAnswer(accept: boolean): void { this.emit({ t: 'uAnswer', accept }); }
   guildLeave(): void { this.emit({ t: 'uLeave' }); }

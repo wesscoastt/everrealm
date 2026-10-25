@@ -1,6 +1,7 @@
 import { ITEMS } from '../data/items';
 import { itemIcon, shapeIcon } from '../ui/icons';
 import { currentAccount, getVault, putVault } from '../net/Account';
+import type { GuildVaultView } from '../net/Online';
 
 // The Charter Bank: one vault shared by all your characters, at every counter (the Weighhouse in
 // Ansbury, the harbour office in Gullmouth, the company office at Harrowgate). Signed in, the vault
@@ -31,6 +32,9 @@ export interface BankHost {
   persist(): void;
   refresh(): void;
   player(): { x: number; z: number };
+  /** Your guild's name, if you're in one and online (the guild vault opens at any counter then). */
+  guildName?(): string | null;
+  guildSend?(op: 'get' | 'in' | 'out', item: string | null, n: number): void;
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -56,6 +60,9 @@ export class Bank {
   private busy = false;
   private status = '';
   private store: Store | null = null;
+  /** Showing the guild's vault instead of your own, and the realm's latest word on it. */
+  private guildMode = false;
+  private gv: GuildVaultView | null = null;
   private get kinds(): number { return this.store?.kinds ?? VAULT_KINDS + (this.v.room ?? 0); }
   /** The next ten kinds' price (null: the vault is as big as it gets). */
   private get roomPrice(): number | null { return ROOM_PRICES[Math.floor((this.v.room ?? 0) / 10)] ?? null; }
@@ -76,6 +83,7 @@ export class Bank {
   async show(name: string, x: number, z: number, store?: Store): Promise<void> {
     this.at = { x, z, name };
     this.store = store ?? null;
+    this.guildMode = false;
     if (!this.el) {
       this.el = document.createElement('div');
       this.el.id = 'bankpanel';
@@ -93,6 +101,91 @@ export class Bank {
     this.busy = false;
     if (!r) { this.status = 'The realm\'s server isn\'t answering, so the vault stays shut for now.'; this.v = clean(null); this.ver = -1; this.render(); return; }
     this.v = clean(r.vault); this.ver = r.ver; this.status = 'Shared by every character on your account.'; this.render();
+  }
+
+  // ---------------------------------------------------------------- The guild vault
+  /** The realm's answer: the vault as it stands. */
+  guildState(v: GuildVaultView | null): void {
+    this.gv = v; this.busy = false;
+    if (!v && this.guildMode) { this.guildMode = false; this.host.system('You aren\'t in a guild.'); }
+    this.render();
+  }
+  /** Goods or coin the vault turned down come back to you. */
+  guildRefund(item: string | null, n: number, why: string): void {
+    this.busy = false;
+    if (item) this.host.give(item, n); else this.host.addMarks(n);
+    if (why) this.host.system(why);
+    this.host.sound('fail');
+    this.after();
+  }
+  /** The vault let them out: into the pack (or the purse). */
+  guildOut(item: string | null, n: number): void {
+    this.busy = false;
+    if (item) this.host.give(item, n); else this.host.addMarks(n);
+    this.host.sound(item ? 'click' : 'coin');
+    this.after();
+  }
+  private openGuild(): void {
+    this.guildMode = true; this.busy = true; this.status = 'Fetching the guild\'s ledger…';
+    this.host.guildSend?.('get', null, 0);
+    this.render();
+  }
+  private guildIn(id: string | null, n: number): void {
+    if (this.busy || !this.gv) return;
+    if (id) { n = Math.min(n, this.host.count(id)); if (n <= 0 || !this.host.take(id, n)) return; }
+    else { n = Math.min(n, this.host.marks()); if (n <= 0) return; this.host.addMarks(-n); }
+    this.busy = true;
+    this.host.persist();
+    this.host.guildSend?.('in', id, n);
+    this.render();
+  }
+  private guildTake(id: string | null, n: number): void {
+    if (this.busy || !this.gv) return;
+    if (id) { n = Math.min(n, this.gv.items[id] ?? 0); while (n > 0 && !this.host.canAdd(id, n)) n--; if (n <= 0) { this.host.system('Your pack is full.'); return; } }
+    else n = Math.min(n, this.gv.marks);
+    if (n <= 0) return;
+    this.busy = true;
+    this.host.guildSend?.('out', id, n);
+    this.render();
+  }
+
+  private renderGuild(): void {
+    if (!this.el || !this.at) return;
+    const v = this.gv;
+    const slot = (id: string, n: number, act: string) => {
+      const d = ITEMS[id];
+      return `<button class="bslot r-${d?.rarity ?? 'common'}" data-${act}="${id}" title="${esc(d?.name ?? id)}${n > 1 ? ` ×${n}` : ''}"${this.busy ? ' disabled' : ''}><img src="${itemIcon(id)}" alt="">${n > 1 ? `<span class="n">${n}</span>` : ''}</button>`;
+    };
+    const ids = v ? Object.keys(v.items).filter((id) => ITEMS[id]).sort((a, b) => ITEMS[a].name.localeCompare(ITEMS[b].name)) : [];
+    const pack = this.host.pack().filter((st) => ITEMS[st.id]?.kind !== 'quest');
+    const coin = shapeIcon('coin', '#e8c050', '#a87a20');
+    const dis = this.busy || !v ? ' disabled' : '';
+    const when = (t: number) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    this.el.innerHTML = `<div class="bk-head"><b>Guild vault · ${esc(v?.guild ?? this.host.guildName?.() ?? '')}</b><span class="bk-tabs"><button data-mine>Your vault</button></span><button class="bk-x" data-close>✕</button></div>
+      <p class="bk-sub">${v ? `Held in common by the guild. Anyone in it pays in; ${v.left ? `as a member you can take out ${v.left.items} more things and ${v.left.marks} more marks today` : 'as an officer you take out what you need'}. Click a stack to move it, or type an amount first; shift-click moves one.` : esc(this.status)}</p>
+      <label class="bk-amt">Amount <input type="number" min="1" step="1" placeholder="all" value="${this.amount ?? ''}" data-amt></label>
+      <div class="bk-cols">
+        <div><h6>Your pack</h6><div class="bk-grid">${pack.map((st) => slot(st.id, st.n, 'gin')).join('') || '<em>Empty</em>'}</div></div>
+        <div><h6>The guild's <i>${ids.length}/${v?.kinds ?? 100} kinds</i></h6><div class="bk-grid">${ids.map((id) => slot(id, v!.items[id], 'gout')).join('') || '<em>Nothing in it yet.</em>'}</div></div>
+      </div>
+      <div class="bk-marks"><img class="ric" src="${coin}" alt=""><span>Purse <b>${this.host.marks()}</b> · Guild <b>${v?.marks ?? 0}</b></span>
+        <span class="bk-mb"><button data-gm="10"${dis}>Pay in 10</button><button data-gm="100"${dis}>100</button><button data-gm="amt"${dis}>Amount</button></span>
+        <span class="bk-mb"><button data-gm="-10"${dis}>Draw 10</button><button data-gm="-100"${dis}>100</button><button data-gm="-amt"${dis}>Amount</button></span></div>
+      <div class="bk-log"><h6>Lately</h6>${v?.log.length ? v.log.slice().reverse().map((l) => `<div><i>${when(l.at)}</i> ${esc(l.text.replace(/ × ([a-z0-9_]+)/, (_m, id: string) => ' × ' + (ITEMS[id]?.name ?? id)))}</div>`).join('') : '<em>Nothing yet.</em>'}</div>`;
+    const shiftN = (e: MouseEvent, n: number) => (e.shiftKey ? Math.min(1, n) : this.amount ? Math.min(this.amount, n) : n);
+    const amt = this.el.querySelector<HTMLInputElement>('[data-amt]')!;
+    amt.addEventListener('keydown', (e) => e.stopPropagation());
+    amt.addEventListener('input', () => { const a = Math.floor(Number(amt.value)); this.amount = a > 0 ? a : null; });
+    this.el.querySelectorAll<HTMLElement>('[data-gin]').forEach((b) => b.addEventListener('click', (e) => this.guildIn(b.dataset.gin!, shiftN(e, this.host.count(b.dataset.gin!)))));
+    this.el.querySelectorAll<HTMLElement>('[data-gout]').forEach((b) => b.addEventListener('click', (e) => this.guildTake(b.dataset.gout!, shiftN(e, v?.items[b.dataset.gout!] ?? 0))));
+    this.el.querySelectorAll<HTMLElement>('[data-gm]').forEach((b) => b.addEventListener('click', () => {
+      const m = b.dataset.gm!;
+      const n = m === 'amt' || m === '-amt' ? this.amount ?? 0 : Math.abs(Number(m));
+      if (!n) return;
+      if (m.startsWith('-')) this.guildTake(null, n); else this.guildIn(null, n);
+    }));
+    this.el.querySelector('[data-mine]')?.addEventListener('click', () => { this.guildMode = false; void this.load(); });
+    this.el.querySelector('[data-close]')?.addEventListener('click', () => this.close());
   }
 
   close(): void {
@@ -176,6 +269,7 @@ export class Bank {
 
   private render(): void {
     if (!this.el || !this.at) return;
+    if (this.guildMode) { this.renderGuild(); return; }
     const v = this.v;
     const slot = (id: string, n: number, act: string) => {
       const d = ITEMS[id];
@@ -186,7 +280,8 @@ export class Bank {
     const coin = shapeIcon('coin', '#e8c050', '#a87a20');
     const dis = this.busy || this.ver < 0 ? ' disabled' : '';
     const S = this.store;
-    this.el.innerHTML = `<div class="bk-head"><b>${S ? esc(S.title) : `Charter Bank · ${esc(this.at.name)}`}</b><button class="bk-x" data-close>✕</button></div>
+    const guild = !S && this.host.guildName?.();
+    this.el.innerHTML = `<div class="bk-head"><b>${S ? esc(S.title) : `Charter Bank · ${esc(this.at.name)}`}</b>${guild ? `<span class="bk-tabs"><button data-guild title="The vault your guild holds in common">${esc(guild)}'s vault</button></span>` : ''}<button class="bk-x" data-close>✕</button></div>
       <p class="bk-sub">${esc(this.status)} Click a stack to move it, or type an amount first; shift-click moves one.</p>
       <label class="bk-amt">Amount <input type="number" min="1" step="1" placeholder="all" value="${this.amount ?? ''}" data-amt></label>
       <div class="bk-cols">
@@ -199,6 +294,7 @@ export class Bank {
         <span class="bk-mb"><button data-m="-10"${dis}>Draw 10</button><button data-m="-100"${dis}>100</button><button data-m="-all"${dis}>All</button><button data-m="-amt"${dis} title="Draw the amount typed above">Amount</button></span>
         ${this.roomPrice !== null ? `<span class="bk-mb"><button data-room${dis}>Ten more kinds of room: ${this.roomPrice} marks</button></span>` : '<span class="bk-mb"><i>The vault is as big as the Charter makes them.</i></span>'}</div>`;
     this.el.querySelector('[data-room]')?.addEventListener('click', () => this.buyRoom());
+    this.el.querySelector('[data-guild]')?.addEventListener('click', () => this.openGuild());
     // How many a click moves: one with shift, the amount typed (no more than there are), or the lot
     const shiftN = (e: MouseEvent, n: number) => (e.shiftKey ? Math.min(1, n) : this.amount ? Math.min(this.amount, n) : n);
     const amt = this.el.querySelector<HTMLInputElement>('[data-amt]')!;

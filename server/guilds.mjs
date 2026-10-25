@@ -6,6 +6,12 @@
 // and can hand the guild to someone else. When the leader leaves, the longest-serving officer
 // (or failing that, member) leads; when the last member leaves, the guild is gone.
 // Members are characters (by name key), so a guild remembers them while they're offline.
+//
+// The guild vault, at any bank counter: goods and marks the guild holds in common, kept in the guild's
+// file with a log of the last thirty movements. Anyone in the guild pays in. Officers and the leader
+// take out what they like; a member takes out up to twenty things and two hundred marks a day. (The
+// browser keeps the pack: it sets goods or coin aside before paying in and gets them back if the vault
+// turns them down; on the way out, the vault agrees first and then the pack takes them.)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,6 +19,9 @@ import path from 'node:path';
 const NAME = /^[A-Za-z][A-Za-z' -]{1,22}[A-Za-z]$/;
 const RANKS = ['member', 'officer', 'leader'];
 const MAX_MEMBERS = 200;
+const ITEM = /^[a-z0-9_]{2,40}$/;
+const VAULT_KINDS = 100;
+const MEMBER_DAY = { items: 20, marks: 200 };
 
 export function guildsInit(ctx) {
   const { players, send, broadcast, readJson, writeJson, dataDir, mirrorDelete, log } = ctx;
@@ -94,8 +103,80 @@ export function guildsInit(ctx) {
     for (const p of online(g)) if (p !== me) send(p.ws, view(g, p));
   }
 
+  /** The vault as the guild sees it: what's in it, and who moved what lately. */
+  function vaultOf(g) { return (g.vault ??= { items: {}, marks: 0, log: [], day: {} }); }
+  const vaultView = (g, p) => {
+    const v = vaultOf(g), today = Math.floor(Date.now() / 86_400_000), d = v.day[p.key];
+    const used = d && d.day === today ? d : { items: 0, marks: 0 };
+    const officer = atLeast(rankOf(g, p), 'officer');
+    return { t: 'uVault', guild: g.name, items: v.items, marks: v.marks, log: v.log.slice(-30), left: officer ? null : { items: MEMBER_DAY.items - used.items, marks: MEMBER_DAY.marks - used.marks }, kinds: VAULT_KINDS };
+  };
+  function note(g, text) { const v = vaultOf(g); v.log.push({ at: Date.now(), text }); if (v.log.length > 30) v.log.splice(0, v.log.length - 30); }
+  /** A member's day: what they've taken out today, counted against their allowance. */
+  function spend(g, p, items, marks) {
+    if (atLeast(rankOf(g, p), 'officer')) return true;
+    const v = vaultOf(g), today = Math.floor(Date.now() / 86_400_000);
+    const d = v.day[p.key]?.day === today ? v.day[p.key] : { day: today, items: 0, marks: 0 };
+    if (d.items + items > MEMBER_DAY.items || d.marks + marks > MEMBER_DAY.marks) return false;
+    d.items += items; d.marks += marks; v.day[p.key] = d;
+    return true;
+  }
+
   function handle(me, msg) {
     switch (msg.t) {
+      case 'uVaultGet': {
+        const g = guildOf(me);
+        if (!g) { send(me.ws, { t: 'uVault', guild: null }); return true; }
+        send(me.ws, vaultView(g, me));
+        return true;
+      }
+      case 'uDeposit': {
+        // Goods or marks paid in: the browser set them aside; if the vault won't take them they go back
+        const g = guildOf(me);
+        const item = typeof msg.item === 'string' && ITEM.test(msg.item) ? msg.item : null;
+        const n = Number.isInteger(msg.n) && msg.n >= 1 && msg.n <= 100_000 ? msg.n : null;
+        const back = (why) => { send(me.ws, { t: 'uRefund', item, n: n ?? 0, coin: !item, why }); };
+        if (!g) { back('You aren\'t in a guild.'); return true; }
+        if (n === null) { back('The clerk can\'t make sense of that.'); return true; }
+        const v = vaultOf(g);
+        if (item) {
+          if (!v.items[item] && Object.keys(v.items).length >= VAULT_KINDS) { back(`The guild vault holds ${VAULT_KINDS} kinds of things. Somebody will have to take something out first.`); return true; }
+          v.items[item] = (v.items[item] ?? 0) + n;
+          note(g, `${me.name} paid in ${n} × ${item}`);
+        } else {
+          v.marks += n;
+          note(g, `${me.name} paid in ${n} marks`);
+        }
+        store(g);
+        send(me.ws, vaultView(g, me));
+        return true;
+      }
+      case 'uWithdraw': {
+        // Goods or marks taken out: the vault agrees, then the browser takes them into the pack
+        const g = guildOf(me);
+        const item = typeof msg.item === 'string' && ITEM.test(msg.item) ? msg.item : null;
+        const n = Number.isInteger(msg.n) && msg.n >= 1 && msg.n <= 100_000 ? msg.n : null;
+        if (!g || n === null) { sys(me, g ? 'The clerk can\'t make sense of that.' : 'You aren\'t in a guild.'); return true; }
+        const v = vaultOf(g);
+        if (item) {
+          if ((v.items[item] ?? 0) < n) { sys(me, 'The guild vault hasn\'t that many.'); send(me.ws, vaultView(g, me)); return true; }
+          if (!spend(g, me, n, 0)) { sys(me, `A member takes out up to ${MEMBER_DAY.items} things a day. An officer can take out more.`); return true; }
+          v.items[item] -= n;
+          if (v.items[item] <= 0) delete v.items[item];
+          note(g, `${me.name} took out ${n} × ${item}`);
+          store(g);
+          send(me.ws, { t: 'uWithdrawn', item, n });
+        } else {
+          if (v.marks < n) { sys(me, 'The guild vault hasn\'t that many marks.'); send(me.ws, vaultView(g, me)); return true; }
+          if (!spend(g, me, 0, n)) { sys(me, `A member takes out up to ${MEMBER_DAY.marks} marks a day. An officer can take out more.`); return true; }
+          v.marks -= n;
+          note(g, `${me.name} took out ${n} marks`);
+          store(g);
+          send(me.ws, { t: 'uWithdrawn', item: null, n });
+        }
+        send(me.ws, vaultView(g, me));
+        return true;
+      }
       case 'uCreate': {
         const name = typeof msg.name === 'string' ? msg.name.replace(/\s+/g, ' ').trim() : '';
         if (guildOf(me)) { sys(me, 'You\'re already in a guild. Leave it first.'); return true; }

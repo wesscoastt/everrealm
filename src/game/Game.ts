@@ -469,6 +469,8 @@ export class Game implements GameApi {
     sound: (n) => this.sfx(n as Sfx), system: (t) => this.hud.system(t),
     persist: () => this.persist(), refresh: () => this.hud.refresh(),
     player: () => this.player.position,
+    guildName: () => (this.online.status === 'online' ? this.social.guild?.name ?? null : null),
+    guildSend: (op, item, n) => (op === 'get' ? this.online.guildVaultGet() : op === 'in' ? this.online.guildDeposit(item, n) : this.online.guildWithdraw(item, n)),
   });
   /** While visiting: the home whose door is open to you (a lot's id, or 'cottage'). */
   private visitLot: string | null = null;
@@ -1220,6 +1222,9 @@ export class Game implements GameApi {
       ...this.mail.hooks(),
       ...this.music.hooks(),
       mobDead: (key: string, leftMs: number) => this.mobDeadElsewhere(key, leftMs),
+      guildVault: (v) => this.bank.guildState(v),
+      guildRefund: (item, n, why) => this.bank.guildRefund(item, n, why),
+      guildWithdrawn: (item, n) => this.bank.guildOut(item, n),
       mobHit: (key: string, share: number, from: number) => {
         const e = this.shared.theirs(this.enemies, key, share, from);
         if (!e) return;
