@@ -8,6 +8,10 @@ import { tradable } from './Social';
 // when you post it; your takings, less a mark in twenty, come to you when it sells (or the stack
 // comes back if you take it down, or nobody buys it in three days).
 //
+// Orders (the Wanted page): ask for so many of an item at a price, the marks held by the book until
+// someone fills it or you withdraw it (or a week goes by); fill anyone's order from your pack and be paid
+// on the spot, less the cut. The way to commission a crafter.
+//
 // A stall at the gate of someone's lot is a page of the same book (game/Building.ts puts it up): its
 // holder sets out stacks at their own prices with no cut, and anyone passing can buy, holder there or not.
 
@@ -36,6 +40,9 @@ export interface ExchangeView {
   cheapest: Map<string, number>;
   /** A stall's page rather than the brokers': whose, and whether it's yours. */
   stall: Stall | null;
+  /** Orders: everyone else's, and your own. */
+  wants: ExRow[];
+  myWants: ExRow[];
 }
 
 /** A stall at a lot's gate: the lot, its holder, and whether you're them. */
@@ -51,14 +58,42 @@ export class Exchange {
   private mine = new Set<number>();
   private loading = false;
   private stall: Stall | null = null;
+  private wants: ExRow[] = [];
+  private myWants = new Set<number>();
 
   constructor(private host: ExchangeHost) {}
 
   hooks() {
     return {
-      exBook: (rows: ExRow[], mine: number[], shop: string | null) => {
+      exBook: (rows: ExRow[], mine: number[], shop: string | null, wants: ExRow[], myWants: number[]) => {
         if ((shop ?? null) !== (this.stall?.id ?? null)) return;
-        this.rows = rows; this.mine = new Set(mine); this.loading = false; this.host.refresh();
+        this.rows = rows; this.mine = new Set(mine); this.loading = false;
+        if (!shop) { this.wants = wants; this.myWants = new Set(myWants); }
+        this.host.refresh();
+      },
+      exWanted: (row: ExRow) => {
+        this.wants.push(row); this.myWants.add(row.id);
+        this.host.system(`Your order is in the book: ${this.name(row)} for ${row.price} marks, held by the Exchange till it's filled.`);
+        this.host.sound('coin'); this.host.refresh();
+      },
+      exWantRefused: (price: number, why: string) => { if (price > 0) this.host.addMarks(price); this.host.system(why); this.host.persist(); this.host.refresh(); },
+      exFilled: (row: ExRow, marks: number) => {
+        this.dropWant(row.id);
+        this.host.addMarks(marks);
+        this.host.system(`You filled ${row.seller}'s order: ${this.name(row)}, ${marks} marks after the Exchange's cut.`);
+        this.host.sound('coin'); this.host.persist(); this.host.refresh();
+      },
+      exFillGone: (id: number, item: string, n: number, own: boolean) => {
+        this.dropWant(id);
+        if (ITEMS[item] && n > 0) this.host.give(item, n);
+        this.host.system(own ? 'That order is your own.' : 'Someone filled that order first, or it was withdrawn.');
+        this.host.persist(); this.host.refresh();
+      },
+      exUnwanted: (row: ExRow, marks: number) => {
+        this.dropWant(row.id);
+        this.host.addMarks(marks);
+        this.host.system(`Order withdrawn: ${this.name(row)}. Your ${marks} marks are back.`);
+        this.host.persist(); this.host.refresh();
       },
       exPosted: (row: ExRow) => {
         this.rows.push(row); this.mine.add(row.id);
@@ -88,7 +123,15 @@ export class Exchange {
         let marks = 0;
         for (const r of rows) {
           if (r.id !== undefined) this.drop(r.id);
-          if (r.kind === 'sold') {
+          if (r.kind === 'got' && ITEMS[r.item]) {
+            this.dropWant(r.id ?? -1);
+            this.host.give(r.item, r.n);
+            this.host.system(`Your order was filled by ${r.buyer ?? 'a seller'}: ${this.name(r)} is in your pack.`);
+          } else if (r.kind === 'unwanted') {
+            this.dropWant(r.id ?? -1);
+            marks += r.marks ?? 0;
+            this.host.system(`Nobody filled your order for ${this.name(r)} in a week, so the Exchange gave your ${r.marks} marks back.`);
+          } else if (r.kind === 'sold') {
             marks += r.marks ?? 0;
             this.host.system(r.shop ? `Your stall sold ${this.name(r)} to ${r.buyer ?? 'a passer-by'}: ${r.marks} marks.` : `The Exchange sold your ${this.name(r)} to ${r.buyer ?? 'a buyer'}: ${r.marks} marks after the Exchange's cut.`);
           } else if (ITEMS[r.item]) {
@@ -125,8 +168,38 @@ export class Exchange {
       rows: this.rows.filter((r) => !this.mine.has(r.id)).sort((a, b) => a.price / a.n - b.price / b.n),
       mine: this.rows.filter((r) => this.mine.has(r.id)),
       cheapest,
+      wants: this.wants.filter((w) => !this.myWants.has(w.id)).sort((a, b) => b.at - a.at),
+      myWants: this.wants.filter((w) => this.myWants.has(w.id)),
     };
   }
+
+  /** Ask for goods: the marks are set aside now and held by the book. */
+  want(item: string, n: number, price: number): void {
+    if (!this.host.online()) { this.host.system('The Exchange keeps its book on the realm server. Play online to post an order.'); return; }
+    const d = ITEMS[item];
+    n = Math.floor(n); price = Math.floor(price);
+    if (!d || !tradable(item)) { this.host.system('The broker won\'t take an order for that.'); return; }
+    if (!(n >= 1) || n > 999) { this.host.system('Ask for between 1 and 999.'); return; }
+    if (!(price >= 1) || price > 1_000_000) { this.host.system('Offer between 1 and a million marks.'); return; }
+    if (this.host.marks() < price) { this.host.system(`You need ${price} marks to post that order.`); return; }
+    this.host.addMarks(-price);
+    this.host.persist();
+    this.host.net().exWant(item, n, price);
+  }
+
+  /** Fill someone's order from your pack: the goods are set aside now, and paid for when the book agrees. */
+  fill(id: number): void {
+    const w = this.wants.find((x) => x.id === id);
+    if (!w || !this.host.online()) return;
+    if (this.host.count(w.item) < w.n) { this.host.system(`You need ${this.name(w)} to fill that.`); return; }
+    if (!this.host.take(w.item, w.n)) return;
+    this.host.persist();
+    this.host.net().exFill(id, w.item, w.n);
+  }
+
+  unwant(id: number): void { if (this.host.online() && this.myWants.has(id)) this.host.net().exUnwant(id); }
+
+  private dropWant(id: number): void { this.wants = this.wants.filter((w) => w.id !== id); this.myWants.delete(id); }
 
   post(item: string, n: number, price: number): void {
     if (!this.host.online()) { this.host.system('The Exchange keeps its book on the realm server. Play online to sell there.'); return; }

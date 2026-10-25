@@ -2742,6 +2742,9 @@ export class Game implements GameApi {
       exPost: (item: string, n: number, price: number) => g.exchange.post(item, n, price),
       exStallDown: () => g.stallDown(),
       exTakeBack: (id: number) => g.exchange.takeBack(id),
+      exWant: (item: string, n: number, price: number) => g.exchange.want(item, n, price),
+      exFill: (id: number) => g.exchange.fill(id),
+      exUnwant: (id: number) => g.exchange.unwant(id),
       exReload: () => g.exchange.open(),
       mail: () => g.mail.view(),
       mailDo: (what: 'read' | 'back' | 'write' | 'reply' | 'attach' | 'send' | 'take' | 'delete' | 'return' | 'reload', id?: number, item?: string, n?: number) => {

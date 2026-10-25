@@ -93,10 +93,10 @@ export interface TradeView { id: number; with: string; mine: TradeOffer; theirs:
 
 export type GuildRank = 'leader' | 'officer' | 'member';
 /** A stack in the Exchange's book, and what the book owes you (takings, or a stack sent back). */
-export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number; /** On a stall at this lot's gate, not in the brokers' book. */ shop?: string | null }
+export interface ExRow { id: number; item: string; n: number; price: number; seller: string; at: number; /** On a stall at this lot's gate, not in the brokers' book. */ shop?: string | null; /** An order (Wanted): seller is who wants it. */ want?: boolean }
 /** A letter by the Charter Post (server/mail.mjs): from a character, or from the Post itself when one comes back. */
 export interface Letter { id: number; from: string; fromKey: string | null; toName: string; subject: string; body: string; items: { id: string; n: number }[]; marks: number; at: number; read: boolean; returned?: boolean }
-export interface ExOwed { kind: 'sold' | 'back'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number; shop?: string }
+export interface ExOwed { kind: 'sold' | 'back' | 'got' | 'unwanted'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number; shop?: string }
 export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[] }
 
 export interface OnlineHooks {
@@ -160,7 +160,12 @@ export interface OnlineHooks {
   /** That event ran lately and is resting for so many seconds. */
   eventCool?(id: string, left: number): void;
   /** The Exchange (game/Exchange.ts). */
-  exBook?(rows: ExRow[], mine: number[], shop: string | null): void;
+  exBook?(rows: ExRow[], mine: number[], shop: string | null, wants: ExRow[], myWants: number[]): void;
+  exWanted?(row: ExRow): void;
+  exWantRefused?(price: number, why: string): void;
+  exFilled?(row: ExRow, marks: number): void;
+  exFillGone?(id: number, item: string, n: number, own: boolean): void;
+  exUnwanted?(row: ExRow, marks: number): void;
   exPosted?(row: ExRow): void;
   exRefused?(item: string, n: number, why: string): void;
   exBought?(row: ExRow): void;
@@ -320,7 +325,12 @@ export class Online {
       case 'note': this.hooks.note?.(Number(m.id), Number(m.m), m.voice as Voice); break;
       case 'bandPart': this.hooks.bandPart?.(Number(m.id), m.part as PartId, m.voice as Voice); break;
       case 'bandGo': this.hooks.bandGo?.(Number(m.from), String(m.name), String(m.tune), Number(m.start), Number(m.reps)); break;
-      case 'exBook': this.hooks.exBook?.(Array.isArray(m.rows) ? (m.rows as ExRow[]) : [], Array.isArray(m.mine) ? (m.mine as number[]) : [], typeof m.shop === 'string' ? m.shop : null); break;
+      case 'exBook': this.hooks.exBook?.(Array.isArray(m.rows) ? (m.rows as ExRow[]) : [], Array.isArray(m.mine) ? (m.mine as number[]) : [], typeof m.shop === 'string' ? m.shop : null, Array.isArray(m.wants) ? (m.wants as ExRow[]) : [], Array.isArray(m.myWants) ? (m.myWants as number[]) : []); break;
+      case 'exWanted': this.hooks.exWanted?.(m.row as ExRow); break;
+      case 'exWantRefused': this.hooks.exWantRefused?.(Number(m.price) || 0, String(m.why ?? '')); break;
+      case 'exFilled': this.hooks.exFilled?.(m.row as ExRow, Number(m.marks) || 0); break;
+      case 'exFillGone': this.hooks.exFillGone?.(Number(m.id), String(m.item), Number(m.n) || 0, !!m.own); break;
+      case 'exUnwanted': this.hooks.exUnwanted?.(m.row as ExRow, Number(m.marks) || 0); break;
       case 'exPosted': this.hooks.exPosted?.(m.row as ExRow); break;
       case 'exRefused': this.hooks.exRefused?.(String(m.item), Number(m.n) || 0, String(m.why ?? '')); break;
       case 'exBought': this.hooks.exBought?.(m.row as ExRow); break;
@@ -558,6 +568,10 @@ export class Online {
   dEv(run: number, k: 'hit' | 'kill', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }
   dLeave(run: number): void { this.emit({ t: 'dLeave', run }); }
   exPost(item: string, n: number, price: number, shop?: string): void { this.emit({ t: 'exPost', item, n, price, shop }); }
+  /** Orders: ask for goods at a price (the marks held in the book), fill someone's, or withdraw your own. */
+  exWant(item: string, n: number, price: number): void { this.emit({ t: 'exWant', item, n, price }); }
+  exFill(id: number, item: string, n: number): void { this.emit({ t: 'exFill', id, item, n }); }
+  exUnwant(id: number): void { this.emit({ t: 'exUnwant', id }); }
   exBuy(id: number): void { this.emit({ t: 'exBuy', id }); }
   exCancel(id: number): void { this.emit({ t: 'exCancel', id }); }
   // The Charter Post (server/mail.mjs)

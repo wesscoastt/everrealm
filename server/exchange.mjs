@@ -13,6 +13,11 @@
 // lot (shop), kept out of the brokers' pages, and seen only at the stall. A stall takes no cut, keeps
 // its stock a month, and sends it all home if its holder gives up the lot or the lease lapses.
 //
+// Orders (the Wanted page): a buyer asks for so many of an item at a price, and the marks are held in
+// the book. Anyone who has them, made or found, fills the order and is paid at once, less the cut; the
+// goods wait for the buyer like takings do. An order nobody fills in a week goes back, marks and all.
+// This is how you commission a crafter: post what you want, and whoever can make it does.
+//
 // (As with trades, the browser keeps the inventory: the book keeps every side agreeing on the deal.)
 
 import path from 'node:path';
@@ -25,16 +30,20 @@ const CUT = 0.05;
 const SHOP = /^(cottage|[a-z]{1,3}\d{1,2})$/;
 const PER_STALL = 24;
 const STALL_LAPSE_MS = 30 * 24 * 3600_000;
+const PER_BUYER = 10;
+const WANT_LAPSE_MS = 7 * 24 * 3600_000;
 
 export function exchangeInit(ctx) {
   const { players, send, readJson, writeJson, dataDir, log, homeOf } = ctx;
   const FILE = path.join(dataDir, 'exchange.json');
   /** list: the stacks for sale; owed: character key -> what's waiting for them (takings, stacks back) */
-  const book = { next: 1, list: [], owed: {}, ...(readJson(FILE) ?? {}) };
+  const book = { next: 1, list: [], owed: {}, wants: [], ...(readJson(FILE) ?? {}) };
+  book.wants ??= [];
   log(`exchange: ${book.list.length} stack(s) for sale`);
   const store = () => writeJson(FILE, book);
   const sys = (p, text) => send(p.ws, { t: 'sys', text });
   const view = (l) => ({ id: l.id, item: l.item, n: l.n, price: l.price, seller: l.sellerName, at: l.at, shop: l.shop ?? null });
+  const wantView = (w) => ({ id: w.id, item: w.item, n: w.n, price: w.price, seller: w.buyerName, at: w.at, want: true });
 
   function settle(p) {
     const rows = book.owed[p.key];
@@ -52,9 +61,12 @@ export function exchangeInit(ctx) {
   function lapse() {
     const now = Date.now(), old = (l) => now - l.at > (l.shop ? STALL_LAPSE_MS : LAPSE_MS);
     const keep = book.list.filter((l) => !old(l));
-    if (keep.length === book.list.length) return;
+    const stale = book.wants.filter((w) => now - w.at > WANT_LAPSE_MS);
+    if (keep.length === book.list.length && !stale.length) return;
     for (const l of book.list) if (old(l)) owe(l.seller, { kind: 'back', id: l.id, item: l.item, n: l.n, shop: l.shop, at: now });
     book.list = keep;
+    for (const w of stale) owe(w.buyer, { kind: 'unwanted', id: w.id, item: w.item, n: w.n, marks: w.price, at: now });
+    book.wants = book.wants.filter((w) => !stale.includes(w));
     store();
   }
   setInterval(lapse, 600_000);
@@ -78,7 +90,7 @@ export function exchangeInit(ctx) {
           // A stall's page, or the brokers' (which leaves the stalls out)
           const shop = typeof msg.shop === 'string' && SHOP.test(msg.shop) ? msg.shop : null;
           const rows = shop ? book.list.filter((l) => l.shop === shop) : book.list.filter((l) => !l.shop).slice(-400);
-          send(p.ws, { t: 'exBook', shop, rows: rows.map(view), mine: rows.filter((l) => l.seller === p.key).map((l) => l.id) });
+          send(p.ws, { t: 'exBook', shop, rows: rows.map(view), mine: rows.filter((l) => l.seller === p.key).map((l) => l.id), wants: shop ? [] : book.wants.slice(-300).map(wantView), myWants: shop ? [] : book.wants.filter((w) => w.buyer === p.key).map((w) => w.id) });
           return true;
         }
         case 'exPost': {
@@ -107,6 +119,42 @@ export function exchangeInit(ctx) {
           send(p.ws, { t: 'exBought', row: view(l) });
           owe(l.seller, { kind: 'sold', id: l.id, item: l.item, n: l.n, marks: l.shop ? l.price : l.price - Math.floor(l.price * CUT), buyer: p.name, shop: l.shop, at: Date.now() });
           log(`exchange: ${p.name} bought ${l.n} ${l.item} from ${l.sellerName}${l.shop ? "'s stall" : ''} for ${l.price}`);
+          return true;
+        }
+        case 'exWant': {
+          // An order: the buyer's browser has set the marks aside already; if it's refused, they go back
+          const item = typeof msg.item === 'string' && ITEM.test(msg.item) ? msg.item : null;
+          const n = int(msg.n, 1, 999), price = int(msg.price, 1, 1_000_000);
+          const refuse = (why) => send(p.ws, { t: 'exWantRefused', price: price ?? 0, why });
+          if (!item || n === null || price === null) { refuse('The broker can\'t make sense of that.'); return true; }
+          if (book.wants.filter((w) => w.buyer === p.key).length >= PER_BUYER) { refuse(`You already have ${PER_BUYER} orders in the book. Wait for some to be filled, or withdraw some.`); return true; }
+          if (book.wants.length >= BOOK_MAX) { refuse('The book is full today. Try again later.'); return true; }
+          const w = { id: book.next++, item, n, price, buyer: p.key, buyerName: p.name, at: Date.now() };
+          book.wants.push(w);
+          store();
+          send(p.ws, { t: 'exWanted', row: wantView(w) });
+          return true;
+        }
+        case 'exFill': {
+          // Filling an order: the seller's browser has set the goods aside; if the order's gone, they go back
+          const i = book.wants.findIndex((w) => w.id === msg.id);
+          if (i < 0) { send(p.ws, { t: 'exFillGone', id: msg.id, item: msg.item, n: msg.n }); return true; }
+          const w = book.wants[i];
+          if (w.buyer === p.key) { send(p.ws, { t: 'exFillGone', id: msg.id, item: msg.item, n: msg.n, own: true }); return true; }
+          if (w.item !== msg.item || w.n !== msg.n) { send(p.ws, { t: 'exFillGone', id: msg.id, item: msg.item, n: msg.n }); return true; }
+          book.wants.splice(i, 1);
+          store();
+          send(p.ws, { t: 'exFilled', row: wantView(w), marks: w.price - Math.floor(w.price * CUT) });
+          owe(w.buyer, { kind: 'got', id: w.id, item: w.item, n: w.n, buyer: p.name, at: Date.now() });
+          log(`exchange: ${p.name} filled ${w.buyerName}'s order for ${w.n} ${w.item} at ${w.price}`);
+          return true;
+        }
+        case 'exUnwant': {
+          const i = book.wants.findIndex((w) => w.id === msg.id && w.buyer === p.key);
+          if (i < 0) { send(p.ws, { t: 'exGone', id: msg.id }); return true; }
+          const [w] = book.wants.splice(i, 1);
+          store();
+          send(p.ws, { t: 'exUnwanted', row: wantView(w), marks: w.price });
           return true;
         }
         case 'exCancel': {

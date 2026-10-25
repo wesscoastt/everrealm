@@ -312,6 +312,9 @@ export interface UiCtx {
   exBuy(id: number): void;
   exPost(item: string, n: number, price: number): void;
   exTakeBack(id: number): void;
+  exWant(item: string, n: number, price: number): void;
+  exFill(id: number): void;
+  exUnwant(id: number): void;
   exReload(): void;
   /** Take your stall down (its stock comes back to your pack). */
   exStallDown(): void;
@@ -393,7 +396,10 @@ export class Hud {
   private openSkill: SkillId | null = null;
   private shopTab: 'buy' | 'sell' = 'buy';
   /** The Exchange panel: which page, what's typed in the search, the stack being priced. */
-  private exTab: 'buy' | 'sell' = 'buy';
+  private exTab: 'buy' | 'sell' | 'want' = 'buy';
+  /** The Wanted page's order form: the search, and the item picked. */
+  private exWantQuery = '';
+  private exWantPick: string | null = null;
   /** The dungeon the Group Finder shows first (the door you came to). */
   finderAt: string | null = null;
   private exQuery = '';
@@ -2369,8 +2375,8 @@ export class Hud {
       return;
     }
     const tabs = el('div', 'tabs');
-    for (const t of (stall ? [this.exTab] : ['buy', 'sell']) as ('buy' | 'sell')[]) {
-      const e = el('div', 'tab' + (this.exTab === t ? ' sel' : ''), t === 'buy' ? 'Buy' : `Sell${v.mine.length ? ` (${v.mine.length})` : ''}`);
+    for (const t of (stall ? [this.exTab] : ['buy', 'sell', 'want']) as ('buy' | 'sell' | 'want')[]) {
+      const e = el('div', 'tab' + (this.exTab === t ? ' sel' : ''), t === 'buy' ? 'Buy' : t === 'want' ? `Wanted${v.myWants.length ? ` (${v.myWants.length})` : ''}` : `Sell${v.mine.length ? ` (${v.mine.length})` : ''}`);
       e.addEventListener('click', () => { this.exTab = t; this.ctx.sfx('click'); this.renderExchange(); });
       tabs.append(e);
     }
@@ -2398,6 +2404,7 @@ export class Hud {
       setTimeout(() => { if (this.exQuery) search.focus(); }, 0);
       return;
     }
+    if (this.exTab === 'want') { this.renderWanted(body, v, marks, slot, tip); return; }
     // Sell: your stacks in the book, then your pack
     body.append(el('h6', 'ex-h', stall ? `On your stall (${v.mine.length} of 24)` : `Your stacks in the book (${v.mine.length} of 20)`));
     if (!v.mine.length) body.append(el('p', 'ex-note', stall ? 'Nothing yet. Choose something from your pack below to set it out.' : 'None. Choose something from your pack below to post it.'));
@@ -2444,6 +2451,74 @@ export class Hud {
       });
       body.append(form);
     }
+  }
+
+  /**
+   * The Wanted page: everyone's orders (fill one from your pack and be paid now), your own (withdraw them),
+   * and a form to post one: find the item, say how many and what you'll pay, and the marks are held.
+   */
+  private renderWanted(body: HTMLElement, v: ExchangeView, marks: number, slot: (id: string, n: number) => string, tip: (row: HTMLElement, id: string) => void): void {
+    body.append(el('p', 'ex-note', 'Orders: what people want, and what they\'ll pay. Fill one from your pack and you\'re paid on the spot, less a mark in twenty. Post your own and your marks are held till someone fills it; it\'s how you get a crafter to make something for you.'));
+    body.append(el('h6', 'ex-h', `Wanted (${v.wants.length})`));
+    if (!v.wants.length) body.append(el('p', 'ex-note', v.loading ? 'The broker is finding the page…' : 'Nobody wants anything just now.'));
+    for (const w of v.wants) {
+      const d = ITEMS[w.item], have = this.ctx.save.inv.reduce((a, st) => a + (st && st.id === w.item ? st.n : 0), 0);
+      const row = el('div', 'shop-row');
+      row.innerHTML = `${slot(w.item, w.n)}<div><div class="nm" style="color:${RARITY_COLOR[d?.rarity ?? 'common']}">${esc(d?.name ?? w.item)}${w.n > 1 ? ` × ${w.n}` : ''}</div><div class="d">Wanted by ${esc(w.seller)}, ${ago(w.at)} · you have ${have}</div></div><span class="coin">${w.price}</span><button class="btn"${have >= w.n ? '' : ' disabled'}>Fill</button>`;
+      row.querySelector('button')!.addEventListener('click', () => this.ctx.exFill(w.id));
+      tip(row, w.item);
+      body.append(row);
+    }
+    body.append(el('h6', 'ex-h', `Your orders (${v.myWants.length} of 10)`));
+    if (!v.myWants.length) body.append(el('p', 'ex-note', 'None.'));
+    for (const w of v.myWants) {
+      const d = ITEMS[w.item];
+      const row = el('div', 'shop-row');
+      row.innerHTML = `${slot(w.item, w.n)}<div><div class="nm" style="color:${RARITY_COLOR[d?.rarity ?? 'common']}">${esc(d?.name ?? w.item)}${w.n > 1 ? ` × ${w.n}` : ''}</div><div class="d">Posted ${ago(w.at)}; held till filled, or a week</div></div><span class="coin">${w.price}</span><button class="btn ghost">Withdraw</button>`;
+      row.querySelector('button')!.addEventListener('click', () => this.ctx.exUnwant(w.id));
+      tip(row, w.item);
+      body.append(row);
+    }
+    body.append(el('h6', 'ex-h', 'Post an order'));
+    const search = el('input', 'ex-search') as HTMLInputElement;
+    search.placeholder = 'What do you want? Type part of its name';
+    search.value = this.exWantQuery;
+    search.addEventListener('keydown', (e) => e.stopPropagation());
+    body.append(search);
+    const picks = el('div', 'ex-list');
+    body.append(picks);
+    const draw = () => {
+      picks.innerHTML = '';
+      const q = this.exWantQuery.trim().toLowerCase();
+      if (q.length < 2) { picks.append(el('p', 'ex-note', 'Two letters or more.')); return; }
+      const found = Object.values(ITEMS).filter((d) => d.kind !== 'quest' && d.name.toLowerCase().includes(q)).slice(0, 8);
+      if (!found.length) { picks.append(el('p', 'ex-note', 'The broker doesn\'t know that one.')); return; }
+      for (const d of found) {
+        const row = el('div', 'shop-row ex-pick' + (this.exWantPick === d.id ? ' sel' : ''));
+        const each = v.cheapest.get(d.id);
+        row.innerHTML = `${slot(d.id, 1)}<div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${each !== undefined ? `For sale from ${Math.ceil(each)} each` : 'None for sale'}</div></div><button class="btn ghost">${this.exWantPick === d.id ? 'Close' : 'Order'}</button>`;
+        row.querySelector('button')!.addEventListener('click', () => { this.exWantPick = this.exWantPick === d.id ? null : d.id; this.renderExchange(); });
+        tip(row, d.id);
+        picks.append(row);
+        if (this.exWantPick !== d.id) continue;
+        const guide = Math.max(1, Math.round(each ?? Math.max(2, d.value * 1.5)));
+        const form = el('div', 'ex-form');
+        form.innerHTML = `<label>How many <input type="number" class="ex-n" min="1" max="999" value="1"></label><label>You'll pay, for all of them <input type="number" class="ex-p" min="1" max="1000000" value="${guide}"></label><span class="ex-net"></span><button class="btn ex-post">Post the order</button>`;
+        const nIn = form.querySelector('.ex-n') as HTMLInputElement, pIn = form.querySelector('.ex-p') as HTMLInputElement, net = form.querySelector('.ex-net') as HTMLElement;
+        const upd = () => { const pr = Math.max(0, Math.floor(Number(pIn.value) || 0)); net.textContent = pr > marks ? `You have ${marks} marks` : `${pr} marks held by the Exchange`; };
+        for (const i of [nIn, pIn]) { i.addEventListener('keydown', (e) => e.stopPropagation()); i.addEventListener('input', upd); }
+        nIn.addEventListener('change', () => { const n = Math.min(999, Math.max(1, Math.floor(Number(nIn.value) || 1))); nIn.value = String(n); pIn.value = String(guide * n); upd(); });
+        upd();
+        form.querySelector('.ex-post')!.addEventListener('click', () => {
+          this.ctx.exWant(d.id, Math.min(999, Math.max(1, Math.floor(Number(nIn.value) || 1))), Math.floor(Number(pIn.value) || 0));
+          this.exWantPick = null;
+        });
+        picks.append(form);
+      }
+    };
+    search.addEventListener('input', () => { this.exWantQuery = search.value; this.exWantPick = null; draw(); });
+    draw();
+    setTimeout(() => { if (this.exWantQuery) search.focus(); }, 0);
   }
 
   private renderExchangeRows(list: HTMLElement, rows: { id: number; item: string; n: number; price: number; seller: string }[], marks: number, slot: (id: string, n: number) => string, tip: (row: HTMLElement, id: string) => void): void {

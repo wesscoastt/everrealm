@@ -495,7 +495,7 @@ Twenty-four books lie open on stands by the places they're about, and go into th
 - **The Charter** (a copy on the Charter Green): Ansbury keeps the roads, the counties keep their reeves, moots and customs; a toll may be no more than the keeping costs; a county may leave at Lady Day with a year's notice, paying what it owes; disputes go to the Speaker. A pencilled note by H.K. (Hugh Kellet): nobody has ever left, or been able to pay.
 - **Nat Coverdale**, toll rider number fourteen, was laid off at Advent when the riders were cut. **Sergeant A. Holroyd** put up a roll at the tilt-yard for anyone who still wanted the work: the Muster.
 - **The Lantern's** beacon line answered the Ridge fire and Fleet; its keeper lit it a last time after the Charter Post replaced it.
-- **The Exchange** keeps one book on the realm; Gideon Wray takes one mark in twenty.
+- **The Exchange** keeps one book on the realm; Gideon Wray takes one mark in twenty. Its **Wanted** page takes orders: ask for so many of anything at a price and the book holds your marks till someone fills it (a week at most), which is how you get a crafter to make something for you; fill anyone's order from your pack and you're paid on the spot.
 - **Fellers' Camp rules** (I. Marrow): a caller for every tree, two to a saw, elder-oak props nine foot with no knots in the bottom third, nobody under an ancient after dark.
 - **Harrowgate's Rules of the Works**: pay by the cart at the posted rate, tools deducted, stoppages for a fall of roof paid at half once the Company is satisfied it wasn't your fault.
 - **The lamplighters** are licensed by the Charter, light every lamp by the second bell after sunset, and say nothing of what they see from a ladder. Someone has added "Light the poor streets first".
