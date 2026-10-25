@@ -113,6 +113,7 @@ const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'wood
 import type { Appearance } from '../entities/humanoid';
 import type { ColourVision, Inventory, SaveData } from '../game/state';
 import { COLOUR_VISION_NAMES } from './colourVision';
+import { FESTIVALS } from '../data/festivals';
 import { abilityIcon, itemIcon, shapeIcon } from './icons';
 
 /**
@@ -1735,7 +1736,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -1761,9 +1762,9 @@ export class Hud {
     bj.addEventListener('click', () => { this.selQuest = 'bestiary'; this.renderJournal(); });
     list.append(bj);
     list.append(el('h6', '', 'DAILY ROUND'));
-    for (const [id, label] of [['writs', 'Charter writs'], ['login', 'Login rewards']] as const) {
+    for (const [id, label] of [['writs', 'Charter writs'], ['weekly', 'This week'], ['login', 'Login rewards']] as const) {
       const d = this.ctx.daily();
-      const dot = id === 'login' ? !d.login.claimedToday : d.writs.some((w) => !w.done);
+      const dot = id === 'login' ? !d.login.claimedToday : id === 'weekly' ? d.weekly.writs.some((w) => !w.done) : d.writs.some((w) => !w.done);
       const ji = el('div', 'ji' + (this.selQuest === id ? ' sel' : ''), esc(label) + (dot ? ' <span class="dot-new">●</span>' : ''));
       ji.addEventListener('click', () => { this.selQuest = id; this.renderJournal(); });
       list.append(ji);
@@ -1787,7 +1788,33 @@ export class Hud {
     sj.addEventListener('click', () => { this.selQuest = 'standing'; this.renderJournal(); });
     list.append(sj);
     const page = el('div', 'jbody');
-    if (this.selQuest === 'writs' || this.selQuest === 'login') {
+    if (this.selQuest === 'weekly') {
+      // The week's commissions, and what's coming: the resets, the world bosses' next risings, the festivals
+      const d = this.ctx.daily(), wk = d.weekly;
+      const dh = (s: number) => (s >= 86_400 ? `${Math.floor(s / 86_400)}d ${Math.floor((s % 86_400) / 3600)}h` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`);
+      const mm = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+      page.innerHTML = `<h4>This week</h4><div class="feat-sum">Three Charter commissions a week, the same for everyone. New ones in ${dh(wk.resetIn)}.${wk.bundleDone ? ' All three done this week.' : ` Finish all three for ${wk.bundle.marks} marks and a glyph.`}</div>`;
+      for (const w of wk.writs) {
+        const row = el('div', 'feat' + (w.done ? ' done' : ''));
+        row.innerHTML = `<div class="ft"><b>${esc(w.name)}</b><span>${w.done ? 'Done' : `${w.have.toLocaleString()} / ${w.need.toLocaleString()}`}</span></div><div class="fd">${esc(w.desc)} ${w.marks} marks.</div>${w.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (w.have / w.need) * 100)}%"></i></div>`}`;
+        page.append(row);
+      }
+      const bosses = (this.ctx.finder().bosses ?? []).slice().sort((a, b) => a.until - b.until);
+      const now = new Date(), md = (m: number, d2: number) => new Date(Date.UTC(now.getUTCFullYear(), m - 1, d2));
+      const fest = FESTIVALS.map((f) => {
+        let from = md(f.from[0], f.from[1]), to = md(f.to[0], f.to[1]);
+        if (to < from) to = new Date(Date.UTC(now.getUTCFullYear() + 1, f.to[0] - 1, f.to[1]));
+        if (to.getTime() + 86_400_000 < now.getTime()) { from = new Date(Date.UTC(now.getUTCFullYear() + 1, f.from[0] - 1, f.from[1])); to = new Date(Date.UTC(now.getUTCFullYear() + 1 + (f.to[0] < f.from[0] ? 1 : 0), f.to[0] - 1, f.to[1])); }
+        return { name: f.name, from, to, on: now >= from && now.getTime() <= to.getTime() + 86_400_000 };
+      }).sort((a, b) => Number(b.on) - Number(a.on) || a.from.getTime() - b.from.getTime()).slice(0, 4);
+      const day = (t: Date) => t.toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+      const cal = el('div', 'cal');
+      cal.innerHTML = `<h5>Coming up</h5>`
+        + `<div class="cal-row"><b>Writs</b><span>new in ${dh(d.resetIn)}</span></div><div class="cal-row"><b>Commissions</b><span>new in ${dh(wk.resetIn)}</span></div>`
+        + bosses.map((b) => `<div class="cal-row${b.until < 0 ? ' up' : ''}"><b>${esc(b.name)}</b><span>${b.until < 0 ? `up now in ${esc(b.where)}, ${mm(-b.until)} left` : `rises in ${esc(b.where)} in ${mm(b.until)}`}</span></div>`).join('')
+        + fest.map((f) => `<div class="cal-row${f.on ? ' up' : ''}"><b>${esc(f.name)}</b><span>${f.on ? `on now, until ${day(f.to)}` : `${day(f.from)} to ${day(f.to)}`}</span></div>`).join('');
+      page.append(cal);
+    } else if (this.selQuest === 'writs' || this.selQuest === 'login') {
       const d = this.ctx.daily();
       const h = Math.floor(d.resetIn / 3600), m = Math.floor((d.resetIn % 3600) / 60);
       if (this.selQuest === 'writs') {

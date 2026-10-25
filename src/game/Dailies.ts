@@ -1,4 +1,4 @@
-import { LOGIN_TRACK, untilReset, utcDay, utcMonth, WRIT_BUNDLE, WritKind, writsFor } from '../data/calendar';
+import { COMMISSION_BUNDLE, commissionsFor, LOGIN_TRACK, untilReset, untilWeekReset, utcDay, utcMonth, utcWeek, WRIT_BUNDLE, WritKind, writsFor } from '../data/calendar';
 import { ITEMS, SkillId } from '../data/items';
 
 // The daily round for one character: the login track and the day's three writs, kept in the save's
@@ -20,6 +20,7 @@ export interface DailyHost {
 
 interface LoginState { month: string; count: number; lastDay: number }
 interface WritState { day: number; prog: Record<string, number>; done: string[]; bundle: boolean }
+interface WeekState { week: number; prog: Record<string, number>; done: string[]; bundle: boolean }
 
 export interface DailyView {
   writs: { id: string; name: string; desc: string; have: number; need: number; done: boolean; marks: number }[];
@@ -28,6 +29,8 @@ export interface DailyView {
   login: { month: string; count: number; claimedToday: boolean; track: { label: string; rare: boolean; items: [string, number][]; marks: number }[] };
   /** What finishing all three writs may give: marks, and one of these items. */
   bundle: { marks: number; items: string[] };
+  /** The week's three commissions, the same way. */
+  weekly: { writs: DailyView['writs']; bundleDone: boolean; resetIn: number; bundle: { marks: number; items: string[] } };
 }
 
 function describe(r: { marks?: number; items?: string[] }): string {
@@ -54,6 +57,12 @@ export class Dailies {
     return s && s.day === day ? s : { day, prog: {}, done: [], bundle: false };
   }
 
+  private week(): WeekState {
+    const s = this.host.flag('weekly:writs') as WeekState | undefined;
+    const week = utcWeek();
+    return s && s.week === week ? s : { week, prog: {}, done: [], bundle: false };
+  }
+
   /** Today's login reward is still to take. */
   get loginReady(): boolean {
     const s = this.login();
@@ -76,6 +85,7 @@ export class Dailies {
   /** Some work toward today's writs. */
   bump(kind: WritKind, n = 1): void {
     this.host.also?.(kind, n);
+    this.bumpWeek(kind, n);
     const s = this.writs();
     let changed = false;
     for (const w of writsFor(s.day)) {
@@ -102,7 +112,36 @@ export class Dailies {
     this.host.setFlag('daily:writs', s);
   }
 
+  /** Some work toward the week's commissions. */
+  private bumpWeek(kind: WritKind, n: number): void {
+    const s = this.week();
+    let changed = false;
+    for (const w of commissionsFor(s.week)) {
+      if (w.kind !== kind || s.done.includes(w.id)) continue;
+      s.prog[w.id] = Math.min(w.need, (s.prog[w.id] ?? 0) + n);
+      changed = true;
+      if (s.prog[w.id] >= w.need) {
+        s.done.push(w.id);
+        this.host.addMarks(w.marks);
+        this.host.addXp(w.skill, w.xp);
+        this.host.banner('Commission done', w.name);
+        this.host.system('Charter commission done: ' + w.name + '. ' + w.marks + ' marks.');
+        this.host.sound();
+      }
+    }
+    if (!changed) return;
+    if (!s.bundle && s.done.length >= 3) {
+      s.bundle = true;
+      this.host.addMarks(COMMISSION_BUNDLE.marks);
+      const item = COMMISSION_BUNDLE.items[Math.floor(Math.random() * COMMISSION_BUNDLE.items.length)];
+      this.host.give(item, 1);
+      this.host.system('All three commissions done for the week: ' + COMMISSION_BUNDLE.marks + ' marks and ' + (ITEMS[item]?.name ?? item) + '.');
+    }
+    this.host.setFlag('weekly:writs', s);
+  }
+
   view(): DailyView {
+    const wk = this.week();
     const w = this.writs(), l = this.login();
     return {
       writs: writsFor(w.day).map((d) => ({ id: d.id, name: d.name, desc: d.desc, have: w.prog[d.id] ?? 0, need: d.need, done: w.done.includes(d.id), marks: d.marks })),
@@ -110,6 +149,10 @@ export class Dailies {
       resetIn: untilReset(),
       login: { month: l.month, count: l.count, claimedToday: l.lastDay === utcDay(), track: LOGIN_TRACK.map((r) => ({ label: describe(r), rare: !!r.label, marks: r.marks ?? 0, items: [...(r.items ?? []).reduce((m, it) => m.set(it, (m.get(it) ?? 0) + 1), new Map<string, number>())] })) },
       bundle: { marks: WRIT_BUNDLE.marks, items: [...new Set(WRIT_BUNDLE.items)] },
+      weekly: {
+        writs: commissionsFor(wk.week).map((d) => ({ id: d.id, name: d.name, desc: d.desc, have: wk.prog[d.id] ?? 0, need: d.need, done: wk.done.includes(d.id), marks: d.marks })),
+        bundleDone: wk.bundle, resetIn: untilWeekReset(), bundle: { marks: COMMISSION_BUNDLE.marks, items: COMMISSION_BUNDLE.items },
+      },
     };
   }
 }

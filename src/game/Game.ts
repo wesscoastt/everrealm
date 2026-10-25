@@ -1137,6 +1137,7 @@ export class Game implements GameApi {
       now: () => this.elapsed,
     });
     this.dungeons = new Dungeons({
+      cleared: () => this.dailies.bump('dungeon'),
       companion: () => (this.companions.active ? this.companions.henchmanOf(this.companions.active) : null),
       scene: this.scene,
       voxels: this.world.voxels,
@@ -1333,6 +1334,7 @@ export class Game implements GameApi {
     const prev = this.save.quests[q];
     if (prev === s) return;
     this.save.quests[q] = s;
+    if (s === 'done') this.dailies?.bump('quest');
     const def = QUESTS[q];
     if (s === 'done' && def.story) {
       this.audio.sting('chapter');
@@ -5353,6 +5355,7 @@ export class Game implements GameApi {
     }
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
+    if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.dailies.bump('boss');
     if (e.isBoss || WORLD_BOSSES.some((b) => b.type === e.def.type)) this.companions?.event('boss');
     else if (e.def.type.startsWith('r_')) this.companions?.event('rare');
     if (e.def.elite) this.audio.sting('victory');

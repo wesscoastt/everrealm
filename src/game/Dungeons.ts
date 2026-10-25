@@ -41,6 +41,8 @@ export interface DungeonNet {
 
 export interface DungeonHost {
   scene: THREE.Scene;
+  /** A run cleared, for the week's commissions. */
+  cleared?(): void;
   /** Your companion, as a henchman, to take a place in the party (ESO's way). */
   companion?(): Henchman | null;
   voxels: VoxelWorld;
@@ -819,6 +821,7 @@ export class Dungeons {
     r.done = true;
     const k = 'gdClears:' + r.def.id, n = Number(this.host.flag(k) ?? 0) + 1;
     this.host.setFlag(k, n);
+    this.host.cleared?.();
     if (r.vet) {
       const vk = 'gdVetClears:' + r.def.id, vn = Number(this.host.flag(vk) ?? 0) + 1;
       this.host.setFlag(vk, vn);

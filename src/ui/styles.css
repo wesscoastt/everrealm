@@ -1292,3 +1292,9 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .bz-how span { color: rgba(42, 29, 16, 0.75); }
 .bz-note { font: italic 400 15px var(--book); line-height: 1.5; margin-top: 6px; color: #2a1d10; }
 .bz-locked { font: 500 12px var(--body); margin-top: 4px; color: rgba(42, 29, 16, 0.5); }
+/* The journal's week page: what's coming, a row each */
+.jbody .cal { margin-top: 16px; padding-top: 10px; border-top: 2px dashed rgba(90, 60, 20, 0.35); }
+.jbody .cal h5 { margin: 0 0 6px; font: 600 15px var(--px); color: #6a3a10; }
+.jbody .cal-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font: 500 14px var(--body); color: #3a2814; border-bottom: 1px solid rgba(90, 60, 20, 0.12); }
+.jbody .cal-row span { text-align: right; color: rgba(42, 29, 16, 0.75); }
+.jbody .cal-row.up b, .jbody .cal-row.up span { color: #8a3a10; }
