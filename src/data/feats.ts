@@ -5,6 +5,7 @@ import { RANKS, REVERED_TITLE } from './standing';
 import { FACTIONS } from './factions';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 import { bestiaryRoster } from './bestiary';
+import { TILES } from './cards';
 import { MORROW_REGIONS } from '../world/morrowLocal';
 
 // Feats: long goals for exploring and joining in, kept in the journal. Each one pays out marks
@@ -83,6 +84,8 @@ export const FEATS: FeatDef[] = [
   { id: 'beastsCounties', name: 'Every Creature of the Counties', group: 'Collections', desc: 'Meet every creature of the Charter Counties and the isles, by land and sea, in your bestiary.', need: COUNTY_BEASTS.length, have: (g) => COUNTY_BEASTS.filter((t) => killedOf(g, t) > 0).length, marks: 200, title: 'the Countryman' },
   { id: 'beastsMorrow', name: 'Every Creature of Morrow', group: 'Collections', desc: 'Meet every creature of Morrow in your bestiary, from the Keys to the Held.', need: MORROW_BEASTS.length, have: (g) => MORROW_BEASTS.filter((t) => killedOf(g, t) > 0).length, marks: 250, title: 'Far-Travelled' },
   { id: 'commissions', name: 'On the Charter\'s Books', group: 'Collections', desc: 'Finish all three of the week\'s commissions, five weeks over.', need: 5, have: (g) => Number(g.flag('weeklyBundles') ?? 0), marks: 200, title: 'Charter Hand' },
+  { id: 'tiles20', name: 'A Fair Hand', group: 'Collections', desc: 'Hold twenty different Quarters tiles.', need: 20, have: (g) => Object.keys((g.flag('qTiles') as Record<string, number> | undefined) ?? {}).length, marks: 120, title: 'Table-Wise' },
+  { id: 'tilesAll', name: 'A Full Box', group: 'Collections', desc: 'Hold every Quarters tile there is, the great ones too.', need: TILES.length, have: (g) => TILES.filter((t) => ((g.flag('qTiles') as Record<string, number> | undefined) ?? {})[t.id]).length, marks: 400, title: 'Card Sharp' },
   { id: 'quests25', name: 'Errands and Favours', group: 'Collections', desc: 'Finish twenty-five quests.', need: 25, have: (g) => g.questsDone, marks: 100, title: 'the Obliging' },
   { id: 'quests100', name: 'Known Everywhere', group: 'Collections', desc: 'Finish a hundred quests.', need: 100, have: (g) => g.questsDone, marks: 300, title: 'Known Everywhere' },
   { id: 'level', name: 'Turned Your Hand', group: 'Craft and trade', desc: 'Reach a total level of 100 across your skills.', need: 100, have: (g) => g.totalLevel, marks: 100, title: 'Journeyman' },

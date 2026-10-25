@@ -702,6 +702,10 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 - **The Laurel.** A wreath of bay, the old sign for someone who went back down a second time and did it the hard way: the first veteran clear of any group dungeon.
 - **Revered standing** with a region earns its own sign: Hollindale's mill wheel, the Turnpike's toll-key, Hagworm's oak leaf, the Fleet Coast's three waves, the Harrowgate Company's anvil, the Scarth peak, the gannet of the cliff villages, the reeds of the Wrath Levels, Tolmen's three stones and the Inkholm cap.
 
+## Quarters [in game]
+
+The tavern game of nine squares, played on a board scratched into the table or a sack across the knees. Each tile is painted with a creature of the realm and has a number on each side; you take turns laying five on a board of three by three, and a tile laid beside one of the other player's turns it to your colour wherever your side facing it is higher. Most tiles at the end wins, and the winner takes one of the other's. Players across the Counties: Ivy Marsh at Hollin Ford, Josiah Yeo and Hester Vowles at the Waystation, Clement Fry in Ansbury, Bet Polglase in Gullmouth, Doll Hobday in the Company Canteen, Odo Fenn at Fellers' Camp, Cai Morgan at Kelderby, Tib Corran at Cragsby, Kerensa Garth at the Peat Fire on Scarrow Tor, and Tam Rush across the sea in Reedwater, the easy ones first. A stranger's first five tiles are wolves and jellies; the great tiles come off the creatures themselves, Old Notch's always and a world boss's one time in four. (`src/game/quarters.ts`, `src/game/QuartersTable.ts`, `src/data/cards.ts`.)
+
 ## Wagons [in game]
 
 - **Wagons** (`src/data/content/wagons.ts`): carriers, drovers and caravan masters drive their own wagons where the Charter's carts don't go. A wagon is bought like a horse and called like one; the driver sits on the box, friends ride on the benches in the back, and the bed carries goods. Left standing, it waits where it was left, which is how a miner works a seam all day and drives the lot home at dusk.

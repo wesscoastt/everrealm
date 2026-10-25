@@ -24,6 +24,7 @@ import { QUESTS, type QuestDef } from '../src/data/quests';
 import { SHOPS } from '../src/data/shops';
 import '../src/data/pledges';
 import { BOARDS } from '../src/data/content';
+import { OPPONENT_BY_NPC } from '../src/data/cards';
 import type { DNode, GameApi } from '../src/game/api';
 
 // ---------------------------------------------------------------- State and the mock game
@@ -100,6 +101,7 @@ class Mock implements GameApi {
   homeHolder() { return null; }
   hireBoat() {}
   naval() {}
+  playQuarters(npc: string) { if (!OPPONENT_BY_NPC.has(npc)) err("quarters:" + npc, `${this.where}: no Quarters player "${npc}"`); }
   fairOn() { return true; }
   fairPlay() {}
   fairPlaysLeft() { return 3; }

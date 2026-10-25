@@ -128,6 +128,8 @@ import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
 import { SharedMobs } from './SharedMobs';
+import { QuartersTable } from './QuartersTable';
+import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
 import { lodgeAt, LODGINGS, MAX_WEEKS, readTenancy, roomBase, ROOMS, roomShape, WEEK } from '../data/lodgings';
@@ -272,6 +274,29 @@ export class Game implements GameApi {
   enemies: Enemy[] = [];
   /** Events, world bosses, Shardfalls, dungeon creatures and chests, vistas (see Activities.ts). */
   private activities!: Activities;
+  /** Quarters, the tavern game (game/QuartersTable.ts): made the first time someone sits down. */
+  private quartersT: QuartersTable | null = null;
+  private get quarters(): QuartersTable {
+    return (this.quartersT ??= new QuartersTable({
+      renderer: this.renderer,
+      tiles: () => ({ ...((this.flag('qTiles') as Record<string, number> | undefined) ?? {}) }),
+      setTiles: (t) => this.setFlag('qTiles', t),
+      deck: () => ((this.flag('qDeck') as string[] | undefined) ?? []),
+      setDeck: (d) => this.setFlag('qDeck', d),
+      nameOf: (npc) => this.npcs.find((n) => n.def.id === npc)?.def.name ?? 'They',
+      sound: (n) => this.sfx(n as Sfx),
+      system: (t) => this.hud.system(t),
+      persist: () => this.persist(),
+    }));
+  }
+  /** Sit down with someone who plays. */
+  playQuarters(npc: string): void {
+    const o = OPPONENT_BY_NPC.get(npc);
+    if (!o) return;
+    this.hud.closeAll();
+    this.cancelActions();
+    this.quarters.start(o);
+  }
   /** The open world's creatures, the same for every player by them (game/SharedMobs.ts). */
   private shared!: SharedMobs;
   /** Hidden chests across the land (game/Chests.ts). */
@@ -5365,6 +5390,14 @@ export class Game implements GameApi {
     this.dailies.bump('kill');
     this.festivals.onKill(!!e.def.elite);
     if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.dailies.bump('boss');
+    // A Quarters tile off the great ones: Old Notch's always, a world boss's now and then
+    const tileChance = TILE_DROPS[e.def.type];
+    if (tileChance && TILE_BY_ID.has(e.def.type) && Math.random() < tileChance) {
+      const t = { ...((this.flag('qTiles') as Record<string, number> | undefined) ?? {}) };
+      t[e.def.type] = (t[e.def.type] ?? 0) + 1;
+      this.setFlag('qTiles', t);
+      this.hud.banner(`${e.def.name}: a Quarters tile`, 'A great tile, for the tables', true);
+    }
     if (e.isBoss || WORLD_BOSSES.some((b) => b.type === e.def.type)) this.companions?.event('boss');
     else if (e.def.type.startsWith('r_')) this.companions?.event('rare');
     if (e.def.elite) this.audio.sting('victory');
@@ -5928,6 +5961,7 @@ export class Game implements GameApi {
     if (this.dead) return;
 
     if (this.hud.picking) return; // the lock has your hands
+    if (this.quartersT?.open) { if (this.input.pressedOnce('Escape')) this.quartersT.close(); return; } // at the Quarters table
     if (I.pressedOnce('KeyN')) this.hud.toggle('music');
     if (this.music.out) {
       const up = I.held('ShiftLeft') || I.held('ShiftRight');
@@ -6362,7 +6396,7 @@ export class Game implements GameApi {
     this.fish.update(dt, this.player.position);
 
     // Interaction candidate
-    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.voyage.active || this.justice.busy ? null : this.findCandidate();
+    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.quartersT?.open || this.voyage.active || this.justice.busy ? null : this.findCandidate();
     if (this.candidate?.kind === 'ore') {
       this.outline.visible = true;
       this.outline.position.set(this.candidate.ore!.x + 0.5, this.candidate.ore!.y + 0.5, this.candidate.ore!.z + 0.5);
