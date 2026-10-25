@@ -278,6 +278,8 @@ export interface UiCtx {
   learnPassive(id: string): string | null;
   buy(item: string): void;
   sell(slot: number): void;
+  /** Buy one back of the i-th thing on the buy-back list (ShopView.buyback). */
+  buyBack(i: number): void;
   quests(): QuestEntry[];
   dialogueChoose(i: number): void;
   settingsChanged(): void;
@@ -341,6 +343,8 @@ export interface ShopView {
   who: string;
   stock: { item: string; price: number }[];
   sellPrice(id: string): number;
+  /** What you've sold lately, newest first, to buy back at what you got for it. */
+  buyback: { id: string; n: number; price: number }[];
   footer: string;
   /** Prices in a festival token instead of marks: its name and how many you have. */
   currency?: { id: string; name: string; have: number };
@@ -394,7 +398,7 @@ export class Hud {
   /** The talent tree open on the Calling page (by index), or -1 for the one with the most points in it. */
   private talTree = -1;
   private openSkill: SkillId | null = null;
-  private shopTab: 'buy' | 'sell' = 'buy';
+  private shopTab: 'buy' | 'sell' | 'back' = 'buy';
   /** The Exchange panel: which page, what's typed in the search, the stack being priced. */
   private exTab: 'buy' | 'sell' | 'want' = 'buy';
   /** The Wanted page's order form: the search, and the item picked. */
@@ -2069,13 +2073,14 @@ export class Hud {
     const body = this.q('#shop-panel .body');
     body.innerHTML = '';
     const tabs = el('div', 'tabs');
-    for (const t of ['buy', 'sell'] as const) {
-      const e = el('div', 'tab' + (this.shopTab === t ? ' sel' : ''), t === 'buy' ? 'Buy' : 'Sell');
+    const shopNow = this.ctx.shop();
+    for (const t of ['buy', 'sell', 'back'] as const) {
+      const e = el('div', 'tab' + (this.shopTab === t ? ' sel' : ''), t === 'buy' ? 'Buy' : t === 'sell' ? 'Sell' : `Buy back${shopNow.buyback.length ? ` (${shopNow.buyback.length})` : ''}`);
       e.addEventListener('click', () => { this.shopTab = t; this.renderShop(); });
       tabs.append(e);
     }
     body.append(tabs);
-    const shop = this.ctx.shop();
+    const shop = shopNow;
     this.q('#shop-panel h3').textContent = shop.name;
     if (this.shopTab === 'buy') {
       if (!shop.stock.length) body.append(el('div', '', `<p style="color:var(--muted)">${esc(shop.who)} isn't selling anything. Try the Sell tab.</p>`));
@@ -2094,6 +2099,23 @@ export class Hud {
         slot.addEventListener('mouseleave', () => this.hideTooltip());
         body.append(row);
       }
+    } else if (this.shopTab === 'back') {
+      // What you've sold today, to any trader: back for what you got for it
+      body.append(el('p', 'gnote', 'Sold something you meant to keep? Traders hold what you sell them for a day, and let you have it back for what they paid.'));
+      shop.buyback.forEach((s, i) => {
+        const d = ITEMS[s.id];
+        if (!d) return;
+        const row = el('div', 'shop-row');
+        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(s.id)}" alt="">${s.n > 1 ? `<span class="n">${s.n}</span>` : ''}</div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">You sold ${s.n > 1 ? `${s.n} for ${s.price} each` : `it for ${s.price}`}</div></div><span class="coin">${s.price}</span><button class="btn">Buy back</button>`;
+        const b = row.querySelector('button')!;
+        b.disabled = this.ctx.save.marks < s.price;
+        b.addEventListener('click', () => this.ctx.buyBack(i));
+        const slot = row.querySelector('.slot') as HTMLElement;
+        slot.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(s.id), e.clientX, e.clientY));
+        slot.addEventListener('mouseleave', () => this.hideTooltip());
+        body.append(row);
+      });
+      if (!shop.buyback.length) body.append(el('div', '', '<p style="color:var(--muted)">You haven\'t sold anything today.</p>'));
     } else {
       const seen = new Set<string>();
       this.ctx.save.inv.forEach((st, i) => {

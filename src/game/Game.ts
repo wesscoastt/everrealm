@@ -2914,6 +2914,7 @@ export class Game implements GameApi {
       learnPassive: (id: string) => g.learnPassive(id),
       buy: (item: string) => g.buy(item),
       sell: (slot: number) => g.sell(slot),
+      buyBack: (i: number) => g.buyBack(i),
       quests: () => g.questEntries(),
       dialogueChoose: (i: number) => g.chooseOption(i),
       settingsChanged: () => g.applySettings(),
@@ -3661,6 +3662,7 @@ export class Game implements GameApi {
       who: shop.who ?? (owner ? owner.name.split(' ')[0] : shop.name),
       stock: shop.stock.filter((x) => !x.when || x.when(this)).map((x) => ({ item: x.item, price: Math.max(1, Math.round(shopPrice(this, shop, x.price) * (1 - off))) })),
       sellPrice: (id: string) => shopBuyPrice(this, shop, id),
+      buyback: this.soldLately().map(({ id, n, price }) => ({ id, n, price })),
       footer: shop.footer(this) + (off ? ` · ${rankFor(Number(this.flag('rep:' + where) ?? 0)).rank.name} in ${REGION_INFO[where!].name}: ${Math.round(off * 100)}% off` : ''),
       currency: shop.currency ? { id: shop.currency, name: FESTIVALS.find((f) => f.token === shop.currency)?.tokenPlural ?? ITEMS[shop.currency].name, have: this.inv.count(shop.currency) } : undefined,
     };
@@ -3711,6 +3713,36 @@ export class Game implements GameApi {
     if (def.kind === 'quest' || price <= 0) { this.hud.system(`${view.who} won't take that.`); return; }
     this.inv.removeAt(slot, 1);
     this.save.marks += price;
+    // On the buy-back list, with the last of the same sold at the same price if it's on top
+    const list = this.soldLately(), top = list[0];
+    if (top && top.id === st.id && top.price === price) { top.n++; top.at = Date.now(); } else list.unshift({ id: st.id, n: 1, price, at: Date.now() });
+    this.setFlag('buyback', list.slice(0, Game.BUYBACK_MAX));
+    this.sfx('coin');
+    this.hud.refresh();
+  }
+
+  /** How many sales the traders remember, and for how long. */
+  private static readonly BUYBACK_MAX = 12;
+  private static readonly BUYBACK_MS = 24 * 3600_000;
+  /** What you've sold lately, newest first (the 'buyback' flag), less anything a day old. */
+  private soldLately(): { id: string; n: number; price: number; at: number }[] {
+    const raw = this.flag('buyback');
+    const now = Date.now();
+    return (Array.isArray(raw) ? raw : [])
+      .filter((e): e is { id: string; n: number; price: number; at: number } => !!e && typeof e.id === 'string' && !!ITEMS[e.id] && Number.isInteger(e.n) && e.n > 0 && typeof e.price === 'number' && typeof e.at === 'number')
+      .filter((e) => now - e.at < Game.BUYBACK_MS)
+      .map((e) => ({ ...e }));
+  }
+  /** Buy one back of something you sold, for what you got for it. */
+  private buyBack(i: number): void {
+    const list = this.soldLately(), e = list[i];
+    if (!e) return;
+    if (this.save.marks < e.price) { this.hud.system('You haven\'t the marks.'); return; }
+    if (!this.inv.canAdd(e.id)) { this.hud.system('Your pack is full.'); return; }
+    this.save.marks -= e.price;
+    this.give(e.id, 1);
+    if (--e.n <= 0) list.splice(i, 1);
+    this.setFlag('buyback', list);
     this.sfx('coin');
     this.hud.refresh();
   }
