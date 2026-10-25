@@ -4786,6 +4786,7 @@ export class Game implements GameApi {
       explored: this.save.explored?.length ?? 0,
       owns: (id) => this.inv.count(id) > 0,
       totalLevel: SKILLS.reduce((a, k) => a + this.level(k.id), 0),
+      questsDone: Object.values(this.save.quests).filter((v) => v === 'done').length,
     };
   }
 

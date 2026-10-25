@@ -4,6 +4,8 @@ import { ITEMS } from './items';
 import { RANKS, REVERED_TITLE } from './standing';
 import { FACTIONS } from './factions';
 import { REGION_INFO, type RegionId } from '../world/terrain';
+import { bestiaryRoster } from './bestiary';
+import { MORROW_REGIONS } from '../world/morrowLocal';
 
 // Feats: long goals for exploring and joining in, kept in the journal. Each one pays out marks
 // once and gives a title to wear under your name. Nothing here makes a character stronger.
@@ -17,12 +19,14 @@ export interface FeatApi {
   owns(item: string): boolean;
   /** Total level across all skills. */
   totalLevel: number;
+  /** Quests finished, side stories and story chapters alike. */
+  questsDone: number;
 }
 
 export interface FeatDef {
   id: string;
   name: string;
-  group: 'Exploration' | 'The open world' | 'Stable' | 'Craft and trade' | 'Factions';
+  group: 'Exploration' | 'The open world' | 'Stable' | 'Craft and trade' | 'Factions' | 'Collections';
   desc: string;
   need: number;
   have(g: FeatApi): number;
@@ -31,6 +35,13 @@ export interface FeatDef {
 }
 
 const HALTERS = Object.values(ITEMS).filter((d) => d.mount).map((d) => d.id);
+
+/** Creatures of the wilds by which half of the world they live in, for the bestiary's feats. */
+const MORROW_SET = new Set<string>(MORROW_REGIONS);
+const BEASTS = bestiaryRoster();
+const COUNTY_BEASTS = BEASTS.filter((b) => b.regions.some((r) => !MORROW_SET.has(r))).map((b) => b.type);
+const MORROW_BEASTS = BEASTS.filter((b) => b.regions.every((r) => MORROW_SET.has(r))).map((b) => b.type);
+const killedOf = (g: FeatApi, t: string) => Number(g.flag('killed:' + t) ?? 0);
 
 export const FEATS: FeatDef[] = [
   { id: 'vistas', name: 'Eyes on the Horizon', group: 'Exploration', desc: 'Stand at every vista: the headlands, the summits and the passes.', need: 8, have: (g) => g.countFlags('vista:'), marks: 80, title: 'Horizon-Walker' },
@@ -67,6 +78,13 @@ export const FEATS: FeatDef[] = [
   { id: 'tasks', name: 'Every Parish Helped', group: 'The open world', desc: 'Finish every parish task in the counties.', need: TASKS.length, have: (g) => g.countFlags('task:'), marks: 200, title: 'Friend of the Parishes' },
   { id: 'horse', name: 'Up in the Saddle', group: 'Stable', desc: 'Buy a halter and ride.', need: 1, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 10, title: 'Rider' },
   { id: 'stable', name: 'The Whole Stable', group: 'Stable', desc: 'Own every horse in the counties, the Cinder-shod mare included.', need: HALTERS.length, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 150, title: 'Horse-Lord' },
+  // Collections: the bestiary filled in, the week's commissions, people helped
+  { id: 'beastsWell', name: 'Known Well', group: 'Collections', desc: 'Kill fifty of twenty different creatures, and have the hunters\' word on each in your bestiary.', need: 20, have: (g) => BEASTS.filter((b) => killedOf(g, b.type) >= 50).length, marks: 150, title: 'the Naturalist' },
+  { id: 'beastsCounties', name: 'Every Creature of the Counties', group: 'Collections', desc: 'Meet every creature of the Charter Counties and the isles, by land and sea, in your bestiary.', need: COUNTY_BEASTS.length, have: (g) => COUNTY_BEASTS.filter((t) => killedOf(g, t) > 0).length, marks: 200, title: 'the Countryman' },
+  { id: 'beastsMorrow', name: 'Every Creature of Morrow', group: 'Collections', desc: 'Meet every creature of Morrow in your bestiary, from the Keys to the Held.', need: MORROW_BEASTS.length, have: (g) => MORROW_BEASTS.filter((t) => killedOf(g, t) > 0).length, marks: 250, title: 'Far-Travelled' },
+  { id: 'commissions', name: 'On the Charter\'s Books', group: 'Collections', desc: 'Finish all three of the week\'s commissions, five weeks over.', need: 5, have: (g) => Number(g.flag('weeklyBundles') ?? 0), marks: 200, title: 'Charter Hand' },
+  { id: 'quests25', name: 'Errands and Favours', group: 'Collections', desc: 'Finish twenty-five quests.', need: 25, have: (g) => g.questsDone, marks: 100, title: 'the Obliging' },
+  { id: 'quests100', name: 'Known Everywhere', group: 'Collections', desc: 'Finish a hundred quests.', need: 100, have: (g) => g.questsDone, marks: 300, title: 'Known Everywhere' },
   { id: 'level', name: 'Turned Your Hand', group: 'Craft and trade', desc: 'Reach a total level of 100 across your skills.', need: 100, have: (g) => g.totalLevel, marks: 100, title: 'Journeyman' },
   { id: 'level2', name: 'Master of None', group: 'Craft and trade', desc: 'Reach a total level of 250 across your skills.', need: 250, have: (g) => g.totalLevel, marks: 250, title: 'Many-Handed' },
   // Standing (data/standing.ts): the last rank in a region gives its title

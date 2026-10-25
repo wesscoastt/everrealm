@@ -132,6 +132,7 @@ export class Dailies {
     if (!changed) return;
     if (!s.bundle && s.done.length >= 3) {
       s.bundle = true;
+      this.host.setFlag('weeklyBundles', Number(this.host.flag('weeklyBundles') ?? 0) + 1);
       this.host.addMarks(COMMISSION_BUNDLE.marks);
       const item = COMMISSION_BUNDLE.items[Math.floor(Math.random() * COMMISSION_BUNDLE.items.length)];
       this.host.give(item, 1);
