@@ -108,10 +108,13 @@ export class Ferry {
   carry(p: THREE.Vector3, onGround: boolean): { pos: THREE.Vector3; turn: number } | null {
     const m = this.root.matrixWorld;
     let out: { pos: THREE.Vector3; turn: number } | null = null;
-    if (this.hasPrev && onGround && Math.abs(p.x - this.root.position.x) < 18 && Math.abs(p.z - this.root.position.z) < 18) {
+    if (this.hasPrev && Math.abs(p.x - this.root.position.x) < 18 && Math.abs(p.z - this.root.position.z) < 18) {
       const local = this._v.copy(p).applyMatrix4(this._m.copy(this.prev).invert());
       const d = deckAt(KIND, local.x, local.z);
-      if (d !== null && Math.abs(local.y - d) < 0.25) out = { pos: local.applyMatrix4(m).clone(), turn: this.root.rotation.y - this.prevYaw };
+      // On her deck, or in the air over it (a jump, a stumble off a coil): you go with her either way, as
+      // on any ship; stepping off her side is the only way off
+      const over = d !== null && (onGround ? Math.abs(local.y - d) < 0.25 : local.y > d - 0.3 && local.y < d + 3.5);
+      if (over) out = { pos: local.applyMatrix4(m).clone(), turn: this.root.rotation.y - this.prevYaw };
     }
     this.prev.copy(m);
     this.prevYaw = this.root.rotation.y;

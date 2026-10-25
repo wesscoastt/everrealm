@@ -5963,7 +5963,7 @@ export class Game implements GameApi {
     this.world.update(dt, P, this.elapsed, timeScale);
     // Standing on the ferry's deck, you go where she goes
     {
-      const ride = this.horse ? null : this.world.ferry.carry(this.player.position, this.player.onGround);
+      const ride = this.world.ferry.carry(this.player.position, this.player.onGround);
       if (ride) this.player.carried(ride.pos, ride.turn);
     }
     // Doors open for anyone walking up to them: you, other players, the villagers

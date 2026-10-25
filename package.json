@@ -11,6 +11,7 @@
     "server": "node server/server.mjs",
     "quests": "rolldown scripts/questwalk.ts --platform node --format esm --file .walker/questwalk.mjs --logLevel warn && node .walker/questwalk.mjs",
     "quest-book": "node scripts/questbook.mjs",
+    "ferries": "rolldown scripts/ferries.ts --platform node --format esm --file .walker/ferries.mjs --logLevel warn && node .walker/ferries.mjs",
     "islands": "rolldown scripts/islandcourses.ts --platform node --format esm --file .walker/islandcourses.mjs --logLevel warn && node .walker/islandcourses.mjs",
     "sites": "rolldown scripts/sitecheck.ts --platform node --format esm --file .walker/sitecheck.mjs --logLevel warn && node .walker/sitecheck.mjs",
     "paths": "rolldown scripts/pathcheck.ts --platform node --format esm --file .walker/pathcheck.mjs --logLevel warn && node .walker/pathcheck.mjs",
