@@ -870,7 +870,8 @@ export class Humanoid {
     const long = top === 2 || top === 5; // robe and gown reach the shins
     this.hips.position.y = 0.86;
     this.body.add(this.hips);
-    part(this.hips, rbox((fem ? 0.54 : 0.5) * build, 0.2, 0.3, 0.05), look.trousers, 0, 0, 0);
+    // (up under the belt, so there's never daylight between the trousers and the shirt)
+    part(this.hips, rbox((fem ? 0.54 : 0.5) * build, 0.36, 0.3, 0.05), look.trousers, 0, 0.07, 0);
 
     for (const [leg, shin, side] of [[this.legL, this.shinL, 1], [this.legR, this.shinR, -1]] as const) {
       leg.position.set(0.13 * side * build, -0.04, 0);
@@ -1297,7 +1298,12 @@ export class Humanoid {
         p(0.15, 0.04, 0.17, 0.1, 0.61, -0.06, 1.06);
         p(0.13, 0.04, 0.13, -0.02, 0.612, -0.17, 0.96);
       }
-      if (style !== 10) for (const s of [1, -1]) p(0.05, 0.22, 0.32, s * 0.236, 0.43, -0.04, 0.96);
+      // The sides, from the nape forward to the temples, and down behind the ears (no bare patch above or behind them)
+      if (style !== 10) for (const s of [1, -1]) {
+        p(0.05, 0.22, 0.36, s * 0.236, 0.43, -0.02, 0.96);
+        p(0.04, 0.15, 0.06, s * 0.232, 0.455, 0.175, 0.98, 0.012);
+        p(0.05, 0.13, 0.15, s * 0.236, 0.27, -0.12, 0.92, 0.015);
+      }
       p(0.48, 0.3, 0.1, 0, 0.39, -0.19, 0.94);
       p(0.38, 0.06, 0.08, 0, 0.22, -0.19, 0.88);
       if (!fem && (style === 0 || style === 8 || style === 10)) for (const s of [1, -1]) p(0.035, 0.1, 0.06, s * 0.226, 0.33, 0.12, 0.9, 0.01);
