@@ -1777,9 +1777,11 @@ READABLES.aldermereToll.body = tollBoard;
 
 // ---------------------------------------------------------------- Side content (src/data/content)
 import { BOARDS, CONTENT } from './content';
+import { MONUMENTS } from './monuments';
 import type { DNode } from '../game/api';
 for (const c of CONTENT) { Object.assign(DIALOGUE, c.dialogue ?? {}); Object.assign(READABLES, c.readables ?? {}); }
 for (const c of CONTENT) c.hooks?.(DIALOGUE);
+for (const m of MONUMENTS) READABLES['monument:' + m.id] = { title: m.title, body: m.body };
 // A notice board reads like a conversation: the list of postings, and each posting in full.
 for (const b of BOARDS) {
   const open = (g: GameApi) => b.postings.filter((p) => !g.stage(p.quest) && (!p.when || p.when(g)));

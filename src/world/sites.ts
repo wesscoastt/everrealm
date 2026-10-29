@@ -37,6 +37,7 @@ import { CAREEN, CHAIR, GALLOWS, SMOKE } from '../data/teeth';
 import { WESTHORN, GLIMMER, HOOKNESS, HOOK_QUAY, SNOWBARROWS, STEAM_WELLS } from '../data/sickle';
 import { GAOL, GAOLS, REFUGE, REFUGES, type GaolDef, type RefugeDef } from '../data/justice';
 import { CABINS, CABIN_ANCHOR, CABIN_BASE, cabinFixtures } from '../data/cabins';
+import { MONUMENTS, type Monument } from '../data/monuments';
 
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
@@ -49,6 +50,8 @@ export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'f
   | 'bars' | 'hatch'
   /** The street kit (world/props.ts): a trade's hanging sign (color, tint = emblem), a striped awning (color, len), a planter of flowers, a washing line (len), a woodpile (len), a statue on its plinth. */
   | 'shopSign' | 'awning' | 'planter' | 'washLine' | 'woodpile' | 'statue'
+  /** A city's monument, one of a kind (data/monuments.ts; which in `monument`), and the squares' other centres: a parish pump, a horse trough, a roofless well-head, a round seat about a tree. */
+  | 'monument' | 'pump' | 'trough' | 'wellhead' | 'ringSeat'
   /** A harbour's nets drying (len), its lobster pots; a village's beehive. */
   | 'netRack' | 'lobsterPots' | 'beehive'
   /** A harbour's mooring bollard, and a timber dock crane with its treadwheel (jib toward +x). */
@@ -105,6 +108,8 @@ export interface PropDesc {
   kind?: BannerKind;
   /** A ship's sails ('bare': a hull on the slip, no masts yet). */
   sails?: 'set' | 'furled' | 'bare';
+  /** A 'monument': its id in data/monuments.ts. */
+  monument?: string;
   /** A ship's kind (world/ships.ts; a carrack if none); her hull's colour; and the deck's height where it has to meet a walk (else y is the waterline). */
   ship?: ShipKind;
   hull?: string;
@@ -235,6 +240,21 @@ export interface Plan {
   waymarks: WaymarkSpot[];
   /** Footprint rectangles bucketed by chunk, so trees and creatures keep out of buildings. */
   rectsByChunk: Map<number, [number, number, number, number][]>;
+  /** Where each city monument went up (its plaque is read there: Game). */
+  monuments: { id: string; x: number; y: number; z: number; ry: number }[];
+}
+
+/** The monuments put up so far this plan. */
+const monumentSpots: Plan['monuments'] = [];
+/**
+ * The next of a town's monuments still to stand, for a square at (x, z), or none: each stands once,
+ * and no two within 34 blocks of each other (22 in Callis, which has fewer gardens), so a walk across the city finds a new one every few streets.
+ */
+function takeMonument(town: Monument['town'], x: number, y: number, z: number, ry: number): Monument | null {
+  if (monumentSpots.some((m) => Math.hypot(m.x - x, m.z - z) < (town === 'callis' ? 22 : 34))) return null;
+  const m = MONUMENTS.find((k) => k.town === town && !monumentSpots.some((p) => p.id === k.id));
+  if (m) monumentSpots.push({ id: m.id, x, y, z, ry });
+  return m ?? null;
 }
 
 let cached: Plan | null = null;
@@ -823,7 +843,7 @@ export function plan(): Plan {
     }
   }
   settleBanners(sites, O);
-  cached = { sites, chests, overrides: O, rectsByChunk, waymarks };
+  cached = { sites, chests, overrides: O, rectsByChunk, waymarks, monuments: monumentSpots };
   return cached;
 
   // ================================================================ Builders
@@ -1973,7 +1993,7 @@ export function plan(): Plan {
         O.set(x + 1, base, z + 1, B.OakLeaves);
         st.props.push({ t: 'windowBox', x: x + 1.5, y: base - 0.1, z: z + 0.45, ry: Math.PI }, { t: 'windowBox', x: x + 1.5, y: base - 0.1, z: z + 2.55, ry: 0 });
       } else if (h < 0.48) st.props.push({ t: 'planter', x: x + 1.5, y: base, z: z + 1.5, ry: h * 40 > 9 ? Math.PI / 2 : 0, tint: Math.floor(h * 100) % 2 });
-      else if (h < 0.6) { for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) O.set(x + i, base - 1, z + j, B.Gravel); st.props.push({ t: 'bench', x: x + 1.5, y: base, z: z + 1.5, ry: h * 77 > 40 ? Math.PI / 2 : 0 }); }
+      else if (h < 0.6) { for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) O.set(x + i, base - 1, z + j, B.Gravel); st.props.push({ t: 'bench', tint: -1, x: x + 1.5, y: base, z: z + 1.5, ry: h * 77 > 40 ? Math.PI / 2 : 0 }); }
       else if (h < 0.7) st.props.push({ t: 'woodpile', x: x + 1.5, y: base, z: z + 1.2, ry: h * 99 > 60 ? Math.PI : 0, len: 2 });
       else if (h < 0.8) { for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) O.set(x + i, base - 1, z + j, B.Cobble); st.props.push({ t: 'barrel', x: x + 1, y: base, z: z + 1 }, { t: 'barrel', x: x + 1.9, y: base, z: z + 1.5 }, { t: 'crate', x: x + 1.3, y: base, z: z + 2.1, ry: h * 7 }); }
       else if (h < 0.9) O.set(x + 1, base, z + 1, B.OakLeaves);
@@ -2000,7 +2020,7 @@ export function plan(): Plan {
       // A garden inside a clipped hedge, the gate in the middle of the south side
       ring((cx, cz) => { if (cz === Z + 3 && (cx === X + 1 || cx === X + 2)) { O.set(cx, base - 1, cz, B.Path); return; } O.set(cx, base, cz, B.OakLeaves); });
       s.props.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.6, ry: 0, tint: Math.floor(h * 30) % 2 });
-      if (h < 0.14) s.props.push({ t: 'bench', x: X + 2, y: base, z: Z + 2.5, ry: 0 });
+      if (h < 0.14) s.props.push({ t: 'bench', tint: -1, x: X + 2, y: base, z: Z + 2.5, ry: 0 });
     } else if (h < 0.52) {
       // A working yard: cobbles, a woodpile against the back, barrels, the washing out
       for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, hash2(X + i, Z + j, 137) < 0.65 ? B.Cobble : B.Gravel);
@@ -2009,17 +2029,40 @@ export function plan(): Plan {
       if (h < 0.4) s.props.push({ t: 'washLine', x: X + 2, y: base, z: Z + 2, ry: 0, len: 3.6 });
       else s.props.push({ t: 'cart', x: X + 2, y: base, z: Z + 2.2, ry: Math.PI / 2 + (h - 0.45) * 3 });
     } else if (h < 0.7) {
-      // A little square: flagstones, a well or a statue in the middle, benches and flowers
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, (i + j) % 2 ? B.StoneBrick : B.Cobble);
-      if (h < 0.6) {
-        s.props.push({ t: 'well', x: X + 2, y: base, z: Z + 2 });
-        for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) O.set(bx, base, bz, B.Barrier);
+      // A little square: flagstones, and in the middle what the square was laid out round. One in three
+      // has one of the city's monuments while any are left to stand; the rest have water or shade.
+      const paved = Math.floor(hash2(X, Z, 213) * 3);
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, paved === 0 ? ((i + j) % 2 ? B.StoneBrick : B.Cobble) : paved === 1 ? (i === 0 || j === 0 || i === 3 || j === 3 ? B.StoneBrick : B.Cobble) : (hash2(X + i, Z + j, 217) < 0.7 ? B.Cobble : B.Gravel));
+      const ry = Math.floor(h * 40) * (Math.PI / 2), mid = [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]];
+      const mon = h >= 0.6 ? takeMonument('ansbury', X + 2, base, Z + 2, ry) : null;
+      const kind = mon ? -1 : Math.floor(hash2(X, Z, 211) * 6);
+      if (mon) {
+        s.props.push({ t: 'monument', monument: mon.id, x: X + 2, y: base, z: Z + 2, ry: mon.model === 'rider' ? (Math.floor(h * 40) % 2 ? Math.PI : 0) : ry }); // (the rider runs north-south, clear of the benches)
+        for (const [bx, bz] of mid) for (let y = base; y < base + 3; y++) O.set(bx, y, bz, B.Barrier);
+      } else if (kind <= 1) {
+        // An old covered well, its roof whatever the ward had to hand
+        s.props.push({ t: 'well', x: X + 2, y: base, z: Z + 2, ry: kind * Math.PI / 2, mat: (['red', 'slate', 'thatch'] as const)[Math.floor(hash2(X, Z, 219) * 3)] });
+        for (const [bx, bz] of mid) O.set(bx, base, bz, B.Barrier);
+      } else if (kind === 2) {
+        s.props.push({ t: 'pump', x: X + 2, y: base, z: Z + 2, ry, tint: Math.floor(hash2(X, Z, 221) * 3) });
+        for (const [bx, bz] of mid) O.set(bx, base, bz, B.Barrier);
+      } else if (kind === 3) {
+        s.props.push({ t: 'trough', x: X + 2, y: base, z: Z + 2, ry: h * 40 % 2 < 1 ? 0 : Math.PI / 2 });
+      } else if (kind === 4) {
+        s.props.push({ t: 'wellhead', x: X + 2, y: base, z: Z + 2, ry });
+        for (const [bx, bz] of mid) O.set(bx, base, bz, B.Barrier);
       } else {
-        s.props.push({ t: 'statue', x: X + 2, y: base, z: Z + 2, ry: Math.floor(h * 40) * (Math.PI / 2) });
-        for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) for (let y = base; y < base + 3; y++) O.set(bx, y, bz, B.Barrier);
+        // A plane tree with a seat built round it
+        plantTree(X + 2, Z + 2, base, 0.2);
+        s.props.push({ t: 'ringSeat', x: X + 2.5, y: base, z: Z + 2.5, ry: 0 });
       }
-      s.props.push({ t: 'planter', x: X + 2, y: base, z: Z + 3.55, ry: 0, tint: 1 });
-      s.props.push({ t: 'bench', x: X + 0.3, y: base, z: Z + 2, ry: Math.PI / 2 });
+      if (kind !== 5) {
+        const side = Math.floor(hash2(X, Z, 223) * 4);
+        if (side !== 3 && !mon) s.props.push({ t: 'planter', x: X + 2, y: base, z: side === 1 ? Z + 0.45 : Z + 3.55, ry: 0, tint: Math.floor(hash2(X, Z, 225) * 3) });
+        // (a monument's bench stands back at the square's edge, clear of the wider plinths)
+        const out = mon ? 0.6 : 0;
+        if (side !== 2) s.props.push(side === 0 ? { t: 'bench', tint: -1, x: X + 0.3 - out, y: base, z: Z + 2, ry: Math.PI / 2 } : { t: 'bench', tint: -1, x: X + 3.7 + out, y: base, z: Z + 2, ry: -Math.PI / 2 });
+      }
     } else if (h < 0.86) {
       // An allotment: dug rows and a path between, a water butt at the end
       for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) O.set(X + i, base - 1, Z + j, i % 2 ? B.Path : B.Farmland);
@@ -2027,7 +2070,7 @@ export function plan(): Plan {
     } else {
       // An old fruit tree on the grass, and a bench under it
       plantTree(X + 2, Z + 2, base, 0.35);
-      s.props.push({ t: 'bench', x: X + 2, y: base, z: Z + 3.4, ry: 0 });
+      s.props.push({ t: 'bench', tint: -1, x: X + 2, y: base, z: Z + 3.4, ry: 0 });
     }
   }
 
@@ -8460,7 +8503,7 @@ function dressTowns(O: Overrides, sites: Site[]): void {
     const fade = (x: number, z: number) => { const d = Math.hypot(x - j.x, z - j.z) / j.r; return d < 0.7 ? 1 : Math.max(0, (1 - d) / 0.3); };
     for (const st of sites) if (Math.abs(st.x - j.x) < j.r + 120 && Math.abs(st.z - j.z) < j.r + 120) for (const pr of st.props) {
       if (IGNORE.has(pr.t)) continue;
-      const rr = pr.t === 'stall' || pr.t === 'cart' || pr.t === 'ship' || pr.t === 'boat' || pr.t === 'tent' || pr.t === 'well' || pr.t === 'statue' || pr.t === 'waymark' ? 3 : pr.t === 'sign' || pr.t === 'postBox' || pr.t === 'notice' ? 2.5 : 1.6;
+      const rr = pr.t === 'stall' || pr.t === 'cart' || pr.t === 'ship' || pr.t === 'boat' || pr.t === 'tent' || pr.t === 'well' || pr.t === 'statue' || pr.t === 'monument' || pr.t === 'pump' || pr.t === 'trough' || pr.t === 'wellhead' || pr.t === 'waymark' ? 3 : pr.t === 'sign' || pr.t === 'postBox' || pr.t === 'notice' ? 2.5 : 1.6;
       for (let dz = -Math.ceil(rr); dz <= Math.ceil(rr); dz++) for (let dx = -Math.ceil(rr); dx <= Math.ceil(rr); dx++) if (Math.hypot(dx, dz) <= rr) mark(Math.floor(pr.x) + dx, Math.floor(pr.z) + dz);
     }
     const free = (a: number, b: number, c: number, d: number) => {
@@ -8507,13 +8550,13 @@ function dressTowns(O: Overrides, sites: Site[]): void {
           P.push({ t: 'beehive', x: X + 2.5, y: base, z: Z + 2.5, ry: 0 });
         }
         else if (v === 1) { for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, i % 2 ? B.Path : B.Farmland); P.push({ t: 'barrel', x: X + 3.4, y: base, z: Z + 0.5 }); }
-        else if (v === 2) { P.push({ t: 'beehive', x: X + 0.8, y: base, z: Z + 0.8, ry: 0 }, { t: 'beehive', x: X + 2.4, y: base, z: Z + 0.8, ry: 0.3 }, { t: 'bench', x: X + 2, y: base, z: Z + 3, ry: 0 }); }
+        else if (v === 2) { P.push({ t: 'beehive', x: X + 0.8, y: base, z: Z + 0.8, ry: 0 }, { t: 'beehive', x: X + 2.4, y: base, z: Z + 0.8, ry: 0.3 }, { t: 'bench', tint: -1, x: X + 2, y: base, z: Z + 3, ry: 0 }); }
         else P.push({ t: 'woodpile', x: X + 2, y: base, z: Z + 0.3, ry: 0, len: 2.6 }, { t: 'washLine', x: X + 2, y: base, z: Z + 2.6, ry: 0, len: 3.6 });
       } else {
         for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) ground(X + i, Z + k, (i + k) % 2 ? B.Whitestone : (v === 3 ? B.Blackstone : B.TerraCream));
-        if (v === 0) { cypress(X, Z); cypress(X + 3, Z + 3); P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.5, ry: 0, tint: 1 }); }
-        else if (v === 1) { P.push({ t: 'statue', x: X + 2, y: base, z: Z + 2, ry: Math.floor(h * 40) * (Math.PI / 2) }); for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) for (let y = base; y < base + 3; y++) O.set(bx, y, bz, B.Barrier); }
-        else if (v === 2) { for (let i = 0; i < 4; i++) { O.set(X + i, base, Z, B.OakLeaves); O.set(X + i, base, Z + 3, B.OakLeaves); } P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.6, ry: 0, tint: 1 }, { t: 'bench', x: X + 2, y: base, z: Z + 2.5, ry: 0 }); }
+        if (takeMonument('callis', X + 2, base, Z + 2, Math.floor(h * 40) * (Math.PI / 2))) { P.push({ t: 'monument', monument: monumentSpots[monumentSpots.length - 1].id, x: X + 2, y: base, z: Z + 2, ry: Math.floor(h * 40) * (Math.PI / 2) }); for (const [bx, bz] of [[X + 1, Z + 1], [X + 2, Z + 1], [X + 1, Z + 2], [X + 2, Z + 2]]) for (let y = base; y < base + 3; y++) O.set(bx, y, bz, B.Barrier); }
+        else if (v === 0) { cypress(X, Z); cypress(X + 3, Z + 3); P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.5, ry: 0, tint: 1 }); }
+        else if (v === 2) { for (let i = 0; i < 4; i++) { O.set(X + i, base, Z, B.OakLeaves); O.set(X + i, base, Z + 3, B.OakLeaves); } P.push({ t: 'planter', x: X + 2, y: base, z: Z + 1.6, ry: 0, tint: 1 }, { t: 'bench', tint: -1, x: X + 2, y: base, z: Z + 2.5, ry: 0 }); }
         else { cypress(X + 1, Z + 1); cypress(X + 2, Z + 2); }
       }
     }
@@ -8577,6 +8620,10 @@ function propCollision(O: Overrides, sites: Site[]): void {
       case 'cart': bar(d, 0, 0, 0.4, 0.52, 1); break;
       case 'well': bar(d, 0, 0, 1.05, 1.05, 1); for (const x of [-1, 1]) bar(d, x, 0, 0, 0, 2); break;
       case 'statue': bar(d, 0, 0, 1.0, 1.0, 3); break;
+      case 'monument': bar(d, 0, 0, 1.0, d.monument === 'riders' ? 1.4 : 1.0, 3); break;
+      case 'pump': bar(d, 0, 0, 0.65, 0.5, 1); break;
+      case 'trough': bar(d, 0, 0, 1.15, 0.4, 1); break;
+      case 'wellhead': bar(d, 0, 0, 1.0, 1.0, 1); break;
       case 'planter': bar(d, 0, 0, 0.72, 0.26, 1); break;
       case 'woodpile': bar(d, 0, 0, ((d.len ?? 2) + 0.3) / 2, 0.42, 1); break;
       case 'barrel': case 'crate': case 'beehive': if (st.named && st.id !== 'bight') bar(d, 0, 0, 0.28, 0.28, 1); break; // (in the wild, and in the Bight's wreckers' camp, they're clutter to fight among)

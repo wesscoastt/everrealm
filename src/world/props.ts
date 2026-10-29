@@ -571,10 +571,36 @@ export function crate(M: PropMaterials, s = 0.7): THREE.Group {
   return g;
 }
 
-export function bench(M: PropMaterials, len = 2): THREE.Group {
+/**
+ * A bench, len long. Style 0 is the plain plank on two trestles (pews, quays, yards); a town's
+ * squares and gardens get the others: 1 a slatted seat with a back, 2 a stone slab on two blocks,
+ * 3 iron ends painted green with a back, 4 a plank on two logs, gone grey.
+ */
+export function bench(M: PropMaterials, len = 2, style = 0): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(box(len, 0.1, 0.42), M.wood, 0, 0.48, 0));
-  for (const x of [-len / 2 + 0.2, len / 2 - 0.2]) g.add(mesh(box(0.12, 0.45, 0.36), M.darkWood, x, 0.22, 0));
+  if (style === 1) {
+    for (const z of [-0.14, 0, 0.14]) g.add(mesh(box(len, 0.06, 0.12), M.wood, 0, 0.48, z));
+    for (const y of [0.72, 0.9]) g.add(mesh(box(len, 0.1, 0.05), M.wood, 0, y, -0.22, 0, 0.12));
+    for (const x of [-len / 2 + 0.15, len / 2 - 0.15]) { g.add(mesh(box(0.1, 0.45, 0.4), M.darkWood, x, 0.22, 0)); g.add(mesh(box(0.1, 0.62, 0.08), M.darkWood, x, 0.78, -0.22, 0, 0.12)); }
+  } else if (style === 2) {
+    g.add(mesh(box(len, 0.14, 0.5), M.stone, 0, 0.46, 0));
+    for (const x of [-len / 2 + 0.3, len / 2 - 0.3]) g.add(mesh(box(0.34, 0.4, 0.44), M.cobble, x, 0.2, 0));
+  } else if (style === 3) {
+    const green = flat('#2f4a3a');
+    for (const z of [-0.15, -0.05, 0.05, 0.15]) g.add(mesh(box(len, 0.05, 0.08), M.wood, 0, 0.48, z));
+    for (const y of [0.7, 0.84]) g.add(mesh(box(len, 0.08, 0.04), M.wood, 0, y, -0.24));
+    for (const x of [-len / 2 + 0.12, len / 2 - 0.12]) {
+      g.add(mesh(box(0.06, 0.46, 0.06), green, x, 0.23, 0.16)); g.add(mesh(box(0.06, 0.9, 0.06), green, x, 0.45, -0.22, 0, 0.1));
+      g.add(mesh(box(0.06, 0.06, 0.44), green, x, 0.52, -0.02)); g.add(mesh(box(0.06, 0.06, 0.36), green, x, 0.66, 0.05));
+    }
+  } else if (style === 4) {
+    const grey = flat('#8a8070');
+    g.add(mesh(box(len, 0.1, 0.4), grey, 0, 0.44, 0));
+    for (const x of [-len / 2 + 0.25, len / 2 - 0.25]) g.add(mesh(cyl(0.2, 0.22, 0.4, 7), M.bark, x, 0.2, 0));
+  } else {
+    g.add(mesh(box(len, 0.1, 0.42), M.wood, 0, 0.48, 0));
+    for (const x of [-len / 2 + 0.2, len / 2 - 0.2]) g.add(mesh(box(0.12, 0.45, 0.36), M.darkWood, x, 0.22, 0));
+  }
   return g;
 }
 
@@ -1291,11 +1317,25 @@ export function postBox(M: PropMaterials): THREE.Group {
   return g;
 }
 
-export function windowBox(M: PropMaterials): THREE.Group {
+/**
+ * A window box. Each house plants its own (seed 0..1, from where it hangs): geraniums in one colour,
+ * a mix, ivy trailing over the front, herbs, or bare earth where nobody has got round to it; the
+ * box itself dark wood, or painted to go with the shutters.
+ */
+export function windowBox(M: PropMaterials, seed = 0): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(box(0.9, 0.22, 0.3), M.darkWood, 0, 0, 0.15));
-  const cols = ['#d44a5a', '#f2c03a', '#e9e2ff', '#e46aa0'];
-  for (let i = 0; i < 5; i++) g.add(mesh(new THREE.SphereGeometry(0.08, 5, 4), flat(cols[i % cols.length]), -0.34 + i * 0.17, 0.16, 0.16));
+  const r = (k: number) => { const v = Math.sin((seed * 911 + k * 57.3) * 12.9898) * 43758.5453; return v - Math.floor(v); };
+  g.add(mesh(box(0.9, 0.22, 0.3), [M.darkWood, M.darkWood, flat('#3a5a7a'), flat('#4a6a4a'), flat('#7a3a32'), M.wood][Math.floor(r(1) * 6)], 0, 0, 0.15));
+  const what = r(2);
+  if (what > 0.92) { g.add(mesh(box(0.8, 0.04, 0.22), flat('#4a3a26'), 0, 0.12, 0.15)); return g; } // bare earth
+  const sets = [['#d44a5a'], ['#f4f0f8'], ['#e46aa0'], ['#d44a5a', '#f2c03a', '#e9e2ff', '#e46aa0'], ['#9a5ad8', '#f4f0f8'], ['#e8803a', '#f2c03a'], ['#3a5ad8', '#f4f0f8']];
+  if (what > 0.8) {
+    for (let i = 0; i < 4; i++) g.add(mesh(box(0.16, 0.14 + r(10 + i) * 0.14, 0.16), flat(['#7a9a6a', '#4a6a3a', '#5a8a3a'][i % 3]), -0.3 + i * 0.2, 0.18, 0.15)); // herbs
+    return g;
+  }
+  const cols = sets[Math.floor(r(3) * sets.length)], n = 4 + Math.floor(r(4) * 4);
+  for (let i = 0; i < n; i++) g.add(mesh(new THREE.SphereGeometry(0.07 + r(20 + i) * 0.03, 5, 4), flat(cols[Math.floor(r(30 + i) * cols.length)]), -0.36 + (i + r(40 + i) * 0.5) * (0.72 / n), 0.14 + r(50 + i) * 0.06, 0.1 + r(60 + i) * 0.12));
+  if (what < 0.25) for (let i = 0; i < 3; i++) g.add(mesh(box(0.1, 0.24 + r(70 + i) * 0.2, 0.04), flat('#3a5a2a'), -0.3 + i * 0.3 + r(80 + i) * 0.1, -0.1 - r(70 + i) * 0.1, 0.31)); // ivy over the front
   return g;
 }
 
@@ -1344,13 +1384,40 @@ export function awning(M: PropMaterials, color: string, len = 2.4): THREE.Group 
 }
 
 /** A planter of flowers: a stone trough (tint 0) or a painted box (1), full of colour. */
-export function planter(M: PropMaterials, tint = 0): THREE.Group {
+/**
+ * A planter of flowers. Without a seed it's the tidy one (stone, or dark wood for tint); with one
+ * (0..1, from where it stands) no two are alike: the box stone, wood, painted or terracotta, and in
+ * it flowers in their own colours and scatter, kitchen herbs, a clipped box shrub, or somebody's
+ * flowers gone over and not cleared.
+ */
+export function planter(M: PropMaterials, tint = 0, seed = -1): THREE.Group {
   const g = new THREE.Group();
-  g.add(mesh(box(1.5, 0.5, 0.55), tint ? M.darkWood : M.stone, 0, 0.25, 0));
-  g.add(mesh(box(1.38, 0.08, 0.44), flat('#4a3a26'), 0, 0.5, 0));
-  g.add(mesh(box(1.3, 0.22, 0.4), flat('#3f7a34'), 0, 0.62, 0));
-  const cols = [['#d44a5a', '#f2c03a', '#f4f0f8'], ['#9a5ad8', '#f29a3a', '#f4e04a'], ['#e46aa0', '#ffffff', '#d44a5a']][Math.abs(Math.round(tint * 7)) % 3];
-  for (let i = 0; i < 9; i++) g.add(mesh(box(0.12, 0.12, 0.12), flat(cols[i % 3]), -0.56 + i * 0.14, 0.78 + (i % 2) * 0.05, (i % 3 - 1) * 0.11));
+  const r = (k: number) => { const v = Math.sin((seed * 977 + k * 131.7) * 12.9898) * 43758.5453; return v - Math.floor(v); };
+  const fancy = seed >= 0;
+  const boxMat = !fancy ? (tint ? M.darkWood : M.stone) : [M.stone, M.darkWood, flat('#3a5a7a'), flat('#b8643a'), M.wood, flat('#e4ddcc')][Math.floor(r(1) * 6)];
+  const len = fancy ? 1.1 + Math.floor(r(2) * 3) * 0.2 : 1.5;
+  g.add(mesh(box(len, 0.5, 0.55), boxMat, 0, 0.25, 0));
+  g.add(mesh(box(len - 0.12, 0.08, 0.44), flat('#4a3a26'), 0, 0.5, 0));
+  const what = fancy ? r(3) : 0;
+  if (what > 0.86) {
+    // A clipped box shrub
+    g.add(mesh(box(len - 0.3, 0.55, 0.42), flat('#2f5a2a'), 0, 0.8, 0));
+    return g;
+  }
+  if (what > 0.74) {
+    // Herbs for the kitchen: sage, rosemary, chives, in clumps
+    for (let i = 0; i < 4; i++) g.add(mesh(box(0.22, 0.18 + r(10 + i) * 0.22, 0.22), flat(['#7a9a6a', '#4a6a3a', '#5a8a3a', '#8aa07a'][i]), -len / 2 + 0.25 + i * (len - 0.5) / 3, 0.62, (r(20 + i) - 0.5) * 0.12));
+    return g;
+  }
+  g.add(mesh(box(len - 0.2, 0.22, 0.4), flat(what > 0.68 ? '#6a6a3a' : '#3f7a34'), 0, 0.62, 0));
+  if (what > 0.68) return g; // gone over
+  const sets = [['#d44a5a', '#f2c03a', '#f4f0f8'], ['#9a5ad8', '#f29a3a', '#f4e04a'], ['#e46aa0', '#ffffff', '#d44a5a'], ['#3a5ad8', '#ffffff', '#f4e04a'], ['#e8803a', '#c8302a', '#f2c03a'], ['#f4f0f8', '#c8a0e8', '#9a5ad8']];
+  const cols = fancy ? sets[Math.floor(r(4) * sets.length)] : sets[Math.abs(Math.round(tint * 7)) % 3];
+  const n = fancy ? 5 + Math.floor(r(5) * 8) : 9;
+  for (let i = 0; i < n; i++) {
+    const x = fancy ? (r(30 + i) - 0.5) * (len - 0.3) : -0.56 + i * 0.14, z = fancy ? (r(50 + i) - 0.5) * 0.3 : (i % 3 - 1) * 0.11;
+    g.add(mesh(box(0.12, 0.12, 0.12), flat(cols[fancy ? Math.floor(r(70 + i) * 3) : i % 3]), x, 0.78 + (fancy ? r(90 + i) * 0.12 : (i % 2) * 0.05), z));
+  }
   return g;
 }
 
@@ -1456,6 +1523,334 @@ export function statue(M: PropMaterials): THREE.Group {
   g.add(mesh(box(0.34, 0.42, 0.1), dk, 0.75, 4.5, 0.15)); // the book
   g.add(mesh(box(0.08, 1.3, 0.08), dk, -0.62, 2.9, 0.18)); // the sword
   g.add(mesh(box(0.3, 0.06, 0.08), dk, -0.62, 3.5, 0.18));
+  return g;
+}
+
+/**
+ * One of the cities' monuments (data/monuments.ts), each its own piece: a figure, a stone, a bell,
+ * a fountain. Faces +z, its plaque on that side. Fits a 2 x 2 square (the rider runs to 3 long).
+ */
+export function monument(M: PropMaterials, model: string): THREE.Group {
+  const g = new THREE.Group();
+  const pale = flat('#cfccc2'), grey = flat('#9a988e'), sand = flat('#c9b48a'), sandDk = flat('#a8925f'), granite = flat('#7e7f80');
+  const verd = flat('#5e8c78'), verdDk = flat('#46695a'), white = flat('#ece8dc'), black = flat('#2a2a2e');
+  const brass = flat('#c8a050');
+  /** A plinth w square and h tall on a footing, with a cornice; returns its top. */
+  const plinth = (w: number, h: number, body: THREE.Material, trim: THREE.Material, d = w) => {
+    g.add(mesh(box(w + 0.4, 0.28, d + 0.4), trim, 0, 0.14, 0));
+    g.add(mesh(box(w, h, d), body, 0, 0.28 + h / 2, 0));
+    g.add(mesh(box(w + 0.22, 0.16, d + 0.22), trim, 0, 0.28 + h + 0.08, 0));
+    return 0.28 + h + 0.16;
+  };
+  /** A plaque on the plinth's front face. */
+  const plaque = (y: number, z: number, w = 0.7, mat: THREE.Material = brass) => g.add(mesh(box(w, 0.36, 0.03), mat, 0, y, z));
+  /** A standing figure at y facing +z: skirts or legs, chest, head. Arms and whatever it holds go on the group. */
+  const figure = (m: THREE.Material, x: number, y: number, z: number, skirt: boolean, ry = 0) => {
+    const f = new THREE.Group();
+    f.position.set(x, y, z); f.rotation.y = ry; g.add(f);
+    if (skirt) {
+      f.add(mesh(box(0.96, 0.34, 0.74), m, 0, 0.17, 0));                                // the hem, flared
+      f.add(mesh(box(0.8, 0.9, 0.62), m, 0, 0.75, 0));
+    } else {
+      for (const k of [-1, 1]) { f.add(mesh(box(0.28, 0.9, 0.3), m, k * 0.17, 0.45, 0)); f.add(mesh(box(0.3, 0.16, 0.44), m, k * 0.17, 0.08, 0.06)); }
+      f.add(mesh(box(0.76, 0.48, 0.48), m, 0, 1.0, 0)); // coat skirts
+    }
+    f.add(mesh(box(0.66, 0.66, 0.4), m, 0, 1.5, 0));
+    f.add(mesh(box(0.88, 0.18, 0.46), m, 0, 1.84, 0));                                  // shoulders
+    f.add(mesh(box(0.18, 0.12, 0.18), m, 0, 1.98, 0));                                  // neck
+    f.add(mesh(box(0.36, 0.42, 0.36), m, 0, 2.24, 0));
+    f.add(mesh(box(0.4, 0.14, 0.4), m, 0, 2.48, -0.02));                                // hair
+    f.add(mesh(box(0.4, 0.3, 0.1), m, 0, 2.34, -0.17));
+    f.add(mesh(box(0.08, 0.1, 0.06), m, 0, 2.2, 0.2));                                  // nose
+    return f;
+  };
+  /** An arm from the shoulder (side -1 or 1), swung forward by fwd and out by out (radians). */
+  const arm = (f: THREE.Group, m: THREE.Material, side: number, fwd: number, out = 0) => {
+    const a = new THREE.Group();
+    a.position.set(side * 0.45, 1.85, 0); a.rotation.set(-fwd, 0, side * out); f.add(a);
+    a.add(mesh(box(0.2, 0.72, 0.2), m, 0, -0.34, 0));
+    return a;
+  };
+  switch (model) {
+    case 'milestone': {
+      // The Nought Stone: a post worn to a waist, on a round of setts with the four roads marked out
+      g.add(mesh(cyl(1.15, 1.15, 0.08, 18), M.cobble, 0, 0.04, 0));
+      for (let i = 0; i < 4; i++) g.add(mesh(box(0.1, 0.02, 0.9), black, Math.sin(i * Math.PI / 2) * 0.68, 0.09, Math.cos(i * Math.PI / 2) * 0.68, i * Math.PI / 2));
+      g.add(mesh(box(0.56, 0.5, 0.42), grey, 0, 0.33, 0));
+      g.add(mesh(box(0.44, 0.36, 0.32), grey, 0, 0.76, 0));
+      g.add(mesh(box(0.56, 0.5, 0.42), grey, 0, 1.19, 0));
+      g.add(mesh(cyl(0.28, 0.28, 0.42, 12), grey, 0, 1.44, 0, 0, 0, Math.PI / 2));
+      g.add(mesh(box(0.36, 0.08, 0.02), black, 0, 1.25, 0.22)); g.add(mesh(box(0.22, 0.06, 0.02), black, 0, 1.1, 0.22));
+      break;
+    }
+    case 'speaker': {
+      const top = plinth(1.5, 1.5, pale, grey);
+      plaque(1.0, 0.77);
+      const f = figure(pale, 0, top, 0, true);
+      arm(f, pale, -1, 1.0, 0.15); arm(f, pale, 1, 1.0, -0.15);
+      f.add(mesh(box(1.1, 0.72, 0.05), pale, 0, 1.38, 0.62, 0, -0.5));               // the Charter, held open
+      for (const k of [-1, 1]) f.add(mesh(cyl(0.07, 0.07, 0.78, 8), grey, k * 0.56, 1.38, 0.62, 0, -0.5));
+      for (const k of [-0.25, 0, 0.25]) f.add(mesh(cyl(0.07, 0.07, 0.03, 8), sand, k, 1.18, 0.74, 0, 1.07)); // the seals, worn smooth
+      f.add(mesh(box(0.8, 0.12, 0.5), grey, 0, 1.97, 0));                             // a collar of office
+      break;
+    }
+    case 'rider': {
+      const top = plinth(1.3, 1.5, granite, grey, 2.7);
+      plaque(1.0, 1.37);
+      const h = new THREE.Group(); h.position.y = top; g.add(h);
+      for (const [x, z, r] of [[-0.24, 0.75, -0.25], [0.24, 0.7, 0], [-0.24, -0.75, 0], [0.24, -0.72, 0.1]]) h.add(mesh(box(0.18, 1.0, 0.2), M.bronze, x, 0.5, z, 0, r));
+      h.add(mesh(box(0.66, 0.8, 1.9), M.bronze, 0, 1.35, 0));                         // the horse's barrel
+      h.add(mesh(box(0.34, 0.95, 0.42), M.bronze, 0, 1.95, 1.0, 0, -0.55));            // neck
+      h.add(mesh(box(0.3, 0.32, 0.7), M.bronze, 0, 2.3, 1.38, 0, 0.35));               // head
+      h.add(mesh(box(0.14, 0.7, 0.16), M.bronze, 0, 1.25, -1.0, 0, 0.35));             // tail
+      // The rider, cloaked, a lantern held up on a pole: they rode the Turnpike at night
+      h.add(mesh(box(0.56, 0.72, 0.36), M.bronze, 0, 2.1, -0.1));
+      h.add(mesh(box(0.34, 0.38, 0.34), M.bronze, 0, 2.66, -0.1));
+      h.add(mesh(box(0.5, 0.08, 0.5), M.bronze, 0, 2.88, -0.1));                       // the hat's brim
+      for (const k of [-1, 1]) h.add(mesh(box(0.2, 0.7, 0.24), M.bronze, k * 0.4, 1.6, 0.05, 0, -0.3));
+      h.add(mesh(box(0.7, 0.9, 0.08), M.bronze, 0, 2.05, -0.32, 0, 0.2));              // cloak
+      h.add(mesh(box(0.08, 1.9, 0.08), M.bronze, 0.42, 2.7, 0.15, 0, 0.12));           // the pole
+      h.add(mesh(box(0.22, 0.3, 0.22), M.bronze, 0.42, 3.55, 0.38));                   // its lantern
+      break;
+    }
+    case 'scales': {
+      const top = plinth(1.4, 1.3, sand, sandDk);
+      plaque(0.95, 0.72, 0.62, verdDk);
+      g.add(mesh(box(0.8, 0.07, 0.01), white, 0.05, 0.62, 0.71, 0, 0, 0.06));          // the chalk
+      const f = figure(verd, 0, top, 0, true);
+      arm(f, verd, -1, 0.15, 0.1);
+      const a = arm(f, verd, 1, 0.3, 1.7);                                            // held out level, the beam hanging from it
+      a.add(mesh(box(0.06, 0.4, 0.06), verdDk, 0, -0.85, 0));
+      const beam = new THREE.Group(); beam.position.set(0.9, top + 1.75, 0.15); g.add(beam);
+      beam.add(mesh(box(1.1, 0.06, 0.06), verdDk, 0, 0, 0));
+      for (const k of [-1, 1]) {
+        beam.add(mesh(box(0.02, 0.5, 0.02), verdDk, k * 0.52, -0.25, 0));
+        beam.add(mesh(cyl(0.22, 0.16, 0.06, 10), verd, k * 0.52, -0.52, 0));
+      }
+      break;
+    }
+    case 'cross': {
+      // The Butter Cross: three worn octagonal steps, a shaft and a stubby head
+      for (const [r, y] of [[1.3, 0.14], [1.0, 0.42], [0.7, 0.7]] as const) g.add(mesh(cyl(r, r, 0.28, 8), M.stone, 0, y, 0, Math.PI / 8));
+      g.add(mesh(box(0.42, 0.5, 0.42), grey, 0, 1.09, 0));
+      g.add(mesh(box(0.28, 2.5, 0.28), grey, 0, 2.5, 0));
+      g.add(mesh(box(0.22, 0.62, 0.2), grey, 0, 4.0, 0));
+      g.add(mesh(box(0.6, 0.2, 0.2), grey, 0, 3.92, 0));
+      g.add(mesh(box(0.26, 0.18, 0.02), M.iron, 0, 2.0, 0.15));                       // the tin plate
+      break;
+    }
+    case 'fountain': {
+      // The Fullers' Fountain: a stele with a lion's head spout over a basin, a cup on a chain
+      g.add(mesh(box(1.8, 0.24, 1.6), sandDk, 0, 0.12, 0.1));
+      g.add(mesh(box(1.5, 2.3, 0.6), sand, 0, 1.39, -0.4));
+      g.add(mesh(box(1.7, 0.2, 0.72), sandDk, 0, 2.64, -0.4));
+      g.add(mesh(cyl(0.2, 0.28, 0.42, 8), sandDk, 0, 2.95, -0.4));                     // the finial
+      g.add(mesh(cyl(0.32, 0.32, 0.06, 12), verd, 0, 2.0, -0.08, 0, Math.PI / 2));     // the Fullers' roundel
+      g.add(mesh(box(0.34, 0.34, 0.16), verd, 0, 1.32, -0.05));                         // the lion's head
+      g.add(mesh(box(0.08, 0.08, 0.24), verdDk, 0, 1.24, 0.12));
+      g.add(mesh(cyl(0.72, 0.62, 0.55, 12), sand, 0, 0.5, 0.42));
+      g.add(mesh(cyl(0.62, 0.62, 0.04, 12), flat('#2c4a56'), 0, 0.72, 0.42));
+      g.add(mesh(box(0.02, 0.5, 0.02), M.iron, 0.4, 0.95, -0.08));
+      g.add(mesh(cyl(0.07, 0.06, 0.12, 8), M.iron, 0.4, 0.66, 0.0));
+      break;
+    }
+    case 'obelisk': {
+      g.add(mesh(box(1.9, 0.3, 1.9), granite, 0, 0.15, 0));
+      g.add(mesh(box(1.3, 1.1, 1.3), granite, 0, 0.85, 0));
+      g.add(mesh(box(1.45, 0.14, 1.45), grey, 0, 1.47, 0));
+      g.add(mesh(cyl(0.34, 0.56, 3.3, 4), granite, 0, 3.19, 0, Math.PI / 4));
+      g.add(mesh(cyl(0, 0.34, 0.45, 4), grey, 0, 5.06, 0, Math.PI / 4));
+      // The names, in rows down every face of the die
+      for (let s = 0; s < 4; s++) for (let i = 0; i < 7; i++) {
+        const a = s * Math.PI / 2, w = 0.5 + ((i * 7 + s * 3) % 5) * 0.08;
+        g.add(mesh(box(w, 0.045, 0.02), black, Math.sin(a) * 0.66, 1.3 - i * 0.12, Math.cos(a) * 0.66, a));
+      }
+      break;
+    }
+    case 'bell': {
+      // The cracked bell, hung low between two oak posts on a stone sill
+      g.add(mesh(box(2.3, 0.3, 1.0), grey, 0, 0.15, 0));
+      for (const k of [-1, 1]) {
+        g.add(mesh(box(0.26, 2.7, 0.26), M.darkWood, k * 0.95, 1.65, 0));
+        g.add(mesh(box(0.5, 0.12, 0.5), M.darkWood, k * 0.95, 0.36, 0));
+      }
+      g.add(mesh(box(2.3, 0.26, 0.3), M.darkWood, 0, 3.0, 0));
+      g.add(mesh(box(0.4, 0.3, 0.3), M.darkWood, 0, 2.74, 0));
+      g.add(mesh(cyl(0.34, 0.6, 0.95, 14), M.bronze, 0, 2.1, 0));
+      g.add(mesh(cyl(0.64, 0.64, 0.1, 14), M.bronze, 0, 1.62, 0));
+      g.add(mesh(cyl(0.34, 0.34, 0.12, 14), M.bronze, 0, 2.6, 0));
+      g.add(mesh(box(0.04, 0.85, 0.03), black, 0.12, 2.08, 0.5, 0, -0.45, 0.12));     // the crack
+      g.add(mesh(box(0.7, 0.3, 0.03), brass, 0, 0.18, 0.51));
+      break;
+    }
+    case 'dog': {
+      const top = plinth(1.3, 0.8, pale, grey, 0.8);
+      plaque(0.65, 0.42, 0.5);
+      const d = new THREE.Group(); d.position.set(0, top, 0); d.rotation.y = 0.35; g.add(d);
+      for (const [x, z] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) d.add(mesh(box(0.1, 0.36, 0.1), M.bronze, x, 0.18, z));
+      d.add(mesh(box(0.34, 0.34, 0.86), M.bronze, 0, 0.5, 0));
+      d.add(mesh(box(0.2, 0.03, 0.7), flat('#e0b870'), 0, 0.68, 0));                  // rubbed bright
+      d.add(mesh(box(0.28, 0.3, 0.3), M.bronze, 0, 0.82, 0.48));
+      d.add(mesh(box(0.16, 0.14, 0.2), M.bronze, 0, 0.74, 0.7));
+      for (const k of [-1, 1]) d.add(mesh(box(0.08, 0.16, 0.06), M.bronze, k * 0.12, 1.0, 0.42, 0, 0, k * 0.4));
+      d.add(mesh(box(0.06, 0.06, 0.42), M.bronze, 0, 0.75, -0.55, 0, -0.7));
+      g.add(mesh(cyl(0.2, 0.15, 0.1, 10), M.iron, 0.55, 0.05, 0.85));                  // the water bowl
+      g.add(mesh(cyl(0.17, 0.17, 0.02, 10), flat('#2c4a56'), 0.55, 0.09, 0.85));
+      break;
+    }
+    case 'plough': {
+      const top = plinth(1.1, 0.9, sand, sandDk, 2.2);
+      plaque(0.7, 1.12);
+      const p = new THREE.Group(); p.position.y = top; g.add(p);
+      p.add(mesh(box(0.12, 0.12, 2.0), M.bronze, 0, 0.42, 0.1, 0, -0.22));               // the beam
+      for (const k of [-1, 1]) p.add(mesh(box(0.07, 0.07, 1.0), M.bronze, k * 0.24, 0.62, -0.95, 0, -0.55)); // handles
+      p.add(mesh(box(0.08, 0.5, 0.42), M.bronze, 0, 0.22, -0.25, 0, 0.3));             // the mouldboard
+      p.add(mesh(box(0.06, 0.06, 0.5), M.bronze, 0, 0.04, 0.05));                      // the share
+      p.add(mesh(cyl(0.26, 0.26, 0.06, 12), M.bronze, 0, 0.28, 1.0, 0, 0, Math.PI / 2));
+      for (const [x, z] of [[0.12, -0.05], [-0.1, 0.2], [0.05, 0.35]]) p.add(mesh(box(0.16, 0.1, 0.14), M.bronze, x, 0.05, z, x * 9)); // clods
+      break;
+    }
+    case 'column': {
+      g.add(mesh(box(1.7, 0.4, 1.7), grey, 0, 0.2, 0));
+      g.add(mesh(box(1.25, 1.1, 1.25), pale, 0, 0.95, 0));
+      g.add(mesh(box(1.4, 0.16, 1.4), grey, 0, 1.58, 0));
+      plaque(1.0, 0.64, 0.8);
+      g.add(mesh(cyl(0.36, 0.42, 4.2, 14), pale, 0, 3.76, 0));
+      g.add(mesh(box(0.98, 0.3, 0.98), grey, 0, 6.0, 0));
+      g.add(mesh(cyl(0.22, 0.32, 0.5, 10), pale, 0, 6.4, 0));                          // the urn, its lid long gone
+      g.add(mesh(cyl(0.3, 0.22, 0.22, 10), pale, 0, 6.76, 0));
+      break;
+    }
+    case 'seated': case 'netmender': {
+      const net = model === 'netmender';
+      const top = net ? 0.5 : plinth(1.5, 0.7, pale, grey, 1.2);
+      if (net) g.add(mesh(box(1.8, 0.5, 1.6), white, 0, 0.25, 0));
+      plaque(net ? 0.3 : 0.6, net ? 0.81 : 0.62, 0.62, net ? black : brass);
+      const m = M.bronze, f = new THREE.Group(); f.position.y = top; g.add(f);
+      if (net) f.add(mesh(cyl(0.3, 0.34, 0.6, 10), M.iron, 0, 0.3, -0.15));           // the bollard she sits on
+      else f.add(mesh(box(0.8, 0.6, 0.7), m, 0, 0.3, -0.15));                           // the school chair
+      for (const k of [-1, 1]) {
+        f.add(mesh(box(0.26, 0.22, 0.62), m, k * 0.16, 0.7, 0.2));                     // thighs
+        f.add(mesh(box(0.24, 0.62, 0.24), m, k * 0.16, 0.3, 0.48));                    // shins
+      }
+      f.add(mesh(box(0.64, 0.74, 0.4), m, 0, 1.15, -0.1, 0, -0.08));
+      f.add(mesh(box(0.34, 0.4, 0.34), m, 0, 1.72, 0.0, 0, 0.12));                     // looking down at her knee
+      if (!net) f.add(mesh(box(0.42, 0.42, 0.18), m, 0, 1.8, -0.18));                  // her hair, put up
+      else f.add(mesh(box(0.42, 0.3, 0.4), m, 0, 1.88, -0.04));                        // a headscarf
+      for (const k of [-1, 1]) f.add(mesh(box(0.18, 0.18, 0.5), m, k * 0.3, 1.0, 0.25, 0, 0.35));
+      if (net) {
+        const n = flat('#6a7a6a', { transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+        f.add(mesh(box(1.1, 0.02, 0.7), n, 0.1, 0.84, 0.3, 0.2));
+        f.add(mesh(box(1.0, 0.6, 0.02), n, 0.15, 0.55, 0.66));
+        for (let i = 0; i < 4; i++) f.add(mesh(box(0.1, 0.08, 0.1), flat('#c8402a'), -0.3 + i * 0.25, 0.86, 0.6));
+      } else {
+        f.add(mesh(box(0.5, 0.04, 0.36), flat('#3a3e44'), 0, 0.84, 0.3));             // the slate
+        f.add(mesh(box(0.3, 0.02, 0.1), white, 0, 0.865, 0.3));
+        for (let i = 0; i < 3; i++) f.add(mesh(box(0.38, 0.1, 0.28), m, 0.62, 0.05 + i * 0.1, 0.1, i * 0.4)); // a pile of books
+      }
+      break;
+    }
+    case 'boots': {
+      const top = plinth(1.4, 1.7, pale, grey);
+      plaque(1.1, 0.72, 0.62, white);
+      for (const k of [-1, 1]) {
+        g.add(mesh(box(0.3, 0.3, 0.52), pale, k * 0.18, top + 0.15, 0.08));
+        g.add(mesh(box(0.28, 0.66, 0.3), pale, k * 0.18, top + 0.63, 0));
+      }
+      g.add(mesh(box(0.86, 0.3, 0.5), pale, 0, top + 0.86, -0.06, 0, 0.1));            // the coat's hem, and nothing above it
+      g.add(mesh(box(0.86, 0.18, 0.5), M.stone, 0.02, top + 1.06, -0.04, 0.3, 0.2));   // rough where the chisel stopped
+      break;
+    }
+    case 'masons': {
+      g.add(mesh(box(2.4, 0.5, 1.4), granite, 0, 0.25, 0));
+      plaque(0.25, 0.71, 0.9);
+      g.add(mesh(box(0.92, 0.7, 0.72), M.stone, 0, 0.85, 0, 0.12, 0, 0.12));           // the real block, tipped up
+      g.add(mesh(box(0.28, 0.28, 0.02), black, 0.0, 0.88, 0.37, 0.12, 0, 0.12));       // Bray's mark
+      for (const k of [-1, 1]) {
+        const f = figure(M.bronze, k * 0.95, 0.5, 0, false, -k * Math.PI / 2);
+        f.children.slice(-2).forEach((c) => { c.rotation.x = 0.35; c.position.z += 0.18; }); // bent to the work
+        arm(f, M.bronze, -1, 1.2); arm(f, M.bronze, 1, 1.2);
+      }
+      g.add(mesh(box(0.08, 0.08, 2.2), M.iron, 0, 0.95, 0.28, Math.PI / 2, 0, 0.2));   // the crowbar between them
+      break;
+    }
+    case 'plumb': {
+      // The Warden's Plumb: a white frame pinned with black, a bronze bob hanging off its old mark
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) g.add(mesh(box(1, 0.06, 1), (i + j) % 2 ? black : white, -0.5 + i, 0.03, -0.5 + j));
+      for (const k of [-1, 1]) {
+        g.add(mesh(box(0.3, 3.4, 0.3), white, k * 0.85, 1.7, 0));
+        for (const y of [0.9, 2.0, 3.0]) g.add(mesh(box(0.34, 0.12, 0.34), black, k * 0.85, y, 0));
+      }
+      g.add(mesh(box(2.1, 0.3, 0.4), black, 0, 3.55, 0));
+      g.add(mesh(box(0.02, 2.75, 0.02), M.rope, 0.12, 2.04, 0));
+      g.add(mesh(cyl(0.16, 0.0, 0.36, 8), M.bronze, 0.12, 0.5, 0));
+      g.add(mesh(box(0.02, 0.01, 0.3), black, 0, 0.065, 0));                           // the old mark
+      g.add(mesh(box(0.02, 0.01, 0.3), black, 0.12, 0.065, 0));                        // the new one
+      g.add(mesh(box(0.02, 0.01, 0.2), grey, 0.22, 0.065, 0));                         // and a fainter one past it
+      g.add(mesh(box(0.7, 0.3, 0.03), brass, 0, 1.1, 0.17));
+      break;
+    }
+    case 'stones': {
+      g.add(mesh(box(2.0, 0.24, 1.6), grey, 0, 0.12, 0));
+      g.add(mesh(box(1.5, 0.8, 1.1), black, 0, 0.64, 0));
+      g.add(mesh(box(1.4, 0.9, 1.0), white, 0, 1.53, 0));                              // the white, lifted off the black
+      g.add(mesh(box(0.6, 0.26, 0.03), brass, 0, 0.66, 0.56));
+      break;
+    }
+    default: return statue(M);
+  }
+  return g;
+}
+
+/** A parish pump: a cast-iron standard painted green, its handle up, a stone trough under the spout. */
+export function pump(M: PropMaterials, tint = 0): THREE.Group {
+  const g = new THREE.Group();
+  const paint = flat(['#2f4a3a', '#3a3f48', '#5a2a26'][tint % 3]);
+  g.add(mesh(box(1.6, 0.1, 1.0), M.cobble, 0, 0.05, 0.1));
+  g.add(mesh(box(0.34, 1.7, 0.34), paint, 0, 0.95, -0.2));
+  g.add(mesh(cyl(0.24, 0.24, 0.16, 10), paint, 0, 1.86, -0.2));
+  g.add(mesh(cyl(0.1, 0.2, 0.2, 10), paint, 0, 2.02, -0.2));
+  g.add(mesh(box(0.08, 0.08, 0.38), paint, 0, 1.2, 0.0));                             // the spout
+  g.add(mesh(box(0.06, 0.06, 0.9), M.iron, 0.2, 1.75, -0.45, 0, -0.5));               // the handle
+  g.add(mesh(box(1.3, 0.42, 0.56), M.stone, 0, 0.31, 0.32));
+  g.add(mesh(box(1.16, 0.02, 0.42), flat('#2c4a56'), 0, 0.5, 0.32));
+  return g;
+}
+
+/** A long stone horse trough with a ring to tie up at either end. */
+export function trough(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(2.3, 0.62, 0.8), M.stone, 0, 0.31, 0));
+  g.add(mesh(box(2.1, 0.02, 0.6), flat('#2c4a56'), 0, 0.58, 0));
+  for (const k of [-1, 1]) {
+    g.add(mesh(box(0.3, 0.68, 0.86), M.cobble, k * 1.05, 0.34, 0));
+    g.add(mesh(cyl(0.1, 0.1, 0.03, 8), M.iron, k * 1.21, 0.5, 0, 0, 0, Math.PI / 2));
+  }
+  return g;
+}
+
+/** A stone well-head without a roof: a drum of dressed stone, an iron hoop over it with a pulley and a bucket. */
+export function wellhead(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(cyl(0.95, 1.02, 0.85, 14), M.stone, 0, 0.42, 0));
+  g.add(mesh(cyl(1.0, 1.0, 0.1, 14), M.cobble, 0, 0.9, 0));
+  g.add(mesh(cyl(0.72, 0.72, 0.04, 14), flat('#0e2430'), 0, 0.88, 0));
+  for (const k of [-1, 1]) g.add(mesh(box(0.08, 1.7, 0.08), M.iron, k * 0.85, 1.75, 0));
+  g.add(mesh(box(1.78, 0.08, 0.08), M.iron, 0, 2.6, 0));
+  g.add(mesh(cyl(0.16, 0.16, 0.06, 10), M.iron, 0, 2.45, 0, 0, 0, Math.PI / 2));
+  g.add(mesh(box(0.02, 0.9, 0.02), M.rope, 0, 1.95, 0.12));
+  g.add(mesh(cyl(0.18, 0.15, 0.28, 8), M.wood, 0.55, 1.08, 0.5));
+  return g;
+}
+
+/** A round seat built round a tree's trunk: eight slatted boards on legs. */
+export function ringSeat(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2, x = Math.sin(a) * 1.1, z = Math.cos(a) * 1.1;
+    g.add(mesh(box(0.92, 0.08, 0.42), M.wood, x, 0.46, z, a));
+    g.add(mesh(box(0.08, 0.44, 0.08), M.darkWood, Math.sin(a) * 1.25, 0.22, Math.cos(a) * 1.25));
+  }
   return g;
 }
 
@@ -2068,7 +2463,8 @@ export function tent(M: PropMaterials, color: string): THREE.Group {
   return g;
 }
 
-export function well(M: PropMaterials): THREE.Group {
+/** A covered well; its little roof red tile unless mat says slate or thatch. */
+export function well(M: PropMaterials, mat?: string): THREE.Group {
   const g = new THREE.Group();
   // A ring of cobble round an open shaft, capped with dressed stone, and dark water well down it
   for (let i = 0; i < 12; i++) {
@@ -2079,7 +2475,7 @@ export function well(M: PropMaterials): THREE.Group {
   g.add(mesh(cyl(0.82, 0.82, 0.04, 16), flat('#0e2430'), 0, 0.12, 0));
   for (const x of [-1, 1]) g.add(mesh(box(0.14, 2.2, 0.14), M.darkWood, x, 1.1, 0));
   g.add(mesh(cyl(0.12, 0.12, 2.1, 8), M.darkWood, 0, 1.8, 0, 0, 0, Math.PI / 2));
-  g.add(mesh(gableRoof(2.4, 1.6, 0.7, 0.2, 0.08, 0.15), M.roofRed, 0, 2.2, 0, Math.PI / 2));
+  g.add(mesh(gableRoof(2.4, 1.6, 0.7, 0.2, 0.08, 0.15), mat === 'slate' ? M.roofSlate : mat === 'thatch' ? M.thatch : M.roofRed, 0, 2.2, 0, Math.PI / 2));
   g.add(mesh(cyl(0.18, 0.15, 0.3, 8), M.wood, 0.2, 1.2, 0));
   return g;
 }

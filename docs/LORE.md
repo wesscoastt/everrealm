@@ -165,6 +165,7 @@ The walled Charter city. The keep is at the centre, the Charter Market is on the
 | **Market board** | A notice board on the Charter Market, by the well, for jobs and the Weighhouse's notices. |
 | **Toll Office** | Collects the Turnpike tolls and the Light Fund. A stone building in the gate yard, with its table set out inside the south gate. |
 | **The town** | Terraced houses line every street; the four quarters are lanes of back-to-back rows, with an inn on the corner of the keep square. The Weighhouse is the large stone building on the boulevard south of the market. |
+| **The monuments** | Each stands once, in a square of its own, with a plaque to read (`src/data/monuments.ts`): the Nought Stone that every Charter milestone counts from; Speaker Margery Rendle with the Charter open; the Toll Riders, "stood down by order of the Charter"; Weighmistress Alys Coppard, SCALES READ HEAVY chalked under her motto; the Butter Cross; the Fullers' Fountain; the Fever Stone; the New Town bell, cast by Gisborne & Son and cracked in its twelfth winter; Tray the drover's dog; the Counties' Plough, with Hugh Kellet's pencilled "Given?"; the Wall Column to Speaker Hext; Bet Annis the schoolmistress; an unfinished statue that is only boots; and the Wallers, with Thomas Bray's mark on the block. The other squares have a covered well, a parish pump, a horse trough, a well-head or a plane tree with a seat round it. |
 
 ### People
 
@@ -771,6 +772,7 @@ The rest of the expansion across the eastern sea (Saltpenny Key, Northgate, King
 - The Assembly city at the mouth of the Call, on the Bright Coast (`buildCallis` in `src/world/sites.ts`). The river runs through its middle between stone quays, under three bridges. North of it: the Towers, five white towers pinned with black at every course, round the Assembly's plaza and the domed Assembly Hall. South of it: the Market and the Hall of the Two Stones on its rise. Along the sea: the docks, four piers and the light at the harbour mouth.
 - Houses are white stone with cream quoins, a cream band at each floor and a black stone plinth: the two stones of Callis. Players can build their own house front this way ("Callis stone").
 - Callis names are short and plain: Ferrer, Oms, Sala, Vidal, Mas, Coll, Roig.
+- Its monuments (`src/data/monuments.ts`): the Warden's Plumb, hanging two fingers off its old mark; Rosa Roig the net-mender on her bollard, a real net on her knees renewed every spring; and the First Stones, the white lifted off the black by a knife's thickness.
 
 | Name | Role | Wants | Won't admit |
 | --- | --- | --- | --- |

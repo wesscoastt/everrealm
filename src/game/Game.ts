@@ -132,6 +132,7 @@ import { Farming, farmPatches } from './Farming';
 import { Rowboat } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty } from '../world/sites';
+import { MONUMENTS } from '../data/monuments';
 import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
@@ -929,6 +930,11 @@ export class Game implements GameApi {
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
       player: () => this.player.position,
     }, farmPatches(sitePlan().sites));
+    // The cities' monuments stand where the planner put them; each has its plaque to read
+    for (const m of sitePlan().monuments) if (!WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
+      const def = MONUMENTS.find((k) => k.id === m.id)!;
+      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: 'Read the plaque: ' + def.title, radius: 2.8, read: 'monument:' + m.id });
+    }
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.post = new PostRide(this.scene, this.world.voxels);
     this.fair = new WakeFair({
