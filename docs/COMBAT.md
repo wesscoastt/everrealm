@@ -145,7 +145,7 @@ that give the real numbers.
 | E | Builds: saved bars, effects table and cleanses | Planned |
 | F | Enemies: casters, menders, guards, summoners in every region; boss phases and stagger bars | Planned |
 | G | Interface: resource bars, costs, effect icons, cast bars | With each stage |
-| H | Testing and balance: the sim learns costs, blocks and interrupts; headless runs of each calling | With each stage |
+| H | Testing and balance: the sim learns costs, blocks and interrupts; headless runs of each calling | With each stage; the sim pays costs (below) |
 
 ### Stage C, first part (2026-10-28)
 
@@ -231,3 +231,19 @@ calling, tree, bar and morph within its limit.
 
 Not yet: foes taking aim at the raised dead, and a bonier look for them (they read as pale folk in old
 clothes); two clients in one group.
+
+### Stage H, the sim pays its way (2026-10-29)
+
+`npm run balance` now keeps stamina and magicka the way the game does (100 each; back at 12 and 9 a second
+in a fight), prices every skill as `Game.skillCost` does (`SKILL_COST`, else the calling's pool at the
+slot price), charges the weapon skill (the sim's cleave) 12 stamina, and won't cast what it can't pay for.
+It prints how many seconds a minute each calling had a skill ready and no means to pay.
+
+The first run found the casters starved: Firebolt, Frostbolt, Lantern Light and Wither come round every
+1.6 seconds and cost the utility price of 14, which is 8.8 magicka a second against 9 coming back, so
+nothing else could be cast (the Mender held back 15 seconds a minute and fell 10% under the average). At
+range those four stand in for the free swing, so they now cost 6. With that, no calling runs dry in the
+sim and every calling, tree, bar and morph is within its limit; cooldowns stay the pace, as designed.
+
+Not yet in the sim: the dodge's and the guard's stamina (it neither dodges nor blocks), so the stamina
+callings' pool is freer there than in play; interrupts.

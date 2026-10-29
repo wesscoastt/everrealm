@@ -7,8 +7,15 @@
 import { CALLINGS, CallingId, chosenUtilities, type SkillDef, TUNE as BASE } from '../src/data/classes';
 import { fullTree, TREES, tuned, type Tune } from '../src/data/talents';
 import { applyRank, MORPHS } from '../src/data/skillpoints';
+import { CALLING_POOL, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../src/data/combat';
 
 const DT = 0.05;
+/** The pools as the game keeps them in a fight (Game.ts): stamina back at 12 a second, magicka at POOLS.magicka.regenFight. */
+const STAMINA = { max: 100, regen: 12 };
+/** The weapon skill's price (the sim's cleave stands in for it): always stamina, as in the game. */
+const WEAPON_COST: Cost = { pool: 'stamina', n: 12 };
+/** Seconds a skill was ready but couldn't be paid for, across runs (reset by whoever reads it). */
+let dry = 0;
 const CRIT = 0.12, CRIT_MULT = 1.6;
 const CHAIN = [{ m: 1, d: 0.42 }, { m: 1.1, d: 0.42 }, { m: 1.5, d: 0.55 }];
 const CLEAVE = { m: 1.5, d: 0.6, cd: 6 };
@@ -36,6 +43,11 @@ function barOf(id: CallingId, utilities?: string[]): SkillDef[] {
 function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: SkillDef[] = barOf(id)): Result {
   const foes = f.foes();
   const cds = [0, 0, 0, 0, 0];
+  // The pools: each skill's price as Game.skillCost works it out (bar index 0 the heal, 4 the elite)
+  let sta = STAMINA.max, mag = POOLS.magicka.max, shortAt = -1;
+  const costs: Cost[] = bar.map((s, i) => SKILL_COST[s.id] ?? { pool: CALLING_POOL[id] ?? 'stamina', n: i === 0 ? SLOT_COST.heal : i === 4 ? SLOT_COST.elite : SLOT_COST.utility });
+  const canPay = (c: Cost) => c.pool === 'health' || (c.pool === 'stamina' ? sta : mag) >= c.n;
+  const pay = (c: Cost) => { if (c.pool === 'stamina') sta -= c.n; else if (c.pool === 'magicka') mag -= c.n; };
   let holdUntil = 0, rushUntil = 0, critNext = false, boltMult = 1;
   /** Burning or arrow-struck ground: so much a second to everything caught, until then. */
   const zones: { until: number; per: number; tick: number; chill?: boolean; fire?: boolean; mark?: boolean }[] = [];
@@ -79,6 +91,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     for (let i = 0; i < cds.length; i++) cds[i] = Math.max(0, cds[i] - DT);
     cleaveCd = Math.max(0, cleaveCd - DT);
     busy = Math.max(0, busy - DT);
+    sta = Math.min(STAMINA.max, sta + STAMINA.regen * DT);
+    mag = Math.min(POOLS.magicka.max, mag + POOLS.magicka.regenFight * DT);
     if (id === 'warden' && t - resolveAt > TUNE.resolve.fade) resolve = 0;
 
     // Effects over time
@@ -141,6 +155,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     const use = (i: number): boolean => {
       if (cds[i] > 0) return false;
       const s = bar[i];
+      if (!canPay(costs[i])) { if (shortAt !== t) { shortAt = t; dry += DT; } return false; }
       const furyK = id === 'reaver' && fury >= 100 && s.id !== 'redhour' ? TUNE.fury.mult : 1;
       switch (s.id) {
         case 'bulwark': if (f.dummy || hp > 0.85) return false; shield = TUNE.bulwark.shield; shieldUntil = t + TUNE.bulwark.secs; shieldKind = 'bulwark'; break;
@@ -180,10 +195,10 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         // Gravecaller: blood prices come out of Lifeblood first
         case 'siphon': { hit(tgt, TUNE.siphon.dmg); const room = 1 - hp; heal(TUNE.siphon.heal); if (TUNE.siphon.heal > room) addBlood((TUNE.siphon.heal - room) * TUNE.lifeblood.siphon); break; }
         case 'wither': hit(tgt, TUNE.wither.dmg); addWither(tgt, 1); break;
-        case 'raise': if (!payBlood(12)) return false; raisedUntil = t + TUNE.raise.secs; raiseTick = 0.6; break;
-        case 'boneward': if (f.dummy || hp > 0.85 || !payBlood(8)) return false; shield = TUNE.boneward.shield; shieldUntil = t + TUNE.boneward.secs; shieldKind = 'bone'; break;
+        case 'raise': if (!payBlood(SKILL_COST.raise.n)) return false; raisedUntil = t + TUNE.raise.secs; raiseTick = 0.6; break;
+        case 'boneward': if (f.dummy || hp > 0.85 || !payBlood(SKILL_COST.boneward.n)) return false; shield = TUNE.boneward.shield; shieldUntil = t + TUNE.boneward.secs; shieldKind = 'bone'; break;
         case 'gravegrip': live().slice(0, Math.min(caught(), 3)).forEach((o) => { hit(o, TUNE.gravegrip.dmg); o.stun = Math.max(o.stun, TUNE.gravegrip.stun); }); break;
-        case 'graverot': { if (caught() < 2 || hp < 0.35 || !payBlood(6)) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.graverot.dmg); addWither(o, TUNE.graverot.stacks); }); heal(TUNE.graverot.heal * caught()); break; }
+        case 'graverot': { if (caught() < 2 || hp < 0.35 || !payBlood(SKILL_COST.graverot.n)) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.graverot.dmg); addWither(o, TUNE.graverot.stacks); }); heal(TUNE.graverot.heal * caught()); break; }
         // Mender: alone, every heal is for yourself
         case 'mend': {
           if (f.dummy || hp > 0.7) return false;
@@ -202,14 +217,15 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'frostnova': if (ranged) return false; aoe(caught(), TUNE.frostnova.dmg); live().slice(0, caught()).forEach((e) => { e.stun = Math.max(e.stun, TUNE.frostnova.freeze); }); break;
       }
       if (furyK > 1) fury = 0;
+      pay(costs[i]);
       cds[i] = s.cd * (TUNE.cd[s.id] ?? 1);
       busy = TUNE.skillLock;
       return true;
     };
     if (use(4) || use(3) || use(2) || use(1) || use(0)) continue;
     if (ranged) continue; // at range, only the ranged skills
-    if (cleaveCd <= 0 && L.length > 1) {
-      aoe(Math.min(L.length, 4), CLEAVE.m); cleaveCd = CLEAVE.cd; busy = CLEAVE.d; chain = 0; continue;
+    if (cleaveCd <= 0 && L.length > 1 && canPay(WEAPON_COST)) {
+      pay(WEAPON_COST); aoe(Math.min(L.length, 4), CLEAVE.m); cleaveCd = CLEAVE.cd; busy = CLEAVE.d; chain = 0; continue;
     }
     const sw = CHAIN[chain];
     if (stepUntil > t) { hit(tgt, sw.m * TUNE.shadowstep.mult, true); stepUntil = 0; }
@@ -225,8 +241,12 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
 const RUNS = 300;
 const rangedCallings = new Set<CallingId>(['ashcaller', 'wizard', 'mender', 'gravecaller']);
 const rows: Record<string, number[]> = {};
+/** How long each calling had a skill ready and couldn't pay for it, seconds a minute of fighting. */
+const dryRate: Record<string, number> = {};
 for (const c of CALLINGS) {
   const cells: number[] = [];
+  dry = 0;
+  let fought = 0;
   for (const f of FIGHTS) {
     const modes = rangedCallings.has(c.id) && !f.dummy ? [false, true] : [false];
     let best = -Infinity;
@@ -234,6 +254,7 @@ for (const c of CALLINGS) {
       let score = 0;
       for (let r = 0; r < RUNS; r++) {
         const res = run(c.id, f, ranged);
+        fought += res.secs;
         // Dummies: damage a second. Real fights: health left at the end (a loss counts against you by how far the foe still had to go)
         if (f.dummy) score += res.dealt / res.secs;
         else score += res.won ? res.hpLeft : -(f.foes().reduce((s, e) => s + e.hp, 0) - res.dealt) / f.foes().reduce((s, e) => s + e.hp, 0);
@@ -243,6 +264,7 @@ for (const c of CALLINGS) {
     cells.push(best);
   }
   rows[c.id] = cells;
+  dryRate[c.id] = dry / (fought / 60);
 }
 
 const pad = (s: string, n: number) => s.padEnd(n);
@@ -263,6 +285,7 @@ for (const c of CALLINGS) {
   if (FIGHTS.every((_, i) => CALLINGS.every((o) => rows[c.id][i] >= rows[o.id][i]))) { console.log(`  ${c.name} is best at everything`); bad++; }
 }
 console.log(bad ? `${bad} balance problem(s)` : 'Balanced: every calling within 7% overall');
+console.log('held back by an empty pool, seconds a minute: ' + CALLINGS.map((c) => `${c.name} ${dryRate[c.id].toFixed(1)}`).join(', '));
 
 // Talent trees: each calling with each of its trees learned in full (every rank, capstone too) and
 // the two utilities the tree wants, scored against the fifteen builds' average the same way. Every tree has to stay within 7% of it, and no tree may be
