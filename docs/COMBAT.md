@@ -142,7 +142,7 @@ that give the real numbers.
 | B | Design | **Done** (above) |
 | C | Core: magicka, skill costs, block and perfect block, interrupts and the cast kind, control immunity, the damage pipeline in one place | **Part done** (below) |
 | D | Callings and weapons: weapon-family skills, the Mender, the Gravecaller, the Warden's support tree | **Part done**: the Mender and the Gravecaller (below) |
-| E | Builds: saved bars, effects table and cleanses | Planned |
+| E | Builds: saved bars, effects table and cleanses | **Done**: saved builds (bar, elite, talents), the harms table and cleanses (below) |
 | F | Enemies: casters, menders, guards, summoners in every region; boss phases and stagger bars | **Done** (below) |
 | G | Interface: resource bars, costs, effect icons, cast bars | With each stage |
 | H | Testing and balance: the sim learns costs, blocks and interrupts; headless runs of each calling | With each stage; the sim pays costs (below) |
@@ -390,3 +390,29 @@ price, so a weapon decides two of your keys:
 | spear | **Spear Sweep** (everything within four blocks struck and pushed back) | Long Thrust |
 | bow | **Point Blank** (an arrow at five blocks or less, knocking it back) | Hobbling Shot |
 | staff | **Staff Flurry** (three quick blows) | Staff Sweep |
+
+### Stage E: harms and cleanses (2026-10-29)
+
+Before this, nothing a foe did lasted past the blow. Now a foe's blows can leave a **harm** on you, from
+one table (`data/effects.ts`), each stacking and wearing off the same way wherever it comes from:
+
+| Harm | From | What it does |
+| --- | --- | --- |
+| Bleeding (up to 5) | claws, teeth and edges: wolves, hounds, boars, crabs, armed bandits | 0.6% of your health a second, each stack |
+| Burning (up to 3) | fire: cinder and vent things, lampmen, the glassblower, Old Clinker | 1% a second, each stack |
+| Poisoned (up to 5) | spiders, adders, spitters, spore and fen jellies | 0.4% a second each stack, and you're healed a third less |
+| Chilled | ice, rime, shards, the drowned | a third slower |
+| Weakened | the barrow dead, the Greyed | your blows 15% lighter |
+| Vulnerable | the very heavy: bears, trolls, cairns, bullies | blows on you 15% heavier |
+
+`inflictionOf` reads a foe's kind, name and weapon; three blows in ten (or four) leave the harm, and a
+harm already on you deepens and starts its time again. They show under your health bar, red, with the
+seconds left. **Cleansing**: your calling's heal (key 4) takes off the newest harm on you; each second
+the Mender's Restoration ticks on you it takes off another; all of them go when you come back from the
+dead. Saved builds (three per calling, changed at a temple) now keep the chosen elite with the bar
+and talents.
+
+Verified headless (`.walker/scen-harms.js`): two bleeds stacked and ticked, shown under the bar as
+"Bleeding ×2 3s"; with a bleed and then a poison on, the Warden's heal took off the poison (the newest)
+and left the bleed; chilled, a second's walk went 5.46 blocks to 3.63; a wolf's fourth bite left a bleed.
+A harm ticking keeps you in the fight, so resting doesn't wash it out.

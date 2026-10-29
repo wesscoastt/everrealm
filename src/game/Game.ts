@@ -40,6 +40,7 @@ import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal, type AnimalKind } from '../entities/Animal';
 import { Enemy, FOE_RULES, type EnemyContext } from '../entities/Enemy';
+import { EFFECTS, inflictionOf, type EffectId, type Infliction } from '../data/effects';
 import { Companions } from './Companions';
 import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import { COMPANIONS, type CompanionId, type CompanionRole } from '../data/companions';
@@ -992,11 +993,13 @@ export class Game implements GameApi {
       power: () => this.swingPower(),
       hit: (e, d, o) => this.dealDamage(e, d * (0.9 + Math.random() * 0.2), o?.crit ?? (!o?.quiet && Math.random() < 0.12 + (this.blade?.crit ?? 0)), !!o?.quiet),
       heal: (n) => {
+        n *= this.healingTaken();
         const h = Math.min(this.maxHp - this.hp, Math.round(n));
         if (h > 0 && !this.dead) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
         this.dungeons.shareHeal(n);
       },
       maxHp: () => this.maxHp,
+      cleanse: (n) => this.cleanse(n),
       friends: () => this.friendsNear(),
       hp: () => this.hp,
       level: () => this.level('melee'),
@@ -1652,7 +1655,7 @@ export class Game implements GameApi {
     const P = this.player.position, out: Friend[] = [];
     out.push({
       name: this.save.name, pos: P, hp: this.hp, max: this.maxHp, me: true,
-      heal: (n) => { const h = Math.min(this.maxHp - this.hp, Math.round(n)); if (h > 0 && !this.dead) { this.hp += h; this.floatAt(P, 2.2, `+${h}`, 'heal'); } },
+      heal: (n) => { const h = Math.min(this.maxHp - this.hp, Math.round(n * this.healingTaken())); if (h > 0 && !this.dead) { this.hp += h; this.floatAt(P, 2.2, `+${h}`, 'heal'); } },
       ward: (n, secs) => this.kit.addShield(n, secs),
     });
     for (const a of this.dungeons.run?.allies ?? []) {
@@ -2729,7 +2732,48 @@ export class Game implements GameApi {
       if (b && b.left > 0) out.push({ name: ITEMS[b.id]?.name ?? b.id, left: b.left, kind: slot });
     }
     if (this.winded) out.push({ name: 'Winded', left: 0, kind: 'winded' });
+    for (const [id, h] of this.harms) out.push({ name: EFFECTS[id].name + (h.stacks > 1 ? ` ×${h.stacks}` : ''), left: Math.max(0, h.until - this.elapsed), kind: 'harm' });
     return out;
+  }
+
+  // ---- Harms (data/effects.ts): what foes' blows leave on you
+  /** The harms on you: how deep, until when, when they last ticked, and when they came (for cleansing the newest). */
+  private harms = new Map<EffectId, { stacks: number; until: number; tick: number; at: number }>();
+  private inflictions = new WeakMap<object, Infliction | null>();
+  /** A harm on you, or deeper and fresh again. */
+  harm(id: EffectId, secs: number): void {
+    const d = EFFECTS[id], h = this.harms.get(id);
+    if (h) { h.stacks = Math.min(d.max, h.stacks + 1); h.until = this.elapsed + secs; h.at = this.elapsed; }
+    else { this.harms.set(id, { stacks: 1, until: this.elapsed + secs, tick: 1, at: this.elapsed }); this.floatAt(this.player.position, 2.8, d.name, 'player'); }
+  }
+  /** Take off the newest harms (a heal, a Restoration's tick). */
+  cleanse(n = 1): number {
+    let done = 0;
+    for (; done < n && this.harms.size; done++) {
+      const [id] = [...this.harms].sort((a, b) => b[1].at - a[1].at)[0];
+      this.harms.delete(id);
+      this.floatAt(this.player.position, 2.6, 'Cleansed', 'heal');
+    }
+    return done;
+  }
+  /** The sum of one number over the harms on you (slow, weak, vuln), or the product (healing). */
+  private harmed(k: 'slow' | 'weak' | 'vuln'): number { let v = 0; for (const [id] of this.harms) v += EFFECTS[id][k] ?? 0; return v; }
+  private healingTaken(): number { let v = 1; for (const [id] of this.harms) v *= EFFECTS[id].healing ?? 1; return v; }
+  /** Harms tick (the ones that hurt, each second) and wear off. */
+  private tickHarms(dt: number): void {
+    for (const [id, h] of this.harms) {
+      if (h.until <= this.elapsed || this.dead) { this.harms.delete(id); continue; }
+      const dot = EFFECTS[id].dot;
+      if (!dot || (h.tick -= dt) > 0) continue;
+      h.tick = 1;
+      if (this.dev.god) continue;
+      const n = Math.max(1, Math.round(this.maxHp * dot * h.stacks));
+      // (something still eating at you keeps you in the fight: no resting it off)
+      this.lastCombat = this.elapsed;
+      this.hp -= n;
+      this.floatAt(this.player.position, 2.0, `-${n}`, 'tick');
+      if (this.hp <= 0) { this.die(); return; }
+    }
   }
   /** Out of breath: run dry and you trudge until a third of it is back. */
   private winded = false;
@@ -2940,7 +2984,7 @@ export class Game implements GameApi {
     this.online.uClaim(id);
   }
   private healSelf(n: number): void {
-    const h = Math.min(this.maxHp - this.hp, Math.round(n));
+    const h = Math.min(this.maxHp - this.hp, Math.round(n * this.healingTaken()));
     if (h > 0 && !this.dead) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
   }
 
@@ -5630,7 +5674,7 @@ export class Game implements GameApi {
     const flank = (this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1) * (e.exposedLeft > 0 ? 1 + EXPOSED : 1);
     // A guard's shield, if you're in front of it: most of the blow is turned (go round it, or stun it)
     const guarded = e.guarding(this.player.position);
-    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank * (guarded ? 1 - FOE_RULES.guard.cut : 1)));
+    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
     if (guarded && !quiet && this.elapsed - this.guardSaid > 1.2) { this.guardSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.6, 'Guarded', 'dodge'); this.sfx('hitHeavy', 0.4); }
     const landed = this.activities.beforeHit(e, dmg);
     e.takeDamage(landed, this.player.position, this.elapsed);
@@ -5911,7 +5955,12 @@ export class Game implements GameApi {
     if (fx.has('stone_skin') && this.elapsed - this.lastHurt > 8) taken = Math.max(1, Math.round(taken * 0.5));
     if (this.mastery('bracing')) taken = Math.max(1, Math.round(taken * (1 - this.mastery('bracing'))));
     this.lastHurt = this.elapsed;
+    taken = Math.round(taken * (1 + this.harmed('vuln')));
     this.hp -= taken;
+    // What the blow leaves behind (data/effects.ts)
+    if (!this.inflictions.has(from.base)) this.inflictions.set(from.base, inflictionOf(from.base));
+    const inf = this.inflictions.get(from.base);
+    if (inf && Math.random() < inf.chance) this.harm(inf.id, inf.secs);
     // In the Cockpit nobody dies: a duellist's blow that leaves you at a quarter, and you yield
     if (this.activities.duels.playerHit(from, this.hp, this.maxHp)) this.hp = Math.max(this.hp, 1);
     // The Rust Queen's gauntlets give a third of it back; the sexton's helm wards you below half health
@@ -5988,6 +6037,7 @@ export class Game implements GameApi {
   }
 
   private respawn(): void {
+    this.harms.clear();
     this.dead = false;
     this.player.locked = false;
     this.hp = Math.round(this.maxHp * 0.6);
@@ -6579,6 +6629,8 @@ export class Game implements GameApi {
     this.tickBuffs(dt);
     this.hud.setBuffs(this.buffList());
     if (this.attack) speed *= this.attack.kind === 'cleave' ? 0.6 : 0.85;
+    speed *= 1 - this.harmed('slow');
+    this.tickHarms(dt);
     if (this.dev.fast) speed *= 2.5;
     if (!this.fx.has('mudwalker')) speed *= this.hazards.slow;
     speed *= 1 + this.armour.swift;

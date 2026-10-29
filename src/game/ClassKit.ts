@@ -56,6 +56,8 @@ export interface KitHost {
   clear(at: THREE.Vector3): boolean;
   /** You and everyone on your side near you (you first). */
   friends(): Friend[];
+  /** Take off your newest harms (data/effects.ts); how many came off. */
+  cleanse?(n: number): number;
   /** Your health now, your level, and the world (a Gravecaller's raised dead walk in it). */
   hp(): number;
   level(): number;
@@ -358,6 +360,8 @@ export class ClassKit {
     this.host.used?.(s.id);
     if (fury > 1) { this.fury = 0; this.host.particles.burst(P.clone().setY(P.y + 1), '#ff5a3a', 20); }
     this.cds[i] = this.cdOf(s, i);
+    // Your calling's heal takes off the newest harm on you (data/effects.ts)
+    if (i === 0) this.host.cleanse?.(1);
     if (i > 0) this.host.inCombat();
     return true;
   }
@@ -1276,7 +1280,7 @@ export class ClassKit {
       }
     }
     // Restoration, a second at a time on each friend it was laid on
-    for (const h of this.hots) { h.left -= dt; if ((h.tick -= dt) <= 0) { h.tick = 1; h.f.heal(h.per); } }
+    for (const h of this.hots) { h.left -= dt; if ((h.tick -= dt) <= 0) { h.tick = 1; h.f.heal(h.per); if (h.f.me) H.cleanse?.(1); } }
     this.hots = this.hots.filter((h) => h.left > 0);
     // Unbroken mends you, and the Vigil mends you and yours, a little each second
     if ((this.unbrokenUntil > this.clock || this.vigilUntil > this.clock) && (this.eliteTick -= dt) <= 0) {

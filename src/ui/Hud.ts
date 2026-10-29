@@ -565,12 +565,12 @@ export class Hud {
   /** The meals, drinks and states working on you, under your health bar. */
   private buffKey = '';
   setBuffs(list: { name: string; left: number; kind: string }[]): void {
-    const key = list.map((b) => b.name + Math.ceil(b.left / 60)).join('|');
+    const key = list.map((b) => b.name + (b.kind === 'harm' ? Math.ceil(b.left) : Math.ceil(b.left / 60))).join('|');
     if (key === this.buffKey) return;
     this.buffKey = key;
     let box = document.getElementById('buffs');
     if (!box) { box = el('div', 'hud-only'); box.id = 'buffs'; this.root.append(box); }
-    box.innerHTML = list.map((b) => `<span class="bf ${b.kind}">${esc(b.name)}${b.left > 0 ? ` <i>${Math.ceil(b.left / 60)}m</i>` : ''}</span>`).join('');
+    box.innerHTML = list.map((b) => `<span class="bf ${b.kind}">${esc(b.name)}${b.left > 0 ? ` <i>${b.kind === 'harm' ? Math.ceil(b.left) + 's' : Math.ceil(b.left / 60) + 'm'}</i>` : ''}</span>`).join('');
   }
 
   setPlayer(name: string, level: number, hp: number, maxHp: number, energy: number, magicka = 100): void {
