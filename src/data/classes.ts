@@ -120,6 +120,7 @@ export const CALLINGS: CallingDef[] = [
       { id: 'quickstep', name: 'Quickstep', icon: 'quickstep', cd: 10, desc: 'Spring back out of reach. Your next Strike within four seconds is a heavy critical blow.' },
       { id: 'heartshot', name: 'Heart Shot', icon: 'heartshot', cd: 12, desc: 'Take your time over one arrow: a heavy shot, and a third heavier on a marked foe.' },
       { id: 'smoke', name: 'Smoke Arrow', icon: 'smoke', cd: 18, aim: 18, desc: 'An arrow of burning rags where you aim: everything there is singed, and everything in the smoke strikes 15% softer, moves slower and is marked for six seconds.' },
+      { id: 'hound', name: 'Hunting Hound', icon: 'hound', cd: 30, desc: 'Whistle up your hound: for twenty seconds it runs down whatever you fight, biting every second or so, and anything it bites may turn on it instead of you.' },
     ],
     elites: [
       { id: 'deadeye', name: 'Deadeye', icon: 'deadeye', cd: 60, desc: 'Steady breathing and a quiet hand: for seven seconds every blow and arrow you land is a critical hit.' },
@@ -316,15 +317,17 @@ export const TUNE = {
   judgement: { dmg: 2.2, stun: 0.8, range: 20 },
   /** Gravecaller: Bone Spear (through a line) and Dread (everything near held, and withered). */
   bonespear: { dmg: 2.8, reach: 14, width: 1 },
-  dread: { r: 6, stun: 2, stacks: 2, dmg: 1.5 },
+  dread: { r: 6, stun: 2, stacks: 2, dmg: 1.75 },
   /** The elites to choose instead (CallingDef.elites). */
   unbroken: { heal: 0.4, secs: 8 },
   massacre: { r: 5, dmg: 1.3, hits: 3, every: 0.45 },
-  pillar: { r: 3, burn: 1.0, secs: 10, range: 16 },
+  pillar: { r: 3, burn: 0.94, secs: 10, range: 16 },
   deadeye: { secs: 7 },
   deepfreeze: { r: 8, freeze: 4, dmg: 2.0 },
   vigil: { secs: 10, r: 15, floor: 0.2, heal: 0.03 },
   plague: { r: 10, dmg: 1.2, stacks: 3 },
+  /** Pathfinder's Hunting Hound: lasts secs, bites dmg every so often (a bleed one time in bleed), hp a share of yours; draw: about the share of blows that go for it. */
+  hound: { secs: 20, dmg: 0.36, every: 1.2, bleed: 0.25, hp: 0.4, draw: 0.2 },
   // Key 2 by the weapon in hand (SECOND_SKILLS)
   backstab: { dmg: 1.1, behind: 2.3, range: 3 },
   hook: { dmg: 1.0, range: 6, pull: 9, stun: 0.6 },

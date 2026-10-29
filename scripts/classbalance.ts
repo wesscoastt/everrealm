@@ -71,6 +71,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   let unbrokenUntil = 0, deadeyeUntil = 0, vigilUntil = 0, massacreLeft = 0, massacreNext = 0;
   // The Prowler: Openings, out of sight until, the first blow from hiding, poisoned blows left, A Thousand Cuts to come
   let openings = 0, hiddenUntil = 0, fromHiding = 1, venom = 0, cutsLeft = 0, cutsNext = 0;
+  // The Pathfinder's hound: until when, its next bite, its health (a share of yours)
+  let houndUntil = 0, houndBite = 0, houndHp = 0;
   const hit = (e: Foe, p: number, crit = Math.random() < CRIT) => {
     let d = p * (crit || (deadeyeUntil > t && p > 0.3) ? CRIT_MULT : 1);
     if (redUntil > t) d *= TUNE.redhour.dealt;
@@ -116,6 +118,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (restoreUntil > t) heal(TUNE.restore.heal / TUNE.restore.secs * DT);
     if (unbrokenUntil > t) heal(TUNE.unbroken.heal / TUNE.unbroken.secs * DT);
     if (vigilUntil > t) heal(TUNE.vigil.heal * DT);
+    if (houndUntil > t && houndHp > 0 && (houndBite -= DT) <= 0) { houndBite = TUNE.hound.every; const to = live()[0]; if (to) { hit(to, TUNE.hound.dmg); if (Math.random() < TUNE.hound.bleed) { to.bleed = 4; to.bleedPer = 0.15; } } }
     if (cutsLeft > 0 && t >= cutsNext) { const to = live()[0]; if (to) hit(to, TUNE.thousand.dmg); cutsLeft--; cutsNext += TUNE.thousand.every; }
     if (massacreLeft > 0 && t >= massacreNext) { aoe(caught(), TUNE.massacre.dmg); massacreLeft--; massacreNext += TUNE.massacre.every; }
     for (const e of L) if (e.wither && (e.withered ?? 0) > t) { hit(e, TUNE.wither.dot * e.wither * DT, false); addBlood(TUNE.lifeblood.tick * e.wither * DT); }
@@ -147,6 +150,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       if (ranged && Math.random() < 0.5) continue;
       if (evadeUntil > t || hiddenUntil > t) continue;
       if (id === 'prowler' && Math.random() < TUNE.openings.dodge) continue;
+      // Some go for the hound instead (anything it has bitten may turn on it)
+      if (houndUntil > t && houndHp > 0 && Math.random() < TUNE.hound.draw) { houndHp -= e.rate * 1.2; continue; }
       let d = e.rate * 1.2;
       if (id === 'warden') {
         d *= 1 - resolve * TUNE.resolve.per; resolve = Math.min(TUNE.resolve.max, resolve + 1); resolveAt = t;
@@ -226,6 +231,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'vigil': if (f.dummy || hp > 0.6) return false; vigilUntil = t + TUNE.vigil.secs; break;
         case 'plague': live().slice(0, caught()).forEach((o) => { hit(o, TUNE.plague.dmg); addWither(o, TUNE.plague.stacks); }); break;
         // The Prowler
+        case 'hound': houndUntil = t + TUNE.hound.secs; houndBite = 0.5; houndHp = TUNE.hound.hp; break;
         case 'slipaway': if (!f.dummy && hp > 0.7) return false; heal(TUNE.slipaway.heal); hiddenUntil = t + TUNE.slipaway.hide; fromHiding = TUNE.slipaway.mult; break;
         case 'twist': { if (ranged || openings < 3) return false; const n = openings; openings = 0; hit(tgt, TUNE.twist.dmg + TUNE.twist.per * n); break; }
         case 'thousand': if (ranged) return false; cutsLeft = TUNE.thousand.hits; cutsNext = t; break;

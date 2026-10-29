@@ -449,3 +449,15 @@ Every skill key carries its price on the corner (`Hud.setAbilities`): green for 
 red for a blood price (in percent of your health); Strike and Cleave carry none, being free. Checked
 headless on a Gravecaller with a dagger: Backstab 10 and Flurry 12 green, Siphon 18 and Wither 6 blue,
 Bone Ward 8%, Grave Rot 6% and Raise the Fallen 12% red.
+
+### The Pathfinder's beast (2026-10-29)
+
+**Hunting Hound**, a sixth Pathfinder utility: a hound at your side for twenty seconds that runs down
+whatever you fight, bites every second or so (a bleed one time in four), and draws what it bites onto
+itself, the way the raised dead do (`ClassKit.Body`, shared by both now). It has two fifths of your health
+and goes home when its time is up or it's beaten. Morphs: Good Dog (ten seconds longer, a third tougher)
+and Bloodhound (a fifth harder, bleeding twice as often). Balanced in every pair it makes; Dread and
+Pillar of Fire nudged to keep their pairs and elites within their limits.
+
+Verified headless (`.walker/scen-hound.js`): called, the hound took 214 off a wolf in eight seconds; the
+wolf turned on it and took it 98 to 59; it went home after twenty.

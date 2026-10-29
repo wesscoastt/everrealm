@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CreatureModel } from '../entities/creatures';
 import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SECOND_SKILLS, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
 
@@ -66,6 +67,9 @@ export interface KitHost {
   used?(id: string): void;
 }
 
+/** A body of yours foes can turn on: a raised one, the hound. */
+export interface Body { pos: THREE.Vector3; down: boolean; hurt(dmg: number): boolean }
+
 interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean; bounce?: number; wither?: boolean }
 interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
@@ -111,7 +115,9 @@ export class ClassKit {
   private wither = new Map<Enemy, { n: number; until: number; tick: number }>();
   private thralls: { body: Ally; left: number; swing: number }[] = [];
   /** Foes a raised one has struck lately, and which: they turn on it for a while (drawnTo). */
-  private drawn = new Map<Enemy, { body: Ally; until: number }>();
+  private drawn = new Map<Enemy, { body: Body; until: number }>();
+  /** The Pathfinder's hound: its body, health and timers, while it's out. */
+  private hound: (Body & { model: CreatureModel; yaw: number; hp: number; max: number; left: number; bite: number }) | null = null;
   // Effects
   private shield = 0; private shieldUntil = 0;
   /** Whose the shield is: a Bulwark and an Ice Barrier each do something of their own when it breaks or runs out (talents). */
@@ -148,6 +154,7 @@ export class ClassKit {
     // Nothing carries over from the old calling
     this.fury = this.kindling = this.resolve = this.shield = 0;
     this.openings = this.hiddenUntil = this.venom = 0; this.fromHiding = 1;
+    this.dismissHound();
     this.shieldUntil = this.oathUntil = this.redUntil = this.wardUntil = this.stepStrike = 0;
     this.holdUntil = this.rushUntil = this.riposteUntil = this.hotUntil = 0;
     this.shieldKind = 'other';
@@ -908,6 +915,22 @@ export class ClassKit {
         H.anim('cleave'); H.sfx('growl');
         return true;
       }
+      // Pathfinder: whistle up the hound
+      case 'hound': {
+        this.dismissHound();
+        const model = new CreatureModel('dog', { a: '#7a5a3a', b: '#4a3422' });
+        const pos = P.clone().add(new THREE.Vector3(-Math.sin(H.yaw()) * 1.5, 0, -Math.cos(H.yaw()) * 1.5));
+        const max = H.maxHp() * T.hound.hp;
+        const h = {
+          model, pos, yaw: H.yaw(), hp: max, max, left: T.hound.secs, bite: 0.5, down: false,
+          hurt: (dmg: number) => { h.hp -= dmg; h.model.flashHit(); if (h.hp <= 0) h.down = true; return h.down; },
+        };
+        this.hound = h;
+        H.scene.add(model.root);
+        H.particles.dust(pos.clone().setY(pos.y + 0.3), 12);
+        H.sfx('growl');
+        return true;
+      }
       // ---- The Prowler
       case 'slipaway':
         H.heal(H.maxHp() * T.slipaway.heal);
@@ -1209,19 +1232,27 @@ export class ClassKit {
     else this.wither.set(e, { n: Math.min(T.wither.max, n), until: this.clock + T.wither.secs, tick: 1 });
   }
   /** The raised one a foe has turned on, if it's still standing and near (foes aim at it instead of you: Game's enemy loop). */
-  drawnTo(e: Enemy): Ally | null {
+  drawnTo(e: Enemy): Body | null {
     const d = this.drawn.get(e);
     if (!d) return null;
-    if (d.until <= this.clock || d.body.down || !this.thralls.some((t) => t.body === d.body) || d.body.pos.distanceTo(e.pos) > 16) { this.drawn.delete(e); return null; }
+    if (d.until <= this.clock || d.body.down || !(this.thralls.some((t) => t.body === d.body) || this.hound === d.body) || d.body.pos.distanceTo(e.pos) > 16) { this.drawn.delete(e); return null; }
     return d.body;
   }
   /** A foe's blow on one of the raised: enough of them and it falls apart. */
-  hurtRaised(b: Ally, dmg: number): void {
+  hurtRaised(b: Body, dmg: number): void {
     const fell = b.hurt(dmg);
     this.host.particles.dust(b.pos.clone().setY(b.pos.y + 1), fell ? 18 : 5);
   }
   /** How many of the raised are standing (a check for tests and the bar). */
   get raisedCount(): number { return this.thralls.length; }
+
+  /** The hound goes home. */
+  private dismissHound(): void {
+    if (!this.hound) return;
+    this.host.particles.dust(this.hound.pos.clone().setY(this.hound.pos.y + 0.3), 10);
+    this.host.scene.remove(this.hound.model.root);
+    this.hound = null;
+  }
 
   /** The raised lie down again. */
   private dismissThralls(): void {
@@ -1351,6 +1382,37 @@ export class ClassKit {
       // Left behind (a cliff, a river): up out of the ground beside you again
       if (b.pos.distanceTo(P) > 30) { b.place(P.x + 1, P.y, P.z + 1); H.particles.dust(b.pos.clone().setY(b.pos.y + 0.3), 10); }
       b.update(dt, moving);
+    }
+    // The hound: to whatever you're fighting, a bite every so often, and home when its time is up
+    if (this.hound) {
+      const h = this.hound;
+      h.left -= dt; h.bite -= dt;
+      let foe: Enemy | null = null, best = 18;
+      for (const e of H.enemies()) { const k = e.pos.distanceTo(P); if (e.alive && k < best) { foe = e; best = k; } }
+      let speed = 0, tx = P.x - Math.sin(H.yaw()) * 1.5, tz = P.z - Math.cos(H.yaw()) * 1.5;
+      if (foe) { tx = foe.pos.x; tz = foe.pos.z; }
+      const dx = tx - h.pos.x, dz = tz - h.pos.z, d = Math.hypot(dx, dz);
+      if (d > (foe ? 1.5 : 0.8)) {
+        speed = Math.min(9, d * 3);
+        const st = Math.min(d, speed * dt);
+        h.pos.x += (dx / d) * st; h.pos.z += (dz / d) * st;
+        h.yaw = Math.atan2(dx, dz);
+      } else if (foe && h.bite <= 0) {
+        h.bite = T.hound.every;
+        h.yaw = Math.atan2(dx, dz);
+        H.hit(foe, H.power() * T.hound.dmg, { quiet: true });
+        if (Math.random() < T.hound.bleed) this.addDot(foe, H.power() * 0.15, 4);
+        h.model.setAnim('attack');
+        if (!foe.isBoss || Math.random() < 0.35) this.drawn.set(foe, { body: h, until: this.clock + 5 });
+      }
+      if (h.pos.distanceTo(P) > 30) h.pos.set(P.x + 1, P.y, P.z + 1);
+      const gy = H.voxels().groundBelow(h.pos.x, h.pos.y + 2, h.pos.z);
+      h.pos.y += (gy - h.pos.y) * Math.min(1, dt * 12);
+      h.model.root.position.copy(h.pos);
+      h.model.root.rotation.y = h.yaw;
+      if (h.model.anim !== 'attack' || h.model.animTime > 0.4) h.model.setAnim(speed > 5 ? 'run' : speed > 0.2 ? 'walk' : 'idle');
+      h.model.update(dt, speed);
+      if (h.left <= 0 || h.down) this.dismissHound();
     }
     for (const th of this.thralls) if (th.body.down) th.left = 0;
     if (this.thralls.some((t) => t.left <= 0)) {

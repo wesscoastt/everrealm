@@ -262,6 +262,10 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'dread_a', name: 'Terror', desc: 'Held half a second longer.', mod: (t) => { t.dread.stun += 0.5; } },
     { id: 'dread_b', name: 'Rot of Fear', desc: 'Withers three deep, held half a second less.', mod: (t) => { t.dread.stacks += 1; t.dread.stun -= 0.5; } },
   ],
+  hound: [
+    { id: 'hound_a', name: 'Good Dog', desc: 'Stays ten seconds longer, and takes a third more before it\'s beaten.', mod: (t) => { t.hound.secs += 10; t.hound.hp *= 1.33; } },
+    { id: 'hound_b', name: 'Bloodhound', desc: 'Bites a fifth harder, and its bites bleed twice as often.', mod: (t) => { scale(t.hound, 'dmg', 1.2); t.hound.bleed *= 2; } },
+  ],
   // ---------------------------------------------------------------- The Prowler
   slipaway: [
     { id: 'slipaway_a', name: 'Fade', desc: 'Out of sight a second longer, healing a little less.', mod: (t) => { t.slipaway.hide += 1; t.slipaway.heal *= 0.85; } },

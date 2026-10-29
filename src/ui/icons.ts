@@ -350,6 +350,7 @@ const GLYPHS: Record<string, [string[], string]> = {
   poisonblade: [['........XX', '.......XX.', '......XX..', '.....XX...', '....XX....', '...XX.....', '..XX......', '.XX.X.....', 'X...X.....', '....X.....'], '#b8f080'],
   tumble: [['....XXX...', '...X...X..', '..X.....X.', '..X..XX.X.', '...XX..X..', '.........X', 'X......XX.', '.XX..XX...', '...XX.....', '..........'], '#d8ccff'],
   ambush: [['....XX....', '...XXXX...', '....XX....', '..XXXXXX..', 'X.XXXXXX..', '.XX.XX....', '..XXXX....', '...X..X...', '..X....X..', '.X......X.'], '#e8d8ff'],
+  hound: [['..........', 'XX........', 'XXX.....X.', '.XXXXXXXX.', '.XXXXXXX..', '.XXXXXXX..', '.X.X..X.X.', '.X.X..X.X.', '..........', '..........'], '#e8d0a8'],
   // The weapon kinds' own (key 3): an axe's bit and its drops, a great axe's turning arc, a hammer
   // ringing, a spear's long head, an arrow at a heel, a staff swept low
   hack: [['..XXXX....', '.XXXXXX...', 'XXXXXXXX..', '.XXXXXXX..', '...XXXXX..', '.....XX...', '....X.X...', '...X..X.X.', '..X.....X.', '.X....X...'], '#ffd0c0'],
@@ -411,6 +412,7 @@ export function abilityIcon(kind: string): string {
     spearsweep: ['#7a8a9a', '#4a5664', '#262c34'], pointblank: ['#9a6a3a', '#64421e', '#34220c'], staffflurry: ['#8a7a5a', '#5a4e36', '#2e281a'],
     slipaway: ['#5a4a7a', '#34284a', '#1a1426'], twist: ['#6a5a8a', '#3e3058', '#1e182e'], thousand: ['#7a6a9a', '#4a3e68', '#241e36'], vanish: ['#4a4060', '#2a243a', '#14101e'], pocketsand: ['#9a8a5a', '#645a36', '#342e1a'],
     caltrops: ['#6a6a6a', '#424242', '#222222'], poisonblade: ['#5a8a3a', '#34581e', '#1a2e0c'], tumble: ['#6a5a8a', '#3e3058', '#1e182e'], ambush: ['#3a3050', '#221c30', '#100c18'],
+    hound: ['#8a6a4a', '#5a422a', '#2e2214'],
     hack: ['#a84a3a', '#6a2a1e', '#3a140c'], whirl: ['#9a8a6a', '#5e5440', '#302a1e'], bellringer: ['#b8a060', '#7a6430', '#423414'],
     longthrust: ['#8a9aa8', '#56626e', '#2a3038'], hobble: ['#7a9a5a', '#4a6a34', '#24361a'], sweep: ['#a89070', '#6a5640', '#382c1e'],
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],
