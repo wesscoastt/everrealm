@@ -586,10 +586,13 @@ A calling is for life: chosen when a character is made, as in WoW and ESO (chara
 | Wizard | **Rosalind Eyre**, keeper of Scarth Watch | Kelderby, where she comes down for the post |
 | Mender | **Joan Abney**, keeps the menders' room | the Minster, Ansbury (the east transept) |
 | Gravecaller | **Elias Jewell**, keeps the barrows on Tolmen Moor | Scarrow Tor, by the market cross |
+| Prowler | **Sal Trevenna**, knows the Gullmouth back lanes | Gullmouth, by the quay |
 
 **Menders.** The Minster in Ansbury has trained menders for the road and the bad winters for as long as it has stood. Each one it sends out gets a lamp, because the first of them did their work at night, when the road was worst. A mender looks after the rest first: their Mend heals the most hurt companion for three tenths of their health and the mender for a third as much. Each Mend builds two Grace and each Restoration one; at five, the next Mend heals twice over and reaches everyone near. Lamp Ward lays a ward on everyone of yours close by, Sanctuary hallows the ground underfoot, and Rebuke is the answer to a brute winding up a blow. A mender's heals and wards reach a dungeon's henchmen and groupmates within forty blocks; a groupmate's go by the realm, which checks they're in the same group, the same land and close enough (`case 'gAid'` in `server/social.mjs`).
 
 **Gravecallers.** Scarrow Tor buries nobody in a churchyard. The barrows on Tolmen Moor have keepers, and the keepers learned long ago how to ask the dead for something and give it back: a last breath, a few old bones, the cold they lie in. The moor says the dead only lend. A gravecaller curses with **Wither**, a grave-cold that eats at a foe and stores its life as **Lifeblood**; **Siphon** draws life straight out, and whatever heals past full is stored too. The blood skills (Bone Ward, Grave Rot, Raise the Fallen) are paid in health, and Lifeblood pays first. Raised dead fight beside the gravecaller for twenty seconds, then lie down again. Elias Jewell, who keeps the barrows now, teaches anyone who asks politely; most of Scarrow would sooner not sit with them.
+
+**Prowlers.** Every port has people who move goods the Charter never sees, and Gullmouth has more than most. The ones who last learn to be somewhere else when the watch comes round, to hit first and from behind, and to fight dirty when they can't. Sal Trevenna teaches it to anyone who can pay and keep quiet, and says she has never once been to the Smugglers' Hole.
 
 `data/classes.ts` (chosenUtilities, crossUtilities), `data/content/masters.ts`.
 

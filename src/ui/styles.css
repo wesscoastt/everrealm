@@ -1394,3 +1394,4 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #bossbar .bb-stagger > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#ffe07a, #d8a030); transition: width 0.2s; }
 #bossbar .bb-stagger.locked > i { background: #6a6458; }
 #buffs .bf.harm { border-color: #c84a3a; color: #ffc8b8; background: rgba(48, 12, 8, 0.82); }
+#buffs .bf.hidden { border-color: #8a7ab8; color: #d8ccff; }

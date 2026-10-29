@@ -70,7 +70,7 @@ interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; 
 interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
 /** Ground that hurts for a while (a ring of fire, a rain of arrows, cinders), or a snare waiting for a foot. */
-interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number }; chill?: boolean; fire?: boolean; mark?: boolean }
+interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number }; chill?: boolean; fire?: boolean; mark?: boolean; slow?: number }
 interface Cut { e: Enemy; t: number; dmg: number }
 
 /** The body a Gravecaller raises: grave-dirt and old bone, an old blade still in its hand. */
@@ -147,6 +147,7 @@ export class ClassKit {
     this.cds.fill(0);
     // Nothing carries over from the old calling
     this.fury = this.kindling = this.resolve = this.shield = 0;
+    this.openings = this.hiddenUntil = this.venom = 0; this.fromHiding = 1;
     this.shieldUntil = this.oathUntil = this.redUntil = this.wardUntil = this.stepStrike = 0;
     this.holdUntil = this.rushUntil = this.riposteUntil = this.hotUntil = 0;
     this.shieldKind = 'other';
@@ -191,8 +192,15 @@ export class ClassKit {
     this.flying.push({ mesh: m, to: e, speed: 38, dmg, crit, burst: -0.12 });
   }
 
-  outgoing(e: Enemy, dmg: number): number {
+  outgoing(e: Enemy, dmg: number, quiet = false): number {
     let k = 1;
+    if (this.calling.id === 'prowler' && !quiet) {
+      let gain = 1;
+      if (this.hiddenUntil > this.clock) { k *= this.fromHiding; this.hiddenUntil = 0; this.fromHiding = 1; gain = T.openings.back; }
+      else if (e.stun > 0 || this.behind(e)) gain = T.openings.back;
+      this.openings = Math.min(T.openings.max, this.openings + gain);
+      if (this.venom > 0) { this.venom--; this.addDot(e, this.host.power() * T.poisonblade.dot, T.poisonblade.secs); }
+    }
     if (this.redUntil > this.clock) k *= T.redhour.dealt;
     if ((this.marks.get(e) ?? 0) > this.clock) k *= 1 + T.volley.markBonus;
     if (this.calling.id === 'warden') k *= 1 + this.resolve * T.resolve.dmg;
@@ -204,6 +212,17 @@ export class ClassKit {
     if (this.calling.id === 'reaver') this.fury = Math.min(100, this.fury + T.fury.perHit * (this.redUntil > this.clock ? T.fury.red : 1));
     // Blood Up: blows give a little back
     if (!quiet && this.bloodUpUntil > this.clock) this.host.heal(this.host.maxHp() * T.bloodup.leech);
+  }
+  /** The Prowler's Openings, out of sight until then, how hard the first blow from hiding lands, and poisoned blows left. */
+  private openings = 0; private hiddenUntil = 0; private fromHiding = 1; private venom = 0;
+  /** Out of sight (a Prowler's Slip Away, Vanish or Ambush): blows don't find you. */
+  hidden(): boolean { return this.hiddenUntil > this.clock; }
+  /** Is the player behind this foe (more than a right angle off where it faces)? */
+  private behind(e: Enemy): boolean {
+    const P = this.host.player();
+    let d = Math.abs(Math.atan2(P.x - e.pos.x, P.z - e.pos.z) - e.yaw) % (Math.PI * 2);
+    if (d > Math.PI) d = Math.PI * 2 - d;
+    return d > Math.PI / 2;
   }
   /** Blood Up's lifesteal, until then. */
   private bloodUpUntil = 0;
@@ -300,6 +319,7 @@ export class ClassKit {
       case 'reaver': return { label: this.fury >= 100 ? 'Fury: full' : m.name, value: this.fury, max: 100, color: m.color };
       case 'ashcaller': return { label: `${m.name} ${this.kindling}/3`, value: this.kindling, max: 3, color: m.color };
       case 'gravecaller': return { label: `${m.name} ${Math.round(this.blood * 100)}%`, value: this.blood, max: T.lifeblood.max, color: m.color };
+      case 'prowler': return { label: this.hidden() ? 'Hidden' : `${m.name} ${this.openings}/${T.openings.max}`, value: this.openings, max: T.openings.max, color: m.color };
       case 'mender': return { label: this.grace >= T.grace.max ? 'Grace: full' : `${m.name} ${this.grace}/${T.grace.max}`, value: this.grace, max: T.grace.max, color: m.color };
       case 'wizard': {
         let n = 0;
@@ -888,6 +908,74 @@ export class ClassKit {
         H.anim('cleave'); H.sfx('growl');
         return true;
       }
+      // ---- The Prowler
+      case 'slipaway':
+        H.heal(H.maxHp() * T.slipaway.heal);
+        this.hiddenUntil = this.clock + T.slipaway.hide; this.fromHiding = T.slipaway.mult;
+        H.particles.dust(P.clone().setY(P.y + 0.6), 18);
+        H.anim('heal'); H.sfx('swing');
+        return true;
+      case 'twist': {
+        const e = H.faceTarget(T.twist.range);
+        if (!e) return false;
+        const n = this.openings;
+        this.openings = 0;
+        H.anim('attack'); H.sfx(n >= 3 ? 'hitHeavy' : 'swing');
+        H.hit(e, pw * (T.twist.dmg + T.twist.per * n));
+        if (n >= 3) H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 6 + n * 3, '#c8b8ff');
+        return true;
+      }
+      case 'thousand': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.thousand.r).sort((a, b) => a.pos.distanceTo(P) - b.pos.distanceTo(P));
+        if (!near.length) return false;
+        for (let k = 0; k < T.thousand.hits; k++) this.cuts.push({ e: near[k % Math.min(near.length, 3)], t: k * T.thousand.every, dmg: pw * T.thousand.dmg });
+        H.anim('attack'); H.sfx('swing');
+        return true;
+      }
+      case 'vanish':
+        this.hiddenUntil = this.clock + T.vanish.hide; this.fromHiding = T.slipaway.mult;
+        H.particles.dust(P.clone().setY(P.y + 0.6), 24);
+        H.sfx('swing');
+        return true;
+      case 'pocketsand': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.pocketsand.r);
+        if (!near.length) return false;
+        for (const o of near) { o.weakLeft = Math.max(o.weakLeft, T.pocketsand.secs); o.stun = Math.max(o.stun, T.pocketsand.stun); }
+        H.particles.dust(P.clone().setY(P.y + 1.2), 20);
+        H.anim('attack'); H.sfx('swing');
+        return true;
+      }
+      case 'caltrops': {
+        const at = H.aim(T.caltrops.range);
+        this.zone(at, T.caltrops.r, T.caltrops.secs, pw * T.caltrops.dmg, '#9a9a9a');
+        this.zones[this.zones.length - 1].slow = T.caltrops.slow;
+        H.anim('attack'); H.sfx('swing');
+        return true;
+      }
+      case 'poisonblade':
+        this.venom = Math.floor(T.poisonblade.blows);
+        H.particles.sparks(P.clone().setY(P.y + 1.1), 10, '#8ad050');
+        H.anim('heal'); H.sfx('swing');
+        return true;
+      case 'tumble': {
+        const fwd = new THREE.Vector3(Math.sin(H.yaw()), 0, Math.cos(H.yaw()));
+        if (!H.dash(fwd, T.tumble.dist)) return false;
+        this.evadeUntil = this.clock + T.tumble.evade;
+        H.particles.dust(P, 10);
+        return true;
+      }
+      case 'ambush': {
+        const e = H.faceTarget(T.ambush.range);
+        if (!e) return false;
+        // Behind it: a block and a half back from where it faces
+        const bx = e.pos.x - Math.sin(e.yaw) * 1.5, bz = e.pos.z - Math.cos(e.yaw) * 1.5;
+        H.particles.dust(P.clone().setY(P.y + 0.6), 16);
+        H.moveTo(bx, bz, 0.08, e.pos.y);
+        this.hiddenUntil = this.clock + 0.5; this.fromHiding = T.ambush.mult;
+        H.hit(e, pw * 1.2);
+        H.anim('attack'); H.sfx('hitHeavy');
+        return true;
+      }
       // ---- The other elites
       case 'unbroken':
         this.unbrokenUntil = this.clock + T.unbroken.secs; this.eliteTick = 0;
@@ -1202,6 +1290,7 @@ export class ClassKit {
         H.hit(e, z.dmg, { quiet: true });
         if (z.chill) for (let k = 0; k < T.blizzard.chills; k++) this.addChill(e);
         if (z.mark) this.marks.set(e, this.clock + T.volley.mark);
+        if (z.slow) e.slowLeft = Math.max(e.slowLeft, z.slow);
       }
       // Hearth: your own fire mends you while you stand in it
       if (z.fire && T.firewall.heal > 0 && Math.hypot(P.x - z.at.x, P.z - z.at.z) < z.r) H.heal(H.maxHp() * T.firewall.heal);

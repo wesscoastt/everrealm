@@ -262,6 +262,43 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'dread_a', name: 'Terror', desc: 'Held half a second longer.', mod: (t) => { t.dread.stun += 0.5; } },
     { id: 'dread_b', name: 'Rot of Fear', desc: 'Withers three deep, held half a second less.', mod: (t) => { t.dread.stacks += 1; t.dread.stun -= 0.5; } },
   ],
+  // ---------------------------------------------------------------- The Prowler
+  slipaway: [
+    { id: 'slipaway_a', name: 'Fade', desc: 'Out of sight a second longer, healing a little less.', mod: (t) => { t.slipaway.hide += 1; t.slipaway.heal *= 0.85; } },
+    { id: 'slipaway_b', name: 'Bind and Go', desc: 'Heals a third more, out of sight a second less.', mod: (t) => { t.slipaway.heal *= 1.33; t.slipaway.hide -= 1; } },
+  ],
+  twist: [
+    { id: 'twist_a', name: 'Gut', desc: 'Each Opening spent adds a tenth more, the cut itself a little lighter.', mod: (t) => { t.twist.per *= 1.1; scale(t.twist, 'dmg', 0.85); } },
+    { id: 'twist_b', name: 'Quick Twist', desc: 'Ready again a fifth sooner, each Opening a little less.', mod: (t) => { t.cd.twist = 0.8; t.twist.per *= 0.88; } },
+  ],
+  thousand: [
+    { id: 'thousand_a', name: 'Ten Thousand', desc: 'Eleven cuts instead of eight, each lighter.', mod: (t) => { t.thousand.hits += 3; scale(t.thousand, 'dmg', 0.72); } },
+    { id: 'thousand_b', name: 'Few and Deep', desc: 'Six cuts, each a third heavier.', mod: (t) => { t.thousand.hits -= 2; scale(t.thousand, 'dmg', 1.33); } },
+  ],
+  vanish: [
+    { id: 'vanish_a', name: 'Long Gone', desc: 'Out of sight two seconds longer.', mod: (t) => { t.vanish.hide += 2; } },
+    { id: 'vanish_b', name: 'Smoke and Mirrors', desc: 'Ready again a quarter sooner, out of sight a second less.', mod: (t) => { t.cd.vanish = 0.75; t.vanish.hide -= 1; } },
+  ],
+  pocketsand: [
+    { id: 'pocketsand_a', name: 'Eyeful', desc: 'Blinded two seconds longer.', mod: (t) => { t.pocketsand.secs += 2; } },
+    { id: 'pocketsand_b', name: 'Handful', desc: 'Reaches two blocks farther, blinding a second less.', mod: (t) => { t.pocketsand.r += 2; t.pocketsand.secs -= 1; } },
+  ],
+  caltrops: [
+    { id: 'caltrops_a', name: 'Rusted Iron', desc: 'Cut a third deeper, staying two seconds less.', mod: (t) => { scale(t.caltrops, 'dmg', 1.33); t.caltrops.secs -= 2; } },
+    { id: 'caltrops_b', name: 'Wide Scatter', desc: 'A block and a half wider, a little shallower.', mod: (t) => { t.caltrops.r += 1.5; scale(t.caltrops, 'dmg', 0.85); } },
+  ],
+  poisonblade: [
+    { id: 'poisonblade_a', name: 'Thick Coat', desc: 'Three more poisoned blows, each poison a little weaker.', mod: (t) => { t.poisonblade.blows += 3; t.poisonblade.dot *= 0.75; } },
+    { id: 'poisonblade_b', name: 'Black Venom', desc: 'Each poison eats a third faster, for two blows fewer.', mod: (t) => { t.poisonblade.dot *= 1.33; t.poisonblade.blows -= 2; } },
+  ],
+  tumble: [
+    { id: 'tumble_a', name: 'Long Roll', desc: 'Rolls two blocks farther.', mod: (t) => { t.tumble.dist += 2; } },
+    { id: 'tumble_b', name: 'Quick Roll', desc: 'Ready again a third sooner, rolling a block less.', mod: (t) => { t.cd.tumble = 0.67; t.tumble.dist -= 1; } },
+  ],
+  ambush: [
+    { id: 'ambush_a', name: 'From Nowhere', desc: 'Reaches six blocks farther.', mod: (t) => { t.ambush.range += 6; } },
+    { id: 'ambush_b', name: 'Assassin', desc: 'The blow from hiding a sixth harder, reaching four blocks less.', mod: (t) => { t.ambush.mult += 0.5; t.ambush.range -= 4; } },
+  ],
   // ---------------------------------------------------------------- The other elites
   unbroken: [
     { id: 'unbroken_a', name: 'Iron Will', desc: 'Two seconds longer, the same health back.', mod: (t) => { t.unbroken.secs += 2; } },

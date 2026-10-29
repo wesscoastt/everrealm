@@ -10,7 +10,7 @@
 // a master of another calling will teach an apprentice one of their utilities (data/content/masters.ts).
 // Each calling has three talent trees (data/talents.ts), one for each way of playing it.
 
-export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard' | 'mender' | 'gravecaller';
+export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard' | 'mender' | 'gravecaller' | 'prowler';
 
 export interface SkillDef {
   id: string;
@@ -189,6 +189,27 @@ export const CALLINGS: CallingDef[] = [
     ],
     pros: 'Wears whole packs down; never waits on magicka for its blood skills', cons: 'Slow to kill one foe outright; pays in health',
   },
+  {
+    id: 'prowler', name: 'Prowler', role: 'Openings and the knife',
+    blurb: 'Fights where it can\'t be seen and strikes where it isn\'t expected. The Fleet coast\'s smugglers and the Ansbury yards turn out more of them than either would like.',
+    mechanic: { name: 'Openings', desc: 'Every blow you land is an Opening (up to five); a blow from behind, on a stunned foe or from hiding makes two. Twist the Knife spends them all. Light on your feet, a third of the blows at you miss.', color: '#8a7ab8' },
+    skills: [
+      { id: 'slipaway', name: 'Slip Away', icon: 'slipaway', cd: 20, desc: 'Back into the shadows: a fifth of your health back, out of sight for three seconds, and your first blow from hiding lands twice as hard.' },
+      { id: 'twist', name: 'Twist the Knife', icon: 'twist', cd: 6, desc: 'Spend every Opening on one blow: a fair cut, and most of a cut again for each Opening.' },
+      { id: 'thousand', name: 'A Thousand Cuts', icon: 'thousand', cd: 60, desc: 'Everywhere at once: eight quick cuts in under two seconds on whatever is nearest within six blocks, each an Opening.' },
+    ],
+    utilities: [
+      { id: 'vanish', name: 'Vanish', icon: 'vanish', cd: 20, desc: 'Gone: out of sight for four seconds, and your first blow from hiding lands twice as hard.' },
+      { id: 'pocketsand', name: 'Pocket Sand', icon: 'pocketsand', cd: 16, desc: 'A fistful in their eyes: everything within four blocks is stunned a moment and strikes 15% softer for four seconds.' },
+      { id: 'caltrops', name: 'Caltrops', icon: 'caltrops', cd: 18, aim: 12, desc: 'Scatter iron where you aim: for six seconds anything that walks there is cut and slowed.' },
+      { id: 'poisonblade', name: 'Poisoned Blade', icon: 'poisonblade', cd: 18, desc: 'Wipe the edge: your next five blows each leave a poison that eats at the foe for six seconds.' },
+      { id: 'tumble', name: 'Tumble', icon: 'tumble', cd: 10, desc: 'Roll forward six blocks, through them if need be, untouchable for over half a second.' },
+    ],
+    elites: [
+      { id: 'ambush', name: 'Waylay', icon: 'ambush', cd: 60, desc: 'Behind your target from up to fourteen blocks, unseen, and a blow from hiding three times as hard.' },
+    ],
+    pros: 'Huge single blows; slips out of a fight', cons: 'Little armour; weak against a crowd',
+  },
 ];
 
 export const callingById = (id: unknown): CallingDef | null => CALLINGS.find((c) => c.id === id) ?? null;
@@ -312,6 +333,26 @@ export const TUNE = {
   spearsweep: { r: 4.2, dmg: 1.1, knock: 5 },
   pointblank: { dmg: 1.6, range: 5, knock: 10 },
   staffflurry: { hits: 3, dmg: 0.6, every: 0.18, range: 3.6 },
+  /** The Prowler: Openings (every blow one, a blow from behind, on a stunned foe or from hiding two); dodge: the share of blows on it that miss. */
+  openings: { max: 5, back: 2, dodge: 0.33 },
+  /** Slip Away (heal): a share of your health, and out of sight for hide seconds; the first blow from hiding hits mult times as hard. */
+  slipaway: { heal: 0.2, hide: 3, mult: 2 },
+  /** Twist the Knife (signature): a blow, and per more for every Opening it spends. */
+  twist: { dmg: 1.0, per: 0.92, range: 3 },
+  /** A Thousand Cuts (elite): hits quick blows on whatever's nearest, every so often. */
+  thousand: { hits: 8, dmg: 0.72, every: 0.22, r: 6 },
+  /** Vanish: out of sight for hide seconds. */
+  vanish: { hide: 4 },
+  /** Pocket Sand: everything within r blinded (weak) for secs, and stunned a moment. */
+  pocketsand: { r: 4, secs: 4, stun: 0.6 },
+  /** Caltrops where you aim: slows and cuts whatever walks in them, for secs. */
+  caltrops: { r: 3, secs: 6, dmg: 0.35, slow: 3, range: 12 },
+  /** Poisoned Blade: the next blows each leave a poison of dot a second for secs. */
+  poisonblade: { blows: 5, dot: 0.3, secs: 6 },
+  /** Tumble: a roll forward, untouchable for evade seconds. */
+  tumble: { dist: 6, evade: 0.6 },
+  /** Waylay (the other elite): behind your target from up to range, and a blow from hiding, mult times as hard. */
+  ambush: { mult: 3, range: 14 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },

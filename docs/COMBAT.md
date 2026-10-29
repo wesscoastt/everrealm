@@ -416,3 +416,29 @@ Verified headless (`.walker/scen-harms.js`): two bleeds stacked and ticked, show
 "Bleeding ×2 3s"; with a bleed and then a poison on, the Warden's heal took off the poison (the newest)
 and left the bleed; chilled, a second's walk went 5.46 blocks to 3.63; a wolf's fourth bite left a bleed.
 A harm ticking keeps you in the fight, so resting doesn't wash it out.
+
+### The brief's Rogue: the Prowler (2026-10-29)
+
+The eighth calling, **the Prowler** (stamina; dungeon role damage): mobility, the blow from behind,
+hiding, and dirty fighting, from the Fleet coast's smugglers and the Ansbury yards.
+- **Openings** (its gauge, up to five): every blow you land is one; a blow from behind, on a stunned foe
+  or from hiding makes two. **Twist the Knife** (the signature) spends them all on one cut. Light on its
+  feet, a third of the blows at a Prowler miss it ("Dodged!").
+- **Hiding**: **Slip Away** (the heal: a fifth of your health, three seconds out of sight) and **Vanish**
+  put you where foes can't find you: their blows go where you were, and your first blow from hiding
+  lands twice as hard. "Hidden" shows under the health bar.
+- Utilities: **Vanish**, **Pocket Sand** (everything near stunned a moment and blinded, striking 15%
+  softer), **Caltrops** (iron where you aim: cut and slowed for six seconds), **Poisoned Blade** (the next
+  five blows each poison), **Tumble** (a roll forward, untouchable). Elites: **A Thousand Cuts** (eight
+  cuts in under two seconds, each an Opening) or **Waylay** (behind your target from fourteen blocks,
+  and a blow from hiding three times as hard).
+- Three talent trees (The Shadow, The Knife, Dirty Fighting), two morphs for every skill, icons, and a
+  master, **Sal Trevenna**, by the quay at Gullmouth.
+- A bug found on the way: the Prowler's trees first took the Pathfinder's `p_` talent ids, and one tree
+  id (`p_shadow`) was the same as the Pathfinder's Shadows; the Prowler's are `k_` now.
+
+Verified headless (`.walker/scen-prowler.js`, `.walker/scen-trevenna.js`): Openings built to five and
+Twist the Knife spent them for 361 (120 on one); hidden by Slip Away, five blows at you took nothing and
+"Hidden" showed under the bar; 104 of 300 blows were dodged (35%); every utility and both elites went
+off (A Thousand Cuts 448, Waylay 586); Sal Trevenna stands in the Gullmouth square. Balance: every
+calling, tree, pair, morph and elite within its limit, the Prowler included.

@@ -70,6 +70,14 @@ const MASTERS: Master[] = [
     own: 'You know how to ask already. Then you know to give it back after.',
     barks: ['They only lend.', 'Mind the barrows.'],
   },
+  {
+    calling: 'prowler', id: 'master_trevenna', name: 'Sal Trevenna', title: 'Knows the Gullmouth back lanes', at: [1740.5, 596.5], face: [1735.5, 598.5],
+    look: { frame: 'f', skin: '#c8987a', hair: '#2a1e18', hairStyle: 4, tunic: '#2e2a34', trim: '#6a5a7a', trousers: '#24222a', boots: '#1a1618', cape: '#2a2630', hat: 'hood', hatColor: '#2a2630', build: 0.92, age: 0.45 },
+    hello: 'Trevenna. You didn\'t see me come in, and I\'d like to keep it that way.',
+    teach: 'How to be somewhere else when it lands, a fistful in the eyes, iron underfoot, and what to wipe on a blade. The rest is patience.',
+    own: 'You\'ve the hands for it already. Now keep your feet quiet.',
+    barks: ['Not here.', 'Mind your pockets.'],
+  },
 ];
 
 const level = (g: GameApi) => g.level('melee');

@@ -2732,6 +2732,7 @@ export class Game implements GameApi {
       if (b && b.left > 0) out.push({ name: ITEMS[b.id]?.name ?? b.id, left: b.left, kind: slot });
     }
     if (this.winded) out.push({ name: 'Winded', left: 0, kind: 'winded' });
+    if (this.kit.hidden()) out.push({ name: 'Hidden', left: 0, kind: 'hidden' });
     for (const [id, h] of this.harms) out.push({ name: EFFECTS[id].name + (h.stacks > 1 ? ` ×${h.stacks}` : ''), left: Math.max(0, h.until - this.elapsed), kind: 'harm' });
     return out;
   }
@@ -5674,7 +5675,7 @@ export class Game implements GameApi {
     const flank = (this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1) * (e.exposedLeft > 0 ? 1 + EXPOSED : 1);
     // A guard's shield, if you're in front of it: most of the blow is turned (go round it, or stun it)
     const guarded = e.guarding(this.player.position);
-    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
+    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw, quiet) * (crit ? 1.6 : 1) * flank * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
     if (guarded && !quiet && this.elapsed - this.guardSaid > 1.2) { this.guardSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.6, 'Guarded', 'dodge'); this.sfx('hitHeavy', 0.4); }
     const landed = this.activities.beforeHit(e, dmg);
     e.takeDamage(landed, this.player.position, this.elapsed);
@@ -5908,6 +5909,9 @@ export class Game implements GameApi {
 
   private hitPlayer(dmg: number, from: Enemy): void {
     if (this.dead || this.dev.god) return;
+    // Out of sight (a Prowler's hiding): the blow goes where you were; and a Prowler slips a share of the rest
+    if (this.kit.hidden()) return;
+    if (this.kit.calling.id === 'prowler' && Math.random() < TUNE.openings.dodge) { this.floatAt(this.player.position, 2.4, 'Dodged!', 'dodge'); this.lastCombat = this.elapsed; return; }
     if (this.iframes > 0) {
       // Rolled clean through a blow: a riposte is open, and a little wind comes back
       if (this.player.rolling > 0 && this.riposteUntil < this.elapsed) {
@@ -6198,7 +6202,7 @@ export class Game implements GameApi {
     const ctx = {
       player: P,
       playerAlive: !this.dead,
-      playerInvulnerable: this.iframes > 0,
+      playerInvulnerable: this.iframes > 0 || this.kit.hidden(),
       playerSwimming: this.player.swimming,
       level: this.level('melee'),
       hitPlayer: (d: number, from: Enemy) => this.hitPlayer(d, from),

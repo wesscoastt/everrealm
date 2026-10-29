@@ -69,9 +69,18 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   const live = () => foes.filter((e) => e.hp > 0);
   // The other elites' clocks: Unbroken, Deadeye, the Vigil, Massacre's turns to come
   let unbrokenUntil = 0, deadeyeUntil = 0, vigilUntil = 0, massacreLeft = 0, massacreNext = 0;
+  // The Prowler: Openings, out of sight until, the first blow from hiding, poisoned blows left, A Thousand Cuts to come
+  let openings = 0, hiddenUntil = 0, fromHiding = 1, venom = 0, cutsLeft = 0, cutsNext = 0;
   const hit = (e: Foe, p: number, crit = Math.random() < CRIT) => {
     let d = p * (crit || (deadeyeUntil > t && p > 0.3) ? CRIT_MULT : 1);
     if (redUntil > t) d *= TUNE.redhour.dealt;
+    if (id === 'prowler' && p > 0.3) {
+      let gain = 1;
+      if (hiddenUntil > t) { d *= fromHiding; hiddenUntil = 0; fromHiding = 1; gain = TUNE.openings.back; }
+      else if (e.stun > 0) gain = TUNE.openings.back;
+      openings = Math.min(TUNE.openings.max, openings + gain);
+      if (venom > 0) { venom--; e.bleed = TUNE.poisonblade.secs; e.bleedPer = TUNE.poisonblade.dot; }
+    }
     if (e.mark > t) d *= 1 + TUNE.volley.markBonus;
     if (id === 'warden') d *= 1 + resolve * TUNE.resolve.dmg;
     const was = e.hp;
@@ -107,6 +116,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (restoreUntil > t) heal(TUNE.restore.heal / TUNE.restore.secs * DT);
     if (unbrokenUntil > t) heal(TUNE.unbroken.heal / TUNE.unbroken.secs * DT);
     if (vigilUntil > t) heal(TUNE.vigil.heal * DT);
+    if (cutsLeft > 0 && t >= cutsNext) { const to = live()[0]; if (to) hit(to, TUNE.thousand.dmg); cutsLeft--; cutsNext += TUNE.thousand.every; }
     if (massacreLeft > 0 && t >= massacreNext) { aoe(caught(), TUNE.massacre.dmg); massacreLeft--; massacreNext += TUNE.massacre.every; }
     for (const e of L) if (e.wither && (e.withered ?? 0) > t) { hit(e, TUNE.wither.dot * e.wither * DT, false); addBlood(TUNE.lifeblood.tick * e.wither * DT); }
     if (raisedUntil > t && (raiseTick -= DT) <= 0) { raiseTick = TUNE.raise.every; const to = live()[0]; if (to) for (let k = 0; k < TUNE.raise.n; k++) hit(to, TUNE.raise.dmg); }
@@ -135,7 +145,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       e.hitIn = 1.2;
       // At range, a ranged calling only gets reached about half the time (kiting, the approach)
       if (ranged && Math.random() < 0.5) continue;
-      if (evadeUntil > t) continue;
+      if (evadeUntil > t || hiddenUntil > t) continue;
+      if (id === 'prowler' && Math.random() < TUNE.openings.dodge) continue;
       let d = e.rate * 1.2;
       if (id === 'warden') {
         d *= 1 - resolve * TUNE.resolve.per; resolve = Math.min(TUNE.resolve.max, resolve + 1); resolveAt = t;
@@ -214,6 +225,16 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'deepfreeze': live().slice(0, caught()).forEach((o) => { hit(o, TUNE.deepfreeze.dmg); o.stun = Math.max(o.stun, TUNE.deepfreeze.freeze); }); break;
         case 'vigil': if (f.dummy || hp > 0.6) return false; vigilUntil = t + TUNE.vigil.secs; break;
         case 'plague': live().slice(0, caught()).forEach((o) => { hit(o, TUNE.plague.dmg); addWither(o, TUNE.plague.stacks); }); break;
+        // The Prowler
+        case 'slipaway': if (!f.dummy && hp > 0.7) return false; heal(TUNE.slipaway.heal); hiddenUntil = t + TUNE.slipaway.hide; fromHiding = TUNE.slipaway.mult; break;
+        case 'twist': { if (ranged || openings < 3) return false; const n = openings; openings = 0; hit(tgt, TUNE.twist.dmg + TUNE.twist.per * n); break; }
+        case 'thousand': if (ranged) return false; cutsLeft = TUNE.thousand.hits; cutsNext = t; break;
+        case 'vanish': hiddenUntil = t + TUNE.vanish.hide; fromHiding = TUNE.slipaway.mult; break;
+        case 'pocketsand': if (f.dummy || ranged) return false; live().slice(0, caught()).forEach((o) => { o.weak = t + TUNE.pocketsand.secs; o.stun = Math.max(o.stun, TUNE.pocketsand.stun); }); break;
+        case 'caltrops': zones.push({ until: t + TUNE.caltrops.secs, per: TUNE.caltrops.dmg, tick: 0.2 }); break;
+        case 'poisonblade': venom = Math.floor(TUNE.poisonblade.blows); break;
+        case 'tumble': if (f.dummy || hp > 0.75) return false; evadeUntil = t + TUNE.tumble.evade; for (const e of L) e.hitIn += 1; break;
+        case 'ambush': hiddenUntil = t + 0.5; fromHiding = TUNE.ambush.mult; hit(tgt, 1.2); break;
         case 'rally': if (f.dummy || hp > 0.8) return false; heal(TUNE.rally.heal); resolve = TUNE.resolve.max; resolveAt = t; break;
         case 'rend': if (ranged) return false; aoe(caught(), TUNE.rend.dmg * furyK); zones.push({ until: t + TUNE.rend.secs, per: TUNE.rend.dot, tick: 1 }); break;
         case 'rush': rushUntil = t + TUNE.rush.secs; break;
