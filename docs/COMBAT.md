@@ -141,7 +141,7 @@ that give the real numbers.
 | A | Audit | **Done** (above) |
 | B | Design | **Done** (above) |
 | C | Core: magicka, skill costs, block and perfect block, interrupts and the cast kind, control immunity, the damage pipeline in one place | **Part done** (below) |
-| D | Callings and weapons: weapon-family skills, the Mender, the Gravecaller, the Warden's support tree | **Part done**: the Mender (below) |
+| D | Callings and weapons: weapon-family skills, the Mender, the Gravecaller, the Warden's support tree | **Part done**: the Mender and the Gravecaller (below) |
 | E | Builds: saved bars, effects table and cleanses | Planned |
 | F | Enemies: casters, menders, guards, summoners in every region; boss phases and stagger bars | Planned |
 | G | Interface: resource bars, costs, effect icons, cast bars | With each stage |
@@ -198,3 +198,36 @@ exposed the foe 3 s and dazed it 1.3 s; a groupmate's aid healed the rest of the
 
 Not yet: two clients in one group trading heals over the realm (only the receiving end is tested),
 henchmen healers knowing to leave the healing to a Mender, the Gravecaller.
+
+### Stage D, the Gravecaller (2026-10-29)
+
+Built: the seventh calling, **the Gravecaller** (magicka, and health for its blood skills; dungeon role
+damage). Siphon, Wither, Raise the Fallen; utilities Bone Ward, Grave Grip, Grave Rot; the **Lifeblood**
+gauge, a store of life up to 30% of your health. Wither (up to three deep) eats at a foe and stores
+life as it ticks, a foe dying withered gives up more, and Siphon stores whatever it heals past full.
+Three talent trees (the Blood, the Rot, the Fallen), two morphs for each skill, six icons, and a master,
+Elias Jewell, by the market cross in Scarrow Tor.
+- **Blood prices** (`Pool` 'health' in `data/combat.ts`, n in percent of health): Bone Ward 8, Grave
+  Rot 6, Raise the Fallen 12. Lifeblood pays first, then health; a price that would take your last
+  health is refused ("Not enough health for that.").
+- **The raised** are henchman bodies (`entities/Ally`) the kit drives: each walks to the nearest foe
+  within eighteen blocks of you, strikes on its own timer, keeps up with you (back out of the ground
+  beside you if left thirty blocks behind), and lies down when its twenty seconds are up. Foes don't
+  aim at them yet.
+- **Bone Ward** withers whatever strikes it; **Grave Grip** is a stun, so it breaks a wind-up.
+- **Balance**: the first draft was 19% over the average (too much single-target damage and sustain),
+  so Siphon, Bone Ward, Wither's tick and the raised were trimmed. The sim casts Grave Rot only on a pack,
+  as a player would; Grave Grip holds two seconds; the Rot tree's Feed heals for each foe Rot strikes.
+
+Verified headless (`.walker/scen-grave.js` against a built bundle): three Withers built it three deep
+and three seconds of it took 113 off the wolf and Lifeblood 3.0% to 8.4%; Siphon at full health stored
+10% (8.4% to 18.4%), at half healed 122 to 146 of 244; Bone Ward took its 8% out of Lifeblood (20.2% to
+12.2%, health untouched) for a 49 shield, which soaked a 30 blow whole and withered the striker; with
+Lifeblood spent the price came out of health; at 5 health it was refused; Raise the Fallen raised two
+for 12% of Lifeblood, which walked onto the wolf and took 287 off it in five seconds, and lay down when
+their time was up; Grave Grip on a wind-up interrupted it, exposed the wolf 3 s, held it 2 s; Grave Rot
+withered all three foes near the target two deep for 3% of Lifeblood and 7 health. Balance: every
+calling, tree, bar and morph within its limit.
+
+Not yet: foes taking aim at the raised dead, and a bonier look for them (they read as pale folk in old
+clothes); two clients in one group.

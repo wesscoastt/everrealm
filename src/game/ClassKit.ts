@@ -6,6 +6,9 @@ import { tuned, type Tune } from '../data/talents';
 let T: Tune = TUNE;
 import type { Enemy } from '../entities/Enemy';
 import type { Particles } from '../systems/Particles';
+import { Ally } from '../entities/Ally';
+import type { Henchman } from '../data/dungeons';
+import type { VoxelWorld } from '../world/VoxelWorld';
 
 // The calling in play: its three skills, its mechanic, and the effects they leave in the world
 // (shields, bleeds, burning rings, bolts and arrows in flight, a star on its way down). The game
@@ -53,16 +56,27 @@ export interface KitHost {
   clear(at: THREE.Vector3): boolean;
   /** You and everyone on your side near you (you first). */
   friends(): Friend[];
+  /** Your health now, your level, and the world (a Gravecaller's raised dead walk in it). */
+  hp(): number;
+  level(): number;
+  voxels(): VoxelWorld;
   /** A skill went off: it counts towards its rank (data/skillpoints.ts). */
   used?(id: string): void;
 }
 
-interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean; bounce?: number }
+interface Flying { mesh: THREE.Object3D; to: Enemy; speed: number; dmg: number; burst?: number; stun?: number; chill?: boolean; lance?: boolean; crit?: boolean; bounce?: number; wither?: boolean }
 interface Pending { at: THREE.Vector3; t: number; ring: THREE.Mesh; r: number; dmg: number; stun?: number }
 interface Dot { e: Enemy; perSec: number; left: number; tick: number }
 /** Ground that hurts for a while (a ring of fire, a rain of arrows, cinders), or a snare waiting for a foot. */
 interface Zone { at: THREE.Vector3; r: number; left: number; tick: number; dmg: number; ring: THREE.Mesh; snare?: { stun: number }; chill?: boolean; fire?: boolean; mark?: boolean }
 interface Cut { e: Enemy; t: number; dmg: number }
+
+/** The body a Gravecaller raises: grave-dirt and old bone, an old blade still in its hand. */
+const THRALL: Henchman = {
+  id: 'thrall', name: 'The Fallen', title: '', role: 'damage', held: 'sword',
+  look: { skin: '#c8c4b0', hair: '#4a4842', hairStyle: 0, eyes: '#a8d870', tunic: '#4a4a40', trim: '#6a6a58', trousers: '#3a3a32', boots: '#2a2a24', build: 0.86, age: 0.95 },
+  barks: { pull: [], low: [], kill: [], down: '', up: '' },
+};
 
 const RING_GEO = new THREE.RingGeometry(0.85, 1, 40).rotateX(-Math.PI / 2);
 const BOLT_GEO = new THREE.SphereGeometry(0.22, 8, 6);
@@ -89,10 +103,14 @@ export class ClassKit {
   private grace = 0;
   private sanct: { at: THREE.Vector3; until: number; tick: number; burn: number } | null = null;
   private hots: { f: Friend; per: number; left: number; tick: number }[] = [];
+  /** The Gravecaller's Lifeblood (a share of your health), the Wither on each foe, and the raised dead. */
+  private blood = 0;
+  private wither = new Map<Enemy, { n: number; until: number; tick: number }>();
+  private thralls: { body: Ally; left: number; swing: number }[] = [];
   // Effects
   private shield = 0; private shieldUntil = 0;
   /** Whose the shield is: a Bulwark and an Ice Barrier each do something of their own when it breaks or runs out (talents). */
-  private shieldKind: 'bulwark' | 'ice' | 'other' = 'other';
+  private shieldKind: 'bulwark' | 'ice' | 'bone' | 'other' = 'other';
   /** Survivor: healing still to come from a Field Dressing, a share of health a second, until then. */
   private hot = 0; private hotUntil = 0; private hotTick = 0;
   private oathUntil = 0; private oathTick = 0;
@@ -133,6 +151,7 @@ export class ClassKit {
     this.chill.clear();
     this.evadeUntil = 0;
     this.grace = 0; this.sanct = null; this.hots = [];
+    this.blood = 0; this.wither.clear(); this.dismissThralls();
   }
 
   /** Put these utilities on the bar (the calling's own, and one of a master's for an apprentice). */
@@ -194,6 +213,8 @@ export class ClassKit {
     if (this.shield > 0 && this.shieldUntil > this.clock) {
       // Frostbite: the ice bites back
       if (this.shieldKind === 'ice' && from && Math.random() < T.icebarrier.bite) this.addChill(from);
+      // Bone Ward: whatever strikes it withers
+      if (this.shieldKind === 'bone' && from) this.addWither(from, 1);
       const soak = Math.min(this.shield, d);
       this.shield -= soak;
       d -= soak;
@@ -252,6 +273,7 @@ export class ClassKit {
       case 'warden': return { label: `${m.name} ${this.resolve}`, value: this.resolve, max: T.resolve.max, color: m.color };
       case 'reaver': return { label: this.fury >= 100 ? 'Fury: full' : m.name, value: this.fury, max: 100, color: m.color };
       case 'ashcaller': return { label: `${m.name} ${this.kindling}/3`, value: this.kindling, max: 3, color: m.color };
+      case 'gravecaller': return { label: `${m.name} ${Math.round(this.blood * 100)}%`, value: this.blood, max: T.lifeblood.max, color: m.color };
       case 'mender': return { label: this.grace >= T.grace.max ? 'Grace: full' : `${m.name} ${this.grace}/${T.grace.max}`, value: this.grace, max: T.grace.max, color: m.color };
       case 'wizard': {
         let n = 0;
@@ -351,6 +373,74 @@ export class ClassKit {
         this.redUntil = this.clock + T.redhour.secs;
         H.particles.burst(P.clone().setY(P.y + 1), '#c02a1a', 30); H.sfx('growl');
         return true;
+      // Gravecaller
+      case 'siphon': {
+        const e = H.faceTarget(T.siphon.range);
+        if (!e) return false;
+        H.anim('heal'); H.sfx('growl');
+        H.hit(e, pw * T.siphon.dmg);
+        H.particles.burst(e.pos.clone().setY(e.pos.y + 1.2), '#a8303a', 20);
+        H.particles.sparks(P.clone().setY(P.y + 1.2), 12, '#c84048');
+        // Whatever heals past full goes into Lifeblood
+        const want = H.maxHp() * T.siphon.heal, room = Math.max(0, H.maxHp() - H.hp());
+        H.heal(want);
+        if (want > room) this.addBlood((want - room) / H.maxHp() * T.lifeblood.siphon);
+        return true;
+      }
+      case 'wither': {
+        const e = H.faceTarget(T.wither.range);
+        if (!e) return false;
+        H.anim('attack');
+        const m = new THREE.Mesh(BOLT_GEO, new THREE.MeshBasicMaterial({ color: '#9ac060' }));
+        m.position.copy(P).setY(P.y + 1.4);
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: 24, dmg: pw * T.wither.dmg, wither: true });
+        return true;
+      }
+      case 'raise':
+        this.dismissThralls();
+        for (let k = 0; k < T.raise.n; k++) {
+          const a = (k / T.raise.n) * Math.PI * 2 + H.yaw();
+          const body = new Ally(THRALL, H.level(), H.voxels());
+          body.place(P.x + Math.sin(a) * 1.6, P.y, P.z + Math.cos(a) * 1.6);
+          body.yaw = H.yaw();
+          H.scene.add(body.model.root);
+          this.thralls.push({ body, left: T.raise.secs, swing: 0.6 + k * 0.4 });
+          H.particles.dust(body.pos.clone().setY(body.pos.y + 0.3), 16);
+        }
+        this.ring(P, 2.5, '#9ac060', 0.8);
+        H.anim('heal'); H.sfx('growl');
+        return true;
+      case 'boneward':
+        this.shield = Math.max(this.shield, H.maxHp() * T.boneward.shield);
+        this.shieldUntil = this.clock + T.boneward.secs;
+        this.shieldKind = 'bone';
+        H.particles.burst(P.clone().setY(P.y + 1), '#ece6d4', 24);
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      case 'gravegrip': {
+        const e = H.faceTarget(T.gravegrip.range);
+        if (!e) return false;
+        H.anim('cleave'); H.sfx('hitHeavy');
+        const at = e.pos.clone();
+        this.ring(at, T.gravegrip.r, '#7a8a5a', 0.7);
+        H.particles.dust(at.clone().setY(at.y + 0.3), 20);
+        // Held fast: a stun, so a blow being wound up is lost
+        for (const o of H.enemies()) if (o.alive && o.pos.distanceTo(at) < T.gravegrip.r) { H.hit(o, pw * T.gravegrip.dmg); o.stun = Math.max(o.stun, T.gravegrip.stun); }
+        return true;
+      }
+      case 'graverot': {
+        const e = H.faceTarget(T.graverot.range);
+        if (!e) return false;
+        H.anim('cleave'); H.sfx('growl');
+        const at = e.pos.clone();
+        this.ring(at, T.graverot.r, '#7a8a3a', 0.8);
+        H.particles.burst(at.clone().setY(at.y + 0.8), '#8aa040', 30);
+        let n = 0;
+        for (const o of H.enemies()) if (o.alive && o.pos.distanceTo(at) < T.graverot.r) { H.hit(o, pw * T.graverot.dmg); this.addWither(o, T.graverot.stacks); n++; }
+        if (n && T.graverot.heal > 0) H.heal(H.maxHp() * T.graverot.heal * n);
+        return true;
+      }
       // Mender
       case 'mend': {
         const full = this.grace >= T.grace.max;
@@ -637,6 +727,24 @@ export class ClassKit {
     this.host.hit(e, this.host.power() * T.chill.shatter);
   }
 
+  /** Lifeblood, up to what it holds. */
+  private addBlood(share: number): void { this.blood = Math.min(T.lifeblood.max, this.blood + share); }
+  /** Lifeblood, as a share of your health (a blood skill takes it first). */
+  get lifeblood(): number { return this.blood; }
+  /** Pay a blood price (a share of your health): Lifeblood first; what's left over comes out of your health. */
+  payBlood(share: number): number { const from = Math.min(this.blood, share); this.blood -= from; return share - from; }
+  /** Wither on a foe, deeper (up to its most) and fresh again. */
+  private addWither(e: Enemy, n: number): void {
+    const w = this.wither.get(e);
+    if (w) { w.n = Math.min(T.wither.max, w.n + n); w.until = this.clock + T.wither.secs; }
+    else this.wither.set(e, { n: Math.min(T.wither.max, n), until: this.clock + T.wither.secs, tick: 1 });
+  }
+  /** The raised lie down again. */
+  private dismissThralls(): void {
+    for (const t of this.thralls) { this.host.particles.dust(t.body.pos.clone().setY(t.body.pos.y + 0.5), 14); this.host.scene.remove(t.body.model.root); }
+    this.thralls = [];
+  }
+
   /** The most hurt of you and yours within r (by share of health; others before you unless you're worse off). */
   private mostHurt(r: number, othersOnly: boolean): Friend | null {
     const P = this.host.player();
@@ -726,6 +834,39 @@ export class ClassKit {
       for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.oath.r) H.hit(e, H.power() * T.oath.burn, { quiet: true });
       if (T.oath.heal > 0) H.heal(H.maxHp() * T.oath.heal);
     }
+    // Wither eats at each foe it's on and stores life; a foe dying under it gives up the rest
+    for (const [e, w] of this.wither) {
+      if (!e.alive) { if (w.until > this.clock) this.addBlood(T.lifeblood.kill); this.wither.delete(e); continue; }
+      if (w.until <= this.clock) { this.wither.delete(e); continue; }
+      if ((w.tick -= dt) <= 0) {
+        w.tick = 1;
+        H.hit(e, H.power() * T.wither.dot * w.n, { quiet: true });
+        this.addBlood(T.lifeblood.tick * w.n);
+        H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 4 + w.n * 2, '#8aa040');
+      }
+    }
+    // The raised: each goes for the nearest foe near you (or keeps close), and lies down when its time is up
+    for (const th of this.thralls) {
+      th.left -= dt; th.swing -= dt;
+      const b = th.body;
+      let foe: Enemy | null = null, best = 18;
+      for (const e of H.enemies()) { const k = e.pos.distanceTo(P); if (e.alive && k < best) { foe = e; best = k; } }
+      let moving = 0;
+      if (foe) {
+        if (Math.hypot(foe.pos.x - b.pos.x, foe.pos.z - b.pos.z) > 1.6) { if (b.stepToward(foe.pos.x, foe.pos.z, 5.5, dt)) moving = 5.5; }
+        else {
+          b.face(foe.pos.x, foe.pos.z);
+          if (th.swing <= 0) { th.swing = T.raise.every; b.act = 'attack'; b.actTime = 0; H.hit(foe, H.power() * T.raise.dmg); }
+        }
+      } else if (b.pos.distanceTo(P) > 3 && b.stepToward(P.x, P.z, 6, dt)) moving = 6;
+      // Left behind (a cliff, a river): up out of the ground beside you again
+      if (b.pos.distanceTo(P) > 30) { b.place(P.x + 1, P.y, P.z + 1); H.particles.dust(b.pos.clone().setY(b.pos.y + 0.3), 10); }
+      b.update(dt, moving);
+    }
+    if (this.thralls.some((t) => t.left <= 0)) {
+      for (const t of this.thralls) if (t.left <= 0) { H.particles.dust(t.body.pos.clone().setY(t.body.pos.y + 0.5), 14); H.scene.remove(t.body.model.root); }
+      this.thralls = this.thralls.filter((t) => t.left > 0);
+    }
     // Sanctuary: everyone of yours on it mends, foes on it burn
     if (this.sanct) {
       const s = this.sanct;
@@ -774,6 +915,7 @@ export class ClassKit {
           H.hit(f.to, f.dmg * (frozen ? T.icelance.frozen : 1), frozen || f.crit ? { crit: true } : undefined);
           if (f.lance) H.particles.burst(to, '#dff6ff', frozen ? 24 : 10);
           if (f.chill) this.addChill(f.to);
+          if (f.wither) this.addWither(f.to, 1);
           if (f.stun) f.to.stun = Math.max(f.to.stun, f.stun);
           // Toll Due: the shield springs on to the next foe
           if (f.bounce) {

@@ -989,6 +989,9 @@ export class Game implements GameApi {
       },
       maxHp: () => this.maxHp,
       friends: () => this.friendsNear(),
+      hp: () => this.hp,
+      level: () => this.level('melee'),
+      voxels: () => this.world.voxels,
       bow: () => this.bowInHand,
       anim: (st) => {
         if (st === 'heal') { this.healAnim = 0.6; return; }
@@ -2739,7 +2742,12 @@ export class Game implements GameApi {
     return { pool, n: slot === 2 ? 12 : slot === 3 ? SLOT_COST.heal : slot === 7 ? SLOT_COST.elite : SLOT_COST.utility };
   }
   /** Can the skill be paid for now? */
-  canPay(c: Cost | null): boolean { return !c || (c.pool === 'stamina' ? this.energy : this.magicka) >= c.n; }
+  canPay(c: Cost | null): boolean {
+    if (!c) return true;
+    // A blood price: Lifeblood first, and it never takes your last
+    if (c.pool === 'health') return this.hp - Math.max(0, c.n / 100 - this.kit.lifeblood) * this.maxHp >= 1;
+    return (c.pool === 'stamina' ? this.energy : this.magicka) >= c.n;
+  }
 
   /**
    * Everything the armour adds up to (data/armour.ts): defense off each hit, health, energy, roll
@@ -5357,7 +5365,11 @@ export class Game implements GameApi {
       const ok = i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
       if (ok) {
         this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0;
-        if (cost) { if (cost.pool === 'stamina') this.energy = Math.max(0, this.energy - cost.n); else this.magicka = Math.max(0, this.magicka - cost.n); }
+        if (cost) {
+          if (cost.pool === 'stamina') this.energy = Math.max(0, this.energy - cost.n);
+          else if (cost.pool === 'health') { const rest = this.kit.payBlood(cost.n / 100); if (rest > 0) this.hp = Math.max(1, this.hp - Math.round(rest * this.maxHp)); }
+          else this.magicka = Math.max(0, this.magicka - cost.n);
+        }
       }
     }
     else if (i === 8) this.roll();

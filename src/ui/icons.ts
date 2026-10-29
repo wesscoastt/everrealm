@@ -313,6 +313,13 @@ const GLYPHS: Record<string, [string[], string]> = {
   blink: [['X.X.X.....', '.........X', '........XX', '.......XXX', '......XXXX', '........XX', '.......X.X', '......X...', '.....X....', '....X.....'], '#e0d8ff'],
   icelance: [['.........X', '........XX', '.......XX.', '......XX..', '.....XX...', '....XX....', '...XX.....', '..XX......', '.XX.......', 'X.........'], '#e8f8ff'],
   frostnova: [['X...X...X.', '.X..X..X..', '..X.X.X...', '...XXX....', 'XXXXXXXXX.', '...XXX....', '..X.X.X...', '.X..X..X..', 'X...X...X.', '..........'], '#f0faff'],
+  // The Gravecaller's: a drop drawn off, a skull, a hand out of the ground, a ribcage, two hands, spreading rot
+  siphon: [['....X.....', '...XX.....', '...XXX....', '..XXXX..X.', '..XXXXX.X.', '.XXXXXX.X.', '.XXXXXX...', '..XXXX..X.', '...XX...X.', '..........'], '#f0c0c0'],
+  wither: [['...XXXX...', '..XXXXXX..', '.XX.XX.XX.', '.XX.XX.XX.', '.XXXXXXXX.', '..XXXXXX..', '..X.XX.X..', '..XXXXXX..', '...X..X...', '..........'], '#e0ecd0'],
+  raise: [['..X.X.X...', '..X.X.X.X.', '..X.X.X.X.', '..XXXXXXX.', 'X.XXXXXXX.', 'XXXXXXXX..', '.XXXXXX...', '..XXXX....', 'XXXXXXXXXX', 'X.X.X.X.X.'], '#e8e4d0'],
+  boneward: [['XXXXXXXXXX', 'X...XX...X', 'X.XXXXXX.X', 'X...XX...X', 'X.XXXXXX.X', '.X..XX..X.', '.X.XXXX.X.', '..X.XX.X..', '...XXXX...', '..........'], '#ece6d4'],
+  gravegrip: [['X.X....X.X', 'X.X.X..X.X', 'XXX.X..XXX', '.XXXX.XXX.', '..XX..XX..', '..XX..XX..', '..XX..XX..', 'XXXXXXXXXX', 'X.X.X.X.X.', '..........'], '#e0dccc'],
+  graverot: [['X.......X.', '...XX.....', '..XXXX..X.', '.XXXXXX...', '.XXXXXX..X', '..XXXX....', 'X..XX..X..', '.......XX.', '..X....XX.', '..........'], '#c8e0a0'],
   // The Mender's: a cross of light, a lantern, a hallowed ring, a ward, a starburst, a rising spiral
   mend: [['....XX....', '....XX....', '....XX....', 'XXXXXXXXXX', 'XXXXXXXXXX', '....XX....', '....XX....', '....XX....', '....XX....', '..........'], '#fff4d0'],
   lanternlight: [['....XX....', '...X..X...', '..XXXXXX..', '..X.XX.X..', '..XXXXXX..', '..X.XX.X..', '..XXXXXX..', '...XXXX...', '..........', '..........'], '#fff0b0'],
@@ -345,7 +352,9 @@ export function abilityIcon(kind: string): string {
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],
     blink: ['#8a7ad0', '#5a4aa0', '#2e245a'], icelance: ['#4aa0d0', '#1a6a9a', '#0c3654'], frostnova: ['#6ac0e0', '#2a80a8', '#124460'],
     mend: ['#d8b860', '#9a7a30', '#5a4414'], lanternlight: ['#e0b850', '#a07a20', '#5a420c'], sanctuary: ['#c8a860', '#8a6a2a', '#4a3a14'],
-    lampward: ['#b0a070', '#7a6a3a', '#40381a'], rebuke: ['#e0c070', '#a08030', '#5a4414'], restore: ['#9ab060', '#6a7a34', '#3a441a'],
+    lampward: ['#b0a070', '#7a6a3a', '#40381a'],
+    siphon: ['#a83038', '#6a1820', '#380c10'], wither: ['#6a8a4a', '#3e5a2a', '#1e2e14'], raise: ['#5a5a6a', '#34343e', '#18181e'],
+    boneward: ['#8a8070', '#5a5244', '#2e2a22'], gravegrip: ['#4a5a3e', '#2c3824', '#141c10'], graverot: ['#7a8a3a', '#4a5a1e', '#24300c'], rebuke: ['#e0c070', '#a08030', '#5a4414'], restore: ['#9ab060', '#6a7a34', '#3a441a'],
   };
   const [hi, mid, lo] = tones[kind];
   x.fillStyle = mid; x.fillRect(0, 0, 16, 16);

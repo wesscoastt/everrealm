@@ -13,7 +13,7 @@ const CRIT = 0.12, CRIT_MULT = 1.6;
 const CHAIN = [{ m: 1, d: 0.42 }, { m: 1.1, d: 0.42 }, { m: 1.5, d: 0.55 }];
 const CLEAVE = { m: 1.5, d: 0.6, cd: 6 };
 
-interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number; burned?: boolean }
+interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number; burned?: boolean; wither?: number; withered?: number }
 interface Fight { name: string; foes: () => Foe[]; secs: number; ranged: boolean; dummy: boolean }
 
 /** Fights: a training dummy, four dummies, a strong elite toe to toe, and a pack of four. */
@@ -43,6 +43,12 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   let evadeUntil = 0;
   // The Mender: Grace, Sanctuary underfoot, Restoration ticking
   let grace = 0, sanctUntil = 0, sanctTick = 0, restoreUntil = 0;
+  // The Gravecaller: Lifeblood, the raised dead
+  let blood = 0, raisedUntil = 0, raiseTick = 0;
+  const addBlood = (n: number) => { blood = Math.min(TUNE.lifeblood.max, blood + n); };
+  /** A blood price (percent of health): Lifeblood first; false (and nothing paid) if it would take the last of you. */
+  const payBlood = (pct: number) => { const c = pct / 100, from = Math.min(blood, c); if (hp - (c - from) <= 0.02) return false; blood -= from; hp -= c - from; return true; };
+  const addWither = (e: Foe, n: number) => { e.wither = Math.min(TUNE.wither.max, ((e.withered ?? 0) > t ? e.wither ?? 0 : 0) + n); e.withered = t + TUNE.wither.secs; };
   let t = 0, hp = 1, busy = 0, chain = 0, cleaveCd = 0, dealt = 0;
   let resolve = 0, resolveAt = -99, fury = 0, kindling = 0, shield = 0, shieldUntil = 0, oathUntil = 0, oathTick = 0;
   let redUntil = 0, wardUntil = 0, wardTick = 0, stepUntil = 0, pendingStar = -1;
@@ -52,7 +58,10 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (redUntil > t) d *= TUNE.redhour.dealt;
     if (e.mark > t) d *= 1 + TUNE.volley.markBonus;
     if (id === 'warden') d *= 1 + resolve * TUNE.resolve.dmg;
+    const was = e.hp;
     e.hp -= d; dealt += d;
+    // A foe dying withered gives up the rest of its life
+    if (was > 0 && e.hp <= 0 && (e.withered ?? 0) > t) addBlood(TUNE.lifeblood.kill);
     if (id === 'reaver') fury = Math.min(100, fury + TUNE.fury.perHit * (redUntil > t ? TUNE.fury.red : 1));
     return d;
   };
@@ -77,6 +86,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (shield > 0 && shieldUntil <= t) { if (shieldKind === 'bulwark') heal(shield * TUNE.bulwark.mend); shield = 0; }
     if (hotUntil > t) heal(TUNE.dressing.hot / 5 * DT);
     if (restoreUntil > t) heal(TUNE.restore.heal / TUNE.restore.secs * DT);
+    for (const e of L) if (e.wither && (e.withered ?? 0) > t) { hit(e, TUNE.wither.dot * e.wither * DT, false); addBlood(TUNE.lifeblood.tick * e.wither * DT); }
+    if (raisedUntil > t && (raiseTick -= DT) <= 0) { raiseTick = TUNE.raise.every; const to = live()[0]; if (to) for (let k = 0; k < TUNE.raise.n; k++) hit(to, TUNE.raise.dmg); }
     // Sanctuary: you heal on it; foes burn on it only when they've come to you
     if (sanctUntil > t && (sanctTick -= DT) <= 0) { sanctTick = 1; heal(TUNE.sanctuary.heal); if (!ranged) aoe(caught(), TUNE.sanctuary.burn); }
     if (star2 >= 0 && (star2 -= DT) < 0) { star2 = -1; aoe(caught(), TUNE.starfall.dmg * TUNE.starfall.twice); }
@@ -113,6 +124,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       if (sanctUntil > t) d *= TUNE.sanctuary.taken;
       if (shield > 0 && shieldUntil > t) {
         if (shieldKind === 'ice' && Math.random() < TUNE.icebarrier.bite) chill(e);
+        if (shieldKind === 'bone') addWither(e, 1);
         const s = Math.min(shield, d); shield -= s; d -= s;
         if (shield <= 0) {
           if (shieldKind === 'bulwark' && TUNE.bulwark.burst > 0) live().slice(0, caught()).forEach((o) => { hit(o, TUNE.bulwark.burst); o.stun = Math.max(o.stun, TUNE.bulwark.burstStun); });
@@ -165,6 +177,13 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         // Blink: a moment untouchable, and they have to come to you again
         case 'blink': if (f.dummy || hp > 0.7) return false; evadeUntil = t + TUNE.blink.evade; for (const e of L) e.hitIn += 1.5; break;
         case 'icelance': hit(tgt, TUNE.icelance.dmg * (tgt.stun > 0 ? TUNE.icelance.frozen : 1)); break;
+        // Gravecaller: blood prices come out of Lifeblood first
+        case 'siphon': { hit(tgt, TUNE.siphon.dmg); const room = 1 - hp; heal(TUNE.siphon.heal); if (TUNE.siphon.heal > room) addBlood((TUNE.siphon.heal - room) * TUNE.lifeblood.siphon); break; }
+        case 'wither': hit(tgt, TUNE.wither.dmg); addWither(tgt, 1); break;
+        case 'raise': if (!payBlood(12)) return false; raisedUntil = t + TUNE.raise.secs; raiseTick = 0.6; break;
+        case 'boneward': if (f.dummy || hp > 0.85 || !payBlood(8)) return false; shield = TUNE.boneward.shield; shieldUntil = t + TUNE.boneward.secs; shieldKind = 'bone'; break;
+        case 'gravegrip': live().slice(0, Math.min(caught(), 3)).forEach((o) => { hit(o, TUNE.gravegrip.dmg); o.stun = Math.max(o.stun, TUNE.gravegrip.stun); }); break;
+        case 'graverot': { if (caught() < 2 || hp < 0.35 || !payBlood(6)) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.graverot.dmg); addWither(o, TUNE.graverot.stacks); }); heal(TUNE.graverot.heal * caught()); break; }
         // Mender: alone, every heal is for yourself
         case 'mend': {
           if (f.dummy || hp > 0.7) return false;
@@ -204,7 +223,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
 
 // Average many runs; ranged callings fight the way that suits them better
 const RUNS = 300;
-const rangedCallings = new Set<CallingId>(['ashcaller', 'wizard', 'mender']);
+const rangedCallings = new Set<CallingId>(['ashcaller', 'wizard', 'mender', 'gravecaller']);
 const rows: Record<string, number[]> = {};
 for (const c of CALLINGS) {
   const cells: number[] = [];

@@ -181,6 +181,31 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'restore_a', name: 'Quick Restoration', desc: 'All of it in three seconds, not six, a little less of it.', mod: (t) => { t.restore.secs = 3; t.restore.heal -= 0.02; } },
     { id: 'restore_b', name: 'Deep Restoration', desc: 'Heals a fifth more, and recharges a fifth slower.', mod: (t) => { scale(t.restore, 'heal', 1.2); cd(t, 'restore', 1.2); } },
   ],
+  // ---------------------------------------------------------------- Gravecaller
+  siphon: [
+    { id: 'siphon_a', name: 'Drink Deep', desc: 'Heals a fifth more, and recharges a fifth slower.', mod: (t) => { scale(t.siphon, 'heal', 1.2); cd(t, 'siphon', 1.2); } },
+    { id: 'siphon_b', name: 'Leech', desc: 'Strikes a quarter harder, healing a sixth less.', mod: (t) => { scale(t.siphon, 'dmg', 1.25); scale(t.siphon, 'heal', 0.84); } },
+  ],
+  wither: [
+    { id: 'wither_a', name: 'Black Frost', desc: 'The bolt strikes a tenth harder; the curse eats a tenth slower.', mod: (t) => { scale(t.wither, 'dmg', 1.1); scale(t.wither, 'dot', 0.9); } },
+    { id: 'wither_b', name: 'Long Wither', desc: 'The curse lasts three seconds longer; the bolt strikes a tenth lighter.', mod: (t) => { t.wither.secs += 3; scale(t.wither, 'dmg', 0.9); } },
+  ],
+  raise: [
+    { id: 'raise_a', name: 'Old Soldiers', desc: 'The raised hit a quarter harder, and lie down five seconds sooner.', mod: (t) => { scale(t.raise, 'dmg', 1.25); t.raise.secs -= 5; } },
+    { id: 'raise_b', name: 'Long Watch', desc: 'The raised stay up eight seconds longer, hitting a sixth lighter.', mod: (t) => { t.raise.secs += 8; scale(t.raise, 'dmg', 0.84); } },
+  ],
+  boneward: [
+    { id: 'boneward_a', name: 'Thick Bone', desc: 'Soaks a quarter more, for three seconds less.', mod: (t) => { scale(t.boneward, 'shield', 1.25); t.boneward.secs -= 3; } },
+    { id: 'boneward_b', name: 'Quick Bone', desc: 'Recharges a fifth faster, soaking a sixth less.', mod: (t) => { cd(t, 'boneward', 0.8); scale(t.boneward, 'shield', 0.84); } },
+  ],
+  gravegrip: [
+    { id: 'gravegrip_a', name: 'Deep Grip', desc: 'Holds 0.6 seconds longer; strikes a tenth lighter.', mod: (t) => { t.gravegrip.stun += 0.6; scale(t.gravegrip, 'dmg', 0.9); } },
+    { id: 'gravegrip_b', name: 'Crushing Grip', desc: 'Strikes a quarter harder; holds 0.4 seconds less.', mod: (t) => { scale(t.gravegrip, 'dmg', 1.25); t.gravegrip.stun -= 0.4; } },
+  ],
+  graverot: [
+    { id: 'graverot_a', name: 'Wide Rot', desc: 'Reaches two blocks farther, striking a tenth lighter.', mod: (t) => { t.graverot.r += 2; scale(t.graverot, 'dmg', 0.9); } },
+    { id: 'graverot_b', name: 'Black Rot', desc: 'Strikes a quarter harder, reaching a block less.', mod: (t) => { scale(t.graverot, 'dmg', 1.25); t.graverot.r -= 1; } },
+  ],
   // ---------------------------------------------------------------- Weapon skills (key 3)
   riposte: [
     { id: 'riposte_a', name: 'Iron Guard', desc: 'The guard stays up 0.6 seconds longer.', mod: (t) => { t.riposte.secs += 0.6; } },

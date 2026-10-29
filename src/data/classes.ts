@@ -10,7 +10,7 @@
 // a master of another calling will teach an apprentice one of their utilities (data/content/masters.ts).
 // Each calling has three talent trees (data/talents.ts), one for each way of playing it.
 
-export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard' | 'mender';
+export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard' | 'mender' | 'gravecaller';
 
 export interface SkillDef {
   id: string;
@@ -136,6 +136,22 @@ export const CALLINGS: CallingDef[] = [
     ],
     pros: 'Heals and wards others; hard to bring down', cons: 'Least damage of any calling',
   },
+  {
+    id: 'gravecaller', name: 'Gravecaller', role: 'Curses and the raised dead',
+    blurb: 'Borrows from the dead: their last breath, their bones, the cold they lie in. The barrow-keepers of Tolmen Moor learned it to keep the old barrows quiet, and they say the dead only lend.',
+    mechanic: { name: 'Lifeblood', desc: 'Wither stores life as it eats at a foe, and a foe that dies withered gives up the rest; Siphon stores whatever it heals past full. Skills paid in health take it from your Lifeblood first.', color: '#b0383a' },
+    skills: [
+      { id: 'siphon', name: 'Siphon', icon: 'siphon', cd: 10, desc: 'Draw the life out of your target from up to eighteen blocks: it takes a heavy blow and you heal a tenth of your health. Whatever heals past full goes into your Lifeblood.' },
+      { id: 'wither', name: 'Wither', icon: 'wither', cd: 1.6, desc: 'A bolt of grave-cold at your target from up to twenty-two blocks. It leaves Wither on them, eating at them for six seconds, up to three deep.' },
+      { id: 'raise', name: 'Raise the Fallen', icon: 'raise', cd: 60, desc: 'Paid in health. Two of the dead get up out of the ground beside you and fight what you fight for twenty seconds, then lie down again.' },
+    ],
+    utilities: [
+      { id: 'boneward', name: 'Bone Ward', icon: 'boneward', cd: 20, desc: 'Paid in health. A ward of bone soaks blows worth a fifth of your health for eight seconds, and withers whatever strikes it.' },
+      { id: 'gravegrip', name: 'Grave Grip', icon: 'gravegrip', cd: 14, desc: 'Hands come up out of the ground under your target: it and everything within three blocks of it are held fast for two seconds, and any blow being wound up is lost.' },
+      { id: 'graverot', name: 'Grave Rot', icon: 'graverot', cd: 16, desc: 'Paid in health. Rot spreads out from your target to every foe within six blocks of it, striking each and leaving Wither two deep.' },
+    ],
+    pros: 'Wears whole packs down; never waits on magicka for its blood skills', cons: 'Slow to kill one foe outright; pays in health',
+  },
 ];
 
 export const callingById = (id: unknown): CallingDef | null => CALLINGS.find((c) => c.id === id) ?? null;
@@ -208,6 +224,18 @@ export const TUNE = {
   /** heal: a share of health for you and yours for each foe it strikes. */
   rebuke: { r: 5, dmg: 1.1, stun: 1.3, heal: 0 },
   restore: { heal: 0.1, secs: 6, r: 10 },
+  // Gravecaller (Lifeblood is a share of your health; the blood skills' prices are in data/combat.ts)
+  /** max: the most it holds; tick: stored a second for each depth of Wither; kill: from a foe dying withered; siphon: the share of Siphon's overheal kept. */
+  lifeblood: { max: 0.3, tick: 0.006, kill: 0.05, siphon: 1 },
+  siphon: { dmg: 1.2, heal: 0.1, range: 18 },
+  /** dot: a second, for each depth of it. */
+  wither: { dmg: 1.0, dot: 0.2, secs: 6, max: 3, range: 22 },
+  /** n raised, for secs, each striking dmg every so many seconds. */
+  raise: { n: 2, secs: 20, dmg: 0.4, every: 1.2 },
+  boneward: { shield: 0.2, secs: 8 },
+  gravegrip: { r: 3, dmg: 0.9, stun: 2, range: 18 },
+  /** heal: a share of your health for each foe it strikes (talents). */
+  graverot: { r: 6, dmg: 1.0, stacks: 2, range: 18, heal: 0 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },

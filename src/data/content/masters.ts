@@ -62,6 +62,14 @@ const MASTERS: Master[] = [
     own: 'You\'ve a lamp already. Is it trimmed? Then go and use it.',
     barks: ['Sit down.', 'Mind the wick.'],
   },
+  {
+    calling: 'gravecaller', id: 'master_jewell', name: 'Elias Jewell', title: 'Keeps the barrows on Tolmen Moor', at: [336.5, 2964.5], face: [340.5, 2966.5],
+    look: { skin: '#d0a888', hair: '#5a5650', hairStyle: 3, facial: 2, tunic: '#3a3a34', trim: '#7a7a6a', trousers: '#2e2c28', boots: '#221e1a', cape: '#4a3e30', hat: 'hood', hatColor: '#3e3a32', build: 0.9, age: 0.7 },
+    hello: 'Jewell. I keep the barrows up on the moor. Somebody has to sit with them, and the rest of Scarrow would sooner not.',
+    teach: 'A ward out of old bone, hands up out of the ground to hold a thing still, and a rot that spreads. You ask the dead. You don\'t tell them.',
+    own: 'You know how to ask already. Then you know to give it back after.',
+    barks: ['They only lend.', 'Mind the barrows.'],
+  },
 ];
 
 const level = (g: GameApi) => g.level('melee');
