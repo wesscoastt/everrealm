@@ -26,7 +26,7 @@ export const SKILL_COST: Record<string, Cost> = {
   bloodup: { pool: 'health', n: 6 },
   // The casters' quick signatures (a cooldown under two seconds): at range they stand in for the free
   // swing, so they cost little; at the utility price they ate nearly all the magicka that comes back
-  bolt: { pool: 'magicka', n: 6 }, frostbolt: { pool: 'magicka', n: 6 }, lanternlight: { pool: 'magicka', n: 6 }, wither: { pool: 'magicka', n: 6 },
+  bolt: { pool: 'magicka', n: 6 }, frostbolt: { pool: 'magicka', n: 6 }, spark: { pool: 'magicka', n: 6 }, attune: { pool: 'magicka', n: 4 }, lanternlight: { pool: 'magicka', n: 6 }, wither: { pool: 'magicka', n: 6 },
   // Gravecaller: the blood skills
   boneward: { pool: 'health', n: 8 }, graverot: { pool: 'health', n: 6 }, raise: { pool: 'health', n: 12 },
 };

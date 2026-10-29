@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CreatureModel } from '../entities/creatures';
-import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SECOND_SKILLS, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SECOND_SKILLS, SkillDef, SPARK, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
 
 /** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
@@ -154,6 +154,7 @@ export class ClassKit {
     // Nothing carries over from the old calling
     this.fury = this.kindling = this.resolve = this.shield = 0;
     this.openings = this.hiddenUntil = this.venom = 0; this.fromHiding = 1;
+    this.storm = false;
     this.dismissHound();
     this.shieldUntil = this.oathUntil = this.redUntil = this.wardUntil = this.stepStrike = 0;
     this.holdUntil = this.rushUntil = this.riposteUntil = this.hotUntil = 0;
@@ -171,7 +172,10 @@ export class ClassKit {
   setUtilities(ids: unknown, ap: CallingDef | null = null): void {
     const u = chosenUtilities(this.calling, ids, ap);
     this.bar = [this.calling.skills[0], ...u, this.elite];
+    if (this.storm) this.bar[1] = SPARK;
   }
+  /** The Wizard under the storm (Change Element): Frost Bolt is Spark. */
+  storm = false;
   /** The elite chosen for key 8 (CallingDef.elites), or the calling's own. */
   private eliteId = '';
   get elite(): SkillDef { return elitesOf(this.calling).find((s) => s.id === this.eliteId) ?? this.calling.skills[2]; }
@@ -929,6 +933,24 @@ export class ClassKit {
         H.scene.add(model.root);
         H.particles.dust(pos.clone().setY(pos.y + 0.3), 12);
         H.sfx('growl');
+        return true;
+      }
+      // Wizard: frost to storm and back; key 5 changes with it
+      case 'attune':
+        this.storm = !this.storm;
+        this.bar[1] = this.storm ? SPARK : this.calling.skills[1];
+        H.particles.sparks(P.clone().setY(P.y + 1.4), 16, this.storm ? '#d8d0ff' : '#c8f4ff');
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      // Spark: lightning at the target, leaping to the next foe near it
+      case 'spark': {
+        const e = H.faceTarget(T.frostbolt.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('hitHeavy');
+        H.hit(e, pw * T.spark.dmg);
+        H.particles.sparks(e.pos.clone().setY(e.pos.y + 1.2), 10, '#e0d8ff');
+        const next = H.enemies().filter((o) => o !== e && o.alive && o.pos.distanceTo(e.pos) < T.spark.r).sort((a, b) => a.pos.distanceTo(e.pos) - b.pos.distanceTo(e.pos))[0];
+        if (next) { H.hit(next, pw * T.spark.dmg * T.spark.leap); H.particles.sparks(next.pos.clone().setY(next.pos.y + 1.2), 8, '#e0d8ff'); }
         return true;
       }
       // ---- The Prowler

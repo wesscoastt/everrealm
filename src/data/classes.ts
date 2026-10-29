@@ -142,6 +142,7 @@ export const CALLINGS: CallingDef[] = [
       { id: 'frostnova', name: 'Frost Nova', icon: 'frostnova', cd: 16, desc: 'Cold bursts out of you: everything within five blocks is hurt and frozen for two seconds.' },
       { id: 'shatter', name: 'Shatter', icon: 'shatter', cd: 12, desc: 'Break the cold in everything within ten blocks: each chilled foe takes a blow for every Chill on it, and the Chill is spent.' },
       { id: 'frostbite', name: 'Frostbite', icon: 'frostbite', cd: 10, desc: 'Cold into your target\'s blood from up to eighteen blocks: a Chill now, and it freezes slowly from within for six seconds.' },
+      { id: 'attune', name: 'Change Element', icon: 'attune', cd: 6, desc: 'Turn from frost to storm, or back. Under the storm your Frost Bolt is Spark: lightning that leaps from your target to the next foe near it, but chills nothing.' },
     ],
     elites: [
       { id: 'deepfreeze', name: 'Deep Freeze', icon: 'deepfreeze', cd: 60, desc: 'The cold goes all the way in: everything within eight blocks is frozen solid for four seconds, and cracked for a blow.' },
@@ -328,6 +329,8 @@ export const TUNE = {
   plague: { r: 10, dmg: 1.2, stacks: 3 },
   /** Pathfinder's Hunting Hound: lasts secs, bites dmg every so often (a bleed one time in bleed), hp a share of yours; draw: about the share of blows that go for it. */
   hound: { secs: 20, dmg: 0.36, every: 1.2, bleed: 0.25, hp: 0.4, draw: 0.2 },
+  /** The Wizard's Storm: Spark (Frost Bolt under the storm) strikes dmg, and leap of that to the next foe within r. */
+  spark: { dmg: 0.95, leap: 0.7, r: 6 },
   // Key 2 by the weapon in hand (SECOND_SKILLS)
   backstab: { dmg: 1.1, behind: 2.3, range: 3 },
   hook: { dmg: 1.0, range: 6, pull: 9, stun: 0.6 },
@@ -437,6 +440,8 @@ export function weaponKit(family: string | undefined, speed: number | undefined)
 }
 /** A calling's elites: its own, then the others it can choose instead. */
 export function elitesOf(c: CallingDef): SkillDef[] { return [c.skills[2], ...(c.elites ?? [])]; }
+/** Frost Bolt under the storm (the Wizard's Change Element): it takes key 5 while the storm is on you. */
+export const SPARK: SkillDef = { id: 'spark', name: 'Spark', icon: 'spark', cd: 1.6, desc: 'Lightning at your target that leaps to the next foe within six blocks of it. It chills nothing.' };
 /** Cross-classing (data/content/masters.ts): the level an apprenticeship can start, and its fee. */
 export const APPRENTICE_LEVEL = 25, APPRENTICE_FEE = 500;
 /** Skills that only work through their own calling's craft, so no master teaches them. */

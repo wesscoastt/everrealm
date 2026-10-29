@@ -3459,7 +3459,7 @@ export class Game implements GameApi {
   }
   private weaponSkillIds(): string[] { return [...Object.values(WEAPON_SKILLS), ...Object.values(SECOND_SKILLS)].map((x) => x!.id); }
   /** Is a calling skill unlocked (weapon skills come with the weapon)? */
-  skillUnlocked(id: string): boolean { return this.weaponSkillIds().includes(id) || !!this.flag('skun:' + id); }
+  skillUnlocked(id: string): boolean { if (id === 'spark') id = 'frostbolt'; return this.weaponSkillIds().includes(id) || !!this.flag('skun:' + id); }
   private skillRank(id: string): number { return skillRankFor(Number(this.flag('skuse:' + id) ?? 0)); }
   private morphOf(id: string): 'a' | 'b' | null { const m = this.flag('skmorph:' + id); return m === 'a' || m === 'b' ? m : null; }
   /** The pool: points from levels (the talents' own and the early ones) and Insight, and what's spent of it. */
@@ -5429,6 +5429,7 @@ export class Game implements GameApi {
         return;
       }
       const ok = i === 1 ? this.kit.useSecond() : i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
+      if (ok && i > 2 && this.kit.bar[i - 3]?.id === 'attune') this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
       if (ok) {
         this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0;
         if (cost) {

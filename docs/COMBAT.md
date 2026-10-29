@@ -461,3 +461,20 @@ Pillar of Fire nudged to keep their pairs and elites within their limits.
 
 Verified headless (`.walker/scen-hound.js`): called, the hound took 214 off a wolf in eight seconds; the
 wolf turned on it and took it 98 to 59; it went home after twenty.
+
+### The brief's elementalist: the Wizard's attunement (2026-10-29)
+
+The brief's Elementalist is two callings here (the Kindler's fire, the Wizard's frost). The Wizard now
+also has the attunement the brief suggests: **Change Element**, a utility that turns frost to storm and
+back. Under the storm, Frost Bolt is **Spark** (key 5 changes with it): lightning at the target that
+leaps to the next foe within six blocks, at seven tenths, and chills nothing. Frost holds and shatters
+one foe; the storm spreads over a pack. The balance sim changes element as a player would (storm for a
+pack, frost for one), and the pairs, morphs (Quick Change, Chain Lightning) and trees stay in their
+limits; the Prowler's Kick While Down nudged 5% to 7%.
+
+Shown live in the browser pane: two Frost Bolts took 176 off one wolf and built Chill to 2/3; after
+Change Element key 5 read "Spark", and two Sparks took 112 and 128 off two wolves.
+
+With this, the brief's skill list is in: weapon skills by weapon (keys 2 and 3), five utilities and two
+elites to choose from in every calling, saved builds, the effects table and cleanses, the Rogue (the
+Prowler), the Pathfinder's beast, and an elemental attunement.

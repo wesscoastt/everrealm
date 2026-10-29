@@ -73,6 +73,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   let openings = 0, hiddenUntil = 0, fromHiding = 1, venom = 0, cutsLeft = 0, cutsNext = 0;
   // The Pathfinder's hound: until when, its next bite, its health (a share of yours)
   let houndUntil = 0, houndBite = 0, houndHp = 0;
+  // The Wizard's element (Change Element): under the storm, Frost Bolt is Spark
+  let storm = false;
   const hit = (e: Foe, p: number, crit = Math.random() < CRIT) => {
     let d = p * (crit || (deadeyeUntil > t && p > 0.3) ? CRIT_MULT : 1);
     if (redUntil > t) d *= TUNE.redhour.dealt;
@@ -252,7 +254,9 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'rain': zones.push({ until: t + TUNE.rain.secs, per: TUNE.rain.dmg, tick: 0.2, mark: TUNE.rain.mark > 0 }); break;
         case 'quickstep': stepUntil = t + TUNE.quickstep.window; if (TUNE.quickstep.evade && !f.dummy) evadeUntil = t + TUNE.quickstep.evade; break;
         case 'icebarrier': if (f.dummy || hp > 0.85) return false; shield = TUNE.icebarrier.shield; shieldUntil = t + TUNE.icebarrier.secs; shieldKind = 'ice'; break;
-        case 'frostbolt': hit(tgt, TUNE.frostbolt.dmg); chill(tgt); break;
+        case 'frostbolt': if (storm) { hit(tgt, TUNE.spark.dmg); if (L[1]) hit(L[1], TUNE.spark.dmg * TUNE.spark.leap); } else { hit(tgt, TUNE.frostbolt.dmg); chill(tgt); } break;
+        // Change Element: the storm for a pack, frost for one foe
+        case 'attune': { const want = L.length > 1; if (want === storm) return false; storm = want; break; }
         case 'blizzard': zones.push({ until: t + TUNE.blizzard.secs, per: TUNE.blizzard.dmg, tick: 0.2, chill: true }); break;
         // Blink: a moment untouchable, and they have to come to you again
         case 'blink': if (f.dummy || hp > 0.7) return false; evadeUntil = t + TUNE.blink.evade; for (const e of L) e.hitIn += 1.5; break;

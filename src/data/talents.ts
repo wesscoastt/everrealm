@@ -351,7 +351,7 @@ export const TREES: Record<CallingId, TreeDef[]> = {
       ['k_rust', 'Rusty', 3, 'Caltrops stay a second longer.', (t) => { t.caltrops.secs += 1; }],
       ['k_stun', 'Low Blow', 3, 'Pocket Sand stuns a tenth of a second longer.', (t) => { t.pocketsand.stun += 0.1; }],
       ['k_bag', 'Full Pockets', 2, 'Caltrops recharge 8% faster.', (t) => cd(t, 'caltrops', 0.92)],
-      ['k_kick', 'Kick While Down', 2, 'Twist the Knife cuts 5% harder.', (t) => { t.twist.dmg *= 1.05; }],
+      ['k_kick', 'Kick While Down', 2, 'Twist the Knife cuts 7% harder.', (t) => { t.twist.dmg *= 1.07; }],
     ], ['k_rotten', 'Rotten Luck', 'Pocket Sand stuns half a second longer, Caltrops cut a fifth deeper, and Twist the Knife a tenth.', (t) => { t.pocketsand.stun += 0.5; t.caltrops.dmg *= 1.2; t.twist.dmg *= 1.1; }]),
   ],
 };
