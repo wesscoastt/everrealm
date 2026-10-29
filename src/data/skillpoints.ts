@@ -206,6 +206,22 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'graverot_a', name: 'Wide Rot', desc: 'Reaches two blocks farther, striking a tenth lighter.', mod: (t) => { t.graverot.r += 2; scale(t.graverot, 'dmg', 0.9); } },
     { id: 'graverot_b', name: 'Black Rot', desc: 'Strikes a quarter harder, reaching a block less.', mod: (t) => { scale(t.graverot, 'dmg', 1.25); t.graverot.r -= 1; } },
   ],
+  challenge: [
+    { id: 'challenge_a', name: 'Wide Challenge', desc: 'Reaches three blocks farther, the cowing two seconds shorter.', mod: (t) => { t.challenge.r += 3; t.challenge.secs -= 2; } },
+    { id: 'challenge_b', name: 'Face Me', desc: 'Gathers two more Resolve, reaching two blocks less.', mod: (t) => { t.challenge.resolve += 2; t.challenge.r -= 2; } },
+  ],
+  cover: [
+    { id: 'cover_a', name: 'Close Cover', desc: 'Wards a third more, reaching three blocks less.', mod: (t) => { scale(t.cover, 'shield', 1.3); scale(t.cover, 'self', 1.3); t.cover.r -= 3; } },
+    { id: 'cover_b', name: 'Long Cover', desc: 'Lasts three seconds longer, warding a fifth less.', mod: (t) => { t.cover.secs += 3; scale(t.cover, 'shield', 0.8); scale(t.cover, 'self', 0.8); } },
+  ],
+  finisher: [
+    { id: 'finisher_a', name: 'Clean Kill', desc: 'Over three times as hard on a foe nearly done, a fifth lighter otherwise.', mod: (t) => { t.finisher.mult += 0.8; scale(t.finisher, 'dmg', 0.8); } },
+    { id: 'finisher_b', name: 'Heavy Cut', desc: 'A third harder, but only twice as hard on a foe nearly done.', mod: (t) => { scale(t.finisher, 'dmg', 1.3); t.finisher.mult -= 0.6; } },
+  ],
+  bloodup: [
+    { id: 'bloodup_a', name: 'Red Mist', desc: 'Gives a third more Fury.', mod: (t) => { t.bloodup.fury += 20; } },
+    { id: 'bloodup_b', name: 'Steady Anger', desc: 'Ready again sooner, for less Fury.', mod: (t) => { t.bloodup.fury -= 10; t.cd.bloodup = 0.7; } },
+  ],
   // ---------------------------------------------------------------- Weapon skills (key 3)
   riposte: [
     { id: 'riposte_a', name: 'Iron Guard', desc: 'The guard stays up 0.6 seconds longer.', mod: (t) => { t.riposte.secs += 0.6; } },

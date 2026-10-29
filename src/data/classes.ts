@@ -53,6 +53,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'holdfast', name: 'Hold Fast', icon: 'holdfast', cd: 20, desc: 'Plant your feet: for four seconds nothing knocks you back, and you take 30% less damage.' },
       { id: 'shieldthrow', name: 'Shield Throw', icon: 'shieldthrow', cd: 10, desc: 'Throw your shield at your target from up to fourteen blocks. It strikes hard and staggers it.' },
       { id: 'rally', name: 'Rally', icon: 'rally', cd: 25, desc: 'Get your breath back: heal a sixth of your health and gather full Resolve.' },
+      { id: 'challenge', name: 'Challenge', icon: 'challenge', cd: 16, desc: 'Bang your shield and call them on: every foe within six blocks is cowed, its blows landing 15% softer for six seconds, and you gather two Resolve.' },
+      { id: 'cover', name: 'Cover', icon: 'cover', cd: 22, desc: 'Bring your shield round for everyone near: each of your side within eight blocks gets a ward of an eighth of their health for six seconds, you a little less.' },
     ],
     pros: 'Hardest to bring down; stuns', cons: 'Lowest damage',
   },
@@ -69,6 +71,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'rend', name: 'Rend', icon: 'rend', cd: 9, desc: 'A wide cut through everything in front of you, leaving them bleeding.' },
       { id: 'rush', name: 'Blood Rush', icon: 'rush', cd: 18, desc: 'For six seconds you swing 40% faster.' },
       { id: 'hamstring', name: 'Hamstring', icon: 'hamstring', cd: 12, desc: 'Cut your target behind the knee: it takes a blow and can\'t move for over a second.' },
+      { id: 'finisher', name: 'Finishing Cut', icon: 'finisher', cd: 10, desc: 'A cut meant to end it: a solid blow, two and a half times that on a foe under a third of its health, and a kill with it mends you a little.' },
+      { id: 'bloodup', name: 'Blood Up', icon: 'bloodup', cd: 16, desc: 'Open your own arm and let it make you angry: a sixteenth of your health for most of your Fury, and for eight seconds every blow you land gives a little health back.' },
     ],
     pros: 'Highest damage; heals by fighting', cons: 'Takes more harm; melee only',
   },
@@ -223,7 +227,7 @@ export const TUNE = {
   lampward: { shield: 0.1, secs: 8, r: 10 },
   /** heal: a share of health for you and yours for each foe it strikes. */
   rebuke: { r: 5, dmg: 1.1, stun: 1.3, heal: 0 },
-  restore: { heal: 0.1, secs: 6, r: 10 },
+  restore: { heal: 0.09, secs: 6, r: 10 },
   // Gravecaller (Lifeblood is a share of your health; the blood skills' prices are in data/combat.ts)
   /** max: the most it holds; tick: stored a second for each depth of Wither; kill: from a foe dying withered; siphon: the share of Siphon's overheal kept. */
   lifeblood: { max: 0.3, tick: 0.006, kill: 0.05, siphon: 1 },
@@ -236,6 +240,14 @@ export const TUNE = {
   gravegrip: { r: 3, dmg: 0.9, stun: 2, range: 18 },
   /** heal: a share of your health for each foe it strikes (talents). */
   graverot: { r: 6, dmg: 1.0, stacks: 2, range: 18, heal: 0 },
+  /** Warden's Challenge: foes within r cowed (weaker blows) for secs; Resolve gathered. */
+  challenge: { r: 6, secs: 6, resolve: 2 },
+  /** Warden's Cover: a ward of a share of each friend's health (yours: self) within r. */
+  cover: { r: 8, shield: 0.125, self: 0.09, secs: 6 },
+  /** Reaver's Finishing Cut: a blow, mult times over on a foe under below of its health; a kill with it heals kill of yours. */
+  finisher: { dmg: 1.9, below: 0.33, mult: 2.5, range: 3, kill: 0.05 },
+  /** Reaver's Blood Up: Fury for the health it costs (data/combat.ts), and for secs every blow you land mends leech of your health. */
+  bloodup: { fury: 60, secs: 8, leech: 0.008 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },

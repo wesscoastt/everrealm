@@ -5630,7 +5630,7 @@ export class Game implements GameApi {
       const h = Math.min(this.maxHp - this.hp, Math.round(dmg * 0.05));
       if (h > 0) this.hp += h;
     }
-    this.kit.landed();
+    this.kit.landed(quiet);
     this.target = this.target && this.target.alive ? this.target : e;
     this.floatAt(e.pos, e.model.plateHeight + 0.2, String(dmg), crit ? 'crit' : quiet ? 'tick' : '');
     if (!quiet) this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), crit ? 14 : 7, crit ? '#ffe080' : '#ffb060');

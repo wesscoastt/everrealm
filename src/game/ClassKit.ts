@@ -187,9 +187,13 @@ export class ClassKit {
   }
 
   /** A blow of the player's landed (any source): mechanics that feed on hits. */
-  landed(): void {
+  landed(quiet = false): void {
     if (this.calling.id === 'reaver') this.fury = Math.min(100, this.fury + T.fury.perHit * (this.redUntil > this.clock ? T.fury.red : 1));
+    // Blood Up: blows give a little back
+    if (!quiet && this.bloodUpUntil > this.clock) this.host.heal(this.host.maxHp() * T.bloodup.leech);
   }
+  /** Blood Up's lifesteal, until then. */
+  private bloodUpUntil = 0;
 
   /** Damage about to be taken: a Riposte turns it aside; Resolve, the Oath, Hold Fast, the Red Hour; then the shield soaks what it can. */
   incoming(dmg: number, from?: Enemy): number {
@@ -318,7 +322,7 @@ export class ClassKit {
     const P = this.host.player();
     const s = this.bar[i];
     if (!s) return false;
-    const fury = this.calling.id === 'reaver' && this.fury >= 100 && s.id !== 'redhour' ? T.fury.mult : 1;
+    const fury = this.calling.id === 'reaver' && this.fury >= 100 && s.id !== 'redhour' && s.id !== 'bloodup' ? T.fury.mult : 1;
     const pw = this.host.power() * fury;
     const ok = this.cast(s.id, P, pw);
     if (!ok) return false;
@@ -707,6 +711,40 @@ export class ClassKit {
         this.pending.push({ at, t: T.sunder.delay, ring: this.ring(at, T.sunder.r, '#ffd27a', T.sunder.delay), r: T.sunder.r, dmg: pw * T.sunder.dmg, stun: T.sunder.stun });
         return true;
       }
+      // Warden: cow everything near, and gather Resolve
+      case 'challenge': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.challenge.r);
+        if (!near.length) return false;
+        for (const o of near) o.weakLeft = Math.max(o.weakLeft, T.challenge.secs);
+        this.resolve = Math.min(T.resolve.max, this.resolve + T.challenge.resolve); this.resolveAt = this.clock;
+        this.ring(P, T.challenge.r, '#7fb0e0', 0.6);
+        H.anim('cleave'); H.sfx('bell');
+        return true;
+      }
+      // Warden: a ward on everyone of yours near (yourself a little less)
+      case 'cover':
+        for (const f of H.friends()) if (f.pos.distanceTo(P) < T.cover.r) { f.ward(f.max * (f.me ? T.cover.self : T.cover.shield), T.cover.secs); H.particles.sparks(f.pos.clone().setY(f.pos.y + 1.2), 8, '#cfe6ff'); }
+        this.ring(P, T.cover.r, '#cfe6ff', 0.6);
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      // Reaver: a cut to end it
+      case 'finisher': {
+        const e = H.faceTarget(T.finisher.range);
+        if (!e) return false;
+        const low = e.hp < e.def.hp * T.finisher.below;
+        H.anim('attack'); H.sfx(low ? 'hitHeavy' : 'swing');
+        H.hit(e, pw * T.finisher.dmg * (low ? T.finisher.mult : 1));
+        if (!e.alive) H.heal(H.maxHp() * T.finisher.kill);
+        if (low) H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 18, '#ff5a3a');
+        return true;
+      }
+      // Reaver: your own blood for Fury (its price is paid in health: data/combat.ts)
+      case 'bloodup':
+        this.fury = Math.min(100, this.fury + T.bloodup.fury);
+        this.bloodUpUntil = this.clock + T.bloodup.secs;
+        H.particles.sparks(P.clone().setY(P.y + 1.2), 14, '#a01a1a');
+        H.anim('heal'); H.sfx('growl');
+        return true;
       // An axe: a chop that opens a wound (Cleaving Hack reaches the next foe as well)
       case 'hack': {
         const e = H.faceTarget(T.hack.range);

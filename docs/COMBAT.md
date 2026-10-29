@@ -327,3 +327,17 @@ Shot 107 and slowed, Staff Sweep 66; Riposte only answers a blow). **Two players
 local realm (a second player run by `.walker/bot.mjs`): a Mender's Mend reached the other for +300 (30% of
 their 1000) and Lamp Ward laid a 100 ward on them for eight seconds, both passed by the realm as `gAid`;
 their group frame went 300 to 600 of 1000.
+
+### The brief's skills, second part: more to choose from (2026-10-29)
+
+Each calling's utilities grow from three to five (you still carry two beside the signature), so a bar
+is a choice and not a default. `npm run balance` now plays every pair from a calling's pool and holds
+each within 10% of the average.
+- **Warden**: **Challenge** (every foe within six blocks cowed, its blows 15% softer for six seconds,
+  and two Resolve) and **Cover** (a ward of an eighth of their health on everyone of yours within eight
+  blocks, a little less on you).
+- **Reaver**: **Finishing Cut** (a solid blow, two and a half times that on a foe under a third of its
+  health; a kill with it mends you) and **Blood Up** (a sixteenth of your health, paid in blood, for
+  60 Fury, and for eight seconds your blows give a little health back).
+- Tuning to keep every pair within its limit: Restoration's heal 10% to 9%; the Embers tree's Searing
+  4% to 2%.

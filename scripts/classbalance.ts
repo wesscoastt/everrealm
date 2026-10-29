@@ -20,7 +20,7 @@ const CRIT = 0.12, CRIT_MULT = 1.6;
 const CHAIN = [{ m: 1, d: 0.42 }, { m: 1.1, d: 0.42 }, { m: 1.5, d: 0.55 }];
 const CLEAVE = { m: 1.5, d: 0.6, cd: 6 };
 
-interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number; burned?: boolean; wither?: number; withered?: number }
+interface Foe { hp: number; stun: number; hitIn: number; rate: number; bleed: number; bleedPer: number; mark: number; chill: number; burned?: boolean; wither?: number; withered?: number; max: number; weak: number }
 interface Fight { name: string; foes: () => Foe[]; secs: number; ranged: boolean; dummy: boolean }
 
 /** Fights: a training dummy, four dummies, a strong elite toe to toe, and a pack of four. */
@@ -30,7 +30,7 @@ const FIGHTS: Fight[] = [
   { name: 'elite duel', foes: () => [foe(90, 0.06)], secs: 120, ranged: false, dummy: false },
   { name: 'pack of four', foes: () => [0, 1, 2, 3].map(() => foe(14, 0.025)), secs: 120, ranged: false, dummy: false },
 ];
-function foe(hp: number, rate: number): Foe { return { hp, stun: 0, hitIn: 0.6 + Math.random() * 0.6, rate, bleed: 0, bleedPer: 0, mark: 0, chill: 0 }; }
+function foe(hp: number, rate: number): Foe { return { hp, max: hp, weak: 0, stun: 0, hitIn: 0.6 + Math.random() * 0.6, rate, bleed: 0, bleedPer: 0, mark: 0, chill: 0 }; }
 
 interface Result { dealt: number; secs: number; hpLeft: number; won: boolean }
 
@@ -57,6 +57,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   let grace = 0, sanctUntil = 0, sanctTick = 0, restoreUntil = 0;
   // The Gravecaller: Lifeblood, the raised dead
   let blood = 0, raisedUntil = 0, raiseTick = 0;
+  // The Reaver's Blood Up: blows give a little back, until then
+  let bloodUpUntil = 0;
   const addBlood = (n: number) => { blood = Math.min(TUNE.lifeblood.max, blood + n); };
   /** A blood price (percent of health): Lifeblood first; false (and nothing paid) if it would take the last of you. */
   const payBlood = (pct: number) => { const c = pct / 100, from = Math.min(blood, c); if (hp - (c - from) <= 0.02) return false; blood -= from; hp -= c - from; return true; };
@@ -75,6 +77,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     // A foe dying withered gives up the rest of its life
     if (was > 0 && e.hp <= 0 && (e.withered ?? 0) > t) addBlood(TUNE.lifeblood.kill);
     if (id === 'reaver') fury = Math.min(100, fury + TUNE.fury.perHit * (redUntil > t ? TUNE.fury.red : 1));
+    if (bloodUpUntil > t && p > 0.3) hp = Math.min(1, hp + TUNE.bloodup.leech);
     return d;
   };
   const heal = (n: number) => { hp = Math.min(1, hp + n); };
@@ -134,6 +137,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         if (oathUntil > t) d *= TUNE.oath.taken;
       }
       if (redUntil > t) d *= TUNE.redhour.taken;
+      if (e.weak > t) d *= 0.85;
       if (holdUntil > t) d *= TUNE.holdfast.taken;
       if (sanctUntil > t) d *= TUNE.sanctuary.taken;
       if (shield > 0 && shieldUntil > t) {
@@ -156,7 +160,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       if (cds[i] > 0) return false;
       const s = bar[i];
       if (!canPay(costs[i])) { if (shortAt !== t) { shortAt = t; dry += DT; } return false; }
-      const furyK = id === 'reaver' && fury >= 100 && s.id !== 'redhour' ? TUNE.fury.mult : 1;
+      const furyK = id === 'reaver' && fury >= 100 && s.id !== 'redhour' && s.id !== 'bloodup' ? TUNE.fury.mult : 1;
       switch (s.id) {
         case 'bulwark': if (f.dummy || hp > 0.85) return false; shield = TUNE.bulwark.shield; shieldUntil = t + TUNE.bulwark.secs; shieldKind = 'bulwark'; break;
         case 'bash': if (ranged) return false; (TUNE.bash.cleave > 0 ? live().slice(0, caught()) : [tgt]).forEach((o) => { hit(o, TUNE.bash.dmg); o.stun = Math.max(o.stun, TUNE.bash.stun); }); break;
@@ -176,6 +180,11 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'shadowstep': if (ranged) return false; tgt.stun = Math.max(tgt.stun, TUNE.shadowstep.stun); stepUntil = t + TUNE.shadowstep.window; if (TUNE.quickstep.evade) evadeUntil = t + TUNE.quickstep.evade; break;
         case 'holdfast': if (f.dummy || hp > 0.9) return false; holdUntil = t + TUNE.holdfast.secs; break;
         case 'shieldthrow': live().slice(0, 1 + Math.min(TUNE.shieldthrow.bounce, caught() - 1)).forEach((o) => { hit(o, TUNE.shieldthrow.dmg); o.stun = Math.max(o.stun, TUNE.shieldthrow.stun); }); break;
+        case 'challenge': if (f.dummy) return false; live().slice(0, caught()).forEach((o) => { o.weak = t + TUNE.challenge.secs; }); resolve = Math.min(TUNE.resolve.max, resolve + TUNE.challenge.resolve); resolveAt = t; break;
+        case 'cover': if (f.dummy || hp > 0.9) return false; shield = TUNE.cover.self; shieldUntil = t + TUNE.cover.secs; shieldKind = 'cover'; break;
+        case 'finisher': if (ranged) return false; hit(tgt, TUNE.finisher.dmg * (tgt.hp < tgt.max * TUNE.finisher.below ? TUNE.finisher.mult : 1) * furyK); if (tgt.hp <= 0) heal(TUNE.finisher.kill); break;
+        // (Blood Up only when there's Fury to want and health to spare)
+        case 'bloodup': if (fury >= 50 || hp < 0.5 || !payBlood(SKILL_COST.bloodup.n)) return false; fury = Math.min(100, fury + TUNE.bloodup.fury); bloodUpUntil = t + TUNE.bloodup.secs; break;
         case 'rally': if (f.dummy || hp > 0.8) return false; heal(TUNE.rally.heal); resolve = TUNE.resolve.max; resolveAt = t; break;
         case 'rend': if (ranged) return false; aoe(caught(), TUNE.rend.dmg * furyK); zones.push({ until: t + TUNE.rend.secs, per: TUNE.rend.dot, tick: 1 }); break;
         case 'rush': rushUntil = t + TUNE.rush.secs; break;
@@ -323,13 +332,13 @@ builds.forEach((b, k) => {
 });
 console.log(tbad ? `${tbad} talent balance problem(s)` : 'Talent trees balanced: every tree within 7% overall');
 
-// Utility bars: each calling with every choice of two of its three chosen utilities (the signature is
-// always there), against the twelve bars' average. None may be more than 10% off overall.
+// Utility bars: each calling with every pair of the utilities it can choose from (the signature is
+// always there), against all the bars' average. None may be more than 10% off overall.
 const bars: { calling: CallingId; name: string; cells: number[] }[] = [];
 for (const c of CALLINGS) {
-  const three = c.utilities;
-  for (let skip = 0; skip < three.length; skip++) {
-    const pick = three.filter((_, k) => k !== skip).map((s) => s.id);
+  const pool = c.utilities;
+  for (let a = 0; a < pool.length; a++) for (let b = a + 1; b < pool.length; b++) {
+    const pick = [pool[a].id, pool[b].id];
     const bar = barOf(c.id, pick);
     const cells = FIGHTS.map((f) => {
       const modes = rangedCallings.has(c.id) && !f.dummy ? [false, true] : [false];
@@ -345,7 +354,7 @@ for (const c of CALLINGS) {
       }
       return best;
     });
-    bars.push({ calling: c.id, name: 'without ' + three[skip].name, cells });
+    bars.push({ calling: c.id, name: pool[a].name + ' + ' + pool[b].name, cells });
   }
 }
 const bavg = FIGHTS.map((_, i) => bars.reduce((sum, b) => sum + b.cells[i], 0) / bars.length);

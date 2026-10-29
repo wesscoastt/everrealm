@@ -137,7 +137,7 @@ export const TREES: Record<CallingId, TreeDef[]> = {
       ['a_white', 'White Heat', 3, 'Ember Bolt burns 3% hotter.', (t) => { t.bolt.dmg *= 1.03; }],
       ['a_flash', 'Flashover', 3, 'The burst burns 4% hotter.', (t) => { t.bolt.burst *= 1.04; }],
       ['a_banked', 'Banked Fire', 2, 'The bolt after a Kindle strikes a further 15% harder.', (t) => { t.kindle.mult += 0.15; }],
-      ['a_searing', 'Searing', 2, 'Ember Bolt burns 4% hotter.', (t) => { t.bolt.dmg *= 1.04; }],
+      ['a_searing', 'Searing', 2, 'Ember Bolt burns 2% hotter.', (t) => { t.bolt.dmg *= 1.02; }],
     ], ['a_storm', 'Firestorm', 'Every second Ember Bolt bursts, not every third.', (t) => { t.bolt.every = 2; }]),
     tree('a_stars', 'Stars', 'What falls from the sky. Starfall and the Ring of Fire, for crowds.', ['firewall', 'cinderstep'], [
       ['a_bright', 'Brighter Star', 3, 'Starfall strikes 5% harder.', (t) => { t.starfall.dmg *= 1.05; }],
