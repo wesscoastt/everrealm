@@ -34,9 +34,10 @@ export class PostRide {
   /** Where she's bound (a post stop's id). */
   dest = '';
 
-  constructor(scene: THREE.Object3D, private readonly voxels: VoxelWorld) {
-    this.cart = mountModel(CART);
-    this.carter = new Humanoid(CARTER);
+  /** (The watch's wagon to the gaol is driven the same way: game/Justice.ts gives its own cage, constable, seat and pace.) */
+  constructor(scene: THREE.Object3D, private readonly voxels: VoxelWorld, private readonly look: MountLook = CART, driver: Appearance = CARTER, private readonly riderSeat = POST_RIDER_SEAT, private readonly top = SPEED) {
+    this.cart = mountModel(look);
+    this.carter = new Humanoid(driver);
     this.cart.root.visible = this.carter.root.visible = false;
     scene.add(this.cart.root, this.carter.root);
   }
@@ -78,7 +79,7 @@ export class PostRide {
   update(dt: number): boolean {
     const total = this.cum[this.cum.length - 1];
     const ahead = this.at(this.s + 14, new THREE.Vector3());
-    let want = this.voxels.isLoaded(ahead.x, ahead.z) ? SPEED : 0;
+    let want = this.voxels.isLoaded(ahead.x, ahead.z) ? this.top : 0;
     // A sharp bend coming: slow for it
     const a = this.at(this.s + 6, new THREE.Vector3()), b = this.at(this.s + 12, new THREE.Vector3());
     const turn = Math.abs(Math.atan2(Math.sin(Math.atan2(b.x - a.x, b.z - a.z) - this.yaw), Math.cos(Math.atan2(b.x - a.x, b.z - a.z) - this.yaw)));
@@ -105,7 +106,7 @@ export class PostRide {
     r.rotation.y = this.yaw;
     this.cart.setAnim(this.speed > 6 ? 'run' : this.speed > 0.3 ? 'walk' : 'idle');
     this.cart.update(dt, this.speed);
-    this.carter.root.position.set(p.x, p.y + riderLift(CART), p.z);
+    this.carter.root.position.set(p.x, p.y + riderLift(this.look), p.z);
     this.carter.root.rotation.y = this.yaw;
     this.carter.setState('seated');
     this.carter.update(dt, 0);
@@ -116,6 +117,6 @@ export class PostRide {
 
   /** Where the passenger sits: on the back bench, the far side. */
   seat(): Seat {
-    return passengerSeat(CART, POST_RIDER_SEAT, this.pos.x, this.pos.y, this.pos.z, this.yaw)!;
+    return passengerSeat(this.look, this.riderSeat, this.pos.x, this.pos.y, this.pos.z, this.yaw)!;
   }
 }

@@ -25,12 +25,16 @@ function chartOf(land: LandId, redraw: () => void): LandChart {
   return c;
 }
 
-/** How each land's chart is cut and placed: the share of its square kept (left to right), and where it goes in the world. */
+/**
+ * How each land's chart is cut and placed: the share of its square kept (left to right), and where it
+ * goes in the world. Only open sea is cut: the Teeth, off the west end of the Keys, come within 2.4% of
+ * Morrow's west edge, and the Counties' last land (the Sickle) within 1.5% of their cut.
+ */
 const CUT: Record<LandId, { u0: number; u1: number; at: number }> = {
-  counties: { u0: 0, u1: 0.86, at: 0 },
-  morrow: { u0: 0.04, u1: 1, at: 0.86 },
+  counties: { u0: 0, u1: 0.88, at: 0 },
+  morrow: { u0: 0.01, u1: 1, at: 0.88 },
 };
-const WIDTH = 0.86 + 0.96;
+const WIDTH = 0.88 + 0.99;
 
 /** The sea lanes' ends (world coordinates). */
 const GULL: [number, number] = [1784, 600];

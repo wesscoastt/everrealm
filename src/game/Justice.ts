@@ -1,12 +1,87 @@
 import * as THREE from 'three';
 import { CRIME, DECAY_PER_MIN, FIXER_CUT, GAOL, GAOLS, HEAT, JURISDICTIONS, jurisdictionAt, REFUGE, REFUGES, sentence, type GaolDef, type Jurisdiction } from '../data/justice';
-import { mountModel, type CreatureModel } from '../entities/creatures';
+import { mountModel, type CreatureModel, type MountLook } from '../entities/creatures';
 import { Humanoid, type Appearance } from '../entities/humanoid';
 import { WAGON_BENCH, WAGON_ROWS } from '../entities/voxmounts';
 import { heightAt } from '../world/terrain';
-import { ROCK_PRICE, rockSentence } from '../data/skua';
+import { BOAT_FROM, ROCK_PRICE, rockSentence } from '../data/skua';
+import { B, isSolid } from '../world/blocks';
+import type { VoxelWorld } from '../world/VoxelWorld';
+import { roadNet, wayLength } from '../world/roadNet';
+import { PostRide } from './PostRide';
 import type { PropMaterials } from '../world/props';
 import { Rock } from './Rock';
+
+type Pt = [number, number];
+
+/** The watch's wagon: a black horse and an iron cage over the bed, the door at the back. */
+const CAGE: MountLook = { coat: '#141214', mane: '#0a0a0a', cloth: '#2a3a5a', seats: 5, wagon: { kind: 'cage', bed: 0, paint: '#2a2a30' } };
+/** The constable on the box, in the watch's blue. */
+const constable = (look: Appearance): Appearance => ({ ...look, costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', top: 4, cape: '#2a3a5a', facial: 2, frame: 'm', lashes: false, hair: '#3a2a1e', skin: '#d8a882' } as Appearance);
+/** How far the wagon will come down a lane for you to the nearest road (and its pace on the road, blocks a second). */
+const LANE_REACH = 70, CAGE_SPEED = 13;
+/** Hold Space in the cage and you doze: the road goes by this much quicker. */
+const DOZE = 4;
+const DIRS8: Pt[] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+/** Where the wagon can stand in a block column near height y: a block up or down at a time, three clear above, no water. */
+function standAt(V: VoxelWorld, x: number, z: number, y: number): number | null {
+  if (!V.isLoaded(x + 0.5, z + 0.5)) return null;
+  const g = V.groundBelow(x + 0.5, y + 1.5, z + 0.5);
+  if (g < y - 1 || g > y + 1) return null;
+  for (let k = 0; k < 3; k++) if (isSolid(V.get(x, g + k, z))) return null;
+  return V.get(x, g, z) === B.Water ? null : g;
+}
+
+/**
+ * The wagon's way down the lanes from where you were taken to a point on the road (A* over the
+ * blocks, kept off the walls: the wagon is wider than a man), or null if there's none near.
+ */
+function lanePath(V: VoxelWorld, from: Pt, to: Pt, y0: number): Pt[] | null {
+  const sx = Math.floor(from[0]), sz = Math.floor(from[1]), tx = Math.floor(to[0]), tz = Math.floor(to[1]);
+  const R = LANE_REACH + 10, W = 2 * R + 1;
+  const key = (x: number, z: number) => (x - sx + R) * W + (z - sz + R);
+  const cost = new Map<number, number>(), ys = new Map<number, number>(), prev = new Map<number, number>();
+  // (a binary heap of [estimate, x, z])
+  const heap: [number, number, number][] = [];
+  const push = (n: [number, number, number]) => {
+    heap.push(n);
+    for (let i = heap.length - 1; i > 0;) { const u = (i - 1) >> 1; if (heap[u][0] <= heap[i][0]) break; [heap[u], heap[i]] = [heap[i], heap[u]]; i = u; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      for (let i = 0; ;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; }
+    }
+    return top;
+  };
+  const k0 = key(sx, sz);
+  cost.set(k0, 0); ys.set(k0, V.groundBelow(from[0], y0 + 1.5, from[1]));
+  push([Math.hypot(tx - sx, tz - sz), sx, sz]);
+  let found = -1;
+  for (let n = 0; heap.length && n < 40000; n++) {
+    const [, x, z] = pop(), k = key(x, z), y = ys.get(k)!, c = cost.get(k)!;
+    if (Math.hypot(x - tx, z - tz) < 1.6) { found = k; break; }
+    for (const [dx, dz] of DIRS8) {
+      const nx = x + dx, nz = z + dz;
+      if (Math.abs(nx - sx) > R || Math.abs(nz - sz) > R) continue;
+      if (dx && dz && (standAt(V, x + dx, z, y) === null || standAt(V, x, z + dz, y) === null)) continue;
+      const ny = standAt(V, nx, nz, y);
+      if (ny === null) continue;
+      let tight = 0;
+      for (const [ex, ez] of DIRS8.slice(0, 4)) if (standAt(V, nx + ex, nz + ez, ny) === null) tight++;
+      const nc = c + (dx && dz ? 1.414 : 1) + tight * 1.5, nk = key(nx, nz);
+      if (nc < (cost.get(nk) ?? Infinity)) { cost.set(nk, nc); ys.set(nk, ny); prev.set(nk, k); push([nc + Math.hypot(tx - nx, tz - nz), nx, nz]); }
+    }
+  }
+  if (found < 0) return null;
+  const cells: Pt[] = [];
+  for (let k: number | undefined = found; k !== undefined && k !== k0; k = prev.get(k)) cells.push([Math.floor(k / W) - R + sx + 0.5, (k % W) - R + sz + 0.5]);
+  cells.reverse();
+  // Every other block is enough to steer by
+  return [from, ...cells.filter((_, i) => i % 2 === 1), to];
+}
 
 /** Standing height out in a town: the ground, not a roof over it. */
 const street = (x: number, z: number) => heightAt(Math.floor(x), Math.floor(z)) + 3;
@@ -49,6 +124,10 @@ export interface JusticeHost {
   /** Townsfolk and named people near a point who'd see a blow struck. */
   witnesses(p: THREE.Vector3, r: number): number;
   ground(x: number, z: number, fromY: number): number;
+  /** The blocks, for the wagon's way down the lanes. */
+  voxels: VoxelWorld;
+  /** Space held: dozing in the cage, so the road goes by quicker. */
+  dozing(): boolean;
   dismount(): void;
   hudHidden(on: boolean): void;
   lockpick(): Promise<boolean>;
@@ -71,12 +150,15 @@ const WATCH_SAYS = {
 const pick = <T>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 
 type Arrest = { j: Jurisdiction; guard: string; mode: 'take' | 'blades'; panel: boolean; t: number; lost: number };
-type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel; driver: Humanoid; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number; rock: boolean };
+/** In the wagon: along the roads in the cage (cart), or, where no road reaches, a short way off before the dark (wagon, driver). */
+type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel | null; driver: Humanoid | null; cart: PostRide | null; arrived: number; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number; rock: boolean };
 interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean }
 
 export class Justice {
   private arrest: Arrest | null = null;
   private ride: Ride | null = null;
+  /** The watch's wagon on the road (made the first time you're taken in). */
+  private cage: PostRide | null = null;
   private tick = 0;
   private spoke = new Map<string, number>();
   private badge: HTMLDivElement | null = null;
@@ -287,7 +369,24 @@ export class Justice {
     if (!gaol) { this.setBounty(j.id, 0); return; }
     this.host.dismount();
     const P = this.host.player.position, yaw = this.host.player.yaw;
-    // The wagon draws up beside you, facing the way you were going
+    const secs = Math.round(sentence(bounty) * longer), rock = bounty >= ROCK_PRICE;
+    // The wagon takes you there along the roads: down the lane to the nearest, then the Charter's
+    // roads to the gaol's door (for the Rock, to Gullmouth, where the Charter's boat waits)
+    const to: Pt = rock ? roadNet().near(BOAT_FROM.x, BOAT_FROM.z).p : gaol.yard ?? [gaol.out[0], gaol.out[1]];
+    const way = this.wagonWay([P.x, P.z], P.y, to);
+    if (way) {
+      this.cage ??= new PostRide(this.host.scene, this.host.voxels, CAGE, constable(this.host.look), 0, CAGE_SPEED);
+      this.cage.start(way, P.y, gaol.id);
+      this.ride = { gaol, t: 0, wagon: null, driver: null, cart: this.cage, arrived: -1, yaw, from: P.clone(), secs, town: j.id, bounty, rock };
+      this.host.player.locked = true;
+      this.host.hudHidden(true);
+      this.host.setPose('seated');
+      this.host.sfx('doorShut', 0.8);
+      this.host.banner('The watch\'s wagon', `${rock ? 'To Gullmouth, and the Charter\'s boat' : 'To ' + gaol.name}. Hold Space to doze.`);
+      this.host.say(new THREE.Vector3(this.cage.where.x, this.cage.where.y, this.cage.where.z), 2.6, pick(['In you get. Mind your head.', 'In the back. Sit down and keep your hands in.', 'Up you go. It\'s a long road; sit still.']));
+      return;
+    }
+    // No road near (an island harbour, a cove): a short way off, and the dark
     const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).multiplyScalar(2.6);
     const at = P.clone().add(side);
     at.y = this.host.ground(at.x, at.z, P.y + 3);
@@ -298,16 +397,48 @@ export class Justice {
     const driver = new Humanoid({ ...this.host.look, costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', top: 4, cape: '#2a3a5a', facial: 2, frame: 'm', lashes: false, hair: '#3a2a1e', skin: '#d8a882' } as Appearance);
     driver.setState('seated');
     this.host.scene.add(driver.root);
-    this.ride = { gaol, t: 0, wagon, driver, yaw, from: at.clone(), secs: Math.round(sentence(bounty) * longer), town: j.id, bounty, rock: bounty >= ROCK_PRICE };
+    this.ride = { gaol, t: 0, wagon, driver, cart: null, arrived: -1, yaw, from: at.clone(), secs, town: j.id, bounty, rock };
     this.host.player.locked = true;
     this.host.hudHidden(true);
     this.host.setPose('seated');
     this.host.sfx('doorShut', 0.8);
   }
 
+  /** The wagon's way: down the lane to the road, then along the roads to the end; null where no road is near. */
+  private wagonWay(from: Pt, y: number, to: Pt): Pt[] | null {
+    const net = roadNet(), a = net.near(from[0], from[1]), b = net.near(to[0], to[1]);
+    if (b.d > 8 || a.d > LANE_REACH) return null;
+    const lane = a.d < 2 ? [from] : lanePath(this.host.voxels, from, a.p, y);
+    const road = lane && net.route(a.p, to);
+    if (!lane || !road) return null;
+    const way = [...lane.slice(0, -1), ...road];
+    return wayLength(way) > 4 ? way : null;
+  }
+
+  /** In the cage along the roads: you sit and watch the country go by; held Space, it goes by quicker. */
+  private rideRoads(r: Ride, dt: number): void {
+    const c = r.cart!;
+    // A moment standing while the door's barred, then off
+    const done = c.update(r.t < 1.5 || r.arrived >= 0 ? 0 : dt * (this.host.dozing() ? DOZE : 1));
+    const st = c.seat();
+    this.host.player.teleport(st.x, st.y, st.z);
+    this.host.player.yaw = st.yaw;
+    this.host.player.seat = WAGON_BENCH - 0.5;
+    if (done && r.arrived < 0) {
+      r.arrived = r.t;
+      this.host.sfx('doorShut', 0.8);
+      this.host.say(new THREE.Vector3(c.where.x, c.where.y, c.where.z), 2.6, r.rock ? 'Out. The boat\'s waiting, and so is the Rock.' : pick(['Out you get. Down the steps, and no trouble.', 'Here we are. Out, and down you go.']));
+    }
+    // At the door: down the steps into the cells (a moment's dark on the stair)
+    if (r.arrived >= 0 && r.t - r.arrived > 1.6 && !this.fade) this.blackout(true);
+    if (r.arrived >= 0 && r.t - r.arrived > 2.3) { c.end(); this.arrive(r); }
+  }
+
   private updateRide(dt: number): void {
     const r = this.ride!;
     r.t += dt;
+    if (r.cart) { this.rideRoads(r, dt); return; }
+    if (!r.wagon || !r.driver) return;
     const W = r.wagon.root, fwd = new THREE.Vector3(Math.sin(r.yaw), 0, Math.cos(r.yaw));
     // Rolling off after a moment, slow, along the way it faces
     const go = Math.max(0, r.t - 1.2), dist = go * go * 0.8 + go * 1.2;
@@ -327,10 +458,17 @@ export class Justice {
     C.position.copy(W.position).addScaledVector(sideV, 7.5).addScaledVector(fwd, 2.5 - Math.min(2, r.t * 0.3)).setY(W.position.y + 3.4);
     C.lookAt(W.position.x, W.position.y + 1.2, W.position.z);
     if (r.t > 4.2 && !this.fade) this.blackout(true);
-    if (r.t > 5.4 && r.rock) {
-      // Too big a price for the town cells: down to Gullmouth's south jetty and out to the Rock on the Tern
+    if (r.t > 5.4) {
       this.host.scene.remove(W);
       this.host.scene.remove(r.driver.root);
+      this.arrive(r);
+    }
+  }
+
+  /** Brought in: to the Rock's boat, or into the cell. */
+  private arrive(r: Ride): void {
+    if (r.rock) {
+      // Too big a price for the town cells: down to Gullmouth's south jetty and out to the Rock on the Tern
       this.ride = null;
       this.setBounty(r.town, 0);
       this.host.banner('Skua Rock', 'The Charter\'s boat is waiting at Gullmouth');
@@ -339,10 +477,8 @@ export class Justice {
       setTimeout(() => this.blackout(false), 2200);
       return;
     }
-    if (r.t > 5.4) {
+    {
       // At the gaol: into the cell
-      this.host.scene.remove(W);
-      this.host.scene.remove(r.driver.root);
       const g = r.gaol;
       this.host.player.seat = 0;
       this.host.setPose(null);

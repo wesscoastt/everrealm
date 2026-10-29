@@ -873,6 +873,8 @@ export class Game implements GameApi {
       swing: (id) => this.roadfolk.swing(id),
       witnesses: (p, r) => this.crowd.near(p, r) + this.npcs.filter((n) => n.placed !== false && n.model.root.visible && n.pos.distanceTo(p) < r).length,
       ground: (x, z, fromY) => this.world.voxels.groundBelow(x, fromY, z),
+      voxels: this.world.voxels,
+      dozing: () => this.input.held('Space'),
       dismount: () => { this.dismount(true); if (this.pillion !== null) this.leavePillion(); },
       hudHidden: (on) => this.hud.setHudHidden(on),
       lockpick: () => { const T = TIERS[1]; return this.hud.lockpick(T.name, T.pins, T.zone, T.speed, () => this.inv.count('lockpick'), () => { this.inv.remove('lockpick', 1); this.sfx('pickSnap' as Sfx); }); },

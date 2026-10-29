@@ -61,6 +61,9 @@ export class RoadNet {
     return { n, d };
   }
 
+  /** The network's point nearest a place, and how far off it is. */
+  near(x: number, z: number): { p: Pt; d: number } { const { n, d } = this.nearest(x, z); return { p: this.pts[n], d }; }
+
   /** The way along the network from one place to another (each within a few blocks of it), or null. */
   route(from: Pt, to: Pt): Pt[] | null {
     const a = this.nearest(from[0], from[1]), b = this.nearest(to[0], to[1]);

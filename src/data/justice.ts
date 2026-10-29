@@ -54,11 +54,12 @@ export function jurisdictionAt(x: number, z: number): Jurisdiction | null {
  * A gaol: cells cut into the rock under a town, reached only by the watch's wagon. Its floor is
  * fixed, so the people in it stand where it's built (world/sites.ts buildGaol). Local layout: the
  * guard room around (x, z), a passage north with three cells either side; you're put in the first
- * on the east. Let out, you're walked up into the town at `out`.
+ * on the east. Let out, you're walked up into the town at `out`. The wagon brings you along the roads
+ * to its door at `yard` (on the Charter's road network: world/roadNet.ts), or to `out` if it has none.
  */
-export interface GaolDef { land?: LandId; id: string; name: string; x: number; z: number; floor: number; out: [number, number, number] }
+export interface GaolDef { land?: LandId; id: string; name: string; x: number; z: number; floor: number; out: [number, number, number]; yard?: [number, number] }
 export const GAOLS: GaolDef[] = [
-  { id: 'gaol-ansbury', name: 'the Weighhouse cells, Ansbury', x: 820, z: 300, floor: 8, out: [833.5, 381.5, Math.PI] },
+  { id: 'gaol-ansbury', name: 'the Weighhouse cells, Ansbury', x: 820, z: 300, floor: 8, out: [833.5, 381.5, Math.PI], yard: [821.5, 348.5] },
   { land: 'morrow', id: 'gaol-callis', name: 'the Tolbooth, Callis', x: MORROW_OX + 2140, z: 1112, floor: 8, out: [MORROW_OX + 2128.5, 1080.5, Math.PI] },
 ];
 /** Where in a gaol (from its x, z) your cell is, the other cells, the gaoler's desk, and the way out of the cell when the door's opened. */
