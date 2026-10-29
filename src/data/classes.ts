@@ -89,6 +89,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'firewall', name: 'Ring of Fire', icon: 'firewall', cd: 15, aim: 18, desc: 'Set the ground alight where you aim: for five seconds it burns whatever stands in it.' },
       { id: 'cinderstep', name: 'Cinder Step', icon: 'cinderstep', cd: 16, desc: 'Leap back out of reach, and leave a patch of burning cinders where you stood.' },
       { id: 'kindle', name: 'Kindle', icon: 'kindle', cd: 12, desc: 'Gather two Kindling at once, and your next Ember Bolt strikes twice as hard.' },
+      { id: 'smoulder', name: 'Smoulder', icon: 'smoulder', cd: 10, desc: 'Set your target smouldering from up to eighteen blocks: it burns, slowly and for a long time, for eight seconds.' },
+      { id: 'flashfire', name: 'Flashfire', icon: 'flashfire', cd: 16, desc: 'Fire bursts out of you: everything within four blocks is burned and dazzled, stunned for a second.' },
     ],
     pros: 'Fights from range; big area damage', cons: 'Fragile up close',
   },
@@ -105,6 +107,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'snare', name: 'Snare', icon: 'snare', cd: 14, aim: 14, desc: 'Set a snare where you aim. The first creature to step in is caught fast for two seconds, and hurt.' },
       { id: 'rain', name: 'Rain of Arrows', icon: 'rain', cd: 18, aim: 20, desc: 'Loose arrows high over where you aim: for four seconds they fall on everything there.' },
       { id: 'quickstep', name: 'Quickstep', icon: 'quickstep', cd: 10, desc: 'Spring back out of reach. Your next Strike within four seconds is a heavy critical blow.' },
+      { id: 'heartshot', name: 'Heart Shot', icon: 'heartshot', cd: 12, desc: 'Take your time over one arrow: a heavy shot, and a third heavier on a marked foe.' },
+      { id: 'smoke', name: 'Smoke Arrow', icon: 'smoke', cd: 18, aim: 18, desc: 'An arrow of burning rags where you aim: everything there is singed, and everything in the smoke strikes 15% softer, moves slower and is marked for six seconds.' },
     ],
     pros: 'Range and mobility; burst', cons: 'Little to soak a long fight',
   },
@@ -121,6 +125,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'blink', name: 'Blink', icon: 'blink', cd: 14, aim: 10, desc: 'Vanish and step out of the air up to ten blocks away, where you aim. Nothing touches you for a moment.' },
       { id: 'icelance', name: 'Ice Lance', icon: 'icelance', cd: 8, desc: 'A long spear of ice at your target. It hits more than twice as hard on a frozen foe.' },
       { id: 'frostnova', name: 'Frost Nova', icon: 'frostnova', cd: 16, desc: 'Cold bursts out of you: everything within five blocks is hurt and frozen for two seconds.' },
+      { id: 'shatter', name: 'Shatter', icon: 'shatter', cd: 12, desc: 'Break the cold in everything within ten blocks: each chilled foe takes a blow for every Chill on it, and the Chill is spent.' },
+      { id: 'frostbite', name: 'Frostbite', icon: 'frostbite', cd: 10, desc: 'Cold into your target\'s blood from up to eighteen blocks: a Chill now, and it freezes slowly from within for six seconds.' },
     ],
     pros: 'Fights from range; freezes foes in place', cons: 'Little damage up close',
   },
@@ -137,6 +143,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'lampward', name: 'Lamp Ward', icon: 'lampward', cd: 20, desc: 'A ward on you and everyone of yours within ten blocks, soaking a tenth of each one\'s health, for eight seconds.' },
       { id: 'rebuke', name: 'Rebuke', icon: 'rebuke', cd: 14, desc: 'Light bursts out of you: everything within five blocks is struck and dazed for over a second, and any blow it was winding up is lost.' },
       { id: 'restore', name: 'Restoration', icon: 'restore', cd: 24, desc: 'You and everyone of yours within ten blocks heal a tenth of their health over six seconds.' },
+      { id: 'mercy', name: 'Mercy', icon: 'mercy', cd: 20, desc: 'A quarter of their health, at once, to the most hurt of yours within fifteen blocks (you heal for a third as much as you would anyone else).' },
+      { id: 'judgement', name: 'Judgement', icon: 'judgement', cd: 12, desc: 'A hard bolt of lantern light at your target from up to twenty blocks: a heavy blow, and it is dazed for most of a second.' },
     ],
     pros: 'Heals and wards others; hard to bring down', cons: 'Least damage of any calling',
   },
@@ -153,6 +161,8 @@ export const CALLINGS: CallingDef[] = [
       { id: 'boneward', name: 'Bone Ward', icon: 'boneward', cd: 20, desc: 'Paid in health. A ward of bone soaks blows worth a fifth of your health for eight seconds, and withers whatever strikes it.' },
       { id: 'gravegrip', name: 'Grave Grip', icon: 'gravegrip', cd: 14, desc: 'Hands come up out of the ground under your target: it and everything within three blocks of it are held fast for two seconds, and any blow being wound up is lost.' },
       { id: 'graverot', name: 'Grave Rot', icon: 'graverot', cd: 16, desc: 'Paid in health. Rot spreads out from your target to every foe within six blocks of it, striking each and leaving Wither two deep.' },
+      { id: 'bonespear', name: 'Bone Spear', icon: 'bonespear', cd: 10, desc: 'A spear of old bone thrown at your target: it goes through everything in a line fourteen blocks long.' },
+      { id: 'dread', name: 'Dread', icon: 'dread', cd: 18, desc: 'Let them see what you have seen: everything within six blocks takes a blow, cowers, held for two seconds, and withers two deep.' },
     ],
     pros: 'Wears whole packs down; never waits on magicka for its blood skills', cons: 'Slow to kill one foe outright; pays in health',
   },
@@ -245,9 +255,24 @@ export const TUNE = {
   /** Warden's Cover: a ward of a share of each friend's health (yours: self) within r. */
   cover: { r: 8, shield: 0.125, self: 0.09, secs: 6 },
   /** Reaver's Finishing Cut: a blow, mult times over on a foe under below of its health; a kill with it heals kill of yours. */
-  finisher: { dmg: 1.9, below: 0.33, mult: 2.5, range: 3, kill: 0.05 },
+  finisher: { dmg: 2.05, below: 0.33, mult: 2.5, range: 3, kill: 0.05 },
   /** Reaver's Blood Up: Fury for the health it costs (data/combat.ts), and for secs every blow you land mends leech of your health. */
   bloodup: { fury: 60, secs: 8, leech: 0.008 },
+  /** Kindler: Smoulder (a long burn on one foe) and Flashfire (a burst round you that stuns). */
+  smoulder: { dot: 0.42, secs: 8, range: 18 },
+  flashfire: { r: 4, dmg: 1.2, stun: 1.0 },
+  /** Pathfinder: Heart Shot (a heavy arrow, heavier on a marked foe) and Smoke Arrow (foes in it weak and slowed). */
+  heartshot: { dmg: 2.6, marked: 1.33, range: 24 },
+  smoke: { r: 4, secs: 6, range: 18, dmg: 0.8 },
+  /** Wizard: Shatter (a blow a Chill on every chilled foe near, the Chill spent) and Frostbite (a Chill and a cold burn). */
+  shatter: { r: 10, dmg: 0.9 },
+  frostbite: { dot: 0.32, secs: 6, range: 18 },
+  /** Mender: Mercy (a share of the most hurt friend's health, at once) and Judgement (a heavy bolt that dazes). */
+  mercy: { heal: 0.25, r: 15 },
+  judgement: { dmg: 2.2, stun: 0.8, range: 20 },
+  /** Gravecaller: Bone Spear (through a line) and Dread (everything near held, and withered). */
+  bonespear: { dmg: 2.8, reach: 14, width: 1 },
+  dread: { r: 6, stun: 2, stacks: 2, dmg: 1.5 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },

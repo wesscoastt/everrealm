@@ -110,7 +110,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (star2 >= 0 && (star2 -= DT) < 0) { star2 = -1; aoe(caught(), TUNE.starfall.dmg * TUNE.starfall.twice); }
     if (wardUntil > t && (wardTick -= DT) <= 0) { wardTick = 1; heal(TUNE.ward.heal / TUNE.ward.secs); if (!ranged) aoe(caught(), TUNE.ward.burn); }
     for (const e of L) if (e.bleed > 0) {
-      e.bleed -= DT; hit(e, e.bleedPer * DT, false); heal(TUNE.bleed.heal * DT);
+      e.bleed -= DT; hit(e, e.bleedPer * DT, false); if (id === 'reaver') heal(TUNE.bleed.heal * DT);
       // Exsanguinate: the bleed finds the next
       if (e.hp <= 0 && TUNE.bleed.spread > 0) { const n = live().find((o) => o.bleed <= 0); if (n) { n.bleed = e.bleed; n.bleedPer = e.bleedPer; } }
     }
@@ -185,6 +185,21 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'finisher': if (ranged) return false; hit(tgt, TUNE.finisher.dmg * (tgt.hp < tgt.max * TUNE.finisher.below ? TUNE.finisher.mult : 1) * furyK); if (tgt.hp <= 0) heal(TUNE.finisher.kill); break;
         // (Blood Up only when there's Fury to want and health to spare)
         case 'bloodup': if (fury >= 50 || hp < 0.5 || !payBlood(SKILL_COST.bloodup.n)) return false; fury = Math.min(100, fury + TUNE.bloodup.fury); bloodUpUntil = t + TUNE.bloodup.secs; break;
+        // Kindler: a long burn (a bleed, as the game's dots are) and a burst round you that stuns
+        case 'smoulder': tgt.bleed = TUNE.smoulder.secs; tgt.bleedPer = TUNE.smoulder.dot; break;
+        case 'flashfire': if (ranged) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.flashfire.dmg); o.stun = Math.max(o.stun, TUNE.flashfire.stun); }); break;
+        // Pathfinder: a heavy arrow (heavier on a marked foe), and smoke that weakens what's in it
+        case 'heartshot': hit(tgt, TUNE.heartshot.dmg * (tgt.mark > t ? TUNE.heartshot.marked : 1)); break;
+        case 'smoke': if (f.dummy) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.smoke.dmg); o.weak = t + TUNE.smoke.secs; o.mark = t + TUNE.smoke.secs; }); break;
+        // Wizard: every Chill broken for a blow apiece; a Chill and a cold burn
+        case 'shatter': { const c = live().filter((o) => o.chill > 0); if (!c.length) return false; c.forEach((o) => { hit(o, TUNE.shatter.dmg * o.chill); o.chill = 0; }); break; }
+        case 'frostbite': chill(tgt); tgt.bleed = TUNE.frostbite.secs; tgt.bleedPer = TUNE.frostbite.dot; break;
+        // Mender: a quick big heal (alone, your own share), and a heavy bolt that dazes
+        case 'mercy': if (f.dummy || hp > 0.7) return false; heal(TUNE.mercy.heal * TUNE.mend.self); break;
+        case 'judgement': hit(tgt, TUNE.judgement.dmg); tgt.stun = Math.max(tgt.stun, TUNE.judgement.stun); break;
+        // Gravecaller: a spear through a line (two, in a pack), and everything near held and withered
+        case 'bonespear': live().slice(0, Math.min(2, caught())).forEach((o) => hit(o, TUNE.bonespear.dmg)); break;
+        case 'dread': if (ranged) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.dread.dmg); o.stun = Math.max(o.stun, TUNE.dread.stun); addWither(o, TUNE.dread.stacks); }); break;
         case 'rally': if (f.dummy || hp > 0.8) return false; heal(TUNE.rally.heal); resolve = TUNE.resolve.max; resolveAt = t; break;
         case 'rend': if (ranged) return false; aoe(caught(), TUNE.rend.dmg * furyK); zones.push({ until: t + TUNE.rend.secs, per: TUNE.rend.dot, tick: 1 }); break;
         case 'rush': rushUntil = t + TUNE.rush.secs; break;

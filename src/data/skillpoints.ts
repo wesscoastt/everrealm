@@ -222,6 +222,46 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'bloodup_a', name: 'Red Mist', desc: 'Gives a third more Fury.', mod: (t) => { t.bloodup.fury += 20; } },
     { id: 'bloodup_b', name: 'Steady Anger', desc: 'Ready again sooner, for less Fury.', mod: (t) => { t.bloodup.fury -= 10; t.cd.bloodup = 0.7; } },
   ],
+  smoulder: [
+    { id: 'smoulder_a', name: 'Slow Fire', desc: 'Burns four seconds longer, each second a fifth cooler.', mod: (t) => { t.smoulder.secs += 4; scale(t.smoulder, 'dot', 0.8); } },
+    { id: 'smoulder_b', name: 'Quick Fire', desc: 'Burns a third hotter, for three seconds less.', mod: (t) => { scale(t.smoulder, 'dot', 1.33); t.smoulder.secs -= 3; } },
+  ],
+  flashfire: [
+    { id: 'flashfire_a', name: 'Blinding Flash', desc: 'Stunned half a second longer, the burn a fifth lighter.', mod: (t) => { t.flashfire.stun += 0.5; scale(t.flashfire, 'dmg', 0.8); } },
+    { id: 'flashfire_b', name: 'Flare', desc: 'Burns a quarter hotter, the stun a third of a second shorter.', mod: (t) => { scale(t.flashfire, 'dmg', 1.25); t.flashfire.stun -= 0.3; } },
+  ],
+  heartshot: [
+    { id: 'heartshot_a', name: 'Hunter\'s Eye', desc: 'Half again as heavy on a marked foe, a tenth lighter otherwise.', mod: (t) => { t.heartshot.marked += 0.17; scale(t.heartshot, 'dmg', 0.9); } },
+    { id: 'heartshot_b', name: 'Broadhead', desc: 'A fifth heavier, a marked foe no worse off than any other.', mod: (t) => { scale(t.heartshot, 'dmg', 1.2); t.heartshot.marked = 1; } },
+  ],
+  smoke: [
+    { id: 'smoke_a', name: 'Thick Smoke', desc: 'Hangs three seconds longer.', mod: (t) => { t.smoke.secs += 3; } },
+    { id: 'smoke_b', name: 'Wide Smoke', desc: 'Spreads two blocks wider, for two seconds less.', mod: (t) => { t.smoke.r += 2; t.smoke.secs -= 2; } },
+  ],
+  shatter: [
+    { id: 'shatter_a', name: 'Splinters', desc: 'Reaches four blocks farther, each blow a tenth lighter.', mod: (t) => { t.shatter.r += 4; scale(t.shatter, 'dmg', 0.9); } },
+    { id: 'shatter_b', name: 'Clean Break', desc: 'Each blow a quarter harder, reaching three blocks less.', mod: (t) => { scale(t.shatter, 'dmg', 1.25); t.shatter.r -= 3; } },
+  ],
+  frostbite: [
+    { id: 'frostbite_a', name: 'Deep Frost', desc: 'Freezes three seconds longer, each second a fifth lighter.', mod: (t) => { t.frostbite.secs += 3; scale(t.frostbite, 'dot', 0.8); } },
+    { id: 'frostbite_b', name: 'Black Frost', desc: 'A third harder, for two seconds less.', mod: (t) => { scale(t.frostbite, 'dot', 1.33); t.frostbite.secs -= 2; } },
+  ],
+  mercy: [
+    { id: 'mercy_a', name: 'Great Mercy', desc: 'A fifth more.', mod: (t) => { scale(t.mercy, 'heal', 1.2); t.cd.mercy = 1.15; } },
+    { id: 'mercy_b', name: 'Quick Mercy', desc: 'Ready again a quarter sooner, for a sixth less.', mod: (t) => { scale(t.mercy, 'heal', 0.85); t.cd.mercy = 0.75; } },
+  ],
+  judgement: [
+    { id: 'judgement_a', name: 'Stern Judgement', desc: 'Dazed half a second longer, the blow a tenth lighter.', mod: (t) => { t.judgement.stun += 0.5; scale(t.judgement, 'dmg', 0.9); } },
+    { id: 'judgement_b', name: 'Hard Judgement', desc: 'A fifth heavier, dazed a quarter of a second less.', mod: (t) => { scale(t.judgement, 'dmg', 1.2); t.judgement.stun -= 0.25; } },
+  ],
+  bonespear: [
+    { id: 'bonespear_a', name: 'Long Bone', desc: 'Reaches six blocks farther, a tenth lighter.', mod: (t) => { t.bonespear.reach += 6; scale(t.bonespear, 'dmg', 0.9); } },
+    { id: 'bonespear_b', name: 'Thighbone', desc: 'A quarter heavier, reaching four blocks less.', mod: (t) => { scale(t.bonespear, 'dmg', 1.25); t.bonespear.reach -= 4; } },
+  ],
+  dread: [
+    { id: 'dread_a', name: 'Terror', desc: 'Held half a second longer.', mod: (t) => { t.dread.stun += 0.5; } },
+    { id: 'dread_b', name: 'Rot of Fear', desc: 'Withers three deep, held half a second less.', mod: (t) => { t.dread.stacks += 1; t.dread.stun -= 0.5; } },
+  ],
   // ---------------------------------------------------------------- Weapon skills (key 3)
   riposte: [
     { id: 'riposte_a', name: 'Iron Guard', desc: 'The guard stays up 0.6 seconds longer.', mod: (t) => { t.riposte.secs += 0.6; } },

@@ -311,6 +311,17 @@ const GLYPHS: Record<string, [string[], string]> = {
   cover: [['.XXXXXXXX.', 'XXXXXXXXXX', 'XX......XX', '..........', '..X....X..', '.XXX..XXX.', '..X....X..', '.X.X..X.X.', '.X.X..X.X.', '..........'], '#e8f0ff'],
   finisher: [['........XX', '.......XX.', '......XX..', '.....XX...', 'X...XX....', '.X.XX.....', '..XX......', '.X.X......', 'X...X..XXX', '.....XXXXX'], '#ffd0c0'],
   bloodup: [['....X.....', '....X.....', '...XXX....', '...XXX....', '..XXXXX...', '.XXXXXXX..', '.XXXXXXX..', '.XXXXXXX..', '..XXXXX...', '...XXX....'], '#ffb0a0'],
+  // Kindler, Pathfinder, Wizard, Mender, Gravecaller: the second pair of each
+  smoulder: [['...X......', '..XX..X...', '..XXX.XX..', '.XXXXXXX..', '.XX.XXXX..', 'XX...XXXX.', 'XX....XXX.', '.XX..XXX..', '..XXXXX...', '..........'], '#ffc080'],
+  flashfire: [['X...X...X.', '.X..X..X..', '..X.X.X...', '...XXX....', 'XXXXXXXXXX', '...XXX....', '..X.X.X...', '.X..X..X..', 'X...X...X.', '..........'], '#fff0a0'],
+  heartshot: [['X.........', '.X........', '..X.......', '...X......', '....X.XX..', '.....XXXX.', '....XXXXX.', '.....XXX..', '......X...', '..........'], '#ffd0c0'],
+  smoke: [['..XX......', '.XXXX.XX..', 'XXXXXXXXX.', '.XXXXXXXXX', '..XXXXXXX.', '...XXX....', '....X.....', '...X......', '..X.......', '.X........'], '#d8d8d8'],
+  shatter: [['X...X....X', '.X..X...X.', '..X.X..X..', '....XX....', 'XXXX..XXXX', '....XX....', '..X..X.X..', '.X...X..X.', 'X....X...X', '..........'], '#e8f8ff'],
+  frostbite: [['....X.....', '..X.X.X...', '...XXX....', 'XXXXXXXXX.', '...XXX....', '..X.X.X...', '....X.....', '.XX...XX..', 'XXXX.XXXX.', '.XXXXXXX..'], '#e8f8ff'],
+  mercy: [['..XX..XX..', '.XXXXXXXX.', 'XXXXXXXXXX', 'XXXXXXXXXX', '.XXXXXXXX.', '..XXXXXX..', '...XXXX...', '....XX....', '..........', '..........'], '#fff0c8'],
+  judgement: [['....XX....', '....XX....', 'X...XX...X', '.X..XX..X.', '..XXXXXX..', '..XXXXXX..', '.X..XX..X.', 'X...XX...X', '....XX....', '....XX....'], '#fff0c0'],
+  bonespear: [['.........X', '........XX', '.......XX.', '......X...', '.....X....', '....X.....', '...X......', '.XX.......', 'XXX.......', '.X........'], '#f0e8d0'],
+  dread: [['..XXXXXX..', '.XXXXXXXX.', 'XX..XX..XX', 'XX..XX..XX', 'XXXXXXXXXX', '.XXX..XXX.', '..XXXXXX..', '..X.XX.X..', '..........', '..........'], '#e8f0d0'],
   // The weapon kinds' own (key 3): an axe's bit and its drops, a great axe's turning arc, a hammer
   // ringing, a spear's long head, an arrow at a heel, a staff swept low
   hack: [['..XXXX....', '.XXXXXX...', 'XXXXXXXX..', '.XXXXXXX..', '...XXXXX..', '.....XX...', '....X.X...', '...X..X.X.', '..X.....X.', '.X....X...'], '#ffd0c0'],
@@ -363,6 +374,9 @@ export function abilityIcon(kind: string): string {
     snare: ['#8a7a50', '#5a4a2a', '#2e2614'], rain: ['#6a8ab0', '#3a5a7a', '#1a2e44'], quickstep: ['#5a9a6a', '#2e6a3a', '#163a1e'],
     riposte: ['#9aa4b4', '#5a6474', '#2a3040'], flurry: ['#b4a48a', '#74644a', '#403420'], sunder: ['#a8784a', '#6a4422', '#3a220e'],
     challenge: ['#5a8ac0', '#2e5a90', '#163056'], cover: ['#7a9ac0', '#4a6a90', '#243a56'], finisher: ['#b83a2a', '#7a1e14', '#420c06'], bloodup: ['#c02a2a', '#801414', '#480808'],
+    smoulder: ['#c8582a', '#8a3010', '#481806'], flashfire: ['#f0a030', '#b06010', '#603006'], heartshot: ['#8a6a4a', '#5a422a', '#2e2214'], smoke: ['#7a7a7a', '#4a4a4a', '#262626'],
+    shatter: ['#6ab0e0', '#2a70a8', '#123a5a'], frostbite: ['#5a90c8', '#2a5a90', '#122e4a'], mercy: ['#e0c070', '#a08030', '#5a4414'], judgement: ['#e8c860', '#a88a20', '#5a480c'],
+    bonespear: ['#8a8070', '#5a5244', '#2e2a22'], dread: ['#4a5a3e', '#2c3824', '#141c10'],
     hack: ['#a84a3a', '#6a2a1e', '#3a140c'], whirl: ['#9a8a6a', '#5e5440', '#302a1e'], bellringer: ['#b8a060', '#7a6430', '#423414'],
     longthrust: ['#8a9aa8', '#56626e', '#2a3038'], hobble: ['#7a9a5a', '#4a6a34', '#24361a'], sweep: ['#a89070', '#6a5640', '#382c1e'],
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],

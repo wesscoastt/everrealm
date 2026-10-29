@@ -745,6 +745,116 @@ export class ClassKit {
         H.particles.sparks(P.clone().setY(P.y + 1.2), 14, '#a01a1a');
         H.anim('heal'); H.sfx('growl');
         return true;
+      // Kindler: a long, slow burn on one foe
+      case 'smoulder': {
+        const e = H.faceTarget(T.smoulder.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('swing');
+        this.addDot(e, pw * T.smoulder.dot, T.smoulder.secs);
+        H.particles.fire(e.pos.clone().setY(e.pos.y + 0.8));
+        return true;
+      }
+      // Kindler: fire out of you, everything near burned and stunned
+      case 'flashfire': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.flashfire.r);
+        if (!near.length) return false;
+        for (const o of near) { H.hit(o, pw * T.flashfire.dmg); o.stun = Math.max(o.stun, T.flashfire.stun); }
+        this.ring(P, T.flashfire.r, '#ffd080', 0.5);
+        H.particles.burst(P.clone().setY(P.y + 1), '#ffd080', 30);
+        H.anim('cleave'); H.sfx('hitHeavy');
+        return true;
+      }
+      // Pathfinder: one arrow, taken slowly
+      case 'heartshot': {
+        const e = H.faceTarget(T.heartshot.range);
+        if (H.bow?.()) H.anim('shoot');
+        if (!e) return false;
+        H.sfx('swing');
+        const marked = (this.marks.get(e) ?? 0) > this.clock;
+        const m = new THREE.Mesh(ARROW_GEO, new THREE.MeshBasicMaterial({ color: '#f0e8d0' }));
+        m.position.copy(P).setY(P.y + 1.4);
+        m.visible = false;
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: 40, dmg: pw * T.heartshot.dmg * (marked ? T.heartshot.marked : 1) });
+        return true;
+      }
+      // Pathfinder: smoke where you aim, and everything in it weak and slowed
+      case 'smoke': {
+        const at = H.aim(T.smoke.range);
+        for (const o of H.enemies()) if (o.alive && o.pos.distanceTo(at) < T.smoke.r) { H.hit(o, pw * T.smoke.dmg); o.weakLeft = Math.max(o.weakLeft, T.smoke.secs); o.slowLeft = Math.max(o.slowLeft, T.smoke.secs); this.marks.set(o, this.clock + T.smoke.secs); }
+        this.ring(at, T.smoke.r, '#b8b8b8', T.smoke.secs);
+        H.particles.dust(at.clone().setY(at.y + 0.6), 24);
+        if (H.bow?.()) H.anim('shoot'); else H.anim('attack');
+        H.sfx('swing');
+        return true;
+      }
+      // Wizard: every Chill near broken, a blow for each
+      case 'shatter': {
+        let any = false;
+        for (const [e, c] of this.chill) {
+          if (!e.alive || e.pos.distanceTo(P) > T.shatter.r) continue;
+          H.hit(e, pw * T.shatter.dmg * c.n);
+          H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 10 + c.n * 4, '#e8f8ff');
+          this.chill.delete(e);
+          any = true;
+        }
+        if (!any) return false;
+        H.anim('cleave'); H.sfx('hitHeavy');
+        return true;
+      }
+      // Wizard: a Chill now, and a cold burn after
+      case 'frostbite': {
+        const e = H.faceTarget(T.frostbite.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('swing');
+        this.addChill(e);
+        this.addDot(e, pw * T.frostbite.dot, T.frostbite.secs);
+        H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 10, '#c8f4ff');
+        return true;
+      }
+      // Mender: a quarter of their health, at once, to the most hurt (alone, a third of that to yourself)
+      case 'mercy': {
+        const f = this.mostHurt(T.mercy.r, false);
+        if (!f) return false;
+        this.mendFriend(f, T.mercy.heal * (f.me ? T.mend.self : 1));
+        H.anim('heal'); H.sfx('heal');
+        return true;
+      }
+      // Mender: a hard bolt of light that dazes
+      case 'judgement': {
+        const e = H.faceTarget(T.judgement.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('bell');
+        const m = new THREE.Mesh(BOLT_GEO, new THREE.MeshBasicMaterial({ color: '#fff0b8' }));
+        m.position.copy(P).setY(P.y + 1.4);
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: 30, dmg: pw * T.judgement.dmg, stun: T.judgement.stun });
+        return true;
+      }
+      // Gravecaller: a spear of bone through a line
+      case 'bonespear': {
+        const e = H.faceTarget(T.bonespear.reach);
+        const yaw = e ? Math.atan2(e.pos.x - P.x, e.pos.z - P.z) : H.yaw();
+        const dx = Math.sin(yaw), dz = Math.cos(yaw);
+        const hit = H.enemies().filter((o) => {
+          if (!o.alive || Math.abs(o.pos.y - P.y) > 3) return false;
+          const rx = o.pos.x - P.x, rz = o.pos.z - P.z, along = rx * dx + rz * dz;
+          return along > 0 && along < T.bonespear.reach && Math.abs(rx * dz - rz * dx) < T.bonespear.width;
+        });
+        if (!hit.length) return false;
+        H.anim('attack'); H.sfx('swing');
+        for (const o of hit) { H.hit(o, pw * T.bonespear.dmg); H.particles.sparks(o.pos.clone().setY(o.pos.y + 1), 8, '#f0e8d0'); }
+        return true;
+      }
+      // Gravecaller: everything near cowers, held, and withers
+      case 'dread': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.dread.r);
+        if (!near.length) return false;
+        for (const o of near) { H.hit(o, pw * T.dread.dmg); o.stun = Math.max(o.stun, T.dread.stun); this.addWither(o, T.dread.stacks); }
+        this.ring(P, T.dread.r, '#8aa040', 0.8);
+        H.anim('cleave'); H.sfx('growl');
+        return true;
+      }
       // An axe: a chop that opens a wound (Cleaving Hack reaches the next foe as well)
       case 'hack': {
         const e = H.faceTarget(T.hack.range);
@@ -1027,7 +1137,7 @@ export class ClassKit {
     // Bleeds
     for (const d of this.dots) {
       d.left -= dt; d.tick -= dt;
-      if (d.tick <= 0 && d.e.alive) { d.tick = 1; H.hit(d.e, d.perSec, { quiet: true }); H.heal(H.maxHp() * T.bleed.heal); H.particles.sparks(d.e.pos.clone().setY(d.e.pos.y + 0.6), 4, '#a01a1a'); }
+      if (d.tick <= 0 && d.e.alive) { d.tick = 1; H.hit(d.e, d.perSec, { quiet: true }); if (this.calling.id === 'reaver') H.heal(H.maxHp() * T.bleed.heal); H.particles.sparks(d.e.pos.clone().setY(d.e.pos.y + 0.6), 4, '#a01a1a'); }
     }
     // Exsanguinate: a bleed outlives what it was in, and finds the next
     if (T.bleed.spread > 0) for (const d of this.dots) {

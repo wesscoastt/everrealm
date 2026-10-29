@@ -341,3 +341,17 @@ each within 10% of the average.
   60 Fury, and for eight seconds your blows give a little health back).
 - Tuning to keep every pair within its limit: Restoration's heal 10% to 9%; the Embers tree's Searing
   4% to 2%.
+- **Kindler**: **Smoulder** (a long, slow burn on one foe) and **Flashfire** (everything within four
+  blocks burned and stunned a second).
+- **Pathfinder**: **Heart Shot** (one heavy arrow, a third heavier on a marked foe) and **Smoke Arrow**
+  (where you aim: singed, weak, slowed and marked for six seconds).
+- **Wizard**: **Shatter** (every chilled foe within ten blocks takes a blow a Chill, and the Chill is
+  spent) and **Frostbite** (a Chill and a cold burn).
+- **Mender**: **Mercy** (a quarter of their health at once to the most hurt of yours) and **Judgement**
+  (a heavy bolt of light that dazes).
+- **Gravecaller**: **Bone Spear** (through everything in a line fourteen blocks long) and **Dread**
+  (everything within six blocks struck, held two seconds and withered two deep).
+- **A fix found on the way**: every calling's damage over time healed whoever laid it (the Reaver's
+  bleed rule, applied to all dots), so a Kindler or Wizard with a burn out could stand in a fight
+  forever. Only the Reaver's bleeds heal now, in the game and in the sim.
+- Every calling, tree, pair of utilities and morph within its limit (`npm run balance`).
