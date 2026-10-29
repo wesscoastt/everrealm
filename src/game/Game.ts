@@ -7371,7 +7371,8 @@ export class Game implements GameApi {
     // A target that dies, or that you leave far behind, is let go
     if (this.target && (!this.target.alive || this.target.pos.distanceTo(this.player.position) > 48)) this.target = null;
     const t = this.target;
-    this.hud.setTarget(t ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite, cast: t.casting } : null);
+    // (a boss you've targeted is on the boss bar already, with its cast and stagger: the frame steps aside)
+    this.hud.setTarget(t && t !== boss ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite, cast: t.casting } : null);
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);
     const L = this.level('melee');
     const lock = <T extends object>(c: T, i: number): T & { locked?: number } => (L < UNLOCK_AT[i] ? { ...c, locked: UNLOCK_AT[i] } : c);
