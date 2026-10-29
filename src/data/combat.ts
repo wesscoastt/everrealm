@@ -13,6 +13,8 @@ export interface Cost { pool: Pool; n: number }
 export const SKILL_COST: Record<string, Cost> = {
   // The weapon skills (key 3)
   riposte: { pool: 'stamina', n: 10 }, flurry: { pool: 'stamina', n: 12 }, sunder: { pool: 'stamina', n: 14 },
+  hack: { pool: 'stamina', n: 12 }, whirl: { pool: 'stamina', n: 14 }, bellringer: { pool: 'stamina', n: 14 },
+  longthrust: { pool: 'stamina', n: 12 }, hobble: { pool: 'stamina', n: 12 }, sweep: { pool: 'stamina', n: 14 },
   // Warden: the body and the shield
   bulwark: { pool: 'stamina', n: 18 }, bash: { pool: 'stamina', n: 12 }, oath: { pool: 'stamina', n: 30 },
   holdfast: { pool: 'stamina', n: 14 }, shieldthrow: { pool: 'stamina', n: 12 }, rally: { pool: 'stamina', n: 16 },

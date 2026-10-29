@@ -150,7 +150,7 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponLine } from '../data/classes';
+import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponKit } from '../data/classes';
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
@@ -170,9 +170,17 @@ const REGION_THEME: Record<RegionId, ThemeId> = {
 
 /** Each region's long piece, played in turn with its own theme (a stretch of each, on the realm clock). */
 const REGION_PIECE: Partial<Record<RegionId, ThemeId>> = {
-  greenwake: 'heartland', crownroad: 'heartland', gannet: 'heartland', bright: 'heartland', saltwind: 'heartland', keys: 'heartland',
-  brambledeep: 'wildwood', wrath: 'wildwood', inkholm: 'wildwood', glades: 'wildwood', amberwold: 'wildwood',
-  starfall: 'highlands', tolmen: 'highlands', sunder: 'highlands', greywaste: 'highlands', held: 'highlands', redstone: 'highlands', kell: 'highlands', sickle: 'highlands', glassflats: 'highlands',
+  greenwake: 'heartland', crownroad: 'heartland', gannet: 'heartland', saltwind: 'heartland',
+  brambledeep: 'wildwood', wrath: 'wildwood', inkholm: 'wildwood',
+  starfall: 'highlands', tolmen: 'highlands', redstone: 'highlands', kell: 'highlands', sickle: 'highlands',
+  // Morrow's own
+  keys: 'keys', bright: 'keys', glades: 'amber', amberwold: 'amber', sunder: 'held', glassflats: 'held', greywaste: 'held', held: 'held',
+};
+/** Each dungeon's and delve's own music, by its id (data/dungeons.ts for the group dungeons, world/sites.ts for the rest). */
+const UNDER_THEME: Record<string, ThemeId> = {
+  'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow',
+  'pd-mortlake': 'mortlake', 'pd-blackcut': 'blackcut', 'delve-badger': 'badger', 'delve-culvert': 'culvert', 'delve-smugglers': 'smugglers',
+  'delve-tinner': 'tinner', 'delve-seep': 'seep', 'delve-glimmer': 'glimmer', 'delve-gullery': 'gullery', 'delve-hob': 'hob', 'delve-holmsey': 'holmsey', 'ink-priory': 'priory',
 };
 
 /** Furniture that works as a crafting station once it's set down at home, and what using it says. */
@@ -3330,7 +3338,7 @@ export class Game implements GameApi {
     this.migrateSkills();
     this.retune();
     this.appliedApprentice = this.flag('apprentice');
-    this.kit.weapon = weaponLine(this.blade?.speed);
+    this.kit.weapon = weaponKit(this.blade?.model?.family, this.blade?.speed);
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
   }
 
@@ -6978,7 +6986,8 @@ export class Game implements GameApi {
    * and the night theme after dark.
    */
   private musicTheme(underground: boolean): ThemeId {
-    if (underground) return 'deep';
+    // Underground: the dungeon's or delve's own piece, if it's one of them
+    if (underground) return UNDER_THEME[this.dungeons.run?.def.id ?? ''] ?? UNDER_THEME[this.activities.undergroundSite(this.player.position) ?? ''] ?? 'deep';
     const P = this.player.position;
     const near = (x: number, z: number, r: number) => Math.hypot(P.x - x, P.z - z) < r;
     const place: ThemeId | null = this.currentRegion === 'hollin' ? 'hollin'
@@ -7306,7 +7315,7 @@ export class Game implements GameApi {
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);
     // The weapon skill follows the weapon in hand
-    const line = weaponLine(this.blade?.speed);
+    const line = weaponKit(this.blade?.model?.family, this.blade?.speed);
     if (line !== this.kit.weapon) { this.kit.weapon = line; this.kit.wcd = 0; this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill); }
     const gauge = this.kit.gauge();
     this.hud.setGauge(gauge.label, gauge.value, gauge.max);

@@ -219,6 +219,30 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'sunder_a', name: 'Earthbreaker', desc: 'Strikes a block wider, a tenth lighter.', mod: (t) => { t.sunder.r += 1; scale(t.sunder, 'dmg', 0.9); } },
     { id: 'sunder_b', name: 'Felling Blow', desc: 'Knocks them down 0.7 seconds longer.', mod: (t) => { t.sunder.stun += 0.7; } },
   ],
+  hack: [
+    { id: 'hack_a', name: 'Deep Hack', desc: 'The wound bleeds three seconds longer; the blow a little lighter.', mod: (t) => { t.hack.secs += 3; scale(t.hack, 'dmg', 0.85); } },
+    { id: 'hack_b', name: 'Cleaving Hack', desc: 'Also catches one more foe beside the target, each bleeding a little less.', mod: (t) => { t.hack.spread = 1; scale(t.hack, 'dot', 0.75); } },
+  ],
+  whirl: [
+    { id: 'whirl_a', name: 'Whirlwind', desc: 'Three turns instead of two, each a quarter lighter.', mod: (t) => { t.whirl.hits += 1; scale(t.whirl, 'dmg', 0.75); } },
+    { id: 'whirl_b', name: 'Reaping Whirl', desc: 'Each foe struck by the first turn mends you a little; a block shorter.', mod: (t) => { t.whirl.heal = 0.02; t.whirl.r -= 0.8; } },
+  ],
+  bellringer: [
+    { id: 'bellringer_a', name: 'Long Count', desc: 'Stunned 0.6 seconds longer.', mod: (t) => { t.bellringer.stun += 0.6; } },
+    { id: 'bellringer_b', name: 'Death Knell', desc: 'Strikes a third harder, the stun 0.4 seconds shorter.', mod: (t) => { scale(t.bellringer, 'dmg', 1.3); t.bellringer.stun -= 0.4; } },
+  ],
+  longthrust: [
+    { id: 'longthrust_a', name: 'Running Thrust', desc: 'Reaches two blocks farther, a tenth lighter.', mod: (t) => { t.longthrust.reach += 2; scale(t.longthrust, 'dmg', 0.9); } },
+    { id: 'longthrust_b', name: 'Impale', desc: 'Strikes a quarter harder, reaching a block less.', mod: (t) => { scale(t.longthrust, 'dmg', 1.25); t.longthrust.reach -= 1; } },
+  ],
+  hobble: [
+    { id: 'hobble_a', name: 'Crippling Shot', desc: 'Slowed two seconds longer.', mod: (t) => { t.hobble.slow += 2; } },
+    { id: 'hobble_b', name: 'Barbed Shot', desc: 'The arrow stays in: it bleeds for four seconds, the slow a second shorter.', mod: (t) => { t.hobble.bleed = 0.2; t.hobble.slow -= 1; } },
+  ],
+  sweep: [
+    { id: 'sweep_a', name: 'Wide Sweep', desc: 'Reaches a block farther, a tenth lighter.', mod: (t) => { t.sweep.r += 1; scale(t.sweep, 'dmg', 0.9); } },
+    { id: 'sweep_b', name: 'Hard Sweep', desc: 'Off their feet half a second longer, knocked back less far.', mod: (t) => { t.sweep.stun += 0.5; t.sweep.knock -= 3; } },
+  ],
 };
 
 /** A skill's numbers stronger by its rank: its blows, heals, wards and burns (applied to a tuned copy). */

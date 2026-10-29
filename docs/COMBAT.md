@@ -297,3 +297,33 @@ doesn't fight the new kinds.
 
 Verified headless (`.walker/scen-raise.js`): two raised; a wolf turned on one of them 0.3 s after it was
 struck, and in four seconds took that one 349 to 345 while you took nothing.
+
+### The brief's skills, first part: the weapon in your hand (2026-10-29)
+
+The owner asked where the brief's skills were. The answer was that the calling skills existed but the
+weapon skills didn't: key 3 was chosen by the weapon's speed alone (three skills for fourteen
+families). Key 3 now follows the **kind of weapon in hand** (`WEAPON_SKILLS` and `weaponKit` in
+`data/classes.ts`), each with its own icon, two morphs and a stamina price:
+
+| In hand | Key 3 | What it does |
+| --- | --- | --- |
+| sword, longsword, falchion | Riposte | the next blow in a second is turned aside and answered |
+| sabre, dagger | Flurry | four quick cuts |
+| greatsword, cleaver | Sunder | a heavy blow where you aim, knocking them down |
+| axe | **Hack** | a hard chop and a six-second bleed |
+| great axe | **Whirl** | struck all round you, twice |
+| mace, war hammer | **Bell Ringer** | a blow to the head: stunned 1.4 s, a wind-up lost |
+| spear | **Long Thrust** | everything in a line six blocks long |
+| bow | **Hobbling Shot** | a solid arrow, and the target slowed four seconds |
+| staff | **Staff Sweep** | everything near struck, knocked back and off its feet |
+
+Still to come from the brief, in order: key 2 by weapon kind too (Cleave stays for now); a bigger
+pool of utilities and elites per calling to choose among; saved builds; the effects table and
+cleanses; the Rogue, attunements for the elemental callings, and the Pathfinder's beasts.
+
+Verified headless (`.walker/scen-group2.js`, built bundle): each weapon in hand chose its own key 3 and it
+landed on a post (Flurry 157, Sunder 294, Hack 142, Whirl 212, Bell Ringer 156, Long Thrust 146, Hobbling
+Shot 107 and slowed, Staff Sweep 66; Riposte only answers a blow). **Two players in one group** over a
+local realm (a second player run by `.walker/bot.mjs`): a Mender's Mend reached the other for +300 (30% of
+their 1000) and Lamp Ward laid a 100 ward on them for eight seconds, both passed by the realm as `gAid`;
+their group frame went 300 to 600 of 1000.

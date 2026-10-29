@@ -240,6 +240,18 @@ export const TUNE = {
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },
   sunder: { dmg: 2.4, r: 2.6, stun: 0.8, delay: 0.35, range: 6 },
+  /** An axe's chop: a blow, then a bleed (dot: a share of a swing each second, for secs); spread: more foes it reaches. */
+  hack: { dmg: 1.5, dot: 0.3, secs: 6, range: 3, spread: 0 },
+  /** A great axe swung all the way round: hits on everything within r, every so often. heal: a share of health for each foe struck. */
+  whirl: { dmg: 1.1, hits: 2, every: 0.35, r: 3.2, heal: 0 },
+  /** A mace or hammer to the head: a hard blow and a stun (so it breaks a wind-up). */
+  bellringer: { dmg: 1.8, stun: 1.4, range: 3 },
+  /** A spear's thrust down a line: everything within reach and a block either side of it. */
+  longthrust: { dmg: 2.0, reach: 6, width: 1.0 },
+  /** An arrow at the legs: a blow and the foe slowed (bleed: a share of a swing each second, for 4 seconds). */
+  hobble: { dmg: 1.4, slow: 4, range: 24, bleed: 0 },
+  /** A staff swept round low: a light blow to everything near, knocked back and off its feet a moment. */
+  sweep: { dmg: 1.0, r: 3.5, knock: 7, stun: 0.6 },
 };
 
 /**
@@ -257,12 +269,38 @@ export type WeaponLine = 'balanced' | 'quick' | 'heavy';
 export function weaponLine(speed: number | undefined): WeaponLine {
   return (speed ?? 1) > 1.04 ? 'quick' : (speed ?? 1) < 0.96 ? 'heavy' : 'balanced';
 }
-/** The third weapon skill (key 3), by the line of the weapon in hand. */
-export const WEAPON_SKILLS: Record<WeaponLine, SkillDef> = {
+/**
+ * The weapon skill (key 3), by the kind of weapon in hand (docs/COMBAT.md): a sword parries, a dagger
+ * cuts quick, a two-handed blade sunders, an axe opens a wound, a great axe whirls, a hammer rings a
+ * skull, a spear reaches, a bow hobbles, a staff sweeps. With nothing in hand, by how fast your fists are.
+ */
+export type WeaponKit = WeaponLine | 'axe' | 'greataxe' | 'hammer' | 'spear' | 'bow' | 'staff';
+export const WEAPON_SKILLS: Record<WeaponKit, SkillDef> = {
   balanced: { id: 'riposte', name: 'Riposte', icon: 'riposte', cd: 12, desc: 'Raise your blade: the next blow that reaches you in the next second is turned aside, and you strike back hard.' },
   quick: { id: 'flurry', name: 'Flurry', icon: 'flurry', cd: 10, desc: 'Four quick cuts at your target.' },
   heavy: { id: 'sunder', name: 'Sunder', icon: 'sunder', cd: 12, aim: 6, desc: 'Bring the blade down where you aim: everything there takes a heavy blow and is knocked off its feet.' },
+  axe: { id: 'hack', name: 'Hack', icon: 'hack', cd: 10, desc: 'A short, ugly chop that opens a wound: a hard blow, and the target bleeds for six seconds.' },
+  greataxe: { id: 'whirl', name: 'Whirl', icon: 'whirl', cd: 12, desc: 'Swing the great axe all the way round, twice: everything within three blocks is struck each time.' },
+  hammer: { id: 'bellringer', name: 'Bell Ringer', icon: 'bellringer', cd: 14, desc: 'A blow to the head. The target is stunned for over a second, and whatever it was winding up is lost.' },
+  spear: { id: 'longthrust', name: 'Long Thrust', icon: 'longthrust', cd: 10, desc: 'Lunge with the spear: everything in a line six blocks long takes a heavy thrust.' },
+  bow: { id: 'hobble', name: 'Hobbling Shot', icon: 'hobble', cd: 12, desc: 'An arrow at the legs: a solid hit, and the target moves at two thirds of its pace for four seconds.' },
+  staff: { id: 'sweep', name: 'Staff Sweep', icon: 'sweep', cd: 14, desc: 'Sweep the staff round low: everything near you is struck, knocked back and off its feet for a moment.' },
 };
+/** The weapon skill's kind for a weapon: by its family, or (with nothing in hand) by speed. */
+export function weaponKit(family: string | undefined, speed: number | undefined): WeaponKit {
+  switch (family) {
+    case 'sword': case 'longsword': case 'falchion': return 'balanced';
+    case 'sabre': case 'dagger': return 'quick';
+    case 'greatsword': case 'cleaver': return 'heavy';
+    case 'axe': return 'axe';
+    case 'greataxe': return 'greataxe';
+    case 'mace': case 'hammer': return 'hammer';
+    case 'spear': return 'spear';
+    case 'bow': return 'bow';
+    case 'staff': return 'staff';
+  }
+  return weaponLine(speed);
+}
 /** Cross-classing (data/content/masters.ts): the level an apprenticeship can start, and its fee. */
 export const APPRENTICE_LEVEL = 25, APPRENTICE_FEE = 500;
 /** Skills that only work through their own calling's craft, so no master teaches them. */

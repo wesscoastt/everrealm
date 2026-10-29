@@ -306,6 +306,14 @@ const GLYPHS: Record<string, [string[], string]> = {
   rain: [['X..X..X..X', '.X..X..X..', '..X..X..X.', 'X..X..X..X', '.X..X..X..', '..X..X..X.', '..........', '.XXXXXXXX.', 'XXXXXXXXXX', '..........'], '#f6ecd0'],
   quickstep: [['.....XX...', '.....XX...', '....XXXX..', '...X.XX.X.', '.....XX...', '....X..X..', '...X....X.', '..........', 'XX..XX..XX', '.XX..XX..X'], '#d0f0c0'],
   riposte: [['X........X', '.X......X.', '..X....X..', '...X..X...', '....XX....', '....XX....', '...X..X...', '..X....X..', '.XX....XX.', 'XX......XX'], '#f6ecd0'],
+  // The weapon kinds' own (key 3): an axe's bit and its drops, a great axe's turning arc, a hammer
+  // ringing, a spear's long head, an arrow at a heel, a staff swept low
+  hack: [['..XXXX....', '.XXXXXX...', 'XXXXXXXX..', '.XXXXXXX..', '...XXXXX..', '.....XX...', '....X.X...', '...X..X.X.', '..X.....X.', '.X....X...'], '#ffd0c0'],
+  whirl: [['...XXXX...', '.XX....XX.', 'X........X', 'X...XX...X', 'X..X..X..X', '...X..X...', '....XX..X.', '.......XX.', 'XX....XX..', '.XXXXXX...'], '#f6ecd0'],
+  bellringer: [['..XXXXXX..', '..XXXXXX..', '...XXXX...', '....XX....', '....XX....', 'X...XX...X', '.X..XX..X.', '....XX....', '.X..XX..X.', 'X...XX...X'], '#fff0c0'],
+  longthrust: [['.........X', '........XX', '.......XXX', '......XXX.', '.....XX...', '....XX....', '...XX.....', '..XX......', '.XX.......', 'XX........'], '#f6ecd0'],
+  hobble: [['X.........', '.X........', '..X.......', '...X......', '....X.....', '.....XX...', '.....XXX..', '....XXXX..', '....XX.XXX', '....X...XX'], '#e8dcc0'],
+  sweep: [['..........', '..........', '..........', 'X.........', '.XX.......', '...XXX....', '......XXXX', '..........', 'X.X..X..X.', '.X.XX.XX.X'], '#e8dcc0'],
   flurry: [['X...X...X.', '.X...X...X', '..X...X...', '...X...X..', 'X...X...X.', '.X...X...X', '..X...X...', '...X...X..', '..........', '..........'], '#f6ecd0'],
   frostbolt: [['.......X.X', '........X.', '......XXX.', '.....XXX..', '....XXX...', '...XXX....', '..XXX.....', '.XX.......', 'XX........', 'X.........'], '#e8f8ff'],
   icebarrier: [['....XX....', '...XXXX...', '..XX..XX..', '.XX.XX.XX.', 'XX.XXXX.XX', 'XX.XXXX.XX', '.XX.XX.XX.', '..XX..XX..', '...XXXX...', '....XX....'], '#e8f8ff'],
@@ -349,6 +357,8 @@ export function abilityIcon(kind: string): string {
     firewall: ['#e07030', '#a84010', '#5a2006'], cinderstep: ['#c86a30', '#8a4010', '#4a2006'], kindle: ['#f0b040', '#b07010', '#603a06'],
     snare: ['#8a7a50', '#5a4a2a', '#2e2614'], rain: ['#6a8ab0', '#3a5a7a', '#1a2e44'], quickstep: ['#5a9a6a', '#2e6a3a', '#163a1e'],
     riposte: ['#9aa4b4', '#5a6474', '#2a3040'], flurry: ['#b4a48a', '#74644a', '#403420'], sunder: ['#a8784a', '#6a4422', '#3a220e'],
+    hack: ['#a84a3a', '#6a2a1e', '#3a140c'], whirl: ['#9a8a6a', '#5e5440', '#302a1e'], bellringer: ['#b8a060', '#7a6430', '#423414'],
+    longthrust: ['#8a9aa8', '#56626e', '#2a3038'], hobble: ['#7a9a5a', '#4a6a34', '#24361a'], sweep: ['#a89070', '#6a5640', '#382c1e'],
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],
     blink: ['#8a7ad0', '#5a4aa0', '#2e245a'], icelance: ['#4aa0d0', '#1a6a9a', '#0c3654'], frostnova: ['#6ac0e0', '#2a80a8', '#124460'],
     mend: ['#d8b860', '#9a7a30', '#5a4414'], lanternlight: ['#e0b850', '#a07a20', '#5a420c'], sanctuary: ['#c8a860', '#8a6a2a', '#4a3a14'],

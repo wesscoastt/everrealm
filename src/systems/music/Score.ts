@@ -19,7 +19,12 @@ interface Chord { deg: number; q?: Quality; bars?: number }
 export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'night' | 'deep'
   | 'ansbury' | 'harbour' | 'works' | 'hearth' | 'kirk' | 'holms' | 'inn' | 'festival'
   /** The long pieces: whole movements in several parts (see Part). */
-  | 'heartland' | 'wildwood' | 'highlands' | 'dawn' | 'dusk';
+  | 'heartland' | 'wildwood' | 'highlands' | 'dawn' | 'dusk'
+  /** Morrow's own long pieces. */
+  | 'keys' | 'amber' | 'held'
+  /** Every dungeon and delve its own: the group dungeons' long pieces, the delves' slow themes. */
+  | 'oldman' | 'kettle' | 'escapement' | 'kingsbarrow'
+  | 'mortlake' | 'blackcut' | 'badger' | 'culvert' | 'smugglers' | 'tinner' | 'seep' | 'glimmer' | 'gullery' | 'hob' | 'holmsey' | 'priory';
 type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings';
 
 /**
@@ -310,6 +315,190 @@ const THEMES: Record<ThemeId, Theme> = {
     prog: [{ deg: 0, q: 'sus2' }, { deg: 1, q: 'maj' }, { deg: 0, q: 'sus4' }, { deg: 6 }],
     motifs: [],
     lead: [], pad: ['choir'], vowel: 'oo', arp: 'harp', brightness: 0.2, rest: [12, 24], drone: true, level: 1.25,
+  },
+
+  // ---- Morrow's long pieces: warmer, older, further from home.
+
+  // "Salt and Sun": A Mixolydian, for the Keys and the Bright. Flute and harp over the islands, the
+  // strings taking it up a fourth, everyone in, and the harp left with the sea.
+  keys: {
+    id: 'keys', root: 57, mode: MODES.mixolydian, bpm: 70,
+    prog: [{ deg: 0 }, { deg: 6, q: 'maj' }, { deg: 3 }, { deg: 0 }],
+    motifs: [], lead: ['flute'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.62, rest: [30, 50], level: 0.9,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 6, q: 'maj' }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'min' }, { deg: 3 }, { deg: 6, q: 'maj' }, { deg: 0, q: 'sus4' }], motif: '4:1 5:1 7:2 5:2 4:2 2:4 r:2 4:1 2:1 0:2 1:2 2:6 r:2', lead: 'flute', arp: true, dyn: 0.85 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 3 }, { deg: 4, q: 'min' }, { deg: 6, q: 'maj' }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }], motif: '2:2 4:2 5:3 4:1 2:2 0:4 r:2 5:2 7:2 6:2 4:6 r:2', lead: 'strings' },
+      { prog: [{ deg: 3 }, { deg: 6, q: 'maj' }, { deg: 0 }, { deg: 4, q: 'min' }, { deg: 3 }, { deg: 6, q: 'maj' }, { deg: 4 }, { deg: 0 }], motif: '7:3 9:1 7:2 5:2 4:4 5:2 7:2 9:4 7:2 6:2 4:8', lead: 'horn', tutti: true, dyn: 0.72 },
+      { prog: [{ deg: 0, q: 'add9', bars: 3 }, { deg: 6, q: 'maj', bars: 3 }, { deg: 0, q: 'sus2', bars: 4 }], motif: '4:4 2:4 0:8', lead: 'celesta', arp: true, dyn: 0.6 },
+    ],
+  },
+  // "The Amber Light": E Lydian, for the Amberwold and the Glades. The celesta among old trees, a flute
+  // answering it in B, the strings rising, and the choir alone at the end.
+  amber: {
+    id: 'amber', root: 52, mode: MODES.lydian, bpm: 58,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 5 }, { deg: 4 }],
+    motifs: [], lead: ['celesta'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'celesta', brightness: 0.5, rest: [30, 50], level: 0.9,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 5 }, { deg: 4 }, { deg: 0, q: 'add9' }, { deg: 1, q: 'maj' }, { deg: 2 }, { deg: 4, q: 'sus4' }], motif: '0:2 3:2 4:4 6:2 4:2 2:4 r:2 3:2 4:2 1:2 2:6 r:2', lead: 'celesta', arp: true, dyn: 0.8 },
+      { key: 7, prog: [{ deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4 }, { deg: 0 }, { deg: 1, q: 'maj' }, { deg: 3 }, { deg: 4 }], motif: '4:3 3:1 4:2 6:2 7:4 r:2 6:2 4:2 3:2 4:6 r:2', lead: 'flute' },
+      { prog: [{ deg: 5 }, { deg: 4 }, { deg: 0 }, { deg: 1, q: 'maj' }, { deg: 5 }, { deg: 2 }, { deg: 4 }, { deg: 0 }], motif: '7:4 8:2 7:2 6:4 4:2 6:2 7:6 r:2 4:2 6:2 4:2 3:2 2:4 0:6', lead: 'strings', tutti: true, dyn: 0.7 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 1, q: 'maj', bars: 4 }, { deg: 0, bars: 4 }], motif: '6:4 4:4 0:8', lead: 'choir', dyn: 0.62 },
+    ],
+  },
+  // "The Long Barrows": C minor, for the Held, the Sunder and the Greywaste. A horn far off over a
+  // drone, the choir in F, the whole orchestra heavy and slow, and the horn again, nearer.
+  held: {
+    id: 'held', root: 48, mode: MODES.aeolian, bpm: 52,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 4, q: 'maj' }],
+    motifs: [], lead: ['horn'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.4, rest: [30, 50], drone: true, level: 1,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'sus4' }], motif: '0:4 2:2 3:2 4:4 3:2 2:2 0:6 r:2 -2:2 -1:2 0:8 r:2', lead: 'horn', dyn: 0.85 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4, q: 'maj' }], motif: '4:4 5:2 4:2 3:4 2:4 r:2 3:2 2:2 0:2 2:6 r:2', lead: 'choir', arp: true },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 4, q: 'maj' }, { deg: 0 }], motif: '7:4 8:2 7:2 5:4 3:2 4:2 5:6 r:2 7:2 5:2 4:2 3:2 2:4 0:8', lead: 'strings', tutti: true, dyn: 0.66 },
+      { prog: [{ deg: 0, q: 'sus4', bars: 3 }, { deg: 6, bars: 3 }, { deg: 0, bars: 4 }], motif: '4:4 3:4 0:8', lead: 'horn', dyn: 0.62 },
+    ],
+  },
+
+  // ---- The group dungeons: each a long piece of its own, for the hour or so a run takes.
+
+  // "The Old Man's Workings": C Dorian, slow. A horn down the drift, the strings coming in under it in
+  // F, the orchestra heavy as rock, and a celesta dripping like water at the end.
+  oldman: {
+    id: 'oldman', root: 48, mode: MODES.dorian, bpm: 50,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 0 }],
+    motifs: [], lead: ['horn'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'harp', brightness: 0.3, rest: [20, 34], drone: true, level: 1.1,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 0 }, { deg: 2 }, { deg: 3 }, { deg: 4 }, { deg: 0, q: 'sus4' }], motif: '0:3 2:1 3:4 2:2 0:2 -2:4 r:2 0:2 3:2 5:2 3:6 r:2', lead: 'horn', dyn: 0.8 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }], motif: '4:4 3:2 2:2 0:4 r:2 2:2 3:2 4:2 5:6 r:2', lead: 'strings', arp: true },
+      { prog: [{ deg: 3 }, { deg: 0 }, { deg: 6 }, { deg: 4, q: 'maj' }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 0 }], motif: '7:4 5:2 4:2 3:4 4:2 5:2 7:6 r:2 5:2 4:2 3:2 2:2 0:8', lead: 'strings', tutti: true, dyn: 0.62 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 6, bars: 4 }, { deg: 0, bars: 4 }], motif: '4:2 r:2 3:2 r:2 2:4 0:8', lead: 'celesta', arp: true, dyn: 0.55 },
+    ],
+  },
+  // "Under the Kettle": F sharp minor, glass and cold. The celesta in the ice, the choir in B, the
+  // strings rising toward the light below, and the choir alone again.
+  kettle: {
+    id: 'kettle', root: 54, mode: MODES.aeolian, bpm: 46,
+    prog: [{ deg: 0, q: 'sus2' }, { deg: 5 }, { deg: 2 }, { deg: 6 }],
+    motifs: [], lead: ['celesta'], pad: ['choir', 'strings'], vowel: 'oo', arp: 'celesta', brightness: 0.45, rest: [20, 34], level: 1.05,
+    parts: [
+      { prog: [{ deg: 0, q: 'sus2' }, { deg: 5 }, { deg: 2 }, { deg: 6 }, { deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'sus4' }], motif: '7:2 4:2 2:2 4:2 0:4 r:2 7:2 9:2 7:2 4:6 r:2', lead: 'celesta', arp: true, dyn: 0.8 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 4, q: 'sus4' }], motif: '4:4 2:2 4:2 5:4 4:4 r:2 2:2 1:2 0:8', lead: 'choir' },
+      { prog: [{ deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 0 }, { deg: 4, q: 'maj' }], motif: '4:2 5:2 7:4 9:2 7:2 5:4 4:4 r:2 7:2 9:2 11:4 9:2 7:2 4:8', lead: 'strings', tutti: true, dyn: 0.6 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 5, bars: 4 }, { deg: 0, q: 'sus2', bars: 4 }], motif: '7:4 4:4 0:8', lead: 'choir', dyn: 0.55 },
+    ],
+  },
+  // "The Escapement": G Phrygian, quicker, like a mechanism. The harp ticking, a horn over the wheels
+  // in C, the whole orchestra driving, then the harp winding down.
+  escapement: {
+    id: 'escapement', root: 43, mode: MODES.phrygian, bpm: 64,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 6 }],
+    motifs: [], lead: ['strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.45, rest: [20, 34], drone: true, level: 1.05,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 0 }, { deg: 1, q: 'maj' }, { deg: 3 }, { deg: 4 }], motif: '0:1 1:1 0:1 1:1 3:2 1:2 0:4 r:2 0:1 1:1 3:1 4:1 5:4 r:2', lead: 'strings', arp: true, dyn: 0.8 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 1, q: 'maj' }], motif: '4:2 5:2 4:2 3:2 1:4 0:4 r:2 3:2 4:2 5:2 7:6 r:2', lead: 'horn', arp: true },
+      { prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 0 }, { deg: 1, q: 'maj' }, { deg: 4 }, { deg: 0 }], motif: '7:2 8:2 7:2 5:2 4:2 5:2 7:4 r:2 8:2 7:2 5:2 4:2 1:2 0:8', lead: 'strings', tutti: true, dyn: 0.66 },
+      { prog: [{ deg: 0, bars: 3 }, { deg: 1, q: 'maj', bars: 3 }, { deg: 0, q: 'sus4', bars: 4 }], motif: '4:2 3:2 1:2 0:10', lead: 'celesta', arp: true, dyn: 0.55 },
+    ],
+  },
+  // "Kingsbarrow": D minor, the grandest of them. The choir in the hall of the kneeling dead, a horn
+  // answering in G, the whole orchestra for the old king, and the choir putting him back to sleep.
+  kingsbarrow: {
+    id: 'kingsbarrow', root: 50, mode: MODES.aeolian, bpm: 44,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }],
+    motifs: [], lead: ['choir'], pad: ['choir', 'strings'], vowel: 'ah', arp: 'harp', brightness: 0.35, rest: [20, 34], drone: true, level: 1.1,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 4, q: 'sus4' }], motif: '0:4 1:2 2:2 3:4 2:4 r:2 0:2 -1:2 0:8 r:2', lead: 'choir', dyn: 0.85 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }], motif: '4:4 5:2 4:2 2:4 0:4 r:2 2:2 3:2 4:2 7:6 r:2', lead: 'horn', arp: true },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'maj' }], motif: '7:4 9:2 7:2 5:4 4:2 5:2 7:8 r:2 9:2 7:2 5:2 4:2 2:4 0:8', lead: 'strings', tutti: true, dyn: 0.64 },
+      { prog: [{ deg: 0, q: 'sus4', bars: 4 }, { deg: 5, bars: 4 }, { deg: 0, bars: 4 }], motif: '4:4 2:4 0:8', lead: 'choir', dyn: 0.55 },
+    ],
+  },
+
+  // ---- The delves and public dungeons: each a slow theme of its own, quiet between statements.
+
+  // Mortlake Cellars: D Dorian, damp vaults. Strings low, the choir under them, a celesta dripping.
+  mortlake: {
+    id: 'mortlake', root: 50, mode: MODES.dorian, bpm: 46,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 0 }, { deg: 6 }],
+    motifs: ['0:3 2:1 3:4 2:2 0:6 r:2', '4:2 3:2 2:2 0:2 -1:4 0:6 r:2'],
+    lead: ['strings', 'celesta'], pad: ['choir'], vowel: 'oo', arp: 'celesta', brightness: 0.25, rest: [14, 26], drone: true, level: 1.15,
+  },
+  // The Black Cut: C minor, a working pit. A horn down the shaft over a drone, the harp like a pick.
+  blackcut: {
+    id: 'blackcut', root: 48, mode: MODES.aeolian, bpm: 50,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 4, q: 'maj' }],
+    motifs: ['0:2 2:2 3:4 2:2 0:2 -2:4 r:2', '3:2 4:2 5:2 4:2 3:4 2:2 0:6 r:2'],
+    lead: ['horn', 'strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.25, rest: [14, 26], drone: true, level: 1.15,
+  },
+  // Badger Holt: G Dorian, earthy and close. A flute among roots, the harp warm under it.
+  badger: {
+    id: 'badger', root: 55, mode: MODES.dorian, bpm: 54,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 0 }],
+    motifs: ['0:1 2:1 3:2 4:2 3:1 2:1 0:4 r:2', '4:2 5:2 4:2 2:2 3:4 r:2'],
+    lead: ['flute'], pad: ['strings'], vowel: 'oo', arp: 'harp', brightness: 0.35, rest: [14, 26], level: 1,
+  },
+  // Withy Culvert: E Phrygian, cold stone and running water. The celesta alone over the choir.
+  culvert: {
+    id: 'culvert', root: 52, mode: MODES.phrygian, bpm: 44,
+    prog: [{ deg: 0, q: 'sus2' }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 6 }],
+    motifs: ['7:2 5:2 4:2 1:2 0:6 r:2', '4:1 5:1 7:2 8:2 7:4 r:2'],
+    lead: ['celesta'], pad: ['choir'], vowel: 'oo', arp: 'celesta', brightness: 0.3, rest: [14, 26], drone: true, level: 1.1,
+  },
+  // Smugglers' Hole: A minor, a sea cave. The strings in a slow tune that wants to be a song.
+  smugglers: {
+    id: 'smugglers', root: 57, mode: MODES.aeolian, bpm: 56,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'maj' }],
+    motifs: ['0:2 2:1 3:1 4:2 3:2 2:2 0:4 r:2', '4:2 5:2 4:1 2:1 0:2 -1:2 0:6 r:2'],
+    lead: ['strings', 'flute'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.35, rest: [14, 26], level: 1,
+  },
+  // Tinner's Adit: B flat Mixolydian, the tinners' old hymn underground. Horn and choir.
+  tinner: {
+    id: 'tinner', root: 46, mode: MODES.mixolydian, bpm: 48,
+    prog: [{ deg: 0 }, { deg: 6, q: 'maj' }, { deg: 3 }, { deg: 0 }],
+    motifs: ['0:2 2:2 4:4 3:2 2:2 0:6 r:2', '4:2 6:2 4:2 2:2 3:4 2:4 r:2'],
+    lead: ['horn', 'choir'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.3, rest: [14, 26], drone: true, level: 1.1,
+  },
+  // The Cold Seep: F sharp Lydian, glass grown in the dark. Celesta and choir, high and still.
+  seep: {
+    id: 'seep', root: 54, mode: MODES.lydian, bpm: 42,
+    prog: [{ deg: 0, q: 'add9' }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 4 }],
+    motifs: ['7:2 6:2 4:4 3:2 4:6 r:2', '4:2 6:2 7:2 9:4 7:4 r:2'],
+    lead: ['celesta'], pad: ['choir'], vowel: 'eh', arp: 'celesta', brightness: 0.5, rest: [14, 26], level: 1.05,
+  },
+  // The Glimmer: C sharp minor, the frozen dark under the Sickle. Choir and a far-off celesta.
+  glimmer: {
+    id: 'glimmer', root: 49, mode: MODES.aeolian, bpm: 40,
+    prog: [{ deg: 0, q: 'sus2' }, { deg: 5 }, { deg: 0 }, { deg: 3 }],
+    motifs: ['4:4 2:2 0:2 -1:6 r:2', '7:2 5:2 4:4 2:6 r:2'],
+    lead: ['choir', 'celesta'], pad: ['choir'], vowel: 'oo', arp: 'celesta', brightness: 0.35, rest: [14, 26], drone: true, level: 1.1,
+  },
+  // The Gullery: B Phrygian, wings in the dark. Strings in short phrases, the harp fluttering.
+  gullery: {
+    id: 'gullery', root: 47, mode: MODES.phrygian, bpm: 50,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 6 }, { deg: 0 }],
+    motifs: ['0:1 1:1 0:2 r:1 3:1 1:1 0:4 r:2', '4:2 3:1 1:1 0:4 r:2'],
+    lead: ['strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.3, rest: [14, 26], drone: true, level: 1.1,
+  },
+  // Hob's Barrow: D Phrygian, very old and very low. The choir holding, almost no tune at all.
+  hob: {
+    id: 'hob', root: 38, mode: MODES.phrygian, bpm: 38,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0, q: 'sus4' }, { deg: 6 }],
+    motifs: ['0:4 1:4 0:8 r:4', '3:4 1:4 0:8 r:4'],
+    lead: ['choir'], pad: ['choir'], vowel: 'oo', arp: null, brightness: 0.18, rest: [14, 26], drone: true, level: 1.25,
+  },
+  // Holmsey: A Dorian, the drowned church. The choir singing what it used to.
+  holmsey: {
+    id: 'holmsey', root: 45, mode: MODES.dorian, bpm: 44,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 0 }],
+    motifs: ['0:2 2:2 3:2 4:4 3:2 2:2 0:6 r:2', '4:2 5:2 4:2 3:2 2:4 0:6 r:2'],
+    lead: ['choir'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.3, rest: [14, 26], level: 1.05,
+  },
+  // The Undercroft at Corra Priory: E minor, plainchant under the grey. A single line, then the choir.
+  priory: {
+    id: 'priory', root: 52, mode: MODES.aeolian, bpm: 42,
+    prog: [{ deg: 0, q: 'sus4' }, { deg: 6 }, { deg: 0 }, { deg: 3 }],
+    motifs: ['0:2 2:2 3:2 2:2 3:2 4:4 3:2 2:2 0:6 r:2', '4:2 3:2 2:4 0:2 -1:2 0:8 r:2'],
+    lead: ['choir', 'strings'], pad: ['choir'], vowel: 'ah', arp: null, brightness: 0.25, rest: [14, 26], drone: true, level: 1.15,
   },
 };
 

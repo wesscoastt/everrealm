@@ -656,6 +656,18 @@ export class Activities {
     }
   }
 
+  /** The dungeon or delve a point is in or by (within r of its middle): its site id, for its music. */
+  undergroundSite(P: THREE.Vector3, r = 60): string | null {
+    let best: string | null = null, bd = r;
+    for (const s of this.sites) {
+      const k = s.act!.kind;
+      if (k !== 'dungeon' && k !== 'delve') continue;
+      const d = Math.hypot(P.x - s.x, P.z - s.z);
+      if (d < bd) { bd = d; best = s.id; }
+    }
+    return best;
+  }
+
   // ---------------------------------------------------------------- Shared
   private spawn(def: EnemyDef, x: number, z: number, hunt: boolean): Enemy {
     const e = new Enemy(def, Math.floor(x), Math.floor(z), this.host.voxels);

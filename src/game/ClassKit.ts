@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CALLINGS, CallingDef, CallingId, chosenUtilities, SkillDef, TUNE, WEAPON_SKILLS, WeaponLine } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, chosenUtilities, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
 
 /** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
@@ -89,7 +89,7 @@ export class ClassKit {
   bar: SkillDef[] = [CALLINGS[0].skills[0], ...chosenUtilities(CALLINGS[0], null), CALLINGS[0].skills[2]];
   readonly cds = [0, 0, 0, 0, 0];
   /** The weapon skill (key 3): the line of the weapon in hand, and its cooldown. */
-  weapon: WeaponLine = 'balanced';
+  weapon: WeaponKit = 'balanced';
   wcd = 0;
   private clock = 0;
   // Mechanics
@@ -705,6 +705,81 @@ export class ClassKit {
         const at = H.aim(T.sunder.range);
         H.anim('cleave'); H.sfx('swing');
         this.pending.push({ at, t: T.sunder.delay, ring: this.ring(at, T.sunder.r, '#ffd27a', T.sunder.delay), r: T.sunder.r, dmg: pw * T.sunder.dmg, stun: T.sunder.stun });
+        return true;
+      }
+      // An axe: a chop that opens a wound (Cleaving Hack reaches the next foe as well)
+      case 'hack': {
+        const e = H.faceTarget(T.hack.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('hitHeavy');
+        const struck = [e, ...(T.hack.spread > 0 ? H.enemies().filter((o) => o !== e && o.alive && o.pos.distanceTo(e.pos) < 3).slice(0, T.hack.spread) : [])];
+        for (const o of struck) { H.hit(o, pw * T.hack.dmg); this.addDot(o, pw * T.hack.dot, T.hack.secs); H.particles.sparks(o.pos.clone().setY(o.pos.y + 1), 10, '#a01a1a'); }
+        return true;
+      }
+      // A great axe swung all the way round, and round again
+      case 'whirl': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.whirl.r);
+        if (!near.length) return false;
+        H.anim('cleave'); H.sfx('swing');
+        for (const o of near) H.hit(o, pw * T.whirl.dmg);
+        if (T.whirl.heal > 0) H.heal(H.maxHp() * T.whirl.heal * near.length);
+        for (let k = 1; k < T.whirl.hits; k++) this.pending.push({ at: P.clone(), t: k * T.whirl.every, ring: this.ring(P, T.whirl.r, '#e8c890', k * T.whirl.every), r: T.whirl.r, dmg: pw * T.whirl.dmg });
+        H.particles.burst(P.clone().setY(P.y + 1), '#e8c890', 18);
+        return true;
+      }
+      // A mace or hammer to the head: stunned, and whatever it was winding up is lost
+      case 'bellringer': {
+        const e = H.faceTarget(T.bellringer.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('bell');
+        H.hit(e, pw * T.bellringer.dmg);
+        e.stun = Math.max(e.stun, T.bellringer.stun);
+        H.particles.sparks(e.pos.clone().setY(e.pos.y + 1.8), 14, '#ffe8a0');
+        return true;
+      }
+      // A spear thrust down a line: everything on it, out to its reach
+      case 'longthrust': {
+        const e = H.faceTarget(T.longthrust.reach);
+        const yaw = e ? Math.atan2(e.pos.x - P.x, e.pos.z - P.z) : H.yaw();
+        const dx = Math.sin(yaw), dz = Math.cos(yaw);
+        const hit = H.enemies().filter((o) => {
+          if (!o.alive || Math.abs(o.pos.y - P.y) > 2) return false;
+          const rx = o.pos.x - P.x, rz = o.pos.z - P.z, along = rx * dx + rz * dz;
+          return along > -0.3 && along < T.longthrust.reach && Math.abs(rx * dz - rz * dx) < T.longthrust.width;
+        });
+        if (!hit.length) return false;
+        H.anim('attack'); H.sfx('swing');
+        for (const o of hit) { H.hit(o, pw * T.longthrust.dmg); H.particles.sparks(o.pos.clone().setY(o.pos.y + 1), 8, '#e8e0d0'); }
+        return true;
+      }
+      // An arrow at the legs: it slows (Barbed Shot: and bleeds)
+      case 'hobble': {
+        const e = H.faceTarget(T.hobble.range);
+        if (H.bow?.()) H.anim('shoot');
+        if (!e) return false;
+        H.sfx('swing');
+        const m = new THREE.Mesh(ARROW_GEO, new THREE.MeshBasicMaterial({ color: '#e8dcc0' }));
+        m.position.copy(P).setY(P.y + 1.4);
+        m.visible = false;
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: 34, dmg: pw * T.hobble.dmg });
+        e.slowLeft = Math.max(e.slowLeft, T.hobble.slow);
+        if (T.hobble.bleed > 0) this.addDot(e, pw * T.hobble.bleed, 4);
+        return true;
+      }
+      // A staff swept round low: struck, knocked back, off their feet a moment
+      case 'sweep': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.sweep.r);
+        if (!near.length) return false;
+        H.anim('cleave'); H.sfx('swing');
+        for (const o of near) {
+          H.hit(o, pw * T.sweep.dmg);
+          const away = o.pos.clone().sub(P).setY(0);
+          if (away.lengthSq() < 0.01) away.set(Math.sin(H.yaw()), 0, Math.cos(H.yaw()));
+          o.knock.addScaledVector(away.normalize(), T.sweep.knock);
+          o.stun = Math.max(o.stun, T.sweep.stun);
+        }
+        this.ring(P, T.sweep.r, '#d8c8a0', 0.4);
         return true;
       }
     }
