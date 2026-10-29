@@ -313,6 +313,13 @@ const GLYPHS: Record<string, [string[], string]> = {
   blink: [['X.X.X.....', '.........X', '........XX', '.......XXX', '......XXXX', '........XX', '.......X.X', '......X...', '.....X....', '....X.....'], '#e0d8ff'],
   icelance: [['.........X', '........XX', '.......XX.', '......XX..', '.....XX...', '....XX....', '...XX.....', '..XX......', '.XX.......', 'X.........'], '#e8f8ff'],
   frostnova: [['X...X...X.', '.X..X..X..', '..X.X.X...', '...XXX....', 'XXXXXXXXX.', '...XXX....', '..X.X.X...', '.X..X..X..', 'X...X...X.', '..........'], '#f0faff'],
+  // The Mender's: a cross of light, a lantern, a hallowed ring, a ward, a starburst, a rising spiral
+  mend: [['....XX....', '....XX....', '....XX....', 'XXXXXXXXXX', 'XXXXXXXXXX', '....XX....', '....XX....', '....XX....', '....XX....', '..........'], '#fff4d0'],
+  lanternlight: [['....XX....', '...X..X...', '..XXXXXX..', '..X.XX.X..', '..XXXXXX..', '..X.XX.X..', '..XXXXXX..', '...XXXX...', '..........', '..........'], '#fff0b0'],
+  sanctuary: [['...XXXX...', '.XX....XX.', '.X..XX..X.', 'X..XXXX..X', 'X..XXXX..X', 'X...XX...X', '.X......X.', '.XX....XX.', '...XXXX...', '..........'], '#fff0c0'],
+  lampward: [['XXXXXXXXXX', 'X........X', 'X...XX...X', 'X..XXXX..X', 'X..XXXX..X', '.X..XX..X.', '.X......X.', '..X....X..', '...XXXX...', '..........'], '#fff4d0'],
+  rebuke: [['X...XX...X', '.X..XX..X.', '..X.XX.X..', '...XXXX...', 'XXXXXXXXXX', 'XXXXXXXXXX', '...XXXX...', '..X.XX.X..', '.X..XX..X.', 'X...XX...X'], '#fff8e0'],
+  restore: [['....XXX...', '...X...X..', '..X..X..X.', '..X.X.X.X.', '..X.X..X..', '..X..XX...', '...X......', '....XXXX..', '..........', '..........'], '#f0f8d0'],
   sunder: [['...XXXX...', '...XXXX...', '....XX....', '....XX....', '....XX....', '....XX....', '..........', '.X..XX..X.', 'XXXXXXXXXX', '.X.X..X.X.'], '#f6ecd0'],
 };
 
@@ -337,6 +344,8 @@ export function abilityIcon(kind: string): string {
     riposte: ['#9aa4b4', '#5a6474', '#2a3040'], flurry: ['#b4a48a', '#74644a', '#403420'], sunder: ['#a8784a', '#6a4422', '#3a220e'],
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],
     blink: ['#8a7ad0', '#5a4aa0', '#2e245a'], icelance: ['#4aa0d0', '#1a6a9a', '#0c3654'], frostnova: ['#6ac0e0', '#2a80a8', '#124460'],
+    mend: ['#d8b860', '#9a7a30', '#5a4414'], lanternlight: ['#e0b850', '#a07a20', '#5a420c'], sanctuary: ['#c8a860', '#8a6a2a', '#4a3a14'],
+    lampward: ['#b0a070', '#7a6a3a', '#40381a'], rebuke: ['#e0c070', '#a08030', '#5a4414'], restore: ['#9ab060', '#6a7a34', '#3a441a'],
   };
   const [hi, mid, lo] = tones[kind];
   x.fillStyle = mid; x.fillRect(0, 0, 16, 16);

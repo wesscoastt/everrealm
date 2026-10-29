@@ -54,6 +54,14 @@ const MASTERS: Master[] = [
     own: 'You have the words already. Have you written them down?',
     barks: ['Write it down.', 'Cold coming.'],
   },
+  {
+    calling: 'mender', id: 'master_abney', name: 'Joan Abney', title: 'Keeps the menders\' room, the Minster', at: [860.5, 410.5], face: [856.5, 410.5],
+    look: { frame: 'f', skin: '#dcb090', hair: '#9a9088', hairStyle: 6, tunic: '#e4dcc8', trim: '#c8a040', trousers: '#4a4038', boots: '#2a2018', cape: '#8a7a5a', lashes: true, age: 0.65 },
+    hello: 'Joan Abney. I keep the menders\' room at the Minster. If you\'re hurt, sit down. If you\'re not, you\'re in my light.',
+    teach: 'A ward that takes a blow for someone, a word that puts a brute back a step, and how to mend slowly so it holds. The lamp itself you\'d have to earn.',
+    own: 'You\'ve a lamp already. Is it trimmed? Then go and use it.',
+    barks: ['Sit down.', 'Mind the wick.'],
+  },
 ];
 
 const level = (g: GameApi) => g.level('melee');

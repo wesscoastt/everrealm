@@ -38,6 +38,9 @@ export class Ally {
   cd = 0;
   mend = 0;
   skill = 0;
+  /** A ward a Mender laid on them (game/ClassKit.ts): it soaks blows until it's spent or its time is up. */
+  ward = 0;
+  wardUntil = 0;
   /** Knocked down: lying where they fell until someone gets them up. */
   down = false;
   downFor = 0;
@@ -82,7 +85,9 @@ export class Ally {
   /** Take a blow; true if it knocked them down. Tanks take less (they're braced for it). */
   hurt(dmg: number): boolean {
     if (this.down) return false;
-    this.hp -= Math.max(1, Math.round(dmg * (this.def.role === 'tank' ? 0.6 : 1)));
+    let d = dmg * (this.def.role === 'tank' ? 0.6 : 1);
+    if (this.ward > 0 && this.wardUntil > performance.now() / 1000) { const soak = Math.min(this.ward, d); this.ward -= soak; d -= soak; if (d <= 0) return false; }
+    this.hp -= Math.max(1, Math.round(d));
     this.act = 'hit';
     this.actTime = 0;
     if (this.hp > 0) return false;

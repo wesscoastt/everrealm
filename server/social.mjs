@@ -228,6 +228,19 @@ export function socialInit(ctx) {
         for (const id of g.members) { const o = players.get(id); if (o && o !== me && o.land === me.land && Math.hypot(o.x - me.x, o.z - me.z) < 80) send(o.ws, { t: 'gKill', type, from: me.name }); }
         return true;
       }
+      case 'gAid': {
+        // A Mender's heal or ward for a groupmate near them (src/game/ClassKit.ts): passed on, within reason.
+        // (The one receiving it caps it again by their own health: the realm doesn't keep anyone's health.)
+        const g = groupOf(me), to = g && g.members.includes(Number(msg.to)) ? players.get(Number(msg.to)) : null;
+        const num = (v, max) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(max, Number(v))) : 0);
+        const heal = num(msg.heal, 50000), ward = num(msg.ward, 50000), secs = num(msg.secs, 12);
+        const now = Date.now();
+        me.aidAt = (me.aidAt ?? []).filter((t) => now - t < 1000);
+        if (!to || to === me || to.land !== me.land || Math.hypot(to.x - me.x, to.z - me.z) > 60 || me.aidAt.length >= 8 || (!heal && !ward)) return true;
+        me.aidAt.push(now);
+        send(to.ws, { t: 'gAid', from: me.name, heal, ward, secs });
+        return true;
+      }
       case 'gChat': {
         const g = groupOf(me);
         const text = typeof msg.text === 'string' ? msg.text.replace(/\s+/g, ' ').trim().slice(0, 200) : '';

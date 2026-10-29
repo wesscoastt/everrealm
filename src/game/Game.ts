@@ -109,6 +109,7 @@ import { Festivals } from './Festivals';
 import { Home, Piece } from './Home';
 import { Building, doorCell, stallAt, type LaidBlock, type LotHouse } from './Building';
 import { GuildHalls } from './GuildHalls';
+import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
@@ -985,6 +986,7 @@ export class Game implements GameApi {
         this.dungeons.shareHeal(n);
       },
       maxHp: () => this.maxHp,
+      friends: () => this.friendsNear(),
       bow: () => this.bowInHand,
       anim: (st) => {
         if (st === 'heal') { this.healAnim = 0.6; return; }
@@ -1269,6 +1271,13 @@ export class Game implements GameApi {
       guildWithdrawn: (item, n) => this.bank.guildOut(item, n),
       halls: (list) => { this.halls.book = list; },
       hall: (v) => { this.hallView = v?.guild ? v : null; this.hud.refresh('guild'); },
+      aid: (from, heal, ward, secs) => {
+        if (this.dead) return;
+        // (capped here, by your own health: the realm passes it on, it doesn't keep anyone's)
+        const h = Math.min(this.maxHp - this.hp, Math.round(Math.min(heal, this.maxHp * 0.6)));
+        if (h > 0) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
+        if (ward > 0) { this.kit.addShield(Math.min(ward, this.maxHp * 0.5), Math.min(secs, 12)); this.floatAt(this.player.position, 2.6, `Warded by ${from}`, 'heal'); }
+      },
       hallRefund: (item, n, why) => { if (item) this.give(item, n); else this.save.marks += n; if (why) this.hud.system(why); this.hud.refresh(); },
       mobHit: (key: string, share: number, from: number) => {
         const e = this.shared.theirs(this.enemies, key, share, from);
@@ -1619,6 +1628,39 @@ export class Game implements GameApi {
       return nx.alongside ? `Alongside now, and sails for ${R.stops[nx.to].name} in ${Game.wait(nx.wait)}.` : `Next sails from here for ${R.stops[nx.to].name} in ${Game.wait(nx.wait)}.`;
     });
     this.hud.system(`${R.ship[0].toUpperCase() + R.ship.slice(1)}, ${R.stops.map((q) => q.name).join(' · ')}, there and back. ${[...new Set(lines)].join(' ')} No fare: the Charter pays her out of the harbour dues.`);
+  }
+
+  /**
+   * You and everyone on your side near you, for a Mender's heals and wards (game/ClassKit.ts): you first,
+   * then a dungeon's henchmen still standing, then groupmates within forty blocks (theirs go by the realm).
+   */
+  private friendsNear(): Friend[] {
+    const P = this.player.position, out: Friend[] = [];
+    out.push({
+      name: this.save.name, pos: P, hp: this.hp, max: this.maxHp, me: true,
+      heal: (n) => { const h = Math.min(this.maxHp - this.hp, Math.round(n)); if (h > 0 && !this.dead) { this.hp += h; this.floatAt(P, 2.2, `+${h}`, 'heal'); } },
+      ward: (n, secs) => this.kit.addShield(n, secs),
+    });
+    for (const a of this.dungeons.run?.allies ?? []) {
+      if (a.down || a.pos.distanceTo(P) > 40) continue;
+      out.push({
+        name: a.name, pos: a.pos, hp: a.hp, max: a.max,
+        heal: (n) => { const h = a.heal(n); if (h > 0) this.floatAt(a.pos, 2.4, `+${h}`, 'heal'); },
+        ward: (n, secs) => { a.ward = Math.max(a.ward, n); a.wardUntil = performance.now() / 1000 + secs; },
+      });
+    }
+    const grp = this.social.group;
+    if (grp && this.online.status === 'online') for (const m of grp.members) {
+      if (m.id === this.online.myId || m.hp <= 0) continue;
+      const r = this.online.remotes.get(m.id);
+      if (!r || r.model.root.position.distanceTo(P) > 40) continue;
+      out.push({
+        name: m.name, pos: r.model.root.position, hp: m.hp, max: m.max,
+        heal: (n) => { this.online.aid(m.id, n, 0, 0); m.hp = Math.min(m.max, m.hp + n); this.floatAt(r.model.root.position, 2.4, `+${Math.round(n)}`, 'heal'); },
+        ward: (n, secs) => this.online.aid(m.id, 0, n, secs),
+      });
+    }
+    return out;
   }
 
   /** A Post fare: half, from the map room of your guild's hall. */

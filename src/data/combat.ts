@@ -16,7 +16,7 @@ export const SKILL_COST: Record<string, Cost> = {
   holdfast: { pool: 'stamina', n: 14 }, shieldthrow: { pool: 'stamina', n: 12 }, rally: { pool: 'stamina', n: 16 },
 };
 /** A skill not listed costs by its calling's nature: blades, bows and shields stamina; fire, frost and the old words magicka. */
-export const CALLING_POOL: Record<string, Pool> = { warden: 'stamina', reaver: 'stamina', pathfinder: 'stamina', ashcaller: 'magicka', wizard: 'magicka' };
+export const CALLING_POOL: Record<string, Pool> = { warden: 'stamina', reaver: 'stamina', pathfinder: 'stamina', ashcaller: 'magicka', wizard: 'magicka', mender: 'magicka' };
 /** What an unlisted skill costs, by its slot: the heal, a utility, the elite. */
 export const SLOT_COST = { heal: 18, utility: 14, elite: 30 };
 

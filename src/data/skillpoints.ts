@@ -156,6 +156,31 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'frostnova_a', name: 'Wide Nova', desc: 'Reaches a block and a half farther.', mod: (t) => { t.frostnova.r += 1.5; } },
     { id: 'frostnova_b', name: 'Deep Freeze', desc: 'Holds them frozen a second longer, hurting a little less.', mod: (t) => { t.frostnova.freeze += 1; scale(t.frostnova, 'dmg', 0.85); } },
   ],
+  // ---------------------------------------------------------------- Mender
+  mend: [
+    { id: 'mend_a', name: 'Swift Mend', desc: 'Recharges a quarter faster, healing a sixth less.', mod: (t) => { cd(t, 'mend', 0.75); scale(t.mend, 'heal', 0.84); } },
+    { id: 'mend_b', name: 'Deep Mend', desc: 'Heals a further eighth, and recharges a sixth slower.', mod: (t) => { scale(t.mend, 'heal', 1.125); cd(t, 'mend', 1.16); } },
+  ],
+  lanternlight: [
+    { id: 'lanternlight_a', name: 'Searing Lantern', desc: 'Strikes a twentieth harder; its glow heals a quarter less.', mod: (t) => { scale(t.lanternlight, 'dmg', 1.05); scale(t.lanternlight, 'heal', 0.75); } },
+    { id: 'lanternlight_b', name: 'Kindly Lantern', desc: 'Its glow heals a quarter more; it strikes a twentieth lighter.', mod: (t) => { scale(t.lanternlight, 'heal', 1.25); scale(t.lanternlight, 'dmg', 0.95); } },
+  ],
+  sanctuary: [
+    { id: 'sanctuary_a', name: 'Long Vigil', desc: 'Lasts four seconds longer, healing a little less a second.', mod: (t) => { t.sanctuary.secs += 4; t.sanctuary.heal -= 0.012; } },
+    { id: 'sanctuary_b', name: 'Burning Ground', desc: 'Burns foes on it twice as hot; you take a little more on it.', mod: (t) => { scale(t.sanctuary, 'burn', 2); t.sanctuary.taken += 0.07; } },
+  ],
+  lampward: [
+    { id: 'lampward_a', name: 'Heavy Ward', desc: 'Soaks a quarter more, for three seconds less.', mod: (t) => { scale(t.lampward, 'shield', 1.25); t.lampward.secs -= 3; } },
+    { id: 'lampward_b', name: 'Wide Ward', desc: 'Reaches six blocks farther, soaking a tenth less.', mod: (t) => { t.lampward.r += 6; scale(t.lampward, 'shield', 0.9); } },
+  ],
+  rebuke: [
+    { id: 'rebuke_a', name: 'Blinding Word', desc: 'Dazes 0.7 seconds longer; strikes a tenth lighter.', mod: (t) => { t.rebuke.stun += 0.7; scale(t.rebuke, 'dmg', 0.9); } },
+    { id: 'rebuke_b', name: 'Scalding Word', desc: 'Strikes a quarter harder; dazes 0.4 seconds less.', mod: (t) => { scale(t.rebuke, 'dmg', 1.25); t.rebuke.stun -= 0.4; } },
+  ],
+  restore: [
+    { id: 'restore_a', name: 'Quick Restoration', desc: 'All of it in three seconds, not six, a little less of it.', mod: (t) => { t.restore.secs = 3; t.restore.heal -= 0.02; } },
+    { id: 'restore_b', name: 'Deep Restoration', desc: 'Heals a fifth more, and recharges a fifth slower.', mod: (t) => { scale(t.restore, 'heal', 1.2); cd(t, 'restore', 1.2); } },
+  ],
   // ---------------------------------------------------------------- Weapon skills (key 3)
   riposte: [
     { id: 'riposte_a', name: 'Iron Guard', desc: 'The guard stays up 0.6 seconds longer.', mod: (t) => { t.riposte.secs += 0.6; } },

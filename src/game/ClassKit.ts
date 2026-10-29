@@ -11,6 +11,12 @@ import type { Particles } from '../systems/Particles';
 // (shields, bleeds, burning rings, bolts and arrows in flight, a star on its way down). The game
 // asks it to change what the player deals and takes, and draws its gauge.
 
+/**
+ * Someone on your side, for the Mender's heals and wards: you, a henchman, a groupmate near you. A
+ * groupmate's heal or ward goes to them by the realm (game/Game.ts friends).
+ */
+export interface Friend { name: string; pos: THREE.Vector3; hp: number; max: number; me?: boolean; heal(n: number): void; ward(n: number, secs: number): void }
+
 export interface KitHost {
   scene: THREE.Scene;
   particles: Particles;
@@ -45,6 +51,8 @@ export interface KitHost {
   dash(dir: THREE.Vector3, dist: number): boolean;
   /** A straight, open way from you to a ground point (no wall between, not up a cliff). */
   clear(at: THREE.Vector3): boolean;
+  /** You and everyone on your side near you (you first). */
+  friends(): Friend[];
   /** A skill went off: it counts towards its rank (data/skillpoints.ts). */
   used?(id: string): void;
 }
@@ -77,6 +85,10 @@ export class ClassKit {
   /** The Wizard's Chill on each foe, and when it fades. */
   private chill = new Map<Enemy, { n: number; until: number }>();
   private evadeUntil = 0;
+  /** The Mender's Grace, and Sanctuary (where it stands, until when, its burn) and the Restorations ticking on each friend. */
+  private grace = 0;
+  private sanct: { at: THREE.Vector3; until: number; tick: number; burn: number } | null = null;
+  private hots: { f: Friend; per: number; left: number; tick: number }[] = [];
   // Effects
   private shield = 0; private shieldUntil = 0;
   /** Whose the shield is: a Bulwark and an Ice Barrier each do something of their own when it breaks or runs out (talents). */
@@ -120,6 +132,7 @@ export class ClassKit {
     this.marks.clear();
     this.chill.clear();
     this.evadeUntil = 0;
+    this.grace = 0; this.sanct = null; this.hots = [];
   }
 
   /** Put these utilities on the bar (the calling's own, and one of a master's for an apprentice). */
@@ -177,6 +190,7 @@ export class ClassKit {
       if (this.oathUntil > this.clock) d *= T.oath.taken;
     }
     if (this.redUntil > this.clock) d *= T.redhour.taken;
+    if (this.inSanctuary(this.host.player())) d *= T.sanctuary.taken;
     if (this.shield > 0 && this.shieldUntil > this.clock) {
       // Frostbite: the ice bites back
       if (this.shieldKind === 'ice' && from && Math.random() < T.icebarrier.bite) this.addChill(from);
@@ -238,6 +252,7 @@ export class ClassKit {
       case 'warden': return { label: `${m.name} ${this.resolve}`, value: this.resolve, max: T.resolve.max, color: m.color };
       case 'reaver': return { label: this.fury >= 100 ? 'Fury: full' : m.name, value: this.fury, max: 100, color: m.color };
       case 'ashcaller': return { label: `${m.name} ${this.kindling}/3`, value: this.kindling, max: 3, color: m.color };
+      case 'mender': return { label: this.grace >= T.grace.max ? 'Grace: full' : `${m.name} ${this.grace}/${T.grace.max}`, value: this.grace, max: T.grace.max, color: m.color };
       case 'wizard': {
         let n = 0;
         for (const [e, c] of this.chill) if (e.alive && c.until > this.clock) n = Math.max(n, c.n);
@@ -335,6 +350,60 @@ export class ClassKit {
       case 'redhour':
         this.redUntil = this.clock + T.redhour.secs;
         H.particles.burst(P.clone().setY(P.y + 1), '#c02a1a', 30); H.sfx('growl');
+        return true;
+      // Mender
+      case 'mend': {
+        const full = this.grace >= T.grace.max;
+        const fr = H.friends();
+        // Full Grace: everyone near, twice over; otherwise you and the most hurt of the rest
+        const who = full ? fr.filter((f) => f.pos.distanceTo(P) < T.grace.r) : [fr[0], this.mostHurt(T.mend.r, true)].filter((f): f is Friend => !!f);
+        for (const f of who) this.mendFriend(f, T.mend.heal * (full ? T.grace.mult : 1) * (f.me ? T.mend.self : 1));
+        this.grace = full ? 0 : Math.min(T.grace.max, this.grace + 2);
+        if (full) { this.ring(P, T.grace.r, '#f8e8a8', 0.8); H.particles.burst(P.clone().setY(P.y + 1.2), '#fff0c0', 40); }
+        H.anim('heal'); H.sfx('heal');
+        return true;
+      }
+      case 'lanternlight': {
+        const e = H.faceTarget(T.lanternlight.range);
+        if (!e) return false;
+        H.anim('attack');
+        const m = new THREE.Mesh(BOLT_GEO, new THREE.MeshBasicMaterial({ color: '#fff0b8' }));
+        m.position.copy(P).setY(P.y + 1.4);
+        H.scene.add(m);
+        this.flying.push({ mesh: m, to: e, speed: 28, dmg: pw * T.lanternlight.dmg, bounce: T.lanternlight.bounce });
+        // Its glow: the most hurt of you and yours, a little, and Grace
+        const f = this.mostHurt(T.lanternlight.r, false);
+        if (f && f.hp < f.max) this.mendFriend(f, T.lanternlight.heal);
+        return true;
+      }
+      case 'sanctuary':
+        this.sanct = { at: P.clone(), until: this.clock + T.sanctuary.secs, tick: 0, burn: pw * T.sanctuary.burn };
+        this.ring(P, T.sanctuary.r, '#f8e090', T.sanctuary.secs);
+        H.anim('heal'); H.sfx('bell');
+        H.particles.burst(P.clone().setY(P.y + 0.4), '#fff0c0', 50);
+        return true;
+      case 'lampward':
+        for (const f of H.friends()) if (f.pos.distanceTo(P) < T.lampward.r) {
+          if (f.me) { this.shield = Math.max(this.shield, f.max * T.lampward.shield); this.shieldUntil = this.clock + T.lampward.secs; this.shieldKind = 'other'; }
+          else f.ward(f.max * T.lampward.shield, T.lampward.secs);
+          H.particles.sparks(f.pos.clone().setY(f.pos.y + 1.2), 10, '#f8e8a8');
+        }
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      case 'rebuke': {
+        H.anim('cleave'); H.sfx('hitHeavy');
+        this.ring(P, T.rebuke.r, '#fff4c8', 0.5);
+        H.particles.burst(P.clone().setY(P.y + 1), '#fff4c8', 36);
+        let n = 0;
+        for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.rebuke.r) { H.hit(e, pw * T.rebuke.dmg); e.stun = Math.max(e.stun, T.rebuke.stun); n++; }
+        // Hard Mercy: every foe struck mends you and yours
+        if (n && T.rebuke.heal > 0) for (const f of H.friends()) if (f.pos.distanceTo(P) < 10) this.mendFriend(f, T.rebuke.heal * n, false);
+        return n > 0 || true;
+      }
+      case 'restore':
+        for (const f of H.friends()) if (f.pos.distanceTo(P) < T.restore.r) this.hots.push({ f, per: f.max * T.restore.heal / T.restore.secs, left: T.restore.secs, tick: 1 });
+        this.grace = Math.min(T.grace.max, this.grace + 1);
+        H.anim('heal'); H.sfx('heal');
         return true;
       // Kindler
       case 'ward':
@@ -568,6 +637,28 @@ export class ClassKit {
     this.host.hit(e, this.host.power() * T.chill.shatter);
   }
 
+  /** The most hurt of you and yours within r (by share of health; others before you unless you're worse off). */
+  private mostHurt(r: number, othersOnly: boolean): Friend | null {
+    const P = this.host.player();
+    let best: Friend | null = null, bk = 1.01;
+    for (const f of this.host.friends()) {
+      if ((othersOnly && f.me) || f.pos.distanceTo(P) > r) continue;
+      const k = f.hp / Math.max(1, f.max);
+      if (k < bk) { bk = k; best = f; }
+    }
+    return best;
+  }
+  /** A heal of a share of a friend's own health, with a glow on them. */
+  private mendFriend(f: Friend, share: number, glow = true): void {
+    f.heal(f.max * share);
+    if (glow) this.host.particles.sparks(f.pos.clone().setY(f.pos.y + 1.4), 8, '#fff0b8');
+  }
+  /** Are you standing on your Sanctuary? */
+  private inSanctuary(at: THREE.Vector3): boolean {
+    const s = this.sanct;
+    return !!s && s.until > this.clock && Math.hypot(at.x - s.at.x, at.z - s.at.z) < T.sanctuary.r && Math.abs(at.y - s.at.y) < 3;
+  }
+
   /** A ground ring that fades out over secs. */
   private ring(at: THREE.Vector3, r: number, color: string, secs: number): THREE.Mesh {
     const m = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }));
@@ -635,6 +726,20 @@ export class ClassKit {
       for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < T.oath.r) H.hit(e, H.power() * T.oath.burn, { quiet: true });
       if (T.oath.heal > 0) H.heal(H.maxHp() * T.oath.heal);
     }
+    // Sanctuary: everyone of yours on it mends, foes on it burn
+    if (this.sanct) {
+      const s = this.sanct;
+      if (s.until <= this.clock) this.sanct = null;
+      else if ((s.tick -= dt) <= 0) {
+        s.tick = 1;
+        for (const f of H.friends()) if (Math.hypot(f.pos.x - s.at.x, f.pos.z - s.at.z) < T.sanctuary.r && Math.abs(f.pos.y - s.at.y) < 3) this.mendFriend(f, T.sanctuary.heal);
+        for (const e of H.enemies()) if (e.alive && Math.hypot(e.pos.x - s.at.x, e.pos.z - s.at.z) < T.sanctuary.r && Math.abs(e.pos.y - s.at.y) < 3) H.hit(e, s.burn, { quiet: true });
+        H.particles.sparks(s.at.clone().setY(s.at.y + 0.3), 10, '#fff0b8');
+      }
+    }
+    // Restoration, a second at a time on each friend it was laid on
+    for (const h of this.hots) { h.left -= dt; if ((h.tick -= dt) <= 0) { h.tick = 1; h.f.heal(h.per); } }
+    this.hots = this.hots.filter((h) => h.left > 0);
     // Cinder Ward: healing and a burning circle
     if (this.wardUntil > this.clock && (this.wardTick -= dt) <= 0) {
       this.wardTick = 1;

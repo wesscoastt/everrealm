@@ -141,7 +141,7 @@ that give the real numbers.
 | A | Audit | **Done** (above) |
 | B | Design | **Done** (above) |
 | C | Core: magicka, skill costs, block and perfect block, interrupts and the cast kind, control immunity, the damage pipeline in one place | **Part done** (below) |
-| D | Callings and weapons: weapon-family skills, the Mender, the Gravecaller, the Warden's support tree | Planned |
+| D | Callings and weapons: weapon-family skills, the Mender, the Gravecaller, the Warden's support tree | **Part done**: the Mender (below) |
 | E | Builds: saved bars, effects table and cleanses | Planned |
 | F | Enemies: casters, menders, guards, summoners in every region; boss phases and stagger bars | Planned |
 | G | Interface: resource bars, costs, effect icons, cast bars | With each stage |
@@ -169,3 +169,32 @@ wind-up interrupted it and exposed the wolf for 3 s; a second stun inside the gr
 
 Not yet: the balance sim doesn't spend the pools (it still plays on cooldowns alone), the **cast** and
 other new enemy kinds (stage F), the damage pipeline gathered into one function, cost pips on the icons.
+
+### Stage D, the Mender (2026-10-29)
+
+Built: the sixth calling, **the Mender** (magicka; dungeon role healer). Mend, Lantern Light, Sanctuary;
+utilities Lamp Ward, Rebuke, Restoration; the **Grace** gauge (two for a Mend, one for a Restoration;
+full at five, the next Mend heals double and reaches everyone within twelve blocks). Three talent trees
+(the Lamp, the Shelter, the Rebuke), two morphs for each skill, six icons, and a master, Joan Abney, in
+the Minster's east transept.
+- **Friends** (`Friend` in `game/ClassKit.ts`, `friendsNear` in `game/Game.ts`): you, a dungeon run's
+  henchmen still standing, and online groupmates within forty blocks. Henchmen take wards
+  (`Ally.ward`, soaked in `hurt`).
+- **Group aid** (`gAid`): a heal or ward for a groupmate goes by the realm, which checks the group,
+  the land and 60 blocks, at most eight a second, and caps the numbers; the one receiving it caps the
+  heal at 60% of their health and the ward at half, twelve seconds at most.
+- **Solo balance**: alone, every heal is your own, and a healer that out-heals everything scores too
+  well on survival. So the Mender heals itself for a third of what it gives others, and Grace
+  comes only from Mend and Restoration (from Lantern Light too it was always full). The sim plays the
+  Mender at range and in close, like the other spellcasters.
+
+Verified headless (`.walker/scen-mender.js`, `.walker/scen-rebuke.js`, a real henchman from the
+dungeons' list): Mend healed the henchman 30.1% and the Mender 10.7% for 18 magicka; at full Grace 59.9%
+and 20.9%, Grace back to 0; Restoration ticked the henchman 215 to 251 over six seconds; Lamp Ward gave the
+Mender a 24 shield and the henchman a 35 ward, which soaked a blow of half that whole; on Sanctuary a 40 blow
+took 36 and a foe standing on it burned 120 to 42 in three seconds; Rebuke on a wind-up interrupted it,
+exposed the foe 3 s and dazed it 1.3 s; a groupmate's aid healed the rest of the way and warded 122
+("Warded by ..."). Balance: every calling, tree, bar and morph within its limit.
+
+Not yet: two clients in one group trading heals over the realm (only the receiving end is tested),
+henchmen healers knowing to leave the healing to a Mender, the Gravecaller.

@@ -10,7 +10,7 @@
 // a master of another calling will teach an apprentice one of their utilities (data/content/masters.ts).
 // Each calling has three talent trees (data/talents.ts), one for each way of playing it.
 
-export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard';
+export type CallingId = 'warden' | 'reaver' | 'ashcaller' | 'pathfinder' | 'wizard' | 'mender';
 
 export interface SkillDef {
   id: string;
@@ -120,6 +120,22 @@ export const CALLINGS: CallingDef[] = [
     ],
     pros: 'Fights from range; freezes foes in place', cons: 'Little damage up close',
   },
+  {
+    id: 'mender', name: 'Mender', role: 'Healing and wards',
+    blurb: 'Keeps people standing. The Minster in Ansbury trains its menders for the road and the bad winters, and gives each a lamp: the first of them did their work at night.',
+    mechanic: { name: 'Grace', desc: 'Each Mend builds two Grace, each Restoration one. At five, your next Mend heals twice as much and reaches everyone near you.', color: '#f0d890' },
+    skills: [
+      { id: 'mend', name: 'Mend', icon: 'mend', cd: 12, desc: 'Heal the most hurt of your companions within fifteen blocks for three tenths of their health, and yourself for a third as much.' },
+      { id: 'lanternlight', name: 'Lantern Light', icon: 'lanternlight', cd: 1.6, desc: 'A bolt of lamplight at your target from up to twenty-two blocks. Its glow heals the most hurt of you and yours a little.' },
+      { id: 'sanctuary', name: 'Sanctuary', icon: 'sanctuary', cd: 60, desc: 'Hallow the ground where you stand for eight seconds: everyone of yours on it heals three percent of their health a second and takes fifteen percent less, and foes on it burn.' },
+    ],
+    utilities: [
+      { id: 'lampward', name: 'Lamp Ward', icon: 'lampward', cd: 20, desc: 'A ward on you and everyone of yours within ten blocks, soaking a tenth of each one\'s health, for eight seconds.' },
+      { id: 'rebuke', name: 'Rebuke', icon: 'rebuke', cd: 14, desc: 'Light bursts out of you: everything within five blocks is struck and dazed for over a second, and any blow it was winding up is lost.' },
+      { id: 'restore', name: 'Restoration', icon: 'restore', cd: 24, desc: 'You and everyone of yours within ten blocks heal a tenth of their health over six seconds.' },
+    ],
+    pros: 'Heals and wards others; hard to bring down', cons: 'Least damage of any calling',
+  },
 ];
 
 export const callingById = (id: unknown): CallingDef | null => CALLINGS.find((c) => c.id === id) ?? null;
@@ -180,6 +196,18 @@ export const TUNE = {
   blink: { range: 10, evade: 1 },
   icelance: { dmg: 1.6, frozen: 2.2, range: 22 },
   frostnova: { r: 5, dmg: 0.8, freeze: 2 },
+  // Mender (heals and wards are shares of each one's own health)
+  /** max: Grace to fill; per: Grace a heal gives (a Mend gives two). */
+  grace: { max: 5, mult: 2, r: 12 },
+  /** self: the share of it a mender gets themself (they look after the rest first). */
+  mend: { heal: 0.3, r: 15, self: 0.35 },
+  /** bounce: a second foe the light springs on to (0 none). */
+  lanternlight: { dmg: 1.45, heal: 0.015, range: 22, r: 15, bounce: 0 },
+  sanctuary: { r: 6, secs: 8, heal: 0.03, taken: 0.85, burn: 0.4 },
+  lampward: { shield: 0.1, secs: 8, r: 10 },
+  /** heal: a share of health for you and yours for each foe it strikes. */
+  rebuke: { r: 5, dmg: 1.1, stun: 1.3, heal: 0 },
+  restore: { heal: 0.1, secs: 6, r: 10 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },

@@ -41,6 +41,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   const zones: { until: number; per: number; tick: number; chill?: boolean; fire?: boolean; mark?: boolean }[] = [];
   let shieldKind = '', hotUntil = 0, star2 = -1;
   let evadeUntil = 0;
+  // The Mender: Grace, Sanctuary underfoot, Restoration ticking
+  let grace = 0, sanctUntil = 0, sanctTick = 0, restoreUntil = 0;
   let t = 0, hp = 1, busy = 0, chain = 0, cleaveCd = 0, dealt = 0;
   let resolve = 0, resolveAt = -99, fury = 0, kindling = 0, shield = 0, shieldUntil = 0, oathUntil = 0, oathTick = 0;
   let redUntil = 0, wardUntil = 0, wardTick = 0, stepUntil = 0, pendingStar = -1;
@@ -74,6 +76,9 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (oathUntil > t && (oathTick -= DT) <= 0) { oathTick = 1; aoe(caught(), TUNE.oath.burn); heal(TUNE.oath.heal); }
     if (shield > 0 && shieldUntil <= t) { if (shieldKind === 'bulwark') heal(shield * TUNE.bulwark.mend); shield = 0; }
     if (hotUntil > t) heal(TUNE.dressing.hot / 5 * DT);
+    if (restoreUntil > t) heal(TUNE.restore.heal / TUNE.restore.secs * DT);
+    // Sanctuary: you heal on it; foes burn on it only when they've come to you
+    if (sanctUntil > t && (sanctTick -= DT) <= 0) { sanctTick = 1; heal(TUNE.sanctuary.heal); if (!ranged) aoe(caught(), TUNE.sanctuary.burn); }
     if (star2 >= 0 && (star2 -= DT) < 0) { star2 = -1; aoe(caught(), TUNE.starfall.dmg * TUNE.starfall.twice); }
     if (wardUntil > t && (wardTick -= DT) <= 0) { wardTick = 1; heal(TUNE.ward.heal / TUNE.ward.secs); if (!ranged) aoe(caught(), TUNE.ward.burn); }
     for (const e of L) if (e.bleed > 0) {
@@ -105,6 +110,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       }
       if (redUntil > t) d *= TUNE.redhour.taken;
       if (holdUntil > t) d *= TUNE.holdfast.taken;
+      if (sanctUntil > t) d *= TUNE.sanctuary.taken;
       if (shield > 0 && shieldUntil > t) {
         if (shieldKind === 'ice' && Math.random() < TUNE.icebarrier.bite) chill(e);
         const s = Math.min(shield, d); shield -= s; d -= s;
@@ -159,6 +165,21 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         // Blink: a moment untouchable, and they have to come to you again
         case 'blink': if (f.dummy || hp > 0.7) return false; evadeUntil = t + TUNE.blink.evade; for (const e of L) e.hitIn += 1.5; break;
         case 'icelance': hit(tgt, TUNE.icelance.dmg * (tgt.stun > 0 ? TUNE.icelance.frozen : 1)); break;
+        // Mender: alone, every heal is for yourself
+        case 'mend': {
+          if (f.dummy || hp > 0.7) return false;
+          const full = grace >= TUNE.grace.max;
+          heal(TUNE.mend.heal * TUNE.mend.self * (full ? TUNE.grace.mult : 1)); grace = full ? 0 : Math.min(TUNE.grace.max, grace + 2);
+          break;
+        }
+        case 'lanternlight':
+          hit(tgt, TUNE.lanternlight.dmg); if (TUNE.lanternlight.bounce && L[1]) hit(L[1], TUNE.lanternlight.dmg);
+          heal(TUNE.lanternlight.heal);
+          break;
+        case 'sanctuary': sanctUntil = t + TUNE.sanctuary.secs; sanctTick = 0; break;
+        case 'lampward': if (f.dummy || hp > 0.85) return false; shield = TUNE.lampward.shield; shieldUntil = t + TUNE.lampward.secs; shieldKind = 'lamp'; break;
+        case 'rebuke': { if (ranged) return false; const n = caught(); live().slice(0, n).forEach((o) => { hit(o, TUNE.rebuke.dmg); o.stun = Math.max(o.stun, TUNE.rebuke.stun); }); heal(TUNE.rebuke.heal * n); break; }
+        case 'restore': if (f.dummy || hp > 0.8) return false; restoreUntil = t + TUNE.restore.secs; grace = Math.min(TUNE.grace.max, grace + 1); break;
         case 'frostnova': if (ranged) return false; aoe(caught(), TUNE.frostnova.dmg); live().slice(0, caught()).forEach((e) => { e.stun = Math.max(e.stun, TUNE.frostnova.freeze); }); break;
       }
       if (furyK > 1) fury = 0;
@@ -183,7 +204,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
 
 // Average many runs; ranged callings fight the way that suits them better
 const RUNS = 300;
-const rangedCallings = new Set<CallingId>(['ashcaller', 'wizard']);
+const rangedCallings = new Set<CallingId>(['ashcaller', 'wizard', 'mender']);
 const rows: Record<string, number[]> = {};
 for (const c of CALLINGS) {
   const cells: number[] = [];

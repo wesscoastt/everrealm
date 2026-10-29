@@ -134,6 +134,8 @@ export interface OnlineHooks {
   guildRefund?(item: string | null, n: number, why: string): void;
   guildWithdrawn?(item: string | null, n: number): void;
   guildInvited?(from: string, guild: string): void;
+  /** A groupmate's heal or ward on you (a Mender's). */
+  aid?(from: string, heal: number, ward: number, secs: number): void;
   /** Guild halls: the realm's book of them; your guild's; goods or coin a project didn't need. */
   halls?(list: HallsBook): void;
   hall?(v: HallView | null): void;
@@ -324,6 +326,7 @@ export class Online {
       case 'uRefund': this.hooks.guildRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
       case 'uWithdrawn': this.hooks.guildWithdrawn?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0); break;
       case 'guild': this.hooks.guild?.({ name: null, motto: '', rank: null, founded: 0, members: [], ...(m as object) } as GuildView); break;
+      case 'gAid': this.hooks.aid?.(String(m.from ?? ''), Number(m.heal) || 0, Number(m.ward) || 0, Number(m.secs) || 0); break;
       case 'halls': this.hooks.halls?.(m.list && typeof m.list === 'object' ? (m.list as HallsBook) : {}); break;
       case 'uHall': this.hooks.hall?.(typeof m.guild === 'string' ? (m as unknown as HallView) : null); break;
       case 'uHallRefund': this.hooks.hallRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
@@ -599,6 +602,8 @@ export class Online {
   guildChat(text: string): void { this.emit({ t: 'uChat', text }); }
   /** Guild halls: ask after yours, lease one, choose the next wing, give toward it (from the pack, or an officer's from the vault), a beast for the roll, give it up. */
   hallGet(): void { this.emit({ t: 'uHallGet' }); }
+  /** A heal or a ward for a groupmate (by their id). */
+  aid(to: number, heal: number, ward: number, secs: number): void { this.emit({ t: 'gAid', to, heal: Math.round(heal), ward: Math.round(ward), secs }); }
   hallLease(id: string): void { this.emit({ t: 'uHallLease', id }); }
   hallPick(project: string): void { this.emit({ t: 'uHallPick', project }); }
   hallGive(item: string | null, n: number, vault = false): void { this.emit({ t: 'uHallGive', item, n, vault }); }
