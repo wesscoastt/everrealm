@@ -31,6 +31,7 @@ import { createRenderer } from '../core/Renderer';
 import { DIALOGUE, READABLES } from '../data/dialogue';
 import {
   ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, STATION_NAMES, SHOP_STOCK, SKILLS, Station, TREE_INFO, RIDE_PACE, RIDE_RANKS, RIDE_WIND, rideRank,
+  type EnemyType,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
 import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
@@ -38,7 +39,7 @@ import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIV
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
 import { Animal, type AnimalKind } from '../entities/Animal';
-import { Enemy } from '../entities/Enemy';
+import { Enemy, FOE_RULES, type EnemyContext } from '../entities/Enemy';
 import { Companions } from './Companions';
 import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import { COMPANIONS, type CompanionId, type CompanionRole } from '../data/companions';
@@ -5535,6 +5536,69 @@ export class Game implements GameApi {
     return (7 + lvl * 1.45 + (this.blade?.damage ?? 0)) * (1 + (lvl - 1) * 0.02) * (1 + this.buffSum('power')) * (1 + this.mastery('edge'));
   }
 
+  /** A foe that's turned on one of a Gravecaller's raised dead goes for it instead of you (ClassKit.drawnTo). */
+  private raisedCtx(e: Enemy, base: EnemyContext): EnemyContext | null {
+    const b = this.kit.drawnTo(e);
+    if (!b) return null;
+    return { ...base, player: b.pos, playerAlive: true, playerInvulnerable: false, playerSwimming: false, hitPlayer: (d: number) => this.kit.hurtRaised(b, d) };
+  }
+
+  /** When a guard's shield last said so (once a second or so, not every blow). */
+  private guardSaid = -9;
+
+  /** What a foe did this frame besides its blows (stage F): a heal, a call, a boss's words, a full stagger. */
+  private foeDid(e: Enemy): void {
+    const P = this.player.position;
+    if (e.mended) {
+      const { e: t, n } = e.mended; e.mended = null;
+      if (t.pos.distanceTo(P) < 60) { this.floatAt(t.pos, t.model.plateHeight + 0.4, '+' + n, 'heal'); this.particles.heal(t.pos); }
+    }
+    if (e.calling) {
+      const { type, n } = e.calling; e.calling = null;
+      this.callUp(e, type, n);
+    }
+    if (e.says) {
+      if (e.pos.distanceTo(P) < 60) this.hud.system(e.says);
+      e.says = null;
+    }
+    if (e.staggered) {
+      e.staggered = false;
+      if (e.pos.distanceTo(P) < 60) {
+        this.floatAt(e.pos, e.model.plateHeight + 0.8, 'Staggered!', 'crit');
+        this.rig.addShake(0.3);
+        this.sfx('hitHeavy', 0.9);
+        this.particles.burst(tmpV.copy(e.pos).setY(e.pos.y + 1.2), '#ffd23a', 26);
+      }
+    }
+  }
+
+  /** A summoner's call answered: n of a kind come up beside it, fight for a while, and go when it falls. */
+  private callUp(m: Enemy, type: EnemyType, n: number): void {
+    const base = ENEMIES[type];
+    if (!base) return;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random(), x = m.pos.x + Math.cos(a) * 2.5, z = m.pos.z + Math.sin(a) * 2.5;
+      // (no loot, a little experience, and never back: they were only ever borrowed)
+      const e = new Enemy({ ...base, loot: [], marks: [0, 0], xp: Math.round(base.xp * 0.3), respawn: 99999 }, Math.floor(x), Math.floor(z), this.world.voxels);
+      e.home.set(x, this.world.voxels.groundBelow(x, m.pos.y + 3, z), z);
+      e.pos.copy(e.home);
+      e.master = m;
+      e.lifeLeft = FOE_RULES.summon.life;
+      e.state = 'chase';
+      this.enemies.push(e);
+      this.scene.add(e.model.root, e.telegraph);
+      this.particles.burst(tmpV.copy(e.pos).setY(e.pos.y + 0.6), '#b890ff', 14);
+    }
+    if (m.pos.distanceTo(this.player.position) < 60) this.floatAt(m.pos, m.model.plateHeight + 0.6, 'Called!', 'crit');
+  }
+
+  /** Clear away a called foe once it's fallen or gone back. */
+  private dropCalled(e: Enemy): void {
+    this.scene.remove(e.model.root, e.telegraph);
+    this.enemies = this.enemies.filter((x) => x !== e);
+    if (this.target === e) this.target = null;
+  }
+
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
   private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
     if (!e.alive) return 0;
@@ -5542,7 +5606,10 @@ export class Game implements GameApi {
     // The Clinker tusk: blows in a row on one foe build, 5% a blow up to a quarter
     if (fx.has('momentum') && !quiet) { this.streak = this.streak.e === e ? { e, n: Math.min(5, this.streak.n + 1) } : { e, n: 0 }; raw *= 1 + this.streak.n * 0.05; }
     const flank = (this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1) * (e.exposedLeft > 0 ? 1 + EXPOSED : 1);
-    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
+    // A guard's shield, if you're in front of it: most of the blow is turned (go round it, or stun it)
+    const guarded = e.guarding(this.player.position);
+    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank * (guarded ? 1 - FOE_RULES.guard.cut : 1)));
+    if (guarded && !quiet && this.elapsed - this.guardSaid > 1.2) { this.guardSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.6, 'Guarded', 'dodge'); this.sfx('hitHeavy', 0.4); }
     const landed = this.activities.beforeHit(e, dmg);
     e.takeDamage(landed, this.player.position, this.elapsed);
     this.shared.mine(e, landed);
@@ -6064,17 +6131,21 @@ export class Game implements GameApi {
       level: this.level('melee'),
       hitPlayer: (d: number, from: Enemy) => this.hitPlayer(d, from),
       sound: (name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3) => this.audio.playAt(name, at.distanceTo(P), 0.8),
+      allies: (at: THREE.Vector3, r: number) => this.enemies.filter((o) => o.alive && !o.def.anchored && o.pos.distanceTo(at) < r),
     };
     for (const e of this.enemies) {
       if (!this.world.voxels.isLoaded(e.pos.x, e.pos.z)) { e.model.root.visible = false; continue; }
       const d = e.pos.distanceTo(P);
       if (d > 90 && e.state !== 'dead') { e.model.root.visible = false; continue; }
       e.model.root.visible = e.state !== 'dead' || e.model.root.visible;
-      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? this.shared.ctxFor(e, ctx) ?? ctx);
+      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? this.raisedCtx(e, ctx) ?? this.shared.ctxFor(e, ctx) ?? ctx);
       if (e.interrupted) { e.interrupted = false; this.floatAt(e.pos, 2.8, 'Interrupted!', 'crit'); this.sfx('hitHeavy', 0.6); }
       if (e.resisted) { e.resisted = false; this.floatAt(e.pos, 2.6, 'Resisted', 'dodge'); }
+      this.foeDid(e);
       characterDetail(e.model.root, e.pos.distanceTo(this.camera.position));
     }
+    // Foes called up by a summoner, fallen or sent back, are cleared away
+    for (const e of this.enemies) if (e.master && e.gone) this.dropCalled(e);
     for (const n of this.npcs) {
       const home = n.def.schedule[0].at;
       if (n.def.when && !n.def.when(this)) { n.model.root.visible = false; n.placed = false; continue; }
@@ -7207,7 +7278,7 @@ export class Game implements GameApi {
         if (d < bd) { bd = d; boss = e; }
       }
     }
-    this.hud.setBoss(boss ? { name: boss.name, level: boss.def.level, hp: boss.hp, max: boss.def.hp, enraged: boss.enraged } : null);
+    this.hud.setBoss(boss ? { name: boss.name, level: boss.def.level, hp: boss.hp, max: boss.def.hp, enraged: boss.enraged, stagger: boss.staggerBar, staggerLocked: boss.staggerLocked, cast: boss.casting } : null);
     for (const e of this.enemies) if (e.justEnraged) {
       e.justEnraged = false;
       if (e.pos.distanceTo(P) > 50) continue;
@@ -7220,7 +7291,7 @@ export class Game implements GameApi {
     // A target that dies, or that you leave far behind, is let go
     if (this.target && (!this.target.alive || this.target.pos.distanceTo(this.player.position) > 48)) this.target = null;
     const t = this.target;
-    this.hud.setTarget(t ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite } : null);
+    this.hud.setTarget(t ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite, cast: t.casting } : null);
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);
     const L = this.level('melee');
     const lock = <T extends object>(c: T, i: number): T & { locked?: number } => (L < UNLOCK_AT[i] ? { ...c, locked: UNLOCK_AT[i] } : c);

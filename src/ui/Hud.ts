@@ -444,11 +444,11 @@ export class Hud {
 
     const tf = el('div', 'unit frame hud-only');
     tf.id = 'target-frame';
-    tf.innerHTML = `<div class="portrait"><span class="tl">3</span></div><div class="info"><div class="name"><span class="tn"></span><small class="ts"></small></div><div class="bar hp"><i class="fill"></i><b></b></div></div>`;
+    tf.innerHTML = `<div class="portrait"><span class="tl">3</span></div><div class="info"><div class="name"><span class="tn"></span><small class="ts"></small></div><div class="bar hp"><i class="fill"></i><b></b></div><div class="castbar"><i></i><b></b></div></div>`;
     r.append(tf);
 
     const boss = el('div', 'hud-only'); boss.id = 'bossbar';
-    boss.innerHTML = '<div class="bb-head"><b class="bb-name"></b><span class="bb-rage">Enraged</span><small class="bb-lvl"></small></div><div class="bb-bar"><i class="bb-fill"></i><i class="bb-mark"></i><span class="bb-num"></span></div>';
+    boss.innerHTML = '<div class="bb-head"><b class="bb-name"></b><span class="bb-rage">Enraged</span><small class="bb-lvl"></small></div><div class="bb-bar"><i class="bb-fill"></i><i class="bb-mark"></i><span class="bb-num"></span></div><div class="bb-stagger" title="Stagger: stuns and knockdowns fill it; full, it reels"><i></i></div><div class="castbar"><i></i><b></b></div>';
     r.append(boss);
     const hurt = el('div', ''); hurt.id = 'hurt'; r.prepend(hurt);
     const evp = el('div', 'event-panel frame hud-only');
@@ -584,7 +584,16 @@ export class Hud {
     (this.q('#player-frame .bar.mg i') as HTMLElement).style.width = magicka + '%';
   }
 
-  setTarget(t: { name: string; level: number; hp: number; max: number; elite?: boolean; friendly?: boolean; sub?: string } | null): void {
+  /** A cast bar (the target's, the boss's): what it's gathering and how far, gold if a stun would break it. */
+  private fillCast(bar: HTMLElement, c: { label: string; k: number; breakable: boolean } | null | undefined): void {
+    bar.classList.toggle('show', !!c);
+    if (!c) return;
+    bar.classList.toggle('breakable', c.breakable);
+    (bar.firstElementChild as HTMLElement).style.width = c.k * 100 + '%';
+    bar.lastElementChild!.textContent = c.breakable ? c.label + ' · stun to break' : c.label;
+  }
+
+  setTarget(t: { name: string; level: number; hp: number; max: number; elite?: boolean; friendly?: boolean; sub?: string; cast?: { label: string; k: number; breakable: boolean } | null } | null): void {
     const f = this.q('#target-frame');
     if (!t) { f.classList.remove('show'); return; }
     f.classList.add('show');
@@ -595,6 +604,7 @@ export class Hud {
     this.q('#target-frame .tl').textContent = t.friendly ? '' : String(t.level);
     (this.q('#target-frame .fill') as HTMLElement).style.width = (t.hp / t.max) * 100 + '%';
     this.q('#target-frame .bar b').textContent = t.friendly ? '' : `${Math.ceil(t.hp)} / ${t.max}`;
+    this.fillCast(this.q('#target-frame .castbar'), t.cast);
   }
 
 /** The level bar over the action bar: your level, always (the trades show their own, briefly, above it). */
@@ -1180,7 +1190,7 @@ export class Hud {
 
   private bossKey = '';
   /** The bar across the top in a big fight. */
-  setBoss(b: { name: string; level: number; hp: number; max: number; enraged: boolean } | null): void {
+  setBoss(b: { name: string; level: number; hp: number; max: number; enraged: boolean; stagger?: number; staggerLocked?: boolean; cast?: { label: string; k: number; breakable: boolean } | null } | null): void {
     const box = this.q('#bossbar');
     box.classList.toggle('show', !!b);
     if (!b) { this.bossKey = ''; return; }
@@ -1193,6 +1203,10 @@ export class Hud {
     const pct = Math.max(0, b.hp / b.max);
     (box.querySelector('.bb-fill') as HTMLElement).style.width = `${pct * 100}%`;
     box.querySelector('.bb-num')!.textContent = `${Math.ceil(b.hp).toLocaleString()} / ${b.max.toLocaleString()} · ${Math.ceil(pct * 100)}%`;
+    const st = box.querySelector('.bb-stagger') as HTMLElement;
+    st.classList.toggle('locked', !!b.staggerLocked);
+    (st.firstElementChild as HTMLElement).style.width = (b.staggerLocked ? 100 : (b.stagger ?? 0) * 100) + '%';
+    this.fillCast(box.querySelector('.castbar') as HTMLElement, b.cast);
   }
 
   // ------------------------------------------------------------------ Minimap

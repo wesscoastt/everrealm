@@ -51,6 +51,8 @@ export interface Appearance {
   /** Bright roots (hair style 13): the colour of the top, over the rest of the hair. */
   hairRoots?: string;
   hairStyle: number; // 0 short, 1 long, 2 topknot, 3 shaved, 4 braids
+  /** Bare bone: a skull's sockets and teeth on the face, ribs over a dark chest (a Gravecaller's raised dead). */
+  bones?: boolean;
   eyes: string;
   tunic: string;
   trim: string;
@@ -953,6 +955,21 @@ export class Humanoid {
     this.eyeLids.position.set(0, 0.305, 0.215);
     this.eyeLids.visible = false;
     this.head.add(this.eyeLids);
+    if (look.bones) {
+      // A skull: deep sockets with a light in them, the nose's hole, a row of teeth; and the chest open,
+      // ribs and a spine over the dark inside
+      const dark = '#14120e', bone = look.skin;
+      for (const side of [1, -1]) {
+        part(this.head, rbox(0.12, 0.11, 0.02, 0.02), dark, side * 0.1, 0.31, 0.216);
+        part(this.head, rbox(0.04, 0.04, 0.02, 0.01), look.eyes, side * 0.1, 0.31, 0.224);
+      }
+      part(this.head, rbox(0.06, 0.07, 0.02, 0.01), dark, 0, 0.22, 0.216);
+      part(this.head, rbox(0.26, 0.07, 0.02, 0.01), dark, 0, 0.12, 0.216);
+      for (let i = -2; i <= 2; i++) part(this.head, rbox(0.035, 0.05, 0.02, 0.005), bone, i * 0.05, 0.12, 0.222);
+      part(this.torso, rbox(chestW * 0.8, 0.46, 0.02, 0.01), dark, 0, 0.47, 0.172);
+      part(this.torso, rbox(0.06, 0.46, 0.02, 0.01), bone, 0, 0.47, 0.18);
+      for (let i = 0; i < 4; i++) part(this.torso, rbox(chestW * (0.76 - i * 0.07), 0.04, 0.02, 0.01), bone, 0, 0.64 - i * 0.1, 0.182);
+    }
     // Ears, and an earring
     for (const side of [1, -1]) part(this.head, rbox(0.06, 0.12, 0.08, 0.02), look.skin, side * 0.23, 0.27, 0);
     if (look.earring) part(this.head, rbox(0.03, 0.06, 0.03, 0.01), look.earring, 0.25, 0.18, 0.01);
@@ -1607,6 +1624,13 @@ export class Humanoid {
     this.offhand = model ? offhandMesh(model) : null;
     if (this.offhand) this.handL.add(this.offhand);
     this.offhandKind = id;
+  }
+  /** Something in the left hand given as a model rather than an item: a foe's shield, lamp or book (data/foeKinds.ts). */
+  setOffhandModel(o: OffhandModel | null): void {
+    if (this.offhand) this.handL.remove(this.offhand);
+    this.offhand = o ? offhandMesh(o) : null;
+    if (this.offhand) this.handL.add(this.offhand);
+    this.offhandKind = o ? 'model:' + o.family : null;
   }
 
   /** Stroke phase, and the swimmer's body pitch (set by the player; 0 is level, positive head-up). */

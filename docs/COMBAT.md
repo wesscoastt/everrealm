@@ -143,7 +143,7 @@ that give the real numbers.
 | C | Core: magicka, skill costs, block and perfect block, interrupts and the cast kind, control immunity, the damage pipeline in one place | **Part done** (below) |
 | D | Callings and weapons: weapon-family skills, the Mender, the Gravecaller, the Warden's support tree | **Part done**: the Mender and the Gravecaller (below) |
 | E | Builds: saved bars, effects table and cleanses | Planned |
-| F | Enemies: casters, menders, guards, summoners in every region; boss phases and stagger bars | Planned |
+| F | Enemies: casters, menders, guards, summoners in every region; boss phases and stagger bars | **Done** (below) |
 | G | Interface: resource bars, costs, effect icons, cast bars | With each stage |
 | H | Testing and balance: the sim learns costs, blocks and interrupts; headless runs of each calling | With each stage; the sim pays costs (below) |
 
@@ -247,3 +247,53 @@ sim and every calling, tree, bar and morph is within its limit; cooldowns stay t
 
 Not yet in the sim: the dodge's and the guard's stamina (it neither dodges nor blocks), so the stamina
 callings' pool is freer there than in play; interrupts.
+
+### Stage F, the enemies (2026-10-29)
+
+Built (`src/data/foeKinds.ts`, `src/entities/Enemy.ts` FOE_RULES, `src/game/Game.ts` foeDid/callUp, the HUD):
+- **Casters** (`attack: 'cast'`): a bolt gathered in the hand over a gold ring at the caster's feet, then
+  flown at you wherever you are. Roll as it comes, block it, or stun the caster to break it.
+- **Menders** (`role: 'mend'`): every seven seconds the most hurt friend within fourteen blocks under
+  three quarters gets a quarter of its health back, after 1.4 s gathering in a green ring (a stun breaks it).
+- **Guards** (`role: 'guard'`): a shield on the arm takes three quarters of any blow from within about
+  sixty degrees of its front ("Guarded"); it turns slowly, so you can get round it, and it's open while it
+  swings, stunned or exposed.
+- **Summoners** (`role: 'summon'`): call two or three of the region's beasts as they come in and again
+  below half health (1.6 s, a stun breaks it). The called stay forty-five seconds, give no loot, and go
+  when their caller falls.
+- **One of each region's twenty spawn tables** gets a new kind, five of each: Wolf-wife, Turnpike bully,
+  Herb-wife, Lamp wrecker, Hired claim guard, Shard-seeker, Eyrie bonesetter, Adder-wife, Stannary
+  bailiff, Grey sister, Mite-keeper, Drowned keener, Wreck bosun, Glade hermit, Resin-burner, Quarry
+  foreman, Rift houndsman, Reaver glassblower, Grave-warden, Wight-priest. Short tables are filled out
+  first, so the new kind is about one spawn in six. Each **bandit fort** has a sawbones (a mender) among
+  the gang, and the chief's lieutenants carry shields.
+- **Boss stagger bars**: control fills it (about three stuns); full, the boss reels three seconds,
+  exposed for four, losing whatever it was gathering, and can't be staggered again for twelve. This
+  replaces the old flat half-second flinch and eight seconds' grace.
+- **Boss phases** (`phases` on the def): nine bosses have their own (the Rust Queen, the Bramblemaw,
+  Blind Jenny, Old Clinker, Abbot Wystan, the Lantern Man, the Glassmother, Grey Meg, the old king): calls
+  of their kin, a self-mend, storms. Every other boss gathers a **storm** below 60%: a three-second red
+  ring nine blocks or more across, then a blow of 1.8; only filling its stagger bar breaks it.
+- **The HUD**: the target frame and the boss bar show a cast bar (gold, "stun to break", when a stun
+  would), and the boss bar its stagger bar (grey while it can't be staggered).
+
+Verified headless (`.walker/scen-foesF.js`, built bundle): a cast's bolt took 19 of 100; rolled through, 0;
+a stun mid-cast interrupted it and exposed the caster 2.9 s; a mender healed a wolf at 14 of 45 to 25; a
+100 blow on a guard landed 25 from in front and 100 from behind, and half a second after turning its back
+it was still 128 degrees off you; a summoner called two wolves, gone when it fell; a boss's stagger bar
+went 0.36, 0.70, full, staggered and locked; at 55% it gathered a Storm (not breakable by a stun) and it
+took 29 of 85.
+
+Not yet: called foes and boss adds aren't shared between players (each sees their own); the balance sim
+doesn't fight the new kinds.
+
+### The raised dead, finished (2026-10-29)
+
+- **Foes turn on them**: a foe a raised one strikes goes for it for five seconds after each blow (a boss
+  only a third of the time), through `ClassKit.drawnTo` and Game's `raisedCtx`; their blows land on the
+  raised (`ClassKit.hurtRaised`), which crumble when beaten down.
+- **Bone**: `Appearance.bones` gives a skull (dark sockets with a light in them, the nose's hole, teeth)
+  and an open chest (ribs and a spine over the dark), and the raised wear it in grave rags.
+
+Verified headless (`.walker/scen-raise.js`): two raised; a wolf turned on one of them 0.3 s after it was
+struck, and in four seconds took that one 349 to 345 while you took nothing.

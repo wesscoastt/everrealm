@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Appearance, HeldItem, Humanoid } from './humanoid';
+import { Appearance, HeldItem, Humanoid, type OffhandModel } from './humanoid';
 import type { CreatureAnim } from './creatures';
 
 // People who fight: bandits in their camps. A humanoid body driven the way Enemy drives a creature
@@ -21,7 +21,7 @@ export class FoeModel {
   private mats: THREE.MeshLambertMaterial[] = [];
   private base: THREE.Color[] = [];
 
-  constructor(outfit: Partial<Appearance>, held: HeldItem, seed: number) {
+  constructor(outfit: Partial<Appearance>, held: HeldItem, seed: number, offhand?: OffhandModel) {
     const r = (k: number) => { const v = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
     const look: Appearance = {
       skin: SKINS[Math.floor(r(1) * SKINS.length)], hair: HAIRS[Math.floor(r(2) * HAIRS.length)], hairStyle: Math.floor(r(3) * 5), eyes: '#3a2a1a',
@@ -31,6 +31,7 @@ export class FoeModel {
     };
     this.body = new Humanoid(look);
     this.body.setHeld(held);
+    if (offhand) this.body.setOffhandModel(offhand);
     this.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh || !(m.material as THREE.MeshLambertMaterial).isMeshLambertMaterial) return;

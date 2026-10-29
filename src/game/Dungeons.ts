@@ -553,7 +553,7 @@ export class Dungeons {
     return {
       player: v.pos, playerAlive: v.up, playerInvulnerable: false, playerSwimming: false, level: base.level,
       hitPlayer: ally ? (d: number) => this.hurtAlly(ally, d) : () => {},
-      sound: base.sound, splash,
+      sound: base.sound, splash, allies: base.allies,
     };
   }
 

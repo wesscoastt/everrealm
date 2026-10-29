@@ -74,7 +74,8 @@ interface Cut { e: Enemy; t: number; dmg: number }
 /** The body a Gravecaller raises: grave-dirt and old bone, an old blade still in its hand. */
 const THRALL: Henchman = {
   id: 'thrall', name: 'The Fallen', title: '', role: 'damage', held: 'sword',
-  look: { skin: '#c8c4b0', hair: '#4a4842', hairStyle: 0, eyes: '#a8d870', tunic: '#4a4a40', trim: '#6a6a58', trousers: '#3a3a32', boots: '#2a2a24', build: 0.86, age: 0.95 },
+  // Bare bone in the rags of what they were buried in
+  look: { skin: '#e2dbc4', hair: '#e2dbc4', hairStyle: 3, eyes: '#a8f070', tunic: '#3a3a30', trim: '#5a5a48', trousers: '#d8d0b8', boots: '#c8c0a8', build: 0.8, age: 0.95, bones: true },
   barks: { pull: [], low: [], kill: [], down: '', up: '' },
 };
 
@@ -107,6 +108,8 @@ export class ClassKit {
   private blood = 0;
   private wither = new Map<Enemy, { n: number; until: number; tick: number }>();
   private thralls: { body: Ally; left: number; swing: number }[] = [];
+  /** Foes a raised one has struck lately, and which: they turn on it for a while (drawnTo). */
+  private drawn = new Map<Enemy, { body: Ally; until: number }>();
   // Effects
   private shield = 0; private shieldUntil = 0;
   /** Whose the shield is: a Bulwark and an Ice Barrier each do something of their own when it breaks or runs out (talents). */
@@ -739,6 +742,21 @@ export class ClassKit {
     if (w) { w.n = Math.min(T.wither.max, w.n + n); w.until = this.clock + T.wither.secs; }
     else this.wither.set(e, { n: Math.min(T.wither.max, n), until: this.clock + T.wither.secs, tick: 1 });
   }
+  /** The raised one a foe has turned on, if it's still standing and near (foes aim at it instead of you: Game's enemy loop). */
+  drawnTo(e: Enemy): Ally | null {
+    const d = this.drawn.get(e);
+    if (!d) return null;
+    if (d.until <= this.clock || d.body.down || !this.thralls.some((t) => t.body === d.body) || d.body.pos.distanceTo(e.pos) > 16) { this.drawn.delete(e); return null; }
+    return d.body;
+  }
+  /** A foe's blow on one of the raised: enough of them and it falls apart. */
+  hurtRaised(b: Ally, dmg: number): void {
+    const fell = b.hurt(dmg);
+    this.host.particles.dust(b.pos.clone().setY(b.pos.y + 1), fell ? 18 : 5);
+  }
+  /** How many of the raised are standing (a check for tests and the bar). */
+  get raisedCount(): number { return this.thralls.length; }
+
   /** The raised lie down again. */
   private dismissThralls(): void {
     for (const t of this.thralls) { this.host.particles.dust(t.body.pos.clone().setY(t.body.pos.y + 0.5), 14); this.host.scene.remove(t.body.model.root); }
@@ -856,13 +874,18 @@ export class ClassKit {
         if (Math.hypot(foe.pos.x - b.pos.x, foe.pos.z - b.pos.z) > 1.6) { if (b.stepToward(foe.pos.x, foe.pos.z, 5.5, dt)) moving = 5.5; }
         else {
           b.face(foe.pos.x, foe.pos.z);
-          if (th.swing <= 0) { th.swing = T.raise.every; b.act = 'attack'; b.actTime = 0; H.hit(foe, H.power() * T.raise.dmg); }
+          if (th.swing <= 0) {
+            th.swing = T.raise.every; b.act = 'attack'; b.actTime = 0; H.hit(foe, H.power() * T.raise.dmg);
+            // The struck turn on what struck them, for a while (a boss only now and then)
+            if (!foe.isBoss || Math.random() < 0.35) this.drawn.set(foe, { body: b, until: this.clock + 5 });
+          }
         }
       } else if (b.pos.distanceTo(P) > 3 && b.stepToward(P.x, P.z, 6, dt)) moving = 6;
       // Left behind (a cliff, a river): up out of the ground beside you again
       if (b.pos.distanceTo(P) > 30) { b.place(P.x + 1, P.y, P.z + 1); H.particles.dust(b.pos.clone().setY(b.pos.y + 0.3), 10); }
       b.update(dt, moving);
     }
+    for (const th of this.thralls) if (th.body.down) th.left = 0;
     if (this.thralls.some((t) => t.left <= 0)) {
       for (const t of this.thralls) if (t.left <= 0) { H.particles.dust(t.body.pos.clone().setY(t.body.pos.y + 0.5), 14); H.scene.remove(t.body.model.root); }
       this.thralls = this.thralls.filter((t) => t.left > 0);

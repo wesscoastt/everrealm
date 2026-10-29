@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { voiceOf, type Sfx } from '../systems/Audio';
 import { scaleDef } from '../data/scaling';
-import { EnemyDef } from '../data/gameplay';
+import { EnemyDef, type BossPhase, type EnemyType } from '../data/gameplay';
 import { B, isSolid, isLeaves } from '../world/blocks';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { CreatureKind, CreatureModel, SWIM_KINDS } from './creatures';
@@ -24,7 +24,33 @@ export interface EnemyContext {
    * else standing in it. "player" above is whoever the creature is after; this is the rest.
    */
   splash?(at: THREE.Vector3, r: number, damage: number, from: Enemy): void;
+  /** Foes alive within r of a point (a mender looks among them for the most hurt). */
+  allies?(at: THREE.Vector3, r: number): Enemy[];
 }
+
+/**
+ * Stage F's rules (docs/COMBAT.md). mend: a mender looks for a friend under three quarters health every
+ * seven seconds and gathers 1.4 s to heal it a quarter; guard: a shield takes three quarters of a blow
+ * from within about sixty degrees of where it faces, and turns slowly, so you can get round it;
+ * summon: called foes stay forty-five seconds, or until their caller falls; bolt: a cast's flight;
+ * stagger: a boss's bar, filled by control (a share a stun plus a share for each second of it), draining
+ * slowly; full, the boss reels three seconds, exposed for four, whatever it was gathering lost, and can't
+ * be staggered again for twelve; phase: how soon a boss's mend or storm comes again, how long each
+ * gathers, and the storm's blow (in its ordinary blows).
+ */
+export const FOE_RULES = {
+  mend: { every: 7, secs: 1.4, below: 0.75, heal: 0.25, reach: 14 },
+  guard: { cut: 0.75, arc: 1.05, turn: 1.8 },
+  summon: { secs: 1.6, life: 45 },
+  bolt: { flight: 0.4 },
+  stagger: { per: 0.18, perSec: 0.12, drain: 0.04, secs: 3, exposed: 4, lock: 12 },
+  phase: { again: 25, mendSecs: 3, stormSecs: 3, storm: 1.8 },
+};
+/** Every boss that has no phases of its own: below 60% it begins to gather storms. */
+const DEFAULT_PHASES: BossPhase[] = [{ at: 0.6, storm: true }];
+type Special = { kind: 'mend' | 'summon' | 'bossmend' | 'storm'; secs: number; label: string; target?: Enemy; type?: EnemyType; n?: number; share?: number };
+const SPECIAL_FILL: Record<Special['kind'], string> = { mend: '#7ae08a', summon: '#b890ff', bossmend: '#7ae08a', storm: '#ff5a2a' };
+const BOLT_GEO = new THREE.BoxGeometry(0.36, 0.36, 0.36);
 
 const telegraphMat = new THREE.MeshBasicMaterial({ color: '#ff3a24', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
 /** The rim of a wind-up that a stun, a bash or a knockdown would break (docs/COMBAT.md): gold, not red. */
@@ -76,17 +102,32 @@ export class Enemy {
   /**
    * Seconds left stunned or rooted by a class skill: no moving, no attacking. Control goes through
    * here (docs/COMBAT.md): a new stun on a foe still shaking off the last is resisted (four seconds'
-   * grace once it ends, so nothing is locked down for ever); a boss only staggers, for half a second;
-   * and a stun landed on a wind-up is an **interrupt**: the blow is lost, and the foe is exposed for
-   * three seconds (it takes a fifth more from everything).
+   * grace once it ends, so nothing is locked down for ever); and a stun landed on a wind-up is an
+   * **interrupt**: the blow is lost, and the foe is exposed for three seconds (it takes a fifth more
+   * from everything). A boss takes control into its **stagger bar** instead (FOE_RULES.stagger): each
+   * stun only makes it flinch, half a second, until the bar is full and it reels.
    */
   get stun(): number { return this.stunLeft; }
   set stun(v: number) {
     if (v <= this.stunLeft + 0.05) { this.stunLeft = Math.max(0, v); return; } // (ticking down, or no more than it had)
     if (this.def.anchored) { this.stunLeft = v; return; }
+    if (this.isBoss) { this.staggerBy(v); return; }
     if (this.ccGrace > 0) { this.resisted = true; return; }
-    if (this.state === 'windup' && !this.signature) { this.interrupted = true; this.exposedLeft = 3; }
-    this.stunLeft = this.isBoss ? Math.max(this.stunLeft, 0.5) : v;
+    if (this.state === 'windup' && this.interruptible) { this.interrupted = true; this.exposedLeft = 3; }
+    this.stunLeft = v;
+    this.controlled = true;
+  }
+  /** Control on a boss: into the stagger bar; full, it reels, and whatever it was gathering is lost. */
+  private staggerBy(v: number): void {
+    const S = FOE_RULES.stagger;
+    if (this.staggerLock > 0) { this.resisted = true; return; }
+    if (this.state === 'windup' && this.interruptible) { this.interrupted = true; this.exposedLeft = 3; }
+    this.staggerBar = Math.min(1, this.staggerBar + S.per + S.perSec * Math.min(v, 3));
+    if (this.staggerBar >= 1) {
+      if (this.state === 'windup' && !this.interrupted) this.interrupted = true;
+      this.staggerBar = 0; this.staggerLock = S.lock; this.staggered = true;
+      this.stunLeft = S.secs; this.exposedLeft = S.exposed;
+    } else this.stunLeft = Math.max(this.stunLeft, 0.5);
     this.controlled = true;
   }
   private stunLeft = 0;
@@ -98,13 +139,64 @@ export class Enemy {
   /** Set for one frame: its wind-up was just broken; or a stun was just shrugged off. The game says so. */
   interrupted = false;
   resisted = false;
-  /** Can its wind-up be broken (anything but a boss's signature)? Its telegraph's rim shows it in gold. */
-  get interruptible(): boolean { return this.state === 'windup' && !this.signature; }
+  /**
+   * Can its wind-up be broken by a stun? Anything but a boss's signature, mend or storm (those only by
+   * filling its stagger bar). Its telegraph's rim shows it in gold.
+   */
+  get interruptible(): boolean { return this.state === 'windup' && !this.signature && this.special?.kind !== 'bossmend' && this.special?.kind !== 'storm'; }
   /** Control's clocks, ticked each frame before anything else. */
   private tickControl(dt: number): void {
     if (this.exposedLeft > 0) this.exposedLeft -= dt;
     if (this.ccGrace > 0) this.ccGrace -= dt;
-    if (this.controlled && this.stunLeft <= 0) { this.controlled = false; this.ccGrace = this.isBoss ? 8 : 4; }
+    if (this.staggerLock > 0) this.staggerLock -= dt;
+    else if (this.staggerBar > 0) this.staggerBar = Math.max(0, this.staggerBar - FOE_RULES.stagger.drain * dt);
+    if (this.controlled && this.stunLeft <= 0) { this.controlled = false; if (!this.isBoss) this.ccGrace = 4; }
+    if (this.mendCd > 0) this.mendCd -= dt;
+    for (const a of this.phaseAgain) a.t -= dt;
+  }
+  /** A boss's stagger bar, 0 to 1 (control fills it), and whether it's just reeled and can't be staggered yet. */
+  staggerBar = 0;
+  private staggerLock = 0;
+  get staggerLocked(): boolean { return this.staggerLock > 0; }
+  /** A wind-up that isn't a blow: a mender's heal, a summoner's call, a boss's mend or storm. */
+  private special: Special | null = null;
+  private mendCd = 0;
+  /** Calls a summoner has made this fight (one as it comes in, one when it's hurt). */
+  private calls = 0;
+  private phaseDone = new Set<number>();
+  private phaseDue: BossPhase[] = [];
+  private phaseAgain: { p: BossPhase; t: number }[] = [];
+  /** Set for one frame for the game to act on: a heal it gave, foes it called, what a boss says, a full stagger. */
+  mended: { e: Enemy; n: number } | null = null;
+  calling: { type: EnemyType; n: number } | null = null;
+  says: string | null = null;
+  staggered = false;
+  /** Called up by a summoner: whose it is, and the seconds it has left. */
+  master: Enemy | null = null;
+  lifeLeft = 0;
+  /** Dead and done with: its fall played out (the game clears away called foes then). */
+  get gone(): boolean { return this.state === 'dead' && this.timer > 3; }
+  /** A caster's bolt, gathered in the hand and then flying (a child of the telegraph, so local to the caster). */
+  private boltMesh: THREE.Mesh | null = null;
+  /** A boss's phases: its own, or every boss's default. */
+  private get phases(): BossPhase[] | undefined { return this.base.phases ?? (this.isBoss && !this.swims ? DEFAULT_PHASES : undefined); }
+  /** How far a boss's storm reaches. */
+  get stormRadius(): number { return this.signatureRadius + 3; }
+
+  /** What it's gathering, for the cast bars: a name, how far along, and whether a stun breaks it. */
+  get casting(): { label: string; k: number; breakable: boolean } | null {
+    if (this.state !== 'windup') return null;
+    if (this.special) return { label: this.special.label, k: Math.min(1, this.timer / this.special.secs), breakable: this.interruptible };
+    if (this.def.attack === 'cast') return { label: 'Casting', k: Math.min(1, this.timer / this.windupTime), breakable: this.interruptible };
+    return null;
+  }
+
+  /** Its shield is up toward `from`: a guard facing the blow, and not swinging, stunned or exposed. */
+  guarding(from: THREE.Vector3): boolean {
+    if (this.def.role !== 'guard' || !this.alive || this.stunLeft > 0 || this.exposedLeft > 0 || this.state === 'windup' || this.state === 'attack') return false;
+    let d = Math.abs(Math.atan2(from.x - this.pos.x, from.z - this.pos.z) - this.yaw) % (Math.PI * 2);
+    if (d > Math.PI) d = Math.PI * 2 - d;
+    return d < FOE_RULES.guard.arc;
   }
   /** Seconds left holding still for one of its own big moves (a boss winding up): it faces holdYaw and waits. */
   hold = 0;
@@ -141,7 +233,7 @@ export class Enemy {
     this.base = def;
     this.def = { ...def };
     const kind = def.model ?? (def.type as CreatureKind);
-    this.model = kind === 'bandit' ? new FoeModel(def.look ?? {}, def.held ?? 'sword', x * 31 + z * 17) : new CreatureModel(kind, def.palette, def.scale);
+    this.model = kind === 'bandit' ? new FoeModel(def.look ?? {}, def.held ?? 'sword', x * 31 + z * 17, def.offhand) : new CreatureModel(kind, def.palette, def.scale);
     this.hp = def.hp;
     this.swims = SWIM_KINDS.has(kind);
     const src = ground ?? world;
@@ -162,8 +254,8 @@ export class Enemy {
     this.pos.copy(this.home);
     this.wanderTarget.copy(this.home);
 
-    const isCircle = def.attack === 'slam' || def.attack === 'throw';
-    const outlineGeo = isCircle ? new THREE.CircleGeometry(def.attack === 'throw' ? def.blast ?? 1.8 : def.range, 28) : new THREE.PlaneGeometry(1.6, def.range);
+    const isCircle = def.attack === 'slam' || def.attack === 'throw' || def.attack === 'cast';
+    const outlineGeo = isCircle ? new THREE.CircleGeometry(def.attack === 'throw' ? def.blast ?? 1.8 : def.attack === 'cast' ? 1.2 : def.range, 28) : new THREE.PlaneGeometry(1.6, def.range);
     if (!isCircle) outlineGeo.translate(0, def.range / 2, 0);
     outlineGeo.rotateX(-Math.PI / 2);
     this.teleOutline = new THREE.Mesh(outlineGeo, telegraphMat);
@@ -176,6 +268,11 @@ export class Enemy {
       this.shotMesh = new THREE.Mesh(SHOT_GEO, new THREE.MeshBasicMaterial({ color: def.shot ?? '#ffb040' }));
       this.shotMesh.visible = false;
       this.telegraph.add(this.shotMesh);
+    }
+    if (def.attack === 'cast') {
+      this.boltMesh = new THREE.Mesh(BOLT_GEO, new THREE.MeshBasicMaterial({ color: def.bolt ?? '#ffd080' }));
+      this.boltMesh.visible = false;
+      this.telegraph.add(this.boltMesh);
     }
     this.telegraph.visible = false;
     this.syncModel();
@@ -206,7 +303,7 @@ export class Enemy {
   /** Reach of the signature circle. */
   get signatureRadius(): number { return Math.max(5, this.def.range + 3); }
 
-  private get windupTime(): number { return this.signature ? SIGNATURE.windup : this.def.windup * (this.enraged ? 0.8 : 1); }
+  private get windupTime(): number { return this.special ? this.special.secs : this.signature ? SIGNATURE.windup : this.def.windup * (this.enraged ? 0.8 : 1); }
 
   get alive(): boolean {
     return this.state !== 'dead';
@@ -225,6 +322,9 @@ export class Enemy {
     this.model.flashHit();
     this.punch = Math.max(this.punch, this.def.elite ? 0.06 : 0.14);
     if (this.isBoss && !this.enraged && this.hp > 0 && this.hp < this.def.hp * 0.35) { this.enraged = true; this.justEnraged = true; }
+    // A boss's phases: each once, as its health falls past it
+    const ph = this.phases;
+    if (ph && this.hp > 0) ph.forEach((p, i) => { if (!this.phaseDone.has(i) && this.hp < this.def.hp * p.at) { this.phaseDone.add(i); this.phaseDue.push(p); } });
     const away = new THREE.Vector3().subVectors(this.pos, from).setY(0).normalize();
     this.knock.addScaledVector(away, this.def.elite ? 2 : 5);
     if (this.state === 'idle' || this.state === 'wander' || this.state === 'return') this.state = 'chase';
@@ -317,7 +417,7 @@ export class Enemy {
     if (this.hold > 0 && this.state !== 'dead') {
       this.hold -= dt;
       this.telegraph.visible = false;
-      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.4); }
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.dropSpecial(); this.cooldown = Math.max(this.cooldown, 0.4); }
       this.yaw = this.holdYaw;
       this.model.setAnim('windup');
       this.model.update(dt, 0);
@@ -327,7 +427,7 @@ export class Enemy {
     if (this.stun > 0 && this.state !== 'dead') {
       this.stun -= dt;
       this.telegraph.visible = false;
-      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.6); }
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.dropSpecial(); this.cooldown = Math.max(this.cooldown, 0.6); }
       this.model.setAnim('hit');
       this.model.update(dt, 0);
       this.syncModel();
@@ -346,6 +446,7 @@ export class Enemy {
           this.timer = 0;
           this.enraged = false;
           this.attacks = 0;
+          this.resetFight();
         }
         this.model.update(dt, 0);
         this.syncModel();
@@ -464,6 +565,7 @@ export class Enemy {
           this.state = 'idle';
           this.timer = 0;
           this.hp = def.hp;
+          this.resetFight();
         }
         break;
       }
@@ -475,6 +577,86 @@ export class Enemy {
     this.syncModel();
   }
 
+  /** Its fight's memory, wiped: back home, or back from the dead. */
+  private resetFight(): void {
+    this.calls = 0; this.mendCd = 0; this.staggerBar = 0; this.staggerLock = 0;
+    this.phaseDone.clear(); this.phaseDue = []; this.phaseAgain = [];
+    this.dropSpecial();
+  }
+
+  /** Whatever it was gathering, let go (it was stunned, or held still). */
+  private dropSpecial(): void {
+    this.special = null;
+    if (this.boltMesh) this.boltMesh.visible = false;
+  }
+
+  /**
+   * Begin a wind-up that isn't a blow, if one is due: a boss's phase, a mender's heal, a summoner's
+   * call. It's gathered where it stands, in a ring at its feet: gold if a stun would break it.
+   */
+  private startSpecial(ctx: EnemyContext): boolean {
+    let sp: Special | null = null;
+    const P = FOE_RULES.phase;
+    // A boss's mend and storm come round again
+    for (const a of this.phaseAgain) if (a.t <= 0) { a.t = P.again; this.phaseDue.push({ ...a.p, say: undefined, summon: undefined }); }
+    const due = this.phaseDue.shift();
+    if (due) {
+      if (due.say) this.says = due.say;
+      if (due.summon) { this.calling = { type: due.summon, n: due.n ?? 2 }; ctx.sound('growl', this.pos); }
+      if (due.mend || due.storm) {
+        if (!this.phaseAgain.some((a) => a.p === due || (a.p.at === due.at && a.p.mend === due.mend && a.p.storm === due.storm))) this.phaseAgain.push({ p: due, t: P.again });
+        sp = due.mend ? { kind: 'bossmend', secs: P.mendSecs, label: 'Gathering itself', share: due.mend } : { kind: 'storm', secs: P.stormSecs, label: 'Storm' };
+      }
+      if (!sp) return false;
+    } else if (this.def.role === 'mend' && this.mendCd <= 0) {
+      const R = FOE_RULES.mend;
+      const near = [this, ...(ctx.allies?.(this.pos, R.reach) ?? []).filter((o) => o !== this && !o.def.anchored)];
+      let worst: Enemy | null = null, low = R.below;
+      for (const o of near) if (o.alive && o.hp / o.def.hp < low) { low = o.hp / o.def.hp; worst = o; }
+      this.mendCd = 2;
+      if (worst) { sp = { kind: 'mend', secs: R.secs, label: 'Mending', target: worst }; this.mendCd = R.every; }
+    } else if (this.def.role === 'summon' && this.def.calls && (this.calls === 0 || (this.calls === 1 && this.hp < this.def.hp * 0.5))) {
+      sp = { kind: 'summon', secs: FOE_RULES.summon.secs, label: 'Calling', type: this.def.calls, n: this.def.callN ?? 2 };
+    }
+    if (!sp) return false;
+    this.special = sp;
+    this.state = 'windup';
+    this.timer = 0;
+    this.signature = false;
+    this.attackOrigin.copy(this.pos);
+    this.teleOutline.visible = this.teleFill.visible = false;
+    this.bigRing.visible = this.bigFill.visible = true;
+    const r = sp.kind === 'storm' ? this.stormRadius : sp.kind === 'bossmend' ? 2.6 : 1.4;
+    this.bigRing.scale.setScalar(r);
+    (this.bigRing.material as THREE.MeshBasicMaterial).color.set(this.interruptible ? '#ffd23a' : '#ff6a4a');
+    this.fillMat.color.set(SPECIAL_FILL[sp.kind]);
+    this.telegraph.visible = true;
+    this.model.setAnim('windup');
+    if (sp.kind === 'storm') ctx.sound('growl', this.pos);
+    return true;
+  }
+
+  /** A special wind-up come to its end: the heal given, the foes called, the storm let go. */
+  private finishSpecial(ctx: EnemyContext, distP: number, dy: number): void {
+    const sp = this.special!;
+    if (sp.kind === 'mend' && sp.target?.alive) {
+      const t = sp.target, n = Math.min(t.def.hp - t.hp, Math.round(t.def.hp * FOE_RULES.mend.heal));
+      if (n > 0) { t.hp += n; this.mended = { e: t, n }; }
+    } else if (sp.kind === 'bossmend') {
+      const n = Math.min(this.def.hp - this.hp, Math.round(this.def.hp * (sp.share ?? 0.1)));
+      if (n > 0) { this.hp += n; this.mended = { e: this, n }; }
+    } else if (sp.kind === 'summon' && sp.type) {
+      this.calling = { type: sp.type, n: sp.n ?? 2 };
+      this.calls++;
+    } else if (sp.kind === 'storm') {
+      const r = this.stormRadius, dmg = this.def.damage * FOE_RULES.phase.storm;
+      if (ctx.playerAlive && !ctx.playerInvulnerable && distP < r && Math.abs(dy) < 3) ctx.hitPlayer(dmg, this);
+      ctx.splash?.(this.pos, r, dmg, this);
+      ctx.sound('squelch', this.pos);
+    }
+    this.dropSpecial();
+  }
+
   update(dt: number, ctx: EnemyContext): void {
     this.justDied = false;
     if (this.slowLeft > 0) this.slowLeft -= dt;
@@ -482,6 +664,8 @@ export class Enemy {
     if (ctx.level) this.scaleTo(ctx.level);
     this.timer += dt;
     this.cooldown -= dt;
+    // Called up: it goes when its time is up, or when whoever called it falls
+    if (this.master && this.state !== 'dead' && ((this.lifeLeft -= dt) <= 0 || !this.master.alive)) { this.vanish(99999); return; }
     if (this.swims) { this.updateSwimmer(dt, ctx); return; }
     if (this.def.anchored) {
       // On its post: it rocks when struck, and a few seconds' peace makes it whole
@@ -521,7 +705,7 @@ export class Enemy {
     if (this.hold > 0 && this.state !== 'dead') {
       this.hold -= dt;
       this.telegraph.visible = false;
-      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.4); }
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.dropSpecial(); this.cooldown = Math.max(this.cooldown, 0.4); }
       this.yaw = this.holdYaw;
       this.model.setAnim('windup');
       this.model.update(dt, 0);
@@ -531,7 +715,7 @@ export class Enemy {
     if (this.stun > 0 && this.state !== 'dead') {
       this.stun -= dt;
       this.telegraph.visible = false;
-      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.cooldown = Math.max(this.cooldown, 0.6); }
+      if (this.state === 'windup' || this.state === 'attack') { this.state = 'chase'; this.dropSpecial(); this.cooldown = Math.max(this.cooldown, 0.6); }
       this.model.setAnim('hit');
       this.model.update(dt, 0);
       this.syncModel();
@@ -549,6 +733,7 @@ export class Enemy {
           this.timer = 0;
           this.enraged = false;
           this.attacks = 0;
+          this.resetFight();
         }
         this.model.update(dt, 0);
         if (this.timer <= 2.5) this.syncModel();
@@ -576,6 +761,8 @@ export class Enemy {
       }
       case 'chase': {
         if (!ctx.playerAlive || distHome > def.leash) { this.state = 'return'; break; }
+        // A heal, a call, a boss's phase come before another blow
+        if (this.startSpecial(ctx)) break;
         if (distP <= def.range * (def.attack === 'charge' ? 0.9 : 0.85) && this.cooldown <= 0) {
           this.state = 'windup';
           this.timer = 0;
@@ -585,7 +772,9 @@ export class Enemy {
           this.teleOutline.visible = this.teleFill.visible = !this.signature;
           this.teleOutline.material = this.signature ? telegraphMat : interruptMat;
           this.bigRing.visible = this.bigFill.visible = this.signature;
+          (this.bigRing.material as THREE.MeshBasicMaterial).color.set('#ffb0a0');
           if (this.signature) { this.bigRing.scale.setScalar(this.signatureRadius); ctx.sound('growl', this.pos); }
+          if (this.boltMesh && !this.signature) { this.boltMesh.visible = true; this.boltMesh.scale.setScalar(0.01); }
           this.attackOrigin.copy(def.attack === 'throw' && !this.signature ? ctx.player : this.pos);
           this.attackDir.set(toPlayer.x, 0, toPlayer.z).normalize();
           this.yaw = Math.atan2(this.attackDir.x, this.attackDir.z);
@@ -593,17 +782,41 @@ export class Enemy {
           this.model.setAnim('windup');
           break;
         }
-        // A thrower stands off at about half its throw; the rest come in close
-        const keep = def.attack === 'throw' ? def.range * 0.5 : def.range * 0.6;
+        // A thrower or a caster stands off at about half its reach; the rest come in close
+        const keep = def.attack === 'throw' || def.attack === 'cast' ? def.range * 0.5 : def.range * 0.6;
         const pace = def.speed * (this.enraged ? 1.15 : 1) * (this.slowLeft > 0 ? 0.67 : 1);
+        const yaw0 = this.yaw;
         if (distP > keep) {
           const moved = this.stepToward(ctx.player.x, ctx.player.z, pace, dt);
           moveSpeed = moved ? pace : 0;
         } else this.yaw = Math.atan2(toPlayer.x, toPlayer.z);
+        if (def.role === 'guard') {
+          // A shield turns slowly: a quick foot gets round it
+          const d = Math.atan2(Math.sin(this.yaw - yaw0), Math.cos(this.yaw - yaw0));
+          this.yaw = yaw0 + Math.sign(d) * Math.min(Math.abs(d), FOE_RULES.guard.turn * dt);
+        }
         break;
       }
       case 'windup': {
         const k = Math.min(1, this.timer / this.windupTime);
+        // Gathering a heal, a call, a boss's mend or storm: it stands and fills its ring
+        if (this.special) {
+          const r = this.special.kind === 'storm' ? this.stormRadius : this.special.kind === 'bossmend' ? 2.6 : 1.4;
+          this.bigFill.scale.setScalar(Math.max(0.01, k) * r);
+          this.fillMat.opacity = k > 0.82 && this.special.kind === 'storm' ? 0.6 : 0.3 + k * 0.2;
+          if (this.special.kind === 'storm' && k > 0.82) this.fillMat.color.copy(FILL_NOW);
+          if (this.timer >= this.special.secs) {
+            this.finishSpecial(ctx, distP, toPlayer.y);
+            this.state = 'recover';
+            this.timer = 0;
+            this.telegraph.visible = false;
+            this.cooldown = Math.max(this.cooldown, 0.8);
+            this.model.setAnim('attack');
+          }
+          break;
+        }
+        // A caster's bolt grows in its hand
+        if (this.boltMesh?.visible) { this.boltMesh.scale.setScalar(Math.max(0.01, k)); this.boltMesh.position.set(Math.sin(this.yaw) * 0.5, 1.4, Math.cos(this.yaw) * 0.5); this.yaw = Math.atan2(toPlayer.x, toPlayer.z); }
         if (def.attack !== 'slam') {
           // Lunges track the player a little during windup; charges lock direction.
           if (def.attack === 'lunge' && k < 0.6) {
@@ -612,7 +825,7 @@ export class Enemy {
           }
         }
         this.teleFill.scale.setScalar(Math.max(0.01, k));
-        if (def.attack !== 'slam' && def.attack !== 'throw') this.teleFill.scale.set(1, 1, Math.max(0.01, k));
+        if (def.attack !== 'slam' && def.attack !== 'throw' && def.attack !== 'cast') this.teleFill.scale.set(1, 1, Math.max(0.01, k));
         if (def.attack === 'throw') this.yaw = Math.atan2(this.attackOrigin.x - this.pos.x, this.attackOrigin.z - this.pos.z);
         this.bigFill.scale.setScalar(Math.max(0.01, k) * this.signatureRadius);
         // The fill reddens and thickens as it comes, and flashes pale in the last moment: that's the cue to roll
@@ -624,13 +837,29 @@ export class Enemy {
           this.hitDone = false;
           if (def.attack !== 'throw' || this.signature) this.attackOrigin.copy(this.pos);
           else if (this.shotMesh) { this.shotFrom.copy(this.pos).sub(this.attackOrigin).setY(this.pos.y - this.attackOrigin.y + 1.4); this.shotMesh.visible = true; }
+          // The bolt leaves the hand: only it is left to see
+          if (def.attack === 'cast' && !this.signature) this.teleOutline.visible = this.teleFill.visible = false;
           this.model.setAnim('attack');
           ctx.sound('swing', this.pos);
         }
         break;
       }
       case 'attack': {
-        const dur = this.signature ? 0.5 : def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : def.attack === 'throw' ? 0.6 : 0.45;
+        const dur = this.signature ? 0.5 : def.attack === 'charge' ? def.range / 13 : def.attack === 'lunge' ? 0.26 : def.attack === 'throw' ? 0.6 : def.attack === 'cast' ? FOE_RULES.bolt.flight + 0.1 : 0.45;
+        // The bolt in flight: from the hand to wherever you are now
+        if (this.boltMesh?.visible && !this.signature) {
+          const t = Math.min(1, this.timer / FOE_RULES.bolt.flight);
+          const tx = ctx.player.x - this.attackOrigin.x, ty = ctx.player.y + 1 - this.attackOrigin.y, tz = ctx.player.z - this.attackOrigin.z;
+          const fx = Math.sin(this.yaw) * 0.5, fz = Math.cos(this.yaw) * 0.5;
+          this.boltMesh.scale.setScalar(1);
+          this.boltMesh.position.set(fx + (tx - fx) * t, 1.4 + (ty - 1.4) * t, fz + (tz - fz) * t);
+          if (t >= 1 && !this.hitDone) {
+            this.hitDone = true;
+            this.boltMesh.visible = false;
+            if (ctx.playerAlive && !ctx.playerInvulnerable && distP < def.range * 1.6) ctx.hitPlayer(def.damage, this);
+            ctx.sound('squelch', ctx.player);
+          }
+        }
         // The shot in flight: an arc from the hand down into the circle
         if (this.shotMesh?.visible) {
           const t = Math.min(1, this.timer / 0.5);
@@ -668,7 +897,7 @@ export class Enemy {
             ctx.splash?.(o, r, def.damage, this);
             ctx.sound('squelch', o);
           }
-        } else if (!this.hitDone && this.timer > 0.4) {
+        } else if (def.attack !== 'cast' && !this.hitDone && this.timer > 0.4) {
           this.hitDone = true;
           if (ctx.playerAlive && !ctx.playerInvulnerable && distP < def.range && Math.abs(toPlayer.y) < 2) ctx.hitPlayer(def.damage, this);
           ctx.splash?.(this.pos, def.range, def.damage, this);
@@ -696,6 +925,7 @@ export class Enemy {
           this.state = 'idle';
           this.timer = 0;
           this.hp = def.hp;
+          this.resetFight();
         }
         break;
       }
@@ -719,8 +949,8 @@ export class Enemy {
     } else if (this.model.root.scale.x !== 1) this.model.root.scale.setScalar(1);
     if (this.telegraph.visible) {
       this.telegraph.position.set(this.attackOrigin.x, this.attackOrigin.y + 0.06, this.attackOrigin.z);
-      this.telegraph.rotation.y = this.def.attack === 'slam' || this.def.attack === 'throw' ? 0 : Math.atan2(this.attackDir.x, this.attackDir.z) + Math.PI;
-      if (this.state === 'windup' && (this.def.attack === 'slam' || this.signature)) this.telegraph.position.copy(this.pos).setY(this.pos.y + 0.06);
+      this.telegraph.rotation.y = this.def.attack === 'slam' || this.def.attack === 'throw' || this.def.attack === 'cast' || this.special ? 0 : Math.atan2(this.attackDir.x, this.attackDir.z) + Math.PI;
+      if (this.state === 'windup' && (this.def.attack === 'slam' || this.def.attack === 'cast' || this.signature || this.special)) this.telegraph.position.copy(this.pos).setY(this.pos.y + 0.06);
       if (this.signature) this.telegraph.rotation.y = 0;
       // In the water the warning hangs at the creature's own depth, tilted along the line of its rush
       if (this.swims) {

@@ -422,10 +422,18 @@ export class Activities {
       if (near && !list) {
         const out: Enemy[] = [];
         if (a.kind === 'fort') {
-          // A gang: its members, the chief's two seconds, and the chief; when emptied, they drift back together
+          // A gang: its members (one of them the gang's sawbones, who patches up the rest), the chief's two
+          // seconds behind shields, and the chief; when emptied, they drift back together
           const f = FORT_BY_ID[s.id.slice(5)];
-          for (const [x, y, z, type] of a.spawns ?? []) out.push(this.spawnAt({ ...ENEMIES[type as EnemyType], respawn: FORT_RESPAWN }, x, y, z));
-          for (const [x, y, z, type] of a.guards ?? []) out.push(this.spawnAt({ ...championOf(type as EnemyType, 1.12), name: `${f?.gangName ?? 'Gang'} lieutenant`, respawn: FORT_RESPAWN }, x, y, z));
+          (a.spawns ?? []).forEach(([x, y, z, type], i) => {
+            const def = ENEMIES[type as EnemyType];
+            const sawbones: Partial<EnemyDef> = i === 2 ? { role: 'mend', name: `${f?.gangName ?? 'Gang'} sawbones`, held: 'none', look: { ...def.look, hat: 'kerchief', hatColor: '#d8d0c0' } } : {};
+            out.push(this.spawnAt({ ...def, respawn: FORT_RESPAWN, ...sawbones }, x, y, z));
+          });
+          for (const [x, y, z, type] of a.guards ?? []) {
+            const def = championOf(type as EnemyType, 1.12);
+            out.push(this.spawnAt({ ...def, name: `${f?.gangName ?? 'Gang'} lieutenant`, respawn: FORT_RESPAWN, role: 'guard', offhand: { family: 'heater', face: def.look?.tunic ?? '#5a4a3a', rim: '#3a3a3a', boss: '#8a8a8a' } }, x, y, z));
+          }
           if (a.boss) out.push(this.spawnAt({ ...ENEMIES[a.boss[3] as EnemyType] }, a.boss[0], a.boss[1], a.boss[2]));
           this.fortDone.delete(s.id);
           this.dungeons.set(s.id, out);

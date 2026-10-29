@@ -1,6 +1,7 @@
 import { MOUNT_DROPS } from './content/mounts';
 import type { CreatureKind, Palette } from '../entities/creatures';
-import type { Appearance, HeldItem } from '../entities/humanoid';
+import type { Appearance, HeldItem, OffhandModel } from '../entities/humanoid';
+import { FOE_KIND_REGION, FOE_KINDS, type FoeKindType } from './foeKinds';
 import { ARMOUR_SMITHING } from './armour';
 import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
@@ -307,6 +308,8 @@ export type EnemyType = 'dummy' | 'wolf' | 'notch' | 'jelly' | 'rustback' | 'boa
   | 'rimewight' | 'icewolf' | 'icebear' | 'fellcairn' | 'ringer' | 'greymeg' | 'alfwight' | 'shorebear'
   // The Teeth (data/content/teeth.ts): the Assembly's revenue marines off their cutter, and their lieutenant
   | 'revenueman' | 'revenuelt'
+  // Casters, menders, guards and summoners, one in every region (data/foeKinds.ts)
+  | FoeKindType
   // The Glass Flats' world boss: the great dragon whose fire made the glass, and whose brood are the Flats' drakes
   | 'glassmother'
   // The wilds' bears, great spiders, bats, woken cairns, adders and drakes, a kind or two to each country
@@ -330,9 +333,27 @@ export interface EnemyDef {
   leash: number;
   /**
    * lunge: a short dash at you; slam: a circle round itself; charge: a long rush down a lane;
-   * throw: from a distance, a circle marked where you stand, then something lobbed into it.
+   * throw: from a distance, a circle marked where you stand, then something lobbed into it;
+   * cast: from a distance, a spell gathered in a gold ring at its feet (break it with a stun), then a
+   * bolt that finds you wherever you are, unless you roll or block it as it comes.
    */
-  attack: 'lunge' | 'slam' | 'charge' | 'throw';
+  attack: 'lunge' | 'slam' | 'charge' | 'throw' | 'cast';
+  /** A caster's bolt colour. */
+  bolt?: string;
+  /**
+   * What it does besides its blows (docs/COMBAT.md, stage F). mend: heals the most hurt of its
+   * friends nearby (break the heal with a stun, or kill it first); guard: a shield that takes most of a
+   * blow from in front (go round it, or stun it); summon: calls lesser foes to it once it's in a fight,
+   * and again when hurt (break the call with a stun).
+   */
+  role?: 'mend' | 'guard' | 'summon';
+  /** A summoner's call: what comes, and how many each time. */
+  calls?: EnemyType;
+  callN?: number;
+  /** What a foe carries in its other hand (a shield, a lamp, a book). */
+  offhand?: OffhandModel;
+  /** A boss's phases: what it does as its health falls past each share (Enemy.ts). */
+  phases?: BossPhase[];
   /** A thrower's circle (radius), and the colour of what it throws. */
   blast?: number;
   shot?: string;
@@ -347,6 +368,14 @@ export interface EnemyDef {
   /** Fixed to the spot, never fights back and never falls: a training dummy (data/dummies.ts). */
   anchored?: boolean;
 }
+
+/**
+ * A boss's phase: once its health falls below at (a share), it does this. summon: calls n of a kind,
+ * once; mend: gathers itself to heal this share of its health, and again every twenty-five seconds;
+ * storm: a great cast that strikes everything near it, and again every twenty-five seconds. A mend or a
+ * storm is broken only by filling the boss's stagger bar while it gathers.
+ */
+export interface BossPhase { at: number; say?: string; summon?: EnemyType; n?: number; mend?: number; storm?: boolean }
 
 // Each region's creatures carry that region's gear now and then (and its bosses always): the
 // same power as what you have, spent another way (see GEAR_BUDGET in items.ts).
@@ -372,15 +401,15 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   // Scarth
   frostwolf: { type: 'frostwolf', model: 'wolf', palette: { a: '#dde6ee', b: '#9aaab8', c: '#ffffff' }, scale: 1.3, name: 'Frost wolf', level: 27, hp: 520, damage: 36, speed: 6.6, aggro: 15, leash: 36, attack: 'lunge', windup: 0.45, range: 3.2, cooldown: 1.3, xp: 380, loot: [{ item: 'frost_pelt', chance: 0.6 }, { item: 'frost_cowl', chance: 0.04 }], marks: [10, 18], respawn: 140 },
   // Story bosses. The Rust Queen nests on the old builders' iron under Gallows Knap; Old Glass grew in the crystal under the Kirk.
-  rustqueen: { type: 'rustqueen', model: 'rustback', palette: { a: '#3a1410', b: '#d0582a' }, scale: 2.3, name: 'The Rust Queen', level: 24, hp: 1500, damage: 32, speed: 3.4, aggro: 12, leash: 40, attack: 'charge', windup: 0.9, range: 9, cooldown: 2.4, xp: 900, elite: true, loot: [{ item: 'rustback_shell', chance: 1, min: 3, max: 3 }, { item: 'iron_ore', chance: 1, min: 4, max: 4 }, { item: 'harrow_cleaver', chance: 1 }], marks: [40, 60], respawn: 600 },
+  rustqueen: { type: 'rustqueen', model: 'rustback', palette: { a: '#3a1410', b: '#d0582a' }, scale: 2.3, name: 'The Rust Queen', level: 24, hp: 1500, damage: 32, speed: 3.4, aggro: 12, leash: 40, attack: 'charge', windup: 0.9, range: 9, cooldown: 2.4, xp: 900, elite: true, phases: [{ at: 0.7, summon: 'rustback', n: 2, say: 'The Rust Queen rattles her shell, and the pit answers.' }, { at: 0.4, storm: true }], loot: [{ item: 'rustback_shell', chance: 1, min: 3, max: 3 }, { item: 'iron_ore', chance: 1, min: 4, max: 4 }, { item: 'harrow_cleaver', chance: 1 }], marks: [40, 60], respawn: 600 },
   oldglass: { type: 'oldglass', model: 'jelly', palette: { a: '#a8f0ff', b: '#3a9ac8', glow: true }, scale: 2.6, name: 'Old Glass', level: 30, hp: 2200, damage: 42, speed: 2.6, aggro: 14, leash: 40, attack: 'slam', windup: 0.95, range: 4.5, cooldown: 2.2, xp: 1400, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 1 }], marks: [60, 90], respawn: 600 },
   // Act II: the crystal under the forty-one's ring, woken by Harrowgate's cut.
   keelglass: { type: 'keelglass', model: 'jelly', palette: { a: '#d0c4ff', b: '#5a3ab0', glow: true }, scale: 2.8, name: 'The Keel', level: 31, hp: 2600, damage: 44, speed: 2.4, aggro: 12, leash: 18, attack: 'slam', windup: 1.0, range: 4.6, cooldown: 2.3, xp: 1600, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 3, max: 3 }, { item: 'starglass_edge', chance: 0.5 }], marks: [60, 90], respawn: 600 },
   // World bosses (see data/activities.ts): they rise on a schedule every player shares, and their
   // loot is their region's gear. The Shardwarden leads the Shardfalls in Scarth.
-  bramblemaw: { type: 'bramblemaw', model: 'wolf', palette: { a: '#2e3a1e', b: '#16200e', c: '#9ab07a' }, scale: 3.4, name: 'The Bramblemaw', level: 16, hp: 5200, damage: 34, speed: 6.2, aggro: 24, leash: 60, attack: 'lunge', windup: 0.8, range: 5.5, cooldown: 2.0, xp: 1600, elite: true, loot: [{ item: 'thorn_blade', chance: 0.35 }, { item: 'moss_hood', chance: 0.35 }, { item: 'elder_logs', chance: 1, min: 3, max: 3 }, { item: 'recipe_pike_broth', chance: 0.5 }], marks: [45, 70], respawn: 99999 },
-  tidewright: { type: 'tidewright', model: 'rustback', palette: { a: '#7a2414', b: '#f08a4a' }, scale: 3.6, name: 'Blind Jenny', level: 20, hp: 6400, damage: 38, speed: 3.8, aggro: 22, leash: 60, attack: 'charge', windup: 0.9, range: 12, cooldown: 2.6, xp: 2100, elite: true, loot: [{ item: 'brine_cutlass', chance: 0.35 }, { item: 'oilskin_hat', chance: 0.35 }, { item: 'crab_shell', chance: 1, min: 4, max: 4 }], marks: [55, 85], respawn: 99999 },
-  cinderhorn: { type: 'cinderhorn', model: 'boar', palette: { a: '#5a1e10', b: '#d0582a', c: '#f0c070' }, scale: 3.6, name: 'Old Clinker', level: 23, hp: 7200, damage: 42, speed: 4.6, aggro: 22, leash: 60, attack: 'charge', windup: 0.8, range: 12, cooldown: 2.4, xp: 2600, elite: true, loot: [{ item: 'harrow_cleaver', chance: 0.35 }, { item: 'redback_helm', chance: 0.35 }, { item: 'halter_ember', chance: 0.2 }, { item: 'iron_ore', chance: 1, min: 5, max: 5 }], marks: [60, 95], respawn: 99999 },
+  bramblemaw: { type: 'bramblemaw', model: 'wolf', palette: { a: '#2e3a1e', b: '#16200e', c: '#9ab07a' }, scale: 3.4, name: 'The Bramblemaw', level: 16, hp: 5200, damage: 34, speed: 6.2, aggro: 24, leash: 60, attack: 'lunge', windup: 0.8, range: 5.5, cooldown: 2.0, xp: 1600, elite: true, phases: [{ at: 0.7, summon: 'thornwolf', n: 2, say: 'The thorns shake, and wolves come out of them.' }, { at: 0.45, storm: true }], loot: [{ item: 'thorn_blade', chance: 0.35 }, { item: 'moss_hood', chance: 0.35 }, { item: 'elder_logs', chance: 1, min: 3, max: 3 }, { item: 'recipe_pike_broth', chance: 0.5 }], marks: [45, 70], respawn: 99999 },
+  tidewright: { type: 'tidewright', model: 'rustback', palette: { a: '#7a2414', b: '#f08a4a' }, scale: 3.6, name: 'Blind Jenny', level: 20, hp: 6400, damage: 38, speed: 3.8, aggro: 22, leash: 60, attack: 'charge', windup: 0.9, range: 12, cooldown: 2.6, xp: 2100, elite: true, phases: [{ at: 0.6, summon: 'crab', n: 3, say: 'Blind Jenny beats on the rocks, and the crabs come up out of the weed.' }, { at: 0.35, storm: true }], loot: [{ item: 'brine_cutlass', chance: 0.35 }, { item: 'oilskin_hat', chance: 0.35 }, { item: 'crab_shell', chance: 1, min: 4, max: 4 }], marks: [55, 85], respawn: 99999 },
+  cinderhorn: { type: 'cinderhorn', model: 'boar', palette: { a: '#5a1e10', b: '#d0582a', c: '#f0c070' }, scale: 3.6, name: 'Old Clinker', level: 23, hp: 7200, damage: 42, speed: 4.6, aggro: 22, leash: 60, attack: 'charge', windup: 0.8, range: 12, cooldown: 2.4, xp: 2600, elite: true, phases: [{ at: 0.66, summon: 'brassmite', n: 3, say: 'Brass mites boil out of Old Clinker\'s firebox.' }, { at: 0.4, storm: true }], loot: [{ item: 'harrow_cleaver', chance: 0.35 }, { item: 'redback_helm', chance: 0.35 }, { item: 'halter_ember', chance: 0.2 }, { item: 'iron_ore', chance: 1, min: 5, max: 5 }], marks: [60, 95], respawn: 99999 },
   rimeglass: { type: 'rimeglass', model: 'jelly', palette: { a: '#d8f6ff', b: '#4ab0d8', glow: true }, scale: 3.6, name: 'Rimeglass', level: 32, hp: 9800, damage: 48, speed: 2.8, aggro: 22, leash: 60, attack: 'slam', windup: 1.0, range: 6.5, cooldown: 2.3, xp: 3800, elite: true, loot: [{ item: 'starglass_edge', chance: 0.35 }, { item: 'frost_cowl', chance: 0.35 }, { item: 'star_crystal', chance: 1, min: 4, max: 4 }, { item: 'recipe_char_glaze', chance: 0.5 }], marks: [80, 120], respawn: 99999 },
   shardwarden: { type: 'shardwarden', model: 'jelly', palette: { a: '#b8f4ff', b: '#2a8ab0', glow: true }, scale: 2.1, name: 'Shardwarden', level: 28, hp: 1900, damage: 38, speed: 3.2, aggro: 14, leash: 40, attack: 'slam', windup: 0.8, range: 4.2, cooldown: 2.0, xp: 900, elite: true, loot: [{ item: 'star_crystal', chance: 1, min: 2, max: 2 }, { item: 'starglass_edge', chance: 0.06 }], marks: [20, 34], respawn: 99999 },
   // The sea: these swim, and go only after swimmers (a boat, a jetty or the shore is safe)
@@ -449,7 +478,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   puffball: { type: 'puffball', model: 'jelly', palette: { a: '#e2dac6', b: '#a89c84' }, scale: 1.2, name: 'Puffball', level: 23, hp: 280, damage: 24, speed: 2.6, aggro: 8, leash: 22, attack: 'slam', windup: 0.9, range: 3.0, cooldown: 2.3, xp: 250, loot: [{ item: 'grey_cap', chance: 0.4 }, { item: 'jelly_residue', chance: 0.5 }], marks: [5, 10], respawn: 120 },
   greyhog: { type: 'greyhog', model: 'boar', palette: { a: '#6e6a62', b: '#d0c8b6', c: '#a8a090' }, scale: 1.1, name: 'Grey hog', level: 24, hp: 340, damage: 28, speed: 4.4, aggro: 9, leash: 26, attack: 'charge', windup: 0.7, range: 6.5, cooldown: 2.4, xp: 300, loot: [{ item: 'boar_hide', chance: 0.6 }, { item: 'grey_cap', chance: 0.25 }], marks: [6, 12], respawn: 130 },
   gillcrab: { type: 'gillcrab', model: 'rustback', palette: { a: '#c8a890', b: '#e8d0b8' }, scale: 1.05, name: 'Gill crab', level: 21, hp: 300, damage: 25, speed: 3.6, aggro: 8, leash: 24, attack: 'charge', windup: 0.75, range: 7, cooldown: 2.4, xp: 260, loot: [{ item: 'crab_shell', chance: 0.7 }], marks: [5, 10], respawn: 120 },
-  greyabbot: { type: 'greyabbot', model: 'bandit', look: { skin: '#b4baae', tunic: '#2a221c', trim: '#c8b890', trousers: '#221a14', hat: 'hood', hatColor: '#2a221c', cape: '#1e1814', age: 0.95, build: 1.1, height: 1.08 }, held: 'none', scale: 1.15, name: 'Abbot Wystan', level: 28, hp: 1500, damage: 40, speed: 4.2, aggro: 13, leash: 24, attack: 'slam', windup: 0.8, range: 3.4, cooldown: 1.8, xp: 1400, elite: true, loot: [{ item: 'wystan_crook', chance: 1 }, { item: 'grey_cap', chance: 1, min: 2, max: 3 }], marks: [40, 60], respawn: 900 },  // Rares (data/wilds.ts): one to a region, turning up at its landmarks
+  greyabbot: { type: 'greyabbot', model: 'bandit', look: { skin: '#b4baae', tunic: '#2a221c', trim: '#c8b890', trousers: '#221a14', hat: 'hood', hatColor: '#2a221c', cape: '#1e1814', age: 0.95, build: 1.1, height: 1.08 }, held: 'none', scale: 1.15, name: 'Abbot Wystan', level: 28, hp: 1500, damage: 40, speed: 4.2, aggro: 13, leash: 24, attack: 'slam', windup: 0.8, range: 3.4, cooldown: 1.8, xp: 1400, elite: true, phases: [{ at: 0.6, mend: 0.15, say: 'The abbot kneels to pray, and the grey closes over his wounds.' }, { at: 0.35, summon: 'greybrother', n: 2 }], loot: [{ item: 'wystan_crook', chance: 1 }, { item: 'grey_cap', chance: 1, min: 2, max: 3 }], marks: [40, 60], respawn: 900 },  // Rares (data/wilds.ts): one to a region, turning up at its landmarks
   // The festivals' folk (data/seasons.ts): each one's boss and those who come ahead of it. They give
   // the festival's tokens and its bag, not gear
   jackalent: { type: 'jackalent', model: 'bandit', look: { skin: '#d8c890', tunic: '#c8a860', trim: '#8a6a3a', trousers: '#a88a50', boots: '#6a5030', hat: 'straw', build: 1.1 }, held: 'none', scale: 1.5, name: 'Jack-a-Lent', level: 14, hp: 1500, damage: 26, speed: 4.6, aggro: 14, leash: 26, attack: 'slam', windup: 0.8, range: 3.4, cooldown: 1.9, xp: 900, elite: true, loot: [], marks: [20, 30], respawn: 99999 },
@@ -460,7 +489,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   willight: { type: 'willight', model: 'jelly', palette: { a: '#f6e08a', b: '#e8a020', glow: true }, scale: 0.6, name: 'Will-light', level: 12, hp: 130, damage: 13, speed: 4.4, aggro: 12, leash: 26, attack: 'slam', windup: 0.7, range: 2.2, cooldown: 1.8, xp: 80, loot: [], marks: [1, 3], respawn: 99999 },
   cornwolf: { type: 'cornwolf', model: 'wolf', palette: { a: '#d8b050', b: '#8a6a2a', c: '#f0e0a0' }, scale: 2.0, name: 'The Corn Wolf', level: 14, hp: 1600, damage: 27, speed: 6.0, aggro: 14, leash: 28, attack: 'lunge', windup: 0.55, range: 3.4, cooldown: 1.5, xp: 900, elite: true, loot: [], marks: [20, 30], respawn: 99999 },
   cornwhelp: { type: 'cornwhelp', model: 'wolf', palette: { a: '#e0c060', b: '#8a6a2a', c: '#f0e0a0' }, scale: 0.85, name: 'Corn whelp', level: 12, hp: 160, damage: 15, speed: 6.0, aggro: 12, leash: 26, attack: 'lunge', windup: 0.5, range: 2.3, cooldown: 1.5, xp: 85, loot: [], marks: [1, 3], respawn: 99999 },
-  lanternman: { type: 'lanternman', model: 'bandit', look: { skin: '#3a3430', tunic: '#2a2a24', trim: '#5a4a3a', trousers: '#22201c', boots: '#141210', cape: '#1e1a16', hat: 'turnip', build: 0.9, height: 1.12 }, held: 'none', scale: 1.5, name: 'The Lantern Man', level: 14, hp: 1600, damage: 27, speed: 4.8, aggro: 15, leash: 26, attack: 'slam', windup: 0.8, range: 3.4, cooldown: 1.8, xp: 900, elite: true, loot: [], marks: [20, 30], respawn: 99999 },
+  lanternman: { type: 'lanternman', model: 'bandit', look: { skin: '#3a3430', tunic: '#2a2a24', trim: '#5a4a3a', trousers: '#22201c', boots: '#141210', cape: '#1e1a16', hat: 'turnip', build: 0.9, height: 1.12 }, held: 'none', scale: 1.5, name: 'The Lantern Man', level: 14, hp: 1600, damage: 27, speed: 4.8, aggro: 15, leash: 26, attack: 'slam', windup: 0.8, range: 3.4, cooldown: 1.8, xp: 900, elite: true, phases: [{ at: 0.6, storm: true, say: 'The Lantern Man\'s light swells until it hurts to look at.' }, { at: 0.3, summon: 'wisp', n: 3 }], loot: [], marks: [20, 30], respawn: 99999 },
   wisp: { type: 'wisp', model: 'jelly', palette: { a: '#ffb050', b: '#e8701a', glow: true }, scale: 0.55, name: 'Wisp', level: 12, hp: 130, damage: 13, speed: 4.6, aggro: 12, leash: 26, attack: 'slam', windup: 0.7, range: 2.2, cooldown: 1.8, xp: 80, loot: [], marks: [1, 3], respawn: 99999 },
   gander: { type: 'gander', model: 'duck', palette: { a: '#f4f2ec', b: '#e89030' }, scale: 3.4, name: 'Old Hissing Jack', level: 14, hp: 1500, damage: 25, speed: 5.4, aggro: 14, leash: 26, attack: 'charge', windup: 0.7, range: 7, cooldown: 2.2, xp: 900, elite: true, loot: [], marks: [20, 30], respawn: 99999 },
   fairgoose: { type: 'fairgoose', model: 'duck', palette: { a: '#ece8e0', b: '#e89030' }, scale: 1.5, name: 'Fair goose', level: 12, hp: 130, damage: 12, speed: 5.2, aggro: 10, leash: 24, attack: 'lunge', windup: 0.5, range: 2.0, cooldown: 1.5, xp: 75, loot: [], marks: [1, 3], respawn: 99999 },
@@ -493,7 +522,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   dg_wight: { type: 'dg_wight', model: 'bandit', look: { skin: '#c0c8c8', eyes: '#9fe8ff', tunic: '#22222a', trim: '#b8a878', trousers: '#1e1e24', boots: '#16161a', cape: '#1a1a22', hat: 'circlet', hatColor: '#8a8070', shoulderPads: '#4a4a52', age: 0.95, build: 1.05, height: 1.06 }, held: 'sword', level: 96, hp: 3550, damage: 115, xp: 1480, marks: [22, 40], name: 'Wight of the king\'s guard', speed: 4.8, aggro: 14, leash: 60, attack: 'lunge', windup: 0.55, range: 2.9, cooldown: 1.5, loot: [{ item: 'grave_iron', chance: 0.7 }], respawn: 99999 },
   dg_venn: { type: 'dg_venn', model: 'bandit', look: { skin: '#b88a68', hair: '#3a2e24', hairStyle: 3, facial: 6, tunic: '#5a3a2a', trim: '#c8a050', trousers: '#3a3026', boots: '#2a2018', hat: 'wide', hatColor: '#2a2018', build: 1.3, height: 1.06 }, held: 'hammer', scale: 1.3, level: 95, hp: 33810, damage: 142, xp: 9980, marks: [134, 202], name: 'Garrow Venn', speed: 4.8, aggro: 15, leash: 40, attack: 'lunge', windup: 0.7, range: 3.4, cooldown: 1.9, elite: true, loot: [{ item: 'black_shard', chance: 1, min: 3, max: 3 }], respawn: 99999 },
   dg_barrowwarden: { type: 'dg_barrowwarden', model: 'bandit', look: { ...{ skin: '#c0c8c8', eyes: '#9fe8ff', tunic: '#22222a', trim: '#b8a878', trousers: '#1e1e24', boots: '#16161a', cape: '#1a1a22', hat: 'circlet', hatColor: '#8a8070', shoulderPads: '#4a4a52', age: 0.95, build: 1.05, height: 1.06 }, cape: '#2a2a40', hatColor: '#b8a878', build: 1.2, height: 1.1 }, held: 'sword', scale: 1.6, level: 96, hp: 38200, damage: 143, xp: 12500, marks: [140, 210], name: 'The Barrow-warden', speed: 4.4, aggro: 15, leash: 40, attack: 'slam', windup: 1.0, range: 4.4, cooldown: 2.4, elite: true, loot: [{ item: 'grave_iron', chance: 1, min: 4, max: 4 }], respawn: 99999 },
-  dg_oldking: { type: 'dg_oldking', model: 'bandit', look: { skin: '#b8c4c4', hair: '#d8d8d0', hairStyle: 4, facial: 8, eyes: '#9fe8ff', tunic: '#1e1e24', trim: '#d8b050', trousers: '#1a1a20', boots: '#141418', cape: '#2a2a40', hat: 'circlet', hatColor: '#d8b050', shoulderPads: '#3a3a44', age: 1, build: 1.3, height: 1.1 }, held: 'sword', scale: 2.3, level: 97, hp: 54060, damage: 152, xp: 16980, marks: [150, 230], name: 'The Old King', speed: 4.2, aggro: 16, leash: 50, attack: 'slam', windup: 1.0, range: 5, cooldown: 2.3, elite: true, loot: [{ item: 'grave_iron', chance: 1, min: 4, max: 4 }, { item: 'troll_hide', chance: 1 }], respawn: 99999 },
+  dg_oldking: { type: 'dg_oldking', model: 'bandit', look: { skin: '#b8c4c4', hair: '#d8d8d0', hairStyle: 4, facial: 8, eyes: '#9fe8ff', tunic: '#1e1e24', trim: '#d8b050', trousers: '#1a1a20', boots: '#141418', cape: '#2a2a40', hat: 'circlet', hatColor: '#d8b050', shoulderPads: '#3a3a44', age: 1, build: 1.3, height: 1.1 }, held: 'sword', scale: 2.3, level: 97, hp: 54060, damage: 152, xp: 16980, marks: [150, 230], name: 'The Old King', speed: 4.2, aggro: 16, leash: 50, attack: 'slam', windup: 1.0, range: 5, cooldown: 2.3, elite: true, phases: [{ at: 0.7, summon: 'dg_barrowdead', n: 3, say: 'The old king calls his household up out of the floor.' }, { at: 0.5, storm: true }, { at: 0.3, mend: 0.1 }], loot: [{ item: 'grave_iron', chance: 1, min: 4, max: 4 }, { item: 'troll_hide', chance: 1 }], respawn: 99999 },
   // Morrow (world/morrow.ts): written at their regions' levels, south to north. The Keys: mangrove
   // crabs, key lizards and reef jellies, and wreckers who don't fly the Brethren's colours. The Glades:
   // sawgrass lizards, the glims that light the water at night, marsh moths. The Amberwold: lamp-moths
@@ -530,7 +559,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   rimewight: { type: 'rimewight', model: 'bandit', look: { skin: '#c8dce8', eyes: '#c8f6ff', tunic: '#d8e4ec', trim: '#8aa4b8', trousers: '#9ab0c0', boots: '#6a7a88', hat: 'hood', hatColor: '#e2ecf2', age: 0.9, build: 0.95 }, held: 'none', level: 45, hp: 1150, damage: 50, xp: 640, marks: [12, 22], name: 'Rimewight', speed: 3.6, aggro: 12, leash: 28, attack: 'lunge', windup: 0.7, range: 2.6, cooldown: 1.8, loot: [{ item: 'rime_shard', chance: 0.6 }, { item: 'frost_cowl', chance: 0.03 }], respawn: 130 },
   icewolf: { type: 'icewolf', model: 'wolf', palette: { a: '#e8f2fa', b: '#a8c4d8', c: '#bff0ff' }, scale: 1.4, name: 'Ice wolf', level: 43, hp: 980, damage: 46, speed: 6.8, aggro: 15, leash: 36, attack: 'lunge', windup: 0.45, range: 3.2, cooldown: 1.3, xp: 580, loot: [{ item: 'frost_pelt', chance: 0.7 }, { item: 'frost_cowl', chance: 0.03 }], marks: [11, 20], respawn: 130 },
   // Side stories' own (data/content/sickleSide.ts): Alf Ellery, two winters in the ice, and the bear that came for Pip
-  glassmother: { type: 'glassmother', model: 'dragon', palette: { a: '#2a2420', b: '#c87a3a', c: '#ffb040' }, scale: 5.2, name: 'The Glassmother', level: 80, hp: 26000, damage: 118, speed: 4.6, aggro: 30, leash: 70, attack: 'throw', blast: 4.2, shot: '#ffa030', windup: 1.3, range: 24, cooldown: 2.4, xp: 9000, elite: true, loot: [{ item: 'drake_scale', chance: 1, min: 5, max: 7 }, { item: 'black_glass', chance: 1, min: 3, max: 4 }], marks: [160, 240], respawn: 99999 },
+  glassmother: { type: 'glassmother', model: 'dragon', palette: { a: '#2a2420', b: '#c87a3a', c: '#ffb040' }, scale: 5.2, name: 'The Glassmother', level: 80, hp: 26000, damage: 118, speed: 4.6, aggro: 30, leash: 70, attack: 'throw', blast: 4.2, shot: '#ffa030', windup: 1.3, range: 24, cooldown: 2.4, xp: 9000, elite: true, phases: [{ at: 0.75, summon: 'shardjelly', n: 3, say: 'Shards fall from the Glassmother and stand up.' }, { at: 0.5, storm: true }, { at: 0.25, summon: 'shardjelly', n: 4 }], loot: [{ item: 'drake_scale', chance: 1, min: 5, max: 7 }, { item: 'black_glass', chance: 1, min: 3, max: 4 }], marks: [160, 240], respawn: 99999 },
   revenueman: { type: 'revenueman', model: 'bandit', look: { skin: '#d8a878', eyes: '#3a2a1a', tunic: '#e8e2d4', trim: '#2a2a30', trousers: '#2a2a30', boots: '#1a1612', hat: 'cap', hatColor: '#1a1a20', age: 0.35, build: 1.05 }, held: 'sword', level: 45, hp: 1100, damage: 50, xp: 620, marks: [12, 22], name: 'Revenue marine', speed: 4.2, aggro: 14, leash: 30, attack: 'lunge', windup: 0.6, range: 2.6, cooldown: 1.6, loot: [{ item: 'brethren_rum', chance: 0.2 }], respawn: 99999 },
   revenuelt: { type: 'revenuelt', model: 'bandit', look: { skin: '#d8a878', eyes: '#2a3a4a', tunic: '#e8e2d4', trim: '#c8a050', trousers: '#2a2a30', boots: '#1a1612', cape: '#1a1a20', hat: 'tricorn', hatColor: '#1a1a20', age: 0.45, build: 1.1 }, held: 'sword', scale: 1.15, level: 48, hp: 5200, damage: 70, xp: 1900, marks: [50, 80], name: 'Lieutenant Arnau Sabat', speed: 4.4, aggro: 16, leash: 34, attack: 'lunge', windup: 0.55, range: 2.8, cooldown: 1.4, elite: true, loot: [{ item: 'brethren_rum', chance: 1 }], respawn: 99999 },
   alfwight: { type: 'alfwight', model: 'bandit', look: { skin: '#c8dce8', eyes: '#c8f6ff', tunic: '#5a4a3a', trim: '#8a7a5a', trousers: '#3a3028', boots: '#2a1e14', hat: 'cap', hatColor: '#2a2a30', beard: true, age: 0.5, build: 1.2 }, held: 'sword', level: 46, hp: 1600, damage: 54, xp: 720, marks: [14, 24], name: 'Alf Ellery', speed: 3.6, aggro: 12, leash: 24, attack: 'lunge', windup: 0.7, range: 2.8, cooldown: 1.8, loot: [{ item: 'rime_shard', chance: 1 }], respawn: 99999 },
@@ -538,7 +567,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   icebear: { type: 'icebear', model: 'bear', palette: { a: '#f2f4f0', b: '#d8dcd4', c: '#2a2a2e' }, scale: 1.55, name: 'Ice bear', level: 47, hp: 1500, damage: 58, speed: 5, aggro: 11, leash: 30, attack: 'slam', windup: 0.85, range: 3.4, cooldown: 2.4, xp: 760, loot: [{ item: 'bear_pelt', chance: 0.8 }, { item: 'frost_pelt', chance: 0.5 }], marks: [14, 24], respawn: 160 },
   fellcairn: { type: 'fellcairn', model: 'golem', palette: { a: '#b8c8d4', b: '#f0f6fa', c: '#c8f6ff' }, scale: 1.2, name: 'Fell cairn', level: 48, hp: 1700, damage: 60, speed: 2.8, aggro: 8, leash: 22, attack: 'slam', windup: 1.0, range: 3.6, cooldown: 2.8, xp: 800, loot: [{ item: 'cairn_stone', chance: 0.6 }, { item: 'rime_shard', chance: 0.4 }], marks: [14, 24], respawn: 170 },
   ringer: { type: 'ringer', model: 'bandit', look: { ...{ skin: '#c8dce8', eyes: '#c8f6ff', tunic: '#d8e4ec', trim: '#8aa4b8', trousers: '#9ab0c0', boots: '#6a7a88', hat: 'hood', hatColor: '#e2ecf2', age: 0.9, build: 0.95 }, hat: 'none', hair: '#dfe8ee', cape: '#9ab0c0', height: 1.08 }, held: 'hammer', scale: 1.35, level: 50, hp: 7200, damage: 82, xp: 2600, marks: [60, 90], name: 'The Ringer', speed: 3.4, aggro: 16, leash: 22, attack: 'slam', windup: 0.9, range: 3.4, cooldown: 2.2, elite: true, loot: [{ item: 'rime_shard', chance: 1, min: 3, max: 4 }, { item: 'frost_cowl', chance: 0.25 }], respawn: 900 },
-  greymeg: { type: 'greymeg', model: 'wolf', palette: { a: '#9aa8b4', b: '#5a6874', c: '#bff0ff' }, scale: 2.4, name: 'Grey Meg', level: 49, hp: 5600, damage: 70, speed: 6.4, aggro: 16, leash: 26, attack: 'lunge', windup: 0.6, range: 4, cooldown: 1.6, xp: 2000, elite: true, loot: [{ item: 'frost_pelt', chance: 1, min: 3, max: 3 }, { item: 'frost_cowl', chance: 0.3 }], marks: [40, 70], respawn: 600 },
+  greymeg: { type: 'greymeg', model: 'wolf', palette: { a: '#9aa8b4', b: '#5a6874', c: '#bff0ff' }, scale: 2.4, name: 'Grey Meg', level: 49, hp: 5600, damage: 70, speed: 6.4, aggro: 16, leash: 26, attack: 'lunge', windup: 0.6, range: 4, cooldown: 1.6, xp: 2000, elite: true, phases: [{ at: 0.66, summon: 'icewolf', n: 2, say: 'Grey Meg whistles. Something answers from out on the ice.' }, { at: 0.4, mend: 0.12, say: 'Grey Meg draws the cold in around her.' }], loot: [{ item: 'frost_pelt', chance: 1, min: 3, max: 3 }, { item: 'frost_cowl', chance: 0.3 }], marks: [40, 70], respawn: 600 },
   leatherwing: { type: 'leatherwing', model: 'bat', palette: { a: '#3a302a', b: '#241c18', c: '#ffb040' }, scale: 1.9, name: 'Old Leatherwing', level: 16, hp: 900, damage: 22, speed: 5.4, aggro: 14, leash: 26, attack: 'lunge', windup: 0.6, range: 3, cooldown: 1.5, xp: 420, elite: true, loot: [{ item: 'bat_wing', chance: 1, min: 2, max: 3 }, { item: 'oilskin_hat', chance: 0.12 }], marks: [10, 18], respawn: 300 },
   // The wilds' heavier and stranger kinds (entities/voxcreatures.ts): one or two to each country, in its level
   heathadder: { type: 'heathadder', model: 'adder', palette: { a: '#8a7a4a', b: '#2a2218', c: '#d8c890' }, scale: 0.7, name: 'Heath adder', level: 5, hp: 80, damage: 10, speed: 3.6, aggro: 8, leash: 24, attack: 'lunge', windup: 0.6, range: 2.6, cooldown: 1.8, xp: 48, loot: [{ item: 'adder_skin', chance: 0.5 }], marks: [1, 4], respawn: 100 },
@@ -563,6 +592,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   flatsdrake: { type: 'flatsdrake', model: 'drake', palette: { a: '#8a5a3a', b: '#e0c08a', c: '#ff8a30' }, level: 77, hp: 2200, damage: 76, xp: 1200, marks: [16, 28], name: 'Flats drake', speed: 4.8, aggro: 13, leash: 30, attack: 'throw', blast: 2.0, shot: '#ff8a30', windup: 1.0, range: 12, cooldown: 2.6, loot: [{ item: 'drake_scale', chance: 0.6 }, { item: 'black_glass', chance: 0.2 }], respawn: 150 },
   barrowspider: { type: 'barrowspider', model: 'spider', palette: { a: '#2a2a2e', b: '#b8b8a8', c: '#9fe8ff', glow: true }, scale: 1.25, level: 84, hp: 1700, damage: 82, xp: 1050, marks: [17, 30], name: 'Barrow spider', speed: 5.4, aggro: 13, leash: 30, attack: 'lunge', windup: 0.5, range: 3, cooldown: 1.5, loot: [{ item: 'spider_silk', chance: 0.7 }, { item: 'grave_iron', chance: 0.15 }], respawn: 130 },
   cavebear: { type: 'cavebear', model: 'bear', palette: { a: '#4a3a30', b: '#2e241e', c: '#7a6a58' }, scale: 1.35, level: 94, hp: 3400, damage: 92, xp: 1500, marks: [18, 32], name: 'Cave bear', speed: 5, aggro: 11, leash: 30, attack: 'slam', windup: 0.85, range: 3.4, cooldown: 2.4, loot: [{ item: 'bear_pelt', chance: 1 }, { item: 'bear_pelt', chance: 0.4 }], respawn: 160 },
+  ...FOE_KINDS,
 };
 
 /** Which creatures turn up where in the streamed regions. */
@@ -591,6 +621,14 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
   greywaste: { enemies: ['wastehound', 'risen', 'fendamp', 'risen', 'barrowspider'], animals: ['rabbit'], sea: ['blueshark', 'porbeagle'] },
   held: { enemies: ['barrowwight', 'risen', 'barrowwight', 'felltroll', 'cavebear'], animals: ['deer'], sea: ['blueshark'] },
 };
+// Every region's new kind (data/foeKinds.ts) about one spawn in six: short tables are filled out with what
+// they have first, so a starting region isn't a third wolf-wives
+for (const [type, region] of Object.entries(FOE_KIND_REGION) as [FoeKindType, RegionId][]) {
+  const t = REGION_SPAWNS[region].enemies;
+  while (t.length < 5) t.push(t[t.length % Math.max(1, t.length)]);
+  t.push(type);
+}
+
 
 export const ENEMY_SPAWNS: { type: EnemyType; x: number; z: number }[] = [
   // Haverwood
