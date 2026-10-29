@@ -136,6 +136,9 @@ function wakeLanterns(site: Site, put: (g: THREE.Object3D, x: number, y: number,
   }
 }
 
+/** Sites whose carts carry ore: the works, the mines and pits, the quarries. */
+const ORE_SITES = /harrowgate|northgate|tenwells|works|mine|pit|quarry|delve|clinker|seam/;
+
 export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: number }, glowMat: THREE.SpriteMaterial): BuiltSite {
   const batch = new P.Batcher();
   const group = new THREE.Group();
@@ -201,14 +204,14 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'tent': place(P.tent(M, d.color ?? '#8a6a3a'), d.x, d.y, d.z, d.ry); break;
       case 'headframe': place(P.mineHeadframe(M, d.text ?? 'HARROWGATE WORKS\nNo. 1 Drift'), d.x, d.y, d.z, d.ry); break;
       case 'reekhearth': place(P.reekHearth(M), d.x, d.y, d.z, d.ry); break;
-      case 'cart': place(P.cart(M), d.x, d.y, d.z, d.ry); break;
+      case 'cart': place(ORE_SITES.test(site.id) || site.act ? P.cart(M) : P.cart(M, false, h3(d.x, d.z, 51)), d.x, d.y, d.z, d.ry); break;
       case 'bench': place(P.bench(M, 1.6, d.tint === -1 ? Math.floor(h3(d.x, d.z, 41) * 5) : 0), d.x, d.y, d.z, d.ry); break;
       case 'windowBox': place(P.windowBox(M, h3(d.x, d.z, 47)), d.x, d.y, d.z, d.ry); break;
       case 'shopSign': place(P.shopSign(M, d.color ?? '#2f528f', d.tint ?? 0), d.x, d.y, d.z, d.ry); break;
       case 'awning': place(P.awning(M, d.color ?? '#a8382c', d.len ?? 2.4), d.x, d.y, d.z, d.ry); break;
       case 'planter': place(P.planter(M, d.tint ?? 0, h3(d.x, d.z, 43)), d.x, d.y, d.z, d.ry); break;
-      case 'washLine': place(P.washLine(M, d.len ?? 4), d.x, d.y, d.z, d.ry); break;
-      case 'woodpile': place(P.woodpile(M, d.len ?? 2), d.x, d.y, d.z, d.ry); break;
+      case 'washLine': place(P.washLine(M, d.len ?? 4, h3(d.x, d.z, 53)), d.x, d.y, d.z, d.ry); break;
+      case 'woodpile': place(P.woodpile(M, d.len ?? 2, h3(d.x, d.z, 55)), d.x, d.y, d.z, d.ry); break;
       case 'statue': place(P.statue(M), d.x, d.y, d.z, d.ry); break;
       case 'monument': place(P.monument(M, MONUMENTS.find((m) => m.id === d.monument)?.model ?? ''), d.x, d.y, d.z, d.ry); break;
       case 'pump': place(P.pump(M, d.tint), d.x, d.y, d.z, d.ry); break;
@@ -216,7 +219,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'wellhead': place(P.wellhead(M), d.x, d.y, d.z, d.ry); break;
       case 'ringSeat': place(P.ringSeat(M), d.x, d.y, d.z, d.ry); break;
       case 'roll': place(P.rollBoard(M, d.text ?? '', d.len ?? 3.2), d.x, d.y, d.z, d.ry); break;
-      case 'netRack': place(P.netRack(M, d.len ?? 3), d.x, d.y, d.z, d.ry); break;
+      case 'netRack': place(P.netRack(M, d.len ?? 3, h3(d.x, d.z, 57)), d.x, d.y, d.z, d.ry); break;
       case 'bollard': place(P.bollard(M), d.x, d.y, d.z, d.ry); break;
       case 'fishBox': place(P.fishBox(M), d.x, d.y, d.z, d.ry); break;
       case 'vineRow': place(P.vineRow(M, d.len ?? 12, d.tint === 1, d.tint === 2), d.x, d.y, d.z, d.ry); break;
@@ -228,7 +231,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'hideFrame': place(P.hideFrame(M), d.x, d.y, d.z, d.ry); break;
       case 'potStill': place(P.potStill(M), d.x, d.y, d.z, d.ry); break;
       case 'crane': place(P.dockCrane(M), d.x, d.y, d.z, d.ry); break;
-      case 'lobsterPots': place(P.lobsterPots(M), d.x, d.y, d.z, d.ry); break;
+      case 'lobsterPots': place(P.lobsterPots(M, h3(d.x, d.z, 59)), d.x, d.y, d.z, d.ry); break;
       case 'beehive': place(P.beehive(M), d.x, d.y, d.z, d.ry); break;
       case 'doorstep': place(P.doorstep(M), d.x, d.y, d.z, d.ry); break;
       case 'postBox': place(P.postBox(M), d.x, d.y, d.z, d.ry); break;

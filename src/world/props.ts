@@ -733,8 +733,33 @@ export function noticeBoard(M: PropMaterials): THREE.Group {
 }
 
 /** A mine cart, running along its length (z) like rails(): set on a track with the same turn, its wheels sit on the rails. */
-export function cart(M: PropMaterials, ore = true): THREE.Group {
+/** A repeatable 0..1 from a seed and a key: the street kit's way of making each piece its own. */
+function seeded(seed: number, k: number): number { const v = Math.sin((seed * 733 + k * 91.3) * 12.9898) * 43758.5453; return v - Math.floor(v); }
+
+/**
+ * A hand cart. With ore (the mines', the works') it's heaped with rock; given a seed instead it
+ * carries whatever its owner left in it: sacks, a load of hay, barrels, turnips, cut logs, or
+ * nothing, and some stand tipped back on their handles.
+ */
+export function cart(M: PropMaterials, ore = true, seed = -1): THREE.Group {
   const g = new THREE.Group();
+  if (!ore && seed >= 0) {
+    const r = (k: number) => seeded(seed, k), tipped = r(1) < 0.3;
+    const body = new THREE.Group(); g.add(body);
+    body.add(mesh(box(0.9, 0.12, 1.5), M.wood, 0, 0.62, 0));
+    for (const k of [-1, 1]) body.add(mesh(box(0.06, 0.3, 1.5), M.darkWood, k * 0.45, 0.82, 0));
+    body.add(mesh(box(0.9, 0.3, 0.06), M.darkWood, 0, 0.82, -0.74));
+    for (const k of [-1, 1]) body.add(mesh(box(0.07, 0.07, 1.1), M.darkWood, k * 0.32, 0.62, 1.2));      // the handles
+    for (const k of [-1, 1]) g.add(mesh(cyl(0.42, 0.42, 0.08, 12), M.darkWood, k * 0.52, 0.42, -0.1, 0, 0, Math.PI / 2));
+    const load = Math.floor(r(2) * 6), top = 0.7;
+    if (load === 0) for (let i = 0; i < 4; i++) body.add(mesh(box(0.36, 0.3, 0.5), flat(r(10 + i) < 0.5 ? '#c8b48a' : '#b8a074'), (i % 2 - 0.5) * 0.4, top + 0.16, (Math.floor(i / 2) - 0.5) * 0.6, r(20 + i) - 0.5)); // sacks
+    else if (load === 1) body.add(mesh(box(0.84, 0.5, 1.3), M.thatch, 0, top + 0.26, 0, 0, 0.04));                   // hay
+    else if (load === 2) for (let i = 0; i < 2; i++) body.add(mesh(cyl(0.24, 0.24, 0.56, 10), M.wood, 0, top + 0.28, (i - 0.5) * 0.62)); // barrels
+    else if (load === 3) for (let i = 0; i < 9; i++) body.add(mesh(box(0.16, 0.14, 0.16), flat(r(30 + i) < 0.5 ? '#e8d8c8' : '#9a5a8a'), (r(40 + i) - 0.5) * 0.7, top + 0.08 + r(50 + i) * 0.1, (r(60 + i) - 0.5) * 1.2)); // turnips
+    else if (load === 4) for (let i = 0; i < 5; i++) { const lg = mesh(cyl(0.11, 0.11, 1.3, 6), M.bark, -0.3 + i * 0.15, top + 0.12 + (i % 2) * 0.1, 0); lg.rotation.set(Math.PI / 2, 0, 0); body.add(lg); }
+    if (tipped) { body.rotation.x = -0.32; body.position.y = 0.32; } // back on its handles, out of the way
+    return g;
+  }
   g.add(mesh(box(0.6, 0.55, 1.0), M.wood, 0, 0.6, 0));
   g.add(mesh(box(0.64, 0.08, 1.04), M.iron, 0, 0.86, 0));
   for (const x of [-0.34, 0.34]) for (const z of [-0.32, 0.32]) g.add(mesh(cyl(0.17, 0.17, 0.08, 10), M.iron, x, 0.22, z, 0, 0, Math.PI / 2));
@@ -1481,30 +1506,62 @@ export function stringLights(M: PropMaterials, len: number, sag = 0.4): THREE.Gr
 }
 
 /** A washing line between two posts, len long, with the day's wash pegged out on it. */
-export function washLine(M: PropMaterials, len = 4): THREE.Group {
+/** A line of washing between two posts. The seed (0..1, from where it hangs) is whose washing it is. */
+export function washLine(M: PropMaterials, len = 4, seed = 0): THREE.Group {
   const g = new THREE.Group();
+  const r = (k: number) => seeded(seed, k);
   for (const k of [-1, 1]) { g.add(mesh(box(0.1, 2.1, 0.1), M.darkWood, k * len / 2, 1.05, 0)); g.add(mesh(box(0.08, 0.08, 0.4), M.darkWood, k * len / 2, 2.0, 0)); }
   g.add(mesh(box(len, 0.02, 0.02), M.rope, 0, 1.96, 0));
-  const cloths = ['#f4f0e4', '#7a2a24', '#3a5a8a', '#e8dcc0', '#5a7a3a', '#c8a050'];
-  let x = -len / 2 + 0.35;
+  const cloths = ['#f4f0e4', '#7a2a24', '#3a5a8a', '#e8dcc0', '#5a7a3a', '#c8a050', '#4a3a5a', '#d8c0b0', '#2a3a4a', '#a8582a'];
+  let x = -len / 2 + 0.35 + r(1) * 0.4;
   for (let i = 0; x < len / 2 - 0.4; i++) {
-    const w = 0.4 + ((i * 37) % 5) * 0.08, h = 0.45 + ((i * 53) % 4) * 0.12;
-    g.add(mesh(box(w, h, 0.02), flat(cloths[i % cloths.length], { side: THREE.DoubleSide }), x + w / 2, 1.94 - h / 2, 0));
-    x += w + 0.12;
+    const w = 0.3 + r(10 + i) * 0.45, h = 0.35 + r(30 + i) * 0.6;
+    if (r(50 + i) > 0.82) { x += w + 0.3; continue; } // a gap where something's been taken in
+    const c = flat(cloths[Math.floor(r(70 + i) * cloths.length)], { side: THREE.DoubleSide });
+    if (r(90 + i) < 0.25) { // a shirt, its arms out
+      g.add(mesh(box(w, h * 0.8, 0.02), c, x + w / 2, 1.94 - h * 0.4, 0));
+      g.add(mesh(box(w + 0.36, 0.16, 0.02), c, x + w / 2, 1.86, 0));
+    } else g.add(mesh(box(w, h, 0.02), c, x + w / 2, 1.94 - h / 2, 0));
+    g.add(mesh(box(0.03, 0.06, 0.04), M.wood, x + 0.05, 1.96, 0)); // pegs
+    g.add(mesh(box(0.03, 0.06, 0.04), M.wood, x + w - 0.05, 1.96, 0));
+    x += w + 0.08 + r(110 + i) * 0.2;
   }
   return g;
 }
 
 /** Split logs stacked against a wall under a lean-to of boards. */
-export function woodpile(M: PropMaterials, len = 2): THREE.Group {
+/**
+ * Split logs stacked against a wall under a lean-to of boards. With a seed (0..1, from where it
+ * stands) each household's is its own: burned down to a row or two or stacked to the roof, under
+ * boards, slates, an old sail or nothing, and some with the chopping block and its axe beside it
+ * or a bundle of kindling.
+ */
+export function woodpile(M: PropMaterials, len = 2, seed = -1): THREE.Group {
   const g = new THREE.Group();
-  const logs = Math.max(3, Math.round(len / 0.28));
-  for (let row = 0; row < 4; row++) for (let i = 0; i < logs - (row % 2); i++) {
+  const r = (k: number) => seed < 0 ? 0.5 : seeded(seed, k);
+  const logs = Math.max(3, Math.round(len / 0.28)), rows = seed < 0 ? 4 : 1 + Math.floor(r(1) * 4.99);
+  for (let row = 0; row < rows; row++) for (let i = 0; i < logs - (row % 2); i++) {
+    if (row === rows - 1 && seed >= 0 && r(10 + i) < 0.25) continue; // the top row half taken
     const m = mesh(cyl(0.13, 0.13, 0.8, 6), (i + row) % 3 ? M.bark : M.wood, -len / 2 + 0.15 + i * 0.27 + (row % 2) * 0.13, 0.13 + row * 0.24, 0.2, 0, 0, Math.PI / 2);
     m.rotation.set(Math.PI / 2, 0, 0);
     g.add(m);
   }
-  g.add(mesh(box(len + 0.3, 0.06, 0.9), M.darkWood, 0, 1.2, 0.22, 0, 0.2));
+  const roof = seed < 0 ? 0 : Math.floor(r(2) * 4);
+  const rise = 0.04 + Math.max(4, rows) * 0.24;
+  if (roof === 0) g.add(mesh(box(len + 0.3, 0.06, 0.9), M.darkWood, 0, rise, 0.22, 0, 0.2));
+  else if (roof === 1) g.add(mesh(box(len + 0.3, 0.08, 0.9), M.roofSlate, 0, rise, 0.22, 0, 0.2));
+  else if (roof === 2) g.add(mesh(box(len + 0.1, 0.03, 0.8), flat('#c8bca0', { side: THREE.DoubleSide }), 0, 0.2 + rows * 0.24, 0.24, 0, 0.12, 0.03)); // an old sail thrown over
+  if (seed >= 0 && r(3) < 0.35) {
+    // The chopping block, the axe left in it, chips round it
+    const bx = (r(4) < 0.5 ? -1 : 1) * (len / 2 + 0.5);
+    g.add(mesh(cyl(0.26, 0.28, 0.5, 9), M.bark, bx, 0.25, 0.5));
+    g.add(mesh(box(0.05, 0.5, 0.05), M.wood, bx + 0.05, 0.72, 0.5, 0, 0, 0.5));
+    g.add(mesh(box(0.2, 0.12, 0.04), M.iron, bx - 0.04, 0.53, 0.5, 0, 0, 0.5));
+    for (let i = 0; i < 5; i++) g.add(mesh(box(0.08, 0.02, 0.05), M.wood, bx + (r(20 + i) - 0.5) * 0.9, 0.01, 0.5 + (r(30 + i) - 0.5) * 0.8, r(40 + i) * 3));
+  } else if (seed >= 0 && r(3) < 0.55) {
+    // A bundle of kindling tied with twine
+    for (let i = 0; i < 6; i++) { const k = mesh(box(0.04, 0.04, 0.7), M.wood, len / 2 + 0.35 + (i % 3) * 0.05, 0.05 + Math.floor(i / 3) * 0.05, 0.5); k.rotation.y = 0.6; g.add(k); }
+  }
   return g;
 }
 
@@ -1854,22 +1911,31 @@ export function ringSeat(M: PropMaterials): THREE.Group {
   return g;
 }
 
-/** A rack of nets hung out to dry between two posts, len long, floats along the top. */
-export function netRack(M: PropMaterials, len = 3): THREE.Group {
+/** A rack of nets hung out to dry between two posts, len long, floats along the top. Each boat's floats are its own colours (seed). */
+export function netRack(M: PropMaterials, len = 3, seed = 0): THREE.Group {
   const g = new THREE.Group();
+  const r = (k: number) => seeded(seed, k);
   for (const k of [-1, 1]) g.add(mesh(box(0.12, 2, 0.12), M.darkWood, k * len / 2, 1, 0));
   g.add(mesh(box(len + 0.2, 0.1, 0.1), M.darkWood, 0, 1.95, 0));
-  const net = flat('#6a7a6a', { transparent: true, opacity: 0.75, side: THREE.DoubleSide });
-  g.add(mesh(box(len - 0.1, 1.5, 0.02), net, 0, 1.18, 0));
-  for (let i = 0; i < Math.round(len / 0.4); i++) g.add(mesh(box(0.14, 0.1, 0.14), flat(i % 2 ? '#c8402a' : '#e8dcc0'), -len / 2 + 0.3 + i * 0.4, 1.86, 0.06));
+  const net = flat(['#6a7a6a', '#5a6a7a', '#7a6a4a', '#4a5a4a'][Math.floor(r(1) * 4)], { transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+  const drop = 1.0 + r(2) * 0.6;
+  g.add(mesh(box(len - 0.1, drop, 0.02), net, 0, 1.93 - drop / 2, 0));
+  if (r(3) < 0.4) g.add(mesh(box(0.6 + r(4) * 0.6, 0.5, 0.02), net, (r(5) - 0.5) * len * 0.6, 1.93 - drop - 0.2, 0.02, 0, 0, (r(6) - 0.5) * 0.4)); // a torn piece hanging lower, waiting on the mending
+  const pairs = [['#c8402a', '#e8dcc0'], ['#2a5a9a', '#e8dcc0'], ['#e8c040', '#3a3a3a'], ['#3a7a3a', '#e8dcc0'], ['#e87a2a', '#e8e8e0']];
+  const pr = pairs[Math.floor(r(7) * pairs.length)];
+  for (let i = 0; i < Math.round(len / 0.4); i++) g.add(mesh(box(0.14, 0.1, 0.14), flat(pr[i % 2]), -len / 2 + 0.3 + i * 0.4, 1.86, 0.06));
   return g;
 }
 
-/** Lobster pots stacked on the quay: willow cages with their rope. */
-export function lobsterPots(M: PropMaterials): THREE.Group {
+/** Lobster pots stacked on the quay, as many as the boat owns (seed), willow cages with their rope and a buoy or two. */
+export function lobsterPots(M: PropMaterials, seed = 0): THREE.Group {
   const g = new THREE.Group();
-  const cage = flat('#7a5a32');
-  for (const [x, y, z, r] of [[-0.35, 0.22, 0, 0], [0.35, 0.22, 0.05, 0.3], [0, 0.66, 0.02, 0.15], [0.1, 0.22, -0.6, -0.2]] as const) {
+  const rr = (k: number) => seeded(seed, k);
+  const cage = flat(rr(1) < 0.5 ? '#7a5a32' : '#8a6a3a');
+  const spots = [[-0.35, 0.22, 0, 0], [0.35, 0.22, 0.05, 0.3], [0, 0.66, 0.02, 0.15], [0.1, 0.22, -0.6, -0.2], [-0.5, 0.22, -0.55, 0.5], [-0.15, 1.1, 0.0, -0.3]] as const;
+  const n = 2 + Math.floor(rr(2) * 4.99);
+  if (rr(3) < 0.5) g.add(mesh(box(0.22, 0.3, 0.22), flat(['#c8402a', '#e8c040', '#2a5a9a'][Math.floor(rr(4) * 3)]), 0.75, 0.15, 0.3)); // a buoy, the boat's colour
+  for (const [x, y, z, r] of spots.slice(0, n)) {
     const pot = new THREE.Group();
     pot.add(mesh(box(0.6, 0.06, 0.5), cage, 0, -0.18, 0));
     for (const k of [-0.25, 0, 0.25]) pot.add(mesh(box(0.05, 0.04, 0.52), cage, k, 0.2, 0, 0, 0, 0));
@@ -1877,7 +1943,7 @@ export function lobsterPots(M: PropMaterials): THREE.Group {
     pot.position.set(x, y, z); pot.rotation.y = r;
     g.add(pot);
   }
-  g.add(mesh(cyl(0.18, 0.18, 0.14, 8), M.rope, 0.6, 0.07, -0.5));
+  if (rr(5) < 0.6) g.add(mesh(cyl(0.18, 0.18, 0.14, 8), M.rope, 0.6, 0.07, -0.5));
   return g;
 }
 
