@@ -8,7 +8,7 @@ import { KB_CAMP, KB_FLOOR, KB_HALLS } from '../../world/morrow';
 // KINGSBARROW, the old king's city of the dead in the Held (world/sites.ts buildKingsbarrow, and the
 // group dungeon under it, buildKingsHalls / data/dungeons.ts gd-kingsbarrow).
 //
-// THE THIRD DAUGHTER, chapter XXI, The King's Black, and the ending. Ebba Thorne walked out of the
+// THE THIRD DAUGHTER, chapter XXI, The King's Black, and the ending. Ebba Platt walked out of the
 // dig when they broke into the king's hall. Down there: Garrow Venn's diggers, the king's guard,
 // the old king on his bier, and Aubrey Pryce with a lamp. When the king lies still again, Pryce is
 // waiting, and he leaves it to the player:
@@ -31,9 +31,9 @@ const by = <T>(g: GameApi, v: Record<End, T>): T => v[end(g) ?? 'hold'];
 const ebba: DialogueTree = {
   start: (g) => (at(g, KING) === 'north' ? 'e1' : at(g, KING) === 'barrow' ? 'eWait' : end(g) ? 'eEnd' : 'e0'),
   nodes: {
-    e0: { text: 'Ebba Thorne. I\'m waiting for the snow to stop. It doesn\'t stop, up here.' },
+    e0: { text: 'Ebba Platt. I\'m waiting for the snow to stop. It doesn\'t stop, up here.' },
     e1: { text: 'You came through the postern? Then Maud\'s gone soft, or you\'re worse than what\'s out here.', next: 'e2' },
-    e2: { text: 'Ebba Thorne. I dug for Venn. I walked out when we broke into the king\'s hall. Pryce didn\'t try to stop me. He was looking at the bier.', next: 'e3' },
+    e2: { text: 'Ebba Platt. I dug for Venn. I walked out when we broke into the king\'s hall. Pryce didn\'t try to stop me. He was looking at the bier.', next: 'e3' },
     e3: { text: 'They\'re down there now. Venn\'s lads, and Pryce, and whatever\'s waking up. Take people with you. It\'s not a place for one.', next: 'e4' },
     e4: { text: 'The portal\'s in the king\'s barrow, in its south face. The dead down there were his guard. They kneel until they don\'t.', effect: (g) => g.setStage(KING, 'barrow') },
     eWait: { text: 'The portal, in the king\'s barrow. Take people with you.' },
@@ -106,7 +106,7 @@ const quests: Record<string, QuestDef> = {
     id: KING, name: 'The King\'s Black', region: 'held', story: { chapter: 21, title: 'The King\'s Black', act: ACT }, next: [HOME, 'delia'],
     notes: (g, s) => {
       if (s === 'north') return 'Through Northgate\'s postern and over the Held\'s plateau to Kingsbarrow, the old kingdom\'s city of the dead, where Pryce took his diggers.';
-      if (s === 'barrow') return `Ebba Thorne walked out of the dig when they broke into the king's hall. Pryce and Garrow Venn's diggers are under the king's barrow. It's a group dungeon: take people, or henchmen. (${Math.min(1, killed(g, 'type:dg_oldking'))}/1)`;
+      if (s === 'barrow') return `Ebba Platt walked out of the dig when they broke into the king's hall. Pryce and Garrow Venn's diggers are under the king's barrow. It's a group dungeon: take people, or henchmen. (${Math.min(1, killed(g, 'type:dg_oldking'))}/1)`;
       if (s === 'pryce') return 'The old king lies still on his bier again. Pryce is waiting beside it.';
       return by(g, {
         back: 'The black goes back, at Kingsbarrow and on Hollow Fell, and the Held lie down. Callis will take its tallest towers down a storey at a time. Pryce is going home on the Third Daughter with nothing.',
@@ -142,7 +142,7 @@ export const KINGSBARROW_CONTENT: RegionContent = {
   items,
   npcs: [
     {
-      land: 'morrow', id: 'ebba_thorne', name: 'Ebba Thorne', title: 'Digger, walked out',
+      land: 'morrow', id: 'ebba_thorne', name: 'Ebba Platt', title: 'Digger, walked out',
       look: { skin: '#d8b090', hair: '#7a5a3a', hairStyle: 4, eyes: '#4a5a6a', tunic: '#4a4a40', trim: '#6a5a40', trousers: '#3a3430', boots: '#2a2018', cape: '#3a3a34', hat: 'hood', hatColor: '#3a3a34', lashes: true, build: 1.1, age: 0.4 },
       schedule: [{ from: 0, to: 24, at: [KB_CAMP.x - 2.5, KB_CAMP.z + 3.5], y: KB_FLOOR, face: [KB_CAMP.x + 0.5, KB_CAMP.z + 0.5], anim: 'idle' }],
       barks: ['They kneel until they don\'t.'],

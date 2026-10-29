@@ -36,7 +36,7 @@ Every line has to make sense where it is: who says it, why they say it, and what
 
 ## Names
 
-Every name in the game, items included, has to be its own and not the kind AI writing reaches for. No made-up compounds like Stormreach, Ironhold or Shadowfall, and no Elara, Kael, Lyra or Thorne. Follow the vale instead: surnames from trades and places (Tolley, Garrow, Pargeter, Ashby) and places named for what's there (Gullmouth, the Spill, Sallow Pit, the Low Water). Renamed to fit: the Great Starfall is the Kettle, Cinderhorn and its pit are Old Clinker and Clinker Bottom (clinker is the smelter's slag), the Tidewright and its sands are Blind Jenny and Jenny's Strand, and the Ashcaller calling is the Kindler (its code id stays `ashcaller`).
+Every name in the game, items included, has to be its own and not the kind AI writing reaches for. No made-up compounds like Stormreach, Ironhold or Shadowfall, and no Elara, Kael, Lyra or Thorne. Follow the vale instead: surnames from trades and places (Tolley, Garrow, Pargeter, Ashby) and places named for what's there (Gullmouth, the Spill, Sallow Pit, the Low Water). Renamed to fit: the Great Starfall is the Kettle, Cinderhorn and its pit are Old Clinker and Clinker Bottom (clinker is the smelter's slag), the Tidewright and its sands are Blind Jenny and Jenny's Strand, and the Ashcaller calling is the Kindler (its code id stays `ashcaller`). Ebba Thorne at Kingsbarrow is Ebba Platt. The Gravecaller keeps its name by the owner's choice (2026-10-29): it reads as the fantasy calling it is, and the alternatives either read badly (Sexton) or said less.
 
 ## Review passes for each batch
 
