@@ -438,7 +438,7 @@ export class Hud {
     pf.id = 'player-frame';
     pf.innerHTML = `<div class="portrait"><canvas width="32" height="32"></canvas><div class="lvl">1</div></div>
       <div class="info"><div class="name"><span class="pn">Traveller</span><small class="pt">Hollindale</small></div>
-      <div class="bar hp"><i class="lag"></i><i class="fill"></i><b></b></div><div class="bar en"><i></i><b></b></div></div>`;
+      <div class="bar hp"><i class="lag"></i><i class="fill"></i><b></b></div><div class="bar en" title="Stamina: running, the dodge, the guard and the body's skills"><i></i><b></b></div><div class="bar mg" title="Magicka: what spells are paid in"><i></i><b></b></div></div>`;
     r.append(pf);
     this.portrait = pf.querySelector('canvas')!;
 
@@ -572,7 +572,7 @@ export class Hud {
     box.innerHTML = list.map((b) => `<span class="bf ${b.kind}">${esc(b.name)}${b.left > 0 ? ` <i>${Math.ceil(b.left / 60)}m</i>` : ''}</span>`).join('');
   }
 
-  setPlayer(name: string, level: number, hp: number, maxHp: number, energy: number): void {
+  setPlayer(name: string, level: number, hp: number, maxHp: number, energy: number, magicka = 100): void {
     this.q('#player-frame .pn').textContent = name;
     const lv = this.q('#player-frame .lvl');
     if (lv.textContent !== String(level)) { lv.textContent = String(level); lv.title = `Level ${level}`; }
@@ -581,6 +581,7 @@ export class Hud {
     (this.q('#player-frame .bar.hp .lag') as HTMLElement).style.width = pct + '%';
     this.q('#player-frame .bar.hp b').textContent = `${Math.ceil(hp)} / ${maxHp}`;
     (this.q('#player-frame .bar.en i') as HTMLElement).style.width = energy + '%';
+    (this.q('#player-frame .bar.mg i') as HTMLElement).style.width = magicka + '%';
   }
 
   setTarget(t: { name: string; level: number; hp: number; max: number; elite?: boolean; friendly?: boolean; sub?: string } | null): void {
@@ -2965,6 +2966,7 @@ export class Hud {
         <kbd>2</kbd><span>Cleave: spin attack</span>
         <kbd>3 – 8</kbd><span>Weapon skill, heal, your calling's skills and elite, as you reach their levels</span>
         <kbd>Q</kbd><span>Dodge roll, invulnerable while rolling</span>
+        <kbd>V</kbd><span>Hold to block: half the blow from in front, for stamina; raised just as it lands, none of it, and the attacker reels</span>
         <kbd>Tab</kbd><span>Target the nearest enemy</span>
         <kbd>G</kbd><span>Call your horse, or get down (halters are sold in the towns)</span>
         <kbd>E</kbd><span>Talk, gather, use, pull in a bite</span>

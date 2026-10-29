@@ -27,6 +27,8 @@ export interface EnemyContext {
 }
 
 const telegraphMat = new THREE.MeshBasicMaterial({ color: '#ff3a24', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+/** The rim of a wind-up that a stun, a bash or a knockdown would break (docs/COMBAT.md): gold, not red. */
+const interruptMat = new THREE.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
 const telegraphFill = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
 const RING_GEO = new THREE.RingGeometry(0.93, 1, 48).rotateX(-Math.PI / 2);
 /** What a thrower lobs (a lit lamp, a shard of glass): a small block. */
@@ -71,8 +73,39 @@ export class Enemy {
   private planted = false;
   /** Set true for one frame when the enemy dies so the game can grant rewards. */
   justDied = false;
-  /** Seconds left stunned or rooted by a class skill: no moving, no attacking. */
-  stun = 0;
+  /**
+   * Seconds left stunned or rooted by a class skill: no moving, no attacking. Control goes through
+   * here (docs/COMBAT.md): a new stun on a foe still shaking off the last is resisted (four seconds'
+   * grace once it ends, so nothing is locked down for ever); a boss only staggers, for half a second;
+   * and a stun landed on a wind-up is an **interrupt**: the blow is lost, and the foe is exposed for
+   * three seconds (it takes a fifth more from everything).
+   */
+  get stun(): number { return this.stunLeft; }
+  set stun(v: number) {
+    if (v <= this.stunLeft + 0.05) { this.stunLeft = Math.max(0, v); return; } // (ticking down, or no more than it had)
+    if (this.def.anchored) { this.stunLeft = v; return; }
+    if (this.ccGrace > 0) { this.resisted = true; return; }
+    if (this.state === 'windup' && !this.signature) { this.interrupted = true; this.exposedLeft = 3; }
+    this.stunLeft = this.isBoss ? Math.max(this.stunLeft, 0.5) : v;
+    this.controlled = true;
+  }
+  private stunLeft = 0;
+  /** Seconds a foe that's just been controlled shrugs off more (four for most, eight for a boss). */
+  private ccGrace = 0;
+  private controlled = false;
+  /** Seconds left exposed after an interrupt: it takes a fifth more from every blow. */
+  exposedLeft = 0;
+  /** Set for one frame: its wind-up was just broken; or a stun was just shrugged off. The game says so. */
+  interrupted = false;
+  resisted = false;
+  /** Can its wind-up be broken (anything but a boss's signature)? Its telegraph's rim shows it in gold. */
+  get interruptible(): boolean { return this.state === 'windup' && !this.signature; }
+  /** Control's clocks, ticked each frame before anything else. */
+  private tickControl(dt: number): void {
+    if (this.exposedLeft > 0) this.exposedLeft -= dt;
+    if (this.ccGrace > 0) this.ccGrace -= dt;
+    if (this.controlled && this.stunLeft <= 0) { this.controlled = false; this.ccGrace = this.isBoss ? 8 : 4; }
+  }
   /** Seconds left holding still for one of its own big moves (a boss winding up): it faces holdYaw and waits. */
   hold = 0;
   holdYaw = 0;
@@ -279,6 +312,7 @@ export class Enemy {
       if (this.swimOk(nx, this.pos.y, nz)) { this.pos.x = nx; this.pos.z = nz; }
       this.knock.multiplyScalar(Math.exp(-dt * 8));
     }
+    this.tickControl(dt);
     // Holding still for its own big move: it faces where it means to strike and gathers itself
     if (this.hold > 0 && this.state !== 'dead') {
       this.hold -= dt;
@@ -346,6 +380,7 @@ export class Enemy {
           this.attacks++;
           this.signature = false;
           this.teleOutline.visible = this.teleFill.visible = true;
+          this.teleOutline.material = this.signature ? telegraphMat : interruptMat;
           this.bigRing.visible = this.bigFill.visible = false;
           this.attackOrigin.copy(this.pos);
           this.attackDir3.copy(to).normalize();
@@ -481,6 +516,7 @@ export class Enemy {
     }
 
     // Stunned: stands dazed, any wind-up lost
+    this.tickControl(dt);
     // Holding still for its own big move: it faces where it means to strike and gathers itself
     if (this.hold > 0 && this.state !== 'dead') {
       this.hold -= dt;
@@ -547,6 +583,7 @@ export class Enemy {
           this.attacks++;
           this.signature = this.isBoss && this.attacks % SIGNATURE.every === 0;
           this.teleOutline.visible = this.teleFill.visible = !this.signature;
+          this.teleOutline.material = this.signature ? telegraphMat : interruptMat;
           this.bigRing.visible = this.bigFill.visible = this.signature;
           if (this.signature) { this.bigRing.scale.setScalar(this.signatureRadius); ctx.sound('growl', this.pos); }
           this.attackOrigin.copy(def.attack === 'throw' && !this.signature ? ctx.player : this.pos);

@@ -77,6 +77,10 @@
 .bar.hp > i { background: linear-gradient(#ffb08a 0 2px, var(--ember) 2px 65%, var(--ember-d) 65%); }
 .bar.hp > .lag { background: #f4d8a8; transition: width 0.6s ease-in 0.25s; }
 .bar.en > i { background: linear-gradient(#fff0a8 0 2px, var(--wheat) 2px 65%, var(--wheat-d) 65%); }
+.bar.mg > i { background: linear-gradient(#bfe0ff 0 2px, #4a8ad8 2px 65%, #2a5a9a 65%); }
+.unit .bar.mg { height: 7px; margin-top: 2px; }
+.unit .bar.mg::before { display: none; }
+.unit .bar.mg > b { display: none; }
 .bar.xp > i { background: linear-gradient(#c8f4ff 0 2px, var(--teal) 2px 65%, var(--teal-d) 65%); }
 
 /* ------------------------------------------------------------- Unit frames */
@@ -503,6 +507,8 @@ body.touch #prompt { pointer-events: auto; cursor: pointer; }
 body.swimming #touch .tb.dive { display: block; }
 #touch .tb.ride { grid-column: 1 / span 2; grid-row: 3; width: 100%; height: 40px; border-radius: 20px; }
 body.swimming #touch .tb.ride { display: none; }
+#touch .tb.guard { grid-column: 1 / span 2; grid-row: 4; width: 100%; height: 40px; border-radius: 20px; background: radial-gradient(circle at 50% 30%, #4a3a2a, #1e140c 75%); }
+body.swimming #touch .tb.guard { display: none; }
 body.riding #touch .tb.ride { box-shadow: inset 0 0 0 2px #e8c882, 0 0 12px rgba(232, 200, 130, 0.5); }
 @media (max-height: 500px) {
   .minimap-wrap { top: 8px; right: 10px; width: 112px; }

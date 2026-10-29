@@ -111,6 +111,7 @@ import { Building, doorCell, stallAt, type LaidBlock, type LotHouse } from './Bu
 import { GuildHalls } from './GuildHalls';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
+import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
 import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
@@ -2676,6 +2677,25 @@ export class Game implements GameApi {
   }
   /** Out of breath: run dry and you trudge until a third of it is back. */
   private winded = false;
+  /** Magicka (docs/COMBAT.md): what spells are paid in. Stamina is `energy`. */
+  magicka = 100;
+  get maxMagicka(): number { return Math.round(POOLS.magicka.max * (1 + this.armour.light * 0.04)); }
+  /** Holding the guard up (V): and when it went up, for the perfect block's window. */
+  private guarding = false;
+  private guardAt = -9;
+  /** When the last "not enough" was said, so it isn't said every frame a key is held. */
+  private shortAt = -9;
+  /** What a skill on the bar costs (slot: 2 the weapon skill, 3 the heal, 4-6 utilities, 7 the elite). */
+  skillCost(slot: number): Cost | null {
+    const sk = slot === 2 ? this.kit.weaponSkill : this.kit.bar[slot - 3];
+    if (!sk) return null;
+    const listed = SKILL_COST[sk.id];
+    if (listed) return listed;
+    const pool = slot === 2 ? 'stamina' : CALLING_POOL[this.kit.calling.id] ?? 'stamina';
+    return { pool, n: slot === 2 ? 12 : slot === 3 ? SLOT_COST.heal : slot === 7 ? SLOT_COST.elite : SLOT_COST.utility };
+  }
+  /** Can the skill be paid for now? */
+  canPay(c: Cost | null): boolean { return !c || (c.pool === 'stamina' ? this.energy : this.magicka) >= c.n; }
 
   /**
    * Everything the armour adds up to (data/armour.ts): defense off each hit, health, energy, roll
@@ -5284,8 +5304,17 @@ export class Game implements GameApi {
         const sk = this.kit.bar[i - 3];
         if (sk && !this.skillUnlocked(sk.id)) { this.hud.system(`${sk.name} isn't unlocked yet: spend a skill point on it in your skills (T).`); this.sfx('fail'); return; }
       }
+      // Paid in stamina or magicka (data/combat.ts), only when it goes off
+      const cost = this.skillCost(i);
+      if (!this.canPay(cost)) {
+        if (this.elapsed - this.shortAt > 1.2) { this.shortAt = this.elapsed; this.hud.system(`Not enough ${cost!.pool} for that.`); this.sfx('fail'); }
+        return;
+      }
       const ok = i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
-      if (ok) { this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0; }
+      if (ok) {
+        this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0;
+        if (cost) { if (cost.pool === 'stamina') this.energy = Math.max(0, this.energy - cost.n); else this.magicka = Math.max(0, this.magicka - cost.n); }
+      }
     }
     else if (i === 8) this.roll();
     else if (i === 9) this.eat();
@@ -5456,7 +5485,7 @@ export class Game implements GameApi {
     const fx = this.fx;
     // The Clinker tusk: blows in a row on one foe build, 5% a blow up to a quarter
     if (fx.has('momentum') && !quiet) { this.streak = this.streak.e === e ? { e, n: Math.min(5, this.streak.n + 1) } : { e, n: 0 }; raw *= 1 + this.streak.n * 0.05; }
-    const flank = this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1;
+    const flank = (this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1) * (e.exposedLeft > 0 ? 1 + EXPOSED : 1);
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw) * (crit ? 1.6 : 1) * flank));
     const landed = this.activities.beforeHit(e, dmg);
     e.takeDamage(landed, this.player.position, this.elapsed);
@@ -5705,6 +5734,26 @@ export class Game implements GameApi {
         if (h > 0) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); }
       }
       return;
+    }
+    // The guard (docs/COMBAT.md): a blow from in front, held up in time, comes to nothing and staggers
+    // whoever threw it; held up already, it takes half (more with a shield) for a little stamina
+    if (this.guarding) {
+      const toFoe = Math.atan2(from.pos.x - this.player.position.x, from.pos.z - this.player.position.z);
+      const off = Math.abs(Math.atan2(Math.sin(toFoe - this.player.yaw), Math.cos(toFoe - this.player.yaw)));
+      if (off < GUARD.arc) {
+        this.energy = Math.max(0, this.energy - GUARD.cost);
+        this.lastCombat = this.elapsed;
+        if (this.elapsed - this.guardAt < GUARD.perfect) {
+          from.stun = GUARD.stagger;
+          this.floatAt(this.player.position, 2.4, 'Perfect block!', 'dodge');
+          this.sfx('hitHeavy', 0.7);
+          this.rig.addShake(0.12);
+          return;
+        }
+        dmg *= 1 - (this.kit.calling.id === 'warden' ? GUARD.shieldCut : GUARD.cut);
+        this.floatAt(this.player.position, 2.6, 'Blocked', 'dodge');
+        if (this.energy <= 0) { this.guarding = false; this.floatAt(this.player.position, 2.9, 'Guard broken', 'player'); }
+      }
     }
     const armor = this.armour.defense;
     // Defence takes a share of the blow, with diminishing returns (D/(D+40)): see data/armour.ts
@@ -5966,6 +6015,8 @@ export class Game implements GameApi {
       if (d > 90 && e.state !== 'dead') { e.model.root.visible = false; continue; }
       e.model.root.visible = e.state !== 'dead' || e.model.root.visible;
       e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? this.shared.ctxFor(e, ctx) ?? ctx);
+      if (e.interrupted) { e.interrupted = false; this.floatAt(e.pos, 2.8, 'Interrupted!', 'crit'); this.sfx('hitHeavy', 0.6); }
+      if (e.resisted) { e.resisted = false; this.floatAt(e.pos, 2.6, 'Resisted', 'dodge'); }
       characterDetail(e.model.root, e.pos.distanceTo(this.camera.position));
     }
     for (const n of this.npcs) {
@@ -6361,12 +6412,19 @@ export class Game implements GameApi {
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
     // A wagon rolls a little slower than a horse alone
     const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
+    this.magicka = Math.min(this.maxMagicka, this.magicka + dt * (this.elapsed - this.lastCombat > 3 ? POOLS.magicka.regenCalm : POOLS.magicka.regenFight) * (1 + this.armour.light * 0.05 + this.buffSum('regen')));
+    // The guard: held up while V is down (not mounted, swimming, rolling or swinging); it drops when the stamina's gone
+    {
+      const want = this.input.down.has('KeyV') && !this.horse && !this.player.swimming && this.player.rolling <= 0 && !this.dead && this.mode === 'play' && !this.dialogue && this.energy > 1;
+      if (want && !this.guarding) { this.guardAt = this.elapsed; this.attack = null; }
+      this.guarding = want;
+    }
     if (this.energy <= 0.5 && !this.winded) { this.winded = true; this.hud.system('You\'re winded. Walk it off.'); }
     else if (this.winded && this.energy >= 50) this.winded = false;
     // (horsemanship: a little more pace each rank, and the gallop tires you less)
     const rank = this.horse ? rideRank(Number(this.flag('rideDist') ?? 0)) : 1;
     const sure = 1 + (rank - 1) * RIDE_PACE, wind = 1 - (rank - 1) * RIDE_WIND;
-    let speed = this.horse ? 9.6 * haul * sure : this.winded ? 3.6 : 5.4;
+    let speed = this.horse ? 9.6 * haul * sure : this.winded || this.guarding ? 3.6 : 5.4;
     if (sprint && mv.lengthSq() > 0.01 && this.energy > 1 && !this.winded) { speed = this.horse ? 13 * haul * sure : 8.0; this.energy = Math.max(0, this.energy - dt * (this.gearSet === 'tollriders' ? 7 : 14) * (this.horse ? 0.6 * wind : 1)); }
     else this.energy = Math.min(100, this.energy + dt * (this.elapsed - this.lastCombat > 3 ? 22 : 12) * (1 + this.armour.wind + this.buffSum('regen') + this.mastery('wind')) * (this.winded ? 0.5 : 1));
     this.tickBuffs(dt);
@@ -7080,7 +7138,7 @@ export class Game implements GameApi {
   private updateHud(dt: number): void {
     this.placeBubbles();
     const P = this.player.position;
-    this.hud.setPlayer(this.save.name, this.level('melee'), this.hp, this.maxHp, this.energy);
+    this.hud.setPlayer(this.save.name, this.level('melee'), this.hp, this.maxHp, this.energy, (this.magicka / this.maxMagicka) * 100);
     if (this.target && (!this.target.alive || this.target.pos.distanceTo(P) > 40)) this.target = null;
     this.hud.setLowHealth(!this.dead && this.hp < this.maxHp * 0.3);
     // A big fight: the nearest awake boss, or the one you've targeted
@@ -7113,9 +7171,10 @@ export class Game implements GameApi {
     this.hud.setAbilities([
       lock({ left: this.cds.strike, total: 0.5 }, 0),
       lock({ left: this.cds.cleave, total: 6 }, 1),
-      lock(this.kit.weaponSlot(), 2),
+      // (a skill you can't pay for just now is greyed: data/combat.ts)
+      lock({ ...this.kit.weaponSlot(), disabled: !this.canPay(this.skillCost(2)) }, 2),
       // (open by level but not unlocked with a point: marked for the skills page, T)
-      ...this.kit.slots().map((c, k) => (L >= UNLOCK_AT[3 + k] && this.kit.bar[k] && !this.skillUnlocked(this.kit.bar[k].id) ? { ...c, locked: -1 } : lock(c, 3 + k))),
+      ...this.kit.slots().map((c, k) => (L >= UNLOCK_AT[3 + k] && this.kit.bar[k] && !this.skillUnlocked(this.kit.bar[k].id) ? { ...c, locked: -1 } : lock({ ...c, disabled: !this.canPay(this.skillCost(3 + k)) }, 3 + k))),
       { left: this.cds.roll, total: 0.8, disabled: this.energy < this.armour.rollCost },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);
