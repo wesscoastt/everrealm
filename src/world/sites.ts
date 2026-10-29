@@ -738,13 +738,28 @@ export function plan(): Plan {
     sites.push(s);
   }
   sites.push(...extra);
+  // The ground as built at a point: the land, with whatever the sites have laid on it or cut out of it
+  // (a landing cut into a cliff is far below the land's own height there; a board stood on the land's
+  // height floats over it)
+  const builtGround = (fx: number, fz: number): number => {
+    const x = Math.floor(fx), z = Math.floor(fz), land = heightAt(x, z);
+    const col = new Map<number, number>();
+    const at = (x & 31) + 32 * (z & 31);
+    const a = O.map.get(chunkKey(x >> 5, z >> 5)) ?? [];
+    for (let i = 0; i < a.length; i += 2) if (a[i] % 1024 === at) col.set(Math.floor(a[i] / 1024), a[i + 1]);
+    for (let y = Math.min(SY - 2, land + 24); y > 0; y--) {
+      const id = col.get(y) ?? (y < land ? B.Stone : B.Air);
+      if (id !== B.Air && id !== B.Water && id !== B.Barrier) return y + 1;
+    }
+    return land;
+  };
   // A Charter Post sign at every stop (Hollin Ford's is part of the authored village).
   for (const p of POSTS) {
     const site = sites.find((x) => x.id === p.place);
-    if (site) site.props.push({ t: 'sign', x: p.x, y: heightAt(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
+    if (site) site.props.push({ t: 'sign', x: p.x, y: builtGround(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
     // ...and its post box beside it, where letters are posted and read
     if (site && p.id !== 'hollin') {
-      const b = postBoxOf(p), g = heightAt(Math.floor(b.x), Math.floor(b.z));
+      const b = postBoxOf(p), g = builtGround(b.x, b.z);
       site.props.push({ t: 'postBox', x: b.x, y: g, z: b.z, ry: b.ry });
       O.set(Math.floor(b.x), g, Math.floor(b.z), B.Barrier); O.set(Math.floor(b.x), g + 1, Math.floor(b.z), B.Barrier);
     }
@@ -6281,7 +6296,9 @@ export function plan(): Plan {
     }
 
     // ------------------------------------------------------------------ the top: levelled, paved paths, the sally port
-    for (let x = SK.SALLY.x - 2; x <= SK.QUARRY.x1 + 6; x++) for (let z = SK.SKUA.z - 34; z <= SK.SKUA.z + 34; z++) {
+    // (from the step after the Steps' last: started at the sally port, it left a strip of the bank standing
+    // between the top step and the gatehouse, a block too high to walk up)
+    for (let x = Math.min(SK.SALLY.x - 2, SK.STEPS.x0 + T - SK.LANDING_Y + 1); x <= SK.QUARRY.x1 + 6; x++) for (let z = SK.SKUA.z - 34; z <= SK.SKUA.z + 34; z++) {
       if (heightAt(x, z) < T - 5) continue;
       level(x, z, T, hash2(x, z, 5103) < 0.12 ? B.Gravel : hash2(x, z, 5104) < 0.2 ? B.FlowerGrass : B.Grass);
     }
@@ -6369,9 +6386,10 @@ export function plan(): Plan {
       for (let x = bx0 - 3; x <= bx1 + 1; x++) { O.set(x, Bk.upper, railZ, B.Barrier); O.set(x, Bk.upper + 1, railZ, B.Barrier); }
       P({ t: 'deckRail', x: (bx0 - 3 + bx1 + 2) / 2, y: Bk.upper, z: railZ + 0.5, ry: 0, len: bx1 + 4 - (bx0 - 3) + 1 });
       for (let x = bx0 - 3; x <= bx1 + 1; x += 6) for (let y = T; y < Bk.upper - 1; y++) O.set(x, y, railZ, B.DarkPlanks);
-      // (stairs: five steps along x from the floor, west of the block, rising toward it)
-      for (let k = 0; k < 5; k++) for (let z = gz0; z <= gz1; z++) for (let y = T; y <= T + k; y++) O.set(bx0 - 8 + k, y, z, B.StoneBrick);
-      for (let k = 0; k < 5; k++) for (let z = gz0; z <= gz1; z++) for (let y = T + k + 1; y < Bk.upper + 2; y++) O.set(bx0 - 8 + k, y, z, B.Air);
+      // (stairs: five steps along x from the floor, west of the block, rising toward it; inside the west
+      // wall, not in it: started on it they cut stair-shaped holes in the cellhouse front)
+      for (let k = 0; k < 5; k++) for (let z = gz0; z <= gz1; z++) for (let y = T; y <= T + k; y++) O.set(bx0 - 7 + k, y, z, B.StoneBrick);
+      for (let k = 0; k < 5; k++) for (let z = gz0; z <= gz1; z++) for (let y = T + k + 1; y < Bk.upper + 2; y++) O.set(bx0 - 7 + k, y, z, B.Air);
       for (let z = gz0; z <= gz1; z++) O.set(bx0 - 3, Bk.upper - 1, z, B.DarkPlanks);
     }
     // The utility corridor's ladder at its east end, and the hatch over it in the roof (shut)
@@ -7310,9 +7328,25 @@ export function plan(): Plan {
       clearUp(x, z, SEA + 1, SEA + 6);
       if ((x - J.x1) % 6 === 0 && (w === 0 || w === 2)) for (let y = 2; y < SEA; y++) O.set(x, y, z, B.Timber);
     }
-    street(J.x0, J.z, cx - 7, J.z + 2);
+    // Steps up the bank from the jetty's end to the green, three wide, a block at a time, on solid stone
+    // with a low wall either side (the bank climbs nine in nine; a street laid up it went in ragged lumps)
+    {
+      let y = SEA + 1, x = J.x0 + 1;
+      for (; x < cx - 7; x++) {
+        y = Math.min(base, Math.max(y, Math.min(y + 1, heightAt(x, J.z + 1))));
+        for (let w = -1; w <= 3; w++) {
+          const z = J.z + w, side = w === -1 || w === 3;
+          for (let k = Math.min(heightAt(x, z), y) - 2; k < y; k++) O.set(x, k, z, side ? B.Cobble : B.StoneBrick);
+          if (side) O.set(x, y, z, B.Cobble);
+          clearUp(x, z, side ? y + 1 : y, y + 6);
+        }
+        if (y >= base) break;
+      }
+      if (x + 1 < cx - 7) street(x + 1, J.z, cx - 7, J.z + 2);
+    }
     s.props.push({ t: 'lantern', x: J.x1 + 0.5, y: SEA + 1, z: J.z + 1.5 });
-    s.props.push({ t: 'boat', x: J.x0 - 2, y: SEA - 0.55, z: J.z - 4, ry: 1.2 }, { t: 'boat', x: J.x0 - 1, y: SEA - 0.55, z: J.z + 7, ry: 1.9 });
+    // Two boats moored off the shingle, clear of the shore
+    s.props.push({ t: 'boat', x: J.x0 - 7, y: SEA - 0.55, z: J.z - 5, ry: 1.2 }, { t: 'boat', x: J.x0 - 6, y: SEA - 0.55, z: J.z + 8, ry: 1.9 });
     for (let i = 0; i < 4; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: cx - 6 + i * 1.1, y: base, z: cz - 8 });
     s.props.push({ t: 'lantern', x: cx - 6.5, y: base, z: cz + 6.5 }, { t: 'lantern', x: cx + 7.5, y: base, z: cz - 6.5 });
     // The lookout on the rise behind the hamlet, a fire kept in its top

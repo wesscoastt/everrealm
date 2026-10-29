@@ -151,8 +151,30 @@ function smin(a: number, b: number, k: number): number {
 }
 const wander = (t: number, s: number) => (fbm2(t / 900, s, 3, 801) - 0.5) * 520 + (fbm2(t / 260, s + 5, 2, 802) - 0.5) * 130;
 
-/** Distance inland from the main body's shores (negative at sea). */
+/**
+ * Where the coast is held as it was: the harbours and the shore towns, and what's built along them (the
+ * coast is free to wander everywhere else). [x, z, radius]
+ */
+const COAST_HELD: [number, number, number][] = [
+  [CALLIS.x, CALLIS.z, 330], [2330, 800, 300], [2460, 900, 170], [2196, -1100, 200], [1000, 2640, 240], [600, 2950, 280], [1250, 2540, 200], [860, -1830, 220],
+];
+/**
+ * The coast, drawn on warped ground: capes and bays a few hundred blocks across, a long headland here,
+ * a sound there, so the land's outline reads as a coast and not a box with its corners rounded.
+ */
 function mainDist(x: number, z: number): number {
+  let f = 1;
+  for (const [hx, hz, r] of COAST_HELD) f = Math.min(f, smoothstep(r, r + 260, Math.hypot(x - hx, z - hz)));
+  if (f <= 0) return mainDistRaw(x, z);
+  const wx = (fbm2(x / 1100, z / 1100, 3, 871) - 0.5) * 900 + (fbm2(x / 330, z / 330, 2, 873) - 0.5) * 160;
+  const wz = (fbm2(x / 1100 + 7.3, z / 1100, 3, 872) - 0.5) * 900 + (fbm2(x / 330 + 2.1, z / 330, 2, 874) - 0.5) * 160;
+  // And bays and sounds cut in, a few hundred blocks deep, with the capes and headlands left between them
+  const bay = Math.max(0, fbm2(x / 760, z / 760, 3, 881) - 0.44) * 1600 + Math.max(0, fbm2(x / 260, z / 260, 2, 882) - 0.55) * 260;
+  return mainDistRaw(x + wx * f, z + wz * f) - bay * f;
+}
+
+/** Distance inland from the main body's shores (negative at sea), before the coast is warped. */
+function mainDistRaw(x: number, z: number): number {
   // The east coast, pulled in to a bay at Callis and pushed out round the Bright Coast's capes
   const east = 2360 + wander(z, 1.1) - bump(z, CALLIS.z, 240) * 150 + bump(z, 1600, 200) * 120 + bump(z, 700, 220) * 90 - x;
   const west = x - (-1260 + wander(z, 2.3) + bump(z, 1200, 300) * 160);
@@ -240,8 +262,54 @@ export const MORROW_ROADS: [number, number][][] = [
   [[1000, 2640], [640, 2840], [300, 3040], [-120, 3260], [-560, 3440], [-1000, 3580], [-1380, 3660]],
 ];
 
-export function morrowRegionId(x: number, z: number): MorrowRegion {
-  if (keysDist(x, z) > -60 || z > 3000) return 'keys';
+/**
+ * Each region's heartlands: [region, x, z, reach]. A point belongs to the heartland it's nearest (less
+ * its reach), measured over warped ground so the borders wander the way a climate's do: the cold plateau
+ * of the Held across the north and down the spine's high ground, the Greywaste's moors below it to the
+ * north-east coast, the Glass Flats a basin in the spine's lee, the Sunder's plateaus round the rift, the
+ * Bright Coast along the east shore from the capes to Callis and on south, the Amberwold's forest on the
+ * western foothills, and the Glades' marsh along the south. (The Keys are the islands, apart.)
+ */
+const HEARTS: [MorrowRegion, number, number, number][] = [
+  ['held', -300, -1800, 60], ['held', 500, -1900, 60], ['held', 1300, -1850, 0], ['held', 2050, -1750, 0], ['held', -900, -1250, 40],
+  ['greywaste', 650, -1000, 40], ['greywaste', 1450, -1100, 0], ['greywaste', 2150, -1150, 60], ['greywaste', -250, -800, 0], ['greywaste', 2300, -500, 0],
+  ['glassflats', 1050, -250, 120], ['glassflats', 450, -380, 0], ['glassflats', 1650, -380, 0],
+  ['sunder', 1450, 380, 80], ['sunder', 750, 430, 30], ['sunder', 50, 380, 0], ['sunder', -600, 560, 0],
+  ['bright', 2150, 1150, 140], ['bright', 2400, 650, 40], ['bright', 2200, 1700, 0], ['bright', 2150, 150, 0],
+  ['amberwold', 720, 1630, 90], ['amberwold', 100, 1350, 0], ['amberwold', -550, 1250, 0], ['amberwold', 1350, 1750, 0], ['amberwold', 250, 2050, 0],
+  ['glades', 1250, 2560, 80], ['glades', 450, 2650, 0], ['glades', 1900, 2350, 0], ['glades', -350, 2600, 0],
+];
+/** The ground the borders are drawn on, warped a few hundred blocks. */
+function regionGround(x: number, z: number): [number, number] {
+  return [
+    x + (fbm2(x / 620, z / 620, 3, 861) - 0.5) * 520 + (fbm2(x / 170, z / 170, 2, 863) - 0.5) * 90,
+    z + (fbm2(x / 620 + 4.2, z / 620, 3, 862) - 0.5) * 520 + (fbm2(x / 170 + 1.7, z / 170, 2, 864) - 0.5) * 90,
+  ];
+}
+/** How far a point is from each region's nearest heartland (less its reach), on the warped ground. */
+function regionDists(x: number, z: number): Map<MorrowRegion, number> {
+  const [wx, wz] = regionGround(x, z), out = new Map<MorrowRegion, number>();
+  for (const [r, hx, hz, reach] of HEARTS) {
+    const d = Math.hypot(wx - hx, wz - hz) - reach;
+    if (d < (out.get(r) ?? Infinity)) out.set(r, d);
+  }
+  // Round Callis and the Mirador the old borders hold: the Mirador stands on the Sunder's scarp over the
+  // city, and the scarp is where the Sunder meets the Bright Coast as it always did
+  {
+    const k = 1 - smoothstep(420, 640, Math.hypot(x - 2260, z - 960));
+    if (k > 0) { const was = bandRegion(x, z); out.set(was, Math.min(out.get(was) ?? Infinity, -2000 * k + (out.get(was) ?? 0) * (1 - k))); }
+  }
+  // Northgate's wall is the Held's edge where it crosses the pass: the plateau begins at the wall
+  if (Math.abs(x - NG_WALL.x0 / 2 - NG_WALL.x1 / 2) < 260 + 120) {
+    const k = 1 - smoothstep(260, 380, Math.abs(x - (NG_WALL.x0 + NG_WALL.x1) / 2));
+    const held = out.get('held')!, past = z < NG_WALL.z - 4;
+    out.set('held', held + (past ? -2000 : 2000) * k);
+  }
+  return out;
+}
+
+/** The regions as they were first drawn, in bands north to south (kept round Callis and the Mirador). */
+function bandRegion(x: number, z: number): MorrowRegion {
   const zw = z + (fbm2(x / 520, z / 520, 3, 821) - 0.5) * 260;
   if (zw > 2280) return 'glades';
   if (zw > 1560) return 'amberwold';
@@ -250,6 +318,13 @@ export function morrowRegionId(x: number, z: number): MorrowRegion {
   if (zw > -640) return 'glassflats';
   if (zw > -1360) return 'greywaste';
   return 'held';
+}
+
+export function morrowRegionId(x: number, z: number): MorrowRegion {
+  if (keysDist(x, z) > -60 || z > 3000) return 'keys';
+  let best: MorrowRegion = 'sunder', bd = Infinity;
+  for (const [r, d] of regionDists(x, z)) if (d < bd) { bd = d; best = r; }
+  return best;
 }
 
 /** The mountain spine down the west side: its line, and how high it lifts the ground here. */
@@ -276,7 +351,29 @@ export function morrowHeight(x: number, z: number): number {
   }
   const reg = morrowRegionId(x, z);
   const n1 = fbm2(x / 160, z / 160, 4, 841), n2 = fbm2(x / 40, z / 40, 3, 842);
+  // Each region's ground, blended across its borders over a hundred-odd blocks (a region's own height
+  // standing at its border made a step the length of the border)
   let h: number;
+  if (reg === 'keys') h = regionHeight('keys', x, z, n1, n2);
+  else {
+    const ds = regionDists(x, z);
+    let dmin = Infinity;
+    for (const d of ds.values()) dmin = Math.min(dmin, d);
+    let sum = 0, wsum = 0;
+    for (const [r, d] of ds) {
+      const w = Math.pow(Math.max(0, 1 - (d - dmin) / 130), 2);
+      if (w <= 0) continue;
+      sum += w * regionHeight(r, x, z, n1, n2);
+      wsum += w;
+    }
+    h = sum / wsum;
+  }
+  return morrowFinish(h, x, z, L, reg);
+}
+
+/** A region's own ground at a point, before the spine, the rivers and the shore. */
+function regionHeight(reg: MorrowRegion, x: number, z: number, n1: number, n2: number): number {
+  let h = SEA;
   switch (reg) {
     case 'keys': h = SEA + 1.6 + (n1 - 0.5) * 3 + (n2 - 0.5) * 1.5; break;
     case 'glades': {
@@ -310,6 +407,12 @@ export function morrowHeight(x: number, z: number): number {
       break;
     }
   }
+  return h;
+}
+
+/** The spine, the rivers, the lakes and the shore, over the regions' blended ground. */
+function morrowFinish(h0: number, x: number, z: number, L: number, reg: MorrowRegion): number {
+  let h = h0;
   h += spine(x, z);
   // Rivers cut their beds on the way to the sea
   const rd = riverDistM(x, z);

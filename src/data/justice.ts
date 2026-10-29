@@ -58,7 +58,7 @@ export function jurisdictionAt(x: number, z: number): Jurisdiction | null {
  */
 export interface GaolDef { land?: LandId; id: string; name: string; x: number; z: number; floor: number; out: [number, number, number] }
 export const GAOLS: GaolDef[] = [
-  { id: 'gaol-ansbury', name: 'the Weighhouse cells, Ansbury', x: 820, z: 300, floor: 8, out: [829.5, 372.5, Math.PI] },
+  { id: 'gaol-ansbury', name: 'the Weighhouse cells, Ansbury', x: 820, z: 300, floor: 8, out: [833.5, 381.5, Math.PI] },
   { land: 'morrow', id: 'gaol-callis', name: 'the Tolbooth, Callis', x: MORROW_OX + 2140, z: 1112, floor: 8, out: [MORROW_OX + 2128.5, 1080.5, Math.PI] },
 ];
 /** Where in a gaol (from its x, z) your cell is, the other cells, the gaoler's desk, and the way out of the cell when the door's opened. */
