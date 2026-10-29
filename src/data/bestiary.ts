@@ -14,6 +14,13 @@ export const ATTACK_WAYS: Record<string, string> = {
   slam: 'Rears up and comes down on everything round it: a red circle. Get out of the circle.',
   charge: 'Lowers its head and charges down a long lane. Step sideways out of the lane.',
   throw: 'Hangs back and throws, marking where you stand. Keep moving and close the gap.',
+  cast: 'Hangs back and gathers something in its hand over a gold ring. Stun it to break the spell, or roll as the bolt comes.',
+};
+/** What a foe does besides its blows (data/foeKinds.ts), told the same way. */
+export const ROLE_WAYS: Record<string, string> = {
+  mend: 'Heals the most hurt of its friends: a green ring at its feet. Kill it first, or stun it while it gathers.',
+  guard: 'Fights behind a shield that turns most of a blow from the front. Get round it, or stun it.',
+  summon: 'Calls more of its kind when the fight starts and again when it\'s hurt. Stun it while it calls; they leave when it falls.',
 };
 
 /** What a hunter would tell you, once you've killed fifty. Plain and short; every one a thing that's true in the world. */
