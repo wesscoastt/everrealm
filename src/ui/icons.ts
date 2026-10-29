@@ -330,6 +330,15 @@ const GLYPHS: Record<string, [string[], string]> = {
   deepfreeze: [['X...XX...X', '.X..XX..X.', '..XXXXXX..', 'XXXX..XXXX', 'XXX....XXX', 'XXX....XXX', 'XXXX..XXXX', '..XXXXXX..', '.X..XX..X.', 'X...XX...X'], '#e8f8ff'],
   vigil: [['....XX....', '...XXXX...', '..XX..XX..', '.XX.XX.XX.', 'XX.XXXX.XX', '.XX.XX.XX.', '..XX..XX..', '...XXXX...', '....XX....', '..........'], '#fff0c0'],
   plague: [['.X...X..X.', 'X.X.X.XX.X', '.X...X..X.', '...XXXX...', '..XXXXXX..', '.XX.XX.XX.', '.XXXXXXXX.', '..X.XX.X..', '..XXXXXX..', '..........'], '#d8f0a0'],
+  // Key 2's: a knife in the back, a hooked bit, an axe raised, a hammer on the ground, a spear swung,
+  // an arrow close in, a staff's two ends
+  backstab: [['........X.', '.......X..', '......X...', '.....X....', '..XXX.....', '.XXXXX....', 'XXXXXX....', 'XXXXX.....', '.XXX......', '..........'], '#ffd0c0'],
+  hook: [['..XXXX....', '.X....X...', 'X......X..', 'X.......X.', '.X.....XX.', '.......X..', '......X...', '.....X....', '....X.....', '...X......'], '#f6ecd0'],
+  overhead: [['.XXXXXXX..', 'XXXXXXXXX.', '.XXXXXXX..', '....X.....', '....X.....', '....X.....', '....X.....', '..........', 'X.X.X.X.X.', '.X.X.X.X.X'], '#ffe8a0'],
+  groundpound: [['..XXXXXX..', '..XXXXXX..', '....XX....', '....XX....', '....XX....', '..........', 'X...XX...X', '.XX....XX.', 'XXXXXXXXXX', '.X.X..X.X.'], '#e8d8b0'],
+  spearsweep: [['......XXX.', '.....XX.X.', '....XX....', '...XX.....', '..XX......', '.XX.......', 'XX........', '..X.X.X...', '.X.......X', '..X.X.X.X.'], '#f6ecd0'],
+  pointblank: [['X.........', '.X........', '..X.......', '...X..XX..', '....XXXXX.', '.....XXXXX', '....XXXXX.', '......XX..', '..........', '..........'], '#ffd0a0'],
+  staffflurry: [['X........X', 'XX......XX', '.XX....XX.', '..XX..XX..', '...XXXX...', '...XXXX...', '..XX..XX..', '.XX....XX.', 'XX......XX', 'X........X'], '#e8dcc0'],
   // The weapon kinds' own (key 3): an axe's bit and its drops, a great axe's turning arc, a hammer
   // ringing, a spear's long head, an arrow at a heel, a staff swept low
   hack: [['..XXXX....', '.XXXXXX...', 'XXXXXXXX..', '.XXXXXXX..', '...XXXXX..', '.....XX...', '....X.X...', '...X..X.X.', '..X.....X.', '.X....X...'], '#ffd0c0'],
@@ -387,6 +396,8 @@ export function abilityIcon(kind: string): string {
     bonespear: ['#8a8070', '#5a5244', '#2e2a22'], dread: ['#4a5a3e', '#2c3824', '#141c10'],
     unbroken: ['#6a9ad0', '#3a6aa0', '#1a3a60'], massacre: ['#b83a2a', '#7a1e14', '#420c06'], pillar: ['#e07030', '#a84010', '#5a2006'], deadeye: ['#8a7a50', '#5a4a2a', '#2e2614'],
     deepfreeze: ['#5ab0e0', '#2a78b0', '#14405e'], vigil: ['#d8b860', '#9a7a30', '#5a4414'], plague: ['#6a8a3a', '#3e5a1e', '#1e2e0c'],
+    backstab: ['#8a3a3a', '#5a1e1e', '#300c0c'], hook: ['#8a7a6a', '#5a4e42', '#2e2822'], overhead: ['#a88a4a', '#6a5426', '#3a2c10'], groundpound: ['#9a8a6a', '#645840', '#342e20'],
+    spearsweep: ['#7a8a9a', '#4a5664', '#262c34'], pointblank: ['#9a6a3a', '#64421e', '#34220c'], staffflurry: ['#8a7a5a', '#5a4e36', '#2e281a'],
     hack: ['#a84a3a', '#6a2a1e', '#3a140c'], whirl: ['#9a8a6a', '#5e5440', '#302a1e'], bellringer: ['#b8a060', '#7a6430', '#423414'],
     longthrust: ['#8a9aa8', '#56626e', '#2a3038'], hobble: ['#7a9a5a', '#4a6a34', '#24361a'], sweep: ['#a89070', '#6a5640', '#382c1e'],
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],

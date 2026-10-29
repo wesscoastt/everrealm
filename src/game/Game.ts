@@ -150,7 +150,7 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponKit } from '../data/classes';
+import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNLOCK_AT, UNLOCK_NAMES, SECOND_SKILLS, WEAPON_SKILLS, weaponKit } from '../data/classes';
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
@@ -2743,12 +2743,12 @@ export class Game implements GameApi {
   private shortAt = -9;
   /** What a skill on the bar costs (slot: 2 the weapon skill, 3 the heal, 4-6 utilities, 7 the elite). */
   skillCost(slot: number): Cost | null {
-    const sk = slot === 2 ? this.kit.weaponSkill : this.kit.bar[slot - 3];
+    const sk = slot === 1 ? this.kit.secondSkill : slot === 2 ? this.kit.weaponSkill : this.kit.bar[slot - 3];
     if (!sk) return null;
     const listed = SKILL_COST[sk.id];
     if (listed) return listed;
-    const pool = slot === 2 ? 'stamina' : CALLING_POOL[this.kit.calling.id] ?? 'stamina';
-    return { pool, n: slot === 2 ? 12 : slot === 3 ? SLOT_COST.heal : slot === 7 ? SLOT_COST.elite : SLOT_COST.utility };
+    const pool = slot <= 2 ? 'stamina' : CALLING_POOL[this.kit.calling.id] ?? 'stamina';
+    return { pool, n: slot === 1 ? 10 : slot === 2 ? 12 : slot === 3 ? SLOT_COST.heal : slot === 7 ? SLOT_COST.elite : SLOT_COST.utility };
   }
   /** Can the skill be paid for now? */
   canPay(c: Cost | null): boolean {
@@ -3341,7 +3341,7 @@ export class Game implements GameApi {
     this.retune();
     this.appliedApprentice = this.flag('apprentice');
     this.kit.weapon = weaponKit(this.blade?.model?.family, this.blade?.speed);
-    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
   }
 
   /** Choose the two utilities beside the signature (from the calling's other three). */
@@ -3350,7 +3350,7 @@ export class Game implements GameApi {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('elite:' + this.calling, id);
     this.kit.setElite(id);
-    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     this.persist();
     return null;
   }
@@ -3358,7 +3358,7 @@ export class Game implements GameApi {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('bar:' + this.calling, ids.slice(0, 2));
     this.kit.setUtilities(ids, this.apprentice);
-    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     this.persist();
     return null;
   }
@@ -3395,7 +3395,7 @@ export class Game implements GameApi {
     this.setFlag('talents:' + this.calling, []);
     for (const id of [...this.skillIds(), ...this.weaponSkillIds()]) { this.setFlag('skun:' + id, null); this.setFlag('skmorph:' + id, null); }
     this.retune();
-    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     if (this.mode === 'play') { this.hud.banner('Unlearned', 'Your points are yours to spend again', true); this.sfx('quest', 0.6); }
     this.persist();
     return null;
@@ -3412,7 +3412,7 @@ export class Game implements GameApi {
     const c = this.kit.calling;
     return [...c.skills.map((x) => x.id), ...(c.elites ?? []).map((x) => x.id), ...c.utilities.map((x) => x.id), ...crossUtilities(this.apprentice).map((x) => x.id)];
   }
-  private weaponSkillIds(): string[] { return Object.values(WEAPON_SKILLS).map((x) => x.id); }
+  private weaponSkillIds(): string[] { return [...Object.values(WEAPON_SKILLS), ...Object.values(SECOND_SKILLS)].map((x) => x!.id); }
   /** Is a calling skill unlocked (weapon skills come with the weapon)? */
   skillUnlocked(id: string): boolean { return this.weaponSkillIds().includes(id) || !!this.flag('skun:' + id); }
   private skillRank(id: string): number { return skillRankFor(Number(this.flag('skuse:' + id) ?? 0)); }
@@ -3465,7 +3465,7 @@ export class Game implements GameApi {
     if (this.skillPool().left < 1) return 'No skill points left to spend. They come with levels and with Insight.';
     this.setFlag('skun:' + id, 1);
     this.retune();
-    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     this.sfx('levelUp', 0.6);
     this.persist();
     return null;
@@ -3516,7 +3516,7 @@ export class Game implements GameApi {
       pool: this.skillPool(), temple: this.atTemple(), respec: (this.skillPool().total - this.skillPool().left) * RESPEC_PER_POINT,
       calling: [one(c.skills[0], UNLOCK_AT[3], 'Heal · key 4'), one(c.skills[1], UNLOCK_AT[4], 'Signature · key 5'), one(c.skills[2], UNLOCK_AT[7], 'Elite · key 8'), ...(c.elites ?? []).map((x) => one(x, UNLOCK_AT[7], 'Elite · key 8, chosen instead'))],
       utilities: [...c.utilities, ...cross].map((u) => one(u, UNLOCK_AT[5], cross.includes(u) ? 'Borrowed from your master' : 'Utility · keys 6 and 7')),
-      weapons: Object.values(WEAPON_SKILLS).map((w) => one(w, UNLOCK_AT[2], 'Weapon skill · key 3')),
+      weapons: [...Object.values(SECOND_SKILLS).map((w) => one(w!, UNLOCK_AT[1], 'Weapon skill · key 2')), ...Object.values(WEAPON_SKILLS).map((w) => one(w, UNLOCK_AT[2], 'Weapon skill · key 3'))],
     };
   }
 
@@ -5363,7 +5363,7 @@ export class Game implements GameApi {
     this.dismount();
     this.hud.pressAbility(i);
     if (i === 0) this.strike();
-    else if (i === 1) this.cleave();
+    else if (i === 1 && !this.kit.secondSkill) this.cleave();
     else if (i <= 7) {
       if (this.dash) return;
       // Mid-swing: once the blow has landed the follow-through is cut short for the skill; before
@@ -5383,7 +5383,7 @@ export class Game implements GameApi {
         if (this.elapsed - this.shortAt > 1.2) { this.shortAt = this.elapsed; this.hud.system(`Not enough ${cost!.pool} for that.`); this.sfx('fail'); }
         return;
       }
-      const ok = i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
+      const ok = i === 1 ? this.kit.useSecond() : i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
       if (ok) {
         this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0;
         if (cost) {
@@ -7320,7 +7320,7 @@ export class Game implements GameApi {
     const lock = <T extends object>(c: T, i: number): T & { locked?: number } => (L < UNLOCK_AT[i] ? { ...c, locked: UNLOCK_AT[i] } : c);
     this.hud.setAbilities([
       lock({ left: this.cds.strike, total: 0.5 }, 0),
-      lock({ left: this.cds.cleave, total: 6 }, 1),
+      lock(this.kit.secondSkill ? { ...this.kit.secondSlot(), disabled: !this.canPay(this.skillCost(1)) } : { left: this.cds.cleave, total: 6 }, 1),
       // (a skill you can't pay for just now is greyed: data/combat.ts)
       lock({ ...this.kit.weaponSlot(), disabled: !this.canPay(this.skillCost(2)) }, 2),
       // (open by level but not unlocked with a point: marked for the skills page, T)
@@ -7330,7 +7330,7 @@ export class Game implements GameApi {
     ]);
     // The weapon skill follows the weapon in hand
     const line = weaponKit(this.blade?.model?.family, this.blade?.speed);
-    if (line !== this.kit.weapon) { this.kit.weapon = line; this.kit.wcd = 0; this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill); }
+    if (line !== this.kit.weapon) { this.kit.weapon = line; this.kit.wcd = 0; this.kit.w2cd = 0; this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill); }
     const gauge = this.kit.gauge();
     this.hud.setGauge(gauge.label, gauge.value, gauge.max);
     // Prompt

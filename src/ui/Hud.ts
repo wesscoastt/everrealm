@@ -652,8 +652,14 @@ export class Hud {
   }
 
 /** Put the weapon skill on key 3 and the calling's bar on 4 to 8 (heal, three utilities, elite), and colour its gauge. */
-  setCalling(c: CallingDef, bar: SkillDef[], weapon: SkillDef): void {
+  setCalling(c: CallingDef, bar: SkillDef[], weapon: SkillDef, second: SkillDef | null = null): void {
     const slots = this.root.querySelectorAll<HTMLElement>('.ab-slot');
+    // Key 2: the weapon's own skill, or Cleave
+    const two = slots[1];
+    if (two) {
+      two.querySelector('img')!.src = abilityIcon(second ? second.icon : 'cleave');
+      two.title = second ? `${second.name} (2) · Weapon skill: ${second.desc}` : 'Cleave (2): a wide swing at everything in front of you.';
+    }
     [weapon, ...bar].forEach((sk, j) => {
       const s = slots[2 + j];
       if (!s) return;
@@ -1950,7 +1956,7 @@ export class Hud {
       const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><div class="tdesc">${esc(t.desc)} <b>Wants ${t.bar.map(esc).join(' and ')} on the bar.</b></div>${[0, 1, 2, 3, 4, 5].map((k) => `<div class="ttier${t.spent < k * t.gate ? ' shut' : ''}"><u>${k ? `Tier ${k + 1} · opens at ${k * t.gate} points in ${esc(t.name)}` : 'Tier 1'}</u><div class="trow">${t.talents.filter((d) => d.tier === k).map(tal).join('')}</div></div>`).join('')}</div>`;
       const bv = this.ctx.bar();
       const sk = (s: SkillDef, key: string, extra = '') => `<button class="bsk${extra}" data-u="${s.id}" title="${esc(s.desc)}"><img src="${abilityIcon(s.icon)}" alt=""><span><b>${key ? key + ' · ' : ''}${esc(s.name)}${s.aim ? ' <i>aimed</i>' : ''}</b><small>${esc(s.desc)} ${s.cd >= 2 ? `(${s.cd} s)` : ''}</small></span></button>`;
-      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility or an elite to put it on the bar, out of a fight.</div>
+      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, then two that depend on the weapon in your hand (Cleave and a third for a sword). Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility or an elite to put it on the bar, out of a fight.</div>
         <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', (bv.chosen.includes(s.id) ? ' on' : ' off') + (bv.cross.includes(s.id) ? ' cross' : ''))).join('')}${bv.elites.map((s) => sk(s, s.id === bv.elite.id ? '8' : '', (s.id === bv.elite.id ? ' on' : ' off') + ' elite')).join('')}</div><div class="bar-msg"></div>
         <h4>Your calling</h4>${this.ctx.callingFree()
           ? `<div class="feat-sum">A calling is for life now. Because yours was chosen when callings could still be changed, you may change it once more, out of a fight.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div>`
@@ -2985,7 +2991,7 @@ export class Hud {
         <kbd>Shift</kbd><span>Sprint (uses energy)</span>
         <kbd>Space</kbd><span>Jump</span>
         <kbd>Click / 1</kbd><span>Strike · three-hit combo</span>
-        <kbd>2</kbd><span>Cleave: spin attack</span>
+        <kbd>2</kbd><span>Cleave with a sword or a great blade; with anything else, that weapon's own skill</span>
         <kbd>3 – 8</kbd><span>Weapon skill, heal, your calling's skills and elite, as you reach their levels</span>
         <kbd>Q</kbd><span>Dodge roll, invulnerable while rolling</span>
         <kbd>V</kbd><span>Hold to block: half the blow from in front, for stamina; raised just as it lands, none of it, and the attacker reels</span>

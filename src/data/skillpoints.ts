@@ -291,6 +291,35 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'plague_a', name: 'Black Plague', desc: 'Withers four deep, the blow a fifth lighter.', mod: (t) => { t.plague.stacks += 1; scale(t.plague, 'dmg', 0.8); } },
     { id: 'plague_b', name: 'Red Plague', desc: 'The blow half again as heavy, withering two deep.', mod: (t) => { scale(t.plague, 'dmg', 1.5); t.plague.stacks -= 1; } },
   ],
+  // ---------------------------------------------------------------- Weapon skills (key 2)
+  backstab: [
+    { id: 'backstab_a', name: 'Knife in the Dark', desc: 'Nearly three times as hard on a foe not facing you, a little lighter otherwise.', mod: (t) => { t.backstab.behind += 0.5; scale(t.backstab, 'dmg', 0.9); } },
+    { id: 'backstab_b', name: 'Quick Knife', desc: 'Ready again a quarter sooner.', mod: (t) => { t.cd.backstab = 0.75; } },
+  ],
+  hook: [
+    { id: 'hook_a', name: 'Long Hook', desc: 'Reaches three blocks farther.', mod: (t) => { t.hook.range += 3; } },
+    { id: 'hook_b', name: 'Hook and Hold', desc: 'The stumble lasts half a second longer, the blow a little lighter.', mod: (t) => { t.hook.stun += 0.5; scale(t.hook, 'dmg', 0.85); } },
+  ],
+  overhead: [
+    { id: 'overhead_a', name: 'Splitting Chop', desc: 'A fifth heavier, ready again a little later.', mod: (t) => { scale(t.overhead, 'dmg', 1.2); t.cd.overhead = 1.15; } },
+    { id: 'overhead_b', name: 'Quick Chop', desc: 'Ready again a quarter sooner, a tenth lighter.', mod: (t) => { scale(t.overhead, 'dmg', 0.9); t.cd.overhead = 0.75; } },
+  ],
+  groundpound: [
+    { id: 'groundpound_a', name: 'Tremor', desc: 'Reaches a block and a half farther, a little lighter.', mod: (t) => { t.groundpound.r += 1.5; scale(t.groundpound, 'dmg', 0.85); } },
+    { id: 'groundpound_b', name: 'Mire', desc: 'Slowed three seconds longer.', mod: (t) => { t.groundpound.slow += 3; } },
+  ],
+  spearsweep: [
+    { id: 'spearsweep_a', name: 'Wide Sweep', desc: 'A block wider, a little lighter.', mod: (t) => { t.spearsweep.r += 1; scale(t.spearsweep, 'dmg', 0.9); } },
+    { id: 'spearsweep_b', name: 'Clear the Way', desc: 'Pushes them back twice as far.', mod: (t) => { t.spearsweep.knock *= 2; } },
+  ],
+  pointblank: [
+    { id: 'pointblank_a', name: 'Get Back', desc: 'Knocks them back half again as far.', mod: (t) => { t.pointblank.knock *= 1.5; } },
+    { id: 'pointblank_b', name: 'Through and Through', desc: 'A quarter heavier, knocking them back less.', mod: (t) => { scale(t.pointblank, 'dmg', 1.25); t.pointblank.knock *= 0.6; } },
+  ],
+  staffflurry: [
+    { id: 'staffflurry_a', name: 'Rattle', desc: 'Five blows instead of three, each lighter.', mod: (t) => { t.staffflurry.hits += 2; scale(t.staffflurry, 'dmg', 0.65); } },
+    { id: 'staffflurry_b', name: 'Two Ends', desc: 'Two blows instead of three, each heavier.', mod: (t) => { t.staffflurry.hits -= 1; scale(t.staffflurry, 'dmg', 1.45); } },
+  ],
   // ---------------------------------------------------------------- Weapon skills (key 3)
   riposte: [
     { id: 'riposte_a', name: 'Iron Guard', desc: 'The guard stays up 0.6 seconds longer.', mod: (t) => { t.riposte.secs += 0.6; } },

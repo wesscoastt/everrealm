@@ -372,3 +372,21 @@ skills page, bought with a skill point like any skill, kept in saved builds with
 
 `npm run balance` now also holds each of these within 7% of its calling played with its own elite, and
 checks their morphs like every other skill's.
+
+### The brief's skills, fourth part: key 2 by the weapon too (2026-10-29)
+
+Key 2 was Cleave for every weapon. Now swords and two-handed blades keep Cleave, and every other kind has
+a skill of its own there (`SECOND_SKILLS` in `data/classes.ts`), with an icon, two morphs and a stamina
+price, so a weapon decides two of your keys:
+
+| In hand | Key 2 | Key 3 |
+| --- | --- | --- |
+| sword, longsword, falchion | Cleave | Riposte |
+| sabre, dagger | **Backstab** (more than twice as hard on a foe not facing you, or stunned) | Flurry |
+| greatsword, cleaver | Cleave | Sunder |
+| axe | **Hook** (dragged to you from six blocks, stumbling) | Hack |
+| great axe | **Overhead Chop** (its heaviest blow) | Whirl |
+| mace, war hammer | **Ground Pound** (everything near struck and slowed) | Bell Ringer |
+| spear | **Spear Sweep** (everything within four blocks struck and pushed back) | Long Thrust |
+| bow | **Point Blank** (an arrow at five blocks or less, knocking it back) | Hobbling Shot |
+| staff | **Staff Flurry** (three quick blows) | Staff Sweep |

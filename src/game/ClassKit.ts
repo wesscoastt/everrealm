@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SECOND_SKILLS, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
 
 /** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
@@ -172,6 +172,10 @@ export class ClassKit {
 
   /** The weapon skill for the weapon in hand. */
   get weaponSkill(): SkillDef { return WEAPON_SKILLS[this.weapon]; }
+  /** Key 2's skill for the weapon in hand, or null where it's Cleave (swords and great blades). */
+  get secondSkill(): SkillDef | null { return SECOND_SKILLS[this.weapon] ?? null; }
+  /** Key 2's cooldown left. */
+  w2cd = 0;
 
   // ---------------------------------------------------------------- What the game asks
   /** Change damage the player is about to deal to e. */
@@ -316,6 +320,18 @@ export class ClassKit {
   }
 
   weaponSlot(): { left: number; total: number } { return { left: this.wcd, total: this.weaponSkill.cd }; }
+  secondSlot(): { left: number; total: number } { return { left: this.w2cd, total: this.secondSkill?.cd ?? 6 }; }
+
+  /** Key 2's skill, where the weapon has one. */
+  useSecond(): boolean {
+    const s = this.secondSkill;
+    if (!s || this.w2cd > 0) return false;
+    if (!this.cast(s.id, this.host.player(), this.host.power())) return false;
+    this.host.used?.(s.id);
+    this.w2cd = s.cd;
+    this.host.inCombat();
+    return true;
+  }
 
   /** The weapon skill (key 3). */
   useWeapon(): boolean {
@@ -916,6 +932,80 @@ export class ClassKit {
         H.anim('cleave'); H.sfx('growl');
         return true;
       }
+      // ---- Key 2 by the weapon in hand
+      // A dagger or sabre: much harder on a foe that isn't facing you (or can't)
+      case 'backstab': {
+        const e = H.faceTarget(T.backstab.range);
+        if (!e) return false;
+        let d = Math.abs(Math.atan2(P.x - e.pos.x, P.z - e.pos.z) - e.yaw) % (Math.PI * 2);
+        if (d > Math.PI) d = Math.PI * 2 - d;
+        const open = d > Math.PI / 2 || e.stun > 0;
+        H.anim('attack'); H.sfx(open ? 'hitHeavy' : 'swing');
+        H.hit(e, pw * T.backstab.dmg * (open ? T.backstab.behind : 1));
+        if (open) H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 12, '#a01a1a');
+        return true;
+      }
+      // An axe: hooked and dragged to you
+      case 'hook': {
+        const e = H.faceTarget(T.hook.range);
+        if (!e) return false;
+        H.anim('attack'); H.sfx('swing');
+        H.hit(e, pw * T.hook.dmg);
+        const to = P.clone().sub(e.pos).setY(0);
+        if (to.length() > 1.6) e.knock.addScaledVector(to.normalize(), T.hook.pull);
+        e.stun = Math.max(e.stun, T.hook.stun);
+        return true;
+      }
+      // A great axe: all the way up and down on one foe
+      case 'overhead': {
+        const e = H.faceTarget(T.overhead.range);
+        if (!e) return false;
+        H.anim('cleave'); H.sfx('hitHeavy');
+        H.hit(e, pw * T.overhead.dmg);
+        H.particles.sparks(e.pos.clone().setY(e.pos.y + 1.2), 14, '#ffe8a0');
+        return true;
+      }
+      // A hammer: the ground at your feet, and everything near struck and slowed
+      case 'groundpound': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.groundpound.r);
+        if (!near.length) return false;
+        H.anim('cleave'); H.sfx('hitHeavy');
+        for (const o of near) { H.hit(o, pw * T.groundpound.dmg); o.slowLeft = Math.max(o.slowLeft, T.groundpound.slow); }
+        this.ring(P, T.groundpound.r, '#c8a878', 0.5);
+        H.particles.dust(P.clone().setY(P.y + 0.2), 20);
+        return true;
+      }
+      // A spear: swept round at the end of its reach, pushing back
+      case 'spearsweep': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.spearsweep.r);
+        if (!near.length) return false;
+        H.anim('cleave'); H.sfx('swing');
+        for (const o of near) {
+          H.hit(o, pw * T.spearsweep.dmg);
+          const away = o.pos.clone().sub(P).setY(0);
+          if (away.lengthSq() > 0.01) o.knock.addScaledVector(away.normalize(), T.spearsweep.knock);
+        }
+        return true;
+      }
+      // A bow: an arrow at whatever's too close, knocking it back
+      case 'pointblank': {
+        const e = H.faceTarget(T.pointblank.range);
+        if (H.bow?.()) H.anim('shoot');
+        if (!e) return false;
+        H.sfx('hitHeavy');
+        H.hit(e, pw * T.pointblank.dmg);
+        const away = e.pos.clone().sub(P).setY(0);
+        if (away.lengthSq() > 0.01) e.knock.addScaledVector(away.normalize(), T.pointblank.knock);
+        return true;
+      }
+      // A staff: three quick blows with both ends
+      case 'staffflurry': {
+        const e = H.faceTarget(T.staffflurry.range);
+        if (!e) return false;
+        for (let k = 0; k < T.staffflurry.hits; k++) this.cuts.push({ e, t: k * T.staffflurry.every, dmg: pw * T.staffflurry.dmg });
+        H.anim('attack'); H.sfx('swing');
+        return true;
+      }
       // An axe: a chop that opens a wound (Cleaving Hack reaches the next foe as well)
       case 'hack': {
         const e = H.faceTarget(T.hack.range);
@@ -1087,7 +1177,7 @@ export class ClassKit {
     const H = this.host, P = H.player();
     const haste = H.skillHaste();
     for (let i = 0; i < this.cds.length; i++) this.cds[i] = Math.max(0, this.cds[i] - dt * haste);
-    this.wcd = Math.max(0, this.wcd - dt * haste);
+    this.wcd = Math.max(0, this.wcd - dt * haste); this.w2cd = Math.max(0, this.w2cd - dt * haste);
     // Flurry's cuts, one after another
     for (const c of this.cuts) {
       c.t -= dt;

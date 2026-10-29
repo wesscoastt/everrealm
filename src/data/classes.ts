@@ -304,6 +304,14 @@ export const TUNE = {
   deepfreeze: { r: 8, freeze: 4, dmg: 2.0 },
   vigil: { secs: 10, r: 15, floor: 0.2, heal: 0.03 },
   plague: { r: 10, dmg: 1.2, stacks: 3 },
+  // Key 2 by the weapon in hand (SECOND_SKILLS)
+  backstab: { dmg: 1.1, behind: 2.3, range: 3 },
+  hook: { dmg: 1.0, range: 6, pull: 9, stun: 0.6 },
+  overhead: { dmg: 2.6, range: 3.2 },
+  groundpound: { r: 3.5, dmg: 1.2, slow: 3 },
+  spearsweep: { r: 4.2, dmg: 1.1, knock: 5 },
+  pointblank: { dmg: 1.6, range: 5, knock: 10 },
+  staffflurry: { hits: 3, dmg: 0.6, every: 0.18, range: 3.6 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },
@@ -330,7 +338,7 @@ export const TUNE = {
  */
 export const UNLOCK_AT = [1, 2, 6, 3, 4, 8, 12, 16];
 /** What each key's skill is called while it's still locked (the calling's own names come in once known). */
-export const UNLOCK_NAMES = ['Strike', 'Cleave', 'your weapon skill', 'your calling\'s heal', 'your calling\'s signature skill', 'a utility skill', 'a second utility skill', 'your calling\'s elite skill'];
+export const UNLOCK_NAMES = ['Strike', 'your second weapon skill', 'your weapon skill', 'your calling\'s heal', 'your calling\'s signature skill', 'a utility skill', 'a second utility skill', 'your calling\'s elite skill'];
 
 /** A weapon's line, by how it swings: quick, heavy, or balanced (data/items.ts weapon.speed). */
 export type WeaponLine = 'balanced' | 'quick' | 'heavy';
@@ -353,6 +361,20 @@ export const WEAPON_SKILLS: Record<WeaponKit, SkillDef> = {
   spear: { id: 'longthrust', name: 'Long Thrust', icon: 'longthrust', cd: 10, desc: 'Lunge with the spear: everything in a line six blocks long takes a heavy thrust.' },
   bow: { id: 'hobble', name: 'Hobbling Shot', icon: 'hobble', cd: 12, desc: 'An arrow at the legs: a solid hit, and the target moves at two thirds of its pace for four seconds.' },
   staff: { id: 'sweep', name: 'Staff Sweep', icon: 'sweep', cd: 14, desc: 'Sweep the staff round low: everything near you is struck, knocked back and off its feet for a moment.' },
+};
+/**
+ * Key 2, by the kind of weapon in hand: Cleave (Game.cleave) for swords and two-handed blades, and for
+ * the rest a skill of their own, so a dagger, an axe, a hammer, a spear, a bow and a staff each fight
+ * their own way at both keys.
+ */
+export const SECOND_SKILLS: Partial<Record<WeaponKit, SkillDef>> = {
+  quick: { id: 'backstab', name: 'Backstab', icon: 'backstab', cd: 8, desc: 'A quick stab, and twice as hard and more on a foe that isn\'t facing you, or can\'t: stunned, or turned to someone else.' },
+  axe: { id: 'hook', name: 'Hook', icon: 'hook', cd: 10, desc: 'Hook the axe behind your target, up to six blocks off, and drag it to you: a blow, and it stumbles for over half a second.' },
+  greataxe: { id: 'overhead', name: 'Overhead Chop', icon: 'overhead', cd: 9, desc: 'Lift the great axe all the way and bring it down on one foe: the heaviest blow it has.' },
+  hammer: { id: 'groundpound', name: 'Ground Pound', icon: 'groundpound', cd: 10, desc: 'Bring the head down on the ground at your feet: everything within three and a half blocks is struck and slowed for three seconds.' },
+  spear: { id: 'spearsweep', name: 'Spear Sweep', icon: 'spearsweep', cd: 8, desc: 'Sweep the spear round at the end of its reach: everything within four blocks is struck and pushed back.' },
+  bow: { id: 'pointblank', name: 'Point Blank', icon: 'pointblank', cd: 10, desc: 'Something too close? An arrow at five blocks or less, hard enough to knock it back.' },
+  staff: { id: 'staffflurry', name: 'Staff Flurry', icon: 'staffflurry', cd: 8, desc: 'Both ends of the staff, three quick blows on your target.' },
 };
 /** The weapon skill's kind for a weapon: by its family, or (with nothing in hand) by speed. */
 export function weaponKit(family: string | undefined, speed: number | undefined): WeaponKit {
