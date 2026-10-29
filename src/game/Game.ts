@@ -150,7 +150,7 @@ import { WORLD_BOSSES } from '../data/activities';
 import type { GroupRow } from './Social';
 import { FESTIVALS } from '../data/festivals';
 import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
-import { CallingDef, CallingId, callingById, crossUtilities, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponKit } from '../data/classes';
+import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNLOCK_AT, UNLOCK_NAMES, WEAPON_SKILLS, weaponKit } from '../data/classes';
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
@@ -3136,8 +3136,9 @@ export class Game implements GameApi {
       masterySpend: (id: string) => g.masterySpend(id as MasteryId | 'reset'),
       callingFree: () => !g.flag('callingSet'),
       apprentice: () => { const a = g.apprentice; return a ? { name: a.name, master: MASTER_OF[a.id]?.name ?? '' } : null; },
-      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.calling.skills[2], weapon: g.kit.weaponSkill }),
+      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.elite, elites: elitesOf(g.kit.calling), weapon: g.kit.weaponSkill }),
       setUtilities: (ids: string[]) => g.setUtilities(ids),
+      setElite: (id: string) => g.setElite(id),
       learnTalent: (id: string) => g.learnTalent(id),
       skillsView: () => g.skillsView(),
       unlockSkill: (id: string) => g.unlockSkill(id),
@@ -3334,6 +3335,7 @@ export class Game implements GameApi {
 
   private applyCalling(): void {
     this.kit.set(this.calling);
+    this.kit.setElite(this.flag('elite:' + this.calling));
     this.kit.setUtilities(this.flag('bar:' + this.calling), this.apprentice);
     this.migrateSkills();
     this.retune();
@@ -3343,6 +3345,15 @@ export class Game implements GameApi {
   }
 
   /** Choose the two utilities beside the signature (from the calling's other three). */
+  /** Choose the elite for key 8 (out of a fight). */
+  setElite(id: string): string | null {
+    if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
+    this.setFlag('elite:' + this.calling, id);
+    this.kit.setElite(id);
+    this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill);
+    this.persist();
+    return null;
+  }
   setUtilities(ids: string[]): string | null {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('bar:' + this.calling, ids.slice(0, 2));
@@ -3399,7 +3410,7 @@ export class Game implements GameApi {
   /** The calling's skills the points unlock: its heal, signature, elite and utilities, and an apprentice's borrowed ones. */
   private skillIds(): string[] {
     const c = this.kit.calling;
-    return [...c.skills.map((x) => x.id), ...c.utilities.map((x) => x.id), ...crossUtilities(this.apprentice).map((x) => x.id)];
+    return [...c.skills.map((x) => x.id), ...(c.elites ?? []).map((x) => x.id), ...c.utilities.map((x) => x.id), ...crossUtilities(this.apprentice).map((x) => x.id)];
   }
   private weaponSkillIds(): string[] { return Object.values(WEAPON_SKILLS).map((x) => x.id); }
   /** Is a calling skill unlocked (weapon skills come with the weapon)? */
@@ -3449,7 +3460,7 @@ export class Game implements GameApi {
     if (!this.skillIds().includes(id)) return 'That isn\'t one of your skills.';
     if (this.skillUnlocked(id)) return 'Already unlocked.';
     const c = this.kit.calling, lvl = this.level('melee');
-    const need = id === c.skills[0].id ? UNLOCK_AT[3] : id === c.skills[1].id ? UNLOCK_AT[4] : id === c.skills[2].id ? UNLOCK_AT[7] : UNLOCK_AT[5];
+    const need = id === c.skills[0].id ? UNLOCK_AT[3] : id === c.skills[1].id ? UNLOCK_AT[4] : id === c.skills[2].id || c.elites?.some((x) => x.id === id) ? UNLOCK_AT[7] : UNLOCK_AT[5];
     if (lvl < need) return `That opens at level ${need}.`;
     if (this.skillPool().left < 1) return 'No skill points left to spend. They come with levels and with Insight.';
     this.setFlag('skun:' + id, 1);
@@ -3503,7 +3514,7 @@ export class Game implements GameApi {
     const cross = crossUtilities(this.apprentice);
     return {
       pool: this.skillPool(), temple: this.atTemple(), respec: (this.skillPool().total - this.skillPool().left) * RESPEC_PER_POINT,
-      calling: [one(c.skills[0], UNLOCK_AT[3], 'Heal · key 4'), one(c.skills[1], UNLOCK_AT[4], 'Signature · key 5'), one(c.skills[2], UNLOCK_AT[7], 'Elite · key 8')],
+      calling: [one(c.skills[0], UNLOCK_AT[3], 'Heal · key 4'), one(c.skills[1], UNLOCK_AT[4], 'Signature · key 5'), one(c.skills[2], UNLOCK_AT[7], 'Elite · key 8'), ...(c.elites ?? []).map((x) => one(x, UNLOCK_AT[7], 'Elite · key 8, chosen instead'))],
       utilities: [...c.utilities, ...cross].map((u) => one(u, UNLOCK_AT[5], cross.includes(u) ? 'Borrowed from your master' : 'Utility · keys 6 and 7')),
       weapons: Object.values(WEAPON_SKILLS).map((w) => one(w, UNLOCK_AT[2], 'Weapon skill · key 3')),
     };
@@ -3527,7 +3538,7 @@ export class Game implements GameApi {
   /** What the talent screen shows of the trees: each talent with the icon of the skill it changes, and the saved builds. */
   talentView() {
     const have = this.learned(), lvl = this.level('melee'), c = this.kit.calling;
-    const skills = [...c.skills, ...c.utilities, this.kit.weaponSkill];
+    const skills = [...c.skills, ...(c.elites ?? []), ...c.utilities, this.kit.weaponSkill];
     // A talent's icon: the skill its words name, or the calling's signature for its mechanic and the rest
     const iconFor = (text: string) => skills.find((sk) => text.includes(sk.name))?.icon ?? c.skills[1].icon;
     return {
@@ -3551,16 +3562,16 @@ export class Game implements GameApi {
   // Builds (GW2's build templates): three saved sets of talents and utilities for each calling, to
   // switch between out of a fight, so a Warden can hold the line in a dungeon and go back to the
   // Toll for the open world without learning it all again.
-  private builds(): ({ name: string; talents: string[]; bar: string[] } | null)[] {
+  private builds(): ({ name: string; talents: string[]; bar: string[]; elite?: string } | null)[] {
     const v = this.flag('builds:' + this.calling);
-    const list = Array.isArray(v) ? (v as ({ name: string; talents: string[]; bar: string[] } | null)[]) : [];
+    const list = Array.isArray(v) ? (v as ({ name: string; talents: string[]; bar: string[]; elite?: string } | null)[]) : [];
     return [0, 1, 2].map((i) => list[i] ?? null);
   }
   saveBuild(i: number): string | null {
     if (i < 0 || i > 2) return null;
     const list = this.builds(), have = this.learned();
     const top = TREES[this.calling].map((t) => [t.name, spent(have, t.id)] as const).sort((a, z) => z[1] - a[1])[0];
-    list[i] = { name: have.length ? top[0] : 'Untrained', talents: have, bar: this.kit.bar.slice(2, 4).map((x) => x.id) };
+    list[i] = { name: have.length ? top[0] : 'Untrained', talents: have, bar: this.kit.bar.slice(2, 4).map((x) => x.id), elite: this.kit.elite.id };
     this.setFlag('builds:' + this.calling, list);
     this.persist();
     return null;
@@ -3577,6 +3588,7 @@ export class Game implements GameApi {
     for (const id of b.talents) if (!canLearn(id, got, this.calling, lvl, this.poolExtra())) got.push(id);
     this.setFlag('talents:' + this.calling, got);
     this.retune();
+    if (b.elite) this.setElite(b.elite);
     this.setUtilities(b.bar);
     this.sfx('levelUp', 0.5);
     this.persist();
@@ -5610,6 +5622,8 @@ export class Game implements GameApi {
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
   private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
     if (!e.alive) return 0;
+    // Deadeye: every blow a critical hit while it lasts
+    if (!quiet && this.kit.deadeye()) crit = true;
     const fx = this.fx;
     // The Clinker tusk: blows in a row on one foe build, 5% a blow up to a quarter
     if (fx.has('momentum') && !quiet) { this.streak = this.streak.e === e ? { e, n: Math.min(5, this.streak.n + 1) } : { e, n: 0 }; raw *= 1 + this.streak.n * 0.05; }

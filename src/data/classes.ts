@@ -34,6 +34,8 @@ export interface CallingDef {
   skills: [SkillDef, SkillDef, SkillDef];
   /** The calling's other utilities: skills[1] is its signature and always on the bar (key 5); two of these go beside it (6 and 7). */
   utilities: SkillDef[];
+  /** Elites to choose instead of skills[2] (key 8): the calling's other big moment. */
+  elites?: SkillDef[];
   /** Shown in the creator: how it plays in a line each. */
   pros: string;
   cons: string;
@@ -56,6 +58,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'challenge', name: 'Challenge', icon: 'challenge', cd: 16, desc: 'Bang your shield and call them on: every foe within six blocks is cowed, its blows landing 15% softer for six seconds, and you gather two Resolve.' },
       { id: 'cover', name: 'Cover', icon: 'cover', cd: 22, desc: 'Bring your shield round for everyone near: each of your side within eight blocks gets a ward of an eighth of their health for six seconds, you a little less.' },
     ],
+    elites: [
+      { id: 'unbroken', name: 'Unbroken', icon: 'unbroken', cd: 60, desc: 'Nothing will put you down: for eight seconds you get back two fifths of your health, a little each second, and nothing stuns you or moves you.' },
+    ],
     pros: 'Hardest to bring down; stuns', cons: 'Lowest damage',
   },
   {
@@ -73,6 +78,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'hamstring', name: 'Hamstring', icon: 'hamstring', cd: 12, desc: 'Cut your target behind the knee: it takes a blow and can\'t move for over a second.' },
       { id: 'finisher', name: 'Finishing Cut', icon: 'finisher', cd: 10, desc: 'A cut meant to end it: a solid blow, two and a half times that on a foe under a third of its health, and a kill with it mends you a little.' },
       { id: 'bloodup', name: 'Blood Up', icon: 'bloodup', cd: 16, desc: 'Open your own arm and let it make you angry: a sixteenth of your health for most of your Fury, and for eight seconds every blow you land gives a little health back.' },
+    ],
+    elites: [
+      { id: 'massacre', name: 'Massacre', icon: 'massacre', cd: 60, desc: 'Turn and turn and turn again: three wide strikes, a heartbeat apart, on everything within five blocks.' },
     ],
     pros: 'Highest damage; heals by fighting', cons: 'Takes more harm; melee only',
   },
@@ -92,6 +100,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'smoulder', name: 'Smoulder', icon: 'smoulder', cd: 10, desc: 'Set your target smouldering from up to eighteen blocks: it burns, slowly and for a long time, for eight seconds.' },
       { id: 'flashfire', name: 'Flashfire', icon: 'flashfire', cd: 16, desc: 'Fire bursts out of you: everything within four blocks is burned and dazzled, stunned for a second.' },
     ],
+    elites: [
+      { id: 'pillar', name: 'Pillar of Fire', icon: 'pillar', cd: 60, aim: 16, desc: 'Call down a column of fire where you aim: everything within three blocks of it burns for ten seconds.' },
+    ],
     pros: 'Fights from range; big area damage', cons: 'Fragile up close',
   },
   {
@@ -109,6 +120,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'quickstep', name: 'Quickstep', icon: 'quickstep', cd: 10, desc: 'Spring back out of reach. Your next Strike within four seconds is a heavy critical blow.' },
       { id: 'heartshot', name: 'Heart Shot', icon: 'heartshot', cd: 12, desc: 'Take your time over one arrow: a heavy shot, and a third heavier on a marked foe.' },
       { id: 'smoke', name: 'Smoke Arrow', icon: 'smoke', cd: 18, aim: 18, desc: 'An arrow of burning rags where you aim: everything there is singed, and everything in the smoke strikes 15% softer, moves slower and is marked for six seconds.' },
+    ],
+    elites: [
+      { id: 'deadeye', name: 'Deadeye', icon: 'deadeye', cd: 60, desc: 'Steady breathing and a quiet hand: for seven seconds every blow and arrow you land is a critical hit.' },
     ],
     pros: 'Range and mobility; burst', cons: 'Little to soak a long fight',
   },
@@ -128,6 +142,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'shatter', name: 'Shatter', icon: 'shatter', cd: 12, desc: 'Break the cold in everything within ten blocks: each chilled foe takes a blow for every Chill on it, and the Chill is spent.' },
       { id: 'frostbite', name: 'Frostbite', icon: 'frostbite', cd: 10, desc: 'Cold into your target\'s blood from up to eighteen blocks: a Chill now, and it freezes slowly from within for six seconds.' },
     ],
+    elites: [
+      { id: 'deepfreeze', name: 'Deep Freeze', icon: 'deepfreeze', cd: 60, desc: 'The cold goes all the way in: everything within eight blocks is frozen solid for four seconds, and cracked for a blow.' },
+    ],
     pros: 'Fights from range; freezes foes in place', cons: 'Little damage up close',
   },
   {
@@ -146,6 +163,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'mercy', name: 'Mercy', icon: 'mercy', cd: 20, desc: 'A quarter of their health, at once, to the most hurt of yours within fifteen blocks (you heal for a third as much as you would anyone else).' },
       { id: 'judgement', name: 'Judgement', icon: 'judgement', cd: 12, desc: 'A hard bolt of lantern light at your target from up to twenty blocks: a heavy blow, and it is dazed for most of a second.' },
     ],
+    elites: [
+      { id: 'vigil', name: 'Vigil', icon: 'vigil', cd: 60, desc: 'Keep watch over them: for ten seconds you can\'t fall below a fifth of your health, and you and everyone of yours within fifteen blocks mend a little each second.' },
+    ],
     pros: 'Heals and wards others; hard to bring down', cons: 'Least damage of any calling',
   },
   {
@@ -163,6 +183,9 @@ export const CALLINGS: CallingDef[] = [
       { id: 'graverot', name: 'Grave Rot', icon: 'graverot', cd: 16, desc: 'Paid in health. Rot spreads out from your target to every foe within six blocks of it, striking each and leaving Wither two deep.' },
       { id: 'bonespear', name: 'Bone Spear', icon: 'bonespear', cd: 10, desc: 'A spear of old bone thrown at your target: it goes through everything in a line fourteen blocks long.' },
       { id: 'dread', name: 'Dread', icon: 'dread', cd: 18, desc: 'Let them see what you have seen: everything within six blocks takes a blow, cowers, held for two seconds, and withers two deep.' },
+    ],
+    elites: [
+      { id: 'plague', name: 'Plague', icon: 'plague', cd: 60, desc: 'Let the rot out: everything within ten blocks is struck and withered three deep.' },
     ],
     pros: 'Wears whole packs down; never waits on magicka for its blood skills', cons: 'Slow to kill one foe outright; pays in health',
   },
@@ -273,6 +296,14 @@ export const TUNE = {
   /** Gravecaller: Bone Spear (through a line) and Dread (everything near held, and withered). */
   bonespear: { dmg: 2.8, reach: 14, width: 1 },
   dread: { r: 6, stun: 2, stacks: 2, dmg: 1.5 },
+  /** The elites to choose instead (CallingDef.elites). */
+  unbroken: { heal: 0.4, secs: 8 },
+  massacre: { r: 5, dmg: 1.3, hits: 3, every: 0.45 },
+  pillar: { r: 3, burn: 1.0, secs: 10, range: 16 },
+  deadeye: { secs: 7 },
+  deepfreeze: { r: 8, freeze: 4, dmg: 2.0 },
+  vigil: { secs: 10, r: 15, floor: 0.2, heal: 0.03 },
+  plague: { r: 10, dmg: 1.2, stacks: 3 },
   // Weapon skills (key 3, every calling: by the weapon in hand)
   riposte: { secs: 1.2, dmg: 2.2 },
   flurry: { hits: 4, dmg: 0.6, every: 0.16, range: 3.2 },
@@ -338,6 +369,8 @@ export function weaponKit(family: string | undefined, speed: number | undefined)
   }
   return weaponLine(speed);
 }
+/** A calling's elites: its own, then the others it can choose instead. */
+export function elitesOf(c: CallingDef): SkillDef[] { return [c.skills[2], ...(c.elites ?? [])]; }
 /** Cross-classing (data/content/masters.ts): the level an apprenticeship can start, and its fee. */
 export const APPRENTICE_LEVEL = 25, APPRENTICE_FEE = 500;
 /** Skills that only work through their own calling's craft, so no master teaches them. */

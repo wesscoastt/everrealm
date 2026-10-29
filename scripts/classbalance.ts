@@ -4,7 +4,7 @@
 // is more than 7% off the average, or if one is best at everything.
 //
 // Units: damage in P (one ordinary swing at your level); health as a fraction of your own.
-import { CALLINGS, CallingId, chosenUtilities, type SkillDef, TUNE as BASE } from '../src/data/classes';
+import { CALLINGS, CallingId, chosenUtilities, elitesOf, type SkillDef, TUNE as BASE } from '../src/data/classes';
 import { fullTree, TREES, tuned, type Tune } from '../src/data/talents';
 import { applyRank, MORPHS } from '../src/data/skillpoints';
 import { CALLING_POOL, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../src/data/combat';
@@ -35,9 +35,9 @@ function foe(hp: number, rate: number): Foe { return { hp, max: hp, weak: 0, stu
 interface Result { dealt: number; secs: number; hpLeft: number; won: boolean }
 
 /** The bar the rotation uses: the heal, three utilities (by id, or the first three) and the elite. */
-function barOf(id: CallingId, utilities?: string[]): SkillDef[] {
+function barOf(id: CallingId, utilities?: string[], elite?: string): SkillDef[] {
   const c = CALLINGS.find((x) => x.id === id)!;
-  return [c.skills[0], ...chosenUtilities(c, utilities ?? null), c.skills[2]];
+  return [c.skills[0], ...chosenUtilities(c, utilities ?? null), elitesOf(c).find((e) => e.id === elite) ?? c.skills[2]];
 }
 
 function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: SkillDef[] = barOf(id)): Result {
@@ -67,8 +67,10 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   let resolve = 0, resolveAt = -99, fury = 0, kindling = 0, shield = 0, shieldUntil = 0, oathUntil = 0, oathTick = 0;
   let redUntil = 0, wardUntil = 0, wardTick = 0, stepUntil = 0, pendingStar = -1;
   const live = () => foes.filter((e) => e.hp > 0);
+  // The other elites' clocks: Unbroken, Deadeye, the Vigil, Massacre's turns to come
+  let unbrokenUntil = 0, deadeyeUntil = 0, vigilUntil = 0, massacreLeft = 0, massacreNext = 0;
   const hit = (e: Foe, p: number, crit = Math.random() < CRIT) => {
-    let d = p * (crit ? CRIT_MULT : 1);
+    let d = p * (crit || (deadeyeUntil > t && p > 0.3) ? CRIT_MULT : 1);
     if (redUntil > t) d *= TUNE.redhour.dealt;
     if (e.mark > t) d *= 1 + TUNE.volley.markBonus;
     if (id === 'warden') d *= 1 + resolve * TUNE.resolve.dmg;
@@ -103,6 +105,9 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
     if (shield > 0 && shieldUntil <= t) { if (shieldKind === 'bulwark') heal(shield * TUNE.bulwark.mend); shield = 0; }
     if (hotUntil > t) heal(TUNE.dressing.hot / 5 * DT);
     if (restoreUntil > t) heal(TUNE.restore.heal / TUNE.restore.secs * DT);
+    if (unbrokenUntil > t) heal(TUNE.unbroken.heal / TUNE.unbroken.secs * DT);
+    if (vigilUntil > t) heal(TUNE.vigil.heal * DT);
+    if (massacreLeft > 0 && t >= massacreNext) { aoe(caught(), TUNE.massacre.dmg); massacreLeft--; massacreNext += TUNE.massacre.every; }
     for (const e of L) if (e.wither && (e.withered ?? 0) > t) { hit(e, TUNE.wither.dot * e.wither * DT, false); addBlood(TUNE.lifeblood.tick * e.wither * DT); }
     if (raisedUntil > t && (raiseTick -= DT) <= 0) { raiseTick = TUNE.raise.every; const to = live()[0]; if (to) for (let k = 0; k < TUNE.raise.n; k++) hit(to, TUNE.raise.dmg); }
     // Sanctuary: you heal on it; foes burn on it only when they've come to you
@@ -150,6 +155,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
           shieldKind = '';
         }
       }
+      if (vigilUntil > t) d = Math.min(d, Math.max(0, hp - TUNE.vigil.floor));
       hp -= d;
       if (hp <= 0) return { dealt, secs: t, hpLeft: 0, won: false };
     }
@@ -200,6 +206,14 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         // Gravecaller: a spear through a line (two, in a pack), and everything near held and withered
         case 'bonespear': live().slice(0, Math.min(2, caught())).forEach((o) => hit(o, TUNE.bonespear.dmg)); break;
         case 'dread': if (ranged) return false; live().slice(0, caught()).forEach((o) => { hit(o, TUNE.dread.dmg); o.stun = Math.max(o.stun, TUNE.dread.stun); addWither(o, TUNE.dread.stacks); }); break;
+        // The other elites
+        case 'unbroken': if (f.dummy || hp > 0.6) return false; unbrokenUntil = t + TUNE.unbroken.secs; break;
+        case 'massacre': if (ranged) return false; aoe(caught(), TUNE.massacre.dmg); massacreLeft = TUNE.massacre.hits - 1; massacreNext = t + TUNE.massacre.every; break;
+        case 'pillar': zones.push({ until: t + TUNE.pillar.secs, per: TUNE.pillar.burn, tick: 0.2, fire: true }); break;
+        case 'deadeye': deadeyeUntil = t + TUNE.deadeye.secs; break;
+        case 'deepfreeze': live().slice(0, caught()).forEach((o) => { hit(o, TUNE.deepfreeze.dmg); o.stun = Math.max(o.stun, TUNE.deepfreeze.freeze); }); break;
+        case 'vigil': if (f.dummy || hp > 0.6) return false; vigilUntil = t + TUNE.vigil.secs; break;
+        case 'plague': live().slice(0, caught()).forEach((o) => { hit(o, TUNE.plague.dmg); addWither(o, TUNE.plague.stacks); }); break;
         case 'rally': if (f.dummy || hp > 0.8) return false; heal(TUNE.rally.heal); resolve = TUNE.resolve.max; resolveAt = t; break;
         case 'rend': if (ranged) return false; aoe(caught(), TUNE.rend.dmg * furyK); zones.push({ until: t + TUNE.rend.secs, per: TUNE.rend.dot, tick: 1 }); break;
         case 'rush': rushUntil = t + TUNE.rush.secs; break;
@@ -406,11 +420,11 @@ let mbad = 0;
 for (const c of CALLINGS) {
   const ids = [...c.skills, ...c.utilities].map((x) => x.id);
   const rankIV = () => { const T = tuned([]); for (const id of ids) applyRank(T, id, 4); return T; };
-  for (const sk of [...c.skills, ...c.utilities]) {
+  for (const sk of [...c.skills, ...(c.elites ?? []), ...c.utilities]) {
     const pair = MORPHS[sk.id];
     if (!pair) continue;
     const others = c.utilities.filter((u) => u.id !== sk.id).map((u) => u.id);
-    const bar = barOf(c.id, c.utilities.some((u) => u.id === sk.id) ? [sk.id, others[0]] : undefined);
+    const bar = barOf(c.id, c.utilities.some((u) => u.id === sk.id) ? [sk.id, others[0]] : undefined, sk.id);
     const base = score(c.id, rankIV(), bar);
     const vals = pair.map((m) => { const T = rankIV(); m.mod(T); return rel(score(c.id, T, bar), base); });
     const line = pad(c.id + ' / ' + sk.name, 30) + pair.map((m, k) => pad(m.name + ' ' + vals[k].toFixed(3), 30)).join('');
@@ -420,4 +434,17 @@ for (const c of CALLINGS) {
   }
 }
 console.log(mbad ? `${mbad} morph balance problem(s)` : 'Morphs balanced: every morph within 7% of its calling, and each pair within 8%');
-process.exit(bad || tbad || bbad || mbad ? 1 : 0);
+// Elites (CallingDef.elites): each other elite on the bar instead of the calling's own, against the
+// calling with its own. A different big moment, not a better one: within 7%.
+console.log('\nelites, each against its calling with its own');
+let ebad = 0;
+for (const c of CALLINGS) {
+  const base = score(c.id, BASE, barOf(c.id));
+  for (const el of c.elites ?? []) {
+    const v = rel(score(c.id, BASE, barOf(c.id, undefined, el.id)), base);
+    console.log(pad(c.id + ' / ' + el.name, 30) + v.toFixed(3));
+    if (Math.abs(v - 1) > 0.07) { console.log(`  ${el.name} is ${((v - 1) * 100).toFixed(0)}% off its calling`); ebad++; }
+  }
+}
+console.log(ebad ? `${ebad} elite balance problem(s)` : 'Elites balanced: every elite within 7% of its calling\'s own');
+process.exit(bad || tbad || bbad || mbad || ebad ? 1 : 0);

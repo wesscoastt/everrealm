@@ -322,6 +322,14 @@ const GLYPHS: Record<string, [string[], string]> = {
   judgement: [['....XX....', '....XX....', 'X...XX...X', '.X..XX..X.', '..XXXXXX..', '..XXXXXX..', '.X..XX..X.', 'X...XX...X', '....XX....', '....XX....'], '#fff0c0'],
   bonespear: [['.........X', '........XX', '.......XX.', '......X...', '.....X....', '....X.....', '...X......', '.XX.......', 'XXX.......', '.X........'], '#f0e8d0'],
   dread: [['..XXXXXX..', '.XXXXXXXX.', 'XX..XX..XX', 'XX..XX..XX', 'XXXXXXXXXX', '.XXX..XXX.', '..XXXXXX..', '..X.XX.X..', '..........', '..........'], '#e8f0d0'],
+  // The other elites
+  unbroken: [['.XXXXXXXX.', 'XX.XXXX.XX', 'XXX.XX.XXX', 'XXXX..XXXX', 'XXXX..XXXX', 'XXX.XX.XXX', '.XXXXXXXX.', '..XXXXXX..', '...XXXX...', '....XX....'], '#e8f0ff'],
+  massacre: [['X..X..X..X', '.X.X..X.X.', '..XXXXXX..', 'XXX....XXX', '..X.XX.X..', '..X.XX.X..', 'XXX....XXX', '..XXXXXX..', '.X.X..X.X.', 'X..X..X..X'], '#ffd0c0'],
+  pillar: [['...XXXX...', '..XXXXXX..', '...XXXX...', '...XXXX...', '...XXXX...', '...XXXX...', '..XXXXXX..', '.XXXXXXXX.', 'XXXXXXXXXX', '.X.X..X.X.'], '#ffd080'],
+  deadeye: [['...XXXX...', '.XX....XX.', 'X...XX...X', 'X..X..X..X', 'XXX.XX.XXX', 'X..X..X..X', 'X...XX...X', '.XX....XX.', '...XXXX...', '..........'], '#ffe8c0'],
+  deepfreeze: [['X...XX...X', '.X..XX..X.', '..XXXXXX..', 'XXXX..XXXX', 'XXX....XXX', 'XXX....XXX', 'XXXX..XXXX', '..XXXXXX..', '.X..XX..X.', 'X...XX...X'], '#e8f8ff'],
+  vigil: [['....XX....', '...XXXX...', '..XX..XX..', '.XX.XX.XX.', 'XX.XXXX.XX', '.XX.XX.XX.', '..XX..XX..', '...XXXX...', '....XX....', '..........'], '#fff0c0'],
+  plague: [['.X...X..X.', 'X.X.X.XX.X', '.X...X..X.', '...XXXX...', '..XXXXXX..', '.XX.XX.XX.', '.XXXXXXXX.', '..X.XX.X..', '..XXXXXX..', '..........'], '#d8f0a0'],
   // The weapon kinds' own (key 3): an axe's bit and its drops, a great axe's turning arc, a hammer
   // ringing, a spear's long head, an arrow at a heel, a staff swept low
   hack: [['..XXXX....', '.XXXXXX...', 'XXXXXXXX..', '.XXXXXXX..', '...XXXXX..', '.....XX...', '....X.X...', '...X..X.X.', '..X.....X.', '.X....X...'], '#ffd0c0'],
@@ -377,6 +385,8 @@ export function abilityIcon(kind: string): string {
     smoulder: ['#c8582a', '#8a3010', '#481806'], flashfire: ['#f0a030', '#b06010', '#603006'], heartshot: ['#8a6a4a', '#5a422a', '#2e2214'], smoke: ['#7a7a7a', '#4a4a4a', '#262626'],
     shatter: ['#6ab0e0', '#2a70a8', '#123a5a'], frostbite: ['#5a90c8', '#2a5a90', '#122e4a'], mercy: ['#e0c070', '#a08030', '#5a4414'], judgement: ['#e8c860', '#a88a20', '#5a480c'],
     bonespear: ['#8a8070', '#5a5244', '#2e2a22'], dread: ['#4a5a3e', '#2c3824', '#141c10'],
+    unbroken: ['#6a9ad0', '#3a6aa0', '#1a3a60'], massacre: ['#b83a2a', '#7a1e14', '#420c06'], pillar: ['#e07030', '#a84010', '#5a2006'], deadeye: ['#8a7a50', '#5a4a2a', '#2e2614'],
+    deepfreeze: ['#5ab0e0', '#2a78b0', '#14405e'], vigil: ['#d8b860', '#9a7a30', '#5a4414'], plague: ['#6a8a3a', '#3e5a1e', '#1e2e0c'],
     hack: ['#a84a3a', '#6a2a1e', '#3a140c'], whirl: ['#9a8a6a', '#5e5440', '#302a1e'], bellringer: ['#b8a060', '#7a6430', '#423414'],
     longthrust: ['#8a9aa8', '#56626e', '#2a3038'], hobble: ['#7a9a5a', '#4a6a34', '#24361a'], sweep: ['#a89070', '#6a5640', '#382c1e'],
     frostbolt: ['#5ab0e0', '#2a78b0', '#14405e'], icebarrier: ['#7ac8e8', '#3a88b0', '#1a4862'], blizzard: ['#8aa8d0', '#4a6a98', '#24365a'],

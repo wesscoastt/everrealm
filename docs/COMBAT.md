@@ -355,3 +355,20 @@ each within 10% of the average.
   bleed rule, applied to all dots), so a Kindler or Wizard with a burn out could stand in a fight
   forever. Only the Reaver's bleeds heal now, in the game and in the sim.
 - Every calling, tree, pair of utilities and morph within its limit (`npm run balance`).
+
+### The brief's skills, third part: a second elite (2026-10-29)
+
+Each calling has a second elite to choose for key 8 instead of its own (`CallingDef.elites`, chosen on the
+skills page, bought with a skill point like any skill, kept in saved builds with the bar and talents):
+- **Warden, Unbroken**: two fifths of your health back over eight seconds, and nothing stuns or moves you.
+- **Reaver, Massacre**: three wide strikes, a heartbeat apart, on everything within five blocks.
+- **Kindler, Pillar of Fire**: a column of fire where you aim, burning everything within three blocks for
+  ten seconds.
+- **Pathfinder, Deadeye**: for seven seconds every blow and arrow you land is a critical hit.
+- **Wizard, Deep Freeze**: everything within eight blocks frozen solid for four seconds and cracked.
+- **Mender, Vigil**: for ten seconds you can't fall below a fifth of your health, and you and everyone of
+  yours within fifteen blocks mend each second.
+- **Gravecaller, Plague**: everything within ten blocks struck and withered three deep.
+
+`npm run balance` now also holds each of these within 7% of its calling played with its own elite, and
+checks their morphs like every other skill's.

@@ -245,8 +245,9 @@ export interface UiCtx {
   learnTalent(id: string): string | null;
   resetTalents(): string | null;
   /** The bar: the two utilities chosen, the three to choose from, the signature, heal and elite, and the weapon skill. */
-  bar(): { chosen: string[]; pool: SkillDef[]; cross: string[]; signature: SkillDef; heal: SkillDef; elite: SkillDef; weapon: SkillDef };
+  bar(): { chosen: string[]; pool: SkillDef[]; cross: string[]; signature: SkillDef; heal: SkillDef; elite: SkillDef; elites: SkillDef[]; weapon: SkillDef };
   setUtilities(ids: string[]): string | null;
+  setElite(id: string): string | null;
   /** Change calling; returns why it can't be done, or null. */
   setCalling(id: CallingId): string | null;
   /** Whether this character still has its one change of calling (characters from before callings were for life). */
@@ -1949,8 +1950,8 @@ export class Hud {
       const tree = (t: (typeof tv.trees)[number]) => `<div class="ttree"><div class="tdesc">${esc(t.desc)} <b>Wants ${t.bar.map(esc).join(' and ')} on the bar.</b></div>${[0, 1, 2, 3, 4, 5].map((k) => `<div class="ttier${t.spent < k * t.gate ? ' shut' : ''}"><u>${k ? `Tier ${k + 1} · opens at ${k * t.gate} points in ${esc(t.name)}` : 'Tier 1'}</u><div class="trow">${t.talents.filter((d) => d.tier === k).map(tal).join('')}</div></div>`).join('')}</div>`;
       const bv = this.ctx.bar();
       const sk = (s: SkillDef, key: string, extra = '') => `<button class="bsk${extra}" data-u="${s.id}" title="${esc(s.desc)}"><img src="${abilityIcon(s.icon)}" alt=""><span><b>${key ? key + ' · ' : ''}${esc(s.name)}${s.aim ? ' <i>aimed</i>' : ''}</b><small>${esc(s.desc)} ${s.cd >= 2 ? `(${s.cd} s)` : ''}</small></span></button>`;
-      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility to put it on the bar, out of a fight.</div>
-        <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', (bv.chosen.includes(s.id) ? ' on' : ' off') + (bv.cross.includes(s.id) ? ' cross' : ''))).join('')}${sk(bv.elite, '8')}</div><div class="bar-msg"></div>
+      page.innerHTML = `<h4>Your bar</h4><div class="feat-sum">Keys 1 to 3 are your weapon's: Strike, Cleave, and a third that depends on the weapon in your hand. Then your calling's heal (4), its signature (5), two utilities you choose (6 and 7) and its elite (8). They come as you level: Cleave at 2, the heal at 3, the signature at 4, the weapon skill at 6, the utilities at 8 and 12, the elite at 16. Aimed skills land where the cursor points. Click a utility or an elite to put it on the bar, out of a fight.</div>
+        <div class="bar-pick">${sk(bv.weapon, '3')}${sk(bv.heal, '4')}${sk(bv.signature, '5')}${bv.pool.map((s) => sk(s, bv.chosen.includes(s.id) ? String(6 + bv.chosen.indexOf(s.id)) : '', (bv.chosen.includes(s.id) ? ' on' : ' off') + (bv.cross.includes(s.id) ? ' cross' : ''))).join('')}${bv.elites.map((s) => sk(s, s.id === bv.elite.id ? '8' : '', (s.id === bv.elite.id ? ' on' : ' off') + ' elite')).join('')}</div><div class="bar-msg"></div>
         <h4>Your calling</h4>${this.ctx.callingFree()
           ? `<div class="feat-sum">A calling is for life now. Because yours was chosen when callings could still be changed, you may change it once more, out of a fight.</div><div class="callings">${CALLINGS.map((c) => callingCard(c, c.id === this.ctx.calling())).join('')}</div>`
           : `<div class="callings">${CALLINGS.filter((c) => c.id === this.ctx.calling()).map((c) => callingCard(c, true)).join('')}</div>`}
@@ -1959,7 +1960,14 @@ export class Hud {
         <div class="feat-sum">${tv.trees.map((t) => `<b>${esc(t.name)}</b> ${t.spent}`).join(' · ')}. Three trees, one for each way of playing ${esc(tv.calling.name)}; three builds to switch between out of a fight.</div>`;
       void tabs; void tree;
       page.querySelector('.tal-open')?.addEventListener('click', () => { this.show('talents'); });
-      page.querySelectorAll<HTMLElement>('.bsk.on, .bsk.off').forEach((b) => b.addEventListener('click', () => {
+      // An elite: the one chosen takes key 8
+      page.querySelectorAll<HTMLElement>('.bsk.elite').forEach((b) => b.addEventListener('click', () => {
+        if (b.dataset.u === bv.elite.id) return;
+        const why = this.ctx.setElite(b.dataset.u!);
+        this.ctx.sfx('click');
+        if (why) page.querySelector('.bar-msg')!.textContent = why; else this.renderJournal();
+      }));
+      page.querySelectorAll<HTMLElement>('.bsk.on:not(.elite), .bsk.off:not(.elite)').forEach((b) => b.addEventListener('click', () => {
         // Swap a utility in: it takes the place of the one chosen longest ago that isn't it
         const id = b.dataset.u!, cur = bv.chosen;
         if (cur.includes(id)) return;

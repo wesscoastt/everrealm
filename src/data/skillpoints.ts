@@ -262,6 +262,35 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
     { id: 'dread_a', name: 'Terror', desc: 'Held half a second longer.', mod: (t) => { t.dread.stun += 0.5; } },
     { id: 'dread_b', name: 'Rot of Fear', desc: 'Withers three deep, held half a second less.', mod: (t) => { t.dread.stacks += 1; t.dread.stun -= 0.5; } },
   ],
+  // ---------------------------------------------------------------- The other elites
+  unbroken: [
+    { id: 'unbroken_a', name: 'Iron Will', desc: 'Two seconds longer, the same health back.', mod: (t) => { t.unbroken.secs += 2; } },
+    { id: 'unbroken_b', name: 'Second Wind', desc: 'A fifth more health back, two seconds sooner.', mod: (t) => { scale(t.unbroken, 'heal', 1.2); t.unbroken.secs -= 2; } },
+  ],
+  massacre: [
+    { id: 'massacre_a', name: 'Butchery', desc: 'Four turns instead of three, each a fifth lighter.', mod: (t) => { t.massacre.hits += 1; scale(t.massacre, 'dmg', 0.8); } },
+    { id: 'massacre_b', name: 'Reaping', desc: 'Two turns, each a third and more heavier.', mod: (t) => { t.massacre.hits -= 1; scale(t.massacre, 'dmg', 1.4); } },
+  ],
+  pillar: [
+    { id: 'pillar_a', name: 'Wide Pillar', desc: 'Two blocks wider, a fifth cooler.', mod: (t) => { t.pillar.r += 2; scale(t.pillar, 'burn', 0.8); } },
+    { id: 'pillar_b', name: 'White Pillar', desc: 'A third hotter, for three seconds less.', mod: (t) => { scale(t.pillar, 'burn', 1.33); t.pillar.secs -= 3; } },
+  ],
+  deadeye: [
+    { id: 'deadeye_a', name: 'Long Watch', desc: 'Two seconds longer.', mod: (t) => { t.deadeye.secs += 2; } },
+    { id: 'deadeye_b', name: 'Quick Eye', desc: 'Two seconds shorter, and ready again nearly a third sooner.', mod: (t) => { t.deadeye.secs -= 2; t.cd.deadeye = 0.7; } },
+  ],
+  deepfreeze: [
+    { id: 'deepfreeze_a', name: 'Long Winter', desc: 'Frozen a second and a half longer, the crack a fifth lighter.', mod: (t) => { t.deepfreeze.freeze += 1.5; scale(t.deepfreeze, 'dmg', 0.8); } },
+    { id: 'deepfreeze_b', name: 'Hard Frost', desc: 'The crack half again as heavy, frozen a second less.', mod: (t) => { scale(t.deepfreeze, 'dmg', 1.5); t.deepfreeze.freeze -= 1; } },
+  ],
+  vigil: [
+    { id: 'vigil_a', name: 'Long Vigil', desc: 'Three seconds longer.', mod: (t) => { t.vigil.secs += 3; } },
+    { id: 'vigil_b', name: 'Close Vigil', desc: 'Mends half again as much, reaching seven blocks less.', mod: (t) => { scale(t.vigil, 'heal', 1.5); t.vigil.r -= 7; } },
+  ],
+  plague: [
+    { id: 'plague_a', name: 'Black Plague', desc: 'Withers four deep, the blow a fifth lighter.', mod: (t) => { t.plague.stacks += 1; scale(t.plague, 'dmg', 0.8); } },
+    { id: 'plague_b', name: 'Red Plague', desc: 'The blow half again as heavy, withering two deep.', mod: (t) => { scale(t.plague, 'dmg', 1.5); t.plague.stacks -= 1; } },
+  ],
   // ---------------------------------------------------------------- Weapon skills (key 3)
   riposte: [
     { id: 'riposte_a', name: 'Iron Guard', desc: 'The guard stays up 0.6 seconds longer.', mod: (t) => { t.riposte.secs += 0.6; } },

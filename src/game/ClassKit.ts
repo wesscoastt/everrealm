@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CALLINGS, CallingDef, CallingId, chosenUtilities, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
+import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SkillDef, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
 
 /** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
@@ -160,7 +160,14 @@ export class ClassKit {
   /** Put these utilities on the bar (the calling's own, and one of a master's for an apprentice). */
   setUtilities(ids: unknown, ap: CallingDef | null = null): void {
     const u = chosenUtilities(this.calling, ids, ap);
-    this.bar = [this.calling.skills[0], ...u, this.calling.skills[2]];
+    this.bar = [this.calling.skills[0], ...u, this.elite];
+  }
+  /** The elite chosen for key 8 (CallingDef.elites), or the calling's own. */
+  private eliteId = '';
+  get elite(): SkillDef { return elitesOf(this.calling).find((s) => s.id === this.eliteId) ?? this.calling.skills[2]; }
+  setElite(id: unknown): void {
+    this.eliteId = typeof id === 'string' ? id : '';
+    if (this.bar.length === 5) { this.bar[4] = this.elite; this.cds[4] = 0; }
   }
 
   /** The weapon skill for the weapon in hand. */
@@ -197,6 +204,8 @@ export class ClassKit {
 
   /** Damage about to be taken: a Riposte turns it aside; Resolve, the Oath, Hold Fast, the Red Hour; then the shield soaks what it can. */
   incoming(dmg: number, from?: Enemy): number {
+    // The Vigil: you don't fall below a fifth of your health while it lasts
+    if (this.vigilUntil > this.clock) dmg = Math.min(dmg, Math.max(0, this.host.hp() - this.host.maxHp() * T.vigil.floor));
     // A Wizard's Blink: nothing touches you for a moment
     if (this.evadeUntil > this.clock) return 0;
     if (this.riposteUntil > this.clock) {
@@ -258,7 +267,11 @@ export class ClassKit {
   private cdOf(s: SkillDef, i: number): number { return (i === 0 ? s.cd * this.host.sustainScale() : s.cd) * (T.cd[s.id] ?? 1); }
 
   /** Hold Fast: nothing knocks you back. */
-  steady(): boolean { return this.holdUntil > this.clock; }
+  steady(): boolean { return this.holdUntil > this.clock || this.unbrokenUntil > this.clock; }
+  /** The other elites' clocks: Unbroken's mending, Deadeye's sure hand, the Vigil's watch. */
+  private unbrokenUntil = 0; private deadeyeUntil = 0; private vigilUntil = 0; private eliteTick = 0;
+  /** Deadeye: every blow a critical hit, until then. */
+  deadeye(): boolean { return this.deadeyeUntil > this.clock; }
 
   /** Blood Rush: how much faster you swing. */
   attackSpeed(): number { return this.rushUntil > this.clock ? T.rush.speed : 1; }
@@ -855,6 +868,54 @@ export class ClassKit {
         H.anim('cleave'); H.sfx('growl');
         return true;
       }
+      // ---- The other elites
+      case 'unbroken':
+        this.unbrokenUntil = this.clock + T.unbroken.secs; this.eliteTick = 0;
+        H.particles.burst(P.clone().setY(P.y + 1.2), '#cfe6ff', 30);
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      case 'massacre': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.massacre.r);
+        if (!near.length) return false;
+        H.anim('cleave'); H.sfx('swing');
+        for (const o of near) H.hit(o, pw * T.massacre.dmg);
+        for (let k = 1; k < T.massacre.hits; k++) this.pending.push({ at: P.clone(), t: k * T.massacre.every, ring: this.ring(P, T.massacre.r, '#ff7a5a', k * T.massacre.every), r: T.massacre.r, dmg: pw * T.massacre.dmg });
+        return true;
+      }
+      case 'pillar': {
+        const at = H.aim(T.pillar.range);
+        H.anim('heal'); H.sfx('bell');
+        this.zone(at, T.pillar.r, T.pillar.secs, pw * T.pillar.burn, '#ff9a30');
+        this.zones[this.zones.length - 1].fire = true;
+        H.particles.burst(at.clone().setY(at.y + 2), '#ffb040', 40);
+        return true;
+      }
+      case 'deadeye':
+        this.deadeyeUntil = this.clock + T.deadeye.secs;
+        H.particles.sparks(P.clone().setY(P.y + 1.6), 12, '#ffe8c0');
+        H.anim('heal'); H.sfx('bell');
+        return true;
+      case 'deepfreeze': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.deepfreeze.r);
+        if (!near.length) return false;
+        for (const o of near) { H.hit(o, pw * T.deepfreeze.dmg); o.stun = Math.max(o.stun, T.deepfreeze.freeze); H.particles.sparks(o.pos.clone().setY(o.pos.y + 1), 12, '#e8f8ff'); }
+        this.ring(P, T.deepfreeze.r, '#c8f4ff', 1);
+        H.anim('cleave'); H.sfx('hitHeavy');
+        return true;
+      }
+      case 'vigil':
+        this.vigilUntil = this.clock + T.vigil.secs; this.eliteTick = 0;
+        this.ring(P, T.vigil.r, '#fff0b8', T.vigil.secs);
+        H.anim('heal'); H.sfx('heal');
+        return true;
+      case 'plague': {
+        const near = H.enemies().filter((o) => o.alive && o.pos.distanceTo(P) < T.plague.r);
+        if (!near.length) return false;
+        for (const o of near) { H.hit(o, pw * T.plague.dmg); this.addWither(o, T.plague.stacks); }
+        this.ring(P, T.plague.r, '#8aa040', 1);
+        H.anim('cleave'); H.sfx('growl');
+        return true;
+      }
       // An axe: a chop that opens a wound (Cleaving Hack reaches the next foe as well)
       case 'hack': {
         const e = H.faceTarget(T.hack.range);
@@ -1127,6 +1188,12 @@ export class ClassKit {
     // Restoration, a second at a time on each friend it was laid on
     for (const h of this.hots) { h.left -= dt; if ((h.tick -= dt) <= 0) { h.tick = 1; h.f.heal(h.per); } }
     this.hots = this.hots.filter((h) => h.left > 0);
+    // Unbroken mends you, and the Vigil mends you and yours, a little each second
+    if ((this.unbrokenUntil > this.clock || this.vigilUntil > this.clock) && (this.eliteTick -= dt) <= 0) {
+      this.eliteTick = 1;
+      if (this.unbrokenUntil > this.clock) H.heal(H.maxHp() * T.unbroken.heal / T.unbroken.secs);
+      if (this.vigilUntil > this.clock) for (const f of H.friends()) if (f.pos.distanceTo(P) < T.vigil.r) this.mendFriend(f, T.vigil.heal);
+    }
     // Cinder Ward: healing and a burning circle
     if (this.wardUntil > this.clock && (this.wardTick -= dt) <= 0) {
       this.wardTick = 1;
