@@ -7374,13 +7374,15 @@ export class Game implements GameApi {
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);
     const L = this.level('melee');
     const lock = <T extends object>(c: T, i: number): T & { locked?: number } => (L < UNLOCK_AT[i] ? { ...c, locked: UNLOCK_AT[i] } : c);
+    // What each key costs, for the pip on its corner (Cleave and Strike are free)
+    const price = (i: number) => (i === 1 && !this.kit.secondSkill ? null : this.skillCost(i));
     this.hud.setAbilities([
       lock({ left: this.cds.strike, total: 0.5 }, 0),
-      lock(this.kit.secondSkill ? { ...this.kit.secondSlot(), disabled: !this.canPay(this.skillCost(1)) } : { left: this.cds.cleave, total: 6 }, 1),
+      lock(this.kit.secondSkill ? { ...this.kit.secondSlot(), disabled: !this.canPay(this.skillCost(1)), cost: price(1) } : { left: this.cds.cleave, total: 6, cost: null }, 1),
       // (a skill you can't pay for just now is greyed: data/combat.ts)
-      lock({ ...this.kit.weaponSlot(), disabled: !this.canPay(this.skillCost(2)) }, 2),
+      lock({ ...this.kit.weaponSlot(), disabled: !this.canPay(this.skillCost(2)), cost: price(2) }, 2),
       // (open by level but not unlocked with a point: marked for the skills page, T)
-      ...this.kit.slots().map((c, k) => (L >= UNLOCK_AT[3 + k] && this.kit.bar[k] && !this.skillUnlocked(this.kit.bar[k].id) ? { ...c, locked: -1 } : lock({ ...c, disabled: !this.canPay(this.skillCost(3 + k)) }, 3 + k))),
+      ...this.kit.slots().map((c, k) => (L >= UNLOCK_AT[3 + k] && this.kit.bar[k] && !this.skillUnlocked(this.kit.bar[k].id) ? { ...c, locked: -1 } : lock({ ...c, disabled: !this.canPay(this.skillCost(3 + k)), cost: price(3 + k) }, 3 + k))),
       { left: this.cds.roll, total: 0.8, disabled: this.energy < this.armour.rollCost },
       { left: this.cds.eat, total: 1.5, disabled: foodCount === 0, count: foodCount },
     ]);

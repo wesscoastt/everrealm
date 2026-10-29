@@ -1395,3 +1395,9 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 #bossbar .bb-stagger.locked > i { background: #6a6458; }
 #buffs .bf.harm { border-color: #c84a3a; color: #ffc8b8; background: rgba(48, 12, 8, 0.82); }
 #buffs .bf.hidden { border-color: #8a7ab8; color: #d8ccff; }
+/* A skill's price on the corner of its key: magicka blue, stamina green, a blood price red */
+.ab-slot .pip { position: absolute; right: 2px; top: 2px; min-width: 13px; height: 13px; padding: 0 2px; border-radius: 7px; font: 700 9px/13px var(--px); font-style: normal; text-align: center; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.ab-slot .pip.magicka { background: #2a5ab8; }
+.ab-slot .pip.stamina { background: #3a8a3a; }
+.ab-slot .pip.health { background: #a82a2a; }
+.ab-slot.locked .pip { display: none; }

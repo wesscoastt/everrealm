@@ -442,3 +442,10 @@ Twist the Knife spent them for 361 (120 on one); hidden by Slip Away, five blows
 "Hidden" showed under the bar; 104 of 300 blows were dodged (35%); every utility and both elites went
 off (A Thousand Cuts 448, Waylay 586); Sal Trevenna stands in the Gullmouth square. Balance: every
 calling, tree, pair, morph and elite within its limit, the Prowler included.
+
+### Interface: what a key costs (2026-10-29)
+
+Every skill key carries its price on the corner (`Hud.setAbilities`): green for stamina, blue for magicka,
+red for a blood price (in percent of your health); Strike and Cleave carry none, being free. Checked
+headless on a Gravecaller with a dagger: Backstab 10 and Flurry 12 green, Siphon 18 and Wither 6 blue,
+Bone Ward 8%, Grave Rot 6% and Raise the Fallen 12% red.

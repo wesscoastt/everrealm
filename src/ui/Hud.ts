@@ -635,7 +635,7 @@ export class Hud {
   private skillXpT = 0;
 
   /** locked: the level a key opens at; -1, open but not unlocked with a skill point yet. */
-  setAbilities(cds: { left: number; total: number; disabled?: boolean; count?: number; locked?: number }[]): void {
+  setAbilities(cds: { left: number; total: number; disabled?: boolean; count?: number; locked?: number; cost?: { pool: string; n: number } | null }[]): void {
     this.root.querySelectorAll<HTMLElement>('.ab-slot').forEach((s, i) => {
       const c = cds[i];
       if (!c) return;
@@ -648,6 +648,19 @@ export class Hud {
       s.classList.toggle('disabled', !!c.disabled);
       const cnt = s.querySelector('.count');
       if (cnt) cnt.textContent = c.count ? String(c.count) : '';
+      // The price on the corner: blue for magicka, green for stamina, red for blood
+      const pk = c.cost && !c.locked ? `${c.cost.pool}:${c.cost.n}` : '';
+      if ((s.dataset.pip ?? '') !== pk) {
+        s.dataset.pip = pk;
+        let pip = s.querySelector<HTMLElement>('.pip');
+        if (!pk) pip?.remove();
+        else {
+          if (!pip) { pip = document.createElement('i'); s.append(pip); }
+          pip.className = 'pip ' + c.cost!.pool;
+          pip.textContent = c.cost!.pool === 'health' ? c.cost!.n + '%' : String(c.cost!.n);
+          pip.title = `${c.cost!.n}${c.cost!.pool === 'health' ? '% of your health' : ' ' + c.cost!.pool}`;
+        }
+      }
     });
   }
 
