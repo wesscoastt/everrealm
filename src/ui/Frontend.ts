@@ -752,7 +752,7 @@ export class Frontend {
     if (this.tab === 'origin') {
       pane.innerHTML = `<label>MALE OR FEMALE</label>${chips('frame', [['Male', 'm'], ['Female', 'f']], L.frame ?? 'm')}<p class="lead">Everyone in the Charter Counties comes from somewhere. Where did you grow up?</p>${ORIGINS.map((o) => `<button class="origin ${o.id === this.origin ? 'sel' : ''}" data-o="${o.id}"><span class="h"><b>${esc(o.title)}</b><small>${esc(o.place)} · ${esc(o.region)}</small></span><span class="d">${esc(o.blurb)}</span><span class="s">${esc(o.startText)}</span></button>`).join('')}`;
     } else if (this.tab === 'calling') {
-      pane.innerHTML = `<p class="lead">How do you fight? No calling is stronger than another, and you can change yours later from the journal, whenever you're not in a fight.</p>${CALLINGS.map((c) => callingCard(c, c.id === this.calling)).join('')}`;
+      pane.innerHTML = `<p class="lead">How do you fight? No calling is stronger than another. It's for life, so choose the one you'd like to be: from level 25 a master of another calling will teach you a few of theirs.</p>${CALLINGS.map((c) => callingCard(c, c.id === this.calling)).join('')}`;
     } else if (this.tab === 'body') {
       pane.innerHTML = `<label>MALE OR FEMALE</label>${chips('frame', [['Male', 'm'], ['Female', 'f']], L.frame ?? 'm')}
         <label>SKIN</label>${sw('skin', L.skin)}
