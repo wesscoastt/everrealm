@@ -18,9 +18,9 @@ export function waymarks(): Waymark[] {
   return LIST ?? (LIST = plan().waymarks);
 }
 
-/** Marks to go by waymark: one, and another for every hundred and twenty blocks. */
+/** Marks to go by waymark: two, and another for every eighty blocks (about five times the Post's fare, for being there at once). */
 export function waymarkFare(from: { x: number; z: number }, to: Waymark): number {
-  return 1 + Math.round(Math.hypot(from.x - to.x, from.z - to.z) / 120);
+  return 2 + Math.round(Math.hypot(from.x - to.x, from.z - to.z) / 80);
 }
 
 export class Waymarks {

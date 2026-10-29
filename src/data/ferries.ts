@@ -19,6 +19,8 @@ export interface FerryStop {
   /** Where the generator starts the jetty (on the shore or a quay's edge) and the way it runs out; else it finds them from the post. */
   from?: [number, number];
   dir?: [number, number];
+  /** The jetty runs out at least this far (to keep her clear of another ship's jetty). */
+  minLen?: number;
   /** A flag you need to be let ashore there (the Assembly's passes). */
   gate?: string;
   /** What the mate says to someone without it. */
@@ -46,7 +48,7 @@ export const FERRY_ROUTES: FerryRoute[] = [
     livery: { wale: '#2f528f', trim: '#d8b04a', flag: '#d8b04a' },
     stops: [
       { post: 'gullmouth', name: 'Gullmouth', from: [1809, 570], dir: [1, 0] },
-      { post: 'kell', name: 'Kell' },
+      { post: 'kell', name: 'Kell', from: [2340, -566], dir: [-1, 0] },
       { post: 'sickle', name: 'the Sickle' },
     ],
   },
@@ -54,7 +56,7 @@ export const FERRY_ROUTES: FerryRoute[] = [
     id: 'wren', ship: 'the Wren', kind: 'cog', land: 'counties', dock: 50, speed: 17,
     livery: { wale: '#7a2a1e', trim: '#e8dcc0', flag: '#7a2a1e', sail: '#e8d8b8' },
     stops: [
-      { post: 'gullmouth', name: 'Gullmouth', from: [1809, 586], dir: [1, 0] },
+      { post: 'gullmouth', name: 'Gullmouth', from: [1809, 586], dir: [1, 0], minLen: 22 },
       { post: 'skua', name: 'Skua Rock' },
       { post: 'inkholm', name: 'Inkholm' },
     ],

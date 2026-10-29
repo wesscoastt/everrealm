@@ -4,6 +4,7 @@
 // between stops a course over clear water that keeps well off every shore and everything built.
 // Run with `npm run -s ferries`; it writes the file.
 import { writeFileSync } from 'node:fs';
+import * as THREE from 'three';
 import { FERRY_ROUTES, type FerryPlan, type FerryRoute, type FerryStop } from '../src/data/ferries';
 import { ISLAND_COURSES } from '../src/data/islandCourses';
 import { POSTS } from '../src/data/travel';
@@ -50,8 +51,8 @@ function pierFor(r: FerryRoute, s: FerryStop): Pier {
     if (!shore) for (let k = 0; k < 70; k += 0.5) { const q = add([post.x, post.z], d, k); if (heightAt(Math.floor(q[0]), Math.floor(q[1])) < SEA) { shore = q; break; } }
     if (!shore) continue;
     const across: V = [-d[1], d[0]];
-    for (let L = 5; L <= 48; L++) {
-      const head = add(shore, d, L), dock = add(head, d, S.beam / 2 + 1.4);
+    for (let L = s.minLen ?? 5; L <= 60; L++) {
+      const head = add(shore, d, L), dock = add(head, d, S.beam / 2 + 0.45);
       // The jetty's run over water, clear of anything built
       if (!lineOk(add(shore, d, 1.5), head, (x, z) => !isBuilt(x, z) && !isBuilt(x + across[0] * 1.5, z + across[1] * 1.5) && !isBuilt(x - across[0] * 1.5, z - across[1] * 1.5))) break;
       // Her berth: deep water under all of her, and a little round
@@ -59,7 +60,8 @@ function pierFor(r: FerryRoute, s: FerryStop): Pier {
       for (let a = -S.len / 2 - 2; a <= S.len / 2 + 2 && ok; a++) for (let b = -S.beam / 2 - 1; b <= S.beam / 2 + 1.5 && ok; b += 0.5) { const q = add(add(dock, across, a), d, b); if (!water(q[0], q[1], 1)) ok = false; }
       if (!ok) continue;
       // And open water to come in along the shore one way and go out the other
-      if (!lineOk(dock, add(dock, across, APPROACH), (x, z) => water(x, z, 1) && water(x + d[0] * 3, z + d[1] * 3, 1)) || !lineOk(dock, add(dock, across, -APPROACH), (x, z) => water(x, z, 1) && water(x + d[0] * 3, z + d[1] * 3, 1))) continue;
+      const run = (x: number, z: number) => water(x, z, 0) && water(x + d[0] * 3.2, z + d[1] * 3.2, 0) && water(x - d[0] * 3.2, z - d[1] * 3.2, 0);
+      if (!lineOk(dock, add(dock, across, APPROACH), run) || !lineOk(dock, add(dock, across, -APPROACH), run)) continue;
       return { from: [Math.floor(shore[0] - d[0]), Math.floor(shore[1] - d[1])], to: [Math.floor(head[0]), Math.floor(head[1])], dock, along: across };
     }
     if (s.dir) break;
@@ -72,7 +74,7 @@ function course(a: V, b: V, pad = 600): V[] {
   const S = 16;
   const x0 = Math.min(a[0], b[0]) - pad, z0 = Math.min(a[1], b[1]) - pad, W = Math.ceil((Math.abs(a[0] - b[0]) + pad * 2) / S), H = Math.ceil((Math.abs(a[1] - b[1]) + pad * 2) / S);
   const ok = new Uint8Array(W * H);
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const x = x0 + i * S, z = z0 + j * S; ok[j * W + i] = clear(x, z, 14) || ((dist([x, z], a) < 90 || dist([x, z], b) < 90) && clear(x, z, 4)) ? 1 : 0; }
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const x = x0 + i * S, z = z0 + j * S; ok[j * W + i] = clear(x, z, 14) || ((dist([x, z], a) < 90 || dist([x, z], b) < 90) && clear(x, z, 5)) ? 1 : 0; }
   const cell = (p: V) => [Math.round((p[0] - x0) / S), Math.round((p[1] - z0) / S)];
   const [si, sj] = cell(a), [ti, tj] = cell(b);
   ok[sj * W + si] = 1; ok[tj * W + ti] = 1;
@@ -101,7 +103,7 @@ function course(a: V, b: V, pad = 600): V[] {
   if (from[tj * W + ti] < 0) { if (pad < 3000) return course(a, b, pad * 2); throw new Error(`no course from ${a} to ${b}`); }
   const path: V[] = [];
   for (let k = tj * W + ti; k >= 0; k = from[k]) path.unshift([x0 + (k % W) * S, z0 + Math.floor(k / W) * S]);
-  const sight = (p: V, q: V) => lineOk(p, q, (x, z) => clear(x, z, 10) || ((dist([x, z], a) < 90 || dist([x, z], b) < 90) && clear(x, z, 3)));
+  const sight = (p: V, q: V) => lineOk(p, q, (x, z) => clear(x, z, 10) || ((dist([x, z], a) < 90 || dist([x, z], b) < 90) && clear(x, z, 4)));
   const pts = [a, ...path.slice(1, -1), b], out: V[] = [a];
   let at = 0;
   while (at < pts.length - 1) { let k = pts.length - 1; while (k > at + 1 && !sight(pts[at], pts[k])) k--; out.push(pts[k]); at = k; }
@@ -131,6 +133,28 @@ for (const r of FERRY_ROUTES) {
     out.push(p.dock);
     if (k < piers.length - 1) out.push(ends[k].out);
   });
+  // Laid close along the line: a point every dozen blocks, so the smooth curve the ship sails through
+  // them can't swing wide of it at a turn (it did, over the headland north of Gullmouth)
+  const dense: V[] = [], dat: number[] = [];
+  out.forEach((q, i) => {
+    if (at.includes(i)) dat.push(dense.length);
+    dense.push(q);
+    const nx = out[i + 1];
+    if (!nx) return;
+    const n = Math.floor(dist(q, nx) / 12);
+    for (let k = 1; k < n; k++) dense.push([q[0] + ((nx[0] - q[0]) * k) / n, q[1] + ((nx[1] - q[1]) * k) / n]);
+  });
+  // And checked as she'll sail it: open water under her all the way, but at her jetties
+  const curve = new THREE.CatmullRomCurve3(dense.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+  const L = curve.getLength(), bad: string[] = [];
+  for (let d = 0; d <= L; d += 1.5) {
+    const q = curve.getPointAt(d / L);
+    if (piers.some((pp) => dist([q.x, q.z], pp.dock) < 10)) continue;
+    if (!water(q.x, q.z, 0) || !water(q.x + 2.6, q.z, 0) || !water(q.x - 2.6, q.z, 0) || !water(q.x, q.z + 2.6, 0) || !water(q.x, q.z - 2.6, 0)) bad.push(`${Math.round(q.x)},${Math.round(q.z)}`);
+  }
+  if (bad.length) console.log(r.id, 'SHOAL OR LAND on her course at', bad.slice(0, 12).join(' '), bad.length > 12 ? `(+${bad.length - 12})` : '');
+  out.splice(0, out.length, ...dense);
+  at.splice(0, at.length, ...dat);
   plans[r.id] = {
     piers: piers.map((p, k) => { const v = norm([ends[k].out[0] - ends[k].inn[0], ends[k].out[1] - ends[k].inn[1]]); return { from: p.from, to: p.to, dock: r1(p.dock), heading: Math.round(Math.atan2(v[0], v[1]) * 1000) / 1000 }; }),
     course: out.map(r1),

@@ -1,5 +1,6 @@
 import type { Breed, MountLook } from '../entities/creatures';
 import { ITEMS } from './items';
+import { POST_CART, POST_CART_KEY } from './postStations';
 
 // A mount's look, chosen when you buy it: a coat (the colours a breeder has, and for horses the
 // markings too: piebald, skewbald) and a saddle cloth, or a wagon's paint. The first of each is the
@@ -90,6 +91,7 @@ export function mountLook(id: string, coat = 0, cloth = 0): MountLook | null {
 /** A mount's look by its key, as it travels to other players ("halter_bay.25"). */
 export function mountOf(key: string | null | undefined): MountLook | null {
   if (!key) return null;
+  if (key === POST_CART_KEY) return POST_CART;
   const { id, coat, cloth } = parseMountKey(key);
   return mountLook(id, coat, cloth);
 }

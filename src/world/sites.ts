@@ -24,6 +24,8 @@ import * as SK from '../data/skua';
 import { MIRADOR_GATE, MIRADOR_LANE, MIRADOR_LOOKOUT, VILLAS, villaBack, villaDoor, type Villa } from '../data/mirador';
 import { HALL_CLERK, HALL_LANE, HALLS, hallAt, hallFacing, type Hall } from '../data/guildhalls';
 import type { BannerKind } from './props';
+import { FERRIES, FERRY_PLAN, type FerryRoute } from '../data/ferries';
+import { POST_STATIONS, yardAt, yardYaw, type PostYard } from '../data/postStations';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -632,6 +634,10 @@ export function plan(): Plan {
     { id: 'skua-rock', name: 'Skua Rock', x: SK.SKUA.x, z: SK.SKUA.z, r0: 0, r1: 0, build: (s) => buildSkuaRock(s) },
     // The Mirador, the houses on the scarp above Callis (data/mirador.ts)
     { id: 'callis-mirador', name: 'The Mirador', x: 8590, z: 796, r0: 0, r1: 0, build: (s) => buildMirador(s) },
+    // The Charter Post's coaching yards, one at every stop on the roads (data/postStations.ts)
+    ...POST_STATIONS.map((y): Named => ({ id: `post-${y.post}`, name: 'Charter Post', x: y.x, z: y.z, r0: 0, r1: 0, build: (s) => buildPostStation(s, y) })),
+    // The ferries' jetties, one at every stop of every route (data/ferries.ts)
+    ...FERRIES.flatMap((r) => FERRY_PLAN[r.id]!.piers.map((pl, k): Named => ({ id: `pier-${r.id}-${k}`, name: `${r.ship[4].toUpperCase() + r.ship.slice(5)}'s jetty`, x: pl.to[0], z: pl.to[1], r0: 0, r1: 0, build: (s) => buildPier(s, r, k) }))),
     // Hall Row outside Ansbury's south gate, the old companies' halls let to guilds (data/guildhalls.ts)
     { id: 'ansbury-halls', name: 'Hall Row', x: 916, z: 505, r0: 0, r1: 0, build: (s) => buildHallRow(s), flats: HALLS.map((h) => ({ x: h.x0 + h.w / 2, z: h.door === 's' ? h.z0 : h.z0 + h.d, r0: 14, r1: 20, h: h.base })) },
     { id: 'pottery', name: 'Hurst\'s Pottery', x: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[0], z: potteryAt(POTTERY_W / 2, POTTERY_D / 2)[1], r0: 0, r1: 0, build: (s) => buildPottery(s) },
@@ -5637,6 +5643,82 @@ export function plan(): Plan {
     for (const u of [6, 42, len - 10]) { const l = P(u, 0.2); s.props.push({ t: 'lantern', x: l.x, y: base + 3.2, z: l.z }); }
     { const g = P(-1.2, 1); s.props.push({ t: 'sign', x: g.x, y: base, z: g.z, ry: alongX ? -Math.PI / 2 : Math.PI, text: 'ROOK\'S ROPEWALK\nRope laid to order' }); }
     { const [ax, az] = at(-2, -1), [bx, bz] = at(len + 1, W); rect(s, Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx) + 1, Math.max(az, bz) + 1); }
+  }
+
+  /**
+   * A Charter Post coaching yard (data/postStations.ts): the stable block for the Post's horses with its
+   * doors to the road, a yard in front, the rail the pair are tied to, hay, a trough, a lantern and the
+   * board. The cart and the horses standing in it are the game's (game/PostStations.ts).
+   */
+  function buildPostStation(s: Site, y: PostYard) {
+    const W = (u: number, v: number) => yardAt(y, u, v);
+    const box = (u0: number, v0: number, u1: number, v1: number): [number, number, number, number] => {
+      const [ax, az] = W(u0, v0), [bx, bz] = W(u1, v1);
+      return [Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz)];
+    };
+    const morrow = landAt(y.x) === 'morrow', B0 = y.base;
+    // Level the ground for the whole of it
+    for (let v = -7; v <= 4; v++) for (let u = -7; u <= 7; u++) {
+      const [x, z] = W(u, v);
+      foundation(x, z, B0, B.Dirt);
+      O.set(x, B0 - 1, z, B.Grass);
+      clearUp(x, z, B0, B0 + 12);
+    }
+    // The stable block, its doors to the road: weatherboard in the Counties, sandstone in Morrow
+    const [hx0, hz0, hx1, hz1] = box(-6, -7, 6, -3);
+    house(s, hx0, hz0, hx1 - hx0 + 1, hz1 - hz0 + 1, 1, B0, morrow ? 'red' : 'slate', y.face, { wall: morrow ? B.Sandstone : B.Planks, role: 'store', chimney: false, signs: false });
+    // The yard in front of it
+    const [yx0, yz0, yx1, yz1] = box(-6, -2, 6, 4);
+    pave(yx0, yz0, yx1, yz1, B0, 'yard');
+    const at = (u: number, v: number) => { const [x, z] = W(u, v); return { x: x + 0.5, y: B0, z: z + 0.5 }; };
+    const ry = yardYaw(y), across = y.face === 'n' || y.face === 's' ? 0 : Math.PI / 2;
+    // The rail the pair are tied to (solid, so nobody walks through it)
+    {
+      const a = at(4, 1.2);
+      s.props.push({ t: 'fence', x: a.x, y: B0, z: a.z, ry: across, len: 4 });
+      // (its cells from where it actually stands, whichever way the yard faces)
+      for (let k = -1.8; k <= 1.8; k += 0.3) O.set(Math.floor(across ? a.x : a.x + k), B0, Math.floor(across ? a.z + k : a.z), B.Barrier);
+    }
+    // Hay against the block, a trough of two barrels, a crate of harness, the lantern and the board
+    for (const [u, v, h] of [[-6, -2, 2], [-5, -2, 1], [6, -2, 1]] as const) { const [x, z] = W(u, v); for (let k = 0; k < h; k++) O.set(x, B0 + k, z, B.Hay); }
+    s.props.push({ t: 'barrel', ...at(6, 2.2) }, { t: 'barrel', ...at(6, 3.1) }, { t: 'crate', ...at(-6, 0.4) });
+    s.props.push({ t: 'lantern', ...at(-6.4, 3.6) });
+    s.props.push({ t: 'sign', ...at(6.2, 3.8), ry, text: morrow ? 'ASSEMBLY POST\nCarts to every town' : 'CHARTER POST\nCarts to every town' });
+    const [rx0, rz0, rx1, rz1] = box(-7, -7, 7, 4);
+    rect(s, rx0, rz0, rx1 + 1, rz1 + 1);
+  }
+
+  /**
+   * A ferry's jetty (data/ferries.ts): planks on piles three wide from the shore out to where she lies
+   * alongside its head, a lantern at the end, and a board at the landward end with her name and her stops.
+   */
+  function buildPier(s: Site, r: FerryRoute, k: number) {
+    const pl = FERRY_PLAN[r.id]!.piers[k];
+    const [ax, az] = [pl.from[0] + 0.5, pl.from[1] + 0.5], [bx, bz] = [pl.to[0] + 0.5, pl.to[1] + 0.5];
+    const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+    const at = (t: number, o: number): [number, number] => [ax + ux * t - uz * o, az + uz * t + ux * o];
+    const done = new Set<string>();
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (let t = 0; t <= L + 0.5; t += 0.25) for (let o = -1.2; o <= 1.2; o += 0.3) {
+      const [fx, fz] = at(t, o), x = Math.floor(fx), z = Math.floor(fz), key = x + ',' + z;
+      if (done.has(key)) continue;
+      done.add(key);
+      const ground = heightAt(x, z);
+      if (ground > SEA + 1) continue; // (the land end: it's ashore already)
+      O.set(x, SEA, z, B.Planks);
+      clearUp(x, z, SEA + 1, SEA + 7);
+      x0 = Math.min(x0, x); z0 = Math.min(z0, z); x1 = Math.max(x1, x); z1 = Math.max(z1, z);
+    }
+    // Piles down to the bottom along both edges, every few blocks
+    for (let t = 1; t <= L; t += 3.5) for (const o of [-1.1, 1.1]) {
+      const [fx, fz] = at(t, o), x = Math.floor(fx), z = Math.floor(fz);
+      for (let y = Math.max(1, heightAt(x, z) - 1); y < SEA; y++) O.set(x, y, z, B.Timber);
+    }
+    const ry = Math.atan2(ux, uz);
+    { const [lx, lz] = at(L - 0.2, 1.05); s.props.push({ t: 'lantern', x: lx, y: SEA + 1, z: lz, ry }); }
+    { const [sx, sz] = at(1.4, -1.05); s.props.push({ t: 'sign', x: sx, y: SEA + 1, z: sz, ry: ry + Math.PI, text: `${r.ship.replace(/^the /, '').toUpperCase()}\n${r.stops.map((q) => q.name).join(' · ')}` }); }
+    { const [bx2, bz2] = at(L - 0.4, -1.0); s.props.push({ t: 'bollard', x: bx2, y: SEA + 1, z: bz2, ry }); }
+    rect(s, x0, z0, x1 + 1, z1 + 1);
   }
 
   /**

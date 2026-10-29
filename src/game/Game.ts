@@ -109,6 +109,9 @@ import { Festivals } from './Festivals';
 import { Home, Piece } from './Home';
 import { Building, doorCell, stallAt, type LaidBlock, type LotHouse } from './Building';
 import { GuildHalls } from './GuildHalls';
+import { PostStations } from './PostStations';
+import { POST_CART_KEY } from '../data/postStations';
+import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
 import { Planner } from './Planner';
@@ -485,6 +488,8 @@ export class Game implements GameApi {
   building!: Building;
   /** The halls on Hall Row, dressed as the realm's book has them (game/GuildHalls.ts); your guild's, as its members see it. */
   halls!: GuildHalls;
+  /** The carts and horses waiting in the Post's coaching yards (game/PostStations.ts). */
+  private postStations!: PostStations;
   hallView: HallView | null = null;
   /** The Post's fares at half: the travel board was opened from the map room of your guild's hall. */
   private hallFare = false;
@@ -901,7 +906,7 @@ export class Game implements GameApi {
       hour: () => this.world.sky.hour,
       lamps: this.world.extraLamps,
     });
-    this.player.extraSolid = (x, y, z, half, height) => this.world.ferry.blocks(x, y, z, half, height);
+    this.player.extraSolid = (x, y, z, half, height) => this.world.boardable.some((f) => f.blocks(x, y, z, half, height));
     this.farming = new Farming({
       scene: this.scene, voxels: this.world.voxels,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1114,6 +1119,7 @@ export class Game implements GameApi {
       this.scene.add(an.model.root);
     }
     this.stables = new Stables(this.scene, this.world.voxels);
+    this.postStations = new PostStations(this.scene, this.world.voxels);
     // Dogs and cats about the towns: by every Charter Post sign and in Hollin Ford, coats from a few kinds
     {
       const dogCoats: Palette[] = [{ a: '#26211e', b: '#efe8dc', c: '#a8682e' }, { a: '#8a5a2e', b: '#e8d8b8', c: '#5a3a1e' }, { a: '#c8a060', b: '#f0e4c8', c: '#8a6a3a' }, { a: '#3a3a3a', b: '#d8d8d8', c: '#6a6a6a' }];
@@ -1231,6 +1237,8 @@ export class Game implements GameApi {
       scene: this.scene,
       night: () => this.world.sky.night,
       mySeat: () => {
+        // On the Post: the cart, with its spare benches for whoever climbs up
+        if (this.post.active) return { ...this.post.where, mount: POST_CART_KEY };
         const id = this.flag('mount') as string;
         return this.horse && spareSeats(ITEMS[id]?.mount) > 0 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y, mount: id } : null;
       },
@@ -1546,6 +1554,72 @@ export class Game implements GameApi {
 
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hallFare = false; this.hud.show('travel'); }
+  /** A ferry calling at both these Post stops, and their places on her route. */
+  private ferryBetween(a: string, b: string): { ship: ScheduledShip; from: number; to: number } | null {
+    for (const ship of this.world.ferries) {
+      const i = ship.route.stops.findIndex((q) => q.post === a), j = ship.route.stops.findIndex((q) => q.post === b);
+      if (i >= 0 && j >= 0) return { ship, from: i, to: j };
+    }
+    return null;
+  }
+  /** A ferry to a stop from somewhere not on her route: the ship, and her stop the Post can take you to. */
+  private ferryTo(a: string, b: string): { ship: ScheduledShip; home: (typeof POSTS)[number] } | null {
+    const here = POSTS.find((q) => q.id === a);
+    for (const ship of this.world.ferries) {
+      if (!ship.route.stops.some((q) => q.post === b) || ship.route.stops.some((q) => q.post === a)) continue;
+      // (her stop with a road to here: the nearest that isn't an island)
+      const homes = ship.route.stops.map((q) => POSTS.find((x) => x.id === q.post)!).filter((x) => here && landOf(x) === landOf(here) && !x.ferryFrom);
+      const home = homes.sort((x, y) => Math.hypot(x.x - here!.x, x.z - here!.z) - Math.hypot(y.x - here!.x, y.z - here!.z))[0];
+      if (home) return { ship, home };
+    }
+    return null;
+  }
+  /** A wait, as the timetables say it. */
+  private static wait(sec: number): string { return sec < 50 ? `${Math.max(5, Math.round(sec / 5) * 5)} seconds` : `${Math.round(sec / 60)} minute${Math.round(sec / 60) === 1 ? '' : 's'}`; }
+  /** What each ferry was doing last frame, so the bell rings when she comes in and before she goes. */
+  private ferryLast = new Map<ScheduledShip, { spell: number; warned: boolean; checked: boolean }>();
+  /** The ferries' bells and the mates' calls, for anyone near; the Assembly's passes looked at before she sails. */
+  private ferryCalls(): void {
+    const now = realmNow() / 1000, P = this.player.position;
+    for (const ship of this.world.ferries) {
+      const st = ship.state(now), last = this.ferryLast.get(ship), R = ship.route;
+      const near = ship.root.position.distanceTo(P) < 110, aboard = ship.aboard(P);
+      const Ship = R.ship[0].toUpperCase() + R.ship.slice(1);
+      if (!last || last.spell !== st.spell) {
+        if (last && st.docked !== null) {
+          const stop = R.stops[st.docked];
+          if (near) { this.sfx('bell', 0.7); this.hud.system(`${Ship} is in at ${stop.name}. She sails for ${R.stops[st.to].name} in ${Game.wait(st.left)}.`); }
+          if (aboard) this.hud.banner(stop.name, Ship, true);
+        } else if (last && aboard) this.hud.system(`${Ship} casts off for ${R.stops[st.to].name}.`);
+        this.ferryLast.set(ship, { spell: st.spell, warned: false, checked: false });
+        continue;
+      }
+      if (st.docked === null) continue;
+      if (!last.warned && st.left < 15) {
+        last.warned = true;
+        if (near) { this.sfx('bell', 0.5); this.hud.system(`The mate of ${R.ship}: "All aboard for ${R.stops[st.to].name}!"`); }
+      }
+      // Bound for a stop you need a pass for: the mate puts you back on the jetty
+      const gate = R.stops[st.to].gate;
+      if (!last.checked && st.left < 2 && aboard && gate && !this.flag(gate)) {
+        last.checked = true;
+        const pl = ship.plan.piers[st.docked], dx = pl.to[0] - pl.from[0], dz = pl.to[1] - pl.from[1], L = Math.hypot(dx, dz);
+        this.player.teleport(pl.to[0] + 0.5 - (dx / L) * 2, SEA + 1.05, pl.to[1] + 0.5 - (dz / L) * 2);
+        this.player.velocity.set(0, 0, 0);
+        this.hud.system(`The mate of ${R.ship}: "${R.stops[st.to].refused ?? 'Not without a pass.'}"`);
+      }
+    }
+  }
+  /** Each ferry's timetable as her jetty's board gives it. */
+  private readTimetable(ship: ScheduledShip, stop: number): void {
+    const now = realmNow() / 1000, R = ship.route;
+    const lines = this.world.ferries.filter((x) => x.route.id === R.id).map((x) => {
+      const nx = x.nextFrom(stop, now);
+      return nx.alongside ? `Alongside now, and sails for ${R.stops[nx.to].name} in ${Game.wait(nx.wait)}.` : `Next sails from here for ${R.stops[nx.to].name} in ${Game.wait(nx.wait)}.`;
+    });
+    this.hud.system(`${R.ship[0].toUpperCase() + R.ship.slice(1)}, ${R.stops.map((q) => q.name).join(' · ')}, there and back. ${[...new Set(lines)].join(' ')} No fare: the Charter pays her out of the harbour dues.`);
+  }
+
   /** A Post fare: half, from the map room of your guild's hall. */
   private fareOf(a: (typeof POSTS)[number], b: (typeof POSTS)[number]): number { const f = postFare(a, b); return this.hallFare ? Math.ceil(f / 2) : f; }
 
@@ -1661,10 +1735,14 @@ export class Game implements GameApi {
       stops: POSTS.filter((p) => landOf(p) === landOf(here)).map((p) => ({
         id: p.id, name: p.name, here: p.id === here.id,
         known: postKnown(p, this.save.discovered) && (!p.gate || !!this.flag(p.gate)),
-        fare: this.fareOf(here, p),
+        fare: this.ferryBetween(here.id, p.id) ? 0 : this.fareOf(here, this.ferryTo(here.id, p.id)?.home ?? p),
         ...((): { note: string; by: 'ride' | 'cross' | 'ferry' } => {
           if (p.id === here.id) return { note: '', by: 'ride' };
           if (Game.ferryPair(here.id, p.id)) return { note: 'By the ferry from the jetty: she sails every few minutes', by: 'ferry' };
+          const fb = this.ferryBetween(here.id, p.id);
+          if (fb) { const nx = fb.ship.nextFrom(fb.from, realmNow() / 1000); return { note: `Aboard ${fb.ship.route.ship} from her jetty: ${nx.alongside ? `alongside now, sails in ${Game.wait(nx.wait)}` : `next sails in ${Game.wait(nx.wait)}`}`, by: 'ferry' }; }
+          const ft = this.ferryTo(here.id, p.id);
+          if (ft) return { note: `The Post to ${ft.home.name}, then ${ft.ship.route.ship} from her jetty`, by: 'ride' };
           const way = this.wayBetween(here, p);
           if (way) { const m = rideMinutes(wayLength(way)); return { note: `About ${m} minute${m === 1 ? '' : 's'} on the cart`, by: 'ride' }; }
           const h = postHours(here, p);
@@ -1736,6 +1814,24 @@ export class Game implements GameApi {
       this.hud.close('travel');
       this.markOnMap(at[0], at[1], 'The ferry\'s berth');
       return;
+    }
+    // The ferries are ships you board, not tickets: from a stop on her route, where her jetty is and when
+    // she sails; from anywhere else, the Post as far as her home port
+    {
+      const fb = this.ferryBetween(here.id, there.id);
+      if (fb) {
+        const pier = fb.ship.plan.piers[fb.from], nx = fb.ship.nextFrom(fb.from, realmNow() / 1000);
+        this.hud.close('travel');
+        this.markOnMap(pier.from[0], pier.from[1], `${fb.ship.route.ship[0].toUpperCase() + fb.ship.route.ship.slice(1)}'s jetty`);
+        this.hud.system(`${fb.ship.route.ship[0].toUpperCase() + fb.ship.route.ship.slice(1)} ${nx.alongside ? 'is alongside now and sails' : 'next sails'} for ${fb.ship.route.stops[nx.to].name} in ${Game.wait(nx.wait)}. Walk aboard; she calls at ${fb.ship.route.stops.map((q) => q.name).join(', ')}.`);
+        return;
+      }
+      const ft = this.ferryTo(here.id, there.id);
+      if (ft && ft.home.id !== here.id) {
+        this.hud.system(`The Post goes as far as ${ft.home.name}. ${ft.ship.route.ship[0].toUpperCase() + ft.ship.route.ship.slice(1)} sails from her jetty there for ${there.name.replace(/ \(.*\)$/, '')}.`);
+        this.travelTo(ft.home.id);
+        return;
+      }
     }
     const fare = this.fareOf(here, there);
     if (this.save.marks < fare || this.dead || this.dialogue) return;
@@ -4289,14 +4385,15 @@ export class Game implements GameApi {
       if (d < 2.6 && Math.abs(at.y - p.y) < 2) consider({ kind: 'act', label: `Help ${r.name} up`, pos: at.clone().setY(at.y + 0.6), act: () => this.startRevive(r.id, r.name) }, d);
     }
     // Someone in your group on a mount with a seat free: behind the saddle, or in the back of the wagon
-    if (!this.horse && this.pillion === null && this.social.group) {
+    // (and anyone at all on the Post: the carter doesn't mind company, and a bench is a bench)
+    if (!this.horse && this.pillion === null && !this.post.active) {
       for (const r of this.online.remotes.values()) {
-        const rm = mountOf(r.mount);
-        if (!rm || !spareSeats(rm) || !this.social.group.members.some((m) => m.id === r.id)) continue;
-        if (this.online.passengers(r.id).length >= spareSeats(rm)) continue;
-        const at = r.model.root.position, back = rm.wagon ? 1.3 : 0;
+        const rm = mountOf(r.mount), post = r.mount === POST_CART_KEY;
+        if (!rm || !spareSeats(rm) || (!post && !this.social.group?.members.some((m) => m.id === r.id))) continue;
+        if (this.online.passengers(r.id).length >= spareSeats(rm) - (post ? 1 : 0)) continue;
+        const at = r.horse?.root.position ?? r.model.root.position, back = rm.wagon ? 1.3 : 0;
         const d = Math.hypot(at.x - Math.sin(r.model.root.rotation.y) * back - p.x, at.z - Math.cos(r.model.root.rotation.y) * back - p.z);
-        if (d < (rm.wagon ? 3.2 : 3)) consider({ kind: 'act', label: rm.wagon ? `Climb into ${r.name}'s wagon` : `Ride behind ${r.name}`, pos: at.clone(), act: () => this.takePillion(r.id, r.name) }, d);
+        if (d < (rm.wagon ? 3.2 : 3)) consider({ kind: 'act', label: post ? `Climb onto the Post cart with ${r.name}` : rm.wagon ? `Climb into ${r.name}'s wagon` : `Ride behind ${r.name}`, pos: at.clone(), act: () => this.takePillion(r.id, r.name) }, d);
       }
     }
     // Your own wagon, standing where you left it: its bed to load, its box to climb back onto
@@ -4518,6 +4615,11 @@ export class Game implements GameApi {
     for (const a of this.justice.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
+    // A ferry's timetable, on the board at her jetty's landward end
+    for (const ship of this.world.ferries) ship.plan.piers.forEach((pl, k) => {
+      const d = Math.hypot(pl.from[0] + 0.5 - p.x, pl.from[1] + 0.5 - p.z);
+      if (d < 4 && Math.abs(SEA + 1 - p.y) < 3) consider({ kind: 'act', label: `Read ${ship.route.ship}'s timetable`, pos: new THREE.Vector3(pl.from[0] + 0.5, SEA + 2.4, pl.from[1] + 0.5), act: () => this.readTimetable(ship, k) }, d + 0.5);
+    });
     // In your guild's hall: what its wings are for
     {
       const hall = this.myHall(), built = new Set(this.hallView?.built ?? []);
@@ -5892,6 +5994,7 @@ export class Game implements GameApi {
     if (cleared !== this.leaveShown) { this.leaveShown = cleared; this.hud.setLeaveButton(cleared ? `Leave ${this.dungeons.run!.def.name}` : null, () => this.dungeons.leave()); }
     this.hazards.update(dt);
     this.stables.update(dt, P);
+    this.postStations.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
     this.checkFeats(dt);
@@ -5944,6 +6047,7 @@ export class Game implements GameApi {
     if (!this.home.visiting) this.visitLot = null;
     this.syncLots();
     this.halls.sync(this.player.position.x, this.player.position.z);
+    this.ferryCalls();
     // Well rested: half an hour of play at a quarter more experience, after a night in your own bed
     const rested = Number(this.flag('rested') ?? 0);
     if (rested > 0) {
@@ -5963,7 +6067,9 @@ export class Game implements GameApi {
     this.world.update(dt, P, this.elapsed, timeScale);
     // Standing on the ferry's deck, you go where she goes
     {
-      const ride = this.world.ferry.carry(this.player.position, this.player.onGround);
+      // (every ship's carry is asked each frame, so each keeps track of how she's moved since the last)
+      let ride: { pos: THREE.Vector3; turn: number } | null = null;
+      for (const f of this.world.boardable) ride = f.carry(this.player.position, this.player.onGround) ?? ride;
       if (ride) this.player.carried(ride.pos, ride.turn);
     }
     // Doors open for anyone walking up to them: you, other players, the villagers
@@ -6489,7 +6595,9 @@ export class Game implements GameApi {
     M.straddle = this.horse?.girth ?? 0.38;
     M.update(dt, P.speed, !P.onGround && !P.swimming);
     this.horse?.holdReins(M.state === 'ride' ? M.handsAt(handL, handR) : null);
-    this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : null, pillion: this.pillion });
+    // (on the Post, everyone sees the cart go by with you on its bench)
+    if (this.post.active) { const w = this.post.where; this.online.update(dt, { x: w.x, y: w.y, z: w.z, yaw: w.yaw, anim: 'seated', held: 'none', mount: POST_CART_KEY, pillion: null }); }
+    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
     // Your own pet at your heels (data/pets.ts), the one your look names

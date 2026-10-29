@@ -6,7 +6,8 @@ import { EX, fellTree, FishSpot, generateTerrain, growTree, Layout, OreNode, pla
 import { Grid, SX as GSX, SY as GSY, SZ as GSZ } from '../world/grid';
 import { bindWaterUniforms, createSharedUniforms, createVoxelMaterial, createWaterMaterial, SharedUniforms } from '../world/materials';
 import { realmNow } from '../world/clock';
-import { Ferry } from '../world/Ferry';
+import { Boardable, Ferry, ScheduledShip } from '../world/Ferry';
+import { FERRIES, FERRY_PLAN } from '../data/ferries';
 import { createPropMaterials, FIRE_TIME, PropMaterials } from '../world/props';
 import type { Door } from '../world/Doors';
 import { BuiltSite, buildImpostor, buildSiteProps, farLights, IMPOSTOR_MAT, LAMP_TINT } from '../world/siteProps';
@@ -72,6 +73,10 @@ export class GameWorld {
   private siteReach = new Map<string, number>();
   private lod: THREE.Group | null = null;
   readonly ferry: Ferry;
+  /** The scheduled ferries (data/ferries.ts), a ship each (two on the long runs, half a round apart). */
+  readonly ferries: ScheduledShip[] = [];
+  /** Every ship you can walk aboard while she sails. */
+  get boardable(): Boardable[] { return [this.ferry, ...this.ferries]; }
   private lodUniforms = { uCenter: { value: new THREE.Vector2() }, uRadius: { value: 0 } };
   /** Fired when a streamed chunk arrives with creatures to place. */
   onChunk: ((cx: number, cz: number, r: ChunkResult | null) => void) | null = null;
@@ -95,6 +100,15 @@ export class GameWorld {
     this.sites = plan().sites;
     this.ferry = new Ferry(this.props);
     this.scene.add(this.ferry.root);
+    for (const r of FERRIES) {
+      const n = r.ships ?? 1;
+      for (let k = 0; k < n; k++) {
+        const probe = new ScheduledShip(this.props, r, FERRY_PLAN[r.id]!);
+        const ship = k ? new ScheduledShip(this.props, r, FERRY_PLAN[r.id]!, (probe.round * k) / n) : probe;
+        this.ferries.push(ship);
+        this.scene.add(ship.root);
+      }
+    }
     this.stats.genMs = performance.now() - t0;
 
     // Hollindale's nodes live for the whole session, bucketed by chunk
@@ -499,6 +513,7 @@ export class GameWorld {
     // The Mewstones ferry keeps her timetable whether anyone is near; she's only drawn when someone is
     this.ferry.update(realmNow() / 1000);
     this.ferry.root.visible = this.ferry.root.position.distanceTo(center) < 900;
+    for (const f of this.ferries) { f.update(realmNow() / 1000); f.root.visible = f.root.position.distanceTo(center) < 900; }
     const flick = 0.85 + Math.sin(elapsed * 13) * 0.08 + Math.sin(elapsed * 23.7) * 0.06;
     for (const f of this.structures.fires) f.scale.set(1, flick, 1);
 

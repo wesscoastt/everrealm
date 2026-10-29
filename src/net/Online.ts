@@ -10,6 +10,8 @@ import type { SaveData } from '../game/state';
 import { CreatureModel, mountModel } from '../entities/creatures';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { mountOf } from '../data/mountLooks';
+import { POST_CART, POST_CART_KEY, POST_RIDER_SEAT } from '../data/postStations';
+import { CARTER } from '../game/PostRide';
 import { ITEMS } from '../data/items';
 import { currentAccount } from './Account';
 import type { Performance } from '../game/Bard';
@@ -40,6 +42,8 @@ interface Remote {
   mount: string | null;
   horse: CreatureModel | null;
   horseOf: string | null;
+  /** The Post's carter on the box, while they ride the Post. */
+  carter?: Humanoid;
   /** Their guild's name, shown under their name. */
   guild: string | null;
   /** Riding behind someone on a two-seat mount: that rider's id, or 0. */
@@ -390,7 +394,7 @@ export class Online {
     const pos = new THREE.Vector3(p.x, p.y, p.z);
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
-    const mount = p.mount && ITEMS[p.mount]?.mount ? p.mount : null;
+    const mount = p.mount && mountOf(p.mount) ? p.mount : null;
     this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0, pet: this.petFor(p.look, pos) });
     if (p.perf) this.hooks.perform?.(p.id, p.perf);
   }
@@ -478,8 +482,19 @@ export class Online {
         const sp = r.t < 1 ? r.speed : 0;
         r.horse.setAnim(sp > 10.5 ? 'run' : sp > 0.4 ? 'walk' : 'idle');
         r.horse.update(dt, sp);
-        r.model.root.position.y += liftOf(r.mount);
+        if (r.mount === POST_CART_KEY) {
+          // On the Post: the carter on the box, and them on the back bench
+          const st = passengerSeat(POST_CART, POST_RIDER_SEAT, r.horse.root.position.x, r.horse.root.position.y, r.horse.root.position.z, r.horse.root.rotation.y)!;
+          r.model.root.position.set(st.x, st.y + st.lift, st.z);
+          r.anim = 'seated'; r.held = 'none';
+          if (!r.carter) { r.carter = new Humanoid(CARTER); this.hooks.scene.add(r.carter.root); }
+          r.carter.root.position.copy(r.horse.root.position).setY(r.horse.root.position.y + riderLift(POST_CART));
+          r.carter.root.rotation.y = r.horse.root.rotation.y;
+          r.carter.setState('seated');
+          r.carter.update(dt, 0);
+        } else r.model.root.position.y += liftOf(r.mount);
       }
+      if (r.carter && r.mount !== POST_CART_KEY) { this.hooks.scene.remove(r.carter.root); r.carter = undefined; }
       // Riding behind someone: in the second seat of their mount, wherever we see it
       const seat = r.pillion ? this.seatOf(r.pillion, r.id) : null;
       if (seat) { r.model.root.position.set(seat.x, seat.y + seat.lift, seat.z); r.model.root.rotation.y = seat.yaw; r.yaw = seat.yaw; r.anim = seat.pose; r.held = 'none'; }

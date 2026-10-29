@@ -3,6 +3,7 @@ import { mountModel, type CreatureModel, type MountLook } from '../entities/crea
 import { Humanoid, type Appearance } from '../entities/humanoid';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { VoxelWorld } from '../world/VoxelWorld';
+import { POST_CART, POST_RIDER_SEAT } from '../data/postStations';
 export { rideMinutes, roadNet, wayLength } from '../world/roadNet';
 
 // The Charter Post as a ride: pay the carter at a post sign and the cart takes you there in real time,
@@ -12,8 +13,8 @@ export { rideMinutes, roadNet, wayLength } from '../world/roadNet';
 type Pt = [number, number];
 
 /** The Charter's post cart: an open carrier's cart in the Charter's blue behind a bay, so you see the country go by. */
-const CART: MountLook = { coat: '#6a4428', mane: '#1e1610', cloth: '#2f528f', seats: 3, wagon: { kind: 'cart', bed: 0, paint: '#2f528f' } };
-const CARTER: Appearance = {
+export const CART: MountLook = POST_CART;
+export const CARTER: Appearance = {
   frame: 'm', facial: 3, top: 2, shirt: '#d8d0b8', legs: 0, hose: '#d8d0b8', shoes: 1, brows: 1, freckles: false,
   skin: '#c89070', hair: '#5a4030', hairStyle: 1, eyes: '#3a4a5a', tunic: '#2f528f', trim: '#c8a050', trousers: '#3a3028', boots: '#2a1e14',
   cape: null, lashes: false, apron: false, hat: 'cap', hatColor: '#2a3a5a', build: 1.05, height: 1, age: 0.55,
@@ -110,8 +111,11 @@ export class PostRide {
     this.carter.update(dt, 0);
   }
 
-  /** Where the passenger sits: on the bench in the back, the near side. */
+  /** Where the cart is, and which way she faces (what the realm passes round while you ride her). */
+  get where(): { x: number; y: number; z: number; yaw: number } { return { x: this.pos.x, y: this.pos.y, z: this.pos.z, yaw: this.yaw }; }
+
+  /** Where the passenger sits: on the back bench, the far side. */
   seat(): Seat {
-    return passengerSeat(CART, 0, this.pos.x, this.pos.y, this.pos.z, this.yaw)!;
+    return passengerSeat(CART, POST_RIDER_SEAT, this.pos.x, this.pos.y, this.pos.z, this.yaw)!;
   }
 }
