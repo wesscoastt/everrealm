@@ -843,7 +843,7 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 - **XXXII, Ursel** (`storyUrsel`). Northgate's Gatekeeper is **Ursel Hale**, sister of Wenna's father **Elwyn Hale**; she came over on a salt boat forty years ago and never wrote. Elwyn has been dead ten years, Bryn has the farm, and Owen died on the Kirk road last winter (Owen's Crook). Flag `urselStay`: `night` (Wenna stays the night at the gate) or `north`. Without Wenna, the chapter passes.
 - **XXXV, Fourth Camp** (`storyCamp4`). On the open ground on top of Gallows Knap, south of the ruin, the first page of Pryce's book is in another hand: "The Third Daughter, her papers and her passage to Callis, to buy crystal of the Assembly out of the Charter's reach. Sold to Harrowgate & Daughters for the Charter's debt. For the Charter, R. Tarrant." The Speaker signed it (flag `bookPage`). Joan has offered Ottilie a proper apprenticeship at the smelter in the spring (flag `ottSpring`: `joan` or `stay`).
 
-## The main story, Act V: The Held [in game, first half]
+## The main story, Act V: The Held [in game]
 
 `src/data/content/actFive.ts`. Starts from Wat Aske at Cold Harbour once Act IV is done.
 
@@ -851,6 +851,12 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 - **XXXVII, A.P., Again** (`storySecondAP`). Ma's barrow is stripped a second time; the tally board says A.P. against every load, and Pryce is home. The receipt trodden into the cart track: "Received of Hollow Fell, nine slabs, black. For the Assembly of Callis. A. Pascall, clerk." **Arthur Pascall**, the Assembly's clerk, buys the fell's black for the towers of Callis.
 - **XXXVIII, The Gatekeepers' Rolls** (`storyRolls`). Edda Rusk: the black was laid so they would lie still, every barrow, every slab. Six of Hollow Fell's eight barrows are stripped: sixty slabs must go back, and the only black above ground is in the towers of Callis.
 - **XXXIX, Callis Lends the Black** (`storyLendBlack`). Benet Sala won't take black from the Morning Tower (a finger and a half off its mark), but offers forty slabs from the Old Tower's keystones, the old kingdom's own black: "It would hold a season without them. Probably a season." Flag `lendBlack`: `tower` (taken from the top of the Old Tower; Marta Vidal won't forgive it), `bought` (the player pays five hundred marks to send Pascall's slabs back) or `none` (Wat digs the fell's own black out of the heaps by hand, all winter).
+
+- **XL, The Fells at Night** (`storyFellsNight`). The black goes back on Hollow Fell's six stripped barrows by night, slab by slab over the crown, and the dead round each kneel and lie down. With only Wat's shovel (`lendBlack` `none`) there is black for two; the other four take the winter.
+- **XLI, The Kneeling Rise** (`storyKneelingRise`). Pascall's men, with Assembly paper and a gang from the Keys, broke into the Hall of the Kneeling at Kingsbarrow for the king's guard's black. The Kneeling are up. Ebba Platt's camp of nineteen, diggers who wouldn't go back down and their families, runs for Northgate's postern.
+- **XLII, The Postern** (`storyPostern`). Every digger through the postern but Ebba's boy **Tobin**, ten, still out on the road with the Kneeling behind him. Ursel Hale goes back for him: "You're quicker. I'm older. Forty years I've kept this gate. Let me keep it." She pushes him through and tells the player to bar it, and the player does. **Ursel dies** on the far side of her own gate (flag `urselDead`). Her sergeant of twenty-two years, **Gyda Thwaite**, keeps the gate after her, the barracks stable and all; she knows the first Gatekeeper's charge, so Lew Garth's cats need no trip to the Archive.
+- **XLIII, What Wenna Does** (`storyWennaGrief`). The morning after, Wenna on Ursel's step with Ursel's glove. Nine days she knew her. Flag `wennaGrief`: `stay` (you sit with her), `alone` or `told` (you tell her it was your hand on the bar; she knew, and says not to carry it).
+- **XLIV, Fifth Camp** (`storyCamp5`). A fire under the wall. Edda Rusk has written Ursel into the Gatekeepers' roll: "Ursel Hale, forty years at the gate. Went out of it for a child of the camp, and kept it shut behind her." The Kneeling went back down the road at first light, to kneel where they were found. In the morning a letter comes from Callis under the Assembly's seal: the Old Tower has moved.
 
 ### The Mirador [in game]
 
@@ -884,7 +890,7 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 | Name | Role | Wants | Won't admit |
 | --- | --- | --- | --- |
 | **Wat Aske** | The last of Pryce's diggers | To put the black back, one cart at a time | He left eleven men up on the fell |
-| **Ursel Hale** | Gatekeeper of Northgate | The gate shut | She wanted someone to have read the roll before she opened it |
+| **Ursel Hale** | Gatekeeper of Northgate (dies at the postern, Act V) | The gate shut | She wanted someone to have read the roll before she opened it |
 | **Edda Rusk** | Keeper of the Gatekeepers' Archive | Someone to read the rolls | — |
 | **Lew Garth** | Herder of the Held, camped outside the shut gate with his last fell sabres | To get them inside before the trolls do | — |
 

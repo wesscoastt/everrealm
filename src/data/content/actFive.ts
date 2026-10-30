@@ -166,7 +166,7 @@ const QUESTS: Record<string, QuestDef> = {
     walk: { from: { quests: { [AP]: 'done', [ROLLS]: 'edda' }, items: [['pascall_receipt', 1]] } },
   },
   [LEND]: {
-    id: LEND, name: 'Callis Lends the Black', story: { chapter: 39, title: 'Callis Lends the Black', act: ACT },
+    id: LEND, name: 'Callis Lends the Black', story: { chapter: 39, title: 'Callis Lends the Black', act: ACT }, next: ['storyFellsNight', 'wat'],
     notes: (g, s) => {
       if (s === 'benet') return 'Speaker Benet Sala, in the Assembly Hall in Callis, has the black the fell needs, set in his towers.';
       const e = g.flag('lendBlack');

@@ -144,6 +144,8 @@ export const GREYWASTE_CONTENT: RegionContent = {
       look: { ...NORTH, hair: '#8a7a6a', hairStyle: 2, tunic: '#3a4048', trim: '#b8a878', trousers: '#2a2a30', boots: '#1e1a16', shoulderPads: '#5a5a62', cape: '#2a3038', lashes: true, scar: true, build: 1.1, age: 0.6 },
       schedule: [{ from: 0, to: 24, at: [NG_GATE.x + 1.5, NG_GATE.z + 6.5], face: [NG_GATE.x + 1.5, NG_GATE.z + 12], anim: 'idle' }],
       barks: ['The gate\'s shut.', 'Shut it behind you.'],
+      // (Act V: she dies at the postern; Gyda Thwaite keeps the gate after her: content/actFiveB.ts)
+      when: (g) => !g.flag('urselDead'),
     },
     {
       land: 'morrow', id: 'edda_rusk', name: 'Edda Rusk', title: 'Keeper of the Gatekeepers\' Archive',
