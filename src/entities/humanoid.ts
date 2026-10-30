@@ -270,7 +270,7 @@ function quiverMesh(): THREE.Group {
   return g;
 }
 
-function weaponMesh(w: WeaponModel): THREE.Group {
+export function weaponMesh(w: WeaponModel): THREE.Group {
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, color: string | THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0) => {
     const m = new THREE.Mesh(geo, typeof color === 'string' ? lam(color) : color);
@@ -562,7 +562,7 @@ function weaponMesh(w: WeaponModel): THREE.Group {
 }
 
 /** Something in the left hand. Shields face out from the forearm; the rest hang or are carried. */
-function offhandMesh(o: OffhandModel): THREE.Group {
+export function offhandMesh(o: OffhandModel): THREE.Group {
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, color: string | THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => {
     const m = new THREE.Mesh(geo, typeof color === 'string' ? lam(color) : color);

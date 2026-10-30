@@ -1,4 +1,5 @@
 import { IconSpec, ITEMS } from '../data/items';
+import { armourIcon, offhandIcon, weaponIcon } from './icons3d';
 
 // Pixel-art icons painted at 32x32 and shown with image-rendering: pixelated.
 
@@ -304,6 +305,125 @@ function paint(spec: IconSpec): string {
       }
       break;
     }
+case 'book': {
+      // A closed book, its pages' edge showing, a band round the cover
+      px(6, 6, 20, 22, outline); px(7, 7, 17, 20, a); px(7, 7, 3, 20, b);
+      px(24, 8, 2, 18, '#e8dcc0'); px(24, 9, 1, 16, '#c8b898');
+      px(10, 14, 14, 2, shade(a, 0.6)); px(12, 9, 9, 1, shade(a, 1.35));
+      break;
+    }
+    case 'scroll': {
+      // A sheet of paper rolled at both ends, a line or two of writing
+      px(7, 6, 18, 21, outline); px(8, 8, 16, 17, a);
+      px(6, 5, 20, 4, outline); px(7, 6, 18, 2, shade(a, 0.85)); px(6, 24, 20, 4, outline); px(7, 25, 18, 2, shade(a, 0.85));
+      for (const y of [11, 14, 17, 20]) px(10, y, y === 20 ? 7 : 12, 1, b);
+      break;
+    }
+    case 'map': {
+      // A map, unrolled: a coast, a dotted way, and a cross where it ends
+      px(4, 7, 24, 19, outline); px(5, 8, 22, 17, a);
+      x.strokeStyle = shade(a, 0.6); x.lineWidth = 1; x.beginPath(); x.moveTo(5.5, 20); x.quadraticCurveTo(12, 14, 9, 9); x.stroke();
+      for (let i = 0; i < 6; i++) px(11 + i * 2, 21 - i, 1, 1, '#5a3a24');
+      px(21, 11, 1, 1, b); px(22, 12, 1, 1, b); px(23, 13, 1, 1, b); px(23, 11, 1, 1, b); px(21, 13, 1, 1, b);
+      break;
+    }
+    case 'bottle': {
+      // A glass bottle, stoppered, with what's in it showing through
+      px(11, 3, 10, 6, outline); px(12, 4, 8, 4, '#8a6a4a');
+      px(13, 8, 6, 5, outline); px(14, 8, 4, 5, '#c8d8d8');
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 21, 9, 9, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#c8d8d8'; x.beginPath(); x.ellipse(16, 21, 7.5, 7.5, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 23, 7, 5.5, 0, 0, Math.PI * 2); x.fill();
+      px(11, 16, 2, 4, '#ffffff');
+      break;
+    }
+    case 'jar': {
+      // A glazed crock with a lid
+      px(8, 9, 16, 19, outline); px(9, 10, 14, 17, a); px(9, 10, 3, 17, shade(a, 1.25)); px(20, 10, 3, 17, shade(a, 0.75));
+      px(10, 5, 12, 5, outline); px(11, 6, 10, 3, b); px(14, 3, 4, 3, outline); px(15, 4, 2, 1, b);
+      px(9, 14, 14, 1, shade(a, 0.6));
+      break;
+    }
+    case 'berries': {
+      for (const [cx, cy] of [[11, 18], [18, 17], [14, 23], [21, 23], [15, 13]]) {
+        x.fillStyle = outline; x.beginPath(); x.arc(cx, cy, 5, 0, Math.PI * 2); x.fill();
+        x.fillStyle = a; x.beginPath(); x.arc(cx, cy, 3.8, 0, Math.PI * 2); x.fill();
+        px(cx - 2, cy - 2, 1, 1, '#ffffff');
+      }
+      px(18, 5, 6, 3, '#3a7a2a'); px(17, 7, 2, 4, '#2a5a1e');
+      break;
+    }
+    case 'egg': {
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 17, 9, 12, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 17, 7.5, 10.5, 0, 0, Math.PI * 2); x.fill();
+      for (const [ox, oy] of [[13, 13], [19, 17], [14, 21], [18, 24]]) px(ox, oy, 2, 1, b);
+      px(12, 10, 2, 3, '#ffffff');
+      break;
+    }
+    case 'pie': {
+      // A pie in its dish, the crust latticed
+      px(3, 18, 26, 8, outline); px(4, 19, 24, 6, '#8a8a90');
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 17, 12, 7, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 17, 10.5, 5.5, 0, 0, Math.PI * 2); x.fill();
+      for (let i = -2; i <= 2; i++) { px(15 + i * 4, 12, 1, 10, shade(a, 0.7)); }
+      px(7, 16, 18, 1, shade(a, 0.7)); px(9, 13, 6, 1, shade(a, 1.3));
+      break;
+    }
+    case 'veg': {
+      // A bulb or a root with its tops
+      for (const [dx, h] of [[-4, 9], [0, 12], [4, 9]]) px(15 + dx, 4 + 12 - h, 2, h, '#3a7a2a');
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 21, 9, 8, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 21, 7.5, 6.5, 0, 0, Math.PI * 2); x.fill();
+      px(11, 18, 2, 4, shade(a, 1.3)); px(15, 27, 2, 2, b);
+      break;
+    }
+    case 'sheaf': {
+      // A sheaf of grain, tied at the waist
+      for (let i = 0; i < 7; i++) { const dx = (i - 3) * 1.6; x.strokeStyle = outline; x.lineWidth = 2.4; x.beginPath(); x.moveTo(16, 26); x.lineTo(16 + dx, 9); x.stroke(); }
+      for (let i = 0; i < 7; i++) { const dx = (i - 3) * 1.6; x.strokeStyle = a; x.lineWidth = 1.2; x.beginPath(); x.moveTo(16, 26); x.lineTo(16 + dx, 9); x.stroke(); px(Math.round(15 + dx), 5, 2, 5, b); }
+      px(12, 19, 9, 2, '#7a5a2a');
+      break;
+    }
+    case 'gem': {
+      // A cut stone, facets lit from the top left
+      x.fillStyle = outline; x.beginPath(); x.moveTo(16, 4); x.lineTo(27, 13); x.lineTo(16, 29); x.lineTo(5, 13); x.closePath(); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(16, 6); x.lineTo(25, 13); x.lineTo(16, 26); x.lineTo(7, 13); x.closePath(); x.fill();
+      x.fillStyle = shade(a, 1.4); x.beginPath(); x.moveTo(16, 6); x.lineTo(7, 13); x.lineTo(16, 13); x.closePath(); x.fill();
+      x.fillStyle = shade(a, 0.7); x.beginPath(); x.moveTo(16, 13); x.lineTo(25, 13); x.lineTo(16, 26); x.closePath(); x.fill();
+      px(11, 11, 2, 1, '#ffffff');
+      break;
+    }
+    case 'key': {
+      x.fillStyle = outline; x.beginPath(); x.arc(10, 11, 7, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.arc(10, 11, 5, 0, Math.PI * 2); x.fill();
+      x.fillStyle = outline; x.beginPath(); x.arc(10, 11, 2, 0, Math.PI * 2); x.fill();
+      for (let i = 0; i < 13; i++) { px(13 + i, 14 + i, 3, 3, outline); }
+      for (let i = 0; i < 13; i++) { px(14 + i, 15 + i, 1, 1, a); }
+      px(20, 23, 4, 2, outline); px(24, 26, 3, 2, outline);
+      break;
+    }
+    case 'cloak': {
+      // A cloak hung by its hood
+      x.fillStyle = outline; x.beginPath(); x.moveTo(12, 4); x.lineTo(20, 4); x.lineTo(28, 28); x.lineTo(4, 28); x.closePath(); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(13, 6); x.lineTo(19, 6); x.lineTo(26, 26); x.lineTo(6, 26); x.closePath(); x.fill();
+      x.fillStyle = b; x.beginPath(); x.moveTo(16, 6); x.lineTo(19, 6); x.lineTo(26, 26); x.lineTo(18, 26); x.closePath(); x.fill();
+      px(13, 6, 6, 3, shade(a, 0.6)); px(15, 9, 2, 2, '#d8b050');
+      break;
+    }
+    case 'chair': {
+      // A piece of a room: a chair, or what stands for it
+      px(8, 4, 4, 24, outline); px(9, 5, 2, 22, a);
+      px(8, 15, 18, 4, outline); px(9, 16, 16, 2, shade(a, 1.2));
+      px(22, 15, 4, 13, outline); px(23, 16, 2, 11, a); px(8, 4, 4, 2, shade(a, 1.4));
+      px(11, 8, 1, 6, b);
+      break;
+    }
+    case 'block': {
+      // A dressed block of stone, lit on top
+      px(5, 9, 22, 18, outline); px(6, 10, 20, 16, a); px(6, 10, 20, 4, shade(a, 1.25)); px(22, 10, 4, 16, shade(a, 0.75));
+      px(6, 18, 16, 1, shade(a, 0.6)); px(13, 14, 1, 4, shade(a, 0.6)); px(10, 19, 1, 7, shade(a, 0.6));
+      break;
+    }
     case 'coin': {
       x.fillStyle = outline; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.fill();
       x.fillStyle = a; x.beginPath(); x.arc(16, 16, 9, 0, Math.PI * 2); x.fill();
@@ -314,11 +434,46 @@ function paint(spec: IconSpec): string {
   return c.toDataURL();
 }
 
+/** Which painted shape an item gets: its own, unless that's a stand-in (a loaf, a blob, a log) and its name says better. */
+const BETTER: [RegExp, IconSpec['shape'], IconSpec['shape'][]?][] = [
+  [/treasure map|\bmap\b/, 'map'],
+  [/\bbook\b|register|ledger|\broll\b|\blog\b|survey|journal|price list/, 'book'],
+  [/page|rubbing|recipe|reply|list\b|deed|bill of|copy of|notice/, 'scroll'],
+  [/cloak/, 'cloak'],
+  [/\bkey\b/, 'key'],
+  [/crock|\bjars?\b|\bjug\b|\bjam\b|preserve|pickle|honey/, 'jar'],
+  [/tonic|draught|spirit|\brum\b|wine|cordial|\bale\b|cider|\bdye\b|lamp oil|brandy|mead|callis (red|white)|corlett/, 'bottle', ['gel', 'bread']],
+  [/\bpie\b|pasty|tart\b|\bpies\b/, 'pie'],
+  [/berr/, 'berries'],
+  [/\beggs?\b/, 'egg', ['bread', 'gel']],
+  [/onion|leek|pumpkin|turnip|garlic|samphire|carrot|cabbage|potato|beet/, 'veg'],
+  [/wheat|barley|\boats\b|\brye\b/, 'sheaf'],
+  [/crystal|\bgem\b|chip of|garnet|amber\b/, 'gem'],
+  [/\bbed\b|table|stool|chair|bench|dresser|settle|cupboard|shelf|shelves|wardrobe/, 'chair', ['log']],
+  [/\(block\)|\bblock\b/, 'block'],
+];
+const STAND_INS = new Set<IconSpec['shape']>(['bread', 'letter', 'gel', 'log', 'ore', 'bar', 'coin', 'pelt']);
+function refine(def: { id: string; name: string; icon: IconSpec }): IconSpec {
+  if (!STAND_INS.has(def.icon.shape)) return def.icon;
+  const name = def.name.toLowerCase();
+  for (const [re, shape, from] of BETTER) {
+    if (from && !from.includes(def.icon.shape)) continue;
+    // ("Oak logs" are wood, not a log-book; letters stay letters)
+    if (shape === 'book' && /\blogs\b/.test(name)) continue;
+    if (shape === 'chair' && /reed/.test(name)) continue;
+    if (shape === 'scroll' && def.icon.shape === 'letter' && /letter/.test(name)) continue;
+    if (re.test(name)) return { ...def.icon, shape };
+  }
+  return def.icon;
+}
+
 export function itemIcon(id: string): string {
   let url = cache.get(id);
   if (!url) {
     const def = ITEMS[id];
-    url = paint(def ? def.icon : { shape: 'coin', a: '#888888' });
+    // Gear is drawn from its own model; everything else is painted
+    const real = def?.weapon?.model ? weaponIcon(def.weapon.model) : def?.trinket?.model ? offhandIcon(def.trinket.model) : def?.armor?.look && def.armor.slot !== 'hands' ? armourIcon(def.armor.slot, def.armor.look) : null; // (gloves are a speck on a figure: painted)
+    url = real ?? paint(def ? refine(def) : { shape: 'coin', a: '#888888' });
     cache.set(id, url);
   }
   return url;

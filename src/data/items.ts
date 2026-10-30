@@ -12,7 +12,9 @@ export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 
 export interface IconSpec {
   shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag' | 'bow' | 'wheel' | 'torch' | 'lantern'
     /** Jewellery: a ring (b: the gem, if it has one), a pendant on a chain (b: the stone), earrings (b: a drop). */
-    | 'ring' | 'pendant' | 'earring' | 'hoops' | 'studs';
+    | 'ring' | 'pendant' | 'earring' | 'hoops' | 'studs'
+    /** Things with their own look (ui/icons.ts refine() picks these by name where an item still has a stand-in shape). */
+    | 'book' | 'scroll' | 'map' | 'bottle' | 'jar' | 'berries' | 'egg' | 'pie' | 'veg' | 'sheaf' | 'gem' | 'key' | 'cloak' | 'chair' | 'block';
   a: string;
   b?: string;
 }
