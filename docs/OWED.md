@@ -20,7 +20,7 @@ owner is watching), `npm run balance`, `npm run quests` and `npm run sites` clea
    fits the existing rarity, enchantment and set systems.
 4. **Every city hand-built, no copy-paste** (owner 2026-10-23 and 2026-10-29: "did you make sure all cities
    felt hand built"). Done: Ansbury's monuments and squares (b8341f4), seeded street kit everywhere
-   (32700fd). Hollin Ford's own landmarks 2026-10-30 (the old ford's stepping stones you can walk, the flood stone, the moot stone, the village pump). Kelderby's own 2026-10-30 (the tally post, the fell cairn, Cai Morgan's sledge). Still to do, city by city with screenshots: **Gullmouth, Harrowgate Works, Northgate,
+   (32700fd). Hollin Ford's own landmarks 2026-10-30 (the old ford's stepping stones you can walk, the flood stone, the moot stone, the village pump). Kelderby's own 2026-10-30 (the tally post, the fell cairn, Cai Morgan's sledge). Northgate's own 2026-10-30 (the keepers' stones, the wall bell, the watch board). Still to do, city by city with screenshots: **Gullmouth, Harrowgate Works,
    Saltpenny Key, Callis, the Morrow towns (Branchley, Tenwells, Liftwick, Reedwater, Cala Roja, Conch
    Key, Cold Harbour)**: each its own landmarks and set pieces, street character,
    no repeated house fronts side by side, no prop on a path or under a person.

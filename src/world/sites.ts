@@ -247,9 +247,9 @@ export interface Plan {
 /** The monuments put up so far this plan. */
 const monumentSpots: Plan['monuments'] = [];
 /** Put up a town's monuments that stand where they were set by hand (Monument.at, relative to the town's x0 and its z). */
-function placeMonuments(s: Site, town: Monument['town'], x0: number, ground: (x: number, z: number) => number): void {
+function placeMonuments(s: Site, town: Monument['town'], x0: number, ground: (x: number, z: number) => number, z0 = 0): void {
   for (const m of MONUMENTS) if (m.town === town && m.at && !monumentSpots.some((p) => p.id === m.id)) {
-    const [dx, z, ry] = m.at, x = x0 + dx, y = ground(x, z);
+    const [dx, dz, ry] = m.at, x = x0 + dx, z = z0 + dz, y = ground(x, z);
     monumentSpots.push({ id: m.id, x, y, z, ry });
     s.props.push({ t: 'monument', monument: m.id, x, y, z, ry });
   }
@@ -3443,6 +3443,10 @@ export function plan(): Plan {
     house(s, cx - 40, cz - 70, 26, 10, 2, base, 'slate', 'e', { wall: B.StoneBrick, front: 'quoined', role: 'store', closed: true });
     claim(cx - 41, cz - 71, cx - 13, cz - 59);
     s.props.push({ t: 'sign', x: cx - 12.5, y: base, z: cz - 62.5, ry: Math.PI / 2, text: 'The Barracks' });
+    // ---- Northgate's own (data/monuments.ts, town 'northgate'): the keepers' stones by the ramp's foot,
+    // the wall bell on the square, the watch board by the barracks door; their ground kept clear of houses
+    for (const m of MONUMENTS) if (m.town === 'northgate' && m.at) claim(cx + m.at[0] - 3, cz + m.at[1] - 3, cx + m.at[0] + 3, cz + m.at[1] + 3);
+    placeMonuments(s, 'northgate', cx, () => base, cz);
     // ---- Houses: grey stone and slate, each facing a street, shut against the cold on most
     const onStreet = (x: number, z: number) => mine.some((r) => x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]);
     let n = 0;
@@ -8710,6 +8714,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'ngkeepers') bar(d, 0, 0, 2.7, 0.15, 1);
+        else if (d.monument === 'ngbell') bar(d, 0, 0, 0.85, 0.35, 3);
+        else if (d.monument === 'ngwatch') bar(d, 0, 0, 0.9, 0.1, 2);
         else bar(d, 0, 0, d.monument === 'drowned' || d.monument === 'boatstone' ? 1.1 : 1.0, d.monument === 'riders' ? 1.4 : d.monument === 'boatstone' ? 0.3 : 1.0, 3);
         break;
       case 'pump': bar(d, 0, 0, 0.65, 0.5, 1); break;

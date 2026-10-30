@@ -1911,6 +1911,48 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'keeperstones': {
+      // Fourteen small upright stones in a row, a name on each, the first worn low and smooth; a fifteenth, blank
+      for (let i = 0; i < 15; i++) {
+        const x = -2.52 + i * 0.36, worn = i === 0, blank = i === 14, h = worn ? 0.32 : 0.46 + ((i * 7) % 5) * 0.03;
+        const mat = worn ? flat('#8a887e') : blank ? flat('#b8b4a8') : M.stone;
+        g.add(mesh(box(0.28, h, 0.16), mat, x, h / 2, 0, 0, i % 4 === 1 ? 0.05 : i % 4 === 3 ? -0.04 : 0));
+        g.add(mesh(box(0.2, 0.06, 0.14), mat, x, h + 0.02, 0));
+        if (!blank) { g.add(mesh(box(0.18, 0.025, 0.012), flat('#3a3832'), x, h - 0.1, 0.085)); if (!worn) g.add(mesh(box(0.12, 0.025, 0.012), flat('#3a3832'), x, h - 0.18, 0.085)); }
+      }
+      g.add(mesh(box(0.22, 0.03, 0.012), flat('#24221e'), -2.52, 0.12, 0.085)); // the charge, cut deep
+      g.add(mesh(box(5.6, 0.06, 0.4), M.cobble, 0, 0.03, 0)); // the kerb they're set in
+      break;
+    }
+    case 'wallbell': {
+      // A bronze bell in an oak frame, its clapper strapped to the post, the rope looped up on a hook
+      const oak = flat('#4a3624'), bronze = flat('#8a6a34');
+      for (const x of [-0.75, 0.75]) { g.add(mesh(box(0.22, 2.6, 0.22), oak, x, 1.3, 0)); g.add(mesh(box(0.22, 0.12, 0.7), oak, x, 0.06, 0)); }
+      g.add(mesh(box(1.8, 0.24, 0.26), oak, 0, 2.62, 0));
+      g.add(mesh(box(0.5, 0.16, 0.5), bronze, 0, 2.38, 0));
+      g.add(mesh(box(0.72, 0.5, 0.72), bronze, 0, 2.06, 0));
+      g.add(mesh(box(0.94, 0.16, 0.94), bronze, 0, 1.76, 0));
+      g.add(mesh(box(0.96, 0.04, 0.96), flat('#5a4a28'), 0, 1.82, 0));    // the cast letters round the rim
+      g.add(mesh(box(0.1, 0.4, 0.1), flat('#3a3a3e'), 0, 1.55, 0));        // the clapper
+      g.add(mesh(box(0.68, 0.05, 0.05), flat('#6a4a2a'), -0.36, 1.5, 0)); // its strap, to the post
+      g.add(mesh(box(0.04, 0.9, 0.04), flat('#b8a478'), -0.84, 1.75, 0.14)); // the rope, looped up
+      g.add(mesh(box(0.14, 0.14, 0.06), flat('#b8a478'), -0.84, 2.2, 0.16));
+      break;
+    }
+    case 'watchboard': {
+      // A board with a row of hooks, one per tower, a named peg on all but one, chalk under the empty hook
+      const board = flat('#5a4630');
+      for (const x of [-0.85, 0.85]) g.add(mesh(box(0.14, 1.9, 0.14), flat('#3a2c1e'), x, 0.95, 0));
+      g.add(mesh(box(1.8, 0.95, 0.08), board, 0, 1.35, 0.04));
+      for (let i = 0; i < 9; i++) {
+        const x = -0.72 + i * 0.18;
+        g.add(mesh(box(0.03, 0.03, 0.08), flat('#2a2a2e'), x, 1.62, 0.12));
+        if (i !== 3) g.add(mesh(box(0.06, 0.22, 0.04), flat(i % 3 ? '#c8b088' : '#a89060'), x, 1.48, 0.14));
+      }
+      g.add(mesh(box(0.2, 0.06, 0.01), flat('#e8e4d8'), -0.18, 1.2, 0.085));
+      g.add(mesh(box(1.9, 0.1, 0.2), flat('#3a2c1e'), 0, 1.86, 0.06)); // the drip board over it
+      break;
+    }
     case 'tallypost': {
       // A grey larch post notched on every side, rows of fives, one notch black with pitch
       const larch = flat('#8a8478');

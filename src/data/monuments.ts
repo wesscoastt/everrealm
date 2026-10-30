@@ -9,11 +9,12 @@ export type MonumentModel =
   | 'jawbones' | 'drownedboard' | 'fogbell' | 'tallystone' | 'anselbench'
   | 'companysign' | 'priceboard' | 'flywheel'
   | 'fordpost' | 'floodstone' | 'mootstone' | 'pump'
-  | 'tallypost' | 'cairn' | 'sledge';
+  | 'tallypost' | 'cairn' | 'sledge'
+  | 'keeperstones' | 'wallbell' | 'watchboard';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -25,6 +26,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Northgate (world/sites.ts buildNorthgate: x and z from the square's middle, facing)
+  {
+    id: 'ngkeepers', town: 'northgate', at: [-6, -72, Math.PI / 2], model: 'keeperstones', title: 'The keepers\' stones',
+    body: 'Fourteen stones set in a row at the foot of the ramp, one for each Gatekeeper of Northgate, the oldest farthest from the gate. Each has a name and two years cut in it, in a different hand each time.\n\nThe first is worn almost smooth. Under the name, cut deeper than the name, is the charge: SHUT IT AGAINST THE DEAD. NEVER AGAINST THE LIVING.\n\nThe fourteenth says URSEL HALE and one year, forty years back. There is room after it for a second year. Beyond it a fifteenth stone is already set, with nothing on it.',
+  },
+  {
+    id: 'ngbell', town: 'northgate', at: [-9.5, -9.5, 0], model: 'wallbell', title: 'The wall bell',
+    body: 'A bronze bell as tall as a child, hung in an oak frame on the north side of the square, facing the ramp. Cast round its rim: RING FOR THE WALL.\n\nThe clapper is tied to the frame with a leather strap so the wind can\'t ring it. The strap is new. The knot is old: every time the strap is changed it is tied again the way the last one was, and nobody alive in Northgate has heard the bell.\n\nThe bell-rope is looped up on a hook, out of reach of children.',
+  },
+  {
+    id: 'ngwatch', town: 'northgate', at: [-12.5, -67, Math.PI / 2], model: 'watchboard', title: 'The watch board',
+    body: 'A board by the barracks door with a hook for every tower on the wall, and on each hook a peg with the name of whoever walks that tower tonight. The pegs say Thwaite and Pennock, over and over, with a Rusk here and there.\n\nThe hook for the third tower west of the gate has no peg on it. Under it somebody has chalked NOT AFTER DARK. Somebody else has started to rub it out, and stopped.',
+  },
   // ---------------------------------------------------------------- Kelderby (world/sites.ts, the hamlet's build: x, z, facing)
   {
     id: 'kbtally', town: 'kelderby', at: [296.5, 1457.5, Math.PI / 4], model: 'tallypost', title: 'The tally post',
