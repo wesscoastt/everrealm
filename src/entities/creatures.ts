@@ -23,7 +23,8 @@ export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'r
 
 /** Colour overrides so one body plan can serve several regional species. */
 /** A horse's breed, past its colours: patches, heavy feet, antlers, horns and wool, a water-horse's weed, a pack pony's load. */
-export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack'
+/** (young: the store's pets, a kitten not a cat; entities/voxcreatures.ts sculpts them at their own size) */
+export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack' | 'young'
   /** Mounts that aren't horses at all (beastMount): the same seat, a different animal under it. */
   | 'cat' | 'sabre' | 'drake' | 'turtle' | 'slabback' | 'strider' | 'griffin' | 'wyrm';
 export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean; /** A wagon behind, the animal in its shafts. */ wagon?: WagonLook }

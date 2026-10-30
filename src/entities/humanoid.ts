@@ -69,7 +69,10 @@ export interface Appearance {
     /** Costume headwear (data/costumes.ts): the witch's hat, the skull, the scarecrow's sack, the ghost's sheet, the crow mask. */
     | 'witch' | 'skull' | 'sack' | 'sheet' | 'crow'
     /** The corsair's (data/costumes.ts): three sides of the brim turned up, a plume over one. */
-    | 'tricorn';
+    | 'tricorn'
+    /** The store's outfits (data/costumes.ts): a star-reader's tall hat, an archer's cowl and scarf, a
+     *  gravecaller's skull and bone crown, a sabre cat's pelt worn as a hood. */
+    | 'magus' | 'cowl' | 'gravecrown' | 'sabrehood';
   hatColor?: string;
   /** A costume worn over all of it (data/costumes.ts), or none. */
   costume?: string | null;
@@ -119,6 +122,21 @@ export interface Appearance {
   sabatons?: { color: string };
   /** A helm, which covers the hair (and any hat): nasal, kettle, sallet, barbute, great helm or horned. */
   helm?: { style: 'nasal' | 'kettle' | 'sallet' | 'barbute' | 'great' | 'horned'; color: string; trim?: string; plume?: string };
+  /** A costume's own pieces (data/costumes.ts), which the everyday wardrobe doesn't have. */
+  gear?: {
+    /** A colour that glows: runes down the chest and round the hem, and eyes behind a mask or a visor. */
+    glow?: string;
+    /** Torn strips round the hem and along the bottom of the cloak. */
+    tatters?: string;
+    /** A tall collar standing up round the back of the neck. */
+    collar?: string;
+    /** A strap from the shoulder across to the hip, with its loops. */
+    bandolier?: string;
+    /** Carried on the back or at the belt: a full quiver, a chained book, a lantern. */
+    back?: 'quiver' | 'tome' | 'lantern';
+    /** Over the shoulders: a skull on each, or a ruff of crow feathers. */
+    pauldron?: 'skulls' | 'feathers';
+  };
 }
 
 export type HeldItem = 'none' | 'sword' | 'bronzeSword' | 'pickaxe' | 'hatchet' | 'rod' | 'hammer' | 'tongs';
@@ -156,6 +174,13 @@ const matCache = new Map<string, THREE.MeshLambertMaterial>();
 function lam(color: string): THREE.MeshLambertMaterial {
   let m = matCache.get(color);
   if (!m) { m = new THREE.MeshLambertMaterial({ color }); matCache.set(color, m); }
+  return m;
+}
+/** A colour that gives its own light (a costume's runes and eyes), shared like lam()'s. */
+function glowMat(color: string, k = 1.3): THREE.MeshLambertMaterial {
+  const key = color + '*' + k;
+  let m = matCache.get(key);
+  if (!m) { m = new THREE.MeshLambertMaterial({ color, emissive: new THREE.Color(color), emissiveIntensity: k }); matCache.set(key, m); }
   return m;
 }
 
@@ -254,14 +279,19 @@ export function setGearModels(weapon: (id: string) => WeaponModel | null, offhan
 /** A weapon in the right hand. Its +y runs from the grip out along the blade or the haft; the edge
  *  (and an axe's bit) faces +z, the flat of the blade faces x. Each maker has its own guard, pommel
  *  and head (data/weapons.ts), so a Charter sword and a Barrow sword differ in shape, not just colour. */
-/** A leather quiver slung on the back, its arrows' fletchings over the right shoulder. */
-function quiverMesh(): THREE.Group {
+/** A leather quiver slung on the back, its arrows' fletchings over the right shoulder. A costume's is
+ *  its own leather, tooled and fuller, its fletchings all one dark feather. */
+function quiverMesh(body = '#6a4a2a', band = '#3a2a1a', fletch?: string): THREE.Group {
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number) => { const m = new THREE.Mesh(geo, lam(color)); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
-  add(rbox(0.17, 0.56, 0.15, 0.04), '#6a4a2a', 0, 0, 0);
-  add(rbox(0.19, 0.05, 0.17, 0.015), '#3a2a1a', 0, 0.26, 0);
-  add(rbox(0.19, 0.05, 0.17, 0.015), '#3a2a1a', 0, -0.2, 0);
-  for (const [x, z, c] of [[-0.04, -0.03, '#f0ece0'], [0.04, 0.02, '#c8402a'], [0, 0.04, '#f0ece0'], [0.05, -0.04, '#2a4a7a'], [-0.05, 0.03, '#c8402a']] as const) {
+  add(rbox(0.17, 0.56, 0.15, 0.04), body, 0, 0, 0);
+  add(rbox(0.19, 0.05, 0.17, 0.015), band, 0, 0.26, 0);
+  add(rbox(0.19, 0.05, 0.17, 0.015), band, 0, -0.2, 0);
+  if (fletch) { add(rbox(0.12, 0.3, 0.012, 0.004), band, 0, 0.03, 0.078); add(rbox(0.06, 0.06, 0.014, 0.004), '#a89a7a', 0, 0.06, 0.08); }
+  const arrows = fletch
+    ? [[-0.05, -0.03], [0.04, 0.02], [0, 0.04], [0.05, -0.04], [-0.05, 0.03], [0.0, -0.02], [-0.02, 0.0], [0.03, -0.01]].map(([x, z], i) => [x, z, i % 3 ? fletch : shade(fletch, 1.5)] as const)
+    : ([[-0.04, -0.03, '#f0ece0'], [0.04, 0.02, '#c8402a'], [0, 0.04, '#f0ece0'], [0.05, -0.04, '#2a4a7a'], [-0.05, 0.03, '#c8402a']] as const);
+  for (const [x, z, c] of arrows) {
     add(rbox(0.012, 0.16, 0.012, 0.003), '#8a6a3a', x, 0.34, z);
     add(rbox(0.035, 0.08, 0.008, 0.002), c, x, 0.4, z);
   }
@@ -996,6 +1026,7 @@ export class Humanoid {
     }
     this.handR.position.set(0, -0.32, 0.02);
     this.buildArmour(part, build, fem, chestW, waistW);
+    this.buildGear(part, build, chestW, waistW, long, top);
     this.foreR.add(this.handR);
     this.handL.position.set(0, -0.3, 0.02);
     this.foreL.add(this.handL);
@@ -1009,6 +1040,15 @@ export class Humanoid {
       this.cape.position.set(0, 0.72, -0.18);
       this.cape.castShadow = true;
       this.torso.add(this.cape);
+      // A costume's torn cloak: strips of uneven length hanging off the hem, swinging with it
+      const torn = look.gear?.tatters;
+      if (torn) for (let k = 0; k < 8; k++) {
+        const len = 0.1 + ((k * 7) % 5) * 0.045, w = 0.62 * build / 8;
+        const strip = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.82, len), new THREE.MeshLambertMaterial({ color: k % 3 ? torn : shade(torn, 0.8), side: THREE.DoubleSide }));
+        strip.position.set(-0.31 * build + (k + 0.5) * w, -1.0 - len / 2 + 0.01, 0.002 * (k % 2));
+        strip.rotation.z = ((k * 5) % 3 - 1) * 0.06;
+        this.cape.add(strip);
+      }
     }
     this.root.traverse((o) => { o.userData.humanoid = this; });
   }
@@ -1155,7 +1195,7 @@ export class Humanoid {
   }
 
   /** A helm on the head, over the hair. */
-  private buildHelm(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string, x: number, y: number, z: number) => THREE.Mesh): void {
+  private buildHelm(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh): void {
     const hm = this.look.helm;
     if (!hm) return;
     const H = this.head, c = hm.color, t = hm.trim ?? shade(c, 0.75), dark = '#0c0a0a';
@@ -1200,6 +1240,102 @@ export class Humanoid {
     if (hm.plume) {
       part(H, rbox(0.07, 0.2, 0.34, 0.03), hm.plume, 0, 0.66, -0.06);
       part(H, rbox(0.07, 0.14, 0.12, 0.03), shade(hm.plume, 0.85), 0, 0.6, -0.26);
+    }
+    // A costume's glow (data/costumes.ts): two lights in the dark of a closed helm's sight
+    const glow = this.look.gear?.glow;
+    if (glow && (hm.style === 'barbute' || hm.style === 'great' || hm.style === 'sallet')) {
+      const y = hm.style === 'barbute' ? 0.32 : hm.style === 'great' ? 0.335 : 0.335, z = hm.style === 'sallet' ? 0.266 : 0.268;
+      for (const sd of [1, -1]) part(H, rbox(0.06, 0.022, 0.006, 0.004), glowMat(glow), sd * 0.085, y, z);
+    }
+  }
+
+  /**
+   * A costume's own pieces (Appearance.gear, data/costumes.ts): runes that glow down the chest and round
+   * the hem, a hem torn to strips, a collar standing up behind the head, a bandolier, what's carried on
+   * the back or at the belt, and skulls or crow feathers on the shoulders.
+   */
+  private buildGear(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh, build: number, chestW: number, waistW: number, long: boolean, top: number): void {
+    const G = this.look.gear;
+    if (!G) return;
+    const L = this.look, T = this.torso, Hp = this.hips;
+    const front = (L.tabard ? 0.222 : L.chestArmour ? 0.215 : 0.175) + 0.008;
+    const robeW = (top === 5 ? 0.66 : 0.58) * build, robeD = top === 5 ? 0.46 : 0.38;
+    if (G.glow) {
+      const g = glowMat(G.glow);
+      // A rune down the breastbone: a stave, and its strokes across
+      part(T, rbox(0.022, 0.26, 0.008, 0.004), g, 0, 0.5, front);
+      for (const [y, w, x] of [[0.6, 0.11, 0], [0.51, 0.07, 0.03], [0.42, 0.11, -0.02]] as const) { const s = part(T, rbox(w, 0.02, 0.008, 0.004), g, x, y, front); s.rotation.z = x ? 0.5 : 0; }
+      // Round the hem: a row of them front and back on a robe, along the belt on anything shorter
+      if (long) for (let k = -3; k <= 3; k++) for (const sd of [1, -1]) {
+        part(Hp, rbox(0.018, k % 2 ? 0.08 : 0.06, 0.008, 0.004), g, k * robeW / 8, -0.58, sd * (robeD / 2 + 0.006));
+        if (k % 2 === 0) part(Hp, rbox(0.05, 0.016, 0.008, 0.004), g, k * robeW / 8, -0.56, sd * (robeD / 2 + 0.006));
+      }
+      else for (let k = -2; k <= 2; k++) part(T, rbox(0.035, 0.035, 0.008, 0.004), g, k * 0.1 * build, 0.16, 0.184);
+    }
+    if (G.tatters) {
+      // Strips of uneven length below the hem, all the way round
+      const strips = (parent: THREE.Object3D, w: number, d: number, y: number, back = true, front2 = true) => {
+        const n = Math.max(5, Math.round(w / 0.075));
+        for (let k = 0; k < n; k++) {
+          const len = 0.08 + ((k * 7) % 5) * 0.035, x = -w / 2 + (k + 0.5) * (w / n), c = k % 3 ? G.tatters! : shade(G.tatters!, 0.78);
+          if (front2) part(parent, rbox(w / n * 0.8, len, 0.02, 0.005), c, x, y - len / 2, d / 2 - 0.005);
+          if (back) part(parent, rbox(w / n * 0.8, len + 0.03, 0.02, 0.005), c, x, y - len / 2 - 0.015, -d / 2 + 0.005);
+        }
+        for (const sd of [1, -1]) for (let k = 0; k < 3; k++) part(parent, rbox(0.02, 0.1 + k * 0.04, d / 3.4, 0.005), G.tatters!, sd * (w / 2 - 0.005), y - 0.05 - k * 0.02, -d / 3 + k * d / 3);
+      };
+      if (long) strips(Hp, robeW, robeD, -0.68);
+      else if (top === 7) strips(T, chestW, 0.36, -0.42, true, false);
+      else strips(T, waistW + 0.02, 0.34, -0.07);
+    }
+    if (G.collar) {
+      // Up from the shoulders behind the head, flaring a little, its edge in the trim
+      const c = part(T, rbox(chestW * 0.74, 0.32, 0.05, 0.02), G.collar, 0, 0.86, -0.25); c.rotation.x = -0.22;
+      const e = part(T, rbox(chestW * 0.76, 0.035, 0.065, 0.01), L.trim, 0, 1.015, -0.285); e.rotation.x = -0.22;
+      for (const sd of [1, -1]) { const w = part(T, rbox(0.05, 0.28, 0.2, 0.02), G.collar, sd * chestW * 0.37, 0.84, -0.15); w.rotation.z = sd * 0.22; }
+    }
+    if (G.bandolier) {
+      // From the left shoulder down across to the right hip, front and back, with loops along it
+      const c = G.bandolier, a = 0.62;
+      for (const z of [front, -0.188]) { const s = part(T, rbox(0.075, 0.78, 0.02, 0.008), c, 0, 0.42, z); s.rotation.z = a; }
+      for (let i = -2; i <= 2; i++) { const t = i * 0.12, lp = part(T, rbox(0.06, 0.05, 0.03, 0.01), shade(c, 0.75), -Math.sin(a) * t, 0.42 + Math.cos(a) * t, front + 0.012); lp.rotation.z = a; }
+      part(T, rbox(0.07, 0.06, 0.03, 0.01), '#a89a7a', 0.13, 0.58, front + 0.016); // the buckle
+    }
+    if (G.back === 'quiver') {
+      T.add(quiverMesh(shade(L.trim, 0.5), shade(L.trim, 0.32), '#1a1618'));
+    } else if (G.back === 'tome') {
+      // A book at the left hip on a chain from the belt, its clasp lit
+      const x = waistW / 2 + 0.06;
+      part(Hp, rbox(0.08, 0.3, 0.24, 0.02), shade(L.tunic, 0.7), x, -0.12, 0.02);
+      part(Hp, rbox(0.06, 0.28, 0.22, 0.01), '#e8e0c8', x + 0.012, -0.12, 0.02);   // the pages
+      part(Hp, rbox(0.085, 0.04, 0.04, 0.01), L.trim, x, -0.12, 0.13);             // the clasp
+      if (G.glow) part(Hp, rbox(0.09, 0.05, 0.05, 0.01), glowMat(G.glow, 0.9), x, -0.02, 0.02);
+      for (let i = 0; i < 3; i++) part(Hp, rbox(0.03, 0.05, 0.03, 0.01), '#8a8a90', x - 0.01, 0.1 - i * 0.05, 0.05);
+    } else if (G.back === 'lantern') {
+      // A lantern at the right hip, hung from the belt: an iron cage round a light that isn't a flame
+      const x = -(waistW / 2 + 0.08), iron = '#2a2a2e';
+      for (let i = 0; i < 2; i++) part(Hp, rbox(0.03, 0.05, 0.03, 0.01), iron, x, 0.08 - i * 0.05, 0.04);
+      part(Hp, rbox(0.16, 0.03, 0.16, 0.01), iron, x, -0.02, 0.04);
+      part(Hp, rbox(0.16, 0.03, 0.16, 0.01), iron, x, -0.24, 0.04);
+      for (const [dx, dz] of [[-0.07, -0.07], [0.07, -0.07], [-0.07, 0.07], [0.07, 0.07]] as const) part(Hp, rbox(0.02, 0.2, 0.02, 0.005), iron, x + dx, -0.13, 0.04 + dz);
+      part(Hp, rbox(0.09, 0.12, 0.09, 0.04), glowMat(G.glow ?? '#c8f0ff', 1.6), x, -0.13, 0.04);
+    }
+    if (G.pauldron) for (const [arm, side] of [[this.armL, 1], [this.armR, -1]] as const) {
+      if (G.pauldron === 'skulls') {
+        const bone = '#ddd4bc', hole = '#121014';
+        part(arm, rbox(0.3, 0.08, 0.32, 0.03), shade(L.tunic, 0.8), side * 0.03, 0.06, 0);
+        part(arm, rbox(0.19, 0.16, 0.18, 0.06), bone, side * 0.05, 0.16, 0.02);      // the skull, looking forward
+        part(arm, rbox(0.15, 0.06, 0.14, 0.03), bone, side * 0.05, 0.08, 0.04);      // its jaw
+        for (const sx of [-0.045, 0.045]) part(arm, rbox(0.05, 0.05, 0.01, 0.01), G.glow ? glowMat(G.glow, 0.9) : hole, side * 0.05 + sx, 0.17, 0.115);
+        part(arm, rbox(0.03, 0.03, 0.01, 0.005), hole, side * 0.05, 0.12, 0.115);
+        for (const [dz, rx] of [[-0.06, -0.3], [0.04, 0.2]] as const) { const sp = part(arm, new THREE.ConeGeometry(0.025, 0.2, 5), bone, side * 0.12, 0.2, dz); sp.rotation.set(rx, 0, -side * 0.55); }
+      } else {
+        // Crow feathers, one over the other, fanned out over the point of the shoulder
+        for (let i = 0; i < 6; i++) {
+          const f = part(arm, rbox(0.06, 0.26, 0.02, 0.01), i % 2 ? '#1a1820' : '#26242e', side * (0.04 + i * 0.012), 0.02, -0.12 + i * 0.05);
+          f.rotation.set(0.1, 0, -side * (0.5 + i * 0.06));
+        }
+        part(arm, rbox(0.26, 0.06, 0.3, 0.02), shade(L.trim, 0.8), side * 0.03, 0.09, 0);
+      }
     }
   }
 
@@ -1293,6 +1429,60 @@ export class Humanoid {
       tip.rotation.x = 0.6;
       return;
     }
+    if (hat === 'gravecrown') {
+      // A gravecaller's: a skull worn over the face, its sockets lit; a crown of bone points round the brow;
+      // a black hood behind it falling to the shoulders
+      const bone = '#ddd4bc', old = '#b8ae94', hole = '#0e0c10', hood = this.look.hatColor ?? '#0e0c10';
+      const eyes = this.look.gear?.glow ? glowMat(this.look.gear.glow, 1.8) : hole;
+      part(this.head, rbox(0.6, 0.56, 0.24, 0.1), hood, 0, 0.3, -0.19);
+      for (const sd of [1, -1]) part(this.head, rbox(0.07, 0.56, 0.44, 0.03), hood, sd * 0.3, 0.28, -0.02);
+      part(this.head, rbox(0.62, 0.16, 0.5, 0.06), hood, 0, 0.58, -0.04);
+      part(this.head, rbox(0.52, 0.32, 0.12, 0.08), bone, 0, 0.36, 0.2);               // the brow and cheekbones
+      part(this.head, rbox(0.4, 0.14, 0.1, 0.04), old, 0, 0.14, 0.2);                   // the jaw
+      for (const sx of [-0.12, 0.12]) { part(this.head, rbox(0.14, 0.12, 0.03, 0.03), hole, sx, 0.33, 0.262); part(this.head, rbox(0.05, 0.04, 0.02, 0.01), eyes, sx, 0.33, 0.276); }
+      part(this.head, rbox(0.06, 0.07, 0.03, 0.01), hole, 0, 0.24, 0.262);              // the nose
+      for (let k = -3; k <= 3; k++) part(this.head, rbox(0.03, 0.06, 0.03, 0.004), k % 2 ? bone : old, k * 0.045, 0.19, 0.258); // the teeth
+      for (const sd of [1, -1]) part(this.head, rbox(0.04, 0.16, 0.03, 0.01), hole, sd * 0.2, 0.3, 0.255); // the cracks at the temples
+      // The crown: points of bone, tallest at the front, leaning out
+      for (let i = 0; i < 9; i++) {
+        const a = -Math.PI * 0.62 + (i / 8) * Math.PI * 1.24, h = 0.14 + (i === 4 ? 0.14 : i % 2 ? 0.02 : 0.07);
+        const sp = part(this.head, new THREE.ConeGeometry(0.028, h, 5), i % 2 ? old : bone, Math.sin(a) * 0.25, 0.62 + h / 2, Math.cos(a) * 0.22);
+        sp.rotation.set(Math.cos(a) * 0.35, 0, -Math.sin(a) * 0.35);
+      }
+      part(this.head, rbox(0.56, 0.045, 0.5, 0.02), old, 0, 0.6, 0);                  // the band they're set in
+      return;
+    }
+    if (hat === 'sabrehood') {
+      // The Held herders': a sabre cat's pelt over the head, its skull over the brow, its long fangs down
+      // past the cheeks, and the rest of the skin down the back
+      const fur = this.look.hatColor ?? '#e8ecf0', dk = shade(fur, 0.72), stripe = shade(fur, 0.55), fang = '#f4eedc';
+      part(this.head, rbox(0.56, 0.22, 0.54, 0.1), fur, 0, 0.58, -0.02);
+      part(this.head, rbox(0.42, 0.13, 0.22, 0.05), fur, 0, 0.56, 0.24);                // the cat's brow and muzzle, over yours
+      part(this.head, rbox(0.22, 0.08, 0.1, 0.03), dk, 0, 0.52, 0.36);                  // its nose
+      for (const sx of [-0.1, 0.1]) part(this.head, rbox(0.07, 0.04, 0.03, 0.01), '#1a1410', sx, 0.6, 0.33); // its eyes, shut
+      for (const sx of [-0.15, 0.15]) { const ear = part(this.head, rbox(0.1, 0.12, 0.05, 0.02), fur, sx * 1.4, 0.72, -0.02); ear.rotation.z = -sx * 2; }
+      for (const sx of [-0.13, 0.13]) { const f = part(this.head, new THREE.ConeGeometry(0.03, 0.3, 6), fang, sx, 0.34, 0.33); f.rotation.x = Math.PI; }
+      part(this.head, rbox(0.6, 0.6, 0.12, 0.05), fur, 0, 0.28, -0.24);                // the skin down the back
+      for (const sd of [1, -1]) part(this.head, rbox(0.06, 0.46, 0.44, 0.03), fur, sd * 0.28, 0.34, -0.02);
+      for (let i = 0; i < 4; i++) part(this.head, rbox(0.4 - i * 0.04, 0.04, 0.02, 0.01), stripe, 0, 0.5 - i * 0.12, -0.305); // stripes
+      for (const sd of [1, -1]) for (let i = 0; i < 2; i++) part(this.head, rbox(0.02, 0.04, 0.2, 0.01), stripe, sd * 0.315, 0.46 - i * 0.14, -0.04);
+      return;
+    }
+    if (hat === 'cowl') {
+      // An archer's cowl: a deep hood pulled forward over the brow so the eyes are in shadow, a scarf
+      // over the nose and mouth, and the hood's point down the back
+      const c = this.look.hatColor ?? '#2e2c2a', scarf = this.look.trim, dark = '#0c0a0a';
+      part(this.head, rbox(0.56, 0.3, 0.54, 0.12), c, 0, 0.5, -0.02);
+      part(this.head, rbox(0.56, 0.46, 0.18, 0.06), c, 0, 0.28, -0.2);
+      for (const sd of [1, -1]) part(this.head, rbox(0.07, 0.46, 0.5, 0.03), c, sd * 0.27, 0.3, 0.01);
+      part(this.head, rbox(0.5, 0.1, 0.12, 0.04), c, 0, 0.52, 0.24);                  // the hood's edge, pulled forward
+      part(this.head, rbox(0.44, 0.07, 0.02, 0.01), dark, 0, 0.44, 0.218);            // the shadow under it
+      part(this.head, rbox(0.47, 0.2, 0.08, 0.04), scarf, 0, 0.15, 0.2);               // the scarf
+      part(this.head, rbox(0.48, 0.03, 0.09, 0.01), shade(scarf, 0.7), 0, 0.24, 0.205);
+      const tail = part(this.head, rbox(0.12, 0.34, 0.05, 0.02), scarf, 0.14, -0.04, 0.16); tail.rotation.z = 0.15;
+      const pt = part(this.head, rbox(0.18, 0.28, 0.06, 0.03), c, 0, 0.12, -0.3); pt.rotation.x = 0.3; // the point, down the back
+      return;
+    }
     if (hat === 'hood') {
       const c = this.look.hatColor ?? '#4a5a3a';
       part(this.head, rbox(0.52, 0.32, 0.5, 0.1), c, 0, 0.48, -0.02);
@@ -1302,7 +1492,7 @@ export class Humanoid {
       if (style !== 3 && style !== 9) p(0.3, 0.05, 0.03, -0.03, 0.47, 0.222, 1.0, 0.012);
       return;
     }
-    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch' || hat === 'tricorn';
+    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch' || hat === 'tricorn' || hat === 'magus';
     const shaved = style === 3 || style === 9;
     if (shaved) {
       p(0.45, 0.035, 0.43, 0, 0.515, 0, 0.78, 0.015);
@@ -1478,6 +1668,23 @@ export class Humanoid {
       part(this.head, rbox(0.1, 0.08, 0.03, 0.01), '#c8a040', 0, 0.62, 0.235);
       for (const [w, y, z, rx] of [[0.36, 0.82, -0.04, -0.12], [0.26, 0.96, -0.09, -0.25], [0.17, 1.07, -0.16, -0.5], [0.09, 1.13, -0.25, -0.9]] as const) { const t = part(this.head, rbox(w, 0.16, w, 0.04), c, 0, y, z); t.rotation.x = rx; }
     }
+    if (hat === 'magus') {
+      // A star-reader's: a broad brim with its edge bound in the trim, a crown that rises tall and bends back
+      // at the top, a band with a star of crystal pinned at the front, and moons stitched up the side
+      const c = this.look.hatColor ?? '#161c36', t = this.look.trim, glow = this.look.gear?.glow;
+      part(this.head, rbox(0.94, 0.04, 0.92, 0.02), c, 0, 0.57, 0);
+      part(this.head, rbox(0.96, 0.02, 0.94, 0.01), t, 0, 0.553, 0);
+      for (const sd of [1, -1]) { const b = part(this.head, rbox(0.22, 0.04, 0.9, 0.02), c, sd * 0.42, 0.6, 0); b.rotation.z = sd * 0.18; } // the brim lifting at the sides
+      part(this.head, rbox(0.5, 0.2, 0.5, 0.05), c, 0, 0.68, -0.01);
+      part(this.head, rbox(0.51, 0.07, 0.51, 0.02), t, 0, 0.62, -0.01);
+      for (const [w, y, z, rx] of [[0.4, 0.86, -0.03, -0.08], [0.31, 1.02, -0.07, -0.18], [0.23, 1.16, -0.13, -0.35], [0.15, 1.27, -0.22, -0.7], [0.08, 1.31, -0.33, -1.2]] as const) { const p = part(this.head, rbox(w, 0.18, w, 0.04), c, 0, y, z); p.rotation.x = rx; }
+      const star = glow ? glowMat(glow, 1.6) : t;
+      { const s1 = part(this.head, rbox(0.1, 0.1, 0.03, 0.01), star, 0, 0.64, 0.262); s1.rotation.z = Math.PI / 4; }
+      part(this.head, rbox(0.04, 0.16, 0.035, 0.01), star, 0, 0.64, 0.268);
+      part(this.head, rbox(0.16, 0.035, 0.035, 0.01), star, 0, 0.64, 0.268);
+      for (const [y, z] of [[0.86, 0.17], [1.0, 0.1]] as const) part(this.head, rbox(0.05, 0.05, 0.02, 0.02), t, -0.14, y, z);
+      return;
+    }
     if (hat === 'bobble') {
       const c = this.look.hatColor ?? '#b0202a';
       part(this.head, rbox(0.52, 0.22, 0.5, 0.1), c, 0, 0.6, -0.01);
@@ -1510,7 +1717,7 @@ export class Humanoid {
     }
     // A quiver of arrows on the back while a bow is held
     if (this.quiver) { this.torso.remove(this.quiver); this.quiver = null; }
-    if (this.bow) this.torso.add((this.quiver = quiverMesh()));
+    if (this.bow && this.look.gear?.back !== 'quiver') this.torso.add((this.quiver = quiverMesh())); // (a costume's own is on already)
     this.heldKind = kind;
   }
 

@@ -326,6 +326,14 @@
 .fe-home .st-card[hidden], .fe-home .st-none[hidden] { display: none; }
 .fe-home .st-none { grid-column: 1 / -1; font: 500 14px var(--body); color: #c8c2d4; }
 .fe-home .st-card .st-own { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: rgba(95, 191, 106, 0.2); border: 1px solid rgba(95, 191, 106, 0.6); color: #c8f0c8; font: 600 12px var(--body); }
-.fe-home .st-card .st-view { width: 100%; aspect-ratio: 300 / 190; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.6); background: #1e2738; display: block; }
+.fe-home .st-card .st-view { width: 100%; aspect-ratio: 300 / 190; border-radius: 7px; border: 1px solid color-mix(in srgb, var(--acc, #e8c050) 55%, #000); background: #10131c; display: block;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.04); transition: box-shadow 0.25s ease, border-color 0.25s ease; }
+/* Each card takes its thing's colour (ui/StoreShowcase.ts sets --acc): a thin lit edge, brighter under the pointer */
+.fe-home .st-card { position: relative; transition: transform 0.2s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  border-color: color-mix(in srgb, var(--acc, #e8c050) 38%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--acc, #e8c050) 7%, rgba(10, 14, 28, 0.8)), rgba(8, 10, 20, 0.86) 60%); }
+.fe-home .st-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--acc, #e8c050) 75%, transparent);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--acc, #e8c050) 22%, transparent); }
+.fe-home .st-card:hover .st-view { border-color: var(--acc, #e8c050); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 18px color-mix(in srgb, var(--acc, #e8c050) 35%, transparent); }
 .fe-home .st-card .st-kind { font: 500 12.5px var(--body); color: #b8b0a0; }
 .fe-home .st-card li i { font-style: normal; color: #b8b0a0; margin-right: 4px; }

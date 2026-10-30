@@ -4,6 +4,7 @@ import { mountLook } from '../data/mountLooks';
 import { PETS } from '../data/pets';
 import { CreatureModel, mountModel } from '../entities/creatures';
 import { Humanoid, type Appearance } from '../entities/humanoid';
+import { COSTUMES } from '../data/costumes';
 
 // The store's windows: each card shows the thing itself, the very model the game draws, so a buyer
 // sees exactly what they get (Wynncraft shows its pets the same way). Every window is drawn once, still,
@@ -26,7 +27,14 @@ export class StoreShowcase {
   private target = new THREE.WebGLRenderTarget(W, H);
   private pixels = new Uint8Array(W * H * 4);
   private pivot = new THREE.Group();
-  private ground = new THREE.Mesh(new THREE.CircleGeometry(4, 40), new THREE.MeshLambertMaterial({ color: '#3e5a2e' }));
+  /** The stage each thing stands on: a low round dais of dark stone, its edge lit in the thing's own colour. */
+  private ground = new THREE.Group();
+  private ring = new THREE.MeshBasicMaterial({ color: '#e8c050', transparent: true, opacity: 0.85 });
+  private pool = new THREE.MeshBasicMaterial({ color: '#e8c050', transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending });
+  /** A light from behind and above in the thing's colour, so its outline stands off the backdrop. */
+  private rim = new THREE.DirectionalLight('#e8c050', 2.2);
+  /** Each thing's backdrop, made once: its colours behind it, a glow where it stands, the edges dark. */
+  private backdrops = new Map<string, THREE.CanvasTexture>();
   private windows: { cv: HTMLCanvasElement; item: string; yaw: number }[] = [];
   private hot: HTMLCanvasElement | null = null;
   private raf = 0;
@@ -48,15 +56,81 @@ export class StoreShowcase {
     this.scene.add(new THREE.HemisphereLight('#dfe8ff', '#5a4a38', 1.6));
     const sun = new THREE.DirectionalLight('#fff4e0', 2.3);
     sun.position.set(4, 8, 5);
-    this.scene.add(sun);
-    this.ground.rotation.x = -Math.PI / 2;
+    this.rim.position.set(-5, 6, -7);
+    this.scene.add(sun, this.rim);
+    // The dais: dressed stone, a bevel round its top, a thin lit ring at the edge and a pool of light on it
+    const stone = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.62, 0.22, 56), new THREE.MeshLambertMaterial({ color: '#1a1b22' }));
+    stone.position.y = -0.11;
+    const lip = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.5, 0.05, 56), new THREE.MeshLambertMaterial({ color: '#23252d' }));
+    lip.position.y = -0.005;
+    const edge = new THREE.Mesh(new THREE.RingGeometry(1.43, 1.5, 56), this.ring);
+    edge.rotation.x = -Math.PI / 2; edge.position.y = 0.025;
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(1.3, 48), this.pool);
+    pool.rotation.x = -Math.PI / 2; pool.position.y = 0.03;
+    this.ground.add(stone, lip, edge, pool);
     this.scene.add(this.ground, this.pivot);
+  }
+
+  /** The colour a thing is shown in: a costume's glow or trim, a mount's mane, a pet's or cloak's second colour. */
+  private accent(item: string): string {
+    const first = item.split(',')[0], def = ITEMS[first];
+    let hex: string;
+    if (def?.costume) { const c = COSTUMES[def.costume]?.look; hex = c?.gear?.glow ?? c?.trim ?? '#e8c050'; }
+    else if (def?.mount) hex = def.mount.glow ? def.mount.mane ?? '#e8c050' : def.mount.cloth ?? '#e8c050';
+    else hex = def?.icon?.b ?? '#e8c050';
+    // (bright enough to light the thing: a dark trim, an archer's blood red, is lifted to its own lighter shade)
+    const c = new THREE.Color(hex), hsl = { h: 0, s: 0, l: 0 };
+    c.getHSL(hsl);
+    if (hsl.l < 0.5) c.setHSL(hsl.h, Math.min(1, hsl.s * 1.1), 0.5);
+    return '#' + c.getHexString();
+  }
+
+  /** The backdrop behind a thing: deep night in its own colours, a glow behind where it stands, light falling from above, motes in it, the corners dark. */
+  private backdrop(item: string): THREE.CanvasTexture {
+    const hit = this.backdrops.get(item);
+    if (hit) return hit;
+    const first = item.split(',')[0], def = ITEMS[first];
+    const acc = new THREE.Color(this.accent(item)), base = new THREE.Color(def?.icon?.a ?? '#1e2738').lerp(new THREE.Color('#0a0c14'), 0.78);
+    const css = (c: THREE.Color, a = 1) => `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${a})`;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d')!;
+    // Night, a shade lighter toward the top
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, css(base.clone().lerp(acc, 0.12))); sky.addColorStop(1, css(base.clone().multiplyScalar(0.55)));
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    // The glow behind the thing
+    const halo = g.createRadialGradient(W / 2, H * 0.48, 4, W / 2, H * 0.48, W * 0.55);
+    halo.addColorStop(0, css(acc, 0.42)); halo.addColorStop(0.45, css(acc, 0.13)); halo.addColorStop(1, css(acc, 0));
+    g.fillStyle = halo; g.fillRect(0, 0, W, H);
+    // Shafts of light falling from above, faint
+    g.globalCompositeOperation = 'lighter';
+    for (const [x, w, a] of [[0.38, 26, 0.06], [0.52, 40, 0.08], [0.66, 22, 0.05]] as const) {
+      const sh = g.createLinearGradient(0, 0, 0, H * 0.85); sh.addColorStop(0, css(acc, a)); sh.addColorStop(1, css(acc, 0));
+      g.fillStyle = sh; g.beginPath(); g.moveTo(W * x - w / 2, 0); g.lineTo(W * x + w / 2, 0); g.lineTo(W * x + w * 1.6, H * 0.85); g.lineTo(W * x - w * 0.4, H * 0.85); g.closePath(); g.fill();
+    }
+    // Motes in the light, the same on every draw of this thing
+    let seed = 0; for (const ch of item) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 28; i++) {
+      const x = W * (0.15 + rnd() * 0.7), y = H * (0.08 + rnd() * 0.62), r = 0.5 + rnd() * 1.3;
+      g.fillStyle = css(acc.clone().lerp(new THREE.Color('#ffffff'), 0.5), 0.25 + rnd() * 0.45); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+    // The corners dark, and a band of shadow along the bottom for the dais to sit in
+    const vig = g.createRadialGradient(W / 2, H * 0.5, H * 0.35, W / 2, H * 0.5, W * 0.62);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.7)');
+    g.fillStyle = vig; g.fillRect(0, 0, W, H);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.backdrops.set(item, tex);
+    return tex;
   }
 
   /** Puts the item's model in this canvas, and turns it while the pointer is over the card. */
   attach(cv: HTMLCanvasElement, item: string, card: HTMLElement): void {
     cv.width = W; cv.height = H;
     const w = { cv, item, yaw: -0.7 };
+    card.style.setProperty('--acc', this.accent(item)); // (the card's frame takes the thing's colour)
     this.windows.push(w);
     card.addEventListener('pointerenter', () => { this.hot = cv; this.run(); });
     card.addEventListener('pointerleave', () => { if (this.hot === cv) this.hot = null; });
@@ -147,7 +221,15 @@ export class StoreShowcase {
     const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
     // (a row is fitted to the window's width: its half-angle across is about 23 degrees)
     const d = m.spin ? Math.max(size.x * 1.3, size.y * 2.6) + size.z * 0.5 + 0.4 : m.figure ? size.y * 2.4 : Math.max(size.x, size.y * 1.4, size.z) * 1.9 + 0.3;
-    this.ground.scale.setScalar(Math.max(1, Math.max(size.x, size.z) / 6));
+    // The thing's own backdrop and colour on the dais' edge, its pool and the light behind it
+    this.scene.background = this.backdrop(w.item);
+    const acc = this.accent(w.item);
+    this.ring.color.set(acc); this.pool.color.set(acc); this.rim.color.set(acc);
+    const span = Math.max(size.x, size.z);
+    // (the dais a little wider than the thing on it, whatever its size)
+    const k = Math.max(0.12, span * 0.52);
+    this.ground.scale.set(k, Math.max(0.3, Math.min(1, k)), k);
+    this.ground.position.set(mid.x, box.min.y, mid.z);
     if (m.spin) this.camera.position.set(mid.x, mid.y + d * 0.3, mid.z + d);
     else if (m.figure) this.camera.position.set(mid.x + d * 0.68, mid.y + d * 0.12, mid.z + d * 0.68);
     else this.camera.position.set(mid.x + d * 0.62, mid.y + d * 0.32, mid.z + d * 0.62);

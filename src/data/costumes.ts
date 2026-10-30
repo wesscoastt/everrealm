@@ -55,7 +55,9 @@ Object.assign(COSTUMES, {
       cape: '#3a1a10', capeDesign: 'cog',
       chestArmour: { style: 'plate', color: '#b07a36', trim: '#ffb040' }, shoulders: { style: 'spiked', color: '#8a5a2a', trim: '#ffb040' },
       bracers: { style: 'plate', color: '#b07a36', trim: '#ffb040' }, legArmour: { style: 'plate', color: '#8a5a2a', trim: '#ffb040' }, sabatons: { color: '#6a4420' },
-      helm: { style: 'horned', color: '#8a5a2a', trim: '#ffb040', plume: '#ff7a20' } },
+      helm: { style: 'horned', color: '#8a5a2a', trim: '#ffb040', plume: '#ff7a20' },
+      // the Wheel's marks hammered into the plate while it was hot, and the forge's heat still in them
+      gear: { glow: '#ff8a2a', collar: '#8a5a2a', bandolier: '#3a2410' } },
   },
   towerknight: {
     id: 'towerknight', name: 'Callis tower knight', store: true,
@@ -64,7 +66,9 @@ Object.assign(COSTUMES, {
       chestArmour: { style: 'plate', color: '#e8e6e0', trim: '#d8b050' }, shoulders: { style: 'layered', color: '#e8e6e0', trim: '#d8b050' },
       tabard: { color: '#f4f0e6', trim: '#d8b050', emblem: '#2a3a6a' },
       bracers: { style: 'plate', color: '#e8e6e0', trim: '#d8b050' }, legArmour: { style: 'plate', color: '#d8d6d0', trim: '#d8b050' }, sabatons: { color: '#c8c6c0' },
-      helm: { style: 'great', color: '#e8e6e0', trim: '#d8b050', plume: '#2a3a6a' } },
+      helm: { style: 'great', color: '#e8e6e0', trim: '#d8b050', plume: '#2a3a6a' },
+      // a gorget standing up behind the great helm, and the towers' white light in its sight
+      gear: { collar: '#e8e6e0', glow: '#e8f4ff' } },
   },
   barrowguard: {
     id: 'barrowguard', name: 'Kingsbarrow honour guard', store: true,
@@ -72,26 +76,56 @@ Object.assign(COSTUMES, {
       cape: '#14141c', capeDesign: 'stones',
       chestArmour: { style: 'scale', color: '#2a2a34', trim: '#9fe8ff' }, shoulders: { style: 'round', color: '#22222a', trim: '#9fe8ff' },
       bracers: { style: 'plate', color: '#2a2a34', trim: '#9fe8ff' }, legArmour: { style: 'tassets', color: '#22222a', trim: '#9fe8ff' }, sabatons: { color: '#1a1a22' },
-      helm: { style: 'barbute', color: '#22222a', trim: '#9fe8ff', plume: '#9fe8ff' } },
+      helm: { style: 'barbute', color: '#22222a', trim: '#9fe8ff', plume: '#9fe8ff' },
+      // barrow-light in the eyes and the runes, and the cloak gone to rags in the ground
+      gear: { glow: '#9fe8ff', tatters: '#14141c', collar: '#22222a' } },
   },
   heldfur: {
     id: 'heldfur', name: 'Held herder\'s furs', store: true,
     look: { top: 7, tunic: '#e8ecf0', trim: '#8a9aa8', shirt: '#c8ccd4', trousers: '#8a9aa8', hose: '#6a7a88', legs: 0, boots: '#5a4a3a', shoes: 1, gloves: '#5a4a3a', belt: '#5a4a3a', apron: false,
-      hat: 'hood', hatColor: '#e8ecf0', cape: '#c8ccd4', capeDesign: 'peak',
-      shoulders: { style: 'fur', color: '#d8d4cc' }, bracers: { style: 'leather', color: '#6a5a4a' }, legArmour: { style: 'leather', color: '#6a5a4a' } },
+      hat: 'sabrehood', hatColor: '#e8e4dc', cape: '#c8ccd4', capeDesign: 'peak',
+      chestArmour: { style: 'cuirass', color: '#6a5a4a', trim: '#3a3028' },
+      shoulders: { style: 'fur', color: '#d8d4cc' }, bracers: { style: 'leather', color: '#6a5a4a' }, legArmour: { style: 'leather', color: '#6a5a4a' },
+      gear: { bandolier: '#4a3a2a', tatters: '#b8bcc4' } },
   },
   corsair: {
     id: 'corsair', name: 'Saltpenny corsair', store: true,
-    look: { top: 7, tunic: '#5a1418', trim: '#d8b050', shirt: '#f4ece0', trousers: '#1a1418', hose: '#1a1418', legs: 0, boots: '#1a1410', shoes: 1, gloves: null, belt: '#d8b050', apron: false,
+    look: { top: 7, tunic: '#5a1418', trim: '#d8b050', shirt: '#f4ece0', trousers: '#1a1418', hose: '#1a1418', legs: 0, boots: '#1a1410', shoes: 1, gloves: '#2a1a12', belt: '#d8b050', apron: false,
       hat: 'tricorn', hatColor: '#1a1418', cape: null, capeDesign: null, earring: '#d8b050',
-      bracers: { style: 'leather', color: '#3a2418', trim: '#d8b050' }, shoulders: { style: 'leather', color: '#3a1012', trim: '#d8b050' } },
+      chestArmour: { style: 'brigandine', color: '#3a1012', trim: '#d8b050' },
+      bracers: { style: 'leather', color: '#3a2418', trim: '#d8b050' }, shoulders: { style: 'leather', color: '#3a1012', trim: '#d8b050' },
+      gear: { bandolier: '#2a1a12', collar: '#5a1418' } },
   },
   forester: {
     id: 'forester', name: 'Hagworm forester', store: true,
     look: { top: 6, tunic: '#3a4a2a', trim: '#8a6a3a', shirt: '#2e3a22', trousers: '#3a3020', hose: '#3a3020', legs: 0, boots: '#2a2014', shoes: 1, gloves: '#4a3420', belt: '#5a4028', apron: false,
       hat: 'hood', hatColor: '#2e3a22', cape: '#2e3a22', capeDesign: 'oak',
       chestArmour: { style: 'cuirass', color: '#5a4028', trim: '#2a3a1e' }, shoulders: { style: 'leather', color: '#5a4028', trim: '#2a3a1e' },
-      bracers: { style: 'leather', color: '#5a4028' }, legArmour: { style: 'leather', color: '#4a3420' } },
+      bracers: { style: 'leather', color: '#5a4028' }, legArmour: { style: 'leather', color: '#4a3420' },
+      gear: { back: 'quiver', bandolier: '#4a3420', tatters: '#2e3a22' } },
+  },
+  // The star-reader, the archer and the gravecaller (2026-10-30)
+  starmagus: {
+    id: 'starmagus', name: 'Starwatch magus', store: true,
+    look: { top: 2, tunic: '#1a2042', trim: '#c8d8f0', shirt: '#141a34', trousers: '#141a34', hose: '#141a34', legs: 0, boots: '#14141e', shoes: 1, gloves: '#20263e', belt: '#2a3054', apron: false,
+      hat: 'magus', hatColor: '#151b38', cape: '#10162e', capeDesign: 'star',
+      shoulders: { style: 'mantle', color: '#242e58', trim: '#c8d8f0' }, bracers: { style: 'leather', color: '#242e58', trim: '#c8d8f0' },
+      gear: { glow: '#9fd8ff', collar: '#242e58', back: 'tome' } },
+  },
+  wallarcher: {
+    id: 'wallarcher', name: 'Northgate wall archer', store: true,
+    look: { top: 6, tunic: '#2a2826', trim: '#7a1e1a', shirt: '#363230', trousers: '#22201e', hose: '#22201e', legs: 0, boots: '#161210', shoes: 1, gloves: '#3a2a1e', belt: '#3a2a1e', apron: false,
+      hat: 'cowl', hatColor: '#2c2a28', cape: '#22201e', capeDesign: null,
+      chestArmour: { style: 'brigandine', color: '#34302c', trim: '#a89a7a' }, shoulders: { style: 'leather', color: '#3a2e24', trim: '#7a1e1a' },
+      bracers: { style: 'leather', color: '#3a2e24', trim: '#7a1e1a' }, legArmour: { style: 'leather', color: '#2e2620', trim: '#7a1e1a' },
+      gear: { back: 'quiver', bandolier: '#3a2a1e', pauldron: 'feathers', tatters: '#22201e' } },
+  },
+  gravecaller: {
+    id: 'gravecaller', name: 'Scarrow Tor gravecaller', store: true,
+    look: { top: 2, tunic: '#141216', trim: '#c8c0a8', shirt: '#1a161c', trousers: '#0e0c10', hose: '#0e0c10', legs: 0, boots: '#0e0c10', shoes: 1, gloves: '#1a161c', belt: '#2a2420', apron: false,
+      hat: 'gravecrown', hatColor: '#0e0c10', cape: '#0e0c10', capeDesign: null,
+      shoulders: { style: 'mantle', color: '#1e1a20', trim: '#c8c0a8' }, bracers: { style: 'leather', color: '#1e1a20', trim: '#c8c0a8' },
+      gear: { glow: '#7dffb0', tatters: '#141216', collar: '#1e1a20', back: 'lantern', pauldron: 'skulls' } },
   },
 } satisfies Record<string, CostumeDef>);
 

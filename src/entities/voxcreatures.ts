@@ -86,13 +86,16 @@ const feathers = (hex: string, fleck?: string): Paint => (x, y, z, n) => {
 /** Builds the sculpted creatures; false for any it hasn't a sculpt for. */
 export function buildVoxCreature(h: VoxCreatureHost, kind: string, pal: VoxCreaturePal, scale = 1): boolean {
   const key = kind + JSON.stringify(pal);
+  // The young (breed 'young', the store's pets): their own proportions, sculpted at their own small size
+  // with cubes finer still, rather than the grown animal shrunk
+  const young = pal.breed === 'young';
   switch (kind) {
     case 'chicken': hen(h, new Kit(key, 1 / 24), pal); return true;
-    case 'duck': duck(h, new Kit(key, 1 / 24), pal); return true;
+    case 'duck': if (young) duckling(h, new Kit(key, 1 / 44), pal); else duck(h, new Kit(key, 1 / 24), pal); return true;
     case 'rabbit': hare(h, new Kit(key, 1 / 24), pal); return true;
-    case 'cat': cat(h, new Kit(key, 1 / 24), pal); return true;
-    case 'dog': dog(h, new Kit(key, 1 / 20), pal); return true;
-    case 'pig': pig(h, new Kit(key, 1 / 20), pal); return true;
+    case 'cat': if (young) kitten(h, new Kit(key, 1 / 44), pal); else cat(h, new Kit(key, 1 / 24), pal); return true;
+    case 'dog': if (young) pup(h, new Kit(key, 1 / 40), pal); else dog(h, new Kit(key, 1 / 20), pal); return true;
+    case 'pig': if (young) piglet(h, new Kit(key, 1 / 40), pal); else pig(h, new Kit(key, 1 / 20), pal); return true;
     case 'wolf': case 'notch': wolf(h, new Kit(key + scale, 1 / 16), pal, kind === 'notch', scale); return true;
     case 'sheep': sheep(h, new Kit(key, 1 / 16), pal); return true;
     case 'cow': cow(h, new Kit(key, 1 / 16), pal); return true;
@@ -325,6 +328,160 @@ function pig(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
       v.capsule([0, 0.06, 0], [0, -0.29, 0.01], 0.075, 0.062, skin);
       v.box([-0.06, -0.36, -0.055], [0.06, -0.3, 0.07], flat(hoof));                         // the trotter...
       v.carve((cx, cy, cz) => Math.abs(cx) < 0.012 && cy < -0.3 && cz > 0.0);               // ...cloven
+    });
+    h.legs.push(leg);
+  }
+}
+
+// ---------------------------------------------------------------- The young: the store's pets at their own size
+
+/** A kitten: a round tabby body on short legs, a head too big for it, ears too big for that, wide blue eyes, a short tail straight up. */
+function kitten(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
+  h.plateHeight = 0.42;
+  const C = pal.a ?? '#e8a050', S = pal.b ?? '#b86a28', P = pal.c ?? '#f8f0e0', pink = '#f0a8a8';
+  const tabby: Paint = (x, y, z, n) => (y > 0.17 && Math.sin(z * 64 + Math.abs(x) * 8) > 0.35 ? shade(S, 0.92 + n * 0.12) : shag(C)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.capsule([0, 0.16, 0.07], [0, 0.165, -0.09], 0.072, 0.07, tabby);
+    v.ellipsoid([0, 0.135, 0.1], [0.05, 0.052, 0.04], shag(P));                                 // the fluffy chest
+    v.ellipsoid([0, 0.11, -0.01], [0.055, 0.035, 0.08], shag(P));                               // the belly
+  });
+  const head = joint(h.body, [0, 0.27, 0.13]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0], [0.085, 0.075, 0.074], (x, y, z, n) => (y > 0.03 && Math.abs(x) < 0.035 && Math.sin(x * 160) > 0.1 ? shade(S, 0.95) : shag(C)(x, y, z, n))); // the brow's stripes
+    for (const sd of [1, -1]) v.ellipsoid([sd * 0.048, -0.03, 0.03], [0.042, 0.036, 0.038], shag(C)); // round cheeks
+    v.ellipsoid([0, -0.034, 0.06], [0.036, 0.024, 0.022], shag(P));                           // the muzzle
+    v.box([-0.009, -0.018, 0.078], [0.009, -0.007, 0.086], flat(pink));                         // the nose
+    for (const sd of [1, -1]) {
+      v.cone([sd * 0.05, 0.045, -0.01], [sd * 0.075, 0.13, -0.02], 0.038, shag(C));            // ears, too big
+      v.cone([sd * 0.05, 0.052, 0.008], [sd * 0.07, 0.115, 0.0], 0.021, flat(pink));
+      v.box([sd * 0.066 - 0.004, 0.11, -0.012], [sd * 0.066 + 0.004, 0.14, -0.004], shag(P));   // the tufts in them
+    }
+  });
+  eyes(head, 0.038, 0.008, 0.064, '#6aa8d8', 0.034, 0.3);
+  h.head = head;
+  const tail = joint(h.body, [0, 0.2, -0.15]);
+  k.part(tail, [0, 0, 0], (v) => {
+    const pts: V3[] = [[0, 0, 0], [0, 0.07, -0.03], [0, 0.14, -0.02], [0, 0.17, 0.0]];
+    for (let i = 0; i < pts.length - 1; i++) v.capsule(pts[i], pts[i + 1], 0.026, 0.024, (x, y, z, n) => (Math.floor(y * 22) % 2 ? shade(S, 0.95 + n * 0.1) : shag(C)(x, y, z, n)));
+  });
+  h.tail = tail;
+  for (const [x, z] of [[0.045, 0.07], [-0.045, 0.07], [0.045, -0.08], [-0.045, -0.08]] as const) {
+    const leg = joint(h.body, [x, 0.12, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0, 0], [0, -0.1, 0.006], 0.028, 0.026, shag(C));
+      v.ellipsoid([0, -0.112, 0.012], [0.03, 0.017, 0.036], shag(P));                          // big soft paws
+      for (const sx of [-0.012, 0, 0.012]) v.box([sx - 0.003, -0.12, 0.043], [sx + 0.003, -0.108, 0.047], flat(pink)); // toe beans
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A collie pup: all belly and paws, a fluffy ruff, a head with a short muzzle and the blaze, ears not yet up (they flop), a wagging tail with its white tip. */
+function pup(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
+  h.plateHeight = 0.6;
+  const C = pal.a ?? '#1e1a18', W = pal.b ?? '#f4eee4', T = pal.c ?? '#b0783a';
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.capsule([0, 0.24, 0.09], [0, 0.235, -0.11], 0.098, 0.094, (x, y, z, n) => (y < 0.19 ? shag(W)(x, y, z, n) : shag(C)(x, y, z, n)));
+    v.ellipsoid([0, 0.27, 0.12], [0.11, 0.1, 0.07], shag(C));                                   // the ruff
+    v.ellipsoid([0, 0.22, 0.15], [0.07, 0.085, 0.05], shag(W));                                 // the white chest
+  });
+  const head = joint(h.body, [0, 0.37, 0.18]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0], [0.09, 0.082, 0.085], (x, y, z, n) => (Math.abs(x) < 0.022 && z > -0.01 ? shag(W)(x, y, z, n) : shag(C)(x, y, z, n))); // the blaze
+    v.capsule([0, -0.032, 0.05], [0, -0.038, 0.11], 0.042, 0.036, shag(W));                    // a short muzzle
+    v.box([-0.022, -0.04, 0.138], [0.022, -0.016, 0.156], flat('#141010', 0.04));              // the nose
+    for (const sd of [1, -1]) {
+      v.box([sd * 0.04 - 0.018, 0.035, 0.066], [sd * 0.04 + 0.018, 0.047, 0.078], flat(T));    // tan brows
+      v.capsule([sd * 0.07, 0.05, -0.01], [sd * 0.095, -0.02, 0.0], 0.03, 0.026, shag(C));      // ears, flopped
+    }
+  });
+  eyes(head, 0.05, 0.02, 0.074, '#3a2414', 0.032, 0.4);
+  const jaw = joint(head, [0, -0.07, 0.06]);
+  k.part(jaw, [0, 0, 0], (v) => v.capsule([0, -0.006, 0.01], [0, -0.01, 0.07], 0.028, 0.024, shag(W)));
+  const tongue = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.012, 0.05), new THREE.MeshLambertMaterial({ color: '#e07a7a' }));
+  tongue.position.set(0, 0.008, 0.07); tongue.userData.plain = true; jaw.add(tongue);
+  h.head = head; h.jaw = jaw;
+  const tail = joint(h.body, [0, 0.29, -0.19]);
+  k.part(tail, [0, 0, 0], (v) => {
+    v.capsule([0, 0, 0], [0, 0.07, -0.06], 0.034, 0.04, shag(C));
+    v.capsule([0, 0.07, -0.06], [0, 0.12, -0.08], 0.04, 0.03, shag(W));                         // the white tip
+  });
+  h.tail = tail;
+  for (const [x, z] of [[0.06, 0.1], [-0.06, 0.1], [0.06, -0.12], [-0.06, -0.12]] as const) {
+    const leg = joint(h.body, [x, 0.17, z]);
+    const sock: Paint = (x2, y, z2, n) => (y < -0.09 ? shag(W)(x2, y, z2, n) : shag(C)(x2, y, z2, n));
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.01, 0], [0, -0.14, 0.006], 0.04, 0.036, sock);
+      v.ellipsoid([0, -0.15, 0.016], [0.044, 0.024, 0.054], shag(W));                          // big paws to grow into
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A duckling: a ball of down, a big round head, a stubby bill, a dark stripe through the eye, wing stubs, orange feet too big for it. */
+function duckling(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
+  h.plateHeight = 0.4;
+  const D = pal.a ?? '#e8d060', dk = pal.b ?? '#c8a030', bill = '#e89a40', foot = '#e8902a';
+  const down: Paint = (x, y, z, n) => shade(y > 0.13 && z < 0.02 ? dk : D, n < 0.18 ? 0.86 : 0.95 + n * 0.12);
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.11, -0.005], [0.068, 0.064, 0.085], down);
+    v.ellipsoid([0, 0.1, 0.045], [0.058, 0.055, 0.05], shag(shade(D, 1.06)));                 // the breast
+    v.capsule([0, 0.12, -0.075], [0, 0.145, -0.1], 0.024, 0.012, down);                         // a stub of a tail
+    for (const sd of [1, -1]) v.ellipsoid([sd * 0.063, 0.12, -0.01], [0.016, 0.03, 0.045], shag(dk)); // wing stubs
+  });
+  const head = joint(h.body, [0, 0.2, 0.06]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0], [0.05, 0.052, 0.052], (x, y, z, n) => (y > 0.02 && z < 0.0 ? shag(dk)(x, y, z, n) : shag(D)(x, y, z, n))); // the cap darker
+    v.ellipsoid([0, -0.012, 0.055], [0.024, 0.012, 0.03], flat(bill));                         // the stubby bill
+    v.box([-0.004, -0.004, 0.08], [0.004, 0.002, 0.086], flat('#8a4a1a'));                     // its nail
+    for (const sd of [1, -1]) v.box([sd * 0.05 - 0.003, 0.008, 0.0], [sd * 0.05 + 0.003, 0.014, 0.035], flat(shade(dk, 0.7))); // the eye stripe
+  });
+  eyes(head, 0.045, 0.012, 0.02, '#141010', 0.022, 0.9);
+  h.head = head;
+  for (const x of [0.03, -0.03]) {
+    const leg = joint(h.body, [x, 0.06, 0.005]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0, 0], [0, -0.05, 0.004], 0.014, 0.013, flat(foot));
+      v.tri([-0.026, -0.055, -0.005], [0.026, -0.055, -0.005], [0, -0.055, 0.055], 0.01, flat(foot)); // feet too big for it
+    });
+    h.legs.push(leg);
+  }
+}
+
+/** A piglet: a little round barrel, a round head with a short upturned snout, ears too big that flop forward, spots, a curly tail, neat trotters. */
+function piglet(h: VoxCreatureHost, k: Kit, pal: VoxCreaturePal): void {
+  h.plateHeight = 0.5;
+  const S = pal.a ?? '#e8b0a0', D = shade(S, 0.86), P = pal.b, hoof = '#6a4a3a';
+  const skin: Paint = (x, y, z, n) => (P && Math.sin(x * 11 + 1) * Math.sin(z * 9 + y * 3) + Math.sin(z * 6 - x * 7) * 0.4 > 0.62 ? shade(P, 0.92 + n * 0.1) : coat(S, 0.32)(x, y, z, n));
+  k.part(h.body, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0.22, -0.01], [0.13, 0.12, 0.19], skin);
+    v.ellipsoid([0, 0.18, 0.0], [0.115, 0.09, 0.16], skin);                                     // the belly
+  });
+  const head = joint(h.body, [0, 0.25, 0.18]);
+  k.part(head, [0, 0, 0], (v) => {
+    v.ellipsoid([0, 0, 0.03], [0.1, 0.095, 0.09], skin);
+    v.ellipsoid([0, -0.035, 0.05], [0.085, 0.05, 0.07], skin);                                 // round cheeks
+    v.capsule([0, -0.02, 0.09], [0, -0.012, 0.14], 0.042, 0.042, coat(D, 9));                    // a short snout, turned up a little
+    v.box([-0.036, -0.05, 0.14], [0.036, 0.024, 0.152], coat(D, 9));                           // its flat end
+    for (const sd of [1, -1]) {
+      v.box([sd * 0.016 - 0.007, -0.022, 0.15], [sd * 0.016 + 0.007, -0.004, 0.156], flat('#6a3030', 0.04)); // nostrils
+      v.tri([sd * 0.045, 0.075, 0.0], [sd * 0.1, 0.095, 0.06], [sd * 0.03, 0.09, 0.075], 0.012, coat(D, 9));      // ears, a size too big, flopped forward
+    }
+  });
+  eyes(head, 0.06, 0.03, 0.09, '#141010', 0.024, 0.7);
+  h.head = head;
+  const tail = joint(h.body, [0, 0.27, -0.19]);
+  k.part(tail, [0, 0, 0], (v) => {
+    const pts: V3[] = [[0, 0, 0], [0.018, 0.016, -0.02], [0.0, 0.034, -0.03], [-0.018, 0.018, -0.04], [0, 0.0, -0.05], [0.014, 0.012, -0.06]];
+    for (let i = 0; i < pts.length - 1; i++) v.capsule(pts[i], pts[i + 1], 0.011, 0.01, coat(D, 9));
+  });
+  h.tail = tail;
+  for (const [x, z] of [[0.075, 0.1], [-0.075, 0.1], [0.075, -0.11], [-0.075, -0.11]] as const) {
+    const leg = joint(h.body, [x, 0.13, z]);
+    k.part(leg, [0, 0, 0], (v) => {
+      v.capsule([0, 0.02, 0], [0, -0.1, 0.004], 0.034, 0.03, skin);
+      v.box([-0.028, -0.13, -0.024], [0.028, -0.1, 0.03], flat(hoof));                        // the trotter...
+      v.carve((cx, cy, cz) => Math.abs(cx) < 0.005 && cy < -0.1 && cz > 0.0);                 // ...cloven
     });
     h.legs.push(leg);
   }
