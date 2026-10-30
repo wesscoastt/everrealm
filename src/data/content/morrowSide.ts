@@ -39,7 +39,7 @@ const STONES: [string, number, number, string][] = [
 /** Branchley's old road (sites buildBranchley: the street along x at the town's middle), three doorposts along it. */
 const POSTS: [string, number, number][] = [['mwPostA', MX + 715.5, 1633.5], ['mwPostB', MX + 742.5, 1633.5], ['mwPostC', MX + 758.5, 1626.5]];
 /** Tenwells (sites: the fort round a yard of wells): the fourth well, and the gully outside the east wall. */
-const WELL: [number, number] = [MX + 1046.5, -205.5], GULLY: [number, number] = [MX + 1092.5, -196.5];
+const WELL: [number, number] = [MX + 1052.5, -211.5], GULLY: [number, number] = [MX + 1092.5, -196.5];
 /** The reavers' wells, a day north of the fort out in the glare. */
 const REAVER_WELLS: [number, number][] = [[MX + 1040, -330], [MX + 1046, -336], [MX + 1034, -338]];
 

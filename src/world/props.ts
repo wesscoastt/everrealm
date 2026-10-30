@@ -1911,6 +1911,43 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'glassslab': {
+      // A door-high slab of black glass on end, chalk sums high on it, knife-scratched drakes low down
+      const glass = new THREE.MeshStandardMaterial({ color: '#16161e', roughness: 0.15, metalness: 0.3 });
+      g.add(mesh(box(1.5, 2.5, 0.42), glass, 0, 1.25, 0, 0, 0.04));
+      g.add(mesh(box(1.2, 0.5, 0.36), glass, 0.1, 2.6, 0.02, 0.3, 0.06, 0.2));
+      for (let i = 0; i < 5; i++) g.add(mesh(box(0.5 - (i % 2) * 0.18, 0.025, 0.01), flat('#e8e4dc'), -0.2 + (i % 3) * 0.1, 2.25 - i * 0.12, 0.23));
+      g.add(mesh(box(0.7, 0.02, 0.01), flat('#e8e4dc'), -0.1, 1.6, 0.23)); g.add(mesh(box(0.7, 0.02, 0.01), flat('#e8e4dc'), -0.1, 1.56, 0.23));
+      for (let i = 0; i < 28; i++) g.add(mesh(box(0.07, 0.04, 0.01), flat(i % 4 ? '#6a6a72' : '#8a8a92'), -0.62 + (i % 9) * 0.155, 0.25 + Math.floor(i / 9) * 0.14, 0.215));
+      for (const x of [-0.6, 0.6]) g.add(mesh(box(0.14, 0.12, 1.1), flat('#6a5a46'), x, 0.06, 0)); // the sledge's runners it came on
+      break;
+    }
+    case 'lawstone': {
+      // A squat white stone cut deep with the law, and smaller under it
+      const white = flat('#e8dcc0');
+      g.add(mesh(box(0.95, 0.75, 0.6), white, 0, 0.38, 0));
+      g.add(mesh(box(0.8, 0.1, 0.5), flat('#d8ccb0'), 0, 0.8, 0));
+      for (let i = 0; i < 3; i++) g.add(mesh(box(0.72 - i * 0.12, 0.05, 0.01), flat('#5a4a3a'), 0, 0.62 - i * 0.1, 0.305));
+      for (let i = 0; i < 2; i++) g.add(mesh(box(0.5, 0.025, 0.01), flat('#7a6a5a'), 0, 0.3 - i * 0.07, 0.305));
+      break;
+    }
+    case 'routeboard': {
+      // Two roads painted as lines on a board, a nail for every stop, chalk days; the top nail pulled
+      const board = flat('#c8b088');
+      for (const x of [-0.85, 0.85]) g.add(mesh(box(0.14, 2.0, 0.14), flat('#5a4630'), x, 1.0, 0));
+      g.add(mesh(box(1.7, 1.2, 0.07), board, 0, 1.3, 0.04));
+      g.add(mesh(box(1.8, 0.1, 0.18), flat('#5a4630'), 0, 1.95, 0.05));
+      for (const [lx, col] of [[-0.35, '#a8382c'], [0.35, '#2f4a7a']] as const) {
+        g.add(mesh(box(0.05, 1.0, 0.01), flat(col), lx, 1.3, 0.08));
+        for (let i = 0; i < 6; i++) {
+          if (lx < 0 && i === 5) continue; // Fellside's nail, pulled
+          g.add(mesh(box(0.05, 0.05, 0.04), flat('#3a3a3e'), lx, 0.85 + i * 0.18, 0.09));
+          g.add(mesh(box(0.14, 0.02, 0.01), flat('#f0ece4'), lx + 0.16, 0.85 + i * 0.18, 0.08));
+        }
+      }
+      g.add(mesh(box(0.42, 0.12, 0.01), flat('#d4bc94'), -0.25, 1.75, 0.082)); // the painted-over name
+      break;
+    }
     case 'oarrack': {
       // Oars stood on end in a rack, blades up, a name burnt on each; one sawn short; a few ringed
       const ash = flat('#b8a07a'), ashDk = flat('#8a7656'), burn = flat('#3a2a1a');

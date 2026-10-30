@@ -11,11 +11,12 @@ export type MonumentModel =
   | 'fordpost' | 'floodstone' | 'mootstone' | 'pump'
   | 'tallypost' | 'cairn' | 'sledge'
   | 'keeperstones' | 'wallbell' | 'watchboard'
-  | 'oarrack' | 'figurehead' | 'compassrose';
+  | 'oarrack' | 'figurehead' | 'compassrose'
+  | 'glassslab' | 'lawstone' | 'routeboard';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -27,6 +28,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Tenwells (world/sites.ts buildTenwells: x and z from the yard's middle, facing)
+  {
+    id: 'twglass', town: 'tenwells', at: [-20, 8, 0.3], model: 'glassslab', title: 'The black glass',
+    body: 'A slab of black glass as tall as a door, stood on end in the yard where the caravans unload. It came out of the Mother\'s Bed on a sledge forty years ago, and it took nine drakes to pull it.\n\nTwo kinds of marks are on it. The storm-hunters\' are in chalk, high up: sums, and LIGHTNING ON SALT, underlined twice. The caravan folk\'s are scratched in low down with knife points: a little drake for every crossing of the Flats, hundreds of them, the oldest worn nearly smooth.\n\nNeither side has rubbed out the other\'s.',
+  },
+  {
+    id: 'twlaw', town: 'tenwells', at: [15, -11.5, -Math.PI / 2], model: 'lawstone', title: 'The water law',
+    body: 'A squat white stone at the lip of the fourth well, cut deep in old square letters: THE WATER IS NOT SOLD AT THE WELL. Under it, smaller: Whoever comes in off the Flats drinks first, and pays after or not at all.\n\nEnnis Wade sells water from a barrel on the far side of the coaching yard, out of sight of the stone. Ask him and he will tell you that it is a barrel, not a well.',
+  },
+  {
+    id: 'twroutes', town: 'tenwells', at: [6.5, 27, -Math.PI / 2], model: 'routeboard', title: 'Cass Moran\'s road board',
+    body: 'A board inside the south gate with the north road and the south road painted on it as two long lines, a nail for every stop, and the days between chalked beside each. Cass Moran keeps it. The chalk is new every morning.\n\nThe nail at the top of the north road has been pulled out and the hole painted over. The name beside it has been painted over too, but not well enough: FELLSIDE.',
+  },
   // ---------------------------------------------------------------- Saltpenny Key (world/sites.ts buildSaltpenny: x and z from the key's middle, facing)
   {
     id: 'spoars', town: 'saltpenny', at: [104, 6.5, Math.PI], model: 'oarrack', title: 'The captains\' oars',

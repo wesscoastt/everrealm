@@ -3790,11 +3790,17 @@ export function plan(): Plan {
     k.street(cx - R + 3, cz - 2, cx + R - 3, cz + 2, yard);
     k.postSpot(T.post[0], T.post[1], B.Path);
     // The wells round the yard
-    for (const [wx, wz] of [[-12, -12], [12, -12], [-12, 12], [12, 12]] as const) { k.claim(cx + wx - 2, cz + wz - 2, cx + wx + 2, cz + wz + 2); s.props.push({ t: 'well', x: cx + wx + 0.5, y: base, z: cz + wz + 0.5 }); }
+    // (ten of them, round the coaching yard and the crossing; the fourth is the one in the yard's north-east
+    // corner, the one that goes salt in The Fourth Well)
+    for (const [wx, wz] of [[-12, -12], [-12, 12], [12, 12], [12, -12], [-6, 6], [6, 6], [-20, -6], [20, 6], [-20, -14], [20, -14]] as const) { k.claim(cx + wx - 2, cz + wz - 2, cx + wx + 2, cz + wz + 2); s.props.push({ t: 'well', x: cx + wx + 0.5, y: base, z: cz + wz + 0.5 }); }
     // Caravans: tents in the colours of their houses, carts, crates
     const TENT = ['#a8382c', '#c8a050', '#2f4a7a', '#7a3a6a', '#e8dcc0', '#2f5a3a'];
     for (let i = 0; i < 6; i++) { const tx = cx - 22 + (i % 3) * 8, tz = cz + (i < 3 ? -22 : 20); k.claim(tx - 3, tz - 3, tx + 3, tz + 3); s.props.push({ t: 'tent', x: tx, y: base, z: tz, ry: i * 0.9, color: TENT[i] }); }
     for (const [x, z, ry] of [[cx + 18, cz - 20, 0.4], [cx + 22, cz + 18, 1.2], [cx - 6, cz + 24, 0.1]] as const) s.props.push({ t: 'cart', x: x + 0.5, y: base, z: z + 0.5, ry });
+    // Tenwells' own (data/monuments.ts, town 'tenwells'): the black glass, the water law by the fourth
+    // well, Cass Moran's road board inside the south gate
+    for (const m of MONUMENTS) if (m.town === 'tenwells' && m.at) k.claim(cx + m.at[0] - 2, cz + m.at[1] - 2, cx + m.at[0] + 2, cz + m.at[1] + 2);
+    placeMonuments(s, 'tenwells', cx, () => base, cz);
     k.houses(cx - R + 3, cz - R + 3, cx + R - 3, cz + R - 3, { w: [6, 7], d: [6, 7], seed: 986, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1, base, n % 2 ? 'red' : 'slate', door, { wall: B.TerraCream, front: 'quoined', role: n === 0 ? 'inn' : n === 1 ? 'shop' : 'home', closed: n > 1 && n % 2 === 0 }) });
     s.props.push({ t: 'sign', x: cx + 4.5, y: base, z: cz + R + 3.5, ry: 0, text: 'Tenwells' });
   }
@@ -8718,6 +8724,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'twglass') bar(d, 0, 0, 0.75, 0.25, 3);
+        else if (d.monument === 'twlaw') bar(d, 0, 0, 0.45, 0.3, 1);
+        else if (d.monument === 'twroutes') bar(d, 0, 0, 0.9, 0.1, 2);
         else if (d.monument === 'spoars') bar(d, 0, -0.12, 3.0, 0.15, 3);
         else if (d.monument === 'spfigure') bar(d, 0, 0, 0.7, 0.7, 3);
         else if (d.monument === 'spcompass') { /* let into the boards: walked on */ }
