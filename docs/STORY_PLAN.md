@@ -163,6 +163,9 @@ told Hilda about the bell so fast was writing from the tower.)
 Signed" became the first page, read at the fourth camp. From Act V on, the game's chapters will be
 three earlier than the plan's numbers below.)
 
+(Act V's first half is built, 2026-10-30, as XXXVI to XXXIX: The Ones Who Walked, A.P. Again, The
+Gatekeepers' Rolls, Callis Lends the Black. The second A.P. is Arthur Pascall, the Assembly's clerk.)
+
 **Act V. The Held** (14, new)
 The black is back in the barrows (or isn't), and the Held aren't all lying down: the ones that got up
 first have walked south. Cold Harbour, the Greywaste villages, and Northgate's wall.

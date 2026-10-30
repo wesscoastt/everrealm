@@ -75,13 +75,13 @@ const urselNodes = {
   u1: { speaker: 'narrator' as const, text: 'The Gatekeeper is watching Wenna, not you. She has been since you came through the postern. When Wenna takes her helmet off, the Gatekeeper sits down on the step.', next: 'u2' },
   u2: { text: 'What\'s your name, Rider?', next: 'u3' },
   u3: { as: 'wenna', text: 'Wenna Hale. From Kelderby.', next: 'u4' },
-  u4: { text: 'Davey Hale\'s girl. You\'ve his nose. God help you, you\'ve his nose. I\'m Ursel. I\'m your father\'s sister. I came over on a salt boat forty years ago, before you were thought of, and I never wrote, and then it was too late to start.', next: 'u5' },
+  u4: { text: 'Elwyn Hale\'s girl. You\'ve his nose. God help you, you\'ve his nose. I\'m Ursel. I\'m your father\'s sister. I came over on a salt boat forty years ago, before you were thought of, and I never wrote, and then it was too late to start.', next: 'u5' },
   u5: { as: 'wenna', text: 'Dad talked about a sister. We thought you\'d drowned. He kept a place at Michaelmas for a while. Then he stopped.', next: 'u6' },
-  u6: { text: 'And Davey? And the boys? Bryn would be a man now. Owen was the clever one. He wanted to see the star at the Kirk.', next: 'u7' },
+  u6: { text: 'And Elwyn? And the boys? Bryn would be a man now. Owen was the clever one. He wanted to see the star at the Kirk.', next: 'u7' },
   u7: { as: 'wenna', text: 'Dad\'s gone. Ten years. Bryn has the farm and fourteen ewes. Owen walked to the Kirk last winter. He got there. He didn\'t get home. They found him on the road with his crook.', next: 'u8' },
   u8: { speaker: 'narrator' as const, text: 'Ursel doesn\'t say anything for a long time. Then she takes off her glove and puts her hand flat on the gate beside her, the way the pilgrims at the Kirk put a hand on the star.', next: 'u9' },
   u9: {
-    text: 'Forty years on this wall, watching for the dead. And the living walk up to it from the wrong side. Stay a night, Davey\'s girl. I\'ve a fire in the gatehouse, and a lot to ask.',
+    text: 'Forty years on this wall, watching for the dead. And the living walk up to it from the wrong side. Stay a night, Elwyn\'s girl. I\'ve a fire in the gatehouse, and a lot to ask.',
     options: [
       { text: 'Stay as long as you need, Wenna. Kingsbarrow will keep a night.', next: 'u_night' },
       { text: 'We go north at first light. Pryce won\'t wait. Talk tonight.', next: 'u_north' },
@@ -91,7 +91,7 @@ const urselNodes = {
   u_north: { as: 'wenna', text: 'First light. You\'re right. I know you\'re right. I\'ll be ready.', effect: (g: GameApi) => { g.setFlag('urselStay', 'north'); g.compRapport('wenna', -3); g.setStage(URSEL, 'done'); } },
   uAfter: {
     text: (g: GameApi) => (g.flag('urselStay') === 'night'
-      ? 'Davey\'s girl talks in her sleep. Same as he did. I sat up and listened to it like a song I\'d forgotten.'
+      ? 'Elwyn\'s girl talks in her sleep. Same as he did. I sat up and listened to it like a song I\'d forgotten.'
       : 'She was gone at first light, with you. Bring her back this way. That\'s all I ask of anyone now.'),
   },
 };
@@ -180,7 +180,7 @@ const QUESTS: Record<string, QuestDef> = {
     walk: { from: { quests: { [HELD]: 'done', [URSEL]: 'gate' }, flags: { 'comp:wenna:joined': 1, postern: true } } },
   },
   [CAMP]: {
-    id: CAMP, name: 'Fourth Camp', story: { chapter: 35, title: 'Fourth Camp', act: 'The Third Daughter' },
+    id: CAMP, name: 'Fourth Camp', story: { chapter: 35, title: 'Fourth Camp', act: 'The Third Daughter' }, next: ['storyWalked', 'harbour'],
     notes: (g, s) => {
       if (s === 'hill') return 'Pryce\'s book is in my pack. The others want to camp on Gallows Knap, where this started.';
       if (s === 'camp') return g.flag('bookPage') ? 'The first page of Pryce\'s book: the Third Daughter\'s papers, signed for the Charter by R. Tarrant. The Speaker.' : 'A fire on the top of Gallows Knap. Pryce\'s book is in my pack, unread.';
