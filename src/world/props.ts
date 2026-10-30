@@ -1911,6 +1911,42 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'bogoak': {
+      // A black bog-oak trunk up through the deck, studded thick with nails below the rail, the newest bright
+      const oak = flat('#1e1a16');
+      g.add(mesh(box(0.6, 3.4, 0.6), oak, 0, 1.7, 0));
+      g.add(mesh(box(0.42, 0.5, 0.42), oak, 0.05, 3.6, 0, 0.3, 0.1));
+      g.add(mesh(box(0.3, 0.12, 0.7), oak, 0.1, 2.9, 0.4, 0, 0.4));            // a stub of a branch
+      for (let i = 0; i < 70; i++) {
+        const side = i % 4, h = 0.15 + ((i * 37) % 23) * 0.052, o = (((i * 13) % 9) - 4) * 0.06, bright = h < 0.55 && i % 3 !== 0;
+        const c = flat(bright ? '#c8c8cc' : '#7a4a2a');
+        const [x, z] = side === 0 ? [o, 0.31] : side === 1 ? [0.31, o] : side === 2 ? [o, -0.31] : [-0.31, o];
+        g.add(mesh(box(0.035, 0.035, 0.035), c, x, h, z));
+      }
+      break;
+    }
+    case 'chalklizard': {
+      // A lizard chalked on the boards, longer than a punt, saw teeth, and the words beside it
+      const chalk = flat('#ece8de');
+      const line = (x0: number, z0: number, x1: number, z1: number) => { const l = Math.hypot(x1 - x0, z1 - z0); g.add(mesh(box(l, 0.012, 0.05), chalk, (x0 + x1) / 2, 0.006, (z0 + z1) / 2, -Math.atan2(z1 - z0, x1 - x0))); };
+      const body: [number, number][] = [[-3.0, 0], [-2.4, 0.25], [-1.4, 0.4], [0, 0.45], [1.2, 0.3], [2.0, 0.12], [3.4, 0.04]];
+      for (let i = 1; i < body.length; i++) { line(body[i - 1][0], body[i - 1][1], body[i][0], body[i][1]); line(body[i - 1][0], -body[i - 1][1], body[i][0], -body[i][1]); }
+      for (const [lx, sg] of [[-1.3, 1], [-1.3, -1], [0.9, 1], [0.9, -1]] as const) { line(lx, sg * 0.4, lx - 0.3, sg * 0.85); line(lx - 0.3, sg * 0.85, lx - 0.1, sg * 0.95); }
+      for (let i = 0; i < 6; i++) line(-2.95 + i * 0.1, 0.06, -2.9 + i * 0.1, -0.02); // the teeth
+      for (let i = 0; i < 4; i++) g.add(mesh(box(0.5 - (i % 2) * 0.15, 0.012, 0.04), chalk, -0.5 + i * 0.12, 0.006, 0.82 - i * 0.07)); // the words
+      break;
+    }
+    case 'floodpunt': {
+      // A flat-bottomed punt turned over on two trestles, its pole lashed under, the years painted on its bottom
+      const wood = flat('#7a6a50'), dk = flat('#4a3a28');
+      for (const x of [-1.0, 1.0]) { g.add(mesh(box(0.1, 0.62, 0.9), dk, x, 0.31, 0)); g.add(mesh(box(0.14, 0.08, 1.0), dk, x, 0.66, 0)); }
+      g.add(mesh(box(3.2, 0.1, 1.0), wood, 0, 0.75, 0));                          // the bottom, uppermost
+      for (const z of [-0.48, 0.48]) g.add(mesh(box(3.2, 0.32, 0.06), wood, 0, 0.56, z)); // the sides
+      for (const x of [-1.62, 1.62]) g.add(mesh(box(0.06, 0.28, 0.96), wood, x, 0.6, 0, 0, 0, x < 0 ? 0.3 : -0.3));
+      g.add(mesh(box(3.6, 0.06, 0.06), flat('#b8a478'), 0.1, 0.42, 0.1));        // the pole, lashed under
+      for (let i = 0; i < 3; i++) g.add(mesh(box(0.42, 0.012, 0.14), flat(i === 2 ? '#f0ece0' : '#a8a498'), -0.9 + i * 0.9, 0.806, 0));
+      break;
+    }
     case 'longseat': {
       // One great bough dressed flat on top, legged with its own sawn stubs, a split half for a back
       const bark = flat('#5a4630'), heart = flat('#a88a62');

@@ -3558,6 +3558,9 @@ export function plan(): Plan {
     for (let x = cx - 56; x <= cx + 56; x += 14) s.props.push({ t: 'lantern', x: x + 0.5, y: D + 1, z: cz - 1.4, ry: 0 });
     s.props.push({ t: 'sign', x: cx + 7.5, y: D + 1, z: cz + 2.5, ry: 0, text: 'Reedwater' });
     for (let i = 0; i < 4; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: cx - 5 + i * 1.3, y: D + 1, z: cz + 5.3, ry: i });
+    // Reedwater's own (data/monuments.ts, town 'reedwater'), all on the deck: the bog oak through the
+    // middle platform, the long lizard on the west walk, the flood punt at the platform's edge
+    placeMonuments(s, 'reedwater', cx, () => D + 1, cz);
   }
 
   /** A great tree of the Amberwold: a trunk five strides through, its roots flared, branches, a crown. */
@@ -8732,6 +8735,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'rwoak') bar(d, 0, 0, 0.3, 0.3, 3);
+        else if (d.monument === 'rwpunt') bar(d, 0, 0, 1.6, 0.5, 1);
+        else if (d.monument === 'rwlizard') { /* chalk on the boards */ }
         else if (d.monument === 'brseat') bar(d, 0, 0, 3.6, 0.3, 1);
         else if (d.monument === 'brfound') bar(d, 0, 0, 0.15, 0.15, 3);
         else if (d.monument === 'brmarks') { /* cut in the trunk */ }

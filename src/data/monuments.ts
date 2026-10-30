@@ -14,11 +14,12 @@ export type MonumentModel =
   | 'oarrack' | 'figurehead' | 'compassrose'
   | 'glassslab' | 'lawstone' | 'routeboard'
   | 'boundstone' | 'assemblynotice' | 'doorstep'
-  | 'longseat' | 'heightmarks' | 'findingpost';
+  | 'longseat' | 'heightmarks' | 'findingpost'
+  | 'bogoak' | 'chalklizard' | 'floodpunt';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -30,6 +31,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Reedwater (world/sites.ts buildReedwater: x and z from the middle platform, facing; all on the deck)
+  {
+    id: 'rwoak', town: 'reedwater', at: [2.5, 2.5, 0], model: 'bogoak', title: 'The bog oak',
+    body: 'A black trunk standing up through the middle platform, harder than iron and older than anybody can say. It was standing in the marsh, dead, when the first Reedwater folk came, and they tied the first walk to it.\n\nEverybody who leaves Reedwater for good drives a nail into it on the way out. Below the rail it is more iron than wood.\n\nMost of the nails are rust brown. A good many, near the bottom, are still bright.',
+  },
+  {
+    id: 'rwlizard', town: 'reedwater', at: [-21, 0.5, 0], model: 'chalklizard', title: 'The long lizard',
+    body: 'A lizard drawn in chalk on the boards of the west walk, nose to tail longer than a punt, with a row of teeth like a saw. Chalked beside it: THE ONE ORLA\'S FATHER TOOK. UNDER THIS WALK.\n\nIt is drawn fresh every spring. Ask anybody in Reedwater and they will tell you it is a little longer every year.\n\nChildren lie down in it to see how many of them it would take.',
+  },
+  {
+    id: 'rwpunt', town: 'reedwater', at: [4, 5, 0], model: 'floodpunt', title: 'The flood punt',
+    body: 'A flat-bottomed punt turned over on two trestles at the edge of the platform, its pole lashed underneath. It is kept for the night the water comes over the walks.\n\nPainted along its bottom are the years it has been needed. There are three in sixty years. The last is this spring\'s, and the paint is still bright.',
+  },
   // ---------------------------------------------------------------- Branchley (world/sites.ts buildBranchley: x and z from the crossing, facing; the marks on the west tree's trunk)
   {
     id: 'brseat', town: 'branchley', at: [-17.5, -4.5, 0], model: 'longseat', title: 'The long seat',
