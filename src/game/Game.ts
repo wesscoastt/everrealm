@@ -308,7 +308,7 @@ export class Game implements GameApi {
       deck: () => ((this.flag('qDeck') as string[] | undefined) ?? []),
       setDeck: (d) => this.setFlag('qDeck', d),
       nameOf: (npc) => this.npcs.find((n) => n.def.id === npc)?.def.name ?? 'They',
-      sound: (n) => this.sfx(n as Sfx),
+      sound: (n) => this.sfx(n === 'open' ? 'shuffle' : n === 'click' ? 'card' : n as Sfx),
       system: (t) => this.hud.system(t),
       persist: () => this.persist(),
     }));
@@ -5496,11 +5496,13 @@ export class Game implements GameApi {
     if (this.horse || this.dead || this.inCombat()) return;
     this.cancelActions();
     this.seated = { ...at };
+    this.sfx('seat');
   }
   private standUp(): void {
     const s = this.seated;
     if (!s) return;
     this.seated = null;
+    this.sfx('cloth', 0.8);
     // Up and a step forward, clear of the seat
     this.player.position.set(s.x + Math.sin(s.yaw) * 0.85, s.y + 0.05, s.z + Math.cos(s.yaw) * 0.85);
   }
@@ -6603,7 +6605,7 @@ export class Game implements GameApi {
       const off = !this.flag('lightOff');
       this.setFlag('lightOff', off);
       this.hud.system(off ? 'You put your light away. Press L to take it out again.' : 'You take your light out again. It burns once it\'s dark; L puts it away.');
-      this.sfx(off ? 'snort' as Sfx : 'click');
+      this.sfx(off ? 'snuff' : 'flint');
     }
 
     const ePressed = I.pressedOnce('KeyE');
@@ -7458,6 +7460,7 @@ export class Game implements GameApi {
     this.attack = null;
     this.emote = { id: e.id, left: e.secs };
     this.player.model.setState(e.id);
+    this.sfx(({ clap: 'clapHands', cheer: 'cheer', laugh: 'laughEmote', sit: 'seat', dance: 'clapHands' } as Record<string, Sfx>)[e.id] ?? 'cloth', e.id === 'dance' ? 0.5 : 1);
     this.sendEmoteLine(e.text);
   }
 

@@ -1,3 +1,4 @@
+import { lastSfx } from '../systems/Audio';
 import './styles.css';
 import { SLOT_NAMES } from '../data/armour';
 import { DYE_COST, DYE_SLOTS, type DyeChannel, type DyeSlot } from '../data/gearDyes';
@@ -439,6 +440,14 @@ export class Hud {
   private lastBanner = '';
 
   constructor(private ctx: UiCtx) {
+    // Any button, tab, option or slot that made no sound of its own when pressed gets a soft click
+    // (after the press is handled, so a button that opens a window or plays its own sound isn't doubled)
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement | null;
+      if (!t?.closest('button, .opt, .slot, .ab-slot, .menu-btn, .tab, .gm, [data-st], [data-ch], [data-emote], [data-pick], [data-add]')) return;
+      if (performance.now() - lastSfx.at < 80) return;
+      ctx.sfx('click');
+    });
     applySkin();
     setTimeout(() => continentChart(), 3000); // paint the map's chart ahead of the first look
     this.build();

@@ -3,6 +3,9 @@ import { Instruments } from './music/Instruments';
 
 // Procedural Web Audio: every sound is synthesised, so there are no asset licences to track.
 
+/** When a sound last started (the interface uses it so a button never clicks on top of its own sound). */
+export const lastSfx = { at: 0 };
+
 export type Sfx =
   | 'swing' | 'hit' | 'hitHeavy' | 'hurt' | 'clink' | 'oreBreak' | 'chop' | 'treeFall' | 'cast' | 'splash' | 'bite' | 'catch'
   | 'bell' | 'coin' | 'levelUp' | 'click' | 'open' | 'close' | 'step' | 'growl' | 'squelch' | 'skitter' | 'heal' | 'roll'
@@ -12,22 +15,26 @@ export type Sfx =
   | 'stepGrass' | 'stepStone' | 'stepWood' | 'stepGravel' | 'stepSand' | 'stepSnow' | 'stepWater' | 'hoof' | 'jump' | 'land' | 'swim'
   // Blows, and things in the hands
   | 'crit' | 'equip' | 'eat' | 'drink' | 'page' | 'doorOpen' | 'doorShut' | 'chest' | 'unlock' | 'pickSnap' | 'mail'
+  // The body and the hands: emotes, a seat, a light struck and put out, cards
+  | 'clapHands' | 'cheer' | 'laughEmote' | 'cloth' | 'seat' | 'flint' | 'snuff' | 'card' | 'shuffle'
+  // Foes' attacks: jaws, and claws through the air
+  | 'wolfSnap' | 'clawSwipe'
   // Voices: horses, wolves, boars, crabs, jellies, the sea's hunters, and people with knives
   | 'neigh' | 'snort' | 'wolfSnarl' | 'wolfYelp' | 'wolfDie' | 'boarGrunt' | 'boarSqueal' | 'crabClack' | 'blorp' | 'thrash'
   | 'shout' | 'grunt' | 'manDie' | 'creatureDie';
 
 /** What a creature sounds like when it sees you, when it's hit, and when it dies, by its body plan. */
-export function voiceOf(model: string, what: 'aggro' | 'hurt' | 'die'): Sfx {
+export function voiceOf(model: string, what: 'aggro' | 'hurt' | 'die' | 'attack'): Sfx {
   const fam = model === 'wolf' || model === 'notch' || model === 'dog' ? 'wolf' : model === 'boar' ? 'boar' : model === 'rustback' || model === 'spider' ? 'crab'
     : model === 'jelly' || model === 'medusa' ? 'jelly' : model === 'bandit' ? 'man' : model === 'shark' || model === 'eel' || model === 'ray' ? 'fish' : 'beast';
-  const V: Record<string, Record<'aggro' | 'hurt' | 'die', Sfx>> = {
-    wolf: { aggro: 'wolfSnarl', hurt: 'wolfYelp', die: 'wolfDie' },
-    boar: { aggro: 'boarGrunt', hurt: 'boarSqueal', die: 'boarSqueal' },
-    crab: { aggro: 'skitter', hurt: 'crabClack', die: 'crabClack' },
-    jelly: { aggro: 'squelch', hurt: 'blorp', die: 'squelch' },
-    man: { aggro: 'shout', hurt: 'grunt', die: 'manDie' },
-    fish: { aggro: 'thrash', hurt: 'thrash', die: 'thrash' },
-    beast: { aggro: 'growl', hurt: 'growl', die: 'creatureDie' },
+  const V: Record<string, Record<'aggro' | 'hurt' | 'die' | 'attack', Sfx>> = {
+    wolf: { aggro: 'wolfSnarl', hurt: 'wolfYelp', die: 'wolfDie', attack: 'wolfSnap' },
+    boar: { aggro: 'boarGrunt', hurt: 'boarSqueal', die: 'boarSqueal', attack: 'boarGrunt' },
+    crab: { aggro: 'skitter', hurt: 'crabClack', die: 'crabClack', attack: 'crabClack' },
+    jelly: { aggro: 'squelch', hurt: 'blorp', die: 'squelch', attack: 'blorp' },
+    man: { aggro: 'shout', hurt: 'grunt', die: 'manDie', attack: 'swing' },
+    fish: { aggro: 'thrash', hurt: 'thrash', die: 'thrash', attack: 'thrash' },
+    beast: { aggro: 'growl', hurt: 'growl', die: 'creatureDie', attack: 'clawSwipe' },
   };
   return V[fam][what];
 }
@@ -452,6 +459,7 @@ export class AudioSystem {
 
   play(name: Sfx, vol = 1): void {
     if (!this.ctx) return;
+    lastSfx.at = performance.now();
     const v = vol;
     switch (name) {
       case 'swing': this.whoosh(v * (0.85 + Math.random() * 0.3), 0.2 + Math.random() * 0.06); break;
@@ -545,6 +553,28 @@ export class AudioSystem {
       // ---- Voices
       case 'neigh': this.cry(760, 520, 0.9, 0.1 * v, [950, 2400], 0, 0.25, 9); this.burst(700, 0.8, 0.2, 0.12 * v, 'bandpass', 0.9, 350); break;
       case 'snort': this.burst(700, 0.8, 0.25, 0.18 * v, 'bandpass', 0, 350); this.burst(500, 0.8, 0.15, 0.1 * v, 'bandpass', 0.3, 300); break;
+      // Jaws snapping shut, twice, with the breath behind them
+      case 'wolfSnap': this.burst(2400, 4, 0.02, 0.2 * v, 'bandpass'); this.burst(1900, 4, 0.02, 0.16 * v, 'bandpass', 0.09); this.cry(320, 240, 0.18, 0.08 * v, [600, 1400], 0, 0.5); break;
+      // A claw raking through the air: a heavy whoosh and the rake at the end of it
+      case 'clawSwipe': this.burst(500, 0.6, 0.26, 0.14 * v, 'bandpass', 0, 1500); for (let i = 0; i < 3; i++) this.burst(3000 + i * 400, 3, 0.03, 0.05 * v, 'bandpass', 0.16 + i * 0.025); break;
+      // Four claps, each a slap of air and the knock of palms
+      case 'clapHands': for (let i = 0; i < 4; i++) { const at = i * 0.27 + Math.random() * 0.03; this.burst(1700 + Math.random() * 300, 1.2, 0.035, 0.22 * v, 'bandpass', at); this.burst(850, 1, 0.025, 0.1 * v, 'bandpass', at); } break;
+      // A cheer: two voices rising together
+      case 'cheer': this.cry(250, 340, 0.6, 0.11 * v, [800, 1500], 0, 0.15, 5); this.cry(300, 400, 0.5, 0.07 * v, [900, 1700], 0.06, 0.2, 6); break;
+      // A laugh: five breaths of it, falling
+      case 'laughEmote': { const f = 210 + Math.random() * 60; for (let i = 0; i < 5; i++) this.cry(f * (1 - i * 0.03), f * 0.86, 0.1, 0.09 * v, [700, 1300], i * 0.14, 0.3); break; }
+      // Cloth moving: a wave, a bow, a shrug
+      case 'cloth': this.burst(2600, 0.8, 0.2, 0.05 * v, 'bandpass', 0, 1200); this.burst(1400, 0.7, 0.14, 0.03 * v, 'bandpass', 0.06); break;
+      // Sitting down on wood: a creak and the settle
+      case 'seat': this.tone(170, 'sawtooth', 0.2, 0.025 * v, 0, 130); this.burst(900, 3, 0.12, 0.07 * v, 'bandpass', 0.02); this.burst(400, 1, 0.1, 0.06 * v, 'lowpass', 0.12); break;
+      // A light struck: two scrapes of flint and the flame taking
+      case 'flint': this.burst(4200, 2, 0.03, 0.14 * v, 'highpass'); this.burst(3800, 2, 0.03, 0.12 * v, 'highpass', 0.11); this.burst(700, 0.6, 0.4, 0.09 * v, 'lowpass', 0.16, 2200); break;
+      // A light put out: a breath and the hiss of the wick
+      case 'snuff': this.burst(1100, 0.7, 0.22, 0.07 * v, 'lowpass', 0, 280); this.burst(5000, 1, 0.12, 0.02 * v, 'highpass', 0.08); break;
+      // A card laid on wood
+      case 'card': this.burst(3200, 1.5, 0.04, 0.1 * v, 'bandpass'); this.burst(1300, 1, 0.03, 0.06 * v, 'bandpass', 0.012); break;
+      // A deck riffled
+      case 'shuffle': for (let i = 0; i < 12; i++) this.burst(2400 + Math.random() * 900, 2, 0.022, 0.06 * v, 'bandpass', i * 0.032); this.burst(900, 1, 0.05, 0.08 * v, 'bandpass', 0.42); break;
       case 'wolfSnarl': this.cry(115, 92, 0.55, 0.2 * v, [420, 950], 0, 0.6, 32); break;
       case 'wolfYelp': this.cry(950, 620, 0.13, 0.18 * v, [1250, 2700]); break;
       case 'wolfDie': this.cry(560, 210, 0.65, 0.14 * v, [850, 1900], 0, 0.15, 6); break;

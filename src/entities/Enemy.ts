@@ -516,7 +516,7 @@ export class Enemy {
           this.hitDone = false;
           this.attackOrigin.copy(this.pos);
           this.model.setAnim('attack');
-          ctx.sound('swing', this.pos);
+          ctx.sound(def.attack === 'cast' ? 'cast' : voiceOf(def.model ?? def.type, 'attack'), this.pos);
         }
         break;
       }
@@ -840,7 +840,7 @@ export class Enemy {
           // The bolt leaves the hand: only it is left to see
           if (def.attack === 'cast' && !this.signature) this.teleOutline.visible = this.teleFill.visible = false;
           this.model.setAnim('attack');
-          ctx.sound('swing', this.pos);
+          ctx.sound(def.attack === 'cast' ? 'cast' : voiceOf(def.model ?? def.type, 'attack'), this.pos);
         }
         break;
       }
