@@ -837,6 +837,10 @@ Quest ids `tdCrew` and `tdCallis`, with `tdJoan` and `callisLetters` alongside; 
 | **Wat Aske** | The last of Pryce's diggers | To put the black back, one cart at a time | He left eleven men up on the fell |
 | **Maud Hale** | Gatekeeper of Northgate | The gate shut | She wanted someone to have read the roll before she opened it |
 | **Edda Rusk** | Keeper of the Gatekeepers' Archive | Someone to read the rolls | — |
+| **Ivo Garth** | Herder of the Held, camped outside the shut gate with his last fell sabres | To get them inside before the trolls do | — |
+
+- **Three and Three** (Edda Rusk, after Lie Still; `src/data/content/heldSide.ts`): every night something knocks on the outside of the wall under the third tower west of the gate, three knocks and three more, the way Edda and her brother Col knocked on the Archive door as children. It's Col, one of the Held. She lays him down with the Archive's piece of the black, or leaves him be and goes up the tower at night to knock back.
+- **The Last Fold** (Ivo Garth): nine nights against the gate, two cats lost to the fell trolls. Thin the trolls, then find Maud a reason older than her own: the first Gatekeeper's charge in Edda's oldest roll, "Shut it against the dead. Never against the living." Maud opens the gate for an hour at noon, or passes the cats through the postern one at a time all night.
 
 ### Saltpenny Key [in game]
 
