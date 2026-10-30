@@ -1911,6 +1911,42 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'fordpost': {
+      // A black oak post at the water's edge, notched down its river side, THE FORD carved at the top
+      g.add(mesh(box(0.32, 2.4, 0.32), flat('#2e241c'), 0, 1.2, 0));
+      for (let i = 0; i < 4; i++) g.add(mesh(box(0.36, 0.05, 0.12), flat('#c8b898'), 0, 0.5 + i * 0.42, 0.13));
+      g.add(mesh(box(0.7, 0.32, 0.06), flat('#4a3a2a'), 0, 2.15, 0.19));
+      g.add(mesh(box(0.56, 0.06, 0.02), flat('#c8b898'), 0, 2.15, 0.225));
+      break;
+    }
+    case 'floodstone': {
+      // A slab in the bank, lines cut across it at the heights the water came to
+      g.add(mesh(box(1.1, 1.5, 0.3), M.stone, 0, 0.75, 0, 0, 0.03));
+      for (const [y, w] of [[1.32, 0.9], [1.05, 0.7], [0.84, 0.9], [0.62, 0.6], [0.4, 0.8]] as const) g.add(mesh(box(w, 0.035, 0.02), flat('#3a3832'), -0.04, y, 0.16));
+      g.add(mesh(box(0.22, 0.03, 0.02), flat('#f0ece0'), 0.32, 0.52, 0.165)); // the chalk mark, over the newest line
+      break;
+    }
+    case 'mootstone': {
+      // A low flat stone, dished on top from the boots of three hundred years of reeves
+      g.add(mesh(box(1.3, 0.5, 1.0), M.stone, 0, 0.25, 0));
+      g.add(mesh(box(1.1, 0.06, 0.8), flat('#8a887e'), 0, 0.5, 0));
+      g.add(mesh(box(0.7, 0.04, 0.5), flat('#6e6c64'), 0, 0.52, 0));
+      for (let i = 0; i < 5; i++) g.add(mesh(box(0.18, 0.03, 0.02), flat('#3a3832'), -0.5 + i * 0.24, 0.3, 0.505));
+      break;
+    }
+    case 'pump': {
+      // A green cast-iron pump on a post, a stone trough under its spout, a tin cup on a chain
+      const iron = flat('#3a5a42'), ironDk = flat('#24382a');
+      g.add(mesh(box(0.3, 1.5, 0.3), iron, 0, 0.75, 0));
+      g.add(mesh(box(0.36, 0.2, 0.36), ironDk, 0, 1.55, 0));
+      g.add(mesh(box(0.1, 0.1, 0.5), iron, 0, 1.15, 0.36));                 // the spout
+      const handle = mesh(box(0.06, 0.06, 0.8), ironDk, 0, 1.62, -0.35); handle.rotation.x = 0.4; g.add(handle);
+      g.add(mesh(box(1.3, 0.5, 0.6), M.stone, 0, 0.25, 0.75));                 // the trough
+      g.add(mesh(box(1.1, 0.06, 0.42), flat('#5a7a8a'), 0, 0.46, 0.75));       // water in it
+      g.add(mesh(box(0.12, 0.12, 0.12), flat('#a8a8a0'), 0.22, 1.0, 0.18));    // the cup
+      g.add(mesh(box(0.42, 0.3, 0.02), flat('#d8ccb0'), 0, 1.2, -0.16));       // the notice
+      break;
+    }
     case 'tallystone': {
       // A low standing stone painted with rows of strokes in fives, the newest row short
       g.add(mesh(box(1.6, 1.15, 0.5), M.stone, 0, 0.58, 0, 0, 0.04));

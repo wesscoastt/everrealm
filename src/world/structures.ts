@@ -8,6 +8,7 @@ import { HOLLIN_SHRINE, SHRINE_SOLID, waymarkShrine } from './shrines';
 import { Door, makeDoor } from './Doors';
 import { DOOR_PAINTS } from './doorKinds';
 import { SX, SY, Grid, WATER_LEVEL } from './grid';
+import { MONUMENTS } from '../data/monuments';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { POSTS, postBoxOf } from '../data/travel';
@@ -258,6 +259,29 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   barrier(158, BASE, 188, 2); barrier(159, BASE, 188, 2);
   interactables.push({ id: 'notice', kind: 'notice', x: 158.5, y: BASE + 1, z: 187.6, label: 'Read the notice board', radius: 2.2 });
   place(P.standingSign(M, 'Charter Post'), 162.5, BASE, 186.5, Math.PI); // the post cart stops here
+  // Hollin Ford's own landmarks (data/monuments.ts, town 'hollin'; Game makes each readable):
+  // the flood stone at the bridge's end, the moot stone at the oak's shade, the pump by the square
+  for (const m of MONUMENTS) if (m.town === 'hollin' && m.at && m.model !== 'fordpost') {
+    const [x, z, ry] = m.at;
+    place(P.monument(M, m.model), x, ground(Math.floor(x), Math.floor(z)), z, ry);
+    barrier(x, ground(Math.floor(x), Math.floor(z)), z, m.model === 'mootstone' ? 1 : 2);
+    if (m.model === 'pump') barrier(x + Math.sin(ry) * 0.75, ground(Math.floor(x), Math.floor(z)), z + Math.cos(ry) * 0.75, 1);
+  }
+  // The old ford, upstream of the bridge: stepping stones across the river, a stride apart, that you can
+  // walk across, and the notched post on the west bank where they start
+  {
+    const z = 168;
+    const wet: number[] = [];
+    for (let x = 150; x <= 190; x++) if (world.get(x, WATER_LEVEL - 1, z) === B.Water) wet.push(x);
+    if (wet.length) {
+      const x0 = wet[0], x1 = wet[wet.length - 1];
+      for (let x = x0 + 1; x <= x1 - 1; x += 2) for (const dz of [0, 1]) world.put(x, WATER_LEVEL - 1, z + dz, (x + dz) % 3 === 0 ? B.MossyCobble : B.Cobble);
+      const post = MONUMENTS.find((m) => m.id === 'hfford')!;
+      post.at = [x0 - 0.5, z + 1, -Math.PI / 2];
+      place(P.monument(M, 'fordpost'), x0 - 0.5, ground(x0 - 1, z + 1), z + 1, -Math.PI / 2);
+      barrier(x0 - 1, ground(x0 - 1, z + 1), z + 1, 2);
+    }
+  }
   // The travellers' board, past the post box: everyone who has come through the Ford, in the order they came
   place(P.travellersBoard(M), 168.5, BASE, 188.8, Math.PI);
   barrier(167, BASE, 188, 2); barrier(168, BASE, 188, 2); barrier(169, BASE, 188, 2);

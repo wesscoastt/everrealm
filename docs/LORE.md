@@ -48,6 +48,13 @@ A farming valley that feeds Ansbury. The River **Wend** comes out of the western
 | **Gorse Mill** | The windmill on the western hill. Grinds for the whole valley. |
 | **Haverwood** | The oak and birch wood east of the village. Wolves come down into it in lean years. Blasting at the Pit has driven more of them down this year. |
 
+### Landmarks of the Ford [in game]
+
+- **The old ford**, upstream of the bridge: stepping stones across the Wend, older than the bridge and the village, which is named for them. A notched black oak post on the west bank: when the water is over the third notch, ring the bell and wait.
+- **The flood stone** at the bridge's west end: lines cut where the water came to, the highest THE BIG WATER. THE BELL RANG ALL NIGHT, the newest LAST SPRING, with a chalk mark above it and a question mark.
+- **The moot stone** at the edge of the moot oak's shade, worn hollow where reeves stand to call the moot, every reeve's name cut round it; the last is MAUD ASHBY.
+- **The village pump** by the square: BOIL IT. The Pit's runoff has been in the well since spring. M.A. Under it, in a child's capitals: TASTES OF PENNIES.
+
 ### Creatures
 
 | Creature | Facts |

@@ -938,6 +938,10 @@ export class Game implements GameApi {
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
       player: () => this.player.position,
     }, farmPatches(sitePlan().sites));
+    // Hollin Ford's own (world/structures.ts places them, the ford post where the stones start)
+    for (const m of MONUMENTS) if (m.town === 'hollin' && m.at && !WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
+      WORLD_THINGS.push({ id: 'monument:' + m.id, x: m.at[0], z: m.at[1], label: m.model === 'pump' ? 'Look at the village pump' : 'Read ' + m.title.replace(/^The /, 'the '), radius: 2.4, read: 'monument:' + m.id });
+    }
     // The cities' monuments stand where the planner put them; each has its plaque to read
     for (const m of sitePlan().monuments) if (!WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
       const def = MONUMENTS.find((k) => k.id === m.id)!;

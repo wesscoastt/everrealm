@@ -7,12 +7,14 @@ export type MonumentModel =
   | 'speaker' | 'rider' | 'scales' | 'cross' | 'fountain' | 'obelisk' | 'bell' | 'dog' | 'plough'
   | 'milestone' | 'column' | 'seated' | 'boots' | 'masons' | 'plumb' | 'netmender' | 'stones'
   | 'jawbones' | 'drownedboard' | 'fogbell' | 'tallystone' | 'anselbench'
-  | 'companysign' | 'priceboard' | 'flywheel';
+  | 'companysign' | 'priceboard' | 'flywheel'
+  | 'fordpost' | 'floodstone' | 'mootstone' | 'pump';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate';
-  /** Placed by hand (world/sites.ts gullmouthLife): blocks east of the coast line at z 600, north-south, facing. */
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin';
+  /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
+   *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
   model: MonumentModel;
   /** What the interact prompt and the readable's title call it. */
@@ -22,6 +24,24 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Hollin Ford (world/structures.ts)
+  {
+    id: 'hfford', town: 'hollin', at: [0, 0, 0], model: 'fordpost', title: 'The old ford',
+    body: 'A post of black oak driven into the bank where the stepping stones start, notched all down the side that faces the water. Carved at the top: THE FORD. Under it, smaller and newer: When the water is over the third notch, ring the bell and wait.\n\nThere were stepping stones here before there was a bridge, and before there was a village. Hollin Ford is named for them.\n\nToday the water stands a hand under the second notch.',
+  },
+  {
+    id: 'hfflood', town: 'hollin', at: [160.4, 179.6, Math.PI * 0.75], model: 'floodstone', title: 'The flood stone',
+    body: 'A slab set in the bank at the end of the bridge, with lines cut across it at different heights and a few words beside each. THE WATER CAME TO HERE, over and over, in hands that change down the stone.\n\nThe highest line is level with your chest: THE BIG WATER. THE BELL RANG ALL NIGHT.\n\nThe lowest is the newest, cut so fresh the dust is still in it: LAST SPRING. Somebody has chalked a mark above it, a little higher, with a question mark beside it.',
+  },
+  {
+    id: 'hfmoot', town: 'hollin', at: [150.5, 179.8, Math.PI], model: 'mootstone', title: 'The moot stone',
+    body: 'A flat stone at the edge of the moot oak\'s shade, worn hollow on top where the reeves have stood to call the moot.\n\nThe names of the reeves are cut round its sides, each in a different hand: some deep and square, some scratched, one spelt wrong and corrected. The last is the cleanest: MAUD ASHBY. The space after it is very smooth.',
+  },
+  {
+    id: 'hfpump', town: 'hollin', at: [147.6, 191.4, Math.PI / 2], model: 'pump', title: 'The village pump',
+    body: 'Cast iron, painted green a long time ago, with a stone trough and a tin cup on a chain.\n\nA notice is nailed to the post: BOIL IT. The Pit\'s runoff has been in the well since spring. M.A.\n\nUnderneath, in a child\'s capitals: TASTES OF PENNIES.',
+  },
+
   {
     id: 'zero', town: 'ansbury', model: 'milestone', title: 'The Nought Stone',
     body: 'ANSBURY\nNOUGHT\n\nEvery milestone on the Charter roads is counted from this one.\n\nCarters touch it on the way out on a long haul and again when they get back. Two hundred years of hands have worn it to a waist.',
