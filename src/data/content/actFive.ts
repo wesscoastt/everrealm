@@ -24,7 +24,7 @@ import { actFourDone } from './actFour';
 //           keystones. Flag lendBlack = 'tower' (taken from the Old Tower, which will be short them) |
 //           'bought' (the player pays five hundred marks to have Pascall's slabs sent back) | 'none'.
 //
-// Cast: Wat Aske, Nan Carse (the families' spokeswoman), Edda Rusk, Benet Sala, Arthur Pascall (named
+// Cast: Wat Aske, Brenna Carse (the families' spokeswoman), Edda Rusk, Benet Sala, Arthur Pascall (named
 // only, here).
 
 const WALK = 'storyWalked', AP = 'storySecondAP', ROLLS = 'storyRolls', LEND = 'storyLendBlack';
@@ -40,8 +40,8 @@ const watNodes = {
   a5w1: { text: 'You came. I wrote to the Gatekeeper, and she wrote to her niece, and here you are. Look at the harbour.', next: 'a5w2' },
   a5w2: { speaker: 'narrator' as const, text: 'The shingle is full: carts, a cow, bedding in heaps, thirty or forty people from the farms along the Greywaste with everything they could carry.', next: 'a5w3' },
   a5w3: { text: 'When the black went back on Ma\'s barrow, the ones round it lay down. But the first to get up, off the first barrows we stripped, had already walked. South. Down the valleys to the farms.', next: 'a5w4' },
-  a5w4: { text: 'They come down to the shore at night now. Nan Carse brought her people here because there\'s a boat. The boat won\'t take them. Talk to Nan. Then help me keep them alive till morning.', effect: (g: GameApi) => g.setStage(WALK, 'nan') },
-  a5wWait: { text: 'Nan Carse, by the carts. Then the dark. They come when it\'s dark.' },
+  a5w4: { text: 'They come down to the shore at night now. Brenna Carse brought her people here because there\'s a boat. The boat won\'t take them. Talk to Brenna. Then help me keep them alive till morning.', effect: (g: GameApi) => g.setStage(WALK, 'nan') },
+  a5wWait: { text: 'Brenna Carse, by the carts. Then the dark. They come when it\'s dark.' },
   a5wFight: { text: 'There. Up from the track. Keep them off the carts!' },
   a5wDone: { text: (g: GameApi) => (g.flag('coldFamilies') === 'ship' ? 'Gone south on the Kittiwake. I watched her round the point. First thing I\'ve watched go right in a year.' : 'They\'re staying. I\'ve made a wall of carts. It isn\'t much. It\'s more than we had.') },
   // XXXVII: the fell again
@@ -61,12 +61,12 @@ const nan: DialogueTree = {
     return 'nAfter';
   },
   nodes: {
-    n1: { text: 'Nan Carse. Carse\'s farm, up the Ashgill, eighteen years. Nobody\'s asked for the farm. Good. They can have it.', next: 'n2' },
+    n1: { text: 'Brenna Carse. Carse\'s farm, up the Ashgill, eighteen years. Nobody\'s asked for the farm. Good. They can have it.', next: 'n2' },
     n2: { text: 'My husband\'s mother got up out of the ground behind our byre three nights ago. She was buried in the yard. There was no black on her. She was just tired of lying there, I suppose, with everyone else getting up.', next: 'n3' },
     n3: { text: 'The Kittiwake comes in Thursdays. Her mate takes fares. Brethren carry what pays, he says, and forty people from the Ashgill don\'t pay. We\'ve sixty marks between us.', next: 'n4' },
     n4: { text: 'That\'s tomorrow. Tonight, they\'ll come down the track again. Wat says you\'re handy. Be handy.', effect: (g) => g.setStage(WALK, 'night') },
     nWait: { text: 'Up the track, when it\'s dark. They come in ones and twos. Then they don\'t.' },
-    m1: { speaker: 'narrator', text: 'Grey light on the water. Nan Carse is counting heads by the carts, and her count comes out right twice.', next: 'm2' },
+    m1: { speaker: 'narrator', text: 'Grey light on the water. Brenna Carse is counting heads by the carts, and her count comes out right twice.', next: 'm2' },
     m2: {
       text: 'All of them. Thank you. Now. The boat\'s in at noon, and I\'ve sixty marks and forty people.',
       options: [
@@ -121,16 +121,16 @@ const QUESTS: Record<string, QuestDef> = {
     id: WALK, name: 'The Ones Who Walked', story: { chapter: 36, title: 'The Ones Who Walked', act: ACT }, next: [AP, 'wat'],
     notes: (g, s) => {
       if (s === 'harbour') return 'Wat Aske has written from Cold Harbour: the first of the Held to get up walked south off the fell before the black went back.';
-      if (s === 'nan') return 'Families from the Greywaste farms have come down to Cold Harbour to get away south. Nan Carse speaks for them.';
+      if (s === 'nan') return 'Families from the Greywaste farms have come down to Cold Harbour to get away south. Brenna Carse speaks for them.';
       if (s === 'night') return 'The Held come down the track to the harbour after dark. Keep them off the carts until morning.';
-      if (s === 'morning') return 'Morning at Cold Harbour, and everyone counted. The Kittiwake comes in at noon. Nan has sixty marks and forty people.';
+      if (s === 'morning') return 'Morning at Cold Harbour, and everyone counted. The Kittiwake comes in at noon. Brenna has sixty marks and forty people.';
       return g.flag('coldFamilies') === 'ship' ? 'I paid the families\' passage south on the Kittiwake.' : 'The families are staying at Cold Harbour behind a wall of carts.';
     },
     objectives: (g, s) => {
       if (s === 'harbour') return [{ text: 'Find Wat Aske at Cold Harbour', marker: 'wat_aske' }];
-      if (s === 'nan') return [{ text: 'Talk to Nan Carse by the carts', marker: 'nan_carse' }];
+      if (s === 'nan') return [{ text: 'Talk to Brenna Carse by the carts', marker: 'nan_carse' }];
       if (s === 'night') { const k = Math.min(6, killed(g, 'walked')); return [{ text: `Keep the Held off the carts (${k}/6)`, marker: 'nan_carse' }]; }
-      if (s === 'morning') return [{ text: 'Talk to Nan Carse', marker: 'nan_carse' }];
+      if (s === 'morning') return [{ text: 'Talk to Brenna Carse', marker: 'nan_carse' }];
       return [];
     },
     advance: (g, s) => (s === 'night' && killed(g, 'walked') >= 6 ? 'morning' : null),
@@ -184,7 +184,7 @@ export const ACT_FIVE: RegionContent = {
     { id: 'pascall_receipt', name: 'A receipt from the fell', kind: 'quest', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'letter', a: '#d8ccb0', b: '#2a2a3a' }, desc: 'Damp, and trodden into the cart track. "Received of Hollow Fell, nine slabs, black. For the Assembly of Callis. A. Pascall, clerk."' },
   ],
   npcs: [
-    { land: 'morrow', id: 'nan_carse', name: 'Nan Carse', title: 'Of Carse\'s farm, the Ashgill', look: { skin: '#d8b090', hair: '#8a6a4a', hairStyle: 2, eyes: '#5a6a5a', tunic: '#4a4a3e', trim: '#8a7a5a', trousers: '#3a3830', boots: '#2a241e', cape: '#5a5248', frame: 'f', lashes: true, build: 1.0, age: 0.5 }, schedule: [{ from: 0, to: 24, at: [NAN.x, NAN.z], face: [SHED.x, SHED.z], anim: 'idle' }], barks: ['Forty. Count them again.', 'Thursday. The boat\'s Thursday.'], when: (g) => !!at(g, WALK) },
+    { land: 'morrow', id: 'nan_carse', name: 'Brenna Carse', title: 'Of Carse\'s farm, the Ashgill', look: { skin: '#d8b090', hair: '#8a6a4a', hairStyle: 2, eyes: '#5a6a5a', tunic: '#4a4a3e', trim: '#8a7a5a', trousers: '#3a3830', boots: '#2a241e', cape: '#5a5248', frame: 'f', lashes: true, build: 1.0, age: 0.5 }, schedule: [{ from: 0, to: 24, at: [NAN.x, NAN.z], face: [SHED.x, SHED.z], anim: 'idle' }], barks: ['Forty. Count them again.', 'Thursday. The boat\'s Thursday.'], when: (g) => !!at(g, WALK) },
   ],
   dialogue: { nan_carse: nan },
   quests: QUESTS,

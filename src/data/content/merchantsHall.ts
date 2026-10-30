@@ -22,7 +22,7 @@ const npcs: NpcDef[] = [
     ['Cargo for berths, berths for cargo.', 'The Rose sails when Corlett\'s wine comes.']),
   at('hall_edmund', 'Edmund Lusk', 'Merchant', look({ skin: '#d8a882', hair: '#c8c0b0', hairStyle: 0, tunic: '#4a3a2a', trim: '#c8a050', build: 1.15, age: 0.75 }), 1608.6, 613.5, 1611, 613.5,
     ['Nine and a half, and not a farthing more.', 'I\'ve bought better pilchards off a cat.']),
-  at('hall_agnes', 'Agnes Treloar', 'Merchant', look({ skin: '#c89070', hair: '#2a1e14', hairStyle: 2, lashes: true, tunic: '#2f4a3a', trim: '#e0d0a0', age: 0.5 }), 1612.8, 615.0, 1611.5, 613.5,
+  at('hall_agnes', 'Rosina Treloar', 'Merchant', look({ skin: '#c89070', hair: '#2a1e14', hairStyle: 2, lashes: true, tunic: '#2f4a3a', trim: '#e0d0a0', age: 0.5 }), 1612.8, 615.0, 1611.5, 613.5,
     ['Then you can eat them yourself, Edmund.', 'Ten, and I\'ll throw in the barrels.']),
 ];
 

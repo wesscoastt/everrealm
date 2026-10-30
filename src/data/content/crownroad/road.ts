@@ -27,7 +27,7 @@ const aud: DialogueTree = {
     main: {
       text: (g) => {
         const c = g.flag('lampChoice');
-        if (c === 'round') return 'Wat Hollis walks the north lamps. A pint a lamp. I measure his pot with a stick when he isn\'t looking.';
+        if (c === 'round') return 'Caleb Hollis walks the north lamps. A pint a lamp. I measure his pot with a stick when he isn\'t looking.';
         if (c === 'strake') return 'The lamps are mine again. Strake says Hollis is warm. I didn\'t ask, and she told me anyway.';
         if (c === 'leave') return 'The Downs lamp\'s dark. The Withy and the Wall are lit. Two out of three is what my knees can do.';
         return 'Somebody\'s at my oil on the Downs. I\'ll know who.';
@@ -52,8 +52,8 @@ const aud: DialogueTree = {
     aw1: {
       text: 'Well? Who\'s at my oil?',
       options: [
-        { text: 'Wat Hollis, the old toll-keeper. He lives in the tower. Tell Strake.', next: 'aS' },
-        { text: 'Wat Hollis. He has the legs you haven\'t. Let him keep the north lamps.', next: 'aR' },
+        { text: 'Caleb Hollis, the old toll-keeper. He lives in the tower. Tell Strake.', next: 'aS' },
+        { text: 'Caleb Hollis. He has the legs you haven\'t. Let him keep the north lamps.', next: 'aR' },
         { text: 'I didn\'t find out who.', next: 'aL' },
       ],
     },
@@ -88,7 +88,7 @@ const wat: DialogueTree = {
     hist: { text: 'The Charter paved the road and moved the tolls to the city gates. They pensioned me off. Eight marks a quarter.', next: 'hist2' },
     hist2: { text: 'Then the road had to be paid for, and the pensions were the first thing it ate.' },
     w1: { text: 'You\'ve come from the Downs shrine. You\'ve got lamp oil on your sleeve. So have I.', next: 'w2' },
-    w2: { text: 'Wat Hollis. Toll-keeper of this tower, when it was a tower.', next: 'w3' },
+    w2: { text: 'Caleb Hollis. Toll-keeper of this tower, when it was a tower.', next: 'w3' },
     w3: { text: 'My pension stopped two winters ago. Same winter the Charter stopped buying Aud Merrow\'s oil. We were both economies.', next: 'w4' },
     w4: { speaker: 'narrator', text: 'He doesn\'t apologise. He folds his hands in his lap like a man at a hearing.', next: 'w5' },
     w5: {
@@ -115,7 +115,7 @@ const hetty: DialogueTree = {
     ht2: { speaker: 'narrator', text: 'She sorts them on the bench by the fire, fast, by county.', next: 'ht3' },
     ht3: { text: 'Four. Bess says there were six. The other two are in a wolf.', next: 'ht4' },
     ht4: {
-      text: 'This one\'s for Edda Strake at the south gate. Third time it\'s been sent. Take it, you\'re going that way.',
+      text: 'This one\'s for Hulda Strake at the south gate. Third time it\'s been sent. Take it, you\'re going that way.',
       effect: (g) => { g.take('post_letter', 4); g.give('strake_letter'); g.setStage(POST, 'strake'); },
     },
   },
@@ -190,7 +190,7 @@ export const CR_ROAD: RegionContent = {
     { id: 'lamp_oil', name: 'Lamp oil', kind: 'quest', rarity: 'common', stack: true, value: 0, icon: { shape: 'gel', a: '#d8b860' }, desc: 'A pint in a stoppered tin. Aud Merrow buys it herself.' },
     { id: 'tower_book', name: 'The tower\'s toll book', kind: 'quest', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'bread', a: '#8a6a3a' }, desc: 'Forty years old. The last entry is ruled off: "Road paved. Tolls to the gates. Tower closed."' },
     { id: 'post_letter', name: 'Charter Post letter', kind: 'quest', rarity: 'common', stack: true, value: 0, icon: { shape: 'bread', a: '#efe6cf' }, desc: 'Damp, muddy, and addressed. Hetty Brannock sorts the Post at the Waystation.' },
-    { id: 'strake_letter', name: 'Letter for E. Strake', kind: 'quest', rarity: 'common', stack: false, value: 0, icon: { shape: 'bread', a: '#efe6cf' }, desc: 'For Edda Strake, South Gate, Ansbury. Readdressed twice, in two different hands.' },
+    { id: 'strake_letter', name: 'Letter for E. Strake', kind: 'quest', rarity: 'common', stack: false, value: 0, icon: { shape: 'bread', a: '#efe6cf' }, desc: 'For Hulda Strake, South Gate, Ansbury. Readdressed twice, in two different hands.' },
   ],
   readables: {
     watCamp: {
@@ -242,11 +242,11 @@ export const CR_ROAD: RegionContent = {
       notes: (g, s) => {
         if (s === 'look') return 'The boot prints from the Downs shrine lead north-east. There\'s a ruined tower that way.';
         if (s === 'wat') return 'Someone is living in the ruined tower, burning shrine oil in a tin lamp. There\'s a Charter coat on the wall with the old brass buttons.';
-        if (s === 'aud') return 'Wat Hollis kept the tower when it took tolls. His pension stopped the same winter as Aud\'s oil money. He wants her to know it was him.';
-        if (s === 'strake') return 'Aud wants Strake told about Wat Hollis. Theft from a Charter lamp is a Charter matter.';
+        if (s === 'aud') return 'Caleb Hollis kept the tower when it took tolls. His pension stopped the same winter as Aud\'s oil money. He wants her to know it was him.';
+        if (s === 'strake') return 'Aud wants Strake told about Caleb Hollis. Theft from a Charter lamp is a Charter matter.';
         const c = g.flag('lampChoice');
-        if (c === 'strake') return 'Wat Hollis is in the cell by the gatehouse stove until the spring sessions. Strake says it\'s warmer than a tower. Aud\'s lamps are hers again.';
-        if (c === 'round') return 'Wat Hollis keeps the north lamps for Aud now: a pint a lamp, measured.';
+        if (c === 'strake') return 'Caleb Hollis is in the cell by the gatehouse stove until the spring sessions. Strake says it\'s warmer than a tower. Aud\'s lamps are hers again.';
+        if (c === 'round') return 'Caleb Hollis keeps the north lamps for Aud now: a pint a lamp, measured.';
         return 'I told Aud I didn\'t know who it was. The Downs lamp stays dark.';
       },
       objectives: (_g, s) => {
@@ -311,7 +311,7 @@ export const CR_ROAD: RegionContent = {
     },
   },
   hooks: (D) => {
-    // ---- Strake: Wat Hollis, and her letter
+    // ---- Strake: Caleb Hollis, and her letter
     hook(D, 'strake', (g) => {
       if (at(g, LAMP2) === 'strake') return 'crLs1';
       if (at(g, POST) === 'strake') return 'crL1';

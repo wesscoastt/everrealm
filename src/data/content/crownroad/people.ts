@@ -62,8 +62,8 @@ export const CR_PEOPLE: NpcDef[] = [
     when: (g) => g.flag('rosieChoice') === 'home',
   },
   {
-    // Wat Hollis after 'strake': sweeping the gatehouse and sleeping by its stove.
-    id: 'watCity', name: 'Wat Hollis', title: 'Gatehouse',
+    // Caleb Hollis after 'strake': sweeping the gatehouse and sleeping by its stove.
+    id: 'watCity', name: 'Caleb Hollis', title: 'Gatehouse',
     look: watLook,
     schedule: [{ from: 0, to: 24, at: [815.5, 365.6], face: [818, 368], anim: 'idle' }],
     when: (g) => g.flag('lampChoice') === 'strake',
@@ -131,7 +131,7 @@ export const CR_PEOPLE: NpcDef[] = [
   // ================================================================ The country
   {
     // Kept the old drove-road toll tower before the Turnpike was paved. Formal, bitter-funny. Pension stopped.
-    id: 'wat', name: 'Wat Hollis', title: 'Toll-keeper, retired',
+    id: 'wat', name: 'Caleb Hollis', title: 'Toll-keeper, retired',
     look: watLook,
     schedule: [{ from: 0, to: 24, at: [929.5, 140.2], face: [929.5, 134], anim: 'idle' }],
     when: (g) => g.flag('lampChoice') !== 'strake',

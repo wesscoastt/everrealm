@@ -24,7 +24,7 @@ const items: ItemDef[] = [
   food('mardle_hard', 'Mardle hard cheese', 'bread', '#e8d8a0', 16, 120, { slot: 'food', regen: 0.1, mins: 30 }, 'Pressed, turned, and left alone for a year, the old recipe.', 'Restores 120 health; stamina back a tenth faster for half an hour.'),
   food('mardle_blue', 'Mardle blue', 'bread', '#d8d8c0', 28, 180, { slot: 'food', hp: 0.06, mins: 30 }, 'An accident in a damp summer. Ansbury pays twice as much for the accident.', 'Restores 180 health; a sixteenth more health for half an hour.'),
   drink('pruett_mead', 'Pruett\'s mead', '#d8a83a', '#3a2a1c', 28, { slot: 'drink', regen: 0.35, mins: 15 }, 'Three years in the cask before it leaves the bee garden. The bees were told about every one.', 'Stamina comes back a third faster for fifteen minutes.'),
-  food('honeycomb', 'Honeycomb', 'bread', '#e8b030', 8, 70, undefined, 'A slab of comb from Agnes Pruett\'s hives, wax and all.', 'Restores 70 health.'),
+  food('honeycomb', 'Honeycomb', 'bread', '#e8b030', 8, 70, undefined, 'A slab of comb from Philippa Pruett\'s hives, wax and all.', 'Restores 70 health.'),
   food('brock_kipper', 'Brock\'s kipper', 'fish', '#c8904a', 16, 150, { slot: 'food', regen: 0.12, mins: 30 }, 'Herring split and salted and hung in oak smoke two days. You\'ll smell of it till Tuesday.', 'Restores 150 health; stamina back an eighth faster for half an hour.'),
   drink('keir_whisky', 'Keir\'s whisky', '#c8822a', '#2a3a2a', 45, { slot: 'drink', power: 0.07, mins: 15 }, 'Peat-smoked barley run twice through the copper, then eight years in the cask, less the angels\' share.', 'Your blows land a fourteenth harder for fifteen minutes.'),
   { id: 'furn_glasslamp', name: 'Glass lamp', kind: 'collectible', rarity: 'uncommon', stack: true, value: 0, icon: { shape: 'lantern', a: '#c8e0e8', b: '#ffc060' }, desc: 'Blown at Wren\'s Glasshouse: a lamp whose flame stays put in a draught. Tobias says it\'s the glass. His mother says it\'s the wick.', furn: { model: 'lamp' }, stats: 'Furniture: set it down in a house of your own' },
@@ -84,13 +84,13 @@ const LINES: Record<string, [string, string]> = {
 };
 
 const STOCK: Record<string, { name: string; stock: { item: string; price: number }[]; buyRate?: (item: string) => number; footer: string }> = {
-  biz_hester: { name: 'Corlett\'s cellar door', stock: [{ item: 'corlett_red', price: 48 }, { item: 'corlett_white', price: 48 }], buyRate: (item) => (item === 'grapes' ? 0.9 : 0.5), footer: 'Hester pays well for grapes, and half of anything else\'s worth' },
+  biz_hester: { name: 'Corlett\'s cellar door', stock: [{ item: 'corlett_red', price: 48 }, { item: 'corlett_white', price: 48 }], buyRate: (item) => (item === 'grapes' ? 0.9 : 0.5), footer: 'Damaris pays well for grapes, and half of anything else\'s worth' },
   biz_simeon: { name: 'Fallow Hill', stock: [{ item: 'fallow_white', price: 60 }, { item: 'fallow_brandy', price: 100 }], buyRate: (item) => (item === 'grapes' ? 0.9 : 0.5), footer: 'Simeon pays well for grapes, and half of anything else\'s worth' },
-  biz_ned: { name: 'Garrow\'s tap room', stock: [{ item: 'garrow_bitter', price: 20 }, { item: 'garrow_porter', price: 28 }], buyRate: (item) => (item === 'barley' || item === 'hops' || item === 'wheat' ? 0.9 : 0.5), footer: 'Ned pays well for barley, hops and wheat, and half of anything else\'s worth' },
-  biz_ruth: { name: 'Mardle Dairy', stock: [{ item: 'mardle_hard', price: 32 }, { item: 'mardle_blue', price: 56 }], footer: 'Ruth pays half of an item\'s worth' },
-  biz_tobias: { name: 'Wren\'s Glasshouse', stock: [{ item: 'furn_glasslamp', price: 220 }], footer: 'Tobias pays half of an item\'s worth' },
-  biz_agnes: { name: 'Pruett\'s Bee Garden', stock: [{ item: 'pruett_mead', price: 56 }, { item: 'honeycomb', price: 16 }], footer: 'Agnes pays half of an item\'s worth' },
-  biz_silas: { name: 'Brock\'s Smokehouse', stock: [{ item: 'brock_kipper', price: 32 }, { item: 'smoked_eel', price: 40 }], footer: 'Silas pays half of an item\'s worth' },
+  biz_ned: { name: 'Garrow\'s tap room', stock: [{ item: 'garrow_bitter', price: 20 }, { item: 'garrow_porter', price: 28 }], buyRate: (item) => (item === 'barley' || item === 'hops' || item === 'wheat' ? 0.9 : 0.5), footer: 'Matthias pays well for barley, hops and wheat, and half of anything else\'s worth' },
+  biz_ruth: { name: 'Mardle Dairy', stock: [{ item: 'mardle_hard', price: 32 }, { item: 'mardle_blue', price: 56 }], footer: 'Keziah pays half of an item\'s worth' },
+  biz_tobias: { name: 'Wren\'s Glasshouse', stock: [{ item: 'furn_glasslamp', price: 220 }], footer: 'Jethro pays half of an item\'s worth' },
+  biz_agnes: { name: 'Pruett\'s Bee Garden', stock: [{ item: 'pruett_mead', price: 56 }, { item: 'honeycomb', price: 16 }], footer: 'Philippa pays half of an item\'s worth' },
+  biz_silas: { name: 'Brock\'s Smokehouse', stock: [{ item: 'brock_kipper', price: 32 }, { item: 'smoked_eel', price: 40 }], footer: 'Enoch pays half of an item\'s worth' },
   biz_abel: { name: 'Dunmore Tannery', stock: [{ item: 'leather_chest', price: 96 }, { item: 'leather_legs', price: 80 }, { item: 'leather_hands', price: 48 }, { item: 'leather_feet', price: 48 }], buyRate: (item) => (item.endsWith('_hide') || item.endsWith('_pelt') ? 0.85 : 0.45), footer: 'Abel pays most of a hide\'s worth, and under half for anything else' },
   biz_morag: { name: 'Keir\'s Still', stock: [{ item: 'keir_whisky', price: 90 }], footer: 'Morag pays half of an item\'s worth' },
 };

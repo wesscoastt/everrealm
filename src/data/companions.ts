@@ -68,7 +68,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
       redstone: ['Everything here is red. My boots will be red for a month.', 'The Company pays its men on a Friday and takes it back on a Saturday. I\'ve seen the books.'],
       starfall: ['Cold up here. Good cold. Keeps your head clear.', 'Snow hides the road. Follow the posts, not the tracks.'],
       morrow: ['They drive on the wrong side of the road here. I\'ve checked.', 'No tolls in Morrow. I keep looking for the gate.'],
-      ansbury: ['The south gate. Edda Strake still writes down everyone who comes in, and how much they look like trouble.', 'I was sworn in at the keep. Seems a long time ago.'],
+      ansbury: ['The south gate. Hulda Strake still writes down everyone who comes in, and how much they look like trouble.', 'I was sworn in at the keep. Seems a long time ago.'],
       gullmouth: ['I don\'t come here.', 'The Light\'s up there. I can\'t look at it.'],
       harrowgate: ['The Works keeps its own law. It\'s a worse law than ours, and it\'s better at keeping it.'],
       night: ['Riders work nights. You get used to the dark; you never get used to the cold.', 'Keep your torch low. It blinds you more than it shows you.'],

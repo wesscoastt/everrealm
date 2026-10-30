@@ -141,9 +141,9 @@ const wenna: DialogueTree = {
     s2hard: { text: 'Yes. I should have. Nobody\'s said it to my face before. They all said it behind my back, which was worse. Thank you for that, oddly.', effect: (g) => g.compRapport('wenna', 4), next: 's2end' },
     s2find: { text: 'You\'d do that? For a Rider they threw out?', effect: (g) => g.compRapport('wenna', 10), next: 's2end' },
     s2end: { text: 'The Riders let me go in April. Lost three barrels of the Charter\'s oil, they said. I let them say it. Come on. I\'ve looked at that light long enough.', effect: (g) => { g.setFlag('comp:wenna:part', 2); g.compStory('wenna', 2); } },
-    s3hook: { text: 'Edda Strake keeps the south gate book at Ansbury. Every cart, every load, every name, and who signs the holds. Take me to the south gate. If the name\'s in there, I want to read it myself.', effect: (g) => g.setFlag('comp:wenna:s3', 1), next: 'menu' },
+    s3hook: { text: 'Hulda Strake keeps the south gate book at Ansbury. Every cart, every load, every name, and who signs the holds. Take me to the south gate. If the name\'s in there, I want to read it myself.', effect: (g) => g.setFlag('comp:wenna:s3', 1), next: 'menu' },
     s3a: { text: 'Wait here.', speaker: 'npc', next: 's3b' },
-    s3b: { text: 'Wenna talks to the corporal at the gate for a long time. Edda Strake looks at you, then at Wenna, and turns the book round on the table.', speaker: 'narrator', next: 's3c' },
+    s3b: { text: 'Wenna talks to the corporal at the gate for a long time. Hulda Strake looks at you, then at Wenna, and turns the book round on the table.', speaker: 'narrator', next: 's3c' },
     s3c: {
       text: 'February. "Light Fund cart, hold of three barrels against arrears, Amos Penn for the Toll Office." And under it, in another hand: "By order. G. Ottery, Captain of Riders." My captain. He held the oil back himself, and then he stood in front of the Charter and let them throw me out for losing it.',
       options: [

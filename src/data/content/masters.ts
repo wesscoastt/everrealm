@@ -39,7 +39,7 @@ const MASTERS: Master[] = [
     barks: ['Listen.', 'Hot or cold?'],
   },
   {
-    calling: 'pathfinder', id: 'master_thackery', name: 'Ned Thackery', title: 'Tracker, Fellers\' Camp', at: [453.5, 508.5], face: [449.5, 511.5],
+    calling: 'pathfinder', id: 'master_thackery', name: 'Jabez Thackery', title: 'Tracker, Fellers\' Camp', at: [453.5, 508.5], face: [449.5, 511.5],
     look: { skin: '#c88a62', hair: '#5a3a26', hairStyle: 3, facial: 3, tunic: '#4a5a2a', trim: '#8a6a3a', trousers: '#3a3428', boots: '#2a1e14', cape: '#3a4a2a', hat: 'hood', hatColor: '#3a4a2a', age: 0.5 },
     hello: 'Thackery. I track for the fellers, so they know what\'s in the wood before they go and cut it.',
     teach: 'A snare, a rain of arrows, and how to be somewhere else when the blow comes. That\'s most of it, if I\'m honest.',
@@ -55,9 +55,9 @@ const MASTERS: Master[] = [
     barks: ['Write it down.', 'Cold coming.'],
   },
   {
-    calling: 'mender', id: 'master_abney', name: 'Joan Abney', title: 'Keeps the menders\' room, the Minster', at: [860.5, 410.5], face: [856.5, 410.5],
+    calling: 'mender', id: 'master_abney', name: 'Bridget Abney', title: 'Keeps the menders\' room, the Minster', at: [860.5, 410.5], face: [856.5, 410.5],
     look: { frame: 'f', skin: '#dcb090', hair: '#9a9088', hairStyle: 6, tunic: '#e4dcc8', trim: '#c8a040', trousers: '#4a4038', boots: '#2a2018', cape: '#8a7a5a', lashes: true, age: 0.65 },
-    hello: 'Joan Abney. I keep the menders\' room at the Minster. If you\'re hurt, sit down. If you\'re not, you\'re in my light.',
+    hello: 'Bridget Abney. I keep the menders\' room at the Minster. If you\'re hurt, sit down. If you\'re not, you\'re in my light.',
     teach: 'A ward that takes a blow for someone, a word that puts a brute back a step, and how to mend slowly so it holds. The lamp itself you\'d have to earn.',
     own: 'You\'ve a lamp already. Is it trimmed? Then go and use it.',
     barks: ['Sit down.', 'Mind the wick.'],

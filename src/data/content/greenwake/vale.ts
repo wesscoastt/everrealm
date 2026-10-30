@@ -6,7 +6,7 @@ import type { RegionContent } from '../types';
 // FOURTHDAY SUPPER (short)      Agnes Pole needs cooked trout for thirty plates.
 // THE CLAMP (quest)             Cass Pudney's charcoal: Bram's old price or Harrowgate's new one. charcoalTo = 'bram' | 'harrowgate'.
 // BRAKE PIN (short)             Gorse Mill can't hold its sails; Nance turns a pin and signs it.
-// SIX FINGERS (quest)           Ned Bracken salts the Wetlings ditch mouths before the gauge reaches six.
+// SIX FINGERS (quest)           Noll Bracken salts the Wetlings ditch mouths before the gauge reaches six.
 // INITIALS (short)              Tobin Wether dares you up the Lantern to find his father's name. initials = 'told' | 'kept'.
 // THE SUMMER OF THE LOW WATER (hidden)  Pell's old creel, behind Spill Falls.
 // LETTER FOR THE FOREMAN (short) Bess Tull's post: Corrie Dunmore writes to her brother.
@@ -246,10 +246,10 @@ export const GW_VALE: RegionContent = {
     [SALT]: {
       id: SALT, name: 'Six Fingers', region: 'greenwake', depth: 'quest',
       notes: (g, s) => {
-        if (s === 'salt') return 'The rain gauge is at four fingers and rising early. At six the Wetlings flood and the cows have to move. Ned Bracken wants the ditch mouths salted now, to keep the mire jellies down so the water drains. The salt is in Joss Wether\'s barn.';
-        if (s === 'ditches') return 'I have the salt. Ned says to kill the jellies first, or they sit in the salt and sulk.';
+        if (s === 'salt') return 'The rain gauge is at four fingers and rising early. At six the Wetlings flood and the cows have to move. Noll Bracken wants the ditch mouths salted now, to keep the mire jellies down so the water drains. The salt is in Joss Wether\'s barn.';
+        if (s === 'ditches') return 'I have the salt. Noll says to kill the jellies first, or they sit in the salt and sulk.';
         if (s === 'ned') return 'Both ditch mouths are salted.';
-        return 'The Wetlings ditch mouths are salted. Ned Bracken says the water will go somewhere other than the cows.';
+        return 'The Wetlings ditch mouths are salted. Noll Bracken says the water will go somewhere other than the cows.';
       },
       objectives: (g, s) => {
         if (s === 'salt') return [{ text: 'Take salt from Joss Wether\'s barn', marker: 'saltSacks' }];
@@ -257,7 +257,7 @@ export const GW_VALE: RegionContent = {
           { text: `Kill the mire jellies at the ditches (${Math.min(3, killed(g, 'ditch'))}/3)`, done: killed(g, 'ditch') >= 3, marker: 'ditchA' },
           { text: `Salt the ditch mouths (${salted(g)}/2)`, done: salted(g) >= 2, marker: g.flag('ditchA') ? 'ditchB' : 'ditchA' },
         ];
-        if (s === 'ned') return [{ text: 'Tell Ned Bracken', marker: 'ned' }];
+        if (s === 'ned') return [{ text: 'Tell Noll Bracken', marker: 'ned' }];
         return [];
       },
       marks: (_g, s): Marks => (!s ? { ned: '!' } : s === 'ned' ? { ned: '?' } : {}),

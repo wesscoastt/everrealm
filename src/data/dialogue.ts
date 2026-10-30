@@ -728,7 +728,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
     },
   },
 
-  // ---------------------------------------------------------------- Edda Strake, gate corporal
+  // ---------------------------------------------------------------- Hulda Strake, gate corporal
   strake: {
     start: (g) => (hw(g) === 'askStrake' ? 'ask' : 'main'),
     nodes: {
@@ -1078,7 +1078,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         text: 'Notice on the gate says the company buys an injured hand\'s tools at the posted rate, and holds them till he\'s back. Eighteen for a pick.',
         next: 'wick4',
       },
-      wick4: { text: 'Tam\'s got it on the store wall now. Forty.', options: [{ text: 'Why haven\'t you said anything?', next: 'wick5' }] },
+      wick4: { text: 'Lewin\'s got it on the store wall now. Forty.', options: [{ text: 'Why haven\'t you said anything?', next: 'wick5' }] },
       wick5: {
         text: 'Pryce signs my wages.',
         options: [
@@ -1092,7 +1092,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       },
       waiting: { text: (g) => (fp(g) === 'returnPick' ? 'Well, give it him, then. Bunkhouse.' : 'Shift\'s in an hour. I\'m not talking about it during the shift.') },
       whip: {
-        text: 'You paid Tam forty for a three-mark pick. The drift had a whip-round. It came to twenty.',
+        text: 'You paid Lewin forty for a three-mark pick. The drift had a whip-round. It came to twenty.',
         next: 'whip2',
       },
       whip2: {
@@ -1128,7 +1128,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
           const c = g.flag('fpChoice');
           if (c === 'leverage') return 'Pryce gave it back? Pryce doesn\'t give things back. What did you do to him?';
           if (c === 'delia') return 'Mrs Harrowgate sent a boy round. Fifteen marks, from Pryce\'s wages, the boy said. He said it twice. He enjoyed it.';
-          return 'You paid Tam for it? I can\'t pay you back. I can\'t pay you anything. Ask Corrie.';
+          return 'You paid Lewin for it? I can\'t pay you back. I can\'t pay you anything. Ask Corrie.';
         },
         effect: (g) => g.setStage(FP, 'done'),
       },
@@ -1186,7 +1186,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       lev_no: { text: 'Then she\'ll be by the anvil. She usually is.', next: 'main' },
       lev4: { speaker: 'narrator', text: 'He writes on a slip, initials it, and folds it once.', next: 'lev5' },
       lev5: {
-        text: 'Give that to Tam. No charge. And bring me what you find on the road. I pay well for people who read carefully.',
+        text: 'Give that to Lewin. No charge. And bring me what you find on the road. I pay well for people who read carefully.',
         effect: (g) => { g.setFlag('fpRelease', 'leverage'); g.setFlag('fpChoice', 'leverage'); },
       },
     },
@@ -1223,7 +1223,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       book2: { speaker: 'narrator', text: 'She doesn\'t ask to see it. She looks across the yard at the buyer\'s trestle.', next: 'book3' },
       book3: { text: 'So the notice doesn\'t apply, because the company never bought it. Clever.', next: 'book4' },
       book4: {
-        text: 'Tam will let the pick go at the posted rate, billed to Mr Pryce. Mr Pryce will pay Wick the difference out of his wages.',
+        text: 'Lewin will let the pick go at the posted rate, billed to Mr Pryce. Mr Pryce will pay Wick the difference out of his wages.',
         next: 'book5',
       },
       book5: {
@@ -1233,7 +1233,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
     },
   },
 
-  // ---------------------------------------------------------------- Tam Feld, company store
+  // ---------------------------------------------------------------- Lewin Feld, company store
   tamFeld: {
     start: () => 'main',
     nodes: {
@@ -1251,7 +1251,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         ],
       },
       forty: { text: 'Company prices.' },
-      release: { speaker: 'narrator', text: 'Tam takes Wick\'s pick off the wall and hands it over handle first.', next: 'release2' },
+      release: { speaker: 'narrator', text: 'Lewin takes Wick\'s pick off the wall and hands it over handle first.', next: 'release2' },
       release2: {
         text: (g) => (g.flag('fpRelease') === 'leverage'
           ? '"No charge. A.P." First one of those I\'ve seen in four years.'

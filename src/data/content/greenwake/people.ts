@@ -46,7 +46,7 @@ export const GW_PEOPLE: NpcDef[] = [
   },
   {
     // Keeps the Wetlings ditches. One-track: cows, salt, jellies, the gauge.
-    id: 'ned', name: 'Ned Bracken', title: 'Ditch-keeper',
+    id: 'ned', name: 'Noll Bracken', title: 'Ditch-keeper',
     look: { skin: '#c88a62', hair: '#8a7a6a', hairStyle: 0, eyes: '#4a4a3a', tunic: '#4a5a3a', trim: '#8a8a5a', trousers: '#4a4034', boots: '#3a3020', hat: 'cap', hatColor: '#5a4a2a', build: 1.0, age: 0.65 },
     schedule: [{ from: 0, to: 24, at: [195.5, 234.5], face: [200, 240], anim: 'idle' }],
     barks: ['Four fingers. Six is cows.'],

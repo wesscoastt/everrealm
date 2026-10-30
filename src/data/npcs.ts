@@ -98,7 +98,7 @@ export const NPCS: NpcDef[] = [
   },
   // ================================================================ Ansbury, Turnpike
   {
-    id: 'strake', name: 'Edda Strake', title: 'Corporal, South Gate',
+    id: 'strake', name: 'Hulda Strake', title: 'Corporal, South Gate',
     look: { skin: '#d8a882', hair: '#5a4030', hairStyle: 2, eyes: '#4a5a4a', tunic: '#7a2a2a', trim: '#c8b070', trousers: '#3a3430', boots: '#2a1e14', shoulderPads: '#6a6a72', lashes: true, build: 1.04, age: 0.45 },
     schedule: [{ from: 0, to: 24, at: [A.cx + 7, A.south - 4.5], face: [A.cx, A.south - 4], anim: 'idle' }],
     barks: ['Name and load.', 'Toll\'s on the board.'],
@@ -193,7 +193,7 @@ export const NPCS: NpcDef[] = [
     schedule: [{ from: 0, to: 24, at: [W.cx - 2.5, W.cz - 7.5], face: [W.cx - 2.5, W.cz - 3], anim: 'idle' }],
   },
   {
-    id: 'tamFeld', name: 'Tam Feld', title: 'Company store',
+    id: 'tamFeld', name: 'Lewin Feld', title: 'Company store',
     look: { skin: '#d8a882', hair: '#8a6a4a', hairStyle: 0, eyes: '#4a4a3a', tunic: '#7a3a2a', trim: '#d8b05a', trousers: '#3a3430', boots: '#2a1e14', apron: true, build: 1.0, age: 0.6 },
     schedule: [{ from: 0, to: 24, at: [W.cx + 16.5, W.cz - 5.5], face: [W.cx + 16.5, W.cz - 1], anim: 'idle' }],
     barks: ['Company prices.'],

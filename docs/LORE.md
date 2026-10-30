@@ -8,6 +8,8 @@ Status markers: **[in game]** means the fact is visible or playable in the curre
 
 Four Wennas and two Mauds were too many. The companion keeps **Wenna Hale**. The Kelderby shepherd is **Tressa Hale**, Wenna Rowse of Gillsby Staithe is **Kerra Rowse**, Wenna Kitto of the Tinners' Arms is **Senara Kitto**, and Northgate's Gatekeeper is **Ursel Hale**. Save flags and ids are unchanged.
 
+On 2026-10-30 every first name shared by three or more people was thinned to two at most, and the main cast's names made their own: Lewin Feld (the company store, was Tam), Lorne Rush, Bridget Abney, Isot Pike, Andreu Sabater, Noll Bracken, Pasco Polgrain, Jabez Thackery, Matthias Garrow, Caleb Hollis (the old toll tower, was Wat), Jenkin Kemp, Barnaby Coombe, Ewan Skene, Perran Truscott, Thomasina Penhale, Keziah Mardle, Philippa Pruett, Rosina Treloar, Hulda Strake, Cyprian Vosper, Brenna Carse, Prue Fettle, Tristram Kitto, Enoch Brock, Damaris Corlett, Barty Rudd and Jethro Wren. Wenna's father is Elwyn Hale. `node .walker/_names.mjs` (scripts/_names.ts) lists any first name shared again.
+
 ## The wider world
 
 - **The Charter Counties.** A set of regions bound to the city of **Ansbury** by trade charters rather than conquest. Each county keeps its own reeves and customs. Ansbury collects tolls on the Turnpike and settles disputes nobody else wants. When a city office fails, the Charter can put it out to tender, and Harrowgate & Daughters bids on everything. [in game]
@@ -79,7 +81,7 @@ Content is in `src/data/content/greenwake/`.
 | **Agnes Pole** | Keeps the Low Water. Her father opened it the autumn the Wend went low | Thirty plates on fourthday | — |
 | **Cass Pudney** | Charcoal burner in Haverwood. Harrowgate buys her whole burn for the smelter on the Rill at twice Bram's price | Her rent | — |
 | **Dunstan Hay** | Miller at Gorse Mill. Talks in weather | A brake pin | — |
-| **Ned Bracken** | Keeps the Wetlings ditches. "Six is cows" | The ditch mouths salted | — |
+| **Noll Bracken** | Keeps the Wetlings ditches. "Six is cows" | The ditch mouths salted | — |
 | **Tobin Wether** | Joss's son, fourteen | To win a bet | — |
 | **Elspeth Cole** | Shepherd, thirty sheep. A long, polite rivalry with Ruth | To count to thirty | She counts Ruth's strays as well |
 | **Bess Tull** | Drives the Charter Post | — | Her horse won't do the Pit road |
@@ -141,7 +143,7 @@ Hesk's four regulars, who go down anywhere for a day's rate. Whoever's free come
 
 ### The Lamp Company [in game]
 
-Hesk's regulars, and the people who book them, call themselves the Lamp Company: delvers who go down where other people won't, for a day's rate and a story. They post one **pledge** a day (a dungeon to clear, the dungeons taking it in turns) with **Ruth Penhale** at Ansbury's south gate and **Xisca Mir** by the Callis post. Cleared, the pledge pays **Lamp keys** (twice as many on veteran); the day's first **random dungeon** from the Group Finder pays the Company's bonus and a key too. Keys buy any piece of any dungeon's set from either clerk (`src/data/pledges.ts`, `src/data/content/pledges.ts`).
+Hesk's regulars, and the people who book them, call themselves the Lamp Company: delvers who go down where other people won't, for a day's rate and a story. They post one **pledge** a day (a dungeon to clear, the dungeons taking it in turns) with **Thomasina Penhale** at Ansbury's south gate and **Xisca Mir** by the Callis post. Cleared, the pledge pays **Lamp keys** (twice as many on veteran); the day's first **random dungeon** from the Group Finder pays the Company's bonus and a key too. Keys buy any piece of any dungeon's set from either clerk (`src/data/pledges.ts`, `src/data/content/pledges.ts`).
 
 ## The bell bronze, start to finish [in game]
 
@@ -178,7 +180,7 @@ The walled Charter city. The keep is at the centre, the Charter Market is on the
 | Name | Role | Wants | Won't admit |
 | --- | --- | --- | --- |
 | **Osric Penhallow** | Weighmaster, seventies. Wears his chain indoors | The Weighhouse to stay in the city's hands | He took Gisborne's cheap quote without checking the metal |
-| **Edda Strake** | Corporal of the south gate | An accurate book | She enjoys knowing things before Osric does |
+| **Hulda Strake** | Corporal of the south gate | An accurate book | She enjoys knowing things before Osric does |
 | **Perrin Gale** | Charter Market trader | Steady trade and good gossip | — |
 | **Hob Tannet** | Carter from Cotter's End | Paying toll on three sacks when he brings three | — |
 | **Gisborne** | Founder on Tanners' Row, sixties. Met in the side quests (below) | His mark to mean something again | He poured bell bronze too fast to save money |
@@ -205,7 +207,7 @@ Content is in `src/data/content/crownroad/`.
 | **Davy Tannet** | Hob and Bel's son, nineteen. Drives company carts for Harrowgate | To come home owing nobody | He hasn't written because he owes the company store |
 | **Hetty Brannock** | Keeps the Waystation, and sorts the Post for the south road | Her beds back on firstdays | — |
 | **Aud Merrow** | Lamp-keeper of the old drove road's shrines, seventies. Her knees have gone | Her lamps lit | — |
-| **Wat Hollis** | Kept the old toll tower before the Turnpike was paved | — | He drains the Downs lamp to keep warm |
+| **Caleb Hollis** | Kept the old toll tower before the Turnpike was paved | — | He drains the Downs lamp to keep warm |
 | **Rosie Penhallow** | Osric's granddaughter, nineteen. Better with figures than him | Gullmouth, with Jem | — |
 | **Jem Mallow** | Garth's son, twenty. Splices rope better than he drives | Rope work for Bett Rook | — |
 | **Pru Askew** | Farms east of Ansbury | Her barley standing | — |
@@ -219,7 +221,7 @@ Content is in `src/data/content/crownroad/`.
 - **Rosie Penhallow** left for Gullmouth by the morning Post with Jem Mallow, who has rope work with Bett Rook. Osric wrote her a letter telling her to go before he sent the player to fetch her. `rosieChoice`: `home` (Rosie keeps the Weighhouse books; Jem goes alone), `letter` (both in Gullmouth with his blessing) or `gone` (both in Gullmouth; she never read it).
 - **Davy Tannet** owes the company store 34 marks (boots, a coat, board, a fine) and they take it from his pay. Company carts stop at the Waystation every firstday. Garth Mallow turned his axle. `davyChoice`: `cart` (Bel sells the spare cart to Garth for 34; Davy drives with Hob), `stay` (he works it off and writes every firstday) or `walk` (he walks home; Pryce bills Hob, Hob frames the bill, and Harrowgate stops hiring Cotter's End carts).
 - **The shrine lamps.** Three shrines on the old drove road keep lamps carters steered by before the Turnpike was paved: the Withy (590, 449), the Wall shrine under the city (739, 229) and the Downs (794, 111). The Charter stopped paying for the oil two winters ago; Aud buys it herself, a pint a lamp.
-- **Wat Hollis** kept the drove road's toll tower (929, 134) until the road was paved and the tolls moved to the gates. His pension of eight marks a quarter stopped two winters ago, the same winter as Aud's oil money. `lampChoice`: `strake` (the cell by the gatehouse stove until the spring sessions; he sweeps the gatehouse), `round` (he keeps the north lamps for Aud) or `leave` (the Downs lamp stays dark).
+- **Caleb Hollis** kept the drove road's toll tower (929, 134) until the road was paved and the tolls moved to the gates. His pension of eight marks a quarter stopped two winters ago, the same winter as Aud's oil money. `lampChoice`: `strake` (the cell by the gatehouse stove until the spring sessions; he sweeps the gatehouse), `round` (he keeps the north lamps for Aud) or `leave` (the Downs lamp stays dark).
 - **The tower's last entry** was Hob Tannet's father: "Barley, 3 sacks. Toll paid in full. W.H." Hob kept the book.
 - **The Charter Post** lost a bag on the south road when wolves spooked Bess Tull's grey. Two letters were never found. Strake's sister had a boy, eleven pounds.
 - **The Askew barley.** A sow farrowed in the hedge by the beck with eight young. `sowChoice`: `killed` or `fenced` (Pru fenced the bottom field with six oak rails).
@@ -258,7 +260,7 @@ The Light Fund cart brought six barrels of oil in February where nine were order
 
 Either way, Nessa pays the player a 20-mark finder's share for the chest.
 
-- **The Merchants' Hall** by the west gate: built after the Charter put a counting house on every quay in the Counties but Gullmouth's. Every cargo through the west gate is written down twice, once for the Charter and once for the Hall. Josiah Penhale, its clerk, keeps a copy of the Exchange book; Harriet Combe, wool factor, buys hides, pelts and silk for Callis's looms; Thomas Varcoe, ship's agent, knows every hull in the harbour (the Lantern Rose at the north jetty, Callis-built and waiting on Corlett's wine; the Charter's galleon, which anchors so as not to pay dues; the hull on the slip, for a Saltpenny house that hasn't paid). Edmund Lusk and Agnes Treloar have been arguing about pilchards at the long table since the morning.
+- **The Merchants' Hall** by the west gate: built after the Charter put a counting house on every quay in the Counties but Gullmouth's. Every cargo through the west gate is written down twice, once for the Charter and once for the Hall. Josiah Penhale, its clerk, keeps a copy of the Exchange book; Harriet Combe, wool factor, buys hides, pelts and silk for Callis's looms; Thomas Varcoe, ship's agent, knows every hull in the harbour (the Lantern Rose at the north jetty, Callis-built and waiting on Corlett's wine; the Charter's galleon, which anchors so as not to pay dues; the hull on the slip, for a Saltpenny house that hasn't paid). Edmund Lusk and Rosina Treloar have been arguing about pilchards at the long table since the morning.
 - **Dan Ruddle**, boatman, hires rowing boats by the hour from the beach below the shipyard and sells them outright. His boat has never sunk, and he'd know.
 - **Rook's Ropewalk** outside the town: a shed eighty blocks long and seven wide where the harbour's rope is laid. The jack at the head twists three yarns; the ropemaker walks them out backwards to the foot, the traveller lays them together, and the tar kettle does the rest. After the Morning Post, **Jem Mallow** lays rope here for Bett Rook, and if **Rosie Penhallow** came with him she keeps its books on the bench by the jack (`src/data/content/ropewalk.ts`).
 - **Gull Castle** on the cliff above the terraces. The Fleet lords built it to keep the harbour; the last of them sold it to the Charter for his debts, and the Charter keeps a garrison in it, paid for thirty and twenty-two strong. The great hall has a dais and high table under the Charter's banners, long tables down both sides, and the hearth in the west wall; the harbour court sits there on the first of the month. **Edith Penberthy** captains the garrison and rows out to count the Charter galleon's guns; she asked Ansbury for the Light's oil in two reports and never sent a third. **Simon Teague**, steward, keeps copies of everything, including the replies that never came. **Kit Hocking** stands the gate; **Mary Opie** keeps the hall (`src/data/content/gullCastle.ts`).
@@ -287,7 +289,7 @@ The home works of **Harrowgate & Daughters**, behind a palisade, with the No. 1 
 | **Delia Harrowgate** | Partner, runs the Works | The company to keep its word, on paper at least | She never reads Pryce's book |
 | **Corrie Dunmore** | Boss of No. 1 Drift. Sister of Hesk Dunmore at Sallow Pit | The roof props sound and her crew whole | Pryce signs her wages, and that keeps her quiet |
 | **Wick Abery** | Miner. Broke his wrist when a cart came off the rail | His pick back. He burned WICK into the grip and taped the split himself | — |
-| **Tam Feld** | Runs the company store | Not to be blamed for company prices | — |
+| **Lewin Feld** | Runs the company store | Not to be blamed for company prices | — |
 | **Dora Hurst** | Potter, outside the palisade. Fires crucibles for the furnaces and crocks for anyone | The company to keep buying crucibles at its price and leave her crocks at hers | She takes her blue glaze from the slag heap, which belongs to the company |
 
 ### Posted Rate [in game]
@@ -329,7 +331,7 @@ Sefton was on the saw and Kit was calling the fall. The tree came down the wrong
 
 `src/data/content/hagwormSide.ts`.
 - **The Hen Money** (the Hollow Oak): at the bottom of the oak, "Hannah. I owe you four marks for the speckled hen. I'll leave it here by Lammas. R.M." and under it, years later, "You never did." R.M. is Rafe Marrow, Ide's father, who died owing half the wood; Hannah was Hannah Ashcroft, Ruth's mother, dead nine years. Odo Fenn knows the initials. `hwHen`: `paid` (Ide pays a week's wage now for four marks then and writes "Paid. I.M." under it; Ruth puts it in the tin with her mother's things, and Hannah's Lammas story was "Rafe Marrow and the speckled hen") or `oak` (Ide puts it back in the oak, where he left it and Hannah answered).
-- **Where Fly Went** (Ned Thackery): his nine-year-old hound followed a thornback stalker into the rocks north-west of the camp. The prints by the brook, fur on the bramble, the den; she comes home on three legs and goes under his bench. Her last stalker.
+- **Where Fly Went** (Jabez Thackery): his nine-year-old hound followed a thornback stalker into the rocks north-west of the camp. The prints by the brook, fur on the bramble, the den; she comes home on three legs and goes under his bench. Her last stalker.
 
 ## Scarth Highlands: Kelderby and Scarth Watch [in game]
 
@@ -495,7 +497,7 @@ The town's musicians. The Charter pays six Waits to play the hours on the Charte
 | **Tabitha Gant** | Master of the Waits, harp. Sixties | The Waits kept on the Charter's books | She hasn't written a tune in twenty years, until "Three Marks in Ten" |
 | **Roley Spence** | Horn, keeps the instrument cupboard. Blew the horn on the Charter Post for six years | To be the only Wait who laughs | — |
 | **Dorcas Pym** | Fiddle. Young, says little | — | — |
-| **Hal Truscott** | Drum | — | — |
+| **Perran Truscott** | Drum | — | — |
 | **Amos Hollis** | Printer of broadsides, sells in the Charter Market | The debt's arithmetic done in public | Tabitha's tune is better than his words |
 | **Hugh Kellet** | Gentleman Usher of the Charter Hall | The Waits to play the March | — |
 | **Bet Polglase** | Widow on the Gullmouth quay; her husband Jory hauled boats to "Haul for Holmsey" | — | — |
@@ -514,7 +516,7 @@ The towns' inns, kept and drunk in (`src/data/content/taverns.ts`). Each keeper 
 | **The Charter Arms** | Ansbury, on the keep square | Nan Pargeter: forty years on the square, keeps a book of everyone's tab | Clement Fry (Toll Office clerk), Margery Pettifer (glover; the Collegium buys her thick gloves for handling crystal) |
 | **The Long Stretch** | the Waystation | Ivo Rendle, a laid-off toll rider who put his severance into the roof | Josiah Yeo (carter), Hester Vowles (drover) |
 | **The Company Canteen** | Harrowgate Works | Doll Hobday, the Company's cook since before the Daughters' name was on the gate | Rob Haig (smelter man), Ada Cleave (rail gang) |
-| **The Coiled Rope** | Cragsby | Morwen Tregear; a hook on the wall for every climmer who went over | Wat Kemp (climmer, the "Wat" of the knot board), Loveday Tonkin (egg-gatherer) |
+| **The Coiled Rope** | Cragsby | Morwen Tregear; a hook on the wall for every climmer who went over | Jenkin Kemp (climmer, the "Wat" of the knot board), Loveday Tonkin (egg-gatherer) |
 | **The Eel and Punt** | Holme Staithe | Sim Fenner; three generations of eel smoke in the walls | Obed Gedge (puntsman), Tilly Brewer (reed cutter; the Levels' drains silt up and nobody pays to dig them) |
 | **The Peat Fire** | Scarrow Tor | Kerensa Garth; the fire hasn't gone out in five generations | Joss Trewin (shepherd; heard the Carne Cross bell), Win Polwhele (peat cutter) |
 
@@ -564,7 +566,7 @@ An island south-east of Gullmouth, past the Mewstones, about six hundred blocks 
 - **Corra Priory.** Ruins on top of Corra Fell. The brothers made ink and copied books. Three hundred years ago a grey mould came up out of the fell and took them. **Abbot Wystan** sealed the Old Bed under the priory, burned the first reek, and went down to see it out. His tomb says to burn it again if the stone is ever moved.
 - **The Reekers.** The families who keep the fires: every autumn they burn reek (a bitter shore herb that smells like a wet dog's breath) on five rings of standing stones round the Holm: the Gull Reek, Hesketh's Reek, the Low Reek, Barrow Reek and the Long Reek. The smoke keeps the Grey in the ground. **Bryony Kitto** is the last of them.
 - **The Grey.** A mould that roots in the lungs and sheds in the dry: a cough, then grey skin, then people walk into the woods and stand still until caps grow out of them (the greyed). Reek smoke breaks it down; the Collegium's **Doctor Lettice Hale** proved it.
-- **What happened.** Last autumn Black Hythe's manager, **Aubrey Vosper**, paid the island council forty marks a month to let the fires lapse (reek smoke browns the drying caps), and sank the Deep Gill shaft toward the fell, where the warm air grows first-grade caps. At forty fathoms it broke into the priory's Undercroft. The Grey came up; the Charter stopped the crossing.
+- **What happened.** Last autumn Black Hythe's manager, **Cyprian Vosper**, paid the island council forty marks a month to let the fires lapse (reek smoke browns the drying caps), and sank the Deep Gill shaft toward the fell, where the warm air grows first-grade caps. At forty fathoms it broke into the priory's Undercroft. The Grey came up; the Charter stopped the crossing.
 - **The Grey (the questline).** The Crossing: Doctor Hale and the ferryman **Reuben Hoskin** at Gullmouth's Post sign. Gillsby Staithe: Bryony, and grey caps for the doctor. Reek-Fires: relight all five. Black Hythe: Vosper's ledger, and the choice of who gets it (flag `inkLedger`: `charter`, Hale sends it to the Speaker and Vosper goes; `bryony`, she reads it out at the council, the council pays the money back and the works stay on the island's terms). Corra Priory: the tomb, the crypt stair, Abbot Wystan grey through in the Old Bed, and the bed burned with reek. Afterwards Bryony's grandson **Joss** is up and well, and she's teaching him the fires.
 - **Gillsby Staithe** (the harbour): a stone quay, a lane of cottages, the Staithe Inn (**Kerra Rowse**), the reek-house, and a rope across the top of the lane. **Silas Hoskin**, Reuben's brother, keeps the quay ropes.
 - **Standing Still** (`src/data/content/isleSide.ts`, after the Grey questline): Kerra Rowse's son **Jowan** had the cough in the spring and walked into the caps. She leaves a plate at the wood's edge every night. He's standing in the lantern-cap clearing east of the staithe, grey to the elbows but not to the face. Bryony gives you reek, you burn it beside him, and he coughs it out and walks home. He doesn't remember the summer. `isJowan`: `told` (Kerra tells him all of it, by the fire) or `ill` (he was ill abed; half the staithe will tell him different by Sunday).
@@ -591,7 +593,7 @@ Every troubled region has a gang, and every gang worth the name has a fort well 
 ### The outer towns' side stories [in game]
 
 `src/data/content/outerSide.ts`.
-- **One in Three** (Loveday Tonkin, Cragsby): the village takes one egg in three from the gannet ledges, and somebody stripped the north ledge bare. In the egg store, a basket packed for the Ansbury cart and a tally slip, "W.K. 14 doz. @ 1 mark": Wat Kemp, who owes Morwen eleven marks and hasn't been hired to climb since the road came. `otEggs`: `village` (the meeting takes his rope-share), `store` (he pays the egg store from the egg money and gives his word) or `paid` (you clear his slate).
+- **One in Three** (Loveday Tonkin, Cragsby): the village takes one egg in three from the gannet ledges, and somebody stripped the north ledge bare. In the egg store, a basket packed for the Ansbury cart and a tally slip, "W.K. 14 doz. @ 1 mark": Jenkin Kemp, who owes Morwen eleven marks and hasn't been hired to climb since the road came. `otEggs`: `village` (the meeting takes his rope-share), `store` (he pays the egg store from the egg money and gives his word) or `paid` (you clear his slate).
 - **Brittle Reed** (Tilly Brewer, Holme Staithe): Harrowgate's drain has taken a yard off the mere and the reed beds are dying from the roots. A reed from the old bed snaps; one from the drain bank bends. `otReed`: `rent` (Ambrose Tilney writes to Harrowgate for a reed rent, slow but sure) or `gate` (Abner Rudd lifts the sluice a hand on Saturday nights, "when nobody counts"; the gate sticks, if anyone asks).
 - **Croup Winter** (Joss Trewin, Scarrow Tor): his girl Bess, four, barks like a seal all night. Caddy Nankervis says the holed stone at sunrise; Senara Kitto says steam and honey, with bitter-moss from the mouth of Carne Barrow. `otCroup`: `both` (the kettle, and the stone at sunrise for Joss's sake) or `kettle` (Caddy, ninety years at the stone, says it never cured anyone: it told them where they were from).
 
@@ -612,9 +614,9 @@ A calling is for life: chosen when a character is made, as in WoW and ESO (chara
 | Warden | **Hugh Caddick**, warden-sergeant | the Waystation toll |
 | Reaver | **Bet Hollis**, keeps the ring | the Harrowgate slag yard |
 | Kindler | **Tobias Fenwick**, teaches the fire | the Glass Kirk |
-| Pathfinder | **Ned Thackery**, tracker | Fellers' Camp |
+| Pathfinder | **Jabez Thackery**, tracker | Fellers' Camp |
 | Wizard | **Rosalind Eyre**, keeper of Scarth Watch | Kelderby, where she comes down for the post |
-| Mender | **Joan Abney**, keeps the menders' room | the Minster, Ansbury (the east transept) |
+| Mender | **Bridget Abney**, keeps the menders' room | the Minster, Ansbury (the east transept) |
 | Gravecaller | **Elias Jewell**, keeps the barrows on Tolmen Moor | Scarrow Tor, by the market cross |
 | Prowler | **Sal Trevenna**, knows the Gullmouth back lanes | Gullmouth, by the quay |
 
@@ -693,10 +695,10 @@ Any trader who sells clothes, armour or costumes lets you **try a piece on** bef
 Six years ago a Morrow ship put in at Gullmouth with pumpkin seed in her hold, and the Wend valley took to it. Hollin Ford now grows a patch on the meadow east of the bridge, and for the Wake it holds a fair there round it (`data/wakeFair.ts`, `game/WakeFair.ts`, `data/content/wakefair.ts`). The old families still carve turnips, and say so; the young ones carve pumpkins, which see you through to the Goose Fair. For the Wake, carved pumpkins sit at the foot of road lamps, by signposts, wells and doors right across the counties.
 
 - **Hoop-la**, kept by **Dilly Marsh**: five rings over pumpkins on a stepped table, the back row worth three.
-- **The Lantern Shy**, kept by **Wat Coombe**, who has carved turnips for forty years and puts both kinds on his rail to keep the peace.
-- **Bob for Apples**, kept by **Nance Fettle**, timed by the Wake rhyme said twice (there is a second verse; she doesn't do it in front of the Reeve).
+- **The Lantern Shy**, kept by **Barnaby Coombe**, who has carved turnips for forty years and puts both kinds on his rail to keep the peace.
+- **Bob for Apples**, kept by **Prue Fettle**, timed by the Wake rhyme said twice (there is a second verse; she doesn't do it in front of the Reeve).
 - **The Giant Pumpkin**, judged by **Ida Pell**: one guess at its weight a day, a new pumpkin every morning. The heaviest she has weighed was 912 pounds.
-- **Carving**, by **Gil Rudd**: pick a pumpkin from the patch and he cuts the face you choose.
+- **Carving**, by **Barty Rudd**: pick a pumpkin from the patch and he cuts the face you choose.
 
 The games pay in wake candles (the first three goes a day at each), now and then a toffee apple, and rarely the fair's top prize off the pole: a **pumpkin head** to wear.
 
@@ -750,7 +752,7 @@ A cloak may carry a device worked in its trim colour. Folk in the counties read 
 
 ## Quarters [in game]
 
-The tavern game of nine squares, played on a board scratched into the table or a sack across the knees. Each tile is painted with a creature of the realm and has a number on each side; you take turns laying five on a board of three by three, and a tile laid beside one of the other player's turns it to your colour wherever your side facing it is higher. Most tiles at the end wins, and the winner takes one of the other's. Players across the Counties: Ivy Marsh at Hollin Ford, Josiah Yeo and Hester Vowles at the Waystation, Clement Fry in Ansbury, Bet Polglase in Gullmouth, Doll Hobday in the Company Canteen, Odo Fenn at Fellers' Camp, Cai Morgan at Kelderby, Tib Corran at Cragsby, Kerensa Garth at the Peat Fire on Scarrow Tor, and Tam Rush across the sea in Reedwater, the easy ones first. A stranger's first five tiles are wolves and jellies; the great tiles come off the creatures themselves, Old Notch's always and a world boss's one time in four. (`src/game/quarters.ts`, `src/game/QuartersTable.ts`, `src/data/cards.ts`.)
+The tavern game of nine squares, played on a board scratched into the table or a sack across the knees. Each tile is painted with a creature of the realm and has a number on each side; you take turns laying five on a board of three by three, and a tile laid beside one of the other player's turns it to your colour wherever your side facing it is higher. Most tiles at the end wins, and the winner takes one of the other's. Players across the Counties: Ivy Marsh at Hollin Ford, Josiah Yeo and Hester Vowles at the Waystation, Clement Fry in Ansbury, Bet Polglase in Gullmouth, Doll Hobday in the Company Canteen, Odo Fenn at Fellers' Camp, Cai Morgan at Kelderby, Tib Corran at Cragsby, Kerensa Garth at the Peat Fire on Scarrow Tor, and Lorne Rush across the sea in Reedwater, the easy ones first. A stranger's first five tiles are wolves and jellies; the great tiles come off the creatures themselves, Old Notch's always and a world boss's one time in four. (`src/game/quarters.ts`, `src/game/QuartersTable.ts`, `src/data/cards.ts`.)
 
 ## Wagons [in game]
 
@@ -847,7 +849,7 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 
 `src/data/content/actFive.ts`. Starts from Wat Aske at Cold Harbour once Act IV is done.
 
-- **XXXVI, The Ones Who Walked** (`storyWalked`). The first of the Held to get up, off the barrows stripped earliest, walked south off Hollow Fell before the black went back on Ma's barrow, down the valleys to the Greywaste farms. Families from the farms have come down to Cold Harbour to get away south; **Nan Carse** of Carse's farm in the Ashgill speaks for them (her husband's mother got up out of the yard behind the byre, with no black on her at all). The Held come down the track at night. The Kittiwake's mate takes fares, and Brethren carry what pays. Flag `coldFamilies`: `ship` (the player pays two hundred marks for their passage south to Callis) or `stay` (a wall of carts, with Wat sleeping in the middle of it).
+- **XXXVI, The Ones Who Walked** (`storyWalked`). The first of the Held to get up, off the barrows stripped earliest, walked south off Hollow Fell before the black went back on Ma's barrow, down the valleys to the Greywaste farms. Families from the farms have come down to Cold Harbour to get away south; **Brenna Carse** of Carse's farm in the Ashgill speaks for them (her husband's mother got up out of the yard behind the byre, with no black on her at all). The Held come down the track at night. The Kittiwake's mate takes fares, and Brethren carry what pays. Flag `coldFamilies`: `ship` (the player pays two hundred marks for their passage south to Callis) or `stay` (a wall of carts, with Wat sleeping in the middle of it).
 - **XXXVII, A.P., Again** (`storySecondAP`). Ma's barrow is stripped a second time; the tally board says A.P. against every load, and Pryce is home. The receipt trodden into the cart track: "Received of Hollow Fell, nine slabs, black. For the Assembly of Callis. A. Pascall, clerk." **Arthur Pascall**, the Assembly's clerk, buys the fell's black for the towers of Callis.
 - **XXXVIII, The Gatekeepers' Rolls** (`storyRolls`). Edda Rusk: the black was laid so they would lie still, every barrow, every slab. Six of Hollow Fell's eight barrows are stripped: sixty slabs must go back, and the only black above ground is in the towers of Callis.
 - **XXXIX, Callis Lends the Black** (`storyLendBlack`). Benet Sala won't take black from the Morning Tower (a finger and a half off its mark), but offers forty slabs from the Old Tower's keystones, the old kingdom's own black: "It would hold a season without them. Probably a season." Flag `lendBlack`: `tower` (taken from the top of the Old Tower; Marta Vidal won't forgive it), `bought` (the player pays five hundred marks to send Pascall's slabs back) or `none` (Wat digs the fell's own black out of the heaps by hand, all winter).
@@ -924,7 +926,7 @@ West and south of Saltpenny, off the end of the Keys: **Gallows Key**, **the Car
 - **Smoke Key**: the beacon on its crown, and **Gert Vosse**, who keeps it and lights it for whoever pays. Ten years ago she lit it for the night the Morning Star went down off the Teeth, with her son Wilf aboard as ship's boy. She has lit it every night since.
 - **Ysolde's Chair**: a stack of black rock with a stair cut round it, and Ysolde Gale's compass rose cut in its top. Gale's log: "North for the sea, west for the dead, south for the wind, east for home."
 - **The Unpaid** (`teethUnpaid`, Ned Vey): three Brethren ships lost near the Teeth. It isn't Merrick taking them but the Assembly's revenue cutter, and Merrick's beacon brings them onto her for a pardon a ship. Her boat lands on Gallows beach under **Lieutenant Arnau Sabat**. `teethEnd`: `table` (Merrick stands before the Table; his crews scatter) or `pardon` (he takes them home to Callis on Assembly paper; Ned Vey doesn't forget it).
-- Side stories: **Before the Tide** (rope from Rook's Ropewalk to float the Long Shilling), **False Lights** (`gertLight`: the beacon's glass broken, or Gert's secret kept), **The Compass Rose** (Gale's spyglass, for Dinah Lowry), **Prize Crew** (**Joan Sabater**, an Assembly customs clerk nobody in Callis would ransom).
+- Side stories: **Before the Tide** (rope from Rook's Ropewalk to float the Long Shilling), **False Lights** (`gertLight`: the beacon's glass broken, or Gert's secret kept), **The Compass Rose** (Gale's spyglass, for Dinah Lowry), **Prize Crew** (**Andreu Sabater**, an Assembly customs clerk nobody in Callis would ransom).
 
 ### The Black Pin, the Cockpit, and the far places' mounts [in game]
 
@@ -937,7 +939,7 @@ West and south of Saltpenny, off the end of the Keys: **Gallows Key**, **the Car
 
 `src/world/sites.ts` (buildReedwater and the rest); their people in `src/data/content/morrowTowns.ts`.
 
-- **Reedwater** (the Glades): a stilt village over the sawgrass, houses and boardwalks on log stilts five blocks up, out of the floods; at night the glims light the creeks under it. **Orla Pike**, the reeve, wants the sawgrass lizards that wait under the walks thinned. **Tam Rush** brews reed beer in a tub under his house.
+- **Reedwater** (the Glades): a stilt village over the sawgrass, houses and boardwalks on log stilts five blocks up, out of the floods; at night the glims light the creeks under it. **Orla Pike**, the reeve, wants the sawgrass lizards that wait under the walks thinned. **Lorne Rush** brews reed beer in a tub under his house.
 - **Branchley** (the Amberwold): Wold folk under two great trees, plaster and timber along the old road, a stair winding round each trunk to a platform with cabins. Before the long nights they paint every doorpost with lamp-moth dust, which glows for a week. **Ivo Larch** keeps the lamps; **Mags Briar** bakes acorn bread. The Wold plants an acorn on the old road for every child born in the year, with the name on a peg; half the oaks along it are somebody's (**One for Each**, `src/data/content/woldSide.ts`: the leafbacks root up this year's three, and Mags fences the seedlings or plants two to a name).
 - **Cala Roja** (the Bright Coast): white fishing town running down to a quay. **Nuria Pujol** dries the fish; the terrace jackals strip her racks at night. **Toni Rius** sells what the boats brought in that morning.
 - **Liftwick** (the Sunder's north rim): the skyfarmers' village, grey stone and slate, with the Assembly's white lift tower at the rim. **Pol Vidal**, Marta Vidal's son, farms the hanging slabs; **Ada Moss** keeps hives on them.

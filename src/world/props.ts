@@ -2125,7 +2125,7 @@ export function pumpkin(color = '#e8801e', size = 1, stalk = '#5a5a26'): THREE.G
 }
 
 /**
- * A pumpkin with a face cut in it and a candle inside: the faces are Gil Rudd's six (data/wakeFair.ts
+ * A pumpkin with a face cut in it and a candle inside: the faces are Barty Rudd's six (data/wakeFair.ts
  * FACES): a grin, a fright, a scowl, all teeth, a cat and a wink.
  */
 export function jackOLantern(face = 0, size = 1, color = '#e8801e'): THREE.Group {

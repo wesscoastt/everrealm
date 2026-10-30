@@ -8,7 +8,7 @@ import type { RegionContent } from './types';
 //
 // otEggs, ONE IN THREE (Loveday Tonkin, egg-gatherer, Cragsby): the village takes one egg in three from
 // the gannet ledges, always has. The north ledge was stripped bare. In the egg store, a basket kept cool
-// for the Ansbury cart with a tally slip in it: "W.K. 14 doz. @ 1 mark". Wat Kemp, the climmer, owes
+// for the Ansbury cart with a tally slip in it: "W.K. 14 doz. @ 1 mark". Jenkin Kemp, the climmer, owes
 // Morwen eleven marks on the slate, and nobody has hired a climmer since the road came. 'store' -> 'wat'
 // -> 'loveday' -> done. Choice otEggs = 'village' (the village takes his rope-share) | 'store' (he pays
 // the egg store from the egg money, and stops) | 'paid' (you clear his slate yourself).
@@ -197,13 +197,13 @@ const quests: Record<string, QuestDef> = {
     id: EGGS, name: 'One in Three', region: 'gannet', depth: 'quest',
     notes: (g, s) => {
       if (s === 'store') return 'Cragsby takes one egg in three from the gannet ledges. Somebody stripped the north ledge bare. Loveday Tonkin thinks they keep the eggs cool in the egg store before the Ansbury cart.';
-      if (s === 'wat') return 'In the egg store, a basket kept for the Ansbury cart and a tally slip: "W.K. 14 doz. @ 1 mark." Wat Kemp is a climmer.';
-      if (s === 'loveday') return 'Wat Kemp stripped the ledge to pay his slate at the Coiled Rope. Loveday should hear what\'s been settled.';
+      if (s === 'wat') return 'In the egg store, a basket kept for the Ansbury cart and a tally slip: "W.K. 14 doz. @ 1 mark." Jenkin Kemp is a climmer.';
+      if (s === 'loveday') return 'Jenkin Kemp stripped the ledge to pay his slate at the Coiled Rope. Loveday should hear what\'s been settled.';
       const c = g.flag('otEggs');
       return c === 'village' ? 'The village took Wat\'s rope-share at the meeting.' : c === 'store' ? 'Wat paid the egg store from the egg money, and gave his word.' : 'I paid Wat\'s slate. He\'ll only go down for the village now.';
     },
     objectives: (_g, s) => (s === 'store' ? [{ text: 'Look in Cragsby\'s egg store', marker: 'otEggStore' }]
-      : s === 'wat' ? [{ text: 'Ask Wat Kemp about the slip', marker: 'watkemp' }]
+      : s === 'wat' ? [{ text: 'Ask Jenkin Kemp about the slip', marker: 'watkemp' }]
       : s === 'loveday' ? [{ text: 'Go back to Loveday Tonkin', marker: 'jennyt' }] : []),
     marks: (_g, s): Marks => (s === 'wat' ? { watkemp: '?' } : s === 'loveday' ? { jennyt: '?' } : {}),
     walk: { cast: ['jennyt', 'watkemp'] },

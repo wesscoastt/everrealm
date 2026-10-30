@@ -36,7 +36,7 @@ export const BEAST_NOTES: Partial<Record<EnemyType, string>> = {
   // Hagworm Wood
   thornwolf: 'Grows a mane of bramble along its back, rooted in the skin, and hunts in it like a man in a cloak. The fellers hear it before they see it, if they\'re lucky.',
   sporejelly: 'A jelly that\'s eaten something in the wood it shouldn\'t have. It breathes out a yellow dust that the fellers swear makes the trees whisper.',
-  weaver: 'Strings its webs between the giant trees at head height. Ned Thackery carries a stick in front of him, and you\'ll see why.',
+  weaver: 'Strings its webs between the giant trees at head height. Jabez Thackery carries a stick in front of him, and you\'ll see why.',
   thornray: 'Lies flat in the sand of the shallows with its barbed tail up. Tread on one and you\'ll limp for a month.',
   // The Fleet Coast
   crab: 'Grows to the size of a cart wheel on the Fleet strand, and fights for its rock like a cottager for his garden.',

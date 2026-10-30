@@ -235,7 +235,7 @@ const roley: DialogueTree = {
   },
 };
 
-// ================================================================ Dorcas Pym and Hal Truscott
+// ================================================================ Dorcas Pym and Perran Truscott
 
 const dorcas: DialogueTree = {
   start: () => 'd1',
@@ -249,7 +249,7 @@ const dorcas: DialogueTree = {
 const hal: DialogueTree = {
   start: () => 'h1',
   nodes: {
-    h1: { text: 'Hal Truscott. I keep the time. Everyone else keeps the tune, and they all think the tune\'s the important part.', next: 'h2' },
+    h1: { text: 'Perran Truscott. I keep the time. Everyone else keeps the tune, and they all think the tune\'s the important part.', next: 'h2' },
     h2: { speaker: 'narrator', text: 'He taps four beats on his knee, very softly, and smiles at nothing in particular.' },
   },
 };
@@ -513,7 +513,7 @@ const NPCS_W: NpcDef[] = [
   { id: 'tabitha', name: 'Tabitha Gant', title: 'Master of the Waits', look: LOOK_TABITHA, schedule: waitDay('inst_harp', 'lead', [0, -1.4], [STAGE.x, STAGE.z], [STAGE.x, STAGE.z + 6]), barks: ['A beat early.', 'Again, from the top.'] },
   { id: 'roley', name: 'Roley Spence', title: 'Horn, the Waits', look: LOOK_ROLEY, schedule: waitDay('inst_horn', 'bass', [2.2, 0.2], [CUPBOARD.x - 1.6, CUPBOARD.z - 0.4], [CUPBOARD.x, CUPBOARD.z - 0.4]), barks: ['Mind the gurdy.', 'Flat? Me?'] },
   { id: 'dorcas', name: 'Dorcas Pym', title: 'Fiddle, the Waits', look: LOOK_DORCAS, schedule: waitDay('inst_fiddle', 'harmony', [-2.2, 0.2], [W.x0 + 5.5, W.z0 + 4], [W.x0 + 5.5, W.z0 + 1]), barks: ['Hm.'] },
-  { id: 'hal', name: 'Hal Truscott', title: 'Drum, the Waits', look: LOOK_HAL, schedule: waitDay('inst_drum', 'drum', [0, 1.4], [W.x0 + 9.5, W.z0 + 4], [W.x0 + 9.5, W.z0 + 1]), barks: ['One, two.'] },
+  { id: 'hal', name: 'Perran Truscott', title: 'Drum, the Waits', look: LOOK_HAL, schedule: waitDay('inst_drum', 'drum', [0, 1.4], [W.x0 + 9.5, W.z0 + 4], [W.x0 + 9.5, W.z0 + 1]), barks: ['One, two.'] },
   {
     id: 'amos', name: 'Amos Hollis', title: 'Printer of broadsides',
     look: { skin: '#e2b894', hair: '#3a2418', hairStyle: 1, eyes: '#4a5a6a', tunic: '#4a4a52', trim: '#2a2a2a', trousers: '#2a2a30', boots: '#1a1614', apron: true, gloves: '#1a1a1e', build: 0.9, age: 0.5 },

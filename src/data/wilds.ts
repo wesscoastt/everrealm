@@ -54,7 +54,7 @@ export const TROPHIES: ItemDef[] = [
   trophy('barnacle_claw', 'Old Barnacle\'s claw', 'Crusted white. Gullmouth\'s harbourmaster has a bet running on how old it is.', '#d8d0b8', 60),
   trophy('pitdog_collar', 'The Pit Dog\'s collar', 'Company brass, stamped H & D 41. Somebody\'s guard dog once, before the Works laid him off.', '#c8a050', 70),
   trophy('whiteface_pelt', 'Whiteface\'s pelt', 'Not a grey hair in it. Kelderby\'s inn would pay to hang it over the fire.', '#f4f4f4', 90),
-  trophy('eggthief_brush', 'The Egg Thief\'s brush', 'A fox\'s tail with eggshell still in the fur. Hal Skene owes you a drink for this.', '#e8a060', 50),
+  trophy('eggthief_brush', 'The Egg Thief\'s brush', 'A fox\'s tail with eggshell still in the fur. Ewan Skene owes you a drink for this.', '#e8a060', 50),
   trophy('mudgut_tusk', 'Old Mudgut\'s tusk', 'Black with peat to the root. The fen children have a song about him, and it isn\'t kind.', '#3a3024', 60),
   trophy('torhound_fang', 'The Tor Hound\'s fang', 'As long as a finger. Scarrow mothers stop telling the story when they see it.', '#d8d8d0', 100),
   trophy('bigmary_tooth', 'Big Mary\'s tooth', 'Every Gullmouth crew has a story about her. This ends most of them.', '#f4f0e4', 80),

@@ -55,7 +55,7 @@ const reed = cull({
   offer: ['Orla Pike. I\'m reeve here, which in Reedwater means I\'m the one who gets woken.', 'The sawgrass lizards have learned the stilts. They wait under the walks at night and take whatever leans over. Two dogs this month. A boy\'s arm, nearly.'],
   accept: 'Thin them out for me. Six, out in the sawgrass. They\'ll learn again, but slower.',
   wait: 'Out in the sawgrass, round the village. Big as a boat, some of them. Mind your feet.',
-  thanks: ['Six. You can see the difference already: the boys are fishing off the walks again.', 'Here. And there\'s a bed at Tam\'s whenever you\'re through.'],
+  thanks: ['Six. You can see the difference already: the boys are fishing off the walks again.', 'Here. And there\'s a bed at Lorne\'s whenever you\'re through.'],
   notes: ['The sawgrass lizards have learned to wait under Reedwater\'s walks. Orla Pike, the reeve, wants six of them killed.', 'I thinned the sawgrass lizards round Reedwater. The boys are fishing off the walks again.'],
 });
 
@@ -158,7 +158,7 @@ const shopkeep = (id: string, line: string, more?: [string, string]): DialogueTr
 });
 
 const items: ItemDef[] = [
-  { id: 'reed_beer', name: 'Reed beer', kind: 'food', rarity: 'common', stack: true, value: 22, icon: { shape: 'gel', a: '#c8a050', b: '#6a5020' }, desc: 'Brewed from marsh barley in a tub under Tam Rush\'s house. Green-gold, and better than it has any right to be.', heal: 150, stats: 'Restores 150 health.' },
+  { id: 'reed_beer', name: 'Reed beer', kind: 'food', rarity: 'common', stack: true, value: 22, icon: { shape: 'gel', a: '#c8a050', b: '#6a5020' }, desc: 'Brewed from marsh barley in a tub under Lorne Rush\'s house. Green-gold, and better than it has any right to be.', heal: 150, stats: 'Restores 150 health.' },
   { id: 'wold_bread', name: 'Acorn bread', kind: 'food', rarity: 'common', stack: true, value: 24, icon: { shape: 'bread', a: '#8a5a2a', b: '#c8a060' }, desc: 'The Wold folk grind acorns for it, and soak them for a week first. Dense, sweet and brown.', heal: 170, stats: 'Restores 170 health.' },
   { id: 'sky_honey', name: 'Skyfarm honey', kind: 'food', rarity: 'uncommon', stack: true, value: 40, icon: { shape: 'gel', a: '#f0c040', b: '#9fe8ff' }, desc: 'From hives on the hanging slabs over the Sunder. The bees fly a long way down for it.', heal: 280, stats: 'Restores 280 health.' },
   { id: 'caravan_dates', name: 'Caravan dates', kind: 'food', rarity: 'common', stack: true, value: 30, icon: { shape: 'bread', a: '#6a3a1e', b: '#c8a050' }, desc: 'Pressed into a cake for the long walk north. A handful will carry you a day.', heal: 230, stats: 'Restores 230 health.' },
@@ -172,7 +172,7 @@ export const MORROW_TOWNS: RegionContent = {
   items,
   npcs: [
     npc({ id: 'orla_pike', name: 'Orla Pike', title: 'Reeve of Reedwater', look: { ...L, skin: '#b88a60', hair: '#5a3a1e', hairStyle: 4, tunic: '#4a5a3a', trim: '#c8b070', trousers: '#3a3a2a', boots: '#2a2018', lashes: true, build: 1.05, age: 0.55 }, at: P('reedwater', -3, -3), face: P('reedwater', -3, 3), y: REED_DECK + 1, barks: ['Mind your feet.'] }),
-    npc({ id: 'tam_rush', name: 'Tam Rush', title: 'Reed beer and smoked eel', look: { ...L, skin: '#b88a60', hair: '#3a2a1e', hairStyle: 3, facial: 4, tunic: '#5a4a2a', trim: '#8a7a4a', trousers: '#3a3a2a', boots: '#2a2018', apron: true, build: 1.2, age: 0.5 }, at: P('reedwater', 4, -3), face: P('reedwater', 4, 3), y: REED_DECK + 1, barks: ['Beer\'s cold. Ish.'] }),
+    npc({ id: 'tam_rush', name: 'Lorne Rush', title: 'Reed beer and smoked eel', look: { ...L, skin: '#b88a60', hair: '#3a2a1e', hairStyle: 3, facial: 4, tunic: '#5a4a2a', trim: '#8a7a4a', trousers: '#3a3a2a', boots: '#2a2018', apron: true, build: 1.2, age: 0.5 }, at: P('reedwater', 4, -3), face: P('reedwater', 4, 3), y: REED_DECK + 1, barks: ['Beer\'s cold. Ish.'] }),
     npc({ id: 'ivo_larch', name: 'Ivo Larch', title: 'Lamplighter, Branchley', look: { ...L, skin: '#d8a880', hair: '#c8c4bc', hairStyle: 0, facial: 6, tunic: '#5a3a1e', trim: '#ffb040', trousers: '#3a2e20', boots: '#2a1e14', hat: 'wide', hatColor: '#3a2a1e', age: 0.8 }, at: P('branchley', -3, 3), face: P('branchley', 2, 3), barks: ['Every doorpost.'] }),
     npc({ id: 'mags_briar', name: 'Mags Briar', title: 'Acorn bread and cider', look: { ...L, skin: '#e0b090', hair: '#8a3a1e', hairStyle: 2, tunic: '#6a4a2a', trim: '#c8a040', trousers: '#3a2e26', boots: '#2a2018', apron: true, lashes: true, freckles: true, age: 0.45 }, at: P('branchley', 5, -3), face: P('branchley', 5, 2), barks: ['Fresh this morning.'] }),
     npc({ id: 'nuria_pujol', name: 'Nuria Pujol', title: 'Fish-drier, Cala Roja', look: { ...L, hair: '#1a1410', hairStyle: 2, tunic: '#2f4a7a', trim: '#e8e2d4', trousers: '#2a2a30', boots: '#1e1a16', apron: true, lashes: true, age: 0.6 }, at: P('cala', -3, 3), face: P('cala', 1, 3), barks: ['Twice. I counted twice.'] }),
@@ -189,7 +189,7 @@ export const MORROW_TOWNS: RegionContent = {
     nuria_pujol: giver('Full racks, every morning. I\'ve stopped counting. No, I haven\'t.', 'calaJackals'),
     cass_moran: giver('Two trains out this week and both came back. Tenwells remembers.', 'tenReavers', 'cass_moran'),
     sal_mudge: giver('Another clutch hatched last night. Thirty-one. I counted.', 'conchCrabs', 'sal_mudge'),
-    tam_rush: shopkeep('tam_rush', 'Tam Rush. Reed beer, smoked eel, and a bed over the water. The bed doesn\'t move. The water does.', ['Why stilts?', 'Because the Glades come up every spring and go down every autumn, and we got tired of moving.']),
+    tam_rush: shopkeep('tam_rush', 'Lorne Rush. Reed beer, smoked eel, and a bed over the water. The bed doesn\'t move. The water does.', ['Why stilts?', 'Because the Glades come up every spring and go down every autumn, and we got tired of moving.']),
     mags_briar: shopkeep('mags_briar', 'Mags Briar. Acorn bread, cider, and the gossip of the whole Wold, which is mostly about acorns.', ['Who lives up the trees?', 'Whoever got there first. Ivo, the Larches, the Thornes before them. Nobody\'s fallen off in my lifetime. Nearly, once.']),
     toni_rius: shopkeep('toni_rius', 'Toni Rius. Whatever the boats brought in this morning, and nothing older. If it\'s older, it\'s Callis\'s.'),
     ada_moss: shopkeep('ada_moss', 'Ada Moss. Honey off the slabs. The hives are up on the hanging stone. The bees don\'t mind the drop. I do.', ['How do you get up there?', 'Over the bridge from the tower, and then carefully. Pol will show you. Pol shows everybody.']),
@@ -198,7 +198,7 @@ export const MORROW_TOWNS: RegionContent = {
   },
   quests: { ...Object.fromEntries(JOBS.map((j) => [j.quest.id, j.quest])), [SLABQ]: slabQuest },
   shops: {
-    tam_rush: { id: 'tam_rush', name: 'Tam Rush\'s', owner: 'tam_rush', stock: [{ item: 'reed_beer', price: 34 }, { item: 'smoked_eel', price: 32 }, { item: 'bread', price: 5 }], buyRate: () => 0.5, footer: () => 'Tam pays half of an item\'s worth' } as ShopDef,
+    tam_rush: { id: 'tam_rush', name: 'Lorne Rush\'s', owner: 'tam_rush', stock: [{ item: 'reed_beer', price: 34 }, { item: 'smoked_eel', price: 32 }, { item: 'bread', price: 5 }], buyRate: () => 0.5, footer: () => 'Lorne pays half of an item\'s worth' } as ShopDef,
     mags_briar: { id: 'mags_briar', name: 'Mags Briar\'s', owner: 'mags_briar', stock: [{ item: 'wold_bread', price: 36 }, { item: 'bramble_pie', price: 34 }, { item: 'mushroom_stew', price: 52 }], buyRate: () => 0.5, footer: () => 'Mags pays half of an item\'s worth' } as ShopDef,
     toni_rius: { id: 'toni_rius', name: 'Cala Roja fish market', owner: 'toni_rius', stock: [{ item: 'callis_sardines', price: 44 }, { item: 'cooked_seabass', price: 40 }, { item: 'olive_bread', price: 27 }], buyRate: (_g, item) => (/raw_|cooked_/.test(item) ? 0.7 : 0.5), footer: () => 'Toni pays well for fish' } as ShopDef,
     ada_moss: { id: 'ada_moss', name: 'Skyfarm honey', owner: 'ada_moss', stock: [{ item: 'sky_honey', price: 60 }, { item: 'bread', price: 5 }], buyRate: () => 0.5, footer: () => 'Ada pays half of an item\'s worth' } as ShopDef,

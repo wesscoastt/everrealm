@@ -239,10 +239,10 @@ export const QUESTS: Record<string, QuestDef> = {
       const c = g.flag('fpChoice');
       switch (s) {
         case 'getPick': {
-          let t = 'Wick Abery broke his wrist on a loading day and sold his pick to Mr Pryce, the company buyer, for three marks to pay the bonesetter. The notice on the gate says the company buys an injured hand\'s tools at the posted rate, eighteen for a pick, and holds them for him. Tam Feld has it on the company store wall at forty.';
+          let t = 'Wick Abery broke his wrist on a loading day and sold his pick to Mr Pryce, the company buyer, for three marks to pay the bonesetter. The notice on the gate says the company buys an injured hand\'s tools at the posted rate, eighteen for a pick, and holds them for him. Lewin Feld has it on the company store wall at forty.';
           if (g.flag('pryceBook')) t += ' Pryce\'s purchase book says he bought it "own account", so the notice doesn\'t bind him, and sold it to the store for thirty.';
-          if (g.flag('fpRelease') === 'leverage') t += ' Pryce wrote a slip for Tam to release it at no charge.';
-          if (g.flag('fpRelease') === 'delia') t += ' Delia Harrowgate told Tam to release it at the posted rate, billed to Pryce.';
+          if (g.flag('fpRelease') === 'leverage') t += ' Pryce wrote a slip for Lewin to release it at no charge.';
+          if (g.flag('fpRelease') === 'delia') t += ' Delia Harrowgate told Lewin to release it at the posted rate, billed to Pryce.';
           return t;
         }
         case 'returnPick':
@@ -258,7 +258,7 @@ export const QUESTS: Record<string, QuestDef> = {
       switch (s) {
         case 'getPick': {
           const rel = g.flag('fpRelease');
-          if (rel) return [{ text: 'Collect Wick\'s pick from Tam Feld', marker: 'tamFeld' }];
+          if (rel) return [{ text: 'Collect Wick\'s pick from Lewin Feld', marker: 'tamFeld' }];
           const o: { text: string; marker?: string }[] = [{ text: 'Get Wick\'s pick back (buy it, or find another way)', marker: 'tamFeld' }];
           if (!g.flag('pryceBook')) o.push({ text: 'Ask Mr Pryce about the pick', marker: 'pryce' });
           return o;

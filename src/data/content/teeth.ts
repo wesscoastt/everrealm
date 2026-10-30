@@ -27,7 +27,7 @@ import { CAREEN, CHAIR, GALLOWS, SMOKE } from '../teeth';
 // teethRose, THE COMPASS ROSE (Dinah Lowry): Ysolde Gale's rose is cut in the top of the Chair, its four
 //   points stones you can press. Gale's log: "North for the sea, west for the dead, south for the wind,
 //   east for home." Press them in that order and the middle opens.
-// teethClerk, PRIZE CREW (Joan Sabater): an Assembly customs clerk taken off a prize, in the cell on
+// teethClerk, PRIZE CREW (Andreu Sabater): an Assembly customs clerk taken off a prize, in the cell on
 //   Gallows Key. Nobody in Callis has paid her ransom. 'joan' -> done (pay Merrick, or the signal book
 //   buys her out).
 
@@ -75,7 +75,7 @@ const npcs: NpcDef[] = [
     barks: ['Wood\'s low.', 'Every light\'s a lie to somebody.'],
   },
   {
-    land: 'morrow', id: 'joan_sabater', name: 'Joan Sabater', title: 'Assembly customs clerk',
+    land: 'morrow', id: 'joan_sabater', name: 'Andreu Sabater', title: 'Assembly customs clerk',
     look: { skin: '#e2b894', eyes: '#3a4a5a', hair: '#1a1410', hairStyle: 2, tunic: '#e8e2d4', trim: '#2a2a30', trousers: '#2a2a30', boots: '#1a1612', lashes: true, build: 0.9, age: 0.3 } as NpcDef['look'],
     schedule: [{ from: 0, to: 24, at: [G.x + 11.5, G.z - 11.5], face: [G.x + 11.5, G.z - 9], anim: 'idle' }],
     barks: ['Three months. Nobody in Callis has noticed.'],
@@ -157,10 +157,10 @@ const quests: Record<string, QuestDef> = {
   [CLERK]: {
     id: CLERK, name: 'Prize Crew', region: 'keys', depth: 'short',
     notes: (_g, s) => {
-      if (s === 'joan') return 'Joan Sabater, an Assembly customs clerk, is in the cell on Gallows Key. Merrick took her off a prize three months ago, and nobody in Callis has paid her ransom. Merrick wants two hundred marks.';
-      return 'Joan Sabater went home to Callis. She says the customs house owes me a favour, and that she\'ll be the one to decide when.';
+      if (s === 'joan') return 'Andreu Sabater, an Assembly customs clerk, is in the cell on Gallows Key. Merrick took her off a prize three months ago, and nobody in Callis has paid her ransom. Merrick wants two hundred marks.';
+      return 'Andreu Sabater went home to Callis. She says the customs house owes me a favour, and that she\'ll be the one to decide when.';
     },
-    objectives: (_g, s) => (s === 'joan' ? [{ text: 'Get Joan Sabater out of the cell', marker: 'hob_merrick' }] : []),
+    objectives: (_g, s) => (s === 'joan' ? [{ text: 'Get Andreu Sabater out of the cell', marker: 'hob_merrick' }] : []),
     marks: (_g, s): Marks => (s === undefined ? { joan_sabater: '!' } : {}),
     walk: { cast: ['joan_sabater', 'hob_merrick'] },
   },
@@ -308,7 +308,7 @@ const joan: DialogueTree = {
   start: () => 'hello',
   nodes: {
     hello: {
-      text: 'Joan Sabater, Assembly customs, Callis. Three months in here. Merrick says two hundred marks. The customs house says it has no line in its books for clerks taken by pirates.',
+      text: 'Andreu Sabater, Assembly customs, Callis. Three months in here. Merrick says two hundred marks. The customs house says it has no line in its books for clerks taken by pirates.',
       options: [{ text: 'I\'ll talk to Merrick.', cond: (g) => !at(g, CLERK), effect: (g) => g.setStage(CLERK, 'joan') }, { text: 'Hold on.' }],
     },
   },

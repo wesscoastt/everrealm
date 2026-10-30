@@ -872,7 +872,7 @@ export class Dungeons {
     const pl = this.host.flag('pledge') as PledgeState | undefined;
     if (pl && pl.day === utcDay() && pl.id === r.def.id && !pl.done) {
       this.host.setFlag('pledge', { ...pl, done: true, vet: r.vet });
-      this.host.system(`Today's pledge is done${r.vet ? ' on veteran' : ''}. Go back to the Lamp Company (Ruth Penhale at Ansbury's south gate, or Xisca Mir by the Callis post) for your keys.`);
+      this.host.system(`Today's pledge is done${r.vet ? ' on veteran' : ''}. Go back to the Lamp Company (Thomasina Penhale at Ansbury's south gate, or Xisca Mir by the Callis post) for your keys.`);
     }
     this.host.system(`${r.def.name} cleared${n > 1 ? ` (${n} times now)` : ' for the first time'}. The chest by the far wall is yours, and the ladder is back where you came in.`);
     this.host.persist();

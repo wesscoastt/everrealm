@@ -14,7 +14,7 @@ import type { RegionContent } from './types';
 // hens. 'odo' -> 'ide' -> 'ruth' (Ide pays it: four marks and eleven years' worth, in the note) | done
 // (Ide puts the note back in the oak: some debts belong there). Choice hwHen = 'paid' | 'oak'.
 //
-// hwFly, WHERE FLY WENT (Ned Thackery, the tracker): his old hound went after a thornback stalker three
+// hwFly, WHERE FLY WENT (Jabez Thackery, the tracker): his old hound went after a thornback stalker three
 // days ago and hasn't come home, and his knee won't take him past the second brook. Follow her trail
 // west of the camp (the prints by the brook, the fur on the bramble), kill the stalker at its den in
 // the rocks, and call her out. She comes home on three legs. 'trail' -> 'den' -> 'ned' -> done.
@@ -126,10 +126,10 @@ const quests: Record<string, QuestDef> = {
   [FLY]: {
     id: FLY, name: 'Where Fly Went', region: 'brambledeep', depth: 'quest',
     notes: (_g, s) => {
-      if (s === 'trail') return 'Ned Thackery\'s old hound, Fly, went after a thornback stalker three days ago and hasn\'t come home. Her trail starts by the brook north-west of Fellers\' Camp.';
+      if (s === 'trail') return 'Jabez Thackery\'s old hound, Fly, went after a thornback stalker three days ago and hasn\'t come home. Her trail starts by the brook north-west of Fellers\' Camp.';
       if (s === 'den') return 'Fly followed the stalker uphill into the rocks. Its den is there, and she\'s in it, or near it.';
-      if (s === 'ned') return 'The stalker\'s dead, and Fly limped home ahead of me. Ned will want to know.';
-      return 'Fly is home, on three legs, under Ned\'s bench. Ned says that was her last stalker.';
+      if (s === 'ned') return 'The stalker\'s dead, and Fly limped home ahead of me. Jabez will want to know.';
+      return 'Fly is home, on three legs, under Jabez\'s bench. Jabez says that was her last stalker.';
     },
     objectives: (g, s) => {
       if (s === 'trail') return [
@@ -140,7 +140,7 @@ const quests: Record<string, QuestDef> = {
         { text: 'Kill the thornback stalker at its den', done: killed(g, 'hwStalker') >= 1 },
         { text: 'Call Fly out of the rocks', marker: 'hwDen' },
       ];
-      return s === 'ned' ? [{ text: 'Go back to Ned Thackery at Fellers\' Camp', marker: 'master_thackery' }] : [];
+      return s === 'ned' ? [{ text: 'Go back to Jabez Thackery at Fellers\' Camp', marker: 'master_thackery' }] : [];
     },
     marks: (_g, s): Marks => (s === 'ned' ? { master_thackery: '?' } : {}),
     walk: { cast: ['master_thackery'] },

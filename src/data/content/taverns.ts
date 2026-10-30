@@ -89,8 +89,8 @@ const TAVERNS: Tavern[] = [
       about: 'Every climmer in Cragsby has drunk here, and every climmer who went over has a hook on that wall. I keep them dusted.',
     },
     regulars: [
-      { id: 'watkemp', name: 'Wat Kemp', title: 'Climmer', look: { skin: '#c8956a', hair: '#c8a060', hairStyle: 3, tunic: '#5a4a3a', trim: '#e8dcc0', trousers: '#3a3430', boots: '#2a1e14', freckles: true, age: 0.35 }, barks: ['Only the one.'], lines: ['Somebody wrote "never go over drunk, Wat" on the knot board at the hut. I\'d like to know who. I\'d like to buy them a drink.'] },
-      { id: 'jennyt', name: 'Loveday Tonkin', title: 'Egg-gatherer', look: { frame: 'f', skin: '#e2b894', hair: '#7a3a1e', hairStyle: 4, tunic: '#6a5a3a', trim: '#c8b070', trousers: '#3a3430', boots: '#2a1e14', lashes: true, age: 0.4 }, barks: ['Gannets bite.'], lines: ['A gannet sitting tight will have your eye out. I\'ve still got both. That\'s skill, not luck, whatever Wat tells you.'] },
+      { id: 'watkemp', name: 'Jenkin Kemp', title: 'Climmer', look: { skin: '#c8956a', hair: '#c8a060', hairStyle: 3, tunic: '#5a4a3a', trim: '#e8dcc0', trousers: '#3a3430', boots: '#2a1e14', freckles: true, age: 0.35 }, barks: ['Only the one.'], lines: ['Somebody wrote "never go over drunk, Jenkin" on the knot board at the hut. I\'d like to know who. I\'d like to buy them a drink.'] },
+      { id: 'jennyt', name: 'Loveday Tonkin', title: 'Egg-gatherer', look: { frame: 'f', skin: '#e2b894', hair: '#7a3a1e', hairStyle: 4, tunic: '#6a5a3a', trim: '#c8b070', trousers: '#3a3430', boots: '#2a1e14', lashes: true, age: 0.4 }, barks: ['Gannets bite.'], lines: ['A gannet sitting tight will have your eye out. I\'ve still got both. That\'s skill, not luck, whatever Jenkin tells you.'] },
     ],
     menu: [{ item: 'brown_ale', price: 4 }, { item: 'gull_eggs', price: 4 }, { item: 'tavern_stew', price: 7 }],
   },

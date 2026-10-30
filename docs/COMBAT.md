@@ -175,7 +175,7 @@ other new enemy kinds (stage F), the damage pipeline gathered into one function,
 Built: the sixth calling, **the Mender** (magicka; dungeon role healer). Mend, Lantern Light, Sanctuary;
 utilities Lamp Ward, Rebuke, Restoration; the **Grace** gauge (two for a Mend, one for a Restoration;
 full at five, the next Mend heals double and reaches everyone within twelve blocks). Three talent trees
-(the Lamp, the Shelter, the Rebuke), two morphs for each skill, six icons, and a master, Joan Abney, in
+(the Lamp, the Shelter, the Rebuke), two morphs for each skill, six icons, and a master, Bridget Abney, in
 the Minster's east transept.
 - **Friends** (`Friend` in `game/ClassKit.ts`, `friendsNear` in `game/Game.ts`): you, a dungeon run's
   henchmen still standing, and online groupmates within forty blocks. Henchmen take wards

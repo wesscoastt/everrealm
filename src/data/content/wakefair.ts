@@ -19,14 +19,14 @@ const npcs: NpcDef[] = [
     when: on,
   },
   {
-    id: 'fair_wat', name: 'Wat Coombe', title: 'The Lantern Shy',
+    id: 'fair_wat', name: 'Barnaby Coombe', title: 'The Lantern Shy',
     look: { skin: '#c89a78', hair: '#8a847c', hairStyle: 1, beard: true, eyes: '#4a3a2a', tunic: '#3a2a40', trim: '#e8701a', trousers: '#2a2620', boots: '#1e1610', age: 0.75, build: 1.05 },
     schedule: always([247.1, 209.6], [244, 209]),
-    barks: ['Knock a lantern off!', 'Six balls, two marks.', 'Mind Gil\'s pumpkins. He counts them.'],
+    barks: ['Knock a lantern off!', 'Six balls, two marks.', 'Mind Barty\'s pumpkins. He counts them.'],
     when: on,
   },
   {
-    id: 'fair_nance', name: 'Nance Fettle', title: 'Apples',
+    id: 'fair_nance', name: 'Prue Fettle', title: 'Apples',
     look: { skin: '#d8a888', hair: '#4a3020', hairStyle: 2, eyes: '#6a4a2a', tunic: '#7a2a24', trim: '#e8dcc0', trousers: '#3a2a20', boots: '#2a1e14', apron: true, lashes: true, age: 0.45, build: 1.1 },
     schedule: always([229.2, 218.3], [231, 217]),
     barks: ['Duck for an apple!', 'Hands behind your back, love.', 'There\'s a towel. There\'s always a towel.'],
@@ -40,7 +40,7 @@ const npcs: NpcDef[] = [
     when: on,
   },
   {
-    id: 'fair_gil', name: 'Gil Rudd', title: 'Carver',
+    id: 'fair_gil', name: 'Barty Rudd', title: 'Carver',
     look: { skin: '#b8865e', hair: '#2a1e16', hairStyle: 3, beard: true, eyes: '#3a2a1a', tunic: '#5a4a2a', trim: '#3a2a1c', trousers: '#3a3430', boots: '#2a1e14', apron: true, age: 0.35, build: 1.0 },
     schedule: always([244, 223.6], [244, 220]),
     barks: ['Bring me a pumpkin.', 'Every one\'s got a face in it already.', 'Mind the knife.'],
@@ -60,7 +60,7 @@ const dilly: DialogueTree = {
         { text: 'Not now.' },
       ],
     },
-    head: { text: 'Two last year. One of them was my brother, so I\'m told that doesn\'t count. It hangs on the pole until somebody earns it, then Gil carves another. The shy and the apples give it out too, if you\'re good. The judge gives it out if you\'re uncanny.', next: 'hello' },
+    head: { text: 'Two last year. One of them was my brother, so I\'m told that doesn\'t count. It hangs on the pole until somebody earns it, then Barty carves another. The shy and the apples give it out too, if you\'re good. The judge gives it out if you\'re uncanny.', next: 'hello' },
   },
 };
 
@@ -68,7 +68,7 @@ const wat: DialogueTree = {
   start: () => 'hello',
   nodes: {
     hello: {
-      text: (g) => (left(g, 'shy') ? 'Six balls, six lanterns, two marks. Knock them off the rail. The turnips are mine and the pumpkins are Gil\'s, and he wants his back in one piece, so aim for mine.' : 'You\'ve cleaned me out of prizes for today. Throw if you like. The lanterns don\'t mind.'),
+      text: (g) => (left(g, 'shy') ? 'Six balls, six lanterns, two marks. Knock them off the rail. The turnips are mine and the pumpkins are Barty\'s, and he wants his back in one piece, so aim for mine.' : 'You\'ve cleaned me out of prizes for today. Throw if you like. The lanterns don\'t mind.'),
       options: [
         { text: 'Give me the balls. (2 marks)', cond: (g) => left(g, 'shy') > 0, effect: (g) => g.fairPlay('shy') },
         { text: 'A few more throws, for nothing.', cond: (g) => left(g, 'shy') === 0, effect: (g) => g.fairPlay('shy') },
@@ -122,7 +122,7 @@ const gil: DialogueTree = {
         { text: 'Not now.' },
       ],
     },
-    from: { text: 'Seed off a Morrow ship, six years back. Wat says they\'re not proper. Wat\'s carved turnips for forty years and his thumbs look it. Set one in your window when you get home. Turnips go soft by Martinmas. These\'ll see you to the Goose Fair.', next: 'hello' },
+    from: { text: 'Seed off a Morrow ship, six years back. Barnaby says they\'re not proper. Barnaby\'s carved turnips for forty years and his thumbs look it. Set one in your window when you get home. Turnips go soft by Martinmas. These\'ll see you to the Goose Fair.', next: 'hello' },
   },
 };
 

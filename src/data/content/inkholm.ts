@@ -21,7 +21,7 @@ import { GILLSBY, HYTHE, OLD_BED, PRIORY, REEKS } from '../inkholm';
 // (Doctor Hale sends Vosper's ledger to the Speaker: Vosper goes, Black Hythe is put under the
 // Charter) | 'bryony' (Bryony reads it out at the council: the council pays back the smoke money,
 // the works stay under the island's terms). Cast: Doctor Lettice Hale (Collegium physician), Reuben
-// Hoskin (ferryman, Gullmouth), Bryony Kitto (the last Reeker), Joss Kitto (her grandson), Aubrey
+// Hoskin (ferryman, Gullmouth), Bryony Kitto (the last Reeker), Tristram Kitto (her grandson), Cyprian
 // Vosper (works manager), Kerra Rowse (the Staithe Inn), Silas Hoskin (quay ropes, Reuben's brother).
 
 const CROSS = 'inkCrossing', VILLAGE = 'inkGillsby', FIRES = 'inkReek', WORKS = 'inkHythe', PRIORY_Q = 'inkPriory';
@@ -91,7 +91,7 @@ const haleInk: DialogueTree = {
     i7: { text: 'Look at the gills under the glass. It\'s a mould that roots in the lung, and it sheds in the dry.', next: 'i8' },
     i8: { text: 'Mrs Kitto says reek smoke kills it. I came here to write that down as a story.', next: 'i9' },
     i9: { text: 'It isn\'t one. The smoke breaks it down. Their fires were medicine, done the slow way.', effect: (g) => g.setStage(VILLAGE, 'done') },
-    iFires: { text: 'Five fires. I\'ll keep Joss breathing until then. He\'s twenty-two and he coughs like a coal-heaver.' },
+    iFires: { text: 'Five fires. I\'ll keep Tristram breathing until then. He\'s twenty-two and he coughs like a coal-heaver.' },
     iWorks: { text: 'Black Hythe buys every ink cap on the Holm. If somebody decided the fires should stop, the works will know who.' },
     c1: { text: 'You\'ve found something. I can see it on you.', next: 'c2' },
     c2: { speaker: 'narrator', text: 'You show her the ledger: forty marks to the Holm council every month since last October, signed A. Vosper.', next: 'c3' },
@@ -105,7 +105,7 @@ const haleInk: DialogueTree = {
     },
     c5: { text: 'I\'ll write tonight. Vosper will be on the next boat off; I\'ll see to that myself.' },
     iPriory: { text: 'The tomb on the fell. If the abbot sealed something under it, I want to know what. Then I want to know how.' },
-    iDone: { text: 'Joss walked to the quay this morning. I\'m writing it down before I believe it.' },
+    iDone: { text: 'Tristram walked to the quay this morning. I\'m writing it down before I believe it.' },
   },
 };
 
@@ -128,7 +128,7 @@ const bryony: DialogueTree = {
   nodes: {
     b0: { text: 'Shut the door behind you. Reek keeps the air clean in here, as long as it stays in here.' },
     b1: { text: 'You came off Reuben\'s boat. Is the doctor with you? Good. Shut the door.', next: 'b2' },
-    b2: { text: 'My grandson\'s in the back with the cough. Joss. Twenty-two.', next: 'b3' },
+    b2: { text: 'My grandson\'s in the back with the cough. Tristram. Twenty-two.', next: 'b3' },
     b3: { text: 'Every autumn since before the priory fell, the Reekers lit five fires round the Holm and burned reek on them for a week.', next: 'b4' },
     b4: { text: 'The smoke keeps the Grey in the ground. Last autumn the council said no fires. The works said the smoke spoiled the caps.', next: 'b5' },
     b5: { text: 'So no fires. Now the Grey\'s in the woods, and in half the chests on the Holm.', next: 'b6' },
@@ -142,7 +142,7 @@ const bryony: DialogueTree = {
     fMore: { text: 'Dropped them in a mere, did you? Here. That\'s the last of what\'s dry.', effect: (g) => { g.give('reek_bundle', 2); } },
     f6: { text: 'I saw the smoke from my step. All five. First time in a year.', next: 'f7' },
     f7: { text: 'Now. The fires didn\'t go out because the council forgot. Somebody paid them to forget.', next: 'f8' },
-    f8: { text: 'Black Hythe, on the east shore. Ask for Aubrey Vosper. He\'ll give you a lot of numbers. Ask him who he pays.', effect: (g) => g.setStage(FIRES, 'done') },
+    f8: { text: 'Black Hythe, on the east shore. Ask for Cyprian Vosper. He\'ll give you a lot of numbers. Ask him who he pays.', effect: (g) => g.setStage(FIRES, 'done') },
     f9: { text: 'Vosper\'s at the works. Follow the smell of boiling ink.' },
     k1: { text: 'What did you find?', next: 'k2' },
     k2: { speaker: 'narrator', text: 'You show her Vosper\'s ledger: forty marks to the council every month since last October.', next: 'k3' },
@@ -160,10 +160,10 @@ const bryony: DialogueTree = {
     p3: { text: 'If the bed\'s down there, burn it. Use a whole bundle. Don\'t be careful with it.' },
     pMore: { text: 'Out of reek? Take this. Burn the lot.', effect: (g) => { g.give('reek_bundle', 1); } },
     z1: { text: 'Smoke came up out of the fell this morning. Grey, then white.', next: 'z2' },
-    z2: { text: 'Joss is asleep. Not coughing. Asleep.', next: 'z3' },
+    z2: { text: 'Tristram is asleep. Not coughing. Asleep.', next: 'z3' },
     z3: { text: 'Here. Every Reeker wears one. You\'ve earned it more than most of them did.', next: 'z4', effect: (g) => { g.give('reek_sprig'); g.addMarks(250); g.setStage(PRIORY_Q, 'done'); } },
     z4: { text: 'The greyed in the woods won\'t come back to us. But nobody else will go to them. That\'s enough.' },
-    z5: { text: (g) => (ledger(g) === 'bryony' ? 'The council paid it back. Every mark, counted out on the quay. Fires every autumn from now on. I\'m teaching Joss.' : 'The Charter\'s man runs the works now. He came to ask about the fires before he unpacked. Fires every autumn. I\'m teaching Joss.') },
+    z5: { text: (g) => (ledger(g) === 'bryony' ? 'The council paid it back. Every mark, counted out on the quay. Fires every autumn from now on. I\'m teaching Tristram.' : 'The Charter\'s man runs the works now. He came to ask about the fires before he unpacked. Fires every autumn. I\'m teaching Tristram.') },
   },
 };
 
@@ -177,7 +177,7 @@ const vosper: DialogueTree = {
   },
   nodes: {
     v0: { text: 'Black Hythe ink works. We aren\'t taking visitors while the island is in its present difficulty.' },
-    v1: { text: 'Aubrey Vosper. I manage the works for Harrowgate and Daughters.', next: 'v2' },
+    v1: { text: 'Cyprian Vosper. I manage the works for Harrowgate and Daughters.', next: 'v2' },
     v2: { text: 'The fires? The council decided that. We advised. Reek smoke settles on the drying caps and the ink comes out brown.', next: 'v3' },
     v3: { text: 'Brown ink doesn\'t sell. The Charter buys black, at four grades, by the gallon, against an assay.', next: 'v4' },
     v4: { text: 'Payments? There are always payments. Compensation for disturbance. It\'s all in the books, properly entered.', next: 'v5' },
@@ -274,12 +274,12 @@ const quests: Record<string, QuestDef> = {
   [WORKS]: {
     id: WORKS, name: 'Black Hythe', region: 'inkholm', depth: 'storyline', next: [PRIORY_Q, 'tomb'],
     notes: (_g, s) => {
-      if (s === 'vosper') return 'Somebody paid the council to let the fires lapse. Aubrey Vosper runs Harrowgate & Daughters\' ink works at Black Hythe, on the east shore.';
+      if (s === 'vosper') return 'Somebody paid the council to let the fires lapse. Cyprian Vosper runs Harrowgate & Daughters\' ink works at Black Hythe, on the east shore.';
       if (s === 'ledger') return 'Vosper says the council stopped the fires and the works only advised, and that there were payments, "properly entered". His books are in his office, which he says is closed.';
       return 'Vosper\'s ledger: forty marks a month to the Holm council since last October. Doctor Hale wants it for the Speaker; Bryony wants to read it out at the council.';
     },
     objectives: (_g, s) => {
-      if (s === 'vosper') return [{ text: 'Talk to Aubrey Vosper at Black Hythe', marker: 'vosper' }];
+      if (s === 'vosper') return [{ text: 'Talk to Cyprian Vosper at Black Hythe', marker: 'vosper' }];
       if (s === 'ledger') return [{ text: 'Find the works ledger in Vosper\'s office', marker: 'inkLedger' }];
       if (s === 'choose') return [{ text: 'Give the ledger to Doctor Hale or to Bryony Kitto', marker: 'bryony' }];
       return [];
@@ -316,7 +316,7 @@ const items: ItemDef[] = [
   { id: 'wystan_crook', name: 'Abbot Wystan\'s crook', kind: 'trophy', rarity: 'epic', stack: false, value: 220, icon: { shape: 'rod', a: '#c8b890', b: '#4a3a2a' }, desc: 'Blackthorn bound in silver, the silver green with three hundred years under the fell. The head is carved as an ink cap.' },
   { id: 'stemwood', name: 'Stemwood', kind: 'material', rarity: 'common', stack: true, value: 4, icon: { shape: 'log', a: '#e4dccb', b: '#cfc6b0' }, desc: 'The pale, stringy flesh of a giant mushroom\'s stem, dried hard. Light as cork and stronger than it looks; the Holm builds its sheds and its boats\' floors with it.' },
   { id: 'reek_bundle', name: 'Bundle of reek', kind: 'quest', rarity: 'uncommon', stack: true, value: 0, icon: { shape: 'log', a: '#4a5a3a', b: '#8a6a3a' }, desc: 'A dried bitter herb off the Holm\'s shore, tied with twine. It smells like a wet dog\'s breath and burns slow.' },
-  { id: 'works_ledger', name: 'Black Hythe ledger', kind: 'quest', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'letter', a: '#2a2a30', b: '#c8b890' }, desc: 'Aubrey Vosper\'s ledger, in very good ink. Forty marks to the Holm council, every month since last October.' },
+  { id: 'works_ledger', name: 'Black Hythe ledger', kind: 'quest', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'letter', a: '#2a2a30', b: '#c8b890' }, desc: 'Cyprian Vosper\'s ledger, in very good ink. Forty marks to the Holm council, every month since last October.' },
   { id: 'reek_sprig', name: 'Reeker\'s sprig', kind: 'collectible', rarity: 'rare', stack: false, value: 0, icon: { shape: 'whistle', a: '#4a5a3a', b: '#a8a8b0' }, desc: 'A sprig of reek in a pewter clasp. Every Reeker on the Holm wears one. Bryony Kitto gave you hers.' },
 ];
 
@@ -353,7 +353,7 @@ export const INKHOLM_CONTENT: RegionContent = {
       barks: ['Shut the door.', 'Five fires.'],
     },
     {
-      id: 'joss_kitto', name: 'Joss Kitto', title: 'Bryony\'s grandson',
+      id: 'joss_kitto', name: 'Tristram Kitto', title: 'Bryony\'s grandson',
       look: { ...LOOK_ISLE, hairStyle: 5, tunic: '#5a4a3a', trim: '#8a7a5a', trousers: '#3a3430', boots: '#2a2018', build: 0.9, age: 0.15 },
       schedule: [{ from: 0, to: 24, at: [G.x + 15.5, G.z + 2.8], face: [G.x + 16, G.z + 4.5], anim: 'idle' }],
       barks: ['Gran\'s teaching me the fires.'],
@@ -372,7 +372,7 @@ export const INKHOLM_CONTENT: RegionContent = {
       barks: ['Mind the bollards.'],
     },
     {
-      id: 'vosper', name: 'Aubrey Vosper', title: 'Works manager, Harrowgate & Daughters',
+      id: 'vosper', name: 'Cyprian Vosper', title: 'Works manager, Harrowgate & Daughters',
       look: { skin: '#e8c4a0', hair: '#2a2a2a', hairStyle: 4, eyes: '#3a4a5a', tunic: '#2a2a32', trim: '#e0b860', trousers: '#22222a', boots: '#141210', cape: '#1e1e26', hat: 'wide', hatColor: '#1a1a1a', build: 0.95, height: 1.04, age: 0.45 },
       schedule: [{ from: 0, to: 24, at: [W.x + 7.5, W.z - 10.2], face: [W.x + 7.5, W.z - 6], anim: 'idle' }],
       barks: ['The office is closed.', 'Four grades, by the gallon.'],

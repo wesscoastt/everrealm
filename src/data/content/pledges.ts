@@ -4,13 +4,13 @@ import type { NpcDef } from '../npcs';
 import type { RegionContent } from './types';
 import { MORROW_OX } from '../../world/morrow';
 
-// The Lamp Company's clerks (data/pledges.ts): Ruth Penhale at Ansbury's south gate, Xisca Mir by
+// The Lamp Company's clerks (data/pledges.ts): Thomasina Penhale at Ansbury's south gate, Xisca Mir by
 // the Callis post. Each posts the day's pledge, pays Lamp keys when it's cleared, and sells any
 // dungeon set piece for keys (their shops are built in data/pledges.ts from the dungeons' drops).
 
 const ITEMS: ItemDef[] = [
   { id: 'lamp_key', name: 'Lamp key', kind: 'collectible', rarity: 'rare', stack: true, value: 0, icon: { shape: 'coin', a: '#d8b050', b: '#3a2a1e' },
-    desc: 'A brass key on a lamp-wick tag, stamped with the Company\'s lamp. Ruth Penhale and Xisca Mir take them for any piece of any dungeon\'s set.',
+    desc: 'A brass key on a lamp-wick tag, stamped with the Company\'s lamp. Thomasina Penhale and Xisca Mir take them for any piece of any dungeon\'s set.',
     stats: 'From the Lamp Company\'s daily pledge, and the day\'s first random dungeon.' },
 ];
 
@@ -30,7 +30,7 @@ const clerk = (name: string): DialogueTree => ({
         { text: 'I\'ll take the pledge.', cond: (g) => g.pledge()?.state === 'open', effect: (g) => { g.takePledge(); g.toast('Pledge taken. Clear it, then come back.'); } },
         { text: 'It\'s cleared.', cond: (g) => g.pledge()?.state === 'done', effect: (g) => { const n = g.turnInPledge(); if (n) g.toast(`The Company pays ${n} Lamp keys.`); } },
         { text: 'What do keys buy?', next: 'c1' },
-        { text: 'Show me.', effect: (g) => g.openShop(name === 'Ruth Penhale' ? 'ruth_penhale' : 'xisca_mir') },
+        { text: 'Show me.', effect: (g) => g.openShop(name === 'Thomasina Penhale' ? 'ruth_penhale' : 'xisca_mir') },
         { text: 'Bye.' },
       ],
     },
@@ -40,7 +40,7 @@ const clerk = (name: string): DialogueTree => ({
 
 const NPCS: NpcDef[] = [
   {
-    id: 'ruth_penhale', name: 'Ruth Penhale', title: 'The Lamp Company',
+    id: 'ruth_penhale', name: 'Thomasina Penhale', title: 'The Lamp Company',
     look: { frame: 'f', lashes: true, skin: '#e0b090', hair: '#5a3a22', hairStyle: 2, eyes: '#4a5a3a', tunic: '#3a3a2a', trim: '#d8b050', trousers: '#2a2a24', boots: '#2a2018', hat: 'cap', hatColor: '#2a2a24', build: 1.05, age: 0.4 },
     schedule: [{ from: 0, to: 24, at: [828.5, 379.5], face: [832.5, 375.5], anim: 'idle', y: 21 }],
     barks: ['Pledge is posted. Who\'s going down?', 'The Company pays in keys.'],
@@ -53,4 +53,4 @@ const NPCS: NpcDef[] = [
   },
 ];
 
-export const PLEDGE_CONTENT: RegionContent = { id: 'pledges', items: ITEMS, npcs: NPCS, dialogue: { ruth_penhale: clerk('Ruth Penhale'), xisca_mir: clerk('Xisca Mir') } };
+export const PLEDGE_CONTENT: RegionContent = { id: 'pledges', items: ITEMS, npcs: NPCS, dialogue: { ruth_penhale: clerk('Thomasina Penhale'), xisca_mir: clerk('Xisca Mir') } };

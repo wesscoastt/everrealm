@@ -6,7 +6,7 @@ import type { RegionContent } from './types';
 // THE OUTER LANDS: the three towns at the far ends of the roads over the necks.
 //
 // Cragsby, on the Gannet Cliffs (levels 8-14): fowlers who go down the cliffs on ropes for eggs and
-//   feathers. THE LONG ROPE (quest): conger skin for Hal Skene's splices, then the foxes in the egg store.
+//   feathers. THE LONG ROPE (quest): conger skin for Ewan Skene's splices, then the foxes in the egg store.
 // Holme Staithe, on the Wrath Levels (14-20): eel-catchers and reed-cutters on a mere. Harrowgate has
 //   cut a drain to dry the Levels for wheat, and the meres are dropping. THE SLUICE (quest): jellies in
 //   the drain, and the company's gate that keeps sticking shut. hsChoice = 'told' | 'quiet'.
@@ -33,7 +33,7 @@ export const OUTER_PEOPLE: NpcDef[] = [
   },
   {
     // The cragsman, forties. Goes down the cliff for the village. Few words, all of them about rope.
-    id: 'skene', name: 'Hal Skene', title: 'Cragsman, Cragsby',
+    id: 'skene', name: 'Ewan Skene', title: 'Cragsman, Cragsby',
     look: { skin: '#c8906a', hair: '#2a2018', hairStyle: 0, beard: true, eyes: '#3a2a1a', tunic: '#5a4a3a', trim: '#8a7a5a', trousers: '#3a3028', boots: '#2a1e14', hat: 'cap', hatColor: '#3a3a3a', build: 1.12, age: 0.45 },
     schedule: [{ from: 0, to: 24, at: [262.5, -994.5], face: [266, -994.5], anim: 'idle' }],
     barks: ['Forty fathom of rope, and I know every one.'],
@@ -76,7 +76,7 @@ export const OUTER_PEOPLE: NpcDef[] = [
   },
   {
     // The quarry ganger, once the stone's fate is settled one way or the other.
-    id: 'polgrain', name: 'Ned Polgrain', title: 'Quarry ganger, Harrowgate & Daughters',
+    id: 'polgrain', name: 'Pasco Polgrain', title: 'Quarry ganger, Harrowgate & Daughters',
     look: { skin: '#c89070', hair: '#5a4a3a', hairStyle: 0, eyes: '#4a3a2a', tunic: '#6a5a4a', trim: '#8a7a5a', trousers: '#4a4034', boots: '#3a2a1c', hat: 'cap', hatColor: '#4a4a4a', build: 1.18, age: 0.4 },
     schedule: [{ from: 0, to: 24, at: [350.5, 2991.5], face: [353, 2993], anim: 'idle' }],
     when: (g) => !!g.flag('stChoice'),
@@ -100,7 +100,7 @@ const corran: DialogueTree = {
     },
     n1: { text: 'Fowling. We go down the cliffs on a rope for eggs and feathers, and come back up. Mostly.', next: 'n2' },
     n2: { text: 'The Post\'s new. Two years ago this was the end of the world. Now it\'s the end of the road. People visit.', next: 'n3' },
-    n3: { text: 'Hal Skene does the rope. If he\'s talking to you, he wants something carried.' },
+    n3: { text: 'Ewan Skene does the rope. If he\'s talking to you, he wants something carried.' },
   },
 };
 
@@ -114,7 +114,7 @@ const skene: DialogueTree = {
   },
   nodes: {
     main: { text: 'Rope\'s good for thirty years. I\'ll be dead before it isn\'t. That\'s the plan.' },
-    h1: { text: 'Hal Skene. I go down the cliff for the village. Somebody has to, and the somebody is me.', next: 'h2' },
+    h1: { text: 'Ewan Skene. I go down the cliff for the village. Somebody has to, and the somebody is me.', next: 'h2' },
     h2: { text: 'That\'s the rope. Forty fathom. Three old ropes spliced into one, and the splices are going.', next: 'h3' },
     h3: { text: 'Harrowgate\'s man came up on the Post. Offered wire rope, a mark a fathom. You can\'t splice wire on a ledge.', next: 'h4' },
     h4: {
@@ -337,13 +337,13 @@ export const OUTER: RegionContent = {
     [ROPE]: {
       id: ROPE, name: 'The Long Rope', region: 'gannet', depth: 'quest',
       notes: (_g, s) => {
-        if (s === 'skins') return 'Hal Skene goes down the Gannet Cliffs on a forty-fathom rope, and its splices are going. Gullmouth riggers bind splices in conger skin. He wants three; the congers are in the sea under the cliffs.';
-        if (s === 'foxes') return 'Hal has his conger skin. While I was in the sea, five cliff foxes got into Cragsby\'s egg store.';
-        return 'Hal Skene\'s rope is spliced and bound in conger skin, and the foxes are out of the egg store. Harrowgate\'s man can keep his wire.';
+        if (s === 'skins') return 'Ewan Skene goes down the Gannet Cliffs on a forty-fathom rope, and its splices are going. Gullmouth riggers bind splices in conger skin. He wants three; the congers are in the sea under the cliffs.';
+        if (s === 'foxes') return 'Ewan has his conger skin. While I was in the sea, five cliff foxes got into Cragsby\'s egg store.';
+        return 'Ewan Skene\'s rope is spliced and bound in conger skin, and the foxes are out of the egg store. Harrowgate\'s man can keep his wire.';
       },
       objectives: (g, s) => {
-        if (s === 'skins') return [{ text: `Bring Hal Skene conger skins (${Math.min(3, g.count('conger_skin'))}/3)`, marker: 'skene', done: g.count('conger_skin') >= 3 }];
-        if (s === 'foxes') return [{ text: `Kill the foxes at the egg store (${Math.min(5, killed(g, 'cgFoxes'))}/5)`, done: killed(g, 'cgFoxes') >= 5 }, { text: 'Go back to Hal Skene', marker: 'skene' }];
+        if (s === 'skins') return [{ text: `Bring Ewan Skene conger skins (${Math.min(3, g.count('conger_skin'))}/3)`, marker: 'skene', done: g.count('conger_skin') >= 3 }];
+        if (s === 'foxes') return [{ text: `Kill the foxes at the egg store (${Math.min(5, killed(g, 'cgFoxes'))}/5)`, done: killed(g, 'cgFoxes') >= 5 }, { text: 'Go back to Ewan Skene', marker: 'skene' }];
         return [];
       },
       marks: (g, s): Marks => (!s ? { skene: '!' } : s === 'skins' && g.count('conger_skin') >= 3 ? { skene: '?' } : s === 'foxes' && killed(g, 'cgFoxes') >= 5 ? { skene: '?' } : {}),

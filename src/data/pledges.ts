@@ -5,7 +5,7 @@ import { SHOPS } from './shops';
 
 // THE LAMP COMPANY: Hesk Dunmore's delvers (the henchmen's own crew), who go down where other people
 // won't, for a day's rate and a story. In the manner of ESO's Undaunted: every day the Company posts
-// one pledge, a dungeon to clear (Ruth Penhale at Ansbury's south gate; Xisca Mir by the Callis post,
+// one pledge, a dungeon to clear (Thomasina Penhale at Ansbury's south gate; Xisca Mir by the Callis post,
 // in Morrow). Clear it and go back to them for Lamp keys, twice as many on veteran. The day's first
 // random dungeon from the Group Finder pays a bonus on top, and a key. Keys buy any piece of any
 // dungeon's set from the Company, so a run that never drops the piece you want still gets you there.
