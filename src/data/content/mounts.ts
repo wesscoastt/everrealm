@@ -24,8 +24,8 @@ const LIST: M[] = [
   { id: 'mount_kilncat_ash', name: 'Ash kilncat', breed: 'cat', coat: '#6a6a68', mane: '#2a2a2a', cloth: '#7a2a22', rarity: 'epic', desc: 'Grey as the ash on the Kiln\'s high slope, and as quiet. The Escapement\'s wardens kept one to catch the brass mites.', from: 'The Mainspring, under the Kiln, now and then' },
   { id: 'mount_kilncat_brass', name: 'Brass kilncat', breed: 'cat', coat: '#c8a050', mane: '#5a4018', cloth: '#3e8a74', rarity: 'legendary', desc: 'A wild one, gold from nose to tail, off the far side of the Kiln where nobody goes. It came to the fire and stayed.', from: 'Cinderhounds on Kell, very rarely' },
   // The Held's fell sabres
-  { id: 'mount_sabre_snow', name: 'Snow sabre', breed: 'sabre', coat: '#e8ecf0', mane: '#8a9aa8', cloth: '#2a3038', rarity: 'epic', desc: 'The Held\'s herders ride them over drifts a horse would drown in. The teeth are for the wolves. Mostly.', from: 'Maud Hale, Northgate, once the postern is yours' },
-  { id: 'mount_sabre_glacier', name: 'Glacier sabre', breed: 'sabre', coat: '#9fc8e8', mane: '#3a6a9a', cloth: '#e8ecf0', rarity: 'epic', desc: 'Blue-white, from the ice above Kingsbarrow. Northgate keeps a few in the barracks and lends them to people it trusts with its walls.', from: 'Maud Hale, Northgate, once the Held Country reveres you' },
+  { id: 'mount_sabre_snow', name: 'Snow sabre', breed: 'sabre', coat: '#e8ecf0', mane: '#8a9aa8', cloth: '#2a3038', rarity: 'epic', desc: 'The Held\'s herders ride them over drifts a horse would drown in. The teeth are for the wolves. Mostly.', from: 'Ursel Hale, Northgate, once the postern is yours' },
+  { id: 'mount_sabre_glacier', name: 'Glacier sabre', breed: 'sabre', coat: '#9fc8e8', mane: '#3a6a9a', cloth: '#e8ecf0', rarity: 'epic', desc: 'Blue-white, from the ice above Kingsbarrow. Northgate keeps a few in the barracks and lends them to people it trusts with its walls.', from: 'Ursel Hale, Northgate, once the Held Country reveres you' },
   { id: 'mount_sabre_barrow', name: 'Barrow sabre', breed: 'sabre', coat: '#3a3a44', mane: '#9fe8ff', cloth: '#22222a', glow: true, rarity: 'legendary', desc: 'One of the old king\'s hunting cats, laid in the barrow with him. Its eyes are the colour of the cold under the black.', from: 'The Old King, under Kingsbarrow, now and then' },
   // The Flats' drakes
   { id: 'mount_drake_sun', name: 'Sun drake', breed: 'drake', coat: '#c89030', mane: '#f0d060', cloth: '#a8382c', rarity: 'epic', desc: 'The caravans ride them over the glass: they don\'t mind the heat, they don\'t mind the salt, and they eat reavers if you let them.', from: 'Cass Moran, Tenwells, once the caravans run again' },
@@ -84,7 +84,7 @@ export const MOUNT_CONTENT: RegionContent = {
     maud_hale: mountShop('maud_hale', 'Northgate barracks stable', [
       { item: 'mount_sabre_snow', price: 15000, when: (g) => g.stage('tdHeld') === 'done' },
       { item: 'mount_sabre_glacier', price: 20000, when: (g) => rep(g, 'held', REVERED) },
-    ], 'Maud'),
+    ], 'Ursel'),
     ivo_larch: mountShop('ivo_larch', 'Ivo Larch\'s stags', [
       { item: 'mount_stag_autumn', price: 10000, when: (g) => g.stage('woldLamps') === 'done' },
       { item: 'moth_dust', price: 30 },

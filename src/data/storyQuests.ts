@@ -2,14 +2,15 @@ import type { GameApi } from '../game/api';
 import type { QuestDef } from './quests';
 import { pagePrice } from './story';
 
-// The main story's six chapters (dialogue and documents are in story.ts). Each chapter chains to the
+// The main story's first six chapters (dialogue and documents are in story.ts; the five between them are
+// in content/actOne.ts). Each chapter chains to the
 // next through QuestDef.next, and announces itself with a chapter card.
 
 const kills = (g: GameApi, tag: string) => Number(g.flag('kills:' + tag) ?? 0);
 
 export const STORY_QUESTS: Record<string, QuestDef> = {
   storyNotice: {
-    id: 'storyNotice', name: 'The Notice', story: { chapter: 1, title: 'The Notice' }, next: ['storyMossgate', 'wynn'],
+    id: 'storyNotice', name: 'The Notice', story: { chapter: 1, title: 'The Notice' }, next: ['storyWitness', 'road'],
     notes: (g, s) => {
       if (s === 'pike') return 'The Charter has posted a notice by Ansbury\'s south gate: it means to let the star crystal under the Glass Kirk to Harrowgate & Daughters, in return for the Charter\'s debt. Objections go to the Clerk of the Toll Office.';
       if (s === 'maren') return 'Lowen Pike, the clerk: the Charter owes Harrowgate forty thousand marks for paving the Turnpike, bought up from the guilds who lent it. Every toll goes to Harrowgate first. Ilse Blewitt at Scarth Watch wrote to the Speaker: "find out why there are arches at Ketley and nobody left to have built them." Hilda Harrowgate is on the keep steps.';
@@ -24,7 +25,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storyMossgate: {
-    id: 'storyMossgate', name: 'Wrong Way Round', story: { chapter: 2, title: 'Wrong Way Round' }, next: ['storyCrown', 'corrie'],
+    id: 'storyMossgate', name: 'Wrong Way Round', story: { chapter: 3, title: 'Wrong Way Round' }, next: ['storyCrown', 'corrie'],
     notes: (g, s) => {
       if (s === 'wynn') return 'Ilse Blewitt\'s letter: the arches at Ketley face the wrong way. Someone at the ruins will know what she meant.';
       if (s === 'arch') return 'Wynn Carrow, who has studied the arches for eleven years, says they aren\'t gates. They\'re moorings. He wants me to look at the near arch and tell him he\'s wrong.';
@@ -52,7 +53,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storyCrown: {
-    id: 'storyCrown', name: 'Under the Crown', story: { chapter: 3, title: 'Under the Crown' }, next: ['storyStar', 'ilse'],
+    id: 'storyCrown', name: 'Under the Crown', story: { chapter: 4, title: 'Under the Crown' }, next: ['storyStar', 'ilse'],
     notes: (g, s) => {
       if (s === 'corrie') return 'Gallows Knap is a ruin in the Raddle Barrens. Harrowgate keeps stores there. Corrie Dunmore at Harrowgate Works will know what\'s under it.';
       if (s === 'descend') return 'Joan Harrowgate sent a survey crew under Gallows Knap in the spring: six went down, four came out. Redbacks nest on the old builders\' iron, and one of them, the Rust Queen, is the size of a cart. The way in is the door in the tower. Joan\'s notes are still in her crew\'s camp.';
@@ -72,7 +73,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storyStar: {
-    id: 'storyStar', name: 'The Fallen Star', story: { chapter: 4, title: 'The Fallen Star' }, next: ['storyLift', 'cut'],
+    id: 'storyStar', name: 'The Fallen Star', story: { chapter: 5, title: 'The Fallen Star' }, next: ['storyOttilie', 'level'],
     notes: (g, s) => {
       if (s === 'ilse') return 'The tally wall under Gallows Knap. Ilse Blewitt at Scarth Watch wrote the letter that started this; she should see what it led to.';
       if (s === 'glass') return 'Ilse: star crystal is light the way a cork is light under water, and the cap rock is what keeps it down. The Kirk sits on the largest fall she has counted. Thirty feet of cap off it would lift the floor of the valley. She wants me to look through her glass at the Weatherholms.';
@@ -91,7 +92,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storyLift: {
-    id: 'storyLift', name: 'The Lift', story: { chapter: 5, title: 'The Lift' }, next: ['storySitting', 'sitting'],
+    id: 'storyLift', name: 'The Lift', story: { chapter: 7, title: 'The Lift' }, next: ['storyForty', 'ottilie'],
     notes: (g, s) => {
       if (s === 'cut') return 'Harrowgate\'s crew has started stripping the cap at the east end of the Kirk floor, before the sitting has voted.';
       if (s === 'fight') return 'The floor came up two feet in four seconds where the crew had cut. Shard jellies came out of the crack with it, and something much bigger.';
@@ -115,7 +116,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storySitting: {
-    id: 'storySitting', name: 'What the Charter Owes', story: { chapter: 6, title: 'What the Charter Owes' }, next: ['storyStride', 'letter'],
+    id: 'storySitting', name: 'What the Charter Owes', story: { chapter: 10, title: 'What the Charter Owes' }, next: ['storyCamp1', 'road'],
     notes: (g, s) => {
       if (s === 'done') {
         const e = g.flag('charterEnd');

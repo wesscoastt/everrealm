@@ -32,7 +32,7 @@ const ebba: DialogueTree = {
   start: (g) => (at(g, KING) === 'north' ? 'e1' : at(g, KING) === 'barrow' ? 'eWait' : end(g) ? 'eEnd' : 'e0'),
   nodes: {
     e0: { text: 'Ebba Platt. I\'m waiting for the snow to stop. It doesn\'t stop, up here.' },
-    e1: { text: 'You came through the postern? Then Maud\'s gone soft, or you\'re worse than what\'s out here.', next: 'e2' },
+    e1: { text: 'You came through the postern? Then Ursel\'s gone soft, or you\'re worse than what\'s out here.', next: 'e2' },
     e2: { text: 'Ebba Platt. I dug for Venn. I walked out when we broke into the king\'s hall. Pryce didn\'t try to stop me. He was looking at the bier.', next: 'e3' },
     e3: { text: 'They\'re down there now. Venn\'s lads, and Pryce, and whatever\'s waking up. Take people with you. It\'s not a place for one.', next: 'e4' },
     e4: { text: 'The portal\'s in the king\'s barrow, in its south face. The dead down there were his guard. They kneel until they don\'t.', effect: (g) => g.setStage(KING, 'barrow') },
@@ -103,7 +103,7 @@ const maudNodes: Record<string, DNode> = {
 
 const quests: Record<string, QuestDef> = {
   [KING]: {
-    id: KING, name: 'The King\'s Black', region: 'held', story: { chapter: 21, title: 'The King\'s Black', act: ACT }, next: [HOME, 'delia'],
+    id: KING, name: 'The King\'s Black', region: 'held', story: { chapter: 26, title: 'The King\'s Black', act: ACT }, next: [HOME, 'delia'],
     notes: (g, s) => {
       if (s === 'north') return 'Through Northgate\'s postern and over the Held\'s plateau to Kingsbarrow, the old kingdom\'s city of the dead, where Pryce took his diggers.';
       if (s === 'barrow') return `Ebba Platt walked out of the dig when they broke into the king's hall. Pryce and Garrow Venn's diggers are under the king's barrow. It's a group dungeon: take people, or henchmen. (${Math.min(1, killed(g, 'type:dg_oldking'))}/1)`;
@@ -125,7 +125,7 @@ const quests: Record<string, QuestDef> = {
     walk: { kill: { barrow: [['dg_oldking', 1]] }, from: { quests: { storyBell: 'done', tdCrew: 'done', tdCallis: 'done', tdSalt: 'done', tdHeld: 'done', [KING]: 'north' }, flags: { postern: true } } },
   },
   [HOME]: {
-    id: HOME, name: 'His Book', region: 'redstone', story: { chapter: 22, title: 'His Book', act: ACT },
+    id: HOME, name: 'His Book', region: 'redstone', story: { chapter: 27, title: 'His Book', act: ACT },
     notes: (g, s) => (s === 'delia' ? 'Pryce is going home to Delia Harrowgate with his purchase book. She should hear the rest from me.' : by(g, { back: 'Delia read Pryce\'s book at last. Harrowgate is poorer for it, and she finds she doesn\'t mind.', hold: 'Delia read Pryce\'s book at last. Harrowgate is richer than it\'s ever been, and her name is on a licence to sell grave-stone.', sink: 'Delia read Pryce\'s book at last, while he waited on the spring assizes in Ansbury gaol.' })),
     objectives: (_g, s) => (s === 'delia' ? [{ text: 'Go back to Delia Harrowgate at the Works, in the Counties', marker: 'delia' }] : []),
     marks: (_g, s): Marks => (s === 'delia' ? { delia: '?' } : {}),

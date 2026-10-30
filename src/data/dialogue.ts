@@ -1478,7 +1478,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
   // Quest: highPasture. Bryn Hale is stranded at Hale's Fold with a broken leg and the flock, and snow is coming.
   // Stages: askIlse, findBryn, feed, tellCai, askWenna, done. Outcome flag pastureChoice: bryn, flock, wenna.
 
-  // ---------------------------------------------------------------- Wenna Hale, shepherd
+  // ---------------------------------------------------------------- Tressa Hale, shepherd
   wenna: {
     start: (g) => {
       const s = hp(g);
@@ -1610,8 +1610,8 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       main: {
         text: (g) => {
           const c = g.flag('pastureChoice');
-          if (c === 'bryn') return 'Six ewes found their own way down. Eight didn\'t. Wenna says I\'m worth eight ewes. She\'s being generous.';
-          if (c === 'wenna') return 'Wenna chose. I\'d have chosen the same. I\'m still not speaking to her till the thaw.';
+          if (c === 'bryn') return 'Six ewes found their own way down. Eight didn\'t. Tressa says I\'m worth eight ewes. She\'s being generous.';
+          if (c === 'wenna') return 'Tressa chose. I\'d have chosen the same. I\'m still not speaking to her till the thaw.';
           return 'Two toes. I\'ve got eight more. The ewes are all in.';
         },
       },
@@ -1643,7 +1643,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         options: [
           { text: 'Bring Bryn down.', next: 'bryn' },
           { text: 'Drive the ewes down. Bryn keeps the fire in.', next: 'flock' },
-          { text: 'Ask Wenna. It\'s her house.', next: 'wenna' },
+          { text: 'Ask Tressa. It\'s her house.', next: 'wenna' },
         ],
       },
       bryn: { text: 'He told you ewes first, didn\'t he.', next: 'bryn2' },

@@ -353,7 +353,7 @@ export const QUESTS: Record<string, QuestDef> = {
       const c = g.flag('pastureChoice');
       switch (s) {
         case 'askIlse':
-          return 'Bryn Hale went up to Hale\'s Fold three days ago to bring his fourteen ewes down before the snow, and hasn\'t come back. His wife Wenna says to ask Ilse Blewitt at Scarth Watch whether she\'s seen a lantern on the ridge.';
+          return 'Bryn Hale went up to Hale\'s Fold three days ago to bring his fourteen ewes down before the snow, and hasn\'t come back. His wife Tressa says to ask Ilse Blewitt at Scarth Watch whether she\'s seen a lantern on the ridge.';
         case 'findBryn':
           return 'Ilse saw a lantern at Hale\'s Fold two nights ago and none last night. Her glass is falling: snow tomorrow night. Whoever is at the fold has to be off it by then.';
         case 'feed':
@@ -361,10 +361,10 @@ export const QUESTS: Record<string, QuestDef> = {
         case 'tellCai':
           return 'Bryn can\'t walk. Cai Morgan has one sledge trip before the snow: Bryn, or the ewes. Bryn says the ewes first; fourteen ewes is the house.';
         case 'askWenna':
-          return 'Cai can bring down Bryn or the ewes, not both. I\'ve left it to Wenna.';
+          return 'Cai can bring down Bryn or the ewes, not both. I\'ve left it to Tressa.';
         case 'done':
           if (c === 'bryn') return 'I told Cai to bring Bryn down. Six ewes found their own way home; eight were lost in the snow.';
-          if (c === 'wenna') return 'Wenna chose the ewes. Bryn kept the fire in and lost two toes. The flock is safe.';
+          if (c === 'wenna') return 'Tressa chose the ewes. Bryn kept the fire in and lost two toes. The flock is safe.';
           return 'I told Cai to bring the ewes down. Bryn kept the fire in through the snow and lost two toes. The flock is safe.';
       }
       return '';
@@ -376,8 +376,8 @@ export const QUESTS: Record<string, QuestDef> = {
         case 'findBryn': return [{ text: `Drive the frost wolves off Hale's Fold (${k}/3)`, done: k >= 3, marker: 'bryn' }];
         case 'feed': return [{ text: 'Give Bryn something to eat (any cooked food)', marker: 'bryn' }];
         case 'tellCai': return [{ text: 'Tell Cai Morgan at Kelderby', marker: 'cai' }];
-        case 'askWenna': return [{ text: 'Ask Wenna Hale', marker: 'wenna' }];
-        case 'done': return g.flag('wennaPaid') ? [] : [{ text: 'See Wenna Hale', marker: 'wenna' }];
+        case 'askWenna': return [{ text: 'Ask Tressa Hale', marker: 'wenna' }];
+        case 'done': return g.flag('wennaPaid') ? [] : [{ text: 'See Tressa Hale', marker: 'wenna' }];
       }
       return [];
     },

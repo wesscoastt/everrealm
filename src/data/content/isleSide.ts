@@ -7,12 +7,12 @@ import type { RegionContent } from './types';
 
 // The isles' side stories.
 //
-// isJowan, STANDING STILL (Wenna Rowse, the Staithe Inn, Gillsby): her son Jowan had the cough in the
+// isJowan, STANDING STILL (Kerra Rowse, the Staithe Inn, Gillsby): her son Jowan had the cough in the
 // spring and walked into the caps, the way the greyed do. She leaves a plate at the wood's edge every
 // night. He's standing in a clearing inland, grey to the elbows but not to the face. Reek smoke breaks
 // the Grey down: Doctor Hale proved it. Bryony Kitto gives you a bundle from the reek-house; you burn it
 // upwind of him, and he coughs grey dust and sits down. 'find' -> 'reek' -> 'burn' -> 'wenna' -> done.
-// He doesn't remember the summer. Choice isJowan = 'told' (Wenna tells him) | 'ill' (he was ill abed).
+// He doesn't remember the summer. Choice isJowan = 'told' (Kerra tells him) | 'ill' (he was ill abed).
 //
 // isCog, THE WHEEL'S COG (Ebrel Rundle, the Wheelhouse, Brasswick): old Hedra Penhallow of the Wheel lost
 // her cog badge on the slope, and the brass mites strip anything bright. They hoard what they take in a
@@ -83,7 +83,7 @@ const wennaNodes: Record<string, DNode> = {
 
 const bryonyNodes: Record<string, DNode> = {
   jb1: {
-    text: 'Wenna\'s boy. Standing, you say, not sitting. Grey to the elbows. Then there\'s time. Take this, and light it upwind of him, close.',
+    text: 'Kerra\'s boy. Standing, you say, not sitting. Grey to the elbows. Then there\'s time. Take this, and light it upwind of him, close.',
     options: [{ text: 'What will it do?', next: 'jb2' }],
   },
   jb2: {
@@ -120,16 +120,16 @@ const quests: Record<string, QuestDef> = {
   [JOWAN]: {
     id: JOWAN, name: 'Standing Still', region: 'inkholm', depth: 'quest',
     notes: (g, s) => {
-      if (s === 'find') return 'Wenna Rowse\'s son Jowan had the cough in the spring and walked into the caps, the way the greyed do. She asked me to look for him, inland east of Gillsby Staithe.';
+      if (s === 'find') return 'Kerra Rowse\'s son Jowan had the cough in the spring and walked into the caps, the way the greyed do. She asked me to look for him, inland east of Gillsby Staithe.';
       if (s === 'reek') return 'Jowan is standing in a clearing among the lantern caps, grey to the elbows but not yet to the face. Reek smoke breaks the Grey down. Bryony Kitto keeps the reek-house.';
       if (s === 'burn') return 'Bryony gave me a bundle of reek. I\'m to light it upwind of Jowan, close.';
-      if (s === 'wenna') return 'Jowan coughed the Grey out of himself and went home on his own feet. Wenna will want to see me.';
-      return g.flag('isJowan') === 'told' ? 'Wenna told Jowan where he spent the summer, by the fire, all of it.' : 'Jowan thinks he was ill abed all summer. He can have the week.';
+      if (s === 'wenna') return 'Jowan coughed the Grey out of himself and went home on his own feet. Kerra will want to see me.';
+      return g.flag('isJowan') === 'told' ? 'Kerra told Jowan where he spent the summer, by the fire, all of it.' : 'Jowan thinks he was ill abed all summer. He can have the week.';
     },
     objectives: (_g, s) => (s === 'find' ? [{ text: 'Look for Jowan inland of Gillsby Staithe', marker: 'jowan_still' }]
       : s === 'reek' ? [{ text: 'Ask Bryony Kitto for reek', marker: 'bryony' }]
       : s === 'burn' ? [{ text: 'Burn the reek beside Jowan', marker: 'isReek' }]
-      : s === 'wenna' ? [{ text: 'Go back to Wenna Rowse at the Staithe Inn', marker: 'wenna_rowse' }] : []),
+      : s === 'wenna' ? [{ text: 'Go back to Kerra Rowse at the Staithe Inn', marker: 'wenna_rowse' }] : []),
     marks: (_g, s): Marks => (s === 'reek' ? { bryony: '?' } : s === 'wenna' ? { wenna_rowse: '?' } : {}),
     walk: { cast: ['wenna_rowse', 'bryony'], from: { quests: { inkPriory: 'done' } } },
   },

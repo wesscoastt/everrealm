@@ -251,7 +251,7 @@ const pere: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [CREW]: {
-    id: CREW, name: 'Half a Crew', region: 'bright', story: { chapter: 17, title: 'Half a Crew', act: ACT }, next: [CAL, 'clerk'],
+    id: CREW, name: 'Half a Crew', region: 'bright', story: { chapter: 22, title: 'Half a Crew', act: ACT }, next: [CAL, 'clerk'],
     notes: (_g, s) => {
       if (s === 'delia') return 'A Morrow ship, the Good Return, came into Gullmouth half-crewed. Her master asked after the Third Daughter, a Harrowgate ship. Nessa Crane wants Delia Harrowgate told.';
       if (s === 'cross') return 'Aubrey Pryce sailed for Morrow on the Third Daughter while I was at Holmsey, with Delia\'s signature on his papers. Delia has paid my passage on the Constant, the packet from Gullmouth to Callis, to find out what her name is on.';
@@ -266,7 +266,7 @@ const quests: Record<string, QuestDef> = {
     walk: { cast: ['sennen_gull', 'pau_ferrer'], from: { quests: { storyBell: 'done' }, flags: { parishEnd: 'rise' } } },
   },
   [CAL]: {
-    id: CAL, name: 'Nine Hundred Weight', region: 'bright', story: { chapter: 18, title: 'Nine Hundred Weight', act: ACT }, next: ['tdSalt', 'sail'],
+    id: CAL, name: 'Nine Hundred Weight', region: 'bright', story: { chapter: 23, title: 'Nine Hundred Weight', act: ACT }, next: ['tdSalt', 'sail'],
     notes: (g, s) => {
       if (s === 'clerk') return 'Whatever the Third Daughter brought to Callis, Pryce took it to the Assembly. If anyone wrote it down, it was the Assembly\'s clerks, on the plaza under the towers.';
       if (s === 'warden') return 'The Assembly\'s Works Committee has bought nine hundred weight of the black since midsummer, against forty in a usual year: from A. Pryce, for Harrowgate & Daughters, delivered by the Kittiwake. Clara Oms says to ask the Warden of the Towers why.';

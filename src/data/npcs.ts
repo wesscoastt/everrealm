@@ -234,7 +234,7 @@ export const NPCS: NpcDef[] = [
   },
   // ================================================================ Kelderby, Scarth Watch and Hale's Fold, Scarth Highlands
   {
-    id: 'wenna', name: 'Wenna Hale', title: 'Shepherd, Kelderby',
+    id: 'wenna', name: 'Tressa Hale', title: 'Shepherd, Kelderby',
     look: { skin: '#e8c4a4', hair: '#3a2a22', hairStyle: 4, eyes: '#3a4a5a', tunic: '#5a6a7a', trim: '#c8c0b0', trousers: '#3a3a3a', boots: '#2a1e14', cape: '#6a5a4a', lashes: true, build: 1.0, age: 0.4 },
     schedule: [{ from: 0, to: 24, at: [COLD.x - 8.5, COLD.z - 2], face: [COLD.x - 8.5, COLD.z + 2], anim: 'idle' }],
   },

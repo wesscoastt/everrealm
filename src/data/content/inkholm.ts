@@ -22,7 +22,7 @@ import { GILLSBY, HYTHE, OLD_BED, PRIORY, REEKS } from '../inkholm';
 // Charter) | 'bryony' (Bryony reads it out at the council: the council pays back the smoke money,
 // the works stay under the island's terms). Cast: Doctor Lettice Hale (Collegium physician), Reuben
 // Hoskin (ferryman, Gullmouth), Bryony Kitto (the last Reeker), Joss Kitto (her grandson), Aubrey
-// Vosper (works manager), Wenna Rowse (the Staithe Inn), Silas Hoskin (quay ropes, Reuben's brother).
+// Vosper (works manager), Kerra Rowse (the Staithe Inn), Silas Hoskin (quay ropes, Reuben's brother).
 
 const CROSS = 'inkCrossing', VILLAGE = 'inkGillsby', FIRES = 'inkReek', WORKS = 'inkHythe', PRIORY_Q = 'inkPriory';
 const G = GILLSBY, W = HYTHE;
@@ -360,7 +360,7 @@ export const INKHOLM_CONTENT: RegionContent = {
       when: (g) => cured(g),
     },
     {
-      id: 'wenna_rowse', name: 'Wenna Rowse', title: 'The Staithe Inn',
+      id: 'wenna_rowse', name: 'Kerra Rowse', title: 'The Staithe Inn',
       look: { ...LOOK_ISLE, hair: '#8a4a2a', hairStyle: 7, tunic: '#7a3a3a', trim: '#e0c890', trousers: '#3a2e26', boots: '#2a2018', apron: true, lashes: true, freckles: true, build: 1.05, age: 0.45 },
       schedule: [{ from: 0, to: 24, at: [G.x - 5.5, G.z + 3.3], face: [G.x - 5.5, G.z + 0.5], anim: 'idle' }],
       barks: ['We\'re open.', 'Mind the rope.'],
@@ -386,7 +386,7 @@ export const INKHOLM_CONTENT: RegionContent = {
       id: 'wenna_rowse', name: 'The Staithe Inn', owner: 'wenna_rowse',
       stock: [{ item: 'bread', price: 3 }, { item: 'smoked_eel', price: 24 }, { item: 'mutton_pie', price: 11 }, { item: 'brown_ale', price: 4 }, { item: 'hollin_cider', price: 4 }],
       buyRate: () => 0.5,
-      footer: () => 'Wenna pays half of an item\'s worth',
+      footer: () => 'Kerra pays half of an item\'s worth',
     } as ShopDef,
   },
   readables: {

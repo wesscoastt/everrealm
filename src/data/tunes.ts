@@ -43,7 +43,7 @@ export const TUNES: Tune[] = [
     },
   },
   {
-    id: 'fourteenewes', name: 'Fourteen Ewes', from: 'Wenna Hale, Kelderby', bpm: 92, root: 62, mode: MODES.dorian,
+    id: 'fourteenewes', name: 'Fourteen Ewes', from: 'Tressa Hale, Kelderby', bpm: 92, root: 62, mode: MODES.dorian,
     desc: 'A slow tune from the high pasture. The Hales sing it counting the flock in, one ewe a bar.',
     parts: {
       lead: '0:2 2:1 4:2 3:1 2:1 1:1 0:1 1:3 0:2 2:1 4:2 5:1 6:1 5:1 4:1 4:3 7:2 6:1 5:2 4:1 3:1 2:1 1:1 2:3 4:2 2:1 3:2 1:1 0:1 1:1 -1:1 0:3',

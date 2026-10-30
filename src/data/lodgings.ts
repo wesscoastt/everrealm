@@ -67,7 +67,8 @@ export function lodgeAt(L: LodgingDef, u: number, v: number): [number, number] {
 }
 
 /** The floor everyone stands on inside (an inn's taproom). */
-export const lodgeBase = (L: LodgingDef): number => Math.floor(heightAt(L.x, L.z));
+/** The ground floor: the ground under the middle, or the ground outside the front door if that's higher (or the doorway opens onto earth). */
+export const lodgeBase = (L: LodgingDef): number => { const [dx, dz] = lodgeAt(L, 0, LODGE_V + 1); return Math.floor(Math.max(heightAt(L.x, L.z), heightAt(dx + 0.5, dz + 0.5))); };
 /** The floor the rooms are on: the ground floor, or an inn's upper floor. */
 export const roomBase = (L: LodgingDef): number => lodgeBase(L) + (L.inn ? LODGE_H : 0);
 

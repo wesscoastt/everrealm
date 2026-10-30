@@ -16,9 +16,9 @@ import { NG_GATE, NG_WALL } from '../../world/morrow';
 //
 // hdFold, THE LAST FOLD (Lew Garth, outside the gate): a herder came down off the Held with the last of
 // his fell sabres and found the gate shut. He's slept against it nine nights; the trolls have had two of
-// his cats. Kill three fell trolls so he lasts the week, then get Maud to let him in. She won't open the
+// his cats. Kill three fell trolls so he lasts the week, then get Ursel to let him in. She won't open the
 // gate for twelve sabres; the postern is for people. Edda has the first Gatekeeper's charge, older than
-// Maud's orders: shut against the dead, never against the living. Maud reads it and chooses: the gate
+// Ursel's orders: shut against the dead, never against the living. Ursel reads it and chooses: the gate
 // opens for an hour, or the cats come through the postern one at a time, all night. 'trolls' -> 'maud'
 // -> 'edda' -> 'charge' -> done. Choice hdFold = 'gate' | 'postern'.
 //
@@ -108,17 +108,17 @@ const ivoNodes: Record<string, DNode> = {
     next: 'lf4',
   },
   lf4: {
-    text: 'If somebody thinned the trolls out, I could last the week. And if somebody talked to Maud Hale, I might not need to.',
+    text: 'If somebody thinned the trolls out, I could last the week. And if somebody talked to Ursel Hale, I might not need to.',
     options: [
-      { text: 'I\'ll deal with the trolls, and then I\'ll talk to Maud.', effect: (g) => { g.setFlag(FOLD + ':base', killed(g, 'type:felltroll')); g.setStage(FOLD, 'trolls'); } },
+      { text: 'I\'ll deal with the trolls, and then I\'ll talk to Ursel.', effect: (g) => { g.setFlag(FOLD + ':base', killed(g, 'type:felltroll')); g.setStage(FOLD, 'trolls'); } },
       { text: 'Not now.' },
     ],
   },
-  lfWait: { text: (g) => (at(g, FOLD) === 'trolls' ? `The trolls come down off the high snow, up the road behind me. ${trolls(g)} of three, so far.` : 'Maud\'s at the gate, inside. Tell her the cats are no more dead than she is.') },
+  lfWait: { text: (g) => (at(g, FOLD) === 'trolls' ? `The trolls come down off the high snow, up the road behind me. ${trolls(g)} of three, so far.` : 'Ursel\'s at the gate, inside. Tell her the cats are no more dead than she is.') },
   lfAfter: {
     text: (g) => (g.flag(FOLD) === 'gate'
       ? 'An hour, she gave us, and she stood in the gateway the whole hour with her hand on her sword. Every cat came in. She bought four of them. Paid a fair price, too.'
-      : 'All night through the postern, one at a time, and Maud counting them in like a shepherd. The last one wouldn\'t go. She went out and carried it.'),
+      : 'All night through the postern, one at a time, and Ursel counting them in like a shepherd. The last one wouldn\'t go. She went out and carried it.'),
   },
 };
 
@@ -163,14 +163,14 @@ const maudNodes: Record<string, DNode> = {
 
 const eddaFold: Record<string, DNode> = {
   lf11: {
-    text: 'A reason older than Maud\'s. She does say that. Wait.',
+    text: 'A reason older than Ursel\'s. She does say that. Wait.',
     next: 'lf12',
   },
   lf12: {
     text: 'Here. The first Gatekeeper\'s charge, on the first leaf of the first roll. Three hundred years old. Read the last line to her. Don\'t paraphrase. She hates that.',
     effect: (g) => g.setStage(FOLD, 'charge'),
   },
-  lfEddaWait: { text: 'The last line of the charge. Read it to Maud word for word.' },
+  lfEddaWait: { text: 'The last line of the charge. Read it to Ursel word for word.' },
 };
 
 const quests: Record<string, QuestDef> = {
@@ -194,15 +194,15 @@ const quests: Record<string, QuestDef> = {
     id: FOLD, name: 'The Last Fold', region: 'held', depth: 'quest',
     notes: (g, s) => {
       if (s === 'trolls') return `Lew Garth brought the last twelve of his fell sabres down off the Held and found Northgate's gate shut. The fell trolls come down at night. Thin them out so he lasts the week. (${trolls(g)}/3)`;
-      if (s === 'maud') return 'The trolls are thinner. Now Maud Hale has to be talked into letting twelve fell sabres in.';
-      if (s === 'edda') return 'Maud won\'t open the gate unless I find her a reason older than her own. Edda Rusk keeps the old rolls.';
-      if (s === 'charge') return 'Edda gave me the first Gatekeeper\'s charge. Its last line is for Maud.';
-      return g.flag(FOLD) === 'gate' ? 'Maud opened Northgate\'s gate for an hour at noon, and Lew Garth brought his fell sabres in.' : 'Maud passed Lew Garth\'s fell sabres through the postern one at a time, all night, and kept the gate shut.';
+      if (s === 'maud') return 'The trolls are thinner. Now Ursel Hale has to be talked into letting twelve fell sabres in.';
+      if (s === 'edda') return 'Ursel won\'t open the gate unless I find her a reason older than her own. Edda Rusk keeps the old rolls.';
+      if (s === 'charge') return 'Edda gave me the first Gatekeeper\'s charge. Its last line is for Ursel.';
+      return g.flag(FOLD) === 'gate' ? 'Ursel opened Northgate\'s gate for an hour at noon, and Lew Garth brought his fell sabres in.' : 'Ursel passed Lew Garth\'s fell sabres through the postern one at a time, all night, and kept the gate shut.';
     },
     objectives: (g, s) => (s === 'trolls' ? [{ text: `Kill fell trolls on the Held (${trolls(g)}/3)`, done: trolls(g) >= 3 }]
-      : s === 'maud' ? [{ text: 'Talk to Maud Hale about Lew\'s cats', marker: 'maud_hale' }]
-        : s === 'edda' ? [{ text: 'Ask Edda Rusk for a reason older than Maud\'s', marker: 'edda_rusk' }]
-          : s === 'charge' ? [{ text: 'Read Maud Hale the first Gatekeeper\'s charge', marker: 'maud_hale' }] : []),
+      : s === 'maud' ? [{ text: 'Talk to Ursel Hale about Lew\'s cats', marker: 'maud_hale' }]
+        : s === 'edda' ? [{ text: 'Ask Edda Rusk for a reason older than Ursel\'s', marker: 'edda_rusk' }]
+          : s === 'charge' ? [{ text: 'Read Ursel Hale the first Gatekeeper\'s charge', marker: 'maud_hale' }] : []),
     advance: (g, s) => (s === 'trolls' && trolls(g) >= 3 ? 'maud' : null),
     marks: (g, s): Marks => (!s && at(g, 'tdHeld') === 'done' ? { lew_garth: '!' } : s === 'maud' || s === 'charge' ? { maud_hale: '?' } : s === 'edda' ? { edda_rusk: '?' } : {}),
     walk: { cast: ['lew_garth', 'maud_hale', 'edda_rusk'], from: { quests: { tdHeld: 'done' } }, kill: { trolls: [['felltroll', 3]] } },

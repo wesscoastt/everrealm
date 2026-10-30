@@ -79,7 +79,7 @@ import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
 import { PACKET_COURSE, POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
 import { Online, type HallView, type HomeHeld } from '../net/Online';
-import { BOARDS } from '../data/content';
+import { BOARDS, SET_PIECES } from '../data/content';
 
 /** Chapter numbers for the main story's quests, I to XXX. */
 const ROMAN = ['', ...Array.from({ length: 30 }, (_, i) => { let n = i + 1, s = ''; for (const [v, r] of [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']] as const) while (n >= v) { s += r; n -= v; } return s; })];
@@ -140,6 +140,7 @@ import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
+import { SetPieces } from './SetPieces';
 import { SharedMobs } from './SharedMobs';
 import { QuartersTable } from './QuartersTable';
 import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
@@ -546,6 +547,8 @@ export class Game implements GameApi {
   private groupRows: GroupRow[] | null = null;
   /** Group dungeons: the finder, a run, the henchmen (game/Dungeons.ts). */
   dungeons!: Dungeons;
+  /** Story set pieces: things that stand in the world only while a chapter needs them. */
+  private setPieces!: SetPieces;
   /** Vents, bogs and loose cliffs (game/Hazards.ts). */
   private hazards!: Hazards;
   /** The horses for sale in the stables' paddocks (game/Stables.ts). */
@@ -1208,6 +1211,7 @@ export class Game implements GameApi {
       claimed: (e) => this.dungeons.owns(e),
       now: () => this.elapsed,
     });
+    this.setPieces = new SetPieces(this.scene, this.world.voxels, this.world.props, SET_PIECES);
     this.dungeons = new Dungeons({
       cleared: () => this.dailies.bump('dungeon'),
       companion: () => (this.companions.active ? this.companions.henchmanOf(this.companions.active) : null),
@@ -6372,6 +6376,7 @@ export class Game implements GameApi {
     this.npcMusic();
     this.activities.update(dt);
     this.dungeons.update(dt);
+    this.setPieces.update(dt, this, this.player.position);
     this.shared.update(dt);
     // Out of a cleared dungeon with a click, not a walk back to the ladder
     const cleared = !!this.dungeons.run?.done;

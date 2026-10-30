@@ -41,6 +41,20 @@ export interface Board {
   postings: Posting[];
 }
 
+/** Something that stands in the world only while a chapter needs it (game/SetPieces.ts builds it). */
+export interface SetPiece {
+  id: string;
+  kind: 'wagon' | 'barrels' | 'campfire' | 'bedroll' | 'tent';
+  x: number;
+  z: number;
+  /** Floor height; otherwise the ground under (x, z). */
+  y?: number;
+  ry?: number;
+  /** A colour: the wagon's paint, the blanket, the tent's canvas. */
+  tint?: string;
+  when: (g: GameApi) => boolean;
+}
+
 export interface RegionContent {
   id: string;
   items?: ItemDef[];
@@ -52,6 +66,8 @@ export interface RegionContent {
   spawns?: QuestSpawn[];
   shops?: Record<string, ShopDef>;
   boards?: Board[];
+  /** Story set pieces. */
+  pieces?: SetPiece[];
   /** Additions to existing people's conversations (new options, new opening lines). */
   hooks?: (D: Record<string, DialogueTree>) => void;
 }

@@ -18,7 +18,7 @@ import type { RegionContent } from './types';
 // snow, having walked a long way to put his hand on the star. He gave his name as Owen. His crook has a
 // shepherd's mark cut in its head: the Hale mark. He was Bryn Hale's elder brother, gone twenty years
 // after a quarrel over which side of the fold wall the gate went. 'kelderby' -> done. Choice scOwen =
-// 'told' (Bryn has the crook and the truth) | 'spring' (Wenna keeps it from him till the spring) |
+// 'told' (Bryn has the crook and the truth) | 'spring' (Tressa keeps it from him till the spring) |
 // 'kirk' (the crook goes back to the Kirk: he went to the star and not to them).
 
 const STIPEND = 'scStipend', OWEN = 'scOwen';
@@ -140,7 +140,7 @@ const wennaNodes: Record<string, DNode> = {
   },
   weTold: {
     text: 'He\'ll take it hard. He\'d take it harder later, from somebody else. I\'ll give it him tonight. Here, for the walk up.',
-    options: [{ text: 'I\'m sorry, Wenna.', effect: (g) => { g.take('owens_crook'); g.addMarks(80); g.give('cooked_char', 2); g.setFlag('scOwen', 'told'); g.setStage(OWEN, 'done'); } }],
+    options: [{ text: 'I\'m sorry, Tressa.', effect: (g) => { g.take('owens_crook'); g.addMarks(80); g.give('cooked_char', 2); g.setFlag('scOwen', 'told'); g.setStage(OWEN, 'done'); } }],
   },
   weSpring: {
     text: 'Till the spring. I\'ll put it up in the loft with the fleeces. He never goes up there. Here, for the walk up.',
@@ -183,9 +183,9 @@ const quests: Record<string, QuestDef> = {
     id: OWEN, name: 'Owen\'s Crook', region: 'starfall', depth: 'quest',
     notes: (g, s) => {
       if (s === 'kelderby') return 'An old man who gave his name as Owen died of cold on the Kirk road. Sela Orme wants his people told. His crook has a shepherd\'s mark: someone at Kelderby will know it.';
-      if (s === 'kirk') return 'Owen was Bryn Hale\'s brother, gone twenty years. Wenna wants his crook to go back to the Kirk.';
+      if (s === 'kirk') return 'Owen was Bryn Hale\'s brother, gone twenty years. Tressa wants his crook to go back to the Kirk.';
       const c = g.flag('scOwen');
-      return c === 'told' ? 'Wenna gave Bryn his brother\'s crook, and the truth.' : c === 'spring' ? 'Wenna put Owen\'s crook in the loft with the fleeces, till the spring.' : 'Owen\'s crook stands by the crystal at the Glass Kirk, under his name in Sela\'s book.';
+      return c === 'told' ? 'Tressa gave Bryn his brother\'s crook, and the truth.' : c === 'spring' ? 'Tressa put Owen\'s crook in the loft with the fleeces, till the spring.' : 'Owen\'s crook stands by the crystal at the Glass Kirk, under his name in Sela\'s book.';
     },
     objectives: (_g, s) => (s === 'kelderby' ? [{ text: 'Find who knows the mark on the crook, at Kelderby', marker: 'wenna' }]
       : s === 'kirk' ? [{ text: 'Take the crook back to Sela Orme at the Glass Kirk', marker: 'sela' }] : []),

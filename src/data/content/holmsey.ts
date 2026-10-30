@@ -188,7 +188,7 @@ const hildaGull: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [LOW]: {
-    id: LOW, name: 'Low Water', story: { chapter: 13, title: 'Low Water', act: ACT }, next: [REG, 'dive'],
+    id: LOW, name: 'Low Water', story: { chapter: 18, title: 'Low Water', act: ACT }, next: [REG, 'dive'],
     notes: (_g: GameApi, s: string) => {
       if (s === 'nessa') return 'Nessa Crane, Gullmouth\'s harbourmaster, wants a word.';
       if (s === 'tamar') return 'Tamar Sweet wrote to Nessa that the drowned Holmsey bell has rung three times this month. Every boat to the Raddle smelter passes over Holmsey. Tamar is living in the old bell-tower off the Gulf Cliffs.';
@@ -208,7 +208,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storyLastMark: 'done', [LOW]: 'nessa' } } },
   },
   [REG]: {
-    id: REG, name: 'The Register', story: { chapter: 14, title: 'The Register', act: ACT }, next: [LOADS, 'sela'],
+    id: REG, name: 'The Register', story: { chapter: 19, title: 'The Register', act: ACT }, next: [LOADS, 'sela'],
     notes: (g: GameApi, s: string) => {
       if (s === 'dive') return g.has('holmsey_register') ? 'I have Holmsey\'s parish register. Tamar will want to read it.' : 'Tamar thinks the parish clerk will have written down why Holmsey went under. The parish chest is at the far end of the drowned nave, past a conger the size of a coffin.';
       if (s === 'tamar') return 'I have Holmsey\'s parish register. Tamar will want to read it.';
@@ -224,7 +224,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storyLastMark: 'done', [LOW]: 'done', [REG]: 'dive' } } },
   },
   [LOADS]: {
-    id: LOADS, name: 'A Mark the Load', story: { chapter: 15, title: 'A Mark the Load', act: ACT }, next: [BELL, 'tamar'],
+    id: LOADS, name: 'A Mark the Load', story: { chapter: 20, title: 'A Mark the Load', act: ACT }, next: [BELL, 'tamar'],
     notes: (g: GameApi, s: string) => {
       if (s === 'sela') return 'Sela Orme keeps the Glass Kirk. Tamar wants the Kirk asked where its floor came from.';
       if (s === 'book') return 'Sela Orme says the Kirk\'s floor came from the Fennick estate. The building book is on her desk.';
@@ -248,7 +248,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storyLastMark: 'done', [LOW]: 'done', [REG]: 'done', [LOADS]: 'sela' }, items: [['holmsey_register', 1]] }, cast: ['hildaGull'] },
   },
   [BELL]: {
-    id: BELL, name: 'The Last Names', story: { chapter: 16, title: 'The Last Names', act: ACT },
+    id: BELL, name: 'The Last Names', story: { chapter: 21, title: 'The Last Names', act: ACT },
     notes: (g: GameApi, s: string) => {
       if (s === 'tamar') return 'Nessa has decided. Tamar Sweet should hear it from me.';
       if (s === 'ring') return 'Tamar will read the register\'s last names while I ring the bell.';

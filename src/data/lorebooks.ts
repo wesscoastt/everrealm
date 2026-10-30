@@ -100,7 +100,7 @@ export const LORE_BOOKS: LoreBook[] = [
   },
   {
     id: 'weather', title: 'Kelderby Weather, as the Hales Read It', shelf: 'Songs and Sayings', x: COLD.x - 3.5, z: COLD.z + 3.5, where: 'Kelderby, on the Scarth Highlands',
-    text: 'Wenna Hale says these are her grandmother\'s, and her grandmother said they were her grandmother\'s, so take it up with her.\n\nFrost on the fold wall before Michaelmas: a long winter and short tempers.\n\nSheep with their backs to the wind are cleverer than you. Put yours there too.\n\nWhen the Kettle steams on a cold morning, the snow\'s two days off.\n\nWhen the frost wolves come down to the fold, it isn\'t the cold that sent them. It\'s whatever is up above them.\n\nCount the ewes in every night. If you\'re one short, go now, not in the morning. In the morning you\'ll be two short.',
+    text: 'Tressa Hale says these are her grandmother\'s, and her grandmother said they were her grandmother\'s, so take it up with her.\n\nFrost on the fold wall before Michaelmas: a long winter and short tempers.\n\nSheep with their backs to the wind are cleverer than you. Put yours there too.\n\nWhen the Kettle steams on a cold morning, the snow\'s two days off.\n\nWhen the frost wolves come down to the fold, it isn\'t the cold that sent them. It\'s whatever is up above them.\n\nCount the ewes in every night. If you\'re one short, go now, not in the morning. In the morning you\'ll be two short.',
   },
   {
     id: 'moorbells', title: 'What the Moor Says About Bells', shelf: 'Songs and Sayings', x: SCARROW.x + 8.5, z: SCARROW.z + 8.5, where: 'Scarrow Tor, on Tolmen Moor',

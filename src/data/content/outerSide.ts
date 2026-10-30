@@ -20,7 +20,7 @@ import type { RegionContent } from './types';
 // lifts the sluice gate a hand on Saturday nights, when nobody counts).
 //
 // otCroup, CROUP WINTER (Joss Trewin, shepherd, Scarrow Tor): his girl Bess barks like a seal all night.
-// Caddy Nankervis says pass her through the holed stone at sunrise; Wenna Kitto says steam and honey,
+// Caddy Nankervis says pass her through the holed stone at sunrise; Senara Kitto says steam and honey,
 // and wants bitter-moss for the kettle from the mouth of Carne Barrow. 'moss' -> 'kitto' -> done
 // ('both': the kettle, and the stone at sunrise for Joss's sake) or 'caddy' -> done ('kettle': no stone;
 // Caddy, ninety years at it, says the kettle herself).
@@ -148,14 +148,14 @@ const jossNodes: Record<string, DNode> = {
     options: [{ text: 'What does she need?', next: 'cr2' }, { text: 'I hope she mends.' }],
   },
   cr2: {
-    text: 'Caddy Nankervis says pass her through the holed stone at sunrise. Wenna Kitto says steam and honey. I don\'t know who to listen to.',
-    options: [{ text: 'What does Wenna need?', next: 'cr3' }],
+    text: 'Caddy Nankervis says pass her through the holed stone at sunrise. Senara Kitto says steam and honey. I don\'t know who to listen to.',
+    options: [{ text: 'What does Senara need?', next: 'cr3' }],
   },
   cr3: {
     text: 'Bitter-moss for her kettle. It grows in the mouth of Carne Barrow, east along the moor. I can\'t leave Bess.',
     options: [{ text: 'I\'ll fetch it.', effect: (g) => g.setStage(CROUP, 'moss') }, { text: 'Not now.' }],
   },
-  crWait: { text: (g) => (at(g, CROUP) === 'moss' ? 'The mouth of Carne Barrow, east along the moor. Grey-green, and it stinks.' : 'Wenna\'s at the Tinners\' Arms. Caddy\'s by the stone.'), options: [{ text: 'Going.' }] },
+  crWait: { text: (g) => (at(g, CROUP) === 'moss' ? 'The mouth of Carne Barrow, east along the moor. Grey-green, and it stinks.' : 'Senara\'s at the Tinners\' Arms. Caddy\'s by the stone.'), options: [{ text: 'Going.' }] },
   crAfter: { text: 'Bess slept through last night. First time in a week. I sat up anyway.', options: [{ text: 'Good.' }] },
 };
 
@@ -230,13 +230,13 @@ const quests: Record<string, QuestDef> = {
   [CROUP]: {
     id: CROUP, name: 'Croup Winter', region: 'tolmen', depth: 'quest',
     notes: (g, s) => {
-      if (s === 'moss') return 'Joss Trewin\'s girl Bess has the croup. Caddy Nankervis says the holed stone at sunrise; Wenna Kitto says steam and honey, and wants bitter-moss from the mouth of Carne Barrow, east along the moor.';
-      if (s === 'kitto') return 'I have the bitter-moss. Wenna Kitto is at the Tinners\' Arms.';
-      if (s === 'caddy') return 'Wenna says no stone, the kettle. She wants me to tell Caddy Nankervis.';
+      if (s === 'moss') return 'Joss Trewin\'s girl Bess has the croup. Caddy Nankervis says the holed stone at sunrise; Senara Kitto says steam and honey, and wants bitter-moss from the mouth of Carne Barrow, east along the moor.';
+      if (s === 'kitto') return 'I have the bitter-moss. Senara Kitto is at the Tinners\' Arms.';
+      if (s === 'caddy') return 'Senara says no stone, the kettle. She wants me to tell Caddy Nankervis.';
       return g.flag('otCroup') === 'both' ? 'Bess had the kettle, and Caddy passed her through the holed stone at sunrise. She slept through the next night.' : 'Bess had the kettle and no stone. Caddy said so herself: the stone never cured anyone.';
     },
     objectives: (_g, s) => (s === 'moss' ? [{ text: 'Pick bitter-moss at the mouth of Carne Barrow', marker: 'otMoss' }]
-      : s === 'kitto' ? [{ text: 'Bring the moss to Wenna Kitto', marker: 'kitto' }]
+      : s === 'kitto' ? [{ text: 'Bring the moss to Senara Kitto', marker: 'kitto' }]
       : s === 'caddy' ? [{ text: 'Tell Caddy Nankervis: no stone', marker: 'nankervis' }] : []),
     marks: (_g, s): Marks => (s === 'kitto' ? { kitto: '?' } : s === 'caddy' ? { nankervis: '?' } : {}),
     walk: { cast: ['josstre', 'kitto', 'nankervis'] },

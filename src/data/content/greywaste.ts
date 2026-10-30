@@ -12,9 +12,9 @@ import { COLD_SHED, COLD_TALLY, FELL_BARROWS, FELL_LAY, NG_ARCHIVE, NG_GATE } fr
 // dead got up: the Held. Pryce paid double to keep digging, then took the hardest men north to
 // Kingsbarrow, the old king's barrow. Wat thinks the black put back would lay them down again; the
 // player lays it back over the last barrow they opened, and the dead round it kneel and lie down.
-// At Northgate the Gatekeeper, Maud Hale, has shut the gate. Edda Rusk at the Gatekeepers' Archive
+// At Northgate the Gatekeeper, Ursel Hale, has shut the gate. Edda Rusk at the Gatekeepers' Archive
 // shows the oldest roll: the black was laid so the dead would lie still, and the wall was built in
-// case anyone forgot. If Pryce lifts the king's black, the whole Held gets up at once. Maud opens the
+// case anyone forgot. If Pryce lifts the king's black, the whole Held gets up at once. Ursel opens the
 // postern (flag postern).
 //
 // Northern names are short and old: Aske, Hale, Rusk.
@@ -67,8 +67,8 @@ const maud: DialogueTree = {
     return 'm0';
   },
   nodes: {
-    m0: { text: 'Maud Hale, Gatekeeper. The gate\'s shut. The town\'s open. Mind which is which.' },
-    m1: { text: 'Maud Hale, Gatekeeper. The gate\'s shut. It\'s been shut a month, and it stays shut until I\'m told otherwise. Nobody tells me otherwise.', next: 'm2' },
+    m0: { text: 'Ursel Hale, Gatekeeper. The gate\'s shut. The town\'s open. Mind which is which.' },
+    m1: { text: 'Ursel Hale, Gatekeeper. The gate\'s shut. It\'s been shut a month, and it stays shut until I\'m told otherwise. Nobody tells me otherwise.', next: 'm2' },
     m2: { text: 'There are dead walking up there. The wall was built for this. Three hundred years it\'s never been needed, and now it is.', next: 'm3' },
     m3: { text: 'Your digger-master went through with twenty men, a day before we shut. I\'d not open it for him now.', next: 'm4' },
     m4: { text: 'Go to the Archive. Edda Rusk will tell you what\'s up there. Then tell me why I should open my postern for you.', effect: (g) => g.setStage(HELD, 'archive') },
@@ -86,27 +86,27 @@ const edda: DialogueTree = {
   start: (g) => (at(g, HELD) === 'archive' ? 'e1' : at(g, HELD) === 'maud' || at(g, HELD) === 'done' ? 'eDone' : 'e0'),
   nodes: {
     e0: { text: 'Edda Rusk, keeper of the Archive. Three hundred years of Gatekeepers\' rolls, and nobody reads them. Sit, if you like.' },
-    e1: { text: 'Edda Rusk, keeper of the Archive. Maud sent you. She sends me everyone she doesn\'t want to argue with.', next: 'e2' },
+    e1: { text: 'Edda Rusk, keeper of the Archive. Ursel sent you. She sends me everyone she doesn\'t want to argue with.', next: 'e2' },
     e2: { text: 'Here. The Gatekeepers\' roll, the oldest we have. Read the first page. It\'s short.', next: 'e3', effect: (g) => g.give('gatekeepers_roll') },
     e3: { speaker: 'narrator', text: 'The first page, in a hand three hundred years old: the old king\'s people laid the black over their dead so they would lie still. And they did.', next: 'e4' },
     e4: { text: 'The wall came after, when the old kingdom fell, in case anyone forgot. Everyone forgot. That\'s what walls are for.', next: 'e5' },
     e5: { text: 'Kingsbarrow is the old king\'s own, under the deepest black in Morrow. If your Mr Pryce lifts it, the whole Held gets up. All at once.', next: 'e6' },
-    e6: { text: 'Tell Maud you\'ve read it. She\'ll open the postern. She was always going to. She wanted someone to have read it first.', effect: (g) => g.setStage(HELD, 'maud') },
+    e6: { text: 'Tell Ursel you\'ve read it. She\'ll open the postern. She was always going to. She wanted someone to have read it first.', effect: (g) => g.setStage(HELD, 'maud') },
     eDone: { text: 'Bring the roll back when you\'re done, if you\'re done. Keep it if you\'re not.' },
   },
 };
 
 const quests: Record<string, QuestDef> = {
   [HELD]: {
-    id: HELD, name: 'Lie Still', region: 'greywaste', story: { chapter: 20, title: 'Lie Still', act: ACT }, next: ['tdKing', 'north'],
+    id: HELD, name: 'Lie Still', region: 'greywaste', story: { chapter: 25, title: 'Lie Still', act: ACT }, next: ['tdKing', 'north'],
     notes: (_g, s) => {
       if (s === 'harbour') return 'The black loads at Cold Harbour, a cove under the Greywaste\'s cliffs. The Kittiwake can take me from Saltpenny, or I can go overland from Callis by the coast road.';
       if (s === 'fell') return 'Wat Aske, the last of Pryce\'s diggers, says the dead got up out of every barrow they stripped on Hollow Fell. He thinks the black put back would lay them down. Ma\'s barrow was the last opened.';
       if (s === 'wat') return 'I laid the black back over Ma\'s barrow, and the dead round it lay down. Wat Aske should know.';
       if (s === 'gate') return 'It\'s the black: with it off them, the dead walk. Pryce took his hardest diggers north to Kingsbarrow, the old king\'s barrow, past Northgate. Northgate has shut its gate.';
-      if (s === 'archive') return 'Maud Hale, the Gatekeeper of Northgate, won\'t open the postern until I\'ve seen Edda Rusk at the Gatekeepers\' Archive.';
+      if (s === 'archive') return 'Ursel Hale, the Gatekeeper of Northgate, won\'t open the postern until I\'ve seen Edda Rusk at the Gatekeepers\' Archive.';
       if (s === 'maud') return 'The oldest Gatekeepers\' roll: the old kingdom laid the black on its dead so they\'d lie still, and built the wall in case anyone forgot. If Pryce lifts the king\'s black at Kingsbarrow, the whole Held gets up at once.';
-      return 'Maud Hale has opened Northgate\'s postern to me. Pryce is at Kingsbarrow, digging toward the old king.';
+      return 'Ursel Hale has opened Northgate\'s postern to me. Pryce is at Kingsbarrow, digging toward the old king.';
     },
     objectives: (_g, s) => {
       if (s === 'harbour') return [{ text: 'Find out what happened at Cold Harbour', marker: 'wat_aske' }];
@@ -114,7 +114,7 @@ const quests: Record<string, QuestDef> = {
       if (s === 'wat') return [{ text: 'Tell Wat Aske', marker: 'wat_aske' }];
       if (s === 'gate') return [{ text: 'Go to Northgate and talk to the Gatekeeper', marker: 'maud_hale' }];
       if (s === 'archive') return [{ text: 'See Edda Rusk at the Gatekeepers\' Archive', marker: 'edda_rusk' }];
-      if (s === 'maud') return [{ text: 'Tell Maud Hale you\'ve read the roll', marker: 'maud_hale' }];
+      if (s === 'maud') return [{ text: 'Tell Ursel Hale you\'ve read the roll', marker: 'maud_hale' }];
       return [];
     },
     advance: (g, s) => (s === 'fell' && g.flag('fellLaid') ? 'wat' : null),
@@ -140,7 +140,7 @@ export const GREYWASTE_CONTENT: RegionContent = {
       barks: ['Warm. See?', 'Put it back.'],
     },
     {
-      land: 'morrow', id: 'maud_hale', name: 'Maud Hale', title: 'Gatekeeper of Northgate',
+      land: 'morrow', id: 'maud_hale', name: 'Ursel Hale', title: 'Gatekeeper of Northgate',
       look: { ...NORTH, hair: '#8a7a6a', hairStyle: 2, tunic: '#3a4048', trim: '#b8a878', trousers: '#2a2a30', boots: '#1e1a16', shoulderPads: '#5a5a62', cape: '#2a3038', lashes: true, scar: true, build: 1.1, age: 0.6 },
       schedule: [{ from: 0, to: 24, at: [NG_GATE.x + 1.5, NG_GATE.z + 6.5], face: [NG_GATE.x + 1.5, NG_GATE.z + 12], anim: 'idle' }],
       barks: ['The gate\'s shut.', 'Shut it behind you.'],

@@ -93,7 +93,7 @@ const tabithaNodes: DialogueTree['nodes'] = {
   b7: { text: 'I did, every year for twelve years. You can try, if you enjoy being told about the importance of scholarship.', next: 'b6' },
   bWait: {
     text: (g) => {
-      const left = [!has(g, 'waitsKelderby') && 'Wenna Hale at Kelderby', !has(g, 'waitsGullmouth') && 'Bet Polglase on the Gullmouth quay', !has(g, 'waitsFellers') && 'Sefton Garrow at Fellers\' Camp'].filter(Boolean) as string[];
+      const left = [!has(g, 'waitsKelderby') && 'Tressa Hale at Kelderby', !has(g, 'waitsGullmouth') && 'Bet Polglase on the Gullmouth quay', !has(g, 'waitsFellers') && 'Sefton Garrow at Fellers\' Camp'].filter(Boolean) as string[];
       return left.length ? `Still to come: ${left.join(', ')}. Don\'t come back with two and a promise.` : 'You have all three? Then play them for me.';
     },
   },
@@ -307,7 +307,7 @@ const bet: DialogueTree = {
   },
 };
 
-// ================================================================ Wenna, Sefton, Wynn and Pell (added to their conversations)
+// ================================================================ Tressa, Sefton, Wynn and Pell (added to their conversations)
 
 const wennaNodes: DialogueTree['nodes'] = {
   wt1: { text: '"Fourteen Ewes"? Who told you about that?', next: 'wt2' },
@@ -374,7 +374,7 @@ const quests: Record<string, QuestDef> = {
   [BOOK]: {
     id: BOOK, name: 'The Missing Pages', region: 'crownroad', depth: 'storyline',
     notes: (g, s) => {
-      if (s === 'learn') return 'Thirty pages were cut out of the Waits\' Great Book while the Collegium had it. Tabitha thinks three of the lost tunes are still sung: a counting song at Kelderby (Wenna Hale), a hauling song on the Gullmouth quay (Bet Polglase), and the fellers\' sawing song at Fellers\' Camp (Sefton Garrow). I\'m to learn each one and play it back to whoever taught me.';
+      if (s === 'learn') return 'Thirty pages were cut out of the Waits\' Great Book while the Collegium had it. Tabitha thinks three of the lost tunes are still sung: a counting song at Kelderby (Tressa Hale), a hauling song on the Gullmouth quay (Bet Polglase), and the fellers\' sawing song at Fellers\' Camp (Sefton Garrow). I\'m to learn each one and play it back to whoever taught me.';
       return 'I brought three lost tunes home to the Great Book. I\'m a journeyman Wait.';
     },
     objectives: (g, s) => {
@@ -386,7 +386,7 @@ const quests: Record<string, QuestDef> = {
         return { text: `Talk to ${who}`, marker };
       };
       const list = [
-        step('waitsKelderby', 'fourteenewes', 'Wenna Hale', 'at Kelderby', 'wenna'),
+        step('waitsKelderby', 'fourteenewes', 'Tressa Hale', 'at Kelderby', 'wenna'),
         step('waitsGullmouth', 'haulholmsey', 'Bet Polglase', 'on the Gullmouth quay', 'bet'),
         step('waitsFellers', 'calling', 'Sefton Garrow', 'at Fellers\' Camp', 'sefton'),
       ];

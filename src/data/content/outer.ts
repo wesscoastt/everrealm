@@ -62,7 +62,7 @@ export const OUTER_PEOPLE: NpcDef[] = [
   },
   {
     // Scarrow Tor's innkeeper, forties. Warm, nosy, practical; knows everyone's croup.
-    id: 'kitto', name: 'Wenna Kitto', title: 'The Tinners\' Arms, Scarrow Tor',
+    id: 'kitto', name: 'Senara Kitto', title: 'The Tinners\' Arms, Scarrow Tor',
     look: { skin: '#e8c0a0', hair: '#7a3a1e', hairStyle: 4, eyes: '#3a5a4a', tunic: '#5a3a4a', trim: '#e0c890', trousers: '#3a3034', boots: '#2a1e14', apron: true, lashes: true, build: 1.0, age: 0.45 },
     schedule: [{ from: 0, to: 24, at: [330.8, 2958.5], face: [330.8, 2963], anim: 'idle' }], // (beside the inn sign, not in it)
     barks: ['Pasty, char, or the fire. The fire\'s free.'],
@@ -281,7 +281,7 @@ const nankervis: DialogueTree = {
     r1: { text: 'Gone? All of it?', next: 'r2' },
     r2: { speaker: 'narrator', text: 'She goes up the tor to look for herself, which takes a while, and comes down pleased with the moss.', next: 'r3' },
     r3: {
-      text: 'Their measure-man can measure again in the spring. Here. Wenna makes these, and I don\'t eat crust.',
+      text: 'Their measure-man can measure again in the spring. Here. Senara makes these, and I don\'t eat crust.',
       effect: (g) => { g.give('moor_pasty', 3); g.addMarks(25); g.setFlag('stChoice', 'chalk'); g.setStage(STONE, 'done'); },
     },
   },
@@ -318,10 +318,10 @@ export const OUTER: RegionContent = {
       footer: () => 'Peg pays half an item\'s worth',
     },
     kitto: {
-      id: 'kitto', name: 'The Tinners\' Arms', owner: 'kitto', who: 'Wenna',
+      id: 'kitto', name: 'The Tinners\' Arms', owner: 'kitto', who: 'Senara',
       stock: [{ item: 'moor_pasty', price: 48 }, { item: 'cooked_char', price: 70 }, { item: 'bread', price: 5 }],
       buyRate: () => 0.5,
-      footer: () => 'Wenna pays half an item\'s worth',
+      footer: () => 'Senara pays half an item\'s worth',
     },
   },
   things: [

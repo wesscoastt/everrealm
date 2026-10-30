@@ -341,7 +341,7 @@ const wynnHolm: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [STRIDE]: {
-    id: STRIDE, name: 'A Stride a Week', story: { chapter: 7, title: 'A Stride a Week', act: ACT }, next: [HOIST, 'gethin'],
+    id: STRIDE, name: 'A Stride a Week', story: { chapter: 12, title: 'A Stride a Week', act: ACT }, next: [HOIST, 'gethin'],
     notes: (_g: GameApi, s: string) => {
       if (s === 'letter') return 'Speaker Tarrant has a letter from Ilse Blewitt about the Weatherholms.';
       if (s === 'ilse') return 'Ilse Blewitt has written to the Speaker: the Weatherholms are moving faster since the Kirk floor came up, the big one is lower, and there are lights on it at night. Scarth Watch is east of Kelderby.';
@@ -363,7 +363,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done' }, flags: { charterEnd: 'refuse' } } },
   },
   [HOIST]: {
-    id: HOIST, name: 'Company Basket', story: { chapter: 8, title: 'Company Basket', act: ACT }, next: [FORTY, 'delyth'],
+    id: HOIST, name: 'Company Basket', story: { chapter: 13, title: 'Company Basket', act: ACT }, next: [FORTY, 'delyth'],
     notes: (g: GameApi, s: string) => {
       if (s === 'gethin') return 'Harrowgate\'s hoist. The foreman will know what the crew is doing up there.';
       if (s === 'footings') return 'Gethin Vane runs the hoist. Harrowgate is cutting crystal out of the old ring on the big isle: thirty baskets before the frost. Shard jellies come up round the tower\'s feet at night. If I clear them, I can ride the basket.';
@@ -382,7 +382,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'gethin' } } },
   },
   [FORTY]: {
-    id: FORTY, name: 'The Forty-One', story: { chapter: 9, title: 'The Forty-One', act: ACT }, next: [DROP, 'gethin'],
+    id: FORTY, name: 'The Forty-One', story: { chapter: 14, title: 'The Forty-One', act: ACT }, next: [DROP, 'gethin'],
     notes: (g: GameApi, s: string) => {
       if (s === 'delyth') return 'Delyth Morgan is on the crew at the top of the hoist.';
       if (s === 'stones') return 'Delyth is copying the counting stones on the old ring into a book. She has done one; she wants me to read her the other three.';
@@ -411,7 +411,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'done', [FORTY]: 'delyth' }, flags: { holmPass: true } } },
   },
   [DROP]: {
-    id: DROP, name: 'Dead Weight', story: { chapter: 10, title: 'Dead Weight', act: ACT }, next: [BASKETS, 'hilda'],
+    id: DROP, name: 'Dead Weight', story: { chapter: 15, title: 'Dead Weight', act: ACT }, next: [BASKETS, 'hilda'],
     notes: (g: GameApi, s: string) => {
       if (s === 'gethin') return 'The isle dropped four feet in an afternoon. Gethin Vane should hear what happened up there.';
       const parts = ['Gethin stops the hoist when Hilda says, or for a number he can\'t argue with. Hilda\'s order is thirty baskets; twenty-four are down.'];
@@ -431,7 +431,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'done', [FORTY]: 'done', [DROP]: 'gethin' }, flags: { holmPass: true, holmQuake: true }, items: [['tally_copy', 1]] } },
   },
   [BASKETS]: {
-    id: BASKETS, name: 'Thirty Baskets', story: { chapter: 11, title: 'Thirty Baskets', act: ACT }, next: [LAST, 'wynn'],
+    id: BASKETS, name: 'Thirty Baskets', story: { chapter: 16, title: 'Thirty Baskets', act: ACT }, next: [LAST, 'wynn'],
     notes: (g: GameApi, s: string) => {
       const e = end(g);
       if (s === 'hilda') return 'Hilda Harrowgate has come to the hoist herself. I have Ilse\'s log, Joan\'s reckoning and Delyth\'s copy of the stones.';
@@ -456,7 +456,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'done', [FORTY]: 'done', [DROP]: 'done', [BASKETS]: 'hilda' }, flags: { holmPass: true, holmQuake: true }, items: [['tally_copy', 1], ['ilse_droplog', 1], ['joan_reckoning', 1]] } },
   },
   [LAST]: {
-    id: LAST, name: 'The Last Mark', story: { chapter: 12, title: 'The Last Mark', act: ACT },
+    id: LAST, name: 'The Last Mark', story: { chapter: 17, title: 'The Last Mark', act: ACT },
     notes: (g: GameApi, s: string) => {
       if (s === 'wynn') return 'Wynn Carrow has come up the hoist from Ketley. He\'s at the ring with Delyth.';
       if (s === 'stone') return 'When the Keel came up, it shifted the paving by the cut. There\'s a fourth stone under it, face down. Wynn can\'t turn it alone.';

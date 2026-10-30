@@ -112,20 +112,23 @@ camp at the act's end and the changes below; the rest are new.
 
 ### Part one: the Counties
 
-**Act I. The Charter's Debt** (10 chapters; 6 in game)
-1. The Notice (in game)
-2. Wrong Way Round (in game) + **Wenna** joins on the Turnpike: she's stopped a Harrowgate cart and
-   wants a witness
-3. Under the Crown (in game)
-4. **The Surveyor's Girl**: Ottilie at the Glass Kirk, measuring the floor nobody asked her to; she joins
-5. The Fallen Star (in game)
-6. **The Toll Riders**: Wenna's old troop are taking Harrowgate's money to look away from the oil;
-   her old captain asks her to come back
-7. The Lift (in game)
-8. **Forty Feet**: after the lift, Joan's figures and Hilda's tender side by side; Ottilie finds the
-   thirty feet in Hilda's hand
-9. What the Charter Owes (in game)
-10. **First Camp**: the night after the sitting, on the Kirk road; the first camp scene
+**Act I. The Charter's Debt** (11 chapters; built 2026-10-29)
+1. The Notice
+2. **A Witness**: Wenna has stopped a Harrowgate wagon on the Turnpike with the Light Fund's oil in
+   it, and wants a witness; she joins
+3. Wrong Way Round
+4. Under the Crown
+5. The Fallen Star
+6. **The Surveyor's Girl**: Ottilie on the Kirk floor with a level line; the floor is rising where
+   Harrowgate bored; Joan reads her book; she joins
+7. The Lift
+8. **Forty Feet**: Ottilie measures the lift; Joan's rule doesn't hold here; told to Joan or kept
+9. **The Toll Riders**: Captain Prowse wants Wenna back; the duty book says who pays the Riders
+10. What the Charter Owes
+11. **First Camp**: the night after the sitting, on the Turnpike, walking Sela home
+
+(The acts below are numbered from the plan as first written; in the game every chapter after Act I is
+one later than these numbers.)
 
 **Act II. The Weatherholms** (9; 6 in game)
 11 to 16. A Stride a Week, Company Basket, The Forty-One, Dead Weight, Thirty Baskets, The Last Mark
