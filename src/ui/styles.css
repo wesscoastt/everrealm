@@ -116,6 +116,14 @@
 .mm-row .clock { color: var(--cream); }
 
 /* ------------------------------------------------------------- Quest tracker */
+/* Quest journal controls (Hud.questButtons) and the tracker's focused quest */
+.qctl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.qctl .btn.on { background: rgba(255, 210, 58, .22); border-color: #c8a040; }
+.qctl .btn.danger { border-color: #8a3a2a; color: #f0b0a0; }
+.ji.untracked { opacity: .55; }
+#tracker .q { cursor: pointer; }
+#tracker .q.focus h4 { color: #ffd23a; }
+#tracker .q.focus h4::before { background: #ffd23a; transform: rotate(45deg); }
 #tracker { position: absolute; top: 266px; right: 16px; width: 272px; padding: 8px 10px 10px 14px; background: linear-gradient(90deg, rgba(13, 10, 6, 0), rgba(13, 10, 6, 0.62) 22%); }
 #tracker h4 { margin: 0 0 5px; font: 600 15px var(--px); color: var(--wheat); text-shadow: var(--hard); letter-spacing: 0.4px; display: flex; align-items: center; gap: 8px; }
 #tracker h4::before { content: ''; width: 9px; height: 9px; background: var(--wheat); box-shadow: var(--hard1); flex: none; }

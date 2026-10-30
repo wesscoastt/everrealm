@@ -68,7 +68,7 @@ export const GW_PEOPLE: NpcDef[] = [
     // Drives the Charter Post cart. Carries the news faster than the letters.
     id: 'bess', name: 'Bess Tull', title: 'Charter Post driver',
     look: { skin: '#b88058', hair: '#1e1612', hairStyle: 4, eyes: '#3a2a1a', tunic: '#2e3a5a', trim: '#e0c060', trousers: '#2a2a34', boots: '#1e1a18', cape: '#3a2a1a', hat: 'cap', hatColor: '#2e3a5a', lashes: true, build: 1.0, age: 0.4 },
-    schedule: [{ from: 0, to: 24, at: [164.5, 188.5], face: [162.5, 186.5], anim: 'idle' }],
+    schedule: [{ from: 0, to: 24, at: [160.5, 186.5], face: [162.5, 186.5], anim: 'idle' }], // (by the Post sign, west of it; the post box is on the grass to the east)
     barks: ['Ansbury by dark.'],
   },
 ];

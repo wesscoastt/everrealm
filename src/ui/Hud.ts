@@ -141,7 +141,11 @@ import { callingCard } from './callingCard';
 import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
 
-export interface QuestEntry { id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean }
+export interface QuestEntry {
+  id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean;
+  /** On the tracker and the map (false: hidden from both in the journal); the one put first; can be given up; points somewhere on the map. */
+  tracked?: boolean; focus?: boolean; canAbandon?: boolean; onMap?: boolean;
+}
 /** How each service shows on the maps: a badge with a letter. */
 const SERVICE_LOOK: Record<NonNullable<MapMarker['svc']>, { bg: string; fg: string; letter: string; name: string }> = {
   bank: { bg: '#e8c040', fg: '#2a1a00', letter: 'B', name: 'Bank' },
@@ -152,7 +156,9 @@ const SERVICE_LOOK: Record<NonNullable<MapMarker['svc']>, { bg: string; fg: stri
 
 export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'treasure' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally' | 'service'; label?: string; yaw?: number; id?: string;
   /** A service (kind 'service'): a bank, a place to craft, a merchant, a stable. */
-  svc?: 'bank' | 'craft' | 'shop' | 'stable' }
+  svc?: 'bank' | 'craft' | 'shop' | 'stable';
+  /** An objective's line under its quest's name, and whether it's the focused quest's. */
+  sub?: string; focus?: boolean }
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escort'; title: string; goal: string; progress: number; count: string; time?: number }
@@ -286,6 +292,10 @@ export interface UiCtx {
   /** Buy one back of the i-th thing on the buy-back list (ShopView.buyback). */
   buyBack(i: number): void;
   quests(): QuestEntry[];
+  trackQuest(id: string, on: boolean): void;
+  focusQuest(id: string | null): void;
+  showQuestOnMap(id: string): void;
+  abandonQuest(id: string): void;
   dialogueChoose(i: number): void;
   settingsChanged(): void;
   sfx(name: 'click' | 'open' | 'close' | 'page'): void;
@@ -1146,10 +1156,14 @@ export class Hud {
   }
 
   setTracker(entries: QuestEntry[]): void {
-    const active = entries.filter((e) => !e.done);
-    const html = active.map((e) => `<div class="q"><h4>${esc(e.name)}</h4>${e.objectives.map((o) => `<div class="obj${o.done ? ' done' : ''}">${esc(o.text)}${o.dist !== undefined && !o.done ? `<span class="dist">${Math.round(o.dist)}m</span>` : ''}</div>`).join('')}</div>`).join('');
+    const active = entries.filter((e) => !e.done && e.tracked !== false);
+    const html = active.map((e) => `<div class="q${e.focus ? ' focus' : ''}" data-q="${esc(e.id)}"><h4>${esc(e.name)}</h4>${e.objectives.map((o) => `<div class="obj${o.done ? ' done' : ''}">${esc(o.text)}${o.dist !== undefined && !o.done ? `<span class="dist">${Math.round(o.dist)}m</span>` : ''}</div>`).join('')}</div>`).join('');
     const tr = this.q('#tracker');
     if (tr.innerHTML !== html) tr.innerHTML = html;
+    if (!tr.dataset.wired) {
+      tr.dataset.wired = '1';
+      tr.addEventListener('click', (ev) => { const q = (ev.target as HTMLElement).closest<HTMLElement>('.q[data-q]'); if (q?.dataset.q) this.openJournalAt(q.dataset.q); });
+    }
     tr.style.display = active.length ? 'block' : 'none';
   }
 
@@ -1488,9 +1502,10 @@ export class Hud {
     this.open.add(p);
     this.panelEl(p).classList.add('show');
     this.ctx.sfx(p === 'journal' || p === 'map' || p === 'read' || p === 'mail' ? 'page' : 'open');
+    // (the map opens on you, or on where Show on map asked for: set before the first draw)
+    if (p === 'map') this.mapView.fresh = true;
     this.refresh(p);
     if (p === 'journal') this.setJournalAlert(false);
-    if (p === 'map') this.mapView.fresh = true;
   }
 
   close(p: PanelId): void {
@@ -1842,6 +1857,33 @@ export class Hud {
     this.q('#skills-panel .footer').innerHTML = `<span>Click a skill for unlocks</span><span>Total level ${total}</span>`;
   }
 
+  /** The quest the journal page shows (for its buttons). */
+  private questControls: QuestEntry | null = null;
+  /** Under a quest's page: Track, Focus, Show on map, and Abandon (side quests; it asks twice). */
+  private questButtons(q: QuestEntry): HTMLElement {
+    const row = el('div', 'qctl');
+    const btn = (label: string, cls: string, title: string, fn: () => void) => { const b = el('button', 'btn sm ' + cls, esc(label)) as HTMLButtonElement; b.title = title; b.addEventListener('click', fn); row.append(b); return b; };
+    btn(q.tracked === false ? 'Track' : 'Tracking', q.tracked === false ? '' : 'on', 'Show this quest on the tracker and the map', () => { this.ctx.trackQuest(q.id, q.tracked === false); this.renderJournal(); });
+    btn(q.focus ? 'Focused' : 'Focus', q.focus ? 'on' : '', 'Put this quest first, its objectives brightest on the map', () => { this.ctx.focusQuest(q.focus ? null : q.id); this.renderJournal(); });
+    if (q.onMap) btn('Show on map', '', 'Open the map on where this quest points next', () => this.ctx.showQuestOnMap(q.id));
+    if (q.canAbandon) {
+      const ab = btn('Abandon', 'danger', 'Give up this quest. Whoever gave it will offer it again.', () => {
+        if (ab.dataset.sure) { this.ctx.abandonQuest(q.id); this.selQuest = ''; this.renderJournal(); return; }
+        ab.dataset.sure = '1'; ab.textContent = 'Abandon? Click again';
+        setTimeout(() => { if (ab.isConnected) { delete ab.dataset.sure; ab.textContent = 'Abandon'; } }, 3500);
+      });
+    }
+    return row;
+  }
+
+  /** Open the map on a spot (the journal's Show on map). */
+  private mapFocus: { x: number; z: number } | null = null;
+  showOnMap(x: number, z: number): void {
+    this.mapFocus = { x, z };
+    this.mapView.world = false;
+    if (this.isOpen('map')) { this.mapView.fresh = true; this.renderMap(); } else this.toggle('map');
+  }
+
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
@@ -1851,7 +1893,7 @@ export class Hud {
       if (!items.length) return;
       list.append(el('h6', '', title));
       for (const q of items) {
-        const ji = el('div', 'ji' + (q.id === this.selQuest ? ' sel' : '') + (q.done ? ' done' : '') + (q.story ? ' story' : ''), esc(q.name));
+        const ji = el('div', 'ji' + (q.id === this.selQuest ? ' sel' : '') + (q.done ? ' done' : '') + (q.story ? ' story' : '') + (q.tracked === false && !q.done ? ' untracked' : ''), (q.focus ? '★ ' : '') + esc(q.name));
         ji.addEventListener('click', () => { this.selQuest = q.id; this.renderJournal(); });
         list.append(ji);
       }
@@ -2089,8 +2131,10 @@ export class Hud {
       }).join('')}<div style="margin-top:8px">${all.filter((p) => p.kind === 'place').map((r) => `<div>${found.includes(r.id) ? '◆ ' + esc(r.name) : '◇ <i style="opacity:.6">Not yet found</i>'}</div>`).join('')}</div></div>`;
     } else {
       const q = qs.find((x) => x.id === this.selQuest);
+      if (q) this.questControls = q;
       if (q) page.innerHTML = `<h4>${esc(q.name)}</h4><div>${esc(q.notes)}</div>${q.objectives.length ? `<div class="objs">${q.objectives.map((o) => `<div class="${o.done ? 'done' : ''}">${esc(o.text)}</div>`).join('')}</div>` : ''}${q.done ? '<div class="objs"><div class="done">Complete</div></div>' : ''}`;
       else page.innerHTML = '<h4>Nothing yet</h4><div>Talk to people. Hollin Ford\'s reeve looks like she has a problem.</div>';
+      if (q && !q.done && !q.id.startsWith('lead:')) page.append(this.questButtons(q));
     }
     const wrap = el('div', 'journal');
     wrap.append(list, page);
@@ -2709,6 +2753,7 @@ export class Hud {
       this.q('#map-panel .footer').innerHTML = '<span>The whole known world: the Charter Counties and Morrow, and the ships between. Back to the land you are in with the button at the top.</span><span>M to close</span>';
       return;
     }
+    if (V.fresh && this.mapFocus) { V.fresh = false; V.cx = this.mapFocus.x; V.cz = this.mapFocus.z; V.k = Math.max(kMin, 1.6 * dpr); this.mapFocus = null; }
     if (V.fresh && me) { V.fresh = false; V.cx = me.x; V.cz = me.z; V.k = Math.max(kMin, 1.1 * dpr); }
     V.k = Math.max(kMin, Math.min(kMax, V.k));
     V.kMin = kMin; V.kMax = kMax; V.dpr = dpr;
@@ -2834,12 +2879,13 @@ export class Hud {
       x.fillStyle = '#3a2400'; x.fillRect(X - px(1.3), Y - px(4.5), px(2.6), px(5.5)); x.fillRect(X - px(1.3), Y + px(2.2), px(2.6), px(2.2));
       hits.push({ x: X, y: Y, name: 'Someone with work', sub: 'Has a quest to offer' });
     }
-    if (on('quests')) for (const m of markers) {
-      if (m.kind !== 'quest') continue;
-      const X = sx(m.x), Y = sy(m.z);
-      x.fillStyle = '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(3);
-      x.beginPath(); x.moveTo(X, Y - px(12)); x.lineTo(X + px(10), Y); x.lineTo(X, Y + px(12)); x.lineTo(X - px(10), Y); x.closePath(); x.fill(); x.stroke();
-      hits.push({ x: X, y: Y, name: 'Objective', sub: 'From your journal' });
+    if (on('quests')) for (const m of [...markers.filter((k) => k.kind === 'quest' && !k.focus), ...markers.filter((k) => k.kind === 'quest' && k.focus)]) {
+      const X = sx(m.x), Y = sy(m.z), s = m.focus ? 1.35 : 1;
+      if (m.focus) { x.strokeStyle = 'rgba(255,210,58,.85)'; x.lineWidth = px(2.5); x.beginPath(); x.arc(X, Y, px(19), 0, Math.PI * 2); x.stroke(); }
+      x.fillStyle = m.focus ? '#ffe27a' : '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(3);
+      x.beginPath(); x.moveTo(X, Y - px(12 * s)); x.lineTo(X + px(10 * s), Y); x.lineTo(X, Y + px(12 * s)); x.lineTo(X - px(10 * s), Y); x.closePath(); x.fill(); x.stroke();
+      if (m.focus && m.label) label(m.label, X, Y + px(26), `700 ${px(14)}px "Alegreya", serif`, '#5a3a00');
+      hits.push({ x: X, y: Y, name: m.label ?? 'Objective', sub: m.sub ?? 'From your journal' });
     }
     if (this.pin) {
       const X = sx(this.pin.x), Y = sy(this.pin.z);

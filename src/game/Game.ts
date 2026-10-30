@@ -34,7 +34,7 @@ import {
   type EnemyType,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
-import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, type DropSource, type NamedFx } from '../data/gear';
+import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, unidentified, type DropSource, type NamedFx } from '../data/gear';
 import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIVES, QUALITY_STEPS, researchMinutes, WEAPON_LEANINGS } from '../data/crafting';
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
@@ -81,7 +81,8 @@ import { PACKET_COURSE, POSTS, postBoxOf, postFare, postHours, postKnown } from 
 import { Online, type HallView, type HomeHeld } from '../net/Online';
 import { BOARDS } from '../data/content';
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+/** Chapter numbers for the main story's quests, I to XXX. */
+const ROMAN = ['', ...Array.from({ length: 30 }, (_, i) => { let n = i + 1, s = ''; for (const [v, r] of [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']] as const) while (n >= v) { s += r; n -= v; } return s; })];
 /** People whose every conversation is a story scene. */
 const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSitting', 'joan', 'joanSitting']);
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */
@@ -2982,7 +2983,7 @@ export class Game implements GameApi {
   /** How fast you swing: the weapon, the calling's haste, and a fury after a kill. */
   private get pace(): number { return (this.blade?.speed ?? 1) * this.kit.attackSpeed() * (this.furyUntil > this.elapsed ? 1.25 : 1); }
   /** A drop: weapons and armour come rolled (data/gear.ts), anything else as it is. */
-  private dropped(id: string, source: DropSource): string { const d = ITEMS[id]; return d ? rollGear(d, source) : id; }
+  private dropped(id: string, source: DropSource): string { const d = ITEMS[id]; return d ? unidentified(rollGear(d, source), (k) => ITEMS[k]) : id; }
   /** A named piece has dropped: the realm numbers it, if any are left (server/uniques.mjs). Offline there's
    *  no count to keep, so none drop. */
   private claimNamed(id: string): void {
@@ -3219,6 +3220,10 @@ export class Game implements GameApi {
       sell: (slot: number) => g.sell(slot),
       buyBack: (i: number) => g.buyBack(i),
       quests: () => g.questEntries(),
+      trackQuest: (id: string, on: boolean) => g.trackQuest(id, on),
+      focusQuest: (id: string | null) => g.focusQuest(id),
+      showQuestOnMap: (id: string) => g.showQuestOnMap(id),
+      abandonQuest: (id: string) => g.abandonQuest(id),
       dialogueChoose: (i: number) => g.chooseOption(i),
       settingsChanged: () => g.applySettings(),
       sfx: (n: 'click' | 'open' | 'close') => g.sfx(n),
@@ -3826,11 +3831,31 @@ export class Game implements GameApi {
   }
 
   // =================================================================== Inventory actions
+  /** Look over the unidentified piece in pack slot i with a loupe (one used up): it becomes what it was all along. */
+  private identify(i: number): void {
+    const st = this.save.inv[i], def = st && ITEMS[st.id];
+    if (!st || !def?.unid) return;
+    if (this.count('loupe') < 1) {
+      this.hud.system(`${def.name}: you'll need a jeweller's loupe to see what it is. General merchants and the pedlars sell them.`);
+      this.sfx('fail');
+      return;
+    }
+    this.take('loupe', 1);
+    this.inv.removeAt(i, 1);
+    this.inv.add(def.unid, 1);
+    const now = ITEMS[def.unid];
+    this.hud.banner(now.name, 'Identified', true);
+    this.hud.system(`Identified: ${now.name}.${now.enchant ? ' It\'s enchanted.' : ''}`);
+    this.sfx(now.rarity === 'epic' || now.enchant ? 'discover' : 'pickup');
+    this.hud.refresh('inv');
+  }
+
   private useSlot(i: number): void {
     const st = this.save.inv[i];
     if (!st) return;
     const def = ITEMS[st.id];
     if (def.furn) { this.hud.system(this.home.owned ? `Furniture goes down at home: press E inside ${this.myHome()?.name ?? 'your home'} and choose Arrange the furniture.` : 'Furniture needs a house to go in. There\'s a cottage for sale on the road east of Hollin Ford.'); return; }
+    if (def.unid) { this.identify(i); return; }
     if (def.kind === 'food') this.eat(st.id);
     else if (def.weapon) {
       const old = this.save.equip.weapon;
@@ -4364,6 +4389,7 @@ export class Game implements GameApi {
   // =================================================================== Quests
   questEntries(): QuestEntry[] {
     const out: QuestEntry[] = [];
+    const hidden = this.questHidden(), focus = this.questFocus();
     for (const [id, stage] of Object.entries(this.save.quests)) {
       const def = QUESTS[id];
       if (!def) continue;
@@ -4372,7 +4398,11 @@ export class Game implements GameApi {
         return { text: o.text, done: o.done, dist: p ? Math.hypot(p.x - this.player.position.x, p.z - this.player.position.z) : undefined };
       });
       if (id === 'fordBell' && stage === 'casting' && this.casting) objs[0].text = `Wait while Bram pours the bell (${Math.ceil(this.casting.dur - this.casting.t)}s)`;
-      out.push({ id, name: def.story ? `${ROMAN[def.story.chapter]}. ${def.name}` : def.name, notes: def.notes(this, stage), objectives: objs, done: stage === 'done', story: !!def.story });
+      const done = stage === 'done';
+      out.push({
+        id, name: def.story ? `${ROMAN[def.story.chapter]}. ${def.name}` : def.name, notes: def.notes(this, stage), objectives: objs, done, story: !!def.story,
+        tracked: !hidden.includes(id), focus: focus === id, canAbandon: !done && !def.story, onMap: !done && !!this.questWhere(id),
+      });
     }
     // Breadcrumbs: where a new character starts, and where the main story starts once they've found their feet
     const lead = (id: string, name: string, notes: string, text: string, marker: string, story = false) => {
@@ -4381,6 +4411,8 @@ export class Game implements GameApi {
     };
     if (!this.stage('fordBell')) lead('lead:hollin', 'Hollin Ford', 'The reeve runs the village from the square. If anyone needs a hand, she\'ll know.', 'Talk to Maud Ashby, the reeve, in the square', 'maud');
     else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) lead('lead:story', 'The Charter\'s Debt', 'Everyone on the road is talking about a notice the Charter has posted by Ansbury\'s south gate.', 'Read the Charter notice by Ansbury\'s south gate', 'charterNotice', true);
+    // The focused quest leads the list (and so the tracker), ahead of the breadcrumbs
+    out.sort((a, b) => Number(!!b.focus) - Number(!!a.focus));
     return out;
   }
 
@@ -4420,16 +4452,72 @@ export class Game implements GameApi {
     return this.world.structures.poi[key] ?? null;
   }
 
-  /** Where the journal's objectives point, and (giver) the people with a quest to offer. */
-  private questMarkers(): { p: THREE.Vector3; giver?: boolean }[] {
-    const out: { p: THREE.Vector3; giver?: boolean }[] = [];
+  /** Quests taken off the tracker and the map in the journal (Track), and the one put first (Focus). */
+  private questHidden(): string[] { return (this.flag('qHidden') as string[] | undefined) ?? []; }
+  private questFocus(): string | undefined { return (this.flag('qFocus') as string | undefined) || undefined; }
+
+  /** Where a quest's next objective is, if it points anywhere. */
+  private questWhere(id: string): THREE.Vector3 | null {
+    const def = QUESTS[id], stage = this.save.quests[id];
+    if (!def || !stage || stage === 'done') return null;
+    for (const o of def.objectives(this, stage)) if (o.marker && !o.done) { const p = this.markerPos(o.marker); if (p) return p; }
+    return null;
+  }
+
+  /** Journal: show a quest on the tracker and the map, or hide it. Hiding the focused quest unfocuses it. */
+  trackQuest(id: string, on: boolean): void {
+    const hidden = this.questHidden().filter((q) => q !== id);
+    if (!on) hidden.push(id);
+    this.setFlag('qHidden', hidden);
+    if (!on && this.questFocus() === id) this.setFlag('qFocus', '');
+    this.hud.setTracker(this.questEntries());
+    this.sfx('click');
+  }
+
+  /** Journal: put one quest first on the tracker, its objectives marked brighter on the map (or none). */
+  focusQuest(id: string | null): void {
+    this.setFlag('qFocus', id ?? '');
+    if (id) this.setFlag('qHidden', this.questHidden().filter((q) => q !== id));
+    this.hud.setTracker(this.questEntries());
+    this.sfx('click');
+  }
+
+  /** Journal: open the map on where a quest points next. */
+  showQuestOnMap(id: string): void {
+    const p = this.questWhere(id);
+    if (!p) { this.hud.system('That quest doesn\'t point anywhere on the map just now.'); return; }
+    this.hud.showOnMap(p.x, p.z);
+  }
+
+  /**
+   * Journal: give up a side quest. Its stage and its own bookkeeping (the counts it started from, a choice
+   * half-made) go; what you did in the world stays done, and whoever gave it will offer it again.
+   * The main story can't be abandoned.
+   */
+  abandonQuest(id: string): void {
+    const def = QUESTS[id], stage = this.save.quests[id];
+    if (!def || def.story || !stage || stage === 'done') return;
+    delete this.save.quests[id];
+    for (const k of Object.keys(this.save.flags)) if (k === id || k.startsWith(id + ':')) delete this.save.flags[k];
+    this.setFlag('qHidden', this.questHidden().filter((q) => q !== id));
+    if (this.questFocus() === id) this.setFlag('qFocus', '');
+    this.hud.system(`Abandoned: ${def.name}. Whoever gave you it will offer it again.`);
+    this.hud.setTracker(this.questEntries());
+    this.sfx('click');
+    this.persist();
+  }
+
+  /** Where the journal's objectives point (not the quests you've hidden), and (giver) the people with a quest to offer. */
+  private questMarkers(): { p: THREE.Vector3; giver?: boolean; label?: string; sub?: string; focus?: boolean }[] {
+    const out: { p: THREE.Vector3; giver?: boolean; label?: string; sub?: string; focus?: boolean }[] = [];
+    const hidden = this.questHidden(), focus = this.questFocus();
     for (const [id, stage] of Object.entries(this.save.quests)) {
       const def = QUESTS[id];
-      if (!def) continue;
-      for (const o of def.objectives(this, stage)) if (o.marker && !o.done) { const p = this.markerPos(o.marker); if (p) out.push({ p }); }
+      if (!def || hidden.includes(id)) continue;
+      for (const o of def.objectives(this, stage)) if (o.marker && !o.done) { const p = this.markerPos(o.marker); if (p) out.push({ p, label: def.name, sub: o.text, focus: focus === id }); }
     }
-    if (!this.stage('fordBell')) { const m = this.npcs.find((n) => n.id === 'maud'); if (m) out.push({ p: m.pos }); }
-    else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) { const p = this.markerPos('charterNotice'); if (p) out.push({ p }); }
+    if (!this.stage('fordBell')) { const m = this.npcs.find((n) => n.id === 'maud'); if (m) out.push({ p: m.pos, label: 'Hollin Ford', sub: 'Talk to Maud Ashby, the reeve' }); }
+    else if (this.stage('fordBell') === 'done' && !this.stage('storyNotice')) { const p = this.markerPos('charterNotice'); if (p) out.push({ p, label: "The Charter's Debt", sub: "Read the notice by Ansbury's south gate" }); }
     const seen = new Set<string>();
     for (const def of Object.values(QUESTS)) {
       if (this.stage(def.id) || !def.marks) continue;
@@ -7147,7 +7235,7 @@ export class Game implements GameApi {
 
   private mapMarkers(full = false): MapMarker[] {
     const out: MapMarker[] = [];
-    for (const q of this.questMarkers()) out.push({ x: q.p.x, z: q.p.z, kind: q.giver ? 'giver' : 'quest' });
+    for (const q of this.questMarkers()) out.push({ x: q.p.x, z: q.p.z, kind: q.giver ? 'giver' : 'quest', label: q.label, sub: q.sub, focus: q.focus });
     for (const n of this.npcs) {
       // Only people who are there (see NpcDef.when), in places the player has found.
       if (!n.def.title || (n.def.when && !n.def.when(this))) continue;

@@ -202,7 +202,7 @@ export const MORROW_TOWNS: RegionContent = {
     mags_briar: { id: 'mags_briar', name: 'Mags Briar\'s', owner: 'mags_briar', stock: [{ item: 'wold_bread', price: 36 }, { item: 'bramble_pie', price: 34 }, { item: 'mushroom_stew', price: 52 }], buyRate: () => 0.5, footer: () => 'Mags pays half of an item\'s worth' } as ShopDef,
     toni_rius: { id: 'toni_rius', name: 'Cala Roja fish market', owner: 'toni_rius', stock: [{ item: 'callis_sardines', price: 44 }, { item: 'cooked_seabass', price: 40 }, { item: 'olive_bread', price: 27 }], buyRate: (_g, item) => (/raw_|cooked_/.test(item) ? 0.7 : 0.5), footer: () => 'Toni pays well for fish' } as ShopDef,
     ada_moss: { id: 'ada_moss', name: 'Skyfarm honey', owner: 'ada_moss', stock: [{ item: 'sky_honey', price: 60 }, { item: 'bread', price: 5 }], buyRate: () => 0.5, footer: () => 'Ada pays half of an item\'s worth' } as ShopDef,
-    ennis_wade: { id: 'ennis_wade', name: 'Tenwells provisions', owner: 'ennis_wade', stock: [{ item: 'caravan_dates', price: 46 }, { item: 'brethren_rum', price: 44 }, { item: 'lockpick', price: 6 }], buyRate: () => 0.5, footer: () => 'Ennis pays half of an item\'s worth' } as ShopDef,
+    ennis_wade: { id: 'ennis_wade', name: 'Tenwells provisions', owner: 'ennis_wade', stock: [{ item: 'caravan_dates', price: 46 }, { item: 'brethren_rum', price: 44 }, { item: 'lockpick', price: 6 }, { item: 'loupe', price: 25 }], buyRate: () => 0.5, footer: () => 'Ennis pays half of an item\'s worth' } as ShopDef,
     sal_mudge: { id: 'sal_mudge', name: 'Sal Mudge\'s pot', owner: 'sal_mudge', stock: [{ item: 'conch_chowder', price: 60 }, ...KELL_MOUNT_STOCK.sal], buyRate: () => 0.5, footer: () => 'Sal pays half of an item\'s worth' } as ShopDef,
   },
   readables: {

@@ -64,7 +64,7 @@ export const POSTS: PostStop[] = [
   // The supply boat out to the Charter's prison, which takes visitors with leave (data/skua.ts)
   { id: 'skua', name: 'Skua Rock (the supply boat)', place: 'skua-rock', ferryFrom: 'gullmouth', x: 1978.5, z: 474.5, ry: -Math.PI / 2 },
   { id: 'sickle', name: 'Hookness, the Sickle (ferry)', place: 'sickle-hookness', ferryFrom: 'gullmouth', x: 3268.5, z: -1603.5, ry: -Math.PI / 2 },
-  { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2 },
+  { id: 'kell', name: 'Brasswick, Kell (ferry)', place: 'kell-brasswick', ferryFrom: 'gullmouth', x: 2363.5, z: -552.5, ry: -Math.PI / 2, boxAt: [2363.5, -554.5, -Math.PI / 2] }, // (box on the open side of the sign: the house wall and its pipe are to the north)
   // Morrow (world/land.ts): Callis, on the south side of the Assembly's plaza (world/morrow.ts CALLIS_SPOTS)
   { land: 'morrow', id: 'callis', name: 'Callis', place: 'callis', x: MORROW_OX + 2132.5, z: 1077.5, ry: 0 },
   // Saltpenny Key, by the packet from Callis once the Speaker has told you about the Kittiwake (world/morrow.ts SALT_LANDING)

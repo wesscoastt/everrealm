@@ -379,7 +379,7 @@ export const KELL_CONTENT: RegionContent = {
     } as ShopDef,
     gerens_tonkin: {
       id: 'gerens_tonkin', name: 'Tonkin\'s, brass and instruments', owner: 'gerens_tonkin',
-      stock: [{ item: 'lockpick', price: 4 }, { item: 'bronze_bar', price: 30 }, { item: 'fishing_rod', price: 20 }, ...KELL_MOUNT_STOCK.gerens],
+      stock: [{ item: 'lockpick', price: 4 }, { item: 'loupe', price: 25 }, { item: 'bronze_bar', price: 30 }, { item: 'fishing_rod', price: 20 }, ...KELL_MOUNT_STOCK.gerens],
       buyRate: (_g, item) => (item === 'brass_cog' ? 0.9 : 0.5),
       footer: () => 'Gerens pays well for brass cogs',
     } as ShopDef,

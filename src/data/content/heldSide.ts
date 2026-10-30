@@ -28,7 +28,7 @@ const KNOCK = 'hdKnock', FOLD = 'hdFold';
 
 /** Under the third tower west of the gate, outside the wall, where Col stands. */
 const TOWER_X = NG_WALL.x0 + 37 * Math.round((NG_GATE.x - 3 * 37 - NG_WALL.x0) / 37);
-const COL = { x: TOWER_X + 0.5, z: NG_WALL.z - 4.5 };
+const COL = { x: TOWER_X + 0.5, z: NG_WALL.z - 7.5 }; // (clear of the tower's foot, which runs out three and a half from the wall line)
 const trolls = (g: GameApi) => Math.min(3, killed(g, 'type:felltroll') - Number(g.flag(FOLD + ':base') ?? 0));
 
 // ---------------------------------------------------------------- Three and Three

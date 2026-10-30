@@ -57,7 +57,7 @@ export const PEDLARS: Pedlar[] = [
       { item: 'fishing_rod', price: 12 }, { item: 'bronze_bar', price: 16 }, { item: 'iron_bar', price: 38 }, { item: 'silver_bar', price: 52 },
     ],
     daily: 5,
-    always: [{ item: 'lockpick', price: 3 }],
+    always: [{ item: 'lockpick', price: 3 }, { item: 'loupe', price: 25 }],
     buys: (item) => (TOOL.test(item) || item.endsWith('_bar') || item.endsWith('_ore') ? 0.7 : 0.35),
     footer: 'Ned pays 70% for tools, metal and ore, and a third for anything else',
   },

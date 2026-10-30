@@ -80,6 +80,8 @@ export interface ItemDef {
   glyph?: { id: string; tier: number };
   /** A named piece (data/gear.ts): what it does, how many the realm holds and what drops it; and this copy's number. */
   named?: NamedInfo;
+  /** An unidentified piece (data/gear.ts unidentified): the rolled id it turns out to be once looked over with a loupe. */
+  unid?: string;
   serial?: number;
 }
 
@@ -169,6 +171,7 @@ const BASE_ITEMS: Record<string, ItemDef> = Object.fromEntries([
   I({ id: 'pack_haversack', name: 'Company haversack', kind: 'collectible', rarity: 'legendary', stack: false, value: 0, icon: { shape: 'bag', a: '#6a2a24', b: '#e0bd64' }, pack: { slots: 36, look: 6 }, desc: 'Hesk Dunmore had six made for the Company\'s best and gave away four. Brass-cornered, oiled, and heavier empty than most packs full.', stats: 'Use it to strap it on: thirty-six more pack slots, for good. The biggest there is.' }),
   I({ id: 'torch', name: 'Torch', kind: 'tool', rarity: 'common', stack: false, value: 3, icon: { shape: 'torch', a: '#ffb040', b: '#5a3a22' }, desc: 'A stave of ash with its head wrapped in pitch-soaked tow. Burns as long as you need it to; nobody asks how.', stats: 'After dark (and underground) it\'s lit in your free hand, on foot or riding. L puts it out or lights it.' }),
   I({ id: 'belt_lantern', name: 'Belt lantern', kind: 'tool', rarity: 'uncommon', stack: false, value: 40, icon: { shape: 'lantern', a: '#ffd078', b: '#2a2a2e' }, desc: 'A horn-paned lantern on a hook, made to hang at the hip so both hands stay free. Every drover and miner owns one.', stats: 'After dark (and underground) it hangs lit at your belt, leaving your hands free; a held torch is used first unless a bow is in hand. L puts it out or lights it.' }),
+  I({ id: 'loupe', name: 'Jeweller\'s loupe', kind: 'tool', rarity: 'common', stack: true, value: 12, icon: { shape: 'coin', a: '#c8a040', b: '#9fe8ff' }, desc: 'A lens in a brass cup, screwed into the eye. One careful look over an unidentified piece tells you what it is: its make, its leaning, and any enchantment worked into it. The lens is scratched for good after.' }),
   I({ id: 'lockpick', name: 'Lockpick', kind: 'tool', rarity: 'common', stack: true, value: 2, icon: { shape: 'pick', a: '#9aa0a8', b: '#3a2a1a' }, desc: 'A bent pin of spring steel and a tension wrench. Every chest in the wilds has a lock, and most locks have a temper.', stats: 'For picking the locks on hidden chests. A slip snaps one.' }),
   I({ id: 'furn_barrel', name: 'Barrel', kind: 'collectible', rarity: 'common', stack: true, value: 8, icon: { shape: 'log', a: '#7a5434', b: '#5a5a5a' }, desc: 'Apples, or rain, or nothing yet.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'barrel' } }),
   I({ id: 'furn_candles', name: 'Candle cluster', kind: 'collectible', rarity: 'common', stack: true, value: 6, icon: { shape: 'log', a: '#e8dcb0', b: '#c49a64' }, desc: 'Tallow stubs on a saucer. Cosy, and only a little smoky.', stats: 'Furniture: set it down in a house of your own', furn: { model: 'candles' } }),

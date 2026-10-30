@@ -165,8 +165,31 @@ export function baseOf(id: string): string {
   return i < 0 ? id : id.slice(0, i);
 }
 
+/** Unidentified pieces are "unid__" and the rolled id they hide. */
+export const UNID = 'unid__';
+
+/**
+ * Whether a dropped piece comes unidentified: anything superior or better, or enchanted. Its colour shows
+ * (you know it's worth looking at) and nothing else does until a loupe has been over it.
+ */
+export function unidentified(rolledId: string, lookup: (id: string) => ItemDef | undefined): string {
+  const d = lookup(rolledId);
+  return d && !d.named && ((d.quality ?? 1) >= 2 || !!d.enchant) ? UNID + rolledId : rolledId;
+}
+
 /** Work out a rolled or numbered piece from its id; null if the id isn't one. */
 export function gearVariant(id: string, lookup: (id: string) => ItemDef | undefined): ItemDef | null {
+  if (id.startsWith(UNID)) {
+    // The hidden piece's kind, slot, colour and look, and none of its make, leaning or enchantment
+    const inner = gearVariant(id.slice(UNID.length), lookup), base = inner && lookup(baseOf(id.slice(UNID.length)));
+    if (!inner || !base) return null;
+    return {
+      ...base, id, unid: inner.id, rarity: inner.rarity, set: undefined, enchant: undefined, quality: undefined,
+      name: `${base.name} (unidentified)`,
+      stats: 'Unidentified. Its make, leaning and any enchantment are hidden until you look it over with a jeweller\'s loupe (use it from your pack).',
+      value: Math.round(inner.value * 0.55),
+    };
+  }
   const n = /^(u_[a-z0-9_]+)__n(\d{1,3})$/.exec(id);
   if (n) { const d = lookup(n[1]); return d?.named ? { ...d, id, serial: Number(n[2]) } : null; }
   const m = /^([a-z0-9_]+?)__([a-z]*)([0-3])(?:_([a-z]+)([1-3]))?$/.exec(id);
