@@ -5234,6 +5234,9 @@ export function plan(): Plan {
     s.props.push({ t: 'banner', x: cx - 3, y: base + 5, z: cz + 24.6, kind: 'harrow' }, { t: 'banner', x: cx + 4, y: base + 5, z: cz + 24.6, kind: 'harrow' });
     for (let i = 0; i < 4; i++) s.props.push({ t: 'cart', x: cx - 10 + i * 3, y: base, z: cz + 6, ry: 0.3 * i });
     s.props.push({ t: 'desk', x: cx - 12.5, y: base, z: cz - 4.5, ry: Math.PI / 2 }); // Pryce's trestle by the office door
+    // The Works' own set pieces (data/monuments.ts): the company sign over the south gate, Pryce's price
+    // board by his trestle, the cracked flywheel leaned on the store's east wall
+    placeMonuments(s, 'harrowgate', cx, () => base);
     s.props.push({ t: 'anvil', x: cx + 13, y: base, z: cz - 4 }, { t: 'sign', x: cx - 3, y: base, z: cz + 27, text: 'Harrowgate &\nDaughters' });
     rect(s, cx - 32, cz - 26, cx + 32, cz + 26);
     harrowgateExtras(s, base);
@@ -8701,6 +8704,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
       case 'monument':
         // (the Jawbones stand over the street: only their feet are solid; a bench is a bench)
         if (d.monument === 'jawbones') for (const k of [-1, 1]) bar(d, k * 3.5, 0, 0.45, 0.4, 3);
+        else if (d.monument === 'hgsign') for (const k of [-1, 1]) bar(d, k * 3.6, 0, 0.4, 0.4, 3);
+        else if (d.monument === 'hgprices') bar(d, 0, 0, 1.0, 0.15, 2);
+        else if (d.monument === 'hgwheel') bar(d, 0, 0.3, 1.2, 0.5, 3);
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else bar(d, 0, 0, d.monument === 'drowned' || d.monument === 'boatstone' ? 1.1 : 1.0, d.monument === 'riders' ? 1.4 : d.monument === 'boatstone' ? 0.3 : 1.0, 3);
         break;

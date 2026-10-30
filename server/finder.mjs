@@ -150,7 +150,7 @@ export function finderInit(ctx) {
       case 'dEv': {
         const r = runs.get(msg.run);
         if (!r || !r.started || !r.members.has(me.id)) return true;
-        const k = msg.k === 'kill' || msg.k === 'hit' ? msg.k : null;
+        const k = msg.k === 'kill' || msg.k === 'hit' || msg.k === 'room' ? msg.k : null; // room: a room started (dmg 1) or done (2)
         const i = Number(msg.i), dmg = Number(msg.dmg);
         if (!k || !Number.isInteger(i) || i < 0 || i > 400 || !Number.isFinite(dmg) || dmg < 0 || dmg > 5000) return true;
         const now = Date.now();

@@ -359,6 +359,135 @@ export class Orchestra {
     n.stop(t + 0.2);
   }
 
+  // ---------------------------------------------------------------- The folk and chamber voices
+  // (so a quiet piece has more to it than strings holding chords: plucks, reeds, a fiddle, a piano,
+  // bells, a hand drum)
+
+  /** A plucked string (Karplus-Strong), cached by note and how long it rings: pizzicato, lute. */
+  private pluckCache = new Map<string, AudioBuffer>();
+  private pluckBuf(m: number, damp: number, bright: number): AudioBuffer {
+    const key = `${m}:${damp}:${bright}`;
+    let buf = this.pluckCache.get(key);
+    if (!buf) {
+      const rate = this.ctx.sampleRate, f = mtof(m), period = Math.max(2, Math.round(rate / f));
+      buf = this.ctx.createBuffer(1, Math.floor(rate * 2.4), rate);
+      const d = buf.getChannelData(0);
+      // the excitation: noise, darker or brighter (a thumb or a nail)
+      let lp = 0;
+      for (let i = 0; i < period; i++) { lp = lp * (1 - bright) + (Math.random() * 2 - 1) * bright; d[i] = lp * 0.9; }
+      for (let i = period; i < d.length; i++) d[i] = (d[i - period] + d[i - period + 1]) * damp;
+      this.pluckCache.set(key, buf);
+    }
+    return buf;
+  }
+
+  /** Strings plucked with the finger: short, round, a little woody. */
+  pizz(t: number, m: number, vel: number, bus: AudioNode): void {
+    const s = this.ctx.createBufferSource(); s.buffer = this.pluckBuf(m, 0.4955, 0.55);
+    const body = this.ctx.createBiquadFilter(); body.type = 'lowpass'; body.frequency.value = 1500; body.Q.value = 0.9;
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(vel, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    s.connect(body).connect(g).connect(bus); s.start(t); s.stop(t + 1);
+  }
+
+  /** A lute or cittern: a brighter pluck through a wooden body, ringing longer. */
+  lute(t: number, m: number, vel: number, bus: AudioNode): void {
+    const s = this.ctx.createBufferSource(); s.buffer = this.pluckBuf(m, 0.4978, 0.8);
+    const body = this.ctx.createBiquadFilter(); body.type = 'peaking'; body.frequency.value = 280; body.Q.value = 1.2; body.gain.value = 6;
+    const top = this.ctx.createBiquadFilter(); top.type = 'lowpass'; top.frequency.value = 3200;
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(vel, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+    s.connect(body).connect(top).connect(g).connect(bus); s.start(t); s.stop(t + 2.3);
+  }
+
+  /** A solo fiddle: one bowed voice, quick to speak, a lively vibrato, a little rosin on the attack. */
+  fiddle(t: number, m: number, dur: number, vel: number, bus: AudioNode): void {
+    const f = mtof(m);
+    const o = this.ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const vib = this.ctx.createOscillator(); vib.frequency.value = 6.2;
+    const vd = this.ctx.createGain(); vd.gain.setValueAtTime(0, t); vd.gain.linearRampToValueAtTime(f * 0.009, t + Math.min(0.35, dur * 0.5));
+    vib.connect(vd).connect(o.frequency);
+    const f1 = this.ctx.createBiquadFilter(); f1.type = 'peaking'; f1.frequency.value = 2600; f1.Q.value = 1.6; f1.gain.value = 7;
+    const f2 = this.ctx.createBiquadFilter(); f2.type = 'peaking'; f2.frequency.value = 560; f2.Q.value = 1.4; f2.gain.value = 5;
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200;
+    const g = this.ctx.createGain(); const end = this.env(g, t, vel, 0.05, Math.max(0, dur - 0.08), 0.28);
+    o.connect(f1).connect(f2).connect(lp).connect(g).connect(bus);
+    const rosin = this.ctx.createBufferSource(); rosin.buffer = this.noise;
+    const rb = this.ctx.createBiquadFilter(); rb.type = 'bandpass'; rb.frequency.value = 3000; rb.Q.value = 2;
+    const rg = this.ctx.createGain(); rg.gain.setValueAtTime(vel * 0.25, t); rg.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    rosin.connect(rb).connect(rg).connect(bus);
+    for (const n of [o, vib]) { n.start(t); n.stop(end); }
+    rosin.start(t, Math.random()); rosin.stop(t + 0.15);
+  }
+
+  /** A reed: the oboe's nasal double reed (a narrow pulse, formants) or the clarinet's hollow one (odd harmonics). */
+  reed(t: number, m: number, dur: number, vel: number, bus: AudioNode, kind: 'oboe' | 'clarinet'): void {
+    const f = mtof(m);
+    const o = this.ctx.createOscillator();
+    if (kind === 'oboe') {
+      const re = new Float32Array(16), im = new Float32Array(16);
+      for (let k = 1; k < 16; k++) im[k] = Math.sin(Math.PI * k * 0.22) / k; // a narrow pulse
+      o.setPeriodicWave(this.ctx.createPeriodicWave(re, im));
+    } else o.type = 'square';
+    o.frequency.value = f;
+    const vib = this.ctx.createOscillator(); vib.frequency.value = kind === 'oboe' ? 5.6 : 4.6;
+    const vd = this.ctx.createGain(); vd.gain.setValueAtTime(0, t); vd.gain.linearRampToValueAtTime(f * (kind === 'oboe' ? 0.006 : 0.003), t + Math.min(0.5, dur * 0.6));
+    vib.connect(vd).connect(o.frequency);
+    const fa = this.ctx.createBiquadFilter(); fa.type = 'peaking'; fa.frequency.value = kind === 'oboe' ? 1150 : 1500; fa.Q.value = 1.8; fa.gain.value = kind === 'oboe' ? 9 : 4;
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = kind === 'oboe' ? 3600 : 2000; lp.Q.value = 0.5;
+    const g = this.ctx.createGain(); const end = this.env(g, t, vel * (kind === 'oboe' ? 0.55 : 0.6), kind === 'oboe' ? 0.05 : 0.09, Math.max(0, dur - 0.1), 0.3);
+    o.connect(fa).connect(lp).connect(g).connect(bus);
+    for (const n of [o, vib]) { n.start(t); n.stop(end); }
+  }
+
+  /** A squeezebox for the harbour tunes: two reeds a little apart, the bellows breathing. */
+  accordion(t: number, m: number, dur: number, vel: number, bus: AudioNode): void {
+    const f = mtof(m);
+    const g = this.ctx.createGain(); const end = this.env(g, t, vel * 0.5, 0.04, Math.max(0, dur - 0.06), 0.18);
+    const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.6;
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3800;
+    bp.connect(lp).connect(g).connect(bus);
+    for (const [det, ty] of [[-7, 'square'], [7, 'sawtooth']] as const) { const o = this.ctx.createOscillator(); o.type = ty; o.frequency.value = f; o.detune.value = det; o.connect(bp); o.start(t); o.stop(end); }
+  }
+
+  /** A piano: struck strings, a few slightly stretched partials, the hammer's knock, a long decay. */
+  piano(t: number, m: number, vel: number, bus: AudioNode, ring = 3.2): void {
+    const f = mtof(m), g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vel, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(vel * 0.35, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + ring);
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(Math.min(9000, f * 9), t); lp.frequency.exponentialRampToValueAtTime(Math.min(4000, f * 3), t + 1.2);
+    lp.connect(g).connect(bus);
+    for (const [k, amp] of [[1, 1], [2, 0.45], [3, 0.22], [4, 0.12], [5, 0.06]] as const) {
+      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * k * (1 + 0.0004 * k * k);
+      const a = this.ctx.createGain(); a.gain.value = amp; o.connect(a).connect(lp); o.start(t); o.stop(t + ring + 0.1);
+    }
+    const ham = this.ctx.createBufferSource(); ham.buffer = this.noise;
+    const hb = this.ctx.createBiquadFilter(); hb.type = 'bandpass'; hb.frequency.value = Math.min(4000, f * 4); hb.Q.value = 1;
+    const hg = this.ctx.createGain(); hg.gain.setValueAtTime(vel * 0.15, t); hg.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    ham.connect(hb).connect(hg).connect(bus); ham.start(t, Math.random()); ham.stop(t + 0.05);
+  }
+
+  /** Glockenspiel and little bells: bright bar partials, quick to fade. */
+  glock(t: number, m: number, vel: number, bus: AudioNode): void {
+    const f = mtof(m), g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vel, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+    g.connect(bus);
+    for (const [r, a] of [[1, 1], [2.76, 0.3], [5.4, 0.12], [8.93, 0.05]] as const) {
+      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * r;
+      const ag = this.ctx.createGain(); ag.gain.value = a; o.connect(ag).connect(g); o.start(t); o.stop(t + 1.5);
+    }
+  }
+
+  /** A frame drum (a bodhrán, a tambour): a soft low boom, or a slap on the skin's edge. */
+  frameDrum(t: number, vel: number, bus: AudioNode, slap = false): void {
+    const o = this.ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(slap ? 210 : 130, t); o.frequency.exponentialRampToValueAtTime(slap ? 160 : 72, t + 0.12);
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vel * (slap ? 0.5 : 1), t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + (slap ? 0.22 : 0.5));
+    o.connect(g).connect(bus); o.start(t); o.stop(t + 0.6);
+    const n = this.ctx.createBufferSource(); n.buffer = this.noise;
+    const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = slap ? 1800 : 600; bp.Q.value = 1.1;
+    const ng = this.ctx.createGain(); ng.gain.setValueAtTime(vel * (slap ? 0.45 : 0.25), t); ng.gain.exponentialRampToValueAtTime(0.0001, t + (slap ? 0.09 : 0.06));
+    n.connect(bp).connect(ng).connect(bus); n.start(t, Math.random()); n.stop(t + 0.12);
+  }
+
   /** Suspended cymbal roll swelling into a downbeat. */
   swell(t: number, dur: number, vel: number, bus: AudioNode): void {
     const n = this.ctx.createBufferSource();

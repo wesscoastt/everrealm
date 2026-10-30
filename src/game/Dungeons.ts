@@ -13,6 +13,7 @@ import type { Particles } from '../systems/Particles';
 import type { GroupRow } from './Social';
 import { LAMP_KEY, PLEDGE_KEYS, pledgeToday, RANDOM_BONUS, type PledgeState } from '../data/pledges';
 import { utcDay } from '../data/calendar';
+import { Rooms } from './Rooms';
 
 // Group dungeons in play (data/dungeons.ts says what they are). A run is entered from the Group
 // Finder: alone with henchmen at once, or with players the realm server matched (server/finder.mjs),
@@ -35,7 +36,7 @@ export interface DungeonNet {
   groupGo(dungeon: string): void;
   answer(run: number, yes: boolean, role: Role): void;
   /** A blow ('hit', on creature i, for dmg) or a kill ('kill') for the rest of the run. */
-  event(run: number, k: 'hit' | 'kill', i: number, dmg: number): void;
+  event(run: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void;
   leaveRun(run: number): void;
 }
 
@@ -88,6 +89,8 @@ export interface DungeonHost {
   group(): { leader: boolean; size: number } | null;
   /** The finder panel and the group frames need drawing again. */
   refresh(): void;
+  /** Something to read (a room's clue on the wall). */
+  read(title: string, text: string): void;
 }
 
 type Key = string; // 'me', 'a<bubble id>' for a henchman, 'r<player id>' for another player
@@ -135,6 +138,8 @@ interface Run {
   rowsT: number;
   /** Gone in from the finder's random dungeon (the day's first pays the Lamp Company's bonus). */
   random: boolean;
+  /** The run's rooms (data/rooms.ts), once it's spawned. */
+  rooms: Rooms | null;
 }
 
 export interface FinderView {
@@ -333,8 +338,9 @@ export class Dungeons {
   }
 
   /** Another member's blow or kill. */
-  onEvent(from: number, k: 'hit' | 'kill', i: number, dmg: number): void {
+  onEvent(from: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void {
     const r = this.run;
+    if (k === 'room') { r?.rooms?.remote(i, dmg); return; }
     const e = r?.mobs[i];
     if (!r || !e || !e.alive) return;
     const at = this.host.remote(from) ?? e.pos;
@@ -377,7 +383,7 @@ export class Dungeons {
     this.run = {
       def, vet, act, site, id, role: this.role, allies, others, mobs: [], packOf: new Map(), bosses: [], adds: [], threat: new Map(),
       spawned: false, seen: new Set(), hazards: [], done: false, chest: false, trail: [], calm: 0, raiseIn: -1, wipeIn: -1,
-      hits: new Map(), sendT: 0, rowsT: 0, random: this.randomPick === def.id,
+      hits: new Map(), sendT: 0, rowsT: 0, random: this.randomPick === def.id, rooms: null,
     };
     this.randomPick = null;
     this.host.travel(act.arrive, Math.PI / 2, def.name, `${vet ? 'Veteran' : 'Group dungeon'} · ${def.where}`);
@@ -417,8 +423,32 @@ export class Dungeons {
       this.host.scene.add(al.model.root);
     });
     for (const al of r.allies) if (Math.random() < 0.5) { this.bark(al, al.def.barks.pull); break; }
+    r.rooms = this.rooms(r);
     r.spawned = true;
     this.host.refresh();
+  }
+
+  /** The run's rooms: what they need of the dungeon (its creatures, the log, the relay). */
+  private rooms(r: Run): Rooms {
+    const h = this.host;
+    return new Rooms({
+      scene: h.scene, voxels: h.voxels, player: () => h.player(), system: (t) => h.system(t), banner: (a, b) => h.banner(a, b),
+      sound: (n, v) => h.sfx(n, v), reward: (xp, m, items, why) => h.reward(xp, m, items, why), read: (t, x) => h.read(t, x), level: () => h.level(),
+      // A room's creature is one of the run's adds; a named one (a keeper) is tougher than the rest of its kind
+      spawn: (type, x, y, z, name) => {
+        const d = this.vetDef(type);
+        const e = new Enemy(name ? { ...d, name, hp: Math.round(d.hp * 1.8), xp: Math.round(d.xp * 2) } : d, Math.floor(x), Math.floor(z), h.voxels);
+        e.home.set(Math.floor(x) + 0.5, y, Math.floor(z) + 0.5);
+        e.pos.copy(e.home);
+        e.questTag = 'dungeon';
+        if (!name) e.state = 'chase';
+        h.addEnemy(e);
+        r.adds.push(e);
+        h.particles.burst(e.pos.clone().setY(e.pos.y + 0.5), '#c8b090', 10);
+        return e;
+      },
+      share: (i, s) => { if (r.id) h.net.event(r.id, 'room', i, s); },
+    }, r.def.id);
   }
 
   /** A creature's numbers for this run: veteran's are tougher, and pay a little better. */
@@ -434,6 +464,7 @@ export class Dungeons {
     for (const e of [...r.mobs, ...r.adds]) this.host.removeEnemy(e);
     for (const al of r.allies) this.host.scene.remove(al.model.root);
     for (const h of r.hazards) this.host.scene.remove(h.mesh);
+    r.rooms?.dispose();
     if (r.id) this.host.net.leaveRun(r.id);
     this.run = null;
     this.host.refresh();
@@ -614,6 +645,7 @@ export class Dungeons {
     for (const e of engaged) for (const o of r.packOf.get(e) ?? []) if (o.alive && (o.state === 'idle' || o.state === 'wander')) { o.state = 'chase'; this.addThreat(o, this.victim(e).k, 1); }
     this.bosses(dt);
     this.tickHazards(dt);
+    r.rooms?.update(dt);
 
     // Henchmen
     if (engaged.length) r.calm = 0; else r.calm += dt;
@@ -1154,6 +1186,7 @@ export class Dungeons {
       if (Math.hypot(P.x - ex[0], P.z - ex[2]) < 2.6 && Math.abs(P.y - ex[1]) < 2.5) out.push({ label: r.done ? 'Climb the ladder back up' : 'Climb the ladder back up (leave the dungeon)', pos: new THREE.Vector3(ex[0], ex[1] + 1.2, ex[2]), use: () => this.leave() });
       const c = r.act.chest!;
       if (r.done && !r.chest && Math.hypot(P.x - c[0], P.z - c[2]) < 2.6 && Math.abs(P.y - c[1]) < 2.5) out.push({ label: 'Open the chest', pos: new THREE.Vector3(c[0], c[1] + 0.5, c[2]), use: () => this.openChest() });
+      if (r.rooms) out.push(...r.rooms.candidates(P));
     }
     return out;
   }

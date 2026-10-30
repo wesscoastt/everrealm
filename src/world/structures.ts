@@ -12,7 +12,7 @@ import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, openDoorPlace, Role } from './interiors';
 import { POSTS, postBoxOf } from '../data/travel';
 
-export type InteractKind = 'furnace' | 'anvil' | 'hearth' | 'ledger' | 'chest' | 'bell' | 'notice' | 'gauge' | 'minenotice' | 'bellframe';
+export type InteractKind = 'furnace' | 'anvil' | 'hearth' | 'ledger' | 'chest' | 'bell' | 'notice' | 'gauge' | 'minenotice' | 'bellframe' | 'travellers';
 
 export interface Interactable {
   id: string;
@@ -258,6 +258,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   barrier(158, BASE, 188, 2); barrier(159, BASE, 188, 2);
   interactables.push({ id: 'notice', kind: 'notice', x: 158.5, y: BASE + 1, z: 187.6, label: 'Read the notice board', radius: 2.2 });
   place(P.standingSign(M, 'Charter Post'), 162.5, BASE, 186.5, Math.PI); // the post cart stops here
+  // The travellers' board, past the post box: everyone who has come through the Ford, in the order they came
+  place(P.travellersBoard(M), 168.5, BASE, 188.8, Math.PI);
+  barrier(167, BASE, 188, 2); barrier(168, BASE, 188, 2); barrier(169, BASE, 188, 2);
+  interactables.push({ id: 'travellers', kind: 'travellers', x: 168.5, y: BASE + 1, z: 187.6, label: 'Read the travellers\' board', radius: 2.4 });
 
   // -------------------------------------------------------------- The bridge and the bell
   for (let x = 162; x <= 181; x++) {

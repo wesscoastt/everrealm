@@ -209,7 +209,7 @@ export interface OnlineHooks {
   qStatus?(dungeon: string | null, n: number): void;
   qReady?(run: number, dungeon: string, names: string[], henchmen: number, secs: number): void;
   dStart?(run: number, dungeon: string, members: { id: number; name: string; role: string }[], missing: string[]): void;
-  dEv?(from: number, k: 'hit' | 'kill', i: number, dmg: number): void;
+  dEv?(from: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void;
   dLeft?(name: string): void;
   /** Our own mount's saddle, for drawing whoever rides behind us. */
   /** The mount we're on (where it stands, its halter), or null. */
@@ -384,7 +384,7 @@ export class Online {
       case 'qStatus': this.hooks.qStatus?.(typeof m.dungeon === 'string' ? m.dungeon : null, Number(m.n) || 0); break;
       case 'qReady': this.hooks.qReady?.(Number(m.run), String(m.dungeon), Array.isArray(m.names) ? (m.names as unknown[]).map(String) : [], Number(m.henchmen) || 0, Number(m.secs) || 30); break;
       case 'dStart': this.hooks.dStart?.(Number(m.run), String(m.dungeon), Array.isArray(m.members) ? (m.members as { id: number; name: string; role: string }[]) : [], Array.isArray(m.missing) ? (m.missing as unknown[]).map(String) : []); break;
-      case 'dEv': if (m.k === 'hit' || m.k === 'kill') this.hooks.dEv?.(Number(m.from), m.k, Number(m.i), Number(m.dmg) || 0); break;
+      case 'dEv': if (m.k === 'hit' || m.k === 'kill' || m.k === 'room') this.hooks.dEv?.(Number(m.from), m.k, Number(m.i), Number(m.dmg) || 0); break;
       case 'dLeft': this.hooks.dLeft?.(String(m.name)); break;
       case 'uGrant': this.hooks.uGrant?.(String(m.id), !!m.ok, Number(m.n) || 0, Number(m.cap) || 0, String(m.first ?? ''), !!m.gone); break;
       case 'uLedger': if (m.ledger && typeof m.ledger === 'object') this.hooks.uLedger?.(m.ledger as Record<string, { cap: number; found: { n: number; name: string }[] }>); break;
@@ -621,7 +621,7 @@ export class Online {
   qNow(): void { this.emit({ t: 'qNow' }); }
   qGroup(dungeon: string): void { this.emit({ t: 'qGroup', dungeon }); }
   qAnswer(run: number, yes: boolean, role: string): void { this.emit({ t: 'qAnswer', run, yes, role }); }
-  dEv(run: number, k: 'hit' | 'kill', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }
+  dEv(run: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }
   dLeave(run: number): void { this.emit({ t: 'dLeave', run }); }
   exPost(item: string, n: number, price: number, shop?: string): void { this.emit({ t: 'exPost', item, n, price, shop }); }
   /** Orders: ask for goods at a price (the marks held in the book), fill someone's, or withdraw your own. */

@@ -135,6 +135,7 @@ import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty } from '../world/sites';
 import { MONUMENTS } from '../data/monuments';
 import { jewelDrop } from '../data/jewellery';
+import { SKILL_SCHOOL } from '../data/skillSchools';
 import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
@@ -158,7 +159,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNL
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { currentAccount, deleteRemote, isDevAccount, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
+import { currentAccount, deleteRemote, isDevAccount, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
@@ -172,14 +173,16 @@ const REGION_THEME: Record<RegionId, ThemeId> = {
   keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'starfall', glassflats: 'redstone', greywaste: 'starfall', held: 'starfall',
 };
 
-/** Each region's long piece, played in turn with its own theme (a stretch of each, on the realm clock). */
-const REGION_PIECE: Partial<Record<RegionId, ThemeId>> = {
-  greenwake: 'heartland', crownroad: 'heartland', gannet: 'heartland', saltwind: 'heartland',
-  brambledeep: 'wildwood', wrath: 'wildwood', inkholm: 'wildwood',
-  starfall: 'highlands', tolmen: 'highlands', redstone: 'highlands', kell: 'highlands', sickle: 'highlands',
+/** Each region's other pieces, played in turn with its own theme (eight minutes each, on the realm clock). */
+const REGION_PIECE: Partial<Record<RegionId, ThemeId[]>> = {
+  greenwake: ['heartland', 'meadow'], crownroad: ['heartland', 'meadow'], gannet: ['heartland'], saltwind: ['heartland', 'shanty'],
+  brambledeep: ['wildwood', 'grove'], wrath: ['wildwood'], inkholm: ['wildwood', 'grove'],
+  starfall: ['highlands', 'fells'], tolmen: ['highlands', 'fells'], redstone: ['highlands'], kell: ['tinkers', 'highlands'], sickle: ['rime', 'highlands'],
   // Morrow's own
-  keys: 'keys', bright: 'keys', glades: 'amber', amberwold: 'amber', sunder: 'held', glassflats: 'held', greywaste: 'held', held: 'held',
+  keys: ['keys', 'shanty'], bright: ['keys', 'whitecity'], glades: ['amber', 'grove'], amberwold: ['amber', 'grove'], sunder: ['held'], glassflats: ['caravan', 'held'], greywaste: ['held'], held: ['held', 'rime'],
 };
+/** Where a place has a second piece of its own, the two take turns (Ansbury's market day, Gullmouth's shanty). */
+const PLACE_PIECE: Partial<Record<ThemeId, ThemeId>> = { ansbury: 'charter', harbour: 'shanty', night: 'rainfall' };
 /** Each dungeon's and delve's own music, by its id (data/dungeons.ts for the group dungeons, world/sites.ts for the rest). */
 const UNDER_THEME: Record<string, ThemeId> = {
   'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow',
@@ -935,7 +938,7 @@ export class Game implements GameApi {
     // The cities' monuments stand where the planner put them; each has its plaque to read
     for (const m of sitePlan().monuments) if (!WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
       const def = MONUMENTS.find((k) => k.id === m.id)!;
-      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' ? 'Read ' : 'Read the plaque: ') + def.title, radius: def.model === 'jawbones' ? 4 : 2.8, read: 'monument:' + m.id });
+      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' || def.model === 'priceboard' || def.model === 'companysign' ? 'Read ' : def.model === 'flywheel' ? 'Look at ' : 'Read the plaque: ') + def.title.replace(/^The /, 'the '), radius: def.model === 'jawbones' || def.model === 'companysign' ? 4.5 : 2.8, read: 'monument:' + m.id });
     }
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.post = new PostRide(this.scene, this.world.voxels);
@@ -1260,6 +1263,7 @@ export class Game implements GameApi {
       remote: (id) => this.online.remotes.get(id)?.model.root.position ?? null,
       group: () => (this.social.inGroup ? { leader: this.social.group!.leader === this.online.myId, size: this.social.group!.members.length } : null),
       refresh: () => { this.showGroup(); this.hud.refresh('finder'); },
+      read: (title, text) => this.hud.showReadable(title, text),
     });
     this.online = new Online({
       scene: this.scene,
@@ -3339,6 +3343,7 @@ export class Game implements GameApi {
   /** Character select over the vale, with the last-played character standing in the square. */
   private showMenu(): void {
     if (currentAccount()) void this.syncAccount();
+    void loadTravellers(); // (the board at Hollin Ford)
     this.hud.hideTitle();
     this.hud.setHudHidden(true);
     this.selectCharacter(this.charId);
@@ -3412,6 +3417,7 @@ export class Game implements GameApi {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('elite:' + this.calling, id);
     this.kit.setElite(id);
+    this.sfx('page');
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     this.persist();
     return null;
@@ -3420,6 +3426,7 @@ export class Game implements GameApi {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('bar:' + this.calling, ids.slice(0, 2));
     this.kit.setUtilities(ids, this.apprentice);
+    this.sfx('page');
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     this.persist();
     return null;
@@ -3992,6 +3999,7 @@ export class Game implements GameApi {
     this.inv.add(id);
     this.save.equip[slot] = null;
     this.hp = Math.min(this.hp, this.maxHp);
+    this.sfx('equip', 0.7);
     if (slot !== 'weapon') this.dress();
     this.hud.refresh();
   }
@@ -4005,6 +4013,7 @@ export class Game implements GameApi {
     }
     this.inv.removeAt(i, st.n);
     this.hud.system(`Dropped ${def.name}.`);
+    this.sfx('land', 0.45); // (it hits the ground)
     this.hud.refresh();
   }
 
@@ -4199,6 +4208,8 @@ export class Game implements GameApi {
     const time = r.time / (r.station === 'bench' ? [1, 1.2, 1.33][this.passive('wc_quick')] : 1) / (1 + this.mastery('quick'));
     this.cancelActions();
     this.craftAction = { recipe: id, left: Math.min(count, can), t: 0, station: r.station, cost, out, xp, time };
+    // The work starting: the hammer on the anvil, the furnace drawing, the pan going on, the saw at the bench
+    this.sfx(r.station === 'anvil' ? 'anvil' : r.station === 'furnace' ? 'sizzle' : r.station === 'hearth' ? 'sizzle' : 'chop', 0.8);
     this.player.locked = true;
   }
 
@@ -5541,6 +5552,8 @@ export class Game implements GameApi {
         return;
       }
       const ok = i === 1 ? this.kit.useSecond() : i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
+      // The skill's own sound, by its school (data/skillSchools.ts), when it actually goes off
+      if (ok) { const id = i === 1 ? this.kit.secondSkill?.id : i === 2 ? this.kit.weaponSkill.id : this.kit.bar[i - 3]?.id; const school = id ? SKILL_SCHOOL[id] : undefined; if (school) this.audio.skillCast(school); }
       if (ok && i > 2 && this.kit.bar[i - 3]?.id === 'attune') this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
       if (ok) {
         this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0;
@@ -6148,6 +6161,7 @@ export class Game implements GameApi {
   /** Up again where you fell (a healer's work), with this share of your health. */
   private raise(share: number): void {
     if (!this.dead) return;
+    this.sfx('heal'); this.sfx('levelUp', 0.35); // (breath back, and the light of it)
     this.dead = false;
     this.player.locked = false;
     this.hp = Math.max(1, Math.round(this.maxHp * share));
@@ -6156,6 +6170,7 @@ export class Game implements GameApi {
   }
 
   private respawn(): void {
+    this.sfx('heal', 0.8);
     this.harms.clear();
     this.dead = false;
     this.player.locked = false;
@@ -7185,15 +7200,17 @@ export class Game implements GameApi {
       : null;
     if (place && this.festivals.stallNear(P, 14)) return 'festival';
     if (place && place !== 'holms' && place !== 'kirk' && this.world.sky.sheltered) return 'inn';
-    if (place) return place;
-    if (this.world.sky.night > 0.65) return 'night';
+    const turn = Math.floor(Date.now() / 480000);
+    if (place) return PLACE_PIECE[place] && turn % 2 === 1 ? PLACE_PIECE[place]! : place;
+    if (this.world.sky.night > 0.65) return turn % 2 === 1 ? 'rainfall' : 'night';
     // First light and evening have pieces of their own
     const h = this.world.sky.hour;
     if (h >= 5.6 && h < 7.8) return 'dawn';
     if (h >= 18.4 && h < 20.2) return 'dusk';
     // Out in the country, the region's own theme and its long piece take turns, eight minutes each
-    const own = this.regionTheme(), r = regionAt(P.x, P.z), piece = REGION_PIECE[r.t < 0.35 ? r.a : r.b];
-    return piece && Math.floor(Date.now() / 480000) % 2 === 1 ? piece : own;
+    const own = this.regionTheme(), r = regionAt(P.x, P.z), pieces = REGION_PIECE[r.t < 0.35 ? r.a : r.b] ?? [];
+    const all = [own, ...pieces];
+    return all[turn % all.length];
   }
 
   /** In a fight with something big: an elite, a story boss or a world boss nearby and awake. */

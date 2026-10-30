@@ -50,9 +50,9 @@ const npcs: NpcDef[] = [
     look: look({ skin: '#d8a878', hair: '#2a1e18', hairStyle: 2, eyes: '#3a2a1e', tunic: '#5a4a40', trim: '#8a7a6a', trousers: '#3a3430', boots: '#2a1e14', lashes: true, build: 0.9, age: 0.25 }),
     // After dark on the lookout bench; by day gone down into the city (or, kept on, at Teresa's office)
     schedule: [
-      { from: 20, to: 24, at: BENCH, face: [BENCH[0], BENCH[1] + 8], anim: 'idle' },
-      { from: 0, to: 6, at: BENCH, face: [BENCH[0], BENCH[1] + 8], anim: 'idle' },
-      { from: 6, to: 20, at: [OFFICE[0], OFFICE[1] + 1.5], face: [OFFICE[0], OFFICE[1] + 4], anim: 'idle', indoors: true },
+      { from: 20, to: 24, at: [BENCH[0] + 0.4, BENCH[1]], face: [BENCH[0], BENCH[1] + 8], anim: 'idle' }, // (on the bench, clear of the lamp post at its end)
+      { from: 0, to: 6, at: [BENCH[0] + 0.4, BENCH[1]], face: [BENCH[0], BENCH[1] + 8], anim: 'idle' },
+      { from: 6, to: 20, at: [OFFICE[0] + 1, OFFICE[1] + 1.5], face: [OFFICE[0] + 1, OFFICE[1] + 4], anim: 'idle', indoors: true },
     ],
     barks: ['That one was ours. The long deck.', 'You can see the whole bay from here. We used to.'],
   },
@@ -81,11 +81,11 @@ const npcs: NpcDef[] = [
     land: 'morrow', id: 'nina_vidal', name: 'Nina Vidal', title: 'Painter',
     look: look({ skin: '#e0b090', hair: '#8a8a88', hairStyle: 2, eyes: '#4a6a7a', tunic: '#7a5a3a', trim: '#3a6a9a', trousers: '#4a3a30', boots: '#2a1e14', apron: true, lashes: true, build: 0.9, age: 0.7 }),
     schedule: [
-      { from: 6, to: 12, at: [EASEL[0], EASEL[1] - 0.9], face: [EASEL[0], EASEL[1] + 8], anim: 'idle' },
-      { from: 12, to: 16, at: [vidal.x0 - 2.5, vidal.z0 - 2.5], face: [vidal.x0 - 2.5, vidal.z0 + 2], anim: 'idle' },
-      { from: 16, to: 21, at: [EASEL[0], EASEL[1] - 0.9], face: [EASEL[0], EASEL[1] + 8], anim: 'idle' },
-      { from: 21, to: 24, at: [vidal.x0 + 3.5, vidal.z0 + 3.5], face: [vidal.x0 + 3.5, vidal.z0 + 6], anim: 'idle', indoors: true },
-      { from: 0, to: 6, at: [vidal.x0 + 3.5, vidal.z0 + 3.5], face: [vidal.x0 + 3.5, vidal.z0 + 6], anim: 'idle', indoors: true },
+      { from: 6, to: 12, at: [EASEL[0] - 1.4, EASEL[1] - 0.9], face: [EASEL[0], EASEL[1] + 8], anim: 'idle' }, // (clear of the planter)
+      { from: 12, to: 16, at: [vidal.x0 - 3.5, vidal.z0 - 2.5], face: [vidal.x0 - 3.5, vidal.z0 + 2], anim: 'idle' },
+      { from: 16, to: 21, at: [EASEL[0] - 1.4, EASEL[1] - 0.9], face: [EASEL[0], EASEL[1] + 8], anim: 'idle' },
+      { from: 21, to: 24, at: [vidal.x0 + 2, vidal.z0 + 3.5], face: [vidal.x0 + 2, vidal.z0 + 6], anim: 'idle', indoors: true },
+      { from: 0, to: 6, at: [vidal.x0 + 2, vidal.z0 + 3.5], face: [vidal.x0 + 2, vidal.z0 + 6], anim: 'idle', indoors: true },
     ],
     barks: ['Don\'t stand in my light. Or do. It\'s wrong anyway.', 'Morning light comes off the river first. Then the roofs.'],
   },

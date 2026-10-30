@@ -97,6 +97,13 @@ export class AudioSystem {
   private rainGain!: GainNode;
   private fireGain!: GainNode;
   private seaGain!: GainNode;
+  /** The sea's body: a fuller layer over the far roar that swells up with each wave and settles after it. */
+  private seaBody!: GainNode;
+  /** How much the last wave is still lifting the body (1 on the break, easing back to 0). */
+  private surge = 0;
+  /** Waves come in sets: how many are left in this one, how big the next is, and the lull after. */
+  private setLeft = 0;
+  private setSize = 0.8;
   private fallsGain!: GainNode;
   private crowdGain!: GainNode;
   /** A short echo for caves and distant calls. */
@@ -154,8 +161,13 @@ export class AudioSystem {
     this.rainGain = this.loopNoise(3200, 0.5, 'highpass', this.pink);
     this.fireGain = this.loopNoise(2400, 0.3, 'highpass', this.pink);
     // The sea's far roar, low and slow; the waves themselves are played one by one (wave())
-    this.seaGain = this.loopNoise(180, 0.5, 'lowpass', this.brown);
-    this.seaBus = ctx.createGain(); this.seaBus.gain.value = 0; this.seaBus.connect(this.amb); this.seaBus.connect(this.room);
+    this.seaGain = this.loopNoise(160, 0.5, 'lowpass', this.brown);
+    this.seaBody = this.loopNoise(460, 0.45, 'lowpass', this.brown);
+    // Everything the waves make goes through one gentle lowpass first: real surf is a roar and a shush,
+    // and the fizz above four thousand or so is what makes synthetic sea sound like a badly tuned set
+    this.seaBus = ctx.createGain(); this.seaBus.gain.value = 0;
+    const seaTone = ctx.createBiquadFilter(); seaTone.type = 'lowpass'; seaTone.frequency.value = 3400; seaTone.Q.value = 0.5;
+    this.seaBus.connect(seaTone); seaTone.connect(this.amb); seaTone.connect(this.room);
     this.fallsGain = this.loopNoise(260, 0.6, 'lowpass', this.brown);
     this.crowdGain = this.loopNoise(520, 0.9, 'bandpass', this.pink);
     // The echo: a delay feeding back through a dulling filter
@@ -230,16 +242,25 @@ export class AudioSystem {
       src.connect(f).connect(g).connect(pan);
       src.start(t + at, Math.random() * (bed.duration - 8)); src.stop(t + at + rise + hold + fall + 0.1);
     };
-    const k = 0.7 + Math.random() * 0.6;
-    // the swell coming in
-    play(this.brown, 'lowpass', 140, 420 * k, 0.6, 0, 2.2 * k, 0.2, 0.8, 0.22 * size);
-    // the break
-    play(this.pink, 'bandpass', 700, 1700 * k, 0.5, 2.1 * k, 0.12, 0.25, 1.6, 0.34 * size);
-    play(this.brown, 'lowpass', 600, 260, 0.7, 2.15 * k, 0.08, 0.2, 1.2, 0.3 * size);
-    // the wash going back: a long fizz, falling in pitch and level
-    play(this.pink, 'highpass', 2600, 900, 0.4, 2.7 * k, 0.6, 0.6, 3.2 * k, 0.12 * size);
-    // spray: a few short slaps in the break
-    for (let i = 0; i < 3; i++) this.burst(1800 + Math.random() * 1600, 1.4, 0.05, 0.05 * size * Math.random(), 'bandpass', 2.2 * k + i * 0.11, undefined, pan);
+    const k = 0.75 + Math.random() * 0.5, at = 2.4 * k;
+    // the swell coming in: a low lift you feel as much as hear
+    play(this.brown, 'lowpass', 90, 280 * k, 0.5, 0, 2.6 * k, 0.3, 1.0, 0.26 * size);
+    // the break: a rolling thump, and over it a whoosh that opens up and closes down again
+    play(this.brown, 'lowpass', 200, 820 * k, 0.6, at, 0.16, 0.4, 1.9, 0.38 * size);
+    play(this.pink, 'lowpass', 420, 2000 * k, 0.35, at + 0.04, 0.3, 0.35, 1.7, 0.17 * size);
+    play(this.pink, 'lowpass', 1800 * k, 520, 0.3, at + 0.7, 0.4, 0.3, 1.4, 0.07 * size); // (and closing)
+    // the wash running back: foam, a soft shush, low and falling, not a hiss
+    play(this.pink, 'bandpass', 1300, 520, 0.3, at + 0.6, 0.8, 0.9, 3.4 * k, 0.075 * size);
+    // shingle dragged back down with it: a crackle of little stones, thick at first and thinning out
+    const n = Math.round(16 + Math.random() * 14 * size);
+    for (let i = 0; i < n; i++) {
+      const p = i / n, when = at + 1.0 + Math.pow(p, 0.7) * 3.2 * k;
+      this.burst(2200 + Math.random() * 2400, 5, 0.012 + Math.random() * 0.01, 0.016 * size * (1 - p) * (0.4 + Math.random() * 0.6), 'bandpass', when, undefined, pan);
+    }
+    // a slap or two of spray where it breaks
+    for (let i = 0; i < 2; i++) this.burst(900 + Math.random() * 700, 1.1, 0.07, 0.04 * size * Math.random(), 'bandpass', at + 0.05 + i * 0.13, 400, pan);
+    // and the body of the sea surges up with it
+    this.surge = Math.max(this.surge, size);
   }
 
   private env(g: GainNode, t: number, a: number, peak: number, dec: number): void {
@@ -330,6 +351,103 @@ export class AudioSystem {
     o.start(t);
     o.stop(t + dur + 0.05);
     if (rough) this.burst(formants[0], 1.5, dur, peak * rough * 2, 'bandpass', when, undefined, out);
+  }
+
+  /** A tone that swells in rather than striking: a sung or bowed note, a glow. */
+  private glowTone(freq: number, type: OscillatorType, attack: number, hold: number, release: number, peak: number, when = 0, out?: AudioNode): void {
+    const ctx = this.ctx!, t = ctx.currentTime + when;
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + attack); g.gain.setValueAtTime(peak, t + attack + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
+    o.connect(g).connect(out ?? this.sfx); o.start(t); o.stop(t + attack + hold + release + 0.05);
+  }
+
+  /**
+   * A skill going off, by its school (data/skillSchools.ts): every calling's skills used to share a swing,
+   * a heavy hit, a bell and a growl. Each school is a few layers: the body of it (a roar, a chime, a clang),
+   * an edge (a whoosh, a crack, a hiss), and something low under it so it lands.
+   */
+  skillCast(school: string, vol = 1): void {
+    if (!this.ctx) return;
+    const v = vol, r = Math.random;
+    switch (school) {
+      case 'shield':
+        this.tone(95, 'sine', 0.22, 0.32 * v, 0, 58);                                          // the thump of the boss
+        this.tone(410 + r() * 40, 'triangle', 0.35, 0.12 * v, 0.005, 360);                     // the iron ringing
+        this.tone(1240 + r() * 80, 'sine', 0.5, 0.05 * v, 0.005);
+        this.burst(2600, 2, 0.07, 0.14 * v, 'bandpass', 0);
+        break;
+      case 'warcry':
+        this.burst(420, 1.4, 0.55, 0.22 * v, 'bandpass', 0, 260);                              // a shout, chest-deep
+        this.tone(140, 'sawtooth', 0.5, 0.06 * v, 0.02, 110);
+        this.tone(70, 'sine', 0.4, 0.2 * v, 0.05, 50);
+        break;
+      case 'blade':
+        this.burst(1600, 1.2, 0.18, 0.2 * v, 'bandpass', 0, 4200);                              // the cut through the air
+        this.tone(2700 + r() * 300, 'sine', 0.35, 0.05 * v, 0.08);                               // steel singing
+        this.tone(3900 + r() * 300, 'sine', 0.25, 0.025 * v, 0.08);
+        break;
+      case 'fire':
+        this.burst(380, 0.8, 0.5, 0.3 * v, 'lowpass', 0, 1700);                                 // the roar going up
+        this.tone(68, 'sine', 0.5, 0.2 * v, 0.02, 44);
+        for (let i = 0; i < 7; i++) this.burst(2800 + r() * 2400, 3, 0.03, 0.05 * v * r(), 'bandpass', 0.08 + r() * 0.4); // crackle
+        break;
+      case 'frost':
+        for (const [f, d] of [[1760, 0], [2349, 0.05], [3136, 0.1]] as const) this.tone(f * (0.98 + r() * 0.04), 'sine', 0.7, 0.06 * v, d); // ice ringing
+        this.burst(6000, 0.7, 0.35, 0.08 * v, 'highpass', 0, 9000);                              // the frost's breath
+        this.burst(3200, 6, 0.04, 0.12 * v, 'bandpass', 0.02);                                  // a crack
+        break;
+      case 'storm':
+        this.tone(900, 'sawtooth', 0.14, 0.12 * v, 0, 120);                                     // the arc
+        this.burst(3200, 1.5, 0.09, 0.22 * v, 'bandpass', 0);                                   // the snap
+        this.burst(160, 0.7, 0.6, 0.18 * v, 'lowpass', 0.05, 70);                               // thunder behind it
+        break;
+      case 'bow':
+        this.tone(230, 'triangle', 0.22, 0.14 * v, 0, 175);                                     // the string let go
+        this.tone(690, 'sine', 0.12, 0.05 * v, 0);
+        this.burst(2600, 1.1, 0.3, 0.1 * v, 'highpass', 0.03, 5200);                            // the arrow away
+        break;
+      case 'shadow':
+        this.burst(700, 1.1, 0.45, 0.2 * v, 'bandpass', 0, 180);                                // a dark rush, falling
+        this.tone(110, 'sine', 0.45, 0.14 * v, 0.02, 64);
+        this.burst(5200, 2, 0.12, 0.04 * v, 'bandpass', 0.18);                                  // a hiss at the end
+        break;
+      case 'poison':
+        for (let i = 0; i < 6; i++) this.tone(260 + r() * 340, 'sine', 0.08, 0.06 * v, i * 0.05 + r() * 0.03, 520 + r() * 300); // bubbles
+        this.burst(1800, 0.8, 0.4, 0.07 * v, 'lowpass', 0.02);
+        break;
+      case 'holy':
+        for (const [f, d] of [[523.3, 0], [659.3, 0.04], [784, 0.08], [1046.5, 0.14]] as const) this.glowTone(f, 'sine', 0.12, 0.25, 0.9, 0.045 * v, d); // a chord of light
+        this.glowTone(523.3, 'triangle', 0.2, 0.3, 0.8, 0.02 * v, 0);
+        this.burst(7000, 0.7, 0.6, 0.035 * v, 'highpass', 0.05);                                 // shimmer
+        break;
+      case 'smite':
+        for (const [f, d] of [[784, 0], [1175, 0.02]] as const) this.tone(f, 'sine', 0.6, 0.07 * v, d);
+        this.tone(82, 'sine', 0.35, 0.3 * v, 0.03, 52);                                         // the blow lands
+        this.burst(2400, 1.2, 0.1, 0.16 * v, 'bandpass', 0.03);
+        break;
+      case 'necro':
+        this.glowTone(55, 'sawtooth', 0.15, 0.25, 0.6, 0.05 * v, 0);                            // the grave's drone
+        for (let i = 0; i < 3; i++) this.burst(1100 + r() * 600, 8, 0.25, 0.05 * v, 'bandpass', 0.05 + i * 0.09); // whispers
+        for (let i = 0; i < 3; i++) this.burst(3800, 5, 0.02, 0.07 * v, 'bandpass', 0.15 + i * 0.07);            // bone ticking
+        break;
+      case 'earth':
+        this.tone(62, 'sine', 0.55, 0.42 * v, 0, 34);                                           // the stamp
+        this.burst(220, 0.7, 0.7, 0.24 * v, 'lowpass', 0.02, 90);                               // the ground rumbling
+        for (let i = 0; i < 5; i++) this.burst(1400 + r() * 1600, 3, 0.03, 0.05 * v * r(), 'bandpass', 0.1 + r() * 0.3); // grit
+        break;
+      case 'staff':
+        this.burst(900, 1, 0.22, 0.16 * v, 'bandpass', 0, 1700);                               // wood through the air
+        this.tone(310, 'triangle', 0.06, 0.14 * v, 0.12);                                        // the knock
+        break;
+      case 'arcane':
+        this.tone(1200, 'sine', 0.18, 0.08 * v, 0, 2400);
+        this.tone(2400, 'sine', 0.22, 0.06 * v, 0.16, 600);
+        this.burst(6500, 0.8, 0.3, 0.05 * v, 'highpass', 0.05);
+        break;
+      case 'beast': this.play('growl', v); break;
+      default: this.play('swing', v);
+    }
   }
 
   play(name: Sfx, vol = 1): void {
@@ -466,12 +584,20 @@ export class AudioSystem {
     this.rainGain.gain.setTargetAtTime(rain * 0.22 * (opts.indoors ? 0.45 : 1), t, 1.2);
     // The sea: its far roar, and wave after wave on the shore, every six to eleven seconds, now and then a big one
     this.swell += dt * 0.9;
-    this.seaGain.gain.setTargetAtTime(coast * 0.09 * (opts.indoors ? 0.3 : 1), t, 1.5);
+    const inside = opts.indoors ? 0.3 : 1;
+    // the far roar breathes slowly; the body rises with each wave and settles after it
+    this.surge *= Math.exp(-dt / 3.2);
+    this.seaGain.gain.setTargetAtTime(coast * 0.07 * (0.8 + 0.2 * Math.sin(this.swell * 0.6)) * inside, t, 1.5);
+    this.seaBody.gain.setTargetAtTime(coast * coast * (0.015 + 0.07 * this.surge) * inside, t, 0.6);
     this.seaBus.gain.setTargetAtTime(coast * (opts.indoors ? 0.25 : 1), t, 1.2);
     this.nextWave -= dt;
     if (this.nextWave <= 0) {
-      this.nextWave = 6 + Math.random() * 5;
-      if (coast > 0.05) this.wave(Math.random() < 0.18 ? 1.4 : 0.8 + Math.random() * 0.4);
+      // Waves in sets: three to five, each a little bigger, six to eight seconds apart; then a lull
+      if (this.setLeft <= 0) { this.setLeft = 3 + Math.floor(Math.random() * 3); this.setSize = 0.65 + Math.random() * 0.15; }
+      this.setLeft--;
+      this.setSize = Math.min(1.45, this.setSize + 0.12 + Math.random() * 0.1);
+      this.nextWave = this.setLeft > 0 ? 6 + Math.random() * 2 : 12 + Math.random() * 7;
+      if (coast > 0.05) this.wave(this.setSize);
     }
     this.fallsGain.gain.setTargetAtTime((opts.falls ?? 0) * 0.32, t, 0.4);
     // A town's murmur by day, a tavern's in the evening; now and then a laugh, or mugs

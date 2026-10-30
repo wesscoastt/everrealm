@@ -6,11 +6,12 @@
 export type MonumentModel =
   | 'speaker' | 'rider' | 'scales' | 'cross' | 'fountain' | 'obelisk' | 'bell' | 'dog' | 'plough'
   | 'milestone' | 'column' | 'seated' | 'boots' | 'masons' | 'plumb' | 'netmender' | 'stones'
-  | 'jawbones' | 'drownedboard' | 'fogbell' | 'tallystone' | 'anselbench';
+  | 'jawbones' | 'drownedboard' | 'fogbell' | 'tallystone' | 'anselbench'
+  | 'companysign' | 'priceboard' | 'flywheel';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate';
   /** Placed by hand (world/sites.ts gullmouthLife): blocks east of the coast line at z 600, north-south, facing. */
   at?: [number, number, number];
   model: MonumentModel;
@@ -97,6 +98,19 @@ export const MONUMENTS: Monument[] = [
   {
     id: 'ansel', town: 'gullmouth', model: 'anselbench', at: [20.5, 612.5, Math.PI / 2], title: 'Ansel\'s bench',
     body: 'ANSEL ROOK\nSPLICED HALF THE ROPE IN THIS HARBOUR\nNINETEEN\n\nBett Rook had the bench made from the Gannet\'s hatch cover when it washed up on the shingle. It faces the stacks. Most mornings there\'s a coil of new rope left on it by whoever is going out.',
+  },
+  // Harrowgate Works, inside the palisade (placed by hand, x from the Works' middle)
+  {
+    id: 'hgsign', town: 'harrowgate', model: 'companysign', at: [0, 1026.5, 0], title: 'The company sign',
+    body: 'HARROWGATE & DAUGHTERS\nMINERS · SMELTERS · CARRIERS\n\nThe founder had the sign painted the year his third daughter was born, meaning to have it done again when he had a son. He died first. Delia, Hilda and Joan have it repainted every spring, in the same words, a little larger each time.',
+  },
+  {
+    id: 'hgprices', town: 'harrowgate', model: 'priceboard', at: [-20.5, 995.5, 0], title: 'The price board',
+    body: 'THE COMPANY BUYS\nCopper ore, the stone: 3\nTin ore, the stone: 3\nSilver ore, the stone: 14\nBronze, the Tolley bar: 9\nBy order, A. Pryce\n\nDown the right-hand side, in pencil, smaller, another column of prices, every one of them lower, under the heading "own acct." Somebody has rubbed at it with a thumb. It hasn\'t come off.',
+  },
+  {
+    id: 'hgwheel', town: 'harrowgate', model: 'flywheel', at: [21.5, 990.5, Math.PI / 2], title: 'The cracked flywheel',
+    body: 'The flywheel off the first winding engine, taller than a man, leaned against the store wall. One spoke is gone and the rim is cracked through beside the gap. It threw that spoke through the engine-house roof the day it was run faster than it was made for, and by luck it killed nobody.\n\nChalked on the rim, and chalked again whenever the rain takes it off: DELIA SAYS KEEP IT.',
   },
   // Callis
   {

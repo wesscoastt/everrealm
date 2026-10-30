@@ -84,8 +84,28 @@ export class RoadNet {
     out.unshift(from);
     out.push(to);
     // (no doubled points: a turn on the spot)
-    return out.filter((p, i) => i === 0 || Math.hypot(p[0] - out[i - 1][0], p[1] - out[i - 1][1]) > 0.3);
+    const way = out.filter((p, i) => i === 0 || Math.hypot(p[0] - out[i - 1][0], p[1] - out[i - 1][1]) > 0.3);
+    return unspike(way);
   }
+}
+
+/**
+ * A way with its doubling-back taken out. Where a town leg ends a few blocks past the road it meets, or the
+ * nearest point of the network lies behind a post sign, the shortest way runs out to the end and back:
+ * the carter drives up, turns round and comes back. A point the way turns back on itself at (sharper than
+ * about a hundred degrees) is dropped, so she takes the corner, until none is left.
+ */
+function unspike(way: Pt[]): Pt[] {
+  const w = way.slice();
+  for (let changed = true, guard = 0; changed && guard < 200; guard++) {
+    changed = false;
+    for (let i = 1; i + 1 < w.length; i++) {
+      const ax = w[i][0] - w[i - 1][0], az = w[i][1] - w[i - 1][1], bx = w[i + 1][0] - w[i][0], bz = w[i + 1][1] - w[i][1];
+      const la = Math.hypot(ax, az), lb = Math.hypot(bx, bz);
+      if (la < 0.01 || lb < 0.01 || (ax * bx + az * bz) / (la * lb) < -0.2) { w.splice(i, 1); changed = true; break; }
+    }
+  }
+  return w;
 }
 
 let net: RoadNet | null = null;

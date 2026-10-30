@@ -15,6 +15,18 @@ export function apiBase(ws = serverUrl()): string | null {
   return ws ? ws.replace(/^ws(s?):\/\//, 'http$1://').replace(/\/+$/, '') : null;
 }
 
+/** The travellers' board at Hollin Ford (server /api/travellers): who has played, in the order they came. */
+export const travellers: { names: string[]; loaded: boolean } = { names: [], loaded: false };
+export async function loadTravellers(): Promise<void> {
+  const base = apiBase();
+  if (!base) return;
+  try {
+    const r = await fetch(base + '/api/travellers');
+    const d = await r.json() as { names?: unknown };
+    if (Array.isArray(d.names)) { travellers.names = d.names.filter((n): n is string => typeof n === 'string'); travellers.loaded = true; }
+  } catch { /* the realm isn't answering: the board shows what it had */ }
+}
+
 /** The account signed in to this realm in this browser, if any. */
 export function currentAccount(): AccountInfo | null {
   const base = apiBase();

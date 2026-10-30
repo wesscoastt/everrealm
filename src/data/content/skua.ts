@@ -67,7 +67,7 @@ const npcs: NpcDef[] = [
     id: 'ruth_ashdown', name: 'Ruth Ashdown', title: 'Warden of Skua Rock',
     look: look({ ...blue, hat: undefined, cape: '#2a3a5a', skin: '#d8a882', hair: '#4a4a48', hairStyle: 3, eyes: '#3a4a5a', lashes: true, build: 1.0, age: 0.6 }),
     schedule: [
-      { from: 7, to: 19, at: [CELLHOUSE.x0 - 3.5, 466.5], face: [CELLHOUSE.x0 - 8, 466.5], anim: 'idle' },
+      { from: 7, to: 19, at: [CELLHOUSE.x0 - 3.5, 467.6], face: [CELLHOUSE.x0 - 8, 466.5], anim: 'idle' },
       { from: 19, to: 24, at: [WARDEN.x0 + 4.5, WARDEN.z0 + 3.5], face: [WARDEN.x0 + 4.5, WARDEN.z0 + 1], anim: 'idle', indoors: true },
       { from: 0, to: 7, at: [WARDEN.x0 + 4.5, WARDEN.z0 + 3.5], face: [WARDEN.x0 + 4.5, WARDEN.z0 + 1], anim: 'idle', indoors: true },
     ],

@@ -140,6 +140,31 @@ function writeJson(file, data) {
   mirror(file, text);
 }
 const loadChar = (key) => readJson(path.join(CHAR_DIR, key + '.json'));
+
+/**
+ * Everyone who has played, for the travellers' board at Hollin Ford: one name for each player (their first
+ * character that has been played at all), in the order they came, the realm's own accounts (DEV_ACCOUNTS)
+ * left off. Character names only: account names are private. Worked out at most every five minutes.
+ */
+let travellersCache = { at: 0, names: [] };
+function travellers() {
+  if (Date.now() - travellersCache.at < 5 * 60_000) return travellersCache.names;
+  const first = new Map();
+  let files = [];
+  try { files = fs.readdirSync(CHAR_DIR).filter((f) => f.endsWith('.json')); } catch { /* none yet */ }
+  for (const f of files) {
+    const rec = readJson(path.join(CHAR_DIR, f));
+    if (!rec?.name || !rec.save || !(rec.save.playTime > 0)) continue;
+    if (rec.owner && DEV_ACCOUNTS.has(accKey(rec.owner))) continue;
+    const who = rec.owner ? 'a:' + accKey(rec.owner) : 'c:' + rec.name;
+    const when = rec.created ?? rec.updated ?? Date.now();
+    const had = first.get(who);
+    if (!had || when < had.when) first.set(who, { name: rec.name, when });
+  }
+  const names = [...first.values()].sort((a, b) => a.when - b.when).slice(0, 500).map((p) => p.name);
+  travellersCache = { at: Date.now(), names };
+  return names;
+}
 const storeChar = (key, rec) => writeJson(path.join(CHAR_DIR, key + '.json'), rec);
 const accKey = (user) => user.toLowerCase();
 const loadAccount = (user) => readJson(path.join(ACC_DIR, accKey(user) + '.json'));
@@ -343,6 +368,8 @@ async function api(req, res) {
 
   // The store (server/store.mjs): anyone may look; Stripe's word that a payment went through is checked by its signature
   if (req.method === 'GET' && url.pathname === '/api/store/catalog') return reply(res, 200, store.catalog());
+  // The travellers' board at Hollin Ford: who has played, in the order they came (public; names only)
+  if (req.method === 'GET' && url.pathname === '/api/travellers') return reply(res, 200, { names: travellers() });
   if (req.method === 'POST' && url.pathname === '/api/store/webhook') {
     const raw = await readRaw(req);
     const r = store.webhook(raw ?? '', req.headers['stripe-signature']);

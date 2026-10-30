@@ -34,7 +34,7 @@ export const BOATMAN: RegionContent = {
   npcs: [{
     id: 'davey_penrose', name: 'Davey Penrose', title: 'Boatman, Gullmouth',
     look: { skin: '#d8a07a', hair: '#7a5a3a', hairStyle: 3, facial: 2, eyes: '#4a6a7a', tunic: '#3a4a5a', trim: '#c8b070', trousers: '#2a2a30', boots: '#1e1a16', hat: 'kerchief', hatColor: '#7a2a22', build: 1.1, age: 0.45 },
-    schedule: [{ from: 0, to: 24, at: [GULL_POST[0] - 4, GULL_POST[1] + 8], face: [GULL_POST[0] - 9, GULL_POST[1] + 8], anim: 'idle' }],
+    schedule: [{ from: 0, to: 24, at: [GULL_POST[0] - 5.5, GULL_POST[1] + 8], face: [GULL_POST[0] - 10, GULL_POST[1] + 8], anim: 'idle' }], // (clear of the bench's end)
     barks: ['Plover for Kell. Wren for Inkholm. I\'m only saying.', 'Free, they call it. Free.'],
   }],
   dialogue: { davey_penrose: davey },

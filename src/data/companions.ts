@@ -43,7 +43,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
   // Riders let her go in April. Nobody has told her it wasn't her fault, and she wouldn't believe them.
   wenna: {
     id: 'wenna', name: 'Wenna Hale', title: 'Once of the Toll Riders',
-    home: { at: [712.5, 584.5], face: [709.5, 580.5], place: 'the Waystation yard' },
+    home: { at: [710.5, 583.5], face: [707.5, 580.5], place: 'the Waystation yard' },
     roles: ['tank', 'damage'],
     look: { frame: 'f', skin: '#c8906a', hair: '#3a2418', hairStyle: 4, eyes: '#4a5a3a', tunic: '#3a4a5a', trim: '#c8a050', shirt: '#5a4a3a', trousers: '#3a3430', hose: '#2a2420', boots: '#2a1e14', shoes: 1, top: 4, gloves: '#4a3020', belt: '#5a3a1e', cape: '#2e3a4a', build: 1.08, height: 1.04, scar: true, brows: 1, age: 0.35,
       chestArmour: { style: 'brigandine', color: '#4a5260', trim: '#c8a050' }, shoulders: { style: 'round', color: '#6a7078' }, bracers: { style: 'leather', color: '#4a3020' } },

@@ -202,3 +202,43 @@
 #ab-gauge { background: #0b1122; border: 1px solid var(--ink); border-radius: 7px; box-shadow: inset 0 0 0 1px var(--gild-line), 0 2px 6px rgba(0,0,0,0.4); }
 #ab-gauge i { border-radius: 6px 0 0 6px; opacity: 0.9; }
 .coin.token::before { display: none !important; }
+
+/* ------------------------------------------------------------- The pack (Hud.renderInventory) */
+/* Two columns: you on the left, the pack on the right and always in view; a stack on a narrow screen */
+#inv-panel { width: min(860px, calc(100vw - 32px)); }
+.inv-layout { display: grid; grid-template-columns: 330px 1fr; gap: 14px; align-items: start; }
+.inv-char { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.inv-bag { display: flex; flex-direction: column; gap: 8px; min-width: 0; position: sticky; top: 0; }
+@media (max-width: 900px) { .inv-layout { grid-template-columns: 1fr; } .inv-bag { position: static; } }
+/* The pack's bar: kind tabs on a rail, the search and Sort */
+.bag-bar { display: flex; flex-direction: column; gap: 6px; }
+.bag-tabs { display: flex; gap: 2px; padding: 3px; background: rgba(4, 8, 20, 0.5); border: 1px solid var(--gild-faint); border-radius: 9px; }
+.bag-tab { flex: 1; padding: 5px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 600 12px var(--px); letter-spacing: 0.3px; cursor: pointer; }
+.bag-tab:hover { color: var(--cream); background: rgba(255, 255, 255, 0.05); }
+.bag-tab.sel { color: var(--night); background: linear-gradient(var(--gild-l), var(--gild)); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 2px 6px rgba(0, 0, 0, 0.35); }
+.bag-tools { display: flex; gap: 6px; }
+.bag-search { flex: 1; min-width: 0; padding: 6px 10px 6px 28px; border-radius: 8px; border: 1px solid var(--gild-faint); color: var(--cream); font: 500 13px var(--body);
+  background: rgba(4, 8, 20, 0.55) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Ccircle cx='6' cy='6' r='4.2' fill='none' stroke='%23b8913e' stroke-width='1.6'/%3E%3Cpath d='M9.2 9.2 L12.5 12.5' stroke='%23b8913e' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 9px 50%; }
+.bag-search:focus { outline: none; border-color: var(--gild-line); box-shadow: 0 0 0 2px rgba(243, 213, 138, 0.15); }
+/* The grid: bigger slots in eight columns, each framed, the rarer ones lit */
+.inv-bag .inv-grid { grid-template-columns: repeat(8, 50px); gap: 5px; padding: 10px; justify-content: center;
+  background: radial-gradient(120% 80% at 50% 0%, rgba(96, 128, 214, 0.12), transparent 70%), rgba(4, 8, 20, 0.45); }
+.inv-bag .inv-grid .slot { width: 50px; height: 50px; }
+.inv-bag .inv-grid .slot img { inset: 5px; width: 38px; height: 38px; }
+.inv-bag .inv-grid .slot .n { font-size: 13px; right: 4px; bottom: 1px; }
+.slot { transition: transform 0.08s ease, filter 0.12s ease, opacity 0.15s ease; }
+.slot:hover { transform: translateY(-1px); filter: brightness(1.2); }
+.slot.dim { opacity: 0.22; filter: grayscale(0.8); }
+.slot.dim:hover { opacity: 0.5; }
+.inv-bag .inv-grid .slot:not(:has(img)) { background: linear-gradient(#141c35, #0b1124); border-color: rgba(243, 213, 138, 0.1); }
+.bag-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 2px 4px; font: 500 12px var(--body); color: var(--muted); }
+.bag-foot b { color: var(--cream); font: 700 13px var(--px); }
+.bag-used.full b { color: #ff8a6a; }
+.bag-hint { opacity: 0.7; text-align: right; }
+/* The tooltip's comparison with what you wear */
+#tooltip .cmp { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--gild-faint); display: flex; flex-direction: column; gap: 2px; }
+#tooltip .cmp-h { font: 600 11px var(--px); color: var(--muted); letter-spacing: 0.4px; text-transform: uppercase; }
+#tooltip .cmp-s { font: 500 12px var(--body); color: var(--cream-d); }
+#tooltip .cmp-up { color: #7fe07a; font-style: normal; margin-left: 4px; }
+#tooltip .cmp-down { color: #ff7a6a; font-style: normal; margin-left: 4px; }
+#tooltip .cmp-same { color: var(--muted); margin-left: 4px; }

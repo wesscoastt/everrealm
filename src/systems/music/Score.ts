@@ -24,8 +24,20 @@ export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambled
   | 'keys' | 'amber' | 'held'
   /** Every dungeon and delve its own: the group dungeons' long pieces, the delves' slow themes. */
   | 'oldman' | 'kettle' | 'escapement' | 'kingsbarrow'
-  | 'mortlake' | 'blackcut' | 'badger' | 'culvert' | 'smugglers' | 'tinner' | 'seep' | 'glimmer' | 'gullery' | 'hob' | 'holmsey' | 'priory';
-type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings';
+  | 'mortlake' | 'blackcut' | 'badger' | 'culvert' | 'smugglers' | 'tinner' | 'seep' | 'glimmer' | 'gullery' | 'hob' | 'holmsey' | 'priory'
+  /** Ten more, in the manner of Soule's Guild Wars and Oblivion and of Guild Wars 2's cities: Ansbury on a market
+   * day, Gullmouth's quay, the Scarth fells, the green deeps, Kell's tinkers, Hollindale's meadows, rain at
+   * night, the Glass Flats' caravans, Callis in the sun, and the Sickle's ice. */
+  | 'charter' | 'shanty' | 'fells' | 'grove' | 'tinkers' | 'meadow' | 'rainfall' | 'caravan' | 'whitecity' | 'rime';
+type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings' | 'oboe' | 'clarinet' | 'fiddle' | 'piano' | 'lute' | 'accordion' | 'glock';
+/**
+ * What the orchestra does under the tune, chord by chord, so a quiet piece keeps changing its colour:
+ * pad (strings holding the chord), harp or lute (broken chords), pizz (a plucked ostinato in the bass),
+ * pulse (spiccato quavers on the upper notes, the way a city theme moves), piano (an Alberti figure),
+ * bells (glockenspiel on the off-beats), dance (a hand drum and strummed lute), march (drum on every beat,
+ * timpani at the change), sparse (only the bass under a lone line).
+ */
+type Texture = 'pad' | 'harp' | 'lute' | 'pizz' | 'pulse' | 'piano' | 'bells' | 'dance' | 'march' | 'sparse';
 
 /**
  * One part of a long piece: its own progression and line, in its own key (a turn to the subdominant, a
@@ -67,6 +79,8 @@ interface Theme {
   rest: [number, number];
   drone?: boolean;
   level: number;
+  /** The textures it moves through, a section or a part at a time (none: the held pad, as before). */
+  textures?: Texture[];
 }
 
 const THEMES: Record<ThemeId, Theme> = {
@@ -500,9 +514,143 @@ const THEMES: Record<ThemeId, Theme> = {
     motifs: ['0:2 2:2 3:2 2:2 3:2 4:4 3:2 2:2 0:6 r:2', '4:2 3:2 2:4 0:2 -1:2 0:8 r:2'],
     lead: ['choir', 'strings'], pad: ['choir'], vowel: 'ah', arp: null, brightness: 0.25, rest: [14, 26], drone: true, level: 1.15,
   },
+
+  // ---------------------------------------------------------------- Ten more (2026-10-29)
+  // "Market Day": Ansbury on a market morning, the way a Guild Wars 2 city moves. D major, quick, spiccato
+  // under it and a horn call over; then the pizzicato walks, then the drum and the strings march.
+  charter: {
+    id: 'charter', root: 50, mode: MODES.ionian, bpm: 92,
+    prog: [{ deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 0 }],
+    motifs: [
+      '0:1 2:1 4:2 4:1 5:1 4:2 2:1 4:1 7:3 r:1 6:1 5:1 4:2 2:2 3:1 2:1 1:4',
+      '4:2 5:1 6:1 7:3 6:1 5:2 4:1 2:1 4:4 3:1 2:1 1:1 2:1 0:4',
+    ],
+    lead: ['horn', 'oboe', 'strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.65, rest: [5, 8], level: 1,
+    textures: ['pulse', 'pizz', 'march', 'harp'],
+  },
+  // "Rope and Tar": Gullmouth's quay, a shanty swing on a squeezebox and a fiddle, the hand drum under it.
+  shanty: {
+    id: 'shanty', root: 55, mode: MODES.mixolydian, bpm: 104,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 0 }, { deg: 6 }, { deg: 4 }, { deg: 0 }],
+    motifs: [
+      '0:1 0:1 2:1 4:1 5:2 4:2 2:1 2:1 1:1 2:1 4:4 4:1 5:1 6:1 7:1 6:2 4:2 2:1 1:1 0:2 r:2',
+      '4:1 4:1 5:1 4:1 2:2 0:2 1:1 2:1 4:2 2:2 r:2 0:1 1:1 2:2 1:1 0:1 -1:2 0:4',
+    ],
+    lead: ['accordion', 'fiddle'], pad: ['strings'], vowel: 'ah', arp: null, brightness: 0.6, rest: [4, 7], level: 1,
+    textures: ['dance', 'lute', 'dance', 'pizz'],
+  },
+  // "Over the Fells": the Scarth highlands, a Norn-ish reel. E dorian, fiddle and horn, the drum and lute.
+  fells: {
+    id: 'fells', root: 52, mode: MODES.dorian, bpm: 96,
+    prog: [{ deg: 0 }, { deg: 3, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 0 }, { deg: 3, q: 'maj' }, { deg: 6 }, { deg: 0 }],
+    motifs: [
+      '0:1 1:1 2:1 4:1 3:1 2:1 0:2 4:1 5:1 6:1 7:1 6:2 4:2 2:1 3:1 4:1 2:1 1:2 0:2',
+      '7:2 6:1 4:1 5:2 4:2 2:1 4:1 3:1 2:1 1:2 -1:2 0:1 2:1 4:1 2:1 0:4',
+    ],
+    lead: ['fiddle', 'horn', 'fiddle'], pad: ['strings'], vowel: 'oo', arp: null, brightness: 0.5, rest: [5, 9], level: 1,
+    textures: ['dance', 'pulse', 'sparse', 'lute'],
+  },
+  // "The Green Deeps": the old woods by day, airy as the Sylvari's grove. F lydian, choir and harp, bells.
+  grove: {
+    id: 'grove', root: 53, mode: MODES.lydian, bpm: 70,
+    prog: [{ deg: 0, q: 'add9' }, { deg: 1 }, { deg: 0 }, { deg: 4, q: 'sus2' }, { deg: 5 }, { deg: 1 }, { deg: 0, q: 'add9' }, { deg: 0 }],
+    motifs: [
+      '4:3 3:1 4:2 6:2 4:4 r:2 2:2 3:2 4:2 1:6 r:2',
+      '6:2 7:2 8:4 7:2 6:2 4:4 3:2 4:2 2:8',
+    ],
+    lead: ['choir', 'flute', 'glock'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'harp', brightness: 0.55, rest: [7, 12], drone: true, level: 1,
+    textures: ['harp', 'bells', 'sparse', 'pad'],
+  },
+  // "Brass and Bellows": Kell's tinkers, bright and busy as the Asura. A mixolydian, bells, plucks and a piano.
+  tinkers: {
+    id: 'tinkers', root: 57, mode: MODES.mixolydian, bpm: 108,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 5 }, { deg: 6 }, { deg: 4, q: 'sus4' }, { deg: 0 }],
+    motifs: [
+      '0:1 4:1 7:1 4:1 6:1 4:1 2:1 4:1 5:2 4:1 2:1 1:2 r:2 0:1 2:1 4:1 2:1 6:2 4:2 2:1 0:1 1:2 0:4',
+      '7:1 6:1 7:1 4:1 5:1 4:1 2:2 3:1 4:1 2:1 0:1 1:4',
+    ],
+    lead: ['glock', 'clarinet', 'piano'], pad: ['strings'], vowel: 'eh', arp: 'celesta', brightness: 0.7, rest: [4, 7], level: 1,
+    textures: ['bells', 'pizz', 'pulse', 'piano'],
+  },
+  // "Hay Harvest": Hollindale's fields, pastoral as Oblivion's. C major, an oboe over harp and lute.
+  meadow: {
+    id: 'meadow', root: 48, mode: MODES.ionian, bpm: 76,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4 }, { deg: 0 }, { deg: 3 }, { deg: 1 }, { deg: 4 }],
+    motifs: [
+      '4:2 2:1 0:1 2:2 4:2 5:3 4:1 2:4 r:2 2:2 3:1 2:1 1:2 0:2 1:6 r:2',
+      '0:2 4:2 7:3 6:1 5:2 4:2 2:4 3:1 2:1 1:2 -1:2 0:8',
+    ],
+    lead: ['oboe', 'flute', 'clarinet'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.55, rest: [6, 10], level: 1,
+    textures: ['harp', 'lute', 'pizz', 'pad'],
+  },
+  // "Rain on the Thatch": night in the Counties, a piano alone and then a clarinet, as quiet as Pre-Searing.
+  rainfall: {
+    id: 'rainfall', root: 57, mode: MODES.aeolian, bpm: 60,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 0 }],
+    motifs: [
+      '4:3 2:1 0:4 1:2 2:2 0:4 r:4',
+      '7:3 5:1 4:2 2:2 3:3 2:1 0:4 r:4',
+      '2:2 4:2 5:2 4:2 2:6 r:2',
+    ],
+    lead: ['piano', 'clarinet', 'piano'], pad: ['strings'], vowel: 'oo', arp: 'harp', brightness: 0.35, rest: [8, 14], drone: true, level: 0.9,
+    textures: ['piano', 'sparse', 'harp', 'piano'],
+  },
+  // "The Long Road South": the Glass Flats' caravans, E phrygian, an oboe and a lute over the hand drum.
+  caravan: {
+    id: 'caravan', root: 52, mode: MODES.phrygian, bpm: 88,
+    prog: [{ deg: 0 }, { deg: 1 }, { deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 1 }, { deg: 0 }, { deg: 0 }],
+    motifs: [
+      '0:1 1:1 2:2 1:1 0:1 -1:2 0:4 2:1 3:1 4:2 3:1 2:1 1:2 0:4',
+      '4:2 5:1 4:1 3:2 2:2 1:1 2:1 1:1 0:1 -1:4',
+    ],
+    lead: ['oboe', 'lute', 'oboe'], pad: ['strings'], vowel: 'ah', arp: null, brightness: 0.5, rest: [5, 9], drone: true, level: 1,
+    textures: ['dance', 'lute', 'sparse', 'dance'],
+  },
+  // "White Stone": Callis in the sun, B-flat mixolydian, a clarinet and a fiddle over guitar and piano.
+  whitecity: {
+    id: 'whitecity', root: 46, mode: MODES.mixolydian, bpm: 84,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 0 }, { deg: 3 }, { deg: 4, q: 'min' }, { deg: 6 }, { deg: 0 }],
+    motifs: [
+      '2:1 4:1 7:2 6:1 4:1 5:2 4:4 2:1 1:1 0:2 2:2 1:4',
+      '4:2 5:1 6:1 7:2 4:2 6:1 5:1 4:1 2:1 4:4 2:2 1:2 0:4',
+    ],
+    lead: ['clarinet', 'fiddle', 'piano'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.6, rest: [5, 9], level: 1,
+    textures: ['lute', 'piano', 'pizz', 'pad'],
+  },
+  // "Rime": the Sickle, glassy and still, B minor, bells and a far choir, then nothing but a flute.
+  rime: {
+    id: 'rime', root: 47, mode: MODES.aeolian, bpm: 58,
+    prog: [{ deg: 0, q: 'sus2' }, { deg: 5 }, { deg: 3 }, { deg: 6 }, { deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 0, q: 'sus2' }],
+    motifs: [
+      '7:3 6:1 4:4 3:2 2:2 4:4 r:4',
+      '2:2 3:2 4:4 6:2 4:2 2:6 r:2',
+    ],
+    lead: ['glock', 'choir', 'flute'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'celesta', brightness: 0.4, rest: [8, 14], drone: true, level: 0.9,
+    textures: ['bells', 'sparse', 'pad', 'harp'],
+  },
 };
 
 const QUAL: Record<Quality, number[]> = { maj: [0, 4, 7], min: [0, 3, 7], sus2: [0, 2, 7], sus4: [0, 5, 7], add9: [0, 4, 7, 14] };
+
+/**
+ * The older themes and the dungeons' pieces move through textures too now, so none of them is one held pad
+ * from end to end: the country themes take a plucked or broken-chord section in turn, the long pieces a
+ * part or two over a harp, a pizzicato or a lone line, the dungeons something sparser and stranger.
+ */
+const TEXTURES: Partial<Record<ThemeId, Texture[]>> = {
+  greenwake: ['harp', 'pad', 'lute', 'pizz'], hollin: ['lute', 'harp', 'pad', 'pizz'], crownroad: ['pulse', 'pad', 'harp', 'pizz'],
+  brambledeep: ['sparse', 'harp', 'pad', 'bells'], saltwind: ['harp', 'pad', 'pizz', 'sparse'], redstone: ['pizz', 'pad', 'sparse', 'dance'],
+  starfall: ['sparse', 'pad', 'bells', 'harp'], night: ['sparse', 'harp', 'pad', 'piano'], ansbury: ['pulse', 'pad', 'pizz', 'harp'],
+  harbour: ['lute', 'pad', 'dance', 'pizz'], works: ['march', 'pizz', 'pad', 'pulse'], hearth: ['lute', 'pad', 'piano', 'harp'],
+  inn: ['dance', 'lute', 'pad', 'dance'], festival: ['dance', 'bells', 'dance', 'pulse'], holms: ['harp', 'sparse', 'pad', 'bells'],
+  heartland: ['pad', 'harp', 'pizz', 'lute', 'pad'], wildwood: ['pad', 'sparse', 'harp', 'bells'], highlands: ['pad', 'pizz', 'sparse', 'pulse'],
+  dawn: ['harp', 'pad', 'lute'], dusk: ['pad', 'piano', 'harp'], keys: ['lute', 'pad', 'dance', 'pizz'], amber: ['harp', 'pad', 'bells', 'lute'], held: ['sparse', 'pad', 'pizz', 'sparse'],
+  oldman: ['sparse', 'pizz', 'pad', 'march'], kettle: ['pad', 'sparse', 'pulse', 'pizz'], escapement: ['pulse', 'bells', 'pad', 'pizz'], kingsbarrow: ['sparse', 'pad', 'pizz', 'bells'],
+  mortlake: ['sparse', 'pad', 'harp'], blackcut: ['pizz', 'sparse', 'pad'], badger: ['sparse', 'pizz', 'pad'], culvert: ['pizz', 'sparse', 'pad'], smugglers: ['lute', 'sparse', 'pad'],
+  tinner: ['sparse', 'pizz', 'pad'], seep: ['bells', 'sparse', 'pad'], glimmer: ['bells', 'harp', 'sparse'], gullery: ['harp', 'sparse', 'pad'], hob: ['pizz', 'sparse', 'pad'],
+  holmsey: ['harp', 'sparse', 'pad'], priory: ['sparse', 'pad', 'bells'],
+};
+for (const [id, tx] of Object.entries(TEXTURES)) if (!THEMES[id as ThemeId].textures) THEMES[id as ThemeId].textures = tx;
 
 function degToMidi(t: Theme, deg: number, octave = 0): number {
   const o = Math.floor(deg / 7);
@@ -656,6 +804,92 @@ export class Score {
     this.current = { theme, bus, cursor: now + (this.current ? 2.5 : 0.3), step: 0, motifIx: 0 };
   }
 
+  /** One chord's worth of a texture under the tune (see Texture). */
+  private texture(tex: Texture, t: Theme, c: Chord, notes: number[], time: number, len: number, beat: number, dyn: number, bus: GainNode): void {
+    const O = this.orch, root = degToMidi(t, c.deg, -1), fifth = degToMidi(t, c.deg + 4, -1);
+    const eighth = beat / 2, end = time + len - eighth * 0.5;
+    // Under everything but the sparsest: the bass, and a light pad where the theme has strings
+    if (tex !== 'dance' && tex !== 'march') O.bass(time, root, len, (tex === 'sparse' ? 0.035 : 0.042) * dyn, bus);
+    if (tex !== 'sparse' && tex !== 'dance' && t.pad.includes('strings')) O.strings(time, notes, len, (tex === 'pad' ? 0.13 : 0.05) * dyn, bus, { attack: Math.min(2, len * 0.4), release: 2.2, bright: t.brightness });
+    if (tex === 'pad' && t.pad.includes('choir')) O.choir(time, notes.slice(0, 3), len - 1, 0.07 * dyn, bus, t.vowel, 2.2);
+    const up = [...notes, ...notes.map((n) => n + 12)];
+    switch (tex) {
+      case 'harp': case 'lute': {
+        // Broken chords: up and back, a quaver each, two octaves (the lute plays a lower, closer pattern)
+        const seq = tex === 'harp' ? [...up, ...up.slice(1, -1).reverse()] : [notes[0], notes[2] ?? notes[0], notes[1], notes[2] ?? notes[1]];
+        let i = 0;
+        for (let k = time; k < end; k += eighth, i++) {
+          const n = seq[i % seq.length] + 12;
+          if (tex === 'harp') O.harp(k, n, 0.17 * dyn, bus); else O.lute(k, n, (i % 4 === 0 ? 0.2 : 0.13) * dyn, bus);
+        }
+        break;
+      }
+      case 'pizz': {
+        // A walking pluck in the bass: root, fifth, octave, fifth, a crotchet each
+        const seq = [root + 12, fifth + 12, root + 24, fifth + 12];
+        let i = 0;
+        for (let k = time; k < end; k += beat, i++) O.pizz(k, seq[i % 4], (i % 4 === 0 ? 0.26 : 0.18) * dyn, bus);
+        break;
+      }
+      case 'pulse': {
+        // Spiccato quavers on the top two notes, accented on the beat
+        const a = notes[notes.length - 1] + 12, b = notes[notes.length - 2] + 12;
+        let i = 0;
+        for (let k = time; k < end; k += eighth, i++) O.spiccato(k, i % 2 ? b : a, (i % 2 ? 0.045 : 0.075) * dyn, bus);
+        break;
+      }
+      case 'piano': {
+        // An Alberti figure: low, high, middle, high
+        const lo = notes[0], mid = notes[1] ?? notes[0], hi = notes[2] ?? notes[1] ?? notes[0];
+        const seq = [lo, hi + 12, mid + 12, hi + 12];
+        let i = 0;
+        for (let k = time; k < end; k += eighth, i++) O.piano(k, seq[i % 4], (i % 4 === 0 ? 0.12 : 0.08) * dyn, bus, 2.2);
+        break;
+      }
+      case 'bells': {
+        // The glockenspiel on a dotted figure, high, a chord tone each
+        let i = 0;
+        for (let k = time; k < end; k += beat * 1.5, i++) O.glock(k, notes[i % notes.length] + 24, 0.07 * dyn, bus);
+        break;
+      }
+      case 'dance': case 'march': {
+        // A hand drum and the bass on the beat; strummed lute (dance) or spiccato roots (march) over it
+        let i = 0;
+        for (let k = time; k < end; k += eighth, i++) {
+          const pos = i % 8;
+          if (tex === 'dance') {
+            if (pos === 0 || pos === 4) O.frameDrum(k, 0.22 * dyn, bus);
+            if (pos === 3 || pos === 6 || pos === 7) O.frameDrum(k, 0.14 * dyn, bus, true);
+            if (pos === 0 || pos === 4) O.pizz(k, pos === 0 ? root + 12 : fifth + 12, 0.24 * dyn, bus);
+            if (pos === 2 || pos === 6) notes.forEach((n, j) => O.lute(k + j * 0.018, n + 12, 0.11 * dyn, bus));
+          } else {
+            if (pos % 2 === 0) O.frameDrum(k, (pos === 0 ? 0.24 : 0.12) * dyn, bus);
+            if (pos === 0 && i === 0) O.timpani(k, root, 0.16 * dyn, bus);
+            O.spiccato(k, root + 24, (pos % 2 ? 0.035 : 0.06) * dyn, bus);
+            if (pos === 0) O.bass(k, root, beat * 4, 0.045 * dyn, bus, 0.05);
+          }
+        }
+        break;
+      }
+      default: break; // pad, sparse: done above
+    }
+  }
+
+  /** A note of the tune on one of the newer leads. */
+  private leadNote(lead: Lead, m: number, midi: number, d: number, dyn: number, bus: GainNode): void {
+    const O = this.orch;
+    switch (lead) {
+      case 'oboe': O.reed(m, midi + 12, d * 0.95, 0.24 * dyn, bus, 'oboe'); break;
+      case 'clarinet': O.reed(m, midi + 12, d * 0.95, 0.26 * dyn, bus, 'clarinet'); break;
+      case 'fiddle': O.fiddle(m, midi + 12, d * 0.92, 0.16 * dyn, bus); break;
+      case 'piano': O.piano(m, midi + 12, 0.2 * dyn, bus, Math.max(1.6, d + 1)); break;
+      case 'lute': O.lute(m, midi + 12, 0.26 * dyn, bus); if (d > 1.2) O.lute(m + d / 2, midi + 12, 0.14 * dyn, bus); break;
+      case 'accordion': O.accordion(m, midi + 12, d * 0.95, 0.24 * dyn, bus); break;
+      case 'glock': O.glock(m, midi + 24, 0.12 * dyn, bus); break;
+      default: break;
+    }
+  }
+
   private scheduleSection(cur: { theme: Theme; bus: GainNode; cursor: number; step: number; motifIx: number }, start: number): number {
     const t = cur.theme;
     const beat = 60 / t.bpm;
@@ -681,7 +915,17 @@ export class Score {
     const barsPer = sec === 'swell' ? 2 : 2;
     let time = start;
     let prev = t.root + 12;
-    for (const c of chords) {
+    // A theme with textures takes the next one each section (the swell keeps its pad)
+    const tex: Texture | null = t.textures && sec !== 'swell' ? t.textures[cur.step % t.textures.length] : null;
+    if (tex) {
+      for (const c of chords) {
+        const len = bar * (c.bars ?? barsPer);
+        const notes = voice(chordNotes(t, c), prev);
+        prev = notes[1] ?? prev;
+        this.texture(tex, t, c, notes, time, len, beat, 1, cur.bus);
+        time += len;
+      }
+    } else for (const c of chords) {
       const len = bar * (c.bars ?? barsPer);
       const notes = voice(chordNotes(t, c), prev);
       prev = notes[1] ?? prev;
@@ -719,6 +963,7 @@ export class Score {
             case 'choir': this.orch.choir(m, [midi + 12], d * 0.9, 0.2, cur.bus, t.vowel, Math.min(0.6, d * 0.3)); break;
             case 'celesta': this.orch.celesta(m, midi + 12, 0.16, cur.bus); break;
             case 'strings': this.orch.strings(m, [midi + 12], d, 0.17, cur.bus, { attack: Math.min(0.5, d * 0.3), release: 1.4, bright: t.brightness + 0.15 }); break;
+            default: this.leadNote(lead, m, midi, d, 1, cur.bus);
           }
           // Harp doubles the first beat of long notes for definition
           if (n.beats >= 3 && t.arp === 'harp') this.orch.harp(m, midi + 12, 0.11, cur.bus);
@@ -730,14 +975,17 @@ export class Score {
   }
 
   /** A part of a long piece: its chords under it, its line over it, the orchestra gathered if it's the climax. */
+  private partCount = 0;
   private schedulePart(cur: { theme: Theme; bus: GainNode }, start: number, p: Part): number {
     const t: Theme = { ...cur.theme, root: cur.theme.root + (p.key ?? 0) };
     const beat = 60 / t.bpm, bar = beat * 4, dyn = p.dyn ?? 1, bus = cur.bus;
     let time = start, prev = t.root + 12;
+    const tex: Texture | null = !p.tutti && t.textures ? t.textures[this.partCount++ % t.textures.length] : null;
     for (const c of p.prog) {
       const len = bar * (c.bars ?? p.bars ?? 2);
       const notes = voice(chordNotes(t, c), prev);
       prev = notes[1] ?? prev;
+      if (tex && tex !== 'pad') { this.texture(tex, t, c, notes, time, len, beat, dyn, bus); time += len; continue; }
       this.orch.strings(time, notes, len, (p.tutti ? 0.15 : 0.12) * dyn, bus, { attack: Math.min(2.2, len * 0.4), release: 2.8, bright: t.brightness + (p.tutti ? 0.15 : 0) });
       if (t.pad.includes('choir') || p.tutti) this.orch.choir(time, notes.slice(0, 3).map((n) => n + (t.root < 48 ? 12 : 0)), len - 0.8, (p.tutti ? 0.1 : 0.065) * dyn, bus, t.vowel, 2.2);
       this.orch.bass(time, degToMidi(t, c.deg, -1), len, 0.05 * dyn, bus);
@@ -774,6 +1022,7 @@ export class Score {
             case 'choir': this.orch.choir(m, [midi + 12], d * 0.9, 0.2 * dyn, bus, t.vowel, Math.min(0.6, d * 0.3)); break;
             case 'celesta': this.orch.celesta(m, midi + 12, 0.16 * dyn, bus); break;
             case 'strings': this.orch.strings(m, [midi + 12], d, 0.18 * dyn, bus, { attack: Math.min(0.5, d * 0.3), release: 1.4, bright: t.brightness + 0.2 }); break;
+            default: this.leadNote(lead, m, midi, d, dyn, bus);
           }
           if (p.tutti) this.orch.horn(m, midi, d * 0.95, 0.09 * dyn, bus);
           if (n.beats >= 3 && t.arp === 'harp') this.orch.harp(m, midi + 12, 0.1 * dyn, bus);

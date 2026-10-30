@@ -488,7 +488,7 @@ export const WEATHERHOLMS: RegionContent = {
     {
       id: 'gethin', name: 'Gethin Vane', title: 'Hoist foreman, Harrowgate & Daughters',
       look: { skin: '#c89a72', hair: '#5a4a3a', hairStyle: 0, beard: true, eyes: '#4a5a4a', tunic: '#5a4a3a', trim: '#e0b860', trousers: '#3a3430', boots: '#2a1e14', hat: 'cap', hatColor: '#4a4a52', shoulderPads: '#4a3a2a', build: 1.1, age: 0.5 },
-      schedule: [{ from: 0, to: 24, at: foot(4.5, -2.5), face: [H.x, H.z], anim: 'idle' }],
+      schedule: [{ from: 0, to: 24, at: foot(5.5, -4.5), face: [H.x, H.z], anim: 'idle' }], // (clear of the ore cart and the notice)
       barks: ['Mind the posts.', 'Rope\'s fine. Rope\'s always fine.'],
       when: (g) => !!at(g, HOIST) || !!at(g, STRIDE),
     },

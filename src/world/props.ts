@@ -721,6 +721,22 @@ export function textTexture(text: string, w: number, h: number, bg: string, fg: 
   return t;
 }
 
+/** The travellers' board: a wide plank under a little roof, rows of names cut into it and inked, the newest at the foot. */
+export function travellersBoard(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  for (const x of [-1.25, 1.25]) g.add(mesh(box(0.18, 2.7, 0.18), M.darkWood, x, 1.35, 0));
+  g.add(mesh(box(2.7, 0.1, 0.7), M.roofRed, 0, 2.78, 0.04, 0, 0.22));
+  g.add(mesh(box(2.4, 1.5, 0.1), M.wood, 0, 1.65, 0));
+  g.add(mesh(box(2.5, 0.12, 0.14), M.darkWood, 0, 2.43, 0)); g.add(mesh(box(2.5, 0.12, 0.14), M.darkWood, 0, 0.87, 0));
+  g.add(mesh(box(1.5, 0.14, 0.02), flat('#2a2018'), 0, 2.26, 0.06));                       // the heading
+  for (let c = 0; c < 3; c++) for (let r = 0; r < 8; r++) {
+    const w = 0.34 + ((r * 7 + c * 3) % 5) * 0.06;
+    g.add(mesh(box(w, 0.045, 0.02), flat(r === 7 && c === 2 ? '#7a2a1e' : '#3a2a1a'), -0.75 + c * 0.75 - 0.3 + w / 2, 2.05 - r * 0.14, 0.06));
+  }
+  g.add(mesh(box(0.12, 0.3, 0.06), M.iron, 1.0, 1.05, 0.08));                             // a knife on a string, to cut yours
+  return g;
+}
+
 export function noticeBoard(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (const x of [-0.8, 0.8]) g.add(mesh(box(0.16, 2.2, 0.16), M.darkWood, x, 1.1, 0));
@@ -1907,6 +1923,41 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
           g.add(mesh(box(five ? 0.15 : 0.012, five ? 0.012 : 0.1, 0.01), flat('#f4f0e8'), five ? sx - 0.06 : sx, 1.02 - row * 0.15, 0.26, 0, 0, five ? 0.6 : 0));
         }
       }
+      break;
+    }
+    case 'companysign': {
+      // Two squared posts either side of the gate and a long board across the top, the letters cut and painted
+      for (const k of [-1, 1]) {
+        g.add(mesh(box(0.42, 5.4, 0.42), M.darkWood, k * 3.6, 2.7, 0));
+        g.add(mesh(box(0.7, 0.4, 0.7), M.stone, k * 3.6, 0.2, 0));
+        g.add(mesh(box(0.14, 1.1, 0.14), M.darkWood, k * 3.1, 4.3, 0, 0, 0, k * 0.8)); // braces
+      }
+      g.add(mesh(box(7.9, 1.1, 0.18), flat('#7a2a1e'), 0, 4.9, 0));
+      g.add(mesh(box(8.1, 0.14, 0.3), M.darkWood, 0, 5.52, 0));
+      g.add(mesh(box(8.1, 0.14, 0.3), M.darkWood, 0, 4.28, 0));
+      for (let i = 0; i < 14; i++) g.add(mesh(box(0.34, 0.5, 0.02), flat('#e8c860'), -3.2 + i * 0.49, 4.98, 0.1)); // the letters, larger every spring
+      for (let i = 0; i < 9; i++) g.add(mesh(box(0.22, 0.22, 0.02), flat('#e8dcc0'), -2.0 + i * 0.5, 4.55, 0.1));
+      break;
+    }
+    case 'priceboard': {
+      // A painted board on two legs by the trestle: the company's prices, and the pencil column down the side
+      for (const k of [-1, 1]) g.add(mesh(box(0.16, 2.2, 0.16), M.darkWood, k * 0.85, 1.1, 0));
+      g.add(mesh(box(1.9, 1.3, 0.08), flat('#e8dcc0'), 0, 1.55, 0));
+      g.add(mesh(box(1.5, 0.12, 0.02), flat('#7a2a1e'), -0.1, 2.06, 0.05));
+      for (let i = 0; i < 6; i++) g.add(mesh(box(0.9 - (i % 3) * 0.12, 0.05, 0.02), flat('#2a2018'), -0.35, 1.86 - i * 0.15, 0.05));
+      for (let i = 0; i < 5; i++) g.add(mesh(box(0.28, 0.03, 0.02), flat('#8a8a8a'), 0.62, 1.82 - i * 0.15, 0.05)); // the pencil
+      break;
+    }
+    case 'flywheel': {
+      // The old engine's flywheel leaned on the wall: a rim, a hub, seven spokes of eight, a crack by the gap
+      const w = new THREE.Group(); w.position.set(0, 2.15, 0.2); w.rotation.x = -0.18; g.add(w);
+      const iron = flat('#4a4e56'), rust = flat('#7a4a32');
+      for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; w.add(mesh(box(0.6, 0.26, 0.28), i % 5 === 2 ? rust : iron, Math.cos(a) * 2.0, Math.sin(a) * 2.0, 0, 0, 0, a + Math.PI / 2)); }
+      w.add(mesh(cyl(0.38, 0.38, 0.5, 12), iron, 0, 0, 0, 0, Math.PI / 2));
+      for (let i = 0; i < 8; i++) { if (i === 3) continue; const a = (i / 8) * Math.PI * 2; w.add(mesh(box(0.16, 1.7, 0.16), i % 2 ? iron : rust, Math.cos(a) * 1.0, Math.sin(a) * 1.0, 0, 0, 0, a - Math.PI / 2)); }
+      w.add(mesh(box(0.05, 0.4, 0.3), flat('#1a1a1c'), Math.cos(Math.PI * 0.8) * 2.0, Math.sin(Math.PI * 0.8) * 2.0, 0.01, 0, 0, Math.PI * 0.8)); // the crack
+      for (let i = 0; i < 4; i++) w.add(mesh(box(0.3, 0.05, 0.02), flat('#f0ece0'), -0.6 + i * 0.36, -1.98, 0.16)); // DELIA SAYS KEEP IT, in chalk
+      g.add(mesh(box(1.4, 0.2, 0.6), M.stone, 0, 0.1, 0.6));                                              // the block it stands on
       break;
     }
     case 'anselbench': {

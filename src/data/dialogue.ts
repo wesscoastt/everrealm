@@ -1778,10 +1778,22 @@ READABLES.aldermereToll.body = tollBoard;
 // ---------------------------------------------------------------- Side content (src/data/content)
 import { BOARDS, CONTENT } from './content';
 import { MONUMENTS } from './monuments';
+import { loadTravellers, travellers } from '../net/Account';
 import type { DNode } from '../game/api';
 for (const c of CONTENT) { Object.assign(DIALOGUE, c.dialogue ?? {}); Object.assign(READABLES, c.readables ?? {}); }
 for (const c of CONTENT) c.hooks?.(DIALOGUE);
 for (const m of MONUMENTS) READABLES['monument:' + m.id] = { title: m.title, body: m.body };
+// The travellers' board by Hollin Ford's Post (net/Account.ts travellers, from the realm): read fresh each time
+READABLES.travellers = {
+  title: "The travellers' board",
+  body: () => {
+    void loadTravellers();
+    const n = travellers.names;
+    const head = "Cut into the plank by everyone who has come through the Ford, one name each, in the order they came. There's a knife on a string for yours. The reeve has the old names cut deeper every spring so the rain doesn't take them.";
+    if (!n.length) return head + (travellers.loaded ? "\n\nThe plank is new. Nobody has cut a name yet." : "\n\nYou can't make out the names from here. (The realm isn't answering.)");
+    return head + "\n\n" + n.map((name, k) => (k + 1) + ". " + name).join("\n");
+  },
+};
 // A notice board reads like a conversation: the list of postings, and each posting in full.
 for (const b of BOARDS) {
   const open = (g: GameApi) => b.postings.filter((p) => !g.stage(p.quest) && (!p.when || p.when(g)));

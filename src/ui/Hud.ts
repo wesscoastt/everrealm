@@ -3,7 +3,7 @@ import { SLOT_NAMES } from '../data/armour';
 import { DYE_COST, DYE_SLOTS, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import type { Equip } from '../data/items';
 import './theme.css';
-import { activeSet, GEAR_SETS, ITEMS, RARITY_COLOR, SkillId } from '../data/items';
+import { activeSet, GEAR_SETS, gearPoints, ITEMS, RARITY_COLOR, SkillId, type ItemDef } from '../data/items';
 import { baseOf, QUALITY } from '../data/gear';
 import { levelForXp, MAX_LEVEL, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
@@ -140,6 +140,13 @@ import { CALLINGS, CallingDef, CallingId, callingById, type SkillDef } from '../
 import { callingCard } from './callingCard';
 import { EMOTES } from '../data/emotes';
 import { applySkin, drawFace } from './skin';
+
+/** The pack's filter tabs, and which tab a thing belongs under. */
+type BagFilter = 'all' | 'gear' | 'food' | 'mat' | 'tool' | 'other';
+function bagKind(d: ItemDef): BagFilter {
+  if (d.weapon || d.armor || d.jewel || d.unid) return 'gear';
+  return d.kind === 'food' ? 'food' : d.kind === 'material' ? 'mat' : d.kind === 'tool' ? 'tool' : 'other';
+}
 
 export interface QuestEntry {
   id: string; name: string; notes: string; objectives: { text: string; done?: boolean; dist?: number }[]; done: boolean; story?: boolean;
@@ -1621,6 +1628,21 @@ export class Hud {
     return box;
   }
 
+  /** For a piece in the pack: what you wear in the same place, its line, and whether this one is better. */
+  private compareWith(id: string): string {
+    const d = ITEMS[id], eq = this.ctx.save.equip;
+    if (!d || d.unid) return '';
+    const worn = d.weapon ? [eq.weapon] : d.armor ? [eq[d.armor.slot]] : d.jewel ? (d.jewel.slot === 'ring' ? [eq.ring1, eq.ring2] : [eq[d.jewel.slot]]) : [];
+    if (!worn.length || worn.includes(id)) return '';
+    const on = worn.filter((w): w is string => !!w).map((w) => ITEMS[w]).filter(Boolean);
+    if (!on.length) return '<div class="cmp"><span class="cmp-h">Nothing worn there</span></div>';
+    const score = (x: typeof d) => (x.jewel ? (x.jewel.vigor ?? 0) / 10 + (x.jewel.crit ?? 0) / 0.01 + (x.jewel.wind ?? 0) / 0.02 + (x.jewel.haste ?? 0) / 0.01 : gearPoints(x));
+    return on.map((w) => {
+      const diff = score(d) - score(w), word = Math.abs(diff) < 0.5 ? '<i class="cmp-same">about the same</i>' : diff > 0 ? '<i class="cmp-up">▲ better</i>' : '<i class="cmp-down">▼ worse</i>';
+      return `<div class="cmp"><span class="cmp-h">Worn now ${word}</span><b style="color:${RARITY_COLOR[w.rarity]}">${esc(w.name)}</b>${w.stats ? `<span class="cmp-s">${esc(w.stats)}</span>` : ''}</div>`;
+    }).join('');
+  }
+
   private tooltipFor(id: string, extra = ''): string {
     const d = ITEMS[id];
     if (d.set) {
@@ -1659,7 +1681,7 @@ export class Hud {
       const d = ITEMS[id];
       s.classList.add('r-' + d.rarity);
       s.innerHTML = `<img src="${itemIcon(id)}" alt="${esc(d.name)}">${n > 1 ? `<span class="n">${n}</span>` : ''}`;
-      s.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(id, hint), e.clientX, e.clientY));
+      s.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(id, hint) + (idx >= 0 ? this.compareWith(id) : ''), e.clientX, e.clientY));
       s.addEventListener('mouseleave', () => this.hideTooltip());
     }
     s.dataset.i = String(idx);
@@ -1713,12 +1735,23 @@ export class Hud {
     stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
     stats.querySelectorAll<HTMLElement>('[data-showgear]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.toggleGearShown(b.dataset.showgear as 'head' | 'hands'); }));
     eq.append(stats);
-    body.append(eq);
-    body.append(this.armoury());
-    body.append(this.dyeBox());
-    const tidy = el('div', 'inv-tools', '<button class="btn ghost sm" data-sortpack>Sort the pack</button>');
-    tidy.querySelector('[data-sortpack]')!.addEventListener('click', () => { this.ctx.sfx('click'); this.hideTooltip(); this.ctx.sortPack(); });
-    body.append(tidy);
+    // Two columns: you and what you wear on the left, the pack on the right, always in view
+    const layout = el('div', 'inv-layout'), charCol = el('div', 'inv-char'), bagCol = el('div', 'inv-bag');
+    charCol.append(eq, this.armoury(), this.dyeBox());
+    layout.append(charCol, bagCol);
+    body.append(layout);
+    // The pack's own bar: what kind of thing to show, a search, and sorting
+    const used = save.inv.filter(Boolean).length;
+    const kinds: [BagFilter, string][] = [['all', 'All'], ['gear', 'Gear'], ['food', 'Food'], ['mat', 'Materials'], ['tool', 'Tools'], ['other', 'Other']];
+    const bar = el('div', 'bag-bar');
+    bar.innerHTML = `<div class="bag-tabs">${kinds.map(([k, n]) => `<button class="bag-tab${this.bagFilter === k ? ' sel' : ''}" data-bf="${k}">${n}</button>`).join('')}</div>
+      <div class="bag-tools"><input class="bag-search" type="search" placeholder="Search the pack" value="${esc(this.bagSearch)}" aria-label="Search the pack"><button class="btn ghost sm" data-sortpack title="Sort the pack by kind and worth">Sort</button></div>`;
+    bar.querySelectorAll<HTMLElement>('[data-bf]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.bagFilter = b.dataset.bf as BagFilter; this.renderInventory(); }));
+    bar.querySelector('[data-sortpack]')!.addEventListener('click', () => { this.ctx.sfx('click'); this.hideTooltip(); this.ctx.sortPack(); });
+    const search = bar.querySelector<HTMLInputElement>('.bag-search')!;
+    search.addEventListener('input', () => { this.bagSearch = search.value; this.markBag(grid); });
+    search.addEventListener('keydown', (e) => e.stopPropagation()); // (typing a name doesn't walk you about)
+    bagCol.append(bar);
     const grid = el('div', 'inv-grid');
     save.inv.forEach((st, i) => {
       const def = st ? ITEMS[st.id] : null;
@@ -1740,10 +1773,29 @@ export class Hud {
         if (this.dragFrom >= 0 && this.dragFrom !== i) { this.ctx.inv.swap(this.dragFrom, i); this.renderInventory(); }
         this.dragFrom = -1;
       });
+      s.dataset.slot = String(i);
       grid.append(s);
     });
-    body.append(grid);
-    this.q('#inv-panel .footer').innerHTML = `<span>Drag to rearrange</span><span class="coin">${save.marks} marks</span>`;
+    bagCol.append(grid);
+    this.markBag(grid);
+    const foot = el('div', 'bag-foot');
+    foot.innerHTML = `<span class="bag-used${used >= save.inv.length ? ' full' : ''}"><b>${used}</b> / ${save.inv.length} slots</span><span class="bag-hint">Click to use or wear · Shift-click to drop · Drag to move</span>`;
+    bagCol.append(foot);
+    this.q('#inv-panel .footer').innerHTML = `<span>${used >= save.inv.length ? 'Your pack is full' : `${save.inv.length - used} slots free`}</span><span class="coin">${save.marks.toLocaleString()} marks</span>`;
+  }
+
+  /** The pack's filter tab and search (kept while the window is open and between visits). */
+  private bagFilter: BagFilter = 'all';
+  private bagSearch = '';
+  /** Dim the slots that don't match the tab or the search (they keep their places: dragging still works). */
+  private markBag(grid: HTMLElement): void {
+    const q = this.bagSearch.trim().toLowerCase(), inv = this.ctx.save.inv;
+    grid.querySelectorAll<HTMLElement>('.slot[data-slot]').forEach((s) => {
+      const st = inv[Number(s.dataset.slot)], d = st ? ITEMS[st.id] : null;
+      const fits = !d ? this.bagFilter === 'all' && !q : bagKind(d) === this.bagFilter || this.bagFilter === 'all';
+      const named = !q || (d ? d.name.toLowerCase().includes(q) : false);
+      s.classList.toggle('dim', !(fits && named));
+    });
   }
 
   /** Which build slot's menu is open on the talent screen, and the talent under the pointer. */

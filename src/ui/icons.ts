@@ -251,6 +251,59 @@ function paint(spec: IconSpec): string {
       px(14, 14, 4, 4, b); px(15, 14, 1, 1, shade(b, 1.5));
       break;
     }
+    case 'ring': {
+      // A band seen a little from above, light on its near rim; a stone in a claw on top if it has one
+      const metal = a, dark = shade(a, 0.55), light = shade(a, 1.35);
+      x.lineWidth = 6; x.strokeStyle = outline; x.beginPath(); x.ellipse(16, 19, 9, 6.5, 0, 0, Math.PI * 2); x.stroke();
+      x.lineWidth = 3.5; x.strokeStyle = dark; x.beginPath(); x.ellipse(16, 19, 9, 6.5, 0, Math.PI, Math.PI * 2); x.stroke();
+      x.strokeStyle = metal; x.beginPath(); x.ellipse(16, 19, 9, 6.5, 0, 0, Math.PI); x.stroke();
+      x.lineWidth = 1.2; x.strokeStyle = light; x.beginPath(); x.ellipse(16, 19.6, 9, 6.5, 0, 0.35, Math.PI - 0.35); x.stroke();
+      if (spec.b) {
+        px(12, 7, 8, 8, outline); px(13, 11, 6, 3, dark);                                   // the claw
+        x.fillStyle = outline; x.beginPath(); x.moveTo(16, 3); x.lineTo(21, 8); x.lineTo(16, 13); x.lineTo(11, 8); x.fill();
+        x.fillStyle = spec.b; x.beginPath(); x.moveTo(16, 4.5); x.lineTo(19.5, 8); x.lineTo(16, 11.5); x.lineTo(12.5, 8); x.fill();
+        px(14, 6, 2, 2, '#ffffff'); px(17, 9, 2, 1, shade(spec.b, 0.6));
+      } else px(10, 21, 3, 1, '#ffffff');
+      break;
+    }
+    case 'pendant': {
+      // A chain in a deep loop, a setting at the bottom with its stone
+      for (let i = 0; i <= 16; i++) {
+        const t = i / 16, cx = 5 + t * 22, cy = 5 + Math.sin(t * Math.PI) * 13;
+        px(Math.round(cx) - 1, Math.round(cy) - 1, 3, 3, outline); px(Math.round(cx), Math.round(cy), 1, 1, i % 2 ? a : shade(a, 1.3));
+      }
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 23, 6, 7, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 23, 4.8, 5.8, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = spec.b ?? shade(a, 0.7); x.beginPath(); x.ellipse(16, 23.5, 3.2, 4.2, 0, 0, Math.PI * 2); x.fill();
+      px(14, 21, 2, 2, '#ffffff'); px(15, 16, 2, 2, outline); px(15, 17, 2, 1, a);
+      break;
+    }
+    case 'earring': {
+      // A single drop on a hook of wire
+      x.lineWidth = 3; x.strokeStyle = outline; x.beginPath(); x.arc(14, 9, 4.5, Math.PI * 0.9, Math.PI * 2.25); x.stroke();
+      x.lineWidth = 1.4; x.strokeStyle = a; x.beginPath(); x.arc(14, 9, 4.5, Math.PI * 0.9, Math.PI * 2.25); x.stroke();
+      px(17, 12, 2, 6, outline); px(17.5, 12, 1, 6, a);
+      x.fillStyle = outline; x.beginPath(); x.moveTo(18, 16); x.lineTo(23, 23); x.arc(18, 24, 5, 0, Math.PI); x.lineTo(13, 23); x.fill();
+      x.fillStyle = spec.b ?? a; x.beginPath(); x.moveTo(18, 17.5); x.lineTo(21.8, 23.2); x.arc(18, 24, 3.8, 0, Math.PI); x.lineTo(14.2, 23.2); x.fill();
+      px(16, 21, 2, 2, '#ffffff');
+      break;
+    }
+    case 'hoops': case 'studs': {
+      // A pair, side by side: two thin hoops, or two little knots of metal
+      for (const ox of [10, 22]) {
+        if (spec.shape === 'hoops') {
+          x.lineWidth = 3.4; x.strokeStyle = outline; x.beginPath(); x.arc(ox, 17, 6, 0, Math.PI * 2); x.stroke();
+          x.lineWidth = 1.6; x.strokeStyle = a; x.beginPath(); x.arc(ox, 17, 6, 0, Math.PI * 2); x.stroke();
+          px(ox - 4, 13, 2, 1, shade(a, 1.4));
+        } else {
+          x.fillStyle = outline; x.beginPath(); x.arc(ox, 16, 5, 0, Math.PI * 2); x.fill();
+          x.fillStyle = a; x.beginPath(); x.arc(ox, 16, 3.6, 0, Math.PI * 2); x.fill();
+          x.strokeStyle = shade(a, 0.6); x.lineWidth = 1; x.beginPath(); x.moveTo(ox - 2.5, 16); x.lineTo(ox + 2.5, 16); x.moveTo(ox, 13.5); x.lineTo(ox, 18.5); x.stroke();
+          px(ox - 2, 14, 1, 1, '#ffffff'); px(ox, 21, 1, 4, outline);
+        }
+      }
+      break;
+    }
     case 'coin': {
       x.fillStyle = outline; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.fill();
       x.fillStyle = a; x.beginPath(); x.arc(16, 16, 9, 0, Math.PI * 2); x.fill();

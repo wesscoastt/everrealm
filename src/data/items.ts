@@ -10,7 +10,9 @@ export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'ques
 export type SkillId = 'melee' | 'mining' | 'smithing' | 'fishing' | 'cooking' | 'woodcutting' | 'farming';
 
 export interface IconSpec {
-  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag' | 'bow' | 'wheel' | 'torch' | 'lantern';
+  shape: 'ore' | 'bar' | 'log' | 'fish' | 'sword' | 'pick' | 'hatchet' | 'rod' | 'bread' | 'helm' | 'shell' | 'pelt' | 'whistle' | 'gel' | 'fang' | 'cooked' | 'coin' | 'shoe' | 'chest' | 'legs' | 'gloves' | 'boots' | 'fiddle' | 'harp' | 'drum' | 'horn' | 'pipes' | 'letter' | 'bag' | 'bow' | 'wheel' | 'torch' | 'lantern'
+    /** Jewellery: a ring (b: the gem, if it has one), a pendant on a chain (b: the stone), earrings (b: a drop). */
+    | 'ring' | 'pendant' | 'earring' | 'hoops' | 'studs';
   a: string;
   b?: string;
 }

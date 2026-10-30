@@ -25,7 +25,8 @@
     "economy": "rolldown scripts/economy.ts --platform node --format esm --file .walker/economy.mjs --logLevel warn && node .walker/economy.mjs",
     "charts": "rolldown scripts/chartland.ts --platform node --format esm --file .walker/chartland.mjs --logLevel warn && node .walker/chartland.mjs counties && node .walker/chartland.mjs morrow",
     "boxes": "rolldown scripts/boxcheck.ts --platform node --format esm --file .walker/boxcheck.mjs --logLevel warn && node .walker/boxcheck.mjs",
-    "ships": "rolldown scripts/shipcheck.ts --platform node --format esm --file .walker/shipcheck.mjs --logLevel warn && node .walker/shipcheck.mjs"
+    "ships": "rolldown scripts/shipcheck.ts --platform node --format esm --file .walker/shipcheck.mjs --logLevel warn && node .walker/shipcheck.mjs",
+    "standing": "rolldown scripts/standcheck.ts --platform node --format esm --file .walker/standcheck.mjs --logLevel warn && node .walker/standcheck.mjs"
   },
   "dependencies": {
     "three": "^0.184.0",

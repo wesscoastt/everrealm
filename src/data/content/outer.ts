@@ -28,7 +28,7 @@ export const OUTER_PEOPLE: NpcDef[] = [
     // Cragsby's innkeeper, fifties. Dry. Measures everything against the two years since the road came.
     id: 'corran', name: 'Tib Corran', title: 'The Kittiwake, Cragsby',
     look: { skin: '#e2b894', hair: '#5a4a3a', hairStyle: 2, eyes: '#4a5a6a', tunic: '#4a5a6a', trim: '#d8c090', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true, build: 1.04, age: 0.55 },
-    schedule: [{ from: 0, to: 24, at: [239.5, -1007.5], face: [239.5, -1003], anim: 'idle' }],
+    schedule: [{ from: 0, to: 24, at: [240.8, -1007.5], face: [240.8, -1003], anim: 'idle' }], // (beside the inn sign, not in it)
     barks: ['Eggs, fish or bread.', 'Mind the edge. Everyone says that. Mind it anyway.'],
   },
   {
@@ -42,7 +42,7 @@ export const OUTER_PEOPLE: NpcDef[] = [
     // Holme Staithe's innkeeper, sixties. Blunt, eel-proud, furious about the drain.
     id: 'haddow', name: 'Peg Haddow', title: 'The Staithe House, Holme Staithe',
     look: { skin: '#d8a882', hair: '#9a948c', hairStyle: 3, eyes: '#4a4a3a', tunic: '#6a5a3a', trim: '#c8b080', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true, build: 1.08, age: 0.7 },
-    schedule: [{ from: 0, to: 24, at: [-900.5, 1002.5], face: [-900.5, 1007], anim: 'idle' }],
+    schedule: [{ from: 0, to: 24, at: [-899.2, 1002.5], face: [-899.2, 1007], anim: 'idle' }], // (beside the inn sign, not in it)
     barks: ['Eels smoked, eels stewed.', 'A foot down since spring. A foot!'],
   },
   {
@@ -64,7 +64,7 @@ export const OUTER_PEOPLE: NpcDef[] = [
     // Scarrow Tor's innkeeper, forties. Warm, nosy, practical; knows everyone's croup.
     id: 'kitto', name: 'Wenna Kitto', title: 'The Tinners\' Arms, Scarrow Tor',
     look: { skin: '#e8c0a0', hair: '#7a3a1e', hairStyle: 4, eyes: '#3a5a4a', tunic: '#5a3a4a', trim: '#e0c890', trousers: '#3a3034', boots: '#2a1e14', apron: true, lashes: true, build: 1.0, age: 0.45 },
-    schedule: [{ from: 0, to: 24, at: [329.5, 2958.5], face: [329.5, 2963], anim: 'idle' }],
+    schedule: [{ from: 0, to: 24, at: [330.8, 2958.5], face: [330.8, 2963], anim: 'idle' }], // (beside the inn sign, not in it)
     barks: ['Pasty, char, or the fire. The fire\'s free.'],
   },
   {
