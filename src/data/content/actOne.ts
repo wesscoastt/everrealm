@@ -13,7 +13,7 @@ import { COMPANIONS } from '../companions';
 //         docket) | 'back' (the barrels go back to the Toll Office on Wenna's say). Wenna joins.
 //   VI    The Surveyor's Girl (storyOttilie): Ottilie Fenn on the Kirk floor with a level line; the
 //         floor is rising fastest where Harrowgate bored. Her book goes to Joan. Ottilie joins.
-//   VIII  Forty Feet (storyForty): after the lift, Ottilie measures what came up. Joan's rule came
+//   VIII  Forty Feet (storyFortyFeet): after the lift, Ottilie measures what came up. Joan's rule came
 //         from Gallows Knap; it doesn't hold here. Flag fortyTold = 'joan' (told before the sitting;
 //         Joan keeps her ten feet) | 'kept' (Ottilie keeps it until after).
 //   IX    The Toll Riders (storyRiders): Captain Elis Prowse wants Wenna back for the sitting; the
@@ -22,7 +22,7 @@ import { COMPANIONS } from '../companions';
 //   XI    First Camp (storyCamp1): the night after the sitting, on the Turnpike below the Waystation,
 //         walking Sela Orme home. The first camp: a fire, and a word with each of them.
 
-const WIT = 'storyWitness', OTT = 'storyOttilie', FORTY = 'storyForty', RID = 'storyRiders', CAMP = 'storyCamp1';
+const WIT = 'storyWitness', OTT = 'storyOttilie', FORTY = 'storyFortyFeet', RID = 'storyRiders', CAMP = 'storyCamp1';
 
 // The wagon on the verge of the Turnpike south of the Waystation, facing on towards Harrowgate Works
 const CART = { x: 733.6, z: 742.6, ry: 0.588 };

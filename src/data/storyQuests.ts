@@ -92,7 +92,7 @@ export const STORY_QUESTS: Record<string, QuestDef> = {
   },
 
   storyLift: {
-    id: 'storyLift', name: 'The Lift', story: { chapter: 7, title: 'The Lift' }, next: ['storyForty', 'ottilie'],
+    id: 'storyLift', name: 'The Lift', story: { chapter: 7, title: 'The Lift' }, next: ['storyFortyFeet', 'ottilie'],
     notes: (g, s) => {
       if (s === 'cut') return 'Harrowgate\'s crew has started stripping the cap at the east end of the Kirk floor, before the sitting has voted.';
       if (s === 'fight') return 'The floor came up two feet in four seconds where the crew had cut. Shard jellies came out of the crack with it, and something much bigger.';
