@@ -1911,6 +1911,38 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'tallypost': {
+      // A grey larch post notched on every side, rows of fives, one notch black with pitch
+      const larch = flat('#8a8478');
+      g.add(mesh(box(0.34, 2.6, 0.34), larch, 0, 1.3, 0));
+      for (let i = 0; i < 9; i++) for (const side of [-1, 1]) g.add(mesh(box(0.38, 0.03, 0.05), flat('#4a463e'), 0, 0.4 + i * 0.24, side * 0.16));
+      g.add(mesh(box(0.38, 0.05, 0.06), flat('#1a1612'), 0, 2.36, 0.16));
+      g.add(mesh(box(0.42, 0.12, 0.42), larch, 0, 2.66, 0, Math.PI / 4));
+      break;
+    }
+    case 'cairn': {
+      // A heap of carried stones, broad at the foot, a crook-height high, a mitten in the top
+      const stones = [[0, 0.25, 0, 1.4, 0.5, 1.2], [0.1, 0.7, -0.05, 1.1, 0.45, 0.95], [-0.05, 1.1, 0.05, 0.8, 0.4, 0.7], [0.05, 1.45, 0, 0.55, 0.32, 0.5], [0, 1.72, 0, 0.32, 0.24, 0.3]] as const;
+      stones.forEach(([x, y, z, w, h, d], i) => g.add(mesh(box(w, h, d), i % 2 ? M.cobble : M.stone, x, y, z, i * 0.7)));
+      g.add(mesh(box(0.14, 0.18, 0.08), flat('#a83a2e'), 0.12, 1.88, 0.06, 0.4));
+      for (let i = 0; i < 6; i++) { const a = i * 1.1; g.add(mesh(box(0.3, 0.2, 0.26), M.cobble, Math.cos(a) * 0.9, 0.1, Math.sin(a) * 0.8, a)); }
+      break;
+    }
+    case 'sledge': {
+      // Ash runners curled up at the front, a slatted bed, a rope harness in the snow
+      const ash = flat('#b89868'), ashDk = flat('#7a6040'), iron = flat('#4a4a50');
+      for (const x of [-0.45, 0.45]) {
+        g.add(mesh(box(0.08, 0.1, 2.0), iron, x, 0.05, 0));
+        g.add(mesh(box(0.1, 0.14, 2.0), ash, x, 0.17, 0));
+        g.add(mesh(box(0.1, 0.4, 0.12), ash, x, 0.32, 1.02, 0.5));
+        for (const z of [-0.7, 0, 0.7]) g.add(mesh(box(0.08, 0.3, 0.08), ashDk, x, 0.36, z));
+      }
+      for (let i = 0; i < 6; i++) g.add(mesh(box(1.0, 0.05, 0.22), ash, 0, 0.52, -0.75 + i * 0.3));
+      g.add(mesh(box(1.0, 0.36, 0.06), ashDk, 0, 0.72, -0.98));
+      g.add(mesh(box(0.8, 0.12, 0.02), flat('#d8ccb0'), 0, 0.76, -1.015));
+      for (const x of [-0.4, 0.4]) g.add(mesh(box(0.05, 0.05, 0.9), flat('#a89060'), x, 0.08, 1.5));
+      break;
+    }
     case 'fordpost': {
       // A black oak post at the water's edge, notched down its river side, THE FORD carved at the top
       g.add(mesh(box(0.32, 2.4, 0.32), flat('#2e241c'), 0, 1.2, 0));

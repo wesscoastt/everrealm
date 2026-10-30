@@ -2,7 +2,7 @@ import type { DialogueTree, GameApi } from '../../game/api';
 import type { QuestDef } from '../quests';
 import { at, hook, type Marks } from './kit';
 import type { RegionContent } from './types';
-import { CALLIS_SPOTS, CALLIS_TOWERS } from '../../world/morrow';
+import { CALLIS_FLOOR, CALLIS_SPOTS, CALLIS_TOWERS } from '../../world/morrow';
 
 // THE TALL CITY, the main story's sixth act (docs/STORY_PLAN.md), first half.
 //
@@ -27,7 +27,8 @@ const DOWN = 'storyDownStorey', COUNT = 'storyCountingFloor', HAND = 'storyRhosy
 const ACT = 'The Tall City';
 
 const P = CALLIS_SPOTS.plaza, OLD = { x: P.x + CALLIS_TOWERS.old.dx, z: P.z + CALLIS_TOWERS.old.dz };
-const GAUGE = { x: OLD.x + 3.5, z: OLD.z + 5.5 };
+// The gauge at the foot of the stair, by the Warden's place, on the tower's floor
+const GAUGE = { x: OLD.x + 2.5, z: OLD.z + 2.5 };
 
 const lent = (g: GameApi) => g.flag('lendBlack') as 'tower' | 'bought' | 'none' | undefined;
 
@@ -216,7 +217,7 @@ export const ACT_SIX: RegionContent = {
     },
   },
   things: [
-    { land: 'morrow', id: 'c6Gauge', x: GAUGE.x, z: GAUGE.z, label: 'Read the Old Tower\'s gauge', radius: 2.2, read: 'c6Gauge', when: (g) => at(g, DOWN) === 'gauge' && !g.flag('c6Gauge') },
+    { land: 'morrow', id: 'c6Gauge', x: GAUGE.x, z: GAUGE.z, y: CALLIS_FLOOR, label: 'Read the Old Tower\'s gauge', radius: 2.2, read: 'c6Gauge', when: (g) => at(g, DOWN) === 'gauge' && !g.flag('c6Gauge') },
   ],
   hooks: (D) => {
     hook(D, 'marta_vidal', (g) => {

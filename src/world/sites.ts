@@ -568,7 +568,7 @@ export function plan(): Plan {
     { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
     { id: 'harrowgate', name: 'Harrowgate Works', x: 1000, z: 1000, r0: 30, r1: 46, build: (s, b) => buildHarrowgate(s, b) },
     { id: 'mesafort', name: 'Gallows Knap', x: 1250, z: 1250, r0: 16, r1: 26, build: (s, b) => buildFort(s, b) },
-    { id: 'coldhearth', name: 'Kelderby', x: 300, z: 1460, r0: 20, r1: 32, build: (s, b) => buildHamlet(s, b, 300, 1460, 'slate', 3) },
+    { id: 'coldhearth', name: 'Kelderby', x: 300, z: 1460, r0: 20, r1: 32, build: (s, b) => { buildHamlet(s, b, 300, 1460, 'slate', 3); placeMonuments(s, 'kelderby', 0, (x, z) => Math.floor(heightAt(x, z))); } },
     { id: 'starwatch', name: 'Scarth Watch', x: 600, z: 1700, r0: 12, r1: 22, build: (s, b) => buildObservatory(s, b) },
     { id: 'temple', name: 'Glass Kirk', x: 1190, z: 1800, r0: 18, r1: 30, build: (s, b) => buildTemple(s, b) },
     { id: 'bothy', name: 'Hale\'s Fold', x: 382, z: 1380, r0: 18, r1: 30, build: (s, b) => buildBothy(s, b) },
@@ -8708,6 +8708,8 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'hgprices') bar(d, 0, 0, 1.0, 0.15, 2);
         else if (d.monument === 'hgwheel') bar(d, 0, 0.3, 1.2, 0.5, 3);
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
+        else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
+        else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
         else bar(d, 0, 0, d.monument === 'drowned' || d.monument === 'boatstone' ? 1.1 : 1.0, d.monument === 'riders' ? 1.4 : d.monument === 'boatstone' ? 0.3 : 1.0, 3);
         break;
       case 'pump': bar(d, 0, 0, 0.65, 0.5, 1); break;

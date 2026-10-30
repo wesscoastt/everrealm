@@ -8,11 +8,12 @@ export type MonumentModel =
   | 'milestone' | 'column' | 'seated' | 'boots' | 'masons' | 'plumb' | 'netmender' | 'stones'
   | 'jawbones' | 'drownedboard' | 'fogbell' | 'tallystone' | 'anselbench'
   | 'companysign' | 'priceboard' | 'flywheel'
-  | 'fordpost' | 'floodstone' | 'mootstone' | 'pump';
+  | 'fordpost' | 'floodstone' | 'mootstone' | 'pump'
+  | 'tallypost' | 'cairn' | 'sledge';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -24,6 +25,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Kelderby (world/sites.ts, the hamlet's build: x, z, facing)
+  {
+    id: 'kbtally', town: 'kelderby', at: [296.5, 1457.5, Math.PI / 4], model: 'tallypost', title: 'The tally post',
+    body: 'A larch post by the well, taller than a man and grey with weather, notched on all four sides: a row for every spring, the lambs Kelderby counted, cut in fives.\n\nSome springs are long rows. One near the top is two notches, with a cross cut beside it.\n\nThe newest row is fourteen. One more notch was cut after it, and then filled in with pitch.',
+  },
+  {
+    id: 'kbcairn', town: 'kelderby', at: [296.5, 1441.5, Math.PI / 2], model: 'cairn', title: 'The fell cairn',
+    body: 'A cairn at the foot of the north track, where it leaves for the high fells, about as tall as you are. Every stone in it was carried up by somebody.\n\nThe shepherds put a stone on it going up and take one off coming down, so the cairn is the size of whoever is still out. Today it stands a little higher than the snowline on it says it should.\n\nWedged in among the top stones, out of the wet, is a child\'s mitten, waiting for whoever lost it.',
+  },
+  {
+    id: 'kbsledge', town: 'kelderby', at: [307.5, 1461.5, 0], model: 'sledge', title: 'Cai Morgan\'s sledge',
+    body: 'The hamlet\'s only sledge: ash runners shod with iron, a bed that takes four ewes or one shepherd lying down, and a rope harness for whoever is pulling, which is mostly Cai.\n\nPainted on the back board, faded nearly away: IF YOU TAKE IT BRING IT BACK.\n\nUnder it, newer: AND TELL CAI.',
+  },
   // ---------------------------------------------------------------- Hollin Ford (world/structures.ts)
   {
     id: 'hfford', town: 'hollin', at: [0, 0, 0], model: 'fordpost', title: 'The old ford',

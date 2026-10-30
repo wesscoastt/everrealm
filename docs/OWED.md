@@ -20,9 +20,9 @@ owner is watching), `npm run balance`, `npm run quests` and `npm run sites` clea
    fits the existing rarity, enchantment and set systems.
 4. **Every city hand-built, no copy-paste** (owner 2026-10-23 and 2026-10-29: "did you make sure all cities
    felt hand built"). Done: Ansbury's monuments and squares (b8341f4), seeded street kit everywhere
-   (32700fd). Hollin Ford's own landmarks 2026-10-30 (the old ford's stepping stones you can walk, the flood stone, the moot stone, the village pump). Still to do, city by city with screenshots: **Gullmouth, Harrowgate Works, Northgate,
+   (32700fd). Hollin Ford's own landmarks 2026-10-30 (the old ford's stepping stones you can walk, the flood stone, the moot stone, the village pump). Kelderby's own 2026-10-30 (the tally post, the fell cairn, Cai Morgan's sledge). Still to do, city by city with screenshots: **Gullmouth, Harrowgate Works, Northgate,
    Saltpenny Key, Callis, the Morrow towns (Branchley, Tenwells, Liftwick, Reedwater, Cala Roja, Conch
-   Key, Cold Harbour), Kelderby**: each its own landmarks and set pieces, street character,
+   Key, Cold Harbour)**: each its own landmarks and set pieces, street character,
    no repeated house fronts side by side, no prop on a path or under a person.
 4b. DONE v1 (this commit, tested in game: two rings, neck, ear; 10 pieces; anvil recipes; elite and boss drops; Ansbury jeweller's tray. Still to do: shown on the character, and rolled/unidentified like other gear) **Jewellery** (owner 2026-10-29: "add jewelry into game too"): rings, necklaces and earrings as their own gear slots (two rings, a neck, an ear), with their own stats and leanings, rolled and unidentified like other gear, named and set pieces among them, made by a new jewellery craft at a jeweller's bench from ore, gems and the shards, sold by jewellers in the cities, worn on the character (a glint at the neck and fingers), and shown on the character screen.
 4c. DONE (this commit) Ships in Gullmouth's quay stones (owner 2026-10-29: "ships still in the cobble at that port"): every hull berthed off the quay face, a planner pass floats any grounded hull to clear water, npm run ships checks all 28. Gulls animated (owner 2026-10-29): perched gulls look about, preen, stretch, and fly off and circle when you come close (game/Gulls.ts).

@@ -346,7 +346,7 @@ Sefton was on the saw and Kit was calling the fall. The tree came down the wrong
 
 | Place | Facts |
 | --- | --- |
-| **Kelderby** | Three slate-roofed stone houses and a well on the high plateau. Sheep country. |
+| **Kelderby** | Three slate-roofed stone houses and a well on the high plateau. Sheep country. Its own landmarks: **the tally post** by the well, a larch post notched with every spring's lambs in fives (one spring of two, with a cross; the newest row fourteen, and one more notch filled in with pitch); **the fell cairn** at the foot of the north track, where shepherds add a stone going up and take one coming down, so it stands as high as whoever is still out, with a child's mitten in its top stones; and **Cai Morgan's sledge** in front of his door, the hamlet's only one: IF YOU TAKE IT BRING IT BACK, and under it, AND TELL CAI. (`src/data/monuments.ts`, town `kelderby`.) |
 | **Hale's Fold** | The Hales' shepherds' bothy and a drystone sheepfold on the ridge above Kelderby. Frost wolves come to it when the fire is low. |
 | **Scarth Watch** | An observatory tower with star crystal at its top. Ilse Blewitt counts the stars that fall and where they land. **The Charter pays a stipend for the count**, because crystal lies where stars come down, and Ansbury likes to know where its crystal is before Harrowgate does. She keeps a weather log by a storm glass. |
 

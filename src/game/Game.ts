@@ -945,7 +945,7 @@ export class Game implements GameApi {
     // The cities' monuments stand where the planner put them; each has its plaque to read
     for (const m of sitePlan().monuments) if (!WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
       const def = MONUMENTS.find((k) => k.id === m.id)!;
-      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' || def.model === 'priceboard' || def.model === 'companysign' ? 'Read ' : def.model === 'flywheel' ? 'Look at ' : 'Read the plaque: ') + def.title.replace(/^The /, 'the '), radius: def.model === 'jawbones' || def.model === 'companysign' ? 4.5 : 2.8, read: 'monument:' + m.id });
+      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' || def.model === 'priceboard' || def.model === 'companysign' || def.model === 'tallypost' ? 'Read ' : def.model === 'flywheel' || def.model === 'cairn' || def.model === 'sledge' ? 'Look at ' : 'Read the plaque: ') + def.title.replace(/^The /, 'the '), radius: def.model === 'jawbones' || def.model === 'companysign' ? 4.5 : 2.8, read: 'monument:' + m.id });
     }
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.post = new PostRide(this.scene, this.world.voxels);

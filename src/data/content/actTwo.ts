@@ -26,7 +26,7 @@ const I = bigIsle(), H = hoistSpot();
 /** A point on the isle, from its middle toward the tower (k), and to the side (w) (as weatherholms.ts). */
 const isle = (k: number, w = 0): [number, number] => [I.x - H.dx * k + (H.dz !== 0 ? w : 0), I.z - H.dz * k + (H.dx !== 0 ? w : 0)];
 // The isle's far edge, away from the tower; the rope hangs just off it to the ground
-const RIM = isle(-(I.r - 2)), ROPE = isle(-(I.r + 0.7)), BELOW = isle(-(I.r + 3.5));
+const RIM = isle(-(I.r - 4)), ROPE = isle(-(I.r + 0.7)), BELOW = isle(-(I.r + 3.5));
 const BELOW_Y = Math.floor(heightAt(BELOW[0], BELOW[1]));
 // The crew's own fire pit at the hoist's foot, between their tents (world/sites.ts)
 const FIRE: [number, number] = [H.x, H.z - 7];
@@ -262,7 +262,8 @@ export const ACT_TWO: RegionContent = {
   things: [
     { id: 'ilseShelf', x: SHELF.x, z: SHELF.z, label: 'Read Ilse\'s logbooks', radius: 2.2, read: 'ilseShelf', when: (g) => at(g, ILSE) === 'shelf' || at(g, ILSE) === 'ottilie' },
     {
-      id: 'nineRope', x: ROPE[0], z: ROPE[1], y: I.top, label: 'Climb down Delyth\'s rope', radius: 2.4,
+      // (on the rim, where the rope is tied; the rope itself hangs just past it)
+      id: 'nineRope', x: RIM[0], z: RIM[1], y: I.top, label: 'Climb down Delyth\'s rope', radius: 2.6,
       when: (g) => at(g, NINE) === 'climb',
       use: (g) => { g.setStage(NINE, 'foot'); g.ride(BELOW[0] + 0.5, BELOW_Y, BELOW[1] + 0.5, 'Backwards over the edge, boots against the isle\'s underside, hand over hand down to the snow.'); },
     },

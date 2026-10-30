@@ -4,6 +4,7 @@ import { at, hook, killed, type Marks } from './kit';
 import type { RegionContent } from './types';
 import { FELL_BARROWS, KB_CAMP, NG_GATE } from '../../world/morrow';
 import { COMPANIONS } from '../companions';
+import { heightAt } from '../../world/terrain';
 
 // THE HELD, second half (docs/STORY_PLAN.md, Act V):
 //
@@ -275,7 +276,8 @@ export const ACT_FIVE_B: RegionContent = {
   },
   things: [
     ...LAY.map((l, i) => ({ land: 'morrow' as const, id: l.id, x: l.x, z: l.z, label: 'Lay the black back over the barrow', radius: 2.6, read: l.id, when: (g: GameApi) => at(g, FELLS) === 'lay' && !g.flag(l.id) && i < toLay(g) })),
-    { land: 'morrow', id: 'b5Bar', x: IN.x, z: NG_GATE.z + 0.5, label: 'Bar the postern', radius: 3.2, read: 'b5Bar', when: (g) => at(g, POST) === 'bar' },
+    // (the gate's yard is paved up eight blocks over the hillside it stands on)
+    { land: 'morrow', id: 'b5Bar', x: IN.x, z: NG_GATE.z + 8, y: Math.floor(heightAt(IN.x, NG_GATE.z + 8)) + 8, label: 'Bar the postern', radius: 3.6, read: 'b5Bar', when: (g) => at(g, POST) === 'bar' },
     { land: 'morrow', id: 'camp5Fire', x: FIRE.x, z: FIRE.z, label: 'Sleep under the wall', radius: 2.6, read: 'camp5Sleep', when: (g) => inCamp(g) && !!g.flag('camp5E') && (!joined(g, 'wenna') || !!g.flag('camp5W')) },
   ],
   spawns: [
