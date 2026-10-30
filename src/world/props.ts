@@ -1911,6 +1911,57 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'oarrack': {
+      // Oars stood on end in a rack, blades up, a name burnt on each; one sawn short; a few ringed
+      const ash = flat('#b8a07a'), ashDk = flat('#8a7656'), burn = flat('#3a2a1a');
+      g.add(mesh(box(6.0, 0.14, 0.2), flat('#5a4630'), 0, 0.5, -0.12));
+      g.add(mesh(box(6.0, 0.14, 0.2), flat('#5a4630'), 0, 1.5, -0.12));
+      for (const x of [-3.0, 3.0]) g.add(mesh(box(0.18, 1.8, 0.18), flat('#4a3a28'), x, 0.9, -0.12));
+      for (let i = 0; i < 17; i++) {
+        const x = -2.7 + i * 0.34, short = i === 8, h = short ? 1.7 : 2.5 + ((i * 5) % 7) * 0.08;
+        const wood = i % 3 === 1 ? ashDk : ash;
+        g.add(mesh(box(0.07, h - 0.8, 0.07), wood, x, (h - 0.8) / 2, 0, 0, ((i * 3) % 5 - 2) * 0.015));
+        g.add(mesh(box(0.18, 0.8, 0.03), wood, x, h - 0.4, 0, 0, ((i * 3) % 5 - 2) * 0.015));
+        g.add(mesh(box(0.12, 0.03, 0.01), burn, x, h - 0.3, 0.02));
+        if (i % 6 === 2) g.add(mesh(box(0.07, 0.07, 0.01), burn, x, h - 0.52, 0.02));
+      }
+      break;
+    }
+    case 'figurehead': {
+      // A carved woman off a frigate's bow, leaning forward on a heap of ballast stones, a tin cup in her hands
+      const blue = flat('#7088a2'), blueDk = flat('#56687e'), gold = flat('#c8aa5a'), skin = flat('#e2d6c2'), wood = flat('#7a6a54');
+      g.add(mesh(box(1.6, 0.45, 1.5), M.stone, 0, 0.22, 0));
+      g.add(mesh(box(1.15, 0.4, 1.05), M.cobble, 0.05, 0.62, -0.05, 0.3));
+      const fig = new THREE.Group(); fig.position.set(0, 0.82, -0.15); fig.rotation.x = 0.26; fig.scale.setScalar(1.35); g.add(fig);
+      fig.add(mesh(box(0.3, 1.7, 0.3), wood, 0, 0.85, -0.34));                  // the stem timber she was carved from
+      fig.add(mesh(box(0.66, 0.5, 0.5), blueDk, 0, 0.25, 0.0));                  // skirt, scrolling into the stem
+      fig.add(mesh(box(0.6, 0.45, 0.46), blue, 0, 0.7, 0.02));
+      fig.add(mesh(box(0.66, 0.08, 0.5), gold, 0, 0.94, 0.02));                  // the gilt sash
+      fig.add(mesh(box(0.48, 0.6, 0.36), blue, 0, 1.26, 0.04));                  // bodice
+      fig.add(mesh(box(0.14, 0.12, 0.14), skin, 0, 1.6, 0.06));                  // neck
+      fig.add(mesh(box(0.32, 0.34, 0.32), skin, 0, 1.82, 0.08));                 // head
+      fig.add(mesh(box(0.38, 0.4, 0.22), gold, 0, 1.88, -0.06));                 // hair, gilt, down her back
+      fig.add(mesh(box(0.2, 0.5, 0.12), gold, 0, 1.55, -0.2));
+      for (const sx of [-1, 1]) { fig.add(mesh(box(0.13, 0.4, 0.13), blue, sx * 0.28, 1.36, 0.1)); fig.add(mesh(box(0.12, 0.12, 0.42), skin, sx * 0.16, 1.18, 0.34)); }
+      fig.add(mesh(box(0.42, 0.08, 0.2), flat('#5a7a44'), 0, 1.18, 0.6));       // the wreath
+      fig.add(mesh(box(0.16, 0.18, 0.16), flat('#b8b8b0'), 0, 1.3, 0.6));       // the tin cup in it
+      break;
+    }
+    case 'compassrose': {
+      // A brass compass rose nailed into the boards, its south point prised out
+      const brass = flat('#c8a252'), brassDk = flat('#94763a');
+      g.add(mesh(box(1.2, 0.03, 1.2), brassDk, 0, 0.015, 0, Math.PI / 4));
+      g.add(mesh(box(1.05, 0.035, 1.05), brass, 0, 0.02, 0));
+      g.add(mesh(box(0.4, 0.04, 0.4), brassDk, 0, 0.03, 0, Math.PI / 4));
+      for (let k = 0; k < 8; k++) {
+        if (k === 4) continue; // the south point: gone
+        const a = (k * Math.PI) / 4, long = k % 2 === 0, len = long ? 2.3 : 1.4;
+        g.add(mesh(box(long ? 0.32 : 0.22, 0.03, len), k % 2 ? brassDk : brass, Math.sin(a) * len * 0.5, 0.025, Math.cos(a) * len * 0.5, a));
+        g.add(mesh(box(long ? 0.14 : 0.1, 0.035, len * 0.3), k % 2 ? brass : brassDk, Math.sin(a) * len * 0.85, 0.03, Math.cos(a) * len * 0.85, a));
+      }
+      for (const d of [0.8, 1.4, 2.0]) g.add(mesh(box(0.05, 0.012, 0.05), flat('#2a241a'), 0, 0.012, -d)); // the nail holes where it was
+      break;
+    }
     case 'keeperstones': {
       // Fourteen small upright stones in a row, a name on each, the first worn low and smooth; a fifteenth, blank
       for (let i = 0; i < 15; i++) {

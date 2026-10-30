@@ -935,6 +935,8 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 | **Mara Coyle** | Master of the Kittiwake | To be paid, by everyone | She hates Cold Harbour |
 | **Dinah Lowry** | Draws maps in the Mercy's hold, from wreckers' talk and drowned men's charts | Gale's hoard found, and drawn | She learned to draw by copying Gale's hand |
 | **Gil Fenner** | The fence, at Low Tide | — | — |
+
+- **Saltpenny's own landmarks** (`src/data/monuments.ts`, town `saltpenny`). **The captains' oars** by the Long Walk: every captain stands the oar she pulled in the rack when she gets her first ship, her name burnt on the blade; Ned Vey's is sawn short (he was eleven), and a ring under a name means that captain brought every crew home. **The Constancy**, the figurehead of the first Assembly frigate Ysolde Gale sank, stood on ballast stones by the walk with a tin cup in her wreath: the Brethren put in for the families of crews that don't come back, and Ned Vey counts it out at the Captains' Table once a month. **Gale's compass**, her brass rose nailed into the boards where the walks cross, where captains are sworn; its south point was prised up long ago, by Gale herself, Dinah Lowry says.
 | **Annie Coe** | Keeps the Leaning Mast | No fighting in her bar | — |
 | **Jago Sweeney** | Keeps the Cockpit | — | — |
 

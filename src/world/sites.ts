@@ -3103,6 +3103,10 @@ export function plan(): Plan {
     walk(CP.x - CP.r - 4, CP.z - 1, CP.x - CP.r - 3, CP.z + 1); walk(CP.x - CP.r - 3, cz + 55, CP.x - CP.r - 3, CP.z - 1);
     s.props.push({ t: 'sign', x: CP.x - CP.r - 4.5, y: base, z: CP.z + 3.5, ry: -Math.PI / 2, text: 'The Cockpit' });
 
+    // ---- Saltpenny's own (data/monuments.ts, town 'saltpenny'): the captains' oars and the Constancy by
+    // the Long Walk, Gale's compass where the walks cross; their ground kept clear of shacks
+    for (const m of MONUMENTS) if (m.town === 'saltpenny' && m.at) claim(cx + m.at[0] - 4, cz + m.at[1] - 3, cx + m.at[0] + 4, cz + m.at[1] + 3);
+    placeMonuments(s, 'saltpenny', cx, () => base, cz);
     // ---- Shacks of salvaged timber, each facing a boardwalk, closed up on most
     const onWalk = (x: number, z: number) => mine.some((r) => x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]);
     const roofs: PropDesc['mat'][] = ['thatch', 'slate', 'thatch', 'red'];
@@ -8714,6 +8718,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'spoars') bar(d, 0, -0.12, 3.0, 0.15, 3);
+        else if (d.monument === 'spfigure') bar(d, 0, 0, 0.7, 0.7, 3);
+        else if (d.monument === 'spcompass') { /* let into the boards: walked on */ }
         else if (d.monument === 'ngkeepers') bar(d, 0, 0, 2.7, 0.15, 1);
         else if (d.monument === 'ngbell') bar(d, 0, 0, 0.85, 0.35, 3);
         else if (d.monument === 'ngwatch') bar(d, 0, 0, 0.9, 0.1, 2);

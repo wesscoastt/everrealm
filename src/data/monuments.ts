@@ -10,11 +10,12 @@ export type MonumentModel =
   | 'companysign' | 'priceboard' | 'flywheel'
   | 'fordpost' | 'floodstone' | 'mootstone' | 'pump'
   | 'tallypost' | 'cairn' | 'sledge'
-  | 'keeperstones' | 'wallbell' | 'watchboard';
+  | 'keeperstones' | 'wallbell' | 'watchboard'
+  | 'oarrack' | 'figurehead' | 'compassrose';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -26,6 +27,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Saltpenny Key (world/sites.ts buildSaltpenny: x and z from the key's middle, facing)
+  {
+    id: 'spoars', town: 'saltpenny', at: [104, 6.5, Math.PI], model: 'oarrack', title: 'The captains\' oars',
+    body: 'A rack of oars stood on end beside the Long Walk, blades up, each with a name burnt into the blade. The Brethren\'s sign is two crossed oars because every captain started out pulling one, and when a captain gets her first ship she brings her oar here and stands it in the rack.\n\nNed Vey\'s is near the middle, sawn off short. He was eleven when he pulled it.\n\nA few blades have a ring burnt under the name: that captain brought every crew home. There are not many rings.',
+  },
+  {
+    id: 'spfigure', town: 'saltpenny', at: [92.5, -5.5, 0], model: 'figurehead', title: 'The Constancy',
+    body: 'A ship\'s figurehead stood on a heap of ballast stones by the Long Walk: a woman in blue and gold, leaning forward the way she leaned off the bow, the paint gone grey with salt. She came off the Constancy, an Assembly frigate and the first ship Ysolde Gale ever sank. She washed up on the key a month after, and Gale stood her up here herself.\n\nHer hands were carved holding a wreath. Somebody has put a tin cup in them. There are coins in it, and nobody takes them: the Brethren put in for the families of crews that don\'t come back, and once a month Ned Vey empties it and counts it out at the Captains\' Table.',
+  },
+  {
+    id: 'spcompass', town: 'saltpenny', at: [20, 0.5, 0], model: 'compassrose', title: 'Gale\'s compass',
+    body: 'A compass rose let into the boardwalk where the two walks cross, cut from the brass of Ysolde Gale\'s own binnacle and nailed down plank by plank. It was her sign. Every captain on the key has stood on it to be sworn.\n\nThe south point is gone. Somebody prised it up a long time ago; the nail holes are still there, worn smooth. Dinah Lowry, who draws maps in the Mercy\'s hold, says Gale took it up herself the year before she died, and won\'t say how she knows.',
+  },
   // ---------------------------------------------------------------- Northgate (world/sites.ts buildNorthgate: x and z from the square's middle, facing)
   {
     id: 'ngkeepers', town: 'northgate', at: [-6, -72, Math.PI / 2], model: 'keeperstones', title: 'The keepers\' stones',
