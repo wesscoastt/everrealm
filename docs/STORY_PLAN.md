@@ -66,7 +66,7 @@ that character.
 Planned so each one is set up an act or more before it lands, and so the game never kills someone just
 to make the player sad.
 
-1. **Hester Hale** (renamed from Maud Hale, the Gatekeeper of Northgate, who is in game; see "Name
+1. **Ursel Hale** (renamed from Maud Hale, the Gatekeeper of Northgate, who is in game; see "Name
    fixes"), Wenna's aunt. Act V. She holds the postern alone so the Cold Harbour families get through,
    and the Held come over her. Unavoidable. Wenna had known her for nine days.
 2. **The Old Tower of Callis.** Act VI. Whatever you chose at the end of Act IV, the tallest tower in
@@ -150,7 +150,7 @@ camp at the act's end and the changes below; the rest are new.
 33. **Who Tam Writes To**: the letters to Pryce, in Tam's hand
 34. **Turn Him Out**: you keep Tam or you don't
 35. **Ottilie Measures a Tower**: Callis's Old Tower is leaning a finger a month
-36. **Hester**: at Northgate's gate, Wenna meets her father's sister
+36. **Ursel**: at Northgate's gate, Wenna meets her father's sister
 37. **What Delia Signed**: Delia's letter, and the first page of Pryce's book in Rhosyn's hand
 38. **Fourth Camp**: the Constant, crossing home and back
 
@@ -164,13 +164,13 @@ first have walked south. Cold Harbour, the Greywaste villages, and Northgate's w
 43. Callis Lends the Black: the Assembly's black, borrowed from the Old Tower's keystones
 44. Wat's Brother: Wat joins
 45. The Fells at Night: Hollow Fell, every barrow
-46. The Postern: Hester holds it; Hester dies (loss)
+46. The Postern: Ursel holds it; Ursel dies (loss)
 47. What Wenna Does: Wenna's grief, and whether she stays
 48. The Siege of Northgate (a public event: the wall's defence, with other players)
 49. The Second A.P.: Aubrey Pryce's clerk, Aldous Penrose, who has been signing in his name
 50. The Kneeling Rise: Kingsbarrow on fire
 51. Lie Still, Again: the Held lie down
-52. **Fifth Camp**: on the wall, Wenna's vigil for Hester
+52. **Fifth Camp**: on the wall, Wenna's vigil for Ursel
 
 **Act VI. The Tall City** (14, new)
 Callis without its black. The Assembly's towers, the shipping families, and the Speaker's secret.
@@ -222,7 +222,7 @@ Callis without its black. The Assembly's towers, the shipping families, and the 
 
 - **Camp scenes.** At each act's end, a fire somewhere true to the act, the companions sat round it,
   a conversation with each (rapport, their own story's next step, what they think of what you did).
-- **Staged scenes** at the turns: the Old Mother over Stair, Hester at the postern, the Old Tower,
+- **Staged scenes** at the turns: the Old Mother over Stair, Ursel at the postern, the Old Tower,
   Joan's last reading. Camera, lines and timing, played in the world, never a video.
 - **Companions in the main story's conversations.** They interject, disagree, and are remembered: the
   journal keeps "Wenna didn't like that" with the choice.
@@ -236,10 +236,10 @@ Callis without its black. The Assembly's towers, the shipping families, and the 
 ## Name fixes before Act I is rewritten
 
 - **Four Wennas.** The companion keeps her name. The Kelderby shepherd Wenna Hale (Bryn's wife, who
-  sings the old tunes) becomes **Loveday Hale**; Wenna Rowse of Gillsby Staithe becomes **Kerra
+  sings the old tunes) becomes **Tressa Hale**; Wenna Rowse of Gillsby Staithe becomes **Kerra
   Rowse**; Wenna Kitto at Scarrow Tor becomes **Senara Kitto**. The companion is Bryn Hale's younger
   sister, who left the farm for the Riders.
-- **Two Mauds.** Maud Ashby the reeve keeps hers. Maud Hale, Northgate's Gatekeeper, becomes **Hester
+- **Two Mauds.** Maud Ashby the reeve keeps hers. Maud Hale, Northgate's Gatekeeper, becomes **Ursel
   Hale**: Bryn and Wenna's father's sister, who crossed the sea before either of them was born. That's
   why the Kelderby Hales have a Morrow name in the family bible, and why Owen walked to the Kirk.
 
