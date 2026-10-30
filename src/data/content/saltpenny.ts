@@ -197,7 +197,7 @@ const jago: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [SALT]: {
-    id: SALT, name: 'What Pays', region: 'keys', story: { chapter: 29, title: 'What Pays', act: ACT }, next: ['tdHeld', 'harbour'],
+    id: SALT, name: 'What Pays', region: 'keys', story: { chapter: 29, title: 'What Pays', act: ACT }, next: ['storyTamLetter', 'ned'],
     notes: (g, s) => {
       if (s === 'sail') return 'The Kittiwake is a Brethren hull out of Saltpenny Key, at the far end of the Keys. The black comes to Callis in her hold, and Pryce went south with the Brethren. The packet from Callis runs to Saltpenny now.';
       if (s === 'vey') return 'Mara Coyle, the Kittiwake\'s master, loads the black somewhere in the north, and won\'t say where. Cargo is the Captains\' Table\'s business, and the Table is Ned Vey.';
@@ -214,7 +214,7 @@ const quests: Record<string, QuestDef> = {
     },
     advance: (g, s) => (s === 'bight' && wreckers(g) >= WRECKERS && g.flag('bightBurnt') ? 'told' : null),
     marks: (_g, s): Marks => (s === 'sail' ? { mara_coyle: '?' } : s === 'vey' || s === 'told' ? { ned_vey: '?' } : {}),
-    walk: { from: { quests: { storyBell: 'done', tdCrew: 'done', tdCallis: 'done', [SALT]: 'sail' } } },
+    walk: { from: { quests: { storyBell: 'done', tdCrew: 'done', tdCallis: 'done', [SALT]: 'sail' }, flags: { 'comp:tam:joined': 1 } } },
   },
   [D1]: {
     id: D1, name: 'An X on the Key', region: 'keys', depth: 'short',

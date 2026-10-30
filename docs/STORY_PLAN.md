@@ -151,15 +151,17 @@ told Hilda about the bell so fast was writing from the tower.)
 
 ### Part two: Morrow
 
-**Act IV. The Third Daughter** (12; 6 in game)
-27 to 32. Half a Crew, Nine Hundred Weight, What Pays, Lie Still, The King's Black, His Book (in game),
-    with the Kittiwake burned on Ned's word (wrong turn) and Joan's plumb bob given to you
-33. **Who Tam Writes To**: the letters to Pryce, in Tam's hand
-34. **Turn Him Out**: you keep Tam or you don't
-35. **Ottilie Measures a Tower**: Callis's Old Tower is leaning a finger a month
-36. **Ursel**: at Northgate's gate, Wenna meets her father's sister
-37. **What Delia Signed**: Delia's letter, and the first page of Pryce's book in Rhosyn's hand
-38. **Fourth Camp**: the Constant, crossing home and back
+**Act IV. The Third Daughter** (9 chapters, XXVII to XXXV; built 2026-10-30)
+27 to 29. Half a Crew, Nine Hundred Weight, What Pays (the Kittiwake burned on Ned's word, Joan's plumb bob)
+30. **Who Tam Writes To**: Ned Vey has Tam's letters to Pryce; kept, turned double, or turned out
+31. Lie Still
+32. **Ursel**: at Northgate's gate, Wenna meets her father's sister
+33 to 34. The King's Black, His Book
+35. **Fourth Camp**: Gallows Knap; the first page of Pryce's book is signed R. Tarrant, for the Charter
+
+(Ottilie measuring the Old Tower is already Marta Vidal's gauges in Nine Hundred Weight; "What Delia
+Signed" became the first page, read at the fourth camp. From Act V on, the game's chapters will be
+three earlier than the plan's numbers below.)
 
 **Act V. The Held** (14, new)
 The black is back in the barrows (or isn't), and the Held aren't all lying down: the ones that got up

@@ -82,7 +82,7 @@ import { Online, type HallView, type HomeHeld } from '../net/Online';
 import { BOARDS, SET_PIECES } from '../data/content';
 
 /** Chapter numbers for the main story's quests, I to XXX. */
-const ROMAN = ['', ...Array.from({ length: 30 }, (_, i) => { let n = i + 1, s = ''; for (const [v, r] of [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']] as const) while (n >= v) { s += r; n -= v; } return s; })];
+const ROMAN = ['', ...Array.from({ length: 199 }, (_, i) => { let n = i + 1, s = ''; for (const [v, r] of [[100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']] as const) while (n >= v) { s += r; n -= v; } return s; })];
 /** People whose every conversation is a story scene. */
 const STORY_CAST = new Set(['lowen', 'maren', 'rhosyn', 'wynn', 'sela', 'selaSitting', 'joan', 'joanSitting']);
 /** The stretch of temple floor that lifts in Chapter V: centre, radius and paving height. */

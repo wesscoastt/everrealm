@@ -98,7 +98,7 @@ const edda: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [HELD]: {
-    id: HELD, name: 'Lie Still', region: 'greywaste', story: { chapter: 30, title: 'Lie Still', act: ACT }, next: ['tdKing', 'north'],
+    id: HELD, name: 'Lie Still', region: 'greywaste', story: { chapter: 31, title: 'Lie Still', act: ACT }, next: ['storyUrsel', 'gate'],
     notes: (_g, s) => {
       if (s === 'harbour') return 'The black loads at Cold Harbour, a cove under the Greywaste\'s cliffs. The Kittiwake can take me from Saltpenny, or I can go overland from Callis by the coast road.';
       if (s === 'fell') return 'Wat Aske, the last of Pryce\'s diggers, says the dead got up out of every barrow they stripped on Hollow Fell. He thinks the black put back would lay them down. Ma\'s barrow was the last opened.';
@@ -119,7 +119,7 @@ const quests: Record<string, QuestDef> = {
     },
     advance: (g, s) => (s === 'fell' && g.flag('fellLaid') ? 'wat' : null),
     marks: (_g, s): Marks => (s === 'harbour' || s === 'wat' ? { wat_aske: '?' } : s === 'gate' || s === 'maud' ? { maud_hale: '?' } : s === 'archive' ? { edda_rusk: '?' } : {}),
-    walk: { from: { quests: { storyBell: 'done', tdCrew: 'done', tdCallis: 'done', tdSalt: 'done', [HELD]: 'harbour' } } },
+    walk: { from: { quests: { storyBell: 'done', tdCrew: 'done', tdCallis: 'done', tdSalt: 'done', [HELD]: 'harbour' }, flags: { 'comp:wenna:joined': 1 } } },
   },
 };
 
