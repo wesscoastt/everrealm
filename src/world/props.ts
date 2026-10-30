@@ -1911,6 +1911,43 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'longseat': {
+      // One great bough dressed flat on top, legged with its own sawn stubs, a split half for a back
+      const bark = flat('#5a4630'), heart = flat('#a88a62');
+      g.add(mesh(box(7.0, 0.42, 0.62), bark, 0, 0.5, 0));
+      g.add(mesh(box(6.9, 0.04, 0.56), heart, 0, 0.72, 0));                      // dressed flat, worn pale
+      for (const x of [-3.0, -1.0, 1.1, 3.0]) g.add(mesh(box(0.26, 0.32, 0.26), bark, x, 0.16, (x > 0 ? 0.08 : -0.06), 0, 0, x * 0.03));
+      g.add(mesh(box(6.6, 0.55, 0.22), bark, 0, 1.0, -0.26, 0, -0.12));         // the back, the bough's other half
+      g.add(mesh(box(0.5, 0.5, 0.5), bark, -3.6, 0.55, 0.0));                    // the butt end, where it broke
+      g.add(mesh(box(0.08, 0.36, 0.36), heart, -3.86, 0.55, 0.0));
+      for (const x of [-2.2, 0.4, 2.4]) g.add(mesh(box(0.16, 0.16, 0.05), flat('#3a2c1e'), x, 0.5, 0.32)); // knots
+      break;
+    }
+    case 'heightmarks': {
+      // Nicks cut in the bark at the tree's foot, a name beside each; the oldest dark, the newest pale
+      for (let i = 0; i < 18; i++) {
+        const y = 1.08 + ((i * 7) % 17) * 0.07, x = -0.9 + (i % 6) * 0.36, old = i < 7, newest = i === 17;
+        const c = newest ? '#e8d4a8' : old ? '#3a2c1e' : '#7a6448';
+        g.add(mesh(box(0.22, 0.03, 0.02), flat(c), x, newest ? 1.62 : y, 0.01));
+        g.add(mesh(box(0.14, 0.02, 0.015), flat(c), x + 0.2, (newest ? 1.62 : y) - 0.02, 0.008));
+      }
+      break;
+    }
+    case 'findingpost': {
+      // An oak post and crossbar hung with what's been found on the road: pipe, doll's arm, keys,
+      // spectacles, a boot, and the wooden teeth
+      const oak = flat('#5a4630');
+      g.add(mesh(box(0.2, 2.3, 0.2), oak, 0, 1.15, 0));
+      g.add(mesh(box(1.8, 0.14, 0.14), oak, 0, 2.0, 0));
+      for (let i = 0; i < 6; i++) g.add(mesh(box(0.03, 0.12, 0.03), flat('#2a2a2e'), -0.75 + i * 0.3, 1.88, 0.06));
+      g.add(mesh(box(0.05, 0.05, 0.2), flat('#7a5a3a'), -0.75, 1.72, 0.06)); g.add(mesh(box(0.08, 0.1, 0.08), flat('#7a5a3a'), -0.75, 1.76, 0.16)); // pipe
+      g.add(mesh(box(0.06, 0.26, 0.06), flat('#e0c8a8'), -0.45, 1.66, 0.06));   // doll's arm
+      for (const dy of [0, 0.08, 0.16]) g.add(mesh(box(0.03, 0.1, 0.012), flat('#a88a4a'), -0.15 + dy * 0.3, 1.66 - dy * 0.4, 0.07)); // keys
+      g.add(mesh(box(0.26, 0.03, 0.01), flat('#3a3a3e'), 0.15, 1.74, 0.07)); g.add(mesh(box(0.08, 0.07, 0.01), flat('#c8d8e0'), 0.08, 1.71, 0.075)); // spectacles, one lens
+      g.add(mesh(box(0.14, 0.34, 0.1), flat('#4a3424'), 0.45, 1.6, 0.06)); g.add(mesh(box(0.14, 0.08, 0.26), flat('#4a3424'), 0.45, 1.46, 0.14)); // the boot
+      g.add(mesh(box(0.18, 0.1, 0.1), flat('#d8c8a0'), 0.75, 1.74, 0.07)); g.add(mesh(box(0.16, 0.02, 0.1), flat('#a87a6a'), 0.75, 1.74, 0.075)); // the teeth
+      break;
+    }
     case 'boundstone': {
       // A squat boundary stone lifted a finger off the ground, chained to an iron pin, a bell on the chain
       g.add(mesh(box(0.72, 0.85, 0.6), M.stone, 0, 0.5, 0));

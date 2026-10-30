@@ -3626,6 +3626,10 @@ export function plan(): Plan {
       }
       s.props.push({ t: 'glow', x: t.x + 0.5, y: P + 3, z: t.z + 7.5, r: 2, color: '#ffb040', lit: true });
     }
+    // Branchley's own (data/monuments.ts, town 'branchley'): the long seat by the old road, the marks on
+    // the west tree's trunk (inside the tree's own ground), the finding post by the crossing
+    for (const m of MONUMENTS) if (m.town === 'branchley' && m.at && m.model !== 'heightmarks') k.claim(cx + m.at[0] - (m.model === 'longseat' ? 5 : 2), cz + m.at[1] - 2, cx + m.at[0] + (m.model === 'longseat' ? 5 : 2), cz + m.at[1] + 2);
+    placeMonuments(s, 'branchley', cx, () => base, cz);
     k.houses(cx - 52, cz - 52, cx + 52, cz + 52, { w: [6, 8], d: [6, 8], seed: 977, make: (n, x, z, w, d, door) => house(s, x, z, w, d, n % 4 === 0 ? 2 : 1, base, n % 3 ? 'thatch' : 'red', door, { role: n === 0 ? 'inn' : n % 8 === 0 ? 'shop' : 'home', closed: n % 3 === 1 }) });
     for (let x = cx - 46; x <= cx + 46; x += 15) s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: cz - 2.6, ry: 0 });
     s.props.push({ t: 'sign', x: cx + 4.5, y: base, z: cz + 3.5, ry: 0, text: 'Branchley' });
@@ -8728,6 +8732,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'brseat') bar(d, 0, 0, 3.6, 0.3, 1);
+        else if (d.monument === 'brfound') bar(d, 0, 0, 0.15, 0.15, 3);
+        else if (d.monument === 'brmarks') { /* cut in the trunk */ }
         else if (d.monument === 'lwbound') bar(d, 0, 0, 0.4, 0.35, 1);
         else if (d.monument === 'lwnotice' || d.monument === 'lwstep') { /* on the tower's wall; a course you step over */ }
         else if (d.monument === 'twglass') bar(d, 0, 0, 0.75, 0.25, 3);

@@ -13,11 +13,12 @@ export type MonumentModel =
   | 'keeperstones' | 'wallbell' | 'watchboard'
   | 'oarrack' | 'figurehead' | 'compassrose'
   | 'glassslab' | 'lawstone' | 'routeboard'
-  | 'boundstone' | 'assemblynotice' | 'doorstep';
+  | 'boundstone' | 'assemblynotice' | 'doorstep'
+  | 'longseat' | 'heightmarks' | 'findingpost';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -29,6 +30,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Branchley (world/sites.ts buildBranchley: x and z from the crossing, facing; the marks on the west tree's trunk)
+  {
+    id: 'brseat', town: 'branchley', at: [-17.5, -4.5, 0], model: 'longseat', title: 'The long seat',
+    body: 'A seat made from one bough, long enough for the whole village to sit on at once. It came off the east tree in the winter of the big wind, fell across the old road, and missed the Larches\' roof by a hand.\n\nThe Wold doesn\'t burn what its trees give it. They dressed the bough where it lay, legged it with its own stubs and dragged it to the roadside.\n\nOnce a year, at the first frost, everybody in Branchley sits on it at once, to see if they still fit. Last year they did, just.',
+  },
+  {
+    id: 'brmarks', town: 'branchley', at: [-21.02, -21.5, -Math.PI / 2], model: 'heightmarks', title: 'The marks on the west tree',
+    body: 'Nicks cut in the bark at the foot of the west tree, each with a name and a year beside it, from a small child\'s height to a tall man\'s. Every Wold child is stood against the tree on midsummer morning and marked.\n\nThe old folk will tell you the marks go up as the tree grows. They don\'t. The oldest are where they were cut, low on the trunk, and the names beside them belong to the grandmothers of the people telling you.\n\nThe newest is still pale. It says LINNET LARCH, and it is a little higher than it ought to be, because she stood on her toes.',
+  },
+  {
+    id: 'brfound', town: 'branchley', at: [-4.5, 6.5, Math.PI], model: 'findingpost', title: 'The finding post',
+    body: 'An oak post by the crossing with a crossbar and a row of hooks. Whatever anyone finds on the old road gets hung here: a pipe, a doll\'s arm, three keys on a string, a pair of spectacles with one lens, a single good boot.\n\nNothing is taken that isn\'t yours, and nothing is ever thrown away.\n\nThe oldest thing on it is a set of wooden false teeth. Every year somebody says it\'s time they came down, and every year somebody\'s grandmother says he might still come back for them.',
+  },
   // ---------------------------------------------------------------- Liftwick (world/sites.ts buildLiftwick: x and z from the crossing, facing)
   {
     id: 'lwbound', town: 'liftwick', at: [-37.5, -1.6, 0], model: 'boundstone', title: 'The bound stone',

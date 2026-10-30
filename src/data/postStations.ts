@@ -39,6 +39,7 @@ export function yardAt(y: PostYard, u: number, v: number): [number, number] {
 export const yardYaw = (y: PostYard): number => ({ n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 })[y.face];
 /** The yard's ground: u -7..7 across, v -7..4 from the back of the stable to the yard's front edge. */
 export const YARD = { u0: -7, u1: 7, v0: -7, v1: 4 };
-/** Where the waiting cart stands, and the two horses at the rail. */
+/** Where the waiting cart stands, and the two horses at the rail (it runs across the yard at v 1.2; they
+ *  stand on the road side of it, chests to the rail and heads over it). */
 export const YARD_CART: [number, number] = [-2.5, 1.2];
-export const YARD_HORSES: [number, number][] = [[3.2, 1.8], [4.9, 1.8]];
+export const YARD_HORSES: [number, number][] = [[3.2, 2.45], [4.9, 2.45]];

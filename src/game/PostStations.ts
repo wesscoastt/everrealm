@@ -10,7 +10,7 @@ import { CART, CARTER } from './PostRide';
 // a pair of the Post's horses tied at the rail, while you're near. The horses shift and crop at the hay;
 // the carter waits. (When you pay, a cart takes you: game/PostRide.ts.)
 
-interface Shown { cart: CreatureModel; carter: Humanoid; horses: { model: CreatureModel; yaw: number; turn: number; graze: number }[] }
+interface Shown { cart: CreatureModel; carter: Humanoid; horses: { model: CreatureModel; tied: number; yaw: number; turn: number; graze: number }[] }
 
 export class PostStations {
   private shown = new Map<string, Shown>();
@@ -27,7 +27,7 @@ export class PostStations {
       s.cart.update(dt, 0);
       s.carter.update(dt, 0);
       for (const h of s.horses) {
-        if ((h.turn -= dt) <= 0) { h.turn = 7 + Math.random() * 10; h.yaw += (Math.random() - 0.5) * 0.5; }
+        if ((h.turn -= dt) <= 0) { h.turn = 7 + Math.random() * 10; h.yaw = h.tied + (Math.random() - 0.5) * 0.4; } // (tied: a little either way, never round through the rail)
         if ((h.graze -= dt) <= 0) { h.graze = 3 + Math.random() * 6; h.model.setAnim(h.model.anim === 'graze' ? 'idle' : 'graze'); }
         const r = h.model.root.rotation;
         r.y += (h.yaw - r.y) * Math.min(1, dt * 0.8);
@@ -57,9 +57,9 @@ export class PostStations {
       const [x, z] = yardAt(y, u, v);
       model.root.position.set(x + 0.5, ground(x + 0.5, z + 0.5), z + 0.5);
       // (their heads to the rail, toward the stable)
-      const yaw = { n: 0, s: Math.PI, e: -Math.PI / 2, w: Math.PI / 2 }[y.face] + (Math.random() - 0.5) * 0.3;
+      const tied = { n: 0, s: Math.PI, e: -Math.PI / 2, w: Math.PI / 2 }[y.face], yaw = tied + (Math.random() - 0.5) * 0.3;
       model.root.rotation.y = yaw;
-      return { model, yaw, turn: Math.random() * 8, graze: Math.random() * 5 };
+      return { model, tied, yaw, turn: Math.random() * 8, graze: Math.random() * 5 };
     });
     this.scene.add(cart.root, carter.root, ...horses.map((h) => h.model.root));
     this.shown.set(y.post, { cart, carter, horses });
