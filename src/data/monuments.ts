@@ -12,11 +12,12 @@ export type MonumentModel =
   | 'tallypost' | 'cairn' | 'sledge'
   | 'keeperstones' | 'wallbell' | 'watchboard'
   | 'oarrack' | 'figurehead' | 'compassrose'
-  | 'glassslab' | 'lawstone' | 'routeboard';
+  | 'glassslab' | 'lawstone' | 'routeboard'
+  | 'boundstone' | 'assemblynotice' | 'doorstep';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -28,6 +29,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Liftwick (world/sites.ts buildLiftwick: x and z from the crossing, facing)
+  {
+    id: 'lwbound', town: 'liftwick', at: [-37.5, -1.6, 0], model: 'boundstone', title: 'The bound stone',
+    body: 'Liftwick\'s boundary stone, where the west road leaves the village, older than the Assembly\'s tower: a squat grey stone with the village\'s mark cut in it, a wheatsheaf over a wavy line.\n\nThree springs ago it rose a finger\'s width out of the ground on its own. The smith drove an iron pin into the bedrock beside it and chained it down.\n\nThe chain was slack then. It is tight now. Somebody has hung a little bell on it, so they will hear if it goes.',
+  },
+  {
+    id: 'lwnotice', town: 'liftwick', at: [2.6, 28.95, Math.PI], model: 'assemblynotice', title: 'The Assembly\'s notice',
+    body: 'Printed in Callis and nailed to the lift tower beside its door: THE LIFT AND THE BRIDGES OF LIFTWICK ARE THE PROPERTY OF THE ASSEMBLY OF CALLIS. PASSAGE AT THE POSTED RATE.\n\nThe posted rate is chalked underneath. It has been rubbed out and chalked again so many times that the board has gone grey.\n\nAt the bottom, in somebody\'s careful capitals: THE BEES RIDE FREE.',
+  },
+  {
+    id: 'lwstep', town: 'liftwick', at: [-6.5, 40.5, 0], model: 'doorstep', title: 'The Solers\' doorstep',
+    body: 'A doorstep and the bottom course of a cottage\'s walls, cut off clean a hand above the ground, as if with a knife. The floor inside is swept.\n\nThe Solers\' house stood here. The spring the first slab went up, the house went up with it. It is the hut on the big slab now, the one the skyfarmers keep their tools in, and it still has the Solers\' door.\n\nThe Solers lodge at the inn. Every so often old Neus Soler walks out over the bridges and sits in her own kitchen for an hour.',
+  },
   // ---------------------------------------------------------------- Tenwells (world/sites.ts buildTenwells: x and z from the yard's middle, facing)
   {
     id: 'twglass', town: 'tenwells', at: [-20, 8, 0.3], model: 'glassslab', title: 'The black glass',

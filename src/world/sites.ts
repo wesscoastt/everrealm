@@ -3669,6 +3669,10 @@ export function plan(): Plan {
     k.street(cx - 2, cz - 34, cx + 2, cz + 30, sett);
     k.postSpot(T.post[0], T.post[1], B.Cobble);
     k.claim(cx - 10, cz + 24, cx + 10, cz + 46); // the lift tower and the rim
+    // Liftwick's own (data/monuments.ts, town 'liftwick'): the bound stone on the west road, the
+    // Assembly's notice on the lift tower, the Solers' doorstep by the rim
+    for (const m of MONUMENTS) if (m.town === 'liftwick' && m.at) k.claim(cx + m.at[0] - 3, cz + m.at[1] - 3, cx + m.at[0] + 3, cz + m.at[1] + 3);
+    placeMonuments(s, 'liftwick', cx, () => base, cz);
     k.houses(cx - 40, cz - 40, cx + 40, cz + 22, { w: [6, 8], d: [6, 7], seed: 983, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1 + (n % 3 === 0 ? 1 : 0), base, 'slate', door, { wall: B.StoneBrick, front: 'quoined', role: n === 0 ? 'inn' : n % 7 === 0 ? 'shop' : 'home', closed: n % 3 === 1 }) });
     // Skyfarm terraces west of the village, along the rim
     for (let i = 0; i < 3; i++) {
@@ -8724,6 +8728,8 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'lwbound') bar(d, 0, 0, 0.4, 0.35, 1);
+        else if (d.monument === 'lwnotice' || d.monument === 'lwstep') { /* on the tower's wall; a course you step over */ }
         else if (d.monument === 'twglass') bar(d, 0, 0, 0.75, 0.25, 3);
         else if (d.monument === 'twlaw') bar(d, 0, 0, 0.45, 0.3, 1);
         else if (d.monument === 'twroutes') bar(d, 0, 0, 0.9, 0.1, 2);

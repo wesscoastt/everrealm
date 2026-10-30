@@ -1911,6 +1911,42 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'boundstone': {
+      // A squat boundary stone lifted a finger off the ground, chained to an iron pin, a bell on the chain
+      g.add(mesh(box(0.72, 0.85, 0.6), M.stone, 0, 0.5, 0));
+      g.add(mesh(box(0.6, 0.12, 0.5), flat('#8a887e'), 0, 0.98, 0));
+      g.add(mesh(box(0.66, 0.06, 0.54), flat('#2a2622'), 0, 0.04, 0));                  // the gap under it
+      g.add(mesh(box(0.3, 0.04, 0.01), flat('#3a3832'), 0, 0.72, 0.305));               // the wheatsheaf
+      for (const dx of [-0.08, 0, 0.08]) g.add(mesh(box(0.03, 0.2, 0.01), flat('#3a3832'), dx, 0.62, 0.305, 0, 0, dx * 3));
+      g.add(mesh(box(0.34, 0.03, 0.01), flat('#3a3832'), 0, 0.45, 0.305, 0, 0, 0.12));  // the wavy line
+      g.add(mesh(box(0.08, 0.5, 0.08), flat('#3a3a3e'), 0.95, 0.25, 0));                // the iron pin
+      g.add(mesh(box(0.14, 0.06, 0.14), flat('#3a3a3e'), 0.95, 0.5, 0));
+      for (let i = 0; i < 6; i++) { const t = i / 5; g.add(mesh(box(0.1, 0.05, 0.06), flat('#4a4a50'), 0.36 + t * 0.56, 0.62 - t * 0.14, 0, 0, 0, -0.25 + (i % 2) * 0.5)); }
+      g.add(mesh(box(0.1, 0.12, 0.1), flat('#a8884a'), 0.62, 0.48, 0));                 // the little bell
+      break;
+    }
+    case 'assemblynotice': {
+      // A printed Assembly notice on a board against the tower, chalk on grey under it
+      g.add(mesh(box(0.95, 1.25, 0.05), flat('#6a6a68'), 0, 1.55, 0.03));
+      g.add(mesh(box(0.8, 0.5, 0.01), flat('#ece6d6'), 0, 1.88, 0.06));
+      for (let i = 0; i < 5; i++) g.add(mesh(box(0.66 - (i % 2) * 0.16, 0.025, 0.005), flat('#2a2a2e'), 0, 2.04 - i * 0.07, 0.068));
+      g.add(mesh(box(0.12, 0.12, 0.005), flat('#a83a2e'), 0.3, 1.7, 0.068));            // the Assembly's seal
+      for (let i = 0; i < 3; i++) g.add(mesh(box(0.5 - i * 0.1, 0.03, 0.005), flat('#d8d4cc'), -0.08, 1.48 - i * 0.09, 0.058));
+      g.add(mesh(box(0.6, 0.035, 0.005), flat('#e8e4dc'), 0, 1.08, 0.058));            // THE BEES RIDE FREE
+      break;
+    }
+    case 'doorstep': {
+      // The bottom course of a cottage's walls, cut off clean, a doorstep in front, the floor swept
+      const st = M.stone, cut = flat('#a8a49a');
+      g.add(mesh(box(4.4, 0.06, 3.6), flat('#8a8478'), 0, 0.03, 0));                  // the floor, flagged
+      for (const [x, z, w, d] of [[-2.1, 0, 0.3, 3.6], [2.1, 0, 0.3, 3.6], [0, -1.65, 4.5, 0.3], [-1.45, 1.65, 1.6, 0.3], [1.45, 1.65, 1.6, 0.3]] as const) {
+        g.add(mesh(box(w, 0.32, d), st, x, 0.16, z));
+        g.add(mesh(box(w, 0.02, d), cut, x, 0.33, z));                                // the clean cut
+      }
+      g.add(mesh(box(1.3, 0.18, 0.55), flat('#b4ae9e'), 0, 0.09, 2.05));              // the doorstep
+      g.add(mesh(box(0.7, 0.02, 0.4), flat('#9a948a'), 0, 0.19, 2.05));               // worn hollow
+      break;
+    }
     case 'glassslab': {
       // A door-high slab of black glass on end, chalk sums high on it, knife-scratched drakes low down
       const glass = new THREE.MeshStandardMaterial({ color: '#16161e', roughness: 0.15, metalness: 0.3 });
