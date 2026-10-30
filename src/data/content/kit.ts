@@ -2,10 +2,18 @@ import type { DialogueTree, DNode, DOption, GameApi } from '../../game/api';
 
 // Small helpers for writing content modules. Type-only imports keep this free of cycles.
 
-/** Adds nodes to an existing tree and lets `pick` choose the opening node first (undefined: the tree's own start). */
-export function hook(D: Record<string, DialogueTree>, id: string, pick: (g: GameApi) => string | undefined, nodes: Record<string, DNode>): void {
+/** Nodes a hook put over ones already in the tree without saying so: "tree.node" (the quest walker reports them). */
+export const HOOK_CLASHES: string[] = [];
+
+/**
+ * Adds nodes to an existing tree and lets `pick` choose the opening node first (undefined: the tree's own start).
+ * A node with the same name as one already there replaces it; list it in `replace` when that's meant, or it's
+ * reported as a clash (a story chapter once replaced the node Act IV needed, and nothing said so).
+ */
+export function hook(D: Record<string, DialogueTree>, id: string, pick: (g: GameApi) => string | undefined, nodes: Record<string, DNode>, replace: string[] = []): void {
   const t = D[id];
   if (!t) throw new Error(`hook: no dialogue tree "${id}"`);
+  for (const k of Object.keys(nodes)) if (t.nodes[k] && t.nodes[k] !== nodes[k] && !replace.includes(k)) HOOK_CLASHES.push(`${id}.${k}`);
   const base = t.start;
   t.start = (g) => pick(g) ?? base(g);
   Object.assign(t.nodes, nodes);

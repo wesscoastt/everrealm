@@ -22,6 +22,7 @@ import { NPCS } from '../src/data/npcs';
 import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { QUESTS, type QuestDef } from '../src/data/quests';
 import { SHOPS } from '../src/data/shops';
+import { HOOK_CLASHES } from '../src/data/content/kit';
 import '../src/data/pledges';
 import { BOARDS } from '../src/data/content';
 import { OPPONENT_BY_NPC } from '../src/data/cards';
@@ -398,6 +399,8 @@ function walk(def: QuestDef, limit = 15000): QuestReport {
 
 function staticChecks() {
   const ids = new Set<string>();
+  // A content hook that put a node over one already in the tree, without listing it in `replace`
+  for (const c of HOOK_CLASHES) err('hookclash:' + c, `${c}: a hook replaced this node without saying so (kit.ts hook, replace)`);
   for (const n of NPCS) {
     if (ids.has(n.id)) err('dupnpc:' + n.id, `duplicate NPC id "${n.id}"`);
     ids.add(n.id);

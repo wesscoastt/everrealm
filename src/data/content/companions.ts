@@ -390,7 +390,8 @@ export const COMPANION_CONTENT: RegionContent = {
       id: 'comp_' + id, name: c.name, title: c.title, look: c.look,
       schedule: [{ from: 0, to: 24, at: c.home.at, face: c.home.face, anim: 'idle' }],
       barks: [],
-      when: (g) => g.compActive() !== id && !(id === 'tam' && g.flag('comp:tam:gone')),
+      // (not when they've gone for good: Tam taken off the quay, or anyone who died in the main story)
+      when: (g) => g.compActive() !== id && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`),
     };
   }),
   dialogue: Object.fromEntries((Object.keys(TREES) as CompanionId[]).map((id) => ['comp_' + id, TREES[id]])),

@@ -860,7 +860,7 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 - **XLIII, What Wenna Does** (`storyWennaGrief`). The morning after, Wenna on Ursel's step with Ursel's glove. Nine days she knew her. Flag `wennaGrief`: `stay` (you sit with her), `alone` or `told` (you tell her it was your hand on the bar; she knew, and says not to carry it).
 - **XLIV, Fifth Camp** (`storyCamp5`). A fire under the wall. Edda Rusk has written Ursel into the Gatekeepers' roll: "Ursel Hale, forty years at the gate. Went out of it for a child of the camp, and kept it shut behind her." The Kneeling went back down the road at first light, to kneel where they were found. In the morning a letter comes from Callis under the Assembly's seal: the Old Tower has moved.
 
-## The main story, Act VI: The Tall City [in game, first half]
+## The main story, Act VI: The Tall City [in game]
 
 `src/data/content/actSix.ts`. Starts from the letter at the end of Fifth Camp.
 
@@ -869,6 +869,11 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 - **XLVII, Rhosyn's Hand** (`storyRhosynHand`). The Speaker in Callis for the Charter's first sitting abroad. She signed the Third Daughter's papers so the Charter would owe Callis instead of Hilda: "Callis forgives. Hilda doesn't." She didn't know what the Assembly would want to be paid in. Flag `rhosynSecret`: `kept` (six days, until the sitting) or `told`.
 - **XLVIII, Pryce Tells the Truth** (`storyPryceTruth`). Pryce, the Charter's witness (bookkeeper at Joan's smelter, Harrowgate's buyer, or out of Ansbury gaol on the Charter's word, by `tdEnd`): every tower in Callis went up on money lent from the banks of Ambry, in the south (the Corvo, mostly), and three months ago every bank in Ambry called in everything it was owed in the same week. Flag `pryceSouth`.
 - **XLIX, The Lift Towers** (`storyLiftTowers`). A storm off the bay; the Old Tower's gauge jumps a finger in an hour. There is a brake in the core, counterweights on chains, and forty clerks on the counting floor. Marta needs one pair of hands on the brake and one on the stair.
+
+- **L, The Old Tower Falls** (`storyTowerFalls`). The brake in the core slips and the counting floor's stair cracks across the eighth landing; one pair of hands can be in one place. With Wenna and Tam both there: run to Wenna at the lever and **Tam dies** on the stair (they dig him out at dawn with the queen of cups in his hand), or run to Tam and **Wenna dies** holding the brake. If both trust the player completely (rapport 60), both their own stories are done, and the player has Pryce's last book, its brass-bound corners go into the brake drum as a wedge: everyone lives, and the book, every line Pryce signed for Harrowgate, comes out in pulp. With one of them: them, or eleven clerks. With neither: **Marta Vidal** holds the brake and doesn't let go. Flag `towerFall`: `wenna` | `tam` | `book` | `clerks` | `companion` | `marta`; a companion who dies stays dead (`comp:<id>:dead`). The Old Tower stands with its top storeys gone, like a broken tooth.
+- **LI, What the Charter Owes Callis** (`storySittingCallis`). The Charter sits on the Assembly Hall's steps. Rhosyn tells it herself. The Assembly takes the Charter's debt down a storey at a time: half written off, half paid in black at the posted rate. Flags `rhosynFate` (`finish`: she stays until it's settled, then sits in the gallery; `resign`) and `speaker` (`rhosyn`, `nessa` or `sela`).
+- **LII, Delia Reads** (`storyDeliaReads`). Delia Harrowgate has stopped signing things. The Corvo bank of Ambry has called in Harrowgate's loan early; Hilda went south a fortnight ago with Pryce's copies of the company books; Joan is going after her. No packet sails south this season: the captains say "the weather" and look at the sky.
+- **LIII, Sixth Camp** (`storyCamp6`). The Mirador's lookout over the city, a place at the fire empty. In the morning there is a bank of cloud over the sea toward Ambry that hasn't moved in a week. (The story goes south with the third continent: docs/CONTINENT3.md.)
 
 ### The Mirador [in game]
 

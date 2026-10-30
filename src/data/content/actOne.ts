@@ -144,27 +144,27 @@ const joanOtt = {
 // ================================================================ VIII. FORTY FEET
 
 const fortyNodes = {
-  f1: { text: 'Two feet. Two feet in four seconds. I was standing on the bit that went up, did you see? I sat down. I didn\'t mean to sit down.', next: 'f2' },
-  f2: { text: 'They\'d stripped six feet of cap at the east end before it went. I need two numbers: how high the edge came up, and how deep their cut was. Then I can tell you whether Joan\'s rule is right.', options: [{ text: 'Where do I hold the staff?', next: 'f3', effect: (g: GameApi) => g.setStage(FORTY, 'read') }] },
-  f3: { text: 'On the lip of the raised floor, and at the bottom of the cut. Mind the edge. It\'s new.' },
-  fWait: { text: (g: GameApi) => (g.flag('fortyLip') && g.flag('fortyCut') ? 'Give me a moment with the sums.' : 'The lip of the raised floor, and the bottom of the cut. Both, please.') },
-  fSums: { speaker: 'narrator' as const, text: 'Ottilie does the sums on her knee, crosses them out, and does them again on the next page.', next: 'fs2' },
-  fs2: { text: 'Joan\'s rule is one span of lift for every three feet of cap. Six feet off should have given two spans. It gave two feet. That\'s a third more than her rule says.', next: 'fs3' },
-  fs3: { text: 'Her rule came from Gallows Knap, where the crystal was a fist next to this. This is the largest fall Ilse has ever counted. The rule doesn\'t hold here. Nobody has a rule for here.', next: 'fs4' },
-  fs4: { text: 'If I had to sign something, I\'d want forty feet of cap left on, and a year of watching before anybody cuts. Ten isn\'t enough. Ten is Joan\'s number for somewhere else.', next: 'fs5' },
-  fs5: {
+  ff_f1: { text: 'Two feet. Two feet in four seconds. I was standing on the bit that went up, did you see? I sat down. I didn\'t mean to sit down.', next: 'ff_f2' },
+  ff_f2: { text: 'They\'d stripped six feet of cap at the east end before it went. I need two numbers: how high the edge came up, and how deep their cut was. Then I can tell you whether Joan\'s rule is right.', options: [{ text: 'Where do I hold the staff?', next: 'ff_f3', effect: (g: GameApi) => g.setStage(FORTY, 'read') }] },
+  ff_f3: { text: 'On the lip of the raised floor, and at the bottom of the cut. Mind the edge. It\'s new.' },
+  ff_fWait: { text: (g: GameApi) => (g.flag('fortyLip') && g.flag('fortyCut') ? 'Give me a moment with the sums.' : 'The lip of the raised floor, and the bottom of the cut. Both, please.') },
+  ff_fSums: { speaker: 'narrator' as const, text: 'Ottilie does the sums on her knee, crosses them out, and does them again on the next page.', next: 'ff_fs2' },
+  ff_fs2: { text: 'Joan\'s rule is one span of lift for every three feet of cap. Six feet off should have given two spans. It gave two feet. That\'s a third more than her rule says.', next: 'ff_fs3' },
+  ff_fs3: { text: 'Her rule came from Gallows Knap, where the crystal was a fist next to this. This is the largest fall Ilse has ever counted. The rule doesn\'t hold here. Nobody has a rule for here.', next: 'ff_fs4' },
+  ff_fs4: { text: 'If I had to sign something, I\'d want forty feet of cap left on, and a year of watching before anybody cuts. Ten isn\'t enough. Ten is Joan\'s number for somewhere else.', next: 'ff_fs5' },
+  ff_fs5: {
     text: 'And the sitting is the day after tomorrow, and Joan is going to stand up in it and say ten. Do I tell her? She\'ll hate me.',
     options: [
-      { text: 'Tell her now, before the sitting. She has a right to know her number is wrong.', next: 'fJoan' },
-      { text: 'Keep it until after the sitting. If you tell her now, the only person on the Kirk\'s side loses her nerve.', next: 'fKeep' },
+      { text: 'Tell her now, before the sitting. She has a right to know her number is wrong.', next: 'ff_fJoan' },
+      { text: 'Keep it until after the sitting. If you tell her now, the only person on the Kirk\'s side loses her nerve.', next: 'ff_fKeep' },
     ],
   },
-  fJoan: { text: 'Now. Yes. Before I lose mine.', effect: (g: GameApi) => { g.setStage(FORTY, 'joan'); g.compRapport('ottilie', 5); } },
-  fKeep: {
+  ff_fJoan: { text: 'Now. Yes. Before I lose mine.', effect: (g: GameApi) => { g.setStage(FORTY, 'joan'); g.compRapport('ottilie', 5); } },
+  ff_fKeep: {
     text: 'That\'s horrible. That\'s horrible and you might be right. I\'ll keep it. I\'ll keep measuring. And if the floor so much as twitches, I\'m telling everyone.',
     effect: (g: GameApi) => { g.setFlag('fortyTold', 'kept'); g.compRapport('ottilie', -3); g.setStage(FORTY, 'done'); },
   },
-  fToJoan: { text: 'She\'s by her tents. I\'ll stand behind you again. Further behind you, this time.' },
+  ff_fToJoan: { text: 'She\'s by her tents. I\'ll stand behind you again. Further behind you, this time.' },
 };
 const joanForty = {
   jf1: { speaker: 'narrator' as const, text: 'Joan reads Ottilie\'s two pages standing up, then reads them again sitting down on a crate.', next: 'jf2' },
@@ -497,9 +497,9 @@ export const ACT_ONE: RegionContent = {
       if (o === 'line') return readings(g) >= 3 ? 'oDone' : 'oWait';
       if (o === 'joan') return 'oJoan';
       const f = at(g, FORTY);
-      if (f === 'ottilie') return 'f1';
-      if (f === 'read') return g.flag('fortyLip') && g.flag('fortyCut') ? 'fSums' : 'fWait';
-      if (f === 'joan') return 'fToJoan';
+      if (f === 'ottilie') return 'ff_f1';
+      if (f === 'read') return g.flag('fortyLip') && g.flag('fortyCut') ? 'ff_fSums' : 'ff_fWait';
+      if (f === 'joan') return 'ff_fToJoan';
       return undefined;
     }, { ...ottNodes, ...fortyNodes });
     // Joan: Ottilie's book in the middle of her meeting; and Ottilie's forty feet before the sitting
@@ -519,7 +519,7 @@ export const ACT_ONE: RegionContent = {
         // existed: the chapter closes with the Fallen Star, unplayed.)
         effect: (g: GameApi) => { const was = at(g, OTT); g.setStage(OTT, 'done'); if (was !== 'joan') g.setStage('storyStar', 'done'); if (was === 'joan') joinStory(g, 'ottilie'); },
       },
-    });
+    }, ['j6', 'j9']);
     hook(D, 'sela', (g) => {
       const o = at(g, OTT);
       return o === 'level' || o === 'line' || o === 'joan' ? 'w_ott' : undefined;
@@ -529,6 +529,6 @@ export const ACT_ONE: RegionContent = {
         effect: (g: GameApi) => g.setStage('storyStar', 'done'),
       },
       w_ott: { text: (g: GameApi) => (at(g, OTT) === 'joan' ? 'East end. The tents. Take the girl with you: she\'s earned it.' : 'The girl with the level. West end, by the star, on her knees. You can\'t miss her. She\'ll tell you not to step on her line.') },
-    });
+    }, ['meet6']);
   },
 };

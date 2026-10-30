@@ -359,6 +359,8 @@ export const CALLIS_CONTENT: RegionContent = {
       look: { ...CALLIS_FOLK, hair: '#4a3a2a', hairStyle: 2, tunic: '#3a3e44', trim: '#1a1a1e', trousers: '#2e2a26', boots: '#1e1a16', gloves: '#2a2422', lashes: true, scar: true, build: 1.05, age: 0.6 },
       schedule: [{ from: 0, to: 24, at: [P.x + CALLIS_TOWERS.old.dx + 0.5, P.z + CALLIS_TOWERS.old.dz + 2.5], y: F, face: [P.x + CALLIS_TOWERS.old.dx + 0.5, P.z + CALLIS_TOWERS.old.dz + 8], anim: 'idle' }],
       barks: ['Every morning.'],
+      // (she holds the Old Tower's brake when nobody else can, and doesn't let go: content/actSixB.ts)
+      when: (g) => !g.flag('martaDead'),
     },
     {
       land: 'morrow', id: 'isidre_mas', name: 'Isidre Mas', title: 'Keeper, the Hall of the Two Stones',

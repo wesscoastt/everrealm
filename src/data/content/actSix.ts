@@ -188,7 +188,7 @@ const QUESTS: Record<string, QuestDef> = {
     walk: { from: { quests: { [HAND]: 'done', [TRUTH]: 'pryce' }, flags: { tdEnd: 'back' } } },
   },
   [LIFT]: {
-    id: LIFT, name: 'The Lift Towers', story: { chapter: 49, title: 'The Lift Towers', act: ACT },
+    id: LIFT, name: 'The Lift Towers', story: { chapter: 49, title: 'The Lift Towers', act: ACT }, next: ['storyTowerFalls', 'core'],
     notes: (_g, s) => (s === 'storm' ? 'A storm is coming in off the bay. Marta Vidal is at the foot of the Old Tower.' : 'The Old Tower\'s gauge jumped a finger in an hour. Marta needs one pair of hands on the brake in the core, and one on the counting floor\'s stair.'),
     objectives: (_g, s) => (s === 'storm' ? [{ text: 'Meet Marta Vidal at the Old Tower in the storm', marker: 'marta_vidal' }] : []),
     marks: (_g, s): Marks => (s === 'storm' ? { marta_vidal: '?' } : {}),
