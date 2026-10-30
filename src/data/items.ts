@@ -1,4 +1,5 @@
 import type { ArmourSlot, ArmourWeight } from './armour';
+import type { JewelStats } from './jewellery';
 import type { Appearance } from '../entities/humanoid';
 import type { Breed } from '../entities/creatures';
 import type { OffhandModel, WeaponModel } from '../entities/humanoid';
@@ -80,6 +81,8 @@ export interface ItemDef {
   glyph?: { id: string; tier: number };
   /** A named piece (data/gear.ts): what it does, how many the realm holds and what drops it; and this copy's number. */
   named?: NamedInfo;
+  /** A piece of jewellery (data/jewellery.ts): where it's worn and what it adds. */
+  jewel?: JewelStats;
   /** An unidentified piece (data/gear.ts unidentified): the rolled id it turns out to be once looked over with a loupe. */
   unid?: string;
   serial?: number;
@@ -116,7 +119,11 @@ export const GEAR_SETS: Record<string, { name: string; where: string; bonus: str
   oldman: { name: 'The Old Man', where: 'The Old Man\'s Workings, the group dungeon under Sallow Pit', bonus: 'Your blows hit a tenth harder on a foe that is fighting someone else.' },
 };
 /** Everything worn: the weapon and the five armour slots (older saves only have the first two). */
-export interface Equip { weapon: string | null; head: string | null; chest?: string | null; legs?: string | null; hands?: string | null; feet?: string | null }
+export interface Equip {
+  weapon: string | null; head: string | null; chest?: string | null; legs?: string | null; hands?: string | null; feet?: string | null;
+  /** Jewellery (data/jewellery.ts): two rings, the neck, an ear. */
+  ring1?: string | null; ring2?: string | null; neck?: string | null; ear?: string | null;
+}
 /** The set in force: any two equipped pieces of one set (the weapon counts), the most-worn set if two qualify. */
 export function activeSet(equip: Equip): string | null {
   const n = new Map<string, number>();
@@ -330,6 +337,9 @@ import { FESTIVAL_ITEMS } from './festivals';
 for (const d of FESTIVAL_ITEMS) ITEMS[d.id] = d;
 import { SEASON_ITEMS } from './seasons';
 for (const d of SEASON_ITEMS) ITEMS[d.id] = d;
+// Rings, chains and earrings (src/data/jewellery.ts).
+import { JEWEL_ITEMS } from './jewellery';
+for (const d of JEWEL_ITEMS) ITEMS[d.id] = d;
 // Cloak designs (src/data/capes.ts).
 import { CAPE_ITEMS } from './capes';
 for (const d of CAPE_ITEMS) ITEMS[d.id] = d;

@@ -134,6 +134,7 @@ import { Rowboat } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty } from '../world/sites';
 import { MONUMENTS } from '../data/monuments';
+import { jewelDrop } from '../data/jewellery';
 import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
@@ -934,7 +935,7 @@ export class Game implements GameApi {
     // The cities' monuments stand where the planner put them; each has its plaque to read
     for (const m of sitePlan().monuments) if (!WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
       const def = MONUMENTS.find((k) => k.id === m.id)!;
-      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: 'Read the plaque: ' + def.title, radius: 2.8, read: 'monument:' + m.id });
+      WORLD_THINGS.push({ land: def.town === 'callis' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' ? 'Read ' : 'Read the plaque: ') + def.title, radius: def.model === 'jawbones' ? 4 : 2.8, read: 'monument:' + m.id });
     }
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.post = new PostRide(this.scene, this.world.voxels);
@@ -2830,6 +2831,11 @@ export class Game implements GameApi {
       a.defense += r.defense; a.vigor += r.vigor ?? 0; a.wind += r.wind ?? 0; a.roll += r.roll ?? 0;
       if (r.weight) a[r.weight]++;
     }
+    for (const id of [e.ring1, e.ring2, e.neck, e.ear]) {
+      const j = id ? ITEMS[id]?.jewel : undefined;
+      if (!j) continue;
+      a.vigor += j.vigor ?? 0; a.crit += j.crit ?? 0; a.wind += j.wind ?? 0; a.haste += j.haste ?? 0;
+    }
     a.haste += a.light * 0.04;
     a.crit += a.medium * 0.015; a.rollCost -= a.medium * 2;
     a.vigor += a.heavy * 12; a.wind -= a.heavy * 0.03;
@@ -3856,6 +3862,18 @@ export class Game implements GameApi {
     const def = ITEMS[st.id];
     if (def.furn) { this.hud.system(this.home.owned ? `Furniture goes down at home: press E inside ${this.myHome()?.name ?? 'your home'} and choose Arrange the furniture.` : 'Furniture needs a house to go in. There\'s a cottage for sale on the road east of Hollin Ford.'); return; }
     if (def.unid) { this.identify(i); return; }
+    if (def.jewel) {
+      const eq = this.save.equip, slot = def.jewel.slot === 'ring' ? (!eq.ring1 ? 'ring1' : !eq.ring2 ? 'ring2' : 'ring1') : def.jewel.slot;
+      const old = eq[slot] ?? null;
+      this.inv.removeAt(i, 1);
+      eq[slot] = st.id;
+      if (old) this.inv.add(old, 1);
+      this.hp = Math.min(this.hp, this.maxHp);
+      this.hud.system(`You put on the ${def.name.toLowerCase()}.`);
+      this.sfx('equip');
+      this.hud.refresh();
+      return;
+    }
     if (def.kind === 'food') this.eat(st.id);
     else if (def.weapon) {
       const old = this.save.equip.weapon;
@@ -5970,6 +5988,8 @@ export class Game implements GameApi {
       const kinds = Object.keys(ENCHANTS), tier = source === 'boss' ? (Math.random() < 0.5 ? 3 : 2) : source === 'elite' ? (Math.random() < 0.3 ? 2 : 1) : 1;
       this.give(`glyph_${kinds[Math.floor(Math.random() * kinds.length)]}_${tier}`, 1);
     }
+    // Jewellery, now and then: elites and bosses more often
+    if (!e.questTag && Math.random() < (source === 'boss' ? 0.2 : source === 'elite' ? 0.06 : 0.004)) { const j = jewelDrop(e.def.level); if (j) this.give(j, 1); }
     // The region's own weapons, now and then
     const arms = REGION_WEAPONS[reg];
     if (arms && !e.questTag && Math.random() < (e.def.elite ? 0.15 : 0.02)) this.give(this.dropped(arms[Math.floor(Math.random() * arms.length)], source), 1);

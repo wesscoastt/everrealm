@@ -246,6 +246,14 @@ export interface Plan {
 
 /** The monuments put up so far this plan. */
 const monumentSpots: Plan['monuments'] = [];
+/** Put up a town's monuments that stand where they were set by hand (Monument.at, relative to the town's x0 and its z). */
+function placeMonuments(s: Site, town: Monument['town'], x0: number, ground: (x: number, z: number) => number): void {
+  for (const m of MONUMENTS) if (m.town === town && m.at && !monumentSpots.some((p) => p.id === m.id)) {
+    const [dx, z, ry] = m.at, x = x0 + dx, y = ground(x, z);
+    monumentSpots.push({ id: m.id, x, y, z, ry });
+    s.props.push({ t: 'monument', monument: m.id, x, y, z, ry });
+  }
+}
 /**
  * The next of a town's monuments still to stand, for a square at (x, z), or none: each stands once,
  * and no two within 34 blocks of each other (22 in Callis, which has fewer gardens), so a walk across the city finds a new one every few streets.
@@ -814,6 +822,8 @@ export function plan(): Plan {
   const waymarks = placeWaymarks(O, sites);
   // Every town's leftover lawn, dressed in its own way (after the waymarks have taken their spots)
   dressTowns(O, sites);
+  // No ship or boat afloat lies in a quay, a beach or a rock: any that do are eased out to clear water
+  floatHulls(O, sites);
   // Benches, stalls, barrels and the rest stand in your way, the way walls do
   propCollision(O, sites);
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
@@ -4946,7 +4956,7 @@ export function plan(): Plan {
    * Flagged on top with a granite kerb at the edge and the dressed face going down into the water;
    * bollards along it, two cranes, cargo waiting, and steps down at each end. The jetties go out from it.
    */
-  function quay(s: Site, base: number, C: number) {
+  function quay(s: Site, base: number, C: number): (z: number) => number {
     const Z0 = 560, Z1 = 640, top = base - 1;
     // The face: a little out into the water from where the beach ends, eased so it runs straight-ish
     const raw: number[] = [];
@@ -4988,6 +4998,7 @@ export function plan(): Plan {
     // Lamps along the quay
     for (let z = Z0 + 6; z < Z1; z += 14) if (!(z > 594 && z < 612)) s.props.push({ t: 'lantern', x: face(z) - 3.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
     rect(s, C - 12, Z0, face(600) + 2, Z1);
+    return face;
   }
 
   /**
@@ -4998,6 +5009,9 @@ export function plan(): Plan {
    * or a yard, as a town that's been walked on for three hundred years is.
    */
   function gullmouthLife(s: Site, base: number, C: number) {
+    // ---- Gullmouth's own set pieces (data/monuments.ts): the Jawbones over the harbour street, the Drowned
+    // Board, the fog bell, the Boat Stone and Ansel's bench along the quay
+    placeMonuments(s, 'gullmouth', Math.floor(C), () => base);
     // ---- The fish market: an open roof on the quay south of the jetties, the catch laid out under it
     shelter(s, C - 9, 612, 12, 7, base, 'slate', 4);
     for (let i = 0; i < 6; i++) s.props.push({ t: 'fishBox', x: C - 7.5 + i * 1.9, y: base, z: 614.6, ry: (i % 2) * 0.1 }, { t: 'fishBox', x: C - 7.5 + i * 1.9, y: base, z: 616.6, ry: 0.05 });
@@ -6797,8 +6811,8 @@ export function plan(): Plan {
     s.props.push({ t: 'rope', x: cx + 6.5, y: base + 5, z: cz + R + 3.5, ry: 0, len: 0.1, h: 1.8, r: 0.02 });
     for (const [dx, dz] of [[-2, R + 1], [2, R + 1], [-7, -12], [0, 0]] as const) s.props.push({ t: 'lantern', x: cx + dx + 0.5, y: base, z: cz + dz + 0.5 });
     s.props.push({ t: 'banner', x: cx - 1 + 0.5, y: base + 8, z: cz - R + 1.4, ry: 0, kind: 'brethren' });
-    // Merrick's prize at anchor off the south beach
-    s.props.push({ t: 'ship', x: cx + 4, y: SEA, z: cz + R + 30, ry: Math.PI / 2, ship: 'carrack' });
+    // Merrick's prize at anchor off the key
+    s.props.push({ t: 'ship', x: cx + 57, y: SEA, z: cz + R + 74, ry: 0, ship: 'carrack' }); // (south-east of the key, where the water's deep enough for her: the south beach shelves a long way out)
   }
 
   /**
@@ -7127,16 +7141,41 @@ export function plan(): Plan {
       streetHook?.(x0, za, x1, zb, 'street');
     };
 
+    // ---- The quay first: everything afloat berths off its face
+    const face = quay(s, base, C);
+    /** How far a hull reaches along x from its middle, lying at ry. */
+    const reach = (d: PropDesc) => {
+      if (d.t === 'boat') return 2.4;
+      const S = SHIPS[(d.ship ?? 'carrack') as ShipKind], c = Math.abs(Math.cos(d.ry ?? 0)), sn = Math.abs(Math.sin(d.ry ?? 0));
+      return (S.len / 2) * c + (S.beam / 2) * sn;
+    };
     // ---- Ships: a merchantman at the north jetty (her hull solid and her deck walkable: propCollision)
     const D = SEA + 2; // deck height
-    s.props.push({ t: 'ship', ship: 'carrack', x: C + 26, y: SEA - 0.14, deck: D, z: 594.5, ry: 0, sails: 'furled', color: '#7a2a1e' });
-    for (let x = C + 19; x <= C + 33; x++) for (let z = 593; z <= 596; z++) clearUp(x, z, SEA + 2, SEA + 6);
-    for (const x of [C + 25, C + 26]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank, a step down from the jetty
-    quay(s, base, C);
+    const merchant: PropDesc = { t: 'ship', ship: 'carrack', x: 0, y: SEA - 0.14, deck: D, z: 594.5, ry: 0, sails: 'furled', color: '#7a2a1e' };
+    merchant.x = Math.ceil(face(594) + 1.5 + reach(merchant));
+    s.props.push(merchant);
+    const MX = Math.floor(merchant.x);
+    for (let x = MX - 7; x <= MX + 7; x++) for (let z = 593; z <= 596; z++) clearUp(x, z, SEA + 2, SEA + 6);
+    for (const x of [MX - 1, MX]) O.set(x, SEA + 1, 597, B.Planks); // the gangplank, a step down from the jetty
     gullmouthLife(s, base, C);
     // Fishing smacks tied up along the south side of the south jetty, their nets over the rail
     s.props.push({ t: 'ship', ship: 'smack', x: C + 16, y: SEA - 0.14, z: 612.2, ry: Math.PI, sails: 'furled', color: '#2f528f' }, { t: 'ship', ship: 'smack', x: C + 27, y: SEA - 0.14, z: 612.6, ry: Math.PI - 0.08, sails: 'set', color: '#7a2a1e', sail: '#9a5a34' });
     s.props.push({ t: 'ship', ship: 'galleon', x: C + 30, y: SEA - 0.14, z: 580, ry: 0.15, sails: 'furled', color: '#2f528f' }); // the Charter's galleon at anchor inside the breakwater, clear of the ferry's course
+    // Nothing afloat lies in the quay's stones: the smacks, the galleon and the rowing boats tied up at the
+    // jetties all lie at least a block and a half off the face (the quay was built out over the beach after
+    // they were first moored)
+    for (const d of s.props) if ((d.t === 'ship' || d.t === 'boat') && d !== merchant && d.z >= 556 && d.z <= 644) {
+      const need = face(Math.round(d.z)) + 1.5 + reach(d);
+      if (d.x < need) d.x = Math.ceil(need * 2) / 2;
+    }
+    // ...and hulls pushed out along one berth don't end up in each other: each keeps a block from the one inshore of it
+    const afloat = s.props.filter((d) => (d.t === 'ship' || d.t === 'boat') && d.z >= 556 && d.z <= 644).sort((a, b) => a.x - b.x);
+    for (let i = 1; i < afloat.length; i++) for (let j = 0; j < i; j++) {
+      const a = afloat[j], b = afloat[i];
+      if (Math.abs(a.z - b.z) > 3.5) continue;
+      const need = a.x + reach(a) + reach(b) + 1;
+      if (b.x < need) b.x = Math.ceil(need * 2) / 2;
+    }
 
     // ---- The shipyard, up the shore to the north: a slipway into the water and a hull on it
     const yg = Math.round(heightAt(C - 6, 524));
@@ -8583,6 +8622,45 @@ function dressTowns(O: Overrides, sites: Site[]): void {
  * table) one block high, which you can step up onto as onto any block; a stall's counter one high
  * and its posts two; a lamp post or a sign post one cell, two high; a statue three.
  */
+/**
+ * Hulls afloat (ships and rowing boats, not the ones on a slip or set on land) clear of anything solid at
+ * the waterline: a hull that would sit in a quay's stones, a beach or a rock is moved the shortest way
+ * out to open water (up to a dozen blocks). Quays get built out and shores reshaped after a ship is first
+ * moored; this keeps them honest. npm run ships checks the result.
+ */
+function floatHulls(O: Overrides, sites: Site[]): void {
+  // What's built (last write wins), a chunk at a time, over the terrain
+  const built = new Map<number, Map<number, number>>();
+  const solid = (x: number, y: number, z: number): boolean => {
+    x = Math.floor(x); z = Math.floor(z);
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = built.get(k);
+    if (!m) { m = new Map(); const a = O.map.get(k) ?? []; for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]); built.set(k, m); }
+    const id = m.get(localIdx(x & 31, y, z & 31));
+    if (id !== undefined) return id !== B.Air && id !== B.Water && id !== B.Barrier && id !== B.Planks && id !== B.DarkPlanks && id !== B.Timber;
+    return y < heightAt(x, z);
+  };
+  const aground = (d: PropDesc, x: number, z: number): boolean => {
+    const S = d.t === 'boat' ? { len: 4.8, beam: 1.6 } : SHIPS[(d.ship ?? 'carrack') as ShipKind];
+    const c = Math.cos(d.ry ?? 0), sn = Math.sin(d.ry ?? 0);
+    for (let u = -0.45; u <= 0.46; u += 0.15) for (const v of [-0.4, 0, 0.4]) {
+      const lx = u * S.len, lz = v * S.beam * (1 - Math.abs(u) * 0.9);
+      const px = x + lx * c + lz * sn, pz = z - lx * sn + lz * c;
+      if (solid(px, SEA, pz) || solid(px, SEA + 1, pz)) return true;
+    }
+    return false;
+  };
+  for (const st of sites) for (const d of st.props) {
+    if ((d.t !== 'ship' && d.t !== 'boat') || d.sails === 'bare' || d.y > SEA + 0.5 || !aground(d, d.x, d.z)) continue;
+    let best: [number, number] | null = null;
+    for (let r = 0.5; r <= 12 && !best; r += 0.5) for (let a = 0; a < 16 && !best; a++) {
+      const nx = d.x + Math.cos(a * Math.PI / 8) * r, nz = d.z + Math.sin(a * Math.PI / 8) * r;
+      if (!aground(d, nx, nz)) best = [nx, nz];
+    }
+    if (best) { d.x = Math.round(best[0] * 2) / 2; d.z = Math.round(best[1] * 2) / 2; }
+  }
+}
+
 function propCollision(O: Overrides, sites: Site[]): void {
   const decoded = new Map<number, Map<number, number>>();
   const block = (x: number, y: number, z: number): number | undefined => {
@@ -8620,7 +8698,12 @@ function propCollision(O: Overrides, sites: Site[]): void {
       case 'cart': bar(d, 0, 0, 0.4, 0.52, 1); break;
       case 'well': bar(d, 0, 0, 1.05, 1.05, 1); for (const x of [-1, 1]) bar(d, x, 0, 0, 0, 2); break;
       case 'statue': bar(d, 0, 0, 1.0, 1.0, 3); break;
-      case 'monument': bar(d, 0, 0, 1.0, d.monument === 'riders' ? 1.4 : 1.0, 3); break;
+      case 'monument':
+        // (the Jawbones stand over the street: only their feet are solid; a bench is a bench)
+        if (d.monument === 'jawbones') for (const k of [-1, 1]) bar(d, k * 3.5, 0, 0.45, 0.4, 3);
+        else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
+        else bar(d, 0, 0, d.monument === 'drowned' || d.monument === 'boatstone' ? 1.1 : 1.0, d.monument === 'riders' ? 1.4 : d.monument === 'boatstone' ? 0.3 : 1.0, 3);
+        break;
       case 'pump': bar(d, 0, 0, 0.65, 0.5, 1); break;
       case 'trough': bar(d, 0, 0, 1.15, 0.4, 1); break;
       case 'wellhead': bar(d, 0, 0, 1.0, 1.0, 1); break;

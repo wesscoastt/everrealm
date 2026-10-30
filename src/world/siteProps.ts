@@ -23,6 +23,16 @@ export interface BuiltSite {
   doors: Door[];
   /** Windmill sails, turned on their axles by GameWorld. */
   sails: THREE.Object3D[];
+  /** Gulls on their perches (GameWorld animates them: game/Gulls.ts). */
+  gulls: PerchedGull[];
+}
+
+/** A gull's rig, where it perches and which way it faces, and what it's doing. */
+export interface PerchedGull {
+  rig: ReturnType<typeof P.gullRig>;
+  perch: THREE.Vector3;
+  ry: number;
+  seed: number;
 }
 
 /** A fire's three flame tongues as one shape (scaled on the fire's own origin to flicker). */
@@ -148,6 +158,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   const smoke: THREE.Vector3[] = [];
   const fires: THREE.Object3D[] = [];
   const sails: THREE.Object3D[] = [];
+  const gulls: PerchedGull[] = [];
   const doors: Door[] = [];
   const roofMat = (m?: string) => (m === 'blue' ? M.roofBlue : m === 'thatch' ? M.thatch : m === 'slate' ? M.roofSlate : m === 'copper' ? M.roofCopper : M.roofRed);
   const place = (g: THREE.Object3D, x: number, y: number, z: number, ry = 0) => batch.addGroup(g, P.mat4(x, y, z, ry));
@@ -254,6 +265,14 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'furn': {
         if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0, d.doorKind, d.color); dr.role = d.role; group.add(dr.pivot); doors.push(dr); break; }
         if (d.item === 'doorOpen' && d.doorKind) { place(P.openDoor(M, 3, d.doorKind, d.color), d.x, d.y, d.z, d.ry); break; }
+        if (d.item === 'gull') {
+          // A live gull, not part of the batch: it looks about, preens, and flies off if you come close
+          const rig = P.gullRig();
+          rig.root.position.set(d.x, d.y, d.z); rig.root.rotation.y = d.ry ?? 0;
+          group.add(rig.root);
+          gulls.push({ rig, perch: new THREE.Vector3(d.x, d.y, d.z), ry: d.ry ?? 0, seed: h3(d.x, d.z, 61) });
+          break;
+        }
         const g = P.furniture(M, d.item ?? '', d.tint ?? 0);
         if (g) place(g, d.x, d.y, d.z, d.ry);
         // A room's hanging lamp: a small glow round the lantern box and a light under it
@@ -330,7 +349,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
     group.add(b);
   }
   group.add(batch.build(true));
-  return { group, glows, lamps, smoke, fires, doors, sails };
+  return { group, glows, lamps, smoke, fires, doors, sails, gulls };
 }
 
 /** Plain coloured boxes and cones standing in for a landmark until its chunks load (one draw call). */

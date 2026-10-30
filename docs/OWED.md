@@ -24,7 +24,9 @@ owner is watching), `npm run balance`, `npm run quests` and `npm run sites` clea
    Saltpenny Key, Callis, the Morrow towns (Branchley, Tenwells, Liftwick, Reedwater, Cala Roja, Conch
    Key, Cold Harbour), Kelderby, Hollin Ford**: each its own landmarks and set pieces, street character,
    no repeated house fronts side by side, no prop on a path or under a person.
-5. **Gullmouth overhaul, the rest** (owner 2026-10-24: "lots of it is messed up or bare bones"): every
+4b. DONE v1 (this commit, tested in game: two rings, neck, ear; 10 pieces; anvil recipes; elite and boss drops; Ansbury jeweller's tray. Still to do: shown on the character, and rolled/unidentified like other gear) **Jewellery** (owner 2026-10-29: "add jewelry into game too"): rings, necklaces and earrings as their own gear slots (two rings, a neck, an ear), with their own stats and leanings, rolled and unidentified like other gear, named and set pieces among them, made by a new jewellery craft at a jeweller's bench from ore, gems and the shards, sold by jewellers in the cities, worn on the character (a glint at the neck and fingers), and shown on the character screen.
+4c. DONE (this commit) Ships in Gullmouth's quay stones (owner 2026-10-29: "ships still in the cobble at that port"): every hull berthed off the quay face, a planner pass floats any grounded hull to clear water, npm run ships checks all 28. Gulls animated (owner 2026-10-29): perched gulls look about, preen, stretch, and fly off and circle when you come close (game/Gulls.ts).
+5. **Gullmouth overhaul, the rest** (set pieces on the quay done: the Jawbones, the Drowned Board, the fog bell, the Boat Stone, Ansel's bench) (owner 2026-10-24: "lots of it is messed up or bare bones"): every
    street and lane detailed, castle interior, terraces dressed, warehouses, NPC life on the quays.
 6. **Quests toward ~1000** (owner 2026-10-24), Witcher 3 / SWTOR / WoW / ESO / Wynncraft variety. 146 on
    2026-10-29. Every region densified; thinnest now: Inkholm, the Keys, Kell, Saltpenny, the Sunder,

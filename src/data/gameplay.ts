@@ -6,6 +6,7 @@ import { ARMOUR_SMITHING } from './armour';
 import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
 import { CROPS, FARM_RECIPES } from './farming';
+import { JEWEL_RECIPES } from './jewellery';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
 import { killsForLevel, killXp, SKILL_PACE } from './pacing';
@@ -196,6 +197,7 @@ export const RECIPES: Recipe[] = [
   // Armour at the anvil: bronze and iron, chest, legs, hands and feet (data/armour.ts)
   // The hearth's dishes from a patch's produce (data/farming.ts)
   ...FARM_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
+  ...JEWEL_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   ...WEAPON_SMITHING.map((w): Recipe => ({ id: w.id, station: 'anvil', skill: 'smithing', level: w.level, xp: 30 + w.bars * 22, inputs: { [w.bar]: w.bars }, output: w.id, count: 1, time: 2.4 + w.bars * 0.4 })),
   ...ARMOUR_SMITHING.flatMap(([line, bar, n, lvl]) => (['chest', 'legs', 'hands', 'feet'] as const).map((slot, k): Recipe => ({ id: `${line}_${slot}`, station: 'anvil', skill: 'smithing', level: lvl + [2, 1, 0, 0][k], xp: 30 + n[k] * 22, inputs: { [bar]: n[k] }, output: `${line}_${slot}`, count: 1, time: 2.4 + n[k] * 0.4 }))),
   { id: 'iron_bar', station: 'furnace', skill: 'smithing', level: 15, xp: 50, inputs: { iron_ore: 2 }, output: 'iron_bar', count: 1, time: 2.2 },

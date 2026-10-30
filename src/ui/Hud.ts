@@ -1629,7 +1629,7 @@ export class Hud {
       const worn = [eq.weapon, eq.head, eq.chest, eq.legs, eq.hands, eq.feet].filter((x) => x && ITEMS[x]?.set === d.set).length;
       extra = `<b>${esc(S.name)}</b> set (${worn}/2 worn): ${esc(S.bonus)}` + (extra ? '<br>' + extra : '');
     }
-    const kindName: Record<string, string> = { material: 'Material', tool: 'Tool', weapon: 'Weapon', armor: 'Armour', food: 'Food', quest: 'Quest item', collectible: 'Collectible', trophy: 'Trophy' };
+    const kindName: Record<string, string> = { material: 'Material', tool: 'Tool', weapon: 'Weapon', armor: d.jewel ? 'Jewellery' : 'Armour', food: 'Food', quest: 'Quest item', collectible: 'Collectible', trophy: 'Trophy' };
     // Rolled gear says its quality; a named piece says what it does, its number, and where it comes from
     const grade = d.named ? 'Named' : d.quality !== undefined ? QUALITY[d.quality].word : d.rarity !== 'common' ? d.rarity[0].toUpperCase() + d.rarity.slice(1) : '';
     let named = '';
@@ -1695,6 +1695,16 @@ export class Hud {
     this.dollCanvas = canvas;
     doll.append(column(['head', 'chest', 'legs']), canvas, column(['weapon', 'hands', 'feet']));
     eq.append(doll);
+    const jw = el('div', 'jewel-row');
+    for (const [slot, name] of [['neck', 'Neck'], ['ear', 'Ear'], ['ring1', 'Ring'], ['ring2', 'Ring']] as const) {
+      const id = save.equip[slot] ?? null;
+      const wrap = el('div', 'eq');
+      const s = this.slotEl(id, 1, -1, 'Click to take off');
+      if (id) s.addEventListener('click', () => { this.ctx.unequip(slot); this.hideTooltip(); });
+      wrap.append(s, el('span', '', name));
+      jw.append(wrap);
+    }
+    eq.append(jw);
     // Gear is horizontal: show the weapon's style, the armour's weights and the set in force, not a bigger number
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();

@@ -116,6 +116,10 @@
 .mm-row .clock { color: var(--cream); }
 
 /* ------------------------------------------------------------- Quest tracker */
+/* Jewellery slots under the paperdoll */
+.jewel-row { display: flex; justify-content: center; gap: 10px; margin: 6px 0 2px; }
+.jewel-row .eq { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.jewel-row .eq span { font-size: 11px; opacity: .75; }
 /* Quest journal controls (Hud.questButtons) and the tracker's focused quest */
 .qctl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .qctl .btn.on { background: rgba(255, 210, 58, .22); border-color: #c8a040; }

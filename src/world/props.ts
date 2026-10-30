@@ -1854,6 +1854,69 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.6, 0.26, 0.03), brass, 0, 0.66, 0.56));
       break;
     }
+    case 'jawbones': {
+      // Two jawbones stood up to meet over the street, bleached, a little twisted, lashed at the top
+      const bone = flat('#e8e0cc'), boneDk = flat('#c8bea6');
+      for (const k of [-1, 1]) for (let i = 0; i < 9; i++) {
+        const t0 = i / 9, t1 = (i + 1) / 9;
+        const p = (t: number) => [k * 3.5 * Math.cos(t * Math.PI / 2) * (1 - 0.08 * Math.sin(t * Math.PI)), 6.2 * Math.sin(t * Math.PI / 2)];
+        const [x0, y0] = p(t0), [x1, y1] = p(t1), len = Math.hypot(x1 - x0, y1 - y0) + 0.08, w = 0.55 - t0 * 0.22;
+        g.add(mesh(box(w, len, 0.5 - t0 * 0.12), i % 3 ? bone : boneDk, (x0 + x1) / 2, (y0 + y1) / 2, 0, 0, 0, Math.atan2(x0 - x1, y1 - y0)));
+      }
+      for (const k of [-1, 1]) g.add(mesh(box(1.0, 0.4, 0.9), M.cobble, k * 3.5, 0.2, 0));               // their footings
+      g.add(mesh(cyl(0.3, 0.3, 0.6, 8), M.rope, 0, 6.15, 0, 0, Math.PI / 2));                            // the lashing
+      g.add(mesh(box(1.6, 0.36, 0.05), M.darkWood, 0, 5.4, 0.3));                                         // THE GIFT, carved
+      break;
+    }
+    case 'drownedboard': {
+      // A slate board on two posts under a little roof, the names painted white, the newest bright
+      for (const k of [-1, 1]) g.add(mesh(box(0.2, 2.6, 0.2), M.darkWood, k * 1.05, 1.3, 0));
+      g.add(mesh(box(2.3, 0.12, 0.6), M.roofSlate, 0, 2.7, 0.05, 0, 0.25));
+      g.add(mesh(box(2.0, 1.6, 0.1), flat('#3a3e44'), 0, 1.6, 0));
+      g.add(mesh(box(2.1, 1.7, 0.06), M.darkWood, 0, 1.6, -0.06));
+      for (let i = 0; i < 11; i++) {
+        const w = 0.5 + ((i * 7) % 5) * 0.12, fresh = i >= 8;
+        g.add(mesh(box(w, 0.05, 0.02), flat(fresh ? '#f4f0e8' : i < 3 ? '#8a8e94' : '#c8c8c4'), -0.85 + w / 2 + (i % 2) * 0.1, 2.25 - i * 0.12, 0.06));
+      }
+      g.add(mesh(box(0.06, 0.18, 0.06), flat('#e86a8a'), 0.55, 1.12, 0.08));                             // the sprig of thrift
+      g.add(mesh(box(0.1, 0.06, 0.06), flat('#4a7a3a'), 0.55, 1.03, 0.08));
+      break;
+    }
+    case 'fogbell': {
+      // An iron standard on a granite block, a bell hung off its arm, the rope running away along the quay
+      g.add(mesh(box(0.9, 0.5, 0.9), M.stone, 0, 0.25, 0));
+      g.add(mesh(box(0.16, 3.0, 0.16), M.iron, 0, 2.0, 0));
+      g.add(mesh(box(0.12, 0.12, 1.2), M.iron, 0, 3.4, 0.5));
+      g.add(mesh(box(0.08, 0.6, 0.08), M.iron, 0, 3.15, 0.95, 0, -0.6));
+      g.add(mesh(cyl(0.22, 0.42, 0.62, 12), M.bronze, 0, 2.95, 1.05));
+      g.add(mesh(cyl(0.44, 0.44, 0.06, 12), M.bronze, 0, 2.64, 1.05));
+      g.add(mesh(cyl(0.05, 0.05, 0.3, 6), M.iron, 0, 2.5, 1.05));                                          // the clapper
+      g.add(mesh(box(0.03, 0.03, 4.0), M.rope, 0, 3.3, -1.0, 0, -0.18));                                  // the rope, away to the office
+      g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
+      break;
+    }
+    case 'tallystone': {
+      // A low standing stone painted with rows of strokes in fives, the newest row short
+      g.add(mesh(box(1.6, 1.15, 0.5), M.stone, 0, 0.58, 0, 0, 0.04));
+      g.add(mesh(box(1.4, 0.2, 0.45), M.cobble, 0, 1.2, 0));
+      for (let row = 0; row < 6; row++) {
+        const n = row === 5 ? 31 : 36 + ((row * 3) % 5);
+        for (let i = 0; i < n; i++) {
+          const five = i % 5 === 4;
+          const sx = -0.7 + Math.floor(i / 5) * 0.17 + (i % 5) * 0.028;
+          g.add(mesh(box(five ? 0.15 : 0.012, five ? 0.012 : 0.1, 0.01), flat('#f4f0e8'), five ? sx - 0.06 : sx, 1.02 - row * 0.15, 0.26, 0, 0, five ? 0.6 : 0));
+        }
+      }
+      break;
+    }
+    case 'anselbench': {
+      // A bench made from a hatch cover, its back board carved with his name
+      const b = bench(M, 2, 1); g.add(b);
+      g.add(mesh(box(1.9, 0.5, 0.06), flat('#6a5238'), 0, 0.98, -0.25, 0, 0.12));
+      for (let i = 0; i < 3; i++) g.add(mesh(box(0.9 - i * 0.2, 0.04, 0.02), flat('#2a2018'), 0, 1.1 - i * 0.12, -0.21, 0, 0.12));
+      g.add(mesh(cyl(0.2, 0.2, 0.12, 10), M.rope, 0.55, 0.6, 0.0));                                     // a coil of new rope
+      break;
+    }
     default: return statue(M);
   }
   return g;
@@ -2651,6 +2714,31 @@ export function ribbons(M: PropMaterials, tint = 0): THREE.Group {
     g.add(mesh(box(0.08, len, 0.015), cols[(i + tint) % 4], (i - 1.5) * 0.14, -len / 2, 0, 0, 0, (i % 2 ? 1 : -1) * 0.08));
   }
   return g;
+}
+
+/**
+ * A gull that moves (world/siteProps.ts, game/GameWorld.ts animates it): the head and each wing on a pivot
+ * of its own so it can look about, preen, stretch and fly. Facing +z, sitting.
+ */
+export function gullRig(): { root: THREE.Group; body: THREE.Group; head: THREE.Group; wl: THREE.Group; wr: THREE.Group } {
+  const root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  const white = flat('#f2f2ee'), grey = flat('#9aa2aa'), tip = flat('#2a2a2e'), beak = flat('#e0b030');
+  const b = mesh(new THREE.SphereGeometry(0.16, 8, 6), white, 0, 0.18, 0); b.scale.set(0.8, 0.75, 1.3); body.add(b);
+  body.add(mesh(box(0.14, 0.03, 0.12), tip, 0, 0.2, -0.24, 0, 0.3));
+  for (const x of [-0.05, 0.05]) root.add(mesh(box(0.02, 0.08, 0.02), beak, x, 0.04, 0));
+  const head = new THREE.Group(); head.position.set(0, 0.27, 0.12); body.add(head);
+  head.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), white, 0, 0.03, 0.04));
+  head.add(mesh(new THREE.ConeGeometry(0.025, 0.1, 5), beak, 0, 0.02, 0.15, 0, Math.PI / 2));
+  head.add(mesh(box(0.012, 0.012, 0.012), tip, 0.05, 0.05, 0.08)); head.add(mesh(box(0.012, 0.012, 0.012), tip, -0.05, 0.05, 0.08));
+  const wing = (side: number) => {
+    // pivoted at the shoulder: folded it lies along the back; opened (rotation.z) it spreads out sideways
+    const w = new THREE.Group(); w.position.set(side * 0.1, 0.24, 0.02); body.add(w);
+    w.add(mesh(box(0.3, 0.025, 0.22), grey, side * 0.15, 0, 0));
+    w.add(mesh(box(0.16, 0.022, 0.16), tip, side * 0.36, 0, -0.02));
+    return w;
+  };
+  return { root, body, head, wl: wing(-1), wr: wing(1) };
 }
 
 /** A gull sitting, facing +z. */

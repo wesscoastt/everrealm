@@ -5,11 +5,14 @@
 /** Which model props.monument builds. */
 export type MonumentModel =
   | 'speaker' | 'rider' | 'scales' | 'cross' | 'fountain' | 'obelisk' | 'bell' | 'dog' | 'plough'
-  | 'milestone' | 'column' | 'seated' | 'boots' | 'masons' | 'plumb' | 'netmender' | 'stones';
+  | 'milestone' | 'column' | 'seated' | 'boots' | 'masons' | 'plumb' | 'netmender' | 'stones'
+  | 'jawbones' | 'drownedboard' | 'fogbell' | 'tallystone' | 'anselbench';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis';
+  town: 'ansbury' | 'callis' | 'gullmouth';
+  /** Placed by hand (world/sites.ts gullmouthLife): blocks east of the coast line at z 600, north-south, facing. */
+  at?: [number, number, number];
   model: MonumentModel;
   /** What the interact prompt and the readable's title call it. */
   title: string;
@@ -73,6 +76,27 @@ export const MONUMENTS: Monument[] = [
   {
     id: 'wallers', town: 'ansbury', model: 'masons', title: 'The Wallers',
     body: 'TO THE WALLERS\nwho built the New Wall\nand the eleven of them who did not see it finished\n\nTwo bronze masons lever a block into place between them. The block is real stone, left over from the wall, and carries a mason\'s mark: a square with a cross through it. That was Bray\'s mark. He\'s one of the eleven.',
+  },
+  // Gullmouth, on the quay and at the head of the harbour street (placed by hand)
+  {
+    id: 'jawbones', town: 'gullmouth', model: 'jawbones', at: [-11, 600, Math.PI / 2], title: 'The Jawbones',
+    body: 'THE GIFT\nCame ashore under the stacks in the hard winter\nand fed Gullmouth for a month\n\nThe whale\'s oil lit Fleet Light for two years. Its jawbones were stood up here, over the harbour street, so nobody would forget that the sea gives now and then as well as takes. Children are dared to lick them. Nobody knows why.',
+  },
+  {
+    id: 'drowned', town: 'gullmouth', model: 'drownedboard', at: [18.5, 603.5, -Math.PI / 2], title: 'The Drowned Board',
+    body: 'LOST FROM GULLMOUTH\n\nThe board is slate, painted white, the oldest names worn to shadows at the top. Boats first, then the men aboard them. The last lines are new and the paint is still sharp:\n\nTHE GANNET, 14th MARCH\nCOL MADDOX, skipper\nANSEL ROOK\n\nSomeone has wedged a sprig of sea thrift into the frame by Col\'s name. There is room on the board for about thirty more. The harbour has started to talk about painting a second one, and nobody wants to be the one who asks the sign-writer.',
+  },
+  {
+    id: 'fogbell', town: 'gullmouth', model: 'fogbell', at: [22.5, 590.5, -Math.PI / 2], title: 'The Fog Bell',
+    body: 'RUNG FROM THE HARBOUR OFFICE IN FOG\nONE STROKE A MINUTE UNTIL EVERY BOAT IS IN\n\nThe bell rope runs back along the quay on iron eyes to Nessa Crane\'s window. On the night of the March gale she rang it until morning. A bell doesn\'t carry as far as a light.',
+  },
+  {
+    id: 'boatstone', town: 'gullmouth', model: 'tallystone', at: [-1.5, 594.5, 0], title: 'The Boat Stone',
+    body: 'Every spring the harbour paints a stroke on this stone for each boat that goes out, bundled in fives. Forty, the old rows say, in a good year.\n\nThis year\'s row has thirty-one. After the twenty-ninth there\'s a smudge where someone painted a stroke and scrubbed it out again.',
+  },
+  {
+    id: 'ansel', town: 'gullmouth', model: 'anselbench', at: [20.5, 612.5, Math.PI / 2], title: 'Ansel\'s bench',
+    body: 'ANSEL ROOK\nSPLICED HALF THE ROPE IN THIS HARBOUR\nNINETEEN\n\nBett Rook had the bench made from the Gannet\'s hatch cover when it washed up on the shingle. It faces the stacks. Most mornings there\'s a coil of new rope left on it by whoever is going out.',
   },
   // Callis
   {

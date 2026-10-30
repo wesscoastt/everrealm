@@ -49,6 +49,8 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'cape_border', price: 400 }, { item: 'cape_quartered', price: 600 }, { item: 'cape_chevron', price: 600 }, { item: 'cape_chequy', price: 900 },
       // The cook's stall: recipe cards (data/content/recipes.ts)
       { item: 'recipe_harvest_supper', price: 120 }, { item: 'recipe_bilberry_cordial', price: 160 },
+      // The jeweller's tray: bronze and silver (data/jewellery.ts); the starglass and better are made or found
+      ...[['j_bronze_band', 40], ['j_bronze_hoops', 36], ['j_silver_ring', 160], ['j_silver_studs', 150], ['j_silver_chain', 260]].map(([item, price]) => ({ item: item as string, price: price as number })),
       // The glyph-cutter's tray: the minor glyphs (data/content/glyphs.ts)
       ...['flame', 'frost', 'leech', 'storm', 'warding', 'vigour', 'thorns', 'swift'].map((k) => ({ item: `glyph_${k}_1`, price: 150 })),
     ],
