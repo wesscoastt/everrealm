@@ -103,7 +103,7 @@ const maudNodes: Record<string, DNode> = {
 
 const quests: Record<string, QuestDef> = {
   [KING]: {
-    id: KING, name: 'The King\'s Black', region: 'held', story: { chapter: 26, title: 'The King\'s Black', act: ACT }, next: [HOME, 'delia'],
+    id: KING, name: 'The King\'s Black', region: 'held', story: { chapter: 29, title: 'The King\'s Black', act: ACT }, next: [HOME, 'delia'],
     notes: (g, s) => {
       if (s === 'north') return 'Through Northgate\'s postern and over the Held\'s plateau to Kingsbarrow, the old kingdom\'s city of the dead, where Pryce took his diggers.';
       if (s === 'barrow') return `Ebba Platt walked out of the dig when they broke into the king's hall. Pryce and Garrow Venn's diggers are under the king's barrow. It's a group dungeon: take people, or henchmen. (${Math.min(1, killed(g, 'type:dg_oldking'))}/1)`;
@@ -125,7 +125,7 @@ const quests: Record<string, QuestDef> = {
     walk: { kill: { barrow: [['dg_oldking', 1]] }, from: { quests: { storyBell: 'done', tdCrew: 'done', tdCallis: 'done', tdSalt: 'done', tdHeld: 'done', [KING]: 'north' }, flags: { postern: true } } },
   },
   [HOME]: {
-    id: HOME, name: 'His Book', region: 'redstone', story: { chapter: 27, title: 'His Book', act: ACT },
+    id: HOME, name: 'His Book', region: 'redstone', story: { chapter: 30, title: 'His Book', act: ACT },
     notes: (g, s) => (s === 'delia' ? 'Pryce is going home to Delia Harrowgate with his purchase book. She should hear the rest from me.' : by(g, { back: 'Delia read Pryce\'s book at last. Harrowgate is poorer for it, and she finds she doesn\'t mind.', hold: 'Delia read Pryce\'s book at last. Harrowgate is richer than it\'s ever been, and her name is on a licence to sell grave-stone.', sink: 'Delia read Pryce\'s book at last, while he waited on the spring assizes in Ansbury gaol.' })),
     objectives: (_g, s) => (s === 'delia' ? [{ text: 'Go back to Delia Harrowgate at the Works, in the Counties', marker: 'delia' }] : []),
     marks: (_g, s): Marks => (s === 'delia' ? { delia: '?' } : {}),

@@ -72,6 +72,14 @@ export class SetPieces {
       }
       case 'tent':
         return { o: P.tent(M, p.tint ?? '#c8b890') };
+      case 'rope': {
+        // A rope hanging straight down from an edge, a knot at the top and a loose coil at the foot
+        const g = new THREE.Group(), len = p.len ?? 6, hemp = P.flat('#b8a070');
+        g.add(new THREE.Mesh(P.cyl(0.05, 0.05, len, 6), hemp).translateY(-len / 2));
+        g.add(new THREE.Mesh(P.box(0.22, 0.22, 0.22), hemp));
+        for (let i = 0; i < 3; i++) g.add(new THREE.Mesh(P.cyl(0.3 - i * 0.06, 0.3 - i * 0.06, 0.06, 10), hemp).translateY(-len + 0.04 + i * 0.06));
+        return { o: g };
+      }
     }
   }
 

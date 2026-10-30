@@ -13,7 +13,8 @@ import type { QuestDef } from '../quests';
 // counting for generations: they spun rope from their own sheep, and the last nine climbed down it
 // and built the arches at Ketley, so that nobody else would go up.
 //
-// Chapters (quest ids): storyStride, storyHoist, storyForty, storyDrop, storyBaskets, storyLastMark.
+// Chapters (quest ids): storyStride, storyHoist, storyForty, storyDrop, storyBaskets, storyLastMark; with
+// storyIlseLog, storyNineWay and storyCamp2 between and after them (content/actTwo.ts).
 // Ending flag: holmEnd = 'back' (the crystal goes back up; the venture ends) | 'charter' (the Charter
 // claims the isles; the hoist is the Charter's) | 'joan' (Joan sets the rate: small isles only, a
 // basket a month, weight put back until the ring isle is steady).
@@ -411,7 +412,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'done', [FORTY]: 'delyth' }, flags: { holmPass: true } } },
   },
   [DROP]: {
-    id: DROP, name: 'Dead Weight', story: { chapter: 15, title: 'Dead Weight', act: ACT }, next: [BASKETS, 'hilda'],
+    id: DROP, name: 'Dead Weight', story: { chapter: 15, title: 'Dead Weight', act: ACT }, next: ['storyIlseLog', 'ottilie'],
     notes: (g: GameApi, s: string) => {
       if (s === 'gethin') return 'The isle dropped four feet in an afternoon. Gethin Vane should hear what happened up there.';
       const parts = ['Gethin stops the hoist when Hilda says, or for a number he can\'t argue with. Hilda\'s order is thirty baskets; twenty-four are down.'];
@@ -431,7 +432,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'done', [FORTY]: 'done', [DROP]: 'gethin' }, flags: { holmPass: true, holmQuake: true }, items: [['tally_copy', 1]] } },
   },
   [BASKETS]: {
-    id: BASKETS, name: 'Thirty Baskets', story: { chapter: 16, title: 'Thirty Baskets', act: ACT }, next: [LAST, 'wynn'],
+    id: BASKETS, name: 'Thirty Baskets', story: { chapter: 17, title: 'Thirty Baskets', act: ACT }, next: [LAST, 'wynn'],
     notes: (g: GameApi, s: string) => {
       const e = end(g);
       if (s === 'hilda') return 'Hilda Harrowgate has come to the hoist herself. I have Ilse\'s log, Joan\'s reckoning and Delyth\'s copy of the stones.';
@@ -456,7 +457,7 @@ const quests: Record<string, QuestDef> = {
     walk: { from: { quests: { storySitting: 'done', [STRIDE]: 'done', [HOIST]: 'done', [FORTY]: 'done', [DROP]: 'done', [BASKETS]: 'hilda' }, flags: { holmPass: true, holmQuake: true }, items: [['tally_copy', 1], ['ilse_droplog', 1], ['joan_reckoning', 1]] } },
   },
   [LAST]: {
-    id: LAST, name: 'The Last Mark', story: { chapter: 17, title: 'The Last Mark', act: ACT },
+    id: LAST, name: 'The Last Mark', story: { chapter: 18, title: 'The Last Mark', act: ACT }, next: ['storyNineWay', 'delyth'],
     notes: (g: GameApi, s: string) => {
       if (s === 'wynn') return 'Wynn Carrow has come up the hoist from Ketley. He\'s at the ring with Delyth.';
       if (s === 'stone') return 'When the Keel came up, it shifted the paving by the cut. There\'s a fourth stone under it, face down. Wynn can\'t turn it alone.';
@@ -497,7 +498,7 @@ export const WEATHERHOLMS: RegionContent = {
       look: { ...SLATE, hairStyle: 2, tunic: '#6a5a4a', trim: '#c8b890', trousers: '#4a4034', boots: '#2a1e14', cape: '#4a3a2a', hat: 'band', hatColor: '#7a2a24', lashes: true, freckles: true, build: 0.92, height: 0.97, age: 0.15 },
       schedule: [{ from: 0, to: 24, at: isle(3, 2.5), face: [I.x + 0.5, I.z + 0.5], anim: 'idle' }],
       barks: ['Forty-one.', 'Mind the cut.'],
-      when: (g) => !!at(g, FORTY),
+      when: (g) => (!!at(g, FORTY)) && !['delyth', 'climb', 'foot'].includes(at(g, 'storyNineWay') ?? ''),
     },
     {
       id: 'marenHoist', name: 'Hilda Harrowgate', title: 'Partner, Harrowgate & Daughters',

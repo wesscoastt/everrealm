@@ -44,12 +44,14 @@ export interface Board {
 /** Something that stands in the world only while a chapter needs it (game/SetPieces.ts builds it). */
 export interface SetPiece {
   id: string;
-  kind: 'wagon' | 'barrels' | 'campfire' | 'bedroll' | 'tent';
+  kind: 'wagon' | 'barrels' | 'campfire' | 'bedroll' | 'tent' | 'rope';
   x: number;
   z: number;
   /** Floor height; otherwise the ground under (x, z). */
   y?: number;
   ry?: number;
+  /** A rope's length, hanging down from y. */
+  len?: number;
   /** A colour: the wagon's paint, the blanket, the tent's canvas. */
   tint?: string;
   when: (g: GameApi) => boolean;

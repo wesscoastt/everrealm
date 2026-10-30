@@ -98,7 +98,7 @@ const edda: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [HELD]: {
-    id: HELD, name: 'Lie Still', region: 'greywaste', story: { chapter: 25, title: 'Lie Still', act: ACT }, next: ['tdKing', 'north'],
+    id: HELD, name: 'Lie Still', region: 'greywaste', story: { chapter: 28, title: 'Lie Still', act: ACT }, next: ['tdKing', 'north'],
     notes: (_g, s) => {
       if (s === 'harbour') return 'The black loads at Cold Harbour, a cove under the Greywaste\'s cliffs. The Kittiwake can take me from Saltpenny, or I can go overland from Callis by the coast road.';
       if (s === 'fell') return 'Wat Aske, the last of Pryce\'s diggers, says the dead got up out of every barrow they stripped on Hollow Fell. He thinks the black put back would lay them down. Ma\'s barrow was the last opened.';

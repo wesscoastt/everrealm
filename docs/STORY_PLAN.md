@@ -127,16 +127,18 @@ camp at the act's end and the changes below; the rest are new.
 10. What the Charter Owes
 11. **First Camp**: the night after the sitting, on the Turnpike, walking Sela home
 
-(The acts below are numbered from the plan as first written; in the game every chapter after Act I is
-one later than these numbers.)
+(Acts below are numbered from the plan as first written; the note under each built act says how far the
+game's numbers have moved.)
 
-**Act II. The Weatherholms** (9; 6 in game)
-11 to 16. A Stride a Week, Company Basket, The Forty-One, Dead Weight, Thirty Baskets, The Last Mark
-(in game), with Wenna and Ottilie in each
-17. **Ilse's Log**: Ilse Blewitt's thirty years of the isles, and what she never wrote down: that she
-    sold the count to Pryce once, the winter her sister was ill
-18. **Rope Walk**: the forty-one's rope, spun three lifetimes long; Delyth wants to climb it
-19. **Second Camp**: the hoist at night
+**Act II. The Weatherholms** (9 chapters, XII to XX; built 2026-10-30)
+12 to 15. A Stride a Week, Company Basket, The Forty-One, Dead Weight
+16. **Ilse's Log**: a winter cut out of Ilse's logbooks, and "A. Pryce, paid in full": she sold the count
+    that told Harrowgate where the ring's crystal was, the winter her sister was ill
+17 to 18. Thirty Baskets, The Last Mark
+19. **The Nine's Way**: Delyth climbs down from the isle on a rope, the way the last nine did; left or cut
+20. **Second Camp**: the crew's fire at the hoist's foot
+
+(From Act III on these are the plan's numbers; the game's follow as each act is built.)
 
 **Act III. The Drowned Parish** (8; 4 in game)
 20. **Half a Purse**: Tam Reddick at Gullmouth, winning a boat at cards that he can't sail; he joins

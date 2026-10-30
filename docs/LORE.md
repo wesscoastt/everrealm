@@ -437,6 +437,14 @@ Six chapters after the sitting. The quest ids are `storyStride`, `storyHoist`, `
 
 Every ending: Delyth cuts a forty-second stroke on the last stone and gives the player her chisel (`holm_mark`), and the basket is open to the player for good.
 
+### Act II's added chapters [in game]
+
+Act II is nine chapters (XII to XX): the six above, with Ilse's Log after Dead Weight and The Nine's Way and Second Camp after The Last Mark (`src/data/content/actTwo.ts`). Act III starts once Second Camp is done.
+
+- **XVI, Ilse's Log** (`storyIlseLog`). Ottilie wants Ilse's thirty years of logbooks to work out the drift. One winter, eleven years back, is cut out close to the spine; the next spring has a line struck through: "A. Pryce, paid in full." The winter her sister **Bethan** had the lung fever in Kelderby, with the stipend three quarters late, Ilse sold Pryce that winter's count for two hundred marks. It recorded the biggest fall she had ever seen land on an isle, in the old ring: that is how Harrowgate knew where to build the hoist. Ilse wrote "On the Counting of Falls", the book Ottilie learned to read a staff from. Flag `ilseLog`: `speaker` (she writes to the Speaker herself, signed), `kept` (it stays between you), `blamed`. If `scStipend` is `pryce`, she sold him the rest this summer too.
+- **XIX, The Nine's Way** (`storyNineWay`). After the fourth stone, Delyth ties the crew's rope to the last fence post at the big isle's far edge and climbs down it, twenty feet to the snow, the way the last nine did (sixty feet, then, one of them with a baby on her back); the player follows. Flag `nineRope`: `left` (the rope stays hanging for anyone who wants to go up and look, and come down again) or `cut`.
+- **XX, Second Camp** (`storyCamp2`). The crew's fire at the hoist's foot, with Delyth, who means to copy the rest of the counties' stones, starting at Ketley. In the morning there is a letter from Nessa Crane.
+
 ## The main story, Act III: The Drowned Parish [in game]
 
 Four chapters after the Weatherholms. The quest ids are `storyLowWater`, `storyRegister`, `storyLoads` and `storyBell`. Everything is in `src/data/content/holmsey.ts`; Holmsey and its bell-tower are built in `src/world/sites.ts` (`buildHolmsey`, `buildDrownedTower`). It starts from Nessa Crane at Gullmouth once Act II is done.
