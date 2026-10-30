@@ -222,7 +222,7 @@ const QUESTS: Record<string, QuestDef> = {
     walk: { from: { quests: { [POST]: 'done', [GRIEF]: 'morning' }, flags: { 'comp:wenna:joined': 1, urselDead: 1 } } },
   },
   [CAMP]: {
-    id: CAMP, name: 'Fifth Camp', story: { chapter: 44, title: 'Fifth Camp', act: ACT },
+    id: CAMP, name: 'Fifth Camp', story: { chapter: 44, title: 'Fifth Camp', act: ACT }, next: ['storyDownStorey', 'letter'],
     notes: (_g, s) => (s === 'wall' ? 'A fire under the wall, inside the gate. Edda Rusk has brought the roll.' : s === 'camp' ? 'A fire under Northgate\'s wall, the night after.' : 'Ursel Hale is in the Gatekeepers\' roll. The Kneeling have gone back to their barrow.'),
     objectives: (g, s) => {
       if (s === 'wall') return [{ text: 'Go to the fire under the wall', marker: 'camp5Fire' }];

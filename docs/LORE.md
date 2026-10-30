@@ -860,6 +860,16 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 - **XLIII, What Wenna Does** (`storyWennaGrief`). The morning after, Wenna on Ursel's step with Ursel's glove. Nine days she knew her. Flag `wennaGrief`: `stay` (you sit with her), `alone` or `told` (you tell her it was your hand on the bar; she knew, and says not to carry it).
 - **XLIV, Fifth Camp** (`storyCamp5`). A fire under the wall. Edda Rusk has written Ursel into the Gatekeepers' roll: "Ursel Hale, forty years at the gate. Went out of it for a child of the camp, and kept it shut behind her." The Kneeling went back down the road at first light, to kneel where they were found. In the morning a letter comes from Callis under the Assembly's seal: the Old Tower has moved.
 
+## The main story, Act VI: The Tall City [in game, first half]
+
+`src/data/content/actSix.ts`. Starts from the letter at the end of Fifth Camp.
+
+- **XLV, Down a Storey** (`storyDownStorey`). The Old Tower is three and a half fingers off its midsummer mark (faster if its keystones went to the fell). The Assembly is taking every tower down a storey at a time, the families out first.
+- **XLVI, The Counting Floor** (`storyCountingFloor`). **Arthur Pascall** keeps the Assembly's bond office on the Old Tower's eleventh storey. The Charter's forty thousand: sold by the guilds, bought by Harrowgate at three in ten, and sold on last spring to the Assembly at five in ten, on the Speaker's papers. The fell's black was the interest; A.P. is just his initials. Flag `pascallEnd`: `arrest` (Benet takes him off the floor and puts him in a room with his books) or `keep`.
+- **XLVII, Rhosyn's Hand** (`storyRhosynHand`). The Speaker in Callis for the Charter's first sitting abroad. She signed the Third Daughter's papers so the Charter would owe Callis instead of Hilda: "Callis forgives. Hilda doesn't." She didn't know what the Assembly would want to be paid in. Flag `rhosynSecret`: `kept` (six days, until the sitting) or `told`.
+- **XLVIII, Pryce Tells the Truth** (`storyPryceTruth`). Pryce, the Charter's witness (bookkeeper at Joan's smelter, Harrowgate's buyer, or out of Ansbury gaol on the Charter's word, by `tdEnd`): every tower in Callis went up on money lent from the banks of Ambry, in the south (the Corvo, mostly), and three months ago every bank in Ambry called in everything it was owed in the same week. Flag `pryceSouth`.
+- **XLIX, The Lift Towers** (`storyLiftTowers`). A storm off the bay; the Old Tower's gauge jumps a finger in an hour. There is a brake in the core, counterweights on chains, and forty clerks on the counting floor. Marta needs one pair of hands on the brake and one on the stair.
+
 ### The Mirador [in game]
 
 - North of Callis the Sunder's plateau ends in a sheer scarp, twenty-five blocks of grey rock, and along its lip the shipping families built their summer houses, every one with a deck hung out over the drop and the whole city, the river mouth and the bay under it (`buildMirador` in `src/world/sites.ts`, `src/data/mirador.ts`). A flagged lane runs along the lip from the coast road, through a white gatehouse, past the houses, to a public lookout at its end.
