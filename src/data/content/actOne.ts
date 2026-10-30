@@ -136,7 +136,7 @@ const LINE = [
 const joanOtt = {
   jo1: { speaker: 'narrator' as const, text: 'Ottilie holds out the book. Joan takes it without looking at her, reads the three numbers, and then looks at her for quite a long time.', next: 'jo2' },
   jo2: { text: 'Who taught you to read a staff?', next: 'jo3' },
-  jo3: { text: '(Ottilie) Nobody. A book. Two books. Is it wrong?', next: 'jo4' },
+  jo3: { as: 'ottilie', text: 'Nobody. A book. Two books. Is it wrong?', next: 'jo4' },
   jo4: { text: 'No. It\'s right, and I didn\'t take it. My bores, my stakes, and a girl from the survey office has the number before I do.', next: 'jo5' },
   jo5: { text: 'Keep measuring. Every week. Send it to me, not to my sisters.', effect: (g: GameApi) => { g.compRapport('ottilie', 4); g.setFlag('joanTookOttilie', 1); }, next: 'j7' },
 };
@@ -169,10 +169,10 @@ const fortyNodes = {
 const joanForty = {
   jf1: { speaker: 'narrator' as const, text: 'Joan reads Ottilie\'s two pages standing up, then reads them again sitting down on a crate.', next: 'jf2' },
   jf2: { text: 'A third more than the rule. You\'re sure.', next: 'jf3' },
-  jf3: { text: '(Ottilie) I\'m sure of the two numbers. I\'m not sure of anything else. Nobody is.', next: 'jf4' },
+  jf3: { as: 'ottilie', text: 'I\'m sure of the two numbers. I\'m not sure of anything else. Nobody is.', next: 'jf4' },
   jf4: { text: 'Then here\'s what I\'ll do. I stand up at the sitting and say ten feet, because ten is what I can defend, and thirty is what Hilda wants. And then I measure every morning, myself, and if the floor moves a hair I stop the cut with my own hands.', next: 'jf5' },
   jf5: { text: 'Forty feet and nobody digs, ever. You know that. The Charter won\'t vote for "never". It\'ll vote for Hilda.', next: 'jf6' },
-  jf6: { text: '(Ottilie) And if you\'re wrong?', next: 'jf7' },
+  jf6: { as: 'ottilie', text: 'And if you\'re wrong?', next: 'jf7' },
   jf7: { text: 'Then I\'m the one standing on it. I\'ve kept that promise before.', effect: (g: GameApi) => { g.setFlag('fortyTold', 'joan'); g.setStage(FORTY, 'done'); } },
 };
 
@@ -190,17 +190,17 @@ const prowse: DialogueTree = {
     p2: { text: 'Hale. I was hoping you\'d come through. Elis Prowse, captain on this stretch. You\'re with her? Then you\'ll hear it too.', next: 'p3' },
     p3: { text: 'The Charter sits in two days on the keep steps. Every Rider from the Ford to the sea is ordered to stand there, and I\'m four short.', next: 'p4' },
     p4: { speaker: 'narrator', text: 'He holds out a folded blue coat. It has been brushed.', next: 'p5' },
-    p5: { text: '(Wenna) I gave that back.', next: 'p6' },
+    p5: { as: 'wenna', text: 'I gave that back.', next: 'p6' },
     p6: { text: 'And I kept it. Nobody says anything about February any more, Hale. Come back. Stand on the steps with us.', options: [{ text: 'Why are you four short?', next: 'p7' }, { text: 'Wenna, this is your call.', next: 'p7' }] },
     p7: { text: 'Riders have been riding escort. Day work, paid well. It\'s thinned us out on the road. It\'s in the duty book, it\'s all above board.', next: 'p8' },
-    p8: { text: '(Wenna) Escort for who?', next: 'p9' },
+    p8: { as: 'wenna', text: 'Escort for who?', next: 'p9' },
     p9: { text: 'Look in the book if you like. It\'s on the barrel head by the office door. I\'ve nothing to hide from a Rider.', effect: (g) => g.setStage(RID, 'book') },
     p_wait: { text: 'The book\'s on the barrel head by the office door. Take your time. The coat will keep.' },
     p_book: {
       text: (g) => (g.has('riders_page') ? 'You\'ve torn a page out of my duty book.' : 'Well? Above board, like I said.'),
       next: 'p_b2',
     },
-    p_b2: { text: '(Wenna) "Escort, H and D wagons, the Turnpike. Two riders. Four marks a day. Paid, A.P." Every week since Lady Day. Elis. You\'ve been riding guard for the oil.', next: 'p_b3' },
+    p_b2: { as: 'wenna', text: '"Escort, H and D wagons, the Turnpike. Two riders. Four marks a day. Paid, A.P." Every week since Lady Day. Elis. You\'ve been riding guard for the oil.', next: 'p_b3' },
     p_b3: { text: 'I\'ve been riding guard for wagons. What\'s in them is the Toll Office\'s business. Four marks a day keeps two families, Hale. Don\'t look at me like that, you of all people.', next: 'p_b4' },
     p_b4: {
       text: 'Coat\'s here. Steps are in two days. What\'s it to be?',
@@ -211,19 +211,19 @@ const prowse: DialogueTree = {
       ],
     },
     p_coat: {
-      text: '(Wenna) All right, Elis. I\'ll stand on the steps. And I\'ll be watching every one of you.',
+      as: 'wenna', text: 'All right, Elis. I\'ll stand on the steps. And I\'ll be watching every one of you.',
       effect: (g) => { g.setFlag('ridersEnd', 'coat'); g.compOutfit('wenna', 'rider'); g.compRapport('wenna', 3); g.setStage(RID, 'done'); },
       next: 'p_coat2',
     },
     p_coat2: { text: 'That\'s all I ask. More than I ask. Welcome back, Hale.' },
     p_page: {
-      text: '(Wenna) Keep the coat, Elis. I\'ll be on the steps anyway, in front of them. With your page.',
+      as: 'wenna', text: 'Keep the coat, Elis. I\'ll be on the steps anyway, in front of them. With your page.',
       effect: (g) => { if (!g.has('riders_page')) g.give('riders_page'); g.setFlag('ridersEnd', 'page'); g.compRapport('wenna', 5); g.setStage(RID, 'done'); },
       next: 'p_page2',
     },
     p_page2: { speaker: 'narrator', text: 'Prowse folds the coat over his arm, and for a moment looks a great deal older. "You always did have to be right in public, Hale."' },
     p_her: {
-      text: (g) => (R(g, 'wenna') >= 10 ? '(Wenna) Then I\'m not coming back, Elis. I\'m bringing your page to the steps. Somebody has to.' : '(Wenna) Then I\'ll take it. God help me, I miss the coat. I\'ll stand with you, Elis, and I\'ll watch you.'),
+      as: 'wenna', text: (g) => (R(g, 'wenna') >= 10 ? 'Then I\'m not coming back, Elis. I\'m bringing your page to the steps. Somebody has to.' : 'Then I\'ll take it. God help me, I miss the coat. I\'ll stand with you, Elis, and I\'ll watch you.'),
       effect: (g) => {
         if (R(g, 'wenna') >= 10) { if (!g.has('riders_page')) g.give('riders_page'); g.setFlag('ridersEnd', 'page'); }
         else { g.setFlag('ridersEnd', 'coat'); g.compOutfit('wenna', 'rider'); }

@@ -52,8 +52,8 @@ const ilseNodes = {
   il_i3: { text: 'A man came up the hill in a good coat. He said he\'d heard I counted falls, and was there anything in this winter\'s count worth two hundred marks. I said no. Then I showed him.', next: 'il_i4' },
   il_i4: { text: 'A fall on the big isle. The biggest I\'d ever seen land on anything that wasn\'t the ground. It was in the old ring. I didn\'t know there was a ring. I just wrote down where the light went in.', next: 'il_i5' },
   il_i5: { text: (g: GameApi) => (g.flag('scStipend') === 'pryce' ? 'That\'s how Hilda knew where to build her tower. And this summer, when he came back for the rest of it, I sold him that too. You were standing there.' : 'That\'s how Hilda knew where to build her tower. Eleven years he sat on it, waiting for a debt big enough to spend it on.'), next: 'il_i6' },
-  il_i6: { text: 'Bethan lived. She has four grandchildren. I cut the pages out the night he paid, and I wrote "paid in full" in the spring, and then I couldn\'t look at it, so I struck it through.', next: 'il_i7' },
-  il_i7: { text: '(Ottilie) You wrote the book. On the Counting of Falls. I learned everything from it.', cond: ottJoined, next: 'il_i8' },
+  il_i6: { text: 'Bethan lived. She has four grandchildren. I cut the pages out the night he paid, and I wrote "paid in full" in the spring, and then I couldn\'t look at it, so I struck it through.', options: [{ text: '(Ottilie steps forward)', cond: ottJoined, next: 'il_i7' }, { text: 'Go on.', cond: (g: GameApi) => !ottJoined(g), next: 'il_i8' }] },
+  il_i7: { as: 'ottilie', text: 'You wrote the book. On the Counting of Falls. I learned everything from it.', next: 'il_i8' },
   il_i8: {
     text: (g: GameApi) => (ottJoined(g) ? 'Then you learned it from somebody who sold a count. Learn that too, girl.' : 'Well. Now you know.'),
     options: [
@@ -206,7 +206,7 @@ const QUESTS: Record<string, QuestDef> = {
     walk: { from: { quests: { [LAST]: 'done', [NINE]: 'delyth' }, flags: { holmPass: true } }, cast: ['delyth_rim', 'delyth_foot'] },
   },
   [CAMP]: {
-    id: CAMP, name: 'Second Camp', story: { chapter: 20, title: 'Second Camp', act: 'The Weatherholms' },
+    id: CAMP, name: 'Second Camp', story: { chapter: 20, title: 'Second Camp', act: 'The Weatherholms' }, next: ['storyHalfPurse', 'quay'],
     notes: (_g, s) => (s === 'road' ? 'Night is coming down on the snow under the hoist. Delyth has a fire going at the tower\'s foot.' : s === 'camp' ? 'A fire in the snow at the hoist\'s foot.' : 'A night in the snow at the hoist\'s foot. Nessa Crane at Gullmouth has been asking for me.'),
     objectives: (g, s) => {
       if (s === 'road') return [{ text: 'Sit down at Delyth\'s fire at the hoist\'s foot', marker: 'camp2Fire' }];

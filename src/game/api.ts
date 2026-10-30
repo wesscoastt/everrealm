@@ -99,6 +99,8 @@ export interface DNode {
   text: string | ((g: GameApi) => string);
   /** Defaults to the NPC. 'narrator' renders in italics. */
   speaker?: 'npc' | 'narrator';
+  /** Somebody else in the scene says this line: a companion's id, or another person's NPC id. */
+  as?: string;
   options?: DOption[];
   next?: string;
   effect?: (g: GameApi) => void;

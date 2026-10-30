@@ -140,12 +140,14 @@ game's numbers have moved.)
 
 (From Act III on these are the plan's numbers; the game's follow as each act is built.)
 
-**Act III. The Drowned Parish** (8; 4 in game)
-20. **Half a Purse**: Tam Reddick at Gullmouth, winning a boat at cards that he can't sail; he joins
-21 to 24. Low Water, The Register, A Mark the Load, The Last Names (in game). The register goes to the
-    wrong clerk (wrong turn)
-25. **The Sitting Comes Early**: the dredging bid, and the Speaker's office closing ranks
-26. **Third Camp**: Tamar's bell-tower; Tam sits up all night and won't say why
+**Act III. The Drowned Parish** (6 chapters, XXI to XXVI; built 2026-10-30)
+21. **Half a Purse**: Tam has just won Jacca Pengelly's boat at cards; back, bought, or kept; he joins
+22 to 25. Low Water, The Register, A Mark the Load, The Last Names
+26. **Third Camp**: Tamar's bell-tower; Tam sits up writing a letter he folds away (to Pryce, it comes out
+    in Act IV)
+
+(The plan's "register to the wrong clerk" and "The Sitting Comes Early" became Tam's letter: whoever
+told Hilda about the bell so fast was writing from the tower.)
 
 ### Part two: Morrow
 

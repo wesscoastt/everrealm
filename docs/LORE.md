@@ -475,6 +475,13 @@ Four chapters after the Weatherholms. The quest ids are `storyLowWater`, `storyR
 
 Every ending: Sela writes Holmsey at the front of the Kirk's book of names, the player rings the bell while Tamar reads the last names, and Tamar gives the player a length of the bell rope (`holmsey_rope`).
 
+### Act III's added chapters [in game]
+
+Act III is six chapters (XXI to XXVI): Half a Purse, the parish's four, and Third Camp (`src/data/content/actThree.ts`). Act IV starts once Third Camp is done, and runs XXVII to XXXII.
+
+- **XXI, Half a Purse** (`storyHalfPurse`). On Gullmouth quay **Tam Reddick** has just won **Jacca Pengelly**'s boat, the **Patience**, at cards (her father built her; she fishes her six days a week; he didn't cheat, this once). Flag `halfPurse`: `back` (Tam gives her back because you asked), `bought` (you pay him forty marks for her bill of sale) or `kept` (Jacca crews her for him for half the catch). Tam joins, for the bell under the Gulf.
+- **XXVI, Third Camp** (`storyCamp3`). The last night in Tamar's bell-tower, on the planks over the drowned ringing chamber. Tam sits up by the lamp writing a letter and folds it away when you come over. Flag `tamLetter`: `asked` (he says it's to his mother in Saltpenny) or `let`. In the morning Nessa Crane is on the quay waving a letter.
+
 ## The factions
 
 Companies you can join, each with its own hall, people and storyline, in the manner of the Elder Scrolls guilds but grown out of the Charter Counties. Each storyline chapter raises your rank and the last gives a title (`src/data/factions.ts`). Open: the Waits [in game]. Planned: the Collegium (crystal, the old words and weather, Guild Ward), the Muster (the laid-off toll riders' hiring hall at the tilt-yard, against Harrowgate's "Company Wardens"), the Lamplighters (who light Ansbury's lamps and rob the debt-holders by the same ladders, the Shambles), the Passing Bell (an old moor practice: ring the passing bell for someone the law can't reach), and the Ushers (the Speaker's doorkeepers in the Charter Hall, and her eyes). [planned]

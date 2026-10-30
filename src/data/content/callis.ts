@@ -5,6 +5,7 @@ import type { ShopDef } from '../shops';
 import { at, hook, type Marks } from './kit';
 import type { RegionContent } from './types';
 import { CALLIS_FLOOR, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_SPOTS, CALLIS_TOWERS } from '../../world/morrow';
+import { actThreeDone } from './actThree';
 
 // CALLIS, the Assembly city on Morrow's Bright Coast (world/sites.ts buildCallis, docs/MORROW.md).
 // Its people have Morrow's own names, short and plain: Ferrer, Oms, Sala, Vidal, Mas, Coll, Roig.
@@ -251,7 +252,7 @@ const pere: DialogueTree = {
 
 const quests: Record<string, QuestDef> = {
   [CREW]: {
-    id: CREW, name: 'Half a Crew', region: 'bright', story: { chapter: 25, title: 'Half a Crew', act: ACT }, next: [CAL, 'clerk'],
+    id: CREW, name: 'Half a Crew', region: 'bright', story: { chapter: 27, title: 'Half a Crew', act: ACT }, next: [CAL, 'clerk'],
     notes: (_g, s) => {
       if (s === 'delia') return 'A Morrow ship, the Good Return, came into Gullmouth half-crewed. Her master asked after the Third Daughter, a Harrowgate ship. Nessa Crane wants Delia Harrowgate told.';
       if (s === 'cross') return 'Aubrey Pryce sailed for Morrow on the Third Daughter while I was at Holmsey, with Delia\'s signature on his papers. Delia has paid my passage on the Constant, the packet from Gullmouth to Callis, to find out what her name is on.';
@@ -262,11 +263,11 @@ const quests: Record<string, QuestDef> = {
       if (s === 'cross') return [{ text: 'Take the packet to Callis (Hal Sennen, Gullmouth harbour)', marker: 'sennen_gull' }, { text: 'Ask the Callis harbourmaster about the Third Daughter', marker: 'pau_ferrer' }];
       return [];
     },
-    marks: (g, s): Marks => (!s && at(g, 'storyBell') === 'done' ? { nessa: '!' } : s === 'delia' ? { delia: '?' } : s === 'cross' ? { sennen_gull: '?', pau_ferrer: '?' } : {}),
+    marks: (g, s): Marks => (!s && actThreeDone(g) ? { nessa: '!' } : s === 'delia' ? { delia: '?' } : s === 'cross' ? { sennen_gull: '?', pau_ferrer: '?' } : {}),
     walk: { cast: ['sennen_gull', 'pau_ferrer'], from: { quests: { storyBell: 'done' }, flags: { parishEnd: 'rise' } } },
   },
   [CAL]: {
-    id: CAL, name: 'Nine Hundred Weight', region: 'bright', story: { chapter: 26, title: 'Nine Hundred Weight', act: ACT }, next: ['tdSalt', 'sail'],
+    id: CAL, name: 'Nine Hundred Weight', region: 'bright', story: { chapter: 28, title: 'Nine Hundred Weight', act: ACT }, next: ['tdSalt', 'sail'],
     notes: (g, s) => {
       if (s === 'clerk') return 'Whatever the Third Daughter brought to Callis, Pryce took it to the Assembly. If anyone wrote it down, it was the Assembly\'s clerks, on the plaza under the towers.';
       if (s === 'warden') return 'The Assembly\'s Works Committee has bought nine hundred weight of the black since midsummer, against forty in a usual year: from A. Pryce, for Harrowgate & Daughters, delivered by the Kittiwake. Clara Oms says to ask the Warden of the Towers why.';
@@ -415,7 +416,7 @@ export const CALLIS_CONTENT: RegionContent = {
   ],
   hooks: (D) => {
     // XVII: Nessa Crane, once the Drowned Parish is done
-    hook(D, 'nessa', (g) => (at(g, 'storyBell') === 'done' && !at(g, CREW) ? 'td_n1' : at(g, CREW) === 'delia' ? 'td_nWait' : undefined), nessaNodes);
+    hook(D, 'nessa', (g) => (actThreeDone(g) && !at(g, CREW) ? 'td_n1' : at(g, CREW) === 'delia' ? 'td_nWait' : undefined), nessaNodes);
     hook(D, 'delia', (g) => (at(g, CREW) === 'delia' ? 'td_d1' : at(g, CREW) === 'cross' ? 'td_dWait' : undefined), deliaNodes);
     hook(D, 'joan', (g) => (at(g, CREW) === 'cross' && !at(g, JOANQ) ? 'td_j1' : at(g, JOANQ) === 'measure' ? 'td_jWait' : at(g, JOANQ) === 'done' ? 'td_jDone' : undefined), joanNodes);
   },

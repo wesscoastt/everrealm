@@ -4385,14 +4385,23 @@ export class Game implements GameApi {
     return opts;
   }
 
+  /** Who says a line spoken by somebody else in the scene (DNode.as): a companion, or another person. */
+  private whoIs(id: string): { name: string; title: string; look: Appearance } | null {
+    const c = COMPANIONS[id as CompanionId];
+    if (c) return { name: c.name, title: c.title, look: c.look as Appearance };
+    const n = this.npcs.find((x) => x.def.id === id);
+    return n ? { name: n.def.name, title: n.def.title, look: n.def.look } : null;
+  }
+
   private renderNode(node: DNode): void {
     const d = this.dialogue!;
+    const who = node.as ? this.whoIs(node.as) : null;
     this.hud.showDialogue({
-      speaker: d.npc.def.name,
-      title: d.npc.def.title,
+      speaker: who?.name ?? d.npc.def.name,
+      title: who?.title ?? d.npc.def.title,
       text: d.text ?? (typeof node.text === 'function' ? node.text(this) : node.text),
       narrator: node.speaker === 'narrator',
-      look: d.npc.def.look,
+      look: who?.look ?? d.npc.def.look,
       options: this.nodeOptions(node).map((o) => ({ text: o.text, leave: o.leave })),
     });
     this.sfx('click');
