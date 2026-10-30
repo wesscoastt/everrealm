@@ -14,7 +14,7 @@ import { NG_GATE, NG_WALL } from '../../world/morrow';
 // Archive kept (you go back out and put it on him) or leave him be, and she goes up the tower at night
 // and knocks back. 'col' -> 'edda' -> ('lay' -> done) | done. Choice hdKnock = 'lay' | 'leave'.
 //
-// hdFold, THE LAST FOLD (Ivo Garth, outside the gate): a herder came down off the Held with the last of
+// hdFold, THE LAST FOLD (Lew Garth, outside the gate): a herder came down off the Held with the last of
 // his fell sabres and found the gate shut. He's slept against it nine nights; the trolls have had two of
 // his cats. Kill three fell trolls so he lasts the week, then get Maud to let him in. She won't open the
 // gate for twelve sabres; the postern is for people. Edda has the first Gatekeeper's charge, older than
@@ -96,7 +96,7 @@ const eddaKnock: Record<string, DNode> = {
 // ---------------------------------------------------------------- The Last Fold
 const ivoNodes: Record<string, DNode> = {
   lf1: {
-    text: 'Don\'t come any closer. They\'re hungry, and they don\'t know you. Ivo Garth. I keep fell sabres up on the Held, or I did.',
+    text: 'Don\'t come any closer. They\'re hungry, and they don\'t know you. Lew Garth. I keep fell sabres up on the Held, or I did.',
     next: 'lf2',
   },
   lf2: {
@@ -193,19 +193,19 @@ const quests: Record<string, QuestDef> = {
   [FOLD]: {
     id: FOLD, name: 'The Last Fold', region: 'held', depth: 'quest',
     notes: (g, s) => {
-      if (s === 'trolls') return `Ivo Garth brought the last twelve of his fell sabres down off the Held and found Northgate's gate shut. The fell trolls come down at night. Thin them out so he lasts the week. (${trolls(g)}/3)`;
+      if (s === 'trolls') return `Lew Garth brought the last twelve of his fell sabres down off the Held and found Northgate's gate shut. The fell trolls come down at night. Thin them out so he lasts the week. (${trolls(g)}/3)`;
       if (s === 'maud') return 'The trolls are thinner. Now Maud Hale has to be talked into letting twelve fell sabres in.';
       if (s === 'edda') return 'Maud won\'t open the gate unless I find her a reason older than her own. Edda Rusk keeps the old rolls.';
       if (s === 'charge') return 'Edda gave me the first Gatekeeper\'s charge. Its last line is for Maud.';
-      return g.flag(FOLD) === 'gate' ? 'Maud opened Northgate\'s gate for an hour at noon, and Ivo Garth brought his fell sabres in.' : 'Maud passed Ivo Garth\'s fell sabres through the postern one at a time, all night, and kept the gate shut.';
+      return g.flag(FOLD) === 'gate' ? 'Maud opened Northgate\'s gate for an hour at noon, and Lew Garth brought his fell sabres in.' : 'Maud passed Lew Garth\'s fell sabres through the postern one at a time, all night, and kept the gate shut.';
     },
     objectives: (g, s) => (s === 'trolls' ? [{ text: `Kill fell trolls on the Held (${trolls(g)}/3)`, done: trolls(g) >= 3 }]
-      : s === 'maud' ? [{ text: 'Talk to Maud Hale about Ivo\'s cats', marker: 'maud_hale' }]
+      : s === 'maud' ? [{ text: 'Talk to Maud Hale about Lew\'s cats', marker: 'maud_hale' }]
         : s === 'edda' ? [{ text: 'Ask Edda Rusk for a reason older than Maud\'s', marker: 'edda_rusk' }]
           : s === 'charge' ? [{ text: 'Read Maud Hale the first Gatekeeper\'s charge', marker: 'maud_hale' }] : []),
     advance: (g, s) => (s === 'trolls' && trolls(g) >= 3 ? 'maud' : null),
-    marks: (g, s): Marks => (!s && at(g, 'tdHeld') === 'done' ? { ivo_garth: '!' } : s === 'maud' || s === 'charge' ? { maud_hale: '?' } : s === 'edda' ? { edda_rusk: '?' } : {}),
-    walk: { cast: ['ivo_garth', 'maud_hale', 'edda_rusk'], from: { quests: { tdHeld: 'done' } }, kill: { trolls: [['felltroll', 3]] } },
+    marks: (g, s): Marks => (!s && at(g, 'tdHeld') === 'done' ? { lew_garth: '!' } : s === 'maud' || s === 'charge' ? { maud_hale: '?' } : s === 'edda' ? { edda_rusk: '?' } : {}),
+    walk: { cast: ['lew_garth', 'maud_hale', 'edda_rusk'], from: { quests: { tdHeld: 'done' } }, kill: { trolls: [['felltroll', 3]] } },
   },
 };
 
@@ -213,14 +213,14 @@ export const HELD_SIDE_CONTENT: RegionContent = {
   id: 'heldSide', quests,
   npcs: [
     {
-      land: 'morrow', id: 'ivo_garth', name: 'Ivo Garth', title: 'Herder of the Held',
+      land: 'morrow', id: 'lew_garth', name: 'Lew Garth', title: 'Herder of the Held',
       look: { skin: '#d8b090', eyes: '#4a5a6a', hair: '#6a5a40', hairStyle: 3, facial: 3, tunic: '#6a5a44', trim: '#d8d0c0', trousers: '#3a3430', boots: '#2a2018', cape: '#8a7a60', hat: 'hood', hatColor: '#5a4a38', build: 1.15, age: 0.45 },
       schedule: [{ from: 0, to: 24, at: [NG_GATE.x - 4.5, NG_GATE.z - 8.5], face: [NG_GATE.x - 4.5, NG_GATE.z - 2], anim: 'idle' }],
       barks: ['Easy. Easy.', 'Nine nights.'],
     },
   ],
   dialogue: {
-    ivo_garth: {
+    lew_garth: {
       start: (g) => (at(g, 'tdHeld') !== 'done' ? 'lf0' : !at(g, FOLD) ? 'lf1' : at(g, FOLD) === 'done' ? 'lfAfter' : 'lfWait'),
       nodes: { lf0: { text: 'Keep back from the cats. And keep your voice down. Things come down that road after dark.' }, ...ivoNodes },
     },
@@ -241,7 +241,7 @@ export const HELD_SIDE_CONTENT: RegionContent = {
     },
   ],
   hooks: (D) => {
-    // (after Lie Still: Edda has time for her own trouble, and for Ivo's)
+    // (after Lie Still: Edda has time for her own trouble, and for Lew's)
     hook(D, 'edda_rusk', (g) => {
       if (at(g, 'tdHeld') !== 'done') return undefined;
       const k = at(g, KNOCK), f = at(g, FOLD);
