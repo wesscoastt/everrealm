@@ -15,11 +15,12 @@ export type MonumentModel =
   | 'glassslab' | 'lawstone' | 'routeboard'
   | 'boundstone' | 'assemblynotice' | 'doorstep'
   | 'longseat' | 'heightmarks' | 'findingpost'
-  | 'bogoak' | 'chalklizard' | 'floodpunt';
+  | 'bogoak' | 'chalklizard' | 'floodpunt'
+  | 'tilewall' | 'redrock' | 'fishrack';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater' | 'cala';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -31,6 +32,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Cala Roja (world/sites.ts buildCala: x from the quay's edge, z from the town's middle, facing)
+  {
+    id: 'crtiles', town: 'cala', at: [-6.2, -7, Math.PI / 2], model: 'tilewall', title: 'The boat tiles',
+    body: 'A low white wall at the head of the quay, faced with painted tiles, one for every boat ever built in Cala Roja: her name, her colours and the year she went in the water, blue on white. There are a hundred and twelve.\n\nSome have one corner painted black. Those are the boats that didn\'t come back.\n\nThe newest tile has the colours painted and the name left blank. The Pujols haven\'t decided.',
+  },
+  {
+    id: 'crrock', town: 'cala', at: [-2.5, -25, 0.4], model: 'redrock', title: 'La Roja',
+    body: 'The rock the town is named for, red as a roof tile, standing up through the paving at the north end of the quay. When they built the quay they built it round the rock rather than move it.\n\nEvery child in Cala Roja jumps off it into the basin on the day they turn ten. The top is worn smooth by bare feet. There\'s an iron ring in the side for the ones who need a hand getting out.',
+  },
+  {
+    id: 'crrack', town: 'cala', at: [-3.5, 6.5, Math.PI / 2], model: 'fishrack', title: 'Nuria\'s racks',
+    body: 'Split fish drying on a rack of cane, salt crusted white on them. Strung all along it on a line: tin cans, cockle shells, a spoon, and a bell off a goat, to rattle if anything comes at the fish in the night.\n\nIt does rattle. The terrace jackals have learned that the rattle means dinner.',
+  },
   // ---------------------------------------------------------------- Reedwater (world/sites.ts buildReedwater: x and z from the middle platform, facing; all on the deck)
   {
     id: 'rwoak', town: 'reedwater', at: [2.5, 2.5, 0], model: 'bogoak', title: 'The bog oak',

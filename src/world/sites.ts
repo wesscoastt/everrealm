@@ -3653,6 +3653,10 @@ export function plan(): Plan {
     for (const z of [cz - 16, cz, cz + 16]) k.street(cx - 34, z - 1, QX - 6, z + 1, sett);
     k.street(cx - 12, cz - 30, cx - 10, cz + 30, sett);
     k.postSpot(T.post[0], T.post[1], B.Whitestone);
+    // Cala Roja's own (data/monuments.ts, town 'cala'): the boat tiles at the head of the quay, La Roja up
+    // through its paving at the north end, Nuria's racks on it; the tiles' ground kept clear of houses
+    for (const m of MONUMENTS) if (m.town === 'cala' && m.at) k.claim(QX + m.at[0] - 2, cz + m.at[1] - 3, QX + m.at[0] + 2, cz + m.at[1] + 3);
+    placeMonuments(s, 'cala', QX, () => base, cz);
     k.houses(cx - 40, cz - 40, QX - 7, cz + 40, { w: [6, 8], d: [6, 7], seed: 980, make: (n, x, z, w, d, door) => house(s, x, z, w, d, n % 3 === 0 ? 2 : 1, base, n % 4 === 3 ? 'blue' : 'red', door, { wall: B.Whitestone, front: 'white', role: n === 0 ? 'inn' : n % 7 === 0 ? 'shop' : 'home', closed: n % 3 !== 0, trim: hash2(x, z, 981) < 0.6 ? ['shutters'] : [] }) });
     // Boats in the basin, nets drying on the quay, the fish market at its south end
     for (const [z, ry] of [[cz - 18, 1.2], [cz - 8, 1.7], [cz + 4, 1.4], [cz + 14, 1.9]] as const) s.props.push({ t: 'boat', x: QX + 5.5, y: SEA - 0.4, z: z + 0.5, ry });
@@ -8735,6 +8739,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'crtiles') bar(d, 0, 0, 1.6, 0.2, 2);
+        else if (d.monument === 'crrock') bar(d, 0, 0, 0.95, 0.8, 2);
+        else if (d.monument === 'crrack') bar(d, 0, 0, 1.25, 0.35, 2);
         else if (d.monument === 'rwoak') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'rwpunt') bar(d, 0, 0, 1.6, 0.5, 1);
         else if (d.monument === 'rwlizard') { /* chalk on the boards */ }

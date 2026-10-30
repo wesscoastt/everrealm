@@ -1911,6 +1911,49 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'tilewall': {
+      // A low whitewashed wall faced with painted tiles, blue on white, black-cornered for the lost boats
+      g.add(mesh(box(3.2, 1.3, 0.4), flat('#f2eee4'), 0, 0.65, 0));
+      g.add(mesh(box(3.3, 0.1, 0.5), flat('#e0d8c8'), 0, 1.35, 0));
+      const blues = ['#2f4a8a', '#3a5aa0', '#2a3a6a'];
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) {
+        const x = -1.35 + c * 0.3, y = 0.3 + r * 0.25, last = r === 3 && c === 9;
+        g.add(mesh(box(0.26, 0.21, 0.02), flat('#f4f2ea'), x, y, 0.205));
+        g.add(mesh(box(0.18, 0.04, 0.01), flat(last ? '#f4f2ea' : blues[(r * 7 + c) % 3]), x, y + 0.04, 0.218));         // the name
+        g.add(mesh(box(0.08, 0.06, 0.01), flat(['#a8382c', '#e8c050', '#2f5a3a', '#3a5aa0'][(r * 3 + c) % 4]), x - 0.05, y - 0.05, 0.218)); // her colours
+        if ((r * 11 + c * 7) % 9 === 0) g.add(mesh(box(0.07, 0.07, 0.012), flat('#141418'), x + 0.095, y + 0.07, 0.219));      // the black corner
+      }
+      break;
+    }
+    case 'redrock': {
+      // A red boulder up through the paving, its top worn smooth, an iron ring in its side
+      const red = flat('#a84030'), dk = flat('#7a2a20');
+      for (const [x, y, z, w, h, d, ry] of [[0, 0.5, 0, 1.9, 1.2, 1.6, 0], [0.2, 1.2, -0.1, 1.4, 0.6, 1.2, 0.4], [-0.6, 0.35, 0.5, 0.9, 0.7, 0.8, 0.9], [0.7, 0.3, 0.6, 0.7, 0.5, 0.6, 0.3]] as const) g.add(mesh(box(w, h, d), ry ? dk : red, x, y, z, ry));
+      g.add(mesh(box(1.0, 0.04, 0.8), flat('#c86a52'), 0.2, 1.51, -0.1, 0.4));                                            // worn smooth
+      g.add(mesh(box(0.06, 0.26, 0.26), flat('#3a3a3e'), 0.96, 0.6, 0.0));                                                // the ring
+      g.add(mesh(box(0.06, 0.16, 0.16), red, 0.97, 0.6, 0.0));
+      break;
+    }
+    case 'fishrack': {
+      // Cane poles and rails, split fish hung in rows, and the rattle line of cans, shells, a spoon and a bell
+      const cane = flat('#c8b078'), fish = flat('#c8ccd0'), salt = flat('#f4f2ec');
+      for (const x of [-1.2, 1.2]) for (const z of [-0.3, 0.3]) g.add(mesh(box(0.07, 1.7, 0.07), cane, x, 0.85, z));
+      for (const [y, z] of [[1.6, -0.3], [1.6, 0.3], [1.15, -0.3], [1.15, 0.3]] as const) g.add(mesh(box(2.5, 0.05, 0.05), cane, 0, y, z));
+      for (const [y, z] of [[1.6, -0.3], [1.6, 0.3], [1.15, -0.3], [1.15, 0.3]] as const) for (let i = 0; i < 7; i++) {
+        const x = -1.0 + i * 0.33;
+        g.add(mesh(box(0.12, 0.34, 0.03), i % 3 ? fish : flat('#a8b0b8'), x, y - 0.2, z));
+        g.add(mesh(box(0.13, 0.05, 0.035), salt, x, y - 0.3, z));
+      }
+      g.add(mesh(box(2.6, 0.012, 0.012), flat('#8a7a5a'), 0, 0.75, 0.42));                                                // the rattle line
+      for (let i = 0; i < 9; i++) {
+        const x = -1.1 + i * 0.28, kind = i % 4;
+        if (kind === 0) g.add(mesh(box(0.08, 0.11, 0.08), flat('#9aa0a8'), x, 0.67, 0.42));                               // a tin can
+        else if (kind === 1) g.add(mesh(box(0.08, 0.06, 0.02), flat('#e8dcc8'), x, 0.7, 0.42));                         // a cockle shell
+        else if (kind === 2) g.add(mesh(box(0.025, 0.14, 0.02), flat('#c8c8cc'), x, 0.68, 0.42));                       // the spoon
+        else g.add(mesh(box(0.09, 0.09, 0.09), flat('#a8884a'), x, 0.68, 0.42));                                       // the goat bell
+      }
+      break;
+    }
     case 'bogoak': {
       // A black bog-oak trunk up through the deck, studded thick with nails below the rail, the newest bright
       const oak = flat('#1e1a16');
