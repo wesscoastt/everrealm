@@ -12,7 +12,7 @@ export type Sfx =
   | 'anvil' | 'sizzle' | 'quest' | 'discover' | 'whistle' | 'death' | 'pickup' | 'fail' | 'thunder'
   | 'bark' | 'meow' | 'quack' | 'baa' | 'purr' | 'moo' | 'oink'
   // Feet on what they're on, a horse's hooves, and the body
-  | 'stepGrass' | 'stepStone' | 'stepWood' | 'stepGravel' | 'stepSand' | 'stepSnow' | 'stepWater' | 'hoof' | 'jump' | 'land' | 'swim'
+  | 'stepGrass' | 'stepStone' | 'stepWood' | 'stepGravel' | 'stepSand' | 'stepSnow' | 'stepWater' | 'stepMetal' | 'stepDirt' | 'stepMud' | 'hoof' | 'jump' | 'land' | 'swim'
   // Blows, and things in the hands
   | 'crit' | 'equip' | 'eat' | 'drink' | 'page' | 'doorOpen' | 'doorShut' | 'chest' | 'unlock' | 'pickSnap' | 'mail'
   // The body and the hands: emotes, a seat, a light struck and put out, cards
@@ -527,6 +527,10 @@ export class AudioSystem {
       case 'stepSand': this.burst(1400, 0.6, 0.12, 0.1 * v, 'lowpass', 0, 600); break;
       case 'stepSnow': for (let i = 0; i < 6; i++) this.burst(1800 + Math.random() * 900, 4, 0.016, 0.09 * v, 'bandpass', i * 0.014); this.tone(900, 'sine', 0.05, 0.015 * v, 0.02, 1150); break;
       case 'stepWater': this.burst(900, 0.8, 0.18, 0.16 * v, 'lowpass', 0, 300); this.tone(520, 'sine', 0.06, 0.03 * v, 0.03, 900); break;
+      // Brass and copper floors ring a little; earth thuds soft; bog sucks at the boot
+      case 'stepMetal': { this.stepFlip = !this.stepFlip; const r = 0.92 + Math.random() * 0.16; this.tone((this.stepFlip ? 620 : 540) * r, 'triangle', 0.12, 0.05 * v, 0, 500 * r); this.tone((this.stepFlip ? 1490 : 1310) * r, 'sine', 0.18, 0.02 * v, 0.005); this.burst(3400, 3, 0.03, 0.08 * v, 'bandpass'); break; }
+      case 'stepDirt': { this.stepFlip = !this.stepFlip; const r = 0.85 + Math.random() * 0.3; this.burst((this.stepFlip ? 700 : 600) * r, 1.2, 0.07, 0.12 * v, 'lowpass', 0, 300); this.tone(75 * r, 'sine', 0.07, 0.08 * v, 0, 55); break; }
+      case 'stepMud': this.burst(420, 1.5, 0.14, 0.14 * v, 'lowpass', 0, 180); this.tone(240, 'sine', 0.08, 0.035 * v, 0.06, 140); this.burst(1600, 2, 0.04, 0.03 * v, 'bandpass', 0.12); break;
       case 'hoof': {
         // Clip, and clop: two feet a beat apart
         this.stepFlip = !this.stepFlip;

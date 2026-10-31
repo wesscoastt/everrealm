@@ -7327,7 +7327,11 @@ export class Game implements GameApi {
     switch (under) {
       case B.Stone: case B.Cobble: case B.StoneBrick: case B.MossyCobble: case B.MossyStone: case B.DeepStone: case B.Basalt: case B.Ice: case B.Crystal:
       case B.TerraOrange: case B.TerraCream: case B.TerraBrown: case B.CopperOre: case B.TinOre: case B.SilverOre: case B.IronOre: case B.Depleted:
+      case B.Whitestone: case B.Blackstone: case B.RedBrick: case B.Sandstone: case B.Flagstone: case B.BrickPave: case B.CarvedStone: case B.Granite: case B.Emberstone:
         return 'stepStone';
+      case B.Brass: case B.Copper: return 'stepMetal';
+      case B.Dirt: case B.Farmland: case B.Loam: case B.Ash: case B.Mycelium: case B.CapBrown: case B.CapInk: case B.CapRed: case B.CapGlow: case B.Thatch: return 'stepDirt';
+      case B.Peat: return 'stepMud';
       case B.Planks: case B.DarkPlanks: case B.Timber: case B.OakLog: case B.BirchLog: case B.PineLog: case B.Hay: case B.Barrier:
         return 'stepWood';
       case B.Gravel: case B.Path: return 'stepGravel';
