@@ -1623,6 +1623,7 @@ export class Game implements GameApi {
   towerBest(): number { return this.tower.best(); }
   towerStarts(): number[] { return this.tower.starts(); }
   towerClimbing(): boolean { return !!this.tower.run; }
+  towerTally() { return this.tower.tally(); }
   /** An infirmary's physician sees to you (data/infirmary.ts): every harm off, and full health. */
   treat(): string | null {
     if (this.harms.size === 0 && this.hp >= this.maxHp) return 'There\'s nothing wrong with you that wants mending.';

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ENEMIES, type EnemyType } from '../data/gameplay';
 import { checkpointUnder, ENCOUNTERS, HALL_AT, HALL_ENTRY, HALL_SPAWNS, HALL_Y, MODIFIERS, THEMES, TOWER, towerDef, towerFloor, type FloorFoe, type FloorPlan } from '../data/tower';
 import { Enemy } from '../entities/Enemy';
+import { utcDay, utcWeek } from '../data/calendar';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
 // A run up the Endless Tower (data/tower.ts, docs/TOWER_BRIEF.md). You start at floor 1 or at a
@@ -55,6 +56,11 @@ export const MILESTONES: Record<number, { tokens: number; items: string[]; line:
   100: { tokens: 150, items: ['cape_tower'], line: 'Floor one hundred. Crowle sends down the Endless cloak, the first she has given.' },
 };
 
+/** The day's climb and the week's: floors cleared, and what Crowle pays when they're done, once each. */
+export const TOWER_DAILY = { floors: 5, tokens: 15 };
+export const TOWER_WEEKLY = { floors: 30, tokens: 60 };
+interface Tally { n: number; floors: number; paid: boolean }
+
 /** Tower tokens a floor pays the first time and every time after. */
 export const tokensFor = (n: number, first: boolean) => (first ? 3 : 1) + Math.floor(n / 10) + (n % 10 === 0 ? 5 : n % 5 === 0 ? 2 : 0);
 
@@ -68,6 +74,20 @@ export class Tower {
   reached(): number { return Number(this.host.flag('tower:reached') ?? 0); }
   /** The floors you may start from: the first, and every checkpoint you have cleared. */
   starts(): number[] { const out = [1]; for (let n = 10; n <= this.best(); n += 10) out.push(n); return out; }
+
+  /** The day's and the week's climbs so far (floors cleared, whether paid). */
+  tally(): { day: Tally; week: Tally } {
+    const read = (k: string, n: number): Tally => { const v = this.host.flag(k) as Tally | undefined; return v && typeof v === 'object' && v.n === n ? v : { n, floors: 0, paid: false }; };
+    return { day: read('tower:day', utcDay()), week: read('tower:week', utcWeek()) };
+  }
+  private count(): void {
+    const t = this.tally();
+    for (const [k, v, goal, why] of [['tower:day', t.day, TOWER_DAILY, 'The day\'s climb'], ['tower:week', t.week, TOWER_WEEKLY, 'The week\'s climb']] as const) {
+      const now = { ...v, floors: v.floors + 1 };
+      if (!now.paid && now.floors >= goal.floors) { now.paid = true; this.host.reward(0, 0, Array<string>(goal.tokens).fill('tower_token'), `${why} done, ${goal.floors} floors: ${goal.tokens} tower tokens`); }
+      this.host.setFlag(k, now);
+    }
+  }
 
   /** Start a run at floor n (1, or a checkpoint you have cleared: you start on the floor after it). */
   begin(from: number): string | null {
@@ -182,6 +202,7 @@ export class Tower {
     const n = r.floor, first = n > this.best();
     if (first) this.host.setFlag('tower:best', n);
     r.floorsCleared++;
+    this.count();
     r.state = 'cleared'; r.wait = 4;
     const tokens = tokensFor(n, first);
     this.host.reward(Math.round(40 + n * 6), Math.round(5 + n * 1.5), Array<string>(tokens).fill('tower_token'), `Floor ${n} cleared${first ? ', for the first time' : ''}: ${tokens} tower token${tokens > 1 ? 's' : ''}`);

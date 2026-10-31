@@ -40,9 +40,19 @@ const dialogue: Record<string, DialogueTree> = {
         options: [
           { text: 'I\'ll climb.', next: 'start' },
           { text: 'Show me what the tokens buy.', effect: (g) => g.openShop('tower_crowle') },
+          { text: 'What does the book say about this week?', next: 'tally' },
           { text: 'How does it work?', next: 'how' },
           { text: 'Not today.' },
         ],
+      },
+      tally: {
+        text: (g) => {
+          const t = g.towerTally();
+          const day = t.day.paid ? 'You\'ve done today\'s five and been paid for them' : `Today: ${t.day.floors} of five floors`;
+          const week = t.week.paid ? 'and this week\'s thirty, paid' : `and this week ${t.week.floors} of thirty`;
+          return `${day}, ${week}. Five a day and thirty a week, and I pay for both, once.`;
+        },
+        next: 'again',
       },
       far: { text: 'Further than it is tall, which you\'d think was a riddle until you\'ve been up it. My mother had a climber in the book at three hundred and something. He came down with his hair white.', next: 'hello' },
       how: {
