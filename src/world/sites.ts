@@ -7340,7 +7340,29 @@ export function plan(): Plan {
     for (let zz = z - 30; zz < z - 18; zz += 2.5) s.props.push({ t: 'bench', x: C - 134.5, y: base, z: zz, ry: 0 });
     s.props.push({ t: 'furn', item: 'counter', x: C - 134.5, y: base, z: z - 32.2, ry: 0 }, { t: 'furn', item: 'lamp', x: C - 134.5, y: base + 7, z: z - 25.5, ry: 0 });
     // Warehouses on the quay, the fish market, lamps down to the water
-    for (const wz of [z - 38, z + 28]) for (const wx of [C - 26, C - 14]) house(s, wx, wz, 10, 8, 2, base, 'slate', wz < z ? 's' : 'n', { wall: B.Planks, closed: true, chimney: false });
+    // ...open, each its own trade's store: crates and barrels round the walls (interiors.ts 'store'), and in
+    // the middle what that store keeps: salt fish in boxes, rope on the beams, wine racked, wool in bales
+    const stores: [number, number, string][] = [[C - 26, z - 38, 'Salt Store'], [C - 14, z - 38, 'Rope Loft'], [C - 26, z + 28, 'Wine Store'], [C - 14, z + 28, 'Wool Store']];
+    for (const [wx, wz, name] of stores) {
+      const south = wz < z, fz = south ? wz + 8.6 : wz - 0.6;
+      house(s, wx, wz, 10, 8, 2, base, 'slate', south ? 's' : 'n', { wall: B.Planks, role: 'store', chimney: false, signs: false });
+      s.props.push({ t: 'sign', x: wx + 2.5, y: base, z: fz, ry: south ? 0 : Math.PI, text: name }, { t: 'lantern', x: wx + 7.5, y: base, z: fz });
+      // (the back half, either side of the aisle from the door; the keeper's desk is in the front half)
+      const L = wx + 2.2, Rx = wx + 7.4, z1 = south ? wz + 2.5 : wz + 4.5, z2 = z1 + 1, zr = south ? wz + 3 : wz + 5;
+      if (name === 'Salt Store') {
+        s.props.push({ t: 'fishBox', x: L, y: base, z: z1, ry: 0 }, { t: 'fishBox', x: L, y: base, z: z2, ry: 0 }, { t: 'fishBox', x: L, y: base + 0.5, z: z1 + 0.5, ry: 0.2 });
+        for (const zz of [z1, z2]) s.props.push({ t: 'barrel', x: Rx, y: base, z: zz });
+      } else if (name === 'Rope Loft') {
+        for (const zz of [wz + 2.5, wz + 5.5]) s.props.push({ t: 'rope', x: wx + 1.4, y: base + 3.6, z: zz, ry: Math.PI / 2, len: 7.2, h: 0.7, r: 0.07 } as PropDesc);
+        for (const [xx, zz] of [[L, z1], [L, z2], [Rx, z1]]) s.props.push({ t: 'furn', item: 'chest', x: xx, y: base, z: zz, ry: 0 });
+      } else if (name === 'Wine Store') {
+        s.props.push({ t: 'barrelRack', x: L, y: base, z: zr, ry: Math.PI / 2, len: 2.5 }, { t: 'barrelRack', x: Rx, y: base, z: zr, ry: Math.PI / 2, len: 2.5 });
+      } else {
+        for (const [xx, zz, k] of [[L, z1, 0], [L, z2, 1], [L, z1 + 0.5, 2], [Rx, z1, 3], [Rx, z2, 4]] as const) s.props.push({ t: 'crate', x: xx, y: base + (k === 2 ? 0.9 : 0), z: zz, ry: k * 0.4 });
+      }
+      // a tally desk inside the door, for whoever keeps the store
+      s.props.push({ t: 'furn', item: 'desk', x: wx + 3.5, y: base, z: south ? wz + 5.4 : wz + 2.6, ry: south ? Math.PI : 0 });
+    }
     shelter(s, C - 46, z + 22, 14, 8, base, 'blue', 4);
     for (let i = 0; i < 6; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: C - 44 + i * 2.1, y: base, z: z + 26 });
     for (let x = C - 130; x < C - 62; x += 13) s.props.push({ t: 'lantern', x: x + 0.5, y: base, z: z - 4.6, ry: 0 }, { t: 'lantern', x: x + 6.5, y: base, z: z + 4.6, ry: Math.PI });
