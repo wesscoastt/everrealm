@@ -476,4 +476,69 @@ const sw3Hooks = (D: Record<string, DialogueTree>) => {
   });
 };
 
-export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => { sw2Hooks(D); sw3Hooks(D); } };
+// ------------------------------------------------------------------ "Short Weight", IV: Saltpenny Keeps No Book
+// The wrong turn. Constance Ferrars sends for you: find who buys the Company's cargoes off the Brethren
+// in Saltpenny. Gil Fenner, who buys everything and writes nothing down, has a letter from her already:
+// whoever the Company sends asking, he's to find out what they know and write back. She sent you to
+// learn how much you'd found. Let him write that you know nothing, take the letter, or pay him to lie
+// for you and keep it. Flag "coSalt": 'lie' | 'took' | 'paid'.
+
+const SW4 = 'coSalt';
+const sw4 = (g: GameApi) => g.stage(SW4);
+const salt = (g: GameApi, choice: 'lie' | 'took' | 'paid', why: string) => {
+  g.setFlag('coSalt', choice);
+  g.setStage(SW4, 'done');
+  g.addMarks(200);
+  g.give(SCRIP, 14);
+  g.toast(`${why} 200 marks and 14 scrip.`);
+};
+
+QUESTS[SW4] = {
+  id: SW4, name: 'Saltpenny Keeps No Book', region: 'saltpenny', depth: 'storyline',
+  notes: (g, s) => {
+    if (s === 'gil') return 'Constance Ferrars wants to know who buys the Company\'s cargoes off the Brethren in Saltpenny. Gil Fenner, at Low Tide, buys everything and writes nothing down.';
+    const c = g.flag('coSalt');
+    const head = 'Gil Fenner had a letter from Constance Ferrars before I came: whoever the Company sent asking, he was to find out what they knew and write to her. She sent me to learn how much I had found. ';
+    return head + (c === 'lie' ? 'I let Gil write that I know nothing. She thinks she\'s safe.'
+      : c === 'took' ? 'I took her letter. She\'ll know by the next Kittiwake that I have it.'
+      : 'I paid Gil to write that I know nothing, and kept her letter in my coat.');
+  },
+  objectives: (_g, s) => (s === 'gil' ? [{ text: 'Find Gil Fenner at Low Tide in Saltpenny', marker: 'gil_fenner' }] : []),
+  marks: (g, s): Marks => {
+    if (s === undefined) return g.stage(SW3) === 'done' ? { co_constance: '!' } : {};
+    return s === 'gil' ? { gil_fenner: '?' } : {};
+  },
+  walk: { from: { quests: { [SW1]: 'done', [SW2]: 'done', [SW3]: 'done' }, flags: { 'co:signed': true } } },
+};
+
+hook(dialogue, 'co_constance', (g) => (sw4(g) === undefined && g.stage(SW3) === 'done' ? 'ds_a' : undefined), {
+  ds_a: { text: (g) => (g.flag('coWeightChoice') === 'factor'
+    ? 'You came to me about the weight. I said I wouldn\'t forget. I haven\'t. I need someone I can trust in Morrow.'
+    : 'Gilbert tells me you\'re the one who finds things. I need something found, in Morrow.'), next: 'ds_b' },
+  ds_b: { text: 'The Brethren sell our cargoes in Saltpenny, and someone buys them back for the Company. I want a name. Gil Fenner buys everything there and writes nothing down. Ask him.',
+    options: [{ text: 'I\'ll go.', effect: (g) => g.setStage(SW4, 'gil') }, { text: 'Not now.' }] },
+});
+
+const sw4Hooks = (D: Record<string, DialogueTree>) => {
+  hook(D, 'gil_fenner', (g) => (sw4(g) === 'gil' ? 'ds_g1' : undefined), {
+    ds_g1: { text: 'The Counting House. I wondered which of you it\'d be. Sit. I\'ve been paid to talk to you.', next: 'ds_g2' },
+    ds_g2: { text: 'Here. Came on the Kittiwake a week back. Read it yourself; I don\'t read other people\'s letters, I only sell them.', next: 'ds_g3' },
+    ds_g3: { text: (g) => (g.flag('coWeightChoice') === 'factor'
+      ? '"Whoever comes asking will be the one who came to me first about the weight. Find out what they know, and write. C. F." She sent you to find out how much you\'d found.'
+      : '"Whoever comes asking will be Gilbert Ashe\'s friend from the window. Find out what they know, and write. C. F." She sent you to find out how much you\'d found.'), next: 'ds_g4' },
+    ds_g4: { text: 'So. I write back that you know nothing, and she sleeps. Or you take the letter, and she doesn\'t. Or you pay me a hundred and I write nothing-at-all and you keep it.',
+      options: [
+        { text: 'Write that I know nothing.', next: 'ds_lie' },
+        { text: 'I\'ll take the letter.', next: 'ds_took' },
+        { text: 'A hundred marks. Lie for me.', cond: (g) => g.marks >= 100, next: 'ds_paid' },
+      ] },
+    ds_lie: { text: 'Then she\'ll think you\'re a fool, which is the safest thing to be thought by her. Off you go.',
+      options: [{ text: 'Thank you.', effect: (g) => salt(g, 'lie', 'Gil Fenner wrote that you know nothing.') }] },
+    ds_took: { text: 'Take it, then. She\'ll know by the next Kittiwake. I\'d stay off quaysides at night, if I were you. Saltpenny\'s are steep.',
+      options: [{ text: 'I\'ll manage.', effect: (g) => salt(g, 'took', 'You took Constance Ferrars\' letter.') }] },
+    ds_paid: { text: 'A hundred. And I write a nothing so good she\'ll frame it. Keep the letter. It\'s worth more in your coat than in my fire.',
+      options: [{ text: 'Here.', effect: (g) => { g.addMarks(-100); salt(g, 'paid', 'You paid Gil Fenner to lie for you.'); } }] },
+  });
+};
+
+export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => { sw2Hooks(D); sw3Hooks(D); sw4Hooks(D); } };
