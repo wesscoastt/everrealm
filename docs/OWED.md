@@ -107,7 +107,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 ## C. Waiting on the owner
 
-17. **Continent 3** (docs/CONTINENT3.md, draft written; dragon awake from the start, Debatable Land 50+):
-    build once the owner says go; the dragon at the centre of its story; Cyrodiil-style PvP region.
+17. **Continent 3, Serra** (docs/CONTINENT3.md, draft written; name Serra confirmed 2026-10-31; dragon awake from the start, Debatable Land 50+):
+    build after the first-hours playthrough and once the main game is polished (owner 2026-10-31: "After. And after the main game is polished"); the dragon at the centre of its story; Cyrodiil-style PvP region.
 18. **Stripe**: the owner adds charge.refunded, charge.dispute.created and charge.dispute.closed to the
     webhook.
