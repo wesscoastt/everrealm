@@ -137,6 +137,8 @@ import { Exchange } from './Exchange';
 import { Mail } from './Mail';
 import { Seasons } from './Seasons';
 import { WakeFair } from './WakeFair';
+import { Gatherings } from './Gatherings';
+import { gatheringBoard } from '../data/gatherings';
 import { Farming, farmPatches } from './Farming';
 import { Rowboat } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
@@ -168,7 +170,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNL
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { currentAccount, deleteRemote, isDevAccount, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
+import { climbers, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
@@ -387,6 +389,8 @@ export class Game implements GameApi {
   seasons!: Seasons;
   /** The Wake Fair at Hollin Ford, and its games, while the Lantern Wake is on. */
   private fair!: WakeFair;
+  /** The towns' fires, lit in turn on the realm clock (data/gatherings.ts). */
+  gatherings!: Gatherings;
   /** Your farming patches (data/farming.ts). */
   private farming!: Farming;
   /** Your rowing boat, or the one you've hired (game/Rowboat.ts). */
@@ -971,6 +975,13 @@ export class Game implements GameApi {
       marks: () => this.save.marks, addMarks: (n) => { if (n < 0) this.save.marks = Math.max(0, this.save.marks + n); else this.addMarks(n); this.hud.refresh(); },
       system: (t) => this.hud.system(t), banner: (t, sub) => this.hud.banner(t, sub, true), sound: (n) => this.sfx(n),
       player: () => this.player.position,
+    });
+    this.gatherings = new Gatherings({
+      scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
+      player: () => this.player.position,
+      others: () => [...this.online.remotes.values()].map((r) => r.model.root.position),
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+      system: (t) => this.hud.system(t), banner: (t, sub) => this.hud.banner(t, sub, true), sound: (n) => this.sfx(n),
     });
     this.home = new Home({
       scene: this.scene, flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1662,6 +1673,7 @@ export class Game implements GameApi {
     }, () => this.online.qAnswer(run, false, 'damage'), secs);
   }
   towerBest(): number { return this.tower.best(); }
+  climbers(): { name: string; floor: number }[] | null { void loadClimbers(); return climbers.loaded ? climbers.list : null; }
   towerStarts(): number[] { return this.tower.starts(); }
   towerClimbing(): boolean { return !!this.tower.run; }
   towerTally() { return this.tower.tally(); }
@@ -2806,6 +2818,9 @@ export class Game implements GameApi {
   addXp(skill: SkillId, amount: number): void {
     if (this.social.groupNearby()) amount = Math.round(amount * 1.1);
     if (Number(this.flag('rested') ?? 0) > 0) amount = Math.round(amount * 1.25);
+    // Good company: an hour's more after a while at a town's fire (game/Gatherings.ts)
+    const company = this.gatherings?.bonus() ?? 0;
+    if (company) amount = Math.round(amount * (1 + company));
     if (skill !== 'melee' && this.mastery('scholar')) amount = Math.round(amount * (1 + this.mastery('scholar')));
     if (!this.writXp && skill !== 'melee') this.dailies.bump(`xp:${skill}`, Math.round(amount));
     const before = this.level(skill);
@@ -3268,7 +3283,7 @@ export class Game implements GameApi {
         else if (what === 'strike' && arg) g.music.strikeUp(arg);
         g.hud.refresh('music');
       },
-      finder: () => ({ ...g.dungeons.view(), bosses: g.activities.bossBoard(), wbSeek: g.wbSeek, lfg: g.lfg, lfgChoices: g.lfgChoices() }),
+      finder: () => ({ ...g.dungeons.view(), bosses: g.activities.bossBoard(), gatherings: gatheringBoard(), wbSeek: g.wbSeek, lfg: g.lfg, lfgChoices: g.lfgChoices() }),
       finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind' | 'wbfind' | 'wbstop' | 'lfgpost' | 'lfgstop' | 'lfgjoin', id?: string) => {
         let why: string | null = null;
         if (what === 'wbfind' && id) {
@@ -6646,6 +6661,7 @@ export class Game implements GameApi {
     this.festivals.update(dt, P);
     this.seasons.update(dt, P);
     this.fair.update(dt, this.world.sky.night);
+    this.gatherings.update(dt);
     this.farming.update(dt);
     // Trying something on: it comes off when you walk on, close the shop, or after half a minute
     if (this.trying) {
@@ -7583,7 +7599,7 @@ export class Game implements GameApi {
     if (!full) for (const e of this.enemies) if (e.alive && e.pos.distanceTo(this.player.position) < 55) out.push({ x: e.pos.x, z: e.pos.z, kind: e.def.elite ? 'elite' : 'enemy' });
     for (const r of this.online.remotes.values()) out.push({ x: r.model.root.position.x, z: r.model.root.position.z, kind: this.social.isAlly(r.id) ? 'ally' : 'other', label: full || this.social.isAlly(r.id) ? r.name : undefined });
     if (full) for (const p of POSTS) if (this.save.discovered.includes(p.place)) out.push({ x: p.x, z: p.z, kind: 'post', label: p.name });
-    out.push(...this.activities.markers(), ...this.seasons.markers(), ...this.fair.markers(), ...this.farming.markers());
+    out.push(...this.activities.markers(), ...this.seasons.markers(), ...this.fair.markers(), ...this.gatherings.markers(), ...this.farming.markers());
     out.push(...this.waymarkStones.markers());
     out.push(...this.festivals.markers());
     out.push(...this.serviceMarkers().filter((m) => full || Math.hypot(m.x - this.player.position.x, m.z - this.player.position.z) < 160));

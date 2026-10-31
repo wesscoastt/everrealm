@@ -6,7 +6,7 @@ import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
 import { ENEMIES, EnemyType } from '../data/gameplay';
 import { CORRUPT_SHARD, CORRUPTED, KEY_OF } from '../data/keys';
-import { BossMove, BossPlan, CALLING_ROLE, splitRunId, VET, VETERAN, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, type Henchman, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
+import { BossMove, BossPlan, CALLING_ROLE, COR, splitRunId, VET, VETERAN, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, type Henchman, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
 import type { CallingId } from '../data/classes';
 import { ITEMS } from '../data/items';
 import { trophyHelmOf } from '../data/trophies';
@@ -169,6 +169,8 @@ export interface FinderView {
   pledge: { id: string; name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null;
   /** The world bosses, for finding a group to take one on (filled in by the game). */
   bosses?: { id: string; name: string; where: string; until: number }[];
+  /** The towns' fires: the next few lightings (data/gatherings.ts). */
+  gatherings?: { id: string; name: string; where: string; until: number }[];
   /** The boss you're on the list for, if any. */
   wbSeek?: string | null;
   /** The open world's board, and the notices you could put up (filled in by the game). */
@@ -303,8 +305,20 @@ export class Dungeons {
     const why = this.blocked();
     if (why) return why;
     if (!this.host.net.on()) return 'Finding a group needs the online realm. You can go in with henchmen.';
-    if (this.cor) return 'Corrupted runs go in with henchmen for now: the realm doesn\'t queue them yet.';
     const g = this.host.group();
+    // Corrupted: a group takes it on together (the leader's key opens it), or you go in with henchmen; never the open queue
+    if (this.cor) {
+      const k = KEY_OF[id];
+      if (!k) return 'That dungeon has no corrupted run.';
+      if (!g) return 'A corrupted run takes a group you bring yourself (its leader\'s key opens it), or henchmen.';
+      if (!g.leader) return 'You\'re in a group: its leader takes the group in, with their key.';
+      if (g.size > 4) return 'A group dungeon is for four. Your group is ' + g.size + '.';
+      if (!Number(this.host.flag('gdVetClears:' + id) ?? 0)) return 'Clear it on veteran first: its corrupted run opens after.';
+      if (this.host.count(k.key) < 1) return 'You need its key for a corrupted run: four of its fragments and a corrupted shard, made at any anvil.';
+      this.host.net.groupGo(id + COR);
+      this.host.system(`Asking your group whether they're ready for ${DUNGEON_BY_ID[id].name}, corrupted. Your key opens it when everyone says yes.`);
+      return null;
+    }
     if (g && !g.leader) return 'You\'re in a group: its leader takes the group in.';
     if (g) {
       if (g.size > 4) return 'A group dungeon is for four. Your group is ' + g.size + '.';
@@ -350,7 +364,7 @@ export class Dungeons {
     const who = names.length ? names.join(', ') : 'you';
     const fill = henchmen ? `, with ${henchmen === 1 ? 'a henchman' : henchmen + ' henchmen'} to make four` : '';
     this.host.sfx('bell');
-    this.host.ask(`Your group for ${d.name}${sp.vet ? ' (veteran)' : ''} is ready: ${who}${fill}. Go in as ${ROLE_NAMES[this.role].toLowerCase()}?`, () => {
+    this.host.ask(`Your group for ${d.name}${sp.cor ? ' (corrupted)' : sp.vet ? ' (veteran)' : ''} is ready: ${who}${fill}. Go in as ${ROLE_NAMES[this.role].toLowerCase()}?`, () => {
       const why = this.blocked();
       if (why) { this.host.system(why); this.host.net.answer(run, false, this.role); return; }
       this.host.net.answer(run, true, this.role);
@@ -363,7 +377,9 @@ export class Dungeons {
     const d = DUNGEON_BY_ID[sp.id];
     this.queued = null;
     if (!d || this.run) return;
-    this.begin(d, run, others, henchmen, sp.vet);
+    // Corrupted: the leader's key is used going in, and the others come in on it
+    if (sp.cor && this.host.group()?.leader) this.host.take(KEY_OF[sp.id]?.key ?? '');
+    this.begin(d, run, others, henchmen, sp.vet, sp.cor);
   }
 
   /** Another member's blow or kill. */

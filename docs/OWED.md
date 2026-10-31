@@ -18,7 +18,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [ ] Sound heard by a person: footsteps, the land beds, the new music (clips in previews/music/), combat.
 - [x] Every city hand-built (item 4): the last three seen at street level 2026-10-31; Callis's repeated fronts fixed.
 - [x] The HUD brief (6b), all five priorities, tested by day, night and in rain. (The windows' pass, 4d, has the bag and the main windows done.)
-- [ ] The server deploys itself on every push (Render, everrealm-realm.onrender.com): the travellers' board is live (8 names, 2026-10-31; owner to say which of Wes, Claude, Test and JadeTester are theirs, to be left off). Still to build server-side: the tower's board and corrupted group queues.
+- [ ] The server deploys itself on every push (Render, everrealm-realm.onrender.com): the travellers' board is live (8 names, 2026-10-31; owner to say which of Wes, Claude, Test and JadeTester are theirs, to be left off).
 
 
 ## Co-op everywhere (owner 2026-10-31: "make sure everything in game works co op, its a mmo. so work on group tower etc grouping and socializing is wanted"; WoW and GW2 the models)
@@ -29,8 +29,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [x] Anyone raises anyone down near them (Help them up); level sync by design: every creature meets each player at their own level (data/scaling.ts, ESO's way).
 - [x] Guild missions: a weekly goal the guild works at together (creatures, dungeons and delves, tower floors or quests, picked by name and week, bigger for a bigger guild, a daily cap each). Done, it pays marks into the vault and goes on the hall's roll. Shown on the guild panel with who did most. Tested on a local realm.
 - [x] Delve rooms in a group: a room started, finished or its chain hauled is the same for every groupmate near it, and one who arrives later finds what the group did (server gRoom; tested on a local realm and in game).
-- [ ] Corrupted runs queued for groups (server), the tower's board.
-- [ ] Gatherings: something that draws people to one place at one time.
+- [x] Corrupted runs for groups: a group's leader takes it in with their key, everyone goes in corrupted (WoW's keystones); the open queue turns them away (server; tested on a local realm). The tower's book: Annot Crowle shows the realm's highest climbers, one line a player (server /api/climbers, tested on a local realm).
+- [x] Gatherings: the towns' fires. Every ninety minutes one town (Ansbury, Gullmouth, Harrowgate, Callis, Northgate, in turn) lights its fire for twenty minutes; the realm is told five minutes before, and it shows on the map, the calendar and the Group Finder. Two musicians play, the host hands round a fairing, and staying half a minute gives good company: more experience for an hour, more for each other traveller there.
 
 ## A. Now, in order
 

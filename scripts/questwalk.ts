@@ -69,6 +69,7 @@ class Mock implements GameApi {
   toast(t: string) { texts.set(`${this.where} (toast)`, t); }
   towerBegin(_from: number): string | null { return null; }
   towerBest(): number { return Number(this.s.flags['tower:best'] ?? 0); }
+  climbers(): { name: string; floor: number }[] | null { return null; }
   towerStarts(): number[] { return [1]; }
   towerClimbing(): boolean { return false; }
   towerGroup() { return null; }

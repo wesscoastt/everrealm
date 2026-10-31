@@ -17,6 +17,22 @@ export function apiBase(ws = serverUrl()): string | null {
 
 /** The travellers' board at Hollin Ford (server /api/travellers): who has played, in the order they came. */
 export const travellers: { names: string[]; loaded: boolean } = { names: [], loaded: false };
+/** Annot Crowle's book: the realm's highest climbers of the Endless Tower (server/server.mjs climbers). */
+export const climbers: { list: { name: string; floor: number }[]; loaded: boolean; at: number } = { list: [], loaded: false, at: 0 };
+export async function loadClimbers(): Promise<void> {
+  const base = apiBase();
+  if (!base || Date.now() - climbers.at < 120_000) return;
+  climbers.at = Date.now();
+  try {
+    const r = await fetch(base + '/api/climbers');
+    const d = await r.json() as { list?: unknown };
+    if (Array.isArray(d.list)) {
+      climbers.list = d.list.filter((x): x is { name: string; floor: number } => !!x && typeof (x as { name?: unknown }).name === 'string' && Number.isFinite((x as { floor?: unknown }).floor)).slice(0, 20);
+      climbers.loaded = true;
+    }
+  } catch { /* the realm isn't answering: the book shows what it had */ }
+}
+
 export async function loadTravellers(): Promise<void> {
   const base = apiBase();
   if (!base) return;

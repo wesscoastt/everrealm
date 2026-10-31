@@ -23,7 +23,8 @@ const keeper: NpcDef = {
 
 const dialogue: Record<string, DialogueTree> = {
   tower_crowle: {
-    start: (g) => (g.towerBest() > 0 ? 'again' : 'hello'),
+    // (opening the book early: the realm's page is fetched while you talk)
+    start: (g) => { g.climbers(); return g.towerBest() > 0 ? 'again' : 'hello'; },
     nodes: {
       hello: {
         text: 'Annot Crowle. I keep the door and I keep the book. The book says who went up and how far. It doesn\'t say who came down.',
@@ -32,6 +33,7 @@ const dialogue: Record<string, DialogueTree> = {
           { text: 'How does it work?', next: 'how' },
           { text: 'I\'ll climb.', next: 'start' },
           { text: 'What do the tokens buy?', next: 'trade' },
+          { text: 'Show me the book.', next: 'book' },
           { text: 'Not today.' },
         ],
       },
@@ -41,6 +43,7 @@ const dialogue: Record<string, DialogueTree> = {
           { text: 'I\'ll climb.', next: 'start' },
           { text: 'Show me what the tokens buy.', effect: (g) => g.openShop('tower_crowle') },
           { text: 'What does the book say about this week?', next: 'tally' },
+          { text: "Who's highest in the book?", next: 'book' },
           { text: 'How does it work?', next: 'how' },
           { text: 'Not today.' },
         ],
@@ -53,6 +56,19 @@ const dialogue: Record<string, DialogueTree> = {
           return `${day}, ${week}. Five a day and thirty a week, and I pay for both, once.`;
         },
         next: 'again',
+      },
+      book: {
+        text: (g) => {
+          const list = g.climbers(), mine = g.towerBest();
+          if (!list) return mine ? `The front pages are at the Charter office being copied. Yours I have here: floor ${mine}.` : "The front pages are at the Charter office being copied. You aren't in the back ones yet.";
+          if (!list.length) return "Empty. Nobody's been up since I opened it. You could be the first line.";
+          const top = list.slice(0, 10).map((c) => `${c.name}, floor ${c.floor}`).join('; ');
+          const k = list.findIndex((c) => c.name.toLowerCase() === g.playerName.toLowerCase());
+          const you = k >= 0 ? (k === 0 ? "That first line is you. Don't let it go to your head; it's a long way down." : `You're on the page, line ${k + 1}.`)
+            : mine ? `You're further back, at floor ${mine}.` : "You aren't in it yet.";
+          return `Highest first: ${top}. ${you}`;
+        },
+        options: [{ text: 'Thanks.', next: 'again', cond: (g) => g.towerBest() > 0 }, { text: 'Thanks.', next: 'hello', cond: (g) => !g.towerBest() }],
       },
       far: { text: 'Further than it is tall, which you\'d think was a riddle until you\'ve been up it. My mother had a climber in the book at three hundred and something. He came down with his hair white.', next: 'hello' },
       how: {

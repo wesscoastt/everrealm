@@ -168,6 +168,30 @@ function travellers() {
   travellersCache = { at: Date.now(), names };
   return names;
 }
+/**
+ * Annot Crowle's book at the Endless Tower: the highest floor each player has reached (their best character),
+ * highest first, the same names left off as the travellers' board. Worked out at most every five minutes.
+ */
+let climbersCache = { at: 0, list: [] };
+function climbers() {
+  if (Date.now() - climbersCache.at < 5 * 60_000) return climbersCache.list;
+  const best = new Map();
+  let files = [];
+  try { files = fs.readdirSync(CHAR_DIR).filter((f) => f.endsWith('.json')); } catch { /* none yet */ }
+  for (const f of files) {
+    const rec = readJson(path.join(CHAR_DIR, f));
+    const floor = Math.floor(Number(rec?.save?.flags?.['tower:best'] ?? 0));
+    if (!rec?.name || !(floor > 0) || floor > 9999) continue;
+    if (rec.owner && DEV_ACCOUNTS.has(accKey(rec.owner))) continue;
+    if (HIDDEN_TRAVELLERS.has(String(rec.name).toLowerCase())) continue;
+    const who = rec.owner ? 'a:' + accKey(rec.owner) : 'c:' + rec.name;
+    const had = best.get(who);
+    if (!had || floor > had.floor) best.set(who, { name: rec.name, floor });
+  }
+  const list = [...best.values()].sort((a, b) => b.floor - a.floor || a.name.localeCompare(b.name)).slice(0, 20);
+  climbersCache = { at: Date.now(), list };
+  return list;
+}
 const storeChar = (key, rec) => writeJson(path.join(CHAR_DIR, key + '.json'), rec);
 const accKey = (user) => user.toLowerCase();
 const loadAccount = (user) => readJson(path.join(ACC_DIR, accKey(user) + '.json'));
@@ -373,6 +397,8 @@ async function api(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/store/catalog') return reply(res, 200, store.catalog());
   // The travellers' board at Hollin Ford: who has played, in the order they came (public; names only)
   if (req.method === 'GET' && url.pathname === '/api/travellers') return reply(res, 200, { names: travellers() });
+  // Annot Crowle's book: the tower's highest climbers (public; names and floors only)
+  if (req.method === 'GET' && url.pathname === '/api/climbers') return reply(res, 200, { list: climbers() });
   if (req.method === 'POST' && url.pathname === '/api/store/webhook') {
     const raw = await readRaw(req);
     const r = store.webhook(raw ?? '', req.headers['stripe-signature']);

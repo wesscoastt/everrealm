@@ -15,7 +15,7 @@ const PARTY = ['tank', 'healer', 'damage', 'damage'];
 const ROLES = new Set(Object.keys(NEED));
 const FILL_MS = 90_000;
 const READY_MS = 30_000;
-const DUNGEON = /^gd-[a-z]{2,20}(-vet)?$/; // "-vet": the dungeon's veteran mode, queued apart
+const DUNGEON = /^gd-[a-z]{2,20}(-vet|-cor)?$/; // "-vet": the dungeon's veteran mode, queued apart; "-cor": corrupted, a group's leader's key (groups only)
 /** The Endless Tower, from a floor ("tw-11"): a group's leader takes the group up; no queue. Up to five climb. */
 const TOWER = /^tw-\d{1,3}$/;
 const TOWER_PARTY = 5;
@@ -116,7 +116,7 @@ export function finderInit(ctx) {
   function handle(me, msg) {
     switch (msg.t) {
       case 'qJoin': {
-        if (typeof msg.dungeon !== 'string' || !DUNGEON.test(msg.dungeon) || !ROLES.has(msg.role)) return true;
+        if (typeof msg.dungeon !== 'string' || !DUNGEON.test(msg.dungeon) || msg.dungeon.endsWith('-cor') || !ROLES.has(msg.role)) return true;
         if (runOf(me.id)) { sys(me, 'You\'re in a dungeon run already.'); return true; }
         unqueue(me.id, false);
         queue.push({ id: me.id, dungeon: msg.dungeon, role: msg.role, at: Date.now() });

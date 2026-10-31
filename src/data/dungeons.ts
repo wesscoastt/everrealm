@@ -347,8 +347,10 @@ export const DUNGEON_BY_ID: Record<string, DungeonDef> = Object.fromEntries(DUNG
  */
 export const VETERAN = { hp: 1.7, damage: 1.35, moveEvery: 0.8, moveDamage: 1.3, chestXp: 1.4, chestMarks: 1.6, dropChance: 0.25 };
 export const VET = '-vet';
-/** A queue or run id's dungeon, and whether it's veteran. */
-export const splitRunId = (id: string): { id: string; vet: boolean } => (id.endsWith(VET) ? { id: id.slice(0, -VET.length), vet: true } : { id, vet: false });
+/** Corrupted, taken in by a group (its leader's key opens it). */
+export const COR = '-cor';
+/** A queue or run id's dungeon, and whether it's veteran (or corrupted, which is veteran and more). */
+export const splitRunId = (id: string): { id: string; vet: boolean; cor: boolean } => (id.endsWith(VET) ? { id: id.slice(0, -VET.length), vet: true, cor: false } : id.endsWith(COR) ? { id: id.slice(0, -COR.length), vet: true, cor: true } : { id, vet: false, cor: false });
 
 // ---------------------------------------------------------------- Henchmen
 /** What a henchman says: going in, hurt, after a kill, going down, getting up, and (a healer) mending. */

@@ -1034,3 +1034,15 @@ Written at their regions' levels in `src/data/gameplay.ts`, south to north. Two 
 - "the Pit", not "the mine", when villagers talk.
 - "the Wend", never "the river Wend" in dialogue.
 - Skill names: Mining, Smithing, Fishing, Cooking, Woodcutting, Melee.
+
+## The towns' fires (gatherings) [in game]
+
+Every ninety minutes on the realm clock one town lights its fire for twenty minutes, in turn, and the whole realm is told five minutes before (`src/data/gatherings.ts`, `src/game/Gatherings.ts`, the people in `src/data/content/gatherings.ts`). Two play, a host hands round what's on the fire (one each a lighting), and anyone who stays half a minute leaves in good company: a tenth more experience for the hour, three hundredths more for each other traveller round the fire (up to five).
+
+| Fire | Where | Host | Players | Fairing | What it's for |
+| --- | --- | --- | --- | --- | --- |
+| The Hiring Fire | the Ansbury market | Joan Trevail | Davey Rowe (fiddle), Nell Coombe (drum) | Roast chestnuts | Where the hands once stood to be hired for the year. Nobody's hired now; the fiddles kept coming. |
+| The Fleet Fire | the Gullmouth quay | Tom Pascoe, skipper of the Morwenna | Jenny Hocking (fiddle), Ben Trudgeon (horn) | Sprats off the fire | The whole fleet in at once means the weather or the fish have turned. "A quay with no fire on it looks like a quay that's lost a boat." |
+| The Shift Fire | Harrowgate | Sal Dakin, the works canteen | Wilf Hardcastle (horn), Annie Thwaite (whistle) | Pit toffee | The hour when one shift comes up and the other goes down and the whole town's awake. The works has changed hands three times; the fire hasn't. |
+| The Sardine Night | Callis | Jordi Pons | Laia Serra (lute), Quim Bosch (drum) | Sardines on bread | The first good catch, and any excuse after. The Assembly once voted to move it off the street; nobody moved. |
+| The Wall Fire | the Northgate square | Hild Rowntree | Osgar Brack (pipes), Tam Garside (drum) | Wall broth | Since the gate shut the watch don't come down, so the town eats where the wall can see it. |

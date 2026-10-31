@@ -55,6 +55,8 @@ export interface GameApi {
   /** The Endless Tower (game/Tower.ts): start a run from floor 1 or a cleared checkpoint, your best, the starts open to you, and whether you're climbing. */
   towerBegin(from: number): string | null;
   towerBest(): number;
+  /** Crowle's book: the realm's highest climbers (null offline, or before the realm has answered). */
+  climbers(): { name: string; floor: number }[] | null;
   towerStarts(): number[];
   towerClimbing(): boolean;
   /** Lead your group up the tower from a floor (1, or a checkpoint you've cleared); why not, if not. */
