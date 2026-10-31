@@ -3850,6 +3850,10 @@ export function plan(): Plan {
     k.street(cx - 22, cz - 1, cx + 22, cz + 1, sand);
     k.street(cx - 1, cz - 16, cx + 1, cz + 16, sand);
     k.postSpot(T.post[0], T.post[1], B.Planks);
+    // Conch Key's own (data/monuments.ts, town 'conch'): the turtle horn above the beach, Sal's books
+    // by her door, the big shell up from the tide; their ground kept clear of huts
+    for (const m of MONUMENTS) if (m.town === 'conch' && m.at) k.claim(cx + m.at[0] - 2, cz + m.at[1] - 2, cx + m.at[0] + 2, cz + m.at[1] + 2);
+    placeMonuments(s, 'conch', cx, (x, z) => Math.max(base, Math.floor(heightAt(x, z))), cz);
     k.houses(cx - 22, cz - 18, cx + 22, cz + 18, { w: [5, 7], d: [5, 6], seed: 991, make: (n, x, z, w, d, door) => house(s, x, z, w, d, 1, base, 'thatch', door, { wall: n % 2 ? B.Planks : B.DarkPlanks, front: 'boarded', role: n === 0 ? 'inn' : 'home', closed: n % 2 === 1, chimney: false }) });
     for (let i = 0; i < 3; i++) s.props.push({ t: 'rope', x: cx - 18.5 + i * 5, y: base + 1.8, z: cz + 19.5, ry: 0, len: 4, h: 0, r: 0.4 });
     for (const [x, z, ry] of [[cx + 22, cz + 20, 0.6], [cx + 26, cz + 14, 1.2]] as const) s.props.push({ t: 'boat', x: x + 0.5, y: base, z: z + 0.5, ry });
@@ -8076,13 +8080,18 @@ export function plan(): Plan {
     const yawOut = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 }[L.face];
     const at = (u: number, v: number, y: number) => { const [x, z] = W(u, v); return { x: x + 0.5, y, z: z + 0.5 }; };
     for (const u of [-9, -3, 3, 9]) s.props.push({ t: 'glow', ...at(u, -0.5, base + 3) });
-    for (const u of [-2, 2]) { const [x, z] = W(u, LODGE_V + 1); s.props.push({ t: 'lantern', x: x + 0.5, y: heightAt(x, z), z: z + 0.5 }); }
-    { const [x, z] = W(4, LODGE_V + 2); s.props.push({ t: 'sign', x: x + 0.5, y: heightAt(x, z), z: z + 0.5, ry: yawOut, text: L.inn ? L.name : 'Rooms to let' }); }
-    if (L.inn) { const [x, z] = W(-4, LODGE_V + 2); s.props.push({ t: 'sign', x: x + 0.5, y: heightAt(x, z), z: z + 0.5, ry: yawOut, text: 'Rooms to let' }); }
+    // The forecourt: level with the taproom floor the width of the front, so nothing at the door is a
+    // block up or down (owner 2026-10-30: the Packhorse's door was blocked); a path down its middle
+    for (let v = LODGE_V + 1; v <= LODGE_V + 3; v++) for (let u = -5; u <= 5; u++) {
+      const [x, z] = W(u, v);
+      foundation(x, z, ground, B.Dirt);
+      O.set(x, ground - 1, z, Math.abs(u) <= 1 ? B.Path : B.Grass);
+      clearUp(x, z, ground, ground + 5);
+    }
+    for (const u of [-2, 2]) { const [x, z] = W(u, LODGE_V + 1); s.props.push({ t: 'lantern', x: x + 0.5, y: ground, z: z + 0.5 }); }
+    { const [x, z] = W(4, LODGE_V + 2); s.props.push({ t: 'sign', x: x + 0.5, y: ground, z: z + 0.5, ry: yawOut, text: L.inn ? L.name : 'Rooms to let' }); }
+    if (L.inn) { const [x, z] = W(-4, LODGE_V + 2); s.props.push({ t: 'sign', x: x + 0.5, y: ground, z: z + 0.5, ry: yawOut, text: 'Rooms to let' }); }
     for (const r of ROOMS) s.props.push({ t: 'furn', item: 'chest', ...at(r.chest[0], r.chest[1], base), ry: yawOut });
-    void ground;
-    // A path from the street to the door
-    for (let v = LODGE_V + 1; v <= LODGE_V + 3; v++) for (let u = -1; u <= 1; u++) { const [x, z] = W(u, v); O.set(x, Math.floor(heightAt(x, z)) - 1, z, B.Path); }
     if (L.inn) s.props.push({ t: 'smoke', ...at(-10, -2, base + LODGE_H + 4) });
     rect(s, x0 - 1, z0 - 1, x0 + w, z0 + d);
   }
@@ -8739,6 +8748,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'anselbench') bar(d, 0, 0, 1.0, 0.25, 1);
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
+        else if (d.monument === 'ckhorn') bar(d, 0, 0, 0.12, 0.12, 2);
+        else if (d.monument === 'ckbooks') bar(d, 0, 0, 0.65, 0.18, 2);
+        else if (d.monument === 'ckshell') bar(d, 0, 0, 1.4, 1.1, 2);
         else if (d.monument === 'crtiles') bar(d, 0, 0, 1.6, 0.2, 2);
         else if (d.monument === 'crrock') bar(d, 0, 0, 0.95, 0.8, 2);
         else if (d.monument === 'crrack') bar(d, 0, 0, 1.25, 0.35, 2);
