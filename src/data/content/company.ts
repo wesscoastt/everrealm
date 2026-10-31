@@ -400,4 +400,80 @@ const sw2Hooks = (D: Record<string, DialogueTree>) => {
   });
 };
 
-export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => sw2Hooks(D) };
+// ------------------------------------------------------------------ "Short Weight", III: The Black Hen's Other Owner
+// Three Company hulls lost to the Black Hen this year, and their cargoes turning up in Saltpenny, bought
+// back for the Company at a tenth. Josiah Penhale's Exchange book at the Merchants' Hall has the Hen's
+// underwriting: insured against loss, the owner's share "for the account of C. F., Ansbury". There's
+// one C. F. in the Company. Write to the Governor, give the page to the Hall, or keep it. Flag "coHen":
+// 'governor' | 'hall' | 'kept'. Makes you a factor.
+
+const SW3 = 'coHen';
+const sw3 = (g: GameApi) => g.stage(SW3);
+const hen = (g: GameApi, choice: 'governor' | 'hall' | 'kept', why: string) => {
+  g.setFlag('coHen', choice);
+  g.setStage(SW3, 'done');
+  g.addMarks(180);
+  g.give(SCRIP, 12);
+  g.setFlag('co:rank', Math.max(2, Number(g.flag('co:rank') ?? 0)));
+  g.toast(`${why} You're a factor of the Counting House now: 180 marks and 12 scrip.`);
+};
+
+QUESTS[SW3] = {
+  id: SW3, name: 'The Black Hen\'s Other Owner', region: 'saltwind', depth: 'storyline',
+  notes: (g, s) => {
+    if (s === 'josiah') return 'Avis Spurr says the Black Hen has taken three Company hulls this year, and the cargoes turn up in Saltpenny, where someone buys them back for the Company at a tenth of their worth. Josiah Penhale keeps the Exchange book at the Merchants\' Hall, and the underwriting is in it.';
+    if (s === 'avis') return 'The Exchange book has the Black Hen insured against loss, with the owner\'s share "for the account of C. F., Ansbury". Constance Ferrars is factor at Ansbury. Avis Spurr should hear it.';
+    const c = g.flag('coHen');
+    return c === 'governor' ? 'Avis Spurr wrote to the Governor with the page from the Exchange book. Whatever comes back will come back sealed.'
+      : c === 'hall' ? 'The Merchants\' Hall has the page. Thomas Varcoe has two knives for the Company\'s back now.'
+      : 'I kept the page. Whoever C. F. is doesn\'t know I have it.';
+  },
+  objectives: (_g, s) => {
+    if (s === 'josiah') return [{ text: 'Ask Josiah Penhale at the Merchants\' Hall about the Black Hen\'s underwriting', marker: 'hall_josiah' }];
+    if (s === 'avis') return [{ text: 'Tell Avis Spurr at the Counting House what the book says', marker: 'co_avis' }];
+    return [];
+  },
+  marks: (g, s): Marks => {
+    if (s === undefined) return g.stage(SW2) === 'done' ? { co_avis: '!' } : {};
+    return s === 'josiah' ? { hall_josiah: '?' } : s === 'avis' ? { co_avis: '?' } : {};
+  },
+  walk: { from: { quests: { [SW1]: 'done', [SW2]: 'done' }, flags: { 'co:signed': true } } },
+};
+
+hook(dialogue, 'co_avis', (g) => {
+  const s = sw3(g);
+  if (s === undefined && g.stage(SW2) === 'done') return 'dh_a';
+  if (s === 'avis') return 'dh_r1';
+  return undefined;
+}, {
+  dh_a: { text: 'Osmund says you can be trusted to find things. Find me this. The Black Hen has taken three of our hulls since spring.', next: 'dh_b' },
+  dh_b: { text: 'Their cargoes turn up in Saltpenny, and somebody buys them back for the Company at a tenth. We pay twice for our own goods, and somebody is paid both times.',
+    options: [{ text: 'Where do I start?', next: 'dh_c' }, { text: 'Not now.' }] },
+  dh_c: { text: 'Josiah Penhale at the Merchants\' Hall keeps the Exchange book, and the Exchange book keeps the underwriting. If anyone insures a pirate, it\'s written there.',
+    options: [{ text: 'I\'ll look.', effect: (g) => g.setStage(SW3, 'josiah') }] },
+  dh_r1: { text: 'Well? Who insures a pirate?', options: [{ text: '"For the account of C. F., Ansbury."', next: 'dh_r2' }] },
+  dh_r2: { text: 'C. F. There\'s one C. F. in the Company, and she keeps the key to the weight box too, doesn\'t she.', next: 'dh_r3' },
+  dh_r3: { text: 'I can write to the Governor with it. Or you can sell it across the street to people who\'ll pay. Or you can keep it in your coat until it\'s worth more.',
+    options: [
+      { text: 'Write to the Governor.', next: 'dh_gov' },
+      { text: 'The Hall will want it.', next: 'dh_hall' },
+      { text: 'I\'ll keep it.', next: 'dh_kept' },
+    ] },
+  dh_gov: { text: 'Then I\'ll write tonight, in my own hand, and send it by the Post, not the Company bag. Factor to Governor. If I\'m wrong about her, I\'ll be wrong in writing.',
+    options: [{ text: 'You\'re not wrong.', effect: (g) => hen(g, 'governor', 'Avis Spurr wrote to the Governor.') }] },
+  dh_hall: { text: 'Varcoe will pay you and then use it against all of us, me included. I won\'t stop you. I won\'t thank you either.',
+    options: [{ text: 'It\'s done.', effect: (g) => hen(g, 'hall', 'The Merchants\' Hall has the page.') }] },
+  dh_kept: { text: 'In your coat, then. Mind it. People who keep pages like that in their coats tend to have accidents near water.',
+    options: [{ text: 'I\'ll mind it.', effect: (g) => hen(g, 'kept', 'You kept the page from the Exchange book.') }] },
+});
+
+const sw3Hooks = (D: Record<string, DialogueTree>) => {
+  hook(D, 'hall_josiah', (g) => (sw3(g) === 'josiah' ? 'dh_j1' : undefined), {
+    dh_j1: { text: 'The Black Hen? She\'s in the book. Of course she is. Everything that floats is in the book.', next: 'dh_j2' },
+    dh_j2: { text: 'Insured against loss: hull, guns and cargo. Premiums paid on the day. The owner\'s share is written "for the account of C. F., Ansbury".', next: 'dh_j3' },
+    dh_j3: { text: 'I copy what I\'m given. I don\'t ask who C. F. is. If you\'re going to, do it outside.',
+      options: [{ text: 'Thank you.', effect: (g) => g.setStage(SW3, 'avis') }] },
+  });
+};
+
+export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => { sw2Hooks(D); sw3Hooks(D); } };
