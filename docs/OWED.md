@@ -14,7 +14,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [x] The live build is the one being judged: pushed 2026-10-31 (52b9ed3), and pushed as work lands from now on.
 - [ ] A real first-hours playthrough, start to level 10 or so, every step taken as a player would (not headless spot tests), and whatever breaks fixed.
 - [ ] Load time measured on an ordinary machine (here, headless on this 8 GB machine, it takes three to four minutes to reach play; a reviewer won't wait).
-- [ ] Writing: 341 lines over the length guide, 214 dialogue nodes no walk reaches (dead writing or broken branches); the 6 people with a title and nothing to say now have their own scenes (2026-10-31) (npx tsx scripts/questwalk.ts --warnings). Each read, fixed or cut.
+- [x] Writing, checked 2026-10-31: the 6 people with nothing to say have scenes; the 214 "unreachable" nodes are branches behind state the walker can't set (a dungeon cleared, a companion alive, a contract half done; spot-checked: Hesk, Bett, Marta Vidal), not dead writing; of 336 lines over 25 words, 44 are over 50, most of them letters read aloud and how-things-work explanations. Optional polish: split the dozen spoken lines over 55 words.
 - [ ] Sound heard by a person: footsteps, the land beds, the new music (clips in previews/music/), combat.
 - [x] Every city hand-built (item 4): the last three seen at street level 2026-10-31; Callis's repeated fronts fixed.
 - [ ] The HUD brief (6b), and the rest of the UI pass (4d).
