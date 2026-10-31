@@ -9,6 +9,8 @@ const Q = 'fordBell';
 const st = (g: GameApi) => g.stage(Q);
 const choice = (g: GameApi) => g.flag('bellChoice') as string | undefined;
 const midQuest = (g: GameApi) => ['askBram', 'gather', 'smelt', 'deliver'].includes(st(g) ?? '');
+/** Bram Tolley is at his anvil from seven in the morning till seven at night; after that he sits out by the water below the smithy (data/npcs.ts). */
+const atForge = (g: GameApi) => { const h = g.compHour(); return h >= 7 && h < 19; };
 
 /** Hand the bars over and start the pour. */
 function handOver(g: GameApi, c: string): void {
@@ -116,7 +118,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         ],
       },
       accept: {
-        text: 'He won\'t give me a straight answer. He might give one to a stranger, if only to get you out of his smithy. Across the bridge, on the left.',
+        text: (g) => `He won't give me a straight answer. He might give one to a stranger, if only to get you out of his smithy. ${atForge(g) ? 'Across the bridge, on the left.' : 'At this hour he\'ll be across the bridge and down by the water, below the smithy.'}`,
         effect: (g) => g.setStage(Q, 'askBram'),
         next: 'accept2',
       },
@@ -235,7 +237,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
       },
       idle2: { text: 'Look from over there, then. Sparks.' },
       forge: { text: 'Furnace and anvil are there for anyone who doesn\'t waste my fuel. Don\'t touch the ledger.' },
-      b_bell: { speaker: 'narrator', text: 'Bram doesn\'t look up from the anvil.', next: 'b_bell1' },
+      b_bell: { speaker: 'narrator', text: (g) => (atForge(g) ? 'Bram doesn\'t look up from the anvil.' : 'Bram doesn\'t look up from the river.'), next: 'b_bell1' },
       b_bell1: {
         text: 'Maud sent you. The mould\'s sweating. Pour bronze into a damp mould and you get a bell full of holes. Sounds like a goat.',
         options: [
@@ -244,7 +246,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         ],
       },
       which: { text: 'The cope. The outside bit. It\'s clay, and clay holds water, and when you—', next: 'which2' },
-      which2: { speaker: 'narrator', text: 'He puts the hammer down.', next: 'which3' },
+      which2: { speaker: 'narrator', text: (g) => (atForge(g) ? 'He puts the hammer down.' : 'He stops, and looks at his hands.'), next: 'which3' },
       which3: { text: 'It\'s not the mould. I\'m short of metal.', next: 'short' },
       howlong: { text: 'Depends on the metal. I\'m short.', next: 'short' },
       short: {
@@ -306,7 +308,7 @@ export const DIALOGUE: Record<string, DialogueTree> = {
         ],
       },
       handed: { text: 'Right. Nance! Bellows.' },
-      c1: { speaker: 'narrator', text: 'Bram sets the bar down on the anvil very carefully, as if it might go off.', next: 'c2' },
+      c1: { speaker: 'narrator', text: (g) => `Bram sets the bar down on ${atForge(g) ? 'the anvil' : 'the bench beside him'} very carefully, as if it might go off.`, next: 'c2' },
       c2: { text: 'Charcoal was four marks a sack before the Pit. Now it\'s nine: their smelter burns it faster than anyone can make it. My rent didn\'t drop.', next: 'c3' },
       c3: {
         text: 'A cracked bell in my yard, worth more than my season. Pryce asked. I said yes. I\'d make it good next month. There wasn\'t one.',
