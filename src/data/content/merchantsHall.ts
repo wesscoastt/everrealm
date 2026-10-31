@@ -26,7 +26,48 @@ const npcs: NpcDef[] = [
     ['Then you can eat them yourself, Edmund.', 'Ten, and I\'ll throw in the barrels.']),
 ];
 
+// Edmund Lusk and Rosina Treloar have been haggling over the same pilchards all week; ask either and you're made the judge
+const pilchards = (who: 'edmund' | 'rosina'): DialogueTree => ({
+  start: (g) => (g.flag('hallPilchards') ? 'after' : 'hello'),
+  nodes: {
+    hello: {
+      text: who === 'edmund'
+        ? 'Edmund Lusk. Forty barrels of Gullmouth pilchards, and this woman wants ten marks a barrel for them. Ten! You\'ve a face that\'s bought fish. Tell her what they\'re worth.'
+        : 'Rosina Treloar. Forty barrels of the best pilchards on the coast, and Edmund offers nine and a half. You look honest. Tell him what they\'re worth.',
+      options: [
+        { text: 'Ten is fair for good fish.', next: 'ten' },
+        { text: 'Nine and a half sounds right.', next: 'nine' },
+        { text: 'Split it. Nine and three quarters.', next: 'split' },
+        { text: 'Leave me out of it.' },
+      ],
+    },
+    ten: {
+      text: who === 'edmund' ? 'Ten. Ten, it says. Fine. Ten, Rosina, and you\'ll carry them to the boat yourself.' : 'There. Ten, Edmund. Even a stranger can see it.',
+      options: [{ text: 'Glad to help.', effect: (g) => g.setFlag('hallPilchards', 'ten') }],
+    },
+    nine: {
+      text: who === 'edmund' ? 'Nine and a half. I\'ve been saying it since Monday. Thank you.' : 'Nine and a half. You\'ve never eaten a pilchard in your life, have you?',
+      options: [{ text: 'Not many, no.', effect: (g) => g.setFlag('hallPilchards', 'nine') }],
+    },
+    split: {
+      text: 'Edmund spits in his palm, Rosina spits in hers, and they shake on it across you. Josiah writes it down before either can change their mind.',
+      options: [{ text: 'That\'s settled, then.', effect: (g) => { g.setFlag('hallPilchards', 'split'); g.addMarks(5); g.toast('Josiah Penhale slides you five marks for the trouble.'); } }],
+    },
+    after: {
+      text: (g) => {
+        const v = g.flag('hallPilchards');
+        if (v === 'split') return who === 'edmund' ? 'Nine and three quarters. My wife says I was robbed. My wife says that about everything.' : 'Nine and three quarters. I\'d have taken nine. Don\'t tell him.';
+        if (v === 'ten') return who === 'edmund' ? 'Ten marks a barrel. I hope you\'re pleased with yourself.' : 'Ten, and he paid it. I\'m buying you a drink at the Anchor.';
+        return who === 'edmund' ? 'Nine and a half. Good fish, too, between us.' : 'Nine and a half. I\'m charging him for the barrels.';
+      },
+      options: [{ text: 'Good day.' }],
+    },
+  },
+});
+
 const dialogue: Record<string, DialogueTree> = {
+  hall_edmund: pilchards('edmund'),
+  hall_agnes: pilchards('rosina'),
   hall_josiah: {
     start: () => 'hello',
     nodes: {

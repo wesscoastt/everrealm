@@ -102,4 +102,52 @@ const simon: DialogueTree = {
   },
 };
 
-export const GULL_CASTLE_CONTENT: RegionContent = { id: 'gullCastle', npcs, dialogue: { gc_edith: edith, gc_simon: simon } };
+const kit: DialogueTree = {
+  start: () => 'hello',
+  nodes: {
+    hello: {
+      text: 'Kit Hocking, garrison. I stand the gate. Castle\'s open in the day, so mostly I stand it for the look of the thing.',
+      options: [
+        { text: 'Anything worth seeing up here?', next: 'see' },
+        { text: 'What happened with the pie?', next: 'pie' },
+        { text: 'Carry on.' },
+      ],
+    },
+    see: {
+      text: 'The wall walk, on a clear day. The galleon in the bay, the Mewstones past her. Captain says don\'t point at the galleon. They can see us pointing.',
+      options: [{ text: 'Thanks.' }],
+    },
+    pie: {
+      text: 'A pork pie, still warm. I set it down for one breath, and a gull ate the lot on the harbour tower, watching me.',
+      options: [{ text: 'I believe you.' }],
+    },
+  },
+};
+
+const mary: DialogueTree = {
+  start: () => 'hello',
+  nodes: {
+    hello: {
+      text: 'Mary Opie. Mind the floor, I\'ve just done it. Supper\'s at seven. It\'s fish. It\'s always fish.',
+      options: [
+        { text: 'How long have you worked here?', next: 'long' },
+        { text: 'Who sits at the high table?', next: 'table' },
+        { text: 'I\'ll leave you to it.' },
+      ],
+    },
+    long: {
+      text: 'Since I was twelve. My mother did the tables when the Fleet lord had it. He sold the roof over us for a boat he never sailed.',
+      options: [{ text: 'And the Charter?', next: 'charter' }],
+    },
+    charter: {
+      text: 'The Charter pays on time, which he never did. Mr Teague counts every candle. I\'d rather be counted than not paid.',
+      options: [{ text: 'Fair enough.' }],
+    },
+    table: {
+      text: 'The captain, Mr Teague, and the harbourmaster on court days. The Speaker once, at the Wake. She asked for more fish. Cook never got over it.',
+      options: [{ text: 'Thanks, Mary.' }],
+    },
+  },
+};
+
+export const GULL_CASTLE_CONTENT: RegionContent = { id: 'gullCastle', npcs, dialogue: { gc_edith: edith, gc_simon: simon, gc_kit: kit, gc_mary: mary } };

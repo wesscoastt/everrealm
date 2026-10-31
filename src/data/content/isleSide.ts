@@ -1,4 +1,4 @@
-import type { DNode, GameApi } from '../../game/api';
+import type { DialogueTree, DNode, GameApi } from '../../game/api';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { QuestDef } from '../quests';
@@ -36,7 +36,7 @@ const npcs: NpcDef[] = [
     land: 'counties', id: 'jowan_still', name: 'Jowan Rowse', title: 'Standing still',
     look: { skin: '#a8aaa4', hair: '#5a5a54', hairStyle: 3, eyes: '#4a4a48', tunic: '#6a6a64', trim: '#8a8a84', trousers: '#4a4a44', boots: '#3a3a34', build: 0.95, age: 0.2 },
     schedule: [{ from: 0, to: 24, at: CLEARING, face: [CLEARING[0] - 10, CLEARING[1]], anim: 'idle' }],
-    barks: ['...'],
+    barks: ['Warm. It\'s warm in here.', 'Mum? Is that you?'],
     when: (g: GameApi) => !at(g, JOWAN) || at(g, JOWAN) === 'find' || at(g, JOWAN) === 'reek' || at(g, JOWAN) === 'burn',
   },
   {
@@ -150,8 +150,36 @@ const quests: Record<string, QuestDef> = {
   },
 };
 
+const dialogue: Record<string, DialogueTree> = {
+  jowan_still: {
+    start: () => 'still',
+    nodes: {
+      still: {
+        text: 'He doesn\'t turn. The grey has him to the elbows and his breath comes slow and even, like a sleeper\'s. His lips move. "It\'s warm here. Tell Mum I\'m warm."',
+        options: [{ text: 'Step back.' }],
+      },
+    },
+  },
+  jowan: {
+    start: () => 'home',
+    nodes: {
+      home: {
+        text: 'Mum says I was ill all summer and you helped. I remember the spring, then the fire, then her crying into the porridge.',
+        options: [
+          { text: 'How do you feel?', next: 'feel' },
+          { text: 'Look after her.' },
+        ],
+      },
+      feel: {
+        text: 'Hungry. Always hungry. And I can\'t go near the caps, even the little ones on the woodpile. They smell like somewhere I\'ve been.',
+        options: [{ text: 'Stay out of the wood for a while.' }],
+      },
+    },
+  },
+};
+
 export const ISLE_SIDE_CONTENT: RegionContent = {
-  id: 'isleSide', items, npcs, quests,
+  id: 'isleSide', items, npcs, quests, dialogue,
   things: [
     {
       id: 'isJowanFound', x: CLEARING[0] - 1.5, z: CLEARING[1], label: 'Look at the grey man', radius: 3,
