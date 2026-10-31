@@ -283,9 +283,11 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     }
   }
   // The travellers' board, past the post box: everyone who has come through the Ford, in the order they came
-  place(P.travellersBoard(M), 168.5, BASE, 188.8, Math.PI);
-  barrier(167, BASE, 188, 2); barrier(168, BASE, 188, 2); barrier(169, BASE, 188, 2);
-  interactables.push({ id: 'travellers', kind: 'travellers', x: 168.5, y: BASE + 1, z: 187.6, label: 'Read the travellers\' board', radius: 2.4 });
+  // (on the ground where it stands, which is a step below the square there: it used to hang in the air)
+  const tb = ground(168, 188);
+  place(P.travellersBoard(M), 168.5, tb, 188.8, Math.PI);
+  barrier(167, tb, 188, 2); barrier(168, tb, 188, 2); barrier(169, tb, 188, 2);
+  interactables.push({ id: 'travellers', kind: 'travellers', x: 168.5, y: tb + 1, z: 187.6, label: 'Read the travellers\' board', radius: 2.4 });
 
   // -------------------------------------------------------------- The bridge and the bell
   for (let x = 162; x <= 181; x++) {
