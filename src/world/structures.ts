@@ -258,7 +258,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   place(P.noticeBoard(M), 158.5, BASE, 188.6, Math.PI);
   barrier(158, BASE, 188, 2); barrier(159, BASE, 188, 2);
   interactables.push({ id: 'notice', kind: 'notice', x: 158.5, y: BASE + 1, z: 187.6, label: 'Read the notice board', radius: 2.2 });
-  place(P.standingSign(M, 'Charter Post'), 162.5, BASE, 186.5, Math.PI); // the post cart stops here
+  // (the Charter Post's yard is over the bridge on the east side, its carter out by the horses: data/postYards.ts)
   // Hollin Ford's own landmarks (data/monuments.ts, town 'hollin'; Game makes each readable):
   // the flood stone at the bridge's end, the moot stone at the oak's shade, the pump by the square
   for (const m of MONUMENTS) if (m.town === 'hollin' && m.at && m.model !== 'fordpost') {
@@ -282,12 +282,12 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       barrier(x0 - 1, ground(x0 - 1, z + 1), z + 1, 2);
     }
   }
-  // The travellers' board, past the post box: everyone who has come through the Ford, in the order they came
-  // (on the ground where it stands, which is a step below the square there: it used to hang in the air)
-  const tb = ground(168, 188);
-  place(P.travellersBoard(M), 168.5, tb, 188.8, Math.PI);
-  barrier(167, tb, 188, 2); barrier(168, tb, 188, 2); barrier(169, tb, 188, 2);
-  interactables.push({ id: 'travellers', kind: 'travellers', x: 168.5, y: tb + 1, z: 187.6, label: 'Read the travellers\' board', radius: 2.4 });
+  // The travellers' board, beside the post box on the dry grass south-east of Tamsin's stall, facing the street:
+  // everyone who has come through the Ford, in the order they came (owner 2026-10-31: it stood in the river)
+  const tb = ground(161, 195);
+  place(P.travellersBoard(M), 161.5, tb, 195.8, Math.PI);
+  barrier(160, tb, 195, 2); barrier(161, tb, 195, 2); barrier(162, tb, 195, 2);
+  interactables.push({ id: 'travellers', kind: 'travellers', x: 161.5, y: tb + 1, z: 194.6, label: 'Read the travellers\' board', radius: 2.4 });
 
   // -------------------------------------------------------------- The bridge and the bell
   for (let x = 162; x <= 181; x++) {

@@ -13,9 +13,9 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 - [x] The live build is the one being judged: pushed 2026-10-31 (52b9ed3), and pushed as work lands from now on.
 - [ ] A real first-hours playthrough, start to level 10 or so, every step taken as a player would (not headless spot tests), and whatever breaks fixed.
-- [ ] Load time measured on an ordinary machine (here, headless on this 8 GB machine, it takes three to four minutes to reach play; a reviewer won't wait).
+- [x] Load time: the owner says it loads fast on their machine (2026-10-31). (Headless here it takes minutes; that is this 8 GB machine.)
 - [x] Writing, checked 2026-10-31: the 6 people with nothing to say have scenes; the 214 "unreachable" nodes are branches behind state the walker can't set (a dungeon cleared, a companion alive, a contract half done; spot-checked: Hesk, Bett, Marta Vidal), not dead writing; of 336 lines over 25 words, 44 are over 50, most of them letters read aloud and how-things-work explanations. Optional polish: split the dozen spoken lines over 55 words.
-- [ ] Sound heard by a person: footsteps, the land beds, the new music (clips in previews/music/), combat.
+- [x] Sound heard by a person: the owner, 2026-10-31: "sounds so far are relaxing". (Combat and the music clips not singled out; keep an ear on them.)
 - [x] Every city hand-built (item 4): the last three seen at street level 2026-10-31; Callis's repeated fronts fixed.
 - [x] The HUD brief (6b), all five priorities, tested by day, night and in rain. (The windows' pass, 4d, has the bag and the main windows done.)
 - [ ] The server deploys itself on every push (Render, everrealm-realm.onrender.com): the travellers' board is live (8 names, 2026-10-31; owner to say which of Wes, Claude, Test and JadeTester are theirs, to be left off).
@@ -31,6 +31,13 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [x] Delve rooms in a group: a room started, finished or its chain hauled is the same for every groupmate near it, and one who arrives later finds what the group did (server gRoom; tested on a local realm and in game).
 - [x] Corrupted runs for groups: a group's leader takes it in with their key, everyone goes in corrupted (WoW's keystones); the open queue turns them away (server; tested on a local realm). The tower's book: Annot Crowle shows the realm's highest climbers, one line a player (server /api/climbers, tested on a local realm).
 - [x] Gatherings: the towns' fires. Every ninety minutes one town (Ansbury, Gullmouth, Harrowgate, Callis, Northgate, in turn) lights its fire for twenty minutes; the realm is told five minutes before, and it shows on the map, the calendar and the Group Finder. Two musicians play, the host hands round a fairing, and staying half a minute gives good company: more experience for an hour, more for each other traveller there.
+
+## Owner's reports, 2026-10-31 evening
+
+- [x] The travellers' board stood in the river, and Hollin Ford's post box on the bank's lip: both moved to the dry grass south-east of Tamsin's stall, facing the street.
+- [x] A swing at the air that catches a townsperson, one of the watch or a town beast isn't a crime: they complain, you're told it's taken for an accident; only three blows on the same one inside twelve seconds (a combo counts once) goes in the book.
+- [x] The watch's wagon went through an upper floor and a tree: the road map's straight lines cut corners. Every cart (the watch's and the Post's) now looks ahead for headroom and steers round a blocked stretch over the blocks (game/lanes.ts). Tested: 4 clipping blocks on the line in Ansbury and in Gullmouth, none ridden.
+- [x] The Charter Post is a person, not a sign: in every coaching yard the carter stands out front by the horses and you talk to them for a seat; the stand-alone signs are gone where there's a yard. Hollin Ford, which had only a sign by the bridge, now has its own yard over the bridge on the east side, its front to the Ansbury road.
 
 ## A. Now, in order
 

@@ -229,7 +229,8 @@ for (const s of P.sites) for (const p of s.props as PropDesc[]) {
     const fx = p.x + Math.cos(ry) * t * len, fz = p.z - Math.sin(ry) * t * len;
     const g = heightAt(Math.floor(fx), Math.floor(fz)); // the barrier follows the ground cell by cell
     // A fence is a one-block barrier: you jump it, you can't walk or step through it
-    if (cells.get(key(fx, g, fz)) !== B.Barrier) open++;
+    // (or at the fence's own floor, where the ground was levelled by hand: Hollin Ford's post yard)
+    if (cells.get(key(fx, g, fz)) !== B.Barrier && (p.y === undefined || cells.get(key(fx, p.y, fz)) !== B.Barrier)) open++;
   }
   checked++;
   if (open) problems.push(`fence in ${s.id} at (${p.x.toFixed(1)}, ${p.z.toFixed(1)}): ${open} of ${n} cells have no barrier (can be walked through)`);

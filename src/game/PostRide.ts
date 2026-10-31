@@ -4,6 +4,10 @@ import { Humanoid, type Appearance } from '../entities/humanoid';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { VoxelWorld } from '../world/VoxelWorld';
 import { POST_CART, POST_RIDER_SEAT } from '../data/postStations';
+import { lanePath, standAt } from './lanes';
+
+/** Headroom a cart needs over the road, the tilt and the cage's roof included (blocks). */
+const ROOM = 4;
 export { rideMinutes, roadNet, wayLength } from '../world/roadNet';
 
 // The Charter Post as a ride: pay the carter at a post sign and the cart takes you there in real time,
@@ -30,6 +34,9 @@ export class PostRide {
   private speed = 0;
   private yaw = 0;
   private readonly pos = new THREE.Vector3();
+  /** The road ahead looked over for room every so often; a stretch already found impassable isn't looked at again. */
+  private mendT = 0;
+  private given = -1;
   active = false;
   /** Where she's bound (a post stop's id). */
   dest = '';
@@ -58,6 +65,7 @@ export class PostRide {
     for (let i = 1; i < way.length; i++) this.cum.push(this.cum[i - 1] + Math.hypot(way[i][0] - way[i - 1][0], way[i][1] - way[i - 1][1]));
     this.s = 0;
     this.speed = 0;
+    this.mendT = 0; this.given = -1;
     this.dest = dest;
     this.pos.set(way[0][0], y, way[0][1]);
     const ahead = this.at(2, new THREE.Vector3());
@@ -87,8 +95,44 @@ export class PostRide {
     want = Math.min(want, Math.max(1.2, (total - this.s) * 0.9));
     this.speed += (want - this.speed) * Math.min(1, dt * (want < this.speed ? 2.5 : 0.8));
     this.s = Math.min(total, this.s + this.speed * dt);
+    this.mend(dt);
     this.place(dt);
     return this.s >= total - 0.05;
+  }
+
+  /**
+   * The road map's lines are straight between its points, so where a street bends one can cut a corner through
+   * a house, or run under a jettied upper floor or a low bough. Looked over a little way ahead as she goes (where
+   * it has loaded): a stretch without room is steered round over the blocks themselves.
+   */
+  private mend(dt: number): void {
+    if ((this.mendT -= dt) > 0) return;
+    this.mendT = 0.4;
+    const total = this.cum[this.cum.length - 1], V = this.voxels, p = new THREE.Vector3();
+    let y = Math.round(this.pos.y), ok = -1, ya = y, blocked = false;
+    for (let d = this.s + 2; d < Math.min(total - 1, this.s + 36); d += 1) {
+      this.at(d, p);
+      if (!V.isLoaded(p.x, p.z)) return;
+      const g = standAt(V, Math.floor(p.x), Math.floor(p.z), y, ROOM);
+      if (g === null) {
+        if (d <= this.given) continue;
+        blocked = true;
+        continue;
+      }
+      if (blocked && ok >= 0) { this.detour(ok, d, ya); return; }
+      y = g; ok = d; ya = g; blocked = false;
+    }
+  }
+
+  private detour(sa: number, sb: number, y: number): void {
+    const a = this.at(sa, new THREE.Vector3()), b = this.at(sb, new THREE.Vector3());
+    const path = lanePath(this.voxels, [a.x, a.z], [b.x, b.z], y, Math.ceil(sb - sa) + 12, ROOM);
+    if (!path) { this.given = sb; return; }
+    const w = this.way, c = this.cum;
+    const before = w.filter((_, i) => c[i] < sa), after = w.filter((_, i) => c[i] > sb);
+    this.way = [...before, ...path, ...after];
+    this.cum = [0];
+    for (let i = 1; i < this.way.length; i++) this.cum.push(this.cum[i - 1] + Math.hypot(this.way[i][0] - this.way[i - 1][0], this.way[i][1] - this.way[i - 1][1]));
   }
 
   private place(dt: number): void {

@@ -4,6 +4,7 @@ import { FestivalDef, FESTIVALS, festivalAt, festivalDates } from '../data/festi
 import type { WritKind } from '../data/calendar';
 import { utcDay } from '../data/calendar';
 import { POSTS } from '../data/travel';
+import { POST_STATIONS } from '../data/postStations';
 import { ITEMS } from '../data/items';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { B, isSolid } from '../world/blocks';
@@ -180,6 +181,8 @@ export class Festivals {
       const a = (k / 24) * Math.PI * 2;
       const cx = Math.floor(px + Math.cos(a) * r) + 0.5, cz = Math.floor(pz + Math.sin(a) * r) + 0.5;
       if (roadDist(cx, cz) < 6.5) continue;
+      // (never in a coaching yard: its horses, cart and carter aren't blocks, so the ground alone won't say so)
+      if (POST_STATIONS.some((y) => Math.hypot(y.x - cx, y.z - cz) < 13)) continue;
       const g = this.ground(cx, cz);
       if (g === null) continue;
       let ok = true, street = 0;

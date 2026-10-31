@@ -43,7 +43,7 @@ export function postBoxOf(p: PostStop): { x: number; z: number; ry: number } {
 }
 
 export const POSTS: PostStop[] = [
-  { id: 'hollin', name: 'Hollin Ford', place: 'hollin', x: 162.5, z: 186.5, ry: Math.PI, boxAt: [164.5, 188.5, -Math.PI / 2] }, // (on the grass by the bank, clear of the notice board and the bridge path)
+  { id: 'hollin', name: 'Hollin Ford', place: 'hollin', x: 184.5, z: 175.5, ry: 0, boxAt: [158.5, 195.5, Math.PI] }, // (on the dry grass south-east of Tamsin's stall, beside the travellers' board, facing the street: owner 2026-10-31, it stood on the river's lip)
   { id: 'aldermere', name: 'Ansbury, south gate', place: 'aldermere', x: 832.5, z: 375.5, ry: 0 },
   { id: 'waystation', name: 'The Waystation', place: 'waystation', x: 703.5, z: 574.5, ry: 0 },
   { id: 'woodcamp', name: 'Fellers\' Camp', place: 'woodcamp', x: 449.5, z: 511.5, ry: Math.PI },

@@ -714,6 +714,22 @@ export class Game implements GameApi {
   private cds = { strike: 0, cleave: 0, roll: 0, eat: 0 };
   /** The calling's skills (keys 3 to 5), mechanic and the effects they leave. */
   kit!: ClassKit;
+  /**
+   * Blows that caught someone in town, by who: a blow counts once a second at most (a combo is one), and only
+   * the third inside twelve seconds is meant. Before that it's an accident, and you're told so once.
+   */
+  private blows = new Map<unknown, { n: number; last: number; first: number }>();
+  private meant(who: unknown, at: THREE.Vector3, kind: 'guard' | 'person' | 'beast'): boolean {
+    const now = performance.now() / 1000, b = this.blows.get(who);
+    for (const [k, v] of this.blows) if (now - v.first > 12) this.blows.delete(k);
+    if (b && now - b.last < 1) return false;
+    const r = b && now - b.first <= 12 ? { n: b.n + 1, last: now, first: b.first } : { n: 1, last: now, first: now };
+    this.blows.set(who, r);
+    if (r.n >= 3) { this.blows.delete(who); return true; }
+    if (r.n === 1) this.hud.system(kind === 'guard' ? "You caught one of the watch with that swing. They let it go as an accident. Don't do it again." : kind === 'beast' ? 'You caught a town beast with that swing. Nobody minds an accident. Leave it be.' : "You caught someone with that swing. They take it for an accident. Keep at it and it's a crime.");
+    if (kind === 'guard' && r.n === 2) this.floatAt(at, 2.3, "Once more and you're coming with me.", 'chatter');
+    return false;
+  }
   /** The emote being played (until it ends, or you move). */
   private emote: { id: EmoteAnim; left: number } | null = null;
   /** Speech bubbles over heads: -1 is you, otherwise a player's id on the server. */
@@ -6133,9 +6149,10 @@ export class Game implements GameApi {
       const guard = this.roadfolk.guards(P, reach + 1).find((g) => inFront(g.pos));
       const npc = !guard && this.npcs.find((n) => n.placed !== false && n.model.root.visible && inFront(n.pos));
       const beast = !guard && !npc && this.animals.find((x) => x.kind in CRIME.beast && inFront(x.pos));
-      if (guard) { this.sfx('hit'); this.justice.crime('guard', guard.pos, undefined, guard.id); }
-      else if (npc) { this.sfx('hit'); this.floatAt(npc.pos, 2.3, ['Ow!', 'Watch! Watch!', 'What was that for?'][Math.floor(Math.random() * 3)], 'chatter'); this.justice.crime('assault', npc.pos); }
-      else if (beast) { this.sfx('hit', 0.7); beast.scare(P); this.particles.dust(beast.pos, 6); this.justice.crime('beast', beast.pos, beast.kind); }
+      // (a blow or two is an accident, a swing at the air that caught someone: only keeping at it is a crime)
+      if (guard) { this.sfx('hit'); if (this.meant('g:' + guard.id, guard.pos, 'guard')) this.justice.crime('guard', guard.pos, undefined, guard.id); }
+      else if (npc) { this.sfx('hit'); this.floatAt(npc.pos, 2.3, ['Ow!', 'Watch! Watch!', 'What was that for?', 'Mind where you swing that!'][Math.floor(Math.random() * 4)], 'chatter'); if (this.meant('n:' + npc.id, npc.pos, 'person')) this.justice.crime('assault', npc.pos); }
+      else if (beast) { this.sfx('hit', 0.7); beast.scare(P); this.particles.dust(beast.pos, 6); if (this.meant(beast, beast.pos, 'beast')) this.justice.crime('beast', beast.pos, beast.kind); }
     }
     if (drawn >= 1 && !this.dead) {
       const healed = Math.min(this.maxHp - this.hp, Math.round(drawn));

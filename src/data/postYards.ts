@@ -2,6 +2,7 @@
 import type { PostYard } from './postStations';
 
 export const POST_YARDS: PostYard[] = [
+  {"post":"hollin","x":184,"z":168,"face":"s","base":19},
   {"post":"aldermere","x":843,"z":376,"face":"w","base":24},
   {"post":"waystation","x":718,"z":593,"face":"n","base":20},
   {"post":"woodcamp","x":463,"z":488,"face":"s","base":23},

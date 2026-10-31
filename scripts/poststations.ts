@@ -21,9 +21,11 @@ const block = (x: number, y: number, z: number) => { const k = (x >> 5) + ',' + 
 const wet = (y: PostYard) => { for (let v = -7; v <= 4; v++) for (let u = -7; u <= 7; u++) { const [x, z] = yardAt(y, u, v); for (let h = y.base - 2; h <= y.base + 1; h++) if (block(x, h, z) === B.Water) return true; } return false; };
 const FRONT: Record<PostFace, [number, number]> = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 
-const out: PostYard[] = [];
+// Hollin Ford's, picked by hand (the starting village is built outside the planner): over the bridge on the east
+// side, its front to the Ansbury road (owner 2026-10-31: a carter at the horses, not a sign)
+const out: PostYard[] = [{ post: 'hollin', x: 184, z: 168, face: 's', base: 19 }];
 for (const post of POSTS) {
-  // (Hollin Ford is the hand-built starting village, outside what the planner lays out: it keeps its sign)
+  // (Hollin Ford is the hand-built starting village, outside what the planner lays out: its yard is picked above)
   if (post.ferryFrom || post.id === 'hollin') continue;
   const found: { y: PostYard; score: number }[] = [];
   let best: { y: PostYard; score: number } | null = null;

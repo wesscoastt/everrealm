@@ -3,6 +3,7 @@ import type { EnemyType } from './gameplay';
 import type { LandId } from '../world/land';
 import { coastX } from '../world/terrain';
 import { POSTS, postBoxOf } from './travel';
+import { carterSpot, yardOf } from './postStations';
 
 // Fixed points in the regional towns: where people stand, what can be examined, and where quest
 // creatures appear. Coordinates come from the site builders in src/world/sites.ts.
@@ -69,7 +70,12 @@ export interface WorldThing {
 }
 
 export const WORLD_THINGS: WorldThing[] = [
-  ...POSTS.map((p): WorldThing => ({ land: p.land, id: 'post:' + p.id, x: p.x, z: p.z, label: p.ferryFrom ? 'Take the ferry' : 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) })),
+  // The Charter Post: the carter in the coaching yard, out by the horses; where there's no yard (a ferry), the stop itself
+  ...POSTS.map((p): WorldThing => {
+    const y = yardOf(p.id), k = y && carterSpot(y);
+    return k ? { land: p.land, id: 'post:' + p.id, x: k.x + Math.sin(k.ry) * 0.6, z: k.z + Math.cos(k.ry) * 0.6, label: 'Talk to the carter (the Charter Post)', radius: 2.4, use: (g) => g.openTravel(p.id) }
+      : { land: p.land, id: 'post:' + p.id, x: p.x, z: p.z, label: p.ferryFrom ? 'Take the ferry' : 'Take the Charter Post', radius: 2.6, use: (g) => g.openTravel(p.id) };
+  }),
   // A post box by every Post sign: letters to other characters, and what came in theirs (game/Mail.ts)
   ...POSTS.map((p): WorldThing => { const b = postBoxOf(p); return { id: 'mail:' + p.id, x: b.x + Math.sin(b.ry), z: b.z + Math.cos(b.ry), label: 'Read your post', radius: 1.6, use: (g) => g.openMail() }; }),
   // Gullmouth's ferry steps, on the south jetty (the ferry berths beside it: world/Ferry.ts)

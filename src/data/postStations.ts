@@ -43,3 +43,12 @@ export const YARD = { u0: -7, u1: 7, v0: -7, v1: 4 };
  *  stand on the road side of it, chests to the rail and heads over it). */
 export const YARD_CART: [number, number] = [-2.5, 1.2];
 export const YARD_HORSES: [number, number][] = [[3.2, 2.45], [4.9, 2.45]];
+/** Where the carter stands: out in front, between the waiting cart and the horses at the rail, facing the road.
+ *  You talk to them to take the Post (owner 2026-10-31: a person at the horses, not a sign). */
+export const YARD_CARTER: [number, number] = [1.6, 3.4];
+export const yardOf = (post: string): PostYard | undefined => POST_STATIONS.find((y) => y.post === post);
+/** The carter's spot in the world, and which way they face. */
+export function carterSpot(y: PostYard): { x: number; z: number; ry: number } {
+  const [x, z] = yardAt(y, YARD_CARTER[0], YARD_CARTER[1]);
+  return { x: x + 0.5, z: z + 0.5, ry: yardYaw(y) };
+}

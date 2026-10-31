@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ITEMS } from '../data/items';
-import { POST_STATIONS, YARD_CART, YARD_HORSES, yardAt, type PostYard } from '../data/postStations';
+import { carterSpot, POST_STATIONS, YARD_CART, YARD_HORSES, yardAt, type PostYard } from '../data/postStations';
 import { mountModel, type CreatureModel } from '../entities/creatures';
 import { Humanoid } from '../entities/humanoid';
 import type { VoxelWorld } from '../world/VoxelWorld';
@@ -46,9 +46,10 @@ export class PostStations {
     cart.root.rotation.y = along;
     cart.setAnim('idle');
     const carter = new Humanoid(CARTER);
-    const [kx, kz] = yardAt(y, YARD_CART[0] - 2.4, YARD_CART[1] + 1.4);
-    carter.root.position.set(kx + 0.5, ground(kx + 0.5, kz + 0.5), kz + 0.5);
-    carter.root.rotation.y = along + Math.PI / 2;
+    // (out in front by the horses, facing the road: the one you talk to for a seat)
+    const k = carterSpot(y);
+    carter.root.position.set(k.x, ground(k.x, k.z), k.z);
+    carter.root.rotation.y = k.ry;
     carter.setState('idle');
     const coats = ['halter_bay', 'halter_chestnut'];
     const horses = YARD_HORSES.map(([u, v], i) => {

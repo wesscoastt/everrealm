@@ -787,10 +787,11 @@ export function plan(): Plan {
     }
     return land;
   };
-  // A Charter Post sign at every stop (Hollin Ford's is part of the authored village).
+  // A Charter Post sign at a stop with no coaching yard (a ferry's); where there's a yard, its carter is the Post
+  // (Hollin Ford's is part of the authored village).
   for (const p of POSTS) {
     const site = sites.find((x) => x.id === p.place);
-    if (site) site.props.push({ t: 'sign', x: p.x, y: builtGround(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
+    if (site && !POST_STATIONS.some((y) => y.post === p.id)) site.props.push({ t: 'sign', x: p.x, y: builtGround(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
     // ...and its post box beside it, where letters are posted and read
     if (site && p.id !== 'hollin') {
       const b = postBoxOf(p), g = builtGround(b.x, b.z);
@@ -9086,6 +9087,8 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     }
     for (const s of sites) if (Math.abs(s.x - x) < 300 && Math.abs(s.z - z) < 300)
       for (const p of s.props) if (!IGNORE.has(p.t) && Math.abs(p.x - x) < 4.2 && Math.abs(p.z - z) < 4.2) return null;
+    // (each Post stop's own spot stays clear, sign or no sign: the waymarks stand where they always have)
+    for (const p of POSTS) if (sites.some((s) => s.id === p.place) && Math.abs(p.x - x) < 4.2 && Math.abs(p.z - z) < 4.2) return null;
     return y0;
   };
   const out: WaymarkSpot[] = [{ id: 'wm-hollin', name: 'Hollin Ford', x: HOLLIN_SHRINE.x, z: HOLLIN_SHRINE.z, y: HOLLIN_SHRINE.y, ax: HOLLIN_SHRINE.x, az: HOLLIN_SHRINE.z + 3.5, theme: 'greenwake', ry: HOLLIN_SHRINE.ry }];
