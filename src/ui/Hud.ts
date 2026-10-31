@@ -1711,6 +1711,7 @@ export class Hud {
         const wrap = el('div', 'eq');
         const s = this.slotEl(id, 1, -1, 'Click to unequip');
         if (id) s.addEventListener('click', () => { this.ctx.unequip(slot); this.hideTooltip(); });
+        else s.dataset.ghost = slot; // (an empty slot shows the outline of what goes in it)
         wrap.append(s, el('span', '', slot === 'weapon' ? 'Weapon' : SLOT_NAMES[slot]));
         col.append(wrap);
       }
@@ -1732,6 +1733,7 @@ export class Hud {
       const wrap = el('div', 'eq');
       const s = this.slotEl(id, 1, -1, 'Click to take off');
       if (id) s.addEventListener('click', () => { this.ctx.unequip(slot); this.hideTooltip(); });
+      else s.dataset.ghost = slot === 'ring1' || slot === 'ring2' ? 'ring' : slot;
       wrap.append(s, el('span', '', name));
       jw.append(wrap);
     }
@@ -1741,6 +1743,8 @@ export class Hud {
     const a = this.ctx.armourSummary();
     const pk = this.ctx.packInfo();
     const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
+    // (a sheet of label and value, one row each, rather than lines of text)
+    stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
     stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
     stats.querySelectorAll<HTMLElement>('[data-showgear]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.toggleGearShown(b.dataset.showgear as 'head' | 'hands'); }));
     eq.append(stats);
@@ -1788,7 +1792,7 @@ export class Hud {
     bagCol.append(grid);
     this.markBag(grid);
     const foot = el('div', 'bag-foot');
-    foot.innerHTML = `<span class="bag-used${used >= save.inv.length ? ' full' : ''}"><b>${used}</b> / ${save.inv.length} slots</span><span class="bag-hint">Click to use or wear · Shift-click to drop · Drag to move</span>`;
+    foot.innerHTML = `<span class="bag-used${used >= save.inv.length ? ' full' : ''}"><b>${used}</b> / ${save.inv.length} slots<i class="bag-meter"><i style="width:${Math.round((used / save.inv.length) * 100)}%"></i></i></span><span class="bag-hint">Click to use or wear · Shift-click to drop · Drag to move</span>`;
     bagCol.append(foot);
     this.q('#inv-panel .footer').innerHTML = `<span>${used >= save.inv.length ? 'Your pack is full' : `${save.inv.length - used} slots free`}</span><span class="coin">${save.marks.toLocaleString()} marks</span>`;
   }

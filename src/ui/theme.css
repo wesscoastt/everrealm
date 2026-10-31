@@ -235,6 +235,38 @@
 .bag-foot b { color: var(--cream); font: 700 13px var(--px); }
 .bag-used.full b { color: #ff8a6a; }
 .bag-hint { opacity: 0.7; text-align: right; }
+/* Empty gear slots show the outline of what goes in them (Hud.renderInventory, data-ghost) */
+.slot[data-ghost] { background-repeat: no-repeat; background-position: center; background-size: 62%, auto; }
+.slot[data-ghost="head"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M5%2014%20C5%207%208%204%2012%204%20C16%204%2019%207%2019%2014%20L19%2017%20L15%2017%20L15%2013%20L9%2013%20L9%2017%20L5%2017%20Z'%2F%3E%3Cpath%20d%3D'M12%204%20L12%2013'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="chest"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M8%204%20L4%207%20L5%2012%20L7%2011%20L7%2020%20L17%2020%20L17%2011%20L19%2012%20L20%207%20L16%204%20C15%206%209%206%208%204%20Z'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="legs"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M7%204%20L17%204%20L18%2020%20L13.5%2020%20L12%2010%20L10.5%2020%20L6%2020%20Z'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="hands"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M8%2020%20L8%2011%20L7%207%20M10%2011%20L10%205%20M12.5%2011%20L12.5%204.5%20M15%2011%20L15%206%20M8%2011%20C8%209%2017%209%2017%2011%20L17%2015%20C17%2018%2015%2020%2013%2020%20L8%2020'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="feet"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M8%204%20L13%204%20L13%2014%20L19%2016%20L19%2020%20L6%2020%20L6%2014%20Z'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="weapon"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M17%203%20L21%203%20L21%207%20L10%2018%20L6%2014%20Z'%2F%3E%3Cpath%20d%3D'M5%2013%20L11%2019%20M4%2020%20L7%2017'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="neck"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M5%205%20C5%2014%209%2017%2012%2017%20C15%2017%2019%2014%2019%205'%2F%3E%3Cpath%20d%3D'M12%2017%20L10%2020%20L12%2022%20L14%2020%20Z'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="ear"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M12%204%20L12%209'%2F%3E%3Ccircle%20cx%3D'12'%20cy%3D'14'%20r%3D'4'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost="ring"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Ccircle%20cx%3D'12'%20cy%3D'14'%20r%3D'6'%2F%3E%3Cpath%20d%3D'M10%208%20L12%205%20L14%208%20Z'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+.slot[data-ghost] { opacity: 0.55; }
+.slot[data-ghost]:hover { opacity: 0.85; }
+/* Rarity: a strip of the rarity's colour along the foot of the slot and a gem in its corner, as ESO and WoW frame their bags */
+.slot[class*="r-"]:not(.r-common)::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--rc); box-shadow: 0 0 6px var(--rc); opacity: 0.9; pointer-events: none; }
+.slot[class*="r-"]:not(.r-common)::before { content: ''; position: absolute; top: 3px; left: 3px; width: 5px; height: 5px; transform: rotate(45deg); background: var(--rc); box-shadow: 0 0 4px var(--rc); pointer-events: none; z-index: 1; }
+.slot.r-uncommon { --rc: #6fd65a; } .slot.r-rare { --rc: #5aa8ff; } .slot.r-epic { --rc: #c07aff; } .slot.r-legendary { --rc: #ff9a2a; }
+.slot:has(img) { background: radial-gradient(90% 70% at 50% 30%, rgba(255, 255, 255, 0.07), transparent 70%), linear-gradient(#1c2748, #0e1529); }
+.slot.r-rare:has(img) { background: radial-gradient(90% 80% at 50% 40%, rgba(90, 168, 255, 0.18), transparent 70%), linear-gradient(#1c2748, #0e1529); }
+.slot.r-epic:has(img) { background: radial-gradient(90% 80% at 50% 40%, rgba(192, 122, 255, 0.2), transparent 70%), linear-gradient(#1f1f48, #10122a); }
+.slot.r-legendary:has(img) { background: radial-gradient(90% 80% at 50% 40%, rgba(255, 154, 42, 0.22), transparent 70%), linear-gradient(#2a2238, #14111e); }
+.slot.r-legendary:has(img) img { filter: drop-shadow(0 0 3px rgba(255, 154, 42, 0.55)); }
+/* The sheet under you: label left, value right, one row each */
+.equip-row .stats { display: flex; flex-direction: column; gap: 0; padding: 6px 10px; background: rgba(4, 8, 20, 0.4); border: 1px solid var(--gild-faint); border-radius: 8px; }
+.equip-row .stats .st-row { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid rgba(243, 213, 138, 0.07); }
+.equip-row .stats .st-row:last-child { border-bottom: 0; }
+.equip-row .stats .st-row .k { flex: 0 0 96px; color: var(--muted); font: 500 12px var(--body); }
+.equip-row .stats .st-row b { color: var(--cream); }
+/* How full the pack is */
+.bag-meter { display: inline-block; vertical-align: middle; width: 90px; height: 6px; margin-left: 8px; border-radius: 4px; background: rgba(4, 8, 20, 0.7); border: 1px solid var(--gild-faint); overflow: hidden; }
+.bag-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--gild), var(--gild-l)); }
+.bag-used.full .bag-meter i { background: linear-gradient(90deg, #c8402a, #ff8a6a); }
 /* The tooltip's comparison with what you wear */
 #tooltip .cmp { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--gild-faint); display: flex; flex-direction: column; gap: 2px; }
 #tooltip .cmp-h { font: 600 11px var(--px); color: var(--muted); letter-spacing: 0.4px; text-transform: uppercase; }
