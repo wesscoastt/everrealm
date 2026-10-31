@@ -1524,6 +1524,7 @@ export class Hud {
     if (p === 'map' || p === 'journal' || p === 'settings' || p === 'talents') for (const o of ['craft', 'shop', 'travel', 'exchange', 'finder', 'map', 'journal', 'settings', 'talents', 'inv', 'skills'] as PanelId[]) if (o !== p) this.close(o);
     this.open.add(p);
     this.panelEl(p).classList.add('show');
+    this.layoutBeside();
     this.ctx.sfx(p === 'journal' || p === 'map' || p === 'read' || p === 'mail' ? 'page' : 'open');
     // (the map opens on you, or on where Show on map asked for: set before the first draw)
     if (p === 'map') this.mapView.fresh = true;
@@ -1537,6 +1538,17 @@ export class Hud {
     this.panelEl(p).classList.remove('show');
     this.hideTooltip();
     this.ctx.sfx('close');
+    this.layoutBeside();
+  }
+
+  /**
+   * The pack beside a trader, a bench or the Exchange: just the bag, narrower, on the right, and the
+   * other window to its left, so neither covers the other (the full pack, you and your gear and the
+   * bag, is too wide to sit beside anything).
+   */
+  private layoutBeside(): void {
+    const beside = this.open.has('inv') && (['shop', 'craft', 'exchange', 'trade'] as PanelId[]).some((p) => this.open.has(p));
+    document.getElementById('ui')?.classList.toggle('pack-beside', beside);
   }
 
   closeAll(): boolean {

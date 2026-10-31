@@ -281,3 +281,13 @@
 
 /* A foe's element before its name on the plate */
 .plate .pel { font-weight: 700; text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 1px 0 #000; }
+
+/* The pack beside a trader or a bench (Hud.layoutBeside): the bag alone on the right, the other window
+   to its left, both in view */
+#ui.pack-beside #inv-panel { width: min(470px, calc(50vw - 24px)); }
+#ui.pack-beside #inv-panel .inv-layout { grid-template-columns: 1fr; }
+#ui.pack-beside #inv-panel .inv-char { display: none; }
+#ui.pack-beside #inv-panel .inv-bag .inv-grid { grid-template-columns: repeat(7, 48px); }
+#ui.pack-beside #inv-panel .inv-bag .inv-grid .slot { width: 48px; height: 48px; }
+#ui.pack-beside #shop-panel, #ui.pack-beside #craft-panel, #ui.pack-beside #exchange-panel, #ui.pack-beside #trade-panel { left: auto; right: calc(min(470px, calc(50vw - 24px)) + 32px); transform: none; }
+@media (max-width: 1000px) { #ui.pack-beside #inv-panel { display: none; } #ui.pack-beside #shop-panel, #ui.pack-beside #craft-panel, #ui.pack-beside #exchange-panel, #ui.pack-beside #trade-panel { left: 50%; right: auto; transform: translateX(-50%); } }
