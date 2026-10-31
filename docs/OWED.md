@@ -18,7 +18,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [ ] Sound heard by a person: footsteps, the land beds, the new music (clips in previews/music/), combat.
 - [x] Every city hand-built (item 4): the last three seen at street level 2026-10-31; Callis's repeated fronts fixed.
 - [x] The HUD brief (6b), all five priorities, tested by day, night and in rain. (The windows' pass, 4d, has the bag and the main windows done.)
-- [ ] The group features that need the server deployed: the travellers' board, the tower's board, corrupted queues.
+- [ ] The server deploys itself on every push (Render, everrealm-realm.onrender.com): the travellers' board is live (8 names, 2026-10-31; owner to say which of Wes, Claude, Test and JadeTester are theirs, to be left off). Still to build server-side: the tower's board and corrupted group queues.
 
 
 1. DONE (this commit, tested in game) **Quest journal** (owner 2026-10-29: "add ability to abandon side quests, select quests, show on map, etc"):
