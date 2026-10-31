@@ -316,4 +316,88 @@ hook(dialogue, 'co_constance', (g) => (sw1(g) === 'factor' ? 'sw_c1' : undefined
     options: [{ text: 'Thank you.', effect: (g) => swDone(g, 'You told Constance Ferrars about the leaded weight.') }] },
 });
 
-export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things };
+// ------------------------------------------------------------------ "Short Weight", II: Dues
+// The Charter's galleon anchors in Gullmouth roads so as not to come alongside and pay dues, and the
+// Counting House collects the Charter's dues. Thomas Varcoe at the Merchants' Hall says she unloads at
+// night into Company lighters; Simon Teague at Gull Castle keeps a copy of the letter that excuses her:
+// the Counting House's own, from the Governor's office. The Company carries its goods in the Charter's
+// galleon and pays the Charter nothing for the harbour. Bill her, leave her be, or give the letter to
+// the Merchants' Hall. Flag "coDues": 'billed' | 'left' | 'hall'.
+
+const SW2 = 'coDues';
+const sw2 = (g: GameApi) => g.stage(SW2);
+const dues = (g: GameApi, choice: 'billed' | 'left' | 'hall', why: string) => {
+  g.setFlag('coDues', choice);
+  g.setStage(SW2, 'done');
+  g.addMarks(150);
+  if (choice !== 'hall') g.give(SCRIP, choice === 'left' ? 14 : 10);
+  g.toast(`${why} 150 marks${choice === 'hall' ? '' : ` and ${choice === 'left' ? 14 : 10} scrip`}.`);
+};
+
+QUESTS[SW2] = {
+  id: SW2, name: 'Dues', region: 'saltwind', depth: 'storyline',
+  notes: (g, s) => {
+    if (s === 'varcoe') return 'Osmund Dray says the Charter\'s galleon has lain in Gullmouth roads a year and never paid a penny in dues, and the Counting House collects the dues. Thomas Varcoe at the Merchants\' Hall knows every hull in the harbour.';
+    if (s === 'teague') return 'Varcoe says the galleon unloads at night into Company lighters, and the Hall has always wondered why the Company never bills her. Simon Teague, steward at Gull Castle, keeps copies of everything.';
+    if (s === 'choose') return 'Teague has a copy of a letter from the Counting House, the Governor\'s office: the galleon is excused her dues "in consideration of services". The Company ships its own goods in her and pays the Charter nothing for the harbour. Osmund should know.';
+    const c = g.flag('coDues');
+    return c === 'billed' ? 'The galleon is on Osmund\'s dues book now, and billed. The Governor\'s office will hear of it from Gullmouth before it hears of it from me.'
+      : c === 'hall' ? 'Thomas Varcoe has Teague\'s copy of the letter. The Merchants\' Hall has something on the Company at last.'
+      : 'The galleon stays off the book. Avis Spurr says the Company remembers who keeps its business quiet.';
+  },
+  objectives: (_g, s) => {
+    if (s === 'varcoe') return [{ text: 'Ask Thomas Varcoe at the Merchants\' Hall about the galleon', marker: 'hall_thomas' }];
+    if (s === 'teague') return [{ text: 'Ask Simon Teague at Gull Castle for the galleon\'s papers', marker: 'gc_simon' }];
+    if (s === 'choose') return [{ text: 'Take what you found to Osmund Dray at the Counting House', marker: 'co_osmund' }];
+    return [];
+  },
+  marks: (g, s): Marks => {
+    if (s === undefined) return g.stage(SW1) === 'done' ? { co_osmund: '!' } : {};
+    return s === 'varcoe' ? { hall_thomas: '?' } : s === 'teague' ? { gc_simon: '?' } : s === 'choose' ? { co_osmund: '?' } : {};
+  },
+  walk: { from: { quests: { [SW1]: 'done' }, flags: { 'co:signed': true } } },
+};
+
+hook(dialogue, 'co_osmund', (g) => {
+  const s = sw2(g);
+  if (s === undefined && g.stage(SW1) === 'done') return 'dw_a';
+  if (s === 'choose') return 'dw_c1';
+  return undefined;
+}, {
+  dw_a: { text: 'You found the lead in Ansbury\'s weight. Good. I have another for you, and this one floats.', next: 'dw_b' },
+  dw_b: { text: 'The Charter\'s galleon. She\'s lain in the roads a year and never paid a penny of dues, and dues are ours to collect. Nobody here will tell me why.',
+    options: [{ text: 'Who would know?', next: 'dw_c' }, { text: 'Not now.' }] },
+  dw_c: { text: 'Thomas Varcoe at the Merchants\' Hall knows every hull in the harbour. He\'ll enjoy telling you. They don\'t love us there.',
+    options: [{ text: 'I\'ll ask him.', effect: (g) => g.setStage(SW2, 'varcoe') }] },
+  dw_c1: { text: 'Well? What does the galleon owe?', options: [{ text: 'Nothing. The Company excused her. The Governor\'s office.', next: 'dw_c2' }] },
+  dw_c2: { text: 'In consideration of services. And the services are carrying our goods in the Charter\'s hull, free of the Charter\'s harbour. We\'re cheating the Charter with its own ship.', next: 'dw_c3' },
+  dw_c3: { text: 'I can put her on the book and bill her, and Ansbury will hear it came from Gullmouth. Or I can forget I asked. You found it. You choose.',
+    options: [
+      { text: 'Bill her.', next: 'dw_bill' },
+      { text: 'Leave it. It\'s the Company\'s business.', next: 'dw_leave' },
+      { text: 'I\'ve already promised Varcoe the letter.', next: 'dw_hall' },
+    ] },
+  dw_bill: { text: 'Then she\'s on the book. A year of dues, and I\'ll sign it myself. If they want my window, they can come and take it.',
+    options: [{ text: 'I\'ll stand with you.', effect: (g) => dues(g, 'billed', 'The galleon is billed for a year of dues.') }] },
+  dw_leave: { text: 'Then I asked nothing and you found nothing. Avis will be pleased. I\'m not sure I am.',
+    options: [{ text: 'It\'s done.', effect: (g) => dues(g, 'left', 'The galleon stays off the book.') }] },
+  dw_hall: { text: 'You gave the Hall a knife for our backs. I can\'t say I blame you. I can say don\'t tell anyone in this office.',
+    options: [{ text: 'I won\'t.', effect: (g) => dues(g, 'hall', 'The Merchants\' Hall has the letter.') }] },
+});
+
+const sw2Hooks = (D: Record<string, DialogueTree>) => {
+  hook(D, 'hall_thomas', (g) => (sw2(g) === 'varcoe' ? 'dw_t1' : undefined), {
+    dw_t1: { text: 'The galleon? I\'ve waited a year for somebody from your window to ask me that.', next: 'dw_t2' },
+    dw_t2: { text: 'She never comes alongside, so she never pays. But she unloads, at night, into lighters. Company lighters. Count the bales off her and count the bales into your warehouse.', next: 'dw_t3' },
+    dw_t3: { text: 'If you want paper, Simon Teague at the castle copies every letter that crosses the harbour court. He\'s a pedant. Pedants keep everything.',
+      options: [{ text: 'Thank you.', effect: (g) => g.setStage(SW2, 'teague') }] },
+  });
+  hook(D, 'gc_simon', (g) => (sw2(g) === 'teague' ? 'dw_s1' : undefined), {
+    dw_s1: { text: 'The galleon\'s papers. Yes. There\'s a letter, and I have a copy, because I have a copy of everything.', next: 'dw_s2' },
+    dw_s2: { text: '"The Counting House excuses the Charter\'s ship from all harbour dues at Gullmouth, in consideration of services." Sealed in Ansbury. The Governor\'s office.', next: 'dw_s3' },
+    dw_s3: { text: 'Take the copy. I made two. I always make two.',
+      options: [{ text: 'Thank you.', effect: (g) => g.setStage(SW2, 'choose') }] },
+  });
+};
+
+export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => sw2Hooks(D) };
