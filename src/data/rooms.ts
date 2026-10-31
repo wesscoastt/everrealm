@@ -27,7 +27,8 @@ export interface RoomDef {
    * a cave) are there from the start and are pulled down flat when it's done; ice is there from the start
    * and breaks up.
    */
-  gate: { cells: [number, number][]; h: number; ry: number; style?: 'portcullis' | 'brass' | 'hurdle' | 'ice' };
+  gate: { cells: [number, number][]; h: number; ry: number; style?: 'portcullis' | 'brass' | 'hurdle' | 'ice'; early?: boolean };
+  // (early: a portcullis that's down from the start, like hurdles and ice: a delve's way on to its champion)
   /** levers: where each is, what its label says, the order they go in (by index), and a wrong pull's punishment. */
   levers?: { at: [number, number]; label: string; h?: number }[];
   /** What the levers are: lamp hooks (lit), glass pillars (struck; h is each one's height), or black slabs (laid back over a niche). */
@@ -48,7 +49,7 @@ export interface RoomDef {
    * harriers come, one every so often, a few at a time ([x, z, type], in turn). from's floor is fromF
    * above the room's.
    */
-  carry?: { thing: string; from: [number, number]; fromF?: number; to: [number, number]; drop: string; again: string; harry: [number, number, string][]; every: number };
+  carry?: { thing: string; look?: 'pot' | 'bowl'; from: [number, number]; fromF?: number; to: [number, number]; drop: string; again: string; harry: [number, number, string][]; every: number };
   /**
    * gauntlet: a chain to haul that lifts the gate for so many seconds, stones coming down along the way
    * between ([x, z, how far into the cycle each starts], every so many seconds, so wide), and the far
@@ -250,5 +251,129 @@ export const ROOMS: Record<string, DungeonRooms> = {
         chest: [69, 7],
       },
     ],
+  },
+};
+
+// ---------------------------------------------------------------- The delves' rooms
+// One room each, before the champion (world/sites.ts buildUnderworks): in the west cave, or the west
+// vault of a built delve, with the gate across the way east to the champion shut from the start. Places
+// are from the delve's middle, on its floor; the gate's cells are a line across the neck at x 7, and
+// only the ones open at run time are filled (game/Activities.ts).
+const NECK: [number, number][] = [-2, -1, 0, 1, 2, 3, 4, 5, 6].map((z) => [7, z]);
+const CAVE_BOX: [number, number, number, number] = [-19, -5, -9, 5];
+const VAULT_BOX: [number, number, number, number] = [-16, -5, -10, 5];
+
+export const DELVE_ROOMS: Record<string, RoomDef> = {
+  'delve-badger': {
+    id: 'litter', kind: 'waves', title: 'The old boar\'s litter',
+    start: 'The west cave is where the old boar\'s litter lies up, and they come out of the side crawls one after another to see you off.',
+    done: 'The last of the litter goes down. Back by the hurdles something heavy shoulders into them, and they go over flat, pushed from the other side. The old boar is coming.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, style: 'hurdle' },
+    waves: [
+      [[-17, -3, 'boar'], [-11, 3, 'boar']],
+      [[-18, 2, 'roadwolf'], [-12, -4, 'boar'], [-16, 4, 'boar']],
+      [[-19, 0, 'boar'], [-10, -3, 'roadwolf'], [-14, 4, 'boar'], [-13, -5, 'roadwolf']],
+    ],
+    waveSays: ['More of them, and a roadwolf that has been living off what the boars leave.', 'The last of the litter, the big ones, all at once.'],
+    chest: [-17, -3],
+  },
+  'delve-culvert': {
+    id: 'sluice', kind: 'plates', title: 'The sluice boards',
+    start: 'The sluice gate east is down, and the water behind it seeps round your boots. Three boards in the floor of the west vault work it; the culvert-keepers stood on them together.',
+    done: 'The third board goes down with the other two still down. Chains run in the walls, and the sluice gate winds up out of the water.',
+    box: VAULT_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, early: true },
+    plates: [[-16, -5], [-10, -5], [-13, 5]],
+    hold: 6,
+    chest: [-15, 4],
+  },
+  'delve-smugglers': {
+    id: 'signal', kind: 'levers', title: 'The signal lamps',
+    start: 'An iron grating is down across the way to the cache, and four lamp hooks hang cold round the west cave: the signal that told the boats it was safe to come in.',
+    done: 'The fourth lamp takes, and somewhere a weight drops. The grating across the way east lifts, the way it did for every boat that saw the right lights.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, early: true },
+    levers: [
+      { at: [-15, -5], label: 'Light the lamp on the north wall' },
+      { at: [-13, 4], label: 'Light the lamp by the water' },
+      { at: [-19, 0], label: 'Light the lamp at the far west end' },
+      { at: [-9, -1], label: 'Light the lamp by the passage' },
+    ],
+    order: [1, 0, 3, 2],
+    wrong: ['crab', 'brinejelly'],
+    clue: [-18, -3, 'A page out of Jem Coker\'s book', 'THE LIGHT FOR THE BOATS\nBy the water first, so it shows low on the sea.\nThen the north wall.\nThen the one by the passage.\nThe far west last.\nAny other way and the lads at the cache will take it for the excise and bar the grating.\nJ. C.'],
+    chest: [-17, -3],
+  },
+  'delve-tinner': {
+    id: 'adit', kind: 'gauntlet', title: 'The bad roof',
+    start: 'An iron grille is down across the adit east. The props between here and there are rotten through, and the roof comes down where they used to stand. The grille\'s chain hangs in the west cave.',
+    done: 'You\'re through the grille. Behind you a prop goes, and the roof comes down across the counterweight\'s well and wedges the grille up.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, early: true },
+    gauntlet: {
+      chain: [-17, -3], secs: 9, every: 2.5, r: 1.8, past: [8, -1, 12, 5],
+      stones: [[-9, 0, 0], [-5, 1, 0.5], [-1, 0, 1.0], [2, 2, 1.5], [5, 1, 2.0]],
+      haul: 'You haul the chain down, and away east the grille rattles up. The counterweight is coming back down already. Run, and watch the roof where it dusts.',
+      shut: 'The weight touches bottom and the grille drops. Back to the chain.',
+    },
+    clue: [-18, -1, 'Chalked on a prop', 'CHAIN HERE LIFTS THE EAST GRILLE. YOU HAVE ABOUT NINE COUNT.\nThe roof is bad all the way. Where it dusts, it falls.\nW. Treloar'],
+    chest: [-15, 4],
+  },
+  'delve-seep': {
+    id: 'pillars', kind: 'levers', leverStyle: 'glass', title: 'The seep\'s glass',
+    start: 'Ice has grown right across the way east. Four pillars of glass stand in the west cave, and the ice hums back when you brush past one.',
+    done: 'The tallest pillar rings last and longest. The ice across the way east answers it, cracks top to bottom and falls in pieces.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, style: 'ice' },
+    levers: [
+      { at: [-17, -3], label: 'Strike the tall pillar', h: 2.4 },
+      { at: [-11, -3], label: 'Strike the smallest pillar', h: 1.0 },
+      { at: [-17, 3], label: 'Strike the tallest pillar', h: 3.0 },
+      { at: [-11, 3], label: 'Strike the middling pillar', h: 1.6 },
+    ],
+    order: [1, 3, 0, 2],
+    wrong: ['shardjelly', 'shardjelly'],
+    clue: [-19, 0, 'Scratched in the ice', 'Not like the Kettle. Here the glass wants the small ones first, up to the big one.\nGot it the Kettle way and the floor came up at us.\nD. P.'],
+    chest: [-14, 4],
+  },
+  'delve-glimmer': {
+    id: 'warden', kind: 'keeper', title: 'The frozen key',
+    start: 'The way east is iced over, and set in the ice is a lock of old black iron. The rimewight that walks the west cave has the key frozen into its fist.',
+    done: 'You break the key out of the rimewight\'s fist and put it to the lock. The ice round it goes white and splits, and comes down in slabs.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, style: 'ice' },
+    keeper: { type: 'rimewight', name: 'The Glimmer\'s warden', at: [-14, 0], crew: [[-17, -3, 'icewolf'], [-11, 3, 'icewolf']] },
+    chest: [-17, -3],
+  },
+  'delve-gullery': {
+    id: 'colony', kind: 'waves', title: 'The colony',
+    start: 'A grating the egg-takers put up is down across the way east. The west cave\'s roof is black with bats, and as you come in the whole colony comes down.',
+    done: 'The last of them goes back up into the dark and stays there. The egg-takers\' grating has a pin through it and nothing else, and the pin comes out.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, early: true },
+    waves: [
+      [[-17, -3, 'cavebat'], [-11, 3, 'cavebat'], [-14, 0, 'cavebat']],
+      [[-18, 2, 'cavebat'], [-12, -4, 'brinejelly'], [-16, 4, 'cavebat'], [-10, 0, 'cavebat']],
+      [[-19, 0, 'cavebat'], [-10, -3, 'cavebat'], [-14, 4, 'brinejelly'], [-13, -5, 'cavebat'], [-16, -2, 'cavebat']],
+    ],
+    waveSays: ['More of them out of the roof, and something wet comes up out of the floor with them.', 'The rest of the colony, all at once, close enough that you can feel the wings.'],
+    chest: [-17, 3],
+  },
+  'delve-hob': {
+    id: 'cream', kind: 'carry', title: 'The hob\'s cream',
+    start: 'The bowl is old turned wood, cream to the brim, none of it spilt, as if someone fills it every night. Roots have grown right across the way east since you came in.',
+    done: 'You set the bowl on the flat stone by the roots. For a while nothing happens. Then the roots draw back into the walls, slow as a tide, and the way east is open.',
+    box: VAULT_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, style: 'hurdle' },
+    carry: {
+      thing: 'the hob\'s bowl', look: 'bowl', from: [-15, 3], to: [5, 0],
+      drop: 'You go down hard and the bowl with you, but it lands upright and hardly a drop is gone. Take it up again.',
+      again: 'You take the bowl up again, in both hands this time.',
+      harry: [[-13, -4, 'thornwolf'], [-3, 3, 'sporejelly'], [-16, 0, 'thornwolf']],
+      every: 8,
+    },
+    clue: [-16, -4, 'Cut in a stone by the door', 'CREAM FOR THE HOB ON THE STONE BY HIS DOOR\nAND HE\'LL LET YOU BY AS HE LET US BEFORE'],
+    chest: [-11, -4],
   },
 };

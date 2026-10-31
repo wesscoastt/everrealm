@@ -94,7 +94,7 @@ the Lamp & Spanner, a mount (a brass strider in Kell's colours) at a small chanc
 | Under the Kettle | the wolves' den waves, the singing drift's glass, the shepherds' fire-pot (carry) | — |
 | The Escapement | the escapement teeth (levers in time with the beat), the vent gauntlet, the governor's guardian | — |
 | Kingsbarrow | the Long Barrow's niches (levers), the Hall of the Kneeling (waves of the risen), the Black Stair carry | — |
-| Each delve | one room fitting its story (smugglers: the tide-gate plates; the culvert: a carry through the flood) | the champion's own move |
+| Each delve | one room fitting its story, in the west cave, the way east to the champion shut until it's done (`DELVE_ROOMS`, run by `game/Activities.ts`, reset when you leave): Badger Holt, the old boar's litter (waves, the boar knocks the hurdles flat); Withy Culvert, the sluice boards (plates); Smugglers' Hole, the signal lamps (levers, from Jem Coker's book); Tinner's Adit, the bad roof (gauntlet); the Cold Seep, its glass (pillars, smallest first, not the Kettle's way); the Glimmer, the frozen key (keeper); the Gullery, the colony (waves of bats); Hob's Barrow, the hob's cream (carry the bowl to his stone) | the champion's own move |
 
 ## Order of building
 

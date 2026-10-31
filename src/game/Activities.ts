@@ -16,6 +16,10 @@ import { Puzzles } from './Puzzles';
 import { LOOSE_MAPS, RARES, RareDef, rareLairs, TREASURE_MAPS, TreasureMap, treasureSpot } from '../data/wilds';
 import { hash2 } from '../world/noise';
 import type { VoxelWorld } from '../world/VoxelWorld';
+import { DELVE_ROOMS } from '../data/rooms';
+import { Rooms } from './Rooms';
+import type { Hazard } from '../data/hazards';
+import { B } from '../world/blocks';
 
 // The world's activities, in the manner of the big online games:
 //   dynamic events (GW2): flare up when you come near, run in waves against the clock, pay out by
@@ -58,6 +62,8 @@ export interface ActivityHost {
   /** The pack: treasure maps are read from it, and spent when dug. */
   count(item: string): number;
   take(item: string, n?: number): boolean;
+  /** What a delve's room needs beyond the rest (game/Rooms.ts): any sound, a page to read, the player's health, its falling stones. */
+  rooms?: { sfx(name: string, v?: number): void; read(title: string, text: string): void; hp(): number; ground(add: Hazard[], remove: string[]): void };
   /** Online: the world boss's health is the server's, shared with every player there. */
   shared?: {
     on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void;
@@ -90,6 +96,8 @@ export class Activities {
   private announced = new Set<string>();
   private shard: LiveShard | null = null;
   private dungeons = new Map<string, Enemy[]>();
+  /** A delve's room while you're by it (data/rooms.ts DELVE_ROOMS), and what it has called up. */
+  private delveRooms = new Map<string, { rooms: Rooms; mobs: Enemy[] }>();
   private checkTimer = 0;
   private clock = 0;
   private quakeMesh: THREE.Mesh;
@@ -116,6 +124,7 @@ export class Activities {
 
   update(dt: number): void {
     this.clock += dt;
+    for (const d of this.delveRooms.values()) d.rooms.update(dt);
     const P = this.host.player();
     this.checkTimer -= dt;
     if (this.checkTimer <= 0) {
@@ -442,11 +451,46 @@ export class Activities {
         for (const [x, y, z, type] of a.spawns ?? []) out.push(this.spawnAt({ ...ENEMIES[type as EnemyType], respawn: 150 }, x, y, z));
         if (a.boss) out.push(this.spawnAt(championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45), a.boss[0], a.boss[1], a.boss[2]));
         this.dungeons.set(s.id, out);
+        if (a.kind === 'delve') this.openRoom(s);
       } else if (!near && list && Math.hypot(P.x - s.x, P.z - s.z) > 110) {
         for (const e of list) this.host.removeEnemy(e);
         this.dungeons.delete(s.id);
+        this.closeRoom(s.id);
       }
     }
+  }
+
+  /** A delve's room, set up as you come by: its gate's cells only where the neck is open. */
+  private openRoom(s: Site): void {
+    const def = DELVE_ROOMS[s.id], R = this.host.rooms;
+    if (!def || !R || this.delveRooms.has(s.id)) return;
+    const ox = Math.round(s.x), oz = Math.round(s.z), F = Math.floor(s.act!.chest![1]), V = this.host.voxels;
+    const cells = def.gate.cells.filter(([x, z]) => V.get(ox + x, F, oz + z) === B.Air && V.get(ox + x, F + 1, oz + z) === B.Air);
+    if (!cells.length) return;
+    const mobs: Enemy[] = [], H = this.host;
+    const rooms = new Rooms({
+      scene: H.scene, voxels: V, player: () => H.player(), system: (t) => H.system(t), banner: (a, b) => H.banner(a, b),
+      sound: (n, v) => R.sfx(n, v), reward: (xp, m, items, why) => H.reward(xp, m, items, why), read: (t, x) => R.read(t, x),
+      level: () => H.level?.() ?? 1, hp: () => R.hp(), ground: (a, rm) => R.ground(a, rm), share: () => {},
+      // A room's creature: no respawning; a named one (a keeper) tougher than the rest of its kind
+      spawn: (type, x, y, z, name) => {
+        const d = ENEMIES[type as EnemyType];
+        const e = this.spawnAt(name ? { ...d, name, hp: Math.round(d.hp * 1.8), xp: Math.round(d.xp * 2) } : { ...d }, x, y, z);
+        e.questTag = 'activity';
+        if (!name) e.state = 'chase';
+        mobs.push(e);
+        return e;
+      },
+    }, s.id, { origin: [ox, oz], floor: F, rooms: [{ ...def, gate: { ...def.gate, cells } }] });
+    this.delveRooms.set(s.id, { rooms, mobs });
+  }
+
+  private closeRoom(id: string): void {
+    const d = this.delveRooms.get(id);
+    if (!d) return;
+    d.rooms.dispose();
+    for (const e of d.mobs) this.host.removeEnemy(e);
+    this.delveRooms.delete(id);
   }
 
   // ---------------------------------------------------------------- Bandit forts
@@ -477,7 +521,7 @@ export class Activities {
   // ---------------------------------------------------------------- Chests, vistas, wonders
   /** Things to press E on: dungeon chests (refill each half hour) and vistas (once each). */
   candidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
-    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.escorts.candidates(P), ...this.puzzles.candidates(P), ...this.tasks.candidates(P)];
+    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.escorts.candidates(P), ...this.puzzles.candidates(P), ...this.tasks.candidates(P), ...[...this.delveRooms.values()].flatMap((d) => d.rooms.candidates(P))];
     for (const s of this.sites) {
       const a = s.act!;
       if (a.chest && a.kind === 'fort' && !this.fortDone.has(s.id) && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {

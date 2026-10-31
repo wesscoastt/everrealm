@@ -12,6 +12,7 @@ import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
 import { drawWorldMap } from './worldMap';
 import { MAP_SCALE, WMAX, WMAX_X, WMIN, WSIZE } from '../world/VoxelWorld';
+import type { Interior } from './interiorMap';
 import { POSTS } from '../data/travel';
 import type { DailyView } from '../game/Dailies';
 import type { FestivalView } from '../game/Festivals';
@@ -409,6 +410,8 @@ export class Hud {
   private mmZoom = 2;
   /** Buildings' names, shown on the minimap at the two closest zooms (GameWorld.buildingLabels). */
   mapLabels: { x: number; z: number; text: string }[] = [];
+  /** Underground in a dungeon or delve: its plan (ui/interiorMap.ts), drawn on the minimap in place of the land above. */
+  interior: Interior | null = null;
   private mmRotate = false;
   /** Listening for full screen ending (Esc, F11), so the Settings box stays right. */
   private fsWatch = false;
@@ -1339,11 +1342,17 @@ export class Hud {
     c.save();
     c.clearRect(0, 0, W, W);
     c.beginPath(); c.arc(R, R, R, 0, Math.PI * 2); c.clip();
-    c.fillStyle = '#b8c6c8';
+    const I = this.interior;
+    c.fillStyle = I ? '#1e1a16' : '#b8c6c8';
     c.fillRect(0, 0, W, W);
     // Chart and explored land, turned and scaled about the player
     c.save();
     c.translate(R, R); c.rotate(rot); c.scale(k, k); c.translate(-px, -pz);
+    if (I) {
+      // Underground: the halls' own plan, and nothing of the land overhead
+      c.imageSmoothingEnabled = false;
+      c.drawImage(I.canvas, I.x0, I.z0, I.size, I.size);
+    } else {
     c.imageSmoothingEnabled = true;
     const span = (W / k) * 1.5;
     // (the world is two squares: the Counties', and Morrow's east of it across the sea)
@@ -1356,6 +1365,7 @@ export class Hud {
     if (west) c.drawImage(this.ctx.mapImage, (px - span / 2 - WMIN) / MAP_SCALE, (pz - span / 2 - WMIN) / MAP_SCALE, span / MAP_SCALE, span / MAP_SCALE, px - span / 2, pz - span / 2, span, span);
     const ee = this.ctx.mapImageEast;
     if (east && ee) c.drawImage(ee, (px - span / 2 - WMAX) / MAP_SCALE, (pz - span / 2 - WMIN) / MAP_SCALE, span / MAP_SCALE, span / MAP_SCALE, px - span / 2, pz - span / 2, span, span);
+    }
     c.restore();
     // Inner shadow at the rim
     const vg = c.createRadialGradient(R, R, R * 0.62, R, R, R);
@@ -1366,7 +1376,7 @@ export class Hud {
 
     // Towns, found landmarks and post stops
     const found = this.ctx.save.discovered;
-    for (const p of places()) {
+    for (const p of I ? [] : places()) {
       if (p.kind === 'region') continue;
       const town = MAP_TOWNS.has(p.id);
       if (!town && !found.includes(p.id)) continue;
@@ -1376,7 +1386,7 @@ export class Hud {
       if (town) mmHouse(c, x, y); else if (!placeGlyph(c, p.id, x, y, 1.6)) mmStar(c, x, y, 7);
       c.globalAlpha = 1;
     }
-    for (const p of POSTS) {
+    for (const p of I ? [] : POSTS) {
       if (!found.includes(p.place)) continue;
       const [x, y] = at(p.x, p.z);
       if (Math.hypot(x, y) > inside) continue;
@@ -1385,7 +1395,7 @@ export class Hud {
       c.fillRect(x - 9, y - 10, 18, 8); c.strokeRect(x - 9, y - 10, 18, 8);
     }
     // Close in, the buildings' names: nearest first, and none drawn over another
-    if (this.mmZoom >= 3) {
+    if (this.mmZoom >= 3 && !I) {
       c.font = '600 19px "Alegreya Sans", sans-serif';
       c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
       const taken: [number, number, number, number][] = [];

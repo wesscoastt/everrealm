@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ROOMS, type RoomDef } from '../data/rooms';
+import { ROOMS, type DungeonRooms, type RoomDef } from '../data/rooms';
 import { B } from '../world/blocks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import type { Enemy } from '../entities/Enemy';
@@ -84,8 +84,8 @@ export class Rooms {
   private ox = 0; private oz = 0; private floor = 0;
   private clock = 0;
 
-  constructor(private host: RoomsHost, private dungeon: string) {
-    const R = ROOMS[dungeon];
+  constructor(private host: RoomsHost, private dungeon: string, frame?: DungeonRooms) {
+    const R = frame ?? ROOMS[dungeon];
     if (!R) return;
     [this.ox, this.oz] = R.origin; this.floor = R.floor;
     for (const def of R.rooms) {
@@ -93,7 +93,7 @@ export class Rooms {
       host.scene.add(gate);
       gate.visible = false;
       const live: Live = { def, state: 0, gate, gateY: 1, barriers: [], lit: [], lamps: [], plates: [], keeper: null, chest: null, opened: false, wave: 0, waveMobs: [], waveT: 0, thing: null, carrying: false, harried: [], harryT: 0, lastHp: 0, chain: null, upUntil: 0, tick: 0 };
-      if (def.carry) live.thing = this.firePot(this.at(def.carry.from[0], def.carry.from[1], 0, this.fl(def) + (def.carry.fromF ?? 0)));
+      if (def.carry) live.thing = (def.carry.look === 'bowl' ? this.bowl.bind(this) : this.firePot.bind(this))(this.at(def.carry.from[0], def.carry.from[1], 0, this.fl(def) + (def.carry.fromF ?? 0)));
       if (def.gauntlet) live.chain = this.chainAt(def.gauntlet.chain, this.fl(def));
       for (const l of def.levers ?? []) { const m = def.leverStyle === 'glass' ? this.pillar(l.at, l.h ?? 2, this.fl(def)) : def.leverStyle === 'slab' ? this.slab(l.at, this.fl(def)) : this.hook(l.at, this.fl(def)); live.lamps.push(m); }
       for (const p of def.plates ?? []) live.plates.push({ mesh: this.plate(p, this.fl(def)), downUntil: 0 });
@@ -207,6 +207,15 @@ export class Rooms {
     return g;
   }
 
+  /** A wooden bowl of cream, brim full. */
+  private bowl(p: THREE.Vector3): THREE.Group {
+    const g = new THREE.Group(); g.position.copy(p);
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.16, 0.18, 12), wood).translateY(0.09));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.02, 12), new THREE.MeshLambertMaterial({ color: '#f4ecd6' })).translateY(0.17));
+    this.host.scene.add(g);
+    return g;
+  }
+
   /** A counterweight's chain down from the roof, a ring on the end of it to haul by. */
   private chainAt(at: [number, number], f: number): THREE.Group {
     const p = this.at(at[0], at[1], 0, f), g = new THREE.Group(); g.position.copy(p);
@@ -316,7 +325,9 @@ export class Rooms {
     const P = this.host.player();
     this.rooms.forEach((r, i) => {
       // The portcullis drops when the room shuts and rises when it's done
-      const want = r.state === 1 && this.clock >= r.upUntil ? 0 : 1;
+      const early = !!r.def.gate.early && r.state === 0;
+      const want = (r.state === 1 || early) && this.clock >= r.upUntil ? 0 : 1;
+      if (early && !r.barriers.length && this.host.voxels.isLoaded(this.ox + r.def.gate.cells[0][0], this.oz + r.def.gate.cells[0][1])) { this.shut(r); r.gateY = 0; }
       if (r.def.gate.style === 'hurdle' || r.def.gate.style === 'ice') {
         // Hurdles stand across the way from the start, and go down flat when the room's done
         if (r.state === 0 && !r.barriers.length && this.host.voxels.isLoaded(this.ox + r.def.gate.cells[0][0], this.oz + r.def.gate.cells[0][1])) { this.shut(r); r.gate.visible = true; r.gateY = 0; }

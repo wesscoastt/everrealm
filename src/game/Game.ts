@@ -51,6 +51,7 @@ import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '.
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
 import { AudioSystem, Sfx, voiceOf, type Soundscape, type Bed } from '../systems/Audio';
+import { interiorMap, interiorOrigin } from '../ui/interiorMap';
 import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
@@ -1104,6 +1105,7 @@ export class Game implements GameApi {
       standing: (r, n) => this.gainStanding(r as RegionId, n),
       daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
       killed: (e) => this.onEnemyKilled(e),
+      rooms: { sfx: (n, v) => this.sfx(n as Sfx, v), read: (t, b) => this.hud.showReadable(t, b), hp: () => this.hp, ground: (a, rm) => { this.hazards.add(a); this.hazards.remove(rm); } },
       count: (id) => this.inv.count(id),
       take: (id, n = 1) => { const ok = this.inv.remove(id, n); if (ok) this.persist(); return ok; },
       shared: {
@@ -7324,6 +7326,21 @@ export class Game implements GameApi {
     }
   }
 
+  /**
+   * Underground in a dungeon or a delve, the minimap shows its plan (ui/interiorMap.ts): redrawn when
+   * you've gone far enough to need more of it, a level up or down, or every five seconds (a gate opens).
+   */
+  private interiorT = 0;
+  private updateInterior(P: THREE.Vector3): void {
+    const under = this.world.voxels.topSolid(P.x, P.z) > P.y + 3 && (!!this.dungeons.run?.spawned || this.activities.undergroundSite(P, 70) !== null || !!this.tower?.run);
+    if (!under) { this.hud.interior = null; return; }
+    const I = this.hud.interior, [x0, z0] = interiorOrigin(P.x, P.z);
+    this.interiorT -= 0.2;
+    if (I && I.x0 === x0 && I.z0 === z0 && Math.abs(Math.floor(P.y + 0.1) - I.y) < 2 && this.interiorT > 0) return;
+    this.interiorT = 5;
+    this.hud.interior = interiorMap(this.world.voxels, P.x, P.y, P.z);
+  }
+
   /** What the feet are on: grass, stone, boards, gravel, sand, snow, or shallow water. */
   private stepSound(): Sfx {
     const P = this.player.position, V = this.world.voxels;
@@ -7769,6 +7786,7 @@ export class Game implements GameApi {
     this.hudTimer -= dt;
     if (this.hudTimer > 0) return;
     this.hudTimer = 0.2;
+    this.updateInterior(P);
     this.hud.drawMinimap(P.x, P.z, this.rig.yaw, this.player.yaw, this.mapMarkers());
     this.hud.setClock(this.world.sky.hour);
     this.hud.setXpBar(this.save.xp.melee);

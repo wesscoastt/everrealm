@@ -28,7 +28,7 @@ export interface HazardHost {
 
 const FIRST: Record<Hazard['kind'], string> = {
   vent: 'Steam vents crack the ground here. When the ground round one glows, step out of the ring or roll clear.',
-  rockfall: 'Loose crag above. When the scree under it glows, stones are coming down: step out or roll clear.',
+  rockfall: 'Loose rock overhead. When the ground under it glows, stones are coming down: step out or roll clear.',
   bog: 'Bog: it holds your feet, and you wade at half speed until you are out of it.',
 };
 
