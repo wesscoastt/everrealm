@@ -541,4 +541,88 @@ const sw4Hooks = (D: Record<string, DialogueTree>) => {
   });
 };
 
-export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => { sw2Hooks(D); sw3Hooks(D); sw4Hooks(D); } };
+// ------------------------------------------------------------------ "Short Weight", V: Bonded
+// Gilbert Ashe has taken the packet to Callis to find the original weights in the bonded book, and not
+// written since. You arrive to smoke: the Company's warehouse on the coast road is burning, set in three
+// places, to be blamed on the Assembly and paid for by the underwriters. Gilbert went in for the book.
+// On the second floor are Jordi Alsina and the porters' families. One stair, one trip: the ledgers
+// (proof of everything) or the people. Gilbert is found on the stair either way. Flag "coBonded":
+// 'ledgers' | 'people'; "coGilbertDead". Makes you a chief factor.
+
+const SW5 = 'coBonded';
+const sw5 = (g: GameApi) => g.stage(SW5);
+const BONDED_BOOK = 'co_bonded_book';
+ITEMS.push({ id: BONDED_BOOK, name: 'The bonded book', kind: 'quest', rarity: 'rare', stack: false, value: 0, icon: { shape: 'book', a: '#3a2a1a', b: '#22365a' },
+  desc: 'The Callis warehouse\'s bonded book, scorched at one corner. Every bale in and out, its weight at Ansbury and its weight here, and three pages of what the underwriters were told burned. Gilbert Ashe died going in for it.' });
+
+QUESTS[SW5] = {
+  id: SW5, name: 'Bonded', region: 'callis', depth: 'storyline',
+  notes: (g, s) => {
+    if (s === 'callis') return 'Osmund Dray says Gilbert Ashe took the packet to Callis to find the original weights in the bonded book, and hasn\'t written since. The Company\'s Callis house is on the coast road, across from the quay.';
+    if (s === 'laia') return (g.flag('coBonded') === 'ledgers'
+      ? 'The warehouse burned. I went up the stair for the bonded book and brought it out. Jordi Alsina and the porters\' families were on the second floor. Gilbert was on the stair. They took the ones who came out to the Assembly\'s Hospital.'
+      : 'The warehouse burned. I went up the stair for the people on the second floor and brought Jordi Alsina and the porters\' families down. The bonded book burned. Gilbert was on the stair. They took them to the Assembly\'s Hospital.');
+    return 'Laia Serra says the fire started in three places at once. Nobody sets a fire in three places by accident. Gilbert Ashe is buried in Callis, a long way from his window.';
+  },
+  objectives: (_g, s) => {
+    if (s === 'callis') return [{ text: 'Find Gilbert Ashe at the Counting House in Callis', marker: 'co_montserrat' }];
+    if (s === 'laia') return [{ text: 'Go to the Assembly\'s Hospital', marker: 'inf_laia' }];
+    return [];
+  },
+  marks: (g, s): Marks => {
+    if (s === undefined) return g.stage(SW4) === 'done' ? { co_osmund: '!' } : {};
+    return s === 'callis' ? { co_montserrat: '?' } : s === 'laia' ? { inf_laia: '?' } : {};
+  },
+  walk: { from: { quests: { [SW1]: 'done', [SW2]: 'done', [SW3]: 'done', [SW4]: 'done' }, flags: { 'co:signed': true } } },
+};
+
+hook(dialogue, 'co_osmund', (g) => (sw5(g) === undefined && g.stage(SW4) === 'done' ? 'db_a' : undefined), {
+  db_a: { text: 'Gilbert took the packet to Callis a week ago. He said the original weights would be in the bonded book there, and he\'d find them himself.', next: 'db_b' },
+  db_b: { text: 'He writes every Thursday. He\'s never missed one in nine years. He\'s missed one.',
+    options: [{ text: 'I\'ll go to Callis.', effect: (g) => g.setStage(SW5, 'callis') }, { text: 'Not now.' }] },
+});
+
+hook(dialogue, 'co_montserrat', (g) => (sw5(g) === 'callis' ? 'db_f1' : undefined), {
+  db_f1: { speaker: 'narrator', text: 'Smoke is coming out under the warehouse doors. Montserrat Riera stands in the road with her sleeve over her mouth and a bucket she has forgotten she\'s holding.', next: 'db_f2' },
+  db_f2: { text: 'It went up in three places at once. The ground floor, the stair, the back. Your clerk from Ansbury went in for the bonded book. He hasn\'t come out.', next: 'db_f3' },
+  db_f3: { text: 'Jordi\'s on the second floor with the porters\' wives and their children. There\'s one stair still standing. One trip, if you\'re quick. Choose.',
+    options: [
+      { text: 'The people. Get them out.', next: 'db_people' },
+      { text: 'The bonded book. It\'s the proof of all of it.', next: 'db_ledgers' },
+    ] },
+  db_people: { speaker: 'narrator', text: 'You go up through the smoke. Jordi is at the top with a child under each arm. You bring them down, all of them, the stair cracking under the last. The book burns. On the landing, you find Gilbert Ashe, the bonded book under him, open. He didn\'t get down.',
+    options: [{ text: 'Carry him down.', effect: (g) => { g.setFlag('coBonded', 'people'); g.setFlag('coGilbertDead', true); g.setStage(SW5, 'laia'); } }] },
+  db_ledgers: { speaker: 'narrator', text: 'You go up through the smoke to the landing. Gilbert Ashe is there, face down, the bonded book under him. You take it from his hands. Above you someone is shouting Jordi\'s name. Then the stair goes, and there\'s no more shouting.',
+    options: [{ text: 'Get out.', effect: (g) => { g.setFlag('coBonded', 'ledgers'); g.setFlag('coGilbertDead', true); g.give(BONDED_BOOK); g.setStage(SW5, 'laia'); } }] },
+});
+
+const sw5Hooks = (D: Record<string, DialogueTree>) => {
+  hook(D, 'inf_laia', (g) => (sw5(g) === 'laia' ? 'db_l1' : undefined), {
+    db_l1: { text: (g) => (g.flag('coBonded') === 'people'
+      ? 'Your porters\' families will live. The children took the least smoke; the mothers took the most, holding them. Jordi will cough for a year. He asked me who carried him. I said you.'
+      : 'Nobody came down from the second floor. I\'m sorry. Jordi Alsina had worked in that warehouse since he was twelve.'), next: 'db_l2' },
+    db_l2: { text: 'The Assembly\'s men say the fire started in three places at once. Nobody sets a fire in three places by accident.', next: 'db_l3' },
+    db_l3: { text: 'The Company says the Assembly did it, to be rid of a tenant. The Assembly says the Company did it, for the underwriters. Only one of them is lying, and I know which one I\'d bet on.',
+      options: [{ text: 'So do I.', effect: (g) => {
+        g.setStage(SW5, 'done');
+        g.addMarks(220); g.give(SCRIP, 16);
+        g.setFlag('co:rank', Math.max(3, Number(g.flag('co:rank') ?? 0)));
+        g.toast('Gilbert Ashe is buried in Callis. You\'re a chief factor of the Counting House: 220 marks and 16 scrip.');
+      } }] },
+  });
+};
+
+// After the fire: Gilbert's window has a new clerk, and if the stair went with Jordi on it, so has Callis's
+const gone = (id: string, when: (g: GameApi) => boolean) => { const n = npcs.find((x) => x.id === id); if (n) n.when = when; };
+gone('co_gilbert', (g) => !g.flag('coGilbertDead'));
+gone('co_jordi', (g) => g.flag('coBonded') !== 'ledgers');
+for (const [id, name, house, face, after] of [
+  ['co_hedda', 'Hedda Lyle', 'ansbury', { skin: '#e8c0a0', hair: '#6a4a2a', hairStyle: 2, lashes: true, age: 0.3 }, (g: GameApi) => !!g.flag('coGilbertDead')],
+  ['co_berta', 'Berta Ribas', 'callis', { skin: '#c8906a', hair: '#2a1e14', hairStyle: 2, lashes: true, age: 0.4 }, (g: GameApi) => g.flag('coBonded') === 'ledgers'],
+] as const) {
+  const h = HOUSE_BY_ID.get(house)!;
+  npcs.push({ id, name, title: `Clerk of the Counting House, ${h.town}`, look: look({ ...face, tunic: '#22365a', trim: '#e8e4dc' }), schedule: stand(h.clerk), barks: ['Contracts at the window.', 'I\'m new. The window isn\'t.'], when: after });
+  dialogue[id] = clerkTree(h);
+}
+
+export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => { sw2Hooks(D); sw3Hooks(D); sw4Hooks(D); sw5Hooks(D); } };
