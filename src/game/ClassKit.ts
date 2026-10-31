@@ -1289,7 +1289,8 @@ export class ClassKit {
         return;
       }
       case 'ground': {
-        const at = spot ?? H.aim(f.range);
+        // (where the blink went, or the foe the skill struck, or where you point)
+        const at = spot ?? (target ? target.pos.clone() : H.aim(f.range));
         H.anim('shoot'); H.sfx('swing');
         this.pending.push({ at: at.clone(), t: f.delay, ring: this.ring(at, f.r, col, f.delay + 0.2), r: f.r, dmg: pw * f.dmg, stun: f.stun });
         return;
