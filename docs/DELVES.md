@@ -61,7 +61,21 @@ delve gets one room before its champion, and its champion gets one signature mov
 - Normal runs stay free (no key): nobody is locked out of the story or the Group Finder. A key opens the
   **corrupted** run.
 
+Built 2026-10-31 (`data/keys.ts`, `data/content/keys.ts`): the fragments drop in each dungeon's own region
+(Hollindale's tally tags, Scarth's shepherds' tokens, Kell's brass teeth, the Held Country's grave-coins), 3% off
+an ordinary creature, 30% off an elite, 12% off the dungeon's own creatures inside. Four and a corrupted shard
+make the key at any anvil; a shard comes in every veteran chest.
+
 ### Corrupted runs (a third difficulty, above veteran)
+
+Built 2026-10-31, henchmen only for now (the realm's finder queues normal and veteran; a corrupted queue
+needs `server/finder.mjs` to accept it, and a deploy). The Group Finder's third difficulty; opens once the
+dungeon is cleared on veteran and you hold its key, used going in. Numbers: veteran's, then health x1.12,
+blows x1.1, boss moves a sixth sooner, phases 12% earlier. Rooms: waves every 18 seconds, plates held 60% as
+long, a gauntlet's gate 80%, carry harriers 30% more often, a wrong lever's foes doubled. A shard in every
+room chest, two in the last; the first corrupted clear of any dungeon gives the Unlit cloak. Not yet: the
+set's corrupted finish, corrupted-only weapons, a title.
+
 
 - Same halls, a **corrupted key** (four fragments and a corrupted shard from any veteran chest).
 - Each room gets a twist (less light, the waves come faster, plates hold for less time), every boss gets

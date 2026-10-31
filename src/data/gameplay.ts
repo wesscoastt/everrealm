@@ -7,6 +7,7 @@ import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
 import { CROPS, FARM_RECIPES } from './farming';
 import { JEWEL_RECIPES } from './jewellery';
+import { CORRUPT_SHARD, DUNGEON_KEYS, FRAGS_PER_KEY } from './keys';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
 import { killsForLevel, killXp, SKILL_PACE } from './pacing';
@@ -198,6 +199,8 @@ export const RECIPES: Recipe[] = [
   // The hearth's dishes from a patch's produce (data/farming.ts)
   ...FARM_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   ...JEWEL_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
+  // A group dungeon's key, for its corrupted run (data/keys.ts): four of its fragments and a corrupted shard
+  ...DUNGEON_KEYS.map((k): Recipe => ({ id: k.key, station: 'anvil', skill: 'smithing', level: 1, xp: 60, inputs: { [k.frag]: FRAGS_PER_KEY, [CORRUPT_SHARD]: 1 }, output: k.key, count: 1, time: 3 })),
   ...WEAPON_SMITHING.map((w): Recipe => ({ id: w.id, station: 'anvil', skill: 'smithing', level: w.level, xp: 30 + w.bars * 22, inputs: { [w.bar]: w.bars }, output: w.id, count: 1, time: 2.4 + w.bars * 0.4 })),
   ...ARMOUR_SMITHING.flatMap(([line, bar, n, lvl]) => (['chest', 'legs', 'hands', 'feet'] as const).map((slot, k): Recipe => ({ id: `${line}_${slot}`, station: 'anvil', skill: 'smithing', level: lvl + [2, 1, 0, 0][k], xp: 30 + n[k] * 22, inputs: { [bar]: n[k] }, output: `${line}_${slot}`, count: 1, time: 2.4 + n[k] * 0.4 }))),
   { id: 'iron_bar', station: 'furnace', skill: 'smithing', level: 15, xp: 50, inputs: { iron_ore: 2 }, output: 'iron_bar', count: 1, time: 2.2 },

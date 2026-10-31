@@ -4,6 +4,7 @@ import { B } from '../world/blocks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import type { Enemy } from '../entities/Enemy';
 import type { Hazard } from '../data/hazards';
+import { CORRUPTED } from '../data/keys';
 
 // The rooms of a dungeon run (data/rooms.ts, docs/DELVES.md). Each room waits until you walk into it, then
 // its gate drops (an iron portcullis, and barrier blocks in the open cells behind it so nobody walks through)
@@ -29,6 +30,10 @@ export interface RoomsHost {
   hp(): number;
   /** A room's falling stones started (add) and stopped (remove, by id). */
   ground(add: Hazard[], remove: string[]): void;
+  /** A corrupted run (data/keys.ts CORRUPTED): every room's twist. */
+  hard?: boolean;
+  /** What a room's chest holds besides experience and marks. */
+  chestItems?(): string[];
 }
 
 interface Live {
@@ -301,7 +306,7 @@ export class Rooms {
   private haul(i: number, local: boolean): void {
     const r = this.rooms[i];
     if (!r || r.state !== 1 || !r.def.gauntlet) return;
-    r.upUntil = this.clock + r.def.gauntlet.secs; r.tick = 3;
+    r.upUntil = this.clock + r.def.gauntlet.secs * (this.host.hard ? CORRUPTED.gauntlet : 1); r.tick = 3;
     this.open(r);
     this.host.system(r.def.gauntlet.haul);
     this.host.sound('open');
@@ -354,7 +359,7 @@ export class Rooms {
           const c = pl.mesh.parent!.position;
           if (Math.hypot(P.x - c.x, P.z - c.z) < 0.9 && Math.abs(P.y - c.y) < 1.2) {
             if (pl.downUntil < this.clock) this.host.sound('click');
-            pl.downUntil = this.clock + (r.def.hold ?? 5);
+            pl.downUntil = this.clock + (r.def.hold ?? 5) * (this.host.hard ? CORRUPTED.hold : 1);
           }
           const down = pl.downUntil > this.clock;
           pl.mesh.material = down ? stoneDown : stone;
@@ -379,7 +384,7 @@ export class Rooms {
         }
         r.lastHp = hp;
         r.harryT += dt;
-        if (r.harryT >= C.every && r.harried.filter((e) => e.alive).length < 3) {
+        if (r.harryT >= C.every * (this.host.hard ? CORRUPTED.harry : 1) && r.harried.filter((e) => e.alive).length < 3) {
           r.harryT = 0;
           const [x, z, t] = C.harry[r.harried.length % C.harry.length], q = this.at(x, z, 0, f);
           r.harried.push(this.host.spawn(t, q.x, q.y, q.z));
@@ -403,7 +408,7 @@ export class Rooms {
         r.waveT += dt;
         const clear = r.waveMobs.every((e) => !e.alive), last = r.wave >= (r.def.waves?.length ?? 1) - 1;
         if (last && clear) this.setState(i, 2, true);
-        else if (!last && (clear || r.waveT > 30)) this.wave(r, r.wave + 1);
+        else if (!last && (clear || r.waveT > (this.host.hard ? CORRUPTED.waveSecs : 30))) this.wave(r, r.wave + 1);
       }
     });
   }
@@ -454,14 +459,15 @@ export class Rooms {
       : 'The lamp gutters, and the others go out with it. Something in the gallery heard that.');
     this.host.sound('bell', 0.4);
     const p = this.host.player();
-    (r.def.wrong ?? []).forEach((t, n) => this.host.spawn(t, p.x + (n ? 3 : -3), p.y, p.z + 3));
+    const wrong = this.host.hard ? Array.from({ length: CORRUPTED.wrong }, () => r.def.wrong ?? []).flat() : r.def.wrong ?? [];
+    wrong.forEach((t, n) => this.host.spawn(t, p.x + (n % 2 ? 3 : -3), p.y, p.z + 3 + Math.floor(n / 2) * 2));
   }
 
   private openChest(r: Live): void {
     r.opened = true;
     if (r.chest) { this.host.scene.remove(r.chest); r.chest = null; }
     const lv = this.host.level();
-    this.host.reward(Math.round(120 + lv * 18), Math.round(14 + lv * 1.6), [], r.def.title + '\'s chest');
+    this.host.reward(Math.round(120 + lv * 18), Math.round(14 + lv * 1.6), this.host.chestItems?.() ?? [], r.def.title + '\'s chest');
   }
 
   dispose(): void {

@@ -52,6 +52,7 @@ import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
 import { AudioSystem, Sfx, voiceOf, type Soundscape, type Bed } from '../systems/Audio';
 import { interiorMap, interiorOrigin } from '../ui/interiorMap';
+import { DUNGEON_KEYS, FRAG_CHANCE, KEY_OF } from '../data/keys';
 import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
@@ -154,7 +155,7 @@ import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
 import { lodgeAt, LODGINGS, MAX_WEEKS, readTenancy, roomBase, ROOMS, roomShape, WEEK } from '../data/lodgings';
-import { henchmenFor, Role } from '../data/dungeons';
+import { DUNGEON_BY_ID, henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
 import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
 import { marksScale, regionLevel, rewardScale } from '../data/scaling';
@@ -1258,6 +1259,8 @@ export class Game implements GameApi {
       inCombat: () => this.elapsed - this.lastCombat < 6,
       hurtPlayer: (d, from) => this.hitPlayer(d, from),
       ground: (a, rm) => { this.hazards.add(a); this.hazards.remove(rm); },
+      count: (id) => this.inv.count(id),
+      take: (id) => { const ok = this.inv.remove(id, 1); if (ok) this.persist(); return ok; },
       healPlayer: (n) => { if (this.dead || n <= 0) return; this.hp = Math.min(this.maxHp, this.hp + n); this.floatAt(this.player.position, 2.2, `+${Math.round(n)}`, 'heal'); this.particles.heal(this.player.position); },
       raise: (share) => this.raise(share),
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
@@ -3217,7 +3220,7 @@ export class Game implements GameApi {
           if (g.online.status !== 'online') why = 'Finding a group needs the online realm.';
           else g.online.wbLook(b.id, b.name);
         } else if (what === 'wbstop') g.online.wbStop();
-        if (what === 'vet') g.dungeons.setVet(id === '1');
+        if (what === 'vet') { g.dungeons.setVet(id === '1' || id === '2'); g.dungeons.setCor(id === '2'); }
         if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
         else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
         else if (what === 'rhench') why = g.dungeons.random('hench');
@@ -6142,6 +6145,7 @@ export class Game implements GameApi {
     if (this.fx.has('second_wind')) this.healSelf(this.maxHp * 0.06);
     if (!e.questTag) for (const d of NAMED_BY_SOURCE.get(e.def.type) ?? []) if (Math.random() < d.named!.chance) this.claimNamed(d.id);
     const reg = regionAt(e.home.x, e.home.z).a, pieces = REGION_ARMOUR[reg];
+    this.fragmentDrop(e, reg);
     if (e.def.type.startsWith('r_')) this.gainStanding(reg, GAINS.rare);
     else if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.gainStanding(reg, GAINS.boss);
     const source: DropSource = e.isBoss ? 'boss' : e.def.elite || e.def.type.startsWith('r_') ? 'elite' : 'mob';
@@ -7339,6 +7343,20 @@ export class Game implements GameApi {
     if (I && I.x0 === x0 && I.z0 === z0 && Math.abs(Math.floor(P.y + 0.1) - I.y) < 2 && this.interiorT > 0) return;
     this.interiorT = 5;
     this.hud.interior = interiorMap(this.world.voxels, P.x, P.y, P.z);
+  }
+
+  /**
+   * A group dungeon's fragment (data/keys.ts): now and then off a creature in its country, more often an
+   * elite, and off its own creatures inside more often still.
+   */
+  private fragRegions: Map<string, string> | null = null;
+  private fragmentDrop(e: Enemy, reg: string): void {
+    const run = this.dungeons.run;
+    if (run && e.questTag === 'dungeon') { const k = KEY_OF[run.def.id]; if (k && Math.random() < FRAG_CHANCE.inside) this.give(k.frag, 1); return; }
+    if (e.questTag) return;
+    if (!this.fragRegions) this.fragRegions = new Map(DUNGEON_KEYS.filter((k) => DUNGEON_BY_ID[k.dungeon]).map((k) => { const d = DUNGEON_BY_ID[k.dungeon].door; return [regionAt(d[0], d[2]).a, k.frag]; }));
+    const frag = this.fragRegions.get(reg);
+    if (frag && Math.random() < (e.def.elite ? FRAG_CHANCE.elite : FRAG_CHANCE.common)) this.give(frag, 1);
   }
 
   /** What the feet are on: grass, stone, boards, gravel, sand, snow, or shallow water. */
