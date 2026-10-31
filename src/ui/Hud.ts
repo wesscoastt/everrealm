@@ -188,7 +188,7 @@ export interface SkillsView {
 /** The talent screen's view of a calling's trees (game/Game.ts talentView). */
 export interface TalentView {
   points: number; total: number; level: number;
-  calling: { name: string; role: string; color: string; icon: string; mechanic: string };
+  calling: { name: string; role: string; color: string; icon: string; mechanic: string; element: { name: string; color: string; glyph: string; weapon: boolean } | null };
   fighting: boolean;
   trees: { id: string; name: string; desc: string; icon: string; spent: number; gate: number; bar: string[]; talents: { id: string; name: string; desc: string; tier: number; ranks: number; rank: number; capstone: boolean; why: string | null; icon: string }[] }[];
   builds: ({ name: string; sum: string; on: boolean } | null)[];
@@ -1867,7 +1867,7 @@ export class Hud {
       return `<img src="${abilityIcon(d.icon)}" alt=""><div><h5>${esc(d.name)} <em>${d.capstone ? 'Capstone' : `Rank ${d.rank} of ${d.ranks}`}</em> <small>${esc(t.name)} · tier ${d.tier + 1}</small></h5><p>${d.ranks > 1 ? '<b>Each rank:</b> ' : ''}${esc(d.desc)}</p><p class="tl-why ${full ? 'full' : d.why ? 'no' : 'can'}">${full ? 'Every rank learned.' : d.why ? esc(d.why) : 'Click to learn a rank.'}</p></div>`;
     })() : `<div><h5>${esc(tv.calling.name)} <em>${esc(tv.calling.role)}</em></h5><p>Point at a talent to read it; click to learn a rank. A tier opens once five points are in that tree for every tier above it, and you can hold one capstone. Three points come every five levels, from level 3. Unlearning is free, out of a fight.</p></div>`; };
     body.innerHTML = `<div class="tl-top">
-        <div class="tl-calling"><span class="tl-crest"><img src="${abilityIcon(tv.calling.icon)}" alt=""></span><div><b>${esc(tv.calling.name)}</b><small>${esc(tv.calling.role)} · level ${tv.level}</small></div></div>
+        <div class="tl-calling"><span class="tl-crest"><img src="${abilityIcon(tv.calling.icon)}" alt=""></span><div><b>${esc(tv.calling.name)}</b><small>${esc(tv.calling.role)} · level ${tv.level}${tv.calling.element ? ` · <span style="color:${tv.calling.element.color}" title="${tv.calling.element.weapon ? 'From your weapon’s enchantment' : 'Your calling’s own; an enchanted weapon’s element takes over'}">${tv.calling.element.glyph} ${tv.calling.element.name} skills</span>` : ''}</small></div></div>
         <div class="tl-points${tv.points > 0 ? ' some' : ''}" title="Skill points come with levels, and with Insight: every waymark attuned, vista stood on and wonder found is a shard, and three shards make a point."><b>${tv.points}</b><small>skill ${tv.points === 1 ? 'point' : 'points'} to spend<br>of ${tv.total} · Insight ${sv.pool.insight}</small></div>
         <div class="tl-builds">${tv.builds.map((b, i) => `<div class="tl-build${b?.on ? ' on' : ''}"><span class="tl-bn">${i + 1}</span><div><b>${b ? esc(b.name) : 'Empty'}</b><small>${b ? esc(b.sum) : 'Save what you have here'}</small></div><button class="btn ghost sm" data-bsave="${i}" title="Save your talents and utilities here">Save</button>${b ? `<button class="btn sm" data-bload="${i}"${b.on || tv.fighting || !sv.temple ? ' disabled' : ''} title="${tv.fighting ? 'Not while you are fighting' : !sv.temple ? 'Builds are changed kneeling at a temple\'s altar' : 'Switch to this build'}">${b.on ? 'In use' : 'Use'}</button>` : ''}</div>`).join('')}</div>
       </div>

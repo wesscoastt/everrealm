@@ -116,7 +116,7 @@ import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
-import { BEATEN_BY, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, type Element } from '../data/elements';
+import { BEATEN_BY, CALLING_ELEMENT, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, type Element } from '../data/elements';
 import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
@@ -1011,7 +1011,7 @@ export class Game implements GameApi {
       faceTarget: (r) => this.faceTarget(r),
       setTarget: (e) => { this.target = e; },
       power: () => this.swingPower(),
-      hit: (e, d, o) => this.dealDamage(e, d * (0.9 + Math.random() * 0.2), o?.crit ?? (!o?.quiet && Math.random() < 0.12 + (this.blade?.crit ?? 0)), !!o?.quiet),
+      hit: (e, d, o) => this.dealDamage(e, d * (0.9 + Math.random() * 0.2), o?.crit ?? (!o?.quiet && Math.random() < 0.12 + (this.blade?.crit ?? 0)), !!o?.quiet, this.weaponElement() ?? CALLING_ELEMENT[this.calling] ?? null),
       heal: (n) => {
         n *= this.healingTaken();
         const h = Math.min(this.maxHp - this.hp, Math.round(n));
@@ -3630,7 +3630,7 @@ export class Game implements GameApi {
     const iconFor = (text: string) => skills.find((sk) => text.includes(sk.name))?.icon ?? c.skills[1].icon;
     return {
       points: this.skillPool().left, total: this.skillPool().total, level: lvl,
-      calling: { name: c.name, role: c.role, color: c.mechanic.color, icon: c.skills[1].icon, mechanic: c.mechanic.name },
+      calling: { name: c.name, role: c.role, color: c.mechanic.color, icon: c.skills[1].icon, mechanic: c.mechanic.name, element: (() => { const el = this.weaponElement() ?? CALLING_ELEMENT[this.calling]; return el ? { ...ELEMENTS[el], weapon: !!this.weaponElement() } : null; })() },
       fighting: this.mode === 'play' && this.elapsed - this.lastCombat < 6,
       trees: TREES[this.calling].map((t) => ({
         id: t.id, name: t.name, desc: t.desc, icon: iconFor(t.desc),
@@ -5824,7 +5824,7 @@ export class Game implements GameApi {
   weaponElement(): Element | null { const en = ITEMS[this.save.equip.weapon ?? '']?.enchant; return en ? ENCHANT_ELEMENT[en.id] ?? null : null; }
   private elementSaid = -9;
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
-  private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
+  private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false, element: Element | null | undefined = undefined): number {
     if (!e.alive) return 0;
     // Deadeye: every blow a critical hit while it lasts
     if (!quiet && this.kit.deadeye()) crit = true;
@@ -5835,7 +5835,8 @@ export class Game implements GameApi {
     // A guard's shield, if you're in front of it: most of the blow is turned (go round it, or stun it)
     const guarded = e.guarding(this.player.position);
     // The element in the blow (the weapon's enchantment) against the foe's own (data/elements.ts)
-    const elMult = elementMult(this.weaponElement(), foeElement(e.def.type));
+    // (a skill's blow carries its own element; a swing, the weapon's)
+    const elMult = elementMult(element === undefined ? this.weaponElement() : element, foeElement(e.def.type));
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw, quiet) * (crit ? 1.6 : 1) * flank * elMult * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
     if (!quiet && elMult !== 1 && this.elapsed - this.elementSaid > 1.5) { this.elementSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.9, elMult > 1 ? 'Weak!' : 'Resisted', elMult > 1 ? 'crit' : 'dodge'); }
     if (guarded && !quiet && this.elapsed - this.guardSaid > 1.2) { this.guardSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.6, 'Guarded', 'dodge'); this.sfx('hitHeavy', 0.4); }

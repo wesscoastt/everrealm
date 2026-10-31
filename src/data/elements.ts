@@ -46,6 +46,11 @@ export function foeElement(type: string): Element | null {
   return el;
 }
 
+/** Each calling's skills are of an element of their own (a weapon's enchantment, if it has one, takes over). */
+export const CALLING_ELEMENT: Record<string, Element> = {
+  warden: 'earth', reaver: 'fire', ashcaller: 'fire', pathfinder: 'air', wizard: 'water', mender: 'thunder', gravecaller: 'earth', prowler: 'air',
+};
+
 /** How a blow of this element lands on a foe of that one. */
 export function elementMult(blow: Element | null, foe: Element | null): number {
   if (!blow || !foe) return 1;
