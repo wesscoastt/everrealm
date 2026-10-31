@@ -4282,7 +4282,8 @@ export function plan(): Plan {
       const k = n++;
       const role: Role = dock ? 'store' : k % 11 === 0 ? 'shop' : k % 17 === 0 ? 'inn' : 'home';
       house(wardAt(mx, mz), x, z, w, d, dock ? 1 : 1 + (hash2(x, z, 885) < 0.45 ? 1 : 0), base, dock ? 'red' : roofs[k % roofs.length], door, {
-        wall: B.Whitestone, role, closed: dock || k % 3 !== 0, front: 'white',
+        // (mostly the white, and here and there a honey sandstone, a cream plaster or a pale terracotta house)
+        wall: dock ? B.Whitestone : (() => { const h = hash2(x, z, 892); return h < 0.7 ? B.Whitestone : h < 0.82 ? B.Sandstone : h < 0.92 ? B.Plaster : B.TerraCream; })(), role, closed: dock || k % 3 !== 0, front: 'white',
         trim: dock ? [] : [...(hash2(x, z, 888) < 0.7 ? ['shutters' as const] : []), ...(hash2(x, z, 889) < 0.35 ? ['boxes' as const] : []), ...(hash2(x, z, 890) < 0.2 ? ['hood' as const] : [])],
       });
     }
@@ -9252,11 +9253,17 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
         else if (f === 0 && ly === 0) id = plinth;
         else if ((ly === 1 || ly === 2) && along % 3 === 1 && inner) id = B.Window;
       } else if (style === 'white') {
-        // Morrow's white stone: the two stones of Callis, the black at the foot and the white above it
-        if (ex && ez) id = ly % 2 === 0 ? B.TerraCream : B.Whitestone;
+        // Morrow's white stone: the two stones of Callis, the black at the foot and the white above it.
+        // Each house its own rhythm, so a quay isn't one front over and over: dressed corners and tall
+        // windows; windows in pairs under a sandstone band; small plain windows in limewash; or plain
+        // corners under a cream band
+        const wv = Math.floor(hash2(x0, z0, 101) * 4);
+        if (ex && ez) id = wv === 0 ? (ly % 2 === 0 ? B.TerraCream : B.Whitestone) : wv === 3 ? B.Whitestone : wall;
         else if (f === 0 && ly === 0) id = B.Blackstone;
-        else if (ly === 3) id = B.TerraCream;
-        else if ((ly === 1 || ly === 2) && along % 3 === 1 && inner) id = B.Window;
+        else if (ly === 3) id = wv === 1 ? B.Sandstone : wv === 2 ? wall : B.TerraCream;
+        else if (inner && (wv === 1 ? (ly === 1 || ly === 2) && (along % 4 === 1 || along % 4 === 2)
+          : wv === 2 ? ly === 1 && along % 4 === 2
+          : (ly === 1 || ly === 2) && along % 3 === 1)) id = B.Window;
       } else if (style === 'boarded') {
         // Weatherboard: posts only at the corners and either side of the door, windows in pairs
         if (ex && ez) id = frame;
