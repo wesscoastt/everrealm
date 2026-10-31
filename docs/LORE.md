@@ -713,6 +713,8 @@ Seven fairs, on the real calendar, each kept at every Charter Post: bunting, a s
 
 On the Wake nights children go round the doors in costume, which the dales call guising: whoever answers has to guess who you are before they hand over a soul cake. The towns put a carved turnip on the step, hang turnip lanterns from posts along the streets, and stand a scarecrow on the green to keep the Lantern Man off. After dark, pale lights drift between the houses. Nobody admits to knowing what they are.
 
+On the three souling nights, the last of October and the first two of November, it is the busiest: in Hollin Ford, Ansbury, Gullmouth, Harrowgate, Callis (the sailors brought it) and Northgate a band of three goes round from morning to midnight, a door every two hours, singing its town's rhyme. Guess who's under the costume and give a soul cake, and they pay in wake candles they found, mostly (`src/data/content/souling.ts`).
+
 The Wake stall sells the guising clothes for wake candles: Scarecrow, Bedsheet ghost, Skeleton, Hedge-witch, Crow, and the Lantern Man's coat. The Lantern Man sometimes leaves his coat behind when he's driven off. A costume goes on over your clothes and armour under Costume, with Change look, and is for looks only. The stall also sells parkin, toffee apples and mulled cider, plus a carved turnip, gourds and a scarecrow for your own house. Collecting all six costumes earns the title Guiser.
 
 Any trader who sells clothes, armour or costumes lets you **try a piece on** before you buy: it shows on you until you walk off, close the shop or half a minute passes. The store's showcase shows its outfits and pets on the character you have chosen.
