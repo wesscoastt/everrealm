@@ -8,7 +8,7 @@
 import { ESC } from './kell';
 import { KB_HALLS } from '../world/morrow';
 
-export type RoomKind = 'levers' | 'plates' | 'keeper' | 'waves';
+export type RoomKind = 'levers' | 'plates' | 'keeper' | 'waves' | 'carry' | 'gauntlet';
 
 export interface RoomDef {
   id: string;
@@ -42,6 +42,19 @@ export interface RoomDef {
   /** waves: who comes, wave by wave ([x, z, type] each), and what the log says as each after the first comes. */
   waves?: [number, number, string][][];
   waveSays?: string[];
+  /**
+   * carry: a thing to take up where it lies and carry to where it goes, the room starting when it's first
+   * taken up. Struck while you carry it, you drop it, and must take it up again; while the room runs its
+   * harriers come, one every so often, a few at a time ([x, z, type], in turn). from's floor is fromF
+   * above the room's.
+   */
+  carry?: { thing: string; from: [number, number]; fromF?: number; to: [number, number]; drop: string; again: string; harry: [number, number, string][]; every: number };
+  /**
+   * gauntlet: a chain to haul that lifts the gate for so many seconds, stones coming down along the way
+   * between ([x, z, how far into the cycle each starts], every so many seconds, so wide), and the far
+   * side of the gate: be in it while the gate's up and you're through.
+   */
+  gauntlet?: { chain: [number, number]; secs: number; stones: [number, number, number][]; r: number; every: number; past: [number, number, number, number]; haul: string; shut: string };
   /** The room's chest. */
   chest: [number, number];
   /** A clue to read on the wall, if the room has one: [x, z, title, text]. */
@@ -163,6 +176,22 @@ export const ROOMS: Record<string, DungeonRooms> = {
         clue: [70, 3, 'Scratched in the ice wall', 'Struck them all. Wrong order and the jellies come up out of the floor.\nRight order is biggest first, down to the smallest. The ice by the heart rings back and cracks.\nTook us four goes.\nDai Prosser, Michaelmas'],
         chest: [74, 9],
       },
+      {
+        id: 'firepot', kind: 'carry', title: 'The shepherds\' fire-pot',
+        start: 'The fire-pot is heavier than it looks, and the coals in it are still live under the ash. Back in the crawls a wolf has smelt the smoke.',
+        done: 'You set the pot down against the ice and blow on it. The coals come up red, the ice across the ramp sweats and slumps, and comes away in sheets.',
+        box: [21, -31, 45, -17],
+        gate: { cells: [[44, -28], [44, -27], [44, -26], [44, -25]], h: 5, ry: Math.PI / 2, style: 'ice' },
+        carry: {
+          thing: 'the fire-pot', from: [21, -25], to: [43, -26],
+          drop: 'The wolf\'s weight takes you off your feet and the pot goes down, coals and all. They\'re still live. Take it up again.',
+          again: 'You get the pot up again, and scrape the coals back in with your boot.',
+          harry: [[24, -29, 'frostwolf'], [40, -19, 'frostwolf'], [22, -20, 'moorwolf'], [36, -30, 'frostwolf']],
+          every: 7,
+        },
+        clue: [41, -29, 'Chalked on the rock by the ramp', 'Ice right across the way down since the March frost. Fire takes it, we found.\nThe shepherds\' fire-pot is in Brack\'s cave, where he dragged it. Carry it here and set it to the ice.\nThe wolves come for the smoke. If one has you over you\'ll drop it, and then you go back for it.\nD. P.'],
+        chest: [40, -29],
+      },
     ],
   },
   // The Old Man's Workings (world/sites.ts buildOldMan: origin 208, -60, floor 5)
@@ -185,6 +214,21 @@ export const ROOMS: Record<string, DungeonRooms> = {
         wrong: ['dg_rustback', 'dg_rustback'],
         clue: [2, 3, 'The shift board', 'NUMBER FOUR. LAMPS LIT BY SHIFT, IN THIS ORDER:\nTHE DAY MEN (second hook)\nTHE NIGHT MEN (fourth hook)\nTHE BOYS (first hook)\nTHE FOREMAN (third hook)\n\nA lamp lit out of turn and the gate stays down. H. Dunmore\n\nUnder it, in pencil: "and wakes whatever is eating the props"'],
         chest: [5, 0],
+      },
+      {
+        id: 'roof', kind: 'gauntlet', title: 'Number Four\'s roof',
+        start: 'A grille drops across the far end of the gallery. The props here are eaten hollow, and the roof is coming down in pieces. By the ladder hangs the chain that hauls the far grille up on its counterweight.',
+        done: 'You\'re under the grille and through. Behind you a prop gives and a slab of the roof comes down across the counterweight\'s well, and the grille stays up, jammed.',
+        box: [11, -2, 29, 2],
+        gate: { cells: [[31, -2], [31, -1], [31, 0], [31, 1], [31, 2]], h: 5, ry: Math.PI / 2 },
+        gauntlet: {
+          chain: [12, 2], secs: 8, every: 3, r: 1.8, past: [32, -3, 36, 3],
+          stones: [[15, -1, 0], [18, 1, 0.6], [21, 0, 1.2], [24, -1, 1.8], [27, 1, 2.4]],
+          haul: 'You haul the chain down hand over hand, and at the far end of the gallery the grille goes up. The counterweight is already coming back down. Run.',
+          shut: 'The counterweight touches bottom and the far grille drops. Back to the chain.',
+        },
+        clue: [11, -2, 'Chalked on a prop', 'CHAIN LIFTS THE FAR GRILLE. WEIGHT TAKES 8 COUNT TO COME DOWN. WATCH THE ROOF WHERE IT DUSTS.\nDon\'t stand under the dust. H.D.'],
+        chest: [28, -1],
       },
       {
         id: 'lookout', kind: 'keeper', title: 'Number Four\'s end',

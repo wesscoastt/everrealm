@@ -3,6 +3,7 @@ import { ROOMS, type RoomDef } from '../data/rooms';
 import { B } from '../world/blocks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import type { Enemy } from '../entities/Enemy';
+import type { Hazard } from '../data/hazards';
 
 // The rooms of a dungeon run (data/rooms.ts, docs/DELVES.md). Each room waits until you walk into it, then
 // its gate drops (an iron portcullis, and barrier blocks in the open cells behind it so nobody walks through)
@@ -24,6 +25,10 @@ export interface RoomsHost {
   /** Tell the rest of the group a room has moved on (state: 1 started, 2 done). */
   share(i: number, state: number): void;
   level(): number;
+  /** The player's health now (struck while carrying, you drop it). */
+  hp(): number;
+  /** A room's falling stones started (add) and stopped (remove, by id). */
+  ground(add: Hazard[], remove: string[]): void;
 }
 
 interface Live {
@@ -42,6 +47,16 @@ interface Live {
   waveT: number;
   chest: THREE.Group | null;
   opened: boolean;
+  /** carry: the thing, whether you have it, the harriers come so far and when the next is due, your health a moment ago. */
+  thing: THREE.Group | null;
+  carrying: boolean;
+  harried: Enemy[];
+  harryT: number;
+  lastHp: number;
+  /** gauntlet: the chain, and when the gate it holds up comes down again. */
+  chain: THREE.Group | null;
+  upUntil: number;
+  tick: number;
 }
 
 const iron = new THREE.MeshLambertMaterial({ color: '#3a3e46' });
@@ -62,6 +77,7 @@ const blackSlab = new THREE.MeshLambertMaterial({ color: '#1e1e24' });
 const slabSeam = new THREE.MeshBasicMaterial({ color: '#8ab8c8' });
 const withy = new THREE.MeshLambertMaterial({ color: '#8a6e48' });
 const withyDk = new THREE.MeshLambertMaterial({ color: '#6e5638' });
+const coal = new THREE.MeshBasicMaterial({ color: '#ff6a20' });
 
 export class Rooms {
   private rooms: Live[] = [];
@@ -76,7 +92,9 @@ export class Rooms {
       const gate = this.portcullis(def);
       host.scene.add(gate);
       gate.visible = false;
-      const live: Live = { def, state: 0, gate, gateY: 1, barriers: [], lit: [], lamps: [], plates: [], keeper: null, chest: null, opened: false, wave: 0, waveMobs: [], waveT: 0 };
+      const live: Live = { def, state: 0, gate, gateY: 1, barriers: [], lit: [], lamps: [], plates: [], keeper: null, chest: null, opened: false, wave: 0, waveMobs: [], waveT: 0, thing: null, carrying: false, harried: [], harryT: 0, lastHp: 0, chain: null, upUntil: 0, tick: 0 };
+      if (def.carry) live.thing = this.firePot(this.at(def.carry.from[0], def.carry.from[1], 0, this.fl(def) + (def.carry.fromF ?? 0)));
+      if (def.gauntlet) live.chain = this.chainAt(def.gauntlet.chain, this.fl(def));
       for (const l of def.levers ?? []) { const m = def.leverStyle === 'glass' ? this.pillar(l.at, l.h ?? 2, this.fl(def)) : def.leverStyle === 'slab' ? this.slab(l.at, this.fl(def)) : this.hook(l.at, this.fl(def)); live.lamps.push(m); }
       for (const p of def.plates ?? []) live.plates.push({ mesh: this.plate(p, this.fl(def)), downUntil: 0 });
       this.rooms.push(live);
@@ -176,6 +194,28 @@ export class Rooms {
     return slab;
   }
 
+  /** The shepherds' fire-pot: an iron pot on three short legs, a bail handle, live coals glowing under grey ash. */
+  private firePot(p: THREE.Vector3): THREE.Group {
+    const g = new THREE.Group(); g.position.copy(p);
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.34, 9), ironDk).translateY(0.27));
+    g.add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.035, 5, 12), iron).translateY(0.44).rotateX(Math.PI / 2));
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.05), ironDk).translateX(Math.cos(a) * 0.17).translateZ(Math.sin(a) * 0.17).translateY(0.07)); }
+    g.add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.025, 4, 12, Math.PI), iron).translateY(0.44));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 9), new THREE.MeshLambertMaterial({ color: '#8a8580' })).translateY(0.42));
+    for (let i = 0; i < 5; i++) g.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.08), coal).translateX(Math.cos(i * 1.3) * 0.13).translateZ(Math.sin(i * 1.3) * 0.13).translateY(0.45));
+    this.host.scene.add(g);
+    return g;
+  }
+
+  /** A counterweight's chain down from the roof, a ring on the end of it to haul by. */
+  private chainAt(at: [number, number], f: number): THREE.Group {
+    const p = this.at(at[0], at[1], 0, f), g = new THREE.Group(); g.position.copy(p);
+    for (let y = 1.1; y < 4.8; y += 0.22) g.add(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.022, 4, 8), ironDk).translateY(y).rotateY((y * 4.5) % 2 < 1 ? 0 : Math.PI / 2));
+    g.add(new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.035, 5, 12), iron).translateY(0.92));
+    this.host.scene.add(g);
+    return g;
+  }
+
   private chestAt(def: RoomDef): THREE.Group {
     const g = new THREE.Group(); g.position.copy(this.at(def.chest[0], def.chest[1], 0, this.fl(def)));
     g.add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.7), wood).translateY(0.3));
@@ -190,7 +230,8 @@ export class Rooms {
     const v = this.host.voxels;
     if (r.barriers.length) return; // (hurdles: shut since the run began)
     for (const [x, z] of r.def.gate.cells) {
-      const wx = this.ox + x, wz = this.oz + z, y0 = Math.floor(this.at(x, z, 0, this.fl(r.def)).y);
+      const wx = this.ox + x, wz = this.oz + z, y0 = Math.floor(this.at(x, z, 0, this.fl(r.def)).y), P = this.host.player();
+      if (Math.floor(P.x) === wx && Math.floor(P.z) === wz) continue;
       for (let y = y0; y < y0 + r.def.gate.h; y++) if (v.get(wx, y, wz) === B.Air) { v.set(wx, y, wz, B.Barrier); r.barriers.push([wx, y, wz]); }
     }
     r.gate.visible = true; r.gateY = 1; // (drops in update)
@@ -209,10 +250,11 @@ export class Rooms {
     if (s === 1) {
       r.state = 1;
       this.shut(r);
-      this.host.banner(r.def.title, r.def.kind === 'levers' ? (r.def.leverStyle === 'glass' ? 'Strike the pillars in the right order' : r.def.leverStyle === 'slab' ? 'Lay the black back in the right order' : 'Light the lamps in the right order') : r.def.kind === 'plates' ? 'Hold the plates down together' : r.def.kind === 'waves' ? 'Hold the room' : 'Take the key off the one who carries it');
+      this.host.banner(r.def.title, r.def.kind === 'levers' ? (r.def.leverStyle === 'glass' ? 'Strike the pillars in the right order' : r.def.leverStyle === 'slab' ? 'Lay the black back in the right order' : 'Light the lamps in the right order') : r.def.kind === 'plates' ? 'Hold the plates down together' : r.def.kind === 'waves' ? 'Hold the room' : r.def.kind === 'carry' ? `Carry ${r.def.carry!.thing} through` : r.def.kind === 'gauntlet' ? 'Haul the chain, then run' : 'Take the key off the one who carries it');
       this.host.system(r.def.start);
       this.host.sound('bell', 0.6);
       if (r.def.waves) this.wave(r, 0);
+      if (r.def.gauntlet) this.host.ground(this.stones(r, i), []);
       if (r.def.keeper) {
         const k = r.def.keeper, f = this.fl(r.def), p = this.at(k.at[0], k.at[1], 0, f);
         r.keeper = this.host.spawn(k.type, p.x, p.y, p.z, k.name);
@@ -222,6 +264,9 @@ export class Rooms {
       if (r.state === 0) this.shut(r);
       r.state = 2;
       this.open(r);
+      if (r.def.gauntlet) this.host.ground([], this.stones(r, i).map((h) => h.id));
+      // The thing carried is set down where it goes
+      if (r.def.carry && r.thing) { r.carrying = false; r.thing.position.copy(this.at(r.def.carry.to[0], r.def.carry.to[1], 0, this.fl(r.def))); }
       this.host.system(r.def.done);
       this.host.sound('discover');
       r.chest = this.chestAt(r.def);
@@ -237,15 +282,41 @@ export class Rooms {
     r.waveMobs = (r.def.waves?.[n] ?? []).map(([x, z, t]) => { const q = this.at(x, z, 0, f); return this.host.spawn(t, q.x, q.y, q.z); });
   }
 
-  /** Another member moved a room on. */
-  remote(i: number, state: number): void { if (state === 1 || state === 2) this.setState(i, state, false); }
+  /** A gauntlet's stones, for the ground's hazards. */
+  private stones(r: Live, i: number): Hazard[] {
+    const G = r.def.gauntlet!, f = this.fl(r.def);
+    return G.stones.map(([x, z, phase], k) => ({ id: `room:${this.dungeon}:${i}:${k}`, kind: 'rockfall' as const, x: this.ox + x + 0.5, z: this.oz + z + 0.5, r: G.r, every: G.every, windup: Math.min(1.4, G.every * 0.5), first: 1 + phase, y: f }));
+  }
+
+  /** The chain hauled: the gate goes up for a while (here, or another member hauled it). */
+  private haul(i: number, local: boolean): void {
+    const r = this.rooms[i];
+    if (!r || r.state !== 1 || !r.def.gauntlet) return;
+    r.upUntil = this.clock + r.def.gauntlet.secs; r.tick = 3;
+    this.open(r);
+    this.host.system(r.def.gauntlet.haul);
+    this.host.sound('open');
+    if (local) this.host.share(i, 3);
+  }
+
+  /** The thing taken up: the room starts the first time. */
+  private takeUp(i: number): void {
+    const r = this.rooms[i];
+    r.carrying = true; r.lastHp = this.host.hp();
+    if (r.state === 0) this.setState(i, 1, true);
+    else this.host.system(r.def.carry!.again);
+    this.host.sound('click');
+  }
+
+  /** Another member moved a room on (3: hauled a gauntlet's chain). */
+  remote(i: number, state: number): void { if (state === 1 || state === 2) this.setState(i, state, false); else if (state === 3) this.haul(i, false); }
 
   update(dt: number): void {
     this.clock += dt;
     const P = this.host.player();
     this.rooms.forEach((r, i) => {
       // The portcullis drops when the room shuts and rises when it's done
-      const want = r.state === 1 ? 0 : 1;
+      const want = r.state === 1 && this.clock >= r.upUntil ? 0 : 1;
       if (r.def.gate.style === 'hurdle' || r.def.gate.style === 'ice') {
         // Hurdles stand across the way from the start, and go down flat when the room's done
         if (r.state === 0 && !r.barriers.length && this.host.voxels.isLoaded(this.ox + r.def.gate.cells[0][0], this.oz + r.def.gate.cells[0][1])) { this.shut(r); r.gate.visible = true; r.gateY = 0; }
@@ -260,10 +331,11 @@ export class Rooms {
         const base = r.gate.userData.base ?? (r.gate.userData.base = r.gate.position.y);
         r.gate.position.y = base + r.gateY * (r.def.gate.h - 0.3);
         if (r.state === 2 && r.gateY >= 1) r.gate.visible = false;
+        if (r.state === 1 && r.gateY >= 1 && this.clock >= r.upUntil) r.gate.visible = true;
       }
       const [x0, z0, x1, z1] = r.def.box;
       const inside = P.x >= this.ox + x0 && P.x <= this.ox + x1 + 1 && P.z >= this.oz + z0 && P.z <= this.oz + z1 + 1 && Math.abs(P.y - this.fl(r.def)) < 6;
-      if (r.state === 0 && inside) this.setState(i, 1, true);
+      if (r.state === 0 && inside && r.def.kind !== 'carry') this.setState(i, 1, true);
       if (r.state !== 1) return;
       // Plates: down while you stand on one, and for a while after
       if (r.def.kind === 'plates') {
@@ -279,6 +351,39 @@ export class Rooms {
           (pl.mesh.userData.lip as THREE.Mesh).material = down ? grooveLit : groove;
         }
         if (r.plates.every((pl) => pl.downUntil > this.clock)) this.setState(i, 2, true);
+      }
+      // Carry: the thing goes with you, and down if you're struck; harriers come for it; set it down where it goes
+      if (r.def.kind === 'carry' && r.thing) {
+        const C = r.def.carry!, f = this.fl(r.def), hp = this.host.hp();
+        if (r.carrying) {
+          const to = this.at(C.to[0], C.to[1], 0, f), dx = to.x - P.x, dz = to.z - P.z, d = Math.hypot(dx, dz) || 1;
+          // (in the right hand, out to the side, so it shows past you)
+          r.thing.position.set(P.x + (dx / d) * 0.3 - (dz / d) * 0.5, P.y + 0.8, P.z + (dz / d) * 0.3 + (dx / d) * 0.5);
+          if (hp < r.lastHp) {
+            r.carrying = false;
+            r.thing.position.set(P.x, this.host.voxels.groundBelow(P.x, P.y + 1, P.z), P.z);
+            this.host.system(C.drop);
+            this.host.sound('click', 0.6);
+          } else if (d < 2.2) { this.setState(i, 2, true); return; }
+        }
+        r.lastHp = hp;
+        r.harryT += dt;
+        if (r.harryT >= C.every && r.harried.filter((e) => e.alive).length < 3) {
+          r.harryT = 0;
+          const [x, z, t] = C.harry[r.harried.length % C.harry.length], q = this.at(x, z, 0, f);
+          r.harried.push(this.host.spawn(t, q.x, q.y, q.z));
+        }
+      }
+      // Gauntlet: the gate drops again when the weight's down, counted out; through it while it's up, and you're done
+      if (r.def.kind === 'gauntlet') {
+        const G = r.def.gauntlet!, [a0, b0, a1, b1] = G.past;
+        const past = P.x >= this.ox + a0 && P.x <= this.ox + a1 + 1 && P.z >= this.oz + b0 && P.z <= this.oz + b1 + 1 && Math.abs(P.y - this.fl(r.def)) < 4;
+        if (past) { this.setState(i, 2, true); return; }
+        if (r.upUntil > 0) {
+          const left = r.upUntil - this.clock;
+          if (left > 0 && left < r.tick) { r.tick--; this.host.sound('click', 0.8); }
+          if (left <= 0) { r.upUntil = 0; this.shut(r); this.host.system(G.shut); this.host.sound('bell', 0.4); }
+        }
       }
       // Keeper: down, and the gate's key with them
       if (r.def.kind === 'keeper' && r.keeper && !r.keeper.alive) this.setState(i, 2, true);
@@ -306,6 +411,12 @@ export class Rooms {
         if (m.visible || Math.hypot(P.x - p.x, P.z - p.z) > 2.2 || Math.abs(P.y - p.y) > 3.5) return;
         out.push({ label: l.label, pos: p, use: () => this.pull(i, k) });
       });
+      if (r.state < 2 && r.thing && !r.carrying && Math.hypot(P.x - r.thing.position.x, P.z - r.thing.position.z) < 2.2 && Math.abs(P.y - r.thing.position.y) < 3) {
+        out.push({ label: 'Take up ' + d.carry!.thing, pos: r.thing.position.clone().setY(r.thing.position.y + 0.6), use: () => this.takeUp(i) });
+      }
+      if (r.state === 1 && r.chain && this.clock >= r.upUntil && Math.hypot(P.x - r.chain.position.x, P.z - r.chain.position.z) < 2.2 && Math.abs(P.y - r.chain.position.y) < 3) {
+        out.push({ label: 'Haul on the chain', pos: r.chain.position.clone().setY(r.chain.position.y + 1), use: () => this.haul(i, true) });
+      }
       if (r.state === 2 && r.chest && !r.opened && Math.hypot(P.x - r.chest.position.x, P.z - r.chest.position.z) < 2.4 && Math.abs(P.y - r.chest.position.y) < 2.5) {
         out.push({ label: 'Open the chest', pos: r.chest.position.clone().setY(r.chest.position.y + 0.8), use: () => this.openChest(r) });
       }
@@ -349,7 +460,10 @@ export class Rooms {
       for (const m of r.lamps) if (m.parent) this.host.scene.remove(m.parent);
       for (const p of r.plates) if (p.mesh.parent) this.host.scene.remove(p.mesh.parent);
       if (r.chest) this.host.scene.remove(r.chest);
+      if (r.thing) this.host.scene.remove(r.thing);
+      if (r.chain) this.host.scene.remove(r.chain);
     }
+    this.rooms.forEach((r, i) => { if (r.def.gauntlet) this.host.ground([], this.stones(r, i).map((h) => h.id)); });
     this.rooms = [];
   }
 }

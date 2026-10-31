@@ -50,6 +50,8 @@ function warning(color: string): THREE.ShaderMaterial {
 export class Hazards {
   private live = new Map<string, Live>();
   private all: Hazard[];
+  /** A dungeon room's, while the room runs (add, remove). */
+  private extra: Hazard[] = [];
   private check = 0;
   /** How much the ground underfoot slows you (1: not at all). */
   slow = 1;
@@ -63,7 +65,7 @@ export class Hazards {
     // Wake the ones nearby, put the far ones away (once a second)
     if ((this.check -= dt) <= 0) {
       this.check = 1;
-      for (const h of this.all) {
+      for (const h of [...this.all, ...this.extra]) {
         const near = Math.hypot(h.x - P.x, h.z - P.z) < 60 && this.host.voxels.isLoaded(h.x, h.z);
         const l = this.live.get(h.id);
         if (near && !l) this.wake(h);
@@ -80,7 +82,7 @@ export class Hazards {
         if ((l.puff -= dt) <= 0) { l.puff = 0.5 + Math.random(); this.host.particles.bubbles(at.clone().add(new THREE.Vector3((Math.random() - 0.5) * h.r, -0.6, (Math.random() - 0.5) * h.r)), 3); }
         continue;
       }
-      const H = HAZARD[h.kind];
+      const H = HAZARD[h.kind], windup = h.windup ?? H.windup;
       l.next -= dt;
       // Steam from a vent's crack, grit trickling down onto scree, between times
       if ((l.puff -= dt) <= 0) {
@@ -89,11 +91,11 @@ export class Hazards {
         else this.host.particles.dust(this.fromCrag(h, at, 4 + Math.random() * 3), 3);
       }
       const m = l.mark!;
-      m.visible = l.next < H.windup;
-      m.material.uniforms.fill.value = Math.min(1, 1 - Math.max(0, l.next) / H.windup);
+      m.visible = l.next < windup;
+      m.material.uniforms.fill.value = Math.min(1, 1 - Math.max(0, l.next) / windup);
       if (l.next > 0) continue;
       // It goes
-      l.next = H.every * (0.85 + Math.random() * 0.3);
+      l.next = h.every ?? H.every * (0.85 + Math.random() * 0.3);
       if (h.kind === 'vent') {
         for (let i = 0; i < 8; i++) this.host.particles.smoke(at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, i * 0.6, (Math.random() - 0.5) * 1.2)));
         this.host.particles.burst(at.clone().setY(l.y + 0.6), '#fff0e0', 28);
@@ -111,7 +113,7 @@ export class Hazards {
 
   private wake(h: Hazard): void {
     const V = this.host.voxels;
-    const y = V.groundBelow(h.x, 120, h.z);
+    const y = V.groundBelow(h.x, h.y !== undefined ? h.y + 3 : 120, h.z);
     let mark: Live['mark'] = null;
     if (h.kind !== 'bog') {
       // A quad on top of every cell inside, with each corner's distance from the middle (1: the edge)
@@ -138,13 +140,24 @@ export class Hazards {
       mark.frustumCulled = false;
       this.host.scene.add(mark);
     }
-    this.live.set(h.id, { h, next: 2 + Math.random() * 6, puff: 0, y, mark });
+    this.live.set(h.id, { h, next: h.first ?? 2 + Math.random() * 6, puff: 0, y, mark });
   }
 
   /** A point up the crag a rockfall's stones come down from, so high above the scree. */
   private fromCrag(h: Hazard, at: THREE.Vector3, up: number): THREE.Vector3 {
     const [fx, fz] = h.face ?? [0, 0];
     return at.clone().add(new THREE.Vector3(fx * (h.r + 1) + (Math.random() - 0.5) * 3, up, fz * (h.r + 1) + (Math.random() - 0.5) * 3));
+  }
+
+  /** A room's stones start coming down (woken at once, if they're close). */
+  add(hs: Hazard[]): void {
+    for (const h of hs) if (!this.extra.some((x) => x.id === h.id)) { this.extra.push(h); if (this.host.voxels.isLoaded(h.x, h.z)) this.wake(h); }
+  }
+
+  /** ...and stop. */
+  remove(ids: string[]): void {
+    for (const id of ids) { const l = this.live.get(id); if (l) this.sleep(l); }
+    this.extra = this.extra.filter((h) => !ids.includes(h.id));
   }
 
   private sleep(l: Live): void {

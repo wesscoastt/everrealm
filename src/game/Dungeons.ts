@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Hazard as GroundHazard } from '../data/hazards';
 import type { Sfx } from '../systems/Audio';
 import { damageScale, marksScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
@@ -59,6 +60,8 @@ export interface DungeonHost {
   inCombat(): boolean;
   /** A blow on the player (Game's own: armour, rolls and all). */
   hurtPlayer(dmg: number, from: Enemy): void;
+  /** A room's falling stones (game/Hazards.ts), started and stopped. */
+  ground(add: GroundHazard[], remove: string[]): void;
   healPlayer(n: number): void;
   /** Up again where you fell, with this share of your health. */
   raise(share: number): void;
@@ -435,6 +438,7 @@ export class Dungeons {
     return new Rooms({
       scene: h.scene, voxels: h.voxels, player: () => h.player(), system: (t) => h.system(t), banner: (a, b) => h.banner(a, b),
       sound: (n, v) => h.sfx(n, v), reward: (xp, m, items, why) => h.reward(xp, m, items, why), read: (t, x) => h.read(t, x), level: () => h.level(),
+      hp: () => h.hp().hp, ground: (a, rm) => h.ground(a, rm),
       // A room's creature is one of the run's adds; a named one (a keeper) is tougher than the rest of its kind
       spawn: (type, x, y, z, name) => {
         const d = this.vetDef(type);

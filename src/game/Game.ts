@@ -1255,6 +1255,7 @@ export class Game implements GameApi {
       calling: () => this.calling,
       inCombat: () => this.elapsed - this.lastCombat < 6,
       hurtPlayer: (d, from) => this.hitPlayer(d, from),
+      ground: (a, rm) => { this.hazards.add(a); this.hazards.remove(rm); },
       healPlayer: (n) => { if (this.dead || n <= 0) return; this.hp = Math.min(this.maxHp, this.hp + n); this.floatAt(this.player.position, 2.2, `+${Math.round(n)}`, 'heal'); this.particles.heal(this.player.position); },
       raise: (share) => this.raise(share),
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },

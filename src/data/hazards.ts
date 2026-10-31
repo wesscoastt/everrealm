@@ -17,6 +17,8 @@ export interface Hazard {
   id: string; kind: HazardKind; x: number; z: number; r: number;
   /** A rockfall's crag: which way it rises (stones fall from there). */
   face?: [number, number];
+  /** A dungeon room's own (game/Rooms.ts): seconds between falls and the wind-up, how long before the first, and the floor it's on. */
+  every?: number; windup?: number; first?: number; y?: number;
 }
 
 const RULES: { kind: HazardKind; region: RegionId; r: number; every: number; chance: number }[] = [

@@ -44,8 +44,8 @@ Room kinds (each uses something the game already has):
 | **levers** | Pull the levers in the order a clue on the wall gives; a wrong pull wakes the room's guard pack | `data/puzzles.ts` press sequences |
 | **plates** | Hold down plates. Solo: each plate stays down for a few seconds after you step off, so it's a timed run between them; in a group, stand on them together | world things + a timer |
 | **waves** | Hold the room through three waves before the timer; medals for speed | Activities events (waves, medals) |
-| **carry** | Carry a lit lamp (or a stone, a heart) from one end to the other; you can't use skills with it in your hands, and a heavy blow knocks it out of them | a held prop and a world thing |
-| **gauntlet** | Cross a hall of vents, falling rock and bog to the lever at the far end | `game/Hazards.ts` |
+| **carry** | Take a thing up where it lies and carry it to where it goes; any blow knocks it out of your hands (go back and take it up again), and while the room runs its harriers come for it, one every few seconds, three at most. Built: Under the Kettle's fire-pot, from Brack's cave to the ice across the first ramp | a held prop, `RoomDef.carry` |
+| **gauntlet** | Haul a chain that holds the far gate up for a few seconds (the last three ticked out), then run a hall of falling stone, each fall on its own beat, and be through before it drops. Built: the Old Man's Number Four roof | `game/Hazards.ts` (a room adds and removes its own rockfalls), `RoomDef.gauntlet` |
 | **keeper** | A pack with one marked keeper; kill it to drop the gate key | quest spawns, `questTag` |
 | **guardian** | A mini-boss who keeps the room: one signature move, one add call | `BossPlan`, smaller |
 
@@ -90,8 +90,8 @@ the Lamp & Spanner, a mount (a brass strider in Kell's colours) at a small chanc
 
 | Place | Rooms | Signature |
 | --- | --- | --- |
-| The Old Man's Workings | lamp-room levers, flooded gallery carry, pump-room plates, the night shift's keeper | — |
-| Under the Kettle | the fold gates (keeper), the star-rock gauntlet, the drowned stair waves | — |
+| The Old Man's Workings | lamp-room levers, Number Four's roof (gauntlet), the night shift's keeper, the hatchlings' drift plates | — |
+| Under the Kettle | the wolves' den waves, the singing drift's glass, the shepherds' fire-pot (carry) | — |
 | The Escapement | the escapement teeth (levers in time with the beat), the vent gauntlet, the governor's guardian | — |
 | Kingsbarrow | the Long Barrow's niches (levers), the Hall of the Kneeling (waves of the risen), the Black Stair carry | — |
 | Each delve | one room fitting its story (smugglers: the tide-gate plates; the culvert: a carry through the flood) | the champion's own move |
