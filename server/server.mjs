@@ -146,6 +146,8 @@ const loadChar = (key) => readJson(path.join(CHAR_DIR, key + '.json'));
  * character that has been played at all), in the order they came, the realm's own accounts (DEV_ACCOUNTS)
  * left off. Character names only: account names are private. Worked out at most every five minutes.
  */
+/** The owner's own characters and test characters, left off the board by name (owner 2026-10-31). */
+const HIDDEN_TRAVELLERS = new Set(['wes', 'claude', 'test', 'jadetester']);
 let travellersCache = { at: 0, names: [] };
 function travellers() {
   if (Date.now() - travellersCache.at < 5 * 60_000) return travellersCache.names;
@@ -156,6 +158,7 @@ function travellers() {
     const rec = readJson(path.join(CHAR_DIR, f));
     if (!rec?.name || !rec.save || !(rec.save.playTime > 0)) continue;
     if (rec.owner && DEV_ACCOUNTS.has(accKey(rec.owner))) continue;
+    if (HIDDEN_TRAVELLERS.has(String(rec.name).toLowerCase())) continue;
     const who = rec.owner ? 'a:' + accKey(rec.owner) : 'c:' + rec.name;
     const when = rec.created ?? rec.updated ?? Date.now();
     const had = first.get(who);
