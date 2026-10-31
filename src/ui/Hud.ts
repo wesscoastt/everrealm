@@ -646,12 +646,22 @@ export class Hud {
   }
 
 /** The level bar over the action bar: your level, always (the trades show their own, briefly, above it). */
+  /** The level the bar last showed (null until it's first drawn, so loading a character never "dings"). */
+  private xpLv: number | null = null;
   setXpBar(xp: number): void {
     const lv = levelForXp(xp, 'melee');
     const a = xpForLevel(lv, 'melee'), b = xpForLevel(lv + 1, 'melee');
     const top = lv >= MAX_LEVEL;
     this.q('#xpbar > .label').textContent = `Level ${lv}`;
-    (this.q('#xpbar > .bar > i') as HTMLElement).style.width = (top ? 100 : ((xp - a) / (b - a)) * 100) + '%';
+    const fill = this.q('#xpbar > .bar > i') as HTMLElement;
+    // A real level gained: the fill starts the new level from empty (not sliding back), and the bar pulses once
+    if (this.xpLv !== null && lv > this.xpLv) {
+      fill.style.transition = 'none'; fill.style.width = '0%'; void fill.offsetWidth; fill.style.transition = '';
+      const bar = this.q('#xpbar'); bar.classList.remove('ding'); void bar.offsetWidth; bar.classList.add('ding');
+      window.setTimeout(() => bar.classList.remove('ding'), 1500);
+    }
+    this.xpLv = lv;
+    fill.style.width = (top ? 100 : ((xp - a) / (b - a)) * 100) + '%';
     this.q('#xpbar > .bar > b').textContent = top ? 'The highest level there is' : `${(xp - a).toLocaleString()} / ${(b - a).toLocaleString()} XP`;
   }
 
@@ -682,6 +692,10 @@ export class Hud {
       const p = c.total > 0 ? Math.max(0, c.left / c.total) : 0;
       (s.querySelector('.cd') as HTMLElement).style.setProperty('--p', String(p));
       (s.querySelector('.cdt') as HTMLElement).textContent = c.left > 0.05 && c.total > 1.5 ? Math.ceil(c.left).toString() : '';
+      // A skill coming off a real cooldown: a short flash on its slot, so you know it's back
+      const cooling = c.left > 0.05 && c.total > 1.5;
+      if (s.dataset.cd === '1' && !cooling && !c.locked) { s.classList.remove('ready'); void s.offsetWidth; s.classList.add('ready'); window.setTimeout(() => s.classList.remove('ready'), 650); }
+      s.dataset.cd = cooling ? '1' : '';
       s.classList.toggle('disabled', !!c.disabled);
       const cnt = s.querySelector('.count');
       if (cnt) cnt.textContent = c.count ? String(c.count) : '';
@@ -1184,7 +1198,9 @@ export class Hud {
 
   setTracker(entries: QuestEntry[]): void {
     const active = entries.filter((e) => !e.done && e.tracked !== false);
-    const html = active.map((e) => `<div class="q${e.focus ? ' focus' : ''}" data-q="${esc(e.id)}"><h4>${esc(e.name)}</h4>${e.objectives.map((o) => `<div class="obj${o.done ? ' done' : ''}">${esc(o.text)}${o.dist !== undefined && !o.done ? `<span class="dist">${Math.round(o.dist)}m</span>` : ''}</div>`).join('')}</div>`).join('');
+    // What kind each is, for the tracker's hierarchy: the main story, a lead to a place, or a side quest
+    const kind = (e: QuestEntry) => (e.story ? 'story' : e.id.startsWith('lead:') ? 'lead' : 'side');
+    const html = active.map((e) => `<div class="q ${kind(e)}${e.focus ? ' focus' : ''}" data-q="${esc(e.id)}"><h4>${esc(e.name)}</h4>${e.objectives.map((o) => `<div class="obj${o.done ? ' done' : ''}">${esc(o.text)}${o.dist !== undefined && !o.done ? `<span class="dist">${Math.round(o.dist)}m</span>` : ''}</div>`).join('')}</div>`).join('');
     const tr = this.q('#tracker');
     if (tr.innerHTML !== html) tr.innerHTML = html;
     if (!tr.dataset.wired) {
