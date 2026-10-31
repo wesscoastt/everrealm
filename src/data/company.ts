@@ -33,6 +33,8 @@ export interface CountingHouse {
   factor: Person & { hello: string };
   /** The two traders in the town who owe the Company. */
   debtors: Debtor[];
+  /** Where its carries go: the other houses it trades with, and whether the way is by sea (a ferry, more time). */
+  routes: { to: string; sea?: boolean }[];
 }
 
 export type ContractKind = 'carry' | 'collect';
@@ -61,7 +63,7 @@ const COAT = { tunic: '#22365a', trim: '#e8e4dc', trousers: '#2a2a34', boots: '#
 export const HOUSES: CountingHouse[] = [
   {
     // East Avenue, Ansbury, by the east gate the sea road leaves by: office corner (957, 281)
-    id: 'ansbury', town: 'Ansbury',
+    id: 'ansbury', town: 'Ansbury', routes: [{ to: 'gullmouth' }],
     clerk: { id: 'co_gilbert', name: 'Gilbert Ashe', at: [964.5, 284.0], face: [964.5, 290], look: { ...COAT, skin: '#e0b48e', hair: '#5a4a3a', hairStyle: 0, age: 0.35, hat: 'cap', hatColor: '#22365a' },
       barks: ['Contracts at the window.', 'Sign, and print it under.', 'The bell is the bell.'] },
     factor: { id: 'co_constance', name: 'Constance Ferrars', at: [960.6, 290.4], face: [964, 289], look: { ...COAT, skin: '#f0d0b8', hair: '#c8c0b0', hairStyle: 2, lashes: true, age: 0.6, cape: '#22365a' },
@@ -86,7 +88,7 @@ export const HOUSES: CountingHouse[] = [
   },
   {
     // The north end of Gullmouth's quay: office corner (1784, 560)
-    id: 'gullmouth', town: 'Gullmouth',
+    id: 'gullmouth', town: 'Gullmouth', routes: [{ to: 'ansbury' }, { to: 'brasswick', sea: true }],
     clerk: { id: 'co_osmund', name: 'Osmund Dray', at: [1790.5, 563.0], face: [1790.5, 569], look: { ...COAT, skin: '#c89070', hair: '#2a1e14', hairStyle: 1, beard: true, age: 0.45 },
       barks: ['Contracts at the window.', 'The Hall\'s clerk counts our ships. We count theirs.'] },
     factor: { id: 'co_avis', name: 'Avis Spurr', at: [1787.6, 569.4], face: [1791, 568], look: { ...COAT, skin: '#d8a882', hair: '#8a4a2a', hairStyle: 2, lashes: true, age: 0.5, hat: 'wide', hatColor: '#1e2a40' },
@@ -107,6 +109,32 @@ export const HOUSES: CountingHouse[] = [
         idle: 'Cadan Treen. Pilchards, salt and the barrel. If you\'re buying, the good ones are on the left.',
         coin: 'There. I\'ve paid for their damp salt. Next time I buy from the Brethren and pay no duty at all.',
         goods: 'A barrel of the cure that took. They can count it fish by fish.' },
+    ],
+  },
+  {
+    // Brasswick on Kell: no house of its own. A desk and a stall under the Company's banner in front of
+    // Harrowgate & Daughters' office on the high street, which the Company shares with Piran Hext
+    id: 'brasswick', town: 'Brasswick', routes: [{ to: 'gullmouth', sea: true }],
+    clerk: { id: 'co_bryok', name: 'Bryok Angwin', at: [2375.5, -563.0], face: [2375.5, -559], look: { ...COAT, skin: '#d8a882', hair: '#2a1e14', hairStyle: 3, age: 0.4, hat: 'cap', hatColor: '#22365a' },
+      barks: ['The Company\'s desk. Harrowgate\'s door.', 'Kell boat\'s in at the hour.'] },
+    factor: { id: 'co_ysolt', name: 'Ysolt Penhaligon', at: [2371.5, -562.8], face: [2371.5, -559], look: { ...COAT, skin: '#e2b894', hair: '#a8562a', hairStyle: 2, lashes: true, age: 0.45, cape: '#22365a' },
+      barks: ['Mainland goods, island prices.', 'For scrip, not for brass.'],
+      hello: 'Ysolt Penhaligon, factor, from a stall, because Harrowgate let us half an office and kept the half with the chairs. What the Kell boat brings, I sell, for scrip.' },
+    debtors: [
+      { id: 'co_elestren', name: 'Elestren Mabe', title: 'Glazier', at: [2394.5, -552.4], face: [2394.5, -556], look: { skin: '#f0d0b8', hair: '#3a2a1e', hairStyle: 2, lashes: true, tunic: '#3a4a52', trim: '#9fd8e8', apron: true, age: 0.4 },
+        barks: ['Lamp-glass, leaded or plain.', 'Mind the crate. It\'s all edges.'],
+        owes: 'She owes for a shipment of mainland lead for her leading, which the Kell boat brought over in the spring.',
+        plea: 'The lead came. Half of it was the Company\'s lead and half of it was stone painted grey. I\'ve the stone still, if they want to see it. I\'ll pay for the half that was lead.',
+        idle: 'Elestren Mabe. Lamp-glass for the Works, windows for anyone who can wait.',
+        coin: 'All of it, then, stone and lead. Tell them I\'m keeping the stone. It makes a good doorstop.',
+        goods: 'A crate of lamp-glass. Tell them each pane\'s worth more than their lead.' },
+      { id: 'co_treeve', name: 'Treeve Chenoweth', title: 'Cooper', at: [2416.5, -552.6], face: [2416.5, -556], look: { skin: '#c89070', hair: '#5a4030', hairStyle: 3, beard: true, tunic: '#5a4a3a', trim: '#2a1e14', apron: true, build: 1.15, age: 0.55 },
+        barks: ['Staves, hoops, the lot.', 'A barrel that leaks is a bucket.'],
+        owes: 'He owes for two hundred oak staves from the mainland. Kell grows no oak to speak of.',
+        plea: 'Two hundred staves at the Company\'s price, and then the Works stopped buying barrels for the summer. I\'ve a shed of casks nobody wants. I can pay a third.',
+        idle: 'Treeve Chenoweth, cooper. If it holds water, I made it.',
+        coin: 'There. That\'s the summer gone. Tell the Company I\'ll be buying my staves off the Brethren from now on.',
+        goods: 'Six casks, new. They hold water, which is more than their contracts do.' },
     ],
   },
 ];
@@ -131,15 +159,15 @@ export function houseDistance(a: string, b: string): number {
 }
 
 /** Seconds a carry is given: a steady ride and some to spare. */
-export const carrySecs = (dist: number) => Math.round(dist / 5 + 240);
+export const carrySecs = (dist: number, sea = false) => Math.round(dist / 5 + 240 + (sea ? 360 : 0));
 /** A contract's bell, in seconds from taking it: the bonded cargo gets four-fifths of the time. */
-export const contractSecs = (c: Contract) => Math.round(carrySecs(houseDistance(c.house, c.to!)) * (c.bonded ? 0.8 : 1));
+export const contractSecs = (c: Contract) => Math.round(carrySecs(houseDistance(c.house, c.to!), !!HOUSE_BY_ID.get(c.house)?.routes.find((r) => r.to === c.to)?.sea) * (c.bonded ? 0.8 : 1));
 
 /** The board at a house today: two carries to other houses (the second heavier, better paid) and a debt. */
 export function boardToday(house: string, day = utcDay()): Contract[] {
   const h = HOUSE_BY_ID.get(house);
   if (!h) return [];
-  const others = HOUSES.filter((o) => o.id !== house);
+  const others = h.routes.map((r) => HOUSE_BY_ID.get(r.to)!).filter(Boolean);
   const out: Contract[] = [];
   for (let k = 0; k < 2 && others.length; k++) {
     const to = others[Math.floor(roll(day, house, k) * others.length)];

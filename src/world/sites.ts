@@ -2891,6 +2891,11 @@ export function plan(): Plan {
     s.props.push({ t: 'notice', x: cx - 6.5, y: base, z: cz - 3.4, ry: 0 }, { t: 'sign', x: cx + 40.5, y: base, z: cz + 3.5, ry: -Math.PI / 2, text: 'Brasswick' }, { t: 'sign', x: cx + 40.5, y: base, z: cz - 3.5, ry: -Math.PI / 2, text: 'The Works, up the Kiln' });
     for (const [x, z] of [[cx - 20.5, cz - 2.5], [cx - 4.5, cz + 2.5], [cx + 12.5, cz - 2.5], [cx + 30.5, cz + 2.5], [cx + 7.5, cz - 20.5], [cx + 7.5, cz + 22.5]]) s.props.push({ t: 'lantern', x, y: base, z });
     s.props.push({ t: 'banner', x: cx - 15.5, y: base + 6, z: cz - 6.6, ry: 0, kind: 'harrow' });
+    // The Counting House's Brasswick desk (data/company.ts), in front of the half of Harrowgate's office it
+    // rents: the clerk's desk, the factor's stall under Charter blue, the Company's banner beside Harrowgate's
+    s.props.push({ t: 'furn', item: 'desk', x: cx - 16.5, y: base, z: cz - 6.0, ry: 0 }, { t: 'furn', item: 'letters', x: cx - 16.5, y: base + 1.02, z: cz - 6.0, ry: 0, tint: 1 });
+    s.props.push({ t: 'stall', x: cx - 20.5, y: base, z: cz - 5.4, ry: Math.PI, color: '#22365a' }, { t: 'crate', x: cx - 18.6, y: base, z: cz - 6.6, ry: 0.3 });
+    s.props.push({ t: 'banner', x: cx - 10.5, y: base + 6, z: cz - 6.6, ry: 0, kind: 'company' });
   }
 
   /**
