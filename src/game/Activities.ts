@@ -17,6 +17,7 @@ import { LOOSE_MAPS, RARES, RareDef, rareLairs, TREASURE_MAPS, TreasureMap, trea
 import { hash2 } from '../world/noise';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { DELVE_ROOMS } from '../data/rooms';
+import { DELVE_CHAMPIONS } from '../data/champions';
 import { Rooms } from './Rooms';
 import type { Hazard } from '../data/hazards';
 import { B } from '../world/blocks';
@@ -449,7 +450,11 @@ export class Activities {
           continue;
         }
         for (const [x, y, z, type] of a.spawns ?? []) out.push(this.spawnAt({ ...ENEMIES[type as EnemyType], respawn: 150 }, x, y, z));
-        if (a.boss) out.push(this.spawnAt(championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45), a.boss[0], a.boss[1], a.boss[2]));
+        if (a.boss) {
+          // A delve's champion has a name and a move of its own (data/champions.ts)
+          const ch = a.kind === 'delve' ? DELVE_CHAMPIONS[s.id] : undefined, d = championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45);
+          out.push(this.spawnAt(ch ? { ...d, ...(ch.name ? { name: ch.name } : {}), ...(ch.attack ? { attack: ch.attack } : {}), ...(ch.role ? { role: ch.role } : {}), ...(ch.phases ? { phases: ch.phases } : {}) } : d, a.boss[0], a.boss[1], a.boss[2]));
+        }
         this.dungeons.set(s.id, out);
         if (a.kind === 'delve') this.openRoom(s);
       } else if (!near && list && Math.hypot(P.x - s.x, P.z - s.z) > 110) {
