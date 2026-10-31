@@ -53,6 +53,12 @@ export const ENCHANTS: Record<string, { word: string; kind: 'weapon' | 'armour';
   warding: { word: 'Warding', kind: 'armour', text: (k) => `Maximum health +${[15, 25, 35][k - 1]}.` },
   vigour: { word: 'Vigour', kind: 'armour', text: (k) => `Energy comes back ${[5, 8, 11][k - 1]}% faster.` },
   thorns: { word: 'Thorns', kind: 'armour', text: (k) => `Whatever strikes you takes ${[6, 9, 12][k - 1]}% of the blow back.` },
+  // Wards against an element (data/elements.ts): blows of it land lighter, each piece adding, to two fifths
+  ashward: { word: 'the Hearth', kind: 'armour', text: (k) => `Blows of fire land ${[6, 9, 12][k - 1]}% lighter.` },
+  tideward: { word: 'the Tide', kind: 'armour', text: (k) => `Blows of water land ${[6, 9, 12][k - 1]}% lighter.` },
+  groundward: { word: 'Grounding', kind: 'armour', text: (k) => `Blows of thunder land ${[6, 9, 12][k - 1]}% lighter.` },
+  rootward: { word: 'the Root', kind: 'armour', text: (k) => `Blows of earth land ${[6, 9, 12][k - 1]}% lighter.` },
+  leeward: { word: 'the Lee', kind: 'armour', text: (k) => `Blows of air land ${[6, 9, 12][k - 1]}% lighter.` },
   swift: { word: 'Swiftness', kind: 'armour', text: (k) => `You move ${[2, 3, 4][k - 1]}% faster (no more than 8% from all your armour).` },
 };
 export const TIER_WORDS = ['Minor', '', 'Greater'];

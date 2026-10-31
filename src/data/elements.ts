@@ -19,6 +19,11 @@ export const ELEMENTS: Record<Element, { name: string; color: string; glyph: str
   air: { name: 'Air', color: '#d8e8f0', glyph: '❋' },
 };
 
+/** The armour enchantment that wards each element. */
+export const WARD_OF: Record<string, Element> = { ashward: 'fire', tideward: 'water', groundward: 'thunder', rootward: 'earth', leeward: 'air' };
+/** No more than this much off a blow from all your wards against one element. */
+export const WARD_CAP = 0.4;
+
 /** What each element beats. */
 export const BEATS: Record<Element, Element> = { water: 'fire', fire: 'air', air: 'earth', earth: 'thunder', thunder: 'water' };
 /** What beats each element (its weakness). */

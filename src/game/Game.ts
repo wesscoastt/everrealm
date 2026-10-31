@@ -116,7 +116,7 @@ import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
-import { BEATEN_BY, CALLING_ELEMENT, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, type Element } from '../data/elements';
+import { BEATEN_BY, CALLING_ELEMENT, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, WARD_CAP, WARD_OF, type Element } from '../data/elements';
 import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
@@ -2832,7 +2832,7 @@ export class Game implements GameApi {
    */
   private get armour() {
     const e = this.save.equip;
-    const a = { defense: 0, vigor: 0, wind: 0, roll: 0, crit: 0, rollCost: 25, haste: 1, light: 0, medium: 0, heavy: 0, thorns: 0, swift: 0 };
+    const a = { defense: 0, vigor: 0, wind: 0, roll: 0, crit: 0, rollCost: 25, haste: 1, light: 0, medium: 0, heavy: 0, thorns: 0, swift: 0, wards: {} as Partial<Record<Element, number>> };
     for (const id of [e.head, e.chest, e.legs, e.hands, e.feet]) {
       const r = id ? ITEMS[id]?.armor : undefined;
       if (!r) continue;
@@ -2842,6 +2842,7 @@ export class Game implements GameApi {
       else if (en?.id === 'vigour') a.wind += [0.05, 0.08, 0.11][en.tier - 1];
       else if (en?.id === 'thorns') a.thorns += [0.06, 0.09, 0.12][en.tier - 1];
       else if (en?.id === 'swift') a.swift = Math.min(0.08, a.swift + [0.02, 0.03, 0.04][en.tier - 1]);
+      else if (en && WARD_OF[en.id]) { const el = WARD_OF[en.id]; a.wards[el] = Math.min(WARD_CAP, (a.wards[el] ?? 0) + [0.06, 0.09, 0.12][en.tier - 1]); }
       a.defense += r.defense; a.vigor += r.vigor ?? 0; a.wind += r.wind ?? 0; a.roll += r.roll ?? 0;
       if (r.weight) a[r.weight]++;
     }
@@ -6127,6 +6128,9 @@ export class Game implements GameApi {
     if (this.mastery('bracing')) taken = Math.max(1, Math.round(taken * (1 - this.mastery('bracing'))));
     this.lastHurt = this.elapsed;
     taken = Math.round(taken * (1 + this.harmed('vuln')));
+    // A foe's blow is of its element (data/elements.ts): wards against it on your armour turn some of it
+    const fel = foeElement(from.def.type), ward = fel ? this.armour.wards[fel] ?? 0 : 0;
+    if (ward > 0) taken = Math.max(1, Math.round(taken * (1 - ward)));
     this.hp -= taken;
     // What the blow leaves behind (data/effects.ts)
     if (!this.inflictions.has(from.base)) this.inflictions.set(from.base, inflictionOf(from.base));
