@@ -503,4 +503,4 @@ you, a few seconds' change to what you deal or take, blows missing you, out of s
 goes off, so nothing is spent on a miss. Verified headless (`.walker/scen-lines.js`): at level 34 four
 lines open and two shut (refused); each skill unlocked for a point, went on key 6, cost its pool, and did
 what it says (Cut the Hock 91 and a slow, Trample 147, Brass Bomb 165, Rider's Charge 130, the heals and
-buffs). Not yet: morphs for line skills, and the balance sim choosing them.
+buffs). **Morphs** (same day, `src/data/lineMorphs.ts`): every line skill turns one of two ways at rank IV for a point, each morph its own effects rather than a bigger number (Cut the Hock: Deep Cut bleeds half again as much, Lame slows eight seconds and staggers; Brass Bomb: Cluster Bomb or Concussion Bomb; Broadside: Chain Shot or Double-shotted), sixty in all. Verified headless: Lame slowed 7.6 s and staggered, Pressure Valve slowed what stood round you. Not yet: the balance sim choosing line skills.

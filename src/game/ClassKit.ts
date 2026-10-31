@@ -1243,7 +1243,8 @@ export class ClassKit {
    */
   private lineCast(ls: LineSkill, P: THREE.Vector3, pw: number): boolean {
     const H = this.host, k = this.lineScale(ls), col = ls.color;
-    const first = ls.fx.find((f) => f.k === 'strike' || f.k === 'leap' || f.k === 'ground' || f.k === 'zone' || f.k === 'blink' || f.k === 'dash');
+    const fxs = T.lineFx?.[ls.id] ?? ls.fx;
+    const first = fxs.find((f) => f.k === 'strike' || f.k === 'leap' || f.k === 'ground' || f.k === 'zone' || f.k === 'blink' || f.k === 'dash');
     let target: Enemy | null = null;
     let spot: THREE.Vector3 | null = null;
     if (first && (first.k === 'strike' || first.k === 'leap')) {
@@ -1256,7 +1257,7 @@ export class ClassKit {
       if (first.k === 'blink' && (spot.distanceTo(P) < 1.5 || Math.abs(spot.y - P.y) > 4 || !H.clear(spot))) return false;
     }
     if (first?.k === 'dash' && !H.dash(new THREE.Vector3(Math.sin(H.yaw()), 0, Math.cos(H.yaw())), first.dist)) return false;
-    for (const f of ls.fx) this.lineFx(f, P, pw * k, k, target, spot, col, f === first);
+    for (const f of fxs) this.lineFx(f, P, pw * k, k, target, spot, col, f === first);
     return true;
   }
 

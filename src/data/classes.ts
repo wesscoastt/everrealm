@@ -228,6 +228,8 @@ export const TUNE = {
   cd: {} as Record<string, number>,
   /** The realm's line skills (data/skillLines.ts): how much stronger each is with its rank and morph. */
   lines: {} as Record<string, number>,
+  /** A morphed line skill's effects, in place of its own (data/lineMorphs.ts). */
+  lineFx: {} as Record<string, import('./skillLines').Fx[]>,
   /** dmg: share added to the damage you deal, for each Resolve (talents). */
   resolve: { per: 0.05, max: 5, fade: 6, dmg: 0 },
   /** burst: the blow when it's broken (0 none); mend: share of what's left that heals you when it runs out. */

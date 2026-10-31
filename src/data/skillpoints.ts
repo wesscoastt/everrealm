@@ -1,4 +1,5 @@
 import type { Tune } from './talents';
+import { LINE_MORPHS } from './lineMorphs';
 
 // Skill points, ranks and morphs, the way ESO does them.
 //   Points: one pool, earned by levelling (a point a level for the first twelve, then the talents'
@@ -405,6 +406,14 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
 };
 
 /** A skill's numbers stronger by its rank: its blows, heals, wards and burns (applied to a tuned copy). */
+// The realm's line skills morph too: each morph gives the skill its own effects (data/lineMorphs.ts)
+for (const [id, pair] of Object.entries(LINE_MORPHS)) {
+  MORPHS[id] = pair.map((m, i) => ({
+    id: id + (i ? '_b' : '_a'), name: m.name, desc: m.desc,
+    mod: (t: Tune) => { (t as unknown as { lineFx: Record<string, unknown> }).lineFx[id] = m.fx; if (m.cd) cd(t, id, m.cd); },
+  })) as [Morph, Morph];
+}
+
 export function applyRank(t: Tune, id: string, rank: number): void {
   // A line skill (data/skillLines.ts): one number for all it does
   if (id.startsWith('ln_')) { if (rank > 1) (t as unknown as { lines: Record<string, number> }).lines[id] = 1 + RANK_STEP * (rank - 1); return; }
