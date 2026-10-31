@@ -4,6 +4,7 @@ import { ITEMS } from './items';
 import type { GameApi } from '../game/api';
 import { SHOPS } from './shops';
 import { TROPHY_IDS, TROPHY_PRICE, TROPHY_SETS } from './trophies';
+import { partnerPrice, TOWN_STAKES } from './stakes';
 
 // THE LAMP COMPANY: Hesk Dunmore's delvers (the henchmen's own crew), who go down where other people
 // won't, for a day's rate and a story. In the manner of ESO's Undaunted: every day the Company posts
@@ -49,3 +50,11 @@ SHOPS.tower_crowle = {
   buyRate: () => 0,
   footer: (g) => g.towerBest() >= 40 ? 'Priced in tower tokens. Every floor pays them, the first time more.' : `Priced in tower tokens. More for one who has cleared floor ${g.towerBest() >= 20 ? 40 : 20}.`,
 };
+
+// A partner pays the family price at the town trades they've bought into (data/stakes.ts TOWN_STAKES)
+for (const t of TOWN_STAKES) {
+  const shop = SHOPS[t.shop];
+  if (!shop) continue;
+  const own = shop.priceMult;
+  shop.priceMult = (g) => (own?.(g) ?? 1) * partnerPrice(g.flag('stake:' + t.npc));
+}
