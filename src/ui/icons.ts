@@ -424,6 +424,28 @@ case 'book': {
       px(6, 18, 16, 1, shade(a, 0.6)); px(13, 14, 1, 4, shade(a, 0.6)); px(10, 19, 1, 7, shade(a, 0.6));
       break;
     }
+    case 'horse': {
+      // A horse's head and neck in its coat, a dark mane down the crest, an ear, an eye, the halter in its cloth
+      const head = (inset: number) => { x.beginPath(); x.moveTo(23 - inset, 30); x.lineTo(25 - inset, 15); x.lineTo(21, 5 + inset); x.lineTo(15, 4 + inset); x.lineTo(5 + inset, 11); x.lineTo(4 + inset, 16 - inset); x.lineTo(9, 18 - inset); x.lineTo(14, 15); x.lineTo(12 + inset, 30); x.closePath(); x.fill(); };
+      x.fillStyle = outline; head(0);
+      x.fillStyle = a; head(1);
+      x.fillStyle = shade(a, 1.18); x.beginPath(); x.moveTo(14, 6); x.lineTo(7, 11); x.lineTo(9, 12); x.lineTo(15, 8); x.fill();
+      x.strokeStyle = shade(a, 0.45); x.lineWidth = 3; x.beginPath(); x.moveTo(20, 4); x.quadraticCurveTo(26, 14, 24, 29); x.stroke();
+      x.fillStyle = outline; x.beginPath(); x.moveTo(17, 5); x.lineTo(19, 0); x.lineTo(21, 5); x.fill();
+      px(12, 8, 2, 2, '#14100c');
+      px(5, 14, 2, 1, shade(a, 0.5));
+      x.strokeStyle = b ?? '#7a2a24'; x.lineWidth = 2; x.beginPath(); x.moveTo(6, 13); x.lineTo(12, 13); x.moveTo(16, 6); x.lineTo(13, 15); x.stroke();
+      break;
+    }
+    case 'dye': {
+      // A skein of wool hung from a stick into a pot of the dye, the dye's colour in both
+      px(3, 5, 26, 3, outline); px(4, 6, 24, 1, '#8a6a44');
+      px(11, 7, 10, 13, outline); px(12, 8, 8, 11, a); px(13, 8, 1, 11, shade(a, 1.3)); px(17, 8, 1, 11, shade(a, 0.75));
+      x.fillStyle = outline; x.beginPath(); x.moveTo(6, 17); x.lineTo(26, 17); x.lineTo(24, 30); x.lineTo(8, 30); x.closePath(); x.fill();
+      x.fillStyle = '#6a5a4a'; x.beginPath(); x.moveTo(8, 19); x.lineTo(24, 19); x.lineTo(22.5, 29); x.lineTo(9.5, 29); x.closePath(); x.fill();
+      px(8, 18, 16, 2, a); px(10, 18, 3, 1, shade(a, 1.35));
+      break;
+    }
     case 'coin': {
       x.fillStyle = outline; x.beginPath(); x.arc(16, 16, 11, 0, Math.PI * 2); x.fill();
       x.fillStyle = a; x.beginPath(); x.arc(16, 16, 9, 0, Math.PI * 2); x.fill();
@@ -442,7 +464,8 @@ const BETTER: [RegExp, IconSpec['shape'], IconSpec['shape'][]?][] = [
   [/cloak/, 'cloak'],
   [/\bkey\b/, 'key'],
   [/crock|\bjars?\b|\bjug\b|\bjam\b|preserve|pickle|honey/, 'jar'],
-  [/tonic|draught|spirit|\brum\b|wine|cordial|\bale\b|cider|\bdye\b|lamp oil|brandy|mead|callis (red|white)|corlett/, 'bottle', ['gel', 'bread']],
+  [/\bdye\b/, 'dye', ['gel']],
+  [/tonic|draught|spirit|\brum\b|wine|cordial|\bale\b|cider|lamp oil|brandy|mead|callis (red|white)|corlett/, 'bottle', ['gel', 'bread']],
   [/\bpie\b|pasty|tart\b|\bpies\b/, 'pie'],
   [/berr/, 'berries'],
   [/\beggs?\b/, 'egg', ['bread', 'gel']],
@@ -473,7 +496,8 @@ export function itemIcon(id: string): string {
     const def = ITEMS[id];
     // Gear is drawn from its own model; everything else is painted
     const real = def?.weapon?.model ? weaponIcon(def.weapon.model) : def?.trinket?.model ? offhandIcon(def.trinket.model) : def?.armor?.look && def.armor.slot !== 'hands' ? armourIcon(def.armor.slot, def.armor.look) : null; // (gloves are a speck on a figure: painted)
-    url = real ?? paint(def ? refine(def) : { shape: 'coin', a: '#888888' });
+    // (a horse is drawn as its own head, in its coat, with its halter's cloth)
+    url = real ?? paint(def?.mount ? { shape: 'horse', a: def.mount.coat, b: def.mount.cloth ?? def.icon.b } : def ? refine(def) : { shape: 'coin', a: '#888888' });
     cache.set(id, url);
   }
   return url;

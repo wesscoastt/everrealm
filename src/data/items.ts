@@ -14,7 +14,9 @@ export interface IconSpec {
     /** Jewellery: a ring (b: the gem, if it has one), a pendant on a chain (b: the stone), earrings (b: a drop). */
     | 'ring' | 'pendant' | 'earring' | 'hoops' | 'studs'
     /** Things with their own look (ui/icons.ts refine() picks these by name where an item still has a stand-in shape). */
-    | 'book' | 'scroll' | 'map' | 'bottle' | 'jar' | 'berries' | 'egg' | 'pie' | 'veg' | 'sheaf' | 'gem' | 'key' | 'cloak' | 'chair' | 'block';
+    | 'book' | 'scroll' | 'map' | 'bottle' | 'jar' | 'berries' | 'egg' | 'pie' | 'veg' | 'sheaf' | 'gem' | 'key' | 'cloak' | 'chair' | 'block'
+    /** A horse's head in its coat (b: the halter's cloth), for a horse; a skein in a dye pot, for a dye. */
+    | 'horse' | 'dye';
   a: string;
   b?: string;
 }
