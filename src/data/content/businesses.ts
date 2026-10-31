@@ -1,4 +1,6 @@
-import type { DialogueTree } from '../../game/api';
+import type { DialogueTree, GameApi } from '../../game/api';
+import { utcDay } from '../calendar';
+import { PARTNER_PRICE, shareOwed, STAKE_TIERS, stakeOf } from '../stakes';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
@@ -35,14 +37,51 @@ const npcs: NpcDef[] = BUSINESSES.map((b) => {
   return { id: b.keeper.id, name: b.keeper.name, title: b.keeper.title, look: b.keeper.look, schedule: [{ from: 0, to: 24, at, face, anim: 'idle' }], barks: [] };
 });
 
-/** A keeper's conversation: their greeting, the place, and the shop. */
-const talk = (shop: string, hello: string, about: string): DialogueTree => ({
-  start: () => 'hello',
-  nodes: {
-    hello: { text: hello, options: [{ text: 'What do you sell?', effect: (g) => g.openShop(shop) }, { text: 'Tell me about this place.', next: 'about' }, { text: 'Good day.' }] },
-    about: { text: about, options: [{ text: 'What do you sell?', effect: (g) => g.openShop(shop) }, { text: 'Good day.' }] },
-  },
-});
+/** A keeper's conversation: their greeting, the place, the shop, and a stake in it (data/stakes.ts). */
+const talk = (shop: string, hello: string, about: string): DialogueTree => {
+  const stake = (g: GameApi) => stakeOf(g.flag('stake:' + shop));
+  const put = (tier: number) => (g: GameApi) => {
+    const had = stake(g), cost = STAKE_TIERS[tier] - (had ? STAKE_TIERS[had.tier] : 0);
+    if (g.marks < cost) { g.toast(`That's ${cost} marks.`); return; }
+    // (what's already put by is paid out first, so raising a stake never loses a share)
+    if (had) { const owed = shareOwed(had); if (owed) g.addMarks(owed); }
+    g.addMarks(-cost);
+    g.setFlag('stake:' + shop, { tier, day: utcDay() });
+    g.toast(`A partner in the place: ${STAKE_TIERS[tier]} marks in. Your share is put by every day.`);
+  };
+  return {
+    start: () => 'hello',
+    nodes: {
+      hello: { text: hello, options: [
+        { text: 'What do you sell?', effect: (g) => g.openShop(shop) },
+        { text: 'Tell me about this place.', next: 'about' },
+        { text: 'I\'d put money into the place.', cond: (g) => !stake(g), next: 'stake' },
+        { text: 'My share?', cond: (g) => !!stake(g), next: 'share' },
+        { text: 'Good day.' },
+      ] },
+      about: { text: about, options: [{ text: 'What do you sell?', effect: (g) => g.openShop(shop) }, { text: 'Good day.' }] },
+      stake: {
+        text: `A partner? It's been a long year and a short harvest. ${STAKE_TIERS[0]} marks buys a share of what we take. ${STAKE_TIERS[1]}, a bigger one. ${STAKE_TIERS[2]} and you're as good as family. You'll have your share put by every day, and the family price at the counter.`,
+        options: [
+          ...STAKE_TIERS.map((n, tier) => ({ text: `${n} marks.`, cond: (g: GameApi) => g.marks >= n, effect: put(tier), next: 'thanks' })),
+          { text: 'Let me think about it.' },
+        ],
+      },
+      thanks: { text: 'Then shake on it. I\'ll keep your share in the tin under the counter. Nobody looks there but me.' },
+      share: {
+        text: (g) => {
+          const s = stake(g)!, owed = shareOwed(s);
+          return owed ? `${owed} marks put by since you were last here. Count it.` : 'Nothing put by yet. Come back tomorrow; the takings come in by the day.';
+        },
+        options: [
+          { text: 'Thank you.', cond: (g) => shareOwed(stake(g)!) > 0, effect: (g) => { const s = stake(g)!, owed = shareOwed(s); g.addMarks(owed); g.setFlag('stake:' + shop, { ...s, day: utcDay() }); } },
+          ...STAKE_TIERS.map((n, tier) => ({ text: `Put more in: make it ${n} marks.`, cond: (g: GameApi) => { const s = stake(g); return !!s && tier === s.tier + 1 && g.marks >= n - STAKE_TIERS[s.tier]; }, effect: put(tier), next: 'thanks' })),
+          { text: 'Good day.' },
+        ],
+      },
+    },
+  };
+};
 
 const LINES: Record<string, [string, string]> = {
   biz_hester: [
@@ -98,7 +137,8 @@ const STOCK: Record<string, { name: string; stock: { item: string; price: number
 const shops: Record<string, ShopDef> = {};
 for (const b of BUSINESSES) {
   const st = STOCK[b.keeper.id];
-  shops[b.keeper.id] = { id: b.keeper.id, name: st.name, owner: b.keeper.id, stock: st.stock, buyRate: (_g, item) => st.buyRate?.(item) ?? 0.5, footer: () => st.footer } as ShopDef;
+  // (a partner pays the family price: data/stakes.ts)
+  shops[b.keeper.id] = { id: b.keeper.id, name: st.name, owner: b.keeper.id, stock: st.stock, buyRate: (_g, item) => st.buyRate?.(item) ?? 0.5, priceMult: (g) => { const s = stakeOf(g.flag('stake:' + b.keeper.id)); return s ? PARTNER_PRICE[s.tier] : 1; }, footer: () => st.footer } as ShopDef;
 }
 
 export const BUSINESS_CONTENT: RegionContent = {

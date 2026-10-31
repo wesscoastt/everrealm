@@ -7,6 +7,7 @@
 import { CALLINGS, CallingId, chosenUtilities, elitesOf, type SkillDef, TUNE as BASE } from '../src/data/classes';
 import { LINE_SKILLS, lineSkill } from '../src/data/skillLines';
 import { fullTree, TREES, tuned, type Tune } from '../src/data/talents';
+import { PAYBACK_DAYS, shareOwed, STAKE_TIERS } from '../src/data/stakes';
 import { applyRank, MORPHS } from '../src/data/skillpoints';
 import { CALLING_POOL, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../src/data/combat';
 
@@ -540,4 +541,7 @@ for (const ls of LINE_SKILLS) {
   if (worst.off > 0.12) { console.log(`  ${ls.name} with ${worst.calling} is ${(worst.off * 100).toFixed(0)}% over its own bars`); lbad++; }
 }
 console.log(lbad ? `${lbad} line skill balance problem(s)` : 'Line skills balanced: none more than 12% over any calling\'s own bars');
-process.exit(bad || tbad || bbad || mbad || ebad || lbad ? 1 : 0);
+// ---- A stake in a trade (data/stakes.ts): no stake pays itself back in under three weeks
+const sbad = STAKE_TIERS.some((n, tier) => { const perDay = shareOwed({ tier, day: 0 }, 1); return perDay > 0 && n / perDay < 21; });
+console.log(sbad ? 'A stake pays back in under three weeks' : `Stakes pay back in ${PAYBACK_DAYS} days: fine`);
+process.exit(bad || tbad || bbad || mbad || ebad || lbad || sbad ? 1 : 0);
