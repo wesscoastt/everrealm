@@ -44,10 +44,12 @@ export const AFFIXES: Record<string, { word: string; weapon?: WTrait; armour?: A
 // one. Three strengths. An enchanted piece reads a rarity higher, carries the enchantment's name ("of
 // Flame"), and is worth more. Its id carries it after the roll: "iron_sword__keen2_flame2".
 export const ENCHANTS: Record<string, { word: string; kind: 'weapon' | 'armour'; text: (tier: number) => string }> = {
-  flame: { word: 'Flame', kind: 'weapon', text: (k) => `Blows burn for ${[6, 9, 12][k - 1]}% of the blow each second for three seconds.` },
-  frost: { word: 'Frost', kind: 'weapon', text: (k) => `One blow in ${[5, 4, 3][k - 1]} chills the foe to two thirds of its pace for three seconds.` },
+  flame: { word: 'Flame', kind: 'weapon', text: (k) => `Fire: its blows are of fire. Blows burn for ${[6, 9, 12][k - 1]}% of the blow each second for three seconds.` },
+  frost: { word: 'Frost', kind: 'weapon', text: (k) => `Water: its blows are of water. One blow in ${[5, 4, 3][k - 1]} chills the foe to two thirds of its pace for three seconds.` },
   leech: { word: 'Leeching', kind: 'weapon', text: (k) => `Blows heal you ${[2, 3, 4][k - 1]}% of the damage they do.` },
-  storm: { word: 'Storm', kind: 'weapon', text: (k) => `One blow in eight brings lightning down on the foe, for ${[30, 45, 60][k - 1]}% of it again.` },
+  storm: { word: 'Storm', kind: 'weapon', text: (k) => `Thunder: its blows are of thunder. One blow in eight brings lightning down on the foe, for ${[30, 45, 60][k - 1]}% of it again.` },
+  stone: { word: 'Stone', kind: 'weapon', text: (k) => `Earth: its blows are of earth. One blow in ${[7, 6, 5][k - 1]} lands like a dropped millstone and staggers the foe.` },
+  gale: { word: 'the Gale', kind: 'weapon', text: (k) => `Air: its blows are of air. One blow in ${[6, 5, 4][k - 1]} throws the foe back on a gust.` },
   warding: { word: 'Warding', kind: 'armour', text: (k) => `Maximum health +${[15, 25, 35][k - 1]}.` },
   vigour: { word: 'Vigour', kind: 'armour', text: (k) => `Energy comes back ${[5, 8, 11][k - 1]}% faster.` },
   thorns: { word: 'Thorns', kind: 'armour', text: (k) => `Whatever strikes you takes ${[6, 9, 12][k - 1]}% of the blow back.` },

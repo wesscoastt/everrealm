@@ -116,6 +116,7 @@ import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
+import { BEATEN_BY, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, type Element } from '../data/elements';
 import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
@@ -5819,6 +5820,9 @@ export class Game implements GameApi {
     if (this.target === e) this.target = null;
   }
 
+  /** The element of the weapon in hand, from its enchantment (data/elements.ts), or none. */
+  weaponElement(): Element | null { const en = ITEMS[this.save.equip.weapon ?? '']?.enchant; return en ? ENCHANT_ELEMENT[en.id] ?? null : null; }
+  private elementSaid = -9;
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
   private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false): number {
     if (!e.alive) return 0;
@@ -5830,7 +5834,10 @@ export class Game implements GameApi {
     const flank = (this.gearSet === 'oldman' && this.dungeons.onSomeoneElse(e) ? 1.1 : 1) * (e.exposedLeft > 0 ? 1 + EXPOSED : 1);
     // A guard's shield, if you're in front of it: most of the blow is turned (go round it, or stun it)
     const guarded = e.guarding(this.player.position);
-    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw, quiet) * (crit ? 1.6 : 1) * flank * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
+    // The element in the blow (the weapon's enchantment) against the foe's own (data/elements.ts)
+    const elMult = elementMult(this.weaponElement(), foeElement(e.def.type));
+    const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw, quiet) * (crit ? 1.6 : 1) * flank * elMult * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
+    if (!quiet && elMult !== 1 && this.elapsed - this.elementSaid > 1.5) { this.elementSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.9, elMult > 1 ? 'Weak!' : 'Resisted', elMult > 1 ? 'crit' : 'dodge'); }
     if (guarded && !quiet && this.elapsed - this.guardSaid > 1.2) { this.guardSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.6, 'Guarded', 'dodge'); this.sfx('hitHeavy', 0.4); }
     const landed = this.activities.beforeHit(e, dmg);
     e.takeDamage(landed, this.player.position, this.elapsed);
@@ -5861,6 +5868,8 @@ export class Game implements GameApi {
         if (en.id === 'flame') this.kit.addDot(e, dmg * [0.06, 0.09, 0.12][k], 3);
         else if (en.id === 'frost' && Math.random() < [0.2, 0.25, 0.33][k]) { e.slowLeft = 3; this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), 6, '#c8f4ff'); }
         else if (en.id === 'leech') this.healSelf(dmg * [0.02, 0.03, 0.04][k]);
+        else if (en.id === 'stone' && Math.random() < 1 / [7, 6, 5][k]) { e.stun = Math.max(e.stun, 0.5); this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 0.6), 10, '#b8c890'); }
+        else if (en.id === 'gale' && Math.random() < 1 / [6, 5, 4][k]) { const away = tmpV2.copy(e.pos).sub(this.player.position).setY(0); if (away.lengthSq() > 0.01) e.knock.addScaledVector(away.normalize(), 6); this.particles.sparks(tmpV.copy(e.pos).setY(e.pos.y + 1), 10, '#e8f4ff'); }
         else if (en.id === 'storm' && Math.random() < 0.125 && !this.chaining) { this.chaining = true; this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 1.4), 16, '#d8d0ff'); this.dealDamage(e, raw * [0.3, 0.45, 0.6][k], false, true); this.chaining = false; }
       }
       if (fx.has('chill')) e.slowLeft = 3;
@@ -7534,7 +7543,8 @@ export class Game implements GameApi {
     if (this.target && (!this.target.alive || this.target.pos.distanceTo(this.player.position) > 48)) this.target = null;
     const t = this.target;
     // (a boss you've targeted is on the boss bar already, with its cast and stagger: the frame steps aside)
-    this.hud.setTarget(t && t !== boss ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite, cast: t.casting } : null);
+    const tel = t ? foeElement(t.def.type) : null;
+    this.hud.setTarget(t && t !== boss ? { name: t.name, level: t.def.level, hp: t.hp, max: t.def.hp, elite: t.def.elite, cast: t.casting, element: tel ? { ...ELEMENTS[tel], weak: ELEMENTS[BEATEN_BY[tel]].name, weakColor: ELEMENTS[BEATEN_BY[tel]].color } : null } : null);
     const foodCount = this.save.inv.reduce((s, st) => s + (st && ITEMS[st.id].heal ? st.n : 0), 0);
     const L = this.level('melee');
     const lock = <T extends object>(c: T, i: number): T & { locked?: number } => (L < UNLOCK_AT[i] ? { ...c, locked: UNLOCK_AT[i] } : c);

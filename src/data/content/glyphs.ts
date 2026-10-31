@@ -9,10 +9,12 @@ import type { RegionContent } from './types';
 
 const COLOURS: Record<string, [string, string]> = {
   flame: ['#e8642a', '#ffd070'], frost: ['#7fd0f0', '#e8f8ff'], leech: ['#a8243a', '#f0a0b0'], storm: ['#a890ff', '#f0f0ff'],
+  stone: ['#8a9a5a', '#d8e0b0'], gale: ['#c8dce8', '#ffffff'],
   warding: ['#d8b050', '#fff0c0'], vigour: ['#5fbf6a', '#d0f0c0'], thorns: ['#5a7a3a', '#c8d890'], swift: ['#5fd0e6', '#e0f8ff'],
 };
 const LINES: Record<string, string> = {
   flame: 'Warm to hold, and warmer in the dark.', frost: 'There is always a little rime in the cut.', leech: 'The cut is stained, and stays stained.', storm: 'Your hair stands up when you pick it up.',
+  stone: 'Heavier than it looks, and cold.', gale: 'There is a draught round it, even indoors.',
   warding: 'Heavy for its size, and steady.', vigour: 'It smells of cut grass.', thorns: 'The edges are sharp no matter how you hold it.', swift: 'It never quite sits still in the hand.',
 };
 

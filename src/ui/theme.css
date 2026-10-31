@@ -274,3 +274,7 @@
 #tooltip .cmp-up { color: #7fe07a; font-style: normal; margin-left: 4px; }
 #tooltip .cmp-down { color: #ff7a6a; font-style: normal; margin-left: 4px; }
 #tooltip .cmp-same { color: var(--muted); margin-left: 4px; }
+
+/* A foe's element on the target frame (data/elements.ts) */
+#target-frame .tel { display: block; font: 600 11px var(--body); color: var(--muted); margin-top: 1px; }
+#target-frame .tel:empty { display: none; }

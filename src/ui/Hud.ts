@@ -475,7 +475,7 @@ export class Hud {
 
     const tf = el('div', 'unit frame hud-only');
     tf.id = 'target-frame';
-    tf.innerHTML = `<div class="portrait"><span class="tl">3</span></div><div class="info"><div class="name"><span class="tn"></span><small class="ts"></small></div><div class="bar hp"><i class="fill"></i><b></b></div><div class="castbar"><i></i><b></b></div></div>`;
+    tf.innerHTML = `<div class="portrait"><span class="tl">3</span></div><div class="info"><div class="name"><span class="tn"></span><small class="ts"></small><small class="tel"></small></div><div class="bar hp"><i class="fill"></i><b></b></div><div class="castbar"><i></i><b></b></div></div>`;
     r.append(tf);
 
     const boss = el('div', 'hud-only'); boss.id = 'bossbar';
@@ -624,7 +624,7 @@ export class Hud {
     bar.lastElementChild!.textContent = c.breakable ? c.label + ' · stun to break' : c.label;
   }
 
-  setTarget(t: { name: string; level: number; hp: number; max: number; elite?: boolean; friendly?: boolean; sub?: string; cast?: { label: string; k: number; breakable: boolean } | null } | null): void {
+  setTarget(t: { name: string; level: number; hp: number; max: number; elite?: boolean; friendly?: boolean; sub?: string; cast?: { label: string; k: number; breakable: boolean } | null; element?: { name: string; color: string; glyph: string; weak: string; weakColor: string } | null } | null): void {
     const f = this.q('#target-frame');
     if (!t) { f.classList.remove('show'); return; }
     f.classList.add('show');
@@ -633,6 +633,9 @@ export class Hud {
     this.q('#target-frame .tn').textContent = t.name;
     this.q('#target-frame .ts').textContent = t.sub ?? (t.elite ? 'Elite' : '');
     this.q('#target-frame .tl').textContent = t.friendly ? '' : String(t.level);
+    // Its element and what beats it (data/elements.ts)
+    const tel = this.q('#target-frame .tel');
+    tel.innerHTML = t.element ? `<span style="color:${t.element.color}">${t.element.glyph} ${t.element.name}</span> · weak to <span style="color:${t.element.weakColor}">${t.element.weak}</span>` : '';
     (this.q('#target-frame .fill') as HTMLElement).style.width = (t.hp / t.max) * 100 + '%';
     this.q('#target-frame .bar b').textContent = t.friendly ? '' : `${Math.ceil(t.hp)} / ${t.max}`;
     this.fillCast(this.q('#target-frame .castbar'), t.cast);
