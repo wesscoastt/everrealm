@@ -1911,6 +1911,45 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.5, 0.3, 0.03), flat('#c8a050'), 0, 0.35, 0.47));
       break;
     }
+    case 'conchhorn': {
+      // A driftwood post and arm, a great conch hung from it on a rope, its point cut for a mouthpiece
+      const drift = flat('#a89a84'), shell = flat('#f0dcc4'), pink = flat('#e8a898');
+      g.add(mesh(box(0.16, 2.3, 0.16), drift, 0, 1.15, 0, 0, 0.03));
+      g.add(mesh(box(0.9, 0.12, 0.12), drift, 0.35, 2.2, 0));
+      g.add(mesh(box(0.02, 0.4, 0.02), flat('#8a7a5a'), 0.7, 1.95, 0));                    // the rope
+      const c = new THREE.Group(); c.position.set(0.7, 1.62, 0); c.rotation.set(0.2, 0.4, -0.5); g.add(c);
+      for (const [x, w] of [[-0.18, 0.28], [-0.04, 0.24], [0.08, 0.18], [0.18, 0.12], [0.26, 0.07]] as const) c.add(mesh(box(0.14, w, w), shell, x, 0, 0));
+      c.add(mesh(box(0.06, 0.22, 0.2), pink, -0.27, 0.0, 0.0));                             // the pink of its lip
+      for (let i = 0; i < 4; i++) c.add(mesh(box(0.025, 0.03, 0.26 - i * 0.04), flat('#c8a888'), -0.12 + i * 0.1, 0.12 - i * 0.02, 0));  // the spiral's ridges
+      break;
+    }
+    case 'countshelf': {
+      // A little roofed shelf on its post, forty-one waxed count-books in a row
+      const wood = flat('#8a7656'), roof = flat('#6a5a42');
+      g.add(mesh(box(0.12, 1.3, 0.12), wood, 0, 0.65, -0.1));
+      g.add(mesh(box(1.3, 0.06, 0.32), wood, 0, 1.3, 0));
+      for (const x of [-0.63, 0.63]) g.add(mesh(box(0.05, 0.42, 0.32), wood, x, 1.52, 0));
+      g.add(mesh(box(1.3, 0.05, 0.32), wood, 0, 1.74, 0));
+      for (const sd of [1, -1]) { const r = mesh(box(1.42, 0.05, 0.26), roof, 0, 1.88, sd * 0.1); r.rotation.x = sd * 0.5; g.add(r); }
+      const spines = ['#7a3a2a', '#3a4a6a', '#5a6a3a', '#8a6a3a', '#4a3a2a', '#6a2a3a'];
+      for (let i = 0; i < 41; i++) {
+        const h = 0.26 + ((i * 7) % 5) * 0.025, x = -0.58 + i * 0.029;
+        g.add(mesh(box(0.024, h, 0.22), flat(i === 0 ? '#a89070' : spines[(i * 5) % 6]), x, 1.33 + h / 2, 0.01));
+      }
+      break;
+    }
+    case 'turtleshell': {
+      // A great turtle's shell propped on stones above the tide, one side up for a door, its plates worn
+      const plate = flat('#5a5a46'), seam = flat('#3a3a2c'), pale = flat('#8a8a6a');
+      const sh = new THREE.Group(); sh.position.set(0, 0.45, 0); sh.rotation.z = 0.18; g.add(sh);
+      for (const [y, w, d] of [[0.0, 2.8, 2.2], [0.22, 2.5, 1.9], [0.42, 2.0, 1.5], [0.58, 1.3, 1.0]] as const) sh.add(mesh(box(w, 0.24, d), plate, 0, y, 0));
+      for (const [x, z] of [[0, 0], [-0.6, 0], [0.6, 0], [-0.3, 0.5], [0.3, 0.5], [-0.3, -0.5], [0.3, -0.5]] as const) sh.add(mesh(box(0.5, 0.04, 0.42), pale, x, 0.71 - Math.abs(x) * 0.25 - Math.abs(z) * 0.2, z));
+      for (const x of [-0.9, -0.3, 0.3, 0.9]) sh.add(mesh(box(0.03, 0.26, 2.0), seam, x, 0.3, 0));
+      sh.add(mesh(box(2.82, 0.08, 2.22), seam, 0, -0.14, 0));                             // the rim
+      for (const [x, z, s] of [[-1.1, -0.7, 0.5], [-1.1, 0.7, 0.45], [1.15, 0, 0.75]] as const) g.add(mesh(box(s, s, s), M.stone, x, s / 2, z, x));
+      g.add(mesh(box(0.06, 0.5, 1.2), flat('#141210'), 1.38, 0.55, 0));                   // the dark under its raised side
+      break;
+    }
     case 'tilewall': {
       // A low whitewashed wall faced with painted tiles, blue on white, black-cornered for the lost boats
       g.add(mesh(box(3.2, 1.3, 0.4), flat('#f2eee4'), 0, 0.65, 0));
@@ -1927,9 +1966,11 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
     }
     case 'redrock': {
       // A red boulder up through the paving, its top worn smooth, an iron ring in its side
-      const red = flat('#a84030'), dk = flat('#7a2a20');
-      for (const [x, y, z, w, h, d, ry] of [[0, 0.5, 0, 1.9, 1.2, 1.6, 0], [0.2, 1.2, -0.1, 1.4, 0.6, 1.2, 0.4], [-0.6, 0.35, 0.5, 0.9, 0.7, 0.8, 0.9], [0.7, 0.3, 0.6, 0.7, 0.5, 0.6, 0.3]] as const) g.add(mesh(box(w, h, d), ry ? dk : red, x, y, z, ry));
-      g.add(mesh(box(1.0, 0.04, 0.8), flat('#c86a52'), 0.2, 1.51, -0.1, 0.4));                                            // worn smooth
+      // (weathered sandstone red, in lumps and ledges, darker in its cracks)
+      const red = flat('#9a4836'), dk = flat('#6e2e24'), lt = flat('#b0604a');
+      for (const [x, y, z, w, h, d, ry, rz, c] of [[0, 0.45, 0, 1.9, 1.0, 1.6, 0, 0.04, red], [0.2, 1.1, -0.1, 1.4, 0.55, 1.2, 0.4, -0.06, lt], [-0.6, 0.35, 0.5, 0.9, 0.7, 0.8, 0.9, 0.1, dk], [0.7, 0.3, 0.6, 0.7, 0.5, 0.6, 0.3, -0.08, red], [-0.7, 0.75, -0.45, 0.7, 0.6, 0.6, 1.3, 0.12, lt], [0.85, 0.7, -0.5, 0.5, 0.5, 0.5, 0.6, 0, dk], [-0.1, 1.42, 0.2, 0.6, 0.3, 0.5, 0.2, 0.1, red]] as const) g.add(mesh(box(w, h, d), c, x, y, z, ry, 0, rz));
+      for (const [x, z, ry] of [[-0.2, 0.81, 0.2], [0.5, -0.81, 0.5], [-0.96, 0.1, 1.4]] as const) g.add(mesh(box(0.5, 0.03, 0.02), flat('#4a1e18'), x, 0.6, z, ry));  // cracks
+      g.add(mesh(box(1.0, 0.04, 0.8), flat('#c47a62'), 0.2, 1.39, -0.1, 0.4));                                            // worn smooth
       g.add(mesh(box(0.06, 0.26, 0.26), flat('#3a3a3e'), 0.96, 0.6, 0.0));                                                // the ring
       g.add(mesh(box(0.06, 0.16, 0.16), red, 0.97, 0.6, 0.0));
       break;
@@ -1958,6 +1999,7 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       // A black bog-oak trunk up through the deck, studded thick with nails below the rail, the newest bright
       const oak = flat('#1e1a16');
       g.add(mesh(box(0.6, 3.4, 0.6), oak, 0, 1.7, 0));
+      g.add(mesh(box(0.66, 8, 0.66), oak, 0, -4, 0));                                         // on down through the deck into the marsh
       g.add(mesh(box(0.42, 0.5, 0.42), oak, 0.05, 3.6, 0, 0.3, 0.1));
       g.add(mesh(box(0.3, 0.12, 0.7), oak, 0.1, 2.9, 0.4, 0, 0.4));            // a stub of a branch
       for (let i = 0; i < 70; i++) {

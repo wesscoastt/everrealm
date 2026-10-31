@@ -16,11 +16,12 @@ export type MonumentModel =
   | 'boundstone' | 'assemblynotice' | 'doorstep'
   | 'longseat' | 'heightmarks' | 'findingpost'
   | 'bogoak' | 'chalklizard' | 'floodpunt'
-  | 'tilewall' | 'redrock' | 'fishrack';
+  | 'tilewall' | 'redrock' | 'fishrack'
+  | 'conchhorn' | 'countshelf' | 'turtleshell';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater' | 'cala';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater' | 'cala' | 'conch';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -32,6 +33,19 @@ export interface Monument {
 }
 
 export const MONUMENTS: Monument[] = [
+  // ---------------------------------------------------------------- Conch Key (world/sites.ts buildConch: x and z from the crossing, facing)
+  {
+    id: 'ckhorn', town: 'conch', at: [2.5, 18.5, 0], model: 'conchhorn', title: 'The turtle horn',
+    body: 'A conch shell the size of a man\'s head, hung on a post above the beach with a rope through it, its point cut off for a mouthpiece.\n\nWhen the sand starts to move on a nest, whoever sees it blows one long note, and everybody on Conch Key stops what they\'re doing and comes down with a lantern to keep the gulls and the crabs off.\n\nThree short notes is a boat in trouble. It hasn\'t been blown that way in eleven years.',
+  },
+  {
+    id: 'ckbooks', town: 'conch', at: [4.5, 9.5, Math.PI], model: 'countshelf', title: 'Sal\'s books',
+    body: 'A shelf with a little roof of its own, nailed up beside Sal Mudge\'s door out of the rain. Forty-one count-books stand on it in a row, waxed against the damp, one for every year she has watched the beach.\n\nThe first is in a child\'s handwriting. She was nine.\n\nEach spine has the year on it and a number. Most of the numbers are over fifty.',
+  },
+  {
+    id: 'ckshell', town: 'conch', at: [-12, 24, 0.5], model: 'turtleshell', title: 'The big shell',
+    body: 'The shell of a turtle bigger than a rowing boat, propped up on stones above the tide line. She came up the beach to die sixty years ago, and the key left her shell where she lay.\n\nThe children use it for a den.\n\nEvery captain on the Keys says they rode Old Shell as a child. On Conch Key they will tell you this was his mother.',
+  },
   // ---------------------------------------------------------------- Cala Roja (world/sites.ts buildCala: x from the quay's edge, z from the town's middle, facing)
   {
     id: 'crtiles', town: 'cala', at: [-6.2, -7, Math.PI / 2], model: 'tilewall', title: 'The boat tiles',
