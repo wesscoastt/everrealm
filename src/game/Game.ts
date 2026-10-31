@@ -1625,7 +1625,7 @@ export class Game implements GameApi {
   towerClimbing(): boolean { return !!this.tower.run; }
   /** An infirmary's physician sees to you (data/infirmary.ts): every harm off, and full health. */
   treat(): string | null {
-    if (this.harms.size === 0 && this.hp >= this.maxHp) return 'There\'s nothing wrong with you that the Spital can mend.';
+    if (this.harms.size === 0 && this.hp >= this.maxHp) return 'There\'s nothing wrong with you that wants mending.';
     const free = this.save.marks < POOR;
     if (!free && this.save.marks < TREAT_COST) return `Treatment is ${TREAT_COST} marks.`;
     if (!free) this.save.marks -= TREAT_COST;

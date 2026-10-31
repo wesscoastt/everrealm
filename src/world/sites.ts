@@ -5422,6 +5422,20 @@ export function plan(): Plan {
     // The Works' own set pieces (data/monuments.ts): the company sign over the south gate, Pryce's price
     // board by his trestle, the cracked flywheel leaned on the store's east wall
     placeMonuments(s, 'harrowgate', cx, () => base);
+    // The Works' sick bay (data/infirmary.ts) in the yard's south-west corner: a small stone ward, two
+    // beds heads to the west wall, a bench at the foot of one, the doctor's desk, the dresser's shelf
+    {
+      const x0 = cx - 28, z0 = cz + 16, y = base;
+      stoneHall(s, x0, z0, 12, 7, 6, base, 'e');
+      s.props.push({ t: 'roof', x: x0 + 6, y: base + 6, z: z0 + 3.5, len: 12, span: 7, rise: roofRise(7), ry: 0, mat: 'slate' });
+      const F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+      for (const bz of [z0 + 1.8, z0 + 4.4]) F('bed', x0 + 2.3, bz, Math.PI / 2);
+      s.props.push({ t: 'furn', item: 'bench', x: x0 + 4.0, y, z: z0 + 1.8, ry: Math.PI / 2, sat: true });
+      F('desk', x0 + 6.5, z0 + 5.3, Math.PI); F('letters', x0 + 6.5, z0 + 5.3, 0, 2, y + 1.02);
+      F('shelves', x0 + 9.4, z0 + 5.5, Math.PI, 2); F('crocks', x0 + 9.8, z0 + 1.4, 0); F('candles', x0 + 1.4, z0 + 3.1, 0);
+      F('lamp', x0 + 6, z0 + 3.5, 0, 0, y + 4.2);
+      s.props.push({ t: 'sign', x: x0 + 13.4, y, z: z0 + 0.6, ry: -Math.PI / 2, text: 'Sick Bay' }, { t: 'lantern', x: x0 + 13.3, y, z: z0 + 5.6 });
+    }
     s.props.push({ t: 'anvil', x: cx + 13, y: base, z: cz - 4 }, { t: 'sign', x: cx - 3, y: base, z: cz + 27, text: 'Harrowgate &\nDaughters' });
     rect(s, cx - 32, cz - 26, cx + 32, cz + 26);
     harrowgateExtras(s, base);

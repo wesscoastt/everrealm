@@ -160,6 +160,10 @@ The Charter's own sea trade, chartered by the Speaker forty years ago to carry t
 
 Ansbury's infirmary, on the main street at its west end with Tanners' Row behind: one long stone ward under a red roof, five beds, the physician's desk at one end and the still-room at the other. **Hesper Galloway**, physician, cures every harm and mends you for eight marks (nothing if you've under twenty: the Charter pays), and will keep a bed for you: fall anywhere in the Counties and you're carried there and wake mended, instead of the square at Hollin Ford. **Kitty Rudge**, nurse, keeps the still-room (bandages, draughts). On the ward: **Oswin Pardew**, carter, his leg broken under his own wheel at the Toll Office; **Effie Tregarthen**, laundress, scalded at the Weighhouse wash-house; **Tobit Hawes**, old soldier, a cough since the winter that he says is nothing (`src/data/infirmary.ts`, `src/data/content/infirmary.ts`).
 
+### The Works' sick bay [in game]
+
+A small stone ward in the south-west corner of Harrowgate Works' yard, the only building the Company put up in stone, after the fire. **Cuthbert Fane**, company doctor, treats for the sick-club box and keeps a bed like the Spital's; **Hepsie Corbin**, dresser, keeps the shelf. On the ward: **Lemuel Sawle**, hewer, his hand crushed by a fall of roof in No. 1 Drift; the Rules of the Works pay half for a fall once the Company is satisfied it wasn't his fault, and Pryce has had the prop sawn up for firewood.
+
 ## The bell bronze, start to finish [in game]
 
 The thread that ties the first four quests together. Every step is something the player can read or be told.

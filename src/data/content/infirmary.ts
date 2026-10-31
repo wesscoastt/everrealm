@@ -1,5 +1,5 @@
 import type { DialogueTree, GameApi } from '../../game/api';
-import { INFIRMARIES, POOR, TREAT_COST, type Infirmary } from '../infirmary';
+import { INFIRMARIES, POOR, type Infirmary } from '../infirmary';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
@@ -33,7 +33,7 @@ function physicianTree(i: Infirmary): DialogueTree {
         ],
       },
       treat: {
-        text: (g) => (g.marks < POOR ? 'Sit. The Charter pays for this one, and the Charter will never know it did.' : `Sit. ${TREAT_COST} marks for the Spital's box, and I'll have whatever's on you off you.`),
+        text: (g) => (g.marks < POOR ? i.physician.free : i.physician.paid),
         options: [
           { text: 'Go on.', effect: (g) => { const why = g.treat(); if (why) g.toast(why); } },
           { text: 'Not now.' },
@@ -67,7 +67,7 @@ function nurseTree(i: Infirmary): DialogueTree {
           { text: 'Good day.' },
         ],
       },
-      ward: { text: 'Mending, the two young ones. The old soldier coughs all night and says it\'s nothing. It isn\'t nothing. Don\'t tell him I said so.', next: 'hello' },
+      ward: { text: i.nurse.ward, next: 'hello' },
     },
   };
 }
