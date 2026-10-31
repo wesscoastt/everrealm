@@ -59,6 +59,7 @@ owner is watching), `npm run balance`, `npm run quests` and `npm run sites` clea
     region's spawn table for variety (owner 2026-10-23: "a large variety of mobs, MMO-style").
 12. **Sound**: ambience layers per region, footsteps by ground, combat and UI sounds (pass 1 done:
     surf).
+12b. DONE 2026-10-30 (first part) **Lots of skills to unlock and choose** (owner 2026-10-30): six skill lines anyone can learn beside the calling's own, thirty skills, each opening at its level, bought with a point, in keys 6 and 7 (docs/COMBAT.md). Next: morphs for them, a second batch of lines (crafting and region lines), passives per line.
 13. **Combat gaps**: called foes and boss adds shared between players; the balance sim fights the new
     foe kinds.
 14. **Lantern Wake**: GW2-style festival minigames (later).

@@ -181,6 +181,8 @@ export interface SkillsView {
   pool: { total: number; left: number; insight: number; skills: number; morphs: number; talents: number };
   temple: boolean; respec: number;
   calling: SkillCard[]; utilities: SkillCard[]; weapons: SkillCard[];
+  /** The realm's skill lines (data/skillLines.ts): open or not, and how they open. */
+  lines: { id: string; name: string; blurb: string; opensWhen: string; open: boolean; skills: SkillCard[] }[];
 }
 
 /** The talent screen's view of a calling's trees (game/Game.ts talentView). */
@@ -1904,7 +1906,12 @@ export class Hud {
       return `<div class="sk-card ${state}"><img src="${abilityIcon(k.icon)}" alt=""><div><b>${esc(k.name)}</b>${k.morph ? `<small class="sk-was">${esc(k.base)}</small>` : ''}<small>${esc(k.kind)}${k.free ? ' · comes with the weapon' : ''}</small><p>${esc(k.desc)}</p>${rank}${act}</div></div>`;
     };
     const col = (title: string, list: SkillCard[]) => `<section class="sk-col"><h4>${title}</h4>${list.map(card).join('')}</section>`;
-    return `<div class="sk-page">${col('Your calling', sv.calling)}${col('Utilities', sv.utilities)}${col('Weapon skills', sv.weapons)}</div>`;
+    // The realm's lines below: anyone's to learn, whatever their calling; each skill goes in key 6 or 7
+    const open = sv.lines.filter((l) => l.open), shut = sv.lines.filter((l) => !l.open);
+    const lines = `<section class="sk-lines"><h4>Skill lines <span>Learned from the realm's people, whatever your calling. Unlock a skill for a point, then put it in key 6 or 7 from the Skills page of your journal.</span></h4>
+      <div class="sk-linegrid">${open.map((l) => `<div class="sk-line"><header><b>${esc(l.name)}</b><small>${l.skills.filter((s) => s.unlocked).length} of ${l.skills.length} learned</small><p>${esc(l.blurb)}</p></header>${l.skills.map(card).join('')}</div>`).join('')}
+      ${shut.map((l) => `<div class="sk-line shut"><header><b>${esc(l.name)}</b><small>Opens: ${esc(l.opensWhen)}</small><p>${esc(l.blurb)}</p></header><p class="sk-why">${l.skills.length} skills to learn when it opens</p></div>`).join('')}</div></section>`;
+    return `<div class="sk-page">${col('Your calling', sv.calling)}${col('Utilities', sv.utilities)}${col('Weapon skills', sv.weapons)}</div>${lines}`;
   }
 
   private renderSkills(): void {

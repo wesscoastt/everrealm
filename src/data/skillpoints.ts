@@ -406,6 +406,8 @@ export const MORPHS: Record<string, [Morph, Morph]> = {
 
 /** A skill's numbers stronger by its rank: its blows, heals, wards and burns (applied to a tuned copy). */
 export function applyRank(t: Tune, id: string, rank: number): void {
+  // A line skill (data/skillLines.ts): one number for all it does
+  if (id.startsWith('ln_')) { if (rank > 1) (t as unknown as { lines: Record<string, number> }).lines[id] = 1 + RANK_STEP * (rank - 1); return; }
   const o = (t as unknown as Record<string, Record<string, number>>)[id];
   if (!o || rank <= 1) return;
   const k = 1 + RANK_STEP * (rank - 1);

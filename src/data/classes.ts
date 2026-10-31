@@ -226,6 +226,8 @@ export const TUNE = {
   skillLock: 0.5,
   /** Skills recharging faster (talents): a multiplier on the cooldown, by skill id. */
   cd: {} as Record<string, number>,
+  /** The realm's line skills (data/skillLines.ts): how much stronger each is with its rank and morph. */
+  lines: {} as Record<string, number>,
   /** dmg: share added to the damage you deal, for each Resolve (talents). */
   resolve: { per: 0.05, max: 5, fade: 6, dmg: 0 },
   /** burst: the blow when it's broken (0 none); mend: share of what's left that heals you when it runs out. */
@@ -455,11 +457,12 @@ export function crossUtilities(ap: CallingDef | null | undefined): SkillDef[] {
  * The signature and the two utilities beside it: the calling's own, and (for an apprentice) at most
  * one of the master's.
  */
-export function chosenUtilities(c: CallingDef, ids: unknown, ap: CallingDef | null = null): SkillDef[] {
+export function chosenUtilities(c: CallingDef, ids: unknown, ap: CallingDef | null = null, lines: SkillDef[] = []): SkillDef[] {
   const want = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
   const cross = crossUtilities(ap && ap.id !== c.id ? ap : null);
   let crossed = 0;
-  const picked = [...new Set(want)].map((id) => c.utilities.find((s) => s.id === id) ?? cross.find((s) => s.id === id)).filter((s): s is SkillDef => {
+  // (a skill of the realm's lines can go in either key, both if you like: data/skillLines.ts)
+  const picked = [...new Set(want)].map((id) => c.utilities.find((s) => s.id === id) ?? cross.find((s) => s.id === id) ?? lines.find((s) => s.id === id)).filter((s): s is SkillDef => {
     if (!s) return false;
     if (cross.includes(s)) { if (crossed) return false; crossed++; }
     return true;

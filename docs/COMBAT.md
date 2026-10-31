@@ -478,3 +478,29 @@ Change Element key 5 read "Spark", and two Sparks took 112 and 128 off two wolve
 With this, the brief's skill list is in: weapon skills by weapon (keys 2 and 3), five utilities and two
 elites to choose from in every calling, saved builds, the effects table and cleanses, the Rogue (the
 Prowler), the Pathfinder's beast, and an elemental attunement.
+
+### The realm's skill lines (2026-10-30)
+
+Owner: "need lots of skills to unlock and choose". Beside each calling's own (heal, signature, three or
+four utilities, elites) and the weapon skills, six **skill lines** anyone can learn whatever their
+calling, the way ESO's guild and world lines sit beside its class lines (`src/data/skillLines.ts`):
+
+| Line | Who teaches it | Opens | Skills |
+| --- | --- | --- | --- |
+| The Wayfarers' Road | carters, drovers, Post riders | level 3 | Second Wind, Long Stride, Road Song, Roadside Remedy, Waymark Step |
+| The Muster | Holroyd's old toll riders | level 8, or the Crown Road | Rider's Charge, Cut the Hock, Muster Horn, Close Ranks, Trample |
+| Hedge-craft | the dales' wise women | level 12, or Hagworm Wood | Nettle Poultice, Hex of Thorns, Rowan Charm, Bitter Cup, Fairy Ring |
+| The Wheel | the Kilnfolk makers | level 25, or Kell | Brass Bomb, Steam Vent, Spring Heel, Governor's Ward, Let the Escapement Go |
+| The Gatekeepers' Rolls | Northgate's Archive | level 40, or the Greywaste or the Held | Salt Line, Roll Call, Shut the Gate, Gate Lantern, The Last Watch |
+| The Brethren's Ways | the captains of the Keys | level 45, or the Keys | Boarding Hook, Cutlass Work, Smoke Pot, A Tot of Grog, Broadside |
+
+Thirty skills, each opening at its own level inside its line, bought with a skill point like a
+calling's, ranked by use, paid in stamina or magicka, and put in key 6 or 7 (either or both) beside the
+signature. Each is built from a handful of effects (a blow, a burst round you, a patch of ground, ground
+that hurts or snares, a leap, a dash, a blink, a heal now or over time, a ward on you or everyone with
+you, a few seconds' change to what you deal or take, blows missing you, out of sight), which
+`ClassKit.lineCast` plays in order; the first effect that needs a target or a place decides whether it
+goes off, so nothing is spent on a miss. Verified headless (`.walker/scen-lines.js`): at level 34 four
+lines open and two shut (refused); each skill unlocked for a point, went on key 6, cost its pool, and did
+what it says (Cut the Hock 91 and a slow, Trample 147, Brass Bomb 165, Rider's Charge 130, the heals and
+buffs). Not yet: morphs for line skills, and the balance sim choosing them.

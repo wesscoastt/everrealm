@@ -116,6 +116,7 @@ import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
+import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
@@ -2810,7 +2811,7 @@ export class Game implements GameApi {
   skillCost(slot: number): Cost | null {
     const sk = slot === 1 ? this.kit.secondSkill : slot === 2 ? this.kit.weaponSkill : this.kit.bar[slot - 3];
     if (!sk) return null;
-    const listed = SKILL_COST[sk.id];
+    const listed = SKILL_COST[sk.id] ?? lineSkill(sk.id)?.cost;
     if (listed) return listed;
     const pool = slot <= 2 ? 'stamina' : CALLING_POOL[this.kit.calling.id] ?? 'stamina';
     return { pool, n: slot === 1 ? 10 : slot === 2 ? 12 : slot === 3 ? SLOT_COST.heal : slot === 7 ? SLOT_COST.elite : SLOT_COST.utility };
@@ -3206,7 +3207,7 @@ export class Game implements GameApi {
       masterySpend: (id: string) => g.masterySpend(id as MasteryId | 'reset'),
       callingFree: () => !g.flag('callingSet'),
       apprentice: () => { const a = g.apprentice; return a ? { name: a.name, master: MASTER_OF[a.id]?.name ?? '' } : null; },
-      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice)], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.elite, elites: elitesOf(g.kit.calling), weapon: g.kit.weaponSkill }),
+      bar: () => ({ chosen: g.kit.bar.slice(2, 4).map((s) => s.id), pool: [...g.kit.calling.utilities, ...crossUtilities(g.apprentice), ...g.lineSkills().filter((s) => g.skillUnlocked(s.id))], cross: crossUtilities(g.apprentice).map((s) => s.id), signature: g.kit.calling.skills[1], heal: g.kit.calling.skills[0], elite: g.kit.elite, elites: elitesOf(g.kit.calling), weapon: g.kit.weaponSkill }),
       setUtilities: (ids: string[]) => g.setUtilities(ids),
       setElite: (id: string) => g.setElite(id),
       learnTalent: (id: string) => g.learnTalent(id),
@@ -3411,7 +3412,7 @@ export class Game implements GameApi {
   private applyCalling(): void {
     this.kit.set(this.calling);
     this.kit.setElite(this.flag('elite:' + this.calling));
-    this.kit.setUtilities(this.flag('bar:' + this.calling), this.apprentice);
+    this.kit.setUtilities(this.flag('bar:' + this.calling), this.apprentice, this.lineSkills());
     this.migrateSkills();
     this.retune();
     this.appliedApprentice = this.flag('apprentice');
@@ -3433,7 +3434,7 @@ export class Game implements GameApi {
   setUtilities(ids: string[]): string | null {
     if (this.mode === 'play' && this.elapsed - this.lastCombat < 6) return 'Not while you are fighting.';
     this.setFlag('bar:' + this.calling, ids.slice(0, 2));
-    this.kit.setUtilities(ids, this.apprentice);
+    this.kit.setUtilities(ids, this.apprentice, this.lineSkills());
     this.sfx('page');
     this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
     this.persist();
@@ -3487,8 +3488,15 @@ export class Game implements GameApi {
   /** The calling's skills the points unlock: its heal, signature, elite and utilities, and an apprentice's borrowed ones. */
   private skillIds(): string[] {
     const c = this.kit.calling;
-    return [...c.skills.map((x) => x.id), ...(c.elites ?? []).map((x) => x.id), ...c.utilities.map((x) => x.id), ...crossUtilities(this.apprentice).map((x) => x.id)];
+    return [...c.skills.map((x) => x.id), ...(c.elites ?? []).map((x) => x.id), ...c.utilities.map((x) => x.id), ...crossUtilities(this.apprentice).map((x) => x.id), ...this.lineSkills().map((x) => x.id)];
   }
+  /** The realm's lines open to you (data/skillLines.ts): by level, or by having been in their country. */
+  private openLines() {
+    const been = (r: string) => this.save.discovered.includes('region:' + r);
+    return LINES.filter((l) => l.opens({ level: this.level('melee'), been }));
+  }
+  /** Every skill of the lines open to you. */
+  lineSkills(): LineSkill[] { return this.openLines().flatMap((l) => l.skills); }
   private weaponSkillIds(): string[] { return [...Object.values(WEAPON_SKILLS), ...Object.values(SECOND_SKILLS)].map((x) => x!.id); }
   /** Is a calling skill unlocked (weapon skills come with the weapon)? */
   skillUnlocked(id: string): boolean { if (id === 'spark') id = 'frostbolt'; return this.weaponSkillIds().includes(id) || !!this.flag('skun:' + id); }
@@ -3526,7 +3534,7 @@ export class Game implements GameApi {
     this.setFlag('skuse:' + id, uses);
     const after = skillRankFor(uses);
     if (after > before) {
-      const name = [...this.kit.calling.skills, ...this.kit.calling.utilities, ...Object.values(WEAPON_SKILLS), ...crossUtilities(this.apprentice)].find((x) => x.id === id)?.name ?? id;
+      const name = [...this.kit.calling.skills, ...this.kit.calling.utilities, ...Object.values(WEAPON_SKILLS), ...crossUtilities(this.apprentice), ...this.lineSkills()].find((x) => x.id === id)?.name ?? id;
       this.hud.banner(`${name} ${RANK_NAMES[after - 1]}`, after === 4 ? 'Ready to morph: open your skills (T)' : 'Rank up', true);
       this.sfx('levelUp', 0.5);
       this.retune();
@@ -3537,7 +3545,7 @@ export class Game implements GameApi {
     if (!this.skillIds().includes(id)) return 'That isn\'t one of your skills.';
     if (this.skillUnlocked(id)) return 'Already unlocked.';
     const c = this.kit.calling, lvl = this.level('melee');
-    const need = id === c.skills[0].id ? UNLOCK_AT[3] : id === c.skills[1].id ? UNLOCK_AT[4] : id === c.skills[2].id || c.elites?.some((x) => x.id === id) ? UNLOCK_AT[7] : UNLOCK_AT[5];
+    const need = lineSkill(id)?.need ?? (id === c.skills[0].id ? UNLOCK_AT[3] : id === c.skills[1].id ? UNLOCK_AT[4] : id === c.skills[2].id || c.elites?.some((x) => x.id === id) ? UNLOCK_AT[7] : UNLOCK_AT[5]);
     if (lvl < need) return `That opens at level ${need}.`;
     if (this.skillPool().left < 1) return 'No skill points left to spend. They come with levels and with Insight.';
     this.setFlag('skun:' + id, 1);
@@ -3594,6 +3602,7 @@ export class Game implements GameApi {
       calling: [one(c.skills[0], UNLOCK_AT[3], 'Heal · key 4'), one(c.skills[1], UNLOCK_AT[4], 'Signature · key 5'), one(c.skills[2], UNLOCK_AT[7], 'Elite · key 8'), ...(c.elites ?? []).map((x) => one(x, UNLOCK_AT[7], 'Elite · key 8, chosen instead'))],
       utilities: [...c.utilities, ...cross].map((u) => one(u, UNLOCK_AT[5], cross.includes(u) ? 'Borrowed from your master' : 'Utility · keys 6 and 7')),
       weapons: [...Object.values(SECOND_SKILLS).map((w) => one(w!, UNLOCK_AT[1], 'Weapon skill · key 2')), ...Object.values(WEAPON_SKILLS).map((w) => one(w, UNLOCK_AT[2], 'Weapon skill · key 3'))],
+      lines: LINES.map((l) => ({ id: l.id, name: l.name, blurb: l.blurb, opensWhen: l.opensWhen, open: this.openLines().includes(l), skills: l.skills.map((s) => one(s, s.need, `${s.cost.pool === 'magicka' ? 'Magicka' : 'Stamina'} ${s.cost.n} · keys 6 and 7`)) })),
     };
   }
 

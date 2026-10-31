@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CreatureModel } from '../entities/creatures';
 import { CALLINGS, CallingDef, CallingId, chosenUtilities, elitesOf, SECOND_SKILLS, SkillDef, SPARK, TUNE, WEAPON_SKILLS, type WeaponKit } from '../data/classes';
 import { tuned, type Tune } from '../data/talents';
+import { lineSkill, type Fx, type LineSkill } from '../data/skillLines';
 
 /** The calling's numbers with the player's talents applied (data/talents.ts); one kit, one player. */
 let T: Tune = TUNE;
@@ -158,6 +159,7 @@ export class ClassKit {
     this.dismissHound();
     this.shieldUntil = this.oathUntil = this.redUntil = this.wardUntil = this.stepStrike = 0;
     this.holdUntil = this.rushUntil = this.riposteUntil = this.hotUntil = 0;
+    this.lineDealtUntil = this.lineTakenUntil = this.lineHotUntil = 0;
     this.shieldKind = 'other';
     this.boltMult = 1;
     this.dots = [];
@@ -169,8 +171,8 @@ export class ClassKit {
   }
 
   /** Put these utilities on the bar (the calling's own, and one of a master's for an apprentice). */
-  setUtilities(ids: unknown, ap: CallingDef | null = null): void {
-    const u = chosenUtilities(this.calling, ids, ap);
+  setUtilities(ids: unknown, ap: CallingDef | null = null, lines: SkillDef[] = []): void {
+    const u = chosenUtilities(this.calling, ids, ap, lines);
     this.bar = [this.calling.skills[0], ...u, this.elite];
     if (this.storm) this.bar[1] = SPARK;
   }
@@ -213,6 +215,7 @@ export class ClassKit {
       if (this.venom > 0) { this.venom--; this.addDot(e, this.host.power() * T.poisonblade.dot, T.poisonblade.secs); }
     }
     if (this.redUntil > this.clock) k *= T.redhour.dealt;
+    if (this.lineDealtUntil > this.clock) k *= this.lineDealt;
     if ((this.marks.get(e) ?? 0) > this.clock) k *= 1 + T.volley.markBonus;
     if (this.calling.id === 'warden') k *= 1 + this.resolve * T.resolve.dmg;
     return dmg * k;
@@ -261,6 +264,7 @@ export class ClassKit {
       if (this.oathUntil > this.clock) d *= T.oath.taken;
     }
     if (this.redUntil > this.clock) d *= T.redhour.taken;
+    if (this.lineTakenUntil > this.clock) d *= this.lineTaken;
     if (this.inSanctuary(this.host.player())) d *= T.sanctuary.taken;
     if (this.shield > 0 && this.shieldUntil > this.clock) {
       // Frostbite: the ice bites back
@@ -1219,8 +1223,132 @@ export class ClassKit {
         return true;
       }
     }
-    return false;
+    // A skill of the realm's lines (data/skillLines.ts): its effects, in order
+    const ls = lineSkill(id);
+    return ls ? this.lineCast(ls, P, pw) : false;
   }
+
+  // ---------------------------------------------------------------- The realm's lines
+  /** A line skill's few seconds of strength: what you deal and take, until then. */
+  private lineDealt = 1; private lineDealtUntil = 0;
+  private lineTaken = 1; private lineTakenUntil = 0;
+  /** A line skill's heal over time: a share of health a second, until then. */
+  private lineHot = 0; private lineHotUntil = 0; private lineHotTick = 0;
+  /** How much stronger a line skill is with its rank and morph (Tune.lines, set by Game.retune). */
+  private lineScale(ls: LineSkill): number { return T.lines?.[ls.id] ?? 1; }
+
+  /**
+   * Play a line skill's effects. The first effect that needs a target or a place decides whether it
+   * goes off at all (no foe in reach, no room to leap): nothing is spent if it can't.
+   */
+  private lineCast(ls: LineSkill, P: THREE.Vector3, pw: number): boolean {
+    const H = this.host, k = this.lineScale(ls), col = ls.color;
+    const first = ls.fx.find((f) => f.k === 'strike' || f.k === 'leap' || f.k === 'ground' || f.k === 'zone' || f.k === 'blink' || f.k === 'dash');
+    let target: Enemy | null = null;
+    let spot: THREE.Vector3 | null = null;
+    if (first && (first.k === 'strike' || first.k === 'leap')) {
+      target = H.faceTarget(first.range);
+      if (!target) return false;
+      if (first.k === 'leap' && !H.canReach(target)) return false;
+    }
+    if (first && (first.k === 'ground' || first.k === 'zone' || first.k === 'blink')) {
+      spot = H.aim(first.range);
+      if (first.k === 'blink' && (spot.distanceTo(P) < 1.5 || Math.abs(spot.y - P.y) > 4 || !H.clear(spot))) return false;
+    }
+    if (first?.k === 'dash' && !H.dash(new THREE.Vector3(Math.sin(H.yaw()), 0, Math.cos(H.yaw())), first.dist)) return false;
+    for (const f of ls.fx) this.lineFx(f, P, pw * k, k, target, spot, col, f === first);
+    return true;
+  }
+
+  private lineFx(f: Fx, P: THREE.Vector3, pw: number, k: number, target: Enemy | null, spot: THREE.Vector3 | null, col: string, done: boolean): void {
+    const H = this.host;
+    switch (f.k) {
+      case 'strike': {
+        const e = target ?? H.faceTarget(f.range);
+        if (!e) return;
+        H.anim('attack'); H.sfx(f.hits ? 'swing' : 'hitHeavy');
+        H.hit(e, pw * f.dmg);
+        for (let i = 1; i < (f.hits ?? 1); i++) this.cuts.push({ e, t: i * 0.16, dmg: pw * f.dmg });
+        if (f.stun) e.stun = Math.max(e.stun, f.stun);
+        if (f.slow) e.slowLeft = Math.max(e.slowLeft, f.slow);
+        if (f.expose) e.exposedLeft = Math.max(e.exposedLeft, f.expose);
+        if (f.dot) this.addDot(e, (pw * f.dot[0]) / f.dot[1], f.dot[1]);
+        H.particles.sparks(e.pos.clone().setY(e.pos.y + 1), 12, col);
+        return;
+      }
+      case 'burst': {
+        H.anim('cleave'); H.sfx('hitHeavy');
+        this.ring(P, f.r, col, 0.5);
+        H.particles.burst(P.clone().setY(P.y + 0.8), col, 30);
+        for (const e of H.enemies()) if (e.alive && e.pos.distanceTo(P) < f.r) {
+          H.hit(e, pw * f.dmg);
+          if (f.stun) e.stun = Math.max(e.stun, f.stun);
+          if (f.slow) e.slowLeft = Math.max(e.slowLeft, f.slow);
+        }
+        return;
+      }
+      case 'ground': {
+        const at = spot ?? H.aim(f.range);
+        H.anim('shoot'); H.sfx('swing');
+        this.pending.push({ at: at.clone(), t: f.delay, ring: this.ring(at, f.r, col, f.delay + 0.2), r: f.r, dmg: pw * f.dmg, stun: f.stun });
+        return;
+      }
+      case 'zone': {
+        const at = spot ?? H.aim(f.range);
+        H.anim('cleave'); H.sfx('bell');
+        this.zone(at, f.r, f.secs, pw * f.dmg, col, f.snare ? { stun: f.snare } : undefined);
+        if (f.slow) { const z = this.zones[this.zones.length - 1]; if (z) z.slow = f.slow; }
+        H.particles.burst(at.clone().setY(at.y + 0.4), col, 18);
+        return;
+      }
+      case 'leap': {
+        const e = target;
+        if (!e) return;
+        const to = e.pos.clone().sub(P).setY(0), d = to.length();
+        const at = d > 1.6 ? P.clone().addScaledVector(to.normalize(), d - 1.4) : P.clone();
+        H.moveTo(at.x, at.z, 0.3, e.pos.y);
+        H.anim('cleave'); H.sfx('swing');
+        this.pending.push({ at: e.pos.clone(), t: 0.3, ring: this.ring(e.pos, 1.6, col, 0.3), r: 1.6, dmg: pw * f.dmg, stun: f.stun });
+        if (f.expose) e.exposedLeft = Math.max(e.exposedLeft, f.expose);
+        return;
+      }
+      case 'dash': {
+        if (!done) H.dash(new THREE.Vector3(Math.sin(H.yaw()), 0, Math.cos(H.yaw())), f.dist);
+        H.particles.burst(P.clone().setY(P.y + 0.5), col, 16);
+        return;
+      }
+      case 'blink': {
+        const at = spot ?? H.aim(f.range);
+        H.particles.burst(P.clone().setY(P.y + 1), col, 20);
+        H.moveTo(at.x, at.z, 0.12, at.y);
+        H.particles.burst(at.clone().setY(at.y + 1), col, 20);
+        return;
+      }
+      case 'heal': {
+        H.anim('heal'); H.sfx('heal');
+        if (f.now) H.heal(H.maxHp() * f.now * k);
+        if (f.over) { this.lineHot = (f.over[0] * k) / f.over[1]; this.lineHotUntil = this.clock + f.over[1]; this.lineHotTick = 1; }
+        if (f.cleanse) H.cleanse?.(f.cleanse);
+        H.particles.sparks(P.clone().setY(P.y + 1.2), 12, col);
+        return;
+      }
+      case 'ward': {
+        H.anim('heal'); H.sfx('bell');
+        if (f.all) for (const fr of H.friends()) { if (fr.me) this.addShield(H.maxHp() * f.amt * k, f.secs); else fr.ward(fr.max * f.amt * k, f.secs); }
+        else this.addShield(H.maxHp() * f.amt * k, f.secs);
+        return;
+      }
+      case 'buff': {
+        if (f.dealt) { this.lineDealt = 1 + (f.dealt - 1) * k; this.lineDealtUntil = this.clock + f.secs; }
+        if (f.taken) { this.lineTaken = f.taken; this.lineTakenUntil = this.clock + f.secs; }
+        if (f.evade) this.evadeUntil = Math.max(this.evadeUntil, this.clock + f.secs);
+        if (f.hide) this.hiddenUntil = Math.max(this.hiddenUntil, this.clock + f.secs);
+        if (f.dealt || f.taken) { H.particles.burst(P.clone().setY(P.y + 1), col, 20); H.sfx('bell'); }
+        return;
+      }
+    }
+  }
+
 
   /** Ground that hurts for a while, or a snare. */
   private zone(at: THREE.Vector3, r: number, secs: number, dmg: number, color: string, snare?: { stun: number }, chill?: boolean): void {
@@ -1362,6 +1490,7 @@ export class ClassKit {
     }
     // Survivor: the rest of a Field Dressing
     if (this.hotUntil > this.clock && (this.hotTick -= dt) <= 0) { this.hotTick = 1; H.heal(H.maxHp() * this.hot); }
+    if (this.lineHotUntil > this.clock && (this.lineHotTick -= dt) <= 0) { this.lineHotTick = 1; H.heal(H.maxHp() * this.lineHot); }
     // Shield bubble
     const shielded = this.shield > 0 && this.shieldUntil > this.clock;
     this.shieldMesh.visible = shielded || this.oathUntil > this.clock;
