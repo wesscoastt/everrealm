@@ -7523,6 +7523,22 @@ export function plan(): Plan {
     for (let x = 1676; x <= 1730; x++) if (x < 1707 || x > 1709) O.set(x, T2, 672, B.StoneBrick);
     stairs(1707, 1709, 664, 671, T1, T2);
     [1680, 1690, 1714, 1722].forEach((x, i) => house(s, x, 677, 7, 6, 2, T2, i % 2 ? 'red' : 'slate', 'n', { wall: B.StoneBrick, closed: i === 3, role: 'home' }));
+    // The Seamen's Sick-House (data/infirmary.ts), between the upper terrace's houses with its door to the
+    // head of the stair: a ward of five beds, two with men sitting up, the physician's desk, the still-room
+    {
+      const x0 = 1698, z0 = 679, y = T2;
+      stoneHall(s, x0, z0, 15, 10, 7, T2, 'n');
+      s.props.push({ t: 'roof', x: x0 + 7.5, y: T2 + 7, z: z0 + 5, len: 15, span: 10, rise: roofRise(10), ry: 0, mat: 'blue' });
+      const F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+      [1700.5, 1703, 1705.5, 1708, 1710.5].forEach((bx, i) => { F('bed', bx, 686.2, Math.PI); if (i === 0 || i === 2) s.props.push({ t: 'furn', item: 'bench', x: bx, y, z: 684.4, ry: 0, sat: true }); });
+      F('desk', 1699.7, 681.6, Math.PI / 2); F('chair', 1700.9, 681.6, -Math.PI / 2); F('letters', 1699.7, 681.6, 0, 2, y + 1.02);
+      F('shelves', 1711.3, 681.4, -Math.PI / 2, 1); F('crocks', 1710.6, 680.4, 0); F('candles', 1711.4, 684.2, 0);
+      F('rug', 1705.5, 682.6, 0, 0);
+      for (const lx of [1701.5, 1705.5, 1709.5]) F('lamp', lx, 683, 0, 0, y + 5.0);
+      s.props.push({ t: 'sign', x: 1701.5, y, z: 677.6, ry: 0, text: 'Seamen\'s\nSick-House' });
+      for (const lx of [1703.5, 1707.5]) s.props.push({ t: 'lantern', x: lx, y, z: 677.7 });
+      s.props.push({ t: 'washLine', x: 1705.5, y, z: 690.0, ry: 0, len: 6 });
+    }
     for (const [lx, lz, y] of [[1724, 653, T1], [1731, 653, T1], [1705, 673, T2], [1711, 673, T2]] as const) s.props.push({ t: 'lantern', x: lx + 0.5, y, z: lz + 0.5 });
 
     // ---- The castle on the cliff, and the road up to its gate

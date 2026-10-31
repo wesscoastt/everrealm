@@ -92,6 +92,35 @@ export const INFIRMARIES: Infirmary[] = [
         ail: 'A crushed hand. Two fingers set; one he\'ll lose.' },
     ],
   },
+  {
+    // The Seamen's Sick-House, Gullmouth, on the upper terrace by the head of the stair: hall corner
+    // (1698, 679), door north. The harbour dues keep it, a penny a ton, which the masters complain of.
+    id: 'sickhouse', name: 'the Seamen\'s Sick-House', town: 'Gullmouth', bed: [1705.5, 30, 681.0],
+    physician: {
+      id: 'inf_isolde', name: 'Isolde Penwarden', title: 'Physician, the Seamen\'s Sick-House', at: [1701.2, 682.2], face: [1705, 683.5],
+      look: { skin: '#c89070', hair: '#1e1a16', hairStyle: 2, lashes: true, tunic: '#1f3a4a', trim: '#e8e4dc', shirt: '#e8e4dc', age: 0.45, apron: true },
+      barks: ['Sit. Breathe out. Again.', 'Lemons. Tell your master: lemons.', 'Salt water heals nothing. Whatever they tell you.'],
+      free: 'Sit. A penny a ton off every hull in the harbour pays for this, and you\'re cheaper than a ton.',
+      paid: 'Eight marks for the dues box, and the harbour thanks you. Sit.',
+      hello: 'Isolde Penwarden. The Sick-House is for seamen, and the harbour decides who\'s a seaman, and the harbour isn\'t fussy. What\'s wrong with you?',
+    },
+    nurse: {
+      id: 'inf_clemmie', name: 'Clemmie Blewett', title: 'Nurse, the Seamen\'s Sick-House', at: [1709.6, 682.2], face: [1705, 683.5],
+      look: { skin: '#e2b894', hair: '#8a4a2a', hairStyle: 2, lashes: true, tunic: '#4a5a6a', trim: '#e8e4dc', apron: true, age: 0.35 },
+      barks: ['Linen\'s on the line, not on you.', 'He\'ll eat the onion or I\'ll know why.'],
+      ward: 'Ezekiel\'s teeth are firming up; the onions are doing it, he\'d sooner die than say so. Nicodemus won\'t say how he got his burns. The burns say a gun, and he\'s no gunner on any ship that pays dues here.',
+    },
+    patients: [
+      { id: 'inf_ezekiel', name: 'Ezekiel Cardew', title: 'Ship\'s cook', at: [1700.5, 684.4], face: [1700.5, 680], look: { skin: '#d8a882', hair: '#c8c4bc', hairStyle: 3, beard: true, tunic: '#e8e4dc', trim: '#c8c0b0', build: 1.15, age: 0.7 },
+        barks: ['Four months on biscuit.', 'Don\'t mention onions.'],
+        says: 'Four months to the Isles and back on biscuit and salt pork, and the cook\'s the one with the scurvy. My teeth were going. She feeds me onions raw. I\'ve fed worse to better men.',
+        ail: 'Scurvy, from a long passage. Greens and rest, and he\'ll keep his teeth.' },
+      { id: 'inf_nicodemus', name: 'Nicodemus Vean', title: 'Seaman', at: [1705.5, 684.4], face: [1705.5, 680], look: { skin: '#b8865e', hair: '#2a1e14', hairStyle: 5, tunic: '#e8e4dc', trim: '#c8c0b0', age: 0.3 },
+        barks: ['Galley fire. That\'s all.', 'I\'ll be gone by Sunday.'],
+        says: 'Galley fire. On a coaster. Which coaster? A small one. I\'ll be out of here by Sunday and you\'ll never have seen me, which is what I\'d like best.',
+        ail: 'Powder burns down one arm and the side of his face. He says a galley fire.' },
+    ],
+  },
 ];
 
 export const INFIRMARY_BY_ID = new Map(INFIRMARIES.map((i) => [i.id, i]));

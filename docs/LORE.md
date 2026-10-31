@@ -164,6 +164,10 @@ Ansbury's infirmary, on the main street at its west end with Tanners' Row behind
 
 A small stone ward in the south-west corner of Harrowgate Works' yard, the only building the Company put up in stone, after the fire. **Cuthbert Fane**, company doctor, treats for the sick-club box and keeps a bed like the Spital's; **Hepsie Corbin**, dresser, keeps the shelf. On the ward: **Lemuel Sawle**, hewer, his hand crushed by a fall of roof in No. 1 Drift; the Rules of the Works pay half for a fall once the Company is satisfied it wasn't his fault, and Pryce has had the prop sawn up for firewood.
 
+### The Seamen's Sick-House [in game]
+
+On Gullmouth's upper terrace by the head of the stair, kept by the harbour dues at a penny a ton, which the masters complain of. **Isolde Penwarden**, physician (lemons, she tells every master); **Clemmie Blewett**, nurse. On the ward: **Ezekiel Cardew**, ship's cook, scurvy from four months on biscuit, fed raw onions; **Nicodemus Vean**, seaman, burns down one arm he calls a galley fire and that look like powder, on no ship that pays dues here.
+
 ## The bell bronze, start to finish [in game]
 
 The thread that ties the first four quests together. Every step is something the player can read or be told.
