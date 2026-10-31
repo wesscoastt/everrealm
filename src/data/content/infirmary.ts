@@ -1,4 +1,5 @@
 import type { DialogueTree, GameApi } from '../../game/api';
+import { utcDay } from '../calendar';
 import { INFIRMARIES, POOR, type Infirmary } from '../infirmary';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
@@ -55,7 +56,22 @@ function physicianTree(i: Infirmary): DialogueTree {
   };
 }
 
+// ------------------------------------------------------------------ Rounds: the ward's work, a day at a time
+// Each day, two jobs at each infirmary: the still-room's herbs, and sitting a while with one patient (who
+// tells you more than they told the physician). Kept in "rounds:<infirmary>" as { day, herbs, sat }.
+
+interface Rounds { day: number; herbs: boolean; sat: boolean }
+const ROUND_PAY = { herbs: 25, sat: 12 };
+const rounds = (g: GameApi, i: Infirmary): Rounds => {
+  const r = g.flag('rounds:' + i.id) as Rounds | undefined;
+  return r && typeof r === 'object' && r.day === utcDay() ? r : { day: utcDay(), herbs: false, sat: false };
+};
+const doneRound = (g: GameApi, i: Infirmary, k: 'herbs' | 'sat') => g.setFlag('rounds:' + i.id, { ...rounds(g, i), [k]: true });
+/** The patient to sit with today. */
+const todays = (i: Infirmary) => i.patients[utcDay() % i.patients.length];
+
 function nurseTree(i: Infirmary): DialogueTree {
+  const herbName = i.herb.item.replace(/_/g, ' ');
   return {
     start: () => 'hello',
     nodes: {
@@ -63,11 +79,44 @@ function nurseTree(i: Infirmary): DialogueTree {
         text: `${i.nurse.name}. I keep the still-room, and the ward when the physician's out. If you want something for the road, I've draughts and bandages.`,
         options: [
           { text: 'Show me what you have.', effect: (g) => g.openShop('inf_' + i.id) },
+          { text: 'Is there work on the ward?', next: 'rounds' },
+          { text: (g) => `Here's the ${herbName}.`, cond: (g) => !rounds(g, i).herbs && g.has(i.herb.item, i.herb.n), next: 'herbs' },
           { text: 'How are they doing?', next: 'ward' },
           { text: 'Good day.' },
         ],
       },
+      rounds: {
+        text: (g) => {
+          const r = rounds(g, i), p = todays(i);
+          if (r.herbs && r.sat) return 'Nothing more today. Come back tomorrow; there\'s always tomorrow on a ward.';
+          return [r.herbs ? '' : i.herb.ask, r.sat ? '' : `And ${p.name} has had nobody all week. Sit with them a while.`].filter(Boolean).join(' ');
+        },
+        next: 'hello',
+      },
+      herbs: {
+        text: 'That\'s the still-room stocked till Thursday. Here, from the box. It isn\'t much; it\'s what the box has.',
+        options: [{ text: 'Thank you.', effect: (g) => { if (g.take(i.herb.item, i.herb.n)) { g.addMarks(ROUND_PAY.herbs); doneRound(g, i, 'herbs'); } } }],
+      },
       ward: { text: i.nurse.ward, next: 'hello' },
+    },
+  };
+}
+
+function patientTree(i: Infirmary, p: Infirmary['patients'][number]): DialogueTree {
+  return {
+    start: () => 'hello',
+    nodes: {
+      hello: {
+        text: p.says,
+        options: [
+          { text: 'I\'ll sit with you a while.', cond: (g) => todays(i).id === p.id && !rounds(g, i).sat, next: 'more' },
+          { text: 'Mend well.' },
+        ],
+      },
+      more: {
+        text: p.more,
+        options: [{ text: 'I\'ll come again.', effect: (g) => { doneRound(g, i, 'sat'); g.addMarks(ROUND_PAY.sat); g.toast(`${i.nurse.name} leaves a few marks from the box on the bed rail for you.`); } }],
+      },
     },
   };
 }
@@ -84,7 +133,7 @@ for (const i of INFIRMARIES) {
   );
   dialogue[i.physician.id] = physicianTree(i);
   dialogue[i.nurse.id] = nurseTree(i);
-  for (const p of i.patients) dialogue[p.id] = { start: () => 'hello', nodes: { hello: { text: p.says } } };
+  for (const p of i.patients) dialogue[p.id] = patientTree(i, p);
   shops['inf_' + i.id] = {
     id: 'inf_' + i.id, name: `${i.name}: the still-room`, owner: i.nurse.id,
     stock: [{ item: 'inf_bandage', price: 6 }, { item: 'potion_mend', price: 20 }, { item: 'tonic_vigour', price: 34 }, { item: 'draught_wind', price: 34 }],
