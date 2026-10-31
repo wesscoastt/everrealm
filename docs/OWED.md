@@ -21,6 +21,18 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [ ] The server deploys itself on every push (Render, everrealm-realm.onrender.com): the travellers' board is live (8 names, 2026-10-31; owner to say which of Wes, Claude, Test and JadeTester are theirs, to be left off). Still to build server-side: the tower's board and corrupted group queues.
 
 
+## Co-op everywhere (owner 2026-10-31: "make sure everything in game works co op, its a mmo. so work on group tower etc grouping and socializing is wanted"; WoW and GW2 the models)
+
+- [x] The Endless Tower together: a group's leader takes it up from Crowle (up to five), floors built for the group's size, blows and kills shared, each climber's own rewards (24d064e; tested with two players on a local realm and in game).
+- [x] Open tagging in every site: dungeons', delves', forts' and camps' creatures keyed like the open world's, so a group shares one creature, its blows and its kill (3b2bd0a).
+- [x] The open world's board in the Group Finder: a notice for what you're doing (no free text), anyone joins with a click (ae20cee; tested with three players on a local realm).
+- [x] Anyone raises anyone down near them (Help them up); level sync by design: every creature meets each player at their own level (data/scaling.ts, ESO's way).
+- [ ] Guild missions: a weekly goal the guild works at together, the vault and the roll of honour for it.
+- [ ] Delve rooms in a group (today each member's own), corrupted runs queued for groups (server), the tower's board.
+- [ ] Gatherings: something that draws people to one place at one time.
+
+## A. Now, in order
+
 1. DONE (this commit, tested in game) **Quest journal** (owner 2026-10-29: "add ability to abandon side quests, select quests, show on map, etc"):
    abandon side quests (main story can't be), Track / untrack (tracker and map), Focus one quest (first on
    the tracker, brighter on the map), Show on map, click a tracked quest to open its page. Built
