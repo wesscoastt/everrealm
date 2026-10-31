@@ -16,7 +16,9 @@ export interface IconSpec {
     /** Things with their own look (ui/icons.ts refine() picks these by name where an item still has a stand-in shape). */
     | 'book' | 'scroll' | 'map' | 'bottle' | 'jar' | 'berries' | 'egg' | 'pie' | 'veg' | 'sheaf' | 'gem' | 'key' | 'cloak' | 'chair' | 'block'
     /** A horse's head in its coat (b: the halter's cloth), for a horse; a skein in a dye pot, for a dye. */
-    | 'horse' | 'dye';
+    | 'horse' | 'dye'
+    /** Trophies and tools by what they are: a tail or brush, a heart, a collar, a notched tally stick, a lockpick, a loupe. */
+    | 'tail' | 'heart' | 'collar' | 'tally' | 'lockpick' | 'loupe';
   a: string;
   b?: string;
 }

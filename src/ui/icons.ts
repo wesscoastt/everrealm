@@ -437,6 +437,54 @@ case 'book': {
       x.strokeStyle = b ?? '#7a2a24'; x.lineWidth = 2; x.beginPath(); x.moveTo(6, 13); x.lineTo(12, 13); x.moveTo(16, 6); x.lineTo(13, 15); x.stroke();
       break;
     }
+    case 'tail': {
+      // A bushy tail or a fox's brush, curled, its tip pale
+      x.lineCap = 'round';
+      x.strokeStyle = outline; x.lineWidth = 11; x.beginPath(); x.moveTo(25, 27); x.quadraticCurveTo(4, 24, 9, 8); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 8; x.beginPath(); x.moveTo(25, 27); x.quadraticCurveTo(4, 24, 9, 8); x.stroke();
+      x.strokeStyle = shade(a, 1.25); x.lineWidth = 2; x.beginPath(); x.moveTo(22, 24); x.quadraticCurveTo(8, 21, 10, 11); x.stroke();
+      x.fillStyle = b ?? '#f0ece4'; x.beginPath(); x.arc(9, 8, 4, 0, Math.PI * 2); x.fill();
+      x.lineCap = 'butt';
+      break;
+    }
+    case 'heart': {
+      // A heart, dark and wet-looking, a vessel at the top
+      const h = (k: number) => { x.beginPath(); x.moveTo(16, 28 - k); x.bezierCurveTo(3 + k, 19, 4 + k, 7 + k, 11, 8 + k); x.bezierCurveTo(14, 8 + k, 16, 11, 16, 12); x.bezierCurveTo(16, 11, 18, 8 + k, 21, 8 + k); x.bezierCurveTo(28 - k, 7 + k, 29 - k, 19, 16, 28 - k); x.fill(); };
+      x.fillStyle = outline; h(0); x.fillStyle = a; h(1.5);
+      px(18, 4, 3, 6, outline); px(19, 5, 1, 5, shade(a, 0.7));
+      px(10, 11, 3, 2, shade(a, 1.4));
+      break;
+    }
+    case 'collar': {
+      // A leather collar in a ring, iron studs round it, the buckle at the front
+      x.strokeStyle = outline; x.lineWidth = 7; x.beginPath(); x.ellipse(16, 16, 11, 9, 0, 0, Math.PI * 2); x.stroke();
+      x.strokeStyle = a; x.lineWidth = 4; x.beginPath(); x.ellipse(16, 16, 11, 9, 0, 0, Math.PI * 2); x.stroke();
+      for (let k = 0; k < 8; k++) { const t = (k / 8) * Math.PI * 2; px(Math.round(16 + Math.cos(t) * 11) - 1, Math.round(16 + Math.sin(t) * 9) - 1, 2, 2, b ?? '#c8c8c0'); }
+      px(13, 22, 6, 5, outline); px(14, 23, 4, 3, b ?? '#c8a050');
+      break;
+    }
+    case 'tally': {
+      // A tally stick on the slant, a notch cut for every one
+      diag(6, 26, 22, 6, outline); diag(7, 25, 20, 4, a);
+      for (let k = 0; k < 6; k++) px(9 + k * 3, 21 - k * 3, 2, 2, b ?? shade(a, 0.45));
+      break;
+    }
+    case 'lockpick': {
+      // Two bent pins: the pick with its hooked tip, and the tension wrench
+      diag(6, 27, 19, 2, outline); diag(7, 26, 18, 1, a); px(24, 6, 3, 2, outline); px(25, 6, 2, 1, a);
+      px(9, 8, 2, 14, outline); px(9, 8, 8, 2, outline); px(10, 9, 1, 12, a); px(10, 9, 6, 1, a);
+      px(4, 25, 6, 4, outline); px(5, 26, 4, 2, b ?? '#3a2a1a');
+      break;
+    }
+    case 'loupe': {
+      // A jeweller's loupe: a brass cup with the lens at its mouth
+      x.fillStyle = outline; x.beginPath(); x.moveTo(8, 9); x.lineTo(24, 9); x.lineTo(21, 27); x.lineTo(11, 27); x.closePath(); x.fill();
+      x.fillStyle = a; x.beginPath(); x.moveTo(10, 11); x.lineTo(22, 11); x.lineTo(19.5, 25); x.lineTo(12.5, 25); x.closePath(); x.fill();
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 9, 9, 4, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = b ?? '#9fe8ff'; x.beginPath(); x.ellipse(16, 9, 7, 2.6, 0, 0, Math.PI * 2); x.fill();
+      px(12, 8, 3, 1, '#ffffff'); px(12, 13, 1, 10, shade(a, 1.3));
+      break;
+    }
     case 'dye': {
       // A skein of wool hung from a stick into a pot of the dye, the dye's colour in both
       px(3, 5, 26, 3, outline); px(4, 6, 24, 1, '#8a6a44');
@@ -465,6 +513,13 @@ const BETTER: [RegExp, IconSpec['shape'], IconSpec['shape'][]?][] = [
   [/\bkey\b/, 'key'],
   [/crock|\bjars?\b|\bjug\b|\bjam\b|preserve|pickle|honey/, 'jar'],
   [/\bdye\b/, 'dye', ['gel']],
+  [/\btail\b|\bbrush\b/, 'tail', ['fang']],
+  [/\bheart\b/, 'heart', ['fang']],
+  [/\bcollar\b/, 'collar', ['fang']],
+  [/\bpelt\b/, 'pelt', ['fang']],
+  [/\btally\b/, 'tally', ['pelt']],
+  [/lockpick/, 'lockpick', ['pick']],
+  [/loupe/, 'loupe', ['coin']],
   [/tonic|draught|spirit|\brum\b|wine|cordial|\bale\b|cider|lamp oil|brandy|mead|callis (red|white)|corlett/, 'bottle', ['gel', 'bread']],
   [/\bpie\b|pasty|tart\b|\bpies\b/, 'pie'],
   [/berr/, 'berries'],
@@ -475,7 +530,7 @@ const BETTER: [RegExp, IconSpec['shape'], IconSpec['shape'][]?][] = [
   [/\bbed\b|table|stool|chair|bench|dresser|settle|cupboard|shelf|shelves|wardrobe/, 'chair', ['log']],
   [/\(block\)|\bblock\b/, 'block'],
 ];
-const STAND_INS = new Set<IconSpec['shape']>(['bread', 'letter', 'gel', 'log', 'ore', 'bar', 'coin', 'pelt']);
+const STAND_INS = new Set<IconSpec['shape']>(['bread', 'letter', 'gel', 'log', 'ore', 'bar', 'coin', 'pelt', 'fang', 'pick']);
 function refine(def: { id: string; name: string; icon: IconSpec }): IconSpec {
   if (!STAND_INS.has(def.icon.shape)) return def.icon;
   const name = def.name.toLowerCase();
