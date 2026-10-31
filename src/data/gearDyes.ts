@@ -6,9 +6,9 @@ import type { Appearance } from '../entities/humanoid';
 // A change costs a few marks. The dye sits on the slot, not the piece, so a new chest piece comes
 // in the colours you chose for your chest.
 
-export type DyeSlot = 'head' | 'chest' | 'legs' | 'hands' | 'feet';
+export type DyeSlot = 'head' | 'shoulders' | 'chest' | 'legs' | 'hands' | 'feet';
 export type DyeChannel = 'main' | 'trim';
-export const DYE_SLOTS: DyeSlot[] = ['head', 'chest', 'legs', 'hands', 'feet'];
+export const DYE_SLOTS: DyeSlot[] = ['head', 'shoulders', 'chest', 'legs', 'hands', 'feet'];
 export const DYE_COST = 5;
 
 /** The common dyes everyone has. */
@@ -30,6 +30,7 @@ export function dyeLook(slot: DyeSlot, l: Partial<Appearance>, dye: { main?: str
     if (v) (o as Record<string, unknown>)[k] = { ...v, color: m ?? v.color, trim: t ?? v.trim };
   };
   if (slot === 'chest') { if (m) o.tunic = m; if (t) o.trim = t; if (t && o.shirt) o.shirt = t; metal('chestArmour'); metal('shoulders'); if (o.tabard) o.tabard = { ...o.tabard, color: m ?? o.tabard.color, trim: t ?? o.tabard.trim }; }
+  else if (slot === 'shoulders') metal('shoulders');
   else if (slot === 'legs') { if (m) o.trousers = m; if (t) o.hose = t; metal('legArmour'); }
   else if (slot === 'hands') { if (m && o.gloves) o.gloves = m; metal('bracers'); }
   else if (slot === 'feet') { if (m) o.boots = m; if (o.sabatons) o.sabatons = { color: m ?? o.sabatons.color }; }

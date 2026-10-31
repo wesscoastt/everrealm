@@ -67,6 +67,8 @@ export interface ItemDef {
   trinket?: { slot: 'offhand' | 'neck' | 'ring'; defense?: number; vigor?: number; wind?: number; roll?: number; crit?: number; leech?: number; haste?: number; model?: OffhandModel };
   /** The regional set this piece belongs to (see GEAR_SETS). */
   set?: string;
+  /** The trophy set this piece belongs to (data/trophies.ts): a helm or shoulders. */
+  trophy?: string;
   /** Furniture for a home: the prop it becomes (see props.furniture) and its cloth tint. */
   furn?: { model: string; tint?: number };
   /** A recipe card (data/content/recipes.ts): used, it teaches this recipe for good. */
@@ -124,7 +126,7 @@ export const GEAR_SETS: Record<string, { name: string; where: string; bonus: str
 };
 /** Everything worn: the weapon and the five armour slots (older saves only have the first two). */
 export interface Equip {
-  weapon: string | null; head: string | null; chest?: string | null; legs?: string | null; hands?: string | null; feet?: string | null;
+  weapon: string | null; head: string | null; shoulders?: string | null; chest?: string | null; legs?: string | null; hands?: string | null; feet?: string | null;
   /** Jewellery (data/jewellery.ts): two rings, the neck, an ear. */
   ring1?: string | null; ring2?: string | null; neck?: string | null; ear?: string | null;
 }
@@ -325,6 +327,9 @@ for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
 // Armour for the body, and the helms' weights (src/data/armour.ts).
 import { ARMOUR_ITEMS, HELM_WEIGHTS } from './armour';
 for (const d of ARMOUR_ITEMS) ITEMS[d.id] = d;
+// The trophy sets' helms and shoulders (src/data/trophies.ts).
+import { TROPHY_ITEMS } from './trophies';
+for (const d of TROPHY_ITEMS) ITEMS[d.id] = d;
 for (const [id, h] of Object.entries(HELM_WEIGHTS)) if (ITEMS[id]?.armor) Object.assign(ITEMS[id].armor!, { weight: h.weight, look: h.look });
 
 // The realm's weapons, and how the older ones look in the hand (src/data/weapons.ts).

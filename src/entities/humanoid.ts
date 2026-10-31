@@ -111,7 +111,7 @@ export interface Appearance {
   /** On the body: a breastplate, scales, a riveted brigandine, a leather cuirass, or mail. */
   chestArmour?: { style: 'plate' | 'scale' | 'brigandine' | 'cuirass' | 'mail'; color: string; trim?: string };
   /** On the shoulders: rounded or layered plate, plate with spikes, fur, leather, or a cloth mantle. */
-  shoulders?: { style: 'round' | 'layered' | 'spiked' | 'fur' | 'leather' | 'mantle'; color: string; trim?: string };
+  shoulders?: { style: 'round' | 'layered' | 'spiked' | 'fur' | 'leather' | 'mantle' | TrophyShoulder; color: string; trim?: string; glow?: string };
   /** A tabard over it all, front and back, with an emblem on the chest. */
   tabard?: { color: string; trim: string; emblem?: string };
   /** On the forearms: plate with a cop at the elbow, or laced leather. */
@@ -121,7 +121,7 @@ export interface Appearance {
   /** Plate over the boots. */
   sabatons?: { color: string };
   /** A helm, which covers the hair (and any hat): nasal, kettle, sallet, barbute, great helm or horned. */
-  helm?: { style: 'nasal' | 'kettle' | 'sallet' | 'barbute' | 'great' | 'horned'; color: string; trim?: string; plume?: string };
+  helm?: { style: 'nasal' | 'kettle' | 'sallet' | 'barbute' | 'great' | 'horned' | TrophyHelm; color: string; trim?: string; plume?: string; glow?: string };
   /** A costume's own pieces (data/costumes.ts), which the everyday wardrobe doesn't have. */
   gear?: {
     /** A colour that glows: runes down the chest and round the hem, and eyes behind a mask or a visor. */
@@ -138,6 +138,11 @@ export interface Appearance {
     pauldron?: 'skulls' | 'feathers';
   };
 }
+
+/** The trophy sets' own shoulders and helms (data/trophies.ts): each made from what it was cut from. */
+export type TrophyShoulder = 'shell' | 'crystal' | 'coil' | 'regal' | 'stair' | 'pelt';
+export type TrophyHelm = 'carapace' | 'shardcrown' | 'clockwork' | 'kingly' | 'stepped' | 'wolfpelt';
+const TROPHY_SHOULDERS = new Set<string>(['shell', 'crystal', 'coil', 'regal', 'stair', 'pelt']);
 
 export type HeldItem = 'none' | 'sword' | 'bronzeSword' | 'pickaxe' | 'hatchet' | 'rod' | 'hammer' | 'tongs';
 
@@ -176,6 +181,8 @@ function lam(color: string): THREE.MeshLambertMaterial {
   if (!m) { m = new THREE.MeshLambertMaterial({ color }); matCache.set(color, m); }
   return m;
 }
+type Part = (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh;
+const TROPHY_HELMS = new Set<string>(['carapace', 'shardcrown', 'clockwork', 'kingly', 'stepped', 'wolfpelt']);
 /** A colour that gives its own light (a costume's runes and eyes), shared like lam()'s. */
 function glowMat(color: string, k = 1.3): THREE.MeshLambertMaterial {
   const key = color + '*' + k;
@@ -1134,7 +1141,8 @@ export class Humanoid {
       }
     }
     const sh = L.shoulders;
-    if (sh) {
+    if (sh && TROPHY_SHOULDERS.has(sh.style)) this.trophyShoulders(part as Part, sh, chestW, build);
+    else if (sh) {
       const c = sh.color, t = sh.trim ?? deep(c);
       if (sh.style === 'mantle' || sh.style === 'fur') {
         // Over the shoulders and round the back of the neck
@@ -1194,6 +1202,98 @@ export class Humanoid {
     }
   }
 
+  /**
+   * A trophy set's shoulders (data/trophies.ts): Verdigris's shell in three flaring plates with a ridge of
+   * spines; the Glim's crystal grown through a dark mantle; a coil of the Mainspring with a gear on the
+   * outside; the Old King's black plate with its upswept gold-edged flange and the barrow's cloth behind;
+   * the Long Stair's plates laid like treads; Whitehair's long white pelt with a grey hood fallen behind.
+   */
+  private trophyShoulders(part: Part, sh: NonNullable<Appearance['shoulders']>, chestW: number, build: number): void {
+    const T = this.torso, c = sh.color, t = sh.trim ?? shade(c, 0.78), lit = shade(c, 1.2), deep = shade(c, 0.72);
+    const glow = sh.glow ? glowMat(sh.glow) : null;
+    for (const [arm, side] of [[this.armL, 1], [this.armR, -1]] as const) {
+      switch (sh.style) {
+        case 'shell': {
+          part(arm, rbox(0.34, 0.13, 0.37, 0.07), c, side * 0.03, 0.08, 0);
+          part(arm, rbox(0.35, 0.022, 0.38, 0.008), t, side * 0.03, 0.02, 0);
+          const p2 = part(arm, rbox(0.33, 0.09, 0.35, 0.045), deep, side * 0.07, -0.03, 0); p2.rotation.z = side * 0.28;
+          const p3 = part(arm, rbox(0.3, 0.08, 0.32, 0.04), c, side * 0.11, -0.11, 0); p3.rotation.z = side * 0.45;
+          part(arm, rbox(0.31, 0.02, 0.33, 0.008), t, side * 0.12, -0.15, 0).rotation.z = side * 0.45;
+          for (const dz of [-0.13, -0.045, 0.045, 0.13]) {
+            const sp = part(arm, new THREE.ConeGeometry(0.032, 0.13 - Math.abs(dz) * 0.3, 5), lit, side * 0.02, 0.19, dz);
+            sp.rotation.z = -side * 0.25;
+          }
+          // the green crust coming through the copper
+          for (const [x, y, z] of [[0.12, 0.1, 0.12], [0.05, 0.13, -0.1], [0.16, -0.04, -0.06]]) part(arm, rbox(0.06, 0.03, 0.07, 0.01), t, side * x, y, z);
+          break;
+        }
+        case 'crystal': {
+          part(arm, rbox(0.3, 0.11, 0.33, 0.05), c, side * 0.03, 0.04, 0);
+          part(arm, rbox(0.31, 0.022, 0.34, 0.008), shade(t, 0.8), side * 0.03, -0.01, 0);
+          const mat = glowMat(sh.glow ?? t, 0.7);
+          for (const [x, y, z, h, rz, rx] of [[0.06, 0.16, -0.06, 0.26, -0.5, -0.2], [0.0, 0.2, 0.07, 0.32, -0.2, 0.25], [0.15, 0.1, 0.09, 0.18, -0.9, 0.1], [0.12, 0.13, -0.12, 0.15, -0.8, -0.4]]) {
+            const s = part(arm, new THREE.OctahedronGeometry(0.06, 0), mat, side * x, y, z);
+            s.scale.set(0.7, h / 0.12, 0.7);
+            s.rotation.set(rx, 0, side * rz);
+          }
+          break;
+        }
+        case 'coil': {
+          part(arm, rbox(0.3, 0.12, 0.33, 0.06), c, side * 0.03, 0.03, 0);
+          part(arm, rbox(0.28, 0.08, 0.31, 0.03), deep, side * 0.06, -0.07, 0);
+          part(arm, rbox(0.31, 0.02, 0.34, 0.008), t, side * 0.03, -0.02, 0);
+          for (let k = 0; k < 4; k++) {
+            const ring = part(arm, new THREE.TorusGeometry(0.11 - k * 0.018, 0.02, 6, 16), lit, side * 0.02, 0.12 + k * 0.045, 0);
+            ring.rotation.x = Math.PI / 2;
+          }
+          const gear = part(arm, new THREE.CylinderGeometry(0.1, 0.1, 0.03, 14), t, side * 0.175, -0.02, 0);
+          gear.rotation.z = Math.PI / 2;
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            part(arm, rbox(0.03, 0.04, 0.04, 0.005), t, side * 0.175, -0.02 + Math.sin(a) * 0.11, Math.cos(a) * 0.11).rotation.x = -a;
+          }
+          part(arm, new THREE.CylinderGeometry(0.03, 0.03, 0.05, 8), lit, side * 0.19, -0.02, 0).rotation.z = Math.PI / 2;
+          break;
+        }
+        case 'regal': {
+          part(arm, rbox(0.35, 0.15, 0.37, 0.07), c, side * 0.04, 0.05, 0);
+          part(arm, rbox(0.36, 0.025, 0.38, 0.008), t, side * 0.04, -0.015, 0);
+          const l2 = part(arm, rbox(0.33, 0.09, 0.35, 0.04), deep, side * 0.08, -0.07, 0); l2.rotation.z = side * 0.22;
+          part(arm, rbox(0.34, 0.02, 0.36, 0.008), t, side * 0.09, -0.11, 0).rotation.z = side * 0.22;
+          // the flange standing up toward the neck, gold along its edge
+          const fl = part(arm, rbox(0.045, 0.22, 0.32, 0.015), c, -side * 0.09, 0.19, 0); fl.rotation.z = side * 0.32;
+          part(arm, rbox(0.05, 0.025, 0.33, 0.006), t, -side * 0.055, 0.3, 0).rotation.z = side * 0.32;
+          if (glow) part(arm, rbox(0.03, 0.06, 0.06, 0.01), glow, side * 0.215, 0.04, 0);
+          break;
+        }
+        case 'stair':
+          for (let k = 0; k < 3; k++) {
+            const w = 0.32 - k * 0.06;
+            part(arm, rbox(w, 0.08, 0.33 - k * 0.02, 0.03), k % 2 ? shade(c, 1.1) : c, side * (0.07 - k * 0.045), -0.02 + k * 0.075, 0);
+            part(arm, rbox(w + 0.01, 0.02, 0.04, 0.006), t, side * (0.07 - k * 0.045), 0.02 + k * 0.075, 0.15 - k * 0.01); // each tread's gold lip
+          }
+          break;
+        case 'pelt':
+          part(arm, rbox(0.32, 0.16, 0.36, 0.08), c, side * 0.03, 0.06, 0);
+          for (const [x, z, h] of [[0.12, 0.1, 0.16], [0.15, -0.06, 0.2], [0.1, -0.15, 0.14]]) part(arm, rbox(0.07, h, 0.07, 0.03), lit, side * x, 0.02 - h / 2, z);
+          break;
+      }
+    }
+    // What lies over the back
+    if (sh.style === 'regal') {
+      part(T, rbox(chestW + 0.06, 0.4, 0.04, 0.02), deep, 0, 0.5, -0.225);
+      part(T, rbox(chestW + 0.07, 0.03, 0.045, 0.008), t, 0, 0.31, -0.225);
+    } else if (sh.style === 'pelt') {
+      part(T, rbox(chestW + 0.3, 0.2, 0.5, 0.08), c, 0, 0.72, 0);
+      part(T, rbox(chestW + 0.14, 0.44, 0.06, 0.03), c, 0, 0.5, -0.24);
+      for (let k = -4; k <= 4; k++) part(T, rbox(0.07, 0.14 + (k % 2 ? 0.08 : 0), 0.06, 0.03), k % 2 ? lit : shade(c, 0.9), k * 0.07 * build, 0.24, -0.25);
+      part(T, rbox(0.42, 0.14, 0.14, 0.05), t, 0, 0.82, -0.2); // the grey hood fallen behind the neck
+    } else if (sh.style === 'crystal') {
+      part(T, rbox(chestW + 0.14, 0.1, 0.42, 0.04), c, 0, 0.71, 0);
+      part(T, rbox(chestW + 0.06, 0.3, 0.05, 0.03), c, 0, 0.56, -0.21);
+    }
+  }
+
   /** A helm on the head, over the hair. */
   private buildHelm(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh): void {
     const hm = this.look.helm;
@@ -1237,6 +1337,7 @@ export class Humanoid {
         part(H, rbox(0.04, 0.2, 0.012, 0.004), t, 0, 0.18, 0.264);
         break;
     }
+    if (TROPHY_HELMS.has(hm.style)) this.trophyHelm(part, hm, dark);
     if (hm.plume) {
       part(H, rbox(0.07, 0.2, 0.34, 0.03), hm.plume, 0, 0.66, -0.06);
       part(H, rbox(0.07, 0.14, 0.12, 0.03), shade(hm.plume, 0.85), 0, 0.6, -0.26);
@@ -1246,6 +1347,95 @@ export class Humanoid {
     if (glow && (hm.style === 'barbute' || hm.style === 'great' || hm.style === 'sallet')) {
       const y = hm.style === 'barbute' ? 0.32 : hm.style === 'great' ? 0.335 : 0.335, z = hm.style === 'sallet' ? 0.266 : 0.268;
       for (const sd of [1, -1]) part(H, rbox(0.06, 0.022, 0.006, 0.004), glowMat(glow), sd * 0.085, y, z);
+    }
+  }
+
+  /**
+   * A trophy set's helm (data/trophies.ts): Verdigris's crest of shed shell with its spines, mandibles and
+   * two green eyes on the brow; a dark coif under a crown of the Glim's splinters; a closed brass helm with
+   * crystal lenses and a gear at each ear; the Old King's black great helm with the crown worked into it;
+   * the climber's helm with its crest in steps; and a white wolf's head worn over your own.
+   */
+  private trophyHelm(part: Part, hm: NonNullable<Appearance['helm']>, dark: string): void {
+    const H = this.head, c = hm.color, t = hm.trim ?? shade(c, 0.75), lit = shade(c, 1.2), deep = shade(c, 0.72);
+    const glow = hm.glow ? glowMat(hm.glow) : null;
+    switch (hm.style as TrophyHelm) {
+      case 'carapace':
+        part(H, rbox(0.54, 0.32, 0.52, 0.14), c, 0, 0.47, -0.01);
+        for (let i = 0; i < 4; i++) part(H, rbox(0.5 - i * 0.05, 0.06, 0.14, 0.03), i % 2 ? deep : c, 0, 0.635 - i * 0.025, 0.15 - i * 0.13);
+        for (const z of [0.12, 0.0, -0.12, -0.23]) part(H, new THREE.ConeGeometry(0.03, 0.13, 5), t, 0, 0.7 - Math.abs(z) * 0.12, z);
+        part(H, rbox(0.52, 0.06, 0.07, 0.02), t, 0, 0.4, 0.25); // the brow
+        for (const sd of [1, -1]) {
+          const m = part(H, rbox(0.06, 0.26, 0.22, 0.03), c, sd * 0.27, 0.23, 0.11); m.rotation.y = sd * 0.25;
+          part(H, rbox(0.05, 0.08, 0.07, 0.02), deep, sd * 0.24, 0.1, 0.22); // the mandible's hook
+          if (glow) part(H, rbox(0.05, 0.035, 0.008, 0.008), glow, sd * 0.1, 0.475, 0.262);
+        }
+        part(H, rbox(0.46, 0.2, 0.08, 0.04), c, 0, 0.3, -0.26); // over the nape
+        break;
+      case 'shardcrown': {
+        part(H, rbox(0.5, 0.3, 0.48, 0.13), c, 0, 0.47, -0.01);
+        part(H, rbox(0.46, 0.24, 0.1, 0.04), c, 0, 0.27, -0.22);
+        part(H, rbox(0.53, 0.06, 0.51, 0.02), '#18181e', 0, 0.52, 0);
+        const mat = glowMat(hm.glow ?? t, 0.7);
+        for (let i = 0; i < 7; i++) {
+          const a = -Math.PI / 2 + (i / 6) * Math.PI, x = Math.sin(a) * 0.25, z = Math.cos(a) * 0.24;
+          const h = 0.1 + (3 - Math.abs(i - 3)) * 0.06;
+          const s = part(H, new THREE.OctahedronGeometry(0.05, 0), mat, x, 0.56 + h / 2, z * 0.98 + 0.02);
+          s.scale.set(0.7, h / 0.1, 0.7);
+          s.rotation.z = -x * 0.9;
+        }
+        part(H, rbox(0.06, 0.06, 0.02, 0.01), mat, 0, 0.47, 0.258); // the stone at the brow
+        break;
+      }
+      case 'clockwork':
+        part(H, rbox(0.55, 0.52, 0.5, 0.12), c, 0, 0.3, 0.012);
+        part(H, rbox(0.05, 0.1, 0.42, 0.02), lit, 0, 0.58, 0);
+        part(H, rbox(0.57, 0.04, 0.52, 0.01), t, 0, 0.45, 0.012);
+        for (const sd of [1, -1]) {
+          const rim = part(H, new THREE.CylinderGeometry(0.08, 0.08, 0.03, 14), t, sd * 0.11, 0.33, 0.262); rim.rotation.x = Math.PI / 2;
+          const lens = part(H, new THREE.CylinderGeometry(0.058, 0.058, 0.02, 14), glow ?? dark, sd * 0.11, 0.33, 0.275); lens.rotation.x = Math.PI / 2;
+          const g = part(H, new THREE.CylinderGeometry(0.1, 0.1, 0.03, 12), t, sd * 0.285, 0.32, 0); g.rotation.z = Math.PI / 2;
+          for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; part(H, rbox(0.03, 0.035, 0.035, 0.005), t, sd * 0.285, 0.32 + Math.sin(a) * 0.11, Math.cos(a) * 0.11).rotation.x = -a; }
+        }
+        for (const y of [0.14, 0.18, 0.22]) part(H, rbox(0.2, 0.014, 0.012, 0.004), dark, 0, y, 0.264); // the grille
+        break;
+      case 'kingly':
+        part(H, rbox(0.55, 0.52, 0.5, 0.08), c, 0, 0.29, 0.012);
+        part(H, rbox(0.58, 0.07, 0.53, 0.02), t, 0, 0.5, 0.012);
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2, x = Math.sin(a) * 0.27, z = Math.cos(a) * 0.255 + 0.012, front = i === 0;
+          part(H, new THREE.ConeGeometry(front ? 0.045 : 0.032, front ? 0.2 : 0.12, 4), t, x, front ? 0.63 : 0.6, z);
+        }
+        part(H, rbox(0.38, 0.03, 0.012, 0.004), dark, 0, 0.335, 0.264);
+        part(H, rbox(0.04, 0.18, 0.012, 0.004), t, 0, 0.19, 0.264);
+        if (glow) {
+          for (const sd of [1, -1]) part(H, rbox(0.06, 0.022, 0.006, 0.004), glow, sd * 0.085, 0.335, 0.27);
+          part(H, rbox(0.05, 0.05, 0.02, 0.01), glow, 0, 0.5, 0.272); // the stone in the crown
+        }
+        break;
+      case 'stepped':
+        part(H, rbox(0.5, 0.26, 0.48, 0.12), c, 0, 0.48, 0);
+        part(H, rbox(0.52, 0.04, 0.5, 0.012), t, 0, 0.37, 0);
+        part(H, rbox(0.05, 0.17, 0.04, 0.01), c, 0, 0.28, 0.24); // nasal
+        for (const sd of [1, -1]) part(H, rbox(0.06, 0.22, 0.22, 0.03), c, sd * 0.26, 0.28, 0.05);
+        for (let i = 0; i < 4; i++) {
+          part(H, rbox(0.07, 0.07 + i * 0.05, 0.11, 0.01), i % 2 ? lit : c, 0, 0.635 + i * 0.025, 0.13 - i * 0.1);
+          part(H, rbox(0.075, 0.015, 0.115, 0.004), t, 0, 0.67 + i * 0.05, 0.13 - i * 0.1);
+        }
+        break;
+      case 'wolfpelt':
+        part(H, rbox(0.54, 0.22, 0.52, 0.1), c, 0, 0.57, -0.02);
+        part(H, rbox(0.24, 0.13, 0.26, 0.05), c, 0, 0.54, 0.3); // the muzzle, over your brow
+        part(H, rbox(0.08, 0.05, 0.04, 0.015), dark, 0, 0.57, 0.43);
+        for (const x of [-0.07, 0.07]) part(H, new THREE.ConeGeometry(0.018, 0.06, 4), '#f4f0e6', x, 0.46, 0.38).rotation.x = Math.PI;
+        for (const sd of [1, -1]) {
+          part(H, new THREE.ConeGeometry(0.06, 0.16, 4), c, sd * 0.17, 0.74, -0.05);
+          part(H, new THREE.ConeGeometry(0.035, 0.1, 4), t, sd * 0.17, 0.72, -0.03);
+          part(H, rbox(0.08, 0.3, 0.34, 0.04), c, sd * 0.28, 0.37, -0.05);
+          if (glow) part(H, rbox(0.045, 0.025, 0.01, 0.006), glow, sd * 0.09, 0.62, 0.36);
+        }
+        part(H, rbox(0.56, 0.36, 0.14, 0.05), shade(c, 0.92), 0, 0.3, -0.25);
+        break;
     }
   }
 

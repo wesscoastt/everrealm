@@ -12,10 +12,10 @@ import type { RegionId } from '../world/terrain';
 // Regional pieces belong to their region's set: any two pieces of a set give its bonus.
 // What you wear shows: the coat's colours and cut, the legs, the gloves, the boots, the headwear.
 
-export type ArmourSlot = 'head' | 'chest' | 'legs' | 'hands' | 'feet';
+export type ArmourSlot = 'head' | 'shoulders' | 'chest' | 'legs' | 'hands' | 'feet';
 export type ArmourWeight = 'light' | 'medium' | 'heavy';
-export const ARMOUR_SLOTS: ArmourSlot[] = ['head', 'chest', 'legs', 'hands', 'feet'];
-export const SLOT_NAMES: Record<ArmourSlot, string> = { head: 'Head', chest: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet' };
+export const ARMOUR_SLOTS: ArmourSlot[] = ['head', 'shoulders', 'chest', 'legs', 'hands', 'feet'];
+export const SLOT_NAMES: Record<ArmourSlot, string> = { head: 'Head', shoulders: 'Shoulders', chest: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet' };
 
 export const WEIGHTS: Record<ArmourWeight, { name: string; defense: number; desc: string }> = {
   light: { name: 'Light', defense: 1, desc: 'calling skills recharge 4% faster a piece' },

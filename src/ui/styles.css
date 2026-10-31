@@ -288,6 +288,10 @@
 .armoury .got { color: var(--cream); }
 .armoury .miss { opacity: 0.5; }
 .armoury .bn { font-style: italic; }
+.armoury .set-h { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--gild-faint, rgba(243,213,138,0.25)); font: 600 12px var(--px); color: #f3d58a; letter-spacing: 0.04em; }
+.armoury .set.trophy.on .nm { color: #f3d58a; }
+#tooltip .hint .tr-on { color: #9fe08a; }
+#tooltip .hint .tr-off { color: var(--muted); }
 .dyes .dy-rows { display: grid; gap: 3px; margin: 6px 0 4px; }
 .dyes .dy-row { display: grid; grid-template-columns: 48px auto auto 1fr; gap: 6px; align-items: center; }
 .dyes .dy-row.none { opacity: 0.55; }

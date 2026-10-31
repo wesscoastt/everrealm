@@ -1,7 +1,9 @@
 import { utcDay } from './calendar';
 import { DUNGEONS, type DungeonDef } from './dungeons';
 import { ITEMS } from './items';
+import type { GameApi } from '../game/api';
 import { SHOPS } from './shops';
+import { TROPHY_IDS, TROPHY_PRICE, TROPHY_SETS } from './trophies';
 
 // THE LAMP COMPANY: Hesk Dunmore's delvers (the henchmen's own crew), who go down where other people
 // won't, for a day's rate and a story. In the manner of ESO's Undaunted: every day the Company posts
@@ -29,8 +31,21 @@ const pieces = [...new Set(DUNGEONS.flatMap((d) => d.bosses.flatMap((b) => b.dro
 for (const owner of ['ruth_penhale', 'xisca_mir']) {
   SHOPS[owner] = {
     id: owner, name: 'The Lamp Company', owner, currency: LAMP_KEY,
-    stock: [{ item: 'pack_delver', price: 8 }, { item: 'pack_haversack', price: 30 }, ...pieces.map((id) => ({ item: id, price: ITEMS[id].weapon ? 5 : ITEMS[id].armor?.slot === 'chest' || ITEMS[id].armor?.slot === 'legs' ? 4 : 3 }))],
+    stock: [{ item: 'pack_delver', price: 8 }, { item: 'pack_haversack', price: 30 }, ...pieces.map((id) => ({ item: id, price: ITEMS[id].weapon ? 5 : ITEMS[id].armor?.slot === 'chest' || ITEMS[id].armor?.slot === 'legs' ? 4 : 3 })),
+      // The trophy sets' shoulders (data/trophies.ts): the helms only come off the bosses, on veteran
+      ...TROPHY_IDS.filter((t) => TROPHY_SETS[t].dungeon).map((t) => ({ item: `trophy_${t}_shoulders`, price: TROPHY_PRICE.lampShoulders }))],
     buyRate: () => 0,
     footer: () => 'Priced in Lamp keys: the Company\'s pledges pay them, and so does the day\'s first random dungeon',
   };
 }
+
+// Annot Crowle's stock at the Endless Tower (content/tower.ts), priced in tower tokens: the tower's own
+// trophy sets (data/trophies.ts), each shown once you've climbed far enough
+SHOPS.tower_crowle = {
+  id: 'tower_crowle', name: 'The Endless Tower', owner: 'tower_crowle', currency: 'tower_token',
+  stock: TROPHY_IDS.filter((t) => TROPHY_SETS[t].floor).flatMap((t) => (['helm', 'shoulders'] as const).map((p) => ({
+    item: `trophy_${t}_${p}`, price: TROPHY_PRICE.tower[t] ?? 60, when: (g: GameApi) => g.towerBest() >= TROPHY_SETS[t].floor!,
+  }))),
+  buyRate: () => 0,
+  footer: (g) => g.towerBest() >= 40 ? 'Priced in tower tokens. Every floor pays them, the first time more.' : `Priced in tower tokens. More for one who has cleared floor ${g.towerBest() >= 20 ? 40 : 20}.`,
+};

@@ -78,7 +78,7 @@ export function offhandIcon(o: OffhandModel): string | null {
 // The mannequin the armour is shown on: plain undyed cloth, so the piece is what you see
 const PLAIN: Appearance = { skin: '#c8a688', hair: '#3a2a20', hairStyle: 0, eyes: '#3a3028', tunic: '#6a665e', trim: '#6a665e', trousers: '#4e4a44', boots: '#3a342e', hat: 'none', build: 1, height: 1, age: 0.3 } as Appearance;
 /** Which part of the figure to frame for each slot: from this fraction of its height down from the top, to that one, how wide, and how far off the middle (gloves: one hand). */
-const FRAME: Record<ArmourSlot, [number, number, number, number?]> = { head: [0, 0.3, 0.5], chest: [0.22, 0.6, 0.8], legs: [0.5, 0.92, 0.6], hands: [0.44, 0.64, 0.34, -0.36], feet: [0.8, 1.02, 0.5] };
+const FRAME: Record<ArmourSlot, [number, number, number, number?]> = { head: [0, 0.3, 0.5], shoulders: [0.14, 0.42, 0.95], chest: [0.22, 0.6, 0.8], legs: [0.5, 0.92, 0.6], hands: [0.44, 0.64, 0.34, -0.36], feet: [0.8, 1.02, 0.5] };
 
 export function armourIcon(slot: ArmourSlot, look: Partial<Appearance>): string | null {
   const h = new Humanoid({ ...PLAIN, ...look } as Appearance);

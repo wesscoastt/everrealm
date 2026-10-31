@@ -7,6 +7,7 @@ import { ENEMIES, EnemyType } from '../data/gameplay';
 import { BossMove, BossPlan, CALLING_ROLE, splitRunId, VET, VETERAN, DUNGEON_BY_ID, DungeonDef, DUNGEONS, HENCHMEN, type Henchman, henchmenFor, missingRoles, Role, ROLE_NAMES } from '../data/dungeons';
 import type { CallingId } from '../data/classes';
 import { ITEMS } from '../data/items';
+import { trophyHelmOf } from '../data/trophies';
 import { plan, Site, SiteActivity } from '../world/sites';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import type { Particles } from '../systems/Particles';
@@ -842,6 +843,9 @@ export class Dungeons {
     const last = r.bosses.every((x) => x.done);
     const items: string[] = [];
     if (Math.random() < b.plan.chance + (r.vet ? VETERAN.dropChance : 0) || last) items.push(b.plan.drops[Math.floor(Math.random() * b.plan.drops.length)]);
+    // Its trophy (data/trophies.ts): the last boss's helm, on veteran; always the first time, half the time after
+    const helm = last && r.vet ? trophyHelmOf(r.def.id) : null;
+    if (helm && (!Number(this.host.flag('gdVetClears:' + r.def.id) ?? 0) || Math.random() < 0.5)) items.push(helm);
     this.host.reward(0, 0, items, `${b.enemy.name} · ${r.def.name}`);
     for (const id of items) { const d = ITEMS[id]; if (d?.stats) this.host.system(`${d.name}: ${d.stats}`); }
     this.host.banner(b.enemy.name, last ? 'Defeated · the way to the chest is open' : 'Defeated');

@@ -34,6 +34,7 @@ import {
   type EnemyType,
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
+import { TROPHY_SETS, trophiesWorn, type TrophyId } from '../data/trophies';
 import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, unidentified, type DropSource, type NamedFx } from '../data/gear';
 import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIVES, QUALITY_STEPS, researchMinutes, WEAPON_LEANINGS } from '../data/crafting';
 import { NPCS } from '../data/npcs';
@@ -2852,7 +2853,7 @@ export class Game implements GameApi {
   private get armour() {
     const e = this.save.equip;
     const a = { defense: 0, vigor: 0, wind: 0, roll: 0, crit: 0, rollCost: 25, haste: 1, light: 0, medium: 0, heavy: 0, thorns: 0, swift: 0, wards: {} as Partial<Record<Element, number>> };
-    for (const id of [e.head, e.chest, e.legs, e.hands, e.feet]) {
+    for (const id of [e.head, e.shoulders, e.chest, e.legs, e.hands, e.feet]) {
       const r = id ? ITEMS[id]?.armor : undefined;
       if (!r) continue;
       // Its enchantment, if it has one (data/gear.ts ENCHANTS)
@@ -2870,6 +2871,8 @@ export class Game implements GameApi {
       if (!j) continue;
       a.vigor += j.vigor ?? 0; a.crit += j.crit ?? 0; a.wind += j.wind ?? 0; a.haste += j.haste ?? 0;
     }
+    // A trophy set's piece, one or both (data/trophies.ts)
+    for (const t of this.trophies.keys()) { const o = TROPHY_SETS[t].one; a.vigor += o.vigor ?? 0; a.wind += o.wind ?? 0; a.crit += o.crit ?? 0; a.rollCost -= o.rollCost ?? 0; }
     a.haste += a.light * 0.04;
     a.crit += a.medium * 0.015; a.rollCost -= a.medium * 2;
     a.vigor += a.heavy * 12; a.wind -= a.heavy * 0.03;
@@ -2877,11 +2880,11 @@ export class Game implements GameApi {
   }
 
   /** What the gear panel says about the armour worn. */
-  armourSummary(): { defense: number; weights: string; set: string | null } {
+  armourSummary(): { defense: number; weights: string; set: string | null; trophy: string | null } {
     const a = this.armour;
     const w = (['light', 'medium', 'heavy'] as const).filter((k) => a[k] > 0).map((k) => `${a[k]} ${WEIGHTS[k].name.toLowerCase()} (${WEIGHTS[k].desc})`);
     const s = this.gearSet;
-    return { defense: a.defense, weights: w.join('; ') || 'none', set: s };
+    return { defense: a.defense, weights: w.join('; ') || 'none', set: s, trophy: this.trophy };
   }
 
   /** Put the worn look on the character, and show it to everyone else. */
@@ -2967,7 +2970,7 @@ export class Game implements GameApi {
   private wornLook(): Appearance {
     const e = this.save.equip;
     const look: Appearance = { ...this.save.look };
-    for (const slot of ['chest', 'legs', 'hands', 'feet', 'head'] as const) {
+    for (const slot of ['chest', 'shoulders', 'legs', 'hands', 'feet', 'head'] as const) {
       // (a helm or gloves you'd rather not see still guard you: they just aren't drawn)
       if ((slot === 'head' && this.flag('hideHead')) || (slot === 'hands' && this.flag('hideHands'))) continue;
       const id = e[slot];
@@ -3012,6 +3015,50 @@ export class Game implements GameApi {
   private get helm() { return this.save.equip.head ? ITEMS[this.save.equip.head].armor : undefined; }
   /** The regional set bonus in force (GEAR_SETS), if both pieces match. */
   private get gearSet() { return activeSet(this.save.equip); }
+  /** The trophy sets worn (data/trophies.ts), and how many pieces of each. */
+  private get trophies() { const e = this.save.equip; return trophiesWorn(e.head ? ITEMS[e.head] : undefined, e.shoulders ? ITEMS[e.shoulders] : undefined); }
+  /** The trophy set whose move is in force: both its pieces worn. */
+  private get trophy(): TrophyId | null { for (const [t, n] of this.trophies) if (n >= 2) return t; return null; }
+  /** When each trophy's move last went off; the Mainspring's turns; the Long Stair's steps. */
+  private trophyAt: Partial<Record<TrophyId, number>> = {};
+  private spring = 0;
+  private stair = { n: 0, until: 0 };
+  /** A trophy set's move on a blow you landed (data/trophies.ts). */
+  private trophyHit(tr: TrophyId, e: Enemy, raw: number, crit: boolean, sprung: boolean): void {
+    const ready = (secs: number) => this.elapsed - (this.trophyAt[tr] ?? -999) >= secs;
+    const P = this.player.position;
+    if (tr === 'mainspring') {
+      if (sprung) {
+        const away = tmpV2.copy(e.pos).sub(P).setY(0);
+        if (away.lengthSq() > 0.01 && !e.def.elite) e.knock.addScaledVector(away.normalize(), 9);
+        this.particles.burst(tmpV2.copy(e.pos).setY(e.pos.y + 1), '#ffc860', 22);
+        this.floatAt(e.pos, e.model.plateHeight + 1.1, 'Sprung!', 'crit');
+        this.rig.addShake(0.2);
+        this.sfx('hitHeavy', 0.8);
+      } else if (++this.spring === 10) { this.floatAt(P, 2.6, 'Wound tight', 'heal'); this.sfx('click', 0.8); }
+    } else if (tr === 'glim' && crit && ready(6)) {
+      this.trophyAt[tr] = this.elapsed;
+      this.particles.burst(tmpV2.copy(e.pos).setY(e.pos.y + 0.8), '#9fe8ff', 28);
+      this.chaining = true;
+      for (const o of [...this.enemies]) if (o.alive && o.pos.distanceTo(e.pos) < 4) { this.dealDamage(o, raw * 0.5, false, true, ENCHANT_ELEMENT.frost); o.slowLeft = Math.max(o.slowLeft, 3); }
+      this.chaining = false;
+      this.floatAt(e.pos, e.model.plateHeight + 1.1, 'Starfall', 'crit');
+      this.sfx('crit', 0.5);
+    } else if (tr === 'oldking' && ready(8)) {
+      this.trophyAt[tr] = this.elapsed;
+      const yaw = this.player.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
+      for (const o of [...this.enemies]) {
+        if (!o.alive) continue;
+        const dx = o.pos.x - P.x, dz = o.pos.z - P.z, d = Math.hypot(dx, dz);
+        if (d > 5 || (d > 0.6 && (dx * fx + dz * fz) / d < 0.45)) continue;
+        this.dealDamage(o, raw, false, true);
+      }
+      for (let k = -4; k <= 4; k++) this.particles.sparks(tmpV2.set(P.x + Math.sin(yaw + k * 0.27) * 2.6, P.y + 1, P.z + Math.cos(yaw + k * 0.27) * 2.6), 5, '#9fe8ff');
+      this.floatAt(P, 2.7, 'The king\'s sweep', 'crit');
+      this.rig.addShake(0.18);
+      this.sfx('hitHeavy', 0.7);
+    }
+  }
   private get fx(): Set<NamedFx> {
     const e = this.save.equip, worn = [e.weapon, e.head, e.chest, e.legs, e.hands, e.feet], key = worn.join('|');
     if (key !== this.fxKey) {
@@ -3021,7 +3068,7 @@ export class Game implements GameApi {
     return this.fxSet;
   }
   /** How fast you swing: the weapon, the calling's haste, and a fury after a kill. */
-  private get pace(): number { return (this.blade?.speed ?? 1) * this.kit.attackSpeed() * (this.furyUntil > this.elapsed ? 1.25 : 1); }
+  private get pace(): number { return (this.blade?.speed ?? 1) * this.kit.attackSpeed() * (this.furyUntil > this.elapsed ? 1.25 : 1) * (this.stair.until > this.elapsed && this.trophy === 'longstair' ? 1 + 0.03 * this.stair.n : 1); }
   /** A drop: weapons and armour come rolled (data/gear.ts), anything else as it is. */
   private dropped(id: string, source: DropSource): string { const d = ITEMS[id]; return d ? unidentified(rollGear(d, source), (k) => ITEMS[k]) : id; }
   /** A named piece has dropped: the realm numbers it, if any are left (server/uniques.mjs). Offline there's
@@ -5860,6 +5907,9 @@ export class Game implements GameApi {
     // The element in the blow (the weapon's enchantment) against the foe's own (data/elements.ts)
     // (a skill's blow carries its own element; a swing, the weapon's)
     const elMult = elementMult(element === undefined ? this.weaponElement() : element, foeElement(e.def.type));
+    // The Mainspring, wound ten turns: this blow lands twice as hard
+    const sprung = !quiet && this.trophy === 'mainspring' && this.spring >= 10;
+    if (sprung) { raw *= 2; this.spring = 0; }
     const dmg = Math.max(1, Math.round(this.kit.outgoing(e, raw, quiet) * (crit ? 1.6 : 1) * flank * elMult * (guarded ? 1 - FOE_RULES.guard.cut : 1) * (1 - this.harmed('weak'))));
     if (!quiet && elMult !== 1 && this.elapsed - this.elementSaid > 1.5) { this.elementSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.9, elMult > 1 ? 'Weak!' : 'Resisted', elMult > 1 ? 'crit' : 'dodge'); }
     if (guarded && !quiet && this.elapsed - this.guardSaid > 1.2) { this.guardSaid = this.elapsed; this.floatAt(e.pos, e.model.plateHeight + 0.6, 'Guarded', 'dodge'); this.sfx('hitHeavy', 0.4); }
@@ -5904,6 +5954,9 @@ export class Game implements GameApi {
         const o = this.enemies.filter((x) => x !== e && x.alive && x.pos.distanceTo(e.pos) < 5).sort((a, b) => a.pos.distanceTo(e.pos) - b.pos.distanceTo(e.pos))[0];
         if (o) { this.chaining = true; this.particles.sparks(tmpV2.copy(o.pos).setY(o.pos.y + 0.8), 10, '#c8f4ff'); this.dealDamage(o, raw * 0.5, false, true); this.chaining = false; }
       }
+      // A trophy set's move (data/trophies.ts)
+      const tr = this.trophy;
+      if (tr && !this.chaining) this.trophyHit(tr, e, raw, crit, sprung);
     }
     if (e.justDied) this.onEnemyKilled(e);
     return dmg;
@@ -6012,6 +6065,11 @@ export class Game implements GameApi {
 
   /** byOther: someone else landed the last blow on a creature you'd hurt (game/SharedMobs.ts); they tell the realm and the group. */
   private onEnemyKilled(e: Enemy, byOther = false): void {
+    // The Long Stair: a step up for every foe you bring down (data/trophies.ts)
+    if (!byOther && this.trophy === 'longstair') {
+      this.stair = { n: this.stair.until > this.elapsed ? Math.min(8, this.stair.n + 1) : 1, until: this.elapsed + 12 };
+      this.floatAt(this.player.position, 2.6, `Step ${this.stair.n}`, 'heal');
+    }
     this.audio.playAt(voiceOf(e.def.model ?? e.def.type, 'die'), e.pos.distanceTo(this.player.position), 0.9);
     if (e.spawnKey && !e.questTag && Number.isFinite(e.def.respawn) && e.def.respawn < 99999) {
       this.ledger.set(e.spawnKey, realmNow() + e.def.respawn * 1000);
@@ -6155,6 +6213,22 @@ export class Game implements GameApi {
     const fel = foeElement(from.def.type), ward = fel ? this.armour.wards[fel] ?? 0 : 0;
     if (ward > 0) taken = Math.max(1, Math.round(taken * (1 - ward)));
     this.hp -= taken;
+    // Verdigris: below half, a shell of green copper closes over you (data/trophies.ts)
+    if (this.trophy === 'verdigris' && this.hp > 0 && this.hp < this.maxHp / 2 && this.elapsed - (this.trophyAt.verdigris ?? -999) >= 20) {
+      this.trophyAt.verdigris = this.elapsed;
+      this.kit.addShield(this.maxHp * 0.2, 8);
+      this.particles.burst(tmpV2.copy(this.player.position).setY(this.player.position.y + 1), '#7ac8a0', 24);
+      this.floatAt(this.player.position, 2.6, 'Shed shell', 'heal');
+    }
+    // Whitehair: a blow that would fell you leaves you standing, once every three minutes
+    if (this.hp <= 0 && this.trophy === 'whitehair' && this.elapsed - (this.trophyAt.whitehair ?? -999) >= 180) {
+      this.trophyAt.whitehair = this.elapsed;
+      this.hp = 1;
+      this.iframes = 3;
+      this.particles.burst(tmpV2.copy(this.player.position).setY(this.player.position.y + 1.2), '#e8f4ff', 34);
+      this.floatAt(this.player.position, 2.8, 'Came down white', 'heal');
+      this.sfx('levelUp', 0.5);
+    }
     // What the blow leaves behind (data/effects.ts)
     if (!this.inflictions.has(from.base)) this.inflictions.set(from.base, inflictionOf(from.base));
     const inf = this.inflictions.get(from.base);

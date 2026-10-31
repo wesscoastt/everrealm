@@ -5,6 +5,7 @@ import { DYE_COST, DYE_SLOTS, type DyeChannel, type DyeSlot } from '../data/gear
 import type { Equip } from '../data/items';
 import './theme.css';
 import { activeSet, GEAR_SETS, gearPoints, ITEMS, RARITY_COLOR, SkillId, type ItemDef } from '../data/items';
+import { TROPHY_IDS, TROPHY_SETS, trophiesWorn, type TrophyId } from '../data/trophies';
 import { baseOf, QUALITY } from '../data/gear';
 import { levelForXp, MAX_LEVEL, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
@@ -280,7 +281,7 @@ export interface UiCtx {
   dyePalette(): { name: string; hex: string }[];
   dyeGear(slot: DyeSlot, channel: DyeChannel, hex: string | null): void;
   /** The armour worn: what it takes off a hit, the weights and what they do, the set in force. */
-  armourSummary(): { defense: number; weights: string; set: string | null };
+  armourSummary(): { defense: number; weights: string; set: string | null; trophy: string | null };
   /** The backpack you wear (null: none yet), and hiding or showing it. */
   packInfo(): { name: string; slots: number; hidden: boolean } | null;
   togglePack(): void;
@@ -1598,7 +1599,7 @@ export class Hud {
     box.addEventListener('toggle', () => { this.dyeOpen = box.open; });
     box.append(el('summary', '', `Dye your armour · ${DYE_COST} marks a colour`));
     const eq = this.ctx.save.equip, dyes = this.ctx.gearDyes(), pal = this.ctx.dyePalette();
-    const names: Record<DyeSlot, string> = { head: 'Head', chest: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet' };
+    const names: Record<DyeSlot, string> = { head: 'Head', shoulders: 'Shoulders', chest: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet' };
     const nameOf = (hex?: string) => (hex ? pal.find((d) => d.hex === hex)?.name ?? hex : 'its own');
     const rows = el('div', 'dy-rows');
     for (const slot of DYE_SLOTS) {
@@ -1639,7 +1640,7 @@ export class Hud {
   private armoury(): HTMLElement {
     const save = this.ctx.save;
     // (a rolled piece counts as the piece it was rolled from)
-    const owned = new Set([save.equip.weapon, save.equip.head, save.equip.chest, save.equip.legs, save.equip.hands, save.equip.feet, ...save.inv.map((s) => s?.id)].map((x) => x && baseOf(x)));
+    const owned = new Set([save.equip.weapon, save.equip.head, save.equip.shoulders, save.equip.chest, save.equip.legs, save.equip.hands, save.equip.feet, ...save.inv.map((s) => s?.id)].map((x) => x && baseOf(x)));
     const found = (id: string) => owned.has(id) || !!save.flags['found:' + id];
     const pieces = Object.values(ITEMS).filter((d) => d.set);
     const box = el('details', 'armoury');
@@ -1651,6 +1652,16 @@ export class Hud {
       const row = el('div', 'set' + (id === active ? ' on' : ''));
       const names = mine.map((d) => found(d.id) ? `<span class="got">${esc(d.name)}</span>` : '<span class="miss">?</span>').join(' · ');
       row.innerHTML = `<div class="nm">${esc(S.name)} <span class="where">${esc(S.where)}</span></div><div class="pc">${names}</div><div class="bn">${esc(S.bonus)}</div>`;
+      box.append(row);
+    }
+    // The trophy sets (data/trophies.ts): a helm and shoulders each
+    box.append(el('div', 'set-h', 'Trophies'));
+    const worn = trophiesWorn(save.equip.head ? ITEMS[save.equip.head] : undefined, save.equip.shoulders ? ITEMS[save.equip.shoulders] : undefined);
+    for (const t of TROPHY_IDS) {
+      const S = TROPHY_SETS[t], mine = [`trophy_${t}_helm`, `trophy_${t}_shoulders`];
+      const row = el('div', 'set trophy' + ((worn.get(t) ?? 0) >= 2 ? ' on' : ''));
+      const names = mine.map((id) => found(id) ? `<span class="got">${esc(ITEMS[id].name)}</span>` : '<span class="miss">?</span>').join(' · ');
+      row.innerHTML = `<div class="nm">${esc(S.name)} <span class="where">${esc(S.where)}</span></div><div class="pc">${names}</div><div class="bn">One: ${esc(S.one.text)}<br>Both: ${esc(S.two)}</div>`;
       box.append(row);
     }
     return box;
@@ -1678,6 +1689,12 @@ export class Hud {
       const S = GEAR_SETS[d.set], eq = this.ctx.save.equip;
       const worn = [eq.weapon, eq.head, eq.chest, eq.legs, eq.hands, eq.feet].filter((x) => x && ITEMS[x]?.set === d.set).length;
       extra = `<b>${esc(S.name)}</b> set (${worn}/2 worn): ${esc(S.bonus)}` + (extra ? '<br>' + extra : '');
+    }
+    if (d.trophy) {
+      // A trophy set (data/trophies.ts): how much of it is worn, what one piece gives and what both do
+      const S = TROPHY_SETS[d.trophy as TrophyId], eq = this.ctx.save.equip;
+      const n = trophiesWorn(eq.head ? ITEMS[eq.head] : undefined, eq.shoulders ? ITEMS[eq.shoulders] : undefined).get(S.id) ?? 0;
+      extra = `<b>${esc(S.name)}</b> trophy (${n}/2 worn)<br><span class="${n >= 1 ? 'tr-on' : 'tr-off'}">One piece: ${esc(S.one.text)}</span><br><span class="${n >= 2 ? 'tr-on' : 'tr-off'}">Both: ${esc(S.two)}</span><br><i>${esc(S.where)}</i>` + (extra ? '<br>' + extra : '');
     }
     const kindName: Record<string, string> = { material: 'Material', tool: 'Tool', weapon: 'Weapon', armor: d.jewel ? 'Jewellery' : 'Armour', food: 'Food', quest: 'Quest item', collectible: 'Collectible', trophy: 'Trophy' };
     // Rolled gear says its quality; a named piece says what it does, its number, and where it comes from
@@ -1723,7 +1740,7 @@ export class Hud {
     const eq = el('div', 'equip-row');
     // Like an MMO's character panel: armour down the left, you in the middle, the rest on the right
     const doll = el('div', 'paperdoll');
-    const column = (list: readonly ('weapon' | 'head' | 'chest' | 'legs' | 'hands' | 'feet')[]) => {
+    const column = (list: readonly ('weapon' | 'head' | 'shoulders' | 'chest' | 'legs' | 'hands' | 'feet')[]) => {
       const col = el('div', 'col');
       for (const slot of list) {
         const id = save.equip[slot] ?? null;
@@ -1744,7 +1761,7 @@ export class Hud {
     canvas.addEventListener('pointermove', (e) => { if (dragX === null) return; this.dollYaw += (e.clientX - dragX) * 0.012; dragX = e.clientX; });
     canvas.addEventListener('pointerup', () => { dragX = null; });
     this.dollCanvas = canvas;
-    doll.append(column(['head', 'chest', 'legs']), canvas, column(['weapon', 'hands', 'feet']));
+    doll.append(column(['head', 'shoulders', 'chest', 'legs']), canvas, column(['weapon', 'hands', 'feet']));
     eq.append(doll);
     const jw = el('div', 'jewel-row');
     for (const [slot, name] of [['neck', 'Neck'], ['ear', 'Ear'], ['ring1', 'Ring'], ['ring2', 'Ring']] as const) {
@@ -1761,7 +1778,7 @@ export class Hud {
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();
     const pk = this.ctx.packInfo();
-    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
+    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
     // (a sheet of label and value, one row each, rather than lines of text)
     stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
     stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });

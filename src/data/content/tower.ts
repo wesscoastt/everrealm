@@ -31,6 +31,7 @@ const dialogue: Record<string, DialogueTree> = {
           { text: 'How far does it go?', next: 'far' },
           { text: 'How does it work?', next: 'how' },
           { text: 'I\'ll climb.', next: 'start' },
+          { text: 'What do the tokens buy?', next: 'trade' },
           { text: 'Not today.' },
         ],
       },
@@ -38,6 +39,7 @@ const dialogue: Record<string, DialogueTree> = {
         text: (g) => `You again. The book has you at floor ${g.towerBest()}.`,
         options: [
           { text: 'I\'ll climb.', next: 'start' },
+          { text: 'Show me what the tokens buy.', effect: (g) => g.openShop('tower_crowle') },
           { text: 'How does it work?', next: 'how' },
           { text: 'Not today.' },
         ],
@@ -46,6 +48,10 @@ const dialogue: Record<string, DialogueTree> = {
       how: {
         text: 'Every floor is a hall, and something waits in it. Clear it and the stair opens. Every fifth floor, worse; every tenth, a keeper of its own. Clear a tenth and you can start after it next time. Fall, or walk out, and you\'re back at this door, but the book keeps what you cleared. And you\'re paid in these, which I take for things nobody else sells.',
         next: 'hello',
+      },
+      trade: {
+        text: 'Things climbers left with me, and things made from what they brought down. A climber\'s helm and pauldrons, for one who\'s seen floor twenty. A white pelt, for one who\'s seen forty. I don\'t sell them to anyone who hasn\'t.',
+        options: [{ text: 'Show me.', effect: (g) => g.openShop('tower_crowle') }, { text: 'Later.' }],
       },
       start: {
         text: (g) => g.towerClimbing() ? 'You\'re already on the stair.' : 'Where from?',

@@ -506,3 +506,22 @@ what it says (Cut the Hock 91 and a slow, Trample 147, Brass Bomb 165, Rider's C
 buffs). **Morphs** (same day, `src/data/lineMorphs.ts`): every line skill turns one of two ways at rank IV for a point, each morph its own effects rather than a bigger number (Cut the Hock: Deep Cut bleeds half again as much, Lame slows eight seconds and staggers; Brass Bomb: Cluster Bomb or Concussion Bomb; Broadside: Chain Shot or Double-shotted), sixty in all. Verified headless: Lame slowed 7.6 s and staggered, Pressure Valve slowed what stood round you. **In the balance sim** (`npm run balance`): every line skill played by every calling in key 6 beside its first utility, against that calling's best bar of its own; none may beat it by more than 12% (nobody should be better off dropping their calling's skills). All fifty pass; Wystan's Last Fire was trimmed from 13% to 11.5%. Mobility skills (Long Stride, Waymark Step, Leaping Pole) score low in the sim, which doesn't value moving.
 
 **A second batch** (same day): four more lines, so ten in all, fifty skills and a hundred morphs: **The Levels' Ways** (the Wrath Levels' reed-cutters and eel-men; level 18 or the Levels: Eel Spear, Sucking Mud, Leaping Pole, Will-o'-the-Wisp, Open the Sluice), **The Reekers' Fires** (Inkholm's fire-keepers; level 50 or Inkholm: Reek Smoke, Firebrand, Ring of Stones, Burn It Out, Wystan's Last Fire), **The Storm-hunters** (Tenwells' tower; level 55 or the Glass Flats: Copper Rod, Glare, Salt Wind, Black Glass, Call the Storm), **The Skyfarmers' Craft** (Liftwick; level 60 or the Sunder: Light as a Slab, Lift, Rope and Pin, Hanging Stone, Drop the Slab). A ground effect after a strike now lands on the foe struck. Verified headless at level 100: every line open, each of eleven new skills unlocked, slotted and fired.
+
+### Trophy sets, after ESO's monster sets (2026-10-30)
+
+Two pieces each, a helm and a pair of shoulders (a new armour slot), in data/trophies.ts. One piece
+gives a stat; both give the thing it was cut from its own move (game/Game.ts trophyHit, and hooks in
+dealDamage, hitPlayer, onEnemyKilled and pace). A trophy sits beside a regional set, which wants two of
+the other pieces, so a build is a set of the land plus a trophy.
+
+| Set | Weight | One piece | Both | Earned |
+| --- | --- | --- | --- | --- |
+| Verdigris | heavy | +40 health | below half health, a shield of a fifth of your health for 8 s, every 20 s | Old Man's Workings, veteran |
+| The Glim | light | energy 8% faster | a crit bursts for half the blow on every foe within 4, and slows them, every 6 s | Under the Kettle, veteran |
+| The Mainspring | medium | +2% crits | every blow winds a turn; at ten, the next lands twice as hard and throws the foe back | The Escapement, veteran |
+| The Old King | heavy | +60 health | every 8 s a blow sweeps a wide arc in front for its worth again | Kingsbarrow, veteran |
+| The Long Stair | medium | rolls 3 energy cheaper | a step a kill for 12 s: 3% quicker blows a step, up to eight | Endless Tower, floor 20, 50 tokens a piece |
+| Whitehair | light | +30 health | a killing blow leaves you on 1 health and untouchable for 3 s, every 3 minutes | Endless Tower, floor 40, 90 tokens a piece |
+
+Dungeon helms drop from the last boss on veteran (always on the first veteran clear, half the time
+after); their shoulders are the Lamp Company's, ten Lamp keys each. Annot Crowle sells the tower's.
