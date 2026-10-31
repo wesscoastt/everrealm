@@ -15,8 +15,12 @@ export const HIT_XP = 0.4;
 /** What an ordinary creature at level L is worth: its kill, and the blows it takes to drop. */
 export const killXp = (L: number) => curve.xp(L) + HIT_XP * curve.hp(L);
 
-/** Ordinary kills' worth that level L takes to finish: a handful early, a long evening near the top. */
-export const killsForLevel = (L: number) => 8 + 3.2 * L - 0.01 * L * L;
+/**
+ * Ordinary kills' worth that level L takes to finish: a handful early, a long evening near the top. The
+ * first few come quicker still (a third as long at level 1, the full length by level 6), so a new player's
+ * first level comes in their first few minutes, as in WoW, and the next few soon after.
+ */
+export const killsForLevel = (L: number) => (8 + 3.2 * L - 0.01 * L * L) * Math.min(1, 0.35 + 0.13 * (L - 1));
 
 /** A finished quest, in kills' worth at your level, by its depth (a story chapter is more). */
 export const QUEST_KILLS = { short: 6, quest: 12, storyline: 18, story: 30 } as const;
