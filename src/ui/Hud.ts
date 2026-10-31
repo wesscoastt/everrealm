@@ -2889,7 +2889,8 @@ export class Hud {
       return;
     }
     if (V.fresh && this.mapFocus) { V.fresh = false; V.cx = this.mapFocus.x; V.cz = this.mapFocus.z; V.k = Math.max(kMin, 1.6 * dpr); this.mapFocus = null; }
-    if (V.fresh && me) { V.fresh = false; V.cx = me.x; V.cz = me.z; V.k = Math.max(kMin, 1.1 * dpr); }
+    // (underground it opens close in, on the halls)
+    if (V.fresh && me) { V.fresh = false; V.cx = me.x; V.cz = me.z; V.k = Math.max(kMin, (this.interior ? 4.5 : 1.1) * dpr); }
     V.k = Math.max(kMin, Math.min(kMax, V.k));
     V.kMin = kMin; V.kMax = kMax; V.dpr = dpr;
     const k = V.k, z = k / dpr; // z: CSS pixels per block, for deciding what to label
@@ -2915,6 +2916,13 @@ export class Hud {
     const vg = x.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.4, cw / 2, ch / 2, Math.max(cw, ch) * 0.75);
     vg.addColorStop(0, 'rgba(20, 14, 6, 0)'); vg.addColorStop(1, 'rgba(20, 14, 6, 0.45)');
     x.fillStyle = vg; x.fillRect(0, 0, cw, ch);
+    // Underground: the land put in shadow, and the halls' own plan where they lie (ui/interiorMap.ts)
+    const I = this.interior;
+    if (I) {
+      x.fillStyle = 'rgba(14, 11, 8, 0.82)'; x.fillRect(0, 0, cw, ch);
+      x.imageSmoothingEnabled = false;
+      x.drawImage(I.canvas, sx(I.x0), sy(I.z0), I.size * k, I.size * k);
+    }
 
     const hits: { x: number; y: number; name: string; sub: string }[] = [];
     this.wmHits = [];
@@ -2928,7 +2936,7 @@ export class Hud {
     const found = this.ctx.save.discovered;
     // Regions: big and faint far out, gone close in
     const regionA = Math.max(0, Math.min(0.85, (2.2 - z) / 1.2));
-    if (regionA > 0.02) for (const r of places()) {
+    if (regionA > 0.02) for (const r of I ? [] : places()) {
       if (r.kind !== 'region') continue;
       x.globalAlpha = regionA * (found.includes(r.id) ? 1 : 0.55);
       x.letterSpacing = px(5) + 'px';
@@ -2937,7 +2945,7 @@ export class Hud {
       x.globalAlpha = 1;
     }
     // Towns (on every chart) and the landmarks you've found
-    for (const r of places()) {
+    for (const r of I ? [] : places()) {
       if (r.kind === 'region') continue;
       const town = MAP_TOWNS.has(r.id), seen = found.includes(r.id);
       if (town ? !on('towns') : (!seen || !on('landmarks'))) continue;
