@@ -50,7 +50,7 @@ import { COMPANIONS, type CompanionId, type CompanionRole } from '../data/compan
 import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '../entities/humanoid';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
-import { AudioSystem, Sfx, voiceOf, type Soundscape } from '../systems/Audio';
+import { AudioSystem, Sfx, voiceOf, type Soundscape, type Bed } from '../systems/Audio';
 import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
@@ -187,6 +187,12 @@ const REGION_PIECE: Partial<Record<RegionId, ThemeId[]>> = {
   starfall: ['highlands', 'fells'], tolmen: ['highlands', 'fells'], redstone: ['highlands'], kell: ['tinkers', 'highlands'], sickle: ['rime', 'highlands'],
   // Morrow's own
   keys: ['keys', 'shanty'], bright: ['keys', 'whitecity'], glades: ['amber', 'grove'], amberwold: ['amber', 'grove'], sunder: ['held'], glassflats: ['caravan', 'held'], greywaste: ['held'], held: ['held', 'rime'],
+};
+/** Each land's own sound bed (systems/Audio.ts BEDS): what hangs in the air there, and what calls. */
+const REGION_BED: Partial<Record<RegionId, Bed>> = {
+  crownroad: 'farm', brambledeep: 'wood', glades: 'wood', amberwold: 'autumn', starfall: 'moor', tolmen: 'moor', held: 'moor',
+  redstone: 'barrens', glassflats: 'glass', gannet: 'cliffs', saltwind: 'cliffs', wrath: 'marsh', inkholm: 'marsh', kell: 'works',
+  sickle: 'ice', keys: 'isles', bright: 'isles', sunder: 'rift', greywaste: 'waste',
 };
 /** Where a place has a second piece of its own, the two take turns (Ansbury's market day, Gullmouth's shanty). */
 const PLACE_PIECE: Partial<Record<ThemeId, ThemeId>> = { ansbury: 'charter', harbour: 'shanty', night: 'rainfall' };
@@ -7362,6 +7368,7 @@ export class Game implements GameApi {
       falls: Math.max(0, 1 - Math.hypot(P.x - 94, P.z - 95) / 38),
       crowd: town ? (night < 0.5 ? (town.r > 100 ? 1 : 0.6) : sheltered ? 0.9 : 0.1) : 0,
       indoors: sheltered,
+      bed: this.currentRegion === 'hollin' ? 'vale' : (() => { const r = regionAt(P.x, P.z); return REGION_BED[r.t < 0.5 ? r.a : r.b] ?? 'vale'; })(),
     };
   }
 

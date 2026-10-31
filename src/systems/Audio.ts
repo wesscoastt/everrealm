@@ -40,7 +40,44 @@ export function voiceOf(model: string, what: 'aggro' | 'hurt' | 'die' | 'attack'
 }
 
 /** Where the listener is, for the ambience: each 0 (not at all) to 1. */
-export interface Soundscape { night: number; river: number; fire: number; underground: boolean; inTown: boolean; rain?: number; coast?: number; forest?: number; falls?: number; crowd?: number; indoors?: boolean }
+export interface Soundscape { night: number; river: number; fire: number; underground: boolean; inTown: boolean; rain?: number; coast?: number; forest?: number; falls?: number; crowd?: number; indoors?: boolean; bed?: Bed }
+
+/** A land's own sound, under everything else there: what hangs in the air, and what calls now and then. */
+export type Bed = 'vale' | 'farm' | 'wood' | 'autumn' | 'moor' | 'barrens' | 'glass' | 'cliffs' | 'marsh' | 'works' | 'ice' | 'isles' | 'rift' | 'waste';
+type Call = 'skylark' | 'sheep' | 'bees' | 'wren' | 'creak' | 'leaves' | 'nightjar' | 'curlew' | 'raven' | 'kestrel' | 'cicadas' | 'ting' | 'kittiwakes'
+  | 'bittern' | 'bubbles' | 'clank' | 'steam' | 'icecrack' | 'groan' | 'doves' | 'treefrogs' | 'crystal';
+/** A held layer: its filter's centre and sharpness, its level, its level at full night (n, as a multiple), and how far the gusts move it (wander). */
+interface Layer { f: number; q: number; v: number; n?: number; wander?: number }
+const BEDS: Record<Bed, { hiss?: Layer; whine?: Layer; hum?: Layer; birds: number; day: Call[]; night: Call[] }> = {
+  // Hollindale: the small birds and the calls of the woods and shore (ambience()), nothing more
+  vale: { birds: 1, day: [], night: [] },
+  // The Turnpike's open farmland: grass in the wind, larks up high, sheep, bees in the hedges
+  farm: { hiss: { f: 3400, q: 0.5, v: 0.012, wander: 0.3 }, birds: 0.8, day: ['skylark', 'skylark', 'sheep', 'bees'], night: ['nightjar'] },
+  // Hagworm Wood and the Glades: the canopy hissing with every gust, a wren, a bough creaking
+  wood: { hiss: { f: 2500, q: 0.6, v: 0.045, wander: 0.5 }, birds: 1, day: ['wren', 'wren', 'creak'], night: ['creak', 'nightjar'] },
+  // The Amberwold: dry leaves, rattling down and skittering along the ground
+  autumn: { hiss: { f: 3600, q: 0.7, v: 0.034, wander: 0.4 }, birds: 0.6, day: ['leaves', 'leaves', 'wren', 'creak'], night: ['leaves', 'creak'] },
+  // The high moors and fells: a thin wind singing in the heather, curlews, ravens, few small birds
+  moor: { whine: { f: 1100, q: 9, v: 0.016, wander: 0.45 }, hum: { f: 140, q: 0.6, v: 0.02 }, birds: 0.25, day: ['curlew', 'curlew', 'raven'], night: ['raven'] },
+  // The Raddle Barrens: dry wind over the rock, cicadas in the heat, a kestrel
+  barrens: { hiss: { f: 2400, q: 0.5, v: 0.014, wander: 0.3 }, birds: 0.2, day: ['cicadas', 'cicadas', 'kestrel'], night: [] },
+  // The Glass Flats: the same dry heat, and the glass ticking and ringing as it cools
+  glass: { hiss: { f: 2600, q: 0.5, v: 0.013, wander: 0.3 }, birds: 0.1, day: ['cicadas', 'ting', 'kestrel'], night: ['ting', 'ting'] },
+  // Gannet Cliffs and the Fleet Coast: the colonies on the ledges
+  cliffs: { birds: 0.5, day: ['kittiwakes', 'kittiwakes'], night: [] },
+  // The Wrath Levels and Inkholm: reeds, a haze of insects (thicker after dark), bubbles in the mud, a bittern booming at dusk
+  marsh: { hiss: { f: 2100, q: 0.8, v: 0.014, wander: 0.4 }, whine: { f: 5200, q: 5, v: 0.006, n: 2.2 }, birds: 0.7, day: ['bubbles', 'bubbles', 'bittern'], night: ['bittern', 'bubbles'] },
+  // The Isle of Kell: the works never stop; far hammers, steam let off, a low hum of shafts and wheels
+  works: { hum: { f: 110, q: 1.2, v: 0.03 }, whine: { f: 2900, q: 18, v: 0.003 }, birds: 0.4, day: ['clank', 'clank', 'steam'], night: ['clank', 'steam'] },
+  // The Sickle: a high cold whistle and the ice groaning and cracking; no birds, no crickets
+  ice: { whine: { f: 1700, q: 12, v: 0.018, wander: 0.5 }, hum: { f: 90, q: 0.7, v: 0.022 }, birds: 0, day: ['icecrack', 'groan'], night: ['icecrack', 'groan'] },
+  // The Keys and the Bright Coast: palms in the breeze, doves, cicadas; tree frogs all night
+  isles: { hiss: { f: 3000, q: 0.6, v: 0.012, wander: 0.4 }, whine: { f: 4600, q: 6, v: 0.002, n: 3 }, birds: 0.8, day: ['doves', 'doves', 'cicadas'], night: ['treefrogs', 'treefrogs'] },
+  // The Sunder: wind round the hanging stone, and the crystal under it ringing now and then
+  rift: { whine: { f: 1300, q: 10, v: 0.012, wander: 0.4 }, birds: 0.5, day: ['crystal', 'raven'], night: ['crystal', 'crystal'] },
+  // The Greywaste: almost nothing; a low drone, a far groan, no birds at all
+  waste: { hum: { f: 55, q: 1, v: 0.04 }, whine: { f: 420, q: 22, v: 0.005 }, birds: 0, day: ['groan'], night: ['groan'] },
+};
 
 /**
  * A long stereo bed of noise, the two sides drawn apart so it sounds wide: pink (each octave down as
@@ -120,6 +157,16 @@ export class AudioSystem {
   private nextDrip = 0;
   private nextCrowd = 0;
   private swell = 0;
+  /** The land's bed (BEDS): three held layers retuned when the land changes, and its own calls. */
+  private bedHiss!: BiquadFilterNode;
+  private bedWhine!: BiquadFilterNode;
+  private bedHum!: BiquadFilterNode;
+  private bedHissGain!: GainNode;
+  private bedWhineGain!: GainNode;
+  private bedHumGain!: GainNode;
+  private bedNow: Bed | '' = '';
+  private nextBed = 4;
+  private gust = 0.5;
   score: Score | null = null;
   /** Instruments people play (the game's performers: game/Bard.ts), on the sound-effects volume. */
   instruments: Instruments | null = null;
@@ -177,6 +224,11 @@ export class AudioSystem {
     this.seaBus.connect(seaTone); seaTone.connect(this.amb); seaTone.connect(this.room);
     this.fallsGain = this.loopNoise(260, 0.6, 'lowpass', this.brown);
     this.crowdGain = this.loopNoise(520, 0.9, 'bandpass', this.pink);
+    // The land's own layers, tuned in ambience() when the land changes
+    const bf = (type: BiquadFilterType) => { const f = ctx.createBiquadFilter(); f.type = type; return f; };
+    this.bedHiss = bf('bandpass'); this.bedHissGain = this.loopBed(this.pink, this.bedHiss, 0.2);
+    this.bedWhine = bf('bandpass'); this.bedWhineGain = this.loopBed(this.pink, this.bedWhine, 0.35);
+    this.bedHum = bf('lowpass'); this.bedHumGain = this.loopBed(this.brown, this.bedHum, 0.1);
     // The echo: a delay feeding back through a dulling filter
     this.echo = ctx.createGain();
     const delay = ctx.createDelay(1);
@@ -605,11 +657,15 @@ export class AudioSystem {
     const t = this.ctx.currentTime;
     const coast = opts.underground ? 0 : opts.coast ?? 0, forest = opts.underground ? 0 : opts.forest ?? 0, rain = opts.rain ?? 0;
     const day = opts.night < 0.5, wild = !opts.inTown && !opts.underground;
+    const bed = BEDS[opts.bed ?? 'vale'];
     // The wind: a gust every few seconds, its tone and strength moving with it; the coast is windier
     this.nextGust -= dt;
     if (this.nextGust <= 0) {
       this.nextGust = 2.5 + Math.random() * 5;
       const gust = Math.random();
+      this.gust = gust;
+      const b = BEDS[opts.bed ?? 'vale'];
+      for (const [l, f] of [[b.hiss, this.bedHiss], [b.whine, this.bedWhine]] as const) if (l?.wander) f.frequency.setTargetAtTime(l.f * (1 + (gust - 0.5) * l.wander), t, 1.4);
       this.windFilter.frequency.setTargetAtTime(220 + gust * 520 + coast * 160, t, 1.2);
       this.windGain.gain.setTargetAtTime(opts.underground ? 0.015 : (0.05 + gust * 0.07 + coast * 0.04 + opts.night * 0.02) * (opts.indoors ? 0.3 : 1), t, 1.4);
     }
@@ -647,7 +703,8 @@ export class AudioSystem {
     this.nextBird -= dt;
     if (this.nextBird <= 0 && !opts.underground && rain < 0.3) {
       this.nextBird = 1.5 + Math.random() * 4;
-      if (day) this.birdCall();
+      if (Math.random() >= bed.birds) { /* fewer, or none, here */ }
+      else if (day) this.birdCall();
       else this.cricket();
     }
     // The calls of the place: a cuckoo, a wood pigeon or a woodpecker in the woods, gulls on the coast;
@@ -661,6 +718,23 @@ export class AudioSystem {
       else if (!day && forest > 0.2 && r < 0.5) this.owl();
       else if (!day && opts.river > 0.3 && r < 0.8) this.frogs();
       else if (!day && wild && r < 0.25) this.howl();
+    }
+    // The land's own bed: its held layers (quieter in a town or indoors, none underground) and its calls
+    const bedId = opts.bed ?? 'vale';
+    if (bedId !== this.bedNow) {
+      this.bedNow = bedId;
+      for (const [l, f] of [[bed.hiss, this.bedHiss], [bed.whine, this.bedWhine], [bed.hum, this.bedHum]] as const) if (l) { f.frequency.setTargetAtTime(l.f, t, 0.5); f.Q.setTargetAtTime(l.q, t, 0.5); }
+    }
+    const keep = opts.underground ? 0 : (opts.indoors ? 0.3 : 1) * (opts.inTown && bedId !== 'works' ? 0.45 : 1) * (1 - rain * 0.5);
+    const level = (l: Layer | undefined, gusty: boolean) => !l ? 0 : l.v * keep * (1 + ((l.n ?? 1) - 1) * opts.night) * (gusty && l.wander ? 0.55 + this.gust * 0.9 : 1);
+    this.bedHissGain.gain.setTargetAtTime(level(bed.hiss, true), t, 1.5);
+    this.bedWhineGain.gain.setTargetAtTime(level(bed.whine, true), t, 1.8);
+    this.bedHumGain.gain.setTargetAtTime(level(bed.hum, false), t, 2);
+    this.nextBed -= dt;
+    if (this.nextBed <= 0) {
+      this.nextBed = 5 + Math.random() * 9;
+      const calls = day ? bed.day : bed.night;
+      if (calls.length && !opts.underground && rain < 0.5 && (!opts.inTown || bedId === 'works')) this.call(calls[Math.floor(Math.random() * calls.length)], opts.indoors ? 0.35 : 1);
     }
     // Underground: water dripping, and its echo
     this.nextDrip -= dt;
@@ -679,6 +753,73 @@ export class AudioSystem {
   private owl(): void { for (const [at, d] of [[0, 0.4], [0.75, 0.18], [0.98, 0.5]]) this.tone(390, 'sine', d, 0.03, at, 360, this.echo); }
   private frogs(): void { const n = 2 + Math.floor(Math.random() * 4); for (let i = 0; i < n; i++) this.cry(125, 100, 0.11, 0.035, [520, 1150], i * 0.19, 0.6, 0, this.amb); }
   private howl(): void { this.cry(380, 520, 0.9, 0.018, [700, 1400], 0, 0, 5, this.echo); this.cry(520, 400, 1.4, 0.018, [700, 1400], 0.85, 0, 5, this.echo); }
+
+  /** A sound that swells in and dies away (tone() strikes and decays): a bee, a drone, a groan. */
+  private swellTone(freq: number, type: OscillatorType, dur: number, peak: number, when = 0, slideTo?: number, out?: AudioNode): void {
+    const ctx = this.ctx!, t = ctx.currentTime + when;
+    const o = ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + dur * 0.45); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(out ?? this.amb);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  /** One of a land's calls (BEDS), at v of its usual loudness. */
+  private call(c: Call, v: number): void {
+    const R = Math.random, A = this.amb, E = this.echo;
+    switch (c) {
+      case 'skylark': { // high overhead, a long run of quick warbled notes
+        const base = 2600 + R() * 900; let at = 0;
+        for (let i = 0; i < 30; i++) { const d = 0.035 + R() * 0.05; this.tone(base * (0.8 + R() * 0.6), 'sine', d, 0.018 * v, at, base * (0.8 + R() * 0.6), A); at += d + 0.012; }
+        break;
+      }
+      case 'sheep': { const f = 330 + R() * 120; this.cry(f, f * 0.9, 0.55, 0.03 * v, [900, 2300], 0, 0.5, 7, E); if (R() < 0.5) this.cry(f * 1.15, f, 0.45, 0.012 * v, [900, 2300], 1.1, 0.5, 7, E); break; }
+      case 'bees': { const f = 200 + R() * 40; this.swellTone(f, 'sawtooth', 2.4, 0.007 * v, 0, f * 1.08); this.swellTone(f * 1.01, 'triangle', 2.4, 0.012 * v, 0, f * 0.97); break; }
+      case 'wren': { // a loud little trill, rattling up and down
+        const base = 3800 + R() * 900; let at = 0;
+        for (let i = 0; i < 18; i++) { const hi = i % 2 === 0; this.tone(base * (hi ? 1.12 : 0.92), 'sine', 0.035, 0.016 * v, at, base * (hi ? 0.95 : 1.05), A); at += i > 9 ? 0.03 : 0.05; }
+        break;
+      }
+      case 'creak': { const f = 70 + R() * 50; this.cry(f, f * (1.2 + R() * 0.3), 0.7 + R() * 0.5, 0.028 * v, [380, 900], 0, 0.6, 0, E); break; }
+      case 'leaves': for (let i = 0; i < 9; i++) this.burst(3200 + R() * 2500, 2, 0.02 + R() * 0.03, 0.14 * v * (1 - i / 12), 'bandpass', i * (0.05 + R() * 0.12), undefined, A); break;
+      case 'nightjar': for (let i = 0; i < 60; i++) this.burst(1900 + (i % 12 < 6 ? 0 : 300), 3, 0.022, 0.1 * v, 'bandpass', i * 0.04, undefined, E); break;
+      case 'curlew': { // the rising, bubbling call
+        for (let k = 0; k < 2 + Math.floor(R() * 3); k++) this.tone(1350, 'sine', 0.42, 0.02 * v, k * 0.55, 2150, E);
+        break;
+      }
+      case 'raven': { const n = 2 + Math.floor(R() * 2); for (let i = 0; i < n; i++) this.cry(330, 270, 0.22, 0.02 * v, [850, 1700], i * 0.42, 0.9, 0, E); break; }
+      case 'kestrel': for (let i = 0; i < 6; i++) this.tone(2900, 'sine', 0.08, 0.014 * v, i * 0.13, 2500, E); break;
+      case 'cicadas': { // a swelling, pulsing buzz from the scrub
+        const f = 5600 + R() * 1200, n = 50 + Math.floor(R() * 30);
+        for (let i = 0; i < n; i++) { const p = i / n; this.burst(f, 3, 0.03, 0.22 * v * Math.sin(Math.PI * p) + 0.005, 'bandpass', i * 0.045, undefined, A); }
+        break;
+      }
+      case 'ting': { const f = 2400 + R() * 2600; this.tone(f, 'sine', 1.1, 0.026 * v, 0, undefined, E); this.tone(f * 2.76, 'sine', 0.5, 0.004 * v, 0, undefined, E); break; }
+      case 'kittiwakes': { // a ledge of them, calling over each other
+        const n = 4 + Math.floor(R() * 5);
+        for (let i = 0; i < n; i++) { const at = R() * 2.5, f = 1500 + R() * 600; this.cry(f, f * 1.1, 0.12, 0.011 * v, [1900, 3300], at, 0.1, 0, E); this.cry(f * 1.05, f * 0.75, 0.32, 0.012 * v, [1900, 3300], at + 0.15, 0.1, 0, E); }
+        break;
+      }
+      case 'bittern': for (let k = 0; k < 3; k++) { this.tone(110, 'sine', 0.12, 0.016 * v, k * 1.3, 140, E); this.swellTone(150, 'sine', 0.75, 0.035 * v, k * 1.3 + 0.18, 128, E); } break;
+      case 'bubbles': for (let i = 0; i < 2 + Math.floor(R() * 4); i++) { const f = 260 + R() * 260; this.tone(f, 'sine', 0.06, 0.02 * v, i * (0.12 + R() * 0.3), f * 2.6, A); } break;
+      case 'clank': { // a far hammer on iron, in time, three to five strokes
+        const n = 3 + Math.floor(R() * 3), gap = 0.55 + R() * 0.25, f = 900 + R() * 600;
+        for (let i = 0; i < n; i++) { this.tone(f, 'triangle', 0.35, 0.012 * v, i * gap, f * 0.97, E); this.tone(f * 2.4, 'sine', 0.2, 0.005 * v, i * gap, undefined, E); this.burst(2600, 4, 0.02, 0.014 * v, 'bandpass', i * gap, undefined, E); }
+        break;
+      }
+      case 'steam': this.burst(3400, 0.7, 1.4 + R(), 0.09 * v, 'highpass', 0, 2200, A); this.burst(900, 1, 0.5, 0.05 * v, 'lowpass', 0, undefined, E); break;
+      case 'icecrack': { // a crack, and the ice singing down after it
+        this.burst(1800, 2, 0.05, 0.03 * v, 'bandpass', 0, 600, E); this.tone(1400 + R() * 900, 'sine', 0.9, 0.011 * v, 0.03, 160, E);
+        break;
+      }
+      case 'groan': this.cry(70 + R() * 20, 50, 2.4, 0.018 * v, [220, 520], 0, 0.7, 1.5, E); break;
+      case 'doves': for (const [at, d, f] of [[0, 0.32, 520], [0.4, 0.5, 600], [1.0, 0.36, 520]]) this.swellTone(f, 'sine', d, 0.02 * v, at, f * 0.92, A); break;
+      case 'treefrogs': { const n = 3 + Math.floor(R() * 5), f = 1800 + R() * 900; for (let i = 0; i < n; i++) this.tone(f, 'square', 0.04, 0.02 * v, i * 0.16, f * 0.8, A); break; }
+      case 'crystal': { const f = [523, 659, 784, 1047][Math.floor(R() * 4)] * (R() < 0.5 ? 1 : 2); this.swellTone(f, 'sine', 3, 0.012 * v, 0, undefined, E); this.swellTone(f * 1.5, 'sine', 2.4, 0.005 * v, 0.4, undefined, E); break; }
+    }
+  }
 
   private birdCall(): void {
     const ctx = this.ctx!;
