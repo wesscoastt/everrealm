@@ -52,6 +52,11 @@ export interface GameApi {
   toast(text: string): void;
   /** Opens a trader's panel; defaults to Tamsin's stall. Ids are keys of SHOPS. */
   openShop(id?: string): void;
+  /** The Endless Tower (game/Tower.ts): start a run from floor 1 or a cleared checkpoint, your best, the starts open to you, and whether you're climbing. */
+  towerBegin(from: number): string | null;
+  towerBest(): number;
+  towerStarts(): number[];
+  towerClimbing(): boolean;
   openCrafting(station: Station): void;
   /** Opens the Charter Post panel at the given stop (an id from POSTS). */
   openTravel(from: string): void;

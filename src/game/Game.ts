@@ -116,6 +116,7 @@ import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
+import { Tower } from './Tower';
 import { BEATEN_BY, CALLING_ELEMENT, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, WARD_CAP, WARD_OF, type Element } from '../data/elements';
 import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
@@ -1218,6 +1219,18 @@ export class Game implements GameApi {
       now: () => this.elapsed,
     });
     this.setPieces = new SetPieces(this.scene, this.world.voxels, this.world.props, SET_PIECES);
+    this.tower = new Tower({
+      scene: this.scene, voxels: this.world.voxels, player: () => this.player.position, dead: () => this.dead,
+      partySize: () => (this.social.inGroup ? this.social.group!.members.length : 1),
+      addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
+      removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
+      travel: (at, yaw, banner, sub) => this.travelInto([at.x, at.y || Math.floor(heightAt(at.x, at.z)), at.z], yaw, banner, sub),
+      banner: (t, sub) => this.hud.banner(t, sub),
+      system: (t) => this.hud.system(t),
+      reward: (xp, marks, items, why) => { if (xp) this.addXp('melee', xp); if (marks) this.addMarks(marks); for (const it of items) this.give(it, 1); this.hud.system(why + (xp ? ` (+${xp} XP)` : '')); },
+      flag: (k) => this.flag(k), setFlag: (k, v) => { this.setFlag(k, v); this.persist(); },
+      sfx: (n) => this.sfx(n),
+    });
     this.dungeons = new Dungeons({
       cleared: () => this.dailies.bump('dungeon'),
       companion: () => (this.companions.active ? this.companions.henchmanOf(this.companions.active) : null),
@@ -1601,6 +1614,12 @@ export class Game implements GameApi {
     this.sfx('open');
   }
 
+  /** The Endless Tower (game/Tower.ts). */
+  tower!: Tower;
+  towerBegin(from: number): string | null { return this.tower.begin(from); }
+  towerBest(): number { return this.tower.best(); }
+  towerStarts(): number[] { return this.tower.starts(); }
+  towerClimbing(): boolean { return !!this.tower.run; }
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hallFare = false; this.hud.show('travel'); }
   /** A ferry calling at both these Post stops, and their places on her route. */
@@ -4447,6 +4466,9 @@ export class Game implements GameApi {
   // =================================================================== Quests
   questEntries(): QuestEntry[] {
     const out: QuestEntry[] = [];
+    // A run up the Endless Tower, first while it lasts (game/Tower.ts)
+    const tw = this.tower?.objective();
+    if (tw) out.push({ id: 'tower', name: tw.title, notes: '', objectives: tw.lines.map((text) => ({ text })), done: false, tracked: true, focus: true });
     const hidden = this.questHidden(), focus = this.questFocus();
     for (const [id, stage] of Object.entries(this.save.quests)) {
       const def = QUESTS[id];
@@ -6011,6 +6033,7 @@ export class Game implements GameApi {
     if (e.def.elite) this.audio.sting('victory');
     this.activities.onKilled(e);
     this.dungeons.onKilled(e);
+    this.tower?.onKilled(e);
     // A Bright-cut piece (data/armour.ts): anything, anywhere, about one kill in four thousand, and
     // always a piece you haven't found before
     if (Math.random() < 1 / 4000) {
@@ -6415,6 +6438,7 @@ export class Game implements GameApi {
     this.npcMusic();
     this.activities.update(dt);
     this.dungeons.update(dt);
+    this.tower?.update(dt);
     this.setPieces.update(dt, this, this.player.position);
     this.shared.update(dt);
     // Out of a cleared dungeon with a click, not a walk back to the ladder

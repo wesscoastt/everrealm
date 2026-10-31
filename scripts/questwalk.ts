@@ -67,6 +67,10 @@ class Mock implements GameApi {
   level() { return 99; }
   hasTool(skill: string) { return Object.keys(this.s.inv).some((i) => ITEMS[i]?.tool?.skill === skill); }
   toast(t: string) { texts.set(`${this.where} (toast)`, t); }
+  towerBegin(_from: number): string | null { return null; }
+  towerBest(): number { return Number(this.s.flags['tower:best'] ?? 0); }
+  towerStarts(): number[] { return [1]; }
+  towerClimbing(): boolean { return false; }
   openShop(id?: string) { if (id && !SHOPS[id]) err('shop:' + id, `${this.where}: opens unknown shop "${id}"`); }
   openCrafting() {}
   openTravel() {}

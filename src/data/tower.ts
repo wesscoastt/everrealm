@@ -175,7 +175,8 @@ export function towerDef(base: EnemyDef, f: FloorFoe, plan: FloorPlan): EnemyDef
   const s = floorScale(plan.n);
   let hp = base.hp * s.hp, damage = base.damage * s.damage, speed = base.speed, cooldown = base.cooldown;
   if (f.elite) { hp *= 2.4; damage *= 1.3; }
-  if (plan.boss && f === plan.boss) { hp *= 6 + Math.min(6, plan.n / 50); damage *= 1.4; }
+  // (a keeper is a boss to the realm's combat: elite, and at least 1500 strong, so it staggers and has phases)
+  if (plan.boss && f === plan.boss) { hp = Math.max(1500, hp * (6 + Math.min(6, plan.n / 50))); damage *= 1.4; }
   if (plan.modifiers.includes('frenzied')) { speed *= 1.25; cooldown *= 0.8; }
   if (plan.modifiers.includes('sharp')) { damage *= 1.2; hp *= 0.8; }
   if (plan.modifiers.includes('stubborn')) hp *= 1.33;
