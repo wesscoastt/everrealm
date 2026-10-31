@@ -92,6 +92,8 @@ function tokenFor(name: string): string {
 export interface TradeOffer { items: { id: string; n: number }[]; marks: number }
 /** A home in the realm's book: who holds it, the plans it's built to (none yet: just leased), and the blocks laid on it by hand. */
 export interface HomeHeld { owner: string; spec: unknown; blocks: [number, number, number, number][]; /** A stall up at the gate. */ stall?: boolean }
+/** A notice on the open world's board. */
+export interface LfgNotice { id: number; name: string; kind: string; label: string; region: string; level: number; size: number; mine: boolean }
 export interface GroupView { id: number; leader: number; members: { id: number; name: string; hp: number; max: number; level: number; calling: string; x: number; z: number }[] }
 export interface TradeView { id: number; with: string; mine: TradeOffer; theirs: TradeOffer; myLock: boolean; theirLock: boolean; myAccept: boolean; theirAccept: boolean }
 
@@ -149,6 +151,8 @@ export interface OnlineHooks {
   mobLedger?(list: [string, number][]): void;
   /** The world boss you're on the list for (the Group Finder), or null. */
   wbSeek?(boss: string | null): void;
+  /** The open world's board (server/social.mjs). */
+  lfg?(list: LfgNotice[]): void;
   /** Another player's blows on the creature at a spawn point, as a share of its health (game/SharedMobs.ts). */
   mobHit?(key: string, share: number, from: number): void;
   /** Home visits: someone asks to see your home; a host's layout arrives for you to see. */
@@ -335,6 +339,7 @@ export class Online {
       case 'group': this.hooks.group?.(m as unknown as GroupView); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
       case 'wbSeek': this.hooks.wbSeek?.(typeof m.boss === 'string' ? m.boss : null); break;
+      case 'lfg': if (Array.isArray(m.list)) this.hooks.lfg?.(m.list as LfgNotice[]); break;
       case 'mobDead': if (typeof m.key === 'string' && typeof m.left === 'number') this.hooks.mobDead?.(m.key, m.left); break;
       case 'mHit': if (typeof m.key === 'string' && typeof m.share === 'number' && typeof m.from === 'number') this.hooks.mobHit?.(m.key, m.share, m.from); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
@@ -564,6 +569,10 @@ export class Online {
   /** Look for a group for a world boss, or stop looking. */
   wbLook(boss: string, name: string): void { this.emit({ t: 'wbLook', boss, name }); }
   wbStop(): void { this.emit({ t: 'wbStop' }); }
+  lfgList(): void { this.emit({ t: 'lfgList' }); }
+  lfgPost(kind: string, label: string, region: string): void { this.emit({ t: 'lfgPost', kind, label, region }); }
+  lfgStop(): void { this.emit({ t: 'lfgStop' }); }
+  lfgJoin(id: number): void { this.emit({ t: 'lfgJoin', id }); }
   /** A share of a creature's health you took off: the realm passes it to the players near you. */
   mobHit(key: string, share: number): void { this.emit({ t: 'mHit', key, share: Math.round(share * 1e4) / 1e4 }); }
   homeAsk(name: string): void { this.emit({ t: 'hAsk', name }); }

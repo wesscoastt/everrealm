@@ -83,7 +83,7 @@ import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
 import { PACKET_COURSE, POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
-import { Online, type HallView, type HomeHeld } from '../net/Online';
+import { type LfgNotice, Online, type HallView, type HomeHeld } from '../net/Online';
 import { BOARDS, SET_PIECES } from '../data/content';
 
 /** Chapter numbers for the main story's quests, I to XXX. */
@@ -1362,6 +1362,7 @@ export class Game implements GameApi {
       },
       revived: (by: string) => { if (this.dead) { this.raise(0.5); this.hud.system(`${by} helps you to your feet.`); this.sfx('quest', 0.5); } },
       wbSeek: (boss: string | null) => { this.wbSeek = boss; this.hud.refresh('finder'); },
+      lfg: (list) => { this.lfg = list; this.hud.refresh('finder'); },
       mobLedger: (list: [string, number][]) => { for (const [k, ms] of list) this.mobDeadElsewhere(k, ms); },
       homeAsked: (from: string) => {
         if (!this.home.owned) { this.online.homeShow(from, true, null); return; }
@@ -2614,6 +2615,20 @@ export class Game implements GameApi {
 
   /** The world boss you're on the Group Finder's list for (the realm says), if any. */
   wbSeek: string | null = null;
+  private lfgAsk = 0;
+  /** The open world's board, as the realm last sent it. */
+  lfg: LfgNotice[] = [];
+  /** The notices you could put up now: what you're questing, the land you're in, the tower, exploring. */
+  lfgChoices(): { kind: string; label: string; region: string }[] {
+    const P = this.player.position, reg = REGION_INFO[regionAt(P.x, P.z).a]?.name ?? 'the Counties';
+    const q = this.questEntries().find((e) => !e.done && e.tracked !== false && (e.focus || e.story)) ?? this.questEntries().find((e) => !e.done && e.tracked !== false);
+    const out = [];
+    if (q) out.push({ kind: 'quest', label: `Questing: ${q.name}`, region: reg });
+    out.push({ kind: 'region', label: `Anything in ${reg}`, region: reg });
+    out.push({ kind: 'tower', label: 'Climbing the Endless Tower', region: 'The Endless Tower' });
+    out.push({ kind: 'explore', label: `Exploring ${reg}`, region: reg });
+    return out;
+  }
   private finderTick = 0;
 
   /** The cabin you live in aboard: the kind of the ship you last went below in, while you still own one afloat. */
@@ -3237,8 +3252,8 @@ export class Game implements GameApi {
         else if (what === 'strike' && arg) g.music.strikeUp(arg);
         g.hud.refresh('music');
       },
-      finder: () => ({ ...g.dungeons.view(), bosses: g.activities.bossBoard(), wbSeek: g.wbSeek }),
-      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind' | 'wbfind' | 'wbstop', id?: string) => {
+      finder: () => ({ ...g.dungeons.view(), bosses: g.activities.bossBoard(), wbSeek: g.wbSeek, lfg: g.lfg, lfgChoices: g.lfgChoices() }),
+      finderDo: (what: 'role' | 'hench' | 'find' | 'now' | 'cancel' | 'leave' | 'vet' | 'rhench' | 'rfind' | 'wbfind' | 'wbstop' | 'lfgpost' | 'lfgstop' | 'lfgjoin', id?: string) => {
         let why: string | null = null;
         if (what === 'wbfind' && id) {
           const b = g.activities.bossBoard().find((x) => x.id === id);
@@ -3246,6 +3261,9 @@ export class Game implements GameApi {
           if (g.online.status !== 'online') why = 'Finding a group needs the online realm.';
           else g.online.wbLook(b.id, b.name);
         } else if (what === 'wbstop') g.online.wbStop();
+        else if (what === 'lfgpost' && id !== undefined) { const c = g.lfgChoices()[Number(id)]; if (g.online.status !== 'online') why = 'The board needs the online realm.'; else if (c) g.online.lfgPost(c.kind, c.label, c.region); }
+        else if (what === 'lfgstop') g.online.lfgStop();
+        else if (what === 'lfgjoin' && id) { if (g.online.status !== 'online') why = 'The board needs the online realm.'; else g.online.lfgJoin(Number(id)); }
         if (what === 'vet') { g.dungeons.setVet(id === '1' || id === '2'); g.dungeons.setCor(id === '2'); }
         if (what === 'role' && (id === 'tank' || id === 'healer' || id === 'damage')) g.dungeons.setRole(id);
         else if (what === 'hench' && id) why = g.dungeons.goWithHenchmen(id);
@@ -6633,7 +6651,11 @@ export class Game implements GameApi {
     this.home.update();
     this.cabin.update();
     // The Group Finder's boss clocks run while it's open
-    if (this.hud.isOpen('finder') && (this.finderTick += dt) > 1) { this.finderTick = 0; this.hud.refresh('finder'); }
+    if (this.hud.isOpen('finder') && (this.finderTick += dt) > 1) {
+      this.finderTick = 0; this.hud.refresh('finder');
+      // the board, every few seconds while the finder's open
+      if ((this.lfgAsk -= 1) <= 0) { this.lfgAsk = 5; if (this.online.status === 'online') this.online.lfgList(); }
+    } else if (!this.hud.isOpen('finder')) this.lfgAsk = 0;
     this.drawPractice();
     this.lotBuild.update();
     // What you've laid on your lot goes to the realm's book a moment after you stop

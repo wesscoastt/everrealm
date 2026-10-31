@@ -29,6 +29,16 @@ const wbSeekers = new Map();
 /** How long a player stays on a boss's list before they're taken off it. */
 const WB_SEEK_MS = 30 * 60_000;
 const BOSS_ID = /^wb-[a-z]{2,20}$/;
+/**
+ * The open world's board (the Group Finder's, as GW2's and WoW's): a notice from anyone doing something now (a
+ * quest, a land's content, the tower, exploring), and anyone may join them with a click, into their group or a
+ * new one with them. poster id -> { kind, label, region, at }. A notice comes down when its poster takes it down
+ * or leaves, when the group is full, or after half an hour. No free text: the game writes the words.
+ */
+const notices = new Map();
+const NOTICE_MS = 30 * 60_000;
+const NOTICE_KINDS = new Set(['quest', 'region', 'tower', 'explore', 'event']);
+const cleanText = (s, n) => String(s ?? '').replace(/[^A-Za-z0-9' ,.:-]/g, '').slice(0, n);
 
 const ITEM = /^[a-z0-9_]{2,40}$/;
 
@@ -181,6 +191,34 @@ export function socialInit(ctx) {
         return true;
       }
       case 'wbStop': wbDrop(me); send(me.ws, { t: 'wbSeek', boss: null }); return true;
+      // ------------------------------------------------------------ The open world's board
+      case 'lfgList': boardTo(me); return true;
+      case 'lfgPost': {
+        if (!NOTICE_KINDS.has(msg.kind)) return true;
+        notices.set(me.id, { kind: msg.kind, label: cleanText(msg.label, 60) || 'Out and about', region: cleanText(msg.region, 32), at: Date.now() });
+        sys(me, 'Your notice is up on the board. Anyone can join you from the Group Finder.');
+        boardTo(me);
+        return true;
+      }
+      case 'lfgStop': notices.delete(me.id); boardTo(me); return true;
+      case 'lfgJoin': {
+        const id = Number(msg.id), poster = players.get(id), n = notices.get(id);
+        if (!poster || !n) { sys(me, 'That notice has come down.'); boardTo(me); return true; }
+        if (poster === me) return true;
+        const g = groupOf(poster);
+        if (g) {
+          if (g.members.includes(me.id)) { sys(me, 'You\'re in that group already.'); return true; }
+          if (g.members.length >= GROUP_MAX) { notices.delete(id); sys(me, 'That group has filled up.'); boardTo(me); return true; }
+          if (me.group) leaveGroup(me, 'has left the group');
+          g.members.push(me.id); me.group = g.id;
+          for (const m of g.members) { const o = players.get(m); if (o && o !== me) sys(o, `${me.name} has joined the group from the board.`); }
+          sys(me, `You join ${poster.name}'s group: ${n.label}.`);
+          sendGroup(g);
+          if (g.members.length >= GROUP_MAX) notices.delete(id);
+        } else formGroup([poster.id, me.id], `Grouped from the board: ${n.label}.`);
+        boardTo(me);
+        return true;
+      }
       case 'gPromote': {
         const g = groupOf(me);
         const who = byName(msg.name);
@@ -382,6 +420,7 @@ export function socialInit(ctx) {
     if (tr) closeTrade(tr, `${me.name} has left.`);
     leaveGroup(me, 'has left the world');
     wbDrop(me);
+    notices.delete(me.id);
   }
 
   // Groups see each other's health and whereabouts twice a second; trades end if the two walk apart.
@@ -394,8 +433,18 @@ export function socialInit(ctx) {
     }
     const now = Date.now();
     for (const [id, inv] of invites) if (now - inv.at > INVITE_MS) invites.delete(id);
+    for (const [id, n] of notices) if (!players.has(id) || now - n.at > NOTICE_MS) { notices.delete(id); const o = players.get(id); if (o) sys(o, 'Your notice on the board has come down after half an hour.'); }
     for (const set of wbSeekers.values()) for (const id of set) { const o = players.get(id); if (!o || now - (o.wbAt ?? 0) > WB_SEEK_MS) { if (o) { wbDrop(o); send(o.ws, { t: 'wbSeek', boss: null }); sys(o, 'Nobody else was looking: you are off the world boss list.'); } else set.delete(id); } }
   }, 500);
+
+  /** The board as one player sees it: everyone's notice, with their group's size, and which is theirs. */
+  function boardTo(p) {
+    const list = [...notices].filter(([id]) => players.has(id)).map(([id, n]) => {
+      const o = players.get(id), g = groupOf(o);
+      return { id, name: o.name, kind: n.kind, label: n.label, region: n.region, level: o.level ?? 1, size: g ? g.members.length : 1, mine: id === p.id };
+    });
+    send(p.ws, { t: 'lfg', list });
+  }
 
   /** Put these players in one group of their own (the Group Finder's), out of any they were in. */
   function formGroup(ids, said = 'You\'re grouped for the dungeon.') {

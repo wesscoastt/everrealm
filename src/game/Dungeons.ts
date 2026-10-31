@@ -171,6 +171,9 @@ export interface FinderView {
   bosses?: { id: string; name: string; where: string; until: number }[];
   /** The boss you're on the list for, if any. */
   wbSeek?: string | null;
+  /** The open world's board, and the notices you could put up (filled in by the game). */
+  lfg?: import('../net/Online').LfgNotice[];
+  lfgChoices?: { kind: string; label: string; region: string }[];
 }
 
 const HAZARD_RING = new THREE.RingGeometry(0.92, 1, 40).rotateX(-Math.PI / 2);
