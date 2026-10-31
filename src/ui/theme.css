@@ -278,3 +278,6 @@
 /* A foe's element on the target frame (data/elements.ts) */
 #target-frame .tel { display: block; font: 600 11px var(--body); color: var(--muted); margin-top: 1px; }
 #target-frame .tel:empty { display: none; }
+
+/* A foe's element before its name on the plate */
+.plate .pel { font-weight: 700; text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 1px 0 #000; }

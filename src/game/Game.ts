@@ -7605,7 +7605,8 @@ export class Game implements GameApi {
       if (d > 26) continue;
       const s = project(e.pos.x, e.pos.y + e.model.plateHeight + 0.3, e.pos.z);
       const showHp = e === this.target || e.hp < e.def.hp;
-      if (s) plates.push({ key: 'e' + e.id, x: s.x, y: s.y, name: d < 16 || e === this.target ? `${e.name} · ${e.def.level}` : '', kind: e.def.elite ? 'elite' : 'enemy', hp: showHp ? e.hp / e.def.hp : undefined, targeted: e === this.target });
+      const fel = foeElement(e.def.type);
+      if (s) plates.push({ key: 'e' + e.id, x: s.x, y: s.y, name: d < 16 || e === this.target ? `${e.name} · ${e.def.level}` : '', kind: e.def.elite ? 'elite' : 'enemy', hp: showHp ? e.hp / e.def.hp : undefined, targeted: e === this.target, el: fel ? ELEMENTS[fel] : undefined });
     }
     for (const r of this.online.remotes.values()) {
       const rp = r.model.root.position;

@@ -170,7 +170,7 @@ export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enem
 
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escort'; title: string; goal: string; progress: number; count: string; time?: number }
-export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean }
+export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean; /** A foe's element (data/elements.ts): its glyph and colour before the name. */ el?: { glyph: string; color: string; name: string } }
 export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
 
 export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean }
@@ -1207,7 +1207,7 @@ export class Hud {
       }
       e.className = `plate ${p.kind}${p.targeted ? ' targeted' : ''}`;
       // A trailing * marks a main-story marker, drawn in the story colour.
-      const html = `${p.mark ? `<div class="mark${p.mark.endsWith('*') ? ' story' : ''}">${p.mark.replace('*', '')}</div>` : ''}<div>${esc(p.name)}</div>${p.sub ? `<div class="t">${esc(p.sub)}</div>` : ''}${p.hp !== undefined ? `<div class="hpb"><i style="width:${Math.max(0, p.hp * 100)}%"></i></div>` : ''}`;
+      const html = `${p.mark ? `<div class="mark${p.mark.endsWith('*') ? ' story' : ''}">${p.mark.replace('*', '')}</div>` : ''}<div>${p.el && p.name ? `<span class="pel" style="color:${p.el.color}" title="${p.el.name}">${p.el.glyph}</span> ` : ''}${esc(p.name)}</div>${p.sub ? `<div class="t">${esc(p.sub)}</div>` : ''}${p.hp !== undefined ? `<div class="hpb"><i style="width:${Math.max(0, p.hp * 100)}%"></i></div>` : ''}`;
       if (e.dataset.h !== html) { e.innerHTML = html; e.dataset.h = html; }
       e.style.left = p.x + 'px';
       e.style.top = p.y + 'px';
