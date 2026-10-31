@@ -446,6 +446,7 @@ export class Activities {
           }
           if (a.boss) out.push(this.spawnAt({ ...ENEMIES[a.boss[3] as EnemyType] }, a.boss[0], a.boss[1], a.boss[2]));
           this.fortDone.delete(s.id);
+          this.keyed(out);
           this.dungeons.set(s.id, out);
           continue;
         }
@@ -455,6 +456,9 @@ export class Activities {
           const ch = a.kind === 'delve' ? DELVE_CHAMPIONS[s.id] : undefined, d = championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45);
           out.push(this.spawnAt(ch ? { ...d, ...(ch.name ? { name: ch.name } : {}), ...(ch.attack ? { attack: ch.attack } : {}), ...(ch.role ? { role: ch.role } : {}), ...(ch.phases ? { phases: ch.phases } : {}) } : d, a.boss[0], a.boss[1], a.boss[2]));
         }
+        // Each keyed by its kind and where it stands, as the open world's are: shared between everyone there
+        // (game/SharedMobs.ts: one creature, one health, blows and the kill for all who fought it)
+        this.keyed(out);
         this.dungeons.set(s.id, out);
         if (a.kind === 'delve') this.openRoom(s);
       } else if (!near && list && Math.hypot(P.x - s.x, P.z - s.z) > 110) {
@@ -723,6 +727,11 @@ export class Activities {
     if (hunt) e.questTag = 'activity';
     this.host.addEnemy(e);
     return e;
+  }
+
+  /** Key a site's creatures by kind and spawn point ("type@x,z", as the realm knows them), so a group shares them. */
+  private keyed(list: Enemy[]): void {
+    for (const e of list) if (!e.spawnKey) e.spawnKey = `${e.def.type}@${Math.floor(e.home.x)},${Math.floor(e.home.z)}`;
   }
 
   private spawnAt(def: EnemyDef, x: number, y: number, z: number): Enemy {
