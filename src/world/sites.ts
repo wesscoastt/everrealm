@@ -4319,6 +4319,43 @@ export function plan(): Plan {
     // Planes along the Avenue's broad south reach
     for (let z = RZ + 20; z < cz + 160; z += 12) for (const x of [cx - 27, cx - 13]) if (isFree(x - 1, z - 1, x + 1, z + 1)) plantTree(x, z, base, 0.5);
     s.props.push({ t: 'sign', x: cx - 26.5, y: base, z: cz + 172.5, ry: 0, text: 'Callis' });
+    // ---- The Counting House's Callis house (data/company.ts), on the corner of the coast road across
+    // from the quay: the office, its door east to the road and the harbour, and the Assembly's warehouse
+    // the Company rents behind it to the south
+    {
+      const x0 = 8665, z0 = 999, y = base;
+      stoneHall(s, x0, z0, 12, 11, 9, base, 'e');
+      s.props.push({ t: 'roof', x: x0 + 6, y: base + 9, z: z0 + 5.5, len: 11, span: 12, rise: roofRise(12), ry: Math.PI / 2, mat: 'blue' });
+      const F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+      for (const z of [1002.1, 1004.5, 1006.9]) F('counter', 8670.5, z, -Math.PI / 2);
+      for (const z of [1001.5, 1003.7, 1005.9, 1008.1]) F('shelves', 8666.4, z, Math.PI / 2, 1);
+      F('strongbox', 8666.6, 1000.6, Math.PI / 2); F('letters', 8670.5, 1002.1, 0, 1, y + 1.02);
+      F('desk', 8673.5, 1000.6, 0); F('chair', 8673.5, 1001.0, Math.PI);
+      F('crate', 8674.6, 1008.4); F('barrel', 8673.6, 1008.6);
+      F('lamp', 8671, 1004.5, 0, 0, y + 5.4);
+      s.props.push({ t: 'banner', x: 8665.9, y: y + 5.6, z: 1004.5, kind: 'company', ry: -Math.PI / 2 });
+      s.props.push({ t: 'sign', x: 8678.4, y, z: 1001.2, ry: -Math.PI / 2, text: 'The Counting House' });
+      for (const z of [1001.5, 1007.5]) s.props.push({ t: 'banner', x: 8677.15, y: y + 6.2, z, kind: 'company', ry: -Math.PI / 2 });
+      for (const z of [1000.4, 1008.6]) s.props.push({ t: 'lantern', x: 8677.6, y, z });
+      house(s, x0, z0 + 12, 12, 8, 2, base, 'slate', 'e', { wall: B.Planks, closed: true, chimney: false });
+      for (let k = 0; k < 3; k++) s.props.push({ t: 'crate', x: 8677.6, y, z: 1012.5 + k * 0.9, ry: k * 0.4 });
+      s.props.push({ t: 'barrel', x: 8677.6, y, z: 1016.4 });
+    }
+    // ---- The Assembly's Hospital (data/infirmary.ts) on the plaza across from the Charter Post: a long
+    // white ward, its door west to the plaza, five beds heads to the east wall, the physician by the door
+    {
+      const x0 = 8551, z0 = 1058, y = base;
+      stoneHall(s, x0, z0, 10, 16, 8, base, 'w');
+      s.props.push({ t: 'roof', x: x0 + 5, y: base + 8, z: z0 + 8, len: 16, span: 10, rise: roofRise(10), ry: Math.PI / 2, mat: 'red' });
+      const F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+      [1060.5, 1063, 1065.5, 1068, 1070.5].forEach((bz, i) => { F('bed', 8558.3, bz, -Math.PI / 2); if (i === 0 || i === 2) s.props.push({ t: 'furn', item: 'bench', x: 8556.3, y, z: bz, ry: Math.PI / 2, sat: true }); });
+      F('desk', 8552.6, 1059.6, 0); F('letters', 8552.6, 1059.6, 0, 2, y + 1.02);
+      F('shelves', 8553.0, 1072.4, Math.PI, 1); F('crocks', 8552.3, 1071.0, 0); F('candles', 8559.4, 1072.4, 0);
+      F('rug', 8555, 1066, Math.PI / 2, 1);
+      for (const lz of [1061, 1066, 1071]) F('lamp', 8556, lz, 0, 0, y + 5.0);
+      s.props.push({ t: 'sign', x: 8549.6, y, z: 1062.5, ry: Math.PI / 2, text: 'The Assembly\'s\nHospital' });
+      for (const lz of [1063.6, 1069.4]) s.props.push({ t: 'lantern', x: 8549.7, y, z: lz });
+    }
   }
 
   /** A world boss's lair: a levelled clearing ringed with whatever suits the creature. */

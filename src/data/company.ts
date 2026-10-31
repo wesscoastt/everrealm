@@ -137,6 +137,33 @@ export const HOUSES: CountingHouse[] = [
         goods: 'Six casks, new. They hold water, which is more than their contracts do.' },
     ],
   },
+  {
+    // Callis, in Morrow: a warehouse rented from the Assembly at a rent the Assembly raises every year, on
+    // the corner of the coast road across from the quay. Office corner (8665, 999), door east. No carries
+    // yet: it's the only house in Morrow.
+    id: 'callis', town: 'Callis', routes: [],
+    clerk: { id: 'co_jordi', name: 'Jordi Alsina', at: [8669.0, 1004.5], face: [8675, 1004.5], look: { ...COAT, skin: '#c89070', hair: '#1e1a16', hairStyle: 1, age: 0.35, hat: 'cap', hatColor: '#22365a' },
+      barks: ['Contracts in triplicate. The Assembly\'s rule.', 'The rent went up again.'] },
+    factor: { id: 'co_montserrat', name: 'Montserrat Riera', at: [8673.5, 1002.8], face: [8673.5, 1006], look: { ...COAT, skin: '#c8906a', hair: '#2a1e14', hairStyle: 2, lashes: true, age: 0.55, cape: '#22365a' },
+      barks: ['Counties wool, Counties tin. For scrip.', 'The Assembly takes its tenth at the door.'],
+      hello: 'Montserrat Riera, factor for Callis, in a warehouse the Assembly rents us at a price it raises every spring. Counties goods, sold for scrip, and a tenth to the Assembly at the door.' },
+    debtors: [
+      { id: 'co_oriol', name: 'Oriol Rovira', title: 'Cork merchant', at: [8689.5, 1030.5], face: [8692, 1030.5], look: { skin: '#c8906a', hair: '#3a2a1e', hairStyle: 3, beard: true, tunic: '#6a4a2a', trim: '#e0d0a0', build: 1.1, age: 0.6 },
+        barks: ['Cork for the Counties\' bottles.', 'Bark takes nine years to grow back. So do debts.'],
+        owes: 'He owes the freight on three loads of cork the Company carried to the Counties, which the bottlers there haven\'t paid him for.',
+        plea: 'The Counties bottlers haven\'t paid me, so I haven\'t paid you. That\'s how money moves, in a circle, and the Company is on the circle too. Tell them to collect from Ansbury.',
+        idle: 'Oriol Rovira. Cork, the best on the coast. Nine years on the tree before it\'s fit to stop a bottle.',
+        coin: 'There. All of it, out of my daughter\'s dowry. She\'ll marry for love now, God help her.',
+        goods: 'Take bark, then. Two bales. The Counties will pay for it, which is more than they do me.' },
+      { id: 'co_aina', name: 'Aina Cabot', title: 'Dyer', at: [8689.5, 1120.5], face: [8692, 1120.5], look: { skin: '#d8a882', hair: '#4a2a1e', hairStyle: 2, lashes: true, tunic: '#5a2a5a', trim: '#e8c060', apron: true, age: 0.45 },
+        barks: ['Madder, woad, and patience.', 'Mind my hands. They\'re blue to the elbow.'],
+        owes: 'She owes for a load of Counties woad the Company brought over at her order.',
+        plea: 'The woad came wet and went black in the sacks. I can\'t dye with black woad. I dyed with it anyway, and now I\'ve forty ells of cloth the colour of a bruise.',
+        idle: 'Aina Cabot, dyer. If it\'s blue, I made it. If it\'s the colour of a bruise, the Company did.',
+        coin: 'There, paid. Tell your factor her woad is the reason half the Assembly wears grey this year.',
+        goods: 'Four ells of the bruise colour, then. Someone in the Counties will call it fashionable.' },
+    ],
+  },
 ];
 export const HOUSE_BY_ID = new Map(HOUSES.map((h) => [h.id, h]));
 

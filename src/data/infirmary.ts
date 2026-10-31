@@ -121,6 +121,35 @@ export const INFIRMARIES: Infirmary[] = [
         ail: 'Powder burns down one arm and the side of his face. He says a galley fire.' },
     ],
   },
+  {
+    // The Assembly's Hospital, Callis, on the plaza across from the Charter Post: hall corner (8551, 1058),
+    // door west onto the plaza. Everything in it was paid for by a vote, and the vote is painted over the door.
+    id: 'hospital', name: 'the Assembly\'s Hospital', town: 'Callis', bed: [8552.6, 22, 1066.5],
+    physician: {
+      id: 'inf_laia', name: 'Laia Serra', title: 'Physician of the Assembly\'s Hospital', at: [8553.6, 1061.4], face: [8556, 1065],
+      look: { skin: '#c8906a', hair: '#1e1a16', hairStyle: 2, lashes: true, tunic: '#e8e4dc', trim: '#3a5a8a', shirt: '#e8e4dc', age: 0.5 },
+      barks: ['Name, parish, complaint. In that order.', 'The Assembly pays. In triplicate.'],
+      free: 'Sit. The Assembly voted this bed free to anyone who needs it, by a majority of four. Don\'t make me regret the four.',
+      paid: 'Eight marks for the poor box. The Assembly matches it, on paper. Sit.',
+      hello: 'Laia Serra, physician. The Assembly voted for a hospital and then for a physician and then, a year later, for medicines. Hurt?',
+    },
+    nurse: {
+      id: 'inf_nil', name: 'Nil Font', title: 'Nurse of the Assembly\'s Hospital', at: [8554.4, 1070.4], face: [8556, 1066],
+      look: { skin: '#d8a882', hair: '#3a2a1e', hairStyle: 1, tunic: '#5a6a7a', trim: '#e8e4dc', apron: true, age: 0.3 },
+      barks: ['Clean linen, every bed, every day.', 'The cook doesn\'t get the burns cream again.'],
+      ward: 'Gerard should be dead and isn\'t, which is the physician\'s doing and not the Company\'s. Joana breathes better since we moved her by the window. She doesn\'t know where the smoke came from either.',
+    },
+    patients: [
+      { id: 'inf_gerard', name: 'Gerard Fiol', title: 'Porter', at: [8556.3, 1060.5], face: [8553, 1060.5], look: { skin: '#c89070', hair: '#2a1e14', hairStyle: 3, beard: true, tunic: '#e8e4dc', trim: '#c8c0b0', build: 1.15, age: 0.45 },
+        barks: ['Carried bales eleven years.', 'They said the stairs were sound.'],
+        says: 'Eleven years carrying bales at the warehouses, and one Saturday the stair behind the Company\'s goes from under me. Third floor. They say the stair was sound. Stairs don\'t fall down when they\'re sound.',
+        ail: 'A broken back that isn\'t broken, by some luck. He\'ll walk by spring.' },
+      { id: 'inf_joana', name: 'Joana Tous', title: 'Lace-maker', at: [8556.3, 1065.5], face: [8553, 1065.5], look: { skin: '#e2b894', hair: '#a8a49c', hairStyle: 2, lashes: true, tunic: '#e8e4dc', trim: '#c8c0b0', age: 0.75 },
+        barks: ['Smoke in my chest still.', 'Forty years of lace, all gone up.'],
+        says: 'My rooms were over the warehouses on the coast road. One night the smoke came up through the boards. Forty years of lace, the pillow, the bobbins, all of it. They say a lamp was left. Whose lamp, they don\'t say.',
+        ail: 'Smoke in the chest. Old lungs; she\'ll mend slowly or not at all.' },
+    ],
+  },
 ];
 
 export const INFIRMARY_BY_ID = new Map(INFIRMARIES.map((i) => [i.id, i]));

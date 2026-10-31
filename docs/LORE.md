@@ -168,6 +168,10 @@ A small stone ward in the south-west corner of Harrowgate Works' yard, the only 
 
 On Gullmouth's upper terrace by the head of the stair, kept by the harbour dues at a penny a ton, which the masters complain of. **Isolde Penwarden**, physician (lemons, she tells every master); **Clemmie Blewett**, nurse. On the ward: **Ezekiel Cardew**, ship's cook, scurvy from four months on biscuit, fed raw onions; **Nicodemus Vean**, seaman, burns down one arm he calls a galley fire and that look like powder, on no ship that pays dues here.
 
+### The Assembly's Hospital [in game]
+
+On the plaza in Callis across from the Charter Post: a long white ward, paid for by a vote, then a physician by another vote, then a year later medicines by a third. **Laia Serra**, physician; **Nil Font**, nurse. On the ward: **Gerard Fiol**, porter, who fell three floors when the stair behind the Company's warehouse went from under him on a Saturday; **Joana Tous**, lace-maker, smoke in her chest from a night the smoke came up through her boards over the coast-road warehouses, and forty years of lace gone. Whose lamp was left, nobody says. (The Counting House's Callis house is a warehouse rented from the Assembly on the corner of the coast road: **Jordi Alsina** clerk, **Montserrat Riera** factor; its debtors **Oriol Rovira**, cork merchant, and **Aina Cabot**, dyer, whose Counties woad went black in the sacks.)
+
 ## The bell bronze, start to finish [in game]
 
 The thread that ties the first four quests together. Every step is something the player can read or be told.
