@@ -292,3 +292,22 @@
 #ui.pack-beside #inv-panel .inv-bag .inv-grid .slot { width: 48px; height: 48px; }
 #ui.pack-beside #shop-panel, #ui.pack-beside #craft-panel, #ui.pack-beside #exchange-panel, #ui.pack-beside #trade-panel { left: auto; right: calc(min(470px, calc(50vw - 24px)) + 32px); transform: none; }
 @media (max-width: 1000px) { #ui.pack-beside #inv-panel { display: none; } #ui.pack-beside #shop-panel, #ui.pack-beside #craft-panel, #ui.pack-beside #exchange-panel, #ui.pack-beside #trade-panel { left: 50%; right: auto; transform: translateX(-50%); } }
+
+/* ------------------------------------------------------------- The HUD in one language (UI brief, priority 5)
+   The chat, the level's plaque, the tracker and the hotbar's states in the same night-blue and gilt as the
+   frames, the minimap and the bar: one panel tint, one thin gilt edge, the same corners and shadows. */
+#chatbox .cb-log { background: rgba(11, 16, 32, 0.7); border: 1px solid var(--ink); border-radius: 0 10px 10px 10px; box-shadow: inset 0 0 0 1px var(--gild-faint), 0 4px 12px rgba(0, 0, 0, 0.35); }
+#chatbox.idle:not(:hover):not(.typing) .cb-log { background: rgba(11, 16, 32, 0.5); box-shadow: inset 0 0 0 1px rgba(243, 213, 138, 0.08); }
+#chatbox .cb-tabs button { background: rgba(11, 16, 32, 0.78); border: 1px solid var(--ink); border-bottom: none; color: var(--cream-d); box-shadow: inset 0 0 0 1px var(--gild-faint); }
+#chatbox .cb-tabs button.sel { background: var(--night-2); color: var(--gild-l); box-shadow: inset 0 0 0 1px var(--gild-line); }
+#chatbox .cb-input { background: rgba(11, 16, 32, 0.92); border: 1px solid var(--gild-line); border-radius: 8px; }
+#xpbar .label { background: rgba(17, 26, 49, 0.88); border: 1px solid var(--ink); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--gild-line), 0 2px 5px rgba(0, 0, 0, 0.4); color: var(--gild-l); }
+@keyframes xpDing { 0%, 100% { box-shadow: 0 0 0 1px var(--gild-line), inset 0 2px 4px rgba(0, 0, 0, 0.5); } 20% { box-shadow: 0 0 0 1px var(--gild-l), 0 0 14px 3px rgba(243, 213, 138, 0.6), inset 0 2px 4px rgba(0, 0, 0, 0.5); } }
+@keyframes xpDingLabel { 0%, 100% { color: var(--gild-l); } 20% { color: #fffbe8; box-shadow: inset 0 0 0 1px var(--gild-l), 0 0 10px rgba(243, 213, 138, 0.5); } }
+#tracker { background: linear-gradient(90deg, rgba(11, 16, 32, 0), rgba(11, 16, 32, 0.6) 22%); border-radius: 10px 0 0 10px; }
+#tracker .q.focus { background: rgba(243, 213, 138, 0.07); box-shadow: inset 2px 0 0 var(--gild-l); border-radius: 0 8px 8px 0; }
+.ab-slot.locked { box-shadow: inset 0 0 0 1px rgba(243, 213, 138, 0.12), 0 3px 8px rgba(0, 0, 0, 0.45); }
+@keyframes abReady { 0% { box-shadow: inset 0 0 0 1px var(--gild-l), 0 0 12px rgba(243, 213, 138, 0.6); } 100% { box-shadow: inset 0 0 0 1px var(--gild-line), inset 0 10px 16px rgba(255, 255, 255, 0.04), 0 3px 8px rgba(0, 0, 0, 0.45); } }
+/* World labels and floating numbers stay under the HUD's panels: a name over the chat hid its words */
+#plates, #floaters { z-index: 0; }
+#chatbox, #tracker, #actionbar { z-index: 2; }
