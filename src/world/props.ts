@@ -2780,7 +2780,95 @@ export function openDoor(M: PropMaterials, high = 3, kind: DoorKind = 'cottage',
 }
 
 /** An interior piece by name (see interiors.ts); tint picks the rug colour. */
+/**
+ * A trophy mount (data/trophyMounts.ts): an oak shield for the wall with what the creature left on it,
+ * in its own colours. Its back is at z 0 (against the wall), it faces +z, and its middle is at y 0.
+ * Wolves, dogs and foxes are a head with the muzzle out and the jaw a little open; the cat has tabby
+ * stripes; a boar a broad head, a snout and curled tusks; the claw a crab's great claw; the heart a glass
+ * dome over a green glass heart; the jaws a shark's open jaws with their rows of teeth.
+ */
+export function mountedHead(kind: string, a: string, b: string): THREE.Group {
+  const g = new THREE.Group();
+  const oak = flat('#6a4a2c'), oakLt = flat('#8a6440'), brass = flat('#c8a050'), coat = flat(a), second = flat(b);
+  const dark = flat('#14100c'), white = flat('#f4f0e4'), tongue = flat('#a84a4a');
+  // The shield: a rounded oak board, a lighter rim, a brass plate at the foot
+  g.add(mesh(box(0.86, 0.96, 0.06), oak, 0, 0, 0.03));
+  g.add(mesh(box(0.7, 1.1, 0.06), oak, 0, 0, 0.03));
+  g.add(mesh(box(0.92, 0.06, 0.08), oakLt, 0, 0.47, 0.04)); g.add(mesh(box(0.74, 0.06, 0.08), oakLt, 0, -0.56, 0.04));
+  g.add(mesh(box(0.3, 0.07, 0.02), brass, 0, -0.42, 0.075));
+  const z0 = 0.07;
+  switch (kind) {
+    case 'wolf': case 'dog': case 'fox': case 'cat': {
+      const lean = kind === 'fox' ? 0.75 : kind === 'cat' ? 0.85 : 1;
+      g.add(mesh(box(0.46 * lean, 0.4, 0.34), coat, 0, 0.06, z0 + 0.17));                 // the head
+      g.add(mesh(box(0.5 * lean, 0.42, 0.12), second, 0, 0.0, z0 + 0.06));                // the ruff at the neck
+      const snout = kind === 'cat' ? 0.16 : kind === 'fox' ? 0.34 : 0.3;
+      g.add(mesh(box(0.22 * lean, 0.16, snout), coat, 0, 0.0, z0 + 0.34 + snout / 2));    // the muzzle
+      g.add(mesh(box(0.08, 0.06, 0.04), dark, 0, 0.06, z0 + 0.35 + snout));             // the nose
+      g.add(mesh(box(0.2 * lean, 0.05, snout * 0.85), tongue, 0, -0.1, z0 + 0.32 + snout / 2)); // the open jaw
+      for (const sd of [-1, 1]) {
+        g.add(mesh(box(0.025, 0.06, 0.025), white, sd * 0.06 * lean, -0.06, z0 + 0.3 + snout)); // a fang
+        g.add(mesh(box(0.06, 0.04, 0.02), kind === 'cat' ? flat('#c8b030') : flat('#d8b860'), sd * 0.12 * lean, 0.14, z0 + 0.345)); // an eye
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(kind === 'fox' ? 0.07 : 0.08, kind === 'fox' ? 0.2 : 0.16, 4), coat);
+        ear.position.set(sd * 0.15 * lean, 0.33, z0 + 0.14); ear.rotation.z = -sd * 0.25; g.add(ear);
+      }
+      if (kind === 'cat') for (const y of [0.18, 0.1, 0.02]) g.add(mesh(box(0.48 * lean, 0.025, 0.02), second, 0, y, z0 + 0.345));
+      if (kind === 'fox') g.add(mesh(box(0.16, 0.08, 0.2), white, 0, -0.06, z0 + 0.42)); // the white chin
+      if (kind === 'dog' && b === '#c8a050') g.add(mesh(box(0.5, 0.05, 0.36), brass, 0, -0.14, z0 + 0.17)); // the company collar
+      break;
+    }
+    case 'boar': {
+      g.add(mesh(box(0.5, 0.44, 0.38), coat, 0, 0.04, z0 + 0.19));
+      g.add(mesh(box(0.06, 0.12, 0.34), flat('#14100c'), 0, 0.3, z0 + 0.17)); // the bristle ridge
+      g.add(mesh(box(0.3, 0.24, 0.24), coat, 0, -0.04, z0 + 0.48));
+      g.add(mesh(box(0.24, 0.2, 0.04), flat('#c89070'), 0, -0.04, z0 + 0.61)); // the snout's disc
+      for (const sd of [-1, 1]) {
+        g.add(mesh(box(0.04, 0.04, 0.02), dark, sd * 0.06, -0.04, z0 + 0.63));
+        const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.24, 5), second);
+        tusk.position.set(sd * 0.17, -0.02, z0 + 0.52); tusk.rotation.z = -sd * 0.6; g.add(tusk);
+        g.add(mesh(box(0.05, 0.04, 0.02), flat('#c86a2a'), sd * 0.14, 0.12, z0 + 0.385));
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.14, 4), coat); ear.position.set(sd * 0.2, 0.3, z0 + 0.12); ear.rotation.z = -sd * 0.6; g.add(ear);
+      }
+      break;
+    }
+    case 'claw': {
+      // A crab's great claw, crusted, the pincers open
+      g.add(mesh(box(0.22, 0.5, 0.22), coat, 0, -0.06, z0 + 0.12, 0, 0, 0.3));
+      g.add(mesh(box(0.34, 0.26, 0.26), coat, 0.06, 0.2, z0 + 0.16));
+      g.add(mesh(box(0.1, 0.3, 0.14), coat, -0.04, 0.42, z0 + 0.2, 0, 0, 0.35));
+      g.add(mesh(box(0.1, 0.24, 0.14), second, 0.16, 0.4, z0 + 0.2, 0, 0, -0.4));
+      for (const [x, y] of [[-0.05, 0.1], [0.1, 0.25], [0.02, -0.18]]) g.add(mesh(box(0.07, 0.05, 0.05), white, x, y, z0 + 0.29));
+      break;
+    }
+    case 'heart': {
+      // The green glass heart under a glass dome, on a little oak stand
+      g.add(mesh(box(0.42, 0.06, 0.3), oakLt, 0, -0.26, z0 + 0.15));
+      const glow = new THREE.MeshLambertMaterial({ color: a, emissive: new THREE.Color(a), emissiveIntensity: 0.6 });
+      const heart = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), glow); heart.position.set(0, -0.06, z0 + 0.15); heart.scale.set(1, 1.15, 0.9); g.add(heart);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#c8e8f4', transparent: true, opacity: 0.3 }));
+      dome.position.set(0, -0.23, z0 + 0.15); dome.scale.set(1, 1.6, 1); g.add(dome);
+      for (const [x, z] of [[-0.12, 0.08], [0.1, 0.22], [0.06, 0.06]]) g.add(mesh(box(0.08, 0.04, 0.06), second, x, -0.21, z0 + z));
+      break;
+    }
+    case 'jaws': {
+      // A shark's jaws, open, rows of teeth round the gape
+      const gum = flat('#a85a5a');
+      g.add(mesh(box(0.62, 0.1, 0.12), coat, 0, 0.26, z0 + 0.08)); g.add(mesh(box(0.62, 0.1, 0.12), coat, 0, -0.26, z0 + 0.08));
+      for (const sd of [-1, 1]) g.add(mesh(box(0.1, 0.52, 0.12), coat, sd * 0.27, 0, z0 + 0.08));
+      g.add(mesh(box(0.46, 0.04, 0.1), gum, 0, 0.2, z0 + 0.1)); g.add(mesh(box(0.46, 0.04, 0.1), gum, 0, -0.2, z0 + 0.1));
+      for (let k = 0; k < 7; k++) {
+        const x = -0.2 + k * 0.067;
+        for (const [y, flip] of [[0.15, Math.PI], [-0.15, 0]] as const) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.09, 3), second); t.position.set(x, y, z0 + 0.12); t.rotation.z = flip; g.add(t); }
+      }
+      break;
+    }
+  }
+  return g;
+}
+
 export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group | null {
+  // A trophy for the wall: "head:<kind>:<coat>:<second colour>" (data/trophyMounts.ts)
+  if (item.startsWith('head:')) { const [, kind, a, b] = item.split(':'); return mountedHead(kind, a, b); }
   switch (item) {
     case 'bed': return cottageBed(M);
     case 'table': return table(M);

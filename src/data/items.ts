@@ -341,6 +341,9 @@ import { OLD_WEAPON_MODELS, WEAPON_ITEMS } from './weapons';
 for (const d of WEAPON_ITEMS) ITEMS[d.id] = d;
 for (const [id, m] of Object.entries(OLD_WEAPON_MODELS)) if (ITEMS[id]?.weapon) ITEMS[id].weapon!.model = m;
 
+// Trophy mounts for the wall, from the rares (src/data/trophyMounts.ts).
+import { TROPHY_MOUNTS } from './trophyMounts';
+for (const d of TROPHY_MOUNTS) ITEMS[d.id] = d;
 // Rares' trophies and treasure maps (src/data/wilds.ts).
 import { MAP_ITEMS, TROPHIES } from './wilds';
 for (const d of [...TROPHIES, ...MAP_ITEMS]) ITEMS[d.id] = d;

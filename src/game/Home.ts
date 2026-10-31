@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ITEMS } from '../data/items';
 import type { HomeShape } from '../data/housing';
 import { createPropMaterials, furniture } from '../world/props';
+import { isWallPiece, WALL_HEIGHT } from '../data/trophyMounts';
 import { chimneyCell, fitOut, FurnItem, furnCells, FURN_SIZE } from '../world/interiors';
 
 // A home of your own: Wendside Cottage, or a house you've had built on a lot (data/housing.ts).
@@ -117,7 +118,7 @@ export class Home {
       const def = ITEMS[item]?.furn;
       const g = def && furniture(this.M, def.model, def.tint ?? 0);
       if (!g) continue;
-      g.position.set(x, h.base + (f ?? 0) * 4, z);
+      g.position.set(x, h.base + (f ?? 0) * 4 + (isWallPiece(def.model) ? WALL_HEIGHT : 0), z);
       g.rotation.y = (t * Math.PI) / 2;
       this.group.add(g);
     }
@@ -171,6 +172,7 @@ export class Home {
    * within a block of it, so a table slides clear of the stairs instead of refusing outright.
    */
   private fitSpot(): [number, number, number, boolean] {
+    if (this.holding && isWallPiece(ITEMS[this.holding]?.furn?.model)) { const [x, z, f, t] = this.wallSpot(); this.turn = t; return [x, z, f, this.fitsWall(x, z, t, f)]; }
     const [x, z, f] = this.spot();
     if (!this.holding) return [x, z, f, true];
     const list = this.pieces();
@@ -182,6 +184,26 @@ export class Home {
       bd = d; best = [x + dx, z + dz];
     }
     return best ? [best[0], best[1], f, true] : [x, z, f, false];
+  }
+
+  /** A wall piece's place: on the inside face of the wall nearest you, along it where you stand, facing into the room. */
+  private wallSpot(): [number, number, number, number] {
+    const h = this.where()!, p = this.host.player(), f = this.floorAt(p.y, h);
+    const W = h.x0 + 1, E = h.x0 + h.w - 1, N = h.z0 + 1, S = h.z0 + h.d - 1, off = 0.04;
+    const along = (v: number, a: number, b: number) => Math.min(b - 0.6, Math.max(a + 0.6, Math.round(v * 2) / 2));
+    const d = [p.z - N, S - p.z, p.x - W, E - p.x], i = d.indexOf(Math.min(...d));
+    if (i === 0) return [along(p.x, W, E), N + off, f, 0];
+    if (i === 1) return [along(p.x, W, E), S - off, f, 2];
+    if (i === 2) return [W + off, along(p.z, N, S), f, 1];
+    return [E - off, along(p.z, N, S), f, 3];
+  }
+  /** A wall piece fits where the floor before it isn't the door, the hearth or the stairs, and no other wall piece hangs within a block. */
+  private fitsWall(x: number, z: number, turn: number, floor = 0): boolean {
+    const h = this.where();
+    if (!h) return false;
+    const fx = Math.floor(x + (turn === 1 ? 0.5 : turn === 3 ? -0.5 : 0)), fz = Math.floor(z + (turn === 0 ? 0.5 : turn === 2 ? -0.5 : 0));
+    if ((kept(h)[floor] ?? new Set<string>()).has(fx + ',' + fz) || this.host.reserved?.().has(fx + ',' + fz)) return false;
+    return !this.pieces().some(([it, px, pz, pt, pf]) => (pf ?? 0) === floor && pt === turn && isWallPiece(ITEMS[it]?.furn?.model) && Math.hypot(px - x, pz - z) < 1);
   }
 
   /** Room for a piece here: inside the walls, clear of the hearth and the door, and of other pieces (rugs go under things). */
@@ -216,7 +238,7 @@ export class Home {
   private tidy(): void {
     const kept: Piece[] = [], back: string[] = [];
     for (const pc of this.pieces()) {
-      if (this.fits(pc[0], pc[1], pc[2], pc[3], kept, pc[4] ?? 0) || !this.host.give(pc[0])) kept.push(pc);
+      if ((isWallPiece(ITEMS[pc[0]]?.furn?.model) || this.fits(pc[0], pc[1], pc[2], pc[3], kept, pc[4] ?? 0)) || !this.host.give(pc[0])) kept.push(pc);
       else back.push(ITEMS[pc[0]]?.name ?? pc[0]);
     }
     if (!back.length) return;
@@ -244,7 +266,7 @@ export class Home {
     if (!this.inside(this.host.player())) { this.stop(); this.host.system('You step outside and leave the furniture where it is.'); return; }
     if (this.ghost) {
       const [x, z, f, fitsHere] = this.fitSpot();
-      this.ghost.position.set(x, this.where()!.base + f * 4, z);
+      this.ghost.position.set(x, this.where()!.base + f * 4 + (this.holding && isWallPiece(ITEMS[this.holding]?.furn?.model) ? WALL_HEIGHT : 0), z);
       this.ghost.rotation.y = (this.turn * Math.PI) / 2;
       // The ghost turns red where the piece won't fit
       const ok = fitsHere;
@@ -263,8 +285,8 @@ export class Home {
     const max = maxPieces(this.where()!);
     if (list.length >= max) { this.host.system(`The house holds ${max} pieces. Pick something up first.`); return; }
     if (!this.host.take(this.holding)) { this.hold(null); return; }
-    const [x, z, f] = this.fitSpot();
-    if (!this.fits(this.holding, x, z, this.turn, list, f)) { this.host.give(this.holding); this.host.system('That would knock into something. Try another spot or turn it.'); this.host.sound('fail'); return; }
+    const [x, z, f, ok] = this.fitSpot();
+    if (isWallPiece(ITEMS[this.holding]?.furn?.model) ? !ok : !this.fits(this.holding, x, z, this.turn, list, f)) { this.host.give(this.holding); this.host.system('That would knock into something. Try another spot or turn it.'); this.host.sound('fail'); return; }
     this.host.setFlag('home', [...list, [this.holding, x, z, this.turn, f]]);
     this.host.sound('pickup');
     this.render();
