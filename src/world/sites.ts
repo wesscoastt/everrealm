@@ -30,6 +30,7 @@ import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
+import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
 import { FORTS, type Fort } from '../data/forts';
 import { GILLSBY, HYTHE, PRIORY, REEKS, UNDER_F, OLD_BED } from '../data/inkholm';
 import { BRASSWICK, ESC, GATE, VENTS, WORKS } from '../data/kell';
@@ -614,6 +615,9 @@ export function plan(): Plan {
     { id: 'dive-grindles', name: 'The Grindles', x: 1905, z: 1032, r0: 0, r1: 0, sea: true, build: (s) => buildGrindles(s) },
     // Group dungeons: buried halls, entered by a door elsewhere (the Old Man's from Sallow Pit's chamber)
     { id: 'gd-oldman', name: 'The Old Man\'s Workings', x: 254, z: -58, r0: 0, r1: 0, under: true, build: (s) => buildOldMan(s) },
+    // The Endless Tower (data/tower.ts): the tower by the Turnpike, and its eight halls under it
+    { id: 'endless-tower', name: 'The Endless Tower', x: TOWER.x, z: TOWER.z, r0: 14, r1: 22, build: (s, b) => buildEndlessTower(s, b) },
+    { id: 'tower-halls', name: 'The Endless Tower', x: TOWER.x, z: TOWER.z + 60, r0: 0, r1: 0, under: true, build: (s) => buildTowerHalls(s) },
     // The law (data/justice.ts): the Charter's cells under the Weighhouse, and the Ropewalk Cellar under Gullmouth
     ...GAOLS.filter((g) => landOf(g) === 'counties').map((g): Named => ({ id: g.id, name: 'The gaol', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
     ...REFUGES.filter((r) => landOf(r) === 'counties').map((r): Named => ({ id: r.id, name: r.name, x: r.x, z: r.z, r0: 0, r1: 0, under: true, build: (s) => buildRefuge(s, r) })),
@@ -2598,6 +2602,81 @@ export function plan(): Plan {
    * the heart of the fall, eight blocks below the fold, where the crystal the star brought down
    * fills a cavern and the Glim lives in its light. Entered by the crack (press E); buried.
    */
+  /**
+   * The Endless Tower (data/tower.ts): a round tower of old grey stone by the Turnpike, taller than
+   * anything between Ansbury and the coast, banded with dark stone every few courses, crenellated, a
+   * lamp burning at the top. The door faces the road; the keeper waits inside it.
+   */
+  function buildEndlessTower(s: Site, base: number) {
+    const cx = TOWER.x, cz = TOWER.z;
+    rect(s, cx - 16, cz - 16, cx + 16, cz + 16);
+    // A paved yard round its foot, and the way to the road
+    for (let dz = -13; dz <= 13; dz++) for (let dx = -13; dx <= 13; dx++) {
+      if (Math.hypot(dx, dz) > 13) continue;
+      const x = cx + dx, z = cz + dz;
+      foundation(x, z, base, B.StoneBrick);
+      O.set(x, base - 1, z, (dx + dz) % 5 === 0 ? B.CarvedStone : hash2(x, z, 1201) < 0.2 ? B.MossyCobble : B.Flagstone);
+      clearUp(x, z, base, base + 10);
+    }
+    for (let x = cx - 26; x <= cx - 13; x++) for (let dz = -1; dz <= 1; dz++) { const g = Math.floor(heightAt(x, cz + dz)); O.set(x, g - 1, cz + dz, B.Flagstone); clearUp(x, cz + dz, g, g + 6); }
+    tower(s, cx, cz, 13, 52, base, B.StoneBrick, { crenel: true, trim: B.Blackstone, door: 'w', hollow: true });
+    // Dark bands every eight courses, and narrow lit windows climbing it
+    for (let y = base + 8; y < base + 52; y += 8) for (let a = 0; a < 64; a++) {
+      const t = (a / 64) * Math.PI * 2, x = Math.round(cx + Math.cos(t) * 6.5), z = Math.round(cz + Math.sin(t) * 6.5);
+      O.set(x, y, z, B.Blackstone);
+    }
+    for (let y = base + 12; y < base + 48; y += 7) for (const t of [0.6, 2.2, 3.9, 5.3]) {
+      const x = Math.round(cx + Math.cos(t + y * 0.1) * 6.5), z = Math.round(cz + Math.sin(t + y * 0.1) * 6.5);
+      O.set(x, y, z, B.Window); O.set(x, y + 1, z, B.Window);
+    }
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + 54, z: cz + 0.5, r: 6, color: '#ffd890', lit: true });
+    s.props.push({ t: 'sign', x: cx - 9.5, y: base, z: cz + 2.6, ry: -Math.PI / 2, text: 'The Endless Tower' });
+    for (const dz of [-2.4, 2.4]) s.props.push({ t: 'lantern', x: cx - 7.5, y: base, z: cz + dz + 0.5, ry: -Math.PI / 2 });
+    for (const dz of [-3.5, 3.5]) s.props.push({ t: 'banner', x: cx - 6.9, y: base + 7, z: cz + dz + 0.5, kind: 'aldermere', ry: -Math.PI / 2 });
+    // Inside: the keeper's table, the record board, the stair going down
+    s.props.push({ t: 'furn', item: 'desk', x: cx - 1.5, y: base, z: cz + 2.5, ry: -Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'candles', x: cx + 3.5, y: base, z: cz - 3.5, ry: 0 });
+    s.props.push({ t: 'glow', x: cx + 0.5, y: base + 3, z: cz + 0.5, r: 4, color: '#ffc070', lit: true });
+  }
+
+  /**
+   * The tower's halls (data/tower.ts HALL_AT), one for each theme, deep under the ground south of it:
+   * the floors a run is fought on. A run takes you to the hall of the floor's theme; nothing walks
+   * between them.
+   */
+  function buildTowerHalls(s: Site) {
+    const PAL: Record<TowerTheme, { wall: number; wall2: number; floor: number; floor2: number; trim: number; pillar: number }> = {
+      stone: { wall: B.StoneBrick, wall2: B.CarvedStone, floor: B.Flagstone, floor2: B.Stone, trim: B.CarvedStone, pillar: B.Stone },
+      overgrown: { wall: B.MossyStone, wall2: B.MossyCobble, floor: B.MossyCobble, floor2: B.Grass, trim: B.OakLog, pillar: B.OakLog },
+      frozen: { wall: B.Ice, wall2: B.Snow, floor: B.Snow, floor2: B.Ice, trim: B.Crystal, pillar: B.Ice },
+      volcanic: { wall: B.Basalt, wall2: B.Blackstone, floor: B.Blackstone, floor2: B.Emberstone, trim: B.Emberstone, pillar: B.Basalt },
+      haunted: { wall: B.DeepStone, wall2: B.Blackstone, floor: B.DarkPlanks, floor2: B.Timber, trim: B.Blackstone, pillar: B.DeepStone },
+      crypt: { wall: B.Granite, wall2: B.CarvedStone, floor: B.Cobble, floor2: B.Gravel, trim: B.CarvedStone, pillar: B.Granite },
+      arcane: { wall: B.Whitestone, wall2: B.Crystal, floor: B.Blackstone, floor2: B.Whitestone, trim: B.Crystal, pillar: B.Whitestone },
+      royal: { wall: B.Sandstone, wall2: B.TerraCream, floor: B.RedBrick, floor2: B.Flagstone, trim: B.Brass, pillar: B.Sandstone },
+    };
+    const H = 9, Y = HALL_Y;
+    for (const theme of Object.keys(HALL_AT) as TowerTheme[]) {
+      const { x: ox, z: oz } = HALL_AT[theme], p = PAL[theme];
+      rect(s, ox - 1, oz - 1, ox + HALL + 1, oz + HALL + 1);
+      for (let dz = -1; dz <= HALL; dz++) for (let dx = -1; dx <= HALL; dx++) {
+        const x = ox + dx, z = oz + dz, edge = dx < 0 || dz < 0 || dx >= HALL || dz >= HALL;
+        O.set(x, Y - 1, z, edge ? p.wall : (dx + dz) % 7 === 0 || hash2(x, z, 1203) < 0.12 ? p.floor2 : p.floor);
+        O.set(x, Y - 2, z, p.wall);
+        for (let y = Y; y < Y + H; y++) O.set(x, y, z, edge ? (y === Y + 3 || y === Y + 7 ? p.trim : (x + y + z) % 5 === 0 ? p.wall2 : p.wall) : B.Air);
+        O.set(x, Y + H, z, p.wall);
+      }
+      // Four pillars, and the light hung between them in the theme's colour
+      for (const [px, pz] of [[5, 5], [HALL - 7, 5], [5, HALL - 7], [HALL - 7, HALL - 7]]) {
+        for (let y = Y; y < Y + H; y++) for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) O.set(ox + px + a, y, oz + pz + b, y === Y || y === Y + H - 1 ? p.trim : p.pillar);
+        s.props.push({ t: 'glow', x: ox + px + 1, y: Y + H - 2, z: oz + pz + 1, r: 7, color: TOWER_THEMES[theme].light, lit: true });
+      }
+      s.props.push({ t: 'glow', x: ox + HALL / 2, y: Y + 6, z: oz + HALL / 2, r: 9, color: TOWER_THEMES[theme].light, lit: true });
+      // The stair's foot on the south wall, where you come in: a dark arch
+      for (let dx = -1; dx <= 1; dx++) for (let y = Y; y < Y + 3; y++) O.set(ox + HALL / 2 + dx, y, oz + HALL, dx === 0 && y < Y + 2 ? B.Blackstone : p.trim);
+    }
+  }
+
   function buildUnderKettle(s: Site) {
     const OX = 712, OZ = 1990, F = 40;
     const FOLD: CaveTheme = { wall: B.Stone, wall2: B.MossyStone, band: B.Gravel, floor: B.Gravel, floor2: B.Dirt, spike: B.Stone, rubble: B.MossyCobble, light: '#ffc880' };

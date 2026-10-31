@@ -186,3 +186,15 @@ export function towerDef(base: EnemyDef, f: FloorFoe, plan: FloorPlan): EnemyDef
     xp: Math.round(base.xp * (1 + plan.n * 0.03) * (f.elite ? 2 : 1)),
   };
 }
+
+// ---------------------------------------------------------------- Where it stands
+/** The tower: east of Ansbury beside the Turnpike, a morning's walk from the capital. Its door faces west, to the road. */
+export const TOWER = { x: 1220, z: 372 };
+/** Its keeper stands inside the door; you start a run with her. */
+export const TOWER_KEEPER: [number, number] = [TOWER.x - 2.5, TOWER.z + 0.5];
+/** The halls under it, one for each theme, in a row to the south; each is HALL wide inside, its floor at HALL_Y. */
+export const HALL = 24, HALL_Y = 10;
+export const HALL_AT: Record<Theme, { x: number; z: number }> = Object.fromEntries((Object.keys(THEMES) as Theme[]).map((t, i) => [t, { x: TOWER.x - 140 + i * (HALL + 10), z: TOWER.z + 60 }])) as Record<Theme, { x: number; z: number }>;
+/** Where you come in, and where the foes come from, in a hall (offsets from its corner). */
+export const HALL_ENTRY: [number, number] = [HALL / 2, HALL - 3];
+export const HALL_SPAWNS: [number, number][] = [[5, 5], [HALL / 2, 4], [HALL - 5, 5], [4, HALL / 2], [HALL - 4, HALL / 2], [7, 9], [HALL - 7, 9], [HALL / 2, 8]];
