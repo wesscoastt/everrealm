@@ -266,6 +266,15 @@ export function socialInit(ctx) {
         for (const id of g.members) { const o = players.get(id); if (o && o !== me && o.land === me.land && Math.hypot(o.x - me.x, o.z - me.z) < 80) send(o.ws, { t: 'gKill', type, from: me.name }); }
         return true;
       }
+      case 'gRoom': {
+        // A delve's room moved on (started, done, a chain hauled): the same for everyone in the group near it
+        const g = groupOf(me);
+        const site = typeof msg.site === 'string' && /^[a-z0-9_:-]{2,60}$/.test(msg.site) ? msg.site : null;
+        const i = Number(msg.i), s = Number(msg.s);
+        if (!g || !site || !Number.isInteger(i) || i < 0 || i > 20 || ![1, 2, 3].includes(s)) return true;
+        for (const id of g.members) { const o = players.get(id); if (o && o !== me && o.land === me.land && Math.hypot(o.x - me.x, o.z - me.z) < 160) send(o.ws, { t: 'gRoom', site, i, s }); }
+        return true;
+      }
       case 'gAid': {
         // A Mender's heal or ward for a groupmate near them (src/game/ClassKit.ts): passed on, within reason.
         // (The one receiving it caps it again by their own health: the realm doesn't keep anyone's health.)

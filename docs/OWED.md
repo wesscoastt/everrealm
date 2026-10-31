@@ -28,7 +28,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [x] The open world's board in the Group Finder: a notice for what you're doing (no free text), anyone joins with a click (ae20cee; tested with three players on a local realm).
 - [x] Anyone raises anyone down near them (Help them up); level sync by design: every creature meets each player at their own level (data/scaling.ts, ESO's way).
 - [x] Guild missions: a weekly goal the guild works at together (creatures, dungeons and delves, tower floors or quests, picked by name and week, bigger for a bigger guild, a daily cap each). Done, it pays marks into the vault and goes on the hall's roll. Shown on the guild panel with who did most. Tested on a local realm.
-- [ ] Delve rooms in a group (today each member's own), corrupted runs queued for groups (server), the tower's board.
+- [x] Delve rooms in a group: a room started, finished or its chain hauled is the same for every groupmate near it, and one who arrives later finds what the group did (server gRoom; tested on a local realm and in game).
+- [ ] Corrupted runs queued for groups (server), the tower's board.
 - [ ] Gatherings: something that draws people to one place at one time.
 
 ## A. Now, in order

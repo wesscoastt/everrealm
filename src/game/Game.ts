@@ -1106,7 +1106,7 @@ export class Game implements GameApi {
       standing: (r, n) => this.gainStanding(r as RegionId, n),
       daily: (k) => { this.dailies.bump(k); this.gainStanding(regionAt(this.player.position.x, this.player.position.z).a, k === 'event' ? GAINS.event : GAINS.task); },
       killed: (e) => this.onEnemyKilled(e),
-      rooms: { sfx: (n, v) => this.sfx(n as Sfx, v), read: (t, b) => this.hud.showReadable(t, b), hp: () => this.hp, ground: (a, rm) => { this.hazards.add(a); this.hazards.remove(rm); } },
+      rooms: { sfx: (n, v) => this.sfx(n as Sfx, v), read: (t, b) => this.hud.showReadable(t, b), hp: () => this.hp, ground: (a, rm) => { this.hazards.add(a); this.hazards.remove(rm); }, share: (site, i, s) => { if (this.social.group) this.online.groupRoom(site, i, s); } },
       count: (id) => this.inv.count(id),
       take: (id, n = 1) => { const ok = this.inv.remove(id, n); if (ok) this.persist(); return ok; },
       shared: {
@@ -1357,6 +1357,7 @@ export class Game implements GameApi {
         // Your blow was in it: the kill is yours too
         if (this.shared.wasMine(e)) this.onEnemyKilled(e, true);
       },
+      groupRoom: (site: string, i: number, s: number) => this.activities.groupRoom(site, i, s),
       groupKill: (type: string) => {
         this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
         this.hud.setTracker(this.questEntries());

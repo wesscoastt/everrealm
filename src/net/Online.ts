@@ -124,6 +124,8 @@ export interface OnlineHooks {
   revived?(by: string): void;
   /** Someone in your group killed a creature near you: it counts for you too. */
   groupKill?(type: string, from: string): void;
+  /** A groupmate moved a delve's room on (server/social.mjs gRoom). */
+  groupRoom?(site: string, i: number, s: number): void;
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
   /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
@@ -359,6 +361,7 @@ export class Online {
       case 'sys': this.hooks.system(String(m.text)); break;
       case 'revived': this.hooks.revived?.(String(m.by)); break;
       case 'gKill': if (typeof m.type === 'string') this.hooks.groupKill?.(m.type, String(m.from)); break;
+      case 'gRoom': if (typeof m.site === 'string') this.hooks.groupRoom?.(m.site, Number(m.i), Number(m.s)); break;
       case 'perform': this.hooks.perform?.(Number(m.id), { tune: String(m.tune), part: m.part as PartId, voice: m.voice as Voice, start: Number(m.start), reps: Number(m.reps) }); break;
       case 'perfStop': this.hooks.performStop?.(Number(m.id)); break;
       case 'note': this.hooks.note?.(Number(m.id), Number(m.m), m.voice as Voice); break;
@@ -527,6 +530,7 @@ export class Online {
   /** Help someone who's down back to their feet (the server checks they're down and you're beside them). */
   revive(id: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'revive', id })); }
   /** Tell your group about a kill, for their quests. */
+  groupRoom(site: string, i: number, s: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'gRoom', site, i, s })); }
   groupKill(type: string): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'gKill', type })); }
   /** How many others are up and about within r of a point: who might come and help you up. */
   standingNear(x: number, z: number, r: number): number {

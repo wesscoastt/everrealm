@@ -64,7 +64,9 @@ export interface ActivityHost {
   count(item: string): number;
   take(item: string, n?: number): boolean;
   /** What a delve's room needs beyond the rest (game/Rooms.ts): any sound, a page to read, the player's health, its falling stones. */
-  rooms?: { sfx(name: string, v?: number): void; read(title: string, text: string): void; hp(): number; ground(add: Hazard[], remove: string[]): void };
+  rooms?: { sfx(name: string, v?: number): void; read(title: string, text: string): void; hp(): number; ground(add: Hazard[], remove: string[]): void;
+    /** A room moved on here: told to the group (server/social.mjs gRoom). */
+    share?(site: string, i: number, s: number): void };
   /** Online: the world boss's health is the server's, shared with every player there. */
   shared?: {
     on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void;
@@ -99,6 +101,17 @@ export class Activities {
   private dungeons = new Map<string, Enemy[]>();
   /** A delve's room while you're by it (data/rooms.ts DELVE_ROOMS), and what it has called up. */
   private delveRooms = new Map<string, { rooms: Rooms; mobs: Enemy[] }>();
+  /** Rooms a groupmate moved on before you got there (kept a while, played as you come by). */
+  private roomNews = new Map<string, { at: number; moves: [number, number][] }>();
+  /** A groupmate started or finished a delve's room, or hauled its chain: the same here. */
+  groupRoom(site: string, i: number, s: number): void {
+    const d = this.delveRooms.get(site);
+    if (d) { d.rooms.remote(i, s); return; }
+    if (s === 3) return; // (a chain hauled is only for whoever's there)
+    const n = this.roomNews.get(site) ?? { at: 0, moves: [] };
+    n.at = performance.now(); n.moves.push([i, s]);
+    this.roomNews.set(site, n);
+  }
   private checkTimer = 0;
   private clock = 0;
   private quakeMesh: THREE.Mesh;
@@ -480,7 +493,7 @@ export class Activities {
     const rooms = new Rooms({
       scene: H.scene, voxels: V, player: () => H.player(), system: (t) => H.system(t), banner: (a, b) => H.banner(a, b),
       sound: (n, v) => R.sfx(n, v), reward: (xp, m, items, why) => H.reward(xp, m, items, why), read: (t, x) => R.read(t, x),
-      level: () => H.level?.() ?? 1, hp: () => R.hp(), ground: (a, rm) => R.ground(a, rm), share: () => {},
+      level: () => H.level?.() ?? 1, hp: () => R.hp(), ground: (a, rm) => R.ground(a, rm), share: (i, st) => R.share?.(s.id, i, st),
       // A room's creature: no respawning; a named one (a keeper) tougher than the rest of its kind
       spawn: (type, x, y, z, name) => {
         const d = ENEMIES[type as EnemyType];
@@ -492,6 +505,10 @@ export class Activities {
       },
     }, s.id, { origin: [ox, oz], floor: F, rooms: [{ ...def, gate: { ...def.gate, cells } }] });
     this.delveRooms.set(s.id, { rooms, mobs });
+    // What the group did here while you were away (within ten minutes)
+    const news = this.roomNews.get(s.id);
+    this.roomNews.delete(s.id);
+    if (news && performance.now() - news.at < 600_000) for (const [i, st] of news.moves) rooms.remote(i, st);
   }
 
   private closeRoom(id: string): void {
