@@ -59,7 +59,8 @@ owner is watching), `npm run balance`, `npm run quests` and `npm run sites` clea
     region's spawn table for variety (owner 2026-10-23: "a large variety of mobs, MMO-style").
 12. **Sound**: ambience layers per region, footsteps by ground, combat and UI sounds (pass 1 done:
     surf).
-12b. DONE 2026-10-30 (first part) **Lots of skills to unlock and choose** (owner 2026-10-30): six skill lines anyone can learn beside the calling's own, thirty skills, each opening at its level, bought with a point, in keys 6 and 7 (docs/COMBAT.md). Their sixty morphs DONE 2026-10-30; a second batch of four lines DONE the same day (ten lines, fifty skills, a hundred morphs). Next: passives per line, and the balance sim choosing line skills.
+12b. DONE 2026-10-30 (first part) **Lots of skills to unlock and choose** (owner 2026-10-30): six skill lines anyone can learn beside the calling's own, thirty skills, each opening at its level, bought with a point, in keys 6 and 7 (docs/COMBAT.md). Their sixty morphs DONE 2026-10-30; a second batch of four lines DONE the same day (ten lines, fifty skills, a hundred morphs). The balance sim scores every one against every calling (all within 12%). Next: passives per line.
+12c. **Wynncraft's combat** (owner 2026-10-30: "think of wynncraft combat", then "no combo casting"): not the click combos. Its ability tree: per calling a big connected tree of nodes (actives, passives, upgrades to skills) with archetypes you lean into and nodes that lock each other out, points from levels; and elements: earth, thunder, water, fire, air on weapons and armour, foes weak or strong to each, elemental defences on gear.
 13. **Combat gaps**: called foes and boss adds shared between players; the balance sim fights the new
     foe kinds.
 14. **Lantern Wake**: GW2-style festival minigames (later).

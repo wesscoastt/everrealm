@@ -173,7 +173,7 @@ export const LINE_MORPHS: Record<string, [LineMorph, LineMorph]> = {
     { name: 'Flashpoint', desc: 'Harder, and it throws them back a moment; no burning after.', fx: [{ k: 'burst', r: 4.5, dmg: 1.4, stun: 0.8 }] },
   ],
   ln_wystan: [
-    { name: 'The Abbot\'s Pyre', desc: 'It burns twelve seconds.', fx: [{ k: 'ground', range: 14, r: 3.5, dmg: 1.4, delay: 0.6 }, { k: 'zone', range: 14, r: 3.5, secs: 12, dmg: 0.55, color: '#ffb040' }] },
+    { name: 'The Abbot\'s Pyre', desc: 'It burns twelve seconds.', fx: [{ k: 'ground', range: 14, r: 3.5, dmg: 1.2, delay: 0.6 }, { k: 'zone', range: 14, r: 3.5, secs: 12, dmg: 0.45, color: '#ffb040' }] },
     { name: 'Down into the Bed', desc: 'One great blast that throws them off their feet; no fire after.', fx: [{ k: 'ground', range: 14, r: 4.5, dmg: 2.6, delay: 0.8, stun: 1.2 }] },
   ],
   // ---------------------------------------------------------------- The Storm-hunters

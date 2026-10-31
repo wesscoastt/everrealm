@@ -195,7 +195,7 @@ export const LINES: SkillLine[] = [
       { line: 'reek', id: 'ln_cleansingfire', name: 'Burn It Out', icon: 'firewall', cd: 18, need: 60, cost: mg(18), color: '#ff7a2a',
         desc: 'Fire round you, the way they burn the grey off a wall: everything close takes it, and goes on burning.', fx: [{ k: 'burst', r: 4, dmg: 1.0 }, { k: 'zone', range: 0, r: 4, secs: 4, dmg: 0.35, color: '#ff7a2a' }] },
       { line: 'reek', id: 'ln_wystan', name: 'Wystan\'s Last Fire', icon: 'pillar', cd: 40, need: 66, cost: mg(26), color: '#ffb040',
-        desc: 'The fire the Abbot lit going down into the Old Bed: a column of it on a point up to fourteen blocks off, burning for eight seconds.', fx: [{ k: 'ground', range: 14, r: 3.5, dmg: 1.6, delay: 0.6 }, { k: 'zone', range: 14, r: 3.5, secs: 8, dmg: 0.6, color: '#ffb040' }] },
+        desc: 'The fire the Abbot lit going down into the Old Bed: a column of it on a point up to fourteen blocks off, burning for eight seconds.', fx: [{ k: 'ground', range: 14, r: 3.5, dmg: 1.4, delay: 0.6 }, { k: 'zone', range: 14, r: 3.5, secs: 8, dmg: 0.5, color: '#ffb040' }] },
     ],
   },
   {

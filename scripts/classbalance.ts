@@ -5,6 +5,7 @@
 //
 // Units: damage in P (one ordinary swing at your level); health as a fraction of your own.
 import { CALLINGS, CallingId, chosenUtilities, elitesOf, type SkillDef, TUNE as BASE } from '../src/data/classes';
+import { LINE_SKILLS, lineSkill } from '../src/data/skillLines';
 import { fullTree, TREES, tuned, type Tune } from '../src/data/talents';
 import { applyRank, MORPHS } from '../src/data/skillpoints';
 import { CALLING_POOL, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../src/data/combat';
@@ -37,7 +38,7 @@ interface Result { dealt: number; secs: number; hpLeft: number; won: boolean }
 /** The bar the rotation uses: the heal, three utilities (by id, or the first three) and the elite. */
 function barOf(id: CallingId, utilities?: string[], elite?: string): SkillDef[] {
   const c = CALLINGS.find((x) => x.id === id)!;
-  return [c.skills[0], ...chosenUtilities(c, utilities ?? null), elitesOf(c).find((e) => e.id === elite) ?? c.skills[2]];
+  return [c.skills[0], ...chosenUtilities(c, utilities ?? null, null, LINE_SKILLS), elitesOf(c).find((e) => e.id === elite) ?? c.skills[2]];
 }
 
 function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: SkillDef[] = barOf(id)): Result {
@@ -45,7 +46,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   const cds = [0, 0, 0, 0, 0];
   // The pools: each skill's price as Game.skillCost works it out (bar index 0 the heal, 4 the elite)
   let sta = STAMINA.max, mag = POOLS.magicka.max, shortAt = -1;
-  const costs: Cost[] = bar.map((s, i) => SKILL_COST[s.id] ?? { pool: CALLING_POOL[id] ?? 'stamina', n: i === 0 ? SLOT_COST.heal : i === 4 ? SLOT_COST.elite : SLOT_COST.utility });
+  const costs: Cost[] = bar.map((s, i) => SKILL_COST[s.id] ?? lineSkill(s.id)?.cost ?? { pool: CALLING_POOL[id] ?? 'stamina', n: i === 0 ? SLOT_COST.heal : i === 4 ? SLOT_COST.elite : SLOT_COST.utility });
   const canPay = (c: Cost) => c.pool === 'health' || (c.pool === 'stamina' ? sta : mag) >= c.n;
   const pay = (c: Cost) => { if (c.pool === 'stamina') sta -= c.n; else if (c.pool === 'magicka') mag -= c.n; };
   let holdUntil = 0, rushUntil = 0, critNext = false, boltMult = 1;
@@ -78,6 +79,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   const hit = (e: Foe, p: number, crit = Math.random() < CRIT) => {
     let d = p * (crit || (deadeyeUntil > t && p > 0.3) ? CRIT_MULT : 1);
     if (redUntil > t) d *= TUNE.redhour.dealt;
+    if (lnDealtUntil > t) d *= lnDealt;
     if (id === 'prowler' && p > 0.3) {
       let gain = 1;
       if (hiddenUntil > t) { d *= fromHiding; hiddenUntil = 0; fromHiding = 1; gain = TUNE.openings.back; }
@@ -97,6 +99,34 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
   };
   const heal = (n: number) => { hp = Math.min(1, hp + n); };
   const aoe = (n: number, p: number) => live().slice(0, n).forEach((e) => hit(e, p));
+  // The realm's line skills: their effects as the sim plays the callings' own (sustain only when hurt)
+  let lnDealt = 1, lnDealtUntil = 0, lnTaken = 1, lnTakenUntil = 0, lnHot = 0, lnHotUntil = 0;
+  const lineUse = (sid: string, tgt: Foe): boolean => {
+    const ls = lineSkill(sid);
+    if (!ls) return false;
+    const fx = (TUNE as unknown as { lineFx?: Record<string, typeof ls.fx> }).lineFx?.[sid] ?? ls.fx;
+    const k = (TUNE as unknown as { lines?: Record<string, number> }).lines?.[sid] ?? 1;
+    const sustain = fx.every((x) => x.k === 'heal' || x.k === 'ward' || x.k === 'dash' || x.k === 'blink' || (x.k === 'buff' && !x.dealt));
+    if (sustain && (f.dummy || hp > 0.7)) return false;
+    const melee = fx.some((x) => x.k === 'burst' || (x.k === 'strike' && x.range < 6));
+    if (melee && ranged) return false;
+    for (const x of fx) switch (x.k) {
+      case 'strike': for (let h = 0; h < (x.hits ?? 1); h++) hit(tgt, x.dmg * k); if (x.stun) tgt.stun = Math.max(tgt.stun, x.stun); if (x.dot) { tgt.bleed = x.dot[1]; tgt.bleedPer = (x.dot[0] * k) / x.dot[1]; } break;
+      case 'leap': hit(tgt, x.dmg * k); if (x.stun) tgt.stun = Math.max(tgt.stun, x.stun); break;
+      case 'burst': live().slice(0, caught()).forEach((o) => { hit(o, x.dmg * k); if (x.stun) o.stun = Math.max(o.stun, x.stun); }); break;
+      case 'ground': live().slice(0, caught()).forEach((o) => { hit(o, x.dmg * k); if (x.stun) o.stun = Math.max(o.stun, x.stun); }); break;
+      case 'zone': if (x.snare) { hit(tgt, x.dmg * k); tgt.stun = Math.max(tgt.stun, x.snare); } else zones.push({ until: t + x.secs, per: x.dmg * k, tick: 0.2 }); break;
+      case 'heal': heal((x.now ?? 0) * k); if (x.over) { lnHot = (x.over[0] * k) / x.over[1]; lnHotUntil = t + x.over[1]; } break;
+      case 'ward': shield = Math.max(shield, x.amt * k); shieldUntil = Math.max(shieldUntil, t + x.secs); shieldKind = 'line'; break;
+      case 'buff':
+        if (x.dealt) { lnDealt = 1 + (x.dealt - 1) * k; lnDealtUntil = t + x.secs; }
+        if (x.taken) { lnTaken = x.taken; lnTakenUntil = t + x.secs; }
+        if (x.evade && !f.dummy) evadeUntil = Math.max(evadeUntil, t + x.secs);
+        if (x.hide && !f.dummy) hiddenUntil = Math.max(hiddenUntil, t + x.secs);
+        break;
+    }
+    return true;
+  };
   // The Wizard's Chill: the third freezes the foe and cracks it
   const chill = (e: Foe) => { if (++e.chill >= TUNE.chill.max) { e.chill = 0; e.stun = Math.max(e.stun, TUNE.chill.freeze); hit(e, TUNE.chill.shatter); } };
   // How many foes an area skill catches: a pack bunches up around you; the duel is one.
@@ -135,6 +165,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
       if (e.hp <= 0 && TUNE.bleed.spread > 0) { const n = live().find((o) => o.bleed <= 0); if (n) { n.bleed = e.bleed; n.bleedPer = e.bleedPer; } }
     }
     if (pendingStar >= 0 && (pendingStar -= DT) < 0) { pendingStar = -1; aoe(caught(), TUNE.starfall.dmg); if (TUNE.starfall.twice > 0) star2 = 0.7; }
+    if (lnHotUntil > t) heal(lnHot * DT);
     for (const z of zones) if (z.until > t && (z.tick -= DT) <= 0) {
       z.tick = 1; aoe(caught(), z.per);
       if (z.chill) for (let k = 0; k < TUNE.blizzard.chills; k++) live().slice(0, caught()).forEach(chill);
@@ -160,6 +191,7 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         if (oathUntil > t) d *= TUNE.oath.taken;
       }
       if (redUntil > t) d *= TUNE.redhour.taken;
+      if (lnTakenUntil > t) d *= lnTaken;
       if (e.weak > t) d *= 0.85;
       if (holdUntil > t) d *= TUNE.holdfast.taken;
       if (sanctUntil > t) d *= TUNE.sanctuary.taken;
@@ -284,6 +316,8 @@ function run(id: CallingId, f: Fight, ranged: boolean, TUNE: Tune = BASE, bar: S
         case 'rebuke': { if (ranged) return false; const n = caught(); live().slice(0, n).forEach((o) => { hit(o, TUNE.rebuke.dmg); o.stun = Math.max(o.stun, TUNE.rebuke.stun); }); heal(TUNE.rebuke.heal * n); break; }
         case 'restore': if (f.dummy || hp > 0.8) return false; restoreUntil = t + TUNE.restore.secs; grace = Math.min(TUNE.grace.max, grace + 1); break;
         case 'frostnova': if (ranged) return false; aoe(caught(), TUNE.frostnova.dmg); live().slice(0, caught()).forEach((e) => { e.stun = Math.max(e.stun, TUNE.frostnova.freeze); }); break;
+        // A skill of the realm's lines (data/skillLines.ts): its effects, in the sim's terms
+        default: if (!lineUse(s.id, tgt)) return false; break;
       }
       if (furyK > 1) fury = 0;
       pay(costs[i]);
@@ -478,4 +512,32 @@ for (const c of CALLINGS) {
   }
 }
 console.log(ebad ? `${ebad} elite balance problem(s)` : 'Elites balanced: every elite within 7% of its calling\'s own');
-process.exit(bad || tbad || bbad || mbad || ebad ? 1 : 0);
+
+// The realm's line skills (data/skillLines.ts): each one in key 6 beside the calling's first utility,
+// against the calling's own utility bars' average (above). A line skill is a sidegrade: no line skill,
+// played by any calling, may be more than 12% over that calling's average bar (nobody should be better
+// off dropping their calling's skills), and the report shows those far under it.
+console.log('\nline skills, each in key 6 beside the calling\'s first utility, against its utility bars\' average');
+let lbad = 0;
+const lineRows: { id: string; calling: CallingId; off: number }[] = [];
+for (const c of CALLINGS) {
+  const own = bars.map((b, k) => ({ b, k })).filter(({ b }) => b.calling === c.id);
+  // (against the calling's best bar of its own: a line skill may match it, never beat it by much)
+  const ownAvg = Math.max(...own.map(({ k }) => bover[k]));
+  for (const ls of LINE_SKILLS) {
+    const bar = barOf(c.id, [ls.id, c.utilities[0].id]);
+    // (fewer runs a fight than the rest: four hundred bars to try)
+    const cells = FIGHTS.map((fi) => { const modes = rangedCallings.has(c.id) && !fi.dummy ? [false, true] : [false]; let best = -Infinity; for (const ranged of modes) { let sc = 0; for (let r = 0; r < 40; r++) { const res = run(c.id, fi, ranged, BASE, bar); sc += fi.dummy ? res.dealt / res.secs : res.won ? res.hpLeft : -(fi.foes().reduce((sum, e) => sum + e.hp, 0) - res.dealt) / fi.foes().reduce((sum, e) => sum + e.hp, 0); } best = Math.max(best, sc / 40); } return best; });
+    const over = cells.map((v, i) => FIGHTS[i].dummy ? v / bavg[i] : 1 + (v - bavg[i])).reduce((sum, v) => sum + v, 0) / FIGHTS.length;
+    lineRows.push({ id: ls.id, calling: c.id, off: over / ownAvg - 1 });
+  }
+}
+for (const ls of LINE_SKILLS) {
+  const rows = lineRows.filter((r) => r.id === ls.id);
+  const worst = rows.reduce((a, r) => (r.off > a.off ? r : a), rows[0]);
+  const mean = rows.reduce((sum, r) => sum + r.off, 0) / rows.length;
+  console.log(pad(ls.name, 30) + pad('mean ' + (mean * 100).toFixed(1) + '%', 14) + 'best with ' + worst.calling + ' ' + (worst.off * 100).toFixed(1) + '%');
+  if (worst.off > 0.12) { console.log(`  ${ls.name} with ${worst.calling} is ${(worst.off * 100).toFixed(0)}% over its own bars`); lbad++; }
+}
+console.log(lbad ? `${lbad} line skill balance problem(s)` : 'Line skills balanced: none more than 12% over any calling\'s own bars');
+process.exit(bad || tbad || bbad || mbad || ebad || lbad ? 1 : 0);
