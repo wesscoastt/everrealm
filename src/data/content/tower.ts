@@ -67,6 +67,8 @@ const dialogue: Record<string, DialogueTree> = {
         text: (g) => g.towerClimbing() ? 'You\'re already on the stair.' : 'Where from?',
         options: [
           { text: 'From the first floor.', cond: (g) => !g.towerClimbing(), effect: (g) => { const why = g.towerBegin(1); if (why) g.toast(why); } },
+          { text: 'Take my group up, from the first floor.', cond: (g) => !g.towerClimbing() && g.towerLeads(), effect: (g) => { const why = g.towerGroup(1); if (why) g.toast(why); } },
+          { text: (g) => `Take my group up, from floor ${Math.max(...g.towerStarts()) + 1}.`, cond: (g) => !g.towerClimbing() && g.towerLeads() && g.towerStarts().length > 1, effect: (g) => { const why = g.towerGroup(Math.max(...g.towerStarts())); if (why) g.toast(why); } },
           { text: (g) => `From floor ${Math.max(...g.towerStarts()) + 1}, after my last checkpoint.`, cond: (g) => !g.towerClimbing() && g.towerStarts().length > 1, effect: (g) => { const why = g.towerBegin(Math.max(...g.towerStarts())); if (why) g.toast(why); } },
           { text: 'Not yet.' },
         ],

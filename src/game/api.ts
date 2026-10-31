@@ -57,6 +57,10 @@ export interface GameApi {
   towerBest(): number;
   towerStarts(): number[];
   towerClimbing(): boolean;
+  /** Lead your group up the tower from a floor (1, or a checkpoint you've cleared); why not, if not. */
+  towerGroup(from: number): string | null;
+  /** Leading a group, online. */
+  towerLeads(): boolean;
   /** The day's and the week's climbs: floors cleared toward each, and whether paid. */
   towerTally(): { day: { floors: number; paid: boolean }; week: { floors: number; paid: boolean } };
   /** At an infirmary (data/infirmary.ts): every harm off you and full health, for the fee (free when you're poor); why not, or null. */

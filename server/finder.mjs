@@ -16,6 +16,9 @@ const ROLES = new Set(Object.keys(NEED));
 const FILL_MS = 90_000;
 const READY_MS = 30_000;
 const DUNGEON = /^gd-[a-z]{2,20}(-vet)?$/; // "-vet": the dungeon's veteran mode, queued apart
+/** The Endless Tower, from a floor ("tw-11"): a group's leader takes the group up; no queue. Up to five climb. */
+const TOWER = /^tw-\d{1,3}$/;
+const TOWER_PARTY = 5;
 const EVENTS_PER_SEC = 40;
 
 /** The places a group is short of, given the roles it has (as data/dungeons.ts missingRoles). */
@@ -130,10 +133,11 @@ export function finderInit(ctx) {
       }
       case 'qGroup': {
         // A group's leader takes the group in: everyone is asked, roles come with the answers
-        if (typeof msg.dungeon !== 'string' || !DUNGEON.test(msg.dungeon)) return true;
+        if (typeof msg.dungeon !== 'string' || !(DUNGEON.test(msg.dungeon) || TOWER.test(msg.dungeon))) return true;
         const g = social.groupIds(me);
         if (!g || g.leader !== me.id) { sys(me, 'Only a group\'s leader can take the group in.'); return true; }
-        if (g.members.length > PARTY.length) { sys(me, `A group dungeon is for ${PARTY.length}.`); return true; }
+        const most = TOWER.test(msg.dungeon) ? TOWER_PARTY : PARTY.length;
+        if (g.members.length > most) { sys(me, TOWER.test(msg.dungeon) ? `The tower takes ${most} at most.` : `A group dungeon is for ${PARTY.length}.`); return true; }
         if (g.members.some((id) => runOf(id))) { sys(me, 'Someone in your group is in a run already.'); return true; }
         for (const id of g.members) unqueue(id);
         readyCheck(msg.dungeon, g.members.map((id) => ({ id, dungeon: msg.dungeon, role: null, at: Date.now() })));

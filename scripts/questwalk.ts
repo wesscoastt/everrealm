@@ -71,6 +71,8 @@ class Mock implements GameApi {
   towerBest(): number { return Number(this.s.flags['tower:best'] ?? 0); }
   towerStarts(): number[] { return [1]; }
   towerClimbing(): boolean { return false; }
+  towerGroup() { return null; }
+  towerLeads() { return false; }
   towerTally() { return { day: { floors: 0, paid: false }, week: { floors: 0, paid: false } }; }
   treat(): string | null { return null; }
   openShop(id?: string) { if (id && !SHOPS[id]) err('shop:' + id, `${this.where}: opens unknown shop "${id}"`); }

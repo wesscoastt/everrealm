@@ -29,6 +29,12 @@ export interface TowerHost {
   flag(key: string): unknown;
   setFlag(key: string, value: unknown): void;
   sfx(name: 'levelUp' | 'discover' | 'fail' | 'bell'): void;
+  /** Online: the realm's relay for a group's climb (blows and kills, and leaving it). */
+  net?: { event(run: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void; leaveRun(run: number): void };
+  /** Where another player is (whose blow it was). */
+  remote?(id: number): THREE.Vector3 | null;
+  /** A foe that fell to someone else's blow: the game's kill handling, so the kill counts for you too. */
+  killed?(e: Enemy): void;
 }
 
 interface Run {
@@ -45,7 +51,16 @@ interface Run {
   state: 'arrive' | 'fight' | 'cleared';
   floorsCleared: number;
   started: number;
+  /** A group's climb: the realm's run id (0 alone), who else is climbing, the floor's foes in the order
+   *  they came (the same in every climber's game, so a blow or a kill names one by its place), blows to send. */
+  id: number;
+  others: { id: number; name: string }[];
+  all: Enemy[];
+  hits: Map<number, number>;
+  sendT: number;
 }
+/** Blows passed between climbers are a share of the foe's health, in ten-thousandths (as the dungeons'). */
+const SHARE = 10000;
 
 /** The first time a climber clears these floors, Annot Crowle has something put by for them: tokens, and a cloak at 25 and 100. */
 export const MILESTONES: Record<number, { tokens: number; items: string[]; line: string }> = {
@@ -90,12 +105,15 @@ export class Tower {
   }
 
   /** Start a run at floor n (1, or a checkpoint you have cleared: you start on the floor after it). */
-  begin(from: number): string | null {
+  begin(from: number, group?: { id: number; others: { id: number; name: string }[] }): string | null {
     if (this.run) return 'You are already climbing.';
     const cp = from <= 1 ? 1 : checkpointUnder(from);
-    if (cp > 1 && cp > this.best()) return `You have not cleared floor ${cp} yet.`;
+    // (in a group the leader's checkpoint is the group's: the rest are carried up to it)
+    if (!group && cp > 1 && cp > this.best()) return `You have not cleared floor ${cp} yet.`;
     const first = cp <= 1 ? 1 : cp + 1;
-    this.run = { start: first, floor: first, plan: towerFloor(first, this.host.partySize()), wave: 0, mobs: [], boss: null, t: 0, wait: 2.5, state: 'arrive', floorsCleared: 0, started: this.clock };
+    const size = group ? group.others.length + 1 : this.host.partySize();
+    this.run = { start: first, floor: first, plan: towerFloor(first, size), wave: 0, mobs: [], boss: null, t: 0, wait: 2.5, state: 'arrive', floorsCleared: 0, started: this.clock, id: group?.id ?? 0, others: group?.others ?? [], all: [], hits: new Map(), sendT: 0 };
+    if (group) this.host.system(`Up the Endless Tower together, from floor ${first}: ${group.others.map((o) => o.name).join(', ')} and you. The floors are built for ${size}.`);
     this.enterFloor();
     return null;
   }
@@ -106,6 +124,7 @@ export class Tower {
     if (!r) return;
     for (const e of r.mobs) this.host.removeEnemy(e);
     if (r.boss) this.host.removeEnemy(r.boss);
+    if (r.id) this.host.net?.leaveRun(r.id);
     this.run = null;
     this.host.travel(new THREE.Vector3(TOWER.x - 9.5, 0, TOWER.z + 0.5), -Math.PI / 2, 'The Endless Tower', why);
   }
@@ -118,7 +137,7 @@ export class Tower {
   private enterFloor(): void {
     const r = this.run!;
     const p = r.plan, th = THEMES[p.theme], enc = ENCOUNTERS[p.encounter];
-    r.t = 0; r.wave = 0; r.mobs = []; r.boss = null; r.state = 'arrive'; r.wait = 2.5;
+    r.t = 0; r.wave = 0; r.mobs = []; r.boss = null; r.state = 'arrive'; r.wait = 2.5; r.all = []; r.hits.clear();
     if (r.floor > this.reached()) this.host.setFlag('tower:reached', r.floor);
     const mods = p.modifiers.map((m) => MODIFIERS[m].name).join(', ');
     this.host.travel(this.hallPoint(HALL_ENTRY[0], HALL_ENTRY[1]), Math.PI, `Floor ${r.floor}`, `${th.name} · ${enc.name}${mods ? ' · ' + mods : ''}`);
@@ -138,6 +157,7 @@ export class Tower {
     e.questTag = 'tower';
     e.state = 'chase';
     this.host.addEnemy(e);
+    r.all.push(e);
     return e;
   }
 
@@ -152,10 +172,40 @@ export class Tower {
     if (r.plan.waves.length > 1) this.host.system(`Wave ${r.wave + 1} of ${r.plan.waves.length}.`);
   }
 
+  /** Your blow on a foe of the climb: told to the rest of a group, a few times a second. */
+  onPlayerHit(e: Enemy, dmg: number): void {
+    const r = this.run;
+    if (!r?.id) return;
+    const i = r.all.indexOf(e);
+    if (i >= 0) r.hits.set(i, (r.hits.get(i) ?? 0) + dmg);
+  }
+
+  /** Another climber's blow or kill (a kill carries its floor, so one from a floor just left is let go). */
+  onEvent(from: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void {
+    const r = this.run;
+    const e = r?.all[i];
+    if (!r?.id || !e || !e.alive || k === 'room') return;
+    const at = this.host.remote?.(from) ?? e.pos;
+    if (k === 'kill') { if (dmg !== r.floor) return; e.takeDamage(e.hp + 1, at, this.clock); this.host.killed?.(e); return; }
+    e.takeDamage(Math.min(e.hp, Math.round((dmg / SHARE) * e.def.hp)), at, this.clock);
+  }
+
+  /** Another climber left the climb (fell, or walked out). */
+  onLeft(name: string): void {
+    const r = this.run;
+    if (!r?.id || !r.others.some((o) => o.name === name)) return;
+    r.others = r.others.filter((o) => o.name !== name);
+    this.host.system(`${name} is out of the climb.${r.others.length ? '' : ' You climb on alone.'}`);
+  }
+
+  /** Climbing with a group (the realm's run). */
+  get grouped(): boolean { return !!this.run?.id; }
+
   /** A foe of the run fell. */
   onKilled(e: Enemy): void {
     const r = this.run;
     if (!r) return;
+    if (r.id) { const i = r.all.indexOf(e); if (i >= 0) { r.hits.delete(i); this.host.net?.event(r.id, 'kill', i, r.floor); } }
     r.mobs = r.mobs.filter((m) => m !== e);
     if (r.boss === e) r.boss = null;
   }
@@ -170,6 +220,7 @@ export class Tower {
     if (p.secs && p.encounter === 'survive') lines.push(`Hold out: ${Math.max(0, Math.ceil(p.secs - r.t))} s`);
     else if (p.secs && p.encounter === 'timed') lines.push(`Sand left: ${Math.max(0, Math.ceil(p.secs - r.t))} s · ${left} left`);
     else lines.push(`${left} left${p.waves.length > 1 ? ` · wave ${Math.min(r.wave + 1, p.waves.length)} of ${p.waves.length}` : ''}`);
+    if (r.id) lines.push(r.others.length ? `With ${r.others.map((o) => o.name).join(', ')}` : 'The others are out: you climb alone');
     lines.push(`Best: floor ${this.best()}`);
     return { title: `The Endless Tower · floor ${r.floor}`, lines };
   }
@@ -180,6 +231,12 @@ export class Tower {
     if (!r) return;
     if (this.host.dead()) { this.fall(); return; }
     r.t += dt;
+    // A group's blows go out four times a second
+    if (r.id && (r.sendT -= dt) <= 0) {
+      r.sendT = 0.25;
+      for (const [i, dmg] of r.hits) { const e = r.all[i]; if (e) this.host.net?.event(r.id, 'hit', i, Math.max(1, Math.round((dmg / e.def.hp) * SHARE))); }
+      r.hits.clear();
+    }
     if (r.state === 'arrive') { if ((r.wait -= dt) <= 0) { r.state = 'fight'; r.t = 0; this.spawnWave(); } return; }
     if (r.state === 'cleared') { if ((r.wait -= dt) <= 0) this.nextFloor(); return; }
     const p = r.plan;
@@ -216,7 +273,7 @@ export class Tower {
   private nextFloor(): void {
     const r = this.run!;
     r.floor++;
-    r.plan = towerFloor(r.floor, this.host.partySize());
+    r.plan = towerFloor(r.floor, r.id ? r.others.length + 1 : this.host.partySize());
     this.enterFloor();
   }
 
@@ -224,6 +281,7 @@ export class Tower {
   private fall(why = 'You fell.'): void {
     const r = this.run!;
     this.host.sfx('fail');
+    if (r.id && r.others.length) this.host.system(`${why} You're out of the climb; ${r.others.map((o) => o.name).join(', ')} climb on.`);
     this.host.system(`${why} The run is over: floors ${r.start} to ${r.floor - 1 < r.start ? r.start : r.floor - 1}, ${r.floorsCleared} cleared. Your best is floor ${this.best()}.`);
     this.leave(why);
   }

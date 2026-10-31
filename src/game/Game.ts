@@ -1242,6 +1242,9 @@ export class Game implements GameApi {
       reward: (xp, marks, items, why) => { if (xp) this.addXp('melee', xp); if (marks) this.addMarks(marks); for (const it of items) this.give(it, 1); this.hud.system(why + (xp ? ` (+${xp} XP)` : '')); },
       flag: (k) => this.flag(k), setFlag: (k, v) => { this.setFlag(k, v); this.persist(); },
       sfx: (n) => this.sfx(n),
+      net: { event: (run, k, i, dmg) => this.online.dEv(run, k, i, dmg), leaveRun: (run) => this.online.dLeave(run) },
+      remote: (id) => this.online.remotes.get(id)?.model.root.position ?? null,
+      killed: (e) => this.onEnemyKilled(e),
     });
     this.dungeons = new Dungeons({
       cleared: () => this.dailies.bump('dungeon'),
@@ -1324,10 +1327,10 @@ export class Game implements GameApi {
         this.hud.system(`${d.name}, No. ${n} of the ${cap} in the realm. ${d.named.text}`);
         this.audio.sting('victory');
       },
-      qReady: (run, d, names, hench, secs) => this.dungeons.onReady(run, d, names, hench, secs),
-      dStart: (run, d, members, missing) => this.dungeons.onStart(run, d, members.map((m) => ({ id: m.id, name: m.name, role: (m.role === 'tank' || m.role === 'healer' ? m.role : 'damage') as Role })), henchmenFor(missing.filter((r): r is Role => r === 'tank' || r === 'healer' || r === 'damage')).map((h) => h.id)),
-      dEv: (from, k, i, dmg) => this.dungeons.onEvent(from, k, i, dmg),
-      dLeft: (name) => this.dungeons.onLeft(name),
+      qReady: (run, d, names, hench, secs) => (d.startsWith('tw-') ? this.towerReady(run, d, names, secs) : this.dungeons.onReady(run, d, names, hench, secs)),
+      dStart: (run, d, members, missing) => d.startsWith('tw-') ? void this.tower.begin(Number(d.slice(3)), { id: run, others: members.map((m) => ({ id: m.id, name: m.name })) }) : this.dungeons.onStart(run, d, members.map((m) => ({ id: m.id, name: m.name, role: (m.role === 'tank' || m.role === 'healer' ? m.role : 'damage') as Role })), henchmenFor(missing.filter((r): r is Role => r === 'tank' || r === 'healer' || r === 'damage')).map((h) => h.id)),
+      dEv: (from, k, i, dmg) => (this.tower.grouped ? this.tower.onEvent(from, k, i, dmg) : this.dungeons.onEvent(from, k, i, dmg)),
+      dLeft: (name) => { this.tower.onLeft(name); this.dungeons.onLeft(name); },
       ...this.social.hooks(),
       ...this.exchange.hooks(),
       ...this.mail.hooks(),
@@ -1632,6 +1635,29 @@ export class Game implements GameApi {
   /** The Endless Tower (game/Tower.ts). */
   tower!: Tower;
   towerBegin(from: number): string | null { return this.tower.begin(from); }
+  /** Lead your group up the tower: the realm asks everyone, and in you all go together. */
+  towerGroup(from: number): string | null {
+    if (this.tower.run) return 'You are already climbing.';
+    if (this.online.status !== 'online') return 'Climbing together needs the online realm.';
+    if (!this.social.inGroup) return 'You need a group to climb together.';
+    if (this.social.group!.leader !== this.online.myId) return 'Your group\'s leader takes the group up.';
+    const cp = from <= 1 ? 1 : from;
+    if (cp > 1 && cp > this.tower.best()) return `You have not cleared floor ${cp} yet.`;
+    this.online.qGroup('tw-' + cp);
+    this.hud.system('Asking your group whether they\'re ready to climb.');
+    return null;
+  }
+  /** Leading a group (for Crowle's offer). */
+  towerLeads(): boolean { return this.online.status === 'online' && this.social.inGroup && this.social.group!.leader === this.online.myId; }
+  /** The realm asks whether you're ready to climb with your group. */
+  private towerReady(run: number, d: string, names: string[], secs: number): void {
+    const from = Number(d.slice(3));
+    this.sfx('bell');
+    this.hud.ask(`Your group is going up the Endless Tower from ${from <= 1 ? 'the first floor' : 'floor ' + (from + 1)}, with ${names.join(', ')}. Climb?`, () => {
+      if (this.tower.run || this.dungeons.run) { this.hud.system('You\'re busy elsewhere. Leave that first.'); this.online.qAnswer(run, false, 'damage'); return; }
+      this.online.qAnswer(run, true, 'damage');
+    }, () => this.online.qAnswer(run, false, 'damage'), secs);
+  }
   towerBest(): number { return this.tower.best(); }
   towerStarts(): number[] { return this.tower.starts(); }
   towerClimbing(): boolean { return !!this.tower.run; }
@@ -5950,6 +5976,7 @@ export class Game implements GameApi {
     this.shared.mine(e, landed);
     if (e.def.anchored) this.practiced(landed, crit);
     this.dungeons.onPlayerHit(e, dmg);
+    this.tower?.onPlayerHit(e, dmg);
     this.activities.escorts.onPlayerHit(e);
     // Barrowborn: below half health, a tenth of every blow comes back to you
     if (this.gearSet === 'barrow' && !this.dead && this.hp < this.maxHp / 2) this.hp = Math.min(this.maxHp, this.hp + Math.round(dmg * 0.1));
