@@ -8,7 +8,7 @@ import type { RegionId } from '../world/terrain';
 
 export type CapeDesign = 'border' | 'quartered' | 'chevron' | 'chequy' | 'tally' | 'star' | 'lantern' | 'flame' | 'snowflake' | 'picks'
   | 'wheel' | 'key' | 'oak' | 'waves' | 'anvil' | 'peak' | 'gull' | 'reed' | 'stones' | 'mushroom' | 'laurel' | 'cog'
-  | 'oars' | 'rose' | 'pair' | 'founder';
+  | 'oars' | 'rose' | 'pair' | 'founder' | 'stair' | 'tower';
 
 export const CAPE_DESIGNS: Record<CapeDesign, { name: string; desc: string; from: string }> = {
   border: { name: 'Bordered cloak', desc: 'A plain border worked round the edge, a hand in from the hem.', from: 'The Charter Market, Ansbury' },
@@ -36,6 +36,8 @@ export const CAPE_DESIGNS: Record<CapeDesign, { name: string; desc: string; from
   oars: { name: 'Brethren cloak', desc: 'Two oars crossed, the Brethren\'s sign: every captain started out pulling one.', from: 'Revered in the Keys' },
   rose: { name: 'Gale\'s cloak', desc: 'A compass rose, sewn by Ysolde Gale herself, and buried with the rest of what she kept.', from: 'Dinah Lowry\'s last map, Saltpenny' },
   founder: { name: 'Founder\'s cloak', desc: 'A lamp with its light round it: for someone who helped keep the realm\'s lights on, early.', from: 'The Founder\'s pack, from the Everrealm store' },
+  stair: { name: 'Stair cloak', desc: 'A stair going up and out of the cloth, a step for every ten floors. Annot Crowle gives it to climbers who make twenty-five.', from: 'The Endless Tower: floor 25, the first time' },
+  tower: { name: 'Endless cloak', desc: 'A round tower with a light at the top and no top to the light. Annot Crowle\'s mother gave out three. Crowle has given out none, until you.', from: 'The Endless Tower: floor 100, the first time' },
   pair: { name: 'Two Stones cloak', desc: 'A white stone and a black, side by side: the sign of Callis, which needs both.', from: 'Revered on the Bright Coast' },
 };
 

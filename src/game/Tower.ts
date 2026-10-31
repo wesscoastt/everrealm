@@ -46,6 +46,15 @@ interface Run {
   started: number;
 }
 
+/** The first time a climber clears these floors, Annot Crowle has something put by for them: tokens, and a cloak at 25 and 100. */
+export const MILESTONES: Record<number, { tokens: number; items: string[]; line: string }> = {
+  10: { tokens: 10, items: [], line: 'Floor ten. Crowle writes your name in the book in ink, not pencil.' },
+  25: { tokens: 25, items: ['cape_stair'], line: 'Floor twenty-five. Crowle sends down the Stair cloak.' },
+  50: { tokens: 50, items: [], line: 'Floor fifty. Crowle\'s mother had six climbers who saw fifty. Now she has seven.' },
+  75: { tokens: 75, items: [], line: 'Floor seventy-five. Even Crowle stops writing for a moment.' },
+  100: { tokens: 150, items: ['cape_tower'], line: 'Floor one hundred. Crowle sends down the Endless cloak, the first she has given.' },
+};
+
 /** Tower tokens a floor pays the first time and every time after. */
 export const tokensFor = (n: number, first: boolean) => (first ? 3 : 1) + Math.floor(n / 10) + (n % 10 === 0 ? 5 : n % 5 === 0 ? 2 : 0);
 
@@ -176,6 +185,9 @@ export class Tower {
     r.state = 'cleared'; r.wait = 4;
     const tokens = tokensFor(n, first);
     this.host.reward(Math.round(40 + n * 6), Math.round(5 + n * 1.5), Array<string>(tokens).fill('tower_token'), `Floor ${n} cleared${first ? ', for the first time' : ''}: ${tokens} tower token${tokens > 1 ? 's' : ''}`);
+    // A milestone, the first time: more tokens, and at 25 and 100 a cloak
+    const ms = first ? MILESTONES[n] : undefined;
+    if (ms) { this.host.reward(0, 0, [...Array<string>(ms.tokens).fill('tower_token'), ...ms.items], ms.line); }
     this.host.sfx(n % 10 === 0 ? 'levelUp' : 'discover');
     this.host.banner(`Floor ${n} cleared`, n % 10 === 0 ? `A checkpoint: you can start from floor ${n + 1} now` : 'The stair opens');
   }
