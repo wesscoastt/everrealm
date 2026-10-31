@@ -35,6 +35,8 @@ import {
 } from '../data/gameplay';
 import { activeSet, ITEMS, SkillId } from '../data/items';
 import { TROPHY_SETS, trophiesWorn, type TrophyId } from '../data/trophies';
+import { contractSteps, contractTitle, type Contract } from '../data/company';
+import { INFIRMARY_BY_ID, POOR, TREAT_COST } from '../data/infirmary';
 import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, unidentified, type DropSource, type NamedFx } from '../data/gear';
 import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIVES, QUALITY_STEPS, researchMinutes, WEAPON_LEANINGS } from '../data/crafting';
 import { NPCS } from '../data/npcs';
@@ -1621,6 +1623,20 @@ export class Game implements GameApi {
   towerBest(): number { return this.tower.best(); }
   towerStarts(): number[] { return this.tower.starts(); }
   towerClimbing(): boolean { return !!this.tower.run; }
+  /** An infirmary's physician sees to you (data/infirmary.ts): every harm off, and full health. */
+  treat(): string | null {
+    if (this.harms.size === 0 && this.hp >= this.maxHp) return 'There\'s nothing wrong with you that the Spital can mend.';
+    const free = this.save.marks < POOR;
+    if (!free && this.save.marks < TREAT_COST) return `Treatment is ${TREAT_COST} marks.`;
+    if (!free) this.save.marks -= TREAT_COST;
+    this.harms.clear();
+    this.hp = this.maxHp;
+    this.sfx('heal', 0.9);
+    this.floatAt(this.player.position, 2.4, 'Mended', 'heal');
+    this.hud.refresh();
+    this.persist();
+    return null;
+  }
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
   openTravel(from: string): void { this.currentPost = from; this.hallFare = false; this.hud.show('travel'); }
   /** A ferry calling at both these Post stops, and their places on her route. */
@@ -4516,6 +4532,9 @@ export class Game implements GameApi {
     // A run up the Endless Tower, first while it lasts (game/Tower.ts)
     const tw = this.tower?.objective();
     if (tw) out.push({ id: 'tower', name: tw.title, notes: '', objectives: tw.lines.map((text) => ({ text })), done: false, tracked: true, focus: true });
+    // A Counting House contract you hold (data/company.ts)
+    const co = this.save.flags['co:job'] as Contract | false | undefined;
+    if (co && typeof co === 'object') out.push({ id: 'company', name: 'The Counting House: ' + contractTitle(co), notes: '', objectives: contractSteps(co, (it) => this.inv.count(it) > 0).map((text) => ({ text })), done: false, tracked: true, focus: !tw });
     const hidden = this.questHidden(), focus = this.questFocus();
     for (const [id, stage] of Object.entries(this.save.quests)) {
       const def = QUESTS[id];
@@ -6318,7 +6337,27 @@ export class Game implements GameApi {
     // Back on your feet in the square at Hollin Ford, by the Charter Post (clear of the Moot Oak's benches),
     // or at the start of the dungeon you're in
     const start = this.dungeons.respawnAt();
-    if (start) this.player.teleport(start[0], start[1], start[2]);
+    // (or at the infirmary you asked to keep a bed for you, in this land: there, mended)
+    const bed = INFIRMARY_BY_ID.get(String(this.flag('bind') ?? ''));
+    if (!start && bed && landAt(bed.bed[0]) === landAt(this.player.position.x)) {
+      this.hp = this.maxHp;
+      // From far off, they carry you in while the place loads round you (a ward's floor isn't there until
+      // its ground is: arriving before it, you'd fall through); from near, you're simply there
+      if (Math.hypot(bed.bed[0] - this.player.position.x, bed.bed[2] - this.player.position.z) > 96) {
+        this.hud.setDeath(false);
+        this.target = null;
+        this.save.pos = [bed.bed[0], bed.bed[1] + 0.05, bed.bed[2]];
+        this.save.yaw = Math.PI;
+        this.save.hour = this.world.sky.hour;
+        this.save.hp = this.hp;
+        this.arriving = bed.name;
+        this.arrivingBy = 'dungeon';
+        this.arrivingSub = 'They carried you in. You wake on your feet, mended.';
+        this.startPlay(false, `Carried to ${bed.name}…`);
+        return;
+      }
+      this.player.teleport(bed.bed[0], bed.bed[1], bed.bed[2]);
+    } else if (start) this.player.teleport(start[0], start[1], start[2]);
     else this.player.teleport(152.5, 19, 185.5);
     this.player.standClear();
     this.rig.snap(this.player.position);

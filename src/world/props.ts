@@ -2840,6 +2840,23 @@ export function bannerTexture(kind: BannerKind): THREE.CanvasTexture {
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }
+  if (kind === 'company') {
+    // The Counting House (data/company.ts): Charter blue, the white tally-stick it's named for, notched
+    // down its length for every cargo counted, a gold edge and a swallowtail
+    x.fillStyle = '#22365a'; x.fillRect(0, 0, 64, 128);
+    x.fillStyle = 'rgba(0,0,0,0.14)';
+    for (let i = 0; i < 128; i += 4) x.fillRect(0, i, 64, 1);
+    x.fillStyle = '#e8e4dc'; x.fillRect(27, 14, 10, 80);
+    x.fillStyle = '#22365a';
+    for (let k = 0; k < 9; k++) { const y = 20 + k * 8; x.fillRect(k % 2 ? 31 : 27, y, 6, 2); }
+    x.fillStyle = '#e8e4dc'; x.beginPath(); x.moveTo(27, 94); x.lineTo(32, 102); x.lineTo(37, 94); x.fill();
+    x.strokeStyle = '#e0bd64'; x.lineWidth = 2; x.strokeRect(3, 3, 58, 114);
+    x.globalCompositeOperation = 'destination-out';
+    x.beginPath(); x.moveTo(0, 128); x.lineTo(32, 110); x.lineTo(64, 128); x.closePath(); x.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
   if (kind === 'tally') {
     // A gang's tally: an oxblood rag, frayed, with a stroke chalked for every cart they've taken
     x.fillStyle = '#4a1a16'; x.fillRect(0, 0, 64, 128);
@@ -2927,7 +2944,7 @@ export function bannerTexture(kind: BannerKind): THREE.CanvasTexture {
 }
 
 /** A banner's cloth: a town's, a gang's tally, a company's, or a guild's own ('guild:' and its name). */
-export type BannerKind = 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly' | `guild:${string}`;
+export type BannerKind = 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly' | 'company' | `guild:${string}`;
 
 /**
  * A guild hall's roll of honour (data/guildhalls.ts): a dark board in a moulded frame on the wall, len

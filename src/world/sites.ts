@@ -91,6 +91,8 @@ export interface PropDesc {
   rise?: number;
   /** Interior furniture ('furn'): which piece, and a colour variant. */
   item?: string;
+  /** A seat someone in the world sits on (a ward's bench under a patient): no collision, as a house's own furniture has none. */
+  sat?: boolean;
   tint?: number;
   /** A house door ('furn' doorOpen) that swings shut when nobody's near (see world/Doors.ts). */
   swing?: boolean;
@@ -1658,12 +1660,36 @@ export function plan(): Plan {
     claim(774, 316, 786, 330);
     s.props.push({ t: 'crate', x: 778.2, y: base, z: 326.6 }, { t: 'barrel', x: 781.4, y: base, z: 327.8 }, { t: 'barrel', x: 782.4, y: base, z: 327.2 });
 
+    // ---- The Spital (data/infirmary.ts): Ansbury's infirmary on the main street, at its west end with
+    // Tanners' Row behind. One long ward under a red roof: five beds along the back wall, the physician's
+    // desk at the west end, the still-room's shelves and jars at the east, a candle corner, lamps.
+    claim(756, 306, 775, 318);
+    {
+      const x0 = 757, z0 = 307, W = 18, D = 11, y = base;
+      stoneHall(s, x0, z0, W, D, 8, base, 'n');
+      s.props.push({ t: 'roof', x: x0 + W / 2, y: base + 8, z: z0 + D / 2, len: W, span: D, rise: roofRise(D), ry: 0, mat: 'red' });
+      const F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+      // The ward: beds along the back wall, heads to it; a bench at the foot of three, where the patients sit up
+      [759.5, 762, 764.5, 767, 769.5].forEach((bx, i) => { F('bed', bx, 315.0, Math.PI); if (i % 2 === 0) s.props.push({ t: 'furn', item: 'bench', x: bx, y, z: 313.4, ry: 0, sat: true }); });
+      F('rug', 764.5, 311.5, 0, 0); F('rug', 768.5, 311.5, 0, 0);
+      // The physician's corner, and the still-room at the other end
+      F('desk', 758.7, 309.6, Math.PI / 2); F('chair', 759.9, 309.6, -Math.PI / 2); F('letters', 758.7, 309.6, 0, 1, y + 1.02);
+      F('shelves', 773.3, 309.2, -Math.PI / 2, 1); F('shelves', 773.3, 311.4, -Math.PI / 2, 2);
+      F('crocks', 772.0, 308.3, 0); F('table', 771.6, 313.2, Math.PI / 2);
+      F('candles', 772.6, 315.6, 0); F('candles', 758.6, 315.6, 0);
+      for (const lx of [761, 766, 771]) F('lamp', lx, 311.5, 0, 0, y + 5.0);
+      // The front: its name, a lantern either side of the door, a bench for whoever's waiting
+      s.props.push({ t: 'sign', x: 762.5, y, z: 305.6, ry: 0, text: 'The Spital' });
+      for (const lx of [763.5, 768.5]) s.props.push({ t: 'lantern', x: lx, y, z: 305.7 });
+      s.props.push({ t: 'bench', x: 771.5, y, z: 305.8, ry: 0 });
+    }
+
     // ---- Street fronts: terraced houses facing every street
     const roofs: PropDesc['mat'][] = ['blue', 'slate', 'red', 'blue', 'slate'];
     const walls = [B.Plaster, B.Plaster, B.Planks, B.StoneBrick];
     let k = 0;
     // Every building's footprint, with a block either side for gable-end chimneys
-    const built: [number, number, number, number][] = [[cx - 22, Z1 - 20, cx - 9, Z1 - 12], [cx - 21, cz + 41, cx - 11, cz + 47], [cx + 5, cz + 41, cx + 22, cz + 52], [775, 318, 784, 324]];
+    const built: [number, number, number, number][] = [[cx - 22, Z1 - 20, cx - 9, Z1 - 12], [cx - 21, cz + 41, cx - 11, cz + 47], [cx + 5, cz + 41, cx + 22, cz + 52], [775, 318, 784, 324], [756, 306, 775, 317]];
     const inBuilding = (x: number, z: number) => built.some((r) => r[0] <= x && x <= r[2] && r[1] <= z && z <= r[3]);
     const plot = (x0: number, z0: number, w: number, d: number, door: 'n' | 's' | 'e' | 'w', role?: Role) => {
       if (!isFree(x0 - 1, z0 - 1, x0 + w, z0 + d)) return false;
@@ -1907,6 +1933,11 @@ export function plan(): Plan {
     fountain(west, 675, 282, base);
     for (const [cx2, cz2, ry] of [[690, 284, 0.4], [658, 286, -0.6]] as const) west.props.push({ t: 'cart', x: cx2, y: base, z: cz2, ry });
 
+    // ---- The Counting House's head office (data/company.ts), on East Avenue by the gate the sea road
+    // leaves by: its own ground claimed first, so the terraces grow round it
+    claim(956, 280, 979, 293);
+    countingHouse(east, 957, 281, base);
+
     // ---- Terraces: pairs of rows back to back, a lane in front of each, gardens and yards between
     const roofs: PropDesc['mat'][] = ['slate', 'blue', 'red', 'slate', 'blue', 'red', 'thatch'];
     const walls = [B.Plaster, B.Plaster, B.Planks, B.StoneBrick, B.Plaster];
@@ -2116,6 +2147,38 @@ export function plan(): Plan {
         O.set(x, y, z, B.Air);
       }
     }
+  }
+
+  /**
+   * A house of the Counting House (data/company.ts): its office in dressed stone, the clerk's counter
+   * across the room with the ledgers on the shelves behind, the factor's desk by the wall, the strongbox,
+   * lamps; a plank warehouse beside it, closed and stacked; the Company's banners either side of the
+   * door and its name over the forecourt. (x0, z0) is the office's corner, its door to the south.
+   */
+  function countingHouse(s: Site, x0: number, z0: number, base: number, W = 14) {
+    const D = 12, y = base, mid = x0 + W / 2;
+    stoneHall(s, x0, z0, W, D, 9, base, 's');
+    s.props.push({ t: 'roof', x: mid, y: base + 9, z: z0 + D / 2, len: D, span: W, rise: roofRise(W), ry: Math.PI / 2, mat: 'blue' });
+    const F = (item: string, x: number, z: number, ry = 0, tint = 0, yy = y) => s.props.push({ t: 'furn', item, x, y: yy, z, ry, tint });
+    // The clerk's counter, the ledgers behind it, the strongbox and the letters waiting
+    for (const dx of [-2.4, 0, 2.4]) F('counter', mid + 0.5 + dx, z0 + 4.5, 0);
+    for (let i = 0; i < (W >= 14 ? 5 : 4); i++) F('shelves', x0 + 2.5 + i * 2.2, z0 + 1.4, 0, 1);
+    F('strongbox', x0 + 1.6, z0 + 1.6, 0); F('letters', mid + 0.5 - 2.4, z0 + 4.5, 0, 1, y + 1.02); F('letters', mid + 0.5 + 2.4, z0 + 4.5, 0, 2, y + 1.02);
+    // The factor's desk and a second for the supercargoes, either wall
+    F('desk', x0 + 1.7, z0 + 8, Math.PI / 2); F('chair', x0 + 2.9, z0 + 8, -Math.PI / 2);
+    F('desk', x0 + W - 1.7, z0 + 8, -Math.PI / 2); F('chair', x0 + W - 2.9, z0 + 8, Math.PI / 2);
+    F('rug', mid + 0.5, z0 + 8, 0, 0);
+    F('crate', x0 + W - 1.8, z0 + 2.2); F('crate', x0 + W - 2.6, z0 + 2.4); F('barrel', x0 + W - 1.8, z0 + 4.2);
+    for (const [x, z] of [[mid + 0.5, z0 + 3], [mid + 0.5, z0 + 8.5]] as const) F('lamp', x, z, 0, 0, y + 5.4);
+    s.props.push({ t: 'banner', x: mid + 0.5, y: y + 5.6, z: z0 + 0.9, kind: 'company' });
+    // The front: its name, two banners by the door, lamps
+    s.props.push({ t: 'sign', x: x0 + 3.5, y, z: z0 + D + 1.4, ry: 0, text: 'The Counting House' });
+    for (const dx of [-3, 4]) s.props.push({ t: 'banner', x: mid + dx, y: y + 6.2, z: z0 + D + 0.15, kind: 'company', ry: Math.PI });
+    for (const dx of [-5.5, 6.5]) s.props.push({ t: 'lantern', x: mid + dx, y, z: z0 + D + 0.6 });
+    // The bonded warehouse: planks, closed, the Company's cargo stacked at its door
+    house(s, x0 + W + 1, z0 + 1, 7, D - 2, 2, base, 'slate', 's', { wall: B.Planks, closed: true, chimney: false });
+    for (let k = 0; k < 3; k++) s.props.push({ t: 'crate', x: x0 + W + 1.8 + k * 0.8, y, z: z0 + D - 0.4, ry: k * 0.3 });
+    s.props.push({ t: 'crate', x: x0 + W + 2.2, y: y + 0.6, z: z0 + D - 0.4, ry: 0.2 }, { t: 'barrel', x: x0 + W + 6.4, y, z: z0 + D - 0.4 });
   }
 
   /** The minster: nave and transepts in stone under slate, a bell tower and spire at the west front. */
@@ -5138,7 +5201,12 @@ export function plan(): Plan {
       for (let k = 0; k < 4; k++) s.props.push({ t: 'barrel', x: x + 3 + (k % 2) * 0.8, y: base, z: z + Math.floor(k / 2) * 0.8 });
       for (let bx = Math.floor(x); bx <= Math.floor(x + 4); bx++) for (let bz = Math.floor(z); bz <= Math.floor(z + 1); bz++) { O.set(bx, base, bz, B.Barrier); O.set(bx, base + 1, bz, B.Barrier); }
     };
-    cargo(C + 2, 572.5); cargo(C + 4, 624.5); cargo(C - 6, 603.6);
+    cargo(C + 4, 624.5); cargo(C - 6, 603.6);
+    // ---- The Counting House's Gullmouth house (data/company.ts) at the quay's north end, which the
+    // Merchants' Hall says should have been a fish store; the Company's cargo waits by its crane
+    countingHouse(s, C, 560, base, 12);
+    s.props.push({ t: 'crane', x: C + 18, y: base, z: 573.5, ry: 0 });
+    cargo(C + 10, 574.6);
     s.props.push({ t: 'cart', x: C - 2, y: base, z: 576.5, ry: 1.5 }, { t: 'cart', x: C + 1, y: base, z: 630.5, ry: -1.4 });
     // ---- The quay market: rope, sailcloth, tar, lanterns and hooks, either side of the jetties' roots
     const stallCols = ['#2f528f', '#a8382c', '#c8a03a', '#3f7a3a', '#5a3a6a', '#2a5a5a'];
@@ -5148,7 +5216,7 @@ export function plan(): Plan {
     });
     // ---- Benches facing the water, nets drying, pots, gulls on the bollards
     for (const z of [579, 585, 621, 633]) s.props.push({ t: 'bench', x: C + 7.5, y: base, z: z + 0.5, ry: Math.PI / 2 });
-    for (const z of [566, 636]) s.props.push({ t: 'netRack', x: C + 3, y: base, z: z + 0.5, len: 5, ry: 0 }, { t: 'lobsterPots', x: C + 6.2, y: base, z: z + 1.4, ry: z * 0.3 });
+    for (const z of [636]) s.props.push({ t: 'netRack', x: C + 3, y: base, z: z + 0.5, len: 5, ry: 0 }, { t: 'lobsterPots', x: C + 6.2, y: base, z: z + 1.4, ry: z * 0.3 });
     for (const d of [...s.props]) if (d.t === 'bollard' && hash2(Math.floor(d.x), Math.floor(d.z), 199) < 0.35) s.props.push({ t: 'furn', item: 'gull', x: d.x, y: d.y + 0.65, z: d.z, ry: hash2(Math.floor(d.z), 1, 201) * 6 });
 
     // ---- The lanes: every strip of bare ground within two of a wall in the town, paved
@@ -8878,7 +8946,7 @@ function propCollision(O: Overrides, sites: Site[]): void {
       }
       case 'furn': {
         const it = d.item as FurnItem | undefined;
-        if (!it || !(it in FURN_SIZE) || it === 'rug' || it === 'lamp' || it === 'candles' || it === 'hearth') break;
+        if (!it || !(it in FURN_SIZE) || it === 'rug' || it === 'lamp' || it === 'candles' || it === 'hearth' || d.sat) break;
         const [w, dp] = FURN_SIZE[it];
         bar(d, 0, 0, w / 2 - 0.05, dp / 2 - 0.05, it === 'shelves' || it === 'dresser' ? 2 : 1);
         break;

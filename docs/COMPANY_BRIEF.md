@@ -15,7 +15,7 @@ lawful, slow, a little rotten, and the only employer on the coast that pays on t
 
 **Where.** A counting house (office, bonded warehouse, crane, a clerk's window onto the quay) in:
 - **Saltwind's Holme Staithe** and **Inkholm's Gillsby Staithe**, small ones;
-- **Ansbury**, the head office: the Counting House on the river wharf, the Governor's room upstairs;
+- **Ansbury**, the head office: on East Avenue by the east gate the sea road leaves by (Ansbury has no river), the Governor's room upstairs;
 - **Gullmouth**, where it has no house and wants one: a hired loft over a chandler's on the quay,
   which the Merchants' Hall resents in public;
 - **Callis**, in Morrow, by Assembly licence, in a warehouse it rents from the Assembly at a rent

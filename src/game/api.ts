@@ -57,6 +57,8 @@ export interface GameApi {
   towerBest(): number;
   towerStarts(): number[];
   towerClimbing(): boolean;
+  /** At an infirmary (data/infirmary.ts): every harm off you and full health, for the fee (free when you're poor); why not, or null. */
+  treat(): string | null;
   openCrafting(station: Station): void;
   /** Opens the Charter Post panel at the given stop (an id from POSTS). */
   openTravel(from: string): void;
