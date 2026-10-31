@@ -192,6 +192,8 @@ export interface TalentView {
   fighting: boolean;
   trees: { id: string; name: string; desc: string; icon: string; spent: number; gate: number; bar: string[]; talents: { id: string; name: string; desc: string; tier: number; ranks: number; rank: number; capstone: boolean; why: string | null; icon: string }[] }[];
   builds: ({ name: string; sum: string; on: boolean } | null)[];
+  /** The paths between the trees (data/talents.ts BRIDGES): each joins two trees, on one of two rows. */
+  bridges: { id: string; name: string; desc: string; between: [string, string]; row: number; need: number; tier: number; ranks: number; rank: number; capstone: boolean; why: string | null; icon: string }[];
 }
 
 /** What the crafting window shows besides the recipes themselves. */
@@ -1834,7 +1836,7 @@ export class Hud {
     const body = panel.querySelector('.body') as HTMLElement, foot = panel.querySelector('.footer') as HTMLElement;
     const tv = this.ctx.talents();
     const sv = this.ctx.skillsView();
-    const all = tv.trees.flatMap((t) => t.talents.map((d) => ({ d, t })));
+    const all = [...tv.trees.flatMap((t) => t.talents.map((d) => ({ d, t }))), ...tv.bridges.map((d) => ({ d, t: { ...tv.trees[0], name: 'Between ' + d.between.map((x) => tv.trees.find((t) => t.id === x)?.name ?? x).join(' and ') } }))];
     panel.style.setProperty('--cc', tv.calling.color);
     const pips = (d: TalentView['trees'][number]['talents'][number]) => d.ranks > 1 ? `<span class="tn-pips">${Array.from({ length: d.ranks }, (_, k) => `<i class="${k < d.rank ? 'on' : ''}"></i>`).join('')}</span>` : '';
     const node = (d: TalentView['trees'][number]['talents'][number]) => {
@@ -1848,6 +1850,15 @@ export class Hud {
         <div class="tl-grid" style="--fill:${fill}">${[0, 1, 2, 3, 4, 5].map((k) => `<div class="tl-tier${t.spent < k * t.gate ? ' shut' : ''}${k === 5 ? ' tl-captier' : ''}">${k ? `<span class="tl-gate" title="Opens at ${k * t.gate} points in ${esc(t.name)}">${k * t.gate}</span>` : ''}<div class="tl-row">${t.talents.filter((d) => d.tier === k).map(node).join('')}</div></div>`).join('')}</div>
       </section>`;
     };
+    // The paths between the trees, Wynncraft's way: two rows, each with a bridge in the gap between the
+    // first and second trees and one between the second and third; on a row, one or the other
+    const bridges = () => `<div class="tl-bridges">${[0, 1].map((row) => {
+      const list = tv.bridges.filter((b) => b.row === row);
+      return `<div class="tl-brow"><span class="tl-brow-h">${row ? 'Lower' : 'Upper'} paths across<small>${list[0]?.need ?? 0} points in both trees it joins · one of the two</small></span>${list.map((b) => {
+        const col = tv.trees.findIndex((t) => t.id === b.between[0]);
+        return `<div class="tl-bridge${b.rank ? ' got' : ''}" style="grid-column: ${col * 2 + 2} / span 2">${node(b)}</div>`;
+      }).join('')}</div>`;
+    }).join('')}</div>`;
     const detailOf = (id: string | null) => { const hov = all.find((x) => x.d.id === id) ?? null; return hov ? (() => {
       const { d, t } = hov, full = d.rank >= d.ranks;
       return `<img src="${abilityIcon(d.icon)}" alt=""><div><h5>${esc(d.name)} <em>${d.capstone ? 'Capstone' : `Rank ${d.rank} of ${d.ranks}`}</em> <small>${esc(t.name)} · tier ${d.tier + 1}</small></h5><p>${d.ranks > 1 ? '<b>Each rank:</b> ' : ''}${esc(d.desc)}</p><p class="tl-why ${full ? 'full' : d.why ? 'no' : 'can'}">${full ? 'Every rank learned.' : d.why ? esc(d.why) : 'Click to learn a rank.'}</p></div>`;
@@ -1858,7 +1869,7 @@ export class Hud {
         <div class="tl-builds">${tv.builds.map((b, i) => `<div class="tl-build${b?.on ? ' on' : ''}"><span class="tl-bn">${i + 1}</span><div><b>${b ? esc(b.name) : 'Empty'}</b><small>${b ? esc(b.sum) : 'Save what you have here'}</small></div><button class="btn ghost sm" data-bsave="${i}" title="Save your talents and utilities here">Save</button>${b ? `<button class="btn sm" data-bload="${i}"${b.on || tv.fighting || !sv.temple ? ' disabled' : ''} title="${tv.fighting ? 'Not while you are fighting' : !sv.temple ? 'Builds are changed kneeling at a temple\'s altar' : 'Switch to this build'}">${b.on ? 'In use' : 'Use'}</button>` : ''}</div>`).join('')}</div>
       </div>
       <div class="tl-tabs"><button class="tl-tab${this.talTab === 'skills' ? ' on' : ''}" data-ttab="skills">Skills</button><button class="tl-tab${this.talTab === 'talents' ? ' on' : ''}" data-ttab="talents">Talents</button><button class="tl-tab${this.talTab === 'mastery' ? ' on' : ''}" data-ttab="mastery">Mastery</button>${sv.temple ? '<span class="tl-temple">You kneel at the altar: unlearning and builds can be done here</span>' : ''}</div>
-      ${this.talTab === 'talents' ? `<div class="tl-trees">${tv.trees.map(tree).join('')}</div>` : this.talTab === 'mastery' ? this.masteryPage() : this.skillsPage(sv)}
+      ${this.talTab === 'talents' ? `<div class="tl-trees">${tv.trees.map(tree).join('')}</div>${bridges()}` : this.talTab === 'mastery' ? this.masteryPage() : this.skillsPage(sv)}
       <p class="tl-msg"></p>`;
     foot.innerHTML = `<span>${this.talTab === 'talents' ? 'Click a talent to learn a rank · a tier opens at five points per tier above · one capstone at a time' : this.talTab === 'mastery' ? 'A point for every so much experience past level 100' : 'Skills rank up as you use them; at rank IV they morph one of two ways'} · T to close</span>${sv.temple ? `<button class="btn ghost sm tl-reset"${tv.fighting ? ' disabled' : ''}>Unlearn everything (${sv.respec} marks)</button>` : '<span class="tl-hint">Unlearn at a temple: kneel at any chapel\'s altar</span>'}`;
     const msg = (t: string) => { body.querySelector('.tl-msg')!.textContent = t; };

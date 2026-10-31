@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Birds } from './Birds';
 import { PETS } from '../data/pets';
 import { Companion } from '../entities/Companion';
-import { canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
+import { BRIDGE_NEED, BRIDGES, canLearn, pointsAt, rankOf, spent, TALENTS, TIER_GATE, TREES } from '../data/talents';
 import { landAt, landOf, type LandId } from '../world/land';
 import { MORROW_OX } from '../world/morrow';
 import { CALLIS_PACKET } from '../world/morrow';
@@ -3636,6 +3636,7 @@ export class Game implements GameApi {
         spent: spent(have, t.id), gate: TIER_GATE, bar: t.bar.map((u) => c.utilities.find((s) => s.id === u)?.name ?? u),
         talents: t.talents.map((d) => ({ id: d.id, name: d.name, desc: d.desc, tier: d.tier, ranks: d.ranks, rank: rankOf(d.id, have), capstone: !!d.capstone, why: canLearn(d.id, have, this.calling, lvl, this.poolExtra()), icon: iconFor(d.name + ' ' + d.desc) })),
       })),
+      bridges: BRIDGES[this.calling].map((d) => ({ id: d.id, name: d.name, desc: d.desc, between: d.between, row: d.row, need: BRIDGE_NEED[d.row], tier: d.tier, ranks: 1, rank: rankOf(d.id, have), capstone: false, why: canLearn(d.id, have, this.calling, lvl, this.poolExtra()), icon: iconFor(d.name + ' ' + d.desc) })),
       builds: this.builds().map((b) => b && {
         name: b.name,
         // (how it's spread: the tree names and their points, most first)

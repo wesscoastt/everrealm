@@ -363,6 +363,74 @@ export const pointsAt = (level: number) => Math.max(0, Math.floor((level - 1) * 
 export const TALENTS: Record<string, { def: TalentDef; tree: TreeDef; calling: CallingId }> = {};
 for (const [calling, trees] of Object.entries(TREES) as [CallingId, TreeDef[]][]) for (const t of trees) for (const def of t.talents) TALENTS[def.id] = { def, tree: t, calling };
 
+// ---------------------------------------------------------------- Bridges between the trees
+// Wynncraft's ability tree is one tree, its archetypes side by side with paths across between them. Ours
+// are the three trees, and between each neighbouring pair, on two rows, a bridge: a talent that takes
+// something from both ways of playing. A bridge needs points in both trees it joins (ten each for the
+// upper row, twenty for the lower), takes one point, counts toward neither tree's tiers, and the two
+// bridges on a row lock each other out: you cross one way or the other.
+
+export interface BridgeDef extends TalentDef { between: [string, string]; row: 0 | 1 }
+/** The points in each of the two trees a bridge on each row needs. */
+export const BRIDGE_NEED = [10, 20];
+const BRIDGE_TREE: TreeDef = { id: 'bridge', name: 'Bridges', desc: 'The paths between the trees.', bar: ['', ''], talents: [] };
+const bridge = (id: string, name: string, between: [string, string], row: 0 | 1, desc: string, mod: (t: Tune) => void): BridgeDef =>
+  ({ id, name, desc, ranks: 1, tier: row ? 4 : 2, between, row, mod });
+const atLeast = (o: Record<string, number>, k: string, v: number) => { o[k] = Math.max(o[k] ?? 0, v); };
+
+export const BRIDGES: Record<CallingId, BridgeDef[]> = {
+  warden: [
+    bridge('wb_aftershock', 'Aftershock', ['w_line', 'w_toll'], 0, 'When Bulwark breaks it bursts, a third as hard as Unbroken\'s, and staggers what\'s close.', (t) => { atLeast(t.bulwark, 'burst', 0.8); atLeast(t.bulwark, 'burstStun', 0.4); }),
+    bridge('wb_embers', 'Banked Fire', ['w_toll', 'w_watch'], 0, 'While the Oath of the Ring holds, it heals you 1% of your health a second.', (t) => { atLeast(t.oath, 'heal', 0.01); }),
+    bridge('wb_ricochet', 'Glancing Rim', ['w_line', 'w_toll'], 1, 'Shield Throw springs on to strike a second foe.', (t) => { atLeast(t.shieldthrow, 'bounce', 1); }),
+    bridge('wb_sweep', 'Shoulder Charge', ['w_toll', 'w_watch'], 1, 'Shield Bash strikes everything within two blocks of your target.', (t) => { atLeast(t.bash, 'cleave', 2); }),
+  ],
+  reaver: [
+    bridge('rb_seep', 'Seep', ['r_blood', 'r_fury'], 0, 'When something dies bleeding, the bleed jumps to the nearest foe within three blocks.', (t) => { atLeast(t.bleed, 'spread', 3); }),
+    bridge('rb_jar', 'Jarring Landing', ['r_fury', 'r_leap'], 0, 'Leaping Cut knocks what it strikes off its feet for 0.4 seconds.', (t) => { atLeast(t.leap, 'stun', 0.4); }),
+    bridge('rb_cold', 'Cold Rage', ['r_blood', 'r_fury'], 1, 'The Red Hour makes you take half as much more as it did.', (t) => { t.redhour.taken = Math.min(t.redhour.taken, 1 + (t.redhour.taken - 1) / 2); }),
+    bridge('rb_arc', 'Wide Arc', ['r_fury', 'r_leap'], 1, 'Leaping Cut strikes half a block wider.', (t) => { t.leap.r += 0.5; }),
+  ],
+  ashcaller: [
+    bridge('ab_falling', 'Falling Embers', ['a_embers', 'a_stars'], 0, 'A second star falls a moment after the first, at a quarter of its strength.', (t) => { atLeast(t.starfall, 'twice', 0.25); }),
+    bridge('ab_warm', 'Warm Ground', ['a_stars', 'a_cinders'], 0, 'Standing in your own Ring of Fire or cinders heals you 1% of your health a second.', (t) => { atLeast(t.firewall, 'heal', 0.01); }),
+    bridge('ab_tinder', 'Dry Tinder', ['a_embers', 'a_stars'], 1, 'Kindle recharges 15% faster.', (t) => cd(t, 'kindle', 0.85)),
+    bridge('ab_oil', 'Lamp Oil', ['a_stars', 'a_cinders'], 1, 'The Ring of Fire burns 8% hotter.', (t) => { t.firewall.burn *= 1.08; }),
+  ],
+  wizard: [
+    bridge('zb_needle', 'Ice Needle', ['z_frost', 'z_storm'], 0, 'Ice Lance recharges 12% faster.', (t) => cd(t, 'icelance', 0.88)),
+    bridge('zb_rime', 'Rime', ['z_storm', 'z_ward'], 0, 'Ice Barrier soaks 8% more.', (t) => { t.icebarrier.shield *= 1.08; }),
+    bridge('zb_wide', 'Hard Frost', ['z_frost', 'z_storm'], 1, 'Frost Nova reaches half a block farther.', (t) => { t.frostnova.r += 0.5; }),
+    bridge('zb_slip', 'Slip the Cold', ['z_storm', 'z_ward'], 1, 'Blink recharges 15% faster.', (t) => cd(t, 'blink', 0.85)),
+  ],
+  pathfinder: [
+    bridge('pb_mark', 'Marked Ground', ['p_arrows', 'p_shadow'], 0, 'Rain of Arrows marks everything it falls on.', (t) => { atLeast(t.rain, 'mark', 1); }),
+    bridge('pb_light', 'Light Step', ['p_shadow', 'p_field'], 0, 'Quickstep leaves you untouchable for half a second.', (t) => { atLeast(t.quickstep, 'evade', 0.5); }),
+    bridge('pb_called', 'Called Shot', ['p_arrows', 'p_shadow'], 1, 'A marked foe takes a further 3% from your blows.', (t) => { t.volley.markBonus += 0.03; }),
+    bridge('pb_salve', 'Salve', ['p_shadow', 'p_field'], 1, 'Field Dressing also heals a further 10% of your health over five seconds.', (t) => { atLeast(t.dressing, 'hot', 0.1); }),
+  ],
+  mender: [
+    bridge('mb_long', 'Long Shelter', ['m_lamp', 'm_shelter'], 0, 'Sanctuary lasts a second and a half longer.', (t) => { t.sanctuary.secs += 1.5; }),
+    bridge('mb_quick', 'Quick Rebuke', ['m_shelter', 'm_rebuke'], 0, 'Rebuke recharges a tenth faster.', (t) => cd(t, 'rebuke', 0.9)),
+    bridge('mb_glass', 'Thick Glass', ['m_lamp', 'm_shelter'], 1, 'Lamp Ward soaks a tenth more.', (t) => { t.lampward.shield *= 1.1; }),
+    bridge('mb_spring', 'Leaping Light', ['m_shelter', 'm_rebuke'], 1, 'Lantern Light springs on to strike a second foe.', (t) => { atLeast(t.lanternlight, 'bounce', 1); }),
+  ],
+  gravecaller: [
+    bridge('gb_draw', 'Deep Draw', ['g_blood', 'g_rot'], 0, 'Siphon heals a further 1.5%.', (t) => { t.siphon.heal += 0.015; }),
+    bridge('gb_eat', 'Hungry Rot', ['g_rot', 'g_fallen'], 0, 'Wither eats 6% faster.', (t) => { t.wither.dot *= 1.06; }),
+    bridge('gb_vein', 'Open Vein', ['g_blood', 'g_rot'], 1, 'Lifeblood holds a twentieth more of your health.', (t) => { t.lifeblood.max += 0.05; }),
+    bridge('gb_call', 'Short Call', ['g_rot', 'g_fallen'], 1, 'Raise the Fallen recharges 12% faster.', (t) => cd(t, 'raise', 0.88)),
+  ],
+  prowler: [
+    bridge('kb_from', 'From Nowhere', ['k_shadow', 'k_knife'], 0, 'A blow from hiding lands a tenth harder.', (t) => { t.slipaway.mult += 0.1; t.ambush.mult += 0.1; }),
+    bridge('kb_grit', 'Grit', ['k_knife', 'k_dirty'], 0, 'Pocket Sand stuns a quarter second longer.', (t) => { t.pocketsand.stun += 0.25; }),
+    bridge('kb_turn', 'The Turn', ['k_shadow', 'k_knife'], 1, 'Each Opening spent in Twist the Knife adds 6% more.', (t) => { t.twist.per *= 1.06; }),
+    bridge('kb_rust', 'Rust', ['k_knife', 'k_dirty'], 1, 'Caltrops cut a tenth deeper.', (t) => { t.caltrops.dmg *= 1.1; }),
+  ],
+};
+for (const [calling, list] of Object.entries(BRIDGES) as [CallingId, BridgeDef[]][]) for (const def of list) TALENTS[def.id] = { def, tree: BRIDGE_TREE, calling };
+export const bridgeOf = (id: string): BridgeDef | undefined => Object.values(BRIDGES).flat().find((b) => b.id === id);
+
 /** A tree learned in full: every talent at every rank (for the balance check). */
 export const fullTree = (t: TreeDef): string[] => t.talents.flatMap((d) => Array<string>(d.ranks).fill(d.id));
 
@@ -388,6 +456,16 @@ export function canLearn(id: string, learned: string[], calling: CallingId, leve
   if (rankOf(id, learned) >= t.def.ranks) return 'You have every rank of it already.';
   // (extra: the points the rest of the pool leaves over: data/skillpoints.ts, game/Game.ts skillPool)
   if (pointsAt(level) + extra - spent(learned) < 1) return 'No skill points left to spend. They come with levels and with Insight.';
+  // A bridge: points in both the trees it joins, and the other bridge on its row not held
+  const br = bridgeOf(id);
+  if (br) {
+    const need = BRIDGE_NEED[br.row];
+    const names = br.between.map((tid) => TREES[calling].find((x) => x.id === tid)?.name ?? tid);
+    if (br.between.some((tid) => spent(learned, tid) < need)) return `Needs ${need} points in both ${names[0]} and ${names[1]}.`;
+    const other = BRIDGES[calling].find((o) => o.row === br.row && o.id !== br.id && learned.includes(o.id));
+    if (other) return `It locks out ${other.name}, which you hold. Unlearn that to cross this way instead.`;
+    return null;
+  }
   const need = t.def.tier * TIER_GATE, have = spent(learned, t.tree.id);
   if (have < need) return `Spend ${need} points in ${t.tree.name} to open this tier (${have} so far).`;
   if (t.def.capstone && learned.some((x) => TALENTS[x]?.def.capstone)) return 'You can hold only one capstone. Unlearn the other first.';

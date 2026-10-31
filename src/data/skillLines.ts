@@ -60,7 +60,7 @@ export const LINES: SkillLine[] = [
     opensWhen: 'Level 3',
     opens: (c) => c.level >= 3,
     skills: [
-      { line: 'wayfare', id: 'ln_secondwind', name: 'Second Wind', icon: 'dressing', cd: 16, need: 3, cost: st(12), color: '#9ad87a',
+      { line: 'wayfare', id: 'ln_secondwind', name: 'Get Your Breath', icon: 'dressing', cd: 16, need: 3, cost: st(12), color: '#9ad87a',
         desc: 'Get your breath back: a fifth of your health over six seconds, and the newest harm on you shaken off.', fx: [{ k: 'heal', over: [0.2, 6], cleanse: 1 }] },
       { line: 'wayfare', id: 'ln_longstride', name: 'Long Stride', icon: 'quickstep', cd: 10, need: 6, cost: st(10), color: '#9ad87a',
         desc: 'Seven blocks forward in one go, and for two seconds after it, blows land a fifth lighter.', fx: [{ k: 'dash', dist: 7 }, { k: 'buff', secs: 2, taken: 0.8 }] },

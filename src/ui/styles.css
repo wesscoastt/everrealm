@@ -1088,6 +1088,15 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .tl-bn { width: 22px; height: 22px; display: grid; place-items: center; font: 700 13px var(--px); color: var(--ink); background: var(--gold); border: 2px solid var(--ink); }
 .tl-build.on .tl-bn { background: var(--cc); }
 .tl-trees { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+/* The paths between the trees (Hud.renderTalents bridges): each in the gap it joins */
+.tl-bridges { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.tl-brow { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); column-gap: 7px; align-items: center; min-height: 92px; padding: 22px 0 6px; border-top: 1px dashed color-mix(in srgb, var(--cc) 35%, transparent); }
+.tl-brow-h { position: absolute; left: 0; top: 6px; font: 700 12px var(--px); color: var(--gold); letter-spacing: 0.4px; }
+.tl-brow-h small { display: inline; margin-left: 8px; font: 500 11px/1.3 var(--body); color: var(--muted); letter-spacing: 0; }
+.tl-bridge { grid-row: 1; display: flex; justify-content: center; position: relative; }
+.tl-bridge::before { content: ''; position: absolute; left: 8%; right: 8%; top: 22px; height: 3px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cc) 55%, #000), transparent); z-index: 0; }
+.tl-bridge.got::before { background: linear-gradient(90deg, transparent, var(--cc), transparent); box-shadow: 0 0 8px var(--cc); }
+.tl-bridge .tn { z-index: 1; }
 .tl-tree { display: flex; flex-direction: column; border: 3px solid var(--ink); background: linear-gradient(rgba(10, 14, 26, 0.75), rgba(6, 8, 16, 0.9)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 6px 18px rgba(0, 0, 0, 0.5); overflow: hidden; }
 .tl-tree.used { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc) 55%, transparent), 0 6px 22px rgba(0, 0, 0, 0.5); }
 .tl-banner { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px 44px 10px 12px; background: linear-gradient(100deg, color-mix(in srgb, var(--cc) 30%, #0b0e18), #0b0e18 80%); border-bottom: 2px solid var(--ink); min-height: 76px; }
