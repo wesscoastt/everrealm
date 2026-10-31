@@ -49,6 +49,14 @@ const PROJECTS = {
 };
 const HONOUR_NAME = /^[A-Za-z][A-Za-z' ,-]{1,38}[A-Za-z]$/;
 
+/** The kinds of guild mission: what counts, how many for a guild of up to three (more for a bigger one), and a member's most in a day. */
+const MISSION_KINDS = [
+  { id: 'kills', title: 'Clear the Roads', ask: 'Bring down {n} creatures between you, anywhere in the realm.', base: 300, daily: 120 },
+  { id: 'dungeons', title: 'Down the Holes', ask: 'Clear {n} dungeons or delves between you.', base: 6, daily: 4 },
+  { id: 'floors', title: 'Up the Tower', ask: 'Clear {n} floors of the Endless Tower between you.', base: 30, daily: 20 },
+  { id: 'quests', title: 'Hands to Help', ask: 'Finish {n} quests between you.', base: 12, daily: 6 },
+];
+
 export function guildsInit(ctx) {
   const { players, send, broadcast, readJson, writeJson, dataDir, mirrorDelete, log } = ctx;
   const DIR = path.join(dataDir, 'guilds');
@@ -79,10 +87,29 @@ export function guildsInit(ctx) {
   const byName = (name) => { const n = String(name ?? '').trim().toLowerCase(); return [...players.values()].find((p) => p.name.toLowerCase() === n) ?? null; };
   const memberKeyByName = (g, name) => { const n = String(name ?? '').trim().toLowerCase(); return Object.keys(g.members).find((k) => g.members[k].name.toLowerCase() === n) ?? null; };
 
+  /**
+   * The guild's mission for the week (GW2's guild missions): one goal every member works at, anywhere, at their
+   * own game: creatures brought down, dungeons cleared, tower floors, quests finished. Picked by the guild's name
+   * and the week, bigger for a bigger guild. Done, it pays marks into the vault and goes on the hall's roll.
+   */
+  function missionOf(g) {
+    const week = Math.floor((Date.now() / 86_400_000 + 3) / 7);
+    if (g.mission?.week === week) return g.mission;
+    let h = week * 31; for (const c of g.name) h = (h * 33 + c.charCodeAt(0)) >>> 0;
+    const kind = MISSION_KINDS[h % MISSION_KINDS.length];
+    const size = Object.keys(g.members).length, scale = Math.max(1, Math.ceil(size / 3));
+    g.mission = { week, kind: kind.id, target: kind.base * scale, progress: 0, done: false, by: {}, reward: Math.min(4000, 600 + 150 * size) };
+    return g.mission;
+  }
+  function missionView(g) {
+    const m = missionOf(g), k = MISSION_KINDS.find((x) => x.id === m.kind);
+    const top = Object.entries(m.by).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, n]) => ({ name, n }));
+    return { kind: m.kind, title: k?.title ?? m.kind, ask: k ? k.ask.replace('{n}', String(m.target)) : '', target: m.target, progress: Math.min(m.progress, m.target), done: m.done, reward: m.reward, top };
+  }
   function view(g, forP) {
     const on = new Set(online(g).map((p) => p.key));
     return {
-      t: 'guild', name: g.name, motto: g.motto ?? '', rank: rankOf(g, forP), founded: g.created,
+      t: 'guild', name: g.name, motto: g.motto ?? '', rank: rankOf(g, forP), founded: g.created, mission: missionView(g),
       members: Object.entries(g.members).map(([k, m]) => ({ name: m.name, rank: m.rank, online: on.has(k), seen: m.seen ?? m.joined })),
     };
   }
@@ -420,6 +447,32 @@ export function guildsInit(ctx) {
         if (!text || now - (me.lastChat ?? 0) < 600) return true;
         me.lastChat = now;
         for (const p of online(g)) send(p.ws, { t: 'chat', from: me.name, id: me.id, text, kind: 'guild' });
+        return true;
+      }
+      case 'uMission': {
+        // A member's part in the week's mission: a few at a time, and only so much a day each
+        const g = guildOf(me);
+        const n = Number.isInteger(msg.n) ? Math.max(1, Math.min(10, msg.n)) : 0;
+        if (!g || !n) return true;
+        const m = missionOf(g);
+        if (m.done || msg.kind !== m.kind) return true;
+        const k = MISSION_KINDS.find((x) => x.id === m.kind);
+        const day = Math.floor(Date.now() / 86_400_000);
+        if (me.missionDay !== day) { me.missionDay = day; me.missionToday = 0; }
+        const take = Math.min(n, (k?.daily ?? 50) - (me.missionToday ?? 0));
+        if (take <= 0) return true;
+        me.missionToday += take;
+        m.progress += take;
+        m.by[me.name] = (m.by[me.name] ?? 0) + take;
+        if (m.progress >= m.target) {
+          m.done = true;
+          vaultOf(g).marks += m.reward;
+          note(g, `The week's mission done: ${m.reward} marks`);
+          if (g.hall && g.hall.honour.length < 40) g.hall.honour.push(`${k?.title ?? 'The mission'}, week ${m.week}`);
+          tell(g, `The guild has done the week's mission: ${k?.title ?? m.kind}. ${m.reward} marks go into the vault. Most of it was ${Object.entries(m.by).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([nm]) => nm).join(', ')}.`);
+        }
+        store(g);
+        sendAll(g);
         return true;
       }
       case 'uRoster': {

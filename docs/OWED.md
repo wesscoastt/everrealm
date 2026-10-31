@@ -27,7 +27,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [x] Open tagging in every site: dungeons', delves', forts' and camps' creatures keyed like the open world's, so a group shares one creature, its blows and its kill (3b2bd0a).
 - [x] The open world's board in the Group Finder: a notice for what you're doing (no free text), anyone joins with a click (ae20cee; tested with three players on a local realm).
 - [x] Anyone raises anyone down near them (Help them up); level sync by design: every creature meets each player at their own level (data/scaling.ts, ESO's way).
-- [ ] Guild missions: a weekly goal the guild works at together, the vault and the roll of honour for it.
+- [x] Guild missions: a weekly goal the guild works at together (creatures, dungeons and delves, tower floors or quests, picked by name and week, bigger for a bigger guild, a daily cap each). Done, it pays marks into the vault and goes on the hall's roll. Shown on the guild panel with who did most. Tested on a local realm.
 - [ ] Delve rooms in a group (today each member's own), corrupted runs queued for groups (server), the tower's board.
 - [ ] Gatherings: something that draws people to one place at one time.
 

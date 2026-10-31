@@ -29,6 +29,8 @@ export interface TowerHost {
   flag(key: string): unknown;
   setFlag(key: string, value: unknown): void;
   sfx(name: 'levelUp' | 'discover' | 'fail' | 'bell'): void;
+  /** A floor cleared (the guild's mission counts them). */
+  floor?(): void;
   /** Online: the realm's relay for a group's climb (blows and kills, and leaving it). */
   net?: { event(run: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void; leaveRun(run: number): void };
   /** Where another player is (whose blow it was). */
@@ -260,6 +262,7 @@ export class Tower {
     if (first) this.host.setFlag('tower:best', n);
     r.floorsCleared++;
     this.count();
+    this.host.floor?.();
     r.state = 'cleared'; r.wait = 4;
     const tokens = tokensFor(n, first);
     this.host.reward(Math.round(40 + n * 6), Math.round(5 + n * 1.5), Array<string>(tokens).fill('tower_token'), `Floor ${n} cleared${first ? ', for the first time' : ''}: ${tokens} tower token${tokens > 1 ? 's' : ''}`);

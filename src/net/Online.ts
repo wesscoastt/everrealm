@@ -114,7 +114,9 @@ export interface ExRow { id: number; item: string; n: number; price: number; sel
 /** A letter by the Charter Post (server/mail.mjs): from a character, or from the Post itself when one comes back. */
 export interface Letter { id: number; from: string; fromKey: string | null; toName: string; subject: string; body: string; items: { id: string; n: number }[]; marks: number; at: number; read: boolean; returned?: boolean }
 export interface ExOwed { kind: 'sold' | 'back' | 'got' | 'unwanted'; id?: number; item: string; n: number; marks?: number; buyer?: string; at: number; shop?: string }
-export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[] }
+export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[];
+  /** The week's mission (server/guilds.mjs). */
+  mission?: { kind: string; title: string; ask: string; target: number; progress: number; done: boolean; reward: number; top: { name: string; n: number }[] } }
 
 export interface OnlineHooks {
   scene: THREE.Scene;
@@ -570,6 +572,7 @@ export class Online {
   wbLook(boss: string, name: string): void { this.emit({ t: 'wbLook', boss, name }); }
   wbStop(): void { this.emit({ t: 'wbStop' }); }
   lfgList(): void { this.emit({ t: 'lfgList' }); }
+  guildMission(kind: string, n: number): void { this.emit({ t: 'uMission', kind, n }); }
   lfgPost(kind: string, label: string, region: string): void { this.emit({ t: 'lfgPost', kind, label, region }); }
   lfgStop(): void { this.emit({ t: 'lfgStop' }); }
   lfgJoin(id: number): void { this.emit({ t: 'lfgJoin', id }); }

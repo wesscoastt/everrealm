@@ -1242,12 +1242,13 @@ export class Game implements GameApi {
       reward: (xp, marks, items, why) => { if (xp) this.addXp('melee', xp); if (marks) this.addMarks(marks); for (const it of items) this.give(it, 1); this.hud.system(why + (xp ? ` (+${xp} XP)` : '')); },
       flag: (k) => this.flag(k), setFlag: (k, v) => { this.setFlag(k, v); this.persist(); },
       sfx: (n) => this.sfx(n),
+      floor: () => this.guildPart('floors'),
       net: { event: (run, k, i, dmg) => this.online.dEv(run, k, i, dmg), leaveRun: (run) => this.online.dLeave(run) },
       remote: (id) => this.online.remotes.get(id)?.model.root.position ?? null,
       killed: (e) => this.onEnemyKilled(e),
     });
     this.dungeons = new Dungeons({
-      cleared: () => this.dailies.bump('dungeon'),
+      cleared: () => { this.dailies.bump('dungeon'); this.guildPart('dungeons'); },
       companion: () => (this.companions.active ? this.companions.henchmanOf(this.companions.active) : null),
       scene: this.scene,
       voxels: this.world.voxels,
@@ -1464,7 +1465,7 @@ export class Game implements GameApi {
     const prev = this.save.quests[q];
     if (prev === s) return;
     this.save.quests[q] = s;
-    if (s === 'done') this.dailies?.bump('quest');
+    if (s === 'done') { this.dailies?.bump('quest'); this.guildPart('quests'); }
     const def = QUESTS[q];
     if (s === 'done' && def.story) {
       this.audio.sting('chapter');
@@ -2616,6 +2617,20 @@ export class Game implements GameApi {
   /** The world boss you're on the Group Finder's list for (the realm says), if any. */
   wbSeek: string | null = null;
   private lfgAsk = 0;
+  /** Your part in the guild's mission for the week, gathered and sent every few seconds (server/guilds.mjs). */
+  private guildParts = new Map<string, number>();
+  private guildPartT = 0;
+  guildPart(kind: string, n = 1): void {
+    const m = this.social?.guild?.mission;
+    if (!m || m.done || m.kind !== kind) return;
+    this.guildParts.set(kind, (this.guildParts.get(kind) ?? 0) + n);
+  }
+  private sendGuildParts(dt: number): void {
+    if ((this.guildPartT -= dt) > 0 || !this.guildParts.size) return;
+    this.guildPartT = 8;
+    if (this.online.status === 'online') for (const [k, n] of this.guildParts) for (let left = n; left > 0; left -= 10) this.online.guildMission(k, Math.min(10, left));
+    this.guildParts.clear();
+  }
   /** The open world's board, as the realm last sent it. */
   lfg: LfgNotice[] = [];
   /** The notices you could put up now: what you're questing, the land you're in, the tower, exploring. */
@@ -6153,6 +6168,9 @@ export class Game implements GameApi {
       if (!byOther) this.online.mobDead(e.spawnKey, e.def.respawn);
     }
     this.dailies.bump('kill');
+    this.guildPart('kills');
+    // a delve's champion down counts as the delve done
+    if (e.def.elite && this.activities.undergroundSite(e.pos, 40)?.startsWith('delve')) this.guildPart('dungeons');
     this.festivals.onKill(!!e.def.elite);
     if (WORLD_BOSSES.some((b) => b.type === e.def.type)) { this.dailies.bump('boss'); if (this.hallView?.hall) this.online.hallHonour(e.def.name); }
     // A Quarters tile off the great ones: Old Notch's always, a world boss's now and then
@@ -6617,6 +6635,7 @@ export class Game implements GameApi {
     const cleared = !!this.dungeons.run?.done;
     if (cleared !== this.leaveShown) { this.leaveShown = cleared; this.hud.setLeaveButton(cleared ? `Leave ${this.dungeons.run!.def.name}` : null, () => this.dungeons.leave()); }
     this.hazards.update(dt);
+    this.sendGuildParts(dt);
     this.stables.update(dt, P);
     this.postStations.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);

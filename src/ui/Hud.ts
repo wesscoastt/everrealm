@@ -961,6 +961,7 @@ export class Hud {
     const rankName: Record<GuildRank, string> = { leader: 'Leader', officer: 'Officer', member: 'Member' };
     body.innerHTML = `<div class="gmotto-row">${officer ? `<input class="gmotto-edit" maxlength="140" value="${esc(g.motto)}" placeholder="Set a motto for the guild">` : `<i>${esc(g.motto || 'No motto yet.')}</i>`}</div>
       <div class="gcount">${g.members.filter((m) => m.online).length} of ${g.members.length} in the world · your rank: ${rankName[g.rank ?? 'member']}</div>
+      ${g.mission ? `<div class="gmission${g.mission.done ? ' done' : ''}"><div class="gm-head"><b>This week: ${esc(g.mission.title)}</b><span>${g.mission.done ? 'Done' : `${g.mission.progress} of ${g.mission.target}`}</span></div><small>${esc(g.mission.ask)} ${g.mission.done ? `${g.mission.reward} marks went into the vault.` : `Done, it pays ${g.mission.reward} marks into the vault.`}</small><div class="bar xp"><i style="width:${Math.round((g.mission.progress / Math.max(1, g.mission.target)) * 100)}%"></i></div>${g.mission.top.length ? `<small class="gm-top">Most of it: ${g.mission.top.map((t) => `${esc(t.name)} (${t.n})`).join(', ')}</small>` : ''}</div>` : ''}
       <div class="groster">${members.map((m) => {
         const acts: string[] = [];
         if (lead && m.rank !== 'leader') {
