@@ -625,4 +625,107 @@ for (const [id, name, house, face, after] of [
   dialogue[id] = clerkTree(h);
 }
 
+// ------------------------------------------------------------------ "Short Weight", VI: The Reckoning
+// The Governor, Lucan Thorne, comes down from the Charter Hall to the Ansbury office to hear about Callis.
+// Constance Ferrars says the Assembly burned it. You lay down what you kept (the Hen's page, her letter
+// to Gil Fenner, the bonded book: two or more and he can't look away), then say where it goes: to him,
+// to keep it inside the Company; to the Speaker's Ushers, in public; or across the street to the
+// Merchants' Hall. Flag "coReckoning": 'governor' | 'ushers' | 'hall'; "coProof" counts what you laid
+// down. Changes what the Gullmouth factor and Constance Ferrars say from then on.
+
+const SW6 = 'coReckoning';
+const sw6 = (g: GameApi) => g.stage(SW6);
+/** What you kept that proves it: the Hen's page, her letter, the bonded book. */
+const proofs = (g: GameApi) => [g.flag('coHen') === 'kept', g.flag('coSalt') === 'took' || g.flag('coSalt') === 'paid', g.has(BONDED_BOOK)].filter(Boolean).length;
+const reckon = (g: GameApi, choice: 'governor' | 'ushers' | 'hall', why: string) => {
+  g.setFlag('coReckoning', choice);
+  g.setFlag('coProof', proofs(g));
+  g.setStage(SW6, 'done');
+  g.addMarks(300);
+  g.give(SCRIP, 25);
+  g.setFlag('co:rank', 4);
+  g.toast(`${why} The Counting House calls you one of its own: 300 marks and 25 scrip.`);
+};
+
+npcs.push({ id: 'co_lucan', name: 'Lucan Thorne', title: 'Governor of the Counting House', look: look({ skin: '#e0b48e', hair: '#c8c4bc', hairStyle: 0, tunic: '#22365a', trim: '#e0bd64', cape: '#1a2a44', age: 0.7, build: 1.05 }),
+  schedule: [{ from: 0, to: 24, at: [966.6, 290.6], face: [963, 289], anim: 'idle' }], barks: ['Sit, if you\'re staying.', 'The Company is older than any of us.'],
+  when: (g) => !!sw6(g) });
+
+QUESTS[SW6] = {
+  id: SW6, name: 'The Reckoning', region: 'crownroad', depth: 'storyline',
+  notes: (g, s) => {
+    if (s === 'governor') return 'Hedda Lyle says the Governor, Lucan Thorne, has come down from the Charter Hall to the Ansbury office to hear about Callis himself. Constance Ferrars has already told him the Assembly set the fire.';
+    const c = g.flag('coReckoning');
+    return c === 'governor' ? 'I gave it all to the Governor. The Company will settle it inside the Company, which is how the Company settles everything.'
+      : c === 'ushers' ? 'I took it to the Speaker\'s Ushers. It will be read aloud in the Charter Hall, and the Company will have to answer in public for the first time in forty years.'
+      : 'I gave it to the Merchants\' Hall. Gullmouth\'s window is the Hall\'s now in all but the name over the door.';
+  },
+  objectives: (_g, s) => (s === 'governor' ? [{ text: 'See the Governor at the Counting House in Ansbury', marker: 'co_lucan' }] : []),
+  marks: (g, s): Marks => {
+    if (s === undefined) return g.stage(SW5) === 'done' ? { co_hedda: '!' } : {};
+    return s === 'governor' ? { co_lucan: '?' } : {};
+  },
+  walk: { from: { quests: { [SW1]: 'done', [SW2]: 'done', [SW3]: 'done', [SW4]: 'done', [SW5]: 'done' }, flags: { 'co:signed': true, coGilbertDead: true } } },
+};
+
+hook(dialogue, 'co_hedda', (g) => (sw6(g) === undefined && g.stage(SW5) === 'done' ? 'dr_a' : undefined), {
+  dr_a: { text: 'You\'re the one who was in Callis. The Governor\'s here. Himself, at the east desk, down from the Charter Hall. He asked for you by name.', next: 'dr_b' },
+  dr_b: { text: 'Mistress Ferrars got to him first. She was in there an hour. I sat at Gilbert\'s window and listened to the door not open.',
+    options: [{ text: 'I\'ll see him.', effect: (g) => g.setStage(SW6, 'governor') }, { text: 'Not yet.' }] },
+});
+
+dialogue['co_lucan'] = {
+  start: (g) => (sw6(g) === 'governor' ? 'r1' : 'after'),
+  nodes: {
+    r1: { text: 'Lucan Thorne. I keep the Company\'s charter, and the Company keeps me. Mistress Ferrars says the Assembly burned Callis to be rid of a tenant. You were there. Tell me.', next: 'r2' },
+    r2: { text: (g) => {
+      const n = proofs(g);
+      const laid = [g.flag('coHen') === 'kept' ? 'the Hen\'s page' : '', g.flag('coSalt') === 'took' || g.flag('coSalt') === 'paid' ? 'her letter to Gil Fenner' : '', g.has(BONDED_BOOK) ? 'the bonded book, Gilbert\'s blood on the cover' : ''].filter(Boolean);
+      if (!n) return 'You have nothing to put on the desk. You tell him what you saw: a fire in three places, a man on the stair. He listens. He doesn\'t write anything down.';
+      return `You put it on the desk: ${laid.join(', ')}. ${n >= 2 ? 'He reads all of it, twice, and when he looks up he looks older.' : 'He reads it, and puts it face down.'}`;
+    }, speaker: 'narrator', next: 'r3' },
+    r3: { text: (g) => (proofs(g) >= 2
+      ? 'Then it\'s true, and I signed half of it without reading. Where does this go? Tell me before I decide for both of us.'
+      : 'It isn\'t enough to hang a factor on. It\'s enough to frighten one. Where would you have it go?'),
+      options: [
+        { text: 'It stays with you. Settle it inside the Company.', next: 'r_gov' },
+        { text: 'It goes to the Speaker\'s Ushers. In public.', next: 'r_ush' },
+        { text: 'The Merchants\' Hall will have it.', next: 'r_hall' },
+      ] },
+    r_gov: { text: (g) => (proofs(g) >= 2
+      ? 'Then she goes to Callis to rebuild what she burned, on a clerk\'s pay, with Montserrat Riera watching her. The galleon pays her dues. And nobody outside this room hears a word. That\'s the Company\'s way.'
+      : 'Then I\'ll watch her, and she\'ll know I\'m watching, and that will have to do. The Company has survived worse than one factor.'),
+      options: [{ text: 'So be it.', effect: (g) => reckon(g, 'governor', 'The Governor will settle it inside the Company.') }] },
+    r_ush: { text: 'Then it will be read aloud in the Charter Hall, and the Company will answer in public for the first time in forty years. It may not survive it. It may deserve not to. Go. Before I think better of letting you.',
+      options: [{ text: 'Gilbert deserved better.', effect: (g) => reckon(g, 'ushers', 'You took it to the Speaker\'s Ushers.') }] },
+    r_hall: { text: 'Across the street. Of course. Varcoe will have our Gullmouth window by Lady Day, and Avis Spurr will take her orders from the Hall and pretend she doesn\'t. You\'ll have made the Hall rich and us honest. I\'m not sure which you meant.',
+      options: [{ text: 'Both.', effect: (g) => reckon(g, 'hall', 'The Merchants\' Hall has it all.') }] },
+    after: { text: (g) => {
+      const c = g.flag('coReckoning');
+      return c === 'ushers' ? 'The Ushers have the books. I spend my days explaining the Company to men who have never weighed anything. Sit, if you\'re staying.'
+        : c === 'hall' ? 'Thomas Varcoe sends me his compliments every Monday. I keep them in a drawer.'
+        : 'Constance writes from Callis every week. The letters are very correct. I read them twice.';
+    } },
+  },
+};
+
+// After the reckoning, the Gullmouth factor and Constance Ferrars say what it's cost them
+hook(dialogue, 'co_avis', (g) => (g.stage(SW6) === 'done' ? 'rk_avis' : undefined), {
+  rk_avis: { text: (g) => {
+    const c = g.flag('coReckoning');
+    return c === 'hall' ? 'The Hall\'s factor, for all the sign says. Varcoe comes in on Mondays to count my stock. I let him. The stock\'s still for scrip.'
+      : c === 'ushers' ? 'They read it all out in the Charter Hall, you know. Even Osmund\'s book. He stood at the back and wept. The stock\'s for scrip, same as ever.'
+      : 'The galleon paid her dues last week. Osmund stamped the receipt himself and pinned it over the window. The stock\'s for scrip.';
+  }, options: [{ text: 'Show me the stock.', effect: (g) => g.openShop('co_gullmouth') }, { text: 'Good day.' }] },
+});
+hook(dialogue, 'co_constance', (g) => (g.stage(SW6) === 'done' ? 'rk_con' : undefined), {
+  rk_con: { text: (g) => {
+    const c = g.flag('coReckoning');
+    return c === 'ushers' ? 'Under bond till the Speaker\'s court sits. They let me keep the stock, because nobody else knows where anything is. Buy something. It all counts against me now.'
+      : c === 'hall' ? 'The Hall has my name, and the Company has my desk, and I have the stock till they decide which of them gets me. What do you want?'
+      : Number(g.flag('coProof') ?? 0) >= 2 ? 'I sail for Callis on Friday, to rebuild a warehouse. On a clerk\'s pay. Montserrat will enjoy that. You can buy something before I go.'
+      : 'The Governor watches me now. So do you. It\'s a small room for so much watching. What do you want?';
+  }, options: [{ text: 'Show me the stock.', effect: (g) => g.openShop('co_ansbury') }, { text: 'Good day.' }] },
+});
+
 export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things, hooks: (D) => { sw2Hooks(D); sw3Hooks(D); sw4Hooks(D); sw5Hooks(D); } };
