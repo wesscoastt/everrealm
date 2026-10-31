@@ -4,6 +4,9 @@ import { boardToday, CARGO, carryPay, contractSecs, contractTitle, debtorOf, GOO
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
+import type { QuestDef } from '../quests';
+import type { WorldThing } from '../places_regional';
+import { hook, type Marks } from './kit';
 import type { RegionContent } from './types';
 
 // The Counting House's people (data/company.ts, docs/COMPANY_BRIEF.md): at each house a clerk at the
@@ -229,4 +232,88 @@ for (const h of HOUSES) {
   for (const d of h.debtors) dialogue[d.id] = debtorTree(d);
 }
 
-export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops };
+// ------------------------------------------------------------------ "Short Weight", I: The Clerk's Window
+// (docs/COMPANY_BRIEF.md) After your first contract, Gilbert Ashe wants a word: the crates Ansbury sends
+// come into Gullmouth light. Osmund Dray's book says by the same weight every time, so it's no thief on
+// the road but a scale. Ansbury's pound weight has been drilled and leaded, and only the factor keeps
+// the key to the weight box. Tell Constance Ferrars, or keep it to yourself and watch who fills the box.
+// Flag "coWeightChoice": 'factor' | 'quiet'. Chapter IV turns on it.
+
+const SW1 = 'coWeight';
+const sw1 = (g: GameApi) => g.stage(SW1);
+const swDone = (g: GameApi, why: string) => {
+  g.setStage(SW1, 'done');
+  g.addMarks(120);
+  g.give(SCRIP, 8);
+  g.setFlag('co:rank', Math.max(1, Number(g.flag('co:rank') ?? 0)));
+  g.toast(`${why} You're a supercargo of the Counting House now: 120 marks and 8 scrip.`);
+};
+
+const QUESTS: Record<string, QuestDef> = {
+  [SW1]: {
+    id: SW1, name: 'The Clerk\'s Window', region: 'crownroad', depth: 'storyline',
+    notes: (g, s) => {
+      if (s === 'osmund') return 'Gilbert Ashe at the Counting House in Ansbury says the crates he sends to Gullmouth come in light. I carried one of them. Osmund Dray, the clerk at Gullmouth, wrote to him about it.';
+      if (s === 'scale') return 'Osmund Dray\'s book: every crate from Ansbury since Lady Day is light by the same weight. Not a thief on the road, a scale. He wants me to look at the scale in the Ansbury office, and not to tell Gilbert.';
+      if (s === 'found') return 'The pound weight on the Ansbury scale has been drilled out and filled with lead. The Company bills for weight that was never there, and someone sells the difference. Gilbert should hear it.';
+      if (s === 'factor') return 'Gilbert says only the factor, Constance Ferrars, keeps the key to the weight box. I said I would tell her.';
+      return g.flag('coWeightChoice') === 'factor'
+        ? 'I told Constance Ferrars about the leaded weight. She thanked me for coming to her first. She said not everyone would.'
+        : 'I kept the leaded weight to myself and Gilbert. Whoever fills the weight box doesn\'t know anyone has looked in it.';
+    },
+    objectives: (_g, s) => {
+      if (s === 'osmund') return [{ text: 'Ask Osmund Dray at the Counting House in Gullmouth about the light crates', marker: 'co_osmund' }];
+      if (s === 'scale') return [{ text: 'Look at the scale in the Counting House at Ansbury', marker: 'coScale' }];
+      if (s === 'found') return [{ text: 'Tell Gilbert Ashe what you found', marker: 'co_gilbert' }];
+      if (s === 'factor') return [{ text: 'Tell Constance Ferrars about the leaded weight', marker: 'co_constance' }];
+      return [];
+    },
+    marks: (g, s): Marks => {
+      if (s === undefined) return Number(g.flag('co:contracts') ?? 0) >= 1 ? { co_gilbert: '!' } : {};
+      return s === 'osmund' ? { co_osmund: '?' } : s === 'found' ? { co_gilbert: '?' } : s === 'factor' ? { co_constance: '?' } : {};
+    },
+    walk: { from: { flags: { 'co:signed': true, 'co:contracts': 1 } } },
+  },
+};
+
+const things: WorldThing[] = [
+  { id: 'coScale', x: 964.5, z: 286.7, label: 'Look at the Company\'s scale', radius: 2.2, when: (g) => sw1(g) === 'scale',
+    use: (g) => { g.setStage(SW1, 'found'); g.toast('The weights are stamped with the Weighhouse mark. The pound is a shade heavy in the hand: its base has been drilled and filled with lead, and the stamp filed back over the plug.'); } },
+];
+
+// Gilbert Ashe: the word after your first contract, and the report
+hook(dialogue, 'co_gilbert', (g) => {
+  const s = sw1(g);
+  if (s === undefined && Number(g.flag('co:contracts') ?? 0) >= 1) return 'sw_a';
+  if (s === 'found') return 'sw_r1';
+  return undefined;
+}, {
+  sw_a: { text: 'A word, before you go. Osmund Dray at Gullmouth wrote to me. The last three crates I sent him came in light. A pound, a pound and a half.', next: 'sw_b' },
+  sw_b: { text: 'Light at Gullmouth means short here, or a thief on the road. You carried one of them. I\'d like it to be the road.',
+    options: [{ text: 'I\'ll ask Osmund.', effect: (g) => g.setStage(SW1, 'osmund') }, { text: 'Not my business.' }] },
+  sw_r1: { text: 'You\'ve a face like someone who found something.', options: [{ text: 'The pound weight on your scale is drilled and leaded.', next: 'sw_r2' }] },
+  sw_r2: { text: 'Leaded. In my office. Every crate I\'ve weighed since Lady Day, and the Company billing the shipper for lead.', next: 'sw_r3' },
+  sw_r3: { text: 'There\'s one key to the weight box, and Mistress Ferrars keeps it. That isn\'t me saying anything. That\'s just where the key is.',
+    options: [
+      { text: 'Then I\'ll tell her.', effect: (g) => { g.setFlag('coWeightChoice', 'factor'); g.setStage(SW1, 'factor'); } },
+      { text: 'Say nothing yet. Watch who fills the box.', next: 'sw_q' },
+    ] },
+  sw_q: { text: 'Then I\'ll say nothing too. If it\'s who I think it is, I\'d rather be wrong a while longer.',
+    options: [{ text: 'So would I.', effect: (g) => { g.setFlag('coWeightChoice', 'quiet'); swDone(g, 'You kept the leaded weight to yourself.'); } }] },
+});
+// Osmund Dray: the book
+hook(dialogue, 'co_osmund', (g) => (sw1(g) === 'osmund' ? 'sw_o1' : undefined), {
+  sw_o1: { text: 'Gilbert sent you. Good. Here\'s the book. Every crate from Ansbury since Lady Day is light, and by the same weight, near enough.', next: 'sw_o2' },
+  sw_o2: { text: 'Brasswick\'s aren\'t. Callis\'s aren\'t. The same weight every time isn\'t a thief on the road. It\'s a scale that reads heavy.', next: 'sw_o3' },
+  sw_o3: { text: 'Look at Ansbury\'s scale. And don\'t tell Gilbert till you have. He\'s honest, and honest men talk.',
+    options: [{ text: 'I\'ll look.', effect: (g) => g.setStage(SW1, 'scale') }] },
+});
+// Constance Ferrars: thanks, of a kind
+hook(dialogue, 'co_constance', (g) => (sw1(g) === 'factor' ? 'sw_c1' : undefined), {
+  sw_c1: { text: 'You have the look of bad news. Go on.', options: [{ text: 'The pound weight on the scale is drilled and leaded.', next: 'sw_c2' }] },
+  sw_c2: { text: 'Drilled. Well. I\'ll have the Weighhouse send a new set by Friday, and the old one goes in the river.', next: 'sw_c3' },
+  sw_c3: { text: 'You did right to bring it to me first. Not everyone would have. I won\'t forget it.',
+    options: [{ text: 'Thank you.', effect: (g) => swDone(g, 'You told Constance Ferrars about the leaded weight.') }] },
+});
+
+export const COMPANY_CONTENT: RegionContent = { id: 'company', items: ITEMS, npcs, dialogue, shops, quests: QUESTS, things };
