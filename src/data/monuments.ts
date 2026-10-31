@@ -17,11 +17,12 @@ export type MonumentModel =
   | 'longseat' | 'heightmarks' | 'findingpost'
   | 'bogoak' | 'chalklizard' | 'floodpunt'
   | 'tilewall' | 'redrock' | 'fishrack'
-  | 'conchhorn' | 'countshelf' | 'turtleshell';
+  | 'conchhorn' | 'countshelf' | 'turtleshell'
+  | 'blackcairn' | 'bootrow' | 'tidepost';
 
 export interface Monument {
   id: string;
-  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater' | 'cala' | 'conch';
+  town: 'ansbury' | 'callis' | 'gullmouth' | 'harrowgate' | 'hollin' | 'kelderby' | 'northgate' | 'saltpenny' | 'tenwells' | 'liftwick' | 'branchley' | 'reedwater' | 'cala' | 'conch' | 'coldharbour';
   /** Placed by hand: at Gullmouth (world/sites.ts) blocks east of the coast line at z 600, north-south, facing;
    *  at Hollin Ford (world/structures.ts) the place itself, x, z and facing. */
   at?: [number, number, number];
@@ -34,6 +35,16 @@ export interface Monument {
 
 export const MONUMENTS: Monument[] = [
   // ---------------------------------------------------------------- Conch Key (world/sites.ts buildConch: x and z from the crossing, facing)
+  // ---------------------------------------------------------------- Cold Harbour (world/sites.ts buildColdHarbour: x and z from the cove's middle, facing)
+  {
+    id: 'chcairn', town: 'coldharbour', at: [-8, -8, 0.4], model: 'blackcairn', title: 'Wat\'s cairn',
+    body: "A heap of the black, knee-high and growing, with a stake driven into the middle of it. Every morning Wat Aske loads one cart from the heaps by the shore and pulls it up the track to Hollow Fell by himself, and every evening he comes down and puts a stone on this, and cuts a notch in the stake.\n\nThe stake has a hundred and nine notches. The heaps by the shore are no smaller that anyone can see." },
+  {
+    id: 'chboots', town: 'coldharbour', at: [-12, -3.5, Math.PI / 2], model: 'bootrow', title: 'Eleven pairs',
+    body: "A plank on two stones against the shed wall, and on it eleven pairs of boots, set out as neatly as on a cobbler's shelf. Big ones and small ones, one pair hobnailed, one pair with the toe out. Each pair has a name chalked on the plank behind it, and the chalk is renewed when the rain takes it.\n\nThere's room on the plank for a twelfth pair. Nobody has put one there." },
+  {
+    id: 'chtide', town: 'coldharbour', at: [8.5, 3.6, 0], model: 'tidepost', title: 'The tide post',
+    body: "An oak post at the root of the jetty, painted in white rings where the big tides have reached, a year cut beside each. Most are low, at the height of a boot. One is above a man's head: THE YEAR THE FELL WENT QUIET.\n\nBelow it, smaller and newer, someone has cut: AND THEN IT DIDN'T." },
   {
     id: 'ckhorn', town: 'conch', at: [2.5, 18.5, 0], model: 'conchhorn', title: 'The turtle horn',
     body: 'A conch shell the size of a man\'s head, hung on a post above the beach with a rope through it, its point cut off for a mouthpiece.\n\nWhen the sand starts to move on a nest, whoever sees it blows one long note, and everybody on Conch Key stops what they\'re doing and comes down with a lantern to keep the gulls and the crabs off.\n\nThree short notes is a boat in trouble. It hasn\'t been blown that way in eleven years.',

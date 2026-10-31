@@ -2244,6 +2244,41 @@ export function monument(M: PropMaterials, model: string): THREE.Group {
       g.add(mesh(box(0.42, 0.12, 0.42), larch, 0, 2.66, 0, Math.PI / 4));
       break;
     }
+    case 'blackcairn': {
+      // Wat Aske's cairn of the black (data/monuments.ts chcairn): glassy dark stones heaped knee-high round
+      // an ash stake notched down its length, a stone a cart, a notch a day
+      const black = flat('#1e1c22'), shine = flat('#3a3844'), ash = flat('#b89868');
+      [[0, 0.18, 0, 1.3, 0.36, 1.1], [0.15, 0.48, -0.1, 0.95, 0.3, 0.8], [-0.1, 0.72, 0.08, 0.6, 0.24, 0.55]].forEach(([x, y, z, w, h, d], i) => g.add(mesh(box(w, h, d), i % 2 ? shine : black, x, y, z, i * 0.9)));
+      for (let i = 0; i < 9; i++) { const a = i * 0.71; g.add(mesh(box(0.22, 0.16, 0.2), i % 3 ? black : shine, Math.cos(a) * 0.75, 0.08, Math.sin(a) * 0.65, a)); }
+      g.add(mesh(box(0.1, 1.5, 0.1), ash, 0, 0.75, 0));
+      for (let k = 0; k < 9; k++) g.add(mesh(box(0.11, 0.02, 0.04), flat('#5a4630'), 0, 0.95 + k * 0.06, 0.05));
+      break;
+    }
+    case 'bootrow': {
+      // Eleven pairs of boots on a plank against the shed (chboots), a gap at the end for a twelfth
+      const plank = flat('#6a5a46'), stone = flat('#7a7a72');
+      for (const x of [-1.5, 1.5]) g.add(mesh(box(0.3, 0.3, 0.3), stone, x, 0.15, 0));
+      g.add(mesh(box(3.6, 0.06, 0.4), plank, 0, 0.33, 0));
+      const leathers = ['#3a2a1e', '#4a3424', '#2a2018', '#5a4030', '#3a3028'];
+      for (let i = 0; i < 11; i++) {
+        const x = -1.6 + i * 0.29, c = flat(leathers[i % leathers.length]), big = i % 3 === 0 ? 1.15 : i % 4 === 1 ? 0.8 : 1;
+        for (const dz of [-0.06, 0.06]) {
+          g.add(mesh(box(0.08 * big, 0.08, 0.2 * big), c, x + dz, 0.4, 0.03));
+          g.add(mesh(box(0.08 * big, 0.16 * big, 0.08 * big), c, x + dz, 0.48, -0.04));
+        }
+      }
+      for (let i = 0; i < 11; i++) g.add(mesh(box(0.18, 0.04, 0.01), flat('#e8e4dc'), -1.6 + i * 0.29, 0.5, -0.2));
+      break;
+    }
+    case 'tidepost': {
+      // An oak post at the jetty's root, white rings painted where the big tides reached (chtide)
+      const oak = flat('#5a4630'), white = flat('#e8e4dc');
+      g.add(mesh(box(0.28, 2.6, 0.28), oak, 0, 1.3, 0));
+      for (const y of [0.25, 0.4, 0.55, 0.7, 1.95]) g.add(mesh(box(0.3, 0.05, 0.3), white, 0, y, 0));
+      g.add(mesh(box(0.2, 0.04, 0.02), flat('#2a2018'), 0, 1.85, 0.15));
+      g.add(mesh(box(0.34, 0.12, 0.34), oak, 0, 2.62, 0));
+      break;
+    }
     case 'cairn': {
       // A heap of carried stones, broad at the foot, a crook-height high, a mitten in the top
       const stones = [[0, 0.25, 0, 1.4, 0.5, 1.2], [0.1, 0.7, -0.05, 1.1, 0.45, 0.95], [-0.05, 1.1, 0.05, 0.8, 0.4, 0.7], [0.05, 1.45, 0, 0.55, 0.32, 0.5], [0, 1.72, 0, 0.32, 0.24, 0.3]] as const;

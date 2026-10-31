@@ -3307,6 +3307,8 @@ export function plan(): Plan {
     for (let i = 0; i < 6; i++) s.props.push({ t: i % 2 ? 'barrel' : 'crate', x: cx + 11.5 + i * 1.3, y: base, z: cz - 3.6 - (i % 2) * 0.5, ry: i });
     s.props.push({ t: 'tent', x: cx - 16, y: base, z: cz + 14, ry: 0.5, color: '#6a6a5e' }, { t: 'tent', x: cx - 20, y: base, z: cz + 6, ry: -0.4, color: '#5a5a50' }, { t: 'firepit', x: cx - 14.5, y: base, z: cz + 6.5 });
     s.props.push({ t: 'sign', x: cx - 24.5, y: base, z: cz - 2.5, ry: Math.PI / 2, text: 'Cold Harbour' });
+    // Cold Harbour's own (data/monuments.ts): Wat's cairn, the eleven pairs of boots, the tide post
+    placeMonuments(s, 'coldharbour', cx, () => base, cz);
   }
 
   /**
@@ -8968,6 +8970,9 @@ function propCollision(O: Overrides, sites: Site[]): void {
         else if (d.monument === 'kbtally') bar(d, 0, 0, 0.3, 0.3, 3);
         else if (d.monument === 'kbsledge') bar(d, 0, 0, 0.55, 1.05, 1);
         else if (d.monument === 'ckhorn') bar(d, 0, 0, 0.12, 0.12, 2);
+        else if (d.monument === 'chcairn') bar(d, 0, 0, 0.6, 0.5, 1);
+        else if (d.monument === 'chboots') bar(d, 0, 0, 1.75, 0.2, 1);
+        else if (d.monument === 'chtide') bar(d, 0, 0, 0.14, 0.14, 3);
         else if (d.monument === 'ckbooks') bar(d, 0, 0, 0.65, 0.18, 2);
         else if (d.monument === 'ckshell') bar(d, 0, 0, 1.4, 1.1, 2);
         else if (d.monument === 'crtiles') bar(d, 0, 0, 1.6, 0.2, 2);
