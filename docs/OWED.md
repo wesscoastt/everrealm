@@ -12,7 +12,7 @@ The bar: everything works, no sign of AI slop, a hand-built cozy open world with
 writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 - [x] The live build is the one being judged: pushed 2026-10-31 (52b9ed3), and pushed as work lands from now on.
-- [ ] A real first-hours playthrough, start to level 10 or so, every step taken as a player would (not headless spot tests), and whatever breaks fixed.
+- [ ] A real first-hours playthrough, start to level 10 or so, every step taken as a player would, and whatever breaks fixed. 2026-10-31: the storybook, the flyover and The Ford Bell played through end to end by the tracker (previews/play.mjs + scen-play1.js), every line read: fixed Bram's scene at night (he isn't at the anvil after seven). Level 2 and 72 marks at the end of it. Next: Pell's trout, the vale's people, Ansbury.
 - [x] Load time: the owner says it loads fast on their machine (2026-10-31). (Headless here it takes minutes; that is this 8 GB machine.)
 - [x] Writing, checked 2026-10-31: the 6 people with nothing to say have scenes; the 214 "unreachable" nodes are branches behind state the walker can't set (a dungeon cleared, a companion alive, a contract half done; spot-checked: Hesk, Bett, Marta Vidal), not dead writing; of 336 lines over 25 words, 44 are over 50, most of them letters read aloud and how-things-work explanations. Optional polish: split the dozen spoken lines over 55 words.
 - [x] Sound heard by a person: the owner, 2026-10-31: "sounds so far are relaxing". (Combat and the music clips not singled out; keep an ear on them.)
@@ -37,6 +37,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 - [x] The travellers' board stood in the river, and Hollin Ford's post box on the bank's lip: both moved to the dry grass south-east of Tamsin's stall, facing the street.
 - [x] A swing at the air that catches a townsperson, one of the watch or a town beast isn't a crime: they complain, you're told it's taken for an accident; only three blows on the same one inside twelve seconds (a combo counts once) goes in the book.
 - [x] The watch's wagon went through an upper floor and a tree: the road map's straight lines cut corners. Every cart (the watch's and the Post's) now looks ahead for headroom and steers round a blocked stretch over the blocks (game/lanes.ts). Tested: 4 clipping blocks on the line in Ansbury and in Gullmouth, none ridden.
+- [x] Three new Hagworm Wood quests (levels 10-16, the thinnest band a reviewer plays): Short Count, Spore Season, What Sefton Can't Hear (content/hagwormMore.ts). Short Count and Sefton played through in game; Spore Season's offer tested in game, its kills and turn-in by the quest walker only.
 - [x] The Charter Post is a person, not a sign: in every coaching yard the carter stands out front by the horses and you talk to them for a seat; the stand-alone signs are gone where there's a yard. Hollin Ford, which had only a sign by the bridge, now has its own yard over the bridge on the east side, its front to the Ansbury road.
 
 ## A. Now, in order

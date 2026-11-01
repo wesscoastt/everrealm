@@ -360,6 +360,13 @@ Sefton was on the saw and Kit was calling the fall. The tree came down the wrong
 - **The Hen Money** (the Hollow Oak): at the bottom of the oak, "Hannah. I owe you four marks for the speckled hen. I'll leave it here by Lammas. R.M." and under it, years later, "You never did." R.M. is Rafe Marrow, Ide's father, who died owing half the wood; Hannah was Hannah Ashcroft, Ruth's mother, dead nine years. Odo Fenn knows the initials. `hwHen`: `paid` (Ide pays a week's wage now for four marks then and writes "Paid. I.M." under it; Ruth puts it in the tin with her mother's things, and Hannah's Lammas story was "Rafe Marrow and the speckled hen") or `oak` (Ide puts it back in the oak, where he left it and Hannah answered).
 - **Where Fly Went** (Jabez Thackery): his nine-year-old hound followed a thornback stalker into the rocks north-west of the camp. The prints by the brook, fur on the bramble, the den; she comes home on three legs and goes under his bench. Her last stalker.
 
+### More of the camp [in game]
+
+`src/data/content/hagwormMore.ts`. **Saul Raine**, the company carter, stands at his cart.
+- **Short Count** (Ide, after Calling Timber): Harrowgate pays the camp for thirty-six props a load; forty go. Every prop on the stacks is sound and ring-marked. At the Works the tallyman pulls four off each load as "rejected, rot", Pryce signs the chit, and the four go down No. 1 Drift with his P cut in the end grain (the same oak as Pryce's Oak). Saul kept nine chits in his boot. `hwShort`: `delia` (Delia pays the camp's arrears from the company, with her name on it), `keep` (Ide keeps the chits in the camp book: "Paper keeps. Pryce doesn't.") or `pad` (the camp cuts forty-four and says nothing; Sefton cuts three of the four himself).
+- **Spore Season** (Kit): spore jellies in the felling clearing; a spored log goes soft and Harrowgate refuses it. Kit has been sleeping in the tent since April because Sefton says his cough keeps him up. Sefton can't hear a tree fall.
+- **What Sefton Can't Hear** (Sefton, if he stayed): he wants Pell told he's going deaf, by someone who isn't him. Pell has known since spring ("I said mind the weir, and he said twelve shillings, robbery"). Pell chalks a child's slate: COME HOME FOR LAMMAS. I'LL DO THE TALKING.
+
 ## Scarth Highlands: Kelderby and Scarth Watch [in game]
 
 ### Places
