@@ -1065,3 +1065,7 @@ Every ninety minutes on the realm clock one town lights its fire for twenty minu
 `src/data/content/holmeMore.ts`.
 - **What the Mere Gave Back** (Obed Gedge, puntsman): the drain has dropped the mere far enough that a punt has come up on the mud. Raft spiders under it; GEDGE burned in the transom. His brother Thomas went out in fog thirty-one years ago, a quarter-mile from the staithe. `hsPunt`: `home` (Obed mends her, for the day the water comes back) or `burn` (the Levels' way with a drowned man's punt; half the village watches from the staithe).
 - **Rooted Out** (Tilly Brewer, after Brittle Reed): bog boars rooting the reed beds the drain left dry.
+
+## The Old Mother going over [in game]
+
+Every three hours on the realm clock (a moment set per cycle, the same for everyone), Serra's Old Mother crosses the sky over the Counties and Morrow: out of the south over the sea, far overhead, north, never looking down (`src/game/DragonPass.ts`). A dark dragon thirteen times a drake's size, ember-bellied, her shadow sweeping the ground; a low roar and a tremor as she passes. Nobody knows what she is yet. People near you look up and say what people say ("That's no gull." "It came up from the south. Nothing comes up from the south." In Morrow: "That came from Serra. Ask any sailor."). Foreshadowing for continent 3.

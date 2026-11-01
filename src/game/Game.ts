@@ -140,6 +140,7 @@ import { Mail } from './Mail';
 import { Seasons } from './Seasons';
 import { WakeFair } from './WakeFair';
 import { Gatherings } from './Gatherings';
+import { DragonPass } from './DragonPass';
 import { gatheringBoard } from '../data/gatherings';
 import { Farming, farmPatches } from './Farming';
 import { Rowboat } from './Rowboat';
@@ -393,6 +394,8 @@ export class Game implements GameApi {
   private fair!: WakeFair;
   /** The towns' fires, lit in turn on the realm clock (data/gatherings.ts). */
   gatherings!: Gatherings;
+  /** Serra's Old Mother going over, now and then (game/DragonPass.ts). */
+  dragonPass!: DragonPass;
   /** Your farming patches (data/farming.ts). */
   private farming!: Farming;
   /** Your rowing boat, or the one you've hired (game/Rowboat.ts). */
@@ -995,6 +998,15 @@ export class Game implements GameApi {
       marks: () => this.save.marks, addMarks: (n) => { if (n < 0) this.save.marks = Math.max(0, this.save.marks + n); else this.addMarks(n); this.hud.refresh(); },
       system: (t) => this.hud.system(t), banner: (t, sub) => this.hud.banner(t, sub, true), sound: (n) => this.sfx(n),
       player: () => this.player.position,
+    });
+    this.dragonPass = new DragonPass({
+      scene: this.scene, voxels: this.world.voxels,
+      player: () => this.player.position,
+      land: () => landAt(this.player.position.x),
+      covered: () => { const P = this.player.position; for (let y = Math.floor(P.y) + 2; y < Math.floor(P.y) + 26; y++) { const b = this.world.voxels.get(Math.floor(P.x), y, Math.floor(P.z)); if (b && b !== B.Barrier && !isLeaves(b)) return true; } return false; },
+      people: () => this.npcs.filter((n) => n.model.root.visible && n.pos.distanceTo(this.player.position) < 30).sort((a, b) => a.pos.distanceTo(this.player.position) - b.pos.distanceTo(this.player.position)).map((n) => ({ pos: n.pos })),
+      say: (at, line) => this.floatAt(at, 2.3, line, 'chatter'),
+      system: (t) => this.hud.system(t), sound: (n, v) => this.sfx(n, v), quake: (k) => this.quake(k),
     });
     this.gatherings = new Gatherings({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, lamps: this.world.extraLamps,
@@ -6717,6 +6729,7 @@ export class Game implements GameApi {
     this.seasons.update(dt, P);
     this.fair.update(dt, this.world.sky.night);
     this.gatherings.update(dt);
+    this.dragonPass.update(dt);
     this.farming.update(dt);
     // Trying something on: it comes off when you walk on, close the shop, or after half a minute
     if (this.trying) {
@@ -8117,6 +8130,7 @@ export class Game implements GameApi {
         marks: this.save.marks, inv: this.save.inv.filter(Boolean), levels: Object.fromEntries(SKILLS.map((s) => [s.id, this.level(s.id)])),
         calls: this.renderer.info.render.calls, tris: this.renderer.info.render.triangles, candidate: this.candidate?.label, dialogue: this.dialogue?.node,
       }),
+      dragon: () => this.dragonPass.begin(),
       talk: (id: string) => { const n = this.npcs.find((x) => x.id === id); if (n) this.startDialogue(n); },
       choose: (i: number) => this.chooseOption(i),
       interact: () => { if (this.candidate) this.interact(this.candidate); return this.candidate?.label; },
