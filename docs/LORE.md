@@ -1053,3 +1053,9 @@ Every ninety minutes on the realm clock one town lights its fire for twenty minu
 | The Shift Fire | Harrowgate | Sal Dakin, the works canteen | Wilf Hardcastle (horn), Annie Thwaite (whistle) | Pit toffee | The hour when one shift comes up and the other goes down and the whole town's awake. The works has changed hands three times; the fire hasn't. |
 | The Sardine Night | Callis | Jordi Pons | Laia Serra (lute), Quim Bosch (drum) | Sardines on bread | The first good catch, and any excuse after. The Assembly once voted to move it off the street; nobody moved. |
 | The Wall Fire | the Northgate square | Hild Rowntree | Osgar Brack (pipes), Tam Garside (drum) | Wall broth | Since the gate shut the watch don't come down, so the town eats where the wall can see it. |
+
+### More of Cragsby [in game]
+
+`src/data/content/cragsbyMore.ts`.
+- **The Nameless Hook** (Morwen Tregear, the Coiled Rope): a hook with no name for a stranger who went over the north edge. His knot is a landsman's granny knot; Ewan Skene went down and brought up his satchel: Hob Vosper's field book, a Charter surveyor measuring the gannet stacks, "North stack: blast for harbour stone, 400 tons." `cgHook`: `hook` (his name in the same chalk as the climmers'), `book` (sent on to the Charter; his name in pencil) or `burn` (Morwen feeds it to the stove; still no name).
+- **Through the Wall** (Tib Corran, the Kittiwake): crag boars through the headland fold wall in lambing time. Find the gap, drive them off, stack it back.
