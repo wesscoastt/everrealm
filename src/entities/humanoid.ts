@@ -181,6 +181,52 @@ function lam(color: string): THREE.MeshLambertMaterial {
   if (!m) { m = new THREE.MeshLambertMaterial({ color }); matCache.set(color, m); }
   return m;
 }
+/** Worked metal: a little shine, so a blade catches the light as it turns (shared like lam()'s). */
+const steelCache = new Map<string, THREE.MeshPhongMaterial>();
+export function steel(color: string, shine = 70): THREE.MeshPhongMaterial {
+  const key = color + '@' + shine;
+  let m = steelCache.get(key);
+  if (!m) { m = new THREE.MeshPhongMaterial({ color, shininess: shine, specular: new THREE.Color('#9a9a9a') }); steelCache.set(key, m); }
+  return m;
+}
+/**
+ * A blade's shape, extruded: `half` gives its half-width at each point along it (0 at the shoulders, 1 at
+ * the point's root), `point` how far the point runs past that. Lies along +y from 0, the edge along +z
+ * (and -z, it's two-edged), `thick` through x, with bevelled edges that take the light.
+ */
+const bladeCache = new Map<string, THREE.BufferGeometry>();
+export function bladeGeometry(len: number, half: (t: number) => number, point: number, thick: number, key: string): THREE.BufferGeometry {
+  const k = key + ':' + len.toFixed(3) + ':' + point.toFixed(3) + ':' + thick.toFixed(3);
+  let geo = bladeCache.get(k);
+  if (geo) return geo;
+  const s = new THREE.Shape(), n = 10, bev = Math.min(thick * 0.45, 0.012);
+  s.moveTo(-half(0) + bev, 0);
+  for (let i = 1; i <= n; i++) { const t = i / n; s.lineTo(-half(t) + bev, t * len); }
+  s.lineTo(0, len + point);
+  for (let i = n; i >= 0; i--) { const t = i / n; s.lineTo(half(t) - bev, t * len); }
+  s.closePath();
+  geo = new THREE.ExtrudeGeometry(s, { depth: thick - bev * 2, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * 0.9, bevelSegments: 2, curveSegments: 4 });
+  geo.translate(0, 0, -(thick - bev * 2) / 2);
+  geo.rotateY(Math.PI / 2);
+  geo.computeVertexNormals();
+  bladeCache.set(k, geo);
+  return geo;
+}
+/** Any flat outline ([edge-ward z, up y] points), extruded `thick` through x and bevelled: a sabre's curve, a cleaver's slab, an axe's bit. */
+export function outlineGeometry(pts: [number, number][], thick: number, key: string): THREE.BufferGeometry {
+  const k = 'o:' + key + ':' + thick.toFixed(3);
+  let geo = bladeCache.get(k);
+  if (geo) return geo;
+  const bev = Math.min(thick * 0.45, 0.012), s = new THREE.Shape();
+  pts.forEach(([z, y], i) => (i ? s.lineTo(-z, y) : s.moveTo(-z, y)));
+  s.closePath();
+  geo = new THREE.ExtrudeGeometry(s, { depth: thick - bev * 2, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * 0.85, bevelSegments: 2, curveSegments: 4 });
+  geo.translate(0, 0, -(thick - bev * 2) / 2);
+  geo.rotateY(Math.PI / 2);
+  geo.computeVertexNormals();
+  bladeCache.set(k, geo);
+  return geo;
+}
 type Part = (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh;
 const TROPHY_HELMS = new Set<string>(['carapace', 'shardcrown', 'clockwork', 'kingly', 'stepped', 'wolfpelt']);
 /** A colour that gives its own light (a costume's runes and eyes), shared like lam()'s. */
@@ -352,20 +398,29 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
       case 'cap': add(rbox(s * 1.25, s * 0.6, s * 1.25, 0.02), P, 0, y, 0); add(rbox(s * 0.5, s * 0.45, s * 0.5, 0.015), P, 0, y - s * 0.45, 0); break;
     }
   };
-  /** A straight blade from y0, len long, wide across, shaped by the maker's head. */
+  /**
+   * A straight blade from y0, len long, wide across, shaped by the maker's head: an extruded profile with
+   * bevelled edges (fuller: straight then a long point; tapered: narrowing all the way; leaf: old bronze,
+   * swelling past the middle), a fuller sunk in each face, and a squared ricasso at the shoulders.
+   */
   const blade = (y0: number, len: number, wide: number) => {
     const head = w.head ?? 'fuller';
-    if (head === 'leaf') {
-      // Narrow at the shoulders, swelling past the middle, then to a point: old bronze
-      const segs = [0.82, 0.95, 1.12, 1.2, 1.05];
-      segs.forEach((f, i) => add(rbox(0.05, len / segs.length + 0.005, wide * f, 0.012), M, 0, y0 + (i + 0.5) * (len / segs.length), 0));
-      add(rbox(0.054, len * 0.85, 0.018, 0.005), dark, 0, y0 + len * 0.45, 0);
-      add(cone(wide * 0.55, 0.2), M, 0, y0 + len + 0.09, 0);
-    } else if (head === 'tapered') {
-      const segs = [1.05, 0.9, 0.75, 0.6];
-      segs.forEach((f, i) => add(rbox(0.045, len / segs.length + 0.005, wide * f, 0.012), M, 0, y0 + (i + 0.5) * (len / segs.length), 0));
-      add(cone(wide * 0.3, 0.22), M, 0, y0 + len + 0.1, 0);
-      add(rbox(0.048, len * 0.5, 0.016, 0.004), edge, 0, y0 + len * 0.3, 0);
+    const sm = glow ?? steel(M, head === 'leaf' ? 45 : 75);
+    const hw = wide / 2, thick = head === 'leaf' ? 0.038 : 0.032;
+    if (head === 'fuller' || head === 'leaf' || head === 'tapered') {
+      const shape = head === 'leaf' ? (t: number) => hw * (0.78 + 0.42 * Math.sin(Math.min(1, t * 1.25) * Math.PI * 0.85))
+        : head === 'tapered' ? (t: number) => hw * (1.05 - 0.55 * t)
+        : (t: number) => hw * (1 - 0.12 * t);
+      const point = head === 'leaf' ? wide * 1.3 : head === 'tapered' ? wide * 1.6 : wide * 1.1;
+      const ric = Math.min(0.08, len * 0.08);
+      // The ricasso: a short squared flat at the shoulders, before the edge begins
+      add(rbox(thick + 0.004, ric, wide * 0.92, 0.008), sm, 0, y0 + ric / 2, 0);
+      const m = new THREE.Mesh(bladeGeometry(len - ric, shape, point, thick, head), sm);
+      m.position.set(0, y0 + ric, 0); m.castShadow = true; g.add(m);
+      // The fuller, sunk in each face: a dark groove two-thirds of the way up
+      if (head !== 'tapered') for (const sx of [1, -1]) add(rbox(0.006, (len - ric) * 0.66, wide * 0.16, 0.003), steel(shade(M, 0.55), 30), sx * (thick / 2 - 0.001), y0 + ric + (len - ric) * 0.35, 0);
+      // A fine bright line down each edge bevel
+      for (const sz of [1, -1]) add(rbox(0.004, (len - ric) * 0.8, 0.006, 0.002), steel(shade(M, 1.35), 120), 0, y0 + ric + (len - ric) * 0.42, sz * (shape(0.42) - 0.006));
     } else if (head === 'wavy') {
       const n = 7;
       for (let i = 0; i < n; i++) add(rbox(0.05, len / n + 0.01, wide, 0.012), i % 2 ? edge : M, 0, y0 + (i + 0.5) * (len / n), (i % 2 ? 1 : -1) * wide * 0.12);
@@ -379,8 +434,18 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
   /** An axe's bit at height `top` on the haft, scaled by s; `twin` adds a second bit behind. */
   const axeHead = (top: number, s: number, twin: boolean) => {
     add(rbox(0.085, 0.13 * s, 0.11, 0.02), H, 0, top, 0); // the eye
+    /** A bit as one bevelled outline ([out, up] from the eye, scaled), mirrored for the back bit; a bright line along its edge. */
+    const outlineBit = (dir: number, pts: [number, number][], edgeAt: [number, number, number], key: string) => {
+      const m = new THREE.Mesh(outlineGeometry(pts.map(([z, y]) => [z * s, y * s] as [number, number]), 0.045, key + s.toFixed(2)), steel(M, 60));
+      m.position.set(0, top, 0); m.scale.z = dir; m.castShadow = true; g.add(m);
+      add(rbox(0.004, edgeAt[2] * s, 0.01, 0.002), steel(shade(M, 1.35), 120), 0, top + edgeAt[1] * s, dir * edgeAt[0] * s);
+    };
     const bit = (dir: number) => {
-      switch (w.head ?? 'bearded') {
+      const kind = w.head ?? 'bearded';
+      if (kind === 'broad') return outlineBit(dir, [[0.04, -0.06], [0.04, 0.06], [0.3, 0.18], [0.33, 0.1], [0.33, -0.1], [0.3, -0.18]], [0.325, 0, 0.32], 'broad');
+      if (kind === 'crescent') return outlineBit(dir, [[0.04, -0.05], [0.04, 0.05], [0.2, 0.12], [0.26, 0.26], [0.32, 0.18], [0.34, 0], [0.32, -0.18], [0.26, -0.26], [0.2, -0.12]], [0.335, 0, 0.36], 'crescent');
+      if (kind === 'bearded') return outlineBit(dir, [[0.04, -0.04], [0.04, 0.07], [0.22, 0.09], [0.25, 0.05], [0.24, -0.16], [0.18, -0.26], [0.12, -0.2], [0.1, -0.06]], [0.245, -0.05, 0.28], 'bearded');
+      switch (kind as string) { // (the box-built bits below are kept for the pick and the hatchet)
         case 'broad': // flares evenly toward the edge
           [[0.08, 0.14], [0.15, 0.24], [0.22, 0.34]].forEach(([z, h]) => add(rbox(0.05, h * s, 0.08 * s, 0.012), M, 0, top, dir * z * s));
           add(rbox(0.054, 0.36 * s, 0.03, 0.006), edge, 0, top, dir * 0.27 * s);
@@ -421,8 +486,9 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
     case 'greatsword': {
       const long = w.family === 'longsword', great = w.family === 'greatsword';
       const grip = great ? 0.3 : long ? 0.24 : 0.16, len = great ? 1.25 : long ? 1.0 : 0.8, wide = great ? 0.16 : long ? 0.11 : 0.12;
-      add(rbox(0.07, grip, 0.07, 0.02), G, 0, -0.02 - (grip - 0.16) / 2, 0);
-      for (let k = 1; k < grip / 0.06; k++) add(rbox(0.075, 0.015, 0.075, 0.005), shade(G, 0.7), 0, 0.06 - (grip - 0.02) * (k / (grip / 0.06)), 0); // the wrap
+      add(new THREE.CylinderGeometry(0.034, 0.038, grip, 10), G, 0, -0.02 - (grip - 0.16) / 2, 0);
+      // the wrap: a leather cord wound round it, a turn every few fingers
+      for (let k = 1; k < grip / 0.045; k++) { const t = add(new THREE.TorusGeometry(0.037, 0.006, 4, 12), shade(G, 0.68), 0, 0.06 - grip * (k / (grip / 0.045)), 0, Math.PI / 2); t.rotation.z = 0.25; }
       guard(0.08, great ? 0.5 : long ? 0.38 : 0.32);
       blade(0.1, len, wide);
       if (great) add(rbox(0.07, 0.08, 0.06, 0.02), H, 0, 0.2, 0.09); // the lugs of a two-hander
@@ -436,19 +502,25 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
         add(rbox(0.09, 0.05, 0.22, 0.02), H, 0, 0.08, 0);
         add(rbox(0.03, 0.26, 0.03, 0.01), H, 0, -0.01, 0.1); // the knuckle guard
       }
-      for (let i = 0; i < 4; i++) add(rbox(0.045, 0.22, 0.1, 0.015), i === 3 ? edge : M, 0, 0.2 + i * 0.2, 0.02 + i * i * 0.012, -i * 0.07);
+      // One curved blade: the back and the edge bend forward together to the point, the edge a hair thinner than the back
+      {
+        const n = 12, L = 0.82, pts: [number, number][] = [], back: [number, number][] = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n, bow = 0.16 * t * t, hw = 0.055 * (1 - 0.35 * t);
+          pts.push([bow + hw, 0.1 + t * L]); back.push([bow - hw * 0.9, 0.1 + t * L]);
+        }
+        const tip: [number, number] = [0.16 + 0.07, 0.1 + L + 0.1];
+        const m = new THREE.Mesh(outlineGeometry([...back, tip, ...pts.reverse()], 0.03, 'sabre'), steel(M, 80));
+        m.castShadow = true; g.add(m);
+      }
       pommel(-0.11, 0.055);
       break;
     }
     case 'dagger': {
       add(rbox(0.06, 0.12, 0.06, 0.02), G, 0, -0.01, 0);
       guard(0.06, 0.18);
-      if (w.head === 'leaf' || w.head === 'tapered') blade(0.08, 0.34, 0.085);
-      else {
-        add(rbox(0.04, 0.34, 0.08, 0.012), M, 0, 0.25, 0);
-        add(rbox(0.042, 0.28, 0.016, 0.004), edge, 0, 0.24, 0);
-        add(cone(0.04, 0.1), M, 0, 0.47, 0);
-      }
+      // (every dagger's blade the swords' kind now: an extruded profile, bevelled, to a point)
+      blade(0.08, 0.34, 0.085);
       pommel(-0.08, 0.05);
       break;
     }
@@ -457,11 +529,14 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
       const cl = w.family === 'cleaver';
       add(rbox(0.07, 0.18, 0.07, 0.02), G, 0, -0.03, 0);
       guard(0.08, 0.24);
-      add(rbox(0.05, 0.36, cl ? 0.22 : 0.13, 0.015), M, 0, 0.29, cl ? 0.05 : 0.01);
-      add(rbox(0.05, 0.36, cl ? 0.26 : 0.18, 0.015), M, 0, 0.62, cl ? 0.07 : 0.03); // widening toward the point
-      add(rbox(0.052, 0.66, 0.02, 0.005), edge, 0, 0.46, cl ? -0.05 : -0.04);
-      if (!cl) add(cone(0.09, 0.14), M, 0, 0.86, 0.03);
-      else add(rbox(0.05, 0.06, 0.1, 0.015), M, 0, 0.82, 0.14); // the squared-off end hooks forward
+      // A falchion widens toward a clipped point; a cleaver is a deep slab with a squared end that hooks forward
+      const pts: [number, number][] = cl
+        ? [[-0.05, 0.1], [0.07, 0.1], [0.17, 0.2], [0.19, 0.82], [0.13, 0.88], [-0.06, 0.86], [-0.06, 0.12]]
+        : [[-0.055, 0.1], [0.06, 0.1], [0.1, 0.45], [0.12, 0.72], [0.06, 0.94], [-0.035, 0.82], [-0.05, 0.6], [-0.05, 0.12]];
+      const m = new THREE.Mesh(outlineGeometry(pts, cl ? 0.036 : 0.03, w.family), steel(M, cl ? 50 : 75));
+      m.castShadow = true; g.add(m);
+      // the bright line of the edge
+      add(rbox(0.004, cl ? 0.6 : 0.5, 0.008, 0.002), steel(shade(M, 1.35), 120), 0, cl ? 0.5 : 0.45, cl ? 0.18 : 0.1);
       pommel(-0.13, 0.06);
       break;
     }
@@ -595,6 +670,9 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
       break;
     }
   }
+  // Its metal parts (head, blade, edge, the dark of a pick's spike) take the light as metal does, not as paint
+  const metals = new Map<THREE.Material, THREE.Material>([[lam(M), steel(M)], [lam(edge), steel(edge, 110)], [lam(dark), steel(dark, 40)]]);
+  g.traverse((o) => { const mm = o as THREE.Mesh; if (mm.isMesh && metals.has(mm.material as THREE.Material)) mm.material = metals.get(mm.material as THREE.Material)!; });
   return g;
 }
 
@@ -795,6 +873,9 @@ function instrumentMesh(v: InstrumentVoice): { body: THREE.Group; hand: THREE.Gr
 const TOOLS = new Set<string>(['sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
 function heldMesh(kind: HeldItem): THREE.Group {
+  // The plain swords the watch and the townsfolk carry: the same make as anyone's, steel or bronze
+  if (kind === 'sword') return weaponMesh({ family: 'sword', metal: '#b4bcc6', hilt: '#3a3d42', grip: '#4a2e1c', guard: 'bar', pommel: 'wheel', head: 'fuller' });
+  if (kind === 'bronzeSword') return weaponMesh({ family: 'sword', metal: '#d6a052', hilt: '#c08a42', grip: '#4a2e1c', guard: 'bar', pommel: 'cap', head: 'leaf' });
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number, rx = 0, rz = 0) => {
     const m = new THREE.Mesh(geo, lam(color));
@@ -805,16 +886,6 @@ function heldMesh(kind: HeldItem): THREE.Group {
   };
   const wood = '#6e4a2c', iron = '#8e959e', dark = '#3a3d42', bronze = '#c08a42';
   switch (kind) {
-    case 'sword':
-    case 'bronzeSword': {
-      const blade = kind === 'sword' ? '#b4bcc6' : '#d6a052';
-      add(rbox(0.07, 0.16, 0.07, 0.02), '#4a2e1c', 0, -0.02, 0);
-      add(rbox(0.09, 0.06, 0.32, 0.02), kind === 'sword' ? dark : bronze, 0, 0.08, 0);
-      add(rbox(0.05, 0.8, 0.12, 0.015), blade, 0, 0.5, 0);
-      add(rbox(0.06, 0.06, 0.06, 0.02), kind === 'sword' ? dark : bronze, 0, -0.12, 0);
-      add(new THREE.ConeGeometry(0.06, 0.14, 4), blade, 0, 0.96, 0);
-      break;
-    }
     case 'pickaxe':
       add(rbox(0.06, 0.95, 0.06, 0.02), wood, 0, 0.3, 0);
       add(rbox(0.08, 0.1, 0.62, 0.02), iron, 0, 0.74, 0.0);
