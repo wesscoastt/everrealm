@@ -669,7 +669,8 @@ export function plan(): Plan {
     // The Mirador, the houses on the scarp above Callis (data/mirador.ts)
     { id: 'callis-mirador', name: 'The Mirador', x: 8590, z: 796, r0: 0, r1: 0, build: (s) => buildMirador(s) },
     // The Charter Post's coaching yards, one at every stop on the roads (data/postStations.ts)
-    ...POST_STATIONS.map((y): Named => ({ id: `post-${y.post}`, name: 'Charter Post', x: y.x, z: y.z, r0: 0, r1: 0, build: (s) => buildPostStation(s, y) })),
+    // (Hollin Ford's is built with the village itself, on the starter grid the planner's blocks don't reach: structures.ts)
+    ...POST_STATIONS.filter((y) => y.post !== 'hollin').map((y): Named => ({ id: `post-${y.post}`, name: 'Charter Post', x: y.x, z: y.z, r0: 0, r1: 0, build: (s) => buildPostStation(s, y) })),
     // The ferries' jetties, one at every stop of every route (data/ferries.ts)
     ...FERRIES.flatMap((r) => FERRY_PLAN[r.id]!.piers.map((pl, k): Named => ({ id: `pier-${r.id}-${k}`, name: `${r.ship[4].toUpperCase() + r.ship.slice(5)}'s jetty`, x: pl.to[0], z: pl.to[1], r0: 0, r1: 0, build: (s) => buildPier(s, r, k) }))),
     // Hall Row outside Ansbury's south gate, the old companies' halls let to guilds (data/guildhalls.ts)

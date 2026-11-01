@@ -86,6 +86,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   const tints = ['#ffffff', '#e6d9cc', '#f2e8d2'];
   const tinted = new Map<string, THREE.Material>();
   let houseCount = 0;
+  /** Every cell a house stands on, so the next one's clearing doesn't eat into it. */
+  const houseCells = new Set<number>();
   const roofMat = (r: HouseOpts['roof'], k: number) => {
     const base = r === 'red' ? M.roofRed : r === 'blue' ? M.roofBlue : r === 'thatch' ? M.thatch : M.roofSlate;
     const key = r + (k % tints.length);
@@ -113,7 +115,9 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
       if (ground(x, z) > lim) { clearAbove(x, z, lim); world.put(x, lim - 1, z, B.Grass); }
     }
     mark(x0 - 2, z0 - 2, x0 + w + 1, z0 + d + 1);
-    for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) clearAbove(x, z, HB);
+    // (the clear margin round it leaves a neighbour's walls alone: Pell's house cleared two blocks out of the red house's east wall)
+    for (let z = z0 - 1; z <= z0 + d; z++) for (let x = x0 - 1; x <= x0 + w; x++) if (!houseCells.has(x + z * SX)) clearAbove(x, z, HB);
+    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) houseCells.add(x + z * SX);
     for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) {
       for (let y = ground(x, z); y < HB; y++) world.put(x, y, z, B.Cobble);
       world.put(x, HB - 1, z, B.Cobble);
@@ -258,7 +262,10 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   place(P.noticeBoard(M), 158.5, BASE, 188.6, Math.PI);
   barrier(158, BASE, 188, 2); barrier(159, BASE, 188, 2);
   interactables.push({ id: 'notice', kind: 'notice', x: 158.5, y: BASE + 1, z: 187.6, label: 'Read the notice board', radius: 2.2 });
-  // (the Charter Post's yard is over the bridge on the east side, its carter out by the horses: data/postYards.ts)
+  // The Charter Post's stable, over the bridge on the east side, its doors to the Ansbury road: the yard in front
+  // (data/postYards.ts, 'hollin'), where the cart waits and the carter stands out by the horses (game/PostStations.ts).
+  // Built here with the village: the starter grid is outside what the planner's blocks reach.
+  house({ x0: 178, z0: 161, w: 13, d: 5, floors: 1, roof: 'slate', door: 's', chimney: false });
   // Hollin Ford's own landmarks (data/monuments.ts, town 'hollin'; Game makes each readable):
   // the flood stone at the bridge's end, the moot stone at the oak's shade, the pump by the square
   for (const m of MONUMENTS) if (m.town === 'hollin' && m.at && m.model !== 'fordpost') {
