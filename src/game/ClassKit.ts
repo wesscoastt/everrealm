@@ -37,7 +37,7 @@ export interface KitHost {
   hit(e: Enemy, dmg: number, opts?: { crit?: boolean; quiet?: boolean }): number;
   heal(n: number): void;
   maxHp(): number;
-  anim(state: 'attack' | 'cleave' | 'heal' | 'shoot'): void;
+  anim(state: 'attack' | 'cleave' | 'heal' | 'shoot' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch'): void;
   /** A bow in hand (the Pathfinder's arrows are loosed from it). */
   bow?(): boolean;
   sfx(name: 'swing' | 'hitHeavy' | 'heal' | 'bell' | 'splash' | 'growl'): void;
@@ -445,6 +445,7 @@ export class ClassKit {
         return true;
       }
       case 'redhour':
+        H.anim('stomp'); // (the skill's own move)
         this.redUntil = this.clock + T.redhour.secs;
         H.particles.burst(P.clone().setY(P.y + 1), '#c02a1a', 30); H.sfx('growl');
         return true;
@@ -607,6 +608,7 @@ export class ClassKit {
         return true;
       case 'frostbolt':
       case 'icelance': {
+        H.anim('cast'); // (the skill's own move)
         const lance = id === 'icelance';
         const e = H.faceTarget(lance ? T.icelance.range : T.frostbolt.range);
         if (!e) return false;
@@ -624,6 +626,7 @@ export class ClassKit {
         return true;
       }
       case 'blink': {
+        H.anim('dash'); // (the skill's own move)
         const at = H.aim(T.blink.range);
         if (at.distanceTo(P) < 1.5 || Math.abs(at.y - P.y) > 4 || !H.clear(at)) return false;
         H.particles.burst(P.clone().setY(P.y + 1), '#b8a8ff', 20);
@@ -633,6 +636,7 @@ export class ClassKit {
         return true;
       }
       case 'frostnova':
+        H.anim('stomp'); // (the skill's own move)
         return this.nova(P, pw) || !!H.faceTarget(T.frostnova.r);
       // Pathfinder
       case 'dressing':
@@ -655,6 +659,7 @@ export class ClassKit {
         return true;
       }
       case 'shadowstep': {
+        H.anim('dash'); // (the skill's own move)
         const e = H.faceTarget(T.shadowstep.range);
         if (!e || !H.canReach(e)) return false;
         H.particles.burst(P.clone().setY(P.y + 1), '#2a2a3a', 18);
@@ -705,6 +710,7 @@ export class ClassKit {
         return any || !!H.faceTarget(T.rend.r);
       }
       case 'rush':
+        H.anim('dash'); // (the skill's own move)
         this.rushUntil = this.clock + T.rush.secs;
         H.particles.burst(P.clone().setY(P.y + 1), '#e0583a', 18); H.sfx('growl');
         return true;
@@ -725,6 +731,7 @@ export class ClassKit {
         return true;
       }
       case 'cinderstep': {
+        H.anim('dash'); // (the skill's own move)
         const back = new THREE.Vector3(-Math.sin(H.yaw()), 0, -Math.cos(H.yaw()));
         const from = P.clone();
         if (!H.dash(back, T.cinderstep.dist)) return false;
@@ -734,6 +741,7 @@ export class ClassKit {
         return true;
       }
       case 'kindle':
+        H.anim('cast'); // (the skill's own move)
         this.kindling = Math.min(T.bolt.every - 1, this.kindling + T.kindle.stacks);
         this.boltMult = T.kindle.mult;
         H.particles.fire(P.clone().setY(P.y + 1)); H.sfx('heal');
@@ -753,6 +761,7 @@ export class ClassKit {
         return true;
       }
       case 'quickstep': {
+        H.anim('dash'); // (the skill's own move)
         const back = new THREE.Vector3(-Math.sin(H.yaw()), 0, -Math.cos(H.yaw()));
         if (!H.dash(back, T.quickstep.dist)) return false;
         this.stepStrike = this.clock + T.quickstep.window;
@@ -925,6 +934,7 @@ export class ClassKit {
       }
       // Pathfinder: whistle up the hound
       case 'hound': {
+        H.anim('whistle'); // (the skill's own move)
         this.dismissHound();
         const model = new CreatureModel('dog', { a: '#7a5a3a', b: '#4a3422' });
         const pos = P.clone().add(new THREE.Vector3(-Math.sin(H.yaw()) * 1.5, 0, -Math.cos(H.yaw()) * 1.5));
@@ -982,6 +992,7 @@ export class ClassKit {
         return true;
       }
       case 'vanish':
+        H.anim('crouch'); // (the skill's own move)
         this.hiddenUntil = this.clock + T.vanish.hide; this.fromHiding = T.slipaway.mult;
         H.particles.dust(P.clone().setY(P.y + 0.6), 24);
         H.sfx('swing');
@@ -995,6 +1006,7 @@ export class ClassKit {
         return true;
       }
       case 'caltrops': {
+        H.anim('throw'); // (the skill's own move)
         const at = H.aim(T.caltrops.range);
         this.zone(at, T.caltrops.r, T.caltrops.secs, pw * T.caltrops.dmg, '#9a9a9a');
         this.zones[this.zones.length - 1].slow = T.caltrops.slow;

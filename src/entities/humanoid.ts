@@ -162,7 +162,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -2383,6 +2383,60 @@ export class Humanoid {
         P.armL.rotation.x = -2.2 * k; P.armR.rotation.x = -2.2 * k;
         P.armL.rotation.z = 0.5; P.armR.rotation.z = -0.5;
         P.head.rotation.x = -0.3 * k;
+        break;
+      }
+      // Skills' own moves (game/ClassKit.ts): each eases in, holds, and lets go
+      case 'cast': {
+        // Both hands thrust forward from the chest, palms out, the body leaning into it
+        const k = Math.min(1, t / 0.14), back = Math.min(1, Math.max(0, (0.5 - t) / 0.2));
+        P.armR.rotation.x = -1.5 * k * back; P.armL.rotation.x = -1.5 * k * back;
+        P.armR.rotation.z = 0.25 * k; P.armL.rotation.z = -0.25 * k;
+        P.torso.rotation.x = 0.18 * k * back; P.head.rotation.x = -0.1 * k;
+        if (speed > 0.6) legs(0.5);
+        break;
+      }
+      case 'stomp': {
+        // Up on the toes, both fists raised, then down hard: knees bent, fists to the ground
+        const up = Math.min(1, t / 0.18), down = Math.min(1, Math.max(0, (t - 0.18) / 0.1)), out = Math.min(1, Math.max(0, (0.6 - t) / 0.2));
+        P.armR.rotation.x = (-2.6 * up + 2.2 * down) * out; P.armL.rotation.x = (-2.6 * up + 2.2 * down) * out;
+        P.torso.rotation.x = 0.45 * down * out;
+        P.legL.rotation.x = -0.5 * down * out; P.legR.rotation.x = -0.5 * down * out;
+        P.body.position.y += (0.08 * up - 0.18 * down) * out;
+        break;
+      }
+      case 'dash': {
+        // Thrown forward low, the blade arm trailing, legs at full stretch
+        const k = Math.min(1, t / 0.08) * Math.min(1, Math.max(0, (0.42 - t) / 0.12));
+        P.torso.rotation.x = 0.55 * k; P.head.rotation.x = -0.35 * k;
+        P.armR.rotation.x = 0.9 * k; P.armL.rotation.x = -0.6 * k;
+        P.legL.rotation.x = -0.9 * k; P.legR.rotation.x = 0.8 * k;
+        P.body.position.y -= 0.1 * k;
+        break;
+      }
+      case 'throw': {
+        // The arm back over the shoulder, then whipped down and forward, the body turning with it
+        const wind = Math.min(1, t / 0.16), go = Math.min(1, Math.max(0, (t - 0.16) / 0.1)), out = Math.min(1, Math.max(0, (0.5 - t) / 0.16));
+        P.armR.rotation.x = (-2.8 * wind + 2.3 * go) * out;
+        P.torso.rotation.y = (0.5 * wind - 0.8 * go) * out;
+        P.armL.rotation.x = -0.6 * wind * out;
+        if (speed > 0.6) legs(0.5);
+        break;
+      }
+      case 'whistle': {
+        // Two fingers to the mouth, chin up, the other arm out pointing the way
+        const k = Math.min(1, t / 0.2) * Math.min(1, Math.max(0, (0.85 - t) / 0.2));
+        P.armL.rotation.x = -2.3 * k; P.foreL.rotation.x = -1.6 * k; P.armL.rotation.z = 0.3 * k;
+        P.armR.rotation.x = -1.4 * k; P.armR.rotation.z = -0.2 * k;
+        P.head.rotation.x = -0.25 * k;
+        break;
+      }
+      case 'crouch': {
+        // Down low and wrapped up, arms across the face, gone into the shadow
+        const k = Math.min(1, t / 0.15) * Math.min(1, Math.max(0, (0.65 - t) / 0.2));
+        P.torso.rotation.x = 0.6 * k; P.head.rotation.x = 0.3 * k;
+        P.armR.rotation.x = -1.8 * k; P.armR.rotation.z = 0.7 * k; P.armL.rotation.x = -1.8 * k; P.armL.rotation.z = -0.7 * k;
+        P.legL.rotation.x = -0.9 * k; P.legR.rotation.x = -0.9 * k;
+        P.body.position.y -= 0.32 * k;
         break;
       }
       case 'roll': {

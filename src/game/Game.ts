@@ -48,6 +48,8 @@ import { Companions } from './Companions';
 import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import { COMPANIONS, type CompanionId, type CompanionRole } from '../data/companions';
 import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '../entities/humanoid';
+/** How long each skill move holds the body before walking takes it back (seconds). */
+const SKILL_ANIM: Partial<Record<AnimState, number>> = { attack: 0.4, cleave: 0.55, shoot: 0.5, cast: 0.5, stomp: 0.6, dash: 0.42, throw: 0.5, whistle: 0.85, crouch: 0.65 };
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
 import { AudioSystem, Sfx, voiceOf, type Soundscape, type Bed } from '../systems/Audio';
@@ -736,6 +738,8 @@ export class Game implements GameApi {
   private bubbles: { el: HTMLElement; who: number; until: number }[] = [];
   /** A leap or a shadowstep under way. */
   private dash: { fx: number; fy: number; fz: number; tx: number; tz: number; ty: number; t: number; dur: number } | null = null;
+  /** A skill's move playing out (ClassKit host.anim), and how long it has yet. */
+  private skillAnim: { st: AnimState; left: number } | null = null;
   private attack: { kind: 'strike' | 'cleave'; t: number; dur: number; hitAt: number; hit: boolean; combo: number } | null = null;
   private comboIndex = 0;
   private comboWindow = 0;
@@ -1066,6 +1070,8 @@ export class Game implements GameApi {
       bow: () => this.bowInHand,
       anim: (st) => {
         if (st === 'heal') { this.healAnim = 0.6; return; }
+        // (held for its own length, so walking doesn't take the pose back the next frame)
+        this.skillAnim = { st, left: SKILL_ANIM[st] ?? 0.45 };
         this.player.model.setState(st); this.player.model.stateTime = 0; this.healAnim = 0;
       },
       sfx: (n) => this.sfx(n),
@@ -7023,6 +7029,7 @@ export class Game implements GameApi {
     this.iframes = Math.max(0, this.iframes - dt);
     this.hitAnim = Math.max(0, this.hitAnim - dt);
     this.healAnim = Math.max(0, this.healAnim - dt);
+    if (this.skillAnim && (this.skillAnim.left -= dt) <= 0) this.skillAnim = null;
     this.kit.update(dt);
 
     if (this.dead) {
@@ -7295,6 +7302,7 @@ export class Game implements GameApi {
     else if (P.rolling > 0) M.setState('roll');
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');
+    else if (this.skillAnim) M.setState(this.skillAnim.st);
     else if (this.music.out && !this.horse) { M.setState('perform'); held = this.music.out.item; }
     else if (this.emote && !this.horse) M.setState(this.emote.id);
     else if (this.action) {
