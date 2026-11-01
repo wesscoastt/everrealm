@@ -600,18 +600,20 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
       // Two limbs bending back toward the archer from a wrapped grip, horn nocks at the tips, and the
       // string straight across behind them (local +Z is toward the mark)
       const wood = shade(G, 1.25), dark2 = shade(G, 0.8);
-      add(rbox(0.06, 0.18, 0.07, 0.02), H, 0, 0, 0);
+      add(new THREE.CylinderGeometry(0.032, 0.032, 0.18, 9), H, 0, 0, 0);
+      for (const y of [0.06, 0, -0.06]) add(new THREE.TorusGeometry(0.034, 0.007, 4, 12), dark2, 0, y, 0, Math.PI / 2); // the grip's wrap
       for (const sgn of [1, -1]) {
-        for (let k = 0; k < 7; k++) {
-          const t0 = k / 7, t1 = (k + 1) / 7;
-          const y0 = sgn * (0.08 + t0 * 0.66), y1 = sgn * (0.08 + t1 * 0.66);
-          const z0 = -0.2 * t0 * t0, z1 = -0.2 * t1 * t1;
-          const seg = add(rbox(0.045 - k * 0.003, Math.hypot(y1 - y0, z1 - z0) + 0.02, 0.05 - k * 0.003, 0.012), k % 3 === 2 ? dark2 : wood, 0, (y0 + y1) / 2, (z0 + z1) / 2);
-          seg.rotation.x = -Math.atan2(z1 - z0, y1 - y0) * sgn;
-        }
-        add(rbox(0.05, 0.07, 0.05, 0.015), A, 0, sgn * 0.77, -0.19); // the nock
+        // each limb one smooth curve, thinning toward the tip, bending back toward the archer
+        const pts = [0, 0.2, 0.4, 0.6, 0.8, 1].map((t) => new THREE.Vector3(0, sgn * (0.08 + t * 0.66), -0.2 * t * t));
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const tube = new THREE.TubeGeometry(curve, 20, 0.024, 7, false);
+        const pos = tube.attributes.position as THREE.BufferAttribute;
+        for (let i = 0; i < pos.count; i++) { const y = Math.abs(pos.getY(i)), t = Math.min(1, Math.max(0, (y - 0.08) / 0.66)), c = curve.getPoint(t), f = 1 - 0.45 * t; pos.setX(i, c.x + (pos.getX(i) - c.x) * f); pos.setZ(i, c.z + (pos.getZ(i) - c.z) * f); }
+        tube.computeVertexNormals();
+        const limb = new THREE.Mesh(tube, lam(wood)); limb.castShadow = true; g.add(limb);
+        add(new THREE.ConeGeometry(0.02, 0.07, 6), A, 0, sgn * 0.765, -0.2, sgn > 0 ? 0 : Math.PI); // the horn nock
       }
-      add(rbox(0.008, 1.52, 0.008, 0.002), '#e8e0cc', 0, 0, -0.2); // the string
+      add(new THREE.CylinderGeometry(0.004, 0.004, 1.52, 4), '#e8e0cc', 0, 0, -0.2); // the string
       add(rbox(0.02, 0.03, 0.06, 0.006), M, 0, 0.1, 0.03); // the arrow rest
       break;
     }
@@ -642,29 +644,37 @@ export function weaponMesh(w: WeaponModel): THREE.Group {
       break;
     }
     case 'staff': {
-      add(rbox(0.055, 1.85, 0.055, 0.018), G, 0, 0.38, 0);
-      for (const y of [0.2, -0.2]) add(rbox(0.065, 0.06, 0.065, 0.01), H, 0, y, 0); // grip bindings
+      add(new THREE.CylinderGeometry(0.026, 0.032, 1.85, 9), G, 0, 0.38, 0);
+      for (const y of [0.2, -0.2]) add(new THREE.TorusGeometry(0.033, 0.009, 5, 12), H, 0, y, 0, Math.PI / 2); // grip bindings
+      /** A bent piece of wood or metal along a curve (a crook, a claw, a knot), r thick. */
+      const bend = (pts: [number, number, number][], r: number, c: string | THREE.Material) => {
+        const curve = new THREE.CatmullRomCurve3(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+        const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 16, r, 7, false), typeof c === 'string' ? lam(c) : c);
+        m.castShadow = true; g.add(m); return m;
+      };
       const head = w.head ?? (glow ? 'orb' : 'crook');
       const stone = glow ?? M;
       if (head === 'orb') {
-        add(rbox(0.1, 0.06, 0.1, 0.02), H, 0, 1.3, 0);
-        for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) add(rbox(0.02, 0.2, 0.02, 0.006), H, x * 0.05, 1.42, z * 0.05);
-        add(rbox(0.11, 0.13, 0.11, 0.03), stone, 0, 1.43, 0).rotation.y = Math.PI / 4; // a stone held in claws
+        add(new THREE.CylinderGeometry(0.05, 0.035, 0.06, 9), H, 0, 1.3, 0);
+        // a faceted stone held in four claws curling up and over it
+        for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4, cx = Math.cos(a), cz = Math.sin(a); bend([[cx * 0.03, 1.32, cz * 0.03], [cx * 0.075, 1.4, cz * 0.075], [cx * 0.06, 1.5, cz * 0.06], [cx * 0.025, 1.53, cz * 0.025]], 0.011, H); }
+        add(new THREE.IcosahedronGeometry(0.065, 0), stone, 0, 1.43, 0);
       } else if (head === 'gnarled') {
-        add(rbox(0.08, 0.16, 0.08, 0.03), G, 0.02, 1.36, 0);
-        add(rbox(0.07, 0.14, 0.07, 0.03), G, -0.02, 1.48, 0.02);
-        add(rbox(0.06, 0.12, 0.06, 0.025), G, 0.01, 1.58, -0.02);
-        add(rbox(0.07, 0.07, 0.07, 0.02), stone, 0, 1.5, 0.06);
+        // the wood twists up into a knot round a stone
+        bend([[0, 1.28, 0], [0.04, 1.38, 0.02], [-0.03, 1.48, 0.04], [0.02, 1.58, -0.02], [-0.04, 1.62, -0.05]], 0.03, G);
+        bend([[0.01, 1.4, 0], [0.06, 1.47, -0.03], [0.05, 1.55, 0.03]], 0.018, G);
+        add(new THREE.IcosahedronGeometry(0.04, 0), stone, 0.0, 1.5, 0.05);
       } else if (head === 'forked') {
         for (const d of [1, -1]) { add(rbox(0.045, 0.2, 0.045, 0.012), G, 0, 1.4, d * 0.05, d * -0.3); add(rbox(0.04, 0.16, 0.04, 0.012), G, 0, 1.56, d * 0.09); }
         add(rbox(0.07, 0.06, 0.07, 0.02), H, 0, 1.3, 0);
       } else if (head === 'ringed') {
-        for (const [dy, dz, hh, dd] of [[0, 0.1, 0.24, 0.035], [0, -0.1, 0.24, 0.035], [0.11, 0, 0.035, 0.24], [-0.11, 0, 0.035, 0.24]]) add(rbox(0.035, hh, dd, 0.008), M, 0, 1.46 + dy, dz);
-        for (const z of [0.06, -0.06]) add(rbox(0.02, 0.06, 0.06, 0.008), A, 0, 1.3, z); // rings that chime
+        add(new THREE.TorusGeometry(0.11, 0.016, 8, 24), steel(M), 0, 1.46, 0, 0, 0).rotation.y = Math.PI / 2;
+        for (const z of [0.06, -0.06]) add(new THREE.TorusGeometry(0.03, 0.007, 6, 14), steel(A), 0, 1.36, z).rotation.y = Math.PI / 2; // rings that chime
         add(rbox(0.08, 0.06, 0.08, 0.02), H, 0, 1.3, 0);
       } else {
-        add(rbox(0.1, 0.1, 0.1, 0.03), H, 0, 1.3, 0);
-        add(rbox(0.06, 0.2, 0.16, 0.02), M, 0, 1.44, 0.05).rotation.x = -0.4; // a crook head
+        add(new THREE.CylinderGeometry(0.04, 0.034, 0.08, 9), H, 0, 1.3, 0);
+        // a shepherd's crook: up, over and down in one bend
+        bend([[0, 1.3, 0], [0, 1.46, 0.01], [0, 1.56, 0.07], [0, 1.54, 0.15], [0, 1.45, 0.17], [0, 1.39, 0.14]], 0.026, G);
       }
       add(rbox(0.06, 0.06, 0.06, 0.02), A, 0, -0.54, 0);
       break;
