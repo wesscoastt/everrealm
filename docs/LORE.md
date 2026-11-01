@@ -1059,3 +1059,9 @@ Every ninety minutes on the realm clock one town lights its fire for twenty minu
 `src/data/content/cragsbyMore.ts`.
 - **The Nameless Hook** (Morwen Tregear, the Coiled Rope): a hook with no name for a stranger who went over the north edge. His knot is a landsman's granny knot; Ewan Skene went down and brought up his satchel: Hob Vosper's field book, a Charter surveyor measuring the gannet stacks, "North stack: blast for harbour stone, 400 tons." `cgHook`: `hook` (his name in the same chalk as the climmers'), `book` (sent on to the Charter; his name in pencil) or `burn` (Morwen feeds it to the stove; still no name).
 - **Through the Wall** (Tib Corran, the Kittiwake): crag boars through the headland fold wall in lambing time. Find the gap, drive them off, stack it back.
+
+### More of Holme Staithe [in game]
+
+`src/data/content/holmeMore.ts`.
+- **What the Mere Gave Back** (Obed Gedge, puntsman): the drain has dropped the mere far enough that a punt has come up on the mud. Raft spiders under it; GEDGE burned in the transom. His brother Thomas went out in fog thirty-one years ago, a quarter-mile from the staithe. `hsPunt`: `home` (Obed mends her, for the day the water comes back) or `burn` (the Levels' way with a drowned man's punt; half the village watches from the staithe).
+- **Rooted Out** (Tilly Brewer, after Brittle Reed): bog boars rooting the reed beds the drain left dry.
