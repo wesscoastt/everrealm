@@ -8959,8 +8959,11 @@ function propCollision(O: Overrides, sites: Site[]): void {
   const bar = (d: PropDesc, cx: number, cz: number, hx: number, hz: number, h: number) => {
     const ry = d.ry ?? 0, c = Math.cos(ry), sn = Math.sin(ry), y0 = Math.floor(d.y + 0.05);
     const cells = new Set<number>();
-    // Sample the footprint every quarter block, so a bench thinner than a block still lands on its cells
-    for (let u = -hx; u <= hx + 1e-6; u += Math.min(0.25, hx || 0.25)) for (let w = -hz; w <= hz + 1e-6; w += Math.min(0.25, hz || 0.25)) {
+    // Sample the footprint every quarter block, so a bench thinner than a block still lands on its cells, but a
+    // little inside its edges: a cell is barred only where the prop really stands in it, not where its edge grazes
+    // the next one (a bench 1.6 long used to bar three cells, and a small thing a whole row; owner 2026-11-01)
+    const ix = Math.max(0, hx - 0.3), iz = Math.max(0, hz - 0.3);
+    for (let u = -ix; u <= ix + 1e-6; u += Math.min(0.25, ix || 0.25)) for (let w = -iz; w <= iz + 1e-6; w += Math.min(0.25, iz || 0.25)) {
       const lx = cx + u, lz = cz + w;
       const x = Math.floor(d.x + lx * c + lz * sn), z = Math.floor(d.z - lx * sn + lz * c);
       cells.add(x * 100000 + z);

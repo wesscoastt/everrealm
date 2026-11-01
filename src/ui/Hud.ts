@@ -3384,6 +3384,29 @@ export class Hud {
   }
 
   /** Hide the in-game HUD (bars, minimap, action bar) behind the menus and the intro. */
+  /**
+   * The tracked objective, on screen: a gold diamond over it with its name and how far, or (when it's
+   * behind you or off the side) the same at the screen's edge with an arrow pointing the way to turn.
+   */
+  private objPin: HTMLElement | null = null;
+  objectivePin(p: { x: number; y: number; edge: boolean; angle: number; label: string; dist: number } | null): void {
+    if (!p) { if (this.objPin) this.objPin.style.display = 'none'; return; }
+    if (!this.objPin) {
+      this.objPin = el('div', 'obj-pin');
+      this.objPin.innerHTML = '<i class="op-arrow"></i><b class="op-dia"></b><span class="op-text"><em></em><small></small></span>';
+      this.root.append(this.objPin);
+    }
+    const e = this.objPin;
+    e.style.display = '';
+    e.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+    e.classList.toggle('edge', p.edge);
+    (e.querySelector('.op-arrow') as HTMLElement).style.transform = `rotate(${p.angle}rad)`;
+    const t = e.querySelector('em')!, d = e.querySelector('small')!;
+    if (t.textContent !== p.label) t.textContent = p.label;
+    const ds = p.dist >= 1000 ? `${(p.dist / 1000).toFixed(1)} km` : `${Math.round(p.dist)} m`;
+    if (d.textContent !== ds) d.textContent = ds;
+  }
+
   setHudHidden(on: boolean): void {
     this.root.classList.toggle('hidden-hud', on);
   }

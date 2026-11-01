@@ -4704,6 +4704,38 @@ export class Game implements GameApi {
 
   /** Quests taken off the tracker and the map in the journal (Track), and the one put first (Focus). */
   private questHidden(): string[] { return (this.flag('qHidden') as string[] | undefined) ?? []; }
+  /** Where the tracked objective is on screen (Hud.objectivePin): the focused quest's, else the story's, else the first. */
+  private pinV = new THREE.Vector3();
+  private pinT = 0;
+  private pinMark: { p: THREE.Vector3; label?: string; sub?: string } | null = null;
+  private placeObjectivePin(): void {
+    if (this.mode !== 'play' || this.dialogue || this.dead) { this.hud.objectivePin(null); return; }
+    // (the choice of objective every half second; where it is on screen every frame)
+    if ((this.pinT -= 1 / 60) <= 0) {
+      this.pinT = 0.5;
+      const m = this.questMarkers().filter((q) => !q.giver);
+      this.pinMark = m.find((q) => q.focus) ?? m[0] ?? null;
+    }
+    const m = this.pinMark, P = this.player.position;
+    if (!m) { this.hud.objectivePin(null); return; }
+    const dist = Math.hypot(m.p.x - P.x, m.p.z - P.z);
+    if (dist < 3) { this.hud.objectivePin(null); return; }
+    const W = window.innerWidth, H = window.innerHeight, pad = 56;
+    const v = this.pinV.set(m.p.x, m.p.y + 2.2, m.p.z).project(this.camera);
+    const behind = v.z > 1;
+    let x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
+    if (behind) { x = W - x; y = H - y; }
+    const off = behind || x < pad || x > W - pad || y < pad || y > H - pad;
+    let angle = 0;
+    if (off) {
+      // Pinned to the edge, on the line from the middle of the screen toward it; the arrow points along that line
+      const cx = W / 2, cy = H / 2, dx = x - cx, dy = behind && Math.abs(y - cy) < 1 ? 1 : y - cy;
+      const k = Math.min((W / 2 - pad) / Math.max(1e-3, Math.abs(dx)), (H / 2 - pad) / Math.max(1e-3, Math.abs(dy)));
+      x = cx + dx * k; y = cy + dy * k;
+      angle = Math.atan2(dy, dx);
+    }
+    this.hud.objectivePin({ x, y, edge: off, angle, label: m.sub ?? m.label ?? '', dist });
+  }
   private questFocus(): string | undefined { return (this.flag('qFocus') as string | undefined) || undefined; }
 
   /** Where a quest's next objective is, if it points anywhere. */
@@ -6791,6 +6823,7 @@ export class Game implements GameApi {
       this.doll.yaw = this.hud.dollYaw += dt * 0.25;
       this.doll.draw(this.renderer, dt, dc);
     }
+    this.placeObjectivePin();
     this.renderer.render(this.scene, this.camera);
     if (this.debug) {
       this.fpsAcc.t += dt; this.fpsAcc.n++;
