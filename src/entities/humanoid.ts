@@ -2519,17 +2519,19 @@ export class Humanoid {
         break;
       }
       case 'seated': {
-        // On a bench at a table: thighs level, shins down, forearms on the table; now and then a drink
+        // On a bench (at a table or not): thighs level, shins down, hands resting on the knees; now and then
+        // a lean forward onto them and a look round (owner 2026-11-01: on a ward's bench, with no table, the old
+        // forearms-on-the-table pose held its arms out at nothing and drank from an empty hand)
         P.body.position.y = -0.36;
         P.legL.rotation.set(-1.5, 0, 0.06); P.legR.rotation.set(-1.5, 0, -0.06);
         P.shinL.rotation.x = 1.5; P.shinR.rotation.x = 1.5;
-        const sip = Math.max(0, Math.sin(performance.now() * 0.0007 + this.phase * 3) - 0.85) / 0.15;
-        P.armL.rotation.x = -0.55; P.foreL.rotation.x = -0.75;
-        P.armR.rotation.x = -0.55 - sip * 0.75; P.foreR.rotation.x = -0.75 - sip * 0.9;
-        P.armL.rotation.z = -0.12; P.armR.rotation.z = 0.12;
+        const lean = Math.max(0, Math.sin(performance.now() * 0.00035 + this.phase * 3) - 0.6) / 0.4;
+        P.torso.rotation.x = 0.08 + lean * 0.18;
+        P.armL.rotation.x = -0.28 - lean * 0.12; P.foreL.rotation.x = -0.95; P.armL.rotation.z = -0.1;
+        P.armR.rotation.x = -0.28 - lean * 0.12; P.foreR.rotation.x = -0.95; P.armR.rotation.z = 0.1;
         P.torso.position.y = 0.06 + breathe;
-        P.head.rotation.x = -sip * 0.25;
-        P.head.rotation.y = sip > 0 ? 0 : Math.sin(performance.now() * 0.0004 + this.phase) * 0.35;
+        P.head.rotation.x = -0.05 - lean * 0.1;
+        P.head.rotation.y = Math.sin(performance.now() * 0.0004 + this.phase) * 0.35;
         break;
       }
       case 'sit': {

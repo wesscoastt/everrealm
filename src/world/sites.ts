@@ -1643,8 +1643,9 @@ export function plan(): Plan {
     keepHall(s, cx, cz, base);
     // The keep's roof is a stone leads walk, not planks
     for (let z = cz - 9; z <= cz + 9; z++) for (let x = cx - 9; x <= cx + 9; x++) O.set(x, base + 27, z, (x + z) % 3 === 0 ? B.Cobble : B.StoneBrick);
-    // A broad step along the front, and lamps and banners at the door
-    for (let x = cx - 7; x <= cx + 7; x++) { O.set(x, base, cz + 11, B.StoneBrick); clearUp(x, cz + 11, base + 1, base + 4); }
+    // A broad dressed-stone apron along the front, flush with the square (the hall's floor is the square's level:
+    // a step here was only a ledge across the door, owner 2026-11-01), and lamps and banners at the door
+    for (let x = cx - 7; x <= cx + 7; x++) { O.set(x, base - 1, cz + 11, B.StoneBrick); clearUp(x, cz + 11, base, base + 4); }
     for (const [bx, bz] of [[cx - 4, cz + 11.2], [cx + 5, cz + 11.2]]) s.props.push({ t: 'banner', x: bx, y: base + 14, z: bz, kind: 'aldermere' });
     for (const lx of [cx - 3.5, cx + 4.5]) s.props.push({ t: 'wallLantern', x: lx, y: base + 3.2, z: cz + 11.05, ry: 0 });
     for (const [bx, bz, ry] of [[X0 - 2.5, cz - 5, 0], [X0 - 2.5, cz + 6, 0], [X1 + 2.5, cz - 5, 0], [X1 + 2.5, cz + 6, 0]] as const) s.props.push({ t: 'banner', x: bx, y: base + 8.5, z: bz, kind: 'aldermere', ry });
