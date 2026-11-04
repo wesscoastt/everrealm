@@ -486,6 +486,23 @@ async function api(req, res) {
       }
     }
   }
+  // The realm's keeper puts a guest character into the account of the player it belongs to (when that player
+  // signed up on another browser, so their guest secret isn't to hand): only a guest character, never one that
+  // already has an account; its save, place and history stay exactly as they are (owner 2026-11-04: Billie Eyelash)
+  if (req.method === 'POST' && url.pathname === '/api/admin/restore') {
+    if (!DEV_ACCOUNTS.has(accKey(acc.user))) return reply(res, 403, { error: "Only the realm's keeper can do that." });
+    const body = (await readBody(req)) ?? {};
+    const key = keyFor(String(body.name ?? '').trim()), target = typeof body.to === 'string' ? loadAccount(body.to.trim()) : null;
+    const rec = key && loadChar(key);
+    if (!rec) return reply(res, 404, { error: `No character called ${body.name} on this realm.` });
+    if (rec.owner) return reply(res, 409, { error: `${rec.name} already belongs to an account (${rec.owner}). Nothing was changed.` });
+    if (!target) return reply(res, 404, { error: `No account called ${body.to}.` });
+    rec.owner = target.user; rec.claimed = Date.now(); rec.restoredBy = acc.user;
+    storeChar(key, rec);
+    if (!target.chars.includes(key)) { target.chars.push(key); storeAccount(target); }
+    log(`${acc.user} restored the guest character ${rec.name} to ${target.user}`);
+    return reply(res, 200, { ok: true, name: rec.name, to: target.user, playTime: rec.save?.playTime ?? 0 });
+  }
   if (req.method === 'GET' && url.pathname === '/api/me') {
     const characters = acc.chars.map((k) => loadChar(k)).filter((r) => r && r.owner === acc.user).map((r) => ({ name: r.name, save: r.save, updated: r.updated ?? r.created }));
     // How safe the account is, for its page: never the secrets themselves

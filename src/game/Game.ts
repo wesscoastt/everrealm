@@ -173,7 +173,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNL
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { climbers, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
+import { climbers, restoreGuest, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
@@ -7697,6 +7697,13 @@ export class Game implements GameApi {
           this.hud.system('Safety: /ignore <name> hides someone\'s chat and whispers (/unignore, /ignored); /report <name> <what happened> tells the realm\'s keeper. Or click them.');
           this.hud.system('Chat: just type and press Enter, and everyone in the realm hears. /s <message> for those nearby only, /trade <message> for the Trade channel, /w <name> for a whisper, /g for your group and /gu for your guild. Also: /me <action> (e.g. /me tips a hat), /roll [max], /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
           return;
+        case 'restore': {
+          // The realm's keeper: /restore <guest character> to <account> (server checks it's the keeper, and a guest)
+          const mm = arg.match(/^(.+?)s+tos+(S+)$/i);
+          if (!mm) { this.hud.system("/restore <character> to <account>: puts a guest character into the account it belongs to. The realm's keeper only."); return; }
+          void restoreGuest(mm[1].trim(), mm[2]).then((t) => this.hud.system(t));
+          return;
+        }
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
         case 'me': case 'e': case 'em':
           if (!arg) { this.hud.system('Try /me looks out over the valley.'); return; }

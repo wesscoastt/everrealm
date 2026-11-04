@@ -126,6 +126,12 @@ export async function twoStepOff(pass: string, code: string): Promise<string | n
  * May this player open the dev tools? A developer's account (the server says so when they sign in),
  * or anyone running a build on their own machine with ?dev in the address.
  */
+/** The keeper's tool: a guest character into the account it belongs to (server/server.mjs /api/admin/restore). */
+export async function restoreGuest(name: string, to: string): Promise<string> {
+  const r = await call('POST', '/api/admin/restore', { name, to });
+  return r.status === 200 ? `${String(r.data.name)} is now on ${String(r.data.to)}'s account, with ${Math.round(Number(r.data.playTime) / 60)} minutes of play.` : String(r.data.error ?? "It didn't work.");
+}
+
 export function isDevAccount(): boolean {
   if (currentAccount()?.dev) return true;
   const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
