@@ -318,7 +318,8 @@ export class Activities {
       const { until, cycle } = this.bossClock(def);
       const name = ENEMIES[def.type].name;
       const key = def.id + ':' + cycle;
-      if (until > 0 && until < BOSS_WARN && !this.announced.has(key + 'w')) {
+      // (told only to those within reach of its lair: the rest of the realm has the calendar and the Group Finder)
+      if (until > 0 && until < BOSS_WARN && !this.announced.has(key + 'w') && Math.hypot(P.x - def.x, P.z - def.z) < 450) {
         this.announced.add(key + 'w');
         this.host.system(`${name} will rise in ${def.where} in ${Math.ceil(until / 60)} minutes.`);
       }

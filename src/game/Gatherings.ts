@@ -73,11 +73,13 @@ export class Gatherings {
     }
     // The realm is told: before, and when it's lit
     const here = (g.def.land ?? 'counties') === landAt(P0.x);
-    if (g.until > 0 && g.until < GATHER_WARN && !this.told.has(g.cycle + 'w')) {
+    // (said in chat only near the fire: further off it's on the map, the calendar and the Group Finder)
+    const near = here && Math.hypot(P0.x - g.def.x, P0.z - g.def.z) < 600;
+    if (near && g.until > 0 && g.until < GATHER_WARN && !this.told.has(g.cycle + 'w')) {
       this.told.add(g.cycle + 'w');
       this.host.system(`${g.def.name} will be lit in ${g.def.where} in ${Math.max(1, Math.ceil(g.until / 60))} minute${g.until > 60 ? 's' : ''}.${here ? '' : ' (Over the water.)'}`);
     }
-    if (g.until < 0 && -g.until > 30 && !this.told.has(g.cycle + 'l')) {
+    if (near && g.until < 0 && -g.until > 30 && !this.told.has(g.cycle + 'l')) {
       this.told.add(g.cycle + 'l');
       this.host.system(g.def.lit + (here ? '' : ' (Over the water.)'));
     }
