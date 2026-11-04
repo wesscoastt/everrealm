@@ -1757,7 +1757,9 @@ export class Game implements GameApi {
     return null;
   }
   openShop(id = 'tamsin'): void { this.currentShop = SHOPS[id] ? id : 'tamsin'; this.hud.show('shop'); this.showPackBeside(); }
-  openTravel(from: string): void { this.currentPost = from; this.hallFare = false; this.hud.show('travel'); }
+  /** Where you stood when the Post's board opened: it closes when you walk off from there. */
+  private travelAt = new THREE.Vector3();
+  openTravel(from: string): void { this.currentPost = from; this.hallFare = false; this.travelAt.copy(this.player.position); this.hud.show('travel'); }
   /** A ferry calling at both these Post stops, and their places on her route. */
   private ferryBetween(a: string, b: string): { ship: ScheduledShip; from: number; to: number } | null {
     for (const ship of this.world.ferries) {
@@ -7267,8 +7269,10 @@ export class Game implements GameApi {
       if (Math.hypot(st.x - this.player.position.x, st.z - this.player.position.z) > 4) { this.hud.close('craft'); this.currentStation = null; }
     } else if (!this.hud.isOpen('craft')) this.currentStation = null;
     if (this.hud.isOpen('travel')) {
+      // (from where you opened it: the carter in the yard, the boatman, the map room; not the stop's old sign, which
+      // stands a good way off from the yard at most stops, so the board shut the moment it opened: owner 2026-11-04, Ansbury)
       const p = POSTS.find((x) => x.id === this.currentPost);
-      if (!p || Math.hypot(p.x - this.player.position.x, p.z - this.player.position.z) > 5) this.hud.close('travel');
+      if (!p || Math.hypot(this.travelAt.x - this.player.position.x, this.travelAt.z - this.player.position.z) > 5) this.hud.close('travel');
     }
     // The letters close when you walk away from the post box, and the book when you leave the broker
     if (this.hud.isOpen('mail') && this.mailAt && Math.hypot(this.mailAt.x - this.player.position.x, this.mailAt.z - this.player.position.z) > 5) this.hud.close('mail');
@@ -7977,6 +7981,7 @@ export class Game implements GameApi {
         case 'help': case '?':
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
+          this.hud.system('Dungeons: /joinrun takes you into the run your group is already in, if there is room.');
           this.hud.system('Message posts: the ✎ by the chat tabs (or /post <words>) leaves a few words where you stand for whoever comes by. Walk up to one to read it, say it helped, or report it.');
           this.hud.system('Safety: /ignore <name> hides someone\'s chat and whispers (/unignore, /ignored); /report <name> <what happened> tells the realm\'s keeper. Or click them.');
           this.hud.system('Chat: just type and press Enter, and everyone in the realm hears. /s <message> for those nearby only, /trade <message> for the Trade channel, /w <name> for a whisper, /g for your group and /gu for your guild. Also: /me <action> (e.g. /me tips a hat), /roll [max], /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
@@ -7993,6 +7998,12 @@ export class Game implements GameApi {
           const rm = arg.trim().match(/^(.+?)(?:\s+for\s+(\S+))?$/i), name = rm?.[1].trim() ?? '';
           if (!name) { this.hud.system("/release <character> [for <account>]: sets that character aside so its player can make it again (only that account, if named); the name keeps its place on the travellers' board. The realm's keeper only."); return; }
           this.hud.ask(`Set ${name} aside? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name, rm?.[2]).then((t) => this.hud.system(t)); }, () => {}, 30);
+          return;
+        }
+        case 'joinrun': {
+          // into the dungeon run your group is already in (a henchman steps out for you, if there's one in your place)
+          if (this.online.status !== 'online') { this.hud.system('That needs the online realm.'); return; }
+          this.dungeons.rejoin();
           return;
         }
         case 'post': {
