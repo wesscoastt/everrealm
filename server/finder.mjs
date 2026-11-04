@@ -20,6 +20,10 @@ const DUNGEON = /^gd-[a-z]{2,20}(-vet|-cor)?$/; // "-vet": the dungeon's veteran
 const TOWER = /^tw-\d{1,3}$/;
 const TOWER_PARTY = 5;
 const EVENTS_PER_SEC = 40;
+/** How long a run waits for a member who dropped out (a lost connection, a reload) to come back to it. */
+const BACK_MS = 15 * 60_000;
+/** A share of a creature's health, in ten-thousandths (as game/Dungeons.ts SHARE): a creature's whole health. */
+const WHOLE = 10_000;
 
 /** The places a group is short of, given the roles it has (as data/dungeons.ts missingRoles). */
 function missingRoles(have) {
@@ -81,6 +85,11 @@ export function finderInit(ctx) {
     const ids = [...r.members].filter((id) => players.has(id));
     r.members = new Set(ids);
     const missing = missingRoles(ids.map((id) => r.yes.get(id)));
+    // What the run remembers, for whoever comes back to it or comes in late: each creature's health taken
+    // (shares), who's dead, each room's state, and who dropped out and may come back
+    r.missing = missing;
+    r.state = { hits: new Map(), dead: new Set(), rooms: new Map() };
+    r.gone = new Map();
     if (ids.length > 1) social.formGroup(ids);
     for (const id of ids) {
       const p = players.get(id);
@@ -103,13 +112,29 @@ export function finderInit(ctx) {
     }
   }
 
-  function leaveRun(me) {
+  function leaveRun(me, dropped = false) {
     const r = runOf(me.id);
     if (!r) return;
     if (!r.started) { failCheck(r, `${me.name} has gone. Back in the queue.`, new Set([me.id])); return; }
+    // dropped out (not walked out): their place is kept a while, for them to come back to
+    if (dropped && me.key) r.gone.set(me.key, { role: r.yes.get(me.id) ?? 'damage', at: Date.now(), name: me.name });
     r.members.delete(me.id);
-    for (const id of r.members) { const p = players.get(id); if (p) send(p.ws, { t: 'dLeft', name: me.name }); }
-    if (!r.members.size) runs.delete(r.id);
+    for (const id of r.members) { const p = players.get(id); if (p) send(p.ws, { t: 'dLeft', name: me.name, back: dropped }); }
+    if (!r.members.size && !r.gone.size) runs.delete(r.id);
+  }
+
+  /** Into a run already under way: its members, its henchmen, and where the fight is, so they see what the others see. */
+  function rejoin(me, r, role) {
+    r.members.add(me.id);
+    r.yes.set(me.id, role);
+    r.gone.delete(me.key);
+    const others = [...r.members].filter((x) => x !== me.id && players.has(x));
+    send(me.ws, {
+      t: 'dStart', run: r.id, dungeon: r.dungeon, members: others.map((x) => ({ id: x, name: players.get(x).name, role: r.yes.get(x) })), missing: r.missing ?? [],
+      state: { hits: [...r.state.hits], dead: [...r.state.dead], rooms: [...r.state.rooms] },
+    });
+    for (const id of others) send(players.get(id).ws, { t: 'dBack', id: me.id, name: me.name, role });
+    log(`${me.name} into run ${r.id} (${r.dungeon}) under way`);
   }
 
   /** A Group Finder message; returns true if it was one. */
@@ -160,17 +185,48 @@ export function finderInit(ctx) {
         const now = Date.now();
         if (!me.dWindow || now - me.dWindow.at > 1000) me.dWindow = { at: now, n: 0 };
         if (++me.dWindow.n > EVENTS_PER_SEC) return true;
+        if (r.state) {
+          if (k === 'hit') r.state.hits.set(i, Math.min(WHOLE, (r.state.hits.get(i) ?? 0) + Math.round(dmg)));
+          else if (k === 'kill') r.state.dead.add(i);
+          else r.state.rooms.set(i, Math.max(r.state.rooms.get(i) ?? 0, Math.round(dmg)));
+        }
         for (const id of r.members) if (id !== me.id) { const p = players.get(id); if (p) send(p.ws, { t: 'dEv', from: me.id, k, i, dmg: Math.round(dmg) }); }
         return true;
       }
       case 'dLeave': leaveRun(me); return true;
+      case 'dRejoin': {
+        // Back into the run they dropped out of; or, late, into the one their group is in (if there's room)
+        if (runOf(me.id)) return true;
+        let r = Number.isInteger(msg.run) ? runs.get(msg.run) : null;
+        if (r && r.started && r.gone?.has(me.key) && Date.now() - r.gone.get(me.key).at < BACK_MS) { rejoin(me, r, r.gone.get(me.key).role); return true; }
+        const g = social.groupIds(me);
+        r = g ? [...runs.values()].find((x) => x.started && x.state && g.members.some((id) => x.members.has(id))) : null;
+        if (!r) { sys(me, 'Your group isn\'t in a dungeon.'); return true; }
+        const most = TOWER.test(r.dungeon) ? TOWER_PARTY : PARTY.length;
+        if (r.members.size >= most) { sys(me, 'Their run is full.'); return true; }
+        const roles = [...r.members].map((id) => r.yes.get(id));
+        const role = ROLES.has(msg.role) ? msg.role : missingRoles(roles)[0] ?? 'damage';
+        // a henchman steps out for them, if one was standing in their place
+        const k = (r.missing ?? []).indexOf(role);
+        if (k >= 0) r.missing = r.missing.filter((_, i) => i !== k);
+        rejoin(me, r, role);
+        return true;
+      }
     }
     return false;
   }
 
   function leave(me) {
     unqueue(me.id, false);
-    leaveRun(me);
+    leaveRun(me, true);
+  }
+  /** Coming into the world: if they dropped out of a run that's still going, they're asked whether to go back. */
+  function join(me) {
+    const now = Date.now();
+    for (const r of runs.values()) {
+      const g = r.gone?.get(me.key);
+      if (g && now - g.at < BACK_MS && r.members.size) { send(me.ws, { t: 'dResume', run: r.id, dungeon: r.dungeon }); return; }
+    }
   }
 
   // Matches, and ready checks that lapsed
@@ -181,7 +237,13 @@ export function finderInit(ctx) {
       if (r.started || now < r.until) continue;
       failCheck(r, 'Not everyone answered in time.', new Set([...r.members].filter((id) => !r.yes.has(id))));
     }
+    // places kept for those who dropped out lapse; a run nobody is left in goes
+    for (const r of [...runs.values()]) {
+      if (!r.started || !r.gone) continue;
+      for (const [k, g] of r.gone) if (now - g.at > BACK_MS) r.gone.delete(k);
+      if (!r.members.size && !r.gone.size) runs.delete(r.id);
+    }
   }, 2000);
 
-  return { handle, leave };
+  return { handle, leave, join };
 }

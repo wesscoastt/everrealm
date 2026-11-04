@@ -1359,6 +1359,7 @@ export class Game implements GameApi {
         groupGo: (d) => this.online.qGroup(d),
         answer: (run, yes, role) => this.online.qAnswer(run, yes, role),
         event: (run, k, i, dmg) => this.online.dEv(run, k, i, dmg),
+        rejoin: (run, role) => this.online.dRejoin(run, role),
         leaveRun: (run) => this.online.dLeave(run),
       },
       remote: (id) => this.online.remotes.get(id)?.model.root.position ?? null,
@@ -1389,9 +1390,16 @@ export class Game implements GameApi {
         this.audio.sting('victory');
       },
       qReady: (run, d, names, hench, secs) => (d.startsWith('tw-') ? this.towerReady(run, d, names, secs) : this.dungeons.onReady(run, d, names, hench, secs)),
-      dStart: (run, d, members, missing) => d.startsWith('tw-') ? void this.tower.begin(Number(d.slice(3)), { id: run, others: members.map((m) => ({ id: m.id, name: m.name })) }) : this.dungeons.onStart(run, d, members.map((m) => ({ id: m.id, name: m.name, role: (m.role === 'tank' || m.role === 'healer' ? m.role : 'damage') as Role })), henchmenFor(missing.filter((r): r is Role => r === 'tank' || r === 'healer' || r === 'damage')).map((h) => h.id)),
+      dStart: (run, d, members, missing, state) => d.startsWith('tw-') ? void this.tower.begin(Number(d.slice(3)), { id: run, others: members.map((m) => ({ id: m.id, name: m.name })) }) : this.dungeons.onStart(run, d, members.map((m) => ({ id: m.id, name: m.name, role: (m.role === 'tank' || m.role === 'healer' ? m.role : 'damage') as Role })), henchmenFor(missing.filter((r): r is Role => r === 'tank' || r === 'healer' || r === 'damage')).map((h) => h.id), state),
+      dResume: (run, d) => {
+        // still in it here: straight back in; otherwise asked
+        if (this.dungeons.inRun(run)) { this.dungeons.rejoin(run); return; }
+        const name = DUNGEON_BY_ID[d.replace(/-(vet|cor)$/, '')]?.name ?? 'the dungeon';
+        this.hud.ask(`Your group is still in ${name}. Go back in to them?`, () => this.dungeons.rejoin(run), () => {}, 60);
+      },
+      dBack: (id, name, role) => this.dungeons.onBack(id, name, (role === 'tank' || role === 'healer' ? role : 'damage') as Role),
       dEv: (from, k, i, dmg) => (this.tower.grouped ? this.tower.onEvent(from, k, i, dmg) : this.dungeons.onEvent(from, k, i, dmg)),
-      dLeft: (name) => { this.tower.onLeft(name); this.dungeons.onLeft(name); },
+      dLeft: (name, back) => { this.tower.onLeft(name); this.dungeons.onLeft(name, back); },
       ...this.social.hooks(),
       ...this.exchange.hooks(),
       ...this.mail.hooks(),
@@ -3534,7 +3542,16 @@ export class Game implements GameApi {
         if (!c) return;
         c.save.look = look;
         writeSave(c.save, saveKeyFor(id));
-        void uploadSave(c.save, true);
+        // If the realm holds a newer copy (played on another browser), the look goes onto that one instead,
+        // so the new look is kept and none of the progress is lost (owner 2026-11-04: looks save correctly)
+        void uploadSave(c.save, true)?.then(async (err) => {
+          if (!err) return;
+          const theirs = (await remoteCharacters())?.find((r) => r.name.toLowerCase() === c.save.name.toLowerCase())?.save;
+          if (!theirs) return;
+          theirs.look = look;
+          writeSave(theirs, saveKeyFor(id));
+          void uploadSave(theirs, true);
+        });
         g.previewLook(null);
         g.charId = null;
         g.selectCharacter(id);

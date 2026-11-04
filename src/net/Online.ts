@@ -123,6 +123,15 @@ export interface GuildView { name: string | null; motto: string; rank: GuildRank
   /** The week's mission (server/guilds.mjs). */
   mission?: { kind: string; title: string; ask: string; target: number; progress: number; done: boolean; reward: number; top: { name: string; n: number }[] } }
 
+/** A run's fight as the realm remembers it: each creature's health taken (ten-thousandths), the dead, each room's state. */
+export interface RunState { hits: [number, number][]; dead: number[]; rooms: [number, number][] }
+const pairs = (v: unknown): [number, number][] => (Array.isArray(v) ? v.filter((p): p is [number, number] => Array.isArray(p) && p.length === 2 && p.every((n) => Number.isFinite(n))) : []);
+function runState(v: unknown): RunState | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  return { hits: pairs(o.hits), dead: Array.isArray(o.dead) ? o.dead.filter((n): n is number => Number.isInteger(n)) : [], rooms: pairs(o.rooms) };
+}
+
 export interface OnlineHooks {
   scene: THREE.Scene;
   /** A rowing boat to put under someone rowing (game/Rowboat.ts). */
@@ -231,9 +240,13 @@ export interface OnlineHooks {
   /** The Group Finder (game/Dungeons.ts): the queue, a group ready, a run starting, and the run's blows and kills. */
   qStatus?(dungeon: string | null, n: number): void;
   qReady?(run: number, dungeon: string, names: string[], henchmen: number, secs: number): void;
-  dStart?(run: number, dungeon: string, members: { id: number; name: string; role: string }[], missing: string[]): void;
+  dStart?(run: number, dungeon: string, members: { id: number; name: string; role: string }[], missing: string[], state: RunState | null): void;
+  /** A run you dropped out of is still going: go back in? */
+  dResume?(run: number, dungeon: string): void;
+  /** A member back in the run (after dropping out), or in late, under a new id. */
+  dBack?(id: number, name: string, role: string): void;
   dEv?(from: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void;
-  dLeft?(name: string): void;
+  dLeft?(name: string, back: boolean): void;
   /** Our own mount's saddle, for drawing whoever rides behind us. */
   /** The mount we're on (where it stands, its halter), or null. */
   mySeat?(): { x: number; y: number; z: number; yaw: number; mount: string } | null;
@@ -414,9 +427,11 @@ export class Online {
       case 'bossDown': this.hooks.bossDown?.(String(m.id), Number(m.cycle), Array.isArray(m.by) ? (m.by as unknown[]).map(String) : []); break;
       case 'qStatus': this.hooks.qStatus?.(typeof m.dungeon === 'string' ? m.dungeon : null, Number(m.n) || 0); break;
       case 'qReady': this.hooks.qReady?.(Number(m.run), String(m.dungeon), Array.isArray(m.names) ? (m.names as unknown[]).map(String) : [], Number(m.henchmen) || 0, Number(m.secs) || 30); break;
-      case 'dStart': this.hooks.dStart?.(Number(m.run), String(m.dungeon), Array.isArray(m.members) ? (m.members as { id: number; name: string; role: string }[]) : [], Array.isArray(m.missing) ? (m.missing as unknown[]).map(String) : []); break;
+      case 'dStart': this.hooks.dStart?.(Number(m.run), String(m.dungeon), Array.isArray(m.members) ? (m.members as { id: number; name: string; role: string }[]) : [], Array.isArray(m.missing) ? (m.missing as unknown[]).map(String) : [], runState(m.state)); break;
+      case 'dResume': this.hooks.dResume?.(Number(m.run), String(m.dungeon)); break;
+      case 'dBack': this.hooks.dBack?.(Number(m.id), String(m.name), String(m.role)); break;
       case 'dEv': if (m.k === 'hit' || m.k === 'kill' || m.k === 'room') this.hooks.dEv?.(Number(m.from), m.k, Number(m.i), Number(m.dmg) || 0); break;
-      case 'dLeft': this.hooks.dLeft?.(String(m.name)); break;
+      case 'dLeft': this.hooks.dLeft?.(String(m.name), !!m.back); break;
       case 'uGrant': this.hooks.uGrant?.(String(m.id), !!m.ok, Number(m.n) || 0, Number(m.cap) || 0, String(m.first ?? ''), !!m.gone); break;
       case 'uLedger': if (m.ledger && typeof m.ledger === 'object') this.hooks.uLedger?.(m.ledger as Record<string, { cap: number; found: { n: number; name: string }[] }>); break;
     }
@@ -675,6 +690,8 @@ export class Online {
   qGroup(dungeon: string): void { this.emit({ t: 'qGroup', dungeon }); }
   qAnswer(run: number, yes: boolean, role: string): void { this.emit({ t: 'qAnswer', run, yes, role }); }
   dEv(run: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void { this.emit({ t: 'dEv', run, k, i, dmg }); }
+  /** Back into a run (the one you dropped out of), or into your group's, late. */
+  dRejoin(run?: number, role?: string): void { this.emit({ t: 'dRejoin', run, role }); }
   dLeave(run: number): void { this.emit({ t: 'dLeave', run }); }
   exPost(item: string, n: number, price: number, shop?: string): void { this.emit({ t: 'exPost', item, n, price, shop }); }
   /** Orders: ask for goods at a price (the marks held in the book), fill someone's, or withdraw your own. */

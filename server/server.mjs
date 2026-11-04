@@ -742,6 +742,7 @@ wss.on('connection', (ws, req) => {
       mail.join(me);
       homes.join(me);
       signs.join(me);
+      finder.join(me);
       for (const p of players.values()) if (p !== me && p.land === me.land) send(p.ws, { t: 'join', player: pub(me) });
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);
@@ -758,7 +759,7 @@ wss.on('connection', (ws, req) => {
         // A tool by name, or a weapon by its item id (drawn from the item in each game)
         if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
-        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon|boat)_[a-z]{2,16}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
+        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon|boat)_[a-z][a-z_]{1,39}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
         // Riding with someone in your group, close by, on a mount with a seat still free
         const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
         const group = rider && social.groupIds(me);
@@ -791,7 +792,7 @@ wss.on('connection', (ws, req) => {
         return;
       }
       case 'look': {
-        if (msg.look && typeof msg.look === 'object' && JSON.stringify(msg.look).length < 2000) { me.look = msg.look; broadcast({ t: 'look', id: me.id, look: me.look }, me); }
+        if (msg.look && typeof msg.look === 'object' && JSON.stringify(msg.look).length < 4000) { me.look = msg.look; broadcast({ t: 'look', id: me.id, look: me.look }, me); }
         break;
       }
       case 'chat': {

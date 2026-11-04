@@ -104,21 +104,26 @@ const HOME_PAGES: Record<HomeTab, string> = {
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!));
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
-const CLOTH = ['#3a5a8a', '#2e3a5a', '#1e2a4a', '#5a7aa8', '#7a2a24', '#a8382c', '#8a4a3a', '#c86a3a', '#3f6a3a', '#2a4a2a', '#4a5a3a', '#7a8a4a', '#5a2f6a', '#7a4a8a', '#8a6a2a', '#c8a050', '#5a5048', '#3a3a3a', '#1e1a18', '#e8dcc0', '#c8c0a8', '#6a3a4a'];
+/** Everyday cloth, then the dark ones: jet, oxblood, deep plum, raven blue, slate, bone (owner 2026-11-04: gothic and dark outfits). */
+const DARK = ['#0c0a0e', '#4a0e14', '#2e1428', '#141a2e', '#2a2e34', '#d8d0c0'];
+const CLOTH = ['#3a5a8a', '#2e3a5a', '#1e2a4a', '#5a7aa8', '#7a2a24', '#a8382c', '#8a4a3a', '#c86a3a', '#3f6a3a', '#2a4a2a', '#4a5a3a', '#7a8a4a', '#5a2f6a', '#7a4a8a', '#8a6a2a', '#c8a050', '#5a5048', '#3a3a3a', '#1e1a18', '#e8dcc0', '#c8c0a8', '#6a3a4a', ...DARK];
 const DYEABLE = new Set(['tunic', 'shirt', 'trim', 'trousers', 'hose', 'boots', 'cape', 'hatColor', 'gloves', 'belt']);
 const OPT = {
   hairRoots: ['#7fe05a', '#3ad8c8', '#e84ab8', '#f2d75a', '#4a8aff', '#f4f4f4', '#c83030', '#a86ae8'],
-  skin: ['#fbe3cf', '#f6d8bc', '#f0c8a0', '#e8b48a', '#e0b090', '#d09870', '#c88a62', '#a8704a', '#8a5636', '#6a4028', '#5a3420', '#4a2a18'],
-  eyes: ['#3a5a7a', '#4a7a8a', '#7a8a9a', '#3a6a3a', '#5a3a1a', '#8a6a2a', '#6a6a7a', '#2a2a2a', '#7a5a2a'],
-  hair: ['#0e0c0c', '#1e1612', '#3a2418', '#5a3a22', '#7a5a3a', '#6a2a1a', '#a8642e', '#c87a3a', '#e2c070', '#f0e0b0', '#cfc8b8', '#e8e4dc', '#9a948c', '#3a2a5a', '#2a3a6a', '#5a1a2a'],
+  skin: ['#fff1e8', '#efe6e2', '#fbe3cf', '#f6d8bc', '#f0c8a0', '#e8b48a', '#e0b090', '#d09870', '#c88a62', '#a8704a', '#8a5636', '#6a4028', '#5a3420', '#4a2a18', '#3a2214', '#c8a478', '#b08a5c'],
+  eyes: ['#3a5a7a', '#4a7a8a', '#7a8a9a', '#3a6a3a', '#5a3a1a', '#8a6a2a', '#6a6a7a', '#2a2a2a', '#7a5a2a', '#9ab8d0', '#6a8a3a', '#a89a40'],
+  hair: ['#0e0c0c', '#1e1612', '#3a2418', '#5a3a22', '#7a5a3a', '#6a2a1a', '#a8642e', '#c87a3a', '#e2c070', '#f0e0b0', '#cfc8b8', '#e8e4dc', '#9a948c', '#3a2a5a', '#2a3a6a', '#5a1a2a', '#8a1a24', '#5a2a7a', '#2a6a6a', '#b8d0e0', '#d88aa8', '#7a7a80'],
   tunic: CLOTH,
   shirt: CLOTH,
-  trim: ['#e0bd64', '#c8b890', '#a8382c', '#5fd0e6', '#e8dcc0', '#3a3a3a', '#8a6a2a', '#7a4a8a', '#3f6a3a', '#c8ccd2'],
-  trousers: ['#4a3a2c', '#3a3430', '#2a2a34', '#4a4034', '#5a4a3a', '#2e3a2a', '#1e1a18', '#5a2a24', '#2e3a5a', '#7a6a4a'],
+  trim: ['#e0bd64', '#c8b890', '#a8382c', '#5fd0e6', '#e8dcc0', '#3a3a3a', '#8a6a2a', '#7a4a8a', '#3f6a3a', '#c8ccd2', '#0c0a0e', '#7a0e18', '#6a6a72'],
+  trousers: ['#4a3a2c', '#3a3430', '#2a2a34', '#4a4034', '#5a4a3a', '#2e3a2a', '#1e1a18', '#5a2a24', '#2e3a5a', '#7a6a4a', '#0c0a0e', '#4a0e14', '#2e1428'],
   hose: ['#e8dcc0', '#c8c0a8', '#7a2a24', '#2e3a5a', '#3f6a3a', '#3a3a3a', '#8a6a2a'],
-  boots: ['#3a2a1c', '#2a1e14', '#1e1a18', '#5a4030', '#7a5a3a', '#4a2a2a', '#2e2e34', '#c8b890'],
-  cape: ['none', '#7a2a24', '#a8382c', '#2f4a7a', '#1e2a4a', '#2f5a3a', '#4a2a3a', '#5a2f6a', '#e8dcc0', '#2a2420', '#8a6a2a'],
-  hatColor: ['#4a5a3a', '#6a3a2a', '#a8382c', '#2e3a5a', '#d8d0b8', '#3a3a32', '#9aa0a8', '#5a2f6a', '#c8a050', '#1e1a18'],
+  boots: ['#3a2a1c', '#2a1e14', '#1e1a18', '#5a4030', '#7a5a3a', '#4a2a2a', '#2e2e34', '#c8b890', '#0c0a0e', '#4a0e14'],
+  cape: ['none', '#7a2a24', '#a8382c', '#2f4a7a', '#1e2a4a', '#2f5a3a', '#4a2a3a', '#5a2f6a', '#e8dcc0', '#2a2420', '#8a6a2a', '#0c0a0e', '#4a0e14', '#2e1428'],
+  hatColor: ['#4a5a3a', '#6a3a2a', '#a8382c', '#2e3a5a', '#d8d0b8', '#3a3a32', '#9aa0a8', '#5a2f6a', '#c8a050', '#1e1a18', '#0c0a0e', '#4a0e14'],
+  lips: ['none', '#a83a3a', '#c86a6a', '#7a1a2a', '#4a0e1e', '#2e1428', '#1a1014', '#b8786a'],
+  collar: ['none', '#0c0a0e', '#4a0e14', '#2e1428', '#141a2e', '#d8d0c0', '#3a5a8a', '#c8a050'],
+  choker: ['none', '#0c0a0e', '#4a0e14', '#d8b04a', '#c8ccd2', '#2e1428'],
   paint: ['none', '#2a4a8a', '#8a2a24', '#1e1e1e', '#e8e4dc', '#3f6a3a'],
   earring: ['none', '#d8b04a', '#c8ccd2', '#b87333'],
   gloves: ['none', '#4a3020', '#2a1e14', '#7a5a3a', '#1e1a18', '#c8b890', '#7a2a24'],
@@ -129,13 +134,31 @@ const TAB_NAME: Record<Tab, string> = { origin: 'Origin', calling: 'Calling', bo
 const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids', 'Bob', 'Ponytail', 'Bun', 'Curls', 'Mohawk', 'Undercut', 'Twin tails', 'Wild mane', 'Bright roots'];
 const FACIAL = ['None', 'Full beard', 'Stubble', 'Moustache', 'Goatee', 'Chinstrap', 'Long beard', 'Mutton chops', 'Forked beard'];
 const BROWS = ['Straight', 'Heavy', 'Arched', 'Fine'];
+const EYE_SHAPES = ['Almond', 'Round', 'Narrow', 'Hooded'];
 const TOPS = ['Tunic', 'Doublet', 'Robe', 'Vest', 'Gambeson', 'Gown', 'Jerkin', 'Long coat'];
 const LEGS = ['Trousers', 'Breeches', 'Kilt', 'Wide trousers'];
 const SHOES = ['Boots', 'Tall boots', 'Shoes'];
 const AGES: [string, number][] = [['Young', 0.05], ['Grown', 0.35], ['Weathered', 0.62], ['Old', 0.9]];
-const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band']];
+const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band'], ['Top hat', 'tophat'], ['Mourning veil', 'veil']];
 /** Festival hats: in the list only for a character that has unlocked them. */
 const FEST_HATS: [string, Appearance['hat']][] = [["Fool's cap", 'fool'], ['Garland', 'garland'], ['Antlers', 'antlers'], ['Harvest crown', 'sheaf'], ['Turnip lantern', 'turnip'], ['Pumpkin head', 'pumpkin'], ['Goose Fair hat', 'feathered'], ['Bobble hat', 'bobble']];
+/**
+ * Looks to start from: the clothes, hair and finish of a kind of person, put over the body, skin and eyes
+ * you already have (pick one, then change anything). A beard only goes on a broad frame.
+ */
+const PRESETS: { name: string; look: Partial<Appearance> }[] = [
+  { name: 'Mourner', look: { top: 7, tunic: '#0c0a0e', shirt: '#4a0e14', trim: '#d8d0c0', legs: 0, trousers: '#0c0a0e', shoes: 1, boots: '#0c0a0e', cape: '#0c0a0e', collar: '#2e1428', choker: '#0c0a0e', gloves: '#0c0a0e', belt: '#0c0a0e', hat: 'veil', hatColor: '#0c0a0e', hair: '#0e0c0c', hairStyle: 1, lips: '#4a0e1e', kohl: true, earring: '#c8ccd2', paint: null, facial: 0 } },
+  { name: 'Raven', look: { top: 6, tunic: '#0c0a0e', shirt: '#2a2e34', trim: '#7a0e18', legs: 0, trousers: '#0c0a0e', shoes: 1, boots: '#0c0a0e', cape: '#4a0e14', collar: '#4a0e14', choker: null, gloves: '#0c0a0e', belt: '#4a0e14', hat: 'none', hair: '#0e0c0c', hairStyle: 10, lips: '#1a1014', kohl: true, earring: '#c8ccd2', paint: null } },
+  { name: 'Night watch', look: { top: 4, tunic: '#141a2e', shirt: '#2a2e34', trim: '#6a6a72', legs: 0, trousers: '#1e1a18', shoes: 0, boots: '#1e1a18', cape: '#0c0a0e', collar: null, choker: null, gloves: '#2a1e14', belt: '#1e1a18', hat: 'hood', hatColor: '#141a2e', lips: null, kohl: false, paint: null } },
+  { name: 'Hedge witch', look: { top: 2, tunic: '#2e1428', shirt: '#3f6a3a', trim: '#8a6a2a', legs: 0, trousers: '#2e3a2a', shoes: 2, boots: '#2a1e14', cape: '#2f5a3a', collar: null, choker: '#2e1428', gloves: null, belt: '#5a4030', hat: 'wide', hatColor: '#1e1a18', hairStyle: 12, lips: '#7a1a2a', kohl: true, earring: '#b87333', paint: null } },
+  { name: 'Courtier', look: { top: 1, tunic: '#5a1a2a', shirt: '#e8dcc0', trim: '#e0bd64', legs: 1, trousers: '#1e1a18', hose: '#e8dcc0', shoes: 2, boots: '#1e1a18', cape: '#5a2f6a', collar: '#e8dcc0', choker: '#d8b04a', gloves: '#c8b890', belt: '#c8a050', hat: 'beret', hatColor: '#5a2f6a', lips: '#a83a3a', kohl: false, earring: '#d8b04a', paint: null } },
+  { name: 'Scholar', look: { top: 2, tunic: '#1e2a4a', shirt: '#c8c0a8', trim: '#e0bd64', legs: 0, trousers: '#2a2a34', shoes: 2, boots: '#3a2a1c', cape: null, collar: '#1e2a4a', choker: null, gloves: null, belt: '#3b2618', hat: 'cap', hatColor: '#1e2a4a', lips: null, kohl: false, paint: null } },
+  { name: 'Harbour hand', look: { top: 3, tunic: '#2e3a5a', shirt: '#e8dcc0', trim: '#a8382c', legs: 3, trousers: '#c8c0a8', shoes: 0, boots: '#2a1e14', cape: null, collar: null, choker: null, gloves: null, belt: '#5a4030', hat: 'kerchief', hatColor: '#a8382c', lips: null, kohl: false, earring: '#d8b04a', paint: null } },
+  { name: 'Shepherd', look: { top: 0, tunic: '#7a5a3a', shirt: '#c8c0a8', trim: '#3f6a3a', legs: 0, trousers: '#4a4034', shoes: 0, boots: '#3a2a1c', cape: '#2f5a3a', collar: null, choker: null, gloves: '#7a5a3a', belt: '#3b2618', hat: 'straw', lips: null, kohl: false, paint: null } },
+  { name: 'Wanderer', look: { top: 7, tunic: '#5a5048', shirt: '#8a4a3a', trim: '#c8b890', legs: 0, trousers: '#3a3430', shoes: 1, boots: '#2a1e14', cape: '#2a2420', collar: null, choker: null, gloves: '#2a1e14', belt: '#3b2618', hat: 'wide', hatColor: '#3a3a32', lips: null, kohl: false, paint: null } },
+  { name: 'Fen poacher', look: { top: 6, tunic: '#2e3a2a', shirt: '#4a5a3a', trim: '#7a8a4a', legs: 0, trousers: '#2e3a2a', shoes: 1, boots: '#2a1e14', cape: '#4a5a3a', collar: null, choker: null, gloves: '#4a3020', belt: '#5a4030', hat: 'hood', hatColor: '#4a5a3a', lips: null, kohl: false, paint: '#3f6a3a' } },
+];
+
 const PADS: [string, string | null][] = [['None', null], ['Iron', '#8c939d'], ['Leather', '#6a4a2a']];
 const NAMES = ['Rowan', 'Merrin', 'Corwen', 'Ysolde', 'Hallam', 'Briony', 'Teague', 'Linden', 'Osgar', 'Wilmot', 'Sabeth', 'Edric', 'Nettle', 'Clement', 'Avice', 'Hesper', 'Tamar', 'Gethin', 'Orla', 'Piran'];
 
@@ -754,23 +777,26 @@ export class Frontend {
     } else if (this.tab === 'calling') {
       pane.innerHTML = `<p class="lead">How do you fight? No calling is stronger than another. It's for life, so choose the one you'd like to be: from level 25 a master of another calling will teach you a few of theirs.</p>${CALLINGS.map((c) => callingCard(c, c.id === this.calling)).join('')}`;
     } else if (this.tab === 'body') {
-      pane.innerHTML = `<label>MALE OR FEMALE</label>${chips('frame', [['Male', 'm'], ['Female', 'f']], L.frame ?? 'm')}
+      pane.innerHTML = `<label>START FROM A LOOK</label><div class="chips">${PRESETS.map((p, i) => `<button class="chip" data-pre="${i}">${p.name}</button>`).join('')}</div><p class="lead">Clothes, hair and finish to start from, over your own body and face. Change anything after.</p><label>MALE OR FEMALE</label>${chips('frame', [['Male', 'm'], ['Female', 'f']], L.frame ?? 'm')}
         <label>SKIN</label>${sw('skin', L.skin)}
         ${slider('build', 'BUILD', 0.86, 1.16, 'Slight', 'Broad')}${slider('height', 'HEIGHT', 0.9, 1.08, 'Short', 'Tall')}
         <label>AGE</label>${chips('age', AGES, L.age)}`;
     } else if (this.tab === 'face') {
       pane.innerHTML = `<label>EYES</label>${sw('eyes', L.eyes)}
+        <label>EYE SHAPE</label>${chips('eyesh', EYE_SHAPES.map((t, i) => [t, i]), L.eyeShape ?? 0)}
         <label>BROWS</label>${chips('brows', BROWS.map((t, i) => [t, i]), L.brows ?? 0)}
-        <label>DETAILS</label><div class="chips">${(['lashes', 'freckles', 'scar'] as const).map((k) => `<button class="chip ${L[k] ? 'sel' : ''}" data-t="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+        <label>LIPS</label>${sw('lips', L.lips)}
+        <label>DETAILS</label><div class="chips">${(['lashes', 'kohl', 'freckles', 'scar'] as const).map((k) => `<button class="chip ${L[k] ? 'sel' : ''}" data-t="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
         <label>FACE PAINT</label>${sw('paint', L.paint)}
-        <label>EARRING</label>${sw('earring', L.earring)}`;
+        <label>EARRING</label>${sw('earring', L.earring)}
+        <label>CHOKER</label>${sw('choker', L.choker)}`;
     } else if (this.tab === 'hair') {
       pane.innerHTML = `<label>STYLE</label>${chips('hs', HAIR_STYLES.map((t, i) => [t, i]), L.hairStyle)}<label>COLOUR</label>${sw('hair', L.hair)}${L.hairStyle === 13 ? `<label>ROOTS</label>${sw('hairRoots', L.hairRoots ?? '#7fe05a')}` : ''}
         <label>FACIAL HAIR</label>${chips('facial', FACIAL.map((t, i) => [t, i]), L.facial ?? (L.beard ? 1 : 0))}`;
     } else if (this.tab === 'outfit') {
       pane.innerHTML = `<label>TOP</label>${chips('top', TOPS.map((t, i) => [t, i]), L.top ?? 0)}
         <label>MAIN CLOTH</label>${sw('tunic', L.tunic)}<label>SHIRT AND SLEEVES</label>${sw('shirt', L.shirt ?? null)}<label>TRIM</label>${sw('trim', L.trim)}
-        <label>CLOAK</label>${sw('cape', L.cape)}${L.cape && capes.length > 1 ? `<label>CLOAK DESIGN</label>${chips('cdes', capes, L.capeDesign ?? null)}` : ''}<label>SHOULDERS</label>${chips('pad', PADS, L.shoulderPads ?? null)}`;
+        <label>CLOAK</label>${sw('cape', L.cape)}${L.cape && capes.length > 1 ? `<label>CLOAK DESIGN</label>${chips('cdes', capes, L.capeDesign ?? null)}` : ''}<label>HIGH COLLAR</label>${sw('collar', L.collar)}<label>SHOULDERS</label>${chips('pad', PADS, L.shoulderPads ?? null)}`;
     } else {
       pane.innerHTML = `<label>LEGS</label>${chips('legs', LEGS.map((t, i) => [t, i]), L.legs ?? 0)}<label>TROUSERS</label>${sw('trousers', L.trousers)}
         ${L.legs === 1 || L.legs === 2 ? `<label>HOSE</label>${sw('hose', L.hose ?? null)}` : ''}
@@ -789,12 +815,12 @@ ${pets.length > 1 ? `<label>PET</label>${chips('pet', pets, L.pet ?? null)}` : '
     pane.querySelectorAll<HTMLElement>('[data-o]').forEach((b) => b.addEventListener('click', () => { this.origin = b.dataset.o!; this.ctx.sfx('click'); this.renderPane(); }));
     pane.querySelectorAll<HTMLElement>('[data-age]').forEach((b) => b.addEventListener('click', () => { this.look.age = AGES[Number(b.dataset.age)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-hs]').forEach((b) => b.addEventListener('click', () => { this.look.hairStyle = Number(b.dataset.hs); changed(); }));
-    const pickNum = (attr: string, key: 'facial' | 'brows' | 'top' | 'legs' | 'shoes', items: unknown[]) => pane.querySelectorAll<HTMLElement>(`[data-${attr}]`).forEach((b) => b.addEventListener('click', () => {
+    const pickNum = (attr: string, key: 'facial' | 'brows' | 'eyeShape' | 'top' | 'legs' | 'shoes', items: unknown[]) => pane.querySelectorAll<HTMLElement>(`[data-${attr}]`).forEach((b) => b.addEventListener('click', () => {
       this.look[key] = Number(b.dataset[attr]);
       if (key === 'facial') this.look.beard = this.look.facial! > 0;
       void items; changed();
     }));
-    pickNum('facial', 'facial', FACIAL); pickNum('brows', 'brows', BROWS); pickNum('top', 'top', TOPS); pickNum('legs', 'legs', LEGS); pickNum('shoes', 'shoes', SHOES);
+    pickNum('facial', 'facial', FACIAL); pickNum('brows', 'brows', BROWS); pickNum('eyesh', 'eyeShape', EYE_SHAPES); pickNum('top', 'top', TOPS); pickNum('legs', 'legs', LEGS); pickNum('shoes', 'shoes', SHOES);
     pane.querySelectorAll<HTMLElement>('[data-frame]').forEach((b) => b.addEventListener('click', () => {
       const f = Number(b.dataset.frame) === 1 ? 'f' : 'm';
       if (f === this.look.frame) return;
@@ -804,12 +830,21 @@ ${pets.length > 1 ? `<label>PET</label>${chips('pet', pets, L.pet ?? null)}` : '
       else { this.look.lashes = false; if ([1, 4, 5, 6, 7, 11].includes(this.look.hairStyle ?? 0)) this.look.hairStyle = 0; }
       changed();
     }));
+    pane.querySelectorAll<HTMLElement>('[data-pre]').forEach((b) => b.addEventListener('click', () => {
+      // the preset's clothes and finish over this body and face: frame, skin, eyes, build, height, age,
+      // a pet, a costume and a cloak design are never touched (nor anything worn from the game's armour)
+      const p = { ...PRESETS[Number(b.dataset.pre)].look };
+      if (this.look.frame === 'f') delete p.facial;
+      Object.assign(this.look, p);
+      if (p.facial === 0) this.look.beard = false;
+      changed();
+    }));
     pane.querySelectorAll<HTMLElement>('[data-hat]').forEach((b) => b.addEventListener('click', () => { this.look.hat = hats[Number(b.dataset.hat)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-cdes]').forEach((b) => b.addEventListener('click', () => { this.look.capeDesign = capes[Number(b.dataset.cdes)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pet]').forEach((b) => b.addEventListener('click', () => { this.look.pet = pets[Number(b.dataset.pet)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-cos]').forEach((b) => b.addEventListener('click', () => { this.look.costume = costumes[Number(b.dataset.cos)][1]; changed(); }));
     pane.querySelectorAll<HTMLElement>('[data-pad]').forEach((b) => b.addEventListener('click', () => { this.look.shoulderPads = PADS[Number(b.dataset.pad)][1]; changed(); }));
-    pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
+    pane.querySelectorAll<HTMLElement>('[data-t]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.t as 'lashes' | 'kohl' | 'freckles' | 'scar'; this.look[k] = !this.look[k]; changed(); }));
     pane.querySelectorAll<HTMLInputElement>('[data-s]').forEach((s) => s.addEventListener('input', () => {
       this.look[s.dataset.s as 'build' | 'height'] = Number(s.value);
       this.ctx.preview(this.look);

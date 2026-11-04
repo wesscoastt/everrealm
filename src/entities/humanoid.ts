@@ -72,7 +72,9 @@ export interface Appearance {
     | 'tricorn'
     /** The store's outfits (data/costumes.ts): a star-reader's tall hat, an archer's cowl and scarf, a
      *  gravecaller's skull and bone crown, a sabre cat's pelt worn as a hood. */
-    | 'magus' | 'cowl' | 'gravecrown' | 'sabrehood';
+    | 'magus' | 'cowl' | 'gravecrown' | 'sabrehood'
+    /** Everyday dark dress: a tall hat with a narrow brim, and a little hat pinned with a veil over the eyes. */
+    | 'tophat' | 'veil';
   hatColor?: string;
   /** A costume worn over all of it (data/costumes.ts), or none. */
   costume?: string | null;
@@ -84,6 +86,16 @@ export interface Appearance {
   facial?: number;
   /** 0 straight, 1 heavy, 2 arched, 3 fine. */
   brows?: number;
+  /** 0 almond, 1 round, 2 narrow, 3 hooded. */
+  eyeShape?: number;
+  /** Colour on the lips, or none (the skin's own). */
+  lips?: string | null;
+  /** A dark line round the eyes, winged at the corner. */
+  kohl?: boolean;
+  /** A high collar standing up behind the head, in this colour (everyday dress; a costume can have its own). */
+  collar?: string | null;
+  /** A band close round the neck with a drop at the front, in this colour. */
+  choker?: string | null;
   freckles?: boolean;
   scar?: boolean;
   /** Face paint colour (a band across the eyes), or none. */
@@ -271,23 +283,32 @@ function faceTexture(a: Appearance): THREE.CanvasTexture {
   }
   if (a.paint) { x.fillStyle = a.paint; x.fillRect(5, 23, 54, 11); }
   // Eyes: almond whites, a coloured iris with a dark pupil and a catch of light, a lid line above
+  // (in four shapes: almond, round, narrow and hooded; kohl rims them dark and wings the outer corner)
+  const es = a.eyeShape ?? 0;
   for (const cx of [19, 45]) {
-    px('#f4efe6', cx - 5, 26, 10, 4); px('#f4efe6', cx - 4, 25, 8, 1); px('#f4efe6', cx - 3, 30, 6, 1);
-    px(a.eyes, cx - 2, 25, 5, 6);
-    px(shade(a.eyes, 0.6), cx - 2, 25, 5, 1);
-    px('#120c08', cx - 1, 26, 3, 3);
-    px('#ffffff', cx + 1, 26, 1, 1);
-    px(shade(a.skin, 0.55), cx - 5, 24, 10, 1); px(shade(a.skin, 0.55), cx - 6, 25, 1, 1);
-    px(shade(a.skin, 0.86), cx - 4, 31, 8, 1);
-    if (a.lashes) { px('#1a120c', cx - 6, 24, 12, 1); px('#1a120c', cx + (cx < 32 ? -7 : 6), 23, 1, 1); }
+    const out = cx < 32 ? -1 : 1;
+    if (es === 1) { px('#f4efe6', cx - 5, 25, 10, 5); px('#f4efe6', cx - 4, 24, 8, 1); px('#f4efe6', cx - 4, 30, 8, 1); }
+    else if (es === 2) { px('#f4efe6', cx - 5, 26, 10, 3); px('#f4efe6', cx - 3, 29, 6, 1); }
+    else { px('#f4efe6', cx - 5, 26, 10, 4); px('#f4efe6', cx - 4, 25, 8, 1); px('#f4efe6', cx - 3, 30, 6, 1); }
+    const top = es === 1 ? 24 : es === 2 ? 26 : 25, ih = es === 1 ? 7 : es === 2 ? 4 : 6;
+    px(a.eyes, cx - 2, top, 5, ih);
+    px(shade(a.eyes, 0.6), cx - 2, top, 5, 1);
+    px('#120c08', cx - 1, top + 1, 3, es === 2 ? 2 : 3);
+    px('#ffffff', cx + 1, top + 1, 1, 1);
+    px(shade(a.skin, 0.55), cx - 5, top - 1, 10, 1); px(shade(a.skin, 0.55), cx - 6, top, 1, 1);
+    // hooded: the lid comes down over the top of the eye
+    if (es === 3) { px(shade(a.skin, 0.9), cx - 5, 24, 10, 2); px(shade(a.skin, 0.62), cx - 5, 26, 10, 1); }
+    px(shade(a.skin, 0.86), cx - 4, es === 1 ? 31 : 31, 8, 1);
+    if (a.kohl) { px('#120a0c', cx - 5, top - 1, 10, 1); px('#120a0c', cx - 4, es === 1 ? 30 : es === 2 ? 29 : 30, 8, 1); px('#120a0c', cx + out * 5, top - 1, 1, 2); px('#120a0c', cx + out * 6, top - 2, 1, 1); }
+    if (a.lashes) { px('#1a120c', cx - 6, top - 1, 12, 1); px('#1a120c', cx + (cx < 32 ? -7 : 6), top - 2, 1, 1); }
   }
   // Under the nose (the nose itself stands out in 3D), and the mouth
   px(shade(a.skin, 0.78), 28, 40, 2, 1); px(shade(a.skin, 0.78), 34, 40, 2, 1);
   px(shade(a.skin, 0.88), 27, 41, 10, 1);
-  const lip = fem ? shade(a.skin, 0.72) : shade(a.skin, 0.78);
+  const lip = a.lips ? a.lips : fem ? shade(a.skin, 0.72) : shade(a.skin, 0.78);
   px(lip, 26, 46, 12, 1);
-  px(shade(a.skin, 0.5), 25, 47, 14, 1); px(shade(a.skin, 0.62), 24, 46, 1, 1); px(shade(a.skin, 0.62), 39, 46, 1, 1);
-  px(fem ? 'rgba(190,80,80,0.45)' : shade(a.skin, 0.82), 27, 48, 10, 2);
+  px(a.lips ? shade(a.lips, 0.6) : shade(a.skin, 0.5), 25, 47, 14, 1); px(shade(a.skin, 0.62), 24, 46, 1, 1); px(shade(a.skin, 0.62), 39, 46, 1, 1);
+  px(a.lips ? shade(a.lips, 1.08) : fem ? 'rgba(190,80,80,0.45)' : shade(a.skin, 0.82), 27, 48, 10, 2);
   px(shade(a.skin, 0.9), 28, 52, 8, 1);
   // Age: lines at the eyes, across the brow and down from the nose
   if (age > 0.45) { px(shade(a.skin, 0.84), 9, 27, 2, 1); px(shade(a.skin, 0.84), 53, 27, 2, 1); px(shade(a.skin, 0.84), 22, 42, 1, 4); px(shade(a.skin, 0.84), 41, 42, 1, 4); }
@@ -1091,6 +1112,11 @@ export class Humanoid {
     // Ears, and an earring
     for (const side of [1, -1]) part(this.head, rbox(0.06, 0.12, 0.08, 0.02), look.skin, side * 0.23, 0.27, 0);
     if (look.earring) part(this.head, rbox(0.03, 0.06, 0.03, 0.01), look.earring, 0.25, 0.18, 0.01);
+    if (look.choker) {
+      // close round the neck, under the jaw, with a small drop at the front
+      part(this.head, rbox(0.3, 0.045, 0.27, 0.012), look.choker, 0, -0.005, -0.01);
+      part(this.head, rbox(0.045, 0.06, 0.02, 0.008), look.choker === '#0c0a0e' ? '#7a0e18' : shade(look.choker, 1.35), 0, -0.04, 0.13);
+    }
     // The nose, standing out from the face (broader on a broad frame). It ends at the painted nose
     // shadow (face row 41), well above the mouth (rows 46-49), so the camera looking down sees both.
     const nw = look.frame === 'f' ? 0.06 : 0.07;
@@ -1526,8 +1552,9 @@ export class Humanoid {
    * the back or at the belt, and skulls or crow feathers on the shoulders.
    */
   private buildGear(part: (p: THREE.Object3D, g: THREE.BufferGeometry, c: string | THREE.Material, x: number, y: number, z: number) => THREE.Mesh, build: number, chestW: number, waistW: number, long: boolean, top: number): void {
-    const G = this.look.gear;
-    if (!G) return;
+    const G = { ...(this.look.gear ?? {}) };
+    if (!G.collar && this.look.collar) G.collar = this.look.collar;
+    if (!Object.values(G).some(Boolean)) return;
     const L = this.look, T = this.torso, Hp = this.hips;
     const front = (L.tabard ? 0.222 : L.chestArmour ? 0.215 : 0.175) + 0.008;
     const robeW = (top === 5 ? 0.66 : 0.58) * build, robeD = top === 5 ? 0.46 : 0.38;
@@ -1763,7 +1790,7 @@ export class Humanoid {
       if (style !== 3 && style !== 9) p(0.3, 0.05, 0.03, -0.03, 0.47, 0.222, 1.0, 0.012);
       return;
     }
-    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch' || hat === 'tricorn' || hat === 'magus';
+    const covered = hat === 'cap' || hat === 'wide' || hat === 'straw' || hat === 'beret' || hat === 'kerchief' || hat === 'fool' || hat === 'feathered' || hat === 'bobble' || hat === 'witch' || hat === 'tricorn' || hat === 'magus' || hat === 'tophat';
     const shaved = style === 3 || style === 9;
     if (shaved) {
       p(0.45, 0.035, 0.43, 0, 0.515, 0, 0.78, 0.015);
@@ -1859,6 +1886,24 @@ export class Humanoid {
     }
 
     if (hat === 'cap') part(this.head, rbox(0.5, 0.12, 0.5, 0.05), this.look.hatColor ?? '#6a3a2a', 0, 0.6, 0);
+    if (hat === 'tophat') {
+      // a narrow brim, a tall crown, a band round its foot in the trim
+      const c = this.look.hatColor ?? '#0c0a0e';
+      part(this.head, rbox(0.64, 0.035, 0.62, 0.015), c, 0, 0.6, 0);
+      part(this.head, rbox(0.42, 0.44, 0.42, 0.03), c, 0, 0.83, 0);
+      part(this.head, rbox(0.43, 0.06, 0.43, 0.015), this.look.trim ?? shade(c, 1.6), 0, 0.65, 0);
+    }
+    if (hat === 'veil') {
+      // a little hat pinned to one side, and a veil of net from its brim over the eyes
+      const c = this.look.hatColor ?? '#0c0a0e';
+      const b = part(this.head, rbox(0.3, 0.1, 0.28, 0.04), c, 0.08, 0.66, 0.04); b.rotation.z = -0.18;
+      part(this.head, rbox(0.07, 0.07, 0.07, 0.02), this.look.trim ?? '#7a0e18', 0.21, 0.68, 0.12);
+      // (down from the hat's brim to just under the eyes, a little off the face)
+      const net = new THREE.MeshLambertMaterial({ color: c, transparent: true, opacity: 0.55, depthWrite: false });
+      part(this.head, rbox(0.48, 0.36, 0.01, 0.003), net, 0, 0.42, 0.245);
+      for (const sd of [1, -1]) part(this.head, rbox(0.01, 0.36, 0.14, 0.003), net, sd * 0.245, 0.44, 0.18);
+      part(this.head, rbox(0.49, 0.012, 0.012, 0.004), shade(c, 0.6), 0, 0.245, 0.246);
+    }
     if (hat === 'wide' || hat === 'straw') {
       const c = hat === 'straw' ? '#d8b860' : this.look.hatColor ?? '#3a3a32';
       part(this.head, rbox(0.8, 0.04, 0.8, 0.02), c, 0, 0.6, 0);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Hazard as GroundHazard } from '../data/hazards';
 import type { Sfx } from '../systems/Audio';
+import type { RunState } from '../net/Online';
 import { damageScale, marksScale, rewardScale } from '../data/scaling';
 import { Ally } from '../entities/Ally';
 import { Enemy, EnemyContext } from '../entities/Enemy';
@@ -40,6 +41,8 @@ export interface DungeonNet {
   answer(run: number, yes: boolean, role: Role): void;
   /** A blow ('hit', on creature i, for dmg) or a kill ('kill') for the rest of the run. */
   event(run: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void;
+  /** Back into a run, or into the group's, late. */
+  rejoin(run: number | undefined, role: Role): void;
   leaveRun(run: number): void;
 }
 
@@ -150,6 +153,8 @@ interface Run {
   random: boolean;
   /** The run's rooms (data/rooms.ts), once it's spawned. */
   rooms: Rooms | null;
+  /** The fight as the realm remembers it, for a run come into under way: applied once its creatures are made. */
+  pending?: RunState | null;
 }
 
 export interface FinderView {
@@ -371,16 +376,49 @@ export class Dungeons {
     }, () => this.host.net.answer(run, false, this.role), secs);
   }
 
-  /** The server: everyone said yes. In we go. */
-  onStart(run: number, dungeon: string, others: { id: number; name: string; role: Role }[], henchmen: string[]): void {
+  /** The server: everyone said yes. In we go. (Or back in, or in late: then the fight so far comes with it.) */
+  onStart(run: number, dungeon: string, others: { id: number; name: string; role: Role }[], henchmen: string[], state: RunState | null = null): void {
     const sp = splitRunId(dungeon);
     const d = DUNGEON_BY_ID[sp.id];
     this.queued = null;
+    // still in it here (only the connection dropped): the others' new ids, and anything missed meanwhile
+    if (this.run && this.run.id === run) { this.run.others = others; if (state) this.applyRunState(state); this.host.refresh(); return; }
     if (!d || this.run) return;
     // Corrupted: the leader's key is used going in, and the others come in on it
     if (sp.cor && this.host.group()?.leader) this.host.take(KEY_OF[sp.id]?.key ?? '');
     this.begin(d, run, others, henchmen, sp.vet, sp.cor);
+    const now = this.run as Run | null;
+    if (state && now) { now.pending = state; this.host.system('You go in after your group. The fight is as they left it.'); }
   }
+
+  /** The run under way, as the realm has it: the dead dead, the hurt hurt, the rooms as they stand. Never heals anything. */
+  private applyRunState(st: RunState): void {
+    const r = this.run;
+    if (!r) return;
+    if (!r.spawned) { r.pending = st; return; }
+    for (const i of st.dead) { const e = r.mobs[i]; if (e?.alive) e.takeDamage(e.hp + 1, e.pos, this.clock); }
+    for (const [i, share] of st.hits) {
+      const e = r.mobs[i];
+      if (!e?.alive) continue;
+      const left = Math.max(1, Math.round(e.def.hp * (1 - share / SHARE)));
+      if (e.hp > left) e.takeDamage(e.hp - left, e.pos, this.clock);
+    }
+    for (const [i, s] of st.rooms) r.rooms?.remote(i, s);
+  }
+
+  /** A member is back (or in late), under the id the realm now knows them by. */
+  onBack(id: number, name: string, role: Role): void {
+    const r = this.run;
+    if (!r) return;
+    r.others = [...r.others.filter((o) => o.name !== name), { id, name, role }];
+    this.host.system(`${name} is back in the dungeon.`);
+    this.host.refresh();
+  }
+
+  /** Back into a run you dropped out of (or your group's, late). */
+  rejoin(run?: number): void { this.host.net.rejoin(run, this.role); }
+  /** Is this the run you're in? */
+  inRun(run: number): boolean { return !!this.run && this.run.id === run; }
 
   /** Another member's blow or kill. */
   onEvent(from: number, k: 'hit' | 'kill' | 'room', i: number, dmg: number): void {
@@ -397,11 +435,11 @@ export class Dungeons {
   }
 
   /** The server: a member has gone. */
-  onLeft(name: string): void {
+  onLeft(name: string, back = false): void {
     const r = this.run;
     if (!r) return;
     r.others = r.others.filter((o) => o.name !== name);
-    this.host.system(`${name} has left the dungeon.`);
+    this.host.system(back ? `${name} has dropped out. Their place is kept for a quarter of an hour.` : `${name} has left the dungeon.`);
     this.host.refresh();
   }
 
@@ -470,6 +508,7 @@ export class Dungeons {
     for (const al of r.allies) if (Math.random() < 0.5) { this.bark(al, al.def.barks.pull); break; }
     r.rooms = this.rooms(r);
     r.spawned = true;
+    if (r.pending) { const st = r.pending; r.pending = null; this.applyRunState(st); }
     this.host.refresh();
   }
 
