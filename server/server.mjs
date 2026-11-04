@@ -148,10 +148,17 @@ const loadChar = (key) => readJson(path.join(CHAR_DIR, key + '.json'));
  */
 /** The owner's own characters and test characters, left off the board by name (owner 2026-10-31). */
 const HIDDEN_TRAVELLERS = new Set(['wes', 'claude', 'test', 'jadetester']);
+/**
+ * Places on the board held for a name after the keeper let its character go (/api/admin/release): name key
+ * to { name, when }. A new character of that name takes the old one's place, and until there is one the
+ * name stays on the board where it was (owner 2026-11-04: Billie Eyelash).
+ */
+const PLACES_FILE = path.join(DATA, 'boardplaces.json');
+const boardPlaces = () => readJson(PLACES_FILE) ?? {};
 let travellersCache = { at: 0, names: [] };
 function travellers() {
   if (Date.now() - travellersCache.at < 5 * 60_000) return travellersCache.names;
-  const first = new Map();
+  const first = new Map(), held = boardPlaces();
   let files = [];
   try { files = fs.readdirSync(CHAR_DIR).filter((f) => f.endsWith('.json')); } catch { /* none yet */ }
   for (const f of files) {
@@ -160,10 +167,12 @@ function travellers() {
     if (rec.owner && DEV_ACCOUNTS.has(accKey(rec.owner))) continue;
     if (HIDDEN_TRAVELLERS.has(String(rec.name).toLowerCase())) continue;
     const who = rec.owner ? 'a:' + accKey(rec.owner) : 'c:' + rec.name;
-    const when = rec.created ?? rec.updated ?? Date.now();
+    const when = held[keyFor(rec.name)]?.when ?? rec.created ?? rec.updated ?? Date.now();
     const had = first.get(who);
     if (!had || when < had.when) first.set(who, { name: rec.name, when });
   }
+  const on = new Set([...first.values()].map((p) => keyFor(p.name)));
+  for (const [k, p] of Object.entries(held)) if (!on.has(k) && p?.name && typeof p.when === 'number') first.set('p:' + k, { name: p.name, when: p.when });
   const names = [...first.values()].sort((a, b) => a.when - b.when).slice(0, 500).map((p) => p.name);
   travellersCache = { at: Date.now(), names };
   return names;
@@ -503,6 +512,26 @@ async function api(req, res) {
     log(`${acc.user} restored the guest character ${rec.name} to ${target.user}`);
     return reply(res, 200, { ok: true, name: rec.name, to: target.user, playTime: rec.save?.playTime ?? 0 });
   }
+  // The keeper lets a character go: its save is deleted and the name is free to make again, but the name keeps
+  // its place on the travellers' board (when its player has lost it and would rather start over)
+  if (req.method === 'POST' && url.pathname === '/api/admin/release') {
+    if (!DEV_ACCOUNTS.has(accKey(acc.user))) return reply(res, 403, { error: "Only the realm's keeper can do that." });
+    const body = (await readBody(req)) ?? {};
+    const key = keyFor(String(body.name ?? '').trim());
+    const rec = key && loadChar(key);
+    if (!rec) return reply(res, 404, { error: `No character called ${body.name} on this realm.` });
+    if ([...players.values()].some((p) => keyFor(p.name) === key)) return reply(res, 409, { error: `${rec.name} is in the world right now. Nothing was changed.` });
+    const places = boardPlaces();
+    places[key] = { name: rec.name, when: places[key]?.when ?? rec.created ?? rec.updated ?? Date.now() };
+    writeJson(PLACES_FILE, places);
+    fs.mkdirSync(path.join(DATA, 'released'), { recursive: true });
+    writeJson(path.join(DATA, 'released', key + '-' + Date.now() + '.json'), rec);
+    fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true }); mirror(path.join(CHAR_DIR, key + '.json'), null); homes.forget(key);
+    if (rec.owner) { const owner = loadAccount(rec.owner); if (owner) { owner.chars = owner.chars.filter((k) => k !== key); storeAccount(owner); } }
+    travellersCache.at = 0;
+    log(`${acc.user} released ${rec.name} (${Math.round((rec.save?.playTime ?? 0) / 60)} min); the name keeps its place on the board`);
+    return reply(res, 200, { ok: true, name: rec.name });
+  }
   if (req.method === 'GET' && url.pathname === '/api/me') {
     const characters = acc.chars.map((k) => loadChar(k)).filter((r) => r && r.owner === acc.user).map((r) => ({ name: r.name, save: r.save, updated: r.updated ?? r.created }));
     // How safe the account is, for its page: never the secrets themselves
@@ -691,7 +720,7 @@ wss.on('connection', (ws, req) => {
         // A tool by name, or a weapon by its item id (drawn from the item in each game)
         if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
-        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon)_[a-z]{2,16}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
+        me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon|boat)_[a-z]{2,16}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
         // Riding with someone in your group, close by, on a mount with a seat still free
         const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
         const group = rider && social.groupIds(me);
@@ -707,6 +736,21 @@ wss.on('connection', (ws, req) => {
         if (!them || them === me || them.land !== me.land || them.anim !== 'dead' || me.anim === 'dead' || Math.hypot(them.x - me.x, them.z - me.z) > 5 || Math.abs(them.y - me.y) > 3) break;
         send(them.ws, { t: 'revived', by: me.name });
         break;
+      }
+      case 'fishRoll': {
+        // A cast in eligible water: the Ice Spice Fish (cold water) at 1 in 100,000,000 and the Megalodon (the sea)
+        // at 1 in 1,000,000, each its own fair roll from the realm's random source, untouched by any bonus. One roll
+        // per cast at most (a cast takes seconds), so recasting fast can't buy more of them (data/fish.ts MYTHICS).
+        const now = Date.now();
+        if (now - (me.lastFishRoll ?? 0) < 2500) { send(ws, { t: 'fishRoll', n: msg.n, pick: null }); return; }
+        me.lastFishRoll = now;
+        // (53 bits of the realm's random source: 48 from the first six bytes, 5 from the seventh, as a uniform number in [0, 1))
+        const u = () => { const b = crypto.randomBytes(7); return (b.readUIntBE(0, 6) * 32 + (b[6] >> 3)) / 2 ** 53; };
+        const w = String(msg.water);
+        const pick = w === 'cold' && u() < 1e-8 ? 'ice_spice_fish' : (w === 'sea' || w === 'warmsea') && u() < 1e-6 ? 'megalodon' : null;
+        if (pick) log(`${me.name} hooked the ${pick === 'megalodon' ? 'Megalodon' : 'Ice Spice Fish'}`);
+        send(ws, { t: 'fishRoll', n: msg.n, pick });
+        return;
       }
       case 'look': {
         if (msg.look && typeof msg.look === 'object' && JSON.stringify(msg.look).length < 2000) { me.look = msg.look; broadcast({ t: 'look', id: me.id, look: me.look }, me); }

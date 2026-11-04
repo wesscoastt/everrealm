@@ -173,7 +173,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNL
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { serverUrl } from '../net/Online';
-import { climbers, restoreGuest, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
+import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
 
 type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
@@ -7699,9 +7699,16 @@ export class Game implements GameApi {
           return;
         case 'restore': {
           // The realm's keeper: /restore <guest character> to <account> (server checks it's the keeper, and a guest)
-          const mm = arg.match(/^(.+?)s+tos+(S+)$/i);
+          const mm = arg.match(/^(.+?)\s+to\s+(\S+)$/i);
           if (!mm) { this.hud.system("/restore <character> to <account>: puts a guest character into the account it belongs to. The realm's keeper only."); return; }
           void restoreGuest(mm[1].trim(), mm[2]).then((t) => this.hud.system(t));
+          return;
+        }
+        case 'release': {
+          // The realm's keeper: /release <character> deletes it, frees the name, and keeps its place on the travellers' board
+          const name = arg.trim();
+          if (!name) { this.hud.system("/release <character>: deletes that character so its player can make it again; the name keeps its place on the travellers' board. The realm's keeper only."); return; }
+          this.hud.ask(`Delete ${name} for good? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name).then((t) => this.hud.system(t)); }, () => {}, 30);
           return;
         }
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;
