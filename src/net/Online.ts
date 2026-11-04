@@ -10,6 +10,7 @@ import type { SaveData } from '../game/state';
 import { CreatureModel, mountModel } from '../entities/creatures';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { mountOf } from '../data/mountLooks';
+import type { Post } from '../game/Posts';
 import { boatUnderSeat } from '../game/Rowboat';
 import { POST_CART, POST_CART_KEY, POST_RIDER_SEAT } from '../data/postStations';
 import { CARTER } from '../game/PostRide';
@@ -132,6 +133,12 @@ export interface OnlineHooks {
   groupKill?(type: string, from: string): void;
   /** A groupmate moved a delve's room on (server/social.mjs gRoom). */
   groupRoom?(site: string, i: number, s: number): void;
+  /** Message posts (server/signs.mjs): all of them in your land on coming in, then each one put up or taken down. */
+  posts?(list: Post[]): void;
+  post?(p: Post): void;
+  postGone?(id: number): void;
+  postUp?(id: number, n: number): void;
+  postNo?(why: string): void;
   /** The realm's roll for a cast's mythic (server fishRoll). */
   fishRoll?(n: number, pick: string | null): void;
   /** Server messages for the log ("X has entered the world", chat lines). */
@@ -370,6 +377,11 @@ export class Online {
       case 'revived': this.hooks.revived?.(String(m.by)); break;
       case 'gKill': if (typeof m.type === 'string') this.hooks.groupKill?.(m.type, String(m.from)); break;
       case 'gRoom': if (typeof m.site === 'string') this.hooks.groupRoom?.(m.site, Number(m.i), Number(m.s)); break;
+      case 'posts': this.hooks.posts?.(Array.isArray(m.list) ? (m.list as Post[]) : []); break;
+      case 'post': if (m.post) this.hooks.post?.(m.post as Post); break;
+      case 'postGone': this.hooks.postGone?.(Number(m.id)); break;
+      case 'postUp': this.hooks.postUp?.(Number(m.id), Number(m.up) || 0); break;
+      case 'postNo': this.hooks.postNo?.(String(m.why ?? '')); break;
       case 'fishRoll': this.hooks.fishRoll?.(Number(m.n), typeof m.pick === 'string' ? m.pick : null); break;
       case 'perform': this.hooks.perform?.(Number(m.id), { tune: String(m.tune), part: m.part as PartId, voice: m.voice as Voice, start: Number(m.start), reps: Number(m.reps) }); break;
       case 'perfStop': this.hooks.performStop?.(Number(m.id)); break;
@@ -550,6 +562,11 @@ export class Online {
   revive(id: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'revive', id })); }
   /** Tell your group about a kill, for their quests. */
   fishRoll(n: number, water: string): void { this.emit({ t: 'fishRoll', n, water }); }
+  putPost(text: string, x: number, y: number, z: number, yaw: number): void { this.emit({ t: 'postPut', text, x, y, z, yaw }); }
+  upPost(id: number): void { this.emit({ t: 'postUp', id }); }
+  reportPost(id: number, why: string): void { this.emit({ t: 'postReport', id, why }); }
+  removePost(id: number): void { this.emit({ t: 'postRemove', id }); }
+  reviewPosts(restore?: number): void { this.emit({ t: 'postReview', restore }); }
   groupRoom(site: string, i: number, s: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'gRoom', site, i, s })); }
   groupKill(type: string): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'gKill', type })); }
   /** How many others are up and about within r of a point: who might come and help you up. */

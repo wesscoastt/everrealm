@@ -145,6 +145,7 @@ import { lakeDist } from '../world/terrain';
 import { DragonPass } from './DragonPass';
 import { gatheringBoard } from '../data/gatherings';
 import { Farming, farmPatches } from './Farming';
+import { MessagePosts, Post } from './Posts';
 import { Rowboat, rowboatModel, hullBlocks, overHull, BOAT_FLOOR } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty } from '../world/sites';
@@ -1418,6 +1419,11 @@ export class Game implements GameApi {
       },
       groupRoom: (site: string, i: number, s: number) => this.activities.groupRoom(site, i, s),
       fishRoll: (n: number, pick: string | null) => { this.mythicFor.set(n, pick); },
+      posts: (list: Post[]) => this.posts.setAll(list),
+      post: (p: Post) => { this.posts.add(p); if (p.mine) { this.hud.system('Your post is up. Anyone passing can read it.'); this.sfx('quest'); } },
+      postGone: (id: number) => { this.posts.gone(id); if (this.reading === id) { this.hud.postCard(null); this.reading = null; } },
+      postUp: (id: number, n: number) => this.posts.up(id, n),
+      postNo: (why: string) => this.hud.system(why),
       groupKill: (type: string) => {
         this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
         this.hud.setTracker(this.questEntries());
@@ -3467,6 +3473,7 @@ export class Game implements GameApi {
       sellSome: (id: string, n: number) => g.sellSome(id, n),
       sellAllPlan: (only?: 'junk') => g.sellAllPlan(only),
       sellAll: (only?: 'junk') => g.sellAll(only),
+      writePost: () => g.writePost(),
       buyBack: (i: number) => g.buyBack(i),
       quests: () => g.questEntries(),
       trackQuest: (id: string, on: boolean) => g.trackQuest(id, on),
@@ -4437,6 +4444,30 @@ export class Game implements GameApi {
     this.hud.refresh();
   }
 
+  /** Message posts: the ones near you, and which you're reading. */
+  private _posts: MessagePosts | null = null;
+  private get posts(): MessagePosts { return (this._posts ??= new MessagePosts(this.scene, this.world.props)); }
+  private reading: number | null = null;
+  writePost(): void {
+    if (this.online.status !== 'online') { this.hud.system('Message posts need the realm: you\'re playing offline.'); return; }
+    if (this.player.swimming || !this.player.onGround) { this.hud.system('Find your feet first: a post goes in the ground where you stand.'); return; }
+    this.hud.postWrite((t) => this.putPost(t));
+  }
+  private putPost(text: string): void {
+    if (this.online.status !== 'online') { this.hud.system('Message posts need the realm: you\'re playing offline.'); return; }
+    const P = this.player.position, yaw = this.player.yaw;
+    // a step in front of you, facing back the way you came, so the next one to come along reads it
+    this.online.putPost(text, P.x + Math.sin(yaw) * 0.9, P.y, P.z + Math.cos(yaw) * 0.9, yaw + Math.PI);
+  }
+  private readPost(p: Post): void {
+    this.reading = p.id;
+    this.hud.postCard(p, {
+      up: () => { this.online.upPost(p.id); this.posts.up(p.id, p.up + 1, true); },
+      report: (why) => this.online.reportPost(p.id, why),
+      remove: () => this.online.removePost(p.id),
+    });
+  }
+
   /** How many sales the traders remember, and for how long. */
   private static readonly BUYBACK_MAX = 12;
   private static readonly BUYBACK_MS = 24 * 3600_000;
@@ -5126,6 +5157,11 @@ export class Game implements GameApi {
         if (dd < bd) { bd = dd; best = { x: sx, y: st.y, z: sz, yaw: Math.atan2(nx * side, nz * side) }; }
       }
       if (best) { const b = best; consider({ kind: 'act', label: 'Sit', pos: new THREE.Vector3(b.x, b.y + 0.7, b.z), act: () => this.sitDown(b) }, bd + 0.4); }
+    }
+    // A message post someone left: read it
+    {
+      const mp = this.posts.nearest(p);
+      if (mp) consider({ kind: 'act', label: 'Read the post', sub: mp.by, pos: new THREE.Vector3(mp.x, mp.y + 1.1, mp.z), act: () => this.readPost(mp) }, Math.hypot(mp.x - p.x, mp.z - p.z) + 0.2);
     }
     // Forage: berries, mushrooms and herbs, picked by hand
     for (const f of near.flatMap((b) => b.forage)) {
@@ -7575,6 +7611,7 @@ export class Game implements GameApi {
     else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
+    this.posts.update(dt, P.position);
     // Your own pet at your heels (data/pets.ts), the one your look names
     const petId = this.save.look.pet && PETS[this.save.look.pet] ? this.save.look.pet : null;
     if ((this.companion?.pet ?? null) !== petId) {
@@ -7923,6 +7960,7 @@ export class Game implements GameApi {
         case 'help': case '?':
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
+          this.hud.system('Message posts: the ✎ by the chat tabs (or /post <words>) leaves a few words where you stand for whoever comes by. Walk up to one to read it, say it helped, or report it.');
           this.hud.system('Safety: /ignore <name> hides someone\'s chat and whispers (/unignore, /ignored); /report <name> <what happened> tells the realm\'s keeper. Or click them.');
           this.hud.system('Chat: just type and press Enter, and everyone in the realm hears. /s <message> for those nearby only, /trade <message> for the Trade channel, /w <name> for a whisper, /g for your group and /gu for your guild. Also: /me <action> (e.g. /me tips a hat), /roll [max], /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
           return;
@@ -7938,6 +7976,19 @@ export class Game implements GameApi {
           const rm = arg.trim().match(/^(.+?)(?:\s+for\s+(\S+))?$/i), name = rm?.[1].trim() ?? '';
           if (!name) { this.hud.system("/release <character> [for <account>]: sets that character aside so its player can make it again (only that account, if named); the name keeps its place on the travellers' board. The realm's keeper only."); return; }
           this.hud.ask(`Set ${name} aside? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name, rm?.[2]).then((t) => this.hud.system(t)); }, () => {}, 30);
+          return;
+        }
+        case 'post': {
+          // a message post where you stand: with words, put up straight away; without, the writer opens
+          if (arg.trim()) this.putPost(arg.trim()); else this.writePost();
+          return;
+        }
+        case 'posts': case 'postback': case 'postdel': {
+          // the keeper: reported posts, putting one back, taking one away for good
+          const id = parseInt(arg, 10);
+          if (cmd === 'posts') this.online.reviewPosts();
+          else if (!Number.isInteger(id)) this.hud.system(`/${cmd} <post number>`);
+          else if (cmd === 'postback') this.online.reviewPosts(id); else this.online.removePost(id);
           return;
         }
         case 'catches': {

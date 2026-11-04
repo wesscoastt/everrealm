@@ -313,6 +313,8 @@ export interface UiCtx {
   sellSome(id: string, n: number): void;
   sellAllPlan(only?: 'junk'): { slots: number[]; things: number; marks: number };
   sellAll(only?: 'junk'): void;
+  /** Open the writer for a message post where you stand. */
+  writePost(): void;
   /** Buy one back of the i-th thing on the buy-back list (ShopView.buyback). */
   buyBack(i: number): void;
   quests(): QuestEntry[];
@@ -594,6 +596,8 @@ export class Hud {
     panel('finder-panel', 'Group Finder', 'finder');
     panel('music-panel', 'Songbook', 'music');
     const grp = el('div', 'hud-only'); grp.id = 'group'; r.append(grp);
+    // A message post: reading one (what it says, who left it, how many it's helped) and writing your own
+    const pc = el('div', 'frame'); pc.id = 'postcard'; r.append(pc);
     const ask = el('div', 'frame'); ask.id = 'askbox'; ask.innerHTML = '<p></p><div class="row"><button class="btn yes">Accept</button><button class="btn ghost no">Decline</button></div><i class="tm"></i>'; r.append(ask);
     const pm = el('div', 'frame'); pm.id = 'pmenu'; r.append(pm);
     window.addEventListener('pointerdown', (e) => { if (!(e.target as HTMLElement).closest('#pmenu')) pm.classList.remove('show'); }, true);
@@ -878,6 +882,44 @@ export class Hud {
     this.askT = window.setTimeout(() => { if (this.askNo) done(no); }, secs * 1000);
   }
 
+  /** Read a message post: Helpful (once), Report, or Take it down if it's yours. Null closes it. */
+  postCard(p: { text: string; by: string; up: number; mine: boolean; voted: boolean; at: number } | null, acts?: { up(): void; report(why: string): void; remove(): void }): void {
+    const box = this.q('#postcard');
+    if (!p || !acts) { box.classList.remove('show'); return; }
+    const days = Math.floor((Date.now() - p.at) / 86_400_000);
+    const when = days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : 'a long while ago';
+    box.innerHTML = `<div class="pc-slip"><p class="pc-text"></p><div class="pc-by">Left by <b></b>, ${when}</div></div><div class="pc-up">${p.up ? `${p.up} found this helpful` : 'Nobody has said yet whether it helped.'}</div><div class="row">${p.mine ? '<button class="btn ghost pc-rm">Take it down</button>' : `<button class="btn pc-yes"${p.voted ? ' disabled' : ''}>${p.voted ? 'You found it helpful' : 'Helpful'}</button><button class="btn ghost pc-rep">Report</button>`}<button class="btn ghost pc-x">Close</button></div>`;
+    box.querySelector('.pc-text')!.textContent = p.text;
+    box.querySelector('.pc-by b')!.textContent = p.by;
+    const close = () => box.classList.remove('show');
+    box.querySelector('.pc-x')!.addEventListener('click', close);
+    box.querySelector('.pc-yes')?.addEventListener('click', () => { acts.up(); close(); this.ctx.sfx('click'); });
+    box.querySelector('.pc-rm')?.addEventListener('click', () => { acts.remove(); close(); });
+    box.querySelector('.pc-rep')?.addEventListener('click', () => {
+      // what's wrong with it, in a few words (or none)
+      box.innerHTML = '<p class="pc-q">What\'s wrong with it?</p><div class="row pc-why"><button class="btn ghost" data-w="Hateful or abusive">Hateful or abusive</button><button class="btn ghost" data-w="Rude or crude">Rude or crude</button><button class="btn ghost" data-w="Spam or an advert">Spam or an advert</button><button class="btn ghost" data-w="Misleading on purpose">Misleading on purpose</button></div><div class="row"><button class="btn ghost pc-x">Never mind</button></div>';
+      box.querySelectorAll<HTMLElement>('[data-w]').forEach((b) => b.addEventListener('click', () => { acts.report(b.dataset.w!); close(); }));
+      box.querySelector('.pc-x')!.addEventListener('click', close);
+    });
+    box.classList.add('show');
+    this.ctx.sfx('open');
+  }
+
+  /** Write a message post to leave where you stand. */
+  postWrite(send: (text: string) => void): void {
+    const box = this.q('#postcard');
+    box.innerHTML = '<p class="pc-q">Leave a few words here for whoever comes by: a way up, a danger, a good spot, a kind word.</p><textarea class="pc-in" maxlength="140" rows="3" spellcheck="true" placeholder="The ledge past the waterfall takes you to the top."></textarea><div class="pc-n">0 / 140</div><div class="row"><button class="btn pc-send" disabled>Put it up</button><button class="btn ghost pc-x">Cancel</button></div><p class="pc-rules">Everyone can read it, and can report it. No links, nothing unkind.</p>';
+    const ta = box.querySelector('textarea') as HTMLTextAreaElement, n = box.querySelector('.pc-n') as HTMLElement, go = box.querySelector('.pc-send') as HTMLButtonElement;
+    const close = () => box.classList.remove('show');
+    const sendIt = () => { const t = ta.value.replace(/\s+/g, ' ').trim(); if (t.length >= 3) { send(t); close(); } };
+    ta.addEventListener('input', () => { n.textContent = `${ta.value.length} / 140`; go.disabled = ta.value.trim().length < 3; });
+    ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendIt(); } if (e.key === 'Escape') close(); });
+    go.addEventListener('click', sendIt);
+    box.querySelector('.pc-x')!.addEventListener('click', close);
+    box.classList.add('show');
+    setTimeout(() => ta.focus(), 30);
+  }
+
   /** A little menu by the cursor for another player: invite, trade and so on. */
   playerMenu(title: string, x: number, y: number, items: { label: string; act: () => void }[]): void {
     const pm = this.q('#pmenu');
@@ -1074,7 +1116,7 @@ export class Hud {
 
   private buildChat(): void {
     const box = el('div', 'hud-only'); box.id = 'chatbox';
-    box.innerHTML = `<div class="cb-tabs">${(['all', 'chat', 'world'] as const).map((c) => `<button data-ch="${c}" class="${c === 'all' ? 'sel' : ''}">${c === 'all' ? 'All' : c === 'chat' ? 'Chat' : 'World'}</button>`).join('')}<button class="cb-emo" title="Emotes">☺</button></div>
+    box.innerHTML = `<div class="cb-tabs">${(['all', 'chat', 'world'] as const).map((c) => `<button data-ch="${c}" class="${c === 'all' ? 'sel' : ''}">${c === 'all' ? 'All' : c === 'chat' ? 'Chat' : 'World'}</button>`).join('')}<button class="cb-post" title="Leave a message post here">✎</button><button class="cb-emo" title="Emotes">☺</button></div>
       <div class="cb-log"></div>
       <div class="cb-emotes">${EMOTES.map((e) => `<button data-emote="${e.id}" title="/${e.id}"><span>${e.icon}</span>${e.id[0].toUpperCase() + e.id.slice(1)}</button>`).join('')}</div>
       <input class="cb-input" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Say something · /help for commands">`;
@@ -1086,6 +1128,7 @@ export class Hud {
       const log = box.querySelector('.cb-log')!; log.scrollTop = log.scrollHeight;
     }));
     box.querySelector('.cb-emo')!.addEventListener('click', () => box.classList.toggle('emoting'));
+    box.querySelector('.cb-post')!.addEventListener('click', () => this.ctx.writePost());
     box.querySelectorAll<HTMLElement>('[data-emote]').forEach((b) => b.addEventListener('click', () => { box.classList.remove('emoting'); this.ctx.emote(b.dataset.emote!); }));
     box.addEventListener('mouseenter', () => this.chatWake());
     // Tapping the log opens the line on phones

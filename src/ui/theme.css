@@ -364,3 +364,19 @@
 @media (max-width: 560px) { .shop-row.sellrow { grid-template-columns: 40px 1fr auto; } .sellrow .qty { grid-column: 2 / 4; } }
 .slot .keep { position: absolute; left: 3px; top: 3px; width: 9px; height: 7px; border-radius: 2px; background: #e8c66a; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); pointer-events: none; }
 .slot .keep::before { content: ''; position: absolute; left: 1.5px; top: -5px; width: 4px; height: 5px; border: 1.5px solid #e8c66a; border-bottom: none; border-radius: 3px 3px 0 0; }
+
+/* Message posts: reading one, and writing your own */
+#postcard { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(0.96); width: min(380px, calc(100vw - 32px)); padding: 16px 18px 14px; z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.15s ease, transform 0.15s ease; }
+#postcard.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+#postcard .pc-slip { background: linear-gradient(#efe2c2, #e2d0a8); color: #3a2a18; border-radius: 4px; padding: 14px 14px 10px; box-shadow: inset 0 0 0 1px rgba(90, 60, 30, 0.35), 0 3px 10px rgba(0, 0, 0, 0.35); transform: rotate(-0.6deg); }
+#postcard .pc-text { margin: 0 0 10px; font: 500 16px/1.4 Georgia, serif; overflow-wrap: anywhere; }
+#postcard .pc-by { font: italic 12px Georgia, serif; color: #6a5236; text-align: right; }
+#postcard .pc-up { margin: 10px 2px 4px; font: 500 12px var(--body); color: var(--muted); }
+#postcard .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#postcard .pc-q { margin: 0 0 10px; font: 500 14px/1.4 var(--body); color: var(--cream); }
+#postcard .pc-why { flex-direction: column; }
+#postcard .pc-in { width: 100%; box-sizing: border-box; resize: none; padding: 10px; border-radius: 6px; border: 1px solid var(--gild-line); background: #efe2c2; color: #3a2a18; font: 500 15px/1.4 Georgia, serif; }
+#postcard .pc-n { text-align: right; font: 500 11px var(--body); color: var(--muted); margin-top: 3px; }
+#postcard .pc-rules { margin: 10px 0 0; font: 500 11px var(--body); color: var(--muted); }
+#chatbox .cb-tabs .cb-post { margin-left: auto; font-size: 13px; padding: 1px 9px; }
+#chatbox .cb-tabs .cb-post + .cb-emo { margin-left: 4px; }

@@ -62,6 +62,7 @@ import { mailInit } from './mail.mjs';
 import { finderInit } from './finder.mjs';
 import { musicInit } from './music.mjs';
 import { uniquesInit } from './uniques.mjs';
+import { signsInit } from './signs.mjs';
 import { storeInit } from './store.mjs';
 import { homesInit } from './homes.mjs';
 import { navalInit } from './naval.mjs';
@@ -658,6 +659,7 @@ exchange = exchangeInit({ players, send, readJson, writeJson, dataDir: DATA, log
 const mail = mailInit({ players, send, readJson, writeJson, dataDir: DATA, keyFor, nameOf: (key) => loadChar(key)?.name ?? null, log });
 const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
+const signs = signsInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const music = musicInit({ players, send, social });
 const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, perf: music.perfOf(p) });
 
@@ -724,7 +726,7 @@ wss.on('connection', (ws, req) => {
       const old = [...players.values()].find((p) => p.key === key);
       if (old) { send(old.ws, { t: 'denied', reason: 'You came into the world somewhere else.' }); dropPlayer(old); try { old.ws.close(); } catch { /* gone */ } log(`${old.name} replaced by a new connection`); }
       me = {
-        id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
+        id: nextId++, key, pid: rec.pid, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
         // A page from before the lands were one world says 'morrow' and keeps Morrow's old coordinates: kept apart
         land: msg.land === 'morrow' ? 'morrow' : 'counties',
         x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', held: 'none', mount: null, lastChat: 0, dirty: true,
@@ -739,13 +741,14 @@ wss.on('connection', (ws, req) => {
       exchange.join(me);
       mail.join(me);
       homes.join(me);
+      signs.join(me);
       for (const p of players.values()) if (p !== me && p.land === me.land) send(p.ws, { t: 'join', player: pub(me) });
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
       log(`${me.name} joined${user ? ` (${user})` : ''} from ${req.socket.remoteAddress} (${players.size} online)`);
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg)) return;
+    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
