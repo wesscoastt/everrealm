@@ -275,6 +275,8 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'bronze_hatchet', price: 45 },
   { item: 'worn_pickaxe', price: 12 },
   { item: 'fishing_rod', price: 15 },
+  // Bait and a better rod for the Wend (data/fish.ts)
+  { item: 'rod_willow', price: 20 }, { item: 'bait_worm', price: 1 }, { item: 'bait_grub', price: 2 },
   { item: 'furn_stool', price: 10 },
   { item: 'furn_table', price: 40 },
   { item: 'furn_bed', price: 65 },

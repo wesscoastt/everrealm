@@ -351,6 +351,9 @@ for (const d of [...TROPHIES, ...MAP_ITEMS]) ITEMS[d.id] = d;
 // Festival tokens, fare, dyes and horses (src/data/festivals.ts).
 import { FESTIVAL_ITEMS } from './festivals';
 for (const d of FESTIVAL_ITEMS) ITEMS[d.id] = d;
+// The fish, the rods and the baits (src/data/fish.ts).
+import { FISHING_ITEMS } from './fish';
+for (const d of FISHING_ITEMS) ITEMS[d.id] = d;
 // What the towns' fires hand round (src/data/gatherings.ts).
 import { GATHERING_ITEMS } from './gatherings';
 for (const d of GATHERING_ITEMS) ITEMS[d.id] = d;

@@ -41,6 +41,7 @@ export const SHOPS: Record<string, ShopDef> = {
       { item: 'bronze_bar', price: 22 },
       { item: 'iron_hatchet', price: 75 },
       { item: 'fishing_rod', price: 16 },
+      { item: 'rod_ash', price: 90 }, { item: 'bait_worm', price: 1 }, { item: 'bait_grub', price: 2 }, { item: 'bait_paste', price: 3 }, { item: 'bait_spinner', price: 12 },
       { item: 'cooked_mackerel', price: 24 },
       ...['w_charter_sword', 'w_charter_longsword', 'w_charter_spear', 'w_charter_mace', 'w_collegium_staff', 'w_collegium_dagger'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 40) * 2.2) })),
       ...['linen_chest', 'linen_legs', 'linen_hands', 'linen_feet', 'leather_chest', 'leather_legs', 'leather_hands', 'leather_feet'].map((item) => ({ item, price: Math.round((ITEMS[item]?.value ?? 20) * 2) })),
@@ -63,6 +64,8 @@ export const SHOPS: Record<string, ShopDef> = {
     stock: [
       { item: 'recipe_fishermans_pie', price: 180 },
       { item: 'fishing_rod', price: 14 },
+      // The sea rods and the bait for them (data/fish.ts)
+      { item: 'rod_searod', price: 380 }, { item: 'rod_greenheart', price: 320 }, { item: 'bait_worm', price: 1 }, { item: 'bait_paste', price: 3 }, { item: 'bait_spinner', price: 12 },
       { item: 'lockpick', price: 3 }, { item: 'loupe', price: 25 },
       { item: 'bread', price: 5 },
       { item: 'cooked_mackerel', price: 18 },

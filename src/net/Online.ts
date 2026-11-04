@@ -10,6 +10,7 @@ import type { SaveData } from '../game/state';
 import { CreatureModel, mountModel } from '../entities/creatures';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { mountOf } from '../data/mountLooks';
+import { boatUnderSeat } from '../game/Rowboat';
 import { POST_CART, POST_CART_KEY, POST_RIDER_SEAT } from '../data/postStations';
 import { CARTER } from '../game/PostRide';
 import { ITEMS } from '../data/items';
@@ -42,6 +43,9 @@ interface Remote {
   mount: string | null;
   horse: CreatureModel | null;
   horseOf: string | null;
+  /** Rowing (mount 'boat_row'): the boat under them, and where she was last frame (to carry anyone standing in her). */
+  boat?: THREE.Object3D | null;
+  boatPrev?: { x: number; y: number; z: number; yaw: number } | null;
   /** The Post's carter on the box, while they ride the Post. */
   carter?: Humanoid;
   /** Their guild's name, shown under their name. */
@@ -120,12 +124,16 @@ export interface GuildView { name: string | null; motto: string; rank: GuildRank
 
 export interface OnlineHooks {
   scene: THREE.Scene;
+  /** A rowing boat to put under someone rowing (game/Rowboat.ts). */
+  rowboatModel?(): THREE.Object3D;
   /** Someone helped you up while you were down. */
   revived?(by: string): void;
   /** Someone in your group killed a creature near you: it counts for you too. */
   groupKill?(type: string, from: string): void;
   /** A groupmate moved a delve's room on (server/social.mjs gRoom). */
   groupRoom?(site: string, i: number, s: number): void;
+  /** The realm's roll for a cast's mythic (server fishRoll). */
+  fishRoll?(n: number, pick: string | null): void;
   /** Server messages for the log ("X has entered the world", chat lines). */
   system(text: string): void;
   /** A chat line; id is the speaker (yours too: it's echoed), kind 'emote' is "<from> waves." */
@@ -362,6 +370,7 @@ export class Online {
       case 'revived': this.hooks.revived?.(String(m.by)); break;
       case 'gKill': if (typeof m.type === 'string') this.hooks.groupKill?.(m.type, String(m.from)); break;
       case 'gRoom': if (typeof m.site === 'string') this.hooks.groupRoom?.(m.site, Number(m.i), Number(m.s)); break;
+      case 'fishRoll': this.hooks.fishRoll?.(Number(m.n), typeof m.pick === 'string' ? m.pick : null); break;
       case 'perform': this.hooks.perform?.(Number(m.id), { tune: String(m.tune), part: m.part as PartId, voice: m.voice as Voice, start: Number(m.start), reps: Number(m.reps) }); break;
       case 'perfStop': this.hooks.performStop?.(Number(m.id)); break;
       case 'note': this.hooks.note?.(Number(m.id), Number(m.m), m.voice as Voice); break;
@@ -437,6 +446,7 @@ export class Online {
     if (!r) return;
     this.hooks.scene.remove(r.model.root);
     if (r.horse) this.hooks.scene.remove(r.horse.root);
+    if (r.boat) this.hooks.scene.remove(r.boat);
     if (r.pet) this.hooks.scene.remove(r.pet.model.root);
     this.remotes.delete(id);
   }
@@ -484,7 +494,7 @@ export class Online {
       // A rider: their horse underfoot, and them in the saddle
       if (r.mount !== r.horseOf) {
         if (r.horse) this.hooks.scene.remove(r.horse.root);
-        const m = mountOf(r.mount);
+        const m = r.mount === 'boat_row' ? null : mountOf(r.mount);
         r.horse = m ? mountModel(m) : null;
         if (r.horse) this.hooks.scene.add(r.horse.root);
         r.horseOf = r.mount;
@@ -507,6 +517,15 @@ export class Online {
           r.carter.update(dt, 0);
         } else r.model.root.position.y += liftOf(r.mount);
       }
+      // Rowing: their boat under them on the water, where everyone can see her (and stand in her)
+      if (r.mount === 'boat_row' && this.hooks.rowboatModel) {
+        if (!r.boat) { r.boat = this.hooks.rowboatModel(); this.hooks.scene.add(r.boat); r.boatPrev = null; }
+        else r.boatPrev = { x: r.boat.position.x, y: r.boat.position.y, z: r.boat.position.z, yaw: r.boat.rotation.y };
+        const p = r.model.root.position;
+        boatUnderSeat(p.x, p.y, p.z, r.yaw, r.boat.position);
+        r.boat.rotation.y = r.yaw;
+        r.anim = 'seated'; r.held = 'none';
+      } else if (r.boat) { this.hooks.scene.remove(r.boat); r.boat = null; r.boatPrev = null; }
       if (r.carter && r.mount !== POST_CART_KEY) { this.hooks.scene.remove(r.carter.root); r.carter = undefined; }
       // Riding behind someone: in the second seat of their mount, wherever we see it
       const seat = r.pillion ? this.seatOf(r.pillion, r.id) : null;
@@ -530,6 +549,7 @@ export class Online {
   /** Help someone who's down back to their feet (the server checks they're down and you're beside them). */
   revive(id: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'revive', id })); }
   /** Tell your group about a kill, for their quests. */
+  fishRoll(n: number, water: string): void { this.emit({ t: 'fishRoll', n, water }); }
   groupRoom(site: string, i: number, s: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'gRoom', site, i, s })); }
   groupKill(type: string): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'gKill', type })); }
   /** How many others are up and about within r of a point: who might come and help you up. */

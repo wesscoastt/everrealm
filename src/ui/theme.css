@@ -331,3 +331,36 @@
 .obj-pin.edge .op-arrow { display: block; }
 .obj-pin.edge .op-text { top: 18px; }
 .hidden-hud .obj-pin { display: none !important; }
+
+/* The fight on the line (Hud.setReel) */
+.reel { position: fixed; left: 50%; bottom: 190px; transform: translateX(-50%); width: 340px; padding: 10px 14px 8px; background: rgba(11, 16, 32, 0.82); border: 1px solid var(--ink); border-radius: 10px; box-shadow: inset 0 0 0 1px var(--gild-faint); z-index: 6; pointer-events: none; }
+.reel .rl-head { display: flex; justify-content: space-between; color: var(--gild-l); margin-bottom: 6px; }
+.reel .rl-bar { position: relative; height: 16px; border-radius: 8px; background: linear-gradient(90deg, #2a3a5a, #3a2a2a 92%, #a8382c); overflow: hidden; }
+.reel .rl-band { position: absolute; top: 0; bottom: 0; background: rgba(240, 200, 90, 0.55); box-shadow: 0 0 8px rgba(240, 200, 90, 0.8); }
+.reel .rl-mark { position: absolute; top: -2px; width: 4px; height: 20px; margin-left: -2px; background: #fff; box-shadow: 0 0 4px #000; }
+.reel .rl-mark.hot { background: #ff6a4a; }
+.reel .rl-prog { height: 6px; margin-top: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.reel .rl-prog i { display: block; height: 100%; background: #9ff08a; }
+.reel small { display: block; margin-top: 5px; color: var(--cream-d); font-size: 11px; }
+
+/* Sell all, and the padlock on kept things (they never go in a Sell all) */
+.sellall { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; padding: 8px 10px; border-radius: 6px; background: rgba(4, 8, 20, 0.35); }
+.sellall b { color: var(--gold, #e8c66a); }
+.sellall-btns { display: flex; gap: 6px; flex: none; }
+.shop-row.sellrow { grid-template-columns: 46px 1fr auto auto; }
+.sellrow .tags { display: flex; gap: 5px; margin-top: 3px; }
+.sellrow .tag { font: 600 10px var(--body); padding: 1px 7px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(4, 8, 20, 0.45); color: var(--muted); cursor: pointer; }
+.sellrow .tag:hover { color: var(--cream); }
+.sellrow .tag.lock.on { color: #e8c66a; border-color: rgba(232, 198, 106, 0.6); }
+.sellrow .tag.junk.on { color: #c9a27a; border-color: rgba(201, 162, 122, 0.6); }
+.sellrow .qty { display: flex; align-items: center; gap: 3px; }
+.sellrow .qty[hidden] { display: none; }
+.sellrow .qty button { width: 24px; height: 24px; border-radius: 5px; border: 1px solid var(--gild-line); background: linear-gradient(#22305a, #141d38); color: var(--cream); font: 700 13px var(--body); cursor: pointer; padding: 0; }
+.sellrow .qty .q-all { width: auto; padding: 0 7px; font-size: 11px; }
+.sellrow .qty input { width: 46px; height: 24px; text-align: center; border-radius: 5px; border: 1px solid var(--gild-line); background: rgba(4, 8, 20, 0.6); color: var(--cream); font: 600 12px var(--body); -moz-appearance: textfield; }
+.sellrow .qty input::-webkit-inner-spin-button, .sellrow .qty input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.sellrow .btn.sell1 { min-width: 78px; white-space: nowrap; }
+.slot .junkmark { position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; border-radius: 50%; background: #9a7a5a; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); pointer-events: none; }
+@media (max-width: 560px) { .shop-row.sellrow { grid-template-columns: 40px 1fr auto; } .sellrow .qty { grid-column: 2 / 4; } }
+.slot .keep { position: absolute; left: 3px; top: 3px; width: 9px; height: 7px; border-radius: 2px; background: #e8c66a; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); pointer-events: none; }
+.slot .keep::before { content: ''; position: absolute; left: 1.5px; top: -5px; width: 4px; height: 5px; border: 1.5px solid #e8c66a; border-bottom: none; border-radius: 3px 3px 0 0; }

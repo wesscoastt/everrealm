@@ -140,10 +140,12 @@ import { Mail } from './Mail';
 import { Seasons } from './Seasons';
 import { WakeFair } from './WakeFair';
 import { Gatherings } from './Gatherings';
+import { BAIT_OF, COLD_REGIONS, FEN_REGIONS, FISH_BY_ID, fishWeight, MYTHICS, ROD_STATS, rollFish, SPOT_WATER, TIER_FIGHT, TIER_NAME, WARM_REGIONS, WATER_NAME, type FishDef, type FishWater } from '../data/fish';
+import { lakeDist } from '../world/terrain';
 import { DragonPass } from './DragonPass';
 import { gatheringBoard } from '../data/gatherings';
 import { Farming, farmPatches } from './Farming';
-import { Rowboat } from './Rowboat';
+import { Rowboat, rowboatModel, hullBlocks, overHull, BOAT_FLOOR } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty } from '../world/sites';
 import { MONUMENTS } from '../data/monuments';
@@ -283,8 +285,12 @@ interface GatherAction {
   tool: string;
   t: number;
   swings: number;
-  phase: 'cast' | 'wait' | 'bite' | 'reel';
+  phase: 'cast' | 'wait' | 'bite' | 'fight' | 'reel';
   waitFor: number;
+  /** Fishing: the kind of water, the bait on the hook, this cast's number (the realm's mythic roll answers to it). */
+  water?: FishWater; bait?: string | null; cast?: number;
+  /** The fight on the line: the fish, its weight, the line's tension, how far in it is, and its safe band. */
+  fight?: { fish: FishDef | 'megalodon' | 'ice_spice_fish'; lb: number; tension: number; progress: number; lo: number; hi: number; pull: number; surge: number; short: number };
 }
 
 interface CraftAction { recipe: string; left: number; t: number; station: Station; cost: Record<string, number>; out: string; xp: number; time: number }
@@ -768,6 +774,11 @@ export class Game implements GameApi {
 
   // Activities
   private action: GatherAction | null = null;
+  /** Each cast's number, and what the realm's roll said for it (a mythic, or nothing). */
+  private castN = 0;
+  private mythicFor = new Map<number, string | null>();
+  /** Fishing anywhere: the water in front of you, looked for every so often (null: none in reach). */
+  private openWater: { at: number; spot: FishSpot | null } = { at: -1, spot: null };
   private craftAction: CraftAction | null = null;
   currentStation: Station | null = null;
   /** Which trader's panel is open (a key of SHOPS). */
@@ -970,7 +981,9 @@ export class Game implements GameApi {
       hour: () => this.world.sky.hour,
       lamps: this.world.extraLamps,
     });
-    this.player.extraSolid = (x, y, z, half, height) => this.world.boardable.some((f) => f.blocks(x, y, z, half, height));
+    this.player.extraSolid = (x, y, z, half, height) => this.world.boardable.some((f) => f.blocks(x, y, z, half, height))
+      || this.boat.blocks(x, y, z, half, height)
+      || [...this.online.remotes.values()].some((r) => !!r.boat && hullBlocks(r.boat.position.x, r.boat.position.y, r.boat.position.z, r.boat.rotation.y, x, y, z, half, height));
     this.farming = new Farming({
       scene: this.scene, voxels: this.world.voxels,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1355,6 +1368,7 @@ export class Game implements GameApi {
     this.online = new Online({
       scene: this.scene,
       night: () => this.world.sky.night,
+      rowboatModel: () => rowboatModel(this.world.props),
       mySeat: () => {
         // On the Post: the cart, with its spare benches for whoever climbs up
         if (this.post.active) return { ...this.post.where, mount: POST_CART_KEY };
@@ -1403,6 +1417,7 @@ export class Game implements GameApi {
         if (this.shared.wasMine(e)) this.onEnemyKilled(e, true);
       },
       groupRoom: (site: string, i: number, s: number) => this.activities.groupRoom(site, i, s),
+      fishRoll: (n: number, pick: string | null) => { this.mythicFor.set(n, pick); },
       groupKill: (type: string) => {
         this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
         this.hud.setTracker(this.questEntries());
@@ -3445,6 +3460,13 @@ export class Game implements GameApi {
       learnPassive: (id: string) => g.learnPassive(id),
       buy: (item: string) => g.buy(item),
       sell: (slot: number) => g.sell(slot),
+      kept: (id: string) => g.kept(id),
+      toggleKeep: (id: string) => g.toggleKeep(id),
+      junk: (id: string) => g.junk(id),
+      toggleJunk: (id: string) => g.toggleJunk(id),
+      sellSome: (id: string, n: number) => g.sellSome(id, n),
+      sellAllPlan: (only?: 'junk') => g.sellAllPlan(only),
+      sellAll: (only?: 'junk') => g.sellAll(only),
       buyBack: (i: number) => g.buyBack(i),
       quests: () => g.questEntries(),
       trackQuest: (id: string, on: boolean) => g.trackQuest(id, on),
@@ -4107,6 +4129,7 @@ export class Game implements GameApi {
       this.hud.refresh();
       return;
     }
+    if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
     if (def.kind === 'food') this.eat(st.id);
     else if (def.weapon) {
       const old = this.save.equip.weapon;
@@ -4309,6 +4332,107 @@ export class Game implements GameApi {
     const list = this.soldLately(), top = list[0];
     if (top && top.id === st.id && top.price === price) { top.n++; top.at = Date.now(); } else list.unshift({ id: st.id, n: 1, price, at: Date.now() });
     this.setFlag('buyback', list.slice(0, Game.BUYBACK_MAX));
+    this.sfx('coin');
+    this.hud.refresh();
+  }
+
+  /**
+   * Kept: never sold by Sell all. Tools, trophies and anything epic or better are kept unless you say
+   * otherwise; anything else only if you lock it. Your choices are the 'keep' flag (item id to true or false).
+   */
+  kept(id: string): boolean {
+    const d = ITEMS[id];
+    if (!d) return true;
+    const mine = this.flag('keep') as Record<string, boolean> | undefined;
+    if (mine && typeof mine === 'object' && typeof mine[id] === 'boolean') return mine[id];
+    return d.kind === 'tool' || d.kind === 'trophy' || d.rarity === 'epic' || d.rarity === 'legendary';
+  }
+  toggleKeep(id: string): void {
+    if (!ITEMS[id]) return;
+    const raw = this.flag('keep'), mine: Record<string, boolean> = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, boolean>) } : {};
+    mine[id] = !this.kept(id);
+    this.setFlag('keep', mine);
+    this.hud.refresh();
+  }
+  /**
+   * Junk: what Sell junk sells. Plain (common) weapons and armour in your pack are junk unless you say
+   * otherwise; anything else only if you mark it. Your choices are the 'junk' flag (item id to true or false).
+   * A locked thing is never junk.
+   */
+  junk(id: string): boolean {
+    const d = ITEMS[id];
+    if (!d || d.kind === 'quest' || this.kept(id)) return false;
+    const mine = this.flag('junk') as Record<string, boolean> | undefined;
+    if (mine && typeof mine === 'object' && typeof mine[id] === 'boolean') return mine[id];
+    return d.rarity === 'common' && (d.kind === 'weapon' || d.kind === 'armor');
+  }
+  toggleJunk(id: string): void {
+    if (!ITEMS[id]) return;
+    const raw = this.flag('junk'), mine: Record<string, boolean> = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, boolean>) } : {};
+    const now = !this.junk(id);
+    mine[id] = now;
+    this.setFlag('junk', mine);
+    // marking something junk takes its lock off (the two can't both hold)
+    if (now && this.kept(id)) this.toggleKeep(id); else this.hud.refresh();
+  }
+  /** Sell so many of one thing, from whichever stacks hold it, at the trader's price: the Sell tab's amount. */
+  sellSome(id: string, n: number): void {
+    if (!this.hud.isOpen('shop')) return;
+    const def = ITEMS[id], view = this.shopView(), price = view.sellPrice(id);
+    const have = this.inv.count(id), k = Math.min(Math.floor(n), have);
+    if (!def || k <= 0) return;
+    if (def.kind === 'quest' || price <= 0) { this.hud.system(`${view.who} won't take that.`); return; }
+    let left = k;
+    for (let i = this.save.inv.length - 1; i >= 0 && left > 0; i--) {
+      const st = this.save.inv[i];
+      if (!st || st.id !== id) continue;
+      const take = Math.min(left, st.n);
+      this.inv.removeAt(i, take);
+      left -= take;
+    }
+    const sold = k - left;
+    this.save.marks += price * sold;
+    const list = this.soldLately(), top = list[0];
+    if (top && top.id === id && top.price === price) { top.n += sold; top.at = Date.now(); } else list.unshift({ id, n: sold, price, at: Date.now() });
+    this.setFlag('buyback', list.slice(0, Game.BUYBACK_MAX));
+    if (sold > 1) this.hud.system(`Sold ${sold} ${def.name.toLowerCase()} for ${price * sold} marks.`);
+    this.sfx('coin');
+    this.hud.refresh();
+  }
+
+  /** What Sell all (or Sell junk) would sell to the trader you're with: every stack in your pack they'll buy, less quest things and whatever's kept. */
+  sellAllPlan(only?: 'junk'): { slots: number[]; things: number; marks: number } {
+    const view = this.shopView(), slots: number[] = [];
+    let things = 0, marks = 0;
+    this.save.inv.forEach((st, i) => {
+      if (!st || !ITEMS[st.id] || ITEMS[st.id].kind === 'quest' || this.kept(st.id) || (only === 'junk' && !this.junk(st.id))) return;
+      const price = view.sellPrice(st.id);
+      if (price <= 0) return;
+      slots.push(i); things += st.n; marks += price * st.n;
+    });
+    return { slots, things, marks };
+  }
+  /** Sell all: each stack sold whole, at the price shown, and every one on the buy-back list for a day. */
+  sellAll(only?: 'junk'): void {
+    if (!this.hud.isOpen('shop')) return;
+    const view = this.shopView(), plan = this.sellAllPlan(only);
+    if (!plan.slots.length) { this.hud.system(only === 'junk' ? 'You have no junk on you.' : 'Nothing to sell: everything left is kept, or wanted for a quest.'); return; }
+    const list = this.soldLately();
+    let got = 0, n = 0;
+    for (const i of plan.slots) {
+      const st = this.save.inv[i];
+      if (!st || this.kept(st.id) || ITEMS[st.id]?.kind === 'quest' || (only === 'junk' && !this.junk(st.id))) continue;
+      const price = view.sellPrice(st.id);
+      if (price <= 0) continue;
+      const k = st.n;
+      this.inv.removeAt(i, k);
+      got += price * k; n += k;
+      const same = list.find((e) => e.id === st.id && e.price === price);
+      if (same) { same.n += k; same.at = Date.now(); } else list.unshift({ id: st.id, n: k, price, at: Date.now() });
+    }
+    this.save.marks += got;
+    this.setFlag('buyback', list.sort((a, b) => b.at - a.at).slice(0, Game.BUYBACK_MAX));
+    this.hud.system(`Sold ${n} ${only === 'junk' ? (n === 1 ? 'bit of junk' : 'bits of junk') : `thing${n === 1 ? '' : 's'}`} to ${view.who} for ${got} marks. You can buy any of it back today.`);
     this.sfx('coin');
     this.hud.refresh();
   }
@@ -4756,6 +4880,30 @@ export class Game implements GameApi {
     }
     this.hud.objectivePin({ x, y, edge: off, angle, label: m.sub ?? m.label ?? '', dist });
   }
+  /** What kind of water this is, for the fish (data/fish.ts): sea at sea level away from rivers and lakes,
+   *  warm in the Keys and the Bright Coast, fen in the Levels and Inkholm, cold in the high country. */
+  waterKind(x: number, y: number, z: number): FishWater {
+    const r = regionAt(x, z), reg = r.t < 0.5 ? r.a : r.b;
+    // (the Wend through Hollindale runs below sea level on the starter grid, which the river map doesn't cover: it's a river, never the sea)
+    const rv = Math.min(riverDist(x, z), distToPolyline(x, z, LOWER_WEND).d), lk = lakeDist(x, z), inDale = x < 320 && z < 320;
+    if (y <= 17 && rv > 6 && lk > 6 && !inDale) return WARM_REGIONS.has(reg) ? 'warmsea' : 'sea';
+    if (FEN_REGIONS.has(reg)) return 'swamp';
+    if (COLD_REGIONS.has(reg)) return 'cold';
+    if (rv <= 6) return WARM_REGIONS.has(reg) ? 'warmriver' : 'river';
+    return lk <= 6 ? 'lake' : 'pond';
+  }
+  /** Open water in front of you, near enough to cast to: its surface, as a fishing spot. */
+  private findOpenWater(): FishSpot | null {
+    const P = this.player.position, V = this.world.voxels, yaw = this.player.yaw;
+    for (const r of [2.5, 3.5, 4.5, 1.8]) for (const da of [0, 0.4, -0.4, 0.8, -0.8]) {
+      const x = Math.floor(P.x + Math.sin(yaw + da) * r), z = Math.floor(P.z + Math.cos(yaw + da) * r);
+      for (let y = Math.floor(P.y); y >= Math.floor(P.y) - 4; y--) {
+        if (V.get(x, y, z) === B.Water && V.get(x, y + 1, z) !== B.Water && !isSolid(V.get(x, y + 1, z))) return { id: -1, x: x + 0.5, y: y + 1, z: z + 0.5, water: 'lake' };
+        if (isSolid(V.get(x, y, z))) break;
+      }
+    }
+    return null;
+  }
   private questFocus(): string | undefined { return (this.flag('qFocus') as string | undefined) || undefined; }
 
   /** Where a quest's next objective is, if it points anywhere. */
@@ -4984,6 +5132,11 @@ export class Game implements GameApi {
       if (f.bareUntil > this.elapsed) continue;
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       if (d < 2.2 && Math.abs(f.y - p.y) < 2) consider({ kind: 'forage', label: `Pick ${ITEMS[f.kind]?.name.toLowerCase() ?? f.kind}`, pos: new THREE.Vector3(f.x, f.y + 0.4, f.z), forage: f }, d);
+    }
+    if (!this.player.swimming && this.hasTool('fishing') && !this.action) {
+      if (this.elapsed - this.openWater.at > 0.3) this.openWater = { at: this.elapsed, spot: this.findOpenWater() };
+      const w = this.openWater.spot;
+      if (w) consider({ kind: 'fish', label: 'Fish here', pos: new THREE.Vector3(w.x, w.y, w.z), spot: w, sub: WATER_NAME[this.waterKind(w.x, w.y, w.z)] }, 4.5);
     }
     if (!this.player.swimming) {
       for (const f of near.flatMap((b) => b.fish)) {
@@ -5379,6 +5532,26 @@ export class Game implements GameApi {
     if (a.kind === 'fish') {
       this.player.faceTowards(a.spot!.x, a.spot!.z);
       this.sfx('cast');
+      this.beginCast(act);
+    }
+  }
+
+  /** A cast: the kind of water, the bait on the hook (one goes each cast), and the realm's roll for a mythic. */
+  private beginCast(a: GatherAction): void {
+    const s = a.spot!;
+    a.water = s.id >= 0 ? SPOT_WATER[s.water] ?? 'lake' : this.waterKind(s.x, s.y, s.z);
+    const b = this.flag('bait') as string | undefined;
+    a.bait = b && this.inv.count(b) > 0 ? b : null;
+    if (b && !a.bait) { this.setFlag('bait', null); this.hud.system("You're out of bait. Fishing with a bare hook."); }
+    if (a.bait) this.take(a.bait, 1);
+    a.cast = ++this.castN;
+    // The mythics: only in their water, and the realm's roll (offline, the same odds here)
+    const eligible = Object.values(MYTHICS).some((m) => (m.waters as readonly string[]).includes(a.water!));
+    if (!eligible) this.mythicFor.set(a.cast, null);
+    else if (this.online.status === 'online') this.online.fishRoll(a.cast, a.water);
+    else {
+      const u = () => { const v = new Uint32Array(2); crypto.getRandomValues(v); return (v[0] * 2 ** 21 + (v[1] >>> 11)) / 2 ** 53; };
+      this.mythicFor.set(a.cast, a.water === 'cold' && u() < MYTHICS.ice_spice_fish.odds ? 'ice_spice_fish' : (a.water === 'sea' || a.water === 'warmsea') && u() < MYTHICS.megalodon.odds ? 'megalodon' : null);
     }
   }
 
@@ -5441,7 +5614,7 @@ export class Game implements GameApi {
         a.phase = 'wait';
         a.t = 0;
         const lvl = this.level('fishing');
-        a.waitFor = Math.max(1.8, 3 + Math.random() * 5 - lvl * 0.1);
+        a.waitFor = Math.max(1.8, (3 + Math.random() * 5 - lvl * 0.1) * (1 - (ROD_STATS[a.tool]?.bite ?? 0)));
         this.sfx('splash', 0.5);
         this.particles.ripple(bobPos);
       }
@@ -5464,6 +5637,22 @@ export class Game implements GameApi {
         a.phase = 'reel';
         a.t = 0;
       }
+    } else if (a.phase === 'fight' && a.fight) {
+      const f = a.fight, hold = this.input.held('KeyE') || this.input.held('Space');
+      bobPos.y -= 0.25 + Math.sin(a.t * 18) * 0.06 * f.pull;
+      // The fish surges now and then; holding reels in (and tightens the line), letting go gives it line
+      // (tuned so every fish can be landed with the right rod: a Megalodon parts an ordinary line, a sea rod holds her most times)
+      if ((f.surge -= dt) <= 0) f.surge = 0.9 + Math.random() * Math.max(0.6, 2.2 - f.pull);
+      const surge = f.surge < 0.35 ? f.pull * 0.5 * (1 + f.short * 0.8) : 0;
+      f.tension = Math.max(0, Math.min(1.05, f.tension + (hold ? 0.35 + f.pull * 0.2 : -(0.4 + f.pull * 0.35)) * dt + surge * dt));
+      const inBand = f.tension >= f.lo && f.tension <= f.hi;
+      f.progress = Math.max(0, Math.min(1, f.progress + (inBand ? (0.26 - f.pull * 0.12) : -0.05) * dt));
+      this.hud.setCast(null);
+      this.hud.setReel({ tension: f.tension, lo: f.lo, hi: f.hi, progress: f.progress, name: typeof f.fish === 'string' ? '???' : TIER_NAME[f.fish.tier] });
+      if (Math.random() < dt * 6) this.particles.ripple(bobPos);
+      if (f.tension >= 1.04) { this.hud.setReel(null); this.hud.system(f.fish === 'megalodon' ? 'The line goes with a crack like a mast. Something vast turns away under you, and is gone.' : 'Snap. The line goes slack, and so do you.'); this.sfx('pickSnap'); a.fight = undefined; a.phase = 'reel'; a.t = 0; }
+      else if (f.progress <= 0) { this.hud.setReel(null); this.hud.system('It throws the hook and is gone.'); a.fight = undefined; a.phase = 'reel'; a.t = 0; }
+      else if (f.progress >= 1) { this.hud.setReel(null); this.landFish(f.fish, f.lb); a.fight = undefined; a.phase = 'reel'; a.t = 0; }
     } else if (a.phase === 'reel') {
       this.hud.setCast('Recasting', a.t / 1);
       if (a.t > 1) { a.phase = 'cast'; a.t = 0; this.sfx('cast'); }
@@ -5485,25 +5674,57 @@ export class Game implements GameApi {
     }
   }
 
+  /** A fish landed: it goes in the pack (a sea turtle goes free), into the catch book, and the skill. */
+  private landFish(fish: FishDef | 'megalodon' | 'ice_spice_fish', lb: number): void {
+    this.sfx('catch'); this.particles.splash(this.bobber.position, 22);
+    if (fish === 'megalodon') {
+      this.give('megalodon_tooth'); this.addMarks(2500); this.addXp('fishing', 20000); this.quake(0.9);
+      this.hud.banner('MEGALODON', 'A shark the size of a ship, brought to the boat and let go: one tooth to prove it', true);
+      this.logCatch('megalodon', 'Megalodon', 52000); return;
+    }
+    if (fish === 'ice_spice_fish') {
+      this.give('ice_spice_fish'); this.addXp('fishing', 15000);
+      this.hud.banner('ICE SPICE FISH', 'One cast in a hundred million', true);
+      this.logCatch('ice_spice_fish', 'Ice Spice Fish', 3.1); return;
+    }
+    const item = fish.id === 'seaturtle_find' ? 'seaturtle_scale' : fish.id;
+    if (!this.inv.canAdd(item)) { this.hud.system('Your pack is full. You let it go.'); return; }
+    this.give(item);
+    this.addXp('fishing', fish.xp);
+    if (fish.tier !== 'common') this.hud.banner(fish.name, TIER_NAME[fish.tier] + ' · ' + lb + ' lb', true);
+    this.logCatch(fish.id, fish.name, lb);
+  }
+  /** The catch book: how many of each, and the heaviest (flag fishlog). */
+  private logCatch(id: string, name: string, lb: number): void {
+    const book = (this.flag('fishlog') as Record<string, [number, number]> | undefined) ?? {};
+    const was = book[id];
+    book[id] = [(was?.[0] ?? 0) + 1, Math.max(was?.[1] ?? 0, lb)];
+    this.setFlag('fishlog', { ...book });
+    if (!was) this.hud.system(name + ': ' + lb + ' lb. A new one for your catch book (' + Object.keys(book).length + ' kinds now; /catches to see them).');
+    else if (lb > was[1]) this.hud.system(name + ': ' + lb + ' lb, your heaviest yet.');
+    else this.hud.system(name + ': ' + lb + ' lb.');
+  }
+
   /** Called by E / click while fishing. */
   private pullLine(): boolean {
     const a = this.action;
     if (!a || a.kind !== 'fish') return false;
     if (a.phase === 'bite') {
       this.hud.showBite(false);
-      const lvl = this.level('fishing');
-      const table = FISH_TABLE[a.spot!.water].filter((f) => f.level <= lvl);
-      if (!table.length) { this.hud.system('Whatever it was was too quick for you.'); a.phase = 'reel'; a.t = 0; return true; }
-      const total = table.reduce((s, f) => s + f.weight, 0);
-      let roll = Math.random() * total;
-      let pick = table[0];
-      for (const f of table) { roll -= f.weight; if (roll <= 0) { pick = f; break; } }
-      if (!this.inv.canAdd(pick.item)) { this.hud.system('Your pack is full.'); this.cancelActions(); return true; }
-      this.give(pick.item);
-      this.addXp('fishing', pick.xp);
-      this.sfx('catch');
-      this.particles.splash(this.bobber.position, 16);
-      a.phase = 'reel';
+      const lvl = this.level('fishing'), rod = ROD_STATS[a.tool] ?? ROD_STATS.fishing_rod;
+      const myth = this.mythicFor.get(a.cast ?? -1) ?? null;
+      this.mythicFor.delete(a.cast ?? -1);
+      const fish: FishDef | 'megalodon' | 'ice_spice_fish' | null = myth === 'megalodon' || myth === 'ice_spice_fish' ? myth : rollFish(a.water ?? 'lake', lvl, a.bait ? BAIT_OF[a.bait] : null, rod.luck);
+      if (!fish) { this.hud.system('Nothing here takes a bare hook. Try some bait.'); a.phase = 'reel'; a.t = 0; return true; }
+      // The fight: harder for a rarer, heavier fish; the rod's line and steadiness widen the safe band
+      const lb = typeof fish === 'string' ? (fish === 'megalodon' ? 52000 : 3.1) : fishWeight(fish);
+      const fight = fish === 'megalodon' ? 1.15 : fish === 'ice_spice_fish' ? 0.9 : TIER_FIGHT[fish.tier] + Math.min(0.2, lb / 900);
+      const width = Math.max(0.07, 0.2 + rod.steady * 0.4 - fight * 0.1 - Math.max(0, fight - rod.line) * 0.15);
+      a.fight = { fish, lb, tension: 0.35, progress: 0.3, lo: 0.5 - width / 2, hi: 0.5 + width / 2, pull: fight, surge: 0, short: Math.max(0, fight - rod.line) };
+      if (fish === 'megalodon') { this.hud.banner('Something enormous', 'The line goes taut as an anchor chain', true); this.quake(0.6); this.sfx('thunder', 0.6); this.particles.splash(this.bobber.position, 40); }
+      else if (fish === 'ice_spice_fish') { this.hud.banner('The water goes cold', 'Something bright is on the line', true); this.sfx('bell'); }
+      else this.sfx('catch');
+      a.phase = 'fight';
       a.t = 0;
       return true;
     }
@@ -6805,6 +7026,14 @@ export class Game implements GameApi {
       let ride: { pos: THREE.Vector3; turn: number } | null = null;
       for (const f of this.world.boardable) ride = f.carry(this.player.position, this.player.onGround) ?? ride;
       if (ride) this.player.carried(ride.pos, ride.turn);
+      // Standing in someone's rowing boat: she takes you with her as they row
+      if (!ride && this.player.onGround) for (const r of this.online.remotes.values()) {
+        const b = r.boat, was = r.boatPrev;
+        if (!b || !was || !overHull(was.x, was.z, was.yaw, P.x, P.z) || Math.abs(P.y - (was.y + BOAT_FLOOR)) > 0.3) continue;
+        const dx = P.x - was.x, dz = P.z - was.z, turn = b.rotation.y - was.yaw, c = Math.cos(turn), s = Math.sin(turn);
+        this.player.carried(tmpV.set(b.position.x + dx * c + dz * s, b.position.y + BOAT_FLOOR, b.position.z - dx * s + dz * c), turn);
+        break;
+      }
     }
     // Doors open for anyone walking up to them: you, other players, the villagers
     const movers = [P, ...[...this.online.remotes.values()].map((r) => r.model.root.position), ...this.npcs.filter((n) => n.placed !== false).map((n) => n.pos), ...this.crowd.movers()];
@@ -7343,7 +7572,7 @@ export class Game implements GameApi {
     this.horse?.holdReins(M.state === 'ride' ? M.handsAt(handL, handR) : null);
     // (on the Post, everyone sees the cart go by with you on its bench)
     if (this.post.active) { const w = this.post.where; this.online.update(dt, { x: w.x, y: w.y, z: w.z, yaw: w.yaw, anim: 'seated', held: 'none', mount: POST_CART_KEY, pillion: null }); }
-    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : null, pillion: this.pillion });
+    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion });
     this.music.update();
     this.chests.update();
     // Your own pet at your heels (data/pets.ts), the one your look names
@@ -7709,6 +7938,12 @@ export class Game implements GameApi {
           const rm = arg.trim().match(/^(.+?)(?:\s+for\s+(\S+))?$/i), name = rm?.[1].trim() ?? '';
           if (!name) { this.hud.system("/release <character> [for <account>]: sets that character aside so its player can make it again (only that account, if named); the name keeps its place on the travellers' board. The realm's keeper only."); return; }
           this.hud.ask(`Set ${name} aside? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name, rm?.[2]).then((t) => this.hud.system(t)); }, () => {}, 30);
+          return;
+        }
+        case 'catches': {
+          const book = (this.flag('fishlog') as Record<string, [number, number]> | undefined) ?? {};
+          const rows = Object.entries(book).map(([id, [n, lb]]) => (FISH_BY_ID[id]?.name ?? ITEMS[id]?.name ?? id) + ' ×' + n + ' (best ' + lb + ' lb)');
+          this.hud.system(rows.length ? 'Your catch book, ' + rows.length + ' kinds: ' + rows.join(', ') + '.' : 'Your catch book is empty. Go and fish.');
           return;
         }
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;

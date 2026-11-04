@@ -303,6 +303,16 @@ export interface UiCtx {
   learnPassive(id: string): string | null;
   buy(item: string): void;
   sell(slot: number): void;
+  /** Kept things are never sold by Sell all (the padlock); tools, trophies and epics start kept. */
+  kept(id: string): boolean;
+  toggleKeep(id: string): void;
+  /** Junk is what Sell junk sells: plain weapons and armour, and whatever you mark. */
+  junk(id: string): boolean;
+  toggleJunk(id: string): void;
+  /** Sell so many of one thing (the Sell tab's amount). */
+  sellSome(id: string, n: number): void;
+  sellAllPlan(only?: 'junk'): { slots: number[]; things: number; marks: number };
+  sellAll(only?: 'junk'): void;
   /** Buy one back of the i-th thing on the buy-back list (ShopView.buyback). */
   buyBack(i: number): void;
   quests(): QuestEntry[];
@@ -767,6 +777,25 @@ export class Hud {
     c.classList.toggle('alert', alert);
     this.q('#castbar .label').textContent = label;
     (this.q('#castbar i') as HTMLElement).style.width = Math.min(100, progress * 100) + '%';
+  }
+
+  /** The fight on the line: the tension marker, the safe band, how far the fish is in (null: put away). */
+  private reelEl: HTMLElement | null = null;
+  setReel(r: { tension: number; lo: number; hi: number; progress: number; name: string } | null): void {
+    if (!r) { if (this.reelEl) this.reelEl.style.display = 'none'; return; }
+    if (!this.reelEl) {
+      this.reelEl = el('div', 'reel');
+      this.reelEl.innerHTML = '<div class="rl-head"><b>On the line</b><span></span></div><div class="rl-bar"><i class="rl-band"></i><i class="rl-mark"></i></div><div class="rl-prog"><i></i></div><small>Hold E or Space to reel in. Keep the line in the gold: too slack and it throws the hook, too tight and it snaps.</small>';
+      this.root.append(this.reelEl);
+    }
+    const e = this.reelEl;
+    e.style.display = '';
+    (e.querySelector('.rl-head span') as HTMLElement).textContent = r.name;
+    const band = e.querySelector('.rl-band') as HTMLElement, mark = e.querySelector('.rl-mark') as HTMLElement;
+    band.style.left = (r.lo * 100).toFixed(1) + '%'; band.style.width = ((r.hi - r.lo) * 100).toFixed(1) + '%';
+    mark.style.left = (Math.min(1, r.tension) * 100).toFixed(1) + '%';
+    mark.classList.toggle('hot', r.tension > r.hi);
+    (e.querySelector('.rl-prog i') as HTMLElement).style.width = (r.progress * 100).toFixed(1) + '%';
   }
 
   showBite(on: boolean): void {
@@ -1831,13 +1860,19 @@ export class Hud {
     const grid = el('div', 'inv-grid');
     save.inv.forEach((st, i) => {
       const def = st ? ITEMS[st.id] : null;
-      const hint = !def ? '' : def.kind === 'food' ? 'Click to eat · Shift-click to drop' : def.kind === 'weapon' || def.kind === 'armor' ? 'Click to equip · Shift-click to drop' : this.open.has('shop') ? 'Click to sell' : 'Shift-click to drop';
+      const hint0 = !def ? '' : def.kind === 'food' ? 'Click to eat · Shift-click to drop' : def.kind === 'weapon' || def.kind === 'armor' ? 'Click to equip · Shift-click to drop' : this.open.has('shop') ? 'Click to sell' : 'Shift-click to drop';
+      const kept = !!st && this.ctx.kept(st.id);
+      const hint = def ? `${hint0} · Alt-click to ${kept ? 'unlock' : 'lock'} · Ctrl-click to mark as junk` : '';
       const s = this.slotEl(st?.id ?? null, st?.n ?? 0, i, hint);
+      if (kept) s.append(el('span', 'keep', ''));
+      else if (st && this.ctx.junk(st.id)) s.append(el('span', 'junkmark', ''));
       s.draggable = !!st;
       s.addEventListener('click', (e) => {
         if (!st) return;
         this.hideTooltip();
-        if (e.shiftKey) this.ctx.dropSlot(i);
+        if (e.altKey) { e.preventDefault(); this.ctx.toggleKeep(st.id); }
+        else if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.ctx.toggleJunk(st.id); }
+        else if (e.shiftKey) this.ctx.dropSlot(i);
         else if (this.open.has('shop')) this.ctx.sell(i);
         else this.ctx.useSlot(i);
       });
@@ -2420,17 +2455,44 @@ export class Hud {
       });
       if (!shop.buyback.length) body.append(el('div', '', '<p style="color:var(--muted)">You haven\'t sold anything today.</p>'));
     } else {
+      // Sell junk in one click (it's all on the buy-back list if you change your mind); Sell all, asked first:
+      // every stack they'll buy, less what's locked and what a quest wants
+      const plan = this.ctx.sellAllPlan(), junk = this.ctx.sellAllPlan('junk');
+      const all = el('div', 'sellall');
+      const s = (n: number) => (n === 1 ? '' : 's');
+      all.innerHTML = `<span>${junk.things ? `Junk: ${junk.things} thing${s(junk.things)}, <b>${junk.marks}</b> marks.` : 'No junk.'} ${plan.things ? `Everything you could sell: ${plan.things} thing${s(plan.things)}, <b>${plan.marks}</b> marks.` : ''}</span><span class="sellall-btns"><button class="btn ghost sj" title="Plain weapons and armour, and whatever you mark as junk">Sell junk</button><button class="btn sa">Sell all</button></span>`;
+      const jb = all.querySelector('.sj') as HTMLButtonElement, ab = all.querySelector('.sa') as HTMLButtonElement;
+      jb.disabled = !junk.things; ab.disabled = !plan.things;
+      jb.addEventListener('click', () => this.ctx.sellAll('junk'));
+      ab.addEventListener('click', () => this.ask(`Sell ${plan.things} thing${s(plan.things)} to ${shop.who} for ${plan.marks} marks? Anything locked stays in your pack, and you can buy back what you sell today.`, () => this.ctx.sellAll(), () => {}, 30));
+      body.append(all);
       const seen = new Set<string>();
       this.ctx.save.inv.forEach((st, i) => {
         if (!st || seen.has(st.id)) return;
         seen.add(st.id);
         const d = ITEMS[st.id];
         const price = shop.sellPrice(st.id);
-        const row = el('div', 'shop-row');
-        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(st.id)}" alt="">${this.ctx.inv.count(st.id) > 1 ? `<span class="n">${this.ctx.inv.count(st.id)}</span>` : ''}</div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${esc(shop.who)} offers ${price} each</div></div><span class="coin">${price}</span><button class="btn">Sell</button>`;
-        const b = row.querySelector('button')!;
-        b.disabled = price <= 0 || d.kind === 'quest';
-        b.addEventListener('click', () => this.ctx.sell(i));
+        // One row for each kind of thing, however many stacks: how many to sell (one, more, or all), and its tags
+        const have = this.ctx.inv.count(st.id), kept = this.ctx.kept(st.id), junky = this.ctx.junk(st.id), can = price > 0 && d.kind !== 'quest';
+        const row = el('div', 'shop-row sellrow');
+        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(st.id)}" alt="">${have > 1 ? `<span class="n">${have}</span>` : ''}</div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${can ? `${esc(shop.who)} offers ${price} each` : d.kind === 'quest' ? 'Wanted for a quest' : `${esc(shop.who)} won't take it`}</div><div class="tags"><button class="tag lock${kept ? ' on' : ''}" title="Locked things are never sold by Sell all or Sell junk">${kept ? 'Locked' : 'Lock'}</button><button class="tag junk${junky ? ' on' : ''}" title="Junk goes when you press Sell junk">${junky ? 'Junk' : 'Mark junk'}</button></div></div><div class="qty"${have > 1 && can ? '' : ' hidden'}><button class="q-dn" aria-label="Fewer">−</button><input type="number" min="1" max="${have}" value="${have}" aria-label="How many"><button class="q-up" aria-label="More">+</button><button class="q-all">All</button></div><button class="btn sell1">Sell <span class="tot">${price * have}</span></button>`;
+        const inp = row.querySelector('input') as HTMLInputElement, tot = row.querySelector('.tot') as HTMLElement;
+        const n = () => Math.max(1, Math.min(have, Math.floor(Number(inp.value)) || 1));
+        const show = () => { tot.textContent = String(price * n()); };
+        // (the amount starts at all of it; a single thing sells as one)
+        row.querySelector('.q-dn')!.addEventListener('click', () => { inp.value = String(Math.max(1, n() - 1)); show(); });
+        row.querySelector('.q-up')!.addEventListener('click', () => { inp.value = String(Math.min(have, n() + 1)); show(); });
+        row.querySelector('.q-all')!.addEventListener('click', () => { inp.value = String(have); show(); });
+        inp.addEventListener('input', show);
+        inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.ctx.sellSome(st.id, n()); });
+        row.querySelector('.lock')!.addEventListener('click', () => this.ctx.toggleKeep(st.id));
+        row.querySelector('.junk')!.addEventListener('click', () => this.ctx.toggleJunk(st.id));
+        const b = row.querySelector('.sell1') as HTMLButtonElement;
+        b.disabled = !can;
+        b.addEventListener('click', () => this.ctx.sellSome(st.id, n()));
+        const slot = row.querySelector('.slot') as HTMLElement;
+        slot.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(st.id), e.clientX, e.clientY));
+        slot.addEventListener('mouseleave', () => this.hideTooltip());
         body.append(row);
       });
       if (!seen.size) body.append(el('div', '', '<p style="color:var(--muted)">Your pack is empty.</p>'));

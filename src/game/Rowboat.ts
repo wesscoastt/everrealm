@@ -12,6 +12,36 @@ const SPEED = 4.4, BACK = 1.8, TURN = 1.5;
 /** Where the rower sits, in the boat's frame (bow +x): on the after thwart, facing the bow. */
 const SEAT = new THREE.Vector3(-0.3, 0.12, 0);
 
+/** Her hull alone, as everyone else sees it under someone rowing (multiplayer: net/Online.ts). */
+export function rowboatModel(M: P.PropMaterials): THREE.Group {
+  const g = new THREE.Group(), hull = P.boat(M);
+  hull.rotation.y = -Math.PI / 2;
+  g.add(hull);
+  return g;
+}
+
+/** Where her model stands under a rower sitting at (x, y, z), heading yaw: Rowboat.seat turned round, less the bob. */
+export function boatUnderSeat(x: number, y: number, z: number, yaw: number, out: THREE.Vector3): THREE.Vector3 {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  return out.set(x - s * SEAT.x - c * SEAT.z, y - SEAT.y + 0.24 - 0.27, z - c * SEAT.x + s * SEAT.z);
+}
+
+/** Her bottom boards' height above her model's origin: the floor you stand on in her. */
+export const BOAT_FLOOR = 0.5;
+
+/** Is a point over a boat whose model stands at (bx, bz) heading yaw, within her length and beam (plus a margin)? */
+export function overHull(bx: number, bz: number, yaw: number, px: number, pz: number, margin = 0): boolean {
+  const dx = px - bx, dz = pz - bz, s = Math.sin(yaw), c = Math.cos(yaw);
+  const along = dx * s + dz * c, across = dx * c - dz * s;
+  return along > -1.6 - margin && along < 1.7 + margin && Math.abs(across) < 0.55 + margin;
+}
+
+/** Does a walker's box (feet at py) run into a boat's model at (bx, by, bz)? She's solid from her keel up to her bottom boards, so you stand in her. */
+export function hullBlocks(bx: number, by: number, bz: number, yaw: number, px: number, py: number, pz: number, half: number, height: number): boolean {
+  if (!overHull(bx, bz, yaw, px, pz, half * 0.6)) return false;
+  return py < by + BOAT_FLOOR && py + height > by - 0.1;
+}
+
 export class Rowboat {
   readonly root = new THREE.Group();
   private readonly oars: THREE.Group[] = [];
@@ -97,6 +127,13 @@ export class Rowboat {
   }
 
   /** Take her out of the water (back to the boatman, or into your pack). */
+  /** Does a walker run into her (moored, with nobody at the oars)? */
+  blocks(px: number, py: number, pz: number, half: number, height: number): boolean {
+    if (!this.afloat || this.aboard) return false;
+    const r = this.root.position;
+    return hullBlocks(r.x, r.y, r.z, this.yaw, px, py, pz, half, height);
+  }
+
   stow(): void {
     this.afloat = false;
     this.aboard = false;

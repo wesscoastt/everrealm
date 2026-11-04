@@ -681,7 +681,8 @@ export function signpost(M: PropMaterials, arms: { text: string; angle: number }
   arms.forEach((a, i) => {
     const tex = textTexture(a.text, 256, 48, '#e8dcbf', '#3a2615', 26);
     const plank = new THREE.Mesh(box(1.4, 0.3, 0.06), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
-    plank.position.set(Math.cos(a.angle) * 0.7, 2.1 - i * 0.38, -Math.sin(a.angle) * 0.7);
+    // (out from the post far enough that the post hides none of the words)
+    plank.position.set(Math.cos(a.angle) * 0.8, 2.1 - i * 0.38, -Math.sin(a.angle) * 0.8);
     plank.rotation.y = a.angle;
     g.add(plank);
   });
@@ -3217,7 +3218,9 @@ export function gravestone(M: PropMaterials, kind = 0): THREE.Group {
 
 export function standingSign(M: PropMaterials, text: string): THREE.Group {
   const g = new THREE.Group();
-  for (const x of [-0.8, 0.8]) g.add(mesh(box(0.14, 1.9, 0.14), M.darkWood, x, 0.95, -0.11));
+  // The posts flank the board's ends, clear of its face on both sides, so they never stand in front of a letter
+  for (const x of [-1.03, 1.03]) g.add(mesh(box(0.14, 1.95, 0.14), M.darkWood, x, 0.975, 0));
+  for (const y of [1.2, 1.8]) for (const x of [-1, 1]) g.add(mesh(box(0.1, 0.06, 0.06), M.iron, x * 0.97, y, 0));
   const tex = textTexture(text, 384, 128, '#d9c79c', '#3a2414', 44);
   const board = new THREE.Mesh(box(1.9, 0.75, 0.08), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
   board.position.set(0, 1.5, 0);
