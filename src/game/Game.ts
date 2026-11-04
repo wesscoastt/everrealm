@@ -1467,7 +1467,9 @@ export class Game implements GameApi {
       },
       status: (s, n) => {
         if (s === 'online') this.social.watch();
-        this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline' : 'Reconnecting…', s === 'online');
+        this.hud.setOnline(s === 'off' ? null : s === 'online' ? `Online · ${n}` : s === 'connecting' ? 'Connecting…' : s === 'denied' ? 'Offline: not let in' : 'Reconnecting…', s === 'online');
+        // (turned away by the realm: say so plainly, not only in a line of chat that scrolls by)
+        if (s === 'denied') this.hud.banner('Playing offline', "The realm didn't let this character in. The chat says why.", true);
       },
       bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
       bossDown: (id, cycle, by) => this.activities.bossDown(id, cycle, by, this.save.name),

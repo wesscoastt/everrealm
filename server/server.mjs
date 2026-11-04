@@ -192,6 +192,9 @@ function climbers() {
   climbersCache = { at: Date.now(), list };
   return list;
 }
+/** A save with far less play than the realm's copy (a fresh character made again under the same name, an old
+ *  browser's copy): never written over the one with the progress. */
+const behind = (next, kept) => !!kept && Number(kept.playTime ?? 0) - Number(next?.playTime ?? 0) > 600;
 const storeChar = (key, rec) => writeJson(path.join(CHAR_DIR, key + '.json'), rec);
 const accKey = (user) => user.toLowerCase();
 const loadAccount = (user) => readJson(path.join(ACC_DIR, accKey(user) + '.json'));
@@ -519,8 +522,8 @@ async function api(req, res) {
       // A name claimed before accounts, by a browser secret: its holder can bring it into an account
       const body = req.method === 'PUT' ? await readBody(req) : null;
       if (!(rec.tokenHash && body?.legacyToken && hash(body.legacyToken) === rec.tokenHash && !rec.owner)) return reply(res, 403, { error: `The name ${name} belongs to someone else on this server.` });
-      rec.owner = acc.user;
-      if (body.save && !validSave(body.save, rec.name)) { rec.save = body.save; rec.updated = Date.now(); }
+      rec.owner = acc.user; rec.claimed = Date.now();
+      // (the guest's own save stays: the upload is whatever this browser has, which may be a fresh copy of the name)
       storeChar(key, rec);
       if (!acc.chars.includes(key)) { acc.chars.push(key); storeAccount(acc); }
       return reply(res, 200, { ok: true });
@@ -534,6 +537,7 @@ async function api(req, res) {
         rec = { name: body.save.name, owner: acc.user, created: Date.now(), save: null };
         log(`${acc.user} claimed ${rec.name}`);
       }
+      if (behind(body.save, rec.save)) return reply(res, 409, { error: 'The realm has more progress for this character than this copy.' });
       rec.save = body.save;
       rec.updated = Date.now();
       storeChar(key, rec);
@@ -578,6 +582,20 @@ const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA,
 const music = musicInit({ players, send, social });
 const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, perf: music.perfOf(p) });
 
+/** A player out of the world: their socket closed, or a new connection of theirs took over. */
+function dropPlayer(p) {
+  if (p.dropped) return;
+  p.dropped = true;
+  finder.leave(p);
+  naval.leave(p);
+  social.leave(p);
+  guilds.leave(p);
+  players.delete(p.id);
+  broadcast({ t: 'leave', id: p.id });
+  broadcast({ t: 'sys', text: `${p.name} has left.` });
+  log(`${p.name} left (${players.size} online)`);
+}
+
 wss.on('connection', (ws, req) => {
   let me = null;
   ws.isAlive = true;
@@ -593,11 +611,20 @@ wss.on('connection', (ws, req) => {
       const name = typeof msg.name === 'string' ? msg.name.trim().slice(0, 20) : '';
       const key = keyFor(name);
       if (!key) { send(ws, { t: 'denied', reason: 'That name can\'t be used here.' }); ws.close(); return; }
-      if ([...players.values()].some((p) => p.key === key)) { send(ws, { t: 'denied', reason: `${name} is already in the world.` }); ws.close(); return; }
       let rec = loadChar(key);
       const user = sessionUser(msg.session);
       if (user) {
         // Signed in: the character must be this account's, or a free name it now takes
+        // A guest character made before the account, in this same browser (it holds the guest secret for the name):
+        // it comes into the account as it is, save, place and history untouched. Without the secret it's someone
+        // else's, whatever name is typed (owner 2026-11-04: Billie Eyelash, played as a guest, then signed in)
+        if (rec && !rec.owner && rec.tokenHash && typeof msg.token === 'string' && hash(msg.token) === rec.tokenHash) {
+          const acc = loadAccount(user);
+          rec.owner = user; rec.claimed = Date.now();
+          storeChar(key, rec);
+          if (acc && !acc.chars.includes(key)) { acc.chars.push(key); storeAccount(acc); }
+          log(`${user} brought the guest character ${rec.name} into the account`);
+        }
         if (rec && rec.owner !== user) { send(ws, { t: 'denied', reason: `The name ${name} belongs to someone else on this server.` }); ws.close(); return; }
         if (!rec) {
           const acc = loadAccount(user);
@@ -610,6 +637,11 @@ wss.on('connection', (ws, req) => {
         if (rec && (rec.owner || rec.tokenHash !== hash(msg.token))) { send(ws, { t: 'denied', reason: `The name ${name} belongs to someone else on this server.` }); ws.close(); return; }
         if (!rec) { rec = { name, tokenHash: hash(msg.token), created: Date.now(), save: null }; storeChar(key, rec); log(`new character ${name}`); }
       }
+      // The same character again (a reconnect that beat the old socket's close, the menu's connection and the
+      // world's, a second tab): the new one takes over and the old one goes, rather than turning the player away
+      // to play offline for the rest of their session (owner 2026-11-04: "server says on, then it says offline")
+      const old = [...players.values()].find((p) => p.key === key);
+      if (old) { send(old.ws, { t: 'denied', reason: 'You came into the world somewhere else.' }); dropPlayer(old); try { old.ws.close(); } catch { /* gone */ } log(`${old.name} replaced by a new connection`); }
       me = {
         id: nextId++, key, name: rec.name, ws, look: msg.look && typeof msg.look === 'object' ? msg.look : {},
         // A page from before the lands were one world says 'morrow' and keeps Morrow's old coordinates: kept apart
@@ -782,6 +814,7 @@ wss.on('connection', (ws, req) => {
         if (bad) { log(`rejected save from ${me.name}: ${bad}`); return; }
         const rec = loadChar(me.key);
         if (!rec) return;
+        if (behind(msg.save, rec.save)) { log(`kept ${me.name}'s save: the one sent was far behind it`); return; }
         rec.save = msg.save;
         rec.updated = Date.now();
         storeChar(me.key, rec);
@@ -790,17 +823,7 @@ wss.on('connection', (ws, req) => {
     }
   });
 
-  ws.on('close', () => {
-    if (!me) return;
-    finder.leave(me);
-    naval.leave(me);
-    social.leave(me);
-    guilds.leave(me);
-    players.delete(me.id);
-    broadcast({ t: 'leave', id: me.id });
-    broadcast({ t: 'sys', text: `${me.name} has left.` });
-    log(`${me.name} left (${players.size} online)`);
-  });
+  ws.on('close', () => { if (me && !me.dropped) dropPlayer(me); });
 });
 
 // Creatures at their spawn points are shared in one way: when someone kills one, it stays dead for
