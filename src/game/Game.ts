@@ -7706,9 +7706,9 @@ export class Game implements GameApi {
         }
         case 'release': {
           // The realm's keeper: /release <character> deletes it, frees the name, and keeps its place on the travellers' board
-          const name = arg.trim();
-          if (!name) { this.hud.system("/release <character>: deletes that character so its player can make it again; the name keeps its place on the travellers' board. The realm's keeper only."); return; }
-          this.hud.ask(`Delete ${name} for good? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name).then((t) => this.hud.system(t)); }, () => {}, 30);
+          const rm = arg.trim().match(/^(.+?)(?:\s+for\s+(\S+))?$/i), name = rm?.[1].trim() ?? '';
+          if (!name) { this.hud.system("/release <character> [for <account>]: sets that character aside so its player can make it again (only that account, if named); the name keeps its place on the travellers' board. The realm's keeper only."); return; }
+          this.hud.ask(`Set ${name} aside? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name, rm?.[2]).then((t) => this.hud.system(t)); }, () => {}, 30);
           return;
         }
         case 'emotes': this.hud.system('Emotes: ' + EMOTES.map((e) => `/${e.id}`).join(', ') + '. Or click the ☺ on the chat box.'); return;

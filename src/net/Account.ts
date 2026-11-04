@@ -133,9 +133,9 @@ export async function restoreGuest(name: string, to: string): Promise<string> {
 }
 
 /** The keeper's tool: delete a character so its name can be made again, its place on the travellers' board kept (/api/admin/release). */
-export async function releaseCharacter(name: string): Promise<string> {
-  const r = await call('POST', '/api/admin/release', { name });
-  return r.status === 200 ? `${String(r.data.name)} is gone, and the name is free to make again. It keeps its place on the travellers' board.` : String(r.data.error ?? "It didn't work.");
+export async function releaseCharacter(name: string, forAccount?: string): Promise<string> {
+  const r = await call('POST', '/api/admin/release', { name, for: forAccount });
+  return r.status === 200 ? `${String(r.data.name)} (player ${String(r.data.pid ?? '?')}) is set aside, and the name is free to make again${r.data.for ? `, by ${String(r.data.for)} only` : ''}. It keeps its place on the travellers' board.` : String(r.data.error ?? "It didn't work.");
 }
 
 export function isDevAccount(): boolean {

@@ -150,11 +150,14 @@ const loadChar = (key) => readJson(path.join(CHAR_DIR, key + '.json'));
 const HIDDEN_TRAVELLERS = new Set(['wes', 'claude', 'test', 'jadetester']);
 /**
  * Places on the board held for a name after the keeper let its character go (/api/admin/release): name key
- * to { name, when }. A new character of that name takes the old one's place, and until there is one the
- * name stays on the board where it was (owner 2026-11-04: Billie Eyelash).
+ * to { name, when, pid, for? }. A new character of that name takes the old one's place, and until there is one the
+ * name stays on the board where it was (owner 2026-11-04: Billie Eyelash). With 'for' (an account), only that
+ * account can make the name again.
  */
 const PLACES_FILE = path.join(DATA, 'boardplaces.json');
 const boardPlaces = () => readJson(PLACES_FILE) ?? {};
+/** Is a name held for another account's player (released for them to make again)? */
+const heldFrom = (key, user) => { const p = boardPlaces()[key]; return !!p?.for && p.for !== (user ? accKey(user) : null); };
 let travellersCache = { at: 0, names: [] };
 function travellers() {
   if (Date.now() - travellersCache.at < 5 * 60_000) return travellersCache.names;
@@ -204,7 +207,9 @@ function climbers() {
 /** A save with far less play than the realm's copy (a fresh character made again under the same name, an old
  *  browser's copy): never written over the one with the progress. */
 const behind = (next, kept) => !!kept && Number(kept.playTime ?? 0) - Number(next?.playTime ?? 0) > 600;
-const storeChar = (key, rec) => writeJson(path.join(CHAR_DIR, key + '.json'), rec);
+/** A character's own id: given the first time it's stored and never changed, so a player is known by more than their name. */
+const newPid = () => crypto.randomBytes(6).toString('hex');
+const storeChar = (key, rec) => { rec.pid ??= newPid(); writeJson(path.join(CHAR_DIR, key + '.json'), rec); };
 const accKey = (user) => user.toLowerCase();
 const loadAccount = (user) => readJson(path.join(ACC_DIR, accKey(user) + '.json'));
 const storeAccount = (acc) => writeJson(path.join(ACC_DIR, accKey(acc.user) + '.json'), acc);
@@ -510,9 +515,9 @@ async function api(req, res) {
     storeChar(key, rec);
     if (!target.chars.includes(key)) { target.chars.push(key); storeAccount(target); }
     log(`${acc.user} restored the guest character ${rec.name} to ${target.user}`);
-    return reply(res, 200, { ok: true, name: rec.name, to: target.user, playTime: rec.save?.playTime ?? 0 });
+    return reply(res, 200, { ok: true, name: rec.name, pid: rec.pid ?? null, to: target.user, playTime: rec.save?.playTime ?? 0 });
   }
-  // The keeper lets a character go: its save is deleted and the name is free to make again, but the name keeps
+  // The keeper lets a character go: its save is set aside and the name is free to make again, but the name keeps
   // its place on the travellers' board (when its player has lost it and would rather start over)
   if (req.method === 'POST' && url.pathname === '/api/admin/release') {
     if (!DEV_ACCOUNTS.has(accKey(acc.user))) return reply(res, 403, { error: "Only the realm's keeper can do that." });
@@ -521,16 +526,10 @@ async function api(req, res) {
     const rec = key && loadChar(key);
     if (!rec) return reply(res, 404, { error: `No character called ${body.name} on this realm.` });
     if ([...players.values()].some((p) => keyFor(p.name) === key)) return reply(res, 409, { error: `${rec.name} is in the world right now. Nothing was changed.` });
-    const places = boardPlaces();
-    places[key] = { name: rec.name, when: places[key]?.when ?? rec.created ?? rec.updated ?? Date.now() };
-    writeJson(PLACES_FILE, places);
-    fs.mkdirSync(path.join(DATA, 'released'), { recursive: true });
-    writeJson(path.join(DATA, 'released', key + '-' + Date.now() + '.json'), rec);
-    fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true }); mirror(path.join(CHAR_DIR, key + '.json'), null); homes.forget(key);
-    if (rec.owner) { const owner = loadAccount(rec.owner); if (owner) { owner.chars = owner.chars.filter((k) => k !== key); storeAccount(owner); } }
-    travellersCache.at = 0;
-    log(`${acc.user} released ${rec.name} (${Math.round((rec.save?.playTime ?? 0) / 60)} min); the name keeps its place on the board`);
-    return reply(res, 200, { ok: true, name: rec.name });
+    const forAcc = typeof body.for === 'string' && body.for.trim() ? loadAccount(body.for.trim()) : null;
+    if (body.for && !forAcc) return reply(res, 404, { error: `No account called ${body.for}.` });
+    releaseChar(key, rec, acc.user, forAcc?.user ?? null);
+    return reply(res, 200, { ok: true, name: rec.name, pid: rec.pid ?? null, for: forAcc?.user ?? null });
   }
   if (req.method === 'GET' && url.pathname === '/api/me') {
     const characters = acc.chars.map((k) => loadChar(k)).filter((r) => r && r.owner === acc.user).map((r) => ({ name: r.name, save: r.save, updated: r.updated ?? r.created }));
@@ -579,6 +578,7 @@ async function api(req, res) {
       const bad = validSave(body?.save, body?.save?.name);
       if (bad || keyFor(body.save.name) !== key) return reply(res, 400, { error: 'That save was refused: ' + (bad ?? 'name mismatch') });
       if (!rec) {
+        if (heldFrom(key, acc.user)) return reply(res, 403, { error: `The name ${body.save.name} is held for its player.` });
         if (acc.chars.length >= MAX_CHARS) return reply(res, 403, { error: `An account keeps at most ${MAX_CHARS} characters.` });
         rec = { name: body.save.name, owner: acc.user, created: Date.now(), save: null };
         log(`${acc.user} claimed ${rec.name}`);
@@ -608,7 +608,40 @@ const players = new Map();
 let nextId = 1;
 
 const wss = new WebSocketServer({ server, maxPayload: MAX_MSG });
-server.listen(PORT, HOST, () => log(`Everrealm server listening on http://${HOST}:${PORT} and ws://${HOST}:${PORT}  (data in ${DATA})`));
+/**
+ * Let a character go: the record set aside under released/ (not lost), the name free to make again, and its
+ * place on the travellers' board kept for whoever makes it next (only the account 'forUser', if one is named).
+ */
+function releaseChar(key, rec, by, forUser) {
+  const places = boardPlaces();
+  places[key] = { name: rec.name, when: places[key]?.when ?? rec.created ?? rec.updated ?? Date.now(), pid: rec.pid ?? null, ...(forUser ? { for: accKey(forUser) } : {}), released: Date.now() };
+  writeJson(PLACES_FILE, places);
+  fs.mkdirSync(path.join(DATA, 'released'), { recursive: true });
+  writeJson(path.join(DATA, 'released', key + '-' + Date.now() + '.json'), rec);
+  fs.rmSync(path.join(CHAR_DIR, key + '.json'), { force: true }); mirror(path.join(CHAR_DIR, key + '.json'), null); homes.forget(key);
+  if (rec.owner) { const owner = loadAccount(rec.owner); if (owner) { owner.chars = owner.chars.filter((k) => k !== key); storeAccount(owner); } }
+  travellersCache.at = 0;
+  log(`${by} released ${rec.name} (player ${rec.pid ?? 'without an id'}, ${Math.round((rec.save?.playTime ?? 0) / 60)} min)${forUser ? `, the name held for ${forUser}` : ''}; it keeps its place on the board`);
+}
+
+/**
+ * One-time releases the owner asked for, done when the realm starts (each once: the board place marks it done).
+ * Billie Eyelash (owner 2026-11-04): a guest character its player couldn't get back into their account; they'd
+ * rather make it again, with the name kept at the top of the board and held for their account.
+ */
+const RELEASES = [{ name: 'Billie Eyelash', for: 'TyPhizzle' }];
+function oneTimeReleases() { for (const r of RELEASES) {
+  const key = keyFor(r.name), rec = loadChar(key), done = boardPlaces()[key]?.released;
+  if (done || !rec) continue;
+  const to = loadAccount(r.for);
+  if (rec.owner && to && accKey(rec.owner) === accKey(to.user)) { log(`${rec.name} is already on ${to.user}'s account; not released`); continue; }
+  releaseChar(key, rec, 'the realm (one-time release)', to?.user ?? null);
+  if (!to) log(`no account called ${r.for}: ${rec.name}'s name is free to anyone`);
+} }
+// Every character has its player id (the ones made before ids are given theirs now)
+try { for (const f of fs.readdirSync(CHAR_DIR).filter((f) => f.endsWith('.json'))) { const rec = readJson(path.join(CHAR_DIR, f)); if (rec && !rec.pid) storeChar(f.slice(0, -5), rec); } } catch { /* no characters yet */ }
+
+server.listen(PORT, HOST, () => { try { oneTimeReleases(); } catch (e) { log("one-time releases failed:", e.message); } log(`Everrealm server listening on http://${HOST}:${PORT} and ws://${HOST}:${PORT}  (data in ${DATA})`); });
 
 function send(ws, msg) { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); }
 function broadcast(msg, except) {
@@ -672,6 +705,7 @@ wss.on('connection', (ws, req) => {
           log(`${user} brought the guest character ${rec.name} into the account`);
         }
         if (rec && rec.owner !== user) { send(ws, { t: 'denied', reason: `The name ${name} belongs to someone else on this server.` }); ws.close(); return; }
+        if (!rec && heldFrom(key, user)) { send(ws, { t: 'denied', reason: `The name ${name} is held for its player.` }); ws.close(); return; }
         if (!rec) {
           const acc = loadAccount(user);
           rec = { name, owner: user, created: Date.now(), save: null };
@@ -681,7 +715,8 @@ wss.on('connection', (ws, req) => {
       } else {
         if (typeof msg.token !== 'string' || msg.token.length < 16) { send(ws, { t: 'denied', reason: 'That name can\'t be used here.' }); ws.close(); return; }
         if (rec && (rec.owner || rec.tokenHash !== hash(msg.token))) { send(ws, { t: 'denied', reason: `The name ${name} belongs to someone else on this server.` }); ws.close(); return; }
-        if (!rec) { rec = { name, tokenHash: hash(msg.token), created: Date.now(), save: null }; storeChar(key, rec); log(`new character ${name}`); }
+        if (!rec && heldFrom(key, null)) { send(ws, { t: 'denied', reason: `The name ${name} is held for its player.` }); ws.close(); return; }
+        if (!rec) { rec = { name, tokenHash: hash(msg.token), created: Date.now(), save: null }; storeChar(key, rec); log(`new character ${name} (player ${rec.pid})`); }
       }
       // The same character again (a reconnect that beat the old socket's close, the menu's connection and the
       // world's, a second tab): the new one takes over and the old one goes, rather than turning the player away
