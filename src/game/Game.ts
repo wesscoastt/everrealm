@@ -7558,7 +7558,7 @@ export class Game implements GameApi {
     }
     const town = this.towns.find((t) => Math.hypot(t.x - P.x, t.z - P.z) < t.r);
     this.scape = {
-      coast: Math.min(1, (sea / n) * 3.5), forest: Math.min(1, (wood / n) * 4),
+      coast: Math.min(1, (sea / n) * 2.2), forest: Math.min(1, (wood / n) * 4),
       falls: Math.max(0, 1 - Math.hypot(P.x - 94, P.z - 95) / 38),
       crowd: town ? (night < 0.5 ? (town.r > 100 ? 1 : 0.6) : sheltered ? 0.9 : 0.1) : 0,
       indoors: sheltered,
