@@ -67,7 +67,7 @@ export interface GameApi {
   towerTally(): { day: { floors: number; paid: boolean }; week: { floors: number; paid: boolean } };
   /** At an infirmary (data/infirmary.ts): every harm off you and full health, for the fee (free when you're poor); why not, or null. */
   treat(): string | null;
-  openCrafting(station: Station): void;
+  openCrafting(station: Station, at?: { x: number; y: number; z: number }): void;
   /** Opens the Charter Post panel at the given stop (an id from POSTS). */
   openTravel(from: string): void;
   /** Take the packet to the other land (Gullmouth to Callis, or back): the page reloads into it. */

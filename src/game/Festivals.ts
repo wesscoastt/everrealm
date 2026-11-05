@@ -11,6 +11,7 @@ import { B, isSolid } from '../world/blocks';
 import { roadDist } from '../world/terrain';
 import type { Particles } from '../systems/Particles';
 import type { MapMarker } from '../ui/Hud';
+import { Humanoid, type Appearance } from '../entities/humanoid';
 
 // The festival that's on (data/festivals.ts) in the running game: a stall and decorations by
 // every Charter Post, built when you come near; tokens from creatures; the festival writ; and the
@@ -39,7 +40,7 @@ export interface FestivalView {
   extra?: { title: string; text: string }[];
 }
 
-interface Stall { post: string; x: number; y: number; z: number; ry: number; group: THREE.Group }
+interface Stall { post: string; x: number; y: number; z: number; ry: number; group: THREE.Group; keeper: Humanoid }
 
 const LEAVES = new Set<number>([B.OakLeaves, B.BirchLeaves, B.PineLeaves].filter((x) => x !== undefined));
 const PAVED = new Set<number>([B.Path, B.Cobble, B.StoneBrick, B.MossyCobble, B.Planks, B.DarkPlanks, B.Farmland, B.Hay, B.Gravel]);
@@ -124,13 +125,18 @@ export class Festivals {
   }
 
   markers(): MapMarker[] {
-    return [...this.stalls.values()].map((s) => ({ x: s.x, z: s.z, kind: 'fair', label: this.fest ? this.fest.name + ' stall' : 'Festival stall' }));
+    if (!this.fest) return [];
+    const label = `${this.fest.name} stall: festival goods and outfits`;
+    return POSTS.filter((p) => !p.ferryFrom).map((p) => { const s = this.stalls.get(p.id); return { x: s?.x ?? p.x, z: s?.z ?? p.z, kind: 'fair' as const, label }; });
   }
 
   update(dt: number, P: THREE.Vector3): void {
     this.clock += dt;
     // Only the fairs within sight are drawn
-    for (const s of this.stalls.values()) s.group.visible = Math.hypot(s.x - P.x, s.z - P.z) < 180;
+    for (const s of this.stalls.values()) {
+      s.group.visible = s.keeper.root.visible = Math.hypot(s.x - P.x, s.z - P.z) < 180;
+      if (s.group.visible && Math.hypot(s.x - P.x, s.z - P.z) < 60) s.keeper.update(dt, 0);
+    }
     // The calendar can turn over while you play
     if ((this.checkAt -= dt) <= 0) {
       this.checkAt = 60;
@@ -152,7 +158,7 @@ export class Festivals {
   }
 
   private clear(): void {
-    for (const s of this.stalls.values()) this.host.scene.remove(s.group);
+    for (const s of this.stalls.values()) this.host.scene.remove(s.group, s.keeper.root);
     this.stalls.clear();
     this.host.lamps.length = 0;
     this.tried.clear();
@@ -322,7 +328,15 @@ export class Festivals {
     }
     bake(g);
     this.host.scene.add(g);
-    this.stalls.set(post, { post, x, y, z, ry, group: g });
+    // The stallholder behind the counter, in the festival's colours, facing the green
+    const look: Appearance = { skin: '#d8a882', hair: '#4a3020', hairStyle: 6, eyes: '#4a5a3a', tunic: f.colors[0], trim: f.colors[1], trousers: '#3a3430', boots: '#2a1e14', apron: true, hat: 'kerchief', hatColor: f.colors[1], frame: 'f', lashes: true, age: 0.4 };
+    const keeper = new Humanoid(look);
+    const at = new THREE.Vector3(0, 0, sz - 0.95).applyAxisAngle(new THREE.Vector3(0, 1, 0), ry).add(g.position);
+    keeper.root.position.copy(at);
+    keeper.root.rotation.y = ry;
+    keeper.setState('idle');
+    this.host.scene.add(keeper.root);
+    this.stalls.set(post, { post, x, y, z, ry, group: g, keeper });
     // Lit after dark: over the counter, and at the centrepiece
     const world = (lx: number, ly: number, lz: number) => new THREE.Vector3(lx, ly, lz).applyAxisAngle(new THREE.Vector3(0, 1, 0), ry).add(g.position);
     this.host.lamps.push(world(0, 2.2, sz + 0.6), world(0, f.centre === 'firtree' || f.centre === 'maypole' ? 3.5 : 1.6, cz));

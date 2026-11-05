@@ -142,6 +142,8 @@ export interface OnlineHooks {
   groupKill?(type: string, from: string): void;
   /** A groupmate moved a delve's room on (server/social.mjs gRoom). */
   groupRoom?(site: string, i: number, s: number): void;
+  /** Travel to a friend: where they stand, once the realm has said they may be travelled to. */
+  friendAt?(name: string, x: number, y: number, z: number): void;
   /** Message posts (server/signs.mjs): all of them in your land on coming in, then each one put up or taken down. */
   posts?(list: Post[]): void;
   post?(p: Post): void;
@@ -357,6 +359,7 @@ export class Online {
       case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'local', 'trade', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
       case 'fStatus': this.hooks.friendStatus?.(Array.isArray(m.online) ? (m.online as { name: string; x: number; z: number }[]) : []); break;
       case 'fOn': this.hooks.friendOn?.(String(m.name)); break;
+      case 'fAt': if ([m.x, m.y, m.z].every((v) => Number.isFinite(Number(v)))) this.hooks.friendAt?.(String(m.name), Number(m.x), Number(m.y), Number(m.z)); break;
       case 'fOff': this.hooks.friendOff?.(String(m.name)); break;
       case 'uVault': this.hooks.guildVault?.(typeof m.guild === 'string' ? (m as unknown as GuildVaultView) : null); break;
       case 'uRefund': this.hooks.guildRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
@@ -577,6 +580,8 @@ export class Online {
   revive(id: number): void { if (this.online) this.ws!.send(JSON.stringify({ t: 'revive', id })); }
   /** Tell your group about a kill, for their quests. */
   fishRoll(n: number, water: string): void { this.emit({ t: 'fishRoll', n, water }); }
+  /** Ask to travel to a friend (or a group member): the realm answers with where they are, or why not. */
+  goToFriend(name: string): void { this.emit({ t: 'fGo', name }); }
   putPost(text: string, x: number, y: number, z: number, yaw: number): void { this.emit({ t: 'postPut', text, x, y, z, yaw }); }
   upPost(id: number): void { this.emit({ t: 'postUp', id }); }
   reportPost(id: number, why: string): void { this.emit({ t: 'postReport', id, why }); }

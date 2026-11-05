@@ -391,3 +391,18 @@
 #postcard .pc-rules { margin: 10px 0 0; font: 500 11px var(--body); color: var(--muted); }
 #chatbox .cb-tabs .cb-post { margin-left: auto; font-size: 13px; padding: 1px 9px; }
 #chatbox .cb-tabs .cb-post + .cb-emo { margin-left: 4px; }
+
+/* The rod you fish with and the bait on your hook: a small hook in the slot's corner */
+.slot .hookmark { position: absolute; right: 4px; top: 3px; width: 6px; height: 9px; border: 2px solid #9ad8f0; border-top: none; border-left-color: transparent; border-radius: 0 0 6px 6px; pointer-events: none; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9)); }
+.slot .hookmark::before { content: ''; position: absolute; right: -2px; top: -4px; width: 2px; height: 5px; background: #9ad8f0; }
+
+/* Trying something on at a shop: the windows step aside (still open), a bar to go back */
+.trying .panel.show { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+#trybar { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 10px 14px; z-index: 70; font: 500 14px var(--body); color: var(--cream); }
+#trybar b { color: #e8c66a; }
+/* A window being moved: no text picked up as it goes */
+.panel > header { user-select: none; touch-action: none; }
+
+/* The light you carry, marked in the pack: a small flame in the corner */
+.slot .litmark { position: absolute; right: 4px; top: 3px; width: 7px; height: 9px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; background: radial-gradient(circle at 50% 70%, #fff2b0, #ffb040 55%, #e8641a); box-shadow: 0 0 4px #ffb040; pointer-events: none; }
+.slot[data-ghost="light"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M12%203%20C15%207%2017%209%2017%2012%20C17%2015%2015%2017%2012%2017%20C9%2017%207%2015%207%2012%20C7%2010%209%208%2010%206%20C11%208%2012%209%2012%209%20Z'%2F%3E%3Cpath%20d%3D'M11%2017%20L11%2021%20L13%2021%20L13%2017'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }

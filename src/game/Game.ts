@@ -148,7 +148,8 @@ import { Farming, farmPatches } from './Farming';
 import { MessagePosts, Post } from './Posts';
 import { Rowboat, rowboatModel, hullBlocks, overHull, BOAT_FLOOR } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
-import { mewJetty } from '../world/sites';
+import { mewJetty, type Site } from '../world/sites';
+import { COSTUMES } from '../data/costumes';
 import { MONUMENTS } from '../data/monuments';
 import { jewelDrop } from '../data/jewellery';
 import { SKILL_SCHOOL } from '../data/skillSchools';
@@ -441,7 +442,8 @@ export class Game implements GameApi {
     // The camera round in front of you, a little above, to see it
     this.rig.yaw = f + (d.capeDesign ? Math.PI * 0.85 : 0.35);
     this.rig.pitch = 0.18;
-    this.hud.system(`Trying ${d.name}. Walk on to take it off.`);
+    this.hud.setTrying(d.name, () => this.endPreview());
+    this.hud.system(`Trying ${d.name}. Back to the shop, or walk on, to take it off.`);
     this.sfx('click');
   }
   /** Take off whatever you were trying, and (unless something else is about to be tried) dress as you were. */
@@ -450,6 +452,7 @@ export class Game implements GameApi {
     if (!t) return;
     if (t.mount) this.scene.remove(t.mount.root);
     this.trying = null;
+    this.hud.setTrying(null);
     if (dress) this.dress();
   }
   /** The Charter Post cart you're riding, when you are (game/PostRide.ts). */
@@ -1448,6 +1451,7 @@ export class Game implements GameApi {
       },
       groupRoom: (site: string, i: number, s: number) => this.activities.groupRoom(site, i, s),
       fishRoll: (n: number, pick: string | null) => { this.mythicFor.set(n, pick); },
+      friendAt: (name: string, x: number, y: number, z: number) => this.arriveByFriend(name, x, y, z),
       posts: (list: Post[]) => this.posts.setAll(list),
       post: (p: Post) => { this.posts.add(p); if (p.mine) { this.hud.system('Your post is up. Anyone passing can read it.'); this.sfx('quest'); } },
       postGone: (id: number) => { this.posts.gone(id); if (this.reading === id) { this.hud.postCard(null); this.reading = null; } },
@@ -1692,6 +1696,81 @@ export class Game implements GameApi {
     this.hud.refresh();
   }
   level(s: SkillId): number { return levelForXp(this.save.xp[s], s); }
+  /** The Swimming skill: experience for the water you cover (double under it), and the pace it gives. */
+  private swum = 0;
+  private swimTraining(dt: number): void {
+    const P = this.player;
+    P.swimSkill = (this.level('swimming') - 1) / 99 / 3;
+    if (!P.swimming || P.speed < 0.6) return;
+    this.swum += P.speed * dt * (P.underwater ? 2 : 1);
+    if (this.swum >= 12) { this.swum -= 12; this.addXp('swimming', 6); }
+  }
+
+  /** Travel to a friend or a group member (ESO's): asked of the realm, which checks they may be travelled to. */
+  travelToFriend(name: string): void {
+    if (this.online.status !== 'online') { this.hud.system('That needs the online realm.'); return; }
+    if (this.dead) { this.hud.system('Not while you\'re down.'); return; }
+    if (this.inCombat()) { this.hud.system('Not in the middle of a fight.'); return; }
+    if (this.dungeons.active || this.tower.grouped || this.voyage.active || this.post.active || this.boat.aboard) { this.hud.system('Not from here: finish where you are first.'); return; }
+    this.online.goToFriend(name);
+  }
+  /** The realm says where they are: firm ground at their side (never in the water or in a wall), then the travel. */
+  private arriveByFriend(name: string, x: number, y: number, z: number): void {
+    if (this.inCombat() || this.dungeons.active) return;
+    const V = this.world.voxels;
+    let spot: [number, number, number] | null = null;
+    for (const r of [1.5, 2.5, 0.6, 3.5]) for (let k = 0; k < 8 && !spot; k++) {
+      const a = (k / 8) * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
+      if (!V.isLoaded(px, pz)) continue;
+      const g = V.groundBelow(px, y + 3, pz);
+      if (Math.abs(g - y) > 2.5 || V.get(Math.floor(px), g - 1, Math.floor(pz)) === B.Water) continue;
+      if (isSolid(V.get(Math.floor(px), g, Math.floor(pz))) || isSolid(V.get(Math.floor(px), g + 1, Math.floor(pz)))) continue;
+      spot = [px, g, pz];
+    }
+    // (their part of the world isn't loaded here yet: where they stand, the ground found on arrival)
+    const at: [number, number, number] = spot ?? [x, Math.max(y, Math.floor(heightAt(x, z))), z];
+    this.travelInto(at, Math.atan2(x - at[0], z - at[2]), name, 'You arrive at their side');
+  }
+
+  /** Wear a costume from the wardrobe now (null takes it off): the same as Change look's Costume, without leaving the world. */
+  wearCostume(id: string | null): void {
+    if (id && !this.flag('costume:' + id)) { this.hud.system('That costume isn\'t in your wardrobe.'); return; }
+    this.save.look.costume = id;
+    this.dress();
+    this.persist();
+    this.hud.system(id ? `You put on the ${COSTUMES[id]?.name.toLowerCase() ?? 'costume'}.` : 'You take the costume off.');
+    this.sfx('equip');
+  }
+
+  /**
+   * The light you carry (the Light slot on the character panel): a torch in the free hand or a lantern at the
+   * belt, chosen by clicking it in your pack and taken off from the slot. A character made before the slot
+   * wears the torch they have.
+   */
+  lightWorn(): string | null {
+    const f = this.flag('light') as string | null | undefined;
+    if (f === undefined) return this.inv.count('torch') > 0 ? 'torch' : this.inv.count('belt_lantern') > 0 ? 'belt_lantern' : null;
+    return f && this.inv.count(f) > 0 ? f : null;
+  }
+  setLight(id: string | null): void {
+    this.setFlag('light', id);
+    if (id) { this.setFlag('lightOff', false); this.hud.system(`You carry the ${ITEMS[id].name.toLowerCase()}. It's lit once it's dark; L lights it or puts it away.`); this.sfx('equip'); }
+    else { this.hud.system('You put your light in your pack. Click a torch or lantern there to carry it again.'); this.sfx('click'); }
+    this.hud.refresh();
+  }
+  /** Is your light burning this moment? */
+  private lightLit = false;
+
+  /** The rod you fish with: the one you chose (clicked in your pack), or else your best. */
+  fishingRod(): string | null {
+    const pick = this.flag('rod') as string | undefined;
+    return pick && ITEMS[pick]?.tool?.skill === 'fishing' && this.inv.count(pick) > 0 ? pick : this.inv.bestTool('fishing', 99);
+  }
+  /** The bait on your hook, if you still have some. */
+  baitOnHook(): string | null {
+    const b = this.flag('bait') as string | undefined;
+    return b && this.inv.count(b) > 0 ? b : null;
+  }
   hasTool(s: SkillId): boolean {
     return this.save.inv.some((st) => st && ITEMS[st.id].tool?.skill === s);
   }
@@ -3407,8 +3486,9 @@ export class Game implements GameApi {
         rows: g.social.friendRows().map((r) => ({ name: r.name, online: r.online, where: r.online && r.x !== undefined && (r.x !== 0 || r.z !== 0) ? REGION_INFO[regionAt(r.x, r.z!).a].name : null })),
         };
       },
-      friendDo: (what: 'add' | 'remove' | 'whisper' | 'invite', name: string) => {
-        if (what === 'add') g.social.addFriend(name);
+      friendDo: (what: 'add' | 'remove' | 'whisper' | 'invite' | 'travel', name: string) => {
+        if (what === 'travel') g.travelToFriend(name);
+        else if (what === 'add') g.social.addFriend(name);
         else if (what === 'remove') g.social.removeFriend(name);
         else if (what === 'invite') g.social.invite(name);
         else { g.hud.close('guild'); g.hud.openChat((t) => g.say(t), `/w ${name} `); }
@@ -3504,6 +3584,10 @@ export class Game implements GameApi {
       junk: (id: string) => g.junk(id),
       toggleJunk: (id: string) => g.toggleJunk(id),
       sellSome: (id: string, n: number) => g.sellSome(id, n),
+      fishingRod: () => g.fishingRod(),
+      lightWorn: () => g.lightWorn(),
+      setLight: (id: string | null) => g.setLight(id),
+      baitOnHook: () => g.baitOnHook(),
       buyMax: (item: string) => g.buyMax(item),
       buySome: (item: string, n: number) => g.buySome(item, n),
       sellAllPlan: (only?: 'junk') => g.sellAllPlan(only),
@@ -4180,7 +4264,13 @@ export class Game implements GameApi {
       this.hud.refresh();
       return;
     }
-    if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
+    // A torch or a belt lantern: into the Light slot
+    if (st.id === 'torch' || st.id === 'belt_lantern') { this.setLight(st.id); return; }
+    // A rod: fish with this one from now on (until you choose another, or it leaves your pack)
+    if (def.tool?.skill === 'fishing') { this.setFlag('rod', st.id); this.hud.system(`You'll fish with the ${def.name.toLowerCase()}.`); this.sfx('equip'); this.hud.refresh(); return; }
+    // Bait: on the hook, or (the bait already on it) off again
+    if (BAIT_OF[st.id] && def.kind !== 'food' && this.flag('bait') === st.id) { this.setFlag('bait', null); this.hud.system('You take the bait off. Fishing with a bare hook.'); this.sfx('click'); this.hud.refresh(); return; }
+    if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.refresh(); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
     if (def.kind === 'food') this.eat(st.id);
     else if (def.weapon) {
       const old = this.save.equip.weapon;
@@ -4277,8 +4367,9 @@ export class Game implements GameApi {
       this.inv.removeAt(i, 1);
       this.setFlag('costume:' + def.costume, 1);
       this.hud.banner(def.name, 'Added to your wardrobe', true);
-      this.hud.system(`${def.name} is in your wardrobe now: put it on under Costume with Change look, on the character screen. It goes over your clothes and armour.`);
       this.sfx('discover');
+      const cos = def.costume;
+      this.hud.ask(`${def.name} is in your wardrobe. Put it on now? It goes over your clothes and armour. (/costume to change or take it off later.)`, () => this.wearCostume(cos), () => this.hud.system('It\'s in your wardrobe: /costume, or Change look on the character screen, puts it on.'), 30);
     } else if (def.hat) {
       // A festival hat joins the wardrobe for good
       this.inv.removeAt(i, 1);
@@ -4513,6 +4604,25 @@ export class Game implements GameApi {
     this.hud.refresh();
   }
 
+  /** The rings of standing stones (world/sites.ts), found once. */
+  private _rings: Site[] | null = null;
+  private ringNear(p: THREE.Vector3): Site | null {
+    const rings = (this._rings ??= this.world.sites.filter((s) => s.ring));
+    for (const s of rings) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d > 4.5 && d < 9.5) return s; }
+    return null;
+  }
+  /** A rubbing of one of the stones' marks: the same ring gives another after twenty minutes. */
+  private takeRubbing(s: Site): void {
+    const key = 'rub:' + s.id, last = Number(this.flag(key) ?? 0), now = realmNow();
+    if (now - last < 20 * 60_000) { this.hud.system(`The marks on these stones are rubbed faint. Come back in ${Math.ceil((20 * 60_000 - (now - last)) / 60_000)} minutes.`); return; }
+    const kinds = Object.keys(ENCHANTS), pick = kinds[Math.floor(Math.random() * kinds.length)];
+    this.setFlag(key, now);
+    this.give('rubbing_' + pick, 1);
+    this.addXp('enchanting', 15);
+    this.sfx('page');
+    if (!this.flag('rubbedOnce')) { this.setFlag('rubbedOnce', 1); this.hud.system('Charcoal on paper, flat against the stone: one of the old kingdom\'s marks. Agnes Thew in Ansbury\'s market will show you how to cut it into a glyph.'); }
+  }
+
   /** Message posts: the ones near you, and which you're reading. */
   private _posts: MessagePosts | null = null;
   private get posts(): MessagePosts { return (this._posts ??= new MessagePosts(this.scene, this.world.props)); }
@@ -4695,6 +4805,8 @@ export class Game implements GameApi {
       if (extra) this.floatAt(this.player.position, 2.2, `+1 ${ITEMS[out].name}`, 'heal');
       if (c.station === 'bench' && Math.random() < [0, 1 / 6, 1 / 3][this.passive('wc_saw')]) { const log = Object.keys(c.cost).find((k) => k.endsWith('_logs')); if (log) this.give(log, 1); }
       this.addXp(r.skill, c.xp);
+      // A glyph taken apart: the blank back, and half the time the rubbing (data/enchanting.ts)
+      if (r.id.startsWith('unglyph_') && Math.random() < 0.5) { const rub = 'rubbing_' + r.id.slice(8).replace(/_\d$/, ''); if (ITEMS[rub]) this.give(rub, 1); }
       if (c.station === 'furnace') this.particles.sparks(tmpV.set(st.x, st.y + 0.2, st.z), 16, '#ffd070');
     } else {
       this.give(out, 1);
@@ -5227,6 +5339,15 @@ export class Game implements GameApi {
       }
       if (best) { const b = best; consider({ kind: 'act', label: 'Sit', pos: new THREE.Vector3(b.x, b.y + 0.7, b.z), act: () => this.sitDown(b) }, bd + 0.4); }
     }
+    // A ring of the old kingdom's standing stones: a rubbing of one of their marks (once a stone, then leave it a while)
+    {
+      const ring = this.ringNear(p);
+      if (ring) {
+        // (the nearest stone of the ring, as near as it stands to you)
+        const d = Math.max(0.1, Math.hypot(p.x - ring.x, p.z - ring.z)), sx = ring.x + ((p.x - ring.x) / d) * 7, sz = ring.z + ((p.z - ring.z) / d) * 7;
+        consider({ kind: 'act', label: 'Take a rubbing of the stones', sub: 'Enchanting', pos: new THREE.Vector3(sx, p.y + 1.2, sz), act: () => this.takeRubbing(ring) }, Math.abs(d - 7) + 0.6);
+      }
+    }
     // A message post someone left: read it
     {
       const mp = this.posts.nearest(p);
@@ -5262,7 +5383,7 @@ export class Game implements GameApi {
       }
     }
     const stall = this.festivals.stallNear(p);
-    if (stall && this.festivals.fest) consider({ kind: 'act', label: `Browse the ${this.festivals.fest.name} stall`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
+    if (stall && this.festivals.fest) consider({ kind: 'act', label: `Talk to the stallholder: ${this.festivals.fest.name} goods and outfits`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
@@ -5450,7 +5571,7 @@ export class Game implements GameApi {
       case 'npc': this.startDialogue(c.npc!); break;
       case 'ore': this.startGather({ kind: 'mine', ore: c.ore, tool: this.inv.bestTool('mining', this.level('mining'))! }); break;
       case 'tree': this.startGather({ kind: 'chop', tree: c.tree, tool: this.inv.bestTool('woodcutting', this.level('woodcutting'))! }); break;
-      case 'fish': this.startGather({ kind: 'fish', spot: c.spot, tool: this.inv.bestTool('fishing', 99)! }); break;
+      case 'fish': this.startGather({ kind: 'fish', spot: c.spot, tool: this.fishingRod()! }); break;
       case 'forage': {
         // A handful, and the bush is bare for ten minutes
         const f = c.forage!, n = 1 + (Math.random() < 0.35 ? 1 : 0);
@@ -5714,7 +5835,7 @@ export class Game implements GameApi {
     const rodTip = P.model.heldTip(new THREE.Vector3());
     const bobPos = new THREE.Vector3(spot.x + Math.sin(a.t * 0.7) * 0.15, spot.y - 0.08, spot.z + Math.cos(a.t * 0.5) * 0.15);
     if (a.phase === 'cast') {
-      this.hud.setCast('Casting', a.t / 0.7);
+      this.hud.setCast(`Casting · ${ITEMS[a.tool]?.name ?? 'rod'}${a.bait ? ' · ' + ITEMS[a.bait]?.name.toLowerCase() : ', bare hook'}`, a.t / 0.7);
       if (a.t > 0.7) {
         a.phase = 'wait';
         a.t = 0;
@@ -6637,6 +6758,8 @@ export class Game implements GameApi {
       const kinds = Object.keys(ENCHANTS), tier = source === 'boss' ? (Math.random() < 0.5 ? 3 : 2) : source === 'elite' ? (Math.random() < 0.3 ? 2 : 1) : 1;
       this.give(`glyph_${kinds[Math.floor(Math.random() * kinds.length)]}_${tier}`, 1);
     }
+    // A rubbing of one of the old kingdom's marks, now and then (the creatures chew on everything)
+    if (!e.questTag && Math.random() < (source === 'boss' ? 0.35 : source === 'elite' ? 0.08 : 0.02)) { const kinds = Object.keys(ENCHANTS); this.give('rubbing_' + kinds[Math.floor(Math.random() * kinds.length)], 1); }
     // Jewellery, now and then: elites and bosses more often
     if (!e.questTag && Math.random() < (source === 'boss' ? 0.2 : source === 'elite' ? 0.06 : 0.004)) { const j = jewelDrop(e.def.level); if (j) this.give(j, 1); }
     // The region's own weapons, now and then
@@ -7278,11 +7401,17 @@ export class Game implements GameApi {
     }
     if (I.pressedOnce('Tab')) this.cycleTarget();
     if (I.pressedOnce('KeyG')) this.toggleMount();
-    if (I.pressedOnce('KeyL') && (this.inv.count('torch') > 0 || this.inv.count('belt_lantern') > 0)) {
-      const off = !this.flag('lightOff');
-      this.setFlag('lightOff', off);
-      this.hud.system(off ? 'You put your light away. Press L to take it out again.' : 'You take your light out again. It burns once it\'s dark; L puts it away.');
-      this.sfx(off ? 'snuff' : 'flint');
+    if (I.pressedOnce('KeyL')) {
+      const light = this.lightWorn();
+      if (!light) this.hud.system('You have no light in your Light slot. Click a torch or a belt lantern in your pack to wear it.');
+      else {
+        // lit now (or after dark of itself) and put away again: by day as well as by night
+        const lit = this.lightLit;
+        this.setFlag('lightOff', lit);
+        this.setFlag('lightDay', !lit);
+        this.hud.system(lit ? 'You put your light away. L takes it out again.' : `You light your ${ITEMS[light].name.toLowerCase()}. L puts it away.`);
+        this.sfx(lit ? 'snuff' : 'flint');
+      }
     }
 
     const ePressed = I.pressedOnce('KeyE');
@@ -7602,9 +7731,12 @@ export class Game implements GameApi {
     // or the lantern at your belt when a bow fills both hands; L puts it out
     {
       if ((this.darkT -= dt) <= 0) { this.darkT = 0.5; this.underCover = this.world.voxels.topSolid(P.position.x, P.position.z) > P.position.y + 3; }
-      const want = !this.flag('lightOff') && (this.world.sky.night > 0.45 || this.underCover) && !P.swimming && !this.dead && !this.justice.jailed;
-      const hand = want && this.inv.count('torch') > 0 && !this.bowInHand && !this.music.out;
-      const belt = want && !hand && this.inv.count('belt_lantern') > 0;
+      // (the light in your Light slot, out after dark of itself, or by day once you've taken it out with L)
+      const light = this.lightWorn();
+      const want = !!light && !this.flag('lightOff') && (this.world.sky.night > 0.45 || this.underCover || !!this.flag('lightDay')) && !P.swimming && !this.dead && !this.justice.jailed;
+      const hand = want && light === 'torch' && !this.bowInHand && !this.music.out;
+      const belt = want && !hand && (light === 'belt_lantern' || this.inv.count('belt_lantern') > 0);
+      this.lightLit = hand || belt;
       P.model.setTorch(hand);
       P.model.setLantern(belt);
       if ((hand || belt) && !this.flag('lightHint')) { this.setFlag('lightHint', 1); this.hud.system('Your light is lit for the dark. Press L to put it away, or to take it out again.'); }
@@ -7691,6 +7823,7 @@ export class Game implements GameApi {
     this.music.update();
     this.chests.update();
     this.posts.update(dt, P.position);
+    this.swimTraining(dt);
     // Your own pet at your heels (data/pets.ts), the one your look names
     const petId = this.save.look.pet && PETS[this.save.look.pet] ? this.save.look.pet : null;
     if ((this.companion?.pet ?? null) !== petId) {
@@ -8039,7 +8172,7 @@ export class Game implements GameApi {
         case 'help': case '?':
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
-          this.hud.system('Dungeons: /joinrun takes you into the run your group is already in, if there is room.');
+          this.hud.system('Dungeons: /joinrun takes you into the run your group is already in, if there is room. Friends: /goto <name> (or Travel to, on your friends list) takes you to a friend or a group member.');
           this.hud.system('Message posts: the ✎ by the chat tabs (or /post <words>) leaves a few words where you stand for whoever comes by. Walk up to one to read it, say it helped, or report it.');
           this.hud.system('Safety: /ignore <name> hides someone\'s chat and whispers (/unignore, /ignored); /report <name> <what happened> tells the realm\'s keeper. Or click them.');
           this.hud.system('Chat: just type and press Enter, and everyone in the realm hears. /s <message> for those nearby only, /trade <message> for the Trade channel, /w <name> for a whisper, /g for your group and /gu for your guild. Also: /me <action> (e.g. /me tips a hat), /roll [max], /emotes, /who, /played, /clear. Emotes: ' + EMOTES.map((e) => '/' + e.id).join(' ') + '. Moving ends an emote.');
@@ -8058,10 +8191,27 @@ export class Game implements GameApi {
           this.hud.ask(`Set ${name} aside? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name, rm?.[2]).then((t) => this.hud.system(t)); }, () => {}, 30);
           return;
         }
+        case 'goto': case 'tp': {
+          // /goto <name>: travel to a friend or a group member
+          if (!arg.trim()) { this.hud.system('/goto <name>: travel to a friend or someone in your group.'); return; }
+          this.travelToFriend(arg.trim());
+          return;
+        }
         case 'joinrun': {
           // into the dungeon run your group is already in (a henchman steps out for you, if there's one in your place)
           if (this.online.status !== 'online') { this.hud.system('That needs the online realm.'); return; }
           this.dungeons.rejoin();
+          return;
+        }
+        case 'costume': {
+          // /costume: what's in your wardrobe; /costume <name> puts one on; /costume off takes it off
+          const owned = Object.values(COSTUMES).filter((c) => this.flag('costume:' + c.id));
+          const want = arg.trim().toLowerCase();
+          if (!want) { this.hud.system(owned.length ? `Your costumes: ${owned.map((c) => c.name).join(', ')}. /costume <name> to wear one, /costume off to take it off.` : 'You have no costumes yet. The festival stalls sell them.'); return; }
+          if (want === 'off' || want === 'none') { this.wearCostume(null); return; }
+          const c = owned.find((x) => x.name.toLowerCase().includes(want) || x.id.includes(want));
+          if (!c) { this.hud.system(`No costume called "${arg.trim()}" in your wardrobe.`); return; }
+          this.wearCostume(c.id);
           return;
         }
         case 'post': {

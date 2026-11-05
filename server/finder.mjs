@@ -93,6 +93,7 @@ export function finderInit(ctx) {
     if (ids.length > 1) social.formGroup(ids);
     for (const id of ids) {
       const p = players.get(id);
+      p.inRun = r.id;
       send(p.ws, { t: 'dStart', run: r.id, dungeon: r.dungeon, members: ids.filter((x) => x !== id).map((x) => ({ id: x, name: players.get(x).name, role: r.yes.get(x) })), missing });
     }
     log(`run ${r.id} into ${r.dungeon}: ${ids.map((id) => `${players.get(id).name} (${r.yes.get(id)})`).join(', ')}${missing.length ? `, henchmen as ${missing.join(', ')}` : ''}`);
@@ -119,6 +120,7 @@ export function finderInit(ctx) {
     // dropped out (not walked out): their place is kept a while, for them to come back to
     if (dropped && me.key) r.gone.set(me.key, { role: r.yes.get(me.id) ?? 'damage', at: Date.now(), name: me.name });
     r.members.delete(me.id);
+    me.inRun = null;
     for (const id of r.members) { const p = players.get(id); if (p) send(p.ws, { t: 'dLeft', name: me.name, back: dropped }); }
     if (!r.members.size && !r.gone.size) runs.delete(r.id);
   }
@@ -128,6 +130,7 @@ export function finderInit(ctx) {
     r.members.add(me.id);
     r.yes.set(me.id, role);
     r.gone.delete(me.key);
+    me.inRun = r.id;
     const others = [...r.members].filter((x) => x !== me.id && players.has(x));
     send(me.ws, {
       t: 'dStart', run: r.id, dungeon: r.dungeon, members: others.map((x) => ({ id: x, name: players.get(x).name, role: r.yes.get(x) })), missing: r.missing ?? [],

@@ -7,6 +7,7 @@ import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
 import { CROPS, FARM_RECIPES } from './farming';
 import { JEWEL_RECIPES } from './jewellery';
+import { ENCHANT_RECIPES } from './enchanting';
 import { CORRUPT_SHARD, DUNGEON_KEYS, FRAGS_PER_KEY } from './keys';
 import type { RegionId } from '../world/terrain';
 import { SkillId } from './items';
@@ -22,6 +23,8 @@ export const SKILLS: { id: SkillId; name: string; color: string; icon: string }[
   { id: 'cooking', name: 'Cooking', color: '#e0a040', icon: 'cooked' },
   { id: 'woodcutting', name: 'Woodcutting', color: '#6aa13a', icon: 'hatchet' },
   { id: 'farming', name: 'Farming', color: '#a8b83a', icon: 'bread' },
+  { id: 'enchanting', name: 'Enchanting', color: '#9a7ae8', icon: 'ore' },
+  { id: 'swimming', name: 'Swimming', color: '#4ab8c8', icon: 'gel' },
 ];
 
 export const MAX_LEVEL = 100;
@@ -52,6 +55,17 @@ export function levelForXp(xp: number, skill: SkillId): number {
 
 /** Unlocks shown in the skills panel. Only list things this build actually has. */
 export const UNLOCKS: Record<SkillId, { level: number; text: string }[]> = {
+  swimming: [
+    { level: 1, text: 'Swimming: experience for every length swum, twice as much under the water' },
+    { level: 30, text: 'Swim a tenth faster' },
+    { level: 50, text: 'Swim a sixth faster' },
+    { level: 100, text: 'Swim a third faster: as fast as a seal, near enough' },
+  ],
+  enchanting: [
+    { level: 1, text: 'Minor glyphs, cut in soapstone (Agnes Thew, Ansbury market)' },
+    { level: 20, text: 'Full glyphs, cut in slate' },
+    { level: 40, text: 'Greater glyphs, cut in basalt' },
+  ],
   melee: [
     { level: 1, text: 'Strike (key 1)' },
     { level: 2, text: 'Cleave (key 2)' },
@@ -165,7 +179,7 @@ export const FISH_TABLE: Record<'wend' | 'spill' | 'eelpool' | 'lake' | 'sea' | 
 
 // ------------------------------------------------------------- Crafting
 
-export type Station = 'furnace' | 'anvil' | 'hearth' | 'bench';
+export type Station = 'furnace' | 'anvil' | 'hearth' | 'bench' | 'glyph';
 
 export interface Recipe {
   id: string;
@@ -199,6 +213,7 @@ export const RECIPES: Recipe[] = [
   // The hearth's dishes from a patch's produce (data/farming.ts)
   ...FARM_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   ...JEWEL_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
+  ...ENCHANT_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   // A group dungeon's key, for its corrupted run (data/keys.ts): four of its fragments and a corrupted shard
   ...DUNGEON_KEYS.map((k): Recipe => ({ id: k.key, station: 'anvil', skill: 'smithing', level: 1, xp: 60, inputs: { [k.frag]: FRAGS_PER_KEY, [CORRUPT_SHARD]: 1 }, output: k.key, count: 1, time: 3 })),
   ...WEAPON_SMITHING.map((w): Recipe => ({ id: w.id, station: 'anvil', skill: 'smithing', level: w.level, xp: 30 + w.bars * 22, inputs: { [w.bar]: w.bars }, output: w.id, count: 1, time: 2.4 + w.bars * 0.4 })),
@@ -259,7 +274,7 @@ export const RECIPES: Recipe[] = [
   }))),
 ];
 
-export const STATION_NAMES: Record<Station, string> = { furnace: 'Furnace', anvil: 'Anvil', hearth: 'Cook fire', bench: "Joiner's bench" };
+export const STATION_NAMES: Record<Station, string> = { furnace: 'Furnace', anvil: 'Anvil', hearth: 'Cook fire', bench: "Joiner's bench", glyph: "Glyph-cutter's bench" };
 
 // ------------------------------------------------------------- Shop
 

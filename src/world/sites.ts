@@ -147,6 +147,8 @@ export interface Site {
   animals?: AnimalSpot[];
   /** Crafting stations anyone can use here (a town smithy's furnace, anvil, bench and cook fire). */
   stations?: { station: 'furnace' | 'anvil' | 'hearth' | 'bench'; x: number; y: number; z: number }[];
+  /** A ring of the old kingdom's standing stones (seven out from x, z): a rubbing of a mark can be taken here (data/content/enchanting.ts). */
+  ring?: boolean;
 }
 
 /** A beast that lives at a site, wandering r blocks from (x, z), in its own coat (entities/creatures.ts Palette). */
@@ -830,7 +832,7 @@ function* planBody(): Generator<string, Plan> {
     const s: Site = { id: `poi${i}`, name: '', region: p.region, x: p.x, z: p.z, r: 160, named: false, props: [], rects: [], impostor: [] };
     const b = heightAt(p.x, p.z);
     switch (p.kind) {
-      case 'stones': buildStones(s, p.x, p.z, b); break;
+      case 'stones': buildStones(s, p.x, p.z, b); s.ring = true; break;
       case 'shrine': buildShrine(s, p.x, p.z, b); break;
       case 'ruintower': buildRuinTower(s, p.x, p.z, b); break;
       case 'farm': buildFarm(s, p.x, p.z, b); break;

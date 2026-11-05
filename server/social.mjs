@@ -242,6 +242,22 @@ export function socialInit(ctx) {
         send(me.ws, { t: 'chat', from: to.name, id: me.id, text, kind: 'whisperTo' });
         return true;
       }
+      case 'fGo': {
+        // Travel to a friend (ESO's): only someone on your friends list or in your group, in the world and in
+        // your own land, not inside a dungeon run; once every few minutes. Where they stand comes back, and the
+        // game finds firm ground beside it
+        const to = byName(msg.name), now = Date.now();
+        if (!to || to === me) { sys(me, `Nobody called ${String(msg.name ?? '').slice(0, 20)} is in the world.`); return true; }
+        const friend = me.watch?.has(to.name.toLowerCase()), grouped = me.group && me.group === to.group;
+        if (!friend && !grouped) { sys(me, `${to.name} isn't on your friends list or in your group.`); return true; }
+        if (to.land !== me.land) { sys(me, `${to.name} is in the other land. Take the packet across first.`); return true; }
+        if (to.inRun) { sys(me, `${to.name} is in a dungeon run. /joinrun takes you in, if you're in their group and there's room.`); return true; }
+        if (now - (me.lastFGo ?? 0) < 60_000) { sys(me, 'You travelled a moment ago. Give it a minute.'); return true; }
+        me.lastFGo = now;
+        send(me.ws, { t: 'fAt', name: to.name, x: to.x, y: to.y, z: to.z });
+        sys(to, `${me.name} is travelling to you.`);
+        return true;
+      }
       case 'fWatch': {
         // The names on this player's friends list: who of them is in the world, and word as they come and go
         const names = Array.isArray(msg.names) ? msg.names.filter((n) => typeof n === 'string').slice(0, 100).map((n) => n.trim().toLowerCase()) : [];

@@ -108,6 +108,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
     Quarters; the first raid (Under the Hill, with continent 3).
 16. **Pacing**: rerun the economy and XP check after each big content batch (max level takes weeks).
 
+16b. **Skua Rock, the prison island** (owner 2026-11-04, added to the bottom of the list): its waymark floats (off the ground: seat it on the rock). And the prison is underwhelming, not intimidating the way Alcatraz is: make it a real fortress prison on the rock in the bay off Gullmouth (world/sites.ts, data/skua.ts) with high blank walls, a cell block, a lighthouse or a watch tower, the guards, the cold and the sea round it, so it reads as somewhere nobody gets out of.
+
 ## C. Waiting on the owner
 
 17. **Continent 3, Serra** (docs/CONTINENT3.md, draft written; name Serra confirmed 2026-10-31; dragon awake from the start, Debatable Land 50+):

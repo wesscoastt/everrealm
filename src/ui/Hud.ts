@@ -231,7 +231,7 @@ export interface UiCtx {
   hallDo(what: 'give' | 'vault' | 'pick' | 'go' | 'leave', a?: string | null, n?: number): void;
   /** Friends: the list (with where each online one is), and what to do with one. */
   friends(): { rows: { name: string; online: boolean; where: string | null }[]; online: boolean };
-  friendDo(what: 'add' | 'remove' | 'whisper' | 'invite', name: string): void;
+  friendDo(what: 'add' | 'remove' | 'whisper' | 'invite' | 'travel', name: string): void;
   /** The group frame's buttons: leave, or (leading) promote or remove someone. */
   groupDo(what: 'leave' | 'promote' | 'kick' | 'whisper', name?: string): void;
   /** Leading the group (for the frame's menu). */
@@ -311,6 +311,12 @@ export interface UiCtx {
   toggleJunk(id: string): void;
   /** Sell so many of one thing (the Sell tab's amount). */
   sellSome(id: string, n: number): void;
+  /** The rod you fish with and the bait on your hook (chosen by clicking them in your pack). */
+  fishingRod(): string | null;
+  /** The light you carry (the Light slot), and putting one there or taking it off. */
+  lightWorn(): string | null;
+  setLight(id: string | null): void;
+  baitOnHook(): string | null;
   /** The most of a thing you could buy now, and buying so many at once. */
   buyMax(item: string): number;
   buySome(item: string, n: number): void;
@@ -579,6 +585,7 @@ export class Hud {
       p.innerHTML = `<header><h3>${title}</h3><button class="x" aria-label="Close">✕</button></header><div class="body"></div><div class="footer"></div>`;
       p.querySelector('.x')!.addEventListener('click', () => this.close(pid));
       r.append(p);
+      this.draggable(p);
       return p;
     };
     panel('inv-panel', 'Pack', 'inv');
@@ -854,13 +861,14 @@ export class Hud {
     const on = rows.filter((r) => r.online).length;
     body.innerHTML = `<div class="fadd"><input class="fname" maxlength="20" placeholder="Add a friend by name"><button class="btn sm fgo">Add</button></div>
       ${online ? '' : '<p class="gnote">You\'re playing offline: friends show as in the world only on the online realm.</p>'}
-      <div class="groster">${rows.length ? rows.map((r) => `<div class="gmember${r.online ? ' on' : ''}"><span class="dot"></span><b>${esc(r.name)}</b><small>${r.online ? esc(r.where ?? 'In the world') : 'Away'}</small><span class="gacts">${r.online ? `<button class="btn ghost sm" data-fw="${esc(r.name)}">Whisper</button><button class="btn ghost sm" data-fi="${esc(r.name)}">Invite</button>` : ''}<button class="btn ghost sm danger" data-fr="${esc(r.name)}">Remove</button></span></div>`).join('') : '<p class="gnote">No friends on your list yet. Add someone by name, or click a player and choose <i>Add friend</i>.</p>'}</div>
+      <div class="groster">${rows.length ? rows.map((r) => `<div class="gmember${r.online ? ' on' : ''}"><span class="dot"></span><b>${esc(r.name)}</b><small>${r.online ? esc(r.where ?? 'In the world') : 'Away'}</small><span class="gacts">${r.online ? `<button class="btn ghost sm" data-ft="${esc(r.name)}" title="Travel to them: you arrive at their side">Travel to</button><button class="btn ghost sm" data-fw="${esc(r.name)}">Whisper</button><button class="btn ghost sm" data-fi="${esc(r.name)}">Invite</button>` : ''}<button class="btn ghost sm danger" data-fr="${esc(r.name)}">Remove</button></span></div>`).join('') : '<p class="gnote">No friends on your list yet. Add someone by name, or click a player and choose <i>Add friend</i>.</p>'}</div>
       <p class="gnote">Whisper: /w name message, and /r to answer the last whisper.</p>`;
     const inp = body.querySelector<HTMLInputElement>('.fname')!;
     const add = () => { if (inp.value.trim()) { this.ctx.friendDo('add', inp.value); inp.value = ''; } };
     inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') add(); });
     body.querySelector('.fgo')!.addEventListener('click', add);
     body.querySelectorAll<HTMLElement>('[data-fw]').forEach((b) => b.addEventListener('click', () => this.ctx.friendDo('whisper', b.dataset.fw!)));
+    body.querySelectorAll<HTMLElement>('[data-ft]').forEach((b) => b.addEventListener('click', () => this.ctx.friendDo('travel', b.dataset.ft!)));
     body.querySelectorAll<HTMLElement>('[data-fi]').forEach((b) => b.addEventListener('click', () => this.ctx.friendDo('invite', b.dataset.fi!)));
     body.querySelectorAll<HTMLElement>('[data-fr]').forEach((b) => b.addEventListener('click', () => this.ask(`Take ${b.dataset.fr} off your friends list?`, () => this.ctx.friendDo('remove', b.dataset.fr!), () => {}, 30)));
     foot.innerHTML = `<span>${on} of ${rows.length} in the world</span>`;
@@ -924,6 +932,61 @@ export class Hud {
     el.querySelector('.q-all')!.addEventListener('click', () => set(max));
     changed(start);
     return { el, n };
+  }
+
+  /**
+   * A window you can move (the MMO way): drag it by its title bar, and it stays where you put it, this visit
+   * and the next (kept in this browser). Double-click the title bar and it goes back to its own place.
+   */
+  private draggable(p: HTMLElement): void {
+    const head = p.querySelector('header') as HTMLElement | null;
+    if (!head) return;
+    const key = 'er.win.' + p.id;
+    const place = (x: number, y: number) => {
+      // kept on screen: at least the title bar can always be reached
+      const w = p.offsetWidth || 320;
+      x = Math.max(-w + 80, Math.min(window.innerWidth - 80, x));
+      y = Math.max(0, Math.min(window.innerHeight - 40, y));
+      Object.assign(p.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto', transform: 'none', margin: '0' });
+      return { x, y };
+    };
+    try { const s = JSON.parse(localStorage.getItem(key) ?? 'null'); if (s && Number.isFinite(s.x) && Number.isFinite(s.y)) place(s.x, s.y); } catch { /* no saved place */ }
+    let from: { px: number; py: number; x: number; y: number } | null = null;
+    head.style.cursor = 'grab';
+    head.addEventListener('pointerdown', (e) => {
+      if ((e.target as HTMLElement).closest('button, input, select')) return;
+      const r = p.getBoundingClientRect();
+      from = { px: e.clientX, py: e.clientY, x: r.left, y: r.top };
+      head.setPointerCapture(e.pointerId);
+      head.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+    head.addEventListener('pointermove', (e) => { if (from) place(from.x + e.clientX - from.px, from.y + e.clientY - from.py); });
+    const drop = () => {
+      if (!from) return;
+      from = null;
+      head.style.cursor = 'grab';
+      const r = p.getBoundingClientRect();
+      try { localStorage.setItem(key, JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top) })); } catch { /* not kept */ }
+    };
+    head.addEventListener('pointerup', drop);
+    head.addEventListener('pointercancel', drop);
+    head.addEventListener('dblclick', (e) => {
+      if ((e.target as HTMLElement).closest('button')) return;
+      try { localStorage.removeItem(key); } catch { /* nothing kept */ }
+      for (const k of ['left', 'top', 'right', 'bottom', 'transform', 'margin'] as const) p.style[k] = '';
+    });
+  }
+
+  /** Trying something on at a shop: the windows step aside so you can see yourself, with a bar to go back. Null: done. */
+  setTrying(name: string | null, back?: () => void): void {
+    let bar = this.root.querySelector<HTMLElement>('#trybar');
+    this.root.classList.toggle('trying', !!name);
+    if (!name) { bar?.remove(); return; }
+    if (!bar) { bar = el('div', 'frame'); bar.id = 'trybar'; this.root.append(bar); }
+    bar.innerHTML = `<span>Trying on <b></b></span><button class="btn sm">Back to the shop</button>`;
+    bar.querySelector('b')!.textContent = name;
+    bar.querySelector('button')!.addEventListener('click', () => back?.());
   }
 
   /** Write a message post to leave where you stand. */
@@ -1881,7 +1944,18 @@ export class Hud {
     canvas.addEventListener('pointermove', (e) => { if (dragX === null) return; this.dollYaw += (e.clientX - dragX) * 0.012; dragX = e.clientX; });
     canvas.addEventListener('pointerup', () => { dragX = null; });
     this.dollCanvas = canvas;
-    doll.append(column(['head', 'shoulders', 'chest', 'legs']), canvas, column(['weapon', 'hands', 'feet']));
+    const right = column(['weapon', 'hands', 'feet']);
+    {
+      // The Light slot: a torch in your free hand, or a lantern at your belt (L lights it or puts it away)
+      const id = this.ctx.lightWorn();
+      const wrap = el('div', 'eq');
+      const s = this.slotEl(id, 1, -1, 'Click to put it in your pack · L lights it or puts it away');
+      if (id) s.addEventListener('click', () => { this.ctx.setLight(null); this.hideTooltip(); });
+      else { s.dataset.ghost = 'light'; s.title = 'Light: click a torch or belt lantern in your pack'; }
+      wrap.append(s, el('span', '', 'Light'));
+      right.append(wrap);
+    }
+    doll.append(column(['head', 'shoulders', 'chest', 'legs']), canvas, right);
     eq.append(doll);
     const jw = el('div', 'jewel-row');
     for (const [slot, name] of [['neck', 'Neck'], ['ear', 'Ear'], ['ring1', 'Ring'], ['ring2', 'Ring']] as const) {
@@ -1924,10 +1998,16 @@ export class Hud {
     const grid = el('div', 'inv-grid');
     save.inv.forEach((st, i) => {
       const def = st ? ITEMS[st.id] : null;
-      const hint0 = !def ? '' : def.kind === 'food' ? 'Click to eat · Shift-click to drop' : def.kind === 'weapon' || def.kind === 'armor' ? 'Click to equip · Shift-click to drop' : this.open.has('shop') ? 'Click to sell' : 'Shift-click to drop';
+      const rod = def?.tool?.skill === 'fishing', bait = !!def && /^bait_/.test(def.id);
+      const isLight = !!def && (def.id === 'torch' || def.id === 'belt_lantern');
+      const fishing = isLight ? (this.ctx.lightWorn() === st!.id ? 'In your Light slot' : 'Click to carry it (the Light slot)') : rod ? (this.ctx.fishingRod() === st!.id ? 'The rod you fish with' : 'Click to fish with this rod') : bait ? (this.ctx.baitOnHook() === st!.id ? 'On your hook: click to take it off' : 'Click to put it on your hook') : '';
+      const hint0 = !def ? '' : fishing ? `${fishing} · Shift-click to drop` : def.kind === 'food' ? 'Click to eat · Shift-click to drop' : def.kind === 'weapon' || def.kind === 'armor' ? 'Click to equip · Shift-click to drop' : this.open.has('shop') ? 'Click to sell' : 'Shift-click to drop';
       const kept = !!st && this.ctx.kept(st.id);
       const hint = def ? `${hint0} · Alt-click to ${kept ? 'unlock' : 'lock'} · Ctrl-click to mark as junk` : '';
       const s = this.slotEl(st?.id ?? null, st?.n ?? 0, i, hint);
+      // the rod you fish with and the bait on your hook, marked with a little hook
+      if (st && (this.ctx.fishingRod() === st.id || this.ctx.baitOnHook() === st.id)) s.append(el('span', 'hookmark', ''));
+      if (st && this.ctx.lightWorn() === st.id) s.append(el('span', 'litmark', ''));
       if (kept) s.append(el('span', 'keep', ''));
       else if (st && this.ctx.junk(st.id)) s.append(el('span', 'junkmark', ''));
       s.draggable = !!st;
@@ -2423,10 +2503,16 @@ export class Hud {
       }));
       body.append(box);
     }
+    // The glyph-cutter's bench: what can be cut from the rubbings you carry, and the glyphs you could take apart
+    if (st === 'glyph') body.append(el('div', 'research', '<h5>Glyphs</h5><p>A blank and a rubbing cut together make a glyph: the blank sets how strong, the rubbing what it does. Use a glyph from your pack to set it in your weapon or armour. Take one apart here for its blank back, and sometimes its rubbing. Rubbings come from the standing stones out in the wild, and from creatures.</p>'));
+    let shownAny = false;
     for (const r of RECIPES.filter((x) => x.station === st)) {
+      if (st === 'glyph' && !Object.keys(r.inputs).every((k) => k.startsWith('blank_') || this.ctx.inv.count(k) > 0)) continue;
+      shownAny = true;
       const info = cv.recipes[r.id];
       const lv = this.ctx.level(r.skill);
-      const out = ITEMS[r.output];
+      // (taking a glyph apart is named for the glyph, not for the blank it gives back)
+      const out = r.id.startsWith('unglyph_') ? { ...ITEMS[r.output], name: 'Take apart: ' + ITEMS[Object.keys(r.inputs)[0]].name } : ITEMS[r.output];
       const skillName = SKILLS.find((s) => s.id === r.skill)!.name;
       // Not learned yet: shown faint, with where the recipe comes from (WoW's trainers and drops)
       if (!info?.known) {
@@ -2464,6 +2550,7 @@ export class Hud {
       slot.addEventListener('mouseleave', () => this.hideTooltip());
       body.append(row);
     }
+    if (st === 'glyph' && !shownAny) body.append(el('p', 'gnote', 'You have no rubbings or glyphs with you. Agnes sells the blanks; the standing stones give the rubbings.'));
     const foot = this.q('#craft-panel .footer');
     foot.innerHTML = `<span><i class="dif dif-orange">●</i> new <i class="dif dif-yellow">●</i> <i class="dif dif-green">●</i> <i class="dif dif-grey">●</i> outgrown: less experience</span><label class="camt">Make <input type="number" min="1" step="1" placeholder="1" value="${this.craftAmount ?? ''}"> at a time</label>`;
     const ca = foot.querySelector<HTMLInputElement>('.camt input')!;

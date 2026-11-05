@@ -22,6 +22,8 @@ export class Player {
   onGround = false;
   inWater = false;
   swimming = false;
+  /** How much faster than the untrained you swim (the Swimming skill: 0 at level 1, a third faster at the top). */
+  swimSkill = 0;
   /** Head under the surface. */
   underwater = false;
   /** Set by the game each frame: Space and C held, and where the camera aims (up is positive, radians). */
@@ -194,7 +196,7 @@ export class Player {
       vz = this.rollDir.z * sp;
       this.rollVy = this.rollDir.y * sp;
     } else if (!this.locked) {
-      const sp = wantSpeed * (this.swimming ? 0.62 : this.inWater ? 0.8 : 1) * (diving ? Math.cos(aim) : 1);
+      const sp = wantSpeed * (this.swimming ? 0.62 * (1 + this.swimSkill) : this.inWater ? 0.8 : 1) * (diving ? Math.cos(aim) : 1);
       vx = move.x * sp;
       vz = move.z * sp;
       if (move.lengthSq() > 0.01) this.yaw = Math.atan2(move.x, move.z);

@@ -145,7 +145,7 @@ const horse = (id: string, name: string, coat: string, mane: string, cloth: stri
   ({ id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'shoe', a: coat, b: cloth }, mount: { coat, mane, cloth, glow }, desc, stats: 'A festival horse. Use it, or press G, to ride. Every horse keeps the same pace.' });
 
 const costume = (id: string, name: string, a: string, b: string, desc: string): ItemDef =>
-  ({ id: 'costume_' + id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'chest', a, b }, desc, costume: id, stats: 'Use it to add it to your wardrobe for good: put it on under Costume with Change look, on the character screen. It goes over your clothes and armour; looks only.' });
+  ({ id: 'costume_' + id, name, kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'chest', a, b }, desc, costume: id, stats: 'Use it to add it to your wardrobe for good, and wear it at once if you like (/costume changes or takes it off later). It goes over your clothes and armour; looks only.' });
 const decor = (id: string, name: string, model: string, a: string, b: string, desc: string): ItemDef =>
   ({ id: 'furn_' + id, name, kind: 'collectible', rarity: 'uncommon', stack: true, value: 0, icon: { shape: 'log', a, b }, desc, furn: { model }, stats: 'Furniture: set it down in a house of your own' });
 
