@@ -15,6 +15,7 @@ import { readDb } from './leveldb';
 import { NbtReader, readSubChunk, type Nbt, type Palette } from './bedrock';
 import { B } from '../../src/world/blocks';
 import { MC_CELL, MC_PIECES } from '../../src/world/mclandArea';
+import { EDITS } from './edits';
 
 const dir = process.argv[2];
 const SY = 112, SEA = 16, CHUNK = 32; // (as world/VoxelWorld.ts)
@@ -177,6 +178,19 @@ for (const piece of MC_PIECES) {
     }
   }
   db.clear();
+  // The owner's changes to this piece (scripts/mc/edits.ts), in Minecraft coordinates
+  const edit = EDITS[piece.id];
+  if (edit) {
+    const at = (x: number, y: number, z: number) => { const ix = x - mx0, iz = z - mz0, gy = y + yOff; return ix < 0 || iz < 0 || ix >= W || iz >= D || gy < 0 || gy >= SY ? -1 : gi(ix, iz, gy); };
+    const set = (x: number, y: number, z: number, id: number) => { const i = at(x, y, z); if (i >= 0) grid[i] = id; };
+    edit({
+      get: (x, y, z) => { const i = at(x, y, z); return i < 0 ? B.Air : grid[i]; },
+      set,
+      fill: (x0, y0, z0, x1, y1, z1, id) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) set(x, y, z, id); },
+      swap: (x0, y0, z0, x1, y1, z1, from, to) => { for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) { const i = at(x, y, z); if (i >= 0 && from.includes(grid[i])) grid[i] = to; } },
+    });
+    console.log(piece.id + ': edited (scripts/mc/edits.ts)');
+  }
   // The signs' words: block entities (key type 0x31), each a run of NBT compounds
   const ents = readDb(dir, (k) => k.length === 9 && k[8] === 0x31 && k.readInt32LE(0) >= cx0 && k.readInt32LE(0) <= cx1 && k.readInt32LE(4) >= cz0 && k.readInt32LE(4) <= cz1);
   const words = new Map<string, string>();

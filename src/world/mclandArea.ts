@@ -37,3 +37,10 @@ export function pieceBounds(p: McPiece) {
   const w = p.mx1 - p.mx0, d = p.mz1 - p.mz0;
   return p.rot ? { x0: p.gx0, x1: p.gx0 + d, z0: p.gz0, z1: p.gz0 + w } : { x0: p.gx0, x1: p.gx0 + w, z0: p.gz0, z1: p.gz0 + d };
 }
+/** A Minecraft spot on one of the pieces (x, y, z there) to the game's, turned as the piece is. */
+export function mcToGame(id: string, x: number, y: number, z: number): [number, number, number] {
+  const p = MC_PIECES.find((q) => q.id === id)!;
+  return p.rot ? [p.gx0 + (p.mz1 - z), y + p.yOff, p.gz0 + (x - p.mx0)] : [p.gx0 + (x - p.mx0), y + p.yOff, p.gz0 + (z - p.mz0)];
+}
+/** A Minecraft facing (ry, 0 toward +z) to the game's, turned as the piece is. */
+export const mcRy = (id: string, ry: number) => (MC_PIECES.find((q) => q.id === id)!.rot ? ry - Math.PI / 2 : ry);

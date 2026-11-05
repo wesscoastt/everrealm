@@ -30,7 +30,8 @@ import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { JUMP_PUZZLES, type JumpPuzzle } from '../data/jumpPuzzles';
 import { MC_SIGNS, MC_WAYSTONES } from '../data/mcSigns';
-import { MC_PIECES, pieceBounds } from './mclandArea';
+import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
+import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
@@ -713,10 +714,17 @@ function* planBody(): Generator<string, Plan> {
     // for the island; and the signs that name its buildings, as they wrote them, gathered by the neighbourhood
     ...MC_PIECES.map((p) => { const b = pieceBounds(p); return { id: 'mc-' + p.id, name: p.id === 'city' ? 'Verandah' : p.id === 'seafort' ? 'The Fortress' : p.id === 'statue' ? 'The Mermaid Rock' : 'The House in the Snow', x: Math.round((b.x0 + b.x1) / 2), z: Math.round((b.z0 + b.z1) / 2), r0: 0, r1: 0, build: () => {} }; }),
     ...[...new Set(MC_SIGNS.map((g) => Math.floor(g.x / 64) + ',' + Math.floor(g.z / 64)))].map((cell) => {
-      const here = MC_SIGNS.filter((g) => Math.floor(g.x / 64) + ',' + Math.floor(g.z / 64) === cell);
+      // (the Fortress's old storage labels came down when it became the smugglers' den: only its name stays)
+      const here = MC_SIGNS.filter((g) => g.piece !== 'seafort' || /fortress/i.test(g.text)).filter((g) => Math.floor(g.x / 64) + ',' + Math.floor(g.z / 64) === cell);
       const cx = here.reduce((a, g) => a + g.x, 0) / here.length, cz = here.reduce((a, g) => a + g.z, 0) / here.length;
       return { id: 'mcsigns-' + cell, name: '', x: Math.round(cx), z: Math.round(cz), r0: 0, r1: 0, build: (s: Site) => { for (const g of here) s.props.push({ t: 'mcsign', x: g.x, y: g.y, z: g.z, ry: g.ry, h: g.kind, text: g.text }); } };
     }),
+    // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
+    // the cargo, the lamps, the new signs and the boats at the jetties
+    { id: 'mc-den', name: '', x: Math.round(mcToGame('seafort', -985, 63, 915)[0]), z: Math.round(mcToGame('seafort', -985, 63, 915)[2]), r0: 0, r1: 0, build: (s: Site) => {
+      for (const d of DEN_PROPS) { const [x, y, z] = mcToGame('seafort', d.x + 0.5, d.y, d.z + 0.5); s.props.push({ ...d, t: d.t as PropType, x, y, z, ry: (d.ry ?? 0) - (d.t === 'mcsign' ? Math.PI / 2 : 0) } as PropDesc); }
+      for (const [bx, bz, ry] of DEN_BOATS) { const [x, , z] = mcToGame('seafort', bx + 0.5, 63, bz + 0.5); s.props.push({ t: 'boat', x, y: SEA - 0.55, z, ry: ry - Math.PI / 2 }); }
+    } },
     // The jumping puzzles (data/jumpPuzzles.ts)
     // (the stacks stand in open sea: no ground levelled round them)
     ...JUMP_PUZZLES.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z, r0: p.theme === 'selkie' ? 0 : 12, r1: p.theme === 'selkie' ? 0 : 22, build: (s: Site, b: number) => buildPuzzle(s, b, p) })),
