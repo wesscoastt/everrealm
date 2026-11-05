@@ -717,6 +717,8 @@ export class Game implements GameApi {
   private menuCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
   private intro: { t: number; shot: number } | null = null;
   private menuPending = false;
+  /** When the world began to be built (for the load times: window.__loadLog). */
+  private loadT0 = 0;
 
   // Combat and status
   hp = 100;
@@ -887,7 +889,12 @@ export class Game implements GameApi {
   }
 
   private buildWorld(): void {
-    this.world = new GameWorld(this.scene, (l) => this.hud.showTitle(l + '…'));
+    const t0 = performance.now(), loadLog: [string, number][] = [];
+    (window as unknown as { __loadLog: unknown }).__loadLog = loadLog;
+    this.loadT0 = t0;
+    this.world = new GameWorld(this.scene, (l) => { loadLog.push([l, Math.round(performance.now() - t0)]); this.hud.showTitle(l + '…'); });
+    const mark = (l: string) => loadLog.push([l, Math.round(performance.now() - t0)]);
+    mark('world built');
     this.hud.mapLabels = this.world.buildingLabels();
     this.rig = new CameraRig(this.camera, this.world.voxels);
     this.player = new Player(this.world.voxels, this.save.look);
@@ -897,6 +904,7 @@ export class Game implements GameApi {
       this.hud.system(`Waymark attuned: ${w.name}. Open the map (M) and click it to travel here from anywhere.`);
       this.sfx('discover');
     });
+    mark('player and camera');
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors());
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     // (the Counties' busy towns, and Morrow's: data/justice.ts)
@@ -1002,6 +1010,7 @@ export class Game implements GameApi {
       const def = MONUMENTS.find((k) => k.id === m.id)!;
       WORLD_THINGS.push({ land: def.town === 'callis' || def.town === 'northgate' || def.town === 'saltpenny' || def.town === 'tenwells' || def.town === 'liftwick' || def.town === 'branchley' || def.town === 'reedwater' || def.town === 'cala' || def.town === 'conch' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' || def.model === 'priceboard' || def.model === 'companysign' || def.model === 'tallypost' || def.model === 'keeperstones' || def.model === 'watchboard' || def.model === 'oarrack' || def.model === 'lawstone' || def.model === 'routeboard' || def.model === 'assemblynotice' || def.model === 'heightmarks' || def.model === 'chalklizard' || def.model === 'floodpunt' || def.model === 'tilewall' || def.model === 'countshelf' ? 'Read ' : def.model === 'flywheel' || def.model === 'cairn' || def.model === 'sledge' || def.model === 'wallbell' || def.model === 'figurehead' || def.model === 'compassrose' || def.model === 'glassslab' || def.model === 'boundstone' || def.model === 'doorstep' || def.model === 'longseat' || def.model === 'findingpost' || def.model === 'bogoak' || def.model === 'redrock' || def.model === 'fishrack' || def.model === 'conchhorn' || def.model === 'turtleshell' ? 'Look at ' : 'Read the plaque: ') + def.title.replace(/^The /, 'the '), radius: def.model === 'jawbones' || def.model === 'companysign' ? 4.5 : 2.8, read: 'monument:' + m.id });
     }
+    mark('towns and people');
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.post = new PostRide(this.scene, this.world.voxels);
     this.fair = new WakeFair({
@@ -1129,6 +1138,7 @@ export class Game implements GameApi {
         return true;
       },
     });
+    mark('kits and classes');
     this.chests = new Chests({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -1367,6 +1377,7 @@ export class Game implements GameApi {
       refresh: () => { this.showGroup(); this.hud.refresh('finder'); },
       read: (title, text) => this.hud.showReadable(title, text),
     });
+    mark('game systems');
     this.online = new Online({
       scene: this.scene,
       night: () => this.world.sky.night,
@@ -1523,6 +1534,7 @@ export class Game implements GameApi {
     // (Come here to cross from the other land: straight back into the character who crossed.)
     try { this.autoEnter = sessionStorage.getItem(ENTER_KEY); sessionStorage.removeItem(ENTER_KEY); } catch { this.autoEnter = null; }
     this.hud.showTitle(this.autoEnter ? 'Coming home…' : 'Raising Hollin Ford…');
+    mark('all built');
     this.menuPending = true;
   }
 
@@ -5771,15 +5783,13 @@ export class Game implements GameApi {
       this.mythicFor.delete(a.cast ?? -1);
       const fish: FishDef | 'megalodon' | 'ice_spice_fish' | null = myth === 'megalodon' || myth === 'ice_spice_fish' ? myth : rollFish(a.water ?? 'lake', lvl, a.bait ? BAIT_OF[a.bait] : null, rod.luck);
       if (!fish) { this.hud.system('Nothing here takes a bare hook. Try some bait.'); a.phase = 'reel'; a.t = 0; return true; }
-      // The fight: harder for a rarer, heavier fish; the rod's line and steadiness widen the safe band
+      // Pulled in on the bite, the old way (owner 2026-11-04: the reel bar went, "keep the old way of fishing")
       const lb = typeof fish === 'string' ? (fish === 'megalodon' ? 52000 : 3.1) : fishWeight(fish);
-      const fight = fish === 'megalodon' ? 1.15 : fish === 'ice_spice_fish' ? 0.9 : TIER_FIGHT[fish.tier] + Math.min(0.2, lb / 900);
-      const width = Math.max(0.07, 0.2 + rod.steady * 0.4 - fight * 0.1 - Math.max(0, fight - rod.line) * 0.15);
-      a.fight = { fish, lb, tension: 0.35, progress: 0.3, lo: 0.5 - width / 2, hi: 0.5 + width / 2, pull: fight, surge: 0, short: Math.max(0, fight - rod.line) };
       if (fish === 'megalodon') { this.hud.banner('Something enormous', 'The line goes taut as an anchor chain', true); this.quake(0.6); this.sfx('thunder', 0.6); this.particles.splash(this.bobber.position, 40); }
       else if (fish === 'ice_spice_fish') { this.hud.banner('The water goes cold', 'Something bright is on the line', true); this.sfx('bell'); }
       else this.sfx('catch');
-      a.phase = 'fight';
+      this.landFish(fish, lb);
+      a.phase = 'reel';
       a.t = 0;
       return true;
     }
@@ -6905,7 +6915,7 @@ export class Game implements GameApi {
         if (id) setLastPlayed(id);
         this.front.hide();
         this.startPlay(false, 'Coming home…');
-      } else if (this.menuPending && this.world.chunks.isReady(STAGE.x, STAGE.z, 2)) { this.menuPending = false; this.showMenu(); }
+      } else if (this.menuPending && this.world.chunks.isReady(STAGE.x, STAGE.z, 2)) { this.menuPending = false; (window as unknown as { __loadLog?: [string, number][] }).__loadLog?.push(['menu', Math.round(performance.now() - this.loadT0)]); this.showMenu(); }
       this.world.update(dt, focus, this.elapsed, timeScale * 0.3);
       if (this.startPending && this.world.chunks.isReady(focus.x, focus.z, 2)) {
         // Drop the player onto solid ground if the saved height is stale
