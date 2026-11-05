@@ -358,6 +358,8 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     if ((x === 166 || x === 170) && (z === 195 || z === 197)) for (let y = WATER_LEVEL - 1; y > 8 && world.get(x, y, z) === B.Water; y--) world.put(x, y, z, B.Timber);
   }
   for (let x = 163; x <= 165; x++) for (let z = 195; z <= 197; z++) for (let y = WATER_LEVEL - 1; y > 8 && (world.get(x, y, z) === B.Air || world.get(x, y, z) === B.Water); y--) world.put(x, y, z, B.Cobble);
+  // A step up off the landward end of the boards: the bank stands two above them, and a player steps up only one
+  for (let z = 195; z <= 197; z++) if (world.get(162, WATER_LEVEL + 2, z) !== B.Air && world.get(163, WATER_LEVEL + 1, z) === B.Air) world.put(163, WATER_LEVEL + 1, z, B.Planks);
   mark(160, 193, 172, 199);
   const boatG = P.boat(M);
   place(boatG, 172.4, WATER_LEVEL - 0.55, 199.6, 0.3);

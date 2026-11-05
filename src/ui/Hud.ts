@@ -1182,7 +1182,7 @@ export class Hud {
     const log = this.q('#chatbox .cb-log');
     const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
     const d = new Date();
-    const line = el('div', `cb-line ${ch} ${cls}`, `<time>${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</time> ${html}`);
+    const line = el('div', `cb-line ${ch} ${cls}`, `<time>${((d.getHours() + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, '0')}${d.getHours() < 12 ? 'am' : 'pm'}</time> ${html}`);
     line.hidden = this.chatFilter !== 'all' && this.chatFilter !== ch;
     log.append(line);
     while (log.children.length > 150) log.firstElementChild!.remove();
@@ -1332,7 +1332,8 @@ export class Hud {
 
   setClock(hour: number): void {
     const h = Math.floor(hour), m = Math.floor((hour - h) * 60);
-    this.q('.clock').textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    // (the twelve-hour clock: 5:25 pm, not 17:25)
+    this.q('.clock').textContent = `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
     const part = hour < 5 ? 'Night' : hour < 8 ? 'Dawn' : hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : hour < 20 ? 'Evening' : 'Night';
     this.q('.daypart').textContent = this.weatherName && this.weatherName !== 'Clear' && this.weatherName !== 'Fair' ? `${part} · ${this.weatherName}` : part;
   }

@@ -88,7 +88,7 @@ const SEATS = new Map([['halter_cob', 2], ['halter_dray', 2], ['wagon_cart', 3],
 const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 // The world's edges (src/world/VoxelWorld.ts): the Counties' square, and Morrow's east of it along x
 const WORLD = [-2304, 4096], WORLD_X = [-2304, 10496];
-const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated']);
+const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated', 'shoot', 'cast', 'stomp', 'dash', 'throw', 'whistle', 'crouch']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
@@ -661,7 +661,7 @@ const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const signs = signsInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const music = musicInit({ players, send, social });
-const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, perf: music.perfOf(p) });
+const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p) });
 
 /** A player out of the world: their socket closed, or a new connection of theirs took over. */
 function dropPlayer(p) {
@@ -759,11 +759,15 @@ wss.on('connection', (ws, req) => {
         // A tool by name, or a weapon by its item id (drawn from the item in each game)
         if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
+        // The light they carry, lit: 1 a torch in the hand, 2 a lantern at the belt (everyone sees it come out and go away)
+        me.light = msg.light === 1 || msg.light === 2 ? msg.light : 0;
         me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon|boat)_[a-z][a-z_]{1,39}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
         // Riding with someone in your group, close by, on a mount with a seat still free
         const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
         const group = rider && social.groupIds(me);
-        const seats = rider ? SEATS.get(String(rider.mount).split('.')[0]) ?? 1 : 1;
+        // (every riding mount takes one behind the saddle; the wagons and the big carts their benches)
+        const mk = String(rider?.mount ?? '').split('.')[0];
+        const seats = rider ? SEATS.get(mk) ?? (/^(halter|mount)_/.test(mk) ? 2 : 1) : 1;
         me.pillion = rider && rider !== me && seats > 1 && group?.members.includes(rider.id) && Math.hypot(rider.x - me.x, rider.z - me.z) < 8
           && [...players.values()].filter((p) => p !== me && p.pillion === rider.id).length < seats - 1 ? rider.id : 0;
         me.dirty = true;
@@ -974,7 +978,7 @@ setInterval(() => {
   if (!moved.length) return;
   for (const p of moved) p.dirty = false;
   for (const to of players.values()) {
-    const rows = moved.filter((p) => p !== to && p.land === to.land).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0]);
+    const rows = moved.filter((p) => p !== to && p.land === to.land).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0, p.light ?? 0]);
     if (rows.length) send(to.ws, { t: 'snap', p: rows });
   }
 }, TICK_MS);

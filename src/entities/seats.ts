@@ -12,8 +12,8 @@ const SADDLE = 1.08, BOX = 0.88, BENCH = 0.68, PILLION_BACK = 0.55;
 
 export const riderLift = (m?: MountLook | null): number => (m?.wagon ? BOX : SADDLE);
 export const riderPose = (m?: MountLook | null): SeatPose => (m?.wagon ? 'seated' : 'ride');
-/** Seats past the rider's own. */
-export const spareSeats = (m?: MountLook | null): number => Math.max(0, (m?.seats ?? 1) - 1);
+/** Seats past the rider's own: one behind the saddle on any riding mount, the benches on a wagon. */
+export const spareSeats = (m?: MountLook | null): number => Math.max(0, (m?.seats ?? (m && !m.wagon ? 2 : 1)) - 1);
 
 /** Passenger i's seat on a mount standing at x, y, z and facing yaw (null: no such seat). */
 export function passengerSeat(m: MountLook | undefined | null, i: number, x: number, y: number, z: number, yaw: number): Seat | null {

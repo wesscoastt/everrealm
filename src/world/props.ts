@@ -2867,6 +2867,61 @@ export function mountedHead(kind: string, a: string, b: string): THREE.Group {
   return g;
 }
 
+/** The three sizes of fish tank: the glass's width, depth and height, and the stand's height under it. */
+const TANKS = [{ w: 0.46, d: 0.46, h: 0.42, stand: 0.62 }, { w: 1.3, d: 0.6, h: 0.6, stand: 0.66 }, { w: 2.3, d: 0.8, h: 0.75, stand: 0.6 }];
+/** A fish tank: a stand, glass with the water in it, gravel and weed on the bottom (its fish: stockTank). */
+export function fishTank(M: PropMaterials, size: number): THREE.Group {
+  const T = TANKS[size], g = new THREE.Group();
+  const iron = size === 2;
+  // the stand: oak, with iron straps on the great one
+  g.add(mesh(box(T.w + 0.08, 0.08, T.d + 0.08), M.darkWood, 0, T.stand - 0.04, 0));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.08, T.stand - 0.08, 0.08), M.darkWood, sx * (T.w / 2 - 0.02), (T.stand - 0.08) / 2, sz * (T.d / 2 - 0.02)));
+  if (iron) for (const sx of [-1, 1]) g.add(mesh(box(0.04, 0.06, T.d + 0.1), M.iron, sx * (T.w / 2 - 0.02), T.stand - 0.04, 0));
+  const y0 = T.stand;
+  // gravel, weed, the water and the glass
+  g.add(mesh(box(T.w - 0.04, 0.06, T.d - 0.04), flat('#8a7a5a'), 0, y0 + 0.03, 0));
+  for (let i = 0; i < 2 + size * 2; i++) { const x = -T.w / 2 + 0.12 + ((i * 0.37) % 1) * (T.w - 0.24), z = ((i % 2) - 0.5) * (T.d - 0.2); g.add(mesh(box(0.04, 0.16 + (i % 3) * 0.07, 0.04), flat('#3a7a3a'), x, y0 + 0.14 + (i % 3) * 0.035, z)); }
+  const water = new THREE.Mesh(box(T.w - 0.04, T.h - 0.1, T.d - 0.04), new THREE.MeshLambertMaterial({ color: '#4aa8c8', transparent: true, opacity: 0.32, depthWrite: false }));
+  water.position.y = y0 + (T.h - 0.1) / 2 + 0.02; water.renderOrder = 2; g.add(water);
+  const glass = new THREE.Mesh(box(T.w, T.h, T.d), new THREE.MeshLambertMaterial({ color: '#dff4fa', transparent: true, opacity: 0.18, depthWrite: false }));
+  glass.position.y = y0 + T.h / 2; glass.renderOrder = 3; g.add(glass);
+  // the frame's edges, and a lid rim
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.035, T.h, 0.035), iron ? M.iron : M.darkWood, sx * T.w / 2, y0 + T.h / 2, sz * T.d / 2));
+  g.add(mesh(box(T.w + 0.03, 0.035, T.d + 0.03), iron ? M.iron : M.darkWood, 0, y0 + T.h, 0));
+  g.userData.tank = size;
+  return g;
+}
+/** The fish in a tank: each its own colours, swimming slow lengths of the glass, and a brass plate with its record on the stand's front. */
+export function stockTank(g: THREE.Group, fish: { a: string; b: string; name: string; lb: number }[]): void {
+  const size = Number(g.userData.tank ?? 0), T = TANKS[size], y0 = T.stand;
+  fish.forEach((f, i) => {
+    const s = Math.min(1.3, 0.55 + Math.log10(1 + f.lb) * 0.35) * (size === 0 ? 0.8 : 1);
+    const fishG = new THREE.Group();
+    fishG.add(mesh(box(0.2 * s, 0.09 * s, 0.05 * s), flat(f.a), 0, 0, 0));
+    fishG.add(mesh(box(0.07 * s, 0.08 * s, 0.03 * s), flat(f.b), -0.12 * s, 0, 0));
+    fishG.add(mesh(box(0.06 * s, 0.04 * s, 0.04 * s), flat(f.b), 0.02 * s, 0.05 * s, 0));
+    fishG.add(mesh(box(0.015, 0.015, 0.055 * s), flat('#101010'), 0.08 * s, 0.015 * s, 0));
+    const lane = (i + 0.5) / fish.length, depth = y0 + 0.16 + (i % 3) * ((T.h - 0.35) / 3), speed = 0.25 + (i % 4) * 0.07, phase = i * 1.7;
+    const half = Math.max(0.04, T.w / 2 - 0.16), zz = (lane - 0.5) * (T.d - 0.2) * 0.8;
+    fishG.position.set(0, depth, zz);
+    // slow lengths of the glass, turning at each end, a little rise and fall
+    const swim = (o: THREE.Object3D) => { o.onBeforeRender = () => {
+      const t = performance.now() * 0.001 * speed + phase, x = Math.sin(t) * half, dir = Math.cos(t) >= 0 ? 0 : Math.PI;
+      fishG.position.x = x; fishG.position.y = depth + Math.sin(t * 2.3) * 0.02; fishG.rotation.y = dir;
+    }; };
+    swim(fishG.children[0]);
+    g.add(fishG);
+  });
+  // the plate: what's in it, with the record weights
+  if (fish.length) {
+    const text = fish.slice(0, 3).map((f) => `${f.name}  ${f.lb} lb`).join('\n') + (fish.length > 3 ? `\nand ${fish.length - 3} more` : '');
+    const tex = textTexture(text, 256, 96, '#c8a050', '#2a1e10', 20);
+    const plate = new THREE.Mesh(box(Math.min(0.5, T.w * 0.6), 0.16, 0.012), [flat('#8a6a2a'), flat('#8a6a2a'), flat('#8a6a2a'), flat('#8a6a2a'), new THREE.MeshLambertMaterial({ map: tex }), flat('#8a6a2a')]);
+    plate.position.set(0, y0 - 0.16, T.d / 2 + 0.05);
+    g.add(plate);
+  }
+}
+
 export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group | null {
   // A trophy for the wall: "head:<kind>:<coat>:<second colour>" (data/trophyMounts.ts)
   if (item.startsWith('head:')) { const [, kind, a, b] = item.split(':'); return mountedHead(kind, a, b); }
@@ -2898,6 +2953,9 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'lounger': return lounger(M, tint);
     case 'easel': return easel(M);
     case 'spyglass': return spyglass(M);
+    case 'tank_s': return fishTank(M, 0);
+    case 'tank_m': return fishTank(M, 1);
+    case 'tank_l': return fishTank(M, 2);
     case 'anvil': return anvil(M);
     case 'forge': return homeForge(M);
     case 'crocks': return crocks(M, tint);

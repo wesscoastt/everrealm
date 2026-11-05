@@ -78,6 +78,8 @@ export interface Appearance {
   hatColor?: string;
   /** A costume worn over all of it (data/costumes.ts), or none. */
   costume?: string | null;
+  /** The pack on their back (data/items.ts pack looks), as everyone sees it: 0 none. */
+  pack?: number;
   /** The pet at their heels (data/pets.ts), or none. Not drawn on the figure: game/Game.ts and net/Online.ts walk it beside them. */
   pet?: string | null;
   /** Body shape: the broader-shouldered frame, or the narrower one with a fuller chest and hips. */

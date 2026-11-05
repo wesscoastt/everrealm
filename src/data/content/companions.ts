@@ -379,7 +379,64 @@ const tam: DialogueTree = {
   },
 };
 
-const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam };
+// ==================================================================== Ned Applegarth
+const ned: DialogueTree = {
+  start: (g) => (joined(g, 'ned') ? 'menu' : 'meet'),
+  nodes: {
+    meet: {
+      text: (g) => (g.flag('comp:ned:met') ? 'You came back! I knew you would. I told the pie man you would. He owes me a pie.' : 'It\'s you. It\'s really you! I\'ve been waiting in this market nine days. Eleven. I\'m Ned Applegarth, and I am, without any question at all, your biggest admirer.'),
+      effect: (g) => g.setFlag('comp:ned:met', 1),
+      options: [
+        { text: 'My what?', next: 'what' },
+        { text: 'I don\'t have admirers.', next: 'none' },
+        { text: 'Go away.', next: 'goaway' },
+      ],
+    },
+    what: { text: 'Admirer. I\'ve followed everything. Hollin Ford, the Wend, all of it. I keep a book. Look: there\'s you, and there\'s you again, and that one\'s you on a horse. It\'s not a good horse. Would you sign it? Just here, by the horse.', next: 'sign' },
+    none: { text: 'You do now! You have one. Me. I\'m your admirer. I keep a book, look. Would you sign it?', next: 'sign' },
+    goaway: { text: 'Ha! That\'s exactly what I hoped you\'d say. Short. Like a hero. Would you sign my book? Then I\'ll go away. Then I\'ll come back.', next: 'sign' },
+    sign: {
+      text: 'He holds out a battered ledger and a pencil that has been chewed to half its length.',
+      speaker: 'narrator',
+      options: [
+        { text: '(Sign it)', effect: (g) => g.compRapport('ned', 5), next: 'signed' },
+        { text: '(Sign it with a flourish, and draw a better horse)', effect: (g) => g.compRapport('ned', 8), next: 'horse' },
+        { text: 'I\'m not signing anything.', next: 'nosign' },
+      ],
+    },
+    signed: { text: 'Oh. Oh, that\'s lovely. You do your letters like a hero does letters. I\'ll never wash this page.', next: 'offer' },
+    horse: { text: 'You drew me a horse. You drew me a HORSE. That\'s a better horse than any horse. I\'m going to cry. I\'m not going to cry. I\'m going to cry a bit.', next: 'offer' },
+    nosign: { text: 'Of course. Mystery. Heroes keep themselves to themselves. I\'ll write that down: "keeps themselves to themselves". There.', next: 'offer' },
+    offer: {
+      text: 'Can I come with you? I won\'t be in the way. I\'ll carry things. I\'ll hold your coat. I\'ll go into towns ahead of you and tell them who\'s coming, so they can get ready. I can fight! A bit. I\'ve read about it.',
+      options: [
+        { text: 'Fine. Come along, Ned.', next: 'join' },
+        { text: 'Have you ever actually held a sword?', next: 'sword' },
+        { text: 'Not today.', next: 'later' },
+      ],
+    },
+    sword: { text: 'I\'ve held a ruler. A brass one. It\'s the same shape, more or less. I\'ll learn by watching you. I\'ve been learning by watching you for weeks. Not in a strange way.', next: 'offer' },
+    later: { text: 'Today, tomorrow, next year. I\'ll be right here in the market. I\'ll always be here. Or near you. One of those.' },
+    join: { text: 'Yes! YES. Sorry. Yes. I\'ll get my things. These are my things. I\'m ready.', effect: (g) => { g.setFlag('comp:ned:joined', 1); g.setFlag('comp:ned:part', 1); g.compRapport('ned', 3); g.compJoin('ned'); } },
+    hello: { text: 'You called for me? You called for ME?' },
+    bye: { text: 'I\'ll wait in the market. I\'ll tell everybody where you\'ve gone. Should I tell everybody where you\'ve gone? I won\'t. I might.' },
+    menu: {
+      text: (g) => (R(g, 'ned') >= 40 ? 'Anything. Name it. I\'ve sharpened my pencil.' : 'Yes? Yes! What is it?'),
+      options: [
+        { text: 'How are you doing, Ned?', next: 'mood' },
+        { text: 'Read me something from the book.', next: 'book' },
+        { text: 'Ned. You don\'t have to agree with everything I do.', next: 'agree' },
+        ...common('ned'),
+        { text: 'Nothing. Let\'s go.' },
+      ],
+    },
+    mood: { text: (g) => (R(g, 'ned') >= 40 ? 'I\'m having the best year of my life. Every year from now on will be measured against this one, and they\'ll lose.' : 'Wonderful. Tired. My feet hurt. Wonderful.') },
+    book: { text: (g) => (R(g, 'ned') >= 30 ? '"Day forty. The hero stood on the hill and looked at the sky for a long time. I think about the people they have lost. I don\'t ask. I just stood nearby, in case." That one\'s private. You can have it anyway.' : '"Day nine. The hero ate a pie. Pork, I think. Took the crust off first. Very decisive." I\'m working on the descriptions.') },
+    agree: { text: 'I know. I don\'t agree with everything. I just agree with everything you do. That\'s different. That\'s completely different. I think it\'s different.' },
+  },
+};
+
+const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam, ned };
 
 export const COMPANION_CONTENT: RegionContent = {
   id: 'companions',
@@ -391,7 +448,8 @@ export const COMPANION_CONTENT: RegionContent = {
       schedule: [{ from: 0, to: 24, at: c.home.at, face: c.home.face, anim: 'idle' }],
       barks: [],
       // (not when they've gone for good: Tam taken off the quay, or anyone who died in the main story)
-      when: (g) => g.compActive() !== id && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`),
+      // (Ned only once your name has got about: level 15)
+      when: (g) => g.compActive() !== id && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15),
     };
   }),
   dialogue: Object.fromEntries((Object.keys(TREES) as CompanionId[]).map((id) => ['comp_' + id, TREES[id]])),

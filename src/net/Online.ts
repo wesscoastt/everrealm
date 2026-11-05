@@ -29,6 +29,10 @@ import type { PartId, Voice } from '../data/tunes';
 export type OnlineStatus = 'off' | 'connecting' | 'online' | 'denied' | 'lost';
 
 interface Remote {
+  /** Their float and line while they fish, as everyone sees it. */
+  float?: THREE.Group | null;
+  /** The light they carry, lit: 1 a torch in the hand, 2 a lantern at the belt, 0 none. */
+  light?: number;
   id: number;
   name: string;
   model: Humanoid;
@@ -57,7 +61,7 @@ interface Remote {
   pet: Companion | null;
 }
 
-interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null }
+interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null; light?: number }
 
 /** How high a rider sits on someone's mount, by its halter's id. */
 const handL = new THREE.Vector3(), handR = new THREE.Vector3();
@@ -122,6 +126,20 @@ export interface ExOwed { kind: 'sold' | 'back' | 'got' | 'unwanted'; id?: numbe
 export interface GuildView { name: string | null; motto: string; rank: GuildRank | null; founded: number; members: { name: string; rank: GuildRank; online: boolean; seen: number }[];
   /** The week's mission (server/guilds.mjs). */
   mission?: { kind: string; title: string; ask: string; target: number; progress: number; done: boolean; reward: number; top: { name: string; n: number }[] } }
+
+/** Someone else's float and line: a red and white bob, and the line (filled in each frame). */
+function fishFloat(): THREE.Group {
+  const g = new THREE.Group();
+  const bob = new THREE.Group();
+  bob.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshLambertMaterial({ color: '#e8402a' })));
+  const top = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshLambertMaterial({ color: '#f4f0e8' }));
+  top.position.y = 0.08;
+  bob.add(top);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(new Array(8).fill(0).map(() => new THREE.Vector3())), new THREE.LineBasicMaterial({ color: '#f0f0f0', transparent: true, opacity: 0.7 }));
+  line.frustumCulled = false;
+  g.add(bob, line);
+  return g;
+}
 
 /** A run's fight as the realm remembers it: each creature's health taken (ten-thousandths), the dead, each room's state. */
 export interface RunState { hits: [number, number][]; dead: number[]; rooms: [number, number][] }
@@ -343,7 +361,7 @@ export class Online {
       case 'leave': this.removeRemote(m.id as number); this.setStatus('online'); break;
       case 'look': { const r = this.remotes.get(m.id as number); if (r) this.replaceModel(r, m.look as Appearance); break; }
       case 'snap':
-        for (const [id, x, y, z, yaw, anim, held, mount, pillion] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined, number | undefined][]) {
+        for (const [id, x, y, z, yaw, anim, held, mount, pillion, light] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined, number | undefined, number | undefined][]) {
           const r = this.remotes.get(id);
           if (!r) continue;
           r.from.copy(r.model.root.position);
@@ -354,6 +372,7 @@ export class Online {
           r.speed = r.from.distanceTo(r.to) / 0.1;
           r.yaw = yaw; r.anim = anim; r.held = held;
           r.pillion = typeof pillion === 'number' ? pillion : 0;
+          r.light = light === 1 || light === 2 ? light : 0;
         }
         break;
       case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'local', 'trade', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
@@ -443,11 +462,12 @@ export class Online {
   private addRemote(p: PlayerPub): void {
     this.removeRemote(p.id);
     const model = new Humanoid(p.look);
+    model.setPack(p.look?.pack ?? 0);
     const pos = new THREE.Vector3(p.x, p.y, p.z);
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
     const mount = p.mount && mountOf(p.mount) ? p.mount : null;
-    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0, pet: this.petFor(p.look, pos) });
+    this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, pet: this.petFor(p.look, pos) });
     if (p.perf) this.hooks.perform?.(p.id, p.perf);
   }
 
@@ -467,6 +487,7 @@ export class Online {
     }
     this.hooks.scene.remove(r.model.root);
     r.model = new Humanoid(look);
+    r.model.setPack(look.pack ?? 0);
     r.model.root.position.copy(pos);
     this.hooks.scene.add(r.model.root);
   }
@@ -477,6 +498,7 @@ export class Online {
     this.hooks.scene.remove(r.model.root);
     if (r.horse) this.hooks.scene.remove(r.horse.root);
     if (r.boat) this.hooks.scene.remove(r.boat);
+    if (r.float) this.hooks.scene.remove(r.float);
     if (r.pet) this.hooks.scene.remove(r.pet.model.root);
     this.remotes.delete(id);
   }
@@ -500,7 +522,11 @@ export class Online {
       at = { x: h.position.x, y: h.position.y, z: h.position.z, yaw: h.rotation.y };
       mount = r.mount;
     }
-    return passengerSeat(mountOf(mount), this.passengers(riderId).indexOf(who), at.x, at.y, at.z, at.yaw);
+    // (you count as riding with them from the moment you climb up, before the next update tells this side so:
+    // without it, the first look for your seat found none and set you straight back down beside the horse)
+    const list = this.passengers(riderId);
+    if (who === this.myId && !list.includes(who)) { list.push(who); list.sort((a, b) => a - b); }
+    return passengerSeat(mountOf(mount), list.indexOf(who), at.x, at.y, at.z, at.yaw);
   }
   /** Everyone riding with a rider, by id. */
   passengers(riderId: number): number[] {
@@ -510,13 +536,13 @@ export class Online {
   }
   private myPillion: number | null = null;
 
-  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem | string; mount?: string | null; pillion?: number | null }): void {
+  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem | string; mount?: string | null; pillion?: number | null; light?: number }): void {
     this.myPillion = me.pillion ?? null;
     if (this.status !== 'online' || !this.ws) return;
     this.sendT -= dt * 1000;
     if (this.sendT <= 0) {
       this.sendT = SEND_MS;
-      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount: me.mount ?? null, pillion: me.pillion ?? 0 }));
+      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount: me.mount ?? null, pillion: me.pillion ?? 0, light: me.light ?? 0 }));
     }
     for (const r of this.remotes.values()) {
       r.t = Math.min(1, r.t + dt / 0.1);
@@ -560,6 +586,20 @@ export class Online {
       // Riding behind someone: in the second seat of their mount, wherever we see it
       const seat = r.pillion ? this.seatOf(r.pillion, r.id) : null;
       if (seat) { r.model.root.position.set(seat.x, seat.y + seat.lift, seat.z); r.model.root.rotation.y = seat.yaw; r.yaw = seat.yaw; r.anim = seat.pose; r.held = 'none'; }
+      // Fishing: a float out on the water ahead of them, and the line to it from the rod's tip
+      if (r.anim === 'fishWait' || r.anim === 'fishCast') {
+        if (!r.float) r.float = fishFloat(), this.hooks.scene.add(r.float);
+        const p = r.model.root.position, yaw = r.model.root.rotation.y, out = r.anim === 'fishCast' ? 2 : 4.2;
+        const fx = p.x + Math.sin(yaw) * out, fz = p.z + Math.cos(yaw) * out, fy = p.y - 0.75 + Math.sin(performance.now() * 0.003 + r.id) * 0.03;
+        const bob = r.float.children[0], line = r.float.children[1] as THREE.Line;
+        bob.position.set(fx, fy, fz);
+        const pos = line.geometry.attributes.position as THREE.BufferAttribute, tipX = p.x + Math.sin(yaw) * 1.3, tipZ = p.z + Math.cos(yaw) * 1.3, tipY = p.y + 2.1;
+        for (let i = 0; i < 8; i++) { const t = i / 7; pos.setXYZ(i, tipX + (fx - tipX) * t, tipY + (fy - tipY) * t - Math.sin(t * Math.PI) * 0.5, tipZ + (fz - tipZ) * t); }
+        pos.needsUpdate = true;
+      } else if (r.float) { this.hooks.scene.remove(r.float); r.float = null; }
+      // Their light: a torch in the hand (not while riding behind someone or rowing), or the lantern at the belt
+      r.model.setTorch(r.light === 1);
+      r.model.setLantern(r.light === 2);
       r.pet?.update(dt, r.model.root.position, r.model.root.rotation.y);
       // Turn the short way round.
       let dy = r.yaw - r.model.root.rotation.y;

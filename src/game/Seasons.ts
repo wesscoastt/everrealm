@@ -198,7 +198,7 @@ export class Seasons {
     const S = this.season;
     if (!S) return [];
     const name = ENEMIES[S.boss.type as EnemyType].name;
-    const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
+    const hh = (h: number) => `${((h + 11) % 12) + 1} ${h < 12 ? 'am' : 'pm'}`;
     const boss = this.bossDone(S.id) ? `${name} is down for today. It comes again tomorrow (realm time).` : inWindow(this.host.hour(), S.boss.from, S.boss.to) ? `${name} is out now at ${S.boss.where}.` : `${name} comes to ${S.boss.where} between ${hh(S.boss.from)} and ${hh(S.boss.to)} realm time, in about ${Math.ceil(secsUntil(S.boss.from, this.host.hour()) / 60)} minutes.`;
     return [
       { title: S.round.name, text: `${S.round.desc} ${this.roundState().done.length} done today.` },

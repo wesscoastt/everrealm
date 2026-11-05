@@ -7,7 +7,7 @@ import type { Appearance } from '../entities/humanoid';
 // they're willing, more than friendship. Their conversations are in data/content/companions.ts; the
 // walking, fighting and talking in game/Companions.ts.
 
-export type CompanionId = 'wenna' | 'ottilie' | 'tam';
+export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned';
 export type CompanionRole = 'tank' | 'healer' | 'damage';
 
 export interface Outfit { id: string; name: string; /** Rapport needed to have it (0: from the start). */ rapport: number; look: Partial<Appearance> }
@@ -173,6 +173,60 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
       swim: ['Boatman\'s son. Never learned to swim. Never needed to. Boats.'],
       idle: ['Fancy a game? Penny a point.', 'I\'m not bored. I\'m resting my wit.', 'You\'re quiet. I like that in a partner. At cards, I mean.'],
       partner: ['Funny thing. I\'ve stopped counting the exits when you\'re in the room.', 'I\'ve never bet on anything I couldn\'t fix. Except you. Still winning.'],
+    },
+  },
+  // ---------------------------------------------------------------- Ned Applegarth
+  // Your biggest admirer (owner 2026-11-04, "a biggest fan follower like Oblivion's and Starfield's"; our own).
+  // A clerk's boy from the Ansbury counting houses who heard about you once and has thought of nothing
+  // else since. He keeps a book of everything you've done, with drawings, most of them wrong. He turns up
+  // in Ansbury's market once your name has got about (level 15), and he would follow you into the sea.
+  // He approves of everything you do. He fights the way he does everything: with enormous enthusiasm.
+  ned: {
+    id: 'ned', name: 'Ned Applegarth', title: 'Your biggest admirer',
+    home: { at: [811.5, 327.4], face: [811.5, 323.4], place: 'Ansbury\'s market' },
+    roles: ['damage', 'tank'],
+    look: { frame: 'm', skin: '#f0c8a0', hair: '#c87a3a', hairStyle: 8, eyes: '#4a7a8a', tunic: '#5a7aa8', trim: '#e0bd64', shirt: '#e8dcc0', trousers: '#4a4034', hose: '#e8dcc0', boots: '#5a4030', top: 1, legs: 1, shoes: 2, belt: '#7a2a24', freckles: true, brows: 2, build: 0.9, height: 0.96, age: 0.05, hat: 'cap', hatColor: '#5a7aa8' },
+    outfits: [
+      { id: 'clerk', name: 'Counting-house best', rapport: 0, look: {} },
+      { id: 'yours', name: 'Dressed as you (nearly)', rapport: 15, look: { top: 4, tunic: '#3a5a8a', trim: '#e0bd64', cape: '#7a2a24', hat: 'none', chestArmour: { style: 'cuirass', color: '#6a4a2a' } } },
+      { id: 'herald', name: 'Your herald', rapport: 40, look: { top: 7, tunic: '#7a2a24', trim: '#e0bd64', shirt: '#f4f0e8', cape: '#e0bd64', hat: 'feathered', hatColor: '#7a2a24', tabard: { color: '#7a2a24', trim: '#e0bd64' } } },
+    ],
+    likes: {
+      quest: [3, 'Another one for the book! Hold still, I want to get your face right this time.'],
+      boss: [4, 'Did you see that? Of course you saw it, you did it. I saw it. I SAW it.'],
+      rare: [3, 'May I hold it? Just for a moment. I won\'t breathe on it.'],
+      revive: [4, 'You came back for me. That\'s going in the book. In capitals.'],
+      vista: [2, 'I\'ll draw it. I\'ll draw you in front of it. Don\'t move. Move a little to the left.'],
+      wonder: [2, 'Nobody back at the counting house is going to believe this. I don\'t believe this.'],
+      book: [1, 'You read as well? Is there anything you can\'t do?'],
+      treat: [2, 'You eat toffee apples too? I eat toffee apples!'],
+      bounty: [1, 'Paying what you owe. That\'s honourable, that is. I\'ll put it in.'],
+      crime: [1, 'I didn\'t see anything. I\'ll put in the book that I didn\'t see anything. Should I put that in?'],
+      theft: [1, 'They had too many of those anyway. You were helping, really.'],
+    },
+    banter: {
+      greenwake: ['Hollin Ford! Where it all started. I made a map of where you stood. Just here, I think. Or there.', 'The ford\'s smaller than I drew it.'],
+      crownroad: ['Every inn on this road has heard of you. I made sure. I went ahead last week.', 'I told the toll men you were coming. They didn\'t seem as pleased as I\'d hoped.'],
+      brambledeep: ['If anything comes out of those trees, I\'ll protect you. Then you protect me. That\'s fair.'],
+      saltwind: ['Is that the sea? I\'ve never seen the sea up close. It\'s very big. Bigger than you said. You didn\'t say. Bigger than I thought.'],
+      redstone: ['The Works! Do you think they\'d let me draw the furnaces? Do you think they\'d let me draw you in front of the furnaces?'],
+      starfall: ['My ink\'s frozen. I\'m remembering it all instead. I\'ve remembered four things already.'],
+      morrow: ['Another land. You\'ve crossed to another land and I\'m with you. Mother won\'t believe it. Mother didn\'t believe Ansbury.'],
+      ansbury: ['This is where I first heard of you. Third bench from the well. I can show you the bench.', 'I used to add up columns for the mercers. Now I add up what you\'ve done. It\'s a longer column.'],
+      gullmouth: ['They know you here. A fisherman pointed. I pointed back. We were both pointing at you.'],
+      harrowgate: ['Harrowgate. I\'ll stand behind you. I\'ll stand slightly to the side of behind you.'],
+      kirk: ['The Glass Kirk. I wrote your name in the pilgrims\' book. Six times. Was that too many?'],
+      night: ['I can\'t sleep when we\'re out. What if you do something and I miss it?', 'The stars look like they\'re watching you. I would be.'],
+      rain: ['I\'ve got the book under my coat. The book is dry. I am not dry. The book is what matters.'],
+      wake: ['Lantern Wake! I carved a turnip to look like you. It looks more like a turnip. It\'s the thought.'],
+      fight: ['For the book!', 'I\'m helping! Am I helping?', 'Stand back, all of you! Not you. You can stay.'],
+      won: ['That was the best thing I\'ve ever seen. Again, if you like.', 'I\'ve put that down. I\'ve put it all down.'],
+      hurt: ['You\'re bleeding. Heroes bleed? I didn\'t know heroes bleed.', 'Sit down. Have something. I\'ll fan you.'],
+      down: ['No no no no. Up. Please. The book isn\'t finished.'],
+      ride: ['I can\'t ride, really. I\'m holding on. I\'m holding on with my whole self.'],
+      swim: ['I can\'t swim either. I\'m learning. From watching you. Is this how? Is THIS how?'],
+      idle: ['Would you sign the book again? The first time was a bit smudged.', 'I\'ve been thinking what your statue should look like. Taller. That\'s all. Just taller.', 'Do you need anything carried? I could carry you. I couldn\'t carry you.', 'Sorry. I was staring. I\'ll stop. I\'ve stopped. Mostly.'],
+      partner: ['I never thought you\'d look at me. Now you do, I don\'t know where to look.'],
     },
   },
 };

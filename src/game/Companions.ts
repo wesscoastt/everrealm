@@ -38,6 +38,8 @@ const STEEDS: Record<CompanionId, { coat: string; mane: string; cloth: string; b
   wenna: { coat: '#4a3424', mane: '#1e1610', cloth: '#2e3a4a' },
   ottilie: { coat: '#b8b8b0', mane: '#e8e6e0', cloth: '#6a5a3a' },
   tam: { coat: '#2a2220', mane: '#1a1410', cloth: '#7a2a24', breed: 'pied' },
+  // (Ned's is a stout little pack pony from a livery in Ansbury, far too eager, like him)
+  ned: { coat: '#c8a070', mane: '#e8dcc0', cloth: '#5a7aa8', breed: 'pack' },
 };
 
 export class Companions {

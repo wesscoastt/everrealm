@@ -358,6 +358,112 @@ function footings(O: Overrides): void {
   }
 }
 
+const WALLISH = /window|door|glass|shutter|pane/;
+
+/** The world as the plan leaves it, cell by cell: the last write to each, over the land and the sea. */
+export function planCells(O: Overrides): { at: (x: number, y: number, z: number) => number; set: (x: number, y: number, z: number, id: number) => void; tops: Map<number, number>; col: (x: number, z: number) => number } {
+  const last = new Map<number, number>(), tops = new Map<number, number>();
+  const col = (x: number, z: number) => (x - WMIN) + (z - WMIN) * KEY_W;
+  for (const [k, a] of O.map) {
+    const [cx, cz] = keyChunk(k);
+    for (let i = 0; i < a.length; i += 2) {
+      const li = a[i], x = cx * CHUNK + (li % CHUNK), z = cz * CHUNK + (Math.floor(li / CHUNK) % CHUNK), y = Math.floor(li / (CHUNK * CHUNK));
+      last.set(col(x, z) + y * KEY_W * KEY_W, a[i + 1]);
+      if (y > (tops.get(col(x, z)) ?? -1)) tops.set(col(x, z), y);
+    }
+  }
+  const at = (x: number, y: number, z: number): number => {
+    const o = last.get(col(x, z) + y * KEY_W * KEY_W);
+    if (o !== undefined) return o;
+    const h = heightAt(x, z);
+    return y < h ? B.Stone : y < SEA ? B.Water : B.Air;
+  };
+  const set = (x: number, y: number, z: number, id: number) => { O.set(x, y, z, id); last.set(col(x, z) + y * KEY_W * KEY_W, id); };
+  return { at, set, tops, col };
+}
+
+/** Where a deck by the water (a jetty, a pier, a quay's boards) meets dry ground two to five blocks above it: the deck cell, its height, the way to the land, the land's height. */
+export function dockRises(O: Overrides, cells = planCells(O)): { x: number; z: number; s: number; dx: number; dz: number; n: number }[] {
+  const { at, tops } = cells;
+  const solid = (id: number) => id !== B.Air && id !== B.Water && id !== B.Barrier && !!BLOCKS[id]?.solid;
+  const surface = (x: number, z: number, from: number): number | null => {
+    for (let y = from; y > 0; y--) if (solid(at(x, y - 1, z)) && !solid(at(x, y, z)) && !solid(at(x, y + 1, z))) return y;
+    return null;
+  };
+  const out: { x: number; z: number; s: number; dx: number; dz: number; n: number }[] = [];
+  for (const [c, top] of tops) {
+    const x = (c % KEY_W) + WMIN, z = Math.floor(c / KEY_W) + WMIN;
+    const s = surface(x, z, top + 1);
+    if (s === null || (at(x, s - 1, z) !== B.Planks && at(x, s - 1, z) !== B.DarkPlanks)) continue;
+    // (boards under the water are a wreck's, not a deck anyone walks)
+    if (at(x, s, z) === B.Water || at(x, s + 1, z) === B.Water) continue;
+    // (boards with a roof or a floor over them are a boathouse's or a stable's, indoors: their walls aren't land)
+    let covered = false;
+    for (let y = s + 2; y <= s + 8 && !covered; y++) { const id = at(x, y, z); covered = id === B.Barrier || solid(id); }
+    if (covered) continue;
+    // (a railed edge is meant to stop you: a fence or a rail stands on the boards)
+    if (at(x, s, z) === B.Barrier) continue;
+    // (by the water: over it, or within a few blocks of it, where a pier's landward end stands on the shore)
+    let wet = false;
+    for (let dz = -4; dz <= 4 && !wet; dz++) for (let dx = -4; dx <= 4 && !wet; dx++) for (let y = s - 1; y >= Math.max(0, s - 8); y--) { const id = at(x + dx, y, z + dz); if (id === B.Water) { wet = true; break; } if (solid(id) && !(dx === 0 && dz === 0)) break; }
+    if (!wet) continue;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = surface(x + dx, z + dz, s + 6);
+      if (n === null || n - s < 2 || n - s > 5 || at(x + dx, n - 1, z + dz) === B.Water) continue;
+      // (a building's wall beside a boathouse floor is a wall, not the land: windows and doors say so)
+      let wall = false;
+      for (let y = s; y < n && !wall; y++) wall = WALLISH.test(BLOCKS[at(x + dx, y, z + dz)]?.name ?? '');
+      if (wall) continue;
+      out.push({ x, z, s, dx, dz, n });
+    }
+  }
+  return out;
+}
+
+/**
+ * Steps from the decks up to the land (owner 2026-11-04: "some dock-to-land transitions are approximately
+ * two blocks high, and players cannot climb onto the surrounding terrain"): a player steps up one block,
+ * so wherever a deck meets ground two or more above it, a short wooden stair is laid along the deck away
+ * from the land, one block a step, on deck boards with the headroom for it. (npm run -s docksteps checks
+ * none is left.)
+ */
+function dockSteps(O: Overrides, sites: Site[]): void {
+  // (a sign, a lamp or a bollard standing where a step goes stands on the step instead)
+  const props = new Map<string, PropDesc[]>();
+  for (const st of sites) for (const p of st.props) { const k = Math.floor(p.x) + ',' + Math.floor(p.z); props.set(k, [...(props.get(k) ?? []), p]); }
+  // (again, a few times over: a step laid on a sloping deck can leave the next board down two below it)
+  for (let pass = 0; pass < 3; pass++) if (!dockStepsOnce(O, props)) break;
+}
+function dockStepsOnce(O: Overrides, props: Map<string, PropDesc[]>): boolean {
+  const cells = planCells(O), { at, set } = cells;
+  let laid = false;
+  const solid = (id: number) => id !== B.Air && id !== B.Water && !!BLOCKS[id]?.solid;
+  for (const r of dockRises(O, cells)) {
+    // re-read: an earlier stair may have dealt with this edge already
+    if (solid(at(r.x, r.s, r.z))) continue;
+    const rise = r.n - r.s, steps: [number, number, number][] = [];
+    for (let k = 0; k < rise - 1; k++) {
+      const x = r.x - r.dx * k, z = r.z - r.dz * k, top = r.n - 1 - k; // this step's top: one under the one before
+      const boards = at(x, r.s - 1, z);
+      if (boards !== B.Planks && boards !== B.DarkPlanks) { steps.length = 0; break; }
+      let clear = true;
+      for (let y = r.s; y <= top + 1; y++) if (solid(at(x, y, z))) clear = false;
+      if (!clear) { steps.length = 0; break; }
+      steps.push([x, z, top]);
+    }
+    for (const [x, z, top] of steps) {
+      for (let y = r.s; y < top; y++) { set(x, y, z, B.Planks); laid = true; }
+      for (const p of props.get(x + ',' + z) ?? []) if (typeof p.y === 'number' && p.y < top) p.y = top;
+    }
+    // No room on the boards for a stair (a sloping bridge, a short landing): two high is cut to a step on the high side
+    if (!steps.length && rise === 2) {
+      const lx = r.x + r.dx, lz = r.z + r.dz;
+      if (solid(at(lx, r.n - 2, lz)) && !solid(at(lx, r.n, lz))) { set(lx, r.n - 1, lz, B.Air); laid = true; }
+    }
+  }
+  return laid;
+}
+
 /**
  * Hidden chests, the way ESO scatters them: one by most of the small places (a ruin, a ring of
  * stones, a camp, a shrine), tucked a few strides off, and more out in the wilds, one in a square
@@ -872,6 +978,7 @@ function* planBody(): Generator<string, Plan> {
   const hz = hazards({ sites, waymarks, overrides: O });
   stamp(hz, O);
   footings(O);
+  dockSteps(O, sites);
   const chests = hideChests(O, sites);
   // The taverns' signs, by their doors (data/content/taverns.ts)
   for (const t of TAVERN_SIGNS) {

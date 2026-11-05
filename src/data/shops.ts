@@ -63,6 +63,8 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'bett', name: 'Rook\'s Chandlery', owner: 'bett',
     stock: [
       { item: 'recipe_fishermans_pie', price: 180 },
+      // Somewhere to keep the best of them (data/fish.ts)
+      { item: 'furn_tank_s', price: 60 }, { item: 'furn_tank_m', price: 180 }, { item: 'furn_tank_l', price: 450 },
       { item: 'fishing_rod', price: 14 },
       // The sea rods and the bait for them (data/fish.ts)
       { item: 'rod_searod', price: 380 }, { item: 'rod_greenheart', price: 320 }, { item: 'bait_worm', price: 1 }, { item: 'bait_paste', price: 3 }, { item: 'bait_spinner', price: 12 },

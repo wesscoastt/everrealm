@@ -1696,10 +1696,29 @@ export class Game implements GameApi {
     this.hud.refresh();
   }
   level(s: SkillId): number { return levelForXp(this.save.xp[s], s); }
+  /** A fish tank at home: what's in it, put in a fish you caught (its record weight on the plate), or take one out. */
+  private tendTank(i: number): void {
+    const list = this.home.pieces(), pc = list[i];
+    if (!pc) return;
+    const room = { furn_tank_s: 1, furn_tank_m: 3, furn_tank_l: 6 }[pc[0]] ?? 0;
+    const inTank = Array.isArray(pc[5]) ? [...pc[5]] : [];
+    const book = (this.flag('fishlog') as Record<string, [number, number]> | undefined) ?? {};
+    const save = (next: string[]) => { const all = this.home.pieces().map((x) => [...x] as typeof x); const p0 = all[i]; all[i] = [p0[0], p0[1], p0[2], p0[3], p0[4] ?? 0, next]; this.setFlag('home', all); this.home.render(); this.sfx('splash', 0.4); };
+    const items: { label: string; act: () => void }[] = [];
+    for (const [k, e] of inTank.entries()) { const [id, lb] = e.split(':'); items.push({ label: `Take out: ${ITEMS[id]?.name ?? id} (${lb} lb)`, act: () => { if (!this.give(id)) return; save(inTank.filter((_, j) => j !== k)); } }); }
+    if (inTank.length < room) {
+      const fish = [...new Set(this.save.inv.filter((s) => s && FISH_BY_ID[s.id]).map((s) => s!.id))];
+      for (const id of fish) items.push({ label: `Put in: ${ITEMS[id].name}${book[id] ? ` (record ${book[id][1]} lb)` : ''}`, act: () => { if (!this.take(id)) return; save([...inTank, `${id}:${book[id]?.[1] ?? 0}`]); this.hud.system(`The ${ITEMS[id].name.toLowerCase()} goes in. ${book[id] ? `Its plate says ${book[id][1]} lb, your best.` : ''}`); } });
+      if (!fish.length) items.push({ label: 'You have no fish with you to put in.', act: () => {} });
+    } else items.push({ label: 'It\'s full. Take one out to make room.', act: () => {} });
+    this.hud.playerMenu(`${ITEMS[pc[0]].name} (${inTank.length} of ${room})`, innerWidth / 2 - 120, innerHeight / 2 - 80, items);
+  }
+
   /** The Swimming skill: experience for the water you cover (double under it), and the pace it gives. */
   private swum = 0;
   private swimTraining(dt: number): void {
     const P = this.player;
+    if (!this.flag('nedHeard') && this.level('melee') >= 15) { this.setFlag('nedHeard', 1); this.hud.system('Your name has got about. A young man in Ansbury\'s market has been asking everyone where you are. He has a book.'); }
     P.swimSkill = (this.level('swimming') - 1) / 99 / 3;
     if (!P.swimming || P.speed < 0.6) return;
     this.swum += P.speed * dt * (P.underwater ? 2 : 1);
@@ -1760,6 +1779,8 @@ export class Game implements GameApi {
   }
   /** Is your light burning this moment? */
   private lightLit = false;
+  /** What everyone else sees of it: 1 a torch in the hand, 2 the lantern at the belt, 0 nothing. */
+  private lightShown = 0;
 
   /** The rod you fish with: the one you chose (clicked in your pack), or else your best. */
   fishingRod(): string | null {
@@ -3175,7 +3196,7 @@ export class Game implements GameApi {
     const def = Object.values(ITEMS).find((d) => d.pack?.look === look);
     return { name: def?.name ?? 'Pack', slots: Number(this.flag('packSlots') ?? 0), hidden: !!this.flag('hidePack') };
   }
-  togglePack(): void { this.setFlag('hidePack', !this.flag('hidePack')); this.hud.refresh(); }
+  togglePack(): void { this.setFlag('hidePack', !this.flag('hidePack')); this.dress(); this.hud.refresh(); }
   /** A mastery passive's worth (data/mastery.ts): its points times its share per point. */
   private mastery(id: MasteryId): number {
     const n = readMastery(this.save.flags.mastery)[id] ?? 0;
@@ -3243,10 +3264,13 @@ export class Game implements GameApi {
     for (const slot of ['chest', 'shoulders', 'legs', 'hands', 'feet', 'head'] as const) {
       // (a helm or gloves you'd rather not see still guard you: they just aren't drawn)
       if ((slot === 'head' && this.flag('hideHead')) || (slot === 'hands' && this.flag('hideHands'))) continue;
+
       const id = e[slot];
       const l = id ? ITEMS[id]?.armor?.look : undefined;
       if (l) Object.assign(look, dyeLook(slot, l, this.gearDye(slot)));
     }
+    // (the pack on your back goes with the look, so everyone else sees it too)
+    look.pack = this.flag('hidePack') ? 0 : Number(this.flag('packLook') ?? 0);
     return look;
   }
   /** The dyes on a worn slot (data/gearDyes.ts). */
@@ -4318,6 +4342,7 @@ export class Game implements GameApi {
       this.setFlag('packSlots', def.pack.slots);
       this.setFlag('packLook', def.pack.look);
       this.fitPack();
+      this.dress();
       this.hud.banner(def.name, `${INV_SIZE + def.pack.slots} slots in your pack now`, true);
       this.sfx('equip');
       this.hud.refresh();
@@ -5348,6 +5373,16 @@ export class Game implements GameApi {
         consider({ kind: 'act', label: 'Take a rubbing of the stones', sub: 'Enchanting', pos: new THREE.Vector3(sx, p.y + 1.2, sz), act: () => this.takeRubbing(ring) }, Math.abs(d - 7) + 0.6);
       }
     }
+    // A fish tank of your own, at home: put a fish you caught in it, or take one out
+    if (!this.home.active && !this.home.visiting && this.home.owned) {
+      const h = this.myHome();
+      if (h) this.home.pieces().forEach((pc, i) => {
+        const m = ITEMS[pc[0]]?.furn?.model;
+        if (m !== 'tank_s' && m !== 'tank_m' && m !== 'tank_l') return;
+        const d = Math.hypot(pc[1] - p.x, pc[2] - p.z);
+        if (d < 2.2 && Math.abs(h.base + (pc[4] ?? 0) * 4 - p.y) < 2) consider({ kind: 'act', label: 'Tend the fish tank', pos: new THREE.Vector3(pc[1], p.y + 1, pc[2]), act: () => this.tendTank(i) }, d);
+      });
+    }
     // A message post someone left: read it
     {
       const mp = this.posts.nearest(p);
@@ -5787,6 +5822,7 @@ export class Game implements GameApi {
       this.bobber.visible = false;
       this.fishLine.visible = false;
       this.hud.showBite(false);
+      this.hud.setReel(null);
     }
     if (this.craftAction) this.craftAction = null;
     this.player.locked = false;
@@ -5944,24 +5980,20 @@ export class Game implements GameApi {
       this.mythicFor.delete(a.cast ?? -1);
       const fish: FishDef | 'megalodon' | 'ice_spice_fish' | null = myth === 'megalodon' || myth === 'ice_spice_fish' ? myth : rollFish(a.water ?? 'lake', lvl, a.bait ? BAIT_OF[a.bait] : null, rod.luck);
       if (!fish) { this.hud.system('Nothing here takes a bare hook. Try some bait.'); a.phase = 'reel'; a.t = 0; return true; }
-      // Pulled in on the bite, the old way (owner 2026-11-04: the reel bar went, "keep the old way of fishing")
+      // The fight: harder for a rarer, heavier fish; the rod's line and steadiness widen the safe band (and a
+      // line too light for the fish takes the strain worse in its runs). Hold E or Space to reel.
       const lb = typeof fish === 'string' ? (fish === 'megalodon' ? 52000 : 3.1) : fishWeight(fish);
-      // ...unless it's more fish than the line will hold: a strong, heavy one can part a light line (the mythics never do)
-      if (typeof fish !== 'string') {
-        const pull = TIER_FIGHT[fish.tier] + Math.min(0.3, lb / 300);
-        if (Math.random() < Math.min(0.6, Math.max(0, (pull - rod.line) * 0.9))) {
-          this.hud.system(`Something heavy takes it and runs, and your line parts. ${pull > 0.8 ? 'A sea rod, or a stronger line, would have held it.' : 'A stronger rod would have held it.'}`);
-          this.sfx('pickSnap'); a.phase = 'reel'; a.t = 0; return true;
-        }
-      }
+      const fight = fish === 'megalodon' ? 1.15 : fish === 'ice_spice_fish' ? 0.9 : TIER_FIGHT[fish.tier] + Math.min(0.2, lb / 900);
+      const width = Math.max(0.07, 0.2 + rod.steady * 0.4 - fight * 0.1 - Math.max(0, fight - rod.line) * 0.15);
+      a.fight = { fish, lb, tension: 0.35, progress: 0.3, lo: 0.5 - width / 2, hi: 0.5 + width / 2, pull: fight, surge: 0, short: Math.max(0, fight - rod.line) };
       if (fish === 'megalodon') { this.hud.banner('Something enormous', 'The line goes taut as an anchor chain', true); this.quake(0.6); this.sfx('thunder', 0.6); this.particles.splash(this.bobber.position, 40); }
       else if (fish === 'ice_spice_fish') { this.hud.banner('The water goes cold', 'Something bright is on the line', true); this.sfx('bell'); }
       else this.sfx('catch');
-      this.landFish(fish, lb);
-      a.phase = 'reel';
+      a.phase = 'fight';
       a.t = 0;
       return true;
     }
+    if (a.phase === 'fight' || a.phase === 'cast' || a.phase === 'reel') return true;
     if (a.phase === 'wait') {
       this.hud.system('Too early. You reel in and cast again.');
       a.phase = 'reel';
@@ -7737,6 +7769,7 @@ export class Game implements GameApi {
       const hand = want && light === 'torch' && !this.bowInHand && !this.music.out;
       const belt = want && !hand && (light === 'belt_lantern' || this.inv.count('belt_lantern') > 0);
       this.lightLit = hand || belt;
+      this.lightShown = hand ? 1 : belt ? 2 : 0;
       P.model.setTorch(hand);
       P.model.setLantern(belt);
       if ((hand || belt) && !this.flag('lightHint')) { this.setFlag('lightHint', 1); this.hud.system('Your light is lit for the dark. Press L to put it away, or to take it out again.'); }
@@ -7819,7 +7852,7 @@ export class Game implements GameApi {
     this.horse?.holdReins(M.state === 'ride' ? M.handsAt(handL, handR) : null);
     // (on the Post, everyone sees the cart go by with you on its bench)
     if (this.post.active) { const w = this.post.where; this.online.update(dt, { x: w.x, y: w.y, z: w.z, yaw: w.yaw, anim: 'seated', held: 'none', mount: POST_CART_KEY, pillion: null }); }
-    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion });
+    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion, light: this.lightShown });
     this.music.update();
     this.chests.update();
     this.posts.update(dt, P.position);

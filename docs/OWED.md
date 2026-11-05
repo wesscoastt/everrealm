@@ -110,9 +110,20 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 16b. **Skua Rock, the prison island** (owner 2026-11-04, added to the bottom of the list): its waymark floats (off the ground: seat it on the rock). And the prison is underwhelming, not intimidating the way Alcatraz is: make it a real fortress prison on the rock in the bay off Gullmouth (world/sites.ts, data/skua.ts) with high blank walls, a cell block, a lighthouse or a watch tower, the guards, the cold and the sea round it, so it reads as somewhere nobody gets out of.
 
+16c. **Audio, world persistence, animation and immersion** (owner 2026-11-04, a new prompt after the list above; work its tasks in this order, testing each in the game):
+    1. Enchanting made clear: what it does, what can be enchanted, what it needs, the effect and result shown, feedback when applied; enchantments kept through trade, storage and loading; works the same in multiplayer.
+    2. Music: no stuttering, cutting out or restarts (buffering, loading during play, decoding, overlapping tracks, transitions, spikes from chunks and players); seamless area transitions; one track at a time. Test it properly before going on.
+    3. More soundtrack, original and Oblivion-inspired in mood (strings, woodwinds, horns): countryside, forests, cities, ruins, mountains, dungeons, bosses, night, discovery, story; each region its own.
+    4. Sitting: E sits you on the seat itself, facing its way, at its height; never into tables or walls, nor through walls; stand up somewhere sensible; seen right by others.
+    5. NPCs on seats: right height and facing, not floating or inside furniture (taverns, houses, shops, inns).
+    6. Map discovery kept for good: explored areas never fade back, across logouts, zones and restarts.
+    7. Rain: better streaks, speed, density, distance and lighting, and cheap to draw.
+    8. Gatherables: each its own model and texture (blackberries, garlic, herbs, mushrooms, flowers, vegetables, fruit, ores), visible in the world, proper icons, synced.
+    9. Last: the Endless (Infinite) Tower finished and working, alone and in a group.
+
 ## C. Waiting on the owner
 
-17. **Continent 3, Serra** (docs/CONTINENT3.md, draft written; name Serra confirmed 2026-10-31; dragon awake from the start, Debatable Land 50+):
+17. **Continent 3, Serra** (docs/CONTINENT3.md, draft written; name Serra confirmed 2026-10-31; flying mounts come with it, learned there (owner 2026-11-04, CONTINENT3.md "Flying mounts"); expansion title: "Everrealm: Over the Southern Sea" (owner chose 2026-11-04); dragon awake from the start, Debatable Land 50+):
     build after the first-hours playthrough and once the main game is polished (owner 2026-10-31: "After. And after the main game is polished"); the dragon at the centre of its story; Cyrodiil-style PvP region.
 18. **Stripe**: the owner adds charge.refunded, charge.dispute.created and charge.dispute.closed to the
     webhook.

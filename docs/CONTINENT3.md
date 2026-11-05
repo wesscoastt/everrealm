@@ -256,3 +256,26 @@ game/SharedMobs.ts). Each has a name the locals gave it, a breath (fire, steam f
 the green's thorns in the Sallow Wood), and takes off again at low health once to land somewhere near.
 Bring it down and the town it was over gives a day's thanks: a cheaper inn, the smith's discount, a
 song at the tavern with your name in it.
+
+## Flying mounts (owner 2026-11-04: "add flyable mounts for the expansion")
+
+Flight arrives with Serra, the way WoW brought it with an expansion: the Counties and Morrow stay on the
+ground (their roads, towns and secrets were built to be walked and ridden), and Serra's islands are built
+to be flown between.
+
+- **Learning it**: an eyrie-master in Serra's first port teaches *Riding Skyward* once you've reached the
+  continent and finished its first chapter: flying is the reward for arriving, not the price of entry.
+  It costs marks and a quest line (a fledgling raised, a first flight over the shoals), never real money.
+- **What flies**: the griffins already in the game (the Assembly's tower griffins, the Crimson and Black
+  griffins, the store's Gilded griffin) fly in Serra once you've learned it; Serra adds its own fliers
+  (sea drakes, great gulls ridden by the island folk, a wyvern from the Old Mother's line for the end of
+  the story). Ground mounts stay ground mounts. A store flier looks different, never flies faster.
+- **How it handles**: Space to rise and climb, C to dive, W forward; a glide when you let go; landing on
+  any flat ground; dismount mid-air and you fall (a feather token, sold cheaply, lets you glide down).
+- **Where you can't**: inside towns (you land at the eyrie towers), inside dungeons and the tower, and in
+  the Debatable Land when it's contested (PvP stays on the ground); over the Old Mother's peak the wind
+  throws you down until the final chapter.
+- **Others see it**: flying mounts are shared like every mount (the realm passes on the mount, its height
+  and its banking), and a passenger seat on the big ones carries a friend.
+- **Later, maybe**: flight in the old lands once Serra's story is done, as a reward (ESO never did; WoW did
+  after a long wait). Decide then, not now.

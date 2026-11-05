@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ITEMS } from '../data/items';
 import type { HomeShape } from '../data/housing';
-import { createPropMaterials, furniture } from '../world/props';
+import { createPropMaterials, furniture, stockTank } from '../world/props';
 import { isWallPiece, WALL_HEIGHT } from '../data/trophyMounts';
 import { chimneyCell, fitOut, FurnItem, furnCells, FURN_SIZE } from '../world/interiors';
 
@@ -10,7 +10,7 @@ import { chimneyCell, fitOut, FurnItem, furnCells, FURN_SIZE } from '../world/in
 // saved in the 'home' flag as [item, x, z, quarter-turns, storey]. Only the owner sees their own
 // arrangement (and their guests, on a visit).
 
-export type Piece = [item: string, x: number, z: number, turn: number, floor?: number];
+export type Piece = [item: string, x: number, z: number, turn: number, floor?: number, fish?: string[]];
 
 export interface HomeHost {
   scene: THREE.Scene;
@@ -114,10 +114,12 @@ export class Home {
     this.group.clear();
     const h = this.where();
     if (!h) return;
-    for (const [item, x, z, t, f] of this.visiting?.pieces ?? this.pieces()) {
+    for (const [item, x, z, t, f, fish] of this.visiting?.pieces ?? this.pieces()) {
       const def = ITEMS[item]?.furn;
       const g = def && furniture(this.M, def.model, def.tint ?? 0);
       if (!g) continue;
+      // a fish tank's fish: "item id:record weight" each
+      if (Array.isArray(fish) && fish.length) stockTank(g, fish.map((e) => { const [id, lb] = String(e).split(':'); const d = ITEMS[id]; return { a: d?.icon.a ?? '#c8c8c8', b: d?.icon.b ?? d?.icon.a ?? '#888888', name: d?.name ?? id, lb: Number(lb) || 0 }; }));
       g.position.set(x, h.base + (f ?? 0) * 4 + (isWallPiece(def.model) ? WALL_HEIGHT : 0), z);
       g.rotation.y = (t * Math.PI) / 2;
       this.group.add(g);
