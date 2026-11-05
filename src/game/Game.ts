@@ -194,11 +194,11 @@ const REGION_THEME: Record<RegionId, ThemeId> = {
 
 /** Each region's other pieces, played in turn with its own theme (eight minutes each, on the realm clock). */
 const REGION_PIECE: Partial<Record<RegionId, ThemeId[]>> = {
-  greenwake: ['heartland', 'meadow'], crownroad: ['heartland', 'meadow'], gannet: ['heartland', 'shanty'], saltwind: ['heartland', 'shanty'],
+  greenwake: ['heartland', 'muster', 'meadow'], crownroad: ['heartland', 'meadow', 'muster'], gannet: ['heartland', 'shanty', 'crossing'], saltwind: ['heartland', 'crossing', 'shanty'],
   brambledeep: ['wildwood', 'grove'], wrath: ['wildwood', 'brambledeep'], inkholm: ['wildwood', 'grove'],
-  starfall: ['highlands', 'fells'], tolmen: ['highlands', 'starfall'], redstone: ['highlands'], kell: ['tinkers', 'highlands'], sickle: ['rime', 'highlands'],
+  starfall: ['highlands', 'weather', 'fells'], tolmen: ['highlands', 'starfall', 'muster'], redstone: ['highlands', 'weather'], kell: ['tinkers', 'highlands'], sickle: ['rime', 'weather', 'highlands'],
   // Morrow's own
-  keys: ['keys', 'shanty'], bright: ['keys', 'whitecity'], glades: ['amber', 'grove'], amberwold: ['amber', 'grove'], sunder: ['held'], glassflats: ['caravan', 'held'], greywaste: ['held'], held: ['held', 'rime'],
+  keys: ['keys', 'crossing', 'shanty'], bright: ['keys', 'whitecity', 'crossing'], glades: ['amber', 'grove'], amberwold: ['amber', 'grove'], sunder: ['held'], glassflats: ['caravan', 'held'], greywaste: ['held'], held: ['held', 'rime'],
 };
 /** Each land's own sound bed (systems/Audio.ts BEDS): what hangs in the air there, and what calls. */
 const REGION_BED: Partial<Record<RegionId, Bed>> = {
@@ -207,7 +207,7 @@ const REGION_BED: Partial<Record<RegionId, Bed>> = {
   sickle: 'ice', keys: 'isles', bright: 'isles', sunder: 'rift', greywaste: 'waste',
 };
 /** Where a place has a second piece of its own, the two take turns (Ansbury's market day, Gullmouth's shanty). */
-const PLACE_PIECE: Partial<Record<ThemeId, ThemeId>> = { ansbury: 'charter', harbour: 'shanty', night: 'rainfall' };
+const PLACE_PIECE: Partial<Record<ThemeId, ThemeId[]>> = { ansbury: ['charter', 'crown'], harbour: ['shanty', 'crossing'], night: ['rainfall'] };
 /** Each dungeon's and delve's own music, by its id (data/dungeons.ts for the group dungeons, world/sites.ts for the rest). */
 const UNDER_THEME: Record<string, ThemeId> = {
   'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow',
@@ -8192,7 +8192,7 @@ export class Game implements GameApi {
     }
     if (place && place !== 'holms' && place !== 'kirk' && this.world.sky.sheltered) return 'inn';
     const turn = Math.floor(Date.now() / 480000);
-    if (place) return PLACE_PIECE[place] && turn % 2 === 1 ? PLACE_PIECE[place]! : place;
+    if (place) { const all = [place, ...(PLACE_PIECE[place] ?? [])]; return all[turn % all.length]; }
     if (this.world.sky.night > 0.65) return turn % 2 === 1 ? 'rainfall' : 'night';
     // First light and evening have pieces of their own
     const h = this.world.sky.hour;

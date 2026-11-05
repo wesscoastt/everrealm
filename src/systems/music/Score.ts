@@ -31,7 +31,10 @@ export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambled
   | 'charter' | 'shanty' | 'fells' | 'grove' | 'tinkers' | 'meadow' | 'rainfall' | 'caravan' | 'whitecity' | 'rime'
   /** Seven more (owner 2026-11-04: more varied, each region its own, Oblivion's mood): the Gannet cliffs, the fens, Tolmen
    * Moor, the Sunder's rift, ruins and abandoned keeps, the strange places, and a lament for the story's hard moments. */
-  | 'cliffs' | 'fen' | 'moor' | 'rift' | 'ruins' | 'wonder' | 'lament';
+  | 'cliffs' | 'fen' | 'moor' | 'rift' | 'ruins' | 'wonder' | 'lament'
+  /** Four big ones (owner 2026-11-05: epic, in the manner of World of Warcraft's and the Elder Scrolls Online's scores): the
+   * capital's anthem, a heroic march for the open country, a broad hymn for the high places, and the sea crossing. */
+  | 'crown' | 'muster' | 'weather' | 'crossing';
 type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings' | 'oboe' | 'clarinet' | 'fiddle' | 'piano' | 'lute' | 'accordion' | 'glock';
 /**
  * What the orchestra does under the tune, chord by chord, so a quiet piece keeps changing its colour:
@@ -717,6 +720,66 @@ const THEMES: Record<ThemeId, Theme> = {
       { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'sus4' }], motif: '4:3 5:1 7:4 r:2 6:2 5:2 4:2 2:6 r:2 3:2 4:2 5:4 4:2 2:2 3:8', lead: 'oboe' },
       { prog: [{ deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 2, q: 'maj' }, { deg: 2, q: 'maj' }], motif: '7:4 9:2 7:2 6:4 4:4 5:2 4:2 2:4 r:2 4:2 6:2 7:2 9:8', lead: 'strings', tutti: true, dyn: 0.65 },
       { prog: [{ deg: 2, q: 'maj', bars: 4 }, { deg: 2, q: 'sus2', bars: 4 }], motif: '4:6 2:2 0:12', lead: 'choir', dyn: 0.5 },
+    ],
+  },
+  // "The Crown's Road": Ansbury's anthem. D major, a lone horn at first, then the strings take the tune, a lift to
+  // the subdominant with the brass doubled, and a climax with the choir and timpani at every change before it settles.
+  crown: {
+    id: 'crown', root: 50, mode: MODES.ionian, bpm: 76,
+    prog: [{ deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }],
+    motifs: [], lead: ['horn'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.65, rest: [20, 34], level: 1,
+    textures: ['harp', 'pulse', 'march', 'pad', 'harp'],
+    parts: [
+      { prog: [{ deg: 0, q: 'sus2' }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 0, q: 'sus2' }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }], motif: '0:3 2:1 4:4 5:2 4:2 2:6 r:2 3:2 2:2 1:2 2:2 0:8', lead: 'horn', arp: true, dyn: 0.6 },
+      { prog: [{ deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 3 }, { deg: 4 }], motif: '4:2 5:2 6:2 7:4 6:2 5:2 4:6 r:2 2:2 4:2 5:4 4:2 3:2 2:8 r:2', lead: 'strings' },
+      { key: 5, prog: [{ deg: 3 }, { deg: 4 }, { deg: 2 }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 0, q: 'sus4' }], motif: '7:3 8:1 9:4 8:2 7:2 5:4 7:4 r:2 4:2 5:2 7:2 8:4 7:4 9:8 r:2', lead: 'horn', tutti: true, dyn: 0.85 },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'sus4' }, { deg: 0 }], motif: '7:4 9:2 8:2 7:4 4:4 5:2 7:2 8:4 7:6 r:2 9:3 8:1 7:2 5:2 4:2 2:2 0:8', lead: 'horn', tutti: true, dyn: 1 },
+      { prog: [{ deg: 3, bars: 3 }, { deg: 4, bars: 3 }, { deg: 0, q: 'sus2', bars: 4 }], motif: '4:6 2:2 0:12', lead: 'flute', dyn: 0.55 },
+    ],
+  },
+  // "The Long Muster": the open country's march. A minor, an oboe over a quiet pulse, then the horns, the strings and
+  // brass together a third up, and the whole orchestra with the choir; it ends on the strings alone.
+  muster: {
+    id: 'muster', root: 45, mode: MODES.aeolian, bpm: 80,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }],
+    motifs: [], lead: ['horn'], pad: ['strings', 'choir'], vowel: 'ah', arp: null, brightness: 0.55, rest: [20, 34], level: 1,
+    textures: ['pulse', 'march', 'pad', 'march', 'pad'],
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }], motif: '0:2 2:2 4:4 3:2 2:2 0:4 r:2 -1:2 0:2 2:2 4:6 r:2 3:2 2:2 1:2 2:8', lead: 'oboe', dyn: 0.6 },
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'maj' }, { deg: 4, q: 'maj' }], motif: '4:3 5:1 7:4 6:2 5:2 4:4 2:4 r:2 4:2 5:2 6:2 7:4 6:4 4:8', lead: 'horn' },
+      { key: 3, prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 6 }, { deg: 0 }, { deg: 5 }, { deg: 4, q: 'maj' }, { deg: 0 }], motif: '7:2 9:2 10:4 9:2 7:2 6:4 7:4 r:2 4:2 6:2 7:2 9:6 7:2 6:4 4:8', lead: 'strings', tutti: true, dyn: 0.9 },
+      { prog: [{ deg: 5 }, { deg: 6 }, { deg: 0 }, { deg: 0 }, { deg: 5 }, { deg: 6 }, { deg: 4, q: 'maj' }, { deg: 0 }], motif: '7:4 7:2 9:2 10:6 r:2 9:2 7:2 6:2 4:2 5:4 4:4 r:2 2:2 4:2 7:4 6:4 4:2 2:2 0:8', lead: 'horn', tutti: true, dyn: 1 },
+      { prog: [{ deg: 5, bars: 3 }, { deg: 6, bars: 3 }, { deg: 0, bars: 4 }], motif: '2:4 1:2 0:10', lead: 'strings', dyn: 0.5 },
+    ],
+  },
+  // "Above the Weather": the high places. C lydian, wide and slow, a flute over the celesta, the strings climbing,
+  // then the horns and the choir together, and a last long note from the celesta.
+  weather: {
+    id: 'weather', root: 48, mode: MODES.lydian, bpm: 60,
+    prog: [{ deg: 0 }, { deg: 1 }, { deg: 5 }, { deg: 4 }],
+    motifs: [], lead: ['flute'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'celesta', brightness: 0.7, rest: [24, 40], level: 0.95,
+    textures: ['pad', 'harp', 'pad', 'pad', 'bells'],
+    parts: [
+      { prog: [{ deg: 0, q: 'sus2' }, { deg: 1 }, { deg: 0, q: 'sus2' }, { deg: 4 }, { deg: 0, q: 'sus2' }, { deg: 1 }, { deg: 5 }, { deg: 4 }], motif: '4:4 3:2 4:2 6:6 r:2 4:2 3:2 1:2 0:8 r:2', lead: 'flute', arp: true, dyn: 0.6 },
+      { prog: [{ deg: 0 }, { deg: 1 }, { deg: 5 }, { deg: 4 }, { deg: 0 }, { deg: 1 }, { deg: 3 }, { deg: 4, q: 'sus4' }], motif: '0:2 4:2 7:6 6:2 4:4 r:2 3:2 4:2 6:2 7:4 8:4 r:2 6:2 4:8', lead: 'strings', arp: true },
+      { prog: [{ deg: 3 }, { deg: 4 }, { deg: 5 }, { deg: 4 }, { deg: 3 }, { deg: 1 }, { deg: 4, q: 'sus4' }, { deg: 0 }], motif: '7:3 8:1 9:4 8:2 7:2 6:4 4:4 r:2 6:2 7:2 8:2 9:6 8:2 7:8', lead: 'horn', tutti: true, dyn: 0.85 },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 1 }, { deg: 0 }], motif: '9:4 8:2 7:2 6:4 7:4 r:2 4:2 6:2 7:2 8:4 7:4 9:8 r:2 7:8', lead: 'choir', tutti: true, dyn: 0.95 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 4, bars: 2 }, { deg: 0, bars: 4 }], motif: '4:4 6:4 7:12', lead: 'celesta', dyn: 0.5 },
+    ],
+  },
+  // "Over the Southern Sea": the crossing, and Morrow's coasts and keys. D mixolydian at a sailor's pace, an oboe,
+  // then the horn, the strings lifting a fourth with the brass under them, and the choir over the whole orchestra.
+  crossing: {
+    id: 'crossing', root: 50, mode: MODES.mixolydian, bpm: 84,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }],
+    motifs: [], lead: ['horn'], pad: ['strings', 'choir'], vowel: 'ah', arp: 'harp', brightness: 0.65, rest: [20, 34], level: 1,
+    textures: ['lute', 'pulse', 'pad', 'march', 'harp'],
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4 }], motif: '0:2 2:1 4:1 5:2 4:2 2:4 r:2 0:2 -1:2 0:2 2:6 r:2', lead: 'oboe', arp: true, dyn: 0.6 },
+      { prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 3 }, { deg: 6 }, { deg: 0 }], motif: '4:2 5:2 7:4 6:2 4:2 5:4 r:2 3:2 4:2 5:2 6:6 r:2 4:2 2:2 0:8', lead: 'horn' },
+      { key: 5, prog: [{ deg: 3 }, { deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 6 }, { deg: 4, q: 'sus4' }], motif: '7:2 9:2 10:4 9:2 7:2 8:6 r:2 7:2 6:2 5:2 4:2 5:4 4:4 r:2 2:2 4:2 7:8', lead: 'strings', tutti: true, dyn: 0.85 },
+      { prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 4 }, { deg: 0 }], motif: '7:4 9:2 10:2 11:4 9:4 r:2 7:2 9:2 10:2 9:4 7:4 r:2 6:2 4:2 2:2 0:10', lead: 'horn', tutti: true, dyn: 1 },
+      { prog: [{ deg: 6, bars: 3 }, { deg: 3, bars: 3 }, { deg: 0, bars: 4 }], motif: '4:6 5:2 4:12', lead: 'flute', dyn: 0.5 },
     ],
   },
 };

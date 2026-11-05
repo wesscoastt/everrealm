@@ -124,7 +124,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
     1. DONE King Shep's Fold (the wool ram statue, King Shep, two quests).
     2. DONE The FOR SALE / LOT board comes down once the house or lot is held.
     3. DONE Wendside Cottage made a small log-and-stone homestead (porch, log corners, footing, woodpile, hearth).
-    4. Epic original music in the mood of WoW and ESO (big brass and choir themes for capitals, the main story and bosses).
+    4. DONE Epic original music in the mood of WoW and ESO: The Crown's Road (Ansbury), The Long Muster (open country), Above the Weather (high places), Over the Southern Sea (coasts and Morrow's keys) (big brass and choir themes for capitals, the main story and bosses).
     5. Fisherman Dave, a follower with a long quest line (owner 2026-11-05): his love Becky White is dead under a curse; to free her he must win a one-on-one against a reaper-like demon, a frightening ghost. The player trains Dave to fight; he wins, she comes back. BioWare-standard writing.
 
 ## C. Waiting on the owner
