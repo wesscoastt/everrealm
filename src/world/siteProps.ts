@@ -25,6 +25,8 @@ export interface BuiltSite {
   sails: THREE.Object3D[];
   /** Gulls on their perches (GameWorld animates them: game/Gulls.ts). */
   gulls: PerchedGull[];
+  /** The FOR SALE and LOT boards, drawn on their own so the game can take one down once the house is held. */
+  saleSigns: { obj: THREE.Object3D; x: number; z: number; text: string }[];
 }
 
 /** A gull's rig, where it perches and which way it faces, and what it's doing. */
@@ -116,7 +118,7 @@ function farMat(near: THREE.ShaderMaterial): THREE.ShaderMaterial {
 }
 
 /** A cheap hash of a place, for which lamp gets a pumpkin and which face it has. */
-const h3 = (x: number, z: number, k: number) => { const v = Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453; return v - Math.floor(v); };
+export const h3 = (x: number, z: number, k: number) => { const v = Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453; return v - Math.floor(v); };
 const PUMPKIN_TONES = ['#e8801e', '#e8801e', '#d86a14', '#f0962a', '#e8c890', '#c8641a'];
 
 /**
@@ -161,6 +163,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
   const gulls: PerchedGull[] = [];
   const doors: Door[] = [];
   const roofMat = (m?: string) => (m === 'blue' ? M.roofBlue : m === 'thatch' ? M.thatch : m === 'slate' ? M.roofSlate : m === 'copper' ? M.roofCopper : M.roofRed);
+  const saleSigns: BuiltSite['saleSigns'] = [];
   const place = (g: THREE.Object3D, x: number, y: number, z: number, ry = 0) => batch.addGroup(g, P.mat4(x, y, z, ry));
   const gPos: number[] = [], gSize: number[] = [], gCol: number[] = [];
   const _c = new THREE.Color();
@@ -259,7 +262,12 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'bars': place(P.ironBars(M, d.len ?? 3, d.rise ?? 4), d.x, d.y, d.z, d.ry); break;
       case 'hatch': place(P.cellarHatch(M), d.x, d.y, d.z, d.ry); break;
       case 'rails': place(P.rails(M, d.len ?? 6), d.x, d.y, d.z, d.ry); break;
-      case 'sign': place(P.standingSign(M, d.text ?? ''), d.x, d.y, d.z, d.ry); break;
+      case 'sign': {
+        const sg = P.standingSign(M, d.text ?? '');
+        if (/^(FOR SALE|LOT d)/.test(d.text ?? '')) { sg.position.set(d.x, d.y, d.z); sg.rotation.y = d.ry ?? 0; group.add(sg); saleSigns.push({ obj: sg, x: d.x, z: d.z, text: d.text! }); }
+        else place(sg, d.x, d.y, d.z, d.ry);
+        break;
+      }
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;
       case 'desk': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'furn': {
@@ -349,7 +357,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
     group.add(b);
   }
   group.add(batch.build(true));
-  return { group, glows, lamps, smoke, fires, doors, sails, gulls };
+  return { group, glows, lamps, smoke, fires, doors, sails, gulls, saleSigns };
 }
 
 /** Plain coloured boxes and cones standing in for a landmark until its chunks load (one draw call). */

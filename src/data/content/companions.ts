@@ -432,6 +432,7 @@ const ned: DialogueTree = {
     },
     mood: { text: (g) => (R(g, 'ned') >= 40 ? 'I\'m having the best year of my life. Every year from now on will be measured against this one, and they\'ll lose.' : 'Wonderful. Tired. My feet hurt. Wonderful.') },
     book: { text: (g) => (R(g, 'ned') >= 30 ? '"Day forty. The hero stood on the hill and looked at the sky for a long time. I think about the people they have lost. I don\'t ask. I just stood nearby, in case." That one\'s private. You can have it anyway.' : '"Day nine. The hero ate a pie. Pork, I think. Took the crust off first. Very decisive." I\'m working on the descriptions.') },
+    ...outfitNodes('ned'),
     agree: { text: 'I know. I don\'t agree with everything. I just agree with everything you do. That\'s different. That\'s completely different. I think it\'s different.' },
   },
 };

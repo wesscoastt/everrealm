@@ -25,8 +25,12 @@ export interface Interactable {
   radius: number;
 }
 
+/** A seat someone can sit on (game/Game.ts): where, which way it faces, along how much of it, from both sides or the front only, and its height. */
+export interface SeatSpot { x: number; y: number; z: number; ry: number; half: number; both: boolean; h: number }
+
 export interface StructureResult {
   group: THREE.Group;
+  seats: SeatSpot[];
   interactables: Interactable[];
   sails: THREE.Group;
   /** Ford Mill's wheel, turned by the game (GameWorld). */
@@ -42,6 +46,7 @@ export interface StructureResult {
 const BASE = 19;
 
 export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials, time: { value: number }): StructureResult {
+  const seats: SeatSpot[] = [];
   const batch = new P.Batcher();
   const group = new THREE.Group();
   const doors: Door[] = [];
@@ -154,6 +159,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const fit = fitOut(shape);
     for (const [bx, by, bz, kind] of fit.blocks) world.put(bx, by, bz, kind === 'floor' ? B.Planks : kind === 'step' ? B.DarkPlanks : kind === 'barrier' ? B.Barrier : B.Air);
     for (const f of fit.furn) { const g = P.furniture(M, f.item, f.tint ?? shape.tint); if (g) place(g, f.x, f.y, f.z, f.ry); }
+    for (const f of fit.furn) if (f.item === 'chair' || f.item === 'stool' || f.item === 'bench') seats.push({ x: f.x, y: f.y, z: f.z, ry: f.ry, half: f.item === 'bench' ? 0.6 : 0, both: f.item !== 'chair', h: f.item === 'chair' ? 0.62 : 0.48 });
     for (const [lx, ly, lz] of fit.lights) lights.push(new THREE.Vector3(lx, ly, lz));
     // A fire in the hearth lights the room
     for (const f of fit.furn) if (f.item === 'hearth') lights.push(new THREE.Vector3(f.x, f.y + 0.6, f.z));
@@ -232,6 +238,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
     const a = (i / 5) * Math.PI * 2 + 0.4;
     const bx = 145 + Math.cos(a) * 3.6, bz = 176 + Math.sin(a) * 3.6;
     place(P.bench(M, 1.8), bx, ground(Math.floor(bx), Math.floor(bz)), bz, -a + Math.PI / 2);
+    seats.push({ x: bx, y: ground(Math.floor(bx), Math.floor(bz)), z: bz, ry: -a + Math.PI / 2, half: 0.6, both: true, h: 0.48 });
   }
 
   const reeve = house({ x0: 156, z0: 169, w: 7, d: 7, floors: 2, roof: 'blue', door: 's', chimney: true, windowBoxes: true, dormers: true, role: 'office' });
@@ -454,6 +461,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   }
   place(P.bench(M, 1.6), 179.3, BASE, 193.5, Math.PI / 2);
   place(P.bench(M, 1.6), 181.5, BASE, 196, 0);
+  seats.push({ x: 179.3, y: BASE, z: 193.5, ry: Math.PI / 2, half: 0.5, both: true, h: 0.48 }, { x: 181.5, y: BASE, z: 196, ry: 0, half: 0.5, both: true, h: 0.48 });
   place(P.barrel(M), 183.4, BASE, 186.9);
   place(P.barrel(M), 182.6, BASE, 187.4);
 
@@ -852,5 +860,5 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
 
   const built = batch.build(true);
   group.add(built);
-  return { group, interactables, sails, wheel, bell, fires, smoke, lights, poi, doors };
+  return { group, interactables, sails, wheel, bell, fires, smoke, lights, poi, doors, seats };
 }

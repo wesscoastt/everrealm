@@ -132,7 +132,7 @@ import { LotBuild } from './LotBuild';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
 import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaShape, VILLAS } from '../data/mirador';
-import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_PRICE, LOTS, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
+import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_PRICE, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
@@ -149,6 +149,7 @@ import { MessagePosts, Post } from './Posts';
 import { Rowboat, rowboatModel, hullBlocks, overHull, BOAT_FLOOR } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty, type Site } from '../world/sites';
+import { h3 } from '../world/siteProps';
 import { COSTUMES } from '../data/costumes';
 import { MONUMENTS } from '../data/monuments';
 import { jewelDrop } from '../data/jewellery';
@@ -703,8 +704,8 @@ export class Game implements GameApi {
   /** The birds over the land round you, the same for everyone (game/Birds.ts). */
   private birds!: Birds;
   /** Every bench, chair and stool in the world (sit on one with E), and the seat you're on. */
-  private seats: { x: number; y: number; z: number; ry: number; half: number; both: boolean }[] = [];
-  private seated: { x: number; y: number; z: number; yaw: number } | null = null;
+  private seats: { x: number; y: number; z: number; ry: number; half: number; both: boolean; h: number }[] = [];
+  private seated: { x: number; y: number; z: number; yaw: number; h: number } | null = null;
   /** A wagon left standing where you got down from it: its bed opens beside it, and G drives it on. */
   private parked: { id: string; model: CreatureModel } | null = null;
   /** A vista's camera: circling the view for a few seconds, then back to the player. */
@@ -1261,9 +1262,35 @@ export class Game implements GameApi {
       const spots: [number, number][] = [[171.5, 188.5], [147.5, 183.5], [182.5, 196.5], ...POSTS.filter((q) => !q.ferryFrom).flatMap((q): [number, number][] => [[q.x + 4.5, q.z + 3.5], [q.x - 4.5, q.z + 2.5]]), [687.5, 420.5], [675.5, 286.5], [787.5, 182.5]];
       spots.forEach(([x, z], i) => this.pets.push({ kind: i % 3 === 1 ? 'dog' : 'cat', x, z, pal: i % 3 === 1 ? dogCoats[i % dogCoats.length] : catCoats[(i * 7) % catCoats.length], a: null }));
       for (const st of this.world.sites) for (const ws of st.stations ?? []) this.worldStations.push(ws);
+      // Hollin Ford's own (world/structures.ts)
+      this.seats.push(...this.world.structures.seats);
+      // People sit where a seat is: the nearest within a stride and a half, on its middle, facing out from it
+      // (one to a place: a place someone else has is passed over; a bench seats several, a stride apart)
+      const taken = new Map<string, string>();
+      Npc.seatNear = (x, y, z, who) => {
+        let best: { x: number; y: number; z: number; yaw: number; h: number } | null = null, bd = 1.6;
+        for (const st of this.seats) {
+          if (Math.abs(st.y - y) > 1.2 || Math.abs(st.x - x) > 2 || Math.abs(st.z - z) > 2) continue;
+          const ax = Math.cos(st.ry), az = -Math.sin(st.ry), nx = Math.sin(st.ry), nz = Math.cos(st.ry);
+          const along = THREE.MathUtils.clamp((x - st.x) * ax + (z - st.z) * az, -st.half, st.half);
+          const side = st.both && (x - st.x) * nx + (z - st.z) * nz < 0 ? -1 : 1;
+          for (const off of [0, 0.7, -0.7, 1.4, -1.4]) {
+            const al = along + off;
+            if (Math.abs(al) > st.half + 0.001) continue;
+            const sx = st.x + ax * al, sz = st.z + az * al, d = Math.hypot(sx - x, sz - z), key = Math.round(sx * 2) + ',' + Math.round(sz * 2);
+            const holder = taken.get(key);
+            if (holder && holder !== who) continue;
+            if (d < bd) { bd = d; best = { x: sx, y: st.y, z: sz, yaw: Math.atan2(nx * side, nz * side), h: st.h }; }
+            break;
+          }
+        }
+        if (best) { for (const [k, v] of taken) if (v === who) taken.delete(k); taken.set(Math.round(best.x * 2) + ',' + Math.round(best.z * 2), who); }
+        return best;
+      };
       for (const st of this.world.sites) for (const d of st.props) {
-        if (d.t === 'bench') this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: (d.len ?? 1.6) / 2 - 0.3, both: true });
-        else if (d.t === 'furn' && (d.item === 'chair' || d.item === 'stool' || d.item === 'bench')) this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: d.item === 'bench' ? 0.6 : 0, both: d.item !== 'chair' });
+        // (a bench drawn with a back, the slatted and the iron kinds (world/siteProps.ts styles 1 and 3), is sat on from the front only)
+        if (d.t === 'bench') { const style = d.tint === -1 ? Math.floor(h3(d.x, d.z, 41) * 5) : 0; this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: (d.len ?? 1.6) / 2 - 0.3, both: style !== 1 && style !== 3, h: style === 4 ? 0.49 : 0.48 }); }
+        else if (d.t === 'furn' && (d.item === 'chair' || d.item === 'stool' || d.item === 'bench')) this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: d.item === 'bench' ? 0.6 : 0, both: d.item !== 'chair', h: d.item === 'chair' ? 0.62 : 0.48 });
       }
       for (const st of this.world.sites) for (const an of st.animals ?? []) this.pets.push({ kind: an.kind, x: an.x, z: an.z, r: an.r, pal: an.pal ?? {}, a: null });
     }
@@ -1540,7 +1567,7 @@ export class Game implements GameApi {
     });
     // Closing the tab saves locally and sends the server the final copy (uploads are otherwise throttled).
     window.addEventListener('pagehide', () => { if (this.restoring) return; this.persist(); this.online.save(this.save, true); if (this.mode === 'play') uploadSave(this.save, true); });
-    this.world.onChunk = (cx, cz, r) => { this.spawnChunk(cx, cz, r); this.building?.chunkLoaded(cx, cz); if (this.homesBook) this.lockCottage(); };
+    this.world.onChunk = (cx, cz, r) => { this.spawnChunk(cx, cz, r); this.building?.chunkLoaded(cx, cz); if (this.homesBook) this.lockCottage(); this.saleBoards(); };
     this.world.onChunkGone = (cx, cz) => this.despawnChunk(cx, cz);
     this.mode = 'title';
     this.applySettings();
@@ -2673,9 +2700,23 @@ export class Game implements GameApi {
     }
     this.building.sync(list);
     this.lockCottage();
+    this.saleBoards();
   }
 
   /** Wendside Cottage is someone else's and you're not their guest: its door stays shut and the doorway is barred. */
+  /** Take down the board on a house or lot someone holds (owner 2026-11-05: it stayed up after buying). */
+  private saleBoards(): void {
+    const mine = this.myHomeId();
+    for (const sg of this.world.saleSigns()) {
+      let id = 'cottage';
+      if (!sg.text.startsWith('FOR SALE')) {
+        let bd = 6;
+        for (const l of LOTS) { const f = lotFront(l), d = Math.hypot(f.x - sg.x, f.z - sg.z); if (d < bd) { bd = d; id = l.id; } }
+        if (bd >= 6) continue;
+      }
+      sg.obj.visible = !(mine === id || this.homesBook?.has(id));
+    }
+  }
   private lockCottage(): void {
     const h = this.homesBook?.get('cottage');
     const lock = !!h && this.myHomeId() !== 'cottage' && this.visitLot !== 'cottage';
@@ -5385,14 +5426,15 @@ export class Game implements GameApi {
     }
     // A bench, chair or stool to sit on: the nearest place along it, facing out from the side you're on
     if (!this.horse && !this.seated && !this.player.swimming) {
-      let best: { x: number; y: number; z: number; yaw: number } | null = null, bd = 1.9;
+      let best: { x: number; y: number; z: number; yaw: number; h: number } | null = null, bd = 1.9;
       for (const st of this.seats) {
         if (Math.abs(st.y - p.y) > 1.2 || Math.abs(st.x - p.x) > 4 || Math.abs(st.z - p.z) > 4) continue;
         const ax = Math.cos(st.ry), az = -Math.sin(st.ry), nx = Math.sin(st.ry), nz = Math.cos(st.ry);
         const along = THREE.MathUtils.clamp((p.x - st.x) * ax + (p.z - st.z) * az, -st.half, st.half);
         const side = st.both && (p.x - st.x) * nx + (p.z - st.z) * nz < 0 ? -1 : 1;
         const sx = st.x + ax * along, sz = st.z + az * along, dd = Math.hypot(sx - p.x, sz - p.z);
-        if (dd < bd) { bd = dd; best = { x: sx, y: st.y, z: sz, yaw: Math.atan2(nx * side, nz * side) }; }
+        if (dd >= bd || !this.clearTo(p, sx, st.y + 0.9, sz)) continue;
+        bd = dd; best = { x: sx, y: st.y, z: sz, yaw: Math.atan2(nx * side, nz * side), h: st.h };
       }
       if (best) { const b = best; consider({ kind: 'act', label: 'Sit', pos: new THREE.Vector3(b.x, b.y + 0.7, b.z), act: () => this.sitDown(b) }, bd + 0.4); }
     }
@@ -6271,19 +6313,31 @@ export class Game implements GameApi {
   }
 
   /** Sit on a seat: held there until you move or jump (the same way a pillion rider is). */
-  private sitDown(at: { x: number; y: number; z: number; yaw: number }): void {
+  private sitDown(at: { x: number; y: number; z: number; yaw: number; h: number }): void {
     if (this.horse || this.dead || this.inCombat()) return;
     this.cancelActions();
     this.seated = { ...at };
+    // (the pose is made for a bench's height: a taller seat lifts you to it)
+    this.player.seat = at.h - 0.48;
     this.sfx('seat');
+  }
+  /** Is the way from you to a point clear (no wall or closed door between), sampled every half block at that height? */
+  private clearTo(p: THREE.Vector3, x: number, y: number, z: number): boolean {
+    const V = this.world.voxels, d = Math.hypot(x - p.x, z - p.z), n = Math.max(1, Math.ceil(d / 0.4));
+    for (let i = 1; i < n; i++) { const t = i / n; if (isSolid(V.get(Math.floor(p.x + (x - p.x) * t), Math.floor(y), Math.floor(p.z + (z - p.z) * t)))) return false; }
+    return true;
   }
   private standUp(): void {
     const s = this.seated;
     if (!s) return;
     this.seated = null;
+    this.player.seat = 0;
     this.sfx('cloth', 0.8);
-    // Up and a step forward, clear of the seat
-    this.player.position.set(s.x + Math.sin(s.yaw) * 0.85, s.y + 0.05, s.z + Math.cos(s.yaw) * 0.85);
+    // Up and a step forward, clear of the seat (or, if that's a table or a wall, where you came from)
+    const fx = s.x + Math.sin(s.yaw) * 0.85, fz = s.z + Math.cos(s.yaw) * 0.85, V = this.world.voxels;
+    const free = (x: number, z: number) => !isSolid(V.get(Math.floor(x), Math.floor(s.y + 0.1), Math.floor(z))) && !isSolid(V.get(Math.floor(x), Math.floor(s.y + 1.1), Math.floor(z)));
+    if (free(fx, fz) && this.clearTo(new THREE.Vector3(s.x, s.y, s.z), fx, s.y + 0.9, fz)) this.player.position.set(fx, s.y + 0.05, fz);
+    else this.player.position.set(s.x - Math.sin(s.yaw) * 0.85, s.y + 0.05, s.z - Math.cos(s.yaw) * 0.85);
   }
 
   private leavePillion(): void {

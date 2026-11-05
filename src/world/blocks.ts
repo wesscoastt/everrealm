@@ -16,6 +16,8 @@ export enum T {
   RedBrick, Sandstone, Flagstone, BrickPave, CarvedStone, OchrePlaster, RosePlaster, BluePlaster,
   // The wilds: a meadow in flower, granite, peat
   FlowerGrass, Granite, Peat,
+  // King Shep's statue: sheep's wool, off-white and curled
+  Wool,
   Count,
 }
 
@@ -39,6 +41,7 @@ export enum B {
   RedBrick, Sandstone, Flagstone, BrickPave, CarvedStone, OchrePlaster, RosePlaster, BluePlaster,
   // The wilds: grass full of flowers, speckled granite on the high ground, black peat on the moor
   FlowerGrass, Granite, Peat,
+  Wool,
   Count,
 }
 
@@ -128,6 +131,7 @@ BLOCKS[B.BrickPave] = D('brick paving', T.BrickPave, T.RedBrick, T.RedBrick, { j
 BLOCKS[B.CarvedStone] = D('carved stone', T.Sandstone, T.CarvedStone, T.Sandstone, { jitter: 0.02 });
 BLOCKS[B.OchrePlaster] = D('ochre limewash', T.OchrePlaster, T.OchrePlaster, T.OchrePlaster, { jitter: 0.025 });
 BLOCKS[B.RosePlaster] = D('pink limewash', T.RosePlaster, T.RosePlaster, T.RosePlaster, { jitter: 0.025 });
+BLOCKS[B.Wool] = D('wool', T.Wool, T.Wool, T.Wool, { jitter: 0.03 });
 BLOCKS[B.BluePlaster] = D('blue limewash', T.BluePlaster, T.BluePlaster, T.BluePlaster, { jitter: 0.025 });
 BLOCKS[B.FlowerGrass] = D('meadow', T.FlowerGrass, T.GrassSide, T.Dirt, { jitter: 0.05 });
 BLOCKS[B.Granite] = D('granite', T.Granite, T.Granite, T.Granite, { jitter: 0.04 });

@@ -26,6 +26,10 @@ export class Npc {
   }
 
   get id(): string { return this.def.id; }
+  /** The seats in the world, for anyone sitting (game/Game.ts sets it): the nearest within reach, where to sit and which way to face. */
+  static seatNear: ((x: number, y: number, z: number, who: string) => { x: number; y: number; z: number; yaw: number; h: number } | null) | null = null;
+  /** How far a seat lifts them above a bench's height (a chair's is higher). */
+  private seatLift = 0;
 
   /** Hollindale has overhangs (the bell bay) below y 40; the regional towns sit on open ground that can be higher. */
   private groundAt(x: number, z: number): number {
@@ -130,13 +134,23 @@ export class Npc {
       this.model.setHeld('none');
     } else if (atPost) {
       this.yaw = Math.atan2(s.face[0] - this.pos.x, s.face[1] - this.pos.z);
-      const anim = this.override?.anim ?? s.anim;
+      let anim = this.override?.anim ?? s.anim;
+      // Seated: on the nearest real seat within reach (a bench, a chair, a stool), facing its way and at its
+      // height; with none there, down on the ground, never sitting on air (owner 2026-11-04: NPCs floated over
+      // seats and sat inside furniture)
+      this.seatLift = 0;
+      if (anim === 'seated') {
+        const seat = Npc.seatNear?.(this.pos.x, this.pos.y, this.pos.z, this.def.id) ?? null;
+        if (seat) { this.pos.x = seat.x; this.pos.z = seat.z; this.pos.y = seat.y; this.yaw = seat.yaw; this.seatLift = seat.h - 0.48; }
+        else anim = 'sit';
+      }
       this.model.setState(anim);
       this.model.setHeld(this.override?.held ?? s.held ?? 'none');
     } else this.model.setState('idle');
 
     this.model.update(dt, speed);
     this.model.root.position.copy(this.pos);
+    this.model.root.position.y += this.seatLift;
     let dy = this.yaw - this.model.root.rotation.y;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;

@@ -102,6 +102,7 @@ class Mock implements GameApi {
   compLeave() {}
   compRapport() {}
   compActive() { return null; }
+  storyTheme() {}
   compNear() { return true; }
   compHour() { return 12; }
   compOutfit() {}

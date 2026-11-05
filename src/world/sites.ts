@@ -704,6 +704,8 @@ function* planBody(): Generator<string, Plan> {
     { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
     { id: 'harrowgate', name: 'Harrowgate Works', x: 1000, z: 1000, r0: 30, r1: 46, build: (s, b) => buildHarrowgate(s, b) },
     { id: 'mesafort', name: 'Gallows Knap', x: 1250, z: 1250, r0: 16, r1: 26, build: (s, b) => buildFort(s, b) },
+    // King Shep's Fold: a great wool ram lying in the Crownroad's meadows south of Ansbury with a king in its belly (data/content/kingShep.ts)
+    { id: 'kingshep', name: 'King Shep\'s Fold', x: 610, z: 680, r0: 14, r1: 30, build: (s, b) => buildKingShep(s, b) },
     { id: 'coldhearth', name: 'Kelderby', x: 300, z: 1460, r0: 20, r1: 32, build: (s, b) => { buildHamlet(s, b, 300, 1460, 'slate', 3); placeMonuments(s, 'kelderby', 0, (x, z) => Math.floor(heightAt(x, z))); } },
     { id: 'starwatch', name: 'Scarth Watch', x: 600, z: 1700, r0: 12, r1: 22, build: (s, b) => buildObservatory(s, b) },
     { id: 'temple', name: 'Glass Kirk', x: 1190, z: 1800, r0: 18, r1: 30, build: (s, b) => buildTemple(s, b) },
@@ -6000,10 +6002,37 @@ function* planBody(): Generator<string, Plan> {
     rect(s, x - 24, z - 13, x + 20, z + 12);
   }
 
-  /** Wendside Cottage: a thatched cottage standing empty by the road, with a notice on a post. */
+  /**
+   * Wendside Cottage: a small log-and-stone homestead standing empty by the road (owner 2026-11-05: a small
+   * hall with a hearth). Boarded walls on a mossy stone footing, the corner logs crossed and left long, a
+   * covered porch on log posts across the front, the hearth inside at the chimney, a woodpile under the
+   * west eaves, and the notice on its post by the road.
+   */
   function buildCottage(s: Site, base: number) {
-    house(s, 404, 197, 8, 7, 1, base, 'thatch', 's', { role: 'vacant' });
-    s.props.push({ t: 'sign', x: 410.5, y: base, z: 205.5, ry: 0, text: 'FOR SALE\nEnquire within' });
+    const X0 = 404, Z0 = 197, W = 8, D = 7;
+    house(s, X0, Z0, W, D, 1, base, 'thatch', 's', { role: 'vacant', wall: B.Planks, front: 'boarded', frame: B.OakLog, trim: ['shutters'] });
+    // the footing: fieldstone, moss in the joints, the doorway left clear
+    for (let x = X0; x < X0 + W; x++) for (let z = Z0; z < Z0 + D; z++) {
+      if (x !== X0 && x !== X0 + W - 1 && z !== Z0 && z !== Z0 + D - 1) continue;
+      if (x === X0 + W / 2 && z === Z0 + D - 1) continue;
+      O.set(x, base, z, hash2(x, z, 211) < 0.35 ? B.MossyCobble : B.Cobble);
+    }
+    // the corner logs, crossed and left long
+    for (const [cx, cz, ox, oz] of [[X0, Z0, -1, -1], [X0 + W - 1, Z0, 1, -1], [X0, Z0 + D - 1, -1, 1], [X0 + W - 1, Z0 + D - 1, 1, 1]]) {
+      for (const y of [base + 1, base + 3]) { O.set(cx + ox, y, cz, B.OakLog); O.set(cx, y, cz + oz, B.OakLog); }
+    }
+    // the porch: a plank deck the width of the house, log posts at its front, and a pent roof of dark boards
+    const PZ = Z0 + D;
+    for (let x = X0 - 1; x <= X0 + W; x++) for (let z = PZ; z <= PZ + 2; z++) {
+      O.set(x, base - 1, z, B.Planks);
+      for (let y = base; y <= base + 1; y++) O.set(x, y, z, B.Air);
+      O.set(x, z === PZ + 2 ? base + 2 : base + 3, z, B.DarkPlanks);
+    }
+    for (const px of [X0, X0 + W - 1]) for (let y = base; y <= base + 1; y++) O.set(px, y, PZ + 2, B.OakLog);
+    // the woodpile under the west eaves
+    for (let z = Z0 + 1; z <= Z0 + 4; z++) for (let y = base; y <= base + (z === Z0 + 4 ? 0 : 1); y++) O.set(X0 - 1, y, z, B.OakLog);
+    rect(s, X0 - 3, Z0 - 2, X0 + W + 2, PZ + 5);
+    s.props.push({ t: 'sign', x: 410.5, y: base, z: PZ + 3.6, ry: 0, text: 'FOR SALE\nEnquire within' });
     s.props.push({ t: 'barrel', x: 404.6, y: base, z: 204.6 });
     // The joiner's bench under the east eaves (see COTTAGE.bench), a stack of logs beside it
     s.props.push({ t: 'desk', x: 412.6, y: base, z: 199.5, ry: -Math.PI / 2 });
@@ -8159,6 +8188,53 @@ function* planBody(): Generator<string, Plan> {
   }
 
   /** A ring of standing stones with lintels on some pairs, an altar slab, a fallen stone and a cairn. */
+  /**
+   * King Shep's statue (owner 2026-11-04): a giant blocky ram lying down in the grass, facing east, built of wool
+   * with a dark face, white eyes, a pink nose, ears out at the sides and its hooves folded under it. A doorway in
+   * its south flank opens into its belly: a room with a straw bed, a throne and candles, where King Shep holds
+   * court. Twenty strides north-west, the ruined fold where the ram he was came to his end.
+   */
+  function buildKingShep(s: Site, base: number) {
+    const x0 = s.x, z0 = s.z, Y = base;
+    const put = (x: number, y: number, z: number, id: number) => O.set(x0 + x, Y + y, z0 + z, id);
+    // the body: twelve long, seven wide, seven high, hollow
+    for (let x = -6; x <= 5; x++) for (let z = -3; z <= 3; z++) for (let y = 0; y <= 6; y++) {
+      const shell = x === -6 || x === 5 || z === -3 || z === 3 || y === 6;
+      put(x, y, z, shell ? B.Wool : B.Air);
+    }
+    for (let x = -5; x <= 4; x++) for (let z = -2; z <= 2; z++) put(x, -1, z, B.Planks);
+    // the fleece over the shoulders and rump, a little proud of the body
+    for (let x = -5; x <= 4; x++) for (let z = -2; z <= 2; z++) if ((x + z) % 3 === 0) put(x, 7, z, B.Wool);
+    // the folded legs: dark hooves out at the four corners
+    for (const [lx, lz] of [[-5, -4], [-5, 4], [3, -4], [3, 4]]) for (let y = 0; y <= 1; y++) for (let dx = 0; dx <= 1; dx++) put(lx + dx, y, lz, B.Blackstone);
+    // the head: five on a side, the face to the east, raised a little off the body
+    for (let x = 6; x <= 10; x++) for (let z = -2; z <= 2; z++) for (let y = 3; y <= 8; y++) put(x, y, z, x >= 8 && y <= 7 ? B.Blackstone : B.Wool);
+    // the eyes (white, the pupil to the front), the pink nose, and the ears
+    for (const sz of [-1, 1]) { put(10, 6, sz * 2, B.Plaster); put(10, 6, sz, B.Blackstone); put(10, 7, sz * 2, B.Blackstone); }
+    put(10, 4, 0, B.RosePlaster); put(10, 4, -1, B.RosePlaster); put(10, 4, 1, B.RosePlaster);
+    for (const sz of [-1, 1]) { put(8, 7, sz * 3, B.Blackstone); put(8, 7, sz * 4, B.Blackstone); }
+    // a stubby tail
+    put(-7, 4, 0, B.Wool); put(-7, 5, 0, B.Wool);
+    // the door in the south flank, and a step down into the belly
+    for (let y = 0; y <= 2; y++) { put(-1, y, 3, B.Air); put(0, y, 3, B.Air); }
+    // inside: a straw bed, a throne, candles, a lamp
+    for (let x = -5; x <= -3; x++) for (let z = -2; z <= -1; z++) put(x, 0, z, B.Hay);
+    s.props.push({ t: 'furn', item: 'chair', x: x0 + 4.5, y: Y, z: z0 + 0.5, ry: -Math.PI / 2 });
+    s.props.push({ t: 'furn', item: 'candles', x: x0 + 3.5, y: Y, z: z0 - 1.5, ry: 0 }, { t: 'furn', item: 'candles', x: x0 + 3.5, y: Y, z: z0 + 2.5, ry: 1 });
+    s.props.push({ t: 'furn', item: 'lamp', x: x0 + 0.5, y: Y + 4.6, z: z0 + 0.5, ry: 0 });
+    s.props.push({ t: 'sign', x: x0 - 0.5, y: heightAt(x0 - 1, z0 + 6), z: z0 + 6.2, ry: 0, text: 'THE KINGDOM OF SHEP\nKneel' });
+    // the old fold, twenty strides south-east: a ring of tumbled dry-stone walling, the gate gone
+    const fx = x0 - 20, fz = z0 - 14, fy = Math.floor(heightAt(fx, fz));
+    for (let a = 0; a < 40; a++) {
+      const t = (a / 40) * Math.PI * 2;
+      if (t > 0.2 && t < 0.75) continue;
+      const wx = Math.round(fx + Math.cos(t) * 5), wz = Math.round(fz + Math.sin(t) * 5), h = Math.floor(heightAt(wx, wz));
+      O.set(wx, h, wz, B.MossyCobble);
+      if ((a * 7) % 3) O.set(wx, h + 1, wz, B.MossyCobble);
+    }
+    void fy;
+  }
+
   function buildStones(s: Site, x: number, z: number, base: number) {
     const n = 9, R = 7;
     const tops: number[] = [];

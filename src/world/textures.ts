@@ -546,6 +546,12 @@ const painters: Record<number, (p: Px) => void> = {
     crack(p, '#a87262', 6);
     speckle(p, '#e8c0b2', 14);
   },
+  [T.Wool]: (p) => {
+    // a fleece: off-white, curled in little tight loops, a shadow in each
+    base(p, '#e4ded2', '#ece6da', '#f4efe6', 707, 0.05);
+    for (let i = 0; i < 26; i++) { const x = (i * 37) % TILE, y = (i * 53 + 7) % TILE; set(p, x, y, hex('#d0c8b8')); set(p, (x + 1) % TILE, y, hex('#d8d0c2')); set(p, x, (y + 1) % TILE, hex('#c8c0b0')); }
+    speckle(p, '#fbf8f2', 18);
+  },
   [T.BluePlaster]: (p) => {
     base(p, '#8a9cac', '#9cacba', '#aebcc8', 651, 0.06);
     crack(p, '#74869a', 6);

@@ -486,6 +486,10 @@ export class GameWorld {
     yield* this.extraDoors();
     for (const s of this.activeSites.values()) yield* s.doors;
   }
+  /** The FOR SALE and LOT boards standing in the loaded sites. */
+  *saleSigns(): Generator<BuiltSite['saleSigns'][number]> {
+    for (const s of this.activeSites.values()) yield* s.saleSigns;
+  }
 
   /** Builds the props for a site that isn't in the plan (a player's house). */
   buildProps(site: Site): BuiltSite { return buildSiteProps(site, this.props, this.shared.uTime, this.glowMat); }
