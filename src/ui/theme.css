@@ -437,3 +437,9 @@
 .ml-ptag { font: 600 10px var(--body); text-transform: uppercase; letter-spacing: 0.8px; color: #2a1e10; background: #c8a070; padding: 2px 7px; border-radius: 9px; }
 .ml-parcel .btn { margin-left: auto; }
 @media (max-width: 560px) { .parcel-slots { grid-template-columns: repeat(3, 1fr); } }
+
+/* The map fills its window: its picture is drawn to the window's size and never sets it (owner 2026-11-04:
+   a friend's map "started slowly shrinking": the window sized itself round the picture and its border,
+   the picture to the window, a few pixels smaller each time round) */
+#map-panel .body { position: relative; min-height: 0; }
+#map-panel .body > canvas { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; box-sizing: border-box; }

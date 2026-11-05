@@ -187,15 +187,15 @@ const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() 
 /** The music for each region; the outer lands borrow a neighbour's until their own is written. */
 const REGION_THEME: Record<RegionId, ThemeId> = {
   greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
-  gannet: 'crownroad', wrath: 'brambledeep', tolmen: 'starfall', inkholm: 'brambledeep', kell: 'redstone', sickle: 'starfall',
-  keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'starfall', glassflats: 'redstone', greywaste: 'starfall', held: 'starfall',
+  gannet: 'cliffs', wrath: 'fen', tolmen: 'moor', inkholm: 'fen', kell: 'redstone', sickle: 'starfall',
+  keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'rift', glassflats: 'redstone', greywaste: 'rift', held: 'starfall',
 };
 
 /** Each region's other pieces, played in turn with its own theme (eight minutes each, on the realm clock). */
 const REGION_PIECE: Partial<Record<RegionId, ThemeId[]>> = {
-  greenwake: ['heartland', 'meadow'], crownroad: ['heartland', 'meadow'], gannet: ['heartland'], saltwind: ['heartland', 'shanty'],
-  brambledeep: ['wildwood', 'grove'], wrath: ['wildwood'], inkholm: ['wildwood', 'grove'],
-  starfall: ['highlands', 'fells'], tolmen: ['highlands', 'fells'], redstone: ['highlands'], kell: ['tinkers', 'highlands'], sickle: ['rime', 'highlands'],
+  greenwake: ['heartland', 'meadow'], crownroad: ['heartland', 'meadow'], gannet: ['heartland', 'shanty'], saltwind: ['heartland', 'shanty'],
+  brambledeep: ['wildwood', 'grove'], wrath: ['wildwood', 'brambledeep'], inkholm: ['wildwood', 'grove'],
+  starfall: ['highlands', 'fells'], tolmen: ['highlands', 'starfall'], redstone: ['highlands'], kell: ['tinkers', 'highlands'], sickle: ['rime', 'highlands'],
   // Morrow's own
   keys: ['keys', 'shanty'], bright: ['keys', 'whitecity'], glades: ['amber', 'grove'], amberwold: ['amber', 'grove'], sunder: ['held'], glassflats: ['caravan', 'held'], greywaste: ['held'], held: ['held', 'rime'],
 };
@@ -8129,6 +8129,13 @@ export class Game implements GameApi {
       : near(bigIsle().x, bigIsle().z, 70) ? 'holms'
       : null;
     if (place && this.festivals.stallNear(P, 14)) return 'festival';
+    // a hard moment in the story: the lament, for as long as it asked
+    if (this.storyMusic && this.storyMusic.until > this.elapsed) return this.storyMusic.theme;
+    // the ruins and abandoned keeps, and the strange places (the stone rings, the wonders, the views)
+    if (!place) {
+      const spot = this.musicSpot(P);
+      if (spot) return spot;
+    }
     if (place && place !== 'holms' && place !== 'kirk' && this.world.sky.sheltered) return 'inn';
     const turn = Math.floor(Date.now() / 480000);
     if (place) return PLACE_PIECE[place] && turn % 2 === 1 ? PLACE_PIECE[place]! : place;
@@ -8141,6 +8148,23 @@ export class Game implements GameApi {
     const own = this.regionTheme(), r = regionAt(P.x, P.z), pieces = REGION_PIECE[r.t < 0.35 ? r.a : r.b] ?? [];
     const all = [own, ...pieces];
     return all[turn % all.length];
+  }
+
+  /** The story's music for a while (the lament, at a hard moment): game/quests ask for it with storyTheme. */
+  private storyMusic: { theme: ThemeId; until: number } | null = null;
+  storyTheme(theme: ThemeId, seconds = 150): void { this.storyMusic = { theme, until: this.elapsed + seconds }; }
+  /** Ruins (a broken tower, a mossy or red-stone ruin, a fort) or a strange place (a stone ring, a wonder, a vista) near you. */
+  private _musicSpots: { x: number; z: number; theme: ThemeId; r: number }[] | null = null;
+  private musicSpot(P: THREE.Vector3): ThemeId | null {
+    const spots = (this._musicSpots ??= this.world.sites.flatMap((s) => {
+      if (s.ring) return [{ x: s.x, z: s.z, theme: 'wonder' as ThemeId, r: 34 }];
+      const k = s.act?.kind as string | undefined;
+      if (k === 'wonder' || k === 'vista') return [{ x: s.x, z: s.z, theme: 'wonder' as ThemeId, r: 40 }];
+      if (s.ruin) return [{ x: s.x, z: s.z, theme: 'ruins' as ThemeId, r: 40 }];
+      return [];
+    }));
+    for (const s of spots) if (Math.hypot(s.x - P.x, s.z - P.z) < s.r) return s.theme;
+    return null;
   }
 
   /** In a fight with something big: an elite, a story boss or a world boss nearby and awake. */

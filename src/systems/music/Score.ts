@@ -28,7 +28,10 @@ export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambled
   /** Ten more, in the manner of Soule's Guild Wars and Oblivion and of Guild Wars 2's cities: Ansbury on a market
    * day, Gullmouth's quay, the Scarth fells, the green deeps, Kell's tinkers, Hollindale's meadows, rain at
    * night, the Glass Flats' caravans, Callis in the sun, and the Sickle's ice. */
-  | 'charter' | 'shanty' | 'fells' | 'grove' | 'tinkers' | 'meadow' | 'rainfall' | 'caravan' | 'whitecity' | 'rime';
+  | 'charter' | 'shanty' | 'fells' | 'grove' | 'tinkers' | 'meadow' | 'rainfall' | 'caravan' | 'whitecity' | 'rime'
+  /** Seven more (owner 2026-11-04: more varied, each region its own, Oblivion's mood): the Gannet cliffs, the fens, Tolmen
+   * Moor, the Sunder's rift, ruins and abandoned keeps, the strange places, and a lament for the story's hard moments. */
+  | 'cliffs' | 'fen' | 'moor' | 'rift' | 'ruins' | 'wonder' | 'lament';
 type Lead = 'flute' | 'horn' | 'choir' | 'celesta' | 'strings' | 'oboe' | 'clarinet' | 'fiddle' | 'piano' | 'lute' | 'accordion' | 'glock';
 /**
  * What the orchestra does under the tune, chord by chord, so a quiet piece keeps changing its colour:
@@ -627,6 +630,94 @@ const THEMES: Record<ThemeId, Theme> = {
     ],
     lead: ['glock', 'choir', 'flute'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'celesta', brightness: 0.4, rest: [8, 14], drone: true, level: 0.9,
     textures: ['bells', 'sparse', 'pad', 'harp'],
+  },
+  // "Gannet Light": the cliffs over the sea, wind in the grass and the birds below. D mixolydian, a horn
+  // call answered by the strings, the harp like the sea under it, and the whole orchestra on the headland.
+  cliffs: {
+    id: 'cliffs', root: 50, mode: MODES.mixolydian, bpm: 64,
+    prog: [{ deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 0 }],
+    motifs: [], lead: ['horn'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.6, rest: [24, 40], level: 1,
+    parts: [
+      { prog: [{ deg: 0, q: 'sus2' }, { deg: 6 }, { deg: 0 }, { deg: 3 }, { deg: 0, q: 'sus2' }, { deg: 6 }, { deg: 3 }, { deg: 4 }], motif: '0:2 4:2 7:6 r:2 6:2 4:2 5:4 4:4 r:2 2:2 4:2 3:2 2:2 0:6 r:4', lead: 'horn', arp: true, dyn: 0.8 },
+      { prog: [{ deg: 3 }, { deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 6 }, { deg: 0, q: 'sus4' }], motif: '7:3 8:1 7:2 4:2 6:6 r:2 4:2 6:2 7:2 9:2 7:4 r:2 6:2 4:4 2:4 4:8', lead: 'strings' },
+      { key: 5, prog: [{ deg: 0 }, { deg: 4 }, { deg: 6 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 3 }, { deg: 0 }], motif: '0:2 4:2 7:4 9:2 7:2 11:6 r:2 9:2 7:2 6:4 7:2 4:2 7:8', lead: 'horn', tutti: true, dyn: 0.75 },
+      { prog: [{ deg: 3, bars: 3 }, { deg: 6, bars: 3 }, { deg: 0, q: 'sus2', bars: 4 }], motif: '4:6 2:2 0:8', lead: 'flute', dyn: 0.6 },
+    ],
+  },
+  // "Low Water": the Wrath Levels and Inkholm's fens. G aeolian, a clarinet low over a held drone, the
+  // plucked bass like something moving in the reeds, the choir far off; slow, and never quite settling.
+  fen: {
+    id: 'fen', root: 43, mode: MODES.aeolian, bpm: 52,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 5 }, { deg: 3, q: 'sus2' }, { deg: 0 }],
+    motifs: [
+      '0:3 1:1 2:4 r:2 4:2 3:2 2:2 0:6 r:4 -1:2 0:2 2:3 1:1 0:8',
+      '4:4 5:2 4:2 2:4 r:2 3:2 2:2 0:2 -2:6 r:2 0:2 2:2 1:2 0:8',
+    ],
+    lead: ['clarinet', 'oboe', 'choir'], pad: ['strings', 'choir'], vowel: 'oo', arp: null, brightness: 0.3, rest: [18, 32], drone: true, level: 0.85,
+    textures: ['pizz', 'sparse', 'pad'],
+  },
+  // "The Barrow Moor": Tolmen's heather and its kings under the mounds. A dorian, a lone voice of the choir,
+  // a horn far off, the strings a long breath under them; wide open, and older than the Charter.
+  moor: {
+    id: 'moor', root: 45, mode: MODES.dorian, bpm: 48,
+    prog: [{ deg: 0 }, { deg: 3, q: 'maj' }, { deg: 0 }, { deg: 6 }],
+    motifs: [], lead: ['choir'], pad: ['strings'], vowel: 'ah', arp: null, brightness: 0.4, rest: [30, 50], level: 0.9,
+    parts: [
+      { prog: [{ deg: 0, bars: 3 }, { deg: 6, bars: 3 }, { deg: 3, q: 'maj', bars: 3 }, { deg: 0, bars: 3 }], motif: '0:4 2:2 3:2 4:8 r:2 3:2 2:2 0:4 -1:4 0:8 r:4', lead: 'choir', dyn: 0.7 },
+      { prog: [{ deg: 3, q: 'maj' }, { deg: 0 }, { deg: 4 }, { deg: 0 }, { deg: 3, q: 'maj' }, { deg: 6 }, { deg: 4 }, { deg: 0 }], motif: '4:3 5:1 4:2 2:2 3:6 r:2 2:2 3:2 4:2 7:2 6:4 4:4 r:2 3:2 2:4 0:8', lead: 'horn' },
+      { prog: [{ deg: 6 }, { deg: 3, q: 'maj' }, { deg: 0 }, { deg: 4 }, { deg: 6 }, { deg: 3, q: 'maj' }, { deg: 4 }, { deg: 0 }], motif: '7:4 6:2 4:2 5:6 r:2 4:2 5:2 7:4 9:2 7:2 6:8 r:2 4:2 3:2 2:2 0:8', lead: 'strings', tutti: true, dyn: 0.7 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 0, bars: 4 }], motif: '4:6 2:2 0:12', lead: 'choir', dyn: 0.55 },
+    ],
+  },
+  // "Where the Land Came Apart": Morrow's Sunder and the Grey Waste. E phrygian, the strings held tight and
+  // low, the celesta like glass breaking a long way off, the choir in the half-step: uneasy, enormous.
+  rift: {
+    id: 'rift', root: 40, mode: MODES.phrygian, bpm: 44,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 5 }, { deg: 1, q: 'maj' }, { deg: 0, q: 'sus4' }, { deg: 0 }],
+    motifs: [
+      '0:4 1:4 0:2 -1:2 0:8 r:4 3:2 4:2 5:4 4:2 3:2 1:8',
+      '7:6 8:2 7:4 5:4 4:2 3:2 1:4 0:12',
+    ],
+    lead: ['strings', 'choir', 'celesta'], pad: ['strings', 'choir'], vowel: 'oo', arp: 'celesta', brightness: 0.35, rest: [24, 44], drone: true, level: 0.85,
+    textures: ['sparse', 'pad', 'pizz'],
+  },
+  // "The Fallen Keep": ruins, broken towers, the abandoned castles. C aeolian, a slow march of the low strings,
+  // the oboe over them grieving for whoever held it, a horn that was a fanfare once, and the timpani far off.
+  ruins: {
+    id: 'ruins', root: 48, mode: MODES.aeolian, bpm: 56,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4 }],
+    motifs: [], lead: ['oboe'], pad: ['strings'], vowel: 'oo', arp: null, brightness: 0.4, rest: [24, 40], level: 0.95,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 5 }, { deg: 6 }, { deg: 4, q: 'sus4' }], motif: '4:3 3:1 2:2 0:2 2:4 r:2 3:2 4:2 5:2 4:4 2:4 r:2 1:2 2:2 0:8', lead: 'oboe', dyn: 0.75 },
+      { prog: [{ deg: 2 }, { deg: 5 }, { deg: 3 }, { deg: 6 }, { deg: 2 }, { deg: 5 }, { deg: 4 }, { deg: 0 }], motif: '7:4 6:2 4:2 6:4 5:2 4:2 2:6 r:2 4:2 5:2 7:4 9:2 7:2 6:8', lead: 'horn' },
+      { key: 3, prog: [{ deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 3 }, { deg: 4 }], motif: '0:2 2:2 4:4 5:2 4:2 7:6 r:2 6:2 4:2 5:4 4:2 2:2 4:8', lead: 'strings', tutti: true, dyn: 0.7 },
+      { prog: [{ deg: 5, bars: 3 }, { deg: 4, q: 'sus4', bars: 3 }, { deg: 0, bars: 4 }], motif: '2:6 1:2 0:12', lead: 'oboe', dyn: 0.55 },
+    ],
+  },
+  // "Something Old Here": the strange places: the stone rings, the wonders, the views nobody expected.
+  // B-flat lydian, the celesta and harp turning over a held chord, the choir with no words, a flute rising.
+  wonder: {
+    id: 'wonder', root: 46, mode: MODES.lydian, bpm: 54,
+    prog: [{ deg: 0, q: 'add9' }, { deg: 1, q: 'maj' }, { deg: 0, q: 'add9' }, { deg: 4, q: 'sus2' }, { deg: 5 }, { deg: 1, q: 'maj' }, { deg: 2 }, { deg: 0, q: 'add9' }],
+    motifs: [
+      '4:2 6:2 7:4 r:2 9:2 8:2 7:2 6:6 r:2 4:2 3:2 4:2 2:8',
+      '11:4 9:2 7:2 8:4 6:2 4:2 7:8 r:4 6:2 4:2 2:2 1:2 0:8',
+    ],
+    lead: ['celesta', 'flute', 'choir'], pad: ['choir', 'strings'], vowel: 'ah', arp: 'harp', brightness: 0.8, rest: [20, 36], level: 0.85,
+    textures: ['harp', 'bells', 'pad'],
+  },
+  // "For Those Who Didn't Come Home": the story's hard moments. D aeolian, a single cello line (the strings
+  // low) with the oboe answering, the choir under the turn, and a major chord at the end like a door opening.
+  lament: {
+    id: 'lament', root: 50, mode: MODES.aeolian, bpm: 50,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 2 }, { deg: 6 }],
+    motifs: [], lead: ['strings'], pad: ['strings', 'choir'], vowel: 'oo', arp: null, brightness: 0.4, rest: [24, 40], level: 0.9,
+    parts: [
+      { prog: [{ deg: 0, bars: 3 }, { deg: 5, bars: 3 }, { deg: 2, bars: 3 }, { deg: 6, bars: 3 }], motif: '0:4 2:2 3:2 4:6 r:2 3:2 2:2 0:4 -2:4 0:8 r:2', lead: 'strings', dyn: 0.65 },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4 }, { deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'sus4' }], motif: '4:3 5:1 7:4 r:2 6:2 5:2 4:2 2:6 r:2 3:2 4:2 5:4 4:2 2:2 3:8', lead: 'oboe' },
+      { prog: [{ deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 5 }, { deg: 3 }, { deg: 4 }, { deg: 2, q: 'maj' }, { deg: 2, q: 'maj' }], motif: '7:4 9:2 7:2 6:4 4:4 5:2 4:2 2:4 r:2 4:2 6:2 7:2 9:8', lead: 'strings', tutti: true, dyn: 0.65 },
+      { prog: [{ deg: 2, q: 'maj', bars: 4 }, { deg: 2, q: 'sus2', bars: 4 }], motif: '4:6 2:2 0:12', lead: 'choir', dyn: 0.5 },
+    ],
   },
 };
 

@@ -40,6 +40,8 @@ function dies(g: GameApi, id: 'wenna' | 'tam'): void {
   if (g.compActive() === id) g.compDismiss();
   g.setFlag(`comp:${id}:dead`, 1);
   g.setFlag(`comp:${id}:gone`, 1);
+  // (and the lament plays: "For Those Who Didn't Come Home")
+  g.storyTheme('lament', 240);
 }
 
 // ================================================================ L. THE OLD TOWER FALLS

@@ -39,6 +39,8 @@ export interface GameApi {
   compLeave(id: string): void;
   compRapport(id: string, delta: number): void;
   compActive(): string | null;
+  /** Music for a hard moment in the story (systems/music/Score.ts: the lament), for this many seconds. */
+  storyTheme(theme: 'lament' | 'wonder' | 'ruins', seconds?: number): void;
   /** Are you within r blocks of (x, z)? (A companion's story is told where it happened.) */
   compNear(x: number, z: number, r: number): boolean;
   compHour(): number;

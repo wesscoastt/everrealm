@@ -149,6 +149,8 @@ export interface Site {
   stations?: { station: 'furnace' | 'anvil' | 'hearth' | 'bench'; x: number; y: number; z: number }[];
   /** A ring of the old kingdom's standing stones (seven out from x, z): a rubbing of a mark can be taken here (data/content/enchanting.ts). */
   ring?: boolean;
+  /** A ruin: a broken tower, an old wall in the moss or the red stone, a fallen keep (the music knows: game/Game.ts musicSpot). */
+  ruin?: boolean;
 }
 
 /** A beast that lives at a site, wandering r blocks from (x, z), in its own coat (entities/creatures.ts Palette). */
@@ -940,10 +942,10 @@ function* planBody(): Generator<string, Plan> {
     switch (p.kind) {
       case 'stones': buildStones(s, p.x, p.z, b); s.ring = true; break;
       case 'shrine': buildShrine(s, p.x, p.z, b); break;
-      case 'ruintower': buildRuinTower(s, p.x, p.z, b); break;
+      case 'ruintower': buildRuinTower(s, p.x, p.z, b); s.ruin = true; break;
       case 'farm': buildFarm(s, p.x, p.z, b); break;
-      case 'mossruin': buildRuinWalls(s, p.x, p.z, b, B.MossyCobble); break;
-      case 'mesaruin': buildRuinWalls(s, p.x, p.z, b, B.TerraBrown); break;
+      case 'mossruin': buildRuinWalls(s, p.x, p.z, b, B.MossyCobble); s.ruin = true; break;
+      case 'mesaruin': buildRuinWalls(s, p.x, p.z, b, B.TerraBrown); s.ruin = true; break;
       case 'camp': buildSmallCamp(s, p.x, p.z); break;
       case 'mine': buildMinePOI(s, p.x, p.z, b, hash2(p.x, p.z, 9) < 0.5 ? 1 : -1); break;
       case 'crystals': buildCrystals(s, p.x, p.z, b); break;

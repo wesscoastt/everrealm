@@ -947,6 +947,8 @@ export class Hud {
       const w = p.offsetWidth || 320;
       x = Math.max(-w + 80, Math.min(window.innerWidth - 80, x));
       y = Math.max(0, Math.min(window.innerHeight - 40, y));
+      // (its size is kept as it was where it stood: a window sized by its edges, like the map, would otherwise shrink to its contents)
+      if (!p.style.width) { const r = p.getBoundingClientRect(); if (r.width > 0 && r.height > 0) { p.style.width = Math.round(r.width) + 'px'; p.style.height = Math.round(r.height) + 'px'; } }
       Object.assign(p.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto', transform: 'none', margin: '0' });
       return { x, y };
     };
@@ -974,7 +976,7 @@ export class Hud {
     head.addEventListener('dblclick', (e) => {
       if ((e.target as HTMLElement).closest('button')) return;
       try { localStorage.removeItem(key); } catch { /* nothing kept */ }
-      for (const k of ['left', 'top', 'right', 'bottom', 'transform', 'margin'] as const) p.style[k] = '';
+      for (const k of ['left', 'top', 'right', 'bottom', 'transform', 'margin', 'width', 'height'] as const) p.style[k] = '';
     });
   }
 
@@ -3218,7 +3220,8 @@ export class Hud {
     if (!c) c = this.buildMapView(body);
     const V = this.mapView;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const cw = Math.max(200, Math.round(body.clientWidth * dpr)), ch = Math.max(200, Math.round(body.clientHeight * dpr));
+    // (the canvas fills the window by CSS; its pixels follow its own inner size, so clicks land true)
+    const cw = Math.max(200, Math.round((c.clientWidth || body.clientWidth) * dpr)), ch = Math.max(200, Math.round((c.clientHeight || body.clientHeight) * dpr));
     if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
     const WORLD = WSIZE;
     const kMin = Math.min(cw, ch) / WORLD * 0.92, kMax = 7 * dpr;
