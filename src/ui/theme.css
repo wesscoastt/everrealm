@@ -443,3 +443,34 @@
    the picture to the window, a few pixels smaller each time round) */
 #map-panel .body { position: relative; min-height: 0; }
 #map-panel .body > canvas { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; box-sizing: border-box; }
+
+/* ------------------------------------------------------------- Dave's bouts (game/Reckoning.ts) */
+.bout-bars {
+  position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 40; pointer-events: none;
+  display: flex; gap: 28px; padding: 8px 14px; border-radius: 8px;
+  background: rgba(7, 11, 22, 0.78); border: 1px solid var(--gild-line); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  font-family: var(--px); color: var(--cream); text-shadow: var(--hard1);
+}
+.bout-side { display: flex; flex-direction: column; gap: 4px; width: 220px; }
+.bout-side span { font-size: 15px; letter-spacing: 0.04em; }
+.bout-side i { display: block; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(0, 0, 0, 0.6); overflow: hidden; }
+.bout-side b { display: block; height: 100%; width: 100%; background: linear-gradient(180deg, #8fd07a, #3f8a3a); transition: width 0.35s ease-out; }
+.bout-foe { text-align: right; }
+.bout-foe b { margin-left: auto; background: linear-gradient(180deg, #c8dce8, #5a7a8e); }
+.bout-shout {
+  position: fixed; bottom: 210px; left: 50%; transform: translateX(-50%); z-index: 41; width: min(520px, calc(100vw - 32px));
+  padding: 14px 16px; border-radius: 10px; background: rgba(7, 11, 22, 0.9); border: 1px solid var(--gild-line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); font-family: var(--px); color: var(--cream); text-align: center;
+}
+.bout-shout p { margin: 0 0 8px; font-style: italic; color: var(--cream-d); line-height: 1.35; }
+.bout-shout-q { margin-bottom: 8px; color: var(--gild-l); letter-spacing: 0.05em; }
+.bout-shout button {
+  display: block; width: 100%; margin: 6px 0 0; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  font: inherit; font-size: 15px; color: var(--cream); background: var(--night-2); border: 1px solid var(--gild-faint);
+}
+.bout-shout button:hover { border-color: var(--gild-l); background: var(--oak); }
+/* (owner 2026-11-05: "can't see it at all now": a map window that had been dragged reopened at its place
+   but without its size, and with the picture no longer setting it, it closed up to its title bar. It
+   keeps a size of its own now, wherever it's been moved to.) */
+#map-panel { min-width: min(760px, calc(100vw - 24px)); min-height: min(560px, calc(100vh - 160px)); }
+#map-panel .body { flex: 1 1 auto; }
