@@ -628,7 +628,24 @@ function neckHeight(x: number, z: number, n: number): number {
 }
 
 /** Base terrain height before site flattening (also used to place sites). */
+/**
+ * The land's height at whole blocks, remembered while the continent is planned (world/sites.ts plan): the
+ * planner asks for the same spots about four times over, and the noise under them is most of the load's
+ * time. Forgotten once the plan is made, so it never holds memory through play.
+ */
+let heightMemo: Map<number, number> | null = null;
+export function rememberHeights(on: boolean): void { heightMemo = on ? new Map() : null; }
+
 export function baseHeight(x: number, z: number): number {
+  if (heightMemo && Number.isInteger(x) && Number.isInteger(z)) {
+    const k = x * 100003 + z;
+    let v = heightMemo.get(k);
+    if (v === undefined) { v = landHeight(x, z); heightMemo.set(k, v); }
+    return v;
+  }
+  return landHeight(x, z);
+}
+function landHeight(x: number, z: number): number {
   if (inMorrow(x)) return morrowHeight(x, z);
   // (Skua Rock stands in the heartland's own sea, inside the band where the outer lands take over)
   { const k = skuaDist(x, z); if (k >= 0) return skuaHeight(x, z, k); }

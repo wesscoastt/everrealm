@@ -14,7 +14,7 @@ import type { Door } from '../world/Doors';
 import { BuiltSite, buildImpostor, buildSiteProps, farLights, IMPOSTOR_MAT, LAMP_TINT } from '../world/siteProps';
 import { LODGINGS } from '../data/lodgings';
 import { BANKS } from '../data/places_regional';
-import { plan, Site } from '../world/sites';
+import { plan, planInSteps, Site } from '../world/sites';
 import { Sky } from '../world/Sky';
 import { buildStructures, StructureResult } from '../world/structures';
 import { GW, heightAt, landDist, SEA } from '../world/terrain';
@@ -44,26 +44,26 @@ export class GameWorld {
   readonly grid = new Grid();
   readonly voxels = new VoxelWorld();
   readonly shared: SharedUniforms = createSharedUniforms();
-  readonly layout: Layout;
-  readonly structures: StructureResult;
-  readonly sky: Sky;
-  readonly props: PropMaterials;
-  readonly chunks: ChunkManager;
-  readonly sites: Site[];
+  layout!: Layout;
+  structures!: StructureResult;
+  sky!: Sky;
+  props!: PropMaterials;
+  chunks!: ChunkManager;
+  sites!: Site[];
   /** Explored-world map, painted chunk by chunk as the player sees it. */
-  readonly mapImage: HTMLCanvasElement;
+  mapImage!: HTMLCanvasElement;
   /** The explored map of Morrow's half of the world (WMAX..WMAX + WSIZE along x), once any of it's been seen. */
   mapImageEast: HTMLCanvasElement | null = null;
   private mapCtxEast: CanvasRenderingContext2D | null = null;
-  private mapCtx: CanvasRenderingContext2D;
-  private gwMap: HTMLCanvasElement;
+  private mapCtx!: CanvasRenderingContext2D;
+  private gwMap!: HTMLCanvasElement;
   readonly explored = new Set<number>();
   readonly buckets = new Map<number, NodeBucket>();
   private nodeId = 10000;
-  private voxelMat: THREE.MeshLambertMaterial;
-  private waterMat: THREE.ShaderMaterial;
-  private vegetation: Vegetation;
-  readonly glowMat: THREE.SpriteMaterial;
+  private voxelMat!: THREE.MeshLambertMaterial;
+  private waterMat!: THREE.ShaderMaterial;
+  private vegetation!: Vegetation;
+  glowMat!: THREE.SpriteMaterial;
   private lanternGlows: THREE.Sprite[] = [];
   /** A few real point lights, moved each frame to the lamps nearest the player (see placeLamps). */
   private lampLights: THREE.PointLight[] = [];
@@ -73,7 +73,7 @@ export class GameWorld {
   private impostors = new Map<string, THREE.Group>();
   private siteReach = new Map<string, number>();
   private lod: THREE.Group | null = null;
-  readonly ferry: Ferry;
+  ferry!: Ferry;
   /** The scheduled ferries (data/ferries.ts), a ship each (two on the long runs, half a round apart). */
   readonly ferries: ScheduledShip[] = [];
   /** Every ship you can walk aboard while she sails. */
@@ -84,21 +84,29 @@ export class GameWorld {
   onChunkGone: ((cx: number, cz: number) => void) | null = null;
   stats = { genMs: 0 };
 
-  constructor(readonly scene: THREE.Scene, onProgress: (label: string) => void) {
+  constructor(readonly scene: THREE.Scene) {}
+
+  /**
+   * The world, built a step at a time: each yield is a moment for the page to breathe (the title repaints,
+   * the browser answers clicks), so loading never freezes it long enough for "Page unresponsive". The caller
+   * (game/Game.ts buildWorld) waits a frame at each step; the label says what's being built.
+   */
+  *build(): Generator<string> {
+    const scene = this.scene;
     const t0 = performance.now();
-    onProgress('Raising the hills');
+    yield 'Raising the hills';
     this.layout = generateTerrain(this.grid);
     this.props = createPropMaterials();
-    onProgress('Building Hollin Ford');
+    yield 'Building Hollin Ford';
     this.structures = buildStructures(this.grid, this.layout, this.props, this.shared.uTime);
-    onProgress('Planting Haverwood');
+    yield 'Planting Haverwood';
     const rnd = createSeededRandom(1337);
     const moot = growTree(this.grid, 'moot', 144, this.grid.topSolid(144, 175) + 1, 175, rnd);
     moot.id = 0;
     this.layout.trees.push(moot);
     placeTrees(this.grid, this.layout, rnd);
-    onProgress('Charting the continent');
-    this.sites = plan().sites;
+    yield 'Charting the continent';
+    this.sites = (yield* planInSteps()).sites;
     this.ferry = new Ferry(this.props);
     this.scene.add(this.ferry.root);
     for (const r of FERRIES) {
@@ -111,6 +119,7 @@ export class GameWorld {
       }
     }
     this.stats.genMs = performance.now() - t0;
+    yield 'Mixing the colours';
 
     // Hollindale's nodes live for the whole session, bucketed by chunk
     {
@@ -124,6 +133,7 @@ export class GameWorld {
     this.waterMat = createWaterMaterial(this.shared);
     bindWaterUniforms(this.waterMat, this.shared);
 
+    yield 'Drawing the map';
     this.gwMap = this.renderGreenwakeMap();
     this.mapImage = document.createElement('canvas');
     // The explored map covers the whole world at MAP_SCALE blocks a pixel: world (x, z) is pixel
@@ -144,10 +154,11 @@ export class GameWorld {
     scene.add(this.chunks.group);
 
     scene.add(this.structures.group);
-    onProgress('Growing grass');
+    yield 'Growing grass';
     this.vegetation = new Vegetation(this.grid, this.layout, this.shared.uTime);
     scene.add(this.vegetation.group);
 
+    yield 'Lighting the lamps';
     this.sky = new Sky(scene, this.shared);
     // A fixed pool, so the lit shaders compile once; unused lights sit at zero intensity.
     for (let i = 0; i < LAMP_LIGHTS; i++) {

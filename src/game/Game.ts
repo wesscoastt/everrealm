@@ -875,7 +875,7 @@ export class Game implements GameApi {
     window.addEventListener('keydown', () => this.audio.unlock());
 
     // Let the title paint before the heavy generation work.
-    setTimeout(() => this.buildWorld(), 60);
+    setTimeout(() => void this.buildWorld(), 60);
     let last = performance.now();
     const loop = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
@@ -888,12 +888,18 @@ export class Game implements GameApi {
     (window as unknown as { __EVERREALM__: unknown }).__EVERREALM__ = this.debugApi();
   }
 
-  private buildWorld(): void {
+  /** The world and everything in it, built in steps with a breath between each (see GameWorld.build). */
+  private built = false;
+  private async buildWorld(): Promise<void> {
+    // a moment for the page: the title repaints and the browser answers, between the heavy steps
+    const breathe = () => new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     const t0 = performance.now(), loadLog: [string, number][] = [];
     (window as unknown as { __loadLog: unknown }).__loadLog = loadLog;
     this.loadT0 = t0;
-    this.world = new GameWorld(this.scene, (l) => { loadLog.push([l, Math.round(performance.now() - t0)]); this.hud.showTitle(l + '…'); });
     const mark = (l: string) => loadLog.push([l, Math.round(performance.now() - t0)]);
+    const world = new GameWorld(this.scene);
+    for (const l of world.build()) { mark(l); this.hud.showTitle(l + '…'); await breathe(); }
+    this.world = world;
     mark('world built');
     this.hud.mapLabels = this.world.buildingLabels();
     this.rig = new CameraRig(this.camera, this.world.voxels);
@@ -905,6 +911,7 @@ export class Game implements GameApi {
       this.sfx('discover');
     });
     mark('player and camera');
+    await breathe();
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors());
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     // (the Counties' busy towns, and Morrow's: data/justice.ts)
@@ -1011,6 +1018,7 @@ export class Game implements GameApi {
       WORLD_THINGS.push({ land: def.town === 'callis' || def.town === 'northgate' || def.town === 'saltpenny' || def.town === 'tenwells' || def.town === 'liftwick' || def.town === 'branchley' || def.town === 'reedwater' || def.town === 'cala' || def.town === 'conch' ? 'morrow' : undefined, id: 'monument:' + m.id, x: m.x, z: m.z, y: m.y, label: (def.model === 'drownedboard' || def.model === 'tallystone' || def.model === 'priceboard' || def.model === 'companysign' || def.model === 'tallypost' || def.model === 'keeperstones' || def.model === 'watchboard' || def.model === 'oarrack' || def.model === 'lawstone' || def.model === 'routeboard' || def.model === 'assemblynotice' || def.model === 'heightmarks' || def.model === 'chalklizard' || def.model === 'floodpunt' || def.model === 'tilewall' || def.model === 'countshelf' ? 'Read ' : def.model === 'flywheel' || def.model === 'cairn' || def.model === 'sledge' || def.model === 'wallbell' || def.model === 'figurehead' || def.model === 'compassrose' || def.model === 'glassslab' || def.model === 'boundstone' || def.model === 'doorstep' || def.model === 'longseat' || def.model === 'findingpost' || def.model === 'bogoak' || def.model === 'redrock' || def.model === 'fishrack' || def.model === 'conchhorn' || def.model === 'turtleshell' ? 'Look at ' : 'Read the plaque: ') + def.title.replace(/^The /, 'the '), radius: def.model === 'jawbones' || def.model === 'companysign' ? 4.5 : 2.8, read: 'monument:' + m.id });
     }
     mark('towns and people');
+    await breathe();
     this.boat = new Rowboat(this.scene, this.world.voxels, this.world.props);
     this.post = new PostRide(this.scene, this.world.voxels);
     this.fair = new WakeFair({
@@ -1139,6 +1147,7 @@ export class Game implements GameApi {
       },
     });
     mark('kits and classes');
+    await breathe();
     this.chests = new Chests({
       scene: this.scene,
       voxels: this.world.voxels,
@@ -1378,6 +1387,7 @@ export class Game implements GameApi {
       read: (title, text) => this.hud.showReadable(title, text),
     });
     mark('game systems');
+    await breathe();
     this.online = new Online({
       scene: this.scene,
       night: () => this.world.sky.night,
@@ -1535,6 +1545,7 @@ export class Game implements GameApi {
     try { this.autoEnter = sessionStorage.getItem(ENTER_KEY); sessionStorage.removeItem(ENTER_KEY); } catch { this.autoEnter = null; }
     this.hud.showTitle(this.autoEnter ? 'Coming home…' : 'Raising Hollin Ford…');
     mark('all built');
+    this.built = true;
     this.menuPending = true;
   }
 
@@ -6888,7 +6899,7 @@ export class Game implements GameApi {
     this.watchGraphics(dt);
     const w = this.canvasResize();
     void w;
-    if (!this.world) { this.renderer.render(this.scene, this.camera); return; }
+    if (!this.world || !this.built) { this.renderer.render(this.scene, this.camera); return; }
     const timeScale = 60 / Math.max(1, this.save.settings.dayLength);
 
     if (this.mode !== 'play') {

@@ -11,7 +11,7 @@ import { hullHalf, shipDeckY, SHIPS, type ShipKind } from './shipHull';
 import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/businesses';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
-import { baseHeight, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
+import { baseHeight, rememberHeights, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { TAVERN_SIGNS } from '../data/content/taverns';
@@ -545,6 +545,29 @@ export function setStreetHook(fn: typeof streetHook): void { streetHook = fn; }
 
 export function plan(): Plan {
   if (cached) return cached;
+  const g = planSteps();
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+
+/**
+ * The plan a stage at a time, for the loading screen (game/GameWorld.ts build): each yield names what's being
+ * laid out, and the page breathes between them. plan() runs the same steps straight through.
+ */
+export function* planInSteps(): Generator<string, Plan> {
+  if (cached) return cached;
+  return yield* planSteps();
+}
+
+function* planSteps(): Generator<string, Plan> {
+  if (cached) return cached;
+  rememberHeights(true);
+  try { return yield* planBody(); } finally { rememberHeights(false); }
+}
+
+function* planBody(): Generator<string, Plan> {
+  if (cached) return cached;
   const sites: Site[] = [];
   const O = new Overrides();
   /** Every town street laid so far, so later builders keep off them. */
@@ -756,10 +779,12 @@ export function plan(): Plan {
     flats.push({ x, z, r0: 6, r1: 12, h: Math.round(h) });
   }
   };
+  yield 'Charting the wild';
   scatter(false);
   scatter(true);
 
   setFlattenZones(flats);
+  yield 'Grading the roads';
   // The outer lands' roads are graded: cut through the hills and banked over the hollows, never
   // more than a block's rise in two (the towns are flat already, so the grading starts from them)
   flats.push(...gradeRoads());
@@ -790,6 +815,7 @@ export function plan(): Plan {
   };
   // A Charter Post sign at a stop with no coaching yard (a ferry's); where there's a yard, its carter is the Post
   // (Hollin Ford's is part of the authored village).
+  yield 'Raising the towns';
   for (const p of POSTS) {
     const site = sites.find((x) => x.id === p.place);
     if (site && !POST_STATIONS.some((y) => y.post === p.id)) site.props.push({ t: 'sign', x: p.x, y: builtGround(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
@@ -818,10 +844,14 @@ export function plan(): Plan {
   });
 
   // Fields, orchards, ribbon houses, mills and churchyards round the towns
+  yield 'Building the outskirts';
   buildAllOutskirts();
+  yield 'Lighting the harbours';
   buildHarbourLights();
-  buildCityFarms();
+  yield* buildCityFarms();
+  yield 'Firing the smithies';
   buildSmithies();
+  yield 'Clearing the roads';
   clearRoads(O, sites);
   lakeBridges(O);
   roadLamps(O, sites);
@@ -829,12 +859,14 @@ export function plan(): Plan {
   aimLamps(O, sites);
   const waymarks = placeWaymarks(O, sites);
   // Every town's leftover lawn, dressed in its own way (after the waymarks have taken their spots)
+  yield 'Dressing the towns';
   dressTowns(O, sites);
   // No ship or boat afloat lies in a quay, a beach or a rock: any that do are eased out to clear water
   floatHulls(O, sites);
   // Benches, stalls, barrels and the rest stand in your way, the way walls do
   propCollision(O, sites);
   // Vents, bogs and the scree under loose cliffs, built into the ground (data/hazards.ts)
+  yield 'Hiding the chests';
   const hz = hazards({ sites, waymarks, overrides: O });
   stamp(hz, O);
   footings(O);
@@ -1407,7 +1439,7 @@ export function plan(): Plan {
    * and its name on a board at the gate. They stand a field or two back from the roads, on dry,
    * fairly level ground clear of everything else, between the outskirts and the wild.
    */
-  function buildCityFarms() {
+  function* buildCityFarms(): Generator<string> {
     const FARM_NAMES = ['Lower Farm', 'Highfield', 'Oxleaze', 'Copse Farm', 'Long Acre', 'Mill Farm', 'Coldharbour', 'Pease Hill', 'Rookery Farm', 'Dove House Farm', 'Withy Farm', 'Brook Farm',
       'Sedge End', 'Hollins Farm', 'Stonecross', 'Ashlea', 'Kiln Farm', 'Wheatley', 'Bean Close', 'Moor End', 'Hanger Farm', 'Newland', 'Thornbury', 'Lane End', 'Barrow Farm', 'Furzedown'];
     let named = 0;
@@ -1416,6 +1448,7 @@ export function plan(): Plan {
       ['aldermere', 8, 215, 430], ['gullmouth', 4, 70, 230], ['harrowgate', 2, 80, 220], ['cotters', 2, 60, 200], ['holme', 2, 55, 200], ['cragsby', 2, 55, 200], ['scarrow', 1, 55, 200], ['coldhearth', 1, 55, 190],
     ];
     for (const [id, want, r0, r1] of towns) {
+      yield 'Farming round the towns';
       const t = sites.find((x) => x.id === id);
       if (!t) continue;
       const near = sites.flatMap((x) => x.rects).filter((r) => r[2] > t.x - r1 - 60 && r[0] < t.x + r1 + 60 && r[3] > t.z - r1 - 60 && r[1] < t.z + r1 + 60);

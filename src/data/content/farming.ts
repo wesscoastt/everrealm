@@ -11,7 +11,7 @@ const npcs: NpcDef[] = [
   {
     id: 'seed_bertram', name: 'Bertram Sowerby', title: 'Seedsman',
     look: { skin: '#d8a888', hair: '#c8c4bc', hairStyle: 1, eyes: '#4a5a3a', tunic: '#5a6a3a', trim: '#3a2a1c', trousers: '#4a3a2a', boots: '#2a1e14', hat: 'straw', apron: true, age: 0.7, build: 1.05 },
-    schedule: [{ from: 6, to: 20, at: [119.5, 174.4], face: [119.5, 178], anim: 'idle' }, { from: 20, to: 6, at: [119.5, 174.4], face: [119.5, 178], anim: 'idle' }],
+    schedule: [{ from: 6, to: 20, at: [117.4, 180.6], face: [117.4, 184], anim: 'idle' }, { from: 20, to: 6, at: [117.4, 180.6], face: [117.4, 184], anim: 'idle' }], // (out at the front of the cottage: his old spot was inside its north wall, and he stood on the roof)
     barks: ['Seed! Good seed!', 'Mind my beans.', 'Rake it before you sow it.'],
   },
 ];
