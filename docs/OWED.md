@@ -126,6 +126,12 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
     3. DONE Wendside Cottage made a small log-and-stone homestead (porch, log corners, footing, woodpile, hearth).
     4. DONE Epic original music in the mood of WoW and ESO: The Crown's Road (Ansbury), The Long Muster (open country), Above the Weather (high places), Over the Southern Sea (coasts and Morrow's keys) (big brass and choir themes for capitals, the main story and bosses).
     5. Fisherman Dave, a follower with a long quest line (owner 2026-11-05): his love Becky White is dead under a curse; to free her he must win a one-on-one against a reaper-like demon, a frightening ghost. The player trains Dave to fight; he wins, she comes back. BioWare-standard writing.
+       PLAN (2026-11-05, not started): a companion (data/companions.ts CompanionId 'dave', content/companions.ts tree, game/Companions.ts STEEDS) found mending nets on Gullmouth quay, plus five quests in a new content/fishermanDave.ts (kingShep.ts is the pattern):
+       1. The Man on the Quay: meet Dave; out to the point at dusk; Becky's ghost on the water at night (a ghost NPC); he joins.
+       2. What the Sea Is Owed: the Reckoner, a tall shroud with a boathook, keeps the souls the sea never gave back. Becky went into the fog with a lantern to bring Dave's boat home and was taken in his place. The rule: the one she paid for must stand against it alone, one pair of hands. A layer-out of the drowned tells it; gather her lantern and the things to call it (world things).
+       3. Teach Me: three lessons (a sparring dialogue on guard and footwork; hunting with Dave, a quest spawn group; Dave alone against a drowned thing while you hold back). A flag raises his fighting.
+       4. The Reckoner: a scripted duel at the point at night. Game/Duels.ts is the model: the Reckoner ignores you, your blows pass through it, and Dave wins. If he falls, he gets up again.
+       5. Becky White: alive, at home with Dave in Gullmouth; an epilogue, and she stays as an NPC.
 
 ## C. Waiting on the owner
 
