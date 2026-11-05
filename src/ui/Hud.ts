@@ -6,7 +6,7 @@ import type { Equip } from '../data/items';
 import './theme.css';
 import { activeSet, GEAR_SETS, gearPoints, ITEMS, RARITY_COLOR, SkillId, type ItemDef } from '../data/items';
 import { TROPHY_IDS, TROPHY_SETS, trophiesWorn, type TrophyId } from '../data/trophies';
-import { baseOf, QUALITY } from '../data/gear';
+import { baseOf, ENCHANTS, QUALITY } from '../data/gear';
 import { levelForXp, MAX_LEVEL, RECIPES, SHOP_STOCK, SKILLS, Station, STATION_NAMES, UNLOCKS, xpForLevel } from '../data/gameplay';
 import { places } from '../data/places';
 import { continentChart } from '../world/atlas';
@@ -989,6 +989,31 @@ export class Hud {
     bar.querySelector('button')!.addEventListener('click', () => back?.());
   }
 
+  /** The Enchant window: the glyph and what it does, and each piece you wear that could take it (Game.openEnchant). */
+  enchantWindow(v: { glyph: string; name: string; kind: string; effect: string; strength: string; rows: { slot: string; item: string; icon: string | null; now: string; after: string; replaces: boolean; why: string; pick: () => void }[] }): void {
+    const box = this.q('#postcard');
+    box.innerHTML = `<div class="en-head"><div class="slot"><img src="${itemIcon(v.glyph)}" alt=""></div><div><b class="en-name"></b><div class="en-what"></div></div></div>
+      <p class="en-effect"></p>
+      <p class="pc-q">Choose the ${v.kind === 'weapon' ? 'weapon' : 'piece of armour'} to set it in. The glyph is used up; the enchantment stays with the piece, traded, banked or worn.</p>
+      <div class="en-rows"></div><div class="row"><button class="btn ghost pc-x">Not now</button></div>`;
+    box.querySelector('.en-name')!.textContent = v.name;
+    box.querySelector('.en-what')!.textContent = `A ${v.strength} ${v.kind} glyph`;
+    box.querySelector('.en-effect')!.textContent = v.effect;
+    const list = box.querySelector('.en-rows')!;
+    for (const r of v.rows) {
+      const row = el('div', 'en-row' + (r.why ? ' no' : ''));
+      row.innerHTML = `<div class="slot">${r.icon ? `<img src="${itemIcon(r.icon)}" alt="">` : ''}</div><div class="en-mid"><b></b><small class="en-now"></small><small class="en-after"></small></div>${r.why ? '' : `<button class="btn sm">${r.replaces ? 'Replace' : 'Enchant'}</button>`}`;
+      row.querySelector('b')!.textContent = r.item ? `${r.slot}: ${r.item}` : r.slot;
+      row.querySelector('.en-now')!.textContent = r.why || `Now: ${r.now}`;
+      row.querySelector('.en-after')!.textContent = r.why ? '' : `After: ${r.after}${r.replaces ? ' (the old enchantment is lost)' : ''}`;
+      row.querySelector('button')?.addEventListener('click', () => { box.classList.remove('show'); r.pick(); });
+      list.append(row);
+    }
+    box.querySelector('.pc-x')!.addEventListener('click', () => box.classList.remove('show'));
+    box.classList.add('show');
+    this.ctx.sfx('open');
+  }
+
   /** Write a message post to leave where you stand. */
   postWrite(send: (text: string) => void): void {
     const box = this.q('#postcard');
@@ -1868,6 +1893,9 @@ export class Hud {
 
   private tooltipFor(id: string, extra = ''): string {
     const d = ITEMS[id];
+    // an enchanted piece says what's in it; a glyph says what it does and how to use it
+    if (d?.enchant && ENCHANTS[d.enchant.id]) extra = `<b class="en-tip">Enchanted: ${esc(ENCHANTS[d.enchant.id].word)} (${['minor', 'full', 'greater'][d.enchant.tier - 1]})</b><br>${esc(ENCHANTS[d.enchant.id].text(d.enchant.tier))}` + (extra ? '<br>' + extra : '');
+    else if (d?.glyph && ENCHANTS[d.glyph.id]) extra = `<b class="en-tip">${esc(ENCHANTS[d.glyph.id].text(d.glyph.tier))}</b><br>Use it to choose a ${ENCHANTS[d.glyph.id].kind === 'weapon' ? 'weapon' : 'piece of armour'} you wear to set it in.` + (extra ? '<br>' + extra : '');
     if (d.set) {
       // Which set it belongs to, how much of it is worn, and what the pair does
       const S = GEAR_SETS[d.set], eq = this.ctx.save.equip;
@@ -2480,6 +2508,8 @@ export class Hud {
 
   /** The leaning and quality chosen for each gear recipe at the anvil, kept while the window's open. */
   private craftPick: Record<string, { affix?: string; q?: number }> = {};
+  /** The Post's parcel tab (a letter with things in it, laid out as a box). */
+  private mailParcel = false;
   /** The amount typed in the trade window: how many of a stack go on the table. */
   private tradeAmount: number | null = null;
   /** How many the crafting window's Make makes (null: one). */
@@ -2812,12 +2842,70 @@ export class Hud {
     const stopKeys = (i: HTMLElement) => i.addEventListener('keydown', (e) => e.stopPropagation());
     const tabs = el('div', 'tabs');
     const tab = (label: string, on: boolean, go: () => void) => { const t = el('div', 'tab' + (on ? ' sel' : ''), label); t.addEventListener('click', () => { this.ctx.sfx('click'); go(); }); tabs.append(t); };
-    tab(`Letters${v.unread ? ` (${v.unread} new)` : ''}`, !v.writing, () => this.ctx.mailDo('back'));
-    tab('Write a letter', v.writing, () => this.ctx.mailDo('write'));
+    tab(`Letters${v.unread ? ` (${v.unread} new)` : ''}`, !v.writing, () => { this.mailParcel = false; this.ctx.mailDo('back'); });
+    tab('Write a letter', v.writing && !this.mailParcel, () => { this.mailParcel = false; this.ctx.mailDo('write'); });
+    tab('Send a parcel', v.writing && this.mailParcel, () => { this.mailParcel = true; if (!v.writing) this.ctx.mailDo('write'); else this.renderMail(); });
     const reload = el('button', 'btn ghost ex-reload', 'Refresh');
     reload.addEventListener('click', () => this.ctx.mailDo('reload'));
     tabs.append(reload);
     body.append(tabs);
+
+    // ---- A parcel: six places in a box, filled from your pack, a note, and what it costs
+    if (v.writing && this.mailParcel) {
+      const d = v.draft;
+      if (!d.subject) d.subject = 'A parcel';
+      const top = el('div', 'ml-write');
+      top.innerHTML = `<label>To <input class="ml-to" maxlength="20" placeholder="A character's name"></label><label>Note <input class="ml-subj" maxlength="60" placeholder="A parcel"></label>`;
+      const to = top.querySelector('.ml-to') as HTMLInputElement, subj = top.querySelector('.ml-subj') as HTMLInputElement;
+      to.value = d.to; subj.value = d.subject;
+      for (const i of [to, subj]) stopKeys(i);
+      to.addEventListener('input', () => { d.to = to.value; });
+      subj.addEventListener('input', () => { d.subject = subj.value; });
+      body.append(top);
+      const boxEl = el('div', 'parcel');
+      boxEl.innerHTML = '<div class="parcel-lid">The parcel <small>click a slot to take it out</small></div><div class="parcel-slots"></div>';
+      const slots = boxEl.querySelector('.parcel-slots')!;
+      for (let k = 0; k < MAIL_STACKS; k++) {
+        const st = d.items[k], cell = el('div', 'parcel-slot' + (st ? ' full' : ''));
+        if (st) {
+          const have = this.ctx.save.inv.reduce((a, x) => a + (x && x.id === st.id ? x.n : 0), 0);
+          cell.innerHTML = `${slot(st.id, st.n)}<input type="number" min="1" max="${have}" value="${st.n}" title="How many">`;
+          const nIn = cell.querySelector('input') as HTMLInputElement;
+          stopKeys(nIn);
+          nIn.addEventListener('change', () => { st.n = Math.min(have, Math.max(1, Math.floor(Number(nIn.value) || 1))); this.renderMail(); });
+          cell.querySelector('.slot')!.addEventListener('click', () => this.ctx.mailDo('attach', undefined, st.id));
+        } else cell.innerHTML = '<div class="slot empty"></div>';
+        slots.append(cell);
+      }
+      const mk = el('label', 'ml-marks');
+      mk.innerHTML = `Marks inside <input type="number" min="0" max="1000000" value="${d.marks || 0}">`;
+      const mIn = mk.querySelector('input') as HTMLInputElement;
+      stopKeys(mIn);
+      mIn.addEventListener('change', () => { d.marks = Math.max(0, Math.min(1_000_000, Math.floor(Number(mIn.value) || 0))); this.renderMail(); });
+      boxEl.append(mk);
+      body.append(boxEl);
+      const cost = postage(d.items.length);
+      const go = el('div', 'ml-go');
+      go.innerHTML = `<span>Postage ${cost} ${cost === 1 ? 'mark' : 'marks'} (a mark, and one a stack)${d.marks ? `, and ${d.marks} inside` : ''}</span><button class="btn">${v.sending ? 'Posting…' : 'Wrap it and post it'}</button>`;
+      const b = go.querySelector('button')!;
+      b.disabled = v.sending || !d.items.length && !d.marks || marks < cost + (d.marks || 0);
+      b.addEventListener('click', () => { d.to = to.value; d.subject = subj.value || 'A parcel'; this.ctx.mailDo('send'); });
+      body.append(go);
+      body.append(el('h6', 'ex-h', 'From your pack: click to put it in'));
+      const grid = el('div', 'ml-pack');
+      const seen = new Map<string, number>();
+      for (const st of this.ctx.save.inv) if (st && ITEMS[st.id] && ITEMS[st.id].kind !== 'quest') seen.set(st.id, (seen.get(st.id) ?? 0) + st.n);
+      if (!seen.size) grid.append(el('p', 'ex-note', 'Nothing in your pack the Post will carry.'));
+      for (const [id, n] of seen) {
+        const cell = el('div', 'ml-cell' + (d.items.some((x) => x.id === id) ? ' on' : ''));
+        cell.innerHTML = slot(id, n);
+        cell.addEventListener('click', () => this.ctx.mailDo('attach', undefined, id, n));
+        grid.append(cell);
+      }
+      body.append(grid);
+      tips(body);
+      return;
+    }
 
     // ---- Writing
     if (v.writing) {
@@ -2909,6 +2997,13 @@ export class Hud {
       const row = el('div', 'shop-row ml-row' + (x.read ? '' : ' unread'));
       const holds = x.items.length || x.marks;
       row.innerHTML = `<div class="slot"><img src="${shapeIcon('letter', x.read ? '#d8cfb6' : '#f4ead0', x.returned ? '#6a6a6a' : '#b03a2e')}" alt=""></div><div><div class="nm">${esc(x.subject)}</div><div class="d">${x.returned ? 'Returned by the Post' : esc(x.from)} · ${ago(x.at)}${holds ? ' · something in it' : ''}</div></div><span></span><button class="btn ghost">Read</button>`;
+      if (x.items.length) {
+        // a parcel: its things shown, and collected without opening the letter
+        const tag = el('div', 'ml-parcel');
+        tag.innerHTML = `<span class="ml-ptag">Parcel</span>${x.items.slice(0, 4).map((s) => slot(s.id, s.n)).join('')}${x.items.length > 4 ? `<small>+${x.items.length - 4}</small>` : ''}<button class="btn sm">Collect</button>`;
+        tag.querySelector('button')!.addEventListener('click', (e) => { e.stopPropagation(); this.ctx.mailDo('take', x.id); });
+        row.append(tag);
+      }
       row.addEventListener('click', () => this.ctx.mailDo('read', x.id));
       list.append(row);
     }

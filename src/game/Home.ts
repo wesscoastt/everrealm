@@ -119,7 +119,7 @@ export class Home {
       const g = def && furniture(this.M, def.model, def.tint ?? 0);
       if (!g) continue;
       // a fish tank's fish: "item id:record weight" each
-      if (Array.isArray(fish) && fish.length) stockTank(g, fish.map((e) => { const [id, lb] = String(e).split(':'); const d = ITEMS[id]; return { a: d?.icon.a ?? '#c8c8c8', b: d?.icon.b ?? d?.icon.a ?? '#888888', name: d?.name ?? id, lb: Number(lb) || 0 }; }));
+      if (Array.isArray(fish) && fish.length) stockTank(g, fish.map((e) => { const [id, lb] = String(e).split(':'); const d = ITEMS[id]; return { id, a: d?.icon.a ?? '#c8c8c8', b: d?.icon.b ?? d?.icon.a ?? '#888888', name: d?.name ?? id, lb: Number(lb) || 0 }; }));
       g.position.set(x, h.base + (f ?? 0) * 4 + (isWallPiece(def.model) ? WALL_HEIGHT : 0), z);
       g.rotation.y = (t * Math.PI) / 2;
       this.group.add(g);

@@ -110,7 +110,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 16b. **Skua Rock, the prison island** (owner 2026-11-04, added to the bottom of the list): its waymark floats (off the ground: seat it on the rock). And the prison is underwhelming, not intimidating the way Alcatraz is: make it a real fortress prison on the rock in the bay off Gullmouth (world/sites.ts, data/skua.ts) with high blank walls, a cell block, a lighthouse or a watch tower, the guards, the cold and the sea round it, so it reads as somewhere nobody gets out of.
 
-16c. **Audio, world persistence, animation and immersion** (owner 2026-11-04, a new prompt after the list above; work its tasks in this order, testing each in the game):
+16c. **Audio, world persistence, animation and immersion** (owner 2026-11-04: "Yes, audio first": this prompt goes AHEAD of 7-16b above; then earnable pets (owner asked the same day), then back to fish markets; work its tasks in this order, testing each in the game):
     1. Enchanting made clear: what it does, what can be enchanted, what it needs, the effect and result shown, feedback when applied; enchantments kept through trade, storage and loading; works the same in multiplayer.
     2. Music: no stuttering, cutting out or restarts (buffering, loading during play, decoding, overlapping tracks, transitions, spikes from chunks and players); seamless area transitions; one track at a time. Test it properly before going on.
     3. More soundtrack, original and Oblivion-inspired in mood (strings, woodwinds, horns): countryside, forests, cities, ruins, mountains, dungeons, bosses, night, discovery, story; each region its own.

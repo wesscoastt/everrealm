@@ -734,6 +734,9 @@ export class Score {
     const want = THEMES[this.wanted.theme];
     if (!this.current || this.current.theme.id !== want.id) this.switchTheme(want, now);
     const cur = this.current!;
+    // (after a stall the music picks up from now, cleanly, rather than playing what it missed all at once)
+    if (this.realtime && cur.cursor < now - 0.25) cur.cursor = now + 0.15;
+    if (this.realtime && this.combatOn && this.combatCursor < now - 0.25) this.combatCursor = now + 0.15;
     while (cur.cursor < until) cur.cursor = this.scheduleSection(cur, cur.cursor);
 
     // Combat layer: duck the exploration music and run an ostinato in two-bar chunks.
@@ -753,7 +756,7 @@ export class Score {
       }
     }
     if (this.combatOn) {
-      const horizon = this.realtime ? Math.min(until, now + 3) : until;
+      const horizon = this.realtime ? Math.min(until, now + 6) : until;
       while (this.combatCursor < horizon) this.combatCursor = this.wanted.boss ? this.scheduleBoss(this.combatCursor) : this.scheduleCombat(this.combatCursor);
     }
   }

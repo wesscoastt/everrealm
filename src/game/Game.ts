@@ -1782,6 +1782,35 @@ export class Game implements GameApi {
   /** What everyone else sees of it: 1 a torch in the hand, 2 the lantern at the belt, 0 nothing. */
   private lightShown = 0;
 
+  /** Which piece the Enchant window chose for the glyph being used. */
+  private glyphSlot: keyof SaveData['equip'] | null = null;
+  /**
+   * The Enchant window: what the glyph does, and every piece you wear it could go into, with what's in it now
+   * and what you'd have after; pieces that can't take it shown, and why.
+   */
+  openEnchant(glyph: string): void {
+    const g = ITEMS[glyph]?.glyph;
+    if (!g) return;
+    const E = ENCHANTS[g.id], eq = this.save.equip;
+    const tierName = (t: number) => ['minor', 'full', 'greater'][t - 1];
+    const slots = (E.kind === 'weapon' ? ['weapon'] : ['chest', 'legs', 'head', 'hands', 'feet']) as (keyof SaveData['equip'])[];
+    const SLOT: Record<string, string> = { weapon: 'Weapon', chest: 'Chest', legs: 'Legs', head: 'Head', hands: 'Hands', feet: 'Feet' };
+    const rows = slots.map((slot) => {
+      const id = eq[slot] ?? null, d = id ? ITEMS[id] : null;
+      const why = !d ? (slot === 'weapon' ? 'Nothing in your hand.' : 'Nothing worn here.') : d.named ? 'A named piece: it takes no glyph.' : (E.kind === 'weapon' ? !d.weapon : !d.armor) ? 'It won\'t take this kind of glyph.' : !ITEMS[enchantedId(id!, g.id, g.tier)] ? 'Too plain a piece to hold an enchantment: a smithed or bought one will take it.' : '';
+      const cur = d?.enchant ? `${ENCHANTS[d.enchant.id]?.word ?? d.enchant.id} (${tierName(d.enchant.tier)}): ${ENCHANTS[d.enchant.id]?.text(d.enchant.tier) ?? ''}` : 'None';
+      return { slot: SLOT[slot], item: d?.name ?? '', icon: id, now: cur, after: !why && id ? ITEMS[enchantedId(id, g.id, g.tier)].name : '', replaces: !!d?.enchant, why, pick: () => this.applyGlyph(glyph, slot) };
+    });
+    this.hud.enchantWindow({ glyph, name: ITEMS[glyph].name, kind: E.kind, effect: E.text(g.tier), strength: tierName(g.tier), rows });
+  }
+  /** Put the glyph into the piece chosen in the Enchant window. */
+  private applyGlyph(glyph: string, slot: keyof SaveData['equip']): void {
+    const i = this.save.inv.findIndex((s) => s?.id === glyph);
+    if (i < 0) return;
+    this.glyphSlot = slot;
+    this.useSlot(i);
+  }
+
   /** The rod you fish with: the one you chose (clicked in your pack), or else your best. */
   fishingRod(): string | null {
     const pick = this.flag('rod') as string | undefined;
@@ -4357,27 +4386,30 @@ export class Game implements GameApi {
       this.hud.banner(def.name, 'Your pet now', true);
       this.hud.system(`${def.name} is yours now and follows you about. Change pets, or send her home, under Pet with Change look, on the character screen.`);
       this.sfx('discover');
+    } else if (def.glyph && !this.glyphSlot) {
+      // A glyph: the Enchant window, to choose which piece you wear takes it (owner 2026-11-04: make it clear)
+      this.openEnchant(st.id);
+      return;
     } else if (def.glyph) {
-      // A glyph: into the weapon in hand, or into a piece of armour worn (the first without one, chest first)
+      // (applying a glyph to the piece chosen in the Enchant window: applyGlyph)
       const E = ENCHANTS[def.glyph.id];
       const eq = this.save.equip;
-      let slot: keyof typeof eq | null = null;
-      if (E.kind === 'weapon') slot = eq.weapon && ITEMS[eq.weapon]?.weapon && !ITEMS[eq.weapon]?.named ? 'weapon' : null;
-      else {
-        const worn = (['chest', 'legs', 'head', 'hands', 'feet'] as const).filter((k) => eq[k] && ITEMS[eq[k]!]?.armor && !ITEMS[eq[k]!]?.named);
-        slot = worn.find((k) => !ITEMS[eq[k]!]?.enchant) ?? worn[0] ?? null;
-      }
-      if (!slot) { this.hud.system(E.kind === 'weapon' ? 'Hold the weapon you want to enchant first (named pieces can\'t take a glyph).' : 'Wear the armour you want to enchant first (named pieces can\'t take a glyph).'); return; }
+      const slot = this.glyphSlot;
+      if (!slot || !eq[slot]) return;
       const old = eq[slot]!, now = enchantedId(old, def.glyph.id, def.glyph.tier);
       if (!ITEMS[now]) { this.hud.system('That piece won\'t take an enchantment.'); return; }
       this.inv.removeAt(i, 1);
       (eq as unknown as Record<string, string | null | undefined>)[slot] = now;
       this.hud.banner(ITEMS[now].name, 'Enchanted', true);
       this.hud.system(`${def.name} goes into ${ITEMS[old].name}: ${E.text(def.glyph.tier)}`);
-      this.particles.burst(tmpV.copy(this.player.position).setY(this.player.position.y + 1.2), '#c8a0ff', 22);
+      // the glyph's light runs into the piece: a burst in its colour, and a ring of sparks rising
+      const col = ITEMS[st.id]?.icon.a ?? '#c8a0ff';
+      this.particles.burst(tmpV.copy(this.player.position).setY(this.player.position.y + 1.2), col, 28);
+      this.particles.sparks(tmpV.copy(this.player.position).setY(this.player.position.y + 0.4), 18, col);
       this.sfx('discover');
       this.dress();
       this.hud.refresh();
+      this.glyphSlot = null;
     } else if (def.teaches) {
       // A recipe card: learned for good, the card used up
       if (this.flag('recipe:' + def.teaches)) { this.hud.system('You already know that one.'); return; }

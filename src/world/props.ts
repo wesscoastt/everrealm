@@ -2892,15 +2892,58 @@ export function fishTank(M: PropMaterials, size: number): THREE.Group {
   return g;
 }
 /** The fish in a tank: each its own colours, swimming slow lengths of the glass, and a brass plate with its record on the stand's front. */
-export function stockTank(g: THREE.Group, fish: { a: string; b: string; name: string; lb: number }[]): void {
+/**
+ * The Ice Spice Fish (owner 2026-11-04, after their picture): a round orange fish under a crown of tight
+ * curls, a big striped tail and fins, heavy black lashes, glossy pink lips, silver hoops and a silver
+ * chain with a pendant. Built along +x (her nose), about 0.5 long at scale 1.
+ */
+export function iceSpiceFish(s = 1): THREE.Group {
+  const g = new THREE.Group();
+  const orange = flat('#ff7a24'), deep = flat('#e8541a'), light = flat('#ffa24a'), pink = flat('#ff5a8a'), black = flat('#141014'), white = flat('#f8f4f0'), silver = new THREE.MeshLambertMaterial({ color: '#d8dce4', emissive: new THREE.Color('#3a3e48') });
+  const b = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) => { const o = new THREE.Mesh(box(w * s, h * s, d * s), m); o.position.set(x * s, y * s, z * s); g.add(o); return o; };
+  // the body: round, and the face at the front
+  b(0.3, 0.26, 0.24, orange, 0, 0, 0);
+  b(0.08, 0.2, 0.2, light, 0.17, -0.01, 0);
+  // the curls: a crown of little cubes over the head and down the back
+  for (let i = 0; i < 26; i++) {
+    const a = (i / 26) * Math.PI * 2, r = 0.13 + (i % 3) * 0.02;
+    const x = -0.02 + Math.cos(a) * 0.12, y = 0.12 + Math.abs(Math.sin(a)) * 0.08 + (i % 2) * 0.02, z = Math.sin(a) * r;
+    b(0.07, 0.07, 0.07, i % 3 ? orange : deep, x, y, z);
+  }
+  for (let i = 0; i < 10; i++) b(0.06, 0.06, 0.06, i % 2 ? deep : orange, -0.12 + (i % 5) * 0.03, 0.02 - Math.floor(i / 5) * 0.08, (i % 2 ? 1 : -1) * 0.13);
+  // the tail: big, striped, fanned
+  for (let k = 0; k < 4; k++) b(0.12, 0.08, 0.03, k % 2 ? light : orange, -0.22, 0.09 - k * 0.06, 0);
+  b(0.06, 0.28, 0.03, deep, -0.29, -0.0, 0);
+  // fins under her
+  for (const z of [-1, 1]) { const f = b(0.1, 0.03, 0.08, light, 0.02, -0.14, z * 0.09); f.rotation.x = z * 0.4; }
+  // the face: lashes, eyes, lips
+  for (const z of [-1, 1]) {
+    b(0.012, 0.035, 0.06, white, 0.205, 0.05, z * 0.06);
+    b(0.014, 0.018, 0.03, black, 0.21, 0.045, z * 0.06 + z * 0.01);
+    b(0.016, 0.014, 0.075, black, 0.21, 0.075, z * 0.062);
+    b(0.016, 0.03, 0.012, black, 0.21, 0.09, z * 0.098);
+  }
+  b(0.03, 0.035, 0.06, pink, 0.215, -0.04, 0);
+  b(0.024, 0.008, 0.05, flat('#c83a6a'), 0.232, -0.04, 0);
+  // silver hoops, one each side, and the chain with its pendant
+  for (const z of [-1, 1]) { b(0.05, 0.012, 0.012, silver, 0.06, -0.03, z * 0.135); b(0.05, 0.012, 0.012, silver, 0.06, -0.09, z * 0.135); b(0.012, 0.06, 0.012, silver, 0.035, -0.06, z * 0.135); b(0.012, 0.06, 0.012, silver, 0.085, -0.06, z * 0.135); }
+  for (let i = 0; i < 7; i++) { const a = (i / 6) * Math.PI; b(0.02, 0.02, 0.02, silver, 0.12 + Math.sin(a) * 0.02, -0.1 - Math.sin(a) * 0.03, Math.cos(a) * 0.1); }
+  b(0.012, 0.05, 0.06, silver, 0.15, -0.16, 0);
+  return g;
+}
+
+export function stockTank(g: THREE.Group, fish: { id?: string; a: string; b: string; name: string; lb: number }[]): void {
   const size = Number(g.userData.tank ?? 0), T = TANKS[size], y0 = T.stand;
   fish.forEach((f, i) => {
     const s = Math.min(1.3, 0.55 + Math.log10(1 + f.lb) * 0.35) * (size === 0 ? 0.8 : 1);
     const fishG = new THREE.Group();
-    fishG.add(mesh(box(0.2 * s, 0.09 * s, 0.05 * s), flat(f.a), 0, 0, 0));
-    fishG.add(mesh(box(0.07 * s, 0.08 * s, 0.03 * s), flat(f.b), -0.12 * s, 0, 0));
-    fishG.add(mesh(box(0.06 * s, 0.04 * s, 0.04 * s), flat(f.b), 0.02 * s, 0.05 * s, 0));
-    fishG.add(mesh(box(0.015, 0.015, 0.055 * s), flat('#101010'), 0.08 * s, 0.015 * s, 0));
+    if (f.id === 'ice_spice_fish') fishG.add(iceSpiceFish(size === 0 ? 0.45 : 0.6));
+    else fishG.add(mesh(box(0.2 * s, 0.09 * s, 0.05 * s), flat(f.a), 0, 0, 0));
+    if (f.id !== 'ice_spice_fish') {
+      fishG.add(mesh(box(0.07 * s, 0.08 * s, 0.03 * s), flat(f.b), -0.12 * s, 0, 0));
+      fishG.add(mesh(box(0.06 * s, 0.04 * s, 0.04 * s), flat(f.b), 0.02 * s, 0.05 * s, 0));
+      fishG.add(mesh(box(0.015, 0.015, 0.055 * s), flat('#101010'), 0.08 * s, 0.015 * s, 0));
+    }
     const lane = (i + 0.5) / fish.length, depth = y0 + 0.16 + (i % 3) * ((T.h - 0.35) / 3), speed = 0.25 + (i % 4) * 0.07, phase = i * 1.7;
     const half = Math.max(0.04, T.w / 2 - 0.16), zz = (lane - 0.5) * (T.d - 0.2) * 0.8;
     fishG.position.set(0, depth, zz);
@@ -2909,7 +2952,7 @@ export function stockTank(g: THREE.Group, fish: { a: string; b: string; name: st
       const t = performance.now() * 0.001 * speed + phase, x = Math.sin(t) * half, dir = Math.cos(t) >= 0 ? 0 : Math.PI;
       fishG.position.x = x; fishG.position.y = depth + Math.sin(t * 2.3) * 0.02; fishG.rotation.y = dir;
     }; };
-    swim(fishG.children[0]);
+    if (f.id !== 'ice_spice_fish') { swim(fishG.children[0]); } else swim(fishG.children[0].children[0]);
     g.add(fishG);
   });
   // the plate: what's in it, with the record weights

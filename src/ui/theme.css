@@ -406,3 +406,34 @@
 /* The light you carry, marked in the pack: a small flame in the corner */
 .slot .litmark { position: absolute; right: 4px; top: 3px; width: 7px; height: 9px; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; background: radial-gradient(circle at 50% 70%, #fff2b0, #ffb040 55%, #e8641a); box-shadow: 0 0 4px #ffb040; pointer-events: none; }
 .slot[data-ghost="light"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'%23f3d58a'%20stroke-width%3D'1.4'%20stroke-linejoin%3D'round'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M12%203%20C15%207%2017%209%2017%2012%20C17%2015%2015%2017%2012%2017%20C9%2017%207%2015%207%2012%20C7%2010%209%208%2010%206%20C11%208%2012%209%2012%209%20Z'%2F%3E%3Cpath%20d%3D'M11%2017%20L11%2021%20L13%2021%20L13%2017'%2F%3E%3C%2Fsvg%3E"), linear-gradient(#141c35, #0b1124); }
+
+/* The Enchant window */
+#postcard .en-head { display: flex; gap: 12px; align-items: center; }
+#postcard .en-name { font: 600 16px var(--px); color: #c8a0ff; }
+#postcard .en-what { font: 500 12px var(--body); color: var(--muted); }
+#postcard .en-effect { margin: 10px 0 8px; padding: 8px 10px; border-radius: 6px; background: rgba(120, 90, 200, 0.14); color: var(--cream); font: 500 13px/1.4 var(--body); }
+#postcard .en-rows { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow: auto; }
+#postcard .en-row { display: grid; grid-template-columns: 46px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 6px; background: rgba(4, 8, 20, 0.35); }
+#postcard .en-row.no { opacity: 0.55; }
+#postcard .en-mid b { display: block; font: 600 13px var(--body); color: var(--cream); }
+#postcard .en-mid small { display: block; font: 500 11px/1.35 var(--body); color: var(--muted); }
+#postcard .en-mid .en-after { color: #c8a0ff; }
+.en-tip { color: #c8a0ff; }
+
+/* The Charter Post's parcels: a box of six, and a parcel in the letters list */
+.parcel { margin: 8px 0 10px; padding: 10px 12px 12px; border-radius: 8px; background: linear-gradient(#a8865a, #8a6a42); box-shadow: inset 0 0 0 2px rgba(60, 40, 20, 0.5), 0 3px 8px rgba(0, 0, 0, 0.35); position: relative; }
+.parcel::before, .parcel::after { content: ''; position: absolute; background: rgba(232, 220, 192, 0.55); pointer-events: none; }
+.parcel::before { left: 50%; top: 0; bottom: 0; width: 6px; transform: translateX(-50%); }
+.parcel::after { top: 26px; left: 0; right: 0; height: 6px; }
+.parcel-lid { font: 600 13px var(--px); color: #2a1e10; margin-bottom: 14px; position: relative; z-index: 1; }
+.parcel-lid small { font: 500 11px var(--body); color: #4a3a22; margin-left: 6px; }
+.parcel-slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; position: relative; z-index: 1; }
+.parcel-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.parcel-slot .slot.empty { background: rgba(42, 30, 16, 0.35); border: 1px dashed rgba(42, 30, 16, 0.6); }
+.parcel-slot input { width: 44px; text-align: center; border-radius: 4px; border: 1px solid rgba(42, 30, 16, 0.6); background: #efe2c2; color: #2a1e10; font: 600 11px var(--body); }
+.parcel .ml-marks { position: relative; z-index: 1; margin-top: 10px; color: #2a1e10; }
+.ml-parcel { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.ml-parcel .slot { width: 30px; height: 30px; }
+.ml-ptag { font: 600 10px var(--body); text-transform: uppercase; letter-spacing: 0.8px; color: #2a1e10; background: #c8a070; padding: 2px 7px; border-radius: 9px; }
+.ml-parcel .btn { margin-left: auto; }
+@media (max-width: 560px) { .parcel-slots { grid-template-columns: repeat(3, 1fr); } }

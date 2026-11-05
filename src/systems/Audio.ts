@@ -124,6 +124,17 @@ export class AudioSystem {
   private sfx!: GainNode;
   private amb!: GainNode;
   private music!: GainNode;
+  /**
+   * The score's own audio context (owner 2026-11-04: "the music cuts out, stutters, sounds like it's lagging").
+   * The orchestra is synthesised live, note by note; on the game's context it shared one small buffer with
+   * every sound effect, and it was scheduled only two seconds ahead from the frame loop, so a long frame (a
+   * chunk built, a town loaded, the tab out of sight) let it run dry or played the late notes in a clump.
+   * Now it plays on a context of its own with playback-sized buffers, scheduled eight seconds ahead from a
+   * timer of its own as well as the frame, and after a stall it picks up cleanly instead of bunching.
+   */
+  private mctx: AudioContext | null = null;
+  private musicTimer = 0;
+  private musicWant: MusicContext = { theme: 'title', combat: false };
   private noise!: AudioBuffer;
   /** Long stereo beds of softer noise for the ambience: pink (a rustle, rain, water) and brown (surf, wind). */
   private pink!: AudioBuffer;
@@ -176,7 +187,7 @@ export class AudioSystem {
   volumes = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45 };
 
   unlock(): void {
-    if (this.ctx) { void this.ctx.resume(); return; }
+    if (this.ctx) { void this.ctx.resume(); void this.mctx?.resume(); return; }
     const ctx = new AudioContext();
     this.ctx = ctx;
     this.master = ctx.createGain();
@@ -186,8 +197,13 @@ export class AudioSystem {
     comp.connect(this.master);
     this.sfx = ctx.createGain(); this.sfx.connect(comp);
     this.amb = ctx.createGain(); this.amb.connect(comp);
-    this.music = ctx.createGain(); this.music.connect(comp);
-    this.score = new Score(ctx, this.music);
+    // (the score on its own context: see mctx)
+    let mctx: AudioContext;
+    try { mctx = new AudioContext({ latencyHint: 'playback' }); } catch { mctx = new AudioContext(); }
+    this.mctx = mctx;
+    this.music = mctx.createGain(); this.music.connect(mctx.destination);
+    this.score = new Score(mctx, this.music);
+    this.musicTimer = window.setInterval(() => this.feedScore(), 250);
     this.perf = ctx.createGain(); this.perf.connect(comp);
     this.instruments = new Instruments(ctx, this.perf);
     this.applyVolumes();
@@ -249,7 +265,8 @@ export class AudioSystem {
     this.master.gain.value = this.volumes.master;
     this.sfx.gain.value = this.volumes.sfx;
     this.amb.gain.value = this.volumes.ambience;
-    this.music.gain.value = this.volumes.music * (1 - this.ducked * 0.85);
+    // (the music's context has no master of its own: the master volume is folded in here)
+    this.music.gain.value = this.volumes.master * this.volumes.music * (1 - this.ducked * 0.85);
     this.perf.gain.value = this.volumes.sfx;
   }
 
@@ -257,7 +274,7 @@ export class AudioSystem {
   duck(amount: number): void {
     if (!this.ctx || Math.abs(amount - this.ducked) < 0.02) return;
     this.ducked += Math.sign(amount - this.ducked) * Math.min(Math.abs(amount - this.ducked), 0.05);
-    this.music.gain.setTargetAtTime(this.volumes.music * (1 - this.ducked * 0.85), this.ctx.currentTime, 0.3);
+    if (this.mctx) this.music.gain.setTargetAtTime(this.volumes.master * this.volumes.music * (1 - this.ducked * 0.85), this.mctx.currentTime, 0.3);
   }
 
   private loopNoise(freq: number, q: number, type: BiquadFilterType, bed: AudioBuffer = this.noise): GainNode {
@@ -841,8 +858,14 @@ export class AudioSystem {
 
   /** Steer the score: which theme, and whether the combat layer is up. Call every frame. */
   musicContext(c: MusicContext): void {
-    if (!this.ctx || !this.score) return;
-    this.score.setContext(c);
-    this.score.advance(this.ctx.currentTime + 2);
+    this.musicWant = c;
+    this.feedScore();
+  }
+  /** Keep the score eight seconds ahead (from the frame, and from its own timer when frames are slow or hidden). */
+  private feedScore(): void {
+    if (!this.mctx || !this.score) return;
+    if (this.mctx.state === 'suspended' && this.ctx?.state === 'running') void this.mctx.resume();
+    this.score.setContext(this.musicWant);
+    this.score.advance(this.mctx.currentTime + 8);
   }
 }
