@@ -1,5 +1,5 @@
 import { heightAt, SEA } from './terrain';
-import { SY } from './VoxelWorld';
+import { BUILD_SY } from './VoxelWorld';
 
 // Where the Weatherholms float, worked out from the terrain alone so the world builder (sites.ts)
 // and the story (places_regional.ts) agree without either importing the other. Each isle hangs over
@@ -28,7 +28,7 @@ export function isleSpots(): Isle[] {
       for (let k = 0; k < 9; k++) g = Math.max(g, heightAt(sx + ox + ((k % 3) - 1) * r, sz + oz + (Math.floor(k / 3) - 1) * r));
       if (g < best.g) best = { x: sx + ox, z: sz + oz, g };
     }
-    const iy = Math.min(SY - 10, Math.round(best.g + r * 1.1 + lift));
+    const iy = Math.min(BUILD_SY - 10, Math.round(best.g + r * 1.1 + lift));
     if (iy - best.g > r + 6) isles.push({ x: best.x, z: best.z, y: iy, r, top: iy + 3 });
   }
   return isles;

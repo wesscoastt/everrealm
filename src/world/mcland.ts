@@ -1,0 +1,106 @@
+import { B } from './blocks';
+import { CHUNK, localIdx, SY } from './VoxelWorld';
+import { MC_CELL, MC_PIECES, pieceBounds } from './mclandArea';
+import { MC_HEIGHTS } from './mclandHeights';
+import type { ChunkResult } from './chunkgen';
+
+// The owner's Minecraft island (scripts/mc/export.ts made it; world/mclandArea.ts says where it lies). Its
+// chunks come as small files (public/mcland/<cx>_<cz>.bin, deflated: per column a count of runs, then
+// [y, length, block] runs), fetched by the world worker before it generates one of them, and laid over the
+// generated sea: every column of the island is the Minecraft column, block for block. Its ground is also
+// known to heightAt from the start (mclandHeights.ts), for the map, the far terrain and placing things.
+
+const SEA = 16;
+const PIECES = MC_PIECES.map((p) => ({ ...pieceBounds(p), id: p.id, h: null as Uint8Array | null }));
+
+/** Is this game chunk any part of one of the pieces? */
+export function mcChunk(cx: number, cz: number): boolean {
+  return PIECES.some((b) => cx * CHUNK + CHUNK - 1 >= b.x0 && cx * CHUNK <= b.x1 && cz * CHUNK + CHUNK - 1 >= b.z0 && cz * CHUNK <= b.z1);
+}
+const pieceAt = (x: number, z: number, margin = 0) => PIECES.find((b) => x >= b.x0 - margin && x <= b.x1 + margin && z >= b.z0 - margin && z <= b.z1 + margin);
+/** Inside one of the pieces' rectangles (the margin: a little sea round it counts, for the coast). */
+export function inMcLand(x: number, z: number, margin = 0): boolean { return !!pieceAt(x, z, margin); }
+
+/** A piece's ground at a point, from its coarse height map (bilinear), or null off them all. */
+export function mcHeight(x: number, z: number): number | null {
+  const b = pieceAt(x, z);
+  if (!b) return null;
+  const hm = MC_HEIGHTS[b.id];
+  if (!b.h) { const s = atob(hm.b64); b.h = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b.h[i] = s.charCodeAt(i); }
+  const W = hm.w, D = hm.d, c = MC_CELL, fx = (x - b.x0) / c, fz = (z - b.z0) / c;
+  const i = Math.min(W - 2, Math.max(0, Math.floor(fx))), j = Math.min(D - 2, Math.max(0, Math.floor(fz)));
+  const tx = Math.min(1, Math.max(0, fx - i)), tz = Math.min(1, Math.max(0, fz - j));
+  const heights = b.h, MC_HEIGHTS_W = W;
+  const h = (a: number, bb: number) => heights[bb * MC_HEIGHTS_W + a];
+  const v = h(i, j) * (1 - tx) * (1 - tz) + h(i + 1, j) * tx * (1 - tz) + h(i, j + 1) * (1 - tx) * tz + h(i + 1, j + 1) * tx * tz;
+  return Math.round(v);
+}
+
+const files = new Map<string, Uint8Array | null>();
+const pending = new Map<string, Promise<void>>();
+
+/** Fetch an island chunk's file, once (the worker awaits this before generating the chunk). */
+export function mcLoad(cx: number, cz: number, base: string): Promise<void> {
+  const key = cx + '_' + cz;
+  if (files.has(key)) return Promise.resolve();
+  let p = pending.get(key);
+  if (!p) {
+    p = (async () => {
+      try {
+        const res = await fetch(`${base}mcland/${key}.bin`);
+        if (!res.ok) { files.set(key, null); return; }
+        const raw = res.body!.pipeThrough(new DecompressionStream('deflate-raw'));
+        files.set(key, new Uint8Array(await new Response(raw).arrayBuffer()));
+      } catch { files.set(key, null); }
+    })();
+    pending.set(key, p);
+  }
+  return p;
+}
+
+const GRASSY = new Set<number>([B.Grass, B.FlowerGrass, B.Loam]);
+
+/** Lay the island's columns over a generated chunk: its blocks, its map colours, grass on its lawns. */
+export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, number, number]): void {
+  const f = files.get(r.cx + '_' + r.cz);
+  if (!f) return;
+  const ox = r.cx * CHUNK, oz = r.cz * CHUNK;
+  const ours = new Uint8Array(CHUNK * CHUNK);
+  const veg: number[] = [...r.veg];
+  let p = 0;
+  for (let lz = 0; lz < CHUNK; lz++) for (let lx = 0; lx < CHUNK; lx++) {
+    const n = f[p++];
+    if (!n) continue;
+    ours[lx + lz * CHUNK] = 1;
+    for (let y = 0; y < SY; y++) r.data[localIdx(lx, y, lz)] = B.Air;
+    let top = -1, topId: number = B.Air;
+    for (let k = 0; k < n; k++) {
+      const y0 = f[p++], len = f[p++], id = f[p++];
+      for (let y = y0; y < y0 + len && y < SY; y++) r.data[localIdx(lx, y, lz)] = id;
+      if (y0 + len - 1 > top) { top = y0 + len - 1; topId = id; }
+    }
+    // the explored map: the top block's colour, the water's by depth, a touch of shade by height
+    const mi = (lz * CHUNK + lx) * 4;
+    let col: [number, number, number];
+    if (topId === B.Water) col = [58, 130, 188];
+    else col = mapColor(topId);
+    const shade = 1 + (top - 22) * 0.008;
+    r.map[mi] = col[0] * shade; r.map[mi + 1] = col[1] * shade; r.map[mi + 2] = col[2] * shade; r.map[mi + 3] = 255;
+    // grass and the odd flower on open lawns
+    if (GRASSY.has(topId) && top + 1 < SY) {
+      const x = ox + lx, z = oz + lz, h = ((x * 73856093) ^ (z * 19349663)) >>> 0, q = (h % 1000) / 1000;
+      if (q < 0.45) veg.push(x + 0.2 + q * 0.6, top + 1, z + 0.5, q < 0.08 ? 2 + (h % 4) : q < 0.3 ? 0 : 1, 0.8 + q * 0.5, q * 6.28, 0.82, 0.8, 0.9);
+    }
+  }
+  // what the generator put on the sea that was here goes: its fish, its creatures, anything to pick
+  const mine = (x: number, z: number) => { const lx = Math.floor(x) - ox, lz = Math.floor(z) - oz; return lx >= 0 && lz >= 0 && lx < CHUNK && lz < CHUNK && ours[lx + lz * CHUNK] === 1; };
+  r.fish = r.fish.filter((q) => !mine(q.x, q.z));
+  r.forage = r.forage.filter((q) => !mine(q.x, q.z));
+  r.spawns = r.spawns.filter((q) => !mine(q.x, q.z));
+  r.trees = r.trees.filter((q) => !mine(q.x, q.z));
+  r.ores = r.ores.filter((q) => !mine(q.x, q.z));
+  const keep: number[] = [];
+  for (let i = 0; i < veg.length; i += 9) if (i >= r.veg.length || !mine(veg[i], veg[i + 2])) keep.push(...veg.slice(i, i + 9));
+  r.veg = new Float32Array(keep);
+}
+export { SEA as MC_SEA };

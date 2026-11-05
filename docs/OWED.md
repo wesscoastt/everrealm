@@ -136,6 +136,13 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
     7. The Guild button on the bar says Social (it's the friends list too) (owner 2026-11-05).
     8. Gatherables as believable plants (owner 2026-11-05, same as 16c.8): blackberries, garlic and the rest.
     9. Jumping puzzles in the manner of Guild Wars 2 (owner 2026-11-05): climbs hidden in the world, a chest at the top of each with a cosmetic reward drawn from old folklore (Japanese, Nordic and others: e.g. a kitsune mask, a Norse knotwork cloak), each puzzle themed to match its reward. Original designs, not copies of GW2's.
+    11. Verandah, the owner's Minecraft port town (owner 2026-11-05): imported block for block (scripts/mc/export.ts, world/mcland.ts) as an island south-west of the Counties with its farms, outer houses, bridges, the copper mermaid statue islet, the Fortress islet and the snowy home; waymarks on their waystones; signs as they wrote them. Still to do, in order:
+       a. The Fortress made a smugglers' den: its interior redone, its docks overhauled.
+       b. The Arena: PvP duels, 1v1 and 2v2, a crowd area to watch from, a merchants' seating area outside.
+       c. The Airport (their joke): where flying mounts are bought.
+       d. The boats at the docks and at sea as assets of their own, bobbing.
+       e. Verandah's own region (name, music, sounds), a ferry from the Counties, its people and quests.
+    12. Graphics overhaul (owner 2026-11-05: "feel more like it was built in an engine like Unity"), and northern lights over the northern lands.
     10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.
 
 ## C. Waiting on the owner

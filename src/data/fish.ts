@@ -82,7 +82,7 @@ export const FISH_BY_ID = Object.fromEntries(FISH.map((f) => [f.id, f])) as Reco
 
 /** The two the realm rolls itself, at exactly these odds a cast (server/fishing.mjs). */
 export const MYTHICS = {
-  ice_spice_fish: { odds: 1e-8, waters: ['cold'] as FishWater[], name: 'Ice Spice Fish' },
+  ice_spice_fish: { odds: 1e-8, waters: ['cold'] as FishWater[], name: 'Spicy Fish' },
   megalodon: { odds: 1e-6, waters: ['sea', 'warmsea'] as FishWater[], name: 'Megalodon' },
 } as const;
 
@@ -123,7 +123,7 @@ export const FISHING_ITEMS: ItemDef[] = [
   { id: 'furn_tank_l', name: 'Great tank', kind: 'collectible', rarity: 'epic', stack: true, value: 450, icon: { shape: 'gel', a: '#5ab8d8', b: '#c8a050' }, desc: 'A long glass tank on an iron-bound stand, the kind a Gullmouth merchant keeps to make visitors feel poor. Six fish, and a plate for every one.', stats: 'Furniture: holds 6 fish you caught · use it at home to stock it', furn: { model: 'tank_l' } },
   ...FISH.filter((f) => !f.existing).map(fishItem),
   { id: 'seaturtle_scale', name: 'A sea turtle\'s scale', kind: 'collectible', rarity: 'epic', stack: true, value: 0, icon: { shape: 'shell', a: '#4a7a5a', b: '#c8b870' }, desc: 'A plate of shell that came away from an old green turtle you let go. You can see the years in it, ring on ring.' },
-  { id: 'ice_spice_fish', name: 'Ice Spice Fish', kind: 'collectible', rarity: 'legendary', stack: false, value: 0, icon: { shape: 'fish', a: '#ff6a1a', b: '#ff5aa8' }, desc: 'A crown of tight orange curls, lashes like a stage curtain, glossy pink lips, silver hoops and a silver chain with her own name on it. She came up out of cold water looking unbothered. One cast in a hundred million.', stats: 'Mythical fish · cold water · 0.000001% a cast' },
+  { id: 'ice_spice_fish', name: 'Spicy Fish', kind: 'collectible', rarity: 'legendary', stack: false, value: 0, icon: { shape: 'fish', a: '#ff6a1a', b: '#ff5aa8' }, desc: 'A crown of tight orange curls, lashes like a stage curtain, glossy pink lips, and silver hoops. She came up out of cold water looking unbothered. One cast in a hundred million.', stats: 'Mythical fish · cold water · 0.000001% a cast' },
   { id: 'megalodon_tooth', name: 'Megalodon tooth', kind: 'collectible', rarity: 'legendary', stack: false, value: 0, icon: { shape: 'fang', a: '#e8e0d0', b: '#5a6a7a' }, desc: 'A tooth as long as your hand, from the jaw of a shark the size of a ship, that you somehow brought up on a line. Nobody will believe you. Show them.', stats: 'Mythical catch · the open sea · 0.0001% a cast' },
   rod('rod_willow', 'Willow rod', 'common', 1, 20, '#a89060', 'A light green-willow rod. Quick to answer: a bite comes sooner, and it forgives a heavy hand.', 'Fishing rod · bites sooner · more time to strike'),
   rod('rod_ash', 'Ash rod', 'uncommon', 12, 90, '#c8a878', 'Ash, seasoned two winters, with a brass ferrule. Stronger line than a willow, and a little luck in it.', 'Fishing rod · a stronger line · a little luckier'),

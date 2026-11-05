@@ -6050,7 +6050,7 @@ export class Game implements GameApi {
     if (fish === 'ice_spice_fish') {
       this.give('ice_spice_fish'); this.addXp('fishing', 15000);
       this.hud.banner('ICE SPICE FISH', 'One cast in a hundred million', true);
-      this.logCatch('ice_spice_fish', 'Ice Spice Fish', 3.1); return;
+      this.logCatch('ice_spice_fish', 'Spicy Fish', 3.1); return;
     }
     const item = fish.id === 'seaturtle_find' ? 'seaturtle_scale' : fish.id;
     if (!this.inv.canAdd(item)) { this.hud.system('Your pack is full. You let it go.'); return; }

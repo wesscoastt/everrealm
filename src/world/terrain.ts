@@ -1,5 +1,6 @@
 import { B } from './blocks';
 import { fbm2, hash2, smoothstep, valueNoise } from './noise';
+import { inMcLand, mcHeight } from './mcland';
 import { inMorrow, MORROW_LAKES, MORROW_RIVERS, MORROW_ROADS, morrowColumn, morrowHeight, morrowLandDist, morrowRegionId, type MorrowRegion } from './morrow';
 
 // One world: the Counties to the west, Morrow east across the open sea (world/morrow.ts). East of the seam
@@ -598,6 +599,8 @@ export function neckDist(x: number, z: number): number {
 /** Inland distance from the nearest shore anywhere: the heartland, the outer lands or a neck. */
 export function landDist(x: number, z: number): number {
   if (inMorrow(x)) return morrowLandDist(x, z);
+  // (the owner's Minecraft island, west of the Wrath Levels: world/mcland.ts)
+  if (inMcLand(x, z)) { const h = mcHeight(x, z)!; return h > SEA ? 4 : -4; }
   return Math.max(coastDist(x, z), outerLandDist(x, z), neckDist(x, z));
 }
 
@@ -637,6 +640,8 @@ let heightMemo: Map<number, number> | null = null;
 export function rememberHeights(on: boolean): void { heightMemo = on ? new Map() : null; }
 
 export function baseHeight(x: number, z: number): number {
+  const mc = mcHeight(x, z);
+  if (mc !== null) return mc;
   if (heightMemo && Number.isInteger(x) && Number.isInteger(z)) {
     const k = x * 100003 + z;
     let v = heightMemo.get(k);

@@ -1,4 +1,5 @@
 import { PLANT_KINDS } from './plantKinds';
+import { mcApply, mcChunk } from './mcland';
 import { B, isLeaves } from './blocks';
 import { growTree, TreeKind } from './generate';
 import { fbm2, hash2 } from './noise';
@@ -406,7 +407,10 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   }
 
   mark("surface");
-  return { cx, cz, data, tint, trees, ores: liveOres, fish, forage, veg: new Float32Array(veg), steps: new Float32Array(steps), map, spawns };
+  const res: ChunkResult = { cx, cz, data, tint, trees, ores: liveOres, fish, forage, veg: new Float32Array(veg), steps: new Float32Array(steps), map, spawns };
+  // The owner's Minecraft island, laid over the sea it stands in (world/mcland.ts; the worker fetched its file first)
+  if (mcChunk(cx, cz)) mcApply(res, (id) => MAP_COLORS[id] ?? [120, 120, 120]);
+  return res;
 }
 
 /** Coarse heights and colours for the far-terrain mesh: step 8 over one square of the world (from x0: WMIN, or WMAX for Morrow's). */

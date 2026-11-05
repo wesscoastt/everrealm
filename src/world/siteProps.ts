@@ -269,6 +269,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         break;
       }
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;
+      case 'mcsign': place(P.mcSign(M, d.text ?? '', d.h ?? 0), d.x, d.y, d.z, d.ry); break;
       case 'desk': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'furn': {
         if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0, d.doorKind, d.color); dr.role = d.role; group.add(dr.pivot); doors.push(dr); break; }

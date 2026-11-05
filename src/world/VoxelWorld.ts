@@ -20,7 +20,10 @@ export const MAP_SCALE = 2;
 /** Upper bounds (exclusive) on x and z. */
 export const WX = WMAX;
 export const WZ = WMAX;
-export const SY = 96;
+// (112: room over the sea for the owner's Minecraft port town, whose king's house stands 88 blocks over it: world/mcland.ts)
+export const SY = 112;
+/** The height the Counties and Morrow were built to (the world's ceiling before Verandah): what the builders measure from, so nothing that stood stands any taller. */
+export const BUILD_SY = 96;
 export const CHUNK = 32;
 export const CMIN = WMIN / CHUNK;
 export const CMAX = WMAX / CHUNK;

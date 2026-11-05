@@ -12,7 +12,7 @@ import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/business
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, rememberHeights, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
-import { CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
+import { BUILD_SY, CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
@@ -29,6 +29,8 @@ import { POST_STATIONS, yardAt, yardYaw, type PostYard } from '../data/postStati
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { JUMP_PUZZLES, type JumpPuzzle } from '../data/jumpPuzzles';
+import { MC_SIGNS, MC_WAYSTONES } from '../data/mcSigns';
+import { MC_PIECES, pieceBounds } from './mclandArea';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
@@ -45,7 +47,7 @@ import { MONUMENTS, type Monument } from '../data/monuments';
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
-  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'notice' | 'desk' | 'furn' | 'rails'
+  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
   | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
@@ -707,6 +709,14 @@ function* planBody(): Generator<string, Plan> {
     { id: 'mesafort', name: 'Gallows Knap', x: 1250, z: 1250, r0: 16, r1: 26, build: (s, b) => buildFort(s, b) },
     // King Shep's Fold: a great wool ram lying in the Crownroad's meadows south of Ansbury with a king in its belly (data/content/kingShep.ts)
     { id: 'kingshep', name: 'King Shep\'s Fold', x: 610, z: 680, r0: 14, r1: 30, build: (s, b) => buildKingShep(s, b) },
+    // The owner's Minecraft builds (world/mcland.ts streams their blocks): Verandah, their port town, named
+    // for the island; and the signs that name its buildings, as they wrote them, gathered by the neighbourhood
+    ...MC_PIECES.map((p) => { const b = pieceBounds(p); return { id: 'mc-' + p.id, name: p.id === 'city' ? 'Verandah' : p.id === 'seafort' ? 'The Fortress' : p.id === 'statue' ? 'The Mermaid Rock' : 'The House in the Snow', x: Math.round((b.x0 + b.x1) / 2), z: Math.round((b.z0 + b.z1) / 2), r0: 0, r1: 0, build: () => {} }; }),
+    ...[...new Set(MC_SIGNS.map((g) => Math.floor(g.x / 64) + ',' + Math.floor(g.z / 64)))].map((cell) => {
+      const here = MC_SIGNS.filter((g) => Math.floor(g.x / 64) + ',' + Math.floor(g.z / 64) === cell);
+      const cx = here.reduce((a, g) => a + g.x, 0) / here.length, cz = here.reduce((a, g) => a + g.z, 0) / here.length;
+      return { id: 'mcsigns-' + cell, name: '', x: Math.round(cx), z: Math.round(cz), r0: 0, r1: 0, build: (s: Site) => { for (const g of here) s.props.push({ t: 'mcsign', x: g.x, y: g.y, z: g.z, ry: g.ry, h: g.kind, text: g.text }); } };
+    }),
     // The jumping puzzles (data/jumpPuzzles.ts)
     // (the stacks stand in open sea: no ground levelled round them)
     ...JUMP_PUZZLES.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z, r0: p.theme === 'selkie' ? 0 : 12, r1: p.theme === 'selkie' ? 0 : 22, build: (s: Site, b: number) => buildPuzzle(s, b, p) })),
@@ -923,7 +933,7 @@ function* planBody(): Generator<string, Plan> {
     const at = (x & 31) + 32 * (z & 31);
     const a = O.map.get(chunkKey(x >> 5, z >> 5)) ?? [];
     for (let i = 0; i < a.length; i += 2) if (a[i] % 1024 === at) col.set(Math.floor(a[i] / 1024), a[i + 1]);
-    for (let y = Math.min(SY - 2, land + 24); y > 0; y--) {
+    for (let y = Math.min(BUILD_SY - 2, land + 24); y > 0; y--) {
       const id = col.get(y) ?? (y < land ? B.Stone : B.Air);
       if (id !== B.Air && id !== B.Water && id !== B.Barrier) return y + 1;
     }
@@ -4699,7 +4709,7 @@ function* planBody(): Generator<string, Plan> {
     limb([cx + 13, G + 33, cz + 1], [cx + 14, G + 40, cz + 1], 2);
     box(cx + 12, G + 41, cz - 3, cx + 16, G + 41, cz + 5, B.TerraCream); // the cross-guard
     box(cx + 14, G + 38, cz + 1, cx + 14, G + 42, cz + 1, B.DarkPlanks); // the grip
-    const tip = Math.min(SY - 3, G + 60);
+    const tip = Math.min(BUILD_SY - 3, G + 60);
     for (let y = G + 42; y <= tip; y++) for (const dz of [0, 1, 2]) for (const dx of y > tip - 3 ? [0] : [-1, 0]) O.set(cx + 14 + dx, y, cz + dz, dz === 1 ? B.StoneBrick : B.Stone);
     // Drifts round his legs, sand everywhere
     for (let dz = -16; dz <= 16; dz++) for (let dx = -16; dx <= 16; dx++) {
@@ -5752,7 +5762,7 @@ function* planBody(): Generator<string, Plan> {
   function buildObservatory(s: Site, base: number) {
     const cx = 600, cz = 1700;
     // The plateau is high (ground at y 79) and the world stops at y 95: the tower is as tall as that allows
-    const H = Math.max(12, Math.min(30, SY - 5 - base));
+    const H = Math.max(12, Math.min(30, BUILD_SY - 5 - base));
     tower(s, cx, cz, 9, H, base, B.StoneBrick, { crenel: true, door: 's', trim: B.Basalt, hollow: true });
     observatoryInterior(s, cx, cz, base, H);
     for (let a = -5; a <= 5; a++) for (const [x, z] of [[cx + a, cz - 5], [cx + a, cz + 5], [cx - 5, cz + a], [cx + 5, cz + a]]) {
@@ -5825,7 +5835,7 @@ function* planBody(): Generator<string, Plan> {
       }
       // What stood on the isles: a ring of columns on the largest with crystal grown through its
       // floor, an arch on the next, broken piers on the rest. The tops stay under the world's ceiling.
-      const top = iy + 3, room = SY - 1 - top;
+      const top = iy + 3, room = BUILD_SY - 1 - top;
       const col = (x: number, z: number, h: number) => { for (let y = 0; y < Math.min(h, room); y++) O.set(x, top + y, z, y === 0 ? B.Cobble : (x + y + z) % 4 === 0 ? B.MossyStone : B.StoneBrick); };
       if (isleN === 0) {
         for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
@@ -5839,7 +5849,7 @@ function* planBody(): Generator<string, Plan> {
         }
         // A lintel still spanning the first two columns
         const [ax, az, bx, bz] = [ix + 5, iz, Math.round(ix + Math.cos(Math.PI / 4) * 5), Math.round(iz + Math.sin(Math.PI / 4) * 5)];
-        for (let t = 0; t <= 8; t++) if (top + 6 < SY) O.set(Math.round(ax + (bx - ax) * t / 8), top + 6, Math.round(az + (bz - az) * t / 8), B.StoneBrick);
+        for (let t = 0; t <= 8; t++) if (top + 6 < BUILD_SY) O.set(Math.round(ax + (bx - ax) * t / 8), top + 6, Math.round(az + (bz - az) * t / 8), B.StoneBrick);
         for (let k = 0; k < 4; k++) O.set(ix - 2 + k, top, iz + 3, B.MossyStone); // a fallen drum
         for (const [dx, dz, h] of [[0, 0, 3], [1, 0, 2], [0, 1, 1], [-1, -1, 2]]) for (let y = 0; y < h; y++) O.set(ix + dx, top + y, iz + dz, B.Crystal);
         s.props.push({ t: 'glow', x: ix + 0.5, y: top + 2, z: iz + 0.5, r: 5, color: '#9fe8ff' });
@@ -5865,7 +5875,7 @@ function* planBody(): Generator<string, Plan> {
         }
       } else if (isleN === 1) {
         for (const dx of [-2, 2]) col(ix + dx, iz, 6);
-        for (let dx = -2; dx <= 1; dx++) if (top + 6 < SY) O.set(ix + dx, top + 5, iz, B.StoneBrick); // the keystone end has gone
+        for (let dx = -2; dx <= 1; dx++) if (top + 6 < BUILD_SY) O.set(ix + dx, top + 5, iz, B.StoneBrick); // the keystone end has gone
         for (let k = 0; k < 3; k++) O.set(ix - 1 + k, top - 1, iz + 2 + (k & 1), B.StoneBrick);
       } else {
         for (let k = 0; k < 2; k++) {
@@ -5874,7 +5884,7 @@ function* planBody(): Generator<string, Plan> {
         }
       }
       // A wind-bent tree where there is headroom
-      if (isleN !== 0 && r >= 7 && top + 10 < SY) plantTree(ix + 2, iz - 2, top, 0.3);
+      if (isleN !== 0 && r >= 7 && top + 10 < BUILD_SY) plantTree(ix + 2, iz - 2, top, 0.3);
       isleN++;
       s.impostor.push({ x: ix, y: iy - r * 0.35, z: iz, w: r * 2, h: r * 0.9, d: r * 2, color: '#6a6a72' }, { x: ix, y: iy + 2.5, z: iz, w: r * 2, h: 1, d: r * 2, color: '#6a9a4a' });
     }
@@ -8119,7 +8129,7 @@ function* planBody(): Generator<string, Plan> {
     const cx = 1190, cz = 1800;
     for (const z of [cz - 8, cz + 8]) for (let x = cx - 14; x < cx + 14; x += 4) {
       const whole = (xx: number) => hash2(xx, z, 111) >= 0.3;
-      const ly = Math.min(base + 9, SY - 1); // the world's ceiling is y 95, and this floor is high
+      const ly = Math.min(base + 9, BUILD_SY - 1); // the world's ceiling is y 95, and this floor is high
       if (whole(x) && whole(x + 4)) for (let k = 0; k <= 4; k++) O.set(x + k, ly, z, k === 0 || k === 4 ? B.Basalt : B.StoneBrick);
     }
     // Dressed retaining walls where the hillside stands above the floor, coped with basalt; open on
@@ -9477,6 +9487,17 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     const v = s.act?.kind === 'vista' ? s.act.view : undefined;
     // On a vista the shrine stands below the cairn, and travellers arrive on top of it
     if (v) put('wm-' + s.id, s.name.replace('Vista: ', ''), s, v[0] + 7, v[2] + 1, { slack: 2, arrive: [Math.floor(v[0]) + 0.5, v[1], Math.floor(v[2]) + 0.5] });
+  }
+  // Verandah, the owner's port town (world/mcland.ts): a waymark on each of the waystones they set there (an
+  // add-on's), named for what stands by it; set by hand (the planner's ground doesn't know the town's own blocks)
+  const mcHost = sites.find((x) => x.id === 'mc-city');
+  if (mcHost) for (const w of MC_WAYSTONES) {
+    const near = (re: RegExp, r: number) => MC_SIGNS.some((g) => re.test(g.text.split(String.fromCharCode(10)).join(' ')) && Math.hypot(g.x - w.x, g.z - w.z) < r);
+    const name = near(/welcome to verandah/i, 40) ? 'Verandah Docks' : near(/arena/i, 30) ? 'Verandah Arena' : near(/airport/i, 40) ? 'Verandah Airport'
+      : near(/horses/i, 120) ? 'Verandah Stables' : near(/bank of verandah/i, 130) ? 'Verandah, the Great Bridge' : 'Verandah Outskirts';
+    const x = Math.floor(w.x) + 1.5, z = Math.floor(w.z) + 0.5, ry = Math.PI / 2;
+    mcHost.props.push({ t: 'waymark', x, y: w.y, z, ry, theme: 'gannet' });
+    out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: w.y, theme: 'gannet', ry, ax: x + 2.5, az: z });
   }
   for (const b of WORLD_BOSSES) {
     const lair = sites.find((s) => s.id === 'lair-' + b.id);

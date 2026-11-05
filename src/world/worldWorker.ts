@@ -3,6 +3,7 @@ import { generateChunk, generateLod } from './chunkgen';
 import { meshPadded } from './meshCore';
 import { plan } from './sites';
 import { SY } from './VoxelWorld';
+import { mcChunk, mcLoad } from './mcland';
 
 // Generation and meshing off the main thread. Messages:
 //   { type: 'gen', id, cx, cz }            -> ChunkResult
@@ -17,8 +18,13 @@ self.onmessage = (e: MessageEvent) => {
   const m = e.data;
   if (m.type === 'gen') {
     const t0 = performance.now();
-    const r = generateChunk(m.cx, m.cz);
-    self.postMessage({ type: 'gen', id: m.id, result: r, ms: performance.now() - t0 }, [r.data.buffer, r.tint.buffer, r.veg.buffer, r.steps.buffer, r.map.buffer]);
+    const gen = () => {
+      const r = generateChunk(m.cx, m.cz);
+      self.postMessage({ type: 'gen', id: m.id, result: r, ms: performance.now() - t0 }, [r.data.buffer, r.tint.buffer, r.veg.buffer, r.steps.buffer, r.map.buffer]);
+    };
+    // (the owner's Minecraft island: its chunk's file first, world/mcland.ts)
+    if (mcChunk(m.cx, m.cz)) void mcLoad(m.cx, m.cz, import.meta.env.BASE_URL).then(gen);
+    else gen();
   } else if (m.type === 'mesh') {
     const t0 = performance.now();
     const a = meshPadded(m.pad, SY, m.ox, m.oz, m.tint);

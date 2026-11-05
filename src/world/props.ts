@@ -2893,9 +2893,9 @@ export function fishTank(M: PropMaterials, size: number): THREE.Group {
 }
 /** The fish in a tank: each its own colours, swimming slow lengths of the glass, and a brass plate with its record on the stand's front. */
 /**
- * The Ice Spice Fish (owner 2026-11-04, after their picture): a round orange fish under a crown of tight
- * curls, a big striped tail and fins, heavy black lashes, glossy pink lips, silver hoops and a silver
- * chain with a pendant. Built along +x (her nose), about 0.5 long at scale 1.
+ * The Spicy Fish (owner 2026-11-04, after their picture; renamed 2026-11-05): a round orange fish under a crown of tight
+ * curls, a big striped tail and fins, heavy black lashes, glossy pink lips and silver hoops.
+ * Built along +x (her nose), about 0.5 long at scale 1.
  */
 export function iceSpiceFish(s = 1): THREE.Group {
   const g = new THREE.Group();
@@ -2925,10 +2925,8 @@ export function iceSpiceFish(s = 1): THREE.Group {
   }
   b(0.03, 0.035, 0.06, pink, 0.215, -0.04, 0);
   b(0.024, 0.008, 0.05, flat('#c83a6a'), 0.232, -0.04, 0);
-  // silver hoops, one each side, and the chain with its pendant
+  // silver hoops, one each side (owner 2026-11-05: no chain)
   for (const z of [-1, 1]) { b(0.05, 0.012, 0.012, silver, 0.06, -0.03, z * 0.135); b(0.05, 0.012, 0.012, silver, 0.06, -0.09, z * 0.135); b(0.012, 0.06, 0.012, silver, 0.035, -0.06, z * 0.135); b(0.012, 0.06, 0.012, silver, 0.085, -0.06, z * 0.135); }
-  for (let i = 0; i < 7; i++) { const a = (i / 6) * Math.PI; b(0.02, 0.02, 0.02, silver, 0.12 + Math.sin(a) * 0.02, -0.1 - Math.sin(a) * 0.03, Math.cos(a) * 0.1); }
-  b(0.012, 0.05, 0.06, silver, 0.15, -0.16, 0);
   return g;
 }
 
@@ -3314,6 +3312,23 @@ export function gravestone(M: PropMaterials, kind = 0): THREE.Group {
     g.add(mesh(box(0.62, 0.66, 0.14), M.stone, 0, 0.33, 0));
     g.add(mesh(cyl(0.31, 0.31, 0.12, 12), M.stone, 0, 0.66, 0, 0, Math.PI / 2));
   }
+  return g;
+}
+
+/**
+ * A sign the size of a Minecraft one (the owner's port town, world/mcland.ts): a board a block wide and half
+ * a block high with its words on both faces, on a post (kind 0), flat against a wall behind it (1), or hung
+ * from chains under a beam (2). Faces +z; stands at the middle of its block.
+ */
+export function mcSign(M: PropMaterials, text: string, kind = 0): THREE.Group {
+  const g = new THREE.Group();
+  const tex = textTexture(text, 256, 128, '#c8a46a', '#2a1a0c', 30);
+  const face = new THREE.MeshLambertMaterial({ map: tex });
+  const board = new THREE.Mesh(box(0.98, 0.5, 0.07), [M.wood, M.wood, M.wood, M.wood, face, face]);
+  if (kind === 1) board.position.set(0, 0.5, -0.46);
+  else if (kind === 2) { board.position.set(0, 0.45, 0); for (const x of [-0.3, 0.3]) g.add(mesh(box(0.03, 0.3, 0.03), M.iron, x, 0.85, 0)); }
+  else { board.position.set(0, 1.0, 0); g.add(mesh(box(0.1, 0.8, 0.1), M.wood, 0, 0.4, 0)); }
+  g.add(board);
   return g;
 }
 
