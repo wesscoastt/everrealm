@@ -1,3 +1,4 @@
+import { PLANT_KINDS } from './plantKinds';
 import { B, isLeaves } from './blocks';
 import { growTree, TreeKind } from './generate';
 import { fbm2, hash2 } from './noise';
@@ -344,7 +345,8 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
       if (list?.length) {
         const kind = list[Math.floor(hash2(x * 7 + 3, z * 13 + 5, 951) * list.length)], t = FORAGE_TINT[kind];
         forage.push({ x: x + 0.5, y: y + 1, z: z + 0.5, kind });
-        veg.push(x + 0.5, y + 1, z + 0.5, t[0], 1.15, r * 6.28, t[1], t[2], t[3]);
+        // (drawn as a plant of its own now: world/foragePlants.ts; the old picture card only for a kind it doesn't know)
+        if (!PLANT_KINDS.includes(kind)) veg.push(x + 0.5, y + 1, z + 0.5, t[0], 1.15, r * 6.28, t[1], t[2], t[3]);
         continue;
       }
     }

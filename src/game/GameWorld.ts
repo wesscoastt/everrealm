@@ -1,3 +1,4 @@
+import { ForagePlants } from '../world/foragePlants';
 import { animateGull } from './Gulls';
 import * as THREE from 'three';
 import { createSeededRandom } from '../utils/random';
@@ -152,6 +153,7 @@ export class GameWorld {
       onMapTile: (cx, cz, px) => this.paintTile(cx, cz, px),
     });
     scene.add(this.chunks.group);
+    scene.add(this.plants.group);
 
     scene.add(this.structures.group);
     yield 'Growing grass';
@@ -191,6 +193,11 @@ export class GameWorld {
   // ---------------------------------------------------------------- Nodes
   /** Worked nodes out in the streamed world, by place, kept while their chunk is unloaded: walking away and back doesn't bring them back early. */
   private spent = new Map<string, number>();
+  /** The forage plants, drawn as plants (world/foragePlants.ts), put in place twice a second and when a chunk comes or goes. */
+  readonly plants = new ForagePlants();
+  private plantsIn = 0;
+  private plantsDirty = true;
+  *forageSpots(): Generator<ForageSpot> { for (const [key, b] of this.buckets) if (this.voxels.chunks.has(key)) yield* b.forage; }
 
   private bucket(x: number, z: number, persistent = false): NodeBucket {
     const key = chunkKey(Math.floor(x) >> 5, Math.floor(z) >> 5);
@@ -271,6 +278,7 @@ export class GameWorld {
       b.fish = r.fish.map((f) => ({ id: this.nodeId++, x: f.x, y: f.y, z: f.z, water: f.water } as FishSpot));
       b.forage = (r.forage ?? []).map((f) => ({ x: f.x, y: f.y, z: f.z, kind: f.kind, bareUntil: 0 }));
     }
+    this.plantsDirty = true;
     this.onChunk?.(cx, cz, r);
   }
 
@@ -514,6 +522,8 @@ export class GameWorld {
       this.sky.fog.near += (24 - this.sky.fog.near) * u; this.sky.fog.far += (140 - this.sky.fog.far) * u;
     }
     this.chunks.update(center.x, center.z);
+    this.plantsIn -= dt;
+    if (this.plantsIn <= 0 || this.plantsDirty) { this.plantsIn = 0.5; this.plantsDirty = false; this.plants.sync(this.forageSpots(), elapsed); }
     if (center.x > WMAX - 2600) this.wantLod(1);
     this.lodUniforms.uCenter.value.set(center.x, center.z);
     this.lodUniforms.uRadius.value = this.chunks.coveredRadius;

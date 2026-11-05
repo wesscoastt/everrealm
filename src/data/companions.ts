@@ -7,7 +7,7 @@ import type { Appearance } from '../entities/humanoid';
 // they're willing, more than friendship. Their conversations are in data/content/companions.ts; the
 // walking, fighting and talking in game/Companions.ts.
 
-export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned';
+export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned' | 'dave';
 export type CompanionRole = 'tank' | 'healer' | 'damage';
 
 export interface Outfit { id: string; name: string; /** Rapport needed to have it (0: from the start). */ rapport: number; look: Partial<Appearance> }
@@ -227,6 +227,59 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
       swim: ['I can\'t swim either. I\'m learning. From watching you. Is this how? Is THIS how?'],
       idle: ['Would you sign the book again? The first time was a bit smudged.', 'I\'ve been thinking what your statue should look like. Taller. That\'s all. Just taller.', 'Do you need anything carried? I could carry you. I couldn\'t carry you.', 'Sorry. I was staring. I\'ll stop. I\'ve stopped. Mostly.'],
       partner: ['I never thought you\'d look at me. Now you do, I don\'t know where to look.'],
+    },
+  },
+  // ---------------------------------------------------------------- Dave Kitto
+  // A Gullmouth fisherman, forty, built like a mooring post, who says about a third of what he thinks.
+  // Three winters ago Becky White, who he was going to marry at Lammas, walked out to Gullmouth Light in a
+  // fog with a lamp to bring his boat home, and didn't come back. Some nights he can see her lamp out on
+  // the water from the quay. His story is the quest line in data/content/fishermanDave.ts: the Reckoner,
+  // what it keeps, and the one pair of hands that can take it back. He's never hit anyone in his life.
+  // You teach him. He likes honest work and people being kind to each other; he can't abide cruelty.
+  dave: {
+    id: 'dave', name: 'Dave Kitto', title: 'Fisherman, Gullmouth',
+    home: { at: [1786.5, 607.5], face: [1790.5, 607.5], place: 'Gullmouth quay' },
+    roles: ['tank', 'damage'],
+    look: { frame: 'm', skin: '#c8906a', hair: '#5a4a3a', hairStyle: 3, facial: 7, eyes: '#4a6a7a', tunic: '#3a4a5a', trim: '#8a7a5a', shirt: '#d8ccb0', trousers: '#2e2a26', boots: '#1e1a16', top: 6, belt: '#4a3420', hat: 'cap', hatColor: '#2a3440', build: 1.3, height: 1.04, age: 0.45, brows: 1 },
+    outfits: [
+      { id: 'boat', name: 'Boat clothes', rapport: 0, look: {} },
+      { id: 'gansey', name: 'Becky\'s gansey', rapport: 20, look: { top: 3, tunic: '#2a3a5a', trim: '#2a3a5a', shirt: '#2a3a5a', hat: 'none' } },
+      { id: 'oilskin', name: 'Oilskins', rapport: 35, look: { top: 7, tunic: '#c8a030', trim: '#a8801a', shirt: '#d8ccb0', hat: 'wide', hatColor: '#c8a030' } },
+      { id: 'sunday', name: 'His Sunday coat', rapport: 55, look: { top: 7, tunic: '#2a2a30', trim: '#8a7a5a', shirt: '#f0e8d8', hat: 'none', cape: null } },
+    ],
+    likes: {
+      revive: [4, 'You came back for me. I\'ll remember that. I don\'t forget much.'],
+      treat: [2, 'Becky had a sweet tooth. Never trusted a man who didn\'t, she said.'],
+      quest: [2, 'That was a decent thing.'],
+      bounty: [2, 'Square with them. Good.'],
+      vista: [1, 'You can see the weather coming from here. That\'s worth a lot, at sea.'],
+      boss: [2, 'I\'d not have stood against that. Not a year ago.'],
+      crime: [-4, 'That wasn\'t yours to take. Somebody worked for that.'],
+      theft: [-5, 'Put it back. I mean it.'],
+      book: [1, 'Read it out, if it\'s any good. I never learned well.'],
+    },
+    banter: {
+      greenwake: ['Hollin Ford. My mother\'s people were from up here. She said the river was too small to be honest.'],
+      crownroad: ['Long way from salt water. My hands don\'t know what to do.', 'Ansbury folk buy our fish and complain about it. Every week. Same complaint.'],
+      brambledeep: ['I don\'t like trees close up like this. You can\'t see what\'s coming. At sea you can see it for an hour.'],
+      saltwind: ['Smell that. That\'s home. Fish guts and tar. Best smell there is.', 'Wind\'s backing south. We\'ll have rain by dark.'],
+      redstone: ['They work like we fish, the Works men. Never enough, and never stop.'],
+      starfall: ['Cold up here. Not sea cold. Dry. I don\'t trust a cold that doesn\'t wet you.'],
+      morrow: ['Other side of the sea. I\'ve looked at it from the boat all my life and never been.'],
+      ansbury: ['Too many people, all of them in a hurry to be somewhere else.'],
+      gullmouth: ['That\'s my boat. The blue one. She\'s called the Becky. I know. I know.', 'Every man on this quay\'s lost somebody to the water. We don\'t talk about it. We mend the nets.'],
+      kirk: ['Becky came here once. Lit a candle for her dad. I stood outside. Didn\'t feel right going in.'],
+      night: ['On a clear night you can see her lamp from the quay. I\'ve looked every night for three winters.', 'Quiet. Too quiet. I like the sound of water.'],
+      rain: ['Rain\'s nothing. Rain\'s just the sea come to visit.'],
+      wake: ['Lantern Wake. Becky carved the best turnips on the quay. Faces like the harbour master.'],
+      fight: ['Right.', 'Come on, then.', 'Stay behind me.', 'I\'ve got this one.'],
+      won: ['That\'s done.', 'Still standing. Good.', 'You taught me that.'],
+      hurt: ['I\'m all right. Seen worse on a winch.', 'Sit down a minute. You\'re grey.'],
+      down: ['Get up. Please. I can\'t lose two.'],
+      ride: ['Never sat a horse in my life. It\'s like a boat that has opinions.'],
+      swim: ['Most fishermen can\'t swim. Quicker that way, they say. I learned anyway. For her.'],
+      idle: ['Becky would\'ve liked you. She liked anyone who didn\'t talk for the sake of it.', 'I can mend a net in the dark by feel. Twenty years of it. My hands do it while I\'m thinking.', 'Do you want a sandwich? I\'ve got a sandwich. It\'s fish.', 'You\'re a good teacher. You don\'t shout. Much.'],
+      partner: ['You know where I stand. I\'ll not say it twice.'],
     },
   },
 };

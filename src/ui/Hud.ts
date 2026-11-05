@@ -559,7 +559,7 @@ export class Hud {
           <button class="menu-btn" data-p="journal">J<small>Journal</small></button>
           <button class="menu-btn" data-p="map">M<small>Map</small></button>
           <button class="menu-btn" data-p="finder" title="Group Finder: dungeons, with a group or henchmen (P)">P<small>Group</small></button>
-          <button class="menu-btn" data-p="guild">O<small>Guild</small></button>
+          <button class="menu-btn" data-p="guild">O<small>Social</small></button>
           <button class="menu-btn" data-p="settings">☰<small>Menu</small></button>
         </div>
       </div>`;
@@ -2030,7 +2030,7 @@ export class Hud {
     save.inv.forEach((st, i) => {
       const def = st ? ITEMS[st.id] : null;
       const rod = def?.tool?.skill === 'fishing', bait = !!def && /^bait_/.test(def.id);
-      const isLight = !!def && (def.id === 'torch' || def.id === 'belt_lantern');
+      const isLight = !!def && (def.id === 'torch' || def.id === 'belt_lantern' || def.id === 'becky_lantern');
       const fishing = isLight ? (this.ctx.lightWorn() === st!.id ? 'In your Light slot' : 'Click to carry it (the Light slot)') : rod ? (this.ctx.fishingRod() === st!.id ? 'The rod you fish with' : 'Click to fish with this rod') : bait ? (this.ctx.baitOnHook() === st!.id ? 'On your hook: click to take it off' : 'Click to put it on your hook') : '';
       const hint0 = !def ? '' : fishing ? `${fishing} · Shift-click to drop` : def.kind === 'food' ? 'Click to eat · Shift-click to drop' : def.kind === 'weapon' || def.kind === 'armor' ? 'Click to equip · Shift-click to drop' : this.open.has('shop') ? 'Click to sell' : 'Shift-click to drop';
       const kept = !!st && this.ctx.kept(st.id);
@@ -3548,7 +3548,7 @@ export class Hud {
         <kbd>E</kbd><span>Talk, gather, use, pull in a bite</span>
         <kbd>Enter</kbd><span>Chat, when playing online</span>
         <kbd>P</kbd><span>Group finder</span>
-        <kbd>O</kbd><span>Guild</span>
+        <kbd>O</kbd><span>Social</span>
         <kbd>F</kbd><span>Eat food</span>
         <kbd>Touch</kbd><span>Left thumb moves · drag elsewhere to look · pinch to zoom · tap the action bar for skills</span>
         <kbd>B / I</kbd><span>Pack</span>

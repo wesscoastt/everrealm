@@ -227,5 +227,8 @@ export const OLD_WEAPON_MODELS: Record<string, WeaponModel> = {
   u_marys_tooth: { family: 'sword', metal: '#f0ece0', hilt: '#2e3640', grip: '#2e3640' },
   u_climmer_crook: { family: 'staff', metal: '#b8a07a', hilt: '#4a3a2a', grip: '#6a5a3a' },
   u_houndcatcher_hanger: { family: 'sabre', metal: '#c0c4c8', hilt: '#3a3a3a', grip: '#4a3a2a' },
+  // Dave Kitto's gaff, and the Reckoner's boathook (game/Reckoning.ts): carried, never sold
+  kitto_gaff: { family: 'spear', metal: '#8a8c8e', hilt: '#5a4030', grip: '#7a5a3a' },
+  reckoner_hook: { family: 'spear', metal: '#2a2e34', hilt: '#16181c', grip: '#1e2024', glow: '#9fe8ff' },
   u_kettle_light: { family: 'sword', metal: '#c8f4ff', hilt: '#6a5a40', grip: '#4a3a2a', glow: '#c8f4ff' },
 };

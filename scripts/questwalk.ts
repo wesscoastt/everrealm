@@ -81,6 +81,8 @@ class Mock implements GameApi {
   openTravel() {}
   crossLand() {}
   duel() {}
+  bout() {}
+  boutActive() { return false; }
   bounties() { return { total: 0, fee: 0 }; }
   pledge() { return null; }
   takePledge() {}
@@ -209,6 +211,7 @@ function useThings(s: State): Step[] {
     const m = new Mock(clone(s), `thing ${wt.id}`);
     try { if (wt.when && !wt.when(m)) continue; } catch (e) { err('when:' + wt.id, `${wt.id}: when() throws: ${(e as Error).message}`); continue; }
     if (wt.id.startsWith('post:')) continue; // travel
+    if (wt.id.startsWith('chest_jp-')) continue; // the jumping puzzles' chests (no quest needs them, and each opening is a new state)
     if (wt.id.startsWith('board:')) { out.push(...converse(s, wt.id).map((x) => ({ ...x, label: `read ${wt.id} > ${x.label}` }))); continue; }
     if (wt.read) {
       const r = READABLES[wt.read];

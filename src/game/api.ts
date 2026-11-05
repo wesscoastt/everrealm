@@ -76,6 +76,9 @@ export interface GameApi {
   crossLand(to: import('../world/land').LandId): void;
   /** Jago calls a duel in the Cockpit at Saltpenny (an id from data/duels.ts). */
   duel(id: string): void;
+  /** One of Dave Kitto's fights (game/Reckoning.ts): Kezia on the quay, or the Reckoner at Gullmouth Light. */
+  bout(id: 'kezia' | 'reckoner'): void;
+  boutActive(): boolean;
   /** The law (game/Justice.ts): every town's price on you, and a fixer's fee to clear it all; clearing it. */
   bounties(): { total: number; fee: number };
   /** The Lamp Company (data/pledges.ts): today's pledge and how it stands; taking it; going back with it cleared (keys paid). */

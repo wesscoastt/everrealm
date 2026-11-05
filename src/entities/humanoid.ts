@@ -74,7 +74,9 @@ export interface Appearance {
      *  gravecaller's skull and bone crown, a sabre cat's pelt worn as a hood. */
     | 'magus' | 'cowl' | 'gravecrown' | 'sabrehood'
     /** Everyday dark dress: a tall hat with a narrow brim, and a little hat pinned with a veil over the eyes. */
-    | 'tophat' | 'veil';
+    | 'tophat' | 'veil'
+    /** The jumping puzzles' (data/content/jumpPuzzles.ts): a fox-spirit's mask, and a selkie's sealskin hood. */
+    | 'foxmask' | 'sealhood';
   hatColor?: string;
   /** A costume worn over all of it (data/costumes.ts), or none. */
   costume?: string | null;
@@ -1713,6 +1715,42 @@ export class Humanoid {
       part(this.head, rbox(0.62, 0.64, 0.6, 0.24), lin, 0, 0.3, 0);
       part(this.head, rbox(0.7, 0.14, 0.66, 0.06), lin, 0, -0.02, 0);                   // where it falls to the shoulders
       for (const sx of [-0.11, 0.11]) part(this.head, rbox(0.1, 0.13, 0.03, 0.04), '#141016', sx, 0.34, 0.3);
+      return;
+    }
+    if (hat === 'foxmask') {
+      // A fox spirit's mask, lacquer-white with red markings, worn over the face, the ears standing up,
+      // tied on behind with a red cord; your own hair shows round it
+      const white = '#f4f0e6', red = '#c8281e', gold = '#d8a838', ink = '#1a1416';
+      part(this.head, rbox(0.46, 0.3, 0.08, 0.06), white, 0, 0.32, 0.25);              // the brow and cheeks
+      part(this.head, rbox(0.22, 0.14, 0.22, 0.05), white, 0, 0.22, 0.38);             // the long muzzle
+      part(this.head, rbox(0.08, 0.06, 0.05, 0.02), ink, 0, 0.25, 0.5);                // the nose
+      for (const sd of [1, -1]) {
+        const ear = part(this.head, new THREE.ConeGeometry(0.09, 0.24, 4), white, sd * 0.16, 0.56, 0.2);
+        ear.rotation.set(0.15, Math.PI / 4, -sd * 0.25);
+        const inner = part(this.head, new THREE.ConeGeometry(0.05, 0.15, 4), red, sd * 0.16, 0.54, 0.235);
+        inner.rotation.set(0.15, Math.PI / 4, -sd * 0.25);
+        const eye = part(this.head, rbox(0.12, 0.035, 0.02, 0.01), ink, sd * 0.11, 0.33, 0.295); eye.rotation.z = sd * 0.35;
+        const flick = part(this.head, rbox(0.14, 0.03, 0.02, 0.01), red, sd * 0.13, 0.39, 0.295); flick.rotation.z = sd * 0.45;
+        part(this.head, rbox(0.03, 0.1, 0.02, 0.01), red, sd * 0.07, 0.2, 0.495);       // whisker marks
+      }
+      part(this.head, rbox(0.05, 0.12, 0.02, 0.01), gold, 0, 0.42, 0.295);              // the gold mark on the brow
+      part(this.head, rbox(0.58, 0.035, 0.5, 0.01), red, 0, 0.36, -0.02);               // the cord round the back
+      return;
+    }
+    if (hat === 'sealhood') {
+      // A selkie's sealskin worn as a hood: grey, dappled darker, the seal's head over the brow with its
+      // dark eyes and whiskers, and the skin falling down the back to the shoulders
+      const fur = this.look.hatColor ?? '#8a9098', dk = shade(fur, 0.62), spot = shade(fur, 0.45);
+      part(this.head, rbox(0.58, 0.24, 0.56, 0.1), fur, 0, 0.56, -0.02);
+      part(this.head, rbox(0.34, 0.16, 0.24, 0.07), fur, 0, 0.6, 0.24);                // the seal's head over yours
+      part(this.head, rbox(0.18, 0.1, 0.1, 0.04), dk, 0, 0.56, 0.38);                  // its muzzle
+      for (const sd of [1, -1]) {
+        part(this.head, rbox(0.06, 0.06, 0.03, 0.03), '#141618', sd * 0.1, 0.66, 0.36); // its eyes
+        for (const k of [0, 1]) { const w = part(this.head, rbox(0.14, 0.01, 0.01, 0.002), '#e8e4dc', sd * 0.12, 0.54 + k * 0.03, 0.42); w.rotation.y = sd * 0.3; }
+      }
+      part(this.head, rbox(0.6, 0.5, 0.22, 0.08), fur, 0, 0.3, -0.21);                 // down the back
+      for (const sd of [1, -1]) part(this.head, rbox(0.07, 0.5, 0.4, 0.03), fur, sd * 0.3, 0.3, -0.02);
+      for (const [x, y, z] of [[-0.18, 0.62, -0.1], [0.12, 0.6, 0.08], [0.2, 0.4, -0.25], [-0.1, 0.22, -0.3], [0.31, 0.3, 0.05], [-0.31, 0.38, -0.1]] as const) part(this.head, rbox(0.07, 0.05, 0.07, 0.02), spot, x, y, z);
       return;
     }
     if (hat === 'crow') {

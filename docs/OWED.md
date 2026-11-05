@@ -132,6 +132,11 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
        3. Teach Me: three lessons (a sparring dialogue on guard and footwork; hunting with Dave, a quest spawn group; Dave alone against a drowned thing while you hold back). A flag raises his fighting.
        4. The Reckoner: a scripted duel at the point at night. Game/Duels.ts is the model: the Reckoner ignores you, your blows pass through it, and Dave wins. If he falls, he gets up again.
        5. Becky White: alive, at home with Dave in Gullmouth; an epilogue, and she stays as an NPC.
+    6. Map window collapsing after a drag (owner 2026-11-05): DONE 710ff17.
+    7. The Guild button on the bar says Social (it's the friends list too) (owner 2026-11-05).
+    8. Gatherables as believable plants (owner 2026-11-05, same as 16c.8): blackberries, garlic and the rest.
+    9. Jumping puzzles in the manner of Guild Wars 2 (owner 2026-11-05): climbs hidden in the world, a chest at the top of each with a cosmetic reward drawn from old folklore (Japanese, Nordic and others: e.g. a kitsune mask, a Norse knotwork cloak), each puzzle themed to match its reward. Original designs, not copies of GW2's.
+    10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.
 
 ## C. Waiting on the owner
 

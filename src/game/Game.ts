@@ -12,7 +12,8 @@ import { applyRank, earlyPoints, MORPHS, RANK_AT, RANK_NAMES, rankFor as skillRa
 const ENTER_KEY = 'everrealm.enter';
 import type { Equip } from '../data/items';
 import { BRIGHTCUT, REGION_ARMOUR, WEIGHTS } from '../data/armour';
-import { REGION_WEAPONS } from '../data/weapons';
+import { Reckoning, type BoutId } from './Reckoning';
+import { OLD_WEAPON_MODELS, REGION_WEAPONS } from '../data/weapons';
 import { Stage } from './Stage';
 import { Chests, TIERS } from './Chests';
 import { LoreBooks } from './LoreBooks';
@@ -850,7 +851,8 @@ export class Game implements GameApi {
     this.save = loaded ?? newSave('Rowan', { skin: '#e0b090', hair: '#5a3a22', hairStyle: 0, eyes: '#3a5a7a', tunic: '#3a5a8a', trim: '#e0bd64', trousers: '#4a3a2c', boots: '#3a2a1c', cape: '#7a2a24' });
     this.inv = new Inventory(this.save);
     // Weapons and off-hand pieces are drawn from their items (data/weapons.ts, data/offhand.ts)
-    setGearModels((id) => ITEMS[id]?.weapon?.model ?? null, (id) => ITEMS[id]?.trinket?.model ?? null, (id) => ITEMS[id]?.instrument ?? null);
+    // (and a few held only by people in the world, with no item behind them: Dave's gaff, the Reckoner's hook)
+    setGearModels((id) => ITEMS[id]?.weapon?.model ?? OLD_WEAPON_MODELS[id] ?? null, (id) => ITEMS[id]?.trinket?.model ?? null, (id) => ITEMS[id]?.instrument ?? null);
     this.hud = new Hud(this.uiCtx());
     new TouchControls(this.input, this.hud.root);
     this.front = new Frontend(this.frontCtx(), this.hud.root);
@@ -2095,6 +2097,31 @@ export class Game implements GameApi {
     this.hud.refresh();
   }
   duel(id: string): void { this.activities.duels.start(id); }
+
+  /** Dave Kitto's fights (data/content/fishermanDave.ts): Kezia on the quay, the Reckoner at Gullmouth Light. */
+  private _reck: Reckoning | null = null;
+  private get reckoning(): Reckoning {
+    return (this._reck ??= new Reckoning({
+      scene: this.scene,
+      voxels: this.world.voxels,
+      player: () => this.player.position,
+      movePlayer: (x, z) => { this.player.position.x = x; this.player.position.z = z; },
+      say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
+      system: (text) => this.hud.system(text),
+      banner: (t, s) => this.hud.banner(t, s),
+      sfx: (n, v) => this.sfx(n, v),
+      daveLook: () => this.companions.henchmanOf('dave').look as Appearance,
+      hideCompanion: () => {},
+      skill: () => Number(this.flag('dk:skill') ?? 0),
+      done: (id) => {
+        if (id === 'kezia') { this.setFlag('dk:skill', Number(this.flag('dk:skill') ?? 0) + 1); this.setStage('dkTeach', 'ready'); }
+        else this.setStage('dkReckoner', 'free');
+        this.persist();
+      },
+    }));
+  }
+  bout(id: BoutId): void { this.reckoning.start(id); }
+  boutActive(): boolean { return !!this.reckoning.active; }
   /** The Lamp Company's pledge today, and how it stands; taking it; going back with it done (keys paid). */
   pledge(): { name: string; state: 'open' | 'taken' | 'done' | 'paid' } | null { return this.dungeons.pledge(); }
   takePledge(): void { this.dungeons.takePledge(); }
@@ -4359,7 +4386,7 @@ export class Game implements GameApi {
       return;
     }
     // A torch or a belt lantern: into the Light slot
-    if (st.id === 'torch' || st.id === 'belt_lantern') { this.setLight(st.id); return; }
+    if (st.id === 'torch' || st.id === 'belt_lantern' || st.id === 'becky_lantern') { this.setLight(st.id); return; }
     // A rod: fish with this one from now on (until you choose another, or it leaves your pack)
     if (def.tool?.skill === 'fishing') { this.setFlag('rod', st.id); this.hud.system(`You'll fish with the ${def.name.toLowerCase()}.`); this.sfx('equip'); this.hud.refresh(); return; }
     // Bait: on the hook, or (the bait already on it) off again
@@ -7240,8 +7267,10 @@ export class Game implements GameApi {
     this.updateGather(dt);
     this.updateCraft(dt);
     this.tickResearch(dt);
-    if (this.dungeons.run) { if (this.companions.body) this.companions.body.model.root.visible = false; }
+    // (Dave's companion body steps aside while the bout's Dave fights: game/Reckoning.ts)
+    if (this.dungeons.run || this.reckoning.active) { if (this.companions.body) this.companions.body.model.root.visible = false; }
     else { if (this.companions.body) this.companions.body.model.root.visible = true; this.companions.update(dt); }
+    if (this.reckoning.active) { if (this.reckoning.tooFar()) { this.reckoning.cancel(); this.hud.system('You walked away. The fight is off, for now.'); } else this.reckoning.update(dt); }
     this.updateQuests(dt);
 
     const P = this.player.position;
@@ -7853,7 +7882,7 @@ export class Game implements GameApi {
       const light = this.lightWorn();
       const want = !!light && !this.flag('lightOff') && (this.world.sky.night > 0.45 || this.underCover || !!this.flag('lightDay')) && !P.swimming && !this.dead && !this.justice.jailed;
       const hand = want && light === 'torch' && !this.bowInHand && !this.music.out;
-      const belt = want && !hand && (light === 'belt_lantern' || this.inv.count('belt_lantern') > 0);
+      const belt = want && !hand && (light === 'belt_lantern' || light === 'becky_lantern' || this.inv.count('belt_lantern') > 0);
       this.lightLit = hand || belt;
       this.lightShown = hand ? 1 : belt ? 2 : 0;
       P.model.setTorch(hand);

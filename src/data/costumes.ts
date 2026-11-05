@@ -130,7 +130,34 @@ Object.assign(COSTUMES, {
 } satisfies Record<string, CostumeDef>);
 
 /** The Lantern Wake's six, which the Guiser feat counts (the store's don't). */
-export const WAKE_COSTUMES = ['lanternman', 'scarecrow', 'skeleton', 'witch', 'ghost', 'crow'];
+// The jumping puzzles' (data/content/jumpPuzzles.ts): each climb ends at a chest left by somebody who
+// carried a story over the sea, and the outfit in it is from that story. Found, never sold.
+Object.assign(COSTUMES, {
+  foxspirit: {
+    id: 'foxspirit', name: 'Fox spirit\'s guise',
+    look: { top: 7, tunic: '#f4f0e6', trim: '#c8281e', shirt: '#c8281e', trousers: '#2a1e22', hose: '#2a1e22', legs: 0, boots: '#1a1416', shoes: 2, gloves: null, belt: '#d8a838', apron: false,
+      hat: 'foxmask', hatColor: '#f4f0e6', cape: '#e8782a', capeDesign: null,
+      shoulders: { style: 'fur', color: '#f0e8dc' }, gear: { collar: '#c8281e', tatters: '#e8782a' } },
+  },
+  wanderer: {
+    id: 'wanderer', name: 'Grey wanderer\'s cloak',
+    look: { top: 7, tunic: '#4a4c50', trim: '#8a7a5a', shirt: '#2e3034', trousers: '#2a2a2e', hose: '#2a2a2e', legs: 0, boots: '#2a2018', shoes: 1, gloves: '#3a3028', belt: '#5a4a32', apron: false,
+      hat: 'wide', hatColor: '#3a3c40', cape: '#2e3034', capeDesign: null,
+      shoulders: { style: 'fur', color: '#1a1a1e' }, gear: { collar: '#1a1a1e', bandolier: '#5a4a32' } },
+  },
+  selkie: {
+    id: 'selkie', name: 'Selkie\'s sealskin',
+    look: { top: 2, tunic: '#5a6a72', trim: '#c8ccd0', shirt: '#e8ecee', trousers: '#4a5258', hose: '#4a5258', legs: 0, boots: '#3a4248', shoes: 2, gloves: null, belt: '#c8ccd0', apron: false,
+      hat: 'sealhood', hatColor: '#8a9098', cape: '#8a9098', capeDesign: null, gear: { tatters: '#6a7078' } },
+  },
+  henhut: {
+    id: 'henhut', name: 'Bone-house grandmother\'s shawl',
+    look: { top: 2, tunic: '#7a1e1a', trim: '#e8c040', shirt: '#f0e8d8', trousers: '#2a2220', hose: '#2a2220', legs: 0, boots: '#2a1e14', shoes: 1, gloves: null, belt: '#2a6a3a', apron: true,
+      hat: 'kerchief', hatColor: '#c8281e', cape: '#2a3a6a', capeDesign: null, gear: { collar: '#e8c040', bandolier: '#d8d0c0' } },
+  },
+});
+
+export const WAKE_COSTUMES =['lanternman', 'scarecrow', 'skeleton', 'witch', 'ghost', 'crow'];
 
 /** The look as it's seen: the costume over it, if one is on, with the armour put away under it. */
 export function wearing(look: Appearance): Appearance {

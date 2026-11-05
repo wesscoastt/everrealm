@@ -13,7 +13,8 @@ import { FESTIVALS, festivalAt, type FestivalId } from '../festivals';
 // story itself is done once.
 
 /** Where the festival's person stands: on the Lantern path where it leaves the square. */
-const POST: [number, number] = [148.5, 191.5], FACE: [number, number] = [153, 187];
+// (beside the village pump, not on it: data/monuments.ts hfpump stands at 147.6, 191.4)
+const POST: [number, number] = [150.5, 193.5], FACE: [number, number] = [153, 187];
 
 interface Story {
   fest: FestivalId;

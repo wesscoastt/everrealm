@@ -40,6 +40,8 @@ const STEEDS: Record<CompanionId, { coat: string; mane: string; cloth: string; b
   tam: { coat: '#2a2220', mane: '#1a1410', cloth: '#7a2a24', breed: 'pied' },
   // (Ned's is a stout little pack pony from a livery in Ansbury, far too eager, like him)
   ned: { coat: '#c8a070', mane: '#e8dcc0', cloth: '#5a7aa8', breed: 'pack' },
+  // (Dave's is a borrowed cob off the fish carts, broad and unhurried)
+  dave: { coat: '#6a5a4a', mane: '#2a2420', cloth: '#3a4a5a', breed: 'pack' },
 };
 
 export class Companions {
@@ -77,7 +79,7 @@ export class Companions {
   henchmanOf(id: CompanionId): Henchman {
     const c = COMPANIONS[id], first = c.name.split(' ')[0];
     return {
-      id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: id === 'ottilie' ? 'none' : 'sword',
+      id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: id === 'ottilie' ? 'none' : id === 'dave' ? 'kitto_gaff' : 'sword',
       barks: { pull: c.banter.fight ?? ['Here they come.'], low: c.banter.hurt ?? ['Careful!'], kill: c.banter.won ?? ['Done.'], down: 'I\'m down!', up: 'I\'m up.', mend: ['Hold still.'] },
     };
   }

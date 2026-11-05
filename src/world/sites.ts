@@ -28,6 +28,7 @@ import { FERRIES, FERRY_PLAN, type FerryRoute } from '../data/ferries';
 import { POST_STATIONS, yardAt, yardYaw, type PostYard } from '../data/postStations';
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
+import { JUMP_PUZZLES, type JumpPuzzle } from '../data/jumpPuzzles';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
@@ -706,6 +707,9 @@ function* planBody(): Generator<string, Plan> {
     { id: 'mesafort', name: 'Gallows Knap', x: 1250, z: 1250, r0: 16, r1: 26, build: (s, b) => buildFort(s, b) },
     // King Shep's Fold: a great wool ram lying in the Crownroad's meadows south of Ansbury with a king in its belly (data/content/kingShep.ts)
     { id: 'kingshep', name: 'King Shep\'s Fold', x: 610, z: 680, r0: 14, r1: 30, build: (s, b) => buildKingShep(s, b) },
+    // The jumping puzzles (data/jumpPuzzles.ts)
+    // (the stacks stand in open sea: no ground levelled round them)
+    ...JUMP_PUZZLES.map((p) => ({ id: p.id, name: p.name, x: p.x, z: p.z, r0: p.theme === 'selkie' ? 0 : 12, r1: p.theme === 'selkie' ? 0 : 22, build: (s: Site, b: number) => buildPuzzle(s, b, p) })),
     { id: 'coldhearth', name: 'Kelderby', x: 300, z: 1460, r0: 20, r1: 32, build: (s, b) => { buildHamlet(s, b, 300, 1460, 'slate', 3); placeMonuments(s, 'kelderby', 0, (x, z) => Math.floor(heightAt(x, z))); } },
     { id: 'starwatch', name: 'Scarth Watch', x: 600, z: 1700, r0: 12, r1: 22, build: (s, b) => buildObservatory(s, b) },
     { id: 'temple', name: 'Glass Kirk', x: 1190, z: 1800, r0: 18, r1: 30, build: (s, b) => buildTemple(s, b) },
@@ -8194,6 +8198,131 @@ function* planBody(): Generator<string, Plan> {
    * its south flank opens into its belly: a room with a straw bed, a throne and candles, where King Shep holds
    * court. Twenty strides north-west, the ruined fold where the ram he was came to his end.
    */
+  /**
+   * A jumping puzzle (data/jumpPuzzles.ts): a spiral of steps a jump apart round a core, rising a block at a
+   * time, with a landing every sixth step to catch your breath and, past the first loop, the odd narrow
+   * post or longer hop on the level, up to a flat top with the chest. What it's made of is its story's:
+   * vermilion posts round a mossy rock for the fox; a dead ash's trunk and branches for the wanderer;
+   * basalt stacks out of the sea for the selkie; a hut on two hen's legs.
+   */
+  function buildPuzzle(s: Site, ground: number, p: JumpPuzzle) {
+    const cx = Math.floor(p.x), cz = Math.floor(p.z), sea = p.theme === 'selkie';
+    // the foot: the ground, or level with the water for the stacks
+    const base = sea ? SEA - 1 : ground, TOP = base + p.top;
+    rect(s, cx - 16, cz - 16, cx + 16, cz + 16);
+    if (!sea) for (let x = cx - 15; x <= cx + 15; x++) for (let z = cz - 15; z <= cz + 15; z++) if (Math.hypot(x - cx, z - cz) < 15) clearUp(x, z, Math.min(base, heightAt(x, z)), TOP + 8);
+    const floorAt = (x: number, z: number) => Math.min(heightAt(x, z), base) - 1;
+    const core = p.theme === 'fox' ? B.StoneBrick : p.theme === 'ash' ? B.OakLog : p.theme === 'selkie' ? B.Basalt : B.OakLog;
+    // The core: a rock, a trunk, a stack; for the hut, its two legs
+    if (p.theme === 'hut') {
+      for (const lx of [-2, 1]) {
+        for (let y = floorAt(cx + lx, cz) ; y < TOP - 1; y++) {
+          // (the knee: the leg kinks back halfway up, the way a hen's does)
+          const k = y > base + p.top * 0.45 && y < base + p.top * 0.6 ? 1 : 0;
+          for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) O.set(cx + lx + dx, y, cz + dz - k, y < base + 3 ? B.Blackstone : B.OakLog);
+        }
+        // the toes: three forward, one back, black and clawed
+        for (const [tx, tz] of [[-1, 3], [0, 3], [1, 3], [0, -2]]) for (let k = 1; k <= 2; k++) O.set(cx + lx + tx + (tx < 0 ? 0 : tx > 0 ? 1 : 0), base, cz + (tz > 0 ? 1 + k : -k), B.Blackstone);
+      }
+    } else {
+      for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+        if (Math.hypot(dx, dz) > 2.6) continue;
+        for (let y = floorAt(cx + dx, cz + dz); y < TOP - 1; y++) {
+          let id: number = core;
+          if (p.theme === 'fox' && hash2(cx + dx, y + cz + dz, 401) < 0.3) id = B.MossyStone;
+          if (p.theme === 'selkie' && y < SEA + 1 && hash2(cx + dx, y, 403) < 0.4) id = B.Stone;
+          O.set(cx + dx, y, cz + dz, id);
+        }
+      }
+    }
+    // The spiral of steps
+    let a = 0, y = base, i = 0;
+    const R = 6;
+    /** Every step's cells so far, by column: the height of the highest step there. */
+    const stepTop = new Map<string, number>();
+    while (y < TOP - 1) {
+      const rest = i % 6 === 5, hard = i > 10 && i % 4 === 2 && !rest;
+      // (the stacks wind inward as they climb, so none stands over a lower one: they go down to the sea bed)
+      const r = sea ? 14 - (8.5 * (y - base)) / p.top : R;
+      const size = rest ? 3 : hard ? 1 : 2;
+      const px = Math.round(cx + Math.cos(a) * r - (size - 1) / 2), pz = Math.round(cz + Math.sin(a) * r - (size - 1) / 2);
+      for (let dx = 0; dx < size; dx++) for (let dz = 0; dz < size; dz++) {
+        const x = px + dx, z = pz + dz;
+        if (p.theme === 'selkie') {
+          // a stack from the sea bed, gravel-topped, white where the birds sit
+          for (let yy = floorAt(x, z); yy <= y; yy++) O.set(x, yy, z, yy === y ? (hash2(x, z, 407) < 0.3 ? B.Snow : B.Gravel) : yy < SEA - 2 ? B.Stone : B.Basalt);
+        } else if (p.theme === 'ash') {
+          O.set(x, y, z, B.OakLog);
+        } else if (p.theme === 'fox') {
+          O.set(x, y, z, B.Planks);
+        } else {
+          O.set(x, y, z, B.DarkPlanks);
+        }
+      }
+      // What holds it up
+      const mx = px + Math.floor(size / 2), mz = pz + Math.floor(size / 2);
+      // (a vermilion stilt under it, five blocks at most, so it never stands in the way of the loop below)
+      // (and never down into a lower step, or the two blocks over it a body needs)
+      if (p.theme === 'fox') { const low = stepTop.get(px + ',' + pz); for (let yy = y - 1; yy >= Math.max(floorAt(px, pz), y - 5) && (low === undefined || yy > low + 2); yy--) O.set(px, yy, pz, B.TerraOrange); }
+      for (let dx = 0; dx < size; dx++) for (let dz = 0; dz < size; dz++) stepTop.set((px + dx) + ',' + (pz + dz), y);
+      if (p.theme === 'ash') {
+        // a branch out from the trunk to it
+        const d = Math.hypot(mx - cx, mz - cz);
+        for (let t = 2.4; t < d - 0.6; t += 0.5) O.set(Math.round(cx + ((mx - cx) * t) / d), y, Math.round(cz + ((mz - cz) * t) / d), B.OakLog);
+      }
+      if (rest && p.theme === 'fox') s.props.push({ t: 'lantern', x: px + 0.5, y: y + 1, z: pz + 0.5, ry: a });
+      if (rest && p.theme === 'hut') s.props.push({ t: 'lantern', x: px + 0.5, y: y + 1, z: pz + 0.5, ry: a });
+      a += (rest ? 3.4 : hard ? 2.8 : 3.0) / r;
+      if (!rest && !hard) y++;
+      i++;
+    }
+    // The top, and the chest on it (data/content/jumpPuzzles.ts)
+    if (p.theme === 'hut') {
+      // the hut: a log cabin on its legs, a door on every side (it turns its back on the rude), a thatch roof
+      for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+        O.set(cx + dx, TOP - 1, cz + dz, B.Planks);
+        const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+        for (let yy = TOP; yy < TOP + 3; yy++) O.set(cx + dx, yy, cz + dz, edge && !((dx === 0 || dz === 0) && yy < TOP + 2) ? (Math.abs(dx) === 3 && Math.abs(dz) === 3 ? B.OakLog : B.Planks) : B.Air);
+      }
+      for (let k = 0; k < 4; k++) for (let dx = -4 + k; dx <= 4 - k; dx++) for (let dz = -4 + k; dz <= 4 - k; dz++) O.set(cx + dx, TOP + 3 + k, cz + dz, B.Thatch);
+      O.set(cx, TOP + 7, cz, B.Thatch);
+      // a walk round the outside, for the last step to land on from wherever it comes
+      for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) if (Math.abs(dx) === 4 || Math.abs(dz) === 4) O.set(cx + dx, TOP - 1, cz + dz, B.Planks);
+    } else {
+      for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+        if (Math.hypot(dx, dz) > 3.9) continue;
+        O.set(cx + dx, TOP - 1, cz + dz, p.theme === 'fox' ? B.Planks : p.theme === 'ash' ? B.OakLog : B.Grass);
+      }
+      if (p.theme === 'fox') {
+        // a little shrine gate over the chest: two vermilion posts and a black lintel
+        for (const dx of [-2, 2]) for (let yy = TOP; yy < TOP + 3; yy++) O.set(cx + dx, yy, cz - 2, B.TerraOrange);
+        for (let dx = -3; dx <= 3; dx++) O.set(cx + dx, TOP + 3, cz - 2, B.Blackstone);
+        for (let dx = -2; dx <= 2; dx++) O.set(cx + dx, TOP + 2, cz - 2, dx === 0 ? B.TerraOrange : B.Air);
+        s.props.push({ t: 'lantern', x: cx - 1.5, y: TOP, z: cz + 1.5, ry: 0 }, { t: 'lantern', x: cx + 2.5, y: TOP, z: cz + 1.5, ry: 0 });
+      }
+      if (p.theme === 'ash') {
+        // the crown: dead branches reaching up and out round the wanderer's seat
+        for (let k = 0; k < 7; k++) {
+          const b = (k / 7) * Math.PI * 2 + 0.3;
+          for (let t = 2; t < 7; t++) O.set(Math.round(cx + Math.cos(b) * t), TOP + Math.floor(t * 0.7), Math.round(cz + Math.sin(b) * t), B.OakLog);
+        }
+      }
+    }
+    s.props.push({ t: 'furn', item: 'chest', x: cx + 0.5, y: TOP, z: cz + 0.5, ry: 0 });
+    // The fox's gates at the foot, leading in from three sides
+    if (p.theme === 'fox') for (const g of [0, 2.1, 4.2]) {
+      const gx = Math.round(cx + Math.cos(g) * 11), gz = Math.round(cz + Math.sin(g) * 11);
+      const ax = Math.round(-Math.sin(g) * 2), az = Math.round(Math.cos(g) * 2);
+      const gy = heightAt(gx, gz);
+      for (const sd of [-1, 1]) for (let yy = gy; yy < gy + 4; yy++) O.set(gx + ax * sd, yy, gz + az * sd, B.TerraOrange);
+      for (let k = -3; k <= 3; k++) O.set(gx + Math.round((ax * k) / 2), gy + 4, gz + Math.round((az * k) / 2), B.Blackstone);
+    }
+    // The sign at the foot (the first stack, for the selkie's)
+    const sx = Math.round(cx + Math.cos(-0.6) * 10), sz = Math.round(cz + Math.sin(-0.6) * 10);
+    // (the stacks have none: there's no foot to stand a post on, only sea)
+    if (!sea) s.props.push({ t: 'sign', x: sx + 0.5, y: heightAt(sx, sz), z: sz + 0.5, ry: 0, text: p.sign });
+  }
+
   function buildKingShep(s: Site, base: number) {
     const x0 = s.x, z0 = s.z, Y = base;
     const put = (x: number, y: number, z: number, id: number) => O.set(x0 + x, Y + y, z0 + z, id);

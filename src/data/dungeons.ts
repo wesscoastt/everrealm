@@ -362,7 +362,8 @@ export interface Henchman {
   title: string;
   role: Role;
   look: Partial<Appearance>;
-  held: HeldItem;
+  /** A tool by its kind, or a weapon by its model id (Dave Kitto's gaff). */
+  held: HeldItem | string;
   barks: Barks;
 }
 
