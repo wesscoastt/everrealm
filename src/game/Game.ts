@@ -3504,6 +3504,8 @@ export class Game implements GameApi {
       junk: (id: string) => g.junk(id),
       toggleJunk: (id: string) => g.toggleJunk(id),
       sellSome: (id: string, n: number) => g.sellSome(id, n),
+      buyMax: (item: string) => g.buyMax(item),
+      buySome: (item: string, n: number) => g.buySome(item, n),
       sellAllPlan: (only?: 'junk') => g.sellAllPlan(only),
       sellAll: (only?: 'junk') => g.sellAll(only),
       writePost: () => g.writePost(),
@@ -4330,6 +4332,31 @@ export class Game implements GameApi {
       footer: shop.footer(this) + (off ? ` · ${rankFor(Number(this.flag('rep:' + where) ?? 0)).rank.name} in ${REGION_INFO[where!].name}: ${Math.round(off * 100)}% off` : ''),
       currency: shop.currency ? { id: shop.currency, name: FESTIVALS.find((f) => f.token === shop.currency)?.tokenPlural ?? ITEMS[shop.currency].name, have: this.inv.count(shop.currency) } : undefined,
     };
+  }
+
+  /** The most of a thing you could buy here now: what you can pay for, and what your pack has room for (a mount: one). */
+  buyMax(item: string): number {
+    const view = this.shopView(), s = view.stock.find((x) => x.item === item), def = ITEMS[item];
+    if (!s || !def || s.price <= 0) return 0;
+    if (def.mount) return 1;
+    const purse = view.currency ? view.currency.have : this.save.marks;
+    const room = def.stack ? (this.inv.canAdd(item) ? Infinity : 0) : this.inv.freeSlots();
+    return Math.max(0, Math.min(Math.floor(purse / s.price), room, 250));
+  }
+  /** Buy so many of one thing at once (the Buy tab's slider); a mount still goes through its look chooser. */
+  buySome(item: string, n: number): void {
+    const def = ITEMS[item];
+    if (!def) return;
+    if (def.mount || n <= 1) { this.buy(item); return; }
+    const view = this.shopView(), s = view.stock.find((x) => x.item === item);
+    const k = Math.min(Math.floor(n), this.buyMax(item));
+    if (!s || k <= 0) return;
+    if (view.currency) this.inv.remove(view.currency.id, s.price * k);
+    else this.save.marks -= s.price * k;
+    this.give(item, k);
+    this.hud.system(`Bought ${k} ${def.name.toLowerCase()} for ${s.price * k} ${view.currency ? view.currency.name.toLowerCase() : 'marks'}.`);
+    this.sfx('coin');
+    this.hud.refresh();
   }
 
   private buy(item: string): void {
@@ -5708,8 +5735,10 @@ export class Game implements GameApi {
       }
     } else if (a.phase === 'bite') {
       bobPos.y -= 0.18 + Math.sin(a.t * 30) * 0.05;
-      this.hud.setCast('Pull! (E or click)', 1 - a.t / 1.15, true);
-      if (a.t > 1.15) {
+      // (a steadier rod gives you longer to answer the bite)
+      const win = 1.15 + (ROD_STATS[a.tool]?.steady ?? 0.3) * 1.4;
+      this.hud.setCast('Pull! (E or click)', 1 - a.t / win, true);
+      if (a.t > win) {
         this.hud.showBite(false);
         this.hud.system('It got away.');
         a.phase = 'reel';
@@ -5796,6 +5825,14 @@ export class Game implements GameApi {
       if (!fish) { this.hud.system('Nothing here takes a bare hook. Try some bait.'); a.phase = 'reel'; a.t = 0; return true; }
       // Pulled in on the bite, the old way (owner 2026-11-04: the reel bar went, "keep the old way of fishing")
       const lb = typeof fish === 'string' ? (fish === 'megalodon' ? 52000 : 3.1) : fishWeight(fish);
+      // ...unless it's more fish than the line will hold: a strong, heavy one can part a light line (the mythics never do)
+      if (typeof fish !== 'string') {
+        const pull = TIER_FIGHT[fish.tier] + Math.min(0.3, lb / 300);
+        if (Math.random() < Math.min(0.6, Math.max(0, (pull - rod.line) * 0.9))) {
+          this.hud.system(`Something heavy takes it and runs, and your line parts. ${pull > 0.8 ? 'A sea rod, or a stronger line, would have held it.' : 'A stronger rod would have held it.'}`);
+          this.sfx('pickSnap'); a.phase = 'reel'; a.t = 0; return true;
+        }
+      }
       if (fish === 'megalodon') { this.hud.banner('Something enormous', 'The line goes taut as an anchor chain', true); this.quake(0.6); this.sfx('thunder', 0.6); this.particles.splash(this.bobber.position, 40); }
       else if (fish === 'ice_spice_fish') { this.hud.banner('The water goes cold', 'Something bright is on the line', true); this.sfx('bell'); }
       else this.sfx('catch');

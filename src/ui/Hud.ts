@@ -311,6 +311,9 @@ export interface UiCtx {
   toggleJunk(id: string): void;
   /** Sell so many of one thing (the Sell tab's amount). */
   sellSome(id: string, n: number): void;
+  /** The most of a thing you could buy now, and buying so many at once. */
+  buyMax(item: string): number;
+  buySome(item: string, n: number): void;
   sellAllPlan(only?: 'junk'): { slots: number[]; things: number; marks: number };
   sellAll(only?: 'junk'): void;
   /** Open the writer for a message post where you stand. */
@@ -903,6 +906,24 @@ export class Hud {
     });
     box.classList.add('show');
     this.ctx.sfx('open');
+  }
+
+  /** How many: a slider from one to the most, the number beside it (typed, or stepped with − and +), and All. */
+  private qtyPicker(max: number, start: number, changed: (n: number) => void, enter?: () => void): { el: HTMLElement; n: () => number } {
+    const el = document.createElement('div');
+    el.className = 'qty';
+    el.innerHTML = `<input type="range" class="q-slide" min="1" max="${max}" step="1" value="${start}" aria-label="How many"><button class="q-dn" aria-label="Fewer">−</button><input type="number" class="q-num" min="1" max="${max}" value="${start}" aria-label="How many"><button class="q-up" aria-label="More">+</button><button class="q-all">All</button>`;
+    const slide = el.querySelector('.q-slide') as HTMLInputElement, num = el.querySelector('.q-num') as HTMLInputElement;
+    const n = () => Math.max(1, Math.min(max, Math.floor(Number(num.value)) || 1));
+    const set = (v: number) => { const k = Math.max(1, Math.min(max, v)); num.value = slide.value = String(k); changed(k); };
+    slide.addEventListener('input', () => set(Number(slide.value)));
+    num.addEventListener('input', () => { slide.value = String(n()); changed(n()); });
+    num.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && enter) enter(); });
+    el.querySelector('.q-dn')!.addEventListener('click', () => set(n() - 1));
+    el.querySelector('.q-up')!.addEventListener('click', () => set(n() + 1));
+    el.querySelector('.q-all')!.addEventListener('click', () => set(max));
+    changed(start);
+    return { el, n };
   }
 
   /** Write a message post to leave where you stand. */
@@ -2473,8 +2494,16 @@ export class Hud {
         if (tryOn) row.querySelector('.try')!.addEventListener('click', () => this.ctx.previewItem(s.item));
         const b = row.querySelector('.buy') as HTMLButtonElement;
         b.disabled = (shop.currency ? shop.currency.have : this.ctx.save.marks) < s.price;
+        // How many: a slider (and the number) when more than one can be had, the price for all of them on the button
+        const most = this.ctx.buyMax(s.item);
+        if (most > 1) {
+          row.classList.add('buyrow');
+          const q = this.qtyPicker(most, 1, (n) => { b.textContent = n > 1 ? `Buy ${n} · ${n * s.price}` : 'Buy'; });
+          row.insertBefore(q.el, b);
+          b.onclick = () => this.ctx.buySome(s.item, q.n());
+        }
         if (shop.currency) { const c = row.querySelector('.coin') as HTMLElement; c.classList.add('token'); c.innerHTML = `<img src="${itemIcon(shop.currency.id)}" alt="">${s.price}`; c.title = shop.currency.name; }
-        b.addEventListener('click', () => this.ctx.buy(s.item));
+        if (!b.onclick) b.addEventListener('click', () => this.ctx.buy(s.item));
         const slot = row.querySelector('.slot') as HTMLElement;
         slot.addEventListener('mousemove', (e) => this.showTooltip(this.tooltipFor(s.item), e.clientX, e.clientY));
         slot.addEventListener('mouseleave', () => this.hideTooltip());
@@ -2518,16 +2547,12 @@ export class Hud {
         // One row for each kind of thing, however many stacks: how many to sell (one, more, or all), and its tags
         const have = this.ctx.inv.count(st.id), kept = this.ctx.kept(st.id), junky = this.ctx.junk(st.id), can = price > 0 && d.kind !== 'quest';
         const row = el('div', 'shop-row sellrow');
-        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(st.id)}" alt="">${have > 1 ? `<span class="n">${have}</span>` : ''}</div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${can ? `${esc(shop.who)} offers ${price} each` : d.kind === 'quest' ? 'Wanted for a quest' : `${esc(shop.who)} won't take it`}</div><div class="tags"><button class="tag lock${kept ? ' on' : ''}" title="Locked things are never sold by Sell all or Sell junk">${kept ? 'Locked' : 'Lock'}</button><button class="tag junk${junky ? ' on' : ''}" title="Junk goes when you press Sell junk">${junky ? 'Junk' : 'Mark junk'}</button></div></div><div class="qty"${have > 1 && can ? '' : ' hidden'}><button class="q-dn" aria-label="Fewer">−</button><input type="number" min="1" max="${have}" value="${have}" aria-label="How many"><button class="q-up" aria-label="More">+</button><button class="q-all">All</button></div><button class="btn sell1">Sell <span class="tot">${price * have}</span></button>`;
-        const inp = row.querySelector('input') as HTMLInputElement, tot = row.querySelector('.tot') as HTMLElement;
-        const n = () => Math.max(1, Math.min(have, Math.floor(Number(inp.value)) || 1));
-        const show = () => { tot.textContent = String(price * n()); };
+        row.innerHTML = `<div class="slot r-${d.rarity}"><img src="${itemIcon(st.id)}" alt="">${have > 1 ? `<span class="n">${have}</span>` : ''}</div><div><div class="nm" style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</div><div class="d">${can ? `${esc(shop.who)} offers ${price} each` : d.kind === 'quest' ? 'Wanted for a quest' : `${esc(shop.who)} won't take it`}</div><div class="tags"><button class="tag lock${kept ? ' on' : ''}" title="Locked things are never sold by Sell all or Sell junk">${kept ? 'Locked' : 'Lock'}</button><button class="tag junk${junky ? ' on' : ''}" title="Junk goes when you press Sell junk">${junky ? 'Junk' : 'Mark junk'}</button></div></div><button class="btn sell1">Sell <span class="tot">${price * have}</span></button>`;
+        const tot = row.querySelector('.tot') as HTMLElement;
         // (the amount starts at all of it; a single thing sells as one)
-        row.querySelector('.q-dn')!.addEventListener('click', () => { inp.value = String(Math.max(1, n() - 1)); show(); });
-        row.querySelector('.q-up')!.addEventListener('click', () => { inp.value = String(Math.min(have, n() + 1)); show(); });
-        row.querySelector('.q-all')!.addEventListener('click', () => { inp.value = String(have); show(); });
-        inp.addEventListener('input', show);
-        inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.ctx.sellSome(st.id, n()); });
+        const q = this.qtyPicker(have, have, (k) => { tot.textContent = String(price * k); }, () => this.ctx.sellSome(st.id, q.n()));
+        if (have > 1 && can) row.insertBefore(q.el, row.querySelector('.sell1'));
+        const n = q.n;
         row.querySelector('.lock')!.addEventListener('click', () => this.ctx.toggleKeep(st.id));
         row.querySelector('.junk')!.addEventListener('click', () => this.ctx.toggleJunk(st.id));
         const b = row.querySelector('.sell1') as HTMLButtonElement;
