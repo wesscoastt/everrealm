@@ -10,6 +10,12 @@ import { GUARD_LOOK } from './verandahCourt';
 // street, with a sentry on its platform by day and another by night. The barracks is the owner's stone house on
 // the slope below it, bunks upstairs, the armoury chests and forges down, kept by Sergeant Rendle. The butts
 // are on the green by the castle path, where the guard practise with the bow (world/sites.ts 'ver-butts').
+// The outpost (owner 2026-11-06: "the big castle south of the Airport in Verandah is a Verandah outpost for
+// guards") is the owner's keep on the peak west of the Airport: Captain Penhallow's garrison quartered in its hall,
+// a smith at the anvil below, a lookout with a glass in the room at the top (world/sites.ts 'ver-outpost').
+// The king's household (owner 2026-11-05: "the big house next to the giant king castle house is also the king's,
+// and more of where his workers sleep") is the owner's great timber house west of the castle, its forges, kitchen
+// and bunk rooms kept by Jenifer Treloar, the king's housekeeper.
 
 const guard = (skin: string, hair: string, frame?: 'f', extra: Partial<Appearance> = {}): Appearance => ({ ...GUARD_LOOK, skin, hair, ...(frame ? { frame, lashes: true } : {}), ...extra });
 const BOW = 'w_hollin_bow';
@@ -21,7 +27,50 @@ export const BUTTS_PROPS: { t: 'butt' | 'barrel' | 'crate' | 'bench'; x: number;
   { t: 'barrel', x: -3081.5, y: 22, z: 1951.5 }, { t: 'crate', x: -3081.5, y: 22, z: 1956.5 }, { t: 'bench', x: -3083.5, y: 22, z: 1954, ry: Math.PI / 2 },
 ];
 
+/** The outpost keep's hall (floor 67), its lookout room (95) and its forge (58). */
+export const OUTPOST_PROPS: { item: string; x: number; y: number; z: number; ry: number }[] = [
+  ...[2324.5, 2326.5, 2328.5, 2336.5, 2338.5, 2340.5].map((z) => ({ item: 'bed', x: -3127.5, y: 67, z, ry: Math.PI / 2 })),
+  { item: 'table', x: -3141.5, y: 67, z: 2339.5, ry: 0 }, { item: 'table', x: -3140.5, y: 67, z: 2339.5, ry: 0 },
+  { item: 'stool', x: -3141.5, y: 67, z: 2340.5, ry: 0 }, { item: 'stool', x: -3140.5, y: 67, z: 2340.5, ry: 0 }, { item: 'stool', x: -3142.5, y: 67, z: 2339.5, ry: 0 },
+  { item: 'candles', x: -3141.5, y: 67, z: 2339.5, ry: 0 },
+  { item: 'desk', x: -3140.5, y: 67, z: 2325.5, ry: 0 }, { item: 'letters', x: -3140.5, y: 67, z: 2325.5, ry: 0 },
+  { item: 'chest', x: -3145.5, y: 67, z: 2324.5, ry: -Math.PI / 2 }, { item: 'chest', x: -3145.5, y: 67, z: 2325.5, ry: -Math.PI / 2 },
+  { item: 'shelves', x: -3145.5, y: 67, z: 2340.5, ry: -Math.PI / 2 }, { item: 'hearth', x: -3145.5, y: 67, z: 2332.5, ry: -Math.PI / 2 },
+  { item: 'spyglass', x: -3130.5, y: 95, z: 2334.5, ry: Math.PI / 2 },
+  { item: 'forge', x: -3136.5, y: 58, z: 2332.5, ry: 0 },
+];
+
 const npcs: NpcDef[] = [
+  // the king's household, the great house by the castle
+  { id: 'ver_treloar', name: 'Jenifer Treloar', title: 'The king’s housekeeper', look: { frame: 'f', skin: '#e2b894', hair: '#9a948c', hairStyle: 5, eyes: '#4a5a6a', tunic: '#22365a', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#2a2620', boots: '#1e1a16', apron: true, lashes: true, age: 0.65 },
+    schedule: [{ from: 6, to: 22, at: [-3118.5, 1963.5], face: [-3118.5, 1959.5], anim: 'idle', y: 24 }],
+    barks: ['Wipe your feet. This is the king’s house, even if the king never sets foot in it.', 'Forty mouths under this roof, and every one of them hungry at six.'] },
+  { id: 'ver_cook_hicks', name: 'Ebb Hicks', title: 'The household’s cook', look: { skin: '#c88a62', hair: '#2a1e14', hairStyle: 0, facial: 1, eyes: '#3a2a1e', tunic: '#e8e0d0', trim: '#8a6a3a', shirt: '#e8e0d0', trousers: '#3a3430', boots: '#1e1a16', apron: true, hat: 'coif', hatColor: '#e8e0d0', build: 1.25 },
+    schedule: [{ from: 5, to: 20, at: [-3130.5, 1963.5], face: [-3132.5, 1963.5], anim: 'cook', y: 24 }],
+    barks: ['Stew. It’s always stew. Ask me why. Go on.', 'Sandor’s pasties? Sandor learned from my mother.'] },
+  { id: 'ver_wright_pascoe', name: 'Abel Pascoe', title: 'The household’s wright', look: { skin: '#d8a07a', hair: '#6a4426', hairStyle: 3, facial: 2, eyes: '#4a5a3a', tunic: '#5a4a3a', trim: '#2a2018', trousers: '#3a3430', boots: '#2a1e14', apron: true, build: 1.2 },
+    schedule: [{ from: 7, to: 19, at: [-3109.5, 1962.5], face: [-3108.5, 1960.5], anim: 'hammer', y: 24, held: 'hammer' }],
+    barks: ['Hinges for the castle, nails for the stables, a crown for the king when he sits on the last one.', 'Ruan on the docks is my cousin. Every Pascoe on the island is my cousin.'] },
+  { id: 'ver_maid_kitto', name: 'Rosen Kitto', title: 'The household', look: { frame: 'f', skin: '#d8b090', hair: '#c88a3a', hairStyle: 1, eyes: '#4a6a7a', tunic: '#4a5a6a', trim: '#e8dcc0', shirt: '#e8e0d0', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true, age: 0.3 },
+    schedule: [{ from: 8, to: 18, at: [-3130.5, 1963.5], face: [-3132.5, 1963.5], anim: 'crouch', y: 37 }],
+    barks: ['Twelve beds a morning. Thirteen when the steward stays over.'] },
+  // the outpost on the peak
+  { id: 'ver_capt_penhallow', name: 'Captain Penhallow', title: 'The outpost', look: guard('#c88a62', '#2a1e14', undefined, { facial: 2, age: 0.5, build: 1.15, cape: '#7a2a24' }),
+    schedule: [{ from: 6, to: 23, at: [-3140.5, 2327.5], face: [-3140.5, 2331.5], anim: 'idle', y: 67 }],
+    barks: ['From up here I can see a raid before it can see me.', 'Report, or keep walking.'] },
+  { id: 'ver_guard_nancarrow', name: 'Guard Nancarrow', title: 'The outpost', look: guard('#e2b894', '#6a3a1e'),
+    schedule: [{ from: 6, to: 22, at: [-3140.5, 2337.5], face: [-3140.5, 2339.5], anim: 'idle', y: 67 }],
+    barks: ['Long climb for a bowl of stew.', 'The wind never stops up here. Never.'] },
+  { id: 'ver_guard_tamsin', name: 'Guard Tamsin Bray', title: 'The outpost', look: guard('#d8a888', '#c8a060', 'f'),
+    schedule: [{ from: 6, to: 22, at: [-3129.5, 2330.5], face: [-3127.5, 2330.5], anim: 'idle', y: 67 }],
+    barks: ['Elowen at the lumberyard? My sister. Don’t believe a word she says about me.'] },
+  { id: 'ver_lookout_crago', name: 'Guard Crago', title: 'Lookout', look: guard('#c88a62', '#1e1a16'),
+    schedule: [{ from: 0, to: 24, at: [-3130.5, 2332.5], face: [-3124.5, 2332.5], anim: 'idle', y: 95 }],
+    barks: ['Smoke on the north shore. Charcoal burners. Probably.', 'You can see the whole island from here. And it can see you.'] },
+  { id: 'ver_smith_bolitho', name: 'Gwen Bolitho', title: 'The outpost’s smith', look: { frame: 'f', skin: '#d8a07a', hair: '#3a2a1e', hairStyle: 5, eyes: '#3a2a1e', tunic: '#4a3a2a', trim: '#2a2018', shirt: '#c8b8a0', trousers: '#2a2620', boots: '#1e1a16', apron: true, lashes: true, build: 1.15 },
+    schedule: [{ from: 7, to: 19, at: [-3133.5, 2336.5], face: [-3133.5, 2338.5], anim: 'hammer', y: 58, held: 'hammer' }],
+    barks: ['Arthur at the fish stalls is my brother. He gets the bad knives.', 'Horseshoes, spearheads, hinges. Same iron, different day.'] },
+
   // the barracks
   { id: 'ver_sgt_rendle', name: 'Sergeant Rendle', title: 'The King’s Guard', look: guard('#c88a62', '#5a5a52', undefined, { facial: 3, age: 0.6, build: 1.2 }),
     schedule: [{ from: 6, to: 22, at: [-2911.5, 2085.5], face: [-2911.5, 2088.5], anim: 'idle', y: 32 }],
@@ -80,4 +129,36 @@ const trewin: DialogueTree = {
   },
 };
 
-export const VERANDAH_GUARDS: RegionContent = { id: 'verandahGuards', npcs, dialogue: { ver_sgt_rendle: rendle, ver_archer_trewin: trewin } };
+const penhallow: DialogueTree = {
+  start: () => 'hello',
+  nodes: {
+    hello: {
+      text: 'Captain Penhallow, and this is the outpost. The highest ground on the island, the oldest stone on it, and the only place a raid from the west can’t get past without my say. Did the sergeant send you?',
+      options: [
+        { text: 'What do you watch for?', next: 'watch' },
+        { text: 'Who built this place?', next: 'built' },
+        { text: 'Just passing through.' },
+      ],
+    },
+    watch: { text: 'Sails, mostly. Smoke, sometimes. The second raid came in on the west shore under fog, and burned half the farms before the town knew. The king built this so that never happens again, and I make sure it doesn’t.', next: 'hello' },
+    built: { text: 'The old king, the first one, the harbourmaster who called himself king to win an argument. He put a beacon up here. Every king since has added a floor. This one added the lookout and the forge, and asked me why it cost so much.', next: 'hello' },
+  },
+};
+
+const treloar: DialogueTree = {
+  start: () => 'hello',
+  nodes: {
+    hello: {
+      text: 'Jenifer Treloar, housekeeper to the king. This is his house, the big one by the castle, where the people who keep the castle running eat and sleep. The castle’s for show. This is where the work is done.',
+      options: [
+        { text: 'Who lives here?', next: 'who' },
+        { text: 'Does the king ever come over?', next: 'king' },
+        { text: 'I’ll leave you to it.' },
+      ],
+    },
+    who: { text: 'Grooms, cooks, the wright and his boys, the maids, the steward when she can’t face the walk home. Forty, give or take a cousin. The forges are downstairs, the kitchen is through there, and the beds are up the ladders. Mind the third rung.', next: 'hello' },
+    king: { text: 'Once a year, at the harvest, to say thank you and eat Ebb’s stew. He says it’s the best meal of his year. Ebb says it’s the same stew as every other day. They’re both right.', next: 'hello' },
+  },
+};
+
+export const VERANDAH_GUARDS: RegionContent = { id: 'verandahGuards', npcs, dialogue: { ver_sgt_rendle: rendle, ver_archer_trewin: trewin, ver_capt_penhallow: penhallow, ver_treloar: treloar } };
