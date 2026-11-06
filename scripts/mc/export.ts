@@ -205,7 +205,7 @@ const chunkTrees = new Map<string, number[][]>();
 /** Every sign kept, in game coordinates: where, which way it faces, what kind, and its words. */
 const signs: { x: number; y: number; z: number; ry: number; kind: number; text: string }[] = [];
 /** The waystones (an add-on's travel stones), each by its lowest block, in game coordinates: the game's waymarks go there. */
-const stones = new Map<string, { x: number; y: number; z: number; piece: string }>();
+const stones = new Map<string, { x: number; y: number; z: number; piece: string; name?: string; mc: [number, number, number] }>();
 /** The small things (torches, lanterns, doors, furniture), in game coordinates: [kind, x, y, z, facing, item or h]. */
 const things: (string | number)[][] = [];
 for (const piece of MC_PIECES) {
@@ -278,7 +278,7 @@ for (const piece of MC_PIECES) {
         const pr = propAt[sc.idx[i]];
         if (pr && (SOLID_T.has(pr.t) || (pr.t === 'furn' && SOLID_ITEM.has(pr.item ?? '')))) id = B.Barrier;
         if (pr) { const [tx, tz] = toGame(mx, mz); if (pr.t === 'door' || pr.t === 'mcgate') doorways.push({ k: things.length, ix: mx - mx0, iz: mz - mz0, gy }); things.push([pr.t, tx + 0.5, gy, tz + 0.5, Math.round(turnRy(pr.ry) * 100) / 100, pr.item ?? pr.h ?? 0]); }
-        if (wsAt[sc.idx[i]]) { const [wx, wz] = toGame(mx, mz); const k2 = wx + ',' + wz; const had = stones.get(k2); if (!had || had.y > gy) stones.set(k2, { x: wx + 0.5, y: gy, z: wz + 0.5, piece: piece.id }); }
+        if (wsAt[sc.idx[i]]) { const [wx, wz] = toGame(mx, mz); const k2 = wx + ',' + wz; const had = stones.get(k2); if (!had || had.y > gy) stones.set(k2, { x: wx + 0.5, y: gy, z: wz + 0.5, piece: piece.id, mc: [mx, scy * 16 + ly, mz] }); }
         if (id === B.Air && sc.water && sc.water[i]) id = B.Water;
         if (snowAt[sc.idx[i]] && gy > 0) snowy.push(gi(mx - mx0, mz - mz0, gy - 1));
         if (trapAt[sc.idx[i]] !== null) traps.push({ ix: mx - mx0, iz: mz - mz0, gy, mx, mz, ry: trapAt[sc.idx[i]]! });
@@ -390,7 +390,8 @@ for (const piece of MC_PIECES) {
     const text = words.get(k);
     if (!text || sb.gy < 0 || sb.gy >= SY) continue;
     // (Minecraft's own contraptions go unsigned: owner 2026-11-05, "remove anything that says XP farm")
-    if (/xp\s*farm|work\s*in\s*progress|snow\s*village|shiesty\s*airport/i.test(text.split(String.fromCharCode(10)).join(' '))) continue;
+    // (and the price boards: the stables' horses and the house for sale are sold in the game's own way)
+    if (/xp\s*farm|work\s*in\s*progress|snow\s*village|shiesty\s*airport|horses\s*\d+|for\s*sale/i.test(text.split(String.fromCharCode(10)).join(' '))) continue;
     const [x, , z] = k.split(',').map(Number);
     const st = sb.p.states, n = sb.p.name;
     const kind = /hanging/.test(n) ? 2 : /wall/.test(n) ? 1 : 0;
@@ -494,10 +495,36 @@ for (const piece of MC_PIECES) {
       if (!at) continue;
       const y = +t[2];
       let near = false;
-      for (let dy = -3; dy <= 3 && !near; dy++) { const yy = y + dy; if (dy !== 0 && yy >= 0 && yy < SY) { const id = grid[gi(at[0], at[1], yy)]; if (id !== B.Air && id !== B.Water) near = true; } }
-      if (!near) { things.splice(k, 1); gone++; }
+      // (anything solid within three blocks up or down, in its own column or the ones beside it: a ladder's wall counts)
+      for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -1; dx <= 1 && !near; dx++) for (let dz = -1; dz <= 1 && !near; dz++) {
+        const yy = y + dy, cx = at[0] + dx, cz = at[1] + dz;
+        if ((dx || dz || dy) && yy >= 0 && yy < SY && cx >= 0 && cz >= 0 && cx < W && cz < D) { const id = grid[gi(cx, cz, yy)]; if (id !== B.Air && id !== B.Water) near = true; }
+      }
+      if (!near) { things.splice(k, 1); gone++; continue; }
+      // a hanging lantern's chain, up to what it hangs from (1 + its length: 'floating lights' otherwise)
+      if (t[0] === 'mclantern' && +t[5] >= 1) { let n = 0; while (n < 8 && y + 1 + n < SY && grid[gi(at[0], at[1], y + 1 + n)] === B.Air) n++; t[5] = 1 + (n < 8 ? n : 0); }
     }
     if (gone) console.log(piece.id + ':', gone, 'things left floating where the coast went, taken away');
+    // A ladder that stops short of the floor above it (two blocks or more to climb off): carried on up to that
+    // floor (owner 2026-11-05: "I got stuck down here under my house")
+    const lad = new Set<string>();
+    for (let k = thingsFrom; k < things.length; k++) if (things[k][0] === 'mcladder') lad.add(Math.floor(+things[k][1]) + ',' + things[k][2] + ',' + Math.floor(+things[k][3]));
+    const open = (gx: number, y: number, gz: number) => { const c = toGrid(gx, gz); return !!c && y >= 0 && y < SY && grid[gi(c[0], c[1], y)] === B.Air; };
+    const floorAt = (gx: number, y: number, gz: number) => { const c = toGrid(gx, gz); return !!c && y > 0 && y < SY && grid[gi(c[0], c[1], y - 1)] !== B.Air && grid[gi(c[0], c[1], y - 1)] !== B.Water && open(gx, y, gz) && open(gx, y + 1, gz); };
+    let added = 0;
+    const tops = things.slice(thingsFrom).filter((t) => t[0] === 'mcladder' && !lad.has(Math.floor(+t[1]) + ',' + (+t[2] + 1) + ',' + Math.floor(+t[3])));
+    for (const t of tops) {
+      const gx = Math.floor(+t[1]), gz = Math.floor(+t[3]);
+      let y = +t[2];
+      const landing = (yy: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => floorAt(gx + dx, yy, gz + dz));
+      // already within a step of a floor: fine
+      if (landing(y + 1) || landing(y + 2)) continue;
+      for (let n = 0; n < 4 && open(gx, y + 1, gz); n++) {
+        y++; things.push(['mcladder', t[1], y, t[3], t[4], 0]); added++;
+        if (landing(y + 1)) break;
+      }
+    }
+    if (added) console.log(piece.id + ':', added, 'rungs added where ladders stopped short');
   }
   // The trees. Leaves with no trunk within six blocks go (no crowns left floating where a trunk was cut or sunk);
   // then every tree standing on the ground, its trunk touching nothing built, becomes one to fell: its trunk and
@@ -564,11 +591,11 @@ for (const piece of MC_PIECES) {
   }
   // below what was read: rock; and any open space under the sea filled with water
   for (let ix = 0; ix < W; ix++) for (let iz = 0; iz < D; iz++) {
-    let bottom = 0;
-    while (bottom < SY && grid[gi(ix, iz, bottom)] === B.Air) grid[gi(ix, iz, bottom++)] = B.Stone;
-    // (only what's open to the sky and the sea: a cellar, a mine or a cave under the ground stays dry; owner
-    // 2026-11-05, "the area under my house is under water")
-    for (let y = SY - 1; y >= 0; y--) { const id = grid[gi(ix, iz, y)]; if (id === B.Air) { if (y < SEA) grid[gi(ix, iz, y)] = B.Water; } else if (id !== B.Water) break; }
+    // (a floor at the world's foot, no more: the mines, the quarry pit and the owner's farm under their house go
+    // down that far, and filling them up from below made solid pillars of stone; owner 2026-11-05)
+    if (grid[gi(ix, iz, 0)] === B.Air) grid[gi(ix, iz, 0)] = B.Stone;
+    // (no water poured in: Minecraft's own water is in the blocks already, and the coast's sea is laid with it;
+    // a cellar, a mine, the quarry pit stay as dry as the owner left them: owner 2026-11-05)
   }
   // to game coordinates, chunk by chunk
   const GW = rot ? D : W, GD = rot ? W : D;
@@ -615,6 +642,21 @@ let totalBytes = 0;
 for (const [key, cols] of chunkFiles) { const tr = chunkTrees.get(key) ?? []; const buf = zlib.deflateRawSync(Buffer.from(Uint8Array.from([...cols.flat(), tr.length >> 8, tr.length & 255, ...tr.flat()])), { level: 9 }); fs.writeFileSync(path.join(out, key + '.bin'), buf); totalBytes += buf.length; }
 console.log(`${chunkFiles.size} chunk files written, ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 console.log('unmapped (as stone):', [...unknown].sort((a, b) => b[1] - a[1]).slice(0, 80).map(([n, c]) => `${n}:${c}`).join(' '));
+// The waystones' names, as the owner gave them (the add-on keeps them in the world's own records, by where each
+// stands); one renamed: the village by their house is Kestle (owner 2026-11-05: "name it something")
+{
+  const RENAME: Record<string, string> = { 'Snow Village': 'Kestle' };
+  const named = new Map<string, string>();
+  for (const [, e] of readDb(dir, (k) => !(k.length === 10 && k[8] === 0x2f) && !(k.length === 9 && k[8] === 0x31))) {
+    if (!e.value) continue;
+    for (const m of e.value.toString('latin1').matchAll(/\{"pos":\{"x":(-?\d+),"y":(-?\d+),"z":(-?\d+)\},"dimensionId":"minecraft:overworld","facing":"\w+","type":"\w+","name":"([^"]*)"/g)) named.set(m[1] + ',' + m[2] + ',' + m[3], m[4]);
+  }
+  for (const s of stones.values()) {
+    const n = named.get(s.mc.join(',')) ?? named.get([s.mc[0], s.mc[1] - 1, s.mc[2]].join(',')) ?? named.get([s.mc[0], s.mc[1] + 1, s.mc[2]].join(','));
+    if (n) s.name = RENAME[n] ?? n;
+  }
+  console.log('waystones named:', [...stones.values()].map((s) => s.name ?? '?').join(', '));
+}
 // The lamp-post add-on's pieces put back together: a stack of them one street lamp post (the game's), a piece on its own a lantern
 {
   const posts = new Map<string, (string | number)[][]>();
@@ -636,7 +678,7 @@ export const MC_SIGNS: McSign[] = ${JSON.stringify(signs)};
 /** The small things on the owner's builds: [kind, x, y, z, facing, the furniture's item or a light's wall/hanging]. */
 export const MC_THINGS: (string | number)[][] = ${JSON.stringify(things)};
 /** The waystones the owner set (an add-on's): where the game's waymarks stand. */
-export const MC_WAYSTONES: { x: number; y: number; z: number; piece: string }[] = ${JSON.stringify([...stones.values()])};
+export const MC_WAYSTONES: { x: number; y: number; z: number; piece: string; name?: string }[] = ${JSON.stringify([...stones.values()].map(({ mc: _mc, ...s }) => s))};
 `);
 // The height maps in code (world/mclandHeights.ts), so heightAt knows the islands the moment the game starts
 fs.writeFileSync(path.resolve('src/world/mclandHeights.ts'), `// Written by scripts/mc/export.ts: the ground of each of the owner's Minecraft pieces, every ${MC_CELL} blocks (game x fastest).

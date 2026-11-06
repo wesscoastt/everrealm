@@ -176,7 +176,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
         31. Every torch in Everrealm's buildings the game's own brand torch (done 2026-11-05; only Verandah had placed torches).
         32. The vault under the Bank of Verandah, detailed (owner 2026-11-05).
         33. Who lives and works where in Verandah (owner 2026-11-05, for 2 and 27): the big tower on the hill is the guards' watch tower, and below it, above the market, the guard barracks; the giant castle is the king's, and the big house next to it is his too, where his household and workers sleep; near there, an archery and combat training yard where the guards train; the big house at the Verandah farm houses the farmhands, and the big warehouse there holds the farm's supplies; the port's warehouses full of crates of goods.
-        34. Players sell homes to other players, or back to the city; no more renting (owner 2026-11-05). (Their old home: released and refunded in full, done.)
+        34. Players sell homes to other players, or back to the city; and a player can stop renting a place when they choose (renting stays: owner 2026-11-05). (Their old home: released and refunded in full, done.)
         35. The market stalls by Verandah's docks are a fish market (owner 2026-11-05).
         36. Verandah busy as a city (owner 2026-11-05): dockhands, guards, quarry workers, farmers, the lumberyard, all at work. Make game versions of any Minecraft piece that needs one.
         37. Done 2026-11-05: doors swing, fires burn in hearths, invisible lights and stray blocks gone, old leaves no longer stone, lamp-post stacks one post, hand-placed hedges kept.
@@ -187,7 +187,39 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
         42. The water round Verandah and on the map a different colour from the rest of the sea: match it (owner 2026-11-05).
         43. Lie in beds, as in ESO (owner 2026-11-05).
         44. Many map stars in Verandah all say "Verandah": give each its own name (owner 2026-11-05).
-        45. QUEUED LATE, after the big prompts: Mizulholm a waymark and a long Japanese-inspired side questline (owner 2026-11-05).
+        45. QUEUED LATE, after the big prompts: Mizulholm a waymark and a long Japanese-inspired side questline (owner 2026-11-05). (2026-11-05: Mizuholm is the owner's spelling, its waystone at Minecraft 130, 68, 771: inside the import already; its waymark from the waystone names.)
+        46. Owner's walk round, 2026-11-05 evening, in order:
+          a. Remove the dark stone spires with ladders standing in the sea (their screenshot).
+          b. The "For Sale 30 £" sign: gone, and that house a real one for sale.
+          c. The white houses on the outside of Verandah's walls, and all exterior homes, buyable.
+          d. Chief Killianos's house replaced with a better-looking, better-detailed one.
+          e. Double doors glitched; single doors open into the walls.
+          f. Pumpkin decorations sunk into the floor.
+          g. Hester lives above the post office: townsfolk path round Verandah properly (Hester behind her desk); bartenders in the taverns; staff for the steampunk restaurant (The Dolphyn Cafe?) and the winery.
+          h. The farmland across from the winery: grapes.
+          i. The library's interior redone.
+          j. Xavier's Home Goods sells steampunk furniture, Xavier runs it, furniture on display upstairs; Sandor runs the cookery next door, selling his own baking and food.
+          k. The floating lights (hanging lanterns with no chain, under the arches).
+          l. All the ice and melted water left in the ocean (the old frozen sea north of the owner's house): gone, open sea.
+          m. The roofless house in their screenshot finished as a two-storey medieval house, for sale at 1,000 marks.
+          n. LODs and view distance: further out (a PC-first game; close-in textures look low-end).
+          o. Their cellar trapdoor still a wood block; fence gates wonky: bug test them.
+          p. A ladder up out of the underground farm under their house (stuck).
+          q. Furnishing their own house (the Home furniture system in their Verandah house).
+          r. The quarry/mine (a tall grey pillar where the pit should be): fix. The world can go deeper in Verandah for the Minecraft mines; tunnels can be common elsewhere too.
+          s. The king's throne is the red-carpeted hall in their screenshot (the throne between two topiary pillars): the king sits there.
+          t. Their XP farm is underground, none in the air: the grey tower is something else.
+          u. The giant castle behind the Verandah carter (Ned Pascoe's yard by the stables): a group dungeon (owner 2026-11-05).
+          v. The "Horses 64 £" sign by the carter: gone (done); the stables sell pure-bred horses there (item 11).
+          w. Too many "Verandah Outskirts" stars: done, the waymarks carry the names the owner gave their waystones (Verandah, Verandah Farm, Mizuholm, Verandah Port, Awschitz, Verandah Airport, Kestle, Verandah Arena).
+          x. Verandah has two stables: one just inside the front gate by the big main bridge, and one outside the gate facing the Charter carter's yard; horses in them and about them (owner 2026-11-05).
+          y. Ned Pascoe faces the road, with the Charter Post's cart and horses beside him like the other yards (owner 2026-11-05).
+          z. The trident statue: remove the dirt-coloured blocks and rebuild it by hand (owner 2026-11-05); where is it? (asked).
+          aa. The open lots inside Verandah by the west gate: buildings and detail (with item 19).
+          ab. The settlement behind the Arena: a real settlement with a name, people, and dressing (owner 2026-11-05).
+          ac. The big castle south of the Airport: the Verandah guards' outpost (owner 2026-11-05).
+          ad. The Adoption Center works: a few stray variants to take home as pets, for some marks (owner 2026-11-05).
+          Done 2026-11-05 late: doors hung right (no more opening into walls; pairs meet in the middle); the stone pillars filling the quarry, the mine and the farm under the owner's house gone (only a floor at the world's foot); no water poured into dry cellars or pits; ladders carried up to the next floor (the owner's farm ladder); hanging lanterns on their chains; the Horses and For Sale signs gone; the waymarks named as the owner named their waystones.
         ORDER (owner 2026-11-05): every 11b item fixed and working in the new Verandah area to a 10/10 first; then the FARMING OVERHAUL next; then on down the prompts.
     12. Graphics overhaul (owner 2026-11-05: "feel more like it was built in an engine like Unity"), and northern lights over the northern lands.
     10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.

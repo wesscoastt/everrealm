@@ -30,6 +30,8 @@ import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { JUMP_PUZZLES, type JumpPuzzle } from '../data/jumpPuzzles';
 import { MC_SIGNS, MC_THINGS, MC_WAYSTONES } from '../data/mcSigns';
+/** Where the owner's doors and gates stand (a door with another beside it is one of a pair). */
+const MC_DOOR_CELLS = new Set<string>();
 import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
 import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -723,6 +725,7 @@ function* planBody(): Generator<string, Plan> {
     // tables and chairs, chests and barrels, carpets: by the neighbourhood, so they come and go with the town
     ...(() => {
       const cells = new Map<string, (string | number)[][]>();
+      for (const t of MC_THINGS) if (t[0] === 'mcdoor' || t[0] === 'mcgate') MC_DOOR_CELLS.add(Math.floor(+t[1]) + ',' + t[2] + ',' + Math.floor(+t[3]));
       for (const t of MC_THINGS) { const k = Math.floor(+t[1] / 48) + ',' + Math.floor(+t[3] / 48); let l = cells.get(k); if (!l) cells.set(k, (l = [])); l.push(t); }
       return [...cells].map(([cell, here]) => ({
         id: 'mcthings-' + cell, name: '', x: Math.round(here.reduce((a, t) => a + +t[1], 0) / here.length), z: Math.round(here.reduce((a, t) => a + +t[3], 0) / here.length), r0: 0, r1: 0,
@@ -731,8 +734,16 @@ function* planBody(): Generator<string, Plan> {
             // (no torches stood on floors or the ground: only those on walls; owner 2026-11-05)
             if (t === 'mctorch' && +extra !== 1) continue;
             // a door that swings, shut across its doorway till someone comes up to it (as the game's other doors)
-            if (t === 'mcgate') { const r = +ry, nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r); s.props.push({ t: 'furn', item: 'doorOpen', swing: true, doorKind: 'gate', x: +x + tx * 0.42 - nx * 0.5, y: +y, z: +z + tz * 0.42 - nz * 0.5, ry: r }); continue; }
-            if (t === 'mcdoor') { const r = +ry, nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r); s.props.push({ t: 'furn', item: 'doorOpen', swing: true, doorKind: 'cottage', x: +x + tx * 0.42 - nx * 0.5, y: +y, z: +z + tz * 0.42 - nz * 0.5, ry: r }); continue; }
+            // a door or a gate that swings, shut across its doorway till someone comes up to it (as the game's other doors):
+            // hung on the jamb to one side, and the second of a pair on the other jamb, so the two meet in the middle
+            if (t === 'mcgate' || t === 'mcdoor') {
+              let r = +ry;
+              const cell = (dx: number, dz: number) => Math.floor(+x + dx) + ',' + y + ',' + Math.floor(+z + dz);
+              if (MC_DOOR_CELLS.has(cell(-Math.cos(r), Math.sin(r)))) r += Math.PI;
+              const nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r);
+              s.props.push({ t: 'furn', item: 'doorOpen', swing: true, doorKind: t === 'mcgate' ? 'gate' : 'cottage', x: +x - tx * 0.42 - nx * 0.5, y: +y, z: +z - tz * 0.42 - nz * 0.5, ry: r });
+              continue;
+            }
             const d: PropDesc = { t: t as PropType, x: +x, y: +y, z: +z, ry: +ry };
             if (t === 'furn') d.item = String(extra) as PropDesc['item'];
             // (Minecraft's beds face the other way to the game's)
@@ -9525,8 +9536,9 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
   const mcHost = sites.find((x) => x.id === 'mc-city');
   if (mcHost) for (const w of MC_WAYSTONES) {
     const near = (re: RegExp, r: number) => MC_SIGNS.some((g) => re.test(g.text.split(String.fromCharCode(10)).join(' ')) && Math.hypot(g.x - w.x, g.z - w.z) < r);
-    const name = near(/welcome to verandah/i, 40) ? 'Verandah Docks' : near(/arena/i, 30) ? 'Verandah Arena' : near(/airport/i, 40) ? 'Verandah Airport'
-      : near(/horses/i, 120) ? 'Verandah Stables' : near(/bank of verandah/i, 130) ? 'Verandah, the Great Bridge' : 'Verandah Outskirts';
+    // (the name the owner gave it in Minecraft, where the add-on kept one)
+    const name = w.name ?? (near(/welcome to verandah/i, 40) ? 'Verandah Docks' : near(/arena/i, 30) ? 'Verandah Arena' : near(/airport/i, 40) ? 'Verandah Airport'
+      : near(/horses/i, 120) ? 'Verandah Stables' : near(/bank of verandah/i, 130) ? 'Verandah, the Great Bridge' : 'Verandah Outskirts');
     const x = Math.floor(w.x) + 1.5, z = Math.floor(w.z) + 0.5, ry = Math.PI / 2;
     mcHost.props.push({ t: 'waymark', x, y: w.y, z, ry, theme: 'gannet' });
     out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: w.y, theme: 'gannet', ry, ax: x + 2.5, az: z });

@@ -3386,13 +3386,13 @@ export function mcLadder(M: PropMaterials): THREE.Group {
   return g;
 }
 /** A Minecraft lantern: a little iron cage with a candle in it, sitting on something or hung from a chain. */
-export function mcLantern(M: PropMaterials, hanging: boolean): THREE.Group {
+export function mcLantern(M: PropMaterials, hanging: boolean, chain = 0): THREE.Group {
   const g = new THREE.Group(), y = hanging ? 0.45 : 0.18;
   const glass = new THREE.MeshLambertMaterial({ color: '#ffd078', emissive: new THREE.Color('#ffa830'), emissiveIntensity: 1.2 });
   g.add(mesh(box(0.3, 0.34, 0.3), glass, 0, y, 0));
   g.add(mesh(box(0.36, 0.05, 0.36), M.iron, 0, y + 0.19, 0), mesh(box(0.36, 0.05, 0.36), M.iron, 0, y - 0.19, 0));
   for (const [x, z] of [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]]) g.add(mesh(box(0.04, 0.38, 0.04), M.iron, x, y, z));
-  if (hanging) g.add(mesh(box(0.04, 0.3, 0.04), M.iron, 0, 0.85, 0));
+  if (hanging) g.add(mesh(box(0.04, 0.38 + chain, 0.04), M.iron, 0, 0.83 + chain / 2, 0));
   return g;
 }
 
