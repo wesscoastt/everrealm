@@ -28,7 +28,7 @@ const bertram: DialogueTree = {
       ],
     },
     how: {
-      text: 'Rake it clean, sow it, and leave it be. Compost first if you want more out of it. Root crops in a few minutes, trees in a few hours. Left empty, the weeds are back in it inside the hour.',
+      text: "A hoe to turn the ground, a tile at a time, then the seed, then water it. Wet ground grows twice as fast as dry, and the rain does the watering for you. Compost and keep it wet, and more comes up. Root crops in a few minutes, trees in a few hours. A bigger can waters more at a go; a scythe takes a whole bed when it's ripe.",
       options: [
         { text: 'Where are the patches?', next: 'where' },
         { text: 'What do you sell?', effect: (g) => g.openShop('seed_bertram') },
@@ -36,7 +36,7 @@ const bertram: DialogueTree = {
       ],
     },
     where: {
-      text: 'Your own garden first, if you own a house: a hoe and a can and the grass is up round it by supper. Then there are three gardens here in the Ford, mine being the best. Every farm round the towns will let you a corner of a field and a bit of orchard, so long as you do the weeding. Most don\'t.',
+      text: "Your own garden first, if you own a house: a hoe and a can and the grass is up round it by supper. Then the public fields: my three here in the Ford and a field on every farm round the towns. Anyone can work them, and they don't count against your own ground. The orchards still let a corner each for a tree.",
       options: [{ text: 'What do you sell?', effect: (g) => g.openShop('seed_bertram') }, { text: 'Good day.' }],
     },
   },
@@ -45,7 +45,9 @@ const bertram: DialogueTree = {
 const shop: ShopDef = {
   id: 'seed_bertram', name: 'Bertram Sowerby\'s seeds', owner: 'seed_bertram',
   stock: [
-    { item: 'hoe', price: 30 }, { item: 'watering_can', price: 45 }, { item: 'compost', price: 4 }, { item: 'seed_potato', price: 4 }, { item: 'seed_onion', price: 6 }, { item: 'seed_cabbage', price: 8 }, { item: 'seed_carrot', price: 10 },
+    { item: 'hoe', price: 30 }, { item: 'watering_can', price: 45 },
+    { item: 'watering_can_copper', price: 180, when: (g) => g.level('farming') >= 15 && !g.has('watering_can_copper') }, { item: 'scythe', price: 240, when: (g) => g.level('farming') >= 20 && !g.has('scythe') },
+    { item: 'watering_can_iron', price: 650, when: (g) => g.level('farming') >= 35 && !g.has('watering_can_iron') }, { item: 'watering_can_gilded', price: 2400, when: (g) => g.level('farming') >= 60 && !g.has('watering_can_gilded') }, { item: 'compost', price: 4 }, { item: 'seed_potato', price: 4 }, { item: 'seed_onion', price: 6 }, { item: 'seed_cabbage', price: 8 }, { item: 'seed_carrot', price: 10 },
     { item: 'seed_wheat', price: 12 }, { item: 'seed_strawberry', price: 18 }, { item: 'seed_barley', price: 20 }, { item: 'seed_leek', price: 24 }, { item: 'seed_hops', price: 32 },
     { item: 'seed_pumpkin', price: 40 }, { item: 'sapling_apple', price: 120 }, { item: 'sapling_pear', price: 180 }, { item: 'cutting_vine', price: 260 },
   ],

@@ -6,12 +6,15 @@ import { B } from '../world/blocks';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import * as P from '../world/props';
 
-// Farming at home (the farming overhaul, owner 2026-11-06: "add farming into the game you can do on a lot, and
-// it's a skill"). The garden round your own house: hoe the grass into tilled ground a tile at a time, as much as
-// your Farming lets you work (eight tiles to start, sixty-four at the last), and every tile takes its own
-// seed. A crop grows on the real clock, at full speed while the ground's wet and half speed when it's dry:
-// water it with the can (a few tiles at a go) and it stays wet a while; rain waters the lot. Kept well
-// watered, and composted, more comes up. The town patches (game/Farming.ts) are still there for anyone.
+// Farming a tile at a time (the farming overhaul, owner 2026-11-06: "farming you can do on a lot, and it's a
+// skill; maybe public farms too"). Two kinds of ground. The garden round your own house: hoe the grass into
+// tilled ground, as much as your Farming lets you work (eight tiles to start, sixty-four at the last). And the
+// towns' public fields (the old allotments at Hollin Ford and on every town farm): anyone may till them, and
+// they don't count against your garden. Every tile takes its own seed. A crop grows on the real clock, at full
+// speed while the ground's wet and half speed when it's dry: water it with a can (the better the can, the
+// further it reaches and the longer the ground stays wet) and rain waters the lot. Kept well watered, and
+// composted, more comes up; and more again with your group about you. A scythe takes the ripe tiles round you
+// in a few strokes. (The orchard patches, a tree each, are still game/Farming.ts.)
 
 export interface GardenHost {
   scene: THREE.Scene;
@@ -33,17 +36,26 @@ export interface GardenHost {
   raining(): boolean;
   /** Your house's footprint and the garden round it (game x, z), or null with no home. */
   garden(): { house: [number, number, number, number]; yard: [number, number, number, number] } | null;
+  /** The towns' public fields: anyone may work them, a tile at a time. */
+  fields(): { name: string; rect: [number, number, number, number] }[];
+  /** Someone from your group near you (hands make light work: more comes up). */
+  groupNearby(): boolean;
 }
 
 /** A tilled tile: its crop, how far grown (0..1), when that was worked out, wet until when, composted, and how much of its growing was wet. */
 interface Tile { c?: string; p: number; u: number; wu: number; k?: 1; wet: number; all: number }
 
-/** How long a watering keeps the ground wet. */
-const WET_MS = 20 * 60000;
+/** The cans, best first: how far round the tile they reach, and how many minutes the ground stays wet. */
+export const CANS: { item: string; reach: number; wetMin: number }[] = [
+  { item: 'watering_can_gilded', reach: 3, wetMin: 40 },
+  { item: 'watering_can_iron', reach: 2, wetMin: 30 },
+  { item: 'watering_can_copper', reach: 1, wetMin: 30 },
+  { item: 'watering_can', reach: 1, wetMin: 20 },
+];
 const TILLABLE = new Set<number>([B.Grass, B.FlowerGrass, B.Dirt, B.Loam, B.Farmland, B.SnowGrass, B.Path]);
 const STAGE_SCALE = [0.3, 0.55, 0.8, 1];
 
-/** How many tiles you can work at a Farming level. */
+/** How many tiles of your own garden you can work at a Farming level. */
 export const gardenSize = (lv: number) => Math.min(64, 8 + Math.floor(lv / 3) * 2);
 
 export class HomeFarm {
@@ -68,16 +80,25 @@ export class HomeFarm {
   private minsLeft(t: Tile): number { const c = CROP(t.c!)!; const wetNow = this.host.raining() || Date.now() < t.wu; return Math.max(1, Math.ceil(((1 - t.p) * c.minutes) / (wetNow ? 1 : 0.5))); }
 
   private groundTop(x: number, z: number): number { return this.host.voxels.topSolid(x, z); }
-  /** Can this cell be tilled: in your yard, outside the house, open ground of earth or grass. */
-  private tillable(x: number, z: number): boolean {
+  /** Which ground a cell is: your own yard (outside the house), a public field, or neither. */
+  private zone(x: number, z: number): 'home' | 'field' | null {
     const g = this.host.garden();
-    if (!g) return false;
-    const [ya, yb, yc, yd] = g.yard, [ha, hb, hc, hd] = g.house;
-    if (x < ya || x > yc || z < yb || z > yd) return false;
-    if (x >= ha - 1 && x <= hc + 1 && z >= hb - 1 && z <= hd + 1) return false;
+    if (g) {
+      const [ya, yb, yc, yd] = g.yard, [ha, hb, hc, hd] = g.house;
+      if (x >= ya && x <= yc && z >= yb && z <= yd && !(x >= ha - 1 && x <= hc + 1 && z >= hb - 1 && z <= hd + 1)) return 'home';
+    }
+    return this.host.fields().some((f) => x >= f.rect[0] && x <= f.rect[2] && z >= f.rect[1] && z <= f.rect[3]) ? 'field' : null;
+  }
+  /** How many tiles of your own garden you've tilled (the public fields don't count). */
+  private homeTiles(all: Record<string, Tile>): number { return Object.keys(all).filter((k) => { const [x, z] = k.split(',').map(Number); return this.zone(x, z) === 'home'; }).length; }
+  /** Can this cell be tilled: your garden or a public field, open ground of earth or grass. */
+  private tillable(x: number, z: number): boolean {
+    if (!this.zone(x, z)) return false;
     const top = this.groundTop(x, z);
     return TILLABLE.has(this.host.voxels.get(x, top, z)) && this.host.voxels.get(x, top + 1, z) === B.Air && this.host.voxels.get(x, top + 2, z) === B.Air;
   }
+  /** The best can you carry. */
+  private can() { return CANS.find((c) => this.host.count(c.item) > 0); }
 
   /** The tile in front of you. */
   private target(): [number, number] {
@@ -87,18 +108,16 @@ export class HomeFarm {
 
   // ---------------------------------------------------------------- Working it
   candidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] {
-    const g = this.host.garden();
-    if (!g) return [];
-    const me = this.host.player();
-    if (me.x < g.yard[0] - 2 || me.x > g.yard[2] + 2 || me.z < g.yard[1] - 2 || me.z > g.yard[3] + 2) return [];
     const [x, z] = this.target(), key = x + ',' + z, all = this.tiles(), here = all[key];
+    if (!here && !this.zone(x, z)) return [];
     const at = new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5);
     const out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] = [];
     if (!here) {
       if (!this.tillable(x, z)) return [];
-      const used = Object.keys(all).length, max = gardenSize(this.host.level('farming'));
-      if (this.host.count('hoe') < 1) out.push({ label: 'Till the ground', pos: at, use: () => this.host.system('You need a hoe. Bertram Sowerby sells them, by Hollin Ford\'s west garden.'), warn: 'Needs a hoe' });
-      else if (used >= max) out.push({ label: `Till the ground (${used} of ${max})`, pos: at, use: () => this.host.system(`You can work ${max} tiles of ground at your Farming. More as you learn.`), warn: 'No more for now' });
+      const used = this.homeTiles(all), max = gardenSize(this.host.level('farming')), field = this.zone(x, z) === 'field';
+      if (this.host.count('hoe') < 1) out.push({ label: 'Till the ground', pos: at, use: () => this.host.system("You need a hoe. Bertram Sowerby sells them, by Hollin Ford's west garden."), warn: 'Needs a hoe' });
+      else if (field) out.push({ label: 'Till the public field', pos: at, use: () => this.till(x, z) });
+      else if (used >= max) out.push({ label: `Till the ground (${used} of ${max})`, pos: at, use: () => this.host.system(`You can work ${max} tiles of your own garden at your Farming. More as you learn; the towns' public fields are free to anyone.`), warn: 'No more for now' });
       else out.push({ label: `Till the ground (${used + 1} of ${max})`, pos: at, use: () => this.till(x, z) });
       return out;
     }
@@ -106,14 +125,14 @@ export class HomeFarm {
     if (!c) {
       const s = this.bestSeed();
       if (s) out.push({ label: `Plant ${s.name.toLowerCase()}`, pos: at, use: () => this.plant(x, z, s) });
-      else out.push({ label: 'Tilled ground', pos: at, use: () => this.host.system('It wants seed. Bertram Sowerby sells it, by Hollin Ford\'s west garden.'), warn: 'No seed for it' });
+      else out.push({ label: 'Tilled ground', pos: at, use: () => this.host.system("It wants seed. Bertram Sowerby sells it, by Hollin Ford's west garden."), warn: 'No seed for it' });
       return out;
     }
     if (st >= 3) { out.push({ label: `Harvest the ${c.name.toLowerCase()}`, pos: at, use: () => this.harvest(x, z) }); return out; }
     const wet = this.host.raining() || Date.now() < t.wu;
-    if (!wet && this.host.count('watering_can') > 0) out.push({ label: `Water the ${c.name.toLowerCase()}`, pos: at, use: () => this.water(x, z) });
+    if (!wet && this.can()) out.push({ label: `Water the ${c.name.toLowerCase()}`, pos: at, use: () => this.water(x, z) });
     else if (!t.k && this.host.count('compost') > 0) out.push({ label: `Add compost (${c.name.toLowerCase()})`, pos: at, use: () => this.compost(x, z) });
-    else out.push({ label: `${c.name}, ripe in ${this.minsLeft(t)} min${wet ? '' : ', dry'}`, pos: at, use: () => this.host.system(`${c.name}: ripe in about ${this.minsLeft(t)} minutes.${wet ? ' The ground\'s wet.' : ' The ground\'s dry: it grows at half speed till it\'s watered.'}${t.k ? ' Composted.' : ''}`), warn: wet ? undefined : 'Dry' });
+    else out.push({ label: `${c.name}, ripe in ${this.minsLeft(t)} min${wet ? '' : ', dry'}`, pos: at, use: () => this.host.system(`${c.name}: ripe in about ${this.minsLeft(t)} minutes.${wet ? " The ground's wet." : " The ground's dry: it grows at half speed till it's watered."}${t.k ? ' Composted.' : ''}`), warn: wet ? undefined : 'Dry' });
     return out;
   }
 
@@ -124,7 +143,8 @@ export class HomeFarm {
 
   private till(x: number, z: number): void {
     const all = this.tiles();
-    if (all[x + ',' + z] || !this.tillable(x, z) || Object.keys(all).length >= gardenSize(this.host.level('farming'))) return;
+    if (all[x + ',' + z] || !this.tillable(x, z)) return;
+    if (this.zone(x, z) === 'home' && this.homeTiles(all) >= gardenSize(this.host.level('farming'))) return;
     all[x + ',' + z] = { p: 0, u: Date.now(), wu: 0, wet: 0, all: 0 };
     this.save(all);
     this.host.addXp('farming', 8);
@@ -142,14 +162,16 @@ export class HomeFarm {
     this.refresh();
   }
 
-  /** The can: this tile and the planted ones next to it. */
+  /** The can: this tile and the planted ones round it, as far as the can reaches. */
   private water(x: number, z: number): void {
-    const all = this.tiles(), now = Date.now();
+    const all = this.tiles(), now = Date.now(), can = this.can();
+    if (!can) return;
+    const r = can.reach;
     let n = 0;
-    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
       const k = (x + dx) + ',' + (z + dz), t = all[k];
       if (!t || !t.c) continue;
-      all[k] = { ...this.grow(t, now), wu: now + WET_MS };
+      all[k] = { ...this.grow(t, now), wu: now + can.wetMin * 60000 };
       n++;
     }
     if (!n) return;
@@ -168,35 +190,42 @@ export class HomeFarm {
     this.host.sound('click');
   }
 
+  /** With a scythe, every ripe tile round the one you're at; without, that one. */
   private harvest(x: number, z: number): void {
+    const reach = this.host.count('scythe') > 0 ? 1 : 0;
+    let got = this.harvestOne(x, z, true) ? 1 : 0;
+    for (let dz = -reach; dz <= reach; dz++) for (let dx = -reach; dx <= reach; dx++) if (dx || dz) got += this.harvestOne(x + dx, z + dz, false) ? 1 : 0;
+    if (got > 1) this.host.system(`The scythe takes ${got} tiles in a few strokes.`);
+    if (got) this.refresh();
+  }
+  private harvestOne(x: number, z: number, say: boolean): boolean {
     const all = this.tiles(), t0 = all[x + ',' + z];
-    if (!t0?.c) return;
+    if (!t0?.c) return false;
     const t = this.grow(t0), c = CROP(t.c!)!;
-    if (this.stage(t) < 3) return;
-    const lv = this.host.level('farming'), tended = t.all > 0 && t.wet / t.all >= 0.75;
-    // a tile's share of a patch's crop, more for good keeping
-    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0));
+    if (this.stage(t) < 3) return false;
+    const lv = this.host.level('farming'), tended = t.all > 0 && t.wet / t.all >= 0.75, group = this.host.groupNearby();
+    // a tile's share of a patch's crop, more for good keeping and for good company
+    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0));
     this.host.give(c.produce, n);
     this.host.addXp('farming', c.xpPick * n);
     if (Math.random() < (t.k ? 0.35 : 0.2)) this.host.give(c.seed, 1);
     all[x + ',' + z] = { p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0 };
     this.save(all);
     this.host.sound('pickup');
-    this.host.system(`${n} ${ITEMS[c.produce]?.name.toLowerCase() ?? c.produce}${tended ? ', well watered' : ''}${t.k ? ', composted' : ''}.`);
-    this.refresh();
+    if (say) this.host.system(`${ITEMS[c.produce]?.name ?? c.produce} ×${n}${tended ? ', well watered' : ''}${t.k ? ', composted' : ''}${group ? ", and more for your group's help" : ''}.`);
+    return true;
   }
 
   // ---------------------------------------------------------------- Drawing it
   update(dt: number): void {
     if ((this.checkAt -= dt) > 0) return;
     this.checkAt = 2;
-    const g = this.host.garden(), me = this.host.player();
-    const near = !!g && Math.hypot((g.yard[0] + g.yard[2]) / 2 - me.x, (g.yard[1] + g.yard[3]) / 2 - me.z) < 110;
-    const all = this.tiles(), now = Date.now(), raining = this.host.raining();
-    const key = near ? Object.entries(all).map(([k, t]) => { const u = this.grow(t, now); return `${k}:${u.c ?? ''}:${this.stage(u)}:${raining || now < u.wu ? 1 : 0}`; }).join('|') : '';
+    const me = this.host.player(), now = Date.now(), raining = this.host.raining();
+    const all = Object.fromEntries(Object.entries(this.tiles()).filter(([k]) => { const [x, z] = k.split(',').map(Number); return Math.hypot(x - me.x, z - me.z) < 110; }));
+    const key = Object.entries(all).map(([k, t]) => { const u = this.grow(t, now); return `${k}:${u.c ?? ''}:${this.stage(u)}:${raining || now < u.wu ? 1 : 0}`; }).join('|');
     if (this.drawn && this.drawn.key === key) return;
     if (this.drawn) { this.host.scene.remove(this.drawn.group); this.drawn = null; }
-    if (!near || !key) return;
+    if (!key) return;
     const group = this.draw(all, now, raining);
     this.host.scene.add(group);
     this.drawn = { group, key };

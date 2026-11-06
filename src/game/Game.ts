@@ -1018,7 +1018,9 @@ export class Game implements GameApi {
       level: (sk) => this.level(sk), addXp: (sk, n) => this.addXp(sk, n),
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
       player: () => this.player.position,
-    }, farmPatches(sitePlan().sites));
+    }, farmPatches(sitePlan().sites).filter((p) => p.kind === 'orchard'));
+    // (the allotments are public fields now, worked a tile at a time: game/HomeFarm.ts)
+    const fields = farmPatches(sitePlan().sites).filter((p) => p.kind === 'allotment').map((p) => ({ name: p.name, rect: [p.x0, p.z0, p.x1, p.z1] as [number, number, number, number] }));
     this.garden = new HomeFarm({
       scene: this.scene, voxels: this.world.voxels,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1027,6 +1029,8 @@ export class Game implements GameApi {
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
       player: () => this.player.position, facing: () => this.player.facing,
       raining: () => { const w = this.world.sky.weather; return !w.snow && w.precip > 0.25; },
+      fields: () => fields,
+      groupNearby: () => this.social.groupNearby(),
       garden: () => {
         // your house's footprint, and ten blocks of yard round it; the owner's house in Verandah, its grounds
         if (isHomeOwner(this.accountName())) return { house: [-2482, 2383, -2466, 2402], yard: [OWNER_HOME.x0, OWNER_HOME.z0, OWNER_HOME.x1, OWNER_HOME.z1] };

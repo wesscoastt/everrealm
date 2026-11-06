@@ -227,8 +227,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
         ORDER (owner 2026-11-05): every 11b item fixed and working in the new Verandah area to a 10/10 first; then the FARMING OVERHAUL next; then on down the prompts.
      11c. FARMING OVERHAUL (owner 2026-11-06: next; their brief 2026-10: "farming you can do on a lot, a skill, maybe public farms, you decide how it works"). The plan:
         1. Your own garden (game/HomeFarm.ts): hoe the ground round your house a tile at a time (8 tiles to start, 64 at the last), each tile its own crop; wet ground grows at full speed and dry at half; the can waters a tile and its neighbours, rain waters all; compost and keeping it watered bring more up. Bertram sells the hoe and the can. Done 2026-11-06.
-        2. Public farms: rent rows at the town farms by the day; the town patches become fields of tiles; group farming: your group can water and harvest with you, and you share what comes up.
-        3. Better tools: a copper, an iron and a gilded can (wider spread), a scythe that harvests a row; a scarecrow; a seed drill.
+        2. Public farms and group farming. Done 2026-11-06: the towns' allotments (Hollin Ford's three gardens, a field on every town farm) are public fields anyone can till a tile at a time, not counting against your garden; with your group about you a harvest brings one more of each. Still: a shared plot your group works together (needs the realm to carry the tiles).
+        3. Better tools. Done 2026-11-06: copper (Farming 15), iron (35, reaches two tiles), gilded (60, three) cans, the wet lasting longer; a scythe (20) takes the ripe tiles round you. Still: a scarecrow, a seed drill.
         4. Animals at home: a hen house (eggs), a cow (milk, butter, cheese), sheep (wool for the tailors); fed hay grown in your garden.
         5. Seasons on the real calendar: each crop has its season and grows faster in it; winter greens and forcing under glass.
         6. A produce market: sell to the grocers and the brewers, crop orders on the board (the crafting-orders idea), prizes at the harvest fair for the best of each.
