@@ -182,6 +182,7 @@ import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
 import { HERDS, HomeFarm } from './HomeFarm';
 import { VerandahPatrols } from './VerandahPatrols';
+import { WallWatch } from './WallWatch';
 import { serverUrl } from '../net/Online';
 import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
@@ -418,6 +419,8 @@ export class Game implements GameApi {
   private farming!: Farming;
   /** Verandah's mounted guard on their round (game/VerandahPatrols.ts). */
   private verandahPatrols!: VerandahPatrols;
+  /** The guard on Verandah's walls (game/WallWatch.ts). */
+  private wallWatch!: WallWatch;
   /** The garden round your own house (game/HomeFarm.ts). */
   private garden!: HomeFarm;
   /** Your rowing boat, or the one you've hired (game/Rowboat.ts). */
@@ -1291,6 +1294,7 @@ export class Game implements GameApi {
     this.stables = new Stables(this.scene, this.world.voxels);
     this.postStations = new PostStations(this.scene, this.world.voxels);
     this.verandahPatrols = new VerandahPatrols(this.scene, this.world.voxels);
+    this.wallWatch = new WallWatch(this.scene, this.world.voxels);
     // Dogs and cats about the towns: by every Charter Post sign and in Hollin Ford, coats from a few kinds
     {
       const dogCoats: Palette[] = [{ a: '#26211e', b: '#efe8dc', c: '#a8682e' }, { a: '#8a5a2e', b: '#e8d8b8', c: '#5a3a1e' }, { a: '#c8a060', b: '#f0e4c8', c: '#8a6a3a' }, { a: '#3a3a3a', b: '#d8d8d8', c: '#6a6a6a' }];
@@ -7417,6 +7421,7 @@ export class Game implements GameApi {
     this.stables.update(dt, P);
     this.postStations.update(dt, P);
     this.verandahPatrols.update(dt, P);
+    this.wallWatch.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
     this.checkFeats(dt);

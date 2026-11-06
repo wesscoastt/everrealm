@@ -4,13 +4,29 @@ import type { RegionContent } from './types';
 // Verandah at work (owner 2026-11-05: "Verandah should feel like a bustling city from the docks to the guards to
 // the quarry workers to the farmers"). Dockhands on the quay among the crates; farmhands in the fields below the
 // Verandah Farm waystone; quarrymen down in the pit off the main street (the owner's quarry, dug to the bedrock);
-// and a lumberyard of the game's own in the meadow by the west road, past the carter, where the woodcutters
-// bring the timber in. The town's crowds walking its streets are game/Game.ts crowdZones ('verandah-*').
+// a felling camp of the game's own in the meadow by the west road, past the carter; and the owner's lumberyard by
+// the channel (owner 2026-11-06: "the main lumberyard", "the boats they use to ship lumber down the channel from
+// the warehouse"): the timber split and sawn in the big hall, stacked in the boathouse, and loaded on the boat in
+// its slip to go down the channel. The town's crowds walking its streets are game/Game.ts crowdZones ('verandah-*').
 
 const w = (id: string, name: string, title: string, x: number, y: number, z: number, fx: number, fz: number, anim: 'hammer' | 'chop' | 'crouch' | 'idle' | 'mine', held: string | undefined, look: NpcDef['look'], barks: string[]): NpcDef =>
   ({ id, name, title, look, schedule: [{ from: 6, to: 19, at: [x, z], face: [fx, fz], anim, y, ...(held ? { held } : {}) }], barks });
 
+// The blacksmith (owner 2026-11-06: "the blacksmith works on his forge bottom floor and lives on the second floor"):
+// the owner's stone smithy by the Forge Yard Stables. Out of the north door, east to the foot of the stair outside,
+// up it and in at the top door to his rooms; the way laid step by step (an NPC walks straight to the next point).
+const SMITH_UP: [number, number][] = [[-2797.5, 2142.5], [-2793.5, 2142.5], [-2793.5, 2136.5], [-2793.5, 2133.5], [-2789.5, 2133.5], [-2789.5, 2134.5], [-2789.5, 2140.5], [-2790.5, 2141.5], [-2792.5, 2141.5]];
+const smith: NpcDef = {
+  id: 'ver_smith_kessell', name: 'Jowan Kessell', title: 'Blacksmith', look: { skin: '#c88a62', hair: '#1e1a16', hairStyle: 0, facial: 3, eyes: '#3a2a1e', tunic: '#3a2a1e', trim: '#2a2018', shirt: '#c8b8a0', trousers: '#2a2620', boots: '#1e1a16', apron: true, build: 1.35, age: 0.5 },
+  schedule: [
+    { from: 7, to: 19, at: [-2797.5, 2145.5], face: [-2798.5, 2146.5], anim: 'hammer', y: 24, held: 'hammer', path: [...SMITH_UP].reverse() },
+    { from: 19, to: 7, at: [-2793.5, 2142.5], face: [-2796.5, 2140.5], anim: 'idle', y: 29, path: SMITH_UP },
+  ],
+  barks: ['Hold that horse still or lose a finger. Your choice.', 'Shoes, hinges, the king’s gate. Whatever comes through the door.'],
+};
+
 const npcs: NpcDef[] = [
+  smith,
   w('ver_dock_ruan', 'Ruan Pascoe', 'Dockhand', -2894.5, 19, 1900.5, -2894.5, 1897.5, 'hammer', 'hammer',
     { skin: '#c88a62', hair: '#2a1e14', hairStyle: 3, eyes: '#3a2a1e', tunic: '#5a4a3a', trim: '#3a2a1e', trousers: '#2a2a2e', boots: '#1e1a16', hat: 'kerchief', hatColor: '#7a2a24', build: 1.2 },
     ['Mind your feet, crate coming through!', 'Last tide’s still not unloaded.']),
@@ -41,7 +57,7 @@ const npcs: NpcDef[] = [
   w('ver_wood_digory', 'Digory Trounce', 'Woodcutter', -3313.5, 20, 2106.5, -3313.5, 2108.5, 'chop', 'hatchet',
     { skin: '#c88a62', hair: '#6a3a1e', hairStyle: 2, facial: 2, eyes: '#4a5a3a', tunic: '#5a3a2a', trim: '#3a2a1c', trousers: '#3a3430', boots: '#2a1e14', build: 1.3 },
     ['Oak for the shipwrights, ash for the carts, the rest for the fire.', 'Don’t stand behind me.']),
-  w('ver_wood_elowen', 'Elowen Bray', 'Woodcutter', -3307.5, 20, 2110.5, -3305.5, 2110.5, 'hammer', 'hammer',
+  w('ver_wood_elowen', 'Elowen Bray', 'Woodcutter', -2840.5, 22, 2165.5, -2842.5, 2165.5, 'hammer', 'hammer',
     { frame: 'f', skin: '#d8b090', hair: '#c88a3a', hairStyle: 1, eyes: '#4a6a7a', tunic: '#4a5a3a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true },
     ['Wedges and a maul. Takes longer than a saw and splits truer.', 'Seasoned two winters, this lot. Don’t burn it green.']),
   w('ver_store_laity', 'Tom Laity', 'Warehouseman', -2879.5, 23, 1937.5, -2876.5, 1937.5, 'idle', undefined,
@@ -50,6 +66,18 @@ const npcs: NpcDef[] = [
   w('ver_store_tremayne', 'Jory Tremayne', 'Storeman', -2684.5, 24, 2226.5, -2684.5, 2223.5, 'idle', undefined,
     { skin: '#c88a62', hair: '#8a6a3a', hairStyle: 2, eyes: '#4a5a3a', tunic: '#5a6a3a', trim: '#3a2a1c', trousers: '#4a3a2a', boots: '#2a1e14', hat: 'straw' },
     ['Seed on the left, tools on the right, rats everywhere.', 'Gerens wants a count by sundown. Gerens always wants a count by sundown.']),
+  w('ver_wood_coad', 'Hedley Coad', 'Master of the lumberyard', -2847.5, 22, 2162.5, -2847.5, 2166.5, 'idle', undefined,
+    { skin: '#d8a07a', hair: '#8a8a82', hairStyle: 0, facial: 3, eyes: '#4a5a3a', tunic: '#5a4a2a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14', hat: 'wide', hatColor: '#4a3a2a', age: 0.65, build: 1.2 },
+    ['Oak for the keels, ash for the oars, elm for the king’s new floor. In that order.', 'Digory fells, we saw, the boats carry. Nobody waits on anybody.']),
+  w('ver_wood_spargo', 'Jenna Spargo', 'Sawyer', -2850.5, 22, 2171.5, -2850.5, 2174.5, 'chop', 'hatchet',
+    { frame: 'f', skin: '#e2b894', hair: '#3a2a1e', hairStyle: 5, eyes: '#3a4a5a', tunic: '#6a4a2a', trim: '#2a2018', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true, build: 1.1 },
+    ['Saw dust in my hair, saw dust in my bread, saw dust in my dreams.', 'Plank’s true or it goes back on the fire.']),
+  w('ver_boat_pender', 'Silas Pender', 'Boatman', -2866.5, 18, 2196.5, -2866.5, 2200.5, 'crouch', undefined,
+    { skin: '#c88a62', hair: '#2a1e14', hairStyle: 3, facial: 2, eyes: '#3a2a1e', tunic: '#3a4a5a', trim: '#8a8a7a', trousers: '#2a2a2e', boots: '#1e1a16', hat: 'cap', hatColor: '#2a3a4a', build: 1.2 },
+    ['Load her even or she lists all the way to the docks.', 'Tide’s with us at four. We’ll be down the channel by five.']),
+  w('ver_boat_retallick', 'Kit Retallick', 'Boatman', -2866.5, 17, 2204.5, -2866.5, 2212.5, 'idle', undefined,
+    { frame: 'f', skin: '#d8a888', hair: '#c88a3a', hairStyle: 1, eyes: '#4a6a7a', tunic: '#2a3a4a', trim: '#d8d0b8', trousers: '#2a2a2e', boots: '#1e1a16', hat: 'kerchief', hatColor: '#7a2a24', lashes: true },
+    ['Mind the gap between the boat and the slip. Everyone falls in once.', 'Timber down to the port, salt and nails back up.']),
 ];
 
 /** A pallet of goods in a warehouse: crates two by two, stacked one to three high (the height from the spot, so it
@@ -86,6 +114,18 @@ export const QUARRY_PROPS: QuarryProp[] = [
   { t: 'crate', x: -3089.5, y: 1, z: 2050.5 }, { t: 'crate', x: -3089.5, y: 1.6, z: 2050.5 }, { t: 'crate', x: -3090.5, y: 1, z: 2051.5 },
   { t: 'barrel', x: -3083.5, y: 1, z: 2053.5 }, { t: 'anvil', x: -3082.5, y: 1, z: 2050.5, ry: 0.4 },
 ];
+/** The owner's lumberyard by the channel: woodpiles on the hall's floor (22), sawn timber stacked in the boathouse (18)
+ *  and on the deck of the boat in its slip (17), crates and barrels at the slip's head (world/sites.ts 'ver-timberyard'). */
+export const TIMBERYARD_PROPS: QuarryProp[] = [
+  { t: 'woodpile', x: -2853.5, y: 22, z: 2156.5, ry: 0, len: 4 }, { t: 'woodpile', x: -2853.5, y: 22, z: 2167.5, ry: Math.PI / 2, len: 3 },
+  { t: 'woodpile', x: -2842.5, y: 22, z: 2155.5, ry: 0, len: 3 }, { t: 'woodpile', x: -2846.5, y: 22, z: 2174.5, ry: 0, len: 4 },
+  { t: 'woodpile', x: -2872.5, y: 18, z: 2184.5, ry: Math.PI / 2, len: 4 }, { t: 'woodpile', x: -2872.5, y: 18, z: 2191.5, ry: Math.PI / 2, len: 4 },
+  { t: 'woodpile', x: -2861.5, y: 18, z: 2184.5, ry: Math.PI / 2, len: 4 }, { t: 'woodpile', x: -2861.5, y: 18, z: 2190.5, ry: Math.PI / 2, len: 3 },
+  { t: 'woodpile', x: -2866.5, y: 17, z: 2202.5, ry: 0, len: 2 },
+  { t: 'crate', x: -2862.5, y: 18, z: 2197.5 }, { t: 'crate', x: -2863.5, y: 18, z: 2197.5 }, { t: 'crate', x: -2862.5, y: 18.62, z: 2197.5 },
+  { t: 'barrel', x: -2873.5, y: 18, z: 2197.5 }, { t: 'barrel', x: -2872.5, y: 18, z: 2197.5 },
+];
+/** The felling camp in the meadow by the west road, past the carter, where the timber comes in from the woods. */
 export const LUMBERYARD_PROPS: typeof QUARRY_PROPS = [
   { t: 'woodpile', x: -3316.5, y: 20, z: 2103.5, ry: 0, len: 4 }, { t: 'woodpile', x: -3311.5, y: 20, z: 2103.5, ry: 0, len: 3 },
   { t: 'woodpile', x: -3306.5, y: 20, z: 2103.5, ry: 0, len: 3 }, { t: 'woodpile', x: -3316.5, y: 21, z: 2112.5, ry: Math.PI / 2, len: 4 },

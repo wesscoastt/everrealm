@@ -81,6 +81,13 @@ const KEEPERS: Record<string, { name: string; title: string; look: NpcDef['look'
     hello: 'Verandah Stables. Three bloodlines, all written down, all the way back. If you want a cob, the Counties have plenty.',
     about: 'Black, gold and dapple. The island breeds those three and nothing else. They go the same pace as any horse, but nobody in the Counties will mistake yours for theirs.',
   },
+  'st-verforge': {
+    name: 'Petroc Hext', title: 'Forge Yard Stables, Verandah',
+    look: { skin: '#c88a62', hair: '#6a4426', hairStyle: 2, eyes: '#3a4a2a', tunic: '#4a3a2a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14', hat: 'cap', hatColor: '#3a3a2a', build: 1.1, age: 0.35 },
+    bark: 'Shod next door, fed in here.',
+    hello: 'Forge Yard Stables. Jowan shoes them through the wall, and I keep them. Every horse here has new iron on its feet.',
+    about: 'Black and dapple, the island’s own. Jenna at the big stables by the gate keeps the gold. Ask her nicely; she won’t sell to just anybody.',
+  },
   'st-scarrow': {
     name: 'Clem Hosken', title: 'Moorman, Scarrow Tor',
     look: { skin: '#d8a07a', hair: '#cfcac0', hairStyle: 0, beard: true, eyes: '#4a5a6a', tunic: '#5a4a3a', trim: '#8a7a5a', trousers: '#4a4034', boots: '#3a2a1c', hat: 'wide', hatColor: '#4a3a2a', build: 1.08, age: 0.8 },
@@ -96,7 +103,7 @@ const NPCS: NpcDef[] = STABLES.map((st) => {
   const k = KEEPERS[st.id];
   const [x, z] = st.keeper ? [st.keeper[0] - 0.5, st.keeper[1] - 0.5] : stableAt(st, -1, 2);
   const [fx, fz] = st.keeper ? [st.keeper[2] - 0.5, st.keeper[3] - 0.5] : stableAt(st, -1, 6);
-  return { id: keeperId(st), name: k.name, title: k.title, look: k.look, schedule: [{ from: 0, to: 24, at: [x + 0.5, z + 0.5], face: [fx + 0.5, fz + 0.5], anim: 'idle' }], barks: [k.bark] };
+  return { id: keeperId(st), name: k.name, title: k.title, look: k.look, schedule: [{ from: 0, to: 24, at: [x + 0.5, z + 0.5], face: [fx + 0.5, fz + 0.5], anim: 'idle', ...(st.floor !== undefined ? { y: st.floor } : {}) }], barks: [k.bark] };
 });
 
 const DIALOGUE: Record<string, DialogueTree> = Object.fromEntries(STABLES.map((st) => {

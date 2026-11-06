@@ -32,13 +32,15 @@ export class Stables {
 
   private show(st: StableDef): void {
     const list: Shown[] = [];
-    st.stock.forEach((s, i) => {
+    // a horse in every stall where the stable has stalls (the stock's breeds in turn), else one of each for sale
+    const n = st.spots ? Math.max(st.stock.length, st.spots.length) : st.stock.length;
+    Array.from({ length: n }, (_, i) => st.stock[i % st.stock.length]).forEach((s, i) => {
       const m = ITEMS[s.item]?.mount;
       if (!m) return;
       const [u, v] = PADDOCK_SPOTS[i % PADDOCK_SPOTS.length];
       const [x, z] = st.spots ? [st.spots[i % st.spots.length][0] - 0.5, st.spots[i % st.spots.length][1] - 0.5] : stableAt(st, u, v);
       const model = mountModel(m);
-      model.root.position.set(x + 0.5, this.voxels.groundBelow(x + 0.5, 140, z + 0.5), z + 0.5);
+      model.root.position.set(x + 0.5, this.voxels.groundBelow(x + 0.5, st.floor !== undefined ? st.floor + 1.5 : 140, z + 0.5), z + 0.5);
       const yaw = Math.random() * Math.PI * 2;
       model.root.rotation.y = yaw;
       this.scene.add(model.root);

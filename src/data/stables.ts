@@ -19,6 +19,8 @@ export interface StableDef {
   /** A stable that's the place's own (Verandah's): nothing built; the horses stand at `spots`, the keeper at `keeper` [x, z, facing x, facing z]. */
   bare?: boolean;
   spots?: [number, number][];
+  /** The stalls' floor, where it's under a roof (else the ground under each spot). */
+  floor?: number;
   keeper?: [number, number, number, number];
 }
 
@@ -31,6 +33,9 @@ export const STABLES: StableDef[] = [
   // Verandah's (owner 2026-11-05: "you can buy pure-bred horses there where the sign is"): the owner's pen outside the gate, by the Charter yard
   { id: 'st-verandah', name: 'Verandah Stables', town: 'Verandah', x: -3305, z: 2050, face: 's', bare: true, spots: [[-3307.5, 2050.5], [-3304.5, 2050.5], [-3302.5, 2049.5]], keeper: [-3301.5, 2051.5, -3301.5, 2054.5],
     stock: [{ item: 'halter_ver_black', price: 2400 }, { item: 'halter_ver_gold', price: 2800 }, { item: 'halter_ver_dapple', price: 3200 }] },
+  // the owner's stable by the smithy, four stalls behind their gates (owner 2026-11-06)
+  { id: 'st-verforge', name: 'Forge Yard Stables', town: 'Verandah', x: -2774, z: 2145, face: 'n', bare: true, floor: 20, spots: [[-2778.5, 2145.5], [-2774.5, 2145.5], [-2771.5, 2145.5], [-2768.5, 2145.5]], keeper: [-2774.5, 2141.5, -2774.5, 2145.5],
+    stock: [{ item: 'halter_ver_black', price: 2400 }, { item: 'halter_ver_dapple', price: 3200 }] },
   { id: 'st-scarrow', name: 'Tor Stables', town: 'Scarrow Tor', x: 345, z: 2906, face: 'w', stock: [{ item: 'mount_ram', price: 8000 }, { item: 'mount_whitestag', price: 12800 }] },
 ];
 
