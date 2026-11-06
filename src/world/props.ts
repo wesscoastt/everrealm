@@ -564,6 +564,31 @@ export function barrel(M: PropMaterials, water = false): THREE.Group {
   return g;
 }
 
+/** An archery butt: a round straw boss with a painted face (gold, red, blue, black, white from the middle out)
+ *  leaning back on a wooden easel, a couple of arrows stuck in it. Faces +z. */
+export function archeryButt(M: PropMaterials, seed = 0): THREE.Group {
+  const g = new THREE.Group();
+  const boss = new THREE.Group();
+  boss.position.set(0, 1.05, 0);
+  boss.rotation.x = -0.22;
+  boss.add(mesh(cyl(0.62, 0.62, 0.32, 18), flat('#c8a85a'), 0, 0, 0, 0, Math.PI / 2));
+  const rings: [number, string][] = [[0.58, '#e8e2d0'], [0.47, '#1e1e22'], [0.36, '#2f5aa0'], [0.25, '#b02a24'], [0.13, '#e0b030']];
+  rings.forEach(([r, c], i) => boss.add(mesh(cyl(r, r, 0.02, 18), flat(c), 0, 0, 0.17 + i * 0.004, 0, Math.PI / 2)));
+  for (let i = 0; i < 2 + (seed % 2); i++) {
+    const a = seed * 1.7 + i * 2.3, d = 0.08 + ((seed + i * 3) % 4) * 0.09;
+    const arrow = mesh(cyl(0.015, 0.015, 0.55, 4), M.darkWood, Math.cos(a) * d, Math.sin(a) * d, 0.42, 0, Math.PI / 2 + 0.08, 0.05);
+    boss.add(arrow);
+    boss.add(mesh(box(0.06, 0.005, 0.1), flat('#e8e2d0'), Math.cos(a) * d, Math.sin(a) * d + 0.02, 0.66));
+  }
+  g.add(boss);
+  // the easel: two front legs and a prop behind
+  g.add(mesh(box(0.08, 1.5, 0.08), M.darkWood, -0.45, 0.72, 0.12, 0, -0.18));
+  g.add(mesh(box(0.08, 1.5, 0.08), M.darkWood, 0.45, 0.72, 0.12, 0, -0.18));
+  g.add(mesh(box(0.08, 1.4, 0.08), M.darkWood, 0, 0.66, -0.45, 0, 0.45));
+  g.add(mesh(box(1.0, 0.07, 0.07), M.darkWood, 0, 0.55, 0.0));
+  return g;
+}
+
 export function crate(M: PropMaterials, s = 0.7): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(box(s, s, s), M.wood, 0, s / 2, 0));
