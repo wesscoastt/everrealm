@@ -58,6 +58,9 @@ const dish = (id: string, name: string, a: string, value: number, heal: number, 
   ({ id, name, kind: 'food', rarity: 'uncommon', stack: true, value, icon: { shape: 'cooked', a }, heal, buff, desc, stats });
 
 export const FARM_ITEMS: ItemDef[] = [
+  // the garden at home (game/HomeFarm.ts)
+  { id: 'hoe', name: 'Hoe', kind: 'tool', rarity: 'common', stack: false, value: 24, icon: { shape: 'pick', a: '#8a8a8a', b: '#6a4a2a' }, desc: 'An iron blade on an ash handle, set at the angle that saves your back. Bertram says. Nothing saves your back.', stats: 'Tills the ground round your own house into a garden, a tile at a time (Farming).' },
+  { id: 'watering_can', name: 'Watering can', kind: 'tool', rarity: 'common', stack: false, value: 36, icon: { shape: 'gel', a: '#7a8a7a', b: '#3a4a4a' }, desc: 'A galvanised can with a rose on the spout. It leaks a little at the seam, which Bertram calls a feature.', stats: 'Waters a tile and the planted tiles round it: wet ground grows at full speed, dry at half. Rain waters everything.' },
   seed('seed_potato', 'Seed potatoes', '#c8a060', 2, 'Last year\'s small ones, kept back. Every one with an eye.'),
   seed('seed_onion', 'Onion sets', '#c88a4a', 3, 'Little onions, to grow into bigger onions. Farming is not complicated. Farming is hard.'),
   seed('seed_cabbage', 'Cabbage seed', '#8ab870', 4, 'A twist of paper of round brown seeds.'),

@@ -179,7 +179,8 @@ import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNL
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { NEWS_V, newsHtml } from '../data/whatsNew';
-import { inOwnerHome, isHomeOwner } from '../data/content/ownerHome';
+import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
+import { HomeFarm } from './HomeFarm';
 import { serverUrl } from '../net/Online';
 import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
@@ -410,6 +411,8 @@ export class Game implements GameApi {
   dragonPass!: DragonPass;
   /** Your farming patches (data/farming.ts). */
   private farming!: Farming;
+  /** The garden round your own house (game/HomeFarm.ts). */
+  private garden!: HomeFarm;
   /** Your rowing boat, or the one you've hired (game/Rowboat.ts). */
   private boat!: Rowboat;
   /**
@@ -1016,6 +1019,23 @@ export class Game implements GameApi {
       system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
       player: () => this.player.position,
     }, farmPatches(sitePlan().sites));
+    this.garden = new HomeFarm({
+      scene: this.scene, voxels: this.world.voxels,
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
+      give: (it, n) => this.give(it, n), take: (it, n) => this.take(it, n), count: (it) => this.inv.count(it),
+      level: (sk) => this.level(sk), addXp: (sk, n) => this.addXp(sk, n),
+      system: (t) => this.hud.system(t), sound: (n) => this.sfx(n), persist: () => this.persist(),
+      player: () => this.player.position, facing: () => this.player.facing,
+      raining: () => { const w = this.world.sky.weather; return !w.snow && w.precip > 0.25; },
+      garden: () => {
+        // your house's footprint, and ten blocks of yard round it; the owner's house in Verandah, its grounds
+        if (isHomeOwner(this.accountName())) return { house: [-2482, 2383, -2466, 2402], yard: [OWNER_HOME.x0, OWNER_HOME.z0, OWNER_HOME.x1, OWNER_HOME.z1] };
+        const h = this.myHome();
+        if (!h) return null;
+        const x1 = h.x0 + h.w - 1, z1 = h.z0 + h.d - 1;
+        return { house: [h.x0, h.z0, x1, z1], yard: [h.x0 - 10, h.z0 - 10, x1 + 10, z1 + 10] };
+      },
+    });
     // Hollin Ford's own (world/structures.ts places them, the ford post where the stones start)
     for (const m of MONUMENTS) if (m.town === 'hollin' && m.at && !WORLD_THINGS.some((w) => w.id === 'monument:' + m.id)) {
       WORLD_THINGS.push({ id: 'monument:' + m.id, x: m.at[0], z: m.at[1], label: m.model === 'pump' ? 'Look at the village pump' : 'Read ' + m.title.replace(/^The /, 'the '), radius: 2.4, read: 'monument:' + m.id });
@@ -5579,6 +5599,7 @@ export class Game implements GameApi {
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    for (const c of this.garden.candidates()) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.6);
     for (const c of this.farming.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.5);
     // On the post cart: get off whenever you like
     if (this.post.active) { const st = this.post.seat(); consider({ kind: 'act', label: 'Get off the cart', pos: new THREE.Vector3(st.x, st.y + 1.6, st.z), act: () => this.endRide(false) }, 0.05); }
@@ -7393,6 +7414,7 @@ export class Game implements GameApi {
     this.gatherings.update(dt);
     this.dragonPass.update(dt);
     this.farming.update(dt);
+    this.garden.update(dt);
     // Trying something on: it comes off when you walk on, close the shop, or after half a minute
     if (this.trying) {
       const t = this.trying;

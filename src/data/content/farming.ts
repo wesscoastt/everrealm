@@ -36,7 +36,7 @@ const bertram: DialogueTree = {
       ],
     },
     where: {
-      text: 'Three gardens here in the Ford, mine being the best. Every farm round the towns will let you a corner of a field and a bit of orchard, so long as you do the weeding. Most don\'t.',
+      text: 'Your own garden first, if you own a house: a hoe and a can and the grass is up round it by supper. Then there are three gardens here in the Ford, mine being the best. Every farm round the towns will let you a corner of a field and a bit of orchard, so long as you do the weeding. Most don\'t.',
       options: [{ text: 'What do you sell?', effect: (g) => g.openShop('seed_bertram') }, { text: 'Good day.' }],
     },
   },
@@ -45,7 +45,7 @@ const bertram: DialogueTree = {
 const shop: ShopDef = {
   id: 'seed_bertram', name: 'Bertram Sowerby\'s seeds', owner: 'seed_bertram',
   stock: [
-    { item: 'compost', price: 4 }, { item: 'seed_potato', price: 4 }, { item: 'seed_onion', price: 6 }, { item: 'seed_cabbage', price: 8 }, { item: 'seed_carrot', price: 10 },
+    { item: 'hoe', price: 30 }, { item: 'watering_can', price: 45 }, { item: 'compost', price: 4 }, { item: 'seed_potato', price: 4 }, { item: 'seed_onion', price: 6 }, { item: 'seed_cabbage', price: 8 }, { item: 'seed_carrot', price: 10 },
     { item: 'seed_wheat', price: 12 }, { item: 'seed_strawberry', price: 18 }, { item: 'seed_barley', price: 20 }, { item: 'seed_leek', price: 24 }, { item: 'seed_hops', price: 32 },
     { item: 'seed_pumpkin', price: 40 }, { item: 'sapling_apple', price: 120 }, { item: 'sapling_pear', price: 180 }, { item: 'cutting_vine', price: 260 },
   ],

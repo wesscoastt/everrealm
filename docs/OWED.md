@@ -225,6 +225,14 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
           Done 2026-11-06: the trident statue rebuilt by hand in the square (Minecraft -540, 886; edits.ts city); the greenhouse dirt at -418, 1412 grassed; the port waymark (every waymark) stands where the owner's waystone stood, the waystone block gone; view distance 9 by default on a computer, up to 16, textures sharp at a slant; Minecraft pumpkins and bee nests the game's own; grapes across from the winery.
           Done 2026-11-05 late: doors hung right (no more opening into walls; pairs meet in the middle); the stone pillars filling the quarry, the mine and the farm under the owner's house gone (only a floor at the world's foot); no water poured into dry cellars or pits; ladders carried up to the next floor (the owner's farm ladder); hanging lanterns on their chains; the Horses and For Sale signs gone; the waymarks named as the owner named their waystones.
         ORDER (owner 2026-11-05): every 11b item fixed and working in the new Verandah area to a 10/10 first; then the FARMING OVERHAUL next; then on down the prompts.
+     11c. FARMING OVERHAUL (owner 2026-11-06: next; their brief 2026-10: "farming you can do on a lot, a skill, maybe public farms, you decide how it works"). The plan:
+        1. Your own garden (game/HomeFarm.ts): hoe the ground round your house a tile at a time (8 tiles to start, 64 at the last), each tile its own crop; wet ground grows at full speed and dry at half; the can waters a tile and its neighbours, rain waters all; compost and keeping it watered bring more up. Bertram sells the hoe and the can. Done 2026-11-06.
+        2. Public farms: rent rows at the town farms by the day; the town patches become fields of tiles; group farming: your group can water and harvest with you, and you share what comes up.
+        3. Better tools: a copper, an iron and a gilded can (wider spread), a scythe that harvests a row; a scarecrow; a seed drill.
+        4. Animals at home: a hen house (eggs), a cow (milk, butter, cheese), sheep (wool for the tailors); fed hay grown in your garden.
+        5. Seasons on the real calendar: each crop has its season and grows faster in it; winter greens and forcing under glass.
+        6. A produce market: sell to the grocers and the brewers, crop orders on the board (the crafting-orders idea), prizes at the harvest fair for the best of each.
+        7. Mizuholm's rice paddies (flooded fields, planted in rows), tea bushes and the Japanese way of farming.
     12. Graphics overhaul (owner 2026-11-05: "feel more like it was built in an engine like Unity"), and northern lights over the northern lands.
     10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.
 
