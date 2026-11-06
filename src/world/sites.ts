@@ -37,6 +37,7 @@ import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { XAVIER_SHOWROOM } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
+import { POST_COUNTER } from '../data/content/verandahPost';
 import { QUARRY_PROPS, LUMBERYARD_PROPS, PORT_WAREHOUSE_PROPS, FARM_WAREHOUSE_PROPS } from '../data/content/verandahWork';
 import { BUTTS_PROPS, OUTPOST_PROPS } from '../data/content/verandahGuards';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -766,6 +767,7 @@ function* planBody(): Generator<string, Plan> {
     { id: 'ver-lumberyard', name: '', x: -3310, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LUMBERYARD_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-butts', name: '', x: -3070, z: 1954, r0: 0, r1: 0, build: (s: Site) => { for (const p of BUTTS_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-outpost', name: '', x: -3136, z: 2332, r0: 0, r1: 0, build: (s: Site) => { for (const p of OUTPOST_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    { id: 'ver-post', name: '', x: -2966, z: 2120, r0: 0, r1: 0, build: (s: Site) => { for (const p of POST_COUNTER) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 21, z: p.z, ry: p.ry }); } },
     // The Verandah Library, done over (data/content/verandahLibrary.ts)
     { id: 'ver-library', name: '', x: -2945, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LIBRARY_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 23, z: p.z, ry: p.ry }); } },
     // King Edmund's throne, at the end of the red carpet in his hall (data/content/verandahCourt.ts)
