@@ -24,7 +24,7 @@ const SEA_FLOOR = SEA - 9;
 
 // ---------------------------------------------------------------- the small things, as props
 /** Things you can't walk through: an invisible wall in their block (owner 2026-11-05, "no collision issues"). */
-const SOLID_T = new Set(['barrel', 'crate', 'anvil', 'mcbench', 'mcfurnace']);
+const SOLID_T = new Set(['barrel', 'crate', 'anvil', 'mcbench', 'mcfurnace', 'mcpumpkin', 'mcbeehive']);
 const SOLID_ITEM = new Set(['table', 'chest', 'hearth', 'desk', 'dresser', 'counter', 'shelves', 'bed', 'strongbox']);
 /** Minecraft's facings to the game's (0 toward +z, south): a cardinal name, a facing_direction (2 north, 3 south, 4 west, 5 east), a direction (0 south, 1 west, 2 north, 3 east). */
 function facingOf(st: Record<string, unknown>): number {
@@ -40,6 +40,9 @@ function facingOf(st: Record<string, unknown>): number {
 function propOf(p: Palette): { t: string; item?: string; h?: number } | null {
   const n = p.name.replace(/^[a-z0-9_]+:/, ''), st = p.states, vanilla = p.name.startsWith('minecraft:');
   if (/^ladder$/.test(n)) return { t: 'mcladder' };
+  // pumpkins (carved, lit) and bee nests: the game's own (owner 2026-11-05: "beehives got turned into wood planks")
+  if (/^(pumpkin|carved_pumpkin|lit_pumpkin)$/.test(n)) return { t: 'mcpumpkin', h: n === 'lit_pumpkin' ? 2 : n === 'carved_pumpkin' ? 1 : 0 };
+  if (/^(bee_nest|beehive)$/.test(n)) return { t: 'mcbeehive' };
   if (/fence_gate/.test(n)) return { t: 'mcgate' };
   // fire in a hearth, and campfires: the game's flames (owner 2026-11-05: "fireplaces not working")
   if (/^(fire|soul_fire)$/.test(n)) return { t: 'mcfire', h: 0 };
@@ -90,7 +93,7 @@ function mapBlock(p: Palette): number {
     // and the odd things with no block of their own (owner 2026-11-05: "random blocks on a table in the winery")
     if (/^light_block|dynamic_light|fake_light|^(moving_block|portal|web|cobweb|cake|cocoa|brewing_stand|enchanting_table|trial_spawner|vault|structure_block|jigsaw)$/.test(n0)) return B.Air;
     if (/amethyst_block|budding_amethyst/.test(n0)) return B.Crystal;
-    if (/bamboo_block|bamboo_planks|bamboo_mosaic/.test(n0)) return B.Planks;
+    if (/bamboo_block|bamboo_planks|bamboo_mosaic|bamboo_(stairs|slab|double_slab|fence)/.test(n0)) return B.Bamboo;
     if (/mangrove_roots/.test(n0)) return B.OakLog;
     // fences: an invisible wall the fence's height, drawn as posts and rails (world/props.ts mcFence)
     if (/fence$/.test(n0) && !/gate/.test(n0)) return B.Barrier;
@@ -106,13 +109,15 @@ function mapBlock(p: Palette): number {
   if (!p.name.startsWith('minecraft:')) {
     const a = p.name.split(':')[1].replace(/[._]/g, ' ');
     if (/^(pu biomes|ecbl bc)/.test(p.name.replace(/[._:]/g, ' '))) return /stone|bricks|geodite|rock/.test(a) && !/pebble/.test(a) ? B.Stone : /log|wood/.test(a) ? B.OakLog : /leaves/.test(a) ? B.OakLeaves : B.Air;
-    if (/waystone/.test(a)) return B.Blackstone;
+    if (/waystone/.test(a)) return B.Air; // (the game's waymark stands in its place: world/sites.ts)
     if (/lantern|lamp|light|candle/.test(a) && !/stone/.test(a)) return B.Glowcap;
     if (/glass|window|pane/.test(a)) return B.Window;
     // furniture, plants, crates, fittings: too small or too fiddly to be a block of their own
     if (/table|chair|stool|bench|sideboard|stove|pan|placeable|plushie|bed|frame|sapling|flower|grass|seed|cropbox|grape|vine|recycler|workbench|crafter|pot|sign|door|gate|curtain|shelf item|hanging|picture|clock|rug|carpet|cushion|barrel|chest|collision|corn block top/.test(a)) return B.Air;
     if (/corn block|hay/.test(a)) return B.Hay;
     const dark = /dark oak|spruce|mangrove|crimson|warped|ebony|walnut/.test(a), pale = /birch|pale oak|white/.test(a);
+    // (the side-slab add-on's bamboo: a house of it, owner 2026-11-05)
+    if (/bamboo/.test(a) && !/sapling|shoot/.test(a)) return B.Bamboo;
     if (/plank|wood|beam|timber|log|bookshelf|oak|spruce|birch|acacia|jungle|cherry|mangrove|warped|crimson/.test(a)) return /log|beam/.test(a) ? B.Timber : dark ? B.DarkPlanks : pale ? B.Planks : B.Planks;
     if (/cobble/.test(a)) return /mossy/.test(a) ? B.MossyCobble : B.Cobble;
     if (/calcite|diorite|quartz|white/.test(a)) return B.Whitestone;

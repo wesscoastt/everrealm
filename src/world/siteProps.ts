@@ -283,6 +283,9 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'mcfence': place(P.mcFence(M, d.h ?? 0), d.x, d.y, d.z, 0); break;
       case 'mcbench': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'mcfurnace': place(P.mcFurnace(M), d.x, d.y, d.z, d.ry); break;
+      // a pumpkin, carved (h 1) or lit (h 2), and a beehive: the game's own
+      case 'mcpumpkin': { const pk = d.h ? P.jackOLantern(Math.floor(Math.abs(d.x * 7 + d.z * 3)) % 6, 1.2) : P.pumpkin('#e8801e', 1.25); place(pk, d.x, d.y, d.z, d.ry); if (d.h === 2) { glow(d.x, d.y + 0.4, d.z, 0.7, '#ffa040'); lamps.push(new THREE.Vector3(d.x, d.y + 0.4, d.z)); } break; }
+      case 'mcbeehive': place(P.beehive(M), d.x, d.y, d.z, d.ry); break;
       case 'mchatch': place(P.mcHatch(M), d.x, d.y, d.z, d.ry); break;
       case 'mcladder': place(P.mcLadder(M), d.x, d.y, d.z, d.ry); break;
       case 'mctorch': place(P.mcTorch(M, d.h === 1), d.x, d.y, d.z, d.ry); { const v = new THREE.Vector3(d.x + Math.sin(d.ry ?? 0) * (d.h === 1 ? 0.3 : 0), d.y + 0.8, d.z + Math.cos(d.ry ?? 0) * (d.h === 1 ? 0.3 : 0)); glow(v.x, v.y, v.z, 0.9, '#ffb040'); lamps.push(v); } break;

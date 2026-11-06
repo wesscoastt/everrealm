@@ -54,4 +54,53 @@ export const EDITS: Record<string, (e: Editor) => void> = {
       for (const z of [918, 919]) { e.fill(x, step + 1, z, x, G, z, B.Air); e.set(x, step, z, B.Planks); }
     }
   },
+  /**
+   * Verandah (owner 2026-11-05). The trident statue in the square by the Arena (Minecraft -540, 886): what came
+   * through of it was its prismarine and warped wood half-slabs, floating in pieces, so it comes down and a
+   * trident is raised in its place in the game's own stone and bronze: a stepped plinth of dressed stone, a
+   * pale stone drum, the shaft in verdigris copper bound with brass at the grip, a crossbar, and three barbed
+   * prongs, the middle one tallest. And the dirt in the glass-roofed garden at -418, 1412: grass again.
+   */
+  city(e) {
+    // the old statue, down to its platform (71)
+    e.fill(-550, 72, 875, -526, 112, 893, B.Air);
+    const cx = -541, cz = 884, b = 72; // the shaft's west/north column; the shaft is cx..cx+1, cz..cz+1
+    // the plinth: three steps up, dressed stone, a pale drum on top
+    e.fill(cx - 5, b, cz - 5, cx + 6, b, cz + 6, B.StoneBrick);
+    e.fill(cx - 4, b + 1, cz - 4, cx + 5, b + 1, cz + 5, B.StoneBrick);
+    e.fill(cx - 3, b + 2, cz - 3, cx + 4, b + 2, cz + 4, B.Flagstone);
+    e.fill(cx - 2, b + 3, cz - 2, cx + 3, b + 5, cz + 3, B.Whitestone);
+    e.fill(cx - 2, b + 6, cz - 2, cx + 3, b + 6, cz + 3, B.Flagstone);
+    // the shaft
+    const s0 = b + 7, s1 = b + 30;
+    e.fill(cx, s0, cz, cx + 1, s1, cz + 1, B.Copper);
+    // the grip, bound in brass
+    for (const y of [s0 + 6, s0 + 8, s0 + 10]) e.fill(cx, y, cz, cx + 1, y, cz + 1, B.Brass);
+    e.fill(cx, s1 - 1, cz, cx + 1, s1 - 1, cz + 1, B.Brass);
+    // the crossbar
+    const c = s1 + 1;
+    e.fill(cx - 5, c, cz, cx + 6, c + 1, cz + 1, B.Copper);
+    e.fill(cx - 4, c - 1, cz, cx + 5, c - 1, cz + 1, B.Brass);
+    // the prongs: the outer two up from the crossbar's ends, the middle one tallest
+    e.fill(cx - 5, c + 2, cz, cx - 4, c + 8, cz + 1, B.Copper);
+    e.fill(cx + 5, c + 2, cz, cx + 6, c + 8, cz + 1, B.Copper);
+    e.fill(cx, c + 2, cz, cx + 1, c + 11, cz + 1, B.Copper);
+    // barbs, turned out from each prong below its point, and brass points
+    e.fill(cx - 6, c + 6, cz, cx - 6, c + 7, cz + 1, B.Copper);
+    e.fill(cx + 7, c + 6, cz, cx + 7, c + 7, cz + 1, B.Copper);
+    e.fill(cx - 1, c + 8, cz, cx - 1, c + 9, cz + 1, B.Copper);
+    e.fill(cx + 2, c + 8, cz, cx + 2, c + 9, cz + 1, B.Copper);
+    e.fill(cx - 5, c + 9, cz, cx - 4, c + 9, cz + 1, B.Brass);
+    e.fill(cx + 5, c + 9, cz, cx + 6, c + 9, cz + 1, B.Brass);
+    e.fill(cx, c + 12, cz, cx + 1, c + 12, cz + 1, B.Brass);
+    // the greenhouse garden: the bare dirt under the glass grassed over
+    for (let x = -432; x <= -404; x++) for (let z = 1396; z <= 1428; z++) {
+      for (let y = 95; y > 55; y--) {
+        const id = e.get(x, y, z);
+        if (id === B.Air || id === B.Glass || id === B.Window || id === B.Barrier) continue;
+        if (id === B.Dirt) e.set(x, y, z, B.Grass);
+        break;
+      }
+    }
+  },
 };

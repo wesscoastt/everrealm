@@ -61,6 +61,8 @@ export function mcLoad(cx: number, cz: number, base: string): Promise<void> {
 }
 
 const GRASSY = new Set<number>([B.Grass, B.FlowerGrass, B.Loam]);
+/** The farmland across from Verandah Winery, a vineyard. */
+const VINEYARD = { x0: -2970, x1: -2860, z0: 1935, z1: 1990 };
 /** Tops that aren't anything built: the country. */
 const NATURAL = new Set<number>([B.Grass, B.FlowerGrass, B.Loam, B.Dirt, B.Snow, B.SnowGrass, B.Sand, B.Stone, B.Granite, B.Gravel, B.Water, B.Ice, B.Clay, B.OakLeaves, B.BirchLeaves, B.PineLeaves, B.OakLog, B.BirchLog, B.PineLog]);
 
@@ -94,7 +96,9 @@ export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, numbe
     // crops on the farmland: wheat, and corn in its own rows (the owner's farm grew both)
     if (topId === B.Farmland && top + 1 < SY) {
       const x = ox + lx, z = oz + lz, corn = Math.floor(x / 5) % 2 === 0;
-      for (let k = 0; k < 2; k++) veg.push(x + 0.25 + k * 0.5, top + 1, z + 0.5, corn ? 15 : 6, corn ? 1.9 : 1.05, (x * 7 + z) % 6, 1, 1, 1);
+      // across from the winery, a vineyard (owner 2026-11-05: "replace the farmland across the winery with grapes")
+      if (x >= VINEYARD.x0 && x <= VINEYARD.x1 && z >= VINEYARD.z0 && z <= VINEYARD.z1) veg.push(x + 0.5, top + 1, z + 0.5, 16, 1.7, x % 2 ? 0 : Math.PI, 1, 1, 1);
+      else for (let k = 0; k < 2; k++) veg.push(x + 0.25 + k * 0.5, top + 1, z + 0.5, corn ? 15 : 6, corn ? 1.9 : 1.05, (x * 7 + z) % 6, 1, 1, 1);
     }
     // grass and the odd flower on open lawns
     if (GRASSY.has(topId) && top + 1 < SY) {

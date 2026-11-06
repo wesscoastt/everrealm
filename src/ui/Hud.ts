@@ -3517,7 +3517,7 @@ export class Hud {
     const body = this.q('#settings-panel .body');
     const st = this.ctx.save.settings;
     const sliders: [keyof typeof st, string, number, number, number][] = [
-      ['viewDist', 'View distance', 4, 10, 1],
+      ['viewDist', 'View distance', 4, 16, 1],
       ['master', 'Master volume', 0, 1, 0.05], ['sfx', 'Effects', 0, 1, 0.05], ['ambience', 'Ambience', 0, 1, 0.05], ['music', 'Music', 0, 1, 0.05],
       ['renderScale', 'Render scale', 0.5, 1, 0.05],
       ['mouseSens', 'Mouse look speed', 0.3, 2.5, 0.05],

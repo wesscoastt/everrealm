@@ -50,7 +50,7 @@ import { MONUMENTS, type Monument } from '../data/monuments';
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
-  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'mcfire' | 'mcfence' | 'mcbench' | 'mcfurnace' | 'mchatch' | 'notice' | 'desk' | 'furn' | 'rails'
+  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'mcfire' | 'mcfence' | 'mcbench' | 'mcfurnace' | 'mchatch' | 'mcpumpkin' | 'mcbeehive' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
   | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
@@ -748,7 +748,7 @@ function* planBody(): Generator<string, Plan> {
             if (t === 'furn') d.item = String(extra) as PropDesc['item'];
             // (Minecraft's beds face the other way to the game's)
             if (t === 'furn' && extra === 'bed') d.ry = +ry + Math.PI;
-            else if (t === 'mctorch' || t === 'mclantern' || t === 'mcfire' || t === 'mcfence') d.h = +extra;
+            else if (t === 'mctorch' || t === 'mclantern' || t === 'mcfire' || t === 'mcfence' || t === 'mcpumpkin') d.h = +extra;
             s.props.push(d);
           }
         },
@@ -9539,7 +9539,7 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     // (the name the owner gave it in Minecraft, where the add-on kept one)
     const name = w.name ?? (near(/welcome to verandah/i, 40) ? 'Verandah Docks' : near(/arena/i, 30) ? 'Verandah Arena' : near(/airport/i, 40) ? 'Verandah Airport'
       : near(/horses/i, 120) ? 'Verandah Stables' : near(/bank of verandah/i, 130) ? 'Verandah, the Great Bridge' : 'Verandah Outskirts');
-    const x = Math.floor(w.x) + 1.5, z = Math.floor(w.z) + 0.5, ry = Math.PI / 2;
+    const x = Math.floor(w.x) + 0.5, z = Math.floor(w.z) + 0.5, ry = Math.PI / 2;
     mcHost.props.push({ t: 'waymark', x, y: w.y, z, ry, theme: 'gannet' });
     out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: w.y, theme: 'gannet', ry, ax: x + 2.5, az: z });
   }

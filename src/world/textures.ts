@@ -261,6 +261,7 @@ const painters: Record<number, (p: Px) => void> = {
   [T.OakLeaves]: (p) => leaves(p, '#2f6a22', '#47902f', '#69b23e', 91, 6),
   [T.Planks]: (p) => planks(p, '#7d5532', '#9c6d40', '#b9884f', 101),
   [T.DarkPlanks]: (p) => planks(p, '#3c2718', '#523621', '#66452b', 111),
+  [T.Bamboo]: (p) => planks(p, '#a8903a', '#c8ac4e', '#dcc46a', 131),
   [T.Plaster]: (p) => {
     base(p, '#d6c9a8', '#e6dbbd', '#f2e9d0', 121, 0.06);
     crack(p, '#b8aa88', 7);
@@ -663,7 +664,8 @@ export function buildBlockTextureArray(): THREE.DataArrayTexture {
   tex.minFilter = THREE.NearestMipmapLinearFilter;
   tex.generateMipmaps = true;
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  // (sharp at a slant: the ground a little way off keeps its texture instead of going soft; owner 2026-11-05)
+  tex.anisotropy = 16;
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.needsUpdate = true;

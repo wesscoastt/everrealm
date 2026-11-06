@@ -61,7 +61,7 @@ export interface SaveData {
   origin?: string;
 }
 
-export const DEFAULT_SETTINGS: Settings = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45, shadows: true, renderScale: 1, dayLength: 24, viewDist: 6, mouseSens: 1, invertY: false, filterChat: true, ignored: [], uiScale: 1, colourVision: 'standard' };
+export const DEFAULT_SETTINGS: Settings = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45, shadows: true, renderScale: 1, dayLength: 24, viewDist: 9, mouseSens: 1, invertY: false, filterChat: true, ignored: [], uiScale: 1, colourVision: 'standard' };
 
 export function newSave(name: string, look: Appearance): SaveData {
   const inv: (Stack | null)[] = new Array(INV_SIZE).fill(null);

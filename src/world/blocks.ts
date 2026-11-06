@@ -20,6 +20,8 @@ export enum T {
   Wool,
   // Verandah (the owner's Minecraft town, world/mcland.ts): clear glass, iron bars, a bookcase, glowstone
   Glass, Bars, Bookshelf, Glowstone,
+  // Bamboo planks, pale gold (a Verandah house of bamboo, the side-slab add-on)
+  Bamboo,
   Count,
 }
 
@@ -46,6 +48,8 @@ export enum B {
   Wool,
   // Verandah's: clear glass and iron bars you see through, a bookcase, glowstone that lights a street
   Glass, Bars, Bookshelf, Glowstone,
+  // Bamboo planks, pale gold (a Verandah house of bamboo, the side-slab add-on)
+  Bamboo,
   Count,
 }
 
@@ -140,6 +144,7 @@ BLOCKS[B.Glass] = D('glass', T.Glass, T.Glass, T.Glass, { seeThrough: true, jitt
 BLOCKS[B.Bars] = D('iron bars', T.Bars, T.Bars, T.Bars, { seeThrough: true, jitter: 0 });
 BLOCKS[B.Bookshelf] = D('bookshelf', T.Planks, T.Bookshelf, T.Planks, { jitter: 0.02 });
 BLOCKS[B.Glowstone] = D('glowstone', T.Glowstone, T.Glowstone, T.Glowstone, { emissive: 1, jitter: 0 });
+BLOCKS[B.Bamboo] = D('bamboo planks', T.Bamboo, T.Bamboo, T.Bamboo);
 BLOCKS[B.BluePlaster] = D('blue limewash', T.BluePlaster, T.BluePlaster, T.BluePlaster, { jitter: 0.025 });
 BLOCKS[B.FlowerGrass] = D('meadow', T.FlowerGrass, T.GrassSide, T.Dirt, { jitter: 0.05 });
 BLOCKS[B.Granite] = D('granite', T.Granite, T.Granite, T.Granite, { jitter: 0.04 });

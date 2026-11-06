@@ -5,8 +5,8 @@ import { distToPolyline, fbm2, hash2, smoothstep } from './noise';
 import { SX, SZ, Grid, WATER_LEVEL } from './grid';
 
 // Sprite atlas: 15 cells of 32x32 in a 480x32 canvas.
-const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass, Berry, Mushroom, Herb, BerryBlue, BerryCloud, Corn }
-const CELLS = 16;
+const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass, Berry, Mushroom, Herb, BerryBlue, BerryCloud, Corn, Grape }
+const CELLS = 17;
 
 function paintAtlas(): THREE.Texture {
   const c = document.createElement('canvas');
@@ -73,6 +73,16 @@ function paintAtlas(): THREE.Texture {
     for (let k = 0; k < 3; k++) { const y = 26 - k * 7; x.strokeStyle = '#7aaa3a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(32 * S.Corn + bx, 32 - y); x.quadraticCurveTo(32 * S.Corn + bx + (k % 2 ? 5 : -5), 32 - y - 4, 32 * S.Corn + bx + (k % 2 ? 7 : -7), 32 - y + 3); x.stroke(); }
     x.fillStyle = '#e8c040'; x.fillRect(32 * S.Corn + bx + 1, 13 + (i % 2) * 3, 2.5, 6);
     x.fillStyle = '#c89a3a'; x.fillRect(32 * S.Corn + bx + 1, 11 + (i % 2) * 3, 2, 2);
+  }
+  // A grape vine (Verandah's vineyard, across from the winery): a stake and its wire, the vine trained along
+  // it in broad leaves, and the bunches hanging dark under them
+  {
+    const o = 32 * S.Grape;
+    x.fillStyle = '#6a4a2a'; x.fillRect(o + 15, 4, 2, 28);
+    x.fillStyle = '#5a5048'; x.fillRect(o + 1, 9, 30, 1); x.fillRect(o + 1, 17, 30, 1);
+    x.strokeStyle = '#5a3a1e'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(o + 16, 31); x.quadraticCurveTo(o + 10, 22, o + 4, 17); x.moveTo(o + 16, 28); x.quadraticCurveTo(o + 22, 20, o + 28, 10); x.stroke();
+    for (const [lx, ly, c] of [[4, 14, '#4a7a2a'], [9, 8, '#5a8a32'], [13, 15, '#3f6a24'], [20, 7, '#5a8a32'], [25, 13, '#4a7a2a'], [28, 6, '#3f6a24'], [7, 19, '#4a7a2a'], [22, 18, '#5a8a32']] as const) { x.fillStyle = c; x.beginPath(); x.arc(o + lx, ly, 3.6, 0, Math.PI * 2); x.fill(); }
+    for (const [gx, gy] of [[6, 19], [12, 21], [19, 20], [25, 18], [9, 12]] as const) for (let k = 0; k < 6; k++) { x.fillStyle = k % 2 ? '#4a2a5a' : '#5e3a72'; x.beginPath(); x.arc(o + gx + (k % 2) * 2 - 1, gy + Math.floor(k / 2) * 2, 1.4, 0, Math.PI * 2); x.fill(); }
   }
   for (let k = 0; k < 4; k++) {
     const mx = 32 * S.Mushroom + 5 + k * 6.5, my = 32 - 6 - (k % 2) * 4;

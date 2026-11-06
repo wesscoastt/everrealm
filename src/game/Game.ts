@@ -3527,6 +3527,14 @@ export class Game implements GameApi {
       s.shadows = false;
       try { localStorage.setItem(TUNED, '1'); } catch { /* as above */ }
     }
+    // A PC-first game sees further (owner 2026-11-05): the old default of 6 chunks raised to 9 once, on a computer
+    const FAR = 'everrealm.viewFar';
+    let far = true;
+    try { far = !!localStorage.getItem(FAR); } catch { /* storage blocked */ }
+    if (!far && !matchMedia('(pointer: coarse)').matches) {
+      if (s.viewDist <= 6) s.viewDist = 9;
+      try { localStorage.setItem(FAR, '1'); } catch { /* as above */ }
+    }
     this.audio.volumes = { master: s.master, sfx: s.sfx, ambience: s.ambience, music: s.music };
     this.audio.applyVolumes();
     // The interface's size (the world's own labels keep theirs), and colour vision
