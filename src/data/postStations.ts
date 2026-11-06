@@ -23,8 +23,13 @@ export const POST_CART_KEY = 'postcart';
 export const POST_RIDER_SEAT = 3;
 
 export type PostFace = 'n' | 's' | 'e' | 'w';
-export interface PostYard { post: string; x: number; z: number; face: PostFace; base: number }
-export const POST_STATIONS: PostYard[] = POST_YARDS;
+/** bare: a yard whose stable and fences are the place's own (Verandah's, by the owner's stables): nothing built, only the cart, the carter and the horses. */
+export interface PostYard { post: string; x: number; z: number; face: PostFace; base: number; bare?: boolean }
+export const POST_STATIONS: PostYard[] = [
+  ...POST_YARDS,
+  // Verandah's yard, out by the stables beside the road, facing it (owner 2026-11-06: "face the road with the Charter Post horses like the others")
+  { post: 'verandahyard', x: -3288, z: 2060, face: 'n', base: 17, bare: true },
+];
 
 /** A point in a yard's own frame (u across the front, v out toward the road) in the world. */
 export function yardAt(y: PostYard, u: number, v: number): [number, number] {

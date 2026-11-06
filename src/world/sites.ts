@@ -824,7 +824,7 @@ function* planBody(): Generator<string, Plan> {
     ...SHARDFALLS.map(([x, z], i): Named => ({ id: 'shardfall-' + i, name: 'Shardfall ground', x, z, r0: 12, r1: 22, build: (s, g) => buildShardGround(s, g) })),
     { id: 'wreck', name: 'The Gannet\'s Wreck', x: coastX(780) + 22, z: 780, r0: 0, r1: 0, build: (s) => buildWreck(s, coastX(780) + 22, 780) },
     // Stables outside the towns (data/stables.ts)
-    ...STABLES.map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
+    ...STABLES.filter((st) => !st.bare).map((st): Named => ({ id: st.id, name: st.name, x: st.x, z: st.z, r0: 0, r1: 0, build: (s) => buildStable(s, st) })),
     // The trades in the country: vineyards, the brewhouse, the dairy, the glasshouse... (data/businesses.ts)
     ...BUSINESSES.map((b): Named => ({ id: 'bz-' + b.id, name: b.name, x: b.x, z: b.z, r0: 26, r1: 38, build: (s, g) => buildBusiness(s, g, b) })),
     // Inkholm, the mushroom isle (data/inkholm.ts)
@@ -862,7 +862,7 @@ function* planBody(): Generator<string, Plan> {
     { id: 'callis-mirador', name: 'The Mirador', x: 8590, z: 796, r0: 0, r1: 0, build: (s) => buildMirador(s) },
     // The Charter Post's coaching yards, one at every stop on the roads (data/postStations.ts)
     // (Hollin Ford's is built with the village itself, on the starter grid the planner's blocks don't reach: structures.ts)
-    ...POST_STATIONS.filter((y) => y.post !== 'hollin').map((y): Named => ({ id: `post-${y.post}`, name: 'Charter Post', x: y.x, z: y.z, r0: 0, r1: 0, build: (s) => buildPostStation(s, y) })),
+    ...POST_STATIONS.filter((y) => y.post !== 'hollin' && !y.bare).map((y): Named => ({ id: `post-${y.post}`, name: 'Charter Post', x: y.x, z: y.z, r0: 0, r1: 0, build: (s) => buildPostStation(s, y) })),
     // The ferries' jetties, one at every stop of every route (data/ferries.ts)
     ...FERRIES.flatMap((r) => FERRY_PLAN[r.id]!.piers.map((pl, k): Named => ({ id: `pier-${r.id}-${k}`, name: `${r.ship[4].toUpperCase() + r.ship.slice(5)}'s jetty`, x: pl.to[0], z: pl.to[1], r0: 0, r1: 0, build: (s) => buildPier(s, r, k) }))),
     // Hall Row outside Ansbury's south gate, the old companies' halls let to guilds (data/guildhalls.ts)

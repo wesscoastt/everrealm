@@ -213,7 +213,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
           v. The "Horses 64 £" sign by the carter: gone (done); the stables sell pure-bred horses there (item 11).
           w. Too many "Verandah Outskirts" stars: done, the waymarks carry the names the owner gave their waystones (Verandah, Verandah Farm, Mizuholm, Verandah Port, Awschitz, Verandah Airport, Kestle, Verandah Arena).
           x. Verandah has two stables: one just inside the front gate by the big main bridge, and one outside the gate facing the Charter carter's yard; horses in them and about them (owner 2026-11-05).
-          y. Ned Pascoe faces the road, with the Charter Post's cart and horses beside him like the other yards (owner 2026-11-05).
+          y. Ned Pascoe faces the road, with the Charter Post's cart and horses beside him like the other yards (owner 2026-11-05). Done 2026-11-06: a bare yard (the cart, the carter and the horses, nothing built) by the road; the stables outside the gate sell three pure-bred horses (Jenna Penrose). Still: the stable inside the front gate by the big bridge (where?), and the temple dungeon by the bamboo house (where?).
           z. The trident statue: remove the dirt-coloured blocks and rebuild it by hand (owner 2026-11-05); where is it? (asked).
           aa. The open lots inside Verandah by the west gate: buildings and detail (with item 19).
           ab. The settlement behind the Arena: a real settlement with a name, people, and dressing (owner 2026-11-05).

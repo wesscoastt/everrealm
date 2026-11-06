@@ -16,6 +16,10 @@ export interface StableDef {
   face: Face;
   /** What's for sale, cheapest first. */
   stock: { item: string; price: number }[];
+  /** A stable that's the place's own (Verandah's): nothing built; the horses stand at `spots`, the keeper at `keeper` [x, z, facing x, facing z]. */
+  bare?: boolean;
+  spots?: [number, number][];
+  keeper?: [number, number, number, number];
 }
 
 export const STABLES: StableDef[] = [
@@ -24,6 +28,9 @@ export const STABLES: StableDef[] = [
   { id: 'st-harrowgate', name: 'Company Stables', town: 'Harrowgate Works', x: 1063, z: 972, face: 's', stock: [{ item: 'halter_chestnut', price: 400 }, { item: 'halter_shire', price: 900 }, { item: 'wagon_covered', price: 4500 }] },
   { id: 'st-cragsby', name: 'Cragsby Stables', town: 'Cragsby', x: 231, z: -955, face: 'e', stock: [{ item: 'halter_seafret', price: 4800 }, { item: 'mount_elk', price: 7200 }] },
   { id: 'st-holme', name: 'Staithe Stables', town: 'Holme Staithe', x: -818, z: 1020, face: 'n', stock: [{ item: 'halter_fen', price: 4800 }, { item: 'mount_kelpie', price: 11200 }] },
+  // Verandah's (owner 2026-11-05: "you can buy pure-bred horses there where the sign is"): the owner's pen outside the gate, by the Charter yard
+  { id: 'st-verandah', name: 'Verandah Stables', town: 'Verandah', x: -3305, z: 2050, face: 's', bare: true, spots: [[-3307.5, 2050.5], [-3304.5, 2050.5], [-3302.5, 2049.5]], keeper: [-3301.5, 2051.5, -3301.5, 2054.5],
+    stock: [{ item: 'halter_ver_black', price: 2400 }, { item: 'halter_ver_gold', price: 2800 }, { item: 'halter_ver_dapple', price: 3200 }] },
   { id: 'st-scarrow', name: 'Tor Stables', town: 'Scarrow Tor', x: 345, z: 2906, face: 'w', stock: [{ item: 'mount_ram', price: 8000 }, { item: 'mount_whitestag', price: 12800 }] },
 ];
 

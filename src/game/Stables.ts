@@ -36,7 +36,7 @@ export class Stables {
       const m = ITEMS[s.item]?.mount;
       if (!m) return;
       const [u, v] = PADDOCK_SPOTS[i % PADDOCK_SPOTS.length];
-      const [x, z] = stableAt(st, u, v);
+      const [x, z] = st.spots ? [st.spots[i % st.spots.length][0] - 0.5, st.spots[i % st.spots.length][1] - 0.5] : stableAt(st, u, v);
       const model = mountModel(m);
       model.root.position.set(x + 0.5, this.voxels.groundBelow(x + 0.5, 140, z + 0.5), z + 0.5);
       const yaw = Math.random() * Math.PI * 2;

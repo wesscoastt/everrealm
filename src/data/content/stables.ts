@@ -17,6 +17,10 @@ const halter = (id: string, name: string, rarity: ItemDef['rarity'], coat: strin
 });
 
 const ITEMS: ItemDef[] = [
+  // Verandah's pure-breds (data/stables.ts st-verandah)
+  halter('halter_ver_black', 'Verandah black', 'epic', '#141012', '#0a0808', '#2f528f', 'Black to the hoof, with one white star on the brow. Verandah breeders keep the bloodline to a book older than the walls, and they read it to you before they sell.'),
+  halter('halter_ver_gold', 'Verandah palomino', 'epic', '#d8a850', '#f4ecd0', '#7a2a24', 'Gold with a white mane, the colour of the harbour at evening. They say the first one came off a ship and would not go back aboard.'),
+  halter('halter_ver_dapple', 'Verandah dapple', 'epic', '#9a9a9a', '#e8e8e8', '#3a2a4a', 'Grey dappled like rain on a cobbled street. The rarest of the three the island breeds, and the hardest to buy: the stablemaster has to like you.'),
   halter('halter_piebald', 'Fair-day piebald', 'uncommon', '#3a2a20', '#1a1410', '#7a2a24', 'Black and white in patches no two people describe the same way. Bought and sold at the Ansbury fair more times than anyone has counted.', { breed: 'pied' }),
   halter('halter_carriage', 'Ansbury carriage black', 'uncommon', '#1a1618', '#0e0c0c', '#c8a040', 'Bred to pull a town carriage through a crowd without blinking. Takes the same attitude to everything else.'),
   // Two to a saddle: a pillion pad behind for a friend
@@ -70,6 +74,13 @@ const KEEPERS: Record<string, { name: string; title: string; look: NpcDef['look'
     hello: 'Staithe Stables. If you\'re here for the kelpie, everyone is. Look at the fen black first. He\'s the sensible one.',
     about: 'The kelpie\'s grandmother came up out of the mere one winter and wouldn\'t go back. Her foals are the same. Keep her away from deep water. She gets ideas.',
   },
+  'st-verandah': {
+    name: 'Jenna Penrose', title: 'Stablemaster, Verandah',
+    look: { frame: 'f', skin: '#e2b894', hair: '#2a1e14', hairStyle: 1, eyes: '#3a4a2a', tunic: '#2f3a4a', trim: '#c8a040', trousers: '#2a2620', boots: '#2a1e14', lashes: true, build: 1.0, age: 0.4 },
+    bark: 'Pure-bred. Every one in the book.',
+    hello: 'Verandah Stables. Three bloodlines, all written down, all the way back. If you want a cob, the Counties have plenty.',
+    about: 'Black, gold and dapple. The island breeds those three and nothing else. They go the same pace as any horse, but nobody in the Counties will mistake yours for theirs.',
+  },
   'st-scarrow': {
     name: 'Clem Hosken', title: 'Moorman, Scarrow Tor',
     look: { skin: '#d8a07a', hair: '#cfcac0', hairStyle: 0, beard: true, eyes: '#4a5a6a', tunic: '#5a4a3a', trim: '#8a7a5a', trousers: '#4a4034', boots: '#3a2a1c', hat: 'wide', hatColor: '#4a3a2a', build: 1.08, age: 0.8 },
@@ -83,8 +94,8 @@ const keeperId = (st: StableDef) => 'stable_' + st.id.slice(3);
 
 const NPCS: NpcDef[] = STABLES.map((st) => {
   const k = KEEPERS[st.id];
-  const [x, z] = stableAt(st, -1, 2);
-  const [fx, fz] = stableAt(st, -1, 6);
+  const [x, z] = st.keeper ? [st.keeper[0] - 0.5, st.keeper[1] - 0.5] : stableAt(st, -1, 2);
+  const [fx, fz] = st.keeper ? [st.keeper[2] - 0.5, st.keeper[3] - 0.5] : stableAt(st, -1, 6);
   return { id: keeperId(st), name: k.name, title: k.title, look: k.look, schedule: [{ from: 0, to: 24, at: [x + 0.5, z + 0.5], face: [fx + 0.5, fz + 0.5], anim: 'idle' }], barks: [k.bark] };
 });
 
