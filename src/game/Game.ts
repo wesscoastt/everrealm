@@ -240,8 +240,10 @@ const HARBOURS: Record<LandId, Harbour> = {
   morrow: { berth: [CALLIS_PACKET.x + 12, CALLIS_PACKET.z], heading: Math.PI / 2 },
 };
 
+import { VERANDAH_CROWDS } from '../data/content/verandahWork';
 function crowdZones(): CrowdZone[] {
   return [
+    ...VERANDAH_CROWDS,
     { id: 'ansbury', x: 820, z: 300, r: 196, n: 40, lines: [
       'The minster bell\'s cracked. You can hear it on the low note.',
       'They\'re tilting Saturday. My money\'s on the Harrowgate lad.',
