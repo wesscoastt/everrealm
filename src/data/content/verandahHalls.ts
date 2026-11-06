@@ -36,7 +36,7 @@ const npcs: NpcDef[] = [
     at(-2984.5, 25, 1996.5, -2984.5, 1999.5, 'cast'), ['It’s meant to be blue. It’s green. Don’t tell the Warden.', 'Third year. Second fire.']),
   // the City Hall and the Bank
   person('ver_couch', 'Reuben Couch', 'Clerk of the City Hall', { skin: '#e2b894', hair: '#4a3a2a', hairStyle: 1, eyes: '#4a5a6a', tunic: '#22365a', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#2a2630', boots: '#1e1a16', hat: 'beret', hatColor: '#22365a', age: 0.5 },
-    at(-2977.5, 22, 2096.5, -2972.5, 2097.5), ['Forms in triplicate. The king likes three of everything.', 'Next.'], 8, 18),
+    at(-2976.5, 22, 2099.5, -2976.5, 2103.5), ['Forms in triplicate. The king likes three of everything.', 'Next.'], 8, 18),
   person('ver_trevenna', 'Silvanus Trevenna', 'The Bank of Verandah', { skin: '#d8a888', hair: '#1e1a16', hairStyle: 0, facial: 1, eyes: '#3a2a1e', tunic: '#1e1e24', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#1e1e24', boots: '#141418', age: 0.55 },
     at(-2998.5, 21, 2116.5, -2994.5, 2116.5), ['Deposits on the left, complaints to the king.', 'Every mark in the vault is counted twice a day. By me.'], 8, 18),
 ];
@@ -82,6 +82,15 @@ export const BANK_VAULT_PROPS: { item: string; x: number; z: number; ry: number 
   ...[2112.5, 2114.5].map((z) => ({ item: 'chest', x: -2990.6, z, ry: -Math.PI / 2 })),
   { item: 'shelves', x: -2994.5, z: 2115.4, ry: Math.PI }, { item: 'desk', x: -2995.5, z: 2113.5, ry: 0 }, { item: 'letters', x: -2995.5, z: 2113.5, ry: 0 },
   { item: 'candles', x: -2997.5, z: 2111.5, ry: 0 }, { item: 'candles', x: -2991.5, z: 2115.5, ry: 0 },
+];
+
+/** The City Hall, built again (scripts/mc/cityhall.cjs, floor 21): the clerk's counter across the hall, his shelves, the public's benches. */
+export const CITY_HALL_PROPS: { item: string; x: number; z: number; ry: number }[] = [
+  ...[-2979.5, -2978.5, -2977.5, -2976.5, -2975.5, -2974.5, -2973.5].map((x) => ({ item: 'counter', x, z: 2100.6, ry: 0 })),
+  { item: 'letters', x: -2977.5, z: 2100.6, ry: 0 }, { item: 'candles', x: -2974.5, z: 2100.6, ry: 0 },
+  ...[-2979.5, -2976.5, -2973.5].map((x) => ({ item: 'shelves', x, z: 2096.4, ry: 0 })),
+  ...[-2982.5, -2970.5].flatMap((x) => [2102.5, 2104.5].map((z) => ({ item: 'bench', x, z, ry: 0 }))),
+  { item: 'desk', x: -2983.5, z: 2097.5, ry: Math.PI / 2 }, { item: 'chest', x: -2969.5, z: 2096.6, ry: 0 },
 ];
 
 export const VERANDAH_HALLS: RegionContent = {

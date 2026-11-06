@@ -1,4 +1,4 @@
-// Gate Row: four houses on the open ground inside Verandah's west gate (owner 2026-11-06: "add some on the empty side
+// Gate Row: four houses on the open ground on the open strip against the quarry wall (owner 2026-11-06: "add some on the empty side
 // by the gate"), built in the owner's manner (whitestone walls on a cobble footing, oak posts at the corners, glass in
 // the windows, a dark plank roof pitched over a whitestone gable). Run after scripts/mc/export.ts
 // (node scripts/mc/gaterow.cjs); the houses are for sale in data/verandahHomes.ts (GATE_ROW), their doors here in MC_THINGS.
@@ -19,15 +19,15 @@ const load = (cx, cz) => {
 const cell = (x, z) => { const d = load(Math.floor(x / 32), Math.floor(z / 32)); return { d, c: d.cols[(z - Math.floor(z / 32) * 32) * 32 + (x - Math.floor(x / 32) * 32)] }; };
 const set = (x, y, z, b) => { const { d, c } = cell(x, z); if (c[y] !== b) { c[y] = b; d.dirty = true; } };
 
-const W = -3172, E = -3164, F = 20; // walls x W..E; the floor at F, stood on at F + 1
-const ROWS = [2015, 2025, 2035, 2048];
+const W = -3119, E = -3111, F = 21; // walls x W..E, backs to the quarry wall; the floor at F, stood on at F + 1
+const ROWS = [2033, 2043, 2053];
 const doors = [];
 for (const Z0 of ROWS) {
   const Z1 = Z0 + 8, DZ = Z0 + 4;
   // clear the plot and its eaves, and set it on a footing
   for (let x = W - 1; x <= E + 1; x++) for (let z = Z0 - 1; z <= Z1 + 1; z++) {
     for (let y = F + 1; y < 40; y++) set(x, y, z, AIR);
-    for (let y = F - 3; y < F; y++) set(x, y, z, x === W - 1 || x === E + 1 || z === Z0 - 1 || z === Z1 + 1 ? DIRT : COBBLE);
+    for (let y = F - 6; y < F; y++) set(x, y, z, x === W - 1 || x === E + 1 || z === Z0 - 1 || z === Z1 + 1 ? DIRT : COBBLE);
     set(x, F, z, x >= W && x <= E && z >= Z0 && z <= Z1 ? (x === W || x === E || z === Z0 || z === Z1 ? COBBLE : PLANKS) : PATH);
   }
   // walls five high: oak at the corners, whitestone between, glass in pairs
@@ -41,10 +41,10 @@ for (const Z0 of ROWS) {
       set(x, y, z, corner ? LOG : win ? GLASS : WHITE);
     }
   }
-  // the door in the east wall, onto the lane, with a path to it
-  set(E, F + 1, DZ, AIR); set(E, F + 2, DZ, AIR);
-  for (let x = E + 1; x <= E + 4; x++) set(x, F, DZ, PATH);
-  doors.push(['mcdoor', E + 0.5, F + 1, DZ + 0.5, 1.571, 0]);
+  // the door in the west wall, onto the path, with a way to it
+  set(W, F + 1, DZ, AIR); set(W, F + 2, DZ, AIR);
+  for (let x = W - 12; x <= W - 1; x++) { set(x, F, DZ, PATH); set(x, F + 1, DZ, AIR); set(x, F + 2, DZ, AIR); }
+  doors.push(['mcdoor', W + 0.5, F + 1, DZ + 0.5, -1.571, 0]);
   // the roof: pitched east and west over the length of the house, the gables whitestone
   for (let k = 0; k <= 5; k++) {
     const y = F + 6 + k, a = W - 1 + k, b = E + 1 - k;
@@ -68,7 +68,7 @@ for (const [fn, d] of files) if (d.dirty) {
 // their doors, among the owner's (once)
 const SF = 'src/data/mcSigns.ts'; let s = fs.readFileSync(SF, 'utf8');
 const a = s.indexOf('export const MC_THINGS'), st = s.indexOf('[', s.indexOf('=', a)), en = s.indexOf('];', st) + 1;
-const arr = JSON.parse(s.slice(st, en)).filter((t) => !(t[0] === 'mcdoor' && t[1] === E + 0.5 && ROWS.some((z) => t[3] === z + 4.5)));
+const arr = JSON.parse(s.slice(st, en)).filter((t) => !(t[0] === 'mcdoor' && t[1] === W + 0.5 && ROWS.some((z) => t[3] === z + 4.5)));
 s = s.slice(0, st) + JSON.stringify(arr.concat(doors)) + s.slice(en);
 fs.writeFileSync(SF, s);
 console.log('gate row built', { files: n, doors: doors.length });

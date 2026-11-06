@@ -79,11 +79,12 @@ function build(): VerandahHome[] {
   });
 }
 
-/** Gate Row, the four houses built on the open ground inside the west gate (scripts/mc/gaterow.cjs; owner 2026-11-06:
- * "add some on the empty side by the gate"): for sale like the rest, listed after them so no house already held changes its id. */
-const GATE_ROW: VerandahHome[] = [2015, 2025, 2035, 2048].map((z0, i) => ({
-  id: 'vg' + (i + 1), name: `No. ${i + 1}, Gate Row`, x0: -3171, z0: z0 + 1, x1: -3165, z1: z0 + 7, base: 21,
-  door: [-3164, z0 + 4] as [number, number], area: 49, price: 3000, doors: [[-3164, z0 + 4, Math.PI / 2]] as [number, number, number][],
+/** Quarry Row, three houses on the open strip against the quarry wall (scripts/mc/gaterow.cjs; owner 2026-11-06: "add some on
+ * the empty side by the gate", "against the quarry wall on the open strip of land"): for sale like the rest, listed after them so
+ * no house already held changes its id. */
+const GATE_ROW: VerandahHome[] = [2033, 2043, 2053].map((z0, i) => ({
+  id: 'vg' + (i + 1), name: `No. ${i + 1}, Quarry Row`, x0: -3118, z0: z0 + 1, x1: -3112, z1: z0 + 7, base: 22,
+  door: [-3119, z0 + 4] as [number, number], area: 49, price: 3000, doors: [[-3119, z0 + 4, -Math.PI / 2]] as [number, number, number][],
 }));
 export const VERANDAH_HOMES: VerandahHome[] = [...build(), ...GATE_ROW];
 export const VERANDAH_HOME_BY_ID = new Map(VERANDAH_HOMES.map((h) => [h.id, h]));

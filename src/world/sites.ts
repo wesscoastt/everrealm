@@ -39,7 +39,7 @@ import { XAVIER_SHOWROOM, SHOP_COUNTERS } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
-import { BANK_VAULT_PROPS } from '../data/content/verandahHalls';
+import { BANK_VAULT_PROPS, CITY_HALL_PROPS } from '../data/content/verandahHalls';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { SQUARE_STALLS } from '../data/content/verandahSquare';
 import { STAGE_PROPS } from '../data/content/verandahStage';
@@ -879,6 +879,8 @@ function* planBody(): Generator<string, Plan> {
         s.props.push({ t: 'sign', x: dx + 0.5 + ox * 1.2 + sx * 1.3, y: h.base, z: dz + 0.5 + oz * 1.2 + sz * 1.3, ry, text: 'FOR SALE\n' + h.name + '\n' + h.price.toLocaleString() + ' marks' });
       }
     } })),
+    // The City Hall's counter and benches (data/content/verandahHalls.ts)
+    { id: 'ver-cityhall', name: '', x: -2976, z: 2100, r0: 0, r1: 0, build: (s: Site) => { for (const p of CITY_HALL_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 22, z: p.z, ry: p.ry }); for (const x of [-2980.5, -2972.5]) s.props.push({ t: 'lantern', x, y: 22, z: 2100.6, ry: 0 }); } },
     // Awschitz Fort, Verandah's coastal watch west of the town (scripts/mc/awschitz.cjs; its garrison data/content/awschitz.ts)
     { id: 'awschitz', name: 'Awschitz Fort', x: -3362, z: 1965, r0: 0, r1: 0, build: () => {} },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
