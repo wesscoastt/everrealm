@@ -180,7 +180,7 @@ import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
-import { HomeFarm } from './HomeFarm';
+import { HERDS, HomeFarm } from './HomeFarm';
 import { serverUrl } from '../net/Online';
 import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
@@ -369,7 +369,9 @@ export class Game implements GameApi {
   /** Town pets, and farm stock (world/sites.ts Site.animals): put out as you come near, each keeping its own spot. */
   /** Whether the Leave dungeon button is up. */
   private leaveShown = false;
-  private pets: { kind: AnimalKind; x: number; z: number; r?: number; pal: Palette; a: Animal | null }[] = [];
+  private pets: { kind: AnimalKind; x: number; z: number; r?: number; pal: Palette; a: Animal | null; own?: boolean }[] = [];
+  /** Which of your stock is set up (game/HomeFarm.ts herds), so their animals are about the yard. */
+  private herdKey = '';
   /** Lore books lying open by the places they're about (game/LoreBooks.ts). */
   private books!: LoreBooks;
   /** Schools of fish in the water near you (game/FishSchools.ts). */
@@ -7419,6 +7421,14 @@ export class Game implements GameApi {
     this.dragonPass.update(dt);
     this.farming.update(dt);
     this.garden.update(dt);
+    // your stock at home, about the yard: hens round the coop, the ewes and the cow by their trough
+    const herdKey = this.garden.herds().map((h) => h.k + h.x + ',' + h.z).join(';');
+    if (herdKey !== this.herdKey) {
+      this.herdKey = herdKey;
+      for (const pt of this.pets.filter((q) => q.own)) if (pt.a) { this.scene.remove(pt.a.model.root); this.animals = this.animals.filter((x) => x !== pt.a); }
+      this.pets = this.pets.filter((q) => !q.own);
+      for (const h of this.garden.herds()) { const d = HERDS[h.k]; for (let i = 0; i < d.head; i++) this.pets.push({ kind: d.animal, x: h.x + 0.5 + (i - 1) * 1.2, z: h.z + 2, r: d.animal === 'chicken' ? 3 : 4, pal: {}, a: null, own: true }); }
+    }
     // Trying something on: it comes off when you walk on, close the shop, or after half a minute
     if (this.trying) {
       const t = this.trying;

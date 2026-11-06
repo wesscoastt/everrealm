@@ -46,6 +46,7 @@ const shop: ShopDef = {
   id: 'seed_bertram', name: 'Bertram Sowerby\'s seeds', owner: 'seed_bertram',
   stock: [
     { item: 'hoe', price: 30 }, { item: 'watering_can', price: 45 },
+    { item: 'stock_hens', price: 320, when: (g) => g.level('farming') >= 5 && !g.has('stock_hens') }, { item: 'stock_ewes', price: 720, when: (g) => g.level('farming') >= 15 && !g.has('stock_ewes') }, { item: 'stock_cow', price: 1200, when: (g) => g.level('farming') >= 25 && !g.has('stock_cow') },
     { item: 'watering_can_copper', price: 180, when: (g) => g.level('farming') >= 15 && !g.has('watering_can_copper') }, { item: 'scythe', price: 240, when: (g) => g.level('farming') >= 20 && !g.has('scythe') },
     { item: 'watering_can_iron', price: 650, when: (g) => g.level('farming') >= 35 && !g.has('watering_can_iron') }, { item: 'watering_can_gilded', price: 2400, when: (g) => g.level('farming') >= 60 && !g.has('watering_can_gilded') }, { item: 'compost', price: 4 }, { item: 'seed_potato', price: 4 }, { item: 'seed_onion', price: 6 }, { item: 'seed_cabbage', price: 8 }, { item: 'seed_carrot', price: 10 },
     { item: 'seed_wheat', price: 12 }, { item: 'seed_strawberry', price: 18 }, { item: 'seed_barley', price: 20 }, { item: 'seed_leek', price: 24 }, { item: 'seed_hops', price: 32 },

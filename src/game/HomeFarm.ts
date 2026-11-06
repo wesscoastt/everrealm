@@ -55,6 +55,20 @@ export const CANS: { item: string; reach: number; wetMin: number }[] = [
 const TILLABLE = new Set<number>([B.Grass, B.FlowerGrass, B.Dirt, B.Loam, B.Farmland, B.SnowGrass, B.Path]);
 const STAGE_SCALE = [0.3, 0.55, 0.8, 1];
 
+/**
+ * Livestock at home (farming part three): a coop of hens, a pair of ewes, a dairy cow, each bought from Bertram
+ * and set up somewhere in your yard. Fed (grain from the garden: wheat or barley), they give for three hours on
+ * the real clock: eggs every so often, milk, a fleece; collect it when you come by.
+ */
+export const HERDS: Record<string, { item: string; animal: 'chicken' | 'sheep' | 'cow'; head: number; name: string; feed: number; produce: string; every: number; per: number; most: number; place: string }> = {
+  hens: { item: 'stock_hens', animal: 'chicken', head: 3, name: 'the hens', feed: 2, produce: 'egg', every: 20, per: 1, most: 9, place: 'Set up the hen coop here' },
+  ewes: { item: 'stock_ewes', animal: 'sheep', head: 2, name: 'the ewes', feed: 3, produce: 'fleece', every: 60, per: 1, most: 4, place: 'Pen the ewes here' },
+  cow: { item: 'stock_cow', animal: 'cow', head: 1, name: 'the cow', feed: 4, produce: 'milk', every: 30, per: 1, most: 6, place: 'Tether the cow here' },
+};
+const FED_MS = 3 * 3600000;
+const FEEDS = ['barley', 'wheat'];
+export interface Herd { k: string; x: number; z: number; fed: number; got: number }
+
 /** How many tiles of your own garden you can work at a Farming level. */
 export const gardenSize = (lv: number) => Math.min(64, 8 + Math.floor(lv / 3) * 2);
 
@@ -63,6 +77,58 @@ export class HomeFarm {
   private checkAt = 0;
 
   constructor(private host: GardenHost) {}
+
+  herds(): Herd[] { const v = this.host.flag('livestock'); return Array.isArray(v) ? (v as Herd[]) : []; }
+  private saveHerds(h: Herd[]): void { this.host.setFlag('livestock', h); this.host.persist(); }
+  /** What a herd has ready: its yield over the hours it was fed since you last collected. */
+  private ready(h: Herd, now = Date.now()): number {
+    const d = HERDS[h.k], from = Math.max(h.got, h.fed), to = Math.min(now, h.fed + FED_MS);
+    return to <= from ? 0 : Math.min(d.most, Math.floor((to - from) / (d.every * 60000)) * d.per);
+  }
+  /** Work done at a herd: what you can do there now. */
+  private herdCandidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] {
+    const me = this.host.player(), out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] = [];
+    const list = this.herds();
+    list.forEach((h, i) => {
+      if (Math.hypot(h.x + 0.5 - me.x, h.z + 0.5 - me.z) > 3) return;
+      const d = HERDS[h.k], at = new THREE.Vector3(h.x + 0.5, this.groundTop(h.x, h.z) + 1.4, h.z + 0.5), n = this.ready(h), now = Date.now();
+      if (n > 0) { out.push({ label: `Collect from ${d.name} (${ITEMS[d.produce]?.name ?? d.produce} ×${n})`, pos: at, use: () => this.collect(i) }); return; }
+      if (now >= h.fed + FED_MS) {
+        const grain = FEEDS.find((g) => this.host.count(g) >= d.feed);
+        if (grain) out.push({ label: `Feed ${d.name} (${ITEMS[grain]?.name ?? grain} ×${d.feed})`, pos: at, use: () => this.feed(i, grain) });
+        else out.push({ label: `${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'are' : 'is'} hungry`, pos: at, use: () => this.host.system(`${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'want' : 'wants'} ${d.feed} wheat or barley. Grow it in the garden, or buy it.`), warn: 'Needs grain' });
+      } else out.push({ label: `${d.name[0].toUpperCase() + d.name.slice(1)}: fed`, pos: at, use: () => this.host.system(`${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'are' : 'is'} fed for another ${Math.ceil((h.fed + FED_MS - now) / 60000)} minutes. ${ITEMS[d.produce]?.name ?? d.produce} comes every ${d.every} minutes while ${d.head > 1 ? 'they are' : 'she is'}.`) });
+    });
+    return out;
+  }
+  private feed(i: number, grain: string): void {
+    const list = this.herds(), h = list[i], d = HERDS[h.k];
+    if (!this.host.take(grain, d.feed)) return;
+    const now = Date.now();
+    list[i] = { ...h, fed: now, got: Math.max(h.got, now) };
+    this.saveHerds(list);
+    this.host.addXp('farming', 12 * d.feed);
+    this.host.sound('click');
+  }
+  private collect(i: number): void {
+    const list = this.herds(), h = list[i], d = HERDS[h.k], n = this.ready(h);
+    if (n <= 0 || !this.host.give(d.produce, n)) return;
+    const from = Math.max(h.got, h.fed);
+    list[i] = { ...h, got: from + Math.ceil(n / d.per) * d.every * 60000 };
+    this.saveHerds(list);
+    this.host.addXp('farming', 20 * n);
+    this.host.sound('pickup');
+    this.host.system(`${ITEMS[d.produce]?.name ?? d.produce} ×${n}, from ${d.name}.`);
+  }
+  private settle(k: string, x: number, z: number): void {
+    const d = HERDS[k], list = this.herds();
+    if (list.some((h) => h.k === k) || !this.host.take(d.item, 1)) return;
+    list.push({ k, x, z, fed: 0, got: Date.now() });
+    this.saveHerds(list);
+    this.host.sound('discover');
+    this.host.system(`${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'are' : 'is'} home. Feed ${d.head > 1 ? 'them' : 'her'} grain and ${d.head > 1 ? 'they' : 'she'}'ll give.`);
+    this.refresh();
+  }
 
   private tiles(): Record<string, Tile> { const v = this.host.flag('garden'); return v && typeof v === 'object' ? (v as Record<string, Tile>) : {}; }
   private save(t: Record<string, Tile>): void { this.host.setFlag('garden', t); this.host.persist(); }
@@ -108,8 +174,15 @@ export class HomeFarm {
 
   // ---------------------------------------------------------------- Working it
   candidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] {
+    const herd = this.herdCandidates();
+    if (herd.length) return herd;
     const [x, z] = this.target(), key = x + ',' + z, all = this.tiles(), here = all[key];
     if (!here && !this.zone(x, z)) return [];
+    // somewhere in your own yard to set up stock you've bought
+    if (!here && this.zone(x, z) === 'home') {
+      const k = Object.keys(HERDS).find((q) => this.host.count(HERDS[q].item) > 0 && !this.herds().some((h) => h.k === q));
+      if (k) return [{ label: HERDS[k].place, pos: new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5), use: () => this.settle(k, x, z) }];
+    }
     const at = new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5);
     const out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] = [];
     if (!here) {
@@ -222,19 +295,34 @@ export class HomeFarm {
     this.checkAt = 2;
     const me = this.host.player(), now = Date.now(), raining = this.host.raining();
     const all = Object.fromEntries(Object.entries(this.tiles()).filter(([k]) => { const [x, z] = k.split(',').map(Number); return Math.hypot(x - me.x, z - me.z) < 110; }));
-    const key = Object.entries(all).map(([k, t]) => { const u = this.grow(t, now); return `${k}:${u.c ?? ''}:${this.stage(u)}:${raining || now < u.wu ? 1 : 0}`; }).join('|');
+    const herds = this.herds().filter((h) => Math.hypot(h.x - me.x, h.z - me.z) < 110);
+    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now); return `${k}:${u.c ?? ''}:${this.stage(u)}:${raining || now < u.wu ? 1 : 0}`; }).join('|');
     if (this.drawn && this.drawn.key === key) return;
     if (this.drawn) { this.host.scene.remove(this.drawn.group); this.drawn = null; }
     if (!key) return;
-    const group = this.draw(all, now, raining);
+    const group = this.draw(all, now, raining, herds);
     this.host.scene.add(group);
     this.drawn = { group, key };
   }
   private refresh(): void { this.checkAt = 0; if (this.drawn) this.drawn.key = '!'; }
 
-  private draw(all: Record<string, Tile>, now: number, raining: boolean): THREE.Group {
+  private draw(all: Record<string, Tile>, now: number, raining: boolean, herds: Herd[] = []): THREE.Group {
     const batch = new P.Batcher();
     const box = (g: THREE.Group, w: number, h: number, d: number, c: string, x: number, y: number, z: number, rz = 0) => { const m = new THREE.Mesh(P.box(w, h, d), P.flat(c)); m.position.set(x, y, z); m.rotation.z = rz; g.add(m); };
+    // the hen coop on its legs, with a ramp and a nesting box; a trough for the ewes or the cow
+    for (const h of herds) {
+      const g = new THREE.Group();
+      if (h.k === 'hens') {
+        for (const [lx, lz] of [[-0.6, -0.4], [0.6, -0.4], [-0.6, 0.4], [0.6, 0.4]]) box(g, 0.1, 0.5, 0.1, '#5a3a24', lx, 0.25, lz);
+        box(g, 1.4, 0.8, 1.0, '#8a5a32', 0, 0.9, 0); box(g, 1.6, 0.1, 1.2, '#6a2a24', 0, 1.35, 0, 0.12);
+        box(g, 0.4, 0.4, 0.06, '#2a1e14', 0.3, 0.8, 0.51); box(g, 0.3, 0.06, 0.9, '#8a5a32', 0.3, 0.3, 0.9, 0.5);
+        box(g, 0.5, 0.3, 0.4, '#a8783a', -0.95, 0.8, 0); box(g, 0.4, 0.1, 0.3, '#d8c070', -0.95, 0.98, 0);
+      } else {
+        box(g, 1.8, 0.45, 0.6, '#6a4a2a', 0, 0.22, 0); box(g, 1.6, 0.06, 0.45, '#3a6aa8', 0, 0.42, 0);
+        box(g, 0.1, 1.1, 0.1, '#5a3a24', -1.4, 0.55, 0); box(g, 0.1, 1.1, 0.1, '#5a3a24', 1.4, 0.55, 0);
+      }
+      batch.addGroup(g, P.mat4(h.x + 0.5, this.groundTop(h.x, h.z) + 1, h.z + 0.5, 0));
+    }
     const hash = (x: number, z: number) => { const v = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return v - Math.floor(v); };
     for (const [k, t0] of Object.entries(all)) {
       const [x, z] = k.split(',').map(Number), t = this.grow(t0, now), top = this.groundTop(x, z) + 1;
