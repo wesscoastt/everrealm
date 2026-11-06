@@ -89,7 +89,9 @@ export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, numbe
     // the explored map: the top block's colour, the water's by depth, a touch of shade by height
     const mi = (lz * CHUNK + lx) * 4;
     let col: [number, number, number];
-    if (topId === B.Water) col = [58, 130, 188];
+    // (water by its depth, as the rest of the world's sea is drawn: world/chunkgen.ts; the owner 2026-11-05,
+    // "water colours around Verandah and on the map are different than the rest of the oceans")
+    if (topId === B.Water) { let d = 0; while (d < 8 && top - d >= 0 && r.data[localIdx(lx, top - d, lz)] === B.Water) d++; col = [70 - d * 6, 150 - d * 10, 200 - d * 6]; }
     else col = mapColor(topId);
     const shade = 1 + (top - 22) * 0.008;
     r.map[mi] = col[0] * shade; r.map[mi + 1] = col[1] * shade; r.map[mi + 2] = col[2] * shade; r.map[mi + 3] = 255;
