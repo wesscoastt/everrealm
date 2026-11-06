@@ -448,16 +448,17 @@ export class Game implements GameApi {
     let mount: CreatureModel | null = null;
     const P = this.player.position, f = this.player.facing;
     if (d.mount) {
-      // Led out beside you, side on to the camera
+      // You up on it where you stand, the camera round to its side (owner 2026-11-06: "show you on the mount
+      // where your player is, so it's the main focus")
       mount = mountModel(d.mount);
-      const x = P.x + Math.cos(f) * 2.4, z = P.z - Math.sin(f) * 2.4;
-      mount.root.position.set(x, this.world.voxels.groundBelow(x, P.y + 2, z), z);
-      mount.root.rotation.y = f + Math.PI / 2;
+      this.player.footPosition(mount.root.position);
+      mount.root.rotation.y = f;
       this.scene.add(mount.root);
+      this.player.seat = riderLift(d.mount);
     }
     this.trying = { id, at: P.clone(), t: 0, mount };
     // The camera round in front of you, a little above, to see it
-    this.rig.yaw = f + (d.capeDesign ? Math.PI * 0.85 : 0.35);
+    this.rig.yaw = f + (d.mount ? Math.PI / 2 + 0.35 : d.capeDesign ? Math.PI * 0.85 : 0.35);
     this.rig.pitch = 0.18;
     this.hud.setTrying(d.name, () => this.endPreview());
     this.hud.system(`Trying ${d.name}. Back to the shop, or walk on, to take it off.`);
@@ -467,7 +468,7 @@ export class Game implements GameApi {
   private endPreview(dress = true): void {
     const t = this.trying;
     if (!t) return;
-    if (t.mount) this.scene.remove(t.mount.root);
+    if (t.mount) { this.scene.remove(t.mount.root); if (!this.horse) this.player.seat = 0; }
     this.trying = null;
     this.hud.setTrying(null);
     if (dress) this.dress();
@@ -8125,6 +8126,7 @@ export class Game implements GameApi {
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
     } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
+    else if (this.trying?.mount) { M.setState(riderPose(ITEMS[this.trying.id]?.mount)); held = 'none'; }
     else if (this.seated || this.boat.aboard || this.post.active) { M.setState('seated'); held = 'none'; }
     else if (this.reviving) { M.setState('kneel'); held = 'none'; }
     else if (this.hitAnim > 0) M.setState('hit');

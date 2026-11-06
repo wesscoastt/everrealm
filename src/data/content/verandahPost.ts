@@ -23,6 +23,7 @@ export const POST_COUNTER: { item: string; x: number; z: number; ry: number }[] 
 /** The office counter and the owner's two mailboxes, where their signs are (data/mcSigns.ts). */
 const MAIL: { id: string; x: number; y: number; z: number; r: number }[] = [
   { id: 'office', x: -2963.5, y: 21, z: 2121.5, r: 2.4 },
+  { id: 'counter', x: -2967.5, y: 21, z: 2120.5, r: 2.2 }, // at Hester's counter, inside (owner 2026-11-06)
   { id: 'quay', x: -2984.5, y: 24, z: 1937.5, r: 1.9 },
   { id: 'house', x: -2482.5, y: 17, z: 2393.5, r: 2.2 },
 ];

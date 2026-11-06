@@ -21,7 +21,7 @@ const npcs: NpcDef[] = [
   person('ver_rodda', 'Doctor Eleanor Rodda', 'Vanguard Hospital', { frame: 'f', skin: '#d8a888', hair: '#3a2a1e', hairStyle: 5, eyes: '#3a4a5a', tunic: '#e8e0d0', trim: '#7a2a24', shirt: '#e8e0d0', trousers: '#2a2620', boots: '#1e1a16', apron: true, lashes: true, age: 0.5 },
     at(-2948.5, 21, 2012.5, -2950.5, 2012.5), ['Sit. Show me. Hm. That’ll need stitching.', 'Quarrymen, fishermen and Arena fighters. Mostly Arena fighters.'], 0, 24),
   person('ver_jewell', 'Bessie Jewell', 'Nurse, the Vanguard Hospital', { frame: 'f', skin: '#e8c4a4', hair: '#c8a060', hairStyle: 1, eyes: '#4a6a7a', tunic: '#4a6a8a', trim: '#e8e0d0', shirt: '#e8e0d0', trousers: '#2a2620', boots: '#1e1a16', apron: true, lashes: true, age: 0.3 },
-    at(-2954.5, 25, 2010.5, -2954.5, 2012.5), ['Quiet on the ward, please.', 'The doctor says rest. Rest means lying down.']),
+    at(-2953.5, 25, 2014.5, -2953.5, 2017.5), ['Quiet on the ward, please.', 'The doctor says rest. Rest means lying down.']),
   // the Fighters Guild
   person('ver_treneer', 'Ancrum Treneer', 'Master of the Fighters Guild', { skin: '#c88a62', hair: '#5a5a52', hairStyle: 0, facial: 3, eyes: '#3a2a1e', tunic: '#5a2a24', trim: '#8a8a7a', trousers: '#2a2620', boots: '#1e1a16', build: 1.3, age: 0.55, scar: true },
     at(-2957.5, 22, 2000.5, -2962.5, 2000.5), ['Guild dues are paid in sweat. And marks. Mostly marks.', 'You’ve a sword. Can you use it? We’ll see.']),

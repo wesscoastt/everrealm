@@ -28,10 +28,10 @@ const items: ItemDef[] = [
 
 const npcs: NpcDef[] = [
   { id: 'ver_xavier', name: 'Xavier Dunstan', title: 'Home Goods', look: { skin: '#d8a888', hair: '#3a2a1e', hairStyle: 2, facial: 2, eyes: '#4a3a2a', tunic: '#3a2a3a', trim: '#c8a050', shirt: '#e8e0d0', trousers: '#2a2620', boots: '#1e1a16', hat: 'beret', hatColor: '#2a2420' },
-    schedule: [{ from: 8, to: 19, at: [-2862.5, 2111.5], face: [-2862.5, 2114.5], anim: 'idle', y: 25 }, { from: 19, to: 8, at: [-2861.5, 2108.5], face: [-2861.5, 2111.5], anim: 'idle', y: 29 }],
+    schedule: [{ from: 6, to: 22, at: [-2863.5, 2108.5], face: [-2863.5, 2112.5], anim: 'idle', y: 25 }, { from: 22, to: 6, at: [-2861.5, 2108.5], face: [-2861.5, 2111.5], anim: 'idle', y: 29 }],
     barks: ['Everything upstairs is for sale. Except the cat.', 'The new manner, they call it. Brass and copper and a bit of nerve.', 'Wind the orrery gently. It knows.'] },
   { id: 'ver_sandor', name: 'Sandor Kovac', title: 'Cookery', look: { skin: '#c8906a', hair: '#1e1612', hairStyle: 0, facial: 4, eyes: '#3a2a1e', tunic: '#e8e0d0', trim: '#7a2a24', shirt: '#e8e0d0', trousers: '#3a3430', boots: '#2a1e14', apron: true, hat: 'cap', hatColor: '#e8e0d0', build: 1.15 },
-    schedule: [{ from: 5, to: 20, at: [-2890.5, 2111.5], face: [-2890.5, 2114.5], anim: 'idle', y: 25 }, { from: 20, to: 5, at: [-2896.5, 2110.5], face: [-2896.5, 2112.5], anim: 'idle', y: 29 }],
+    schedule: [{ from: 5, to: 22, at: [-2894.5, 2108.5], face: [-2894.5, 2112.5], anim: 'idle', y: 25 }, { from: 22, to: 5, at: [-2896.5, 2110.5], face: [-2896.5, 2112.5], anim: 'idle', y: 29 }],
     barks: ['Pasties! Hot pasties!', 'Saffron buns, fresh this morning.', 'The loaf goes out with the tide. Buy it before it does.'] },
 ];
 
@@ -75,6 +75,14 @@ const shops: Record<string, ShopDef> = {
 };
 
 export const VERANDAH_SHOPS: RegionContent = { id: 'verandahShops', items, npcs, dialogue: { ver_xavier: xavier, ver_sandor: sandor }, shops };
+
+/** The counters across the shop floors downstairs (owner 2026-11-06: "Sandor and Xavier need to be behind their bars"). */
+export const SHOP_COUNTERS: { item: string; x: number; y: number; z: number; ry: number }[] = [
+  ...[-2865.5, -2864.5, -2863.5, -2862.5].map((x) => ({ item: 'counter', x, y: 25, z: 2110.5, ry: 0 })),
+  { item: 'candles', x: -2864.5, y: 25.9, z: 2110.5, ry: 0 },
+  ...[-2895.5, -2894.5, -2893.5, -2892.5].map((x) => ({ item: 'counter', x, y: 25, z: 2110.5, ry: 0 })),
+  { item: 'barrel', x: -2895.5, y: 25, z: 2107.5, ry: 0 }, { item: 'shelves', x: -2893.5, y: 25, z: 2107.4, ry: 0 },
+];
 
 /** The show room upstairs at Xavier's (world/sites.ts): one of each piece. */
 export const XAVIER_SHOWROOM: { item: string; x: number; y: number; z: number; ry: number }[] = [
