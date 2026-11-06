@@ -12,11 +12,18 @@
 //   { t: 'hSpec', id, spec }       built, or rebuilt, to these plans
 //   { t: 'hBlocks', id, blocks }   the blocks laid on the lot by hand: [x, y, z, block] from its corner
 //   { t: 'hStall', id, open }      put up a stall at the lot's gate, or take it down (its stock: server/exchange.mjs)
+//   { t: 'hOffer', id, to, price } offer the home you hold to another player in the world, for so many marks
+//   { t: 'hAccept', id }           take up an offer made to you: the home is yours, and the seller is paid
+//   { t: 'hDecline', id }          turn an offer down
 // Server to client:
 //   { t: 'homes', list, mine, lapsed }   on coming in: every home held ({ id: { owner, spec, blocks } }), the
 //                                        id of yours, and the id of one that lapsed while you were away
 //   { t: 'home', id, home }              one changed hands or was built on (home null: back on sale)
 //   { t: 'hClaimed', id, ok, why? }      the answer to a claim
+//   { t: 'hOffered', id, from, price }   someone offers you their home
+//   { t: 'hOfferAns', ok, to, why? }     your offer reached them (ok), or didn't, or was turned down
+//   { t: 'hBought', id, ok, price, from, why? } your purchase from a player went through, or why not
+//   { t: 'hSold', id, price, to }        the player you offered your home to bought it: their marks are yours
 //
 // (As elsewhere the browser keeps its own purse: the book keeps the holders honest between players.)
 
@@ -65,6 +72,10 @@ export function homesInit(ctx) {
   /** character key -> { id, at }: a lease that lapsed while they were away, to tell them about */
   const lapsed = saved.lapsed ?? {};
   const store = () => writeJson(FILE, { homes, lapsed });
+  /** id -> an offer standing: { from (key), fromName, to (key), price, at }; ten minutes to take it up */
+  const offers = new Map();
+  const OFFER_MS = 10 * 60_000;
+  const playerByKey = (key) => [...players.values()].find((q) => q.key === key) ?? null;
   const pub = (h) => (h ? { owner: h.owner, spec: h.spec ?? null, blocks: h.blocks ?? [], stall: !!h.stall } : null);
   const mineOf = (key) => Object.keys(homes).find((id) => homes[id].key === key) ?? null;
   const tell = (id) => { const msg = { t: 'home', id, home: pub(homes[id]) }; for (const q of players.values()) send(q.ws, msg); };
@@ -128,6 +139,48 @@ export function homesInit(ctx) {
           if (!h) log(`homes: ${p.name} holds ${id}`);
           send(p.ws, { t: 'hClaimed', id, ok: true });
           tell(id);
+          return true;
+        }
+        case 'hOffer': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const price = Math.floor(Number(msg.price));
+          if (homes[id]?.key !== p.key || !Number.isFinite(price) || price < 1 || price > 10_000_000) return true;
+          const name = String(msg.to ?? '').trim().toLowerCase();
+          const q = [...players.values()].find((x) => x.name?.toLowerCase() === name && x.key !== p.key);
+          if (!q) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'away', to: String(msg.to ?? '') }); return true; }
+          if (mineOf(q.key)) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'hasHome', to: q.name }); return true; }
+          offers.set(id, { from: p.key, fromName: p.name, to: q.key, price, at: Date.now() });
+          send(q.ws, { t: 'hOffered', id, from: p.name, price });
+          send(p.ws, { t: 'hOfferAns', ok: true, to: q.name });
+          return true;
+        }
+        case 'hAccept': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const o = offers.get(id);
+          const no = (why) => send(p.ws, { t: 'hBought', id, ok: false, why });
+          if (!o || o.to !== p.key || Date.now() - o.at > OFFER_MS) { offers.delete(id); no('gone'); return true; }
+          const seller = playerByKey(o.from);
+          if (!seller) { no('sellerAway'); return true; }
+          if (homes[id]?.key !== o.from) { offers.delete(id); no('gone'); return true; }
+          if (mineOf(p.key)) { no('hasHome'); return true; }
+          const now = Date.now();
+          homes[id] = { ...homes[id], key: p.key, owner: p.name, since: now, seen: now, stall: false };
+          offers.delete(id);
+          store();
+          onVacate?.(o.from, id);
+          log('homes: ' + o.fromName + ' sold ' + id + ' to ' + p.name + ' for ' + o.price);
+          send(p.ws, { t: 'hBought', id, ok: true, price: o.price, from: o.fromName });
+          send(seller.ws, { t: 'hSold', id, price: o.price, to: p.name });
+          tell(id);
+          return true;
+        }
+        case 'hDecline': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const o = offers.get(id);
+          if (!o || o.to !== p.key) return true;
+          offers.delete(id);
+          const seller = playerByKey(o.from);
+          if (seller) send(seller.ws, { t: 'hOfferAns', ok: false, why: 'declined', to: p.name });
           return true;
         }
         case 'hRelease': {

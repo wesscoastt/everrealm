@@ -30,6 +30,11 @@ export class WallWatch {
     return { x: a[0] + dx * t, y: a[1] + (b[1] - a[1]) * t, z: a[2] + dz * t, yaw: Math.atan2(back ? -dx : dx, back ? -dz : dz) };
   }
 
+  /** Where the watch are, for their name plates. */
+  plates(): { x: number; y: number; z: number; name: string; sub: string }[] {
+    return this.men.filter((g) => g.shown).map((g) => ({ x: g.man.root.position.x, y: g.man.root.position.y + 2.3, z: g.man.root.position.z, name: 'Verandah Guard', sub: 'The wall-walk' }));
+  }
+
   update(dt: number, P: THREE.Vector3): void {
     if (!this.men.length) for (let k = 0; k < 2; k++) {
       const man = new Humanoid({ ...GUARD_LOOK, skin: k ? '#d8a888' : '#c88a62', hair: k ? '#4a2a1e' : '#1e1a16' });

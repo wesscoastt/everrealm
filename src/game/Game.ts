@@ -1565,6 +1565,12 @@ export class Game implements GameApi {
         if (h) this.homesBook.set(id, h); else this.homesBook.delete(id);
         this.homesVer++;
       },
+      homeOffered: (id, from, price) => this.homeOffered(id, from, price),
+      homeOfferAns: (ok, why, to) => {
+        this.hud.system(ok ? `Your offer has gone to ${to}. It stands for ten minutes.` : why === 'declined' ? `${to} turned your offer down.` : why === 'hasHome' ? `${to} has a home already: they would have to give it up first.` : `There is nobody called ${to} in the world just now.`);
+      },
+      homeBought: (id, ok, price, from, why) => this.homeBought(id, ok, price, from, why),
+      homeSold: (id, price, to) => this.homeSold(id, price, to),
       homeClaimed: (id: string, ok: boolean, why: string, owner: string) => {
         const c = this.pendingClaim;
         if (!c || c.id !== id) return;
@@ -2430,7 +2436,10 @@ export class Game implements GameApi {
         this.sfx('open');
         this.hud.system(`Paid. ${name} is yours until ${until(Math.max(Date.now(), t.until) + WEEK)}.`);
         this.persist();
-      }, () => {}, 30);
+      }, () => {
+        // (owner 2026-11-05: "a player can stop renting a place if they choose")
+        this.hud.ask(`Hand back the key to ${name} instead? The rent stops, and the room goes back to the landlord.`, () => { if (this.leaveRoom()) { this.home.render(); this.hud.refresh(); this.persist(); } }, () => {}, 30);
+      }, 30);
       return;
     }
     if (readPlot(this.flag('plot'))?.spec || (this.flag('home') && !t)) { this.hud.system(`${name}: to let by the week. You have a home of your own.`); return; }
@@ -2634,6 +2643,65 @@ export class Game implements GameApi {
     this.home.render();
     this.hud.system(`Your house in Verandah is yours now, and ${name} is given up: ${(price + worth).toLocaleString()} marks paid back to you${back ? `, and ${back} piece${back === 1 ? '' : 's'} of furniture in your pack` : ''}.`);
     this.sfx('coin');
+    this.hud.refresh();
+    this.persist();
+  }
+
+/**
+   * Homes sold between players (owner 2026-11-05: "allow players to sell homes to other players or back to the city").
+   * A house you bought (one of Verandah's, a villa on the Mirador) can go to another player in the world for what you
+   * ask: they're asked, they pay, the book of homes puts it in their name, and the marks are yours. Your furniture
+   * comes out first; theirs goes in after.
+   */
+  sellHomeTo(to: string, price: number): void {
+    const v = this.myVilla();
+    if (!v) { this.hud.system('Only a house you bought outright can be sold to another player (a lot\u2019s lease goes back to the Charter).'); return; }
+    if (!this.online.online || !this.homesBook) { this.hud.system('Selling a house to another player needs the realm: you\u2019re playing offline.'); return; }
+    if (!to || !Number.isFinite(price) || price < 1) { this.hud.system('Say who to and for how much: /sellhome Name 5000'); return; }
+    if (this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.homeName(v.id!)}. Pick it up first (Arrange the furniture, then X).`); this.sfx('fail'); return; }
+    this.online.homeOffer(v.id!, to, Math.floor(price));
+  }
+
+  private offerAt: { id: string; price: number; from: string } | null = null;
+  private homeOffered(id: string, from: string, price: number): void {
+    const name = this.homeName(id);
+    this.hud.ask(`${from} offers to sell you ${name} for ${price.toLocaleString()} marks. Buy it?`, () => {
+      if (this.myHomeId()) { this.hud.system('You have a home already: sell it or give it up first, and ask them again.'); this.online.homeDecline(id); return; }
+      if (this.save.marks < price) { this.hud.system(`${name} is ${price.toLocaleString()} marks and you have ${this.save.marks.toLocaleString()}.`); this.online.homeDecline(id); this.sfx('fail'); return; }
+      if (readTenancy(this.flag('flat')) && !this.leaveRoom()) { this.online.homeDecline(id); return; }
+      this.offerAt = { id, price, from };
+      this.online.homeAccept(id);
+    }, () => this.online.homeDecline(id), 60);
+  }
+
+  private homeBought(id: string, ok: boolean, price: number, from: string, why: string): void {
+    const o = this.offerAt;
+    this.offerAt = null;
+    if (!ok || !o || o.id !== id) {
+      this.hud.system(why === 'sellerAway' ? `${from || 'The seller'} has left the world, so the sale can\u2019t go through.` : why === 'hasHome' ? 'The book has a home in your name already.' : 'That offer is no longer good.');
+      return;
+    }
+    this.addMarks(-price);
+    this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null);
+    this.setFlag('villa', id);
+    this.setFlag('home', []);
+    this.home.render();
+    this.hud.banner(this.homeName(id), `Bought from ${from}`, true);
+    this.sfx('discover');
+    this.hud.system(`${from} hands you the keys. ${this.homeName(id)} is yours for ${price.toLocaleString()} marks: inside, use the prompt to arrange the furniture.`);
+    this.hud.refresh();
+    this.persist();
+  }
+
+  private homeSold(id: string, price: number, to: string): void {
+    if (this.flag('villa') !== id) return;
+    this.furnitureBack(false);
+    this.setFlag('villa', null);
+    this.setFlag('home', null);
+    this.addMarks(price);
+    this.home.render();
+    this.sfx('coin');
+    this.hud.system(`${to} has bought ${this.homeName(id)}: ${price.toLocaleString()} marks are yours.`);
     this.hud.refresh();
     this.persist();
   }
@@ -8491,6 +8559,13 @@ export class Game implements GameApi {
           this.wearCostume(c.id);
           return;
         }
+        case 'sellhome': {
+          // /sellhome Name 5000: offer the house you bought to another player in the world
+          const m = arg.trim().match(/^(.+?)\s+(\d[\d,]*)$/);
+          if (!m) { this.hud.system('Sell your house to another player: /sellhome Name price (they must be in the world)'); return; }
+          this.sellHomeTo(m[1].trim(), Number(m[2].replace(/,/g, '')));
+          return;
+        }
         case 'post': {
           // a message post where you stand: with words, put up straight away; without, the writer opens
           if (arg.trim()) this.putPost(arg.trim()); else this.writePost();
@@ -8750,6 +8825,13 @@ export class Game implements GameApi {
       if (d > 28 || !n.model.root.visible) continue;
       const s = project(n.pos.x, n.pos.y + 2.3 * FIGURE * (n.def.look.height ?? 1), n.pos.z);
       if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: n.def.name, sub: d < 12 ? n.def.title : undefined, kind: 'npc', mark: this.npcMark(n) });
+    }
+    // Verandah's mounted conscripts and the watch on its walls
+    for (const g of [...this.verandahPatrols.plates(), ...this.wallWatch.plates()]) {
+      const d = Math.hypot(g.x - P.x, g.y - P.y, g.z - P.z);
+      if (d > 28) continue;
+      const s = project(g.x, g.y, g.z);
+      if (s) plates.push({ key: 'vg' + Math.round(g.x * 10) + ',' + Math.round(g.z * 10), x: s.x, y: s.y, name: g.name, sub: d < 12 ? g.sub : undefined, kind: 'npc' });
     }
     for (const pd of this.roadfolk.pedlarsNear(P, 28)) {
       const s = project(pd.pos.x, pd.pos.y + 2.3 * FIGURE * pd.height, pd.pos.z);

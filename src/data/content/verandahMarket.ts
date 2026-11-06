@@ -21,11 +21,11 @@ const items: ItemDef[] = [
 ];
 
 const STALLS: { id: string; name: string; title: string; at: [number, number, number]; face: [number, number]; look: NpcDef['look']; bark: string[]; hello: string }[] = [
-  { id: 'ver_fish_tegen', name: 'Tegen Hocking', title: 'Fishmonger', at: [-2883.5, 18, 1877.5], face: [-2883.5, 1880.5],
+  { id: 'ver_fish_tegen', name: 'Tegen Hocking', title: 'Fishmonger', at: [-2910.5, 16, 1899.5], face: [-2906.5, 1899.5],
     look: { frame: 'f', skin: '#e8c0a0', hair: '#c8c4bc', hairStyle: 5, eyes: '#3a5a6a', tunic: '#3a4a5a', trim: '#8a8a7a', shirt: '#e8e0d0', trousers: '#2a2a2e', boots: '#1e1a16', apron: true, hat: 'kerchief', hatColor: '#2f528f', lashes: true, age: 0.65 },
     bark: ['Fresh off the boats!', 'Mackerel, bass, a shark if you’ve the stomach.'],
     hello: 'Tegen Hocking, and these are the best fish on the island, because the boats tie up right there and I’m the first stall they reach. Buying or selling? I pay more for a good catch than any shop in town.' },
-  { id: 'ver_fish_jory', name: 'Arthur Bolitho', title: 'Fishmonger', at: [-2908.5, 17, 1883.5], face: [-2908.5, 1886.5],
+  { id: 'ver_fish_jory', name: 'Arthur Bolitho', title: 'Fishmonger', at: [-2906.5, 16, 1903.5], face: [-2906.5, 1899.5],
     look: { skin: '#c88a62', hair: '#4a3a2a', hairStyle: 0, facial: 2, eyes: '#3a2a1e', tunic: '#5a3a2a', trim: '#8a6a3a', shirt: '#d8ccb0', trousers: '#2a2620', boots: '#1e1a16', apron: true, hat: 'cap', hatColor: '#3a3a4a', build: 1.15 },
     bark: ['Two for one on mackerel. Don’t tell Tegen.', 'Shrimp by the bucket!'],
     hello: 'Arthur Bolitho. Tegen’s cheaper, I’m nicer. Bring me your catch, or take some of mine.' },

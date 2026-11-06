@@ -37,6 +37,11 @@ export class VerandahPatrols {
     return { x: a[0] + dx * t, z: a[1] + dz * t, yaw: Math.atan2(back ? -dx : dx, back ? -dz : dz) };
   }
 
+  /** Where the riders are, for their name plates (owner 2026-11-06: "the ones riding horses: Verandah Conscript"). */
+  plates(): { x: number; y: number; z: number; name: string; sub: string }[] {
+    return this.riders.filter((r) => r.shown).map((r) => ({ x: r.man.root.position.x, y: r.man.root.position.y + 2.2, z: r.man.root.position.z, name: 'Verandah Conscript', sub: 'On patrol' }));
+  }
+
   update(dt: number, P: THREE.Vector3): void {
     const s0 = (Date.now() / 1000) * SPEED;
     if (!this.riders.length) {
