@@ -3057,7 +3057,27 @@ export function steampunk(M: PropMaterials, kind: string): THREE.Group {
   return g;
 }
 
+/** A king's throne (Verandah's): carved dark oak, red velvet on the seat and back, gilt on the finials and the arms. Faces +z. */
+export function throne(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group(), oak = flat('#3a2418'), velvet = flat('#7a1a24'), gilt = flat('#e0bd64');
+  g.add(mesh(box(1.5, 0.3, 1.3), oak, 0, 0.15, 0));
+  g.add(mesh(box(1.1, 0.25, 0.9), oak, 0, 0.42, 0.05));
+  g.add(mesh(box(0.96, 0.12, 0.8), velvet, 0, 0.6, 0.08));
+  g.add(mesh(box(1.1, 2.0, 0.18), oak, 0, 1.3, -0.4));
+  g.add(mesh(box(0.8, 1.5, 0.04), velvet, 0, 1.25, -0.3));
+  for (const x of [-0.6, 0.6]) {
+    g.add(mesh(box(0.14, 0.6, 0.9), oak, x, 0.75, 0.05));
+    g.add(mesh(box(0.18, 0.08, 0.95), gilt, x, 1.08, 0.05));
+    g.add(mesh(box(0.16, 2.2, 0.16), oak, x, 1.3, -0.42));
+    g.add(mesh(new THREE.SphereGeometry(0.11, 8, 6), gilt, x, 2.48, -0.42));
+  }
+  g.add(mesh(box(1.2, 0.12, 0.22), gilt, 0, 2.32, -0.4));
+  g.add(mesh(box(0.3, 0.3, 0.08), gilt, 0, 2.05, -0.3));
+  return g;
+}
+
 export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group | null {
+  if (item === 'throne') return throne(M);
   if (item.startsWith('sp_')) return steampunk(M, item);
   // A trophy for the wall: "head:<kind>:<coat>:<second colour>" (data/trophyMounts.ts)
   if (item.startsWith('head:')) { const [, kind, a, b] = item.split(':'); return mountedHead(kind, a, b); }

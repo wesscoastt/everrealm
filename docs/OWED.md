@@ -207,7 +207,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
           p. A ladder up out of the underground farm under their house (stuck).
           q. Furnishing their own house (the Home furniture system in their Verandah house).
           r. The quarry/mine (a tall grey pillar where the pit should be): fix. The world can go deeper in Verandah for the Minecraft mines; tunnels can be common elsewhere too.
-          s. The king's throne is the red-carpeted hall in their screenshot (the throne between two topiary pillars): the king sits there.
+          s. The king's throne is the red-carpeted hall in their screenshot (the throne between two topiary pillars): the king sits there. Done 2026-11-06: King Edmund on a carved and gilt throne, Margery Pell his steward, two of the King's Guard at the steps; the town guard at the gate, the docks and two beats; two mounted guards ride a round from the Charter yard into town (game/VerandahPatrols.ts).
           t. Their XP farm is underground, none in the air: the grey tower is something else.
           u. The giant castle behind the Verandah carter (Ned Pascoe's yard by the stables): a group dungeon (owner 2026-11-05).
           v. The "Horses 64 £" sign by the carter: gone (done); the stables sell pure-bred horses there (item 11).

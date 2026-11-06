@@ -35,6 +35,7 @@ const MC_DOOR_CELLS = new Set<string>();
 import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
 import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { XAVIER_SHOWROOM } from '../data/content/verandahShops';
+import { THRONE } from '../data/content/verandahCourt';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
@@ -755,6 +756,8 @@ function* planBody(): Generator<string, Plan> {
         },
       }));
     })(),
+    // King Edmund's throne, at the end of the red carpet in his hall (data/content/verandahCourt.ts)
+    { id: 'ver-court', name: '', x: THRONE.x, z: THRONE.z, r0: 0, r1: 0, build: (s: Site) => { s.props.push({ t: 'furn', item: 'throne' as PropDesc['item'], x: THRONE.x, y: THRONE.y, z: THRONE.z, ry: THRONE.ry }); } },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
     { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of XAVIER_SHOWROOM) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
