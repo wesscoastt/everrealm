@@ -343,8 +343,9 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
     // (samphire is likelier: there are few beach columns to a chunk)
     if (forage.length < 5 && hash2(x, z, 917) < (id === B.Sand ? 0.03 : 0.0045) && !roads[lx + lz * CHUNK]) {
       const list = (id === B.Sand && y + 1 <= SEA + 2) ? ['samphire'] : (id === B.Grass || id === B.SnowGrass || id === B.Loam || id === B.Mycelium) ? FORAGE[reg] : undefined;
-      if (list?.length) {
-        const kind = list[Math.floor(hash2(x * 7 + 3, z * 13 + 5, 951) * list.length)], t = FORAGE_TINT[kind];
+      if (list) {
+        const field = (id === B.Grass || id === B.Loam) && hash2(x * 5 + 1, z * 3 + 7, 952) < 0.17; // a wild pumpkin, anywhere there's grass
+        const kind = field ? 'pumpkin' : list[Math.floor(hash2(x * 7 + 3, z * 13 + 5, 951) * list.length)], t = FORAGE_TINT[kind];
         forage.push({ x: x + 0.5, y: y + 1, z: z + 0.5, kind });
         // (drawn as a plant of its own now: world/foragePlants.ts; the old picture card only for a kind it doesn't know)
         if (!PLANT_KINDS.includes(kind)) veg.push(x + 0.5, y + 1, z + 0.5, t[0], 1.15, r * 6.28, t[1], t[2], t[3]);

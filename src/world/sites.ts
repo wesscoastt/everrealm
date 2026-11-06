@@ -59,6 +59,13 @@ import { MONUMENTS, type Monument } from '../data/monuments';
 // Deterministic settlements and landmarks across the continent. Running plan() yields the same
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
+/** The import's uncarved pumpkins by chunk, as forage spots (game/GameWorld.ts): drawn and picked as pumpkin vines, not as props. */
+export const MC_FIELD_PUMPKINS = (() => {
+  const m = new Map<string, [number, number, number][]>();
+  for (const t of MC_THINGS) if (t[0] === 'mcpumpkin' && !+t[5]) { const k = Math.floor(+t[1] / 32) + ',' + Math.floor(+t[3] / 32); let l = m.get(k); if (!l) m.set(k, (l = [])); l.push([+t[1], +t[2], +t[3]]); }
+  return m;
+})();
+
 export type PropType = 'butt' | 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'mcfire' | 'mcfence' | 'mcbench' | 'mcfurnace' | 'mchatch' | 'mcpumpkin' | 'mcbeehive' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */

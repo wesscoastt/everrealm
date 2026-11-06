@@ -285,7 +285,8 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'mcbench': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'mcfurnace': place(P.mcFurnace(M), d.x, d.y, d.z, d.ry); break;
       // a pumpkin, carved (h 1) or lit (h 2), and a beehive: the game's own
-      case 'mcpumpkin': { const pk = d.h ? P.jackOLantern(Math.floor(Math.abs(d.x * 7 + d.z * 3)) % 6, 1.2) : P.pumpkin('#e8801e', 1.25); place(pk, d.x, d.y, d.z, d.ry); if (d.h === 2) { glow(d.x, d.y + 0.4, d.z, 0.7, '#ffa040'); lamps.push(new THREE.Vector3(d.x, d.y + 0.4, d.z)); } break; }
+      case 'mcpumpkin': { if (!d.h) break; // (an uncarved one is a forage plant now: sites.ts MC_FIELD_PUMPKINS)
+ const pk = d.h ? P.jackOLantern(Math.floor(Math.abs(d.x * 7 + d.z * 3)) % 6, 1.2) : P.pumpkin('#e8801e', 1.25); place(pk, d.x, d.y, d.z, d.ry); if (d.h === 2) { glow(d.x, d.y + 0.4, d.z, 0.7, '#ffa040'); lamps.push(new THREE.Vector3(d.x, d.y + 0.4, d.z)); } break; }
       case 'mcbeehive': place(P.beehive(M), d.x, d.y, d.z, d.ry); break;
       case 'mchatch': place(P.mcHatch(M), d.x, d.y, d.z, d.ry); break;
       case 'mcladder': place(P.mcLadder(M), d.x, d.y, d.z, d.ry); break;

@@ -141,7 +141,27 @@ function samphire(full: boolean): Part[] {
   return p;
 }
 
+/** A pumpkin vine (owner 2026-11-06: "make the pumpkins harvestable, and grow them round the whole map"): broad leaves along the ground, a curl of vine, and one ripe pumpkin, ribbed, with its stalk; picked, the leaves are left. */
+function pumpkinVine(ripe: boolean): Part[] {
+  const p: Part[] = [], r = rng(37);
+  const leaf = ['#3e6e2a', '#4a7a32', '#557f34', '#36602a'];
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + r() * 0.5, d = 0.32 + r() * 0.22, s = 0.26 + r() * 0.12;
+    p.push(box(s, 0.04, s * 0.9, Math.sin(a) * d, 0.1 + r() * 0.08, Math.cos(a) * d, leaf[i % leaf.length], a, -0.25 + r() * 0.2));
+    p.push(box(0.025, 0.12, 0.025, Math.sin(a) * d, 0.05, Math.cos(a) * d, '#4a6a2a'));
+  }
+  for (let i = 0; i < 5; i++) { const a = i * 0.9; p.push(box(0.035, 0.035, 0.22, Math.sin(a) * 0.5, 0.03, Math.cos(a) * 0.5, '#5a7a32', a + Math.PI / 2)); }
+  if (ripe) {
+    // ribs: six slices round the middle, a little apart, deep and pale orange in turn
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI; p.push(box(0.62, 0.42, 0.2, 0, 0.22, 0, k % 2 ? '#e8801e' : '#d06a14', a)); }
+    p.push(box(0.4, 0.46, 0.4, 0, 0.22, 0, '#e07818'));
+    p.push(box(0.07, 0.16, 0.07, 0.02, 0.5, 0, '#5a4a22', 0, 0.2));
+  }
+  return p;
+}
+
 const BUILDERS: Record<string, (whole: boolean) => Part[]> = {
+  pumpkin: pumpkinVine,
   blackberries: bramble, wild_garlic: garlic, chanterelles, bilberries: bilberry, cloudberries: cloudberry, samphire,
 };
 

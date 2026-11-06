@@ -1,4 +1,5 @@
 import { ForagePlants } from '../world/foragePlants';
+import { MC_FIELD_PUMPKINS } from '../world/sites';
 import { animateGull } from './Gulls';
 import * as THREE from 'three';
 import { createSeededRandom } from '../utils/random';
@@ -277,6 +278,7 @@ export class GameWorld {
       }
       b.fish = r.fish.map((f) => ({ id: this.nodeId++, x: f.x, y: f.y, z: f.z, water: f.water } as FishSpot));
       b.forage = (r.forage ?? []).map((f) => ({ x: f.x, y: f.y, z: f.z, kind: f.kind, bareUntil: 0 }));
+      for (const [x, y, z] of MC_FIELD_PUMPKINS.get(cx + ',' + cz) ?? []) b.forage.push({ x, y, z, kind: 'pumpkin', bareUntil: 0 });
     }
     this.plantsDirty = true;
     this.onChunk?.(cx, cz, r);
