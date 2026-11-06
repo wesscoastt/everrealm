@@ -66,7 +66,7 @@ export function prizeFor(game: FairGameId, score: number, guessOff = 1): { candl
 
 /** The fair's own things (merged into ITEMS through data/content/wakefair.ts). */
 export const FAIR_ITEMS: ItemDef[] = [
-  { id: 'pumpkin', name: 'Pumpkin', kind: 'material', rarity: 'common', stack: true, value: 3, icon: { shape: 'gel', a: '#e8801e', b: '#4a6a2a' }, desc: 'A field pumpkin, heavy and ribbed. They grow wild in the grass all over, and in every patch at the Wake Fair. Barty Rudd will carve a face in one for you at his trestle, and a cook will make a pie of it.' },
+  { id: 'pumpkin', name: 'Pumpkin', kind: 'material', rarity: 'common', stack: true, value: 3, icon: { shape: 'pumpkin', a: '#e8801e', b: '#4a7a32' }, desc: 'A field pumpkin, heavy and ribbed. They grow wild in the grass all over, and in every patch at the Wake Fair. Barty Rudd will carve a face in one for you at his trestle, and a cook will make a pie of it.' },
   { id: 'furn_pumpkin', name: 'Jack-o\'-lantern', kind: 'collectible', rarity: 'uncommon', stack: true, value: 0, icon: { shape: 'lantern', a: '#e8801e', b: '#ffc060' }, desc: 'A pumpkin with a face cut in it and a candle inside. The turnip growers of the Wend call it showing off.', furn: { model: 'pumpkin' }, stats: 'Furniture: set it down in a house of your own' },
   { id: 'hat_pumpkin', name: 'Pumpkin head', kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'helm', a: '#e8801e', b: '#ffc060' }, desc: 'The Wake Fair\'s top prize: a whole pumpkin, hollowed, carved and lit, to wear. You can see out. Mostly.', hat: 'pumpkin', stats: 'Use it to add it to your wardrobe for good: pick it under Headwear with Change look, on the character screen.' },
 ];

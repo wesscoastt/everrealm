@@ -360,6 +360,91 @@ case 'book': {
       px(12, 10, 2, 3, '#ffffff');
       break;
     }
+    case 'pumpkin': {
+      // A ribbed pumpkin with its stalk and a curl of vine
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 19, 13, 10, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 19, 11.5, 8.5, 0, 0, Math.PI * 2); x.fill();
+      for (const ox of [9, 16, 23]) px(ox, 12, 1, 15, shade(a, 0.72));
+      px(10, 14, 2, 4, shade(a, 1.25)); px(15, 7, 3, 5, outline); px(16, 7, 1, 4, '#6a5a2a');
+      px(18, 8, 4, 2, b); px(21, 6, 2, 2, b);
+      break;
+    }
+    case 'butter': {
+      // A block of butter on a board, a thistle pressed on top
+      px(3, 21, 26, 6, outline); px(4, 22, 24, 4, '#8a6a42');
+      px(7, 11, 18, 11, outline); px(8, 12, 16, 9, a); px(8, 12, 16, 2, shade(a, 1.15));
+      px(14, 15, 4, 3, shade(a, 0.75)); px(15, 14, 2, 1, shade(a, 0.75));
+      break;
+    }
+    case 'cheese': {
+      // A cloth-bound truckle, a wedge cut from it
+      px(5, 9, 22, 18, outline); px(6, 10, 20, 16, b); px(6, 10, 20, 3, shade(b, 1.15));
+      px(18, 10, 8, 9, outline); px(19, 11, 6, 8, a);
+      for (const [ox, oy] of [[20, 13], [23, 16]]) px(ox, oy, 2, 2, shade(a, 0.75));
+      for (const oy of [15, 20]) px(6, oy, 12, 1, shade(b, 0.8));
+      break;
+    }
+    case 'omelette': {
+      // A folded omelette in a pan, cheese at its edge
+      px(2, 16, 4, 2, outline); px(0, 16, 3, 2, '#4a3a2a');
+      x.fillStyle = outline; x.beginPath(); x.ellipse(18, 18, 13, 8, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#3a3a40'; x.beginPath(); x.ellipse(18, 18, 11.5, 6.5, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(18, 17, 8.5, 4.5, 0.15, 0, Math.PI); x.fill();
+      px(11, 17, 15, 1, shade(a, 0.75)); px(15, 19, 3, 1, b); px(21, 19, 2, 1, b);
+      break;
+    }
+    case 'breadbutter': {
+      // Two slices, the butter spread to the edges
+      for (const [ox, oy] of [[4, 8], [12, 14]]) {
+        px(ox, oy, 16, 14, outline); px(ox + 1, oy + 1, 14, 12, '#b8844a');
+        px(ox + 2, oy + 2, 12, 10, '#ecd8a8'); px(ox + 3, oy + 3, 10, 6, a);
+      }
+      break;
+    }
+    case 'yarn': {
+      // A skein of wool, its strands and a loose end
+      x.fillStyle = outline; x.beginPath(); x.ellipse(16, 16, 11, 11, 0, 0, Math.PI * 2); x.fill();
+      x.fillStyle = a; x.beginPath(); x.ellipse(16, 16, 9.5, 9.5, 0, 0, Math.PI * 2); x.fill();
+      for (let i = 0; i < 4; i++) { x.strokeStyle = b; x.lineWidth = 1; x.beginPath(); x.ellipse(16, 16, 9 - i * 2, 4 + i, 0.6 + i * 0.4, 0, Math.PI * 2); x.stroke(); }
+      px(24, 24, 2, 2, a); px(26, 26, 3, 1, a); px(28, 27, 2, 1, a);
+      break;
+    }
+    case 'rug': {
+      // A woven rug, its border and its fringe
+      px(3, 8, 26, 16, outline); px(4, 9, 24, 14, b); px(6, 11, 20, 10, a);
+      for (let i = 0; i < 5; i++) px(9 + i * 3, 13 + (i % 2) * 3, 2, 2, b);
+      for (let i = 0; i < 12; i++) { px(4 + i * 2, 24, 1, 3, a); px(4 + i * 2, 5, 1, 3, a); }
+      break;
+    }
+    case 'scarecrow': {
+      // A straw man on his cross of poles: sack head, hat, an old coat, straw at the cuffs
+      px(15, 12, 2, 19, '#5a4a32'); px(4, 14, 24, 2, '#5a4a32');
+      px(9, 13, 14, 10, outline); px(10, 14, 12, 8, b);
+      px(3, 13, 3, 4, a); px(26, 13, 3, 4, a); px(13, 22, 6, 3, a);
+      px(12, 4, 8, 9, outline); px(13, 5, 6, 7, '#d8c8a0'); px(14, 7, 1, 1, outline); px(17, 7, 1, 1, outline); px(14, 10, 4, 1, outline);
+      px(10, 3, 12, 2, '#3a2a1e'); px(13, 0, 6, 3, '#3a2a1e');
+      break;
+    }
+    case 'rosette': {
+      // A prize rosette: pleated ring, gold middle, two tails
+      px(10, 18, 4, 13, outline); px(11, 19, 2, 11, a); px(18, 18, 4, 13, outline); px(19, 19, 2, 11, a);
+      x.fillStyle = outline; x.beginPath(); x.arc(16, 13, 12, 0, Math.PI * 2); x.fill();
+      for (let i = 0; i < 16; i++) { const t = (i / 16) * Math.PI * 2; x.fillStyle = i % 2 ? a : shade(a, 0.8); x.beginPath(); x.moveTo(16, 13); x.arc(16, 13, 11, t, t + Math.PI / 8); x.fill(); }
+      x.fillStyle = outline; x.beginPath(); x.arc(16, 13, 5.5, 0, Math.PI * 2); x.fill();
+      x.fillStyle = b; x.beginPath(); x.arc(16, 13, 4.5, 0, Math.PI * 2); x.fill();
+      px(14, 11, 2, 2, shade(b, 1.3));
+      break;
+    }
+    case 'drill': {
+      // A seed drill: the hopper on its wheel, handles back, coulters below
+      px(19, 3, 2, 12, outline); px(23, 3, 2, 12, outline); px(19, 3, 6, 2, outline);
+      px(5, 8, 16, 10, outline); px(6, 9, 14, 8, a); px(6, 9, 14, 2, shade(a, 1.2)); px(9, 12, 8, 2, '#c8a858');
+      x.fillStyle = outline; x.beginPath(); x.arc(11, 23, 7, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#6a4a2a'; x.beginPath(); x.arc(11, 23, 5.5, 0, Math.PI * 2); x.fill();
+      px(10, 18, 2, 10, outline); px(6, 22, 10, 2, outline);
+      for (const ox of [18, 22, 26]) { px(ox, 17, 2, 10, b); px(ox, 27, 2, 2, shade(b, 0.7)); }
+      break;
+    }
     case 'pie': {
       // A pie in its dish, the crust latticed
       px(3, 18, 26, 8, outline); px(4, 19, 24, 6, '#8a8a90');
