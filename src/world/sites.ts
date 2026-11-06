@@ -775,6 +775,23 @@ function* planBody(): Generator<string, Plan> {
     // Black Gull Keep (data/dungeons.ts): the owner's castle west of the Charter yard, its keep held by wreckers;
     // a group goes in at the south gate, through the great hall to the gaoler, up to the chamber on the second
     // floor for the lampman, and up the tower to the captain on the top floor (no halls to build: the owner's own)
+    // The Sunken Temple: the owner's temple in the pit by the bamboo house stood lower than the world reaches, so the
+    // game's own stands in its place (scripts/mc/temple.cjs); a public dungeon, its dead at their offices
+    { id: 'pd-temple', name: 'The Sunken Temple', x: -3420, z: 2448, r0: 0, r1: 0, build: (s: Site) => {
+      const m = (x: number, z: number, t: string): [number, number, number, string] => [x, 2, z, t];
+      s.act = {
+        kind: 'dungeon',
+        spawns: [m(-3426.5, 2448.5, 'tp_acolyte'), m(-3424.5, 2453.5, 'tp_acolyte'), m(-3412.5, 2452.5, 'tp_acolyte'), m(-3415.5, 2456.5, 'tp_bellkeeper'),
+          m(-3420.5, 2461.5, 'tp_acolyte'), m(-3421.5, 2441.5, 'tp_acolyte'), m(-3417.5, 2441.5, 'tp_bellkeeper')],
+        boss: [-3419.5, 2, 2435.5, 'tp_maddern'],
+        chest: [-3423.5, 2, 2434.5],
+      };
+      s.props.push({ t: 'furn', item: 'chest', x: -3423.5, y: 2, z: 2434.5, ry: Math.PI / 2 });
+      for (const [x, z] of [[-3420.5, 2433.5], [-3418.5, 2433.5], [-3422.5, 2435.5], [-3416.5, 2435.5]]) s.props.push({ t: 'furn', item: 'candles', x, y: x === -3420.5 || x === -3418.5 ? 3 : 2, z, ry: 0 });
+      for (const [x, z] of [[-3424.5, 2442.5], [-3415.5, 2439.5], [-3430.5, 2446.5]]) s.props.push({ t: 'furn', item: 'bones', x, y: 2, z, ry: x });
+      for (const x of [-3422.5, -3416.5]) s.props.push({ t: 'lantern', x, y: 2, z: 2447.5, ry: 0 });
+      s.props.push({ t: 'sign', x: -3408.5, y: 20, z: 2478.5, ry: 0, text: 'The Sunken Temple' });
+    } },
     { id: 'gd-blackgull', name: 'Black Gull Keep', x: -3384, z: 2114, r0: 0, r1: 0, build: (s: Site) => {
       const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
       s.act = {
