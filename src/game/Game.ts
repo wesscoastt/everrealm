@@ -2709,6 +2709,35 @@ export class Game implements GameApi {
     this.persist();
   }
 
+/**
+   * The produce show at Harvest Home (owner's farming list: "prizes at the harvest fair"): once a day, the best thing
+   * from your garden or your yard goes on the judges' table. The judges look at what it is, how well it was grown (your
+   * Farming) and a little at luck; first, second and third pay corn dollies, and a first wins the year's rosette.
+   * With your group about you it goes in as a family entry, and the judges like those.
+   */
+  private enterShow(): void {
+    const SHOW = ['grapes', 'pears', 'pumpkin', 'cheese', 'apples', 'hops', 'leek', 'strawberries', 'butter', 'barley', 'carrot', 'cabbage', 'onion', 'potato', 'wheat', 'egg'];
+    const day = Math.floor(Date.now() / 86_400_000);
+    if (this.flag('show:day') === day) { this.hud.system('You have an entry on the table today already. The judges go round again tomorrow.'); return; }
+    const pick = SHOW.find((id) => this.inv.count(id) > 0);
+    if (!pick) { this.hud.system('The show is for what you grew yourself: bring something from your garden or your yard (pumpkins, fruit, cheese, a good leek).'); this.sfx('fail'); return; }
+    this.take(pick, 1);
+    const family = this.social.groupNearby();
+    const score = (SHOW.length - SHOW.indexOf(pick)) * 4 + this.level('farming') * 0.5 + Math.random() * 20 + (family ? 6 : 0);
+    const place = score >= 60 ? 1 : score >= 42 ? 2 : score >= 28 ? 3 : 0;
+    this.setFlag('show:day', day);
+    const name = ITEMS[pick]?.name.toLowerCase() ?? pick;
+    if (!place) { this.hud.system(`The judges turn your ${name} over, write something, and move on. No card this time: there's always tomorrow.`); this.persist(); return; }
+    const dollies = [0, 6, 4, 2][place] + (family ? 1 : 0);
+    this.give('corn_dolly', dollies);
+    if (place === 1) this.give('show_rosette', 1);
+    this.addXp('farming', [0, 300, 180, 90][place]);
+    this.sfx(place === 1 ? 'discover' : 'coin');
+    this.hud.banner(['', 'First prize', 'Second prize', 'Third prize'][place], `Your ${name}${family ? ', a family entry' : ''}`, true);
+    this.hud.system(`${['', 'First', 'Second', 'Third'][place]} prize for your ${name}: ${dollies} corn dollies${place === 1 ? ' and the Harvest Home rosette' : ''}.`);
+    this.persist();
+  }
+
   /** Sell your house on the Mirador back to its family, for two thirds of what it cost. */
   sellVilla(): void {
     const v = this.myVilla();
@@ -5685,6 +5714,7 @@ export class Game implements GameApi {
     }
     const stall = this.festivals.stallNear(p);
     if (stall && this.festivals.fest) consider({ kind: 'act', label: `Talk to the stallholder: ${this.festivals.fest.name} goods and outfits`, pos: new THREE.Vector3(stall.x, stall.y + 1, stall.z), act: () => this.openFestivalStall() }, Math.hypot(stall.x - p.x, stall.z - p.z));
+    if (stall && this.festivals.fest?.id === 'harvest') consider({ kind: 'act', label: 'Enter the Harvest Home produce show', pos: new THREE.Vector3(stall.x + 1, stall.y + 1, stall.z), act: () => this.enterShow() }, Math.hypot(stall.x - p.x, stall.z - p.z) + 0.1);
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
