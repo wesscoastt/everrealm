@@ -213,6 +213,8 @@ const signs: { x: number; y: number; z: number; ry: number; kind: number; text: 
 const stones = new Map<string, { x: number; y: number; z: number; piece: string; name?: string; mc: [number, number, number] }>();
 /** The small things (torches, lanterns, doors, furniture), in game coordinates: [kind, x, y, z, facing, item or h]. */
 const things: (string | number)[][] = [];
+/** The houses found behind the owner's doors (a roofed room on one side of a door), in game coordinates: [x0, z0, x1, z1, floor, door x, door z, floor area]. */
+const houses: number[][] = [];
 for (const piece of MC_PIECES) {
   const { mx0, mz0, mx1, mz1, gx0, gz0, yOff } = piece;
   const W = mx1 - mx0 + 1, D = mz1 - mz0 + 1;
@@ -325,6 +327,39 @@ for (const piece of MC_PIECES) {
       things.push(['mcfence', tx + 0.5, f.gy, tz + 0.5, 0, mask]);
       if (f.gy + 1 < SY && grid[gi(f.ix, f.iz, f.gy + 1)] === B.Air) grid[gi(f.ix, f.iz, f.gy + 1)] = B.Barrier;
     }
+  }
+  // The houses: from each door, the room on its inside, a floor you can walk across with a roof over all of
+  // it, closed in all round (owner 2026-11-05: "allow the exterior homes in Verandah to be purchased")
+  {
+    const seen = new Set<number>();
+    const walk = (ix: number, iz: number, y: number) => { if (ix < 0 || iz < 0 || ix >= W || iz >= D || y < 1 || y + 1 >= SY) return false; const a = grid[gi(ix, iz, y)], b = grid[gi(ix, iz, y + 1)]; return (a === B.Air || a === B.Barrier) && (b === B.Air || b === B.Barrier) && grid[gi(ix, iz, y - 1)] !== B.Air && grid[gi(ix, iz, y - 1)] !== B.Water; };
+    const roofed = (ix: number, iz: number, y: number) => { for (let k = y + 2; k < Math.min(SY, y + 10); k++) { const id = grid[gi(ix, iz, k)]; if (id !== B.Air && id !== B.Barrier && id !== B.OakLeaves && id !== B.BirchLeaves && id !== B.PineLeaves) return true; } return false; };
+    for (const d of doorways) {
+      if (things[d.k][0] !== 'mcdoor') continue;
+      for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const x0 = d.ix + sx, z0 = d.iz + sz;
+        if (!walk(x0, z0, d.gy) || seen.has(x0 * D + z0 + d.gy * W * D)) continue;
+        const q: number[] = [x0 * D + z0], got = new Set<number>(q);
+        let ok = true;
+        for (let h = 0; h < q.length && ok; h++) {
+          const c = q[h], cx = Math.floor(c / D), cz = c % D;
+          if (!roofed(cx, cz, d.gy)) { ok = false; break; }
+          for (const [ax, az] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx = cx + ax, nz = cz + az, k = nx * D + nz;
+            if (got.has(k) || (nx === d.ix && nz === d.iz) || !walk(nx, nz, d.gy)) continue;
+            got.add(k); q.push(k);
+            if (q.length > 700) { ok = false; break; }
+          }
+        }
+        if (!ok || q.length < 9) continue;
+        for (const c of q) seen.add(c + d.gy * W * D);
+        let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9;
+        for (const c of q) { const [gx, gz] = toGame(mx0 + Math.floor(c / D), mz0 + (c % D)); a0 = Math.min(a0, gx); a1 = Math.max(a1, gx); b0 = Math.min(b0, gz); b1 = Math.max(b1, gz); }
+        const [dx, dz] = toGame(mx0 + d.ix, mz0 + d.iz);
+        if (piece.id === 'city') houses.push([a0, b0, a1, b1, d.gy, dx, dz, q.length]);
+      }
+    }
+    console.log(piece.id + ':', houses.length, 'rooms behind doors so far');
   }
   // The snow country made green like the rest (owner 2026-11-05: "make the snow biome grassy to match the
   // rest"): the snow layers go, a snow block on top turns to grass and under that to earth, the ice to water
@@ -682,6 +717,8 @@ export interface McSign { x: number; y: number; z: number; ry: number; kind: num
 export const MC_SIGNS: McSign[] = ${JSON.stringify(signs)};
 /** The small things on the owner's builds: [kind, x, y, z, facing, the furniture's item or a light's wall/hanging]. */
 export const MC_THINGS: (string | number)[][] = ${JSON.stringify(things)};
+/** The houses behind the owner's doors (scripts/mc/export.ts): [x0, z0, x1, z1, floor, door x, door z, floor area], west to east. */
+export const MC_HOUSES: number[][] = ${JSON.stringify(houses.sort((a, b) => a[0] - b[0] || a[1] - b[1]))};
 /** The waystones the owner set (an add-on's): where the game's waymarks stand. */
 export const MC_WAYSTONES: { x: number; y: number; z: number; piece: string; name?: string }[] = ${JSON.stringify([...stones.values()].map(({ mc: _mc, ...s }) => s))};
 `);

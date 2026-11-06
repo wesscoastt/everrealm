@@ -1,5 +1,6 @@
 import { fitOut } from '../world/interiors';
 import type { Door, HomeShape } from './housing';
+import { VERANDAH_HOMES } from './verandahHomes';
 
 // THE MIRADOR. North of Callis the Sunder's plateau ends in a sheer scarp twenty-five blocks high, and
 // along its lip, looking south over the city, the river mouth and the bay, the shipping families built
@@ -25,6 +26,11 @@ export interface Villa {
   price: number;
   /** What Teresa says of it. */
   blurb: string;
+  /** A house elsewhere sold the same way (Verandah's: data/verandahHomes.ts): the town, who sells it, which wall its door is in, and its door's cell. */
+  town?: string;
+  seller?: string;
+  doorSide?: Door;
+  doorAt?: [number, number];
 }
 
 const V = (id: string | null, kind: VillaKind, name: string, x0: number, z0: number, w: number, d: number, base: number, edge: number, price: number, blurb: string): Villa => ({ id, kind, name, x0, z0, w, d, floors: 2, base, edge, price, blurb });
@@ -42,7 +48,17 @@ export const VILLAS: Villa[] = [
   V('hv7', 'cypress', 'the Cypress House', 8820, 798, 11, 8, 49, 807, 12000, 'The furthest along and the highest: dressed stone, an arcade along the cliff side, and a garden of cypresses stepping down to the deck. Quiet. The lane ends at the lookout just past it.'),
 ];
 
-export const VILLA_BY_ID = new Map(VILLAS.filter((v) => v.id).map((v) => [v.id!, v]));
+/** Verandah's houses, sold the same way as the Mirador's (the town clerk, not a family). */
+export const VERANDAH_VILLAS: Villa[] = VERANDAH_HOMES.map((h) => {
+  const w = h.x1 - h.x0 + 1, d = h.z1 - h.z0 + 1;
+  const side: Door = h.door[1] < h.z0 ? 'n' : h.door[1] > h.z1 ? 's' : h.door[0] < h.x0 ? 'w' : 'e';
+  return { id: h.id, kind: 'stair', name: h.name, x0: h.x0, z0: h.z0, w, d, floors: 1, base: h.base, edge: 0, price: h.price, blurb: '', town: 'Verandah', seller: 'the town clerk', doorSide: side, doorAt: h.door };
+});
+export const VILLA_BY_ID = new Map([...VILLAS, ...VERANDAH_VILLAS].filter((v) => v.id).map((v) => [v.id!, v]));
+/** Where a house sold this way stands, for what's said of it ("on the Mirador", "in Verandah"). */
+export const villaPlace = (v: Villa) => (v.town ? 'in ' + v.town : 'on the Mirador');
+/** Who sells it and buys it back. */
+export const villaSeller = (v: Villa) => v.seller ?? 'Teresa Mas';
 
 /** The lane: from the coast road at the top of the scarp, past the gatehouse, along the houses' fronts, to the lookout at its end. */
 export const MIRADOR_LANE: [number, number][] = [[8306, 780], [8360, 784], [8405, 787], [8445, 789], [8495, 795], [8550, 799], [8600, 794], [8645, 788], [8690, 789], [8733, 791], [8780, 792], [8825, 790], [8858, 793]];
@@ -53,10 +69,10 @@ export const MIRADOR_LOOKOUT = { x: 8862, z: 800, edge: 804 };
 const DOOR: Door = 'n';
 /** A villa's body, for the furnishing code. */
 export function villaShape(v: Villa): HomeShape {
-  return { name: v.name[0].toUpperCase() + v.name.slice(1) + ', the Mirador', x0: v.x0, z0: v.z0, w: v.w, d: v.d, floors: v.floors, base: v.base, door: DOOR };
+  return { name: v.town ? v.name : v.name[0].toUpperCase() + v.name.slice(1) + ', the Mirador', x0: v.x0, z0: v.z0, w: v.w, d: v.d, floors: v.floors, base: v.base, door: v.doorSide ?? DOOR };
 }
 /** The front door's cell (as houseInto lays it: the middle of the north wall), and the back door's onto the deck. */
-export const villaDoor = (v: Villa): [number, number] => [v.x0 + Math.floor(v.w / 2), v.z0];
+export const villaDoor = (v: Villa): [number, number] => v.doorAt ?? [v.x0 + Math.floor(v.w / 2), v.z0];
 export function villaBack(v: Villa): [number, number] {
   // (on the side of the back wall away from the stair, which climbs along it)
   const [dx, dz] = villaDoor(v);

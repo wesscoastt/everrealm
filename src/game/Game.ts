@@ -132,7 +132,7 @@ import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, ha
 import { LotBuild } from './LotBuild';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
-import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaShape, VILLAS } from '../data/mirador';
+import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaPlace, villaSeller, villaShape, VILLAS } from '../data/mirador';
 import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_PRICE, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
@@ -2517,6 +2517,7 @@ export class Game implements GameApi {
   }
 
   /** Which home is yours in the book: your lot's id, 'cottage' for Wendside Cottage, or null (a let room isn't in it). */
+  myHouseId(): string | null { return this.myHomeId(); }
   private myHomeId(): string | null {
     const plot = readPlot(this.flag('plot'));
     if (plot) return plot.lot;
@@ -2565,9 +2566,9 @@ export class Game implements GameApi {
         this.setFlag('villa', id);
         this.setFlag('home', []);
         this.home.render();
-        this.hud.banner(name, 'Your house on the Mirador', true);
+        this.hud.banner(name, `Your house ${villaPlace(v)}`, true);
         this.sfx('discover');
-        this.hud.system(`Teresa Mas hands you the keys. ${name} is yours: inside, use the prompt to arrange the furniture.`);
+        this.hud.system(`${villaSeller(v)[0].toUpperCase() + villaSeller(v).slice(1)} hands you the keys. ${name} is yours: inside, use the prompt to arrange the furniture.`);
         this.hud.refresh();
         this.persist();
       }, was);
@@ -2607,7 +2608,7 @@ export class Game implements GameApi {
     if (!v) return;
     if (this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.homeName(v.id!)}. Pick it up first (Arrange the furniture, then X).`); this.sfx('fail'); return; }
     const back = Math.round(v.price * VILLA_RESALE);
-    this.hud.ask(`Sell ${v.name} back to its family for ${back.toLocaleString()} marks? Someone else can buy it after.`, () => {
+    this.hud.ask(`Sell ${v.name} back ${v.town ? 'to the town' : 'to its family'} for ${back.toLocaleString()} marks? Someone else can buy it after.`, () => {
       if (this.myVilla() !== v) return;
       if (this.homesBook && this.online.online) this.online.homeRelease(v.id!);
       this.addMarks(back);
@@ -2615,7 +2616,7 @@ export class Game implements GameApi {
       this.setFlag('home', null);
       this.home.render();
       this.sfx('coin');
-      this.hud.system(`Teresa Mas takes the keys back and counts out ${back.toLocaleString()} marks.`);
+      this.hud.system(`${villaSeller(v)[0].toUpperCase() + villaSeller(v).slice(1)} takes the keys back and counts out ${back.toLocaleString()} marks.`);
       this.hud.refresh();
       this.persist();
     }, () => {}, 30);

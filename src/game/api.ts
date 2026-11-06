@@ -17,6 +17,11 @@ export interface GameApi {
   markOnMap(x: number, z: number, label: string): void;
   /** Who holds a home (a lot's id, or 'cottage'), or null: free, or not known offline. */
   homeHolder(id: string): string | null;
+  /** Buy a house sold outright (the Mirador's, Verandah's), or sell yours back. */
+  buyVilla(id: string): void;
+  sellVilla(): void;
+  /** Which home is yours, if any (a lot's id, a house's, 'cottage'). */
+  myHouseId(): string | null;
   /** Hire a rowing boat from the nearest boatman (data/content/boats.ts) and put the player in her. */
   hireBoat(): void;
   /** At a shipwright (data/naval.ts, game/Sailing.ts): hire, build, call round, raise, paint or name a ship. */

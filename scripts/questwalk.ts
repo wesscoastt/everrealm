@@ -100,6 +100,9 @@ class Mock implements GameApi {
   openMail() {}
   openVaultAt() {}
   accountName() { return null; }
+  buyVilla() {}
+  sellVilla() {}
+  myHouseId() { return null; }
   // Companions (game/Companions.ts) and the Wake Fair (game/WakeFair.ts)
   compJoin() {}
   compDismiss() {}
