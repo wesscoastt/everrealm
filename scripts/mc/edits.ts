@@ -62,6 +62,12 @@ export const EDITS: Record<string, (e: Editor) => void> = {
    * prongs, the middle one tallest. And the dirt in the glass-roofed garden at -418, 1412: grass again.
    */
   city(e) {
+    // the rock stacks off the port (owner 2026-11-06: "remove this"): the cut-off south end of a build north of
+    // the import, standing in the sea with its ladders hanging in the air. Sea bed, sea, and open sky.
+    e.fill(-804, 0, 763, -787, 54, 792, B.Stone);
+    e.fill(-804, 55, 763, -787, 55, 792, B.Sand);
+    e.fill(-804, 56, 763, -787, 62, 792, B.Water);
+    e.fill(-804, 63, 763, -787, 200, 792, B.Air);
     // the old statue, down to its platform (71)
     e.fill(-550, 72, 875, -526, 112, 893, B.Air);
     const cx = -541, cz = 884, b = 72; // the shaft's west/north column; the shaft is cx..cx+1, cz..cz+1

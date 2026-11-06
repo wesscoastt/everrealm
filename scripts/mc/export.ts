@@ -369,7 +369,9 @@ for (const piece of MC_PIECES) {
     for (let y = SY - 1; y >= 0; y--) {
       const i = gi(ix, iz, y), id = grid[i];
       if (id === B.Snow || id === B.SnowGrass) { const under = y > 0 ? grid[i - 1] : B.Stone; grid[i] = open && (under === B.Water || under === B.Ice) ? (y < SEA ? B.Water : B.Air) : open ? B.Grass : B.Dirt; if (grid[i] === B.Air) continue; }
-      else if (id === B.Ice && open) grid[i] = B.Water;
+      // the ice melts all the way down, and what stood above the sea goes (owner 2026-11-06: "all the ice and melted
+      // water still all over in the ocean, remove it all"): water left above the sea's level floated over it
+      else if (id === B.Ice) { grid[i] = y < SEA ? B.Water : B.Air; continue; }
       if (id !== B.Air) open = false;
     }
   }

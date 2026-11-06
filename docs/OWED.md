@@ -189,7 +189,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
         44. Many map stars in Verandah all say "Verandah": give each its own name (owner 2026-11-05).
         45. QUEUED LATE, after the big prompts: Mizulholm a waymark and a long Japanese-inspired side questline (owner 2026-11-05). (2026-11-05: Mizuholm is the owner's spelling, its waystone at Minecraft 130, 68, 771: inside the import already; its waymark from the waystone names.)
         46. Owner's walk round, 2026-11-05 evening, in order:
-          a. Remove the dark stone spires with ladders standing in the sea (their screenshot).
+          a. Remove the dark stone spires with ladders standing in the sea (their screenshot). Done 2026-11-06: the cut-off south end of a build north of the import, off the port at game (-2872..-2843, 1816..1833), cleared to sea bed and open sea (scripts/mc/edits.ts keeps it so); and every block of ice in the import melted (water below the sea, nothing above: the icebergs in the old frozen sea east of the port gone), water left standing over open sea taken down to it (scripts/mc/export.ts).
           b. The "For Sale 30 £" sign: gone, and that house a real one for sale.
           c. The white houses on the outside of Verandah's walls, and all exterior homes, buyable.
           d. Chief Killianos's house replaced with a better-looking, better-detailed one.
