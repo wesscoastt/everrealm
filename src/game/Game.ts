@@ -2574,6 +2574,33 @@ export class Game implements GameApi {
     }, () => {}, 30);
   }
 
+/**
+   * The owner moved into their own house in Verandah (owner 2026-11-05: "you can release the previous home from
+   * my ownership", "refund me the money in marks"): once, for their account, whatever home they held goes back,
+   * every mark it cost them paid back (a villa's price, a lot's lease and its builders' wages, the cottage's
+   * price), its furniture into the pack (what won't fit, paid for at its worth), and a let room given up.
+   */
+  private ownerMovesHome(): void {
+    if (!isHomeOwner(this.accountName()) || this.flag('ownerHomeMoved')) return;
+    if (this.online.online && !this.homesBook) { setTimeout(() => this.ownerMovesHome(), 4000); return; }
+    const id = this.myHomeId(), plot = readPlot(this.flag('plot')), villa = this.myVilla(), flat = readTenancy(this.flag('flat'));
+    this.setFlag('ownerHomeMoved', 1);
+    if (!id && !flat) { this.persist(); return; }
+    const name = id ? this.homeName(id) : 'your room';
+    const price = villa ? villa.price : plot ? LOT_PRICE + (plot.spec ? costOf(plot.spec).marks : 0) : id === 'cottage' ? COTTAGE.price : 0;
+    let worth = 0, back = 0;
+    for (const [item] of this.home.pieces()) { if (this.give(item)) back++; else worth += ITEMS[item]?.value ?? 0; }
+    if (id && this.homesBook && this.online.online) this.online.homeRelease(id);
+    this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null); this.setFlag('villa', null); this.setFlag('home', null);
+    if (flat) this.setFlag('flat', null);
+    this.addMarks(price + worth);
+    this.home.render();
+    this.hud.system(`Your house in Verandah is yours now, and ${name} is given up: ${(price + worth).toLocaleString()} marks paid back to you${back ? `, and ${back} piece${back === 1 ? '' : 's'} of furniture in your pack` : ''}.`);
+    this.sfx('coin');
+    this.hud.refresh();
+    this.persist();
+  }
+
   /** Sell your house on the Mirador back to its family, for two thirds of what it cost. */
   sellVilla(): void {
     const v = this.myVilla();
@@ -4308,6 +4335,7 @@ export class Game implements GameApi {
       if (seen < NEWS_V && !fresh) setTimeout(() => { if (this.mode === 'play') this.hud.showNews(newsHtml(seen ? Math.max(1, NEWS_V - seen) : 1)); }, 2500);
       try { localStorage.setItem('everrealm.newsSeen', String(NEWS_V)); } catch { /* private window */ }
     }
+    setTimeout(() => this.ownerMovesHome(), 5000);
     // A torch for everyone (it comes out after dark); given once to characters made before torches
     if (!this.flag('gotTorch')) { if (this.inv.count('torch') > 0 || this.give('torch', 1)) this.setFlag('gotTorch', true); }
     // What the account owns from the store, to this character (once each; the server says what's owned)

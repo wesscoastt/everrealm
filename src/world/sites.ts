@@ -48,7 +48,7 @@ import { MONUMENTS, type Monument } from '../data/monuments';
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
-  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'notice' | 'desk' | 'furn' | 'rails'
+  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'mcfire' | 'mcfence' | 'mcbench' | 'mcfurnace' | 'mchatch' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
   | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
@@ -730,9 +730,14 @@ function* planBody(): Generator<string, Plan> {
           for (const [t, x, y, z, ry, extra] of here) {
             // (no torches stood on floors or the ground: only those on walls; owner 2026-11-05)
             if (t === 'mctorch' && +extra !== 1) continue;
+            // a door that swings, shut across its doorway till someone comes up to it (as the game's other doors)
+            if (t === 'mcgate') { const r = +ry, nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r); s.props.push({ t: 'furn', item: 'doorOpen', swing: true, doorKind: 'gate', x: +x + tx * 0.42 - nx * 0.5, y: +y, z: +z + tz * 0.42 - nz * 0.5, ry: r }); continue; }
+            if (t === 'mcdoor') { const r = +ry, nx = Math.sin(r), nz = Math.cos(r), tx = Math.cos(r), tz = -Math.sin(r); s.props.push({ t: 'furn', item: 'doorOpen', swing: true, doorKind: 'cottage', x: +x + tx * 0.42 - nx * 0.5, y: +y, z: +z + tz * 0.42 - nz * 0.5, ry: r }); continue; }
             const d: PropDesc = { t: t as PropType, x: +x, y: +y, z: +z, ry: +ry };
             if (t === 'furn') d.item = String(extra) as PropDesc['item'];
-            else if (t === 'mctorch' || t === 'mclantern') d.h = +extra;
+            // (Minecraft's beds face the other way to the game's)
+            if (t === 'furn' && extra === 'bed') d.ry = +ry + Math.PI;
+            else if (t === 'mctorch' || t === 'mclantern' || t === 'mcfire' || t === 'mcfence') d.h = +extra;
             s.props.push(d);
           }
         },

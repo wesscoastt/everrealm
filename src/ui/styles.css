@@ -1464,3 +1464,4 @@ img.ric { width: 18px; height: 18px; vertical-align: -4px; margin: 0 3px 0 1px; 
 .ab-slot .pip.stamina { background: #3a8a3a; }
 .ab-slot .pip.health { background: #a82a2a; }
 .ab-slot.locked .pip { display: none; }
+#player-frame .portrait .lvl { display: none !important; } /* (the level is shown bottom centre, over the experience bar: owner 2026-11-05) */

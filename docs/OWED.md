@@ -176,6 +176,18 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
         31. Every torch in Everrealm's buildings the game's own brand torch (done 2026-11-05; only Verandah had placed torches).
         32. The vault under the Bank of Verandah, detailed (owner 2026-11-05).
         33. Who lives and works where in Verandah (owner 2026-11-05, for 2 and 27): the big tower on the hill is the guards' watch tower, and below it, above the market, the guard barracks; the giant castle is the king's, and the big house next to it is his too, where his household and workers sleep; near there, an archery and combat training yard where the guards train; the big house at the Verandah farm houses the farmhands, and the big warehouse there holds the farm's supplies; the port's warehouses full of crates of goods.
+        34. Players sell homes to other players, or back to the city; no more renting (owner 2026-11-05). (Their old home: released and refunded in full, done.)
+        35. The market stalls by Verandah's docks are a fish market (owner 2026-11-05).
+        36. Verandah busy as a city (owner 2026-11-05): dockhands, guards, quarry workers, farmers, the lumberyard, all at work. Make game versions of any Minecraft piece that needs one.
+        37. Done 2026-11-05: doors swing, fires burn in hearths, invisible lights and stray blocks gone, old leaves no longer stone, lamp-post stacks one post, hand-placed hedges kept.
+        38. Done 2026-11-05: anvils, crafting tables and furnaces are stations; furniture has collision; cellars, the mine and caves no longer flooded by the export (only water open to the sea); cellar trapdoors over ladders are open hatches; the XP farm, Snow Village and Shiesty Airport signs gone; the level badge off the portrait; beds turned round; things left floating at the softened coast taken away.
+        39. Beehives came in as planks: a beehive prop (owner 2026-11-05).
+        40. The village by the owner's house (the Minecraft spawned one): its igloo houses made real houses, the village tidied like the game's others and named, the Snow Village signs gone (done) (owner 2026-11-05).
+        41. Wall off the passage in the owner's screenshot (a stone-lined tunnel mouth into a hillside, barrel and table either side, wall torches) in that village (owner 2026-11-05).
+        42. The water round Verandah and on the map a different colour from the rest of the sea: match it (owner 2026-11-05).
+        43. Lie in beds, as in ESO (owner 2026-11-05).
+        44. Many map stars in Verandah all say "Verandah": give each its own name (owner 2026-11-05).
+        45. QUEUED LATE, after the big prompts: Mizulholm a waymark and a long Japanese-inspired side questline (owner 2026-11-05).
         ORDER (owner 2026-11-05): every 11b item fixed and working in the new Verandah area to a 10/10 first; then the FARMING OVERHAUL next; then on down the prompts.
     12. Graphics overhaul (owner 2026-11-05: "feel more like it was built in an engine like Unity"), and northern lights over the northern lands.
     10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.

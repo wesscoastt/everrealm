@@ -6,7 +6,7 @@
 // glass; a smithy, a gaol or a tower heavy boards, iron bands and studs; a bank iron plate and rivets;
 // a chapel or a hall carved oak with scrolled hinges; a store or a shed rough boards and a rope pull.
 
-export type DoorKind = 'cottage' | 'painted' | 'panelled' | 'dutch' | 'glazed' | 'studded' | 'iron' | 'carved' | 'rough';
+export type DoorKind = 'cottage' | 'painted' | 'panelled' | 'dutch' | 'glazed' | 'studded' | 'iron' | 'carved' | 'rough' | 'gate';
 /** House door paints: the country's colours. */
 export const DOOR_PAINTS = ['#4a6a3a', '#2f4a6a', '#7a2a24', '#2a2a2c', '#7a5a2a', '#2a5a5a', '#5a3a4a', '#3a5a4a', '#6a2a1a'];
 /** Morrow's white-stone towns paint their doors darker. */

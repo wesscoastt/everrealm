@@ -23,6 +23,9 @@ const SY = 112, SEA = 16, CHUNK = 32; // (as world/VoxelWorld.ts)
 const SEA_FLOOR = SEA - 9;
 
 // ---------------------------------------------------------------- the small things, as props
+/** Things you can't walk through: an invisible wall in their block (owner 2026-11-05, "no collision issues"). */
+const SOLID_T = new Set(['barrel', 'crate', 'anvil', 'mcbench', 'mcfurnace']);
+const SOLID_ITEM = new Set(['table', 'chest', 'hearth', 'desk', 'dresser', 'counter', 'shelves', 'bed', 'strongbox']);
 /** Minecraft's facings to the game's (0 toward +z, south): a cardinal name, a facing_direction (2 north, 3 south, 4 west, 5 east), a direction (0 south, 1 west, 2 north, 3 east). */
 function facingOf(st: Record<string, unknown>): number {
   const c = String(st['minecraft:cardinal_direction'] ?? st.torch_facing_direction ?? '');
@@ -37,6 +40,13 @@ function facingOf(st: Record<string, unknown>): number {
 function propOf(p: Palette): { t: string; item?: string; h?: number } | null {
   const n = p.name.replace(/^[a-z0-9_]+:/, ''), st = p.states, vanilla = p.name.startsWith('minecraft:');
   if (/^ladder$/.test(n)) return { t: 'mcladder' };
+  if (/fence_gate/.test(n)) return { t: 'mcgate' };
+  // fire in a hearth, and campfires: the game's flames (owner 2026-11-05: "fireplaces not working")
+  if (/^(fire|soul_fire)$/.test(n)) return { t: 'mcfire', h: 0 };
+  if (/campfire/.test(n)) return st.extinguished === 1 || st.extinguished === true ? null : { t: 'mcfire', h: 1 };
+  // the lamp-post add-on's pieces, stacked into posts (put back together after: one post to a stack)
+  if (/^mra_cvl:lantern/.test(p.name)) return { t: 'mcpost' };
+  if (/^(oak|spruce|birch|dark_oak|acacia|jungle|mangrove|cherry|bamboo|crimson|warped|pale_oak)_shelf$/.test(n)) return { t: 'furn', item: 'shelves' };
   if (/torch/.test(n) && !/torchflower/.test(n)) return { t: 'mctorch', h: String(st.torch_facing_direction ?? 'top') === 'top' ? 0 : 1 };
   if (/lantern/.test(n)) {
     if (/lantern_stone|lamp_?post|street/.test(n)) return { t: 'lantern' };
@@ -49,7 +59,10 @@ function propOf(p: Palette): { t: string; item?: string; h?: number } | null {
   if (/^(chest|trapped_chest|ender_chest)$/.test(n)) return { t: 'furn', item: 'chest' };
   if (/barrel/.test(n)) return { t: 'barrel' };
   if (/crate/.test(n) && !/cropbox/.test(n)) return { t: 'crate' };
-  if (/^crafting_table$|cartography|fletching|smithing_table|loom/.test(n)) return { t: 'furn', item: 'table' };
+  // the places to work: a crafting table a joiner's bench, a furnace a forge, an anvil an anvil (game/Game.ts openCrafting)
+  if (/^crafting_table$/.test(n)) return { t: 'mcbench' };
+  if (/^(furnace|lit_furnace|blast_furnace|lit_blast_furnace)$/.test(n)) return { t: 'mcfurnace' };
+  if (/cartography|fletching|smithing_table|loom/.test(n)) return { t: 'furn', item: 'table' };
   if (/^(furnace|smoker|blast_furnace)$|stove|oven/.test(n)) return { t: 'furn', item: 'hearth' };
   if (/anvil/.test(n)) return { t: 'anvil' };
   if (/lectern|desk/.test(n)) return { t: 'furn', item: 'desk' };
@@ -73,6 +86,14 @@ function mapBlock(p: Palette): number {
   // (the owner's review: the windows, the bars, the bookcases, the light posts, the dock's trapdoor walks)
   {
     const n0 = p.name.replace(/^[a-z0-9_]+:/, '');
+    // invisible light sources (Minecraft's light blocks, the add-ons' dynamic and fake lights): nothing to see;
+    // and the odd things with no block of their own (owner 2026-11-05: "random blocks on a table in the winery")
+    if (/^light_block|dynamic_light|fake_light|^(moving_block|portal|web|cobweb|cake|cocoa|brewing_stand|enchanting_table|trial_spawner|vault|structure_block|jigsaw)$/.test(n0)) return B.Air;
+    if (/amethyst_block|budding_amethyst/.test(n0)) return B.Crystal;
+    if (/bamboo_block|bamboo_planks|bamboo_mosaic/.test(n0)) return B.Planks;
+    if (/mangrove_roots/.test(n0)) return B.OakLog;
+    // fences: an invisible wall the fence's height, drawn as posts and rails (world/props.ts mcFence)
+    if (/fence$/.test(n0) && !/gate/.test(n0)) return B.Barrier;
     if (/glass/.test(n0)) return B.Glass;
     if (/iron_bars|bars$/.test(n0)) return B.Bars;
     if (/bookshelf|bookcase/.test(n0)) return B.Bookshelf;
@@ -121,6 +142,9 @@ function mapBlock(p: Palette): number {
   if (/gravel/.test(n)) return B.Gravel;
   if (/snow_block|powder_snow/.test(n)) return B.Snow;
   if (/ice/.test(n)) return B.Ice;
+  // the old leaves (their kind in a state), and the old tall plants: not stone (owner 2026-11-05, "leaves look like white stone")
+  if (n === 'leaves' || n === 'leaves2') { const k = String(p.states.old_leaf_type ?? p.states.new_leaf_type ?? 'oak'); return k === 'birch' ? B.BirchLeaves : k === 'spruce' ? B.PineLeaves : B.OakLeaves; }
+  if (n === 'double_plant') return B.Air;
   if (/_leaves/.test(n)) return /birch/.test(n) ? B.BirchLeaves : /spruce|pine/.test(n) ? B.PineLeaves : B.OakLeaves;
   if (/_log|_wood|_stem|hyphae/.test(n)) return /birch/.test(n) ? B.BirchLog : /spruce|dark_oak|mangrove/.test(n) ? B.PineLog : B.OakLog;
   if (/planks|bookshelf|crafting_table|barrel|chest|loom|lectern|cartography|fletching|smithing|composter|beehive|bee_nest|jukebox|note_block/.test(n) || (/stairs|slab|fence/.test(n) && /oak|spruce|birch|jungle|acacia|cherry|mangrove|bamboo|crimson|warped|pale/.test(n))) {
@@ -190,6 +214,8 @@ for (const piece of MC_PIECES) {
   const cx0 = Math.floor(mx0 / 16), cz0 = Math.floor(mz0 / 16), cx1 = Math.floor(mx1 / 16), cz1 = Math.floor(mz1 / 16);
   const sy0 = Math.floor(-yOff / 16), sy1 = Math.floor((SY - 1 - yOff) / 16);
   const t0 = Date.now();
+  /** Where this piece's things start in `things`. */
+  const thingsFrom = things.length;
   const db = readDb(dir, (k) => {
     if (k.length !== 10 || k[8] !== 0x2f) return false;
     const x = k.readInt32LE(0), z = k.readInt32LE(4), y = k.readInt8(9);
@@ -212,7 +238,14 @@ for (const piece of MC_PIECES) {
   const gi = (ix: number, iz: number, y: number) => (ix * D + iz) * SY + y;
   const cache = new Map<string, number>();
   /** The Minecraft chunks that have anything saved; and the blocks a snow layer lay on (they turn to snowy ground). */
-  const saved = new Set<string>(), snowy: number[] = [];
+  const saved = new Set<string>(), snowy: number[] = [], hedges: number[] = [];
+  /** The doors met: their place in `things`, and their grid column and height. */
+  const doorways: { k: number; ix: number; iz: number; gy: number }[] = [];
+  /** The fences met. */
+  const fences: { ix: number; iz: number; gy: number; mx: number; mz: number }[] = [];
+  /** The trapdoors met, and where the ladders are (a trapdoor over a ladder is a cellar's hatch). */
+  const traps: { ix: number; iz: number; gy: number; mx: number; mz: number; ry: number }[] = [];
+  const ladderCells = new Set<string>();
   for (const [k, e] of db) {
     if (!e.value) continue;
     const b = Buffer.from(k, 'latin1');
@@ -223,6 +256,10 @@ for (const piece of MC_PIECES) {
     const signAt = sc.palette.map((p) => /sign/.test(p.name) ? p : null);
     const wsAt = sc.palette.map((p) => /waystone/.test(p.name));
     const snowAt = sc.palette.map((p) => /^minecraft:snow_layer$/.test(p.name));
+    const trapAt = sc.palette.map((p) => (/trapdoor/.test(p.name) ? facingOf(p.states) : null));
+    const ladderAt = sc.palette.map((p) => /^minecraft:ladder$/.test(p.name));
+    const fenceAt = sc.palette.map((p) => /fence$/.test(p.name) && !/gate/.test(p.name));
+    const placedLeaf = sc.palette.map((p) => /leaves/.test(p.name) && (p.states.persistent_bit === 1 || p.states.persistent_bit === true || p.states['ecbl_bc:place_by_player'] === 1));
     saved.add(scx + ',' + scz);
     const propAt = sc.palette.map((p) => { const pr = propOf(p); return pr ? { ...pr, ry: facingOf(p.states) } : null; });
     for (let lx = 0; lx < 16; lx++) for (let lz = 0; lz < 16; lz++) {
@@ -239,15 +276,51 @@ for (const piece of MC_PIECES) {
         const sgn = signAt[sc.idx[i]];
         if (sgn) signBlocks.set(`${mx},${scy * 16 + ly},${mz}`, { p: sgn, gy });
         const pr = propAt[sc.idx[i]];
-        if (pr) { const [tx, tz] = toGame(mx, mz); things.push([pr.t, tx + 0.5, gy, tz + 0.5, Math.round(turnRy(pr.ry) * 100) / 100, pr.item ?? pr.h ?? 0]); }
+        if (pr && (SOLID_T.has(pr.t) || (pr.t === 'furn' && SOLID_ITEM.has(pr.item ?? '')))) id = B.Barrier;
+        if (pr) { const [tx, tz] = toGame(mx, mz); if (pr.t === 'door' || pr.t === 'mcgate') doorways.push({ k: things.length, ix: mx - mx0, iz: mz - mz0, gy }); things.push([pr.t, tx + 0.5, gy, tz + 0.5, Math.round(turnRy(pr.ry) * 100) / 100, pr.item ?? pr.h ?? 0]); }
         if (wsAt[sc.idx[i]]) { const [wx, wz] = toGame(mx, mz); const k2 = wx + ',' + wz; const had = stones.get(k2); if (!had || had.y > gy) stones.set(k2, { x: wx + 0.5, y: gy, z: wz + 0.5, piece: piece.id }); }
         if (id === B.Air && sc.water && sc.water[i]) id = B.Water;
         if (snowAt[sc.idx[i]] && gy > 0) snowy.push(gi(mx - mx0, mz - mz0, gy - 1));
+        if (trapAt[sc.idx[i]] !== null) traps.push({ ix: mx - mx0, iz: mz - mz0, gy, mx, mz, ry: trapAt[sc.idx[i]]! });
+        if (ladderAt[sc.idx[i]]) ladderCells.add(mx + ',' + gy + ',' + mz);
+        if (fenceAt[sc.idx[i]]) fences.push({ ix: mx - mx0, iz: mz - mz0, gy, mx, mz });
+        if (placedLeaf[sc.idx[i]]) hedges.push(gi(mx - mx0, mz - mz0, gy));
         if (id !== B.Air) grid[gi(mx - mx0, mz - mz0, gy)] = id;
       }
     }
   }
   db.clear();
+  const gates = new Set<number>();
+  // A trapdoor over a ladder: a hatch, stood open, the way down clear (owner 2026-11-05: "my cellar trapdoors are wood blocks")
+  for (const t of traps) {
+    if (!ladderCells.has(t.mx + ',' + (t.gy - 1) + ',' + t.mz) && !ladderCells.has(t.mx + ',' + (t.gy - 2) + ',' + t.mz)) continue;
+    grid[gi(t.ix, t.iz, t.gy)] = B.Air;
+    const [tx, tz] = toGame(t.mx, t.mz);
+    things.push(['mchatch', tx + 0.5, t.gy, tz + 0.5, Math.round(turnRy(t.ry) * 100) / 100, 0]);
+  }
+  // Each door turned to swing across its doorway: walls either side along Minecraft x, the way through is along z
+  {
+    const solid = (ix: number, iz: number, y: number) => ix >= 0 && iz >= 0 && ix < W && iz < D && grid[gi(ix, iz, y)] !== B.Air && grid[gi(ix, iz, y)] !== B.Water;
+    for (const d of doorways) {
+      const wallsX = solid(d.ix - 1, d.iz, d.gy) && solid(d.ix + 1, d.iz, d.gy), wallsZ = solid(d.ix, d.iz - 1, d.gy) && solid(d.ix, d.iz + 1, d.gy);
+      const alongZ = wallsX || !wallsZ;
+      // Minecraft +x is the game's +z on a turned piece, and +z its -x
+      const ry = rot ? (alongZ ? -Math.PI / 2 : 0) : (alongZ ? 0 : Math.PI / 2);
+      if (things[d.k][0] === 'mcgate') gates.add(gi(d.ix, d.iz, d.gy));
+      things[d.k][0] = things[d.k][0] === 'mcgate' ? 'mcgate' : 'mcdoor'; things[d.k][4] = Math.round(ry * 100) / 100;
+    }
+    // The fences: each post's rails toward what it joins (another fence, a gate, a wall), in the game's directions;
+    // and the invisible wall half a block higher, as a fence is (no stepping over it)
+    const joins = (ix: number, iz: number, y: number) => { if (ix < 0 || iz < 0 || ix >= W || iz >= D) return false; const i = gi(ix, iz, y), id = grid[i]; return gates.has(i) || (id !== B.Air && id !== B.Water && id !== B.OakLeaves && id !== B.BirchLeaves && id !== B.PineLeaves); };
+    for (const f of fences) {
+      // Minecraft +x, -x, +z, -z to the game's bits (1 +x, 2 -x, 4 +z, 8 -z): a turned piece's +x is the game's +z, its +z the game's -x
+      const m = [joins(f.ix + 1, f.iz, f.gy), joins(f.ix - 1, f.iz, f.gy), joins(f.ix, f.iz + 1, f.gy), joins(f.ix, f.iz - 1, f.gy)];
+      const mask = rot ? (m[0] ? 4 : 0) | (m[1] ? 8 : 0) | (m[2] ? 2 : 0) | (m[3] ? 1 : 0) : (m[0] ? 1 : 0) | (m[1] ? 2 : 0) | (m[2] ? 4 : 0) | (m[3] ? 8 : 0);
+      const [tx, tz] = toGame(f.mx, f.mz);
+      things.push(['mcfence', tx + 0.5, f.gy, tz + 0.5, 0, mask]);
+      if (f.gy + 1 < SY && grid[gi(f.ix, f.iz, f.gy + 1)] === B.Air) grid[gi(f.ix, f.iz, f.gy + 1)] = B.Barrier;
+    }
+  }
   // The snow country made green like the rest (owner 2026-11-05: "make the snow biome grassy to match the
   // rest"): the snow layers go, a snow block on top turns to grass and under that to earth, the ice to water
   void snowy;
@@ -316,6 +389,8 @@ for (const piece of MC_PIECES) {
   for (const [k, sb] of signBlocks) {
     const text = words.get(k);
     if (!text || sb.gy < 0 || sb.gy >= SY) continue;
+    // (Minecraft's own contraptions go unsigned: owner 2026-11-05, "remove anything that says XP farm")
+    if (/xp\s*farm|work\s*in\s*progress|snow\s*village|shiesty\s*airport/i.test(text.split(String.fromCharCode(10)).join(' '))) continue;
     const [x, , z] = k.split(',').map(Number);
     const st = sb.p.states, n = sb.p.name;
     const kind = /hanging/.test(n) ? 2 : /wall/.test(n) ? 1 : 0;
@@ -411,6 +486,19 @@ for (const piece of MC_PIECES) {
       else if (y === cap && grid[at] !== B.Air && grid[at] !== B.Water) grid[at] = cap < SEA + 1 ? B.Sand : grid[at];
     }
   }
+  // Things left with nothing under or over them (where the coast was let down to the sea): gone with the ground
+  {
+    let gone = 0;
+    for (let k = things.length - 1; k >= thingsFrom; k--) {
+      const t = things[k], at = toGrid(Math.floor(+t[1]), Math.floor(+t[3]));
+      if (!at) continue;
+      const y = +t[2];
+      let near = false;
+      for (let dy = -3; dy <= 3 && !near; dy++) { const yy = y + dy; if (dy !== 0 && yy >= 0 && yy < SY) { const id = grid[gi(at[0], at[1], yy)]; if (id !== B.Air && id !== B.Water) near = true; } }
+      if (!near) { things.splice(k, 1); gone++; }
+    }
+    if (gone) console.log(piece.id + ':', gone, 'things left floating where the coast went, taken away');
+  }
   // The trees. Leaves with no trunk within six blocks go (no crowns left floating where a trunk was cut or sunk);
   // then every tree standing on the ground, its trunk touching nothing built, becomes one to fell: its trunk and
   // the leaves nearest it, written after the chunk's columns (world/mcland.ts reads them as the game's trees)
@@ -423,6 +511,7 @@ for (const piece of MC_PIECES) {
     const ok = (i: number, s: number) => { const y = i % SY, c = (i - y) / SY, iz = c % D, ix = (c - iz) / D; return s === 1 ? y < SY - 1 : s === -1 ? y > 0 : s === SY ? iz < D - 1 : s === -SY ? iz > 0 : s === D * SY ? ix < W - 1 : ix > 0; };
     let q: number[] = [];
     for (let i = 0; i < N; i++) if (LOG.has(grid[i])) { mark[i] = 1; q.push(i); }
+    for (const i of hedges) if (LEAF.has(grid[i]) && !mark[i]) { mark[i] = 1; q.push(i); }
     for (let h = 0; h < q.length; h++) { const i = q[h]; if (mark[i] > 6) continue; for (const s of S6) { if (!ok(i, s)) continue; const j = i + s; if (!mark[j] && LEAF.has(grid[j])) { mark[j] = mark[i] + 1; q.push(j); } } }
     let dropped = 0;
     for (let i = 0; i < N; i++) if (!mark[i] && LEAF.has(grid[i])) { grid[i] = B.Air; dropped++; }
@@ -477,7 +566,9 @@ for (const piece of MC_PIECES) {
   for (let ix = 0; ix < W; ix++) for (let iz = 0; iz < D; iz++) {
     let bottom = 0;
     while (bottom < SY && grid[gi(ix, iz, bottom)] === B.Air) grid[gi(ix, iz, bottom++)] = B.Stone;
-    for (let y = 0; y < SEA; y++) if (grid[gi(ix, iz, y)] === B.Air) grid[gi(ix, iz, y)] = B.Water;
+    // (only what's open to the sky and the sea: a cellar, a mine or a cave under the ground stays dry; owner
+    // 2026-11-05, "the area under my house is under water")
+    for (let y = SY - 1; y >= 0; y--) { const id = grid[gi(ix, iz, y)]; if (id === B.Air) { if (y < SEA) grid[gi(ix, iz, y)] = B.Water; } else if (id !== B.Water) break; }
   }
   // to game coordinates, chunk by chunk
   const GW = rot ? D : W, GD = rot ? W : D;
@@ -523,7 +614,21 @@ for (const piece of MC_PIECES) {
 let totalBytes = 0;
 for (const [key, cols] of chunkFiles) { const tr = chunkTrees.get(key) ?? []; const buf = zlib.deflateRawSync(Buffer.from(Uint8Array.from([...cols.flat(), tr.length >> 8, tr.length & 255, ...tr.flat()])), { level: 9 }); fs.writeFileSync(path.join(out, key + '.bin'), buf); totalBytes += buf.length; }
 console.log(`${chunkFiles.size} chunk files written, ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
-console.log('unmapped (as stone):', [...unknown].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([n, c]) => `${n}:${c}`).join(' '));
+console.log('unmapped (as stone):', [...unknown].sort((a, b) => b[1] - a[1]).slice(0, 80).map(([n, c]) => `${n}:${c}`).join(' '));
+// The lamp-post add-on's pieces put back together: a stack of them one street lamp post (the game's), a piece on its own a lantern
+{
+  const posts = new Map<string, (string | number)[][]>();
+  for (const t of things) if (t[0] === 'mcpost') { const k = t[1] + ',' + t[3]; let l = posts.get(k); if (!l) posts.set(k, (l = [])); l.push(t); }
+  const out = things.filter((t) => t[0] !== 'mcpost');
+  for (const list of posts.values()) {
+    list.sort((a, b) => +a[2] - +b[2]);
+    let run: (string | number)[][] = [];
+    const flush = () => { if (!run.length) return; const b = run[0]; out.push(run.length > 1 ? ['lantern', b[1], b[2], b[3], 0, 0] : ['mclantern', b[1], b[2], b[3], b[4], 0]); run = []; };
+    for (const t of list) { if (run.length && +t[2] !== +run[run.length - 1][2] + 1) flush(); run.push(t); }
+    flush();
+  }
+  things.length = 0; things.push(...out);
+}
 // The signs (data/mcSigns.ts): kept only where the piece itself is kept (not sunk under the sea round an island)
 fs.writeFileSync(path.resolve('src/data/mcSigns.ts'), `// Written by scripts/mc/export.ts: the signs on the owner's Minecraft builds, in game coordinates (kind 0 on a post, 1 on a wall, 2 hung).
 export interface McSign { x: number; y: number; z: number; ry: number; kind: number; text: string; piece: string }

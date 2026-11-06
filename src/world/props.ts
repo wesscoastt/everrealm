@@ -1056,6 +1056,31 @@ export function dockCrane(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/** A smelting furnace a block square: dressed stone, a chimney stub, its mouth to +z with the coals glowing in it. */
+export function mcFurnace(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.92, 0.92, 0.92), M.cobble, 0, 0.46, 0));
+  g.add(mesh(box(0.98, 0.08, 0.98), M.stone ?? M.cobble, 0, 0.94, 0));
+  g.add(mesh(box(0.3, 0.3, 0.3), M.cobble, 0.2, 1.1, -0.2));
+  g.add(mesh(box(0.46, 0.3, 0.04), flat('#1a1210'), 0, 0.3, 0.45));
+  g.add(mesh(box(0.38, 0.12, 0.05), new THREE.MeshBasicMaterial({ color: '#ff7a1a' }), 0, 0.22, 0.45));
+  g.add(mesh(box(0.56, 0.06, 0.06), M.iron, 0, 0.48, 0.47));
+  return g;
+}
+/** A cellar's hatch stood open: a plank lid on two ledges, upright against the back of its opening (local -z). */
+export function mcHatch(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.92, 0.92, 0.08), M.wood, 0, 0.46, -0.44));
+  for (const y of [0.22, 0.7]) g.add(mesh(box(0.86, 0.1, 0.05), M.darkWood, 0, y, -0.39));
+  g.add(mesh(box(0.06, 0.18, 0.04), M.iron, 0, 0.82, -0.38));
+  return g;
+}
+/** One of a campfire's three logs, laid crossways (i: which). */
+export function campLogs(M: PropMaterials, i: number): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(cyl(0.09, 0.09, 0.9, 6), M.bark, 0, 0.1, 0, (i * Math.PI) / 3, Math.PI / 2));
+  return g;
+}
 export function firepit(M: PropMaterials): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 8; i++) {
@@ -1095,6 +1120,24 @@ export function chest(M: PropMaterials): THREE.Group {
   return g;
 }
 
+/** A field gate's leaf (a fence's gate: Verandah's stables and gardens), a block across z and a fence high: two rails, three uprights and a brace, hung from its +z end. */
+export function gateLeaf(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group(), W = 0.9;
+  for (const z of [-W / 2 + 0.05, 0, W / 2 - 0.05]) g.add(mesh(box(0.08, 1.0, 0.08), M.darkWood, 0, 0.5, z));
+  for (const y of [0.3, 0.82]) g.add(mesh(box(0.07, 0.1, W), M.wood, 0, y, 0));
+  g.add(mesh(box(0.06, Math.hypot(0.52, W - 0.1), 0.08), M.wood, 0, 0.56, 0, 0, Math.atan2(W - 0.1, 0.52)));
+  return g;
+}
+/** A fence post in the middle of its block and a rail out toward each side it joins (mask: 1 +x, 2 -x, 4 +z, 8 -z). */
+export function mcFence(M: PropMaterials, mask: number): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.2, 1.05, 0.2), M.darkWood, 0, 0.52, 0));
+  for (const [bit, dx, dz] of [[1, 1, 0], [2, -1, 0], [4, 0, 1], [8, 0, -1]] as const) {
+    if (!(mask & bit)) continue;
+    for (const y of [0.42, 0.82]) g.add(mesh(box(dx ? 0.5 : 0.08, 0.1, dz ? 0.5 : 0.08), M.wood, dx * 0.25, y, dz * 0.25));
+  }
+  return g;
+}
 /** A shut door filling a doorway `high` blocks tall, of the kind its building deserves (see doorLeaf). */
 export function door(M: PropMaterials, high = 2, kind: DoorKind = 'cottage', paint?: string): THREE.Group {
   const g = new THREE.Group();
@@ -1112,6 +1155,7 @@ export function door(M: PropMaterials, high = 2, kind: DoorKind = 'cottage', pai
  * back the ledges and the bar. Built of small pieces, so it's merged per material wherever it's used.
  */
 export function doorLeaf(M: PropMaterials, high = 2, kind: DoorKind = 'cottage', paint?: string): THREE.Group {
+  if (kind === 'gate') return gateLeaf(M);
   const g = new THREE.Group();
   const t = high - 0.08, W = 0.9;
   const paintMat = paint ? flat(paint) : null;
