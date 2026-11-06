@@ -44,10 +44,44 @@ const npcs: NpcDef[] = [
   w('ver_wood_elowen', 'Elowen Bray', 'Woodcutter', -3307.5, 20, 2110.5, -3305.5, 2110.5, 'hammer', 'hammer',
     { frame: 'f', skin: '#d8b090', hair: '#c88a3a', hairStyle: 1, eyes: '#4a6a7a', tunic: '#4a5a3a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true },
     ['Wedges and a maul. Takes longer than a saw and splits truer.', 'Seasoned two winters, this lot. Don’t burn it green.']),
+  w('ver_store_laity', 'Tom Laity', 'Warehouseman', -2879.5, 23, 1937.5, -2876.5, 1937.5, 'idle', undefined,
+    { skin: '#d8a888', hair: '#4a3a2a', hairStyle: 0, facial: 1, eyes: '#3a4a5a', tunic: '#5a4a3a', trim: '#8a6a3a', shirt: '#d8ccb0', trousers: '#2a2620', boots: '#1e1a16', apron: true, hat: 'cap', hatColor: '#3a3a4a' },
+    ['Every crate in here has a number, and every number’s in my book.', 'Wine to the Counties, slate to Gullmouth, and nobody touches the brandy.']),
+  w('ver_store_tremayne', 'Jory Tremayne', 'Storeman', -2684.5, 24, 2226.5, -2684.5, 2223.5, 'idle', undefined,
+    { skin: '#c88a62', hair: '#8a6a3a', hairStyle: 2, eyes: '#4a5a3a', tunic: '#5a6a3a', trim: '#3a2a1c', trousers: '#4a3a2a', boots: '#2a1e14', hat: 'straw' },
+    ['Seed on the left, tools on the right, rats everywhere.', 'Gerens wants a count by sundown. Gerens always wants a count by sundown.']),
+];
+
+/** A pallet of goods in a warehouse: crates two by two, stacked one to three high (the height from the spot, so it
+ *  stays the same), or a cluster of barrels standing on end. */
+function pallet(x: number, y: number, z: number, kind: 'crates' | 'barrels'): QuarryProp[] {
+  const out: QuarryProp[] = [];
+  const h = 1 + (Math.abs(Math.floor(x * 7 + z * 13)) % 3);
+  if (kind === 'barrels') {
+    for (const [dx, dz] of [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]]) out.push({ t: 'barrel', x: x + dx, y, z: z + dz });
+    if (h > 1) out.push({ t: 'barrel', x, y: y + 0.92, z });
+    return out;
+  }
+  for (let k = 0; k < h; k++) {
+    const n = k === h - 1 && h > 1 ? 3 : 4; // the top layer one short, as a stack is when it's being worked
+    [[-0.32, -0.32], [0.32, -0.32], [-0.32, 0.32], [0.32, 0.32]].slice(0, n).forEach(([dx, dz], i) => out.push({ t: 'crate', x: x + dx, y: y + k * 0.62, z: z + dz, ry: ((x + z + i + k) * 0.37) % 0.3 - 0.15 }));
+  }
+  return out;
+}
+
+/** The port warehouse on the quay (floor 23): the barrels along its east wall are the owner's; the pallets fill the
+ *  rest of the hall in rows, an aisle down the middle and the loading side on the west kept clear. */
+export const PORT_WAREHOUSE_PROPS: QuarryProp[] = [-2877, -2874, -2871, -2868].flatMap((x, i) => [1932, 1934.5, 1939.5, 1942].flatMap((z, j) => pallet(x, 23, z, (i + j) % 4 === 3 ? 'barrels' : 'crates')));
+/** The farm's warehouse (floor 24): pallets of seed, tools and sacks in two rows down the middle between the stalls,
+ *  the aisle from the north door kept clear. */
+export const FARM_WAREHOUSE_PROPS: QuarryProp[] = [
+  ...[2217, 2220, 2223, 2229].flatMap((z, j) => pallet(-2689, 24, z, j === 2 ? 'barrels' : 'crates')),
+  ...[2217, 2220, 2223, 2229, 2232, 2235].flatMap((z, j) => pallet(-2681, 24, z, j % 3 === 1 ? 'barrels' : 'crates')),
 ];
 
 /** The quarry pit's gear (world/sites.ts 'ver-quarry') and the lumberyard (world/sites.ts 'ver-lumberyard'). */
-export const QUARRY_PROPS: { t: 'cart' | 'crate' | 'barrel' | 'woodpile' | 'firepit' | 'tent' | 'anvil'; x: number; y: number; z: number; ry?: number; len?: number }[] = [
+type QuarryProp = { t: 'cart' | 'crate' | 'barrel' | 'woodpile' | 'firepit' | 'tent' | 'anvil'; x: number; y: number; z: number; ry?: number; len?: number };
+export const QUARRY_PROPS: QuarryProp[] = [
   { t: 'cart', x: -3086.5, y: 1, z: 2036.5, ry: 0.2 }, { t: 'cart', x: -3083.5, y: 1, z: 2026.5, ry: Math.PI / 2 },
   { t: 'crate', x: -3089.5, y: 1, z: 2050.5 }, { t: 'crate', x: -3089.5, y: 1.6, z: 2050.5 }, { t: 'crate', x: -3090.5, y: 1, z: 2051.5 },
   { t: 'barrel', x: -3083.5, y: 1, z: 2053.5 }, { t: 'anvil', x: -3082.5, y: 1, z: 2050.5, ry: 0.4 },
@@ -58,6 +92,22 @@ export const LUMBERYARD_PROPS: typeof QUARRY_PROPS = [
   { t: 'cart', x: -3301.5, y: 17, z: 2105.5, ry: -Math.PI / 2 }, { t: 'tent', x: -3306.5, y: 20, z: 2113.5, ry: Math.PI },
   { t: 'firepit', x: -3310.5, y: 20, z: 2112.5 }, { t: 'barrel', x: -3304.5, y: 19, z: 2108.5 }, { t: 'crate', x: -3303.5, y: 19, z: 2109.5 },
 ];
+
+// After the day's work the farmhands and their foreman go up to the big house by the fields, the owner's farmhouse,
+// where the hands eat and sleep (its tables, beds and hearth are the owner's).
+const FARMHOUSE: Record<string, [number, number, number, number, number]> = {
+  ver_farm_morwen: [-2735.5, 18, 2214.5, -2737.5, 2213.5], ver_farm_gerens: [-2737.5, 18, 2213.5, -2735.5, 2214.5], ver_farm_jacca: [-2743.5, 18, 2203.5, -2743.5, 2206.5],
+};
+// They go in and out by the front door on the east wall (an NPC walks straight to its next spot, so the door is
+// on the way both ways, and the foreman's field is round the south corner).
+const DOOR_OUT: [number, number] = [-2728.5, 2215.5], DOOR_IN: [number, number] = [-2733.5, 2215.5];
+for (const n of npcs) {
+  const h = FARMHOUSE[n.id];
+  if (!h) continue;
+  const corner: [number, number][] = n.id === 'ver_farm_gerens' ? [[-2728.5, 2222.5]] : [];
+  n.schedule[0].path = [DOOR_IN, DOOR_OUT, ...corner];
+  n.schedule.push({ from: 19, to: 23, at: [h[0], h[2]], face: [h[3], h[4]], anim: 'idle', y: h[1], path: [...corner.reverse(), DOOR_OUT, DOOR_IN] });
+}
 
 export const VERANDAH_WORK: RegionContent = { id: 'verandahWork', npcs };
 
