@@ -3,7 +3,9 @@ import type { RegionContent } from './types';
 
 // Verandah at work (owner 2026-11-05: "Verandah should feel like a bustling city from the docks to the guards to
 // the quarry workers to the farmers"). Dockhands on the quay among the crates; farmhands in the fields below the
-// Verandah Farm waystone. The town's crowds walking its streets are game/Game.ts crowdZones ('verandah-*').
+// Verandah Farm waystone; quarrymen down in the pit off the main street (the owner's quarry, dug to the bedrock);
+// and a lumberyard of the game's own in the meadow by the west road, past the carter, where the woodcutters
+// bring the timber in. The town's crowds walking its streets are game/Game.ts crowdZones ('verandah-*').
 
 const w = (id: string, name: string, title: string, x: number, y: number, z: number, fx: number, fz: number, anim: 'hammer' | 'chop' | 'crouch' | 'idle' | 'mine', held: string | undefined, look: NpcDef['look'], barks: string[]): NpcDef =>
   ({ id, name, title, look, schedule: [{ from: 6, to: 19, at: [x, z], face: [fx, fz], anim, y, ...(held ? { held } : {}) }], barks });
@@ -27,6 +29,34 @@ const npcs: NpcDef[] = [
   w('ver_farm_gerens', 'Gerens Hoskin', 'Farm foreman', -2739.5, 17, 2224.5, -2735.5, 2224.5, 'idle', undefined,
     { skin: '#d8a07a', hair: '#cfcac0', hairStyle: 0, facial: 3, eyes: '#4a5a6a', tunic: '#4a3a2a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14', hat: 'wide', hatColor: '#5a4030', age: 0.7 },
     ['Harvest’s in a fortnight. Nobody’s ready. Nobody ever is.', 'Corn on the left, wheat on the right. Don’t walk on either.']),
+  w('ver_quarry_kitto', 'Kitto Opie', 'Quarryman', -3093.5, 1, 2030.5, -3096.5, 2030.5, 'mine', 'pickaxe',
+    { skin: '#c88a62', hair: '#1e1a16', hairStyle: 3, facial: 1, eyes: '#3a2a1e', tunic: '#6a6a62', trim: '#3a3430', trousers: '#3a3430', boots: '#1e1a16', hat: 'cap', hatColor: '#4a4a4a', build: 1.25 },
+    ['Granite here. Good granite. Breaks my back, but it’s good.', 'Mind the edge. It’s a long way up and a short way down.']),
+  w('ver_quarry_hedra', 'Hedra Vean', 'Quarrywoman', -3079.5, 1, 2044.5, -3076.5, 2044.5, 'mine', 'pickaxe',
+    { frame: 'f', skin: '#e2b894', hair: '#5a3a24', hairStyle: 5, eyes: '#4a5a6a', tunic: '#5a5a52', trim: '#8a6a3a', trousers: '#3a3430', boots: '#1e1a16', hat: 'kerchief', hatColor: '#8a6a3a', lashes: true },
+    ['Every stone in the king’s wall came out of this hole.', 'Stone’s cheaper than timber here. Funny, with all those trees.']),
+  w('ver_quarry_ned', 'Ned Carne', 'Quarry ganger', -3086.5, 1, 2052.5, -3086.5, 2046.5, 'idle', undefined,
+    { skin: '#d8a07a', hair: '#8a8a82', hairStyle: 0, facial: 3, eyes: '#3a4a5a', tunic: '#4a4a42', trim: '#c8a050', trousers: '#3a3430', boots: '#1e1a16', hat: 'wide', hatColor: '#3a3430', age: 0.6, build: 1.15 },
+    ['Six cartloads by sundown or nobody’s paid.', 'If you’re not working, you’re in the way.']),
+  w('ver_wood_digory', 'Digory Trounce', 'Woodcutter', -3313.5, 20, 2106.5, -3313.5, 2108.5, 'chop', 'hatchet',
+    { skin: '#c88a62', hair: '#6a3a1e', hairStyle: 2, facial: 2, eyes: '#4a5a3a', tunic: '#5a3a2a', trim: '#3a2a1c', trousers: '#3a3430', boots: '#2a1e14', build: 1.3 },
+    ['Oak for the shipwrights, ash for the carts, the rest for the fire.', 'Don’t stand behind me.']),
+  w('ver_wood_elowen', 'Elowen Bray', 'Woodcutter', -3307.5, 20, 2110.5, -3305.5, 2110.5, 'hammer', 'hammer',
+    { frame: 'f', skin: '#d8b090', hair: '#c88a3a', hairStyle: 1, eyes: '#4a6a7a', tunic: '#4a5a3a', trim: '#8a6a3a', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true },
+    ['Wedges and a maul. Takes longer than a saw and splits truer.', 'Seasoned two winters, this lot. Don’t burn it green.']),
+];
+
+/** The quarry pit's gear (world/sites.ts 'ver-quarry') and the lumberyard (world/sites.ts 'ver-lumberyard'). */
+export const QUARRY_PROPS: { t: 'cart' | 'crate' | 'barrel' | 'woodpile' | 'firepit' | 'tent' | 'anvil'; x: number; y: number; z: number; ry?: number; len?: number }[] = [
+  { t: 'cart', x: -3086.5, y: 1, z: 2036.5, ry: 0.2 }, { t: 'cart', x: -3083.5, y: 1, z: 2026.5, ry: Math.PI / 2 },
+  { t: 'crate', x: -3089.5, y: 1, z: 2050.5 }, { t: 'crate', x: -3089.5, y: 1.6, z: 2050.5 }, { t: 'crate', x: -3090.5, y: 1, z: 2051.5 },
+  { t: 'barrel', x: -3083.5, y: 1, z: 2053.5 }, { t: 'anvil', x: -3082.5, y: 1, z: 2050.5, ry: 0.4 },
+];
+export const LUMBERYARD_PROPS: typeof QUARRY_PROPS = [
+  { t: 'woodpile', x: -3316.5, y: 20, z: 2103.5, ry: 0, len: 4 }, { t: 'woodpile', x: -3311.5, y: 20, z: 2103.5, ry: 0, len: 3 },
+  { t: 'woodpile', x: -3306.5, y: 20, z: 2103.5, ry: 0, len: 3 }, { t: 'woodpile', x: -3316.5, y: 21, z: 2112.5, ry: Math.PI / 2, len: 4 },
+  { t: 'cart', x: -3301.5, y: 17, z: 2105.5, ry: -Math.PI / 2 }, { t: 'tent', x: -3306.5, y: 20, z: 2113.5, ry: Math.PI },
+  { t: 'firepit', x: -3310.5, y: 20, z: 2112.5 }, { t: 'barrel', x: -3304.5, y: 19, z: 2108.5 }, { t: 'crate', x: -3303.5, y: 19, z: 2109.5 },
 ];
 
 export const VERANDAH_WORK: RegionContent = { id: 'verandahWork', npcs };

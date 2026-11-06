@@ -37,6 +37,7 @@ import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { XAVIER_SHOWROOM } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
+import { QUARRY_PROPS, LUMBERYARD_PROPS } from '../data/content/verandahWork';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
@@ -757,6 +758,9 @@ function* planBody(): Generator<string, Plan> {
         },
       }));
     })(),
+    // Verandah at work (data/content/verandahWork.ts): the quarry's carts and gear, and the lumberyard by the west road
+    { id: 'ver-quarry', name: '', x: -3086, z: 2040, r0: 0, r1: 0, build: (s: Site) => { for (const p of QUARRY_PROPS) s.props.push({ ...p }); } },
+    { id: 'ver-lumberyard', name: '', x: -3310, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LUMBERYARD_PROPS) s.props.push({ ...p }); } },
     // The Verandah Library, done over (data/content/verandahLibrary.ts)
     { id: 'ver-library', name: '', x: -2945, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LIBRARY_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 23, z: p.z, ry: p.ry }); } },
     // King Edmund's throne, at the end of the red carpet in his hall (data/content/verandahCourt.ts)
