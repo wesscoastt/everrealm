@@ -26,7 +26,17 @@ export interface CropDef {
   yield: [number, number];
   shape: CropShape;
   colors: { leaf: string; fruit: string };
+  /** When it does best (the real calendar): half as fast again in its season. */
+  season?: Season;
 }
+
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+/** The season now, by the real calendar (the Counties keep the northern year). */
+export function seasonNow(d = new Date()): Season { const m = d.getMonth(); return m >= 2 && m <= 4 ? 'spring' : m >= 5 && m <= 7 ? 'summer' : m >= 8 && m <= 10 ? 'autumn' : 'winter'; }
+/** How fast a crop grows now: half as fast again in its own season. */
+export const seasonRate = (c: CropDef, now = new Date()) => (c.season && c.season === seasonNow(now) ? 1.5 : 1);
+/** The season a crop does best in, for what's said of it. */
+const SEASON_OF: Record<string, Season> = { potato: 'spring', onion: 'spring', cabbage: 'winter', carrot: 'autumn', wheat: 'summer', strawberry: 'summer', barley: 'summer', leek: 'winter', hops: 'autumn', pumpkin: 'autumn', apple: 'autumn', pear: 'autumn', grape: 'summer' };
 
 export const CROPS: CropDef[] = [
   { id: 'potato', name: 'Potatoes', level: 1, patch: 'allotment', seed: 'seed_potato', produce: 'potato', minutes: 10, xpPlant: 24, xpPick: 18, yield: [4, 7], shape: 'root', colors: { leaf: '#4a7a32', fruit: '#c8a060' } },
@@ -43,7 +53,30 @@ export const CROPS: CropDef[] = [
   { id: 'pear', name: 'A pear tree', level: 58, patch: 'orchard', seed: 'sapling_pear', produce: 'pears', minutes: 150, xpPlant: 720, xpPick: 180, yield: [5, 9], shape: 'tree', colors: { leaf: '#5a8a3a', fruit: '#c8c050' } },
   { id: 'grape', name: 'A grape vine', level: 68, patch: 'orchard', seed: 'cutting_vine', produce: 'grapes', minutes: 180, xpPlant: 980, xpPick: 230, yield: [6, 10], shape: 'vine', colors: { leaf: '#3f6a2a', fruit: '#4a2a4a' } },
 ];
+for (const c of CROPS) c.season = SEASON_OF[c.id];
 export const CROP = (id: string) => CROPS.find((c) => c.id === id);
+
+/**
+ * Bertram's order book: three orders a day from the town (the inn, the brewer, the baker), each a quantity of
+ * something grown or kept, paid well over the shop price and in Farming as well. Who wants what is the same for
+ * everyone on a given day.
+ */
+export interface FarmOrder { i: number; item: string; n: number; marks: number; xp: number; who: string }
+const ORDER_GOODS = ['potato', 'onion', 'cabbage', 'carrot', 'wheat', 'strawberries', 'barley', 'leek', 'hops', 'pumpkin', 'egg', 'milk', 'fleece'];
+const ORDER_WHO = ['the Lantern inn', 'the brewhouse', 'the baker on the green', 'the Ansbury cooks', 'a carter with a long road ahead', 'the Charter kitchens'];
+export function ordersToday(d = new Date()): FarmOrder[] {
+  const day = d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate();
+  const r = (k: number) => { const v = Math.sin(day * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const out: FarmOrder[] = [];
+  for (let i = 0; i < 3; i++) {
+    let item = ORDER_GOODS[Math.floor(r(i * 3) * ORDER_GOODS.length)];
+    while (out.some((o) => o.item === item)) item = ORDER_GOODS[(ORDER_GOODS.indexOf(item) + 1) % ORDER_GOODS.length];
+    const n = 6 + Math.floor(r(i * 3 + 1) * 13);
+    const worth = item === 'egg' ? 3 : item === 'milk' ? 4 : item === 'fleece' ? 14 : 4 + ORDER_GOODS.indexOf(item) * 2;
+    out.push({ i, item, n, marks: Math.round(worth * n * 2.5 + 20), xp: Math.round(worth * n * 6 + 40), who: ORDER_WHO[Math.floor(r(i * 3 + 2) * ORDER_WHO.length)] });
+  }
+  return out;
+}
 
 /** Minutes a cleared, empty patch takes to go back to weed (a level each). */
 export const WEED_MINUTES = 12;

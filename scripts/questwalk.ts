@@ -101,6 +101,7 @@ class Mock implements GameApi {
   openVaultAt() {}
   accountName() { return null; }
   buyVilla() {}
+  addXp() {}
   sellVilla() {}
   myHouseId() { return null; }
   // Companions (game/Companions.ts) and the Wake Fair (game/WakeFair.ts)

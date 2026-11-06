@@ -2,7 +2,12 @@ import type { DialogueTree } from '../../game/api';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
-import { FARM_ITEMS } from '../farming';
+import { FARM_ITEMS, ordersToday, seasonNow, CROPS } from '../farming';
+const ITEMS: Record<string, { name: string }> = Object.fromEntries(FARM_ITEMS.map((i) => [i.id, i]));
+
+const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+const done = (g: { flag(k: string): unknown }, i: number) => { const v = g.flag('farmOrders') as { d?: string; done?: number[] } | undefined; return v?.d === dayKey() && (v.done ?? []).includes(i); };
+const inSeason = () => CROPS.filter((c) => c.season === seasonNow()).map((c) => c.name.toLowerCase().replace(/^an? /, '')).join(', ');
 
 // Farming's people: the seedsman by Hollin Ford's west garden, who sells seed, saplings and compost and
 // will tell you how a patch works. (The crops and the patches: data/farming.ts, game/Farming.ts.)
@@ -24,6 +29,29 @@ const bertram: DialogueTree = {
       options: [
         { text: 'What do you sell?', effect: (g) => g.openShop('seed_bertram') },
         { text: 'How does a patch work?', next: 'how' },
+        { text: 'Any orders from the town?', next: 'orders' },
+        { text: 'What grows best just now?', next: 'season' },
+        { text: 'Good day.' },
+      ],
+    },
+    season: { text: () => `It's ${seasonNow()}. What's in season grows half as fast again: ${inSeason()}. Everything else grows as it always does.`, next: 'hello' },
+    orders: {
+      text: () => 'The town sends its orders through me. Three today, and they pay better than I do: ' + ordersToday().map((o) => `${o.who} wants ${o.n} ${(ITEMS[o.item]?.name ?? o.item).toLowerCase()}`).join('; ') + '.',
+      options: [
+        ...[0, 1, 2].map((i) => ({
+          text: (g: import('../../game/api').GameApi) => { const o = ordersToday()[i]; return done(g, i) ? `(${o.who}: delivered)` : `Deliver ${o.n} ${(ITEMS[o.item]?.name ?? o.item).toLowerCase()} for ${o.who} (${o.marks} marks)`; },
+          cond: (g: import('../../game/api').GameApi) => { const o = ordersToday()[i]; return !done(g, i) && g.count(o.item) >= o.n; },
+          effect: (g: import('../../game/api').GameApi) => {
+            const o = ordersToday()[i];
+            if (done(g, i) || !g.take(o.item, o.n)) return;
+            g.addMarks(o.marks); g.addXp('farming', o.xp);
+            const v = g.flag('farmOrders') as { d?: string; done?: number[] } | undefined;
+            g.setFlag('farmOrders', { d: dayKey(), done: [...(v?.d === dayKey() ? v.done ?? [] : []), i] });
+            g.toast(`Bertram writes it in the book and counts out ${o.marks} marks. "${o.who[0].toUpperCase() + o.who.slice(1)} will be pleased. Or they'll say nothing, which is the same thing."`);
+          },
+          next: 'orders',
+        })),
+        { text: 'What do you sell?', effect: (g: import('../../game/api').GameApi) => g.openShop('seed_bertram') },
         { text: 'Good day.' },
       ],
     },

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CROP, CROPS, type CropDef } from '../data/farming';
+import { CROP, CROPS, seasonRate, type CropDef } from '../data/farming';
 import { ITEMS } from '../data/items';
 import type { SkillId } from '../data/items';
 import { B } from '../world/blocks';
@@ -140,10 +140,10 @@ export class HomeFarm {
     const span = Math.max(0, now - t.u);
     const wet = this.host.raining() ? span : Math.max(0, Math.min(now, t.wu) - t.u);
     const dry = span - wet;
-    return { ...t, p: Math.min(1, t.p + (wet + dry * 0.5) / (c.minutes * 60000)), u: now, wet: t.wet + wet, all: t.all + span };
+    return { ...t, p: Math.min(1, t.p + ((wet + dry * 0.5) * seasonRate(c, new Date(now))) / (c.minutes * 60000)), u: now, wet: t.wet + wet, all: t.all + span };
   }
   private stage(t: Tile): number { return !t.c ? -1 : t.p >= 1 ? 3 : t.p >= 0.66 ? 2 : t.p >= 0.33 ? 1 : 0; }
-  private minsLeft(t: Tile): number { const c = CROP(t.c!)!; const wetNow = this.host.raining() || Date.now() < t.wu; return Math.max(1, Math.ceil(((1 - t.p) * c.minutes) / (wetNow ? 1 : 0.5))); }
+  private minsLeft(t: Tile): number { const c = CROP(t.c!)!; const wetNow = this.host.raining() || Date.now() < t.wu; return Math.max(1, Math.ceil(((1 - t.p) * c.minutes) / ((wetNow ? 1 : 0.5) * seasonRate(c)))); }
 
   private groundTop(x: number, z: number): number { return this.host.voxels.topSolid(x, z); }
   /** Which ground a cell is: your own yard (outside the house), a public field, or neither. */
@@ -197,7 +197,7 @@ export class HomeFarm {
     const t = this.grow(here), st = this.stage(t), c = t.c ? CROP(t.c) : undefined;
     if (!c) {
       const s = this.bestSeed();
-      if (s) out.push({ label: `Plant ${s.name.toLowerCase()}`, pos: at, use: () => this.plant(x, z, s) });
+      if (s) out.push({ label: `Plant ${s.name.toLowerCase()}${seasonRate(s) > 1 ? ' (in season)' : ''}`, pos: at, use: () => this.plant(x, z, s) });
       else out.push({ label: 'Tilled ground', pos: at, use: () => this.host.system("It wants seed. Bertram Sowerby sells it, by Hollin Ford's west garden."), warn: 'No seed for it' });
       return out;
     }
