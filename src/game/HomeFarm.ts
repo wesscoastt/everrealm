@@ -17,6 +17,8 @@ import * as P from '../world/props';
 // in a few strokes. (The orchard patches, a tree each, are still game/Farming.ts.)
 
 export interface GardenHost {
+  /** A scarecrow set out at home: the birds keep off the garden, and every harvest is one more. */
+  scarecrow(): boolean;
   scene: THREE.Scene;
   voxels: VoxelWorld;
   flag(k: string): unknown;
@@ -278,7 +280,7 @@ export class HomeFarm {
     if (this.stage(t) < 3) return false;
     const lv = this.host.level('farming'), tended = t.all > 0 && t.wet / t.all >= 0.75, group = this.host.groupNearby();
     // a tile's share of a patch's crop, more for good keeping and for good company
-    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0));
+    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0));
     this.host.give(c.produce, n);
     this.host.addXp('farming', c.xpPick * n);
     if (Math.random() < (t.k ? 0.35 : 0.2)) this.host.give(c.seed, 1);

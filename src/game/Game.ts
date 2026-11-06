@@ -1043,6 +1043,7 @@ export class Game implements GameApi {
       raining: () => { const w = this.world.sky.weather; return !w.snow && w.precip > 0.25; },
       fields: () => fields,
       groupNearby: () => this.social.groupNearby(),
+      scarecrow: () => this.home.pieces().some(([item]) => ITEMS[item]?.furn?.model === 'scarecrow'),
       garden: () => {
         // your house's footprint, and ten blocks of yard round it; the owner's house in Verandah, its grounds
         if (isHomeOwner(this.accountName())) return { house: [-2482, 2383, -2466, 2402], yard: [OWNER_HOME.x0, OWNER_HOME.z0, OWNER_HOME.x1, OWNER_HOME.z1] };

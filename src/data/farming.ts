@@ -136,6 +136,14 @@ export const FARM_ITEMS: ItemDef[] = [
   dish('leek_pie', 'Leek and potato pie', '#d8c890', 36, 270, { slot: 'food', hp: 0.1, mins: 30 }, 'Under a lid of pastry, the leeks gone soft and sweet.', 'Restores 270 health; a tenth more health for half an hour.'),
   dish('pumpkin_pie', 'Pumpkin pie', '#e8901e', 40, 300, { slot: 'food', regen: 0.15, mins: 30 }, 'Spiced the Morrow way, which the Wend valley pretends it thought of.', 'Restores 300 health; stamina back a seventh faster for half an hour.'),
   dish('apple_pie', 'Apple pie', '#c8803a', 46, 330, { slot: 'food', hp: 0.12, mins: 30 }, 'Your own apples under a crust. Better than anyone else\'s. Everyone says so about their own.', 'Restores 330 health; an eighth more health for half an hour.'),
+  // from the yard's animals (owner's farming list: "butter and cheese at the hearth, fleece spun")
+  dish('butter', 'Butter', '#f0d878', 9, 30, undefined, 'Churned from your own cow’s cream, salted, patted into a block with a thistle pressed on top.', 'Restores 30 health. Goes into a cook’s better dishes.'),
+  dish('cheese', 'Farmhouse cheese', '#e8c860', 22, 110, { slot: 'food', hp: 0.06, mins: 30 }, 'A small round truckle, bound in cloth, sharp at the rind and soft in the middle.', 'Restores 110 health; a sixteenth more health for half an hour.'),
+  dish('buttered_bread', 'Bread and butter', '#e8c890', 12, 80, undefined, 'Thick slices, the butter spread to the edges, the way a farm eats at four o’clock.', 'Restores 80 health.'),
+  dish('cheese_omelette', 'Cheese omelette', '#f0d070', 30, 230, { slot: 'food', regen: 0.1, mins: 30 }, 'Three of your eggs and a fistful of your own cheese, folded in the pan.', 'Restores 230 health; stamina back a tenth faster for half an hour.'),
+  { id: 'wool', name: 'Spun wool', kind: 'material', rarity: 'common', stack: true, value: 20, icon: { shape: 'gel', a: '#ece6d6', b: '#b8b0a0' }, desc: 'A skein of it, spun from your own fleece at the bench: soft, a little greasy still, the colour of the ewe.' },
+  { id: 'furn_wool_rug', name: 'Hearth rug of home-spun wool', kind: 'collectible', rarity: 'uncommon', stack: true, value: 90, icon: { shape: 'gel', a: '#c8b898', b: '#7a4a2a' }, furn: { model: 'rug' }, desc: 'Woven on a frame from your own ewes’ wool, with a brown border. Better in front of a fire than anything bought.', stats: 'Furniture: set it out at home (Arrange the furniture).' },
+  { id: 'furn_field_scarecrow', name: 'Field scarecrow', kind: 'collectible', rarity: 'uncommon', stack: true, value: 60, icon: { shape: 'gel', a: '#b89a68', b: '#5a4a32' }, furn: { model: 'scarecrow' }, desc: 'A cross of poles in your old coat, stuffed with straw, a sack for a head and a hat on that. The rooks are not fooled for long, but long enough.', stats: 'Furniture. Set out at home, every harvest from your garden is one more.' },
   dish('pear_tart', 'Pear tart', '#d8c060', 54, 360, { slot: 'food', regen: 0.18, mins: 30 }, 'Pears in a ring on a short crust, glazed.', 'Restores 360 health; stamina back a fifth faster for half an hour.'),
 ];
 
@@ -149,5 +157,12 @@ export const FARM_RECIPES = [
   { id: 'leek_pie', station: 'hearth', skill: 'cooking', level: 34, xp: 200, inputs: { leek: 2, potato: 1, wheat: 1 }, output: 'leek_pie', count: 1, time: 2.6, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'pumpkin_pie', station: 'hearth', skill: 'cooking', level: 44, xp: 260, inputs: { pumpkin: 1, wheat: 2 }, output: 'pumpkin_pie', count: 1, time: 2.8, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'apple_pie', station: 'hearth', skill: 'cooking', level: 52, xp: 320, inputs: { apples: 3, wheat: 2 }, output: 'apple_pie', count: 1, time: 2.8, failAtReq: 0.5, failItem: 'burnt_fish' },
+  { id: 'farm_butter', station: 'hearth', skill: 'cooking', level: 6, xp: 30, inputs: { milk: 2 }, output: 'butter', count: 1, time: 2, failAtReq: 0.3, failItem: 'burnt_fish' },
+  { id: 'farm_cheese', station: 'hearth', skill: 'cooking', level: 22, xp: 120, inputs: { milk: 4 }, output: 'cheese', count: 1, time: 2.6, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'buttered_bread', station: 'hearth', skill: 'cooking', level: 8, xp: 36, inputs: { bread: 1, butter: 1 }, output: 'buttered_bread', count: 2, time: 1.6 },
+  { id: 'cheese_omelette', station: 'hearth', skill: 'cooking', level: 28, xp: 160, inputs: { egg: 3, cheese: 1, butter: 1 }, output: 'cheese_omelette', count: 1, time: 2.4, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'spin_wool', station: 'bench', skill: 'farming', level: 15, xp: 40, inputs: { fleece: 1 }, output: 'wool', count: 2, time: 2.4 },
+  { id: 'wool_rug', station: 'bench', skill: 'farming', level: 24, xp: 120, inputs: { wool: 6 }, output: 'furn_wool_rug', count: 1, time: 3.2 },
+  { id: 'field_scarecrow', station: 'bench', skill: 'farming', level: 30, xp: 150, inputs: { wheat: 6, wool: 2, oak_logs: 2 }, output: 'furn_field_scarecrow', count: 1, time: 3 },
   { id: 'pear_tart', station: 'hearth', skill: 'cooking', level: 62, xp: 400, inputs: { pears: 3, wheat: 1 }, output: 'pear_tart', count: 1, time: 3, failAtReq: 0.5, failItem: 'burnt_fish' },
 ] as const;
