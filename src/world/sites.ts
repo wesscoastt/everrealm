@@ -34,6 +34,7 @@ import { MC_SIGNS, MC_THINGS, MC_WAYSTONES } from '../data/mcSigns';
 const MC_DOOR_CELLS = new Set<string>();
 import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
 import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
+import { XAVIER_SHOWROOM } from '../data/content/verandahShops';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
 import { HALL, HALL_AT, HALL_Y, THEMES as TOWER_THEMES, TOWER, type Theme as TowerTheme } from '../data/tower';
@@ -754,6 +755,8 @@ function* planBody(): Generator<string, Plan> {
         },
       }));
     })(),
+    // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
+    { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of XAVIER_SHOWROOM) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
     // the cargo, the lamps, the new signs and the boats at the jetties
     { id: 'mc-den', name: '', x: Math.round(mcToGame('seafort', -985, 63, 915)[0]), z: Math.round(mcToGame('seafort', -985, 63, 915)[2]), r0: 0, r1: 0, build: (s: Site) => {

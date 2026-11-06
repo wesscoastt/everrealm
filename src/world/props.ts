@@ -3008,7 +3008,57 @@ export function stockTank(g: THREE.Group, fish: { id?: string; a: string; b: str
   }
 }
 
+/**
+ * Furniture in the new manner (Xavier's Home Goods, Verandah): brass and copper and gearwork on good dark wood.
+ * Each faces +z, its foot at the origin.
+ */
+export function steampunk(M: PropMaterials, kind: string): THREE.Group {
+  const g = new THREE.Group(), brass = flat('#c8a050'), copper = flat('#b8683a'), walnut = flat('#4a2e1e'), leather = flat('#5a2418'), glass = new THREE.MeshLambertMaterial({ color: '#f4e4b0', emissive: new THREE.Color('#ffc870'), emissiveIntensity: 0.9 });
+  const gear = (r: number, x: number, y: number, z: number, m = brass) => { const w = mesh(cyl(r, r, 0.04, 10), m, x, y, z); w.rotation.x = Math.PI / 2; g.add(w); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; g.add(mesh(box(0.06, 0.06, 0.04), m, x + Math.cos(a) * (r + 0.03), y + Math.sin(a) * (r + 0.03), z)); } };
+  switch (kind) {
+    case 'sp_clock':
+      g.add(mesh(box(0.7, 2.1, 0.45), walnut, 0, 1.05, 0));
+      g.add(mesh(box(0.78, 0.12, 0.52), brass, 0, 2.16, 0));
+      g.add(mesh(box(0.56, 0.56, 0.02), flat('#1a1410'), 0, 1.62, 0.23));
+      gear(0.18, -0.08, 1.66, 0.25); gear(0.11, 0.14, 1.52, 0.26, copper); gear(0.08, 0.1, 1.78, 0.27);
+      g.add(mesh(box(0.03, 0.2, 0.02), flat('#e8e0d0'), 0, 1.7, 0.29));
+      g.add(mesh(box(0.06, 0.5, 0.03), brass, 0, 0.8, 0.24)); g.add(mesh(cyl(0.1, 0.1, 0.03, 10), brass, 0, 0.52, 0.25));
+      break;
+    case 'sp_lamp':
+      g.add(mesh(cyl(0.22, 0.26, 0.08, 10), brass, 0, 0.04, 0));
+      g.add(mesh(cyl(0.04, 0.04, 1.5, 6), brass, 0, 0.8, 0));
+      g.add(mesh(cyl(0.025, 0.025, 1.4, 6), copper, 0.07, 0.8, 0));
+      for (const y of [0.4, 0.9, 1.3]) g.add(mesh(cyl(0.07, 0.07, 0.05, 8), brass, 0, y, 0));
+      g.add(mesh(cyl(0.12, 0.08, 0.1, 10), brass, 0, 1.6, 0));
+      g.add(mesh(new THREE.SphereGeometry(0.17, 10, 8), glass, 0, 1.78, 0));
+      break;
+    case 'sp_chair':
+      g.add(mesh(box(0.8, 0.42, 0.7), leather, 0, 0.32, 0));
+      g.add(mesh(box(0.8, 0.8, 0.18), leather, 0, 0.84, -0.27));
+      for (const x of [-0.42, 0.42]) { g.add(mesh(box(0.14, 0.55, 0.7), leather, x, 0.42, 0)); for (let i = 0; i < 5; i++) g.add(mesh(box(0.04, 0.04, 0.04), brass, x, 0.7, -0.28 + i * 0.14)); }
+      for (const x of [-0.36, 0.36]) for (const z of [-0.28, 0.28]) g.add(mesh(box(0.08, 0.12, 0.08), brass, x, 0.06, z));
+      break;
+    case 'sp_cabinet':
+      g.add(mesh(box(1.0, 1.4, 0.5), walnut, 0, 0.7, 0));
+      for (let i = 0; i < 4; i++) { g.add(mesh(box(0.9, 0.02, 0.02), flat('#2a1a10'), 0, 0.3 + i * 0.3, 0.26)); g.add(mesh(box(0.16, 0.05, 0.04), brass, 0, 0.42 + i * 0.3, 0.27)); }
+      { const pipe = mesh(cyl(0.05, 0.05, 1.1, 6), copper, 0, 1.48, -0.1); pipe.rotation.z = Math.PI / 2; g.add(pipe); }
+      for (const x of [-0.5, 0.5]) g.add(mesh(cyl(0.05, 0.05, 0.3, 6), copper, x, 1.36, -0.1));
+      { const dial = mesh(cyl(0.12, 0.12, 0.05, 12), brass, 0.3, 1.55, 0.05); dial.rotation.x = Math.PI / 2; g.add(dial); }
+      g.add(mesh(box(0.02, 0.09, 0.01), flat('#7a1a14'), 0.3, 1.57, 0.08));
+      break;
+    case 'sp_orrery':
+      g.add(mesh(cyl(0.12, 0.2, 0.7, 8), walnut, 0, 0.35, 0));
+      g.add(mesh(cyl(0.3, 0.3, 0.04, 14), brass, 0, 0.72, 0));
+      g.add(mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshLambertMaterial({ color: '#ffd060', emissive: new THREE.Color('#ff9a20'), emissiveIntensity: 0.6 }), 0, 0.95, 0));
+      for (let i = 0; i < 6; i++) { const r = 0.2 + i * 0.09, a = i * 1.3; g.add(mesh(box(r, 0.015, 0.015), brass, Math.cos(a) * r / 2, 0.86 + i * 0.012, -Math.sin(a) * r / 2, a)); g.add(mesh(new THREE.SphereGeometry(0.035 + (i % 3) * 0.012, 8, 6), flat(['#8aa0c8', '#c86a3a', '#e8d8a0', '#6a8a5a', '#c8a050', '#a8a8b8'][i]), Math.cos(a) * r, 0.88 + i * 0.012, -Math.sin(a) * r)); }
+      break;
+    default: break;
+  }
+  return g;
+}
+
 export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group | null {
+  if (item.startsWith('sp_')) return steampunk(M, item);
   // A trophy for the wall: "head:<kind>:<coat>:<second colour>" (data/trophyMounts.ts)
   if (item.startsWith('head:')) { const [, kind, a, b] = item.split(':'); return mountedHead(kind, a, b); }
   switch (item) {

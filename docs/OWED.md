@@ -198,7 +198,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
           g. Hester lives above the post office: townsfolk path round Verandah properly (Hester behind her desk); bartenders in the taverns; staff for the steampunk restaurant (The Dolphyn Cafe?) and the winery.
           h. The farmland across from the winery: grapes.
           i. The library's interior redone.
-          j. Xavier's Home Goods sells steampunk furniture, Xavier runs it, furniture on display upstairs; Sandor runs the cookery next door, selling his own baking and food.
+          j. Xavier's Home Goods sells steampunk furniture, Xavier runs it, furniture on display upstairs; Sandor runs the cookery next door, selling his own baking and food. Done 2026-11-06 (data/content/verandahShops.ts: Xavier Dunstan, five pieces in the new manner and a show room upstairs; Sandor Kovac, pasties, saffron buns, seed cake, the harbour loaf).
           k. The floating lights (hanging lanterns with no chain, under the arches).
           l. All the ice and melted water left in the ocean (the old frozen sea north of the owner's house): gone, open sea.
           m. The roofless house in their screenshot finished as a two-storey medieval house, for sale at 1,000 marks.
