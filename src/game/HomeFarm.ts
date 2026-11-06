@@ -227,12 +227,20 @@ export class HomeFarm {
     this.refresh();
   }
 
+  /** With a seed drill, the tilled, empty tiles round the one you're at sown too, a seed each, as far as your seed goes. */
   private plant(x: number, z: number, c: CropDef): void {
-    const all = this.tiles(), t = all[x + ',' + z];
-    if (!t || t.c || !this.host.take(c.seed, 1)) return;
-    all[x + ',' + z] = { c: c.id, p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0 };
+    const all = this.tiles(), reach = this.host.count('seed_drill') > 0 ? 1 : 0;
+    let n = 0;
+    for (let dz = -reach; dz <= reach; dz++) for (let dx = -reach; dx <= reach; dx++) {
+      const k = (x + dx) + ',' + (z + dz), t = all[k];
+      if (!t || t.c || !this.host.take(c.seed, 1)) continue;
+      all[k] = { c: c.id, p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0 };
+      n++;
+    }
+    if (!n) return;
     this.save(all);
-    this.host.addXp('farming', c.xpPlant);
+    if (n > 1) this.host.system(`The drill sows ${n} tiles in one pass.`);
+    this.host.addXp('farming', c.xpPlant * n);
     this.host.sound('click');
     this.refresh();
   }
