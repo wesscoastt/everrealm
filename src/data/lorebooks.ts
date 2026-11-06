@@ -18,10 +18,25 @@ export interface LoreBook {
   x: number;
   z: number;
   where: string;
+  /** The floor it lies on, where the ground's height won't do (indoors in Verandah). */
+  y?: number;
   text: string | ((g: GameApi) => string);
 }
 
 export const LORE_BOOKS: LoreBook[] = [
+  // ---------------------------------------------------------------- Verandah (its library: data/content/verandahLibrary.ts)
+  {
+    id: 'ver_greatbook', title: 'The Town Book of Verandah', shelf: 'Letters and Records', x: -2945.5, y: 23.9, z: 2104.5, where: 'the lectern in the Verandah Library',
+    text: "The first entry is in a big square hand: 'Quay built. Ship tied up. Charged her a shilling. Edmund Pell, harbourmaster.' The next: 'Same ship, same shilling, master complained. Called myself king to stop the argument. It worked.'\n\nAfter that the book is every mayor in turn. The walls went up in the eleventh year, after the second raid. The bridge in the nineteenth, after the old one went in the storm with the miller on it. The vines in the thirtieth, from a wreck.\n\nSomebody has gone through in red ink and corrected the dates. Somebody else has gone through in brown and corrected the red. The latest entry says only: 'King Edmund. Still here. Roof leaking.'",
+  },
+  {
+    id: 'ver_harbour', title: 'Ships That Stayed', shelf: 'Letters and Records', x: -2950.5, y: 23.9, z: 2111.5, where: 'a reading desk in the Verandah Library',
+    text: "A harbour clerk's list of every ship that came into Verandah and never left. The Constance, wrecked on the bar with a hold full of vine cuttings; the crew planted them to pass the winter. The Hopeful, whose master married the baker. The Brass Kettle, whose engineers stayed to build pumps for the quarry and never stopped building things.\n\nThe last page has a note in a different hand: 'Every one of them meant to leave in the spring. Mind that, if you're thinking of staying.'",
+  },
+  {
+    id: 'ver_engines', title: 'On the Proper Care of a Boiler (Rejected)', shelf: 'Trades and Rules', x: -2939.5, y: 23.9, z: 2111.5, where: 'a reading desk in the Verandah Library',
+    text: "A thick manual from the engineers' yard, every page stamped REJECTED in the librarian's hand, with his reasons in the margin. 'Not about books.' 'Still not about books.' 'This one has a diagram of a clock. Better. Still not about books.'\n\nChapter nine has been taken out and replaced with a recipe for seed cake. Nobody has owned up to it.",
+  },
   // ---------------------------------------------------------------- The Counties
   {
     id: 'charter', title: 'The Charter of the Counties (a copy)', shelf: 'The Counties', x: 682.5, z: 425.5, where: 'the Charter Green, Ansbury',

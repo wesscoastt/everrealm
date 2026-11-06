@@ -41,7 +41,7 @@ export class LoreBooks {
     for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [2, 0], [0, 2]]) {
       const x = b.x + dx, z = b.z + dz;
       const start = x < GW + 40 && z < GW + 40 ? 48 : heightAt(Math.floor(x), Math.floor(z)) + 5;
-      const y = V.groundBelow(x, start, z);
+      const y = b.y ?? V.groundBelow(x, start, z);
       const under = V.get(Math.floor(x), Math.floor(y) - 1, Math.floor(z));
       if (under === B.Water || under === B.Barrier || V.solidAt(x, y + 0.2, z)) continue;
       b.x = x; b.z = z;
