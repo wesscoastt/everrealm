@@ -36,7 +36,7 @@ const npcs: NpcDef[] = [
     at(-2984.5, 25, 1996.5, -2984.5, 1999.5, 'cast'), ['It’s meant to be blue. It’s green. Don’t tell the Warden.', 'Third year. Second fire.']),
   // the City Hall and the Bank
   person('ver_couch', 'Reuben Couch', 'Clerk of the City Hall', { skin: '#e2b894', hair: '#4a3a2a', hairStyle: 1, eyes: '#4a5a6a', tunic: '#22365a', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#2a2630', boots: '#1e1a16', hat: 'beret', hatColor: '#22365a', age: 0.5 },
-    at(-2977.5, 22, 2096.5, -2972.5, 2097.5), ['Forms in triplicate. The king likes three of everything.', 'Next.'], 8, 18),
+    at(-2972.5, 25, 2087.5, -2975.5, 2090.5), ['Forms in triplicate. The king likes three of everything.', 'Next.'], 8, 18),
   person('ver_trevenna', 'Silvanus Trevenna', 'The Bank of Verandah', { skin: '#d8a888', hair: '#1e1a16', hairStyle: 0, facial: 1, eyes: '#3a2a1e', tunic: '#1e1e24', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#1e1e24', boots: '#141418', age: 0.55 },
     at(-2998.5, 21, 2116.5, -2994.5, 2116.5), ['Deposits on the left, complaints to the king.', 'Every mark in the vault is counted twice a day. By me.'], 8, 18),
 ];
