@@ -879,6 +879,8 @@ function* planBody(): Generator<string, Plan> {
         s.props.push({ t: 'sign', x: dx + 0.5 + ox * 1.2 + sx * 1.3, y: h.base, z: dz + 0.5 + oz * 1.2 + sz * 1.3, ry, text: 'FOR SALE\n' + h.name + '\n' + h.price.toLocaleString() + ' marks' });
       }
     } })),
+    // Awschitz Fort, Verandah's coastal watch west of the town (scripts/mc/awschitz.cjs; its garrison data/content/awschitz.ts)
+    { id: 'awschitz', name: 'Awschitz Fort', x: -3362, z: 1965, r0: 0, r1: 0, build: () => {} },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
     { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of [...XAVIER_SHOWROOM, ...SHOP_COUNTERS]) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
