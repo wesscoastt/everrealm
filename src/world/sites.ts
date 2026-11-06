@@ -38,6 +38,7 @@ import { XAVIER_SHOWROOM } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
+import { BANK_VAULT_PROPS } from '../data/content/verandahHalls';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { SQUARE_STALLS } from '../data/content/verandahSquare';
 import { STAGE_PROPS } from '../data/content/verandahStage';
@@ -856,6 +857,7 @@ function* planBody(): Generator<string, Plan> {
     { id: 'ver-stage', name: '', x: -2866, z: 2040, r0: 0, r1: 0, build: (s: Site) => { for (const p of STAGE_PROPS) s.props.push({ ...p } as PropDesc); } },
     { id: 'ver-square', name: '', x: -3123, z: 2099, r0: 0, r1: 0, build: (s: Site) => { for (const p of SQUARE_STALLS) s.props.push({ t: 'stall', ...p }); } },
     { id: 'ver-gorran', name: '', x: -3376, z: 2298, r0: 0, r1: 0, build: (s: Site) => { for (const p of GORRAN_PROPS) s.props.push({ ...p }); } },
+    { id: 'ver-bankvault', name: '', x: -2995, z: 2113, r0: 0, r1: 0, build: (s: Site) => { for (const p of BANK_VAULT_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 15, z: p.z, ry: p.ry }); s.props.push({ t: 'lantern', x: -2992.5, y: 15, z: 2111.5, ry: 0 }); } },
     { id: 'ver-post', name: '', x: -2966, z: 2120, r0: 0, r1: 0, build: (s: Site) => { for (const p of POST_COUNTER) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 21, z: p.z, ry: p.ry }); } },
     // The Verandah Library, done over (data/content/verandahLibrary.ts)
     { id: 'ver-library', name: '', x: -2945, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LIBRARY_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 23, z: p.z, ry: p.ry }); } },

@@ -70,8 +70,23 @@ const dialogue: Record<string, DialogueTree> = {
     ['Which form?', 'All of them. Houses for sale are listed at the door; rents are paid here or by post. If you’re buying, you sign three times. The king likes three of everything.'],
   ]),
   ver_trevenna: tree('Silvanus Trevenna, the Bank of Verandah. Your marks are safe here: the vault is under our feet and the only key is round my neck. What can the bank do for you?', [
+    ['May I see the vault?', 'Down the stair behind the counter. Your box is where you left it; mind the step at the bottom, everybody misses it.'],
     ['How safe is the vault?', 'Two raids, one fire and a flood, and not a mark lost. The walls are as thick as the castle’s. Thicker, I’m told. I’ve never been in the castle.'],
   ]),
 };
 
-export const VERANDAH_HALLS: RegionContent = { id: 'verandahHalls', npcs, dialogue };
+/** The strongroom under the bank (dug by scripts/mc/bankvault.cjs, floor 15): its door, strongboxes, chests and the ledgers. */
+export const BANK_VAULT_PROPS: { item: string; x: number; z: number; ry: number }[] = [
+  { item: 'vault', x: -2998.6, z: 2113.5, ry: Math.PI / 2 },
+  ...[-2997.5, -2995.5, -2993.5, -2991.5].map((x) => ({ item: 'strongbox', x, z: 2110.6, ry: 0 })),
+  ...[2112.5, 2114.5].map((z) => ({ item: 'chest', x: -2990.6, z, ry: -Math.PI / 2 })),
+  { item: 'shelves', x: -2994.5, z: 2115.4, ry: Math.PI }, { item: 'desk', x: -2995.5, z: 2113.5, ry: 0 }, { item: 'letters', x: -2995.5, z: 2113.5, ry: 0 },
+  { item: 'candles', x: -2997.5, z: 2111.5, ry: 0 }, { item: 'candles', x: -2991.5, z: 2115.5, ry: 0 },
+];
+
+export const VERANDAH_HALLS: RegionContent = {
+  id: 'verandahHalls', npcs, dialogue,
+  things: [
+    { id: 'ver-bankvault', x: -2995.5, y: 15, z: 2112.5, label: 'Open your vault (the Bank of Verandah)', radius: 3.2, use: (g) => g.openVaultAt('The Bank of Verandah', -2995.5, 2112.5) },
+  ],
+};
