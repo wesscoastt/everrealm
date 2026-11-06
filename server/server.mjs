@@ -66,6 +66,7 @@ import { signsInit } from './signs.mjs';
 import { storeInit } from './store.mjs';
 import { homesInit } from './homes.mjs';
 import { navalInit } from './naval.mjs';
+import { arenaInit } from './arena.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local only by default; a host (or a PORT given by a hosting service) listens on every interface.
@@ -87,7 +88,7 @@ const MAX_CHARS = 6;
 const SEATS = new Map([['halter_cob', 2], ['halter_dray', 2], ['wagon_cart', 3], ['wagon_covered', 5], ['wagon_caravan', 5]]);
 const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 // The world's edges (src/world/VoxelWorld.ts): the Counties' square, and Morrow's east of it along x
-const WORLD = [-2304, 4096], WORLD_X = [-2304, 10496];
+const WORLD = [-3584, 4096], WORLD_X = [-3584, 11776]; // (world/VoxelWorld.ts WMIN, WMAX and WMAX_X: the west grew for Verandah, 2026-11-05)
 const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated', 'shoot', 'cast', 'stomp', 'dash', 'throw', 'whistle', 'crouch']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
@@ -661,6 +662,8 @@ const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const signs = signsInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const music = musicInit({ players, send, social });
+// The Arena at Verandah: duels, one to one or two against two (server/arena.mjs)
+const arena = arenaInit({ players, send, social, log });
 const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p) });
 
 /** A player out of the world: their socket closed, or a new connection of theirs took over. */
@@ -669,6 +672,7 @@ function dropPlayer(p) {
   p.dropped = true;
   finder.leave(p);
   naval.leave(p);
+  arena.leave(p);
   social.leave(p);
   guilds.leave(p);
   players.delete(p.id);
@@ -749,7 +753,7 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg)) return;
+    if (arena.handle(me, msg) || social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);

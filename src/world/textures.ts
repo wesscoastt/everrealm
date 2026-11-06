@@ -546,6 +546,42 @@ const painters: Record<number, (p: Px) => void> = {
     crack(p, '#a87262', 6);
     speckle(p, '#e8c0b2', 14);
   },
+  [T.Glass]: (p) => {
+    // clear glass in a thin frame: the middle open (it's see-through), a few pale streaks where the light catches
+    for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+      const edge = x < 1 || y < 1 || x > TILE - 2 || y > TILE - 2;
+      if (edge) set(p, x, y, hex('#b8c8cc'));
+      else if ((x + y === 18 || x + y === 19 || x + y === 25) && x > 3 && x < TILE - 4) set(p, x, y, hex('#e8f4f6'), 200);
+      else set(p, x, y, [0, 0, 0], 0);
+    }
+  },
+  [T.Bars]: (p) => {
+    // iron bars, a medieval window's: four uprights and two crossbars, dark iron, rust at the joins, open between
+    for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+      const up = x % 8 === 3 || x % 8 === 4, cross = y === 5 || y === 6 || y === 25 || y === 26;
+      if (up || cross) set(p, x, y, (up && cross) ? hex('#6a4a3a') : mix(hex('#2e3034'), hex('#4a4e54'), ((x * 7 + y * 3) % 10) / 10));
+      else set(p, x, y, [0, 0, 0], 0);
+    }
+  },
+  [T.Bookshelf]: (p) => {
+    // a bookcase: two shelves of spines in leather colours, the planks round them
+    planks(p, '#5e3e22', '#7d5532', '#9c6d40', 811);
+    const cols = ['#7a2a24', '#2a4a6a', '#3a5a2a', '#8a6a2a', '#5a2a4a', '#2a2a2a', '#9a7a4a'];
+    for (const [y0, y1] of [[3, 14], [18, 29]]) {
+      let x = 2;
+      while (x < TILE - 2) {
+        const w = 2 + Math.floor(p.rnd() * 2), c = hex(cols[Math.floor(p.rnd() * cols.length)]), top = y0 + Math.floor(p.rnd() * 3);
+        for (let xx = x; xx < Math.min(TILE - 2, x + w); xx++) for (let y = top; y <= y1; y++) set(p, xx, y, y === top + 2 ? mul(c, 1.4) : c);
+        x += w;
+      }
+    }
+  },
+  [T.Glowstone]: (p) => {
+    // glowstone: warm, cracked light, brighter at the heart of each lump
+    base(p, '#c88a2a', '#f0b84a', '#ffe08a', 821, 0.2);
+    for (let i = 0; i < 20; i++) { const x = Math.floor(p.rnd() * TILE), y = Math.floor(p.rnd() * TILE); set(p, x, y, hex('#fff4c8')); set(p, (x + 1) % TILE, y, hex('#ffe8a0')); }
+    crack(p, '#8a5a1a', 5);
+  },
   [T.Wool]: (p) => {
     // a fleece: off-white, curled in little tight loops, a shadow in each
     base(p, '#e4ded2', '#ece6da', '#f4efe6', 707, 0.05);

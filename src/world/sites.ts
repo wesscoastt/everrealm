@@ -29,7 +29,7 @@ import { POST_STATIONS, yardAt, yardYaw, type PostYard } from '../data/postStati
 import { hazards, stamp } from '../data/hazards';
 import { PUZZLES } from '../data/puzzles';
 import { JUMP_PUZZLES, type JumpPuzzle } from '../data/jumpPuzzles';
-import { MC_SIGNS, MC_WAYSTONES } from '../data/mcSigns';
+import { MC_SIGNS, MC_THINGS, MC_WAYSTONES } from '../data/mcSigns';
 import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
 import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -48,7 +48,7 @@ import { MONUMENTS, type Monument } from '../data/monuments';
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
-  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'notice' | 'desk' | 'furn' | 'rails'
+  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
   | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
@@ -719,6 +719,23 @@ function* planBody(): Generator<string, Plan> {
       const cx = here.reduce((a, g) => a + g.x, 0) / here.length, cz = here.reduce((a, g) => a + g.z, 0) / here.length;
       return { id: 'mcsigns-' + cell, name: '', x: Math.round(cx), z: Math.round(cz), r0: 0, r1: 0, build: (s: Site) => { for (const g of here) s.props.push({ t: 'mcsign', x: g.x, y: g.y, z: g.z, ry: g.ry, h: g.kind, text: g.text }); } };
     }),
+    // And the small things on them, as the owner had them: torches and lanterns (lit at night), doors, beds,
+    // tables and chairs, chests and barrels, carpets: by the neighbourhood, so they come and go with the town
+    ...(() => {
+      const cells = new Map<string, (string | number)[][]>();
+      for (const t of MC_THINGS) { const k = Math.floor(+t[1] / 48) + ',' + Math.floor(+t[3] / 48); let l = cells.get(k); if (!l) cells.set(k, (l = [])); l.push(t); }
+      return [...cells].map(([cell, here]) => ({
+        id: 'mcthings-' + cell, name: '', x: Math.round(here.reduce((a, t) => a + +t[1], 0) / here.length), z: Math.round(here.reduce((a, t) => a + +t[3], 0) / here.length), r0: 0, r1: 0,
+        build: (s: Site) => {
+          for (const [t, x, y, z, ry, extra] of here) {
+            const d: PropDesc = { t: t as PropType, x: +x, y: +y, z: +z, ry: +ry };
+            if (t === 'furn') d.item = String(extra) as PropDesc['item'];
+            else if (t === 'mctorch' || t === 'mclantern') d.h = +extra;
+            s.props.push(d);
+          }
+        },
+      }));
+    })(),
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
     // the cargo, the lamps, the new signs and the boats at the jetties
     { id: 'mc-den', name: '', x: Math.round(mcToGame('seafort', -985, 63, 915)[0]), z: Math.round(mcToGame('seafort', -985, 63, 915)[2]), r0: 0, r1: 0, build: (s: Site) => {
@@ -880,7 +897,7 @@ function* planBody(): Generator<string, Plan> {
     if (named.some((n) => !n.sea && !n.under && !/^(st|lg|bz)-/.test(n.id) && Math.hypot(n.x - x, n.z - z) < 80)) continue;
     const kinds: Record<RegionId, string[]> = {
       greenwake: ['stones'], crownroad: ['shrine', 'ruintower', 'stones', 'farm'], brambledeep: ['mossruin', 'stones', 'camp', 'shrine'],
-      saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
+      verandah: ['ruintower', 'camp', 'stones'], saltwind: ['ruintower', 'camp', 'stones'], redstone: ['mine', 'camp', 'mesaruin', 'mine'], starfall: ['crystals', 'stones', 'ruintower', 'crystals'],
       gannet: ['shrine', 'ruintower', 'camp'], wrath: ['mossruin', 'camp', 'shrine'], tolmen: ['stones', 'ruintower', 'crystals'], inkholm: ['mossruin', 'stones'], kell: ['mine', 'stones'], sickle: ['stones', 'ruintower'],
       keys: ['camp', 'ruintower'], glades: ['mossruin', 'camp'], amberwold: ['mossruin', 'shrine', 'camp'], bright: ['ruintower', 'farm', 'shrine'],
       sunder: ['crystals', 'ruintower', 'stones'], glassflats: ['mesaruin', 'camp'], greywaste: ['mossruin', 'stones'], held: ['stones', 'ruintower'],

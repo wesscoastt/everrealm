@@ -3648,6 +3648,16 @@ export class Hud {
     });
   }
 
+  /** What's new (data/whatsNew.ts): the read panel, with the updates' lists. */
+  showNews(html: string): void {
+    const p = this.q('#read-panel');
+    p.querySelector('h3')!.textContent = "What's new";
+    p.querySelector('.body')!.innerHTML = `<div class="paper news-paper">${html}<p class="news-foot">/news shows this again.</p></div>`;
+    this.open.add('read');
+    p.classList.add('show');
+    this.ctx.sfx('open');
+  }
+
   showReadable(title: string, text: string): void {
     const p = this.q('#read-panel');
     p.querySelector('h3')!.textContent = title;

@@ -18,6 +18,8 @@ export enum T {
   FlowerGrass, Granite, Peat,
   // King Shep's statue: sheep's wool, off-white and curled
   Wool,
+  // Verandah (the owner's Minecraft town, world/mcland.ts): clear glass, iron bars, a bookcase, glowstone
+  Glass, Bars, Bookshelf, Glowstone,
   Count,
 }
 
@@ -42,6 +44,8 @@ export enum B {
   // The wilds: grass full of flowers, speckled granite on the high ground, black peat on the moor
   FlowerGrass, Granite, Peat,
   Wool,
+  // Verandah's: clear glass and iron bars you see through, a bookcase, glowstone that lights a street
+  Glass, Bars, Bookshelf, Glowstone,
   Count,
 }
 
@@ -132,6 +136,10 @@ BLOCKS[B.CarvedStone] = D('carved stone', T.Sandstone, T.CarvedStone, T.Sandston
 BLOCKS[B.OchrePlaster] = D('ochre limewash', T.OchrePlaster, T.OchrePlaster, T.OchrePlaster, { jitter: 0.025 });
 BLOCKS[B.RosePlaster] = D('pink limewash', T.RosePlaster, T.RosePlaster, T.RosePlaster, { jitter: 0.025 });
 BLOCKS[B.Wool] = D('wool', T.Wool, T.Wool, T.Wool, { jitter: 0.03 });
+BLOCKS[B.Glass] = D('glass', T.Glass, T.Glass, T.Glass, { seeThrough: true, jitter: 0 });
+BLOCKS[B.Bars] = D('iron bars', T.Bars, T.Bars, T.Bars, { seeThrough: true, jitter: 0 });
+BLOCKS[B.Bookshelf] = D('bookshelf', T.Planks, T.Bookshelf, T.Planks, { jitter: 0.02 });
+BLOCKS[B.Glowstone] = D('glowstone', T.Glowstone, T.Glowstone, T.Glowstone, { emissive: 1, jitter: 0 });
 BLOCKS[B.BluePlaster] = D('blue limewash', T.BluePlaster, T.BluePlaster, T.BluePlaster, { jitter: 0.025 });
 BLOCKS[B.FlowerGrass] = D('meadow', T.FlowerGrass, T.GrassSide, T.Dirt, { jitter: 0.05 });
 BLOCKS[B.Granite] = D('granite', T.Granite, T.Granite, T.Granite, { jitter: 0.04 });

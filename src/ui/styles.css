@@ -446,6 +446,12 @@
 
 #read-panel { left: 50%; top: 112px; transform: translateX(-50%); width: 452px; }
 #read-panel .paper { white-space: pre-wrap; font-size: 17px; }
+#read-panel .paper.news-paper { white-space: normal; font-size: 16px; max-height: 62vh; overflow-y: auto; }
+.news-h { margin: 6px 0 4px; font: 600 18px var(--book); }
+.news-d { font-weight: 400; font-size: 13px; opacity: 0.7; margin-left: 6px; }
+ul.news { margin: 0 0 12px; padding-left: 18px; }
+ul.news li { margin: 3px 0; }
+.news-foot { font-size: 13px; opacity: 0.7; margin: 6px 0 0; }
 
 /* ------------------------------------------------------------- Dialogue: parchment with portrait */
 .dlg { position: absolute; left: 50%; bottom: 132px; transform: translateX(-50%); width: min(700px, 94vw); padding: 16px 22px 16px 122px; min-height: 150px; display: none;

@@ -15,7 +15,7 @@ export const WORLD = 2048;
 export const SEA = 16;
 export const GW = 320; // Hollindale grid size; x,z < GW is authored terrain
 
-export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell' | 'sickle' | MorrowRegion;
+export type RegionId = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'gannet' | 'wrath' | 'tolmen' | 'inkholm' | 'kell' | 'sickle' | 'verandah' | MorrowRegion;
 
 export interface RegionInfo {
   id: RegionId;
@@ -42,6 +42,8 @@ export const REGION_INFO: Record<RegionId, RegionInfo> = {
   kell: { id: 'kell', name: 'Isle of Kell', levels: '35–42', tint: [1.02, 0.96, 0.9], leafTint: [0.92, 0.9, 0.82], water: 'sea' },
   // The frozen isle in the far north sea
   sickle: { id: 'sickle', name: 'The Sickle', levels: '42–50', tint: [0.9, 0.98, 1.08], leafTint: [0.8, 0.9, 0.98], water: 'sea' },
+  // The owner's port town and its country, in the western sea (world/mclandArea.ts)
+  verandah: { id: 'verandah', name: 'Verandah', levels: '20–30', tint: [1.02, 1.0, 0.94], leafTint: [0.98, 1.0, 0.94], water: 'sea' },
   // Morrow (world/morrow.ts), south to north
   keys: { id: 'keys', name: 'The Keys', levels: '40–48', tint: [1.0, 1.06, 0.84], leafTint: [0.9, 1.06, 0.8], water: 'sea' },
   glades: { id: 'glades', name: 'The Glades', levels: '46–54', tint: [0.86, 1.0, 0.7], leafTint: [0.8, 0.96, 0.7], water: 'sea' },
@@ -99,6 +101,7 @@ const VALE: RegionSample = { a: 'greenwake', b: 'greenwake', t: 0 };
 const INK: RegionSample = { a: 'inkholm', b: 'inkholm', t: 0 };
 const KEL: RegionSample = { a: 'kell', b: 'kell', t: 0 };
 const SIC: RegionSample = { a: 'sickle', b: 'sickle', t: 0 };
+const VER: RegionSample = { a: 'verandah', b: 'verandah', t: 0 };
 
 // ------------------------------------------------------------------ Inkholm
 // The mushroom isle, south-east of Gullmouth past the Mewstones: overlapping lobes with a ragged
@@ -199,6 +202,7 @@ export function regionAt(x: number, z: number): RegionSample {
   if (inkDist(x, z) > -120) return INK;
   if (kellDist(x, z) > -120) return KEL;
   if (sickleDist(x, z) > -140) return SIC;
+  if (inMcLand(x, z, 120)) return VER;
   const wx = warpX(x, z), wz = warpZ(x, z);
   if (inHeart(x, z)) return nearestRegion(wx, wz, SEEDS);
   // Out across the sound the outer lands' regions take over, blending partway across the water
@@ -400,6 +404,9 @@ function regionHeight(id: RegionId, x: number, z: number): number {
   const n1 = fbm2(x / 190, z / 190, 4, 11);
   const n2 = fbm2(x / 55, z / 55, 3, 12);
   switch (id) {
+    // (round the owner's land, outside its pieces: the open sea's floor)
+    case 'verandah':
+      return SEA - 9 + (n1 - 0.5) * 3;
     case 'greenwake':
       return 21 + (n1 - 0.5) * 10;
     case 'crownroad':

@@ -11,6 +11,7 @@ import { PROLOGUE } from '../data/prologue';
 import './frontend.css';
 import { accountSafety, changePassword, currentAccount, isDevAccount, makeRecoveryCodes, NEED_CODE, signOutOthers, storeCatalog, storeCheckout, storeClaim, storeOwned, twoStepKey, twoStepOff, twoStepOn, type StoreItem } from '../net/Account';
 import { ITEMS } from '../data/items';
+import { newsHtml } from '../data/whatsNew';
 
 // The screens around the game: character select (the main menu), the character creator, and the
 // arrival intro's captions. The 3D side (who stands in the scene, where the camera is) belongs to
@@ -96,8 +97,7 @@ const HOME_PAGES: Record<HomeTab, string> = {
     <ul><li>Furnish every room, or make the furniture yourself at the joiner's bench</li><li>Sleep in your own bed to wake well rested</li><li>Invite friends round to see what you've done with it</li></ul>`,
   together: `<h2>Better with friends</h2>
     <ul><li>Groups, with a bonus for playing side by side</li><li>Guilds with ranks, a roster and their own chat</li><li>Friends lists and whispers</li><li>Trading, and one bank vault for all your characters</li><li>Shared events and world bosses, with a medal for everyone who helped</li></ul>`,
-  new: `<h2>What's new</h2>
-    <ul><li><b>Something in the sky.</b> Now and then a shadow crosses the Counties and Morrow out of the south. Nobody knows what it is. Yet.</li><li><b>The towns' fires.</b> Every ninety minutes a town lights its fire: music, something hot, and more experience for everyone who comes.</li><li><b>Together, properly.</b> The Endless Tower climbed as a group, a board to join anyone in the open world with a click, guild missions every week, and delve rooms shared with your group.</li><li><b>New weapons.</b> Every sword, axe, staff and bow rebuilt: real edges and points, steel that catches the light.</li><li><b>Never lost.</b> Your objective is marked on screen with how far it is, and an arrow when it's behind you.</li><li><b>New stories.</b> Fresh quests in Hagworm Wood, on the Gannet Cliffs and on the Wrath Levels.</li><li><b>The Charter Post's yards.</b> A carter at the horses in every town, not a sign on a stick.</li></ul>
+  new: `<h2>What's new</h2>${newsHtml(2)}
     <p>Everrealm is in early access: new regions, dungeons and story chapters are on the way.</p>`,
 };
 

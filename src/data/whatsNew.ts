@@ -1,0 +1,47 @@
+// What's new: the updates, newest first, for the front page's tab and the card a player sees once on coming
+// into the world after an update (game/Game.ts finishStart; /news shows it again). Add an update at the top with
+// the next `v`: everyone sees it once. Write it for players: what they'll find and where, in a line or two each.
+
+export interface Update { v: number; date: string; title: string; items: [string, string][] }
+
+export const UPDATES: Update[] = [
+  {
+    v: 12, date: '5 November', title: 'Verandah',
+    items: [
+      ['Verandah.', 'A port town on its own island in the sea west of the Counties, with its docks, its king\'s house, its farms and bridges, and the country north of it to the edge of the snow. Its people put up their own signs; read them.'],
+      ['The Fortress.', 'The walled islet off Verandah\'s docks is a smugglers\' den now. Jory Kettle buys anything and asks nothing. Mind the stair down to the sea cave.'],
+      ['Fisherman Dave.', 'Dave Kitto drinks on the quay at Gullmouth and won\'t say why. Five chapters, a ghost on the headland, and a fight he has to win on his own. He\'ll travel with you after.'],
+      ['Jumping puzzles.', 'Climbs hidden around the world with a chest at the top, and old folk costumes in them: the fox mask, the sealskin hood and more.'],
+      ['New music.', 'Eleven new pieces for the score, Ansbury\'s anthem among them.'],
+      ['King Shep\'s Fold.', 'A giant wool ram in the meadows south of Ansbury, and a king living in its belly.'],
+    ],
+  },
+  {
+    v: 11, date: '4 November', title: 'Fishing, enchanting and message posts',
+    items: [
+      ['Fishing.', 'Twenty-six fish from shrimp to sharks, rods that each fish differently, and bait that changes what bites. Fish from any bank.'],
+      ['Enchanting.', 'Take rubbings of the old kingdom\'s marks at the standing stones, cut them into glyphs, and set them in your gear.'],
+      ['Message posts.', 'Leave a few words where you stand for whoever comes by (the pencil by the chat tabs, or /post).'],
+      ['Smoother.', 'The music no longer stutters, and loading no longer freezes the page.'],
+    ],
+  },
+  {
+    v: 10, date: '1 November', title: 'Weapons and the shadow in the sky',
+    items: [
+      ['Something in the sky.', 'Now and then a shadow crosses the Counties and Morrow out of the south. Nobody knows what it is. Yet.'],
+      ['New weapons.', 'Every sword, axe, staff and bow rebuilt: real edges and points, steel that catches the light.'],
+      ['Never lost.', 'Your objective is marked on screen with how far it is, and an arrow when it\'s behind you.'],
+      ['New stories.', 'Fresh quests in Hagworm Wood, on the Gannet Cliffs and on the Wrath Levels.'],
+    ],
+  },
+];
+
+/** The newest update's number: a player who hasn't seen it gets the card. */
+export const NEWS_V = UPDATES[0].v;
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!));
+
+/** The newest `n` updates as HTML: a heading for each, then its list. */
+export function newsHtml(n = 3): string {
+  return UPDATES.slice(0, n).map((u) => `<h4 class="news-h">${esc(u.title)} <span class="news-d">${esc(u.date)}</span></h4><ul class="news">${u.items.map(([b, t]) => `<li><b>${esc(b)}</b> ${esc(t)}</li>`).join('')}</ul>`).join('');
+}

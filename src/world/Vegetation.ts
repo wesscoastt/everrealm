@@ -5,8 +5,8 @@ import { distToPolyline, fbm2, hash2, smoothstep } from './noise';
 import { SX, SZ, Grid, WATER_LEVEL } from './grid';
 
 // Sprite atlas: 15 cells of 32x32 in a 480x32 canvas.
-const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass, Berry, Mushroom, Herb, BerryBlue, BerryCloud }
-const CELLS = 15;
+const enum S { Grass, TallGrass, Poppy, Cornflower, Buttercup, Daisy, Wheat, Reed, Kelp, SeaGrass, Berry, Mushroom, Herb, BerryBlue, BerryCloud, Corn }
+const CELLS = 16;
 
 function paintAtlas(): THREE.Texture {
   const c = document.createElement('canvas');
@@ -66,6 +66,14 @@ function paintAtlas(): THREE.Texture {
   bush(S.Berry, '#3a1a3a', '#6a2a4a', 18);
   bush(S.BerryBlue, '#3a4a8a', '#5a6aaa', 12);
   bush(S.BerryCloud, '#f0a040', '#e88a30', 12);
+  // Corn (Verandah's farm, world/mcland.ts): tall stalks, long leaves, a cob or two with its silk
+  for (let i = 0; i < 4; i++) {
+    const bx = 4 + i * 7.5;
+    blade(32 * S.Corn, bx, 31, (i % 2) * 2 - 1, i % 2 ? '#5a8a2a' : '#6a9a32', 2.6);
+    for (let k = 0; k < 3; k++) { const y = 26 - k * 7; x.strokeStyle = '#7aaa3a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(32 * S.Corn + bx, 32 - y); x.quadraticCurveTo(32 * S.Corn + bx + (k % 2 ? 5 : -5), 32 - y - 4, 32 * S.Corn + bx + (k % 2 ? 7 : -7), 32 - y + 3); x.stroke(); }
+    x.fillStyle = '#e8c040'; x.fillRect(32 * S.Corn + bx + 1, 13 + (i % 2) * 3, 2.5, 6);
+    x.fillStyle = '#c89a3a'; x.fillRect(32 * S.Corn + bx + 1, 11 + (i % 2) * 3, 2, 2);
+  }
   for (let k = 0; k < 4; k++) {
     const mx = 32 * S.Mushroom + 5 + k * 6.5, my = 32 - 6 - (k % 2) * 4;
     x.fillStyle = '#efe6d0'; x.fillRect(mx - 1, my, 2.5, 6 + (k % 2) * 4);

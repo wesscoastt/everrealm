@@ -10,7 +10,9 @@ import { B, isSolid, isLeaves } from './blocks';
  * sound, and the sea all round. Morrow's lies east of it, WMAX..WMAX_X along x (world/morrow.ts), the
  * open sea between the two coasts. Coordinates can be negative.
  */
-export const WMIN = -2304;
+// (-3584 since 2026-11-05: 1280 blocks more of open sea to the west and north, for Verandah, the owner's
+// Minecraft town, west of the Counties as they wanted it. The Counties' own edge stays at -2304: terrain.ts EDGE0)
+export const WMIN = -3584;
 export const WMAX = 4096;
 export const WSIZE = WMAX - WMIN;
 /** The east edge of Morrow's square, the far end of the world along x. */
@@ -42,6 +44,8 @@ export const chunkInWorld = (cx: number, cz: number) => cx >= CMIN && cz >= CMIN
 export const legacyChunkKey = (key: number) => chunkKey(key % 64, Math.floor(key / 64));
 /** Chunk keys saved before the outer lands (the world was -384..2432: chunks -12..76, 88 a row). */
 export const v2ChunkKey = (key: number) => chunkKey((key % 88) - 12, Math.floor(key / 88) - 12);
+/** Chunk keys saved while the world began at -2304 (chunks -72..128, 200 a row; Morrow's keys after 40000). */
+export const v3ChunkKey = (key: number) => (key < 40000 ? chunkKey((key % 200) - 72, Math.floor(key / 200) - 72) : chunkKey(((key - 40000) % 200) + 128, Math.floor((key - 40000) / 200) - 72));
 export const localIdx = (lx: number, y: number, lz: number) => lx + CHUNK * (lz + CHUNK * y);
 
 export interface RayHit {

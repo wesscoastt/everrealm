@@ -31,7 +31,7 @@ export function navalInit(ctx) {
     if (!st || typeof st !== 'object' || !HULLS.has(st.hull)) return null;
     const L = st.livery && typeof st.livery === 'object' ? st.livery : {};
     const n = (v, a, b) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : null);
-    const x = n(st.x, -2304, 10496), z = n(st.z, -2304, 4096), yaw = n(st.yaw, -1000, 1000), hp = n(st.hp, 0, 5000), sails = n(st.sails, 0, 2);
+    const x = n(st.x, -3584, 11776), z = n(st.z, -3584, 4096), yaw = n(st.yaw, -1000, 1000), hp = n(st.hp, 0, 5000), sails = n(st.sails, 0, 2);
     if (x === null || z === null || yaw === null || hp === null || sails === null) return null;
     return {
       hull: st.hull, x, z, yaw, hp: Math.round(hp), sails: Math.round(sails), sinking: !!st.sinking,

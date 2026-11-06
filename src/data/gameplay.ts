@@ -623,7 +623,7 @@ export const REGION_SPAWNS: Record<RegionId, { enemies: EnemyType[]; animals: ('
   greenwake: { enemies: ['wolf', 'heathadder'], animals: ['rabbit', 'deer'], sea: ['huss'] },
   crownroad: { enemies: ['boar', 'roadwolf', 'boar', 'brownbear'], animals: ['rabbit', 'sheep', 'deer'], sea: ['huss', 'huss', 'conger'] },
   brambledeep: { enemies: ['thornwolf', 'sporejelly', 'weaver'], animals: ['deer', 'rabbit'], sea: ['conger', 'conger', 'thornray'] },
-  saltwind: { enemies: ['crab', 'brinejelly', 'cavebat'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
+  verandah: { enemies: ['wolf', 'boar', 'crab', 'wolf'], animals: ['sheep', 'rabbit', 'deer', 'chicken'], sea: ['huss', 'conger', 'thornray'] }, saltwind: { enemies: ['crab', 'brinejelly', 'cavebat'], animals: ['rabbit'], sea: ['conger', 'thornray', 'lionsmane'] },
   redstone: { enemies: ['dustwolf', 'redback', 'redadder', 'slagcairn'], animals: ['rabbit'], sea: ['porbeagle', 'thornray', 'lionsmane'] },
   starfall: { enemies: ['frostwolf', 'shardjelly', 'whitebear', 'rimecairn'], animals: ['deer'], sea: ['blueshark', 'blueshark', 'porbeagle'] },
   // The outer lands

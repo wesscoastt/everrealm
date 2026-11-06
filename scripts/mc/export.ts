@@ -19,10 +19,66 @@ import { EDITS } from './edits';
 
 const dir = process.argv[2];
 const SY = 112, SEA = 16, CHUNK = 32; // (as world/VoxelWorld.ts)
+/** The open sea's floor round the owner's land (world/terrain.ts regionHeight, 'verandah'). */
+const SEA_FLOOR = SEA - 9;
+
+// ---------------------------------------------------------------- the small things, as props
+/** Minecraft's facings to the game's (0 toward +z, south): a cardinal name, a facing_direction (2 north, 3 south, 4 west, 5 east), a direction (0 south, 1 west, 2 north, 3 east). */
+function facingOf(st: Record<string, unknown>): number {
+  const c = String(st['minecraft:cardinal_direction'] ?? st.torch_facing_direction ?? '');
+  const byName: Record<string, number> = { south: 0, west: -Math.PI / 2, north: Math.PI, east: Math.PI / 2 };
+  if (c in byName) return byName[c];
+  if (st.facing_direction !== undefined) { const f = Number(st.facing_direction); return f === 2 ? Math.PI : f === 4 ? -Math.PI / 2 : f === 5 ? Math.PI / 2 : 0; }
+  if (st.direction !== undefined) { const d = Number(st.direction); return [0, -Math.PI / 2, Math.PI, Math.PI / 2][d & 3]; }
+  if (st.weirdo_direction !== undefined) { const d = Number(st.weirdo_direction); return [Math.PI / 2, -Math.PI / 2, 0, Math.PI][d & 3]; }
+  return 0;
+}
+/** A prop for a block that's a thing rather than a block: its kind (and furniture's item, a light's wall or hanging), or null. */
+function propOf(p: Palette): { t: string; item?: string; h?: number } | null {
+  const n = p.name.replace(/^[a-z0-9_]+:/, ''), st = p.states, vanilla = p.name.startsWith('minecraft:');
+  if (/torch/.test(n) && !/torchflower/.test(n)) return { t: 'mctorch', h: String(st.torch_facing_direction ?? 'top') === 'top' ? 0 : 1 };
+  if (/lantern/.test(n)) {
+    if (/lantern_stone|lamp_?post|street/.test(n)) return { t: 'lantern' };
+    if (/wall/.test(n)) return { t: 'wallLantern' };
+    return { t: 'mclantern', h: st.hanging === 1 || st.hanging === true || /hang/.test(n) ? 1 : 0 };
+  }
+  if (/lamp/.test(n) && !vanilla) return { t: 'furn', item: 'lamp' };
+  if (/_door$|^door$|doorframe/.test(n) && !/trapdoor/.test(n)) return st.upper_block_bit === 1 || st.upper_block_bit === true || /doorframe/.test(n) ? null : { t: 'door' };
+  if (/(^|_)bed$/.test(n) && !/pet_bed|flower/.test(n)) return st.head_piece_bit === 1 || st.head_piece_bit === true || !vanilla ? { t: 'furn', item: 'bed' } : null;
+  if (/^(chest|trapped_chest|ender_chest)$/.test(n)) return { t: 'furn', item: 'chest' };
+  if (/barrel/.test(n)) return { t: 'barrel' };
+  if (/crate/.test(n) && !/cropbox/.test(n)) return { t: 'crate' };
+  if (/^crafting_table$|cartography|fletching|smithing_table|loom/.test(n)) return { t: 'furn', item: 'table' };
+  if (/^(furnace|smoker|blast_furnace)$|stove|oven/.test(n)) return { t: 'furn', item: 'hearth' };
+  if (/anvil/.test(n)) return { t: 'anvil' };
+  if (/lectern|desk/.test(n)) return { t: 'furn', item: 'desk' };
+  if (/carpet|rug/.test(n) && !/moss/.test(n)) return { t: 'furn', item: 'rug' };
+  if (vanilla) return null;
+  // the furniture add-ons
+  if (/table/.test(n)) return { t: 'furn', item: 'table' };
+  if (/stool/.test(n)) return { t: 'furn', item: 'stool' };
+  if (/chair|seat|throne/.test(n)) return { t: 'furn', item: 'chair' };
+  if (/bench|sofa|couch/.test(n)) return { t: 'furn', item: 'bench' };
+  if (/sideboard|cabinet|dresser|drawer|wardrobe/.test(n)) return { t: 'furn', item: 'dresser' };
+  if (/counter/.test(n)) return { t: 'furn', item: 'counter' };
+  if (/shelf/.test(n)) return { t: 'furn', item: 'shelves' };
+  if (/candle/.test(n)) return { t: 'furn', item: 'candles' };
+  return null;
+}
 
 // ---------------------------------------------------------------- Minecraft blocks to the game's
 const unknown = new Map<string, number>();
 function mapBlock(p: Palette): number {
+  // (the owner's review: the windows, the bars, the bookcases, the light posts, the dock's trapdoor walks)
+  {
+    const n0 = p.name.replace(/^[a-z0-9_]+:/, '');
+    if (/glass/.test(n0)) return B.Glass;
+    if (/iron_bars|bars$/.test(n0)) return B.Bars;
+    if (/bookshelf|bookcase/.test(n0)) return B.Bookshelf;
+    if (/^(glowstone|sea_lantern|shroomlight|redstone_lamp|.*froglight)$/.test(n0)) return B.Glowstone;
+    if (/trapdoor/.test(n0)) { const open = p.states.open_bit === 1 || p.states.open_bit === true; return open ? B.Air : /dark_oak|spruce|mangrove|crimson|warped/.test(n0) ? B.DarkPlanks : /iron/.test(n0) ? B.Blackstone : B.Planks; }
+    if (propOf(p)) return B.Air;
+  }
   // An add-on's blocks (behaviour packs: furniture, vertical slabs, framed glass, lanterns, waystones, farm
   // crates, meadow flowers, the biome pack's stone): by what they're made of, the way a builder would read them
   if (!p.name.startsWith('minecraft:')) {
@@ -51,6 +107,7 @@ function mapBlock(p: Palette): number {
   if (n === 'air' || n === 'cave_air' || n === 'void_air' || n === 'structure_void' || n === 'light_block' || n === 'barrier') return B.Air;
   if (n === 'water' || n === 'flowing_water' || n === 'bubble_column' || n === 'seagrass' || n === 'tall_seagrass' || n === 'kelp' || n === 'kelp_plant') return B.Water;
   if (n === 'lava' || n === 'flowing_lava' || n === 'magma') return B.Emberstone;
+  if (/^(fire|soul_fire|trip_wire|reeds|tallgrass|sea_pickle|turtle_egg|pitcher_plant|mangrove_propagule|decorated_pot|amethyst_cluster|.*_bud)$/.test(n)) return B.Air;
   // things too small to be a block of their own: plants, torches, rails, carpets, signs, buttons
   if (/flower|tulip|dandelion|poppy|orchid|allium|bluet|daisy|cornflower|lily|rose_bush|peony|lilac|sunflower|short_grass|tall_grass|^grass$|fern|dead_bush|sapling|mushroom$|torch|rail|carpet|_sign|button|pressure_plate|lever|tripwire|string|vine|ladder|redstone_wire|repeater|comparator|frame|painting|flower_pot|candle|banner|head|skull|sweet_berry|wheat|carrots|potatoes|beetroot|sugar_cane|bamboo$|cobweb|snow_layer|^snow$|scaffolding|chain$|lightning_rod|end_rod|glow_lichen|hanging_roots|spore|moss_carpet|pink_petals|leaf_litter|bush|azalea$|cactus_flower|firefly/.test(n) && !/block/.test(n)) return n === 'snow_layer' ? B.Air : B.Air;
   if (/door|trapdoor|fence_gate|pane$|iron_bars/.test(n)) return /pane|bars/.test(n) ? B.Window : B.Air;
@@ -118,10 +175,14 @@ fs.mkdirSync(out, { recursive: true });
 const heightMaps: { id: string; w: number; d: number; b64: string }[] = [];
 /** Every chunk's columns, gathered over all the pieces before they're written. */
 const chunkFiles = new Map<string, number[][]>();
+/** The trees to fell, by the chunk their trunk stands in: [kind, logs, lx, y, lz, trunk count (2 bytes), trunk (dx+128, y, dz+128)..., leaf count (2 bytes), leaves (dx+128, y, dz+128, block)...]. */
+const chunkTrees = new Map<string, number[][]>();
 /** Every sign kept, in game coordinates: where, which way it faces, what kind, and its words. */
 const signs: { x: number; y: number; z: number; ry: number; kind: number; text: string }[] = [];
 /** The waystones (an add-on's travel stones), each by its lowest block, in game coordinates: the game's waymarks go there. */
 const stones = new Map<string, { x: number; y: number; z: number; piece: string }>();
+/** The small things (torches, lanterns, doors, furniture), in game coordinates: [kind, x, y, z, facing, item or h]. */
+const things: (string | number)[][] = [];
 for (const piece of MC_PIECES) {
   const { mx0, mz0, mx1, mz1, gx0, gz0, yOff } = piece;
   const W = mx1 - mx0 + 1, D = mz1 - mz0 + 1;
@@ -149,6 +210,8 @@ for (const piece of MC_PIECES) {
   const grid = new Uint8Array(W * D * SY);
   const gi = (ix: number, iz: number, y: number) => (ix * D + iz) * SY + y;
   const cache = new Map<string, number>();
+  /** The Minecraft chunks that have anything saved; and the blocks a snow layer lay on (they turn to snowy ground). */
+  const saved = new Set<string>(), snowy: number[] = [];
   for (const [k, e] of db) {
     if (!e.value) continue;
     const b = Buffer.from(k, 'latin1');
@@ -158,6 +221,9 @@ for (const piece of MC_PIECES) {
     const ids = sc.palette.map((p) => { const key = p.name + JSON.stringify(p.states); let v = cache.get(key); if (v === undefined) { v = mapBlock(p); cache.set(key, v); } return v; });
     const signAt = sc.palette.map((p) => /sign/.test(p.name) ? p : null);
     const wsAt = sc.palette.map((p) => /waystone/.test(p.name));
+    const snowAt = sc.palette.map((p) => /^minecraft:snow_layer$/.test(p.name));
+    saved.add(scx + ',' + scz);
+    const propAt = sc.palette.map((p) => { const pr = propOf(p); return pr ? { ...pr, ry: facingOf(p.states) } : null; });
     for (let lx = 0; lx < 16; lx++) for (let lz = 0; lz < 16; lz++) {
       const mx = scx * 16 + lx, mz = scz * 16 + lz;
       if (mx < mx0 || mx > mx1 || mz < mz0 || mz > mz1) continue;
@@ -171,13 +237,51 @@ for (const piece of MC_PIECES) {
         let id = ids[sc.idx[i]];
         const sgn = signAt[sc.idx[i]];
         if (sgn) signBlocks.set(`${mx},${scy * 16 + ly},${mz}`, { p: sgn, gy });
+        const pr = propAt[sc.idx[i]];
+        if (pr) { const [tx, tz] = toGame(mx, mz); things.push([pr.t, tx + 0.5, gy, tz + 0.5, Math.round(turnRy(pr.ry) * 100) / 100, pr.item ?? pr.h ?? 0]); }
         if (wsAt[sc.idx[i]]) { const [wx, wz] = toGame(mx, mz); const k2 = wx + ',' + wz; const had = stones.get(k2); if (!had || had.y > gy) stones.set(k2, { x: wx + 0.5, y: gy, z: wz + 0.5, piece: piece.id }); }
         if (id === B.Air && sc.water && sc.water[i]) id = B.Water;
+        if (snowAt[sc.idx[i]] && gy > 0) snowy.push(gi(mx - mx0, mz - mz0, gy - 1));
         if (id !== B.Air) grid[gi(mx - mx0, mz - mz0, gy)] = id;
       }
     }
   }
   db.clear();
+  // The snow country made green like the rest (owner 2026-11-05: "make the snow biome grassy to match the
+  // rest"): the snow layers go, a snow block on top turns to grass and under that to earth, the ice to water
+  void snowy;
+  for (let ix = 0; ix < W; ix++) for (let iz = 0; iz < D; iz++) {
+    let open = true;
+    for (let y = SY - 1; y >= 0; y--) {
+      const i = gi(ix, iz, y), id = grid[i];
+      if (id === B.Snow || id === B.SnowGrass) { const under = y > 0 ? grid[i - 1] : B.Stone; grid[i] = open && (under === B.Water || under === B.Ice) ? (y < SEA ? B.Water : B.Air) : open ? B.Grass : B.Dirt; if (grid[i] === B.Air) continue; }
+      else if (id === B.Ice && open) grid[i] = B.Water;
+      if (id !== B.Air) open = false;
+    }
+  }
+  // Chunks Minecraft never saved (a few, at the edge of what the owner explored): the ground round them carried
+  // in, a column at a time from the nearest saved one, its height and its top (no buildings, no trees)
+  {
+    const NATTOP = new Set<number>([B.Grass, B.FlowerGrass, B.Dirt, B.Loam, B.Snow, B.SnowGrass, B.Sand, B.Stone, B.Gravel, B.Granite, B.Water, B.Clay]);
+    const gnd = new Int16Array(W * D).fill(-1), topId = new Uint8Array(W * D), q: number[] = [];
+    let holes = 0;
+    for (let ix = 0; ix < W; ix++) for (let iz = 0; iz < D; iz++) {
+      const c = ix + iz * W;
+      if (!saved.has(Math.floor((mx0 + ix) / 16) + ',' + Math.floor((mz0 + iz) / 16))) { holes++; continue; }
+      for (let y = SY - 1; y >= 0; y--) { const id = grid[gi(ix, iz, y)]; if (NATTOP.has(id)) { gnd[c] = y; topId[c] = id; q.push(c); break; } }
+    }
+    for (let h = 0; h < q.length; h++) {
+      const c = q[h], x = c % W, z = (c / W) | 0;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const xx = x + dx, zz = z + dz; if (xx < 0 || zz < 0 || xx >= W || zz >= D) continue;
+        const j = xx + zz * W; if (gnd[j] >= 0 || saved.has(Math.floor((mx0 + xx) / 16) + ',' + Math.floor((mz0 + zz) / 16))) continue;
+        gnd[j] = gnd[c]; topId[j] = topId[c]; q.push(j);
+        const top = gnd[j], id = topId[j];
+        for (let y = 0; y < SY; y++) grid[gi(xx, zz, y)] = y < top - 3 ? B.Stone : y < top ? (id === B.Sand ? B.Sand : id === B.Water ? B.Sand : B.Dirt) : y === top ? (id === B.Water ? B.Water : id) : y < SEA ? B.Water : B.Air;
+      }
+    }
+    if (holes) console.log(piece.id + ':', holes, 'columns in chunks never saved, filled from the ground round them');
+  }
   // The owner's changes to this piece (scripts/mc/edits.ts), in Minecraft coordinates
   const edit = EDITS[piece.id];
   if (edit) {
@@ -246,7 +350,7 @@ for (const piece of MC_PIECES) {
       if (near && kind[i] !== 2) continue; // the sea by the shore, and what's built on it
       // other land, or the open sea past the docks: sea bed and water, nothing standing on it
       sunk++;
-      const bed = Math.min(SEA - 4, kind[i] === 1 ? ground[i] : SEA - 4);
+      const bed = kind[i] === 1 ? Math.min(SEA - 4, ground[i]) : SEA_FLOOR;
       for (let y = 0; y < SY; y++) grid[gi(ix, iz, y)] = y <= bed ? (y === bed ? B.Sand : B.Stone) : y < SEA ? B.Water : B.Air;
       // (the open sea keeps its own floor and its water; only what stood on it goes)
       if (kind[i] === 1) for (let y = 0; y <= ground[i]; y++) if (grid[gi(ix, iz, y)] === B.Air) grid[gi(ix, iz, y)] = B.Water;
@@ -270,13 +374,17 @@ for (const piece of MC_PIECES) {
     const wob = (x: number, z: number) => (Math.sin(x * 0.043 + 1.7) + Math.sin(z * 0.051 + 0.3) + Math.sin((x + z) * 0.027 + 2.1) + Math.sin((x - z) * 0.071)) / 4;
     let sea = 0;
     for (let ix = 0; ix < W; ix++) for (let iz = 0; iz < D; iz++) {
-      const i = ix + iz * W, d = dist[i];
+      const i = ix + iz * W, d = piece.natural.whole ? 0 : dist[i];
       const edgeRoom = Math.min(ix, iz, W - 1 - ix, D - 1 - iz);
-      const R = Math.min(keep + wob(ix, iz) * keep * 0.45, edgeRoom - fade - 4);
-      if (d <= R) continue;
-      const t = Math.min(1, (d - R) / fade);
+      const R = piece.natural.whole ? edgeRoom - fade - 6 + wob(ix * 1.7, iz * 1.7) * 14 : Math.min(keep + wob(ix, iz) * keep * 0.45, edgeRoom - fade - 4);
+      if (piece.natural.whole ? R >= 0 : d <= R) continue;
+      // (all the way down to the world's own sea floor by the rectangle's edge, so the sea round it runs on
+      // without a step or a shelf of sand: owner 2026-11-05, "no sand bars, blend seamless into the world water")
+      const t = Math.min(1, Math.max(piece.natural.whole ? -R / fade : (d - R) / fade, 1 - edgeRoom / 10));
       const top = surf[i];
-      const want = wet[i] ? Math.min(top, SEA - 1 - Math.round(t * 5)) : Math.round(top - (top - (SEA - 4)) * t);
+      let base = top;
+      if (wet[i]) while (base > 0 && grid[gi(ix, iz, base)] === B.Water) base--;
+      const want = Math.round(base + (SEA_FLOOR - base) * t);
       for (let y = 0; y < SY; y++) {
         const at = gi(ix, iz, y);
         if (y > want) grid[at] = y < SEA ? B.Water : B.Air;
@@ -301,6 +409,68 @@ for (const piece of MC_PIECES) {
       if (y > cap) grid[at] = y < SEA ? B.Water : B.Air;
       else if (y === cap && grid[at] !== B.Air && grid[at] !== B.Water) grid[at] = cap < SEA + 1 ? B.Sand : grid[at];
     }
+  }
+  // The trees. Leaves with no trunk within six blocks go (no crowns left floating where a trunk was cut or sunk);
+  // then every tree standing on the ground, its trunk touching nothing built, becomes one to fell: its trunk and
+  // the leaves nearest it, written after the chunk's columns (world/mcland.ts reads them as the game's trees)
+  {
+    const LOG = new Set<number>([B.OakLog, B.BirchLog, B.PineLog]);
+    const LEAF = new Set<number>([B.OakLeaves, B.BirchLeaves, B.PineLeaves]);
+    const GROUND = new Set<number>([B.Grass, B.Dirt, B.Loam, B.Snow, B.SnowGrass, B.Sand, B.Stone, B.Gravel, B.Granite, B.Clay, B.FlowerGrass, B.Farmland, B.Path]);
+    const N = W * D * SY, mark = new Uint8Array(N);
+    const S6 = [SY, -SY, D * SY, -D * SY, 1, -1];
+    const ok = (i: number, s: number) => { const y = i % SY, c = (i - y) / SY, iz = c % D, ix = (c - iz) / D; return s === 1 ? y < SY - 1 : s === -1 ? y > 0 : s === SY ? iz < D - 1 : s === -SY ? iz > 0 : s === D * SY ? ix < W - 1 : ix > 0; };
+    let q: number[] = [];
+    for (let i = 0; i < N; i++) if (LOG.has(grid[i])) { mark[i] = 1; q.push(i); }
+    for (let h = 0; h < q.length; h++) { const i = q[h]; if (mark[i] > 6) continue; for (const s of S6) { if (!ok(i, s)) continue; const j = i + s; if (!mark[j] && LEAF.has(grid[j])) { mark[j] = mark[i] + 1; q.push(j); } } }
+    let dropped = 0;
+    for (let i = 0; i < N; i++) if (!mark[i] && LEAF.has(grid[i])) { grid[i] = B.Air; dropped++; }
+    // the trees: logs joined (corners too), on the ground, with leaves, nothing built against them
+    mark.fill(0); q = [];
+    const found: { logs: number[]; kind: string; leaves: number[] }[] = [];
+    const S26: number[] = []; for (const a of [-1, 0, 1]) for (const b of [-1, 0, 1]) for (const c of [-1, 0, 1]) if (a || b || c) S26.push(a * D * SY + b * SY + c);
+    const xyz = (i: number) => { const y = i % SY, c = (i - y) / SY, iz = c % D; return [(c - iz) / D, y, iz]; };
+    for (let i = 0; i < N; i++) {
+      if (mark[i] || !LOG.has(grid[i])) continue;
+      const comp = [i]; mark[i] = 1;
+      let leafy = false, built = false;
+      for (let h = 0; h < comp.length && comp.length <= 400; h++) {
+        const k = comp[h], [kx, ky, kz] = xyz(k);
+        for (const s of S26) {
+          const j = k + s, [jx, jy, jz] = xyz(j);
+          if (j < 0 || j >= N || Math.abs(jx - kx) > 1 || Math.abs(jz - kz) > 1 || Math.abs(jy - ky) > 1) continue;
+          const id = grid[j];
+          if (LOG.has(id)) { if (!mark[j]) { mark[j] = 1; comp.push(j); } }
+          else if (LEAF.has(id)) leafy = true;
+          else if (BUILT.has(id) && Math.abs(s) !== 1 && (jy === ky)) built = true;
+        }
+      }
+      if (!leafy || built || comp.length > 400) continue;
+      comp.sort((a, b) => a % SY - b % SY);
+      const base = comp[0];
+      if (base % SY === 0 || !GROUND.has(grid[base - 1])) continue;
+      const n = (id: number) => comp.filter((c) => grid[c] === id).length;
+      const kind = n(B.BirchLog) > comp.length / 2 ? 'birch' : n(B.PineLog) > comp.length / 2 ? 'pine' : comp.length >= 30 ? 'giant' : 'oak';
+      found.push({ logs: comp, kind, leaves: [] });
+    }
+    // each leaf to the nearest tree's trunk
+    mark.fill(0);
+    const qi: number[] = [], qo: number[] = [];
+    found.forEach((t, k) => { for (const i of t.logs) { mark[i] = 1; qi.push(i); qo.push(k); } });
+    for (let h = 0; h < qi.length; h++) { const i = qi[h]; if (mark[i] > 7) continue; for (const s of S6) { if (!ok(i, s)) continue; const j = i + s; if (!mark[j] && LEAF.has(grid[j])) { mark[j] = mark[i] + 1; qi.push(j); qo.push(qo[h]); found[qo[h]].leaves.push(j); } } }
+    const KIND = { oak: 0, birch: 1, pine: 2, giant: 3 } as Record<string, number>;
+    for (const t of found) {
+      const [bx, by, bz] = xyz(t.logs[0]);
+      const [gx, gz] = toGame(mx0 + bx, mz0 + bz);
+      const key = Math.floor(gx / CHUNK) + '_' + Math.floor(gz / CHUNK);
+      const rel = (i: number): number[] => { const [x, y, z] = xyz(i); const [px, pz] = toGame(mx0 + x, mz0 + z); return [px - gx + 128, y, pz - gz + 128]; };
+      const trunk = t.logs.flatMap(rel), leaves = t.leaves.flatMap((i) => [...rel(i), grid[i]]);
+      if (trunk.some((v, k) => k % 3 !== 1 && (v < 0 || v > 255)) || leaves.some((v, k) => k % 4 !== 1 && k % 4 !== 3 && (v < 0 || v > 255))) continue;
+      const logs = t.kind === 'giant' ? Math.min(9, 5 + Math.floor(t.logs.length / 25)) : Math.max(2, Math.min(5, Math.round(t.logs.length / 3)));
+      let l = chunkTrees.get(key); if (!l) chunkTrees.set(key, (l = []));
+      l.push([KIND[t.kind], logs, gx - Math.floor(gx / CHUNK) * CHUNK, by, gz - Math.floor(gz / CHUNK) * CHUNK, t.logs.length >> 8, t.logs.length & 255, ...trunk, t.leaves.length >> 8, t.leaves.length & 255, ...leaves]);
+    }
+    console.log(piece.id + ': dropped', dropped, 'leaves with no trunk near;', found.length, 'trees to fell');
   }
   // below what was read: rock; and any open space under the sea filled with water
   for (let ix = 0; ix < W; ix++) for (let iz = 0; iz < D; iz++) {
@@ -350,13 +520,15 @@ for (const piece of MC_PIECES) {
   console.log(`${piece.id}: ${files} chunk files; height map ${nx}x${nz}`);
 }
 let totalBytes = 0;
-for (const [key, cols] of chunkFiles) { const buf = zlib.deflateRawSync(Buffer.from(Uint8Array.from(cols.flat())), { level: 9 }); fs.writeFileSync(path.join(out, key + '.bin'), buf); totalBytes += buf.length; }
+for (const [key, cols] of chunkFiles) { const tr = chunkTrees.get(key) ?? []; const buf = zlib.deflateRawSync(Buffer.from(Uint8Array.from([...cols.flat(), tr.length >> 8, tr.length & 255, ...tr.flat()])), { level: 9 }); fs.writeFileSync(path.join(out, key + '.bin'), buf); totalBytes += buf.length; }
 console.log(`${chunkFiles.size} chunk files written, ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 console.log('unmapped (as stone):', [...unknown].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([n, c]) => `${n}:${c}`).join(' '));
 // The signs (data/mcSigns.ts): kept only where the piece itself is kept (not sunk under the sea round an island)
 fs.writeFileSync(path.resolve('src/data/mcSigns.ts'), `// Written by scripts/mc/export.ts: the signs on the owner's Minecraft builds, in game coordinates (kind 0 on a post, 1 on a wall, 2 hung).
 export interface McSign { x: number; y: number; z: number; ry: number; kind: number; text: string; piece: string }
 export const MC_SIGNS: McSign[] = ${JSON.stringify(signs)};
+/** The small things on the owner's builds: [kind, x, y, z, facing, the furniture's item or a light's wall/hanging]. */
+export const MC_THINGS: (string | number)[][] = ${JSON.stringify(things)};
 /** The waystones the owner set (an add-on's): where the game's waymarks stand. */
 export const MC_WAYSTONES: { x: number; y: number; z: number; piece: string }[] = ${JSON.stringify([...stones.values()])};
 `);

@@ -53,7 +53,7 @@ export function readDb(dir: string, filter?: (key: Buffer) => boolean, keep?: (k
     const had = live.get(k);
     if (!had || had.seq < seq) live.set(k, { seq, del, value: del || (keep && !keep(key)) ? null : Buffer.from(value!) });
   };
-  for (const f of fs.readdirSync(dir)) {
+  for (const f of fs.readdirSync(dir)) try {
     const p = path.join(dir, f);
     if (f.endsWith('.ldb') || f.endsWith('.sst')) {
       const file = fs.readFileSync(p);
@@ -101,6 +101,6 @@ export function readDb(dir: string, filter?: (key: Buffer) => boolean, keep?: (k
         }
       }
     }
-  }
+  } catch (e) { console.warn('leveldb: skipped ' + f + ': ' + (e as Error).message); }
   return live;
 }

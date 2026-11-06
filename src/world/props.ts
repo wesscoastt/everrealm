@@ -3320,6 +3320,31 @@ export function gravestone(M: PropMaterials, kind = 0): THREE.Group {
  * a block high with its words on both faces, on a post (kind 0), flat against a wall behind it (1), or hung
  * from chains under a beam (2). Faces +z; stands at the middle of its block.
  */
+/**
+ * A torch the size of a Minecraft one (Verandah, world/mcland.ts): a stick with a flame at its head, standing
+ * on the ground (wall false) or leaning out from the wall behind it (it faces +z, the wall at -z).
+ */
+export function mcTorch(M: PropMaterials, wall: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const stick = mesh(box(0.08, 0.55, 0.08), M.wood, 0, 0.28, 0);
+  const flame = new THREE.Mesh(box(0.13, 0.16, 0.13), new THREE.MeshLambertMaterial({ color: '#ffb040', emissive: new THREE.Color('#ff8a1a'), emissiveIntensity: 1.4 }));
+  flame.position.set(0, 0.62, 0);
+  const head = new THREE.Group(); head.add(stick, flame);
+  if (wall) { head.position.set(0, 0.2, -0.36); head.rotation.x = 0.4; }
+  g.add(head);
+  return g;
+}
+/** A Minecraft lantern: a little iron cage with a candle in it, sitting on something or hung from a chain. */
+export function mcLantern(M: PropMaterials, hanging: boolean): THREE.Group {
+  const g = new THREE.Group(), y = hanging ? 0.45 : 0.18;
+  const glass = new THREE.MeshLambertMaterial({ color: '#ffd078', emissive: new THREE.Color('#ffa830'), emissiveIntensity: 1.2 });
+  g.add(mesh(box(0.3, 0.34, 0.3), glass, 0, y, 0));
+  g.add(mesh(box(0.36, 0.05, 0.36), M.iron, 0, y + 0.19, 0), mesh(box(0.36, 0.05, 0.36), M.iron, 0, y - 0.19, 0));
+  for (const [x, z] of [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]]) g.add(mesh(box(0.04, 0.38, 0.04), M.iron, x, y, z));
+  if (hanging) g.add(mesh(box(0.04, 0.3, 0.04), M.iron, 0, 0.85, 0));
+  return g;
+}
+
 export function mcSign(M: PropMaterials, text: string, kind = 0): THREE.Group {
   const g = new THREE.Group();
   const tex = textTexture(text, 256, 128, '#c8a46a', '#2a1a0c', 30);

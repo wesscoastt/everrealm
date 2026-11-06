@@ -27,7 +27,7 @@ import { FIGURE } from '../entities/humanoid';
 import { realmNow } from '../world/clock';
 import { characterDetail } from '../entities/lod';
 import { Activities } from './Activities';
-import { legacyChunkKey, v2ChunkKey } from '../world/VoxelWorld';
+import { legacyChunkKey, v2ChunkKey, v3ChunkKey } from '../world/VoxelWorld';
 import { createRenderer } from '../core/Renderer';
 import { DIALOGUE, READABLES } from '../data/dialogue';
 import {
@@ -178,6 +178,7 @@ import { EMOTES, EmoteAnim, emoteById } from '../data/emotes';
 import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNLOCK_AT, UNLOCK_NAMES, SECOND_SKILLS, WEAPON_SKILLS, weaponKit } from '../data/classes';
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
+import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { serverUrl } from '../net/Online';
 import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
@@ -188,7 +189,7 @@ type Mode = 'loading' | 'title' | 'creator' | 'intro' | 'play';
 const STAGE = { x: 153, z: 187, dir: new THREE.Vector3(4.2, 0, 0.9).normalize() };
 /** The music for each region; the outer lands borrow a neighbour's until their own is written. */
 const REGION_THEME: Record<RegionId, ThemeId> = {
-  greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
+  greenwake: 'greenwake', crownroad: 'crownroad', brambledeep: 'brambledeep', verandah: 'saltwind', saltwind: 'saltwind', redstone: 'redstone', starfall: 'starfall',
   gannet: 'cliffs', wrath: 'fen', tolmen: 'moor', inkholm: 'fen', kell: 'redstone', sickle: 'starfall',
   keys: 'saltwind', glades: 'brambledeep', amberwold: 'brambledeep', bright: 'crownroad', sunder: 'rift', glassflats: 'redstone', greywaste: 'rift', held: 'starfall',
 };
@@ -4273,8 +4274,10 @@ export class Game implements GameApi {
     this.player.teleport(this.save.pos[0], this.save.pos[1], this.save.pos[2]);
     // Explored chunks are saved by chunk key, and a key depends on the world's size: convert saves
     // from before the world grew past 0, and from before the outer lands
-    if (!this.flag('mapV2')) { this.save.explored = this.save.explored?.map(legacyChunkKey); this.setFlag('mapV2'); this.setFlag('mapV3'); }
-    else if (!this.flag('mapV3')) { this.save.explored = this.save.explored?.map(v2ChunkKey); this.setFlag('mapV3'); }
+    if (!this.flag('mapV2')) { this.save.explored = this.save.explored?.map(legacyChunkKey); this.setFlag('mapV2'); this.setFlag('mapV3'); this.setFlag('mapV4'); }
+    else if (!this.flag('mapV3')) { this.save.explored = this.save.explored?.map(v2ChunkKey); this.setFlag('mapV3'); this.setFlag('mapV4'); }
+    // (the world grew west and north for Verandah: the map's chunks renumbered)
+    else if (!this.flag('mapV4')) { this.save.explored = this.save.explored?.map(v3ChunkKey); this.setFlag('mapV4'); }
     if (this.save.explored?.length) this.world.chunks.queueMapTiles(this.save.explored);
     const worn = this.flag('title') as string | undefined;
     this.hud.setTitle(worn ? FEATS.find((f) => f.id === worn)?.title ?? null : null);
@@ -4289,6 +4292,13 @@ export class Game implements GameApi {
     this.mode = 'play';
     this.hud.hideTitle();
     this.fitPack();
+    // What's new since this player last looked (once an update, for the whole account on this computer)
+    {
+      let seen = 0;
+      try { seen = Number(localStorage.getItem('everrealm.newsSeen') ?? 0); } catch { /* private window */ }
+      if (seen < NEWS_V && !fresh) setTimeout(() => { if (this.mode === 'play') this.hud.showNews(newsHtml(seen ? Math.max(1, NEWS_V - seen) : 1)); }, 2500);
+      try { localStorage.setItem('everrealm.newsSeen', String(NEWS_V)); } catch { /* private window */ }
+    }
     // A torch for everyone (it comes out after dark); given once to characters made before torches
     if (!this.flag('gotTorch')) { if (this.inv.count('torch') > 0 || this.give('torch', 1)) this.setFlag('gotTorch', true); }
     // What the account owns from the store, to this character (once each; the server says what's owned)
@@ -8341,6 +8351,7 @@ export class Game implements GameApi {
       const c = cmd.toLowerCase();
       if (emoteById(c)) { this.doEmote(c); return; }
       switch (c) {
+        case 'news': case 'whatsnew': this.hud.showNews(newsHtml(3)); return;
         case 'help': case '?':
           this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');

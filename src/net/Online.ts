@@ -156,6 +156,8 @@ export interface OnlineHooks {
   rowboatModel?(): THREE.Object3D;
   /** Someone helped you up while you were down. */
   revived?(by: string): void;
+  /** The Arena at Verandah (server/arena.mjs; game/Arena.ts): challenges, matches, hits, the board. */
+  pvp?(m: Record<string, unknown>): void;
   /** Someone in your group killed a creature near you: it counts for you too. */
   groupKill?(type: string, from: string): void;
   /** A groupmate moved a delve's room on (server/social.mjs gRoom). */
@@ -410,6 +412,7 @@ export class Online {
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
       case 'sys': this.hooks.system(String(m.text)); break;
       case 'revived': this.hooks.revived?.(String(m.by)); break;
+      case 'pvpInvite': case 'pvpNo': case 'pvpStart': case 'pvpHurt': case 'pvpBoard': case 'pvpEnd': this.hooks.pvp?.(m); break;
       case 'gKill': if (typeof m.type === 'string') this.hooks.groupKill?.(m.type, String(m.from)); break;
       case 'gRoom': if (typeof m.site === 'string') this.hooks.groupRoom?.(m.site, Number(m.i), Number(m.s)); break;
       case 'posts': this.hooks.posts?.(Array.isArray(m.list) ? (m.list as Post[]) : []); break;
@@ -656,6 +659,8 @@ export class Online {
     if (this.online) this.ws!.send(JSON.stringify({ t: 'bossHit', id, cycle, dmg, max }));
   }
 
+  /** To the Arena (server/arena.mjs). */
+  pvp(msg: { t: string } & Record<string, unknown>): void { this.emit(msg); }
   private emit(msg: object): void { if (this.status === 'online' && this.ws) this.ws.send(JSON.stringify(msg)); }
   groupInvite(name: string): void { this.emit({ t: 'gInvite', name }); }
   groupAnswer(accept: boolean): void { this.emit({ t: 'gAnswer', accept }); }

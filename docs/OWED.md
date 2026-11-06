@@ -142,6 +142,36 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
        c. The Airport (their joke): where flying mounts are bought.
        d. The boats at the docks and at sea as assets of their own, bobbing.
        e. Verandah's own region (name, music, sounds), a ferry from the Counties, its people and quests.
+    11b. Verandah, the owner's review in game (2026-11-05), in the order they sent it:
+       1. Bring the small things across: torches, lanterns and the light add-on's lantern posts (they came out as a black ore-looking block), glowstone light posts on the docks, furniture, trapdoors (the dock's trapdoor walkways: bare sea now), doors, iron bars (medieval windows: they came out as lit glass), bookshelves. Restore the market area.
+       2. NPCs and guardsmen all over the city.
+       3. Verandah's farm grows wheat and corn, as in Minecraft.
+       4. The logging area next to Verandah: trees you can fell.
+       5. Everything east of the Verandah farm: the paths and land toward the owner's home, the lighthouse by the farm, their main home there (tied to their account when pushed). Remove the sand bar off the coast near the farm. (2026-11-05: the owner gave their house as Minecraft -226, 64, 384: north-west of the farm, by the snow, along the path. The import box now runs north to Minecraft z 190 and east to x 260, all of the land kept and only the outer coast softened (owner: "use this land imported and soften the coast"); the world grew west to -3584 and Verandah moved into the new sea west of the Counties. Still to do: their house tied to their account.)
+       6. The zombie delve (the flooded build they showed): drain it, enemies, lava in the pits, a jump puzzle, the boss at the end, broken walls filled, the secret exit kept.
+       7. The waymark stars on the map all say "Tolmen Moor": name them; Verandah its own region. (2026-11-05: Verandah is a region of its own)
+       8. The light add-on's blocks are street lantern posts and lanterns inside buildings.
+       9. The river channel round Verandah cleaned up (its sand ridges).
+       10. The smugglers' Fortress: the new docks where the old ones were; real entrances, not the tiny door gaps; the interior's tree things and designs out, an encampment/compound in.
+       11. The stables: the "Horses 64 £" sign is the real stables, where pure-bred horses are sold; remove the pillars there.
+       12. Floating leaves and broken trees along the coast; houses cut off at the bottom left near the stone tower mountain that shouldn't be there; restore everything and the missing lands. (2026-11-05: leaves with no trunk within six blocks dropped at export)
+       13. The giant crypt (the dark brick building on the hill): a delve or group dungeon with a boss; skeletons, maybe mummies.
+       14. The world map's edge expanded for the new lands. (2026-11-05: WMIN -3584; saved maps migrate, mapV4)
+       15. Mizulholm, their Japanese town, in the game too: Japanese-inspired towns and people with their own ways of living and farming.
+       16. Remove "The House in the Snow" (not their house; their house is past the Verandah farm, along the path). (2026-11-05: done, the piece is gone)
+       17. Verandah's outer homes for sale to players, priced by how they look; trees choppable, mining and gatherables natural, animals. (2026-11-05: the Minecraft trees are trees to fell now; ore, things to pick and creatures on the land; homes for sale still to do)
+       18. The Verandah mine and quarry, and its caves: drained.
+       19. The empty plots inside Verandah's walls filled with hand-built buildings to match; the big white two-storey across from the church: rooms players can buy; the Mages Guild, Fighters Guild, the bank, the market and the rest working, with their people.
+       20. Then: plan Verandah's quests together.
+       21. Last of all: overhaul the music pieces that sound too alike (no two of Soule's sound alike).
+        22. A What's New list players see when they log in (owner 2026-11-05). Done: data/whatsNew.ts, a card once per update, /news, the front page's tab.
+        23. Furnish the buildings close to how the owner had them; the ones with nothing in them, furnish by hand (owner 2026-11-05).
+        24. The snow country made grassy like the rest (owner 2026-11-05). Done at export.
+        25. The World view chart (ui/worldMap.ts, npm run charts): redraw the Counties chart at the new bounds with Verandah on it, and line the two lands up again (their charts no longer share a frame).
+        26. No sand bars round the land: it blends into the world sea, floor and water (owner 2026-11-05). Done at export: the coast runs down to the open sea floor by the rectangle edge.
+        27. (with 2 and 19) The king on his throne in the king's house; guardsmen, some patrolling on horses; townsfolk living their lives, with homes and businesses of their own (owner 2026-11-05).
+        28. Verandah's post office works as its Charter Post (the post: travel, the carter, letters) (owner 2026-11-05).
+        ORDER (owner 2026-11-05): every 11b item fixed and working in the new Verandah area to a 10/10 first; then the FARMING OVERHAUL next; then on down the prompts.
     12. Graphics overhaul (owner 2026-11-05: "feel more like it was built in an engine like Unity"), and northern lights over the northern lands.
     10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.
 

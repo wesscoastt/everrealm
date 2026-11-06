@@ -249,6 +249,7 @@ for (const s of P.sites) for (const d of s.props as PropDesc[]) {
   const ox = swing ? Math.floor(hx + nx * 1.0 + nz * 0.42) : Math.floor(d.x - 0.52 * nx) + nx;
   const oz = swing ? Math.floor(hz + nz * 1.0 - nx * 0.42) : Math.floor(d.z - 0.52 * nz) + nz;
   if (ox < GW + 40 && oz < GW + 40) continue; // authored valley (npm run vale)
+  if (s.id.startsWith('mcthings')) continue; // the owner's Minecraft doors: their ground is in public/mcland, not the plan
   checked++;
   const floor = d.y;
   // (from the doorway's own height down: a beam or a porch roof over the step isn't ground)

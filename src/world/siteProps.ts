@@ -270,6 +270,9 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       }
       case 'notice': place(P.noticeBoard(M), d.x, d.y, d.z, d.ry); break;
       case 'mcsign': place(P.mcSign(M, d.text ?? '', d.h ?? 0), d.x, d.y, d.z, d.ry); break;
+      // Verandah's torches and lanterns (world/mcland.ts): a torch on the ground or a wall (h 1), a lantern sat or hung (h 1)
+      case 'mctorch': place(P.mcTorch(M, d.h === 1), d.x, d.y, d.z, d.ry); { const v = new THREE.Vector3(d.x - Math.sin(d.ry ?? 0) * (d.h === 1 ? 0.3 : 0), d.y + 0.8, d.z - Math.cos(d.ry ?? 0) * (d.h === 1 ? 0.3 : 0)); glow(v.x, v.y, v.z, 0.9, '#ffb040'); lamps.push(v); } break;
+      case 'mclantern': place(P.mcLantern(M, d.h === 1), d.x, d.y, d.z, d.ry); { const v = new THREE.Vector3(d.x, d.y + (d.h === 1 ? 0.45 : 0.18), d.z); glow(v.x, v.y, v.z, 0.8, '#ffc060'); lamps.push(v); } break;
       case 'desk': place(P.workbench(M), d.x, d.y, d.z, d.ry); break;
       case 'furn': {
         if (d.item === 'doorOpen' && d.swing) { const dr = makeDoor(M, d.x, d.y, d.z, d.ry ?? 0, d.doorKind, d.color); dr.role = d.role; group.add(dr.pivot); doors.push(dr); break; }

@@ -12,7 +12,7 @@ const INK: Record<RegionId, [number, number, number]> = {
   greenwake: [150, 172, 112],
   crownroad: [196, 182, 116],
   brambledeep: [104, 134, 88],
-  saltwind: [206, 192, 150],
+  verandah: [206, 192, 150], saltwind: [206, 192, 150],
   redstone: [192, 132, 92],
   starfall: [176, 182, 194],
   gannet: [172, 192, 128],
