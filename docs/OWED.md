@@ -153,14 +153,14 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
        3. Verandah's farm grows wheat and corn, as in Minecraft.
        4. The logging area next to Verandah: trees you can fell.
        5. Everything east of the Verandah farm: the paths and land toward the owner's home, the lighthouse by the farm, their main home there (tied to their account when pushed). Remove the sand bar off the coast near the farm. (2026-11-05: the owner gave their house as Minecraft -226, 64, 384: north-west of the farm, by the snow, along the path. The import box now runs north to Minecraft z 190 and east to x 260, all of the land kept and only the outer coast softened (owner: "use this land imported and soften the coast"); the world grew west to -3584 and Verandah moved into the new sea west of the Counties. Still to do: their house tied to their account.)
-       6. The zombie delve (the flooded build they showed): drain it, enemies, lava in the pits, a jump puzzle, the boss at the end, broken walls filled, the secret exit kept.
+       6. The zombie delve (the flooded build they showed): drain it, enemies, lava in the pits, a jump puzzle, the boss at the end, broken walls filled, the secret exit kept. Done 2026-11-06: the Drowned Cistern, a delve under the farm (the owner's build drained; its deepest pits were under the floor the world reaches, so fires burn where they went down: no lava block in the game yet, and the jump puzzle over them went with them). Drowned farmhands, runners and bloated drowned; Malachi Trudgeon in the great hall.
        7. The waymark stars on the map all say "Tolmen Moor": name them; Verandah its own region. (2026-11-05: Verandah is a region of its own)
        8. The light add-on's blocks are street lantern posts and lanterns inside buildings.
        9. The river channel round Verandah cleaned up (its sand ridges).
        10. The smugglers' Fortress: the new docks where the old ones were; real entrances, not the tiny door gaps; the interior's tree things and designs out, an encampment/compound in.
        11. The stables: the "Horses 64 £" sign is the real stables, where pure-bred horses are sold; remove the pillars there.
        12. Floating leaves and broken trees along the coast; houses cut off at the bottom left near the stone tower mountain that shouldn't be there; restore everything and the missing lands. (2026-11-05: leaves with no trunk within six blocks dropped at export)
-       13. The giant crypt (the dark brick building on the hill): a delve or group dungeon with a boss; skeletons, maybe mummies.
+       13. The giant crypt (the dark brick building on the hill): a delve or group dungeon with a boss; skeletons, maybe mummies. Done 2026-11-06: the Tregarthen Vaults, a delve: in at the doors on the hilltop, round the upper crypt, down past the household's levels to the great vault; vault bones, wrapped retainers, vault archers, Lord Ansel Tregarthen.
        14. The world map's edge expanded for the new lands. (2026-11-05: WMIN -3584; saved maps migrate, mapV4)
        15. Mizulholm, their Japanese town, in the game too: Japanese-inspired towns and people with their own ways of living and farming.
        16. Remove "The House in the Snow" (not their house; their house is past the Verandah farm, along the path). (2026-11-05: done, the piece is gone)

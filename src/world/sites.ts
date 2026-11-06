@@ -777,6 +777,44 @@ function* planBody(): Generator<string, Plan> {
     // floor for the lampman, and up the tower to the captain on the top floor (no halls to build: the owner's own)
     // The Sunken Temple: the owner's temple in the pit by the bamboo house stood lower than the world reaches, so the
     // game's own stands in its place (scripts/mc/temple.cjs); a public dungeon, its dead at their offices
+    // The Tregarthen Vaults: the owner's dark brick crypt on the hill south of the town, a delve from its doors on the
+    // hilltop, round the ring of the upper crypt, down past the household's levels to the great vault at the bottom
+    // The Drowned Cistern: the owner's flooded build under the farm, drained (its deepest pits were under the floor the
+    // world reaches, and are fires now); down from the corridors under the barns to the great hall at the bottom
+    { id: 'delve-cistern', name: 'The Drowned Cistern', x: -2759, z: 2246, r0: 0, r1: 0, build: (s: Site) => {
+      const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
+      s.act = {
+        kind: 'delve',
+        spawns: [m(-2771.5, 6, 2236.5, 'zm_shambler'), m(-2747.5, 6, 2236.5, 'zm_shambler'), m(-2771.5, 6, 2244.5, 'zm_runner'),
+          m(-2759.5, 1, 2234.5, 'zm_shambler'), m(-2762.5, 1, 2231.5, 'zm_runner'), m(-2755.5, 1, 2238.5, 'zm_bloat'),
+          m(-2764.5, 1, 2247.5, 'zm_shambler'), m(-2754.5, 1, 2247.5, 'zm_shambler'),
+          m(-2770.5, 1, 2256.5, 'zm_runner'), m(-2748.5, 1, 2256.5, 'zm_bloat'), m(-2775.5, 1, 2258.5, 'zm_shambler'), m(-2744.5, 1, 2258.5, 'zm_shambler')],
+        boss: [-2759.5, 1, 2256.5, 'zm_trudgeon'],
+        chest: [-2766.5, 1, 2259.5],
+      };
+      s.props.push({ t: 'furn', item: 'chest', x: -2766.5, y: 1, z: 2259.5, ry: 0 });
+      // the pits' fire, where they went down below the floor
+      for (const [x, z] of [[-2776.5, 2253.5], [-2742.5, 2253.5], [-2776.5, 2260.5], [-2742.5, 2260.5], [-2765.5, 2229.5], [-2753.5, 2229.5]]) {
+        s.props.push({ t: 'flame', x, y: 1.2, z, r: 1.4 } as PropDesc);
+        s.props.push({ t: 'glow', x, y: 1.6, z, r: 2.6, color: '#ff7a30', lit: true } as PropDesc);
+      }
+      for (const [x, z] of [[-2758.5, 2236.5], [-2749.5, 2258.5], [-2772.5, 2255.5]]) s.props.push({ t: 'furn', item: 'bones', x, y: 1, z, ry: x });
+    } },
+    { id: 'delve-crypt', name: 'The Tregarthen Vaults', x: -2986, z: 2490, r0: 0, r1: 0, build: (s: Site) => {
+      const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
+      s.act = {
+        kind: 'delve',
+        spawns: [m(-2989.5, 27, 2486.5, 'cr_bones'), m(-2984.5, 27, 2486.5, 'cr_bones'), m(-2988.5, 27, 2494.5, 'cr_wrapped'), m(-2985.5, 27, 2494.5, 'cr_bowman'),
+          m(-2991.5, 18, 2499.5, 'cr_wrapped'), m(-2984.5, 18, 2499.5, 'cr_bones'), m(-2988.5, 18, 2501.5, 'cr_bowman'),
+          m(-2990.5, 11, 2498.5, 'cr_bones'), m(-2985.5, 11, 2497.5, 'cr_wrapped'), m(-2980.5, 8, 2483.5, 'cr_wrapped'), m(-2991.5, 8, 2484.5, 'cr_bones')],
+        boss: [-2986.5, 8, 2482.5, 'cr_tregarthen'],
+        chest: [-2993.5, 8, 2482.5],
+      };
+      s.props.push({ t: 'furn', item: 'chest', x: -2993.5, y: 8, z: 2482.5, ry: Math.PI / 2 });
+      for (const [x, y, z] of [[-2988.5, 8, 2480.5], [-2984.5, 8, 2480.5], [-2990.5, 11, 2500.5], [-2986.5, 18, 2496.5]]) s.props.push({ t: 'furn', item: 'candles', x, y, z, ry: 0 });
+      for (const [x, y, z] of [[-2978.5, 8, 2481.5], [-2994.5, 8, 2480.5], [-2983.5, 11, 2499.5], [-2990.5, 27, 2493.5]]) s.props.push({ t: 'furn', item: 'bones', x, y, z, ry: x });
+      s.props.push({ t: 'sign', x: -3001.5, y: 27, z: 2492.5, ry: -Math.PI / 2, text: 'The Tregarthen Vaults' });
+    } },
     { id: 'pd-temple', name: 'The Sunken Temple', x: -3420, z: 2448, r0: 0, r1: 0, build: (s: Site) => {
       const m = (x: number, z: number, t: string): [number, number, number, string] => [x, 2, z, t];
       s.act = {
