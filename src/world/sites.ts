@@ -39,6 +39,8 @@ import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
+import { SQUARE_STALLS } from '../data/content/verandahSquare';
+import { STAGE_PROPS } from '../data/content/verandahStage';
 import { QUARRY_PROPS, LUMBERYARD_PROPS, TIMBERYARD_PROPS, PORT_WAREHOUSE_PROPS, FARM_WAREHOUSE_PROPS } from '../data/content/verandahWork';
 import { BUTTS_PROPS, OUTPOST_PROPS } from '../data/content/verandahGuards';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -769,6 +771,8 @@ function* planBody(): Generator<string, Plan> {
     { id: 'ver-lumberyard', name: '', x: -3310, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LUMBERYARD_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-butts', name: '', x: -3070, z: 1954, r0: 0, r1: 0, build: (s: Site) => { for (const p of BUTTS_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-outpost', name: '', x: -3136, z: 2332, r0: 0, r1: 0, build: (s: Site) => { for (const p of OUTPOST_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    { id: 'ver-stage', name: '', x: -2866, z: 2040, r0: 0, r1: 0, build: (s: Site) => { for (const p of STAGE_PROPS) s.props.push({ ...p } as PropDesc); } },
+    { id: 'ver-square', name: '', x: -3123, z: 2099, r0: 0, r1: 0, build: (s: Site) => { for (const p of SQUARE_STALLS) s.props.push({ t: 'stall', ...p }); } },
     { id: 'ver-gorran', name: '', x: -3376, z: 2298, r0: 0, r1: 0, build: (s: Site) => { for (const p of GORRAN_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-post', name: '', x: -2966, z: 2120, r0: 0, r1: 0, build: (s: Site) => { for (const p of POST_COUNTER) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 21, z: p.z, ry: p.ry }); } },
     // The Verandah Library, done over (data/content/verandahLibrary.ts)
