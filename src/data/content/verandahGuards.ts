@@ -52,7 +52,7 @@ const npcs: NpcDef[] = [
     schedule: [{ from: 7, to: 19, at: [-3109.5, 1962.5], face: [-3108.5, 1960.5], anim: 'hammer', y: 24, held: 'hammer' }],
     barks: ['Hinges for the castle, nails for the stables, a crown for the king when he sits on the last one.', 'Ruan on the docks is my cousin. Every Pascoe on the island is my cousin.'] },
   { id: 'ver_maid_kitto', name: 'Rosen Kitto', title: 'The household', look: { frame: 'f', skin: '#d8b090', hair: '#c88a3a', hairStyle: 1, eyes: '#4a6a7a', tunic: '#4a5a6a', trim: '#e8dcc0', shirt: '#e8e0d0', trousers: '#3a3430', boots: '#2a1e14', apron: true, lashes: true, age: 0.3 },
-    schedule: [{ from: 8, to: 18, at: [-3130.5, 1963.5], face: [-3132.5, 1963.5], anim: 'crouch', y: 37 }],
+    schedule: [{ from: 8, to: 18, at: [-3128.5, 1964.5], face: [-3131.5, 1963.5], anim: 'crouch', y: 37 }],
     barks: ['Twelve beds a morning. Thirteen when the steward stays over.'] },
   // the outpost on the peak
   { id: 'ver_capt_penhallow', name: 'Captain Penhallow', title: 'The outpost', look: guard('#c88a62', '#2a1e14', undefined, { facial: 2, age: 0.5, build: 1.15, cape: '#7a2a24' }),
@@ -83,7 +83,7 @@ const npcs: NpcDef[] = [
     schedule: [{ from: 6, to: 18, at: [-2926.5, 2073.5], face: [-2926.5, 2066.5], anim: 'idle', y: 67 }],
     barks: ['Sail to the north. Counties colours.', 'You can see Mizuholm from up here on a clear day.'] },
   { id: 'ver_sentry_hosking', name: 'Guard Hosking', title: 'The watch tower', look: guard('#e8c4a4', '#4a2a1e', 'f'),
-    schedule: [{ from: 18, to: 24, at: [-2925.5, 2072.5], face: [-2919.5, 2072.5], anim: 'idle', y: 67 }, { from: 0, to: 6, at: [-2925.5, 2072.5], face: [-2919.5, 2072.5], anim: 'idle', y: 67 }],
+    schedule: [{ from: 18, to: 24, at: [-2924.5, 2073.5], face: [-2919.5, 2073.5], anim: 'idle', y: 67 }, { from: 0, to: 6, at: [-2924.5, 2073.5], face: [-2919.5, 2073.5], anim: 'idle', y: 67 }],
     barks: ['Quiet night. I like a quiet night.', 'The lights in the harbour go out one by one. Then it’s just me.'] },
   // the butts
   { id: 'ver_archer_trewin', name: 'Bersaba Trewin', title: 'Master of the Butts', look: guard('#d8b090', '#2a1e14', 'f', { cape: '#3a5a2a', age: 0.5 }),

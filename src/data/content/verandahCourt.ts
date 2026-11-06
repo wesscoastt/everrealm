@@ -21,7 +21,7 @@ const npcs: NpcDef[] = [
     schedule: [{ from: 0, to: 24, at: [THRONE.x, THRONE.z], face: [THRONE.x, THRONE.z - 3], anim: 'seated', y: THRONE.y }],
     barks: ['Come in. Mind the carpet.', 'Every ship in that harbour pays my roof, and every roof in this town pays my ships.'] },
   { id: 'ver_steward', name: 'Margery Pell', title: 'Steward to the King', look: { frame: 'f', skin: '#e8c4a4', hair: '#6a4a2a', hairStyle: 5, eyes: '#4a5a3a', tunic: '#2a2a3a', trim: '#c8a050', shirt: '#e8e0d0', trousers: '#2a2620', boots: '#1e1a16', hat: 'coif', hatColor: '#e8e0d0', lashes: true, age: 0.55 },
-    schedule: [{ from: 7, to: 21, at: [-3067.5, 1921.5], face: [-3064.5, 1918.5], anim: 'idle', y: 30 }],
+    schedule: [{ from: 7, to: 21, at: [-3067.5, 1919.5], face: [-3064.5, 1917.5], anim: 'idle', y: 30 }],
     barks: ['The King sees petitioners in the morning.', 'Speak plainly. He prefers it.'] },
   { id: 'ver_kingsguard_a', name: 'Guard Hollis', title: 'The King’s Guard', look: guard('#c88a62', '#1e1612'), schedule: [{ from: 0, to: 24, at: [-3061.5, 1920.5], face: [-3061.5, 1916.5], anim: 'idle', y: 30, held: 'sword' }], barks: ['Keep your hands where I can see them.'] },
   { id: 'ver_kingsguard_b', name: 'Guard Penrose', title: 'The King’s Guard', look: guard('#e8c0a0', '#8a3a1e', 'f'), schedule: [{ from: 0, to: 24, at: [-3067.5, 1919.5], face: [-3067.5, 1916.5], anim: 'idle', y: 30, held: 'sword' }], barks: ['The King is not to be crowded.'] },

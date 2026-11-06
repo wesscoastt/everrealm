@@ -406,15 +406,7 @@ export class Frontend {
           ? `<div class="acct">Signed in as <b>${esc(this.ctx.account()!)}</b><span class="x"> · characters follow you to any device</span> <button class="link" data-a="safety">Account safety</button> · <button class="link" data-a="signout">Sign out</button></div>`
           : '<div class="acct"><button class="btn sm" data-a="signin">Sign in or create an account</button><small>Play the same characters on any PC or phone</small></div>') : ''}
       </div>
-      <aside class="fe-news frame">
-        <header><h3>In this build</h3></header>
-        <ul>
-          <li><b>The Lantern Wake.</b> Until 10 November: turnip lanterns in every town, six costumes to go guising in, and the Lantern Man walking after dark.</li>
-          <li><b>Pets.</b> Claim a free speckled hen from the store. She follows you everywhere and is no help at all.</li>
-          <li><b>Justice.</b> Every town keeps its own bounties. Pay them off, hide in the hideouts, or ride to gaol in the prison cart.</li>
-          <li><b>The Lamp Company.</b> A pledge dungeon every day, and a bonus for the day's first random dungeon.</li>
-        </ul>
-      </aside></div>
+      </div>
       <aside class="fe-roster frame">
         <header><h3>Characters</h3><small>${chars.length} / ${this.ctx.maxCharacters}</small></header>
         <div class="list">${chars.length ? chars.map((c) => {

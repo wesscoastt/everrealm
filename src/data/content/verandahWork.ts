@@ -27,7 +27,7 @@ const smith: NpcDef = {
 
 const npcs: NpcDef[] = [
   smith,
-  w('ver_dock_ruan', 'Ruan Pascoe', 'Dockhand', -2894.5, 19, 1900.5, -2894.5, 1897.5, 'hammer', 'hammer',
+  w('ver_dock_ruan', 'Ruan Pascoe', 'Dockhand', -2894.5, 19, 1900.5, -2894.5, 1899.4, 'hammer', 'hammer',
     { skin: '#c88a62', hair: '#2a1e14', hairStyle: 3, eyes: '#3a2a1e', tunic: '#5a4a3a', trim: '#3a2a1e', trousers: '#2a2a2e', boots: '#1e1a16', hat: 'kerchief', hatColor: '#7a2a24', build: 1.2 },
     ['Mind your feet, crate coming through!', 'Last tide’s still not unloaded.']),
   w('ver_dock_bryok', 'Bryok Nance', 'Dockhand', -2879.5, 16, 1895.5, -2879.5, 1892.5, 'crouch', undefined,
@@ -99,6 +99,8 @@ function pallet(x: number, y: number, z: number, kind: 'crates' | 'barrels'): Qu
 
 /** The port warehouse on the quay (floor 23): the barrels along its east wall are the owner's; the pallets fill the
  *  rest of the hall in rows, an aisle down the middle and the loading side on the west kept clear. */
+/** The crate Ruan Pascoe nails shut on the quay, and the ones he's done (owner 2026-11-06: "hammering on nothing"). */
+export const QUAY_PROPS: QuarryProp[] = [{ t: 'crate', x: -2894.5, y: 19, z: 1899.3, ry: 0.1 }, { t: 'crate', x: -2896.2, y: 19, z: 1899.6, ry: -0.2 }, { t: 'crate', x: -2896.2, y: 19.62, z: 1899.6, ry: 0.15 }, { t: 'barrel', x: -2892.8, y: 19, z: 1899.8 }];
 export const PORT_WAREHOUSE_PROPS: QuarryProp[] = [-2877, -2874, -2871, -2868].flatMap((x, i) => [1932, 1934.5, 1939.5, 1942].flatMap((z, j) => pallet(x, 23, z, (i + j) % 4 === 3 ? 'barrels' : 'crates')));
 /** The farm's warehouse (floor 24): pallets of seed, tools and sacks in two rows down the middle between the stalls,
  *  the aisle from the north door kept clear. */

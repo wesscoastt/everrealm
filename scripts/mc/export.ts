@@ -307,7 +307,9 @@ for (const piece of MC_PIECES) {
   }
   // Each door turned to swing across its doorway: walls either side along Minecraft x, the way through is along z
   {
-    const solid = (ix: number, iz: number, y: number) => ix >= 0 && iz >= 0 && ix < W && iz < D && grid[gi(ix, iz, y)] !== B.Air && grid[gi(ix, iz, y)] !== B.Water;
+    // (the other leaf of a double door counts as wall: owner 2026-11-06, double doors turned across their doorway)
+    const leaves = new Set(doorways.map((d) => d.ix + ',' + d.iz + ',' + d.gy));
+    const solid = (ix: number, iz: number, y: number) => leaves.has(ix + ',' + iz + ',' + y) || (ix >= 0 && iz >= 0 && ix < W && iz < D && grid[gi(ix, iz, y)] !== B.Air && grid[gi(ix, iz, y)] !== B.Water);
     for (const d of doorways) {
       const wallsX = solid(d.ix - 1, d.iz, d.gy) && solid(d.ix + 1, d.iz, d.gy), wallsZ = solid(d.ix, d.iz - 1, d.gy) && solid(d.ix, d.iz + 1, d.gy);
       const alongZ = wallsX || !wallsZ;

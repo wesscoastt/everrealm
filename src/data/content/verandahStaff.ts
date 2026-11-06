@@ -39,7 +39,7 @@ const KEEPERS: Keeper[] = [
     hello: 'The Screaming Mermaid. Chowder, ale, and a fire for anyone coming off the boats. Sit where you like. Not that one, that’s the cat’s.',
     about: ['Why is she screaming?', 'The sign-painter fell off his ladder halfway through her face. We kept it. Sailors like a mermaid who looks like she’s seen the bill.'],
     stock: [{ item: 'ver_ale', price: 4 }, { item: 'ver_chowder', price: 14 }, { item: 'ver_white', price: 14 }], shop: 'The Screaming Mermaid' },
-  { id: 'ver_wat', name: 'Wat Polglaze', title: 'The Boatman’s Tail', at: [-2933.5, 25, 1946.5], face: [-2933.5, 1943.5],
+  { id: 'ver_wat', name: 'Wat Polglaze', title: 'The Boatman’s Tail', at: [-2934.5, 24, 1944.5], face: [-2931.5, 1944.5],
     look: { skin: '#d8a07a', hair: '#cfcac0', hairStyle: 0, facial: 2, eyes: '#4a5a6a', tunic: '#3a3a4a', trim: '#8a8a7a', trousers: '#2a2a2a', boots: '#1e1a16', hat: 'cap', hatColor: '#2a2a3a', age: 0.75 },
     barks: ['Every boat in the harbour’s been through that door.', 'Tail, not tale. People get it wrong.'],
     hello: 'The Boatman’s Tail. Boatmen drink here, and their stories get longer the later it gets. You want ale or you want a story?',

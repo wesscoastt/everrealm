@@ -278,7 +278,19 @@ function shade(hex: string, f: number): string {
  * The face, painted on a 64-pixel square over the front of the head (the nose and any beard are
  * built on top in 3D). Rows: brows 18-22, eyes 24-31, nose shadow 39-41, mouth 46-49.
  */
+/** Faces already painted, by what shows on them: everyone who looks the same shares one (owner 2026-11-06: faces
+ *  went black after a long session in a busy town, every passer-by having painted a canvas of their own until the
+ *  browser had no more to give). */
+const FACES = new Map<string, THREE.CanvasTexture>();
 function faceTexture(a: Appearance): THREE.CanvasTexture {
+  const key = [a.skin, a.hair, a.eyes, a.frame, a.age ?? 0, a.brows ?? 0, a.eyeShape ?? 0, a.paint ?? '', a.kohl ? 1 : 0, a.lashes ? 1 : 0, a.lips ?? '', a.freckles ? 1 : 0, a.scar ? 1 : 0, facialOf(a)].join('|');
+  const had = FACES.get(key);
+  if (had) return had;
+  const t = paintFace(a);
+  FACES.set(key, t);
+  return t;
+}
+function paintFace(a: Appearance): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const x = c.getContext('2d')!;

@@ -81,11 +81,6 @@
 .fe-roster .row .btn { width: 100%; padding: 9px; }
 .fe-roster .link.danger { align-self: center; margin-top: 8px; }
 
-.fe-news { width: 280px; padding-bottom: 10px; }
-.fe-news ul { margin: 0; padding: 10px 14px 0 30px; font: 500 14.5px/1.35 var(--body); color: var(--cream-d); }
-.fe-news li { margin-bottom: 8px; }
-.fe-news li::marker { color: var(--teal); }
-.fe-news b { color: var(--cream); }
 
 .fe-enter { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; width: min(560px, calc(100vw - 32px)); }
 .fe-enter h2 { margin: 0; font: 700 34px var(--px); color: var(--cream); letter-spacing: 1px; text-shadow: 3px 3px 0 #0a0806, 0 0 18px rgba(0,0,0,0.6); }
@@ -155,7 +150,6 @@
   .fe-realm { padding: 6px 8px; gap: 8px; }
   .fe-realm .st { display: none; }
   .fe-realm .acct { padding-top: 4px; gap: 8px; } .fe-realm .acct small, .fe-realm .acct .x { display: none; }
-  .fe-news { display: none; }
   .fe-roster { left: 16px; right: 16px; width: auto; top: 54px; max-height: none; }
   /* Characters in a strip across the top, so the one you've picked stands clear below */
   .fe-roster .list { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 8px 8px 4px; scrollbar-width: thin; }

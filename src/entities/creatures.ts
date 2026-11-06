@@ -1197,7 +1197,11 @@ export class CreatureModel {
       this.body.rotation.y = walking ? Math.sin(this.phase) * 0.1 : 0;
       const swing = 0.08 + legAmp * 0.3, wave = walking ? this.phase : performance.now() * 0.0012;
       this.segs.forEach((g, i) => { g.rotation.y = Math.sin(wave - i * 0.8) * swing; });
-    } else if (this.tail) this.tail.rotation.y = Math.sin(performance.now() * (this.kind === 'dog' ? 0.016 : this.kind === 'cat' ? 0.002 : 0.008)) * (this.anim === 'run' ? 0.5 : this.kind === 'dog' ? 0.45 : 0.2);
+    } else if (this.tail) {
+      // (a dragon's or a drake's tail swings slow and heavy, not like a dog's: owner 2026-11-06)
+      const big = this.kind === 'dragon' || this.kind === 'drake';
+      this.tail.rotation.y = Math.sin(performance.now() * (this.kind === 'dog' ? 0.016 : this.kind === 'cat' ? 0.002 : big ? 0.0009 : 0.008)) * (big ? 0.12 : this.anim === 'run' ? 0.5 : this.kind === 'dog' ? 0.45 : 0.2);
+    }
     if (this.head) this.head.rotation.set(0, 0, 0);
     // A wolf pants as it stands, and its jaw opens as it gathers to bite
     if (this.jaw) this.jaw.rotation.x = this.anim === 'idle' ? 0.08 + Math.sin(t * 9) * 0.05 : this.anim === 'windup' ? 0.35 * Math.min(1, t / 0.4) : this.anim === 'attack' ? 0.55 * (1 - Math.min(1, t / 0.3)) : this.anim === 'dead' ? 0.3 : 0.05;

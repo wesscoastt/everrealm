@@ -41,7 +41,7 @@ import { POST_COUNTER } from '../data/content/verandahPost';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { SQUARE_STALLS } from '../data/content/verandahSquare';
 import { STAGE_PROPS } from '../data/content/verandahStage';
-import { QUARRY_PROPS, LUMBERYARD_PROPS, TIMBERYARD_PROPS, PORT_WAREHOUSE_PROPS, FARM_WAREHOUSE_PROPS } from '../data/content/verandahWork';
+import { QUARRY_PROPS, LUMBERYARD_PROPS, TIMBERYARD_PROPS, PORT_WAREHOUSE_PROPS, FARM_WAREHOUSE_PROPS, QUAY_PROPS } from '../data/content/verandahWork';
 import { BUTTS_PROPS, OUTPOST_PROPS } from '../data/content/verandahGuards';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
 import { lodgeAt, lodgeBase, LODGE_H, LODGE_U, LODGE_V, LODGINGS, roomBase, ROOMS, type LodgingDef } from '../data/lodgings';
@@ -765,6 +765,7 @@ function* planBody(): Generator<string, Plan> {
     })(),
     // Verandah at work (data/content/verandahWork.ts): the quarry's carts and gear, and the lumberyard by the west road
     { id: 'ver-quarry', name: '', x: -3086, z: 2040, r0: 0, r1: 0, build: (s: Site) => { for (const p of QUARRY_PROPS) s.props.push({ ...p }); } },
+    { id: 'ver-quay', name: '', x: -2895, z: 1900, r0: 0, r1: 0, build: (s: Site) => { for (const p of QUAY_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-warehouse', name: '', x: -2873, z: 1937, r0: 0, r1: 0, build: (s: Site) => { for (const p of PORT_WAREHOUSE_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-farmstore', name: '', x: -2685, z: 2226, r0: 0, r1: 0, build: (s: Site) => { for (const p of FARM_WAREHOUSE_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-timberyard', name: '', x: -2858, z: 2180, r0: 0, r1: 0, build: (s: Site) => { for (const p of TIMBERYARD_PROPS) s.props.push({ ...p }); } },

@@ -18,7 +18,7 @@ export const STAGE_PROPS: { t: 'roof' | 'bench' | 'lantern'; x: number; y: numbe
 const SETS = ['ladyday', 'wendwater', 'haulholmsey', 'fourteenewes', 'calling'];
 type Part = 'lead' | 'harmony' | 'bass' | 'drum';
 const player = (id: string, name: string, title: string, item: string, part: Part, at: [number, number], rest: [number, number], look: NpcDef['look'], barks: string[]): NpcDef => {
-  const play = { at, face: [at[0], 2036] as [number, number], anim: 'perform' as const, y: 23, held: item, play: { tunes: SETS, part } };
+  const play = { at, face: [at[0], 2036] as [number, number], anim: 'perform' as const, y: 25, held: item, play: { tunes: SETS, part } };
   const off = { at: rest, face: [rest[0], 2036] as [number, number], anim: 'idle' as const, y: 23 };
   return { id, name, title, look, barks, schedule: [
     { from: 12, to: 14, ...play }, { from: 18, to: 21.5, ...play },

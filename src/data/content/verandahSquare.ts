@@ -46,7 +46,7 @@ const STALLS: Stall[] = [
 /** The stalls round the fountain, in their colours (world/sites.ts). */
 export const SQUARE_STALLS = STALLS.map((s) => ({ x: s.stall[0], y: s.stall[1], z: s.stall[2], ry: s.ry, color: s.colour }));
 
-const npcs: NpcDef[] = STALLS.map((s) => ({ id: s.id, name: s.name, title: s.title, look: s.look, schedule: [{ from: 7, to: 20, at: s.me, face: [s.stall[0], s.stall[2]], anim: 'idle' as const, y: s.stall[1] }], barks: s.barks }));
+const npcs: NpcDef[] = STALLS.map((s) => ({ id: s.id, name: s.name, title: s.title, look: s.look, schedule: [{ from: 7, to: 20, at: s.me, face: [s.stall[0], s.stall[2]], anim: 'idle' as const, ...(s.id === 'sq_curnow' ? {} : { y: s.stall[1] }) }], barks: s.barks }));
 
 const talk = (s: Stall): DialogueTree => ({ start: () => 'hello', nodes: { hello: { text: s.hello, options: [{ text: 'Let’s see what you have.', effect: (g: GameApi) => g.openShop(s.id) }, { text: 'Good day.' }] } } });
 

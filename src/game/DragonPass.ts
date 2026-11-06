@@ -55,7 +55,7 @@ export interface DragonHost {
   quake(k: number): void;
 }
 
-interface Pass { t: number; from: THREE.Vector3; dir: THREE.Vector3; overhead: boolean; told: boolean; said: { at: number; pos: THREE.Vector3; line: string }[] }
+interface Pass { t: number; from: THREE.Vector3; dir: THREE.Vector3; overhead: boolean; told: boolean; said: { at: number; pos: THREE.Vector3; line: string }[]; y?: number }
 
 const hash = (n: number) => { let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 
@@ -100,7 +100,10 @@ export class DragonPass {
     const speed = (REACH * 2) / PASS, P = this.host.player();
     const pos = p.from.clone().addScaledVector(p.dir, speed * p.t);
     const ground = this.host.voxels.topSolid(pos.x, pos.z) + 1;
-    pos.y = Math.max(P.y, ground) + HIGH + Math.sin(p.t * 0.6) * 3;
+    // her height eased toward the ground's, not stepped with every block she passes over (owner 2026-11-06: buggy)
+    const want = Math.max(P.y, ground) + HIGH;
+    p.y = p.y === undefined ? want : p.y + (Math.max(want, p.y - 0.5) - p.y) * Math.min(1, dt * 0.35);
+    pos.y = p.y + Math.sin(p.t * 0.6) * 3;
     const R = this.model.root;
     R.position.copy(pos);
     R.rotation.set(0.08 + Math.sin(p.t * 1.1) * 0.03, Math.atan2(p.dir.x, p.dir.z), Math.sin(p.t * 0.5) * 0.08);
