@@ -123,6 +123,12 @@ const SOURCES: Source[] = [
     lines: ['From the Old Man\'s Workings under Sallow Pit, where Coll Bray\'s night shift kept the tools they took.', 'A miner\'s tool made into something else. The handle still has the shift number burnt in.'],
   },
   {
+    id: 'blackgull', name: 'Black Gull', dungeon: 'gd-blackgull', rarity: 'rare', value: 90, colours: { metal: '#9aa0a8', hilt: '#1e1e24', grip: '#2a2e36', accent: '#c8a050' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'bearded', mace: 'knob', hammer: 'pick', spear: 'leaf' },
+    nouns: { sabre: 'cutlass', dagger: 'rigging knife', axe: 'boarding axe', hammer: 'caulking hammer' },
+    families: ['sabre', 'dagger', 'axe', 'hammer', 'spear', 'falchion'],
+    lines: ['Off a wreck under the cliffs west of Verandah. The Black Gulls kept the best of what came ashore for themselves.', 'Salt has got into the grip, and nothing will get it out.'],
+  },
+  {
     id: 'barrow', name: 'Barrowborn', dungeon: 'gd-kingsbarrow', rarity: 'epic', value: 160, lean: 'leech', colours: { metal: '#8a9098', hilt: '#d8b050', grip: '#1a1a20', accent: '#9fe8ff' }, style: { guard: 'disc', pommel: 'wheel', blade: 'fuller', axe: 'bearded', mace: 'flanged', hammer: 'maul', staff: 'orb', spear: 'leaf' },
     nouns: { longsword: 'guard\'s sword', staff: 'barrow-staff' },
     families: ['longsword', 'greatsword', 'axe', 'mace', 'staff', 'spear', 'dagger'],
@@ -218,6 +224,7 @@ export const OLD_WEAPON_MODELS: Record<string, WeaponModel> = {
   brine_cutlass: { family: 'sabre', metal: '#9ad0e0', hilt: '#c8a050', grip: '#5a3a24' },
   harrow_cleaver: { family: 'cleaver', metal: '#a86a4a', hilt: '#3a1410', grip: '#2a1a12' },
   starglass_edge: { family: 'sword', metal: '#a8f0ff', hilt: '#2a8ab0', grip: '#2a3a42', glow: '#9fe8ff' },
+  ennor_cutlass: { family: 'sabre', metal: '#c8c8d0', hilt: '#1e1e24', grip: '#2a2e36' },
   bray_hanger: { family: 'sabre', metal: '#b8bcc0', hilt: '#c8a050', grip: '#5a3a2a' },
   fell_knife: { family: 'dagger', metal: '#dfe4ea', hilt: '#4a3a2a', grip: '#d8c8a8' },
   u_dancey_billhook: { family: 'falchion', metal: '#a8b0a0', hilt: '#4a3a24', grip: '#5a4a2a' },

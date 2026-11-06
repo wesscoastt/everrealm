@@ -95,6 +95,7 @@ export interface DungeonDef {
 const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap', ...(DUNGEON_WEAPONS['gd-oldman'] ?? [])];
 const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood', ...(DUNGEON_WEAPONS['gd-kettle'] ?? [])];
 const ESC_GEAR = [...dungeonArmour('gd-escapement'), ...(DUNGEON_WEAPONS['gd-escapement'] ?? [])];
+const BG_GEAR = [...dungeonArmour('gd-blackgull'), ...(DUNGEON_WEAPONS['gd-blackgull'] ?? [])];
 const KB_GEAR = [...dungeonArmour('gd-kingsbarrow'), ...(DUNGEON_WEAPONS['gd-kingsbarrow'] ?? [])];
 
 export const DUNGEONS: DungeonDef[] = [
@@ -334,6 +335,66 @@ export const DUNGEONS: DungeonDef[] = [
       { x: MORROW_OX + 893, z: -1886, r: 11, said: 'That\'s a bier. And that\'s a king on it. And that\'s your Mr Pryce.', seen: 'At the far end of the hall, a bier on a stone step, and a long man in a grey coat beside it with a lamp.' },
     ],
     chest: { xp: 26000, marks: 600, items: ['grave_iron', 'grave_iron', 'grave_iron', 'black_shard', 'black_shard', 'troll_hide'] },
+  },
+  {
+    id: 'gd-blackgull', name: 'Black Gull Keep', where: 'the old keep west of Verandah', level: 26,
+    blurb: 'The old keep west of the Charter yard has stood empty since the king’s grandfather moved his court into the town. Last winter the Black Gulls moved in: wreckers, who light false lamps on the cliffs on foul nights and strip whatever the sea brings ashore. The King’s Guard has tried the gate twice. There are people in the cells.',
+    door: [-3384.5, 17, 2137.5], out: [-3384.5, 17, 2139.5, 0],
+    bosses: [
+      {
+        title: 'The gaoler',
+        pull: ['Mother Skewes', 'More for the cells. Good. The others were getting lonely.'],
+        adds: [{ at: 0.5, types: ['dg_bg_wrecker', 'dg_bg_wrecker'], line: ['Mother Skewes', 'Boys! Down from the gallery, we’ve company!'] }],
+        hazard: { every: 9, count: 2, r: 3, windup: 1.6, damage: 46, color: '#9aa0a8', line: 'Mother Skewes yanks the chains, and the gallery drops its irons.' },
+        fall: ['Mother Skewes', 'The keys are on the hook. Let them out, then. They’ll only drown in the next one.'],
+        moves: [
+          { kind: 'cone', every: 11, windup: 1.3, damage: 42, r: 4.5, w: 100, color: '#c8c8d0', line: 'Mother Skewes swings the ring of keys round her head.' },
+          { kind: 'charge', every: 16, windup: 1.3, damage: 44, r: 12, w: 2.4, color: '#ff7a40', line: 'Mother Skewes lowers her head at {name}.' },
+        ],
+        phase: ['Mother Skewes', 'Forty years I’ve kept this gaol. I’m not done.'],
+        drops: BG_GEAR, chance: 0.6,
+      },
+      {
+        title: 'The keeper of the false light',
+        pull: ['Vellanoweth', 'You’ve come up on the wrong night. The weather’s turning. I’ve a lamp to light.'],
+        adds: [
+          { at: 0.66, types: ['dg_bg_lamp', 'dg_bg_lamp'], line: ['Vellanoweth', 'Lamps! Bring the lamps!'] },
+          { at: 0.33, types: ['dg_bg_hound', 'dg_bg_hound'], line: ['Vellanoweth', 'Let the dogs off.'] },
+        ],
+        hazard: { every: 8, count: 3, r: 3.2, windup: 1.8, damage: 48, color: '#ffb040', line: 'Oil runs across the floor, and Vellanoweth drops his lamp into it.' },
+        fall: ['Vellanoweth', 'Twenty-two ships. I counted every one. Go on, count them for me. I’ve lost my place.'],
+        moves: [
+          { kind: 'nova', every: 15, windup: 2.0, damage: 56, r: 6.5, color: '#ffb040', line: 'Vellanoweth raises his lamp high. Get away from him.' },
+          { kind: 'stack', every: 18, windup: 3.0, damage: 90, r: 3, color: '#ffd080', line: 'Vellanoweth throws the oil at {name}. Stand together and share the burn.' },
+        ],
+        phase: ['Vellanoweth', 'The wind’s up. Can you hear it? That’s a ship coming.'],
+        drops: ['lampman_hood', ...BG_GEAR], chance: 0.6,
+      },
+      {
+        title: 'The captain of the Black Gulls',
+        pull: ['Hawke Ennor', 'The king sent you, did he? Tell him the sea brought it. The sea doesn’t pay tolls.'],
+        adds: [
+          { at: 0.66, types: ['dg_bg_wrecker', 'dg_bg_wrecker'], line: ['Hawke Ennor', 'All hands!'] },
+          { at: 0.33, types: ['dg_bg_wrecker', 'dg_bg_lamp', 'dg_bg_hound'], line: ['Hawke Ennor', 'Everyone! Everyone up here, now!'] },
+        ],
+        hazard: { every: 10, count: 2, r: 3.5, windup: 1.8, damage: 52, color: '#c8c8d0', line: 'The wind takes the shutters off the tower windows. Glass and lead come down.' },
+        fall: ['Hawke Ennor', 'Every ship that came ashore was going to sink somewhere. I only chose where.'],
+        moves: [
+          { kind: 'charge', every: 12, windup: 1.3, damage: 58, r: 14, w: 2.6, color: '#c8c8d0', line: 'Hawke Ennor sets his feet and runs at {name}.' },
+          { kind: 'cone', every: 10, windup: 1.2, damage: 54, r: 5, w: 110, color: '#ff8a5a', line: 'Hawke Ennor draws the cutlass back for a wide cut.' },
+          { kind: 'stack', every: 20, windup: 3.0, damage: 100, r: 3, color: '#9fd8ff', line: 'Hawke Ennor marks {name} for the boarding axe. Stand together.' },
+        ],
+        phase: ['Hawke Ennor', 'Not my keep. Not my ships. Not tonight.'],
+        drops: ['ennor_cutlass', ...BG_GEAR], chance: 1,
+      },
+    ],
+    notes: [
+      { x: -3384.5, z: 2127.5, r: 6, who: 'osgood', said: 'Cells. Somebody’s been kept in here a long while. There are marks on the wall, counting days.', seen: 'The gatehouse cells. The walls are scratched with tallies, days counted in fives.' },
+      { x: -3374.5, z: 2113.5, r: 8, who: 'tom', said: 'That’s ship’s gear. Sailcloth, cable, a figurehead. None of it bought.', seen: 'The great hall, stacked with ship’s gear: sailcloth, cable, the figurehead off a brig.' },
+      { x: -3384.5, z: 2104.5, r: 9, who: 'edith', said: 'Lamp oil, barrels of it. They’re not lighting the keep with that.', seen: 'Barrels of lamp oil, enough to light a lighthouse for a winter.' },
+      { x: -3384.5, z: 2120.5, r: 7, said: 'You can see the whole coast from up here. Every rock a ship could come in on.', seen: 'The tower top. The whole coast west of Verandah is laid out below it, rocks and all.' },
+    ],
+    chest: { xp: 3200, marks: 140, items: ['sailcloth', 'sailcloth', 'ship_cable', 'iron_fittings', 'pine_tar', 'pine_tar'] },
   },
 ];
 

@@ -10,6 +10,9 @@
 // The authored Hollindale valley is built by structures.ts on its own grid and isn't covered here.
 
 import { inMcLand } from '../src/world/mcland';
+import { MC_THINGS } from '../src/data/mcSigns';
+/** The owner's ladders (Verandah): climbed up and down as in the game (entities/Player.ts). */
+const LADDERS = new Set<string>(MC_THINGS.filter((t) => t[0] === 'mcladder').map((t) => `${Math.floor(t[1] as number)},${t[2]},${Math.floor(t[3] as number)}`));
 import { BLOCKS, B } from '../src/world/blocks';
 import { Overrides, plan, PropDesc, PropType } from '../src/world/sites';
 import { GW, heightAt, SEA } from '../src/world/terrain';
@@ -149,7 +152,9 @@ function reachable(id: string, a: NonNullable<(typeof P.sites)[number]['act']>) 
   if (a.arrive) goals.push(['arrival', a.arrive]);
   if (!a.chest || !goals.length || (a.kind !== 'dungeon' && a.kind !== 'delve' && a.kind !== 'group')) return;
   if (water(a.chest[0], a.chest[1], a.chest[2])) return; // under the sea: swum, not walked
-  const walk = (x: number, y: number, z: number) => solid(x, y - 1, z) && !solid(x, y, z) && !solid(x, y + 1, z);
+  if (inMcLand(a.chest[0], a.chest[2])) return; // the owner's own buildings (Verandah): their blocks aren't loaded here (walked in game: Black Gull Keep)
+  const lad = (x: number, y: number, z: number) => LADDERS.has(`${x},${y},${z}`);
+  const walk = (x: number, y: number, z: number) => (solid(x, y - 1, z) || lad(x, y, z) || lad(x, y - 1, z)) && !solid(x, y, z) && !solid(x, y + 1, z);
   const K = (x: number, y: number, z: number) => `${x},${y},${z}`;
   const [sx, sy, sz] = a.chest.map(Math.floor);
   const seen = new Set<string>([K(sx, sy, sz)]);
@@ -158,6 +163,8 @@ function reachable(id: string, a: NonNullable<(typeof P.sites)[number]['act']>) 
   while (queue.length && seen.size < 400000) {
     const [x, y, z] = queue.pop()!;
     if (y >= heightAt(x, z)) sky = true;
+    // up and down a ladder, rung by rung
+    for (const dy of [1, -1]) { const ny = y + dy; if ((lad(x, y, z) || lad(x, ny, z) || lad(x, y - 1, z)) && !seen.has(K(x, ny, z)) && !solid(x, ny, z) && !solid(x, ny + 1, z)) { seen.add(K(x, ny, z)); queue.push([x, ny, z]); } }
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (const dy of [0, 1, -1, -2, -3]) {
       const nx = x + dx, ny = y + dy, nz = z + dz;
       if (Math.abs(nx - sx) > 120 || Math.abs(nz - sz) > 120 || seen.has(K(nx, ny, nz))) continue;

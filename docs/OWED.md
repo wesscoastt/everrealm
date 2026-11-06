@@ -91,6 +91,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 4p. **Quest clues you can see, as in The Witcher 3** (owner 2026-11-06: "things in the world you find for quests need to actually be in the world, say you find footprints or something, you need to see it"). Today a quest's search spot (data/places_regional.ts WorldThing, in content files' things) is an empty place with a prompt. Give WorldThing a look (tracks leading off in a line, blood, a dropped satchel, a letter, a broken cart, scorch marks, a grave, bones, a snapped arrow, spilled grain...), draw it in the world while the quest needs it (and gone, or changed, once it's found), with a faint glint so the eye finds it; then every quest's search spots given their look, all of them, checked in game. After 4o.
 
+
 ## B. Owed from earlier, still open
 
 7. **Ships**: walkable decks on moored ships everywhere, ship interiors (owner 2026-10-23).
@@ -239,6 +240,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
         7. Mizuholm's rice paddies (flooded fields, planted in rows), tea bushes and the Japanese way of farming.
     12. Graphics overhaul (owner 2026-11-05: "feel more like it was built in an engine like Unity"), and northern lights over the northern lands. The owner's reference shots (2026-11-06, docs/graphics-ref/): golden-hour light with sun shafts through the trees and soft lit cumulus; deep soft shadows and moss on old stone; the northern lights in green and violet curtains over a snowy coast with stars; firelight warm on faces and walls with smoke; a starry night, a big moon, lit windows glowing. More (2026-11-06): rain in a brown haze, the sun a pale disc through it, ridges fading into fog layer by layer (6-rain-haze.avif); a dark hall lit only by candles on a table, moonlight in the windows; a snowstorm, icicles on the cliff, torches glowing in the mist, a palisade with snow on every post. The bar to build to.
     10. Dungeons unlock as you level, the way MMOs do (owner 2026-11-05): each group dungeon and delve has a level it opens at; the dungeon finder and the door say what level it needs, you're told when a new one opens, and the finder lists what's coming next.
+
+    99. LAST, after the whole prompt list (owner 2026-11-06): **Mages and Fighters Guilds in the main cities, each with its questline** (owner 2026-11-06: "add mages and fighters guilds to main cities and give questlines for each later on"). A Mages Guild and a Fighters Guild hall in each main city (Ansbury, Gullmouth, Callis and the other capitals), staffed, a guild to join (rank, dues, a guild vendor, the guild's training); then a questline for each guild, BioWare-written, rising through the ranks, its chapters across the cities (Verandah's two halls, already staffed, become chapters of them).
 
 ## C. Waiting on the owner
 

@@ -772,6 +772,32 @@ function* planBody(): Generator<string, Plan> {
     { id: 'ver-lumberyard', name: '', x: -3310, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LUMBERYARD_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-butts', name: '', x: -3070, z: 1954, r0: 0, r1: 0, build: (s: Site) => { for (const p of BUTTS_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-outpost', name: '', x: -3136, z: 2332, r0: 0, r1: 0, build: (s: Site) => { for (const p of OUTPOST_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    // Black Gull Keep (data/dungeons.ts): the owner's castle west of the Charter yard, its keep held by wreckers;
+    // a group goes in at the south gate, through the great hall to the gaoler, up to the chamber on the second
+    // floor for the lampman, and up the tower to the captain on the top floor (no halls to build: the owner's own)
+    { id: 'gd-blackgull', name: 'Black Gull Keep', x: -3384, z: 2114, r0: 0, r1: 0, build: (s: Site) => {
+      const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
+      s.act = {
+        kind: 'group',
+        arrive: [-3384.5, 17, 2137.5],
+        exit: [-3384.5, 17, 2139.5],
+        packs: [
+          [m(-3372.5, 18, 2112.5, 'dg_bg_wrecker'), m(-3371.5, 18, 2115.5, 'dg_bg_wrecker'), m(-3374.5, 18, 2114.5, 'dg_bg_lamp')],
+          [m(-3380.5, 18, 2111.5, 'dg_bg_hound'), m(-3379.5, 18, 2116.5, 'dg_bg_hound'), m(-3381.5, 18, 2114.5, 'dg_bg_wrecker')],
+          [m(-3377.5, 29, 2105.5, 'dg_bg_wrecker'), m(-3376.5, 29, 2106.5, 'dg_bg_wrecker'), m(-3373.5, 29, 2108.5, 'dg_bg_lamp')],
+          [m(-3394.5, 29, 2120.5, 'dg_bg_hound'), m(-3391.5, 29, 2120.5, 'dg_bg_hound')],
+          [m(-3384.5, 39, 2106.5, 'dg_bg_wrecker'), m(-3382.5, 39, 2106.5, 'dg_bg_wrecker')],
+          [m(-3384.5, 39, 2120.5, 'dg_bg_lamp'), m(-3382.5, 39, 2119.5, 'dg_bg_hound')],
+        ],
+        bosses: [
+          { at: [-3395.5, 18, 2113.5], type: 'dg_bg_skewes', crew: [m(-3394.5, 18, 2110.5, 'dg_bg_wrecker'), m(-3394.5, 18, 2116.5, 'dg_bg_wrecker')] },
+          { at: [-3384.5, 29, 2113.5], type: 'dg_bg_vellanoweth', crew: [m(-3388.5, 29, 2110.5, 'dg_bg_lamp'), m(-3380.5, 29, 2116.5, 'dg_bg_lamp')] },
+          { at: [-3384.5, 48, 2116.5], type: 'dg_bg_ennor' },
+        ],
+        chest: [-3384.5, 48, 2110.5],
+      };
+      s.props.push({ t: 'furn', item: 'chest', x: -3384.5, y: 48, z: 2110.5, ry: 0 });
+    } },
     { id: 'ver-stage', name: '', x: -2866, z: 2040, r0: 0, r1: 0, build: (s: Site) => { for (const p of STAGE_PROPS) s.props.push({ ...p } as PropDesc); } },
     { id: 'ver-square', name: '', x: -3123, z: 2099, r0: 0, r1: 0, build: (s: Site) => { for (const p of SQUARE_STALLS) s.props.push({ t: 'stall', ...p }); } },
     { id: 'ver-gorran', name: '', x: -3376, z: 2298, r0: 0, r1: 0, build: (s: Site) => { for (const p of GORRAN_PROPS) s.props.push({ ...p }); } },

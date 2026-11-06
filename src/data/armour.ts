@@ -165,6 +165,37 @@ const LINES: Line[] = [
       feet: ['Verdigris boots', 'Shod with shell at the toe. They don\'t rust; they\'re rust already.'],
     },
   },
+  // Black Gull Keep (group dungeon, Verandah): its bosses drop these
+  {
+    id: 'wreckerslop', weight: 'light', set: 'blackgull', dungeon: 'gd-blackgull', rarity: 'rare', value: 80, colour: '#2a2e36', trim: '#8a8a7a',
+    look: { chest: { top: 3, tunic: '#2a2e36', trim: '#8a8a7a', shirt: '#a8a090' }, legs: { trousers: '#2a2620', legs: 1, hose: '#3a362e' }, hands: { gloves: '#2a2622' }, feet: { boots: '#1e1a16', shoes: 1 } },
+    pieces: {
+      chest: ['Wrecker’s slops', 'A sailor’s smock, tarred against the rain and dyed black against the moon.'],
+      legs: ['Wrecker’s breeches', 'Canvas, cut short for wading out to a wreck at low water.'],
+      hands: ['Wrecker’s mitts', 'Rope-burned across the palms.'],
+      feet: ['Wrecker’s boots', 'Soft soles for the rocks. The Black Gulls never wore nails.'],
+    },
+  },
+  {
+    id: 'blackgull', weight: 'medium', set: 'blackgull', dungeon: 'gd-blackgull', rarity: 'rare', value: 80, colour: '#1e1e24', trim: '#c8c8d0',
+    look: { chest: { top: 6, tunic: '#1e1e24', trim: '#c8c8d0', chestArmour: { style: 'brigandine', color: '#2a2e36', trim: '#c8c8d0' } }, legs: { trousers: '#1e1e24', legs: 1, hose: '#2a2e36' }, hands: { gloves: '#1e1e22', bracers: { style: 'leather', color: '#1e1e22' } }, feet: { boots: '#141418', shoes: 1 } },
+    pieces: {
+      chest: ['Black Gull jerkin', 'Ship’s leather riveted with brass off a dozen wrecks. A white gull is stitched on the back, small.'],
+      legs: ['Black Gull breeches', 'Leather at the knee, for kneeling on wet deck.'],
+      hands: ['Black Gull gloves', 'Thin enough to work a knot in the dark.'],
+      feet: ['Black Gull boots', 'Sea boots, turned down, the tops stuffed with rag against the cold.'],
+    },
+  },
+  {
+    id: 'keepplate', weight: 'heavy', set: 'blackgull', dungeon: 'gd-blackgull', rarity: 'rare', value: 95, colour: '#8a9098', trim: '#5a2a24',
+    look: { chest: { top: 4, tunic: '#5a2a24', trim: '#8a9098', chestArmour: { style: 'plate', color: '#8a9098', trim: '#5a2a24' }, shoulders: { style: 'round', color: '#8a9098', trim: '#5a2a24' } }, legs: { trousers: '#3a2a22', legs: 0, legArmour: { style: 'plate', color: '#8a9098' } }, hands: { gloves: '#3a2a22', bracers: { style: 'plate', color: '#8a9098' } }, feet: { boots: '#2a2018', shoes: 1, sabatons: { color: '#8a9098' } } },
+    pieces: {
+      chest: ['Old keep plate', 'The keep’s own armour from its armoury, a hundred years out of date and as good as the day it was made.'],
+      legs: ['Old keep greaves', 'The king’s grandfather’s men wore these on the wall.'],
+      hands: ['Old keep gauntlets', 'The leather has been renewed. The steel hasn’t needed to be.'],
+      feet: ['Old keep sabatons', 'They ring on stone. The keep was built for them to.'],
+    },
+  },
   // Under the Kettle (group dungeon): Kelderby's fold, its bosses drop these
   {
     id: 'fleece', weight: 'light', set: 'fold', dungeon: 'gd-kettle', rarity: 'epic', value: 90, colour: '#e8e2d2', trim: '#6a5a4a',
