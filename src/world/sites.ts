@@ -38,6 +38,7 @@ import { XAVIER_SHOWROOM } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
+import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { QUARRY_PROPS, LUMBERYARD_PROPS, PORT_WAREHOUSE_PROPS, FARM_WAREHOUSE_PROPS } from '../data/content/verandahWork';
 import { BUTTS_PROPS, OUTPOST_PROPS } from '../data/content/verandahGuards';
 import { stableAt, STABLES, stableYaw, type StableDef } from '../data/stables';
@@ -767,6 +768,7 @@ function* planBody(): Generator<string, Plan> {
     { id: 'ver-lumberyard', name: '', x: -3310, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LUMBERYARD_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-butts', name: '', x: -3070, z: 1954, r0: 0, r1: 0, build: (s: Site) => { for (const p of BUTTS_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-outpost', name: '', x: -3136, z: 2332, r0: 0, r1: 0, build: (s: Site) => { for (const p of OUTPOST_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    { id: 'ver-gorran', name: '', x: -3376, z: 2298, r0: 0, r1: 0, build: (s: Site) => { for (const p of GORRAN_PROPS) s.props.push({ ...p }); } },
     { id: 'ver-post', name: '', x: -2966, z: 2120, r0: 0, r1: 0, build: (s: Site) => { for (const p of POST_COUNTER) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 21, z: p.z, ry: p.ry }); } },
     // The Verandah Library, done over (data/content/verandahLibrary.ts)
     { id: 'ver-library', name: '', x: -2945, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LIBRARY_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 23, z: p.z, ry: p.ry }); } },
@@ -9554,6 +9556,12 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
   // Verandah, the owner's port town (world/mcland.ts): a waymark on each of the waystones they set there (an
   // add-on's), named for what stands by it; set by hand (the planner's ground doesn't know the town's own blocks)
   const mcHost = sites.find((x) => x.id === 'mc-city');
+  // and waymarks of the game's own where the owner set no waystone (Gorran, behind the Arena)
+  if (mcHost) for (const w of [GORRAN_WAYMARK]) {
+    const ry = Math.PI;
+    mcHost.props.push({ t: 'waymark', x: w.x, y: w.y, z: w.z, ry, theme: 'gannet' });
+    out.push({ id: 'wm-mc-' + w.name.toLowerCase(), name: w.name, x: w.x, z: w.z, y: w.y, theme: 'gannet', ry, ax: w.x, az: w.z + 2.5 });
+  }
   if (mcHost) for (const w of MC_WAYSTONES) {
     const near = (re: RegExp, r: number) => MC_SIGNS.some((g) => re.test(g.text.split(String.fromCharCode(10)).join(' ')) && Math.hypot(g.x - w.x, g.z - w.z) < r);
     // (the name the owner gave it in Minecraft, where the add-on kept one)

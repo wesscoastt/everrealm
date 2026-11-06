@@ -1,4 +1,5 @@
 import { MC_HOUSES, MC_SIGNS, MC_WAYSTONES } from './mcSigns';
+import { GORRAN_WAYMARK } from './content/gorran';
 import { inOwnerHome } from './content/ownerHome';
 
 // Verandah's houses for sale (owner 2026-11-05: "allow the exterior homes in Verandah to be purchased by players
@@ -53,7 +54,7 @@ function build(): VerandahHome[] {
   const count = new Map<string, number>();
   return out.slice(0, 99).map((h, i) => {
     const cx = (h.x0 + h.x1) / 2, cz = (h.z0 + h.z1) / 2;
-    const near = MC_WAYSTONES.filter((w) => w.name).sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0];
+    const near = [...MC_WAYSTONES.filter((w) => w.name), GORRAN_WAYMARK].sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0];
     const area = near?.name ?? 'Verandah', n = (count.get(area) ?? 0) + 1;
     count.set(area, n);
     return { ...h, id: 'vh' + (i + 1), name: `No. ${n}, ${area}` };
