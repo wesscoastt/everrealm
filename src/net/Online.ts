@@ -194,6 +194,8 @@ export interface OnlineHooks {
   hallRefund?(item: string | null, n: number, why: string): void;
   /** Groups and trades (game/Social.ts). */
   group?(v: GroupView): void;
+  /** Your group's plot on the public fields (server/plots.mjs): its tiles, or null when you're in no group. */
+  groupPlot?(owner: string | null, tiles: Record<string, unknown> | null): void;
   groupInvited?(from: string): void;
   tradeAsked?(from: string): void;
   /** A creature someone else killed, and how long (ms) until it's back; the whole list on joining. */
@@ -397,7 +399,8 @@ export class Online {
       case 'uHallRefund': this.hooks.hallRefund?.(typeof m.item === 'string' ? m.item : null, Number(m.n) || 0, String(m.why ?? '')); break;
       case 'uInvited': this.hooks.guildInvited?.(String(m.from), String(m.guild)); break;
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
-      case 'group': this.hooks.group?.(m as unknown as GroupView); break;
+      case 'group': this.hooks.group?.(m as unknown as GroupView); this.emit({ t: 'gpGet' }); break;
+      case 'gplot': this.hooks.groupPlot?.(typeof m.owner === 'string' ? m.owner : null, m.tiles && typeof m.tiles === 'object' ? (m.tiles as Record<string, unknown>) : null); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
       case 'wbSeek': this.hooks.wbSeek?.(typeof m.boss === 'string' ? m.boss : null); break;
       case 'lfg': if (Array.isArray(m.list)) this.hooks.lfg?.(m.list as LfgNotice[]); break;
@@ -707,6 +710,8 @@ export class Online {
   /** The book of homes: lease one (spec: plans it's already built to), give it up, build or rebuild, lay blocks by hand. */
   homeClaim(id: string, spec?: unknown, blocks?: unknown): void { this.emit({ t: 'hClaim', id, spec, blocks }); }
   homeRelease(id: string): void { this.emit({ t: 'hRelease', id }); }
+  groupPlotGet(): void { this.emit({ t: 'gpGet' }); }
+  groupPlotSet(k: string, tile: unknown): void { this.emit({ t: 'gpSet', k, tile }); }
   homeOffer(id: string, to: string, price: number): void { this.emit({ t: 'hOffer', id, to, price }); }
   homeAccept(id: string): void { this.emit({ t: 'hAccept', id }); }
   homeDecline(id: string): void { this.emit({ t: 'hDecline', id }); }

@@ -181,7 +181,7 @@ import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
-import { HERDS, HomeFarm } from './HomeFarm';
+import { HERDS, HomeFarm, type Tile as GardenTile } from './HomeFarm';
 import { VerandahPatrols } from './VerandahPatrols';
 import { WallWatch } from './WallWatch';
 import { serverUrl } from '../net/Online';
@@ -1044,6 +1044,8 @@ export class Game implements GameApi {
       fields: () => fields,
       groupNearby: () => this.social.groupNearby(),
       scarecrow: () => this.home.pieces().some(([item]) => ITEMS[item]?.furn?.model === 'scarecrow'),
+      groupPlot: () => (this.online.online ? this.groupPlotTiles : null),
+      groupPlotSet: (k, t) => { if (this.groupPlotTiles) { if (t) this.groupPlotTiles[k] = t; else delete this.groupPlotTiles[k]; } this.online.groupPlotSet(k, t); },
       garden: () => {
         // your house's footprint, and ten blocks of yard round it; the owner's house in Verandah, its grounds
         if (isHomeOwner(this.accountName())) return { house: [-2482, 2383, -2466, 2402], yard: [OWNER_HOME.x0, OWNER_HOME.z0, OWNER_HOME.x1, OWNER_HOME.z1] };
@@ -1568,6 +1570,7 @@ export class Game implements GameApi {
         if (h) this.homesBook.set(id, h); else this.homesBook.delete(id);
         this.homesVer++;
       },
+      groupPlot: (owner, tiles) => { const had = !!this.groupPlotTiles; this.groupPlotTiles = tiles as Record<string, GardenTile> | null; if (tiles && !had && owner) this.hud.system(`Your group farms together: what you till on the public fields is ${owner}'s group plot, sown, watered and picked by any of you.`); this.garden.refresh(); },
       homeOffered: (id, from, price) => this.homeOffered(id, from, price),
       homeOfferAns: (ok, why, to) => {
         this.hud.system(ok ? `Your offer has gone to ${to}. It stands for ten minutes.` : why === 'declined' ? `${to} turned your offer down.` : why === 'hasHome' ? `${to} has a home already: they would have to give it up first.` : `There is nobody called ${to} in the world just now.`);
@@ -2666,6 +2669,8 @@ export class Game implements GameApi {
   }
 
   private offerAt: { id: string; price: number; from: string } | null = null;
+  /** Your group's plot on the public fields, as the realm last sent it (null: no group). */
+  private groupPlotTiles: Record<string, GardenTile> | null = null;
   private homeOffered(id: string, from: string, price: number): void {
     const name = this.homeName(id);
     this.hud.ask(`${from} offers to sell you ${name} for ${price.toLocaleString()} marks. Buy it?`, () => {

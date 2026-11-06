@@ -17,6 +17,10 @@ import * as P from '../world/props';
 // in a few strokes. (The orchard patches, a tree each, are still game/Farming.ts.)
 
 export interface GardenHost {
+  /** Your group's plot on the public fields (server/plots.mjs), or null when you're in no group or playing offline. */
+  groupPlot(): Record<string, Tile> | null;
+  /** Change one tile of it, for the whole group (null clears it). */
+  groupPlotSet(k: string, t: Tile | null): void;
   /** A scarecrow set out at home: the birds keep off the garden, and every harvest is one more. */
   scarecrow(): boolean;
   scene: THREE.Scene;
@@ -45,7 +49,7 @@ export interface GardenHost {
 }
 
 /** A tilled tile: its crop, how far grown (0..1), when that was worked out, wet until when, composted, and how much of its growing was wet. */
-interface Tile { c?: string; p: number; u: number; wu: number; k?: 1; wet: number; all: number }
+export interface Tile { c?: string; p: number; u: number; wu: number; k?: 1; wet: number; all: number }
 
 /** The cans, best first: how far round the tile they reach, and how many minutes the ground stays wet. */
 export const CANS: { item: string; reach: number; wetMin: number }[] = [
@@ -132,8 +136,25 @@ export class HomeFarm {
     this.refresh();
   }
 
-  private tiles(): Record<string, Tile> { const v = this.host.flag('garden'); return v && typeof v === 'object' ? (v as Record<string, Tile>) : {}; }
-  private save(t: Record<string, Tile>): void { this.host.setFlag('garden', t); this.host.persist(); }
+  private own(): Record<string, Tile> { const v = this.host.flag('garden'); return v && typeof v === 'object' ? (v as Record<string, Tile>) : {}; }
+  /** Your garden's tiles, and, in a group, the group's plot on the public fields over them. */
+  private tiles(): Record<string, Tile> { const gp = this.host.groupPlot(); return gp ? { ...this.own(), ...gp } : this.own(); }
+  /**
+   * Keep the tiles: in a group, a tile on a public field that's the group's (or newly tilled there) goes to the
+   * group's plot, for everyone in it; the rest are your own, as ever.
+   */
+  private save(t: Record<string, Tile>): void {
+    const gp = this.host.groupPlot();
+    if (!gp) { this.host.setFlag('garden', t); this.host.persist(); return; }
+    const own = this.own(), mine: Record<string, Tile> = {};
+    for (const k of new Set([...Object.keys(t), ...Object.keys(gp)])) {
+      const [x, z] = k.split(',').map(Number);
+      const shared = k in gp || (!(k in own) && this.zone(x, z) === 'field');
+      if (!shared) { if (t[k]) mine[k] = t[k]; continue; }
+      if (JSON.stringify(t[k] ?? null) !== JSON.stringify(gp[k] ?? null)) this.host.groupPlotSet(k, t[k] ?? null);
+    }
+    this.host.setFlag('garden', mine); this.host.persist();
+  }
 
   /** A tile brought up to now: how far it's grown, wet or dry. */
   private grow(t: Tile, now = Date.now()): Tile {
@@ -314,7 +335,7 @@ export class HomeFarm {
     this.host.scene.add(group);
     this.drawn = { group, key };
   }
-  private refresh(): void { this.checkAt = 0; if (this.drawn) this.drawn.key = '!'; }
+  refresh(): void { this.checkAt = 0; if (this.drawn) this.drawn.key = '!'; }
 
   private draw(all: Record<string, Tile>, now: number, raining: boolean, herds: Herd[] = []): THREE.Group {
     const batch = new P.Batcher();
