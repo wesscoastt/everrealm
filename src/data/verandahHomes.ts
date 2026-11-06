@@ -1,4 +1,4 @@
-import { MC_HOUSES, MC_SIGNS, MC_WAYSTONES } from './mcSigns';
+import { MC_HOUSES, MC_SIGNS, MC_THINGS, MC_WAYSTONES } from './mcSigns';
 import { GORRAN_WAYMARK } from './content/gorran';
 import { inOwnerHome } from './content/ownerHome';
 
@@ -21,6 +21,8 @@ export interface VerandahHome {
   /** Floor area, blocks. */
   area: number;
   price: number;
+  /** Every door into it from outside (front and back), and which way it faces out: [x, z, ry]; its FOR SALE board stands by each. */
+  doors: [number, number, number][];
 }
 
 /** Signs that don't make a building public: a house's own, a mailbox, a name. */
@@ -37,7 +39,7 @@ function build(): VerandahHome[] {
   }
   const houses = new Map<number, typeof rooms>();
   rooms.forEach((r, i) => { const k = find(i); let l = houses.get(k); if (!l) houses.set(k, (l = [])); l.push(r); });
-  const out: Omit<VerandahHome, 'id' | 'name'>[] = [];
+  const out: Omit<VerandahHome, 'id' | 'name' | 'doors'>[] = [];
   for (const list of houses.values()) {
     const x0 = Math.min(...list.map((r) => r.x0)), x1 = Math.max(...list.map((r) => r.x1)), z0 = Math.min(...list.map((r) => r.z0)), z1 = Math.max(...list.map((r) => r.z1));
     const base = Math.min(...list.map((r) => r.base)), area = list.reduce((a, r) => a + r.area, 0);
@@ -52,7 +54,23 @@ function build(): VerandahHome[] {
   out.sort((a, b) => a.x0 - b.x0 || a.z0 - b.z0);
   // addresses: numbered within the nearest waystone's neighbourhood
   const count = new Map<string, number>();
-  return out.slice(0, 99).map((h, i) => {
+  // the doors: the owner's doors just outside the house's walls, on its ground floor
+  const mcDoors = MC_THINGS.filter((t) => t[0] === 'mcdoor').map((t) => [Math.floor(+t[1]), +t[2], Math.floor(+t[3])]);
+  const doorsOf = (h: Omit<VerandahHome, 'id' | 'name' | 'doors'>): [number, number, number][] => {
+    const list: [number, number, number][] = [];
+    for (const [x, y, z] of mcDoors) {
+      if (Math.abs(y - h.base) > 1.5) continue;
+      const inX = x >= h.x0 && x <= h.x1, inZ = z >= h.z0 && z <= h.z1;
+      if (inX && z === h.z1 + 1) list.push([x, z, 0]);
+      else if (inX && z === h.z0 - 1) list.push([x, z, Math.PI]);
+      else if (inZ && x === h.x1 + 1) list.push([x, z, Math.PI / 2]);
+      else if (inZ && x === h.x0 - 1) list.push([x, z, -Math.PI / 2]);
+    }
+    if (!list.length) list.push([h.door[0], h.door[1], h.door[1] > h.z1 ? 0 : h.door[1] < h.z0 ? Math.PI : h.door[0] > h.x1 ? Math.PI / 2 : -Math.PI / 2]);
+    return list;
+  };
+  return out.slice(0, 99).map((h0, i) => {
+    const h = { ...h0, doors: doorsOf(h0) };
     const cx = (h.x0 + h.x1) / 2, cz = (h.z0 + h.z1) / 2;
     const near = [...MC_WAYSTONES.filter((w) => w.name), GORRAN_WAYMARK].sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0];
     const area = near?.name ?? 'Verandah', n = (count.get(area) ?? 0) + 1;
@@ -61,5 +79,11 @@ function build(): VerandahHome[] {
   });
 }
 
-export const VERANDAH_HOMES: VerandahHome[] = build();
+/** Gate Row, the four houses built on the open ground inside the west gate (scripts/mc/gaterow.cjs; owner 2026-11-06:
+ * "add some on the empty side by the gate"): for sale like the rest, listed after them so no house already held changes its id. */
+const GATE_ROW: VerandahHome[] = [2015, 2025, 2035, 2048].map((z0, i) => ({
+  id: 'vg' + (i + 1), name: `No. ${i + 1}, Gate Row`, x0: -3171, z0: z0 + 1, x1: -3165, z1: z0 + 7, base: 21,
+  door: [-3164, z0 + 4] as [number, number], area: 49, price: 3000, doors: [[-3164, z0 + 4, Math.PI / 2]] as [number, number, number][],
+}));
+export const VERANDAH_HOMES: VerandahHome[] = [...build(), ...GATE_ROW];
 export const VERANDAH_HOME_BY_ID = new Map(VERANDAH_HOMES.map((h) => [h.id, h]));

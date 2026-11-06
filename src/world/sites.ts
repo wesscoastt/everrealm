@@ -34,6 +34,7 @@ import { MC_SIGNS, MC_THINGS, MC_WAYSTONES } from '../data/mcSigns';
 const MC_DOOR_CELLS = new Set<string>();
 import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
 import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
+import { VERANDAH_HOMES } from '../data/verandahHomes';
 import { XAVIER_SHOWROOM, SHOP_COUNTERS } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
@@ -870,6 +871,14 @@ function* planBody(): Generator<string, Plan> {
     { id: 'ver-library', name: '', x: -2945, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of LIBRARY_PROPS) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: 23, z: p.z, ry: p.ry }); } },
     // King Edmund's throne, at the end of the red carpet in his hall (data/content/verandahCourt.ts)
     { id: 'ver-court', name: '', x: THRONE.x, z: THRONE.z, r0: 0, r1: 0, build: (s: Site) => { s.props.push({ t: 'furn', item: 'throne' as PropDesc['item'], x: THRONE.x, y: THRONE.y, z: THRONE.z, ry: THRONE.ry }); } },
+    // A FOR SALE board by every door of each of Verandah's houses for sale (owner 2026-11-06: "buyable homes need for sale
+    // signs out front like the rest of the world"); it comes down while someone holds the house (game/Game.ts saleBoards)
+    ...VERANDAH_HOMES.map((h) => ({ id: 'vhs-' + h.id, name: '', x: h.doors[0][0], z: h.doors[0][1], r0: 0, r1: 0, build: (s: Site) => {
+      for (const [dx, dz, ry] of h.doors) {
+        const ox = Math.sin(ry), oz = Math.cos(ry), sx = Math.cos(ry), sz = -Math.sin(ry);
+        s.props.push({ t: 'sign', x: dx + 0.5 + ox * 1.2 + sx * 1.3, y: h.base, z: dz + 0.5 + oz * 1.2 + sz * 1.3, ry, text: 'FOR SALE\n' + h.name + '\n' + h.price.toLocaleString() + ' marks' });
+      }
+    } })),
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
     { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of [...XAVIER_SHOWROOM, ...SHOP_COUNTERS]) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):

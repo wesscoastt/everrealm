@@ -133,6 +133,7 @@ import { LotBuild } from './LotBuild';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
 import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaPlace, villaSeller, villaShape, VILLAS } from '../data/mirador';
+import { VERANDAH_HOMES } from '../data/verandahHomes';
 import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_PRICE, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
@@ -2879,7 +2880,9 @@ export class Game implements GameApi {
     const mine = this.myHomeId();
     for (const sg of this.world.saleSigns()) {
       let id = 'cottage';
-      if (!sg.text.startsWith('FOR SALE')) {
+      const vh = sg.text.startsWith('FOR SALE\nNo. ') ? VERANDAH_HOMES.find((h) => sg.text.split('\n')[1] === h.name) : undefined;
+      if (vh) id = vh.id;
+      else if (!sg.text.startsWith('FOR SALE')) {
         let bd = 6;
         for (const l of LOTS) { const f = lotFront(l), d = Math.hypot(f.x - sg.x, f.z - sg.z); if (d < bd) { bd = d; id = l.id; } }
         if (bd >= 6) continue;
