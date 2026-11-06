@@ -101,6 +101,10 @@ export interface GameApi {
   lotAction(id: string): void;
   /** The Charter Bank's vault, at one of its counters (an id from BANKS). */
   openBank(id: string): void;
+  /** The account's vault, opened somewhere that isn't a bank (the owner's chests at home). */
+  openVaultAt(name: string, x: number, z: number): void;
+  /** The signed-in account's name, or null playing as a guest. */
+  accountName(): string | null;
   /** The Exchange's book, from a broker. */
   openExchange(): void;
   /** Your letters, at a Charter Post box. */

@@ -98,6 +98,8 @@ class Mock implements GameApi {
   openBank() {}
   openExchange() {}
   openMail() {}
+  openVaultAt() {}
+  accountName() { return null; }
   // Companions (game/Companions.ts) and the Wake Fair (game/WakeFair.ts)
   compJoin() {}
   compDismiss() {}

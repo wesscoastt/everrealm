@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { B, isSolid } from '../world/blocks';
 import { SY, VoxelWorld } from '../world/VoxelWorld';
+import { onLadder } from '../world/ladders';
 import { Appearance, Humanoid, ROLL_TIME } from './humanoid';
 
 const HALF = 0.3;
@@ -41,6 +42,8 @@ export class Player {
   /** Lock movement while doing something (gathering, talking, dead). */
   locked = false;
   rolling = 0;
+  /** On a ladder (world/ladders.ts): climbing, not falling. */
+  onLadder = false;
   /** A swim-kick's climb or dive. */
   private rollVy = 0;
   private rollDir = new THREE.Vector3();
@@ -221,7 +224,15 @@ export class Player {
       // The body follows the stroke: level at the surface, pitched along the dive below it
       const pitchTo = moving ? (diving ? aim : this.rise ? 0.5 : this.sink ? -0.6 : 0) : 0;
       this.swimPitch += (pitchTo - this.swimPitch) * Math.min(1, dt * 5);
+    } else if (onLadder(this.position.x, this.position.y, this.position.z, HALF)) {
+      // On a ladder: walking into it climbs, letting go slides you down slowly; no falls from one
+      this.swimPitch = 0;
+      this.onLadder = true;
+      const want = moving || jump ? 3.2 : -2;
+      this.velocity.y += (want - this.velocity.y) * Math.min(1, dt * 12);
+      this.fallStartY = this.position.y;
     } else {
+      this.onLadder = false;
       this.swimPitch = 0;
       this.velocity.y -= GRAVITY * dt;
       if (jump && this.onGround && !this.locked) {
@@ -236,14 +247,14 @@ export class Player {
     const stepX = this.velocity.x * dt;
     if (stepX !== 0) {
       if (!this.collides(p.x + stepX, p.y, p.z)) p.x += stepX;
-      else if ((this.onGround || this.inWater) && !this.barrierAt(p.x + stepX, p.y, p.z) && !this.collides(p.x + stepX, p.y + 1.02, p.z) && !this.collides(p.x, p.y + 1.02, p.z)) {
+      else if ((this.onGround || this.inWater || this.onLadder) && !this.barrierAt(p.x + stepX, p.y, p.z) && !this.collides(p.x + stepX, p.y + 1.02, p.z) && !this.collides(p.x, p.y + 1.02, p.z)) {
         p.y += 1.02; p.x += stepX; this.stepOffset -= 1.02;
       } else if (this.climbOut(p.x + stepX, p.z)) { p.x += stepX; } else this.velocity.x = 0;
     }
     const stepZ = this.velocity.z * dt;
     if (stepZ !== 0) {
       if (!this.collides(p.x, p.y, p.z + stepZ)) p.z += stepZ;
-      else if ((this.onGround || this.inWater) && !this.barrierAt(p.x, p.y, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z)) {
+      else if ((this.onGround || this.inWater || this.onLadder) && !this.barrierAt(p.x, p.y, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z + stepZ) && !this.collides(p.x, p.y + 1.02, p.z)) {
         p.y += 1.02; p.z += stepZ; this.stepOffset -= 1.02;
       } else if (this.climbOut(p.x, p.z + stepZ)) { p.z += stepZ; } else this.velocity.z = 0;
     }

@@ -9,6 +9,7 @@
 // not buried in a wall, not sealed in by a fence's barrier, and not stranded on a roof or rampart.
 // The authored Hollindale valley is built by structures.ts on its own grid and isn't covered here.
 
+import { inMcLand } from '../src/world/mcland';
 import { BLOCKS, B } from '../src/world/blocks';
 import { Overrides, plan, PropDesc, PropType } from '../src/world/sites';
 import { GW, heightAt, SEA } from '../src/world/terrain';
@@ -48,6 +49,7 @@ let checked = 0;
 
 function check(label: string, x: number, z: number, opts: { y?: number; water?: boolean } = {}) {
   if (x >= 0 && z >= 0 && x < GW + 40 && z < GW + 40) return; // authored valley
+  if (inMcLand(x, z)) return; // the owner's Minecraft land: its blocks are in public/mcland, not the plan
   checked++;
   if (opts.y !== undefined) {
     // Underground points: the floor must be solid and the two cells above it open

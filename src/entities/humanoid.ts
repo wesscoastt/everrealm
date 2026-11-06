@@ -37,6 +37,21 @@ function flameParts() {
 /** Where each part of the fire stands on the torch head: the body in the middle, the tongues off to two sides. */
 const TONGUES: [number, number][] = [[0, 0], [0.045, 0.02], [-0.035, -0.035]];
 const SPARK_MATS = ['#ffd070', '#ff9a30', '#ffe8a0'].map((c) => new THREE.MeshBasicMaterial({ color: c }));
+const BRAND_MATS = { wood: new THREE.MeshLambertMaterial({ color: '#5a3a22' }), wrap: new THREE.MeshLambertMaterial({ color: '#2a2018' }), cord: new THREE.MeshLambertMaterial({ color: '#7a5a32' }), char: new THREE.MeshBasicMaterial({ color: '#c84a14' }) };
+/**
+ * The torch, standing on its own: the same pitch-wrapped brand and three-tongued fire a traveller carries
+ * (setTorch), still, its foot at the origin; for the torches set about a place (world/props.ts mcTorch).
+ */
+export function brandTorch(): THREE.Group {
+  const g = new THREE.Group();
+  const at = (geo: THREE.BufferGeometry, m: THREE.Material, y: number) => { const o = new THREE.Mesh(geo, m); o.position.y = y; g.add(o); return o; };
+  at(new THREE.BoxGeometry(0.06, 0.62, 0.06), BRAND_MATS.wood, 0.31);
+  at(new THREE.BoxGeometry(0.1, 0.14, 0.1), BRAND_MATS.wrap, 0.63);
+  for (const y of [0.58, 0.66]) at(new THREE.BoxGeometry(0.115, 0.022, 0.115), BRAND_MATS.cord, y);
+  at(new THREE.BoxGeometry(0.11, 0.03, 0.11), BRAND_MATS.char, 0.71);
+  flameParts().layers.forEach((geo, i) => { const m = new THREE.Mesh(geo, FLAME_MAT); m.position.set(TONGUES[i][0], 0.71, TONGUES[i][1]); g.add(m); });
+  return g;
+}
 
 
 /**

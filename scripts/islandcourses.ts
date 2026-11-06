@@ -30,8 +30,8 @@ function berthFor(x0: number, z0: number): { berth: [number, number]; heading: n
 }
 
 /** A course over clear water between two points: A* on a grid, then pulled tight where the water allows. */
-function course(a: [number, number], b: [number, number]): [number, number][] {
-  const S = 16, pad = 500;
+function course(a: [number, number], b: [number, number], pad = 500): [number, number][] {
+  const S = 16;
   const x0 = Math.min(a[0], b[0]) - pad, z0 = Math.min(a[1], b[1]) - pad, W = Math.ceil((Math.abs(a[0] - b[0]) + pad * 2) / S), H = Math.ceil((Math.abs(a[1] - b[1]) + pad * 2) / S);
   const ok = new Uint8Array(W * H);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) ok[j * W + i] = clear(x0 + i * S, z0 + j * S, 18) ? 1 : 0;
@@ -40,11 +40,12 @@ function course(a: [number, number], b: [number, number]): [number, number][] {
   ok[sj * W + si] = 1; ok[tj * W + ti] = 1;
   const g = new Float64Array(W * H).fill(Infinity), from = new Int32Array(W * H).fill(-1), open: number[] = [sj * W + si];
   g[sj * W + si] = 0;
+  const inOpen = new Uint8Array(W * H);
   const hcost = (k: number) => Math.hypot((k % W) - ti, Math.floor(k / W) - tj);
   while (open.length) {
     let bi = 0;
     for (let i = 1; i < open.length; i++) if (g[open[i]] + hcost(open[i]) < g[open[bi]] + hcost(open[bi])) bi = i;
-    const k = open.splice(bi, 1)[0];
+    const k = open.splice(bi, 1)[0]; inOpen[k] = 0;
     if (k === tj * W + ti) break;
     const i = k % W, j = Math.floor(k / W);
     for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
@@ -52,7 +53,7 @@ function course(a: [number, number], b: [number, number]): [number, number][] {
       const ni = i + di, nj = j + dj, n = nj * W + ni;
       if (ni < 0 || nj < 0 || ni >= W || nj >= H || !ok[n]) continue;
       const c = g[k] + Math.hypot(di, dj);
-      if (c < g[n]) { g[n] = c; from[n] = k; if (!open.includes(n)) open.push(n); }
+      if (c < g[n]) { g[n] = c; from[n] = k; if (!inOpen[n]) { inOpen[n] = 1; open.push(n); } }
     }
   }
   const path: [number, number][] = [];
@@ -73,9 +74,9 @@ const homeOff: [number, number] = [HOME.berth[0] + Math.sin(HOME.heading) * OUT,
 const lines: string[] = [];
 for (const p of POSTS) {
   if (p.ferryFrom !== 'gullmouth' || p.id === 'mewstones') continue;
-  const b = berthFor(p.x, p.z);
+  const b = berthFor(p.harbour?.[0] ?? p.x, p.harbour?.[1] ?? p.z);
   const off: [number, number] = [b.berth[0] + Math.sin(b.heading) * IN, b.berth[1] + Math.cos(b.heading) * IN];
-  const c = course([Math.round(homeOff[0]), Math.round(homeOff[1])], [Math.round(off[0]), Math.round(off[1])]);
+  const c = course([Math.round(homeOff[0]), Math.round(homeOff[1])], [Math.round(off[0]), Math.round(off[1])], p.harbour ? 2600 : 500);
   console.log(p.id, 'berth', b.berth, 'heading', b.heading, 'course', c.length, 'points');
   lines.push(`  ${p.id}: { berth: [${b.berth[0]}, ${b.berth[1]}], heading: ${b.heading}, course: ${JSON.stringify(c)} },`);
 }

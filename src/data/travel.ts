@@ -31,6 +31,10 @@ export interface PostStop {
   gate?: string;
   /** Where the post box stands, where beside the sign won't do (x, z, the way it faces). */
   boxAt?: [number, number, number];
+  /** Where the packet berths for this stop, where that isn't by its sign (Verandah's: the docks); stops sharing one are on the same island. */
+  harbour?: [number, number];
+  /** The ground the sign stands on, where the planner's heights don't know the place's own blocks (Verandah's); no waymark of its own either. */
+  y?: number;
   /** The land the stop is in (world/land.ts); none given, the Counties. */
   land?: LandId;
 }
@@ -54,6 +58,9 @@ export const POSTS: PostStop[] = [
   { id: 'temple', name: 'Glass Kirk', place: 'temple', x: 1170.5, z: 1803.5, ry: -Math.PI / 2 },
   // The ferry from Gullmouth; the sign is on the hamlet green (MEW in world/sites.ts), facing the jetty
   // The outer lands: a stop on each town's square, where the road comes in
+  // Verandah (owner 2026-11-05): the packet comes in to its docks, and the Charter's yard is out by the stables
+  { id: 'verandah', name: 'Verandah Docks (ferry)', place: 'mc-city', ferryFrom: 'gullmouth', x: -2889.5, z: 1909.5, ry: 0, y: 24, harbour: [-2890, 1888] },
+  { id: 'verandahyard', name: 'Verandah, the stables (ferry)', place: 'mc-city', ferryFrom: 'gullmouth', x: -3292.5, z: 2057.5, ry: 0, y: 17, harbour: [-2890, 1888] },
   { id: 'cragsby', name: 'Cragsby', place: 'cragsby', x: 252.5, z: -993.5, ry: 0 },
   { id: 'holme', name: 'Holme Staithe', place: 'holme', x: -883.5, z: 1013.5, ry: -Math.PI / 2 },
   { id: 'scarrow', name: 'Scarrow Tor', place: 'scarrow', x: 338.5, z: 2959.5, ry: Math.PI },

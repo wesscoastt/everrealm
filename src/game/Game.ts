@@ -179,6 +179,7 @@ import { CallingDef, CallingId, callingById, crossUtilities, elitesOf, TUNE, UNL
 import { DUMMY_SPOTS, MASTER_OF } from '../data/content/masters';
 import { INTRO } from '../data/intro';
 import { NEWS_V, newsHtml } from '../data/whatsNew';
+import { inOwnerHome, isHomeOwner } from '../data/content/ownerHome';
 import { serverUrl } from '../net/Online';
 import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
 import { DevPanel, type DevHost } from '../ui/DevPanel';
@@ -2299,7 +2300,8 @@ export class Game implements GameApi {
     // No road there (an island): the island packet, the Plover, out of Gullmouth and over the sea, and in to
     // the island's landing (or back the other way). Set down a couple of blocks in front of the sign, facing away from it.
     const fx = Math.sin(there.ry), fz = Math.cos(there.ry);
-    const isle = ISLAND_COURSES[there.id] ?? ISLAND_COURSES[here.id];
+    // (between two stops on the same island, a short way over land: no voyage)
+    const isle = here.harbour && there.harbour && here.harbour.join() === there.harbour.join() ? undefined : ISLAND_COURSES[there.id] ?? ISLAND_COURSES[here.id];
     if (isle && !this.voyage.active) {
       const outward = there.id in ISLAND_COURSES, island: Harbour = { berth: isle.berth, heading: isle.heading };
       const from = outward ? HARBOURS.counties : island, to = outward ? island : HARBOURS.counties;
@@ -2435,6 +2437,13 @@ export class Game implements GameApi {
     this.mailAt = { x: this.player.position.x, z: this.player.position.z };
     this.mail.open();
     this.hud.show('mail');
+  }
+
+  accountName(): string | null { return currentAccount()?.user ?? null; }
+
+  openVaultAt(name: string, x: number, z: number): void {
+    this.hud.closeAll();
+    void this.bank.show(name, x, z);
   }
 
   openBank(id: string): void {
@@ -8696,10 +8705,13 @@ export class Game implements GameApi {
       const regionId = 'region:' + (reg.t < 0.35 ? reg.a : reg.b);
       const r = places().find((g) => g.kind === 'place' && Math.hypot(g.x - P.x, g.z - P.z) < g.r && (!g.y || (P.y >= g.y[0] && P.y <= g.y[1])))
         ?? places().find((g) => g.id === regionId)!;
-      const id = r.id;
+      // (the owner's own house in Verandah: home to them, a private house to everyone else)
+      const atHome = inOwnerHome(P.x, P.z);
+      const id = atHome ? 'ownerHome' : r.id;
       if (id !== this.currentRegion) {
         this.currentRegion = id;
-        this.hud.setZone(r.name, places().find((p) => p.id === regionId)?.name);
+        if (atHome) { const mine = isHomeOwner(this.accountName()); this.hud.setZone(mine ? 'Home' : 'A private house', 'Verandah'); if (mine) this.hud.banner('Home', 'Verandah'); else this.hud.system('Private land: somebody lives here. Look all you like, but leave things be.'); }
+        else this.hud.setZone(r.name, places().find((p) => p.id === regionId)?.name);
         // Entering a region for the first time announces it with its level range
         if (!this.save.discovered.includes(regionId)) {
           const rp = places().find((g) => g.id === regionId)!;

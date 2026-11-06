@@ -1,3 +1,4 @@
+import { brandTorch } from '../entities/humanoid';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { DoorKind } from './doorKinds';
@@ -3324,14 +3325,20 @@ export function gravestone(M: PropMaterials, kind = 0): THREE.Group {
  * A torch the size of a Minecraft one (Verandah, world/mcland.ts): a stick with a flame at its head, standing
  * on the ground (wall false) or leaning out from the wall behind it (it faces +z, the wall at -z).
  */
-export function mcTorch(M: PropMaterials, wall: boolean): THREE.Group {
-  const g = new THREE.Group();
-  const stick = mesh(box(0.08, 0.55, 0.08), M.wood, 0, 0.28, 0);
-  const flame = new THREE.Mesh(box(0.13, 0.16, 0.13), new THREE.MeshLambertMaterial({ color: '#ffb040', emissive: new THREE.Color('#ff8a1a'), emissiveIntensity: 1.4 }));
-  flame.position.set(0, 0.62, 0);
-  const head = new THREE.Group(); head.add(stick, flame);
-  if (wall) { head.position.set(0, 0.2, -0.36); head.rotation.x = 0.4; }
-  g.add(head);
+export function mcTorch(_M: PropMaterials, wall: boolean): THREE.Group {
+  // (the game's own torch, the brand a traveller carries: owner 2026-11-05, "you have torch assets already")
+  const g = new THREE.Group(), t = brandTorch();
+  t.scale.setScalar(0.85);
+  // (on a wall: its foot against the wall behind, +z as Minecraft's facings come in, leaning out from it)
+  if (wall) { t.position.set(0, 0.12, 0.36); t.rotation.x = -0.4; }
+  g.add(t);
+  return g;
+}
+/** A Minecraft ladder: two rails and five rungs flat against the wall behind it (local -z), a block high. */
+export function mcLadder(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group(), z = -0.44;
+  g.add(mesh(box(0.07, 1, 0.06), M.wood, -0.34, 0.5, z), mesh(box(0.07, 1, 0.06), M.wood, 0.34, 0.5, z));
+  for (let i = 0; i < 4; i++) g.add(mesh(box(0.62, 0.06, 0.05), M.wood, 0, 0.12 + i * 0.25, z + 0.01));
   return g;
 }
 /** A Minecraft lantern: a little iron cage with a candle in it, sitting on something or hung from a chain. */

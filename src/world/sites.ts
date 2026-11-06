@@ -48,7 +48,7 @@ import { MONUMENTS, type Monument } from '../data/monuments';
 // sites, block overrides and prop descriptors in every worker and on the main thread.
 
 export type PropType = 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'grave' | 'flame' | 'bellows' | 'lantern' | 'wallLantern' | 'banner' | 'stall' | 'boat' | 'tent' | 'headframe' | 'cart'
-  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'notice' | 'desk' | 'furn' | 'rails'
+  | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
   | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
@@ -728,6 +728,8 @@ function* planBody(): Generator<string, Plan> {
         id: 'mcthings-' + cell, name: '', x: Math.round(here.reduce((a, t) => a + +t[1], 0) / here.length), z: Math.round(here.reduce((a, t) => a + +t[3], 0) / here.length), r0: 0, r1: 0,
         build: (s: Site) => {
           for (const [t, x, y, z, ry, extra] of here) {
+            // (no torches stood on floors or the ground: only those on walls; owner 2026-11-05)
+            if (t === 'mctorch' && +extra !== 1) continue;
             const d: PropDesc = { t: t as PropType, x: +x, y: +y, z: +z, ry: +ry };
             if (t === 'furn') d.item = String(extra) as PropDesc['item'];
             else if (t === 'mctorch' || t === 'mclantern') d.h = +extra;
@@ -969,10 +971,10 @@ function* planBody(): Generator<string, Plan> {
   yield 'Raising the towns';
   for (const p of POSTS) {
     const site = sites.find((x) => x.id === p.place);
-    if (site && !POST_STATIONS.some((y) => y.post === p.id)) site.props.push({ t: 'sign', x: p.x, y: builtGround(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
+    if (site && !POST_STATIONS.some((y) => y.post === p.id)) site.props.push({ t: 'sign', x: p.x, y: p.y ?? builtGround(p.x, p.z), z: p.z, ry: p.ry, text: 'Charter Post' });
     // ...and its post box beside it, where letters are posted and read
     if (site && p.id !== 'hollin') {
-      const b = postBoxOf(p), g = builtGround(b.x, b.z);
+      const b = postBoxOf(p), g = p.y ?? builtGround(b.x, b.z);
       site.props.push({ t: 'postBox', x: b.x, y: g, z: b.z, ry: b.ry });
       O.set(Math.floor(b.x), g, Math.floor(b.z), B.Barrier); O.set(Math.floor(b.x), g + 1, Math.floor(b.z), B.Barrier);
     }
@@ -9505,7 +9507,7 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     out.push({ id, name, x: best.x, z: best.z, y: best.y, theme, ry, ax: arrive ? arrive[0] : best.x + Math.sin(ry) * 3.5, az: arrive ? arrive[2] : best.z + Math.cos(ry) * 3.5, ay: arrive?.[1] });
   };
   for (const p of POSTS) {
-    if (p.id === 'hollin') continue;
+    if (p.id === 'hollin' || p.y !== undefined) continue;
     put('wm-' + p.id, p.name, sites.find((x) => x.id === p.place), p.x, p.z);
   }
   for (const s of sites) {

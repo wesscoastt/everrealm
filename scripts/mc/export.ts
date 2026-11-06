@@ -36,6 +36,7 @@ function facingOf(st: Record<string, unknown>): number {
 /** A prop for a block that's a thing rather than a block: its kind (and furniture's item, a light's wall or hanging), or null. */
 function propOf(p: Palette): { t: string; item?: string; h?: number } | null {
   const n = p.name.replace(/^[a-z0-9_]+:/, ''), st = p.states, vanilla = p.name.startsWith('minecraft:');
+  if (/^ladder$/.test(n)) return { t: 'mcladder' };
   if (/torch/.test(n) && !/torchflower/.test(n)) return { t: 'mctorch', h: String(st.torch_facing_direction ?? 'top') === 'top' ? 0 : 1 };
   if (/lantern/.test(n)) {
     if (/lantern_stone|lamp_?post|street/.test(n)) return { t: 'lantern' };

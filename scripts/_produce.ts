@@ -1,0 +1,11 @@
+import { ITEMS } from '../src/data/items';
+import { RECIPES } from '../src/data/gameplay';
+const all = Object.values(RECIPES as unknown as Record<string, { skill?: string; inputs?: Record<string, number>; in?: Record<string, number>; out?: string; id?: string }>);
+const cook = all.filter((r) => r.skill === 'cooking');
+const ins = new Set<string>();
+for (const r of cook) for (const k of Object.keys(r.inputs ?? r.in ?? {})) ins.add(k);
+console.log('recipes', all.length, 'cooking', cook.length);
+console.log('cooking inputs:', [...ins].join(' '));
+const veg = Object.values(ITEMS).filter((d) => /potato|onion|cabbage|carrot|turnip|wheat|barley|flour|apple|pear|berry|garlic|leek|bean|pea|herb|grain|oat|hop|grape|plum|cherry|seed|mushroom|chanterelle/.test(d.id)).map((d) => d.id + ':' + d.kind);
+console.log(veg.join(' '));
+console.log(Object.keys(cook[0] ?? {}).join(','));
