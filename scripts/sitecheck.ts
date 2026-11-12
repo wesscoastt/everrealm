@@ -98,7 +98,8 @@ for (const sp of QUEST_SPAWNS) sp.at.forEach(([x, z], i) => check(`spawn ${sp.ta
 // Events, world bosses and Shardfalls happen on open, dry ground
 for (const [label, x, z] of [...EVENTS.map((e) => [`event ${e.id}`, e.x, e.z] as const), ...WORLD_BOSSES.map((b) => [`boss ${b.id}`, b.x, b.z] as const), ...TASKS.map((t) => [`task ${t.id}`, t.x, t.z] as const), ...SHARDFALLS.map(([x, z], i) => [`shardfall ${i}`, x, z] as const)]) {
   check(label, x, z);
-  if (heightAt(Math.floor(x), Math.floor(z)) <= SEA + 1) problems.push(`${label} (${x}, ${z}): in the water`);
+  // (the owner's Minecraft land lies at the sea's own height: its ground is checked in game, previews/scen-vhev.js)
+  if (!inMcLand(x, z) && heightAt(Math.floor(x), Math.floor(z)) <= SEA + 1) problems.push(`${label} (${x}, ${z}): in the water`);
 }
 // Waymarks: the stone and the spot travellers arrive on are open ground
 for (const w of waymarks()) {
