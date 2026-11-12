@@ -3,6 +3,7 @@ import type { CreatureKind, Palette } from '../entities/creatures';
 import type { Appearance, HeldItem, OffhandModel } from '../entities/humanoid';
 import { FOE_KIND_REGION, FOE_KINDS, type FoeKindType } from './foeKinds';
 import { ARMOUR_SMITHING } from './armour';
+import { FURNISHING_RECIPES, FURNISHING_STOCK } from './furnishings';
 import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
 import { CROPS, FARM_RECIPES } from './farming';
@@ -261,6 +262,8 @@ export const RECIPES: Recipe[] = [
   { id: 'j_barrel', station: 'bench', skill: 'woodcutting', level: 10, xp: 50, inputs: { oak_logs: 3, bronze_bar: 1 }, output: 'furn_barrel', count: 1, time: 3 },
   { id: 'j_bed', station: 'bench', skill: 'woodcutting', level: 12, xp: 70, inputs: { pine_logs: 5 }, output: 'furn_bed', count: 1, time: 3.4 },
   { id: 'j_dresser', station: 'bench', skill: 'woodcutting', level: 15, xp: 90, inputs: { pine_logs: 4, birch_logs: 3 }, output: 'furn_dresser', count: 1, time: 3.6 },
+  // The household furniture (data/furnishings.ts)
+  ...FURNISHING_RECIPES,
   // Learned from cards (data/content/recipes.ts): the cook trainers' dishes, and the great beasts'
   { id: 'harvest_supper', station: 'hearth', skill: 'cooking', level: 12, xp: 80, inputs: { bread: 1, chanterelles: 2, wild_garlic: 1, cooked_trout: 1 }, output: 'harvest_supper', count: 1, time: 2.4, failAtReq: 0.3, failItem: 'burnt_fish', learn: 'Perrin sells the card at the Charter Market, Ansbury.' },
   { id: 'bilberry_cordial', station: 'hearth', skill: 'cooking', level: 18, xp: 105, inputs: { bilberries: 3, cloudberries: 1 }, output: 'bilberry_cordial', count: 1, time: 2.4, learn: 'Perrin sells the card at the Charter Market, Ansbury.' },
@@ -299,6 +302,7 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'furn_rug_red', price: 20 },
   { item: 'furn_barrel', price: 14 },
   { item: 'lockpick', price: 3 },
+  ...FURNISHING_STOCK,
   ...['w_hollin_sword', 'w_hollin_dagger', 'w_hollin_spear', 'w_hollin_staff', 'w_hollin_axe'].map((item) => ({ item, price: 30 })),
 ];
 

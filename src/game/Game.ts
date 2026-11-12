@@ -1335,7 +1335,7 @@ export class Game implements GameApi {
       for (const st of this.world.sites) for (const d of st.props) {
         // (a bench drawn with a back, the slatted and the iron kinds (world/siteProps.ts styles 1 and 3), is sat on from the front only)
         if (d.t === 'bench') { const style = d.tint === -1 ? Math.floor(h3(d.x, d.z, 41) * 5) : 0; this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: (d.len ?? 1.6) / 2 - 0.3, both: style !== 1 && style !== 3, h: style === 4 ? 0.49 : 0.48 }); }
-        else if (d.t === 'furn' && (d.item === 'chair' || d.item === 'stool' || d.item === 'bench')) this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: d.item === 'bench' ? 0.6 : 0, both: d.item !== 'chair', h: d.item === 'chair' ? 0.62 : 0.48 });
+        else if (d.t === 'furn' && (d.item === 'chair' || d.item === 'stool' || d.item === 'bench' || d.item === 'f_armchair' || d.item === 'f_settle')) this.seats.push({ x: d.x, y: d.y, z: d.z, ry: d.ry ?? 0, half: d.item === 'bench' || d.item === 'f_settle' ? 0.6 : 0, both: d.item !== 'chair' && d.item !== 'f_armchair' && d.item !== 'f_settle', h: d.item === 'chair' ? 0.62 : d.item === 'f_armchair' ? 0.5 : 0.48 });
       }
       for (const st of this.world.sites) for (const an of st.animals ?? []) this.pets.push({ kind: an.kind, x: an.x, z: an.z, r: an.r, pal: an.pal ?? {}, a: null });
     }

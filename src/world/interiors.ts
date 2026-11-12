@@ -4,7 +4,10 @@
 // blocks and props in their own way.
 
 export type Role = 'home' | 'inn' | 'shop' | 'office' | 'workshop' | 'store' | 'vacant' | 'chapel' | 'bank';
-export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles' | 'turnip' | 'pumpkin' | 'gourds' | 'scarecrow' | 'vault' | 'strongbox' | 'anvil' | 'forge' | 'lounger' | 'easel' | 'spyglass' | 'tank_s' | 'tank_m' | 'tank_l';
+export type FurnItem = 'bed' | 'table' | 'stool' | 'dresser' | 'hearth' | 'rug' | 'chest' | 'barrel' | 'crate' | 'counter' | 'shelves' | 'lamp' | 'bench' | 'desk' | 'chair' | 'candles' | 'turnip' | 'pumpkin' | 'gourds' | 'scarecrow' | 'vault' | 'strongbox' | 'anvil' | 'forge' | 'lounger' | 'easel' | 'spyglass' | 'tank_s' | 'tank_m' | 'tank_l'
+  /** The household furniture (world/furnishings.ts, data/furnishings.ts). */
+  | 'f_wardrobe' | 'f_bookcase' | 'f_armchair' | 'f_settle' | 'f_roundtable' | 'f_washstand' | 'f_cradle' | 'f_coatrack' | 'f_plant' | 'f_candelabra'
+  | 'f_bathtub' | 'f_spinning' | 'f_weaponrack' | 'f_armourstand' | 'f_cupboard' | 'f_sideboard' | 'f_bunk' | 'f_bureau' | 'f_logbasket' | 'f_globe';
 
 export interface HouseShape {
   x0: number; z0: number; w: number; d: number; floors: number; base: number;
@@ -24,6 +27,9 @@ export const FURN_SIZE: Record<FurnItem, [number, number]> = {
   bed: [1, 2], table: [1.6, 0.86], stool: [0.4, 0.4], dresser: [1.5, 0.56], hearth: [1.9, 0.9], rug: [1.8, 1.2], chest: [0.8, 0.54],
   barrel: [0.72, 0.72], crate: [0.72, 0.72], counter: [2.5, 0.7], shelves: [1.42, 0.43], lamp: [0.28, 0.28], bench: [1.8, 0.42], desk: [1.6, 0.8],
   chair: [1, 0.83], candles: [0.4, 0.4], turnip: [0.4, 0.4], pumpkin: [0.62, 0.62], gourds: [1, 0.8], scarecrow: [0.9, 0.5], vault: [1.9, 0.5], strongbox: [0.8, 0.6], anvil: [0.9, 0.45], forge: [1.6, 1.0], lounger: [0.7, 1.7], easel: [0.8, 0.6], spyglass: [0.6, 0.6], tank_s: [0.6, 0.6], tank_m: [1.4, 0.7], tank_l: [2.4, 0.9],
+  f_wardrobe: [1.26, 0.64], f_bookcase: [1.28, 0.44], f_armchair: [0.86, 0.8], f_settle: [1.84, 0.56], f_roundtable: [1.16, 1.16], f_washstand: [0.8, 0.56], f_cradle: [0.66, 1.0],
+  f_coatrack: [0.4, 0.4], f_plant: [0.36, 0.36], f_candelabra: [0.4, 0.4], f_bathtub: [1.5, 0.78], f_spinning: [1.0, 0.4], f_weaponrack: [1.4, 0.34], f_armourstand: [0.6, 0.5],
+  f_cupboard: [1.0, 0.52], f_sideboard: [1.84, 0.56], f_bunk: [1.0, 2.0], f_bureau: [0.96, 0.62], f_logbasket: [0.6, 0.6], f_globe: [0.6, 0.6],
 };
 
 /** World cells a piece covers: those its footprint overlaps by more than a sliver. */
@@ -279,8 +285,9 @@ export function fitOut(h: HouseShape): FitOut {
           put('crate', awayU, 1, 0, [[awayU, 1]]);
         } else {
           // Books: shelves along the back wall, a chair turned to the hearth
-          for (let u = 0; u < W; u++) if (u !== awayU) put('shelves', u, backV, facing.front, [[u, backV]]);
-          put('chair', Math.floor(W / 2), tv, towardsAway, [[Math.floor(W / 2), tv]], 0.5, 0.5, false);
+          // (some houses with a proper bookcase and a wing chair: data/furnishings.ts)
+          for (let u = 0; u < W; u++) if (u !== awayU) put(seed > 0.55 && u % 2 === 0 ? 'f_bookcase' : 'shelves', u, backV, facing.front, [[u, backV]]);
+          put(seed > 0.3 ? 'f_armchair' : 'chair', Math.floor(W / 2), tv, towardsAway, [[Math.floor(W / 2), tv]], 0.5, 0.5, false, h.tint);
           put('rug', Math.floor(W / 2), tv, facing.front, [[Math.floor(W / 2), tv]], 0.5, 0.5, false, h.tint);
         }
         if (plan !== 'reading') put('dresser', nearU, backV, facing.front, [[nearU, backV]]) || put('dresser', nearU, Math.max(0, backV - 1), towardsAway, [[nearU, Math.max(0, backV - 1)]]);
@@ -295,7 +302,7 @@ export function fitOut(h: HouseShape): FitOut {
           if (!ground && W >= 4) put('bed', nearU, backV - 1, facing.front, bedCells(nearU));
         } else put('chest', awayU, backV, facing.front, [[awayU, backV]]);
         if (!ground) {
-          put('dresser', Math.floor(W / 2), backV, facing.front, [[Math.floor(W / 2), backV]]);
+          put(seed > 0.6 ? 'f_wardrobe' : 'dresser', Math.floor(W / 2), backV, facing.front, [[Math.floor(W / 2), backV]]);
           put('rug', Math.floor(W / 2), Math.floor(D / 2), facing.front, [[Math.floor(W / 2), Math.floor(D / 2)]], 0.5, 0.5, false, h.tint);
         }
       }

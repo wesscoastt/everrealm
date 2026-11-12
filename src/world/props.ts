@@ -7,6 +7,7 @@ import { paintCanvasTexture } from './textures';
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { addGableVolume } from './roofVolumes';
 import { guildArms } from '../data/guildhalls';
+import { furnishing } from './furnishings';
 
 // Authored (non-voxel) props. Static pieces are batched per material into single meshes.
 
@@ -3106,6 +3107,7 @@ export function throne(M: PropMaterials): THREE.Group {
 export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group | null {
   if (item === 'throne') return throne(M);
   if (item.startsWith('sp_')) return steampunk(M, item);
+  if (item.startsWith('f_')) return furnishing(M, item, tint);
   // A trophy for the wall: "head:<kind>:<coat>:<second colour>" (data/trophyMounts.ts)
   if (item.startsWith('head:')) { const [, kind, a, b] = item.split(':'); return mountedHead(kind, a, b); }
   switch (item) {

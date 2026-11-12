@@ -333,6 +333,9 @@ for (const d of NAMED_ITEMS) ITEMS[d.id] = d;
 // Side content items (src/data/content).
 import { CONTENT } from './content';
 for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
+// The household furniture (data/furnishings.ts)
+import { FURNISHING_ITEMS } from './furnishings';
+for (const d of FURNISHING_ITEMS) ITEMS[d.id] = d;
 
 // Armour for the body, and the helms' weights (src/data/armour.ts).
 import { ARMOUR_ITEMS, HELM_WEIGHTS } from './armour';
