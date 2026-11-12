@@ -256,7 +256,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
           k. Awschitz: improve what's already there, not a new walled fort inside it: the owner's walls improved, buildings within, and the dock. (The fort built 2026-11-06 comes out.)
           l. Ported furniture on a tree in Verandah (shelves and pots up a trunk): fix ported furniture that landed wrong, everywhere.
           m. More furniture props for the MMO.
-          n. Sign issues across the map (the FOR SALE "Enquire within" board draws its text on the left half only).
+          n. DONE 2026-11-12: every painted board (shop signs, FOR SALE boards, the owner's signs, the Low Water's) drew its words stretched by its size, cut off on wide boards; boards now show the words once across (props.ts signBox). Was: Sign issues across the map (the FOR SALE "Enquire within" board draws its text on the left half only).
           o. Verandah gets events like the rest of the map, fitted to its own lore.
           p. Marriage at the chapels and churches, as in ESO.
           q. More assets after the Unity-style graphics overhaul (item 12).

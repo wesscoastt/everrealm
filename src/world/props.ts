@@ -182,6 +182,8 @@ export function flat(color: string, opts: THREE.MeshLambertMaterialParameters = 
 }
 
 /** Box with UVs scaled to world size so tiling textures keep a constant texel density. */
+/** A board for painted words: the picture once across each face, not tiled by size as box() is (the words were cut off). */
+export function signBox(w: number, h: number, d: number): THREE.BufferGeometry { return new THREE.BoxGeometry(w, h, d); }
 export function box(w: number, h: number, d: number, uvScale = 1): THREE.BufferGeometry {
   const g = new THREE.BoxGeometry(w, h, d);
   const uv = g.attributes.uv as THREE.BufferAttribute;
@@ -706,7 +708,7 @@ export function signpost(M: PropMaterials, arms: { text: string; angle: number }
   g.add(mesh(box(0.18, 2.4, 0.18), M.darkWood, 0, 1.2, 0));
   arms.forEach((a, i) => {
     const tex = textTexture(a.text, 256, 48, '#e8dcbf', '#3a2615', 26);
-    const plank = new THREE.Mesh(box(1.4, 0.3, 0.06), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
+    const plank = new THREE.Mesh(signBox(1.4, 0.3, 0.06), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
     // (out from the post far enough that the post hides none of the words)
     plank.position.set(Math.cos(a.angle) * 0.8, 2.1 - i * 0.38, -Math.sin(a.angle) * 0.8);
     plank.rotation.y = a.angle;
@@ -3027,7 +3029,7 @@ export function stockTank(g: THREE.Group, fish: { id?: string; a: string; b: str
   if (fish.length) {
     const text = fish.slice(0, 3).map((f) => `${f.name}  ${f.lb} lb`).join('\n') + (fish.length > 3 ? `\nand ${fish.length - 3} more` : '');
     const tex = textTexture(text, 256, 96, '#c8a050', '#2a1e10', 20);
-    const plate = new THREE.Mesh(box(Math.min(0.5, T.w * 0.6), 0.16, 0.012), [flat('#8a6a2a'), flat('#8a6a2a'), flat('#8a6a2a'), flat('#8a6a2a'), new THREE.MeshLambertMaterial({ map: tex }), flat('#8a6a2a')]);
+    const plate = new THREE.Mesh(signBox(Math.min(0.5, T.w * 0.6), 0.16, 0.012), [flat('#8a6a2a'), flat('#8a6a2a'), flat('#8a6a2a'), flat('#8a6a2a'), new THREE.MeshLambertMaterial({ map: tex }), flat('#8a6a2a')]);
     plate.position.set(0, y0 - 0.16, T.d / 2 + 0.05);
     g.add(plate);
   }
@@ -3167,7 +3169,7 @@ export function mineHeadframe(M: PropMaterials, text = 'SALLOW PIT\nHarrowgate &
   g.add(mesh(box(8.0, 0.5, 0.55), M.darkWood, 0, 5.1, 0));
   for (const x of [-3.0, 3.0]) g.add(mesh(box(0.25, 1.8, 0.25), M.darkWood, x * 0.9, 4.3, 0, 0, 0, x > 0 ? 0.7 : -0.7));
   const tex = textTexture(text, 512, 128, '#d9c79c', '#3a2414', 40);
-  const sign = new THREE.Mesh(box(3.6, 0.9, 0.08), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), M.wood]);
+  const sign = new THREE.Mesh(signBox(3.6, 0.9, 0.08), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), M.wood]);
   sign.position.set(0, 5.85, 0.1);
   g.add(sign);
   g.add(mesh(box(0.08, 0.8, 0.08), M.iron, -1.4, 5.7, 0.05));
@@ -3517,7 +3519,7 @@ export function mcSign(M: PropMaterials, text: string, kind = 0): THREE.Group {
   const g = new THREE.Group();
   const tex = textTexture(text, 256, 128, '#c8a46a', '#2a1a0c', 30);
   const face = new THREE.MeshLambertMaterial({ map: tex });
-  const board = new THREE.Mesh(box(0.98, 0.5, 0.07), [M.wood, M.wood, M.wood, M.wood, face, face]);
+  const board = new THREE.Mesh(signBox(0.98, 0.5, 0.07), [M.wood, M.wood, M.wood, M.wood, face, face]);
   if (kind === 1) board.position.set(0, 0.5, -0.46);
   else if (kind === 2) { board.position.set(0, 0.45, 0); for (const x of [-0.3, 0.3]) g.add(mesh(box(0.03, 0.3, 0.03), M.iron, x, 0.85, 0)); }
   else { board.position.set(0, 1.0, 0); g.add(mesh(box(0.1, 0.8, 0.1), M.wood, 0, 0.4, 0)); }
@@ -3531,7 +3533,7 @@ export function standingSign(M: PropMaterials, text: string): THREE.Group {
   for (const x of [-1.03, 1.03]) g.add(mesh(box(0.14, 1.95, 0.14), M.darkWood, x, 0.975, 0));
   for (const y of [1.2, 1.8]) for (const x of [-1, 1]) g.add(mesh(box(0.1, 0.06, 0.06), M.iron, x * 0.97, y, 0));
   const tex = textTexture(text, 384, 128, '#d9c79c', '#3a2414', 44);
-  const board = new THREE.Mesh(box(1.9, 0.75, 0.08), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
+  const board = new THREE.Mesh(signBox(1.9, 0.75, 0.08), [M.wood, M.wood, M.wood, M.wood, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex })]);
   board.position.set(0, 1.5, 0);
   g.add(board);
   return g;

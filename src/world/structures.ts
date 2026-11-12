@@ -434,7 +434,7 @@ export function buildStructures(world: Grid, layout: Layout, M: P.PropMaterials,
   const innSign = new THREE.Group();
   innSign.add(new THREE.Mesh(P.box(0.1, 0.1, 1.4), M.iron).translateY(0.1).translateZ(-0.6));
   const signTex = P.textTexture('The Low Water', 256, 128, '#2f4a3a', '#efd9a0', 34);
-  const signMesh = new THREE.Mesh(P.box(1.2, 0.7, 0.06), [M.darkWood, M.darkWood, M.darkWood, M.darkWood, new THREE.MeshLambertMaterial({ map: signTex }), new THREE.MeshLambertMaterial({ map: signTex })]);
+  const signMesh = new THREE.Mesh(P.signBox(1.2, 0.7, 0.06), [M.darkWood, M.darkWood, M.darkWood, M.darkWood, new THREE.MeshLambertMaterial({ map: signTex }), new THREE.MeshLambertMaterial({ map: signTex })]);
   signMesh.position.set(0, -0.35, -1.1);
   signMesh.rotation.y = Math.PI / 2;
   innSign.add(signMesh);
