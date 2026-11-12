@@ -24,6 +24,8 @@ const trades = new Map();
 let nextTrade = 1;
 /** asker -> asked, waiting for an answer */
 const tradeAsks = new Map();
+/** The Pledge (owner 2026-11-07: "marriage at the chapels, as in ESO"): who has asked whom, at an altar. */
+const pledgeAsks = new Map();
 /** The world-boss finder: boss id -> ids of players looking for a group to take it on (src/game/Game.ts wbLook). */
 const wbSeekers = new Map();
 /** How long a player stays on a boss's list before they're taken off it. */
@@ -364,6 +366,31 @@ export function socialInit(ctx) {
         tradeAsks.set(me.id, to.id);
         send(to.ws, { t: 'tAsked', from: me.name });
         sys(me, `You ask ${to.name} to trade.`);
+        return true;
+      }
+      // ------------------------------------------------------------ The Pledge: two people at a chapel's altar
+      case 'plAsk': {
+        const to = byName(msg.name);
+        if (!to || to === me) { sys(me, to ? 'You can\'t take the Pledge with yourself.' : `Nobody called ${String(msg.name ?? '').slice(0, 20)} is in the world.`); return true; }
+        if (!near(me, to)) { sys(me, `${to.name} has to stand at the altar with you.`); return true; }
+        pledgeAsks.set(me.id, to.id);
+        send(to.ws, { t: 'plAsked', from: me.name });
+        sys(me, `You ask ${to.name} to take the Pledge with you.`);
+        return true;
+      }
+      case 'plAnswer': {
+        const asker = byName(msg.name);
+        if (!asker || pledgeAsks.get(asker.id) !== me.id) { sys(me, 'That asking has lapsed.'); return true; }
+        pledgeAsks.delete(asker.id);
+        if (!msg.accept) { sys(asker, `${me.name} doesn't take the Pledge. Not today.`); return true; }
+        if (!near(asker, me)) { sys(me, `${asker.name} has gone from the altar.`); return true; }
+        send(asker.ws, { t: 'pledged', with: me.name });
+        send(me.ws, { t: 'pledged', with: asker.name });
+        return true;
+      }
+      case 'plPart': {
+        const to = byName(msg.name);
+        if (to && to !== me) send(to.ws, { t: 'parted', from: me.name });
         return true;
       }
       case 'tAnswer': {

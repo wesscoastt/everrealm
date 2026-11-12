@@ -198,6 +198,10 @@ export interface OnlineHooks {
   groupPlot?(owner: string | null, tiles: Record<string, unknown> | null): void;
   groupInvited?(from: string): void;
   tradeAsked?(from: string): void;
+  /** The Pledge: someone at an altar asks you; you and another have taken it; someone has parted from you. */
+  pledgeAsked?(from: string): void;
+  pledged?(withName: string): void;
+  parted?(from: string): void;
   /** A creature someone else killed, and how long (ms) until it's back; the whole list on joining. */
   mobDead?(key: string, leftMs: number): void;
   mobLedger?(list: [string, number][]): void;
@@ -407,6 +411,9 @@ export class Online {
       case 'mobDead': if (typeof m.key === 'string' && typeof m.left === 'number') this.hooks.mobDead?.(m.key, m.left); break;
       case 'mHit': if (typeof m.key === 'string' && typeof m.share === 'number' && typeof m.from === 'number') this.hooks.mobHit?.(m.key, m.share, m.from); break;
       case 'tAsked': this.hooks.tradeAsked?.(String(m.from)); break;
+      case 'plAsked': this.hooks.pledgeAsked?.(String(m.from)); break;
+      case 'pledged': this.hooks.pledged?.(String(m.with)); break;
+      case 'parted': this.hooks.parted?.(String(m.from)); break;
       case 'hAsked': this.hooks.homeAsked?.(String(m.from)); break;
       case 'hShow': this.hooks.homeShow?.(String(m.owner), Array.isArray(m.pieces) ? m.pieces : [], m.plot ?? null); break;
       case 'shS': this.hooks.shipState?.(String(m.name), m.st ?? null); break;
@@ -684,6 +691,9 @@ export class Online {
   groupChat(text: string): void { this.emit({ t: 'gChat', text }); }
   vitals(hp: number, max: number, level: number, calling: string): void { this.emit({ t: 'vitals', hp, max, level, calling }); }
   tradeAsk(name: string): void { this.emit({ t: 'tAsk', name }); }
+  pledgeAsk(name: string): void { this.emit({ t: 'plAsk', name }); }
+  pledgeAnswer(name: string, accept: boolean): void { this.emit({ t: 'plAnswer', name, accept }); }
+  pledgePart(name: string): void { this.emit({ t: 'plPart', name }); }
   /** Tell the realm a creature at this spawn point died; it's gone for everyone for `secs`. */
   mobDead(key: string, secs: number): void { this.emit({ t: 'mobDead', key, secs }); }
   /** Look for a group for a world boss, or stop looking. */

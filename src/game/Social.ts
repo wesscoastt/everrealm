@@ -52,6 +52,7 @@ export class Social {
     return {
       group: (v: GroupView) => this.onGroup(v),
       groupInvited: (from: string) => this.host.ask(`${from} invites you to join their group.`, () => this.host.net().groupAnswer(true), () => this.host.net().groupAnswer(false), 60),
+      pledgeAsked: (from: string) => this.host.ask(`${from} asks you to take the Pledge with them, here at the altar: to be bound to each other for as long as you both choose.`, () => this.host.net().pledgeAnswer(from, true), () => this.host.net().pledgeAnswer(from, false), 60),
       tradeAsked: (from: string) => this.host.ask(`${from} wants to trade with you.`, () => this.host.net().tradeAnswer(from, true), () => this.host.net().tradeAnswer(from, false), 30),
       trade: (v: TradeView) => this.onTrade(v),
       tradeEnd: (why: string) => { this.trade = null; this.host.openTrade(false); if (why) this.host.system(why); },
@@ -82,6 +83,19 @@ export class Social {
 
   isAlly(remoteId: number): boolean { return !!this.group?.members.some((m) => m.id === remoteId); }
 
+  /** The one you've taken the Pledge with, in your group and close by (game/Game.ts addXp). */
+  spouseNearby(name: string): boolean {
+    if (!this.inGroup || !name) return false;
+    const p = this.host.player();
+    return this.group!.members.some((m) => m.id !== this.myId && m.name.toLowerCase() === name.toLowerCase() && Math.hypot(m.x - p.x, m.z - p.z) < GROUP_RANGE);
+  }
+  /** The other member of a group of two, close by: who you'd take the Pledge with at an altar. */
+  onlyOther(): string | null {
+    if (!this.inGroup || this.group!.members.length !== 2) return null;
+    const p = this.host.player();
+    const o = this.group!.members.find((m) => m.id !== this.myId);
+    return o && Math.hypot(o.x - p.x, o.z - p.z) < 6 ? o.name : null;
+  }
   /** Another member of the group close by: worth a tenth more experience. */
   groupNearby(): boolean {
     if (!this.inGroup) return false;

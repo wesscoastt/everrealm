@@ -1502,6 +1502,8 @@ export class Game implements GameApi {
       dBack: (id, name, role) => this.dungeons.onBack(id, name, (role === 'tank' || role === 'healer' ? role : 'damage') as Role),
       dEv: (from, k, i, dmg) => (this.tower.grouped ? this.tower.onEvent(from, k, i, dmg) : this.dungeons.onEvent(from, k, i, dmg)),
       dLeft: (name, back) => { this.tower.onLeft(name); this.dungeons.onLeft(name, back); },
+      pledged: (withName) => this.onPledged(withName),
+      parted: (from) => this.onParted(from),
       ...this.social.hooks(),
       ...this.exchange.hooks(),
       ...this.mail.hooks(),
@@ -3316,6 +3318,8 @@ export class Game implements GameApi {
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
     if (this.social.groupNearby()) amount = Math.round(amount * 1.1);
+    // The Pledge: out together with the one you've pledged to
+    if (this.social.spouseNearby(this.spouse())) amount = Math.round(amount * 1.1);
     if (Number(this.flag('rested') ?? 0) > 0) amount = Math.round(amount * 1.25);
     // Good company: an hour's more after a while at a town's fire (game/Gatherings.ts)
     const company = this.gatherings?.bonus() ?? 0;
@@ -6516,6 +6520,49 @@ export class Game implements GameApi {
     this.hud.show('talents');
     this.hud.system('You kneel at the altar. Here you can unlearn your talents, skills and morphs, or change to a saved build.');
     this.sfx('bell', 0.4);
+    // Two in a group, side by side at the altar, neither pledged: the Pledge is offered
+    const other = this.social.onlyOther();
+    if (other && !this.spouse()) this.hud.ask(`Ask ${other} to take the Pledge with you, here at the altar?`, () => this.pledgeWith(other), () => {}, 30);
+  }
+
+  // ---- The Pledge (owner 2026-11-07: "marriage at the chapels and churches, as in ESO"). Two people at any chapel's
+  // altar, both willing, each asked in turn: each gets a pledge ring, and the two of them earn a tenth more
+  // experience when they're out together in a group. Either may part, at any time, anywhere.
+  spouse(): string { const v = this.flag('spouse'); return typeof v === 'string' ? v : ''; }
+  pledgeWith(name: string): void {
+    if (this.online.status !== 'online') { this.hud.system('The Pledge is taken with another player: you need to be in the world with them.'); return; }
+    if (this.spouse()) { this.hud.system(`You have taken the Pledge with ${this.spouse()} already. Part first (/part) if that has changed.`); return; }
+    if (!this.atTemple()) { this.hud.system('The Pledge is taken at an altar: any chapel, the Glass Kirk, or the Hall of the Two Stones. Stand there together.'); return; }
+    this.online.pledgeAsk(name);
+  }
+  private onPledged(withName: string): void {
+    if (this.spouse()) return;
+    this.setFlag('spouse', withName);
+    this.setFlag('spouse_since', Date.now());
+    this.give('pledge_ring', 1);
+    this.emote = { id: 'kneel', left: 3 } as typeof this.emote;
+    this.hud.banner('The Pledge', `You and ${withName}`);
+    this.hud.system(`You and ${withName} have taken the Pledge. Each of you has a ring. While you're out together in a group, you both earn a tenth more experience.`);
+    this.sfx('bell', 0.7);
+    this.persist();
+  }
+  private onParted(from: string): void {
+    if (this.spouse().toLowerCase() !== from.toLowerCase()) return;
+    this.setFlag('spouse', null);
+    this.take('pledge_ring', 1);
+    this.hud.system(`${from} has parted from you. The Pledge between you is ended.`);
+    this.persist();
+  }
+  part(): void {
+    const s = this.spouse();
+    if (!s) { this.hud.system('You haven\'t taken the Pledge with anyone.'); return; }
+    this.hud.ask(`Part from ${s}? The Pledge between you ends, for both of you.`, () => {
+      if (this.online.status === 'online') this.online.pledgePart(s);
+      this.setFlag('spouse', null);
+      this.take('pledge_ring', 1);
+      this.hud.system(`You have parted from ${s}.`);
+      this.persist();
+    }, () => {}, 30);
   }
 
   /** Kneeling by someone who's down, helping them up: who, and how long you've been at it. */
@@ -8633,7 +8680,7 @@ export class Game implements GameApi {
       switch (c) {
         case 'news': case 'whatsnew': this.hud.showNews(newsHtml(3)); return;
         case 'help': case '?':
-          this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>.');
+          this.hud.system('Groups and trades: click another player, or /invite <name>, /p <message> (group chat), /leave, /kick <name>, /trade <name>. The Pledge: kneel at a chapel’s altar together, in a group of two, or /pledge <name> there; /part ends it.');
           this.hud.system('Guilds (O): /gu <message> (guild chat), /ginvite <name>, /gleave, /gkick, /gpromote, /gdemote.');
           this.hud.system('Dungeons: /joinrun takes you into the run your group is already in, if there is room. Friends: /goto <name> (or Travel to, on your friends list) takes you to a friend or a group member.');
           this.hud.system('Message posts: the ✎ by the chat tabs (or /post <words>) leaves a few words where you stand for whoever comes by. Walk up to one to read it, say it helped, or report it.');
@@ -8678,6 +8725,8 @@ export class Game implements GameApi {
           return;
         }
         case 'home': this.travelHome(); return;
+        case 'pledge': if (arg) this.pledgeWith(arg); else this.hud.system(this.spouse() ? `You have taken the Pledge with ${this.spouse()}.` : 'Stand at a chapel\'s altar with them and say /pledge and their name.'); return;
+        case 'part': this.part(); return;
         case 'sellhome': {
           // /sellhome Name 5000: offer the house you bought to another player in the world
           const m = arg.trim().match(/^(.+?)\s+(\d[\d,]*)$/);
