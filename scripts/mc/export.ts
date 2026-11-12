@@ -716,9 +716,11 @@ console.log('unmapped (as stone):', [...unknown].sort((a, b) => b[1] - a[1]).sli
   things.length = 0; things.push(...out);
 }
 // The signs (data/mcSigns.ts): kept only where the piece itself is kept (not sunk under the sea round an island)
+// signs the owner wants gone (2026-11-07: the "torcher chamber" sign in Black Gull Keep)
+const DROP_SIGNS = /torcher chamber/i;
 fs.writeFileSync(path.resolve('src/data/mcSigns.ts'), `// Written by scripts/mc/export.ts: the signs on the owner's Minecraft builds, in game coordinates (kind 0 on a post, 1 on a wall, 2 hung).
 export interface McSign { x: number; y: number; z: number; ry: number; kind: number; text: string; piece: string }
-export const MC_SIGNS: McSign[] = ${JSON.stringify(signs)};
+export const MC_SIGNS: McSign[] = ${JSON.stringify(signs.filter((s) => !DROP_SIGNS.test(s.text)))};
 /** The small things on the owner's builds: [kind, x, y, z, facing, the furniture's item or a light's wall/hanging]. */
 export const MC_THINGS: (string | number)[][] = ${JSON.stringify(things)};
 /** The houses behind the owner's doors (scripts/mc/export.ts): [x0, z0, x1, z1, floor, door x, door z, floor area], west to east. */
