@@ -88,6 +88,8 @@ export interface JusticeHost {
   give(item: string, n?: number): boolean;
   take(item: string, n?: number): void;
   lockDoorway(x: number, y: number, z: number, shut: boolean): void;
+  /** A journey too far to walk (to the quarry gang): the world loaded round where you're going before you're set down there. */
+  travel(x: number, y: number, z: number, label: string): void;
   /** Experience in a skill (the pick, on the quarry gang). */
   xp(skill: 'mining', n: number): void;
 }
@@ -517,8 +519,8 @@ export class Justice {
           this.host.system(`The block splits. The gang boss marks it: a little off your time. ${Math.ceil(left * (1 - QG.cut) / 60000)} minutes to go.`);
         }
       }
-      const out = P.x < QG.x0 || P.x > QG.x1 || P.z < QG.z0 || P.z > QG.z1 || P.y > QG.floor + 12;
-      if (out && !this.picking) { this.host.player.teleport(QG.arrive[0], QG.floor + 0.2, QG.arrive[1]); this.host.system('"Back down the pit, you." A minute more on your time.'); this.host.setFlag('jail', { ...j, until: j.until + 60000 }); }
+      const out = P.x < QG.x0 || P.x > QG.x1 || P.z < QG.z0 || P.z > QG.z1 || P.y > QG.top;
+      if (out && !this.picking) { this.host.player.teleport(QG.arrive[0], QG.arriveY + 0.2, QG.arrive[1]); this.host.system('"Back down the pit, you." A minute more on your time.'); this.host.setFlag('jail', { ...j, until: j.until + 60000 }); }
       if (Date.now() >= j.until) {
         this.host.setFlag('jail', null);
         this.host.setPose(null);
@@ -573,7 +575,7 @@ export class Justice {
       // On the quarry gang: the blocks to break
       if (j.gang) {
         QG.stones.forEach(([x, z], i) => {
-          const at = new THREE.Vector3(x + 0.5, QG.floor + 1, z + 0.5);
+          const at = new THREE.Vector3(x + 0.5, this.host.ground(x + 0.5, z + 0.5, QG.top) + 1, z + 0.5);
           if (p.distanceTo(at) < 2.6 && this.stoneWork <= 0 && performance.now() - (this.stoneAt.get(i) ?? -1e9) > 20000) out.push({ label: `Break the stone (${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left)`, pos: at, use: () => { this.stoneWork = 3.5; this.stoneAt.set(i, performance.now()); this.host.setPose('hammer'); } });
         });
         return out;
@@ -587,7 +589,7 @@ export class Justice {
           this.resting = false; this.oakum = 0;
           this.host.setFlag('jail', { ...j, gang: true });
           this.host.system('The gaoler writes you down for the gang. A cart, a boat, and by noon you’re in the Verandah quarry with a pick in your hands. Every block you break takes a little off your time; the pick will teach your arms something too.');
-          this.through(QG.arrive[0], QG.floor + 0.2, QG.arrive[1], 0);
+          this.host.travel(QG.arrive[0], QG.arriveY + 0.2, QG.arrive[1], 'Out to the quarry gang');
         } });
         out.push({ label: 'Pick the cell lock', pos: new THREE.Vector3(g.x + 2.5, g.floor + 1.3, g.z + GAOL.cell[1]), use: () => void this.pickLock(g, j) });
       }

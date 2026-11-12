@@ -24,6 +24,13 @@ export const WX = WMAX;
 export const WZ = WMAX;
 // (112: room over the sea for the owner's Minecraft port town, whose king's house stands 88 blocks over it: world/mcland.ts)
 export const SY = 112;
+/**
+ * The world's floor (owner 2026-11-12: the Verandah quarry "as deep as it is in the Minecraft world", whose floor is 19
+ * blocks under what was the world's foot). Heights run MINY..SY-1; a chunk stores SPAN rows, row 0 being MINY. Below
+ * 0 the world is rock except where something is dug into it (world/mcland.ts, the quarry).
+ */
+export const MINY = -24;
+export const SPAN = SY - MINY;
 /** The height the Counties and Morrow were built to (the world's ceiling before Verandah): what the builders measure from, so nothing that stood stands any taller. */
 export const BUILD_SY = 96;
 export const CHUNK = 32;
@@ -31,7 +38,9 @@ export const CMIN = WMIN / CHUNK;
 export const CMAX = WMAX / CHUNK;
 export const CSPAN = CMAX - CMIN;
 export const WATER_LEVEL = 16;
-export const CHUNK_VOL = CHUNK * CHUNK * SY;
+export const CHUNK_VOL = CHUNK * CHUNK * SPAN;
+/** The rows of a chunk under height 0, all rock to begin with. */
+export const BASEMENT = CHUNK * CHUNK * -MINY;
 
 /** Morrow's square's chunks come after the Counties' (whose keys are as they always were: saves keep them). */
 const MORROW_KEYS = CSPAN * CSPAN;
@@ -46,7 +55,9 @@ export const legacyChunkKey = (key: number) => chunkKey(key % 64, Math.floor(key
 export const v2ChunkKey = (key: number) => chunkKey((key % 88) - 12, Math.floor(key / 88) - 12);
 /** Chunk keys saved while the world began at -2304 (chunks -72..128, 200 a row; Morrow's keys after 40000). */
 export const v3ChunkKey = (key: number) => (key < 40000 ? chunkKey((key % 200) - 72, Math.floor(key / 200) - 72) : chunkKey(((key - 40000) % 200) + 128, Math.floor((key - 40000) / 200) - 72));
-export const localIdx = (lx: number, y: number, lz: number) => lx + CHUNK * (lz + CHUNK * y);
+export const localIdx = (lx: number, y: number, lz: number) => lx + CHUNK * (lz + CHUNK * (y - MINY));
+/** The height a chunk's index stands at. */
+export const idxY = (li: number) => Math.floor(li / (CHUNK * CHUNK)) + MINY;
 
 export interface RayHit {
   x: number;
@@ -65,7 +76,7 @@ export class VoxelWorld {
   private listeners: ((cx: number, cz: number) => void)[] = [];
 
   inBounds(x: number, y: number, z: number): boolean {
-    return y >= 0 && y < SY && inWorld(x, z);
+    return y >= MINY && y < SY && inWorld(x, z);
   }
 
   chunkAt(x: number, z: number): Uint8Array | undefined {
@@ -79,18 +90,18 @@ export class VoxelWorld {
 
   get(x: number, y: number, z: number): number {
     if (!inWorld(x, z)) return B.Stone; // walls of the world
-    if (y < 0) return B.Stone;
+    if (y < MINY) return B.Stone;
     if (y >= SY) return B.Air;
     const c = this.chunks.get(chunkKey(x >> 5, z >> 5));
     if (!c) return y < WATER_LEVEL - 4 ? B.Stone : B.Air;
-    return c[(x & 31) + CHUNK * ((z & 31) + CHUNK * y)];
+    return c[(x & 31) + CHUNK * ((z & 31) + CHUNK * (y - MINY))];
   }
 
   /** Raw write with no remesh bookkeeping (used while assembling chunks). */
   put(x: number, y: number, z: number, id: number): void {
     if (!this.inBounds(x, y, z)) return;
     const c = this.chunks.get(chunkKey(x >> 5, z >> 5));
-    if (c) c[(x & 31) + CHUNK * ((z & 31) + CHUNK * y)] = id;
+    if (c) c[(x & 31) + CHUNK * ((z & 31) + CHUNK * (y - MINY))] = id;
   }
 
   /** Runtime edit: marks the owning chunk and any touching neighbours for remeshing. */
@@ -98,7 +109,7 @@ export class VoxelWorld {
     if (!this.inBounds(x, y, z)) return;
     const c = this.chunks.get(chunkKey(x >> 5, z >> 5));
     if (!c) return;
-    const i = (x & 31) + CHUNK * ((z & 31) + CHUNK * y);
+    const i = (x & 31) + CHUNK * ((z & 31) + CHUNK * (y - MINY));
     if (c[i] === id) return;
     c[i] = id;
     const cx = x >> 5, cz = z >> 5;
@@ -144,8 +155,8 @@ export class VoxelWorld {
     const c = this.chunks.get(chunkKey(ix >> 5, iz >> 5));
     if (!c) return -1;
     const base = (ix & 31) + CHUNK * (iz & 31);
-    for (let y = Math.min(from, SY - 1); y >= 0; y--) {
-      const id = c[base + CHUNK * CHUNK * y];
+    for (let y = Math.min(from, SY - 1); y >= MINY; y--) {
+      const id = c[base + CHUNK * CHUNK * (y - MINY)];
       if (id !== B.Air && id !== B.Water && isSolid(id)) return y;
     }
     return -1;
@@ -164,7 +175,7 @@ export class VoxelWorld {
 
   groundBelow(x: number, y: number, z: number, throughLeaves = false): number {
     const ix = Math.floor(x), iz = Math.floor(z);
-    for (let yy = Math.min(SY - 1, Math.floor(y)); yy >= 0; yy--) {
+    for (let yy = Math.min(SY - 1, Math.floor(y)); yy >= MINY; yy--) {
       const id = this.get(ix, yy, iz);
       // (a creature falls through a canopy to the ground: it was never meant to be up there)
       if (isSolid(id) && !(throughLeaves && isLeaves(id))) return yy + 1;

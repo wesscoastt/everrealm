@@ -12,7 +12,7 @@ import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/business
 import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, rememberHeights, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
-import { BUILD_SY, CHUNK, chunkKey, inWorld, keyChunk, localIdx, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
+import { BUILD_SY, CHUNK, chunkKey, idxY, inWorld, keyChunk, localIdx, MINY, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
@@ -248,7 +248,7 @@ export class Overrides {
   readonly soft = new Map<number, number>();
   set(x: number, y: number, z: number, id: number): void {
     x = Math.floor(x); z = Math.floor(z); y = Math.floor(y);
-    if (!inWorld(x, z) || y < 0 || y >= SY) return;
+    if (!inWorld(x, z) || y < MINY || y >= SY) return;
     const cell = (x - WMIN) + (z - WMIN) * KEY_W + y * KEY_W * KEY_W;
     if (id === B.Farmland || id === B.Barrier) this.soft.set(cell, id);
     else if (this.soft.has(cell)) this.soft.delete(cell);
@@ -352,7 +352,7 @@ function footings(O: Overrides): void {
   for (const [k, a] of O.map) {
     const [cx, cz] = keyChunk(k);
     for (let i = 0; i < a.length; i += 2) {
-      const li = a[i], x = cx * CHUNK + (li % CHUNK), z = cz * CHUNK + (Math.floor(li / CHUNK) % CHUNK), y = Math.floor(li / (CHUNK * CHUNK));
+      const li = a[i], x = cx * CHUNK + (li % CHUNK), z = cz * CHUNK + (Math.floor(li / CHUNK) % CHUNK), y = idxY(li);
       last.set(col(x, z) + y * KEY_W * KEY_W, a[i + 1]);
     }
   }
@@ -396,7 +396,7 @@ export function planCells(O: Overrides): { at: (x: number, y: number, z: number)
   for (const [k, a] of O.map) {
     const [cx, cz] = keyChunk(k);
     for (let i = 0; i < a.length; i += 2) {
-      const li = a[i], x = cx * CHUNK + (li % CHUNK), z = cz * CHUNK + (Math.floor(li / CHUNK) % CHUNK), y = Math.floor(li / (CHUNK * CHUNK));
+      const li = a[i], x = cx * CHUNK + (li % CHUNK), z = cz * CHUNK + (Math.floor(li / CHUNK) % CHUNK), y = idxY(li);
       last.set(col(x, z) + y * KEY_W * KEY_W, a[i + 1]);
       if (y > (tops.get(col(x, z)) ?? -1)) tops.set(col(x, z), y);
     }

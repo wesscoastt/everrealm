@@ -1,5 +1,5 @@
 import { B } from './blocks';
-import { CHUNK, localIdx, SY } from './VoxelWorld';
+import { CHUNK, localIdx, MINY, SY } from './VoxelWorld';
 import { MC_CELL, MC_PIECES, pieceBounds } from './mclandArea';
 import { MC_HEIGHTS } from './mclandHeights';
 import type { ChunkResult, GenTree } from './chunkgen';
@@ -39,6 +39,8 @@ export function mcHeight(x: number, z: number): number | null {
 }
 
 const files = new Map<string, Uint8Array | null>();
+/** Columns dug below the old foot (the Verandah quarry): per column 255 (not dug) or a count of [y - MINY, length, block] runs. */
+const deep = new Map<string, Uint8Array>();
 const pending = new Map<string, Promise<void>>();
 
 /** Fetch an island chunk's file, once (the worker awaits this before generating the chunk). */
@@ -51,6 +53,11 @@ export function mcLoad(cx: number, cz: number, base: string): Promise<void> {
       try {
         const res = await fetch(`${base}mcland/${key}.bin`);
         if (!res.ok) { files.set(key, null); return; }
+        // the quarry's deep part under the old foot, for the few chunks that have one (scripts/mc/quarrydeep.ts)
+        try {
+          const d = await fetch(`${base}mcland/deep/${key}.bin`);
+          if (d.ok && (d.headers.get('content-type') ?? '').indexOf('html') < 0) deep.set(key, new Uint8Array(await new Response(d.body!.pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()));
+        } catch { /* none */ }
         const raw = res.body!.pipeThrough(new DecompressionStream('deflate-raw'));
         files.set(key, new Uint8Array(await new Response(raw).arrayBuffer()));
       } catch { files.set(key, null); }
@@ -74,6 +81,19 @@ export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, numbe
   const ours = new Uint8Array(CHUNK * CHUNK), tops = new Int16Array(CHUNK * CHUNK).fill(-1), builtTop = new Uint8Array(CHUNK * CHUNK);
   const veg: number[] = [...r.veg];
   let p = 0;
+  // The quarry's deep part (scripts/mc/quarrydeep.ts): its columns' runs from the world's floor up through the old
+  // foot at 0, laid in after the island's own (which closed the pit off with a floor at 0)
+  const dp = deep.get(r.cx + '_' + r.cz), deepCols: (number[] | null)[] = [];
+  if (dp) {
+    let q = 0;
+    for (let c = 0; c < CHUNK * CHUNK; c++) {
+      const n = dp[q++];
+      if (n === 255) { deepCols.push(null); continue; }
+      const runs: number[] = [];
+      for (let k = 0; k < n; k++) runs.push(dp[q++] + MINY, dp[q++], dp[q++]);
+      deepCols.push(runs);
+    }
+  }
   for (let lz = 0; lz < CHUNK; lz++) for (let lx = 0; lx < CHUNK; lx++) {
     const n = f[p++];
     if (!n) continue;
@@ -84,6 +104,12 @@ export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, numbe
       const y0 = f[p++], len = f[p++], id = f[p++];
       for (let y = y0; y < y0 + len && y < SY; y++) r.data[localIdx(lx, y, lz)] = id;
       if (y0 + len - 1 > top) { top = y0 + len - 1; topId = id; }
+    }
+    const dc = deepCols[lx + lz * CHUNK];
+    if (dc) {
+      for (let y = MINY; y <= 0; y++) r.data[localIdx(lx, y, lz)] = B.Air;
+      for (let k = 0; k < dc.length; k += 3) for (let y = dc[k]; y < dc[k] + dc[k + 1] && y <= 0; y++) r.data[localIdx(lx, y, lz)] = dc[k + 2];
+      if (top <= 0) { top = -1; for (let y = 0; y >= MINY; y--) if (r.data[localIdx(lx, y, lz)] !== B.Air) { top = y; topId = r.data[localIdx(lx, y, lz)]; break; } }
     }
     tops[lx + lz * CHUNK] = top; if (!NATURAL.has(topId)) builtTop[lx + lz * CHUNK] = 1;
     // the explored map: the top block's colour, the water's by depth, a touch of shade by height

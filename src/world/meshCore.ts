@@ -75,7 +75,8 @@ function hash3(x: number, y: number, z: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, tint: Float32Array): MeshArrays {
+/** y0: the height row 0 stands at (the world's floor), for the blocks' looks; the mesh itself is laid from row 0 and set down by the caller. */
+export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, tint: Float32Array, y0 = 0): MeshArrays {
   // Out-of-range y reads as stone below and air above
   const get = (x: number, y: number, z: number) => (y < 0 ? B.Stone : y >= sy ? B.Air : pad[(x + 1) + PAD * ((z + 1) + PAD * y)]);
   const cap = 12000;
@@ -144,7 +145,7 @@ export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, 
         const ti = (z * 32 + x) * 6 + (leaves ? 3 : 0);
         const tinted = id === B.Grass || leaves;
         const tr = tinted ? tint[ti] : 1, tg = tinted ? tint[ti + 1] : 1, tb = tinted ? tint[ti + 2] : 1;
-        const jitter = 1 + (hash3(wx, y, wz) - 0.5) * 2 * (def.jitter ?? 0);
+        const jitter = 1 + (hash3(wx, y + y0, wz) - 0.5) * 2 * (def.jitter ?? 0);
         for (let f = 0; f < 6; f++) {
           const n = FN[f];
           const nid = get(x + n[0], y + n[1], z + n[2]);
@@ -154,7 +155,7 @@ export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, 
           const layer = kind === 0 ? def.top : kind === 2 ? def.bottom : def.side;
           const amt = id === B.Grass ? (kind === 0 ? 1 : 0.55) : 1;
           const r = (1 + (tr - 1) * amt) * jitter, g = (1 + (tg - 1) * amt) * jitter, bl = (1 + (tb - 1) * amt) * jitter;
-          const rot = kind === 0 && ROTATE[id] ? Math.floor(hash3(wx, y, wz) * 4) : 0;
+          const rot = kind === 0 && ROTATE[id] ? Math.floor(hash3(wx, y + y0, wz) * 4) : 0;
           const nx = x + n[0], ny = y + n[1], nz = z + n[2];
           pos.ensure(12); nor.ensure(12); uv.ensure(8); col.ensure(12); meta.ensure(8); idx.ensure(6);
           for (let c = 0; c < 4; c++) {

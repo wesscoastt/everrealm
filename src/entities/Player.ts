@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { B, isSolid } from '../world/blocks';
-import { SY, VoxelWorld } from '../world/VoxelWorld';
+import { MINY, SY, VoxelWorld } from '../world/VoxelWorld';
 import { onLadder } from '../world/ladders';
 import { Appearance, Humanoid, ROLL_TIME } from './humanoid';
 
@@ -278,7 +278,7 @@ export class Player {
     if (wasGround && !this.onGround) this.fallStartY = p.y;
     if (!this.onGround && this.velocity.y > 0) this.fallStartY = p.y;
     if (this.swimming) this.fallStartY = p.y;
-    if (p.y < -5) p.y = this.world.groundBelow(p.x, 63, p.z) + 1;
+    if (p.y < MINY - 5) p.y = this.world.groundBelow(p.x, 63, p.z) + 1; // (fallen through the world's floor)
 
     this.stepOffset += (0 - this.stepOffset) * Math.min(1, dt * 14);
     this.speed = Math.hypot(this.velocity.x, this.velocity.z);

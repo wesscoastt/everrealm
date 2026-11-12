@@ -3,7 +3,7 @@ import type { ChunkResult } from '../world/chunkgen';
 import type { MeshArrays } from '../world/meshCore';
 import { PAD } from '../world/meshCore';
 import { buildVegMesh } from '../world/Vegetation';
-import { CHUNK, chunkInWorld, chunkKey, keyChunk, SY, VoxelWorld } from '../world/VoxelWorld';
+import { CHUNK, chunkInWorld, chunkKey, keyChunk, MINY, SPAN, SY, VoxelWorld } from '../world/VoxelWorld';
 
 // Streams the continent around the player: generation and meshing run in workers, chunks
 // beyond the view distance are dropped, and the authored Hollindale chunks are copied from
@@ -224,13 +224,14 @@ export class ChunkManager {
   }
 
   private mesh(e: Entry): void {
-    const pad = new Uint8Array(PAD * PAD * SY);
+    const pad = new Uint8Array(PAD * PAD * SPAN);
     const self = this.voxels.chunks.get(chunkKey(e.cx, e.cz))!;
     const nb = (dx: number, dz: number) => this.voxels.chunks.get(chunkKey(e.cx + dx, e.cz + dz));
     const W = nb(-1, 0), E = nb(1, 0), N = nb(0, -1), S = nb(0, 1);
     const NW = nb(-1, -1), NE = nb(1, -1), SW = nb(-1, 1), SE = nb(1, 1);
     const C2 = CHUNK * CHUNK;
-    for (let y = 0; y < SY; y++) {
+    // (row by row as the chunk stores them, row 0 the world's floor: the mesh is set down to it, applyMesh)
+    for (let y = 0; y < SPAN; y++) {
       const yo = y * C2, po = PAD * PAD * y;
       for (let lz = -1; lz <= CHUNK; lz++) {
         const row = po + PAD * (lz + 1);
@@ -275,6 +276,7 @@ export class ChunkManager {
       const m = new THREE.Mesh(g, this.solidMat);
       m.castShadow = true;
       m.receiveShadow = true;
+      m.position.y = MINY; // (row 0 is the world's floor)
       this.group.add(m);
       e.solid = m;
     }
@@ -288,6 +290,7 @@ export class ChunkManager {
       g.computeBoundingSphere();
       const w = new THREE.Mesh(g, this.waterMat);
       w.renderOrder = 2;
+      w.position.y = MINY;
       this.group.add(w);
       e.water = w;
     }

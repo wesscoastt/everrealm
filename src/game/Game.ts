@@ -1040,6 +1040,14 @@ export class Game implements GameApi {
       props: this.world.props, hour: () => this.world.sky.hour,
       count: (it) => this.inv.count(it), give: (it, n = 1) => this.give(it, n), take: (it, n = 1) => { this.inv.remove(it, n); this.hud.refresh(); },
       xp: (skill, n) => this.addXp(skill, n),
+      travel: (x, y, z, label) => {
+        this.hud.closeAll();
+        this.cancelActions();
+        this.save.pos = [x, y, z];
+        this.save.hour = this.world.sky.hour;
+        this.save.hp = this.hp;
+        this.startPlay(false, label);
+      },
       lockDoorway: (x, y0, z, shut) => {
         const V = this.world.voxels;
         if (!V.isLoaded(x, z)) return;

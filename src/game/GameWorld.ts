@@ -22,7 +22,7 @@ import { buildStructures, StructureResult } from '../world/structures';
 import { GW, heightAt, landDist, SEA } from '../world/terrain';
 import { buildBlockTextureArray } from '../world/textures';
 import { Vegetation } from '../world/Vegetation';
-import { CHUNK, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMAX, WMIN, WSIZE } from '../world/VoxelWorld';
+import { BASEMENT, CHUNK, CHUNK_VOL, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMAX, WMIN, WSIZE } from '../world/VoxelWorld';
 import { ChunkManager } from './ChunkManager';
 
 /** Blocks between the far terrain's samples: it's only seen past the near chunks, in the haze. */
@@ -224,7 +224,8 @@ export class GameWorld {
   }
 
   private fillFromGrid(cx: number, cz: number): { data: Uint8Array; tint: Float32Array } {
-    const data = new Uint8Array(CHUNK * CHUNK * SY);
+    const data = new Uint8Array(CHUNK_VOL);
+    data.fill(B.Stone, 0, BASEMENT);
     const tint = new Float32Array(CHUNK * CHUNK * 6);
     const ox = cx * CHUNK, oz = cz * CHUNK;
     for (let y = 0; y < GSY; y++) for (let lz = 0; lz < CHUNK; lz++) {

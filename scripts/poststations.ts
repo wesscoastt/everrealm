@@ -6,6 +6,7 @@ import { POSTS } from '../src/data/travel';
 import { NPCS } from '../src/data/npcs';
 import { plan } from '../src/world/sites';
 import { generateChunk } from '../src/world/chunkgen';
+import { localIdx } from '../src/world/VoxelWorld';
 import { B } from '../src/world/blocks';
 import { heightAt, lakeDist, riverDist, roadDist, SEA } from '../src/world/terrain';
 
@@ -17,7 +18,7 @@ for (const n of NPCS) for (const sl of n.schedule) built.push([Math.floor(sl.at[
 const isBuilt = (x: number, z: number) => built.some((r) => x >= r[0] - 1 && x < r[2] + 1 && z >= r[1] - 1 && z < r[3] + 1);
 // What's actually there once the world's built (a mill race or a village pond isn't in the terrain)
 const chunks = new Map<string, Uint8Array>();
-const block = (x: number, y: number, z: number) => { const k = (x >> 5) + ',' + (z >> 5); let c = chunks.get(k); if (!c) { c = generateChunk(x >> 5, z >> 5).data as Uint8Array; chunks.set(k, c); } return c[(x & 31) + 32 * ((z & 31) + 32 * y)]; };
+const block = (x: number, y: number, z: number) => { const k = (x >> 5) + ',' + (z >> 5); let c = chunks.get(k); if (!c) { c = generateChunk(x >> 5, z >> 5).data as Uint8Array; chunks.set(k, c); } return c[localIdx(x & 31, y, z & 31)]; };
 const wet = (y: PostYard) => { for (let v = -7; v <= 4; v++) for (let u = -7; u <= 7; u++) { const [x, z] = yardAt(y, u, v); for (let h = y.base - 2; h <= y.base + 1; h++) if (block(x, h, z) === B.Water) return true; } return false; };
 const FRONT: Record<PostFace, [number, number]> = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 

@@ -2,7 +2,7 @@
 import { generateChunk, generateLod } from './chunkgen';
 import { meshPadded } from './meshCore';
 import { plan } from './sites';
-import { SY } from './VoxelWorld';
+import { MINY, SPAN } from './VoxelWorld';
 import { mcChunk, mcLoad } from './mcland';
 
 // Generation and meshing off the main thread. Messages:
@@ -27,7 +27,7 @@ self.onmessage = (e: MessageEvent) => {
     else gen();
   } else if (m.type === 'mesh') {
     const t0 = performance.now();
-    const a = meshPadded(m.pad, SY, m.ox, m.oz, m.tint);
+    const a = meshPadded(m.pad, SPAN, m.ox, m.oz, m.tint, MINY);
     self.postMessage({ type: 'mesh', id: m.id, key: m.key, arrays: a, ms: performance.now() - t0 }, [
       a.pos.buffer, a.nor.buffer, a.uv.buffer, a.col.buffer, a.meta.buffer, a.idx.buffer,
       a.wPos.buffer, a.wNor.buffer, a.wUv.buffer, a.wExtra.buffer, a.wIdx.buffer,

@@ -5,7 +5,7 @@ import { growTree, TreeKind } from './generate';
 import { fbm2, hash2 } from './noise';
 import { chunkRects, inRects, plan, safeZones } from './sites';
 import { columnBlocks, columnNoise, deepBlock, GW, heightAt, regionAt, RegionId, RegionSample, REGION_INFO, roadDist, SEA, tintAt } from './terrain';
-import { CHUNK, chunkKey, localIdx, SY, WMIN, WSIZE } from './VoxelWorld';
+import { BASEMENT, CHUNK, CHUNK_VOL, chunkKey, idxY, localIdx, SY, WMIN, WSIZE } from './VoxelWorld';
 import { createSeededRandom } from '../utils/random';
 
 /** 0 in open country, 1 in the middle of a copse (the outer lands' patches of woodland). */
@@ -68,7 +68,8 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
   _pt = performance.now();
   plan();
   const ox = cx * CHUNK, oz = cz * CHUNK;
-  const data = new Uint8Array(CHUNK * CHUNK * SY);
+  const data = new Uint8Array(CHUNK_VOL);
+  data.fill(B.Stone, 0, BASEMENT); // (rock under the world's old foot)
   const H = new Int16Array(AW * AW);
   const far = new Map<number, number>();
   const hAt = (x: number, z: number) => {
@@ -242,7 +243,7 @@ export function generateChunk(cx: number, cz: number): ChunkResult {
       const id = ov[i + 1];
       if (id === B.CopperOre || id === B.TinOre || id === B.SilverOre || id === B.IronOre) {
         const li = ov[i];
-        const lx = li % CHUNK, lz = Math.floor(li / CHUNK) % CHUNK, y = Math.floor(li / (CHUNK * CHUNK));
+        const lx = li % CHUNK, lz = Math.floor(li / CHUNK) % CHUNK, y = idxY(li);
         ores.push({ kind: id === B.CopperOre ? 'copper' : id === B.TinOre ? 'tin' : id === B.SilverOre ? 'silver' : 'iron', x: ox + lx, y, z: oz + lz });
       }
     }

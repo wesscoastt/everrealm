@@ -112,9 +112,10 @@ export const FARM_WAREHOUSE_PROPS: QuarryProp[] = [
 /** The quarry pit's gear (world/sites.ts 'ver-quarry') and the lumberyard (world/sites.ts 'ver-lumberyard'). */
 type QuarryProp = { t: 'cart' | 'crate' | 'barrel' | 'woodpile' | 'firepit' | 'tent' | 'anvil'; x: number; y: number; z: number; ry?: number; len?: number };
 export const QUARRY_PROPS: QuarryProp[] = [
-  { t: 'cart', x: -3086.5, y: 1, z: 2036.5, ry: 0.2 }, { t: 'cart', x: -3083.5, y: 1, z: 2026.5, ry: Math.PI / 2 },
-  { t: 'crate', x: -3089.5, y: 1, z: 2050.5 }, { t: 'crate', x: -3089.5, y: 1.6, z: 2050.5 }, { t: 'crate', x: -3090.5, y: 1, z: 2051.5 },
-  { t: 'barrel', x: -3083.5, y: 1, z: 2053.5 }, { t: 'anvil', x: -3082.5, y: 1, z: 2050.5, ry: 0.4 },
+  // (on the pit's floor as the owner dug it, under the world's old foot: scripts/mc/quarrydeep.ts)
+  { t: 'cart', x: -3086.5, y: -5, z: 2036.5, ry: 0.2 }, { t: 'cart', x: -3083.5, y: -24, z: 2026.5, ry: Math.PI / 2 },
+  { t: 'crate', x: -3089.5, y: -11, z: 2050.5 }, { t: 'crate', x: -3089.5, y: -10.4, z: 2050.5 }, { t: 'crate', x: -3090.5, y: -15, z: 2051.5 },
+  { t: 'barrel', x: -3083.5, y: -8, z: 2053.5 }, { t: 'anvil', x: -3082.5, y: -17, z: 2050.5, ry: 0.4 },
 ];
 /** The owner's lumberyard by the channel: woodpiles on the hall's floor (22), sawn timber stacked in the boathouse (18)
  *  and on the deck of the boat in its slip (17), crates and barrels at the slip's head (world/sites.ts 'ver-timberyard'). */

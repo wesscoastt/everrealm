@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import { generateChunk } from '../src/world/chunkgen';
 import { plan } from '../src/world/sites';
 import { B, isSolid } from '../src/world/blocks';
-import { SY } from '../src/world/VoxelWorld';
+import { localIdx, SY } from '../src/world/VoxelWorld';
 import { WORLD_ROADS, heightAt } from '../src/world/terrain';
 import { POSTS } from '../src/data/travel';
 
@@ -22,7 +22,7 @@ let all: Pt[][] = [];
     const k = (x >> 5) * 100000 + (z >> 5);
     let c = chunks.get(k);
     if (!c) { c = generateChunk(x >> 5, z >> 5).data as Uint8Array; chunks.set(k, c); }
-    return c[(x & 31) + 32 * ((z & 31) + 32 * y)];
+    return c[localIdx(x & 31, y, z & 31)];
   };
   const PAVED = new Set<number>([B.Cobble, B.MossyCobble, B.StoneBrick, B.Flagstone, B.Path, B.Gravel, B.Planks, B.BrickPave].filter((v) => v !== undefined));
   /** The floor at (x, z) within a step of y: firm, dry, two clear above; or null. */
