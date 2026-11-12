@@ -221,7 +221,7 @@ const storeAccount = (acc) => writeJson(path.join(ACC_DIR, accKey(acc.user) + '.
 function validSave(save, name) {
   if (!save || typeof save !== 'object' || Array.isArray(save)) return 'not an object';
   if (save.name !== name) return 'name mismatch';
-  if (!Array.isArray(save.inv) || save.inv.length > 64) return 'bad inventory';
+  if (!Array.isArray(save.inv) || save.inv.length > 100) return 'bad inventory';
   if (typeof save.marks !== 'number' || save.marks < 0 || save.marks > 1e7) return 'bad marks';
   if (!save.xp || typeof save.xp !== 'object') return 'bad skills';
   if (typeof save.playTime !== 'number') return 'bad play time';

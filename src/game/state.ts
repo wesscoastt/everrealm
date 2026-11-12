@@ -3,7 +3,8 @@ import type { Appearance } from '../entities/humanoid';
 import { ITEMS, SkillId } from '../data/items';
 import { levelForXp, MAX_LEVEL, SKILLS, xpForLevel, xpForLevelV1 } from '../data/gameplay';
 
-export const INV_SIZE = 28;
+/** The pack's own room before any bag is strapped on (owner 2026-11-07: "a bigger starting bag like modern MMOs"): ESO's sixty. */
+export const INV_SIZE = 60;
 export const SAVE_KEY = 'everrealm.save.v1';
 
 export interface Stack { id: string; n: number }

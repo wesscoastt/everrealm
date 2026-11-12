@@ -1019,6 +1019,29 @@ export class Hud {
     this.ctx.sfx('open');
   }
 
+  /**
+   * The parcel at a post box (owner 2026-11-07: "parcels and the post box with a menu of everything, to take what you
+   * want"): everything waiting, each with Take, and Take all that fits.
+   */
+  parcelWindow(rows: { id: string; name: string; n: number; fits: boolean; take: () => void }[], takeAll: () => void): void {
+    const box = this.q('#postcard');
+    if (!rows.length) { box.classList.remove('show'); return; }
+    box.innerHTML = `<p class="pc-q">Your parcel at the Charter Post: what wouldn't fit in your pack. Take what you want; the rest waits here, at any post box.</p>
+      <div class="en-rows"></div><div class="row"><button class="btn pc-all">Take all that fits</button><button class="btn ghost pc-x">Close</button></div>`;
+    const list = box.querySelector('.en-rows')!;
+    for (const r of rows) {
+      const row = el('div', 'en-row' + (r.fits ? '' : ' no'));
+      row.innerHTML = `<div class="slot"><img src="${itemIcon(r.id)}" alt=""></div><div class="en-mid"><b></b><small class="en-now"></small></div>${r.fits ? '<button class="btn sm">Take</button>' : ''}`;
+      row.querySelector('b')!.textContent = r.n > 1 ? `${r.name} ×${r.n}` : r.name;
+      row.querySelector('.en-now')!.textContent = r.fits ? '' : 'No room in your pack for it';
+      row.querySelector('button')?.addEventListener('click', () => r.take());
+      list.append(row);
+    }
+    box.querySelector('.pc-all')!.addEventListener('click', () => takeAll());
+    box.querySelector('.pc-x')!.addEventListener('click', () => box.classList.remove('show'));
+    box.classList.add('show');
+  }
+
   /** Write a message post to leave where you stand. */
   postWrite(send: (text: string) => void): void {
     const box = this.q('#postcard');

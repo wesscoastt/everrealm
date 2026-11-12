@@ -1754,6 +1754,32 @@ export class Game implements GameApi {
     this.hud.system(`Your pack is full, so ${ITEMS[item].name}${n > 1 ? ` ×${n}` : ''} has gone ahead by Charter Post. Collect it at any post box.`);
     this.sfx('click');
   }
+  /** The parcel's window at a post box: every piece in it, to take one by one or all that fits. */
+  private openParcel(): void {
+    const rows = this.parcel.filter((st) => ITEMS[st.id]).map((st, i) => ({
+      id: st.id, name: ITEMS[st.id].name, n: st.n, fits: this.inv.canAdd(st.id, ITEMS[st.id].stack ? st.n : 1),
+      take: () => this.takeFromParcel(i),
+    }));
+    this.hud.parcelWindow(rows, () => { this.collectParcel(); this.openParcel(); });
+    this.sfx('open');
+  }
+  /** One line of the parcel into the pack: the whole stack, or as many of a kind that doesn't stack as there's room for. */
+  private takeFromParcel(i: number): void {
+    const p = this.parcel.filter((st) => ITEMS[st.id]).map((x) => ({ ...x }));
+    const st = p[i];
+    if (!st) return;
+    let k = 0;
+    if (ITEMS[st.id].stack) { if (this.inv.canAdd(st.id, st.n)) { this.inv.add(st.id, st.n); k = st.n; } }
+    else while (k < st.n && this.inv.canAdd(st.id, 1)) { this.inv.add(st.id, 1); k++; }
+    if (!k) { this.hud.system('No room in your pack for that. Make some room first.'); return; }
+    st.n -= k;
+    const left = p.filter((x) => x.n > 0);
+    if (left.length) this.setFlag('parcel', left); else delete this.save.flags.parcel;
+    this.persist();
+    this.hud.refresh('inv');
+    this.sfx('pickup');
+    this.openParcel();
+  }
   /** Take what will fit out of the parcel. */
   private collectParcel(): void {
     const left: { id: string; n: number }[] = [];
@@ -5814,7 +5840,7 @@ export class Game implements GameApi {
     // A parcel waiting: collect it at any post box
     if (this.parcel.length) for (const pt of POSTS) {
       const b = postBoxOf(pt), d = Math.hypot(b.x - p.x, b.z - p.z);
-      if (d < 2.4) consider({ kind: 'act', label: `Collect your parcel (${this.parcel.reduce((a, x) => a + x.n, 0)})`, pos: new THREE.Vector3(b.x, p.y + 1.4, b.z), act: () => this.collectParcel() }, d - 0.2);
+      if (d < 2.4) consider({ kind: 'act', label: `Collect your parcel (${this.parcel.reduce((a, x) => a + x.n, 0)})`, pos: new THREE.Vector3(b.x, p.y + 1.4, b.z), act: () => this.openParcel() }, d - 0.2);
     }
     // A pedlar on the road: they stop for you, and open their pack
     for (const pd of this.roadfolk.pedlarsNear(p, 3.4)) consider({ kind: 'act', label: `Trade with ${pd.name}`, sub: pd.title, pos: new THREE.Vector3(pd.pos.x, pd.pos.y + 1, pd.pos.z), act: () => this.openPedlar(pd.id) }, Math.hypot(pd.pos.x - p.x, pd.pos.z - p.z));
