@@ -26,7 +26,7 @@ export class Orchestra {
     this.input.gain.value = 1;
     // Hall: long dark convolution tail plus a little dry signal
     this.reverb = ctx.createConvolver();
-    this.reverb.buffer = this.makeImpulse(5.2);
+    this.reverb.buffer = this.makeImpulse(3.8); // (a long hall still, at less cost to the audio thread)
     this.wet = ctx.createGain();
     this.wet.gain.value = 0.62;
     const dry = ctx.createGain();
@@ -111,6 +111,8 @@ export class Orchestra {
         o.frequency.value = f;
         o.detune.value = det + (Math.random() - 0.5) * 3;
         this.vibDepth.connect(o.detune);
+        // (unhooked when the note ends: left wired, every note ever played stayed in the graph, and the music stuttered and dropped out the longer you played)
+        o.onended = () => { try { this.vibDepth.disconnect(o.detune); } catch { /* gone */ } o.disconnect(); };
         o.connect(lp);
         o.start(t);
         o.stop(end);
@@ -131,6 +133,8 @@ export class Orchestra {
         o.frequency.value = f;
         o.detune.value = det;
         this.vibDepth.connect(o.detune);
+        // (unhooked when the note ends: left wired, every note ever played stayed in the graph, and the music stuttered and dropped out the longer you played)
+        o.onended = () => { try { this.vibDepth.disconnect(o.detune); } catch { /* gone */ } o.disconnect(); };
         o.connect(src);
         o.start(t);
         o.stop(end);
