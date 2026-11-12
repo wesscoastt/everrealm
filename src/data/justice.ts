@@ -88,6 +88,8 @@ export const CRIME = {
   guard: 400,
   /** Running when they come to take you in. */
   resist: 100,
+  /** Cutting down one of the watch. */
+  slain: 1000,
 };
 /** Thresholds: a word of warning; the watch comes to take you in; the watch comes with blades out. */
 export const HEAT = { warn: 1, arrest: 100, onSight: 600 };

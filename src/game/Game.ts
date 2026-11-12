@@ -997,6 +997,27 @@ export class Game implements GameApi {
       guards: (p, r) => this.roadfolk.guards(p, r),
       chase: (id, target) => this.roadfolk.chase(id, target),
       swing: (id) => this.roadfolk.swing(id),
+      // One of the watch with blades out: a fighter in their place, in their coat and with their blade, that you
+      // can strike back at and cut down (owner 2026-11-12). Off the beat a quarter of an hour if it falls.
+      fight: (id, name) => {
+        const g = this.roadfolk.takeOff(id, 900);
+        if (!g) return null;
+        const base = ENEMIES.footpad;
+        const e = new Enemy({ ...base, name, look: { ...g.look }, held: g.held === 'none' ? 'sword' : g.held, hp: Math.round(base.hp * 1.6), damage: Math.round(base.damage * 1.2), aggro: 30, leash: 60, loot: [], marks: [0, 0], xp: Math.round(base.xp * 1.5), respawn: 99999 } as typeof base, Math.floor(g.pos.x), Math.floor(g.pos.z), this.world.voxels);
+        e.home.set(g.pos.x, this.world.voxels.groundBelow(g.pos.x, g.pos.y + 3, g.pos.z), g.pos.z);
+        e.pos.copy(e.home);
+        e.state = 'chase';
+        this.enemies.push(e);
+        this.scene.add(e.model.root, e.telegraph);
+        return e;
+      },
+      unfight: (foe, id, back) => {
+        const e = foe as Enemy;
+        this.scene.remove(e.model.root, e.telegraph);
+        this.enemies = this.enemies.filter((x) => x !== e);
+        if (this.target === e) this.target = null;
+        if (back) this.roadfolk.putBack(id);
+      },
       witnesses: (p, r) => this.crowd.near(p, r) + this.npcs.filter((n) => n.placed !== false && n.model.root.visible && n.pos.distanceTo(p) < r).length,
       ground: (x, z, fromY) => this.world.voxels.groundBelow(x, fromY, z),
       voxels: this.world.voxels,

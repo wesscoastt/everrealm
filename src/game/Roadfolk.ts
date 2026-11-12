@@ -297,6 +297,9 @@ export class Roadfolk {
     this.swingT -= dt;
     const near: Figure[] = [];
     for (const f of this.figures) {
+      // (one of the watch who's come at you with blades out is a fighter of their own now, game/Justice.ts: off their beat until they're back)
+      const off = this.off.get(f.id);
+      if (off !== undefined) { if (t < off) { this.hide(f); continue; } this.off.delete(f.id); }
       let out = !night || f.night;
       if (f.chasing && this.chaseTo) {
         // After someone: run at them, and stop at arm's length
@@ -406,6 +409,19 @@ export class Roadfolk {
   private chaseTo: THREE.Vector3 | null = null;
 
   /** The watch near a point, built and in sight: for the law (game/Justice.ts). */
+  /** The watch taken off their beats until a time (realm seconds): turned on you, struck down, or gone back to the watch-house. */
+  private readonly off = new Map<string, number>();
+  /** One of the watch, to stand a fighter in their place: where they are, how they look, what they carry; and taking them off their beat for a while. */
+  takeOff(id: string, secs: number): { pos: THREE.Vector3; look: Appearance; held: HeldItem } | null {
+    const f = this.figures.find((x) => x.id === id);
+    if (!f) return null;
+    this.off.set(id, realmNow() / 1000 + secs);
+    if (f.chasing) f.chasing = false;
+    this.hide(f);
+    return { pos: f.pos.clone(), look: f.look, held: f.held };
+  }
+  /** Back on the beat (they weren't hurt: you got away, or they took you). */
+  putBack(id: string): void { this.off.delete(id); }
   guards(p: THREE.Vector3, r: number): { id: string; town: string; pos: THREE.Vector3 }[] {
     const out: { id: string; town: string; pos: THREE.Vector3 }[] = [];
     for (const f of this.figures) if ((f.kind === 'guard' || f.kind === 'post') && f.shown && f.town && f.pos.distanceTo(p) < r) out.push({ id: f.id, town: f.town, pos: f.pos });

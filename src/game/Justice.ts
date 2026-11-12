@@ -61,6 +61,12 @@ export interface JusticeHost {
   guards(p: THREE.Vector3, r: number): GuardRef[];
   chase(id: string | null, target: THREE.Vector3 | null): void;
   swing(id: string): void;
+  /**
+   * One of the watch, blades out, stood up as a fighter you can strike back at (owner 2026-11-12: "make guards killable when
+   * you're wanted so it's not an auto capture"); and the fighter put away again, the guard back on the beat or not.
+   */
+  fight(id: string, name: string): { alive: boolean; pos: THREE.Vector3 } | null;
+  unfight(foe: { alive: boolean; pos: THREE.Vector3 }, id: string, back: boolean): void;
   /** Townsfolk and named people near a point who'd see a blow struck. */
   witnesses(p: THREE.Vector3, r: number): number;
   ground(x: number, z: number, fromY: number): number;
@@ -89,7 +95,7 @@ const WATCH_SAYS = {
 };
 const pick = <T>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 
-type Arrest = { j: Jurisdiction; guard: string; mode: 'take' | 'blades'; panel: boolean; t: number; lost: number };
+type Arrest = { j: Jurisdiction; guard: string; mode: 'take' | 'blades'; panel: boolean; t: number; lost: number; foe?: { alive: boolean; pos: THREE.Vector3 } | null };
 /** In the wagon: along the roads in the cage (cart), or, where no road reaches, a short way off before the dark (wagon, driver). */
 type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel | null; driver: Humanoid | null; cart: PostRide | null; arrived: number; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number; rock: boolean };
 interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean }
@@ -233,6 +239,41 @@ export class Justice {
   private updateArrest(dt: number): void {
     const a = this.arrest!, P = this.host.player.position;
     a.t += dt;
+    // Blades out: the guard is a fighter now, and you can fight back. Cut them down and you're free of this one,
+    // with a price on you every guard in the town will come for; let them beat you down and you're taken in.
+    if (a.mode === 'blades' && a.foe === undefined) {
+      a.foe = this.host.fight(a.guard, `${a.j.watch[0].toUpperCase() + a.j.watch.slice(1)}, ${a.j.name}`);
+      if (a.foe) this.host.chase(null, null);
+    }
+    if (a.foe) {
+      const foe = a.foe;
+      if (!foe.alive) {
+        this.setBounty(a.j.id, this.bounty(a.j.id) + CRIME.slain);
+        this.host.unfight(foe, a.guard, false);
+        this.host.banner('The watch is down', `${a.j.name} wants ${this.bounty(a.j.id)} marks for you now`);
+        this.host.system(`You cut down one of ${a.j.name}'s watch. Every guard in the town will come for you with blades out, and the price on you has gone up by ${CRIME.slain} marks.`);
+        this.arrest = null;
+        return;
+      }
+      const out = Math.hypot(P.x - a.j.x, P.z - a.j.z) > a.j.r * 1.3;
+      if (out || foe.pos.distanceTo(P) > 42) {
+        a.lost += dt;
+        if (a.lost > 1.5 || out) {
+          this.host.unfight(foe, a.guard, true);
+          this.host.system(`You've lost them. ${a.j.name} still wants ${this.bounty(a.j.id)} marks, and its watch knows your face.`);
+          this.arrest = null;
+        }
+        return;
+      }
+      a.lost = 0;
+      const [hp, max] = this.host.hp();
+      if (hp < max * 0.2 && foe.pos.distanceTo(P) < 5) {
+        this.host.unfight(foe, a.guard, true);
+        this.host.system('The watch beats you down and puts the irons on you.');
+        this.takeIn(a.j, 1.5);
+      }
+      return;
+    }
     const g = this.host.guards(P, 80).find((x) => x.id === a.guard);
     // Lost them: out of the town's reach, or the guard out of sight behind you
     const out = Math.hypot(P.x - a.j.x, P.z - a.j.z) > a.j.r * 1.3;
