@@ -2175,6 +2175,25 @@ export class Humanoid {
     }
   }
 
+  /** A weapon put away (owner 2026-11-12: "a way to sheathe your weapon, like ESO"): across the back, hilt over the right shoulder. */
+  private slung: THREE.Group | null = null;
+  private slungKind: string = 'none';
+  setSlung(kind: HeldItem | string): void {
+    if (kind === this.slungKind) return;
+    if (this.slung) this.torso.remove(this.slung);
+    this.slung = null;
+    this.slungKind = kind;
+    if (kind === 'none' || TOOLS.has(kind) || instrumentOf(kind)) return;
+    const model = weaponModelOf(kind);
+    const m = model ? weaponMesh(model) : heldMesh('sword');
+    const g = new THREE.Group();
+    m.rotation.x = Math.PI / 2;
+    g.add(m);
+    g.position.set(0.14, 0.5, -0.37); // (over a cape, as the quiver is)
+    g.rotation.set(Math.PI / 2, 0, 0.6);
+    this.slung = g;
+    this.torso.add(g);
+  }
   setHeld(kind: HeldItem | string): void {
     if (kind === this.heldKind) return;
     if (this.held) this.handR.remove(this.held);

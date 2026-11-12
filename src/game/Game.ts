@@ -6628,6 +6628,8 @@ export class Game implements GameApi {
     }, () => {}, 30);
   }
 
+  /** Your weapon put away across your back (H), drawn again when you strike. */
+  private sheathed = false;
   /** Kneeling by someone who's down, helping them up: who, and how long you've been at it. */
   private reviving: { id: number; name: string; t: number } | null = null;
   /** Your companion (game/Companions.ts). */
@@ -7923,6 +7925,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyT')) this.hud.toggle('talents');
     if (I.pressedOnce('KeyJ')) this.hud.toggle('journal');
     if (I.pressedOnce('KeyM')) this.hud.toggle('map');
+    if (I.pressedOnce('KeyH') && this.save.equip.weapon) { this.sheathed = !this.sheathed; this.sfx(this.sheathed ? 'click' : 'swing', 0.4); }
     if (I.pressedOnce('KeyO')) this.hud.toggle('guild');
     if (I.pressedOnce('KeyP')) this.hud.toggle('finder');
     const enter = I.pressedOnce('Enter'), slash = I.pressedOnce('Slash');
@@ -8360,6 +8363,10 @@ export class Game implements GameApi {
     else if (!P.onGround && !P.swimming) M.setState('jump');
     else if (P.speed > 0.4) M.setState(P.speed > 6.5 ? 'run' : 'walk');
     else M.setState('idle');
+    // Sheathed (H): the weapon across the back until you strike or use a skill, which draws it (ESO's)
+    if (this.attack || this.skillAnim) this.sheathed = false;
+    const weaponOut = !!wid && held === (ITEMS[wid]?.weapon?.model ? wid : ITEMS[wid]?.weapon?.held ?? 'none');
+    if (this.sheathed && weaponOut) { M.setSlung(held); held = 'none'; } else M.setSlung('none');
     M.setHeld(P.swimming && (M.state === 'swim' || M.state === 'tread') ? 'none' : held);
     M.swimPitch = P.swimPitch;
     M.straddle = this.horse?.girth ?? 0.38;
