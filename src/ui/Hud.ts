@@ -1050,7 +1050,7 @@ export class Hud {
    * to remember where each goes to on the map"): everyone who's joined you, their face, how they feel about you and what
    * they're doing, with Summon to call them to your side from wherever they are, and Send back.
    */
-  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; house?: () => void; dismiss?: () => void }[], more: string, toggles?: { label: string; use: () => void }[]): void {
+  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; gift?: () => void; house?: () => void; dismiss?: () => void }[], more: string, toggles?: { label: string; use: () => void }[]): void {
     const box = this.q('#postcard');
     box.classList.add('wide');
     box.innerHTML = `<h3 class="cw-h">Companions</h3><p class="pc-q">${rows.length ? 'Call one to your side, wherever they are, or send them to live at your house. One walks with you at a time.' : 'Nobody walks with you yet. People you meet on the road may, if you ask them.'}</p>
@@ -1067,6 +1067,7 @@ export class Hud {
       const btns = row.querySelector('.cw-btns')!;
       const button = (label: string, fn: () => void, ghost = false) => { const b = el('button', 'btn sm' + (ghost ? ' ghost' : ''), label); b.addEventListener('click', fn); btns.append(b); };
       if (r.summon) button('Summon', r.summon);
+      if (r.gift) button('Gift', r.gift, true);
       if (r.house) button('To your house', r.house, true);
       if (r.dismiss) button('Send back', r.dismiss, true);
       list.append(row);
@@ -1074,6 +1075,26 @@ export class Hud {
     box.querySelector('.cw-more')!.textContent = more;
     box.querySelector('.pc-x')!.addEventListener('click', () => { box.classList.remove('show', 'wide'); this.ctx.sfx('close'); });
     if (!box.classList.contains('show')) this.ctx.sfx('open');
+    box.classList.add('show');
+  }
+  /** Something from your pack for a companion: each thing, with what they make of that kind of thing if you know. */
+  giftWindow(who: string, note: string, rows: { id: string; name: string; n: number; known?: string; give: () => void }[]): void {
+    const box = this.q('#postcard');
+    box.classList.add('wide');
+    box.innerHTML = '<h3 class="cw-h"></h3><p class="pc-q"></p><div class="en-rows cw-gifts"></div><div class="row"><button class="btn ghost pc-x">Not now</button></div>';
+    box.querySelector('.cw-h')!.textContent = `A gift for ${who}`;
+    box.querySelector('.pc-q')!.textContent = note;
+    const list = box.querySelector('.en-rows')!;
+    for (const r of rows) {
+      const row = el('div', 'en-row');
+      row.innerHTML = `<div class="slot"><img src="${itemIcon(r.id)}" alt=""></div><div class="en-mid"><b></b><small class="en-now"></small></div><button class="btn sm">Give</button>`;
+      row.querySelector('b')!.textContent = r.n > 1 ? `${r.name} ×${r.n}` : r.name;
+      row.querySelector('.en-now')!.textContent = r.known ?? '';
+      row.querySelector('button')!.addEventListener('click', () => { box.classList.remove('show', 'wide'); r.give(); });
+      list.append(row);
+    }
+    box.querySelector('.pc-x')!.addEventListener('click', () => { box.classList.remove('show', 'wide'); this.ctx.sfx('close'); });
+    this.ctx.sfx('open');
     box.classList.add('show');
   }
   /** Close the companions window, if it's the one open; true if it was. */

@@ -43,6 +43,10 @@ export interface GameApi {
   compDismiss(): void;
   compLeave(id: string): void;
   compRapport(id: string, delta: number): void;
+  /** Choose something from your pack to give them (data/companionGifts.ts). */
+  compGift(id: string): void;
+  /** Whether you've anything they could be given. */
+  compCanGift(): boolean;
   compActive(): string | null;
   /** Play a conversation where you stand (a quest spot's scene): the tree registered under this id, with this voice for its unmarked lines. */
   playScene(id: string, who: { name: string; title: string; look: import('../entities/humanoid').Appearance }): void;

@@ -132,6 +132,7 @@ import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
 import { HouseGuests } from './HouseGuests';
+import { giftTag, GIFT_TAG_NAME, GIFT_TASTES, reactionTo, type GiftTag } from '../data/companionGifts';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
 import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaPlace, villaSeller, villaShape, VILLAS } from '../data/mirador';
@@ -6682,6 +6683,61 @@ export class Game implements GameApi {
   compLeave(id: string): void { this.companions.leave(id as CompanionId); this.persist(); }
   compRapport(id: string, delta: number): void { this.companions.addRapport(id as CompanionId, delta); }
   compActive(): string | null { return this.companions?.active ?? null; }
+  /** What's in your pack that could be given: each kind of item once, with how many. */
+  private giftables(): { id: string; n: number; tag: GiftTag }[] {
+    const seen = new Map<string, { id: string; n: number; tag: GiftTag }>();
+    for (const st of this.save.inv) {
+      if (!st) continue;
+      const tag = giftTag(st.id);
+      if (!tag) continue;
+      const e = seen.get(st.id);
+      if (e) e.n += st.n; else seen.set(st.id, { id: st.id, n: st.n, tag });
+    }
+    return [...seen.values()];
+  }
+  compCanGift(): boolean { return this.giftables().length > 0; }
+  /**
+   * A gift (data/companionGifts.ts): choose it from your pack. One a day counts with them; what they think of a
+   * kind of thing is remembered once you've seen it, and shown beside it next time.
+   */
+  compGift(id: string): void {
+    const cid = id as CompanionId;
+    if (!COMPANIONS[cid]) return;
+    const today = new Date().toDateString(), first = compShort(cid);
+    const rows = this.giftables().map((g) => {
+      const known = this.save.flags[`comp:${cid}:gift:${g.tag}`] as string | undefined;
+      return {
+        id: g.id, name: ITEMS[g.id]?.name ?? g.id, n: g.n,
+        known: known ? `${first} ${known === 'love' ? 'loves' : known === 'like' ? 'likes' : known === 'dislike' ? 'would rather not have' : 'doesn\'t mind'} ${GIFT_TAG_NAME[g.tag]}` : undefined,
+        give: () => this.giveGift(cid, g.id, g.tag, today),
+      };
+    });
+    // (what they love first, then what they like; what they'd rather not have last)
+    const rank = (k?: string) => (!k ? 2 : k.includes('loves') ? 0 : k.includes('likes') ? 1 : k.includes('rather') ? 4 : 3);
+    rows.sort((a, b) => rank(a.known) - rank(b.known) || a.name.localeCompare(b.name));
+    const done = this.save.flags[`comp:${cid}:giftDay`] === today;
+    this.hud.giftWindow(COMPANIONS[cid].name, done ? `${first} has had a gift from you today. Anything more can wait until tomorrow.` : `Choose something from your pack. What you learn of ${first}'s tastes is noted beside each thing.`, done ? [] : rows);
+  }
+  private giveGift(id: CompanionId, item: string, tag: GiftTag, today: string): void {
+    const first = compShort(id), where = this.companionAt(id);
+    if (this.save.flags[`comp:${id}:giftDay`] === today) { if (where) this.floatAt(where, 2.4, GIFT_TASTES[id].enough, 'chatter'); return; }
+    if (!this.take(item, 1)) return;
+    const r = reactionTo(id, tag);
+    this.setFlag(`comp:${id}:giftDay`, today);
+    this.setFlag(`comp:${id}:gift:${tag}`, r.reaction);
+    this.companions.addRapport(id, r.rapport);
+    if (where) this.floatAt(where, 2.4, r.line, 'chatter');
+    this.hud.system(`${first}: "${r.line}"`);
+    this.sfx(r.reaction === 'dislike' ? 'close' : 'open');
+    this.persist();
+  }
+  /** Where a companion is standing, to say a line there: beside you, at your house, or where they wait. */
+  private companionAt(id: CompanionId): THREE.Vector3 | null {
+    if (this.companions.active === id && this.companions.body) return this.companions.body.pos;
+    const hg = this.houseGuests.near(this.player.position, 8);
+    if (hg?.id === id) return hg.pos;
+    return this.npcs.find((n) => n.def.id === 'comp_' + id)?.pos ?? null;
+  }
 
   /**
    * The companions window (U, or Allies on the bar): everyone who has joined you, called to your side from wherever
@@ -6691,7 +6747,7 @@ export class Game implements GameApi {
     const mood = (r: number) => (r >= 60 ? 'Devoted to you' : r >= 30 ? 'Warm toward you' : r >= 10 ? 'Friendly' : r > -10 ? 'Still getting the measure of you' : r > -40 ? 'Cool toward you' : 'Close to leaving you');
     const busy = this.dead ? 'Not while you\'re down.' : this.dungeons.run || this.tower.run ? 'Not from in here. They\'ll be waiting outside.' : this.reckoning.active ? 'Not in the middle of this.' : this.save.flags.jail ? 'The watch won\'t let anyone in to see you.' : null;
     const ids = (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`]);
-    const home = !!this.myHome();
+    const home = !!this.myHome(), canGift = this.compCanGift();
     const rows = ids.map((id) => {
       const c = COMPANIONS[id], h = this.companions.henchmanOf(id), on = this.companions.active === id;
       const house = !!this.save.flags[`comp:${id}:house`];
@@ -6700,6 +6756,7 @@ export class Game implements GameApi {
         state: on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`, mood: mood(this.companions.rapport(id)),
         why: !on && busy ? busy : undefined,
         summon: on || busy ? undefined : () => this.summonCompanion(id),
+        gift: canGift ? () => this.compGift(id) : undefined,
         house: home && !house && !busy ? () => { this.companions.toHouse(id); this.persist(); this.openCompanions(); } : undefined,
         dismiss: on || house ? () => { if (on) this.compDismiss(); else { this.setFlag(`comp:${id}:house`, null); this.hud.system(`${compShort(id)} goes back to ${c.home.place}.`); this.persist(); } this.openCompanions(); } : undefined,
       };
