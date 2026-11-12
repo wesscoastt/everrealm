@@ -32,10 +32,14 @@ export interface HouseGuestsHost {
   who(): CompanionId[];
   look(id: CompanionId): Appearance;
   say(pos: THREE.Vector3, h: number, text: string): void;
+  /** Whether they're to tend your things (use the furniture, work the garden), or only sit and stand about. */
+  tending(): boolean;
+  /** Water a tile of the garden they're working; true if it needed it. */
+  tend(tile: string): boolean;
 }
 
 /** Something to do: where to stand, which way to face, the pose, how high it lifts you (a chair), what it's called. */
-interface Spot { x: number; y: number; z: number; yaw: number; anim: AnimState; lift: number; inside: boolean; key: string; night?: boolean; held?: string }
+interface Spot { x: number; y: number; z: number; yaw: number; anim: AnimState; lift: number; inside: boolean; key: string; night?: boolean; held?: string; /** Tending your things: the work, not the rest. */ work?: boolean; tile?: string }
 
 interface Guest {
   id: CompanionId;
@@ -113,7 +117,7 @@ export class HouseGuests {
       for (const a of [yaw, yaw + Math.PI, yaw + Math.PI / 2, yaw - Math.PI / 2]) {
         const sx = x + Math.sin(a) * 1.05, sz = z + Math.cos(a) * 1.05;
         if (!free(sx, h.base, sz) || taken.has(Math.floor(sx) + ',' + Math.floor(sz))) continue;
-        out.push({ x: sx, y: h.base, z: sz, yaw: a + Math.PI, anim: use.anim, lift: 0, inside: true, key, held: use.held });
+        out.push({ x: sx, y: h.base, z: sz, yaw: a + Math.PI, anim: use.anim, lift: 0, inside: true, key, held: use.held, work: true });
         break;
       }
     }
@@ -128,7 +132,7 @@ export class HouseGuests {
       for (const k of this.host.garden().slice(0, 12)) {
         const [tx, tz] = k.split(',').map(Number);
         const sx = tx + 0.5, sz = tz - 0.5, y = V.groundBelow(sx, h.base + 4, sz);
-        if (free(sx, y, sz)) out.push({ x: sx, y, z: sz, yaw: 0, anim: 'crouch', lift: 0, inside: false, key: 'garden' + k });
+        if (free(sx, y, sz)) out.push({ x: sx, y, z: sz, yaw: 0, anim: 'crouch', lift: 0, inside: false, key: 'garden' + k, work: true, tile: k });
       }
       for (let k = 0; k < 4; k++) {
         const x = yard.x0 + 1.5 + ((k * 5 + 1) % Math.max(1, yard.x1 - yard.x0 - 2)), z = yard.z0 + 1.5 + ((k * 7 + 4) % Math.max(1, yard.z1 - yard.z0 - 2));
@@ -145,7 +149,7 @@ export class HouseGuests {
     const at = spots.length ? spots[Math.floor(Math.random() * spots.length)] : null;
     const pos = at ? new THREE.Vector3(at.x, at.y, at.z) : this.doorPoints(h).in.clone();
     const g: Guest = { id, model, pos, yaw: 0, path: [], doing: null, until: 0, inside: at?.inside ?? true, talk: null };
-    if (at && this.claimable(at, g)) this.begin(g, at);
+    if (at && this.claimable(at, g) && (!at.work || this.host.tending())) this.begin(g, at);
     this.host.scene.add(model.root);
     this.guests.set(id, g);
   }
@@ -170,6 +174,7 @@ export class HouseGuests {
     g.inside = s.inside;
     g.until = this.clock + (s.anim === 'sleep' ? 9999 : 18 + Math.random() * 30);
     g.model.setHeld(s.held ?? 'none');
+    if (s.tile && this.host.tending()) this.host.tend(s.tile);
     // Now and then, a word about what they're at
     if (Math.random() < 0.25 && this.host.player().distanceTo(g.pos) < 14) {
       const lines = COMPANIONS[g.id].banter.house;
@@ -180,7 +185,8 @@ export class HouseGuests {
   /** Off to something else: by the door if it's the other side of the wall. */
   private choose(g: Guest, h: HomeShape, spots: Spot[]): void {
     const night = this.host.hour() >= 22 || this.host.hour() < 6;
-    let pool = spots.filter((s) => this.claimable(s, g) && s.key !== g.doing?.key);
+    const tending = this.host.tending();
+    let pool = spots.filter((s) => this.claimable(s, g) && s.key !== g.doing?.key && (tending || !s.work));
     if (night) {
       const beds = pool.filter((s) => s.night);
       pool = beds.length ? beds : pool.filter((s) => s.anim === 'seated');
@@ -269,7 +275,7 @@ export class HouseGuests {
           g.yaw = Math.atan2(dx, dz); speed = WALK;
         }
       } else if (g.talk) this.chat(g);
-      else if (this.clock > g.until) this.choose(g, h, spots);
+      else if (this.clock > g.until || (g.doing?.work && !this.host.tending())) this.choose(g, h, spots);
       // Bedtime: anyone still up goes to a bed while there's one free, or else to a chair to doze in; and up in the morning
       const night = this.host.hour() >= 22 || this.host.hour() < 6;
       if (!g.path.length && !g.talk) {

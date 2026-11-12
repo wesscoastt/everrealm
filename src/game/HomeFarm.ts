@@ -267,6 +267,18 @@ export class HomeFarm {
   }
 
   /** The can: this tile and the planted ones round it, as far as the can reaches. */
+  /**
+   * A companion living at your house tending a tile of your own garden (game/HouseGuests.ts): watered as the plain
+   * can waters it, if it's growing and dry. No experience: it's their work, not yours. True if it was watered.
+   */
+  tendTile(k: string): boolean {
+    const own = this.own(), t = own[k], now = Date.now();
+    if (!t?.c || now < t.wu || this.host.raining()) return false;
+    own[k] = { ...this.grow(t, now), wu: now + CANS[CANS.length - 1].wetMin * 60000 };
+    this.host.setFlag('garden', own); this.host.persist();
+    this.refresh();
+    return true;
+  }
   private water(x: number, z: number): void {
     const all = this.tiles(), now = Date.now(), can = this.can();
     if (!can) return;

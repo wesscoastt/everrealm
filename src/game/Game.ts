@@ -1184,6 +1184,8 @@ export class Game implements GameApi {
       who: () => (this.save.flags['comp:houseHidden'] ? [] : this.atHouse()),
       look: (id) => this.companions.henchmanOf(id).look as Appearance,
       say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
+      tending: () => !this.save.flags['comp:houseRest'],
+      tend: (tile) => this.garden.tendTile(tile),
     });
     this.lotBuild = new LotBuild({
       scene: this.scene, voxels: this.world.voxels,
@@ -6706,7 +6708,12 @@ export class Game implements GameApi {
     // (owner 2026-11-12: "ability to hide them from walking around also": they still live there, just out of sight)
     const anyHome = home && ids.some((id) => this.save.flags[`comp:${id}:house`]);
     const hidden = !!this.save.flags['comp:houseHidden'];
-    this.hud.companionWindow(rows, more, anyHome ? { label: hidden ? 'Show them about the house' : 'Hide them about the house', use: () => { this.setFlag('comp:houseHidden', hidden ? null : 1); this.persist(); this.openCompanions(); } } : undefined);
+    // (owner 2026-11-12: "have a way to turn them on and off for tending to your stuff": on, they use the place and water the garden; off, they only sit and stand about)
+    const resting = !!this.save.flags['comp:houseRest'];
+    this.hud.companionWindow(rows, more, anyHome ? [
+      { label: hidden ? 'Show them about the house' : 'Hide them about the house', use: () => { this.setFlag('comp:houseHidden', hidden ? null : 1); this.persist(); this.openCompanions(); } },
+      { label: resting ? 'Tending your things: off' : 'Tending your things: on', use: () => { this.setFlag('comp:houseRest', resting ? null : 1); this.hud.system(resting ? 'They\'ll see to the house and water the garden.' : 'They\'ll leave your things be and take their ease.'); this.persist(); this.openCompanions(); } },
+    ] : undefined);
   }
   /** The companions living at your house, and not out with you. */
   private atHouse(): CompanionId[] {
