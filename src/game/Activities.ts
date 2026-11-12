@@ -1,3 +1,5 @@
+import { dungeonArmour } from '../data/armour';
+import { DUNGEON_WEAPONS } from '../data/weapons';
 import * as THREE from 'three';
 import { FORT_BY_ID, FORT_RESPAWN } from '../data/forts';
 import { Duels } from './Duels';
@@ -465,6 +467,8 @@ export class Activities {
           continue;
         }
         for (const [x, y, z, type] of a.spawns ?? []) out.push(this.spawnAt({ ...ENEMIES[type as EnemyType], respawn: 150 }, x, y, z));
+        // A public dungeon's group bosses, ESO's way: named, hard enough to want company, back in ten minutes
+        if (a.kind === 'dungeon') for (const [x, y, z, type] of a.guards ?? []) out.push(this.spawnAt({ ...championOf(type as EnemyType, 1.3), respawn: 600 }, x, y, z));
         if (a.boss) {
           // A delve's champion has a name and a move of its own (data/champions.ts)
           const ch = a.kind === 'delve' ? DELVE_CHAMPIONS[s.id] : undefined, d = championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45);
@@ -684,7 +688,10 @@ export class Activities {
     const gear = Object.values(ITEMS).filter((d) => d.set && d.set !== 'tolley' && !DUNGEON_SETS.has(d.set));
     const regional = gear.filter((d) => GEAR_REGION[d.set!] === reg);
     const items: string[] = [];
-    if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
+    // a dungeon or delve with a set of its own gives that, more often than the land's
+    const own = SITE_GEAR[s.id];
+    if (own?.length && Math.random() < (big ? 0.6 : 0.4)) items.push(own[Math.floor(Math.random() * own.length)]);
+    else if (Math.random() < (big ? 0.4 : 0.22)) items.push((regional.length ? regional : gear)[Math.floor(Math.random() * (regional.length || gear.length))].id);
     const mats: Record<RegionId, string> = { greenwake: 'copper_ore', crownroad: 'boar_hide', brambledeep: 'elder_logs', verandah: 'crab_shell', saltwind: 'crab_shell', redstone: 'iron_ore', starfall: 'star_crystal', gannet: 'boar_hide', wrath: 'jelly_residue', tolmen: 'iron_ore', inkholm: 'stemwood', kell: 'brass_cog', sickle: 'star_crystal', keys: 'black_shard', glades: 'lizard_hide', amberwold: 'moth_dust', bright: 'white_chip', sunder: 'white_chip', glassflats: 'black_glass', greywaste: 'grave_iron', held: 'troll_hide' };
     items.push(mats[reg], mats[reg], ...this.mapFrom(reg, 0.3));
     this.host.reward(big ? 900 : 450, big ? 60 : 30, items, `The chest in ${s.name}`);
@@ -876,7 +883,11 @@ function waveSizes(def: EventDef): number[] {
 }
 
 /** Group dungeons' sets drop only in their dungeons. */
-const DUNGEON_SETS = new Set(['oldman', 'fold', 'escapement', 'barrow']);
+const DUNGEON_SETS = new Set(['oldman', 'fold', 'escapement', 'barrow', 'tidebell', 'blackgull']);
+/** The sets that come only from one place's chest (data/armour.ts and weapons.ts 'dungeon'): its armour, weapons and named pieces. */
+const SITE_GEAR: Record<string, string[]> = {
+  'pd-blackgull': [...dungeonArmour('pd-blackgull'), ...(DUNGEON_WEAPONS['pd-blackgull'] ?? []), 'ennor_cutlass', 'lampman_hood'],
+};
 
 /** Which region each gear set comes from (dungeon chests favour their own region's pieces). */
 const GEAR_REGION: Record<string, string> = { tollriders: 'crownroad', thornback: 'brambledeep', brine: 'saltwind', harrow: 'redstone', starglass: 'starfall' };

@@ -165,9 +165,40 @@ const LINES: Line[] = [
       feet: ['Verdigris boots', 'Shod with shell at the toe. They don\'t rust; they\'re rust already.'],
     },
   },
-  // Black Gull Keep (group dungeon, Verandah): its bosses drop these
+  // The Sunken Temple (group dungeon, Verandah): its bosses drop these
   {
-    id: 'wreckerslop', weight: 'light', set: 'blackgull', dungeon: 'gd-blackgull', rarity: 'rare', value: 80, colour: '#2a2e36', trim: '#8a8a7a',
+    id: 'bellcloth', weight: 'light', set: 'tidebell', dungeon: 'gd-temple', rarity: 'rare', value: 85, colour: '#2a3a32', trim: '#c8a050',
+    look: { chest: { top: 3, tunic: '#2a3a32', trim: '#c8a050', shirt: '#8a9a8a' }, legs: { trousers: '#232c28', legs: 1, hose: '#2a3430' }, hands: { gloves: '#2a3430' }, feet: { boots: '#1a201c', shoes: 1 } },
+    pieces: {
+      chest: ['Bell-ringer’s habit', 'Green wool gone dark in the water, gold thread at the hem where the old kingdom’s ringers wore their rank.'],
+      legs: ['Bell-ringer’s hose', 'Wool, wound tight at the ankle against the damp of the bell tower.'],
+      hands: ['Bell-ringer’s gloves', 'Leather worn through at the fingers by the bell rope, and patched, and worn through again.'],
+      feet: ['Bell-ringer’s shoes', 'Felt soles, for the tower stair. A ringer was not to be heard before the bell was.'],
+    },
+  },
+  {
+    id: 'tidewarden', weight: 'medium', set: 'tidebell', dungeon: 'gd-temple', rarity: 'rare', value: 85, colour: '#26342e', trim: '#8a9a8a',
+    look: { chest: { top: 6, tunic: '#26342e', trim: '#8a9a8a', chestArmour: { style: 'brigandine', color: '#34443c', trim: '#c8a050' } }, legs: { trousers: '#1e2420', legs: 1, hose: '#26342e' }, hands: { gloves: '#1e2420', bracers: { style: 'leather', color: '#26342e' } }, feet: { boots: '#141816', shoes: 0 } },
+    pieces: {
+      chest: ['Temple warden’s jack', 'Quilted under green-black leather, the temple’s bell worked in brass on the breast. The wardens kept the cells.'],
+      legs: ['Temple warden’s breeches', 'Leather, salt-stiff, the knees worn pale from kneeling at the offices.'],
+      hands: ['Temple warden’s gloves', 'A ring of small keys still hangs from the left cuff. None of them fit anything left.'],
+      feet: ['Temple warden’s boots', 'Hobnailed for the wet stone of the lower halls.'],
+    },
+  },
+  {
+    id: 'priorsplate', weight: 'heavy', set: 'tidebell', dungeon: 'gd-temple', rarity: 'rare', value: 100, colour: '#6a7a72', trim: '#d8b04a',
+    look: { chest: { top: 4, tunic: '#2a3a32', trim: '#d8b04a', chestArmour: { style: 'plate', color: '#6a7a72', trim: '#d8b04a' }, shoulders: { style: 'round', color: '#6a7a72', trim: '#d8b04a' } }, legs: { trousers: '#1e2420', legs: 0, legArmour: { style: 'plate', color: '#6a7a72' } }, hands: { gloves: '#1e2420', bracers: { style: 'plate', color: '#6a7a72' } }, feet: { boots: '#141816', shoes: 0 } },
+    pieces: {
+      chest: ['Temple guard’s plate', 'Old kingdom steel, gone the green of deep water but sound under it. The bell on the breast is gilt.'],
+      legs: ['Temple guard’s greaves', 'They kept the sanctum door. The door is still shut.'],
+      hands: ['Temple guard’s gauntlets', 'The palms are scored where a halberd was gripped for a hundred years.'],
+      feet: ['Temple guard’s sabatons', 'Heavy enough to stand in a current. They did, at the end.'],
+    },
+  },
+  // Black Gull Keep (public dungeon, Verandah): its bosses and its chest give these
+  {
+    id: 'wreckerslop', weight: 'light', set: 'blackgull', dungeon: 'pd-blackgull', rarity: 'rare', value: 80, colour: '#2a2e36', trim: '#8a8a7a',
     look: { chest: { top: 3, tunic: '#2a2e36', trim: '#8a8a7a', shirt: '#a8a090' }, legs: { trousers: '#2a2620', legs: 1, hose: '#3a362e' }, hands: { gloves: '#2a2622' }, feet: { boots: '#1e1a16', shoes: 1 } },
     pieces: {
       chest: ['Wrecker’s slops', 'A sailor’s smock, tarred against the rain and dyed black against the moon.'],
@@ -177,7 +208,7 @@ const LINES: Line[] = [
     },
   },
   {
-    id: 'blackgull', weight: 'medium', set: 'blackgull', dungeon: 'gd-blackgull', rarity: 'rare', value: 80, colour: '#1e1e24', trim: '#c8c8d0',
+    id: 'blackgull', weight: 'medium', set: 'blackgull', dungeon: 'pd-blackgull', rarity: 'rare', value: 80, colour: '#1e1e24', trim: '#c8c8d0',
     look: { chest: { top: 6, tunic: '#1e1e24', trim: '#c8c8d0', chestArmour: { style: 'brigandine', color: '#2a2e36', trim: '#c8c8d0' } }, legs: { trousers: '#1e1e24', legs: 1, hose: '#2a2e36' }, hands: { gloves: '#1e1e22', bracers: { style: 'leather', color: '#1e1e22' } }, feet: { boots: '#141418', shoes: 1 } },
     pieces: {
       chest: ['Black Gull jerkin', 'Ship’s leather riveted with brass off a dozen wrecks. A white gull is stitched on the back, small.'],
@@ -187,7 +218,7 @@ const LINES: Line[] = [
     },
   },
   {
-    id: 'keepplate', weight: 'heavy', set: 'blackgull', dungeon: 'gd-blackgull', rarity: 'rare', value: 95, colour: '#8a9098', trim: '#5a2a24',
+    id: 'keepplate', weight: 'heavy', set: 'blackgull', dungeon: 'pd-blackgull', rarity: 'rare', value: 95, colour: '#8a9098', trim: '#5a2a24',
     look: { chest: { top: 4, tunic: '#5a2a24', trim: '#8a9098', chestArmour: { style: 'plate', color: '#8a9098', trim: '#5a2a24' }, shoulders: { style: 'round', color: '#8a9098', trim: '#5a2a24' } }, legs: { trousers: '#3a2a22', legs: 0, legArmour: { style: 'plate', color: '#8a9098' } }, hands: { gloves: '#3a2a22', bracers: { style: 'plate', color: '#8a9098' } }, feet: { boots: '#2a2018', shoes: 1, sabatons: { color: '#8a9098' } } },
     pieces: {
       chest: ['Old keep plate', 'The keep’s own armour from its armoury, a hundred years out of date and as good as the day it was made.'],

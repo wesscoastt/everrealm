@@ -95,7 +95,7 @@ export interface DungeonDef {
 const OLDMAN_GEAR = [...dungeonArmour('gd-oldman'), 'pitlamp_cap', ...(DUNGEON_WEAPONS['gd-oldman'] ?? [])];
 const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood', ...(DUNGEON_WEAPONS['gd-kettle'] ?? [])];
 const ESC_GEAR = [...dungeonArmour('gd-escapement'), ...(DUNGEON_WEAPONS['gd-escapement'] ?? [])];
-const BG_GEAR = [...dungeonArmour('gd-blackgull'), ...(DUNGEON_WEAPONS['gd-blackgull'] ?? [])];
+const TEMPLE_GEAR = [...dungeonArmour('gd-temple'), ...(DUNGEON_WEAPONS['gd-temple'] ?? [])];
 const KB_GEAR = [...dungeonArmour('gd-kingsbarrow'), ...(DUNGEON_WEAPONS['gd-kingsbarrow'] ?? [])];
 
 export const DUNGEONS: DungeonDef[] = [
@@ -337,64 +337,64 @@ export const DUNGEONS: DungeonDef[] = [
     chest: { xp: 26000, marks: 600, items: ['grave_iron', 'grave_iron', 'grave_iron', 'black_shard', 'black_shard', 'troll_hide'] },
   },
   {
-    id: 'gd-blackgull', name: 'Black Gull Keep', where: 'the old keep west of Verandah', level: 26,
-    blurb: 'The old keep west of the Charter yard has stood empty since the king’s grandfather moved his court into the town. Last winter the Black Gulls moved in: wreckers, who light false lamps on the cliffs on foul nights and strip whatever the sea brings ashore. The King’s Guard has tried the gate twice. There are people in the cells.',
-    door: [-3384.5, 17, 2137.5], out: [-3384.5, 17, 2139.5, 0],
+    id: 'gd-temple', name: 'The Sunken Temple', where: 'under the hill east of the pit, south of Verandah', level: 28,
+    blurb: 'The old kingdom built its temple of the bell under the hill, and the sea came in through the caves below it the year the kingdom fell. The bell still rings on stormy nights. The town says it is the wind. The pit-diggers who broke into the west hall last spring say otherwise, and none of them will go back down.',
+    door: [-3405.5, 2, 2452.5], out: [-3408.5, 2, 2452.5, -Math.PI / 2],
     bosses: [
       {
-        title: 'The gaoler',
-        pull: ['Mother Skewes', 'More for the cells. Good. The others were getting lonely.'],
-        adds: [{ at: 0.5, types: ['dg_bg_wrecker', 'dg_bg_wrecker'], line: ['Mother Skewes', 'Boys! Down from the gallery, we’ve company!'] }],
-        hazard: { every: 9, count: 2, r: 3, windup: 1.6, damage: 46, color: '#9aa0a8', line: 'Mother Skewes yanks the chains, and the gallery drops its irons.' },
-        fall: ['Mother Skewes', 'The keys are on the hook. Let them out, then. They’ll only drown in the next one.'],
+        title: 'The bell-ringer',
+        pull: ['Jago Polglase', 'Third bell of the evening office. You are late. Everybody is late now.'],
+        adds: [{ at: 0.5, types: ['tp_bellkeeper', 'tp_bellkeeper'], line: ['Jago Polglase', 'Keepers! To the ropes!'] }],
+        hazard: { every: 9, count: 3, r: 3, windup: 1.7, damage: 48, color: '#9fd8c8', line: 'The floor shudders with the bell, and the old stone cracks where it lands.' },
+        fall: ['Jago Polglase', 'Somebody has to ring the last one. Somebody always did.'],
         moves: [
-          { kind: 'cone', every: 11, windup: 1.3, damage: 42, r: 4.5, w: 100, color: '#c8c8d0', line: 'Mother Skewes swings the ring of keys round her head.' },
-          { kind: 'charge', every: 16, windup: 1.3, damage: 44, r: 12, w: 2.4, color: '#ff7a40', line: 'Mother Skewes lowers her head at {name}.' },
+          { kind: 'nova', every: 14, windup: 2.0, damage: 54, r: 6, color: '#9fd8c8', line: 'Jago Polglase lifts the clapper over his head. Get clear of him.' },
+          { kind: 'charge', every: 16, windup: 1.3, damage: 46, r: 12, w: 2.4, color: '#ff7a40', line: 'Jago Polglase drops his head and comes at {name}.' },
         ],
-        phase: ['Mother Skewes', 'Forty years I’ve kept this gaol. I’m not done.'],
-        drops: BG_GEAR, chance: 0.6,
+        phase: ['Jago Polglase', 'Again. Again. The office is not finished.'],
+        drops: ['polglase_hammer', ...TEMPLE_GEAR], chance: 0.6,
       },
       {
-        title: 'The keeper of the false light',
-        pull: ['Vellanoweth', 'You’ve come up on the wrong night. The weather’s turning. I’ve a lamp to light.'],
+        title: 'The warden of the cells',
+        pull: ['Sister Tamsin Carlyon', 'The prior is at prayer and may not be disturbed. Kneel, or be made to.'],
         adds: [
-          { at: 0.66, types: ['dg_bg_lamp', 'dg_bg_lamp'], line: ['Vellanoweth', 'Lamps! Bring the lamps!'] },
-          { at: 0.33, types: ['dg_bg_hound', 'dg_bg_hound'], line: ['Vellanoweth', 'Let the dogs off.'] },
+          { at: 0.66, types: ['tp_acolyte', 'tp_acolyte'], line: ['Sister Tamsin Carlyon', 'Brothers, you are wanted.'] },
+          { at: 0.33, types: ['tp_sexton'], line: ['Sister Tamsin Carlyon', 'Fetch the sexton. Tell him to bring his spade.'] },
         ],
-        hazard: { every: 8, count: 3, r: 3.2, windup: 1.8, damage: 48, color: '#ffb040', line: 'Oil runs across the floor, and Vellanoweth drops his lamp into it.' },
-        fall: ['Vellanoweth', 'Twenty-two ships. I counted every one. Go on, count them for me. I’ve lost my place.'],
+        hazard: { every: 8, count: 3, r: 3.2, windup: 1.8, damage: 50, color: '#5ac8a8', line: 'Black water wells up through the flagstones round Sister Carlyon.' },
+        fall: ['Sister Tamsin Carlyon', 'I kept the keys for him. Every one. Tell him I kept them.'],
         moves: [
-          { kind: 'nova', every: 15, windup: 2.0, damage: 56, r: 6.5, color: '#ffb040', line: 'Vellanoweth raises his lamp high. Get away from him.' },
-          { kind: 'stack', every: 18, windup: 3.0, damage: 90, r: 3, color: '#ffd080', line: 'Vellanoweth throws the oil at {name}. Stand together and share the burn.' },
+          { kind: 'stack', every: 18, windup: 3.0, damage: 92, r: 3, color: '#9fd8c8', line: 'Sister Carlyon calls the tide on {name}. Stand together and share it.' },
+          { kind: 'cone', every: 11, windup: 1.3, damage: 46, r: 5, w: 100, color: '#5ac8a8', line: 'Sister Carlyon sweeps her hand, and the water follows it.' },
         ],
-        phase: ['Vellanoweth', 'The wind’s up. Can you hear it? That’s a ship coming.'],
-        drops: ['lampman_hood', ...BG_GEAR], chance: 0.6,
+        phase: ['Sister Tamsin Carlyon', 'The sea came in once. I can let it in again.'],
+        drops: ['carlyon_veil', ...TEMPLE_GEAR], chance: 0.6,
       },
       {
-        title: 'The captain of the Black Gulls',
-        pull: ['Hawke Ennor', 'The king sent you, did he? Tell him the sea brought it. The sea doesn’t pay tolls.'],
+        title: 'The prior of the drowned temple',
+        pull: ['Prior Maddern', 'You have come up from the town. Tell me, does the bell still ring for the king?'],
         adds: [
-          { at: 0.66, types: ['dg_bg_wrecker', 'dg_bg_wrecker'], line: ['Hawke Ennor', 'All hands!'] },
-          { at: 0.33, types: ['dg_bg_wrecker', 'dg_bg_lamp', 'dg_bg_hound'], line: ['Hawke Ennor', 'Everyone! Everyone up here, now!'] },
+          { at: 0.66, types: ['tp_acolyte', 'tp_bellkeeper'], line: ['Prior Maddern', 'Rise. All of you. Rise.'] },
+          { at: 0.33, types: ['tp_sexton', 'tp_acolyte', 'tp_acolyte'], line: ['Prior Maddern', 'The whole house. Now.'] },
         ],
-        hazard: { every: 10, count: 2, r: 3.5, windup: 1.8, damage: 52, color: '#c8c8d0', line: 'The wind takes the shutters off the tower windows. Glass and lead come down.' },
-        fall: ['Hawke Ennor', 'Every ship that came ashore was going to sink somewhere. I only chose where.'],
+        hazard: { every: 10, count: 3, r: 3.4, windup: 1.8, damage: 54, color: '#9fd8c8', line: 'The roof weeps. Seawater comes down in sheets across the hall.' },
+        fall: ['Prior Maddern', 'We rang for the king the night the sea came. He did not come. Nobody came. Ring it for us, will you, once.'],
         moves: [
-          { kind: 'charge', every: 12, windup: 1.3, damage: 58, r: 14, w: 2.6, color: '#c8c8d0', line: 'Hawke Ennor sets his feet and runs at {name}.' },
-          { kind: 'cone', every: 10, windup: 1.2, damage: 54, r: 5, w: 110, color: '#ff8a5a', line: 'Hawke Ennor draws the cutlass back for a wide cut.' },
-          { kind: 'stack', every: 20, windup: 3.0, damage: 100, r: 3, color: '#9fd8ff', line: 'Hawke Ennor marks {name} for the boarding axe. Stand together.' },
+          { kind: 'charge', every: 13, windup: 1.4, damage: 58, r: 14, w: 2.8, color: '#c8c8d0', line: 'Prior Maddern draws himself up and walks at {name}.' },
+          { kind: 'nova', every: 15, windup: 2.0, damage: 60, r: 7, color: '#9fd8c8', line: 'Prior Maddern raises both hands. The water rises with them.' },
+          { kind: 'stack', every: 20, windup: 3.0, damage: 104, r: 3, color: '#e8fff0', line: 'Prior Maddern names {name} for the bell. Stand together.' },
         ],
-        phase: ['Hawke Ennor', 'Not my keep. Not my ships. Not tonight.'],
-        drops: ['ennor_cutlass', ...BG_GEAR], chance: 1,
+        phase: ['Prior Maddern', 'The office is not over. It is never over.'],
+        drops: TEMPLE_GEAR, chance: 1,
       },
     ],
     notes: [
-      { x: -3384.5, z: 2127.5, r: 6, who: 'osgood', said: 'Cells. Somebody’s been kept in here a long while. There are marks on the wall, counting days.', seen: 'The gatehouse cells. The walls are scratched with tallies, days counted in fives.' },
-      { x: -3374.5, z: 2113.5, r: 8, who: 'tom', said: 'That’s ship’s gear. Sailcloth, cable, a figurehead. None of it bought.', seen: 'The great hall, stacked with ship’s gear: sailcloth, cable, the figurehead off a brig.' },
-      { x: -3384.5, z: 2104.5, r: 9, who: 'edith', said: 'Lamp oil, barrels of it. They’re not lighting the keep with that.', seen: 'Barrels of lamp oil, enough to light a lighthouse for a winter.' },
-      { x: -3384.5, z: 2120.5, r: 7, said: 'You can see the whole coast from up here. Every rock a ship could come in on.', seen: 'The tower top. The whole coast west of Verandah is laid out below it, rocks and all.' },
+      { x: -3395.5, z: 2452.5, r: 8, who: 'osgood', said: 'Pick-marks on this side of the wall. The pit-diggers came through here and turned straight round.', seen: 'The west hall, low and wet. The pit-diggers’ pick-marks on the wall you came through, and a dropped lamp.' },
+      { x: -3393.5, z: 2478.5, r: 7, who: 'tom', said: 'Bell ropes. Dozens of them. Cut, all of them, at the same height.', seen: 'The ringing chamber. Ropes hang from the dark overhead, every one cut at a man’s height.' },
+      { x: -3383.5, z: 2456.5, r: 10, who: 'edith', said: 'It’s a nave. They built a church down here. Under the hill. Why would you build a church where nobody could see it?', seen: 'The great hall rises into the dark, pillared like a nave, its floor a hand deep in still water.' },
+      { x: -3369.5, z: 2479.5, r: 8, said: 'That’s the sanctum. And that’s the prior, still at his office.', seen: 'The sanctum at the south end. A tall figure in a dark habit stands before the altar with his back to the door.' },
     ],
-    chest: { xp: 3200, marks: 140, items: ['sailcloth', 'sailcloth', 'ship_cable', 'iron_fittings', 'pine_tar', 'pine_tar'] },
+    chest: { xp: 3400, marks: 150, items: ['silver_bar', 'silver_bar', 'furn_candles', 'pine_tar'] },
   },
 ];
 

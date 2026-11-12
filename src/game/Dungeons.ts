@@ -1281,7 +1281,7 @@ export class Dungeons {
     const r = this.run;
     if (r && r.spawned) {
       const ex = r.act.exit!;
-      if (Math.hypot(P.x - ex[0], P.z - ex[2]) < 2.6 && Math.abs(P.y - ex[1]) < 2.5) out.push({ label: r.done ? 'Climb the ladder back up' : 'Climb the ladder back up (leave the dungeon)', pos: new THREE.Vector3(ex[0], ex[1] + 1.2, ex[2]), use: () => this.leave() });
+      if (Math.hypot(P.x - ex[0], P.z - ex[2]) < 2.6 && Math.abs(P.y - ex[1]) < 2.5) out.push({ label: (r.def.id === 'gd-temple' ? 'Go back out to the pit' : 'Climb the ladder back up') + (r.done ? '' : ' (leave the dungeon)'), pos: new THREE.Vector3(ex[0], ex[1] + 1.2, ex[2]), use: () => this.leave() });
       const c = r.act.chest!;
       if (r.done && !r.chest && Math.hypot(P.x - c[0], P.z - c[2]) < 2.6 && Math.abs(P.y - c[1]) < 2.5) out.push({ label: 'Open the chest', pos: new THREE.Vector3(c[0], c[1] + 0.5, c[2]), use: () => this.openChest() });
       if (r.rooms) out.push(...r.rooms.candidates(P));

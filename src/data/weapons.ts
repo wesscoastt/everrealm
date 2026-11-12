@@ -123,7 +123,13 @@ const SOURCES: Source[] = [
     lines: ['From the Old Man\'s Workings under Sallow Pit, where Coll Bray\'s night shift kept the tools they took.', 'A miner\'s tool made into something else. The handle still has the shift number burnt in.'],
   },
   {
-    id: 'blackgull', name: 'Black Gull', dungeon: 'gd-blackgull', rarity: 'rare', value: 90, colours: { metal: '#9aa0a8', hilt: '#1e1e24', grip: '#2a2e36', accent: '#c8a050' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'bearded', mace: 'knob', hammer: 'pick', spear: 'leaf' },
+    id: 'tidebell', name: 'Tidebell', dungeon: 'gd-temple', rarity: 'rare', value: 95, colours: { metal: '#7a8a82', hilt: '#26342e', grip: '#3a463e', accent: '#d8b04a' }, style: { guard: 'bar', pommel: 'ring', blade: 'fuller', axe: 'bearded', mace: 'flanged', hammer: 'maul', spear: 'glaive', staff: 'crook' },
+    nouns: { mace: 'censer-mace', hammer: 'bell hammer', spear: 'temple guard’s glaive', staff: 'prior’s crook' },
+    families: ['sword', 'mace', 'hammer', 'spear', 'staff', 'dagger'],
+    lines: ['Brought up from the drowned temple under the hill east of the pit. The old kingdom made it, and the water kept it.', 'Wipe it as you like: it smells of the sea.'],
+  },
+  {
+    id: 'blackgull', name: 'Black Gull', dungeon: 'pd-blackgull', rarity: 'rare', value: 90, colours: { metal: '#9aa0a8', hilt: '#1e1e24', grip: '#2a2e36', accent: '#c8a050' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'bearded', mace: 'knob', hammer: 'pick', spear: 'leaf' },
     nouns: { sabre: 'cutlass', dagger: 'rigging knife', axe: 'boarding axe', hammer: 'caulking hammer' },
     families: ['sabre', 'dagger', 'axe', 'hammer', 'spear', 'falchion'],
     lines: ['Off a wreck under the cliffs west of Verandah. The Black Gulls kept the best of what came ashore for themselves.', 'Salt has got into the grip, and nothing will get it out.'],

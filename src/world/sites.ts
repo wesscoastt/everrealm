@@ -824,40 +824,54 @@ function* planBody(): Generator<string, Plan> {
       for (const [x, y, z] of [[-2978.5, 8, 2481.5], [-2994.5, 8, 2480.5], [-2983.5, 11, 2499.5], [-2990.5, 27, 2493.5]]) s.props.push({ t: 'furn', item: 'bones', x, y, z, ry: x });
       s.props.push({ t: 'sign', x: -3001.5, y: 27, z: 2492.5, ry: -Math.PI / 2, text: 'The Tregarthen Vaults' });
     } },
-    { id: 'pd-temple', name: 'The Sunken Temple', x: -3420, z: 2448, r0: 0, r1: 0, build: (s: Site) => {
-      const m = (x: number, z: number, t: string): [number, number, number, string] => [x, 2, z, t];
-      s.act = {
-        kind: 'dungeon',
-        spawns: [m(-3426.5, 2448.5, 'tp_acolyte'), m(-3424.5, 2453.5, 'tp_acolyte'), m(-3412.5, 2452.5, 'tp_acolyte'), m(-3415.5, 2456.5, 'tp_bellkeeper'),
-          m(-3420.5, 2461.5, 'tp_acolyte'), m(-3421.5, 2441.5, 'tp_acolyte'), m(-3417.5, 2441.5, 'tp_bellkeeper')],
-        boss: [-3419.5, 2, 2435.5, 'tp_maddern'],
-        chest: [-3423.5, 2, 2434.5],
-      };
-      s.props.push({ t: 'furn', item: 'chest', x: -3423.5, y: 2, z: 2434.5, ry: Math.PI / 2 });
-      for (const [x, z] of [[-3420.5, 2433.5], [-3418.5, 2433.5], [-3422.5, 2435.5], [-3416.5, 2435.5]]) s.props.push({ t: 'furn', item: 'candles', x, y: x === -3420.5 || x === -3418.5 ? 3 : 2, z, ry: 0 });
-      for (const [x, z] of [[-3424.5, 2442.5], [-3415.5, 2439.5], [-3430.5, 2446.5]]) s.props.push({ t: 'furn', item: 'bones', x, y: 2, z, ry: x });
-      for (const x of [-3422.5, -3416.5]) s.props.push({ t: 'lantern', x, y: 2, z: 2447.5, ry: 0 });
-      s.props.push({ t: 'sign', x: -3408.5, y: 20, z: 2478.5, ry: 0, text: 'The Sunken Temple' });
-    } },
-    { id: 'gd-blackgull', name: 'Black Gull Keep', x: -3384, z: 2114, r0: 0, r1: 0, build: (s: Site) => {
-      const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
+    // The Sunken Temple (owner 2026-11-07: "the actual dungeon"): the owner's own temple under the hill east of the pit,
+    // brought up into the game by scripts/mc/templelift.ts; a group goes in at the doorway in the pit's east wall, through
+    // the west hall to the ringing chamber, up into the great hall, and down to the sanctum at the south end
+    // (data/dungeons.ts 'gd-temple'). The temple in the pit (scripts/mc/temple.cjs) is its forecourt.
+    { id: 'gd-temple', name: 'The Sunken Temple', x: -3384, z: 2464, r0: 0, r1: 0, build: (s: Site) => {
       s.act = {
         kind: 'group',
-        arrive: [-3384.5, 17, 2137.5],
-        exit: [-3384.5, 17, 2139.5],
+        arrive: [-3400.5, 1, 2452.5],
+        exit: [-3401.5, 1, 2450.5],
         packs: [
-          [m(-3372.5, 18, 2112.5, 'dg_bg_wrecker'), m(-3371.5, 18, 2115.5, 'dg_bg_wrecker'), m(-3374.5, 18, 2114.5, 'dg_bg_lamp')],
-          [m(-3380.5, 18, 2111.5, 'dg_bg_hound'), m(-3379.5, 18, 2116.5, 'dg_bg_hound'), m(-3381.5, 18, 2114.5, 'dg_bg_wrecker')],
-          [m(-3377.5, 29, 2105.5, 'dg_bg_wrecker'), m(-3376.5, 29, 2106.5, 'dg_bg_wrecker'), m(-3373.5, 29, 2108.5, 'dg_bg_lamp')],
-          [m(-3394.5, 29, 2120.5, 'dg_bg_hound'), m(-3391.5, 29, 2120.5, 'dg_bg_hound')],
-          [m(-3384.5, 39, 2106.5, 'dg_bg_wrecker'), m(-3382.5, 39, 2106.5, 'dg_bg_wrecker')],
-          [m(-3384.5, 39, 2120.5, 'dg_bg_lamp'), m(-3382.5, 39, 2119.5, 'dg_bg_hound')],
+          [[-3396.5, 1, 2449.5, 'tp_acolyte'], [-3392.5, 1, 2452.5, 'tp_acolyte'], [-3396.5, 1, 2456.5, 'tp_acolyte']],
+          [[-3392.5, 1, 2457.5, 'tp_bellkeeper'], [-3390.5, 1, 2455.5, 'tp_sexton']],
+          [[-3393.5, 1, 2476.5, 'tp_acolyte'], [-3391.5, 1, 2476.5, 'tp_sexton']],
+          [[-3383.5, 8, 2447.5, 'tp_acolyte'], [-3384.5, 8, 2450.5, 'tp_bellkeeper']],
+          [[-3384.5, 8, 2464.5, 'tp_sexton'], [-3382.5, 8, 2468.5, 'tp_acolyte']],
+          [[-3372.5, 1, 2452.5, 'tp_acolyte'], [-3368.5, 1, 2455.5, 'tp_bellkeeper'], [-3365.5, 1, 2450.5, 'tp_acolyte']],
+          [[-3369.5, 1, 2464.5, 'tp_sexton'], [-3369.5, 1, 2468.5, 'tp_acolyte']],
         ],
         bosses: [
-          { at: [-3395.5, 18, 2113.5], type: 'dg_bg_skewes', crew: [m(-3394.5, 18, 2110.5, 'dg_bg_wrecker'), m(-3394.5, 18, 2116.5, 'dg_bg_wrecker')] },
-          { at: [-3384.5, 29, 2113.5], type: 'dg_bg_vellanoweth', crew: [m(-3388.5, 29, 2110.5, 'dg_bg_lamp'), m(-3380.5, 29, 2116.5, 'dg_bg_lamp')] },
-          { at: [-3384.5, 48, 2116.5], type: 'dg_bg_ennor' },
+          { at: [-3394.5, 1, 2478.5], type: 'tp_polglase', crew: [[-3392.5, 1, 2476.5, 'tp_bellkeeper']] },
+          { at: [-3383.5, 8, 2456.5], type: 'tp_carlyon' },
+          { at: [-3369.5, 1, 2479.5], type: 'tp_maddern', crew: [[-3372.5, 1, 2477.5, 'tp_acolyte'], [-3366.5, 1, 2477.5, 'tp_acolyte']] },
         ],
+        chest: [-3364.5, 1, 2484.5],
+      };
+      s.props.push({ t: 'furn', item: 'chest', x: -3364.5, y: 1, z: 2484.5, ry: -Math.PI / 2 });
+      // the forecourt in the pit: its candles and lanterns, the sign at the top of the stair
+      for (const [x, z] of [[-3420.5, 2433.5], [-3418.5, 2433.5], [-3422.5, 2435.5], [-3416.5, 2435.5]]) s.props.push({ t: 'furn', item: 'candles', x, y: x === -3420.5 || x === -3418.5 ? 3 : 2, z, ry: 0 });
+      for (const x of [-3422.5, -3416.5]) s.props.push({ t: 'lantern', x, y: 2, z: 2447.5, ry: 0 });
+      for (const z of [2449.5, 2455.5]) s.props.push({ t: 'lantern', x: -3404.5, y: 2, z, ry: 0 });
+      s.props.push({ t: 'sign', x: -3408.5, y: 20, z: 2478.5, ry: 0, text: 'The Sunken Temple' });
+    } },
+    // Black Gull Keep (owner 2026-11-07: "a public dungeon, like ESO's"): the wreckers in the owner's castle west of the
+    // Charter yard, there for anyone who walks in, coming back as the open world's do; its three named Black Gulls are its
+    // group bosses, Captain Ennor at the top of the tower; its chest gives the Black Gull set
+    { id: 'pd-blackgull', name: 'Black Gull Keep', x: -3384, z: 2114, r0: 0, r1: 0, build: (s: Site) => {
+      const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
+      s.act = {
+        kind: 'dungeon',
+        spawns: [
+          m(-3372.5, 18, 2112.5, 'dg_bg_wrecker'), m(-3371.5, 18, 2115.5, 'dg_bg_wrecker'), m(-3374.5, 18, 2114.5, 'dg_bg_lamp'),
+          m(-3380.5, 18, 2111.5, 'dg_bg_hound'), m(-3379.5, 18, 2116.5, 'dg_bg_hound'), m(-3381.5, 18, 2114.5, 'dg_bg_wrecker'),
+          m(-3377.5, 29, 2105.5, 'dg_bg_wrecker'), m(-3376.5, 29, 2106.5, 'dg_bg_wrecker'), m(-3373.5, 29, 2108.5, 'dg_bg_lamp'),
+          m(-3394.5, 29, 2120.5, 'dg_bg_hound'), m(-3391.5, 29, 2120.5, 'dg_bg_hound'),
+          m(-3384.5, 39, 2106.5, 'dg_bg_wrecker'), m(-3382.5, 39, 2106.5, 'dg_bg_wrecker'), m(-3384.5, 39, 2120.5, 'dg_bg_lamp'), m(-3382.5, 39, 2119.5, 'dg_bg_hound'),
+        ],
+        guards: [m(-3395.5, 18, 2113.5, 'dg_bg_skewes'), m(-3384.5, 29, 2113.5, 'dg_bg_vellanoweth')],
+        boss: m(-3384.5, 48, 2116.5, 'dg_bg_ennor'),
         chest: [-3384.5, 48, 2110.5],
       };
       s.props.push({ t: 'furn', item: 'chest', x: -3384.5, y: 48, z: 2110.5, ry: 0 });
