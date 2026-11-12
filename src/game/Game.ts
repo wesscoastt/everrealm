@@ -2075,7 +2075,7 @@ export class Game implements GameApi {
       if (!last.checked && st.left < 2 && aboard && gate && !this.flag(gate)) {
         last.checked = true;
         const pl = ship.plan.piers[st.docked], dx = pl.to[0] - pl.from[0], dz = pl.to[1] - pl.from[1], L = Math.hypot(dx, dz);
-        this.player.teleport(pl.to[0] + 0.5 - (dx / L) * 2, SEA + 1.05, pl.to[1] + 0.5 - (dz / L) * 2);
+        this.player.teleport(pl.to[0] + 0.5 - (dx / L) * 2, (R.stops[st.docked]?.deck ?? SEA) + 1.05, pl.to[1] + 0.5 - (dz / L) * 2);
         this.player.velocity.set(0, 0, 0);
         this.hud.system(`The mate of ${R.ship}: "${R.stops[st.to].refused ?? 'Not without a pass.'}"`);
       }
@@ -5931,7 +5931,7 @@ export class Game implements GameApi {
     // A ferry's timetable, on the board at her jetty's landward end
     for (const ship of this.world.ferries) ship.plan.piers.forEach((pl, k) => {
       const d = Math.hypot(pl.from[0] + 0.5 - p.x, pl.from[1] + 0.5 - p.z);
-      if (d < 4 && Math.abs(SEA + 1 - p.y) < 3) consider({ kind: 'act', label: `Read ${ship.route.ship}'s timetable`, pos: new THREE.Vector3(pl.from[0] + 0.5, SEA + 2.4, pl.from[1] + 0.5), act: () => this.readTimetable(ship, k) }, d + 0.5);
+      if (d < 4 && Math.abs((ship.route.stops[k]?.deck ?? SEA) + 1 - p.y) < 3) consider({ kind: 'act', label: `Read ${ship.route.ship}'s timetable`, pos: new THREE.Vector3(pl.from[0] + 0.5, (ship.route.stops[k]?.deck ?? SEA) + 2.4, pl.from[1] + 0.5), act: () => this.readTimetable(ship, k) }, d + 0.5);
     });
     // In your guild's hall: what its wings are for
     {

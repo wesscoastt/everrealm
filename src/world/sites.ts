@@ -6404,6 +6404,9 @@ function* planBody(): Generator<string, Plan> {
    */
   function buildPier(s: Site, r: FerryRoute, k: number) {
     const pl = FERRY_PLAN[r.id]!.piers[k];
+    // (off a quay built above the water, Gullmouth's, the boards run level with the quay: laid at the water's height
+    // they cut a pit into the quay's edge where they met it, owner 2026-11-12)
+    const D = r.stops[k]?.deck ?? SEA;
     const [ax, az] = [pl.from[0] + 0.5, pl.from[1] + 0.5], [bx, bz] = [pl.to[0] + 0.5, pl.to[1] + 0.5];
     const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
     const at = (t: number, o: number): [number, number] => [ax + ux * t - uz * o, az + uz * t + ux * o];
@@ -6415,19 +6418,19 @@ function* planBody(): Generator<string, Plan> {
       done.add(key);
       const ground = heightAt(x, z);
       if (ground > SEA + 1) continue; // (the land end: it's ashore already)
-      O.set(x, SEA, z, B.Planks);
-      clearUp(x, z, SEA + 1, SEA + 7);
+      O.set(x, D, z, B.Planks);
+      clearUp(x, z, D + 1, D + 7);
       x0 = Math.min(x0, x); z0 = Math.min(z0, z); x1 = Math.max(x1, x); z1 = Math.max(z1, z);
     }
     // Piles down to the bottom along both edges, every few blocks
     for (let t = 1; t <= L; t += 3.5) for (const o of [-1.1, 1.1]) {
       const [fx, fz] = at(t, o), x = Math.floor(fx), z = Math.floor(fz);
-      for (let y = Math.max(1, heightAt(x, z) - 1); y < SEA; y++) O.set(x, y, z, B.Timber);
+      for (let y = Math.max(1, heightAt(x, z) - 1); y < D; y++) O.set(x, y, z, B.Timber);
     }
     const ry = Math.atan2(ux, uz);
-    { const [lx, lz] = at(L - 0.2, 1.05); s.props.push({ t: 'lantern', x: lx, y: SEA + 1, z: lz, ry }); }
-    { const [sx, sz] = at(1.4, -1.05); s.props.push({ t: 'sign', x: sx, y: SEA + 1, z: sz, ry: ry + Math.PI, text: `${r.ship.replace(/^the /, '').toUpperCase()}\n${r.stops.map((q) => q.name).join(' · ')}` }); }
-    { const [bx2, bz2] = at(L - 0.4, -1.0); s.props.push({ t: 'bollard', x: bx2, y: SEA + 1, z: bz2, ry }); }
+    { const [lx, lz] = at(L - 0.2, 1.05); s.props.push({ t: 'lantern', x: lx, y: D + 1, z: lz, ry }); }
+    { const [sx, sz] = at(1.4, -1.05); s.props.push({ t: 'sign', x: sx, y: D + 1, z: sz, ry: ry + Math.PI, text: `${r.ship.replace(/^the /, '').toUpperCase()}\n${r.stops.map((q) => q.name).join(' · ')}` }); }
+    { const [bx2, bz2] = at(L - 0.4, -1.0); s.props.push({ t: 'bollard', x: bx2, y: D + 1, z: bz2, ry }); }
     rect(s, x0, z0, x1 + 1, z1 + 1);
   }
 

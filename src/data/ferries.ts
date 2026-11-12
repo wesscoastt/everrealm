@@ -21,6 +21,8 @@ export interface FerryStop {
   dir?: [number, number];
   /** The jetty runs out at least this far (to keep her clear of another ship's jetty). */
   minLen?: number;
+  /** The height of the jetty's boards, when it leaves a quay built higher than the water (Gullmouth's): level with it. */
+  deck?: number;
   /** A flag you need to be let ashore there (the Assembly's passes). */
   gate?: string;
   /** What the mate says to someone without it. */
@@ -47,7 +49,7 @@ export const FERRY_ROUTES: FerryRoute[] = [
     id: 'plover', ship: 'the Plover', kind: 'cog', land: 'counties', dock: 50, speed: 17,
     livery: { wale: '#2f528f', trim: '#d8b04a', flag: '#d8b04a' },
     stops: [
-      { post: 'gullmouth', name: 'Gullmouth', from: [1809, 570], dir: [1, 0] },
+      { post: 'gullmouth', name: 'Gullmouth', from: [1809, 570], dir: [1, 0], deck: 18 },
       { post: 'kell', name: 'Kell', from: [2340, -566], dir: [-1, 0] },
       { post: 'sickle', name: 'the Sickle' },
     ],
@@ -56,7 +58,7 @@ export const FERRY_ROUTES: FerryRoute[] = [
     id: 'wren', ship: 'the Wren', kind: 'cog', land: 'counties', dock: 50, speed: 17,
     livery: { wale: '#7a2a1e', trim: '#e8dcc0', flag: '#7a2a1e', sail: '#e8d8b8' },
     stops: [
-      { post: 'gullmouth', name: 'Gullmouth', from: [1809, 586], dir: [1, 0], minLen: 22 },
+      { post: 'gullmouth', name: 'Gullmouth', from: [1809, 586], dir: [1, 0], minLen: 22, deck: 18 },
       { post: 'skua', name: 'Skua Rock' },
       { post: 'inkholm', name: 'Inkholm' },
     ],
