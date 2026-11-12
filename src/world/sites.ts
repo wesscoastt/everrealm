@@ -6998,7 +6998,8 @@ function* planBody(): Generator<string, Plan> {
     // between the top step and the gatehouse, a block too high to walk up)
     for (let x = Math.min(SK.SALLY.x - 2, SK.STEPS.x0 + T - SK.LANDING_Y + 1); x <= SK.QUARRY.x1 + 6; x++) for (let z = SK.SKUA.z - 34; z <= SK.SKUA.z + 34; z++) {
       if (heightAt(x, z) < T - 5) continue;
-      level(x, z, T, hash2(x, z, 5103) < 0.12 ? B.Gravel : hash2(x, z, 5104) < 0.2 ? B.FlowerGrass : B.Grass);
+      // (owner 2026-11-04 and 2026-11-12: a prison nobody gets out of, not a green: bare rock, gravel, thin turf)
+      { const h = hash2(x, z, 5103); level(x, z, T, h < 0.3 ? B.Gravel : h < 0.62 ? B.Stone : h < 0.74 ? B.Cobble : h < 0.8 ? B.MossyStone : B.Grass); }
     }
     rect(s, SK.SALLY.x - 3, SK.SKUA.z - 40, SK.QUARRY.x1 + 8, SK.SKUA.z + 40);
     {
@@ -7031,7 +7032,7 @@ function* planBody(): Generator<string, Plan> {
           // Tall windows in pairs between the piers, high up where nobody inside can reach them
           const along = x === C.x0 || x === C.x1 ? z - C.z0 : x - C.x0;
           const pier = along % 4 === 0;
-          id = y === T ? B.Cobble : pier ? B.StoneBrick : y >= T + 5 && y <= T + 8 ? B.Window : B.StoneBrick;
+          id = y === T ? B.Cobble : pier ? B.StoneBrick : y >= T + 5 && y <= T + 8 ? B.Bars : B.StoneBrick;
         }
         O.set(x, y, z, id);
       }
@@ -7179,9 +7180,8 @@ function* planBody(): Generator<string, Plan> {
       P({ t: 'glow', x: Lt.x + 0.5, y: T + 17, z: Lt.z + 0.5, r: 9, color: '#fff2c0', lit: true });
       rect(s, Lt.x - 3, Lt.z - 3, Lt.x + 4, Lt.z + 4);
       const W = SK.WARDEN;
-      houseInto(O, s, W.x0, W.z0, W.w, W.d, 2, T, 'red', 'n', { role: 'home', wall: B.Sandstone, front: 'quoined', trim: ['shutters', 'boxes'] });
+      houseInto(O, s, W.x0, W.z0, W.w, W.d, 2, T, 'slate', 'n', { role: 'home', wall: B.StoneBrick, front: 'quoined', trim: ['hood'] });
       for (let x = W.x0 - 2; x <= W.x0 + W.w + 1; x++) if (Math.abs(x - (W.x0 + 5)) > 1) { P({ t: 'fence', x: x + 0.5, y: T, z: W.z0 - 2.5, ry: 0, len: 1 }); O.set(x, T, W.z0 - 3, B.Barrier); }
-      P({ t: 'planter', x: W.x0 + 2.5, y: T, z: W.z0 - 1.2, ry: 0, tint: 1 }); P({ t: 'planter', x: W.x0 + 8.5, y: T, z: W.z0 - 1.2, ry: 0, tint: 2 });
       rect(s, W.x0 - 3, W.z0 - 4, W.x0 + W.w + 3, W.z0 + W.d + 2);
       const Br = SK.BARRACKS;
       houseInto(O, s, Br.x0, Br.z0, Br.w, Br.d, 2, T, 'slate', 's', { role: 'home', wall: B.StoneBrick, front: 'quoined', trim: ['hood'] });
@@ -7196,6 +7196,47 @@ function* planBody(): Generator<string, Plan> {
     }
     // Lamps about the top, for the night rounds
     for (const [x, z] of [[2010, 462], [2024, 470], [2084, 466], [2104, 470], [2084, 444], [2000, 476]] as const) P({ t: 'lantern', x: x + 0.5, y: T, z: z + 0.5, ry: 0 });
+
+    // ------------------------------------------------------------------ the curtain (owner 2026-11-04: "make it a real
+    // fortress prison ... high blank walls ... so it reads as somewhere nobody gets out of"; 2026-11-12: "it was
+    // unfinished when I explored"). A wall ten high, blank, across the west of the top between the warden's side and
+    // the cellhouse, with a gatehouse on the path from the Steps, and along the south above the cliff; the north is
+    // the cliff itself (and the way the vent's men go). Three guard towers at the corners and over the quarry road,
+    // each with a lamp that sweeps the rock at night.
+    {
+      const H = 10, WX = 2027, Z0 = 444, Z1 = 505, X1 = 2092;
+      const curtain = (x: number, z: number, gate = false) => {
+        foundation(x, z, T, B.Stone);
+        for (let y = T; y < T + H; y++) O.set(x, y, z, gate && y < T + 4 ? B.Air : y === T + H - 1 ? B.CarvedStone : hash2(x, y * 7 + z, 5111) < 0.06 ? B.MossyStone : B.StoneBrick);
+        if ((x + z) % 2 === 0) O.set(x, T + H, z, B.StoneBrick);
+        clearUp(x, z, T + H + 1, T + H + 8);
+      };
+      // the west curtain, two thick, its gate where the path from the sally port crosses it
+      for (let z = Z0; z <= Z1; z++) for (const x of [WX, WX + 1]) curtain(x, z, z >= 466 && z <= 471);
+      for (const x of [WX, WX + 1]) for (let y = T + 4; y < T + 6; y++) for (let z = 466; z <= 471; z++) O.set(x, y, z, y === T + 4 ? B.CarvedStone : B.StoneBrick);
+      // the south curtain over the cliff
+      for (let x = WX; x <= X1; x++) for (const z of [Z1, Z1 - 1]) if (heightAt(x, z) >= T - 6) curtain(x, z);
+      // the gatehouse's iron grille over the way in, its lamps, and the board
+      P({ t: 'bars', x: WX + 0.5, y: T + 2.4, z: 468.5, ry: Math.PI / 2, len: 6, rise: 1.6 } as PropDesc);
+      for (const z of [465.4, 471.6]) P({ t: 'wallLantern', x: WX - 0.45, y: T + 3.2, z, ry: -Math.PI / 2 });
+      P({ t: 'sign', x: WX - 2.5, y: T, z: 464.5, ry: -Math.PI / 2, text: 'SKUA ROCK\nNo one passes this gate\nwithout the warden\'s leave' });
+      // guard towers: a stone shaft, a watch room with slits, a slate cap, a lamp
+      const tower = (tx: number, tz: number) => {
+        for (let x = tx; x < tx + 4; x++) for (let z = tz; z < tz + 4; z++) {
+          foundation(x, z, T, B.Stone);
+          const edge = x === tx || x === tx + 3 || z === tz || z === tz + 3;
+          for (let y = T; y < T + 16; y++) O.set(x, y, z, !edge && y > T + 12 ? B.Air : y >= T + 13 && y <= T + 14 && edge && (x === tx + 1 || x === tx + 2 || z === tz + 1 || z === tz + 2) ? B.Bars : B.StoneBrick);
+          clearUp(x, z, T + 16, T + 24);
+        }
+        P({ t: 'roof', x: tx + 2, y: T + 16, z: tz + 2, len: 5, span: 5, rise: 2.2, ry: 0, mat: 'slate' });
+        P({ t: 'glow', x: tx + 2, y: T + 14, z: tz + 2, r: 5, color: '#fff2c8', lit: true } as PropDesc);
+      };
+      tower(WX - 1, Z0 - 2); tower(WX - 1, Z1 - 3); tower(X1 - 3, 462);
+      // the warning to boats, on the landing where the prison boat ties up
+      const L = SK.LANDING;
+      P({ t: 'sign', x: L.x0 + 1, y: SK.LANDING_Y, z: L.quayZ + 3.5, ry: -Math.PI / 2, text: 'BOATS KEEP TWO CABLES OFF\nThe guard fires without warning\nby order of the Charter' });
+      rect(s, WX - 3, Z0 - 4, X1 + 2, Z1 + 2);
+    }
   }
 
   /**
