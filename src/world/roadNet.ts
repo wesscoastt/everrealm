@@ -5,7 +5,7 @@ import { WORLD_ROADS } from './terrain';
 // the town legs between them and the post signs (data/postLegs.ts), joined where they meet, and the
 // shortest way along it between two places.
 
-type Pt = [number, number];
+export type Pt = [number, number];
 const SPEED = 11;
 
 /** The roads and the town legs as one network: each line's points in order, joined where lines meet. */

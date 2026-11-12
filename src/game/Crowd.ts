@@ -62,7 +62,7 @@ const POOLS = {
 };
 const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
-function townsLook(): Appearance {
+export function townsLook(): Appearance {
   const r = Math.random();
   const fem = Math.random() < 0.5;
   return {

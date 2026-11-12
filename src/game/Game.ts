@@ -65,8 +65,9 @@ import { riderLift, riderPose, spareSeats, type SeatPose } from '../entities/sea
 import { mountKey, mountOf } from '../data/mountLooks';
 import { MountChooser } from '../ui/MountChooser';
 import { TouchControls } from '../ui/TouchControls';
-import { Crowd, CrowdZone } from './Crowd';
+import { Crowd, CrowdZone, townsLook } from './Crowd';
 import { Roadfolk } from './Roadfolk';
+import { PrisonCart } from './PrisonCart';
 import { Justice } from './Justice';
 import { Voyage, type Harbour } from './Voyage';
 import { ISLAND_COURSES } from '../data/islandCourses';
@@ -399,6 +400,8 @@ export class Game implements GameApi {
   private fish!: FishSchools;
   private crowd!: Crowd;
   private roadfolk!: Roadfolk;
+  /** The watch's cart going by with a prisoner in the back (game/PrisonCart.ts). */
+  private prisonCart!: PrisonCart;
   /** The law: prices on your head, the watch, the wagon and the cells (game/Justice.ts). */
   justice!: Justice;
   /** The light of a torch carried on horseback at night (always in the scene, dark when unused, so nothing recompiles). */
@@ -954,6 +957,14 @@ export class Game implements GameApi {
     this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors());
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     // (the Counties' busy towns, and Morrow's: data/justice.ts)
+    this.prisonCart = new PrisonCart({
+      scene: this.scene, voxels: this.world.voxels, player: () => this.player.position,
+      count: (id) => this.inv.count(id), take: (id, n) => { this.take(id, n); },
+      say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), sfx: (n, v) => this.sfx(n, v),
+      burst: (pos, color, n) => this.particles.burst(pos, color, n),
+      prisonerLook: () => ({ ...townsLook(), tunic: '#6a5a4a', cape: null, apron: false, hat: 'none' }),
+      constable: () => ({ ...townsLook(), costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', cape: '#2a3a5a' } as Appearance),
+    });
     this.roadfolk = new Roadfolk(this.scene, this.world.voxels, [...crowdZones(), ...JURISDICTIONS.filter((j) => landOf(j) === 'morrow').map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r }))], (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
     this.scene.add(this.torchLight);
     this.voyage = new Voyage({
@@ -5963,6 +5974,7 @@ export class Game implements GameApi {
     for (const a of this.books.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.chests.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.justice.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
+    for (const a of this.prisonCart.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z) * 0.5);
     for (const a of this.activities.candidates(p)) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     for (const a of this.dungeons.candidates(p, (id) => this.openFinder(id))) consider({ kind: 'act', label: a.label, pos: a.pos, act: a.use }, Math.hypot(a.pos.x - p.x, a.pos.z - p.z));
     // A ferry's timetable, on the board at her jetty's landward end
@@ -7721,6 +7733,7 @@ export class Game implements GameApi {
     this.wallWatch.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
+    this.prisonCart.update(dt);
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
     this.festivals.update(dt, P);

@@ -304,6 +304,8 @@ export const SHOP_STOCK: { item: string; price: number }[] = [
   { item: 'furn_rug_red', price: 20 },
   { item: 'furn_barrel', price: 14 },
   { item: 'lockpick', price: 3 },
+  // (for eating, and for throwing at whoever the watch's cart is taking in: game/PrisonCart.ts)
+  { item: 'apples', price: 2 },
   ...FURNISHING_STOCK,
   ...['w_hollin_sword', 'w_hollin_dagger', 'w_hollin_spear', 'w_hollin_staff', 'w_hollin_axe'].map((item) => ({ item, price: 30 })),
 ];
