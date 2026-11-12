@@ -19,7 +19,9 @@ const CAGE: MountLook = { coat: '#141214', mane: '#0a0a0a', cloth: '#2a3a5a', se
 /** The constable on the box, in the watch's blue. */
 const constable = (look: Appearance): Appearance => ({ ...look, costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', top: 4, cape: '#2a3a5a', facial: 2, frame: 'm', lashes: false, hair: '#3a2a1e', skin: '#d8a882' } as Appearance);
 /** How far the wagon will come down a lane for you to the nearest road (and its pace on the road, blocks a second). */
-const LANE_REACH = 70, CAGE_SPEED = 13;
+// (owner 2026-11-12: "make the cart ride to jail an actual ride, not a load screen": a ride along the roads from much
+// further off the road than before, and where no lane can be found, straight out to the road)
+const LANE_REACH = 220, CAGE_SPEED = 13;
 /** Hold Space in the cage and you doze: the road goes by this much quicker. */
 const DOZE = 4;
 
@@ -388,11 +390,13 @@ export class Justice {
   /** The wagon's way: down the lane to the road, then along the roads to the end; null where no road is near. */
   private wagonWay(from: Pt, y: number, to: Pt): Pt[] | null {
     const net = roadNet(), a = net.near(from[0], from[1]), b = net.near(to[0], to[1]);
-    if (b.d > 8 || a.d > LANE_REACH) return null;
-    const lane = a.d < 2 ? [from] : lanePath(this.host.voxels, from, a.p, y);
-    const road = lane && net.route(a.p, to);
-    if (!lane || !road) return null;
-    const way = [...lane.slice(0, -1), ...road];
+    if (a.d > LANE_REACH) return null;
+    // (no lane picked through the streets to the road: straight out to it, the cart steering round what's in its way)
+    const lane = a.d < 2 ? [from] : lanePath(this.host.voxels, from, a.p, y) ?? [from, a.p];
+    const road = net.route(a.p, b.d > 8 ? b.p : to);
+    if (!road) return null;
+    // (the gaol's yard off the road: on along the last stretch to its door)
+    const way = [...lane.slice(0, -1), ...road, ...(b.d > 8 ? [to] : [])];
     return wayLength(way) > 4 ? way : null;
   }
 
