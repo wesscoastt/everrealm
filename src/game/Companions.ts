@@ -3,7 +3,7 @@ import { Ally, allyStats } from '../entities/Ally';
 import { CreatureModel, mountModel } from '../entities/creatures';
 import type { Appearance } from '../entities/humanoid';
 import type { Enemy } from '../entities/Enemy';
-import { COMPANIONS, type BanterKey, type CompanionEvent, type CompanionId, type CompanionRole } from '../data/companions';
+import { COMPANIONS, compShort, type BanterKey, type CompanionEvent, type CompanionId, type CompanionRole } from '../data/companions';
 import type { Henchman } from '../data/dungeons';
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { regionAt } from '../world/terrain';
@@ -22,6 +22,8 @@ export interface CompanionHost {
   target(): Enemy | null;
   fighting(): boolean;
   hit(e: Enemy, dmg: number): void;
+  /** A spell's light, from one point to another (Fisherman Dave's, with the Pilgrim Hat). */
+  magic(from: THREE.Vector3, to: THREE.Vector3, color: string, big: boolean): void;
   healPlayer(n: number): void;
   flag(k: string): unknown;
   setFlag(k: string, v: unknown): void;
@@ -42,6 +44,7 @@ const STEEDS: Record<CompanionId, { coat: string; mane: string; cloth: string; b
   ned: { coat: '#c8a070', mane: '#e8dcc0', cloth: '#5a7aa8', breed: 'pack' },
   // (Dave's is a borrowed cob off the fish carts, broad and unhurried)
   dave: { coat: '#6a5a4a', mane: '#2a2420', cloth: '#3a4a5a', breed: 'pack' },
+  fdave: { coat: '#8a6a4a', mane: '#3a2a1e', cloth: '#d8a020', breed: 'pack' },
 };
 
 export class Companions {
@@ -58,6 +61,8 @@ export class Companions {
   private wasFighting = false;
   private hurtSaid = 0;
   private clock = 0;
+  /** Fisherman Dave's spells cast, every third a big one. */
+  private casts = 0;
 
   constructor(private host: CompanionHost) {}
 
@@ -69,7 +74,9 @@ export class Companions {
   /** The look they wear: their own, with the outfit chosen. */
   private lookOf(id: CompanionId): Appearance {
     const c = COMPANIONS[id], o = c.outfits.find((x) => x.id === this.host.flag(`comp:${id}:outfit`)) ?? c.outfits[0];
-    return { ...c.look, ...o.look } as Appearance;
+    const look = { ...c.look, ...o.look } as Appearance;
+    if (id === 'fdave') { if (this.host.flag('fd:hatOn') === 'dave') { look.hat = 'pilgrim'; look.hatColor = '#3a2a1e'; } else if (this.host.flag('fd:cap')) { look.hat = 'flatcap'; look.hatColor = '#5a7a2a'; } }
+    return look;
   }
   private roleOf(id: CompanionId): CompanionRole {
     const r = this.host.flag(`comp:${id}:role`) as CompanionRole | undefined;
@@ -77,7 +84,7 @@ export class Companions {
   }
   /** Them as a henchman (for a dungeon's party, and for their body here). */
   henchmanOf(id: CompanionId): Henchman {
-    const c = COMPANIONS[id], first = c.name.split(' ')[0];
+    const c = COMPANIONS[id], first = compShort(id);
     return {
       id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: id === 'ottilie' ? 'none' : id === 'dave' ? 'kitto_gaff' : 'sword',
       barks: { pull: c.banter.fight ?? ['Here they come.'], low: c.banter.hurt ?? ['Careful!'], kill: c.banter.won ?? ['Done.'], down: 'I\'m down!', up: 'I\'m up.', mend: ['Hold still.'] },
@@ -97,7 +104,7 @@ export class Companions {
   dismiss(quiet = false): void {
     if (this.ally) this.host.scene.remove(this.ally.model.root);
     if (this.steed) this.host.scene.remove(this.steed.root);
-    if (this.id && !quiet) this.host.system(`${COMPANIONS[this.id].name.split(' ')[0]} goes back to ${COMPANIONS[this.id].home.place}.`);
+    if (this.id && !quiet) this.host.system(`${compShort(this.id)} goes back to ${COMPANIONS[this.id].home.place}.`);
     this.ally = null; this.steed = null; this.id = null;
     this.host.setFlag('comp:active', null);
   }
@@ -124,7 +131,7 @@ export class Companions {
     const now = Math.max(-100, Math.min(100, this.rapport(id) + delta));
     this.host.setFlag(`comp:${id}:rapport`, now);
     if (!delta) return;
-    const first = COMPANIONS[id].name.split(' ')[0];
+    const first = compShort(id);
     this.host.system(`${first} ${delta > 0 ? (delta >= 8 ? 'approves greatly' : 'approves') : delta <= -8 ? 'disapproves greatly' : 'disapproves'}.`);
     if (line && this.ally && this.id === id) this.host.say(this.ally.pos, 2.4, line);
   }
@@ -145,7 +152,7 @@ export class Companions {
     const line = pool[Math.floor(Math.random() * pool.length)];
     this.lastLine = line; this.lastKey = key;
     this.host.say(this.ally.pos, 2.4, line);
-    this.host.system(`${COMPANIONS[this.id].name.split(' ')[0]}: "${line}"`);
+    this.host.system(`${compShort(this.id)}: "${line}"`);
     return true;
   }
 
@@ -199,13 +206,33 @@ export class Companions {
     if (foe && foe.alive && !p.dead) {
       const fd = Math.hypot(foe.pos.x - a.pos.x, foe.pos.z - a.pos.z);
       const reach = a.role === 'healer' ? 9 : 2.2;
-      if (fd > reach) { if (a.stepToward(foe.pos.x, foe.pos.z, 5.6, dt)) moving = 5.6; else a.stuck += dt; }
+      // Fisherman Dave: rusty until he has the Magical Pilgrim Hat on; with it, he casts from a distance (the hat's
+      // powers, not his own: take it off him and he's back to his fists)
+      const fdave = this.id === 'fdave', hat = fdave && this.host.flag('fd:hatOn') === 'dave';
+      const reachHere = hat ? 8 : reach;
+      if (fd > reachHere) { if (a.stepToward(foe.pos.x, foe.pos.z, 5.6, dt)) moving = 5.6; else a.stuck += dt; }
       else {
         a.face(foe.pos.x, foe.pos.z);
         if (this.hitIn <= 0) {
-          this.host.hit(foe, S.hit * (a.role === 'tank' ? 0.9 : 1));
-          a.act = a.role === 'healer' ? 'heal' : 'attack'; a.actTime = 0;
-          this.hitIn = S.every;
+          if (hat) {
+            this.casts++;
+            const big = this.casts % 3 === 0;
+            this.host.magic(a.pos.clone().setY(a.pos.y + 1.4), foe.pos.clone().setY(foe.pos.y + 0.8), big ? '#7ad8ff' : '#e8d07a', big);
+            this.host.hit(foe, S.hit * (big ? 2.4 : 1.5));
+            a.act = 'heal'; a.actTime = 0;
+            this.hitIn = S.every * 0.9;
+            if (big && Math.random() < 0.3) this.host.say(a.pos, 2.4, ['The hat did that. I just held still.', 'Whoa. Whoa! Did you see that?', 'I don\'t know what I said, but it worked.'][Math.floor(Math.random() * 3)]);
+          } else if (fdave && Math.random() < 0.18) {
+            // a swing that goes nowhere near
+            a.act = 'attack'; a.actTime = 0;
+            this.hitIn = S.every * 1.3;
+            if (Math.random() < 0.5) this.host.say(a.pos, 2.4, ['That was almost embarrassing.', 'I meant to do that. Mostly.', 'Remind me not to practise drinking and fighting at the same time.'][Math.floor(Math.random() * 3)]);
+          } else {
+            this.host.hit(foe, S.hit * (a.role === 'tank' ? 0.9 : 1) * (fdave ? 0.75 : 1));
+            a.act = a.role === 'healer' ? 'heal' : 'attack'; a.actTime = 0;
+            this.hitIn = S.every * (fdave ? 1.2 : 1);
+            if (fdave && Math.random() < 0.08) this.host.say(a.pos, 2.4, ['Now that\'s starting to look familiar!', 'All right! I remember that one!', 'Well, that\'s one less thing trying to kill us.'][Math.floor(Math.random() * 3)]);
+          }
         }
       }
     } else if (d > 3) {

@@ -360,6 +360,25 @@ case 'book': {
       px(12, 10, 2, 3, '#ffffff');
       break;
     }
+    case 'flatcap': {
+      // a soft flat cap from the side, its short peak to the right
+      x.fillStyle = outline; x.beginPath(); x.ellipse(15, 17, 12, 7, 0, Math.PI, 0); x.fill(); px(3, 16, 24, 4, outline);
+      x.fillStyle = a; x.beginPath(); x.ellipse(15, 17, 10.5, 5.5, 0, Math.PI, 0); x.fill(); px(4, 16, 22, 3, a);
+      px(24, 18, 7, 3, outline); px(25, 18, 5, 2, b);
+      px(8, 13, 10, 1, shade(a, 1.2)); px(14, 11, 2, 2, b);
+      break;
+    }
+    case 'pilgrimhat': {
+      // the pilgrim hat: a wide brim, a tall crown, a buckled band, a white feather and a little hook
+      px(2, 22, 28, 4, outline); px(3, 23, 26, 2, shade(a, 1.2));
+      px(9, 8, 14, 15, outline); px(10, 9, 12, 13, a);
+      px(9, 17, 14, 4, outline); px(10, 18, 12, 2, '#7a4a26');
+      px(14, 17, 4, 4, b); px(15, 18, 2, 2, outline);
+      for (let i = 0; i < 6; i++) px(21 + i, 15 - i * 2, 2, 3, '#f0ece0');
+      px(26, 4, 2, 2, '#3a2e26');
+      px(19, 21, 1, 3, '#c8ccd4'); px(19, 23, 2, 1, '#c8ccd4');
+      break;
+    }
     case 'pumpkin': {
       // A ribbed pumpkin with its stalk and a curl of vine
       x.fillStyle = outline; x.beginPath(); x.ellipse(16, 19, 13, 10, 0, 0, Math.PI * 2); x.fill();

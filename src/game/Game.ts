@@ -47,7 +47,7 @@ import { Enemy, FOE_RULES, type EnemyContext } from '../entities/Enemy';
 import { EFFECTS, inflictionOf, type EffectId, type Infliction } from '../data/effects';
 import { Companions } from './Companions';
 import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
-import { COMPANIONS, type CompanionId, type CompanionRole } from '../data/companions';
+import { COMPANIONS, compShort, type CompanionId, type CompanionRole } from '../data/companions';
 import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '../entities/humanoid';
 /** How long each skill move holds the body before walking takes it back (seconds). */
 const SKILL_ANIM: Partial<Record<AnimState, number>> = { attack: 0.4, cleave: 0.55, shoot: 0.5, cast: 0.5, stomp: 0.6, dash: 0.42, throw: 0.5, whistle: 0.85, crouch: 0.65 };
@@ -1362,6 +1362,12 @@ export class Game implements GameApi {
       level: () => this.level('melee'),
       target: () => this.target,
       fighting: () => this.elapsed - this.lastCombat < 4,
+      magic: (from, to, color, big) => {
+        // a run of light from the caster to the mark, and a flash where it lands
+        for (let i = 1; i <= 6; i++) this.particles.sparks(tmpV.copy(from).lerp(to, i / 6), big ? 3 : 2, color);
+        this.particles.burst(to, color, big ? 30 : 12);
+        if (big) this.sfx('discover', 0.4);
+      },
       hit: (e, d) => this.dealDamage(e, d * (0.9 + Math.random() * 0.2), Math.random() < 0.1, true),
       healPlayer: (n) => { if (this.dead) return; const h = Math.min(this.maxHp - this.hp, Math.round(n)); if (h > 0) { this.hp += h; this.floatAt(this.player.position, 2.2, `+${h}`, 'heal'); this.particles.heal(this.player.position); } },
       flag: (k) => this.flag(k),
@@ -1650,7 +1656,7 @@ export class Game implements GameApi {
     this.save.quests[q] = s;
     if (s === 'done') { this.dailies?.bump('quest'); this.guildPart('quests'); }
     const def = QUESTS[q];
-    if (s === 'done' && def.story) {
+    if (s === 'done' && def?.story) {
       this.audio.sting('chapter');
       this.hud.banner(`Chapter ${ROMAN[def.story.chapter]} complete`, def.story.title, true);
       this.sfx('quest');
@@ -2253,6 +2259,31 @@ export class Game implements GameApi {
     if (!w || !this.flag(id) || this.mode !== 'play' || this.dead || this.dialogue) return null;
     if (this.elapsed - this.lastCombat < 5) return null;
     return waymarkFare(this.player.position, w);
+  }
+
+/**
+   * Home, from anywhere (owner 2026-11-12: "allow players to teleport home"), free, as ESO's travel to your house:
+   * the house on your lot, your house in Verandah or on the Mirador, the room you rent, or Wendside Cottage. You
+   * arrive inside. Not in a fight, a conversation, a cell or a dungeon run.
+   */
+  myHomeName(): string | null { return this.myHome()?.name ?? null; }
+  travelHome(): void {
+    const h = this.myHome();
+    if (!h) { this.hud.system('You have no home yet: buy a house, lease a lot, or rent a room, and you can travel there from the map.'); return; }
+    if (this.justice.jailed) { this.hud.system('Not from a cell.'); return; }
+    if (this.dungeons.run) { this.hud.system('Not from inside a dungeon. Leave it first.'); return; }
+    if (this.mode !== 'play' || this.dead || this.dialogue || this.elapsed - this.lastCombat < 5) { this.hud.system('You can\'t travel home just now (not in a fight, not in a conversation).'); return; }
+    this.dismount(true);
+    this.hud.closeAll();
+    this.cancelActions();
+    this.target = null;
+    // the middle of the ground floor, a little in from the door side
+    this.save.pos = [h.x0 + h.w / 2, h.base + 0.05, h.z0 + h.d / 2];
+    this.save.hour = this.world.sky.hour;
+    this.save.hp = this.hp;
+    this.arriving = h.name.replace(/^your /, '');
+    this.arrivingBy = 'waymark';
+    this.startPlay(false, 'Going home…');
   }
 
   /** Go by waymark: pay, and the world loads round the stone. */
@@ -3919,6 +3950,8 @@ export class Game implements GameApi {
       mapMarkers: () => g.mapMarkers(true),
       waymarkFare: (id: string) => g.waymarkFareTo(id),
       travelWaymark: (id: string) => g.travelWaymark(id),
+      homeName: () => g.myHomeName(),
+      travelHome: () => g.travelHome(),
       shop: () => g.shopView(),
       travel: () => g.travelView(),
       travelTo: (id: string) => g.travelTo(id),
@@ -4458,6 +4491,7 @@ export class Game implements GameApi {
     if (this.save.land === 'morrow') { this.save.pos[0] += MORROW_OX; this.save.land = undefined; this.setFlag('voyage', null); }
     this.previewLook(null);
     this.front.hide();
+    for (const q of ['dkQuay', 'dkOwed', 'dkTeach', 'dkReckoner', 'dkBecky']) delete this.save.quests[q];
     const [sx, , sz] = this.save.pos;
     this.player.teleport(this.save.pos[0], this.save.pos[1], this.save.pos[2]);
     // Explored chunks are saved by chunk key, and a key depends on the world's size: convert saves
@@ -5589,7 +5623,7 @@ export class Game implements GameApi {
     if (this.companions.active && this.companions.body && !this.horse) {
       const b = this.companions.body, d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z);
       const id = this.companions.active;
-      if (d < 2.8) consider({ kind: 'act', label: `Talk to ${COMPANIONS[id].name.split(' ')[0]}`, pos: b.pos.clone().setY(b.pos.y + 1.8), act: () => this.talkToCompanion(id) }, d + 0.3);
+      if (d < 2.8) consider({ kind: 'act', label: `Talk to ${compShort(id as CompanionId)}`, pos: b.pos.clone().setY(b.pos.y + 1.8), act: () => this.talkToCompanion(id) }, d + 0.3);
     }
     // An altar: kneel and pray, to unlearn or change build (the talent screen, in the temple's light)
     if (!this.horse) for (const t of this.temples()) {
@@ -6255,6 +6289,7 @@ export class Game implements GameApi {
     const item = fish.id === 'seaturtle_find' ? 'seaturtle_scale' : fish.id;
     if (!this.inv.canAdd(item)) { this.hud.system('Your pack is full. You let it go.'); return; }
     this.give(item);
+    this.companionTally('fish');
     this.addXp('fishing', fish.xp);
     if (fish.tier !== 'common') this.hud.banner(fish.name, TIER_NAME[fish.tier] + ' · ' + lb + ' lb', true);
     this.logCatch(fish.id, fish.name, lb);
@@ -6494,6 +6529,25 @@ export class Game implements GameApi {
   compLeave(id: string): void { this.companions.leave(id as CompanionId); this.persist(); }
   compRapport(id: string, delta: number): void { this.companions.addRapport(id as CompanionId, delta); }
   compActive(): string | null { return this.companions?.active ?? null; }
+  playScene(id: string, who: { name: string; title: string; look: Appearance }): void {
+    const tree = DIALOGUE[id];
+    if (!tree) return;
+    this.cancelActions();
+    this.hud.closeAll();
+    // (a voice with no body: the scene's lines come from it, where you stand)
+    const npc = { id, def: { id, name: who.name, title: who.title, look: who.look }, pos: this.player.position.clone(), talking: true } as unknown as Npc;
+    this.dialogue = { npc, tree, node: '' };
+    this.hud.setCinema(true, true);
+    this.enterNode(tree.start(this));
+  }
+  /** What you've done with each companion beside you, counted (Fisherman Dave's training and his fishing, and any quest like it): 'comp_kills:<id>', 'comp_fish:<id>'. */
+  private companionTally(kind: 'kills' | 'fish'): void {
+    const c = this.companions?.active;
+    if (!c) return;
+    const k = 'comp_' + kind + ':' + c;
+    this.setFlag(k, Number(this.flag(k) ?? 0) + 1);
+    this.hud.setTracker(this.questEntries());
+  }
   compNear(x: number, z: number, r: number): boolean { return Math.hypot(this.player.position.x - x, this.player.position.z - z) < r; }
   compHour(): number { return this.world.sky.hour; }
   compOutfit(id: string, outfit: string): void { this.setFlag(`comp:${id}:outfit`, outfit); this.companions.refresh(); this.persist(); }
@@ -6871,6 +6925,11 @@ export class Game implements GameApi {
   /** Every blow the player lands goes through here: the calling's bonuses, the boss share, numbers, experience, a kill. */
   private dealDamage(e: Enemy, raw: number, crit: boolean, quiet = false, element: Element | null | undefined = undefined): number {
     if (!e.alive) return 0;
+    // (Fisherman Dave's story: the Cursekeeper keeps curses, and no blow lands on him unless the Magical Pilgrim Hat is in the fight)
+    if (e.def.type === 'fd_cursekeeper' && this.flag('fd:hatOn') !== 'dave' && !(this.flag('fd:hatOn') === 'player' && this.save.equip?.head === 'pilgrim_hat')) {
+      raw *= 0.04;
+      if (!quiet && Math.random() < 0.25) this.hud.system('The blow goes through him like a hand through smoke. The hat: someone has to be wearing the hat.');
+    }
     // Deadeye: every blow a critical hit while it lasts
     if (!quiet && this.kit.deadeye()) crit = true;
     const fx = this.fx;
@@ -7129,6 +7188,7 @@ export class Game implements GameApi {
     // (a kill someone in your group finished is already counted, by theirs)
     if (!byOther || !this.social.group) this.setFlag('killed:' + e.def.type, Number(this.flag('killed:' + e.def.type) ?? 0) + 1);
     if (!e.questTag && this.social.group && !byOther) this.online.groupKill(e.def.type);
+    this.companionTally('kills');
     if (e.questTag) {
       const k = 'kills:' + e.questTag;
       this.setFlag(k, Number(this.flag(k) ?? 0) + 1);
@@ -8617,6 +8677,7 @@ export class Game implements GameApi {
           this.wearCostume(c.id);
           return;
         }
+        case 'home': this.travelHome(); return;
         case 'sellhome': {
           // /sellhome Name 5000: offer the house you bought to another player in the world
           const m = arg.trim().match(/^(.+?)\s+(\d[\d,]*)$/);

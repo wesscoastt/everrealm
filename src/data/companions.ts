@@ -7,7 +7,7 @@ import type { Appearance } from '../entities/humanoid';
 // they're willing, more than friendship. Their conversations are in data/content/companions.ts; the
 // walking, fighting and talking in game/Companions.ts.
 
-export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned' | 'dave';
+export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned' | 'dave' | 'fdave';
 export type CompanionRole = 'tank' | 'healer' | 'damage';
 
 export interface Outfit { id: string; name: string; /** Rapport needed to have it (0: from the start). */ rapport: number; look: Partial<Appearance> }
@@ -35,7 +35,7 @@ export type CompanionEvent = 'crime' | 'revive' | 'vista' | 'wonder' | 'book' | 
 export type BanterKey = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'morrow'
   | 'ansbury' | 'gullmouth' | 'harrowgate' | 'kelderby' | 'kirk' | 'night' | 'rain' | 'wake' | 'fight' | 'won' | 'hurt' | 'down' | 'swim' | 'ride' | 'idle' | 'partner';
 
-export const COMPANIONS: Record<CompanionId, CompanionDef> = {
+export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId, CompanionDef>>{
   // ---------------------------------------------------------------- Wenna Hale
   // A Toll Rider, once: the Charter's mounted wardens of the Turnpike. In February she drove the Light
   // Fund cart to Fleet Light and signed for nine barrels of oil with six in the back, because the Toll
@@ -237,7 +237,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
   // what it keeps, and the one pair of hands that can take it back. He's never hit anyone in his life.
   // You teach him. He likes honest work and people being kind to each other; he can't abide cruelty.
   dave: {
-    id: 'dave', name: 'Dave Kitto', title: 'Fisherman, Gullmouth',
+    id: 'dave', name: 'David Kitto', title: 'Fisherman, Gullmouth',
     home: { at: [1786.5, 607.5], face: [1790.5, 607.5], place: 'Gullmouth quay' },
     roles: ['tank', 'damage'],
     look: { frame: 'm', skin: '#c8906a', hair: '#5a4a3a', hairStyle: 3, facial: 7, eyes: '#4a6a7a', tunic: '#3a4a5a', trim: '#8a7a5a', shirt: '#d8ccb0', trousers: '#2e2a26', boots: '#1e1a16', top: 6, belt: '#4a3420', hat: 'cap', hatColor: '#2a3440', build: 1.3, height: 1.04, age: 0.45, brows: 1 },
@@ -284,8 +284,49 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = {
   },
 };
 
+// Fisherman Dave (owner 2026-11-11, docs/briefs/fisherman-dave.md and the concept art): poor, friendly, strange and a
+// little unhinged; drunk since Becky White died, his fighting gone with his nerve. His story is the quest line in
+// data/content/fishermanDave.ts; he joins in it, and the Magical Pilgrim Hat makes a spellcaster of him (the hat's
+// powers, not his own: game/Companions.ts). He stays as long as you'd like. (David Kitto is someone else.)
+COMPANIONS.fdave = {
+  id: 'fdave', name: 'Fisherman Dave', title: 'Gullmouth',
+  home: { at: [1772.5, 640.5], face: [1776.5, 640.5], place: 'his net shed above the slip' },
+  roles: ['damage', 'tank'],
+  look: { frame: 'm', skin: '#e8c4a4', hair: '#6a3a1e', hairStyle: 0, facial: 1, eyes: '#3a5a7a', glasses: '#141414', tunic: '#d8a020', trim: '#c08a18', shirt: '#5a6a2a', top: 4, braces: '#2a1e14', belt: '#2a1e14', trousers: '#22305a', boots: '#6a1e1a', shoes: 1, gloves: '#3a5a1e', hat: 'none', build: 1.05 },
+  outfits: [
+    { id: 'own', name: 'His smock', rapport: 0, look: {} },
+    { id: 'grin', name: 'In a good mood', rapport: 25, look: { smile: true } },
+  ],
+  likes: {
+    revive: [5, 'You came back for me. I won\'t forget it. I forget most things. Not that.'],
+    quest: [2, 'That was decent of you. Nobody\'s decent any more. You are.'],
+    treat: [2, 'Becky had a sweet tooth. Never trusted a man without one, she said.'],
+    vista: [1, 'You can see the weather coming from up here. That\'s worth something.'],
+    boss: [3, 'Did we do that? We did that!'],
+    crime: [-4, 'That wasn\'t yours. Somebody worked for that. I\'ve been poor; I know.'],
+    theft: [-5, 'Put it back. I mean it. Put it back.'],
+  },
+  banter: {
+    saltwind: ['Smell that. Fish and tar. Best smell in the world. Don\'t tell anyone I said that, they\'ll think I\'m strange.'],
+    gullmouth: ['That\'s my shed. Don\'t look in it.', 'Ford\'s up on the quay road. He\'s always up on the quay road. I think he sleeps standing.'],
+    greenwake: ['Hollin Ford. The river\'s too small to fish properly. I\'ve tried. The fish were embarrassed for me.'],
+    night: ['Quiet. I don\'t like it quiet. Quiet\'s when you think.', 'You ever notice how quiet the world gets near water?'],
+    rain: ['Rain\'s just the sea come visiting.'],
+    fight: ['Right!', 'Hit them before they hit you. That\'s the first rule.', 'Stay close. If I do something strange, it\'s probably intentional.'],
+    won: ['Well, that\'s one less thing trying to kill us.', 'Now that\'s starting to look familiar!', 'I didn\'t fall over!'],
+    hurt: ['I\'m fine. I\'m fine. Is that mine? That\'s mine.', 'Sit down a minute. You\'ve gone a funny colour.'],
+    down: ['Get up! Get up, please. I can\'t do this on my own.'],
+    swim: ['I can swim. I just don\'t like to. The fish look at you.'],
+    idle: ['Well, things certainly turned out better than I expected.', 'I\'ve got my hat, I\'ve got Becky, and I\'ve got a reason to get out of bed. That\'s a pretty good day.', 'You ever notice how strange life gets when you stop drinking long enough to pay attention?', 'I suppose I ought to thank you again. I might get around to it eventually.', 'Do you want a sandwich? I\'ve got half a sandwich.'],
+    partner: ['You know where I stand. I\'m not saying it twice. Once was hard enough.'],
+  },
+};
+
 export const COMPANION_IDS = Object.keys(COMPANIONS) as CompanionId[];
 /** Rapport needed for each part of their own story to open (the first is when they join). */
 export const STORY_AT = [0, 20, 40];
 /** Rapport, and flirtations answered, before the end of their story can become something more. */
 export const ROMANCE_AT = 60, FLIRTS_NEEDED = 2;
+
+/** What a companion is called in passing (a chat line, "Talk to"): the first name, or Dave for Fisherman Dave. */
+export const compShort = (id: CompanionId): string => (id === 'fdave' ? 'Dave' : COMPANIONS[id].name.split(' ')[0]);

@@ -1,7 +1,7 @@
 import { B, BLOCKS } from './blocks';
 import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
-import { HOLLIN_SHRINE, SHRINE_SOLID } from './shrineData';
+import { HOLLIN_SHRINE, SHRINE_SOLID, type ShrineTheme } from './shrineData';
 import { hash2 } from './noise';
 import { landAt, landOf } from './land';
 import { MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
@@ -143,7 +143,7 @@ export interface PropDesc {
   sail?: string;
   deck?: number;
   /** A waymark shrine's style. */
-  theme?: RegionId;
+  theme?: ShrineTheme;
   r?: number;
   h?: number;
   text?: string;
@@ -259,7 +259,7 @@ export class Overrides {
 }
 
 /** A waymark: its shrine, and where travellers are set down beside it (or on a vista's top). */
-export interface WaymarkSpot { id: string; name: string; x: number; z: number; y: number; ax: number; az: number; ay?: number; theme: RegionId; ry: number }
+export interface WaymarkSpot { id: string; name: string; x: number; z: number; y: number; ax: number; az: number; ay?: number; theme: ShrineTheme; ry: number }
 
 /** A chest hidden in the wilds or tucked by a ruin (game/Chests.ts): found, picked and looted. */
 export interface HiddenChest { id: number; x: number; y: number; z: number; tier: 0 | 1 | 2; region: RegionId; ry: number }
@@ -9693,8 +9693,9 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
   // and waymarks of the game's own where the owner set no waystone (Gorran, behind the Arena)
   if (mcHost) for (const w of [GORRAN_WAYMARK]) {
     const ry = Math.PI;
-    mcHost.props.push({ t: 'waymark', x: w.x, y: w.y, z: w.z, ry, theme: 'gannet' });
-    out.push({ id: 'wm-mc-' + w.name.toLowerCase(), name: w.name, x: w.x, z: w.z, y: w.y, theme: 'gannet', ry, ax: w.x, az: w.z + 2.5 });
+    // its own little site, so the shrine is built when you come near it (the island's host site is centred far off)
+    sites.push({ id: 'vwm-' + Math.floor(w.x) + '-' + Math.floor(w.z), name: '', region: 'verandah', x: w.x, z: w.z, r: 60, named: false, props: [{ t: 'waymark', x: w.x, y: w.y, z: w.z, ry, theme: 'vh_village' }], rects: [], impostor: [] });
+    out.push({ id: 'wm-mc-' + w.name.toLowerCase(), name: w.name, x: w.x, z: w.z, y: w.y, theme: 'vh_village', ry, ax: w.x, az: w.z + 2.5 });
   }
   if (mcHost) for (const w of MC_WAYSTONES) {
     const near = (re: RegExp, r: number) => MC_SIGNS.some((g) => re.test(g.text.split(String.fromCharCode(10)).join(' ')) && Math.hypot(g.x - w.x, g.z - w.z) < r);
@@ -9702,8 +9703,12 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     const name = w.name ?? (near(/welcome to verandah/i, 40) ? 'Verandah Docks' : near(/arena/i, 30) ? 'Verandah Arena' : near(/airport/i, 40) ? 'Verandah Airport'
       : near(/horses/i, 120) ? 'Verandah Stables' : near(/bank of verandah/i, 130) ? 'Verandah, the Great Bridge' : 'Verandah Outskirts');
     const x = Math.floor(w.x) + 0.5, z = Math.floor(w.z) + 0.5, ry = Math.PI / 2;
-    mcHost.props.push({ t: 'waymark', x, y: w.y, z, ry, theme: 'gannet' });
-    out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: w.y, theme: 'gannet', ry, ax: x + 2.5, az: z });
+    // each its own shrine for the place it stands in (world/shrines.ts)
+    const theme: ShrineTheme = /port|docks/i.test(name) ? 'vh_harbour' : /farm/i.test(name) ? 'vh_farm' : /arena/i.test(name) ? 'vh_arena' : /kestle/i.test(name) ? 'vh_snow'
+      : /awschitz/i.test(name) ? 'vh_fort' : /mizu/i.test(name) ? 'vh_east' : /airport/i.test(name) ? 'vh_tower' : /outskirts|stables/i.test(name) ? 'vh_village' : 'vh_town';
+    // its own little site, so the shrine is built when you come near it (the island's host site is centred far off)
+    sites.push({ id: 'vwm-' + Math.floor(x) + '-' + Math.floor(z), name: '', region: 'verandah', x: x, z: z, r: 60, named: false, props: [{ t: 'waymark', x: x, y: w.y, z: z, ry, theme: theme }], rects: [], impostor: [] });
+    out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: w.y, theme, ry, ax: x + 2.5, az: z });
   }
   for (const b of WORLD_BOSSES) {
     const lair = sites.find((s) => s.id === 'lair-' + b.id);

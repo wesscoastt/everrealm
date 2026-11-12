@@ -44,6 +44,8 @@ export interface GameApi {
   compLeave(id: string): void;
   compRapport(id: string, delta: number): void;
   compActive(): string | null;
+  /** Play a conversation where you stand (a quest spot's scene): the tree registered under this id, with this voice for its unmarked lines. */
+  playScene(id: string, who: { name: string; title: string; look: import('../entities/humanoid').Appearance }): void;
   /** Music for a hard moment in the story (systems/music/Score.ts: the lament), for this many seconds. */
   storyTheme(theme: 'lament' | 'wonder' | 'ruins', seconds?: number): void;
   /** Are you within r blocks of (x, z)? (A companion's story is told where it happened.) */

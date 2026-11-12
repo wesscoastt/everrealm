@@ -123,6 +123,18 @@ const SOURCES: Source[] = [
     lines: ['From the Old Man\'s Workings under Sallow Pit, where Coll Bray\'s night shift kept the tools they took.', 'A miner\'s tool made into something else. The handle still has the shift number burnt in.'],
   },
   {
+    id: 'tregarthen', name: 'Tregarthen', dungeon: 'delve-crypt', rarity: 'rare', value: 85, colours: { metal: '#5a5a62', hilt: '#2a1e2a', grip: '#3a1e2a', accent: '#d8b04a' }, style: { guard: 'swept', pommel: 'gem', blade: 'tapered', axe: 'crescent', mace: 'flanged', hammer: 'pick', spear: 'winged', staff: 'orb' },
+    nouns: { sword: 'mourning sword', dagger: 'misericorde', staff: 'chaplain’s rod' },
+    families: ['sword', 'longsword', 'dagger', 'mace', 'staff', 'bow'],
+    lines: ['Laid in a Tregarthen tomb with its owner, and taken back up the forty steps to the hilltop.', 'The household’s raven is worked into the guard, small and gold.'],
+  },
+  {
+    id: 'cistern', name: 'Cistern', dungeon: 'delve-cistern', rarity: 'rare', value: 80, colours: { metal: '#7a7a6a', hilt: '#3a3426', grip: '#5a4a32', accent: '#8a6a3a' }, style: { guard: 'bar', pommel: 'cap', blade: 'broad', axe: 'hatchet', mace: 'knob', hammer: 'maul', spear: 'gig' },
+    nouns: { axe: 'hedging axe', hammer: 'fencing maul', spear: 'eel gig', cleaver: 'billhook' },
+    families: ['axe', 'hammer', 'spear', 'cleaver', 'sword'],
+    lines: ['A farm tool before it was a weapon, brought up out of the cistern under the barns.', 'Rust in the grain of it that no oil will shift.'],
+  },
+  {
     id: 'tidebell', name: 'Tidebell', dungeon: 'gd-temple', rarity: 'rare', value: 95, colours: { metal: '#7a8a82', hilt: '#26342e', grip: '#3a463e', accent: '#d8b04a' }, style: { guard: 'bar', pommel: 'ring', blade: 'fuller', axe: 'bearded', mace: 'flanged', hammer: 'maul', spear: 'glaive', staff: 'crook' },
     nouns: { mace: 'censer-mace', hammer: 'bell hammer', spear: 'temple guard’s glaive', staff: 'prior’s crook' },
     families: ['sword', 'mace', 'hammer', 'spear', 'staff', 'dagger'],

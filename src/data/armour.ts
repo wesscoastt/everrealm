@@ -196,6 +196,68 @@ const LINES: Line[] = [
       feet: ['Temple guard’s sabatons', 'Heavy enough to stand in a current. They did, at the end.'],
     },
   },
+  // The Tregarthen Vaults (delve, Verandah): the household's mourning, from its chest
+  {
+    id: 'tregarthen', weight: 'light', set: 'tregarthen', dungeon: 'delve-crypt', rarity: 'rare', value: 75, colour: '#2a1e2a', trim: '#d8b04a',
+    look: { chest: { top: 3, tunic: '#2a1e2a', trim: '#d8b04a', shirt: '#e8e0d0' }, legs: { trousers: '#1e1418', legs: 1, hose: '#2a1e2a' }, hands: { gloves: '#1e1418' }, feet: { boots: '#141014', shoes: 1 } },
+    pieces: {
+      chest: ['Tregarthen mourning coat', 'Black velvet gone brown at the seams, the household’s gold ravens down the front. Every Tregarthen was buried in one.'],
+      legs: ['Tregarthen mourning hose', 'Silk, darned with black thread by someone who cared about the darning.'],
+      hands: ['Tregarthen mourning gloves', 'Kid leather, a little too small. They were made for a hand that never grew.'],
+      feet: ['Tregarthen mourning shoes', 'Soft soles for walking behind a coffin. The buckles are real gold, and nobody ever took them.'],
+    },
+  },
+  {
+    id: 'vaultwarden', weight: 'medium', set: 'tregarthen', dungeon: 'delve-crypt', rarity: 'rare', value: 75, colour: '#3a1e2a', trim: '#8a8a7a',
+    look: { chest: { top: 6, tunic: '#3a1e2a', trim: '#8a8a7a', chestArmour: { style: 'brigandine', color: '#2a1e24', trim: '#d8b04a' } }, legs: { trousers: '#2a1e24', legs: 1, hose: '#3a1e2a' }, hands: { gloves: '#1e1418', bracers: { style: 'leather', color: '#2a1e24' } }, feet: { boots: '#141014', shoes: 0 } },
+    pieces: {
+      chest: ['Vault-keeper’s jack', 'The retainers who kept the Tregarthen dead wore these, and were buried in them, at the door they kept.'],
+      legs: ['Vault-keeper’s breeches', 'Leather, with a ring of the vault’s keys stamped into the belt.'],
+      hands: ['Vault-keeper’s gloves', 'Stiff with old lamp oil.'],
+      feet: ['Vault-keeper’s boots', 'They walked the same forty steps down for a hundred years.'],
+    },
+  },
+  {
+    id: 'ravenplate', weight: 'heavy', set: 'tregarthen', dungeon: 'delve-crypt', rarity: 'rare', value: 90, colour: '#5a5a62', trim: '#d8b04a',
+    look: { chest: { top: 4, tunic: '#2a1e2a', trim: '#d8b04a', chestArmour: { style: 'plate', color: '#5a5a62', trim: '#d8b04a' }, shoulders: { style: 'round', color: '#5a5a62', trim: '#d8b04a' } }, legs: { trousers: '#1e1418', legs: 0, legArmour: { style: 'plate', color: '#5a5a62' } }, hands: { gloves: '#1e1418', bracers: { style: 'plate', color: '#5a5a62' } }, feet: { boots: '#141014', shoes: 0 } },
+    pieces: {
+      chest: ['Tregarthen raven plate', 'Blackened steel, a gold raven on the breast. Lord Ansel’s grandfather had it made for a war he didn’t go to.'],
+      legs: ['Tregarthen raven greaves', 'They’ve never been dented.'],
+      hands: ['Tregarthen raven gauntlets', 'The knuckles are gilt. That was the point of them.'],
+      feet: ['Tregarthen raven sabatons', 'Laid at the foot of Lord Ansel’s tomb, and taken back up by Lord Ansel.'],
+    },
+  },
+  // The Drowned Cistern (delve, Verandah): what the farm's drowned wore, from its chest
+  {
+    id: 'cisternhand', weight: 'light', set: 'cistern', dungeon: 'delve-cistern', rarity: 'rare', value: 70, colour: '#5a5a3a', trim: '#8a6a3a',
+    look: { chest: { top: 3, tunic: '#5a5a3a', trim: '#8a6a3a', shirt: '#c8c0a8' }, legs: { trousers: '#3a3426', legs: 1, hose: '#4a4630' }, hands: { gloves: '#3a3022' }, feet: { boots: '#2a241a', shoes: 1 } },
+    pieces: {
+      chest: ['Farmhand’s smock', 'Undyed linen gone the green of pond water. It dried hard as a board and stayed that way.'],
+      legs: ['Farmhand’s breeches', 'Patched at both knees with sacking, which says more about the farm than about the man.'],
+      hands: ['Farmhand’s mitts', 'Wool, for lambing in March. Still smell of it.'],
+      feet: ['Farmhand’s clogs', 'Wooden soles. Good in mud, bad in deep water.'],
+    },
+  },
+  {
+    id: 'trudgeoncoat', weight: 'medium', set: 'cistern', dungeon: 'delve-cistern', rarity: 'rare', value: 70, colour: '#3a3426', trim: '#8a6a3a',
+    look: { chest: { top: 6, tunic: '#3a3426', trim: '#8a6a3a', chestArmour: { style: 'brigandine', color: '#4a3e2a', trim: '#8a6a3a' } }, legs: { trousers: '#2a2620', legs: 1, hose: '#3a3426' }, hands: { gloves: '#2a241a', bracers: { style: 'leather', color: '#3a3022' } }, feet: { boots: '#1e1a16', shoes: 0 } },
+    pieces: {
+      chest: ['Overseer’s oilskin', 'Malachi Trudgeon’s men wore oilskins to keep the cistern’s wet off. It didn’t keep it off at the end.'],
+      legs: ['Overseer’s leggings', 'Oiled leather, tarred at the seams.'],
+      hands: ['Overseer’s gauntlets', 'Thick enough to hold a sluice wheel in winter.'],
+      feet: ['Overseer’s waders', 'Up to the thigh, and full of water when they found him.'],
+    },
+  },
+  {
+    id: 'sluiceplate', weight: 'heavy', set: 'cistern', dungeon: 'delve-cistern', rarity: 'rare', value: 85, colour: '#6a6a5a', trim: '#4a3e2a',
+    look: { chest: { top: 4, tunic: '#3a3426', trim: '#4a3e2a', chestArmour: { style: 'plate', color: '#6a6a5a', trim: '#4a3e2a' }, shoulders: { style: 'round', color: '#6a6a5a', trim: '#4a3e2a' } }, legs: { trousers: '#2a2620', legs: 0, legArmour: { style: 'plate', color: '#6a6a5a' } }, hands: { gloves: '#2a241a', bracers: { style: 'plate', color: '#6a6a5a' } }, feet: { boots: '#1e1a16', shoes: 0 } },
+    pieces: {
+      chest: ['Sluice-iron cuirass', 'Beaten out of a cistern gate, rivets and all. Somebody needed armour more than they needed the gate.'],
+      legs: ['Sluice-iron greaves', 'Still stamped with the ironmonger’s mark from Verandah.'],
+      hands: ['Sluice-iron gauntlets', 'Heavy, and pitted where the water sat in them.'],
+      feet: ['Sluice-iron boots', 'They don’t float. That was nearly a problem.'],
+    },
+  },
   // Black Gull Keep (public dungeon, Verandah): its bosses and its chest give these
   {
     id: 'wreckerslop', weight: 'light', set: 'blackgull', dungeon: 'pd-blackgull', rarity: 'rare', value: 80, colour: '#2a2e36', trim: '#8a8a7a',

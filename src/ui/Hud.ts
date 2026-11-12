@@ -350,6 +350,9 @@ export interface UiCtx {
   /** Marks to go to a waymark from here, or null if it can't be reached that way now. */
   waymarkFare(id: string): number | null;
   travelWaymark(id: string): void;
+  /** Your home's name (null if you have none), and going there. */
+  homeName(): string | null;
+  travelHome(): void;
   currentStation: Station | null;
   /** The trader whose panel is open. */
   shop(): ShopView;
@@ -3415,9 +3418,12 @@ export class Hud {
         x.fillStyle = '#c8c2d4'; x.font = `500 ${px(12)}px "Alegreya Sans", sans-serif`; x.fillText(best.sub, bx + px(10), by + px(34));
       }
     }
-    this.q('#map-panel .footer').innerHTML = document.body.classList.contains('touch')
+    const home = this.ctx.homeName();
+    const homeBtn = home ? `<button class="btn small map-home" title="Free, from anywhere outside a fight or a dungeon (/home)">Travel home: ${esc(home.replace(/^your /, ''))}</button>` : '';
+    this.q('#map-panel .footer').innerHTML = (document.body.classList.contains('touch')
       ? '<span>Pinch to zoom · drag to pan · tap a blue waymark to travel · tap elsewhere to set a waypoint</span>'
-      : '<span>Wheel to zoom · drag to pan · click a blue waymark to travel · click elsewhere for a waypoint (right-click clears it)</span><span>M to close</span>';
+      : '<span>Wheel to zoom · drag to pan · click a blue waymark to travel · click elsewhere for a waypoint (right-click clears it)</span><span>M to close</span>') + homeBtn;
+    this.q('#map-panel .footer .map-home')?.addEventListener('click', () => this.ctx.travelHome());
   }
 
   /** The map canvas, its zoom buttons and legend chips, and the mouse handling. */

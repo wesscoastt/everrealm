@@ -440,167 +440,141 @@ const ned: DialogueTree = {
 // ==================================================================== Dave Kitto
 // His story is the quest line in content/fishermanDave.ts (dkQuay to dkBecky): here, meeting him, telling
 // him what Becky said, his first lesson, and the day he's ready.
-const dk = (g: GameApi, q: string) => g.stage(q);
 /** How the first lesson went: one for each answer you got right. */
 const lessonRight = (g: GameApi) => Number(g.flag('dk:lesson') ?? 0);
 const dave: DialogueTree = {
-  start: (g) => {
-    const q = dk(g, 'dkQuay');
-    if (!q) return 'meet';
-    if (q === 'light') return 'lightWait';
-    if (q === 'tell') return 'tell';
-    if (dk(g, 'dkTeach') === 'guard') return 'lesson';
-    if (dk(g, 'dkTeach') === 'ready') return 'ready';
-    return 'menu';
-  },
+  // David Kitto, for those who had him before Fisherman Dave's story replaced his (owner 2026-11-11): a companion, no story now
+  start: () => 'menu',
   nodes: {
-    meet: {
-      speaker: 'narrator',
-      text: (g) => (g.flag('dk:met') ? 'Dave Kitto is still on his fish box at the end of the quay, the net across his knees.' : 'A big man sits on an upturned fish box at the end of the quay with a net across his knees. He doesn\'t look up. His hands keep going.'),
-      effect: (g) => g.setFlag('dk:met', 1),
-      next: 'meet2',
-    },
-    meet2: {
-      text: 'If you\'re after mackerel, the boats are in at six. If you\'re after the harbour master, he\'s in the Anchor, and he\'ll tell you he isn\'t.',
-      options: [
-        { text: 'Neither. You looked like you were watching for something.', next: 'watching' },
-        { text: 'That\'s a fine net.', next: 'net' },
-        { text: '(Leave him to it)' },
-      ],
-    },
-    net: { text: 'It was. Then a dogfish went through it. Now it\'s a fine hole with some net round it. Dave Kitto. You\'ve not come to talk about nets.', next: 'watching' },
-    watching: {
-      text: 'The water. Off the Light. Some nights there\'s a lamp out there, past the stacks, where no boat is. Folk say it\'s marsh fire, or a trick of the fog. It isn\'t.',
-      options: [{ text: 'Whose lamp is it?', next: 'becky' }],
-    },
-    becky: {
-      text: 'Becky White\'s. We were to be married at Lammas, three years back. The February before, I was out late, and the fog came down off the Light so thick you could lean on it. She took a lamp up to the end of the headland so I\'d have something to steer by. I came in on her light. She never came down.',
-      next: 'becky2',
-    },
-    becky2: {
-      text: 'They searched the rocks for a week. Nothing. Not her shawl, not the lamp. Then one night in the spring I looked up from this box and there it was. Her lamp. On the water past the Light, where nobody could stand.',
-      options: [
-        { text: 'Have you gone out to it?', next: 'rowed' },
-        { text: 'I\'m sorry, Dave.', next: 'sorry' },
-      ],
-    },
-    rowed: { text: 'Every time. I row out, and it\'s gone before I\'m halfway, and I sit there in the dark like a fool and row back. I\'m not a fool. I just can\'t stop.', next: 'ask' },
-    sorry: { text: 'Everybody is. It doesn\'t help, but I know they mean it. You do as well. I can tell.', next: 'ask' },
-    ask: {
-      text: 'You\'ve a look about you. Like you\'ve been places where things don\'t make sense and come back anyway. Would you go up to the Light tonight, after dark, and look for her? Not from a boat. From the land. Maybe it\'s me she won\'t wait for.',
-      options: [
-        { text: 'I\'ll go up tonight.', effect: (g) => g.setStage('dkQuay', 'light'), next: 'asked' },
-        { text: 'Not tonight.', next: 'no' },
-      ],
-    },
-    asked: { text: 'Up the cliff path south of the quay. Old Pengelly keeps the Light; he\'ll not bother you. And if you see her, tell her I\'ve not stopped. She\'ll know what I mean.' },
-    no: { text: 'No. Well. It\'s been three years. Another night won\'t matter to her.' },
-    lightWait: { text: 'After dark, up at the Light. I\'ll be here. I\'m always here.' },
-    tell: {
-      text: 'You went. You\'ve a face on you like you\'ve seen her. Did you?',
-      options: [{ text: '(Tell him everything)', next: 'tell2' }],
-    },
-    tell2: {
-      speaker: 'narrator',
-      text: 'You tell him: the woman at the cliff\'s edge, the lamp that throws no shadow. That the night of the fog, something came up the cliff for him, and she met it on the headland and went in his place. That she chose it. He doesn\'t move while you talk. The net slides off his knees.',
-      next: 'tell3',
-    },
-    tell3: { text: 'She chose it. Course she did. That\'s her all over. Wouldn\'t let me carry a full basket up the slip in case I did my back.', next: 'tell4' },
-    tell4: {
-      text: 'Something came for me, and she said, take me, he\'s got nets to mend. I\'d bet the boat that\'s what she said. Near enough.',
-      options: [
-        { text: 'She wants you to stop rowing out. To let her go.', next: 'letgo' },
-        { text: 'If it was a trade, maybe it can be undone.', next: 'undo' },
-      ],
-    },
-    letgo: { text: 'I heard you. And I won\'t. You can tell her so, next time. If something took her in trade, then it can be traded back. Somebody in this town knows how. Old Nan Prowse lays out the drowned. If anybody knows, Nan does.', next: 'offer' },
-    undo: { text: 'That\'s what I thought, while you were talking. That\'s all I thought. Somebody in this town will know how. Old Nan Prowse lays out the drowned. If anybody knows, Nan does.', next: 'offer' },
-    offer: {
-      text: 'I\'ve sat on this box three years. I\'m done sitting. I\'ll come with you, if you\'ll have me. I\'m not much in a fight. I\'m good with a boat, and I can carry anything you can lift and a bit more.',
-      options: [{ text: 'Come on, Dave.', next: 'join' }],
-    },
-    join: {
-      text: 'Right. Let me tell the lads to take the Becky out without me. First time in twenty years.',
-      effect: (g) => { g.setFlag('comp:dave:joined', 1); g.setFlag('comp:dave:part', 1); g.compRapport('dave', 5); g.addMarks(100); g.setStage('dkQuay', 'done'); g.compJoin('dave'); },
-    },
-    lesson: {
-      speaker: 'narrator',
-      text: 'Dave picks up a boathook from a coil of rope and holds it like a broom. He plants his feet together and looks at you, waiting.',
-      next: 'l1',
-    },
-    l1: {
-      text: 'Show me how to stand, then. I\'ve been knocked down by a wave. Never by a man.',
-      effect: (g) => g.setFlag('dk:lesson', 0),
-      options: [
-        { text: 'Feet apart, one back. Weight low, like on a deck in a swell.', effect: (g) => g.setFlag('dk:lesson', lessonRight(g) + 1), next: 'l1good' },
-        { text: 'Feet together. Stand tall. Look big.', next: 'l1bad' },
-      ],
-    },
-    l1good: { text: 'Like on a deck. I know that. Why does nobody say it like that?', next: 'l2' },
-    l1bad: { speaker: 'narrator', text: 'You tap his shoulder with two fingers, and he goes over sideways like a cut mast. He lies on the quay a moment, looking at the sky.', next: 'l1bad2' },
-    l1bad2: { text: 'Right. Not that, then. Feet apart. Like on a deck. I could have told you that.', next: 'l2' },
-    l2: {
-      text: 'And when it swings at me? Whatever it is. Do I get out of the way, or stop it?',
-      options: [
-        { text: 'Out of the way if you can. Stop it if you can\'t. Never just stand there.', effect: (g) => g.setFlag('dk:lesson', lessonRight(g) + 1), next: 'l2good' },
-        { text: 'Always stop it. Show it you\'re not afraid.', next: 'l2bad' },
-      ],
-    },
-    l2good: { text: 'Out of the way. Same as a swinging boom. You don\'t argue with a boom.', next: 'l3' },
-    l2bad: { text: 'I am afraid, though. I\'d sooner not show it that by getting my arm broke. I\'ll get out of the way, if it\'s all the same to you.', next: 'l3' },
-    l3: {
-      text: 'And when do I hit back?',
-      options: [
-        { text: 'When it\'s open. After it swings, before it\'s ready again. Watch for it.', effect: (g) => g.setFlag('dk:lesson', lessonRight(g) + 1), next: 'l3good' },
-        { text: 'As hard and as often as you can.', next: 'l3bad' },
-      ],
-    },
-    l3good: { text: 'Wait for it to open. Like hauling. You don\'t pull against the sea. You pull when it lets you.', next: 'lend' },
-    l3bad: { text: 'As often as I can. I\'d be done in a minute. I\'ve seen men fight outside the Anchor. The one who waits always wins. I\'ll wait.', next: 'lend' },
-    lend: {
-      text: (g) => (lessonRight(g) >= 2 ? 'Feet. Out of the way. Wait for it to open. I\'ve got that. You\'re a good teacher. You don\'t make a man feel stupid.' : 'I\'ll work it out as I go. That\'s how I learned the boat. Nobody taught me the boat either.'),
-      next: 'lend2',
-    },
-    lend2: {
-      text: 'There\'s crabs as big as dogs north of the jetties, eating the bait out of the pots. Let\'s go and practise on something that bites back.',
-      effect: (g) => { if (lessonRight(g) >= 2) g.setFlag('dk:skill', Number(g.flag('dk:skill') ?? 0) + 1); g.compRapport('dave', 3); g.setStage('dkTeach', 'hunt'); },
-    },
-    ready: {
-      text: 'Kezia put me on my back and I got up. I didn\'t know I could do that. I don\'t think she did either.',
-      options: [{ text: 'You\'re ready, Dave.', next: 'ready2' }, { text: 'Not yet. Rest first.' }],
-    },
-    ready2: {
-      text: 'It comes in the dark, at the Light. I\'ve got her lamp. One pair of hands. Mine. You\'ll be there? Not to fight. Just to be there.',
-      options: [{ text: 'I\'ll be there.', next: 'ready3' }],
-    },
-    ready3: {
-      text: 'Then the first night you\'re ready. I\'ll need you to shout at me, mind. Like you did on the green. I fight better when somebody\'s shouting at me. Becky\'ll tell you the same.',
-      effect: (g) => { g.addMarks(200); g.compRapport('dave', 4); g.setStage('dkTeach', 'done'); },
-    },
-    hello: { text: (g) => (dk(g, 'dkReckoner') === 'done' ? 'Becky says go. She says I\'m under her feet. Where to?' : 'Right. Where to?') },
-    bye: { text: (g) => (dk(g, 'dkReckoner') === 'done' ? 'I\'ll be on the quay with Becky. Come by. She\'ll feed you.' : 'I\'ll be on my box. You know where.') },
+    hello: { text: 'Right. Where to?' },
+    bye: { text: 'I\'ll be on the quay. You know where.' },
     menu: {
-      text: (g) => (dk(g, 'dkReckoner') === 'done' ? 'Becky said to tell you hello. She says it every morning, like she\'s checking I\'m still here.' : 'What\'s on your mind?'),
+      text: 'What\'s on your mind?',
       options: [
         { text: 'How are you holding up?', next: 'mood' },
-        { text: 'Tell me about Becky.', next: 'aboutB' },
-        { text: 'What will you do, after?', cond: (g) => dk(g, 'dkReckoner') !== 'done', next: 'afterQ' },
         ...common('dave'),
         { text: 'Nothing. Let\'s go.' },
       ],
     },
-    mood: {
-      text: (g) => (dk(g, 'dkReckoner') === 'done' ? 'I keep waking in the night and putting my hand out to see if she\'s there. She is. She says if I do it once more she\'ll bite it.'
-        : dk(g, 'dkTeach') === 'done' ? 'Frightened. That\'s the truth. Not for me. For getting it wrong, and her watching.'
-        : 'Better than I was on that box. Moving helps. My mother always said so. She never sat down in her life.'),
-    },
-    aboutB: { text: 'She mended nets on this quay before I could. Taught me, near enough, though I\'ll not say so in the Anchor. Black hair. Laughs like a gull. Swears like her dad. She sings when she works, and never the same song twice, and never finishes one.' },
-    afterQ: { text: 'Marry her. Lammas. Same as we said. And mend the nets, and take the boat out, and come home every night before the fog. That\'s all I ever wanted. It\'s not much to want. I didn\'t know it was a lot till it was gone.' },
+    mood: { text: 'Better than I was. Moving helps. My mother always said so. She never sat down in her life.' },
     ...outfitNodes('dave'),
   },
 };
 
-const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam, ned, dave };
+// ==================================================================== Fisherman Dave
+// His story is data/content/fishermanDave.ts (fdQuest): meeting him (III. The Fisherman), and the stages he speaks
+// for (IV and V); after it, his talk, and the Magical Pilgrim Hat: on him or on you.
+const fq = (g: GameApi) => g.stage('fdQuest');
+const fdave: DialogueTree = {
+  start: (g) => {
+    const s = fq(g);
+    if (s === 'dave') return 'm1';
+    if (s === 'trained') return 't1';
+    if (s === 'fished') return 'x1';
+    if (!joined(g, 'fdave')) return 'drunk';
+    return 'menu';
+  },
+  nodes: {
+    drunk: { speaker: 'narrator', text: 'A man with a brown beard and square glasses sits in the door of a net shed that has seen better decades, a bottle between his boots. He waves at you, then at something next to you that isn\'t there, and closes his eyes.' },
+    // ---- III. The Fisherman
+    m1: { speaker: 'narrator', text: 'The net shed above the slip leans on its neighbour like a drunk on a friend. Inside, among nets nobody has mended in a long time and bottles nobody has thrown out, a man with a brown beard and square glasses sways gently on a stool, though the stool isn\'t moving.', next: 'm2' },
+    m2: { text: 'Well, hello there.', next: 'm3' },
+    m3: { speaker: 'narrator', text: 'He looks you up and down, slowly, the way a man reads a sign in fog.', next: 'm4' },
+    m4: { text: 'You\'re either lost, selling something, or looking for fish. Please don\'t say fish.', options: [{ text: 'Why not?', next: 'm5' }] },
+    m5: { text: 'Well, normally I\'d be happy to help a stranger with fish. Good business, fish. Very reliable creatures. But I\'ve had a few too many drinks today, and I don\'t think I\'d be much use to anybody near water.', next: 'm6' },
+    m6: { speaker: 'narrator', text: 'He thinks about it.', next: 'm7' },
+    m7: { text: 'Actually, I don\'t think I\'d be much use to anybody near anything.', options: [{ text: 'I\'m not here about fishing.', next: 'm8' }] },
+    m8: { text: 'Oh.', next: 'm9' },
+    m9: { speaker: 'narrator', text: 'An awkward pause.', next: 'm10' },
+    m10: { text: 'Well, that\'s unfortunate. I had a whole conversation prepared.', options: [{ text: 'Ford T. Justin sent me.', next: 'm11' }] },
+    m11: { text: 'Ford?', next: 'm12' },
+    m12: { speaker: 'narrator', text: 'He squints.', next: 'm13' },
+    m13: { text: 'What\'d he do now?', options: [{ text: 'He told me about a strange figure that\'s been seen around town. A ghost.', next: 'm14' }] },
+    m14: { text: 'A ghost?', options: [{ text: 'He thinks it might be Becky.', next: 'm15' }] },
+    m15: { speaker: 'narrator', text: 'His face changes all at once.', next: 'm16' },
+    m16: { text: 'Don\'t.', options: [{ text: 'I was just.', next: 'm17' }] },
+    m17: { text: 'No. Don\'t come into my house and start talking about Becky like she\'s some sort of town mystery.', next: 'm18' },
+    m18: { speaker: 'narrator', text: 'He looks away.', next: 'm19' },
+    m19: { text: 'And Ford. Of course it was Ford.', options: [{ text: 'What\'s wrong with Ford?', next: 'm20' }] },
+    m20: { text: 'What\'s wrong with Ford? He\'s got a perfectly good mouth and apparently nothing better to do with it than send strangers over here to talk about my dead wife!', next: 'm21' },
+    m21: { speaker: 'narrator', text: 'He turns back to you.', next: 'm22' },
+    m22: {
+      text: 'She wasn\'t some ghost story. She was a person. She was my person.',
+      options: [
+        { text: 'I was just doing what I was asked.', next: 'm23a' },
+        { text: 'I was just trying to help.', next: 'm23b' },
+      ],
+    },
+    m23a: { text: 'Well. I suppose that\'s fair. You\'re not Ford. And you\'re not the one who sent you here.', next: 'm24' },
+    m23b: { text: 'Trying to help.', next: 'm23c' },
+    m23c: { speaker: 'narrator', text: 'He looks down at his hands.', next: 'm23d' },
+    m23d: { text: 'Yeah. I suppose you are. Sorry. I shouldn\'t have taken that out on you.', effect: (g) => g.compRapport('fdave', 2), next: 'm24' },
+    m24: { text: 'Look. I know what you\'re saying. And if there\'s even a chance she\'s out there.', next: 'm25' },
+    m25: { speaker: 'narrator', text: 'He stops himself.', next: 'm26' },
+    m26: { text: 'I don\'t want to get my hopes up. I\'ve done enough of that. But I can\'t just sit here either. I used to be a much better fighter. Before all this. I could handle myself.', next: 'm27' },
+    m27: { speaker: 'narrator', text: 'He looks at his hands.', next: 'm28' },
+    m28: { text: 'Now I can barely remember what I\'m supposed to do when something tries to kill me.', options: [{ text: 'Then come with me. We can get you back into shape.', next: 'm29' }] },
+    m29: { text: 'You\'d do that?', next: 'm30' },
+    m30: { speaker: 'narrator', text: 'He considers it, swaying.', next: 'm31' },
+    m31: {
+      text: 'All right. But I should warn you, I\'m not exactly the man I used to be. And if I fall over, just give me a minute. Sometimes the floor moves.',
+      options: [{
+        text: '(Fisherman Dave joins you)',
+        effect: (g) => {
+          g.setFlag('comp:fdave:joined', 1); g.setFlag('comp:fdave:part', 1); g.compRapport('fdave', 5);
+          g.setFlag('fd:k0', Number(g.flag('comp_kills:fdave') ?? 0));
+          g.setStage('fdQuest', 'train'); g.compJoin('fdave');
+        },
+        next: 'm32',
+      }],
+    },
+    m32: { text: 'All right. Let\'s see what I\'ve still got. Now, I don\'t remember much about fighting, but I\'m fairly certain the first rule is to hit them before they hit you.', options: [{ text: 'That sounds about right.', next: 'm33' }] },
+    m33: { text: 'Good. We\'re already making progress. Just stay close. If I do something strange, it\'s probably intentional.' },
+    // ---- IV, done
+    t1: { text: 'Well.', next: 't2' },
+    t2: { speaker: 'narrator', text: 'He looks at his hands.', next: 't3' },
+    t3: { text: 'I didn\'t fall over.', options: [{ text: 'That\'s a good start.', next: 't4' }] },
+    t4: { text: 'A very good start, actually. I think I\'m beginning to remember some of it. Not everything. But enough. Listen. We\'ve been fighting all this time, and I think we\'ve earned ourselves a little celebration.', options: [{ text: 'What did you have in mind?', next: 't5' }] },
+    t5: { text: 'Fishing.', next: 't6' },
+    t6: { speaker: 'narrator', text: 'A pause.', next: 't7' },
+    t7: { text: 'Obviously.', options: [{ text: 'You\'re feeling better?', next: 't8' }] },
+    t8: { text: 'Much better. Fighting is important, sure. But fishing, fishing is something a man can understand. Well, most of the time.', options: [{ text: 'What do you mean?', next: 't9' }] },
+    t9: { text: 'Sometimes the fish understand you better than people do. Although I\'ve had some pretty difficult conversations with fish.', options: [{ text: 'I\'m not sure I want to know.', next: 't10' }] },
+    t10: {
+      text: 'Probably for the best. Any water. Five fish. You fish, I\'ll supervise.',
+      options: [{ text: 'Five fish it is.', effect: (g) => { g.compRapport('fdave', 3); g.setFlag('fd:f0', Number(g.flag('comp_fish:fdave') ?? 0)); g.setStage('fdQuest', 'fish'); } }],
+    },
+    // ---- V, done
+    x1: { text: 'Five fish! That\'s a respectable amount of fish.', options: [{ text: 'Are you feeling like yourself again?', next: 'x2' }] },
+    x2: { text: 'Not completely. But I feel a little more like the man I used to be.', next: 'x3' },
+    x3: { speaker: 'narrator', text: 'He looks out at the water.', next: 'x4' },
+    x4: { text: 'Becky would\'ve liked this.', next: 'x5' },
+    x5: { speaker: 'narrator', text: 'His face goes serious.', next: 'x6' },
+    x6: { text: 'I keep thinking about what Ford said. If there\'s a chance she\'s out there, we shouldn\'t waste it. There\'s someone else we need to speak to. Walter White.', options: [{ text: 'Her father?', next: 'x7' }] },
+    x7: { text: 'Yeah. He might know something. And if he doesn\'t.', next: 'x8' },
+    x8: { speaker: 'narrator', text: 'He shrugs.', next: 'x9' },
+    x9: { text: 'Well, he\'s Walter. He\'ll probably give us something strange anyway. His ranch is north-west of town.', options: [{ text: 'Let\'s go and see Walter.', effect: (g) => { g.compRapport('fdave', 3); g.setStage('fdQuest', 'walter'); } }] },
+    // ---- after he's joined
+    hello: { text: (g) => (fq(g) === 'done' ? 'Becky says go. She says I\'m under her feet. Where to?' : 'Right. Where to?') },
+    bye: { text: (g) => (fq(g) === 'done' ? 'I\'ll be with Becky on the quay. Come by. She\'ll feed you.' : 'I\'ll be in the shed. Knock loudly.') },
+    menu: {
+      text: (g) => (fq(g) === 'done' ? 'Well, things certainly turned out better than I expected.' : 'What\'s on your mind?'),
+      options: [
+        { text: 'Wear the hat, Dave.', cond: (g) => g.flag('fd:hatOn') === 'player' && g.has('pilgrim_hat'), effect: (g) => { if (g.take('pilgrim_hat')) { g.setFlag('fd:hatOn', 'dave'); g.compOutfit('fdave', String(g.flag('comp:fdave:outfit') ?? 'own')); } }, next: 'hatOn' },
+        { text: 'Can I wear the hat for a while?', cond: (g) => g.flag('fd:hatOn') === 'dave', effect: (g) => { g.setFlag('fd:hatOn', 'player'); g.give('pilgrim_hat'); g.compOutfit('fdave', String(g.flag('comp:fdave:outfit') ?? 'own')); }, next: 'hatOff' },
+        { text: 'Tell me about Becky.', next: 'aboutB' },
+        ...common('fdave'),
+        { text: 'Nothing. Let\'s go.' },
+      ],
+    },
+    hatOn: { text: 'Oh, hello. Hello, hat. I can feel it humming. Is it humming? It\'s humming.' },
+    hatOff: { text: 'Take good care of it. It\'s a very important hat. Put it on your head, not your pack, if there\'s anything nasty about: it only works on a head.' },
+    aboutB: { text: (g) => (fq(g) === 'done' ? 'She\'s teaching me to mend nets again. I used to be good at it. She says I still am, and then she redoes all of mine when she thinks I\'m not looking.' : 'She laughed at everything I did. Not in a cruel way. Like I was the best joke she\'d ever heard and she didn\'t want it to end. We didn\'t have long. Long enough.') },
+    ...outfitNodes('fdave'),
+  },
+};
+
+const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam, ned, dave, fdave };
 
 export const COMPANION_CONTENT: RegionContent = {
   id: 'companions',
@@ -614,8 +588,8 @@ export const COMPANION_CONTENT: RegionContent = {
       // (not when they've gone for good: Tam taken off the quay, or anyone who died in the main story)
       // (Ned only once your name has got about: level 15)
       when: (g) => g.compActive() !== id && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15)
-        // (Dave not on his box while he's away with you, and not on the headland the night of the Reckoner)
-        && !(id === 'dave' && g.stage('dkReckoner') === 'free'),
+        // (David Kitto only for those who had him before Fisherman Dave's story replaced his; owner 2026-11-11)
+        && (id !== 'dave' || !!g.flag('comp:dave:joined')),
     };
   }),
   dialogue: Object.fromEntries((Object.keys(TREES) as CompanionId[]).map((id) => ['comp_' + id, TREES[id]])),

@@ -897,10 +897,12 @@ function waveSizes(def: EventDef): number[] {
 }
 
 /** Group dungeons' sets drop only in their dungeons. */
-const DUNGEON_SETS = new Set(['oldman', 'fold', 'escapement', 'barrow', 'tidebell', 'blackgull']);
+const DUNGEON_SETS = new Set(['oldman', 'fold', 'escapement', 'barrow', 'tidebell', 'blackgull', 'tregarthen', 'cistern']);
 /** The sets that come only from one place's chest (data/armour.ts and weapons.ts 'dungeon'): its armour, weapons and named pieces. */
 const SITE_GEAR: Record<string, string[]> = {
   'pd-blackgull': [...dungeonArmour('pd-blackgull'), ...(DUNGEON_WEAPONS['pd-blackgull'] ?? []), 'ennor_cutlass', 'lampman_hood'],
+  'delve-crypt': [...dungeonArmour('delve-crypt'), ...(DUNGEON_WEAPONS['delve-crypt'] ?? []), 'tregarthen_signet'],
+  'delve-cistern': [...dungeonArmour('delve-cistern'), ...(DUNGEON_WEAPONS['delve-cistern'] ?? []), 'trudgeon_hook'],
 };
 
 /** Which region each gear set comes from (dungeon chests favour their own region's pieces). */
