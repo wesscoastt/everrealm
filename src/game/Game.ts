@@ -7298,12 +7298,16 @@ export class Game implements GameApi {
     this.dead = false;
     this.player.locked = false;
     this.hp = Math.round(this.maxHp * 0.6);
-    // Back on your feet in the square at Hollin Ford, by the Charter Post (clear of the Moot Oak's benches),
-    // or at the start of the dungeon you're in
-    const start = this.dungeons.respawnAt();
+    // Back on your feet at the start of the group dungeon you're in; in a public dungeon or delve, at its way in;
+    // anywhere else, at the nearest waymark (owner 2026-11-07: "when you die you should resurrect at the closest
+    // waymark; in a dungeon, at the entrance, unless revived by a teammate or henchman")
+    const fell = this.player.position.clone();
+    const start = this.dungeons.respawnAt() ?? this.activities.fellIn(fell)?.door ?? null;
+    const land = landAt(fell.x);
+    const near = start ? null : waymarks().filter((w) => landAt(w.x) === land).sort((a, b) => Math.hypot(a.x - fell.x, a.z - fell.z) - Math.hypot(b.x - fell.x, b.z - fell.z))[0] ?? null;
     // (or at the infirmary you asked to keep a bed for you, in this land: there, mended)
     const bed = INFIRMARY_BY_ID.get(String(this.flag('bind') ?? ''));
-    if (!start && bed && landAt(bed.bed[0]) === landAt(this.player.position.x)) {
+    if (!start && bed && landAt(bed.bed[0]) === land && (!near || Math.hypot(bed.bed[0] - fell.x, bed.bed[2] - fell.z) < Math.hypot(near.x - fell.x, near.z - fell.z))) {
       this.hp = this.maxHp;
       // From far off, they carry you in while the place loads round you (a ward's floor isn't there until
       // its ground is: arriving before it, you'd fall through); from near, you're simply there
@@ -7322,7 +7326,21 @@ export class Game implements GameApi {
       }
       this.player.teleport(bed.bed[0], bed.bed[1], bed.bed[2]);
     } else if (start) this.player.teleport(start[0], start[1], start[2]);
-    else this.player.teleport(152.5, 19, 185.5);
+    else if (near) {
+      // where a traveller by waymark arrives; from far off, the place loads round you first
+      const at: [number, number, number] = [near.ax, (near.ay ?? heightAt(near.ax, near.az) + 1) + 0.5, near.az];
+      if (Math.hypot(at[0] - fell.x, at[2] - fell.z) > 96) {
+        this.hud.setDeath(false);
+        this.target = null;
+        this.save.pos = at; this.save.yaw = near.ry; this.save.hour = this.world.sky.hour; this.save.hp = this.hp;
+        this.arriving = near.name ?? 'the waymark';
+        this.arrivingBy = 'dungeon';
+        this.arrivingSub = 'You come round at the waymark.';
+        this.startPlay(false, `Back to ${near.name ?? 'the waymark'}…`);
+        return;
+      }
+      this.player.teleport(at[0], at[1], at[2]);
+    } else this.player.teleport(152.5, 19, 185.5);
     this.player.standClear();
     this.rig.snap(this.player.position);
     this.target = null;

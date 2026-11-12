@@ -36,7 +36,7 @@ const npcs: NpcDef[] = [
     at(-2984.5, 25, 1996.5, -2984.5, 1999.5, 'cast'), ['It’s meant to be blue. It’s green. Don’t tell the Warden.', 'Third year. Second fire.']),
   // the City Hall and the Bank
   person('ver_couch', 'Reuben Couch', 'Clerk of the City Hall', { skin: '#e2b894', hair: '#4a3a2a', hairStyle: 1, eyes: '#4a5a6a', tunic: '#22365a', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#2a2630', boots: '#1e1a16', hat: 'beret', hatColor: '#22365a', age: 0.5 },
-    at(-2972.5, 25, 2087.5, -2975.5, 2090.5), ['Forms in triplicate. The king likes three of everything.', 'Next.'], 8, 18),
+    at(-2967.5, 23, 2075.5, -2967.5, 2079.5), ['Forms in triplicate. The king likes three of everything.', 'Next.'], 8, 18),
   person('ver_trevenna', 'Silvanus Trevenna', 'The Bank of Verandah', { skin: '#d8a888', hair: '#1e1a16', hairStyle: 0, facial: 1, eyes: '#3a2a1e', tunic: '#1e1e24', trim: '#d8b04a', shirt: '#e8e0d0', trousers: '#1e1e24', boots: '#141418', age: 0.55 },
     at(-2998.5, 21, 2116.5, -2994.5, 2116.5), ['Deposits on the left, complaints to the king.', 'Every mark in the vault is counted twice a day. By me.'], 8, 18),
 ];
@@ -84,13 +84,40 @@ export const BANK_VAULT_PROPS: { item: string; x: number; z: number; ry: number 
   { item: 'candles', x: -2997.5, z: 2111.5, ry: 0 }, { item: 'candles', x: -2991.5, z: 2115.5, ry: 0 },
 ];
 
-/** The City Hall, built again (scripts/mc/cityhall.cjs, floor 21): the clerk's counter across the hall, his shelves, the public's benches. */
-export const CITY_HALL_PROPS: { item: string; x: number; z: number; ry: number }[] = [
-  ...[-2979.5, -2978.5, -2977.5, -2976.5, -2975.5, -2974.5, -2973.5].map((x) => ({ item: 'counter', x, z: 2100.6, ry: 0 })),
-  { item: 'letters', x: -2977.5, z: 2100.6, ry: 0 }, { item: 'candles', x: -2974.5, z: 2100.6, ry: 0 },
-  ...[-2979.5, -2976.5, -2973.5].map((x) => ({ item: 'shelves', x, z: 2096.4, ry: 0 })),
-  ...[-2982.5, -2970.5].flatMap((x) => [2102.5, 2104.5].map((z) => ({ item: 'bench', x, z, ry: 0 }))),
-  { item: 'desk', x: -2983.5, z: 2097.5, ry: Math.PI / 2 }, { item: 'chest', x: -2969.5, z: 2096.6, ry: 0 },
+/**
+ * The City Hall's furnishings (owner 2026-11-07: "overhaul the City Hall interior to look detailed"; the hall is
+ * scripts/mc/cityhall.cjs, its floor stood on at 23, its gallery at 28). The clerk's counter across the north end with
+ * the town's rolls on the shelves behind it and the strongboxes for the deeds; a runner of rugs up from the door between
+ * benches for the public; the notice board and the shelves of the land book on the west wall; on the east, the hearth
+ * with its chairs, the long table where the rents are counted, and the easel with the plan of the new harbour wall;
+ * Verandah's banners either side of the door; lanterns on the floor and along the gallery.
+ */
+export const CITY_HALL_PROPS: { t?: string; item?: string; x: number; y?: number; z: number; ry: number; kind?: string; text?: string }[] = [
+  // the clerk's end
+  ...[-2971.5, -2970.5, -2969.5, -2968.5, -2966.5, -2965.5, -2964.5, -2963.5].map((x) => ({ item: 'counter', x, z: 2077.5, ry: 0 })),
+  { item: 'letters', x: -2969.5, y: 23.9, z: 2077.5, ry: 0 }, { item: 'candles', x: -2965.5, y: 23.9, z: 2077.5, ry: 0 }, { item: 'candles', x: -2971.5, y: 23.9, z: 2077.5, ry: 0 },
+  ...[-2971.5, -2969.5, -2967.5, -2965.5, -2963.5].map((x) => ({ item: 'shelves', x, z: 2074.4, ry: 0 })),
+  { item: 'strongbox', x: -2973.5, z: 2075.5, ry: Math.PI / 2 }, { item: 'strongbox', x: -2961.5, z: 2075.5, ry: -Math.PI / 2 }, { item: 'chest', x: -2961.5, z: 2074.4, ry: 0 },
+  { item: 'chair', x: -2967.5, z: 2074.6, ry: 0 },
+  // the floor: the runner, the benches
+  ...[2089.5, 2087.5, 2085.5, 2083.5, 2081.5, 2079.5].map((z) => ({ item: 'rug', x: -2967.5, z, ry: 0 })),
+  ...[-2972.5, -2962.5].flatMap((x) => [2081.5, 2084.5, 2087.5].map((z) => ({ item: 'bench', x, z, ry: Math.PI }))),
+  // the west wall: the board, the land book
+  { t: 'sign', x: -2977.6, y: 23, z: 2084.5, ry: Math.PI / 2, text: 'NOTICES\nHouses for sale, rooms to let:\nask the clerk' },
+  { item: 'shelves', x: -2977.4, z: 2081.5, ry: Math.PI / 2 }, { item: 'shelves', x: -2977.4, z: 2087.5, ry: Math.PI / 2 },
+  { item: 'desk', x: -2977.3, z: 2079.5, ry: Math.PI / 2 }, { item: 'chair', x: -2976.3, z: 2079.5, ry: -Math.PI / 2 }, { item: 'letters', x: -2977.3, y: 23.8, z: 2079.5, ry: 0 },
+  // the east wall: the hearth, the rents table, the plan
+  { item: 'hearth', x: -2956.6, z: 2078.5, ry: -Math.PI / 2 }, { item: 'chair', x: -2958.6, z: 2077.3, ry: Math.PI / 2 }, { item: 'chair', x: -2958.6, z: 2079.7, ry: Math.PI / 2 },
+  { item: 'table', x: -2957.5, z: 2083.5, ry: 0 }, { item: 'table', x: -2957.5, z: 2085.5, ry: 0 },
+  { item: 'letters', x: -2957.5, y: 23.9, z: 2083.5, ry: 0 }, { item: 'candles', x: -2957.5, y: 23.9, z: 2085.5, ry: 0 },
+  { item: 'stool', x: -2958.9, z: 2083.5, ry: 0 }, { item: 'stool', x: -2958.9, z: 2085.5, ry: 0 },
+  { item: 'easel', x: -2958.5, z: 2088.5, ry: -Math.PI / 2 },
+  // the light
+  ...[[-2977.5, 2089.5], [-2956.5, 2089.5], [-2973.5, 2078.5], [-2961.5, 2078.5]].map(([x, z]) => ({ t: 'lantern', x, y: 23, z, ry: 0 })),
+  ...[[-2977.5, 2073.5], [-2956.5, 2073.5], [-2972.5, 2073.5], [-2962.5, 2073.5], [-2977.5, 2080.5], [-2956.5, 2080.5]].map(([x, z]) => ({ t: 'lantern', x, y: 28, z, ry: 0 })),
+  // Verandah's banners: inside either side of the door, and out on the front
+  { t: 'banner', x: -2971.5, y: 28.5, z: 2090.3, ry: Math.PI, kind: 'verandah' }, { t: 'banner', x: -2962.5, y: 28.5, z: 2090.3, ry: Math.PI, kind: 'verandah' },
+  { t: 'banner', x: -2974.5, y: 29, z: 2091.8, ry: 0, kind: 'verandah' }, { t: 'banner', x: -2959.5, y: 29, z: 2091.8, ry: 0, kind: 'verandah' },
 ];
 
 export const VERANDAH_HALLS: RegionContent = {

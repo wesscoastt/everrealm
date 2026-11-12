@@ -681,6 +681,20 @@ export class Activities {
     return own.length ? [own[Math.floor(Math.random() * own.length)].id] : [];
   }
 
+/** The public dungeon or delve you're in, if any: its way in (null if it has none set). */
+  fellIn(p: THREE.Vector3): { name: string; door: [number, number, number] | null } | null {
+    let best: Site | null = null, bd = Infinity;
+    for (const s of this.sites) {
+      const a = s.act!;
+      if (a.kind !== 'dungeon' && a.kind !== 'delve') continue;
+      const pts = [...(a.spawns ?? []), ...(a.boss ? [a.boss] : []), ...(a.guards ?? [])];
+      // inside: within reach of where its creatures live
+      const d = Math.min(Math.hypot(s.x - p.x, s.z - p.z), ...pts.map((q) => Math.hypot(q[0] - p.x, q[2] - p.z) + Math.abs(q[1] - p.y) * 0.5));
+      if (d < 14 && d < bd) { bd = d; best = s; }
+    }
+    return best ? { name: best.name, door: best.act!.door ?? null } : null;
+  }
+
   private openChest(s: Site): void {
     this.host.setFlag('chest:' + s.id, Date.now());
     const big = s.act!.kind === 'dungeon' || s.act!.kind === 'fort';

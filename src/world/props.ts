@@ -3203,6 +3203,28 @@ export function bannerTexture(kind: BannerKind): THREE.CanvasTexture {
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }
+  if (kind === 'verandah') {
+    // Verandah's own: the deep sea-blue of the harbour, the gold trident from the statue in its square, the sea in
+    // three white waves under it, a gold edge and a swallowtail
+    x.fillStyle = '#1c3448'; x.fillRect(0, 0, 64, 128);
+    x.fillStyle = 'rgba(0,0,0,0.14)';
+    for (let i = 0; i < 128; i += 4) x.fillRect(0, i, 64, 1);
+    x.fillStyle = '#e0bd64';
+    x.fillRect(30, 26, 4, 58);                                    // the shaft
+    x.fillRect(18, 34, 28, 4);                                    // the crosspiece
+    x.fillRect(18, 18, 4, 18); x.fillRect(42, 18, 4, 18);         // the outer tines
+    x.fillRect(30, 12, 4, 16);                                    // the middle one
+    for (const [tx, ty] of [[18, 14], [42, 14], [30, 8]]) { x.beginPath(); x.moveTo(tx - 2, ty + 6); x.lineTo(tx + 2, ty); x.lineTo(tx + 6, ty + 6); x.fill(); }
+    x.fillRect(27, 84, 10, 4);                                    // the butt
+    x.strokeStyle = '#e8e4dc'; x.lineWidth = 3;
+    for (let k = 0; k < 3; k++) { const y = 94 + k * 6; x.beginPath(); for (let i = 0; i <= 64; i += 2) { const yy = y + Math.sin(i / 5) * 2; if (i === 0) x.moveTo(i, yy); else x.lineTo(i, yy); } x.stroke(); }
+    x.strokeStyle = '#e0bd64'; x.lineWidth = 2; x.strokeRect(3, 3, 58, 114);
+    x.globalCompositeOperation = 'destination-out';
+    x.beginPath(); x.moveTo(0, 128); x.lineTo(32, 110); x.lineTo(64, 128); x.closePath(); x.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
   if (kind === 'company') {
     // The Counting House (data/company.ts): Charter blue, the white tally-stick it's named for, notched
     // down its length for every cargo counted, a gold edge and a swallowtail
@@ -3307,7 +3329,7 @@ export function bannerTexture(kind: BannerKind): THREE.CanvasTexture {
 }
 
 /** A banner's cloth: a town's, a gang's tally, a company's, or a guild's own ('guild:' and its name). */
-export type BannerKind = 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly' | 'company' | `guild:${string}`;
+export type BannerKind = 'verandah' | 'hollin' | 'harrow' | 'aldermere' | 'tally' | 'brethren' | 'assembly' | 'company' | `guild:${string}`;
 
 /**
  * A guild hall's roll of honour (data/guildhalls.ts): a dark board in a moulded frame on the wall, len

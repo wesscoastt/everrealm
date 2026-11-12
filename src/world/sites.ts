@@ -39,7 +39,7 @@ import { XAVIER_SHOWROOM, SHOP_COUNTERS } from '../data/content/verandahShops';
 import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
-import { BANK_VAULT_PROPS } from '../data/content/verandahHalls';
+import { BANK_VAULT_PROPS, CITY_HALL_PROPS } from '../data/content/verandahHalls';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { SQUARE_STALLS } from '../data/content/verandahSquare';
 import { STAGE_PROPS } from '../data/content/verandahStage';
@@ -191,6 +191,8 @@ export interface SiteActivity {
   guards?: [number, number, number, string][];
   /** The chest behind the champion: [x, floorY, z]. */
   chest?: [number, number, number];
+  /** A public dungeon's or delve's way in: whoever falls inside comes back here (the nearest waymark if none). */
+  door?: [number, number, number];
   /** Sunken caches to find and open (each refills on its own): [x, floorY, z]. */
   caches?: [number, number, number][];
   /** A vista: where to stand, and the point the camera circles [x, y, z, x, y, z]. */
@@ -794,6 +796,7 @@ function* planBody(): Generator<string, Plan> {
       const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
       s.act = {
         kind: 'delve',
+        door: [-2759.5, 16, 2245.5],
         spawns: [m(-2771.5, 6, 2236.5, 'zm_shambler'), m(-2747.5, 6, 2236.5, 'zm_shambler'), m(-2771.5, 6, 2244.5, 'zm_runner'),
           m(-2759.5, 1, 2234.5, 'zm_shambler'), m(-2762.5, 1, 2231.5, 'zm_runner'), m(-2755.5, 1, 2238.5, 'zm_bloat'),
           m(-2764.5, 1, 2247.5, 'zm_shambler'), m(-2754.5, 1, 2247.5, 'zm_shambler'),
@@ -813,6 +816,7 @@ function* planBody(): Generator<string, Plan> {
       const m = (x: number, y: number, z: number, t: string): [number, number, number, string] => [x, y, z, t];
       s.act = {
         kind: 'delve',
+        door: [-3002.5, 27, 2492.5],
         spawns: [m(-2989.5, 27, 2486.5, 'cr_bones'), m(-2984.5, 27, 2486.5, 'cr_bones'), m(-2988.5, 27, 2494.5, 'cr_wrapped'), m(-2985.5, 27, 2494.5, 'cr_bowman'),
           m(-2991.5, 18, 2499.5, 'cr_wrapped'), m(-2984.5, 18, 2499.5, 'cr_bones'), m(-2988.5, 18, 2501.5, 'cr_bowman'),
           m(-2990.5, 11, 2498.5, 'cr_bones'), m(-2985.5, 11, 2497.5, 'cr_wrapped'), m(-2980.5, 8, 2483.5, 'cr_wrapped'), m(-2991.5, 8, 2484.5, 'cr_bones')],
@@ -873,6 +877,7 @@ function* planBody(): Generator<string, Plan> {
         guards: [m(-3395.5, 18, 2113.5, 'dg_bg_skewes'), m(-3384.5, 29, 2113.5, 'dg_bg_vellanoweth')],
         boss: m(-3384.5, 48, 2116.5, 'dg_bg_ennor'),
         chest: [-3384.5, 48, 2110.5],
+        door: [-3384.5, 17, 2139.5],
       };
       s.props.push({ t: 'furn', item: 'chest', x: -3384.5, y: 48, z: 2110.5, ry: 0 });
     } },
@@ -893,6 +898,8 @@ function* planBody(): Generator<string, Plan> {
         s.props.push({ t: 'sign', x: dx + 0.5 + ox * 1.2 + sx * 1.3, y: h.base, z: dz + 0.5 + oz * 1.2 + sz * 1.3, ry, text: 'FOR SALE\n' + h.name + '\n' + h.price.toLocaleString() + ' marks' });
       }
     } })),
+    // The City Hall's furnishings (data/content/verandahHalls.ts)
+    { id: 'ver-cityhall', name: '', x: -2967, z: 2081, r0: 0, r1: 0, build: (s: Site) => { for (const p of CITY_HALL_PROPS) s.props.push(p.t ? ({ ...p, y: p.y ?? 23 } as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y ?? 23, z: p.z, ry: p.ry }); } },
     // Awschitz Fort, Verandah's coastal watch west of the town (scripts/mc/awschitz.cjs; its garrison data/content/awschitz.ts)
     { id: 'awschitz', name: 'Awschitz Fort', x: -3362, z: 1965, r0: 0, r1: 0, build: () => {} },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
