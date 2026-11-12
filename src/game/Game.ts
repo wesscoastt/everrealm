@@ -166,7 +166,7 @@ import { QuartersTable } from './QuartersTable';
 import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
-import { lodgeAt, LODGINGS, MAX_WEEKS, readTenancy, roomBase, ROOMS, roomShape, WEEK } from '../data/lodgings';
+import { LODGINGS, MAX_WEEKS, readTenancy, roomsOf, roomShape, WEEK } from '../data/lodgings';
 import { DUNGEON_BY_ID, henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
 import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
@@ -2429,7 +2429,7 @@ export class Game implements GameApi {
   /** A lodging room's door: rent it, pay another week, or move into it from another. */
   private roomDoor(house: string, room: number): void {
     const L = LODGINGS.find((l) => l.id === house)!;
-    const name = ROOMS[room].name;
+    const name = roomsOf(L)[room].name;
     const t = readTenancy(this.flag('flat'));
     const until = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
     if (t && t.house === house && t.room === room) {
@@ -2449,7 +2449,7 @@ export class Game implements GameApi {
       return;
     }
     if (readPlot(this.flag('plot'))?.spec || (this.flag('home') && !t)) { this.hud.system(`${name}: to let by the week. You have a home of your own.`); return; }
-    if (t && this.home.pieces().length) { this.hud.system(`You already rent ${ROOMS[t.room].name} at ${LODGINGS.find((l) => l.id === t.house)!.name}. Pick up your furniture there first (Arrange the furniture, then X), and you can move.`); return; }
+    if (t && this.home.pieces().length) { this.hud.system(`You already rent ${roomsOf(LODGINGS.find((l) => l.id === t.house)!)[t.room].name} at ${LODGINGS.find((l) => l.id === t.house)!.name}. Pick up your furniture there first (Arrange the furniture, then X), and you can move.`); return; }
     this.hud.ask(`${name}, ${L.name}: a room of your own, ${L.rent} marks a week. Furnish it, sleep in it, keep things in the chest.${t ? ' You give up your other room.' : ''} Rent it?`, () => {
       if (this.save.marks < L.rent) { this.hud.system(`A week is ${L.rent} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
       this.addMarks(-L.rent);
@@ -5836,15 +5836,14 @@ export class Game implements GameApi {
     if (!H.active && !H.visiting && H.owned && H.inside(p)) consider({ kind: 'act', label: 'Arrange the furniture', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => this.arrangeHome() }, 1.6);
     // Lodging houses: every room's door, and your own room's chest
     for (const L of LODGINGS) {
-      if (Math.hypot(L.x - p.x, L.z - p.z) > 20) continue;
+      if (Math.hypot(L.x - p.x, L.z - p.z) > (L.rooms ? 45 : 20)) continue;
       const t = readTenancy(this.flag('flat'));
-      const base = roomBase(L);
-      ROOMS.forEach((r, i) => {
-        const [dx, dz] = lodgeAt(L, r.door[0], r.door[1]);
+      roomsOf(L).forEach((r, i) => {
+        const base = r.base, [dx, dz] = r.door;
         const d = Math.hypot(dx + 0.5 - p.x, dz + 0.5 - p.z);
         const mine = t?.house === L.id && t.room === i;
         if (d < 1.8 && Math.abs(p.y - base) < 2) consider({ kind: 'act', label: mine ? `${r.name}: yours (pay rent)` : `${r.name}: rent it (${L.rent} marks a week)`, pos: new THREE.Vector3(dx + 0.5, base + 2.2, dz + 0.5), act: () => this.roomDoor(L.id, i) }, d);
-        const [cx, cz] = lodgeAt(L, r.chest[0], r.chest[1]);
+        const [cx, cz] = r.chest;
         const dc = Math.hypot(cx + 0.5 - p.x, cz + 0.5 - p.z);
         if (mine && t.until > Date.now() && dc < 2) consider({ kind: 'act', label: 'Open your chest', pos: new THREE.Vector3(cx + 0.5, base + 1, cz + 0.5), act: () => { this.hud.closeAll(); void this.bank.show(`your chest, ${L.name}`, cx + 0.5, cz + 0.5); } }, dc);
       });

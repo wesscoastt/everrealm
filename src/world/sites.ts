@@ -980,7 +980,7 @@ function* planBody(): Generator<string, Plan> {
     // Bandit forts in the back country (data/forts.ts)
     ...FORTS.map((f): Named => ({ id: 'fort-' + f.id, name: f.name, x: f.x, z: f.z, r0: 22, r1: 34, build: (s, b) => buildBanditFort(s, b, f) })),
     // Lodging houses, rooms let by the week (data/lodgings.ts)
-    ...LODGINGS.filter((L) => landOf(L) === 'counties').map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => buildLodging(s, L) })),
+    ...LODGINGS.filter((L) => landOf(L) === 'counties').map((L): Named => ({ id: L.id, name: L.name, x: L.x, z: L.z, r0: 0, r1: 0, build: (s) => (L.rooms ? furnishLetRooms(s, L) : buildLodging(s, L)) })),
     // Morrow's, east across the sea
     ...morrowNamed(),
     // Bett Rook's ropewalk outside Gullmouth, and Dora Hurst's pottery outside the Works (data/ropewalk.ts, data/pottery.ts)
@@ -8805,6 +8805,12 @@ function* planBody(): Generator<string, Plan> {
    * slate roof. An inn (L.inn) is two storeys: a taproom on the ground floor with a bar, tables, a
    * hearth and the stair, and the same five rooms off a corridor upstairs.
    */
+  /** A building already standing let as rooms (lodgings.ts 'rooms'): a chest in each room and the board by the street. */
+  function furnishLetRooms(s: Site, L: LodgingDef) {
+    for (const r of L.rooms!) s.props.push({ t: 'furn', item: 'chest', x: r.chest[0] + 0.5, y: r.base, z: r.chest[1] + 0.5, ry: Math.PI / 2 });
+    const r0 = L.rooms![0];
+    s.props.push({ t: 'sign', x: r0.door[0] + 2.5, y: r0.base, z: L.z + 0.5, ry: Math.PI / 2, text: `ROOMS TO LET\n${L.name}\n${L.rent} marks a week` });
+  }
   function buildLodging(s: Site, L: LodgingDef) {
     const ground = lodgeBase(L), base = roomBase(L);
     const W = (u: number, v: number) => lodgeAt(L, u, v);

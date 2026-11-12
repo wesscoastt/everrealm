@@ -25,9 +25,25 @@ export interface LodgingDef {
   land?: LandId;
   /** Built the Callis way: white stone walls under a red roof. */
   white?: boolean;
+  /**
+   * A building already standing (one of the owner's in Verandah), not one the game builds: its own rooms, each with its
+   * walls (inclusive), the floor stood on, the door from outside (its cell, and the side of the room it's on) and the chest.
+   */
+  rooms?: { name: string; x0: number; z0: number; x1: number; z1: number; base: number; door: [number, number]; side: Door; chest: [number, number] }[];
 }
 
+/**
+ * The Long House, the white two-storey building across the street from the Dolphyn and the chapel in Verandah (owner
+ * 2026-11-06: "it is supposed to have rooms for rent like other spots on the map"): six rooms on each floor, each with
+ * its own door onto the street, as the owner built them.
+ */
+const LONG_HOUSE_ROOMS: NonNullable<LodgingDef['rooms']> = [2005, 2016, 2027, 2038, 2049, 2060].flatMap((z0, i) => [21, 25].map((base, f) => ({
+  name: `Room ${i + 1 + f * 6}`, x0: -3026, z0, x1: -3013, z1: z0 + 9, base, door: [-3012, z0 + 7] as [number, number], side: 'e' as Door,
+  chest: [-3024, z0 + 1] as [number, number],
+})));
+
 export const LODGINGS: LodgingDef[] = [
+  { id: 'lg-verandah', name: 'The Long House', town: 'Verandah', x: -3019, z: 2037, face: 'e', rent: 180, rooms: LONG_HOUSE_ROOMS },
   { id: 'lg-ansbury', name: 'Southgate Lodgings', town: 'Ansbury', x: 842, z: 491, face: 'w', rent: 200 },
   { id: 'lg-gullmouth', name: 'Upper Town Rooms', town: 'Gullmouth', x: 1570, z: 601, face: 'n', rent: 150 },
   { id: 'lg-harrowgate', name: 'Company Lodgings', town: 'Harrowgate Works', x: 987, z: 951, face: 's', rent: 125 },
@@ -78,8 +94,19 @@ function side(L: LodgingDef, towardFront: boolean): Door {
   return towardFront ? L.face : opp[L.face];
 }
 
+/** A lodging's rooms, wherever they are: the game's five off a corridor, or the rooms of a building already standing. */
+export interface LetRoom { name: string; door: [number, number]; chest: [number, number]; base: number; shape: HomeShape }
+export function roomsOf(L: LodgingDef): LetRoom[] {
+  if (L.rooms) return L.rooms.map((r) => ({
+    name: r.name, door: r.door, chest: r.chest, base: r.base,
+    shape: { name: `${r.name.toLowerCase()} at ${L.name}`, x0: r.x0, z0: r.z0, w: r.x1 - r.x0 + 1, d: r.z1 - r.z0 + 1, floors: 1, base: r.base, door: r.side },
+  }));
+  const base = roomBase(L);
+  return ROOMS.map((r, i) => ({ name: r.name, door: lodgeAt(L, r.door[0], r.door[1]), chest: lodgeAt(L, r.chest[0], r.chest[1]), base, shape: gameRoomShape(L, i) }));
+}
 /** A room as a home (the shape the furniture and the bed work in). */
-export function roomShape(L: LodgingDef, i: number): HomeShape {
+export function roomShape(L: LodgingDef, i: number): HomeShape { return roomsOf(L)[i].shape; }
+function gameRoomShape(L: LodgingDef, i: number): HomeShape {
   const r = ROOMS[i];
   const [ax, az] = lodgeAt(L, r.u0, r.v0), [bx, bz] = lodgeAt(L, r.u1, r.v1);
   return {
@@ -94,7 +121,8 @@ export function readTenancy(v: unknown): Tenancy | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   if (typeof o.house !== 'string' || !LODGINGS.some((l) => l.id === o.house)) return null;
-  if (typeof o.room !== 'number' || !ROOMS[o.room] || typeof o.until !== 'number') return null;
+  const L = LODGINGS.find((l) => l.id === o.house)!;
+  if (typeof o.room !== 'number' || !roomsOf(L)[o.room] || typeof o.until !== 'number') return null;
   return { house: o.house, room: o.room, until: o.until };
 }
 
