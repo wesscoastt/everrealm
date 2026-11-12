@@ -338,6 +338,8 @@ for (const c of CONTENT) for (const d of c.items ?? []) ITEMS[d.id] = d;
 // The household furniture (data/furnishings.ts)
 import { FURNISHING_ITEMS } from './furnishings';
 for (const d of FURNISHING_ITEMS) ITEMS[d.id] = d;
+import { FISH_DISHES } from './fishCooking';
+for (const d of FISH_DISHES) ITEMS[d.id] = d;
 
 // Armour for the body, and the helms' weights (src/data/armour.ts).
 import { ARMOUR_ITEMS, HELM_WEIGHTS } from './armour';

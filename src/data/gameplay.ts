@@ -4,6 +4,7 @@ import type { Appearance, HeldItem, OffhandModel } from '../entities/humanoid';
 import { FOE_KIND_REGION, FOE_KINDS, type FoeKindType } from './foeKinds';
 import { ARMOUR_SMITHING } from './armour';
 import { FURNISHING_RECIPES, FURNISHING_STOCK } from './furnishings';
+import { FISH_RECIPES } from './fishCooking';
 import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
 import { CROPS, FARM_RECIPES } from './farming';
@@ -224,8 +225,8 @@ export const RECIPES: Recipe[] = [
   { id: 'iron_hatchet', station: 'anvil', skill: 'smithing', level: 17, xp: 80, inputs: { iron_bar: 1 }, output: 'iron_hatchet', count: 1, time: 3 },
   { id: 'iron_sword', station: 'anvil', skill: 'smithing', level: 20, xp: 130, inputs: { iron_bar: 3 }, output: 'iron_sword', count: 1, time: 3.4 },
   { id: 'cooked_minnow', station: 'hearth', skill: 'cooking', level: 1, xp: 15, inputs: { raw_minnow: 1 }, output: 'cooked_minnow', count: 1, time: 1.4, failAtReq: 0.35, failItem: 'burnt_fish' },
-  { id: 'cooked_trout', station: 'hearth', skill: 'cooking', level: 5, xp: 38, inputs: { raw_trout: 1 }, output: 'cooked_trout', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
-  { id: 'cooked_mackerel', station: 'hearth', skill: 'cooking', level: 8, xp: 50, inputs: { raw_mackerel: 1 }, output: 'cooked_mackerel', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'cooked_trout', station: 'hearth', skill: 'cooking', level: 1, xp: 30, inputs: { raw_trout: 1 }, output: 'cooked_trout', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'cooked_mackerel', station: 'hearth', skill: 'cooking', level: 1, xp: 36, inputs: { raw_mackerel: 1 }, output: 'cooked_mackerel', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_seabass', station: 'hearth', skill: 'cooking', level: 15, xp: 90, inputs: { raw_seabass: 1 }, output: 'cooked_seabass', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cooked_char', station: 'hearth', skill: 'cooking', level: 25, xp: 150, inputs: { raw_char: 1 }, output: 'cooked_char', count: 1, time: 2.4, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'bramble_pie', station: 'hearth', skill: 'cooking', level: 6, xp: 45, inputs: { blackberries: 3, bread: 1 }, output: 'bramble_pie', count: 1, time: 2, failAtReq: 0.35, failItem: 'burnt_fish' },
@@ -233,7 +234,7 @@ export const RECIPES: Recipe[] = [
   { id: 'bass_samphire', station: 'hearth', skill: 'cooking', level: 18, xp: 110, inputs: { raw_seabass: 1, samphire: 2 }, output: 'bass_samphire', count: 1, time: 2.4, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'bilberry_tart', station: 'hearth', skill: 'cooking', level: 24, xp: 140, inputs: { bilberries: 4, bread: 1 }, output: 'bilberry_tart', count: 1, time: 2.6, failAtReq: 0.45, failItem: 'burnt_fish' },
   { id: 'cloudberry_jam', station: 'hearth', skill: 'cooking', level: 28, xp: 180, inputs: { cloudberries: 4 }, output: 'cloudberry_jam', count: 1, time: 2.8, failAtReq: 0.45, failItem: 'burnt_fish' },
-  { id: 'cooked_huss', station: 'hearth', skill: 'cooking', level: 6, xp: 42, inputs: { raw_huss: 1 }, output: 'cooked_huss', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
+  { id: 'cooked_huss', station: 'hearth', skill: 'cooking', level: 1, xp: 36, inputs: { raw_huss: 1 }, output: 'cooked_huss', count: 1, time: 1.8, failAtReq: 0.4, failItem: 'burnt_fish' },
   { id: 'cooked_pike', station: 'hearth', skill: 'cooking', level: 10, xp: 65, inputs: { raw_pike: 1 }, output: 'cooked_pike', count: 1, time: 2.2, failAtReq: 0.45, failItem: 'burnt_fish' },
   // Joinery, at the bench by Wendside Cottage: furniture from the logs you cut
   { id: 'potion_mend', station: 'hearth', skill: 'cooking', level: 6, xp: 30, inputs: { blackberries: 2, wild_garlic: 1 }, output: 'potion_mend', count: 2, time: 2 },
@@ -262,8 +263,9 @@ export const RECIPES: Recipe[] = [
   { id: 'j_barrel', station: 'bench', skill: 'woodcutting', level: 10, xp: 50, inputs: { oak_logs: 3, bronze_bar: 1 }, output: 'furn_barrel', count: 1, time: 3 },
   { id: 'j_bed', station: 'bench', skill: 'woodcutting', level: 12, xp: 70, inputs: { pine_logs: 5 }, output: 'furn_bed', count: 1, time: 3.4 },
   { id: 'j_dresser', station: 'bench', skill: 'woodcutting', level: 15, xp: 90, inputs: { pine_logs: 4, birch_logs: 3 }, output: 'furn_dresser', count: 1, time: 3.6 },
-  // The household furniture (data/furnishings.ts)
+  // The household furniture (data/furnishings.ts), and the fish that had no recipe (data/fishCooking.ts)
   ...FURNISHING_RECIPES,
+  ...FISH_RECIPES,
   // Learned from cards (data/content/recipes.ts): the cook trainers' dishes, and the great beasts'
   { id: 'harvest_supper', station: 'hearth', skill: 'cooking', level: 12, xp: 80, inputs: { bread: 1, chanterelles: 2, wild_garlic: 1, cooked_trout: 1 }, output: 'harvest_supper', count: 1, time: 2.4, failAtReq: 0.3, failItem: 'burnt_fish', learn: 'Perrin sells the card at the Charter Market, Ansbury.' },
   { id: 'bilberry_cordial', station: 'hearth', skill: 'cooking', level: 18, xp: 105, inputs: { bilberries: 3, cloudberries: 1 }, output: 'bilberry_cordial', count: 1, time: 2.4, learn: 'Perrin sells the card at the Charter Market, Ansbury.' },
