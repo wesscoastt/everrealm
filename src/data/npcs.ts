@@ -315,3 +315,21 @@ export const NPCS: NpcDef[] = [
 // Side content people (src/data/content).
 import { CONTENT } from './content';
 for (const c of CONTENT) NPCS.push(...(c.npcs ?? []));
+
+/**
+ * The Fleet Fire on Gullmouth quay (data/gatherings.ts): its regulars stood in a heap on the fire's own spot all day,
+ * some on top of one another (owner 2026-11-07: "Gullmouth: still rough"). Each is given a place of their own in a
+ * ring round it, facing it, still on the quay where their quests send you.
+ */
+{
+  const F: [number, number] = [1739.5, 601.5];
+  const RING: Record<string, [number, number]> = {
+    jenna_penhale: [1733.5, 596.5], mercy_gullmouth: [1745.5, 595.5], hale_gull: [1734.5, 607.5], reuben: [1746.5, 604.5],
+    master_trevenna: [1734.5, 600.5], comp_tam: [1741.5, 607.5], gf_tom: [1745.5, 602.5], jacca: [1738.5, 608.5], bet: [1744.5, 597.5],
+  };
+  for (const n of NPCS) {
+    const at = RING[n.id];
+    if (!at) continue;
+    for (const s of n.schedule ?? []) if (Math.hypot(s.at[0] - F[0], s.at[1] - F[1]) < 9) { s.at = [at[0], at[1]]; s.face = [F[0], F[1]]; }
+  }
+}

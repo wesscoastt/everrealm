@@ -7698,13 +7698,25 @@ function* planBody(): Generator<string, Plan> {
     rect(s, C - 140, z - 36, C - 60, z + 36);
     street(C - 134, z - 4, C - 61, z + 4);
     // The market square and its cross
-    pave(C - 104, z - 16, C - 80, z + 16, base, 'cobble');
+    pave(C - 104, z - 16, C - 80, z + 16, base, 'flag');
     for (let y = base; y < base + 5; y++) O.set(C - 92, y, z, y < base + 1 ? B.StoneBrick : y < base + 4 ? B.Cobble : B.StoneBrick);
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) O.set(C - 92 + dx, base, z + dz, B.StoneBrick);
     s.props.push({ t: 'glow', x: C - 91.5, y: base + 5.4, z: z + 0.5, r: 2.2 });
     const cols = ['#2f528f', '#a8382c', '#c8a03a', '#3f7a3a'];
     for (let i = 0; i < 3; i++) { s.props.push({ t: 'stall', x: C - 100 + i * 8, y: base, z: z - 11, ry: Math.PI, color: cols[i] }, { t: 'stall', x: C - 100 + i * 8, y: base, z: z + 11, ry: 0, color: cols[(i + 2) % 4] }); }
     s.props.push({ t: 'well', x: C - 84.5, y: base, z: z + 5.5 }, { t: 'notice', x: C - 99.5, y: base, z: z + 5.5, ry: Math.PI / 2 });
+    // (owner 2026-11-07, "Gullmouth: still rough": the square was flags and six bare stalls) the stalls' goods beside
+    // them, a fish stall on ice, benches round the cross, lamps at the corners, planters, a trough, bunting between the rows
+    for (let i = 0; i < 3; i++) for (const [zz, side] of [[z - 11, -1], [z + 11, 1]] as const) {
+      const sx = C - 100 + i * 8, k = i * 2 + (side > 0 ? 1 : 0);
+      s.props.push({ t: k % 3 === 0 ? 'barrel' : 'crate', x: sx + 2.3, y: base, z: zz + side * 0.4, ry: k * 0.5 }, { t: 'crate', x: sx - 2.2, y: base, z: zz + side * 0.6, ry: -k * 0.3 });
+      if (k === 1) s.props.push({ t: 'fishBox', x: sx - 0.6, y: base, z: zz - side * 1.6, ry: 0 }, { t: 'fishBox', x: sx + 0.6, y: base, z: zz - side * 1.6, ry: 0 });
+    }
+    for (const [dx, dz, ry] of [[-3, 0, Math.PI / 2], [3, 0, -Math.PI / 2], [0, -3, 0], [0, 3, Math.PI]] as const) s.props.push({ t: 'bench', x: C - 91.5 + dx, y: base, z: z + 0.5 + dz, ry, len: 1.8 });
+    for (const [lx, lz] of [[C - 103.5, z - 15.5], [C - 80.5, z - 15.5], [C - 103.5, z + 16.5], [C - 80.5, z + 16.5]]) s.props.push({ t: 'lantern', x: lx, y: base, z: lz, ry: 0 });
+    for (const [px, pz] of [[C - 103.5, z - 6.5], [C - 103.5, z + 7.5], [C - 80.5, z - 6.5], [C - 80.5, z + 7.5]]) s.props.push({ t: 'planter', x: px, y: base, z: pz, ry: 0, tint: Math.floor(hash2(px, pz, 3) * 3) });
+    s.props.push({ t: 'trough', x: C - 99.5, y: base, z: z - 5.5, ry: Math.PI / 2 });
+    for (const zz of [z - 7.5, z + 8.5]) s.props.push({ t: 'stringLights', x: C - 91.5, y: base + 4.2, z: zz, ry: 0, len: 22, h: 0.6 });
     for (const [bx, bz] of [[C - 85, z + 5], [C - 84, z + 5], [C - 85, z + 6], [C - 84, z + 6]]) block2(bx, bz, base);
     // Houses along the high street and a row behind each side
     const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate'];
