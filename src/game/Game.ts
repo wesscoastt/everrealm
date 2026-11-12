@@ -258,10 +258,26 @@ function crowdZones(): CrowdZone[] {
       'The ford\'s up to my knees today.',
       'Haverwood\'s thick with mushrooms after the rain.',
     ] },
-    { id: 'gullmouth', x: coastX(600) - 80, z: 600, r: 72, n: 16, lines: [
+    // Gullmouth (owner 2026-11-12: "it should feel bustling like Verandah as a port city"): the upper town and its
+    // market, the high street down to the quay, and the quay itself, each with its own crowd
+    { id: 'gullmouth', x: coastX(600) - 92, z: 600, r: 48, n: 16, lines: [
       'Tide\'s turning. Get the nets in.',
       'The light wants oil again.',
       'A gull had my pie. The whole pie.',
+      'Market\'s dear this week. Blame the weather, everyone does.',
+      'The chapel bell\'s for a wedding Saturday. Not mine, thank the sea.',
+    ] },
+    { id: 'gullmouth-lanes', x: coastX(600) - 45, z: 600, r: 30, n: 10, lines: [
+      'The Exchange has salt cod up two marks.',
+      'Bett\'s got new hooks in. Proper steel ones.',
+      'Somebody\'s rowed out to the Rock with a letter again.',
+    ] },
+    { id: 'gullmouth-quay', x: coastX(600) + 6, z: 600, r: 40, n: 16, lines: [
+      'Is that the Plover coming in?',
+      'Don\'t stand under the crane, friend.',
+      'Wine for the Merchants\' Hall. Mind it.',
+      'Boats are in. Fish is cheap till noon.',
+      'My brother sailed on the Wren. Sick the whole way to the Rock.',
     ] },
     { id: 'harrowgate', x: 975, z: 1003, r: 60, n: 12, lines: [
       'Shift bell\'s in ten.',

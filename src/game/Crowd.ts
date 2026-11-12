@@ -15,7 +15,8 @@ import { heightAt } from '../world/terrain';
 // is quiet. They're made near the player and dropped once the player has left the town.
 
 /** What a street is paved with: walkers only ever set foot on these. */
-const STREET = new Set<number>([B.Cobble, B.StoneBrick, B.MossyCobble, B.Path, B.Gravel]);
+// (and flags: a quay, a market square: owner 2026-11-12, Gullmouth's quay stood empty while the cobbles were busy)
+const STREET = new Set<number>([B.Cobble, B.StoneBrick, B.MossyCobble, B.Path, B.Gravel, B.Flagstone, B.BrickPave]);
 const MAX_WALKERS = 56;
 const MAX_SHOWN = 20;
 const SHOW_DIST = 80;
