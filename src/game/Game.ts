@@ -1181,7 +1181,7 @@ export class Game implements GameApi {
       garden: () => { const v = this.flag('garden'); return v && typeof v === 'object' ? Object.keys(v) : []; },
       player: () => this.player.position,
       hour: () => this.world.sky.hour,
-      who: () => this.atHouse(),
+      who: () => (this.save.flags['comp:houseHidden'] ? [] : this.atHouse()),
       look: (id) => this.companions.henchmanOf(id).look as Appearance,
       say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
     });
@@ -6703,7 +6703,10 @@ export class Game implements GameApi {
       };
     });
     const more = (Object.keys(COMPANIONS) as CompanionId[]).some((id) => id !== 'dave' && !this.save.flags[`comp:${id}:joined`]) ? 'Others you meet on the road may walk with you too, if you ask them.' : '';
-    this.hud.companionWindow(rows, more);
+    // (owner 2026-11-12: "ability to hide them from walking around also": they still live there, just out of sight)
+    const anyHome = home && ids.some((id) => this.save.flags[`comp:${id}:house`]);
+    const hidden = !!this.save.flags['comp:houseHidden'];
+    this.hud.companionWindow(rows, more, anyHome ? { label: hidden ? 'Show them about the house' : 'Hide them about the house', use: () => { this.setFlag('comp:houseHidden', hidden ? null : 1); this.persist(); this.openCompanions(); } } : undefined);
   }
   /** The companions living at your house, and not out with you. */
   private atHouse(): CompanionId[] {
