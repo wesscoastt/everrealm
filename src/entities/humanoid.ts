@@ -119,6 +119,8 @@ export interface Appearance {
   facial?: number;
   /** 0 straight, 1 heavy, 2 arched, 3 fine. */
   brows?: number;
+  /** The brows' own colour (dark brows under bright dyed hair); by default the hair's, a shade darker. */
+  browColor?: string;
   /** 0 almond, 1 round, 2 narrow, 3 hooded. */
   eyeShape?: number;
   /** Colour on the lips, or none (the skin's own). */
@@ -307,7 +309,7 @@ function shade(hex: string, f: number): string {
  *  browser had no more to give). */
 const FACES = new Map<string, THREE.CanvasTexture>();
 function faceTexture(a: Appearance): THREE.CanvasTexture {
-  const key = [a.skin, a.hair, a.eyes, a.frame, a.age ?? 0, a.brows ?? 0, a.eyeShape ?? 0, a.paint ?? '', a.kohl ? 1 : 0, a.lashes ? 1 : 0, a.lips ?? '', a.freckles ? 1 : 0, a.scar ? 1 : 0, facialOf(a), a.glasses ?? '', a.smile ? 1 : 0].join('|');
+  const key = [a.skin, a.hair, a.eyes, a.frame, a.age ?? 0, a.brows ?? 0, a.browColor ?? '', a.eyeShape ?? 0, a.paint ?? '', a.kohl ? 1 : 0, a.lashes ? 1 : 0, a.lips ?? '', a.freckles ? 1 : 0, a.scar ? 1 : 0, facialOf(a), a.glasses ?? '', a.smile ? 1 : 0].join('|');
   const had = FACES.get(key);
   if (had) return had;
   const t = paintFace(a);
@@ -329,7 +331,7 @@ function paintFace(a: Appearance): THREE.CanvasTexture {
   x.fillStyle = fem ? 'rgba(214,96,96,0.22)' : 'rgba(200,100,90,0.13)';
   x.fillRect(9, 36, 9, 5); x.fillRect(46, 36, 9, 5);
   // Brows, in four shapes
-  const brow = age > 0.6 ? '#cfcac0' : shade(a.hair, 0.78);
+  const brow = a.browColor ?? (age > 0.6 ? '#cfcac0' : shade(a.hair, 0.78));
   switch (a.brows ?? 0) {
     case 1: px(brow, 11, 18, 15, 4); px(brow, 38, 18, 15, 4); px(brow, 24, 20, 2, 2); px(brow, 38, 20, 2, 2); break;
     case 2: px(brow, 12, 21, 3, 2); px(brow, 15, 19, 7, 2); px(brow, 22, 20, 3, 2); px(brow, 39, 20, 3, 2); px(brow, 42, 19, 7, 2); px(brow, 49, 21, 3, 2); break;
@@ -1779,7 +1781,7 @@ export class Humanoid {
     const roots = style === 13 ? this.look.hairRoots ?? '#7fe05a' : null;
     let streakAt = 0;
     const streaks = this.look.hairStreaks ?? [];
-    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => { let c = roots && y > 0.47 ? roots : h; if (streaks.length && y < 0.5 && (streakAt++ % 3 === 1)) c = streaks[Math.floor(streakAt / 3) % streaks.length]; return part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z); };
+    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => { let c = roots && y > 0.47 ? roots : h; if (streaks.length && style !== 14 && y < 0.5 && (streakAt++ % 3 === 1)) c = streaks[Math.floor(streakAt / 3) % streaks.length]; return part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z); };
     if (hat === 'coif') {
       // A mail coif: the whole head but the face
       const mail = this.look.hatColor ?? '#9aa0a8';
@@ -1987,7 +1989,7 @@ export class Humanoid {
     const fringe = (pieces: [number, number, number][]) => { for (const [x, w, ht] of pieces) p(w, ht, 0.045, x, 0.515 - ht / 2, Z, 1.02, 0.015); };
     switch (style) {
       case 0: fringe([[-0.15, 0.14, 0.1], [-0.02, 0.14, 0.08], [0.11, 0.13, 0.06], [0.19, 0.06, 0.04]]); if (!covered) { p(0.32, 0.07, 0.14, -0.04, 0.625, 0.13, 1.1, 0.03); p(0.18, 0.05, 0.1, 0.12, 0.615, 0.15, 1.04, 0.02); } break;
-      case 1: case 4: case 11: case 13: case 14: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
+      case 1: case 4: case 11: case 13: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
       case 5: fringe([[-0.12, 0.2, 0.1], [0.08, 0.2, 0.1], [0.19, 0.06, 0.08]]); break;
       case 8: for (const [x, y] of [[-0.14, 0.49], [0.0, 0.5], [0.14, 0.49]]) p(0.12, 0.1, 0.08, x, y, 0.21, 1.04, 0.04); break;
       case 10: fringe([[0.04, 0.32, 0.06]]); p(0.13, 0.15, 0.05, 0.14, 0.45, Z, 1.04, 0.015); break;
@@ -2046,16 +2048,39 @@ export class Humanoid {
           p(0.07, 0.1, 0.07, s * 0.31, 0.07, -0.13, 0.9, 0.03);
         }
         break;
-      case 14: // long curls to the waist, falling over the shoulders in front and down the back (Becky White's)
-        p(0.58, 0.16, 0.56, 0, 0.58, -0.02, 1.04, 0.05);
-        p(0.62, 0.95, 0.14, 0, 0.08, -0.25, 0.94, 0.05);
-        for (let k = 0; k < 6; k++) p(0.62 - (k % 2) * 0.06, 0.14, 0.16, (k % 2 ? 0.03 : -0.03), -0.45 - k * 0.09, -0.26 - (k % 2) * 0.02, k % 2 ? 0.9 : 0.98, 0.04);
-        for (const s of [1, -1]) for (let k = 0; k < 9; k++) {
-          const y = 0.48 - k * 0.15, wob = (k % 2 ? 0.035 : -0.025) * s;
-          p(0.14, 0.17, 0.2, s * 0.29 + wob, y, -0.06 + (k % 3) * 0.02, k % 2 ? 0.92 : 1.02, 0.05);
-          if (k >= 2) p(0.12, 0.16, 0.12, s * (0.22 + (k % 2) * 0.03), y - 0.04, 0.12 + (k % 2) * 0.02, k % 2 ? 0.95 : 1.05, 0.05); // over the shoulder, down the front
+      case 14: { // a thick mane of waves to the waist, wider than the head, over the shoulders in front (Becky White's)
+        // (her colours by hand: the base, and the streaks: [0] the strands that run down through it, the rest the fringe's)
+        const S = streaks.length ? streaks : [h];
+        const q = (c: string, w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.02) => part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z);
+        q(h, 0.62, 0.16, 0.6, 0, 0.6, -0.03, 1.06);
+        q(h, 0.5, 0.06, 0.46, 0.02, 0.69, -0.05, 1.12);
+        // the mass down the back, broad, a little ragged at the foot
+        q(h, 0.78, 1.32, 0.22, 0, -0.06, -0.3, 0.86);
+        for (let k = 0; k < 4; k++) q(h, 0.2, 0.24, 0.2, -0.29 + k * 0.193, -0.8 - (k % 2) * 0.08, -0.3, k % 2 ? 0.82 : 0.9);
+        for (const sd of [1, -1]) {
+          // the sides: a solid fall of hair, overlapping slabs that step out a little at each wave
+          for (let k = 0; k < 5; k++) {
+            const y = 0.4 - k * 0.27, out = Math.min(k, 2) * 0.025 + (k % 2 ? 0.02 : 0);
+            q(h, 0.22, 0.34, 0.46 - Math.max(0, k - 2) * 0.05, sd * (0.33 + out), y, -0.06, k % 2 ? 0.93 : 1.0);
+          }
+          // the streak running down through each side, unbroken, and one down the back
+          q(S[0], 0.07, 1.0, 0.08, sd * 0.45, -0.08, 0.1, 0.98);
+          q(S[0], 0.08, 0.95, 0.05, sd * 0.2, -0.3, -0.42, 0.9);
+          // over the shoulders, down the front past the bodice
+          for (let k = 0; k < 3; k++) q(h, 0.19, 0.32, 0.15, sd * (0.27 + (k % 2 ? 0.02 : 0)), 0.02 - k * 0.27, 0.15, k % 2 ? 0.94 : 1.02);
+          q(S[0], 0.06, 0.7, 0.05, sd * 0.2, -0.24, 0.205, 1);
         }
+        // the fringe, swept across from her right in bright bands: the colours at the temple, the base across the brow
+        const Z = 0.236;
+        const band = (c: string, x: number, w: number, ht: number) => q(c, w, ht, 0.05, x, 0.53 - ht / 2, Z, 1.02, 0.015);
+        band(S[2] ?? S[0], -0.2, 0.08, 0.15);
+        band(S[3] ?? S[0], -0.13, 0.08, 0.12);
+        band(S[1] ?? S[0], -0.05, 0.09, 0.09);
+        band(S[0], 0.04, 0.1, 0.07);
+        band(h, 0.13, 0.1, 0.06);
+        band(h, 0.2, 0.06, 0.12);
         break;
+      }
       case 15: // curls to the shoulders, all round (Walter White's)
         p(0.56, 0.16, 0.54, 0, 0.57, -0.02, 1.02, 0.06);
         for (const [cx, cy, cz] of [[-0.27, 0.42, 0.04], [0.27, 0.42, 0.04], [-0.28, 0.27, -0.02], [0.28, 0.27, -0.02], [-0.27, 0.12, -0.06], [0.27, 0.12, -0.06], [-0.18, 0.42, -0.24], [0.18, 0.42, -0.24], [0, 0.4, -0.27], [-0.2, 0.22, -0.25], [0.2, 0.22, -0.25], [0, 0.18, -0.27], [-0.12, 0.05, -0.25], [0.12, 0.05, -0.25]]) p(0.15, 0.15, 0.15, cx, cy, cz, (cx + cy) % 0.2 > 0.1 ? 1.06 : 0.94, 0.06);

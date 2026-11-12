@@ -72,8 +72,8 @@ const items: ItemDef[] = [
 ];
 
 // (to the owner's concept art, 2026-11-11: long full curls to the waist, glasses, a corset laced over a pale chemise, a gown)
-const BECKY_GHOST = { frame: 'f' as const, skin: '#d8dce8', hair: '#1a0a0e', hairStyle: 14, hairStreaks: ['#7a0a12', '#c8141e', '#3a0a10'], eyes: '#e8e8f0', glasses: '#0e0e10', tunic: '#9a9aa6', trim: '#b8b8c4', shirt: '#e8e8f0', sleeves: '#e4e4ee', puff: true, bodice: '#5a5a66', underskirt: '#d8d8e2', top: 5, trousers: '#c8c8d4', boots: '#9a9aa8', lashes: true, smile: true, ghost: '#ff2a3a', age: 0.35 };
-const BECKY_HUMAN = { frame: 'f' as const, skin: '#e8c4a4', hair: '#5a2a8a', hairStyle: 14, hairStreaks: ['#c81e5a', '#e8642a', '#2a8a6a', '#3a6ac8'], eyes: '#3a2a20', glasses: '#0e0e10', tunic: '#5a2a7a', trim: '#c8902a', shirt: '#ece4d4', sleeves: '#ece4d4', puff: true, bodice: '#6a3a1e', underskirt: '#ece4d4', top: 5, trousers: '#ece4d4', boots: '#4a2a1a', shoes: 2, lashes: true, smile: true, age: 0.35 };
+const BECKY_GHOST = { frame: 'f' as const, skin: '#d8dce8', hair: '#1a0a0e', hairStyle: 14, hairStreaks: ['#c8141e', '#e02028', '#7a0a12', '#c8141e'], eyes: '#2a2a32', browColor: '#2a1a1e', brows: 1, glasses: '#0e0e10', tunic: '#9a9aa6', trim: '#b8b8c4', shirt: '#e8e8f0', sleeves: '#e4e4ee', puff: true, bodice: '#5a5a66', underskirt: '#d8d8e2', top: 5, trousers: '#c8c8d4', boots: '#9a9aa8', lashes: true, smile: true, ghost: '#ff2a3a', age: 0.35, build: 1.18 };
+const BECKY_HUMAN = { frame: 'f' as const, skin: '#e8c4a4', hair: '#6a2a9a', hairStyle: 14, hairStreaks: ['#e0206e', '#e8642a', '#3aa060', '#3a6ac8'], eyes: '#2a1a14', browColor: '#3a2416', brows: 1, glasses: '#0e0e10', tunic: '#5a2a7a', trim: '#c8902a', shirt: '#ece4d4', sleeves: '#ece4d4', puff: true, bodice: '#6a3a1e', underskirt: '#ece4d4', top: 5, trousers: '#ece4d4', boots: '#4a2a1a', shoes: 2, lashes: true, smile: true, age: 0.35, build: 1.18 };
 
 const npcs: NpcDef[] = [
   {
