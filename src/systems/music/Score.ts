@@ -25,6 +25,8 @@ export type ThemeId = 'title' | 'greenwake' | 'hollin' | 'crownroad' | 'brambled
   /** Every dungeon and delve its own: the group dungeons' long pieces, the delves' slow themes. */
   | 'oldman' | 'kettle' | 'escapement' | 'kingsbarrow'
   | 'mortlake' | 'blackcut' | 'badger' | 'culvert' | 'smugglers' | 'tinner' | 'seep' | 'glimmer' | 'gullery' | 'hob' | 'holmsey' | 'priory'
+  /** Verandah's own: the Sunken Temple, Black Gull Keep, the Tregarthen Vaults, the Drowned Cistern (in the manner of Soule's Oblivion). */
+  | 'tidebell' | 'blackgull' | 'tregarthen' | 'cistern'
   /** Ten more, in the manner of Soule's Guild Wars and Oblivion and of Guild Wars 2's cities: Ansbury on a market
    * day, Gullmouth's quay, the Scarth fells, the green deeps, Kell's tinkers, Hollindale's meadows, rain at
    * night, the Glass Flats' caravans, Callis in the sun, and the Sickle's ice. */
@@ -431,6 +433,62 @@ const THEMES: Record<ThemeId, Theme> = {
       { key: 5, prog: [{ deg: 0 }, { deg: 3 }, { deg: 6 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }], motif: '4:4 5:2 4:2 2:4 0:4 r:2 2:2 3:2 4:2 7:6 r:2', lead: 'horn', arp: true },
       { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'maj' }], motif: '7:4 9:2 7:2 5:4 4:2 5:2 7:8 r:2 9:2 7:2 5:2 4:2 2:4 0:8', lead: 'strings', tutti: true, dyn: 0.64 },
       { prog: [{ deg: 0, q: 'sus4', bars: 4 }, { deg: 5, bars: 4 }, { deg: 0, bars: 4 }], motif: '4:4 2:4 0:8', lead: 'choir', dyn: 0.55 },
+    ],
+  },
+
+  // ---- Verandah's dungeons and delves (owner 2026-11-07: "think Jeremy Soule, Oblivion"): long and modal, warm under
+  // the dark, every one in parts so it travels, and quiet between statements.
+
+  // "Tidebell": the Sunken Temple. E Phrygian, the drowned temple of the bell: a celesta tolling the half-step down,
+  // a choir on "oo" a long way under the water, low strings holding the floor, and in the second part a horn, once,
+  // the prior's office still being sung; the last part lets the bell ring alone.
+  tidebell: {
+    id: 'tidebell', root: 52, mode: MODES.phrygian, bpm: 42,
+    prog: [{ deg: 0 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 6 }],
+    motifs: [], lead: ['celesta', 'choir'], pad: ['choir', 'strings'], vowel: 'oo', arp: 'celesta', brightness: 0.22, rest: [18, 30], drone: true, level: 1.15,
+    parts: [
+      { prog: [{ deg: 0, bars: 2 }, { deg: 1, q: 'maj', bars: 2 }, { deg: 0, bars: 2 }, { deg: 6, bars: 2 }], motif: '4:2 r:2 4:2 3:2 1:4 0:8 r:4', lead: 'celesta', dyn: 0.6 },
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 1, q: 'maj' }, { deg: 0 }, { deg: 3 }, { deg: 1, q: 'maj' }, { deg: 6 }, { deg: 0 }], motif: '0:4 1:4 3:2 4:2 3:4 1:4 0:8 r:2', lead: 'choir', dyn: 0.8 },
+      { key: 3, prog: [{ deg: 0 }, { deg: 3 }, { deg: 4, q: 'sus4' }, { deg: 0 }], motif: '4:6 5:2 4:4 2:4 0:8 r:4', lead: 'horn', arp: true, dyn: 0.7 },
+      { prog: [{ deg: 0, q: 'sus2', bars: 4 }, { deg: 1, q: 'maj', bars: 4 }], motif: '4:2 r:6 4:2 r:6 1:8', lead: 'celesta', dyn: 0.45 },
+    ],
+  },
+  // "Black Gull": the keep. G minor and grey weather: a harp walking like a watch on the wall, strings swelling like
+  // the sea against the cliff, a horn calling from the tower, and the false lamp in the flute at the end.
+  blackgull: {
+    id: 'blackgull', root: 55, mode: MODES.aeolian, bpm: 58,
+    prog: [{ deg: 0 }, { deg: 5 }, { deg: 6 }, { deg: 4, q: 'maj' }],
+    motifs: [], lead: ['horn', 'strings'], pad: ['strings'], vowel: 'ah', arp: 'harp', brightness: 0.4, rest: [10, 20], drone: false, level: 1.05,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 5 }, { deg: 6 }, { deg: 4, q: 'maj' }], motif: '0:2 2:2 3:2 4:2 3:4 2:2 0:2 -1:4 0:4', lead: 'horn', arp: true, dyn: 0.75 },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }, { deg: 5 }, { deg: 6 }, { deg: 2 }, { deg: 4, q: 'maj' }], motif: '7:4 5:2 4:2 3:4 4:4 7:6 r:2 5:2 4:2 3:2 2:2 0:8', lead: 'strings', tutti: true, dyn: 0.9 },
+      { key: 5, prog: [{ deg: 0 }, { deg: 3 }, { deg: 4, q: 'maj' }, { deg: 0 }], motif: '4:2 5:2 7:4 5:2 4:2 2:4 0:8', lead: 'horn', dyn: 0.8 },
+      { prog: [{ deg: 0, bars: 2 }, { deg: 6, bars: 2 }, { deg: 0, q: 'sus4', bars: 4 }], motif: '9:4 7:4 4:8 r:4 2:4 0:8', lead: 'flute', dyn: 0.5 },
+    ],
+  },
+  // "Tregarthen": the Vaults. B minor, a household's lament: strings in long breaths, the choir on "ah" answering, the
+  // harp turning slowly through the tombs, and a horn in D for the lord who got up; the end comes down a step at a time.
+  tregarthen: {
+    id: 'tregarthen', root: 47, mode: MODES.aeolian, bpm: 40,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'maj' }],
+    motifs: [], lead: ['strings', 'choir'], pad: ['choir', 'strings'], vowel: 'ah', arp: 'harp', brightness: 0.3, rest: [18, 32], drone: true, level: 1.1,
+    parts: [
+      { prog: [{ deg: 0 }, { deg: 3 }, { deg: 5 }, { deg: 4, q: 'maj' }, { deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4, q: 'sus4' }], motif: '0:4 2:2 3:2 4:6 3:2 2:4 0:8 r:4', lead: 'strings', arp: true, dyn: 0.7 },
+      { prog: [{ deg: 5 }, { deg: 3 }, { deg: 0 }, { deg: 4, q: 'maj' }], motif: '4:4 5:4 7:8 5:4 4:4 2:8', lead: 'choir', dyn: 0.75 },
+      { key: 3, prog: [{ deg: 0 }, { deg: 5 }, { deg: 3 }, { deg: 4, q: 'maj' }], motif: '0:4 4:4 5:2 4:2 2:4 0:8 r:2', lead: 'horn', arp: true, dyn: 0.7 },
+      { prog: [{ deg: 0, bars: 4 }, { deg: 6, bars: 2 }, { deg: 5, bars: 2 }, { deg: 0, q: 'sus4', bars: 4 }], motif: '4:4 3:4 2:4 1:4 0:12', lead: 'strings', dyn: 0.5 },
+    ],
+  },
+  // "Cistern": the Drowned Cistern. F Dorian, cold water: a celesta dripping, an oboe wandering the corridors, the
+  // choir low on "oo", and a drone that never quite lets go.
+  cistern: {
+    id: 'cistern', root: 53, mode: MODES.dorian, bpm: 44,
+    prog: [{ deg: 0 }, { deg: 3 }, { deg: 0 }, { deg: 6 }],
+    motifs: [], lead: ['oboe', 'celesta'], pad: ['choir'], vowel: 'oo', arp: 'celesta', brightness: 0.25, rest: [16, 28], drone: true, level: 1.15,
+    parts: [
+      { prog: [{ deg: 0, bars: 2 }, { deg: 3, bars: 2 }, { deg: 0, bars: 2 }, { deg: 6, bars: 2 }], motif: '7:2 r:2 5:2 r:4 4:2 r:2 2:4 r:6', lead: 'celesta', dyn: 0.5 },
+      { prog: [{ deg: 0 }, { deg: 3 }, { deg: 4 }, { deg: 0 }, { deg: 6 }, { deg: 3 }, { deg: 4, q: 'sus4' }, { deg: 0 }], motif: '0:4 2:2 3:2 5:6 4:2 3:4 2:4 0:8', lead: 'oboe', arp: true, dyn: 0.65 },
+      { prog: [{ deg: 3 }, { deg: 0 }, { deg: 6 }, { deg: 0, q: 'sus2' }], motif: '4:8 3:4 2:4 0:12 r:4', lead: 'choir', dyn: 0.6 },
     ],
   },
 

@@ -217,7 +217,7 @@ const REGION_BED: Partial<Record<RegionId, Bed>> = {
 const PLACE_PIECE: Partial<Record<ThemeId, ThemeId[]>> = { ansbury: ['charter', 'crown'], harbour: ['shanty', 'crossing'], night: ['rainfall'] };
 /** Each dungeon's and delve's own music, by its id (data/dungeons.ts for the group dungeons, world/sites.ts for the rest). */
 const UNDER_THEME: Record<string, ThemeId> = {
-  'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow', 'pd-blackgull': 'smugglers', 'gd-temple': 'seep', 'delve-crypt': 'priory', 'delve-cistern': 'culvert',
+  'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow', 'pd-blackgull': 'blackgull', 'gd-temple': 'tidebell', 'delve-crypt': 'tregarthen', 'delve-cistern': 'cistern',
   'pd-mortlake': 'mortlake', 'pd-blackcut': 'blackcut', 'delve-badger': 'badger', 'delve-culvert': 'culvert', 'delve-smugglers': 'smugglers',
   'delve-tinner': 'tinner', 'delve-seep': 'seep', 'delve-glimmer': 'glimmer', 'delve-gullery': 'gullery', 'delve-hob': 'hob', 'delve-holmsey': 'holmsey', 'ink-priory': 'priory',
 };
