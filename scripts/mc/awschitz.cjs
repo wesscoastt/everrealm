@@ -1,13 +1,24 @@
-// Awschitz Fort (owner 2026-11-06: "make it another kind of fort for Verandah"): the owner's fort on the headland west
-// of the town hardly came through, so the game builds Verandah's coastal watch fort there in its own blocks: a curtain
-// wall of stone brick with a walk along its top and teeth on its face, a tower at each corner, the gate on the east
-// onto the coast road, a flagged yard, the garrison's hall, and a stone quay with a jetty out from the owner's pier.
-// Run after scripts/mc/export.ts (node scripts/mc/awschitz.cjs); its garrison is data/content/awschitz.ts.
+// Awschitz, the owner's walled fort on the coast west of Verandah (owner 2026-11-07: "improve on what's already there
+// of Awschitz, not add a new walled thing inside: improve on the walls there and add buildings within, and the dock").
+// The owner built the curtain (two faces of stone brick with a walk between, a low parapet each side), the gatehouses,
+// the corner towers, an orchard of fruit trees, a strip of farmland, a row of furnaces and chests, and the pier east of
+// the gate. The import kept the walls and the trunks but lost the fruit trees' leaves (an add-on's blocks), so the orchard
+// stood as bare posts, and the cherries came over as heaps of planks. This:
+//   - gives the orchard its leaves back, where the owner had them (scripts/mc/awschitz-orchard.json, read from the world);
+//   - cuts merlons into the outer parapet, weathers the faces with moss, and adds four wall towers and two stairs up;
+//   - builds the garrison inside: the hall (stone below, timber and plaster above, a slate roof), the barracks along the
+//     west wall, the smithy, the stable, the water-gate store between the north gates, and a shed over the owner's own
+//     furnace row; flagged yards and paths between them;
+//   - runs a jetty out from the owner's pier, with a T-head for the boats.
+// The roofs, the furniture and the gear are props (data/content/awschitz.ts, AWSCHITZ_PROPS); the garrison is there too.
+// Run after scripts/mc/export.ts, in its place in the patch order (node scripts/mc/awschitz.cjs).
 const fs = require('fs'), zlib = require('zlib');
 const names = (() => { const s = fs.readFileSync('src/world/blocks.ts', 'utf8'); const b = s.slice(s.indexOf('export enum B {') + 15, s.indexOf('}', s.indexOf('export enum B {'))); return b.replace(/\/\/.*$/gm, '').split(',').map((x) => x.trim().split(' ')[0]).filter(Boolean); })();
 const id = (n) => { const i = names.indexOf(n); if (i < 0) throw n; return i; };
 const AIR = 0, BRICK = id('StoneBrick'), MOSSY = id('MossyStone'), CARVED = id('CarvedStone'), FLAG = id('Flagstone'), COBBLE = id('Cobble'),
-  PLANKS = id('Planks'), DARK = id('DarkPlanks'), LOG = id('OakLog'), GLASS = id('Glass'), STONE = id('Stone'), PATH = id('Path');
+  PLANKS = id('Planks'), DARK = id('DarkPlanks'), LOG = id('OakLog'), TIMBER = id('Timber'), PLASTER = id('Plaster'), WINDOW = id('Window'),
+  LEAVES = id('OakLeaves'), GRASS = id('Grass'), PATH = id('Path'), WATER = id('Water'), HAY = id('Hay'), BARRIER = id('Barrier'), BARS = id('Bars'),
+  FLOWER = id('FlowerGrass'), DIRT = id('Dirt');
 const files = new Map();
 const load = (cx, cz) => {
   const fn = cx + '_' + cz + '.bin';
@@ -19,98 +30,213 @@ const load = (cx, cz) => {
   return files.get(fn);
 };
 const cell = (x, z) => { const d = load(Math.floor(x / 32), Math.floor(z / 32)); return { d, c: d.cols[(z - Math.floor(z / 32) * 32) * 32 + (x - Math.floor(x / 32) * 32)] }; };
+const get = (x, y, z) => cell(x, z).c[y];
 const set = (x, y, z, b) => { const { d, c } = cell(x, z); if (c[y] !== b) { c[y] = b; d.dirty = true; } };
 const hash = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-const stone = (x, y, z) => (hash(x, y, z) < 0.15 ? MOSSY : BRICK);
-const box = (x0, y0, z0, x1, y1, z1, b) => { for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) set(x, y, z, typeof b === 'function' ? b(x, y, z) : b); };
+const stone = (x, y, z) => (hash(x, y, z) < (y <= 17 ? 0.22 : 0.1) ? MOSSY : BRICK);
+const box = (x0, y0, z0, x1, y1, z1, b) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let y = y0; y <= y1; y++) for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) set(x, y, z, typeof b === 'function' ? b(x, y, z) : b); };
+const G = 15; // the yard's ground: stood on at 16
 
-const G = 15;              // the ground: walked on at 16
-const X0 = -3375, X1 = -3349, Z0 = 1951, Z1 = 1979; // the curtain's outer face
-const TOP = G + 7;         // the wall walk, stood on at TOP + 1
-
-// the plot cleared, footed in stone, the yard flagged
-box(X0 - 2, G + 1, Z0 - 2, X1 + 2, G + 20, Z1 + 2, AIR);
-box(X0 - 2, G - 3, Z0 - 2, X1 + 2, G - 1, Z1 + 2, STONE);
-box(X0, G, Z0, X1, G, Z1, (x, y, z) => ((x + z) % 4 === 0 ? COBBLE : FLAG));
-box(X0 - 2, G, Z0 - 2, X1 + 2, G, Z0 - 1, PATH); box(X0 - 2, G, Z1 + 1, X1 + 2, G, Z1 + 2, PATH);
-box(X0 - 2, G, Z0, X0 - 1, G, Z1, PATH); box(X1 + 1, G, Z0, X1 + 2, G, Z1, PATH);
-
-// the curtain: two thick, its walk on top, teeth on the outer face
-for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) {
-  const ring = x <= X0 + 1 || x >= X1 - 1 || z <= Z0 + 1 || z >= Z1 - 1;
-  if (!ring) continue;
-  box(x, G + 1, z, x, TOP, z, stone);
-  const outer = x === X0 || x === X1 || z === Z0 || z === Z1;
-  if (outer && (x + z) % 2 === 0) set(x, TOP + 1, z, stone(x, TOP + 1, z));
-  // arrow slits in the outer face
-  if (outer && (x + z) % 6 === 0) set(x, G + 4, z, AIR);
+// ---------------------------------------------------------------- the orchard's leaves
+for (const [x, y, z] of JSON.parse(fs.readFileSync('scripts/mc/awschitz-orchard.json', 'utf8'))) {
+  const b = get(x, y, z);
+  if (b === AIR || b === PLANKS) set(x, y, z, LEAVES);
 }
-// towers at the corners: seven square, four higher than the wall, hollow, their roofs walked on and toothed
-for (const [tx, tz] of [[X0 - 1, Z0 - 1], [X1 - 5, Z0 - 1], [X0 - 1, Z1 - 5], [X1 - 5, Z1 - 5]]) {
-  for (let x = tx; x < tx + 7; x++) for (let z = tz; z < tz + 7; z++) {
-    const edge = x === tx || x === tx + 6 || z === tz || z === tz + 6;
-    for (let y = G - 1; y <= TOP + 4; y++) set(x, y, z, edge ? (y === TOP + 4 ? CARVED : stone(x, y, z)) : y === TOP + 4 || y === TOP || y === G ? PLANKS : AIR);
-    if (edge && (x + z) % 2 === 0) set(x, TOP + 5, z, stone(x, TOP + 5, z));
+
+// ---------------------------------------------------------------- the owner's walls
+// A wall cell is stone brick at 17 and 18; the faces carry the parapet (top 20), the walk between them tops at 19.
+const WX0 = -3495, WX1 = -3340, WZ0 = 1931, WZ1 = 1990, CX = -3420, CZ = 1960;
+const isWall = (x, z) => { const c = cell(x, z).c; return c[17] === BRICK && c[18] === BRICK; };
+const topOf = (x, z) => { const c = cell(x, z).c; for (let y = 60; y >= 0; y--) if (c[y]) return y; return -1; };
+const parapets = [];
+for (let x = WX0; x <= WX1; x++) for (let z = WZ0; z <= WZ1; z++) {
+  if (!isWall(x, z)) continue;
+  // weathering: moss in the faces, thicker near the ground
+  for (let y = 16; y <= 20; y++) if (get(x, y, z) === BRICK && hash(x, y, z) < (y <= 17 ? 0.2 : 0.09)) set(x, y, z, MOSSY);
+  if (topOf(x, z) === 20) parapets.push([x, z]);
+}
+// merlons on the outer parapet: the face farther from the yard than the walk beside it, every other block
+for (const [x, z] of parapets) {
+  let walk = null;
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (isWall(x + dx, z + dz) && topOf(x + dx, z + dz) === 19) { walk = [dx, dz]; break; }
+  if (!walk) continue;
+  const d0 = Math.hypot(x - CX, z - CZ), d1 = Math.hypot(x + walk[0] - CX, z + walk[1] - CZ);
+  if (d0 <= d1) continue; // the inner parapet stays low
+  const along = walk[1] !== 0 ? x : z;
+  if (((along % 2) + 2) % 2 === 0 && get(x, 21, z) === AIR) set(x, 21, z, stone(x, 21, z));
+}
+
+// ---------------------------------------------------------------- the wall towers
+// Square, on the wall: solid to the walk, a guardroom at the walk's height with the walk running through it, slits
+// in its outer faces, a flagged roof over it with a parapet and merlons, a ladder up from the guardroom.
+const ladders = [];
+const tower = (x0, z0, x1, z1, runsAlongX, ladder) => {
+  box(x0, G, z0, x1, 19, z1, stone);
+  box(x0, 20, z0, x1, 22, z1, stone);
+  box(x0 + 1, 20, z0 + 1, x1 - 1, 22, z1 - 1, AIR);
+  // the walk goes through: open the two ends where the wall comes in
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+    const end = runsAlongX ? (x === x0 || x === x1) : (z === z0 || z === z1);
+    const inner = runsAlongX ? (z > z0 && z < z1) : (x > x0 && x < x1);
+    if (end && inner) {
+      const ox = runsAlongX ? (x === x0 ? -1 : 1) : 0, oz = runsAlongX ? 0 : (z === z0 ? -1 : 1);
+      if (isWall(x + ox, z + oz) && topOf(x + ox, z + oz) === 19) { set(x, 20, z, AIR); set(x, 21, z, AIR); }
+    }
   }
-  // a door from the yard into each tower, and from the tower out onto the walk
-  const ix = tx === X0 - 1 ? tx + 6 : tx, iz = tz === Z0 - 1 ? tz + 6 : tz;
-  set(ix, G + 1, tz + 3, AIR); set(ix, G + 2, tz + 3, AIR);
-  set(tx + 3, TOP + 1, iz, AIR); set(tx + 3, TOP + 2, iz, AIR);
-  set(ix, TOP + 1, tz + 3, AIR); set(ix, TOP + 2, tz + 3, AIR);
-}
+  // slits in the faces across the wall
+  const mx = Math.floor((x0 + x1) / 2), mz = Math.floor((z0 + z1) / 2);
+  if (runsAlongX) { set(mx, 21, z0, BARS); set(mx, 21, z1, BARS); } else { set(x0, 21, mz, BARS); set(x1, 21, mz, BARS); }
+  // a carved string course, the roof, its parapet and merlons
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) if (x === x0 || x === x1 || z === z0 || z === z1) set(x, 19, z, CARVED);
+  box(x0, 23, z0, x1, 23, z1, FLAG);
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) if (x === x0 || x === x1 || z === z0 || z === z1) { set(x, 23, z, stone(x, 23, z)); set(x, 24, z, stone(x, 24, z)); if ((x + z) % 2 === 0) set(x, 25, z, stone(x, 25, z)); }
+  // the ladder: up the inside of a face, through a hatch in the roof
+  const [lx, lz, ry] = ladder;
+  set(lx, 23, lz, AIR);
+  for (let y = 20; y <= 23; y++) ladders.push(['mcladder', lx + 0.5, y, lz + 0.5, ry, 0]);
+};
+tower(-3492, 1953, -3487, 1958, false, [-3488, 1954, 0]);    // the west wall
+tower(-3405, 1984, -3400, 1989, true, [-3404, 1985, 0]);     // the south wall, west
+tower(-3372, 1984, -3367, 1989, true, [-3368, 1985, 0]);     // the south wall, east
+tower(-3385, 1943, -3380, 1948, true, [-3384, 1944, 0]);     // the inner north wall
 
-// the gate on the east, onto the coast road: three wide, four high, a carved arch over it
-const GZ = Math.round((Z0 + Z1) / 2);
-box(X1 - 1, G + 1, GZ - 1, X1, G + 4, GZ + 1, AIR);
-box(X1 - 1, G + 5, GZ - 2, X1, G + 5, GZ + 2, CARVED);
-for (const z of [GZ - 2, GZ + 2]) box(X1 + 1, G + 1, z, X1 + 1, TOP + 1, z, CARVED); // the gate's buttresses
-box(X1 + 1, G, GZ - 1, X1 + 7, G, GZ + 1, PATH); // the way out to the road
+// stairs up to the walk on the yard side: four blocks rising beside the inner face, the parapet opened at the top
+const stair = (cells, gap) => { cells.forEach(([x, z], i) => box(x, 16, z, x, 16 + i, z, stone)); set(gap[0], 20, gap[1], AIR); };
+stair([[-3486, 1983], [-3486, 1982], [-3486, 1981], [-3486, 1980]], [-3487, 1980]); // the west wall, by the barracks
+stair([[-3415, 1984], [-3414, 1984], [-3413, 1984], [-3412, 1984]], [-3412, 1985]); // the south wall, by the stable
 
-// the stair up to the walk: along the inside of the south wall, rising westward
-for (let k = 0; k < TOP - G; k++) {
-  const x = X1 - 7 - k, y = G + 1 + k;
-  for (const z of [Z1 - 2, Z1 - 3]) { box(x, G + 1, z, x, y - 1, z, stone); set(x, y, z, BRICK); }
-}
-
-// the garrison's hall: stone below, timber above, a pitched roof; its door on the yard
-const HX0 = X0 + 5, HX1 = X0 + 15, HZ0 = Z0 + 4, HZ1 = Z0 + 11;
-for (let x = HX0; x <= HX1; x++) for (let z = HZ0; z <= HZ1; z++) {
-  const edge = x === HX0 || x === HX1 || z === HZ0 || z === HZ1, corner = (x === HX0 || x === HX1) && (z === HZ0 || z === HZ1);
-  set(x, G, z, edge ? COBBLE : PLANKS);
-  for (let y = G + 1; y <= G + 8; y++) {
-    if (!edge) { set(x, y, z, y === G + 5 ? (x === HX0 + 1 && z <= HZ0 + 2 ? AIR : PLANKS) : AIR); continue; }
-    const win = !corner && (y === G + 2 || y === G + 3 || y === G + 6 || y === G + 7) && (x + z) % 3 === 0;
-    set(x, y, z, corner ? LOG : win ? GLASS : y <= G + 4 ? stone(x, y, z) : PLANKS);
+// ---------------------------------------------------------------- the garrison
+const ground = (x0, z0, x1, z1, b) => box(x0, G, z0, x1, G, z1, b);
+const clear = (x0, z0, x1, z1, y1 = 30) => box(x0, 16, z0, x1, y1, z1, AIR);
+// The hall: stone below with tall windows, a carved band, timber and plaster above, the door in the middle of the south front.
+{
+  const X0 = -3468, X1 = -3448, Z0 = 1944, Z1 = 1957, UP = 21;
+  clear(X0, Z0, X1, Z1);
+  ground(X0, Z0, X1, Z1, FLAG);
+  for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) {
+    const edge = x === X0 || x === X1 || z === Z0 || z === Z1;
+    if (!edge) continue;
+    const corner = (x === X0 || x === X1) && (z === Z0 || z === Z1);
+    box(x, 16, z, x, 20, z, (xx, y, zz) => (corner ? CARVED : stone(xx, y, zz)));
+    set(x, UP, z, CARVED);
+    const post = corner || (z === Z0 || z === Z1 ? (x - X0) % 4 === 0 : (z - Z0) % 4 === 0);
+    box(x, UP + 1, z, x, UP + 4, z, post ? TIMBER : PLASTER);
+    set(x, UP + 4, z, TIMBER);
+    // windows: tall ones below between the posts, shorter above
+    const mid = z === Z0 || z === Z1 ? (x - X0) % 4 === 2 : (z - Z0) % 4 === 2;
+    if (mid && !corner) { set(x, 18, z, WINDOW); set(x, 19, z, WINDOW); set(x, UP + 2, z, WINDOW); set(x, UP + 3, z, WINDOW); }
   }
+  // the upper floor, with the ladder's hatch in the north-east corner
+  box(X0 + 1, UP, Z0 + 1, X1 - 1, UP, Z1 - 1, PLANKS);
+  set(X1 - 1, UP, Z0 + 1, AIR);
+  for (let y = 16; y <= UP; y++) ladders.push(['mcladder', X1 - 1 + 0.5, y, Z0 + 1 + 0.5, Math.PI, 0]);
+  // the door: three wide, under a carved lintel, a step of flags before it
+  box(-3459, 16, Z1, -3457, 18, Z1, AIR);
+  box(-3460, 19, Z1, -3456, 19, Z1, CARVED);
+  set(-3460, 16, Z1, CARVED); set(-3460, 17, Z1, CARVED); set(-3460, 18, Z1, CARVED);
+  set(-3456, 16, Z1, CARVED); set(-3456, 17, Z1, CARVED); set(-3456, 18, Z1, CARVED);
 }
-for (let k = 0; k <= 6; k++) for (let x = HX0 - 1; x <= HX1 + 1; x++) {
-  const y = G + 9 + k, a = HZ0 - 1 + k, b = HZ1 + 1 - k; if (a > b) break;
-  set(x, y, a, DARK); set(x, y, b, DARK);
-  if (x === HX0 - 1 || x === HX1 + 1) continue;
-  if (x === HX0 || x === HX1) for (let z = a + 1; z < b; z++) set(x, y, z, PLANKS);
+// The barracks along the west wall: a course of stone, timber and plaster over it, thatched, the door on the yard side.
+{
+  const X0 = -3486, X1 = -3478, Z0 = 1961, Z1 = 1978;
+  clear(X0, Z0, X1, Z1);
+  ground(X0, Z0, X1, Z1, PLANKS);
+  for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) {
+    if (!(x === X0 || x === X1 || z === Z0 || z === Z1)) continue;
+    const corner = (x === X0 || x === X1) && (z === Z0 || z === Z1);
+    set(x, 16, z, stone(x, 16, z));
+    const post = corner || ((x === X0 || x === X1) && (z - Z0) % 3 === 0) || ((z === Z0 || z === Z1) && (x - X0) % 4 === 0);
+    box(x, 17, z, x, 19, z, post ? TIMBER : PLASTER);
+    if (x === X1 && (z - Z0) % 3 === 2 && z !== 1969 && z !== 1970) set(x, 18, z, WINDOW);
+  }
+  box(X1, 16, 1969, X1, 18, 1970, AIR); // the door
 }
-const HDZ = Math.round((HZ0 + HZ1) / 2);
-set(HX1, G + 1, HDZ, AIR); set(HX1, G + 2, HDZ, AIR);
-// a ladder's well up to the loft (the ladder itself is in MC_THINGS)
-const LADDER = [HX0 + 1, HZ0 + 1];
+// The smithy: stone on three sides, open to the yard on the south, a flagged floor, its chimney at the back.
+{
+  const X0 = -3444, X1 = -3436, Z0 = 1964, Z1 = 1972;
+  clear(X0, Z0, X1, Z1);
+  ground(X0, Z0, X1, Z1, COBBLE);
+  for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) {
+    if (z === Z1) { if (x === X0 || x === X1 || x === -3440) box(x, 16, z, x, 19, z, LOG); continue; }
+    if (x === X0 || x === X1 || z === Z0) box(x, 16, z, x, 19, z, stone);
+  }
+  box(-3441, 16, Z0 + 1, -3439, 17, Z0 + 1, stone); // the forge's hearth against the back wall
+  box(-3441, 20, Z0, -3439, 26, Z0 + 1, stone);   // its chimney up through the roof
+  box(-3440, 26, Z0, -3440, 26, Z0 + 1, AIR);
+}
+// The stable against the south wall: open to the north on oak posts, plank stalls, hay.
+{
+  const X0 = -3434, X1 = -3422, Z0 = 1975, Z1 = 1984;
+  clear(X0, Z0, X1, Z1);
+  ground(X0, Z0, X1, Z1, DIRT);
+  for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) {
+    if (z === Z0) { if ((x - X0) % 4 === 0) box(x, 16, z, x, 18, z, LOG); continue; }
+    if (x === X0 || x === X1 || z === Z1) box(x, 16, z, x, 18, z, (x === X0 || x === X1) && (z === Z1) ? LOG : PLANKS);
+  }
+  for (const x of [-3430, -3426]) box(x, 16, Z0 + 3, x, 17, Z1 - 1, PLANKS); // the stalls' partitions
+  for (const [x, z] of [[-3433, 1983], [-3432, 1983], [-3433, 1982], [-3423, 1983], [-3424, 1983]]) set(x, 16, z, HAY);
+  set(-3433, 17, 1983, HAY);
+}
+// The water-gate store between the north gates, flush to the wall: stone, its door on the yard.
+{
+  const X0 = -3447, X1 = -3437, Z0 = 1935, Z1 = 1942;
+  clear(X0, Z0, X1, Z1);
+  ground(X0, Z0, X1, Z1, PLANKS);
+  for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) if (x === X0 || x === X1 || z === Z0 || z === Z1) box(x, 16, z, x, 19, z, (xx, y, zz) => ((xx === X0 || xx === X1) && (zz === Z0 || zz === Z1) ? CARVED : stone(xx, y, zz)));
+  box(-3443, 16, Z1, -3441, 18, Z1, AIR);
+  for (const x of [-3446, -3438]) set(x, 18, Z1, WINDOW);
+}
+// A shed over the owner's own furnace row and chests (they stand in the open at x -3364): a stone back wall to the
+// west, oak posts to the east, a roof (a prop) over them.
+{
+  const X = -3365, Z0 = 1953, Z1 = 1965;
+  for (let z = Z0; z <= Z1; z++) { if (!get(X, 16, z)) box(X, 16, z, X, 19, z, stone); }
+  for (const z of [Z0, 1957, 1961, Z1]) box(-3362, 16, z, -3362, 19, z, LOG);
+  for (let z = Z0; z <= Z1; z++) box(-3365, 19, z, -3362, 19, z, (x) => (x === -3365 || x === -3362 ? TIMBER : get(x, 19, z)));
+  ground(-3364, Z0, -3363, Z1, FLAG);
+}
 
-// the quay: dressed stone along the shore by the owner's pier, and a jetty out to the east on piles
-box(-3338, G - 2, 1956, -3336, G, 1978, (x, y, z) => (y === G ? CARVED : STONE));
-for (const z of [1966, 1967]) box(-3331, G, z, -3316, G, z, PLANKS);
-for (let x = -3331; x <= -3316; x += 3) for (const z of [1965, 1968]) box(x, G - 9, z, x, G, z, LOG);
-set(-3316, G + 1, 1965, LOG); set(-3316, G + 1, 1968, LOG);
+// ---------------------------------------------------------------- the yard: flags before the hall, the paths
+const pave = (x0, z0, x1, z1, b) => { for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) { const g = get(x, G, z); if ((g === GRASS || g === FLOWER || g === PATH) && !get(x, 16, z)) set(x, G, z, typeof b === 'function' ? b(x, z) : b); } };
+const flags = (x, z) => (hash(x, 3, z) < 0.12 ? COBBLE : FLAG);
+pave(-3470, 1958, -3436, 1963, flags);       // the yard before the hall and round the well
+pave(-3449, 1935, -3448, 1958, PATH);        // from the west water gate
+pave(-3436, 1943, -3435, 1963, PATH);        // from the east water gate, past the smithy
+pave(-3460, 1964, -3458, 1990, PATH);        // down to the walled road south-west
+pave(-3477, 1968, -3471, 1970, PATH);        // to the barracks door
+pave(-3435, 1963, -3352, 1964, PATH);        // east through the orchard to the gate
+pave(-3420, 1964, -3419, 1974, PATH);        // to the stable
+
+// ---------------------------------------------------------------- the dock: a jetty off the owner's pier, a T-head
+{
+  const deck = (x0, z0, x1, z1) => box(x0, 15, z0, x1, 15, z1, (x, y, z) => (hash(x, y, z) < 0.15 ? DARK : PLANKS));
+  const pile = (x, z) => { let y = 15; while (y > 2 && (get(x, y - 1, z) === WATER || get(x, y - 1, z) === AIR)) y--; box(x, y, z, x, 16, z, LOG); };
+  // open the pier's rail where the jetty leaves it
+  for (let z = 1959; z <= 1962; z++) if (get(-3332, 16, z) === BARRIER) set(-3332, 16, z, AIR);
+  deck(-3331, 1959, -3321, 1962);
+  deck(-3320, 1954, -3317, 1967);
+  for (const x of [-3331, -3327, -3323]) { pile(x, 1959); pile(x, 1962); }
+  for (const [x, z] of [[-3320, 1954], [-3317, 1954], [-3320, 1967], [-3317, 1967], [-3317, 1960], [-3317, 1961]]) pile(x, z);
+}
 
 let n = 0;
-for (const [fn, d] of files) if (d.dirty) {
+for (const [fn, d] of files) {
+  if (!d.dirty) continue;
   const parts = [];
-  for (const c of d.cols) { const runs = []; let k = 0; while (k < 112) { if (!c[k]) { k++; continue; } let l = 1; while (k + l < 112 && c[k + l] === c[k] && l < 255) l++; runs.push(k, l, c[k]); k += l; } parts.push(runs.length / 3, ...runs); }
-  fs.writeFileSync('public/mcland/' + fn, zlib.deflateRawSync(Buffer.concat([Buffer.from(parts), d.rest]), { level: 9 })); n++;
+  for (const c of d.cols) { const runs = []; let y = 0; while (y < 112) { if (!c[y]) { y++; continue; } let l = 1; while (y + l < 112 && c[y + l] === c[y] && l < 255) l++; runs.push(y, l, c[y]); y += l; } parts.push(Buffer.from([runs.length / 3, ...runs])); }
+  fs.writeFileSync('public/mcland/' + fn, zlib.deflateRawSync(Buffer.concat([...parts, d.rest]), { level: 9 })); n++;
 }
-// the hall's door and the loft ladder, among the owner's things (once)
-const SF = 'src/data/mcSigns.ts'; let s = fs.readFileSync(SF, 'utf8');
-const a = s.indexOf('export const MC_THINGS'), st = s.indexOf('[', s.indexOf('=', a)), en = s.indexOf('];', st) + 1;
-const ours = [['mcdoor', HX1 + 0.5, G + 1, HDZ + 0.5, 1.571, 0], ...[1, 2, 3, 4].map((k) => ['mcladder', LADDER[0] + 0.5, G + k, LADDER[1] + 0.5, 0, 0])];
-const arr = JSON.parse(s.slice(0, 0) || s.slice(st, en)).filter((t) => !(t[1] > X0 - 3 && t[1] < X1 + 3 && t[3] > Z0 - 3 && t[3] < Z1 + 3));
-s = s.slice(0, st) + JSON.stringify(arr.concat(ours)) + s.slice(en);
-fs.writeFileSync(SF, s);
-console.log('Awschitz Fort built', { files: n, gate: [X1, G + 1, GZ], hall: [HX0, HZ0, HX1, HZ1], walk: TOP + 1 });
+
+// ---------------------------------------------------------------- the small things: the ladders in, the jetty's rail out
+{
+  const f = 'src/data/mcSigns.ts'; let s = fs.readFileSync(f, 'utf8');
+  const i = s.indexOf('MC_THINGS'), a = s.indexOf('=', i) + 1, e = s.indexOf(';\n', a);
+  let T = JSON.parse(s.slice(a, e));
+  const gone = (t) => t[0] === 'mcfence' && Math.floor(+t[1]) === -3332 && Math.floor(+t[2]) === 16 && Math.floor(+t[3]) >= 1959 && Math.floor(+t[3]) <= 1962;
+  const have = new Set(T.map((t) => JSON.stringify(t)));
+  T = T.filter((t) => !gone(t));
+  for (const l of ladders) if (!have.has(JSON.stringify(l))) T.push(l);
+  s = s.slice(0, a) + ' ' + JSON.stringify(T) + s.slice(e);
+  fs.writeFileSync(f, s);
+}
+console.log('Awschitz: ' + n + ' chunk files, ' + ladders.length + ' ladder rungs');

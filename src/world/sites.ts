@@ -40,6 +40,7 @@ import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
 import { BANK_VAULT_PROPS, CITY_HALL_PROPS } from '../data/content/verandahHalls';
+import { AWSCHITZ_DOCK_PROPS, AWSCHITZ_PROPS } from '../data/content/awschitz';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { SQUARE_STALLS } from '../data/content/verandahSquare';
 import { STAGE_PROPS } from '../data/content/verandahStage';
@@ -900,8 +901,9 @@ function* planBody(): Generator<string, Plan> {
     } })),
     // The City Hall's furnishings (data/content/verandahHalls.ts)
     { id: 'ver-cityhall', name: '', x: -2967, z: 2081, r0: 0, r1: 0, build: (s: Site) => { for (const p of CITY_HALL_PROPS) s.props.push(p.t ? ({ ...p, y: p.y ?? 23 } as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y ?? 23, z: p.z, ry: p.ry }); } },
-    // Awschitz Fort, Verandah's coastal watch west of the town (scripts/mc/awschitz.cjs; its garrison data/content/awschitz.ts)
-    { id: 'awschitz', name: 'Awschitz Fort', x: -3362, z: 1965, r0: 0, r1: 0, build: () => {} },
+    // Awschitz Fort, the owner's walled fort west of the town, garrisoned (scripts/mc/awschitz.cjs; its garrison and props data/content/awschitz.ts)
+    { id: 'awschitz', name: 'Awschitz Fort', x: -3445, z: 1960, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_PROPS) s.props.push(p.t ? (p as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    { id: 'awschitz-dock', name: '', x: -3328, z: 1961, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_DOCK_PROPS) s.props.push(p as PropDesc); } },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
     { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of [...XAVIER_SHOWROOM, ...SHOP_COUNTERS]) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
