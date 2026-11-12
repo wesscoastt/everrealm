@@ -1039,6 +1039,7 @@ export class Game implements GameApi {
       busy: () => !!this.dialogue || this.dead || !!this.cine,
       props: this.world.props, hour: () => this.world.sky.hour,
       count: (it) => this.inv.count(it), give: (it, n = 1) => this.give(it, n), take: (it, n = 1) => { this.inv.remove(it, n); this.hud.refresh(); },
+      xp: (skill, n) => this.addXp(skill, n),
       lockDoorway: (x, y0, z, shut) => {
         const V = this.world.voxels;
         if (!V.isLoaded(x, z)) return;

@@ -11,6 +11,7 @@ import { PostRide } from './PostRide';
 import { lanePath } from './lanes';
 import type { PropMaterials } from '../world/props';
 import { Rock } from './Rock';
+import { QUARRY_GANG as QG } from '../data/content/verandahQuarry';
 
 type Pt = [number, number];
 
@@ -87,6 +88,8 @@ export interface JusticeHost {
   give(item: string, n?: number): boolean;
   take(item: string, n?: number): void;
   lockDoorway(x: number, y: number, z: number, shut: boolean): void;
+  /** Experience in a skill (the pick, on the quarry gang). */
+  xp(skill: 'mining', n: number): void;
 }
 
 const WATCH_SAYS = {
@@ -100,7 +103,7 @@ const pick = <T>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 type Arrest = { j: Jurisdiction; guard: string; mode: 'take' | 'blades'; panel: boolean; t: number; lost: number; foe?: { alive: boolean; pos: THREE.Vector3 } | null };
 /** In the wagon: along the roads in the cage (cart), or, where no road reaches, a short way off before the dark (wagon, driver). */
 type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel | null; driver: Humanoid | null; cart: PostRide | null; arrived: number; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number; rock: boolean };
-interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean }
+interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean; /** Working it off on the Verandah quarry gang. */ gang?: boolean }
 
 export class Justice {
   private arrest: Arrest | null = null;
@@ -501,6 +504,29 @@ export class Justice {
     const g = this.gaolOf(j);
     if (!g) { this.host.setFlag('jail', null); return; }
     const P = this.host.player.position;
+    // On the quarry gang: kept in the pit, let go at its rim when the time's served
+    if (j.gang) {
+      if (this.stoneWork > 0) {
+        this.stoneWork -= dt;
+        if (this.stoneWork <= 0) {
+          this.host.setPose(null);
+          const left = Math.max(0, j.until - Date.now());
+          this.host.setFlag('jail', { ...j, until: j.until - left * QG.cut });
+          this.host.xp('mining', QG.xp);
+          this.host.sfx('stepStone', 0.8);
+          this.host.system(`The block splits. The gang boss marks it: a little off your time. ${Math.ceil(left * (1 - QG.cut) / 60000)} minutes to go.`);
+        }
+      }
+      const out = P.x < QG.x0 || P.x > QG.x1 || P.z < QG.z0 || P.z > QG.z1 || P.y > QG.floor + 12;
+      if (out && !this.picking) { this.host.player.teleport(QG.arrive[0], QG.floor + 0.2, QG.arrive[1]); this.host.system('"Back down the pit, you." A minute more on your time.'); this.host.setFlag('jail', { ...j, until: j.until + 60000 }); }
+      if (Date.now() >= j.until) {
+        this.host.setFlag('jail', null);
+        this.host.setPose(null);
+        this.through(QG.rim[0], this.host.ground(QG.rim[0], QG.rim[1], 40), QG.rim[1], -Math.PI / 2);
+        this.host.banner('Let go', 'Time served on the quarry gang. Off you go.');
+      }
+      return;
+    }
     const inCell = Math.hypot(P.x - (g.x + GAOL.cell[0]), P.z - (g.z + GAOL.cell[1])) < 3 && Math.abs(P.y - g.floor) < 3;
     // Somewhere else (the game was left and came back elsewhere): back in the cell
     if (!inCell && !this.picking) this.host.player.teleport(g.x + GAOL.cell[0], g.floor, g.z + GAOL.cell[1]);
@@ -515,6 +541,9 @@ export class Justice {
   }
 
   private restAt = new THREE.Vector3();
+  /** Breaking a block on the quarry gang: seconds left of the swing, and when each block was last broken. */
+  private stoneWork = 0;
+  private stoneAt = new Map<number, number>();
 
   private release(g: GaolDef, line: string): void {
     this.resting = false; this.oakum = 0;
@@ -541,10 +570,25 @@ export class Justice {
       const g = this.gaolOf(j);
       if (!g) return out;
       const left = Math.max(0, Math.ceil((j.until - Date.now()) / 1000));
+      // On the quarry gang: the blocks to break
+      if (j.gang) {
+        QG.stones.forEach(([x, z], i) => {
+          const at = new THREE.Vector3(x + 0.5, QG.floor + 1, z + 0.5);
+          if (p.distanceTo(at) < 2.6 && this.stoneWork <= 0 && performance.now() - (this.stoneAt.get(i) ?? -1e9) > 20000) out.push({ label: `Break the stone (${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left)`, pos: at, use: () => { this.stoneWork = 3.5; this.stoneAt.set(i, performance.now()); this.host.setPose('hammer'); } });
+        });
+        return out;
+      }
       const cell = new THREE.Vector3(g.x + GAOL.cell[0], g.floor + 1, g.z + GAOL.cell[1]);
       if (p.distanceTo(cell) < 3) {
         out.push({ label: `Lie on the plank bed (${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left)`, pos: cell.clone().add(new THREE.Vector3(1, 0, 0)), use: () => { this.resting = true; this.restAt.copy(this.host.player.position); this.host.setPose('sit'); this.host.system('You lie back on the planks. The time goes quicker this way.'); } });
         if (this.oakum <= 0) out.push({ label: 'Pick oakum', pos: cell.clone().add(new THREE.Vector3(-0.8, 0, -0.8)), use: () => { this.oakum = 8; this.host.setPose('hammer'); this.host.system('You pick old rope apart into oakum, strand by strand.'); } });
+        // (the Charter's gaols in the Counties send prisoners out to the Verandah quarry gang, for those who'd rather work it off)
+        if (g.id === 'gaol-ansbury') out.push({ label: 'Ask to go on the quarry gang', pos: cell.clone().add(new THREE.Vector3(0.6, 0.4, 0.8)), use: () => {
+          this.resting = false; this.oakum = 0;
+          this.host.setFlag('jail', { ...j, gang: true });
+          this.host.system('The gaoler writes you down for the gang. A cart, a boat, and by noon you’re in the Verandah quarry with a pick in your hands. Every block you break takes a little off your time; the pick will teach your arms something too.');
+          this.through(QG.arrive[0], QG.floor + 0.2, QG.arrive[1], 0);
+        } });
         out.push({ label: 'Pick the cell lock', pos: new THREE.Vector3(g.x + 2.5, g.floor + 1.3, g.z + GAOL.cell[1]), use: () => void this.pickLock(g, j) });
       }
       return out;
