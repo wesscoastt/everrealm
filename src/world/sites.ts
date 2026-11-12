@@ -1215,6 +1215,7 @@ function* planBody(): Generator<string, Plan> {
     }
   }
   settleBanners(sites, O);
+  settleProps(sites, O);
   cached = { sites, chests, overrides: O, rectsByChunk, waymarks, monuments: monumentSpots };
   return cached;
 
@@ -7727,6 +7728,15 @@ function* planBody(): Generator<string, Plan> {
     for (const [px, pz] of [[C - 103.5, z - 6.5], [C - 103.5, z + 7.5], [C - 80.5, z - 6.5], [C - 80.5, z + 7.5]]) s.props.push({ t: 'planter', x: px, y: base, z: pz, ry: 0, tint: Math.floor(hash2(px, pz, 3) * 3) });
     s.props.push({ t: 'trough', x: C - 99.5, y: base, z: z - 5.5, ry: Math.PI / 2 });
     for (const zz of [z - 7.5, z + 8.5]) s.props.push({ t: 'stringLights', x: C - 91.5, y: base + 4.2, z: zz, ry: 0, len: 22, h: 0.6 });
+    // The drying green where the south lane ends under the hill (it was an empty lot): washing on the lines, a bench
+    // against the end wall, the woodpile, a water butt, and a tub of flowers by the gate
+    {
+      const gx = C - 140, gz = z + 15, gy = Math.floor(heightAt(gx, gz)) + 1;
+      if (Math.abs(gy - base) <= 1) s.props.push(
+        { t: 'washLine', x: gx + 4.5, y: base, z: gz + 1.5, ry: 0, len: 6 }, { t: 'washLine', x: gx + 4.5, y: base, z: gz + 5.5, ry: 0, len: 6 },
+        { t: 'bench', x: gx + 12.5, y: base, z: gz + 6.4, ry: Math.PI, len: 1.8 }, { t: 'woodpile', x: gx + 13.4, y: base, z: gz + 1.5, ry: Math.PI / 2, len: 2 },
+        { t: 'barrel', x: gx + 11.4, y: base, z: gz + 0.8 }, { t: 'planter', x: gx + 9.5, y: base, z: gz + 7.4, ry: 0, tint: 1 });
+    }
     for (const [bx, bz] of [[C - 85, z + 5], [C - 84, z + 5], [C - 85, z + 6], [C - 84, z + 6]]) block2(bx, bz, base);
     // Houses along the high street and a row behind each side
     const roofs: PropDesc['mat'][] = ['blue', 'slate', 'blue', 'red', 'slate'];
@@ -10008,6 +10018,61 @@ export function houseInto(O: BlockWriter, s: HouseSink, x0: number, z0: number, 
  * the wall along its own normal, a twentieth at a time, then lifted if it still drags; one that
  * can't be settled within a block is taken down. scripts/sitecheck.ts checks the result.
  */
+/**
+ * Nothing stands on air or water (owner 2026-11-12, "Gullmouth had lots of floating props"): every prop that stands
+ * on the ground (a crate, a barrel, a bench, a lamp post, a cart, a sign, a piece of furniture) whose feet have no
+ * solid block under them is let down onto whatever is below, within six blocks; one with only water or air under it
+ * (left on the edge of a quay that was moved, or over a hole) is taken away. Pieces stacked on another (a crate on a
+ * crate) come down with the one under them. The owner's Minecraft land isn't in the plan, so its props are left be;
+ * a ship's great cabin and a wreck stand on their own decks. scripts/sitecheck.ts and .walker/float.ts check it.
+ */
+const STANDING = new Set<string>(['crate', 'barrel', 'bench', 'bollard', 'lantern', 'cart', 'fishBox', 'lobsterPots', 'netRack', 'woodpile', 'planter', 'trough', 'firepit', 'well', 'wellhead', 'anvil', 'bellows', 'tent', 'stall', 'butt', 'pump', 'sign', 'notice', 'desk', 'crane', 'barrelRack', 'cheeseRack', 'smokeRack', 'tanVat', 'hideFrame', 'potStill', 'winePress', 'washLine', 'beehive', 'scarecrow', 'hatch', 'postBox', 'statue', 'ringSeat', 'parasol', 'doorstep', 'furn']);
+const NOT_FLOOR_FURN = new Set<string>(['lamp', 'letters', 'candles', 'pinned', 'offering', 'ribbons', 'gull', 'spyglass']);
+function settleProps(sites: Site[], O: Overrides): void {
+  const index = new Map<number, Map<number, number>>();
+  const cellOf = (x: number, y: number, z: number): number | undefined => {
+    const k = chunkKey(x >> 5, z >> 5);
+    let m = index.get(k);
+    if (!m) { m = new Map(); const a = O.map.get(k) ?? []; for (let i = 0; i < a.length; i += 2) m.set(a[i], a[i + 1]); index.set(k, m); }
+    return m.get(localIdx(x & 31, y, z & 31));
+  };
+  const solid = (fx: number, fy: number, fz: number): boolean => {
+    if (fy < 0) return true;
+    const o = cellOf(fx, fy, fz);
+    // (a barrier is a prop's own collision, not ground: a crate's barrier doesn't hold the crate up)
+    if (o !== undefined) return o !== B.Air && o !== B.Water && o !== B.Barrier && !!BLOCKS[o]?.solid && o !== B.OakLeaves && o !== B.BirchLeaves && o !== B.PineLeaves;
+    return fy < heightAt(fx, fz);
+  };
+  /** The prop's own barrier in its column (feet and the block over), lifted off when the prop moves or goes; put back where it lands. */
+  const lift = (fx: number, y0: number, fz: number): number => { let n = 0; for (const y of [y0, y0 + 1]) if (cellOf(fx, y, fz) === B.Barrier) { O.set(fx, y, fz, B.Air); index.get(chunkKey(fx >> 5, fz >> 5))?.set(localIdx(fx & 31, y, fz & 31), B.Air); n++; } return n; };
+  const mc = MC_PIECES.map((p) => pieceBounds(p));
+  const inMc = (x: number, z: number) => mc.some((b) => x >= b.x0 - 2 && x <= b.x1 + 2 && z >= b.z0 - 2 && z <= b.z1 + 2);
+  let moved = 0, gone = 0;
+  for (const site of sites) {
+    if (site.id === 'cabins' || site.id.startsWith('wreck') || site.id.startsWith('mc')) continue;
+    site.props = site.props.filter((d) => {
+      if (!STANDING.has(d.t) || (d.t === 'furn' && (NOT_FLOOR_FURN.has(String(d.item)) || String(d.item).startsWith('head:')))) return true;
+      if (inMc(d.x, d.z)) return true;
+      const fx = Math.floor(d.x), fz = Math.floor(d.z), base = Math.floor(d.y + 0.02), frac = d.y - base;
+      // (a piece set a little above a whole block sits on another piece: what counts is the block under that)
+      const feet = base;
+      void frac;
+      if (solid(fx, feet - 1, fz) || solid(fx, feet, fz)) return true;
+      for (let k = 2; k <= 6; k++) if (solid(fx, feet - k, fz)) {
+        const had = lift(fx, feet, fz);
+        d.y -= k - 1; moved++;
+        for (let i = 0; i < had; i++) O.set(fx, feet - k + 1 + i, fz, B.Barrier);
+        return true;
+      }
+      lift(fx, feet, fz);
+      gone++;
+      if ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SETTLE_LOG) console.log('  gone: ' + site.id + ' ' + d.t + ' ' + (d.item ?? '') + ' ' + d.x.toFixed(1) + ',' + d.y + ',' + d.z.toFixed(1));
+      return false;
+    });
+  }
+  if ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SETTLE_LOG) console.log('settled props: moved ' + moved + ', taken away ' + gone);
+}
+
 function settleBanners(sites: Site[], O: Overrides): void {
   const index = new Map<number, Map<number, number>>();
   const cellOf = (x: number, y: number, z: number): number | undefined => {
