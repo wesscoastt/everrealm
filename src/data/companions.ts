@@ -292,7 +292,7 @@ COMPANIONS.fdave = {
   id: 'fdave', name: 'Fisherman Dave', title: 'Gullmouth',
   home: { at: [1772.5, 640.5], face: [1776.5, 640.5], place: 'his net shed above the slip' },
   roles: ['damage', 'tank'],
-  look: { frame: 'm', skin: '#e8c4a4', hair: '#6a3a1e', hairStyle: 0, facial: 1, eyes: '#3a5a7a', glasses: '#141414', tunic: '#d8a020', trim: '#c08a18', shirt: '#5a6a2a', top: 4, braces: '#2a1e14', belt: '#2a1e14', trousers: '#22305a', boots: '#6a1e1a', shoes: 1, gloves: '#3a5a1e', hat: 'none', build: 1.05 },
+  look: { frame: 'm', skin: '#e8c4a4', hair: '#6a3a1e', hairStyle: 0, facial: 1, eyes: '#3a5a7a', glasses: '#141414', tunic: '#d8a020', trim: '#c08a18', shirt: '#5a6a2a', sleeves: '#5a6a2a', top: 4, braces: '#2a1e14', belt: '#2a1e14', trousers: '#22305a', boots: '#6a1e1a', shoes: 1, gloves: null, hat: 'none', build: 1.05 },
   outfits: [
     { id: 'own', name: 'His smock', rapport: 0, look: {} },
     { id: 'grin', name: 'In a good mood', rapport: 25, look: { smile: true } },

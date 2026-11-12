@@ -65,7 +65,7 @@ export interface Appearance {
   hair: string;
   /** Bright roots (hair style 13): the colour of the top, over the rest of the hair. */
   hairRoots?: string;
-  hairStyle: number; // 0 short, 1 long, 2 topknot, 3 shaved, 4 braids
+  hairStyle: number; // 0 short, 1 long, 2 topknot, 3 shaved, 4 braids ... 14 long curls to the waist, 15 curls to the shoulders
   /** Bare bone: a skull's sockets and teeth on the face, ribs over a dark chest (a Gravecaller's raised dead). */
   bones?: boolean;
   eyes: string;
@@ -139,6 +139,16 @@ export interface Appearance {
   top?: number;
   /** The second cloth: sleeves, the shirt under a vest, a gown's bodice. */
   shirt?: string;
+  /** Sleeves of their own colour, whatever the cut (Fisherman Dave's green under his smock); puffed at the shoulder; short to the elbow. */
+  sleeves?: string;
+  puff?: boolean;
+  shortSleeves?: boolean;
+  /** A gown's corset, laced up the front in the shirt's colour, the shirt showing above it (Becky White's). */
+  bodice?: string;
+  /** A gown open down the front over a skirt of this colour, the edges trimmed. */
+  underskirt?: string;
+  /** A shirt laced open at the neck, the chest showing (Walter White's). */
+  openNeck?: boolean;
   /** 0 trousers, 1 breeches and hose, 2 kilt, 3 wide trousers. */
   legs?: number;
   hose?: string;
@@ -1118,12 +1128,29 @@ export class Humanoid {
       const w = (top === 5 ? 0.66 : 0.58) * build;
       part(this.hips, rbox(w, 0.72, top === 5 ? 0.46 : 0.38, 0.06), top === 5 ? look.tunic : hem, 0, -0.32, 0);
       part(this.hips, rbox(w + 0.02, 0.05, (top === 5 ? 0.46 : 0.38) + 0.02, 0.02), look.trim, 0, -0.66, 0);
-      if (top === 5) part(this.torso, rbox(0.12, 0.42, 0.02, 0.01), shirt, 0, 0.44, 0.17); // laced bodice
+      if (top === 5 && !look.bodice) part(this.torso, rbox(0.12, 0.42, 0.02, 0.01), shirt, 0, 0.44, 0.17); // laced bodice
+      if (look.underskirt) {
+        // open down the front over the underskirt, its edges trimmed
+        const sw = 0.28 * build;
+        part(this.hips, rbox(sw, 0.7, 0.03, 0.01), look.underskirt, 0, -0.31, 0.235);
+        for (const sx of [1, -1]) part(this.hips, rbox(0.04, 0.7, 0.03, 0.01), look.trim, sx * (sw / 2 + 0.02), -0.31, 0.24);
+      }
     }
     if (top === 7) {
       // Long coat: tails at the back to the knee, and lapels
       part(this.torso, rbox(chestW, 0.6, 0.05, 0.02), look.tunic, 0, -0.12, -0.17);
       for (const side of [1, -1]) part(this.torso, rbox(0.08, 0.4, 0.03, 0.01), look.trim, side * 0.12, 0.5, 0.17);
+    }
+    if (look.bodice) {
+      // the corset over the chest and waist, laced in the shirt's colour; the shirt above it
+      part(this.torso, rbox(chestW * 0.86, 0.12, 0.03, 0.01), shirt, 0, 0.64, 0.17);
+      part(this.torso, rbox(chestW * 0.74, 0.44, 0.04, 0.015), look.bodice, 0, 0.38, 0.17);
+      for (let k = 0; k < 4; k++) for (const rz of [0.7, -0.7]) { const l = part(this.torso, rbox(0.11, 0.022, 0.02, 0.005), shirt, 0, 0.24 + k * 0.1, 0.195); l.rotation.z = rz; }
+    }
+    if (look.openNeck) {
+      // laced open at the neck, the chest showing
+      part(this.torso, rbox(0.16, 0.3, 0.03, 0.01), look.skin, 0, 0.55, 0.17);
+      for (let k = 0; k < 2; k++) for (const rz of [0.8, -0.8]) { const l = part(this.torso, rbox(0.15, 0.02, 0.02, 0.005), shade(look.tunic, 0.6), 0, 0.5 + k * 0.1, 0.19); l.rotation.z = rz; }
     }
     // Collar trim
     part(this.torso, rbox(0.3, 0.06, 0.34, 0.02), look.trim, 0, 0.71, 0);
@@ -1188,15 +1215,22 @@ export class Humanoid {
 
     // Arms
     // Sleeves are the shirt's under a doublet, vest or jerkin
-    const sleeve = top === 1 || top === 3 || top === 6 ? shirt : look.tunic;
+    const sleeve = look.sleeves ?? (top === 1 || top === 3 || top === 6 ? shirt : look.tunic);
+    const cuff = look.sleeves ? shade(look.sleeves, 0.7) : look.trim;
     for (const [arm, fore, side] of [[this.armL, this.foreL, 1], [this.armR, this.foreR, -1]] as const) {
       arm.position.set((fem ? 0.33 : 0.37) * side * build, 0.64, 0);
       this.torso.add(arm);
       part(arm, rbox(fem ? 0.16 : 0.18, 0.32, fem ? 0.18 : 0.2, 0.05), sleeve, 0, -0.13, 0);
+      if (look.puff) part(arm, rbox(fem ? 0.22 : 0.24, 0.2, fem ? 0.24 : 0.26, 0.07), shade(sleeve, 1.04), 0, -0.07, 0); // puffed at the shoulder
       fore.position.set(0, -0.3, 0);
       arm.add(fore);
-      part(fore, rbox(fem ? 0.15 : 0.17, 0.26, fem ? 0.17 : 0.19, 0.05), shade(sleeve, 0.95), 0, -0.1, 0);
-      part(fore, rbox(0.19, 0.07, 0.21, 0.02), look.trim, 0, -0.2, 0);
+      if (look.shortSleeves) {
+        part(fore, rbox(fem ? 0.14 : 0.16, 0.26, fem ? 0.16 : 0.18, 0.05), look.skin, 0, -0.1, 0);
+        part(fore, rbox(0.2, 0.08, 0.22, 0.02), shade(sleeve, 0.85), 0, 0.01, 0); // the frayed edge at the elbow
+      } else {
+        part(fore, rbox(fem ? 0.15 : 0.17, 0.26, fem ? 0.17 : 0.19, 0.05), shade(sleeve, 0.95), 0, -0.1, 0);
+        part(fore, rbox(0.19, 0.07, 0.21, 0.02), cuff, 0, -0.2, 0);
+      }
       part(fore, rbox(0.16, 0.15, 0.17, 0.05), look.gloves ?? look.skin, 0, -0.3, 0);
     }
     this.handR.position.set(0, -0.32, 0.02);
@@ -1237,8 +1271,9 @@ export class Humanoid {
       const m = o as THREE.Mesh;
       if (!m.isMesh || m.userData.plain) return;
       const mat = (m.material as THREE.MeshLambertMaterial).clone();
-      mat.transparent = true; mat.opacity = 0.6; mat.depthWrite = false;
-      if (mat.emissive) mat.emissive = tint.clone().multiplyScalar(0.28);
+      mat.transparent = true; mat.opacity = 0.72; mat.depthWrite = false;
+      // (pale and lit from within, each part in its own colour: the red is in the hair, the motes and the light about her)
+      if (mat.emissive) mat.emissive = mat.color.clone().multiplyScalar(0.32).add(tint.clone().multiplyScalar(0.05));
       m.material = mat; m.castShadow = false;
     });
     for (const sh of [this.shinL, this.shinR]) sh.visible = false;
@@ -1258,7 +1293,7 @@ export class Humanoid {
       this.root.add(m);
       this.ghostMotes.push(m);
     }
-    const halo = new THREE.PointLight(glow, 0.9, 4.5);
+    const halo = new THREE.PointLight(glow, 0.45, 4);
     halo.position.y = 1.2;
     this.root.add(halo);
   }
@@ -1744,7 +1779,7 @@ export class Humanoid {
     const roots = style === 13 ? this.look.hairRoots ?? '#7fe05a' : null;
     let streakAt = 0;
     const streaks = this.look.hairStreaks ?? [];
-    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => { let c = roots && y > 0.47 ? roots : h; if (streaks.length && (streakAt++ % 3 === 1)) c = streaks[Math.floor(streakAt / 3) % streaks.length]; return part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z); };
+    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => { let c = roots && y > 0.47 ? roots : h; if (streaks.length && y < 0.5 && (streakAt++ % 3 === 1)) c = streaks[Math.floor(streakAt / 3) % streaks.length]; return part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z); };
     if (hat === 'coif') {
       // A mail coif: the whole head but the face
       const mail = this.look.hatColor ?? '#9aa0a8';
@@ -1952,7 +1987,7 @@ export class Humanoid {
     const fringe = (pieces: [number, number, number][]) => { for (const [x, w, ht] of pieces) p(w, ht, 0.045, x, 0.515 - ht / 2, Z, 1.02, 0.015); };
     switch (style) {
       case 0: fringe([[-0.15, 0.14, 0.1], [-0.02, 0.14, 0.08], [0.11, 0.13, 0.06], [0.19, 0.06, 0.04]]); if (!covered) { p(0.32, 0.07, 0.14, -0.04, 0.625, 0.13, 1.1, 0.03); p(0.18, 0.05, 0.1, 0.12, 0.615, 0.15, 1.04, 0.02); } break;
-      case 1: case 4: case 11: case 13: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
+      case 1: case 4: case 11: case 13: case 14: fringe([[-0.14, 0.15, 0.07], [-0.2, 0.05, 0.12], [0.14, 0.15, 0.07], [0.2, 0.05, 0.12]]); break;
       case 5: fringe([[-0.12, 0.2, 0.1], [0.08, 0.2, 0.1], [0.19, 0.06, 0.08]]); break;
       case 8: for (const [x, y] of [[-0.14, 0.49], [0.0, 0.5], [0.14, 0.49]]) p(0.12, 0.1, 0.08, x, y, 0.21, 1.04, 0.04); break;
       case 10: fringe([[0.04, 0.32, 0.06]]); p(0.13, 0.15, 0.05, 0.14, 0.45, Z, 1.04, 0.015); break;
@@ -2010,6 +2045,20 @@ export class Humanoid {
           p(0.09, 0.18, 0.09, s * 0.31, 0.21, -0.13, 0.94, 0.03);
           p(0.07, 0.1, 0.07, s * 0.31, 0.07, -0.13, 0.9, 0.03);
         }
+        break;
+      case 14: // long curls to the waist, falling over the shoulders in front and down the back (Becky White's)
+        p(0.58, 0.16, 0.56, 0, 0.58, -0.02, 1.04, 0.05);
+        p(0.62, 0.95, 0.14, 0, 0.08, -0.25, 0.94, 0.05);
+        for (let k = 0; k < 6; k++) p(0.62 - (k % 2) * 0.06, 0.14, 0.16, (k % 2 ? 0.03 : -0.03), -0.45 - k * 0.09, -0.26 - (k % 2) * 0.02, k % 2 ? 0.9 : 0.98, 0.04);
+        for (const s of [1, -1]) for (let k = 0; k < 9; k++) {
+          const y = 0.48 - k * 0.15, wob = (k % 2 ? 0.035 : -0.025) * s;
+          p(0.14, 0.17, 0.2, s * 0.29 + wob, y, -0.06 + (k % 3) * 0.02, k % 2 ? 0.92 : 1.02, 0.05);
+          if (k >= 2) p(0.12, 0.16, 0.12, s * (0.22 + (k % 2) * 0.03), y - 0.04, 0.12 + (k % 2) * 0.02, k % 2 ? 0.95 : 1.05, 0.05); // over the shoulder, down the front
+        }
+        break;
+      case 15: // curls to the shoulders, all round (Walter White's)
+        p(0.56, 0.16, 0.54, 0, 0.57, -0.02, 1.02, 0.06);
+        for (const [cx, cy, cz] of [[-0.27, 0.42, 0.04], [0.27, 0.42, 0.04], [-0.28, 0.27, -0.02], [0.28, 0.27, -0.02], [-0.27, 0.12, -0.06], [0.27, 0.12, -0.06], [-0.18, 0.42, -0.24], [0.18, 0.42, -0.24], [0, 0.4, -0.27], [-0.2, 0.22, -0.25], [0.2, 0.22, -0.25], [0, 0.18, -0.27], [-0.12, 0.05, -0.25], [0.12, 0.05, -0.25]]) p(0.15, 0.15, 0.15, cx, cy, cz, (cx + cy) % 0.2 > 0.1 ? 1.06 : 0.94, 0.06);
         break;
       case 12: // wild mane
         p(0.56, 0.2, 0.52, 0, 0.57, -0.03, 1.02, 0.06);

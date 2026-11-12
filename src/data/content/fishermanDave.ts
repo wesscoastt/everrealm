@@ -71,8 +71,9 @@ const items: ItemDef[] = [
     stats: 'Head. Defence 2, maximum health +20. Whoever wears it can hurt the Cursekeeper. Put it on Fisherman Dave (talk to him) and he casts with it.' },
 ];
 
-const BECKY_GHOST = { frame: 'f' as const, skin: '#d8dce8', hair: '#1a0a0e', hairStyle: 1, hairStreaks: ['#b8141e', '#7a0a12', '#d02028'], eyes: '#e8e8f0', glasses: '#0e0e10', tunic: '#a8a8b4', trim: '#5a5a66', shirt: '#e8e8f0', top: 5, trousers: '#c8c8d4', boots: '#9a9aa8', lashes: true, smile: true, ghost: '#ff2a3a', age: 0.35 };
-const BECKY_HUMAN = { frame: 'f' as const, skin: '#e8c4a4', hair: '#5a2a8a', hairStyle: 1, hairStreaks: ['#c81e5a', '#e8642a', '#2a8a6a', '#3a6ac8'], eyes: '#3a2a20', glasses: '#0e0e10', tunic: '#5a2a7a', trim: '#c8902a', shirt: '#ece4d4', top: 5, trousers: '#ece4d4', boots: '#4a2a1a', shoes: 2, lashes: true, smile: true, age: 0.35 };
+// (to the owner's concept art, 2026-11-11: long full curls to the waist, glasses, a corset laced over a pale chemise, a gown)
+const BECKY_GHOST = { frame: 'f' as const, skin: '#d8dce8', hair: '#1a0a0e', hairStyle: 14, hairStreaks: ['#7a0a12', '#c8141e', '#3a0a10'], eyes: '#e8e8f0', glasses: '#0e0e10', tunic: '#9a9aa6', trim: '#b8b8c4', shirt: '#e8e8f0', sleeves: '#e4e4ee', puff: true, bodice: '#5a5a66', underskirt: '#d8d8e2', top: 5, trousers: '#c8c8d4', boots: '#9a9aa8', lashes: true, smile: true, ghost: '#ff2a3a', age: 0.35 };
+const BECKY_HUMAN = { frame: 'f' as const, skin: '#e8c4a4', hair: '#5a2a8a', hairStyle: 14, hairStreaks: ['#c81e5a', '#e8642a', '#2a8a6a', '#3a6ac8'], eyes: '#3a2a20', glasses: '#0e0e10', tunic: '#5a2a7a', trim: '#c8902a', shirt: '#ece4d4', sleeves: '#ece4d4', puff: true, bodice: '#6a3a1e', underskirt: '#ece4d4', top: 5, trousers: '#ece4d4', boots: '#4a2a1a', shoes: 2, lashes: true, smile: true, age: 0.35 };
 
 const npcs: NpcDef[] = [
   {
@@ -91,7 +92,8 @@ const npcs: NpcDef[] = [
   },
   {
     id: 'fd_walter', name: 'Walter White', title: 'Rancher',
-    look: { skin: '#e2b894', hair: '#5a3a1e', hairStyle: 1, eyes: '#4a3a2a', tunic: '#7a5a36', trim: '#5a3a1e', shirt: '#e2b894', top: 3, trousers: '#5a3e22', boots: '#5a3a1e', shoes: 1, belt: '#4a2e18', hat: 'cowboy', hatColor: '#d8287a', build: 1.05, age: 0.55, smile: true },
+    // (to the owner's concept art: curls to the shoulders, a hot-pink cowboy hat, a frayed shirt to the elbow laced open at the chest, brown trousers, tall boots)
+    look: { skin: '#e2b894', hair: '#4a2a14', hairStyle: 15, eyes: '#3a2a1a', tunic: '#6e4e2c', trim: '#5a3a1e', sleeves: '#6e4e2c', shortSleeves: true, openNeck: true, top: 0, trousers: '#5a3e22', boots: '#6a4224', shoes: 1, belt: '#4a2e18', hat: 'cowboy', hatColor: '#ff2fa0', build: 1.05, age: 0.45, smile: true },
     schedule: [{ from: 0, to: 24, at: WALTER_YARD, face: [WALTER_YARD[0] + 4, WALTER_YARD[1]], anim: 'idle' }],
     barks: ['The cows know when it\'s going to rain. They don\'t tell me. I respect that.', 'Mind the sheep. They\'re cleverer than they let on.', 'Lovely day for standing in a field.'],
   },
