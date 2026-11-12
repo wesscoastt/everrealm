@@ -145,7 +145,7 @@ The plan is about 112 chapters in ten acts, 60 to 80 hours. Acts I to IV and the
 Each region has its own complete story beside the main one:
 - **Verandah's "The Silent Waters":** merchant ships and fishing boats going missing, smuggling, and corruption
   among powerful merchant houses (planned).
-- **The Fisherman Dave and Becky White questline:** a ghost in town, a grieving drunk fisherman, a strange rancher
+- **The Fisherman Dave and Becky White questline** (Dave is in the game; his story is being rewritten to the owner's brief): a ghost in town, a grieving drunk fisherman, a strange rancher
   father, a magical Pilgrim Hat, and a reaper-like Cursekeeper whose death frees Becky (planned).
 - **Group dungeons and public dungeons** with their own small stories, such as Black Gull Keep's wreckers and the
   Sunken Temple's drowned prior.
