@@ -40,7 +40,7 @@ const DAVE = 'fdave';
 
 /** Where it all happens (checked dry land by .walker/h.ts; see the brief's section 12, existing places only). */
 const BECKY_TOWN: [number, number] = [1762.5, 641.5];   // the fair green, Gullmouth (in the open, clear of the wine store)
-const FORD_POST: [number, number] = [1758.5, 597.5];    // the top of the quay road, by the Charter Post
+const FORD_POST: [number, number] = [1761.5, 598.5];    // the top of the quay road, by the Charter Post (out in the road before it: he stood on its roof)
 const WALTER_YARD: [number, number] = [1594.5, 521.5];  // the farm north-west of Gullmouth
 const RITUAL: [number, number] = [1612.5, 700.5];       // the copse west of town, by Brock's Smokehouse
 const RUIN: [number, number] = [1694.5, 792.5];         // the old ruin south of town

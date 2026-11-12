@@ -5505,6 +5505,16 @@ function* planBody(): Generator<string, Plan> {
       ? house(s, coast + dx - 2, z + dz - 2, 9, 8, 2, base, 'slate', door, { wall: B.StoneBrick, front: 'quoined', role: 'bank', trim: ['hood'] })
       : house(s, coast + dx, z + dz, 7, 6, 1 + (i === 1 ? 1 : 0), base, roofs[i], door, { wall: i % 2 ? B.Plaster : B.Planks, role: roles[i] }));
     street(coast - 60, z - 4, coast - 12, z + 4);
+    // The harbour office's yard, between its front and the high street (owner 2026-11-07, "Gullmouth: still rough": it
+    // was a bare lawn with the broker standing in it): flagged, the Exchange's desk and its sign where Morwenna Tregear
+    // keeps the book, benches for whoever's waiting, planters along the front, a lamp
+    const C0 = Math.floor(coast);
+    pave(C0 - 33, z - 13, C0 - 11, z - 5, base, 'flag');
+    s.props.push({ t: 'desk', x: C0 - 21.5, y: base, z: z - 10.4, ry: Math.PI }, { t: 'sign', x: C0 - 24.2, y: base, z: z - 10.6, ry: 0, text: 'The Exchange\nGullmouth' },
+      { t: 'furn', item: 'letters', x: C0 - 21.5, y: base + 0.85, z: z - 10.4, ry: 0 } as PropDesc,
+      { t: 'bench', x: C0 - 16.5, y: base, z: z - 6.6, ry: Math.PI, len: 1.8 },
+      { t: 'lantern', x: C0 - 26.5, y: base, z: z - 5.4, ry: 0 });
+    for (const px of [C0 - 32.5, C0 - 18.5, C0 - 11.5]) s.props.push({ t: 'planter', x: px, y: base, z: z - 12.4, ry: 0, tint: Math.floor(hash2(px, z, 5) * 3) });
     // Two jetties out from the quay (gullmouthHarbour builds it), at its height on timber piles
     for (const jz of [z - 2, z + 6]) {
       // (the north jetty runs the merchantman's length; the south one stops short of the ferry's berth off its head)
