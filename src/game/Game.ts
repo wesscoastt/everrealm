@@ -131,11 +131,12 @@ import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
+import { HouseGuests } from './HouseGuests';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
 import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaPlace, villaSeller, villaShape, VILLAS } from '../data/mirador';
 import { VERANDAH_HOMES } from '../data/verandahHomes';
-import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_PRICE, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
+import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_D, LOT_PRICE, LOT_W, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
@@ -585,6 +586,8 @@ export class Game implements GameApi {
   private hallFare = false;
   /** Laying and digging blocks by hand on your own lot. */
   lotBuild!: LotBuild;
+  /** Companions you've sent to live at your house (game/HouseGuests.ts). */
+  private houseGuests!: HouseGuests;
   /** Blocks laid since the realm's book last heard (sent a moment after you stop). */
   private laidDirty = -1;
   planner!: Planner;
@@ -1170,6 +1173,18 @@ export class Game implements GameApi {
     this.building = new Building({ scene: this.scene, voxels: this.world.voxels, buildProps: (s) => this.world.buildProps(s) });
     this.halls = new GuildHalls({ scene: this.scene, buildProps: (s) => this.world.buildProps(s) });
     this.world.extraDoors = () => this.building.doors();
+    this.houseGuests = new HouseGuests({
+      scene: this.scene, voxels: this.world.voxels,
+      shape: () => (this.home.visiting ? null : this.myHome()),
+      yard: () => { const pl = readPlot(this.flag('plot')); const l = pl?.spec ? LOTS.find((x) => x.id === pl.lot) : null; return l ? { x0: l.x0, z0: l.z0, x1: l.x0 + LOT_W, z1: l.z0 + LOT_D } : null; },
+      pieces: () => this.home.pieces(),
+      garden: () => { const v = this.flag('garden'); return v && typeof v === 'object' ? Object.keys(v) : []; },
+      player: () => this.player.position,
+      hour: () => this.world.sky.hour,
+      who: () => this.atHouse(),
+      look: (id) => this.companions.henchmanOf(id).look as Appearance,
+      say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
+    });
     this.lotBuild = new LotBuild({
       scene: this.scene, voxels: this.world.voxels,
       lot: () => { const pl = readPlot(this.flag('plot')); return pl ? LOTS.find((l) => l.id === pl.lot) ?? null : null; },
@@ -5942,6 +5957,8 @@ export class Game implements GameApi {
         if (d < 3 && Math.abs(lt.base - p.y) < 3) consider({ kind: 'act', label: `Browse ${h.owner}'s stall`, pos: new THREE.Vector3(st.x, lt.base + 1.4, st.z), act: () => this.openStall(id, h.owner, false) }, d);
       }
     }
+    // A companion living at your house: talk to them, the way you would anywhere
+    { const hg = this.houseGuests.near(p); if (hg) consider({ kind: 'act', label: `Talk to ${compShort(hg.id)}`, pos: hg.pos.clone().setY(hg.pos.y + 2.1), act: () => { const npc = this.npcs.find((n) => n.def.id === 'comp_' + hg.id); if (npc) { npc.pos.copy(hg.pos); this.startDialogue(npc); } } }, 1.6); }
     // On your own lot: lay blocks and dig them out by hand
     if (!this.lotBuild.active && !this.home.active && this.lotBuild.onLot(p)) consider({ kind: 'act', label: 'Build on your lot', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => { this.hud.closeAll(); this.lotBuild.start(); } }, 2.2);
     // Stations of your own at home: a bench, a range, an anvil, a forge, each works like the town's
@@ -6672,18 +6689,26 @@ export class Game implements GameApi {
     const mood = (r: number) => (r >= 60 ? 'Devoted to you' : r >= 30 ? 'Warm toward you' : r >= 10 ? 'Friendly' : r > -10 ? 'Still getting the measure of you' : r > -40 ? 'Cool toward you' : 'Close to leaving you');
     const busy = this.dead ? 'Not while you\'re down.' : this.dungeons.run || this.tower.run ? 'Not from in here. They\'ll be waiting outside.' : this.reckoning.active ? 'Not in the middle of this.' : this.save.flags.jail ? 'The watch won\'t let anyone in to see you.' : null;
     const ids = (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`]);
+    const home = !!this.myHome();
     const rows = ids.map((id) => {
       const c = COMPANIONS[id], h = this.companions.henchmanOf(id), on = this.companions.active === id;
+      const house = !!this.save.flags[`comp:${id}:house`];
       return {
         name: c.name, title: c.title, look: h.look as Appearance, with: on,
-        state: on ? 'With you' : `At ${c.home.place}`, mood: mood(this.companions.rapport(id)),
+        state: on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`, mood: mood(this.companions.rapport(id)),
         why: !on && busy ? busy : undefined,
         summon: on || busy ? undefined : () => this.summonCompanion(id),
-        dismiss: on ? () => { this.compDismiss(); this.openCompanions(); } : undefined,
+        house: home && !house && !busy ? () => { this.companions.toHouse(id); this.persist(); this.openCompanions(); } : undefined,
+        dismiss: on || house ? () => { if (on) this.compDismiss(); else { this.setFlag(`comp:${id}:house`, null); this.hud.system(`${compShort(id)} goes back to ${c.home.place}.`); this.persist(); } this.openCompanions(); } : undefined,
       };
     });
     const more = (Object.keys(COMPANIONS) as CompanionId[]).some((id) => id !== 'dave' && !this.save.flags[`comp:${id}:joined`]) ? 'Others you meet on the road may walk with you too, if you ask them.' : '';
     this.hud.companionWindow(rows, more);
+  }
+  /** The companions living at your house, and not out with you. */
+  private atHouse(): CompanionId[] {
+    if (!this.myHome()) return [];
+    return (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:house`] && this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`] && this.companions.active !== id);
   }
   /** Called to your side: they come in at a run from just out of sight, and say so. */
   private summonCompanion(id: CompanionId): void {
@@ -7828,6 +7853,7 @@ export class Game implements GameApi {
     } else if (!this.hud.isOpen('finder')) this.lfgAsk = 0;
     this.drawPractice();
     this.lotBuild.update();
+    if (!this.dungeons.run) this.houseGuests.update(dt);
     // What you've laid on your lot goes to the realm's book a moment after you stop
     if (this.laidDirty >= 0 && this.elapsed - this.laidDirty > 1.5) {
       this.laidDirty = -1;

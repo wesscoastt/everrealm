@@ -97,6 +97,7 @@ export class Companions {
     this.dismiss(true);
     this.id = id;
     this.host.setFlag('comp:active', id);
+    this.host.setFlag(`comp:${id}:house`, null);
     this.spawn();
     this.banterIn = 25;
   }
@@ -107,6 +108,12 @@ export class Companions {
     if (this.id && !quiet) this.host.system(`${compShort(this.id)} goes back to ${COMPANIONS[this.id].home.place}.`);
     this.ally = null; this.steed = null; this.id = null;
     this.host.setFlag('comp:active', null);
+  }
+  /** Send them to live at your house until you call them (game/HouseGuests.ts). */
+  toHouse(id: CompanionId): void {
+    if (this.id === id) this.dismiss(true);
+    this.host.setFlag(`comp:${id}:house`, 1);
+    this.host.system(`${compShort(id)} heads off to your house.`);
   }
   /** They've had enough of you: gone for good. */
   leave(id: CompanionId): void {

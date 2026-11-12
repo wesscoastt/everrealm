@@ -587,7 +587,7 @@ export const COMPANION_CONTENT: RegionContent = {
       barks: [],
       // (not when they've gone for good: Tam taken off the quay, or anyone who died in the main story)
       // (Ned only once your name has got about: level 15)
-      when: (g) => g.compActive() !== id && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15)
+      when: (g) => g.compActive() !== id && !g.flag(`comp:${id}:house`) && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15)
         // (David Kitto only for those who had him before Fisherman Dave's story replaced his; owner 2026-11-11)
         && (id !== 'dave' || !!g.flag('comp:dave:joined')),
     };

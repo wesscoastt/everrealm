@@ -1050,10 +1050,10 @@ export class Hud {
    * to remember where each goes to on the map"): everyone who's joined you, their face, how they feel about you and what
    * they're doing, with Summon to call them to your side from wherever they are, and Send back.
    */
-  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; dismiss?: () => void }[], more: string): void {
+  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; house?: () => void; dismiss?: () => void }[], more: string): void {
     const box = this.q('#postcard');
     box.classList.add('wide');
-    box.innerHTML = `<h3 class="cw-h">Companions</h3><p class="pc-q">${rows.length ? 'Call one to your side, wherever they are. One walks with you at a time.' : 'Nobody walks with you yet. People you meet on the road may, if you ask them.'}</p>
+    box.innerHTML = `<h3 class="cw-h">Companions</h3><p class="pc-q">${rows.length ? 'Call one to your side, wherever they are, or send them to live at your house. One walks with you at a time.' : 'Nobody walks with you yet. People you meet on the road may, if you ask them.'}</p>
       <div class="en-rows"></div><p class="pc-rules cw-more"></p><div class="row"><button class="btn ghost pc-x">Close</button></div>`;
     const list = box.querySelector('.en-rows')!;
     for (const r of rows) {
@@ -1066,6 +1066,7 @@ export class Hud {
       const btns = row.querySelector('.cw-btns')!;
       const button = (label: string, fn: () => void, ghost = false) => { const b = el('button', 'btn sm' + (ghost ? ' ghost' : ''), label); b.addEventListener('click', fn); btns.append(b); };
       if (r.summon) button('Summon', r.summon);
+      if (r.house) button('To your house', r.house, true);
       if (r.dismiss) button('Send back', r.dismiss, true);
       list.append(row);
     }
