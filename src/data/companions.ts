@@ -33,7 +33,7 @@ export interface CompanionDef {
 export type CompanionEvent = 'crime' | 'revive' | 'vista' | 'wonder' | 'book' | 'treat' | 'boss' | 'bounty' | 'quest' | 'rare' | 'theft';
 /** When they talk: the land around you, the town you're in, the hour, the fight, the festival. */
 export type BanterKey = 'greenwake' | 'crownroad' | 'brambledeep' | 'saltwind' | 'redstone' | 'starfall' | 'morrow'
-  | 'ansbury' | 'gullmouth' | 'harrowgate' | 'kelderby' | 'kirk' | 'night' | 'rain' | 'wake' | 'fight' | 'won' | 'hurt' | 'down' | 'swim' | 'ride' | 'idle' | 'partner';
+  | 'ansbury' | 'gullmouth' | 'harrowgate' | 'kelderby' | 'kirk' | 'night' | 'rain' | 'wake' | 'fight' | 'won' | 'hurt' | 'down' | 'swim' | 'ride' | 'idle' | 'partner' | 'called';
 
 export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId, CompanionDef>>{
   // ---------------------------------------------------------------- Wenna Hale
@@ -80,6 +80,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId
       down: ['Up. Get up. I\'ve got you.'],
       ride: ['Give her her head on the straight. She knows the road better than you.'],
       swim: ['I don\'t swim. Riders don\'t swim. Riders ride round.'],
+      called: ['You sent for me. I came.', 'Here. Where are we going?', 'I was mending a strap. It can wait.'],
       idle: ['When you\'re ready.', 'I could do with walking.', 'The road\'s still there, last I looked.'],
       partner: ['You know you snore? Not much. Just enough that I know you\'re there.', 'If anyone asks, I\'m your bodyguard. If you ask, I\'m not.'],
     },
@@ -126,6 +127,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId
       down: ['No, no, no. Up you come. Breathe.'],
       swim: ['Water\'s eleven degrees. I checked. Don\'t ask how.'],
       ride: ['If I fall off, measure where I land.'],
+      called: ['I came as fast as the tripod would let me. Which is not fast.', 'You found me! Well, I found you. Somebody found somebody.', 'I\'ve brought the good pencils. Where are we?'],
       idle: ['Do you mind if I take a reading?', 'Two minutes. Three. Four at most.', 'I\'m not lost. I know exactly where I am. I just don\'t know where anything else is.'],
       partner: ['I measured how far apart we walk. It\'s getting shorter. That\'s not a complaint.', 'You\'re the only thing in the counties I haven\'t been able to measure. I mean that kindly.'],
     },
@@ -171,6 +173,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId
       down: ['Oh, don\'t you dare. Come on, up.'],
       ride: ['If this horse wins a race, I want a cut.'],
       swim: ['Boatman\'s son. Never learned to swim. Never needed to. Boats.'],
+      called: ['I was winning, for once. This had better be worth it.', 'You called? I\'d have come anyway. I was losing.', 'Miss me? Don\'t answer that.'],
       idle: ['Fancy a game? Penny a point.', 'I\'m not bored. I\'m resting my wit.', 'You\'re quiet. I like that in a partner. At cards, I mean.'],
       partner: ['Funny thing. I\'ve stopped counting the exits when you\'re in the room.', 'I\'ve never bet on anything I couldn\'t fix. Except you. Still winning.'],
     },
@@ -225,6 +228,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId
       down: ['No no no no. Up. Please. The book isn\'t finished.'],
       ride: ['I can\'t ride, really. I\'m holding on. I\'m holding on with my whole self.'],
       swim: ['I can\'t swim either. I\'m learning. From watching you. Is this how? Is THIS how?'],
+      called: ['You asked for me. Me! I\'m telling everyone.', 'I ran the whole way. I\'m fine. I need a moment. I\'m fine.', 'Ready! I\'ve been ready since you left.'],
       idle: ['Would you sign the book again? The first time was a bit smudged.', 'I\'ve been thinking what your statue should look like. Taller. That\'s all. Just taller.', 'Do you need anything carried? I could carry you. I couldn\'t carry you.', 'Sorry. I was staring. I\'ll stop. I\'ve stopped. Mostly.'],
       partner: ['I never thought you\'d look at me. Now you do, I don\'t know where to look.'],
     },
@@ -278,6 +282,7 @@ export const COMPANIONS: Record<CompanionId, CompanionDef> = <Record<CompanionId
       down: ['Get up. Please. I can\'t lose two.'],
       ride: ['Never sat a horse in my life. It\'s like a boat that has opinions.'],
       swim: ['Most fishermen can\'t swim. Quicker that way, they say. I learned anyway. For her.'],
+      called: ['Tide\'s turned anyway. What do you need?', 'Left the nets with my brother. He\'ll make a mess of them.', 'Right. I\'m here.'],
       idle: ['Becky would\'ve liked you. She liked anyone who didn\'t talk for the sake of it.', 'I can mend a net in the dark by feel. Twenty years of it. My hands do it while I\'m thinking.', 'Do you want a sandwich? I\'ve got a sandwich. It\'s fish.', 'You\'re a good teacher. You don\'t shout. Much.'],
       partner: ['You know where I stand. I\'ll not say it twice.'],
     },
@@ -317,6 +322,7 @@ COMPANIONS.fdave = {
     hurt: ['I\'m fine. I\'m fine. Is that mine? That\'s mine.', 'Sit down a minute. You\'ve gone a funny colour.'],
     down: ['Get up! Get up, please. I can\'t do this on my own.'],
     swim: ['I can swim. I just don\'t like to. The fish look at you.'],
+      called: ['I came. I didn\'t even stop at the pub. Well, I stopped. I didn\'t go in.', 'Here I am. Becky says hello. She also says sit up straight.', 'You need me? Nobody\'s needed me in years. Lead on.'],
     idle: ['Well, things certainly turned out better than I expected.', 'I\'ve got my hat, I\'ve got Becky, and I\'ve got a reason to get out of bed. That\'s a pretty good day.', 'You ever notice how strange life gets when you stop drinking long enough to pay attention?', 'I suppose I ought to thank you again. I might get around to it eventually.', 'Do you want a sandwich? I\'ve got half a sandwich.'],
     partner: ['You know where I stand. I\'m not saying it twice. Once was hard enough.'],
   },

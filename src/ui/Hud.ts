@@ -337,6 +337,8 @@ export interface UiCtx {
   /** Deletes the character being played and goes back to character select. */
   resetSave(): void;
   ability(i: number): void;
+  /** Open the companions window (U). */
+  companions(): void;
   /** Play an emote (from the chat box's menu). */
   emote(id: string): void;
   /** Send what was typed in the chat box (lines and /commands). */
@@ -563,12 +565,13 @@ export class Hud {
           <button class="menu-btn" data-p="map">M<small>Map</small></button>
           <button class="menu-btn" data-p="finder" title="Group Finder: dungeons, with a group or henchmen (P)">P<small>Group</small></button>
           <button class="menu-btn" data-p="guild">O<small>Social</small></button>
+          <button class="menu-btn" data-c="1" title="Your companions: call one to your side, or send them back (U)">U<small>Allies</small></button>
           <button class="menu-btn" data-p="settings">☰<small>Menu</small></button>
         </div>
       </div>`;
     r.append(ab);
     ab.querySelectorAll<HTMLElement>('.ab-slot').forEach((s) => s.addEventListener('click', () => this.ctx.ability(Number(s.dataset.ab))));
-    ab.querySelectorAll<HTMLElement>('.menu-btn').forEach((b) => b.addEventListener('click', () => this.toggle(b.dataset.p as PanelId)));
+    ab.querySelectorAll<HTMLElement>('.menu-btn').forEach((b) => b.addEventListener('click', () => (b.dataset.c ? this.ctx.companions() : this.toggle(b.dataset.p as PanelId))));
 
     r.append(Object.assign(el('div', 'frame hud-only'), { id: 'prompt' }));
     const cb = el('div', 'frame hud-only'); cb.id = 'castbar'; cb.innerHTML = '<div class="label"></div><div class="bar"><i></i></div>'; r.append(cb);
@@ -1040,6 +1043,43 @@ export class Hud {
     box.querySelector('.pc-all')!.addEventListener('click', () => takeAll());
     box.querySelector('.pc-x')!.addEventListener('click', () => box.classList.remove('show'));
     box.classList.add('show');
+  }
+
+  /**
+   * Your companions, ESO's way (owner 2026-11-12: "a menu where you can summon your companions like ESO so you don't have
+   * to remember where each goes to on the map"): everyone who's joined you, their face, how they feel about you and what
+   * they're doing, with Summon to call them to your side from wherever they are, and Send back.
+   */
+  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; dismiss?: () => void }[], more: string): void {
+    const box = this.q('#postcard');
+    box.classList.add('wide');
+    box.innerHTML = `<h3 class="cw-h">Companions</h3><p class="pc-q">${rows.length ? 'Call one to your side, wherever they are. One walks with you at a time.' : 'Nobody walks with you yet. People you meet on the road may, if you ask them.'}</p>
+      <div class="en-rows"></div><p class="pc-rules cw-more"></p><div class="row"><button class="btn ghost pc-x">Close</button></div>`;
+    const list = box.querySelector('.en-rows')!;
+    for (const r of rows) {
+      const row = el('div', 'en-row cw-row' + (r.with ? ' on' : '') + (r.why ? ' no' : ''));
+      row.innerHTML = '<div class="slot cw-face"><canvas width="32" height="32"></canvas></div><div class="en-mid"><b></b><small class="cw-t"></small><small class="en-now"></small></div><div class="cw-btns"></div>';
+      drawFace(row.querySelector('canvas')!, r.look);
+      row.querySelector('b')!.textContent = r.name;
+      row.querySelector('.cw-t')!.textContent = r.title;
+      row.querySelector('.en-now')!.textContent = r.why ?? `${r.state} · ${r.mood}`;
+      const btns = row.querySelector('.cw-btns')!;
+      const button = (label: string, fn: () => void, ghost = false) => { const b = el('button', 'btn sm' + (ghost ? ' ghost' : ''), label); b.addEventListener('click', fn); btns.append(b); };
+      if (r.summon) button('Summon', r.summon);
+      if (r.dismiss) button('Send back', r.dismiss, true);
+      list.append(row);
+    }
+    box.querySelector('.cw-more')!.textContent = more;
+    box.querySelector('.pc-x')!.addEventListener('click', () => { box.classList.remove('show', 'wide'); this.ctx.sfx('close'); });
+    if (!box.classList.contains('show')) this.ctx.sfx('open');
+    box.classList.add('show');
+  }
+  /** Close the companions window, if it's the one open; true if it was. */
+  closeCompanions(): boolean {
+    const box = this.q('#postcard');
+    if (!box.classList.contains('wide') || !box.classList.contains('show')) return false;
+    box.classList.remove('show', 'wide');
+    return true;
   }
 
   /** Write a message post to leave where you stand. */

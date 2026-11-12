@@ -4032,6 +4032,7 @@ export class Game implements GameApi {
       sfx: (n: 'click' | 'open' | 'close') => g.sfx(n),
       resetSave: () => { if (g.charId) deleteCharacter(g.charId); location.reload(); },
       ability: (i: number) => g.useAbility(i),
+      companions: () => g.openCompanions(),
       emote: (id: string) => g.doEmote(id),
       say: (t: string) => g.say(t),
       mapMarkers: () => g.mapMarkers(true),
@@ -6662,6 +6663,42 @@ export class Game implements GameApi {
   compLeave(id: string): void { this.companions.leave(id as CompanionId); this.persist(); }
   compRapport(id: string, delta: number): void { this.companions.addRapport(id as CompanionId, delta); }
   compActive(): string | null { return this.companions?.active ?? null; }
+
+  /**
+   * The companions window (U, or Allies on the bar): everyone who has joined you, called to your side from wherever
+   * they are, or sent back. Not into a dungeon or the tower (they have their own parties), nor from a cell.
+   */
+  openCompanions(): void {
+    const mood = (r: number) => (r >= 60 ? 'Devoted to you' : r >= 30 ? 'Warm toward you' : r >= 10 ? 'Friendly' : r > -10 ? 'Still getting the measure of you' : r > -40 ? 'Cool toward you' : 'Close to leaving you');
+    const busy = this.dead ? 'Not while you\'re down.' : this.dungeons.run || this.tower.run ? 'Not from in here. They\'ll be waiting outside.' : this.reckoning.active ? 'Not in the middle of this.' : this.save.flags.jail ? 'The watch won\'t let anyone in to see you.' : null;
+    const ids = (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`]);
+    const rows = ids.map((id) => {
+      const c = COMPANIONS[id], h = this.companions.henchmanOf(id), on = this.companions.active === id;
+      return {
+        name: c.name, title: c.title, look: h.look as Appearance, with: on,
+        state: on ? 'With you' : `At ${c.home.place}`, mood: mood(this.companions.rapport(id)),
+        why: !on && busy ? busy : undefined,
+        summon: on || busy ? undefined : () => this.summonCompanion(id),
+        dismiss: on ? () => { this.compDismiss(); this.openCompanions(); } : undefined,
+      };
+    });
+    const more = (Object.keys(COMPANIONS) as CompanionId[]).some((id) => id !== 'dave' && !this.save.flags[`comp:${id}:joined`]) ? 'Others you meet on the road may walk with you too, if you ask them.' : '';
+    this.hud.companionWindow(rows, more);
+  }
+  /** Called to your side: they come in at a run from just out of sight, and say so. */
+  private summonCompanion(id: CompanionId): void {
+    this.companions.join(id);
+    this.persist();
+    const b = this.companions.body;
+    if (b) {
+      this.particles.burst(tmpV.set(b.pos.x, b.pos.y + 1, b.pos.z), '#e8d8a0', 18);
+      const lines = COMPANIONS[id].banter.called ?? COMPANIONS[id].banter.idle;
+      this.hud.system(`${compShort(id)} comes to your side.`);
+      if (lines?.length) this.floatAt(b.pos, 2.4, lines[Math.floor(Math.random() * lines.length)], 'chatter');
+    }
+    this.sfx('open');
+    this.openCompanions();
+  }
   playScene(id: string, who: { name: string; title: string; look: Appearance }): void {
     const tree = DIALOGUE[id];
     if (!tree) return;
@@ -7936,7 +7973,7 @@ export class Game implements GameApi {
       if (I.pressedOnce('Escape')) H.stop();
     }
     if (I.pressedOnce('Escape')) {
-      if (!this.devPanel.close() && !this.hud.closeAll()) {
+      if (!this.devPanel.close() && !this.hud.closeCompanions() && !this.hud.closeAll()) {
         if (this.target) this.target = null;
         else this.hud.show('settings');
       }
@@ -7950,6 +7987,7 @@ export class Game implements GameApi {
     if (I.pressedOnce('KeyH') && this.save.equip.weapon) { this.sheathed = !this.sheathed; this.sfx(this.sheathed ? 'click' : 'swing', 0.4); }
     if (I.pressedOnce('KeyO')) this.hud.toggle('guild');
     if (I.pressedOnce('KeyP')) this.hud.toggle('finder');
+    if (I.pressedOnce('KeyU')) { if (!this.hud.closeCompanions()) this.openCompanions(); }
     const enter = I.pressedOnce('Enter'), slash = I.pressedOnce('Slash');
     if (enter || slash) {
       this.input.down.clear();
