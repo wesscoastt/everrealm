@@ -8196,16 +8196,20 @@ function* planBody(): Generator<string, Plan> {
     {
       let y = SEA + 1, x = J.x0 + 1;
       for (; x < cx - 7; x++) {
-        y = Math.min(base, Math.max(y, Math.min(y + 1, heightAt(x, J.z + 1))));
+        // (and never so far below the green that the last step is a wall: it climbs at least as fast as the blocks left
+        // to the green ask; owner 2026-11-13, "you never fixed this", the steps ending under a ledge)
+        // (one block at a time with the bank, up and down, all the way to the green: capped at the green's height, a hump
+        // in the bank past it left a two-block ledge under the street; owner 2026-11-13, "you never fixed this")
+        const left = cx - 8 - x;
+        y = Math.max(y - 1, Math.min(y + 1, Math.max(heightAt(x, J.z + 1), SEA + 1)));
+        y = Math.max(base - left, Math.min(base + left, y));
         for (let w = -1; w <= 3; w++) {
           const z = J.z + w, side = w === -1 || w === 3;
           for (let k = Math.min(heightAt(x, z), y) - 2; k < y; k++) O.set(x, k, z, side ? B.Cobble : B.StoneBrick);
           if (side) O.set(x, y, z, B.Cobble);
           clearUp(x, z, side ? y + 1 : y, y + 6);
         }
-        if (y >= base) break;
       }
-      if (x + 1 < cx - 7) street(x + 1, J.z, cx - 7, J.z + 2);
     }
     s.props.push({ t: 'lantern', x: J.x1 + 0.5, y: SEA + 1, z: J.z + 1.5 });
     // Two boats moored off the shingle, clear of the shore

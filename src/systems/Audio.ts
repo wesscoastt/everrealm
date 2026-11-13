@@ -707,10 +707,12 @@ export class AudioSystem {
     const inside = opts.indoors ? 0.3 : 1;
     // the far roar breathes slowly; the body rises with each wave and settles after it
     this.surge *= Math.exp(-dt / 3.2);
-    this.seaGain.gain.setTargetAtTime(coast * 0.045 * (0.8 + 0.2 * Math.sin(this.swell * 0.6)) * inside, t, 1.5);
-    this.seaBody.gain.setTargetAtTime(coast * coast * (0.01 + 0.04 * this.surge) * inside, t, 0.6);
+    // (lower again, and lower in a settlement: on an island like the Mewstones the sea is all round you; owner 2026-11-13)
+    const town = opts.inTown ? 0.6 : 1;
+    this.seaGain.gain.setTargetAtTime(town * coast * 0.03 * (0.8 + 0.2 * Math.sin(this.swell * 0.6)) * inside, t, 1.5);
+    this.seaBody.gain.setTargetAtTime(town * coast * coast * (0.008 + 0.028 * this.surge) * inside, t, 0.6);
     // (the waves sit under the rest of the place, not over it: owner 2026-11-04, "overly loud in coastal areas")
-    this.seaBus.gain.setTargetAtTime(coast * coast * 0.5 * (opts.indoors ? 0.25 : 1), t, 1.2);
+    this.seaBus.gain.setTargetAtTime(town * coast * coast * 0.28 * (opts.indoors ? 0.25 : 1), t, 1.2);
     this.nextWave -= dt;
     if (this.nextWave <= 0) {
       // Waves in sets: three to five, each a little bigger, six to eight seconds apart; then a lull
