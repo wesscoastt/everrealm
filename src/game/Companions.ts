@@ -6,6 +6,7 @@ import type { Enemy } from '../entities/Enemy';
 import { COMPANIONS, compShort, type BanterKey, type CompanionEvent, type CompanionId, type CompanionRole } from '../data/companions';
 import type { Henchman } from '../data/dungeons';
 import { ITEMS } from '../data/items';
+import { bondOf, bondPerks, BOND_LINES } from '../data/companionBonds';
 
 /** The places a companion wears gear: a weapon, and armour as you wear it. */
 export const COMP_SLOTS = ['weapon', 'head', 'shoulders', 'chest', 'legs', 'hands', 'feet'] as const;
@@ -117,7 +118,7 @@ export class Companions {
   henchmanOf(id: CompanionId): Henchman {
     const c = COMPANIONS[id], first = compShort(id);
     return {
-      id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: this.heldOf(id), gear: this.gearStats(id),
+      id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: this.heldOf(id), gear: this.gearStats(id), bond: bondPerks(id, this.rapport(id)),
       barks: { pull: c.banter.fight ?? ['Here they come.'], low: c.banter.hurt ?? ['Careful!'], kill: c.banter.won ?? ['Done.'], down: 'I\'m down!', up: 'I\'m up.', mend: ['Hold still.'] },
     };
   }
@@ -166,8 +167,17 @@ export class Companions {
 
   /** Change how they rapport with you, and say so the way BioWare's companions do. */
   addRapport(id: CompanionId, delta: number, line?: string): void {
-    const now = Math.max(-100, Math.min(100, this.rapport(id) + delta));
+    const was = this.rapport(id), now = Math.max(-100, Math.min(100, was + delta));
     this.host.setFlag(`comp:${id}:rapport`, now);
+    // A step along (or back) in how they think of you: said, and their strength in a fight changes with it
+    const b0 = bondOf(was), b1 = bondOf(now);
+    if (b0.id !== b1.id) {
+      const up = b1.at > b0.at, first = compShort(id);
+      this.host.system(up ? `${first} now thinks of you as: ${b1.name}.` : `${first} thinks less of you: ${b1.name}.`);
+      const line = up ? BOND_LINES[id][b1.id] : undefined;
+      if (line) { const at = this.ally && this.id === id ? this.ally.pos : null; if (at) this.host.say(at, 2.4, line); this.host.system(`${first}: "${line}"`); }
+      if (this.id === id) this.refresh();
+    }
     if (!delta) return;
     const first = compShort(id);
     this.host.system(`${first} ${delta > 0 ? (delta >= 8 ? 'approves greatly' : 'approves') : delta <= -8 ? 'disapproves greatly' : 'disapproves'}.`);

@@ -428,6 +428,8 @@ export interface Henchman {
   barks: Barks;
   /** What their gear adds, as yours does (a companion's, game/Companions.ts): to each blow, off each hit taken, to their health. */
   gear?: { hit: number; defense: number; vigor: number };
+  /** A companion's bond with you (data/companionBonds.ts), as shares: harder blows, more health, more mending, less taken. */
+  bond?: { hit: number; hp: number; mend: number; guard: number };
 }
 
 /**

@@ -133,6 +133,7 @@ import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, ha
 import { LotBuild } from './LotBuild';
 import { HouseGuests } from './HouseGuests';
 import { COMP_SLOTS, type CompSlot } from './Companions';
+import { bondOf, nextBond, BOND_GIVES, LOYAL_PERK } from '../data/companionBonds';
 import { giftTag, GIFT_TAG_NAME, GIFT_TASTES, reactionTo, type GiftTag } from '../data/companionGifts';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
@@ -6743,7 +6744,12 @@ export class Game implements GameApi {
     const summary = hit || def || vig
       ? `With the gear you've given ${first}: ${hit} more on each blow, ${def} less from each hit taken${vig ? `, ${vig} more health` : ''}. ${first} fights at your level, ${L}.`
       : `${first} has only their own things. Give them a weapon or armour from your pack and it counts for them as it would for you. ${first} fights at your level, ${L}.`;
-    this.hud.gearWindow(`${COMPANIONS[cid].name}'s gear`, summary, slots, pack, () => this.openCompanions());
+    // what the bond adds, as it stands
+    const r = C.rapport(cid), b = bondOf(r), gives: string[] = [];
+    for (const k of ['friend', 'trusted'] as const) if (r >= (k === 'friend' ? 25 : 45) && BOND_GIVES[k]) gives.push(BOND_GIVES[k]!);
+    if (b.id === 'loyal') gives.push(LOYAL_PERK[cid].text);
+    const bondNote = ` ${first} is your ${b.name.toLowerCase()}${gives.length ? ': ' + gives.join(' ') : '.'}${b.id !== 'loyal' ? ` As a loyal companion: ${LOYAL_PERK[cid].text.charAt(0).toLowerCase() + LOYAL_PERK[cid].text.slice(1)}` : ''}`;
+    this.hud.gearWindow(`${COMPANIONS[cid].name}'s gear`, summary + bondNote, slots, pack, () => this.openCompanions());
   }
   /**
    * A gift (data/companionGifts.ts): choose it from your pack. One a day counts with them; what they think of a
@@ -6793,7 +6799,7 @@ export class Game implements GameApi {
    * they are, or sent back. Not into a dungeon or the tower (they have their own parties), nor from a cell.
    */
   openCompanions(): void {
-    const mood = (r: number) => (r >= 60 ? 'Devoted to you' : r >= 30 ? 'Warm toward you' : r >= 10 ? 'Friendly' : r > -10 ? 'Still getting the measure of you' : r > -40 ? 'Cool toward you' : 'Close to leaving you');
+    const bondLine = (r: number) => { const b = bondOf(r), n = nextBond(r); return n ? `${b.name}, ${n.at - r} more to ${n.name.toLowerCase()}` : b.name; };
     const busy = this.dead ? 'Not while you\'re down.' : this.dungeons.run || this.tower.run ? 'Not from in here. They\'ll be waiting outside.' : this.reckoning.active ? 'Not in the middle of this.' : this.save.flags.jail ? 'The watch won\'t let anyone in to see you.' : null;
     const ids = (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`]);
     const home = !!this.myHome(), canGift = this.compCanGift();
@@ -6802,7 +6808,7 @@ export class Game implements GameApi {
       const house = !!this.save.flags[`comp:${id}:house`];
       return {
         name: c.name, title: c.title, look: h.look as Appearance, with: on,
-        state: on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`, mood: mood(this.companions.rapport(id)),
+        state: on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`, mood: bondLine(this.companions.rapport(id)),
         why: !on && busy ? busy : undefined,
         summon: on || busy ? undefined : () => this.summonCompanion(id),
         gear: () => this.compGear(id),
