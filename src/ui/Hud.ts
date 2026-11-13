@@ -855,11 +855,16 @@ export class Hud {
 
   // ------------------------------------------------------------------ Groups and trades
   /** The group's frames, under your own (null: not in a group). */
+  private groupHtml = '';
   setGroup(rows: GroupRow[] | null): void {
     const box = this.q('#group');
-    if (!rows) { box.innerHTML = ''; box.classList.remove('show'); return; }
+    if (!rows) { if (this.groupHtml) { box.innerHTML = ''; this.groupHtml = ''; } box.classList.remove('show'); return; }
     box.classList.add('show');
-    box.innerHTML = '<h6>Group <button class="gleave" title="Leave the group">Leave</button></h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.hench ? ' hench' : ''}${m.near ? '' : ' far'}" data-n="${esc(m.name)}" title="${m.hench ? 'A henchman, with you for this dungeon' : m.near ? 'Click for options' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
+    const html = '<h6>Group <button class="gleave" title="Leave the group">Leave</button></h6>' + rows.map((m) => `<div class="gm${m.me ? ' me' : ''}${m.hench ? ' hench' : ''}${m.near ? '' : ' far'}" data-n="${esc(m.name)}" title="${m.hench ? 'A henchman, with you for this dungeon' : m.near ? 'Click for options' : 'Too far away to share in the group bonus'}"><div class="gn">${m.leader ? '<span class="crown">♛</span>' : ''}${esc(m.name)}<small>${m.level}${m.calling ? ' · ' + esc(m.calling[0].toUpperCase() + m.calling.slice(1)) : ''}</small></div><div class="bar hp"><i class="fill" style="width:${Math.max(0, Math.min(100, (m.hp / Math.max(1, m.max)) * 100))}%"></i></div></div>`).join('');
+    // (only when something in it changed: rebuilt every frame, the frame flickered; owner 2026-11-13)
+    if (html === this.groupHtml) return;
+    this.groupHtml = html;
+    box.innerHTML = html;
     const henchOnly = rows.every((m) => m.me || m.hench);
     box.querySelector('.gleave')!.addEventListener('click', () => this.ask(henchOnly ? 'Leave the dungeon? Your henchmen go home.' : 'Leave the group?', () => this.ctx.groupDo('leave'), () => {}, 30));
     box.querySelectorAll<HTMLElement>('.gm:not(.me):not(.hench)').forEach((row) => row.addEventListener('click', (e) => {
