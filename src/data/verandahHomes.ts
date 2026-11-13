@@ -86,5 +86,8 @@ const GATE_ROW: VerandahHome[] = [2033, 2043, 2053].map((z0, i) => ({
   id: 'vg' + (i + 1), name: `No. ${i + 1}, Quarry Row`, x0: -3118, z0: z0 + 1, x1: -3112, z1: z0 + 7, base: 22,
   door: [-3119, z0 + 4] as [number, number], area: 49, price: 3000, doors: [[-3119, z0 + 4, -Math.PI / 2]] as [number, number, number][],
 }));
-export const VERANDAH_HOMES: VerandahHome[] = [...build(), ...GATE_ROW];
+/** The owner's house on the hill above No. 1, Kestle, finished in their style (scripts/mc/kestle-house.cjs; owner 2026-11-13: "make it a
+ * decent size house, I'm going to give it to a new player"): two storeys, thirty-six by thirteen, the front door on the north. */
+const KESTLE_HEIGHTS: VerandahHome[] = [{ id: 'vk1', name: 'No. 1, Kestle Heights', x0: -2510, z0: 2308, x1: -2477, z1: 2318, base: 36, door: [-2494, 2306], area: 748, price: 23900, doors: [[-2494, 2306, Math.PI]] }];
+export const VERANDAH_HOMES: VerandahHome[] = [...build(), ...GATE_ROW, ...KESTLE_HEIGHTS];
 export const VERANDAH_HOME_BY_ID = new Map(VERANDAH_HOMES.map((h) => [h.id, h]));
