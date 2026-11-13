@@ -24,8 +24,21 @@ class Pool {
   private s = new THREE.Vector3();
   private axis = new THREE.Vector3(0.4, 1, 0.2).normalize();
 
-  constructor(mat: THREE.Material, readonly cap: number) {
-    this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, cap);
+  /** Each one's own fade (1 new, 0 gone), for a pool that thins its particles away rather than shrinking them. */
+  private fade: THREE.InstancedBufferAttribute | null = null;
+
+  constructor(mat: THREE.Material, readonly cap: number, fades = false) {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    if (fades) {
+      this.fade = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
+      this.fade.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('aFade', this.fade);
+      mat.onBeforeCompile = (sh) => {
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;').replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= vFade;');
+      };
+    }
+    this.mesh = new THREE.InstancedMesh(geo, mat, cap);
     this.mesh.frustumCulled = false;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     for (let i = 0; i < cap; i++) {
@@ -59,6 +72,7 @@ class Pool {
       if (p.life <= 0) {
         p.alive = false;
         this.mesh.setMatrixAt(i, this.m.makeScale(0, 0, 0));
+        this.fade?.setX(i, 0);
         continue;
       }
       p.vel.y -= p.gravity * dt;
@@ -66,7 +80,9 @@ class Pool {
       p.pos.addScaledVector(p.vel, dt);
       p.rot += p.spin * dt;
       const k = p.life / p.max;
-      const size = Math.max(0.001, (p.size + p.grow * (1 - k)) * Math.min(1, k * 3));
+      // (a fading pool keeps its size as it goes and thins out instead: smoke spreads and clears, it doesn't shrink)
+      const size = Math.max(0.001, (p.size + p.grow * (1 - k)) * (this.fade ? Math.min(1, (1 - k) * 8 + 0.3) : Math.min(1, k * 3)));
+      if (this.fade) this.fade.setX(i, Math.min(1, (1 - k) * 6) * k * k);
       this.q.setFromAxisAngle(this.axis, p.rot);
       this.s.setScalar(size);
       this.m.compose(p.pos, this.q, this.s);
@@ -75,6 +91,7 @@ class Pool {
     }
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    if (this.fade) this.fade.needsUpdate = true;
   }
 }
 
@@ -85,7 +102,7 @@ export class Particles {
   readonly group = new THREE.Group();
   private lit = new Pool(new THREE.MeshLambertMaterial(), 900);
   private glow = new Pool(new THREE.MeshBasicMaterial({ toneMapped: false }), 700);
-  private soft = new Pool(new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.55, depthWrite: false }), 300);
+  private soft = new Pool(new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.5, depthWrite: false }), 360, true);
 
   constructor() {
     this.group.add(this.lit.mesh, this.glow.mesh, this.soft.mesh);
@@ -123,8 +140,9 @@ export class Particles {
   }
 
   smoke(at: THREE.Vector3, night = 0): void {
-    const c = night > 0.5 ? '#5a5a66' : '#bdbab4';
-    this.soft.spawn({ pos: v.set(at.x + rnd(0.15), at.y, at.z + rnd(0.15)), vel: new THREE.Vector3(0.35 + rnd(0.15), 0.9 + Math.random() * 0.4, rnd(0.15)), color: c, size: 0.25, grow: 0.9, max: 3.2, gravity: -0.05, drag: 0.3, spin: 0.5 });
+    // (the graphics overhaul) a warm grey by day, a dark one at night, rising, spreading wide and thinning to nothing
+    const c = night > 0.5 ? '#6a645e' : '#cbc5bb';
+    this.soft.spawn({ pos: v.set(at.x + rnd(0.15), at.y, at.z + rnd(0.15)), vel: new THREE.Vector3(0.3 + rnd(0.15), 0.8 + Math.random() * 0.4, rnd(0.15)), color: c, size: 0.3, grow: 1.7, max: 4.6, gravity: -0.04, drag: 0.32, spin: 0.35 });
   }
 
   fire(at: THREE.Vector3): void {
