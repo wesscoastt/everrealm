@@ -9051,10 +9051,11 @@ export class Game implements GameApi {
     }
     for (const c of shops) out.push({ x: c.x, z: c.z, kind: 'service', svc: 'craft', label: 'Crafting: ' + c.n.join(', ') });
     for (const n of this.npcs) {
-      const shop = SHOPS[n.def.id];
-      if (!shop || (n.def.when && !n.def.when(this))) continue;
+      const shop = SHOPS[n.def.id], games = GAMING_BY_NPC.get(n.def.id);
+      if ((!shop && !games) || (n.def.when && !n.def.when(this))) continue;
       const [hx, hz] = n.def.schedule[0].at;
-      if (found(hx, hz)) out.push({ x: hx, z: hz, kind: 'service', svc: 'shop', label: shop.name });
+      // (a tavern whose keeper runs the games says so on the map)
+      if (found(hx, hz)) out.push({ x: hx, z: hz, kind: 'service', svc: 'shop', label: games ? `${games.house}: dice, cards, and the Lady` : shop!.name });
     }
     for (const st of STABLES) if (found(st.x, st.z)) out.push({ x: st.x, z: st.z, kind: 'service', svc: 'stable', label: st.name });
     this.serviceList = out;
