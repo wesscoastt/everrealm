@@ -28,7 +28,7 @@ const SHAFTS = {
       vec4 base = texture2D(tDiffuse, vUv);
       if (uStrength <= 0.001) { gl_FragColor = base; return; }
       // March from this pixel toward the sun, gathering the sky's bright light where nothing stands in front of it
-      const int N = 36;
+      const int N = 24;
       vec2 stepv = (vUv - uSun) * (0.92 / float(N));
       vec2 uv = vUv;
       float decay = 1.0;
@@ -86,7 +86,7 @@ export class PostFX {
   constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, private camera: THREE.PerspectiveCamera) {
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     // High range, and smoothed edges (the canvas's own antialiasing doesn't reach a render target)
-    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
+    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 2 });
     this.composer = new EffectComposer(renderer, rt);
     this.composer.addPass(new RenderPass(scene, camera));
     this.shafts = new ShaderPass(SHAFTS);
@@ -118,6 +118,8 @@ export class PostFX {
     u.uSun.value.set(p.x * 0.5 + 0.5, p.y * 0.5 + 0.5);
     const day = 1 - night, low = 1 - Math.min(1, Math.max(0, sunDir.y - 0.1) / 0.7); // strongest with the sun low
     u.uStrength.value = under || cave ? 0 : Math.max(0, facing) ** 2 * day * (1 - cloud * 0.85) * (0.55 + low * 0.9);
+    // (performance: the shafts' full-screen pass only runs when there's a sun in front of you to stream; owner 2026-11-12)
+    this.shafts.enabled = u.uStrength.value > 0.02 && Math.abs(p.x) < 1.6 && Math.abs(p.y) < 1.6 && p.z < 1;
     u.uColor.value.copy(sunColor).lerp(new THREE.Color(1, 0.9, 0.7), 0.4);
     // Bloom a little stronger at night, when lamps and fires are the light; less under grey skies
     this.bloom.strength = under ? 0.1 : 0.17 + night * 0.1 - cloud * 0.05;

@@ -8130,10 +8130,22 @@ export class Game implements GameApi {
   /** The frame counter in the corner, when the options ask for it. */
   private readonly fpsEl = (() => { const e = document.createElement('div'); e.id = 'fps-meter'; e.style.display = 'none'; document.body.append(e); return e; })();
   private fpsN = 0;
+  /** How long the frame rate has been low (ms), for easing the picture off on a slow machine. */
+  private slowT = 0;
   private fpsAt = 0;
   private fpsTick(now: number): void {
     this.fpsN++;
-    if (now - this.fpsAt >= 500) { if (this.save.settings.showFps) this.fpsEl.textContent = `${Math.round((this.fpsN * 1000) / (now - this.fpsAt))} fps`; this.fpsN = 0; this.fpsAt = now; }
+    if (now - this.fpsAt >= 500) {
+      const fps = (this.fpsN * 1000) / (now - this.fpsAt);
+      if (this.save.settings.showFps) this.fpsEl.textContent = `${Math.round(fps)} fps`;
+      // (a slow machine: ten seconds under 35 a second with the new light on, and it goes off, once, with word why)
+      const cap = this.save.settings.fpsCap ?? 0;
+      if (this.mode === 'play' && this.save.settings.finePicture !== false && !this.flag('pictureEased') && (!cap || cap > 40)) {
+        this.slowT = fps < 35 ? this.slowT + (now - this.fpsAt) : 0;
+        if (this.slowT > 10_000) { this.save.settings.finePicture = false; this.setFlag('pictureEased', 1); this.hud.system('The light shafts, bloom and colour were turned off to keep the game smooth on this computer. Turn them on again in the options (Picture).'); this.persist(); }
+      }
+      this.fpsN = 0; this.fpsAt = now;
+    }
   }
 
   private canvasResize(): boolean {
