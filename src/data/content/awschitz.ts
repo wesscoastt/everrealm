@@ -32,9 +32,41 @@ const npcs: NpcDef[] = [
   { id: 'aw_smith', name: 'Jory Pascoe', title: 'Smith, Awschitz', look: { skin: '#c8906a', hair: '#2a1e14', hairStyle: 2, beard: true, eyes: '#3a2a1e', tunic: '#4a3a2a', trim: '#2a2018', trousers: '#2a2620', boots: '#1e1a16', apron: true, build: 1.12, age: 0.45 },
     schedule: [{ from: 7, to: 19, at: [-3440.5, 1969.5], face: [-3440.5, 1968.5], anim: 'hammer', held: 'hammer', y: 16 }],
     barks: ['Horseshoes, hinges, spearheads. In that order, most weeks.', 'If it’s bent, bring it. If it’s broken, bring it sooner.'] },
+  // The King's Dock north of the north wall (owner 2026-11-13: "put the giant military dock here"; scripts/mc/awschitz-navy.cjs)
+  { id: 'aw_ennor', name: 'Lieutenant Hal Ennor', title: 'Dockmaster, the King’s Dock', look: { ...soldier('#c8906a', '#3a2a1e'), hat: 'wide', hatColor: '#1a2234', cape: '#22365a', facial: 2, age: 0.45 },
+    schedule: [{ from: 6, to: 21, at: [-3438.5, 1910.5], face: [-3441.5, 1910.5], anim: 'idle', y: 16 }],
+    barks: ['Lines doubled on the Vigilant. Wind’s backing.', 'Nothing comes alongside without my say.', 'Powder stays in the store. Dry, counted, and locked.'] },
+  { id: 'aw_marine1', name: 'Verandah Marine', title: 'On the T-head', look: soldier('#e0b090', '#6a4426', { tunic: '#7a1e1a', hat: 'cap', hatColor: '#22365a' }),
+    schedule: [{ from: 0, to: 24, at: [-3445.5, 1848.5], face: [-3445.5, 1843.5], anim: 'idle', y: 16 }],
+    barks: ['Nothing on the horizon.', 'They say the wreckers have a cutter now. Let them try.'] },
+  { id: 'aw_marine2', name: 'Verandah Marine', title: 'On the watchtower', look: soldier('#8a5a3a', '#1a1a1e', { tunic: '#7a1e1a', hat: 'cap', hatColor: '#22365a' }),
+    schedule: [{ from: 0, to: 24, at: [-3471.5, 1849.5], face: [-3478.5, 1842.5], anim: 'idle', y: 28 }],
+    barks: ['Sail to the north-west. No. A gull.', 'Best view on the coast, and they pay me for it.'] },
+  { id: 'aw_gunner', name: 'Gunner Pellow', title: 'The King’s Dock', look: soldier('#d8a07a', '#8a6a3a', { tunic: '#4a3a2a', hat: 'kerchief', hatColor: '#7a1e1a', apron: true }),
+    schedule: [{ from: 7, to: 20, at: [-3428.5, 1849.0], face: [-3428.5, 1846.5], anim: 'crouch', y: 16 }],
+    barks: ['Swab, load, ram. Swab, load, ram.', 'She pulls left. They all pull left.'] },
+  { id: 'aw_sailor', name: 'Sailor', title: 'Off the Vigilant', look: { skin: '#a8744c', hair: '#2a1e14', hairStyle: 0, eyes: '#3a3a2a', tunic: '#e8e0d0', trim: '#22365a', trousers: '#22365a', boots: '#1e1a16', hat: 'kerchief', hatColor: '#22365a' },
+    schedule: [{ from: 6, to: 20, at: [-3436.5, 1883.5], face: [-3433.5, 1883.5], anim: 'idle', y: 16 }],
+    barks: ['Heave! And again!', 'Three weeks of salt beef. The fort’s bread tastes like a wedding.'] },
+  // The yard (owner: "flesh out the interior of the fort more"): the quartermaster, archers at the butts, sparring, the fire
+  { id: 'aw_quarter', name: 'Sergeant Annie Tonkin', title: 'Quartermaster, Awschitz', look: { ...soldier('#e8c0a0', '#8a4a22'), frame: 'f', hairStyle: 3, lashes: true, hat: undefined, apron: true },
+    schedule: [{ from: 7, to: 19, at: [-3350.5, 1952.5], face: [-3353.5, 1952.5], anim: 'idle', y: 16 }],
+    barks: ['Sign for it, or it walks.', 'Boots, two pair. Blankets, one. Complaints, none.'] },
+  { id: 'aw_archer', name: 'Verandah Guard', title: 'At the butts', look: soldier('#c9946a', '#4a2e1a', { hat: 'cap', hatColor: '#22365a' }),
+    schedule: [{ from: 8, to: 18, at: [-3380.5, 1951.5], face: [-3370.5, 1951.5], anim: 'shoot', y: 16 }],
+    barks: ['Low and left. Again.', 'The captain shoots better than all of us. Don’t tell her I said so.'] },
+  { id: 'aw_spar1', name: 'Verandah Guard', title: 'Sparring', look: soldier('#f1c9a5', '#c8a060'),
+    schedule: [{ from: 8, to: 18, at: [-3376.5, 1959.5], face: [-3374.5, 1959.5], anim: 'attack', held: 'sword', y: 16 }],
+    barks: ['Guard up!', 'You dropped your shoulder again.'] },
+  { id: 'aw_spar2', name: 'Verandah Guard', title: 'Sparring', look: soldier('#6a4430', '#1a1a1e'),
+    schedule: [{ from: 8, to: 18, at: [-3374.5, 1959.5], face: [-3376.5, 1959.5], anim: 'attack', held: 'sword', y: 16 }],
+    barks: ['Again. Slower.', 'That one counts. That one counts!'] },
+  { id: 'aw_fire', name: 'Verandah Guard', title: 'Off watch', look: soldier('#e2b894', '#3a3a3a', { hat: undefined }),
+    schedule: [{ from: 0, to: 24, at: [-3383.5, 1952.9], face: [-3383.5, 1954.5], anim: 'seated', y: 16 }],
+    barks: ['Six hours on, six off. My feet don’t know which is which.', 'Pass the kettle.'] },
 ];
 
-type AwProp = { t?: string; item?: string; x: number; y: number; z: number; ry: number; len?: number; span?: number; rise?: number; mat?: 'slate' | 'thatch'; open?: boolean; kind?: string };
+type AwProp = { t?: string; item?: string; x: number; y: number; z: number; ry: number; len?: number; span?: number; rise?: number; mat?: 'slate' | 'thatch'; open?: boolean; kind?: string; color?: string; text?: string; ship?: string; sails?: string; hull?: string; sail?: string };
 const H = Math.PI / 2, P = Math.PI;
 /** The fort's roofs, furniture and gear (world/sites.ts 'awschitz'); the blocks are scripts/mc/awschitz.cjs. */
 export const AWSCHITZ_PROPS: AwProp[] = [
@@ -79,6 +111,43 @@ export const AWSCHITZ_PROPS: AwProp[] = [
   { t: 'wellhead', x: -3442.5, y: 16, z: 1952.5, ry: 0 },
   { t: 'lantern', x: -3446.5, y: 16, z: 1960.5, ry: 0 }, { t: 'lantern', x: -3437.5, y: 16, z: 1963.5, ry: 0 }, { t: 'lantern', x: -3476.5, y: 16, z: 1967.5, ry: 0 },
   { t: 'butt', x: -3468.5, y: 16, z: 1979.5, ry: P }, { t: 'butt', x: -3464.5, y: 16, z: 1979.5, ry: P },
+];
+/** The King's Dock (world/sites.ts 'awschitz-navy'; its blocks scripts/mc/awschitz-navy.cjs): the warships alongside, the guns on the T-head and the sea wall, cranes, cargo, bollards, lamps, the store's roof and stores, the boats. */
+export const AWSCHITZ_NAVY_PROPS: AwProp[] = [
+  { t: 'ship', ship: 'galleon', x: -3423.5, y: 15.86, z: 1873, ry: 0, sails: 'furled', hull: '#1e2230', color: '#22365a', sail: '#e8e0d0' },
+  { t: 'ship', ship: 'carrack', x: -3466, y: 15.86, z: 1866.5, ry: H, sails: 'furled', color: '#7a1e1a' },
+  ...[-3462.5, -3455.5, -3448.5, -3441.5, -3434.5, -3427.5, -3420.5].map((x) => ({ t: 'cannon', x, y: 16, z: 1847.6, ry: P })),
+  ...[1862.5, 1886.5, 1902.5].map((z) => ({ t: 'cannon', x: -3448.6, y: 16, z, ry: -H })),
+  ...[1860.5, 1866.5, 1872.5, 1878.5, 1884.5, 1890.5].map((z) => ({ t: 'bollard', x: -3433.5, y: 16, z, ry: 0 })),
+  ...[-3428.5, -3420.5, -3412.5, -3406.5].map((x) => ({ t: 'bollard', x, y: 16, z: 1899.5, ry: 0 })),
+  ...[-3474.5, -3466.5, -3458.5].map((x) => ({ t: 'bollard', x, y: 16, z: 1876.5, ry: 0 })),
+  { t: 'crane', x: -3435.5, y: 16, z: 1880.5, ry: 0 }, { t: 'crane', x: -3435.5, y: 16, z: 1862.5, ry: 0 },
+  ...[[-3437.6, 1878.4], [-3438.6, 1878.5], [-3437.5, 1877.4], [-3438.4, 1904.5], [-3437.3, 1904.6], [-3437.5, 1903.4], [-3446.5, 1916.5], [-3445.4, 1916.5]].map(([x, z], i) => ({ t: i % 3 === 2 ? 'barrel' : 'crate', x, y: 16, z, ry: i * 0.4 })),
+  { t: 'crate', x: -3438.5, y: 16.62, z: 1878.5, ry: 0.3 }, { t: 'crate', x: -3437.9, y: 16.62, z: 1904.5, ry: -0.2 },
+  // the store: its roof, powder and shot and stores
+  { t: 'roof', x: -3444.5, y: 21, z: 1910.5, len: 9.6, span: 9.6, ry: 0, mat: 'slate' },
+  ...[[-3447.6, 1907.6], [-3446.4, 1907.6], [-3447.6, 1913.4], [-3446.4, 1913.4], [-3443.5, 1907.6]].map(([x, z], i) => ({ t: i < 2 ? 'barrel' : 'crate', x, y: 16, z, ry: 0 })),
+  { t: 'barrelRack', x: -3444.5, y: 16, z: 1913.4, ry: P }, { item: 'shelves', x: -3447.6, y: 16, z: 1910.5, ry: H }, { t: 'lantern', x: -3443.5, y: 16, z: 1910.5, ry: 0 },
+  { t: 'notice', x: -3438.6, y: 16, z: 1907.5, ry: -H }, { t: 'sign', x: -3434.5, y: 16, z: 1920.6, ry: 0, text: 'THE KING’S DOCK\nAwschitz' },
+  ...[1862, 1874, 1886, 1898, 1916].flatMap((z) => [{ t: 'lantern', x: -3449.5, y: 16, z: z + 0.5, ry: 0 }, { t: 'lantern', x: -3434.5, y: 16, z: z + 3.5, ry: 0 }]),
+  ...[-3456.5, -3438.5, -3420.5].map((x) => ({ t: 'lantern', x, y: 16, z: 1854.5, ry: 0 })),
+  // the watchtower's top and the beacon, lit
+  { t: 'lantern', x: -3469.5, y: 28, z: 1847.5, ry: 0 }, { t: 'glow', x: -3410.5, y: 20.2, z: 1847.5, ry: 0 },
+  { t: 'banner', x: -3467.8, y: 25, z: 1849.5, ry: H, kind: 'verandah' }, { t: 'banner', x: -3440.8, y: 19, z: 1910.5, ry: H, kind: 'verandah' },
+  // boats at the T-head
+  { t: 'boat', x: -3445.5, y: 15.45, z: 1841.5, ry: H }, { t: 'boat', x: -3431.5, y: 15.45, z: 1841.5, ry: H },
+];
+/** The yard, more of it (owner 2026-11-13: "flesh out the interior of the fort more"): the overflow's tents, the fire, the butts, the quartermaster's stall and the stores about it, washing by the barracks. */
+export const AWSCHITZ_YARD_PROPS: AwProp[] = [
+  ...[-3403, -3397, -3391].map((x) => ({ t: 'tent', x: x + 0.5, y: 16, z: 1950.5, ry: 0, color: '#6a5a3c' })),
+  { t: 'firepit', x: -3383.5, y: 16, z: 1954.5, ry: 0 },
+  { t: 'bench', x: -3383.5, y: 16, z: 1952.6, ry: 0 }, { t: 'bench', x: -3383.5, y: 16, z: 1956.4, ry: 0 }, { t: 'bench', x: -3385.9, y: 16, z: 1954.5, ry: H }, { t: 'bench', x: -3381.1, y: 16, z: 1954.5, ry: H },
+  { t: 'butt', x: -3370.5, y: 16, z: 1951.5, ry: -H }, { t: 'butt', x: -3370.5, y: 16, z: 1955.5, ry: -H },
+  { t: 'stall', x: -3352.5, y: 16, z: 1952.5, ry: -H, color: '#22365a' }, { t: 'notice', x: -3352.5, y: 16, z: 1958.5, ry: -H },
+  { t: 'cart', x: -3355.5, y: 16, z: 1962, ry: 0 }, { t: 'barrelRack', x: -3357.5, y: 16, z: 1949.6, ry: 0 },
+  ...[[-3350.5, 1949.6], [-3349.4, 1949.6], [-3349.5, 1955.5], [-3350.6, 1956.4]].map(([x, z], i) => ({ t: i < 2 ? 'crate' : 'barrel', x, y: 16, z, ry: i * 0.5 })),
+  { t: 'washLine', x: -3474.5, y: 16, z: 1970.5, ry: H, len: 4 }, { t: 'woodpile', x: -3476.4, y: 16, z: 1975.5, ry: H, len: 2 },
+  { t: 'lantern', x: -3395.5, y: 16, z: 1953.5, ry: 0 }, { t: 'lantern', x: -3358.5, y: 16, z: 1955.5, ry: 0 },
 ];
 /** The jetty off the owner's pier (world/sites.ts 'awschitz-dock'): bollards, the crane on the T-head, three boats moored, the cargo. */
 export const AWSCHITZ_DOCK_PROPS: AwProp[] = [

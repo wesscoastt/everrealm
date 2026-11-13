@@ -1051,6 +1051,31 @@ export function bollard(M: PropMaterials): THREE.Group {
 }
 
 /**
+ * A gun on its carriage (Awschitz's military dock): a bronze-banded iron barrel on a timber truck with four
+ * small wheels, pointing out along +z, a stack of shot beside it.
+ */
+export function cannon(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group();
+  const iron = flat('#26282c'), band = flat('#8a6a32');
+  // the truck: two cheeks on a bed, four wheels
+  g.add(mesh(box(0.9, 0.18, 1.5), M.darkWood, 0, 0.32, 0));
+  for (const sx of [-0.36, 0.36]) g.add(mesh(box(0.14, 0.42, 1.3), M.darkWood, sx, 0.6, -0.05));
+  for (const sx of [-0.5, 0.5]) for (const sz of [-0.5, 0.5]) g.add(mesh(cyl(0.22, 0.22, 0.12, 12), M.darkWood, sx, 0.22, sz, 0, 0, Math.PI / 2));
+  // the barrel, tapering to the muzzle, banded at the breech and the muzzle
+  const barrel = new THREE.Group();
+  barrel.add(mesh(cyl(0.2, 0.27, 1.9, 12), iron, 0, 0, 0, 0, Math.PI / 2));
+  barrel.add(mesh(cyl(0.29, 0.29, 0.12, 12), band, 0, 0, -0.75, 0, Math.PI / 2));
+  barrel.add(mesh(cyl(0.23, 0.23, 0.1, 12), band, 0, 0, 0.9, 0, Math.PI / 2));
+  barrel.add(mesh(new THREE.SphereGeometry(0.16, 8, 6), iron, 0, 0, -1.02));
+  barrel.position.set(0, 0.86, 0.25);
+  barrel.rotation.x = -0.05;
+  g.add(barrel);
+  // shot, piled by the wheel
+  for (const [x, y, z] of [[0.75, 0.11, -0.4], [0.97, 0.11, -0.4], [0.86, 0.11, -0.2], [0.86, 0.29, -0.33]]) g.add(mesh(new THREE.SphereGeometry(0.11, 8, 6), iron, x, y, z));
+  return g;
+}
+
+/**
  * A harbour crane, the old way: a timber tower on a stone footing, a treadwheel at its foot, a jib
  * reaching out over the water (toward +x) with a rope and hook, a net of cargo hanging from it.
  */

@@ -41,7 +41,7 @@ import { THRONE } from '../data/content/verandahCourt';
 import { LIBRARY_PROPS } from '../data/content/verandahLibrary';
 import { POST_COUNTER } from '../data/content/verandahPost';
 import { BANK_VAULT_PROPS, CITY_HALL_PROPS } from '../data/content/verandahHalls';
-import { AWSCHITZ_DOCK_PROPS, AWSCHITZ_PROPS } from '../data/content/awschitz';
+import { AWSCHITZ_DOCK_PROPS, AWSCHITZ_NAVY_PROPS, AWSCHITZ_YARD_PROPS, AWSCHITZ_PROPS } from '../data/content/awschitz';
 import { GORRAN_PROPS, GORRAN_WAYMARK } from '../data/content/gorran';
 import { SQUARE_STALLS } from '../data/content/verandahSquare';
 import { STAGE_PROPS } from '../data/content/verandahStage';
@@ -82,7 +82,7 @@ export type PropType = 'butt' | 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'gr
   /** A harbour's nets drying (len), its lobster pots; a village's beehive. */
   | 'netRack' | 'lobsterPots' | 'beehive'
   /** A harbour's mooring bollard, and a timber dock crane with its treadwheel (jib toward +x). */
-  | 'bollard' | 'crane'
+  | 'bollard' | 'crane' | 'cannon'
   /** A box of fish on ice. */
   | 'fishBox'
   /** The trades (buildBusiness): vines or hops on a trellis (len; tint 1 white grapes, 2 hops), a wine press, barrel racks (len), cheese racks, fish racks (len), a tan-pit vat (color), hides on a frame, a pot still. */
@@ -905,6 +905,9 @@ function* planBody(): Generator<string, Plan> {
     // Awschitz Fort, the owner's walled fort west of the town, garrisoned (scripts/mc/awschitz.cjs; its garrison and props data/content/awschitz.ts)
     { id: 'awschitz', name: 'Awschitz Fort', x: -3445, z: 1960, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_PROPS) s.props.push(p.t ? (p as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     { id: 'awschitz-dock', name: '', x: -3328, z: 1961, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_DOCK_PROPS) s.props.push(p as PropDesc); } },
+    // The King's Dock north of the fort and more of its yard (scripts/mc/awschitz-navy.cjs; data/content/awschitz.ts)
+    { id: 'awschitz-navy', name: '', x: -3441, z: 1880, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_NAVY_PROPS) s.props.push(p.t ? (p as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    { id: 'awschitz-yard', name: '', x: -3380, z: 1955, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_YARD_PROPS) s.props.push(p.t ? (p as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
     { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of [...XAVIER_SHOWROOM, ...SHOP_COUNTERS]) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):

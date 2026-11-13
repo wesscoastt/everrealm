@@ -235,6 +235,7 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
       case 'roll': place(P.rollBoard(M, d.text ?? '', d.len ?? 3.2), d.x, d.y, d.z, d.ry); break;
       case 'netRack': place(P.netRack(M, d.len ?? 3, h3(d.x, d.z, 57)), d.x, d.y, d.z, d.ry); break;
       case 'bollard': place(P.bollard(M), d.x, d.y, d.z, d.ry); break;
+      case 'cannon': place(P.cannon(M), d.x, d.y, d.z, d.ry); break;
       case 'fishBox': place(P.fishBox(M), d.x, d.y, d.z, d.ry); break;
       case 'vineRow': place(P.vineRow(M, d.len ?? 12, d.tint === 1, d.tint === 2), d.x, d.y, d.z, d.ry); break;
       case 'winePress': place(P.winePress(M), d.x, d.y, d.z, d.ry); break;
