@@ -646,6 +646,13 @@
 /* The options: the news page, quality buttons, the key list */
 .set-news { max-height: min(60vh, 460px); overflow-y: auto; padding-right: 4px; }
 .set-news .news-h { margin: 6px 0 4px; font: 700 15px var(--px); color: var(--gild-l); }
+.set-help { max-height: min(60vh, 460px); overflow-y: auto; padding-right: 4px; }
+.set-help .sec { margin: 10px 0 4px; }
+.help-q { border-bottom: 1px solid rgba(224,189,100,0.18); padding: 5px 2px; }
+.help-q summary { cursor: pointer; font-weight: 600; color: var(--gild-l); list-style: none; }
+.help-q summary::before { content: "+ "; opacity: 0.7; }
+.help-q[open] summary::before { content: "2  "; }
+.help-q p { margin: 6px 0 2px 14px; line-height: 1.45; }
 .set-news .news-d { font: 500 12px var(--body); color: var(--muted); margin-left: 6px; }
 .set-news .news { margin: 0 0 10px; padding-left: 18px; font: 500 13px/1.45 var(--body); color: var(--cream-d); }
 .set-news .news b { color: var(--cream); }

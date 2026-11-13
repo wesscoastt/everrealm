@@ -1,4 +1,5 @@
 import { NEWS_V, newsHtml } from '../data/whatsNew';
+import { HELP } from '../data/help';
 import { Input } from '../systems/Input';
 import { lastSfx } from '../systems/Audio';
 import './styles.css';
@@ -3839,6 +3840,7 @@ export class Hud {
       video: ['Picture', presets + S('viewDist') + S('renderScale') + S('fov') + cap + row('Shadows') + row('Light shafts') + tick('showFps', 'Show the frame rate') + row('Full screen') + colourVision],
       sound: ['Sound', S('master') + S('sfx') + S('ambience') + S('music')],
       controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + tick('shake', 'Camera shake') + `<h4 class="sec">Keys <small>click one, then press the key you want; Esc leaves it</small></h4><div class="key-list">${bindRows}</div><button class="btn sm ghost" data-keyreset>Put every key back</button>`],
+      help: ['Help', `<div class="set-help">${HELP.map(([sec, qs]) => `<h4 class="sec">${esc(sec)}</h4>` + qs.map(([q, a]) => `<details class="help-q"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')).join('')}</div>`],
       ui: ['Interface and chat', S('uiScale') + tick('playerNames', 'Names over players') + tick('npcNames', 'Names over people') + tick('combatText', 'Numbers in a fight') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
     };
     // Leaving a dungeon or the tower, ESO's way: here at the top of the menu while you're in one
