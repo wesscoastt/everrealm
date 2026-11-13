@@ -118,10 +118,15 @@ export function npcDoubts(st: BsState, seat: number): boolean {
   if (!p || p.seat === seat) return false;
   const s = st.seats[seat];
   const held = s.hand.filter((c) => rankOf(c) === p.claim).length;
-  if (held + p.cards.length > 4) return true; // (there aren't that many in the pack)
+  // (there aren't that many in the pack: a sharp regular sees it, a slow one now and then doesn't count)
+  if (held + p.cards.length > 4) return Math.random() < 0.45 + s.doubt * 0.45;
   const goingOut = st.seats[p.seat].hand.length === 0;
-  if (goingOut) return Math.random() < 0.55 + s.doubt * 0.4;
-  const pileFear = Math.min(0.5, st.pile.length / 40); // (a big pile makes anyone careful)
-  const chance = s.doubt * (0.04 + 0.11 * (p.cards.length - 1) + 0.14 * held) * (1 - pileFear);
+  // (the last cards out are always worth a look, but not by everyone at once: one at the table speaks up)
+  const others = st.seats.filter((x, i) => i !== p.seat && x.who === 'npc').length || 1;
+  if (goingOut) return Math.random() < (0.5 + s.doubt * 0.3) / others;
+  // A hunch, shared out round the table, so the table as a whole calls one laying in eight or so (owner 2026-11-13: a
+  // friend playing said the regulars called it every time: each had their own go, and a third of all layings were called)
+  const pileFear = Math.min(0.6, st.pile.length / 30); // (a big pile makes anyone careful)
+  const chance = s.doubt * (0.06 + 0.1 * (p.cards.length - 1) + 0.12 * held) * (1 - pileFear) / others;
   return Math.random() < chance;
 }

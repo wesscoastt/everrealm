@@ -8193,6 +8193,9 @@ function* planBody(): Generator<string, Plan> {
     }
     // Steps up the bank from the jetty's end to the green, three wide, a block at a time, on solid stone
     // with a low wall either side (the bank climbs nine in nine; a street laid up it went in ragged lumps)
+    // (the stair and the bank either side are the hamlet's ground: no tree grows on it to be cut in half by the steps; owner
+    // 2026-11-13, "bugged trees where you put the dock pathway")
+    rect(s, J.x0 + 1, J.z - 3, cx - 7, J.z + 5);
     {
       let y = SEA + 1, x = J.x0 + 1;
       for (; x < cx - 7; x++) {
