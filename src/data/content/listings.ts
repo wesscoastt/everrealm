@@ -22,7 +22,7 @@ const estates = ESTATES.map((e) => {
   return { ...e, ids: mine.map((l) => l.id), cx: mine.reduce((a, l) => a + l.x0 + LOT_W / 2, 0) / mine.length, cz: mine.reduce((a, l) => a + l.z0 + LOT_D / 2, 0) / mine.length, land: landAt(mine[0].x0) };
 });
 /** The Post towns with estates by them, the Counties' first: the town's own name, without its stop's. */
-const townName = (id: string) => (POSTS.find((q) => q.id === id)?.name ?? id).split(',')[0].replace(/ Works$/, '');
+const townName = (id: string) => (POSTS.find((q) => q.id === id)?.name ?? id).split(',')[0].replace(/ Works$/, '').replace(/ Docks \(ferry\)$/, '');
 const towns = [...new Set(estates.map((e) => e.town))].sort((a, b) => Number(estates.find((e) => e.town === a)!.land === 'morrow') - Number(estates.find((e) => e.town === b)!.land === 'morrow'));
 const lets = LODGINGS.filter((l) => landOf(l) === 'counties');
 const plotOf = (g: GameApi) => g.flag('plot') as { lot?: string; spec?: unknown } | undefined;

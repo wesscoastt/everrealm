@@ -34,3 +34,8 @@ export const ESTATES: Estate[] = [
   {"id":"wr","name":"Well Row","town":"tenwells","door":"w","lane":[[7456.5,-148],[7456.5,-60]],"track":[[7456.5,-104],[7439.1,-98.9]],"lots":[[7458,-148,24],[7458,-133,24],[7458,-118,24],[7458,-103,24],[7458,-88,24],[7458,-73,24]]},
   {"id":"vc","name":"Caravan Close","town":"tenwells","door":"e","lane":[[7397.5,-197],[7397.5,-109]],"track":[[7397.5,-153],[7421.2,-160]],"lots":[[7381,-197,24],[7381,-182,24],[7381,-167,24],[7381,-152,24],[7381,-137,24],[7381,-122,24]]},
 ];
+// Added by hand (keep when regenerating): Verandah's first lots, west of the lane by Quarry Row inside the west gate
+// (owner 2026-11-12: "also add plots people can buy over there too, room for both"). Their ground is the owner's,
+// level at 21.
+ESTATES.push({ id: 'qr', name: 'Quarry Row Lots', town: 'verandah', door: 'e', lane: [[-3133.5, 2033], [-3133.5, 2061]], track: [[-3133.5, 2047], [-3132, 2047]], lots: [[-3149, 2033, 21], [-3149, 2048, 21]] });
+
