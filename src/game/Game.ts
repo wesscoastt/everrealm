@@ -174,6 +174,7 @@ import { QuartersTable } from './QuartersTable';
 import { TavernTable } from './TavernTable';
 import { Races } from './Races';
 import { Doubloons } from './Doubloons';
+import { Gamepad } from '../systems/Gamepad';
 import { HomePicker } from '../ui/HomePicker';
 import { FEST_HATS, HATS } from '../ui/Frontend';
 /** A home held besides the one you live in (Game.held): its furniture, and a lot's plans, blocks and stall, or a room's tenancy. */
@@ -360,6 +361,8 @@ export class Game implements GameApi {
   private picture!: PostFX;
   world!: GameWorld;
   readonly input: Input;
+  /** A controller, ESO's layout (systems/Gamepad.ts). */
+  private pad!: Gamepad;
   rig!: CameraRig;
   readonly audio = new AudioSystem();
   readonly particles = new Particles();
@@ -979,6 +982,13 @@ export class Game implements GameApi {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.picture = new PostFX(this.renderer, this.scene, this.camera);
     this.input = new Input(canvas);
+    this.pad = new Gamepad(this.input, {
+      rotate: (dx, dy) => { this.input.dragX += dx; this.input.dragY += dy; },
+      windowOpen: () => this.hud?.anyOpen() || !!this.tavernT?.open || !!this.racesT?.bookOpen || this.homePicker.open || !!this.quartersT?.open,
+      inDialogue: () => !!this.dialogue,
+      canInteract: () => !!this.candidate,
+      hello: () => this.hud?.system('A controller, laid out as ESO\'s: left stick to move, right stick to look, RT to attack, LT to block (LT and A to dodge), X, Y, B and RB for skills 2 to 5 (hold LB for 6 to 8; LB and RB together for 8), A to talk, use or jump, the D-pad for food, your horse, your light and your weapon, Start for the menu, View for the map. In a window, the left stick moves a pointer and A clicks.'),
+    });
     // The last character played, so the menus start on them and their settings apply
     const chars = listCharacters();
     const lastChar = chars.find((c) => c.id === lastPlayed()) ?? chars[0];
@@ -8161,6 +8171,7 @@ export class Game implements GameApi {
 
   private frame(dt: number): void {
     this.elapsed += dt;
+    if (this.mode === 'play') this.pad?.poll(dt);
     this.watchGraphics(dt);
     const w = this.canvasResize();
     void w;
