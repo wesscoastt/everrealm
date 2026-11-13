@@ -17,7 +17,7 @@ const FILL_MS = 90_000;
 const READY_MS = 30_000;
 const DUNGEON = /^gd-[a-z]{2,20}(-vet|-cor)?$/; // "-vet": the dungeon's veteran mode, queued apart; "-cor": corrupted, a group's leader's key (groups only)
 /** The Endless Tower, from a floor ("tw-11"): a group's leader takes the group up; no queue. Up to five climb. */
-const TOWER = /^tw-\d{1,3}$/;
+const TOWER = /^tw-\d{1,5}$/;
 const TOWER_PARTY = 5;
 const EVENTS_PER_SEC = 40;
 /** How long a run waits for a member who dropped out (a lost connection, a reload) to come back to it. */

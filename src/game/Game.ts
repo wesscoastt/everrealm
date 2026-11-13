@@ -1,3 +1,4 @@
+import { TOWER as TOWER_AT } from '../data/tower';
 import { PostFX } from '../core/PostFX';
 import { drawFace } from '../ui/skin';
 import * as THREE from 'three';
@@ -127,7 +128,7 @@ import type { Friend } from './ClassKit';
 import { PostStations } from './PostStations';
 import { POST_CART_KEY } from '../data/postStations';
 import { CALLING_POOL, EXPOSED, GUARD, POOLS, SKILL_COST, SLOT_COST, type Cost } from '../data/combat';
-import { Tower } from './Tower';
+import { Tower, TOWER_DAILY, TOWER_WEEKLY } from './Tower';
 import { BEATEN_BY, CALLING_ELEMENT, ELEMENTS, ENCHANT_ELEMENT, elementMult, foeElement, WARD_CAP, WARD_OF, type Element } from '../data/elements';
 import { LINES, lineSkill, type LineSkill } from '../data/skillLines';
 import type { ScheduledShip } from '../world/Ferry';
@@ -1481,6 +1482,7 @@ export class Game implements GameApi {
       scene: this.scene, voxels: this.world.voxels, player: () => this.player.position, dead: () => this.dead,
       partySize: () => (this.social.inGroup ? this.social.group!.members.length : 1),
       level: () => this.level('melee'),
+      hurt: (dmg) => { if (this.dead || this.dev.god) return; this.hp -= dmg; this.floatAt(this.player.position, 2.2, `-${dmg}`, 'player'); this.sfx('hurt'); if (this.hp <= 0) this.die(); },
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
       removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
       travel: (at, yaw, banner, sub) => this.travelInto([at.x, at.y || Math.floor(heightAt(at.x, at.z)), at.z], yaw, banner, sub),
@@ -4078,6 +4080,7 @@ export class Game implements GameApi {
       travelWaymark: (id: string) => g.travelWaymark(id),
       homeName: () => g.myHomeName(),
       travelHome: () => g.travelHome(),
+      towerView: () => { void loadClimbers(); const t = g.tower.tally(); return { best: g.tower.best(), reached: g.tower.reached(), climbing: g.tower.run?.floor ?? null, day: [t.day.floors, TOWER_DAILY.floors, t.day.paid] as [number, number, boolean], week: [t.week.floors, TOWER_WEEKLY.floors, t.week.paid] as [number, number, boolean], board: climbers.list }; },
       shop: () => g.shopView(),
       travel: () => g.travelView(),
       travelTo: (id: string) => g.travelTo(id),
@@ -4618,6 +4621,8 @@ export class Game implements GameApi {
     this.previewLook(null);
     this.front.hide();
     for (const q of ['dkQuay', 'dkOwed', 'dkTeach', 'dkReckoner', 'dkBecky']) delete this.save.quests[q];
+    // (back from a reload in one of the tower's halls with no climb going: put out at its door, not left in a sealed room)
+    if (!this.tower?.run && Tower.inHall(this.save.pos[0], this.save.pos[1], this.save.pos[2])) this.save.pos = [TOWER_AT.x - 9.5, Math.floor(heightAt(TOWER_AT.x - 9.5, TOWER_AT.z + 0.5)) + 0.1, TOWER_AT.z + 0.5];
     const [sx, , sz] = this.save.pos;
     this.player.teleport(this.save.pos[0], this.save.pos[1], this.save.pos[2]);
     // Explored chunks are saved by chunk key, and a key depends on the world's size: convert saves
@@ -5983,6 +5988,8 @@ export class Game implements GameApi {
     }
     // A companion living at your house: talk to them, the way you would anywhere
     { const hg = this.houseGuests.near(p); if (hg) consider({ kind: 'act', label: `Talk to ${compShort(hg.id)}`, pos: hg.pos.clone().setY(hg.pos.y + 2.1), act: () => { const npc = this.npcs.find((n) => n.def.id === 'comp_' + hg.id); if (npc) { npc.pos.copy(hg.pos); this.startDialogue(npc); } } }, 1.6); }
+    // The Endless Tower: walk out from where the hall lets you in (the climb ends; your best stands)
+    { const ent = this.tower.entry(); if (ent && Math.hypot(ent.x - p.x, ent.z - p.z) < 3) consider({ kind: 'act', label: 'Walk out of the tower', pos: new THREE.Vector3(ent.x, ent.y + 1.6, ent.z), act: () => this.tower.leave('You walk out of the tower.') }, 1.5); }
     // On your own lot: lay blocks and dig them out by hand
     if (!this.lotBuild.active && !this.home.active && this.lotBuild.onLot(p)) consider({ kind: 'act', label: 'Build on your lot', pos: new THREE.Vector3(p.x, p.y + 1, p.z), act: () => { this.hud.closeAll(); this.lotBuild.start(); } }, 2.2);
     // Stations of your own at home: a bench, a range, an anvil, a forge, each works like the town's

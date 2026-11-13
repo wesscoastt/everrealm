@@ -1,7 +1,8 @@
 import { killXp } from '../data/pacing';
+import { TROPHY_SETS } from '../data/trophies';
 import * as THREE from 'three';
 import { ENEMIES, type EnemyType } from '../data/gameplay';
-import { checkpointUnder, ENCOUNTERS, HALL_AT, HALL_ENTRY, HALL_SPAWNS, HALL_Y, MODIFIERS, THEMES, TOWER, towerDef, towerFloor, type FloorFoe, type FloorPlan } from '../data/tower';
+import { checkpointUnder, ENCOUNTERS, HALL, HALL_AT, HALL_ENTRY, HALL_SPAWNS, HALL_Y, MODIFIERS, THEMES, TOWER, towerDef, towerFloor, type FloorFoe, type FloorPlan } from '../data/tower';
 import { Enemy } from '../entities/Enemy';
 import { utcDay, utcWeek } from '../data/calendar';
 import type { VoxelWorld } from '../world/VoxelWorld';
@@ -29,6 +30,8 @@ export interface TowerHost {
   reward(xp: number, marks: number, items: string[], why: string): void;
   /** Your level, for what a floor is worth to you. */
   level?(): number;
+  /** Burning ground underfoot (the bad-ground floors): so much harm. */
+  hurt?(dmg: number): void;
   flag(key: string): unknown;
   setFlag(key: string, value: unknown): void;
   sfx(name: 'levelUp' | 'discover' | 'fail' | 'bell'): void;
@@ -74,6 +77,11 @@ export const MILESTONES: Record<number, { tokens: number; items: string[]; line:
   50: { tokens: 50, items: [], line: 'Floor fifty. Crowle\'s mother had six climbers who saw fifty. Now she has seven.' },
   75: { tokens: 75, items: [], line: 'Floor seventy-five. Even Crowle stops writing for a moment.' },
   100: { tokens: 150, items: ['cape_tower'], line: 'Floor one hundred. Crowle sends down the Endless cloak, the first she has given.' },
+  150: { tokens: 200, items: [], line: 'Floor one hundred and fifty. Crowle starts a new page for you.' },
+  200: { tokens: 300, items: [], line: 'Floor two hundred. The book has no line for this. Crowle draws one.' },
+  300: { tokens: 400, items: [], line: 'Floor three hundred. Crowle sends down a note: "Go home. Eat something. Then come back."' },
+  500: { tokens: 600, items: [], line: 'Floor five hundred. Nobody alive has seen this floor but you.' },
+  1000: { tokens: 1000, items: [], line: 'Floor one thousand. Crowle closes the book and keeps it under her pillow.' },
 };
 
 /** The day's climb and the week's: floors cleared, and what Crowle pays when they're done, once each. */
@@ -86,6 +94,50 @@ export const tokensFor = (n: number, first: boolean) => (first ? 3 : 1) + Math.f
 
 export class Tower {
   run: Run | null = null;
+  /**
+   * The bad-ground floors' burning patches (the brief's hazard floors; the encounter had no ground before): each
+   * glows for a moment before it catches, then burns whoever stands in it, and one moves every few seconds.
+   */
+  private patches: { mesh: THREE.Mesh; x: number; z: number; t: number }[] = [];
+  private patchT = 0;
+  private burnT = 0;
+  private readonly patchGeo = new THREE.CircleGeometry(2.2, 20);
+  private placePatch(i: number): void {
+    const r = this.run!, h = this.hallPoint(0, 0), P = this.host.player();
+    // (somewhere on the floor, one of them often near you)
+    const near = i % 2 === 0;
+    const x = near ? P.x + (Math.random() - 0.5) * 6 : h.x + 3 + Math.random() * 18, z = near ? P.z + (Math.random() - 0.5) * 6 : h.z + 3 + Math.random() * 18;
+    let pt = this.patches[i];
+    if (!pt) {
+      const mesh = new THREE.Mesh(this.patchGeo, new THREE.MeshBasicMaterial({ color: '#ff6a20', transparent: true, opacity: 0.25, depthWrite: false }));
+      mesh.rotation.x = -Math.PI / 2;
+      this.host.scene.add(mesh);
+      pt = this.patches[i] = { mesh, x, z, t: 0 };
+    }
+    pt.x = x; pt.z = z; pt.t = 0;
+    pt.mesh.position.set(x, HALL_Y + 0.06, z);
+    void r;
+  }
+  private clearPatches(): void {
+    for (const pt of this.patches) this.host.scene.remove(pt.mesh);
+    this.patches = [];
+  }
+  private burn(dt: number): void {
+    const r = this.run!;
+    if (r.plan.encounter !== 'hazard') return;
+    if (!this.patches.length) for (let i = 0; i < 4; i++) this.placePatch(i);
+    if ((this.patchT -= dt) <= 0) { this.patchT = 6; this.placePatch(Math.floor(Math.random() * this.patches.length)); }
+    const P = this.host.player();
+    let inFire = false;
+    for (const pt of this.patches) {
+      pt.t += dt;
+      const lit = pt.t > 1.5, m = pt.mesh.material as THREE.MeshBasicMaterial;
+      m.opacity = lit ? 0.55 + Math.sin(this.clock * 9 + pt.x) * 0.12 : 0.18 + pt.t * 0.1;
+      m.color.set(lit ? '#ff5a1a' : '#ffb060');
+      if (lit && Math.hypot(P.x - pt.x, P.z - pt.z) < 2.2 && Math.abs(P.y - HALL_Y) < 1.5) inFire = true;
+    }
+    if (inFire && (this.burnT -= dt) <= 0) { this.burnT = 0.5; this.host.hurt?.(Math.round(6 + r.floor * 0.8)); }
+  }
   private clock = 0;
   constructor(private host: TowerHost) {}
 
@@ -116,13 +168,18 @@ export class Tower {
     // (in a group the leader's checkpoint is the group's: the rest are carried up to it)
     if (!group && cp > 1 && cp > this.best()) return `You have not cleared floor ${cp} yet.`;
     const first = cp <= 1 ? 1 : cp + 1;
-    const size = group ? group.others.length + 1 : this.host.partySize();
+    // (a climb on your own is built for one, grouped or not: only a group's climb is built for the group)
+    const size = group ? group.others.length + 1 : 1;
     this.run = { start: first, floor: first, plan: towerFloor(first, size), wave: 0, mobs: [], boss: null, t: 0, wait: 2.5, state: 'arrive', floorsCleared: 0, started: this.clock, id: group?.id ?? 0, others: group?.others ?? [], all: [], hits: new Map(), sendT: 0 };
     if (group) this.host.system(`Up the Endless Tower together, from floor ${first}: ${group.others.map((o) => o.name).join(', ')} and you. The floors are built for ${size}.`);
     this.enterFloor();
     return null;
   }
 
+  /** Where the floor's hall lets you in (to walk out from). */
+  entry(): THREE.Vector3 | null { return this.run ? this.hallPoint(HALL_ENTRY[0], HALL_ENTRY[1]) : null; }
+  /** Is a point in one of the halls (a climber who reloaded mid-climb: put out at the door)? */
+  static inHall(x: number, y: number, z: number): boolean { return Object.values(HALL_AT).some((h) => x >= h.x - 1 && x <= h.x + HALL + 1 && z >= h.z - 1 && z <= h.z + HALL + 1 && y < HALL_Y + 12 && y > HALL_Y - 4); }
   /** Walk out: the run ends, and you are at the tower's door. */
   leave(why = 'You leave the tower.'): void {
     const r = this.run;
@@ -130,6 +187,7 @@ export class Tower {
     for (const e of r.mobs) this.host.removeEnemy(e);
     if (r.boss) this.host.removeEnemy(r.boss);
     if (r.id) this.host.net?.leaveRun(r.id);
+    this.clearPatches();
     this.run = null;
     this.host.travel(new THREE.Vector3(TOWER.x - 9.5, 0, TOWER.z + 0.5), -Math.PI / 2, 'The Endless Tower', why);
   }
@@ -243,6 +301,7 @@ export class Tower {
       r.hits.clear();
     }
     if (r.state === 'arrive') { if ((r.wait -= dt) <= 0) { r.state = 'fight'; r.t = 0; this.spawnWave(); } return; }
+    if (r.state === 'fight') this.burn(dt); else if (this.patches.length) this.clearPatches();
     if (r.state === 'cleared') { if ((r.wait -= dt) <= 0) this.nextFloor(); return; }
     const p = r.plan;
     const left = r.mobs.filter((m) => m.alive).length + (r.boss?.alive ? 1 : 0);
@@ -267,10 +326,16 @@ export class Tower {
     this.count();
     this.host.floor?.();
     r.state = 'cleared'; r.wait = 4;
+    this.clearPatches();
     const tokens = tokensFor(n, first);
     // (a floor in kills' worth at your level, more the higher it is: it was a flat 40 + 6n; the XP audit, 2026-11-12)
     this.host.reward(Math.round(killXp(this.host.level?.() ?? 1) * (1 + n / 50)), Math.round(5 + n * 1.5), Array<string>(tokens).fill('tower_token'), `Floor ${n} cleared${first ? ', for the first time' : ''}: ${tokens} tower token${tokens > 1 ? 's' : ''}`);
     // A milestone, the first time: more tokens, and at 25 and 100 a cloak
+    // A keeper (every tenth floor) leaves a piece of one of the tower's sets you've climbed to, one time in four
+    if (r.plan.boss && Math.random() < 0.25) {
+      const sets = Object.entries(TROPHY_SETS).filter(([, t]) => t.floor && t.floor <= n).map(([id]) => id);
+      if (sets.length) { const set = sets[Math.floor(Math.random() * sets.length)], piece = Math.random() < 0.5 ? 'helm' : 'shoulders'; this.host.reward(0, 0, [`trophy_${set}_${piece}`], 'The keeper left something behind'); }
+    }
     const ms = first ? MILESTONES[n] : undefined;
     if (ms) { this.host.reward(0, 0, [...Array<string>(ms.tokens).fill('tower_token'), ...ms.items], ms.line); }
     this.host.sfx(n % 10 === 0 ? 'levelUp' : 'discover');
@@ -280,7 +345,7 @@ export class Tower {
   private nextFloor(): void {
     const r = this.run!;
     r.floor++;
-    r.plan = towerFloor(r.floor, r.id ? r.others.length + 1 : this.host.partySize());
+    r.plan = towerFloor(r.floor, r.id ? r.others.length + 1 : 1);
     this.enterFloor();
   }
 

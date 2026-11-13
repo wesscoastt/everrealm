@@ -357,6 +357,8 @@ export interface UiCtx {
   /** Your home's name (null if you have none), and going there. */
   homeName(): string | null;
   travelHome(): void;
+  /** The Endless Tower at a glance, for the group finder's tab. */
+  towerView?(): { best: number; reached: number; climbing: number | null; day: [number, number, boolean]; week: [number, number, boolean]; board: { name: string; floor: number }[] };
   currentStation: Station | null;
   /** The trader whose panel is open. */
   shop(): ShopView;
@@ -2924,8 +2926,20 @@ export class Hud {
     const tabs: [string, string][] = [['dungeons', 'Dungeons'], ['world', `Out in the world${lf.length ? ` (${lf.length})` : ''}`]];
     if (bosses.length) tabs.push(['bosses', `World bosses${bosses.some((b) => b.until < 0) ? ' (one is up)' : ''}`]);
     if (fires.length) tabs.push(['fires', 'Gatherings']);
+    if (this.ctx.towerView) tabs.push(['tower', 'Endless Tower']);
     if (!tabs.some(([k]) => k === this.finderTab)) this.finderTab = 'dungeons';
-    const page = this.finderTab === 'world' ? lfgCard : this.finderTab === 'bosses' ? bossCard : this.finderTab === 'fires' ? fireCard
+    // The Endless Tower: your climb, its checkpoints, the day's and the week's, and the realm's highest (the brief's board)
+    const towerPage = (() => {
+      const t = this.ctx.towerView?.();
+      if (!t) return '';
+      const cps = Array.from({ length: Math.floor(t.best / 10) }, (_, i) => (i + 1) * 10).slice(-6);
+      const goal = (name: string, [n, need, paid]: [number, number, boolean]) => `<div class="gf-boss${paid ? ' up' : ''}"><div><b>${name}</b><small>${Math.min(n, need)} of ${need} floors${paid ? ', paid' : ''}</small></div></div>`;
+      return `<div class="gf-card gf-bosses"><h5>Your climb<small>Annot Crowle keeps the door, east of Ansbury on the Turnpike</small></h5>
+        <p>${t.climbing ? `You're on floor ${t.climbing} now.` : 'Not climbing.'} Your best: floor <b>${t.best}</b>. Highest reached: floor ${t.reached}.${cps.length ? ` You can start from floor ${cps.map((c) => c + 1).join(', ')}.` : ' Clear floor ten and you can start from eleven.'}</p>
+        ${goal('The day\'s climb', t.day)}${goal('The week\'s climb', t.week)}</div>
+        <div class="gf-card gf-bosses"><h5>The realm's highest<small>Crowle's book</small></h5>${t.board.length ? t.board.slice(0, 10).map((c, i) => `<div class="gf-boss"><div><b>${i + 1}. ${esc(c.name)}</b></div><span class="gf-when">floor ${c.floor}</span></div>`).join('') : '<p class="gf-meta">The book is empty, or the realm isn\'t answering.</p>'}</div>`;
+    })();
+    const page = this.finderTab === 'tower' ? towerPage : this.finderTab === 'world' ? lfgCard : this.finderTab === 'bosses' ? bossCard : this.finderTab === 'fires' ? fireCard
       : roles + vetRow + (() => {
         // the dungeons as a list, the one you pick beside it (WoW's dungeon finder): nothing to scroll past
         const pick = this.finderPick && (this.finderPick === 'random' || cardOf.has(this.finderPick)) ? this.finderPick : this.finderAt && cardOf.has(this.finderAt) ? this.finderAt : 'random';
