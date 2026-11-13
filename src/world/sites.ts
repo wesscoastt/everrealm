@@ -1,3 +1,4 @@
+import { DOWNS, STRAIGHT as DOWNS_A, BEND as DOWNS_R, TRACK_W as DOWNS_W, POST_AT as DOWNS_POST } from '../data/races';
 import { B, BLOCKS } from './blocks';
 import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
 import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
@@ -1241,6 +1242,8 @@ function* planBody(): Generator<string, Plan> {
       { id: 'reedwater', name: 'Reedwater', x: TOWNS.reedwater.x, z: TOWNS.reedwater.z, r0: 0, r1: 0, build: (s) => buildReedwater(s) },
       { id: 'branchley', name: 'Branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r0: 44, r1: 64, h: 22, build: (s, b) => buildBranchley(s, b) },
       { id: 'cala', name: 'Cala Roja', x: TOWNS.cala.x, z: TOWNS.cala.z, r0: 36, r1: 52, h: SEA + 3, flats: [{ x: TOWNS.cala.x + 52, z: TOWNS.cala.z, r0: 18, r1: 22, h: SEA - 3 }], build: (s, b) => buildCala(s, b) },
+      // The racecourse in the Amberwold (data/races.ts, game/Races.ts)
+      { id: 'downs', name: 'Amberwold Downs', x: DOWNS.x, z: DOWNS.z, r0: 82, r1: 110, h: SEA + 3, build: (s, b) => buildDowns(s, b) },
       { id: 'slabs', name: 'The hanging slabs', x: MORROW_OX + 1466, z: 404, r0: 0, r1: 0, build: (s) => buildSlabs(s) },
       // The Tolbooth's cells under Callis (data/justice.ts)
       ...GAOLS.filter((g) => landOf(g) === 'morrow').map((g): Named => ({ id: g.id, name: 'The Tolbooth', x: g.x, z: g.z, r0: 0, r1: 0, under: true, build: (s) => buildGaol(s, g) })),
@@ -4150,6 +4153,59 @@ function* planBody(): Generator<string, Plan> {
    * Cala Roja, on the Bright Coast: a fishing town of white houses running down to a quay. Its boats
    * lie in the basin; nets hang to dry along the quay, and the fish market's stalls stand at its end.
    */
+  /**
+   * Amberwold Downs (owner 2026-11-13: "a horse racing track ... where you can go watch real horses race in the crowd
+   * and bet marks"): a dirt oval round a grass infield, the home straight along the south in front of a covered
+   * grandstand of five tiers, the winning post, the bookmaker's stall at the stand's west end, and the stables
+   * behind the back straight. The rails, the runners and the crowd are game/Races.ts's.
+   */
+  function buildDowns(s: Site, base: number) {
+    const cx = DOWNS.x, cz = DOWNS.z, A = DOWNS_A, R = DOWNS_R, half = DOWNS_W / 2;
+    rect(s, cx - A - R - 12, cz - R - 24, cx + A + R + 12, cz + R + 24);
+    // How far a point is from the middle of the track
+    const off = (x: number, z: number) => {
+      const dx = Math.abs(x + 0.5 - cx);
+      return dx <= A ? Math.abs(Math.abs(z + 0.5 - cz) - R) : Math.abs(Math.hypot(dx - A, z + 0.5 - cz) - R);
+    };
+    for (let x = cx - A - R - 8; x <= cx + A + R + 8; x++) for (let z = cz - R - 8; z <= cz + R + 8; z++) {
+      const d = off(x, z);
+      if (d <= half) { O.set(x, base - 1, z, B.Path); clearUp(x, z, base, base + 8); }
+      else if (d <= half + 1.6) { O.set(x, base - 1, z, B.Grass); clearUp(x, z, base, base + 8); }
+    }
+    // The apron along the rail in front of the stand, flagged, for those who'd rather stand
+    const Z0 = cz + R + Math.ceil(half) + 2, X0 = cx - 22, X1 = cx + 36;
+    pave(X0 - 8, Z0, X1 + 2, Z0 + 2, base, 'flag');
+    // The grandstand: five tiers stepping up away from the track, a back wall, posts holding the roof
+    const T0 = Z0 + 3;
+    for (let x = X0; x <= X1; x++) {
+      for (let t = 0; t < 5; t++) for (let z = T0 + t * 2; z < T0 + t * 2 + 2; z++) {
+        for (let y = base - 1; y < base + t; y++) O.set(x, y, z, y === base + t - 1 ? B.DarkPlanks : B.StoneBrick);
+        clearUp(x, z, base + t, base + 9);
+      }
+      const back = T0 + 10;
+      for (let y = base - 1; y < base + 8; y++) O.set(x, y, back, y < base + 1 ? B.StoneBrick : B.Planks);
+      if ((x - X0) % 6 === 0) for (let y = base; y < base + 7; y++) O.set(x, y, T0, B.OakLog);
+      if ((x - X0) % 8 === 4) O.set(x, base + 4, back, B.Glass);
+    }
+    // the ends walled to the roof, a stair up each, and the roof itself
+    for (const x of [X0 - 1, X1 + 1]) for (let z = T0; z <= T0 + 10; z++) for (let y = base - 1; y < base + 8; y++) O.set(x, y, z, y < base + 1 ? B.StoneBrick : B.Planks);
+    for (const x of [X0 - 1, X1 + 1]) for (let y = base; y < base + 3; y++) O.set(x, y, T0 + 1, B.Air);
+    s.props.push({ t: 'roof', x: (X0 + X1 + 1) / 2, y: base + 7, z: T0 + 5.5, len: X1 - X0 + 3, span: 12, rise: 2, ry: 0, mat: 'slate' });
+    for (let x = X0 + 3; x < X1; x += 12) s.props.push({ t: 'banner', x: x + 0.5, y: base + 6, z: T0 - 0.2, kind: 'aldermere' });
+    // The winning post, white with a red disc, on the rail opposite the stand's middle
+    const PX = cx - A + DOWNS_POST, PZ = cz + R + Math.ceil(half) + 1;
+    for (let y = base; y < base + 4; y++) O.set(PX, y, PZ, B.Whitestone);
+    O.set(PX, base + 4, PZ, B.Wool);
+    s.props.push({ t: 'sign', x: PX + 0.5, y: base, z: PZ + 1.2, ry: 0, text: 'WINNING POST' });
+    // The bookmaker's stall at the stand's west end, his board beside it
+    s.props.push({ t: 'stall', x: X0 - 5, y: base, z: Z0 + 1.5, ry: 0, color: '#2a5a3a' });
+    s.props.push({ t: 'sign', x: X0 - 8.5, y: base, z: Z0 + 0.6, ry: 0, text: 'THE BOOK\nAmberwold Downs\nBets close at the stalls' });
+    // The stables behind the back straight, and the weighing room
+    house(s, cx - 24, cz - R - 22, 26, 7, 1, base, 'thatch', 's', { wall: B.Planks, role: 'shop' });
+    house(s, cx + 8, cz - R - 21, 9, 6, 1, base, 'slate', 's', { wall: B.StoneBrick, role: 'home' });
+    s.props.push({ t: 'lantern', x: cx - 15.5, y: base, z: cz - R - 14, ry: 0 }, { t: 'barrel', x: cx - 26, y: base, z: cz - R - 14 }, { t: 'crate', x: cx - 25, y: base, z: cz - R - 13.5 });
+  }
+
   function buildCala(s: Site, base: number) {
     const T = TOWNS.cala, cx = T.x, cz = T.z, QX = cx + 32;
     rect(s, cx - 48, cz - 48, cx + 70, cz + 48);
@@ -9839,6 +9895,8 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     const lair = sites.find((s) => s.id === 'lair-' + b.id);
     put('wm-' + b.id, lair?.name ?? b.where, lair, b.x + 0.5, b.z + 22.5);
   }
+  // Amberwold Downs: by the stand's west end
+  put('wm-downs', 'Amberwold Downs', sites.find((x) => x.id === 'downs'), DOWNS.x - DOWNS_A - 6, DOWNS.z + DOWNS_R + 14);
   return out;
 }
 

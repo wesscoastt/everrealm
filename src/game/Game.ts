@@ -172,6 +172,7 @@ import { SetPieces } from './SetPieces';
 import { SharedMobs } from './SharedMobs';
 import { QuartersTable } from './QuartersTable';
 import { TavernTable } from './TavernTable';
+import { Races } from './Races';
 import { GAMING_BY_NPC, type TavernGame } from '../data/tavernGames';
 import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
@@ -405,6 +406,29 @@ export class Game implements GameApi {
       send: (to, data) => this.online.table(to, data),
       ask: (text, yes, no, secs) => this.hud.ask(text, yes, no, secs),
     }));
+  }
+  /** Amberwold Downs: the races and the book (game/Races.ts). */
+  private racesT: Races | null = null;
+  private get races(): Races {
+    return (this.racesT ??= new Races({
+      scene: this.scene,
+      player: () => this.player.position,
+      now: () => realmNow(),
+      marks: () => this.save.marks,
+      addMarks: (n) => { this.save.marks = Math.max(0, this.save.marks + n); this.hud.refresh(); },
+      flag: (k) => this.flag(k),
+      setFlag: (k, v) => this.setFlag(k, v),
+      say: (from, text) => this.hud.chat(from, text, 'local'),
+      system: (t) => this.hud.system(t),
+      sound: (n) => this.sfx(n),
+      persist: () => this.persist(),
+    }));
+  }
+  /** Barnabas Quick's book at the Downs. */
+  openBook(): void {
+    this.hud.closeAll();
+    this.cancelActions();
+    this.races.openBook();
   }
   /** Up to the keeper's table for a game of chance. */
   playTavern(npc: string, game: TavernGame | 'menu' = 'menu'): void {
@@ -8025,6 +8049,7 @@ export class Game implements GameApi {
     this.verandahPatrols.update(dt, P);
     this.wallWatch.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
+    this.races.update(dt);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
     this.prisonCart.update(dt);
     this.checkFeats(dt);
@@ -8293,6 +8318,7 @@ export class Game implements GameApi {
     if (this.dead) return;
 
     if (this.hud.picking) return; // the lock has your hands
+    if (this.racesT?.bookOpen) { if (this.input.pressedOnce('Escape')) this.racesT.closeBook(); }
     if (this.tavernT?.open) { if (this.input.pressedOnce('Escape')) this.tavernT.close(); return; } // at a tavern table
     if (this.quartersT?.open) { if (this.input.pressedOnce('Escape')) this.quartersT.close(); return; } // at the Quarters table
     if (I.pressedOnce('KeyN')) this.hud.toggle('music');
@@ -8762,7 +8788,7 @@ export class Game implements GameApi {
     this.fish.update(dt, this.player.position);
 
     // Interaction candidate
-    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.quartersT?.open || this.tavernT?.open || this.voyage.active || this.justice.busy ? null : this.findCandidate();
+    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.quartersT?.open || this.tavernT?.open || this.racesT?.bookOpen || this.voyage.active || this.justice.busy ? null : this.findCandidate();
     if (this.candidate?.kind === 'ore') {
       this.outline.visible = true;
       this.outline.position.set(this.candidate.ore!.x + 0.5, this.candidate.ore!.y + 0.5, this.candidate.ore!.z + 0.5);

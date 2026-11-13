@@ -6,6 +6,16 @@ export interface Update { v: number; date: string; title: string; items: [string
 
 export const UPDATES: Update[] = [
   {
+    v: 15, date: '13 November', title: 'Dice, cards and the Downs',
+    items: [
+      ['Games at the taverns.', 'Ask any tavern keeper “Any games going?” for Crown and Anchor, Find the Lady, or BS round the big table for a pot of marks. Taverns have a T on the map.'],
+      ['BS with other players.', 'At the BS table, ask the players near you to sit in, grouped or not. Whoever deals keeps the game.'],
+      ['Amberwold Downs.', 'A racecourse on Morrow, south of Branchley, with its own waymark. A race every six minutes that everyone there sees alike: watch from the stand and bet with Barnabas Quick at the book.'],
+      ['Mourning lace.', 'Black lace, a laced corset and fishnets, for women. Sabine Orrell, the travelling draper, sells it.'],
+      ['Temples on the map.', 'Every altar where you can unlearn skill points has a cross on the map.'],
+    ],
+  },
+  {
     v: 14, date: '12 November', title: 'Companions, a new look, and a fairer road',
     items: [
       ['Your companions.', 'Press U to call any of them to your side from wherever they are. Give them gifts (one a day counts), put gear on them, and choose the horse they ride. Each grows from stranger to loyal companion, and is stronger beside you for it.'],

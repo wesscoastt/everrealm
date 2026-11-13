@@ -746,3 +746,14 @@
   #tavern .tv-mid { grid-template-columns: auto 1fr; }
   #tavern .tv-log { grid-column: 1 / -1; grid-row: auto; }
 }
+
+/* ---- Barnabas Quick's book at Amberwold Downs (game/Races.ts) ---- */
+#tavern .rb-list { display: flex; flex-direction: column; gap: 6px; }
+#tavern .rb-row { display: grid; grid-template-columns: 34px 1fr auto auto; align-items: center; gap: 12px; padding: 7px 10px; background: rgba(0, 0, 0, 0.22); border-radius: 6px; border: 1px solid rgba(232, 220, 192, 0.12); }
+#tavern .rb-silk { width: 30px; height: 30px; border-radius: 4px; border: 2px solid #f4ecd8; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
+#tavern .rb-name { display: flex; flex-direction: column; min-width: 0; }
+#tavern .rb-name b { font: 700 15px var(--px); color: var(--wheat); }
+#tavern .rb-name small { font-size: 12px; color: #d8ccb0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tavern .rb-odds { font: 700 16px var(--book); color: #f4d27a; min-width: 70px; text-align: right; }
+#tavern .rb-slips { margin: 0; padding-left: 20px; font-size: 13px; color: #e8dcc0; }
+@media (max-width: 640px) { #tavern .rb-row { grid-template-columns: 26px 1fr auto; } #tavern .rb-row .btn { grid-column: 1 / -1; } }

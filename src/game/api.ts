@@ -27,6 +27,8 @@ export interface GameApi {
   /** At a shipwright (data/naval.ts, game/Sailing.ts): hire, build, call round, raise, paint or name a ship. */
   /** Sit down to a game of Quarters with someone who plays (data/cards.ts OPPONENTS). */
   playQuarters(npc: string): void;
+  /** Amberwold Downs' bookmaker: bet on the next race (game/Races.ts). */
+  openBook(): void;
   /** Dice, Find the Lady or BS at a keeper's table (data/tavernGames.ts). */
   playTavern(npc: string, game?: 'crown' | 'lady' | 'bs' | 'menu'): void;
   /** Guild halls on Hall Row (data/guildhalls.ts), as the realm last said: your guild, whether you may lease, its hall, the free ones, its vault's marks. */
