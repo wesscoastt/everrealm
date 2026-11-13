@@ -6,13 +6,16 @@ export interface Update { v: number; date: string; title: string; items: [string
 
 export const UPDATES: Update[] = [
   {
-    v: 15, date: '13 November', title: 'Dice, cards and the Downs',
+    v: 15, date: '13 November', title: 'Dice, doubloons and the Downs',
     items: [
       ['Games at the taverns.', 'Ask any tavern keeper “Any games going?” for Crown and Anchor, Find the Lady, or BS round the big table for a pot of marks. Taverns have a T on the map.'],
       ['BS with other players.', 'At the BS table, ask the players near you to sit in, grouped or not. Whoever deals keeps the game.'],
       ['Amberwold Downs.', 'A racecourse on Morrow, south of Branchley, with its own waymark. A race every six minutes that everyone there sees alike: watch from the stand and bet with Barnabas Quick at the book.'],
       ['Mourning lace.', 'Black lace, a laced corset and fishnets, for women. Sabine Orrell, the travelling draper, sells it.'],
       ['Temples on the map.', 'Every altar where you can unlearn skill points has a cross on the map.'],
+      ['The Black Gull’s Doubloons.', 'Ten cursed doubloons lie out in the Counties each week, the same ten for everyone, each under a pillar of gold light. Pick one up and your group near you gets one too. Morwenna Veale buys them on Gullmouth quay for a tricorn, dyes, rum and a black mare.'],
+      ['The Red Lamp.', 'Kezia Love on Gullmouth quay needs someone to hear her brother out. He is on Skua Rock. A new story line, and a new companion at the end of it.'],
+      ['The King’s Dock.', 'Awschitz Fort has a military dock north of its wall, with warships, guns and a watchtower, and its yard is full of the garrison going about their day.'],
     ],
   },
   {

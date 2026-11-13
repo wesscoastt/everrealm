@@ -31,6 +31,7 @@ export const LOYAL_PERK: Record<CompanionId, { text: string; hit?: number; hp?: 
   ned: { text: 'A sixth more health: he refuses to fall over while you\'re watching.', hp: 0.17 },
   dave: { text: 'Hits a tenth harder: twenty years of hauling nets.', hit: 0.1 },
   fdave: { text: 'Mends a quarter more: Becky\'s gift, steadier now his hands are.', mend: 0.25 },
+  daejon: { text: 'Takes a sixth less from every blow: a year on the Rock teaches you how to be hit.', guard: 0.17 },
 };
 
 /** Everything the bond adds in a fight, as shares: harder blows, more health, more mending, less taken. */
@@ -80,5 +81,10 @@ export const BOND_LINES: Record<CompanionId, Partial<Record<Bond['id'], string>>
     friend: 'You know, I think we might be friends. Becky always said I\'d make one eventually.',
     trusted: 'I don\'t trust easy, not since the drink. But I trust you.',
     loyal: 'You got me out of the bottle and back to Becky. I\'ll follow you anywhere. Sober.',
+  },
+  daejon: {
+    friend: 'I think I can call you a friend. I haven\'t had one I could say that to since I was nineteen.',
+    trusted: 'I\'d tell you the rest of it. The Gull years. All of it. Ask, some night.',
+    loyal: 'You took me off the Rock. Anywhere you go, I go. That\'s not a debt any more. It\'s a choice.',
   },
 };

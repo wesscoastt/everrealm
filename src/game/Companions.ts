@@ -51,6 +51,8 @@ const STEEDS: Record<CompanionId, { coat: string; mane: string; cloth: string; b
   // (Dave's is a borrowed cob off the fish carts, broad and unhurried)
   dave: { coat: '#6a5a4a', mane: '#2a2420', cloth: '#3a4a5a', breed: 'pack' },
   fdave: { coat: '#8a6a4a', mane: '#3a2a1e', cloth: '#d8a020', breed: 'pack' },
+  // (Daejon's is a dun cob Kezia bought off the fish carts, and told him not to name)
+  daejon: { coat: '#a8865a', mane: '#3a2a1e', cloth: '#3a4a3a' },
 };
 
 export class Companions {

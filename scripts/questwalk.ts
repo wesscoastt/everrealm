@@ -129,6 +129,8 @@ class Mock implements GameApi {
   openHallPage() {}
   playTavern(npc: string) { if (!GAMING_BY_NPC.has(npc)) err("tavern:" + npc, `${this.where}: no gaming house kept by "${npc}"`); }
   openBook() {}
+  private qd = 0;
+  questsDone() { return (this.qd += 9); }
   playQuarters(npc: string) { if (!OPPONENT_BY_NPC.has(npc)) err("quarters:" + npc, `${this.where}: no Quarters player "${npc}"`); }
   fairOn() { return true; }
   fairPlay() {}

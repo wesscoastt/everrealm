@@ -576,7 +576,29 @@ const fdave: DialogueTree = {
   },
 };
 
-const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam, ned, dave, fdave };
+const daejon: DialogueTree = {
+  start: () => 'menu',
+  nodes: {
+    hello: { text: 'Lead on. I’ve got nowhere I’d rather be, and that’s a new feeling.' },
+    bye: { text: 'I’ll be at Kezia’s stall, pretending to sell floats. Come and find me.' },
+    menu: {
+      text: (g) => (R(g, 'daejon') < 0 ? 'What is it?' : 'You look like you’ve got something on your mind. Out with it.'),
+      options: [
+        { text: 'How are you keeping?', next: 'how' },
+        { text: 'Tell me about the Gull.', next: 'gull' },
+        { text: 'What happens to Penberthy?', cond: (g) => g.flag('dl:end') === 'law' || g.flag('dl:end') === 'his', next: 'pen' },
+        ...common('daejon'),
+        { text: 'Nothing. Let\'s go.' },
+      ],
+    },
+    how: { text: (g) => (R(g, 'daejon') < 0 ? 'Free. That’s enough to be going on with. Don’t ask me how I feel about you this week.' : 'I sleep with the window open. Every night. Kezia says I’ll catch my death. I tell her I’ve been closer.'), next: 'menu' },
+    gull: { text: 'Nineteen, and hungry, and a man in a good coat said there was a way to eat that didn’t mean the fishing boats at four in the morning. You hold a lamp. That’s all. You hold a lamp, and in the morning there’s wood on the rocks and things in the wood. It took me a year to understand what I was holding the lamp for. Another to stop. I don’t ask anyone to forgive it. I ask them to let me do better.', next: 'menu' },
+    pen: { text: 'Morvah read the book out at the assize, every page, every A.P. He sat through it like a man at his own funeral. They gave him the Rock. My old cell, as it happens. I sent him a basket of pilchards. Kezia says that was petty. Kezia’s right.', next: 'menu' },
+    ...outfitNodes('daejon'),
+  },
+};
+
+const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam, ned, dave, fdave, daejon };
 
 export const COMPANION_CONTENT: RegionContent = {
   id: 'companions',
@@ -592,7 +614,9 @@ export const COMPANION_CONTENT: RegionContent = {
       // (Ned only once your name has got about: level 15)
       when: (g) => g.compActive() !== id && !g.flag(`comp:${id}:house`) && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15)
         // (David Kitto only for those who had him before Fisherman Dave's story replaced his; owner 2026-11-11)
-        && (id !== 'dave' || !!g.flag('comp:dave:joined')),
+        && (id !== 'dave' || !!g.flag('comp:dave:joined'))
+        // (Daejon only once he's off the Rock and his name is clear, or bought: data/content/daejon.ts)
+        && (id !== 'daejon' || !!g.flag('comp:daejon:joined')),
     };
   }),
   dialogue: Object.fromEntries((Object.keys(TREES) as CompanionId[]).map((id) => ['comp_' + id, TREES[id]])),

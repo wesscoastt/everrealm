@@ -7,7 +7,7 @@ import type { Appearance } from '../entities/humanoid';
 // they're willing, more than friendship. Their conversations are in data/content/companions.ts; the
 // walking, fighting and talking in game/Companions.ts.
 
-export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned' | 'dave' | 'fdave';
+export type CompanionId = 'wenna' | 'ottilie' | 'tam' | 'ned' | 'dave' | 'fdave' | 'daejon';
 export type CompanionRole = 'tank' | 'healer' | 'damage';
 
 export interface Outfit { id: string; name: string; /** Rapport needed to have it (0: from the start). */ rapport: number; look: Partial<Appearance> }
@@ -331,6 +331,48 @@ COMPANIONS.fdave = {
       called: ['I came. I didn\'t even stop at the pub. Well, I stopped. I didn\'t go in.', 'Here I am. Becky says hello. She also says sit up straight.', 'You need me? Nobody\'s needed me in years. Lead on.'],
     idle: ['Well, things certainly turned out better than I expected.', 'I\'ve got my hat, I\'ve got Becky, and I\'ve got a reason to get out of bed. That\'s a pretty good day.', 'You ever notice how strange life gets when you stop drinking long enough to pay attention?', 'I suppose I ought to thank you again. I might get around to it eventually.', 'Do you want a sandwich? I\'ve got half a sandwich.'],
     partner: ['You know where I stand. I\'m not saying it twice. Once was hard enough.'],
+  },
+};
+
+// Daejon Love (owner 2026-11-13, docs/briefs/daejon-love.md): ran with the Black Gull wreckers at nineteen, stopped at
+// twenty, and at thirty lit a red lamp on Awschitz Head to turn the Constance away and was too slow. Skua Rock for it, on
+// the reeve's word. You took him off the Rock; he joins at the end of The Red Lamp (data/content/daejon.ts). Warm, wry,
+// careful with his words because he has had to be; pays what he owes; can't abide a lie told for money.
+COMPANIONS.daejon = {
+  id: 'daejon', name: 'Daejon Love', title: 'Off the Rock',
+  home: { at: [1782.5, 602.5], face: [1785.5, 602.5], place: 'Kezia’s stall on Gullmouth quay' },
+  roles: ['damage', 'tank'],
+  look: { frame: 'm', skin: '#6a4430', hair: '#1a1a1e', hairStyle: 3, facial: 2, eyes: '#3a2a1e', tunic: '#3a4a3a', trim: '#c8a050', shirt: '#e8e0d0', trousers: '#2a2a30', boots: '#1e1a16', shoes: 1, top: 7, belt: '#2a1e14', build: 1.12, age: 0.35 },
+  outfits: [
+    { id: 'own', name: 'His sea coat', rapport: 0, look: {} },
+    { id: 'greys', name: 'Rock greys, for the joke of it', rapport: 10, look: { tunic: '#5a5650', trim: '#3a3632', shirt: '#7a7670', trousers: '#4a4640', top: 0 } },
+    { id: 'lamp', name: 'Lamp-man’s oilskins', rapport: 25, look: { tunic: '#c8a040', trim: '#7a5a20', top: 7, hat: 'wide', hatColor: '#c8a040' } },
+    { id: 'best', name: 'Kezia’s idea of respectable', rapport: 45, look: { top: 1, tunic: '#2a2a3a', trim: '#c8a050', shirt: '#f0ece0', hat: 'tophat', hatColor: '#1a1a1e' } },
+  ],
+  likes: {
+    revive: [6, 'You came back for me. Again. I’m starting to owe you more than I can carry.'],
+    quest: [2, 'Somebody sleeps easier tonight. Good.'],
+    bounty: [4, 'Paid what you owed. I know how that feels. It feels like breathing.'],
+    vista: [2, 'You can see every light on the coast from here. I used to count them. Old habit.'],
+    boss: [3, 'Well. That’s a story Kezia won’t believe.'],
+    crime: [-4, 'I did enough of that for both of us. Don’t.'],
+    theft: [-6, 'Put it back. I took things off drowned men once. It doesn’t wash off.'],
+  },
+  banter: {
+    saltwind: ['Every headland on this coast, I know which one the Gull used and why. I wish I didn’t.'],
+    gullmouth: ['Kezia’s stall. Don’t look. She’ll sell you a float.', 'Penberthy used to stand just there, counting. The quay looks bigger without him.'],
+    greenwake: ['Inland. Fields. Nothing to wreck. I could get used to it.'],
+    night: ['Clear night. You can see the Rock’s light from here. I don’t look at it any more. Much.'],
+    rain: ['Rain on the Rock came sideways. This is nothing.'],
+    fight: ['Behind me.', 'Keep your feet!', 'All right, then.'],
+    won: ['Still standing. Both of us.', 'That’s that.'],
+    hurt: ['Sit. Let me look. I’ve set worse on a cell floor.'],
+    down: ['Up. Come on. I didn’t come off a cliff to watch you lie there.'],
+    swim: ['Last time I swam it was on a float made of oilskins in the dark. This is a holiday.'],
+    idle: ['Ten years I stopped. One year on the Rock. And now this. You never know where the road goes.', 'Kezia says I look happier. I told her it’s the beard.'],
+    called: ['I came. I always will. You know why.', 'Here. Where are we going?'],
+    house: ['Your kettle’s better than the Rock’s. Low bar, mind.', 'Nice, having a door you can open from the inside.'],
+    partner: ['I don’t say things lightly. I said it. That’s all.'],
   },
 };
 

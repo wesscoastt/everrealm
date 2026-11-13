@@ -118,6 +118,16 @@ export const GIFT_TASTES: Record<CompanionId, Taste> = {
     special: { drink: { reaction: 'dislike', line: 'No. I don\'t. Not anymore. You know that.', rapport: -6 } },
     enough: 'You\'ve done enough for today. Honestly. Save it.',
   },
+  daejon: {
+    love: ['food', 'tool', 'book'], like: ['fish', 'tea', 'sweet'], dislike: ['gem'],
+    says: {
+      love: ['On the Rock you got one thing a month you could call yours. This is better than all of them.', 'You remembered. Nobody remembers.'],
+      like: ['That’s kind. I’ll use it.', 'Thank you. Truly.'],
+      plain: ['Thank you.'],
+      dislike: ['Jewels. The Gull paid in jewels sometimes, off the drowned. Keep it.'],
+    },
+    enough: 'That’s plenty for one day. Save it for Kezia, she’ll think you’re courting her.',
+  },
 };
 
 export const GIFT_RAPPORT: Record<GiftReaction, number> = { love: 6, like: 3, plain: 1, dislike: -3 };

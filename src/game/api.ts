@@ -7,6 +7,8 @@ export interface GameApi {
   setFlag(key: string, value?: unknown): void;
   stage(quest: string): string | undefined;
   setStage(quest: string, stage: string): void;
+  /** How many quests you've seen through to the end. */
+  questsDone(): number;
   count(item: string): number;
   has(item: string, n?: number): boolean;
   give(item: string, n?: number): boolean;

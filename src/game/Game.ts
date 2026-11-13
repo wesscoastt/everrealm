@@ -173,6 +173,7 @@ import { SharedMobs } from './SharedMobs';
 import { QuartersTable } from './QuartersTable';
 import { TavernTable } from './TavernTable';
 import { Races } from './Races';
+import { Doubloons } from './Doubloons';
 import { GAMING_BY_NPC, type TavernGame } from '../data/tavernGames';
 import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
@@ -421,6 +422,27 @@ export class Game implements GameApi {
       say: (from, text) => this.hud.chat(from, text, 'local'),
       system: (t) => this.hud.system(t),
       sound: (n) => this.sfx(n),
+      persist: () => this.persist(),
+    }));
+  }
+  /** The Black Gull's doubloons out in the Counties, ten a week (game/Doubloons.ts). */
+  private doubloonsT: Doubloons | null = null;
+  private get doubloons(): Doubloons {
+    return (this.doubloonsT ??= new Doubloons({
+      scene: this.scene,
+      player: () => this.player.position,
+      now: () => realmNow(),
+      loaded: (x, z) => this.world.voxels.isLoaded(x, z),
+      ground: (x, z) => this.world.voxels.groundBelow(x, 110, z),
+      block: (x, y, z) => this.world.voxels.get(x, y, z),
+      flag: (k) => this.flag(k),
+      setFlag: (k, v) => this.setFlag(k, v),
+      give: (it, n) => this.give(it, n),
+      addMarks: (n) => this.addMarks(n),
+      banner: (t, sub) => this.hud.banner(t, sub, true),
+      system: (t) => this.hud.system(t),
+      sound: (n) => this.sfx(n),
+      tellGroup: (data) => { if (this.social.inGroup) this.online.table(null, data); },
       persist: () => this.persist(),
     }));
   }
@@ -1667,7 +1689,7 @@ export class Game implements GameApi {
       guildWithdrawn: (item, n) => this.bank.guildOut(item, n),
       halls: (list) => { this.halls.book = list; },
       hall: (v) => { this.hallView = v?.guild ? v : null; this.hud.refresh('guild'); },
-      table: (from, name, data) => this.tavern.onNet(from, name, data),
+      table: (from, name, data) => { if ((data as { k?: string })?.k === 'dbl') this.doubloons.onMate(data as { week?: number; i?: number }, name); else this.tavern.onNet(from, name, data); },
       aid: (from, heal, ward, secs) => {
         if (this.dead) return;
         // (capped here, by your own health: the realm passes it on, it doesn't keep anyone's)
@@ -1806,6 +1828,7 @@ export class Game implements GameApi {
     this.save.flags[key] = value;
   }
   stage(q: string): string | undefined { return this.save.quests[q]; }
+  questsDone(): number { return Object.values(this.save.quests).filter((v) => v === 'done').length; }
   setStage(q: string, s: string): void {
     const prev = this.save.quests[q];
     if (prev === s) return;
@@ -8050,6 +8073,7 @@ export class Game implements GameApi {
     this.wallWatch.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.races.update(dt);
+    if (this.mode === 'play') this.doubloons.update(dt);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
     this.prisonCart.update(dt);
     this.checkFeats(dt);
