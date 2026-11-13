@@ -357,6 +357,9 @@ export interface UiCtx {
   /** Your home's name (null if you have none), and going there. */
   homeName(): string | null;
   travelHome(): void;
+  /** The dungeon or tower you're in (null: none), and leaving it. */
+  instance?(): string | null;
+  leaveInstance?(): void;
   /** The Endless Tower at a glance, for the group finder's tab. */
   towerView?(): { best: number; reached: number; climbing: number | null; day: [number, number, boolean]; week: [number, number, boolean]; board: { name: string; floor: number }[] };
   currentStation: Station | null;
@@ -3788,6 +3791,9 @@ export class Hud {
       controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + tick('shake', 'Camera shake') + `<h4 class="sec">Keys <small>click one, then press the key you want; Esc leaves it</small></h4><div class="key-list">${bindRows}</div><button class="btn sm ghost" data-keyreset>Put every key back</button>`],
       ui: ['Interface and chat', S('uiScale') + tick('playerNames', 'Names over players') + tick('npcNames', 'Names over people') + tick('combatText', 'Numbers in a fight') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
     };
+    // Leaving a dungeon or the tower, ESO's way: here at the top of the menu while you're in one
+    const inst = this.ctx.instance?.();
+    if (inst) for (const k of Object.keys(pages)) pages[k][1] = `<div class="setting"><span>You're in ${esc(inst)}</span><button class="btn sm danger" data-leaveinst>Leave it</button><span></span></div>` + pages[k][1];
     if (!this.ctx.inMenu) pages.char = ['Character', '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px"><button class="btn ghost" data-act="title">Save and quit to character select</button><button class="btn danger" data-act="reset">Delete character</button></div>'];
     try { if (localStorage.getItem('everrealm.menuNews') !== String(NEWS_V)) { localStorage.setItem('everrealm.menuNews', String(NEWS_V)); this.settingsTab = 'news'; } } catch { /* private window */ }
     if (!pages[this.settingsTab]) this.settingsTab = 'video';
@@ -3819,6 +3825,7 @@ export class Hud {
         this.renderSettings();
       };
     }));
+    body.querySelector('[data-leaveinst]')?.addEventListener('click', () => this.ask('Leave and go back outside? A group carries on without you.', () => { this.closeAll(); this.ctx.leaveInstance?.(); }, () => {}, 30));
     body.querySelector('[data-keyreset]')?.addEventListener('click', () => { st.keys = {}; this.ctx.settingsChanged(); this.renderSettings(); });
     body.querySelector<HTMLSelectElement>('select[data-cv]')?.addEventListener('change', (e) => { st.colourVision = (e.target as HTMLSelectElement).value as ColourVision; this.ctx.settingsChanged(); });
     body.querySelector<HTMLInputElement>('input[data-fs]')?.addEventListener('change', (e) => {

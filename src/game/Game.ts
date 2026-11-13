@@ -4080,6 +4080,8 @@ export class Game implements GameApi {
       travelWaymark: (id: string) => g.travelWaymark(id),
       homeName: () => g.myHomeName(),
       travelHome: () => g.travelHome(),
+      instance: () => g.inInstance(),
+      leaveInstance: () => { g.leaveInstance(); },
       towerView: () => { void loadClimbers(); const t = g.tower.tally(); return { best: g.tower.best(), reached: g.tower.reached(), climbing: g.tower.run?.floor ?? null, day: [t.day.floors, TOWER_DAILY.floors, t.day.paid] as [number, number, boolean], week: [t.week.floors, TOWER_WEEKLY.floors, t.week.paid] as [number, number, boolean], board: climbers.list }; },
       shop: () => g.shopView(),
       travel: () => g.travelView(),
@@ -5399,7 +5401,8 @@ export class Game implements GameApi {
 
   // =================================================================== Dialogue
   private startDialogue(npc: Npc): void {
-    const tree = DIALOGUE[npc.id];
+    // (someone with no conversation written still answers: one of their own lines, and goodbye; owner 2026-11-13, "they have E to talk but you can't interact")
+    const tree = DIALOGUE[npc.id] ?? this.smallTalk(npc);
     if (!tree) return;
     this.cancelActions();
     this.hud.closeAll();
@@ -5408,6 +5411,21 @@ export class Game implements GameApi {
     if (this.isStoryScene(npc.id)) this.hud.setCinema(true, true);
     this.player.faceTowards(npc.pos.x, npc.pos.z);
     this.enterNode(tree.start(this));
+  }
+
+  /** Out of the dungeon or the Endless Tower you're in, ESO's way (owner 2026-11-13: "add a way to leave dungeons like ESO"); false when you're in neither. */
+  leaveInstance(): boolean {
+    if (this.tower.run) { this.tower.leave('You walk out of the tower.'); return true; }
+    if (this.dungeons.run) { this.dungeons.leave(); return true; }
+    return false;
+  }
+  inInstance(): string | null { return this.tower.run ? 'the Endless Tower' : this.dungeons.run ? 'the dungeon' : null; }
+
+  /** A word from someone with no conversation of their own: one of their lines, or a nod. */
+  private smallTalk(npc: Npc): (typeof DIALOGUE)[string] {
+    const lines = npc.def.barks ?? [];
+    const said = lines.length ? lines[Math.floor(Math.random() * lines.length)] : null;
+    return { start: () => 'a', nodes: { a: said ? { text: said, options: [{ text: 'Goodbye.' }] } : { speaker: 'narrator', text: `${npc.def.name} nods to you and goes on with the work.`, options: [{ text: '(Leave them to it)' }] } } } as unknown as (typeof DIALOGUE)[string];
   }
 
   private enterNode(id: string): void {
@@ -9146,7 +9164,9 @@ export class Game implements GameApi {
           return;
         }
         case 'invite': case 'inv': if (arg) this.social.invite(arg); else this.hud.system('Who? /invite <name>, or click them and choose Invite.'); return;
-        case 'leave': case 'leavegroup': this.social.leave(); return;
+        // (/leave: out of a dungeon or the tower first, as ESO's Leave Instance; then the group)
+        case 'leave': if (this.leaveInstance()) return; this.social.leave(); return;
+        case 'leavegroup': this.social.leave(); return;
         case 'promote': if (arg) this.social.promote(arg); return;
         case 'w': case 'whisper': case 'tell': case 't': case 'msg': {
           const sp = arg.indexOf(' ');
