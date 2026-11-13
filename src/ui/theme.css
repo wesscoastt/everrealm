@@ -651,7 +651,7 @@
 .help-q { border-bottom: 1px solid rgba(224,189,100,0.18); padding: 5px 2px; }
 .help-q summary { cursor: pointer; font-weight: 600; color: var(--gild-l); list-style: none; }
 .help-q summary::before { content: "+ "; opacity: 0.7; }
-.help-q[open] summary::before { content: "2  "; }
+.help-q[open] summary::before { content: "− "; }
 .help-q p { margin: 6px 0 2px 14px; line-height: 1.45; }
 .set-news .news-d { font: 500 12px var(--body); color: var(--muted); margin-left: 6px; }
 .set-news .news { margin: 0 0 10px; padding-left: 18px; font: 500 13px/1.45 var(--body); color: var(--cream-d); }
