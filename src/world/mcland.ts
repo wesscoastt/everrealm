@@ -39,6 +39,8 @@ export function mcHeight(x: number, z: number): number | null {
 }
 
 const files = new Map<string, Uint8Array | null>();
+/** The Verandah farm, by its sign: its farmland grows corn. */
+const VERANDAH_FARM = [-2667, 2192];
 /** Columns dug below the old foot (the Verandah quarry): per column 255 (not dug) or a count of [y - MINY, length, block] runs. */
 const deep = new Map<string, Uint8Array>();
 const pending = new Map<string, Promise<void>>();
@@ -121,9 +123,10 @@ export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, numbe
     else col = mapColor(topId);
     const shade = 1 + (top - 22) * 0.008;
     r.map[mi] = col[0] * shade; r.map[mi + 1] = col[1] * shade; r.map[mi + 2] = col[2] * shade; r.map[mi + 3] = 255;
-    // crops on the farmland: wheat, and corn in its own rows (the owner's farm grew both)
+    // crops on the farmland: wheat and corn in turns of rows; the Verandah farm all corn (owner 2026-11-12: "all the wheat
+    // blocks on the Verandah farm are supposed to be corn")
     if (topId === B.Farmland && top + 1 < SY) {
-      const x = ox + lx, z = oz + lz, corn = Math.floor(x / 5) % 2 === 0;
+      const x = ox + lx, z = oz + lz, corn = Math.hypot(x - VERANDAH_FARM[0], z - VERANDAH_FARM[1]) < 90 || Math.floor(x / 5) % 2 === 0;
       // across from the winery, a vineyard (owner 2026-11-05: "replace the farmland across the winery with grapes")
       if (x >= VINEYARD.x0 && x <= VINEYARD.x1 && z >= VINEYARD.z0 && z <= VINEYARD.z1) veg.push(x + 0.5, top + 1, z + 0.5, 16, 1.7, x % 2 ? 0 : Math.PI, 1, 1, 1);
       else for (let k = 0; k < 2; k++) veg.push(x + 0.25 + k * 0.5, top + 1, z + 0.5, corn ? 15 : 6, corn ? 1.9 : 1.05, (x * 7 + z) % 6, 1, 1, 1);
