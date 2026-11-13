@@ -321,6 +321,8 @@ for (const [k, id] of cells) {
     const f = g + 1, wx = solid(x - 1, f, z) && solid(x + 1, f, z), wz = solid(x, f, z - 1) && solid(x, f, z + 1);
     const open = (dx: number, dz: number) => !solid(x + dx, f, z + dz) && !solid(x + dx, y, z + dz);
     if ((wx && open(0, -1) && open(0, 1)) || (wz && open(-1, 0) && open(1, 0))) continue;
+    // (nor is a one-high niche walled three ways, open to the front: a furnace mouth, a hearth)
+    if (gap === 1 && ((wx && (open(0, -1) !== open(0, 1))) || (wz && (open(-1, 0) !== open(1, 0))))) continue;
     if (g >= 0 && gap >= 1 && gap <= 2) gaps.push(`a building stands ${gap} block${gap > 1 ? 's' : ''} off the ground at (${x}, ${y}, ${z})`);
   }
   if (gaps.length) problems.push(...gaps.slice(0, 40), ...(gaps.length > 40 ? [`... and ${gaps.length - 40} more`] : []));
