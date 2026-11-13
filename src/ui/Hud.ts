@@ -178,7 +178,7 @@ export interface DialogueView { speaker: string; title: string; text: string; na
 export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean }
 
 /** One skill as the Skills page shows it. */
-export interface SkillCard { id: string; name: string; base: string; icon: string; desc: string; kind: string; need: number; open: boolean; unlocked: boolean; free: boolean; rank: number; uses: number; next: number | null; from: number; morph: 'a' | 'b' | null; morphs: { key: 'a' | 'b'; name: string; desc: string }[] }
+export interface SkillCard { id: string; name: string; base: string; icon: string; desc: string; kind: string; need: number; open: boolean; unlocked: boolean; free: boolean; /** The weapon in your hand's own skill. */ carried?: boolean; rank: number; uses: number; next: number | null; from: number; morph: 'a' | 'b' | null; morphs: { key: 'a' | 'b'; name: string; desc: string }[] }
 export interface SkillsView {
   pool: { total: number; left: number; insight: number; skills: number; morphs: number; talents: number };
   temple: boolean; respec: number;
@@ -2126,7 +2126,7 @@ export class Hud {
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();
     const pk = this.ctx.packInfo();
-    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}Free slots <b>${this.ctx.inv.freeSlots()}</b> of ${save.inv.length}${pk ? `<br>Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : '<br>Pack <b>none</b>: a satchel from any general stall adds four slots'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
+    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b> (a satchel adds four slots)'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
     // (a sheet of label and value, one row each, rather than lines of text)
     stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
     stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
@@ -2190,6 +2190,9 @@ export class Hud {
     const foot = el('div', 'bag-foot');
     foot.innerHTML = `<span class="bag-used${used >= save.inv.length ? ' full' : ''}"><b>${used}</b> / ${save.inv.length} slots<i class="bag-meter"><i style="width:${Math.round((used / save.inv.length) * 100)}%"></i></i></span><span class="bag-hint">Click to use or wear · Shift-click to drop · Drag to move</span>`;
     bagCol.append(foot);
+    // (your stats under the pack, where there is room, so the gear column needs no scrolling)
+    bagCol.append(stats);
+    stats.classList.add('bag-stats');
     this.q('#inv-panel .footer').innerHTML = `<span>${used >= save.inv.length ? 'Your pack is full' : `${save.inv.length - used} slots free`}</span><span class="coin">${save.marks.toLocaleString()} marks</span>`;
   }
 
@@ -2308,13 +2311,16 @@ export class Hud {
         : k.morphs.length ? `<div class="sk-morphs${k.rank < 4 ? ' far' : ''}">${k.morphs.map((m) => `<button class="sk-mo" data-smorph="${k.id}:${m.key}"${k.rank < 4 || sv.pool.left < 1 ? ' disabled' : ''}><b>${esc(m.name)}</b><span>${esc(m.desc)}</span></button>`).join('')}</div>${k.rank < 4 ? '<p class="sk-why">Morphs at rank IV</p>' : ''}` : '';
       return `<div class="sk-card ${state}"><img src="${abilityIcon(k.icon)}" alt=""><div><b>${esc(k.name)}</b>${k.morph ? `<small class="sk-was">${esc(k.base)}</small>` : ''}<small>${esc(k.kind)}${k.free ? ' · comes with the weapon' : ''}</small><p>${esc(k.desc)}</p>${rank}${act}</div></div>`;
     };
-    const col = (title: string, list: SkillCard[]) => `<section class="sk-col"><h4>${title}</h4>${list.map(card).join('')}</section>`;
+    const col = (title: string, list: SkillCard[], cls = '') => `<section class="sk-col${cls}"><h4>${title}</h4>${list.map(card).join('')}</section>`;
     // The realm's lines below: anyone's to learn, whatever their calling; each skill goes in key 6 or 7
     const open = sv.lines.filter((l) => l.open), shut = sv.lines.filter((l) => !l.open);
-    const lines = `<section class="sk-lines"><h4>Skill lines <span>Learned from the realm's people, whatever your calling. Unlock a skill for a point, then put it in key 6 or 7 from the Skills page of your journal.</span></h4>
+    const lines = `<details class="sk-lines"><summary><h4>Skill lines (${open.length} open) <span>Learned from the realm's people, whatever your calling. Unlock a skill for a point, then put it in key 6 or 7 from the Skills page of your journal.</span></h4></summary>
       <div class="sk-linegrid">${open.map((l) => `<div class="sk-line"><header><b>${esc(l.name)}</b><small>${l.skills.filter((s) => s.unlocked).length} of ${l.skills.length} learned</small><p>${esc(l.blurb)}</p></header>${l.skills.map(card).join('')}</div>`).join('')}
-      ${shut.map((l) => `<div class="sk-line shut"><header><b>${esc(l.name)}</b><small>Opens: ${esc(l.opensWhen)}</small><p>${esc(l.blurb)}</p></header><p class="sk-why">${l.skills.length} skills to learn when it opens</p></div>`).join('')}</div></section>`;
-    return `<div class="sk-page">${col('Your calling', sv.calling)}${col('Utilities', sv.utilities)}${col('Weapon skills', sv.weapons)}</div>${lines}`;
+      ${shut.map((l) => `<div class="sk-line shut"><header><b>${esc(l.name)}</b><small>Opens: ${esc(l.opensWhen)}</small><p>${esc(l.blurb)}</p></header><p class="sk-why">${l.skills.length} skills to learn when it opens</p></div>`).join('')}</div></details>`;
+    // Weapon skills: those of the weapon you carry and any you've used, as ESO shows only the lines you have; the rest folded away
+    const near = sv.weapons.filter((k) => k.carried || k.uses > 0 || k.morph), far = sv.weapons.filter((k) => !near.includes(k));
+    const weapons = `<section class="sk-col sk-weapons"><h4>Weapon skills</h4>${near.map(card).join('') || '<p class="sk-why">Carry a weapon, and its skills show here.</p>'}${far.length ? `<details class="sk-more"><summary>Every other weapon's skills (${far.length})</summary><div class="sk-weapons">${far.map(card).join('')}</div></details>` : ''}</section>`;
+    return `<div class="sk-page">${col('Your calling', sv.calling)}${col('Utilities', sv.utilities)}${weapons}</div>${lines}`;
   }
 
   /**
@@ -2826,6 +2832,10 @@ export class Hud {
 
   /** The Exchange: Buy (the book, cheapest first, searchable) and Sell (your stacks, and pricing one from your pack). */
   // ------------------------------------------------------------------ The Group Finder
+  /** The group finder's open section (its tabs). */
+  private finderTab = 'dungeons';
+  /** The dungeon picked in the finder's list ('random', or a dungeon's id). */
+  private finderPick: string | null = null;
   private renderFinder(): void {
     const v = this.ctx.finder();
     const body = this.q('#finder-panel .body');
@@ -2850,7 +2860,8 @@ export class Hud {
     const randomCard = `<div class="gf-card gf-random"><h5>Random dungeon<small>any of them · for four · at your level</small></h5>
       <p>The finder picks one for you. ${v.randomReady ? 'The day\'s first random clear pays the Lamp Company\'s bonus: a heap of experience, marks, and a Lamp key.' : 'Today\'s bonus is taken; it comes back at midnight. The chest pays as always.'}</p>${pledgeLine}
       <div class="gf-go"><button class="btn" data-gf="rfind"${findOffR ? ' disabled' : ''}>${v.group ? (v.group.leader ? `Take your group (${v.group.size})` : 'Your leader takes you in') : 'Find players'}</button><button class="btn ghost" data-gf="rhench"${busyR ? ' disabled' : ''}>Go alone with henchmen</button></div></div>`;
-    const cards = order.map((d) => {
+    const cardOf = new Map<string, string>();
+    order.forEach((d) => cardOf.set(d.id, (() => {
       const busy = !!v.run || !!v.queue;
       const findLabel = v.group ? (v.group.leader ? `Take your group in (${v.group.size})` : 'Your group\'s leader takes you in') : 'Find players';
       // (corrupted: a group you bring yourself, never the open queue)
@@ -2859,7 +2870,7 @@ export class Hud {
         <p>${esc(d.blurb)}</p>
         <div class="gf-meta">${d.clears ? `Cleared ${d.clears === 1 ? 'once' : d.clears + ' times'}${d.vetClears ? `, ${d.vetClears === 1 ? 'once' : d.vetClears + ' times'} on veteran` : ''}. The day's first clear pays half again.${v.cor ? (d.vetClears ? (d.keys ? ` You'll go in corrupted (keys: ${d.keys}).` : ' You need its key for a corrupted run.') : ' Clear it on veteran to open its corrupted run.') : v.vet ? ' You\'ll go in on veteran.' : ''}${d.corClears ? ` Corrupted clears: ${d.corClears}.` : ''}` : `Not cleared yet.${v.vet ? ' Veteran opens once you have: this one goes in on normal.' : ''}`}</div>
         <div class="gf-go"><button class="btn" data-gf="find" data-id="${d.id}"${findOff ? ' disabled' : ''} title="${v.online ? 'Real players first; henchmen take any place still empty after a minute and a half' : 'Finding other players needs the online realm.'}">${findLabel}</button><button class="btn ghost" data-gf="hench" data-id="${d.id}"${busy ? ' disabled' : ''}>Go alone with henchmen</button></div>${v.online && !v.group ? '<div class="gf-meta">Real players first. Any place still empty after 1:30 goes to a henchman, so you might go in two and two.</div>' : ''}</div>`;
-    }).join('');
+    })()));
     // World bosses: when each rises next, and a group to take it on with
     const bosses = v.bosses ?? [];
     const bossCard = bosses.length ? `<div class="gf-card gf-bosses"><h5>World bosses<small>out in the world · anyone may join in · groups of up to five</small></h5>
@@ -2877,7 +2888,22 @@ export class Hud {
     const when = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m` : mm(s));
     const fireCard = fires.length ? `<div class="gf-card gf-bosses"><h5>Gatherings<small>a town lights its fire · music and company · stay a while for more experience, more with others there</small></h5>
       ${fires.map((f) => `<div class="gf-boss${f.until < 0 ? ' up' : ''}"><div><b>${esc(f.name)}</b><small>${esc(f.where)}</small></div><span class="gf-when">${f.until < 0 ? `Lit now · ${mm(-f.until)} left` : `Lit in ${when(f.until)}`}</span></div>`).join('')}</div>` : '';
-    body.innerHTML = status + lfgCard + bossCard + fireCard + roles + vetRow + randomCard + cards + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
+    // One section at a time under tabs (owner 2026-11-12: "too much scrolling around"): dungeons, the open world's board, world bosses, gatherings
+    const tabs: [string, string][] = [['dungeons', 'Dungeons'], ['world', `Out in the world${lf.length ? ` (${lf.length})` : ''}`]];
+    if (bosses.length) tabs.push(['bosses', `World bosses${bosses.some((b) => b.until < 0) ? ' (one is up)' : ''}`]);
+    if (fires.length) tabs.push(['fires', 'Gatherings']);
+    if (!tabs.some(([k]) => k === this.finderTab)) this.finderTab = 'dungeons';
+    const page = this.finderTab === 'world' ? lfgCard : this.finderTab === 'bosses' ? bossCard : this.finderTab === 'fires' ? fireCard
+      : roles + vetRow + (() => {
+        // the dungeons as a list, the one you pick beside it (WoW's dungeon finder): nothing to scroll past
+        const pick = this.finderPick && (this.finderPick === 'random' || cardOf.has(this.finderPick)) ? this.finderPick : this.finderAt && cardOf.has(this.finderAt) ? this.finderAt : 'random';
+        const item = (id: string, name: string, sub: string) => `<button class="gf-item${id === pick ? ' sel' : ''}" data-gfp="${id}"><b>${esc(name)}</b><small>${esc(sub)}</small></button>`;
+        const list = item('random', 'Random dungeon', v.randomReady ? 'the day\'s bonus waiting' : 'any of them') + v.dungeons.map((d) => item(d.id, d.name, d.clears ? `cleared ${d.clears}${d.vetClears ? `, veteran ${d.vetClears}` : ''}` : 'not cleared yet')).join('');
+        return `<div class="gf-split"><div class="gf-list">${list}</div><div class="gf-one">${pick === 'random' ? randomCard : cardOf.get(pick)}</div></div>`;
+      })() + `<p class="gf-note">Henchmen fill any place a player doesn't: ${hench}. They follow you, step out of what they see coming, and fight to their role.${v.online ? '' : ' You\'re offline, so it\'s henchmen only.'}</p>`;
+    body.innerHTML = status + `<div class="gf-tabs bag-tabs">${tabs.map(([k, n]) => `<button class="bag-tab${k === this.finderTab ? ' sel' : ''}" data-gft="${k}">${esc(n)}</button>`).join('')}</div><div class="gf-page">${page}</div>`;
+    body.querySelectorAll<HTMLElement>('[data-gfp]').forEach((b) => b.addEventListener('click', () => { this.finderPick = b.dataset.gfp!; this.ctx.sfx('click'); this.renderFinder(); }));
+    body.querySelectorAll<HTMLElement>('[data-gft]').forEach((b) => b.addEventListener('click', () => { this.finderTab = b.dataset.gft!; this.ctx.sfx('click'); this.renderFinder(); }));
     this.q('#finder-panel .footer').innerHTML = `<span>${document.body.classList.contains('touch') ? 'The Group button' : 'P'} opens this anywhere. Each also has a door to walk to: the boarded one in Sallow Pit's chamber, and the crack in the Kettle's north wall.</span>`;
     body.querySelectorAll<HTMLElement>('[data-role]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.finderDo('role', b.dataset.role); }));
     body.querySelectorAll<HTMLButtonElement>('[data-vet]').forEach((b) => b.addEventListener('click', () => { if (b.disabled) return; this.ctx.sfx('click'); this.ctx.finderDo('vet', b.dataset.vet); }));

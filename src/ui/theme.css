@@ -483,3 +483,92 @@
    keeps a size of its own now, wherever it's been moved to.) */
 #map-panel { min-width: min(760px, calc(100vw - 24px)); min-height: min(560px, calc(100vh - 160px)); }
 #map-panel .body { flex: 1 1 auto; }
+
+/* ------------------------------------------------------------- No scrolling to find things (owner 2026-11-12: "the UI has too much scrolling around, not fluid") */
+/* The pack: ten to a row, every slot in sight; the stats in two columns so you and your gear fit beside it */
+#inv-panel { width: min(900px, calc(100vw - 32px)); }
+.inv-bag .inv-grid { grid-template-columns: repeat(10, 43px); gap: 4px; padding: 8px; max-height: none; overflow: visible; }
+.inv-bag .inv-grid .slot { width: 43px; height: 43px; }
+.inv-bag .inv-grid .slot img { inset: 4px; width: 33px; height: 33px; }
+.inv-bag .inv-grid .slot .n { font-size: 12px; right: 3px; bottom: 0; }
+.equip-row .stats { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+.equip-row .stats .st-row { flex-direction: column; gap: 0; padding: 3px 0; }
+.equip-row .stats .st-row .k { flex: none; font-size: 11px; }
+#ui.pack-beside #inv-panel .inv-bag .inv-grid { grid-template-columns: repeat(8, 43px); }
+#ui.pack-beside #inv-panel .inv-bag .inv-grid .slot { width: 43px; height: 43px; }
+/* The journal: wider, its list of pages tight enough to see whole */
+#journal-panel { width: min(780px, calc(100vw - 32px)); }
+.journal { grid-template-columns: 200px 1fr; }
+.jlist h6 { margin: 6px 0 2px; }
+.jlist .ji { padding: 3px 9px; margin-bottom: 1px; font-size: 13.5px; line-height: 1.35; }
+/* Talents: each skill a compact card, its full account opening over the page when you hover it, not making the page three screens long */
+.sk-card { position: relative; padding: 6px 9px; gap: 9px; grid-template-columns: 34px 1fr; transition: box-shadow 0.15s ease, background 0.15s ease; }
+.sk-card img { width: 34px; height: 34px; }
+.sk-card > div > p { display: none; }
+.sk-card:hover { z-index: 4; background: linear-gradient(rgba(20, 26, 44, 0.95), rgba(10, 14, 26, 0.98)); }
+.sk-card:hover > div > p { display: block; position: absolute; left: -2px; right: -2px; top: calc(100% - 2px); z-index: 5; margin: 0; padding: 8px 12px 10px; background: rgba(10, 14, 26, 0.98); border: 2px solid var(--ink); border-top: 0; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); animation: tip-in 0.14s ease; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.sk-col { gap: 5px; }
+.sk-rank { margin-top: 3px; }
+/* The group finder: a tab for each kind of thing, the page under it */
+.gf-tabs { margin: 0 0 10px; }
+.gf-page { animation: tip-in 0.16s ease; }
+#finder-panel { width: min(900px, calc(100vw - 32px)); }
+.gf-page { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+.gf-page > :is(.gf-roles, .gf-note, .gf-random, .gf-bosses, small) { grid-column: 1 / -1; }
+.gf-page > .gf-card { margin: 0; }
+@media (max-width: 760px) { .gf-page { grid-template-columns: 1fr; } }
+/* The pack's stats, under the bag: three to a row */
+.bag-stats { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 12px; padding: 6px 10px; background: rgba(4, 8, 20, 0.4); border: 1px solid var(--gild-faint); border-radius: 8px; font: 500 12px var(--body); color: var(--cream-d); }
+.bag-stats .st-row { display: flex; flex-direction: column; padding: 3px 0; border-bottom: 1px solid rgba(243, 213, 138, 0.07); }
+.bag-stats .st-row .k { color: var(--muted); font-size: 11px; }
+.bag-stats .st-row b { color: var(--cream); }
+/* Talents: the weapon skills, one for every weapon you might carry, laid in a grid of their own, twice the width */
+.sk-page { grid-template-columns: 1fr 1fr 2fr; }
+.sk-weapons { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-content: start; }
+.sk-weapons h4 { grid-column: 1 / -1; }
+.sk-weapons .sk-card > div > small:not(.sk-was) { display: none; }
+@media (max-width: 1100px) { .sk-page { grid-template-columns: 1fr 1fr; } .sk-weapons { grid-column: 1 / -1; } }
+
+/* Folded sections: a summary line with a turn arrow, opening smoothly */
+.sk-more, .sk-lines { grid-column: 1 / -1; }
+.sk-more > summary, .sk-lines > summary { list-style: none; cursor: pointer; padding: 6px 4px; color: var(--gild-l); font: 600 13px var(--px); }
+.sk-more > summary::-webkit-details-marker, .sk-lines > summary::-webkit-details-marker { display: none; }
+.sk-more > summary::before, .sk-lines > summary::before { content: '▸'; display: inline-block; margin-right: 6px; transition: transform 0.15s ease; }
+.sk-more[open] > summary::before, .sk-lines[open] > summary::before { transform: rotate(90deg); }
+.sk-lines > summary h4 { display: inline; }
+.sk-more[open] > div, .sk-lines[open] > div { animation: tip-in 0.16s ease; }
+/* The gear column, tighter: the jewellery's names in their tooltips, less space between */
+.jewel-row { margin: 2px 0 0; gap: 8px; }
+.jewel-row .eq span { display: none; }
+.equip-row { margin-bottom: 4px; }
+.paperdoll canvas.doll { height: 176px; }
+.inv-bag .inv-grid { grid-template-columns: repeat(10, 41px); }
+.inv-bag .inv-grid .slot { width: 41px; height: 41px; }
+.inv-bag .inv-grid .slot img { inset: 4px; width: 31px; height: 31px; }
+.bag-stats { grid-template-columns: repeat(4, 1fr); padding: 4px 10px; }
+.bag-stats .st-row { padding: 1px 0; border: 0; }
+.bag-stats .st-row:nth-child(2) { grid-column: span 2; }
+#inv-panel { max-height: calc(100vh - 140px); }
+/* The finder's dungeons: who you go in as and how hard, side by side; each dungeon's tale in two lines, the rest on hover */
+#finder-panel { top: 64px; max-height: calc(100vh - 150px); }
+.gf-page > .gf-roles { grid-column: auto; margin: 0; }
+.gf-page > small { display: none; }
+.gf-roles small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; }
+.gf-card p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 4px 0; }
+.gf-card:hover p { -webkit-line-clamp: unset; }
+.gf-card .gf-meta { font-size: 11.5px; }
+.gf-card { padding: 9px 12px; }
+.gf-page > .gf-note { font-size: 11.5px; margin: 2px 0 0; }
+
+.gf-split { grid-column: 1 / -1; display: grid; grid-template-columns: 220px 1fr; gap: 10px; align-items: start; }
+.gf-list { display: flex; flex-direction: column; gap: 3px; max-height: calc(100vh - 380px); overflow-y: auto; scrollbar-width: thin; }
+.gf-item { text-align: left; padding: 5px 10px; border-radius: 6px; border: 1px solid transparent; background: rgba(0, 0, 0, 0.25); color: var(--cream); cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease; }
+.gf-item b { display: block; font: 600 13px var(--px); }
+.gf-item small { display: block; font: 500 11px var(--body); color: var(--muted); }
+.gf-item:hover { background: rgba(255, 255, 255, 0.06); }
+.gf-item.sel { border-color: var(--gild-line); background: rgba(243, 213, 138, 0.1); }
+.gf-one > .gf-card { margin: 0; animation: tip-in 0.16s ease; }
+.gf-one > .gf-card p { -webkit-line-clamp: unset; }
+@media (max-width: 760px) { .gf-split { grid-template-columns: 1fr; } }
+#inv-panel .body { padding-bottom: 0; } .bag-bar { gap: 4px; }

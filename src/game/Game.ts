@@ -4408,7 +4408,7 @@ export class Game implements GameApi {
       const next = RANK_AT[rank] ?? null;
       return {
         id: sk.id, name: m ? MORPHS[sk.id][m === 'a' ? 0 : 1].name : sk.name, base: sk.name, icon: sk.icon, desc: sk.desc, kind, need,
-        open: lvl >= need, unlocked: this.skillUnlocked(sk.id), free: this.weaponSkillIds().includes(sk.id),
+        open: lvl >= need, unlocked: this.skillUnlocked(sk.id), free: this.weaponSkillIds().includes(sk.id), carried: sk.id === this.kit.weaponSkill.id || sk.id === this.kit.secondSkill?.id,
         rank, uses, next, from: RANK_AT[rank - 1], morph: m,
         morphs: (MORPHS[sk.id] ?? []).map((x, i) => ({ key: (i ? 'b' : 'a') as 'a' | 'b', name: x.name, desc: x.desc })),
       };
