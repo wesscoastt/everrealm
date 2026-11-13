@@ -9067,6 +9067,8 @@ export class Game implements GameApi {
           return;
         }
         case 'home': this.travelHome(); return;
+        // (the keeper's own: /granthome <character> <home id>, e.g. /granthome Billie Eyelash vh36; the server checks it's the keeper)
+        case 'granthome': { const m = arg.trim().match(/^(.+?)\s+([a-z]{1,3}\d{1,2}|cottage)$/i); if (!m) { this.hud.system('/granthome <character> <home id>, for example /granthome Billie Eyelash vh36'); return; } this.online.grantHome(m[1], m[2].toLowerCase()); return; }
         case 'pledge': if (arg) this.pledgeWith(arg); else this.hud.system(this.spouse() ? `You have taken the Pledge with ${this.spouse()}.` : 'Stand at a chapel\'s altar with them and say /pledge and their name.'); return;
         case 'part': this.part(); return;
         case 'sellhome': {

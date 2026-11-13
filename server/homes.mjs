@@ -118,6 +118,26 @@ export function homesInit(ctx) {
       if (gone) { delete lapsed[p.key]; store(); }
       send(p.ws, { t: 'homes', list: Object.fromEntries(Object.entries(homes).map(([id, h]) => [id, pub(h)])), mine, lapsed: gone?.id ?? null });
     },
+    /**
+     * The keeper gives a home to a character (owner 2026-11-12: "assign this home to the Billie Eyelash account"):
+     * any home of theirs goes back on sale, this one is theirs, and if they're in the world they're told at once
+     * (their game takes it up as a home leased on another device). Returns why not, or null.
+     */
+    grant(key, name, id) {
+      if (!ID.test(id)) return 'no such home';
+      const h = homes[id];
+      if (h && h.key !== key) return `${id} is held by ${h.owner}`;
+      const had = mineOf(key);
+      if (had && had !== id) { delete homes[had]; tell(had); }
+      const now = Date.now();
+      homes[id] = { key, owner: name, spec: h?.spec ?? null, blocks: h?.blocks ?? [], since: now, seen: now };
+      store();
+      tell(id);
+      log(`homes: ${name} given ${id}`);
+      const q = [...players.values()].find((x) => x.key === key);
+      if (q) this.join(q);
+      return null;
+    },
     /** A character deleted: their home goes back on sale. */
     forget(key) {
       const id = mineOf(key);

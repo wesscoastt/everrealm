@@ -513,6 +513,8 @@ export class Online {
     r.comp = { model, steedLook: c.steed, steed: null, pos, yaw: r.yaw };
   }
 
+  /** The keeper gives a home to a character (server/homes.mjs grant). */
+  grantHome(to: string, id: string): void { this.emit({ t: 'hGrant', to, id }); }
   /** Tell everyone about the companion out with you (null: none). */
   setComp(c: CompPub | null): void { this.emit({ t: 'comp', comp: c }); }
 

@@ -804,6 +804,15 @@ wss.on('connection', (ws, req) => {
       }
       // Their companion out with them (owner 2026-11-12: "need to be able to see other players' companions"): who,
       // what they look like, what they hold, the horse they ride; drawn following them in everyone else's game
+      // The keeper's own accounts give a home to a character by name: { t: 'hGrant', to, id }
+      case 'hGrant': {
+        if (!me.dev) break;
+        const to = typeof msg.to === 'string' ? msg.to.trim().slice(0, 20) : '', id = typeof msg.id === 'string' ? msg.id.trim().toLowerCase() : '';
+        const key = keyFor(to), rec = key ? loadChar(key) : null;
+        const why = !rec ? `No character called ${to}.` : homes.grant(key, rec.name, id);
+        send(ws, { t: 'chat', from: 'The homes book', text: why ? `Not given: ${why}` : `${rec.name} now holds ${id}.`, kind: 'local' });
+        break;
+      }
       case 'comp': {
         const c = msg.comp;
         const ok = c === null || (c && typeof c === 'object' && typeof c.name === 'string' && c.name.length <= 40 && c.look && typeof c.look === 'object' && JSON.stringify(c).length < 5000);
