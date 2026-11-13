@@ -8086,6 +8086,15 @@ export class Game implements GameApi {
     }
   }
 
+  /** How deep under the water the camera is, in blocks (0 above it): for the sound of the rain overhead. */
+  private waterAbove(): number {
+    if (!this.world?.sky.underwater) return 0;
+    const V = this.world.voxels, c = this.camera.position;
+    let d = 0;
+    while (d < 12 && V.isWater(c.x, c.y + d + 1, c.z)) d++;
+    return d + 0.5;
+  }
+
   private canvasResize(): boolean {
     const canvas = this.renderer.domElement;
     const scale = this.save.settings.renderScale;
@@ -8699,7 +8708,7 @@ export class Game implements GameApi {
     }
     this.listenT -= dt;
     if (this.listenT <= 0) { this.listenT = 1; this.listen(P, sky.night, sky.sheltered); }
-    this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin' || (this.scape.crowd ?? 0) > 0, rain: underground ? 0 : wet * (sky.sheltered ? 0.45 : 1), ...this.scape });
+    this.audio.ambience(dt, { night: sky.night, river, fire, underground, inTown: this.currentRegion === 'hollin' || (this.scape.crowd ?? 0) > 0, rain: underground ? 0 : wet * (sky.sheltered ? 0.6 : 1), ...this.scape, underwater: this.waterAbove() });
     this.audio.musicContext({ theme: this.musicTheme(underground), combat: this.inCombat(), boss: this.bossFight() });
   }
 

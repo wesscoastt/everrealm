@@ -40,7 +40,7 @@ export function voiceOf(model: string, what: 'aggro' | 'hurt' | 'die' | 'attack'
 }
 
 /** Where the listener is, for the ambience: each 0 (not at all) to 1. */
-export interface Soundscape { night: number; river: number; fire: number; underground: boolean; inTown: boolean; rain?: number; coast?: number; forest?: number; falls?: number; crowd?: number; indoors?: boolean; bed?: Bed }
+export interface Soundscape { night: number; river: number; fire: number; underground: boolean; inTown: boolean; rain?: number; coast?: number; forest?: number; falls?: number; crowd?: number; indoors?: boolean; bed?: Bed; /** How deep under the water you are, in blocks (0 above it). */ underwater?: number }
 
 /** A land's own sound, under everything else there: what hangs in the air, and what calls now and then. */
 export type Bed = 'vale' | 'farm' | 'wood' | 'autumn' | 'moor' | 'barrens' | 'glass' | 'cliffs' | 'marsh' | 'works' | 'ice' | 'isles' | 'rift' | 'waste';
@@ -150,6 +150,8 @@ export class AudioSystem {
   private windGain!: GainNode;
   private riverGain!: GainNode;
   private rainGain!: GainNode;
+  /** The rain heard through a roof or under the water: the hiss taken off it (owner 2026-11-12). */
+  private rainMuffle!: BiquadFilterNode;
   private fireGain!: GainNode;
   private seaGain!: GainNode;
   /** The sea's body: a fuller layer over the far roar that swells up with each wave and settles after it. */
@@ -228,7 +230,12 @@ export class AudioSystem {
     this.windFilter = ctx.createBiquadFilter(); this.windFilter.type = 'lowpass'; this.windFilter.frequency.value = 320; this.windFilter.Q.value = 0.7;
     this.windGain = this.loopBed(this.brown, this.windFilter, 0.6);
     this.riverGain = this.loopNoise(900, 0.8, 'bandpass', this.pink);
-    this.rainGain = this.loopNoise(3200, 0.5, 'highpass', this.pink);
+    {
+      // (the rain through a high-pass, then a low-pass left wide open in the open air and closed down indoors and under water)
+      const hp = this.ctx!.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3200; hp.Q.value = 0.5;
+      this.rainMuffle = this.ctx!.createBiquadFilter(); this.rainMuffle.type = 'lowpass'; this.rainMuffle.frequency.value = 18000; this.rainMuffle.Q.value = 0.4;
+      this.rainGain = this.loopBed(this.pink, hp, 0.15, this.rainMuffle);
+    }
     this.fireGain = this.loopNoise(2400, 0.3, 'highpass', this.pink);
     // The sea's far roar, low and slow; the waves themselves are played one by one (wave())
     this.seaGain = this.loopNoise(160, 0.5, 'lowpass', this.brown);
@@ -286,7 +293,7 @@ export class AudioSystem {
   }
 
   /** A noise bed looping through a filter into a level, sent to the room as well (send: how much). */
-  private loopBed(bed: AudioBuffer, f: BiquadFilterNode, send: number): GainNode {
+  private loopBed(bed: AudioBuffer, f: BiquadFilterNode, send: number, f2?: BiquadFilterNode): GainNode {
     const ctx = this.ctx!;
     const src = ctx.createBufferSource();
     src.buffer = bed;
@@ -294,7 +301,8 @@ export class AudioSystem {
     // (each layer starts somewhere different in the bed, so no two sound alike)
     const g = ctx.createGain();
     g.gain.value = 0;
-    src.connect(f).connect(g).connect(this.amb);
+    if (f2) src.connect(f).connect(f2).connect(g).connect(this.amb);
+    else src.connect(f).connect(g).connect(this.amb);
     const sg = ctx.createGain(); sg.gain.value = send; g.connect(sg).connect(this.room);
     src.start(0, Math.random() * bed.duration);
     return g;
@@ -688,7 +696,12 @@ export class AudioSystem {
     }
     this.riverGain.gain.setTargetAtTime(opts.river * 0.28, t, 0.3);
     this.fireGain.gain.setTargetAtTime(opts.fire * 0.12, t, 0.2);
-    this.rainGain.gain.setTargetAtTime(rain * 0.22 * (opts.indoors ? 0.45 : 1), t, 1.2);
+    // Rain (owner 2026-11-12: "rain should get quieter indoors and the deeper underwater you swim"): under a roof
+    // softer and dulled, a drumming on the tiles rather than a hiss; under the water dull and fading as you go down
+    const deep = opts.underwater ?? 0;
+    const under = deep > 0 ? Math.max(0, 1 - deep / 5) * 0.35 : 1;
+    this.rainGain.gain.setTargetAtTime(rain * 0.22 * (opts.indoors ? 0.32 : 1) * under, t, deep > 0 ? 0.25 : 1.2);
+    this.rainMuffle.frequency.setTargetAtTime(deep > 0 ? Math.max(180, 700 - deep * 110) : opts.indoors ? 1400 : 18000, t, 0.4);
     // The sea: its far roar, and wave after wave on the shore, every six to eleven seconds, now and then a big one
     this.swell += dt * 0.9;
     const inside = opts.indoors ? 0.3 : 1;
