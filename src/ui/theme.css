@@ -757,3 +757,9 @@
 #tavern .rb-odds { font: 700 16px var(--book); color: #f4d27a; min-width: 70px; text-align: right; }
 #tavern .rb-slips { margin: 0; padding-left: 20px; font-size: 13px; color: #e8dcc0; }
 @media (max-width: 640px) { #tavern .rb-row { grid-template-columns: 26px 1fr auto; } #tavern .rb-row .btn { grid-column: 1 / -1; } }
+
+/* ---- Your homes: the picker on Travel home (ui/HomePicker.ts) ---- */
+#tavern .hp-box { width: min(620px, 96vw); }
+#tavern .hp-row { grid-template-columns: 78px 1fr 0 auto; }
+#tavern .hp-kind { font: 600 11px var(--px); letter-spacing: 0.08em; text-transform: uppercase; color: #d8ccb0; background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 4px 8px; text-align: center; }
+#tavern .hp-row.cur { border-color: #e0bd64; background: rgba(224, 189, 100, 0.1); }

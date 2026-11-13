@@ -227,7 +227,7 @@ export interface OnlineHooks {
   shipHurt?(from: string, dmg: number): void;
   shipKill?(name: string): void;
   /** The realm's book of homes (server/homes.mjs): all of it on coming in, then each change, and the answer to a claim. */
-  homes?(list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null): void;
+  homes?(list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null, mineAll?: string[]): void;
   home?(id: string, home: HomeHeld | null): void;
   homeClaimed?(id: string, ok: boolean, why: string, owner: string): void;
   /** Homes sold between players: an offer to you, the answer to yours, your purchase, your sale. */
@@ -429,7 +429,7 @@ export class Online {
       case 'shS': this.hooks.shipState?.(String(m.name), m.st ?? null); break;
       case 'shHurt': this.hooks.shipHurt?.(String(m.from), Math.max(0, Math.min(200, Number(m.dmg) || 0))); break;
       case 'shKill': this.hooks.shipKill?.(String(m.name)); break;
-      case 'homes': this.hooks.homes?.((m.list ?? {}) as Record<string, HomeHeld>, typeof m.mine === 'string' ? m.mine : null, typeof m.lapsed === 'string' ? m.lapsed : null); break;
+      case 'homes': this.hooks.homes?.((m.list ?? {}) as Record<string, HomeHeld>, typeof m.mine === 'string' ? m.mine : null, typeof m.lapsed === 'string' ? m.lapsed : null, Array.isArray(m.mineAll) ? (m.mineAll as unknown[]).filter((x): x is string => typeof x === 'string') : undefined); break;
       case 'home': if (typeof m.id === 'string') this.hooks.home?.(m.id, (m.home ?? null) as HomeHeld | null); break;
       case 'hClaimed': if (typeof m.id === 'string') this.hooks.homeClaimed?.(m.id, !!m.ok, String(m.why ?? ''), String(m.owner ?? '')); break;
       case 'hOffered': if (typeof m.id === 'string') this.hooks.homeOffered?.(m.id, String(m.from ?? ''), Math.max(0, Number(m.price) || 0)); break;

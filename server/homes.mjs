@@ -1,5 +1,6 @@
 // The Charter's book of homes, on the world server: who holds each building lot and Wendside Cottage,
-// the realm over (src/data/housing.ts). One holder to a home and one home to a character. What stands
+// the realm over (src/data/housing.ts). One holder to a home, and up to three homes to a character (owner 2026-11-13:
+// "a ui/menu like eso to choose what house you want to go to for people that own or rent multiple"). What stands
 // on a lot (the plans the builders worked to, and the blocks its holder has laid themselves) goes to
 // everyone, so everyone sees the house that was built, and only its holder and their guests go in.
 //
@@ -77,7 +78,11 @@ export function homesInit(ctx) {
   const OFFER_MS = 10 * 60_000;
   const playerByKey = (key) => [...players.values()].find((q) => q.key === key) ?? null;
   const pub = (h) => (h ? { owner: h.owner, spec: h.spec ?? null, blocks: h.blocks ?? [], stall: !!h.stall, ...(h.granted ? { granted: true } : {}) } : null);
-  const mineOf = (key) => Object.keys(homes).find((id) => homes[id].key === key) ?? null;
+  /** Every home a character holds, the longest held first. */
+  const mineAll = (key) => Object.keys(homes).filter((id) => homes[id].key === key).sort((a, b) => (homes[a].since ?? 0) - (homes[b].since ?? 0));
+  /** The first of them (what an older client calls its home). */
+  const mineOf = (key) => mineAll(key)[0] ?? null;
+  const MAX_HOMES = 3;
   const tell = (id) => { const msg = { t: 'home', id, home: pub(homes[id]) }; for (const q of players.values()) send(q.ws, msg); };
 
   /** Leases nobody has come back to in three months go back on sale. */
@@ -102,21 +107,23 @@ export function homesInit(ctx) {
   // Holders in the world are coming back: their leases are seen, every half hour
   setInterval(() => {
     let n = 0;
-    for (const p of players.values()) { const id = mineOf(p.key); if (id) { homes[id].seen = Date.now(); n++; } }
+    for (const p of players.values()) for (const id of mineAll(p.key)) { homes[id].seen = Date.now(); n++; }
     if (n) store();
   }, 1800_000);
   log(`homes: ${Object.keys(homes).length} held`);
 
   return {
-    /** Which home a character holds (a lot's id, or 'cottage'), or null. */
+    /** Which home a character holds (a lot's id, or 'cottage'), or null; and all of them. */
     mineOf,
+    mineAll,
     /** On coming in: the whole book, which is theirs, and any lease that lapsed while they were away. */
     join(p) {
-      const mine = mineOf(p.key);
-      if (mine) { homes[mine].seen = Date.now(); homes[mine].owner = p.name; store(); }
+      const all = mineAll(p.key), mine = all[0] ?? null;
+      for (const id of all) { homes[id].seen = Date.now(); homes[id].owner = p.name; }
+      if (all.length) store();
       const gone = lapsed[p.key] ?? null;
       if (gone) { delete lapsed[p.key]; store(); }
-      send(p.ws, { t: 'homes', list: Object.fromEntries(Object.entries(homes).map(([id, h]) => [id, pub(h)])), mine, lapsed: gone?.id ?? null });
+      send(p.ws, { t: 'homes', list: Object.fromEntries(Object.entries(homes).map(([id, h]) => [id, pub(h)])), mine, mineAll: all, lapsed: gone?.id ?? null });
     },
     /**
      * The keeper gives a home to a character (owner 2026-11-12: "assign this home to the Billie Eyelash account"):
@@ -127,8 +134,7 @@ export function homesInit(ctx) {
       if (!ID.test(id)) return 'no such home';
       const h = homes[id];
       if (h && h.key !== key) return `${id} is held by ${h.owner}`;
-      const had = mineOf(key);
-      if (had && had !== id) { delete homes[had]; tell(had); }
+      // (given beside whatever they hold: a character can hold three)
       const now = Date.now();
       // (granted: the holder's own game takes it up over whatever home its save had, rather than handing it back)
       homes[id] = { key, owner: name, spec: h?.spec ?? null, blocks: h?.blocks ?? [], since: now, seen: now, granted: true };
@@ -141,8 +147,7 @@ export function homesInit(ctx) {
     },
     /** A character deleted: their home goes back on sale. */
     forget(key) {
-      const id = mineOf(key);
-      if (id) { delete homes[id]; store(); tell(id); onVacate?.(key, id); }
+      for (const id of mineAll(key)) { delete homes[id]; store(); tell(id); onVacate?.(key, id); }
       if (lapsed[key]) { delete lapsed[key]; store(); }
     },
     handle(p, msg) {
@@ -150,9 +155,9 @@ export function homesInit(ctx) {
         case 'hClaim': {
           const id = typeof msg.id === 'string' && ID.test(msg.id) ? msg.id : null;
           if (!id) return true;
-          const h = homes[id], mine = mineOf(p.key);
+          const h = homes[id], all = mineAll(p.key);
           if (h && h.key !== p.key) { send(p.ws, { t: 'hClaimed', id, ok: false, why: 'taken', owner: h.owner }); return true; }
-          if (mine && mine !== id) { send(p.ws, { t: 'hClaimed', id, ok: false, why: 'one', mine }); return true; }
+          if (!all.includes(id) && all.length >= MAX_HOMES) { send(p.ws, { t: 'hClaimed', id, ok: false, why: 'one', mine: all[0] }); return true; }
           if (Object.keys(homes).length >= 600 && !h) { send(p.ws, { t: 'hClaimed', id, ok: false, why: 'full' }); return true; }
           const now = Date.now();
           homes[id] = { key: p.key, owner: p.name, spec: cleanSpec(msg.spec) ?? h?.spec ?? null, blocks: h?.blocks ?? cleanBlocks(msg.blocks) ?? [], since: h?.since ?? now, seen: now };
@@ -169,7 +174,7 @@ export function homesInit(ctx) {
           const name = String(msg.to ?? '').trim().toLowerCase();
           const q = [...players.values()].find((x) => x.name?.toLowerCase() === name && x.key !== p.key);
           if (!q) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'away', to: String(msg.to ?? '') }); return true; }
-          if (mineOf(q.key)) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'hasHome', to: q.name }); return true; }
+          if (mineAll(q.key).length >= MAX_HOMES) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'hasHome', to: q.name }); return true; }
           offers.set(id, { from: p.key, fromName: p.name, to: q.key, price, at: Date.now() });
           send(q.ws, { t: 'hOffered', id, from: p.name, price });
           send(p.ws, { t: 'hOfferAns', ok: true, to: q.name });
@@ -183,7 +188,7 @@ export function homesInit(ctx) {
           const seller = playerByKey(o.from);
           if (!seller) { no('sellerAway'); return true; }
           if (homes[id]?.key !== o.from) { offers.delete(id); no('gone'); return true; }
-          if (mineOf(p.key)) { no('hasHome'); return true; }
+          if (mineAll(p.key).length >= MAX_HOMES) { no('hasHome'); return true; }
           const now = Date.now();
           homes[id] = { ...homes[id], key: p.key, owner: p.name, since: now, seen: now, stall: false };
           offers.delete(id);

@@ -174,6 +174,9 @@ import { QuartersTable } from './QuartersTable';
 import { TavernTable } from './TavernTable';
 import { Races } from './Races';
 import { Doubloons } from './Doubloons';
+import { HomePicker } from '../ui/HomePicker';
+/** A home held besides the one you live in (Game.held): its furniture, and a lot's plans, blocks and stall, or a room's tenancy. */
+export interface HeldHome { id: string; kind: 'villa' | 'lot' | 'cottage' | 'room'; furn: unknown[]; plot?: unknown; blocks?: unknown; stall?: boolean; tenancy?: unknown }
 import { GAMING_BY_NPC, type TavernGame } from '../data/tavernGames';
 import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
@@ -1743,11 +1746,11 @@ export class Game implements GameApi {
         this.hud.system(vl ? `${owner}'s home is ${vl.name} on the Mirador, above Callis. The door's open to you.` : lot ? `${owner}'s house stands on ${lot.name}, ${WENDSIDE_LOTS.includes(lot) ? 'east of Hollin Ford' : `by ${(POSTS.find((q) => q.id === lot.town)?.name ?? 'the road').split(',')[0]}`}. The door's open to you.` : `${owner}'s home is Wendside Cottage, on the road east of Hollin Ford. The door's open to you.`);
         this.hud.pin = { x: shape.x0 + shape.w / 2, z: shape.z0 + shape.d / 2 };
       },
-      homes: (list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null) => {
+      homes: (list: Record<string, HomeHeld>, mine: string | null, lapsed: string | null, mineAll?: string[]) => {
         this.homesBook = new Map(Object.entries(list));
         this.homesVer++;
         // (not while the page is about to reload onto the server's newer copy of this character)
-        if (!this.restoring) this.reconcileHome(mine, lapsed);
+        if (!this.restoring) this.reconcileHome(mine, lapsed, mineAll ?? (mine ? [mine] : []));
       },
       home: (id: string, h: HomeHeld | null) => {
         if (!this.homesBook) return;
@@ -2660,6 +2663,82 @@ export class Game implements GameApi {
     return this.flag('home') ? COTTAGE_SHAPE : null;
   }
 
+  /**
+   * Your other homes (owner 2026-11-13: "a ui/menu like eso to choose what house you want to go to for people that own or
+   * rent multiple"): up to three owned, and a let room besides. The one you live in is kept in the old flags (plot, villa,
+   * flat, home) so everything that knew one home still does; the others wait here, each with its furniture, and moving
+   * into one (the picker on Travel home) swaps them, like ESO's primary residence.
+   */
+  static readonly MAX_HOMES = 3;
+  private readonly homePicker = new HomePicker((n) => this.sfx(n));
+  private held(): HeldHome[] {
+    const v = this.flag('held');
+    const list = Array.isArray(v) ? (v as HeldHome[]).filter((h) => h && typeof h.id === 'string') : [];
+    // (a let room whose rent ran out goes back to its landlord; its furniture comes by the Post)
+    const live = list.filter((h) => h.kind !== 'room' || (readTenancy(h.tenancy)?.until ?? 0) > Date.now());
+    if (live.length !== list.length) {
+      for (const h of list) if (!live.includes(h)) { const parcel = [...this.parcel.map((x) => ({ ...x }))]; for (const pc of h.furn ?? []) { const it = (pc as [string])[0]; if (ITEMS[it]) parcel.push({ id: it, n: 1 }); } this.setFlag('parcel', parcel); this.hud.system('The rent ran out on a room you let, and the landlord took it back. Your furniture is waiting at a post box.'); }
+      this.setFlag('held', live);
+    }
+    return live;
+  }
+  /** Owned homes, the one you live in among them (a let room doesn't count). */
+  private ownedCount(): number { return (this.myHomeId() && !(readTenancy(this.flag('flat')) && !this.flag('plot') && !this.flag('villa')) ? 1 : 0) + this.held().filter((h) => h.kind !== 'room').length; }
+  /** The home you live in, taken out of the flags (to be kept with the others), or null. */
+  private packPrimary(): HeldHome | null {
+    const plot = readPlot(this.flag('plot')), villa = this.myVilla(), flat = readTenancy(this.flag('flat')), furn = this.home.pieces();
+    let h: HeldHome | null = null;
+    if (plot) h = { id: plot.lot, kind: 'lot', furn, plot: this.flag('plot'), blocks: this.flag('lotBlocks') ?? [], stall: !!this.flag('stall') };
+    else if (villa) h = { id: villa.id!, kind: 'villa', furn };
+    else if (flat) h = { id: `${flat.house}:${flat.room}`, kind: 'room', furn, tenancy: this.flag('flat') };
+    else if (this.flag('home')) h = { id: 'cottage', kind: 'cottage', furn };
+    for (const k of ['plot', 'lotBlocks', 'stall', 'villa', 'flat', 'home']) this.setFlag(k, null);
+    return h;
+  }
+  private unpackHome(h: HeldHome): void {
+    if (h.kind === 'lot') { this.setFlag('plot', h.plot ?? { lot: h.id }); this.setFlag('lotBlocks', h.blocks ?? []); this.setFlag('stall', h.stall ? true : null); }
+    if (h.kind === 'villa') this.setFlag('villa', h.id);
+    if (h.kind === 'room') { this.setFlag('flat', h.tenancy); this.letPaid = true; }
+    this.setFlag('home', Array.isArray(h.furn) ? h.furn : []);
+  }
+  /** Move into another of your homes: it's the one you live in now, with its furniture; the one you left keeps its own. */
+  private moveInto(id: string): boolean {
+    const list = this.held(), target = list.find((h) => h.id === id);
+    if (!target) return false;
+    const cur = this.packPrimary();
+    this.unpackHome(target);
+    this.setFlag('held', [...list.filter((h) => h !== target), ...(cur ? [cur] : [])]);
+    this.homesVer++;
+    this.home.render();
+    this.hud.refresh();
+    this.persist();
+    return true;
+  }
+  /** Your homes for the picker: the one you live in first. */
+  homeList(): { id: string; name: string; where: string; current: boolean; kind: HeldHome['kind'] }[] {
+    const out: { id: string; name: string; where: string; current: boolean; kind: HeldHome['kind'] }[] = [];
+    const cur = this.myHome(), curId = this.myHomeId() ?? (readTenancy(this.flag('flat')) ? 'room' : null);
+    const place = (id: string, kind: HeldHome['kind']) => (kind === 'room' ? (LODGINGS.find((l) => l.id === id.split(':')[0])?.town ?? '') : kind === 'lot' ? (LOT_BY_ID.get(id)?.name ?? '') : kind === 'cottage' ? 'Hollin Ford' : (VILLA_BY_ID.get(id) ? villaPlace(VILLA_BY_ID.get(id)!) : ''));
+    if (cur && curId) out.push({ id: curId, name: cur.name.replace(/^your /, ''), where: '', current: true, kind: this.flag('plot') ? 'lot' : this.flag('villa') ? 'villa' : this.flag('flat') ? 'room' : 'cottage' });
+    for (const h of this.held()) {
+      const name = h.kind === 'room' ? (() => { const t = readTenancy(h.tenancy); const L = t && LODGINGS.find((l) => l.id === t.house); return L && t ? `${roomsOf(L)[t.room].name}, ${L.name}` : 'A let room'; })() : this.homeName(h.id);
+      out.push({ id: h.id, name, where: place(h.id, h.kind), current: false, kind: h.kind });
+    }
+    return out;
+  }
+  /** Travel home: straight there with one home, or the picker with several. */
+  travelHomeMenu(): void {
+    const list = this.homeList();
+    if (list.length <= 1) { this.travelHome(); return; }
+    this.homePicker.show(list, (id) => this.travelHomeTo(id));
+  }
+  travelHomeTo(id: string): void {
+    const list = this.homeList(), h = list.find((x) => x.id === id);
+    if (!h) return;
+    if (!h.current && !this.moveInto(id)) return;
+    this.travelHome();
+  }
+
   /** Whether the room you rent is paid up (watched, so its furniture goes when the rent runs out). */
   private letPaid = false;
 
@@ -2685,11 +2764,33 @@ export class Game implements GameApi {
       }, 30);
       return;
     }
-    if (readPlot(this.flag('plot'))?.spec || (this.flag('home') && !t)) { this.hud.system(`${name}: to let by the week. You have a home of your own.`); return; }
+    // A room you let but don't live in just now (you live in a house of yours): pay its rent here, or move back in from the map
+    const heldRoom = this.held().find((h) => h.kind === 'room' && h.id === `${house}:${room}`);
+    if (heldRoom) {
+      const ht = readTenancy(heldRoom.tenancy)!;
+      this.hud.ask(`${name}, ${L.name}: yours, paid until ${until(ht.until)}. You live elsewhere just now (the map's Travel home moves you back in). Pay a week for ${L.rent} marks?`, () => {
+        if (this.save.marks < L.rent) { this.hud.system(`A week is ${L.rent} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
+        if (Math.max(Date.now(), ht.until) - Date.now() >= (MAX_WEEKS - 1) * WEEK) { this.hud.system(`The landlord won't take more than ${MAX_WEEKS} weeks ahead.`); return; }
+        this.addMarks(-L.rent);
+        this.setFlag('held', this.held().map((h) => (h === heldRoom ? { ...h, tenancy: { house, room, until: Math.max(Date.now(), ht.until) + WEEK } } : h)));
+        this.sfx('open'); this.persist();
+      }, () => {}, 30);
+      return;
+    }
+    // (with a house of your own, a let room is kept beside it: owner 2026-11-13, "for people that own or rent multiple")
+    const besideHouse = !!(readPlot(this.flag('plot')) || this.myVilla() || (this.flag('home') && !t));
+    if (besideHouse && this.held().some((h) => h.kind === 'room')) { this.hud.system(`${name}: to let by the week. You already let a room elsewhere; one at a time.`); return; }
     if (t && this.home.pieces().length) { this.hud.system(`You already rent ${roomsOf(LODGINGS.find((l) => l.id === t.house)!)[t.room].name} at ${LODGINGS.find((l) => l.id === t.house)!.name}. Pick up your furniture there first (Arrange the furniture, then X), and you can move.`); return; }
     this.hud.ask(`${name}, ${L.name}: a room of your own, ${L.rent} marks a week. Furnish it, sleep in it, keep things in the chest.${t ? ' You give up your other room.' : ''} Rent it?`, () => {
       if (this.save.marks < L.rent) { this.hud.system(`A week is ${L.rent} marks and you have ${this.save.marks}.`); this.sfx('fail'); return; }
       this.addMarks(-L.rent);
+      if (besideHouse) {
+        this.setFlag('held', [...this.held(), { id: `${house}:${room}`, kind: 'room', furn: [], tenancy: { house, room, until: Date.now() + WEEK } }]);
+        this.hud.banner(name, `${L.name}, ${L.town}`, true);
+        this.hud.system(`The key's yours until ${until(Date.now() + WEEK)}. You still live in your house; the map's Travel home takes you to either.`);
+        this.sfx('discover'); this.hud.refresh(); this.persist();
+        return;
+      }
       this.setFlag('flat', { house, room, until: Date.now() + WEEK });
       if (!Array.isArray(this.flag('home'))) this.setFlag('home', []);
       this.letPaid = true;
@@ -2747,17 +2848,19 @@ export class Game implements GameApi {
     if (mine?.lot === id) { this.hud.closeAll(); this.planner.open(lot, mine.spec); return; }
     const held = this.homesBook?.get(id);
     if (held) { this.hud.system(held.spec ? `${lot.name}: ${held.owner}'s house.` : `${lot.name}: leased to ${held.owner}, not built on yet.`); return; }
-    if (mine) { this.hud.system(`${lot.name}: to let. You already hold ${LOTS.find((l) => l.id === mine.lot)!.name}; one home to a household.`); return; }
-    if (this.myVilla()) { this.hud.system(`${lot.name}: to let. You hold ${this.myVilla()!.name} on the Mirador; one home to a household. Teresa Mas will buy it back at the gate.`); return; }
+    const keepLot = !!this.myHomeId() && this.myHomeId() !== 'cottage' && this.ownedCount() < Game.MAX_HOMES;
+    if (this.ownedCount() >= Game.MAX_HOMES) { this.hud.system(`${lot.name}: to let. You hold three homes already, the most anyone may.`); return; }
+    if (mine && !keepLot) { this.hud.system(`${lot.name}: to let. You already hold ${LOTS.find((l) => l.id === mine.lot)!.name}.`); return; }
     // Moving out of Wendside Cottage: the Charter takes it back when you lease, empty
     const cottage = this.myHomeId() === 'cottage';
     if (cottage && this.home.pieces().length) { this.hud.system(`${lot.name}: to let. You hold Wendside Cottage: pick up your furniture there first (Arrange the furniture, then X), and the Charter will buy it back when you lease.`); this.sfx('fail'); return; }
     if (this.save.marks < LOT_PRICE) { this.hud.system(`${lot.name}: to let for ninety-nine years, ${LOT_PRICE} marks to the Charter. You have ${this.save.marks}.`); this.sfx('fail'); return; }
     this.hud.ask(`Lease ${lot.name} from the Charter for ${LOT_PRICE} marks?${cottage ? ` The Charter takes Wendside Cottage back and pays you ${COTTAGE_BUYBACK} for it.` : ''} Then draw up plans and have a house built on it.`, () => {
-      if (readPlot(this.flag('plot')) || this.save.marks < LOT_PRICE) return;
+      if ((readPlot(this.flag('plot')) && !keepLot) || this.save.marks < LOT_PRICE) return;
       this.claimHome(id, () => {
-        if (readPlot(this.flag('plot')) || this.save.marks < LOT_PRICE) return;
+        if ((readPlot(this.flag('plot'))?.lot === id) || this.save.marks < LOT_PRICE) return;
         this.addMarks(-LOT_PRICE);
+        if (keepLot || readTenancy(this.flag('flat'))) { const cur = this.packPrimary(); if (cur) this.setFlag('held', [...this.held(), cur]); }
         if (cottage) { this.addMarks(COTTAGE_BUYBACK); this.setFlag('home', null); this.hud.system(`You give Wendside Cottage back to the Charter, and Maud Ashby pays you ${COTTAGE_BUYBACK} marks for it.`); }
         this.setFlag('plot', { lot: id });
         this.hud.banner(lot.name, 'Leased for ninety-nine years', true);
@@ -2837,19 +2940,23 @@ export class Game implements GameApi {
     const held = this.homesBook?.get(id);
     if (held) { this.hud.system(`${name} is ${held.owner}'s.`); return; }
     const was = this.myHomeId(), plot = readPlot(this.flag('plot')), other = this.myVilla();
-    if (was && this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.myHome()?.name ?? 'home'}. Pick it up first (Arrange the furniture, then X), and you can move.`); this.sfx('fail'); return; }
-    const back = was === 'cottage' ? COTTAGE_BUYBACK : plot ? Math.round(LOT_PRICE / 2) : other ? Math.round(other.price * VILLA_RESALE) : 0;
+    if (was && this.home.pieces().length && this.ownedCount() >= Game.MAX_HOMES) { this.hud.system(`Your furniture is still set out at ${this.myHome()?.name ?? 'home'}. Pick it up first (Arrange the furniture, then X), and you can move.`); this.sfx('fail'); return; }
+    // (with fewer than three homes, the one you have is kept: you move into the new one, and the map's Travel home takes you to either)
+    const keep = !!was && this.ownedCount() < Game.MAX_HOMES;
+    const back = keep ? 0 : was === 'cottage' ? COTTAGE_BUYBACK : plot ? Math.round(LOT_PRICE / 2) : other ? Math.round(other.price * VILLA_RESALE) : 0;
     const cost = v.price - back;
     if (this.save.marks < cost) { this.hud.system(`${name}: ${v.price.toLocaleString()} marks${back ? ` (${cost.toLocaleString()} once your home is paid back)` : ''}. You have ${this.save.marks.toLocaleString()}.`); this.sfx('fail'); return; }
-    const leaving = was === 'cottage' ? ' The Charter takes Wendside Cottage back and pays you ' + COTTAGE_BUYBACK + '.'
+    const leaving = keep ? ` You keep ${this.homeName(was!)} too: you'll live in the new one, and can travel to either from the map.` : was === 'cottage' ? ' The Charter takes Wendside Cottage back and pays you ' + COTTAGE_BUYBACK + '.'
       : plot ? ` The Charter takes back your lease on ${LOT_BY_ID.get(plot.lot)?.name ?? 'your lot'} for ${back} marks, and the house on it comes down.`
       : other ? ` ${this.homeName(other.id!)} goes back to its family for ${back.toLocaleString()}.` : '';
     this.hud.ask(`Buy ${v.name} for ${v.price.toLocaleString()} marks? It's yours for good: furnish it however you like.${leaving}`, () => {
       if (this.myHomeId() === id || this.homesBook?.get(id) || this.save.marks < cost) return;
-      if (readTenancy(this.flag('flat')) && !this.leaveRoom()) return;
+      if (!keep && readTenancy(this.flag('flat')) && !this.flag('plot') && !this.flag('villa') && !this.leaveRoom()) return;
       this.claimHome(id, () => {
         if (this.myHomeId() === id || this.save.marks < cost) return;
         this.addMarks(-cost);
+        // (a home you're keeping, or a let room, goes in with your others, furniture and all)
+        if (keep || readTenancy(this.flag('flat'))) { const cur = this.packPrimary(); if (cur) this.setFlag('held', [...this.held(), cur]); }
         this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null);
         this.setFlag('villa', id);
         this.setFlag('home', []);
@@ -2859,7 +2966,7 @@ export class Game implements GameApi {
         this.hud.system(`${villaSeller(v)[0].toUpperCase() + villaSeller(v).slice(1)} hands you the keys. ${name} is yours: inside, use the prompt to arrange the furniture.`);
         this.hud.refresh();
         this.persist();
-      }, was);
+      }, keep ? null : was);
     }, () => {}, 30);
   }
 
@@ -3026,9 +3133,28 @@ export class Game implements GameApi {
    * your home for the first time (homes kept from before there was a book), or someone else was down for
    * it first and you're given the next lot like it, or you were away three months and it lapsed.
    */
-  private reconcileHome(mine: string | null, lapsed: string | null): void {
+  private reconcileHome(mine: string | null, lapsed: string | null, all: string[] = mine ? [mine] : []): void {
     const local = this.myHomeId(), plot = readPlot(this.flag('plot'));
     if (lapsed && lapsed === local) { this.loseHome(local); return; }
+    // Your other homes (held besides the one you live in): one that lapsed goes, one the book hasn't heard of is claimed,
+    // and the book's own homes in your name that the save doesn't know of are kept beside the rest
+    if (lapsed && this.held().some((h) => h.id === lapsed)) { this.setFlag('held', this.held().filter((h) => h.id !== lapsed)); this.hud.system(`You were away three months and more, and the Charter took ${this.homeName(lapsed)} back.`); }
+    const heldIds = new Set(this.held().filter((h) => h.kind !== 'room').map((h) => h.id));
+    for (const id of heldIds) {
+      const b = this.homesBook?.get(id);
+      if (!b && this.online.online) this.online.homeClaim(id);
+      else if (b && !all.includes(id)) { this.setFlag('held', this.held().filter((h) => h.id !== id)); this.hud.system(`${this.homeName(id)} is ${b.owner}'s now. The Charter kept one book, and they were in it first.`); }
+    }
+    for (const id of all) {
+      if (id === local || heldIds.has(id) || this.homesBook?.get(id)?.granted) continue;
+      if (!local) break; // (the first is taken up as your home below)
+      if (this.ownedCount() >= Game.MAX_HOMES) { this.online.homeRelease(id); continue; }
+      const b = this.homesBook?.get(id);
+      const kind: HeldHome['kind'] = id === 'cottage' ? 'cottage' : VILLA_BY_ID.has(id) ? 'villa' : 'lot';
+      this.setFlag('held', [...this.held(), { id, kind, furn: [], ...(kind === 'lot' ? { plot: { lot: id, ...(b?.spec ? { spec: b.spec } : {}) }, blocks: b?.blocks ?? [] } : {}) }]);
+      heldIds.add(id);
+    }
+    if (mine && heldIds.has(mine)) mine = local && all.includes(local) ? local : null;
     if (local && mine === local) {
       const held = this.homesBook?.get(local);
       if (plot?.spec && JSON.stringify(held?.spec ?? null) !== JSON.stringify(plot.spec)) this.online.homeSpec(local, plot.spec);
@@ -3039,10 +3165,10 @@ export class Game implements GameApi {
     // the house but it still says for sale": her save's other home won, and handed the gift back to the town)
     const gift = mine && mine !== local && this.homesBook?.get(mine)?.granted;
     if (gift && (local || readTenancy(this.flag('flat')))) {
-      // (what was set out in the old place comes to your pack, or by the Post what won't fit)
-      this.furnitureBack(false);
-      this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null); this.setFlag('villa', null); this.setFlag('flat', null);
-      this.hud.system('The keeper has given you a home. What you had set out in your old place is in your pack, or waiting at a post box.');
+      // (the home you had is kept: you live in the gift now, and can go back to the old one from the map)
+      const cur = this.packPrimary();
+      if (cur) this.setFlag('held', [...this.held(), cur]);
+      this.hud.system(`The keeper has given you a home. You live there now; ${cur ? this.homeName(cur.id) : 'your old place'} is still yours, and the map's Travel home will take you to either.`);
     }
     // The book has a home in your name this save doesn't know of (it was leased on another device, say, or given): it's yours
     if (mine && (gift || (!local && !readTenancy(this.flag('flat'))))) {
@@ -3055,8 +3181,8 @@ export class Game implements GameApi {
       this.persist();
       return;
     }
-    // Two homes, one in the book and one in this save, from before the book: the save's stands
-    if (mine && mine !== local) this.online.homeRelease(mine);
+    // Two homes, one in the book and one in this save, from before the book: both are kept if there's room (above), or the save's stands
+    if (mine && mine !== local && !heldIds.has(mine)) this.online.homeRelease(mine);
     if (!local) return;
     const other = this.homesBook?.get(local);
     const lost = (owner: string) => (VILLA_BY_ID.has(local) ? this.villaLost(local, owner) : this.moveHome(local, owner, 0));
@@ -4175,7 +4301,7 @@ export class Game implements GameApi {
       waymarkFare: (id: string) => g.waymarkFareTo(id),
       travelWaymark: (id: string) => g.travelWaymark(id),
       homeName: () => g.myHomeName(),
-      travelHome: () => g.travelHome(),
+      travelHome: () => g.travelHomeMenu(),
       instance: () => g.inInstance(),
       leaveInstance: () => { g.leaveInstance(); },
       towerView: () => { void loadClimbers(); const t = g.tower.tally(); return { best: g.tower.best(), reached: g.tower.reached(), climbing: g.tower.run?.floor ?? null, day: [t.day.floors, TOWER_DAILY.floors, t.day.paid] as [number, number, boolean], week: [t.week.floors, TOWER_WEEKLY.floors, t.week.paid] as [number, number, boolean], board: climbers.list }; },
@@ -8342,6 +8468,7 @@ export class Game implements GameApi {
     if (this.dead) return;
 
     if (this.hud.picking) return; // the lock has your hands
+    if (this.homePicker.open && this.input.pressedOnce('Escape')) this.homePicker.close();
     if (this.racesT?.bookOpen) { if (this.input.pressedOnce('Escape')) this.racesT.closeBook(); }
     if (this.tavernT?.open) { if (this.input.pressedOnce('Escape')) this.tavernT.close(); return; } // at a tavern table
     if (this.quartersT?.open) { if (this.input.pressedOnce('Escape')) this.quartersT.close(); return; } // at the Quarters table
@@ -9211,7 +9338,7 @@ export class Game implements GameApi {
           this.wearCostume(c.id);
           return;
         }
-        case 'home': this.travelHome(); return;
+        case 'home': { const want = arg.trim().toLowerCase(); const hit = want ? this.homeList().find((h) => h.name.toLowerCase().includes(want)) : null; if (hit) this.travelHomeTo(hit.id); else this.travelHomeMenu(); return; }
         // (the keeper's own: /granthome <character> <home id>, e.g. /granthome Billie Eyelash vh36; the server checks it's the keeper)
         case 'granthome': { const m = arg.trim().match(/^(.+?)\s+([a-z]{1,3}\d{1,2}|cottage)$/i); if (!m) { this.hud.system('/granthome <character> <home id>, for example /granthome Billie Eyelash vh36'); return; } this.online.grantHome(m[1], m[2].toLowerCase()); return; }
         case 'pledge': if (arg) this.pledgeWith(arg); else this.hud.system(this.spouse() ? `You have taken the Pledge with ${this.spouse()}.` : 'Stand at a chapel\'s altar with them and say /pledge and their name.'); return;

@@ -15,6 +15,7 @@ export const UPDATES: Update[] = [
       ['Temples on the map.', 'Every altar where you can unlearn skill points has a cross on the map.'],
       ['The Black Gull’s Doubloons.', 'Ten cursed doubloons lie out in the Counties each week, the same ten for everyone, each under a pillar of gold light. Pick one up and your group near you gets one too. Morwenna Veale buys them on Gullmouth quay for a tricorn, dyes, rum and a black mare.'],
       ['The Red Lamp.', 'Kezia Love on Gullmouth quay needs someone to hear her brother out. He is on Skua Rock. A new story line, and a new companion at the end of it.'],
+      ['Several homes.', 'Hold up to three homes, and a let room besides. Buying or leasing another keeps the one you have. Travel home on the map (or /home) lists them all: going to another moves you in, furniture and all.'],
       ['The King’s Dock.', 'Awschitz Fort has a military dock north of its wall, with warships, guns and a watchtower, and its yard is full of the garrison going about their day.'],
     ],
   },
