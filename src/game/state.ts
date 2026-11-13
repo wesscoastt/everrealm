@@ -17,6 +17,17 @@ export interface Settings {
   shadows: boolean;
   /** Light shafts, bloom and the colour grade (core/PostFX.ts); unset is on. */
   finePicture?: boolean;
+  /** The usual PC options (owner 2026-11-12): field of view in degrees; frames a second at most (0 none); the
+   * frame counter; names over players and over people; floating numbers in a fight; the camera's shake. */
+  fov?: number;
+  fpsCap?: number;
+  showFps?: boolean;
+  playerNames?: boolean;
+  npcNames?: boolean;
+  combatText?: boolean;
+  shake?: boolean;
+  /** Keys moved from where they start: the key a thing starts on, to the key you've put it on (systems/Input.ts). */
+  keys?: Record<string, string>;
   renderScale: number;
   dayLength: number; // real minutes per in-game day
   viewDist: number; // chunks

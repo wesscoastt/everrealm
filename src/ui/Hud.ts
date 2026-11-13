@@ -1,3 +1,5 @@
+import { NEWS_V, newsHtml } from '../data/whatsNew';
+import { Input } from '../systems/Input';
 import { lastSfx } from '../systems/Audio';
 import './styles.css';
 import { SLOT_NAMES } from '../data/armour';
@@ -423,6 +425,17 @@ export interface MasteryView {
 export interface BestiaryEntry { type: string; name: string; level: number; where: string[]; kills: number; how: string; loot: string[]; note?: string }
 
 export type PanelId = 'inv' | 'skills' | 'talents' | 'journal' | 'craft' | 'shop' | 'map' | 'settings' | 'read' | 'travel' | 'trade' | 'guild' | 'exchange' | 'finder' | 'music' | 'mail';
+
+/** The keys you can move in the options: the key each starts on, and what it does. */
+const KEY_ACTIONS: [string, string][] = [
+  ['KeyW', 'Forward'], ['KeyS', 'Back'], ['KeyA', 'Left'], ['KeyD', 'Right'], ['Space', 'Jump'], ['ShiftLeft', 'Sprint'],
+  ['KeyQ', 'Dodge roll'], ['KeyV', 'Block'], ['Tab', 'Target the nearest'], ['KeyE', 'Talk, use, gather'],
+  ['Digit1', 'Skill 1'], ['Digit2', 'Skill 2'], ['Digit3', 'Skill 3'], ['Digit4', 'Skill 4'], ['Digit5', 'Skill 5'], ['Digit6', 'Skill 6'], ['Digit7', 'Skill 7'], ['Digit8', 'Skill 8'],
+  ['KeyF', 'Eat'], ['KeyG', 'Mount'], ['KeyH', 'Sheathe your weapon'], ['KeyL', 'Your light'],
+  ['KeyB', 'Pack'], ['KeyK', 'Skills'], ['KeyT', 'Talents'], ['KeyJ', 'Journal'], ['KeyM', 'Map'], ['KeyP', 'Group finder'], ['KeyO', 'Social'], ['KeyU', 'Companions'], ['KeyN', 'Songbook'],
+];
+/** A key's name as it's written on it. */
+const keyName = (code: string) => code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Arrow/, '').replace(/(Left|Right)$/, (m, side) => (/^(Shift|Control|Alt|Meta)/.test(code) ? '' : side)).replace(/^Control$/, 'Ctrl') || code;
 
 export class Hud {
   readonly root = document.getElementById('ui')!;
@@ -3701,8 +3714,9 @@ export class Hud {
       ['renderScale', 'Render scale', 0.5, 1, 0.05],
       ['mouseSens', 'Mouse look speed', 0.3, 2.5, 0.05],
       ['uiScale', 'Interface size', 0.8, 1.3, 0.05],
+      ['fov', 'Field of view', 50, 90, 1],
     ];
-    const slider = ([k, label, min, max, step]: (typeof sliders)[number]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`;
+    const slider = ([k, label, min, max, step]: (typeof sliders)[number]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' || k === 'fov' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`;
     const S = (k: string) => slider(sliders.find((x) => x[0] === k)!);
     // In tabs, as the big games keep their options (owner 2026-11-12: "too much scrolling around")
     const colourVision = `<div class="setting"><span>Colour vision</span><select data-cv>${(Object.keys(COLOUR_VISION_NAMES) as ColourVision[]).map((k) => `<option value="${k}"${(st.colourVision ?? 'standard') === k ? ' selected' : ''}>${COLOUR_VISION_NAMES[k]}</option>`).join('')}</select><span></span></div>`;
@@ -3742,17 +3756,51 @@ export class Hud {
       </div>`;
     const restRows = rest.split('<div class="setting">').filter(Boolean).map((r) => '<div class="setting">' + r);
     const row = (label: string) => restRows.find((r) => r.includes(`<span>${label}`)) ?? '';
+    // (the usual PC options, owner 2026-11-12: quality at a click, a frame cap and counter, field of view, names, numbers, shake, keys)
+    const tick = (k: string, label: string) => `<div class="setting"><span>${label}</span><input type="checkbox" ${(st as unknown as Record<string, unknown>)[k] !== false && (k !== 'showFps' || st.showFps) ? 'checked' : ''} data-k="${k}"><span></span></div>`;
+    if (st.fov === undefined) st.fov = 58;
+    const presets = `<div class="setting"><span>Quality</span><span class="set-q">${(['Low', 'Medium', 'High', 'Ultra'] as const).map((q) => `<button class="btn sm ghost" data-q="${q}">${q}</button>`).join('')}</span><span></span></div>`;
+    const cap = `<div class="setting"><span>Frame rate limit</span><select data-cap>${[0, 30, 60, 120, 144].map((n) => `<option value="${n}"${(st.fpsCap ?? 0) === n ? ' selected' : ''}>${n ? n + ' a second' : 'None'}</option>`).join('')}</select><span></span></div>`;
+    const bindRows = KEY_ACTIONS.map(([code, label]) => { const now = st.keys?.[code] ?? code; return `<div class="setting key-row"><span>${label}</span><button class="btn sm ghost key-b${now !== code ? ' moved' : ''}" data-bind="${code}">${keyName(now)}</button><span></span></div>`; }).join('');
     const pages: Record<string, [string, string]> = {
-      video: ['Picture', S('viewDist') + S('renderScale') + row('Shadows') + row('Light shafts') + row('Full screen') + colourVision],
+      news: ['What\'s new', `<div class="set-news">${newsHtml(3)}</div>`],
+      video: ['Picture', presets + S('viewDist') + S('renderScale') + S('fov') + cap + row('Shadows') + row('Light shafts') + tick('showFps', 'Show the frame rate') + row('Full screen') + colourVision],
       sound: ['Sound', S('master') + S('sfx') + S('ambience') + S('music')],
-      controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + `<h4 class="sec">Keys</h4>` + keys],
-      ui: ['Interface and chat', S('uiScale') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
+      controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + tick('shake', 'Camera shake') + `<h4 class="sec">Keys <small>click one, then press the key you want; Esc leaves it</small></h4><div class="key-list">${bindRows}</div><button class="btn sm ghost" data-keyreset>Put every key back</button>`],
+      ui: ['Interface and chat', S('uiScale') + tick('playerNames', 'Names over players') + tick('npcNames', 'Names over people') + tick('combatText', 'Numbers in a fight') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
     };
     if (!this.ctx.inMenu) pages.char = ['Character', '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px"><button class="btn ghost" data-act="title">Save and quit to character select</button><button class="btn danger" data-act="reset">Delete character</button></div>'];
+    try { if (localStorage.getItem('everrealm.menuNews') !== String(NEWS_V)) { localStorage.setItem('everrealm.menuNews', String(NEWS_V)); this.settingsTab = 'news'; } } catch { /* private window */ }
     if (!pages[this.settingsTab]) this.settingsTab = 'video';
     body.innerHTML = `<div class="bag-tabs set-tabs">${Object.entries(pages).map(([k, [n]]) => `<button class="bag-tab${k === this.settingsTab ? ' sel' : ''}" data-sett="${k}">${n}</button>`).join('')}</div><div class="set-page">${pages[this.settingsTab][1]}</div>`;
     body.querySelectorAll<HTMLElement>("[data-sett]").forEach((b) => b.addEventListener("click", () => { this.settingsTab = b.dataset.sett!; this.renderSettings(); }));
     body.querySelector<HTMLInputElement>('input[data-trade]')?.addEventListener('change', (e) => { st.hideTrade = !(e.target as HTMLInputElement).checked; this.ctx.settingsChanged(); });
+    body.querySelector<HTMLSelectElement>('select[data-cap]')?.addEventListener('change', (e) => { st.fpsCap = Number((e.target as HTMLSelectElement).value); this.ctx.settingsChanged(); });
+    body.querySelectorAll<HTMLElement>('[data-q]').forEach((b) => b.addEventListener('click', () => {
+      const q = b.dataset.q as 'Low' | 'Medium' | 'High' | 'Ultra';
+      const set = { Low: { viewDist: 5, renderScale: 0.7, shadows: false, finePicture: false }, Medium: { viewDist: 7, renderScale: 0.85, shadows: true, finePicture: false }, High: { viewDist: 9, renderScale: 1, shadows: true, finePicture: true }, Ultra: { viewDist: 13, renderScale: 1, shadows: true, finePicture: true } }[q];
+      Object.assign(st, set);
+      this.ctx.settingsChanged();
+      this.system(`Picture set to ${q}.`);
+      this.renderSettings();
+    }));
+    body.querySelectorAll<HTMLElement>('[data-bind]').forEach((b) => b.addEventListener('click', () => {
+      const action = b.dataset.bind!;
+      b.textContent = 'Press a key';
+      b.classList.add('waiting');
+      Input.capture = (code) => {
+        if (code === 'Escape') { this.renderSettings(); return; }
+        const keys = { ...(st.keys ?? {}) }, was = keys[action] ?? action;
+        // (whatever was on that key takes this one's old key: a swap, so nothing is left without a key)
+        const other = KEY_ACTIONS.map(([c]) => c).find((c) => c !== action && (keys[c] ?? c) === code);
+        keys[action] = code;
+        if (other) keys[other] = was;
+        st.keys = keys;
+        this.ctx.settingsChanged();
+        this.renderSettings();
+      };
+    }));
+    body.querySelector('[data-keyreset]')?.addEventListener('click', () => { st.keys = {}; this.ctx.settingsChanged(); this.renderSettings(); });
     body.querySelector<HTMLSelectElement>('select[data-cv]')?.addEventListener('change', (e) => { st.colourVision = (e.target as HTMLSelectElement).value as ColourVision; this.ctx.settingsChanged(); });
     body.querySelector<HTMLInputElement>('input[data-fs]')?.addEventListener('change', (e) => {
       const on = (e.target as HTMLInputElement).checked;
@@ -3764,7 +3812,7 @@ export class Hud {
         if (inp.type === 'checkbox') (st as unknown as Record<string, unknown>)[k] = inp.checked;
         else (st as unknown as Record<string, unknown>)[k] = Number(inp.value);
         const v = inp.nextElementSibling as HTMLElement;
-        if (v && inp.type !== 'checkbox') v.textContent = k === 'dayLength' || k === 'viewDist' ? inp.value : Math.round(Number(inp.value) * 100) + '%';
+        if (v && inp.type !== 'checkbox') v.textContent = k === 'dayLength' || k === 'viewDist' || k === 'fov' ? inp.value : Math.round(Number(inp.value) * 100) + '%';
         this.ctx.settingsChanged();
       });
     });

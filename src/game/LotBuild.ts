@@ -111,7 +111,9 @@ export class LotBuild {
 
   /** E: lay the block in hand against the face you point at (with the spade in hand, dig instead). */
   place(): void {
-    if (!this.holding) { this.dig(); return; }
+    // (E only ever lays: with nothing picked it digs no more, it takes the first block you carry; owner 2026-11-12, "laying a block digs, and you can't replace what's dug")
+    if (!this.holding) this.holding = BUILD_BLOCKS.find((b) => this.host.count(b.item) > 0)?.item ?? null;
+    if (!this.holding) { this.host.system('You have no blocks to lay. A land clerk sells them.'); this.host.sound('fail'); return; }
     const c = this.place_;
     if (!c) { this.host.system('Point at the face of a block on your lot to lay against it.'); this.host.sound('fail'); return; }
     const bb = BUILD_BLOCKS.find((b) => b.item === this.holding)!;

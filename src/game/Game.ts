@@ -931,6 +931,10 @@ export class Game implements GameApi {
     setTimeout(() => void this.buildWorld(), 60);
     let last = performance.now();
     const loop = (now: number) => {
+      // (a frame cap from the options: frames skipped until it's time)
+      const cap = this.save.settings.fpsCap ?? 0;
+      if (cap > 0 && now - last < 1000 / cap - 1.5) { requestAnimationFrame(loop); return; }
+      this.fpsTick(now);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       // (held while the trailer steps the frames itself: src/dev/trailer.ts)
@@ -2035,7 +2039,7 @@ export class Game implements GameApi {
   }
 
   quake(strength = 0.6): void {
-    this.rig.addShake(strength);
+    if (this.save.settings.shake !== false) this.rig.addShake(strength);
     this.sfx('hitHeavy');
     this.particles.dust(this.player.position, 24);
   }
@@ -3832,6 +3836,11 @@ export class Game implements GameApi {
     document.documentElement.style.setProperty('--ui-scale', String(Math.min(1.3, Math.max(0.8, s.uiScale ?? 1))));
     applyColourVision(s.colourVision);
     this.renderer.shadowMap.enabled = s.shadows;
+    // The usual PC options: field of view, keys moved, the frame counter
+    this.camera.fov = Math.min(90, Math.max(50, s.fov ?? 58)); this.camera.updateProjectionMatrix();
+    Input.remap = {};
+    for (const [from, to] of Object.entries(s.keys ?? {})) if (to && to !== from) { Input.remap[to] = from; if (!Input.remap[from]) Input.remap[from] = to; }
+    this.fpsEl.style.display = s.showFps ? '' : 'none';
     if (this.world) this.world.chunks.viewRadius = s.viewDist;
     if (this.world) this.world.sky.sun.castShadow = s.shadows;
     this.scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (m && 'needsUpdate' in m) m.needsUpdate = true; });
@@ -8118,6 +8127,15 @@ export class Game implements GameApi {
     this.online.setComp(c as never);
   }
 
+  /** The frame counter in the corner, when the options ask for it. */
+  private readonly fpsEl = (() => { const e = document.createElement('div'); e.id = 'fps-meter'; e.style.display = 'none'; document.body.append(e); return e; })();
+  private fpsN = 0;
+  private fpsAt = 0;
+  private fpsTick(now: number): void {
+    this.fpsN++;
+    if (now - this.fpsAt >= 500) { if (this.save.settings.showFps) this.fpsEl.textContent = `${Math.round((this.fpsN * 1000) / (now - this.fpsAt))} fps`; this.fpsN = 0; this.fpsAt = now; }
+  }
+
   private canvasResize(): boolean {
     const canvas = this.renderer.domElement;
     const scale = this.save.settings.renderScale;
@@ -8928,6 +8946,8 @@ export class Game implements GameApi {
   }
 
   private floatAt(pos: THREE.Vector3, height: number, text: string, cls: string): void {
+    // (the floating numbers of a fight, off in the options; what people say stays)
+    if (this.save.settings.combatText === false && cls !== 'chatter' && /^[-+]?\d/.test(text)) return;
     const fwd = this.camera.getWorldDirection(new THREE.Vector3());
     if (tmpV.set(pos.x, pos.y + height, pos.z).sub(this.camera.position).dot(fwd) < 0.5) return;
     const v = tmpV.set(pos.x, pos.y + height, pos.z).project(this.camera);
@@ -9314,7 +9334,10 @@ export class Game implements GameApi {
       const d = n.pos.distanceTo(P);
       if (d > 28 || !n.model.root.visible) continue;
       const s = project(n.pos.x, n.pos.y + 2.3 * FIGURE * (n.def.look.height ?? 1), n.pos.z);
-      if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: n.def.name, sub: d < 12 ? n.def.title : undefined, kind: 'npc', mark: this.npcMark(n) });
+      const mark = this.npcMark(n);
+      // (names over people off in the options: a quest's mark still shows)
+      if (this.save.settings.npcNames === false && !mark) continue;
+      if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: this.save.settings.npcNames === false ? '' : n.def.name, sub: d < 12 && this.save.settings.npcNames !== false ? n.def.title : undefined, kind: 'npc', mark });
     }
     // Verandah's mounted conscripts and the watch on its walls
     for (const g of [...this.verandahPatrols.plates(), ...this.wallWatch.plates()]) {
@@ -9340,7 +9363,7 @@ export class Game implements GameApi {
       const rp = r.model.root.position;
       if (rp.distanceTo(P) > 40) continue;
       const s = project(rp.x, rp.y + 2.3 * FIGURE * (r.model.look.height ?? 1), rp.z);
-      if (s) plates.push({ key: 'p' + r.id, x: s.x, y: s.y, name: r.name, sub: r.guild ? `<${r.guild}>` : undefined, kind: 'player' });
+      if (s && this.save.settings.playerNames !== false) plates.push({ key: 'p' + r.id, x: s.x, y: s.y, name: r.name, sub: r.guild ? `<${r.guild}>` : undefined, kind: 'player' });
     }
     this.hud.updatePlates(plates);
 

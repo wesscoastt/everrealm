@@ -1,10 +1,31 @@
-// What's new: the updates, newest first, for the front page's tab and the card a player sees once on coming
+// What’s new: the updates, newest first, for the front page’s tab and the card a player sees once on coming
 // into the world after an update (game/Game.ts finishStart; /news shows it again). Add an update at the top with
-// the next `v`: everyone sees it once. Write it for players: what they'll find and where, in a line or two each.
+// the next `v`: everyone sees it once. Write it for players: what they’ll find and where, in a line or two each.
 
 export interface Update { v: number; date: string; title: string; items: [string, string][] }
 
 export const UPDATES: Update[] = [
+  {
+    v: 14, date: '12 November', title: 'Companions, a new look, and a fairer road',
+    items: [
+      ['Your companions.', 'Press U to call any of them to your side from wherever they are. Give them gifts (one a day counts), put gear on them, and choose the horse they ride. Each grows from stranger to loyal companion, and is stronger beside you for it.'],
+      ['Companions at home.', 'Send one to your house: they sit in your chairs, cook at the range, sleep in your beds and talk to each other. Hide them, or tell them to leave your things be.'],
+      ['Others’ companions.', 'You see other players’ companions following them now, on their horses when they ride.'],
+      ['The windows.', 'A look of their own, leather and brass, and nothing to scroll through to find a thing: the pack, skills, talents, journal, group finder and options.'],
+      ['Faces.', 'The face beside a conversation is drawn from the person themselves, hat, beard and glasses and all.'],
+      ['The world.', 'Light streaming round the sun and through the trees, lamps and fires that glow and flicker each their own way, morning mist in the valleys, heaped clouds, rain in a brown haze, and the northern lights over the Scarth Highlands, Tolmen Moor and the Sickle on a clear night. The options can turn the new light off on a slower computer.'],
+      ['A fairer road.', 'Experience balanced across everything you do: world bosses, delve chests, the tower, sea fights, writs and commissions, swimming, enchanting and the public fields.'],
+      ['The options.', 'Field of view, a frame cap and counter, names over players and people, numbers in a fight, camera shake, quality at a click, and every key moved where you want it.'],
+    ],
+  },
+  {
+    v: 13, date: '11 November', title: 'Fisherman Dave, the quarry and the cart',
+    items: [
+      ['Fisherman Dave.', 'His story in Gullmouth: Becky White, the Curse-Keeper and the Pilgrim Hat. Find him in his net shed above the south quay.'],
+      ['The Verandah quarry.', 'Dug as deep as it goes, with the Charter’s prisoners cutting stone in it. In a cell, ask to go on the gang to work off your time.'],
+      ['The watch’s cart.', 'Prisoners ride through Ansbury and Gullmouth in the cage cart. Apples are two marks at the general store.'],
+    ],
+  },
   {
     v: 12, date: '5 November', title: 'Verandah',
     items: [

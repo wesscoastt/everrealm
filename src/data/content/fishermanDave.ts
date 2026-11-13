@@ -67,7 +67,7 @@ const items: ItemDef[] = [
     desc: 'One of four pieces of bread Walter White took out of his coat pocket as if he\'d been keeping them for exactly this.', stats: 'Restores 30 health.' },
   { id: 'pilgrim_hat', name: 'Magical Pilgrim Hat', kind: 'armor', rarity: 'legendary', stack: false, value: 0, icon: { shape: 'pilgrimhat', a: '#3a2a1e', b: '#d8b04a' },
     desc: 'A pilgrim\'s hat of dark brown felt, a brown band round the crown with a square gold buckle, a white feather, and a small silver fish-hook hung from the band. Nobody has worn it for hundreds of years. It decided it liked Dave.',
-    hat: 'pilgrim', armor: { slot: 'head', defense: 2, vigor: 20 },
+    hat: 'pilgrim', armor: { slot: 'head', defense: 2, vigor: 20, look: { hat: 'pilgrim', hatColor: '#3a2a1e' } }, // (the look: worn, it shows on your head; owner 2026-11-12)
     stats: 'Head. Defence 2, maximum health +20. Whoever wears it can hurt the Cursekeeper. Put it on Fisherman Dave (talk to him) and he casts with it.' },
 ];
 

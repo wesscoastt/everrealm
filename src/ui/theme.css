@@ -633,7 +633,7 @@
 .bar.mg > i { background: linear-gradient(90deg, #22625a, var(--sea)); }
 
 /* The options, in tabs */
-#settings-panel { width: min(560px, calc(100vw - 32px)); }
+#settings-panel { width: min(700px, calc(100vw - 32px)); }
 .set-tabs { margin-bottom: 10px; }
 .set-tabs .bag-tab { font-size: 11.5px; }
 .set-page { animation: tip-in 0.16s ease; min-height: 230px; }
@@ -642,3 +642,16 @@
 /* A companion's mount, in their gear window */
 #postcard .cw-mrow { display: flex; flex-wrap: wrap; gap: 6px; }
 #postcard .cw-mrow .btn img { width: 18px; height: 18px; vertical-align: middle; margin-right: 5px; image-rendering: pixelated; }
+
+/* The options: the news page, quality buttons, the key list */
+.set-news { max-height: min(60vh, 460px); overflow-y: auto; padding-right: 4px; }
+.set-news .news-h { margin: 6px 0 4px; font: 700 15px var(--px); color: var(--gild-l); }
+.set-news .news-d { font: 500 12px var(--body); color: var(--muted); margin-left: 6px; }
+.set-news .news { margin: 0 0 10px; padding-left: 18px; font: 500 13px/1.45 var(--body); color: var(--cream-d); }
+.set-news .news b { color: var(--cream); }
+.set-q { display: flex; gap: 6px; flex: 2; }
+.key-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; max-height: min(42vh, 330px); overflow-y: auto; margin-bottom: 8px; }
+.key-row .key-b { min-width: 74px; }
+.key-row .key-b.moved { color: var(--sea); }
+.key-row .key-b.waiting { color: #10201c; background: linear-gradient(#9fe0d2, var(--sea)); }
+#fps-meter { position: fixed; right: 8px; top: 4px; z-index: 50; font: 600 12px var(--px, sans-serif); color: #f3d58a; text-shadow: 0 1px 2px #000; pointer-events: none; }

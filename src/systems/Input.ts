@@ -5,6 +5,13 @@
 const STICK_R = 54;
 
 export class Input {
+  /**
+   * Keys moved in the options (owner 2026-11-12, "your usual PC settings for an MMO"): a key pressed is read as the key
+   * its thing started on, so the rest of the game goes on asking for the old one. Moving one swaps the two keys.
+   */
+  static remap: Record<string, string> = {};
+  /** While the options wait for a key to be pressed for something: it's handed here, and the game doesn't see it. */
+  static capture: ((code: string) => void) | null = null;
   readonly down = new Set<string>();
   private pressed = new Set<string>();
   dragX = 0;
@@ -119,13 +126,15 @@ export class Input {
   private onKeyDown = (e: KeyboardEvent) => {
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    if (!this.down.has(e.code)) this.pressed.add(e.code);
-    this.down.add(e.code);
+    if (Input.capture) { e.preventDefault(); const c = Input.capture; Input.capture = null; c(e.code); return; }
+    const code = Input.remap[e.code] ?? e.code;
+    if (!this.down.has(code)) this.pressed.add(code);
+    this.down.add(code);
     if (['Space', 'Tab', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   };
 
   private onKeyUp = (e: KeyboardEvent) => {
-    this.down.delete(e.code);
+    this.down.delete(Input.remap[e.code] ?? e.code);
   };
 
   private onMouseDown = (e: MouseEvent) => {
