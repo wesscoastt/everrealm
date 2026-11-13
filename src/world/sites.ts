@@ -1,3 +1,4 @@
+import { VERANDAH_FURN } from '../data/content/verandahFurn';
 import { DOWNS, STRAIGHT as DOWNS_A, BEND as DOWNS_R, TRACK_W as DOWNS_W, POST_AT as DOWNS_POST } from '../data/races';
 import { B, BLOCKS } from './blocks';
 import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
@@ -908,6 +909,8 @@ function* planBody(): Generator<string, Plan> {
     // The King's Dock north of the fort and more of its yard (scripts/mc/awschitz-navy.cjs; data/content/awschitz.ts)
     { id: 'awschitz-navy', name: '', x: -3441, z: 1880, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_NAVY_PROPS) s.props.push(p.t ? (p as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     { id: 'awschitz-yard', name: '', x: -3380, z: 1955, r0: 0, r1: 0, build: (s: Site) => { for (const p of AWSCHITZ_YARD_PROPS) s.props.push(p.t ? (p as PropDesc) : { t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
+    // The Screaming Mermaid's tables and chairs, real ones where the Minecraft fence posts and stairs came over as blocks (scripts/mc/verandah-furn.cjs)
+    { id: 'ver-furn', name: '', x: -2836, z: 1942, r0: 0, r1: 0, build: (s: Site) => { for (const p of VERANDAH_FURN) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // Xavier's show room upstairs on the high street: one of each piece he sells (data/content/verandahShops.ts)
     { id: 'ver-xavier', name: '', x: -2861, z: 2108, r0: 0, r1: 0, build: (s: Site) => { for (const p of [...XAVIER_SHOWROOM, ...SHOP_COUNTERS]) s.props.push({ t: 'furn', item: p.item as PropDesc['item'], x: p.x, y: p.y, z: p.z, ry: p.ry }); } },
     // The smugglers' den in the Fortress (data/content/smugglersDen.ts; its blocks reworked by scripts/mc/edits.ts):
