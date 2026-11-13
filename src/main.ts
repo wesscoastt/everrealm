@@ -1,3 +1,5 @@
+// (the low mist goes into three's fog before any material is made: world/mist.ts)
+import './world/mist';
 import { Game } from './game/Game';
 
 // Testing aid (dev builds, ?rafshim): a page in a hidden preview pane gets no animation frames, so

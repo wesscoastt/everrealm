@@ -4,6 +4,11 @@ import type { WeatherState } from './weather';
 import { COVER_N, coverTexture, precipitation } from './precip';
 import { SharedUniforms } from './materials';
 import { createSeededRandom } from '../utils/random';
+import { regionAt, SEA, type RegionId } from './terrain';
+import { MIST } from './mist';
+
+/** The lands where the northern lights show on a clear night (owner 2026-11-05: "northern lights over the northern lands"). */
+const AURORA_LANDS = new Set<RegionId>(['starfall', 'tolmen', 'sickle']);
 
 interface Key {
   t: number;
@@ -71,6 +76,8 @@ export class Sky {
   set hour(h: number) { this.hourOffset = h - realmHour(); }
   /** 0 at midday, 1 at full night. */
   night = 0;
+  /** How strongly the northern lights show (0..1), eased. */
+  aurora = 0;
   /** The camera is under water: a close blue-green fog closes in. */
   underwater = false;
   /** The weather now (eased toward the target), and where it's heading. */
@@ -117,12 +124,37 @@ export class Sky {
         uSunDir: shared.uSunDir,
         uSunColor: shared.uSunColor,
         uNight: { value: 0 },
+        // The northern lights: how strongly they show, and the clock they ripple by
+        uAurora: { value: 0 },
+        uClock: { value: 0 },
         // Under the water the whole sky is the water's own murk (fog doesn't reach a sky dome)
         uUnder: { value: 0 },
         uFog: { value: new THREE.Color() },
       },
       vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position.z = gl_Position.w; }`,
-      fragmentShader: `uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uSunDir; uniform vec3 uSunColor; uniform float uNight; uniform float uUnder; uniform vec3 uFog; varying vec3 vDir;
+      fragmentShader: `uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uSunDir; uniform vec3 uSunColor; uniform float uNight; uniform float uUnder; uniform vec3 uFog; uniform float uAurora; uniform float uClock; varying vec3 vDir;
+      float hsh(float n){ return fract(sin(n) * 43758.5453); }
+      float vn(float x){ float i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(hsh(i), hsh(i + 1.0), f); }
+      // Curtains of light hung across the north: rays that rise from a wavering lower hem, green at the foot,
+      // violet toward the top, the folds drifting slowly along
+      vec3 aurora(vec3 d){
+        if (d.y < 0.02) return vec3(0.0);
+        float az = atan(d.x, -d.z);
+        float north = smoothstep(-0.2, 0.5, -d.z / max(0.001, length(d.xz)));
+        vec3 acc = vec3(0.0);
+        for (int k = 0; k < 3; k++) {
+          float fk = float(k);
+          float fold = az * (2.4 + fk * 0.9) + uClock * (0.05 + fk * 0.02) + fk * 1.7;
+          float hem = 0.12 + fk * 0.07 + 0.06 * sin(fold) + 0.03 * sin(fold * 2.7 + uClock * 0.11);
+          float above = d.y - hem;
+          float body = smoothstep(-0.015, 0.02, above) * exp(-max(above, 0.0) * (6.0 + fk * 2.0));
+          float rays = 0.45 + 0.55 * vn(az * 60.0 + fk * 13.0 + sin(uClock * 0.2 + az * 4.0) * 3.0);
+          float shimmer = 0.75 + 0.25 * sin(uClock * 0.7 + az * 9.0 + fk);
+          vec3 c = mix(vec3(0.15, 1.0, 0.45), vec3(0.6, 0.25, 0.95), smoothstep(0.0, 0.22, above));
+          acc += c * body * rays * shimmer * (0.7 - fk * 0.18);
+        }
+        return acc * north;
+      }
       void main(){
         float h = clamp(vDir.y, -0.2, 1.0);
         vec3 col = mix(uHorizon, uZenith, pow(max(h, 0.0), 0.55));
@@ -135,6 +167,7 @@ export class Sky {
         float m = max(dot(normalize(vDir), -uSunDir), 0.0);
         col += vec3(0.85, 0.9, 1.0) * smoothstep(0.9990, 0.9994, m) * uNight;
         col += vec3(0.4, 0.5, 0.8) * pow(m, 30.0) * 0.25 * uNight;
+        if (uAurora > 0.001) col += aurora(normalize(vDir)) * uAurora * uNight * 0.9;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -331,6 +364,24 @@ export class Sky {
 
     this.night = THREE.MathUtils.clamp(1 - (elev + 0.15) / 0.35, 0, 1);
     this.domeMat.uniforms.uNight.value = this.night;
+    // The mist lying low (world/mist.ts): heavy in the early morning, lifting by mid-morning, back a little at dusk and
+    // in the night, thick in rain or a mist; none under the water or underground
+    {
+      const morning = Math.max(0, 1 - Math.abs(h - 6.6) / 2.6), dusk = Math.max(0, 1 - Math.abs(h - 20.5) / 2.5);
+      const w = this.weather, want = this.underwater || this.underground ? 0 : Math.min(1, 0.12 + morning * 0.7 + dusk * 0.25 + this.night * 0.18 + w.mist * 0.8 + w.precip * 0.35);
+      MIST.w += (want - MIST.w) * Math.min(1, dt * 0.5);
+      MIST.x = SEA + 9 + morning * 5 + w.mist * 8;
+      MIST.y = 11 + morning * 4 + w.mist * 8;
+      MIST.z = 0.012 + w.precip * 0.01 + w.mist * 0.012;
+    }
+    // The northern lights, on clear nights over the northern lands, coming and going over a few seconds as you cross into them
+    {
+      const r = regionAt(center.x, center.z), north = AURORA_LANDS.has(r.t < 0.5 ? r.a : r.b) ? 1 : 0;
+      const want = north * (1 - Math.min(1, this.weather.cloud * 1.4)) * (this.underground || this.underwater ? 0 : 1);
+      this.aurora += (want - this.aurora) * Math.min(1, dt * 0.4);
+      this.domeMat.uniforms.uAurora.value = this.aurora;
+      this.domeMat.uniforms.uClock.value += dt;
+    }
     this.domeMat.uniforms.uUnder.value = this.underwater ? 1 : 0;
     // (mixed in after the output conversion, as the fog is, so it wants the screen-space colour)
     this.domeMat.uniforms.uFog.value.copy(this.fog.color).convertLinearToSRGB();
