@@ -213,8 +213,8 @@
 .fe-roster .list { scrollbar-color: rgba(243, 213, 138, 0.35) transparent; }
 
 /* ------------------------------------------------------------------ Front page */
-.fe-home { background: linear-gradient(90deg, rgba(6, 10, 22, 0.86) 0, rgba(6, 10, 22, 0.55) 34%, rgba(6, 10, 22, 0) 62%), linear-gradient(rgba(6,10,22,0.5), rgba(6,10,22,0) 18%); }
-.fe-home .hm-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 22px; background: linear-gradient(rgba(6, 10, 22, 0.9), rgba(6, 10, 22, 0.55)); border-bottom: 1px solid rgba(255, 220, 140, 0.18); pointer-events: auto; }
+.fe-home { background: linear-gradient(90deg, rgba(20, 14, 8, 0.86) 0, rgba(20, 14, 8, 0.55) 34%, rgba(20, 14, 8, 0) 62%), linear-gradient(rgba(20, 14, 8, 0.5), rgba(20, 14, 8, 0) 18%); }
+.fe-home .hm-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 22px; background: linear-gradient(rgba(20, 14, 8, 0.9), rgba(20, 14, 8, 0.55)); border-bottom: 1px solid rgba(255, 220, 140, 0.18); pointer-events: auto; }
 .fe-home .hm-mark { display: flex; align-items: center; gap: 10px; }
 .fe-home .hm-mark .gem, .fe-home .hm-brand .gem { width: 14px; height: 14px; background: linear-gradient(#e4fbff 0 3px, var(--teal) 3px 60%, var(--teal-d) 60%); border: 2px solid var(--ink); transform: rotate(45deg); box-shadow: 0 0 14px rgba(95, 208, 230, 0.8); }
 .fe-home .hm-mark b { font: 700 20px var(--px); letter-spacing: 2px; color: var(--cream); text-shadow: var(--hard1); }
@@ -225,7 +225,7 @@
 .fe-home .hn.sel { color: var(--gold); border-bottom-color: var(--gold); }
 .fe-home .hm-playsm { padding: 8px 18px; font-size: 14px; }
 .fe-home .hm-card { position: absolute; left: 40px; top: 84px; bottom: 60px; width: min(500px, calc(100vw - 80px)); display: flex; flex-direction: column; gap: 14px; padding: 28px 30px 22px; overflow-y: auto; pointer-events: auto;
-  background: linear-gradient(rgba(14, 20, 40, 0.88), rgba(8, 11, 22, 0.92)); border: 2px solid var(--ink); box-shadow: inset 0 0 0 1px rgba(255, 220, 140, 0.22), 0 18px 50px rgba(0, 0, 0, 0.55); border-radius: 6px; }
+  background: linear-gradient(rgba(39, 27, 16, 0.88), rgba(22, 15, 9, 0.92)); border: 2px solid var(--ink); box-shadow: inset 0 0 0 1px rgba(255, 220, 140, 0.22), 0 18px 50px rgba(0, 0, 0, 0.55); border-radius: 6px; }
 .fe-home .hm-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .fe-home .hm-brand .gem { width: 20px; height: 20px; margin: 0 0 6px 6px; }
 .fe-home .hm-brand h1 { margin: 0; font: 700 clamp(44px, 6vw, 68px) var(--px); letter-spacing: 3px; line-height: 0.95; color: var(--cream); text-shadow: 0 3px 0 #9c8458, 0 6px 0 #3a2c1a, 0 12px 18px rgba(0,0,0,0.6); }
@@ -244,7 +244,7 @@
 .fe-brand .ea { margin-left: 4px; padding: 2px 8px 3px; font: 700 11px var(--px); font-style: normal; letter-spacing: 2px; text-transform: uppercase; color: #1d150c; background: linear-gradient(#ffe9a0, #e0b84a); border: 2px solid var(--ink); }
 .fe-back { position: absolute; top: 22px; left: 22px; }
 @media (max-width: 860px) {
-  .fe-home { background: linear-gradient(rgba(6,10,22,0.2), rgba(6,10,22,0.85) 45%); }
+  .fe-home { background: linear-gradient(rgba(20, 14, 8, 0.2), rgba(20, 14, 8, 0.85) 45%); }
   .fe-home .hm-top { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
   .fe-home .hm-top nav { order: 3; flex-basis: 100%; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
   .fe-home .hn { font-size: 12px; padding: 6px 8px; white-space: nowrap; }
@@ -293,7 +293,7 @@
 .fe-home .st-safe { margin: 4px 0 12px; padding: 10px 12px; border-radius: 8px; background: rgba(60, 120, 80, 0.18); border: 1px solid rgba(120, 200, 140, 0.35); font: 500 14px/1.45 var(--body); color: var(--cream); }
 .fe-home .st-safe b { color: #9fe0a8; }
 .fe-home .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.fe-home .st-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: rgba(10, 14, 28, 0.72); border: 1px solid rgba(232, 192, 80, 0.35); }
+.fe-home .st-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: rgba(27, 19, 11, 0.72); border: 1px solid rgba(232, 192, 80, 0.35); }
 .fe-home .st-card .st-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .fe-home .st-card .st-h b { font: 600 17px var(--px); color: var(--gold); }
 .fe-home .st-card .st-price { font: 700 16px var(--body); color: #fff4d0; }
@@ -307,25 +307,25 @@
 
 /* The store's sections, and each item's window (ui/StoreShowcase.ts: the model itself, turning on hover) */
 .fe-home .st-tabs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
-.fe-home .st-tab { padding: 5px 12px; border-radius: 999px; background: rgba(10, 14, 28, 0.6); border: 1px solid rgba(232, 192, 80, 0.3); color: var(--cream); font: 600 13px var(--body); cursor: pointer; }
+.fe-home .st-tab { padding: 5px 12px; border-radius: 999px; background: rgba(27, 19, 11, 0.6); border: 1px solid rgba(232, 192, 80, 0.3); color: var(--cream); font: 600 13px var(--body); cursor: pointer; }
 .fe-home .st-tab.on { background: rgba(232, 192, 80, 0.22); border-color: var(--gold); color: #fff4d0; }
 .fe-home .st-tab span { opacity: 0.65; font-weight: 500; margin-left: 2px; }
 /* Search, sort and the owned filter */
 .fe-home .st-tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.fe-home .st-find { flex: 1 1 200px; min-width: 0; padding: 7px 11px; border-radius: 8px; background: rgba(10, 14, 28, 0.7); border: 1px solid rgba(232, 192, 80, 0.3); color: #fff4d0; font: 500 14px var(--body); }
+.fe-home .st-find { flex: 1 1 200px; min-width: 0; padding: 7px 11px; border-radius: 8px; background: rgba(27, 19, 11, 0.7); border: 1px solid rgba(232, 192, 80, 0.3); color: #fff4d0; font: 500 14px var(--body); }
 .fe-home .st-find:focus { outline: none; border-color: var(--gold); }
 .fe-home .st-sort, .fe-home .st-hide { display: flex; align-items: center; gap: 6px; font: 600 13px var(--body); color: #d8d0b8; cursor: pointer; }
-.fe-home .st-sort select { padding: 6px 8px; border-radius: 8px; background: rgba(10, 14, 28, 0.7); border: 1px solid rgba(232, 192, 80, 0.3); color: #fff4d0; font: 500 13px var(--body); cursor: pointer; }
+.fe-home .st-sort select { padding: 6px 8px; border-radius: 8px; background: rgba(27, 19, 11, 0.7); border: 1px solid rgba(232, 192, 80, 0.3); color: #fff4d0; font: 500 13px var(--body); cursor: pointer; }
 .fe-home .st-hide input { accent-color: var(--gold); }
 .fe-home .st-card[hidden], .fe-home .st-none[hidden] { display: none; }
 .fe-home .st-none { grid-column: 1 / -1; font: 500 14px var(--body); color: #c8c2d4; }
 .fe-home .st-card .st-own { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: rgba(95, 191, 106, 0.2); border: 1px solid rgba(95, 191, 106, 0.6); color: #c8f0c8; font: 600 12px var(--body); }
-.fe-home .st-card .st-view { width: 100%; aspect-ratio: 300 / 190; border-radius: 7px; border: 1px solid color-mix(in srgb, var(--acc, #e8c050) 55%, #000); background: #10131c; display: block;
+.fe-home .st-card .st-view { width: 100%; aspect-ratio: 300 / 190; border-radius: 7px; border: 1px solid color-mix(in srgb, var(--acc, #e8c050) 55%, #000); background: #1c1611; display: block;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.04); transition: box-shadow 0.25s ease, border-color 0.25s ease; }
 /* Each card takes its thing's colour (ui/StoreShowcase.ts sets --acc): a thin lit edge, brighter under the pointer */
 .fe-home .st-card { position: relative; transition: transform 0.2s ease, border-color 0.25s ease, box-shadow 0.25s ease;
   border-color: color-mix(in srgb, var(--acc, #e8c050) 38%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--acc, #e8c050) 7%, rgba(10, 14, 28, 0.8)), rgba(8, 10, 20, 0.86) 60%); }
+  background: linear-gradient(180deg, color-mix(in srgb, var(--acc, #e8c050) 7%, rgba(27, 19, 11, 0.8)), rgba(20, 14, 9, 0.86) 60%); }
 .fe-home .st-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--acc, #e8c050) 75%, transparent);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--acc, #e8c050) 22%, transparent); }
 .fe-home .st-card:hover .st-view { border-color: var(--acc, #e8c050); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 18px color-mix(in srgb, var(--acc, #e8c050) 35%, transparent); }

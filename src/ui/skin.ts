@@ -41,35 +41,48 @@ function parchment(): string {
   return c.toDataURL();
 }
 
-/** A tileable night-blue surface: base colour, a soft weave, faint speckle and sparse star dust. */
-function cloth(base: string, size: number, seed: number, stars: number): string {
+/**
+ * A tileable leather surface, the windows' own (owner 2026-11-12: a UI of the game's own, not navy and gold): the
+ * base, the grain in soft darker and lighter patches, pores, and here and there a scuff where it's been handled.
+ */
+function cloth(base: string, size: number, seed: number, scuffs: number): string {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const x = c.getContext('2d')!;
   const rnd = createSeededRandom(seed);
   x.fillStyle = base;
   x.fillRect(0, 0, size, size);
-  for (let i = 0; i < size; i += 2) {
-    x.fillStyle = `rgba(255,255,255,${i % 4 ? 0.012 : 0.022})`;
-    x.fillRect(0, i, size, 1);
-    x.fillRect(i, 0, 1, size);
+  // the grain: soft patches, drawn three times over so it tiles
+  for (let i = 0; i < size * 0.9; i++) {
+    const px = rnd() * size, py = rnd() * size, r = 4 + rnd() * 14, dark = rnd() < 0.55;
+    for (const [ox, oy] of [[0, 0], [-size, 0], [0, -size], [-size, -size], [size, 0], [0, size]]) {
+      const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
+      g.addColorStop(0, dark ? 'rgba(10,5,2,0.10)' : 'rgba(255,214,160,0.035)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g;
+      x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
+    }
   }
-  for (let i = 0; i < size * size * 0.06; i++) {
-    x.fillStyle = rnd() < 0.5 ? `rgba(140,165,255,${rnd() * 0.05})` : `rgba(0,0,10,${rnd() * 0.12})`;
+  // pores
+  for (let i = 0; i < size * size * 0.05; i++) {
+    x.fillStyle = rnd() < 0.7 ? `rgba(8,4,2,${0.08 + rnd() * 0.12})` : `rgba(255,220,170,${rnd() * 0.05})`;
     x.fillRect(Math.floor(rnd() * size), Math.floor(rnd() * size), 1, 1);
   }
-  for (let i = 0; i < stars; i++) {
-    x.fillStyle = `rgba(255,236,190,${0.12 + rnd() * 0.22})`;
-    x.fillRect(Math.floor(rnd() * size), Math.floor(rnd() * size), 1, 1);
+  // a few short scuffs, lighter, along the grain
+  for (let i = 0; i < scuffs; i++) {
+    x.strokeStyle = `rgba(255,226,180,${0.03 + rnd() * 0.04})`;
+    x.lineWidth = 1;
+    const sx = rnd() * size, sy = rnd() * size, a = rnd() * Math.PI, l = 4 + rnd() * 10;
+    x.beginPath(); x.moveTo(sx, sy); x.lineTo(sx + Math.cos(a) * l, sy + Math.sin(a) * l); x.stroke();
   }
   return c.toDataURL();
 }
 
 export function applySkin(): void {
   const r = document.documentElement.style;
-  r.setProperty('--tex-plank', `url(${cloth('#111a31', 256, 11, 26)})`);
-  r.setProperty('--tex-oak', `url(${cloth('#141f3a', 256, 12, 18)})`);
-  r.setProperty('--tex-stone', `url(${cloth('#1b2747', 128, 13, 6)})`);
+  r.setProperty('--tex-plank', `url(${cloth('#302114', 256, 11, 26)})`);
+  r.setProperty('--tex-oak', `url(${cloth('#382717', 256, 12, 18)})`);
+  r.setProperty('--tex-stone', `url(${cloth('#46311e', 128, 13, 6)})`);
   r.setProperty('--tex-iron', `url(${tile('iron')})`);
   r.setProperty('--tex-parch', `url(${parchment()})`);
 }

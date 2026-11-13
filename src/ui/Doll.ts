@@ -16,16 +16,16 @@ export class Doll {
   yaw = 0.45;
 
   constructor() {
-    this.scene.background = new THREE.Color('#121a2e');
-    this.scene.add(new THREE.HemisphereLight('#e4ecff', '#3a2e24', 1.7));
+    this.scene.background = new THREE.Color('#2a1c12');
+    this.scene.add(new THREE.HemisphereLight('#fff0dc', '#3a2e24', 1.7));
     const sun = new THREE.DirectionalLight('#fff2dc', 2.3);
     sun.position.set(2.5, 4, 4);
     this.scene.add(sun);
-    const rim = new THREE.DirectionalLight('#8ab0ff', 0.9);
+    const rim = new THREE.DirectionalLight('#ffc890', 0.9);
     rim.position.set(-3, 2, -3);
     this.scene.add(rim);
     // A worn floor to stand on
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), new THREE.MeshLambertMaterial({ color: '#2a3048' }));
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), new THREE.MeshLambertMaterial({ color: '#3e2c1c' }));
     floor.rotation.x = -Math.PI / 2;
     this.scene.add(floor);
     this.camera.position.set(0, 1.1, 4.0);

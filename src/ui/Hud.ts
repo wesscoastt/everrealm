@@ -41,11 +41,11 @@ function mmHouse(c: CanvasRenderingContext2D, x: number, y: number): void {
 /** A waypoint flag standing at (x, y), scaled by s. */
 function mapPin(c: CanvasRenderingContext2D, x: number, y: number, s: number): void {
   c.save(); c.translate(x, y); c.scale(s, s);
-  c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
+  c.strokeStyle = '#21160d'; c.lineWidth = 2.5;
   c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -18); c.stroke();
   c.fillStyle = '#5fc6ff'; c.lineWidth = 1.8;
   c.beginPath(); c.moveTo(0, -18); c.lineTo(12, -14); c.lineTo(0, -9); c.closePath(); c.fill(); c.stroke();
-  c.fillStyle = '#0b1122'; c.beginPath(); c.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#21160d'; c.beginPath(); c.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2); c.fill();
   c.restore();
 }
 
@@ -159,7 +159,7 @@ export interface QuestEntry {
 /** How each service shows on the maps: a badge with a letter. */
 const SERVICE_LOOK: Record<NonNullable<MapMarker['svc']>, { bg: string; fg: string; letter: string; name: string }> = {
   bank: { bg: '#e8c040', fg: '#2a1a00', letter: 'B', name: 'Bank' },
-  craft: { bg: '#8a96a8', fg: '#101418', letter: 'C', name: 'Crafting' },
+  craft: { bg: '#8a96a8', fg: '#191410', letter: 'C', name: 'Crafting' },
   shop: { bg: '#5fbf6a', fg: '#0a2410', letter: 'M', name: 'Merchant' },
   stable: { bg: '#b07a48', fg: '#2a1406', letter: 'S', name: 'Stable' },
 };
@@ -1693,7 +1693,7 @@ export class Hud {
     c.restore();
     // Inner shadow at the rim
     const vg = c.createRadialGradient(R, R, R * 0.62, R, R, R);
-    vg.addColorStop(0, 'rgba(10, 16, 34, 0)'); vg.addColorStop(1, 'rgba(10, 16, 34, 0.5)');
+    vg.addColorStop(0, 'rgba(32, 22, 13, 0)'); vg.addColorStop(1, 'rgba(32, 22, 13, 0.5)');
     c.fillStyle = vg; c.fillRect(0, 0, W, W);
     c.translate(R, R);
     const inside = R - 14;
@@ -1742,7 +1742,7 @@ export class Hud {
         if (m.kind === 'bossSoon' || m.kind === 'task' || m.kind === 'taskDone' || m.kind === 'treasure') continue;
         const ux = x / d, uy = y / d;
         c.save(); c.translate(ux * (R - 16), uy * (R - 16)); c.rotate(Math.atan2(uy, ux) + Math.PI / 2);
-        c.fillStyle = ACT_COLOR[m.kind]; c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
+        c.fillStyle = ACT_COLOR[m.kind]; c.strokeStyle = '#21160d'; c.lineWidth = 2.5;
         c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 5); c.lineTo(0, 1); c.lineTo(-8, 5); c.closePath(); c.fill(); c.stroke();
         c.restore();
       } else actGlyph(c, m.kind, x, y, 1.6);
@@ -1762,7 +1762,7 @@ export class Hud {
         const [sx2, sy2] = at(m.x, m.z);
         if (Math.hypot(sx2, sy2) > inside) continue;
         const st = SERVICE_LOOK[m.svc ?? 'shop'];
-        c.fillStyle = st.bg; c.strokeStyle = '#0b1122'; c.lineWidth = 2;
+        c.fillStyle = st.bg; c.strokeStyle = '#21160d'; c.lineWidth = 2;
         c.beginPath(); c.roundRect(sx2 - 6.5, sy2 - 6.5, 13, 13, 3); c.fill(); c.stroke();
         c.fillStyle = st.fg; c.font = '700 10px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
         c.fillText(st.letter, sx2, sy2 + 0.5);
@@ -1772,14 +1772,14 @@ export class Hud {
         const [fx, fy] = at(m.x, m.z);
         if (Math.hypot(fx, fy) > inside) continue;
         c.fillStyle = '#4a3020'; c.fillRect(fx - 1, fy - 9, 2.5, 16);
-        c.fillStyle = '#e8a020'; c.strokeStyle = '#0b1122'; c.lineWidth = 2;
+        c.fillStyle = '#e8a020'; c.strokeStyle = '#21160d'; c.lineWidth = 2;
         c.beginPath(); c.moveTo(fx + 1, fy - 9); c.lineTo(fx + 11, fy - 5); c.lineTo(fx + 1, fy - 1); c.closePath(); c.fill(); c.stroke();
         continue;
       }
       if (m.kind === 'waymark' || m.kind === 'waymarkDim') {
         const [wx, wy] = at(m.x, m.z);
         if (Math.hypot(wx, wy) > inside) continue;
-        c.fillStyle = m.kind === 'waymark' ? '#3ab8ff' : '#7a8a96'; c.strokeStyle = '#0b1122'; c.lineWidth = 2;
+        c.fillStyle = m.kind === 'waymark' ? '#3ab8ff' : '#7a8a96'; c.strokeStyle = '#21160d'; c.lineWidth = 2;
         c.beginPath(); c.moveTo(wx, wy - 8); c.lineTo(wx + 5, wy); c.lineTo(wx, wy + 8); c.lineTo(wx - 5, wy); c.closePath(); c.fill(); c.stroke();
         continue;
       }
@@ -1787,7 +1787,7 @@ export class Hud {
       if (Math.hypot(x, y) > inside) continue;
       const big = m.kind === 'elite';
       c.fillStyle = m.kind === 'ally' ? '#7fe05a' : m.kind === 'other' ? '#5fc6ff' : m.kind === 'npc' ? '#f4e6a0' : big ? '#ffb020' : m.kind === 'enemy' ? '#e8402e' : '#ffffff';
-      c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
+      c.strokeStyle = '#21160d'; c.lineWidth = 2.5;
       c.beginPath(); c.arc(x, y, big ? 8 : 5.5, 0, Math.PI * 2); c.fill(); c.stroke();
       if (big) { c.strokeStyle = '#ffb020'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 12, 0, Math.PI * 2); c.stroke(); }
     }
@@ -1814,7 +1814,7 @@ export class Hud {
       if (d > inside) {
         const ux = x / d, uy = y / d;
         c.save(); c.translate(ux * (R - 16), uy * (R - 16)); c.rotate(Math.atan2(uy, ux) + Math.PI / 2);
-        c.fillStyle = '#5fc6ff'; c.strokeStyle = '#0b1122'; c.lineWidth = 2.5;
+        c.fillStyle = '#5fc6ff'; c.strokeStyle = '#21160d'; c.lineWidth = 2.5;
         c.beginPath(); c.moveTo(0, -12); c.lineTo(9, 6); c.lineTo(0, 1); c.lineTo(-9, 6); c.closePath(); c.fill(); c.stroke();
         c.restore();
       } else mapPin(c, x, y, 2);
@@ -1829,14 +1829,14 @@ export class Hud {
     c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 110, -Math.PI / 2 - 0.62, -Math.PI / 2 + 0.62); c.closePath(); c.fill();
     c.restore();
     c.save(); c.rotate(rot - playerYaw + Math.PI);
-    c.fillStyle = '#fff6dc'; c.strokeStyle = '#0b1122'; c.lineWidth = 3.5;
+    c.fillStyle = '#fff6dc'; c.strokeStyle = '#21160d'; c.lineWidth = 3.5;
     c.beginPath(); c.moveTo(0, -15); c.lineTo(11, 11); c.lineTo(0, 5); c.lineTo(-11, 11); c.closePath(); c.stroke(); c.fill();
     c.restore();
     // Compass points on the rim (north in gold); they ride round when the map turns
     c.textAlign = 'center'; c.textBaseline = 'middle';
     for (const [lt, a] of [['N', 0], ['E', Math.PI / 2], ['S', Math.PI], ['W', -Math.PI / 2]] as const) {
       const ang = a + rot, cx = Math.sin(ang) * (R - 13), cy = -Math.cos(ang) * (R - 13);
-      c.fillStyle = 'rgba(11, 17, 34, 0.85)';
+      c.fillStyle = 'rgba(33, 22, 13, 0.85)';
       c.beginPath(); c.arc(cx, cy, 11, 0, Math.PI * 2); c.fill();
       c.font = '700 17px "Alegreya Sans SC", sans-serif';
       c.fillStyle = lt === 'N' ? '#f3d58a' : '#e8e0c8';
@@ -2126,7 +2126,7 @@ export class Hud {
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const a = this.ctx.armourSummary();
     const pk = this.ctx.packInfo();
-    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b> (a satchel adds four slots)'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
+    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b>'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
     // (a sheet of label and value, one row each, rather than lines of text)
     stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
     stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
@@ -3403,7 +3403,7 @@ export class Hud {
     const sx = (wx: number) => (wx - V.cx) * k + cw / 2, sy = (wz: number) => (wz - V.cz) * k + ch / 2;
     const x = c.getContext('2d')!;
     x.setTransform(1, 0, 0, 1, 0, 0);
-    x.fillStyle = '#0b1122';
+    x.fillStyle = '#21160d';
     x.fillRect(0, 0, cw, ch);
     // The chart, faded like an old survey, and the land you've walked on top of it
     const X0 = sx(WMIN), Y0 = sy(WMIN), SW = WORLD * k, X1 = sx(WMAX);
@@ -3472,10 +3472,10 @@ export class Hud {
       if (X < -40 || Y < -40 || X > cw + 40 || Y > ch + 40) continue;
       if ((m.kind === 'waymark' || m.kind === 'waymarkDim') && on('waymarks')) {
         const lit = m.kind === 'waymark';
-        x.fillStyle = lit ? '#3ab8ff' : '#7a8a96'; x.strokeStyle = '#0b1122'; x.lineWidth = px(2);
+        x.fillStyle = lit ? '#3ab8ff' : '#7a8a96'; x.strokeStyle = '#21160d'; x.lineWidth = px(2);
         x.beginPath(); x.moveTo(X, Y - px(10)); x.lineTo(X + px(6), Y); x.lineTo(X, Y + px(10)); x.lineTo(X - px(6), Y); x.closePath(); x.fill(); x.stroke();
         x.fillStyle = lit ? '#e8f8ff' : '#c8d0d6'; x.fillRect(X - px(1.5), Y - px(4), px(3), px(8));
-        if (m.label && z > 0.6) label(m.label, X, Y + px(22), `600 ${px(12)}px "Alegreya Sans", sans-serif`, lit ? '#0e3a5a' : '#4a5660');
+        if (m.label && z > 0.6) label(m.label, X, Y + px(22), `600 ${px(12)}px "Alegreya Sans", sans-serif`, lit ? '#4b341f' : '#645649');
         const fare = lit && m.id ? this.ctx.waymarkFare(m.id) : null;
         hits.push({ x: X, y: Y, name: m.label ?? 'Waymark', sub: lit ? (fare !== null ? `Waymark · click to travel (${fare} marks)` : 'Waymark') : 'Waymark · walk up to it to attune' });
         if (lit && m.id) this.wmHits.push({ x: X, y: Y, id: m.id, name: m.label ?? 'Waymark' });
@@ -3509,7 +3509,7 @@ export class Hud {
       } else if (m.kind === 'other') {
         x.fillStyle = '#3f8fc0'; x.strokeStyle = '#fff'; x.lineWidth = px(2);
         x.beginPath(); x.arc(X, Y, px(5), 0, Math.PI * 2); x.fill(); x.stroke();
-        if (m.label) { label(m.label, X, Y + px(15), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#1d4a6a'); hits.push({ x: X, y: Y, name: m.label, sub: 'Another player' }); }
+        if (m.label) { label(m.label, X, Y + px(15), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#624328'); hits.push({ x: X, y: Y, name: m.label, sub: 'Another player' }); }
       }
     }
     for (const m of markers) {
@@ -3543,20 +3543,20 @@ export class Hud {
     }
     if (me) {
       x.save(); x.translate(sx(me.x), sy(me.z)); x.rotate(-(me.yaw ?? 0) + Math.PI); x.scale(dpr, dpr);
-      x.fillStyle = '#fff6dc'; x.strokeStyle = '#0b1122'; x.lineWidth = 3;
+      x.fillStyle = '#fff6dc'; x.strokeStyle = '#21160d'; x.lineWidth = 3;
       x.beginPath(); x.moveTo(0, -14); x.lineTo(10, 10); x.lineTo(0, 5); x.lineTo(-10, 10); x.closePath(); x.stroke(); x.fill();
       x.restore();
     }
     // A scale bar that picks a round length for the zoom
     const steps = [10, 25, 50, 100, 250, 500, 1000];
     const len = steps.find((m) => m * k > px(90)) ?? 1000;
-    x.fillStyle = 'rgba(11, 17, 34, 0.75)';
+    x.fillStyle = 'rgba(33, 22, 13, 0.75)';
     x.fillRect(px(14), ch - px(40), len * k + px(70), px(28));
     x.fillStyle = '#f3d58a';
     x.fillRect(px(22), ch - px(24), len * k, px(3));
     for (const t of [0, 0.5, 1]) x.fillRect(px(22) + len * k * t - px(1), ch - px(30), px(2), px(12));
     x.textAlign = 'left';
-    label(len + ' m', px(30) + len * k, ch - px(24), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#f3d58a', 'rgba(11, 17, 34, 0.8)', 3);
+    label(len + ' m', px(30) + len * k, ch - px(24), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#f3d58a', 'rgba(33, 22, 13, 0.8)', 3);
     // Hover: the nearest icon's name
     V.hits = hits;
     if (V.hover) {
@@ -3568,7 +3568,7 @@ export class Hud {
         x.font = `500 ${px(12)}px "Alegreya Sans", sans-serif`;
         const w = Math.max(w1, x.measureText(best.sub).width) + px(20);
         const bx = Math.min(cw - w - px(6), best.x + px(14)), by = Math.max(px(6), best.y - px(48));
-        x.fillStyle = 'rgba(12, 18, 36, 0.95)'; x.strokeStyle = 'rgba(243, 213, 138, 0.6)'; x.lineWidth = px(1);
+        x.fillStyle = 'rgba(35, 24, 14, 0.95)'; x.strokeStyle = 'rgba(243, 213, 138, 0.6)'; x.lineWidth = px(1);
         x.beginPath(); x.roundRect(bx, by, w, px(42), px(6)); x.fill(); x.stroke();
         x.textAlign = 'left'; x.textBaseline = 'alphabetic';
         x.fillStyle = '#f3d58a'; x.font = `700 ${px(15)}px "Alegreya", serif`; x.fillText(best.name, bx + px(10), by + px(18));
