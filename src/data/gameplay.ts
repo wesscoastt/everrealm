@@ -7,7 +7,7 @@ import { FURNISHING_RECIPES, FURNISHING_STOCK } from './furnishings';
 import { FISH_RECIPES } from './fishCooking';
 import { WEAPON_SMITHING } from './weapons';
 import { SET_CRAFT } from './crafting';
-import { CROPS, FARM_RECIPES } from './farming';
+import { CROPS, FARM_RECIPES, MORE_FARM_RECIPES } from './farming';
 import { JEWEL_RECIPES } from './jewellery';
 import { ENCHANT_RECIPES } from './enchanting';
 import { CORRUPT_SHARD, DUNGEON_KEYS, FRAGS_PER_KEY } from './keys';
@@ -214,6 +214,7 @@ export const RECIPES: Recipe[] = [
   // Armour at the anvil: bronze and iron, chest, legs, hands and feet (data/armour.ts)
   // The hearth's dishes from a patch's produce (data/farming.ts)
   ...FARM_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
+  ...MORE_FARM_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } }) as Recipe),
   ...JEWEL_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   ...ENCHANT_RECIPES.map((r): Recipe => ({ ...r, inputs: { ...r.inputs } })),
   // A group dungeon's key, for its corrupted run (data/keys.ts): four of its fragments and a corrupted shard

@@ -67,6 +67,7 @@ import { anglingInit } from './angling.mjs';
 import { storeInit } from './store.mjs';
 import { homesInit } from './homes.mjs';
 import { plotsInit } from './plots.mjs';
+import { gardensInit } from './gardens.mjs';
 import { navalInit } from './naval.mjs';
 import { arenaInit } from './arena.mjs';
 
@@ -667,6 +668,8 @@ const angling = anglingInit({ players, send, readJson, writeJson, dataDir: DATA,
 const music = musicInit({ players, send, social });
 // Group plots on the towns' public fields (server/plots.mjs)
 const plots = plotsInit({ players, send, readJson, writeJson, dataDir: DATA, social, log });
+// Farm hands on a player's home garden (server/gardens.mjs)
+const gardens = gardensInit({ players, send, readJson, writeJson, dataDir: DATA, social, log });
 // The Arena at Verandah: duels, one to one or two against two (server/arena.mjs)
 const arena = arenaInit({ players, send, social, log });
 const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p), comp: p.comp ?? null });
@@ -759,7 +762,7 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (arena.handle(me, msg) || social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || angling.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg) || plots.handle(me, msg)) return;
+    if (arena.handle(me, msg) || social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || angling.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg) || plots.handle(me, msg) || gardens.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);

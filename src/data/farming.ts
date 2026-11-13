@@ -1,4 +1,5 @@
 import type { ItemDef } from './items';
+import { MORE_CROPS, MORE_FARM_ITEMS, MORE_FARM_RECIPES } from './farmingMore';
 
 // Farming, the old way (RuneScape's patches, with the Counties' own crops). Every player has their own
 // crop in each patch: Hollin Ford's kitchen gardens, and a vegetable patch and an orchard patch on every
@@ -54,6 +55,9 @@ export const CROPS: CropDef[] = [
   { id: 'grape', name: 'A grape vine', level: 68, patch: 'orchard', seed: 'cutting_vine', produce: 'grapes', minutes: 180, xpPlant: 980, xpPick: 230, yield: [6, 10], shape: 'vine', colors: { leaf: '#3f6a2a', fruit: '#4a2a4a' } },
 ];
 for (const c of CROPS) c.season = SEASON_OF[c.id];
+// the garden widened, 2026-11-13 (data/farmingMore.ts), in order of level
+CROPS.push(...MORE_CROPS);
+CROPS.sort((a, b) => a.level - b.level);
 export const CROP = (id: string) => CROPS.find((c) => c.id === id);
 
 /**
@@ -62,7 +66,7 @@ export const CROP = (id: string) => CROPS.find((c) => c.id === id);
  * everyone on a given day.
  */
 export interface FarmOrder { i: number; item: string; n: number; marks: number; xp: number; who: string }
-const ORDER_GOODS = ['potato', 'onion', 'cabbage', 'carrot', 'wheat', 'strawberries', 'barley', 'leek', 'hops', 'pumpkin', 'egg', 'milk', 'fleece'];
+const ORDER_GOODS = ['potato', 'onion', 'cabbage', 'carrot', 'wheat', 'strawberries', 'barley', 'leek', 'hops', 'pumpkin', 'egg', 'milk', 'fleece', 'radish', 'peas', 'beetroot', 'turnip', 'lettuce', 'corn', 'beans', 'garlic', 'parsnip', 'tomatoes', 'rhubarb', 'marrow', 'herbs', 'peppers', 'oats', 'raspberries'];
 const ORDER_WHO = ['the Lantern inn', 'the brewhouse', 'the baker on the green', 'the Ansbury cooks', 'a carter with a long road ahead', 'the Charter kitchens'];
 export function ordersToday(d = new Date()): FarmOrder[] {
   const day = d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate();
@@ -147,9 +151,11 @@ export const FARM_ITEMS: ItemDef[] = [
   { id: 'furn_wool_rug', name: 'Hearth rug of home-spun wool', kind: 'collectible', rarity: 'uncommon', stack: true, value: 90, icon: { shape: 'rug', a: '#c8b898', b: '#7a4a2a' }, furn: { model: 'rug' }, desc: 'Woven on a frame from your own ewes’ wool, with a brown border. Better in front of a fire than anything bought.', stats: 'Furniture: set it out at home (Arrange the furniture).' },
   { id: 'furn_field_scarecrow', name: 'Field scarecrow', kind: 'collectible', rarity: 'uncommon', stack: true, value: 60, icon: { shape: 'scarecrow', a: '#d8b860', b: '#4a5a3a' }, furn: { model: 'scarecrow' }, desc: 'A cross of poles in your old coat, stuffed with straw, a sack for a head and a hat on that. The rooks are not fooled for long, but long enough.', stats: 'Furniture. Set out at home, every harvest from your garden is one more.' },
   dish('pear_tart', 'Pear tart', '#d8c060', 54, 360, { slot: 'food', regen: 0.18, mins: 30 }, 'Pears in a ring on a short crust, glazed.', 'Restores 360 health; stamina back a fifth faster for half an hour.'),
+  ...MORE_FARM_ITEMS,
 ];
 
 /** The hearth's dishes from a patch's produce (merged into RECIPES in data/gameplay.ts). */
+export { MORE_FARM_RECIPES };
 export const FARM_RECIPES = [
   { id: 'baked_potato', station: 'hearth', skill: 'cooking', level: 3, xp: 30, inputs: { potato: 1 }, output: 'baked_potato', count: 1, time: 1.8, failAtReq: 0.3, failItem: 'burnt_fish' },
   { id: 'farm_bread', station: 'hearth', skill: 'cooking', level: 10, xp: 50, inputs: { wheat: 3 }, output: 'bread', count: 2, time: 2.2, failAtReq: 0.3, failItem: 'burnt_fish' },

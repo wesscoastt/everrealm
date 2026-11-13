@@ -3,6 +3,7 @@ import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
 import { FARM_ITEMS, ordersToday, seasonNow, CROPS } from '../farming';
+import { MORE_SEED_PRICES } from '../farmingMore';
 const ITEMS: Record<string, { name: string }> = Object.fromEntries(FARM_ITEMS.map((i) => [i.id, i]));
 
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
@@ -79,6 +80,8 @@ const shop: ShopDef = {
     { item: 'watering_can_iron', price: 650, when: (g) => g.level('farming') >= 35 && !g.has('watering_can_iron') }, { item: 'watering_can_gilded', price: 2400, when: (g) => g.level('farming') >= 60 && !g.has('watering_can_gilded') }, { item: 'compost', price: 4 }, { item: 'seed_potato', price: 4 }, { item: 'seed_onion', price: 6 }, { item: 'seed_cabbage', price: 8 }, { item: 'seed_carrot', price: 10 },
     { item: 'seed_wheat', price: 12 }, { item: 'seed_strawberry', price: 18 }, { item: 'seed_barley', price: 20 }, { item: 'seed_leek', price: 24 }, { item: 'seed_hops', price: 32 },
     { item: 'seed_pumpkin', price: 40 }, { item: 'sapling_apple', price: 120 }, { item: 'sapling_pear', price: 180 }, { item: 'cutting_vine', price: 260 },
+    // the new seed, each once you're near the level to grow it
+    ...MORE_SEED_PRICES.map(([item, price, level]) => ({ item, price, when: (g: import('../../game/api').GameApi) => g.level('farming') >= level - 5 })),
   ],
   buyRate: () => 0.5,
   footer: () => 'Bertram pays half of an item\'s worth',

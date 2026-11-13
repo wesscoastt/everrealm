@@ -211,6 +211,8 @@ export interface OnlineHooks {
   group?(v: GroupView): void;
   /** Your group's plot on the public fields (server/plots.mjs): its tiles, or null when you're in no group. */
   groupPlot?(owner: string | null, tiles: Record<string, unknown> | null): void;
+  /** A home garden open to its farm hands (server/gardens.mjs): someone else's you're on, or your own as they left it. */
+  handGarden?(owner: string | null, tiles: Record<string, unknown> | null, reap: boolean, mine: boolean): void;
   groupInvited?(from: string): void;
   tradeAsked?(from: string): void;
   /** The Pledge: someone at an altar asks you; you and another have taken it; someone has parted from you. */
@@ -421,6 +423,7 @@ export class Online {
       case 'uInvited': this.hooks.guildInvited?.(String(m.from), String(m.guild)); break;
       case 'gtag': { const r = this.remotes.get(m.id as number); if (r) r.guild = typeof m.guild === 'string' ? m.guild : null; break; }
       case 'group': this.hooks.group?.(m as unknown as GroupView); this.emit({ t: 'gpGet' }); break;
+      case 'hgarden': this.hooks.handGarden?.(typeof m.owner === 'string' ? m.owner : null, m.tiles && typeof m.tiles === 'object' ? (m.tiles as Record<string, unknown>) : null, !!m.reap, !!m.mine); break;
       case 'gplot': this.hooks.groupPlot?.(typeof m.owner === 'string' ? m.owner : null, m.tiles && typeof m.tiles === 'object' ? (m.tiles as Record<string, unknown>) : null); break;
       case 'gInvited': this.hooks.groupInvited?.(String(m.from)); break;
       case 'wbSeek': this.hooks.wbSeek?.(typeof m.boss === 'string' ? m.boss : null); break;
@@ -800,6 +803,10 @@ export class Online {
   homeClaim(id: string, spec?: unknown, blocks?: unknown): void { this.emit({ t: 'hClaim', id, spec, blocks }); }
   homeRelease(id: string): void { this.emit({ t: 'hRelease', id }); }
   groupPlotGet(): void { this.emit({ t: 'gpGet' }); }
+  gardenPut(tiles: unknown, open: string, names: string[], reap: boolean): void { this.emit({ t: 'hgPut', tiles, open, names, reap }); }
+  gardenGet(): void { this.emit({ t: 'hgGet' }); }
+  gardenNear(x: number, z: number): void { this.emit({ t: 'hgNear', x, z }); }
+  gardenSet(owner: string, k: string, tile: unknown): void { this.emit({ t: 'hgSet', owner, k, tile }); }
   groupPlotSet(k: string, tile: unknown): void { this.emit({ t: 'gpSet', k, tile }); }
   homeOffer(id: string, to: string, price: number): void { this.emit({ t: 'hOffer', id, to, price }); }
   homeAccept(id: string): void { this.emit({ t: 'hAccept', id }); }

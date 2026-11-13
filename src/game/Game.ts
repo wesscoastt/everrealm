@@ -1205,6 +1205,7 @@ export class Game implements GameApi {
     }, farmPatches(sitePlan().sites).filter((p) => p.kind === 'orchard'));
     // (the allotments are public fields now, worked a tile at a time: game/HomeFarm.ts)
     const fields = farmPatches(sitePlan().sites).filter((p) => p.kind === 'allotment').map((p) => ({ name: p.name, rect: [p.x0, p.z0, p.x1, p.z1] as [number, number, number, number] }));
+    setInterval(() => this.handsTick(), 4000);
     this.garden = new HomeFarm({
       scene: this.scene, voxels: this.world.voxels,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1217,6 +1218,9 @@ export class Game implements GameApi {
       groupNearby: () => this.social.groupNearby(),
       scarecrow: () => this.home.pieces().some(([item]) => ITEMS[item]?.furn?.model === 'scarecrow'),
       groupPlot: () => (this.online.online ? this.groupPlotTiles : null),
+      handGarden: () => (this.online.online && this.handGardenAt ? this.handGardenAt : null),
+      handGardenSet: (k, t) => { if (this.handGardenAt) { this.handGardenAt.tiles[k] = t; this.online.gardenSet(this.handGardenAt.owner, k, t); } },
+      gardenChanged: () => { this.handsDirty = true; },
       groupPlotSet: (k, t) => { if (this.groupPlotTiles) { if (t) this.groupPlotTiles[k] = t; else delete this.groupPlotTiles[k]; } this.online.groupPlotSet(k, t); },
       garden: () => {
         // your house's footprint, and ten blocks of yard round it; the owner's house in Verandah, its grounds
@@ -1776,6 +1780,13 @@ export class Game implements GameApi {
         if (!this.homesBook) return;
         if (h) this.homesBook.set(id, h); else this.homesBook.delete(id);
         this.homesVer++;
+      },
+      handGarden: (owner, tiles, reap, mine) => {
+        if (mine) { if (tiles) this.garden?.takeHandsWork(tiles as Record<string, GardenTile>); return; }
+        const was = this.handGardenAt?.owner ?? null;
+        this.handGardenAt = owner && tiles ? { owner, tiles: tiles as Record<string, GardenTile>, reap } : null;
+        if (owner && owner !== was) this.hud.system(`${owner}'s garden: you can work it as a farm hand${reap ? ', and pick what’s ripe' : ' (the picking is theirs)'}.`);
+        this.garden?.refresh();
       },
       groupPlot: (owner, tiles) => { const had = !!this.groupPlotTiles; this.groupPlotTiles = tiles as Record<string, GardenTile> | null; if (tiles && !had && owner) this.hud.system(`Your group farms together: what you till on the public fields is ${owner}'s group plot, sown, watered and picked by any of you.`); this.garden.refresh(); },
       homeOffered: (id, from, price) => this.homeOffered(id, from, price),
@@ -3073,6 +3084,24 @@ export class Game implements GameApi {
   private offerAt: { id: string; price: number; from: string } | null = null;
   /** Your group's plot on the public fields, as the realm last sent it (null: no group). */
   private groupPlotTiles: Record<string, GardenTile> | null = null;
+  /** A friend's garden you're on as a farm hand (server/gardens.mjs). */
+  private handGardenAt: { owner: string; tiles: Record<string, GardenTile>; reap: boolean } | null = null;
+  /** Your own garden changed since it was last sent for your farm hands. */
+  private handsDirty = true;
+  private handsOnline = false;
+  /**
+   * Farm hands, every few seconds online: your garden sent up while it's open to them; your hands' work taken in when
+   * you come into the world; and, on someone else's ground, whether it's a garden you may work.
+   */
+  private handsTick(): void {
+    if (!this.online.online || this.mode !== 'play' || !this.garden) { this.handsOnline = false; return; }
+    const open = this.handsOpen();
+    if (!this.handsOnline) { this.handsOnline = true; this.handsDirty = true; if (open !== 'off') this.online.gardenGet(); }
+    if (this.handsDirty) { this.handsDirty = false; this.online.gardenPut(open === 'off' ? {} : this.garden.homeOnly(), open, this.social.friends(), this.flag('gardenReap') === true); }
+    const p = this.player.position;
+    this.online.gardenNear(p.x, p.z);
+  }
+  private handsOpen(): 'off' | 'friends' | 'group' { const v = this.flag('gardenHands'); return v === 'friends' || v === 'group' ? v : 'off'; }
   private homeOffered(id: string, from: string, price: number): void {
     const name = this.homeName(id);
     this.hud.ask(`${from} offers to sell you ${name} for ${price.toLocaleString()} marks. Buy it?`, () => {
@@ -9417,6 +9446,16 @@ export class Game implements GameApi {
           const rm = arg.trim().match(/^(.+?)(?:\s+for\s+(\S+))?$/i), name = rm?.[1].trim() ?? '';
           if (!name) { this.hud.system("/release <character> [for <account>]: sets that character aside so its player can make it again (only that account, if named); the name keeps its place on the travellers' board. The realm's keeper only."); return; }
           this.hud.ask(`Set ${name} aside? Its player makes it again from scratch; the name keeps its place on the travellers' board.`, () => { void releaseCharacter(name, rm?.[2]).then((t) => this.hud.system(t)); }, () => {}, 30);
+          return;
+        }
+        case 'farmhands': {
+          // /farmhands friends | group | off, and /farmhands pick on | off (owner 2026-11-13: friends to help on your farm)
+          const a = arg.trim().toLowerCase();
+          if (a === 'friends' || a === 'group' || a === 'off') { this.setFlag('gardenHands', a); this.handsDirty = true; this.persist(); }
+          else if (a === 'pick on' || a === 'pick off') { this.setFlag('gardenReap', a === 'pick on'); this.handsDirty = true; this.persist(); }
+          else if (a) { this.hud.system('/farmhands friends, /farmhands group or /farmhands off; /farmhands pick on or /farmhands pick off.'); return; }
+          const o = this.handsOpen(), pick = this.flag('gardenReap') === true;
+          this.hud.system(o === 'off' ? 'Your garden is yours alone. /farmhands friends lets the people on your friends list work it; /farmhands group, the people in your group.' : `Your garden is open to ${o === 'friends' ? 'your friends (and your group)' : 'your group'}: they can water, plant and compost it${pick ? ', and pick what’s ripe' : '; the picking is yours (/farmhands pick on to share it)'}. /farmhands off closes it.`);
           return;
         }
         case 'goto': case 'tp': {

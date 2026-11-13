@@ -44,6 +44,12 @@ export interface GardenHost {
   garden(): { house: [number, number, number, number]; yard: [number, number, number, number] } | null;
   /** The towns' public fields: anyone may work them, a tile at a time. */
   fields(): { name: string; rect: [number, number, number, number] }[];
+  /** A friend's garden you're standing on and may work as a farm hand (server/gardens.mjs), or null. */
+  handGarden(): { owner: string; tiles: Record<string, Tile>; reap: boolean } | null;
+  /** Change one tile of it, for its owner. */
+  handGardenSet(k: string, t: Tile): void;
+  /** Your own garden's tiles have changed: kept for your farm hands, if it's open to them. */
+  gardenChanged(home: Record<string, Tile>): void;
   /** Someone from your group near you (hands make light work: more comes up). */
   groupNearby(): boolean;
 }
@@ -138,14 +144,19 @@ export class HomeFarm {
 
   private own(): Record<string, Tile> { const v = this.host.flag('garden'); return v && typeof v === 'object' ? (v as Record<string, Tile>) : {}; }
   /** Your garden's tiles, and, in a group, the group's plot on the public fields over them. */
-  private tiles(): Record<string, Tile> { const gp = this.host.groupPlot(); return gp ? { ...this.own(), ...gp } : this.own(); }
+  private tiles(): Record<string, Tile> { const gp = this.host.groupPlot(), hg = this.host.handGarden(); return { ...this.own(), ...(gp ?? {}), ...(hg?.tiles ?? {}) }; }
+  /** Is this tile in a friend's garden you're working as a hand? */
+  private hands(k: string): boolean { const hg = this.host.handGarden(); return !!hg && k in hg.tiles && !(k in this.own()); }
   /**
    * Keep the tiles: in a group, a tile on a public field that's the group's (or newly tilled there) goes to the
    * group's plot, for everyone in it; the rest are your own, as ever.
    */
   private save(t: Record<string, Tile>): void {
+    // a friend's garden's tiles go back to its owner
+    const hg = this.host.handGarden();
+    if (hg) for (const k of Object.keys(hg.tiles)) { if (k in this.own()) continue; if (t[k] && JSON.stringify(t[k]) !== JSON.stringify(hg.tiles[k])) this.host.handGardenSet(k, t[k]); delete t[k]; }
     const gp = this.host.groupPlot();
-    if (!gp) { this.host.setFlag('garden', t); this.host.persist(); return; }
+    if (!gp) { this.host.setFlag('garden', t); this.host.persist(); this.host.gardenChanged(this.homeOnly(t)); return; }
     const own = this.own(), mine: Record<string, Tile> = {};
     for (const k of new Set([...Object.keys(t), ...Object.keys(gp)])) {
       const [x, z] = k.split(',').map(Number);
@@ -153,7 +164,17 @@ export class HomeFarm {
       if (!shared) { if (t[k]) mine[k] = t[k]; continue; }
       if (JSON.stringify(t[k] ?? null) !== JSON.stringify(gp[k] ?? null)) this.host.groupPlotSet(k, t[k] ?? null);
     }
-    this.host.setFlag('garden', mine); this.host.persist();
+    this.host.setFlag('garden', mine); this.host.persist(); this.host.gardenChanged(this.homeOnly(mine));
+  }
+  /** The tiles of your own yard (not the public fields). */
+  homeOnly(t: Record<string, Tile> = this.own()): Record<string, Tile> { const o: Record<string, Tile> = {}; for (const [k, v] of Object.entries(t)) { const [x, z] = k.split(',').map(Number); if (this.zone(x, z) === 'home') o[k] = v; } return o; }
+  /** Your garden as your farm hands left it (server/gardens.mjs): their work on your yard's tiles taken in. */
+  takeHandsWork(tiles: Record<string, Tile>): void {
+    const own = { ...this.own() };
+    let n = 0;
+    for (const [k, v] of Object.entries(tiles)) if (k in own && JSON.stringify(own[k]) !== JSON.stringify(v)) { own[k] = v; n++; }
+    if (!n) return;
+    this.host.setFlag('garden', own); this.host.persist(); this.refresh();
   }
 
   /** A tile brought up to now: how far it's grown, wet or dry. */
@@ -224,6 +245,8 @@ export class HomeFarm {
       else out.push({ label: 'Tilled ground', pos: at, use: () => this.host.system("It wants seed. Bertram Sowerby sells it, by Hollin Ford's west garden."), warn: 'No seed for it' });
       return out;
     }
+    const hg = this.hands(key) ? this.host.handGarden() : null;
+    if (st >= 3 && hg && !hg.reap) { out.push({ label: `${c.name}, ripe: ${hg.owner}'s to pick`, pos: at, use: () => this.host.system(`${hg.owner} keeps the picking for themselves. You can water, plant and compost here.`), warn: 'Not yours to pick' }); return out; }
     if (st >= 3) { out.push({ label: `Harvest the ${c.name.toLowerCase()}`, pos: at, use: () => this.harvest(x, z) }); return out; }
     const wet = this.host.raining() || Date.now() < t.wu;
     if (!wet && this.can()) out.push({ label: `Water the ${c.name.toLowerCase()}`, pos: at, use: () => this.water(x, z) });

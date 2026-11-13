@@ -24,6 +24,7 @@ export const HELP: [string, [string, string][]][] = [
   ['Crafting, farming and fishing', [
     ['How do I craft?', 'Gather as you go (ore, wood, herbs, fish), then use a crafting station in a town: the forge, the bench, the range and the rest. Each craft levels as you use it, and new recipes come with it.'],
     ['How do I farm?', 'Your own garden comes with a home. Till the ground, plant seeds from the seed sellers, water them, and come back when they\'re grown. There are public fields too, for anyone.'],
+    ['Can my friends help on my farm?', 'Yes. Type /farmhands friends to open your garden to the people on your friends list, or /farmhands group for your group. They can water, plant and compost it; /farmhands pick on lets them harvest too. /farmhands off closes it again.'],
     ['How do I fish?', 'Buy a rod from a fishmonger or a tackle shop, stand by the water and cast. Different water holds different fish, and some only bite at certain hours.'],
   ]],
   ['Homes', [
