@@ -86,11 +86,11 @@ import { Doll } from '../ui/Doll';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi } from '../data/feats';
-import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView } from '../ui/Hud';
+import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView , EventPanel } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
 import { PACKET_COURSE, POSTS, postBoxOf, postFare, postHours, postKnown } from '../data/travel';
-import { type LfgNotice, Online, type HallView, type HomeHeld } from '../net/Online';
+import { type LfgNotice, Online, type HallView, type HomeHeld, AnglBoard } from '../net/Online';
 import { BOARDS, SET_PIECES } from '../data/content';
 
 /** Chapter numbers for the main story's quests, I to XXX. */
@@ -1442,7 +1442,7 @@ export class Game implements GameApi {
       setFlag: (k, v) => this.setFlag(k, v),
       discovered: (id) => this.save.discovered.includes(id),
       cinematic: (view, then) => { this.cine = { view, t: 0, then }; this.player.locked = true; this.hud.setHudHidden(true); },
-      setEvent: (panel) => this.hud.setEvent(panel),
+      setEvent: (panel) => { this.actPanel = panel; this.hud.setEvent(panel ?? this.anglPanel); },
       say: (who, text, bubble) => {
         this.hud.chat(who, text, 'say');
         if (bubble !== undefined) this.addBubble(bubble, text, false);
@@ -1718,6 +1718,13 @@ export class Game implements GameApi {
       postGone: (id: number) => { this.posts.gone(id); if (this.reading === id) { this.hud.postCard(null); this.reading = null; } },
       postUp: (id: number, n: number, until?: number) => this.posts.up(id, n, false, until),
       postTime: (id: number, until: number) => this.posts.time(id, until),
+      anglBoard: (b) => { this.anglBoard = b; },
+      anglPrize: (marks, why) => { this.addMarks(marks); this.hud.system(`The Angling Match: ${why}. ${marks} marks.`); this.sfx('coin'); },
+      anglOver: (best, bag) => {
+        if (!best.length) return;
+        this.hud.system(`The Angling Match is over. Heaviest fish: ${best.map((b) => `${b.name}, ${b.lb} lb ${b.fish}`).join('; ')}. Biggest bag: ${bag.map((b) => `${b.name}, ${b.lb.toFixed(1)} lb`).join('; ')}.`);
+        this.anglBoard = null;
+      },
       postNo: (why: string) => this.hud.system(why),
       groupKill: (type: string) => {
         this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
@@ -6728,7 +6735,36 @@ export class Game implements GameApi {
     this.logCatch(fish.id, fish.name, lb);
   }
   /** The catch book: how many of each, and the heaviest (flag fishlog). */
+  /**
+   * The Angling Match (owner 2026-11-12: "fishing tournaments that players can compete in"; server/angling.mjs): every
+   * three hours for half an hour, any water, the heaviest fish and the biggest bag. The realm keeps the boards; this
+   * sends each fish landed, says when a match is coming and has begun, and shows where you stand.
+   */
+  private anglBoard: AnglBoard | null = null;
+  private anglSaid = '';
+  private static readonly ANGL_EVERY = 3 * 3600_000;
+  private static readonly ANGL_LEN = 30 * 60_000;
+  private anglOn(): boolean { return this.online.status === 'online' && realmNow() % Game.ANGL_EVERY < Game.ANGL_LEN; }
+  private anglTick(): void {
+    if (this.online.status !== 'online') return;
+    const t = realmNow(), into = t % Game.ANGL_EVERY, m = Math.floor(t / Game.ANGL_EVERY);
+    const say = (k: string, text: string) => { if (this.anglSaid === k) return; this.anglSaid = k; this.hud.system(text); };
+    if (into < Game.ANGL_LEN) say('on' + m, 'The Angling Match has begun: half an hour, any water in the realm. The heaviest fish and the biggest bag take the prizes, and everyone who weighs in is paid for it. Cast a line.');
+    else if (Game.ANGL_EVERY - into < 5 * 60_000) say('soon' + m, 'The Angling Match starts in five minutes. Find some water.');
+    const b = this.anglBoard;
+    if (into < Game.ANGL_LEN && b?.me) this.anglPanel = { kind: 'event', title: 'The Angling Match', goal: `Heaviest: ${b.me.best} lb (${b.me.rankBest ? '#' + b.me.rankBest : '-'}) · Bag: ${b.me.bag.toFixed(1)} lb (${b.me.rankBag ? '#' + b.me.rankBag : '-'})${b.best[0] ? ` · Leads: ${b.best[0].name}, ${b.best[0].lb} lb` : ''}`, progress: into / Game.ANGL_LEN, count: '', time: Math.max(0, Math.round((Game.ANGL_LEN - into) / 1000)) };
+    else this.anglPanel = null;
+    // (a world event on hand keeps the panel; otherwise the match has it)
+    if (!this.actPanel && (this.anglPanel || this.anglShown)) this.hud.setEvent(this.anglPanel);
+    this.anglShown = !!this.anglPanel;
+  }
+  private anglShown = false;
+  private anglPanel: EventPanel | null = null;
+  private actPanel: EventPanel | null = null;
+  private anglT = 0;
+
   private logCatch(id: string, name: string, lb: number): void {
+    if (this.anglOn()) this.online.anglCatch(id, name, lb);
     const book = (this.flag('fishlog') as Record<string, [number, number]> | undefined) ?? {};
     const was = book[id];
     book[id] = [(was?.[0] ?? 0) + 1, Math.max(was?.[1] ?? 0, lb)];
@@ -8255,6 +8291,7 @@ export class Game implements GameApi {
     this.wallWatch.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.races.update(dt);
+    if ((this.anglT -= dt) <= 0) { this.anglT = 1; this.anglTick(); }
     if (this.mode === 'play') this.doubloons.update(dt);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
     this.prisonCart.update(dt);

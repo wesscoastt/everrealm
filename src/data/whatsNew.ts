@@ -18,6 +18,7 @@ export const UPDATES: Update[] = [
       ['Several homes.', 'Hold up to three homes, and a let room besides. Buying or leasing another keeps the one you have. Travel home on the map (or /home) lists them all: going to another moves you in, furniture and all.'],
       ['Outfits in the world.', 'Open your pack (B): Outfits, beside your gear, puts a costume on or takes it off, changes your hat, and keeps five saved outfits to change into at a click.'],
       ['Light at night.', 'Lamps throw their light further, and every lamp in sight lights the ground under it, so a street half a mile off looks lit. The torch in your hand lights a good deal more than a few steps round you.'],
+      ['The Angling Match.', 'Every three hours, for half an hour, the whole realm fishes against itself in any water. The heaviest fish and the biggest bag win marks for the top three, and everyone who weighs in is paid. Where you stand shows while it runs.'],
       ['Posts that weather.', 'A message post stands three days; each player who finds it helpful adds half a day, and three logs of any wood mend it for three more, up to a month. A post with a day left looks weathered. Then it comes down.'],
       ['The King’s Dock.', 'Awschitz Fort has a military dock north of its wall, with warships, guns and a watchtower, and its yard is full of the garrison going about their day.'],
     ],

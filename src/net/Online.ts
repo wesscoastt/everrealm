@@ -104,6 +104,7 @@ function tokenFor(name: string): string {
 
 export interface TradeOffer { items: { id: string; n: number }[]; marks: number }
 /** A home in the realm's book: who holds it, the plans it's built to (none yet: just leased), and the blocks laid on it by hand. */
+export interface AnglBoard { match: number; ends: number; best: { name: string; lb: number; fish: string }[]; bag: { name: string; lb: number }[]; me?: { best: number; bag: number; rankBest: number; rankBag: number } }
 export interface HomeHeld { owner: string; spec: unknown; blocks: [number, number, number, number][]; /** A stall up at the gate. */ stall?: boolean; /** Given by the keeper (/granthome): it outranks a home in the holder's save. */ granted?: boolean }
 /** A notice on the open world's board. */
 export interface LfgNotice { id: number; name: string; kind: string; label: string; region: string; level: number; size: number; mine: boolean }
@@ -175,6 +176,10 @@ export interface OnlineHooks {
   post?(p: Post): void;
   postGone?(id: number): void;
   postUp?(id: number, n: number, until?: number): void;
+  /** The Angling Match (server/angling.mjs): the boards, a prize, the whistle. */
+  anglBoard?(b: AnglBoard): void;
+  anglPrize?(marks: number, why: string): void;
+  anglOver?(best: { name: string; lb: number; fish: string }[], bag: { name: string; lb: number }[]): void;
   /** A post kept up a while longer (logs spent on it). */
   postTime?(id: number, until: number): void;
   postNo?(why: string): void;
@@ -450,6 +455,9 @@ export class Online {
       case 'post': if (m.post) this.hooks.post?.(m.post as Post); break;
       case 'postGone': this.hooks.postGone?.(Number(m.id)); break;
       case 'postUp': this.hooks.postUp?.(Number(m.id), Number(m.up) || 0, Number(m.until) || undefined); break;
+      case 'anglBoard': this.hooks.anglBoard?.(m as unknown as AnglBoard); break;
+      case 'anglPrize': this.hooks.anglPrize?.(Number(m.marks) || 0, String(m.why ?? '')); break;
+      case 'anglOver': this.hooks.anglOver?.((m.best ?? []) as { name: string; lb: number; fish: string }[], (m.bag ?? []) as { name: string; lb: number }[]); break;
       case 'postTime': this.hooks.postTime?.(Number(m.id), Number(m.until) || 0); break;
       case 'postNo': this.hooks.postNo?.(String(m.why ?? '')); break;
       case 'fishRoll': this.hooks.fishRoll?.(Number(m.n), typeof m.pick === 'string' ? m.pick : null); break;
@@ -715,6 +723,8 @@ export class Online {
   putPost(text: string, x: number, y: number, z: number, yaw: number): void { this.emit({ t: 'postPut', text, x, y, z, yaw }); }
   upPost(id: number): void { this.emit({ t: 'postUp', id }); }
   mendPost(id: number): void { this.emit({ t: 'postMend', id }); }
+  /** A fish landed during the Angling Match. */
+  anglCatch(fish: string, name: string, lb: number): void { this.emit({ t: 'anglCatch', fish, name, lb }); }
   reportPost(id: number, why: string): void { this.emit({ t: 'postReport', id, why }); }
   removePost(id: number): void { this.emit({ t: 'postRemove', id }); }
   reviewPosts(restore?: number): void { this.emit({ t: 'postReview', restore }); }

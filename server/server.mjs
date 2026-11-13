@@ -63,6 +63,7 @@ import { finderInit } from './finder.mjs';
 import { musicInit } from './music.mjs';
 import { uniquesInit } from './uniques.mjs';
 import { signsInit } from './signs.mjs';
+import { anglingInit } from './angling.mjs';
 import { storeInit } from './store.mjs';
 import { homesInit } from './homes.mjs';
 import { plotsInit } from './plots.mjs';
@@ -662,6 +663,7 @@ const mail = mailInit({ players, send, readJson, writeJson, dataDir: DATA, keyFo
 const finder = finderInit({ players, send, log, social });
 const uniques = uniquesInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const signs = signsInit({ players, send, readJson, writeJson, dataDir: DATA, log });
+const angling = anglingInit({ players, send, readJson, writeJson, dataDir: DATA, log });
 const music = musicInit({ players, send, social });
 // Group plots on the towns' public fields (server/plots.mjs)
 const plots = plotsInit({ players, send, readJson, writeJson, dataDir: DATA, social, log });
@@ -749,6 +751,7 @@ wss.on('connection', (ws, req) => {
       mail.join(me);
       homes.join(me);
       signs.join(me);
+      angling.join(me);
       finder.join(me);
       for (const p of players.values()) if (p !== me && p.land === me.land) send(p.ws, { t: 'join', player: pub(me) });
       broadcast({ t: 'sys', text: `${me.name} has entered the world.` }, me);
@@ -756,7 +759,7 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (arena.handle(me, msg) || social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg) || plots.handle(me, msg)) return;
+    if (arena.handle(me, msg) || social.handle(me, msg) || guilds.handle(me, msg) || exchange.handle(me, msg) || mail.handle(me, msg) || finder.handle(me, msg) || uniques.handle(me, msg) || signs.handle(me, msg) || angling.handle(me, msg) || music.handle(me, msg) || homes.handle(me, msg) || naval.handle(me, msg) || plots.handle(me, msg)) return;
     switch (msg.t) {
       case 'state': {
         const x = num(msg.x, WORLD_X[0], WORLD_X[1]), y = num(msg.y, -10, 200), z = num(msg.z, WORLD[0], WORLD[1]), yaw = num(msg.yaw, -100, 100);
