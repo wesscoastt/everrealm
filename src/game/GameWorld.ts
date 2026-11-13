@@ -29,7 +29,10 @@ import { ChunkManager } from './ChunkManager';
 const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
-const LAMP_LIGHTS = 18, LAMP_REACH = 26, LAMP_POWER = 14, LAMP_DECAY = 1.15;
+// (reach and fall-off eased out: owner 2026-11-12, "lights need to light up farther away, it looks dark in the distance even though there's light")
+const LAMP_LIGHTS = 18, LAMP_REACH = 34, LAMP_POWER = 15, LAMP_DECAY = 1.0;
+/** Lamps further off than the real lights reach still light the ground under them: a pool of lamplight, this far out at most. */
+const POOL_MAX = 420, POOL_SEE = 260;
 const LAMP_ORANGE = new THREE.Color('#ffb05a');
 /** The light in a cave: a dim cool fill from above, warmer from the floor; the fog goes nearly black. */
 const CAVE_SKY = new THREE.Color('#8a94a4'), CAVE_GROUND = new THREE.Color('#4a4038'), CAVE_FOG = new THREE.Color('#0b0c0f');
@@ -69,6 +72,10 @@ export class GameWorld {
   private lanternGlows: THREE.Sprite[] = [];
   /** A few real point lights, moved each frame to the lamps nearest the player (see placeLamps). */
   private lampLights: THREE.PointLight[] = [];
+  /** The pools of lamplight on the ground under the lamps (one draw for all of them), and each lamp's ground, found once. */
+  private pools: THREE.InstancedMesh | null = null;
+  private poolGround = new Map<string, number | null>();
+  private poolT = 0;
   /** Lights put up by things outside the sites (festival stalls), lit by the same pool. */
   readonly extraLamps: THREE.Vector3[] = [];
   private activeSites = new Map<string, BuiltSite>();
@@ -164,6 +171,7 @@ export class GameWorld {
     yield 'Lighting the lamps';
     this.sky = new Sky(scene, this.shared);
     // A fixed pool, so the lit shaders compile once; unused lights sit at zero intensity.
+    this.sceneRef = scene;
     for (let i = 0; i < LAMP_LIGHTS; i++) {
       const l = new THREE.PointLight('#ffb05a', 0, LAMP_REACH, LAMP_DECAY);
       scene.add(l);
@@ -583,7 +591,61 @@ export class GameWorld {
       for (const gl of s.gulls) animateGull(gl, elapsed, dt, center);
     }
     this.placeLamps(center, Math.max(glow, this.under), flick);
+    this.placePools(center, Math.max(glow, this.under), dt);
   }
+
+  /**
+   * Pools of lamplight on the ground under every lamp in sight, the far ones included (the real lights go only to the
+   * nearest eighteen): a soft disc of warm light, so a street of lamps half a mile off reads as lit, not as dots in the dark.
+   */
+  private placePools(center: THREE.Vector3, night: number, dt: number): void {
+    if (!this.pools) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 64;
+      const c = cv.getContext('2d')!, gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,190,110,1)'); gr.addColorStop(0.35, 'rgba(255,170,90,0.55)'); gr.addColorStop(1, 'rgba(255,150,70,0)');
+      c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(cv);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      this.pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat, POOL_MAX);
+      this.pools.frustumCulled = false;
+      this.pools.count = 0;
+      this.pools.renderOrder = 2;
+      this.sceneRef?.add(this.pools);
+    }
+    const mat = this.pools.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.42 * night;
+    this.pools.visible = night > 0.05;
+    if (!this.pools.visible || (this.poolT -= dt) > 0) return;
+    this.poolT = 0.6;
+    const m = new THREE.Matrix4(), all: THREE.Vector3[] = [];
+    for (const s of this.activeSites.values()) for (const p of s.lamps) all.push(p);
+    if (this.structures.group.visible) for (const p of this.structures.lights) all.push(p);
+    for (const p of this.extraLamps) all.push(p);
+    // (the nearest first, when there are more lamps in sight than pools)
+    const near = all.map((p) => ({ p, d: Math.hypot(p.x - center.x, p.z - center.z) })).filter((q) => q.d <= POOL_SEE).sort((a, b) => a.d - b.d);
+    let n = 0;
+    for (const { p } of near) {
+      if (n >= POOL_MAX) break;
+      const key = `${Math.round(p.x * 2)},${Math.round(p.y * 2)},${Math.round(p.z * 2)}`;
+      let gy = this.poolGround.get(key);
+      if (gy === undefined) {
+        if (!this.voxels.isLoaded(Math.floor(p.x), Math.floor(p.z))) continue;
+        const g = this.voxels.groundBelow(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z));
+        // (a lamp high on a wall or a mast lights nothing it's that far above)
+        gy = g > 0 && p.y - g < 6 ? g : null;
+        this.poolGround.set(key, gy);
+        if (this.poolGround.size > 6000) this.poolGround.clear();
+      }
+      if (gy === null) continue;
+      const r = 7 - (p.y - gy) * 0.4;
+      m.makeScale(r, 1, r).setPosition(p.x, gy + 0.03, p.z);
+      this.pools.setMatrixAt(n++, m);
+    }
+    this.pools.count = n;
+    this.pools.instanceMatrix.needsUpdate = true;
+  }
+  private sceneRef: THREE.Scene | null = null;
   /** How far underground the player is, eased (0 in the open, 1 well below the surface). */
   private under = 0;
 

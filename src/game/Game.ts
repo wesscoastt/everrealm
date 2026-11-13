@@ -502,7 +502,8 @@ export class Game implements GameApi {
   /** The law: prices on your head, the watch, the wagon and the cells (game/Justice.ts). */
   justice!: Justice;
   /** The light of a torch carried on horseback at night (always in the scene, dark when unused, so nothing recompiles). */
-  private torchLight = new THREE.PointLight('#ffb060', 0, 24, 1.1);
+  // (reaching further, owner 2026-11-12: "torches you hold lighting up may be bugged": it lit eight blocks and no more)
+  private torchLight = new THREE.PointLight('#ffb060', 0, 34, 0.9);
   private darkT = 0;
   private underCover = false;
   /** The Constant under way with you aboard, between the lands (game/Voyage.ts). */
