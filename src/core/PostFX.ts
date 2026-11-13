@@ -108,7 +108,7 @@ export class PostFX {
    * The light this frame: the sun's direction and colour, how far into night it is, the cloud, and whether
    * you're under water (no shafts there, a cooler, flatter grade).
    */
-  setLight(sunDir: THREE.Vector3, sunColor: THREE.Color, night: number, cloud: number, under: boolean, cave: boolean): void {
+  setLight(sunDir: THREE.Vector3, sunColor: THREE.Color, night: number, cloud: number, under: boolean, cave: boolean, rain = 0): void {
     // Where the sun is on the screen, and how squarely you face it
     const cam = this.camera;
     const look = cam.getWorldDirection(this.tmp.set(0, 0, 0)).clone();
@@ -126,8 +126,10 @@ export class PostFX {
     const gold = day * low;
     g.uWarm.value.setRGB(1.03 + gold * 0.05, 1.0 + gold * 0.01, 0.95 - gold * 0.06);
     g.uCool.value.setRGB(0.94 - night * 0.06, 0.98 - night * 0.02, 1.05 + night * 0.08);
+    // Rain: the light goes to a muted brown haze (the reference shot 6-rain-haze), the colour drained out of it
+    if (rain > 0.01 && !under) { const k = Math.min(1, rain * 1.3); g.uWarm.value.lerp(new THREE.Color(1.03, 0.97, 0.86), k); g.uCool.value.lerp(new THREE.Color(0.97, 0.94, 0.88), k); }
     if (under) { g.uWarm.value.setRGB(0.9, 1.02, 1.04); g.uCool.value.setRGB(0.82, 0.98, 1.06); }
-    g.uSat.value = under ? 0.9 : 1.08 + day * 0.04 - cloud * 0.1;
+    g.uSat.value = under ? 0.9 : 1.08 + day * 0.04 - cloud * 0.1 - Math.min(1, rain * 1.3) * 0.22;
     g.uContrast.value = under ? 0.96 : 1.06 + day * 0.03;
     g.uVignette.value = cave ? 0.42 : 0.3;
   }

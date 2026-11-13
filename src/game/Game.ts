@@ -8073,7 +8073,7 @@ export class Game implements GameApi {
     this.placeObjectivePin();
     if (this.save.settings.finePicture !== false && this.world) {
       const sky = this.world.sky;
-      this.picture.setLight(sky.sunDir, sky.sun.color, sky.night, sky.weather.cloud, sky.underwater, sky.underground);
+      this.picture.setLight(sky.sunDir, sky.sun.color, sky.night, sky.weather.cloud, sky.underwater, sky.underground, sky.weather.snow ? 0 : sky.weather.precip);
       this.picture.render(dt);
     } else this.renderer.render(this.scene, this.camera);
     if (this.debug) {
