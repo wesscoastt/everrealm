@@ -585,7 +585,8 @@ export const COMPANION_CONTENT: RegionContent = {
     const c = COMPANIONS[id];
     return {
       id: 'comp_' + id, name: c.name, title: c.title, look: c.look,
-      schedule: [{ from: 0, to: 24, at: c.home.at, face: c.home.face, anim: 'idle' }],
+      // (Fisherman Dave on the stool in his net shed)
+      schedule: [{ from: 0, to: 24, at: c.home.at, face: c.home.face, anim: id === 'fdave' ? 'seated' : 'idle' }],
       barks: [],
       // (not when they've gone for good: Tam taken off the quay, or anyone who died in the main story)
       // (Ned only once your name has got about: level 15)

@@ -50,7 +50,7 @@ const problems: string[] = [];
 const raised: string[] = [];
 let checked = 0;
 
-function check(label: string, x: number, z: number, opts: { y?: number; water?: boolean } = {}) {
+function check(label: string, x: number, z: number, opts: { y?: number; water?: boolean; seated?: boolean } = {}) {
   if (x >= 0 && z >= 0 && x < GW + 40 && z < GW + 40) return; // authored valley
   if (inMcLand(x, z)) return; // the owner's Minecraft land: its blocks are in public/mcland, not the plan
   checked++;
@@ -69,7 +69,7 @@ function check(label: string, x: number, z: number, opts: { y?: number; water?: 
   while (top > 0 && (!solid(x, top, z) || ceiling(top))) top--;
   const stand = top + 1;
   const under = cells.get(key(x, top, z));
-  if (under === B.Barrier) problems.push(`${label} (${x.toFixed(1)}, ${z.toFixed(1)}): standing on a barrier (a fence, door or prop)`);
+  if (under === B.Barrier && !opts.seated) problems.push(`${label} (${x.toFixed(1)}, ${z.toFixed(1)}): standing on a barrier (a fence, door or prop)`);
   // (a bridge deck over a lake or river carries the road: standing on it is standing on the road)
   else if (stand - ground >= 2 && !GROUNDLIKE.has(under ?? -1) && !(under === B.Planks && ground <= SEA)) {
     const what = `${label} (${x.toFixed(1)}, ${z.toFixed(1)}): ${stand - ground} blocks above the ground, on ${BLOCKS[under ?? 0]?.name ?? 'terrain'}`;
@@ -89,7 +89,7 @@ for (const n of NPCS) n.schedule.forEach((s, i) => {
   const f = npcFloor(s.at[0], s.at[1]);
   if (process.argv.includes('--raised') && f - heightAt(Math.floor(s.at[0]), Math.floor(s.at[1])) >= 4) console.log(`raised: npc ${n.id} slot ${i} at ${f}`);
   if (f - heightAt(Math.floor(s.at[0]), Math.floor(s.at[1])) >= 4 && !(s.at[0] >= 0 && s.at[1] >= 0 && s.at[0] < GW + 40 && s.at[1] < GW + 40)) check(`npc ${n.id} slot ${i}`, s.at[0], s.at[1], { y: f });
-  else check(`npc ${n.id} slot ${i}`, s.at[0], s.at[1]);
+  else check(`npc ${n.id} slot ${i}`, s.at[0], s.at[1], { seated: s.anim === 'seated' }); // (sitting on a stool or a bench is sitting on its barrier)
   s.path?.forEach((p, k) => check(`npc ${n.id} slot ${i} path ${k}`, p[0], p[1]));
 });
 for (const t of WORLD_THINGS) if (t.radius > 0) check(`thing ${t.id}`, t.x, t.z, { y: t.y });

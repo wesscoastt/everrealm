@@ -33,7 +33,7 @@ const npcs: NpcDef[] = [
   { id: 'gq_sailor2', name: 'Sailor', title: 'Off the Morwenna', look: hand('#6a4430', '#1a1a1e', '#7a6a4a', {}),
     schedule: day(1785.5, 617.5, 1784.5, 615.5, 'idle', 8, 22), barks: ['He tells it like he was at the wheel. He was in his hammock.', 'First round\'s on whoever lost the dice.'] },
   { id: 'gq_lad', name: 'Quay lad', title: 'Gullmouth quay', look: hand('#f5d6b8', '#c8a060', '#a0522d', { age: 0.1, height: 0.82, build: 0.85 }),
-    schedule: day(1806.5, 591.5, 1810.5, 591.5, 'idle', 7, 19), barks: ['I\'m waiting for my da. He\'s on the Patience.', 'I saw a seal yesterday. A real one.'] },
+    schedule: day(1803.5, 593.5, 1809.5, 593.5, 'idle', 7, 19), barks: ['I\'m waiting for my da. He\'s on the Patience.', 'I saw a seal yesterday. A real one.'] },
 ];
 
 export const GULLMOUTH_QUAY_CONTENT: RegionContent = { id: 'gullmouth-quay', npcs };

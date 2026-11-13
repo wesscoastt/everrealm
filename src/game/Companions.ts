@@ -112,7 +112,8 @@ export class Companions {
   private heldOf(id: CompanionId): string {
     const w = this.gearOf(id).weapon, it = w ? ITEMS[w] : undefined;
     if (it?.weapon) return w!;
-    return id === 'ottilie' ? 'none' : id === 'dave' ? 'kitto_gaff' : 'sword';
+    // (Fisherman Dave fights with his rod, owner 2026-11-12)
+    return id === 'ottilie' ? 'none' : id === 'dave' ? 'kitto_gaff' : id === 'fdave' ? 'rod' : 'sword';
   }
   /** Them as a henchman (for a dungeon's party, and for their body here). */
   henchmanOf(id: CompanionId): Henchman {

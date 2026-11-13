@@ -7740,7 +7740,47 @@ function* planBody(): Generator<string, Plan> {
     for (let i = 0; i < 5; i++) s.props.push({ t: 'crate', x: coast - 13 + (i % 3) * 0.75, y: base + (i > 2 ? 0.6 : 0), z: z - 8 + (i % 2) * 0.5 });
     s.props.push({ t: 'barrel', x: coast - 15, y: base, z: z + 8.5 }, { t: 'barrel', x: coast - 15.9, y: base, z: z + 9 });
     for (let x = coast - 56; x < coast - 14; x += 12) s.props.push({ t: 'lantern', x: Math.floor(x) + 0.5, y: base, z: z - 4.6, ry: 0 });
+    daveShed(s);
     void base;
+  }
+
+  /**
+   * Fisherman Dave's net shed (owner 2026-11-12: "he says in his house but he's outside"), where his story finds
+   * him drinking among nets nobody has mended: a lean board shed on the bank above the south quay, its door on
+   * the lane to the north, Dave on a stool inside (data/companions.ts, his home), the nets, pots and barrels of
+   * a fisherman who stopped going out.
+   */
+  function daveShed(s: Site) {
+    const x0 = 1768, z0 = 638, W = 7, D = 6, base = 25, X1 = x0 + W - 1, Z1 = z0 + D - 1, doorX = 1771;
+    rect(s, x0 - 1, z0 - 2, X1 + 1, Z1 + 1);
+    for (let x = x0; x <= X1; x++) for (let z = z0; z <= Z1; z++) {
+      // a footing of rubble where the bank falls away, and the floor of boards
+      for (let y = Math.min(heightAt(x, z), base) - 2; y < base - 1; y++) O.set(x, y, z, B.Cobble);
+      O.set(x, base - 1, z, B.Planks);
+      for (let y = base; y < base + 7; y++) O.set(x, y, z, B.Air);
+      const edge = x === x0 || x === X1 || z === z0 || z === Z1, corner = (x === x0 || x === X1) && (z === z0 || z === Z1);
+      if (!edge) continue;
+      for (let y = base; y < base + 4; y++) O.set(x, y, z, corner ? B.OakLog : B.DarkPlanks);
+    }
+    // the doorway on the lane, three high; a window either side
+    for (let y = base; y < base + 3; y++) O.set(doorX, y, z0, B.Air);
+    s.props.push({ t: 'furn', item: 'doorOpen', swing: true, doorKind: 'cottage', x: doorX + 0.92, y: base, z: z0 + 1, ry: Math.PI });
+    for (const [wx, wz] of [[x0, z0 + 3], [X1, z0 + 2], [x0 + 4, Z1]] as const) O.set(wx, base + 1, wz, B.Glass);
+    // the step down to the lane
+    for (let z = z0 - 2; z < z0; z++) { for (let y = heightAt(doorX, z) - 1; y < base - 1; y++) O.set(doorX, y, z, B.Cobble); for (let y = base - 1; y < base + 3; y++) O.set(doorX, y, z, B.Air); }
+    s.props.push({ t: 'roof', x: x0 + W / 2, y: base + 4, z: z0 + D / 2, len: W, span: D, rise: roofRise(D), ry: 0, mat: 'slate' });
+    // inside: the nets on their rack, pots, the barrels, a table with a candle, the stool
+    s.props.push(
+      { t: 'netRack', x: x0 + 3.5, y: base, z: Z1 - 0.3, len: 3, ry: 0 },
+      { t: 'lobsterPots', x: x0 + 1.5, y: base, z: z0 + 1.6, ry: 0.5 },
+      { t: 'barrel', x: x0 + 1.5, y: base, z: Z1 - 0.5 },
+      { t: 'barrel', x: x0 + 1.5, y: base, z: Z1 - 1.5 },
+      { t: 'crate', x: X1 - 0.5, y: base, z: z0 + 1.5 },
+      { t: 'furn', item: 'table', x: X1 - 0.5, y: base, z: Z1 - 1.5, ry: Math.PI / 2 },
+      { t: 'furn', item: 'candles', x: X1 - 0.5, y: base + 0.9, z: Z1 - 1.5 },
+      { t: 'furn', item: 'stool', x: x0 + 4.5, y: base, z: z0 + 3.5, ry: 0 },
+      { t: 'lantern', x: doorX - 0.6, y: base, z: z0 - 0.6, ry: 0 },
+    );
   }
 
   /**
