@@ -76,6 +76,8 @@ export class Sky {
   set hour(h: number) { this.hourOffset = h - realmHour(); }
   /** 0 at midday, 1 at full night. */
   night = 0;
+  /** (the clouds' own copy of the night, for their lighting) */
+  private readonly cloudNight = { value: 0 };
   /** How strongly the northern lights show (0..1), eased. */
   aurora = 0;
   /** The camera is under water: a close blue-green fog closes in. */
@@ -186,25 +188,42 @@ export class Sky {
     // seen from below, lit boxes go dark and muddy.
     this.cloudMat = new THREE.MeshBasicMaterial({ color: '#ffffff', vertexColors: true, transparent: true, opacity: 0.85, fog: false, depthWrite: false });
     this.cloudMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uSunDir = this.shared.uSunDir;
+      sh.uniforms.uSunColor = this.shared.uSunColor;
+      sh.uniforms.uCloudNight = this.cloudNight;
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying float vCloudFade;')
+        .replace('#include <common>', '#include <common>\nvarying float vCloudFade;\nvarying vec3 vCN;')
         .replace('#include <project_vertex>', `#include <project_vertex>
           vec4 cloudWorld = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+          vCN = normalize(mat3(modelMatrix * instanceMatrix) * normal);
           vCloudFade = 1.0 - smoothstep(${(CLOUD_SPAN * 0.3).toFixed(1)}, ${(CLOUD_SPAN * 0.47).toFixed(1)}, length(cloudWorld.xz - cameraPosition.xz));`);
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vCloudFade;')
-        .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= vCloudFade;');
+        .replace('#include <common>', '#include <common>\nvarying float vCloudFade;\nvarying vec3 vCN;\nuniform vec3 uSunDir;\nuniform vec3 uSunColor;\nuniform float uCloudNight;')
+        .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+          // (the graphics overhaul) lit as a cumulus is: the undersides a cool grey, the tops white, the faces
+          // toward the sun warm with its colour, strongest with the sun low, a silver edge where it shines past
+          vec3 n = normalize(vCN);
+          float toSun = dot(n, normalize(uSunDir));
+          float day = 1.0 - uCloudNight;
+          gl_FragColor.rgb *= mix(vec3(0.72, 0.76, 0.86), vec3(1.04), smoothstep(-0.9, 0.9, n.y));
+          float low = 1.0 - clamp(uSunDir.y * 2.0, 0.0, 1.0);
+          gl_FragColor.rgb += uSunColor * pow(max(toSun, 0.0), 1.5) * (0.12 + low * 0.35) * day;
+          gl_FragColor.a *= vCloudFade;`);
     };
     const rnd = createSeededRandom(77);
     let count = 0;
     for (let c = 0; c < 70; c++) {
       const high = c >= 52;
       const cluster: Cloud = { x: rnd() * CLOUD_SPAN, z: rnd() * CLOUD_SPAN, y: high ? 150 + rnd() * 14 : 94 + rnd() * 26, drift: high ? 1.6 : 0.85 + rnd() * 0.3, parts: [] };
-      const n = high ? 2 + Math.floor(rnd() * 3) : 3 + Math.floor(rnd() * 6);
+      const n = high ? 2 + Math.floor(rnd() * 3) : 6 + Math.floor(rnd() * 7);
+      // (low ones heaped as cumulus are: a broad flat foot, puffs piled on it, the tallest near the middle)
+      const footW = 30 + rnd() * 26, footD = 22 + rnd() * 16;
       for (let k = 0; k < n; k++) {
-        cluster.parts.push(high
-          ? { dx: (rnd() - 0.5) * 60, dy: (rnd() - 0.5) * 2, dz: (rnd() - 0.5) * 26, w: 30 + rnd() * 40, h: 1.5 + rnd() * 1.5, d: 10 + rnd() * 14, ph: rnd() * 6.28 }
-          : { dx: (rnd() - 0.5) * 34, dy: k === 0 ? 2 : (rnd() - 0.5) * 4, dz: (rnd() - 0.5) * 24, w: 12 + rnd() * 22, h: 3 + rnd() * (k === 0 ? 6 : 3), d: 8 + rnd() * 16, ph: rnd() * 6.28 });
+        if (high) { cluster.parts.push({ dx: (rnd() - 0.5) * 60, dy: (rnd() - 0.5) * 2, dz: (rnd() - 0.5) * 26, w: 30 + rnd() * 40, h: 1.5 + rnd() * 1.5, d: 10 + rnd() * 14, ph: rnd() * 6.28 }); continue; }
+        if (k === 0) { cluster.parts.push({ dx: 0, dy: 0, dz: 0, w: footW, h: 3 + rnd() * 2, d: footD, ph: rnd() * 6.28 }); continue; }
+        const ox = (rnd() - 0.5) * footW * 0.7, oz = (rnd() - 0.5) * footD * 0.6, mid = 1 - Math.min(1, Math.hypot(ox / footW, oz / footD) * 2);
+        const hh = 4 + rnd() * 5 + mid * 8;
+        cluster.parts.push({ dx: ox, dy: hh / 2 + 1, dz: oz, w: 9 + rnd() * 12 + mid * 6, h: hh, d: 8 + rnd() * 10 + mid * 5, ph: rnd() * 6.28 });
       }
       count += n;
       this.cloudSet.push(cluster);
@@ -364,6 +383,7 @@ export class Sky {
 
     this.night = THREE.MathUtils.clamp(1 - (elev + 0.15) / 0.35, 0, 1);
     this.domeMat.uniforms.uNight.value = this.night;
+    this.cloudNight.value = this.night;
     // The mist lying low (world/mist.ts): heavy in the early morning, lifting by mid-morning, back a little at dusk and
     // in the night, thick in rain or a mist; none under the water or underground
     {
