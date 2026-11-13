@@ -73,6 +73,9 @@ for (let k = 0; k <= 7; k++) {
   if (k < 7) for (const x of [X0, X1]) for (let z = Z0 + k; z <= Z1 - k; z++) set(x, y, z, k === 2 && Math.abs(z - 2313) <= 1 ? GLASS : PLANK);
 }
 
+// 6. the sand and dirt left in the rooms (the owner's, 2026-11-13: "remove that sand inside it")
+for (let x = X0 + 1; x < X1; x++) for (let z = Z0 + 1; z < Z1; z++) for (let y = F; y < BEAM + 4; y++) { const b = get(x, y, z); if (b === id('Sand') || b === id('Dirt') || b === id('Grass')) set(x, y, z, AIR); }
+
 let n = 0;
 for (const [fn, d] of files) {
   if (!d.dirty) continue;
