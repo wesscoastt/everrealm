@@ -5,6 +5,11 @@ import type { Appearance } from '../entities/humanoid';
 import type { Enemy } from '../entities/Enemy';
 import { COMPANIONS, compShort, type BanterKey, type CompanionEvent, type CompanionId, type CompanionRole } from '../data/companions';
 import type { Henchman } from '../data/dungeons';
+import { ITEMS } from '../data/items';
+
+/** The places a companion wears gear: a weapon, and armour as you wear it. */
+export const COMP_SLOTS = ['weapon', 'head', 'shoulders', 'chest', 'legs', 'hands', 'feet'] as const;
+export type CompSlot = typeof COMP_SLOTS[number];
 import type { VoxelWorld } from '../world/VoxelWorld';
 import { regionAt } from '../world/terrain';
 
@@ -72,9 +77,29 @@ export class Companions {
   rapport(id: CompanionId): number { return Number(this.host.flag(`comp:${id}:rapport`) ?? 0); }
 
   /** The look they wear: their own, with the outfit chosen. */
+  /** What they're wearing that you gave them: slot to item. */
+  gearOf(id: CompanionId): Partial<Record<CompSlot, string>> {
+    const v = this.host.flag(`comp:${id}:gear`);
+    return v && typeof v === 'object' ? (v as Partial<Record<CompSlot, string>>) : {};
+  }
+  /** What their gear adds: to each blow, off each hit, to their health (the same figures your own gear gives you). */
+  gearStats(id: CompanionId): { hit: number; defense: number; vigor: number } {
+    const g = this.gearOf(id), out = { hit: 0, defense: 0, vigor: 0 };
+    for (const slot of COMP_SLOTS) {
+      const it = g[slot] ? ITEMS[g[slot]!] : undefined;
+      if (!it) continue;
+      if (slot === 'weapon' && it.weapon) out.hit += it.weapon.damage;
+      if (slot !== 'weapon' && it.armor) { out.defense += it.armor.defense; out.vigor += it.armor.vigor ?? 0; }
+    }
+    return out;
+  }
   private lookOf(id: CompanionId): Appearance {
-    const c = COMPANIONS[id], o = c.outfits.find((x) => x.id === this.host.flag(`comp:${id}:outfit`)) ?? c.outfits[0];
-    const look = { ...c.look, ...o.look } as Appearance;
+    const c = COMPANIONS[id], chosen = c.outfits.find((x) => x.id === this.host.flag(`comp:${id}:outfit`)), o = chosen ?? c.outfits[0];
+    // Their own clothes, the armour you gave them over those, and an outfit you chose (past their first) over all of it, ESO's way
+    const look = { ...c.look } as Appearance;
+    const g = this.gearOf(id);
+    for (const slot of ['chest', 'shoulders', 'legs', 'hands', 'feet', 'head'] as const) { const l = g[slot] ? ITEMS[g[slot]!]?.armor?.look : undefined; if (l) Object.assign(look, l); }
+    if (o !== c.outfits[0]) Object.assign(look, o.look);
     if (id === 'fdave') { if (this.host.flag('fd:hatOn') === 'dave') { look.hat = 'pilgrim'; look.hatColor = '#3a2a1e'; } else if (this.host.flag('fd:cap')) { look.hat = 'flatcap'; look.hatColor = '#5a7a2a'; } }
     return look;
   }
@@ -82,11 +107,17 @@ export class Companions {
     const r = this.host.flag(`comp:${id}:role`) as CompanionRole | undefined;
     return r && COMPANIONS[id].roles.includes(r) ? r : COMPANIONS[id].roles[0];
   }
+  /** In their hand: the weapon you gave them, or their own. */
+  private heldOf(id: CompanionId): string {
+    const w = this.gearOf(id).weapon, it = w ? ITEMS[w] : undefined;
+    if (it?.weapon) return w!;
+    return id === 'ottilie' ? 'none' : id === 'dave' ? 'kitto_gaff' : 'sword';
+  }
   /** Them as a henchman (for a dungeon's party, and for their body here). */
   henchmanOf(id: CompanionId): Henchman {
     const c = COMPANIONS[id], first = compShort(id);
     return {
-      id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: id === 'ottilie' ? 'none' : id === 'dave' ? 'kitto_gaff' : 'sword',
+      id: 'comp_' + id, name: first, title: c.title, role: this.roleOf(id), look: this.lookOf(id), held: this.heldOf(id), gear: this.gearStats(id),
       barks: { pull: c.banter.fight ?? ['Here they come.'], low: c.banter.hurt ?? ['Careful!'], kill: c.banter.won ?? ['Done.'], down: 'I\'m down!', up: 'I\'m up.', mend: ['Hold still.'] },
     };
   }

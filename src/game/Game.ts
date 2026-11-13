@@ -132,6 +132,7 @@ import type { ScheduledShip } from '../world/Ferry';
 import { HALL_BY_ID, HALLS, forgeStations, hallArrive, hallCounter, hallMaps, hallTable, inHall, type HallId } from '../data/guildhalls';
 import { LotBuild } from './LotBuild';
 import { HouseGuests } from './HouseGuests';
+import { COMP_SLOTS, type CompSlot } from './Companions';
 import { giftTag, GIFT_TAG_NAME, GIFT_TASTES, reactionTo, type GiftTag } from '../data/companionGifts';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
@@ -6697,6 +6698,54 @@ export class Game implements GameApi {
   }
   compCanGift(): boolean { return this.giftables().length > 0; }
   /**
+   * A companion's gear, ESO's and SWTOR's way: a weapon and armour from your pack, which count for them as yours do
+   * for you (a weapon's damage on each blow, armour's defence off each hit and its vigour on their health) and show
+   * on them, under any outfit you've chosen past their first. Take a piece off and it comes back to your pack.
+   */
+  compGear(id: string): void {
+    const cid = id as CompanionId;
+    if (!COMPANIONS[cid] || !this.save.flags[`comp:${cid}:joined`]) return;
+    const C = this.companions, gear = C.gearOf(cid), st = C.gearStats(cid), first = compShort(cid);
+    const NAME: Record<CompSlot, string> = { weapon: 'Weapon', head: 'Head', shoulders: 'Shoulders', chest: 'Chest', legs: 'Legs', hands: 'Hands', feet: 'Feet' };
+    const set = (slot: CompSlot, item: string | null) => {
+      const g = { ...C.gearOf(cid) };
+      if (item) g[slot] = item; else delete g[slot];
+      this.setFlag(`comp:${cid}:gear`, g);
+      C.refresh();
+      this.persist();
+    };
+    const slots = COMP_SLOTS.map((slot) => {
+      const it = gear[slot] ? ITEMS[gear[slot]!] : undefined;
+      return {
+        label: NAME[slot], id: it ? gear[slot] : undefined, name: it?.name,
+        off: it ? () => { if (this.give(gear[slot]!, 1)) { set(slot, null); this.compGear(id); } else this.hud.system('No room in your pack for it.'); } : undefined,
+      };
+    });
+    const pack: { id: string; name: string; where: string; on: () => void }[] = [];
+    const seen = new Set<string>();
+    for (const stk of this.save.inv) {
+      if (!stk || seen.has(stk.id)) continue;
+      const it = ITEMS[stk.id], slot: CompSlot | null = it?.weapon ? 'weapon' : it?.armor ? it.armor.slot as CompSlot : null;
+      if (!it || !slot) continue;
+      seen.add(stk.id);
+      const what = it.weapon ? `Weapon: ${it.weapon.damage} to each blow` : `${NAME[slot]}: ${it.armor!.defense} off each hit${it.armor!.vigor ? `, ${it.armor!.vigor} health` : ''}`;
+      pack.push({ id: stk.id, name: it.name, where: what, on: () => {
+        if (!this.take(stk.id, 1)) return;
+        const old = C.gearOf(cid)[slot];
+        if (old && !this.give(old, 1)) this.toParcel(old, 1);
+        set(slot, stk.id);
+        this.sfx('open');
+        this.compGear(id);
+      } });
+    }
+    const L = Math.max(1, this.level('melee'));
+    const hit = Math.round(st.hit), def = Math.round(st.defense), vig = Math.round(st.vigor);
+    const summary = hit || def || vig
+      ? `With the gear you've given ${first}: ${hit} more on each blow, ${def} less from each hit taken${vig ? `, ${vig} more health` : ''}. ${first} fights at your level, ${L}.`
+      : `${first} has only their own things. Give them a weapon or armour from your pack and it counts for them as it would for you. ${first} fights at your level, ${L}.`;
+    this.hud.gearWindow(`${COMPANIONS[cid].name}'s gear`, summary, slots, pack, () => this.openCompanions());
+  }
+  /**
    * A gift (data/companionGifts.ts): choose it from your pack. One a day counts with them; what they think of a
    * kind of thing is remembered once you've seen it, and shown beside it next time.
    */
@@ -6756,6 +6805,7 @@ export class Game implements GameApi {
         state: on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`, mood: mood(this.companions.rapport(id)),
         why: !on && busy ? busy : undefined,
         summon: on || busy ? undefined : () => this.summonCompanion(id),
+        gear: () => this.compGear(id),
         gift: canGift ? () => this.compGift(id) : undefined,
         house: home && !house && !busy ? () => { this.companions.toHouse(id); this.persist(); this.openCompanions(); } : undefined,
         dismiss: on || house ? () => { if (on) this.compDismiss(); else { this.setFlag(`comp:${id}:house`, null); this.hud.system(`${compShort(id)} goes back to ${c.home.place}.`); this.persist(); } this.openCompanions(); } : undefined,

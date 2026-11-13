@@ -23,6 +23,7 @@ function common(id: CompanionId): DOption[] {
   const c = COMPANIONS[id];
   return [
     { text: 'I brought you something.', cond: (g) => joined(g, id) && g.compCanGift(), effect: (g) => g.compGift(id) },
+    { text: 'Let\'s see what you\'re carrying.', cond: (g) => joined(g, id), effect: (g) => g.compGear(id) },
     { text: 'Change into something else.', next: 'outfits', cond: (g) => joined(g, id) },
     { text: 'Fight differently.', next: 'roles', cond: (g) => joined(g, id) && c.roles.length > 1 },
     { text: `Go back to ${c.home.place} for now.`, cond: (g) => active(g, id), effect: (g) => g.compDismiss(), next: 'bye' },

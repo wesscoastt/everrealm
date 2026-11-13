@@ -47,6 +47,8 @@ export interface GameApi {
   compGift(id: string): void;
   /** Whether you've anything they could be given. */
   compCanGift(): boolean;
+  /** Their gear: what they wear that you gave them, and what in your pack they could. */
+  compGear(id: string): void;
   compActive(): string | null;
   /** Play a conversation where you stand (a quest spot's scene): the tree registered under this id, with this voice for its unmarked lines. */
   playScene(id: string, who: { name: string; title: string; look: import('../entities/humanoid').Appearance }): void;

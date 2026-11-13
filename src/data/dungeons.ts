@@ -426,6 +426,8 @@ export interface Henchman {
   /** A tool by its kind, or a weapon by its model id (Dave Kitto's gaff). */
   held: HeldItem | string;
   barks: Barks;
+  /** What their gear adds, as yours does (a companion's, game/Companions.ts): to each blow, off each hit taken, to their health. */
+  gear?: { hit: number; defense: number; vigor: number };
 }
 
 /**

@@ -64,9 +64,9 @@ export class Ally {
   constructor(readonly def: Henchman, readonly level: number, private world: VoxelWorld) {
     this.model = new Humanoid({ ...BASE, ...def.look });
     this.model.setHeld(def.held);
-    const s = allyStats(def.role, level);
-    this.max = this.hp = Math.round(s.hp);
-    this.hit = s.hit;
+    const s = allyStats(def.role, level), gear = def.gear;
+    this.max = this.hp = Math.round(s.hp + (gear?.vigor ?? 0));
+    this.hit = s.hit + (gear?.hit ?? 0);
     this.every = s.every;
     this.mendBy = s.mend;
   }
@@ -85,7 +85,7 @@ export class Ally {
   /** Take a blow; true if it knocked them down. Tanks take less (they're braced for it). */
   hurt(dmg: number): boolean {
     if (this.down) return false;
-    let d = dmg * (this.def.role === 'tank' ? 0.6 : 1);
+    let d = Math.max(1, dmg * (this.def.role === 'tank' ? 0.6 : 1) - (this.def.gear?.defense ?? 0));
     if (this.ward > 0 && this.wardUntil > performance.now() / 1000) { const soak = Math.min(this.ward, d); this.ward -= soak; d -= soak; if (d <= 0) return false; }
     this.hp -= Math.max(1, Math.round(d));
     this.act = 'hit';

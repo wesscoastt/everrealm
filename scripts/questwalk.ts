@@ -111,6 +111,7 @@ class Mock implements GameApi {
   compRapport() {}
   compGift() {}
   compCanGift() { return true; }
+  compGear() {}
   compActive() { return null; }
   storyTheme() {}
   compNear() { return true; }
