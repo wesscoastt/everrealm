@@ -44,6 +44,16 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 ## A. Now, in order
 
+0. **Owner 2026-11-13, newest asks, in the order sent:**
+   - DONE **Gambling with marks, minigames, BS** ("add gambling with marks and minigames, and the card game bs"): Crown and Anchor and Find the Lady at every tavern keeper, BS against the regulars (game/TavernTable.ts, game/bs.ts), the house pays out at most 600 a day.
+   - DONE **Fishnet costume for women, goth** ("to match that goth style"): Mourning lace, sold by Sabine Orrell the travelling draper.
+   - DONE **Play other players** ("add ability to play other players"): BS with any player nearby, grouped or not (server 'tbl' relay).
+   - NEXT **Horse racing track** ("somewhere maybe the second continent where you can go watch real horses race in the crowd and bet marks, like the gta san andreas mini game but you will watch the races yourself and can bet").
+   - **A pirate-token event** ("add something similar to the fortnite pirate token event but in everrealm"): a timed event, tokens found across the world, an event shop.
+   - **Gullmouth furnace invisible** ("gullmouth says theres a furnace in crafting area but its invisible").
+   - **Daejon Love questline** ("add a questline where you break someone out of prison named Daejon Love, after a good amount of questing they become a companion. bioware style writing").
+   - Later for the tables: Quarters against other players; the house games (dice, the Lady) with other players at the same board.
+
 1. DONE (this commit, tested in game) **Quest journal** (owner 2026-10-29: "add ability to abandon side quests, select quests, show on map, etc"):
    abandon side quests (main story can't be), Track / untrack (tracker and map), Focus one quest (first on
    the tracker, brighter on the map), Show on map, click a tracked quest to open its page. Built

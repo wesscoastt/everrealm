@@ -26,6 +26,7 @@ import { HOOK_CLASHES } from '../src/data/content/kit';
 import '../src/data/pledges';
 import { BOARDS } from '../src/data/content';
 import { OPPONENT_BY_NPC } from '../src/data/cards';
+import { GAMING_BY_NPC } from '../src/data/tavernGames';
 import type { DNode, GameApi } from '../src/game/api';
 
 // ---------------------------------------------------------------- State and the mock game
@@ -126,6 +127,7 @@ class Mock implements GameApi {
   guildHall() { return { online: false, guild: null, officer: false, hall: null, free: [], vaultMarks: 0 }; }
   leaseHall() {}
   openHallPage() {}
+  playTavern(npc: string) { if (!GAMING_BY_NPC.has(npc)) err("tavern:" + npc, `${this.where}: no gaming house kept by "${npc}"`); }
   playQuarters(npc: string) { if (!OPPONENT_BY_NPC.has(npc)) err("quarters:" + npc, `${this.where}: no Quarters player "${npc}"`); }
   fairOn() { return true; }
   fairPlay() {}

@@ -758,7 +758,7 @@ export class Frontend {
     const dyed = (k: keyof typeof OPT) => (DYEABLE.has(k) && this.editing?.dyes?.length ? [...OPT[k], ...this.editing.dyes.filter((d) => !OPT[k].includes(d))] : OPT[k]);
     const sw = (k: keyof typeof OPT, cur: string | null | undefined) => `<div class="swatches">${dyed(k).map((v) => `<button class="sw ${(cur ?? 'none') === v ? 'sel' : ''}" style="background:${v === 'none' ? 'repeating-linear-gradient(45deg,#333 0 4px,#555 4px 8px)' : v}" data-k="${k}" data-v="${v}" title="${v === 'none' ? 'None' : ''}"></button>`).join('')}</div>`;
     const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.editing?.hats?.includes(id as string))];
-    const costumes: [string, string | null][] = [['None', null], ...Object.values(COSTUMES).filter((c) => this.editing?.costumes?.includes(c.id)).map((c): [string, string] => [c.name, c.id])];
+    const costumes: [string, string | null][] = [['None', null], ...Object.values(COSTUMES).filter((c) => this.editing?.costumes?.includes(c.id) && (!c.frame || c.frame === (L.frame ?? 'm'))).map((c): [string, string] => [c.name, c.id])];
     const pets: [string, string | null][] = [['None', null], ...Object.values(PETS).filter((c) => this.editing?.pets?.includes(c.id)).map((c): [string, string] => [c.name, c.id])];
     // Cloak designs: plain, and whatever this character has collected
     const capes: [string, string | null][] = [['Plain', null], ...(Object.keys(CAPE_DESIGNS) as CapeDesign[]).filter((id) => this.editing?.capes?.includes(id)).map((id): [string, string] => [CAPE_DESIGNS[id].name.replace(/ cloak$/, ''), id])];

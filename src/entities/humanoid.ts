@@ -151,9 +151,11 @@ export interface Appearance {
   underskirt?: string;
   /** A shirt laced open at the neck, the chest showing (Walter White's). */
   openNeck?: boolean;
-  /** 0 trousers, 1 breeches and hose, 2 kilt, 3 wide trousers. */
+  /** 0 trousers, 1 breeches and hose, 2 kilt, 3 wide trousers, 4 a short skirt over bare legs or hose. */
   legs?: number;
   hose?: string;
+  /** Fishnet stockings in this colour over the bare legs (a short skirt's, or the hose under breeches and kilts). */
+  fishnet?: string | null;
   /** 0 boots, 1 tall boots, 2 shoes. */
   shoes?: number;
   gloves?: string | null;
@@ -236,6 +238,31 @@ const matCache = new Map<string, THREE.MeshLambertMaterial>();
 function lam(color: string): THREE.MeshLambertMaterial {
   let m = matCache.get(color);
   if (!m) { m = new THREE.MeshLambertMaterial({ color }); matCache.set(color, m); }
+  return m;
+}
+/** Fishnet: a diamond lattice with the skin showing through its holes (shared by colour). */
+const netCache = new Map<string, THREE.MeshLambertMaterial>();
+let netTex: THREE.CanvasTexture | null = null;
+function fishnet(color: string): THREE.MeshLambertMaterial {
+  let m = netCache.get(color);
+  if (m) return m;
+  if (!netTex) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 32;
+    const c = cv.getContext('2d')!;
+    c.strokeStyle = '#fff';
+    c.lineWidth = 3;
+    for (const o of [-32, 0, 32]) {
+      c.beginPath(); c.moveTo(o, 0); c.lineTo(o + 32, 32); c.stroke();
+      c.beginPath(); c.moveTo(o + 32, 0); c.lineTo(o, 32); c.stroke();
+    }
+    netTex = new THREE.CanvasTexture(cv);
+    netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+    netTex.repeat.set(3, 5);
+    netTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  m = new THREE.MeshLambertMaterial({ color, map: netTex, alphaTest: 0.45, transparent: false });
+  netCache.set(color, m);
   return m;
 }
 /** Worked metal: a little shine, so a blade catches the light as it turns (shared like lam()'s). */
@@ -1083,15 +1110,20 @@ export class Humanoid {
     // (up under the belt, so there's never daylight between the trousers and the shirt)
     part(this.hips, rbox((fem ? 0.54 : 0.5) * build, 0.36, 0.3, 0.05), look.trousers, 0, 0.07, 0);
 
+    // (a short skirt's legs are bare, or in hose; fishnets go over whatever's bare or hosed)
+    const bare = legs === 4 ? (look.fishnet ? look.skin : hose) : hose;
+    const net = look.fishnet ? fishnet(look.fishnet) : null;
     for (const [leg, shin, side] of [[this.legL, this.shinL, 1], [this.legR, this.shinR, -1]] as const) {
       leg.position.set(0.13 * side * build, -0.04, 0);
       this.hips.add(leg);
       const thigh = legs === 3 ? 0.26 : 0.22;
-      part(leg, rbox(thigh, 0.42, thigh + 0.02, 0.05), legs === 2 ? hose : look.trousers, 0, -0.2, 0);
+      part(leg, rbox(thigh, 0.42, thigh + 0.02, 0.05), legs === 2 ? hose : legs === 4 ? bare : look.trousers, 0, -0.2, 0);
+      if (net && (legs === 2 || legs === 4)) part(leg, rbox(thigh + 0.012, 0.4, thigh + 0.032, 0.05), net, 0, -0.21, 0).castShadow = false;
       shin.position.set(0, -0.4, 0);
       leg.add(shin);
       // Lower leg: trousers, or hose under breeches and kilts
-      part(shin, rbox(legs === 3 ? 0.25 : 0.21, 0.24, legs === 3 ? 0.27 : 0.23, 0.05), legs === 1 || legs === 2 ? hose : look.trousers, 0, -0.1, 0);
+      part(shin, rbox(legs === 3 ? 0.25 : 0.21, 0.24, legs === 3 ? 0.27 : 0.23, 0.05), legs === 1 || legs === 2 ? hose : legs === 4 ? bare : look.trousers, 0, -0.1, 0);
+      if (net && legs !== 0 && legs !== 3) part(shin, rbox(0.222, 0.24, 0.242, 0.05), net, 0, -0.1, 0).castShadow = false;
       if (shoes === 1) part(shin, rbox(0.25, 0.42, 0.27, 0.05), look.boots, 0, -0.18, 0.01); // tall boots to the knee
       if (shoes === 2) {
         part(shin, rbox(0.22, 0.12, 0.31, 0.04), look.boots, 0, -0.37, 0.04);
@@ -1099,6 +1131,12 @@ export class Humanoid {
         part(shin, rbox(0.25, 0.22, 0.32, 0.06), look.boots, 0, -0.32, 0.03);
       }
       part(shin, rbox(0.27, 0.06, 0.34, 0.03), shade(look.boots, 0.7), 0, -0.41, 0.03);
+    }
+    // A short skirt, flared, its hem trimmed
+    if (legs === 4 && !long) {
+      part(this.hips, rbox(0.56 * build, 0.2, 0.36, 0.04), look.trousers, 0, -0.06, 0);
+      part(this.hips, rbox(0.64 * build, 0.12, 0.43, 0.04), look.trousers, 0, -0.19, 0);
+      part(this.hips, rbox(0.66 * build, 0.035, 0.45, 0.012), look.trim, 0, -0.25, 0);
     }
     // A kilt over the thighs, pleated
     if (legs === 2 && !long) {

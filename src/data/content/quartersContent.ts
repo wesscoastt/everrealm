@@ -1,5 +1,6 @@
 import type { DOption } from '../../game/api';
 import { OPPONENTS } from '../cards';
+import { GAMING_HOUSES } from '../tavernGames';
 import { addOption } from './kit';
 import type { RegionContent } from './types';
 
@@ -10,6 +11,14 @@ import type { RegionContent } from './types';
 export const QUARTERS_CONTENT: RegionContent = {
   id: 'quarters',
   hooks: (D) => {
+    // The keepers keep the dice and the cards: Crown and Anchor, Find the Lady and BS (data/tavernGames.ts)
+    for (const h of GAMING_HOUSES) {
+      const t = D[h.npc];
+      if (!t) continue;
+      const games: DOption = { text: 'Any games going?', effect: (g) => g.playTavern(h.npc) };
+      const greeting = ['main', 'hello', 'a', 'w1'].find((k) => t.nodes[k]?.options?.length);
+      if (greeting) addOption(D, h.npc, greeting, games);
+    }
     for (const o of OPPONENTS) {
       const t = D[o.npc];
       if (!t) continue;

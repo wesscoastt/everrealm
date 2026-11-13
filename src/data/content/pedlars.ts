@@ -73,7 +73,7 @@ export const PEDLARS: Pedlar[] = [
     pool: [
       { item: 'wild_garlic', price: 6 }, { item: 'chanterelles', price: 11 }, { item: 'samphire', price: 8 }, { item: 'cloudberries', price: 22 }, { item: 'bilberries', price: 11 },
       ...linen.map((item) => ({ item, price: 30 })),
-      { item: 'furn_rug_red', price: 22 }, { item: 'furn_rug_blue', price: 22 }, { item: 'furn_rug_green', price: 22 }, { item: 'furn_candles', price: 11 },
+      { item: 'furn_rug_red', price: 22 }, { item: 'furn_rug_blue', price: 22 }, { item: 'furn_rug_green', price: 22 }, { item: 'furn_candles', price: 11 }, { item: 'costume_mourninglace', price: 1800 },
     ],
     daily: 6,
     buys: (item) => (FOOD.test(item) ? 0.6 : 0.5),
@@ -158,6 +158,10 @@ export function inPack(p: Pedlar, day = today()): Set<string> {
 }
 
 const items: ItemDef[] = [
+  // Sabine's dearest: black lace, a laced corset, a short skirt and fishnets (data/costumes.ts mourninglace)
+  { id: 'costume_mourninglace', name: 'Mourning lace', kind: 'collectible', rarity: 'epic', stack: false, value: 0, icon: { shape: 'chest', a: '#141216', b: '#7a0a12' }, costume: 'mourninglace',
+    desc: 'Black lace over a laced corset, a short skirt, fishnet stockings and boots to the knee. Sabine says a widow in Verandah ordered it and never came back for it. She says it the same way every time.',
+    stats: 'Use it to add it to your wardrobe for good, and wear it at once if you like (/costume changes or takes it off later). Cut for a woman’s frame.' },
   {
     id: 'halter_drover', name: 'Abel\'s fell pony', kind: 'collectible', rarity: 'rare', stack: false, value: 0,
     icon: { shape: 'shoe', a: '#3a2a1e', b: '#4a5a3a' },

@@ -16,6 +16,8 @@ export interface CostumeDef {
   store?: boolean;
   /** What it puts on: cloth colours and cuts, and its own headwear. */
   look: Partial<Appearance>;
+  /** Cut for one frame only (a woman's dress): the other frame can't put it on. */
+  frame?: 'f' | 'm';
 }
 
 export const COSTUMES: Record<string, CostumeDef> = {
@@ -157,12 +159,23 @@ Object.assign(COSTUMES, {
   },
 });
 
+// Sabine Orrell's dearest bolt, cut and stitched (owner 2026-11-13: "a fishnet costume for females to match that goth
+// style", Becky White's ghost's): black lace and a laced corset, a short skirt, fishnets and boots to the knee.
+Object.assign(COSTUMES, {
+  mourninglace: {
+    id: 'mourninglace', name: 'Mourning lace', frame: 'f',
+    look: { top: 0, tunic: '#141216', trim: '#7a0a12', shirt: '#0e0c10', sleeves: '#141216', puff: true, bodice: '#1e0a0e', trousers: '#121014', legs: 4, fishnet: '#0a0a0c',
+      boots: '#0e0c0e', shoes: 1, gloves: '#0e0c10', belt: '#2a0a10', apron: false, choker: '#0e0c10', kohl: true, lips: '#5a0a16',
+      cape: null, capeDesign: null, gear: { collar: '#141216' } },
+  },
+});
+
 export const WAKE_COSTUMES =['lanternman', 'scarecrow', 'skeleton', 'witch', 'ghost', 'crow'];
 
 /** The look as it's seen: the costume over it, if one is on, with the armour put away under it. */
 export function wearing(look: Appearance): Appearance {
   const c = look.costume ? COSTUMES[look.costume] : undefined;
-  if (!c) return look;
+  if (!c || (c.frame && c.frame !== (look.frame ?? 'm'))) return look;
   return {
     ...look,
     chestArmour: undefined, shoulders: undefined, tabard: undefined, bracers: undefined, legArmour: undefined, sabatons: undefined, helm: undefined, shoulderPads: null,

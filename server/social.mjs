@@ -293,6 +293,26 @@ export function socialInit(ctx) {
         for (const id of g.members) { const o = players.get(id); if (o && o !== me && o.land === me.land && Math.hypot(o.x - me.x, o.z - me.z) < 160) send(o.ws, { t: 'gRoom', site, i, s }); }
         return true;
       }
+      case 'tbl': {
+        // A tavern table's word (src/game/TavernTable.ts: BS with other players): to anyone at the table with you
+        // (close by, in a group or not), or to all your groupmates near you
+        const g = groupOf(me);
+        if (!g && msg.to == null) return true;
+        const now = Date.now();
+        me.tblAt = (me.tblAt ?? []).filter((t) => now - t < 1000);
+        if (me.tblAt.length >= 20) return true;
+        me.tblAt.push(now);
+        let data;
+        try { const raw = JSON.stringify(msg.data ?? null); if (raw.length > 6000) return true; data = JSON.parse(raw); } catch { return true; }
+        const to = msg.to == null ? g.members : [Number(msg.to)];
+        for (const id of to) {
+          const o = players.get(id);
+          const mate = !!g && g.members.includes(id);
+          if (!o || o === me || o.land !== me.land || Math.hypot(o.x - me.x, o.z - me.z) > (mate ? 60 : 30)) continue;
+          send(o.ws, { t: 'tbl', from: me.id, name: me.name, data });
+        }
+        return true;
+      }
       case 'gAid': {
         // A Mender's heal or ward for a groupmate near them (src/game/ClassKit.ts): passed on, within reason.
         // (The one receiving it caps it again by their own health: the realm doesn't keep anyone's health.)

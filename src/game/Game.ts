@@ -171,6 +171,8 @@ import { Dungeons } from './Dungeons';
 import { SetPieces } from './SetPieces';
 import { SharedMobs } from './SharedMobs';
 import { QuartersTable } from './QuartersTable';
+import { TavernTable } from './TavernTable';
+import { GAMING_BY_NPC, type TavernGame } from '../data/tavernGames';
 import { OPPONENT_BY_NPC, TILE_BY_ID, TILE_DROPS } from '../data/cards';
 import { Hazards } from './Hazards';
 import { Stables } from './Stables';
@@ -375,6 +377,40 @@ export class Game implements GameApi {
       system: (t) => this.hud.system(t),
       persist: () => this.persist(),
     }));
+  }
+  /** The tavern tables: dice, the Lady and BS (game/TavernTable.ts). */
+  private tavernT: TavernTable | null = null;
+  private get tavern(): TavernTable {
+    const today = () => new Date().toDateString();
+    const tally = () => { const t = this.flag('tavernWon') as { day: string; n: number } | undefined; return t && t.day === today() ? t.n : 0; };
+    return (this.tavernT ??= new TavernTable({
+      marks: () => this.save.marks,
+      addMarks: (n) => { this.save.marks = Math.max(0, this.save.marks + n); this.hud.refresh(); },
+      myName: () => this.save.name,
+      nameOf: (npc) => this.npcs.find((n) => n.def.id === npc)?.def.name ?? 'The keeper',
+      sound: (n) => this.sfx(n),
+      system: (t) => this.hud.system(t),
+      persist: () => this.persist(),
+      won: tally,
+      addWon: (n) => this.setFlag('tavernWon', { day: today(), n: tally() + n }),
+      // (anyone in the taproom with you, grouped or not, and your groupmates a little further off)
+      mates: () => {
+        const p = this.player.position, me = this.social.myId, out = new Map<number, string>();
+        if (this.social.inGroup) for (const m of this.social.group!.members) if (m.id !== me && Math.hypot(m.x - p.x, m.z - p.z) < 40) out.set(m.id, m.name);
+        for (const r of this.online.remotes.values()) if (Math.hypot(r.to.x - p.x, r.to.z - p.z) < 20 && Math.abs(r.to.y - p.y) < 6) out.set(r.id, r.name);
+        return [...out].map(([id, name]) => ({ id, name }));
+      },
+      send: (to, data) => this.online.table(to, data),
+      ask: (text, yes, no, secs) => this.hud.ask(text, yes, no, secs),
+    }));
+  }
+  /** Up to the keeper's table for a game of chance. */
+  playTavern(npc: string, game: TavernGame | 'menu' = 'menu'): void {
+    const h = GAMING_BY_NPC.get(npc);
+    if (!h) return;
+    this.hud.closeAll();
+    this.cancelActions();
+    this.tavern.start(h, game);
   }
   /** Sit down with someone who plays. */
   playQuarters(npc: string): void {
@@ -1605,6 +1641,7 @@ export class Game implements GameApi {
       guildWithdrawn: (item, n) => this.bank.guildOut(item, n),
       halls: (list) => { this.halls.book = list; },
       hall: (v) => { this.hallView = v?.guild ? v : null; this.hud.refresh('guild'); },
+      table: (from, name, data) => this.tavern.onNet(from, name, data),
       aid: (from, heal, ward, secs) => {
         if (this.dead) return;
         // (capped here, by your own health: the realm passes it on, it doesn't keep anyone's)
@@ -1958,6 +1995,7 @@ export class Game implements GameApi {
   /** Wear a costume from the wardrobe now (null takes it off): the same as Change look's Costume, without leaving the world. */
   wearCostume(id: string | null): void {
     if (id && !this.flag('costume:' + id)) { this.hud.system('That costume isn\'t in your wardrobe.'); return; }
+    if (id && COSTUMES[id]?.frame && COSTUMES[id].frame !== (this.save.look.frame ?? 'm')) { this.hud.system(`The ${COSTUMES[id].name.toLowerCase()} is cut for a woman’s frame. It stays in your wardrobe.`); return; }
     this.save.look.costume = id;
     this.dress();
     this.persist();
@@ -8244,6 +8282,7 @@ export class Game implements GameApi {
     if (this.dead) return;
 
     if (this.hud.picking) return; // the lock has your hands
+    if (this.tavernT?.open) { if (this.input.pressedOnce('Escape')) this.tavernT.close(); return; } // at a tavern table
     if (this.quartersT?.open) { if (this.input.pressedOnce('Escape')) this.quartersT.close(); return; } // at the Quarters table
     if (I.pressedOnce('KeyN')) this.hud.toggle('music');
     if (this.music.out) {
@@ -8712,7 +8751,7 @@ export class Game implements GameApi {
     this.fish.update(dt, this.player.position);
 
     // Interaction candidate
-    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.quartersT?.open || this.voyage.active || this.justice.busy ? null : this.findCandidate();
+    this.candidate = this.dialogue || this.fair.playing || this.hud.picking || this.quartersT?.open || this.tavernT?.open || this.voyage.active || this.justice.busy ? null : this.findCandidate();
     if (this.candidate?.kind === 'ore') {
       this.outline.visible = true;
       this.outline.position.set(this.candidate.ore!.x + 0.5, this.candidate.ore!.y + 0.5, this.candidate.ore!.z + 0.5);
