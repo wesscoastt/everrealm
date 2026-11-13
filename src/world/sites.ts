@@ -1174,6 +1174,8 @@ function* planBody(): Generator<string, Plan> {
   yield 'Lighting the harbours';
   buildHarbourLights();
   yield* buildCityFarms();
+  /** Each smithy's furnace mouth, opened again once everything else is built (owner 2026-11-13: "gullmouth says theres a furnace in crafting area but its invisible": a later pass bricked Gullmouth's up, the fire sealed inside, and the furnace read as a chimney). */
+  const smithyMouths: [number, number, number][] = [];
   yield 'Firing the smithies';
   buildSmithies();
   yield 'Clearing the roads';
@@ -1197,6 +1199,7 @@ function* planBody(): Generator<string, Plan> {
   footings(O);
   dockSteps(O, sites);
   const chests = hideChests(O, sites);
+  for (const [x, y, z] of smithyMouths) O.set(x, y, z, B.Air);
   // The taverns' signs, by their doors (data/content/taverns.ts)
   for (const t of TAVERN_SIGNS) {
     let best: Site | null = null, bd = 160;
@@ -1909,6 +1912,7 @@ function* planBody(): Generator<string, Plan> {
     // The furnace: three bricks wide, two deep, its mouth open to the front with the fire in it, a flue up through the roof
     for (let u = 1; u <= 3; u++) for (let v = 1; v <= 2; v++) for (let y = base; y < base + 3; y++) O.set(x0 + u, y, Z(v), y === base + 2 ? B.Cobble : B.StoneBrick);
     O.set(x0 + 2, base, Z(2), B.Air);
+    smithyMouths.push([x0 + 2, base, Z(2)]);
     for (let y = base + 3; y < base + 9; y++) O.set(x0 + 2, y, Z(1), B.Cobble);
     s.props.push({ t: 'flame', x: x0 + 2.5, y: base, z: zf(2) + 0.5 * out, r: 0.55 });
     s.props.push({ t: 'glow', x: x0 + 2.5, y: base + 0.8, z: zf(3), r: 1.6, color: '#ff8a3a' }, { t: 'smoke', x: x0 + 2.5, y: base + 9.3, z: zf(1) + 0.5 * out });
