@@ -614,13 +614,8 @@
 .btn:active:not(:disabled) { transform: translateY(1px); }
 
 /* ------------------------------------------------------------- The HUD as instruments: a surveyor's compass for the map, brass-set sockets for the skills */
-/* the minimap: a brass bezel with degree marks round it, every ten degrees, longer at the quarters */
+/* the minimap: a plain brass bezel (the degree marks round it came off: owner 2026-11-12, "those lines all around the minimap are ugly") */
 .minimap { background: radial-gradient(circle, #4a3420, #22160d); box-shadow: inset 0 0 0 1px #2a1a0a, inset 0 0 0 3px #c9a24a, inset 0 0 0 4px #6f5322, inset 0 0 0 9px #3a2614, inset 0 0 0 10px rgba(201, 162, 74, 0.55), 0 6px 18px rgba(0, 0, 0, 0.55); }
-.minimap::before {
-  content: ''; position: absolute; inset: 3px; border-radius: 50%; pointer-events: none; z-index: 2;
-  background: repeating-conic-gradient(from -0.5deg, rgba(243, 213, 138, 0.75) 0 1deg, transparent 1deg 10deg), repeating-conic-gradient(from -1deg, #f3d58a 0 2deg, transparent 2deg 90deg);
-  -webkit-mask: radial-gradient(circle, transparent calc(50% - 6px), #000 calc(50% - 6px)); mask: radial-gradient(circle, transparent calc(50% - 6px), #000 calc(50% - 6px));
-}
 .minimap canvas { position: relative; z-index: 1; box-shadow: 0 0 0 2px #2a1a0a, inset 0 0 18px rgba(30, 18, 8, 0.6); }
 /* the skill sockets: dark leather, a brass rim, lit when ready */
 .ab-slot { background: radial-gradient(circle at 50% 30%, #4a3420, #1c120a 75%); border: 1px solid #140c06; border-radius: 9px; box-shadow: inset 0 0 0 1px rgba(201, 162, 74, 0.7), inset 0 0 0 3px #2a1a0e, inset 0 8px 14px rgba(255, 220, 170, 0.05), 0 3px 8px rgba(0, 0, 0, 0.5); transition: box-shadow 0.12s ease, transform 0.08s ease; }

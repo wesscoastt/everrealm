@@ -15,6 +15,8 @@ export interface Settings {
   ambience: number;
   music: number;
   shadows: boolean;
+  /** Light shafts, bloom and the colour grade (core/PostFX.ts); unset is on. */
+  finePicture?: boolean;
   renderScale: number;
   dayLength: number; // real minutes per in-game day
   viewDist: number; // chunks

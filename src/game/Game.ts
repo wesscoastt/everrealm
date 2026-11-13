@@ -1,3 +1,4 @@
+import { PostFX } from '../core/PostFX';
 import { drawFace } from '../ui/skin';
 import * as THREE from 'three';
 import { Birds } from './Birds';
@@ -344,6 +345,8 @@ export class Game implements GameApi {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(58, 1, 0.1, 2600);
+  /** The picture after it's drawn: light shafts, bloom and the grade (core/PostFX.ts). */
+  private picture!: PostFX;
   world!: GameWorld;
   readonly input: Input;
   rig!: CameraRig;
@@ -884,6 +887,7 @@ export class Game implements GameApi {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = createRenderer(canvas);
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.picture = new PostFX(this.renderer, this.scene, this.camera);
     this.input = new Input(canvas);
     // The last character played, so the menus start on them and their settings apply
     const chars = listCharacters();
@@ -8067,7 +8071,11 @@ export class Game implements GameApi {
       this.doll.draw(this.renderer, dt, dc);
     }
     this.placeObjectivePin();
-    this.renderer.render(this.scene, this.camera);
+    if (this.save.settings.finePicture !== false && this.world) {
+      const sky = this.world.sky;
+      this.picture.setLight(sky.sunDir, sky.sun.color, sky.night, sky.weather.cloud, sky.underwater, sky.underground);
+      this.picture.render(dt);
+    } else this.renderer.render(this.scene, this.camera);
     if (this.debug) {
       this.fpsAcc.t += dt; this.fpsAcc.n++;
       if (this.fpsAcc.t > 0.5) {
@@ -8086,6 +8094,7 @@ export class Game implements GameApi {
     if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
       this.renderer.setPixelRatio(dpr);
       this.renderer.setSize(w, h, false);
+      this.picture?.resize(w, h, dpr);
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
       return true;

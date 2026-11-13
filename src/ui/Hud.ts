@@ -3693,6 +3693,7 @@ export class Hud {
     // In tabs, as the big games keep their options (owner 2026-11-12: "too much scrolling around")
     const colourVision = `<div class="setting"><span>Colour vision</span><select data-cv>${(Object.keys(COLOUR_VISION_NAMES) as ColourVision[]).map((k) => `<option value="${k}"${(st.colourVision ?? 'standard') === k ? ' selected' : ''}>${COLOUR_VISION_NAMES[k]}</option>`).join('')}</select><span></span></div>`;
     const rest = `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`
+      + `<div class="setting"><span>Light shafts, bloom and colour (turn off on a slow computer)</span><input type="checkbox" ${st.finePicture !== false ? 'checked' : ''} data-k="finePicture"><span></span></div>`
       + `<div class="setting"><span>Invert mouse look</span><input type="checkbox" ${st.invertY ? 'checked' : ''} data-k="invertY"><span></span></div>`
       + `<div class="setting"><span>Auto-attack: Strike keeps striking your target</span><input type="checkbox" ${st.autoAttack !== false ? 'checked' : ''} data-k="autoAttack"><span></span></div>`
       + `<div class="setting"><span>Show the Trade channel (/trade)</span><input type="checkbox" ${st.hideTrade ? '' : 'checked'} data-trade><span></span></div>`
@@ -3728,7 +3729,7 @@ export class Hud {
     const restRows = rest.split('<div class="setting">').filter(Boolean).map((r) => '<div class="setting">' + r);
     const row = (label: string) => restRows.find((r) => r.includes(`<span>${label}`)) ?? '';
     const pages: Record<string, [string, string]> = {
-      video: ['Picture', S('viewDist') + S('renderScale') + row('Shadows') + row('Full screen') + colourVision],
+      video: ['Picture', S('viewDist') + S('renderScale') + row('Shadows') + row('Light shafts') + row('Full screen') + colourVision],
       sound: ['Sound', S('master') + S('sfx') + S('ambience') + S('music')],
       controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + `<h4 class="sec">Keys</h4>` + keys],
       ui: ['Interface and chat', S('uiScale') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
