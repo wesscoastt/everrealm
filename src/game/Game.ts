@@ -3094,7 +3094,7 @@ export class Game implements GameApi {
    * you come into the world; and, on someone else's ground, whether it's a garden you may work.
    */
   private handsTick(): void {
-    if (!this.online.online || this.mode !== 'play' || !this.garden) { this.handsOnline = false; return; }
+    if (!this.online?.online || this.mode !== 'play' || !this.garden || !this.player) { this.handsOnline = false; return; }
     const open = this.handsOpen();
     if (!this.handsOnline) { this.handsOnline = true; this.handsDirty = true; if (open !== 'off') this.online.gardenGet(); }
     if (this.handsDirty) { this.handsDirty = false; this.online.gardenPut(open === 'off' ? {} : this.garden.homeOnly(), open, this.social.friends(), this.flag('gardenReap') === true); }
