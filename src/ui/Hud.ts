@@ -925,13 +925,16 @@ export class Hud {
   }
 
   /** Read a message post: Helpful (once), Report, or Take it down if it's yours. Null closes it. */
-  postCard(p: { text: string; by: string; up: number; mine: boolean; voted: boolean; at: number } | null, acts?: { up(): void; report(why: string): void; remove(): void }): void {
+  postCard(p: { text: string; by: string; up: number; mine: boolean; voted: boolean; at: number; until?: number } | null, acts?: { up(): void; report(why: string): void; remove(): void; mend?(): void }): void {
     const box = this.q('#postcard');
     if (!p || !acts) { box.classList.remove('show'); return; }
     const days = Math.floor((Date.now() - p.at) / 86_400_000);
     const when = days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : 'a long while ago';
+    // how long it will stand (posts weather away: server/signs.mjs)
+    const left = p.until ? p.until - Date.now() : 0, lasts = !p.until ? '' : left < 3_600_000 ? 'It won’t stand another hour.' : left < 86_400_000 ? `Weathered: it will stand about ${Math.max(1, Math.round(left / 3_600_000))} more hours.` : `It will stand ${Math.round(left / 86_400_000)} more day${Math.round(left / 86_400_000) === 1 ? '' : 's'}.`;
     box.innerHTML = `<div class="pc-slip"><p class="pc-text"></p><div class="pc-by">Left by <b></b>, ${when}</div></div><div class="pc-up">${p.up ? `${p.up} found this helpful` : 'Nobody has said yet whether it helped.'}</div><div class="row">${p.mine ? '<button class="btn ghost pc-rm">Take it down</button>' : `<button class="btn pc-yes"${p.voted ? ' disabled' : ''}>${p.voted ? 'You found it helpful' : 'Helpful'}</button><button class="btn ghost pc-rep">Report</button>`}<button class="btn ghost pc-x">Close</button></div>`;
     box.querySelector('.pc-text')!.textContent = p.text;
+    if (lasts && acts.mend) { const m = document.createElement('div'); m.className = 'pc-up pc-time'; m.innerHTML = `<span></span> <button class="btn ghost pc-mend">Mend it (3 logs)</button>`; m.querySelector('span')!.textContent = lasts; box.querySelector('.pc-up')?.after(m); m.querySelector('.pc-mend')!.addEventListener('click', () => { acts.mend!(); close(); }); }
     box.querySelector('.pc-by b')!.textContent = p.by;
     const close = () => box.classList.remove('show');
     box.querySelector('.pc-x')!.addEventListener('click', close);

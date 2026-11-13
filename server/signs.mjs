@@ -1,7 +1,12 @@
 // Message posts, on the world server: a few words a player leaves standing at a place for everyone who
 // comes after (owner 2026-11-04, "sign posts work like Where Winds Meet, leaving text places to help").
 //
-// A post is kept for good in its land, with who left it (by player id), how many found it helpful, and who
+// Posts weather (owner 2026-11-13: "make the posts you leave work like where winds meet where you use wood or whatever to
+// make it last longer so they arent just littered forever"): a post stands three days; each player who finds it
+// helpful adds half a day, and anyone can spend logs on it for three more, up to a month ahead at most. When its time
+// is up it comes down.
+//
+// A post is kept in its land, with who left it (by player id), how many found it helpful, and who
 // has reported it. Everyone in that land is sent the posts when they come in and each new one as it goes
 // up. What can go on one is checked here, not in the browser: a short line, no links, nothing hateful or
 // foul, not a wall of one letter. Each player keeps at most POSTS_EACH posts (the oldest comes down for a
@@ -12,6 +17,7 @@ import path from 'node:path';
 
 const MAX_LEN = 140, MIN_LEN = 3, POSTS_EACH = 8, GAP_MS = 60_000, VOTE_GAP_MS = 1500, REPORTS_TO_HIDE = 3, CLOSE = 2.5;
 const SEND_MAX = 800;
+const DAY = 86_400_000, LIFE_MS = 3 * DAY, UP_MS = DAY / 2, MEND_MS = 3 * DAY, AHEAD_MAX = 30 * DAY, MEND_GAP_MS = 1500;
 
 // Words a post can't carry, matched on the letters alone (spaces, dots and look-alike digits taken out), so
 // "s.l.u.r" and "5lur" are caught too. Kept short and plain: slurs and the worst of the swearing.
@@ -42,11 +48,25 @@ export function signsInit(ctx) {
   const FILE = path.join(dataDir, 'signs.json');
   const book = readJson(FILE) ?? { next: 1, list: [] };
   if (!Array.isArray(book.list)) book.list = [];
+  // (posts from before they weathered get a week's grace from today)
+  for (const s of book.list) if (!Number.isFinite(s.until)) s.until = Date.now() + 7 * DAY;
   // (written at once: posts and votes come seldom, and a restart must never lose one)
   const save = () => writeJson(FILE, book);
-  const pubPost = (s, me) => ({ id: s.id, x: s.x, y: s.y, z: s.z, yaw: s.yaw, text: s.text, by: s.by, at: s.at, up: s.up.length, mine: !!me && s.pid === me.pid, voted: !!me && s.up.includes(me.pid) });
+  const pubPost = (s, me) => ({ id: s.id, x: s.x, y: s.y, z: s.z, yaw: s.yaw, text: s.text, by: s.by, at: s.at, until: s.until, up: s.up.length, mine: !!me && s.pid === me.pid, voted: !!me && s.up.includes(me.pid) });
   const toLand = (land, msg) => { for (const p of players.values()) if (p.land === land && p.ws.readyState === 1) send(p.ws, msg); };
   const shown = (land) => book.list.filter((s) => s.land === land && !s.hidden);
+  /** Posts whose time is up come down. */
+  const weather = () => {
+    const now = Date.now(), gone = book.list.filter((s) => s.until < now);
+    if (!gone.length) return;
+    book.list = book.list.filter((s) => s.until >= now);
+    for (const s of gone) if (!s.hidden) toLand(s.land, { t: 'postGone', id: s.id });
+    save();
+    log(`posts: ${gone.length} weathered away`);
+  };
+  setTimeout(weather, 2000);
+  setInterval(weather, 10 * 60_000);
+  const keep = (s, ms) => { const now = Date.now(); s.until = Math.min(Math.max(s.until ?? now, now) + ms, now + AHEAD_MAX); };
 
   return {
     /** Everything standing in their land, the most helpful first if there are too many to send. */
@@ -73,7 +93,7 @@ export function signsInit(ctx) {
             book.list = book.list.filter((s) => s !== old);
             toLand(old.land, { t: 'postGone', id: old.id });
           }
-          const s = { id: book.next++, land: me.land, x: +x.toFixed(2), y: +y.toFixed(2), z: +z.toFixed(2), yaw: +yaw.toFixed(2), text: ok.text, by: me.name, pid: me.pid, at: now, up: [], reports: [], hidden: false };
+          const s = { id: book.next++, land: me.land, x: +x.toFixed(2), y: +y.toFixed(2), z: +z.toFixed(2), yaw: +yaw.toFixed(2), text: ok.text, by: me.name, pid: me.pid, at: now, until: now + LIFE_MS, up: [], reports: [], hidden: false };
           book.list.push(s);
           save();
           for (const p of players.values()) if (p.land === s.land && p.ws.readyState === 1) send(p.ws, { t: 'post', post: pubPost(s, p) });
@@ -86,11 +106,25 @@ export function signsInit(ctx) {
           if (!s || !me.pid || s.pid === me.pid || s.up.includes(me.pid) || now - (me.lastVote ?? 0) < VOTE_GAP_MS) return true;
           me.lastVote = now;
           s.up.push(me.pid);
+          keep(s, UP_MS);
           save();
-          toLand(s.land, { t: 'postUp', id: s.id, up: s.up.length });
+          toLand(s.land, { t: 'postUp', id: s.id, up: s.up.length, until: s.until });
           // the one who left it hears, if they're about: a kind word goes both ways
           const author = [...players.values()].find((p) => p.pid === s.pid);
           if (author) send(author.ws, { t: 'sys', text: `${me.name} found your post helpful ("${s.text.length > 40 ? s.text.slice(0, 40) + '…' : s.text}"). ${s.up.length} have now.` });
+          return true;
+        }
+        case 'postMend': {
+          // logs spent on a post (the browser takes them from the pack): three more days, a month ahead at most
+          const s = book.list.find((q) => q.id === msg.id && !q.hidden);
+          const now = Date.now();
+          if (!s || !me.pid || now - (me.lastMend ?? 0) < MEND_GAP_MS || Math.hypot(s.x - me.x, s.z - me.z) > 8) return true;
+          me.lastMend = now;
+          keep(s, MEND_MS);
+          save();
+          toLand(s.land, { t: 'postTime', id: s.id, until: s.until });
+          const author = [...players.values()].find((q) => q.pid === s.pid);
+          if (author && author !== me) send(author.ws, { t: 'sys', text: `${me.name} mended your post ("${s.text.length > 40 ? s.text.slice(0, 40) + '…' : s.text}"). It will stand a while longer.` });
           return true;
         }
         case 'postReport': {

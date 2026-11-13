@@ -1714,7 +1714,8 @@ export class Game implements GameApi {
       posts: (list: Post[]) => this.posts.setAll(list),
       post: (p: Post) => { this.posts.add(p); if (p.mine) { this.hud.system('Your post is up. Anyone passing can read it.'); this.sfx('quest'); } },
       postGone: (id: number) => { this.posts.gone(id); if (this.reading === id) { this.hud.postCard(null); this.reading = null; } },
-      postUp: (id: number, n: number) => this.posts.up(id, n),
+      postUp: (id: number, n: number, until?: number) => this.posts.up(id, n, false, until),
+      postTime: (id: number, until: number) => this.posts.time(id, until),
       postNo: (why: string) => this.hud.system(why),
       groupKill: (type: string) => {
         this.setFlag('killed:' + type, Number(this.flag('killed:' + type) ?? 0) + 1);
@@ -5358,6 +5359,16 @@ export class Game implements GameApi {
       up: () => { this.online.upPost(p.id); this.posts.up(p.id, p.up + 1, true); },
       report: (why) => this.online.reportPost(p.id, why),
       remove: () => this.online.removePost(p.id),
+      // (three logs of any wood, for three more days)
+      mend: () => {
+        const logs = ['oak_logs', 'birch_logs', 'pine_logs', 'elder_logs'];
+        if (logs.reduce((n, id) => n + this.inv.count(id), 0) < 3) { this.hud.system('Mending a post takes three logs, any wood.'); this.sfx('fail'); return; }
+        let need = 3;
+        for (const id of logs) { const k = Math.min(need, this.inv.count(id)); if (k) { this.take(id, k); need -= k; } if (!need) break; }
+        this.online.mendPost(p.id);
+        this.hud.system('You set the post straighter and pin a fresh slip over the old. It will stand three days longer.');
+        this.sfx('chop');
+      },
     });
   }
 

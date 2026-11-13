@@ -6,7 +6,10 @@ import * as P from '../world/props';
 // light at its foot, so you see there's something to read from a little way off. Only the ones near you
 // are built; the rest are just where they stand.
 
-export interface Post { id: number; x: number; y: number; z: number; yaw: number; text: string; by: string; at: number; up: number; mine: boolean; voted: boolean }
+/** Under a day left before it weathers away. */
+export const Post_weathered = (p: { until?: number }): boolean => !!p.until && p.until - Date.now() < 86_400_000;
+
+export interface Post { id: number; x: number; y: number; z: number; yaw: number; text: string; by: string; at: number; /** When it weathers away (server/signs.mjs). */ until?: number; up: number; mine: boolean; voted: boolean }
 
 const SHOW = 70, READ = 2.4;
 
@@ -15,6 +18,7 @@ export class MessagePosts {
   private readonly models = new Map<number, THREE.Object3D>();
   private t = 0;
   private glowMat: THREE.MeshBasicMaterial;
+  private oldPaper: THREE.MeshLambertMaterial | null = null;
 
   constructor(private readonly scene: THREE.Scene, private readonly M: P.PropMaterials) {
     this.glowMat = new THREE.MeshBasicMaterial({ color: '#ffcf7a', transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -31,7 +35,9 @@ export class MessagePosts {
     if (m) { this.scene.remove(m); this.models.delete(id); }
     this.list.delete(id);
   }
-  up(id: number, n: number, mine = false): void { const p = this.list.get(id); if (p) { p.up = n; if (mine) p.voted = true; } }
+  up(id: number, n: number, mine = false, until?: number): void { const p = this.list.get(id); if (p) { p.up = n; if (mine) p.voted = true; if (until) this.time(id, until); } }
+  /** Its time kept up (or run down): the model is drawn again, weathered or not. */
+  time(id: number, until: number): void { const p = this.list.get(id); if (!p) return; const was = Post_weathered(p); p.until = until; if (was !== Post_weathered(p)) { const m = this.models.get(id); if (m) { this.scene.remove(m); this.models.delete(id); this.t = 0; } } }
 
   /** The one close enough to read, nearest first. */
   nearest(at: THREE.Vector3, r = READ): Post | null {
@@ -54,7 +60,7 @@ export class MessagePosts {
     }
   }
 
-  /** A stake, a slip of parchment pinned to a little board on it, the writing on the slip, and a glow underfoot. */
+  /** A stake, a slip of parchment pinned to a little board on it, the writing on the slip, and a glow underfoot; a post with under a day left is weathered (the slip yellowed and curling, the glow gone). */
   private model(p: Post): THREE.Group {
     const M = this.M, g = new THREE.Group();
     g.add(new THREE.Mesh(P.box(0.08, 1.15, 0.08), M.darkWood).translateY(0.575));
@@ -62,7 +68,9 @@ export class MessagePosts {
     board.position.set(0, 1.08, 0.03);
     board.rotation.x = -0.35;
     board.add(new THREE.Mesh(P.box(0.5, 0.36, 0.04), M.wood));
-    const slip = new THREE.Mesh(P.box(0.42, 0.29, 0.012), M.paper);
+    const old = Post_weathered(p);
+    const slip = new THREE.Mesh(P.box(0.42, 0.29, 0.012), old ? (this.oldPaper ??= new THREE.MeshLambertMaterial({ color: '#b8a070' })) : M.paper);
+    if (old) board.rotation.x = -0.7;
     slip.position.set(0, 0, 0.027);
     slip.rotation.z = ((p.id * 37) % 9 - 4) * 0.012;
     board.add(slip);
@@ -78,7 +86,7 @@ export class MessagePosts {
     const glow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 20), this.glowMat);
     glow.rotation.x = -Math.PI / 2;
     glow.position.y = 0.03;
-    g.add(glow);
+    if (!old) g.add(glow);
     g.position.set(p.x, p.y, p.z);
     g.rotation.y = p.yaw;
     return g;
