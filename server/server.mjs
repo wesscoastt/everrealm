@@ -667,7 +667,7 @@ const music = musicInit({ players, send, social });
 const plots = plotsInit({ players, send, readJson, writeJson, dataDir: DATA, social, log });
 // The Arena at Verandah: duels, one to one or two against two (server/arena.mjs)
 const arena = arenaInit({ players, send, social, log });
-const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p) });
+const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p), comp: p.comp ?? null });
 
 /** A player out of the world: their socket closed, or a new connection of theirs took over. */
 function dropPlayer(p) {
@@ -801,6 +801,16 @@ wss.on('connection', (ws, req) => {
         if (pick) log(`${me.name} hooked the ${pick === 'megalodon' ? 'Megalodon' : 'Ice Spice Fish'}`);
         send(ws, { t: 'fishRoll', n: msg.n, pick });
         return;
+      }
+      // Their companion out with them (owner 2026-11-12: "need to be able to see other players' companions"): who,
+      // what they look like, what they hold, the horse they ride; drawn following them in everyone else's game
+      case 'comp': {
+        const c = msg.comp;
+        const ok = c === null || (c && typeof c === 'object' && typeof c.name === 'string' && c.name.length <= 40 && c.look && typeof c.look === 'object' && JSON.stringify(c).length < 5000);
+        if (!ok) break;
+        me.comp = c === null ? null : { name: c.name, look: c.look, held: typeof c.held === 'string' && /^[a-z0-9_]{2,40}$/.test(c.held) ? c.held : 'none', steed: c.steed && typeof c.steed === 'object' ? c.steed : null };
+        broadcast({ t: 'comp', id: me.id, comp: me.comp }, me);
+        break;
       }
       case 'look': {
         if (msg.look && typeof msg.look === 'object' && JSON.stringify(msg.look).length < 4000) { me.look = msg.look; broadcast({ t: 'look', id: me.id, look: me.look }, me); }

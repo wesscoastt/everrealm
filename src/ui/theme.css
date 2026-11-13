@@ -638,3 +638,7 @@
 .set-tabs .bag-tab { font-size: 11.5px; }
 .set-page { animation: tip-in 0.16s ease; min-height: 230px; }
 #ui input[type="range"], #ui input[type="checkbox"] { accent-color: #c9a24a; }
+
+/* A companion's mount, in their gear window */
+#postcard .cw-mrow { display: flex; flex-wrap: wrap; gap: 6px; }
+#postcard .cw-mrow .btn img { width: 18px; height: 18px; vertical-align: middle; margin-right: 5px; image-rendering: pixelated; }

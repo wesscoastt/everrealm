@@ -1555,6 +1555,7 @@ export class Game implements GameApi {
       scene: this.scene,
       night: () => this.world.sky.night,
       rowboatModel: () => rowboatModel(this.world.props),
+      ground: (x, z, nearY) => this.footing(x, z, nearY) ?? nearY,
       mySeat: () => {
         // On the Post: the cart, with its spare benches for whoever climbs up
         if (this.post.active) return { ...this.post.where, mount: POST_CART_KEY };
@@ -6754,7 +6755,13 @@ export class Game implements GameApi {
     for (const k of ['friend', 'trusted'] as const) if (r >= (k === 'friend' ? 25 : 45) && BOND_GIVES[k]) gives.push(BOND_GIVES[k]!);
     if (b.id === 'loyal') gives.push(LOYAL_PERK[cid].text);
     const bondNote = ` ${first} is your ${b.name.toLowerCase()}${gives.length ? ': ' + gives.join(' ') : '.'}${b.id !== 'loyal' ? ` As a loyal companion: ${LOYAL_PERK[cid].text.charAt(0).toLowerCase() + LOYAL_PERK[cid].text.slice(1)}` : ''}`;
-    this.hud.gearWindow(`${COMPANIONS[cid].name}'s gear`, summary + bondNote, slots, pack, () => this.openCompanions());
+    // Their mount: one of your horses, or their own (you keep the halter)
+    const mine = this.halters().filter((h) => !ITEMS[h]?.mount?.wagon && !/^(boat|wagon)_/.test(h));
+    const rides = this.save.flags[`comp:${cid}:steed`] as string | undefined;
+    const mounts = [{ id: '', name: `${first}'s own horse` }, ...mine.map((h) => ({ id: h, name: ITEMS[h]?.name ?? h }))].map((m) => ({
+      id: m.id, name: m.name, on: (m.id || null) === (rides ?? null), pick: () => { this.companions.setSteed(cid, m.id || null); this.persist(); this.sfx('open'); this.compGear(id); },
+    }));
+    this.hud.gearWindow(`${COMPANIONS[cid].name}'s gear`, summary + bondNote, slots, pack, () => this.openCompanions(), mounts);
   }
   /**
    * A gift (data/companionGifts.ts): choose it from your pack. One a day counts with them; what they think of a
@@ -8095,6 +8102,18 @@ export class Game implements GameApi {
     return d + 0.5;
   }
 
+  /** What everyone else was last told of your companion, and when. */
+  private compSent = { key: '', at: 0 };
+  private sendComp(): void {
+    if (!this.online?.online) { this.compSent.key = ''; return; }
+    const id = this.companions?.active, body = this.companions?.body;
+    const c = id && body ? { name: compShort(id), look: body.model.look, held: this.companions.henchmanOf(id).held, steed: this.companions.steedOf(id) } : null;
+    const key = c ? JSON.stringify(c) : 'none';
+    if (key === this.compSent.key && this.elapsed - this.compSent.at < 30) return;
+    this.compSent = { key, at: this.elapsed };
+    this.online.setComp(c as never);
+  }
+
   private canvasResize(): boolean {
     const canvas = this.renderer.domElement;
     const scale = this.save.settings.renderScale;
@@ -8603,6 +8622,7 @@ export class Game implements GameApi {
     // (on the Post, everyone sees the cart go by with you on its bench)
     if (this.post.active) { const w = this.post.where; this.online.update(dt, { x: w.x, y: w.y, z: w.z, yaw: w.yaw, anim: 'seated', held: 'none', mount: POST_CART_KEY, pillion: null }); }
     else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion, light: this.lightShown });
+    this.sendComp();
     this.music.update();
     this.chests.update();
     this.posts.update(dt, P.position);

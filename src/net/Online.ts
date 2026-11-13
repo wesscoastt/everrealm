@@ -7,7 +7,7 @@ export type ChatKind = 'say' | 'emote' | 'local' | 'trade' | 'group' | 'guild' |
 import { setRealmTime } from '../world/clock';
 import { Appearance, AnimState, HeldItem, Humanoid } from '../entities/humanoid';
 import type { SaveData } from '../game/state';
-import { CreatureModel, mountModel } from '../entities/creatures';
+import { CreatureModel, mountModel, type MountLook } from '../entities/creatures';
 import { passengerSeat, riderLift, type Seat } from '../entities/seats';
 import { mountOf } from '../data/mountLooks';
 import type { Post } from '../game/Posts';
@@ -59,9 +59,13 @@ interface Remote {
   pillion: number;
   /** Their pet at their heels (data/pets.ts), if one is out. */
   pet: Companion | null;
+  /** Their companion (game/Companions.ts), following them: the figure, the horse it rides when they ride, where it is. */
+  comp?: { model: Humanoid; steedLook: MountLook | null; steed: CreatureModel | null; pos: THREE.Vector3; yaw: number } | null;
 }
 
-interface PlayerPub { land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null; light?: number }
+/** A companion as everyone else is told of it. */
+export interface CompPub { name: string; look: Appearance; held: string; steed: MountLook | null }
+interface PlayerPub { comp?: CompPub | null; land?: string; id: number; name: string; look: Appearance; x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem; mount?: string | null; guild?: string | null; pillion?: number; perf?: Performance | null; light?: number }
 
 /** How high a rider sits on someone's mount, by its halter's id. */
 const handL = new THREE.Vector3(), handR = new THREE.Vector3();
@@ -154,6 +158,8 @@ export interface OnlineHooks {
   scene: THREE.Scene;
   /** A rowing boat to put under someone rowing (game/Rowboat.ts). */
   rowboatModel?(): THREE.Object3D;
+  /** The ground under a point, near a height (for others' companions to walk on). */
+  ground?(x: number, z: number, nearY: number): number;
   /** Someone helped you up while you were down. */
   revived?(by: string): void;
   /** The Arena at Verandah (server/arena.mjs; game/Arena.ts): challenges, matches, hits, the board. */
@@ -373,6 +379,7 @@ export class Online {
       case 'join': this.addRemote(m.player as PlayerPub); this.setStatus('online'); break;
       case 'leave': this.removeRemote(m.id as number); this.setStatus('online'); break;
       case 'look': { const r = this.remotes.get(m.id as number); if (r) this.replaceModel(r, m.look as Appearance); break; }
+      case 'comp': { const r = this.remotes.get(m.id as number); if (r) this.setRemoteComp(r, (m.comp as CompPub | null) ?? null); break; }
       case 'snap':
         for (const [id, x, y, z, yaw, anim, held, mount, pillion, light] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined, number | undefined, number | undefined][]) {
           const r = this.remotes.get(id);
@@ -491,7 +498,23 @@ export class Online {
     const mount = p.mount && mountOf(p.mount) ? p.mount : null;
     this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, pet: this.petFor(p.look, pos) });
     if (p.perf) this.hooks.perform?.(p.id, p.perf);
+    if (p.comp) this.setRemoteComp(this.remotes.get(p.id)!, p.comp);
   }
+
+  /** Someone's companion came out, changed, or went home. */
+  private setRemoteComp(r: Remote, c: CompPub | null): void {
+    if (r.comp) { this.hooks.scene.remove(r.comp.model.root); if (r.comp.steed) this.hooks.scene.remove(r.comp.steed.root); }
+    if (!c) { r.comp = null; return; }
+    const model = new Humanoid(c.look);
+    model.setHeld(c.held);
+    const pos = r.model.root.position.clone().add(new THREE.Vector3(-1.2, 0, -1.6));
+    model.root.position.copy(pos);
+    this.hooks.scene.add(model.root);
+    r.comp = { model, steedLook: c.steed, steed: null, pos, yaw: r.yaw };
+  }
+
+  /** Tell everyone about the companion out with you (null: none). */
+  setComp(c: CompPub | null): void { this.emit({ t: 'comp', comp: c }); }
 
   /** A pet for someone whose look names one. */
   private petFor(look: Appearance, at: THREE.Vector3): Companion | null {
@@ -522,6 +545,7 @@ export class Online {
     if (r.boat) this.hooks.scene.remove(r.boat);
     if (r.float) this.hooks.scene.remove(r.float);
     if (r.pet) this.hooks.scene.remove(r.pet.model.root);
+    if (r.comp) { this.hooks.scene.remove(r.comp.model.root); if (r.comp.steed) this.hooks.scene.remove(r.comp.steed.root); }
     this.remotes.delete(id);
   }
 
@@ -623,6 +647,7 @@ export class Online {
       r.model.setTorch(r.light === 1);
       r.model.setLantern(r.light === 2);
       r.pet?.update(dt, r.model.root.position, r.model.root.rotation.y);
+      if (r.comp) this.followComp(r, dt);
       // Turn the short way round.
       let dy = r.yaw - r.model.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
@@ -634,6 +659,41 @@ export class Online {
       r.model.update(dt, r.t < 1 ? r.speed : 0, r.anim === 'jump');
       r.horse?.holdReins(r.model.state === 'ride' ? r.model.handsAt(handL, handR) : null);
     }
+  }
+
+  /**
+   * Someone's companion, following them as yours follows you: a little behind and to the side, walking when they
+   * walk, on its own horse beside theirs when they ride.
+   */
+  private followComp(r: Remote, dt: number): void {
+    const c = r.comp!, o = r.model.root.position, yaw = r.model.root.rotation.y;
+    const riding = !!r.horse, back = riding ? 1.2 : 2.0, side = riding ? 2.6 : 1.3;
+    const tx = o.x - Math.sin(yaw) * back + Math.cos(yaw) * side, tz = o.z - Math.cos(yaw) * back - Math.sin(yaw) * side;
+    const dx = tx - c.pos.x, dz = tz - c.pos.z, d = Math.hypot(dx, dz);
+    // (too far behind, as after a ride or a jump: they're simply there)
+    if (d > 30) c.pos.set(tx, o.y, tz);
+    const speed = d > 0.3 ? Math.min(d * 2.2, riding ? 16 : 7) : 0;
+    if (d > 0.3) { c.pos.x += (dx / d) * speed * dt; c.pos.z += (dz / d) * speed * dt; c.yaw = Math.atan2(dx, dz); } else c.yaw = yaw;
+    c.pos.y = this.hooks.ground ? this.hooks.ground(c.pos.x, c.pos.z, o.y) : o.y;
+    if (riding && c.steedLook) {
+      if (!c.steed) { c.steed = mountModel(c.steedLook); this.hooks.scene.add(c.steed.root); }
+      c.steed.root.position.copy(c.pos);
+      c.steed.root.rotation.y = c.yaw;
+      c.steed.setAnim(speed > 8 ? 'run' : speed > 0.4 ? 'walk' : 'idle');
+      c.steed.update(dt, speed);
+      c.model.root.position.copy(c.pos).setY(c.pos.y + riderLift(c.steedLook));
+      c.model.setState('ride');
+      c.model.straddle = c.steed.girth ?? 0.38;
+    } else {
+      if (c.steed) { this.hooks.scene.remove(c.steed.root); c.steed = null; }
+      c.model.root.position.copy(c.pos);
+      c.model.setState(speed > 4.5 ? 'run' : speed > 0.3 ? 'walk' : 'idle');
+    }
+    let dy = c.yaw - c.model.root.rotation.y;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    c.model.root.rotation.y += dy * Math.min(1, dt * 10);
+    if (c.steed) c.steed.root.rotation.y = c.model.root.rotation.y;
+    c.model.update(dt, speed, false);
   }
 
   get online(): boolean { return this.status === 'online' && !!this.ws; }

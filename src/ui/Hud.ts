@@ -1102,7 +1102,7 @@ export class Hud {
    * A companion's gear (owner 2026-11-12: "customize your companions like ESO and SWTOR"): each place they wear
    * something, what's there, and Take off; then what in your pack would suit them, with Put on.
    */
-  gearWindow(title: string, summary: string, slots: { label: string; id?: string; name?: string; off?: () => void }[], pack: { id: string; name: string; where: string; on: () => void }[], back: () => void): void {
+  gearWindow(title: string, summary: string, slots: { label: string; id?: string; name?: string; off?: () => void }[], pack: { id: string; name: string; where: string; on: () => void }[], back: () => void, mounts: { id: string; name: string; on: boolean; pick: () => void }[] = []): void {
     const box = this.q('#postcard');
     box.classList.add('wide');
     box.innerHTML = '<h3 class="cw-h"></h3><p class="pc-q"></p><div class="en-rows cw-gifts cw-worn"></div><p class="pc-rules cw-sub">From your pack</p><div class="en-rows cw-gifts cw-pack"></div><div class="row"><button class="btn ghost pc-back">Back</button><button class="btn ghost pc-x">Close</button></div>';
@@ -1125,6 +1125,20 @@ export class Hud {
       row.querySelector('.en-now')!.textContent = r.where;
       row.querySelector('button')!.addEventListener('click', () => r.on());
       mine.append(row);
+    }
+    // Their mount: a row of choices, the one they ride lit
+    if (mounts.length) {
+      const sec = el('div', 'cw-mounts');
+      sec.append(el('p', 'pc-rules cw-sub', 'Their mount'));
+      const row = el('div', 'cw-mrow');
+      for (const m of mounts) {
+        const b = el('button', 'btn sm' + (m.on ? '' : ' ghost'), m.name);
+        if (m.id) b.prepend(Object.assign(document.createElement('img'), { src: itemIcon(m.id), alt: '' }));
+        b.addEventListener('click', () => m.pick());
+        row.append(b);
+      }
+      sec.append(row);
+      box.querySelector('.cw-pack')!.after(sec);
     }
     box.querySelector('.pc-back')!.addEventListener('click', () => back());
     box.querySelector('.pc-x')!.addEventListener('click', () => { box.classList.remove('show', 'wide'); this.ctx.sfx('close'); });

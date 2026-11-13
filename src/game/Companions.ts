@@ -108,6 +108,19 @@ export class Companions {
     const r = this.host.flag(`comp:${id}:role`) as CompanionRole | undefined;
     return r && COMPANIONS[id].roles.includes(r) ? r : COMPANIONS[id].roles[0];
   }
+  /**
+   * The horse they ride (owner 2026-11-12: "add a way to change your companions' mounts, like ESO"): one of yours you
+   * chose for them (a halter in your pack; you keep it), or their own.
+   */
+  steedOf(id: CompanionId): import('../entities/creatures').MountLook {
+    const h = this.host.flag(`comp:${id}:steed`) as string | undefined, m = h ? ITEMS[h]?.mount : undefined;
+    return m && !m.wagon ? m : (STEEDS[id] as unknown as import('../entities/creatures').MountLook);
+  }
+  /** A new mount for them: the old one goes, the next ride brings the new. */
+  setSteed(id: CompanionId, halter: string | null): void {
+    this.host.setFlag(`comp:${id}:steed`, halter);
+    if (this.steed && this.id === id) { this.host.scene.remove(this.steed.root); this.steed = null; }
+  }
   /** In their hand: the weapon you gave them, or their own. */
   private heldOf(id: CompanionId): string {
     const w = this.gearOf(id).weapon, it = w ? ITEMS[w] : undefined;
@@ -225,7 +238,7 @@ export class Companions {
     }
     // Riding: on their own horse, a length behind and to the side
     if (p.riding) {
-      if (!this.steed) { this.steed = mountModel(STEEDS[this.id] as never); this.host.scene.add(this.steed.root); }
+      if (!this.steed) { this.steed = mountModel(this.steedOf(this.id)); this.host.scene.add(this.steed.root); }
       const sx = p.pos.x - Math.sin(p.yaw) * 3.2 + Math.cos(p.yaw) * 2, sz = p.pos.z - Math.cos(p.yaw) * 3.2 - Math.sin(p.yaw) * 2;
       const gy = this.host.voxels.groundBelow(sx, p.pos.y + 4, sz);
       a.pos.set(a.pos.x + (sx - a.pos.x) * Math.min(1, dt * 6), gy, a.pos.z + (sz - a.pos.z) * Math.min(1, dt * 6));
