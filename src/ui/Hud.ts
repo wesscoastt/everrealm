@@ -164,11 +164,13 @@ const SERVICE_LOOK: Record<NonNullable<MapMarker['svc']>, { bg: string; fg: stri
   craft: { bg: '#8a96a8', fg: '#191410', letter: 'C', name: 'Crafting' },
   shop: { bg: '#5fbf6a', fg: '#0a2410', letter: 'M', name: 'Merchant' },
   stable: { bg: '#b07a48', fg: '#2a1406', letter: 'S', name: 'Stable' },
+  temple: { bg: '#e8e4f4', fg: '#3a2a6a', letter: '✚', name: 'Temple: kneel at the altar to unlearn skill points' },
+  tavern: { bg: '#c8602a', fg: '#2a0e04', letter: 'T', name: 'Tavern: dice, cards and the Lady' },
 };
 
 export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enemy' | 'elite' | 'poi' | 'player' | 'post' | 'other' | 'event' | 'boss' | 'bossSoon' | 'shard' | 'task' | 'taskDone' | 'treasure' | 'waymark' | 'waymarkDim' | 'fair' | 'giver' | 'ally' | 'service'; label?: string; yaw?: number; id?: string;
   /** A service (kind 'service'): a bank, a place to craft, a merchant, a stable. */
-  svc?: 'bank' | 'craft' | 'shop' | 'stable';
+  svc?: 'bank' | 'craft' | 'shop' | 'stable' | 'temple' | 'tavern';
   /** An objective's line under its quest's name, and whether it's the focused quest's. */
   sub?: string; focus?: boolean }
 
@@ -3640,7 +3642,7 @@ export class Hud {
     const ctl = el('div', 'map-ctl');
     ctl.innerHTML = '<button class="mm-b wide" data-world title="The whole known world, and the ships between its lands">World</button><button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
     const legend = el('div', 'map-legend');
-    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['services', 'Banks, crafting, shops'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
+    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['services', 'Banks, crafting, shops, taverns, temples'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
       const chip = el('button', 'chip on', name);
       chip.addEventListener('click', () => { if (V.hidden.has(f)) V.hidden.delete(f); else V.hidden.add(f); chip.classList.toggle('on', !V.hidden.has(f)); this.ctx.sfx('click'); });
       legend.append(chip);

@@ -52,6 +52,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
    - **A pirate-token event** ("add something similar to the fortnite pirate token event but in everrealm"): a timed event, tokens found across the world, an event shop.
    - **Gullmouth furnace invisible** ("gullmouth says theres a furnace in crafting area but its invisible").
    - **Daejon Love questline** ("add a questline where you break someone out of prison named Daejon Love, after a good amount of questing they become a companion. bioware style writing").
+   - **Several homes, and a picker to choose which to go to** ("create a ui/menu like eso to choose what house you want to go to for people that own or rent multiple"): today it's one home to a character (server/homes.mjs, the one 'plot' or 'villa' flag, one set of furniture). Needs: several held at once (owned and rented), furniture kept per home, the server book keyed to a list; then the ESO-style picker on Travel home.
+   - DONE Taverns pinned on the map ("how do you find a tavern for games").
    - Later for the tables: Quarters against other players; the house games (dice, the Lady) with other players at the same board.
 
 1. DONE (this commit, tested in game) **Quest journal** (owner 2026-10-29: "add ability to abandon side quests, select quests, show on map, etc"):

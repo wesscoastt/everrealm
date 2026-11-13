@@ -104,7 +104,7 @@ function tokenFor(name: string): string {
 
 export interface TradeOffer { items: { id: string; n: number }[]; marks: number }
 /** A home in the realm's book: who holds it, the plans it's built to (none yet: just leased), and the blocks laid on it by hand. */
-export interface HomeHeld { owner: string; spec: unknown; blocks: [number, number, number, number][]; /** A stall up at the gate. */ stall?: boolean }
+export interface HomeHeld { owner: string; spec: unknown; blocks: [number, number, number, number][]; /** A stall up at the gate. */ stall?: boolean; /** Given by the keeper (/granthome): it outranks a home in the holder's save. */ granted?: boolean }
 /** A notice on the open world's board. */
 export interface LfgNotice { id: number; name: string; kind: string; label: string; region: string; level: number; size: number; mine: boolean }
 export interface GroupView { id: number; leader: number; members: { id: number; name: string; hp: number; max: number; level: number; calling: string; x: number; z: number }[] }

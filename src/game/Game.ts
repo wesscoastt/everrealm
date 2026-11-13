@@ -253,6 +253,8 @@ const HARBOURS: Record<LandId, Harbour> = {
 };
 
 import { VERANDAH_CROWDS } from '../data/content/verandahWork';
+/** The towns whose chapels have altars, by their outer-town site (for the map's temple pins). */
+const CHAPEL_TOWN: Record<string, string> = { ansbury: 'Ansbury', harrowgate: 'Harrowgate', cotters: 'Cotter’s End', coldhearth: 'Kelderby', cragsby: 'Cragsby', holme: 'Holme Staithe' };
 function crowdZones(): CrowdZone[] {
   return [
     ...VERANDAH_CROWDS,
@@ -2986,8 +2988,17 @@ export class Game implements GameApi {
       if (!!held?.stall !== !!this.flag('stall') && plot) this.online.homeStall(local, !!this.flag('stall'));
       return;
     }
-    // The book has a home in your name this save doesn't know of (it was leased on another device, say): it's yours
-    if (mine && !local && !readTenancy(this.flag('flat'))) {
+    // A home the keeper gave you (/granthome) outranks the one your save had (owner 2026-11-13: "i gave billie eyelash
+    // the house but it still says for sale": her save's other home won, and handed the gift back to the town)
+    const gift = mine && mine !== local && this.homesBook?.get(mine)?.granted;
+    if (gift && (local || readTenancy(this.flag('flat')))) {
+      // (what was set out in the old place comes to your pack, or by the Post what won't fit)
+      this.furnitureBack(false);
+      this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null); this.setFlag('villa', null); this.setFlag('flat', null);
+      this.hud.system('The keeper has given you a home. What you had set out in your old place is in your pack, or waiting at a post box.');
+    }
+    // The book has a home in your name this save doesn't know of (it was leased on another device, say, or given): it's yours
+    if (mine && (gift || (!local && !readTenancy(this.flag('flat'))))) {
       const held = this.homesBook?.get(mine), spec = held && mine !== 'cottage' ? readPlot({ lot: mine, spec: held.spec })?.spec : undefined;
       if (mine === 'cottage') this.setFlag('home', this.home.pieces());
       else if (VILLA_BY_ID.has(mine)) { this.setFlag('villa', mine); this.setFlag('home', this.home.pieces()); }
@@ -9036,6 +9047,7 @@ export class Game implements GameApi {
    * stations (furnace, anvil, bench, hearth) show as one badge with what's there.
    */
   private serviceList: MapMarker[] | null = null;
+
   private serviceSeen = -1;
   private serviceMarkers(): MapMarker[] {
     if (this.serviceList && this.serviceSeen === this.save.discovered.length) return this.serviceList;
@@ -9050,12 +9062,18 @@ export class Game implements GameApi {
       if (near) { if (!near.n.includes(nm)) near.n.push(nm); } else shops.push({ x: ws.x, z: ws.z, n: [nm] });
     }
     for (const c of shops) out.push({ x: c.x, z: c.z, kind: 'service', svc: 'craft', label: 'Crafting: ' + c.n.join(', ') });
+    // The altars where you unlearn skill points (owner 2026-11-13: "wheres the temples and chapels where you respec")
+    for (const site of sitePlan().sites) {
+      const alt = site.props.find((pr) => pr.altar);
+      if (alt && found(alt.x, alt.z)) out.push({ x: alt.x, z: alt.z, kind: 'service', svc: 'temple', label: site.name || `${CHAPEL_TOWN[site.id.replace(/^out-/, '')] ?? 'The'} chapel` });
+    }
+    if (found(TEMPLE.x, TEMPLE.z)) out.push({ x: TEMPLE.x + 0.5, z: TEMPLE.z + 0.5, kind: 'service', svc: 'temple', label: 'Glass Kirk' });
     for (const n of this.npcs) {
       const shop = SHOPS[n.def.id], games = GAMING_BY_NPC.get(n.def.id);
       if ((!shop && !games) || (n.def.when && !n.def.when(this))) continue;
       const [hx, hz] = n.def.schedule[0].at;
       // (a tavern whose keeper runs the games says so on the map)
-      if (found(hx, hz)) out.push({ x: hx, z: hz, kind: 'service', svc: 'shop', label: games ? `${games.house}: dice, cards, and the Lady` : shop!.name });
+      if (found(hx, hz)) out.push({ x: hx, z: hz, kind: 'service', svc: games ? 'tavern' : 'shop', label: games ? games.house : shop!.name });
     }
     for (const st of STABLES) if (found(st.x, st.z)) out.push({ x: st.x, z: st.z, kind: 'service', svc: 'stable', label: st.name });
     this.serviceList = out;

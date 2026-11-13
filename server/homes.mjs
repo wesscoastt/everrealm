@@ -76,7 +76,7 @@ export function homesInit(ctx) {
   const offers = new Map();
   const OFFER_MS = 10 * 60_000;
   const playerByKey = (key) => [...players.values()].find((q) => q.key === key) ?? null;
-  const pub = (h) => (h ? { owner: h.owner, spec: h.spec ?? null, blocks: h.blocks ?? [], stall: !!h.stall } : null);
+  const pub = (h) => (h ? { owner: h.owner, spec: h.spec ?? null, blocks: h.blocks ?? [], stall: !!h.stall, ...(h.granted ? { granted: true } : {}) } : null);
   const mineOf = (key) => Object.keys(homes).find((id) => homes[id].key === key) ?? null;
   const tell = (id) => { const msg = { t: 'home', id, home: pub(homes[id]) }; for (const q of players.values()) send(q.ws, msg); };
 
@@ -130,7 +130,8 @@ export function homesInit(ctx) {
       const had = mineOf(key);
       if (had && had !== id) { delete homes[had]; tell(had); }
       const now = Date.now();
-      homes[id] = { key, owner: name, spec: h?.spec ?? null, blocks: h?.blocks ?? [], since: now, seen: now };
+      // (granted: the holder's own game takes it up over whatever home its save had, rather than handing it back)
+      homes[id] = { key, owner: name, spec: h?.spec ?? null, blocks: h?.blocks ?? [], since: now, seen: now, granted: true };
       store();
       tell(id);
       log(`homes: ${name} given ${id}`);
