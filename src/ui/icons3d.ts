@@ -33,7 +33,7 @@ function setup(): boolean {
 }
 
 /** Frame box b (in the object's world frame) in the camera, from the front-left, a little above. */
-function shoot(obj: THREE.Object3D, frame?: THREE.Box3): string | null {
+function shoot(obj: THREE.Object3D, frame?: THREE.Box3, outline = true): string | null {
   if (!setup()) return null;
   scene.add(obj);
   obj.updateMatrixWorld(true);
@@ -52,7 +52,7 @@ function shoot(obj: THREE.Object3D, frame?: THREE.Box3): string | null {
   const x = out.getContext('2d')!;
   x.shadowColor = 'rgba(16, 10, 6, 0.95)';
   x.shadowBlur = 3;
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { x.shadowOffsetX = dx; x.shadowOffsetY = dy; x.drawImage(R!.domElement, 0, 0); }
+  if (outline) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { x.shadowOffsetX = dx; x.shadowOffsetY = dy; x.drawImage(R!.domElement, 0, 0); }
   x.shadowColor = 'transparent';
   x.drawImage(R!.domElement, 0, 0);
   return out.toDataURL();
@@ -90,4 +90,30 @@ export function armourIcon(slot: ArmourSlot, look: Partial<Appearance>): string 
   const cx = (all.min.x + all.max.x) / 2 + W * off;
   const frame = new THREE.Box3(new THREE.Vector3(cx - (W * w) / 2, all.max.y - H * bot, all.min.z), new THREE.Vector3(cx + (W * w) / 2, all.max.y - H * t, all.max.z));
   return shoot(g, frame);
+}
+
+/**
+ * A portrait from the person's own model (owner 2026-11-12: "the face shown isn't the NPC talking"): head and
+ * shoulders, turned a little, with whatever they wear on their head, their hair, beard and glasses, as you see them
+ * in the world. Painted once for each look, and kept.
+ */
+const portraits = new Map<string, string | null>();
+export function portraitIcon(look: Appearance): string | null {
+  const key = JSON.stringify(look);
+  if (portraits.has(key)) return portraits.get(key)!;
+  if (!setup()) return null;
+  const h = new Humanoid(look);
+  h.setHeld('none');
+  const g = h.root;
+  g.rotation.y = -0.32;
+  g.updateMatrixWorld(true);
+  const head = new THREE.Box3().setFromObject(h.head), all = new THREE.Box3().setFromObject(g);
+  const hs = head.getSize(new THREE.Vector3()), c = head.getCenter(new THREE.Vector3());
+  // from just over the top of the hat or hair down to the shoulders, square, on the head's middle (and no lower: hair to the waist would frame the whole figure)
+  const top = head.max.y + hs.y * 0.04, bottom = Math.max(all.min.y, head.min.y - hs.y * 0.3, top - hs.x * 1.3), half = Math.max((top - bottom) / 2, hs.x * 0.6);
+  const cy = (top + bottom) / 2;
+  const frame = new THREE.Box3(new THREE.Vector3(c.x - half, cy - half, c.z - half), new THREE.Vector3(c.x + half, cy + half, c.z + half));
+  const url = shoot(g, frame, false);
+  portraits.set(key, url);
+  return url;
 }

@@ -1,3 +1,4 @@
+import { portraitIcon } from './icons3d';
 import { paintCanvasTexture } from '../world/textures';
 import type { Appearance } from '../entities/humanoid';
 import { createSeededRandom } from '../utils/random';
@@ -73,8 +74,30 @@ export function applySkin(): void {
   r.setProperty('--tex-parch', `url(${parchment()})`);
 }
 
-/** A face painted the same way as the character's in-world face texture. */
+/**
+ * A face for a frame or a conversation: the person's own model, head and shoulders (ui/icons3d.ts), or, where
+ * there's no WebGL for it, the plain painted face below.
+ */
 export function drawFace(canvas: HTMLCanvasElement, look: Appearance): void {
+  const url = portraitIcon(look);
+  if (!url) { paintFace(canvas, look); return; }
+  const img = new Image();
+  canvas.dataset.look = url.length + ':' + url.slice(-24);
+  const mine = canvas.dataset.look;
+  img.onload = () => {
+    if (canvas.dataset.look !== mine) return; // (a newer face asked for since)
+    canvas.width = canvas.height = img.width;
+    const x = canvas.getContext('2d')!;
+    x.imageSmoothingEnabled = true;
+    x.clearRect(0, 0, img.width, img.height);
+    x.drawImage(img, 0, 0);
+    canvas.classList.add('portrait3d');
+  };
+  img.src = url;
+}
+/** The plain painted face, the same way as the character's in-world face texture. */
+function paintFace(canvas: HTMLCanvasElement, look: Appearance): void {
+  canvas.classList.remove('portrait3d');
   const x = canvas.getContext('2d')!;
   canvas.width = canvas.height = 16;
   x.imageSmoothingEnabled = false;

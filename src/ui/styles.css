@@ -339,7 +339,30 @@
 #tooltip .val { margin-top: 5px; color: var(--muted); font-size: 12px; }
 #tooltip .hint { margin-top: 5px; color: var(--teal); font-size: 12px; }
 
-#skills-panel { left: 16px; top: 108px; width: 364px; }
+#skills-panel { left: 16px; top: 108px; width: min(720px, calc(100vw - 32px)); }
+#skills-panel .body { display: grid; grid-template-columns: 290px 1fr; gap: 12px; align-items: start; overflow: visible; }
+.sk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sk-tile { position: relative; overflow: hidden; display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 6px; height: 40px; padding: 0 8px 0 6px; cursor: pointer; text-align: left; color: var(--cream); background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }
+.sk-tile:hover { background: rgba(255, 255, 255, 0.06); transform: translateY(-1px); }
+.sk-tile.sel { border-color: var(--sk); box-shadow: inset 0 0 0 1px var(--sk), 0 0 10px color-mix(in srgb, var(--sk) 35%, transparent); }
+.sk-tile img { width: 24px; height: 24px; image-rendering: pixelated; }
+.sk-tile .nm { font: 600 13px var(--px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-tile .lv { font: 700 17px var(--px); text-shadow: var(--hard1); }
+.sk-tile .sk-fill { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--sk); opacity: 0.85; transition: width 0.3s ease; }
+.sk-detail { min-height: 220px; max-height: calc(100vh - 260px); overflow-y: auto; padding: 10px 12px; background: rgba(0, 0, 0, 0.22); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.06); animation: sk-in 0.18s ease; }
+@keyframes sk-in { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+.sk-head { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; margin-bottom: 8px; }
+.sk-head img { width: 34px; height: 34px; image-rendering: pixelated; }
+.sk-head h4 { margin: 0; font: 700 18px var(--px); color: var(--cream); }
+.sk-head small { font: 500 12.5px var(--body); color: var(--muted); }
+.sk-head b { font: 700 30px var(--px); color: var(--sk); text-shadow: var(--hard); }
+.sk-detail .xpt { font: 500 12px var(--body); color: var(--muted); margin: 4px 0 8px; }
+.sk-unl { display: grid; gap: 3px; font: 500 13px var(--body); color: var(--muted); }
+.sk-unl div { display: grid; grid-template-columns: 28px 1fr; gap: 6px; }
+.sk-unl em { font: 700 12px var(--px); font-style: normal; color: var(--faint); text-align: right; }
+.sk-unl .got { color: var(--cream); }
+.sk-unl .got em { color: var(--sk); }
+@media (max-width: 620px) { #skills-panel .body { grid-template-columns: 1fr; } }
 .skill { display: grid; grid-template-columns: 36px 1fr auto; gap: 4px 10px; align-items: center; padding: 8px; margin-bottom: 3px; cursor: pointer; background: rgba(0,0,0,0.22); border: 2px solid transparent; }
 .skill:hover, .skill.open { border-color: #5a4129; background: rgba(0,0,0,0.35); }
 .skill img { width: 32px; height: 32px; image-rendering: pixelated; grid-row: span 2; background: #0b0907; border: 2px solid var(--ink); }
@@ -461,6 +484,7 @@ ul.news li { margin: 3px 0; }
 @keyframes slideUp { from { transform: translate(-50%, 12px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
 .dlg .face { position: absolute; left: 18px; top: 18px; width: 86px; height: 86px; background: var(--slate); border: 3px solid var(--ink); box-shadow: inset 0 0 0 2px var(--iron), 3px 3px 0 rgba(0,0,0,0.25); }
 .dlg .face canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; padding: 3px; }
+canvas.portrait3d { image-rendering: auto !important; padding: 0 !important; background: radial-gradient(circle at 50% 38%, #5a6a7a, #1e2632 78%); }
 .dlg .who { margin: 0 0 4px; font: 600 17px var(--px); color: #3a2410; letter-spacing: 0.3px; }
 .dlg .who small { font: italic 500 14px var(--book); color: #7a5a30; margin-left: 8px; letter-spacing: 0; }
 .dlg .line { font: 500 19px var(--book); line-height: 1.45; margin: 0 0 12px; min-height: 52px; color: #241708; }

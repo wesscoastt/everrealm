@@ -1019,7 +1019,8 @@ export class Humanoid {
   readonly body = new THREE.Group();
   private hips = new THREE.Group();
   private torso = new THREE.Group();
-  private head = new THREE.Group();
+  /** (read by the portrait painter, ui/icons3d.ts, to frame the face) */
+  readonly head = new THREE.Group();
   private armL = new THREE.Group();
   private armR = new THREE.Group();
   private foreL = new THREE.Group();

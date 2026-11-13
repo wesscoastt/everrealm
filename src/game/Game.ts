@@ -1,3 +1,4 @@
+import { drawFace } from '../ui/skin';
 import * as THREE from 'three';
 import { Birds } from './Birds';
 import { PETS } from '../data/pets';
@@ -9470,6 +9471,7 @@ export class Game implements GameApi {
       hour: (h: number) => { this.world.sky.hour = h; },
       creature: (kind: CreatureKind, pal = {}) => new CreatureModel(kind, pal),
       figure: (look: Appearance) => new Humanoid(look),
+      face: (canvas: HTMLCanvasElement, look: Appearance) => drawFace(canvas, look),
       prop: (item: string) => furniture(this.world.props, item, 0),
       inRoof: (x: number, y: number, z: number, m = 0) => inRoof(x, y, z, m),
       state: () => ({
