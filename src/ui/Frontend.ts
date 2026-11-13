@@ -139,9 +139,9 @@ const TOPS = ['Tunic', 'Doublet', 'Robe', 'Vest', 'Gambeson', 'Gown', 'Jerkin', 
 const LEGS = ['Trousers', 'Breeches', 'Kilt', 'Wide trousers'];
 const SHOES = ['Boots', 'Tall boots', 'Shoes'];
 const AGES: [string, number][] = [['Young', 0.05], ['Grown', 0.35], ['Weathered', 0.62], ['Old', 0.9]];
-const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band'], ['Top hat', 'tophat'], ['Mourning veil', 'veil']];
+export const HATS: [string, Appearance['hat']][] = [['None', 'none'], ['Hood', 'hood'], ['Cap', 'cap'], ['Kerchief', 'kerchief'], ['Wide hat', 'wide'], ['Straw hat', 'straw'], ['Beret', 'beret'], ['Circlet', 'circlet'], ['Mail coif', 'coif'], ['Headband', 'band'], ['Top hat', 'tophat'], ['Mourning veil', 'veil']];
 /** Festival hats: in the list only for a character that has unlocked them. */
-const FEST_HATS: [string, Appearance['hat']][] = [["Fool's cap", 'fool'], ['Garland', 'garland'], ['Antlers', 'antlers'], ['Harvest crown', 'sheaf'], ['Turnip lantern', 'turnip'], ['Pumpkin head', 'pumpkin'], ['Goose Fair hat', 'feathered'], ['Bobble hat', 'bobble'], ['Corsair’s tricorn', 'tricorn']];
+export const FEST_HATS: [string, Appearance['hat']][] = [["Fool's cap", 'fool'], ['Garland', 'garland'], ['Antlers', 'antlers'], ['Harvest crown', 'sheaf'], ['Turnip lantern', 'turnip'], ['Pumpkin head', 'pumpkin'], ['Goose Fair hat', 'feathered'], ['Bobble hat', 'bobble'], ['Corsair’s tricorn', 'tricorn']];
 /**
  * Looks to start from: the clothes, hair and finish of a kind of person, put over the body, skin and eyes
  * you already have (pick one, then change anything). A beard only goes on a broad frame.

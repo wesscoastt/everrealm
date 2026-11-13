@@ -283,6 +283,12 @@ export interface UiCtx {
   unequip(slot: keyof Equip): void;
   /** Armour dyes (data/gearDyes.ts): what's on each slot, the dyes you have, and dyeing a channel. */
   gearDyes(): Record<DyeSlot, { main?: string; trim?: string }>;
+  /** The wardrobe in the world (owner 2026-11-12: "add a way to equip and unequip outfits in game"): costumes, hats, saved outfits. */
+  wardrobe(): { costumes: { id: string; name: string }[]; costume: string | null; hats: { id: string; name: string }[]; hat: string; outfits: ({ name: string } | null)[] };
+  wearCostume(id: string | null): void;
+  wearHat(id: string): void;
+  saveOutfit(i: number): void;
+  wearOutfit(i: number): void;
   dyePalette(): { name: string; hex: string }[];
   dyeGear(slot: DyeSlot, channel: DyeChannel, hex: string | null): void;
   /** The armour worn: what it takes off a hit, the weights and what they do, the set in force. */
@@ -1969,6 +1975,45 @@ export class Hud {
   /** Dye your armour: pick a worn slot's main colour or trim, then a dye. */
   private dyePick: { slot: DyeSlot; channel: DyeChannel } = { slot: 'chest', channel: 'main' };
   private dyeOpen = false;
+  /** Outfits: put a costume on or take it off, change hats, and five saved outfits to change into at a click (ESO's). */
+  private outfitOpen = false;
+  private outfitBox(): HTMLElement {
+    const box = el('details', 'armoury outfits') as HTMLDetailsElement;
+    box.open = this.outfitOpen;
+    box.addEventListener('toggle', () => { this.outfitOpen = box.open; });
+    const w = this.ctx.wardrobe();
+    box.append(el('summary', '', `Outfits · ${w.costume ? esc(w.costumes.find((c) => c.id === w.costume)?.name ?? 'a costume') : 'your own clothes'}`));
+    const chips = (label: string, items: { id: string; name: string }[], cur: string, act: (id: string) => void) => {
+      const row = el('div', 'of-row');
+      row.append(el('span', 'k', label));
+      const list = el('div', 'chips');
+      for (const it of items) {
+        const b = el('button', 'chip' + (it.id === cur ? ' sel' : ''), esc(it.name)) as HTMLButtonElement;
+        b.addEventListener('click', () => { act(it.id); this.ctx.sfx('click'); this.refresh('inv'); });
+        list.append(b);
+      }
+      row.append(list);
+      return row;
+    };
+    if (w.costumes.length) box.append(chips('Costume', [{ id: '', name: 'None' }, ...w.costumes], w.costume ?? '', (id) => this.ctx.wearCostume(id || null)));
+    else box.append(el('p', 'of-none', 'No costumes yet: the festival stalls, the store, the puzzles and the road all have them.'));
+    box.append(chips('Hat', w.hats, w.hat, (id) => this.ctx.wearHat(id)));
+    const saved = el('div', 'of-saved');
+    saved.append(el('span', 'k', 'Saved'));
+    w.outfits.forEach((o, i) => {
+      const slot = el('div', 'of-slot');
+      slot.append(el('b', '', o ? esc(o.name) : `Outfit ${i + 1}`));
+      const wear = el('button', 'btn', 'Wear') as HTMLButtonElement, keep = el('button', 'btn ghost', o ? 'Save over' : 'Save this look') as HTMLButtonElement;
+      wear.disabled = !o;
+      wear.addEventListener('click', () => { this.ctx.wearOutfit(i); this.refresh('inv'); });
+      keep.addEventListener('click', () => { this.ctx.saveOutfit(i); this.refresh('inv'); });
+      slot.append(wear, keep);
+      saved.append(slot);
+    });
+    box.append(saved);
+    return box;
+  }
+
   private dyeBox(): HTMLElement {
     const box = el('details', 'armoury dyes') as HTMLDetailsElement;
     box.open = this.dyeOpen;
@@ -2176,7 +2221,7 @@ export class Hud {
     eq.append(stats);
     // Two columns: you and what you wear on the left, the pack on the right, always in view
     const layout = el('div', 'inv-layout'), charCol = el('div', 'inv-char'), bagCol = el('div', 'inv-bag');
-    charCol.append(eq, this.armoury(), this.dyeBox());
+    charCol.append(eq, this.outfitBox(), this.armoury(), this.dyeBox());
     layout.append(charCol, bagCol);
     body.append(layout);
     // The pack's own bar: what kind of thing to show, a search, and sorting

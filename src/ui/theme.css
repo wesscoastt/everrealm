@@ -763,3 +763,13 @@
 #tavern .hp-row { grid-template-columns: 78px 1fr 0 auto; }
 #tavern .hp-kind { font: 600 11px var(--px); letter-spacing: 0.08em; text-transform: uppercase; color: #d8ccb0; background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 4px 8px; text-align: center; }
 #tavern .hp-row.cur { border-color: #e0bd64; background: rgba(224, 189, 100, 0.1); }
+
+/* ---- Outfits beside your gear (ui/Hud.ts outfitBox) ---- */
+.outfits .of-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: start; margin: 6px 0; }
+.outfits .of-row .k, .outfits .of-saved .k { font: 600 11px var(--px); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cream-d); padding-top: 6px; }
+.outfits .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.outfits .of-none { font-size: 12px; color: var(--cream-d); margin: 6px 0; }
+.outfits .of-saved { display: grid; gap: 4px; margin-top: 8px; }
+.outfits .of-slot { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 4px 6px; background: rgba(0, 0, 0, 0.18); border-radius: 4px; }
+.outfits .of-slot b { font: 600 13px var(--body); }
+.outfits .of-slot .btn { padding: 3px 10px; font-size: 12px; }

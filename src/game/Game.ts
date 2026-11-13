@@ -175,6 +175,7 @@ import { TavernTable } from './TavernTable';
 import { Races } from './Races';
 import { Doubloons } from './Doubloons';
 import { HomePicker } from '../ui/HomePicker';
+import { FEST_HATS, HATS } from '../ui/Frontend';
 /** A home held besides the one you live in (Game.held): its furniture, and a lot's plans, blocks and stall, or a room's tenancy. */
 export interface HeldHome { id: string; kind: 'villa' | 'lot' | 'cottage' | 'room'; furn: unknown[]; plot?: unknown; blocks?: unknown; stall?: boolean; tenancy?: unknown }
 import { GAMING_BY_NPC, type TavernGame } from '../data/tavernGames';
@@ -2043,6 +2044,44 @@ export class Game implements GameApi {
     // (their part of the world isn't loaded here yet: where they stand, the ground found on arrival)
     const at: [number, number, number] = spot ?? [x, Math.max(y, Math.floor(heightAt(x, z))), z];
     this.travelInto(at, Math.atan2(x - at[0], z - at[2]), name, 'You arrive at their side');
+  }
+
+  /**
+   * The wardrobe in the world (owner 2026-11-12: "add a way to equip and unequip outfits in game"): your costumes and hats,
+   * and five saved outfits (a costume, a hat, a cloak and your clothes' colours) to change into at a click, as ESO's are.
+   */
+  private static readonly OUTFIT_KEYS = ['costume', 'hat', 'hatColor', 'cape', 'capeDesign', 'tunic', 'trim', 'shirt', 'sleeves', 'trousers', 'hose', 'boots', 'belt', 'top', 'legs', 'shoes'] as const;
+  wardrobe() {
+    const L = this.save.look, frame = L.frame ?? 'm';
+    const costumes = Object.values(COSTUMES).filter((c) => this.flag('costume:' + c.id) && (!c.frame || c.frame === frame)).map((c) => ({ id: c.id, name: c.name }));
+    const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.flag('hat:' + id))].map(([name, id]) => ({ id: String(id), name }));
+    const saved = (this.flag('outfits') as ({ name: string; look: Record<string, unknown> } | null)[] | undefined) ?? [];
+    return { costumes, costume: L.costume ?? null, hats, hat: String(L.hat ?? 'none'), outfits: [0, 1, 2, 3, 4].map((i) => (saved[i] ? { name: saved[i]!.name } : null)) };
+  }
+  wearHat(id: string): void {
+    this.save.look.hat = id as Appearance['hat'];
+    this.dress(); this.persist(); this.sfx('equip');
+  }
+  saveOutfit(i: number): void {
+    const L = this.save.look as unknown as Record<string, unknown>, look: Record<string, unknown> = {};
+    for (const k of Game.OUTFIT_KEYS) look[k] = L[k] ?? null;
+    const saved = [...((this.flag('outfits') as unknown[] | undefined) ?? [])];
+    while (saved.length < 5) saved.push(null);
+    const costume = this.save.look.costume ? COSTUMES[this.save.look.costume]?.name : null;
+    saved[i] = { name: costume ?? `Outfit ${i + 1}`, look };
+    this.setFlag('outfits', saved);
+    this.hud.system(`Saved as ${(saved[i] as { name: string }).name}: wear it again from Outfits, beside your gear.`);
+    this.persist(); this.sfx('click');
+  }
+  wearOutfit(i: number): void {
+    const o = ((this.flag('outfits') as ({ look: Record<string, unknown> } | null)[] | undefined) ?? [])[i];
+    if (!o) return;
+    const L = this.save.look as unknown as Record<string, unknown>;
+    // (a costume that has since gone from the wardrobe, or doesn't fit this frame, isn't put on)
+    const cos = o.look.costume as string | null;
+    for (const k of Game.OUTFIT_KEYS) { if (k === 'costume') continue; if (o.look[k] === null || o.look[k] === undefined) delete L[k]; else L[k] = o.look[k]; }
+    this.save.look.costume = cos && this.flag('costume:' + cos) && (!COSTUMES[cos]?.frame || COSTUMES[cos].frame === (this.save.look.frame ?? 'm')) ? cos : null;
+    this.dress(); this.persist(); this.sfx('equip');
   }
 
   /** Wear a costume from the wardrobe now (null takes it off): the same as Change look's Costume, without leaving the world. */
@@ -4253,6 +4292,11 @@ export class Game implements GameApi {
       wearTitle: (id: string | null) => { g.setFlag('title', id); g.hud.setTitle(id ? FEATS.find((f) => f.id === id)?.title ?? null : null); },
       unequip: (slot: keyof Equip) => g.unequip(slot),
       gearDyes: () => g.gearDyes(),
+      wardrobe: () => g.wardrobe(),
+      wearCostume: (id: string | null) => g.wearCostume(id),
+      wearHat: (id: string) => g.wearHat(id),
+      saveOutfit: (i: number) => g.saveOutfit(i),
+      wearOutfit: (i: number) => g.wearOutfit(i),
       dyePalette: () => g.dyePalette(),
       dyeGear: (slot: DyeSlot, channel: DyeChannel, hex: string | null) => g.dyeGear(slot, channel, hex),
       armourSummary: () => g.armourSummary(),
