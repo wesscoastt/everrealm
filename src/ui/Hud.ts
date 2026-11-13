@@ -2317,29 +2317,40 @@ export class Hud {
     return `<div class="sk-page">${col('Your calling', sv.calling)}${col('Utilities', sv.utilities)}${col('Weapon skills', sv.weapons)}</div>${lines}`;
   }
 
+  /**
+   * Skills, every one at a glance (owner 2026-11-12: "the UI has too much scrolling, not fluid"): a grid of tiles,
+   * each its level and how near the next, and beside it the one you've picked, its progress, what it opens and its
+   * passives. Nothing to scroll past to find a skill.
+   */
   private renderSkills(): void {
     const body = this.q('#skills-panel .body');
     body.innerHTML = '';
     let total = 0;
+    const pick = this.openSkill ?? SKILLS[0].id;
+    const grid = el('div', 'sk-grid'), detail = el('div', 'sk-detail');
     for (const s of SKILLS) {
       const xp = this.ctx.save.xp[s.id];
       const lv = levelForXp(xp, s.id);
       total += lv;
-      const a = xpForLevel(lv, s.id), b = xpForLevel(lv + 1, s.id);
-      const row = el('div', 'skill' + (this.openSkill === s.id ? ' open' : ''));
-      row.innerHTML = `<img src="${shapeIcon(s.icon as 'ore', s.color)}" alt=""><div class="nm">${s.name}</div><div class="lv">${lv}</div>
-        <div class="bar xp"><i style="width:${((xp - a) / (b - a)) * 100}%;background:linear-gradient(180deg,${s.color},#2a1a10)"></i></div>
+      const a = xpForLevel(lv, s.id), b = xpForLevel(lv + 1, s.id), share = Math.max(0, Math.min(1, (xp - a) / (b - a)));
+      const tile = el('button', 'sk-tile' + (pick === s.id ? ' sel' : ''));
+      tile.style.setProperty('--sk', s.color);
+      tile.innerHTML = `<img src="${shapeIcon(s.icon as 'ore', s.color)}" alt=""><span class="nm">${s.name}</span><span class="lv">${lv}</span><i class="sk-fill" style="width:${share * 100}%"></i>`;
+      tile.title = `${s.name}: level ${lv}, ${(b - xp).toLocaleString()} XP to level ${lv + 1}`;
+      tile.addEventListener('click', () => { this.openSkill = s.id; this.renderSkills(); });
+      grid.append(tile);
+      if (s.id !== pick) continue;
+      detail.style.setProperty('--sk', s.color);
+      const pv = this.ctx.passivesOf(s.id), next = UNLOCKS[s.id].find((u) => u.level > lv);
+      detail.innerHTML = `<div class="sk-head"><img src="${shapeIcon(s.icon as 'ore', s.color)}" alt=""><div><h4>${s.name}</h4><small>Level ${lv}${next ? ` · next at ${next.level}: ${esc(next.text)}` : ''}</small></div><b>${lv}</b></div>
+        <div class="bar xp"><i style="width:${share * 100}%;background:linear-gradient(180deg,${s.color},#2a1a10)"></i></div>
         <div class="xpt">${xp.toLocaleString()} XP · ${(b - xp).toLocaleString()} to level ${lv + 1}</div>
-        <div class="unl">${UNLOCKS[s.id].map((u) => `<div class="${lv >= u.level ? 'got' : ''}">Level ${u.level}: ${esc(u.text)}</div>`).join('')}${(() => {
-          const pv = this.ctx.passivesOf(s.id);
-          if (!pv.list.length) return '';
-          return `<div class="cpass"><h6>Passives <span>${pv.points} ${pv.points === 1 ? 'point' : 'points'} to spend · one every ten levels</span></h6>${pv.list.map((x) => `<div class="cp${x.rank >= x.ranks ? ' full' : ''}"><b>${esc(x.name)} <em>${x.rank}/${x.ranks}</em></b><span>${esc(x.desc[Math.min(x.rank, x.ranks - 1)])}</span>${x.rank < x.ranks ? `<button class="btn sm" data-cp="${x.id}"${pv.points < 1 ? ' disabled' : ''}>Learn</button>` : ''}</div>`).join('')}</div>`;
-        })()}</div>`;
-      row.querySelectorAll<HTMLElement>('[data-cp]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const why = this.ctx.learnPassive(b.dataset.cp!); if (why) this.system(why); this.renderSkills(); }));
-      row.addEventListener('click', () => { this.openSkill = this.openSkill === s.id ? null : s.id; this.renderSkills(); });
-      body.append(row);
+        <div class="sk-unl">${UNLOCKS[s.id].map((u) => `<div class="${lv >= u.level ? 'got' : ''}"><em>${u.level}</em>${esc(u.text)}</div>`).join('')}</div>
+        ${pv.list.length ? `<div class="cpass"><h6>Passives <span>${pv.points} ${pv.points === 1 ? 'point' : 'points'} to spend · one every ten levels</span></h6>${pv.list.map((x) => `<div class="cp${x.rank >= x.ranks ? ' full' : ''}"><b>${esc(x.name)} <em>${x.rank}/${x.ranks}</em></b><span>${esc(x.desc[Math.min(x.rank, x.ranks - 1)])}</span>${x.rank < x.ranks ? `<button class="btn sm" data-cp="${x.id}"${pv.points < 1 ? ' disabled' : ''}>Learn</button>` : ''}</div>`).join('')}</div>` : ''}`;
+      detail.querySelectorAll<HTMLElement>('[data-cp]').forEach((bt) => bt.addEventListener('click', () => { const why = this.ctx.learnPassive(bt.dataset.cp!); if (why) this.system(why); this.renderSkills(); }));
     }
-    this.q('#skills-panel .footer').innerHTML = `<span>Click a skill for unlocks</span><span>Total level ${total}</span>`;
+    body.append(grid, detail);
+    this.q('#skills-panel .footer').innerHTML = `<span>Pick a skill to see what it opens</span><span>Total level ${total}</span>`;
   }
 
   /** The quest the journal page shows (for its buttons). */
