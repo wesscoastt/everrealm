@@ -19,7 +19,7 @@ export function craftColour(level: number, req: number): { colour: CraftColour; 
   if (over < 5) return { colour: 'orange', xp: 1 };
   if (over < 10) return { colour: 'yellow', xp: 0.8 };
   if (over < 16) return { colour: 'green', xp: 0.5 };
-  return { colour: 'grey', xp: 0.2 };
+  return { colour: 'grey', xp: 0.35 }; // (0.2 left smithing and cooking 200 hours past their top recipes: the XP audit, 2026-11-12)
 }
 export const COLOUR_WORD: Record<CraftColour, string> = { orange: 'Full experience', yellow: 'Good experience', green: 'Little experience', grey: 'Next to no experience' };
 

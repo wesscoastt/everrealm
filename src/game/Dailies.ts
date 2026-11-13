@@ -1,3 +1,4 @@
+import { killXp } from '../data/pacing';
 import { COMMISSION_BUNDLE, commissionsFor, LOGIN_TRACK, untilReset, untilWeekReset, utcDay, utcMonth, utcWeek, WRIT_BUNDLE, WritKind, writsFor } from '../data/calendar';
 import { ITEMS, SkillId } from '../data/items';
 
@@ -10,6 +11,8 @@ export interface DailyHost {
   setFlag(key: string, value: unknown): void;
   addMarks(n: number): void;
   addXp(skill: SkillId, n: number): void;
+  /** Your level in a skill (your own level for melee), for what a writ is worth to you now. */
+  level?(skill: SkillId): number;
   give(item: string, n?: number): boolean;
   banner(title: string, sub: string): void;
   system(text: string): void;
@@ -43,6 +46,15 @@ function describe(r: { marks?: number; items?: string[] }): string {
 }
 
 export class Dailies {
+  /**
+   * What a writ or a commission pays you now (the XP audit, 2026-11-12: flat amounts were a fortune at level 5 and
+   * nothing at 100): for your level, so many kills' worth at it (written xp over per: a day's writs four to six
+   * kills, a week's commissions ten to twenty); for a trade, the written amount grown with your level in it.
+   */
+  private worth(skill: SkillId, xp: number, per: number): number {
+    const L = this.host.level?.(skill) ?? 1;
+    return skill === 'melee' ? Math.round(killXp(L) * (xp / per)) : Math.round(xp * (1 + L / 8));
+  }
   constructor(private host: DailyHost) {}
 
   private login(): LoginState {
@@ -95,7 +107,7 @@ export class Dailies {
       if (s.prog[w.id] >= w.need) {
         s.done.push(w.id);
         this.host.addMarks(w.marks);
-        this.host.addXp(w.skill, w.xp);
+        this.host.addXp(w.skill, this.worth(w.skill, w.xp, 75));
         this.host.banner('Writ done', w.name);
         this.host.system('Charter writ done: ' + w.name + '. ' + w.marks + ' marks.');
         this.host.sound();
@@ -123,7 +135,7 @@ export class Dailies {
       if (s.prog[w.id] >= w.need) {
         s.done.push(w.id);
         this.host.addMarks(w.marks);
-        this.host.addXp(w.skill, w.xp);
+        this.host.addXp(w.skill, this.worth(w.skill, w.xp, 150));
         this.host.banner('Commission done', w.name);
         this.host.system('Charter commission done: ' + w.name + '. ' + w.marks + ' marks.');
         this.host.sound();

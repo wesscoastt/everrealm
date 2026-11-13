@@ -1,3 +1,4 @@
+import { killXp } from '../data/pacing';
 import * as THREE from 'three';
 import { ENEMIES, type EnemyType } from '../data/gameplay';
 import { checkpointUnder, ENCOUNTERS, HALL_AT, HALL_ENTRY, HALL_SPAWNS, HALL_Y, MODIFIERS, THEMES, TOWER, towerDef, towerFloor, type FloorFoe, type FloorPlan } from '../data/tower';
@@ -26,6 +27,8 @@ export interface TowerHost {
   banner(title: string, sub: string): void;
   system(text: string): void;
   reward(xp: number, marks: number, items: string[], why: string): void;
+  /** Your level, for what a floor is worth to you. */
+  level?(): number;
   flag(key: string): unknown;
   setFlag(key: string, value: unknown): void;
   sfx(name: 'levelUp' | 'discover' | 'fail' | 'bell'): void;
@@ -265,7 +268,8 @@ export class Tower {
     this.host.floor?.();
     r.state = 'cleared'; r.wait = 4;
     const tokens = tokensFor(n, first);
-    this.host.reward(Math.round(40 + n * 6), Math.round(5 + n * 1.5), Array<string>(tokens).fill('tower_token'), `Floor ${n} cleared${first ? ', for the first time' : ''}: ${tokens} tower token${tokens > 1 ? 's' : ''}`);
+    // (a floor in kills' worth at your level, more the higher it is: it was a flat 40 + 6n; the XP audit, 2026-11-12)
+    this.host.reward(Math.round(killXp(this.host.level?.() ?? 1) * (1 + n / 50)), Math.round(5 + n * 1.5), Array<string>(tokens).fill('tower_token'), `Floor ${n} cleared${first ? ', for the first time' : ''}: ${tokens} tower token${tokens > 1 ? 's' : ''}`);
     // A milestone, the first time: more tokens, and at 25 and 100 a cloak
     const ms = first ? MILESTONES[n] : undefined;
     if (ms) { this.host.reward(0, 0, [...Array<string>(ms.tokens).fill('tower_token'), ...ms.items], ms.line); }

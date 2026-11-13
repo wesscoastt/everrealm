@@ -323,7 +323,8 @@ export class HomeFarm {
     // a tile's share of a patch's crop, more for good keeping and for good company
     const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0));
     this.host.give(c.produce, n);
-    this.host.addXp('farming', c.xpPick * n);
+    // (a public field's tile less than your own garden's: with no cap on them, they were the fastest way up; the XP audit, 2026-11-12)
+    this.host.addXp('farming', Math.round(c.xpPick * n * (this.zone(x, z) === 'field' ? 0.35 : 1)));
     if (Math.random() < (t.k ? 0.35 : 0.2)) this.host.give(c.seed, 1);
     all[x + ',' + z] = { p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0 };
     this.save(all);

@@ -1,3 +1,4 @@
+import { killXp } from '../data/pacing';
 import * as THREE from 'three';
 import type { Hazard as GroundHazard } from '../data/hazards';
 import type { Sfx } from '../systems/Audio';
@@ -281,7 +282,7 @@ export class Dungeons {
     const n = st.vet ? PLEDGE_KEYS.vet : PLEDGE_KEYS.normal;
     this.host.setFlag('pledge', { ...st, paid: true });
     const d = DUNGEON_BY_ID[st.id];
-    this.host.reward(Math.round(14 * (d?.level ?? 10) * 25 * rewardScale(this.host.level(), d?.level ?? 10)), 0, Array(n).fill(LAMP_KEY), `The Lamp Company's pledge: ${d?.name ?? st.id}${st.vet ? ' on veteran' : ''}`);
+    this.host.reward(Math.round(killXp(d?.level ?? 10) * 25 * rewardScale(this.host.level(), d?.level ?? 10)), 0, Array(n).fill(LAMP_KEY), `The Lamp Company's pledge: ${d?.name ?? st.id}${st.vet ? ' on veteran' : ''}`);
     this.host.persist();
     this.host.refresh();
     return n;
@@ -963,7 +964,7 @@ export class Dungeons {
     if (r.random && this.host.flag('rndDay') !== utcDay()) {
       this.host.setFlag('rndDay', utcDay());
       const B = RANDOM_BONUS;
-      this.host.reward(Math.round(14 * r.def.level * B.kills * rewardScale(this.host.level(), r.def.level)), Math.round(B.marks * marksScale(this.host.level(), r.def.level)), Array(B.keys).fill(LAMP_KEY), 'The day\'s random dungeon, for the Lamp Company');
+      this.host.reward(Math.round(killXp(r.def.level) * B.kills * rewardScale(this.host.level(), r.def.level)), Math.round(B.marks * marksScale(this.host.level(), r.def.level)), Array(B.keys).fill(LAMP_KEY), 'The day\'s random dungeon, for the Lamp Company');
       this.host.banner('Random dungeon', 'The day\'s bonus is yours');
     }
     // Today's pledge, if this is it: back to the Company for the keys

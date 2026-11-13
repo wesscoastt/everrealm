@@ -44,6 +44,8 @@ export interface ActivityHost {
   removeEnemy(e: Enemy): void;
   hitPlayer(damage: number, from: Enemy): void;
   reward(xp: number, marks: number, items: string[], why: string): void;
+  /** A reward already reckoned at your own level (a delve room's chest), paid as it is, not scaled again. */
+  rewardHere?(xp: number, marks: number, items: string[], why: string): void;
   /** The player's level (everything scales to it). */
   level?(): number;
   banner(title: string, sub: string): void;
@@ -497,7 +499,7 @@ export class Activities {
     const mobs: Enemy[] = [], H = this.host;
     const rooms = new Rooms({
       scene: H.scene, voxels: V, player: () => H.player(), system: (t) => H.system(t), banner: (a, b) => H.banner(a, b),
-      sound: (n, v) => R.sfx(n, v), reward: (xp, m, items, why) => H.reward(xp, m, items, why), read: (t, x) => R.read(t, x),
+      sound: (n, v) => R.sfx(n, v), reward: (xp, m, items, why) => (H.rewardHere ?? H.reward).call(H, xp, m, items, why), read: (t, x) => R.read(t, x),
       level: () => H.level?.() ?? 1, hp: () => R.hp(), ground: (a, rm) => R.ground(a, rm), share: (i, st) => R.share?.(s.id, i, st),
       // A room's creature: no respawning; a named one (a keeper) tougher than the rest of its kind
       spawn: (type, x, y, z, name) => {
@@ -828,7 +830,8 @@ export class Activities {
       // Besides its own loot: one of its region's pieces for certain, and the cycle is done
       const pieces = e.def.loot.filter((l) => l.chance < 1 && !ITEMS[l.item]?.mount).map((l) => l.item);
       if (b.credit) {
-        this.host.reward(e.def.xp, 0, pieces.length ? [pieces[Math.floor(Math.random() * pieces.length)]] : [], `${e.def.name} defeated`);
+        // (its written worth, not its own already scaled to you: the reward scales it once, to your level; XP audit 2026-11-12)
+        this.host.reward(ENEMIES[e.def.type as EnemyType]?.xp ?? e.def.xp, 0, pieces.length ? [pieces[Math.floor(Math.random() * pieces.length)]] : [], `${e.def.name} defeated`);
         this.host.banner(`${e.def.name} defeated`, 'World boss');
       } else this.host.banner(`${e.def.name} defeated`, 'Others brought it down; land a blow next time for a share');
       this.host.setFlag('boss:' + b.def.id, b.cycle);

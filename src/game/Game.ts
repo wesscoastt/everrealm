@@ -429,7 +429,7 @@ export class Game implements GameApi {
   private doll = new Doll();
   readonly dailies = new Dailies({
     flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
-    addMarks: (n) => this.addMarks(n), addXp: (s, n) => { this.writXp = true; this.addXp(s, n); this.writXp = false; },
+    addMarks: (n) => this.addMarks(n), addXp: (s, n) => { this.writXp = true; this.addXp(s, n); this.writXp = false; }, level: (s) => this.level(s),
     give: (it, n) => this.give(it, n), banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), sound: () => this.sfx('quest'),
     also: (k, n) => this.festivals?.bump(k, n),
   });
@@ -1330,6 +1330,7 @@ export class Game implements GameApi {
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
       removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
       hitPlayer: (d, from) => this.hitPlayer(d, from),
+      rewardHere: (xp, marks, items, why) => { if (xp) this.addXp('melee', xp); if (marks) this.addMarks(marks); for (const it of items) this.give(this.dropped(it, 'elite'), 1); this.hud.system(why + (xp ? ` (+${xp} XP)` : '')); },
       reward: (xp0, marks0, items, why) => {
         // Written for the region's own level, paid at yours (data/scaling.ts)
         const w = regionLevel(regionAt(this.player.position.x, this.player.position.z).a);
@@ -1475,6 +1476,7 @@ export class Game implements GameApi {
     this.tower = new Tower({
       scene: this.scene, voxels: this.world.voxels, player: () => this.player.position, dead: () => this.dead,
       partySize: () => (this.social.inGroup ? this.social.group!.members.length : 1),
+      level: () => this.level('melee'),
       addEnemy: (e) => { this.enemies.push(e); this.scene.add(e.model.root, e.telegraph); },
       removeEnemy: (e) => { this.scene.remove(e.model.root, e.telegraph); this.enemies = this.enemies.filter((x) => x !== e); if (this.target === e) this.target = null; },
       travel: (at, yaw, banner, sub) => this.travelInto([at.x, at.y || Math.floor(heightAt(at.x, at.z)), at.z], yaw, banner, sub),
@@ -1918,7 +1920,7 @@ export class Game implements GameApi {
     P.swimSkill = (this.level('swimming') - 1) / 99 / 3;
     if (!P.swimming || P.speed < 0.6) return;
     this.swum += P.speed * dt * (P.underwater ? 2 : 1);
-    if (this.swum >= 12) { this.swum -= 12; this.addXp('swimming', 6); }
+    if (this.swum >= 12) { this.swum -= 12; this.addXp('swimming', Math.round(6 * (1 + this.level('swimming') / 12))); } // (grows with the skill: flat, the top took 400 hours; the XP audit, 2026-11-12)
   }
 
   /** Travel to a friend or a group member (ESO's): asked of the realm, which checks they may be travelled to. */
@@ -3376,7 +3378,8 @@ export class Game implements GameApi {
     this.addMarks(m);
     const got: string[] = [];
     for (const [it, a, b] of plunder) { const n = a + Math.floor(Math.random() * (b - a + 1)); if (n > 0 && ITEMS[it] && this.give(it, n)) got.push(`${n} ${ITEMS[it].name}`); }
-    this.addXp('melee', level * 18);
+    // (in kills' worth at your level, as fighting on land is: the XP audit, 2026-11-12; it was a flat level * 18)
+    this.addXp('melee', Math.round(killXp(this.level('melee')) * (level >= 40 ? 10 : 8)));
     this.setFlag('raidersSunk', Number(this.flag('raidersSunk') ?? 0) + 1);
     if (name === 'Black Hen' && this.stage('gullMargery') === 'hen' && this.give('margery_bell', 1)) { this.setStage('gullMargery', 'nessa'); this.hud.system('Floating up out of the Black Hen as she goes: a ship\'s bell on a broken plank. MARGERY GULLMOUTH, cut round the lip.'); }
     this.setFlag('sunk:' + id, Number(this.flag('sunk:' + id) ?? 0) + 1);
@@ -5086,11 +5089,12 @@ export class Game implements GameApi {
   /** A rubbing of one of the stones' marks: the same ring gives another after twenty minutes. */
   private takeRubbing(s: Site): void {
     const key = 'rub:' + s.id, last = Number(this.flag(key) ?? 0), now = realmNow();
-    if (now - last < 20 * 60_000) { this.hud.system(`The marks on these stones are rubbed faint. Come back in ${Math.ceil((20 * 60_000 - (now - last)) / 60_000)} minutes.`); return; }
+    // (five minutes, not twenty, and the rubbing worth more as you rise: enchanting was starved, the XP audit 2026-11-12)
+    if (now - last < 5 * 60_000) { this.hud.system(`The marks on these stones are rubbed faint. Come back in ${Math.ceil((5 * 60_000 - (now - last)) / 60_000)} minutes.`); return; }
     const kinds = Object.keys(ENCHANTS), pick = kinds[Math.floor(Math.random() * kinds.length)];
     this.setFlag(key, now);
     this.give('rubbing_' + pick, 1);
-    this.addXp('enchanting', 15);
+    this.addXp('enchanting', Math.round(15 * (1 + this.level('enchanting') / 6)));
     this.sfx('page');
     if (!this.flag('rubbedOnce')) { this.setFlag('rubbedOnce', 1); this.hud.system('Charcoal on paper, flat against the stone: one of the old kingdom\'s marks. Agnes Thew in Ansbury\'s market will show you how to cut it into a glyph.'); }
   }
