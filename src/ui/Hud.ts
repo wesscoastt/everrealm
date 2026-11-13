@@ -3672,6 +3672,8 @@ export class Hud {
     this.ctx.sfx('click');
   }
 
+  /** The options' open tab. */
+  private settingsTab = 'video';
   private renderSettings(): void {
     if (!this.fsWatch) {
       this.fsWatch = true;
@@ -3686,9 +3688,11 @@ export class Hud {
       ['mouseSens', 'Mouse look speed', 0.3, 2.5, 0.05],
       ['uiScale', 'Interface size', 0.8, 1.3, 0.05],
     ];
-    body.innerHTML = sliders.map(([k, label, min, max, step]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`).join('')
-      + `<div class="setting"><span>Colour vision</span><select data-cv>${(Object.keys(COLOUR_VISION_NAMES) as ColourVision[]).map((k) => `<option value="${k}"${(st.colourVision ?? 'standard') === k ? ' selected' : ''}>${COLOUR_VISION_NAMES[k]}</option>`).join('')}</select><span></span></div>`
-      + `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`
+    const slider = ([k, label, min, max, step]: (typeof sliders)[number]) => `<div class="setting"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${st[k]}" data-k="${k}"><span class="v">${typeof st[k] === 'number' ? (k === 'dayLength' || k === 'viewDist' ? st[k] : Math.round((st[k] as number) * 100) + '%') : ''}</span></div>`;
+    const S = (k: string) => slider(sliders.find((x) => x[0] === k)!);
+    // In tabs, as the big games keep their options (owner 2026-11-12: "too much scrolling around")
+    const colourVision = `<div class="setting"><span>Colour vision</span><select data-cv>${(Object.keys(COLOUR_VISION_NAMES) as ColourVision[]).map((k) => `<option value="${k}"${(st.colourVision ?? 'standard') === k ? ' selected' : ''}>${COLOUR_VISION_NAMES[k]}</option>`).join('')}</select><span></span></div>`;
+    const rest = `<div class="setting"><span>Shadows</span><input type="checkbox" ${st.shadows ? 'checked' : ''} data-k="shadows"><span></span></div>`
       + `<div class="setting"><span>Invert mouse look</span><input type="checkbox" ${st.invertY ? 'checked' : ''} data-k="invertY"><span></span></div>`
       + `<div class="setting"><span>Auto-attack: Strike keeps striking your target</span><input type="checkbox" ${st.autoAttack !== false ? 'checked' : ''} data-k="autoAttack"><span></span></div>`
       + `<div class="setting"><span>Show the Trade channel (/trade)</span><input type="checkbox" ${st.hideTrade ? '' : 'checked'} data-trade><span></span></div>`
@@ -3696,7 +3700,8 @@ export class Hud {
       + (st.ignored.length ? `<div class="setting"><span>Ignoring</span><span class="v" style="flex:2">${st.ignored.map(esc).join(', ')} <small>(/unignore name)</small></span></div>` : '')
       // Full screen on a computer (phones and tablets go full screen their own way, or can't)
       + (document.fullscreenEnabled && !document.body.classList.contains('touch') ? `<div class="setting"><span>Full screen</span><input type="checkbox" ${document.fullscreenElement ? 'checked' : ''} data-fs><span></span></div>` : '')
-      + `<h4 class="sec">Controls</h4><div class="help-grid">
+      ;
+    const keys = `<div class="help-grid">
         <kbd>W A S D</kbd><span>Move (relative to the camera)</span>
         <kbd>Mouse drag</kbd><span>Turn the camera · wheel zooms</span>
         <kbd>Shift</kbd><span>Sprint (uses energy)</span>
@@ -3719,8 +3724,19 @@ export class Hud {
         <kbd>J</kbd><span>Journal</span>
         <kbd>M</kbd><span>Map</span>
         <kbd>Esc</kbd><span>Close windows</span>
-      </div>
-      ${this.ctx.inMenu ? '' : '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn ghost" data-act="title">Save and quit to character select</button><button class="btn danger" data-act="reset">Delete character</button></div>'}`;
+      </div>`;
+    const restRows = rest.split('<div class="setting">').filter(Boolean).map((r) => '<div class="setting">' + r);
+    const row = (label: string) => restRows.find((r) => r.includes(`<span>${label}`)) ?? '';
+    const pages: Record<string, [string, string]> = {
+      video: ['Picture', S('viewDist') + S('renderScale') + row('Shadows') + row('Full screen') + colourVision],
+      sound: ['Sound', S('master') + S('sfx') + S('ambience') + S('music')],
+      controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + `<h4 class="sec">Keys</h4>` + keys],
+      ui: ['Interface and chat', S('uiScale') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
+    };
+    if (!this.ctx.inMenu) pages.char = ['Character', '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px"><button class="btn ghost" data-act="title">Save and quit to character select</button><button class="btn danger" data-act="reset">Delete character</button></div>'];
+    if (!pages[this.settingsTab]) this.settingsTab = 'video';
+    body.innerHTML = `<div class="bag-tabs set-tabs">${Object.entries(pages).map(([k, [n]]) => `<button class="bag-tab${k === this.settingsTab ? ' sel' : ''}" data-sett="${k}">${n}</button>`).join('')}</div><div class="set-page">${pages[this.settingsTab][1]}</div>`;
+    body.querySelectorAll<HTMLElement>("[data-sett]").forEach((b) => b.addEventListener("click", () => { this.settingsTab = b.dataset.sett!; this.renderSettings(); }));
     body.querySelector<HTMLInputElement>('input[data-trade]')?.addEventListener('change', (e) => { st.hideTrade = !(e.target as HTMLInputElement).checked; this.ctx.settingsChanged(); });
     body.querySelector<HTMLSelectElement>('select[data-cv]')?.addEventListener('change', (e) => { st.colourVision = (e.target as HTMLSelectElement).value as ColourVision; this.ctx.settingsChanged(); });
     body.querySelector<HTMLInputElement>('input[data-fs]')?.addEventListener('change', (e) => {

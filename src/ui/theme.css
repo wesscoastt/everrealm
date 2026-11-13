@@ -612,3 +612,34 @@
 .btn { transition: filter 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease; }
 .btn:hover:not(:disabled) { filter: brightness(1.1); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
+
+/* ------------------------------------------------------------- The HUD as instruments: a surveyor's compass for the map, brass-set sockets for the skills */
+/* the minimap: a brass bezel with degree marks round it, every ten degrees, longer at the quarters */
+.minimap { background: radial-gradient(circle, #4a3420, #22160d); box-shadow: inset 0 0 0 1px #2a1a0a, inset 0 0 0 3px #c9a24a, inset 0 0 0 4px #6f5322, inset 0 0 0 9px #3a2614, inset 0 0 0 10px rgba(201, 162, 74, 0.55), 0 6px 18px rgba(0, 0, 0, 0.55); }
+.minimap::before {
+  content: ''; position: absolute; inset: 3px; border-radius: 50%; pointer-events: none; z-index: 2;
+  background: repeating-conic-gradient(from -0.5deg, rgba(243, 213, 138, 0.75) 0 1deg, transparent 1deg 10deg), repeating-conic-gradient(from -1deg, #f3d58a 0 2deg, transparent 2deg 90deg);
+  -webkit-mask: radial-gradient(circle, transparent calc(50% - 6px), #000 calc(50% - 6px)); mask: radial-gradient(circle, transparent calc(50% - 6px), #000 calc(50% - 6px));
+}
+.minimap canvas { position: relative; z-index: 1; box-shadow: 0 0 0 2px #2a1a0a, inset 0 0 18px rgba(30, 18, 8, 0.6); }
+/* the skill sockets: dark leather, a brass rim, lit when ready */
+.ab-slot { background: radial-gradient(circle at 50% 30%, #4a3420, #1c120a 75%); border: 1px solid #140c06; border-radius: 9px; box-shadow: inset 0 0 0 1px rgba(201, 162, 74, 0.7), inset 0 0 0 3px #2a1a0e, inset 0 8px 14px rgba(255, 220, 170, 0.05), 0 3px 8px rgba(0, 0, 0, 0.5); transition: box-shadow 0.12s ease, transform 0.08s ease; }
+.ab-slot:hover { box-shadow: inset 0 0 0 1px #f3d58a, inset 0 0 0 3px #2a1a0e, 0 0 12px rgba(243, 213, 138, 0.35); }
+.ab-slot:active { transform: translateY(1px); }
+.ab-slot .key { background: #24170d; border-color: rgba(201, 162, 74, 0.6); }
+/* the menu: leather studs ringed in brass */
+.menu-btn { background: radial-gradient(circle at 45% 35%, #5a4028, #24170d 75%); border: 1px solid rgba(201, 162, 74, 0.75); box-shadow: inset 0 0 0 2px #1c120a, 0 2px 6px rgba(0, 0, 0, 0.55); transition: box-shadow 0.12s ease, color 0.12s ease; }
+.menu-btn:hover { color: var(--gild-l); box-shadow: inset 0 0 0 2px #1c120a, 0 0 0 1px #f3d58a, 0 0 12px rgba(243, 213, 138, 0.4); }
+/* the bars: blood, brass and the sea */
+.bar.hp > i { background: linear-gradient(90deg, #8a1e14, #d8483a); }
+.bar.en > i { background: linear-gradient(90deg, #9a7020, #f0c860); }
+.bar { background: #180f08; box-shadow: 0 0 0 1px rgba(201, 162, 74, 0.45), inset 0 2px 4px rgba(0, 0, 0, 0.6); }
+.zone-label { color: var(--gild-l); background: linear-gradient(90deg, transparent, rgba(36, 23, 13, 0.94) 14% 86%, transparent); }
+.bar.mg > i { background: linear-gradient(90deg, #22625a, var(--sea)); }
+
+/* The options, in tabs */
+#settings-panel { width: min(560px, calc(100vw - 32px)); }
+.set-tabs { margin-bottom: 10px; }
+.set-tabs .bag-tab { font-size: 11.5px; }
+.set-page { animation: tip-in 0.16s ease; min-height: 230px; }
+#ui input[type="range"], #ui input[type="checkbox"] { accent-color: #c9a24a; }
