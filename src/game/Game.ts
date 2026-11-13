@@ -8511,7 +8511,7 @@ export class Game implements GameApi {
       if ((hand || belt) && !this.flag('lightHint')) { this.setFlag('lightHint', 1); this.hud.system('Your light is lit for the dark. Press L to put it away, or to take it out again.'); }
       P.model.setPack(this.flag('hidePack') ? 0 : Number(this.flag('packLook') ?? 0));
       const at = hand ? P.model.torchAt(tmpV2) : belt ? P.model.lanternAt(tmpV2) : null;
-      if (at) { this.torchLight.position.copy(at); this.torchLight.intensity = (hand ? 12 : 9) + Math.sin(performance.now() * 0.02) * 0.8 + Math.sin(performance.now() * 0.047) * 0.6; }
+      if (at) { this.torchLight.position.copy(at); this.torchLight.intensity = (hand ? 8.5 : 7) + Math.sin(performance.now() * 0.02) * 0.6 + Math.sin(performance.now() * 0.047) * 0.45 + Math.sin(performance.now() * 0.11) * 0.25; /* (lower than it was: right beside the face it burned it white) */ }
       else this.torchLight.intensity = 0;
     }
     if (this.horse) {

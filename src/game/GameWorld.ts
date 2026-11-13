@@ -609,12 +609,17 @@ export class GameWorld {
     // Lit a little by day (dark rooms), fully from dusk
     const level = LAMP_POWER * (0.3 + 0.7 * night) * (0.92 + (flick - 0.85) * 0.5);
     const edge = dist.length > N ? Math.sqrt(dist[N]) : Infinity;
+    // (the graphics overhaul) each flame its own flicker, out of step with the next by where it stands, so a street
+    // of lamps doesn't pulse as one
+    const t = performance.now() / 1000;
     for (let i = 0; i < N; i++) {
       const l = this.lampLights[i];
       if (i >= best.length) { l.intensity = 0; continue; }
       l.position.copy(best[i]);
       l.color.copy(LAMP_TINT.get(best[i]) ?? LAMP_ORANGE);
-      l.intensity = level * Math.min(1, (edge - Math.sqrt(dist[i])) / 6);
+      const ph = (best[i].x * 12.9898 + best[i].z * 78.233) % 6.283;
+      const own = 0.94 + 0.04 * Math.sin(t * 7.3 + ph) + 0.025 * Math.sin(t * 19.1 + ph * 2.3) + 0.015 * Math.sin(t * 41 + ph * 3.7);
+      l.intensity = level * own * Math.min(1, (edge - Math.sqrt(dist[i])) / 6);
     }
   }
 

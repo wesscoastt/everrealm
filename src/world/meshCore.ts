@@ -28,7 +28,7 @@ const FU = [[0, 0, -1], [0, 0, 1], [1, 0, 0], [1, 0, 0], [1, 0, 0], [-1, 0, 0]];
 const FV = [[0, 1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1], [0, 1, 0], [0, 1, 0]];
 const FK = [1, 1, 0, 2, 1, 1];
 const CU = [-1, 1, 1, -1], CV = [-1, -1, 1, 1];
-const AO = [0.48, 0.66, 0.83, 1.0];
+const AO = [0.42, 0.62, 0.81, 1.0]; // (a shade deeper in the corners: the graphics overhaul)
 
 // Per-block lookup tables built once
 const N_BLOCKS = BLOCKS.length;
