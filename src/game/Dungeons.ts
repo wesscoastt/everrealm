@@ -195,6 +195,7 @@ const FILL_MS = 90;
 
 export class Dungeons {
   run: Run | null = null;
+  private barredSaid = -99;
   /** In the realm's queue (heard: the server has answered since). */
   queued: { dungeon: string; since: number; count: number; heard?: boolean } | null = null;
   private clock = 0;
@@ -700,6 +701,15 @@ export class Dungeons {
   // ---------------------------------------------------------------- Each frame
   update(dt: number): void {
     this.clock += dt;
+    // The way in is barred behind a group while it's in (owner 2026-11-13: "close the front door so you can't just leave and
+    // walk away with your group"): whoever walks back into it is turned round, and told the way out
+    if (this.run && this.run.act?.arrive) {
+      const r = this.run, P = this.host.player(), d = r.def.door, a = r.act.arrive!;
+      if (Math.hypot(P.x - d[0], P.z - d[2]) < 2.4 && Math.abs(P.y - d[1]) < 3) {
+        P.set(a[0], a[1] + 0.05, a[2]);
+        if (this.clock - this.barredSaid > 6) { this.barredSaid = this.clock; this.host.system(`The door has shut behind you. The way out is ${r.def.id === 'gd-temple' ? 'by the passage back to the pit' : 'the ladder'}: press E there, and the run ends for you.`); }
+      }
+    }
     // The queue's clock on the finder ticks while it's open
     if (this.queued) {
       this.qT -= dt;
