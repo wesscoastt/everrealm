@@ -34,7 +34,7 @@ import path from 'node:path';
 const NAME = /^[A-Za-z][A-Za-z' -]{1,22}[A-Za-z]$/;
 const RANKS = ['member', 'officer', 'leader'];
 const MAX_MEMBERS = 200;
-const ITEM = /^[a-z0-9_]{2,40}$/;
+const ITEM = /^[a-z0-9_]{2,64}$/;
 const VAULT_KINDS = 100;
 const MEMBER_DAY = { items: 20, marks: 200 };
 const HALL_IDS = ['fullers', 'dyers', 'chandlers', 'saddlers', 'coopers', 'mercers', 'vintners', 'cordwainers'];

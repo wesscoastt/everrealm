@@ -555,7 +555,7 @@ async function api(req, res) {
       const entries = v && typeof v.items === 'object' && v.items ? Object.entries(v.items) : [];
       const room = Number.isInteger(v?.room) && v.room >= 0 && v.room <= 120 ? v.room : (acc.vault?.room ?? 0);
       if (entries.length > 80 + room) return reply(res, 400, { error: `The vault holds ${80 + room} kinds of things.` });
-      for (const [k, n] of entries) if (/^[a-z0-9_]{1,40}$/.test(k) && Number.isInteger(n) && n > 0 && n <= 1e6) items[k] = n;
+      for (const [k, n] of entries) if (/^[a-z0-9_]{1,64}$/.test(k) && Number.isInteger(n) && n > 0 && n <= 1e6) items[k] = n;
       const marks = Number.isInteger(v?.marks) && v.marks >= 0 && v.marks <= 1e9 ? v.marks : 0;
       acc.vault = { items, marks, room: Math.max(room, acc.vault?.room ?? 0) };
       acc.vaultVer = (acc.vaultVer ?? 0) + 1;
@@ -770,7 +770,7 @@ wss.on('connection', (ws, req) => {
         me.x = x; me.y = y; me.z = z; me.yaw = yaw;
         if (ANIMS.has(msg.anim)) me.anim = msg.anim;
         // A tool by name, or a weapon by its item id (drawn from the item in each game)
-        if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,40}$/.test(msg.held))) me.held = msg.held;
+        if (HELD.has(msg.held) || (typeof msg.held === 'string' && /^[a-z0-9_]{2,64}$/.test(msg.held))) me.held = msg.held;
         // The horse being ridden, by its halter's id (only its look is shared)
         // The light they carry, lit: 1 a torch in the hand, 2 a lantern at the belt (everyone sees it come out and go away)
         me.light = msg.light === 1 || msg.light === 2 ? msg.light : 0;
@@ -823,7 +823,7 @@ wss.on('connection', (ws, req) => {
         const c = msg.comp;
         const ok = c === null || (c && typeof c === 'object' && typeof c.name === 'string' && c.name.length <= 40 && c.look && typeof c.look === 'object' && JSON.stringify(c).length < 5000);
         if (!ok) break;
-        me.comp = c === null ? null : { name: c.name, look: c.look, held: typeof c.held === 'string' && /^[a-z0-9_]{2,40}$/.test(c.held) ? c.held : 'none', steed: c.steed && typeof c.steed === 'object' ? c.steed : null };
+        me.comp = c === null ? null : { name: c.name, look: c.look, held: typeof c.held === 'string' && /^[a-z0-9_]{2,64}$/.test(c.held) ? c.held : 'none', steed: c.steed && typeof c.steed === 'object' ? c.steed : null };
         broadcast({ t: 'comp', id: me.id, comp: me.comp }, me);
         break;
       }

@@ -816,3 +816,8 @@ body.pad .ab-slot .key { white-space: nowrap; }
 .home-row.cur { border-color: rgba(224,189,100,0.7); }
 .home-row .hr-t { display: flex; flex-direction: column; gap: 2px; }
 .home-row .hr-t span { font-size: 12px; opacity: 0.8; }
+
+/* Gear levels (data/gear.ts): the level on a piece's tooltip, red while you're under it */
+.lv-ok { color: #d8ccb0; }
+.lv-no { color: #ff7a6a; font-weight: 700; }
+.lv-need { color: #ff7a6a; font-weight: 700; font-size: 12px; margin: 2px 0 4px; }

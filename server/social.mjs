@@ -42,7 +42,7 @@ const NOTICE_MS = 30 * 60_000;
 const NOTICE_KINDS = new Set(['quest', 'region', 'tower', 'explore', 'event']);
 const cleanText = (s, n) => String(s ?? '').replace(/[^A-Za-z0-9' ,.:-]/g, '').slice(0, n);
 
-const ITEM = /^[a-z0-9_]{2,40}$/;
+const ITEM = /^[a-z0-9_]{2,64}$/;
 
 export function socialInit(ctx) {
   const { players, send } = ctx;

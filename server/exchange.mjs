@@ -22,7 +22,7 @@
 
 import path from 'node:path';
 
-const ITEM = /^[a-z0-9_]{2,40}$/;
+const ITEM = /^[a-z0-9_]{2,64}$/;
 const PER_SELLER = 20;
 const BOOK_MAX = 2000;
 const LAPSE_MS = 3 * 24 * 3600_000;

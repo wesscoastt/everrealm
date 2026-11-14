@@ -67,9 +67,12 @@ const RARITY_UP: Record<string, ItemDef['rarity']> = { common: 'uncommon', uncom
 export const enchantFits = (d: ItemDef, ench: string) => !!ENCHANTS[ench] && (ENCHANTS[ench].kind === 'weapon' ? !!d.weapon : !!d.armor);
 /** The id of a piece with this enchantment worked in, keeping its quality and leaning. */
 export function enchantedId(id: string, ench: string, tier: number): string {
-  const m = /^([a-z0-9_]+?)(?:__([a-z]*)([0-3]))?(?:_[a-z]+[1-3])?$/.exec(id);
+  // (its level kept: taken off to read the rest, put back after)
+  const lv = LEVEL_TAG.exec(id), bare = lv ? id.slice(0, -lv[0].length) : id;
+  const m = /^([a-z0-9_]+?)(?:__([a-z]*)([0-3]))?(?:_[a-z]+[1-3])?$/.exec(bare);
   if (!m) return id;
-  return `${m[1]}__${m[2] ?? ''}${m[3] ?? '1'}_${ench}${tier}`;
+  const out = `${m[1]}__${m[2] ?? ''}${m[3] ?? '1'}_${ench}${tier}`;
+  return lv ? `${out}${lv[0]}` : out;
 }
 
 /** Can this piece drop rolled? Weapons and armour, not the starter sword, not a named piece. */
@@ -167,10 +170,58 @@ function rolled(base: ItemDef, q: number, affix: string, ench = '', tier = 0): I
   return d;
 }
 
+// ------------------------------------------------------------------ Levels
+//
+// Gear has levels (owner 2026-11-14: "gear should have levels"; "even eso gear has levels though"; "make sure gears and
+// drops work like mmo's"), as ESO's and WoW's does. A piece is made at a level, 1 to 100: you must be that level
+// (Melee) to wear it, and its numbers grow with it, so the weapon you found at 20 is outgrown by 40 and the next one
+// matters. What drops, what's made and what's bought comes at your level. The level rides on the id as "_lv23",
+// after everything else ("bronze_sword__keen2_flame2_lv40"), which the pack, the bank, trades and the Exchange keep
+// as they keep any id. A piece without one (anything from before levels) is level 1, as it always was: nobody's gear
+// got weaker. Below about level 17 a piece's level changes nothing but what it says: early on the gear was already
+// worth plenty, against the player's own strength.
+
+export const LEVEL_TAG = /_lv(\d{1,3})$/;
+export const MAX_ILVL = 100;
+/** A weapon's damage points, worth more at a higher level: the share of a swing the weapon gives keeps up. */
+export const weaponAt = (L: number) => Math.max(1, (7 + 1.45 * L) / 32);
+/** Armour's defence at a level, gentler (defence already takes a share of every blow). */
+export const defenceAt = (L: number) => Math.max(1, 1 + (L - 17) / 80);
+/** Health on a piece, with the player's own health curve. */
+export const vigourAt = (L: number) => Math.max(1, (100 + (L - 1) * 6) / 196);
+
+/** An id with its level set (any level it had taken off first). */
+export function withLevel(id: string, L: number): string {
+  const lv = Math.max(1, Math.min(MAX_ILVL, Math.round(L)));
+  return `${id.replace(LEVEL_TAG, '')}_lv${lv}`;
+}
+/** An id's level: 1 if it doesn't carry one. */
+export const levelOf = (id: string) => Number(LEVEL_TAG.exec(id)?.[1] ?? 1);
+
+/** A piece made at a level. */
+export function levelled(d: ItemDef, L: number, id: string): ItemDef | null {
+  if (d.stack || !(d.weapon || d.armor)) return null;
+  const lv = Math.max(1, Math.min(MAX_ILVL, L));
+  const out: ItemDef = { ...d, id, ilvl: lv, value: Math.round(d.value * (1 + (lv - 1) * 0.03)) };
+  if (d.weapon) out.weapon = { ...d.weapon, damage: Math.round(d.weapon.damage * weaponAt(lv)) };
+  if (d.armor) {
+    out.armor = { ...d.armor, defense: Math.round(d.armor.defense * defenceAt(lv) * 10) / 10 };
+    if (d.armor.vigor) out.armor.vigor = Math.round(d.armor.vigor * vigourAt(lv));
+  }
+  // (what it says: the level first, and the damage and defence it has now)
+  let stats = d.stats ?? '';
+  if (d.weapon && out.weapon) stats = stats.replace(/Damage \+\d+/, `Damage +${out.weapon.damage}`);
+  if (d.armor && out.armor) stats = stats.replace(/Defence [\d.]+/, `Defence ${out.armor.defense}`).replace(/maximum health \+\d+/, `maximum health +${out.armor.vigor ?? 0}`);
+  out.stats = `Level ${lv}. ${stats}`.trim();
+  if (d.unid) out.unid = withLevel(d.unid, lv);
+  return out;
+}
+
 /** The piece an id was rolled or numbered from ("bronze_sword__keen2" is a bronze_sword). */
 export function baseOf(id: string): string {
-  const i = id.indexOf('__');
-  return i < 0 ? id : id.slice(0, i);
+  const plain = id.replace(LEVEL_TAG, '');
+  const i = plain.indexOf('__');
+  return i < 0 ? plain : plain.slice(0, i);
 }
 
 /** Unidentified pieces are "unid__" and the rolled id they hide. */

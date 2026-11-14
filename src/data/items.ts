@@ -3,7 +3,7 @@ import type { JewelStats } from './jewellery';
 import type { Appearance } from '../entities/humanoid';
 import type { Breed } from '../entities/creatures';
 import type { OffhandModel, WeaponModel } from '../entities/humanoid';
-import { gearVariant, NAMED_ITEMS, type NamedInfo } from './gear';
+import { gearVariant, LEVEL_TAG, levelled, NAMED_ITEMS, type NamedInfo } from './gear';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type ItemKind = 'material' | 'tool' | 'weapon' | 'armor' | 'food' | 'quest' | 'collectible' | 'trophy';
@@ -43,6 +43,9 @@ export interface ItemDef {
   tool?: { skill: SkillId; power: number; level: number; held: 'pickaxe' | 'hatchet' | 'rod' };
   /** Armour traits: damage taken off each hit, extra maximum health, energy regained (share faster), extra seconds of roll; its weight and how it shows (data/armour.ts). */
   armor?: { slot: ArmourSlot; defense: number; vigor?: number; wind?: number; roll?: number; weight?: ArmourWeight; look?: Partial<Appearance> };
+  /** The piece's level (owner 2026-11-14: "gear should have levels"): what you must be to wear it, and what its numbers are
+   *  worth. Carried on the id as "_lv23" (data/gear.ts levelled); a piece without one is level 1. */
+  ilvl?: number;
   /** A halter: the horse it calls (every horse runs at the same pace; only the look differs). */
   mount?: import('../entities/creatures').MountLook;
   /** A festival dye: using it adds the colour to every swatch in the wardrobe for good. */
@@ -313,12 +316,18 @@ const BASE_ITEMS: Record<string, ItemDef> = Object.fromEntries([
 const VARIANTS = new Map<string, ItemDef | null>();
 const variant = (id: string): ItemDef | undefined => {
   let v = VARIANTS.get(id);
-  if (v === undefined) { v = gearVariant(id, (b) => BASE_ITEMS[b]); VARIANTS.set(id, v); }
+  if (v === undefined) {
+    // a levelled piece is the piece, made at its level (data/gear.ts)
+    const lv = LEVEL_TAG.exec(id);
+    if (lv) { const inner = id.slice(0, -lv[0].length), d = BASE_ITEMS[inner] ?? (inner.includes('__') ? gearVariant(inner, (b) => BASE_ITEMS[b]) : null); v = d ? levelled(d, Number(lv[1]), id) : null; }
+    else v = gearVariant(id, (b) => BASE_ITEMS[b]);
+    VARIANTS.set(id, v);
+  }
   return v ?? undefined;
 };
 export const ITEMS: Record<string, ItemDef> = new Proxy(BASE_ITEMS, {
-  get: (t, k) => (typeof k !== 'string' || k in t || !k.includes('__') ? (t as Record<string | symbol, unknown>)[k] : variant(k)),
-  has: (t, k) => k in t || (typeof k === 'string' && k.includes('__') && !!variant(k)),
+  get: (t, k) => (typeof k !== 'string' || k in t || !(k.includes('__') || LEVEL_TAG.test(k)) ? (t as Record<string | symbol, unknown>)[k] : variant(k)),
+  has: (t, k) => k in t || (typeof k === 'string' && (k.includes('__') || LEVEL_TAG.test(k)) && !!variant(k)),
 });
 
 export const RARITY_COLOR: Record<Rarity, string> = {

@@ -2198,7 +2198,11 @@ export class Hud {
       const first = d.serial ? this.ctx.save.flags['u:' + id] : undefined;
       named = `<div class="named"><b>${esc(d.named.text)}</b><span>${d.serial ? `No. ${d.serial} of the ${d.named.cap} in the realm` : `The realm holds ${d.named.cap}`}${first ? ` · first found by ${esc(String(first))}` : ''}</span><span>From ${esc(d.named.where)}</span></div>`;
     }
-    return `<h5 style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</h5><div class="kind">${kindName[d.kind]}${grade ? ' · ' + grade : ''}</div><div class="desc">${esc(d.desc)}</div>${d.stats ? `<div class="stats">${esc(d.stats)}</div>` : ''}${named}<div class="val">Worth about ${d.value} marks</div>${extra ? `<div class="hint">${extra}</div>` : ''}`;
+    // A piece to wear says its level, in red while you're under it (data/gear.ts levels)
+    const wearable = !d.stack && !!(d.weapon || (d.armor && !d.jewel));
+    const mine = levelForXp(this.ctx.save.xp.melee ?? 0, 'melee'), need = d.ilvl ?? 1;
+    const lvl = wearable ? ` · <span class="${need > mine ? 'lv-no' : 'lv-ok'}">Level ${need}</span>` : '';
+    return `<h5 style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</h5><div class="kind">${kindName[d.kind]}${grade ? ' · ' + grade : ''}${lvl}</div>${wearable && need > mine ? `<div class="lv-need">Requires level ${need}</div>` : ''}<div class="desc">${esc(d.desc)}</div>${d.stats ? `<div class="stats">${esc(d.stats.replace(/^Level d+. /, ''))}</div>` : ''}${named}<div class="val">Worth about ${d.value} marks</div>${extra ? `<div class="hint">${extra}</div>` : ''}`;
   }
 
   showTooltip(html: string, x: number, y: number): void {

@@ -42,7 +42,7 @@ import { activeSet, gearPoints, ITEMS, SkillId } from '../data/items';
 import { TROPHY_SETS, trophiesWorn, type TrophyId } from '../data/trophies';
 import { contractSteps, contractTitle, type Contract } from '../data/company';
 import { INFIRMARY_BY_ID, POOR, TREAT_COST } from '../data/infirmary';
-import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, unidentified, type DropSource, type NamedFx } from '../data/gear';
+import { affixFits, AFFIXES, baseOf, ENCHANTS, enchantedId, NAMED_BY_SOURCE, rollGear, unidentified, withLevel, type DropSource, type NamedFx } from '../data/gear';
 import { ARMOUR_LEANINGS, COLOUR_WORD, craftColour, craftPoints, PASSIVE, PASSIVES, QUALITY_STEPS, researchMinutes, WEAPON_LEANINGS } from '../data/crafting';
 import { NPCS } from '../data/npcs';
 import { QUESTS } from '../data/quests';
@@ -1423,7 +1423,7 @@ export class Game implements GameApi {
       reward: (marks0, items, why) => {
         const marks = Math.round(marks0 * marksScale(this.level('melee'), regionLevel(regionAt(this.player.position.x, this.player.position.z).a)));
         if (marks) this.addMarks(marks);
-        for (const it of items) this.give(it.source ? this.dropped(it.id, it.source) : it.id, 1);
+        for (const it of items) this.give(it.source ? this.dropped(it.id, it.source) : this.atMyLevel(it.id), 1);
         this.hud.system(`${why}: ${marks} marks${items.length ? ' and ' + items.map((it) => ITEMS[it.id]?.name ?? it.id).join(', ') : ''}.`);
       },
       system: (t) => this.hud.system(t),
@@ -4151,7 +4151,17 @@ export class Game implements GameApi {
   /** How fast you swing: the weapon, the calling's haste, and a fury after a kill. */
   private get pace(): number { return (this.blade?.speed ?? 1) * this.kit.attackSpeed() * (this.furyUntil > this.elapsed ? 1.25 : 1) * (this.stair.until > this.elapsed && this.trophy === 'longstair' ? 1 + 0.03 * this.stair.n : 1); }
   /** A drop: weapons and armour come rolled (data/gear.ts), anything else as it is. */
-  private dropped(id: string, source: DropSource): string { const d = ITEMS[id]; return d ? unidentified(rollGear(d, source), (k) => ITEMS[k]) : id; }
+  private dropped(id: string, source: DropSource): string { const d = ITEMS[id]; return d ? this.atMyLevel(unidentified(rollGear(d, source), (k) => ITEMS[k]), source === 'mob' ? 2 : 0) : id; }
+  /** Gear made at your level (data/gear.ts levels): a drop, a piece from the bench, a quest's reward, the shops'. A
+   *  creature's plain drops come at your level or a little under; an elite's or a boss's at your level. Named pieces and
+   *  anything not worn come as they are. */
+  atMyLevel(id: string, under = 0): string {
+    const d = ITEMS[id];
+    if (!d || d.stack || !(d.weapon || d.armor) || d.named || id === 'worn_sword') return id;
+    return withLevel(id, this.level('melee') - Math.floor(Math.random() * (under + 1)));
+  }
+  /** Whether you're the level to wear a piece. */
+  private canWear(id: string): boolean { return (ITEMS[id]?.ilvl ?? 1) <= this.level('melee'); }
   /** A named piece has dropped: the realm numbers it, if any are left (server/uniques.mjs). Offline there's
    *  no count to keep, so none drop. */
   private claimNamed(id: string): void {
@@ -5115,7 +5125,8 @@ export class Game implements GameApi {
     };
     const slotOf = (id: string): string[] => {
       const d = ITEMS[id];
-      if (!d || d.unid) return [];
+      // (nothing still unidentified, and nothing you're not yet the level to wear)
+      if (!d || d.unid || !this.canWear(id)) return [];
       return d.weapon ? ['weapon'] : d.armor ? [d.armor.slot] : d.jewel ? (d.jewel.slot === 'ring' ? ['ring1', 'ring2'] : [d.jewel.slot]) : [];
     };
     const changed: string[] = [];
@@ -5171,6 +5182,7 @@ export class Game implements GameApi {
     if (BAIT_OF[st.id] && def.kind !== 'food' && this.flag('bait') === st.id) { this.setFlag('bait', null); this.hud.system('You take the bait off. Fishing with a bare hook.'); this.sfx('click'); this.hud.refresh(); return; }
     if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.refresh(); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
     if (def.kind === 'food') this.eat(st.id);
+    else if ((def.weapon || def.armor) && !this.canWear(st.id)) { this.hud.system(`You must be level ${def.ilvl} to wear ${def.name.toLowerCase()}. You're ${this.level('melee')}.`); this.sfx('fail'); return; }
     else if (def.weapon) {
       const old = this.save.equip.weapon;
       this.inv.removeAt(i, 1);
@@ -5360,7 +5372,7 @@ export class Game implements GameApi {
     if (view.currency) {
       if (view.currency.have < s.price) return;
       this.inv.remove(view.currency.id, s.price);
-      this.give(item, 1);
+      this.give(this.atMyLevel(item), 1);
       this.sfx('coin');
       this.hud.refresh();
       return;
@@ -5380,7 +5392,8 @@ export class Game implements GameApi {
       return;
     }
     this.save.marks -= s.price;
-    this.give(item, 1);
+    // (a piece to wear comes at your level, as a vendor's does in any MMO)
+    this.give(this.atMyLevel(item), 1);
     this.sfx('coin');
     this.hud.refresh();
   }
@@ -5676,7 +5689,8 @@ export class Game implements GameApi {
     const can = Math.min(...Object.entries(cost).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
     if (can < 1) return;
     const q = o.q ?? 1, step = QUALITY_STEPS.find((x) => x.q === q)!;
-    const out = o.affix || q !== 1 ? `${r.output}__${o.affix ?? ''}${q}` : r.output;
+    // (made at your level, as anything worn is: data/gear.ts)
+    const out = this.atMyLevel(o.affix || q !== 1 ? `${r.output}__${o.affix ?? ''}${q}` : r.output);
     // Experience: the recipe's colour for you (WoW's), more for a better piece or a leaning worked in
     const xp = Math.max(1, Math.round(r.xp * craftColour(this.level(r.skill), r.level).xp * step.xp * (o.affix ? 1.1 : 1)));
     const time = r.time / (r.station === 'bench' ? [1, 1.2, 1.33][this.passive('wc_quick')] : 1) / (1 + this.mastery('quick'));
