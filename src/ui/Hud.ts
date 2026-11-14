@@ -2158,7 +2158,39 @@ export class Hud {
     return s;
   }
 
+  /**
+   * The pack window. If any part of it fails to draw (something in a save it doesn't expect), the rest still draws,
+   * the window still closes and you can still move, and the fault is said in chat so it can be put right (owner
+   * 2026-11-13: "my bag broke ... when I back out I can't move or anything and have to refresh").
+   */
   private renderInventory(): void {
+    try { this.renderInventoryAll(); }
+    catch (e) {
+      console.error('pack window', e);
+      this.packFault(e);
+      // the pack alone, plainly, so what you carry can still be used
+      try {
+        const body = this.q('#inv-panel .body');
+        body.innerHTML = '';
+        const grid = el('div', 'inv-grid');
+        this.ctx.save.inv.forEach((st, i) => { try { grid.append(this.slotEl(st?.id ?? null, st?.n ?? 0, i, st ? 'Shift-click to drop' : '')); } catch { grid.append(el('div', 'slot')); } });
+        body.append(grid);
+      } catch { /* the window stays empty, but closes */ }
+    }
+  }
+  private packFaultSaid = '';
+  /** Say in chat what went wrong drawing the pack window (once per fault). */
+  private packFault(e: unknown): void {
+    const msg = e instanceof Error ? `${e.message} (${(e.stack ?? '').split(String.fromCharCode(10))[1]?.trim() ?? ''})` : String(e);
+    if (msg === this.packFaultSaid) return;
+    this.packFaultSaid = msg;
+    this.system(`The pack window couldn't draw part of itself: ${msg}. Please send this line to the game's maker.`);
+  }
+  /** One part of the pack window, kept apart: if it fails, the rest still draws. */
+  private packPart(make: () => HTMLElement): HTMLElement {
+    try { return make(); } catch (e) { console.error('pack window part', e); this.packFault(e); return el('div', ''); }
+  }
+  private renderInventoryAll(): void {
     const body = this.q('#inv-panel .body');
     const save = this.ctx.save;
     body.innerHTML = '';
@@ -2212,17 +2244,20 @@ export class Hud {
     eq.append(jw);
     // Gear is horizontal: show the weapon's style, the armour's weights and the set in force, not a bigger number
     const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
-    const a = this.ctx.armourSummary();
-    const pk = this.ctx.packInfo();
-    const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b>'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
-    // (a sheet of label and value, one row each, rather than lines of text)
-    stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
-    stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
-    stats.querySelectorAll<HTMLElement>('[data-showgear]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.toggleGearShown(b.dataset.showgear as 'head' | 'hands'); }));
+    const stats = this.packPart(() => {
+      const a = this.ctx.armourSummary();
+      const pk = this.ctx.packInfo();
+      const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b>'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
+      // (a sheet of label and value, one row each, rather than lines of text)
+      stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
+      stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
+      stats.querySelectorAll<HTMLElement>('[data-showgear]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.toggleGearShown(b.dataset.showgear as 'head' | 'hands'); }));
+        return stats;
+    });
     eq.append(stats);
     // Two columns: you and what you wear on the left, the pack on the right, always in view
     const layout = el('div', 'inv-layout'), charCol = el('div', 'inv-char'), bagCol = el('div', 'inv-bag');
-    charCol.append(eq, this.outfitBox(), this.armoury(), this.dyeBox());
+    charCol.append(eq, this.packPart(() => this.outfitBox()), this.packPart(() => this.armoury()), this.packPart(() => this.dyeBox()));
     layout.append(charCol, bagCol);
     body.append(layout);
     // The pack's own bar: what kind of thing to show, a search, and sorting
