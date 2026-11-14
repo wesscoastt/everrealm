@@ -47,10 +47,10 @@ export const FACTIONS: FactionDef[] = [
     storyline: [], color: '#2a4a8a', open: false,
   },
   {
-    id: 'lamplighters', name: 'The Lamplighters', where: 'The lamp store, by the Shambles, Ansbury',
+    id: 'lamplighters', name: 'The Lamplighters', where: 'The lamp store, the Shambles yard, Ansbury',
     blurb: 'They light Ansbury\'s lamps at dusk and put them out at dawn, so they have ladders, keys to every lamp box, and a reason to be out all night.',
-    join: 'Not yet open.', ranks: ['Carrier', 'Lamplighter', 'Warden\'s Hand'], title: 'Lamplighter',
-    storyline: [], color: '#e0a040', open: false,
+    join: 'Hester Vosper, the Lamp Warden, takes on carriers at the lamp store, the open shed at the east end of the Shambles yard.', ranks: ['Carrier', 'Lamplighter', 'Warden\'s Hand'], title: 'Lamplighter',
+    storyline: ['lampBell', 'lampMeasure', 'lampHand'], color: '#e0a040', open: true,
   },
   {
     id: 'bell', name: 'The Passing Bell', where: 'A chapel on Tolmen Moor',

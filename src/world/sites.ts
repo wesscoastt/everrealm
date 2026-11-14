@@ -17,6 +17,7 @@ import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } fr
 import { baseHeight, rememberHeights, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { BUILD_SY, CHUNK, chunkKey, idxY, inWorld, keyChunk, localIdx, MINY, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
 import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
+import { BONDED_STORE, LAMP_STORE, ROUND as LAMP_ROUND } from '../data/content/lamplighters';
 import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
 import { LAND_BOARD, lotFront, LOT_D, LOT_W, LOTS, WENDSIDE_LOTS, type Lot } from '../data/housing';
@@ -2314,6 +2315,21 @@ function* planBody(): Generator<string, Plan> {
     west.props.push({ t: 'sign', x: 674.5, y: base, z: 270.5, ry: 0, text: 'The Shambles' });
     fountain(west, 675, 282, base);
     for (const [cx2, cz2, ry] of [[690, 284, 0.4], [658, 286, -0.6]] as const) west.props.push({ t: 'cart', x: cx2, y: base, z: cz2, ry });
+    // The Lamplighters' store (data/content/lamplighters.ts): an open shed at the yard's east end, ladders along its back
+    // wall and oil under the bench; and Harrowgate's bonded store at the west end, its casks stacked inside. The six lamps
+    // of the Shambles round stand on posts round the yard.
+    {
+      const L = LAMP_STORE, Bs = BONDED_STORE;
+      shelter(west, L.x0, L.z0, L.w, L.d, base, 'slate', 4);
+      for (let i = 0; i < 4; i++) west.props.push({ t: 'barrel', x: L.x0 + 1.2 + i * 1.1, y: base, z: L.z0 + L.d - 1.2 });
+      west.props.push({ t: 'furn', item: 'table', x: L.x0 + 3.5, y: base, z: L.z0 + 1.4, ry: 0 });
+      west.props.push({ t: 'furn', item: 'shelves', x: L.x0 + L.w - 0.8, y: base, z: L.z0 + 3, ry: -Math.PI / 2 });
+      west.props.push({ t: 'sign', x: L.x0 - 0.8, y: base, z: L.z0 + 0.6, ry: -Math.PI / 2, text: 'The Lamplighters\nLicensed by the Charter' });
+      shelter(west, Bs.x0, Bs.z0, Bs.w, Bs.d, base, 'red', 4);
+      for (let i = 0; i < 6; i++) west.props.push({ t: i % 3 ? 'barrel' : 'crate', x: Bs.x0 + 1.2 + (i % 3) * 1.6, y: base, z: Bs.z0 + 1.5 + Math.floor(i / 3) * 1.6 });
+      west.props.push({ t: 'sign', x: Bs.x0 + Bs.w + 0.8, y: base, z: Bs.z0 + 0.6, ry: Math.PI / 2, text: 'Harrowgate & Daughters\nBonded. Keep out.' });
+      for (const [lx, lz] of LAMP_ROUND) west.props.push({ t: 'lantern', x: lx, y: base, z: lz, ry: 0 });
+    }
 
     // ---- The Counting House's head office (data/company.ts), on East Avenue by the gate the sea road
     // leaves by: its own ground claimed first, so the terraces grow round it
