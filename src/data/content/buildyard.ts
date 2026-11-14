@@ -4,9 +4,11 @@ import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
 
 // Building blocks, for laying by hand on your own lot (game/LotBuild.ts): stone, brick, timber, plaster,
-// roofing and glass, a block apiece, sold by the land clerks from the Charter's builders' yard. Dig out
-// a block you laid and it comes back to your pack; dig out the ground or the builders' walls and it
-// doesn't (the Charter's stone is the Charter's).
+// roofing and glass, a block apiece, sold by the land clerks from the Charter's builders' yard. Whatever you dig out on your
+// lot comes back to your pack as a block you can lay again: earth from the ground, fieldstone from rock, and
+// the builders' own planks, brick and stone as themselves (owner 2026-11-14: 'when you dig, it should give
+// you dirt so I can replace the dirt blocks; it would be cool if you could just place them when you destroy
+// them'). Planks are made at a bench from logs (data/gameplay.ts).
 
 type Kind = 'bar' | 'log';
 const blocks: [id: string, name: string, block: number, price: number, a: string, b: string, shape: Kind, desc: string][] = [
@@ -33,8 +35,13 @@ const blocks: [id: string, name: string, block: number, price: number, a: string
   ['blk_window', 'Glazed window', B.Window, 4, '#a8c8e0', '#5a3a20', 'bar', 'A small-paned window in its frame.'],
   ['blk_hay', 'Hay bale', B.Hay, 1, '#e0c870', '#a89038', 'log', 'For a barn, or for sitting on.'],
   ['blk_loam', 'Garden loam', B.Loam, 1, '#5a4030', '#3a2a1e', 'bar', 'Good dark earth for a bed or a bank.'],
+  ['blk_earth', 'Earth', B.Dirt, 1, '#7a5a3a', '#4a3422', 'bar', 'Plain dug earth. It grows grass again if you leave it to the weather.'],
+  ['blk_sand', 'Sand', B.Sand, 1, '#e0cc98', '#b09a68', 'bar', 'Beach sand, or what the builders bed flagstones in.'],
   ['blk_gravel', 'Gravel', B.Gravel, 1, '#9a948a', '#6a645a', 'bar', 'For a path that crunches.'],
 ];
+
+/** What digging out a block that isn't a building block gives you (grass comes up as earth, rock as fieldstone). */
+export const DUG_AS: Record<number, string> = { [B.Grass]: 'blk_earth', [B.Stone]: 'blk_cobble' };
 
 /** The blocks you can lay, by item, and back from block to item. */
 export const BUILD_BLOCKS: { item: string; block: number }[] = blocks.map(([item, , block]) => ({ item, block }));

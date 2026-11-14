@@ -3,7 +3,8 @@
 //
 // Posts weather (owner 2026-11-13: "make the posts you leave work like where winds meet where you use wood or whatever to
 // make it last longer so they arent just littered forever"): a post stands three days; each player who finds it
-// helpful adds half a day, and anyone can spend logs on it for three more, up to a month ahead at most. When its time
+// helpful adds half a day, and anyone can spend logs on it for three more, again and again (owner 2026-11-14: "they should be unlimited as long as you
+// spend the wood"). When its time
 // is up it comes down.
 //
 // A post is kept in its land, with who left it (by player id), how many found it helpful, and who
@@ -17,7 +18,7 @@ import path from 'node:path';
 
 const MAX_LEN = 140, MIN_LEN = 3, POSTS_EACH = 8, GAP_MS = 60_000, VOTE_GAP_MS = 1500, REPORTS_TO_HIDE = 3, CLOSE = 2.5;
 const SEND_MAX = 800;
-const DAY = 86_400_000, LIFE_MS = 3 * DAY, UP_MS = DAY / 2, MEND_MS = 3 * DAY, AHEAD_MAX = 30 * DAY, MEND_GAP_MS = 1500;
+const DAY = 86_400_000, LIFE_MS = 3 * DAY, UP_MS = DAY / 2, MEND_MS = 3 * DAY, VOTES_AHEAD = 30 * DAY, MEND_GAP_MS = 1500;
 
 // Words a post can't carry, matched on the letters alone (spaces, dots and look-alike digits taken out), so
 // "s.l.u.r" and "5lur" are caught too. Kept short and plain: slurs and the worst of the swearing.
@@ -66,7 +67,8 @@ export function signsInit(ctx) {
   };
   setTimeout(weather, 2000);
   setInterval(weather, 10 * 60_000);
-  const keep = (s, ms) => { const now = Date.now(); s.until = Math.min(Math.max(s.until ?? now, now) + ms, now + AHEAD_MAX); };
+  // (wood keeps a post up as long as anyone spends it; thanks alone carry it a month ahead at most)
+  const keep = (s, ms, cap = Infinity) => { const now = Date.now(); s.until = Math.min(Math.max(s.until ?? now, now) + ms, now + cap); };
 
   return {
     /** Everything standing in their land, the most helpful first if there are too many to send. */
@@ -106,7 +108,7 @@ export function signsInit(ctx) {
           if (!s || !me.pid || s.pid === me.pid || s.up.includes(me.pid) || now - (me.lastVote ?? 0) < VOTE_GAP_MS) return true;
           me.lastVote = now;
           s.up.push(me.pid);
-          keep(s, UP_MS);
+          keep(s, UP_MS, VOTES_AHEAD);
           save();
           toLand(s.land, { t: 'postUp', id: s.id, up: s.up.length, until: s.until });
           // the one who left it hears, if they're about: a kind word goes both ways
@@ -115,7 +117,7 @@ export function signsInit(ctx) {
           return true;
         }
         case 'postMend': {
-          // logs spent on a post (the browser takes them from the pack): three more days, a month ahead at most
+          // logs spent on a post (the browser takes them from the pack): three more days each time, with no end to it
           const s = book.list.find((q) => q.id === msg.id && !q.hidden);
           const now = Date.now();
           if (!s || !me.pid || now - (me.lastMend ?? 0) < MEND_GAP_MS || Math.hypot(s.x - me.x, s.z - me.z) > 8) return true;

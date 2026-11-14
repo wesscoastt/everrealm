@@ -103,7 +103,13 @@ export class Companions {
     const g = this.gearOf(id);
     for (const slot of ['chest', 'shoulders', 'legs', 'hands', 'feet', 'head'] as const) { const l = g[slot] ? ITEMS[g[slot]!]?.armor?.look : undefined; if (l) Object.assign(look, l); }
     if (o !== c.outfits[0]) Object.assign(look, o.look);
-    if (id === 'fdave') { if (this.host.flag('fd:hatOn') === 'dave') { look.hat = 'pilgrim'; look.hatColor = '#3a2a1e'; } else if (this.host.flag('fd:cap')) { look.hat = 'flatcap'; look.hatColor = '#5a7a2a'; } }
+    // Dave: the Pilgrim Hat when he has it on; otherwise whatever you've given him for his head, or his own cap back
+    // (owner 2026-11-14: 'when you change hats for Fisherman Dave it just stays the same': the cap was put over everything)
+    if (id === 'fdave') {
+      const head = g.head ? ITEMS[g.head]?.armor?.look : undefined;
+      if (this.host.flag('fd:hatOn') === 'dave') { look.hat = 'pilgrim'; look.hatColor = '#3a2a1e'; delete look.helm; }
+      else if (!head && o.id !== 'bare' && this.host.flag('fd:cap')) { look.hat = 'flatcap'; look.hatColor = '#5a7a2a'; }
+    }
     return look;
   }
   private roleOf(id: CompanionId): CompanionRole {

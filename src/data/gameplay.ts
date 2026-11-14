@@ -245,6 +245,13 @@ export const RECIPES: Recipe[] = [
   { id: 'pack_satchel', station: 'bench', skill: 'woodcutting', level: 2, xp: 14, inputs: { wolf_pelt: 2 }, output: 'pack_satchel', count: 1, time: 2 },
   { id: 'pack_carrier', station: 'bench', skill: 'woodcutting', level: 8, xp: 30, inputs: { boar_hide: 3, wolf_pelt: 2 }, output: 'pack_carrier', count: 1, time: 2.6 },
   { id: 'pack_drover', station: 'bench', skill: 'woodcutting', level: 15, xp: 55, inputs: { boar_hide: 5, iron_bar: 1, oak_logs: 2 }, output: 'pack_drover', count: 1, time: 3 },
+  // planks for laying on your lot (owner 2026-11-14: 'I should be able to craft wooden planks so I can fix my floor')
+  { id: 'b_planks_oak', station: 'bench', skill: 'woodcutting', level: 1, xp: 4, inputs: { oak_logs: 1 }, output: 'blk_planks', count: 4, time: 1 },
+  { id: 'b_planks_birch', station: 'bench', skill: 'woodcutting', level: 1, xp: 4, inputs: { birch_logs: 1 }, output: 'blk_planks', count: 4, time: 1 },
+  { id: 'b_planks_pine', station: 'bench', skill: 'woodcutting', level: 1, xp: 4, inputs: { pine_logs: 1 }, output: 'blk_planks', count: 4, time: 1 },
+  { id: 'b_planks_elder', station: 'bench', skill: 'woodcutting', level: 1, xp: 4, inputs: { elder_logs: 1 }, output: 'blk_darkplanks', count: 4, time: 1 },
+  { id: 'b_oaklog', station: 'bench', skill: 'woodcutting', level: 1, xp: 2, inputs: { oak_logs: 1 }, output: 'blk_oaklog', count: 1, time: 0.8 },
+  { id: 'b_timber', station: 'bench', skill: 'woodcutting', level: 5, xp: 8, inputs: { oak_logs: 1 }, output: 'blk_timber', count: 2, time: 1.2 },
   { id: 'torch', station: 'bench', skill: 'woodcutting', level: 1, xp: 6, inputs: { oak_logs: 1 }, output: 'torch', count: 1, time: 1.2 },
   { id: 'belt_lantern', station: 'anvil', skill: 'smithing', level: 6, xp: 40, inputs: { iron_bar: 1, bronze_bar: 1 }, output: 'belt_lantern', count: 1, time: 2.6 },
   { id: 'j_stool', station: 'bench', skill: 'woodcutting', level: 1, xp: 12, inputs: { oak_logs: 2 }, output: 'furn_stool', count: 1, time: 2 },

@@ -306,6 +306,7 @@ COMPANIONS.fdave = {
   outfits: [
     { id: 'own', name: 'His smock', rapport: 0, look: {} },
     { id: 'grin', name: 'In a good mood', rapport: 25, look: { smile: true } },
+    { id: 'bare', name: 'Cap off, hair combed', rapport: 0, look: { hat: 'none' } },
   ],
   likes: {
     revive: [5, 'You came back for me. I won\'t forget it. I forget most things. Not that.'],

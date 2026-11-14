@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BUILD_BLOCKS } from '../data/content/buildyard';
+import { BUILD_BLOCKS, DUG_AS } from '../data/content/buildyard';
 import { LOT_D, LOT_W, type Lot } from '../data/housing';
 import { ITEMS } from '../data/items';
 import { B, isSolid } from '../world/blocks';
@@ -8,8 +8,8 @@ import type { LaidBlock } from './Building';
 
 // Building by hand on your own lot, a block at a time: lay the blocks you've bought from a land clerk
 // (data/content/buildyard.ts) anywhere inside the lot's stakes, from a few blocks under its floor to
-// well above its roof, or dig out what's there, the builders' walls and the ground included. A block
-// you laid comes back to your pack when you dig it out. What you lay is kept with your lease (the
+// well above its roof, or dig out what's there, the builders' walls and the ground included. Whatever
+// you dig out comes back to your pack as a block to lay again (earth from the ground, fieldstone from rock). What you lay is kept with your lease (the
 // 'lotBlocks' flag, and the realm's book: server/homes.mjs), so everyone sees it (game/Building.ts).
 // You build where you point: the mouse, or the middle of the screen on a phone.
 
@@ -113,7 +113,7 @@ export class LotBuild {
   place(): void {
     // (E only ever lays: with nothing picked it digs no more, it takes the first block you carry; owner 2026-11-12, "laying a block digs, and you can't replace what's dug")
     if (!this.holding) this.holding = BUILD_BLOCKS.find((b) => this.host.count(b.item) > 0)?.item ?? null;
-    if (!this.holding) { this.host.system('You have no blocks to lay. A land clerk sells them.'); this.host.sound('fail'); return; }
+    if (!this.holding) { this.host.system('You have no blocks to lay. Dig some out, saw planks from logs at a bench, or buy them from a land clerk.'); this.host.sound('fail'); return; }
     const c = this.place_;
     if (!c) { this.host.system('Point at the face of a block on your lot to lay against it.'); this.host.sound('fail'); return; }
     const bb = BUILD_BLOCKS.find((b) => b.item === this.holding)!;
@@ -128,7 +128,7 @@ export class LotBuild {
     this.buildTray();
   }
 
-  /** X: dig out the block you point at. One you laid comes back to your pack; the ground and the builders' walls don't. */
+  /** X: dig out the block you point at, and it comes back to your pack as a block to lay again. */
   dig(): void {
     const c = this.dig_;
     if (!c) { this.host.system('Point at a block on your lot to dig it out.'); this.host.sound('fail'); return; }
@@ -137,10 +137,10 @@ export class LotBuild {
     const mine = laid.find(([x, y, z]) => x === rx && y === ry && z === rz);
     const rest = laid.filter((b) => b !== mine);
     if (rest.length >= MAX_LAID) { this.host.system(`A lot keeps ${MAX_LAID} blocks laid or dug by hand. Put some back first.`); this.host.sound('fail'); return; }
-    if (mine && mine[3] !== B.Air) {
-      const bb = BUILD_BLOCKS.find((b) => b.block === mine[3]);
-      if (bb && !this.host.give(bb.item)) { this.host.system('Your pack is full.'); this.host.sound('fail'); return; }
-    }
+    // what's there now, laid by you or the builders' or the ground itself
+    const was = this.host.voxels.get(...c);
+    const item = BUILD_BLOCKS.find((b) => b.block === was)?.item ?? DUG_AS[was];
+    if (item && !this.host.give(item)) { this.host.system('Your pack is full.'); this.host.sound('fail'); return; }
     this.host.setLaid([...rest, [rx, ry, rz, B.Air]]);
     this.host.sound('oreBreak');
     this.buildTray();
@@ -157,7 +157,7 @@ export class LotBuild {
     const l = this.host.lot()!;
     const name = (item: string) => ITEMS[item].name.replace(/ \(block\)$/, '');
     this.tray.innerHTML = `<div class="ht-head"><b>${l.name}</b><span>${this.host.laid().length}/${MAX_LAID} changed</span></div>
-      <div class="ht-list"><button data-it="" class="${this.holding ? '' : 'on'}">Spade</button>${have.map((b) => `<button data-it="${b.item}" class="${b.item === this.holding ? 'on' : ''}">${name(b.item)} <i>×${this.host.count(b.item)}</i></button>`).join('')}${have.length ? '' : '<p>No blocks in your pack. The land clerks sell stone, brick, timber and glass.</p>'}</div>
+      <div class="ht-list"><button data-it="" class="${this.holding ? '' : 'on'}">Spade</button>${have.map((b) => `<button data-it="${b.item}" class="${b.item === this.holding ? 'on' : ''}">${name(b.item)} <i>×${this.host.count(b.item)}</i></button>`).join('')}${have.length ? '' : '<p>No blocks in your pack. Dig some out with the spade, saw planks from logs at a bench, or buy stone, brick and glass from a land clerk.</p>'}</div>
       <div class="ht-keys"><span><kbd>E</kbd> lay</span><span><kbd>X</kbd> dig</span><button data-done>Done</button></div>`;
     this.tray.querySelectorAll<HTMLElement>('[data-it]').forEach((btn) => btn.addEventListener('click', () => { this.holding = btn.dataset.it || null; this.buildTray(); }));
     this.tray.querySelector('[data-done]')?.addEventListener('click', () => this.stop());
