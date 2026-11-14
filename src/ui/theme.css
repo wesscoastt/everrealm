@@ -821,3 +821,9 @@ body.pad .ab-slot .key { white-space: nowrap; }
 .lv-ok { color: #d8ccb0; }
 .lv-no { color: #ff7a6a; font-weight: 700; }
 .lv-need { color: #ff7a6a; font-weight: 700; font-size: 12px; margin: 2px 0 4px; }
+/* A good drop comes in lit (Hud.loot) */
+.loot-line .loot-lv { font-size: 11px; color: #c8bca0; margin-left: 4px; }
+.loot-line.loot-good { border: 1px solid currentColor; box-shadow: 0 0 12px rgba(255, 210, 120, 0.35); animation: loot-in 1.6s ease-out both; }
+.loot-line.r-rare { color: #4fa0ff; } .loot-line.r-epic { color: #b46aff; } .loot-line.r-legendary { color: #ff9a2a; }
+@keyframes loot-in { 0% { transform: translateX(30px) scale(1.08); filter: brightness(1.8); } 25% { transform: none; } 100% { filter: none; } }
+@media (prefers-reduced-motion: reduce) { .loot-line.loot-good { animation: none; } }

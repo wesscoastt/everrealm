@@ -1968,8 +1968,9 @@ export class Game implements GameApi {
   give(item: string, n = 1): boolean {
     const ok = this.inv.add(item, n);
     if (ok) {
-      this.hud.loot(item, n); this.sfx('pickup');
       const d = ITEMS[item];
+      // (a rare piece or better rings out as it comes)
+      this.hud.loot(item, n); this.sfx((d.weapon || d.armor) && (d.rarity === 'rare' || d.rarity === 'epic' || d.rarity === 'legendary') ? 'discover' : 'pickup');
       if (d.weapon || d.armor) this.setFlag('found:' + baseOf(item)); // the armoury remembers every piece
     } else if (ITEMS[item]) {
       // A full pack loses nothing: it goes ahead by Charter Post, to be collected at any post box

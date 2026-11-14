@@ -900,7 +900,10 @@ export class Hud {
 
   loot(itemId: string, n: number): void {
     const def = ITEMS[itemId];
-    const line = el('div', 'loot-line', `<img src="${itemIcon(itemId)}" alt=""><span style="color:${RARITY_COLOR[def.rarity]}">${esc(def.name)}</span>${n > 1 ? ` <span>×${n}</span>` : ''}`);
+    // (a piece to wear says its level; anything rare or better comes in lit, the way a good drop does in any MMO)
+    const lv = !def.stack && (def.weapon || (def.armor && !def.jewel)) ? ` <span class="loot-lv">Lv ${def.ilvl ?? 1}</span>` : '';
+    const good = def.rarity === 'rare' || def.rarity === 'epic' || def.rarity === 'legendary';
+    const line = el('div', `loot-line${good ? ' loot-good r-' + def.rarity : ''}`, `<img src="${itemIcon(itemId)}" alt=""><span style="color:${RARITY_COLOR[def.rarity]}">${esc(def.name)}</span>${lv}${n > 1 ? ` <span>×${n}</span>` : ''}`);
     this.pushLoot(line);
   }
 
