@@ -55,8 +55,9 @@ const BEDS: Record<Bed, { hiss?: Layer; whine?: Layer; hum?: Layer; birds: numbe
   farm: { hiss: { f: 3400, q: 0.5, v: 0.012, wander: 0.3 }, birds: 0.8, day: ['skylark', 'skylark', 'sheep', 'bees'], night: ['nightjar'] },
   // Hagworm Wood and the Glades: the canopy hissing with every gust, a wren, a bough creaking
   wood: { hiss: { f: 2500, q: 0.6, v: 0.045, wander: 0.5 }, birds: 1, day: ['wren', 'wren', 'creak'], night: ['creak', 'nightjar'] },
-  // The Amberwold: dry leaves, rattling down and skittering along the ground
-  autumn: { hiss: { f: 3600, q: 0.7, v: 0.034, wander: 0.4 }, birds: 0.6, day: ['leaves', 'leaves', 'wren', 'creak'], night: ['leaves', 'creak'] },
+  // The Amberwold: dry leaves, rattling down and skittering along the ground (owner 2026-11-14: "sound in the Amberwold is
+  // overly loud": its bright hiss was near three times the farmland's; lower and softer now, the leaves' rattle half as loud)
+  autumn: { hiss: { f: 2700, q: 0.7, v: 0.012, wander: 0.35 }, birds: 0.6, day: ['leaves', 'leaves', 'wren', 'creak'], night: ['leaves', 'creak'] },
   // The high moors and fells: a thin wind singing in the heather, curlews, ravens, few small birds
   moor: { whine: { f: 1100, q: 9, v: 0.016, wander: 0.45 }, hum: { f: 140, q: 0.6, v: 0.02 }, birds: 0.25, day: ['curlew', 'curlew', 'raven'], night: ['raven'] },
   // The Raddle Barrens: dry wind over the rock, cicadas in the heat, a kestrel
@@ -816,7 +817,7 @@ export class AudioSystem {
         break;
       }
       case 'creak': { const f = 70 + R() * 50; this.cry(f, f * (1.2 + R() * 0.3), 0.7 + R() * 0.5, 0.028 * v, [380, 900], 0, 0.6, 0, E); break; }
-      case 'leaves': for (let i = 0; i < 9; i++) this.burst(3200 + R() * 2500, 2, 0.02 + R() * 0.03, 0.14 * v * (1 - i / 12), 'bandpass', i * (0.05 + R() * 0.12), undefined, A); break;
+      case 'leaves': for (let i = 0; i < 9; i++) this.burst(3200 + R() * 2500, 2, 0.02 + R() * 0.03, 0.07 * v * (1 - i / 12), 'bandpass', i * (0.05 + R() * 0.12), undefined, A); break;
       case 'nightjar': for (let i = 0; i < 60; i++) this.burst(1900 + (i % 12 < 6 ? 0 : 300), 3, 0.022, 0.1 * v, 'bandpass', i * 0.04, undefined, E); break;
       case 'curlew': { // the rising, bubbling call
         for (let k = 0; k < 2 + Math.floor(R() * 3); k++) this.tone(1350, 'sine', 0.42, 0.02 * v, k * 0.55, 2150, E);

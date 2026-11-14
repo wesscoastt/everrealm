@@ -4432,6 +4432,8 @@ export class Game implements GameApi {
       travelWaymark: (id: string) => g.travelWaymark(id),
       homeName: () => g.myHomeName(),
       travelHome: () => g.travelHomeMenu(),
+      homeList: () => g.homeList(),
+      travelHomeTo: (id: string) => g.travelHomeTo(id),
       instance: () => g.inInstance(),
       leaveInstance: () => { g.leaveInstance(); },
       towerView: () => { void loadClimbers(); const t = g.tower.tally(); return { best: g.tower.best(), reached: g.tower.reached(), climbing: g.tower.run?.floor ?? null, day: [t.day.floors, TOWER_DAILY.floors, t.day.paid] as [number, number, boolean], week: [t.week.floors, TOWER_WEEKLY.floors, t.week.paid] as [number, number, boolean], board: climbers.list }; },

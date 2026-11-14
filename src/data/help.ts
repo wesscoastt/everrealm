@@ -27,6 +27,13 @@ export const HELP: [string, [string, string][]][] = [
     ['Can my friends help on my farm?', 'Yes. Type /farmhands friends to open your garden to the people on your friends list, or /farmhands group for your group. They can water, plant and compost it; /farmhands pick on lets them harvest too. /farmhands off closes it again.'],
     ['How do I fish?', 'Buy a rod from a fishmonger or a tackle shop, stand by the water and cast. Different water holds different fish, and some only bite at certain hours.'],
   ]],
+  ['Enchanting', [
+    ['How does enchanting work?', 'An enchantment is a glyph you set into a weapon or a piece of armour you wear. A glyph is made from two things: a blank, which decides how strong it is, and a rubbing, which decides what it does. Cut the two together at a glyph-cutter’s bench and you have a glyph.'],
+    ['Where do I get rubbings?', 'From the rings of old standing stones out in the wild. Walk up to one and choose Take a rubbing of the stones: each ring gives a rubbing of one of its marks, and another if you come back after a few minutes. Each mark is a different enchantment: flame, frost, storm, warding and more.'],
+    ['Where do I get blanks?', 'Agnes Thew sells them in Ansbury’s market, where her bench is too, and anyone may use it. Soapstone makes a minor glyph, slate a full one from Enchanting 20, and basalt a greater one from Enchanting 40.'],
+    ['How do I put a glyph on my gear?', 'Wear the weapon or armour first, then use the glyph from your pack and choose which piece to set it in. A weapon takes the weapon glyphs (flame, frost, storm, leech and the like); armour takes the guarding ones (warding, vigour, thorns and the wards against fire, sea, earth and wind). A piece shows its enchantment in its tooltip.'],
+    ['I made the wrong glyph.', 'Take it apart at the same bench: you get the blank back, and half the time the rubbing too. Taking glyphs apart also teaches you a little Enchanting.'],
+  ]],
   ['Homes', [
     ['How do I get a home?', 'Look for the For Sale and To Let signs on houses in the towns: walk up to one to see the price and buy it. You can also lease a lot or rent a room at an inn.'],
     ['I have more than one home. How do I pick?', 'Travel home from the map, and if you hold more than one you\'ll be asked which.'],

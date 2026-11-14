@@ -368,6 +368,10 @@ export interface UiCtx {
   /** Your home's name (null if you have none), and going there. */
   homeName(): string | null;
   travelHome(): void;
+  /** Every home you hold, the one you live in first (the Homes page in Social). */
+  homeList(): { id: string; name: string; where: string; current: boolean; kind: string }[];
+  /** Travel to one of them. */
+  travelHomeTo(id: string): void;
   /** The dungeon or tower you're in (null: none), and leaving it. */
   instance?(): string | null;
   leaveInstance?(): void;
@@ -1267,6 +1271,24 @@ export class Hud {
    * being built with what it still wants, each line with what you've got to give toward it. Officers
    * choose the next wing and can pay from the vault; the leader can give the hall up.
    */
+  /**
+   * Your homes, ESO's way (owner 2026-11-14: "create a UI for owned houses in Social that you can choose to go to"):
+   * every house, lot, villa and let room you hold, the one you live in first, each with Go to travel there.
+   */
+  private renderHomes(): void {
+    const body = this.q('#guild-panel .body'), foot = this.q('#guild-panel .footer');
+    this.q('#guild-panel h3').textContent = 'Homes';
+    const list = this.ctx.homeList();
+    const kindName: Record<string, string> = { cottage: 'Cottage', lot: 'Your own build', villa: 'House', room: 'A let room' };
+    if (!list.length) {
+      body.innerHTML = '<p class="gnote">You have no home yet. Look for the For Sale and To Let boards on houses in the towns, lease a lot from the Charter, or rent a room at an inn. Every home you hold is listed here, and you can travel to any of them.</p>';
+      foot.innerHTML = '';
+      return;
+    }
+    body.innerHTML = `<div class="home-list">${list.map((h) => `<div class="home-row${h.current ? ' cur' : ''}"><div class="hr-t"><b>${esc(h.name)}</b><span>${esc([kindName[h.kind] ?? '', h.where].filter(Boolean).join(' · '))}${h.current ? ' · <i>where you live</i>' : ''}</span></div><button class="btn sm" data-gohome="${esc(h.id)}">Go</button></div>`).join('')}</div>`;
+    body.querySelectorAll<HTMLElement>('[data-gohome]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.toggle('guild'); this.ctx.travelHomeTo(b.dataset.gohome!); }));
+    foot.innerHTML = `<span>${list.length} home${list.length === 1 ? '' : 's'}</span><span>Going to one you don't live in moves you in there</span>`;
+  }
   private renderHall(): void {
     const body = this.q('#guild-panel .body');
     const foot = this.q('#guild-panel .footer');
@@ -1320,20 +1342,21 @@ export class Hud {
   }
 
   /** The social panel (O) opens on Friends, Guild or the guild's Hall. */
-  private socialTab: 'friends' | 'guild' | 'hall' = 'friends';
+  private socialTab: 'friends' | 'guild' | 'hall' | 'homes' = 'friends';
   /** Open the social panel on this page next time it's shown. */
-  socialPage(t: 'friends' | 'guild' | 'hall'): void { this.socialTab = t; }
+  socialPage(t: 'friends' | 'guild' | 'hall' | 'homes'): void { this.socialTab = t; }
   private renderGuild(): void {
     const panel = this.q('#guild-panel');
     let tabs = panel.querySelector<HTMLElement>('.stabs');
     if (!tabs) {
-      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button><button data-st="hall">Hall</button>');
+      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button><button data-st="hall">Hall</button><button data-st="homes">Homes</button>');
       panel.querySelector('.body')!.before(tabs);
-      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild' | 'hall'; this.ctx.sfx('click'); this.renderGuild(); }));
+      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild' | 'hall' | 'homes'; this.ctx.sfx('click'); this.renderGuild(); }));
     }
     tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.classList.toggle('sel', b.dataset.st === this.socialTab));
     if (this.socialTab === 'friends') { this.renderFriends(); return; }
     if (this.socialTab === 'hall') { this.renderHall(); return; }
+    if (this.socialTab === 'homes') { this.renderHomes(); return; }
     const { view: g, online } = this.ctx.guild();
     const body = this.q('#guild-panel .body');
     const foot = this.q('#guild-panel .footer');
