@@ -501,7 +501,7 @@ export const FISHERMAN_DAVE: RegionContent = {
   things: [
     {
       // X. The Magical Pilgrim Hat
-      id: 'fdHat', x: RUIN[0], z: RUIN[1], label: 'Look under the fallen arch', radius: 4,
+      id: 'fdHat', x: RUIN[0], z: RUIN[1], label: 'Look under the fallen arch', radius: 4, look: 'glint',
       when: (g: GameApi) => stage(g) === 'hat',
       use: (g: GameApi) => {
         if (!daveWith(g)) { g.toast('Dave should be here for this. Bring him (he waits in his net shed above Gullmouth\'s slip).'); return; }

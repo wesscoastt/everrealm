@@ -173,6 +173,7 @@ import { SetPieces } from './SetPieces';
 import { SharedMobs } from './SharedMobs';
 import { QuartersTable } from './QuartersTable';
 import { TavernTable } from './TavernTable';
+import { Clues } from './Clues';
 import { Races } from './Races';
 import { Doubloons } from './Doubloons';
 import { Gamepad } from '../systems/Gamepad';
@@ -845,6 +846,8 @@ export class Game implements GameApi {
   /** The birds over the land round you, the same for everyone (game/Birds.ts). */
   /** Fish shoals, dolphins, whales and jellyfish about you at sea (game/SeaLife.ts). */
   private seaLife!: SeaLife;
+  /** Quest clues drawn where they lie (game/Clues.ts). */
+  private clues!: Clues;
   private birds!: Birds;
   /** Every bench, chair and stool in the world (sit on one with E), and the seat you're on. */
   private seats: { x: number; y: number; z: number; ry: number; half: number; both: boolean; h: number }[] = [];
@@ -1196,6 +1199,11 @@ export class Game implements GameApi {
     });
     this.birds = new Birds(this.scene);
     this.seaLife = new SeaLife(this.scene, this.world.voxels);
+    this.clues = new Clues({
+      scene: this.scene, api: this, player: () => this.player.position,
+      ground: (wt, nearY) => this.thingGround(wt, nearY),
+      groundAt: (x, z, nearY) => { if (!this.world.voxels.isLoaded(x, z)) return null; const y = this.world.voxels.groundBelow(x, nearY + 2.5, z); return Math.abs(y - nearY) <= 2.5 ? y : null; },
+    });
     this.seasons = new Seasons({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, fest: () => this.festivals.fest,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -8460,6 +8468,7 @@ export class Game implements GameApi {
     PUMPKIN_GLOW.emissiveIntensity = 0.3 + this.world.sky.night * 1.4;
     this.birds.update(dt, P, this.underCover ? 1 : this.world.sky.night);
     this.seaLife.update(dt, P, this.world.sky.night);
+    this.clues.update(dt, WORLD_THINGS);
     if (this.flag('apprentice') !== this.appliedApprentice) this.applyCalling();
     if (this.flag('talentsRedrawn')) {
       this.setFlag('talentsRedrawn', 0);

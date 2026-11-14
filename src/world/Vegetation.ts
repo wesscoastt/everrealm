@@ -10,8 +10,12 @@ const CELLS = 17;
 
 function paintAtlas(): THREE.Texture {
   const c = document.createElement('canvas');
-  c.width = 32 * CELLS; c.height = 32;
+  // Drawn at twice the size it's laid out in (owner 2026-11-14: "improve flat textures like the blackberry bush"): every
+  // sprite keeps its 32-unit drawing, at 64 pixels a cell, so leaves, berries and stems read as themselves up close.
+  const RES = 2;
+  c.width = 32 * CELLS * RES; c.height = 32 * RES;
   const x = c.getContext('2d')!;
+  x.scale(RES, RES);
   const blade = (ox: number, bx: number, h: number, lean: number, col: string, w = 2) => {
     x.strokeStyle = col; x.lineWidth = w; x.lineCap = 'round';
     x.beginPath(); x.moveTo(ox + bx, 32); x.quadraticCurveTo(ox + bx + lean * 0.3, 32 - h * 0.6, ox + bx + lean, 32 - h); x.stroke();
@@ -59,14 +63,61 @@ function paintAtlas(): THREE.Texture {
   // Sea grass: thin green ribbons in the sandy shallows
   for (let i = 0; i < 12; i++) blade(32 * S.SeaGrass, 3 + i * 2.3, 18 + (i * 7) % 10, ((i * 5) % 7) - 3, i % 2 ? '#3e7a4a' : '#4f8a52', 1.6);
   // Forage (game: picked with E): brambles and low bushes in fruit, a clump of mushrooms, a herb in flower
-  const bush = (cell: number, berry: string, berry2: string, tall: number) => {
-    for (let i = 0; i < 9; i++) blade(32 * cell, 4 + i * 3, tall + (i * 5) % 8, ((i * 7) % 9) - 4, i % 2 ? '#3a6a2a' : '#4a7a32', 2.6);
-    for (let k = 0; k < 9; k++) { x.fillStyle = k % 3 ? berry : berry2; x.beginPath(); x.arc(32 * cell + 6 + (k * 7) % 21, 32 - tall + (k * 5) % 12, 2.2, 0, 7); x.fill(); }
+  /** A leaf: a pointed oval in its shade, a darker edge, and a pale midrib. */
+  const leaf = (lx: number, ly: number, rot: number, len: number, wid: number, fill: string, edge: string) => {
+    x.save(); x.translate(lx, ly); x.rotate(rot);
+    x.fillStyle = fill; x.strokeStyle = edge; x.lineWidth = 0.4;
+    x.beginPath(); x.moveTo(-len, 0); x.quadraticCurveTo(0, -wid * 1.6, len, 0); x.quadraticCurveTo(0, wid * 1.6, -len, 0); x.fill(); x.stroke();
+    x.strokeStyle = 'rgba(220,240,180,0.45)'; x.lineWidth = 0.3; x.beginPath(); x.moveTo(-len * 0.8, 0); x.lineTo(len * 0.8, 0); x.stroke();
+    x.restore();
   };
-  bush(S.Berry, '#3a1a3a', '#6a2a4a', 18);
-  bush(S.BerryBlue, '#3a4a8a', '#5a6aaa', 12);
-  bush(S.BerryCloud, '#f0a040', '#e88a30', 12);
-  // Corn (Verandah's farm, world/mcland.ts): tall stalks, long leaves, a cob or two with its silk
+  /** A berry: drupelets for a bramble or a cloudberry, one round fruit with a bloom for a bilberry; a glint of light on it. */
+  const berry = (bx: number, by: number, col: string, drupes: boolean, r = 1.5) => {
+    x.fillStyle = col;
+    if (drupes) for (const [dx, dy] of [[0, 0], [-0.9, 0.5], [0.9, 0.5], [0, 1.1], [-0.5, -0.7], [0.5, -0.7]]) { x.beginPath(); x.arc(bx + dx * r * 0.62, by + dy * r * 0.62, r * 0.55, 0, 7); x.fill(); }
+    else { x.beginPath(); x.arc(bx, by, r, 0, 7); x.fill(); x.fillStyle = 'rgba(200,210,240,0.35)'; x.beginPath(); x.arc(bx, by, r * 0.8, 0, 7); x.fill(); }
+    x.fillStyle = 'rgba(255,255,255,0.7)'; x.beginPath(); x.arc(bx - r * 0.35, by - r * 0.4, r * 0.28, 0, 7); x.fill();
+  };
+  /** Darken a cell toward its foot, over what's drawn there only: the bush shaded under itself. */
+  const shadeFoot = (cell: number, a: number) => {
+    x.save(); x.globalCompositeOperation = 'source-atop';
+    const g = x.createLinearGradient(0, 8, 0, 32); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(10,20,5,${a})`);
+    x.fillStyle = g; x.fillRect(32 * cell, 0, 32, 32); x.restore();
+  };
+  // A bramble: arching canes, thorns along them, leaves in threes and fives, berries black, red and green on one bush
+  {
+    const o = 32 * S.Berry;
+    for (let i = 0; i < 6; i++) {
+      const sx = o + 3 + i * 5, ex = o + 4 + ((i * 11) % 26), top = 6 + (i % 3) * 3;
+      x.strokeStyle = i % 2 ? '#6a2e2a' : '#5a3a26'; x.lineWidth = 1.1; x.lineCap = 'round';
+      x.beginPath(); x.moveTo(sx, 32); x.quadraticCurveTo((sx + ex) / 2 + (i % 2 ? 6 : -6), top, ex, 14 + (i % 4) * 3); x.stroke();
+      x.fillStyle = '#c8a080'; for (let k = 1; k < 4; k++) { const t = k / 4, px = (1 - t) * (1 - t) * sx + 2 * t * (1 - t) * ((sx + ex) / 2 + (i % 2 ? 6 : -6)) + t * t * ex, py = (1 - t) * (1 - t) * 32 + 2 * t * (1 - t) * top + t * t * (14 + (i % 4) * 3); x.fillRect(px, py - 0.9, 0.5, 0.9); }
+    }
+    const shades = ['#2f5a24', '#3d6e2c', '#4b7f34', '#5a8e3c'];
+    for (let k = 0; k < 30; k++) leaf(o + 3 + ((k * 37) % 26), 30 - ((k * 53) % 24), ((k * 1.7) % 3.1) - 1.5, 2.6 + (k % 3) * 0.5, 1.2 + (k % 2) * 0.3, shades[k % 4], '#1e3a16');
+    const ripe = ['#1a0c1e', '#2a1030', '#1a0c1e', '#8a1e2a', '#6a8a2a', '#1a0c1e', '#b02a30'];
+    for (const [k, [bx, by]] of ([[7, 12], [12, 8], [18, 13], [24, 9], [9, 18], [15, 17], [22, 19], [27, 15], [13, 23], [20, 24], [5, 24]] as const).entries()) berry(o + bx, by, ripe[k % ripe.length], true, 1.5);
+    shadeFoot(S.Berry, 0.55);
+  }
+  // Bilberries: a low wiry shrub, small round leaves, dusky blue berries
+  {
+    const o = 32 * S.BerryBlue;
+    x.strokeStyle = '#4a6a2a'; x.lineWidth = 0.8;
+    for (let i = 0; i < 8; i++) { x.beginPath(); x.moveTo(o + 4 + i * 3.2, 32); x.lineTo(o + 3 + i * 3.4 + ((i % 3) - 1) * 2, 18 + (i % 3) * 2); x.stroke(); }
+    for (let k = 0; k < 26; k++) leaf(o + 3 + ((k * 29) % 26), 31 - ((k * 41) % 14), ((k * 1.3) % 3) - 1.5, 1.6, 1.0, ['#3e7a2e', '#4e8a34', '#5c9a3c'][k % 3], '#24461a');
+    for (let k = 0; k < 9; k++) berry(o + 5 + ((k * 19) % 22), 20 + ((k * 13) % 9), k % 4 ? '#2e3a72' : '#46528a', false, 1.3);
+    shadeFoot(S.BerryBlue, 0.45);
+  }
+  // Cloudberries: broad lobed leaves low to the ground, an amber fruit up on a stalk
+  {
+    const o = 32 * S.BerryCloud;
+    for (let k = 0; k < 9; k++) { const lx = o + 4 + ((k * 13) % 24), ly = 28 - (k % 3) * 3; x.fillStyle = ['#4a7a34', '#5a8a3c', '#3e6a2c'][k % 3]; for (let l = 0; l < 5; l++) { x.beginPath(); x.arc(lx + Math.cos(l * 1.25 - 2.5) * 2.2, ly + Math.sin(l * 1.25 - 2.5) * 1.6, 1.7, 0, 7); x.fill(); } }
+    for (let k = 0; k < 4; k++) { const fx = o + 7 + k * 6, fy = 13 + (k % 2) * 4; x.strokeStyle = '#5a6a2a'; x.lineWidth = 0.7; x.beginPath(); x.moveTo(fx, 30); x.lineTo(fx, fy); x.stroke(); berry(fx, fy, k % 2 ? '#f0a040' : '#e88a30', true, 1.9); }
+    shadeFoot(S.BerryCloud, 0.4);
+  }
+  // Corn (Verandah's farm, world/mcland.ts): tall stalks, long leaves, a cob or two with its silk (kept to its own
+  // cell: the leaves reached over into the cloudberries)
+  x.save(); x.beginPath(); x.rect(32 * S.Corn, 0, 32, 32); x.clip();
   for (let i = 0; i < 4; i++) {
     const bx = 4 + i * 7.5;
     blade(32 * S.Corn, bx, 31, (i % 2) * 2 - 1, i % 2 ? '#5a8a2a' : '#6a9a32', 2.6);
@@ -74,6 +125,7 @@ function paintAtlas(): THREE.Texture {
     x.fillStyle = '#e8c040'; x.fillRect(32 * S.Corn + bx + 1, 13 + (i % 2) * 3, 2.5, 6);
     x.fillStyle = '#c89a3a'; x.fillRect(32 * S.Corn + bx + 1, 11 + (i % 2) * 3, 2, 2);
   }
+  x.restore();
   // A grape vine (Verandah's vineyard, across from the winery): a stake and its wire, the vine trained along
   // it in broad leaves, and the bunches hanging dark under them
   {
@@ -84,14 +136,45 @@ function paintAtlas(): THREE.Texture {
     for (const [lx, ly, c] of [[4, 14, '#4a7a2a'], [9, 8, '#5a8a32'], [13, 15, '#3f6a24'], [20, 7, '#5a8a32'], [25, 13, '#4a7a2a'], [28, 6, '#3f6a24'], [7, 19, '#4a7a2a'], [22, 18, '#5a8a32']] as const) { x.fillStyle = c; x.beginPath(); x.arc(o + lx, ly, 3.6, 0, Math.PI * 2); x.fill(); }
     for (const [gx, gy] of [[6, 19], [12, 21], [19, 20], [25, 18], [9, 12]] as const) for (let k = 0; k < 6; k++) { x.fillStyle = k % 2 ? '#4a2a5a' : '#5e3a72'; x.beginPath(); x.arc(o + gx + (k % 2) * 2 - 1, gy + Math.floor(k / 2) * 2, 1.4, 0, Math.PI * 2); x.fill(); }
   }
-  for (let k = 0; k < 4; k++) {
-    const mx = 32 * S.Mushroom + 5 + k * 6.5, my = 32 - 6 - (k % 2) * 4;
-    x.fillStyle = '#efe6d0'; x.fillRect(mx - 1, my, 2.5, 6 + (k % 2) * 4);
-    x.fillStyle = k % 2 ? '#e8a030' : '#d89028'; x.beginPath(); x.ellipse(mx, my, 5 - (k % 2), 3, 0, Math.PI, 0); x.fill();
+  // Chanterelles: a funnel cap with a wavy rim, ridges running down under it into the stem, lit from above; a little
+  // moss at the foot
+  {
+    const o = 32 * S.Mushroom;
+    for (const [mx, my, w, h] of [[8, 22, 5.5, 8], [16, 17, 6.5, 13], [24, 23, 5, 7], [12, 26, 3.6, 5]] as const) {
+      const sx = o + mx;
+      const st = x.createLinearGradient(sx - 1.5, 0, sx + 1.5, 0); st.addColorStop(0, '#c88a2a'); st.addColorStop(0.5, '#f0b850'); st.addColorStop(1, '#b07820');
+      x.fillStyle = st; x.beginPath(); x.moveTo(sx - 1.4, 32); x.lineTo(sx - w * 0.75, my); x.lineTo(sx + w * 0.75, my); x.lineTo(sx + 1.4, 32); x.fill();
+      x.strokeStyle = 'rgba(150,90,20,0.6)'; x.lineWidth = 0.35;
+      for (let r = -2; r <= 2; r++) { x.beginPath(); x.moveTo(sx + r * w * 0.3, my + 0.4); x.lineTo(sx + r * 0.4, my + h * 0.6); x.stroke(); }
+      const cap = x.createLinearGradient(0, my - 2.6, 0, my + 1); cap.addColorStop(0, '#f8c860'); cap.addColorStop(1, '#d08a20');
+      x.fillStyle = cap; x.beginPath(); x.moveTo(sx - w, my);
+      for (let k = 0; k <= 6; k++) x.lineTo(sx - w + (k * w) / 3, my - 1.8 - (k % 2) * 0.8 - Math.sin((k / 6) * Math.PI) * 1.2);
+      x.lineTo(sx + w, my); x.quadraticCurveTo(sx, my + 1.6, sx - w, my); x.fill();
+      x.fillStyle = 'rgba(255,240,190,0.55)'; x.beginPath(); x.ellipse(sx - w * 0.3, my - 2.4, w * 0.35, 0.6, 0, 0, 7); x.fill();
+    }
+    for (let k = 0; k < 8; k++) { x.fillStyle = k % 2 ? '#3e6a2a' : '#4e7a32'; x.beginPath(); x.arc(o + 3 + k * 3.7, 31.2, 1.6, 0, 7); x.fill(); }
+    shadeFoot(S.Mushroom, 0.35);
   }
-  for (let i = 0; i < 10; i++) blade(32 * S.Herb, 4 + i * 2.6, 14 + (i * 7) % 10, ((i * 3) % 7) - 3, i % 2 ? '#5a9a3a' : '#6aaa44', 1.6);
-  x.fillStyle = '#f4f0e8';
-  for (let k = 0; k < 6; k++) { x.beginPath(); x.arc(32 * S.Herb + 6 + k * 4, 12 + (k % 3) * 3, 1.8, 0, 7); x.fill(); }
+  // Wild garlic: broad pointed leaves from the ground, and white starry flowers held up in loose heads
+  {
+    const o = 32 * S.Herb;
+    for (let i = 0; i < 9; i++) {
+      const lx = o + 4 + i * 3, lean = ((i * 3) % 5) - 2, h = 9 + (i * 7) % 7;
+      x.save(); x.translate(lx, 32); x.rotate(lean * 0.12);
+      x.fillStyle = ['#3e7a2e', '#4e8a36', '#5a9a3e'][i % 3]; x.beginPath(); x.moveTo(0, 0); x.quadraticCurveTo(-2.4, -h * 0.5, 0, -h); x.quadraticCurveTo(2.4, -h * 0.5, 0, 0); x.fill();
+      x.strokeStyle = 'rgba(210,240,180,0.45)'; x.lineWidth = 0.3; x.beginPath(); x.moveTo(0, -0.5); x.lineTo(0, -h + 1); x.stroke();
+      x.restore();
+    }
+    for (const [fx, fy] of [[9, 9], [17, 6], [24, 10]] as const) {
+      x.strokeStyle = '#5a8a3a'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(o + fx, 32); x.lineTo(o + fx, fy + 2); x.stroke();
+      for (let k = 0; k < 7; k++) {
+        const a = k * 0.9, px = o + fx + Math.cos(a) * 2.6, py = fy + Math.sin(a) * 1.8;
+        x.fillStyle = '#fbf8ee'; for (let p = 0; p < 6; p++) { const b = (p / 6) * Math.PI * 2; x.beginPath(); x.arc(px + Math.cos(b) * 0.7, py + Math.sin(b) * 0.7, 0.55, 0, 7); x.fill(); }
+        x.fillStyle = '#e8e0a0'; x.beginPath(); x.arc(px, py, 0.35, 0, 7); x.fill();
+      }
+    }
+    shadeFoot(S.Herb, 0.4);
+  }
   // Bleed opaque colours into transparent pixels so mipmaps don't fringe the sprites black.
   const img = x.getImageData(0, 0, c.width, c.height);
   const d = new Uint8Array(img.data);

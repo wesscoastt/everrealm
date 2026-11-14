@@ -1,3 +1,4 @@
+import type { ClueLook } from './clues';
 import type { GameApi } from '../game/api';
 import type { EnemyType } from './gameplay';
 import type { LandId } from '../world/land';
@@ -67,6 +68,9 @@ export interface WorldThing {
   /** Key into READABLES to show; or an action. */
   read?: string;
   use?: (g: GameApi) => void;
+  /** What's there to see while the quest wants it found (data/clues.ts; game/Clues.ts draws it): read from the label if not
+   *  given; 'none' for a spot that's only a place to stand. */
+  look?: ClueLook | 'none';
 }
 
 export const WORLD_THINGS: WorldThing[] = [

@@ -1,3 +1,4 @@
+import { clueFrom } from '../../clues';
 import type { DialogueTree, GameApi } from '../../../game/api';
 import { at, hook, killed, type Marks } from '../kit';
 import type { RegionContent } from '../types';
@@ -139,7 +140,7 @@ const stray = (n: number, x: number, z: number, where: string) => ({
 });
 
 const sign = (id: string, x: number, z: number, label: string, text: string) => ({
-  id, x, z, label, radius: 2.6,
+  id, x, z, label, radius: 2.6, look: clueFrom(text, label),
   when: (g: GameApi) => at(g, N1) === 'signs' && !g.flag(id),
   use: (g: GameApi) => {
     g.setFlag(id);
