@@ -1,4 +1,5 @@
 import { VERANDAH_FURN } from '../data/content/verandahFurn';
+import { CISTERN_LADDER } from './ladders';
 import { DOWNS, STRAIGHT as DOWNS_A, BEND as DOWNS_R, TRACK_W as DOWNS_W, POST_AT as DOWNS_POST } from '../data/races';
 import { B, BLOCKS } from './blocks';
 import { CRAGSBY, HOLME, POSTS, postBoxOf, SCARROW } from '../data/travel';
@@ -800,14 +801,23 @@ function* planBody(): Generator<string, Plan> {
       s.act = {
         kind: 'delve',
         door: [-2759.5, 16, 2245.5],
+        // (owner 2026-11-13, the bottom half brought in: the corridor north of the hall has no floor in the owner's build, so its
+        // three are down on the -4 corridor under it now; the -2 level and the great bottom hall at -13 have their own)
         spawns: [m(-2771.5, 6, 2236.5, 'zm_shambler'), m(-2747.5, 6, 2236.5, 'zm_shambler'), m(-2771.5, 6, 2244.5, 'zm_runner'),
-          m(-2759.5, 1, 2234.5, 'zm_shambler'), m(-2762.5, 1, 2231.5, 'zm_runner'), m(-2755.5, 1, 2238.5, 'zm_bloat'),
+          m(-2758.5, -4, 2239.5, 'zm_shambler'), m(-2765.5, -4, 2229.5, 'zm_runner'), m(-2755.5, -4, 2230.5, 'zm_bloat'),
+          m(-2755.5, -2, 2253.5, 'zm_shambler'), m(-2755.5, -2, 2260.5, 'zm_runner'), m(-2748.5, -2, 2264.5, 'zm_shambler'), m(-2743.5, -2, 2254.5, 'zm_bloat'),
+          m(-2741.5, -13, 2247.5, 'zm_shambler'), m(-2738.5, -13, 2252.5, 'zm_runner'), m(-2748.5, -13, 2263.5, 'zm_bloat'), m(-2746.5, -13, 2259.5, 'zm_shambler'),
+          m(-2752.5, -13, 2244.5, 'zm_runner'), m(-2750.5, -13, 2250.5, 'zm_shambler'), m(-2754.5, -13, 2270.5, 'zm_bloat'), m(-2739.5, -13, 2264.5, 'zm_shambler'),
           m(-2764.5, 1, 2247.5, 'zm_shambler'), m(-2754.5, 1, 2247.5, 'zm_shambler'),
           m(-2770.5, 1, 2256.5, 'zm_runner'), m(-2748.5, 1, 2256.5, 'zm_bloat'), m(-2775.5, 1, 2258.5, 'zm_shambler'), m(-2744.5, 1, 2258.5, 'zm_shambler')],
         boss: [-2759.5, 1, 2256.5, 'zm_trudgeon'],
         chest: [-2766.5, 1, 2259.5],
       };
       s.props.push({ t: 'furn', item: 'chest', x: -2766.5, y: 1, z: 2259.5, ry: 0 });
+      // the bottom hall: what the drowned left at the bottom, a lantern or two, and the ladder up out of it
+      s.props.push({ t: 'furn', item: 'chest', x: -2749.5, y: -13, z: 2256.5, ry: Math.PI });
+      for (const [x, z] of [[-2742.5, 2240.5], [-2752.5, 2266.5], [-2745.5, 2232.5]]) s.props.push({ t: 'glow', x, y: -11, z, r: 7, color: '#9ac8b0', lit: true } as PropDesc);
+      for (let y = CISTERN_LADDER.y0; y <= CISTERN_LADDER.y1; y++) s.props.push({ t: 'mcladder', x: CISTERN_LADDER.x, y, z: CISTERN_LADDER.z, ry: CISTERN_LADDER.ry } as PropDesc);
       // the pits' fire, where they went down below the floor
       for (const [x, z] of [[-2776.5, 2253.5], [-2742.5, 2253.5], [-2776.5, 2260.5], [-2742.5, 2260.5], [-2765.5, 2229.5], [-2753.5, 2229.5]]) {
         s.props.push({ t: 'flame', x, y: 1.2, z, r: 1.4 } as PropDesc);
