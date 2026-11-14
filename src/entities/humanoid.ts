@@ -221,7 +221,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -2895,6 +2895,55 @@ export class Humanoid {
         P.armL.rotation.x = 0.45 * k; P.armR.rotation.x = 0.45 * k; P.armL.rotation.z = 0.3 * k; P.armR.rotation.z = -0.3 * k;
         P.torso.rotation.x = -0.12 * k; P.torso.position.y = 0.06 + breathe;
         P.head.rotation.y = Math.sin(performance.now() * 0.0005) * 0.2;
+        break;
+      }
+      // The things you do with your hands, ESO's way (owner 2026-11-13: "add animations for things, like digging treasure,
+      // everything should have animations similar to ESO"): game/Game.ts plays one for a second or so as you use something.
+      case 'gather': {
+        // down on one knee, the right hand at the ground working at something and coming up with it
+        const k = Math.min(1, t / 0.25), w = Math.sin(t * 9) * 0.18 * k;
+        P.body.position.y = -0.4 * k;
+        P.legL.rotation.x = -1.4 * k; P.shinL.rotation.x = 1.45 * k; P.legR.rotation.x = 0.1 * k; P.shinR.rotation.x = 1.5 * k;
+        P.torso.rotation.x = 0.45 * k; P.head.rotation.x = 0.35 * k;
+        P.armR.rotation.x = (-0.9 + w) * k; P.foreR.rotation.x = -0.5 * k; P.armL.rotation.x = -0.4 * k; P.foreL.rotation.x = -0.6 * k;
+        break;
+      }
+      case 'dig': {
+        // a spade driven in with the foot, levered back, the spoil thrown aside
+        const per = 0.8, q = (t % per) / per, k = Math.min(1, t / 0.2);
+        const drive = q < 0.4 ? q / 0.4 : q < 0.7 ? 1 : 1 - (q - 0.7) / 0.3, lever = q < 0.4 ? 0 : q < 0.7 ? (q - 0.4) / 0.3 : 1 - (q - 0.7) / 0.3;
+        P.torso.rotation.x = (0.25 + 0.35 * drive - 0.25 * lever) * k;
+        P.armR.rotation.x = (-0.7 - 0.5 * drive + 0.6 * lever) * k; P.armL.rotation.x = (-1.0 - 0.4 * drive + 0.5 * lever) * k;
+        P.foreR.rotation.x = -0.5 * k; P.foreL.rotation.x = -0.3 * k;
+        P.legR.rotation.x = -0.5 * drive * k; P.shinR.rotation.x = 0.6 * drive * k; P.legL.rotation.x = 0.15 * k;
+        P.body.position.y = -0.06 * drive * k;
+        break;
+      }
+      case 'open': {
+        // bent over a lid with both hands, lifting it
+        const k = Math.min(1, t / 0.3), lift = Math.max(0, Math.min(1, (t - 0.35) / 0.4));
+        P.torso.rotation.x = (0.65 - 0.3 * lift) * k; P.head.rotation.x = 0.2 * k;
+        P.armR.rotation.x = (-0.9 - 0.9 * lift) * k; P.armL.rotation.x = (-0.9 - 0.9 * lift) * k;
+        P.foreR.rotation.x = -0.4 * k; P.foreL.rotation.x = -0.4 * k;
+        P.legL.rotation.x = -0.35 * k; P.legR.rotation.x = -0.35 * k; P.shinL.rotation.x = 0.5 * k; P.shinR.rotation.x = 0.5 * k;
+        P.body.position.y = -0.12 * k;
+        break;
+      }
+      case 'water': {
+        // the can held out and tipped, the free hand steadying it
+        const k = Math.min(1, t / 0.3), tip = Math.sin(t * 2.2) * 0.12;
+        P.armR.rotation.x = (-1.1 + tip) * k; P.foreR.rotation.x = -0.3 * k; P.armR.rotation.z = 0.15 * k;
+        P.armL.rotation.x = -0.8 * k; P.armL.rotation.z = -0.35 * k; P.foreL.rotation.x = -0.6 * k;
+        P.torso.rotation.x = 0.2 * k; P.head.rotation.x = 0.3 * k;
+        break;
+      }
+      case 'read': {
+        // a page held up in both hands, the head bent over it
+        const k = Math.min(1, t / 0.3);
+        P.armR.rotation.x = -1.0 * k; P.armL.rotation.x = -1.0 * k; P.armR.rotation.z = 0.35 * k; P.armL.rotation.z = -0.35 * k;
+        P.foreR.rotation.x = -0.9 * k; P.foreL.rotation.x = -0.9 * k;
+        P.head.rotation.x = (0.35 + Math.sin(t * 0.9) * 0.04) * k;
+        P.torso.position.y = 0.06 + breathe;
         break;
       }
       case 'kneel': {

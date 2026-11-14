@@ -92,7 +92,7 @@ const SEATS = new Map([['halter_cob', 2], ['halter_dray', 2], ['wagon_cart', 3],
 const DEV_ACCOUNTS = new Set((process.env.DEV_ACCOUNTS ?? 'wesscoastt').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 // The world's edges (src/world/VoxelWorld.ts): the Counties' square, and Morrow's east of it along x
 const WORLD = [-3584, 4096], WORLD_X = [-3584, 11776]; // (world/VoxelWorld.ts WMIN, WMAX and WMAX_X: the west grew for Verandah, 2026-11-05)
-const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated', 'shoot', 'cast', 'stomp', 'dash', 'throw', 'whistle', 'crouch']);
+const ANIMS = new Set(['idle', 'ride', 'walk', 'run', 'swim', 'tread', 'attack', 'cleave', 'mine', 'chop', 'fishCast', 'fishWait', 'hit', 'dead', 'roll', 'talk', 'hammer', 'bellows', 'jump', 'heal', 'cook', 'wave', 'bow', 'cheer', 'dance', 'sit', 'clap', 'point', 'kneel', 'laugh', 'salute', 'shrug', 'sleep', 'perform', 'seated', 'shoot', 'cast', 'stomp', 'dash', 'throw', 'whistle', 'crouch', 'gather', 'dig', 'open', 'water', 'read']);
 const HELD = new Set(['none', 'sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);

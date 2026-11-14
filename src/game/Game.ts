@@ -896,6 +896,20 @@ export class Game implements GameApi {
   private dash: { fx: number; fy: number; fz: number; tx: number; tz: number; ty: number; t: number; dur: number } | null = null;
   /** A skill's move playing out (ClassKit host.anim), and how long it has yet. */
   private skillAnim: { st: AnimState; left: number } | null = null;
+  /** The hands at work on what you just used, for a second or so (ESO's way): kneeling to pick, a spade to dig, a lid lifted. */
+  private doAnim: { st: AnimState; left: number } | null = null;
+  /** Which of those suits a thing by what it's called: nothing for talking, fighting or what has its own (mining, fishing). */
+  private static animFor(label: string): AnimState | null {
+    const l = label.toLowerCase();
+    if (/^(talk|speak|ask|greet|pet)|\b(ride|mount|sit|sleep|travel)\b/.test(l)) return null;
+    if (/\bdig\b|treasure|bury|unearth|spade/.test(l)) return 'dig';
+    if (/\btill\b|\bhoe\b|scythe|reap/.test(l)) return 'chop';
+    if (/\bwater\b/.test(l)) return 'water';
+    if (/\bread\b|study|letter|notice|board|rubbing|book|sign\b|look at/.test(l)) return 'read';
+    if (/open|chest|unlock|lockpick|pick the lock|strongbox|crate|barrel|coffer|cache/.test(l)) return 'open';
+    if (/pick|gather|forage|harvest|loot|search|collect|take|plant|sow|compost|weed|rake|pull|catch|fill|herb|mushroom|berr|egg|milk|shear/.test(l)) return 'gather';
+    return null;
+  }
   private attack: { kind: 'strike' | 'cleave'; t: number; dur: number; hitAt: number; hit: boolean; combo: number } | null = null;
   private comboIndex = 0;
   private comboWindow = 0;
@@ -6482,6 +6496,11 @@ export class Game implements GameApi {
   private interact(c: Candidate): void {
     this.dismount();
     if (c.warn) { this.hud.system(c.warn + '.'); this.sfx('fail'); return; }
+    // the hands at work on it (not for talking, nor what has its own: mining, felling, fishing)
+    if (c.kind !== 'npc' && c.kind !== 'ore' && c.kind !== 'tree' && c.kind !== 'fish') {
+      const st = c.kind === 'forage' ? 'gather' : Game.animFor(c.label);
+      if (st) { this.doAnim = { st, left: st === 'dig' ? 1.8 : st === 'read' ? 1.6 : 1.1 }; this.player.faceTowards(c.pos.x, c.pos.z); }
+    }
     switch (c.kind) {
       case 'npc': this.startDialogue(c.npc!); break;
       case 'ore': this.startGather({ kind: 'mine', ore: c.ore, tool: this.inv.bestTool('mining', this.level('mining'))! }); break;
@@ -8799,6 +8818,7 @@ export class Game implements GameApi {
     this.hitAnim = Math.max(0, this.hitAnim - dt);
     this.healAnim = Math.max(0, this.healAnim - dt);
     if (this.skillAnim && (this.skillAnim.left -= dt) <= 0) this.skillAnim = null;
+    if (this.doAnim && ((this.doAnim.left -= dt) <= 0 || this.player.speed > 0.6)) this.doAnim = null;
     this.kit.update(dt);
 
     if (this.dead) {
@@ -9076,6 +9096,7 @@ export class Game implements GameApi {
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');
     else if (this.skillAnim) M.setState(this.skillAnim.st);
+    else if (this.doAnim && !this.horse) { M.setState(this.doAnim.st); held = this.doAnim.st === 'dig' || this.doAnim.st === 'chop' ? 'pickaxe' : 'none'; }
     else if (this.music.out && !this.horse) { M.setState('perform'); held = this.music.out.item; }
     else if (this.emote && !this.horse) M.setState(this.emote.id);
     else if (this.action) {
