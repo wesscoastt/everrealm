@@ -21,6 +21,8 @@ export interface Settings {
    * frame counter; names over players and over people; floating numbers in a fight; the camera's shake. */
   fov?: number;
   fpsCap?: number;
+  /** The buttons the prompts show (owner 2026-11-13: "have in settings where you select your controller type for the prompts, so it's not two at once"): 'auto' follows what you last used. */
+  padPrompts?: 'auto' | 'keys' | 'xbox' | 'ps' | 'nintendo';
   showFps?: boolean;
   playerNames?: boolean;
   npcNames?: boolean;

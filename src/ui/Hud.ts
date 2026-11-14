@@ -813,6 +813,33 @@ export class Hud {
   /** The controller's name for a key (systems/Gamepad.ts lays them out as ESO does). */
   static readonly PAD_LABEL: Record<string, string> = { E: 'A', F: '▲', G: '▼', L: '◀', H: '▶', Q: 'LT+A', V: 'LT', Tab: 'R3', '1': 'RT', '2': 'X', '3': 'Y', '4': 'B', '5': 'RB', '6': 'LB+X', '7': 'LB+Y', '8': 'LB+B', Space: 'A', Esc: 'B', M: '⧉', B: 'LB ≡', K: 'LB ▲', T: 'LB L3', J: 'LB ⧉', P: 'LB ▼', O: 'LB ▶', U: 'LB ◀', '☰': '≡' };
   private padOn = false;
+  /** Which maker's buttons: Xbox's names, PlayStation's shapes, Nintendo's letters (their A and B, X and Y swapped about). */
+  private padStyle: 'xbox' | 'ps' | 'nintendo' = 'xbox';
+  private padDetected: 'xbox' | 'ps' | 'nintendo' = 'xbox';
+  private static readonly PAD_STYLES: Record<'ps' | 'nintendo', Record<string, string>> = {
+    ps: { A: '✕', B: '○', X: '□', Y: '△', RT: 'R2', LT: 'L2', RB: 'R1', LB: 'L1' },
+    nintendo: { A: 'B', B: 'A', X: 'Y', Y: 'X', RT: 'ZR', LT: 'ZL', RB: 'R', LB: 'L' },
+  };
+  /** A key's controller name, in the chosen maker's buttons. */
+  private padLabel(kb: string): string {
+    const x = Hud.PAD_LABEL[kb] ?? kb;
+    if (this.padStyle === 'xbox') return x;
+    const m = Hud.PAD_STYLES[this.padStyle];
+    return x.replace(/\b(RT|LT|RB|LB|A|B|X|Y)\b/g, (t) => m[t] ?? t);
+  }
+  /** The pad used, or a key or the mouse: what the settings say the prompts should show then. */
+  padUsed(on: boolean, id = ''): void {
+    if (id) this.padDetected = /dualsense|dualshock|playstation|054c/i.test(id) ? 'ps' : /nintendo|pro controller|057e|joy-con/i.test(id) ? 'nintendo' : 'xbox';
+    this.applyPadPrompts(on);
+  }
+  /** Apply the prompts setting: keys always, one maker's buttons always, or (auto) whichever you're using. */
+  applyPadPrompts(using = this.padOn): void {
+    const pref = this.ctx.save.settings.padPrompts ?? 'auto';
+    if (pref === 'keys') { this.setPadMode(false); return; }
+    if (pref === 'auto') { this.padStyle = this.padDetected; this.setPadMode(using); return; }
+    this.padStyle = pref;
+    this.setPadMode(true);
+  }
   /** Show the controller's buttons on the prompts, the bar and the menu buttons, or the keys again. */
   setPadMode(on: boolean): void {
     this.padOn = on;
@@ -821,17 +848,17 @@ export class Hud {
       const t = e.firstChild;
       if (!t || t.nodeType !== 3) return;
       const kb = e.dataset.kb ?? (e.dataset.kb = t.textContent ?? '');
-      t.textContent = on ? Hud.PAD_LABEL[kb] ?? kb : kb;
+      t.textContent = on ? this.padLabel(kb) : kb;
     });
     const p = this.q('#prompt kbd');
-    if (p) { const kb = p.dataset.kb ?? p.textContent ?? ''; p.dataset.kb = kb; p.textContent = on ? Hud.PAD_LABEL[kb] ?? kb : kb; }
+    if (p) { const kb = p.dataset.kb ?? p.textContent ?? ''; p.dataset.kb = kb; p.textContent = on ? this.padLabel(kb) : kb; }
   }
   setPrompt(key: string | null, text = '', sub = '', warn = ''): void {
     const p = this.q('#prompt');
     if (!key) { p.classList.remove('show'); return; }
     p.classList.add('show');
     // On a touch screen the prompt itself is the button (TouchControls)
-    const k = key === 'E' && document.body.classList.contains('touch') ? 'Tap' : this.padOn ? Hud.PAD_LABEL[key] ?? key : key;
+    const k = key === 'E' && document.body.classList.contains('touch') ? 'Tap' : this.padOn ? this.padLabel(key) : key;
     p.innerHTML = `<kbd data-kb="${esc(key)}">${k}</kbd><span>${esc(text)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}${warn ? `<span class="warn">${esc(warn)}</span>` : ''}`;
   }
 
@@ -3895,13 +3922,14 @@ export class Hud {
     const tick = (k: string, label: string) => `<div class="setting"><span>${label}</span><input type="checkbox" ${(st as unknown as Record<string, unknown>)[k] !== false && (k !== 'showFps' || st.showFps) ? 'checked' : ''} data-k="${k}"><span></span></div>`;
     if (st.fov === undefined) st.fov = 58;
     const presets = `<div class="setting"><span>Quality</span><span class="set-q">${(['Low', 'Medium', 'High', 'Ultra'] as const).map((q) => `<button class="btn sm ghost" data-q="${q}">${q}</button>`).join('')}</span><span></span></div>`;
+    const padP = `<div class="setting"><span>Button prompts</span><select data-padp>${([['auto', 'Whatever you are using'], ['keys', 'Keyboard and mouse'], ['xbox', 'Xbox controller'], ['ps', 'PlayStation controller'], ['nintendo', 'Nintendo controller']] as const).map(([v, n]) => `<option value="${v}"${(st.padPrompts ?? 'auto') === v ? ' selected' : ''}>${n}</option>`).join('')}</select><span></span></div>`;
     const cap = `<div class="setting"><span>Frame rate limit</span><select data-cap>${[0, 30, 60, 120, 144].map((n) => `<option value="${n}"${(st.fpsCap ?? 0) === n ? ' selected' : ''}>${n ? n + ' a second' : 'None'}</option>`).join('')}</select><span></span></div>`;
     const bindRows = KEY_ACTIONS.map(([code, label]) => { const now = st.keys?.[code] ?? code; return `<div class="setting key-row"><span>${label}</span><button class="btn sm ghost key-b${now !== code ? ' moved' : ''}" data-bind="${code}">${keyName(now)}</button><span></span></div>`; }).join('');
     const pages: Record<string, [string, string]> = {
       news: ['What\'s new', `<div class="set-news">${newsHtml(3)}</div>`],
       video: ['Picture', presets + S('viewDist') + S('renderScale') + S('fov') + cap + row('Shadows') + row('Light shafts') + tick('showFps', 'Show the frame rate') + row('Full screen') + colourVision],
       sound: ['Sound', S('master') + S('sfx') + S('ambience') + S('music')],
-      controls: ['Controls', S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + tick('shake', 'Camera shake') + `<h4 class="sec">Keys <small>click one, then press the key you want; Esc leaves it</small></h4><div class="key-list">${bindRows}</div><button class="btn sm ghost" data-keyreset>Put every key back</button>`],
+      controls: ['Controls', padP + S('mouseSens') + row('Invert mouse look') + row('Auto-attack') + tick('shake', 'Camera shake') + `<h4 class="sec">Keys <small>click one, then press the key you want; Esc leaves it</small></h4><div class="key-list">${bindRows}</div><button class="btn sm ghost" data-keyreset>Put every key back</button>`],
       help: ['Help', `<div class="set-help">${HELP.map(([sec, qs]) => `<h4 class="sec">${esc(sec)}</h4>` + qs.map(([q, a]) => `<details class="help-q"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')).join('')}</div>`],
       ui: ['Interface and chat', S('uiScale') + tick('playerNames', 'Names over players') + tick('npcNames', 'Names over people') + tick('combatText', 'Numbers in a fight') + row('Show the Trade channel') + row('Filter strong language') + row('Ignoring')],
     };
@@ -3915,6 +3943,7 @@ export class Hud {
     body.querySelectorAll<HTMLElement>("[data-sett]").forEach((b) => b.addEventListener("click", () => { this.settingsTab = b.dataset.sett!; this.renderSettings(); }));
     body.querySelector<HTMLInputElement>('input[data-trade]')?.addEventListener('change', (e) => { st.hideTrade = !(e.target as HTMLInputElement).checked; this.ctx.settingsChanged(); });
     body.querySelector<HTMLSelectElement>('select[data-cap]')?.addEventListener('change', (e) => { st.fpsCap = Number((e.target as HTMLSelectElement).value); this.ctx.settingsChanged(); });
+    body.querySelector<HTMLSelectElement>('select[data-padp]')?.addEventListener('change', (e) => { st.padPrompts = (e.target as HTMLSelectElement).value as typeof st.padPrompts; this.ctx.settingsChanged(); this.applyPadPrompts(); });
     body.querySelectorAll<HTMLElement>('[data-q]').forEach((b) => b.addEventListener('click', () => {
       const q = b.dataset.q as 'Low' | 'Medium' | 'High' | 'Ultra';
       const set = { Low: { viewDist: 5, renderScale: 0.7, shadows: false, finePicture: false }, Medium: { viewDist: 7, renderScale: 0.85, shadows: true, finePicture: false }, High: { viewDist: 9, renderScale: 1, shadows: true, finePicture: true }, Ultra: { viewDist: 13, renderScale: 1, shadows: true, finePicture: true } }[q];

@@ -30,7 +30,7 @@ export interface PadHost {
   /** Seen a pad for the first time: say how it's laid out. */
   hello(name: string): void;
   /** The pad has become (or stopped being) what you're playing with: show its buttons, or the keys. */
-  padMode(on: boolean): void;
+  padMode(on: boolean, id?: string): void;
 }
 
 export class Gamepad {
@@ -50,7 +50,8 @@ export class Gamepad {
     addEventListener('keydown', off, true);
     addEventListener('mousedown', off, true);
   }
-  private use(): void { if (!this.using) { this.using = true; this.host.padMode(true); } }
+  private padId = '';
+  private use(): void { if (!this.using) { this.using = true; this.host.padMode(true, this.padId); } }
 
   poll(dt: number): void {
     const pads = navigator.getGamepads?.() ?? [];
@@ -62,6 +63,7 @@ export class Gamepad {
     const down = (i: number) => btn(i) && !was(i);
     const ax = (i: number) => { const v = pad.axes[i] ?? 0; return Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD); };
     const I = this.input;
+    this.padId = pad.id;
     if (pad.buttons.some((b) => b.pressed) || pad.axes.some((v) => Math.abs(v) > 0.5)) this.use();
     const ui = this.host.windowOpen(), talk = this.host.inDialogue();
 
