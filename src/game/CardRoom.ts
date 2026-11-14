@@ -146,6 +146,7 @@ export class CardRoom {
       this.ledger.done = true;
       if (v.payout) this.host.addMarks(v.payout);
       this.host.addWon(v.payout - v.paid);
+      if (v.payout > v.paid) this.host.bump('tableWins');
       this.host.sound(v.payout > v.paid ? 'quest' : v.payout === v.paid ? 'click' : 'fail');
       this.host.persist();
     }

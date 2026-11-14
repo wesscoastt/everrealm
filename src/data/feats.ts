@@ -8,8 +8,10 @@ import { bestiaryRoster } from './bestiary';
 import { TILES } from './cards';
 import { MORROW_REGIONS } from '../world/morrowLocal';
 
-// Feats: long goals for exploring and joining in, kept in the journal. Each one pays out marks
-// once and gives a title to wear under your name. Nothing here makes a character stronger.
+// Achievements (the journal\'s page; "feats" in the code): long goals for exploring and joining in. Each pays out marks
+// once, adds its points to your tally, and gives a title to wear under your name; some unlock a dye for the wardrobe
+// too (owner 2026-11-14: "add achievements with unlockables"), and a few stay hidden until you\'ve done them. Nothing
+// here makes a character stronger. Counters some of them read are flags "n:<what>", kept by the game as it happens.
 
 export interface FeatApi {
   flag(key: string): unknown;
@@ -27,17 +29,27 @@ export interface FeatApi {
 export interface FeatDef {
   id: string;
   name: string;
-  group: 'Exploration' | 'The open world' | 'Stable' | 'Craft and trade' | 'Factions' | 'Collections';
+  group: 'Exploration' | 'The open world' | 'Stable' | 'Craft and trade' | 'Factions' | 'Collections' | 'Combat' | 'The garden' | 'The tables' | 'Hidden';
   desc: string;
   need: number;
   have(g: FeatApi): number;
   marks: number;
   title: string;
+  /** What it adds to your achievement points (else a tenth of its marks). */
+  points?: number;
+  /** A dye it unlocks for the wardrobe and armour: its colour and name. */
+  dye?: [hex: string, name: string];
+  /** Not shown, not even its name, until it\'s done. */
+  hidden?: boolean;
 }
+
+/** An achievement\'s points. */
+export const featPoints = (f: FeatDef) => f.points ?? Math.max(5, Math.round(f.marks / 10));
+const n = (g: FeatApi, k: string) => Number(g.flag('n:' + k) ?? 0);
 
 const HALTERS = Object.values(ITEMS).filter((d) => d.mount).map((d) => d.id);
 
-/** Creatures of the wilds by which half of the world they live in, for the bestiary's feats. */
+/** Creatures of the wilds by which half of the world they live in, for the bestiary\'s feats. */
 const MORROW_SET = new Set<string>(MORROW_REGIONS);
 const BEASTS = bestiaryRoster();
 const COUNTY_BEASTS = BEASTS.filter((b) => b.regions.some((r) => !MORROW_SET.has(r))).map((b) => b.type);
@@ -79,7 +91,7 @@ export const FEATS: FeatDef[] = [
   { id: 'tasks', name: 'Every Parish Helped', group: 'The open world', desc: 'Finish every parish task in the counties.', need: TASKS.length, have: (g) => g.countFlags('task:'), marks: 200, title: 'Friend of the Parishes' },
   { id: 'horse', name: 'Up in the Saddle', group: 'Stable', desc: 'Buy a halter and ride.', need: 1, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 10, title: 'Rider' },
   { id: 'stable', name: 'The Whole Stable', group: 'Stable', desc: 'Own every horse in the counties, the Cinder-shod mare included.', need: HALTERS.length, have: (g) => HALTERS.filter((h) => g.owns(h)).length, marks: 150, title: 'Horse-Lord' },
-  // Collections: the bestiary filled in, the week's commissions, people helped
+  // Collections: the bestiary filled in, the week\'s commissions, people helped
   { id: 'beastsWell', name: 'Known Well', group: 'Collections', desc: 'Kill fifty of twenty different creatures, and have the hunters\' word on each in your bestiary.', need: 20, have: (g) => BEASTS.filter((b) => killedOf(g, b.type) >= 50).length, marks: 150, title: 'the Naturalist' },
   { id: 'beastsCounties', name: 'Every Creature of the Counties', group: 'Collections', desc: 'Meet every creature of the Charter Counties and the isles, by land and sea, in your bestiary.', need: COUNTY_BEASTS.length, have: (g) => COUNTY_BEASTS.filter((t) => killedOf(g, t) > 0).length, marks: 200, title: 'the Countryman' },
   { id: 'beastsMorrow', name: 'Every Creature of Morrow', group: 'Collections', desc: 'Meet every creature of Morrow in your bestiary, from the Keys to the Held.', need: MORROW_BEASTS.length, have: (g) => MORROW_BEASTS.filter((t) => killedOf(g, t) > 0).length, marks: 250, title: 'Far-Travelled' },
@@ -90,6 +102,29 @@ export const FEATS: FeatDef[] = [
   { id: 'quests100', name: 'Known Everywhere', group: 'Collections', desc: 'Finish a hundred quests.', need: 100, have: (g) => g.questsDone, marks: 300, title: 'Known Everywhere' },
   { id: 'level', name: 'Turned Your Hand', group: 'Craft and trade', desc: 'Reach a total level of 100 across your skills.', need: 100, have: (g) => g.totalLevel, marks: 100, title: 'Journeyman' },
   { id: 'level2', name: 'Master of None', group: 'Craft and trade', desc: 'Reach a total level of 250 across your skills.', need: 250, have: (g) => g.totalLevel, marks: 250, title: 'Many-Handed' },
+  // Combat
+  { id: 'kills100', name: 'Blooded', group: 'Combat', desc: 'Win a hundred fights in the wilds.', need: 100, have: (g) => n(g, 'kills'), marks: 60, title: 'the Blooded' },
+  { id: 'kills1000', name: 'A Thousand Stories', group: 'Combat', desc: 'Win a thousand fights.', need: 1000, have: (g) => n(g, 'kills'), marks: 250, title: 'Storied', dye: ['#5a1a1a', 'Old blood'] },
+  { id: 'kills5000', name: 'The Long War', group: 'Combat', desc: 'Win five thousand fights.', need: 5000, have: (g) => n(g, 'kills'), marks: 600, title: 'the Unwearied', dye: ['#2a2a30', 'Gunmetal'] },
+  // The garden (game/HomeFarm.ts)
+  { id: 'harvest50', name: 'Green Fingers', group: 'The garden', desc: 'Bring in fifty harvests from tilled ground.', need: 50, have: (g) => n(g, 'harvest'), marks: 80, title: 'Green-Fingered', dye: ['#4a3a24', 'Loam'] },
+  { id: 'harvest500', name: 'Five Hundred Rows', group: 'The garden', desc: 'Bring in five hundred harvests.', need: 500, have: (g) => n(g, 'harvest'), marks: 300, title: 'the Grower' },
+  { id: 'prize25', name: 'Ribbon-Worthy', group: 'The garden', desc: 'Grow twenty-five pieces of prize produce.', need: 25, have: (g) => n(g, 'prize'), marks: 120, title: 'Ribbon-Worthy', dye: ['#b0242a', 'Rosette red'] },
+  // Craft and trade
+  { id: 'craft100', name: 'Made by Hand', group: 'Craft and trade', desc: 'Make a hundred things at the bench, the anvil, the furnace or the hearth.', need: 100, have: (g) => n(g, 'crafted'), marks: 100, title: 'the Maker' },
+  { id: 'craft1000', name: 'Calloused', group: 'Craft and trade', desc: 'Make a thousand things.', need: 1000, have: (g) => n(g, 'crafted'), marks: 350, title: 'Master of the Bench', dye: ['#8a5a2a', 'Workshop tan'] },
+  { id: 'rubbings25', name: 'Charcoal Hands', group: 'Craft and trade', desc: 'Take twenty-five rubbings from the standing stones.', need: 25, have: (g) => n(g, 'rubbings'), marks: 100, title: 'Stone-Reader', dye: ['#3a3a44', 'Charcoal'] },
+  // The tables (game/TavernTable.ts, game/CardRoom.ts)
+  { id: 'tables10', name: 'Luck Be a Lady', group: 'The tables', desc: 'Come out ahead at a tavern table ten times: the dice, the Lady, or the cards.', need: 10, have: (g) => n(g, 'tableWins'), marks: 80, title: 'the Lucky', dye: ['#1e5a32', 'Baize green'] },
+  { id: 'tables100', name: 'The House Remembers You', group: 'The tables', desc: 'Come out ahead at the tables a hundred times.', need: 100, have: (g) => n(g, 'tableWins'), marks: 250, title: 'Card Sharp of the Counties' },
+  // The open world
+  { id: 'posts10', name: 'Wayside Writer', group: 'The open world', desc: 'Leave ten message posts for whoever comes after.', need: 10, have: (g) => n(g, 'posts'), marks: 60, title: 'the Signpost' },
+  // Factions: in more than one at once
+  { id: 'manyHats', name: 'Many Hats', group: 'Factions', desc: 'Join four of the realm\'s factions.', need: 4, have: (g) => FACTIONS.filter((x) => typeof g.flag('fac:' + x.id) === 'number').length, marks: 150, title: 'of Many Halls', dye: ['#7a4a8a', 'Motley'] },
+  // Hidden: choices with a story behind them
+  { id: 'hArithmetic', name: 'Arithmetic', group: 'Hidden', desc: 'Let Kit Bawden stand up for the casks.', need: 1, have: (g) => (g.flag('lampEnd') === 'kit' ? 1 : 0), marks: 50, title: 'the Quiet One', hidden: true },
+  { id: 'hSand', name: 'Sand by the Door', group: 'Hidden', desc: 'Keep the lifting mark, and teach it.', need: 1, have: (g) => (g.flag('mgEnd') === 'teach' ? 1 : 0), marks: 50, title: 'the Bold Teacher', hidden: true },
+  { id: 'hFree', name: 'Poor and Free', group: 'Hidden', desc: 'Turn down a king.', need: 1, have: (g) => (g.flag('fgEnd') === 'free' ? 1 : 0), marks: 50, title: 'Nobody\'s Sword', hidden: true, dye: ['#c8c0a8', 'Unbleached'] },
   // Standing (data/standing.ts): the last rank in a region gives its title
   // Factions (data/factions.ts): the last rank gives its title
   ...FACTIONS.filter((f) => f.open).map((f): FeatDef => ({ id: 'fac_' + f.id, name: f.ranks[f.ranks.length - 1], group: 'Factions', desc: `Rise to ${f.ranks[f.ranks.length - 1]} in ${f.name}, through its whole storyline.`, need: f.ranks.length, have: (g) => { const r = g.flag('fac:' + f.id); return typeof r === 'number' ? r + 1 : 0; }, marks: 150, title: f.title })),

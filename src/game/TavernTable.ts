@@ -26,6 +26,8 @@ export interface TavernHost {
   /** A word to one groupmate's table (or all of them). */
   send(to: number | null, data: unknown): void;
   ask(text: string, yes: () => void, no: () => void, secs: number): void;
+  /** One more of something the achievements count (Game.bump). */
+  bump(k: string): void;
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -146,6 +148,7 @@ export class TavernTable {
 
   /** Pay or take marks at the keeper's board, and keep the day's tally. */
   private settle(laid: number, back: number): void {
+    if (back > laid) this.host.bump('tableWins');
     this.host.addMarks(back);
     this.host.addWon(back - laid);
     this.host.sound(back > laid ? 'coin' : back ? 'click' : 'fail');
@@ -482,6 +485,7 @@ export class TavernTable {
     if (w.who === 'you' && !this.paidOut) {
       this.paidOut = true;
       if (pot) { this.host.addMarks(pot); this.host.addWon(pot - this.bsStake); }
+      this.host.bump('tableWins');
       this.host.sound('quest');
     } else this.host.sound('fail');
     this.host.persist();

@@ -86,7 +86,7 @@ import '../data/pledges';
 import { Doll } from '../ui/Doll';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
-import { FEATS, FeatApi } from '../data/feats';
+import { FEATS, FeatApi, featPoints } from '../data/feats';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView , EventPanel } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
@@ -415,6 +415,7 @@ export class Game implements GameApi {
       },
       send: (to, data) => this.online.table(to, data),
       ask: (text, yes, no, secs) => this.hud.ask(text, yes, no, secs),
+      bump: (k) => this.bump(k),
     }));
   }
   /** Amberwold Downs: the races and the book (game/Races.ts). */
@@ -4367,7 +4368,7 @@ export class Game implements GameApi {
       feats: () => {
         const api = g.featApi();
         const worn = g.flag('title');
-        return FEATS.map((f) => ({ id: f.id, name: f.name, group: f.group, desc: f.desc, have: f.have(api), need: f.need, done: !!g.flag('feat:' + f.id), marks: f.marks, title: f.title, worn: worn === f.id }));
+        return FEATS.map((f) => ({ id: f.id, name: f.name, group: f.group, desc: f.desc, have: f.have(api), need: f.need, done: !!g.flag('feat:' + f.id), marks: f.marks, title: f.title, worn: worn === f.id, points: featPoints(f), dye: f.dye, hidden: !!f.hidden }));
       },
       calling: () => g.calling,
       setCalling: (id: CallingId) => g.setCalling(id),
@@ -5536,6 +5537,7 @@ export class Game implements GameApi {
     const kinds = Object.keys(ENCHANTS), pick = kinds[Math.floor(Math.random() * kinds.length)];
     this.setFlag(key, now);
     this.give('rubbing_' + pick, 1);
+    this.bump('rubbings');
     this.addXp('enchanting', Math.round(15 * (1 + this.level('enchanting') / 6)));
     this.sfx('page');
     if (!this.flag('rubbedOnce')) { this.setFlag('rubbedOnce', 1); this.hud.system('Charcoal on paper, flat against the stone: one of the old kingdom\'s marks. Agnes Thew in Ansbury\'s market will show you how to cut it into a glyph.'); }
@@ -5554,6 +5556,7 @@ export class Game implements GameApi {
     if (this.online.status !== 'online') { this.hud.system('Message posts need the realm: you\'re playing offline.'); return; }
     const P = this.player.position, yaw = this.player.yaw;
     // a step in front of you, facing back the way you came, so the next one to come along reads it
+    this.bump('posts');
     this.online.putPost(text, P.x + Math.sin(yaw) * 0.9, P.y, P.z + Math.cos(yaw) * 0.9, yaw + Math.PI);
   }
   private readPost(p: Post): void {
@@ -5743,6 +5746,7 @@ export class Game implements GameApi {
       this.addXp(r.skill, Math.round(c.xp * 0.2));
     }
     c.left--;
+    this.bump('crafted');
     const can = Math.min(...Object.entries(c.cost).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
     if (c.left <= 0 || can < 1) {
       this.craftAction = null;
@@ -7029,6 +7033,9 @@ export class Game implements GameApi {
     };
   }
 
+  /** One more of something the achievements count (data/feats.ts: the flags "n:<what>"). */
+  bump(k: string, by = 1): void { this.setFlag('n:' + k, Number(this.flag('n:' + k) ?? 0) + by); }
+
   private featT = 2;
   /** Every couple of seconds: anything newly earned pays out and says so. */
   private checkFeats(dt: number): void {
@@ -7040,9 +7047,11 @@ export class Game implements GameApi {
       if (this.flag('feat:' + f.id) || f.have(api) < f.need) continue;
       this.setFlag('feat:' + f.id, Date.now());
       this.addMarks(f.marks);
-      this.hud.banner('Feat', f.name, true);
-      this.hud.system(`Feat: ${f.name}. ${f.marks} marks, and the title "${f.title}" (wear it from the journal's Feats page).`);
+      this.hud.banner('Achievement', f.name, true);
+      this.hud.system(`Achievement: ${f.name}. ${featPoints(f)} points, ${f.marks} marks, and the title "${f.title}" (wear it from the journal's Achievements page).`);
       if (FEAT_CAPE[f.id]) this.unlockCape(FEAT_CAPE[f.id]);
+      // (a dye it unlocks, in the wardrobe and for armour from now on)
+      if (f.dye && !this.flag('dye:' + f.dye[0])) { this.setFlag('dye:' + f.dye[0], f.dye[1]); this.hud.system(`Unlocked: the dye ${f.dye[1]}, in Change look and for your armour.`); }
       this.sfx('quest');
       break;
     }
@@ -7940,6 +7949,7 @@ export class Game implements GameApi {
 
   /** byOther: someone else landed the last blow on a creature you'd hurt (game/SharedMobs.ts); they tell the realm and the group. */
   private onEnemyKilled(e: Enemy, byOther = false): void {
+    if (!byOther) this.bump('kills');
     // The Long Stair: a step up for every foe you bring down (data/trophies.ts)
     if (!byOther && this.trophy === 'longstair') {
       this.stair = { n: this.stair.until > this.elapsed ? Math.min(8, this.stair.n + 1) : 1, until: this.elapsed + 12 };

@@ -180,7 +180,7 @@ export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escor
 export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean; /** A foe's element (data/elements.ts): its glyph and colour before the name. */ el?: { glyph: string; color: string; name: string } }
 export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
 
-export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean }
+export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean; points?: number; dye?: [string, string]; hidden?: boolean }
 
 /** One skill as the Skills page shows it. */
 export interface SkillCard { id: string; name: string; base: string; icon: string; desc: string; kind: string; need: number; open: boolean; unlocked: boolean; free: boolean; /** The weapon in your hand's own skill. */ carried?: boolean; rank: number; uses: number; next: number | null; from: number; morph: 'a' | 'b' | null; morphs: { key: 'a' | 'b'; name: string; desc: string }[] }
@@ -2635,7 +2635,7 @@ export class Hud {
       fj.addEventListener('click', () => { this.selQuest = 'festival'; this.renderJournal(); });
       list.append(fj);
     }
-    const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Feats');
+    const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Achievements');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
     const lj = el('div', 'ji' + (this.selQuest === 'library' ? ' sel' : ''), 'Library');
@@ -2797,17 +2797,19 @@ export class Hud {
       }
     } else if (this.selQuest === 'feats') {
       const fs = this.ctx.feats();
-      const done = fs.filter((f) => f.done).length;
-      page.innerHTML = `<h4>Feats</h4><div class="feat-sum">${done} of ${fs.length} done. Each pays out once and gives you a title to wear.</div>`;
+      const done = fs.filter((f) => f.done).length, pts = fs.filter((f) => f.done).reduce((a, f) => a + (f.points ?? 0), 0), all = fs.reduce((a, f) => a + (f.points ?? 0), 0);
+      // (owner 2026-11-14: "add achievements with unlockables": points, dyes to unlock, and some kept hidden till they're done)
+      page.innerHTML = `<h4>Achievements</h4><div class="feat-sum"><b class="ach-pts">${pts.toLocaleString()}</b> of ${all.toLocaleString()} points · ${done} of ${fs.length} done. Each pays out once and gives a title to wear; some unlock a dye.</div>`;
       for (const group of [...new Set(fs.map((f) => f.group))]) {
         page.append(el('h5', 'feat-group', esc(group)));
         for (const f of fs.filter((x) => x.group === group)) {
+          if (f.hidden && !f.done) { page.append(el('div', 'feat ach-hidden', '<div class="ft"><b>Hidden</b><span>?</span></div><div class="fd">Something to find out by doing it.</div>')); continue; }
           const row = el('div', 'feat' + (f.done ? ' done' : ''));
           const pct = Math.min(100, (f.have / f.need) * 100);
           row.innerHTML = `<div class="ft"><b>${esc(f.name)}</b><span>${f.done ? 'Done' : `${Math.min(f.have, f.need).toLocaleString()} / ${f.need.toLocaleString()}`}</span></div>
             <div class="fd">${esc(f.desc)}</div>
             ${f.done ? '' : `<div class="bar feat-bar"><i style="width:${pct}%"></i></div>`}
-            <div class="fr"><img class="ric" src="${COIN_ICON()}" alt="">${f.marks} marks · title <i>${esc(f.title)}</i>${f.done ? ` <button class="btn sm${f.worn ? ' on' : ''}" data-t="${f.id}">${f.worn ? 'Worn' : 'Wear'}</button>` : ''}</div>`;
+            <div class="fr"><span class="ach-p">${f.points ?? 0} pts</span> <img class="ric" src="${COIN_ICON()}" alt="">${f.marks} marks · title <i>${esc(f.title)}</i>${f.dye ? ` · dye <span class="ach-dye" style="background:${f.dye[0]}"></span> ${esc(f.dye[1])}` : ''}${f.done ? ` <button class="btn sm${f.worn ? ' on' : ''}" data-t="${f.id}">${f.worn ? 'Worn' : 'Wear'}</button>` : ''}</div>`;
           row.querySelector('button')?.addEventListener('click', () => { this.ctx.wearTitle(f.worn ? null : f.id); this.renderJournal(); });
           page.append(row);
         }

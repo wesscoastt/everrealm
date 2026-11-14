@@ -827,3 +827,8 @@ body.pad .ab-slot .key { white-space: nowrap; }
 .loot-line.r-rare { color: #4fa0ff; } .loot-line.r-epic { color: #b46aff; } .loot-line.r-legendary { color: #ff9a2a; }
 @keyframes loot-in { 0% { transform: translateX(30px) scale(1.08); filter: brightness(1.8); } 25% { transform: none; } 100% { filter: none; } }
 @media (prefers-reduced-motion: reduce) { .loot-line.loot-good { animation: none; } }
+/* Achievements (journal): points, dye unlocks, hidden ones */
+.ach-pts { color: #6a4210; font-size: 15px; }
+.ach-p { display: inline-block; min-width: 42px; padding: 0 6px; margin-right: 4px; border-radius: 8px; background: rgba(150, 100, 30, 0.16); color: #6a4210; font-weight: 700; font-size: 11px; text-align: center; }
+.ach-dye { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.4); vertical-align: -2px; }
+.feat.ach-hidden { opacity: 0.55; font-style: italic; }

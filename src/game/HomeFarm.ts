@@ -365,6 +365,9 @@ export class HomeFarm {
     if (plain) this.host.give(c.produce, plain);
     if (fine) this.host.give(fineId ?? c.produce, fine);
     if (prize) this.host.give(prizeId ?? c.produce, prize);
+    // (counted for the achievements: data/feats.ts)
+    this.host.setFlag('n:harvest', Number(this.host.flag('n:harvest') ?? 0) + 1);
+    if (prize) this.host.setFlag('n:prize', Number(this.host.flag('n:prize') ?? 0) + prize);
     // (a public field's tile less than your own garden's: with no cap on them, they were the fastest way up; the XP audit, 2026-11-12)
     this.host.addXp('farming', Math.round(c.xpPick * n * (this.zone(x, z) === 'field' ? 0.35 : 1)));
     if (Math.random() < (t.k ? 0.35 : 0.2)) this.host.give(c.seed, 1);
