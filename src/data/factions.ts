@@ -1,9 +1,9 @@
 // Factions: companies you can join, each with its own hall, people and storyline, in the manner of
 // the Elder Scrolls guilds but grown out of the Charter Counties (docs/LORE.md, "The factions").
-// Joining is the first quest of a faction's storyline; each later chapter raises your rank, and the
+// Joining is the first quest of a faction\'s storyline; each later chapter raises your rank, and the
 // last gives a title. Your rank is kept in the flag "fac:<id>" (missing: not a member).
 
-export type FactionId = 'waits' | 'collegium' | 'muster' | 'lamplighters' | 'bell' | 'ushers';
+export type FactionId = 'waits' | 'collegium' | 'muster' | 'lamplighters' | 'bell' | 'ushers' | 'fighters' | 'mages';
 
 export interface FactionDef {
   id: FactionId;
@@ -12,12 +12,12 @@ export interface FactionDef {
   where: string;
   /** What it is, in a sentence or two. */
   blurb: string;
-  /** How to join, for someone who hasn't. */
+  /** How to join, for someone who hasn\'t. */
   join: string;
   ranks: string[];
   /** The title the last rank gives (shown under your name). */
   title: string;
-  /** Its storyline's quests, in order: finishing quest i makes you rank i. */
+  /** Its storyline\'s quests, in order: finishing quest i makes you rank i. */
   storyline: string[];
   color: string;
   /** Open to join in this build. */
@@ -33,6 +33,12 @@ export const FACTIONS: FactionDef[] = [
     title: 'Wait of Ansbury',
     storyline: ['waitsAudition', 'waitsBook', 'waitsMoor', 'waitsSitting', 'waitsHours'],
     color: '#c8a050', open: true,
+  },
+  {
+    id: 'fighters', name: 'The Fighters Guild', where: 'The Fighters Guild, by the Vanguard Hospital, Verandah; a chapter house on the Gullmouth quay',
+    blurb: 'It trains the King\'s Guard and the caravan guards, and hires out to anyone with honest trouble. Its one rule is its word: a Guild sword is never hired to collect a debt or break a strike.',
+    join: 'Ancrum Treneer, Master of the Fighters Guild, takes on Initiates at the Guild in Verandah.', ranks: ['Initiate', 'Sword', 'Shieldbearer', 'Captain'], title: 'Captain of the Fighters Guild',
+    storyline: ['fgFeet', 'fgChapter', 'fgLights', 'fgWord'], color: '#5a2a24', open: true,
   },
   {
     id: 'collegium', name: 'The Collegium', where: 'The Collegium, Guild Ward, Ansbury',
@@ -68,7 +74,7 @@ export const FACTIONS: FactionDef[] = [
 
 export const FACTION_BY_ID = Object.fromEntries(FACTIONS.map((f) => [f.id, f])) as Record<FactionId, FactionDef>;
 
-/** Your rank in a faction (0 is the first), or -1 if you haven't joined. */
+/** Your rank in a faction (0 is the first), or -1 if you haven\'t joined. */
 export function factionRank(g: { flag(k: string): unknown }, id: FactionId): number {
   const r = g.flag('fac:' + id);
   return typeof r === 'number' ? r : -1;
