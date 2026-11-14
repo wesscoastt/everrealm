@@ -41,6 +41,12 @@ export const FACTIONS: FactionDef[] = [
     storyline: ['fgFeet', 'fgChapter', 'fgLights', 'fgWord'], color: '#5a2a24', open: true,
   },
   {
+    id: 'mages', name: 'The Mages Guild', where: 'The Mages Guild, by the Chapel, Verandah; readers who meet at Gullmouth',
+    blurb: 'It keeps what the old kingdom cut into its standing stones, and teaches it slowly, because the last time it was taught quickly the old kingdom fell.',
+    join: 'Selina Pendarves, Warden of the Mages Guild, takes Novices at the Guild in Verandah. Bring her a rubbing.', ranks: ['Novice', 'Reader', 'Scribe', 'Magister'], title: 'Magister of the Mages Guild',
+    storyline: ['mgHum', 'mgPetition', 'mgSink', 'mgSlow'], color: '#2a3a6a', open: true,
+  },
+  {
     id: 'collegium', name: 'The Collegium', where: 'The Collegium, Guild Ward, Ansbury',
     blurb: 'Fellows who study star crystal, the old words and the weather, and teach them for a fee. They would like a Charter licence over all three.',
     join: 'Not yet open.', ranks: ['Entrant', 'Scholar', 'Fellow', 'Senior Fellow'], title: 'Fellow of the Collegium',
