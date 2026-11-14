@@ -1,8 +1,9 @@
 // The taverns' games of chance (owner 2026-11-13: "add gambling with marks and minigames, and the card game bs"):
 // the keeper keeps the dice and the cards behind the bar. Crown and Anchor on the board, Find the Lady on an
-// upturned barrel, and BS round the big table with whoever's drinking. The table itself is game/TavernTable.ts.
+// upturned barrel, and BS round the big table with whoever's drinking; and (owner 2026-11-14) Blackjack against the
+// keeper, Go Fish and hold 'em (game/CardRoom.ts). The table itself is game/TavernTable.ts.
 
-export type TavernGame = 'crown' | 'lady' | 'bs';
+export type TavernGame = 'crown' | 'lady' | 'bs' | 'bj' | 'fish' | 'poker';
 
 export interface BsRegular { name: string; nerve: number; doubt: number }
 
@@ -62,3 +63,5 @@ export const HOUSE_DAILY_LIMIT = 600;
 export const STAKES = [5, 10, 25, 50];
 /** What a hand of BS can be played for. */
 export const BS_STAKES = [0, 10, 25, 50, 100];
+/** What a hand of Go Fish can be played for. */
+export const FISH_STAKES = BS_STAKES;

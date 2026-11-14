@@ -748,6 +748,28 @@
 #tavern .tv-hand .tv-card:hover { translate: 0 -4px; }
 #tavern .tv-hand .tv-card.sel { translate: 0 -12px; outline: 3px solid #ffe08a; }
 #tavern .btn.danger { background: linear-gradient(180deg, #b03a2a, #7a1e14); border-color: #3a0e0a; }
+/* Blackjack, Go Fish and hold 'em (game/CardRoom.ts) */
+#tavern .tv-row { display: flex; gap: 5px; align-items: center; justify-content: center; min-height: 40px; }
+#tavern .tv-card.md { width: 38px; height: 54px; }
+#tavern .tv-card.md b { font-size: 15px; }
+#tavern .tv-card.md i { font-size: 15px; }
+#tavern .tv-dealer { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0 8px; border-bottom: 1px solid rgba(244, 236, 216, 0.15); }
+#tavern .tv-dealer b { font: 700 13px var(--body); color: var(--wheat); }
+#tavern .tv-dealer small, #tavern .tv-bjseat small { font-size: 12px; color: #d8ccb0; }
+#tavern .tv-opps { flex-wrap: wrap; }
+#tavern .tv-opp.me { background: rgba(244, 210, 122, 0.08); }
+#tavern .tv-opp.out { opacity: 0.45; }
+#tavern .tv-opp.ask { cursor: pointer; }
+#tavern .tv-opp.ask:hover { border-color: rgba(255, 224, 138, 0.5); }
+#tavern .tv-opp.pick { border-color: #8ad8a0; background: rgba(138, 216, 160, 0.1); }
+#tavern .tv-btn { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: #f4ecd8; color: #1a1a1e; font: 700 10px var(--body); font-style: normal; margin-left: 4px; vertical-align: 1px; }
+#tavern .tv-board-row { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px; background: rgba(20, 60, 36, 0.45); border-radius: 40px; box-shadow: inset 0 0 0 3px rgba(90, 60, 30, 0.8); }
+#tavern .tv-log-wide { max-height: 104px; }
+#tavern .tv-mine { align-self: center; margin-left: 12px; font: 700 14px var(--px); color: var(--wheat); }
+#tavern .tv-menu { grid-template-columns: repeat(3, 1fr); }
+#tavern .tv-card.deal { animation: tv-deal 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes tv-deal { 0% { opacity: 0; transform: translate(0, -60px) rotateY(180deg) rotate(-14deg) scale(0.8); filter: brightness(0.35); } 55% { opacity: 1; filter: brightness(0.35); } 56% { filter: none; } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { #tavern .tv-card.deal { animation: none; } }
 @media (max-width: 640px) {
   #tavern .tv-menu { grid-template-columns: 1fr; }
   #tavern .tv-mid { grid-template-columns: auto 1fr; }

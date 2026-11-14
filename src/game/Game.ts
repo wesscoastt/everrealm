@@ -9104,6 +9104,8 @@ export class Game implements GameApi {
     else if (this.attack) { if (M.state !== 'attack' && M.state !== 'cleave') M.setState(this.attack.kind === 'cleave' ? 'cleave' : 'attack'); }
     else if (this.healAnim > 0) M.setState('heal');
     else if (this.skillAnim) M.setState(this.skillAnim.st);
+    // at a tavern table, with the cards in hand (dice and all: the keeper's games are played sat over a hand)
+    else if (this.tavernT?.open && !this.horse && P.speed < 0.6) { M.setState('cards'); held = 'cards'; }
     else if (this.doAnim && !this.horse) { M.setState(this.doAnim.st); held = this.doAnim.st === 'dig' || this.doAnim.st === 'chop' ? 'pickaxe' : 'none'; }
     else if (this.music.out && !this.horse) { M.setState('perform'); held = this.music.out.item; }
     else if (this.emote && !this.horse) M.setState(this.emote.id);

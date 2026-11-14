@@ -32,7 +32,7 @@ export interface GameApi {
   /** Amberwold Downs' bookmaker: bet on the next race (game/Races.ts). */
   openBook(): void;
   /** Dice, Find the Lady or BS at a keeper's table (data/tavernGames.ts). */
-  playTavern(npc: string, game?: 'crown' | 'lady' | 'bs' | 'menu'): void;
+  playTavern(npc: string, game?: 'crown' | 'lady' | 'bs' | 'bj' | 'fish' | 'poker' | 'menu'): void;
   /** Guild halls on Hall Row (data/guildhalls.ts), as the realm last said: your guild, whether you may lease, its hall, the free ones, its vault's marks. */
   guildHall(): { online: boolean; guild: string | null; officer: boolean; hall: string | null; free: string[]; vaultMarks: number };
   /** Lease a hall for your guild, from its vault (an officer's or the leader's to do). */

@@ -1,4 +1,6 @@
 import { CROWN_FACES, HOUSE_DAILY_LIMIT, STAKES, BS_STAKES, type GamingHouse, type TavernGame } from '../data/tavernGames';
+import { CardRoom, type CgMsg } from './CardRoom';
+import type { CardGameId } from './cardGames';
 import { call, deal, FACE, lay, letStand, npcDoubts, npcLay, RANKS, rankOf, SUIT, type BsState, type Card } from './bs';
 
 // The tavern tables (data/tavernGames.ts): Crown and Anchor on the board, Find the Lady on the barrel, and BS
@@ -60,7 +62,12 @@ type Msg =
   | { k: 'leave' }
   | { k: 'close' };
 
+const CARD_GAMES: readonly string[] = ['bj', 'fish', 'poker'];
+const isCard = (g: string): g is CardGameId => CARD_GAMES.includes(g);
+
 export class TavernTable {
+  /** Blackjack, Go Fish and hold 'em (game/CardRoom.ts). */
+  private readonly room: CardRoom;
   private el: HTMLDivElement | null = null;
   private house: GamingHouse | null = null;
   private game: TavernGame | 'menu' = 'menu';
@@ -88,7 +95,9 @@ export class TavernTable {
   private guestLobby: { seats: string[]; stake: number; house: string } | null = null;
   private paidOut = false;
 
-  constructor(private host: TavernHost) {}
+  constructor(private host: TavernHost) {
+    this.room = new CardRoom(host, () => this.house, () => this.render());
+  }
 
   get open(): boolean { return !!this.el; }
 
@@ -104,8 +113,10 @@ export class TavernTable {
   }
 
   private go(game: TavernGame | 'menu'): void {
+    this.room.leave();
     this.game = game;
     this.say = '';
+    if (isCard(game)) this.room.begin(game);
     if (game === 'lady') this.lady = { stake: this.lady.stake, slot: [0, 1, 2], phase: 'stake', picked: null };
     if (game === 'bs') this.bsLobby();
     this.render();
@@ -115,6 +126,7 @@ export class TavernTable {
     if (!this.el) return;
     clearTimeout(this.ladyTimer); clearTimeout(this.bsTimer);
     // (leaving a hand of BS: the stake stays in the pot, and a regular picks up your cards)
+    this.room.leave();
     if (this.guestOf !== null) { this.host.send(this.guestOf, { k: 'leave' } satisfies Msg); this.guestOf = null; }
     if (this.st && this.bsPhase === 'play') for (const s of this.st.seats) if (s.who === 'peer') this.host.send(s.peer!, { k: 'close' } satisfies Msg);
     if (this.bsPhase === 'lobby') for (const s of this.seatPlan) if (s.who === 'peer') this.host.send(s.peer!, { k: 'close' } satisfies Msg);
@@ -145,18 +157,22 @@ export class TavernTable {
   private render(): void {
     if (!this.el || !this.house) return;
     const h = this.house, keeper = this.host.nameOf(h.npc);
-    const head = (title: string) => `<div class="tv-head"><b>${title}</b><span class="tv-marks">${this.host.marks().toLocaleString()} marks</span>${this.game !== 'menu' && !this.guestOf ? '<button class="btn ghost tv-back" data-menu>Other games</button>' : ''}<button class="tv-x" data-close>✕</button></div>`;
+    const head = (title: string) => `<div class="tv-head"><b>${title}</b><span class="tv-marks">${this.host.marks().toLocaleString()} marks</span>${this.game !== 'menu' && this.guestOf === null && this.room.guestOf === null ? '<button class="btn ghost tv-back" data-menu>Other games</button>' : ''}<button class="tv-x" data-close>✕</button></div>`;
     let body = '';
     if (this.game === 'menu') {
       body = `${head(esc(h.house))}<p class="tv-say">${esc(keeper)}: "${esc(h.hello)}"</p>
         <div class="tv-menu">
           <button data-g="crown"><b>Crown and Anchor</b><small>Three dice and six faces. Lay marks on a face; each die that shows it pays your stake again.</small></button>
           <button data-g="lady"><b>Find the Lady</b><small>Three cards on a barrel, one of them the queen. Watch her through the shuffle and point. Evens if you're right.</small></button>
+          <button data-g="bj"><b>Blackjack</b><small>Against the keeper: nearer twenty-one than the house without going over. Blackjack pays three to two.${this.host.mates().length ? ' Players here can take a seat beside you.' : ''}</small></button>
+          <button data-g="fish"><b>Go Fish</b><small>Ask round the table for the cards you need, and make books of four. The regulars have long memories.</small></button>
+          <button data-g="poker"><b>Hold 'em</b><small>Two cards each and five on the table. Bet, raise, call or fold; the best five cards take the pot.</small></button>
           <button data-g="bs"><b>BS</b><small>The whole pack dealt round. Lay cards face down and say what they are. Call a liar, or be called. First out takes the pot.${this.host.mates().length ? ' The other players here can sit in.' : ''}</small></button>
         </div>
         ${this.houseShut() ? `<p class="tv-note">${esc(keeper)} has paid out all they'll pay you today. BS for nothing is still on.</p>` : ''}`;
     } else if (this.game === 'crown') body = head('Crown and Anchor') + this.crownHtml();
     else if (this.game === 'lady') body = head('Find the Lady') + this.ladyHtml();
+    else if (isCard(this.game)) body = head(this.room.guestOf !== null ? this.room.title() : `${this.room.title()} at ${esc(h.house)}`) + this.room.html();
     else body = head(this.guestOf !== null ? 'BS' : `BS at ${esc(h.house)}`) + this.bsHtml();
     this.el.innerHTML = `<div class="tv-box tv-${this.game}">${body}</div>`;
     this.wire();
@@ -170,6 +186,7 @@ export class TavernTable {
     if (this.game === 'crown') this.wireCrown();
     if (this.game === 'lady') this.wireLady();
     if (this.game === 'bs') this.wireBs();
+    if (isCard(this.game)) this.room.wire(el);
   }
 
   // ---- Crown and Anchor ----
@@ -471,12 +488,33 @@ export class TavernTable {
     this.broadcast();
   }
 
+  private cgName(g: CardGameId): string { return g === 'bj' ? 'Blackjack' : g === 'fish' ? 'Go Fish' : 'hold \'em'; }
+
   // ---- The realm's word between tables ----
 
   /** A word from a groupmate's table. */
   onNet(from: number, fromName: string, data: unknown): void {
     const m = data as Msg;
     if (!m || typeof m !== 'object' || typeof (m as { k?: unknown }).k !== 'string') return;
+    // Blackjack, Go Fish and hold 'em
+    if (m.k.startsWith('cg')) {
+      const c = data as CgMsg;
+      if (c.k === 'cgOpen') {
+        if (this.open || !isCard(c.g)) return;
+        this.host.ask(`${fromName} is dealing ${this.cgName(c.g)} at ${c.house}${c.stake ? ` for ${c.stake} marks` : ''}. Sit in?`, () => {
+          if (c.stake > this.host.marks()) { this.host.system('You haven\'t the marks to sit in.'); return; }
+          this.house = { npc: '', house: c.house, hello: '', regulars: [] };
+          this.el = document.createElement('div'); this.el.id = 'tavern'; document.body.appendChild(this.el);
+          this.game = c.g;
+          this.room.sitIn(from, c);
+          this.host.sound('open');
+          this.render();
+        }, () => {}, 20);
+        return;
+      }
+      if (this.room.onNet(from, fromName, c)) this.close();
+      return;
+    }
     // As a guest
     if (m.k === 'open') {
       if (this.open) return;

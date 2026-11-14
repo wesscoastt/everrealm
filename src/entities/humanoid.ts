@@ -203,7 +203,7 @@ export type TrophyShoulder = 'shell' | 'crystal' | 'coil' | 'regal' | 'stair' | 
 export type TrophyHelm = 'carapace' | 'shardcrown' | 'clockwork' | 'kingly' | 'stepped' | 'wolfpelt';
 const TROPHY_SHOULDERS = new Set<string>(['shell', 'crystal', 'coil', 'regal', 'stair', 'pelt']);
 
-export type HeldItem = 'none' | 'sword' | 'bronzeSword' | 'pickaxe' | 'hatchet' | 'rod' | 'hammer' | 'tongs';
+export type HeldItem = 'none' | 'sword' | 'bronzeSword' | 'pickaxe' | 'hatchet' | 'rod' | 'hammer' | 'tongs' | 'cards';
 
 /** Length of a dodge roll in seconds (the player's movement uses the same figure). */
 export const ROLL_TIME = 0.55;
@@ -221,7 +221,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | 'cards' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -996,7 +996,7 @@ function instrumentMesh(v: InstrumentVoice): { body: THREE.Group; hand: THREE.Gr
   return { body, hand: null };
 }
 
-const TOOLS = new Set<string>(['sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs']);
+const TOOLS = new Set<string>(['sword', 'bronzeSword', 'pickaxe', 'hatchet', 'rod', 'hammer', 'tongs', 'cards']);
 
 function heldMesh(kind: HeldItem): THREE.Group {
   // The plain swords the watch and the townsfolk carry: the same make as anyone's, steel or bronze
@@ -1030,6 +1030,21 @@ function heldMesh(kind: HeldItem): THREE.Group {
       add(rbox(0.05, 0.55, 0.05, 0.02), wood, 0, 0.18, 0);
       add(rbox(0.14, 0.12, 0.26, 0.02), dark, 0, 0.45, 0.04);
       break;
+    case 'cards': {
+      // a hand of cards fanned out, backs to the world (the tavern tables, game/TavernTable.ts)
+      for (let i = 0; i < 6; i++) {
+        const a = (i - 2.5) * 0.2;
+        const c = new THREE.Mesh(rbox(0.11, 0.004, 0.16, 0.004), lam(i % 2 ? '#f4ecd8' : '#efe4cc'));
+        c.position.set(Math.sin(a) * 0.06, 0.02 + i * 0.002, 0.1 + Math.cos(a) * 0.04);
+        c.rotation.y = -a;
+        g.add(c);
+        const back = new THREE.Mesh(rbox(0.1, 0.002, 0.15, 0.003), lam('#7a1e1a'));
+        back.position.set(c.position.x, c.position.y - 0.003, c.position.z);
+        back.rotation.y = -a;
+        g.add(back);
+      }
+      break;
+    }
     case 'tongs':
       add(rbox(0.03, 0.7, 0.03, 0.01), dark, 0.025, 0.25, 0);
       add(rbox(0.03, 0.7, 0.03, 0.01), dark, -0.025, 0.25, 0);
@@ -2944,6 +2959,18 @@ export class Humanoid {
         P.foreR.rotation.x = -0.9 * k; P.foreL.rotation.x = -0.9 * k;
         P.head.rotation.x = (0.35 + Math.sin(t * 0.9) * 0.04) * k;
         P.torso.position.y = 0.06 + breathe;
+        break;
+      }
+      case 'cards': {
+        // at a tavern table (owner 2026-11-14: "add animation for someone playing card game"): the hand of cards held up
+        // close to the chest, the head bent over it; now and then the left hand draws one out and lays it, or squares the fan
+        const k = Math.min(1, t / 0.3), per = 3.4, q = (t % per) / per;
+        const lay = q > 0.62 && q < 0.86 ? Math.sin(((q - 0.62) / 0.24) * Math.PI) : 0;
+        const fuss = q < 0.2 ? Math.sin((q / 0.2) * Math.PI) : 0;
+        P.armR.rotation.x = -0.75 * k; P.armR.rotation.z = 0.22 * k; P.foreR.rotation.x = -1.15 * k;
+        P.armL.rotation.x = (-0.8 - 0.35 * lay + 0.15 * fuss) * k; P.armL.rotation.z = (-0.3 + 0.18 * fuss) * k; P.foreL.rotation.x = (-1.0 + 0.55 * lay - 0.2 * fuss) * k;
+        P.torso.rotation.x = (0.12 + 0.12 * lay) * k; P.torso.position.y = 0.06 + breathe;
+        P.head.rotation.x = (0.3 + 0.1 * lay) * k; P.head.rotation.y = Math.sin(t * 0.7) * 0.12 * (1 - lay) * k;
         break;
       }
       case 'kneel': {
