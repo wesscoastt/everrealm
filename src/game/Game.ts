@@ -2185,7 +2185,7 @@ export class Game implements GameApi {
     return b && this.inv.count(b) > 0 ? b : null;
   }
   hasTool(s: SkillId): boolean {
-    return this.save.inv.some((st) => st && ITEMS[st.id].tool?.skill === s);
+    return this.save.inv.some((st) => st && ITEMS[st.id]?.tool?.skill === s);
   }
   toast(text: string): void { this.hud.system(text); }
 
@@ -3924,6 +3924,23 @@ export class Game implements GameApi {
     this.player.setAppearance(look, this.scene);
     this.online.setLook(look);
   }
+  /**
+   * Anything in the pack or worn that the game no longer knows (an old save's, or one made on a newer build than this
+   * one) is set aside, not lost: kept under the flag 'setAside' and said in chat, so nothing that reads the pack trips
+   * on it (owner 2026-11-13: the pack drew empty and you couldn't move until a refresh).
+   */
+  private sweepUnknown(): void {
+    const aside = [...((this.flag('setAside') as { id: string; n: number }[] | undefined) ?? [])];
+    let n = 0;
+    this.save.inv.forEach((st, i) => { if (st && !ITEMS[st.id]) { aside.push({ id: st.id, n: st.n }); this.save.inv[i] = null; n++; } });
+    const eq = this.save.equip as unknown as Record<string, string | null | undefined>;
+    for (const k of Object.keys(eq)) { const id = eq[k]; if (id && !ITEMS[id]) { aside.push({ id, n: 1 }); eq[k] = null; n++; } }
+    if (!n) return;
+    this.setFlag('setAside', aside.slice(-50));
+    this.persist();
+    console.warn('set aside', aside);
+    this.hud.system(`${n === 1 ? 'Something' : n + ' things'} in your pack the game doesn't know any more (${aside.slice(-n).map((a) => a.id).join(', ')}) ${n === 1 ? 'has' : 'have'} been set aside, so they can be given back. Tell the game's maker.`);
+  }
   /** The pack's room: the base slots and whatever the pack you've strapped on adds. */
   private fitPack(): void {
     const want = INV_SIZE + Number(this.flag('packSlots') ?? 0);
@@ -4961,6 +4978,7 @@ export class Game implements GameApi {
     this.mode = 'play';
     this.hud.hideTitle();
     this.fitPack();
+    this.sweepUnknown();
     // What's new since this player last looked (once an update, for the whole account on this computer)
     {
       let seen = 0;

@@ -2147,6 +2147,13 @@ export class Hud {
 
   private slotEl(id: string | null, n: number, idx: number, hint: string): HTMLElement {
     const s = el('div', 'slot');
+    if (id && !ITEMS[id]) {
+      // something the game no longer knows (an old save's): shown, not fatal to the window
+      s.classList.add('r-common', 'unknown');
+      s.innerHTML = `<span class="n">?</span>`;
+      s.title = `Something the game doesn't know any more (${id}). Shift-click to drop it.`;
+      return s;
+    }
     if (id) {
       const d = ITEMS[id];
       s.classList.add('r-' + d.rarity);
@@ -2243,7 +2250,7 @@ export class Hud {
     }
     eq.append(jw);
     // Gear is horizontal: show the weapon's style, the armour's weights and the set in force, not a bigger number
-    const style = (id: string | null) => (id ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
+    const style = (id: string | null) => (id && ITEMS[id] ? (ITEMS[id].stats ?? (ITEMS[id].named ? 'Named' : '')).split('.')[0] : 'None');
     const stats = this.packPart(() => {
       const a = this.ctx.armourSummary();
       const pk = this.ctx.packInfo();
