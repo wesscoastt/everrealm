@@ -253,6 +253,9 @@ const COUNTIES_ROADS: [number, number][][] = [
   // South from Kelderby down the Scarth highlands, over the neck and up onto Tolmen Moor to Scarrow Tor
   // (down the highlands' gentle western shoulder: further east they end in a sixty-foot cliff)
   [[300, 1478], [292, 1560], [268, 1640], [252, 1720], [240, 1800], [226, 1880], [204, 1960], [186, 2040], [196, 2120], [244, 2170], [296, 2230], [326, 2300], [288, 2470], [318, 2620], [302, 2770], [310, 2840], [328, 2910], [338, 2952]],
+  // The west road on from Hollindale (owner 2026-11-13: "the road leading west of Hollindale needs to continue"): where it met the
+  // fells it turns south down the green valley at their foot and joins the road west to Holme Staithe
+  [[8, 189], [8, 214], [8, 260], [6, 320], [-8, 380], [-14, 440], [-12, 520], [-4, 600], [4, 680], [8, 760], [16, 840], [24, 910], [40, 985]],
   // Kell: out of Brasswick's east end and up the Kiln, through a cutting in the rim and down to the Works
   [[2432, -556], [2490, -580], [2560, -620], [2630, -650], [2690, -668], [2738, -668]],
 ];
