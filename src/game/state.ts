@@ -1,3 +1,4 @@
+import { BETTER } from '../data/quality';
 import type { Equip } from '../data/items';
 import type { Appearance } from '../entities/humanoid';
 import { ITEMS, SkillId } from '../data/items';
@@ -192,9 +193,11 @@ export class Inventory {
     for (let i = 0; i < size; i++) this.d.inv[i] = merged[i] ?? null;
   }
 
+  /** How many there are, the fine and prize grades of a crop counting as the plain one (data/quality.ts). */
   count(id: string): number {
+    const ids = BETTER[id];
     let n = 0;
-    for (const s of this.d.inv) if (s?.id === id) n += s.n;
+    for (const s of this.d.inv) if (s && (s.id === id || ids?.includes(s.id))) n += s.n;
     return n;
   }
 
@@ -226,16 +229,19 @@ export class Inventory {
     return true;
   }
 
+  /** Takes n: the plain ones first, then the fine, then the prize (data/quality.ts). */
   remove(id: string, n = 1): boolean {
     if (this.count(id) < n) return false;
     let left = n;
-    for (let i = this.d.inv.length - 1; i >= 0 && left > 0; i--) {
-      const s = this.d.inv[i];
-      if (s?.id !== id) continue;
-      const take = Math.min(left, s.n);
-      s.n -= take;
-      left -= take;
-      if (s.n <= 0) this.d.inv[i] = null;
+    for (const want of [id, ...(BETTER[id] ?? [])]) {
+      for (let i = this.d.inv.length - 1; i >= 0 && left > 0; i--) {
+        const s = this.d.inv[i];
+        if (s?.id !== want) continue;
+        const take = Math.min(left, s.n);
+        s.n -= take;
+        left -= take;
+        if (s.n <= 0) this.d.inv[i] = null;
+      }
     }
     return true;
   }

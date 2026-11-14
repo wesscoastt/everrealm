@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CROP, CROPS, seasonRate, type CropDef } from '../data/farming';
+import { BETTER, gradeHarvest, keeping } from '../data/quality';
 import { ITEMS } from '../data/items';
 import type { SkillId } from '../data/items';
 import { B } from '../world/blocks';
@@ -55,7 +56,16 @@ export interface GardenHost {
 }
 
 /** A tilled tile: its crop, how far grown (0..1), when that was worked out, wet until when, composted, and how much of its growing was wet. */
-export interface Tile { c?: string; p: number; u: number; wu: number; k?: 1; wet: number; all: number }
+export interface Tile { c?: string; p: number; u: number; wu: number; k?: 1; wet: number; all: number; /** The soil's heart, 0 (tired) to 1 (rich): it remembers how it's been kept. */ s?: number; /** The kind last grown in it (for rotating). */ f?: string }
+
+/** Peas and beans put back into the ground what other crops take out. */
+const LEGUMES = new Set(['peas', 'beans']);
+/** A crop's family, for rotating: roots, leaves, grain, the climbers, the fruiting kinds. */
+const family = (c: CropDef) => (LEGUMES.has(c.id) ? 'legume' : c.shape);
+/** A tile's soil, new ground starting middling. */
+export const soilOf = (t: Tile) => t.s ?? 0.4;
+/** What the soil is like, in a word. */
+export const soilWord = (s: number) => (s >= 0.8 ? 'rich, dark soil' : s >= 0.55 ? 'good soil' : s >= 0.3 ? 'ordinary soil' : 'tired soil');
 
 /** The cans, best first: how far round the tile they reach, and how many minutes the ground stays wet. */
 export const CANS: { item: string; reach: number; wetMin: number }[] = [
@@ -217,7 +227,7 @@ export class HomeFarm {
   }
 
   // ---------------------------------------------------------------- Working it
-  candidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] {
+  candidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] {
     const herd = this.herdCandidates();
     if (herd.length) return herd;
     const [x, z] = this.target(), key = x + ',' + z, all = this.tiles(), here = all[key];
@@ -228,7 +238,7 @@ export class HomeFarm {
       if (k) return [{ label: HERDS[k].place, pos: new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5), use: () => this.settle(k, x, z) }];
     }
     const at = new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5);
-    const out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] = [];
+    const out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] = [];
     if (!here) {
       if (!this.tillable(x, z)) return [];
       const used = this.homeTiles(all), max = gardenSize(this.host.level('farming')), field = this.zone(x, z) === 'field';
@@ -241,7 +251,9 @@ export class HomeFarm {
     const t = this.grow(here), st = this.stage(t), c = t.c ? CROP(t.c) : undefined;
     if (!c) {
       const s = this.bestSeed();
-      if (s) out.push({ label: `Plant ${s.name.toLowerCase()}${seasonRate(s) > 1 ? ' (in season)' : ''}`, pos: at, use: () => this.plant(x, z, s) });
+      // (the soil, and a word if the last crop here was the same kind: rotate)
+      const tired = s && t.f && t.f === (LEGUMES.has(s.id) ? 'legume' : s.shape) && t.f !== 'legume' ? ', same kind as last' : '';
+      if (s) out.push({ label: `Plant ${s.name.toLowerCase()}${seasonRate(s) > 1 ? ' (in season)' : ''}`, sub: `${soilWord(soilOf(t))}${tired}`, pos: at, use: () => this.plant(x, z, s) });
       else out.push({ label: 'Tilled ground', pos: at, use: () => this.host.system("It wants seed. Bertram Sowerby sells it, by Hollin Ford's west garden."), warn: 'No seed for it' });
       return out;
     }
@@ -278,7 +290,7 @@ export class HomeFarm {
     for (let dz = -reach; dz <= reach; dz++) for (let dx = -reach; dx <= reach; dx++) {
       const k = (x + dx) + ',' + (z + dz), t = all[k];
       if (!t || t.c || !this.host.take(c.seed, 1)) continue;
-      all[k] = { c: c.id, p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0 };
+      all[k] = { c: c.id, p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0, s: t.s, f: t.f };
       n++;
     }
     if (!n) return;
@@ -344,15 +356,27 @@ export class HomeFarm {
     if (this.stage(t) < 3) return false;
     const lv = this.host.level('farming'), tended = t.all > 0 && t.wet / t.all >= 0.75, group = this.host.groupNearby();
     // a tile's share of a patch's crop, more for good keeping and for good company
-    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0));
-    this.host.give(c.produce, n);
+    const soil = soilOf(t);
+    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0) + Math.round((soil - 0.4) * 2.5));
+    // how well it was kept decides how much of it comes up fine or prize (data/quality.ts)
+    const keep = Math.min(1, keeping({ wetShare: t.all > 0 ? t.wet / t.all : 0, compost: !!t.k, inSeason: seasonRate(c) > 1, levelsOver: lv - c.level, group, scarecrow: this.host.scarecrow() }) + (soil - 0.4) * 0.25);
+    const [plain, fine, prize] = gradeHarvest(n, keep);
+    const [fineId, prizeId] = BETTER[c.produce] ?? [];
+    if (plain) this.host.give(c.produce, plain);
+    if (fine) this.host.give(fineId ?? c.produce, fine);
+    if (prize) this.host.give(prizeId ?? c.produce, prize);
     // (a public field's tile less than your own garden's: with no cap on them, they were the fastest way up; the XP audit, 2026-11-12)
     this.host.addXp('farming', Math.round(c.xpPick * n * (this.zone(x, z) === 'field' ? 0.35 : 1)));
     if (Math.random() < (t.k ? 0.35 : 0.2)) this.host.give(c.seed, 1);
-    all[x + ',' + z] = { p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0 };
+    // the soil remembers: compost and steady watering feed it, the same family twice running tires it, peas and beans mend it
+    const fam = family(c), again = t.f === fam && fam !== 'legume';
+    const s2 = Math.max(0, Math.min(1, soil + (t.k ? 0.12 : 0) + (tended ? 0.04 : -0.02) + (LEGUMES.has(c.id) ? 0.12 : 0) - (again ? 0.14 : 0.03)));
+    all[x + ',' + z] = { p: 0, u: Date.now(), wu: t.wu, wet: 0, all: 0, s: s2, f: fam };
     this.save(all);
     this.host.sound('pickup');
-    if (say) this.host.system(`${ITEMS[c.produce]?.name ?? c.produce} ×${n}${tended ? ', well watered' : ''}${t.k ? ', composted' : ''}${group ? ", and more for your group's help" : ''}.`);
+    const soilSaid = again && s2 < soil ? ' The bed is tiring of it: grow something of another kind here next.' : s2 >= 0.8 && soil < 0.8 ? ' The soil here is rich now.' : '';
+    const graded = fine || prize ? ` (${[fine ? `${fine} fine` : '', prize ? `${prize} prize` : ''].filter(Boolean).join(', ')})` : '';
+    if (say) this.host.system(`${ITEMS[c.produce]?.name ?? c.produce} ×${n}${graded}${tended ? ', well watered' : ''}${t.k ? ', composted' : ''}${group ? ", and more for your group's help" : ''}.${soilSaid}`);
     return true;
   }
 
@@ -396,8 +420,11 @@ export class HomeFarm {
       const g = new THREE.Group();
       // the tilled earth, darker where it's wet, in furrows
       const wet = raining || now < t.wu;
-      box(g, 0.98, 0.07, 0.98, wet ? '#3a2818' : '#5e4128', 0, 0.035, 0);
-      for (const fz of [-0.25, 0.25]) box(g, 0.94, 0.05, 0.12, wet ? '#2e2014' : '#4e3520', 0, 0.08, fz);
+      // (richer soil darker and browner, tired soil pale and sandy)
+      const rich = soilOf(t0), mix = (a: number[], b: number[], k: number) => '#' + a.map((v, i) => Math.round(v + (b[i] - v) * k).toString(16).padStart(2, '0')).join('');
+      const dry = mix([0x7a, 0x60, 0x44], [0x4a, 0x30, 0x1c], rich), damp = mix([0x4e, 0x3a, 0x28], [0x2a, 0x1a, 0x0e], rich);
+      box(g, 0.98, 0.07, 0.98, wet ? damp : dry, 0, 0.035, 0);
+      for (const fz of [-0.25, 0.25]) box(g, 0.94, 0.05, 0.12, mix(wet ? [0x40, 0x2e, 0x1e] : [0x6a, 0x50, 0x36], [0x20, 0x14, 0x0a], rich), 0, 0.08, fz);
       const c = t.c ? CROP(t.c) : undefined, st = this.stage(t);
       if (c && st >= 0) {
         const sc = STAGE_SCALE[st], ripe = st >= 3, j = (hash(x, z) - 0.5) * 0.2;

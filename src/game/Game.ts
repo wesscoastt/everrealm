@@ -6326,7 +6326,7 @@ export class Game implements GameApi {
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
-    for (const c of this.garden.candidates()) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.6);
+    for (const c of this.garden.candidates()) consider({ kind: 'act', label: c.label, sub: c.sub, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.6);
     for (const c of this.farming.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.5);
     // On the post cart: get off whenever you like
     if (this.post.active) { const st = this.post.seat(); consider({ kind: 'act', label: 'Get off the cart', pos: new THREE.Vector3(st.x, st.y + 1.6, st.z), act: () => this.endRide(false) }, 0.05); }

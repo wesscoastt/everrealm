@@ -378,3 +378,8 @@ for (const d of JEWEL_ITEMS) ITEMS[d.id] = d;
 // Cloak designs (src/data/capes.ts).
 import { CAPE_ITEMS } from './capes';
 for (const d of CAPE_ITEMS) ITEMS[d.id] = d;
+
+// Fine and prize produce, from a garden kept well (src/data/quality.ts).
+import { CROPS } from './farming';
+import { gradedProduce } from './quality';
+for (const d of gradedProduce(ITEMS, CROPS.map((c) => c.produce))) ITEMS[d.id] = d;
