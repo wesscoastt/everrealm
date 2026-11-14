@@ -783,3 +783,7 @@
 
 /* ---- The controller pointer, in a window (systems/Gamepad.ts) ---- */
 #pad-cursor { position: fixed; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; background: rgba(224, 189, 100, 0.85); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.6); pointer-events: none; z-index: 9999; }
+
+/* a controller in use (Hud.setPadMode): its buttons on the menu circles, smaller to fit */
+body.pad .menu-btn { font-size: 10px; letter-spacing: -0.3px; white-space: nowrap; }
+body.pad .ab-slot .key { white-space: nowrap; }

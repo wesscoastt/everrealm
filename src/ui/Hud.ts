@@ -810,13 +810,29 @@ export class Hud {
     setTimeout(() => s.classList.remove('pressed'), 110);
   }
 
+  /** The controller's name for a key (systems/Gamepad.ts lays them out as ESO does). */
+  static readonly PAD_LABEL: Record<string, string> = { E: 'A', F: '▲', G: '▼', L: '◀', H: '▶', Q: 'LT+A', V: 'LT', Tab: 'R3', '1': 'RT', '2': 'X', '3': 'Y', '4': 'B', '5': 'RB', '6': 'LB+X', '7': 'LB+Y', '8': 'LB+B', Space: 'A', Esc: 'B', M: '⧉', B: 'LB ≡', K: 'LB ▲', T: 'LB L3', J: 'LB ⧉', P: 'LB ▼', O: 'LB ▶', U: 'LB ◀', '☰': '≡' };
+  private padOn = false;
+  /** Show the controller's buttons on the prompts, the bar and the menu buttons, or the keys again. */
+  setPadMode(on: boolean): void {
+    this.padOn = on;
+    document.body.classList.toggle('pad', on);
+    this.root.querySelectorAll<HTMLElement>('.ab-slot .key, .menu-btn').forEach((e) => {
+      const t = e.firstChild;
+      if (!t || t.nodeType !== 3) return;
+      const kb = e.dataset.kb ?? (e.dataset.kb = t.textContent ?? '');
+      t.textContent = on ? Hud.PAD_LABEL[kb] ?? kb : kb;
+    });
+    const p = this.q('#prompt kbd');
+    if (p) { const kb = p.dataset.kb ?? p.textContent ?? ''; p.dataset.kb = kb; p.textContent = on ? Hud.PAD_LABEL[kb] ?? kb : kb; }
+  }
   setPrompt(key: string | null, text = '', sub = '', warn = ''): void {
     const p = this.q('#prompt');
     if (!key) { p.classList.remove('show'); return; }
     p.classList.add('show');
     // On a touch screen the prompt itself is the button (TouchControls)
-    const k = key === 'E' && document.body.classList.contains('touch') ? 'Tap' : key;
-    p.innerHTML = `<kbd>${k}</kbd><span>${esc(text)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}${warn ? `<span class="warn">${esc(warn)}</span>` : ''}`;
+    const k = key === 'E' && document.body.classList.contains('touch') ? 'Tap' : this.padOn ? Hud.PAD_LABEL[key] ?? key : key;
+    p.innerHTML = `<kbd data-kb="${esc(key)}">${k}</kbd><span>${esc(text)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}${warn ? `<span class="warn">${esc(warn)}</span>` : ''}`;
   }
 
   setCast(label: string | null, progress = 0, alert = false): void {
@@ -1948,6 +1964,7 @@ export class Hud {
   }
 
   refresh(p?: PanelId): void {
+    if (this.padOn) this.setPadMode(true); // (anything redrawn on the bar keeps the pad's buttons)
     const list = p ? [p] : [...this.open];
     for (const id of list) {
       if (!this.open.has(id)) continue;

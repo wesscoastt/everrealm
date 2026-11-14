@@ -986,6 +986,7 @@ export class Game implements GameApi {
       rotate: (dx, dy) => { this.input.dragX += dx; this.input.dragY += dy; },
       windowOpen: () => this.hud?.anyOpen() || !!this.tavernT?.open || !!this.racesT?.bookOpen || this.homePicker.open || !!this.quartersT?.open,
       inDialogue: () => !!this.dialogue,
+      padMode: (on) => this.hud?.setPadMode(on),
       canInteract: () => !!this.candidate,
       hello: () => this.hud?.system('A controller, laid out as ESO\'s: left stick to move, right stick to look, RT to attack, LT to block (LT and A to dodge), X, Y, B and RB for skills 2 to 5 (hold LB for 6 to 8; LB and RB together for 8), A to talk, use or jump, the D-pad for food, your horse, your light and your weapon, Start for the menu, View for the map. In a window, the left stick moves a pointer and A clicks.'),
     });

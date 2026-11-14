@@ -11,6 +11,10 @@ import type { Input } from './Input';
 //   right, sheathe or draw. Start: the menu (closes a window). View: the map. LB + Start: the pack; LB + View: the journal.
 //   In a conversation: A, X and Y pick the first three answers, B leaves. In a window: the left stick moves a pointer,
 //   A clicks, B closes.
+//   Hold LB with the D-pad for the other windows: up, skills; down, the group finder; left, companions; right, social;
+//   LB and L3, talents (owner 2026-11-13: "U isn't companions on a controller").
+//   While the pad is what you're using, the prompts, the bar and the menu buttons show its buttons (Hud.setPadMode);
+//   a key or the mouse puts them back.
 
 const DEAD = 0.2;
 /** Standard-mapping button indexes. */
@@ -25,6 +29,8 @@ export interface PadHost {
   canInteract(): boolean;
   /** Seen a pad for the first time: say how it's laid out. */
   hello(name: string): void;
+  /** The pad has become (or stopped being) what you're playing with: show its buttons, or the keys. */
+  padMode(on: boolean): void;
 }
 
 export class Gamepad {
@@ -37,7 +43,14 @@ export class Gamepad {
   /** Keys held down for a button, so they're let go with it. */
   private holding = new Map<number, string>();
 
-  constructor(private input: Input, private host: PadHost) {}
+  private using = false;
+  constructor(private input: Input, private host: PadHost) {
+    // a key or the mouse in use again: the keys back on the screen
+    const off = () => { if (this.using) { this.using = false; this.host.padMode(false); } };
+    addEventListener('keydown', off, true);
+    addEventListener('mousedown', off, true);
+  }
+  private use(): void { if (!this.using) { this.using = true; this.host.padMode(true); } }
 
   poll(dt: number): void {
     const pads = navigator.getGamepads?.() ?? [];
@@ -49,6 +62,7 @@ export class Gamepad {
     const down = (i: number) => btn(i) && !was(i);
     const ax = (i: number) => { const v = pad.axes[i] ?? 0; return Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD); };
     const I = this.input;
+    if (pad.buttons.some((b) => b.pressed) || pad.axes.some((v) => Math.abs(v) > 0.5)) this.use();
     const ui = this.host.windowOpen(), talk = this.host.inDialogue();
 
     // The pointer, in a window: the left stick moves it, A clicks what's under it, B closes the window
@@ -73,7 +87,7 @@ export class Gamepad {
     if (!I.stick) { I.moveX = ax(0); I.moveY = ax(1); }
     const rx = ax(2), ry = ax(3);
     if (rx || ry) this.host.rotate(rx * 650 * dt, ry * 420 * dt);
-    if (down(L3)) this.sprint = !this.sprint;
+    if (down(L3) && !btn(LB)) this.sprint = !this.sprint;
     if (Math.hypot(ax(0), ax(1)) < 0.1) this.sprint = false;
     this.hold(L3 + 100, 'ShiftLeft', this.sprint);
 
@@ -99,10 +113,11 @@ export class Gamepad {
     if (down(B)) I.tap(lb ? 'Digit8' : 'Digit4');
     if (down(RB)) I.tap(lb ? 'Digit8' : 'Digit5');
     // The D-pad, the target, the menus
-    if (down(UP)) I.tap('KeyF');
-    if (down(DOWN)) I.tap('KeyG');
-    if (down(LEFT)) I.tap('KeyL');
-    if (down(RIGHT)) I.tap('KeyH');
+    if (down(UP)) I.tap(lb ? 'KeyK' : 'KeyF');
+    if (down(DOWN)) I.tap(lb ? 'KeyP' : 'KeyG');
+    if (down(LEFT)) I.tap(lb ? 'KeyU' : 'KeyL');
+    if (down(RIGHT)) I.tap(lb ? 'KeyO' : 'KeyH');
+    if (down(L3) && lb) I.tap('KeyT');
     if (down(R3)) I.tap('Tab');
     if (down(START)) I.tap(lb ? 'KeyI' : 'Escape');
     if (down(VIEW)) I.tap(lb ? 'KeyJ' : 'KeyM');
