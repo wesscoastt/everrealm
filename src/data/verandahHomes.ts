@@ -89,5 +89,17 @@ const GATE_ROW: VerandahHome[] = [2033, 2043, 2053].map((z0, i) => ({
 /** The owner's house on the hill above No. 1, Kestle, finished in their style (scripts/mc/kestle-house.cjs; owner 2026-11-13: "make it a
  * decent size house, I'm going to give it to a new player"): two storeys, thirty-six by thirteen, the front door on the north. */
 const KESTLE_HEIGHTS: VerandahHome[] = [{ id: 'vk1', name: 'No. 1, Kestle Heights', x0: -2510, z0: 2308, x1: -2477, z1: 2318, base: 36, door: [-2494, 2306], area: 748, price: 2300, doors: [[-2494, 2306, Math.PI]] }];
-export const VERANDAH_HOMES: VerandahHome[] = [...build(), ...GATE_ROW, ...KESTLE_HEIGHTS];
+/** The white house on the path south from the Screaming Mermaid (owner 2026-11-13: "the white houses along the path from the
+ * Screaming Mermaid area" for sale): whitestone and oak, L-shaped, its door in the angle of the L; the exporter found no roofed
+ * room behind its door, so it's listed by hand. */
+const MERMAID_LANE: VerandahHome[] = [{ id: 'vm1', name: 'No. 1, Mermaid Lane', x0: -2844, z0: 2002, x1: -2832, z1: 2013, base: 17, door: [-2841, 2011], area: 131, price: 5400, doors: [[-2841, 2011, -Math.PI / 2]] }];
+/** Two of the farm row's four houses (No. 5 and No. 7, Verandah) have their only door at the back against the bank, so from the
+ * street only No. 4 and No. 6 looked to be for sale (owner 2026-11-13: "all 4 need to be for sale"): each gets its FOR SALE
+ * board on the street side too. */
+const STREET_SIDE: [number, number, [number, number, number]][] = [[-2923, 2104, [-2921, 2118, 0]], [-2910, 2105, [-2907, 2117, 0]]];
+function streetSide(list: VerandahHome[]): VerandahHome[] {
+  for (const h of list) for (const [x0, z0, d] of STREET_SIDE) if (h.x0 === x0 && h.z0 === z0 && !h.doors.some((q) => q[0] === d[0] && q[1] === d[1])) h.doors.push(d);
+  return list;
+}
+export const VERANDAH_HOMES: VerandahHome[] = [...streetSide(build()), ...GATE_ROW, ...KESTLE_HEIGHTS, ...MERMAID_LANE];
 export const VERANDAH_HOME_BY_ID = new Map(VERANDAH_HOMES.map((h) => [h.id, h]));
