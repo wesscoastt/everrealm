@@ -37,7 +37,7 @@ import {
   ANIMAL_SPAWNS, ENEMIES, ENEMY_SPAWNS, FISH_TABLE, levelForXp, xpForLevel, ORE_INFO, RECIPES, REGION_SPAWNS, STATION_NAMES, SHOP_STOCK, SKILLS, Station, TREE_INFO, RIDE_PACE, RIDE_RANKS, RIDE_WIND, rideRank,
   type EnemyType,
 } from '../data/gameplay';
-import { activeSet, ITEMS, SkillId } from '../data/items';
+import { activeSet, gearPoints, ITEMS, SkillId } from '../data/items';
 import { TROPHY_SETS, trophiesWorn, type TrophyId } from '../data/trophies';
 import { contractSteps, contractTitle, type Contract } from '../data/company';
 import { INFIRMARY_BY_ID, POOR, TREAT_COST } from '../data/infirmary';
@@ -4205,6 +4205,7 @@ export class Game implements GameApi {
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
       sortPack: () => { g.inv.sort(); g.hud.refresh(); g.persist(); },
+      equipBest: () => g.equipBest(),
       daily: () => g.dailies.view(),
       festival: () => ({ ...g.festivals.view(), extra: g.seasons.journal() }),
       trade: () => g.social.ui(),
@@ -5065,6 +5066,52 @@ export class Game implements GameApi {
     this.hud.refresh('inv');
   }
 
+  /**
+   * Put on the best of what you carry (owner 2026-11-13: "add a way to equip the best equipment you have"): for the
+   * weapon, each piece of armour and each piece of jewellery, whatever in the pack scores higher than what's worn there,
+   * by the same measure the tooltips compare with, the rarer and then the dearer winning where two score alike. Unidentified pieces are left for you to look at first.
+   */
+  equipBest(): void {
+    const eq = this.save.equip as unknown as Record<string, string | null | undefined>;
+    const score = (id: string | null | undefined): number => {
+      const d = id ? ITEMS[id] : undefined;
+      if (!d) return -1;
+      // (gear is horizontal: pieces for a slot mostly score alike, so the rarer and then the dearer is the better)
+      const base = d.jewel ? (d.jewel.vigor ?? 0) / 10 + (d.jewel.crit ?? 0) / 0.01 + (d.jewel.wind ?? 0) / 0.02 + (d.jewel.haste ?? 0) / 0.01 : gearPoints(d);
+      return base + ['common', 'uncommon', 'rare', 'epic', 'legendary'].indexOf(d.rarity) * 0.3 + Math.min(d.value, 9999) / 100000;
+    };
+    const slotOf = (id: string): string[] => {
+      const d = ITEMS[id];
+      if (!d || d.unid) return [];
+      return d.weapon ? ['weapon'] : d.armor ? [d.armor.slot] : d.jewel ? (d.jewel.slot === 'ring' ? ['ring1', 'ring2'] : [d.jewel.slot]) : [];
+    };
+    const changed: string[] = [];
+    for (let pass = 0; pass < 2; pass++) {
+      // the best candidate for each slot, highest first, so a ring goes to the weaker of the two
+      const cands = this.save.inv.map((st, i) => (st ? { i, id: st.id, s: score(st.id), slots: slotOf(st.id) } : null)).filter((c): c is { i: number; id: string; s: number; slots: string[] } => !!c && c.slots.length > 0).sort((a, b) => b.s - a.s);
+      let any = false;
+      for (const c of cands) {
+        const st = this.save.inv[c.i];
+        if (!st || st.id !== c.id) continue;
+        const slot = c.slots.slice().sort((a, b) => score(eq[a]) - score(eq[b]))[0];
+        if (c.s <= score(eq[slot]) + 0.01) continue;
+        const old = eq[slot] ?? null;
+        this.inv.removeAt(c.i, 1);
+        eq[slot] = c.id;
+        if (old) this.inv.add(old, 1);
+        changed.push(ITEMS[c.id].name);
+        any = true;
+      }
+      if (!any) break;
+    }
+    if (!changed.length) { this.hud.system('You already wear the best of what you carry.'); this.sfx('click'); return; }
+    this.hp = Math.min(this.hp, this.maxHp);
+    this.dress();
+    this.sfx('equip');
+    this.hud.system(`You put on the best you have: ${changed.join(', ')}.`);
+    this.persist();
+    this.hud.refresh();
+  }
   private useSlot(i: number): void {
     const st = this.save.inv[i];
     if (!st) return;

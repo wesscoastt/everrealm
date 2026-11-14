@@ -218,6 +218,8 @@ export interface UiCtx {
   useSlot(i: number): void;
   /** Tidy the pack: stacks together, in order. */
   sortPack(): void;
+  /** Put on the best gear you carry. */
+  equipBest(): void;
   daily(): DailyView;
   festival(): FestivalView;
   /** The trade on the table, if any, and what to do with it. */
@@ -2272,9 +2274,10 @@ export class Hud {
     const kinds: [BagFilter, string][] = [['all', 'All'], ['gear', 'Gear'], ['food', 'Food'], ['mat', 'Materials'], ['tool', 'Tools'], ['other', 'Other']];
     const bar = el('div', 'bag-bar');
     bar.innerHTML = `<div class="bag-tabs">${kinds.map(([k, n]) => `<button class="bag-tab${this.bagFilter === k ? ' sel' : ''}" data-bf="${k}">${n}</button>`).join('')}</div>
-      <div class="bag-tools"><input class="bag-search" type="search" placeholder="Search the pack" value="${esc(this.bagSearch)}" aria-label="Search the pack"><button class="btn ghost sm" data-sortpack title="Sort the pack by kind and worth">Sort</button></div>`;
+      <div class="bag-tools"><input class="bag-search" type="search" placeholder="Search the pack" value="${esc(this.bagSearch)}" aria-label="Search the pack"><button class="btn ghost sm" data-bestgear title="Put on the best weapon, armour and jewellery you carry">Equip best</button><button class="btn ghost sm" data-sortpack title="Sort the pack by kind and worth">Sort</button></div>`;
     bar.querySelectorAll<HTMLElement>('[data-bf]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.bagFilter = b.dataset.bf as BagFilter; this.renderInventory(); }));
     bar.querySelector('[data-sortpack]')!.addEventListener('click', () => { this.ctx.sfx('click'); this.hideTooltip(); this.ctx.sortPack(); });
+    bar.querySelector('[data-bestgear]')!.addEventListener('click', () => { this.hideTooltip(); this.ctx.equipBest(); });
     const search = bar.querySelector<HTMLInputElement>('.bag-search')!;
     search.addEventListener('input', () => { this.bagSearch = search.value; this.markBag(grid); });
     search.addEventListener('keydown', (e) => e.stopPropagation()); // (typing a name doesn't walk you about)
