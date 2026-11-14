@@ -4042,19 +4042,22 @@ export class Game implements GameApi {
   }
 
   /** The look the character shows: their own, with what they're wearing over it. */
-  private wornLook(): Appearance {
-    const e = this.save.equip;
-    const look: Appearance = { ...this.save.look };
+  private wornLook(): Appearance { return Game.wornLookOf(this.save); }
+  /** Any character's look as they stand, armour and its dyes over their own (the character list shows this too: owner
+   *  2026-11-14, "dye colors dont show on char select screen"). */
+  static wornLookOf(save: SaveData): Appearance {
+    const e = save.equip, flags = save.flags ?? {};
+    const look: Appearance = { ...save.look };
     for (const slot of ['chest', 'shoulders', 'legs', 'hands', 'feet', 'head'] as const) {
       // (a helm or gloves you'd rather not see still guard you: they just aren't drawn)
-      if ((slot === 'head' && this.flag('hideHead')) || (slot === 'hands' && this.flag('hideHands'))) continue;
-
-      const id = e[slot];
+      if ((slot === 'head' && flags.hideHead) || (slot === 'hands' && flags.hideHands)) continue;
+      const id = e?.[slot];
       const l = id ? ITEMS[id]?.armor?.look : undefined;
-      if (l) Object.assign(look, dyeLook(slot, l, this.gearDye(slot)));
+      const dye = flags['gdye:' + slot];
+      if (l) Object.assign(look, dyeLook(slot, l, dye && typeof dye === 'object' ? (dye as { main?: string; trim?: string }) : {}));
     }
     // (the pack on your back goes with the look, so everyone else sees it too)
-    look.pack = this.flag('hidePack') ? 0 : Number(this.flag('packLook') ?? 0);
+    look.pack = flags.hidePack ? 0 : Number(flags.packLook ?? 0);
     return look;
   }
   /** The dyes on a worn slot (data/gearDyes.ts). */
@@ -4467,7 +4470,7 @@ export class Game implements GameApi {
       const capes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('capeD:')).map((k) => k.slice(6));
       const costumes = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('costume:')).map((k) => k.slice(8));
       const pets = Object.keys(s.flags ?? {}).filter((k) => k.startsWith('petOwn:')).map((k) => k.slice(7));
-      return { id, name: s.name, look: s.look, origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes, costumes, pets };
+      return { id, name: s.name, look: s.look, worn: Game.wornLookOf(s), origin: s.origin ?? null, level, total, calling, place: REGION_INFO[regionAt(s.pos[0], s.pos[2]).a].name, playTime: s.playTime, dyes, hats, capes, costumes, pets };
     };
     return {
       renderer: () => g.renderer,
@@ -4584,7 +4587,7 @@ export class Game implements GameApi {
       this.hasSave = true;
       this.player.setAppearance(this.save.look, this.scene);
       this.player.model.root.visible = false;
-      this.previewLook(this.save.look, 'title');
+      this.previewLook(Game.wornLookOf(this.save), 'title');
     }
   }
 

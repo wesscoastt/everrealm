@@ -178,7 +178,9 @@ export function fitOut(h: HouseShape): FitOut {
       hearthAtChimney() || put('hearth', awayU, Math.floor(D / 2), awayFacing, [[awayU, Math.floor(D / 2)]]);
       if (W >= 4) for (let u = 0; u + 2 < W; u += 3) if (put('counter', u + 1, backV - (D > 4 ? 1 : 0), facing.front, [[u, backV - (D > 4 ? 1 : 0)], [u + 1, backV - (D > 4 ? 1 : 0)], [u + 2, backV - (D > 4 ? 1 : 0)]])) break;
       if (D > 4) for (let u = 0; u < W; u += 2) put('barrel', u, backV, 0, [[u, backV]], 0.5, 0.5);
-      for (let v = 1; v + 1 < D - 1; v += 3) for (let u = 0; u + 1 < W; u += 3) {
+      // (a row of tables every fourth cell: a bench either side of each, and an aisle to walk down between one row's
+      // back bench and the next row's front one; owner 2026-11-14, "need to be able to walk between these seats")
+      for (let v = 1; v + 1 < D - 1; v += 4) for (let u = 0; u + 1 < W; u += 3) {
         if (u <= du && du <= u + 1) continue;
         // (the table lies along its two cells, so the benches fit either side of it)
         if (put('table', u, v, facing.front, [[u, v], [u + 1, v]])) {

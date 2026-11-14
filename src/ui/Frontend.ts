@@ -21,6 +21,8 @@ export interface CharSummary {
   id: string;
   name: string;
   look: Appearance;
+  /** As they stand: armour and its dyes over their own look (what the character list shows). */
+  worn?: Appearance;
   /** Null for characters made before origins existed. */
   origin: string | null;
   /** Character level: the fighting (Melee) level, 1 to 100. */
@@ -351,7 +353,7 @@ export class Frontend {
     this.showcase ??= new StoreShowcase(this.ctx.renderer());
     // Costumes and cloaks shown on the character you have chosen, so you see them on yourself
     const me = this.ctx.characters().find((c) => c.id === this.ctx.selected());
-    this.showcase.setWearer(me?.look ?? null);
+    this.showcase.setWearer(me?.worn ?? me?.look ?? null);
     box.querySelectorAll<HTMLCanvasElement>('canvas[data-view]').forEach((cv) => this.showcase!.attach(cv, cv.dataset.view!, cv.closest('.st-card') as HTMLElement));
     box.querySelectorAll<HTMLButtonElement>('[data-claim]').forEach((b) => b.addEventListener('click', async () => {
       if (b.disabled) return;
