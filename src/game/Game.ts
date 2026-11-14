@@ -2,6 +2,7 @@ import { TOWER as TOWER_AT } from '../data/tower';
 import { PostFX } from '../core/PostFX';
 import { drawFace } from '../ui/skin';
 import * as THREE from 'three';
+import { SeaLife } from './SeaLife';
 import { Birds } from './Birds';
 import { PETS } from '../data/pets';
 import { Companion } from '../entities/Companion';
@@ -842,6 +843,8 @@ export class Game implements GameApi {
   /** How a passenger sits: astride behind a saddle, or on a wagon's bench. */
   private pillionPose: SeatPose = 'ride';
   /** The birds over the land round you, the same for everyone (game/Birds.ts). */
+  /** Fish shoals, dolphins, whales and jellyfish about you at sea (game/SeaLife.ts). */
+  private seaLife!: SeaLife;
   private birds!: Birds;
   /** Every bench, chair and stool in the world (sit on one with E), and the seat you're on. */
   private seats: { x: number; y: number; z: number; ry: number; half: number; both: boolean; h: number }[] = [];
@@ -1192,6 +1195,7 @@ export class Game implements GameApi {
       banner: (t, s) => this.hud.banner(t, s, true), system: (t) => this.hud.system(t), sound: (n) => this.sfx(n),
     });
     this.birds = new Birds(this.scene);
+    this.seaLife = new SeaLife(this.scene, this.world.voxels);
     this.seasons = new Seasons({
       scene: this.scene, voxels: this.world.voxels, particles: this.particles, fest: () => this.festivals.fest,
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -8453,6 +8457,7 @@ export class Game implements GameApi {
     // Every carved face glows brighter as it gets dark
     PUMPKIN_GLOW.emissiveIntensity = 0.3 + this.world.sky.night * 1.4;
     this.birds.update(dt, P, this.underCover ? 1 : this.world.sky.night);
+    this.seaLife.update(dt, P, this.world.sky.night);
     if (this.flag('apprentice') !== this.appliedApprentice) this.applyCalling();
     if (this.flag('talentsRedrawn')) {
       this.setFlag('talentsRedrawn', 0);
