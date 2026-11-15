@@ -30,7 +30,7 @@ const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
 // (reach and fall-off eased out: owner 2026-11-12, "lights need to light up farther away, it looks dark in the distance even though there's light")
-const LAMP_LIGHTS = 18, LAMP_REACH = 34, LAMP_POWER = 15, LAMP_DECAY = 1.0;
+const LAMP_LIGHTS = 18, LAMP_REACH = 42, LAMP_POWER = 15, LAMP_DECAY = 1.0;
 /** Lamps further off than the real lights reach still light the ground under them: a pool of lamplight, this far out at most. */
 const POOL_MAX = 420, POOL_SEE = 260;
 const LAMP_ORANGE = new THREE.Color('#ffb05a');
@@ -613,9 +613,26 @@ export class GameWorld {
       this.pools.renderOrder = 2;
       this.sceneRef?.add(this.pools);
     }
+    // ...and a halo round every flame out to the same distance, one draw for them all (owner 2026-11-14: "make it so lights
+    // are lit up way farther around you, more in tune with a modern MMO, without eating performance")
+    if (!this.halos) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 64;
+      const c = cv.getContext('2d')!, gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,236,190,1)'); gr.addColorStop(0.18, 'rgba(255,200,120,0.75)'); gr.addColorStop(0.5, 'rgba(255,160,70,0.22)'); gr.addColorStop(1, 'rgba(255,140,50,0)');
+      c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(POOL_MAX * 3), 3));
+      geo.setDrawRange(0, 0);
+      this.halos = new THREE.Points(geo, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(cv), size: 3.4, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+      this.halos.frustumCulled = false;
+      this.halos.renderOrder = 3;
+      this.sceneRef?.add(this.halos);
+    }
     const mat = this.pools.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.42 * night;
-    this.pools.visible = night > 0.05;
+    mat.opacity = 0.68 * night;
+    (this.halos.material as THREE.PointsMaterial).opacity = 0.95 * night;
+    this.pools.visible = this.halos.visible = night > 0.05;
     if (!this.pools.visible || (this.poolT -= dt) > 0) return;
     this.poolT = 0.6;
     const m = new THREE.Matrix4(), all: THREE.Vector3[] = [];
@@ -624,8 +641,10 @@ export class GameWorld {
     for (const p of this.extraLamps) all.push(p);
     // (the nearest first, when there are more lamps in sight than pools)
     const near = all.map((p) => ({ p, d: Math.hypot(p.x - center.x, p.z - center.z) })).filter((q) => q.d <= POOL_SEE).sort((a, b) => a.d - b.d);
-    let n = 0;
+    let n = 0, h = 0;
+    const hp = this.halos.geometry.getAttribute('position') as THREE.BufferAttribute;
     for (const { p } of near) {
+      if (h < POOL_MAX) hp.setXYZ(h++, p.x, p.y, p.z);
       if (n >= POOL_MAX) break;
       const key = `${Math.round(p.x * 2)},${Math.round(p.y * 2)},${Math.round(p.z * 2)}`;
       let gy = this.poolGround.get(key);
@@ -638,13 +657,16 @@ export class GameWorld {
         if (this.poolGround.size > 6000) this.poolGround.clear();
       }
       if (gy === null) continue;
-      const r = 7 - (p.y - gy) * 0.4;
+      const r = 10 - (p.y - gy) * 0.5;
       m.makeScale(r, 1, r).setPosition(p.x, gy + 0.03, p.z);
       this.pools.setMatrixAt(n++, m);
     }
     this.pools.count = n;
     this.pools.instanceMatrix.needsUpdate = true;
+    hp.needsUpdate = true;
+    this.halos.geometry.setDrawRange(0, h);
   }
+  private halos: THREE.Points | null = null;
   private sceneRef: THREE.Scene | null = null;
   /** How far underground the player is, eased (0 in the open, 1 well below the surface). */
   private under = 0;

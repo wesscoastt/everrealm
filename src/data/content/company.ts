@@ -45,7 +45,7 @@ const ITEMS: ItemDef[] = [
 // (a cleared flag is false: a flag set to nothing reads as true)
 const job = (g: GameApi): Contract | null => { const v = g.flag('co:job'); return v && typeof v === 'object' ? (v as Contract) : null; };
 const doneToday = (g: GameApi): string[] => { const d = g.flag('co:done') as { day: number; keys: string[] } | undefined; return d && d.day === utcDay() ? d.keys : []; };
-const markDone = (g: GameApi, c: Contract) => g.setFlag('co:done', { day: utcDay(), keys: [...doneToday(g), `${c.house}:${c.n}`] });
+const markDone = (g: GameApi, c: Contract) => { g.setFlag('co:done', { day: utcDay(), keys: [...doneToday(g), `${c.house}:${c.n}`] }); g.setFlag('n:contracts', Number(g.flag('n:contracts') ?? 0) + 1); };
 const signed = (g: GameApi) => !!g.flag('co:signed');
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, s % 60)).padStart(2, '0')}`;
 

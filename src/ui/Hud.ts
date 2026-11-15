@@ -247,6 +247,9 @@ export interface UiCtx {
   /** Down and waiting for help: give up waiting and come round at the usual place. */
   respawnNow(): void;
   feats(): FeatView[];
+  /** Your trade and today's jobs (data/jobs.ts). */
+  tradeView(): { current: string | null; trades: { id: string; name: string; where: string; blurb: string; rank: string; rankIdx: number; ranks: string[]; done: number; next: number | null }[]; jobs: { text: string; have: number; need: number; done: boolean }[]; pay: number };
+  takeTrade(id: string): void;
   /** The library: every lore book, shelf by shelf, and which you've read (data/lorebooks.ts). */
   library(): { shelf: string; books: { id: string; title: string; where: string; read: boolean }[] }[];
   readBook(id: string): void;
@@ -2596,7 +2599,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'trade' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -2635,6 +2638,9 @@ export class Hud {
       fj.addEventListener('click', () => { this.selQuest = 'festival'; this.renderJournal(); });
       list.append(fj);
     }
+    const tr = el('div', 'ji' + (this.selQuest === 'trade' ? ' sel' : ''), 'Trade');
+    tr.addEventListener('click', () => { this.selQuest = 'trade'; this.renderJournal(); });
+    list.append(tr);
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Achievements');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
@@ -2793,6 +2799,25 @@ export class Hud {
         const pc = (n: number) => `${Math.round(n * 100)}% off`;
         row.innerHTML = `<div class="ft"><b>${esc(r.name)}</b><span>${esc(r.rank)}${r.off ? ' · ' + pc(r.off) : ''}</span></div>`
           + (r.next ? `<div class="bar feat-bar"><i style="width:${pct}%"></i></div><div class="fd">${r.points.toLocaleString()} of ${r.next.at.toLocaleString()} to ${esc(r.next.name)}${r.next.off ? ` (${pc(r.next.off)})` : ''}</div>` : `<div class="fd">${r.points.toLocaleString()} standing: as high as it goes.</div>`);
+        page.append(row);
+      }
+    } else if (this.selQuest === 'trade') {
+      // A trade to follow, and today's three jobs from it (data/jobs.ts; owner 2026-11-14, "work on the jobs next")
+      const v = this.ctx.tradeView(), cur = v.trades.find((t) => t.id === v.current);
+      page.innerHTML = `<h4>Trade</h4><div class="feat-sum">${cur ? `You follow the trade of <b>${esc(cur.name.toLowerCase())}</b>: ${esc(cur.rank)}. Each day it puts three jobs on your board; each pays ${v.pay} marks and counts toward your next rank.` : 'Take up a trade, and each day it puts three jobs on your board: work the realm wants done, paid and counted toward its ranks. Follow one at a time; your rank in each is kept when you change.'}</div>`;
+      if (cur) {
+        page.append(el('h5', 'feat-group', 'Jobs for today'));
+        for (const j of v.jobs) {
+          const row = el('div', 'feat' + (j.done ? ' done' : ''));
+          row.innerHTML = `<div class="ft"><b>${esc(j.text)}</b><span>${j.done ? 'Done' : `${Math.max(0, j.have)} / ${j.need}`}</span></div>${j.done ? '' : `<div class="bar feat-bar"><i style="width:${Math.min(100, (Math.max(0, j.have) / j.need) * 100)}%"></i></div>`}`;
+          page.append(row);
+        }
+      }
+      page.append(el('h5', 'feat-group', 'The trades'));
+      for (const t of v.trades) {
+        const row = el('div', 'feat' + (t.id === v.current ? ' done' : ''));
+        row.innerHTML = `<div class="ft"><b>${esc(t.name)}</b><span>${esc(t.rank)}${t.next ? ` · ${t.done} / ${t.next} jobs` : ' · top rank'}</span></div><div class="fd">${esc(t.blurb)}</div><div class="fd"><i>${esc(t.where)}</i></div><div class="fr">${esc(t.ranks.join(' · '))} ${t.id === v.current ? '<button class="btn sm on" disabled>Following</button>' : `<button class="btn sm" data-tr="${t.id}">Take it up</button>`}</div>`;
+        row.querySelector('[data-tr]')?.addEventListener('click', () => { this.ctx.takeTrade(t.id); this.renderJournal(); });
         page.append(row);
       }
     } else if (this.selQuest === 'feats') {

@@ -35,22 +35,69 @@ function box(w: number, h: number, d: number, x: number, y: number, z: number, c
 /** A little seeded random, so every plant of a kind is the same plant (the instances turn and size them). */
 function rng(seed: number): () => number { let s = seed; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; }
 
+/** A shape coloured through, turned and set in place (the rounded and pointed parts the boxes can't make). */
+function shaped(g0: THREE.BufferGeometry, sx: number, sy: number, sz: number, x: number, y: number, z: number, color: string, ry = 0, rx = 0, rz = 0, shade = 0.8): Part {
+  const g = (g0.index ? g0.toNonIndexed() : g0.clone());
+  g.scale(sx, sy, sz);
+  const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ'));
+  m.setPosition(x, y, z);
+  g.applyMatrix4(m);
+  _c.set(color);
+  const n = g.getAttribute('position').count, col = new Float32Array(n * 3), pos = g.getAttribute('position');
+  for (let i = 0; i < n; i++) { const k = pos.getY(i) < y ? shade : 1; col[i * 3] = _c.r * k; col[i * 3 + 1] = _c.g * k; col[i * 3 + 2] = _c.b * k; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.deleteAttribute('uv');
+  if (g.getAttribute('normal')) g.deleteAttribute('normal');
+  return g;
+}
+/** A leaf: pointed at both ends, thin, its upper face lit and its underside darker. */
+const LEAF = new THREE.OctahedronGeometry(1, 0);
+/** A berry's drupelet, or a round fruit. */
+const BEAD = new THREE.IcosahedronGeometry(1, 0);
+/** A cane or a twig. */
+const STICK = new THREE.CylinderGeometry(1, 1, 1, 5);
+/** Mix two hex colours (k from 0 to 1). */
+const mixC = (a: string, b: string, k: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), k).getHexString();
+
+/**
+ * Leaves heaped over a mound, each tilted out from the middle and a shade of its own: a bush that reads as leaves at
+ * any distance, not as a block (owner 2026-11-14: "blackberry bushes still roblox looking, flat colour").
+ */
+function leafMound(p: Part[], r: () => number, n: number, rad: number, hgt: number, len: number, wid: number, dark: string, light: string): void {
+  for (let i = 0; i < n; i++) {
+    // over a dome: more leaves low and outside, fewer on top
+    const a = r() * Math.PI * 2, u = Math.sqrt(r()), d = rad * u, y = hgt * (1 - u * u * 0.85) * (0.55 + r() * 0.45);
+    const x = Math.sin(a) * d, z = Math.cos(a) * d;
+    const col = mixC(dark, light, 0.15 + r() * 0.85 * (y / hgt));
+    p.push(shaped(LEAF, wid, 0.012, len, x, y + 0.04, z, col, a + (r() - 0.5) * 0.9, -0.35 - u * 0.5 + (r() - 0.5) * 0.4, (r() - 0.5) * 0.5, 0.62));
+  }
+}
+
 function bramble(fruit: boolean): Part[] {
   const p: Part[] = [], r = rng(11);
-  const leaf = ['#3c6a2c', '#4a7a32', '#36602a', '#527e36'];
-  // the mound: leafy clumps heaped over each other
-  for (const [x, y, z, s] of [[0, 0.18, 0, 0.62], [0.2, 0.36, -0.08, 0.44], [-0.18, 0.32, 0.14, 0.42], [0.05, 0.5, 0.1, 0.34], [-0.12, 0.22, -0.22, 0.36], [0.26, 0.16, 0.2, 0.32]]) {
-    p.push(box(s, s * 0.62, s, x, y, z, leaf[Math.floor(r() * leaf.length)], r() * 3));
+  // a dark heart, so no light shows through the middle of the mound
+  p.push(shaped(BEAD, 0.34, 0.24, 0.34, 0, 0.2, 0, '#25451c', 0, 0, 0, 0.7));
+  // the leaves, in threes and fives along the canes: dark below, fresher at the top where the light is
+  leafMound(p, r, 54, 0.46, 0.62, 0.085, 0.05, '#28501f', '#5e8e3a');
+  // canes arching up and out, dark red-brown, a thorn or two on each
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + r() * 0.5, out = 0.26 + r() * 0.12;
+    p.push(shaped(STICK, 0.014, 0.5, 0.014, Math.sin(a) * out * 0.5, 0.36, Math.cos(a) * out * 0.5, i % 2 ? '#6a2e2a' : '#58301e', a, 0.9 + r() * 0.3, 0, 0.75));
+    p.push(shaped(LEAF, 0.008, 0.008, 0.025, Math.sin(a) * out * 0.7, 0.44, Math.cos(a) * out * 0.7, '#c8a080', a + 1.2, 0.4));
   }
-  // canes arching out of it, dark red-brown
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4; p.push(box(0.045, 0.045, 0.5, Math.sin(a) * 0.32, 0.42, Math.cos(a) * 0.32, '#5a2e2a', a, -0.5)); }
   if (fruit) {
-    // fruit in clusters of three: ripe black, purple, and the odd red one not ready
-    for (let i = 0; i < 9; i++) {
-      const a = r() * Math.PI * 2, h = 0.22 + r() * 0.36, rad = 0.26 + r() * 0.14;
+    // fruit in loose clusters on the outside of the mound: ripe black, purple, red not ready, the odd green one
+    for (let i = 0; i < 11; i++) {
+      const a = r() * Math.PI * 2, h = 0.2 + r() * 0.36, rad = 0.3 + r() * 0.14 - h * 0.12;
       const bx = Math.sin(a) * rad, bz = Math.cos(a) * rad;
-      const ripe = i % 4 === 3 ? '#a82a2a' : i % 2 ? '#24102a' : '#4a1838';
-      for (let k = 0; k < 3; k++) p.push(box(0.075, 0.085, 0.075, bx + (k - 1) * 0.06, h + (k % 2) * 0.05, bz + (k % 2 ? 0.04 : -0.03), ripe));
+      const ripe = i % 5 === 4 ? '#7a9a3a' : i % 4 === 3 ? '#b02a2e' : i % 2 ? '#1c0c22' : '#3e1634';
+      // a blackberry is a knot of drupelets: seven beads round one
+      for (let k = 0; k < 7; k++) {
+        const t = (k / 6) * Math.PI * 2;
+        p.push(shaped(BEAD, 0.018, 0.018, 0.018, bx + (k ? Math.cos(t) * 0.02 : 0), h + (k ? Math.sin(t * 2) * 0.012 : 0.012), bz + (k ? Math.sin(t) * 0.02 : 0), ripe, 0, 0, 0, 0.7));
+      }
+      // its little green cap where it meets the stalk
+      p.push(shaped(LEAF, 0.02, 0.006, 0.02, bx, h + 0.032, bz, '#4a6a2a', r() * 3));
     }
   }
   return p;
@@ -98,32 +145,31 @@ function chanterelles(all: boolean): Part[] {
 
 function bilberry(fruit: boolean): Part[] {
   const p: Part[] = [], r = rng(41);
-  for (const [x, z, s] of [[0, 0, 0.42], [0.16, 0.1, 0.3], [-0.14, 0.12, 0.28], [0.04, -0.17, 0.3]]) {
-    p.push(box(s, s * 0.6, s, x, s * 0.32, z, r() < 0.5 ? '#3a6a34' : '#467a3a', r() * 3));
-  }
-  // the red-green twigs poking through
-  for (let i = 0; i < 5; i++) { const a = r() * Math.PI * 2; p.push(box(0.025, 0.2, 0.025, Math.sin(a) * 0.12, 0.3, Math.cos(a) * 0.12, '#7a4a2a', 0, r() * 0.5 - 0.25)); }
-  if (fruit) for (let i = 0; i < 14; i++) {
-    const a = r() * Math.PI * 2, d = 0.1 + r() * 0.16;
-    p.push(box(0.065, 0.065, 0.065, Math.sin(a) * d, 0.16 + r() * 0.18, Math.cos(a) * d, i % 3 ? '#2a3a7a' : '#4a5a9a'));
+  // a low wiry shrub: green twigs standing up through small, round, bright leaves
+  for (let i = 0; i < 9; i++) { const a = r() * Math.PI * 2, d = r() * 0.16; p.push(shaped(STICK, 0.01, 0.3 + r() * 0.12, 0.01, Math.sin(a) * d, 0.17, Math.cos(a) * d, i % 3 ? '#4a7a2a' : '#7a4a2a', a, (r() - 0.5) * 0.5, (r() - 0.5) * 0.5, 0.8)); }
+  leafMound(p, r, 40, 0.3, 0.36, 0.04, 0.032, '#2e5a28', '#6aa040');
+  if (fruit) for (let i = 0; i < 16; i++) {
+    const a = r() * Math.PI * 2, d = 0.08 + r() * 0.2;
+    // round, dusky, the bloom on them a paler blue
+    p.push(shaped(BEAD, 0.034, 0.034, 0.034, Math.sin(a) * d, 0.12 + r() * 0.22, Math.cos(a) * d, i % 3 ? '#2a3466' : '#4a5a92', 0, 0, 0, 0.72));
   }
   return p;
 }
 
 function cloudberry(fruit: boolean): Part[] {
   const p: Part[] = [], r = rng(53);
-  // broad, crinkled leaves on short stems, low over the moss
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2 + 0.3, d = 0.14 + r() * 0.06, x = Math.sin(a) * d, z = Math.cos(a) * d, h = 0.08 + r() * 0.06;
-    p.push(box(0.02, h, 0.02, x, h / 2, z, '#5a7a3a'));
-    p.push(box(0.2, 0.025, 0.2, x, h, z, i % 2 ? '#5a8a3a' : '#4e7e34', a, 0.15));
+  // broad, crinkled, lobed leaves on short stems, low over the moss: each three lobes round a middle
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3, d = 0.13 + r() * 0.07, x = Math.sin(a) * d, z = Math.cos(a) * d, h = 0.07 + r() * 0.06;
+    p.push(shaped(STICK, 0.008, h, 0.008, x, h / 2, z, '#5a7a3a'));
+    const col = mixC('#3e6e2c', '#6a9a40', r());
+    for (let l = 0; l < 3; l++) { const b = a + (l - 1) * 0.9; p.push(shaped(LEAF, 0.06, 0.01, 0.07, x + Math.sin(b) * 0.04, h, z + Math.cos(b) * 0.04, col, b, 0.15 + r() * 0.2)); }
   }
   if (fruit) for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + 1, x = Math.sin(a) * 0.08, z = Math.cos(a) * 0.08;
-    p.push(box(0.018, 0.2, 0.018, x, 0.1, z, '#6a7a3a'));
-    // the fruit: a knobbly amber cap of drupelets
-    p.push(box(0.11, 0.1, 0.11, x, 0.24, z, '#f0a040'));
-    p.push(box(0.07, 0.04, 0.07, x, 0.3, z, '#f8c060'));
+    const a = (i / 3) * Math.PI * 2 + 1, x = Math.sin(a) * 0.07, z = Math.cos(a) * 0.07;
+    p.push(shaped(STICK, 0.008, 0.22, 0.008, x, 0.11, z, '#6a7a3a'));
+    // the fruit: a knobbly amber cap of drupelets, paler at the top
+    for (let k = 0; k < 9; k++) { const t = (k / 8) * Math.PI * 2; p.push(shaped(BEAD, 0.024, 0.024, 0.024, x + (k ? Math.cos(t) * 0.028 : 0), 0.25 + (k ? Math.sin(t * 3) * 0.012 : 0.02), z + (k ? Math.sin(t) * 0.028 : 0), k ? '#e89030' : '#f8c060', 0, 0, 0, 0.75)); }
   }
   return p;
 }

@@ -3,6 +3,7 @@ import { EVENTS, TASKS, WORLD_BOSSES } from './activities';
 import { ITEMS } from './items';
 import { RANKS, REVERED_TITLE } from './standing';
 import { FACTIONS } from './factions';
+import { TRADES, TRADE_RANK_AT } from './jobs';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 import { bestiaryRoster } from './bestiary';
 import { TILES } from './cards';
@@ -125,6 +126,8 @@ export const FEATS: FeatDef[] = [
   { id: 'hArithmetic', name: 'Arithmetic', group: 'Hidden', desc: 'Let Kit Bawden stand up for the casks.', need: 1, have: (g) => (g.flag('lampEnd') === 'kit' ? 1 : 0), marks: 50, title: 'the Quiet One', hidden: true },
   { id: 'hSand', name: 'Sand by the Door', group: 'Hidden', desc: 'Keep the lifting mark, and teach it.', need: 1, have: (g) => (g.flag('mgEnd') === 'teach' ? 1 : 0), marks: 50, title: 'the Bold Teacher', hidden: true },
   { id: 'hFree', name: 'Poor and Free', group: 'Hidden', desc: 'Turn down a king.', need: 1, have: (g) => (g.flag('fgEnd') === 'free' ? 1 : 0), marks: 50, title: 'Nobody\'s Sword', hidden: true, dye: ['#c8c0a8', 'Unbleached'] },
+  // Trades (data/jobs.ts): the last rank gives its title and dye
+  ...TRADES.map((t): FeatDef => ({ id: 'trade_' + t.id, name: t.ranks[4], group: 'Craft and trade', desc: `Rise to ${t.ranks[4]} as a ${t.name.toLowerCase()}: ${TRADE_RANK_AT[4]} of the trade's daily jobs done.`, need: TRADE_RANK_AT[4], have: (g) => Number(g.flag('tradeDone:' + t.id) ?? 0), marks: 300, title: t.title, dye: t.dye })),
   // Standing (data/standing.ts): the last rank in a region gives its title
   // Factions (data/factions.ts): the last rank gives its title
   ...FACTIONS.filter((f) => f.open).map((f): FeatDef => ({ id: 'fac_' + f.id, name: f.ranks[f.ranks.length - 1], group: 'Factions', desc: `Rise to ${f.ranks[f.ranks.length - 1]} in ${f.name}, through its whole storyline.`, need: f.ranks.length, have: (g) => { const r = g.flag('fac:' + f.id); return typeof r === 'number' ? r + 1 : 0; }, marks: 150, title: f.title })),

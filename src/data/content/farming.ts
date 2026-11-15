@@ -45,7 +45,7 @@ const bertram: DialogueTree = {
           effect: (g: import('../../game/api').GameApi) => {
             const o = ordersToday()[i];
             if (done(g, i) || !g.take(o.item, o.n)) return;
-            g.addMarks(o.marks); g.addXp('farming', o.xp);
+            g.addMarks(o.marks); g.addXp('farming', o.xp); g.setFlag('n:orders', Number(g.flag('n:orders') ?? 0) + 1);
             const v = g.flag('farmOrders') as { d?: string; done?: number[] } | undefined;
             g.setFlag('farmOrders', { d: dayKey(), done: [...(v?.d === dayKey() ? v.done ?? [] : []), i] });
             g.toast(`Bertram writes it in the book and counts out ${o.marks} marks. "${o.who[0].toUpperCase() + o.who.slice(1)} will be pleased. Or they'll say nothing, which is the same thing."`);

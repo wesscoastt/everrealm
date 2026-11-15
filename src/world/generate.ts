@@ -20,6 +20,10 @@ export const ROADS: [number, number][][] = [
   [[-4, 188], [40, 190], [80, 186], [112, 186], [140, 184], [163, 184]], // West road into the square
   [[179, 184], [196, 184], [226, 188], [262, 194], [324, 200]], // East road out of the village
   [[190, 184], [193.5, 180], [193.5, 169], [201, 160], [210, 146], [216, 126], [218, 118]], // Pit road, up between the smithy and the blue cottage
+  // The west road's turn south, inside the valley (owner 2026-11-14: "the road west of Hollindale still deadends"): the
+  // Counties' road on from here (world/terrain.ts) is drawn only outside the valley, so its first stretch, down the
+  // valley's west side to its south edge, has to be the valley's own
+  [[2, 188], [8, 196], [8, 214], [8, 260], [7, 300], [6, 319]],
   [[150, 190], [147.5, 196], [147.5, 204], [151, 212], [151, 237], [136, 241], [112, 241], [96, 246], [80, 250]], // Lantern path (clear of the cottage chimney), round the east and south of the farm
   // Wetlings track: down from the inn, over the plank bridge, along the far bank and south out of the vale
   [[180, 196], [190.6, 213], [193, 216], [193, 218.5], [181, 218.5], [184, 226], [196, 236], [206, 243], [214, 262], [226, 292], [232, 324]],

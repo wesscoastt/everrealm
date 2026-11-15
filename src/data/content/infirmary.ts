@@ -66,7 +66,7 @@ const rounds = (g: GameApi, i: Infirmary): Rounds => {
   const r = g.flag('rounds:' + i.id) as Rounds | undefined;
   return r && typeof r === 'object' && r.day === utcDay() ? r : { day: utcDay(), herbs: false, sat: false };
 };
-const doneRound = (g: GameApi, i: Infirmary, k: 'herbs' | 'sat') => g.setFlag('rounds:' + i.id, { ...rounds(g, i), [k]: true });
+const doneRound = (g: GameApi, i: Infirmary, k: 'herbs' | 'sat') => { g.setFlag('rounds:' + i.id, { ...rounds(g, i), [k]: true }); g.setFlag('n:rounds', Number(g.flag('n:rounds') ?? 0) + 1); };
 /** The patient to sit with today. */
 const todays = (i: Infirmary) => i.patients[utcDay() % i.patients.length];
 

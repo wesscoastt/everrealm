@@ -87,6 +87,7 @@ import { Doll } from '../ui/Doll';
 import { Dailies } from './Dailies';
 import { Waymarks, waymarks, waymarkFare } from './Waymarks';
 import { FEATS, FeatApi, featPoints } from '../data/feats';
+import { TRADES, TRADE_BY_ID, jobDay, jobNeed, jobPay, tradeRank, type JobBoard, type TradeId } from '../data/jobs';
 import { Hud, MapMarker, PlateInfo, QuestEntry, ShopView , EventPanel } from '../ui/Hud';
 import { SHOPS, shopBuyPrice, shopPrice } from '../data/shops';
 import { STABLES } from '../data/stables';
@@ -2574,8 +2575,20 @@ export class Game implements GameApi {
    * arrive inside. Not in a fight, a conversation, a cell or a dungeon run.
    */
   myHomeName(): string | null { return this.myHome()?.name ?? null; }
+  /** The owner's house in Verandah: in at the ground floor, the cellar and its chests under your feet. */
+  travelOwnerHome(): void {
+    if (this.justice.jailed) { this.hud.system('Not from a cell.'); return; }
+    if (this.dungeons.run) { this.hud.system('Not from inside a dungeon. Leave it first.'); return; }
+    if (this.mode !== 'play' || this.dead || this.dialogue || this.elapsed - this.lastCombat < 5) { this.hud.system('Not just now: not in a fight, and not in the middle of a conversation.'); return; }
+    this.dismount(true); this.hud.closeAll(); this.cancelActions(); this.target = null;
+    this.save.pos = [-2469.5, 16.05, 2391.5];
+    this.save.hour = this.world.sky.hour; this.save.hp = this.hp;
+    this.arriving = 'your house above the farm'; this.arrivingBy = 'waymark';
+    this.startPlay(false, 'Going home…');
+  }
   travelHome(): void {
     const h = this.myHome();
+    if (!h && isHomeOwner(this.accountName())) { this.travelOwnerHome(); return; }
     if (!h) { this.hud.system('You have no home yet: buy a house, lease a lot, or rent a room, and you can travel there from the map.'); return; }
     if (this.justice.jailed) { this.hud.system('Not from a cell.'); return; }
     if (this.dungeons.run) { this.hud.system('Not from inside a dungeon. Leave it first.'); return; }
@@ -2818,6 +2831,9 @@ export class Game implements GameApi {
     const cur = this.myHome(), curId = this.myHomeId() ?? (readTenancy(this.flag('flat')) ? 'room' : null);
     const place = (id: string, kind: HeldHome['kind']) => (kind === 'room' ? (LODGINGS.find((l) => l.id === id.split(':')[0])?.town ?? '') : kind === 'lot' ? (LOT_BY_ID.get(id)?.name ?? '') : kind === 'cottage' ? 'Hollin Ford' : (VILLA_BY_ID.get(id) ? villaPlace(VILLA_BY_ID.get(id)!) : ''));
     if (cur && curId) out.push({ id: curId, name: cur.name.replace(/^your /, ''), where: '', current: true, kind: this.flag('plot') ? 'lot' : this.flag('villa') ? 'villa' : this.flag('flat') ? 'room' : 'cottage' });
+    // (the owner's own house in Verandah, theirs by their account: owner 2026-11-14, "it says I don't have a home but
+    // mine's in Verandah, with the cellar")
+    if (isHomeOwner(this.accountName())) out.push({ id: 'owner', name: 'Your house above the farm', where: 'Verandah', current: !cur, kind: 'villa' });
     for (const h of this.held()) {
       const name = h.kind === 'room' ? (() => { const t = readTenancy(h.tenancy); const L = t && LODGINGS.find((l) => l.id === t.house); return L && t ? `${roomsOf(L)[t.room].name}, ${L.name}` : 'A let room'; })() : this.homeName(h.id);
       out.push({ id: h.id, name, where: place(h.id, h.kind), current: false, kind: h.kind });
@@ -2831,6 +2847,7 @@ export class Game implements GameApi {
     this.homePicker.show(list, (id) => this.travelHomeTo(id));
   }
   travelHomeTo(id: string): void {
+    if (id === 'owner') { this.travelOwnerHome(); return; }
     const list = this.homeList(), h = list.find((x) => x.id === id);
     if (!h) return;
     if (!h.current && !this.moveInto(id)) return;
@@ -4365,6 +4382,8 @@ export class Game implements GameApi {
         const next = !nextQ ? null : cur ? `Under way: "${QUESTS[nextQ]?.name ?? nextQ}". See its page in the journal.` : `Next: "${QUESTS[nextQ]?.name ?? nextQ}". Ask at the hall.`;
         return { id: f.id, name: f.name, where: f.where, blurb: f.blurb, join: f.join, rank: r >= 0 ? f.ranks[r] : null, rankIdx: r, ranks: f.ranks, next, open: f.open };
       }),
+      tradeView: () => g.tradeView(),
+      takeTrade: (id: string) => g.takeTrade(id as TradeId),
       feats: () => {
         const api = g.featApi();
         const worn = g.flag('title');
@@ -5747,6 +5766,7 @@ export class Game implements GameApi {
     }
     c.left--;
     this.bump('crafted');
+    this.bump(c.station === 'hearth' ? 'cooked' : c.station === 'bench' ? 'joinery' : 'smithed');
     const can = Math.min(...Object.entries(c.cost).map(([k, n]) => Math.floor(this.inv.count(k) / n)));
     if (c.left <= 0 || can < 1) {
       this.craftAction = null;
@@ -6548,6 +6568,7 @@ export class Game implements GameApi {
         const f = c.forage!, n = 1 + (Math.random() < 0.35 ? 1 : 0);
         if (!this.give(f.kind, n)) { this.hud.system('Your pack is full.'); this.sfx('fail'); break; }
         f.bareUntil = this.elapsed + 600;
+        this.bump('forage', n);
         this.addXp('cooking', 14);
         this.sfx('pickup');
         this.particles.leaves(tmpV.set(f.x, f.y + 0.4, f.z), f.kind === 'chanterelles' ? '#d89028' : '#4a7a32', 6);
@@ -6876,6 +6897,7 @@ export class Game implements GameApi {
 
   /** A fish landed: it goes in the pack (a sea turtle goes free), into the catch book, and the skill. */
   private landFish(fish: FishDef | 'megalodon' | 'ice_spice_fish', lb: number): void {
+    this.bump('fish'); if (lb >= 10) this.bump('fishBig');
     this.sfx('catch'); this.particles.splash(this.bobber.position, 22);
     if (fish === 'megalodon') {
       this.give('megalodon_tooth'); this.addMarks(2500); this.addXp('fishing', 20000); this.quake(0.9);
@@ -7036,12 +7058,71 @@ export class Game implements GameApi {
   /** One more of something the achievements count (data/feats.ts: the flags "n:<what>"). */
   bump(k: string, by = 1): void { this.setFlag('n:' + k, Number(this.flag('n:' + k) ?? 0) + by); }
 
+  // ---------------------------------------------------------------- Trades (data/jobs.ts)
+
+  /** The trade you follow, if any. */
+  trade(): TradeId | null { const t = this.flag('trade'); return typeof t === 'string' && t in TRADE_BY_ID ? (t as TradeId) : null; }
+  private tradeJobs(id: TradeId): number { return Number(this.flag('tradeDone:' + id) ?? 0); }
+  /** Today's board for your trade, put up fresh the first time it's asked for each day. */
+  private jobBoard(): JobBoard | null {
+    const t = this.trade();
+    if (!t) return null;
+    const b = this.flag('jobBoard') as JobBoard | undefined, day = jobDay();
+    if (b && b.day === day && b.trade === t) return b;
+    const rank = tradeRank(this.tradeJobs(t));
+    const fresh: JobBoard = { day, trade: t, jobs: TRADE_BY_ID[t].jobs.map((j) => ({ counter: j.counter, text: j.text, need: jobNeed(j, rank), base: Number(this.flag('n:' + j.counter) ?? 0), done: false })) };
+    this.setFlag('jobBoard', fresh);
+    return fresh;
+  }
+  /** Take up a trade (your ranks in the others are kept). */
+  takeTrade(id: TradeId): void {
+    if (!TRADE_BY_ID[id] || this.trade() === id) return;
+    this.setFlag('trade', id);
+    this.setFlag('jobBoard', undefined);
+    // (today's board goes up now, so what you do from here counts)
+    this.jobBoard();
+    const t = TRADE_BY_ID[id];
+    this.hud.system(`You take up the trade of ${t.name.toLowerCase()}: ${t.ranks[tradeRank(this.tradeJobs(id))]}. Your jobs for today are in the journal, under Trade.`);
+    this.sfx('quest');
+    this.persist();
+  }
+  /** What the journal's Trade page shows. */
+  tradeView() {
+    const cur = this.trade(), board = this.jobBoard();
+    return {
+      current: cur,
+      trades: TRADES.map((t) => { const done = this.tradeJobs(t.id), r = tradeRank(done); return { id: t.id, name: t.name, where: t.where, blurb: t.blurb, rank: t.ranks[r], rankIdx: r, ranks: t.ranks, done, next: r < 4 ? [0, 6, 18, 40, 80][r + 1] : null }; }),
+      jobs: board ? board.jobs.map((j) => ({ text: j.text.replace('{n}', String(j.need)), have: Math.min(j.need, Number(this.flag('n:' + j.counter) ?? 0) - j.base), need: j.need, done: j.done })) : [],
+      pay: cur ? jobPay(tradeRank(this.tradeJobs(cur))) : 0,
+    };
+  }
+  /** Any of today's jobs now done: paid, counted, and a rank if it's earned one. */
+  private jobsTick(): void {
+    const b = this.jobBoard();
+    if (!b) return;
+    const t = TRADE_BY_ID[b.trade];
+    let changed = false;
+    for (const j of b.jobs) {
+      if (j.done || Number(this.flag('n:' + j.counter) ?? 0) - j.base < j.need) continue;
+      j.done = true; changed = true;
+      const before = tradeRank(this.tradeJobs(t.id));
+      this.addMarks(jobPay(before));
+      this.setFlag('tradeDone:' + t.id, this.tradeJobs(t.id) + 1);
+      const after = tradeRank(this.tradeJobs(t.id));
+      this.hud.system(`Job done (${t.name}): ${j.text.replace('{n}', String(j.need)).replace(/ (.*)$/, '')}. ${jobPay(before)} marks.`);
+      if (after > before) { this.hud.banner(t.ranks[after], `You rise as a ${t.name.toLowerCase()}`, true); this.sfx('levelUp'); } else this.sfx('coin');
+      if (b.jobs.every((x) => x.done)) this.hud.system(`That's the day's work done as a ${t.name.toLowerCase()}. New jobs tomorrow.`);
+    }
+    if (changed) { this.setFlag('jobBoard', { ...b }); this.persist(); }
+  }
+
   private featT = 2;
   /** Every couple of seconds: anything newly earned pays out and says so. */
   private checkFeats(dt: number): void {
     this.featT -= dt;
     if (this.featT > 0) return;
     this.featT = 2;
+    this.jobsTick();
     const api = this.featApi();
     for (const f of FEATS) {
       if (this.flag('feat:' + f.id) || f.have(api) < f.need) continue;
@@ -7949,7 +8030,7 @@ export class Game implements GameApi {
 
   /** byOther: someone else landed the last blow on a creature you'd hurt (game/SharedMobs.ts); they tell the realm and the group. */
   private onEnemyKilled(e: Enemy, byOther = false): void {
-    if (!byOther) this.bump('kills');
+    if (!byOther) { this.bump('kills'); if (e.def.elite) this.bump('elites'); }
     // The Long Stair: a step up for every foe you bring down (data/trophies.ts)
     if (!byOther && this.trophy === 'longstair') {
       this.stair = { n: this.stair.until > this.elapsed ? Math.min(8, this.stair.n + 1) : 1, until: this.elapsed + 12 };
@@ -9766,6 +9847,7 @@ export class Game implements GameApi {
   /** A tune played through to the end: noted for the quests (data/content/waits.ts reads these flags). */
   private tunePlayed(tune: string, spot: string | null, band: number): void {
     this.setFlag('played:' + tune, true);
+    this.bump('tunes');
     if (spot) this.setFlag(`played:${tune}@${spot}`, true);
     const hour = this.world.sky.hour;
     if (spot && hour >= 4.5 && hour < 8) this.setFlag(`played:${tune}@${spot}:dawn`, true);
