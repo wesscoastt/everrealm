@@ -4158,6 +4158,8 @@ export class Hud {
     document.body.classList.toggle('talking', !!v);
     if (!v) { d.classList.remove('show'); return; }
     d.classList.add('show');
+    // (a speaker with no face, a pet or a notice board, shows no empty frame: owner 2026-11-15)
+    (d.querySelector('.face') as HTMLElement).style.display = v.look ? '' : 'none';
     if (v.look) drawFace(d.querySelector('.face canvas') as HTMLCanvasElement, v.look);
     d.querySelector('.who')!.innerHTML = `${esc(v.speaker)}${v.title ? `<small>${esc(v.title)}</small>` : ''}`;
     const line = d.querySelector('.line')!;

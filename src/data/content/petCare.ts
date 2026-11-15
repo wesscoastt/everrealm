@@ -3,7 +3,7 @@ import type { RegionContent } from './types';
 import type { ItemDef } from '../items';
 import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
-import { PET_COLOURS } from '../petCare';
+import { PET_COLOURS, PET_COSMETICS } from '../petCare';
 
 // Your pet's side of things (data/petCare.ts; owner 2026-11-14: pets named, bonded, cared for and dressed, as in
 // Where Winds Meet, and bought at adoption centres like Verandah's). Walk up to the pet at your heels and press E:
@@ -15,6 +15,20 @@ const info = (g: GameApi) => (typeof g.petInfo === 'function' ? g.petInfo() : nu
 const name = (g: GameApi) => info(g)?.name ?? 'your pet';
 const bar = (v: number) => (v >= 80 ? 'plenty' : v >= 50 ? 'some' : v >= 25 ? 'not much' : 'none');
 const nextColour = (cur?: string) => PET_COLOURS[(PET_COLOURS.findIndex(([h]) => h === cur) + 1) % PET_COLOURS.length][0];
+
+type Slot = 'neck' | 'head' | 'back';
+const SLOT_SAY: Record<Slot, string> = { neck: 'Round the neck', head: 'On the head', back: 'On the back' };
+/** What's on in a slot, by name. */
+const onIn = (g: GameApi, k: Slot) => { const p = info(g), id = p?.[k]; return id ? p!.wardrobe[k].find((c) => c.id === id)?.name ?? 'something' : 'nothing'; };
+/** The next piece you own for a slot after the one on (and after the last, nothing). */
+const nextIn = (g: GameApi, k: Slot): string | null => {
+  const p = info(g); if (!p) return null;
+  const own = p.wardrobe[k].filter((c) => c.owned).map((c) => c.id), i = p[k] ? own.indexOf(p[k]!) : -1;
+  return i + 1 < own.length ? own[i + 1] : null;
+};
+const owns = (g: GameApi, k: Slot) => !!info(g)?.wardrobe[k].some((c) => c.owned);
+const dyedOn = (g: GameApi, k: Slot) => { const p = info(g); return !!p?.[k] && !!p.wardrobe[k].find((c) => c.id === p[k])?.dyed; };
+const anyColour = () => PET_COLOURS[Math.floor(Math.random() * PET_COLOURS.length)][0];
 
 const mypet: DialogueTree = {
   start: () => 'hi',
@@ -28,34 +42,46 @@ const mypet: DialogueTree = {
         return `${look} Fed: ${bar(p.fed)}. Clean: ${bar(p.washed)}. Played with: ${bar(p.played)}. ${p.name} is ${p.mood}, and ${p.tier.toLowerCase()} with you (${p.bond} of 100).`;
       },
       options: [
+        { text: 'Give them a fuss.', effect: (g) => g.petCare?.('fuss') },
         { text: 'Give a treat.', effect: (g) => g.petCare?.('fed'), next: 'hi' },
         { text: 'Brush them down.', effect: (g) => g.petCare?.('washed'), next: 'hi' },
         { text: 'Play for a while.', effect: (g) => g.petCare?.('played'), next: 'hi' },
         { text: (g) => (info(g)?.named ? 'Call them something else.' : 'Give them a name.'), effect: (g) => g.petRename?.() },
-        { text: 'Dress them.', cond: (g) => !!info(g)?.collarOpen, next: 'dress' },
-        { text: 'Good dog. Or whatever you are.', cond: (g) => info(g)?.kind !== 'dog' && info(g)?.kind !== 'cat' },
-        { text: (g) => `Good ${info(g)?.kind === 'cat' ? 'cat' : 'dog'}.`, cond: (g) => info(g)?.kind === 'dog' || info(g)?.kind === 'cat' },
+        { text: 'Dress them.', next: 'dress' },
+        { text: (g) => (info(g)?.kind === 'cat' ? 'Good cat.' : info(g)?.kind === 'dog' ? 'Good dog.' : 'Good. Whatever you are.') },
       ],
     },
     dress: {
       speaker: 'narrator',
       text: (g) => {
-        const p = info(g)!;
-        const shut = p.wears.filter((w) => !w.open);
-        return `${p.name} stands still for it, mostly.${shut.length ? ` More as the bond grows: ${shut.map((w) => w.name.toLowerCase()).join(', ')}.` : ''}`;
+        const p = info(g);
+        if (!p) return 'Nobody at your heels.';
+        return `${p.name} stands still for it, mostly. A collar: ${p.collar ? 'on' : p.collarOpen ? 'none' : 'not yet (at a bond of Settled)'}. ${(['neck', 'head', 'back'] as Slot[]).map((k) => `${SLOT_SAY[k]}: ${onIn(g, k)}.`).join(' ')}`;
       },
       options: [
-        { text: (g) => (info(g)?.collar ? 'A collar of another colour.' : 'Put a collar on.'), effect: (g) => g.petDress?.('collar', nextColour(info(g)?.collar)), next: 'dress' },
+        { text: (g) => (info(g)?.collar ? 'A collar of another colour.' : 'Put a collar on.'), cond: (g) => !!info(g)?.collarOpen, effect: (g) => g.petDress?.('collar', nextColour(info(g)?.collar)), next: 'dress' },
         { text: 'Take the collar off.', cond: (g) => !!info(g)?.collar, effect: (g) => g.petDress?.('collar', null), next: 'dress' },
-        ...(['neckerchief', 'ribbon', 'hat'] as const).map((w) => ({
-          text: (g: GameApi) => (info(g)?.wear === w ? `The ${w === 'hat' ? 'hat' : w} in another colour.` : w === 'neckerchief' ? 'Tie on a neckerchief.' : w === 'ribbon' ? 'Tie on a ribbon bow.' : 'Put the little felt hat on.'),
-          cond: (g: GameApi) => !!info(g)?.wears.find((x) => x.id === w)?.open,
-          effect: (g: GameApi) => g.petDress?.('wear', w, info(g)?.wear === w ? PET_COLOURS[Math.floor(Math.random() * PET_COLOURS.length)][0] : undefined),
-          next: 'dress',
-        })),
-        { text: (g) => `Take ${info(g)?.wear === 'hat' ? 'the hat' : 'it'} off.`, cond: (g) => !!info(g)?.wear, effect: (g) => g.petDress?.('wear', null), next: 'dress' },
+        ...(['neck', 'head', 'back'] as Slot[]).flatMap((k) => [
+          {
+            text: (g: GameApi) => { const n = nextIn(g, k); return n ? `${SLOT_SAY[k]}: the ${info(g)!.wardrobe[k].find((c) => c.id === n)!.name.toLowerCase()}.` : `${SLOT_SAY[k]}: take it off.`; },
+            cond: (g: GameApi) => owns(g, k) && (!!nextIn(g, k) || !!info(g)?.[k]),
+            effect: (g: GameApi) => g.petDress?.(k, nextIn(g, k), anyColour()), next: 'dress',
+          },
+          { text: `${SLOT_SAY[k]}: the same, in another colour.`, cond: (g: GameApi) => dyedOn(g, k), effect: (g: GameApi) => g.petDress?.(k, info(g)![k] ?? null, anyColour()), next: 'dress' },
+        ]),
+        { text: 'What else could they wear?', next: 'more' },
         { text: 'That\'ll do.', next: 'hi' },
       ],
+    },
+    more: {
+      speaker: 'narrator',
+      text: (g) => {
+        const p = info(g);
+        if (!p) return 'Nobody at your heels.';
+        const shut = (['neck', 'head', 'back'] as Slot[]).flatMap((k) => p.wardrobe[k].filter((c) => !c.owned).map((c) => `${c.name} (${c.how})`));
+        return shut.length ? `Not yet in ${p.name}'s wardrobe: ${shut.join('; ')}.` : `${p.name} has everything there is to wear, and wears it well.`;
+      },
+      next: 'dress',
     },
   },
 };
@@ -65,7 +91,15 @@ const mypet: DialogueTree = {
 const stray = (id: string, pet: string, nm: string, a: string, b: string, desc: string): ItemDef =>
   ({ id, name: nm, kind: 'collectible', rarity: 'uncommon', stack: false, value: 0, icon: { shape: 'bag', a, b }, pet, desc, stats: 'Used, it goes into the wardrobe for good, and follows you about. Walk up to it and press E to name it and look after it.' });
 
+/** The cosmetics the adoption centres sell: used from the pack, each goes into your pets' wardrobe for good. */
+const COS_ITEMS: ItemDef[] = PET_COSMETICS.filter((c) => c.price).map((c) => ({
+  id: 'petcos_' + c.id, name: c.name + ' (for a pet)', kind: 'collectible', rarity: c.price! >= 150 ? 'rare' : 'uncommon', stack: false, value: 0,
+  icon: { shape: c.slot === 'head' ? 'flatcap' : c.slot === 'neck' ? 'collar' : 'bag', a: '#a8382c', b: '#e8dcc0' },
+  desc: c.desc, stats: 'Use it to put it in your pets\' wardrobe for good. Dress your pet by talking to it (E).',
+} as ItemDef));
+
 const ITEMS_P: ItemDef[] = [
+  ...COS_ITEMS,
   { id: 'pet_treats', name: 'Pet treats', kind: 'material', rarity: 'common', stack: true, value: 2, icon: { shape: 'cooked', a: '#a8783a' }, desc: 'Dried fish skins and biscuit ends in a twist of paper. Every pet in the realm knows the sound of the paper.', stats: 'Feed your pet: talk to it (E) and give a treat.' },
   { id: 'pet_brush', name: 'Grooming brush', kind: 'collectible', rarity: 'common', stack: false, value: 12, icon: { shape: 'bag', a: '#8a5a32', b: '#e8dcc0' }, desc: 'A boar-bristle brush with a strap for the hand. Kept, not used up.', stats: 'Brush your pet: talk to it (E). Kept in the pack.' },
   stray('pet_stray_grey', 'stray_grey', 'Shambles grey', '#8a8a8e', '#4a4a4e', 'A grey cat with a white bib who has lived on the lamplighters\' bench all summer and taken their side in every argument.'),
@@ -88,6 +122,7 @@ const shopFor = (id: string, owner: string, nm: string, strays: string[]): ShopD
     ...strays.map((it, i) => ({ item: it, price: 120 + i * 40, when: (g: GameApi) => !g.flag('petOwn:' + it.replace('pet_', '')) && !g.has(it) })),
     { item: 'pet_treats', price: 3 },
     { item: 'pet_brush', price: 20, when: (g: GameApi) => !g.has('pet_brush') },
+    ...PET_COSMETICS.filter((c) => c.price).map((c) => ({ item: 'petcos_' + c.id, price: c.price!, when: (g: GameApi) => !g.flag('petCos:' + c.id) && !g.has('petcos_' + c.id) })),
   ],
   buyRate: () => 0, footer: () => 'Towards their keep. Treats and a brush for the ones already spoken for.',
 } as ShopDef);

@@ -1,4 +1,4 @@
-import { bondTier, cleanPetName, COLLAR_AT, CARE_BOND, DAY_BOND_MAX, freshPet, need, petDay, spirits, spiritsWord, WEARS, type PetState, type PetWear } from '../data/petCare';
+import { bondTier, cleanPetName, COLLAR_AT, CARE_BOND, COSMETIC_BY_ID, cosOf, DAY_BOND_MAX, freshPet, need, PET_COSMETICS, petDay, spirits, spiritsWord, type CosSlot, type PetCosmetic, type PetState } from '../data/petCare';
 import { TOWER as TOWER_AT } from '../data/tower';
 import { PostFX } from '../core/PostFX';
 import { drawFace } from '../ui/skin';
@@ -2524,6 +2524,7 @@ export class Game implements GameApi {
     });
   }
 
+  private petCheerT = 0;
   /** Your pet, in the talk panel (data/content/petCare.ts: the tree 'mypet'). */
   private talkToPet(): void {
     const info = this.petInfo();
@@ -4087,7 +4088,8 @@ export class Game implements GameApi {
     look.pack = flags.hidePack ? 0 : Number(flags.packLook ?? 0);
     // (the pet's name and what it wears go with the look, so everyone sees them: data/petCare.ts)
     const ps = save.look.pet ? flags['petSt:' + save.look.pet] as PetState | undefined : undefined;
-    look.petDress = ps ? { name: ps.name, collar: ps.collar, wear: ps.wear, wearColor: ps.wearColor, low: spirits(ps) < 30 } : null;
+    const on = ps ? cosOf(ps) : {};
+    look.petDress = ps ? { name: ps.name, collar: ps.collar, neck: on.neck, head: on.head, back: on.back, neckCol: ps.neckCol ?? (on.neck === 'neckerchief' ? ps.wearColor : undefined), headCol: ps.headCol ?? (on.head && !ps.head ? ps.wearColor : undefined), backCol: ps.backCol, low: spirits(ps) < 30 } : null;
     return look;
   }
   /** The dyes on a worn slot (data/gearDyes.ts). */
@@ -5213,6 +5215,14 @@ export class Game implements GameApi {
     // Bait: on the hook, or (the bait already on it) off again
     if (BAIT_OF[st.id] && def.kind !== 'food' && this.flag('bait') === st.id) { this.setFlag('bait', null); this.hud.system('You take the bait off. Fishing with a bare hook.'); this.sfx('click'); this.hud.refresh(); return; }
     if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.refresh(); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
+    if (st.id.startsWith('petcos_')) {
+      const cid = st.id.slice(7);
+      this.inv.removeAt(i, 1);
+      this.setFlag('petCos:' + cid, 1);
+      this.hud.system(`${def.name.replace(/ \(for a pet\)$/, '')} is in your pets' wardrobe now. Talk to your pet (E) and choose Dress them.`);
+      this.sfx('discover'); this.hud.refresh(); this.persist();
+      return;
+    }
     if (def.kind === 'food') this.eat(st.id);
     else if ((def.weapon || def.armor) && !this.canWear(st.id)) { this.hud.system(`You must be level ${def.ilvl} to wear ${def.name.toLowerCase()}. You're ${this.level('melee')}.`); this.sfx('fail'); return; }
     else if (def.weapon) {
@@ -6347,8 +6357,18 @@ export class Game implements GameApi {
     }
     // Your own pet: talk to it (data/content/petCare.ts)
     if (this.companion && !this.horse) {
-      const d = this.companion.pos.distanceTo(p);
-      if (d < 2.2) { const info = this.petInfo(); if (info) consider({ kind: 'act', label: info.named ? info.name : `Your ${info.breed.toLowerCase()}`, sub: `${info.tier} · ${info.mood}`, pos: this.companion.pos.clone().setY(this.companion.pos.y + 1), act: () => this.talkToPet() }, d + 0.3); }
+      // (only when you've stopped and turned to it, not every time it trots past your heels: owner 2026-11-15)
+      const d = this.companion.pos.distanceTo(p), yaw = this.player.yaw;
+      const facing = ((this.companion.pos.x - p.x) * Math.sin(yaw) + (this.companion.pos.z - p.z) * Math.cos(yaw)) / Math.max(0.01, d);
+      if (d < 2.2 && this.player.speed < 0.3 && facing > 0.7) { const info = this.petInfo(); if (info) consider({ kind: 'act', label: info.named ? info.name : `Your ${info.breed.toLowerCase()}`, sub: `${info.tier} · ${info.mood}`, pos: this.companion.pos.clone().setY(this.companion.pos.y + 1), act: () => this.talkToPet() }, d + 0.3); }
+    }
+    // Another player's pet: give it a fuss (owner 2026-11-15: "other players should see you pet yours and their pets")
+    if (!this.horse && this.player.speed < 0.3) for (const r of this.online.remotes.values()) {
+      const pt = r.pet;
+      if (!pt) continue;
+      const d = pt.pos.distanceTo(p), yaw = this.player.yaw;
+      const facing = ((pt.pos.x - p.x) * Math.sin(yaw) + (pt.pos.z - p.z) * Math.cos(yaw)) / Math.max(0.01, d);
+      if (d < 2 && facing > 0.7) consider({ kind: 'act', label: `Pet ${r.name}'s ${PETS[pt.pet]?.kind ?? 'pet'}`, pos: pt.pos.clone().setY(pt.pos.y + 1), act: () => { this.petting(pt.pos); pt.cheer(); this.sfx(PETS[pt.pet]?.kind === 'dog' ? 'bark' : PETS[pt.pet]?.kind === 'cat' ? 'purr' : 'pickup'); } }, d + 0.4);
     }
     // Forage: berries, mushrooms and herbs, picked by hand
     for (const f of near.flatMap((b) => b.forage)) {
@@ -6520,6 +6540,7 @@ export class Game implements GameApi {
       if (d > 2 || Math.abs(a.pos.y - p.y) > 1.5) continue;
       consider({ kind: 'act', label: a.kind === 'dog' ? 'Pet the dog' : 'Stroke the cat', pos: a.pos.clone().add(new THREE.Vector3(0, 0.9, 0)), act: () => {
         a.pet();
+        this.petting(a.pos);
         this.sfx(a.kind === 'dog' ? 'bark' : 'purr');
         for (let i = 0; i < 4; i++) this.particles.note(new THREE.Vector3(a.pos.x + (Math.random() - 0.5) * 0.5, a.pos.y + 0.9 + i * 0.1, a.pos.z + (Math.random() - 0.5) * 0.5), '#ff8aa8');
         this.setFlag(`pet:${a.kind}@${Math.round(a.home.x)},${Math.round(a.home.z)}`, true);
@@ -7087,22 +7108,40 @@ export class Game implements GameApi {
     this.dress();
     this.persist();
   }
+  /** Whether a pet cosmetic is yours to put on: by the bond (of the pet out now), bought, or earned. */
+  private cosOwned(c: PetCosmetic, bond: number): boolean {
+    if (c.bond !== undefined) return bond >= c.bond;
+    if (c.feat) return !!this.flag('feat:' + c.feat);
+    return !!this.flag('petCos:' + c.id);
+  }
   petInfo() {
     const id = this.save.look.pet;
     const def = id ? PETS[id] : undefined;
     if (!id || !def) return null;
-    const s = this.petState(id), now = Date.now(), sp = spirits(s, now);
+    const s = this.petState(id), now = Date.now(), sp = spirits(s, now), on = cosOf(s);
+    const slot = (k: CosSlot) => PET_COSMETICS.filter((c) => c.slot === k).map((c) => ({ id: c.id, name: c.name, owned: this.cosOwned(c, s.bond), dyed: !!c.dyed, how: c.bond !== undefined ? `at a bond of ${bondTier(c.bond).name}` : c.feat ? `from an achievement` : `${c.price} marks at an adoption centre` }));
     return {
       id, kind: def.kind, breed: def.name, name: s.name ?? def.name, named: !!s.name, bond: s.bond, tier: bondTier(s.bond).name,
       fed: Math.round(need(s.fed, 'fed', now)), washed: Math.round(need(s.washed, 'washed', now)), played: Math.round(need(s.played, 'played', now)),
-      spirits: sp, mood: spiritsWord(sp), collarOpen: s.bond >= COLLAR_AT,
-      wears: WEARS.map((w) => ({ id: w.id, name: w.name, open: s.bond >= w.at })), collar: s.collar, wear: s.wear,
+      spirits: sp, mood: spiritsWord(sp), collarOpen: s.bond >= COLLAR_AT, collar: s.collar,
+      neck: on.neck, head: on.head, back: on.back,
+      wardrobe: { neck: slot('neck'), head: slot('head'), back: slot('back') },
     };
   }
-  petCare(k: 'fed' | 'washed' | 'played'): void {
+  petCare(k: 'fed' | 'washed' | 'played' | 'fuss'): void {
     const id = this.save.look.pet;
     if (!id || !PETS[id]) return;
     const s = this.petState(id), now = Date.now(), name = s.name ?? PETS[id].name;
+    // A fuss: kneel and stroke it (everyone sees), a little bond, any time
+    if (k === 'fuss') {
+      this.petting(this.companion?.pos ?? null);
+      const day = petDay(now);
+      if (s.day !== day) { s.day = day; s.today = 0; }
+      if (s.today < DAY_BOND_MAX) { s.bond = Math.min(100, s.bond + 1); s.today += 1; }
+      this.savePet(id, s);
+      this.hud.system([`${name} leans into your hand and shuts their eyes.`, `${name} rolls over for more.`, `You scratch ${name} behind the ears. ${name} would like that to go on for ever.`][Math.floor(Math.random() * 3)]);
+      return;
+    }
     if (need(s[k], k, now) >= 90) {
       this.hud.system(k === 'fed' ? `${name} sniffs it and looks at you: not hungry.` : k === 'washed' ? `${name} is as clean as ${name} is going to get.` : `${name} has played enough for now and would like a lie down.`);
       return;
@@ -7116,15 +7155,16 @@ export class Game implements GameApi {
     const gain = Math.max(0, Math.min(CARE_BOND[k], DAY_BOND_MAX - s.today));
     s.bond = Math.min(100, s.bond + gain); s.today += gain;
     this.savePet(id, s);
-    this.companion?.cheer();
+    if (k === 'washed') this.petting(this.companion?.pos ?? null);
+    else this.companion?.cheer();
     const kind = PETS[id].kind;
     this.sfx(kind === 'dog' ? 'bark' : kind === 'cat' ? 'purr' : kind === 'duck' ? 'quack' : kind === 'pig' ? 'oink' : 'pickup');
     this.hud.system(k === 'fed' ? `${name} eats it in one go and looks at your pocket for more.` : k === 'washed' ? `You brush ${name} down. ${name} pretends not to enjoy it and leans into the brush.` : `You play with ${name} till you're both out of breath.`);
     const tier = bondTier(s.bond);
     if (tier.name !== was.name) {
       this.hud.banner(tier.name, `${name} and you`, true);
-      const opened = tier.at === COLLAR_AT ? 'a collar' : WEARS.find((w) => w.at === tier.at)?.name.toLowerCase();
-      if (opened) this.hud.system(`${name} would wear ${opened} for you now. Talk to ${name} to dress them.`);
+      const opened = [...(tier.at === COLLAR_AT ? ['a collar'] : []), ...PET_COSMETICS.filter((c) => c.bond === tier.at).map((c) => c.name.toLowerCase())];
+      if (opened.length) this.hud.system(`${name} would wear ${opened.join(' and ')} for you now. Talk to ${name} to dress them.`);
     } else if (!gain) this.hud.system(`(${name} has had all the fuss a day can hold. The bond grows again tomorrow.)`);
   }
   petRename(): void {
@@ -7138,18 +7178,30 @@ export class Game implements GameApi {
       this.hud.system(`${n} it is. ${n} seems to agree.`);
     });
   }
-  petDress(slot: 'collar' | 'wear', value: string | null, color?: string): void {
+  /** Dress the pet: a collar's colour, or a cosmetic in a slot (null takes it off), with its colour if it takes one. */
+  petDress(slot: 'collar' | CosSlot, value: string | null, color?: string): void {
     const id = this.save.look.pet;
     if (!id || !PETS[id]) return;
     const s = this.petState(id);
     if (slot === 'collar') { if (value && s.bond < COLLAR_AT) return; s.collar = value ?? undefined; }
     else {
-      const w = WEARS.find((x) => x.id === value);
-      if (value && (!w || s.bond < w.at)) return;
-      s.wear = (value as PetWear | null) ?? undefined;
-      s.wearColor = value ? color ?? s.wearColor ?? '#a8382c' : undefined;
+      const c = value ? COSMETIC_BY_ID[value] : undefined;
+      if (value && (!c || c.slot !== slot || !this.cosOwned(c, s.bond))) return;
+      s[slot] = value ?? undefined;
+      const ck = (slot + 'Col') as 'neckCol' | 'headCol' | 'backCol';
+      s[ck] = c?.dyed ? color ?? s[ck] ?? '#a8382c' : undefined;
+      if (slot !== 'back') { s.wear = undefined; s.wearColor = undefined; }
     }
     this.savePet(id, s);
+  }
+  /**
+   * Kneel and pet an animal (yours, a town dog, another player's): you stoop and stroke it, which everyone sees (the
+   * 'petting' pose goes out with your movement), and the animal perks up.
+   */
+  petting(at: THREE.Vector3 | null): void {
+    if (at) this.player.faceTowards(at.x, at.z);
+    this.doAnim = { st: 'petting', left: 2.2 };
+    this.companion && at && this.companion.pos.distanceTo(at) < 0.5 ? this.companion.cheer() : undefined;
   }
 
   /** One more of something the achievements count (data/feats.ts: the flags "n:<what>"). */
@@ -9368,6 +9420,17 @@ export class Game implements GameApi {
       if (this.companion) this.scene.add(this.companion.model.root);
     }
     this.companion?.update(dt, P.position, P.yaw, (x, z, near) => this.footing(x, z, near));
+    // (someone else petting: the pet nearest them perks up, yours or theirs, as everyone sees)
+    if ((this.petCheerT -= dt) <= 0) {
+      this.petCheerT = 0.8;
+      for (const r of this.online.remotes.values()) {
+        if (r.anim !== 'petting') continue;
+        const rp = r.model.root.position;
+        const pets = [this.companion, ...[...this.online.remotes.values()].map((x) => x.pet)].filter((x): x is Companion => !!x);
+        const near = pets.sort((a, b) => a.pos.distanceTo(rp) - b.pos.distanceTo(rp))[0];
+        if (near && near.pos.distanceTo(rp) < 2.2) near.cheer();
+      }
+    }
     // Town pets come and go with you, each keeping its own spot
     for (const pt of this.pets) {
       const d = Math.hypot(pt.x - this.player.position.x, pt.z - this.player.position.z);

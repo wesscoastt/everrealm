@@ -7,7 +7,7 @@ import { CreatureModel } from './creatures';
  * when they stop, pecks about while it waits, and catches up at once if they've got far ahead
  * (a ride, a ferry, a door into a cellar). Looks only.
  */
-export type PetDress = { name?: string; collar?: string; wear?: string; wearColor?: string; low?: boolean };
+export type PetDress = { name?: string; collar?: string; neck?: string; head?: string; back?: string; neckCol?: string; headCol?: string; backCol?: string; low?: boolean };
 
 export class Companion {
   readonly model: CreatureModel;
@@ -35,49 +35,64 @@ export class Companion {
   cheer(): void { this.hop = 1.2; }
 
   /**
-   * Its collar round the neck and its one thing more (a neckerchief, a ribbon, a little hat), fitted to its head
-   * whatever its kind, and moving with it (data/petCare.ts).
+   * What it wears, fitted to its head and back whatever kind it is, and moving with it (data/petCare.ts): a collar
+   * with a brass tag, and one piece each round the neck, on the head and on the back.
    */
   private dress(d: PetDress): void {
     const head = this.model.head;
-    if (!head || (!d.collar && !d.wear)) return;
+    if (!head || (!d.collar && !d.neck && !d.head && !d.back)) return;
     this.model.root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(head), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
     const ws = head.getWorldScale(new THREE.Vector3()).x || 1;
     const at = (x: number, y: number, z: number) => head.worldToLocal(new THREE.Vector3(x, y, z));
-    const mat = (col: string) => new THREE.MeshLambertMaterial({ color: col });
+    const mats = new Map<string, THREE.MeshLambertMaterial>();
+    const mat = (col: string, glow = false) => { const k = col + glow; let m = mats.get(k); if (!m) { m = new THREE.MeshLambertMaterial({ color: col, ...(glow ? { emissive: col, emissiveIntensity: 0.8 } : {}) }); mats.set(k, m); } return m; };
     const w = Math.max(size.x, size.z) / ws;
-    // (the creature faces +z: the neck is under the back of the head)
-    const neck = at(c.x, box.min.y + size.y * 0.12, c.z - size.z * 0.25);
+    const put = (parent: THREE.Object3D, geo: THREE.BufferGeometry, col: string, p: THREE.Vector3, rx = 0, ry = 0, rz = 0, glow = false) => { const m = new THREE.Mesh(geo, mat(col, glow)); m.position.copy(p); m.rotation.set(rx, ry, rz); parent.add(m); return m; };
+    const off = (p: THREE.Vector3, x: number, y: number, z: number) => p.clone().add(new THREE.Vector3(x * w, y * w, z * w));
+    // (the creature faces +z: the neck is under the back of the head, the crown on top)
+    const neck = at(c.x, box.min.y + size.y * 0.12, c.z - size.z * 0.25), top = at(c.x, box.max.y, c.z);
     if (d.collar) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(w * 0.42, w * 0.07, 5, 12), mat(d.collar));
-      ring.rotation.x = Math.PI / 2; ring.position.copy(neck);
-      head.add(ring);
-      const tag = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.09, w * 0.09, w * 0.03, 8), mat('#d8b048'));
-      tag.rotation.x = Math.PI / 2; tag.position.copy(neck).add(new THREE.Vector3(0, -w * 0.12, w * 0.38));
-      head.add(tag);
+      put(head, new THREE.TorusGeometry(w * 0.42, w * 0.07, 5, 12), d.collar, neck, Math.PI / 2);
+      put(head, new THREE.CylinderGeometry(w * 0.09, w * 0.09, w * 0.03, 8), '#d8b048', off(neck, 0, -0.12, 0.38), Math.PI / 2);
     }
-    const col = d.wearColor ?? '#a8382c';
-    if (d.wear === 'neckerchief') {
-      const tri = new THREE.Mesh(new THREE.ConeGeometry(w * 0.4, w * 0.5, 3), mat(col));
-      tri.rotation.set(Math.PI, 0, 0); tri.scale.z = 0.35; tri.position.copy(neck).add(new THREE.Vector3(0, -w * 0.2, w * 0.28));
-      head.add(tri);
-    } else if (d.wear === 'ribbon') {
-      for (const s of [-1, 1]) {
-        const loop = new THREE.Mesh(new THREE.ConeGeometry(w * 0.16, w * 0.3, 4), mat(col));
-        loop.rotation.z = s * Math.PI / 2; loop.position.copy(at(c.x, box.max.y, c.z)).add(new THREE.Vector3(s * w * 0.16, 0, 0));
-        head.add(loop);
+    const nc = d.neckCol ?? '#a8382c', hc = d.headCol ?? '#2f528f', bc = d.backCol ?? '#5a2f6a';
+    switch (d.neck) {
+      case 'neckerchief': { const m = put(head, new THREE.ConeGeometry(w * 0.4, w * 0.5, 3), nc, off(neck, 0, -0.2, 0.28), Math.PI); m.scale.z = 0.35; break; }
+      case 'bell': put(head, new THREE.TorusGeometry(w * 0.4, w * 0.025, 4, 12), '#6a4a2a', neck, Math.PI / 2); put(head, new THREE.SphereGeometry(w * 0.11, 8, 6), '#d8b048', off(neck, 0, -0.16, 0.4)); break;
+      case 'bowtie': for (const s of [-1, 1]) put(head, new THREE.ConeGeometry(w * 0.12, w * 0.22, 4), nc, off(neck, s * 0.12, -0.08, 0.4), 0, 0, s * Math.PI / 2); put(head, new THREE.SphereGeometry(w * 0.06, 6, 5), nc, off(neck, 0, -0.08, 0.42)); break;
+      case 'scarf': put(head, new THREE.TorusGeometry(w * 0.44, w * 0.12, 6, 12), nc, neck, Math.PI / 2); put(head, new THREE.BoxGeometry(w * 0.16, w * 0.4, w * 0.06), nc, off(neck, 0.18, -0.3, 0.32), 0.2); break;
+      case 'garland': for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; put(head, new THREE.SphereGeometry(w * 0.08, 6, 5), i % 3 ? '#f4f0e0' : '#f2c51e', off(neck, Math.cos(a) * 0.44, 0, Math.sin(a) * 0.44)); } break;
+      case 'ruff': put(head, new THREE.CylinderGeometry(w * 0.62, w * 0.55, w * 0.12, 18), '#f4f0e8', neck); break;
+      case 'medal': put(head, new THREE.BoxGeometry(w * 0.12, w * 0.24, w * 0.03), '#2f528f', off(neck, 0, -0.14, 0.4)); put(head, new THREE.CylinderGeometry(w * 0.11, w * 0.11, w * 0.03, 10), '#d8b048', off(neck, 0, -0.3, 0.41), Math.PI / 2); break;
+    }
+    switch (d.head) {
+      case 'ribbon': for (const s of [-1, 1]) put(head, new THREE.ConeGeometry(w * 0.16, w * 0.3, 4), hc, off(top, s * 0.16, 0, 0), 0, 0, s * Math.PI / 2); put(head, new THREE.SphereGeometry(w * 0.07, 6, 5), hc, top); break;
+      case 'felthat': put(head, new THREE.CylinderGeometry(w * 0.34, w * 0.34, w * 0.04, 12), hc, off(top, 0, 0.02, 0)); put(head, new THREE.CylinderGeometry(w * 0.2, w * 0.23, w * 0.26, 12), hc, off(top, 0, 0.16, 0)); put(head, new THREE.CylinderGeometry(w * 0.235, w * 0.235, w * 0.06, 12), '#2a1e14', off(top, 0, 0.07, 0)); break;
+      case 'straw': put(head, new THREE.CylinderGeometry(w * 0.5, w * 0.5, w * 0.03, 14), '#e0c070', off(top, 0, 0.02, 0)); put(head, new THREE.CylinderGeometry(w * 0.2, w * 0.24, w * 0.18, 12), '#d8b860', off(top, 0, 0.12, 0)); put(head, new THREE.CylinderGeometry(w * 0.245, w * 0.245, w * 0.05, 12), '#a8382c', off(top, 0, 0.06, 0)); break;
+      case 'beret': { const m = put(head, new THREE.SphereGeometry(w * 0.3, 10, 6), hc, off(top, 0.06, 0.04, 0), 0, 0, -0.35); m.scale.y = 0.35; put(head, new THREE.SphereGeometry(w * 0.04, 5, 4), hc, off(top, 0.02, 0.14, 0)); break; }
+      case 'flowers': for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; put(head, new THREE.SphereGeometry(w * 0.07, 6, 5), ['#4a74d8', '#d8362a', '#f2c51e', '#ffffff'][i % 4], off(top, Math.cos(a) * 0.26, 0.02, Math.sin(a) * 0.26)); } break;
+      case 'antlers': for (const s of [-1, 1]) { put(head, new THREE.CylinderGeometry(w * 0.03, w * 0.04, w * 0.4, 5), '#7a5030', off(top, s * 0.18, 0.18, 0), 0, 0, -s * 0.35); put(head, new THREE.CylinderGeometry(w * 0.025, w * 0.03, w * 0.2, 5), '#7a5030', off(top, s * 0.3, 0.3, 0.04), 0.4, 0, -s * 1.0); } break;
+      case 'tricorn': put(head, new THREE.CylinderGeometry(w * 0.42, w * 0.42, w * 0.1, 3), '#1e1a18', off(top, 0, 0.05, 0), 0, Math.PI / 6); put(head, new THREE.CylinderGeometry(w * 0.2, w * 0.24, w * 0.16, 10), '#1e1a18', off(top, 0, 0.14, 0)); put(head, new THREE.ConeGeometry(w * 0.06, w * 0.34, 5), '#c83a2a', off(top, 0.14, 0.26, -0.06), 0.3, 0, -0.5); break;
+      case 'tophat': put(head, new THREE.CylinderGeometry(w * 0.36, w * 0.36, w * 0.03, 14), '#141418', off(top, 0, 0.02, 0)); put(head, new THREE.CylinderGeometry(w * 0.22, w * 0.22, w * 0.5, 14), '#141418', off(top, 0, 0.27, 0)); put(head, new THREE.CylinderGeometry(w * 0.225, w * 0.225, w * 0.07, 14), '#7a1e1a', off(top, 0, 0.07, 0)); break;
+      case 'wizard': put(head, new THREE.CylinderGeometry(w * 0.4, w * 0.4, w * 0.03, 14), '#22305a', off(top, 0, 0.02, 0)); put(head, new THREE.ConeGeometry(w * 0.24, w * 0.7, 12), '#22305a', off(top, 0, 0.37, 0), -0.15); for (let i = 0; i < 5; i++) put(head, new THREE.SphereGeometry(w * 0.03, 5, 4), '#f4d27a', off(top, Math.cos(i * 1.3) * 0.15, 0.15 + i * 0.09, Math.sin(i * 1.3) * 0.15 - i * 0.02), 0, 0, 0, true); break;
+      case 'crown': put(head, new THREE.CylinderGeometry(w * 0.24, w * 0.24, w * 0.14, 10, 1, true), '#e0bd64', off(top, 0, 0.08, 0)); for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; put(head, new THREE.ConeGeometry(w * 0.05, w * 0.12, 4), '#e0bd64', off(top, Math.cos(a) * 0.24, 0.2, Math.sin(a) * 0.24)); } break;
+    }
+    if (d.back) {
+      const body = this.model.body;
+      const bb = new THREE.Box3().setFromObject(body), bs = bb.getSize(new THREE.Vector3()), bcn = bb.getCenter(new THREE.Vector3());
+      const bw = (body.getWorldScale(new THREE.Vector3()).x || 1);
+      const loc = (x: number, y: number, z: number) => body.worldToLocal(new THREE.Vector3(x, y, z));
+      const back = loc(bcn.x, bb.max.y, bcn.z - bs.z * 0.08), W = bs.x / bw, Z = bs.z / bw;
+      const boff = (x: number, y: number, z: number) => back.clone().add(new THREE.Vector3(x * W, y * W, z * Z));
+      switch (d.back) {
+        case 'saddlebags': for (const s of [-1, 1]) put(body, new THREE.BoxGeometry(W * 0.22, W * 0.32, Z * 0.3), '#7a4a26', boff(s * 0.55, -0.22, 0)); put(body, new THREE.BoxGeometry(W * 1.05, W * 0.05, Z * 0.18), '#5a3a1e', boff(0, 0.01, 0)); break;
+        case 'cape': { const m = put(body, new THREE.BoxGeometry(W * 0.95, W * 0.04, Z * 0.7), bc, boff(0, 0.03, -0.1), -0.08); m.scale.x = 1; put(body, new THREE.SphereGeometry(W * 0.06, 6, 5), '#d8b048', boff(0, 0.02, 0.28)); break; }
+        case 'coat': put(body, new THREE.BoxGeometry(W * 1.08, W * 0.5, Z * 0.72), bc, boff(0, -0.2, 0)); for (let i = 0; i < 3; i++) put(body, new THREE.SphereGeometry(W * 0.035, 5, 4), '#d8b048', boff(0.55, -0.12 - i * 0.1, 0.1 - i * 0.1)); break;
+        case 'lantern': put(body, new THREE.CylinderGeometry(W * 0.025, W * 0.025, W * 0.7, 5), '#5a3a1e', boff(0, 0.35, -0.15)); put(body, new THREE.BoxGeometry(W * 0.16, W * 0.2, W * 0.16), '#f4c060', boff(0, 0.74, -0.15), 0, 0, 0, true); put(body, new THREE.BoxGeometry(W * 0.2, W * 0.04, W * 0.2), '#2a2420', boff(0, 0.86, -0.15)); break;
+        case 'shield': put(body, new THREE.CylinderGeometry(W * 0.32, W * 0.32, W * 0.05, 14), '#5a2a24', boff(0, 0.05, 0), 0); put(body, new THREE.BoxGeometry(W * 0.05, W * 0.05, Z * 0.36), '#c8ccd0', boff(0, 0.09, 0), 0, 0.7); put(body, new THREE.BoxGeometry(W * 0.05, W * 0.05, Z * 0.36), '#8a6a3a', boff(0, 0.09, 0), 0, -0.7); break;
+        case 'wings': for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.CircleGeometry(W * 0.45, 10), new THREE.MeshLambertMaterial({ color: '#e8e4f0', transparent: true, opacity: 0.55, side: THREE.DoubleSide })); m.position.copy(boff(s * 0.35, 0.2, -0.05)); m.rotation.set(-Math.PI / 2 + 0.4, 0, s * 0.6); m.scale.set(1, 0.6, 1); body.add(m); } break;
       }
-      const knot = new THREE.Mesh(new THREE.SphereGeometry(w * 0.07, 6, 5), mat(col));
-      knot.position.copy(at(c.x, box.max.y, c.z)); head.add(knot);
-    } else if (d.wear === 'hat') {
-      const top = at(c.x, box.max.y, c.z);
-      const brim = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.34, w * 0.34, w * 0.04, 12), mat(col));
-      brim.position.copy(top).add(new THREE.Vector3(0, w * 0.02, 0)); head.add(brim);
-      const crown = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.2, w * 0.23, w * 0.26, 12), mat(col));
-      crown.position.copy(top).add(new THREE.Vector3(0, w * 0.16, 0)); head.add(crown);
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.235, w * 0.235, w * 0.06, 12), mat('#2a1e14'));
-      band.position.copy(top).add(new THREE.Vector3(0, w * 0.07, 0)); head.add(band);
     }
   }
 

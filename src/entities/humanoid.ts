@@ -114,7 +114,7 @@ export interface Appearance {
   /** The pet at their heels (data/pets.ts), or none. Not drawn on the figure: game/Game.ts and net/Online.ts walk it beside them. */
   pet?: string | null;
   /** The pet's name, what it wears and whether it's low in spirits (data/petCare.ts), so others see it as you do. */
-  petDress?: { name?: string; collar?: string; wear?: string; wearColor?: string; low?: boolean } | null;
+  petDress?: { name?: string; collar?: string; neck?: string; head?: string; back?: string; neckCol?: string; headCol?: string; backCol?: string; low?: boolean } | null;
   /** Body shape: the broader-shouldered frame, or the narrower one with a fuller chest and hips. */
   frame?: 'm' | 'f';
   /** 0 none, 1 full beard, 2 stubble, 3 moustache, 4 goatee, 5 chinstrap, 6 long beard, 7 mutton chops, 8 forked beard. Old saves use `beard`. */
@@ -223,7 +223,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | 'cards' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | 'cards' | 'petting' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -2961,6 +2961,17 @@ export class Humanoid {
         P.foreR.rotation.x = -0.9 * k; P.foreL.rotation.x = -0.9 * k;
         P.head.rotation.x = (0.35 + Math.sin(t * 0.9) * 0.04) * k;
         P.torso.position.y = 0.06 + breathe;
+        break;
+      }
+      case 'petting': {
+        // down on one knee by an animal, the right hand stroking it head to tail, the left on the knee (owner 2026-11-15:
+        // "add a petting animation, other players should see you pet yours and their pets")
+        const k = Math.min(1, t / 0.3), stroke = Math.sin(t * 4.2);
+        P.body.position.y = -0.42 * k;
+        P.legL.rotation.x = -1.45 * k; P.shinL.rotation.x = 1.5 * k; P.legR.rotation.x = 0.05 * k; P.shinR.rotation.x = 1.55 * k;
+        P.torso.rotation.x = (0.38 + 0.06 * stroke) * k; P.head.rotation.x = 0.35 * k; P.head.rotation.z = Math.sin(t * 1.3) * 0.08 * k;
+        P.armR.rotation.x = (-1.0 - 0.25 * stroke) * k; P.foreR.rotation.x = (-0.3 + 0.15 * stroke) * k; P.armR.rotation.z = 0.12 * k;
+        P.armL.rotation.x = -0.6 * k; P.foreL.rotation.x = -0.9 * k;
         break;
       }
       case 'cards': {
