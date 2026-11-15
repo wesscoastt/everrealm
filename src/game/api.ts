@@ -64,6 +64,14 @@ export interface GameApi {
   compNear(x: number, z: number, r: number): boolean;
   compHour(): number;
   compOutfit(id: string, outfit: string): void;
+  /** The pet at your heels (data/petCare.ts): who it is, how it is, and what its bond opens. Null with none out. */
+  petInfo(): { id: string; kind: string; breed: string; name: string; named: boolean; bond: number; tier: string; fed: number; washed: number; played: number; spirits: number; mood: string; collarOpen: boolean; wears: { id: string; name: string; open: boolean }[]; collar?: string; wear?: string } | null;
+  /** Look after it: feed, brush or play. */
+  petCare(k: 'fed' | 'washed' | 'played'): void;
+  /** Give it a name (asks for one). */
+  petRename(): void;
+  /** Dress it: a collar's colour, or a wear and its colour (null takes it off). */
+  petDress(slot: 'collar' | 'wear', value: string | null, color?: string): void;
   compRole(id: string, role: string): void;
   /** A part of their story is done (2 or 3): a banner and a little more trust. */
   compStory(id: string, part: number): void;

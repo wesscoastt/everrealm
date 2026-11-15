@@ -1,3 +1,4 @@
+import { bondTier, cleanPetName, COLLAR_AT, CARE_BOND, DAY_BOND_MAX, freshPet, need, petDay, spirits, spiritsWord, WEARS, type PetState, type PetWear } from '../data/petCare';
 import { TOWER as TOWER_AT } from '../data/tower';
 import { PostFX } from '../core/PostFX';
 import { drawFace } from '../ui/skin';
@@ -2523,6 +2524,13 @@ export class Game implements GameApi {
     });
   }
 
+  /** Your pet, in the talk panel (data/content/petCare.ts: the tree 'mypet'). */
+  private talkToPet(): void {
+    const info = this.petInfo();
+    if (!info || !this.companion) return;
+    const speaker = { id: 'mypet', talking: false, def: { id: 'mypet', name: info.name, title: `${info.breed} · ${info.tier}`, schedule: [{ from: 0, to: 24, at: [this.companion.pos.x, this.companion.pos.z], face: [this.companion.pos.x, this.companion.pos.z], anim: 'idle' }] }, pos: this.companion.pos.clone() } as unknown as Npc;
+    this.startDialogue(speaker);
+  }
   /** A notice board talks like a person with no face: the dialogue panel, headed with the board's name. */
   openBoard(id: string): void {
     const b = BOARDS.find((x) => x.id === id);
@@ -4077,6 +4085,9 @@ export class Game implements GameApi {
     }
     // (the pack on your back goes with the look, so everyone else sees it too)
     look.pack = flags.hidePack ? 0 : Number(flags.packLook ?? 0);
+    // (the pet's name and what it wears go with the look, so everyone sees them: data/petCare.ts)
+    const ps = save.look.pet ? flags['petSt:' + save.look.pet] as PetState | undefined : undefined;
+    look.petDress = ps ? { name: ps.name, collar: ps.collar, wear: ps.wear, wearColor: ps.wearColor, low: spirits(ps) < 30 } : null;
     return look;
   }
   /** The dyes on a worn slot (data/gearDyes.ts). */
@@ -5261,9 +5272,10 @@ export class Game implements GameApi {
       // A pet joins the wardrobe for good, and comes to heel at once if none is out
       this.inv.removeAt(i, 1);
       this.setFlag('petOwn:' + def.pet, 1);
+      if (!this.flag('petSt:' + def.pet)) this.setFlag('petSt:' + def.pet, freshPet());
       if (!this.save.look.pet) { this.save.look.pet = def.pet; this.dress(); }
       this.hud.banner(def.name, 'Your pet now', true);
-      this.hud.system(`${def.name} is yours now and follows you about. Change pets, or send her home, under Pet with Change look, on the character screen.`);
+      this.hud.system(`${def.name} is yours now and follows you about. Walk up to them and press E to name them, feed, brush and play with them. Change pets under Pet with Change look, on the character screen.`);
       this.sfx('discover');
     } else if (def.glyph && !this.glyphSlot) {
       // A glyph: the Enchant window, to choose which piece you wear takes it (owner 2026-11-04: make it clear)
@@ -6333,6 +6345,11 @@ export class Game implements GameApi {
       const mp = this.posts.nearest(p);
       if (mp) consider({ kind: 'act', label: 'Read the post', sub: mp.by, pos: new THREE.Vector3(mp.x, mp.y + 1.1, mp.z), act: () => this.readPost(mp) }, Math.hypot(mp.x - p.x, mp.z - p.z) + 0.2);
     }
+    // Your own pet: talk to it (data/content/petCare.ts)
+    if (this.companion && !this.horse) {
+      const d = this.companion.pos.distanceTo(p);
+      if (d < 2.2) { const info = this.petInfo(); if (info) consider({ kind: 'act', label: info.named ? info.name : `Your ${info.breed.toLowerCase()}`, sub: `${info.tier} · ${info.mood}`, pos: this.companion.pos.clone().setY(this.companion.pos.y + 1), act: () => this.talkToPet() }, d + 0.3); }
+    }
     // Forage: berries, mushrooms and herbs, picked by hand
     for (const f of near.flatMap((b) => b.forage)) {
       if (f.bareUntil > this.elapsed) continue;
@@ -7053,6 +7070,86 @@ export class Game implements GameApi {
       totalLevel: SKILLS.reduce((a, k) => a + this.level(k.id), 0),
       questsDone: Object.values(this.save.quests).filter((v) => v === 'done').length,
     };
+  }
+
+  // ---------------------------------------------------------------- Pets (data/petCare.ts)
+
+  private petState(id: string): PetState {
+    const v = this.flag('petSt:' + id) as PetState | undefined;
+    const st = v && typeof v === 'object' ? { ...freshPet(), ...v } : freshPet();
+    // (left more than two days with no care at all, the bond slips back two a day)
+    const idle = Math.floor((Date.now() - Math.max(st.fed, st.washed, st.played)) / 86_400_000) - 2;
+    if (idle > 0) st.bond = Math.max(0, st.bond - idle * 2);
+    return st;
+  }
+  private savePet(id: string, s: PetState): void {
+    this.setFlag('petSt:' + id, s);
+    this.dress();
+    this.persist();
+  }
+  petInfo() {
+    const id = this.save.look.pet;
+    const def = id ? PETS[id] : undefined;
+    if (!id || !def) return null;
+    const s = this.petState(id), now = Date.now(), sp = spirits(s, now);
+    return {
+      id, kind: def.kind, breed: def.name, name: s.name ?? def.name, named: !!s.name, bond: s.bond, tier: bondTier(s.bond).name,
+      fed: Math.round(need(s.fed, 'fed', now)), washed: Math.round(need(s.washed, 'washed', now)), played: Math.round(need(s.played, 'played', now)),
+      spirits: sp, mood: spiritsWord(sp), collarOpen: s.bond >= COLLAR_AT,
+      wears: WEARS.map((w) => ({ id: w.id, name: w.name, open: s.bond >= w.at })), collar: s.collar, wear: s.wear,
+    };
+  }
+  petCare(k: 'fed' | 'washed' | 'played'): void {
+    const id = this.save.look.pet;
+    if (!id || !PETS[id]) return;
+    const s = this.petState(id), now = Date.now(), name = s.name ?? PETS[id].name;
+    if (need(s[k], k, now) >= 90) {
+      this.hud.system(k === 'fed' ? `${name} sniffs it and looks at you: not hungry.` : k === 'washed' ? `${name} is as clean as ${name} is going to get.` : `${name} has played enough for now and would like a lie down.`);
+      return;
+    }
+    if (k === 'fed' && !this.take('pet_treats', 1)) { this.hud.system('You have no pet treats. The adoption centres sell them.'); this.sfx('fail'); return; }
+    if (k === 'washed' && this.inv.count('pet_brush') < 1) { this.hud.system('You need a grooming brush. The adoption centres sell them.'); this.sfx('fail'); return; }
+    s[k] = now;
+    const day = petDay(now);
+    if (s.day !== day) { s.day = day; s.today = 0; }
+    const was = bondTier(s.bond);
+    const gain = Math.max(0, Math.min(CARE_BOND[k], DAY_BOND_MAX - s.today));
+    s.bond = Math.min(100, s.bond + gain); s.today += gain;
+    this.savePet(id, s);
+    this.companion?.cheer();
+    const kind = PETS[id].kind;
+    this.sfx(kind === 'dog' ? 'bark' : kind === 'cat' ? 'purr' : kind === 'duck' ? 'quack' : kind === 'pig' ? 'oink' : 'pickup');
+    this.hud.system(k === 'fed' ? `${name} eats it in one go and looks at your pocket for more.` : k === 'washed' ? `You brush ${name} down. ${name} pretends not to enjoy it and leans into the brush.` : `You play with ${name} till you're both out of breath.`);
+    const tier = bondTier(s.bond);
+    if (tier.name !== was.name) {
+      this.hud.banner(tier.name, `${name} and you`, true);
+      const opened = tier.at === COLLAR_AT ? 'a collar' : WEARS.find((w) => w.at === tier.at)?.name.toLowerCase();
+      if (opened) this.hud.system(`${name} would wear ${opened} for you now. Talk to ${name} to dress them.`);
+    } else if (!gain) this.hud.system(`(${name} has had all the fuss a day can hold. The bond grows again tomorrow.)`);
+  }
+  petRename(): void {
+    const id = this.save.look.pet;
+    if (!id || !PETS[id]) return;
+    this.hud.askLine(`What will you call your ${PETS[id].name.toLowerCase()}?`, 'Biscuit', 16, (raw) => {
+      const n = cleanPetName(filterLanguage(raw));
+      if (!n) { this.hud.system('A name of two letters or more, please: letters, spaces, an apostrophe or a hyphen.'); return; }
+      const s = this.petState(id); s.name = n; this.savePet(id, s);
+      this.companion?.cheer();
+      this.hud.system(`${n} it is. ${n} seems to agree.`);
+    });
+  }
+  petDress(slot: 'collar' | 'wear', value: string | null, color?: string): void {
+    const id = this.save.look.pet;
+    if (!id || !PETS[id]) return;
+    const s = this.petState(id);
+    if (slot === 'collar') { if (value && s.bond < COLLAR_AT) return; s.collar = value ?? undefined; }
+    else {
+      const w = WEARS.find((x) => x.id === value);
+      if (value && (!w || s.bond < w.at)) return;
+      s.wear = (value as PetWear | null) ?? undefined;
+      s.wearColor = value ? color ?? s.wearColor ?? '#a8382c' : undefined;
+    }
+    this.savePet(id, s);
   }
 
   /** One more of something the achievements count (data/feats.ts: the flags "n:<what>"). */
@@ -9263,9 +9360,11 @@ export class Game implements GameApi {
     this.swimTraining(dt);
     // Your own pet at your heels (data/pets.ts), the one your look names
     const petId = this.save.look.pet && PETS[this.save.look.pet] ? this.save.look.pet : null;
-    if ((this.companion?.pet ?? null) !== petId) {
+    const petDress = petId ? Game.wornLookOf(this.save).petDress ?? null : null;
+    if ((this.companion?.pet ?? null) !== petId || (this.companion && this.companion.dressKey !== JSON.stringify(petDress ?? {}))) {
+      const was = this.companion?.pos.clone();
       if (this.companion) this.scene.remove(this.companion.model.root);
-      this.companion = petId ? new Companion(petId, P.position) : null;
+      this.companion = petId ? new Companion(petId, was ?? P.position, petDress) : null;
       if (this.companion) this.scene.add(this.companion.model.root);
     }
     this.companion?.update(dt, P.position, P.yaw, (x, z, near) => this.footing(x, z, near));

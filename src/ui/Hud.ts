@@ -1258,6 +1258,21 @@ export class Hud {
     setTimeout(() => ta.focus(), 30);
   }
 
+  /** A line of text to type (a pet's name and the like), in the post card's box: Enter or the button sends it. */
+  askLine(question: string, placeholder: string, max: number, send: (text: string) => void): void {
+    const box = this.q('#postcard');
+    box.innerHTML = `<p class="pc-q">${esc(question)}</p><input class="pc-in pc-line" maxlength="${max}" spellcheck="false" placeholder="${esc(placeholder)}"><div class="row"><button class="btn pc-send" disabled>That's it</button><button class="btn ghost pc-x">Cancel</button></div>`;
+    const inp = box.querySelector('input') as HTMLInputElement, go = box.querySelector('.pc-send') as HTMLButtonElement;
+    const close = () => box.classList.remove('show');
+    const sendIt = () => { const t = inp.value.replace(/\s+/g, ' ').trim(); if (t.length >= 2) { send(t); close(); } };
+    inp.addEventListener('input', () => { go.disabled = inp.value.trim().length < 2; });
+    inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); sendIt(); } if (e.key === 'Escape') close(); });
+    go.addEventListener('click', sendIt);
+    box.querySelector('.pc-x')!.addEventListener('click', close);
+    box.classList.add('show');
+    setTimeout(() => inp.focus(), 30);
+  }
+
   /** A little menu by the cursor for another player: invite, trade and so on. */
   playerMenu(title: string, x: number, y: number, items: { label: string; act: () => void }[]): void {
     const pm = this.q('#pmenu');

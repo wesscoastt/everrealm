@@ -62,7 +62,7 @@ const FISH = ['raw_shrimp', 'raw_mackerel', 'raw_bass', 'raw_seabass', 'raw_flou
 const shops: Record<string, ShopDef> = {
   ver_fish_tegen: { id: 'ver_fish_tegen', name: 'Tegen Hocking’s fish', owner: 'ver_fish_tegen', stock: FISH.slice(0, 6).map((item, i) => ({ item, price: 4 + i * 4 })), buyRate: () => 0.75, footer: () => 'Tegen pays three quarters of a fish’s worth: better than any shop.' } as ShopDef,
   ver_fish_jory: { id: 'ver_fish_jory', name: 'Arthur Bolitho’s fish', owner: 'ver_fish_jory', stock: FISH.slice(2).map((item, i) => ({ item, price: 9 + i * 5 })), buyRate: () => 0.7, footer: () => 'Arthur pays seven tenths of a fish’s worth.' } as ShopDef,
-  ver_lowenna: { id: 'ver_lowenna', name: 'The Adoption Center', owner: 'ver_lowenna', stock: items.map((it, i) => ({ item: it.id, price: 120 + i * 40, when: (g: import('../../game/api').GameApi) => !g.has(it.id) })), buyRate: () => 0, footer: () => 'Towards their keep. Every one is wormed and has had a bath, which none of them enjoyed.' } as ShopDef,
+  ver_lowenna: { id: 'ver_lowenna', name: 'The Adoption Center', owner: 'ver_lowenna', stock: [...items.map((it, i) => ({ item: it.id, price: 120 + i * 40, when: (g: import('../../game/api').GameApi) => !g.has(it.id) && !g.flag('petOwn:' + it.pet) })), { item: 'pet_treats', price: 3 }, { item: 'pet_brush', price: 20, when: (g: import('../../game/api').GameApi) => !g.has('pet_brush') }], buyRate: () => 0, footer: () => 'Towards their keep. Every one is wormed and has had a bath, which none of them enjoyed.' } as ShopDef,
 };
 
 export const VERANDAH_MARKET: RegionContent = {

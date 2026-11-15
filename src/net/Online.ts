@@ -538,14 +538,14 @@ export class Online {
   /** A pet for someone whose look names one. */
   private petFor(look: Appearance, at: THREE.Vector3): Companion | null {
     if (!look.pet || !PETS[look.pet]) return null;
-    const c = new Companion(look.pet, at);
+    const c = new Companion(look.pet, at, look.petDress ?? null);
     this.hooks.scene.add(c.model.root);
     return c;
   }
 
   private replaceModel(r: Remote, look: Appearance): void {
     const pos = r.model.root.position.clone();
-    if ((r.pet?.pet ?? null) !== (look.pet && PETS[look.pet] ? look.pet : null)) {
+    if ((r.pet?.pet ?? null) !== (look.pet && PETS[look.pet] ? look.pet : null) || (r.pet && r.pet.dressKey !== JSON.stringify(look.petDress ?? {}))) {
       if (r.pet) this.hooks.scene.remove(r.pet.model.root);
       r.pet = this.petFor(look, pos);
     }
