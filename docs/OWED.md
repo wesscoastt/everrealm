@@ -44,6 +44,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 ## A. Now, in order
 
+00. **Owner 2026-11-15:** DONE **Chess for marks, the medieval way** ("add gambling chess like medieval days"): at every tavern keeper's table, the old game (counsellor and aufin, no castling, stalemate and a bare king win) or the new; three regulars of three strengths for up to 100 marks; or another player in the taproom.
 00. **Owner 2026-11-14, in the order sent:**
    - DONE **Posts kept as long as there's wood**, **Dave's hats**, **dig to build, planks at a bench** (012d1c2).
    - DONE **Blackjack, Go Fish, hold 'em**, with a card-playing pose and dealt-card animation (507b353).

@@ -120,6 +120,7 @@ export const FEATS: FeatDef[] = [
   // The tables (game/TavernTable.ts, game/CardRoom.ts)
   { id: 'tables10', name: 'Luck Be a Lady', group: 'The tables', desc: 'Come out ahead at a tavern table ten times: the dice, the Lady, or the cards.', need: 10, have: (g) => n(g, 'tableWins'), marks: 80, title: 'the Lucky', dye: ['#1e5a32', 'Baize green'] },
   { id: 'tables100', name: 'The House Remembers You', group: 'The tables', desc: 'Come out ahead at the tables a hundred times.', need: 100, have: (g) => n(g, 'tableWins'), marks: 250, title: 'Card Sharp of the Counties' },
+  { id: 'chess10', name: 'Mate in the Taproom', group: 'The tables', desc: 'Win ten games of chess at the tavern tables, against the regulars or another player.', need: 10, have: (g) => n(g, 'chessWins'), marks: 120, title: 'the Tactician', dye: ['#e2c99a', 'Boxwood'] },
   // The open world
   { id: 'posts10', name: 'Wayside Writer', group: 'The open world', desc: 'Leave ten message posts for whoever comes after.', need: 10, have: (g) => n(g, 'posts'), marks: 60, title: 'the Signpost' },
   // Factions: in more than one at once

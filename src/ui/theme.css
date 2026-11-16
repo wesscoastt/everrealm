@@ -832,3 +832,36 @@ body.pad .ab-slot .key { white-space: nowrap; }
 .ach-p { display: inline-block; min-width: 42px; padding: 0 6px; margin-right: 4px; border-radius: 8px; background: rgba(150, 100, 30, 0.16); color: #6a4210; font-weight: 700; font-size: 11px; text-align: center; }
 .ach-dye { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.4); vertical-align: -2px; }
 .feat.ach-hidden { opacity: 0.55; font-style: italic; }
+
+/* Chess at the tavern (game/ChessRoom.ts) */
+#tavern .tv-chess { width: min(900px, 96vw); }
+#tavern .ch-foes button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.3); border: 2px solid transparent; color: var(--cream); cursor: pointer; font: inherit; }
+#tavern .ch-foes button.you { border-color: #e0bd64; background: rgba(244, 210, 122, 0.18); }
+#tavern .ch-foes small { font-size: 12px; color: #d8ccb0; }
+#tavern .ch-wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+#tavern .ch-board { display: grid; grid-template-columns: repeat(8, 1fr); width: min(66vh, 480px, 90vw); aspect-ratio: 1; border: 6px solid #4a2e14; border-radius: 4px; box-shadow: 0 0 0 2px #1a1008, 0 8px 24px rgba(0, 0, 0, 0.5); background: #4a2e14; }
+#tavern .ch-sq { position: relative; border: 0; padding: 0; margin: 0; display: grid; place-items: center; cursor: default; aspect-ratio: 1; }
+#tavern .ch-sq.lt { background: #e2c99a; }
+#tavern .ch-sq.dk { background: #8a5a32; }
+#tavern .ch-sq.can { cursor: pointer; }
+#tavern .ch-sq.last { box-shadow: inset 0 0 0 100px rgba(224, 189, 100, 0.32); }
+#tavern .ch-sq.sel { box-shadow: inset 0 0 0 3px #f4d27a, inset 0 0 0 100px rgba(244, 210, 122, 0.3); }
+#tavern .ch-sq.to { cursor: pointer; }
+#tavern .ch-sq.to::after { content: ''; width: 26%; height: 26%; border-radius: 50%; background: rgba(30, 60, 30, 0.45); }
+#tavern .ch-sq.take { cursor: pointer; box-shadow: inset 0 0 0 4px rgba(150, 40, 30, 0.7); }
+#tavern .ch-sq.check { box-shadow: inset 0 0 18px 6px rgba(200, 30, 20, 0.85); }
+#tavern .ch-pc { font-size: min(5.6vh, 44px); line-height: 1; pointer-events: none; }
+#tavern .ch-pc.w { color: #f6ecd2; text-shadow: 0 0 1px #1a1008, 1px 1px 0 #1a1008, -1px -1px 0 #1a1008, 1px -1px 0 #1a1008, -1px 1px 0 #1a1008, 0 3px 4px rgba(0, 0, 0, 0.5); }
+#tavern .ch-pc.b { color: #2a1a0e; text-shadow: 0 0 1px #c8a870, 0 1px 0 rgba(255, 230, 180, 0.35), 0 3px 4px rgba(0, 0, 0, 0.5); }
+#tavern .ch-pc.moved { animation: ch-land 0.28s ease-out; }
+@keyframes ch-land { from { transform: translateY(-8px) scale(1.12); } to { transform: none; } }
+#tavern .ch-sq i { position: absolute; font: 600 10px var(--body); font-style: normal; opacity: 0.7; color: #2a1a0e; }
+#tavern .ch-sq.dk i { color: #f0dcb0; }
+#tavern .ch-sq i.rk { left: 3px; top: 2px; }
+#tavern .ch-sq i.fl { right: 3px; bottom: 1px; }
+#tavern .ch-side { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 8px; }
+#tavern .ch-log { columns: 2; max-height: 260px; overflow: auto; font-size: 13px; }
+#tavern .ch-log em { opacity: 0.6; font-style: normal; }
+#tavern .ch-rule { padding: 5px 12px; margin-right: 6px; border-radius: 14px; border: 2px solid #6a4a24; background: rgba(0, 0, 0, 0.3); color: var(--cream); font: 600 13px var(--body); cursor: pointer; }
+#tavern .ch-rule.on { border-color: #e0bd64; background: rgba(244, 210, 122, 0.22); color: #f4d27a; }
+#tavern .ch-log { list-style: none; padding-left: 4px; }

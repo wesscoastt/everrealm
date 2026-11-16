@@ -3,7 +3,7 @@
 // upturned barrel, and BS round the big table with whoever's drinking; and (owner 2026-11-14) Blackjack against the
 // keeper, Go Fish and hold 'em (game/CardRoom.ts). The table itself is game/TavernTable.ts.
 
-export type TavernGame = 'crown' | 'lady' | 'bs' | 'bj' | 'fish' | 'poker';
+export type TavernGame = 'crown' | 'lady' | 'bs' | 'bj' | 'fish' | 'poker' | 'chess';
 
 export interface BsRegular { name: string; nerve: number; doubt: number }
 

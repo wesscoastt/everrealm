@@ -1,5 +1,6 @@
 import { CROWN_FACES, HOUSE_DAILY_LIMIT, STAKES, BS_STAKES, type GamingHouse, type TavernGame } from '../data/tavernGames';
 import { CardRoom, type CgMsg } from './CardRoom';
+import { ChessRoom, type ChMsg } from './ChessRoom';
 import type { CardGameId } from './cardGames';
 import { call, deal, FACE, lay, letStand, npcDoubts, npcLay, RANKS, rankOf, SUIT, type BsState, type Card } from './bs';
 
@@ -70,6 +71,8 @@ const isCard = (g: string): g is CardGameId => CARD_GAMES.includes(g);
 export class TavernTable {
   /** Blackjack, Go Fish and hold 'em (game/CardRoom.ts). */
   private readonly room: CardRoom;
+  /** Chess for marks (game/ChessRoom.ts). */
+  private readonly chess: ChessRoom;
   private el: HTMLDivElement | null = null;
   private house: GamingHouse | null = null;
   private game: TavernGame | 'menu' = 'menu';
@@ -99,9 +102,12 @@ export class TavernTable {
 
   constructor(private host: TavernHost) {
     this.room = new CardRoom(host, () => this.house, () => this.render());
+    this.chess = new ChessRoom(host, () => this.house, () => this.render());
   }
 
   get open(): boolean { return !!this.el; }
+  /** Cards in hand at the table (not at the chessboard, where the hands are on the pieces). */
+  get handsFull(): boolean { return this.game !== 'chess'; }
 
   /** Up to the keeper's table. */
   start(house: GamingHouse, game: TavernGame | 'menu' = 'menu'): void {
@@ -116,7 +122,9 @@ export class TavernTable {
 
   private go(game: TavernGame | 'menu'): void {
     this.room.leave();
+    this.chess.leave();
     this.game = game;
+    if (game === 'chess') this.chess.begin();
     this.say = '';
     if (isCard(game)) this.room.begin(game);
     if (game === 'lady') this.lady = { stake: this.lady.stake, slot: [0, 1, 2], phase: 'stake', picked: null };
@@ -129,6 +137,7 @@ export class TavernTable {
     clearTimeout(this.ladyTimer); clearTimeout(this.bsTimer);
     // (leaving a hand of BS: the stake stays in the pot, and a regular picks up your cards)
     this.room.leave();
+    this.chess.leave();
     if (this.guestOf !== null) { this.host.send(this.guestOf, { k: 'leave' } satisfies Msg); this.guestOf = null; }
     if (this.st && this.bsPhase === 'play') for (const s of this.st.seats) if (s.who === 'peer') this.host.send(s.peer!, { k: 'close' } satisfies Msg);
     if (this.bsPhase === 'lobby') for (const s of this.seatPlan) if (s.who === 'peer') this.host.send(s.peer!, { k: 'close' } satisfies Msg);
@@ -170,11 +179,13 @@ export class TavernTable {
           <button data-g="bj"><b>Blackjack</b><small>Against the keeper: nearer twenty-one than the house without going over. Blackjack pays three to two.${this.host.mates().length ? ' Players here can take a seat beside you.' : ''}</small></button>
           <button data-g="fish"><b>Go Fish</b><small>Ask round the table for the cards you need, and make books of four. The regulars have long memories.</small></button>
           <button data-g="poker"><b>Hold 'em</b><small>Two cards each and five on the table. Bet, raise, call or fold; the best five cards take the pot.</small></button>
+          <button data-g="chess"><b>Chess</b><small>Across the board from a regular, for marks: the old game, with the counsellor and the aufin, or the new one from Callis.${this.host.mates().length ? ' Or play another player here.' : ''}</small></button>
           <button data-g="bs"><b>BS</b><small>The whole pack dealt round. Lay cards face down and say what they are. Call a liar, or be called. First out takes the pot.${this.host.mates().length ? ' The other players here can sit in.' : ''}</small></button>
         </div>
         ${this.houseShut() ? `<p class="tv-note">${esc(keeper)} has paid out all they'll pay you today. BS for nothing is still on.</p>` : ''}`;
     } else if (this.game === 'crown') body = head('Crown and Anchor') + this.crownHtml();
     else if (this.game === 'lady') body = head('Find the Lady') + this.ladyHtml();
+    else if (this.game === 'chess') body = head(`Chess at ${esc(h.house)}`) + this.chess.html();
     else if (isCard(this.game)) body = head(this.room.guestOf !== null ? this.room.title() : `${this.room.title()} at ${esc(h.house)}`) + this.room.html();
     else body = head(this.guestOf !== null ? 'BS' : `BS at ${esc(h.house)}`) + this.bsHtml();
     this.el.innerHTML = `<div class="tv-box tv-${this.game}">${body}</div>`;
@@ -190,6 +201,7 @@ export class TavernTable {
     if (this.game === 'lady') this.wireLady();
     if (this.game === 'bs') this.wireBs();
     if (isCard(this.game)) this.room.wire(el);
+    if (this.game === 'chess') this.chess.wire(el);
   }
 
   // ---- Crown and Anchor ----
@@ -500,6 +512,25 @@ export class TavernTable {
   onNet(from: number, fromName: string, data: unknown): void {
     const m = data as Msg;
     if (!m || typeof m !== 'object' || typeof (m as { k?: unknown }).k !== 'string') return;
+    // Chess
+    if (m.k.startsWith('ch')) {
+      const c = data as ChMsg;
+      if (c.k === 'chOpen') {
+        if (this.open) return;
+        this.host.ask(`${fromName} asks you to a game of chess at ${c.house}${c.stake ? ` for ${c.stake} marks each` : ''} (${c.rules === 'new' ? 'the new game' : 'the old game'}). Sit down?`, () => {
+          if (c.stake > this.host.marks()) { this.host.system('You haven\'t the marks for that stake.'); return; }
+          this.house = { npc: '', house: c.house, hello: '', regulars: [] };
+          this.el = document.createElement('div'); this.el.id = 'tavern'; document.body.appendChild(this.el);
+          this.game = 'chess';
+          this.chess.sitIn(from, c);
+          this.host.sound('open');
+          this.render();
+        }, () => {}, 20);
+        return;
+      }
+      if (this.game === 'chess') this.chess.onNet(from, fromName, c);
+      return;
+    }
     // Blackjack, Go Fish and hold 'em
     if (m.k.startsWith('cg')) {
       const c = data as CgMsg;
