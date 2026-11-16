@@ -5,6 +5,7 @@ import type { RegionContent } from './types';
 import { FARM_ITEMS, ordersToday, seasonNow, CROPS } from '../farming';
 import { MORE_SEED_PRICES } from '../farmingMore';
 import { FLOWER_SEED_PRICES } from '../farmingFour';
+import { DECOR } from '../farmingSix';
 const ITEMS: Record<string, { name: string }> = Object.fromEntries(FARM_ITEMS.map((i) => [i.id, i]));
 
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
@@ -130,6 +131,7 @@ const shop: ShopDef = {
     // the new seed, each once you're near the level to grow it
     ...MORE_SEED_PRICES.map(([item, price, level]) => ({ item, price, when: (g: import('../../game/api').GameApi) => g.level('farming') >= level - 5 })),
     ...FLOWER_SEED_PRICES.map(([item, price, level]) => ({ item, price, when: (g: import('../../game/api').GameApi) => g.level('farming') >= level - 5 })),
+    ...Object.values(DECOR).map((d) => ({ item: d.item, price: d.price })),
     { item: 'beehive', price: 300, when: (g: import('../../game/api').GameApi) => g.level('farming') >= 15 },
     { item: 'greenhouse_kit', price: 2400, when: (g: import('../../game/api').GameApi) => g.level('farming') >= 30 && !g.has('greenhouse_kit') && !g.flag('greenhouse') },
   ],

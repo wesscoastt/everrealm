@@ -4,6 +4,7 @@ import { FARM_TWO_ITEMS, FARM_TWO_RECIPES } from './farmingTwo';
 import { FARM_THREE_ITEMS, FARM_THREE_RECIPES } from './farmingThree';
 import { FARM_FOUR_ITEMS, FLOWER_CROPS } from './farmingFour';
 import { SHOW_ITEMS } from './farmingFive';
+import { DECOR_ITEMS } from './farmingSix';
 
 // Farming, the old way (RuneScape's patches, with the Counties' own crops). Every player has their own
 // crop in each patch: Hollin Ford's kitchen gardens, and a vegetable patch and an orchard patch on every
@@ -162,6 +163,7 @@ export const FARM_ITEMS: ItemDef[] = [
   ...FARM_THREE_ITEMS,
   ...FARM_FOUR_ITEMS,
   ...SHOW_ITEMS,
+  ...DECOR_ITEMS,
 ];
 
 /** The hearth's dishes from a patch's produce (merged into RECIPES in data/gameplay.ts). */

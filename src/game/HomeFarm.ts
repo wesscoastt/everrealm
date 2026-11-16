@@ -3,6 +3,7 @@ import { CROP, CROPS, seasonRate, type CropDef } from '../data/farming';
 import { BETTER, gradeHarvest, keeping } from '../data/quality';
 import { ANIMAL_NAMES, HEART, heartWord, MAKERS, MAKER_OF_ITEM, type MakerBatch } from '../data/farmingThree';
 import { GIANT, GIANTS } from '../data/farmingFive';
+import { DECOR, DECOR_OF_ITEM, isFence, type DecorKind } from '../data/farmingSix';
 import { type Colour, FLOWER_OF, GREENHOUSE, HIVE, HONEYS, crossOf, flowerId } from '../data/farmingFour';
 import { FEEDS as FERTS, HEAP, REGROW, SPRINKLERS, SPRINKLER_REACH, type Feed } from '../data/farmingTwo';
 import { ITEMS } from '../data/items';
@@ -90,6 +91,7 @@ const STAGE_SCALE = [0.3, 0.55, 0.8, 1];
 /** A sprinkler's spray and the heap's steam, shared by every one drawn. */
 const DROPS = new THREE.MeshBasicMaterial({ color: '#bfe4ff', transparent: true, opacity: 0.55, depthWrite: false });
 const GLASS = new THREE.MeshLambertMaterial({ color: '#cfe8f0', transparent: true, opacity: 0.22, depthWrite: false });
+const LAMPGLOW = new THREE.MeshBasicMaterial({ color: '#ffd890' });
 const STEAM = new THREE.MeshBasicMaterial({ color: '#e8e8e0', transparent: true, opacity: 0.22, depthWrite: false });
 
 /**
@@ -477,12 +479,81 @@ export class HomeFarm {
     for (const [k, t] of Object.entries(own)) if (t.g === centre) own[k] = { p: 0, u: now, wu: t.wu, wet: 0, all: 0, s: Math.min(1, soilOf(t) + 0.06), f: family(crop) };
     this.host.setFlag('garden', own);
     this.host.setFlag('n:giant', Number(this.host.flag('n:giant') ?? 0) + 1);
+    { const gr = { ...((this.host.flag('grown') as Record<string, [number, number]> | undefined) ?? {}) }, was = gr[crop.id] ?? [0, 0]; gr[crop.id] = [was[0] + GIANT.prize + GIANT.fine, 2]; this.host.setFlag('grown', gr); }
     this.host.setFlag('n:harvest', Number(this.host.flag('n:harvest') ?? 0) + 9);
     this.host.addXp('farming', crop.xpPick * 30);
     this.host.persist();
     this.host.sound('pickup');
     this.host.system(`The ${gd.name} comes away at last. ${ITEMS[crop.produce]?.name ?? crop.produce} ×${GIANT.prize + GIANT.fine} (${GIANT.prize} prize), and the ${gd.name} itself, for the show.`);
     this.refresh();
+  }
+  // ---------------------------------------------------------------- The garden's look (data/farmingSix.ts)
+  decor(): { x: number; z: number; k: DecorKind; r: number }[] { const v = this.host.flag('yardDecor'); return Array.isArray(v) ? (v as { x: number; z: number; k: DecorKind; r: number }[]) : []; }
+  private decorAt(x: number, z: number) { return this.decor().find((d) => d.x === x && d.z === z); }
+  /** The piece you're laying, if you've chosen one and still have it. */
+  private laying(): DecorKind | null {
+    const it = this.host.flag('decorPick') as string | undefined, k = it ? DECOR_OF_ITEM[it] : undefined;
+    return k && this.host.count(DECOR[k].item) > 0 ? k : null;
+  }
+  /** Laying a piece, or taking one up. */
+  private decorCandidates(x: number, z: number, laying: boolean): { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] {
+    const at = new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.1, z + 0.5), here = this.decorAt(x, z), k = this.laying();
+    if (here) return [{ label: `Take up the ${DECOR[here.k].name.toLowerCase()}`, pos: at, use: () => this.decorTake(x, z) }];
+    if (!laying || !k) return [];
+    if (this.zone(x, z) !== 'home') return [{ label: `Lay the ${DECOR[k].name.toLowerCase()}`, pos: at, use: () => this.host.system('Garden pieces go in your own yard, outside the house.'), warn: 'Not your yard' }];
+    if (this.tiles()[x + ',' + z]) return [{ label: `Lay the ${DECOR[k].name.toLowerCase()}`, pos: at, use: () => this.host.system('That ground is tilled. Lay it on the grass beside the beds.'), warn: 'Tilled ground' }];
+    return [{ label: `Lay the ${DECOR[k].name.toLowerCase()}`, sub: `${this.host.count(DECOR[k].item)} left; use it from your bag again to stop`, pos: at, use: () => this.decorLay(x, z, k) }];
+  }
+  private decorLay(x: number, z: number, k: DecorKind): void {
+    if (this.decorAt(x, z) || !this.host.take(DECOR[k].item, 1)) return;
+    const f = this.host.facing(), r = Math.round(f / (Math.PI / 2)) & 3;
+    this.host.setFlag('yardDecor', [...this.decor(), { x, z, k, r }]);
+    this.host.persist();
+    this.host.sound('click');
+    this.refresh();
+  }
+  private decorTake(x: number, z: number): void {
+    const list = this.decor(), i = list.findIndex((d) => d.x === x && d.z === z);
+    if (i < 0 || !this.host.give(DECOR[list[i].k].item, 1)) return;
+    list.splice(i, 1);
+    this.host.setFlag('yardDecor', list);
+    this.host.persist();
+    this.host.sound('pickup');
+    this.refresh();
+  }
+  /** Is there a trellis beside this tile for a climber to go up? */
+  private trellisBy(x: number, z: number): boolean { return this.decor().some((d) => d.k === 'trellis' && Math.max(Math.abs(d.x - x), Math.abs(d.z - z)) <= 1); }
+  /** Draw one piece: paths flat on the grass, fences joined to their neighbours. */
+  private drawDecor(g: THREE.Group, d: { x: number; z: number; k: DecorKind; r: number }, box: (g: THREE.Group, w: number, h: number, dd: number, c: string, x: number, y: number, z: number, rz?: number) => void, hash: (x: number, z: number) => number): void {
+    const k = d.k;
+    if (k === 'path_flags') { for (let q = 0; q < 3; q++) { const w = 0.42 + hash(d.x + q, d.z) * 0.1; box(g, w, 0.05, 0.3, q % 2 ? '#a8a49a' : '#9a968c', (hash(d.z, d.x + q) - 0.5) * 0.2, 0.025, -0.32 + q * 0.32); box(g, 0.46 - w * 0.4, 0.05, 0.28, '#b4b0a6', 0.3, 0.025, -0.32 + q * 0.32); } return; }
+    if (k === 'path_brick') { for (let q = 0; q < 4; q++) for (let p = 0; p < 2; p++) box(g, (q + p) % 2 ? 0.46 : 0.22, 0.05, (q + p) % 2 ? 0.22 : 0.46, ['#a85a3a', '#984e32', '#b8664a'][(q * 2 + p) % 3], -0.24 + p * 0.48, 0.025, -0.36 + q * 0.24); return; }
+    if (k === 'path_gravel') { box(g, 0.98, 0.04, 0.98, '#c8bca0', 0, 0.02, 0); for (let q = 0; q < 8; q++) box(g, 0.06, 0.03, 0.06, q % 2 ? '#a89c84' : '#d8d0bc', (hash(d.x + q, d.z) - 0.5) * 0.8, 0.045, (hash(d.x, d.z + q) - 0.5) * 0.8); return; }
+    if (isFence(k)) {
+      const n = this.decor().filter((o) => isFence(o.k) && Math.abs(o.x - d.x) + Math.abs(o.z - d.z) === 1);
+      const white = k === 'fence_paling' || k === 'gate', wood = white ? '#ece6d6' : '#8a6a3a';
+      if (k === 'gate') {
+        const along = d.r % 2 ? 'z' : 'x';
+        for (const s of [-0.45, 0.45]) box(g, 0.1, 1.0, 0.1, '#e4ddcc', along === 'x' ? s : 0, 0.5, along === 'x' ? 0 : s);
+        for (const y of [0.3, 0.7]) box(g, along === 'x' ? 0.8 : 0.05, 0.07, along === 'x' ? 0.05 : 0.8, wood, 0, y, 0);
+        for (let q = 0; q < 5; q++) box(g, along === 'x' ? 0.08 : 0.04, 0.6, along === 'x' ? 0.04 : 0.08, wood, along === 'x' ? -0.32 + q * 0.16 : 0, 0.5, along === 'x' ? 0 : -0.32 + q * 0.16);
+        return;
+      }
+      box(g, 0.12, 0.9, 0.12, white ? '#e4ddcc' : '#6a4a2a', 0, 0.45, 0);
+      const arms = n.length ? n.map((o) => [o.x - d.x, o.z - d.z]) : [[d.r % 2 ? 0 : 1, d.r % 2 ? 1 : 0], [d.r % 2 ? 0 : -1, d.r % 2 ? -1 : 0]];
+      for (const [ax, az] of arms) {
+        const cx = ax * 0.25, cz = az * 0.25, lx = ax ? 0.5 : 0.05, lz = az ? 0.5 : 0.05;
+        if (white) { for (const y of [0.3, 0.65]) box(g, lx, 0.06, lz, wood, cx, y, cz); for (const t of [0.12, 0.32]) box(g, ax ? 0.07 : 0.035, 0.75, az ? 0.07 : 0.035, wood, ax * t, 0.4, az * t); }
+        else { for (let y = 0; y < 5; y++) box(g, lx + 0.02, 0.1, lz + 0.02, y % 2 ? '#7a5a30' : '#9a7a46', cx, 0.15 + y * 0.14, cz); }
+      }
+      return;
+    }
+    if (k === 'trellis') { for (const s of [-0.4, 0.4]) box(g, 0.08, 1.9, 0.08, '#6a4a2a', s, 0.95, 0); for (let q = 0; q < 6; q++) { box(g, 0.85, 0.04, 0.04, '#8a6a3a', 0, 0.3 + q * 0.28, 0, 0.5); box(g, 0.85, 0.04, 0.04, '#8a6a3a', 0, 0.3 + q * 0.28, 0, -0.5); } for (let q = 0; q < 5; q++) box(g, 0.14, 0.1, 0.06, '#4a7a32', (hash(d.x + q, d.z) - 0.5) * 0.7, 0.4 + q * 0.3, 0.04); return; }
+    if (k === 'bench') { const rot = new THREE.Group(); rot.rotation.y = d.r * Math.PI / 2; for (const s of [-0.6, 0.6]) { box(rot, 0.08, 0.45, 0.4, '#2a2a2a', s, 0.22, 0); box(rot, 0.08, 0.45, 0.06, '#2a2a2a', s, 0.65, -0.2); } for (let q = 0; q < 3; q++) box(rot, 1.4, 0.05, 0.11, '#7a5434', 0, 0.46, -0.13 + q * 0.13); for (let q = 0; q < 2; q++) box(rot, 1.4, 0.1, 0.04, '#7a5434', 0, 0.62 + q * 0.18, -0.22); g.add(rot); return; }
+    if (k === 'lantern') { box(g, 0.1, 1.9, 0.1, '#2a2a2a', 0, 0.95, 0); box(g, 0.3, 0.06, 0.06, '#2a2a2a', 0.12, 1.85, 0); box(g, 0.2, 0.26, 0.2, '#2a2a2a', 0.24, 1.66, 0); const m = new THREE.Mesh(P.box(0.15, 0.2, 0.15), LAMPGLOW); m.position.set(0.24, 1.66, 0); g.add(m); box(g, 0.24, 0.05, 0.24, '#2a2a2a', 0.24, 1.81, 0); return; }
+    if (k === 'birdbath') { box(g, 0.3, 0.1, 0.3, '#a8a49a', 0, 0.05, 0); box(g, 0.16, 0.6, 0.16, '#b8b4aa', 0, 0.4, 0); box(g, 0.66, 0.08, 0.66, '#b8b4aa', 0, 0.74, 0); box(g, 0.56, 0.06, 0.06, '#b8b4aa', 0, 0.8, 0.28); box(g, 0.56, 0.06, 0.06, '#b8b4aa', 0, 0.8, -0.28); box(g, 0.06, 0.06, 0.56, '#b8b4aa', 0.28, 0.8, 0); box(g, 0.06, 0.06, 0.56, '#b8b4aa', -0.28, 0.8, 0); box(g, 0.5, 0.02, 0.5, '#6a9aba', 0, 0.79, 0); return; }
+    if (k === 'tub') { box(g, 0.66, 0.4, 0.66, '#8a5a32', 0, 0.2, 0); for (const y of [0.08, 0.32]) box(g, 0.7, 0.05, 0.7, '#3a3a3a', 0, y, 0); box(g, 0.56, 0.06, 0.56, '#3a2a1a', 0, 0.4, 0); box(g, 0.5, 0.18, 0.5, '#4a7a32', 0, 0.5, 0); for (let q = 0; q < 7; q++) box(g, 0.1, 0.1, 0.1, ['#d8402a', '#e8c020', '#f0ece0', '#e87aa0'][q % 4], Math.cos(q * 0.9) * 0.2, 0.62, Math.sin(q * 0.9) * 0.2); return; }
+    if (k === 'arch') { const rot = new THREE.Group(); rot.rotation.y = d.r * Math.PI / 2; for (const s of [-0.48, 0.48]) box(rot, 0.06, 1.9, 0.06, '#3a3a3a', s, 0.95, 0); for (let q = 0; q < 7; q++) { const a = (q / 6) * Math.PI; box(rot, 0.18, 0.06, 0.06, '#3a3a3a', Math.cos(a) * 0.48, 1.9 + Math.sin(a) * 0.35, 0, a + Math.PI / 2); } for (let q = 0; q < 12; q++) { const s = q % 2 ? -0.48 : 0.48, y = 0.4 + (q >> 1) * 0.3; box(rot, 0.14, 0.12, 0.12, q % 3 ? '#4a7a32' : '#c8304a', s + (hash(q, d.x) - 0.5) * 0.1, Math.min(y, 2.1), (hash(d.z, q) - 0.5) * 0.12); } g.add(rot); }
   }
   /** Spare produce for the heap: the plain crop you have most of, three at least. */
   private scraps(): string | undefined {
@@ -625,8 +696,12 @@ export class HomeFarm {
     const herd = this.herdCandidates();
     if (herd.length) return herd;
     const [x, z] = this.target(), key = x + ',' + z, all = this.tiles(), here = all[key];
+    const lay = this.laying() ? this.decorCandidates(x, z, true) : [];
+    if (lay.length) return lay;
     const yard = this.yardCandidates(x, z);
     if (yard.length) return yard;
+    const piece = this.decorCandidates(x, z, false);
+    if (piece.length) return piece;
     if (!here && !this.zone(x, z)) return [];
     // somewhere in your own yard to set up stock you've bought
     if (!here && this.zone(x, z) === 'home') {
@@ -763,7 +838,7 @@ export class HomeFarm {
     const lv = this.host.level('farming'), tended = t.all > 0 && t.wet / t.all >= 0.75, group = this.host.groupNearby();
     // a tile's share of a patch's crop, more for good keeping and for good company
     const soil = soilOf(t);
-    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0) + Math.round((soil - 0.4) * 2.5) + (this.beesAt(x, z) && ['berry', 'squash', 'bine', 'flower'].includes(c.shape) ? 1 : 0));
+    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0) + Math.round((soil - 0.4) * 2.5) + (this.beesAt(x, z) && ['berry', 'squash', 'bine', 'flower'].includes(c.shape) ? 1 : 0) + (c.shape === 'bine' && this.trellisBy(x, z) ? 1 : 0));
     // how well it was kept decides how much of it comes up fine or prize (data/quality.ts)
     const keep = Math.min(1, keeping({ wetShare: t.all > 0 ? t.wet / t.all : 0, compost: !!t.k, inSeason: this.seasonAt(c, x + ',' + z) > 1, levelsOver: lv - c.level, group, scarecrow: this.host.scarecrow() }) + (soil - 0.4) * 0.25 + (t.fz === 'bone' ? 0.25 : 0) + (this.underGlass(x + ',' + z) ? 0.1 : 0));
     const [plain, fine, prize] = gradeHarvest(n, keep);
@@ -773,6 +848,7 @@ export class HomeFarm {
     if (prize) this.host.give(prizeId ?? c.produce, prize);
     // (counted for the achievements: data/feats.ts)
     this.host.setFlag('n:harvest', Number(this.host.flag('n:harvest') ?? 0) + 1);
+    { const gr = { ...((this.host.flag('grown') as Record<string, [number, number]> | undefined) ?? {}) }, was = gr[c.id] ?? [0, 0]; gr[c.id] = [was[0] + n, Math.max(was[1], prize ? 2 : fine ? 1 : 0)]; this.host.setFlag('grown', gr); }
     if (prize) this.host.setFlag('n:prize', Number(this.host.flag('n:prize') ?? 0) + prize);
     // (a public field's tile less than your own garden's: with no cap on them, they were the fastest way up; the XP audit, 2026-11-12)
     this.host.addXp('farming', Math.round(c.xpPick * n * (this.zone(x, z) === 'field' ? 0.35 : 1)));
@@ -812,11 +888,11 @@ export class HomeFarm {
     const herds = this.herds().filter((h) => Math.hypot(h.x - me.x, h.z - me.z) < 110);
     const sp = this.sprinklers().filter((s) => Math.hypot(s.x - me.x, s.z - me.z) < 110), hp = this.heap();
     const mks = this.makers().map((m) => `${m.k}${m.x},${m.z}:${this.makerLeft(m, now) === 0 ? 'done' : m.b ?? ''}`).join(';');
-    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + sp.map((s) => `${s.x},${s.z},${s.i}`).join(';') + '#' + (hp ? `${hp.x},${hp.z},${hp.l.length}` : '') + '#' + mks + '#' + this.hives().map((h) => `${h.x},${h.z},${this.hiveJars(h, now)}`).join(';') + '#' + JSON.stringify(this.greenhouse()) + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now, k); return `${k}:${u.c ?? ''}:${u.g ?? ''}:${this.stage(u)}:${this.isWet(u, k, now) ? 1 : 0}`; }).join('|');
+    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + sp.map((s) => `${s.x},${s.z},${s.i}`).join(';') + '#' + (hp ? `${hp.x},${hp.z},${hp.l.length}` : '') + '#' + mks + '#' + this.hives().map((h) => `${h.x},${h.z},${this.hiveJars(h, now)}`).join(';') + '#' + JSON.stringify(this.greenhouse()) + '#' + JSON.stringify(this.decor()) + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now, k); return `${k}:${u.c ?? ''}:${u.g ?? ''}:${this.stage(u)}:${this.isWet(u, k, now) ? 1 : 0}`; }).join('|');
     if (this.drawn && this.drawn.key === key) return;
     if (this.drawn) { this.host.scene.remove(this.drawn.group); this.drawn = null; }
     if (!key) return;
-    this.host.clearGrass?.(Object.keys(all));
+    this.host.clearGrass?.([...Object.keys(all), ...this.decor().filter((d) => d.k.startsWith('path')).map((d) => d.x + ',' + d.z)]);
     const group = this.draw(all, now, raining, herds);
     this.host.scene.add(group);
     this.drawn = { group, key };
@@ -861,6 +937,12 @@ export class HomeFarm {
         }
       }
       batch.addGroup(g, P.mat4(s.x + 0.5, this.groundTop(s.x, s.z) + 1, s.z + 0.5, 0));
+    }
+    for (const d of this.decor()) {
+      if (Math.hypot(d.x - me.x, d.z - me.z) > 110) continue;
+      const g = new THREE.Group();
+      this.drawDecor(g, d, box, hash);
+      batch.addGroup(g, P.mat4(d.x + 0.5, this.groundTop(d.x, d.z) + 1, d.z + 0.5, 0));
     }
     // the hives: a white box hive on legs under a roof, bees about it, the honey showing at the entrance when it's ready
     for (const h of this.hives()) {

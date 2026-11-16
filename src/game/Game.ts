@@ -204,6 +204,9 @@ import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
 import { HERDS, HomeFarm, type Tile as GardenTile } from './HomeFarm';
 import { CROPS } from '../data/farming';
+import { DECOR_OF_ITEM } from '../data/farmingSix';
+import { COLOURS, flowerId, SPECIES } from '../data/farmingFour';
+import { heartWord } from '../data/farmingThree';
 import { BETTER } from '../data/quality';
 import { judge, PLACE_PAY, placeOf, SHOW_CLASSES, showEntries, showSeason, type ShowClass } from '../data/farmingFive';
 import { VerandahPatrols } from './VerandahPatrols';
@@ -4438,6 +4441,7 @@ export class Game implements GameApi {
         return { id: f.id, name: f.name, where: f.where, blurb: f.blurb, join: f.join, rank: r >= 0 ? f.ranks[r] : null, rankIdx: r, ranks: f.ranks, next, open: f.open };
       }),
       tradeView: () => g.tradeView(),
+      gardenView: () => g.gardenView(),
       takeTrade: (id: string) => g.takeTrade(id as TradeId),
       feats: () => {
         const api = g.featApi();
@@ -5257,6 +5261,8 @@ export class Game implements GameApi {
     // Bait: on the hook, or (the bait already on it) off again
     if (BAIT_OF[st.id] && def.kind !== 'food' && this.flag('bait') === st.id) { this.setFlag('bait', null); this.hud.system('You take the bait off. Fishing with a bare hook.'); this.sfx('click'); this.hud.refresh(); return; }
     if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.refresh(); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
+    // A garden piece: start laying it in your yard, or stop (data/farmingSix.ts)
+    if (DECOR_OF_ITEM[st.id]) { if (this.flag('decorPick') === st.id) { this.setFlag('decorPick', null); this.hud.system(`You stop laying ${def.name.toLowerCase()}.`); } else { this.setFlag('decorPick', st.id); this.hud.system(`Laying ${def.name.toLowerCase()}: face where it goes in your yard and press E. Use it again from your bag to stop.`); } this.sfx('click'); this.hud.refresh(); this.garden.refresh(); return; }
     // A seed: sow this one next in tilled ground (farming part four: flowers made the best-seed guess wrong too often)
     { const crop = CROPS.find((c) => c.seed === st.id && c.patch === 'allotment'); if (crop) { this.setFlag('sowing', st.id); this.hud.system(`You'll sow ${def.name.toLowerCase()} next, while you have it. (Farming ${crop.level}.)`); this.sfx('click'); this.hud.refresh(); this.garden.refresh(); return; } }
     if (st.id.startsWith('petcos_')) {
@@ -7278,6 +7284,17 @@ export class Game implements GameApi {
     this.hud.system(`You take up the trade of ${t.name.toLowerCase()}: ${t.ranks[tradeRank(this.tradeJobs(id))]}. Your jobs for today are in the journal, under Trade.`);
     this.sfx('quest');
     this.persist();
+  }
+  /** What the journal's Garden page shows. */
+  gardenView() {
+    const gr = (this.flag('grown') as Record<string, [number, number]> | undefined) ?? {};
+    const grown = CROPS.filter((c) => gr[c.id]).map((c) => ({ name: c.name.replace(/^An? /, ''), n: gr[c.id][0], best: gr[c.id][1] }));
+    const colours = SPECIES.map((sp) => ({ name: sp.name, of: Object.keys(COLOURS).length, found: (Object.keys(COLOURS) as (keyof typeof COLOURS)[]).filter((k) => gr[flowerId(sp.id, k)]).map((k) => COLOURS[k].name) }));
+    const animals = this.garden.herds().map((h) => { const heart = this.garden.heartOf(h); return { name: h.n ?? HERDS[h.k].name, heart, word: heartWord(heart) }; });
+    const show = this.showView().map((c) => ({ name: c.name, place: c.place, today: c.today }));
+    const n = (k: string) => Number(this.flag('n:' + k) ?? 0);
+    const totals: [string, number][] = [['Harvests', n('harvest')], ['Prize grown', n('prize')], ['Colours crossed', n('crossed')], ['Made at home', n('made')], ['Giants', n('giant')], ['Firsts at the show', n('showFirsts')]];
+    return { grown, colours, animals, show, totals };
   }
   /** What the journal's Trade page shows. */
   tradeView() {

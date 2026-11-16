@@ -247,6 +247,8 @@ export interface UiCtx {
   /** Down and waiting for help: give up waiting and come round at the usual place. */
   respawnNow(): void;
   feats(): FeatView[];
+  /** The garden journal: what you've grown and how well, the flower colours, the animals, the season's show. */
+  gardenView(): { grown: { name: string; n: number; best: number }[]; colours: { name: string; found: string[]; of: number }[]; animals: { name: string; heart: number; word: string }[]; show: { name: string; place: number; today: boolean }[]; totals: [string, number][] };
   /** Your trade and today's jobs (data/jobs.ts). */
   tradeView(): { current: string | null; trades: { id: string; name: string; where: string; blurb: string; rank: string; rankIdx: number; ranks: string[]; done: number; next: number | null }[]; jobs: { text: string; have: number; need: number; done: boolean }[]; pay: number };
   takeTrade(id: string): void;
@@ -2614,7 +2616,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'trade' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'trade' && this.selQuest !== 'garden' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -2656,6 +2658,9 @@ export class Hud {
     const tr = el('div', 'ji' + (this.selQuest === 'trade' ? ' sel' : ''), 'Trade');
     tr.addEventListener('click', () => { this.selQuest = 'trade'; this.renderJournal(); });
     list.append(tr);
+    const gj = el('div', 'ji' + (this.selQuest === 'garden' ? ' sel' : ''), 'Garden');
+    gj.addEventListener('click', () => { this.selQuest = 'garden'; this.renderJournal(); });
+    list.append(gj);
     const ft = el('div', 'ji' + (this.selQuest === 'feats' ? ' sel' : ''), 'Achievements');
     ft.addEventListener('click', () => { this.selQuest = 'feats'; this.renderJournal(); });
     list.append(ft);
@@ -2816,6 +2821,21 @@ export class Hud {
           + (r.next ? `<div class="bar feat-bar"><i style="width:${pct}%"></i></div><div class="fd">${r.points.toLocaleString()} of ${r.next.at.toLocaleString()} to ${esc(r.next.name)}${r.next.off ? ` (${pc(r.next.off)})` : ''}</div>` : `<div class="fd">${r.points.toLocaleString()} standing: as high as it goes.</div>`);
         page.append(row);
       }
+    } else if (this.selQuest === 'garden') {
+      // The farming journal (docs/briefs/farming-cozy.md, 13): what you've grown, your best of each, the colours, the hearts
+      const v = this.ctx.gardenView(), grade = ['plain', 'fine', 'prize'];
+      page.innerHTML = `<h4>Garden</h4><div class="feat-sum">${v.totals.map(([k, n]) => `${esc(k)}: <b>${n.toLocaleString()}</b>`).join(' · ')}</div>`;
+      page.append(el('h5', 'feat-group', 'The season\'s show at Hollin Ford'));
+      { const row = el('div', 'feat'); row.innerHTML = `<div class="fd">${v.show.map((c) => `${esc(c.name)}: ${c.place ? ['', 'first', 'second', 'third'][c.place] : c.today ? 'entered today' : '–'}`).join(' · ')}. Four firsts in a season win the cup.</div>`; page.append(row); }
+      if (v.animals.length) {
+        page.append(el('h5', 'feat-group', 'The yard'));
+        for (const a of v.animals) { const row = el('div', 'feat'); row.innerHTML = `<div class="ft"><b>${esc(a.name)}</b><span>${esc(a.word)}</span></div><div class="bar feat-bar"><i style="width:${a.heart}%"></i></div>`; page.append(row); }
+      }
+      page.append(el('h5', 'feat-group', 'Flower colours'));
+      for (const c of v.colours) { const row = el('div', 'feat' + (c.found.length === c.of ? ' done' : '')); row.innerHTML = `<div class="ft"><b>${esc(c.name)}</b><span>${c.found.length} of ${c.of}</span></div><div class="fd">${c.found.length ? esc(c.found.join(', ')) : 'None grown yet.'}</div>`; page.append(row); }
+      page.append(el('h5', 'feat-group', 'What you\'ve grown'));
+      if (!v.grown.length) page.append(el('div', 'feat', '<div class="fd">Nothing yet. A hoe, a seed and some water: Bertram Sowerby at Hollin Ford sells all three.</div>'));
+      for (const c of v.grown) { const row = el('div', 'feat'); row.innerHTML = `<div class="ft"><b>${esc(c.name)}</b><span>${c.n.toLocaleString()} · best ${grade[c.best]}</span></div>`; page.append(row); }
     } else if (this.selQuest === 'trade') {
       // A trade to follow, and today's three jobs from it (data/jobs.ts; owner 2026-11-14, "work on the jobs next")
       const v = this.ctx.tradeView(), cur = v.trades.find((t) => t.id === v.current);
