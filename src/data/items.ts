@@ -391,4 +391,5 @@ for (const d of CAPE_ITEMS) ITEMS[d.id] = d;
 // Fine and prize produce, from a garden kept well (src/data/quality.ts).
 import { CROPS } from './farming';
 import { gradedProduce } from './quality';
-for (const d of gradedProduce(ITEMS, CROPS.map((c) => c.produce))) ITEMS[d.id] = d;
+// (and the yard's: eggs, milk and fleece from a fond animal; farming part three)
+for (const d of gradedProduce(ITEMS, [...CROPS.map((c) => c.produce), 'egg', 'milk', 'fleece'])) ITEMS[d.id] = d;

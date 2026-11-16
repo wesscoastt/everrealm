@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CROP, CROPS, seasonRate, type CropDef } from '../data/farming';
 import { BETTER, gradeHarvest, keeping } from '../data/quality';
+import { ANIMAL_NAMES, HEART, heartWord, MAKERS, MAKER_OF_ITEM, type MakerBatch } from '../data/farmingThree';
 import { FEEDS as FERTS, HEAP, REGROW, SPRINKLERS, SPRINKLER_REACH, type Feed } from '../data/farmingTwo';
 import { ITEMS } from '../data/items';
 import type { SkillId } from '../data/items';
@@ -63,6 +64,8 @@ export interface Tile { c?: string; p: number; u: number; wu: number; k?: 1; wet
 /** A sprinkler set in your yard, and the compost heap. */
 export interface Sprinkler { x: number; z: number; i: string }
 export interface Heap { x: number; z: number; l: number[] }
+/** A maker in your yard (data/farmingThree.ts): what kind, where, and the batch in it with when it started. */
+export interface Maker { k: string; x: number; z: number; b?: number; t?: number }
 
 /** Peas and beans put back into the ground what other crops take out. */
 const LEGUMES = new Set(['peas', 'beans']);
@@ -98,7 +101,11 @@ export const HERDS: Record<string, { item: string; animal: 'chicken' | 'sheep' |
 };
 const FED_MS = 3 * 3600000;
 const FEEDS = ['barley', 'wheat'];
-export interface Herd { k: string; x: number; z: number; fed: number; got: number }
+/** A herd in your yard: where, when last fed and collected; its names, its heart, the days it was fed and brushed (farming part three). */
+export interface Herd { k: string; x: number; z: number; fed: number; got: number; n?: string; h?: number; fd?: string; bd?: string }
+const DAY_MS = 86400000;
+const today = () => new Date().toDateString();
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 /** How many tiles of your own garden you can work at a Farming level. */
 export const gardenSize = (lv: number) => Math.min(64, 8 + Math.floor(lv / 3) * 2);
@@ -111,53 +118,84 @@ export class HomeFarm {
 
   herds(): Herd[] { const v = this.host.flag('livestock'); return Array.isArray(v) ? (v as Herd[]) : []; }
   private saveHerds(h: Herd[]): void { this.host.setFlag('livestock', h); this.host.persist(); }
-  /** What a herd has ready: its yield over the hours it was fed since you last collected. */
+  /** A herd's name: its own (the cow's, the ewes', the hens'), or what kind it is. */
+  private herdName(h: Herd): string { return h.n ?? HERDS[h.k].name; }
+  /** Its heart now: what care has built, less a little for every day it went unfed (data/farmingThree.ts). */
+  heartOf(h: Herd, now = Date.now()): number {
+    const missed = h.fed > 0 ? Math.max(0, Math.floor((now - h.fed) / DAY_MS) - 1) : 0;
+    return Math.max(0, Math.min(100, (h.h ?? 0) - missed * HEART.missed));
+  }
+  /** What a herd has ready: its yield over the hours it was fed since you last collected (a fond one gives more). */
   private ready(h: Herd, now = Date.now()): number {
     const d = HERDS[h.k], from = Math.max(h.got, h.fed), to = Math.min(now, h.fed + FED_MS);
-    return to <= from ? 0 : Math.min(d.most, Math.floor((to - from) / (d.every * 60000)) * d.per);
+    if (to <= from) return 0;
+    const n = Math.floor((to - from) / (d.every * 60000)) * d.per, heart = this.heartOf(h, now);
+    return n ? Math.min(d.most + (heart >= 70 ? 2 : 0), n + (heart >= 45 ? 1 : 0)) : 0;
   }
   /** Work done at a herd: what you can do there now. */
-  private herdCandidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] {
-    const me = this.host.player(), out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string }[] = [];
+  private herdCandidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] {
+    const me = this.host.player(), out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] = [];
     const list = this.herds();
     list.forEach((h, i) => {
       if (Math.hypot(h.x + 0.5 - me.x, h.z + 0.5 - me.z) > 3) return;
       const d = HERDS[h.k], at = new THREE.Vector3(h.x + 0.5, this.groundTop(h.x, h.z) + 1.4, h.z + 0.5), n = this.ready(h), now = Date.now();
-      if (n > 0) { out.push({ label: `Collect from ${d.name} (${ITEMS[d.produce]?.name ?? d.produce} ×${n})`, pos: at, use: () => this.collect(i) }); return; }
+      const name = this.herdName(h), many = d.head > 1, heart = this.heartOf(h), sub = `${many ? 'they are' : 'she is'} ${heartWord(heart)} (${heart} of 100)`;
+      if (n > 0) { out.push({ label: `Collect from ${name} (${ITEMS[d.produce]?.name ?? d.produce} ×${n})`, sub, pos: at, use: () => this.collect(i) }); return; }
       if (now >= h.fed + FED_MS) {
         const grain = FEEDS.find((g) => this.host.count(g) >= d.feed);
-        if (grain) out.push({ label: `Feed ${d.name} (${ITEMS[grain]?.name ?? grain} ×${d.feed})`, pos: at, use: () => this.feed(i, grain) });
-        else out.push({ label: `${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'are' : 'is'} hungry`, pos: at, use: () => this.host.system(`${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'want' : 'wants'} ${d.feed} wheat or barley. Grow it in the garden, or buy it.`), warn: 'Needs grain' });
-      } else out.push({ label: `${d.name[0].toUpperCase() + d.name.slice(1)}: fed`, pos: at, use: () => this.host.system(`${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'are' : 'is'} fed for another ${Math.ceil((h.fed + FED_MS - now) / 60000)} minutes. ${ITEMS[d.produce]?.name ?? d.produce} comes every ${d.every} minutes while ${d.head > 1 ? 'they are' : 'she is'}.`) });
+        if (grain) out.push({ label: `Feed ${name} (${ITEMS[grain]?.name ?? grain} ×${d.feed})`, sub, pos: at, use: () => this.feed(i, grain) });
+        else out.push({ label: `${cap(name)} ${many ? 'are' : 'is'} hungry`, sub, pos: at, use: () => this.host.system(`${cap(name)} ${many ? 'want' : 'wants'} ${d.feed} wheat or barley. Grow it in the garden, or buy it.`), warn: 'Needs grain' });
+      } else if (h.bd !== today()) out.push({ label: `Brush ${name} down`, sub, pos: at, use: () => this.brush(i) });
+      else out.push({ label: `${cap(name)}: fed and brushed`, sub, pos: at, use: () => this.host.system(`${cap(name)} ${many ? 'are' : 'is'} fed for another ${Math.ceil((h.fed + FED_MS - now) / 60000)} minutes. ${ITEMS[d.produce]?.name ?? d.produce} comes every ${d.every} minutes while ${many ? 'they are' : 'she is'}. Fed and brushed every day, ${many ? 'they give' : 'she gives'} more, and better.`) });
     });
     return out;
   }
   private feed(i: number, grain: string): void {
     const list = this.herds(), h = list[i], d = HERDS[h.k];
     if (!this.host.take(grain, d.feed)) return;
-    const now = Date.now();
-    list[i] = { ...h, fed: now, got: Math.max(h.got, now) };
+    const now = Date.now(), first = h.fd !== today();
+    list[i] = { ...h, fed: now, got: Math.max(h.got, now), h: Math.min(100, this.heartOf(h, now) + (first ? HEART.fed : 0)), fd: today() };
     this.saveHerds(list);
     this.host.addXp('farming', 12 * d.feed);
     this.host.sound('click');
   }
+  private brush(i: number): void {
+    const list = this.herds(), h = list[i];
+    if (!h || h.bd === today()) return;
+    const before = this.heartOf(h), after = Math.min(100, before + HEART.brushed);
+    list[i] = { ...h, h: (h.h ?? 0) + (after - before), bd: today() };
+    this.saveHerds(list);
+    this.host.addXp('farming', 15);
+    this.host.sound('pickup');
+    const name = cap(this.herdName(h)), many = HERDS[h.k].head > 1;
+    const said = h.k === 'hens' ? `${name} put up with the brush, mostly, and talk about it after.` : h.k === 'ewes' ? `${name} lean into the brush till you have to lean back.` : `${name} leans into the brush and closes her eyes.`;
+    this.host.system(`${said}${heartWord(after) !== heartWord(before) ? ` ${many ? 'They are' : 'She is'} ${heartWord(after)} now.` : ''}`);
+  }
   private collect(i: number): void {
     const list = this.herds(), h = list[i], d = HERDS[h.k], n = this.ready(h);
-    if (n <= 0 || !this.host.give(d.produce, n)) return;
-    const from = Math.max(h.got, h.fed);
-    list[i] = { ...h, got: from + Math.ceil(n / d.per) * d.every * 60000 };
+    if (n <= 0) return;
+    // a fond animal's give is better: some of it fine or prize (data/quality.ts)
+    const [plain, fine, prize] = gradeHarvest(n, this.heartOf(h) / 110), [fineId, prizeId] = BETTER[d.produce] ?? [];
+    if (plain) this.host.give(d.produce, plain);
+    if (fine) this.host.give(fineId ?? d.produce, fine);
+    if (prize) this.host.give(prizeId ?? d.produce, prize);
+    const from = Math.max(h.got, h.fed), base = Math.floor((Math.min(Date.now(), h.fed + FED_MS) - from) / (d.every * 60000));
+    list[i] = { ...h, got: from + Math.max(1, base) * d.every * 60000 };
     this.saveHerds(list);
     this.host.addXp('farming', 20 * n);
     this.host.sound('pickup');
-    this.host.system(`${ITEMS[d.produce]?.name ?? d.produce} ×${n}, from ${d.name}.`);
+    const graded = fine || prize ? ` (${[fine ? `${fine} fine` : '', prize ? `${prize} prize` : ''].filter(Boolean).join(', ')})` : '';
+    this.host.system(`${ITEMS[d.produce]?.name ?? d.produce} ×${n}${graded}, from ${this.herdName(h)}.`);
   }
   private settle(k: string, x: number, z: number): void {
     const d = HERDS[k], list = this.herds();
     if (list.some((h) => h.k === k) || !this.host.take(d.item, 1)) return;
-    list.push({ k, x, z, fed: 0, got: Date.now() });
+    const names = ANIMAL_NAMES[k] ?? [], n = names[Math.floor(Math.random() * names.length)];
+    list.push({ k, x, z, fed: 0, got: Date.now(), n, h: 10 });
     this.saveHerds(list);
     this.host.sound('discover');
-    this.host.system(`${d.name[0].toUpperCase() + d.name.slice(1)} ${d.head > 1 ? 'are' : 'is'} home. Feed ${d.head > 1 ? 'them' : 'her'} grain and ${d.head > 1 ? 'they' : 'she'}'ll give.`);
+    const many = d.head > 1;
+    this.host.system(`${n ?? cap(d.name)} ${many ? 'are' : 'is'} home. Bertram wrote ${many ? 'their names' : 'her name'} on the bill of sale. Feed ${many ? 'them' : 'her'} grain and brush ${many ? 'them' : 'her'} down every day, and ${many ? 'they give' : 'she gives'} more, and better.`);
     this.refresh();
   }
 
@@ -220,6 +258,66 @@ export class HomeFarm {
   private stage(t: Tile): number { return !t.c ? -1 : t.p >= 1 ? 3 : t.p >= 0.66 ? 2 : t.p >= 0.33 ? 1 : 0; }
   private minsLeft(t: Tile, k?: string): number { const c = CROP(t.c!)!; const wetNow = this.isWet(t, k); return Math.max(1, Math.ceil(((1 - t.p) * c.minutes) / ((wetNow ? 1 : t.fz === 'weed' ? 0.75 : 0.5) * (t.fz === 'ash' ? 1.25 : 1) * seasonRate(c)))); }
 
+  // ---------------------------------------------------------------- The makers (farming part three)
+  makers(): Maker[] { const v = this.host.flag('makers'); return Array.isArray(v) ? (v as Maker[]) : []; }
+  private saveMakers(m: Maker[]): void { this.host.setFlag('makers', m); this.host.persist(); this.refresh(); }
+  /** Minutes till a maker's batch is done (0 when it is, -1 when it's empty). */
+  private makerLeft(m: Maker, now = Date.now()): number {
+    if (m.b === undefined || m.t === undefined) return -1;
+    const b = MAKERS[m.k].batches[m.b];
+    return Math.max(0, Math.ceil((m.t + b.mins * 60000 - now) / 60000));
+  }
+  private batchSay(b: MakerBatch): string { return Object.entries(b.in).map(([it, n]) => `${(ITEMS[it]?.name ?? it).toLowerCase()} ×${n}`).join(', '); }
+  private makerCandidates(): { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] {
+    const me = this.host.player(), out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] = [];
+    const list = this.makers();
+    let best = -1, bestD = 2.4;
+    list.forEach((m, i) => { const d = Math.hypot(m.x + 0.5 - me.x, m.z + 0.5 - me.z); if (d < bestD) { bestD = d; best = i; } });
+    if (best < 0) return out;
+    const m = list[best], def = MAKERS[m.k], at = new THREE.Vector3(m.x + 0.5, this.groundTop(m.x, m.z) + 1.6, m.z + 0.5), left = this.makerLeft(m);
+    const Name = def.name[0].toUpperCase() + def.name.slice(1);
+    if (left === 0) {
+      const b = def.batches[m.b!];
+      out.push({ label: `Take ${(ITEMS[b.out]?.name ?? b.out).toLowerCase()} from the ${def.name} (×${b.n})`, pos: at, use: () => this.makerTake(best) });
+    } else if (left > 0) {
+      const b = def.batches[m.b!];
+      out.push({ label: `${Name}: ${(ITEMS[b.out]?.name ?? b.out).toLowerCase()} in ${left} min`, pos: at, use: () => this.host.system(`The ${def.name} is working: ${b.n} ${(ITEMS[b.out]?.name ?? b.out).toLowerCase()} in about ${left} minutes.`) });
+    } else {
+      const bi = def.batches.findIndex((b) => Object.entries(b.in).every(([it, n]) => this.host.count(it) >= n));
+      if (bi >= 0) { const b = def.batches[bi]; out.push({ label: `${def.verb}: ${this.batchSay(b)}`, sub: `${b.n} ${(ITEMS[b.out]?.name ?? b.out).toLowerCase()} in ${b.mins} min`, pos: at, use: () => this.makerStart(best, bi) }); }
+      else out.push({ label: `${Name} (empty)`, pos: at, use: () => this.host.system(`The ${def.name} takes ${def.batches.slice(0, 4).map((b) => `${this.batchSay(b)} for ${(ITEMS[b.out]?.name ?? b.out).toLowerCase()}`).join('; ')}${def.batches.length > 4 ? '; or any other fruit, three at a time' : ''}.`), warn: 'Nothing to put in' });
+    }
+    return out;
+  }
+  private makerStart(i: number, bi: number): void {
+    const list = this.makers(), m = list[i], b = MAKERS[m?.k]?.batches[bi];
+    if (!m || !b || this.makerLeft(m) >= 0) return;
+    if (!Object.entries(b.in).every(([it, n]) => this.host.count(it) >= n)) return;
+    for (const [it, n] of Object.entries(b.in)) this.host.take(it, n);
+    list[i] = { ...m, b: bi, t: Date.now() };
+    this.saveMakers(list);
+    this.host.addXp('farming', 10 + b.mins / 6);
+    this.host.sound('click');
+  }
+  private makerTake(i: number): void {
+    const list = this.makers(), m = list[i];
+    if (!m || this.makerLeft(m) !== 0) return;
+    const b = MAKERS[m.k].batches[m.b!];
+    if (!this.host.give(b.out, b.n)) return;
+    list[i] = { k: m.k, x: m.x, z: m.z };
+    this.saveMakers(list);
+    this.host.addXp('farming', 20 + b.mins / 3);
+    this.host.setFlag('n:made', Number(this.host.flag('n:made') ?? 0) + b.n);
+    this.host.sound('pickup');
+    this.host.system(`${ITEMS[b.out]?.name ?? b.out} ×${b.n}, from your own ${MAKERS[m.k].name}.`);
+  }
+  private makerSet(item: string, x: number, z: number): void {
+    const k = MAKER_OF_ITEM[item];
+    if (!k || !this.host.take(item, 1)) return;
+    this.saveMakers([...this.makers(), { k, x, z }]);
+    this.host.sound('discover');
+    this.host.system(`The ${MAKERS[k].name} is set up. Bring it what it takes and come back for what it makes.`);
+  }
   /** Spare produce for the heap: the plain crop you have most of, three at least. */
   private scraps(): string | undefined {
     let best: string | undefined, n = HEAP.per - 1;
@@ -229,6 +327,8 @@ export class HomeFarm {
   /** What's done at a sprinkler or the heap, and setting either up in your yard. */
   private yardCandidates(x: number, z: number): { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] {
     const me = this.host.player(), out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] = [];
+    const mk = this.makerCandidates();
+    if (mk.length) return mk;
     const h = this.heap();
     if (h && Math.hypot(h.x + 0.5 - me.x, h.z + 0.5 - me.z) < 2.6) {
       const at = new THREE.Vector3(h.x + 0.5, this.groundTop(h.x, h.z) + 1.5, h.z + 0.5), now = Date.now();
@@ -249,6 +349,9 @@ export class HomeFarm {
     }
     if (this.zone(x, z) !== 'home' || this.tiles()[x + ',' + z] || this.herds().some((q) => q.x === x && q.z === z) || (h && h.x === x && h.z === z)) return out;
     const at = new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5);
+    if (this.makers().some((m) => m.x === x && m.z === z)) return out;
+    const mItem = Object.keys(MAKER_OF_ITEM).find((it) => this.host.count(it) > 0);
+    if (mItem) { out.push({ label: `Set up the ${MAKERS[MAKER_OF_ITEM[mItem]].name} here`, pos: at, use: () => this.makerSet(mItem, x, z) }); return out; }
     if (!h && this.host.count('compost_heap') > 0) { out.push({ label: 'Build the compost heap here', pos: at, use: () => this.heapBuild(x, z) }); return out; }
     const sp = SPRINKLERS.find((q) => this.host.count(q.item) > 0);
     if (sp) out.push({ label: `Set the ${(ITEMS[sp.item]?.name ?? 'sprinkler').toLowerCase()} here`, sub: `keeps the beds ${sp.reach} round it wet`, pos: at, use: () => this.sprinkle(x, z, sp.item) });
@@ -534,7 +637,8 @@ export class HomeFarm {
     const all = Object.fromEntries(Object.entries(this.tiles()).filter(([k]) => { const [x, z] = k.split(',').map(Number); return Math.hypot(x - me.x, z - me.z) < 110; }));
     const herds = this.herds().filter((h) => Math.hypot(h.x - me.x, h.z - me.z) < 110);
     const sp = this.sprinklers().filter((s) => Math.hypot(s.x - me.x, s.z - me.z) < 110), hp = this.heap();
-    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + sp.map((s) => `${s.x},${s.z},${s.i}`).join(';') + '#' + (hp ? `${hp.x},${hp.z},${hp.l.length}` : '') + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now, k); return `${k}:${u.c ?? ''}:${this.stage(u)}:${this.isWet(u, k, now) ? 1 : 0}`; }).join('|');
+    const mks = this.makers().map((m) => `${m.k}${m.x},${m.z}:${this.makerLeft(m, now) === 0 ? 'done' : m.b ?? ''}`).join(';');
+    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + sp.map((s) => `${s.x},${s.z},${s.i}`).join(';') + '#' + (hp ? `${hp.x},${hp.z},${hp.l.length}` : '') + '#' + mks + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now, k); return `${k}:${u.c ?? ''}:${this.stage(u)}:${this.isWet(u, k, now) ? 1 : 0}`; }).join('|');
     if (this.drawn && this.drawn.key === key) return;
     if (this.drawn) { this.host.scene.remove(this.drawn.group); this.drawn = null; }
     if (!key) return;
@@ -583,6 +687,21 @@ export class HomeFarm {
         }
       }
       batch.addGroup(g, P.mat4(s.x + 0.5, this.groundTop(s.x, s.z) + 1, s.z + 0.5, 0));
+    }
+    // the makers, each its own shape; a full one shows what's in it, a finished one has its goods out on top
+    for (const m of this.makers()) {
+      if (Math.hypot(m.x - me.x, m.z - me.z) > 110) continue;
+      const g = new THREE.Group(), left = this.makerLeft(m, now), b = m.b !== undefined ? MAKERS[m.k].batches[m.b] : undefined;
+      const outCol = b ? (ITEMS[b.out]?.icon?.a ?? '#d8c070') : '#d8c070';
+      if (m.k === 'churn') { box(g, 0.6, 0.9, 0.6, '#8a6a3a', 0, 0.45, 0); for (const y of [0.2, 0.7]) box(g, 0.64, 0.06, 0.64, '#4a4a4a', 0, y, 0); box(g, 0.06, 0.6, 0.06, '#c8b898', 0, 1.15, 0); box(g, 0.3, 0.05, 0.05, '#c8b898', 0, 1.42, 0); }
+      else if (m.k === 'press') { box(g, 1.0, 0.1, 0.8, '#6a4a2a', 0, 0.6, 0); for (const px of [-0.42, 0.42]) box(g, 0.1, 1.4, 0.1, '#5a3a24', px, 0.7, 0); box(g, 0.94, 0.12, 0.14, '#5a3a24', 0, 1.36, 0); box(g, 0.08, 0.5, 0.08, '#8a8a8a', 0, 1.05, 0); box(g, 0.4, 0.2, 0.4, b ? '#e8e0c8' : '#7a5a3a', 0, 0.75, 0); for (const lx of [-0.4, 0.4]) box(g, 0.08, 0.55, 0.08, '#4a3220', lx, 0.28, 0); }
+      else if (m.k === 'loom') { for (const px of [-0.6, 0.6]) { box(g, 0.1, 1.5, 0.1, '#7a5434', px, 0.75, -0.3); box(g, 0.1, 0.9, 0.1, '#7a5434', px, 0.45, 0.4); } box(g, 1.3, 0.1, 0.1, '#7a5434', 0, 1.45, -0.3); box(g, 1.3, 0.08, 0.8, '#7a5434', 0, 0.85, 0.05); box(g, 1.1, 0.02, 0.7, b ? '#ece6d6' : '#c8b898', 0, 0.9, 0.05); box(g, 1.0, 0.5, 0.02, '#ece6d6', 0, 1.15, -0.3); box(g, 1.2, 0.1, 0.3, '#5a3a24', 0, 0.45, 0.85); }
+      else if (m.k === 'jars') { box(g, 1.2, 0.08, 0.4, '#8a6a3a', 0, 0.9, 0); box(g, 1.2, 0.08, 0.4, '#8a6a3a', 0, 0.4, 0); for (const px of [-0.55, 0.55]) box(g, 0.08, 1.1, 0.4, '#6a4a2a', px, 0.55, 0); for (let q = 0; q < 5; q++) { box(g, 0.16, 0.22, 0.16, '#e0d8c8', -0.4 + q * 0.2, 1.05, 0); box(g, 0.14, 0.14, 0.14, b ? outCol : '#c8c0b0', -0.4 + q * 0.2, 1.02, 0); box(g, 0.18, 0.03, 0.18, '#e8e0c8', -0.4 + q * 0.2, 1.17, 0); } box(g, 0.4, 0.2, 0.4, '#c87a3a', 0, 0.55, 0); }
+      else if (m.k === 'cider') { box(g, 1.2, 0.1, 1.0, '#5a3a24', 0, 0.35, 0); box(g, 0.7, 0.6, 0.7, '#8a6a3a', 0, 0.7, 0); for (const px of [-0.55, 0.55]) box(g, 0.12, 1.6, 0.12, '#4a3220', px, 0.8, 0); box(g, 1.3, 0.16, 0.16, '#4a3220', 0, 1.6, 0); box(g, 0.08, 0.5, 0.08, '#8a8a8a', 0, 1.3, 0); if (b) box(g, 0.6, 0.12, 0.6, outCol, 0, 1.05, 0); for (const lx of [-0.5, 0.5]) box(g, 0.1, 0.35, 0.1, '#4a3220', lx, 0.17, 0.4); }
+      else if (m.k === 'keg') { box(g, 0.9, 0.3, 0.7, '#5a3a24', 0, 0.15, 0); const k2 = new THREE.Group(); box(k2, 0.8, 0.7, 0.7, '#6a4a2a', 0, 0, 0); for (const xx of [-0.28, 0.28]) box(k2, 0.06, 0.74, 0.74, '#3a3a3a', xx, 0, 0); box(k2, 0.06, 0.08, 0.2, '#a8a8a8', 0, -0.15, 0.4); k2.position.set(0, 0.68, 0); g.add(k2); }
+      // the goods out on top when it's done
+      if (left === 0 && b) for (let q = 0; q < Math.min(3, b.n); q++) box(g, 0.16, 0.2, 0.16, outCol, -0.2 + q * 0.2, m.k === 'jars' ? 1.32 : m.k === 'loom' ? 1.0 : 1.75, m.k === 'jars' ? 0.12 : 0.3);
+      batch.addGroup(g, P.mat4(m.x + 0.5, this.groundTop(m.x, m.z) + 1, m.z + 0.5, 0));
     }
     // the compost heap: a slatted bin, the heap higher the more is in it, steaming while it rots
     const hp = this.heap();

@@ -1,6 +1,7 @@
 import type { ItemDef } from './items';
 import { MORE_CROPS, MORE_FARM_ITEMS, MORE_FARM_RECIPES } from './farmingMore';
 import { FARM_TWO_ITEMS, FARM_TWO_RECIPES } from './farmingTwo';
+import { FARM_THREE_ITEMS, FARM_THREE_RECIPES } from './farmingThree';
 
 // Farming, the old way (RuneScape's patches, with the Counties' own crops). Every player has their own
 // crop in each patch: Hollin Ford's kitchen gardens, and a vegetable patch and an orchard patch on every
@@ -154,6 +155,7 @@ export const FARM_ITEMS: ItemDef[] = [
   dish('pear_tart', 'Pear tart', '#d8c060', 54, 360, { slot: 'food', regen: 0.18, mins: 30 }, 'Pears in a ring on a short crust, glazed.', 'Restores 360 health; stamina back a fifth faster for half an hour.'),
   ...MORE_FARM_ITEMS,
   ...FARM_TWO_ITEMS,
+  ...FARM_THREE_ITEMS,
 ];
 
 /** The hearth's dishes from a patch's produce (merged into RECIPES in data/gameplay.ts). */
@@ -175,5 +177,6 @@ export const FARM_RECIPES = [
   { id: 'wool_rug', station: 'bench', skill: 'farming', level: 24, xp: 120, inputs: { wool: 6 }, output: 'furn_wool_rug', count: 1, time: 3.2 },
   { id: 'field_scarecrow', station: 'bench', skill: 'farming', level: 30, xp: 150, inputs: { wheat: 6, wool: 2, oak_logs: 2 }, output: 'furn_field_scarecrow', count: 1, time: 3 },
   ...FARM_TWO_RECIPES,
+  ...FARM_THREE_RECIPES,
   { id: 'pear_tart', station: 'hearth', skill: 'cooking', level: 62, xp: 400, inputs: { pears: 3, wheat: 1 }, output: 'pear_tart', count: 1, time: 3, failAtReq: 0.5, failItem: 'burnt_fish' },
 ] as const;

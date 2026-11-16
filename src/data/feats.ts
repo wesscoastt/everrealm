@@ -111,6 +111,7 @@ export const FEATS: FeatDef[] = [
   { id: 'harvest50', name: 'Green Fingers', group: 'The garden', desc: 'Bring in fifty harvests from tilled ground.', need: 50, have: (g) => n(g, 'harvest'), marks: 80, title: 'Green-Fingered', dye: ['#4a3a24', 'Loam'] },
   { id: 'harvest500', name: 'Five Hundred Rows', group: 'The garden', desc: 'Bring in five hundred harvests.', need: 500, have: (g) => n(g, 'harvest'), marks: 300, title: 'the Grower' },
   { id: 'prize25', name: 'Ribbon-Worthy', group: 'The garden', desc: 'Grow twenty-five pieces of prize produce.', need: 25, have: (g) => n(g, 'prize'), marks: 120, title: 'Ribbon-Worthy', dye: ['#b0242a', 'Rosette red'] },
+  { id: 'made40', name: 'From Our Own Kitchen', group: 'The garden', desc: 'Make forty goods at home: butter, cheese, cloth, preserves, cider, ale or wine.', need: 40, have: (g) => n(g, 'made'), marks: 150, title: 'of the Larder', dye: ['#c8a040', 'Cider gold'] },
   // Craft and trade
   { id: 'craft100', name: 'Made by Hand', group: 'Craft and trade', desc: 'Make a hundred things at the bench, the anvil, the furnace or the hearth.', need: 100, have: (g) => n(g, 'crafted'), marks: 100, title: 'the Maker' },
   { id: 'craft1000', name: 'Calloused', group: 'Craft and trade', desc: 'Make a thousand things.', need: 1000, have: (g) => n(g, 'crafted'), marks: 350, title: 'Master of the Bench', dye: ['#8a5a2a', 'Workshop tan'] },
