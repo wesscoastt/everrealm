@@ -25,33 +25,69 @@ function paintAtlas(): THREE.Texture {
   for (let i = 0; i < 14; i++) blade(0, 4 + i * 1.8, 10 + (i * 7) % 9, ((i * 5) % 7) - 3, grassCols[i % 4]);
   // Tall grass
   for (let i = 0; i < 16; i++) blade(32, 3 + i * 1.7, 16 + (i * 11) % 13, ((i * 3) % 9) - 4, grassCols[(i + 1) % 4]);
-  const flower = (cell: number, petal: string, centre: string, stems: number) => {
+  // Meadow flowers, each its own shape (owner 2026-11-14: "improve flat textures"): leaves up the stems, petals shaded
+  // from the heart outward, and the heart of each drawn as itself
+  const stemLeaf = (sx: number, sy: number, side: number) => { x.fillStyle = '#4a8a30'; x.beginPath(); x.moveTo(sx, sy); x.quadraticCurveTo(sx + side * 3, sy - 2.2, sx + side * 4.4, sy - 0.4); x.quadraticCurveTo(sx + side * 2.4, sy + 0.6, sx, sy); x.fill(); };
+  const petalGrad = (cx: number, cy: number, r: number, inner: string, outer: string) => { const g = x.createRadialGradient(cx, cy, 0.3, cx, cy, r); g.addColorStop(0, inner); g.addColorStop(1, outer); return g; };
+  const meadow = (cell: number, stems: number, head: (fx: number, fy: number, s: number) => void) => {
     const ox = cell * 32;
     for (let i = 0; i < 8; i++) blade(ox, 4 + i * 3.4, 8 + (i % 3) * 3, (i % 3) - 1, grassCols[i % 3]);
     for (let s = 0; s < stems; s++) {
-      const fx = ox + 7 + s * (18 / Math.max(1, stems - 1)), fy = 8 + (s % 2) * 5;
-      blade(ox, fx - ox, 32 - fy, 0, '#3f7a28', 1.5);
-      x.fillStyle = petal;
-      for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2; x.beginPath(); x.arc(fx + Math.cos(a) * 2.6, fy + Math.sin(a) * 2.6, 2.2, 0, 7); x.fill(); }
-      x.fillStyle = centre; x.beginPath(); x.arc(fx, fy, 1.6, 0, 7); x.fill();
+      const fx = ox + 7 + s * (18 / Math.max(1, stems - 1)), fy = 7 + (s % 2) * 5;
+      x.strokeStyle = '#3f7a28'; x.lineWidth = 1.2; x.lineCap = 'round';
+      x.beginPath(); x.moveTo(fx + (s % 2 ? 1 : -1), 32); x.quadraticCurveTo(fx + (s % 2 ? -1.5 : 1.5), 20, fx, fy + 2); x.stroke();
+      stemLeaf(fx + (s % 2 ? 0.6 : -0.6), 24 - (s % 3) * 2, s % 2 ? 1 : -1);
+      head(fx, fy, s);
     }
   };
-  flower(S.Poppy, '#d8362a', '#2a1a10', 3);
-  flower(S.Cornflower, '#4a74d8', '#1e2a6a', 3);
-  flower(S.Buttercup, '#f2c51e', '#c8860c', 4);
-  flower(S.Daisy, '#ffffff', '#f2c51e', 3);
-  // Wheat
+  // Poppies: four broad crumpled petals, darker at the base, a black heart ringed with stamens; one still a nodding bud
+  meadow(S.Poppy, 3, (fx, fy, s) => {
+    if (s === 1) { x.fillStyle = '#5a8a3a'; x.beginPath(); x.ellipse(fx + 1, fy + 1, 1.4, 2.2, 0.6, 0, 7); x.fill(); x.fillStyle = '#d8362a'; x.fillRect(fx + 0.6, fy - 0.6, 1, 1.2); return; }
+    for (let p = 0; p < 4; p++) { const a = (p / 4) * Math.PI * 2 + 0.4; x.fillStyle = petalGrad(fx, fy, 4.2, '#8a1410', p % 2 ? '#e8402e' : '#d8322a'); x.beginPath(); x.ellipse(fx + Math.cos(a) * 2.1, fy + Math.sin(a) * 1.7, 2.8, 2.2, a, 0, 7); x.fill(); }
+    x.fillStyle = 'rgba(255,200,180,0.35)'; x.beginPath(); x.ellipse(fx - 1.4, fy - 1.8, 1.4, 0.6, -0.4, 0, 7); x.fill();
+    x.fillStyle = '#1a0e0a'; x.beginPath(); x.arc(fx, fy, 1.3, 0, 7); x.fill();
+    x.fillStyle = '#4a3a5a'; for (let k = 0; k < 6; k++) { const a = k * 1.05; x.fillRect(fx + Math.cos(a) * 1.7 - 0.25, fy + Math.sin(a) * 1.5 - 0.25, 0.5, 0.5); }
+  });
+  // Cornflowers: a ragged ring of fringed blue florets round a dark violet heart, on a scaly green cup
+  meadow(S.Cornflower, 3, (fx, fy) => {
+    x.fillStyle = '#5a7a3a'; x.beginPath(); x.ellipse(fx, fy + 2.2, 1.3, 1.6, 0, 0, 7); x.fill();
+    for (let p = 0; p < 9; p++) {
+      const a = (p / 9) * Math.PI * 2, ex = fx + Math.cos(a) * 3.6, ey = fy + Math.sin(a) * 3.0;
+      x.strokeStyle = p % 2 ? '#3a64d0' : '#5a84e8'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(fx, fy); x.lineTo(ex, ey); x.stroke();
+      x.fillStyle = '#6a92f0'; x.fillRect(ex - 0.5, ey - 0.5, 1, 1); // the fringed tip
+    }
+    x.fillStyle = '#3a1e6a'; x.beginPath(); x.arc(fx, fy, 1.2, 0, 7); x.fill();
+  });
+  // Buttercups: five glossy cupped petals, a shine on each, a green-gold heart
+  meadow(S.Buttercup, 4, (fx, fy) => {
+    for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2 - Math.PI / 2; x.fillStyle = petalGrad(fx, fy, 3.6, '#c88a10', '#f8d22a'); x.beginPath(); x.ellipse(fx + Math.cos(a) * 1.8, fy + Math.sin(a) * 1.6, 1.9, 1.5, a, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,230,0.75)'; x.beginPath(); x.arc(fx + Math.cos(a) * 2.2 - 0.3, fy + Math.sin(a) * 1.9 - 0.3, 0.45, 0, 7); x.fill(); }
+    x.fillStyle = '#a8a028'; x.beginPath(); x.arc(fx, fy, 0.9, 0, 7); x.fill();
+  });
+  // Daisies: a fine ring of white rays, pink-tipped underneath, round a raised yellow heart
+  meadow(S.Daisy, 3, (fx, fy) => {
+    for (let p = 0; p < 14; p++) { const a = (p / 14) * Math.PI * 2; x.strokeStyle = a > 0.3 && a < 2.8 ? '#f4e0e8' : '#ffffff'; x.lineWidth = 0.9; x.beginPath(); x.moveTo(fx + Math.cos(a) * 1, fy + Math.sin(a) * 0.85); x.lineTo(fx + Math.cos(a) * 3.6, fy + Math.sin(a) * 3.0); x.stroke(); }
+    x.fillStyle = petalGrad(fx - 0.3, fy - 0.3, 1.5, '#ffe060', '#d8a010'); x.beginPath(); x.arc(fx, fy, 1.4, 0, 7); x.fill();
+  });
+  // Wheat: bearded ears, each grain drawn, the awns fanning off them
   for (let i = 0; i < 9; i++) {
-    const bx = 32 * S.Wheat + 3 + i * 3.2;
-    blade(32 * S.Wheat, bx - 32 * S.Wheat, 26, (i % 3) - 1, '#b8a040', 1.5);
-    x.fillStyle = i % 2 ? '#e2bf52' : '#d4ac3e';
-    x.fillRect(bx - 1.5 + ((i % 3) - 1), 3, 3, 9);
+    const bx = 32 * S.Wheat + 3 + i * 3.2, lean = (i % 3) - 1;
+    blade(32 * S.Wheat, bx - 32 * S.Wheat, 26, lean, '#b8a040', 1.3);
+    const ex = bx + lean;
+    for (let k = 0; k < 5; k++) { x.fillStyle = (k + i) % 2 ? '#e8c858' : '#d0a840'; x.beginPath(); x.ellipse(ex + (k % 2 ? 0.7 : -0.7), 4.5 + k * 1.7, 0.9, 1.1, k % 2 ? 0.4 : -0.4, 0, 7); x.fill(); }
+    x.strokeStyle = 'rgba(232,210,140,0.8)'; x.lineWidth = 0.35;
+    for (let k = 0; k < 4; k++) { x.beginPath(); x.moveTo(ex + (k % 2 ? 0.8 : -0.8), 5 + k * 1.7); x.lineTo(ex + (k % 2 ? 3.2 : -3.2), 1 + k * 1.7); x.stroke(); }
   }
-  // Reeds
+  // Reeds: blue-green blades with a darker spine, and bulrushes, their brown heads lit down one side
   for (let i = 0; i < 10; i++) {
     const bx = 3 + i * 2.8;
     blade(32 * S.Reed, bx, 22 + (i % 4) * 2, (i % 3) - 1, i % 2 ? '#5e8a3a' : '#749a44', 2);
-    if (i % 3 === 0) { x.fillStyle = '#6a4424'; x.fillRect(32 * S.Reed + bx - 1.5, 4 + (i % 4), 3, 7); }
+    blade(32 * S.Reed, bx + 0.3, 20 + (i % 4) * 2, (i % 3) - 1, 'rgba(40,70,30,0.6)', 0.5);
+    if (i % 3 === 0) {
+      const hx = 32 * S.Reed + bx - 1.6, hy = 4 + (i % 4);
+      x.fillStyle = '#5a3a1e'; x.beginPath(); x.ellipse(hx + 1.6, hy + 3.6, 1.7, 3.8, 0, 0, 7); x.fill();
+      x.fillStyle = '#7a5434'; x.beginPath(); x.ellipse(hx + 1.0, hy + 3.2, 0.7, 3.0, 0, 0, 7); x.fill();
+      x.strokeStyle = '#6a8a3a'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(hx + 1.6, hy - 0.3); x.lineTo(hx + 1.6, hy - 2.6); x.stroke();
+    }
   }
   // Kelp: broad olive ribbons with gas bladders, drawn to be stretched tall up from the sea bed
   for (let i = 0; i < 5; i++) {
@@ -122,8 +158,10 @@ function paintAtlas(): THREE.Texture {
     const bx = 4 + i * 7.5;
     blade(32 * S.Corn, bx, 31, (i % 2) * 2 - 1, i % 2 ? '#5a8a2a' : '#6a9a32', 2.6);
     for (let k = 0; k < 3; k++) { const y = 26 - k * 7; x.strokeStyle = '#7aaa3a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(32 * S.Corn + bx, 32 - y); x.quadraticCurveTo(32 * S.Corn + bx + (k % 2 ? 5 : -5), 32 - y - 4, 32 * S.Corn + bx + (k % 2 ? 7 : -7), 32 - y + 3); x.stroke(); }
-    x.fillStyle = '#e8c040'; x.fillRect(32 * S.Corn + bx + 1, 13 + (i % 2) * 3, 2.5, 6);
-    x.fillStyle = '#c89a3a'; x.fillRect(32 * S.Corn + bx + 1, 11 + (i % 2) * 3, 2, 2);
+    { const cx = 32 * S.Corn + bx + 2.2, cy = 13 + (i % 2) * 3;
+      x.fillStyle = '#7aa040'; x.beginPath(); x.ellipse(cx + 0.4, cy + 3.4, 1.9, 3.9, 0.15, 0, 7); x.fill(); // the husk
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 2; c++) { x.fillStyle = (r + c) % 2 ? '#f0cc48' : '#d8a830'; x.beginPath(); x.arc(cx - 0.5 + c * 1.1, cy + 0.8 + r * 1.2, 0.6, 0, 7); x.fill(); }
+      x.strokeStyle = '#a87a3a'; x.lineWidth = 0.4; for (let k = 0; k < 3; k++) { x.beginPath(); x.moveTo(cx, cy); x.quadraticCurveTo(cx + k - 1, cy - 2, cx + (k - 1) * 1.6, cy - 3); x.stroke(); } } // and its silk
   }
   x.restore();
   // A grape vine (Verandah's vineyard, across from the winery): a stake and its wire, the vine trained along
