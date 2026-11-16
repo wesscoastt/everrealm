@@ -4,7 +4,20 @@
 // (WorldThing.look); otherwise it's read from what the spot says and what you're told there. game/Clues.ts draws it
 // while the quest wants it found, with a faint glint over it.
 
-export type ClueLook = 'tracks' | 'hoofprints' | 'blood' | 'satchel' | 'letter' | 'scorch' | 'bones' | 'arrow' | 'grain' | 'fleece' | 'trampled' | 'cloth' | 'coins' | 'glint';
+export type ClueLook = 'tracks' | 'hoofprints' | 'blood' | 'satchel' | 'letter' | 'scorch' | 'bones' | 'arrow' | 'grain' | 'fleece' | 'trampled' | 'cloth' | 'coins' | 'chalk' | 'tags' | 'skin' | 'harness' | 'cairn' | 'nest' | 'harpoon' | 'hoard' | 'crate' | 'slab' | 'glint';
+
+/**
+ * Spots that had only the glint, given what's there (OWED 00, "the 52 plain-glint spots given their own looks"). The
+ * rest keep the glint on purpose: they're things the world already has standing (an arch, a bridge, a lamp, the
+ * figurehead, the Company's scale), and the glint only says "this one".
+ */
+export const LOOK_BY_ID: Record<string, ClueLook> = {
+  chalkWell: 'chalk', chalkSteps: 'chalk', otChalk: 'chalk', hgSetA: 'chalk', hgSetB: 'chalk', hgSetC: 'chalk',
+  gwPost1: 'tags', gwPost2: 'tags', gwPost3: 'tags',
+  gfSkin: 'skin', gfHarness: 'harness', gfCairn: 'cairn',
+  kyNest1: 'nest', kyNest2: 'nest', kyNest3: 'nest',
+  alfIron: 'harpoon', isHoard: 'hoard', tamsinCrate: 'crate', gannetChest: 'crate', dlStore: 'slab', notchDen: 'bones', carneWhistle: 'cloth',
+};
 
 const RULES: [RegExp, ClueLook][] = [
   [/\bhoof|hoofprint|horse.?shoe|cart.?track|wheel.?rut|\bruts?\b/i, 'hoofprints'],

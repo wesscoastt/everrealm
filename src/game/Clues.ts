@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { clueFrom, isSought, spokenAt, type ClueLook } from '../data/clues';
+import { clueFrom, isSought, LOOK_BY_ID, spokenAt, type ClueLook } from '../data/clues';
 import type { WorldThing } from '../data/places_regional';
 import type { GameApi } from './api';
 
@@ -73,7 +73,7 @@ export class Clues {
       for (const wt of all) {
         if (!wt.when || wt.look === 'none' || FIXTURE.test(wt.id)) continue;
         // (what you're told there counts only where you're searching: elsewhere it describes, it doesn't lie on the ground)
-        const look = wt.look ?? clueFrom(wt.label, isSought(wt.label) ? spokenAt(wt.use) : undefined);
+        const look = wt.look ?? LOOK_BY_ID[wt.id] ?? clueFrom(wt.label, isSought(wt.label) ? spokenAt(wt.use) : undefined);
         // (a plain glint only over what you're looking for: not over a bench to work at or a bell to ring)
         if (look === 'glint' && !wt.look && !isSought(wt.label)) continue;
         this.list.push({ wt, look });
@@ -207,6 +207,61 @@ export class Clues {
         for (let i = 0; i < 9; i++) put(box, i % 2 ? '#6a7a3a' : '#7a6a3a', (i - 4) * 0.12, 0.02, (i % 3) * 0.08 - 0.08, 0.03, 0.02, 0.5, ang + (i % 2 ? 0.15 : -0.12)); // flattened stems, all one way
         put(box, '#5a3a20', 0.4, 0.03, -0.3, 0.04, 0.04, 0.35, ang + 1.2); // a snapped twig
         put(box, '#7a2a20', -0.35, 0.015, 0.25, 0.1, 0.01, 0.08, ang + 0.4); // a scrap of something caught
+        break;
+      case 'chalk':
+        // chalk on the ground and on a stone: tally strokes and a cross
+        put(box, '#8a867c', 0, 0.18, 0, 0.5, 0.36, 0.3, ang);
+        for (let i = 0; i < 5; i++) put(box, '#f4f2ea', Math.cos(ang) * (-0.14 + i * 0.07), 0.2, -Math.sin(ang) * (-0.14 + i * 0.07) + Math.cos(ang) * 0.152, 0.02, 0.2, 0.004, ang, 0, i === 4 ? 1.1 : 0);
+        put(box, '#f4f2ea', 0.4, 0.014, 0.2, 0.32, 0.006, 0.03, ang + 0.7); put(box, '#f4f2ea', 0.4, 0.014, 0.2, 0.32, 0.006, 0.03, ang - 0.7);
+        for (let i = 0; i < 4; i++) put(blob, '#ece8dc', -0.4 + i * 0.1, 0.01, 0.3 - i * 0.06, 0.025, 0.012, 0.025);
+        break;
+      case 'tags':
+        put(box, '#6a4a2a', 0, 0.55, 0, 0.12, 1.1, 0.12, ang);
+        put(box, '#3a2a1a', 0, 0.82, 0, 0.14, 0.03, 0.14, ang);
+        for (let i = 0; i < 4; i++) { const a = ang + i * 1.57; put(box, '#c8a870', Math.sin(a) * 0.1, 0.7 - (i % 2) * 0.08, Math.cos(a) * 0.1, 0.07, 0.11, 0.015, a); put(box, '#2a2a2a', Math.sin(a) * 0.105, 0.71 - (i % 2) * 0.08, Math.cos(a) * 0.105, 0.03, 0.006, 0.016, a); }
+        break;
+      case 'skin':
+        put(blob, '#7a5434', 0, 0.09, 0, 0.22, 0.09, 0.14, ang);
+        put(rod, '#3a2a1a', Math.sin(ang) * 0.22, 0.1, Math.cos(ang) * 0.22, 0.035, 0.08, 0.035, 0, Math.PI / 2, ang);
+        put(box, '#4a3020', 0.15, 0.012, -0.2, 0.03, 0.01, 0.45, ang + 0.8); // its strap
+        put(disc, '#3a3020', -0.1, 0.012, 0.3, 0.3, 1, 0.18, ang, 0, 0, 0.6); // where it leaked
+        break;
+      case 'harness':
+        for (let i = 0; i < 3; i++) put(box, '#5a3a20', (i - 1) * 0.12, 0.015, 0, 0.05, 0.02, 0.8, ang + (i - 1) * 0.3);
+        put(box, '#5a3a20', 0, 0.015, 0.25, 0.6, 0.02, 0.05, ang);
+        put(rod, '#b8b4a8', 0.12, 0.03, 0.25, 0.06, 0.02, 0.06); put(rod, '#b8b4a8', -0.2, 0.03, -0.3, 0.05, 0.02, 0.05); // the buckles
+        put(box, '#c8a050', 0.3, 0.03, -0.15, 0.05, 0.04, 0.05, ang); // a brass
+        break;
+      case 'cairn':
+        for (let i = 0; i < 6; i++) { const lv = i < 3 ? 0 : i < 5 ? 1 : 2, w = 0.32 - lv * 0.08; put(blob, i % 2 ? '#8a8a82' : '#9a968c', lv < 2 ? Math.cos(i * 2.1) * (0.18 - lv * 0.08) : 0, 0.1 + lv * 0.17, lv < 2 ? Math.sin(i * 2.1) * (0.18 - lv * 0.08) : 0, w, 0.11, w * 0.9, i); }
+        break;
+      case 'nest':
+        put(rod, '#8a6a3a', 0, 0.06, 0, 0.3, 0.12, 0.3);
+        put(rod, '#5a4024', 0, 0.1, 0, 0.22, 0.06, 0.22);
+        for (let i = 0; i < 5; i++) put(box, '#7a5a30', Math.cos(i * 1.3) * 0.3, 0.1, Math.sin(i * 1.3) * 0.3, 0.02, 0.02, 0.22, i * 1.3 + 0.4); // twigs sticking out
+        for (let i = 0; i < 3; i++) { const a = i * 2.1 + ang; put(blob, '#9a8a70', Math.cos(a) * 0.09, 0.17, Math.sin(a) * 0.09, 0.06, 0.05, 0.06, a); put(box, '#e0a030', Math.cos(a) * 0.12, 0.2, Math.sin(a) * 0.12, 0.025, 0.012, 0.03, a); } // the hatchlings, beaks up
+        break;
+      case 'harpoon':
+        put(rod, '#6a4a2a', 0, 0.45, 0, 0.025, 1.1, 0.025, 0, 0, 0.35); // the shaft, leaning out of the snow
+        put(new THREE.ConeGeometry(1, 1, 4), '#4a4e54', -0.19, 1.0, 0, 0.05, 0.18, 0.05, 0, 0, 0.35);
+        put(box, '#4a4e54', -0.15, 0.92, 0, 0.12, 0.02, 0.02, 0, 0, -0.6); // the barb
+        put(box, '#c8b898', 0.12, 0.15, 0, 0.04, 0.04, 0.04); put(box, '#3a3a3a', 0.2, 0.02, 0.1, 0.03, 0.01, 0.6, ang); // the lashing and its line
+        put(disc, '#f4f8fc', 0, 0.014, 0, 0.45, 1, 0.4, 0, 0, 0, 0.9); // drifted snow round it
+        break;
+      case 'hoard':
+        for (let i = 0; i < 18; i++) { const a = i * 2.4, k = 0.06 + (i % 6) * 0.06; put(i % 3 ? box : rod, ['#b08a3a', '#c8a050', '#8a8a8a', '#6a5020', '#d8c070'][i % 5], Math.cos(a) * k, 0.03 + (5 - (i % 6)) * 0.03, Math.sin(a) * k, 0.06, 0.03, 0.05, a); } // cogs, buttons, nails, a spoon
+        put(box, '#c8ccd2', 0.1, 0.2, 0, 0.03, 0.02, 0.25, ang); // the spoon
+        break;
+      case 'crate':
+        put(box, '#8a6a3a', 0, 0.22, 0, 0.5, 0.44, 0.4, ang);
+        for (const yy of [0.08, 0.36]) put(box, '#6a4a2a', 0, yy, 0, 0.52, 0.05, 0.42, ang);
+        put(box, '#7a5a30', 0.1, 0.46, 0.02, 0.5, 0.03, 0.42, ang + 0.15); // its lid, pushed askew
+        put(blob, '#c8b898', 0.4, 0.04, 0.1, 0.07, 0.04, 0.06); // straw spilled
+        break;
+      case 'slab':
+        put(box, '#8a867c', 0, 0.05, 0, 0.9, 0.1, 0.6, ang);
+        put(box, '#6a665e', 0, 0.105, 0, 0.3, 0.004, 0.06, ang + 0.3); put(box, '#6a665e', 0.08, 0.105, 0.02, 0.18, 0.004, 0.05, ang - 0.5); // the gull, cut in the stone
+        put(disc, '#2a2620', 0.5, 0.012, 0, 0.12, 1, 0.3, ang, 0, 0, 0.7); // the gap at its edge
         break;
       case 'glint':
         break;
