@@ -2,6 +2,7 @@ import type { ItemDef } from './items';
 import { MORE_CROPS, MORE_FARM_ITEMS, MORE_FARM_RECIPES } from './farmingMore';
 import { FARM_TWO_ITEMS, FARM_TWO_RECIPES } from './farmingTwo';
 import { FARM_THREE_ITEMS, FARM_THREE_RECIPES } from './farmingThree';
+import { FARM_FOUR_ITEMS, FLOWER_CROPS } from './farmingFour';
 
 // Farming, the old way (RuneScape's patches, with the Counties' own crops). Every player has their own
 // crop in each patch: Hollin Ford's kitchen gardens, and a vegetable patch and an orchard patch on every
@@ -11,7 +12,7 @@ import { FARM_THREE_ITEMS, FARM_THREE_RECIPES } from './farmingThree';
 // the hearth's new dishes, and the brewhouse and the vintners pay well for barley, hops and grapes.
 // The patches and the growing are game/Farming.ts.
 
-export type CropShape = 'root' | 'leafy' | 'grain' | 'berry' | 'bine' | 'squash' | 'tree' | 'vine';
+export type CropShape = 'root' | 'leafy' | 'grain' | 'berry' | 'bine' | 'squash' | 'tree' | 'vine' | 'flower';
 export interface CropDef {
   id: string;
   name: string;
@@ -59,6 +60,8 @@ export const CROPS: CropDef[] = [
 for (const c of CROPS) c.season = SEASON_OF[c.id];
 // the garden widened, 2026-11-13 (data/farmingMore.ts), in order of level
 CROPS.push(...MORE_CROPS);
+// flowers, in every colour (data/farmingFour.ts)
+CROPS.push(...FLOWER_CROPS);
 CROPS.sort((a, b) => a.level - b.level);
 export const CROP = (id: string) => CROPS.find((c) => c.id === id);
 
@@ -156,6 +159,7 @@ export const FARM_ITEMS: ItemDef[] = [
   ...MORE_FARM_ITEMS,
   ...FARM_TWO_ITEMS,
   ...FARM_THREE_ITEMS,
+  ...FARM_FOUR_ITEMS,
 ];
 
 /** The hearth's dishes from a patch's produce (merged into RECIPES in data/gameplay.ts). */

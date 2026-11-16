@@ -203,6 +203,7 @@ import { INTRO } from '../data/intro';
 import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
 import { HERDS, HomeFarm, type Tile as GardenTile } from './HomeFarm';
+import { CROPS } from '../data/farming';
 import { VerandahPatrols } from './VerandahPatrols';
 import { WallWatch } from './WallWatch';
 import { serverUrl } from '../net/Online';
@@ -5216,6 +5217,8 @@ export class Game implements GameApi {
     // Bait: on the hook, or (the bait already on it) off again
     if (BAIT_OF[st.id] && def.kind !== 'food' && this.flag('bait') === st.id) { this.setFlag('bait', null); this.hud.system('You take the bait off. Fishing with a bare hook.'); this.sfx('click'); this.hud.refresh(); return; }
     if (BAIT_OF[st.id] && def.kind !== 'food') { this.setFlag('bait', st.id); this.hud.refresh(); this.hud.system("You'll fish with " + def.name.toLowerCase() + ' on the hook (one a cast). You have ' + this.inv.count(st.id) + '.'); this.sfx('click'); return; }
+    // A seed: sow this one next in tilled ground (farming part four: flowers made the best-seed guess wrong too often)
+    { const crop = CROPS.find((c) => c.seed === st.id && c.patch === 'allotment'); if (crop) { this.setFlag('sowing', st.id); this.hud.system(`You'll sow ${def.name.toLowerCase()} next, while you have it. (Farming ${crop.level}.)`); this.sfx('click'); this.hud.refresh(); this.garden.refresh(); return; } }
     if (st.id.startsWith('petcos_')) {
       const cid = st.id.slice(7);
       this.inv.removeAt(i, 1);

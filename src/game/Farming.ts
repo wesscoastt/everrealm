@@ -98,7 +98,7 @@ export class Farming {
   /** The best seed you carry that you can plant here. */
   private bestSeed(p: Patch): CropDef | undefined {
     const lv = this.host.level('farming');
-    return [...CROPS].reverse().find((c) => c.patch === p.kind && c.level <= lv && this.host.count(c.seed) > 0);
+    return [...CROPS].reverse().find((c) => c.patch === p.kind && c.shape !== 'flower' && c.level <= lv && this.host.count(c.seed) > 0);
   }
 
   private rake(p: Patch): void {

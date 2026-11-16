@@ -4,6 +4,7 @@ import type { ShopDef } from '../shops';
 import type { RegionContent } from './types';
 import { FARM_ITEMS, ordersToday, seasonNow, CROPS } from '../farming';
 import { MORE_SEED_PRICES } from '../farmingMore';
+import { FLOWER_SEED_PRICES } from '../farmingFour';
 const ITEMS: Record<string, { name: string }> = Object.fromEntries(FARM_ITEMS.map((i) => [i.id, i]));
 
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
@@ -82,6 +83,9 @@ const shop: ShopDef = {
     { item: 'seed_pumpkin', price: 40 }, { item: 'sapling_apple', price: 120 }, { item: 'sapling_pear', price: 180 }, { item: 'cutting_vine', price: 260 },
     // the new seed, each once you're near the level to grow it
     ...MORE_SEED_PRICES.map(([item, price, level]) => ({ item, price, when: (g: import('../../game/api').GameApi) => g.level('farming') >= level - 5 })),
+    ...FLOWER_SEED_PRICES.map(([item, price, level]) => ({ item, price, when: (g: import('../../game/api').GameApi) => g.level('farming') >= level - 5 })),
+    { item: 'beehive', price: 300, when: (g: import('../../game/api').GameApi) => g.level('farming') >= 15 },
+    { item: 'greenhouse_kit', price: 2400, when: (g: import('../../game/api').GameApi) => g.level('farming') >= 30 && !g.has('greenhouse_kit') && !g.flag('greenhouse') },
   ],
   buyRate: () => 0.5,
   footer: () => 'Bertram pays half of an item\'s worth',

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CROP, CROPS, seasonRate, type CropDef } from '../data/farming';
 import { BETTER, gradeHarvest, keeping } from '../data/quality';
 import { ANIMAL_NAMES, HEART, heartWord, MAKERS, MAKER_OF_ITEM, type MakerBatch } from '../data/farmingThree';
+import { type Colour, FLOWER_OF, GREENHOUSE, HIVE, HONEYS, crossOf, flowerId } from '../data/farmingFour';
 import { FEEDS as FERTS, HEAP, REGROW, SPRINKLERS, SPRINKLER_REACH, type Feed } from '../data/farmingTwo';
 import { ITEMS } from '../data/items';
 import type { SkillId } from '../data/items';
@@ -87,6 +88,7 @@ const TILLABLE = new Set<number>([B.Grass, B.FlowerGrass, B.Dirt, B.Loam, B.Farm
 const STAGE_SCALE = [0.3, 0.55, 0.8, 1];
 /** A sprinkler's spray and the heap's steam, shared by every one drawn. */
 const DROPS = new THREE.MeshBasicMaterial({ color: '#bfe4ff', transparent: true, opacity: 0.55, depthWrite: false });
+const GLASS = new THREE.MeshLambertMaterial({ color: '#cfe8f0', transparent: true, opacity: 0.22, depthWrite: false });
 const STEAM = new THREE.MeshBasicMaterial({ color: '#e8e8e0', transparent: true, opacity: 0.22, depthWrite: false });
 
 /**
@@ -253,10 +255,10 @@ export class HomeFarm {
     const span = Math.max(0, now - t.u);
     const wet = this.host.raining() || this.sprinkled(k) ? span : Math.max(0, Math.min(now, t.wu) - t.u);
     const dry = span - wet, dryRate = t.fz === 'weed' ? 0.75 : 0.5, pace = t.fz === 'ash' ? 1.25 : 1;
-    return { ...t, p: Math.min(1, t.p + ((wet + dry * dryRate) * pace * seasonRate(c, new Date(now))) / (c.minutes * 60000)), u: now, wet: t.wet + wet, all: t.all + span };
+    return { ...t, p: Math.min(1, t.p + ((wet + dry * dryRate) * pace * this.seasonAt(c, k, now)) / (c.minutes * 60000)), u: now, wet: t.wet + wet, all: t.all + span };
   }
   private stage(t: Tile): number { return !t.c ? -1 : t.p >= 1 ? 3 : t.p >= 0.66 ? 2 : t.p >= 0.33 ? 1 : 0; }
-  private minsLeft(t: Tile, k?: string): number { const c = CROP(t.c!)!; const wetNow = this.isWet(t, k); return Math.max(1, Math.ceil(((1 - t.p) * c.minutes) / ((wetNow ? 1 : t.fz === 'weed' ? 0.75 : 0.5) * (t.fz === 'ash' ? 1.25 : 1) * seasonRate(c)))); }
+  private minsLeft(t: Tile, k?: string): number { const c = CROP(t.c!)!; const wetNow = this.isWet(t, k); return Math.max(1, Math.ceil(((1 - t.p) * c.minutes) / ((wetNow ? 1 : t.fz === 'weed' ? 0.75 : 0.5) * (t.fz === 'ash' ? 1.25 : 1) * this.seasonAt(c, k)))); }
 
   // ---------------------------------------------------------------- The makers (farming part three)
   makers(): Maker[] { const v = this.host.flag('makers'); return Array.isArray(v) ? (v as Maker[]) : []; }
@@ -318,6 +320,112 @@ export class HomeFarm {
     this.host.sound('discover');
     this.host.system(`The ${MAKERS[k].name} is set up. Bring it what it takes and come back for what it makes.`);
   }
+  // ---------------------------------------------------------------- Bees and the greenhouse (farming part four)
+  hives(): { x: number; z: number; t: number }[] { const v = this.host.flag('hives'); return Array.isArray(v) ? (v as { x: number; z: number; t: number }[]) : []; }
+  private greenhouse(): { x: number; z: number } | null { const v = this.host.flag('greenhouse'); return v && typeof v === 'object' ? (v as { x: number; z: number }) : null; }
+  /** Is this tile under the greenhouse's glass? */
+  private underGlass(k?: string): boolean {
+    const gh = this.greenhouse();
+    if (!gh || !k) return false;
+    const [x, z] = k.split(',').map(Number);
+    return x >= gh.x && x < gh.x + GREENHOUSE.size && z >= gh.z && z < gh.z + GREENHOUSE.size;
+  }
+  /** How fast a crop grows for its season: in the greenhouse, always as if in season. */
+  private seasonAt(c: CropDef, k?: string, now = Date.now()): number { return this.underGlass(k) ? 1.5 : seasonRate(c, new Date(now)); }
+  /** Jars waiting in a hive. */
+  private hiveJars(h: { t: number }, now = Date.now()): number { return Math.min(HIVE.most, Math.floor((now - h.t) / (HIVE.everyMins * 60000))); }
+  /** Is a hive near enough to this cell for its bees to work it? */
+  private beesAt(x: number, z: number): boolean { return this.hives().some((h) => Math.hypot(h.x - x, h.z - z) <= HIVE.reach); }
+  /** The honey a hive makes: of the flowers growing nearest it, most of one kind; or the garden's. */
+  private honeyOf(hx: number, hz: number): string {
+    const n: Record<string, number> = {};
+    for (const [k, t] of Object.entries(this.own())) {
+      const f = t.c ? FLOWER_OF[t.c] : undefined;
+      if (!f) continue;
+      const [x, z] = k.split(',').map(Number);
+      if (Math.hypot(x - hx, z - hz) <= HIVE.reach && this.stage(this.grow(t, Date.now(), k)) >= 2) n[f.sp] = (n[f.sp] ?? 0) + 1;
+    }
+    const top = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+    return HONEYS[top?.[0] ?? 'none'] ?? HONEYS.none;
+  }
+  private hiveCandidates(x: number, z: number): { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] {
+    const me = this.host.player(), list = this.hives();
+    const i = list.findIndex((h) => Math.hypot(h.x + 0.5 - me.x, h.z + 0.5 - me.z) < 2.2);
+    if (i >= 0) {
+      const h = list[i], n = this.hiveJars(h), at = new THREE.Vector3(h.x + 0.5, this.groundTop(h.x, h.z) + 1.6, h.z + 0.5), kind = ITEMS[this.honeyOf(h.x, h.z)]?.name ?? 'Honey';
+      if (n > 0) return [{ label: `Take the honey (${kind} ×${n})`, pos: at, use: () => this.hiveTake(i) }];
+      const mins = Math.ceil((h.t + HIVE.everyMins * 60000 - Date.now()) / 60000);
+      return [{ label: `Beehive: a jar in ${mins} min`, sub: kind.toLowerCase(), pos: at, use: () => this.host.system(`The bees are working. A jar in about ${mins} minutes; up to ${HIVE.most} wait for you. Flowers grown within ${HIVE.reach} tiles of the hive flavour the honey, and the berries, squashes and climbers near it bear more.`) }];
+    }
+    if (this.zone(x, z) !== 'home' || this.tiles()[x + ',' + z]) return [];
+    const at = new THREE.Vector3(x + 0.5, this.groundTop(x, z) + 1.2, z + 0.5);
+    if (this.host.count('beehive') > 0 && list.length < 3) return [{ label: 'Set the beehive here', pos: at, use: () => this.hiveSet(x, z) }];
+    if (this.host.count('greenhouse_kit') > 0 && !this.greenhouse()) {
+      const fits = this.greenhouseFits(x, z);
+      return [{ label: 'Raise the greenhouse here', sub: fits ? 'five tiles square, from here away from you' : 'not enough of your yard here', pos: at, use: () => (fits ? this.greenhouseSet(x, z) : this.host.system('It needs five tiles by five of your own yard, clear of the house.')), warn: fits ? undefined : 'No room' }];
+    }
+    return [];
+  }
+  /** The greenhouse's corner nearest you at (x, z), growing away from you: where it would stand. */
+  private greenhouseAt(x: number, z: number): [number, number] {
+    const me = this.host.player(), sx = me.x > x + 0.5 ? -1 : 1, sz = me.z > z + 0.5 ? -1 : 1;
+    return [sx > 0 ? x : x - GREENHOUSE.size + 1, sz > 0 ? z : z - GREENHOUSE.size + 1];
+  }
+  private greenhouseFits(x: number, z: number): boolean {
+    const [gx, gz] = this.greenhouseAt(x, z);
+    for (let dz = 0; dz < GREENHOUSE.size; dz++) for (let dx = 0; dx < GREENHOUSE.size; dx++) if (this.zone(gx + dx, gz + dz) !== 'home') return false;
+    return true;
+  }
+  private greenhouseSet(x: number, z: number): void {
+    if (this.greenhouse() || !this.greenhouseFits(x, z) || !this.host.take('greenhouse_kit', 1)) return;
+    const [gx, gz] = this.greenhouseAt(x, z);
+    // the beds already there brought up to now, so the glass counts from today
+    const own = { ...this.own() }, now = Date.now();
+    for (const [k, t] of Object.entries(own)) own[k] = this.grow(t, now, k);
+    this.host.setFlag('garden', own);
+    this.host.setFlag('greenhouse', { x: gx, z: gz });
+    this.host.persist();
+    this.host.sound('discover');
+    this.host.system('The greenhouse is up, every pane in. Whatever grows under it grows as if it were its own season, and comes up better.');
+    this.refresh();
+  }
+  private hiveSet(x: number, z: number): void {
+    if (this.hives().length >= 3 || !this.host.take('beehive', 1)) return;
+    this.host.setFlag('hives', [...this.hives(), { x, z, t: Date.now() }]);
+    this.host.persist();
+    this.host.sound('discover');
+    this.host.system('The hive is set. The bees come out to look at the place, decide it will do, and go to work. Flowers near it flavour the honey.');
+    this.refresh();
+  }
+  private hiveTake(i: number): void {
+    const list = this.hives(), h = list[i], n = h ? this.hiveJars(h) : 0;
+    if (!n) return;
+    const kind = this.honeyOf(h.x, h.z);
+    if (!this.host.give(kind, n)) return;
+    list[i] = { ...h, t: n >= HIVE.most ? Date.now() : h.t + n * HIVE.everyMins * 60000 };
+    this.host.setFlag('hives', list);
+    this.host.persist();
+    this.host.addXp('farming', 25 * n);
+    this.host.sound('pickup');
+    this.host.system(`${ITEMS[kind]?.name ?? 'Honey'} ×${n}. Only one sting, and that one was your fault.`);
+    this.refresh();
+  }
+  /** At a flower's picking: a seed of a new colour, now and then, from a different colour of its kind beside it. */
+  private crossAt(x: number, z: number, id: string, all: Record<string, Tile>): string | null {
+    const me = FLOWER_OF[id];
+    if (!me) return null;
+    // one chance a picking: the likeliest cross among the flowers of its kind beside it (bees make it likelier)
+    let best: { makes: string; chance: number } | null = null;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dz) continue;
+      const k = (x + dx) + ',' + (z + dz), t = all[k], f = t?.c ? FLOWER_OF[t.c] : undefined;
+      if (!f || f.sp !== me.sp || this.stage(this.grow(t, Date.now(), k)) < 2) continue;
+      const cx = crossOf(me.c, f.c);
+      if (cx && (!best || cx.chance > best.chance)) best = { makes: cx.makes, chance: cx.chance };
+    }
+    if (best && Math.random() < best.chance * (this.beesAt(x, z) ? 1.3 : 1)) return 'seed_' + flowerId(me.sp, best.makes as Colour);
+    return null;
+  }
   /** Spare produce for the heap: the plain crop you have most of, three at least. */
   private scraps(): string | undefined {
     let best: string | undefined, n = HEAP.per - 1;
@@ -329,6 +437,8 @@ export class HomeFarm {
     const me = this.host.player(), out: { label: string; pos: THREE.Vector3; use: () => void; warn?: string; sub?: string }[] = [];
     const mk = this.makerCandidates();
     if (mk.length) return mk;
+    const hv = this.hiveCandidates(x, z);
+    if (hv.length) return hv;
     const h = this.heap();
     if (h && Math.hypot(h.x + 0.5 - me.x, h.z + 0.5 - me.z) < 2.6) {
       const at = new THREE.Vector3(h.x + 0.5, this.groundTop(h.x, h.z) + 1.5, h.z + 0.5), now = Date.now();
@@ -504,7 +614,9 @@ export class HomeFarm {
 
   private bestSeed(): CropDef | undefined {
     const lv = this.host.level('farming');
-    return [...CROPS].reverse().find((c) => c.patch === 'allotment' && c.level <= lv && this.host.count(c.seed) > 0);
+    const pick = this.host.flag('sowing') as string | undefined, chosen = pick ? CROPS.find((c) => c.seed === pick) : undefined;
+    if (chosen && chosen.level <= lv && this.host.count(chosen.seed) > 0) return chosen;
+    return [...CROPS].reverse().find((c) => c.patch === 'allotment' && c.shape !== 'flower' && c.level <= lv && this.host.count(c.seed) > 0) ?? [...CROPS].reverse().find((c) => c.patch === 'allotment' && c.level <= lv && this.host.count(c.seed) > 0);
   }
 
   private till(x: number, z: number): void {
@@ -592,9 +704,9 @@ export class HomeFarm {
     const lv = this.host.level('farming'), tended = t.all > 0 && t.wet / t.all >= 0.75, group = this.host.groupNearby();
     // a tile's share of a patch's crop, more for good keeping and for good company
     const soil = soilOf(t);
-    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0) + Math.round((soil - 0.4) * 2.5));
+    const n = Math.max(1, Math.round((c.yield[0] + Math.random() * (c.yield[1] - c.yield[0])) / 3) + Math.floor((lv - c.level) / 20) + (t.k ? 1 : 0) + (tended ? 1 : 0) + (group ? 1 : 0) + (this.host.scarecrow() ? 1 : 0) + Math.round((soil - 0.4) * 2.5) + (this.beesAt(x, z) && ['berry', 'squash', 'bine', 'flower'].includes(c.shape) ? 1 : 0));
     // how well it was kept decides how much of it comes up fine or prize (data/quality.ts)
-    const keep = Math.min(1, keeping({ wetShare: t.all > 0 ? t.wet / t.all : 0, compost: !!t.k, inSeason: seasonRate(c) > 1, levelsOver: lv - c.level, group, scarecrow: this.host.scarecrow() }) + (soil - 0.4) * 0.25 + (t.fz === 'bone' ? 0.25 : 0));
+    const keep = Math.min(1, keeping({ wetShare: t.all > 0 ? t.wet / t.all : 0, compost: !!t.k, inSeason: this.seasonAt(c, x + ',' + z) > 1, levelsOver: lv - c.level, group, scarecrow: this.host.scarecrow() }) + (soil - 0.4) * 0.25 + (t.fz === 'bone' ? 0.25 : 0) + (this.underGlass(x + ',' + z) ? 0.1 : 0));
     const [plain, fine, prize] = gradeHarvest(n, keep);
     const [fineId, prizeId] = BETTER[c.produce] ?? [];
     if (plain) this.host.give(c.produce, plain);
@@ -605,6 +717,8 @@ export class HomeFarm {
     if (prize) this.host.setFlag('n:prize', Number(this.host.flag('n:prize') ?? 0) + prize);
     // (a public field's tile less than your own garden's: with no cap on them, they were the fastest way up; the XP audit, 2026-11-12)
     this.host.addXp('farming', Math.round(c.xpPick * n * (this.zone(x, z) === 'field' ? 0.35 : 1)));
+    const crossed = this.crossAt(x, z, c.id, all);
+    if (crossed) { this.host.give(crossed, 1); this.host.setFlag('n:crossed', Number(this.host.flag('n:crossed') ?? 0) + 1); this.host.sound('discover'); this.host.system(`A seed head has set that isn't either colour: ${ITEMS[crossed]?.name ?? crossed}.`); }
     // a crop that bears again: back to flowering, the soil left alone till its last picking (data/farmingTwo.ts)
     const rg = REGROW[c.id], picks = (t.r ?? 0) + 1;
     if (rg && picks < rg.picks) {
@@ -638,7 +752,7 @@ export class HomeFarm {
     const herds = this.herds().filter((h) => Math.hypot(h.x - me.x, h.z - me.z) < 110);
     const sp = this.sprinklers().filter((s) => Math.hypot(s.x - me.x, s.z - me.z) < 110), hp = this.heap();
     const mks = this.makers().map((m) => `${m.k}${m.x},${m.z}:${this.makerLeft(m, now) === 0 ? 'done' : m.b ?? ''}`).join(';');
-    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + sp.map((s) => `${s.x},${s.z},${s.i}`).join(';') + '#' + (hp ? `${hp.x},${hp.z},${hp.l.length}` : '') + '#' + mks + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now, k); return `${k}:${u.c ?? ''}:${this.stage(u)}:${this.isWet(u, k, now) ? 1 : 0}`; }).join('|');
+    const key = herds.map((h) => h.k + h.x + ',' + h.z).join(';') + '#' + sp.map((s) => `${s.x},${s.z},${s.i}`).join(';') + '#' + (hp ? `${hp.x},${hp.z},${hp.l.length}` : '') + '#' + mks + '#' + this.hives().map((h) => `${h.x},${h.z},${this.hiveJars(h, now)}`).join(';') + '#' + JSON.stringify(this.greenhouse()) + '#' + Object.entries(all).map(([k, t]) => { const u = this.grow(t, now, k); return `${k}:${u.c ?? ''}:${this.stage(u)}:${this.isWet(u, k, now) ? 1 : 0}`; }).join('|');
     if (this.drawn && this.drawn.key === key) return;
     if (this.drawn) { this.host.scene.remove(this.drawn.group); this.drawn = null; }
     if (!key) return;
@@ -687,6 +801,42 @@ export class HomeFarm {
         }
       }
       batch.addGroup(g, P.mat4(s.x + 0.5, this.groundTop(s.x, s.z) + 1, s.z + 0.5, 0));
+    }
+    // the hives: a white box hive on legs under a roof, bees about it, the honey showing at the entrance when it's ready
+    for (const h of this.hives()) {
+      if (Math.hypot(h.x - me.x, h.z - me.z) > 110) continue;
+      const g = new THREE.Group(), jars = this.hiveJars(h, now);
+      for (const [lx, lz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) box(g, 0.08, 0.4, 0.08, '#5a3a24', lx, 0.2, lz);
+      box(g, 0.66, 0.08, 0.66, '#6a4a2a', 0, 0.42, 0);
+      for (let y = 0; y < 3; y++) box(g, 0.6, 0.24, 0.6, y % 2 ? '#e4ddcc' : '#ece6d6', 0, 0.58 + y * 0.25, 0);
+      box(g, 0.78, 0.08, 0.78, '#8a8a92', 0, 1.33, 0); box(g, 0.66, 0.06, 0.66, '#8a8a92', 0, 1.39, 0);
+      box(g, 0.3, 0.05, 0.08, '#2a1e14', 0, 0.5, 0.3); box(g, 0.36, 0.03, 0.14, '#6a4a2a', 0, 0.47, 0.36);
+      if (jars) box(g, 0.24, 0.05, 0.05, '#d8a040', 0, 0.54, 0.31);
+      for (let q = 0; q < 7; q++) { const a = q * 0.9 + h.x, r = 0.45 + (q % 3) * 0.2; box(g, 0.05, 0.04, 0.05, q % 2 ? '#2a2010' : '#d8a020', Math.cos(a) * r, 0.7 + (q % 4) * 0.22, Math.sin(a) * r); }
+      batch.addGroup(g, P.mat4(h.x + 0.5, this.groundTop(h.x, h.z) + 1, h.z + 0.5, 0));
+    }
+    // the greenhouse: oak glazing bars and panes, a door on the south side left open
+    const gh = this.greenhouse();
+    if (gh && Math.hypot(gh.x - me.x, gh.z - me.z) < 120) {
+      const g = new THREE.Group(), S = GREENHOUSE.size, Wh = 2.6, oak = '#6a4a2a';
+      const base = this.groundTop(gh.x, gh.z) + 1;
+      const pane = (w: number, h: number, d: number, x: number, y: number, z: number, rz = 0, rx = 0) => { const m = new THREE.Mesh(P.box(w, h, d), GLASS); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); g.add(m); };
+      for (let i = 0; i <= S; i++) for (const [x, z] of [[i, 0], [i, S], [0, i], [S, i]]) box(g, 0.08, Wh, 0.08, oak, x, Wh / 2, z);
+      for (const y of [0.25, Wh]) { box(g, S + 0.08, 0.08, 0.08, oak, S / 2, y, 0); box(g, S + 0.08, 0.08, 0.08, oak, S / 2, y, S); box(g, 0.08, 0.08, S + 0.08, oak, 0, y, S / 2); box(g, 0.08, 0.08, S + 0.08, oak, S, y, S / 2); }
+      // the walls' panes, leaving the doorway in the middle of the south side
+      for (let i = 0; i < S; i++) {
+        pane(0.98, Wh - 0.3, 0.02, i + 0.5, (Wh + 0.25) / 2, S);
+        pane(0.02, Wh - 0.3, 0.98, 0, (Wh + 0.25) / 2, i + 0.5);
+        pane(0.02, Wh - 0.3, 0.98, S, (Wh + 0.25) / 2, i + 0.5);
+        if (i !== Math.floor(S / 2)) pane(0.98, Wh - 0.3, 0.02, i + 0.5, (Wh + 0.25) / 2, 0);
+      }
+      box(g, 0.12, 0.25, 0.12, oak, Math.floor(S / 2), 0.12, 0); box(g, 0.12, 0.25, 0.12, oak, Math.floor(S / 2) + 1, 0.12, 0);
+      // the pitched roof, ridge north to south
+      const half = S / 2, slope = Math.atan2(1.1, half), run = Math.hypot(half, 1.1);
+      for (const side of [-1, 1]) { pane(run, 0.02, S, half + side * half / 2, Wh + 0.55, S / 2, side * -slope); for (let i = 0; i <= S; i++) box(g, run, 0.06, 0.06, oak, half + side * half / 2, Wh + 0.55, i, side * -slope); }
+      box(g, 0.1, 0.1, S + 0.1, oak, half, Wh + 1.1, S / 2);
+      for (const z of [0, S]) for (const side of [-1, 1]) for (let q = 0; q < 4; q++) { const o = q * 0.6 + 0.3, hh = 1.1 * (1 - (o + 0.3) / half); if (hh > 0.05) pane(0.6, hh, 0.02, half + side * o, Wh + hh / 2, z); }
+      batch.addGroup(g, P.mat4(gh.x, base, gh.z, 0));
     }
     // the makers, each its own shape; a full one shows what's in it, a finished one has its goods out on top
     for (const m of this.makers()) {
@@ -759,6 +909,25 @@ export class HomeFarm {
             box(g, 0.08, 2.6, 0.08, '#6a4a2a', 0, 1.35, 0); box(g, 0.32, 2.4 * sc, 0.32, leaf, 0, 0.1 + 1.2 * sc, 0);
             if (ripe) for (let q = 0; q < 5; q++) box(g, 0.12, 0.14, 0.12, c.colors.fruit, Math.cos(q * 2) * 0.2, 0.7 + q * 0.38, Math.sin(q * 2) * 0.2);
             break;
+          case 'flower': {
+            const kind = FLOWER_OF[c.id]?.sp, bloom = c.colors.fruit;
+            if (kind === 'rose') {
+              box(g, 0.55 * sc, 0.5 * sc, 0.55 * sc, leaf, 0, 0.1 + 0.25 * sc, 0);
+              box(g, 0.4 * sc, 0.3 * sc, 0.4 * sc, leaf, 0.08, 0.15 + 0.5 * sc, -0.05);
+              if (st >= 2) for (let q = 0; q < (ripe ? 6 : 3); q++) { const a = q * 1.1 + j, r = 0.2 + (q % 2) * 0.06; box(g, ripe ? 0.13 : 0.07, ripe ? 0.11 : 0.09, ripe ? 0.13 : 0.07, ripe ? bloom : '#5a8a3a', Math.cos(a) * r, 0.25 + 0.5 * sc + (q % 3) * 0.06, Math.sin(a) * r); }
+            } else if (kind === 'tulip') {
+              for (let q = 0; q < 5; q++) {
+                const fx = Math.cos(q * 1.26 + j) * 0.24, fz = Math.sin(q * 1.26 + j) * 0.24, hh = 0.45 * sc + (q % 2) * 0.06;
+                box(g, 0.05, 0.22 * sc, 0.12, leaf, fx * 0.8, 0.1 + 0.11 * sc, fz * 0.8, 0.25);
+                box(g, 0.03, hh, 0.03, leaf, fx, 0.08 + hh / 2, fz);
+                if (st >= 2) { box(g, ripe ? 0.12 : 0.07, ripe ? 0.14 : 0.1, ripe ? 0.12 : 0.07, ripe ? bloom : '#7aa84a', fx, 0.1 + hh, fz); if (ripe) box(g, 0.06, 0.04, 0.06, bloom, fx, 0.19 + hh, fz); }
+              }
+            } else {
+              box(g, 0.7 * sc, 0.1, 0.7 * sc, leaf, 0, 0.12, 0);
+              if (st >= 2) for (let q = 0; q < 7; q++) { const a = q * 0.9 + j, r = 0.08 + (q % 3) * 0.1; box(g, ripe ? 0.12 : 0.06, 0.03, ripe ? 0.12 : 0.06, ripe ? (q % 3 === 0 && c.id.endsWith('_yellow') === false ? '#3a2a4a' : bloom) : '#7aa84a', Math.cos(a) * r, 0.2, Math.sin(a) * r); if (ripe) box(g, 0.04, 0.035, 0.04, '#e8c020', Math.cos(a) * r, 0.215, Math.sin(a) * r); }
+            }
+            break;
+          }
           case 'squash':
             box(g, 0.7, 0.08, 0.7, leaf, 0, 0.12, 0);
             if (st >= 2) g.add(P.pumpkin(ripe ? c.colors.fruit : '#7a8a3a', 0.4 + sc * 0.5));

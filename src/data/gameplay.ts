@@ -121,7 +121,7 @@ export const UNLOCKS: Record<SkillId, { level: number; text: string }[]> = {
     { level: 20, text: 'Elder oak (Hagworm Wood)' },
   ],
   // (from data/farming.ts: every crop, at the level it can be planted)
-  farming: CROPS.map((c) => ({ level: c.level, text: c.patch === 'orchard' ? `${c.name} (an orchard patch)` : c.name })),
+  farming: CROPS.filter((c) => c.shape !== 'flower' || c.id.endsWith('_red')).map((c) => ({ level: c.level, text: c.patch === 'orchard' ? `${c.name} (an orchard patch)` : c.shape === 'flower' ? `${c.name.replace(/^Red /, '')[0].toUpperCase()}${c.name.replace(/^Red /, '').slice(1)}, in red, yellow and white (and crossed, more)` : c.name })),
 };
 
 // ------------------------------------------------------------- Gathering
