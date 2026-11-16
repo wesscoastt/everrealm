@@ -205,6 +205,7 @@ import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome'
 import { HERDS, HomeFarm, type Tile as GardenTile } from './HomeFarm';
 import { CROPS } from '../data/farming';
 import { DECOR_OF_ITEM } from '../data/farmingSix';
+import { bindRule, goodDrop, LootRolls, type LrMsg } from './LootRolls';
 import { COLOURS, flowerId, SPECIES } from '../data/farmingFour';
 import { heartWord } from '../data/farmingThree';
 import { BETTER } from '../data/quality';
@@ -1745,7 +1746,7 @@ export class Game implements GameApi {
       guildWithdrawn: (item, n) => this.bank.guildOut(item, n),
       halls: (list) => { this.halls.book = list; },
       hall: (v) => { this.hallView = v?.guild ? v : null; this.hud.refresh('guild'); },
-      table: (from, name, data) => { if ((data as { k?: string })?.k === 'dbl') this.doubloons.onMate(data as { week?: number; i?: number }, name); else this.tavern.onNet(from, name, data); },
+      table: (from, name, data) => { if (String((data as { k?: string })?.k ?? '').startsWith('lr')) this.lootRolls.onNet(from, name, data as LrMsg); else if ((data as { k?: string })?.k === 'dbl') this.doubloons.onMate(data as { week?: number; i?: number }, name); else this.tavern.onNet(from, name, data); },
       aid: (from, heal, ward, secs) => {
         if (this.dead) return;
         // (capped here, by your own health: the realm passes it on, it doesn't keep anyone's)
@@ -1973,6 +1974,48 @@ export class Game implements GameApi {
       return { id: r, name: REGION_INFO[r].name, points, rank: x.rank.name, off: x.rank.off, from: x.rank.at, next: x.next ? { name: x.next.name, at: x.next.at, off: x.next.off } : null };
     });
   }
+  // ---------------------------------------------------------------- Loot like an MMO's (game/LootRolls.ts)
+  private lootRollsT: LootRolls | null = null;
+  private get lootRolls(): LootRolls {
+    return (this.lootRollsT ??= new LootRolls({
+      myId: () => this.online.myId, myName: () => this.accountName() ?? this.save.name,
+      mates: () => { const g = this.social.group, p = this.player.position; return g ? g.members.filter((m) => m.id !== this.online.myId && Math.hypot(m.x - p.x, m.z - p.z) < 60).map((m) => ({ id: m.id, name: m.name })) : []; },
+      send: (to, data) => this.online.table(to, data),
+      give: (item) => { this.give(item, 1); },
+      canWear: (item) => this.canWear(item),
+      system: (t) => this.hud.system(t),
+      sound: (n) => this.sfx(n),
+    }));
+  }
+  /** Pieces bound to you (by their full id): they can't be traded, mailed or sold on the Exchange. */
+  isBound(item: string): boolean { const b = this.flag('bound'); return Array.isArray(b) && b.includes(item); }
+  private bind(item: string): void { if (this.isBound(item)) return; const b = this.flag('bound'); this.setFlag('bound', [...(Array.isArray(b) ? b : []), item].slice(-400)); }
+  /** Refused, with a word, if it's bound. */
+  private boundNo(item: string): boolean { if (!this.isBound(item)) return false; this.hud.system(`${ITEMS[item]?.name ?? item} is bound to you: it can't be traded, mailed or sold on the Exchange.`); this.sfx('fail'); return true; }
+  /** A drop from a kill: a good piece sends up a beam where it fell, and with your group near it goes to a roll. */
+  private dropLoot(item: string, at: THREE.Vector3): void {
+    const d = ITEMS[item];
+    if (goodDrop(d)) this.lootBeam(at, d!.rarity);
+    if (goodDrop(d) && this.online.online && this.social.inGroup && this.lootRolls.start(item)) return;
+    this.give(item, 1);
+  }
+  private beams: { m: THREE.Mesh; t: number }[] = [];
+  private lootBeam(at: THREE.Vector3, rarity: string): void {
+    const col = rarity === 'legendary' ? '#ffb040' : rarity === 'epic' ? '#c070ff' : '#60a8ff';
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.4, 14, 10, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.set(at.x, at.y + 7, at.z);
+    this.scene.add(m);
+    this.beams.push({ m, t: 0 });
+  }
+  private beamsTick(dt: number): void {
+    for (const b of this.beams) {
+      b.t += dt;
+      (b.m.material as THREE.MeshBasicMaterial).opacity = 0.55 * Math.min(1, b.t * 4) * Math.max(0, 1 - Math.max(0, b.t - 3) / 1.5);
+      b.m.scale.set(1 + Math.sin(b.t * 6) * 0.08, 1, 1 + Math.sin(b.t * 6) * 0.08);
+    }
+    for (const b of this.beams.filter((x) => x.t > 4.5)) { this.scene.remove(b.m); b.m.geometry.dispose(); (b.m.material as THREE.Material).dispose(); }
+    this.beams = this.beams.filter((x) => x.t <= 4.5);
+  }
   count(item: string): number { return this.inv.count(item); }
   has(item: string, n = 1): boolean { return this.inv.count(item) >= n; }
   give(item: string, n = 1): boolean {
@@ -1982,6 +2025,7 @@ export class Game implements GameApi {
       // (a rare piece or better rings out as it comes)
       this.hud.loot(item, n); this.sfx((d.weapon || d.armor) && (d.rarity === 'rare' || d.rarity === 'epic' || d.rarity === 'legendary') ? 'discover' : 'pickup');
       if (d.weapon || d.armor) this.setFlag('found:' + baseOf(item)); // the armoury remembers every piece
+      if (bindRule(d) === 'pickup') this.bind(item);
     } else if (ITEMS[item]) {
       // A full pack loses nothing: it goes ahead by Charter Post, to be collected at any post box
       this.toParcel(item, n);
@@ -4327,7 +4371,7 @@ export class Game implements GameApi {
       daily: () => g.dailies.view(),
       festival: () => ({ ...g.festivals.view(), extra: g.seasons.journal() }),
       trade: () => g.social.ui(),
-      tradeAdd: (id: string, n?: number) => g.social.add(id, n),
+      tradeAdd: (id: string, n?: number) => { if (!g.boundNo(id)) g.social.add(id, n); },
       tradeRemove: (i: number) => g.social.remove(i),
       tradeMarks: (n: number) => g.social.setMarks(n),
       tradeLock: () => g.social.lock(),
@@ -4335,7 +4379,7 @@ export class Game implements GameApi {
       tradeCancel: () => g.social.cancel(),
       exchange: () => g.exchange.view(),
       exBuy: (id: number) => g.exchange.buy(id),
-      exPost: (item: string, n: number, price: number) => g.exchange.post(item, n, price),
+      exPost: (item: string, n: number, price: number) => { if (!g.boundNo(item)) g.exchange.post(item, n, price); },
       exStallDown: () => g.stallDown(),
       exTakeBack: (id: number) => g.exchange.takeBack(id),
       exWant: (item: string, n: number, price: number) => g.exchange.want(item, n, price),
@@ -4348,7 +4392,7 @@ export class Game implements GameApi {
         else if (what === 'back') g.mail.back();
         else if (what === 'write') g.mail.write();
         else if (what === 'reply' && id !== undefined) g.mail.reply(id);
-        else if (what === 'attach' && item) g.mail.attach(item, n ?? 1);
+        else if (what === 'attach' && item) { if (!g.boundNo(item)) g.mail.attach(item, n ?? 1); }
         else if (what === 'send') g.mail.send();
         else if (what === 'take' && id !== undefined) g.mail.takeFrom(id);
         else if (what === 'delete' && id !== undefined) g.mail.remove(id);
@@ -4441,6 +4485,7 @@ export class Game implements GameApi {
         return { id: f.id, name: f.name, where: f.where, blurb: f.blurb, join: f.join, rank: r >= 0 ? f.ranks[r] : null, rankIdx: r, ranks: f.ranks, next, open: f.open };
       }),
       tradeView: () => g.tradeView(),
+      bindOf: (id: string) => (g.isBound(id) ? 'bound' : bindRule(ITEMS[id])),
       gardenView: () => g.gardenView(),
       takeTrade: (id: string) => g.takeTrade(id as TradeId),
       feats: () => {
@@ -5280,6 +5325,7 @@ export class Game implements GameApi {
       this.inv.removeAt(i, 1);
       this.save.equip.weapon = st.id;
       if (old) this.inv.add(old, 1);
+      if (bindRule(def) === 'equip') this.bind(st.id);
       this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.armor) {
@@ -5288,6 +5334,7 @@ export class Game implements GameApi {
       this.inv.removeAt(i, 1);
       this.save.equip[slot] = st.id;
       if (old) this.inv.add(old, 1);
+      if (bindRule(def) === 'equip') this.bind(st.id);
       this.hp = Math.min(this.hp, this.maxHp);
       this.dress();
       this.sfx('equip');
@@ -8296,7 +8343,7 @@ export class Game implements GameApi {
     if (e.def.type.startsWith('r_')) this.gainStanding(reg, GAINS.rare);
     else if (WORLD_BOSSES.some((b) => b.type === e.def.type)) this.gainStanding(reg, GAINS.boss);
     const source: DropSource = e.isBoss ? 'boss' : e.def.elite || e.def.type.startsWith('r_') ? 'elite' : 'mob';
-    if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.give(this.dropped(pieces[Math.floor(Math.random() * pieces.length)], source), 1);
+    if (pieces && !e.questTag && Math.random() < (e.def.elite ? 0.25 : 0.03)) this.dropLoot(this.dropped(pieces[Math.floor(Math.random() * pieces.length)], source), e.pos);
     // A glyph, now and then: elites and bosses more often, and stronger
     if (!e.questTag && Math.random() < (source === 'boss' ? 0.5 : source === 'elite' ? 0.12 : 0.015)) {
       const kinds = Object.keys(ENCHANTS), tier = source === 'boss' ? (Math.random() < 0.5 ? 3 : 2) : source === 'elite' ? (Math.random() < 0.3 ? 2 : 1) : 1;
@@ -8305,14 +8352,14 @@ export class Game implements GameApi {
     // A rubbing of one of the old kingdom's marks, now and then (the creatures chew on everything)
     if (!e.questTag && Math.random() < (source === 'boss' ? 0.35 : source === 'elite' ? 0.08 : 0.02)) { const kinds = Object.keys(ENCHANTS); this.give('rubbing_' + kinds[Math.floor(Math.random() * kinds.length)], 1); }
     // Jewellery, now and then: elites and bosses more often
-    if (!e.questTag && Math.random() < (source === 'boss' ? 0.2 : source === 'elite' ? 0.06 : 0.004)) { const j = jewelDrop(e.def.level); if (j) this.give(j, 1); }
+    if (!e.questTag && Math.random() < (source === 'boss' ? 0.2 : source === 'elite' ? 0.06 : 0.004)) { const j = jewelDrop(e.def.level); if (j) this.dropLoot(j, e.pos); }
     // The region's own weapons, now and then
     const arms = REGION_WEAPONS[reg];
-    if (arms && !e.questTag && Math.random() < (e.def.elite ? 0.15 : 0.02)) this.give(this.dropped(arms[Math.floor(Math.random() * arms.length)], source), 1);
+    if (arms && !e.questTag && Math.random() < (e.def.elite ? 0.15 : 0.02)) this.dropLoot(this.dropped(arms[Math.floor(Math.random() * arms.length)], source), e.pos);
     for (const l of e.def.loot) {
       if (Math.random() < l.chance) {
         const got = this.dropped(l.item, source);
-        this.give(got, l.min ?? 1);
+        if ((l.min ?? 1) === 1) this.dropLoot(got, e.pos); else this.give(got, l.min ?? 1);
         // Gear is a sidegrade, so say what it trades
         const d = ITEMS[got];
         if ((d.weapon || d.armor) && d.stats) this.hud.system(`${d.name}: ${d.stats}`);
@@ -9481,6 +9528,7 @@ export class Game implements GameApi {
       if (this.companion) this.scene.add(this.companion.model.root);
     }
     this.companion?.update(dt, P.position, P.yaw, (x, z, near) => this.footing(x, z, near));
+    if (this.beams.length) this.beamsTick(dt);
     // (someone else petting: the pet nearest them perks up, yours or theirs, as everyone sees)
     if ((this.petCheerT -= dt) <= 0) {
       this.petCheerT = 0.8;

@@ -249,6 +249,8 @@ export interface UiCtx {
   feats(): FeatView[];
   /** The garden journal: what you've grown and how well, the flower colours, the animals, the season's show. */
   gardenView(): { grown: { name: string; n: number; best: number }[]; colours: { name: string; found: string[]; of: number }[]; animals: { name: string; heart: number; word: string }[]; show: { name: string; place: number; today: boolean }[]; totals: [string, number][] };
+  /** How a piece binds, or that it's bound to you (game/LootRolls.ts). */
+  bindOf?(id: string): 'bound' | 'pickup' | 'equip' | null;
   /** Your trade and today's jobs (data/jobs.ts). */
   tradeView(): { current: string | null; trades: { id: string; name: string; where: string; blurb: string; rank: string; rankIdx: number; ranks: string[]; done: number; next: number | null }[]; jobs: { text: string; have: number; need: number; done: boolean }[]; pay: number };
   takeTrade(id: string): void;
@@ -2225,7 +2227,7 @@ export class Hud {
     const wearable = !d.stack && !!(d.weapon || (d.armor && !d.jewel));
     const mine = levelForXp(this.ctx.save.xp.melee ?? 0, 'melee'), need = d.ilvl ?? 1;
     const lvl = wearable ? ` · <span class="${need > mine ? 'lv-no' : 'lv-ok'}">Level ${need}</span>` : '';
-    return `<h5 style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</h5><div class="kind">${kindName[d.kind]}${grade ? ' · ' + grade : ''}${lvl}</div>${wearable && need > mine ? `<div class="lv-need">Requires level ${need}</div>` : ''}<div class="desc">${esc(d.desc)}</div>${d.stats ? `<div class="stats">${esc(d.stats.replace(/^Level d+. /, ''))}</div>` : ''}${named}<div class="val">Worth about ${d.value} marks</div>${extra ? `<div class="hint">${extra}</div>` : ''}`;
+    return `<h5 style="color:${RARITY_COLOR[d.rarity]}">${esc(d.name)}</h5><div class="kind">${kindName[d.kind]}${grade ? ' · ' + grade : ''}${lvl}</div>${wearable && need > mine ? `<div class="lv-need">Requires level ${need}</div>` : ''}${(() => { const b = this.ctx.bindOf?.(id); return b ? `<div class="bind">${b === 'bound' ? 'Bound to you' : b === 'pickup' ? 'Binds when picked up' : 'Binds when worn'}</div>` : ''; })()}<div class="desc">${esc(d.desc)}</div>${d.stats ? `<div class="stats">${esc(d.stats.replace(/^Level d+. /, ''))}</div>` : ''}${named}<div class="val">Worth about ${d.value} marks</div>${extra ? `<div class="hint">${extra}</div>` : ''}`;
   }
 
   showTooltip(html: string, x: number, y: number): void {
