@@ -64,6 +64,10 @@ export interface GameApi {
   compNear(x: number, z: number, r: number): boolean;
   compHour(): number;
   compOutfit(id: string, outfit: string): void;
+  /** The Hollin Ford Show (data/farmingFive.ts): each class, your best entry for it, whether you've entered today, your best place this season. */
+  showView?(): { id: import('../data/farmingFive').ShowClass; name: string; says: string; best: { item: string; name: string } | null; today: boolean; place: number }[];
+  /** Put your best for a class on the judges' table. */
+  showEnter?(cls: import('../data/farmingFive').ShowClass): void;
   /** The pet at your heels (data/petCare.ts): who it is, how it is, and its wardrobe. Null with none out. */
   petInfo(): { id: string; kind: string; breed: string; name: string; named: boolean; bond: number; tier: string; fed: number; washed: number; played: number; spirits: number; mood: string; collarOpen: boolean; collar?: string; neck?: string; head?: string; back?: string; wardrobe: Record<'neck' | 'head' | 'back', { id: string; name: string; owned: boolean; dyed: boolean; how: string }[]> } | null;
   /** Look after it: feed, brush, play, or a fuss (stroke it). */

@@ -3178,6 +3178,7 @@ export function furniture(M: PropMaterials, item: string, tint = 0): THREE.Group
     case 'strongbox': return strongbox(M);
     case 'gourds': return gourdPile(M);
     case 'scarecrow': return scarecrow(M);
+    case 'cup': return showCup(M);
     default: return null;
   }
 }
@@ -3615,6 +3616,20 @@ export function candles(M: PropMaterials): THREE.Group {
     g.add(mesh(cyl(0.035, 0.04, h, 6), wax, x, 0.06 + h / 2, z));
     g.add(mesh(flameCard(0.07, 0.12), M.fire, x, 0.065 + h, z));
   }
+  return g;
+}
+
+/** The Hollin Ford show cup: a two-handled silver cup on an oak plinth, a ribbon tied round its foot. */
+export function showCup(M: PropMaterials): THREE.Group {
+  const g = new THREE.Group(), silver = flat('#d8dce4'), shine = flat('#f4f6fa');
+  g.add(mesh(box(0.34, 0.1, 0.34), M.darkWood, 0, 0.05, 0));
+  g.add(mesh(box(0.28, 0.04, 0.28), M.wood, 0, 0.12, 0));
+  g.add(mesh(cyl(0.09, 0.11, 0.05, 10), silver, 0, 0.165, 0));
+  g.add(mesh(cyl(0.03, 0.05, 0.14, 8), silver, 0, 0.26, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.06, 0.22, 12), silver, 0, 0.44, 0));
+  g.add(mesh(cyl(0.155, 0.155, 0.025, 12), shine, 0, 0.55, 0));
+  for (const sx of [-1, 1]) { g.add(mesh(box(0.035, 0.16, 0.03), silver, sx * 0.19, 0.44, 0)); g.add(mesh(box(0.07, 0.03, 0.03), silver, sx * 0.165, 0.51, 0)); g.add(mesh(box(0.07, 0.03, 0.03), silver, sx * 0.165, 0.37, 0)); }
+  g.add(mesh(box(0.06, 0.12, 0.012), M.clothRed, 0.08, 0.2, 0.1, 0.3));
   return g;
 }
 

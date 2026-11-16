@@ -204,6 +204,8 @@ import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome';
 import { HERDS, HomeFarm, type Tile as GardenTile } from './HomeFarm';
 import { CROPS } from '../data/farming';
+import { BETTER } from '../data/quality';
+import { judge, PLACE_PAY, placeOf, SHOW_CLASSES, showEntries, showSeason, type ShowClass } from '../data/farmingFive';
 import { VerandahPatrols } from './VerandahPatrols';
 import { WallWatch } from './WallWatch';
 import { serverUrl } from '../net/Online';
@@ -3203,32 +3205,70 @@ export class Game implements GameApi {
   }
 
 /**
-   * The produce show at Harvest Home (owner's farming list: "prizes at the harvest fair"): once a day, the best thing
-   * from your garden or your yard goes on the judges' table. The judges look at what it is, how well it was grown (your
-   * Farming) and a little at luck; first, second and third pay corn dollies, and a first wins the year's rosette.
-   * With your group about you it goes in as a family entry, and the judges like those.
+   * The Hollin Ford Show (data/farmingFive.ts; the produce show at Harvest Home goes through it too): six classes, a
+   * day's entry in each, your best for the class picked for you. Judged on what it is, its grade, your Farming and a
+   * little luck, with a family entry if your group is about you; four firsts in a season bring the cup.
    */
-  private enterShow(): void {
-    const SHOW = ['grapes', 'pears', 'pumpkin', 'cheese', 'apples', 'hops', 'leek', 'strawberries', 'butter', 'barley', 'carrot', 'cabbage', 'onion', 'potato', 'wheat', 'egg'];
-    const day = Math.floor(Date.now() / 86_400_000);
-    if (this.flag('show:day') === day) { this.hud.system('You have an entry on the table today already. The judges go round again tomorrow.'); return; }
-    const pick = SHOW.find((id) => this.inv.count(id) > 0);
-    if (!pick) { this.hud.system('The show is for what you grew yourself: bring something from your garden or your yard (pumpkins, fruit, cheese, a good leek).'); this.sfx('fail'); return; }
-    this.take(pick, 1);
+  showView(): { id: ShowClass; name: string; says: string; best: { item: string; name: string } | null; today: boolean; place: number }[] {
+    const day = Math.floor(Date.now() / 86_400_000), season = showSeason();
+    return SHOW_CLASSES.map((c) => {
+      const b = this.showBest(c.id);
+      return { id: c.id, name: c.name, says: c.says, best: b ? { item: b.item, name: ITEMS[b.item]?.name ?? b.item } : null, today: this.flag(`show:${c.id}:day`) === day, place: Number(this.flag(`show:${season}:${c.id}`) ?? 0) };
+    });
+  }
+  /** The best thing you carry for a class: the one the judges would mark highest. */
+  private showBest(cls: ShowClass): { item: string; tier: number; grade: 0 | 1 | 2 } | null {
+    const exact = (id: string) => this.inv.slots.reduce((n, s) => n + (s && s.id === id ? s.n : 0), 0);
+    let best: { item: string; tier: number; grade: 0 | 1 | 2 } | null = null;
+    for (const [id, tier] of Object.entries(showEntries(CROPS)[cls])) {
+      const [fine, prize] = BETTER[id] ?? [];
+      for (const [item, grade] of [[prize, 2], [fine, 1], [id, 0]] as [string | undefined, 0 | 1 | 2][]) {
+        if (!item || exact(item) < 1) continue;
+        if (!best || tier + grade * 14 > best.tier + best.grade * 14) best = { item, tier, grade };
+      }
+    }
+    return best;
+  }
+  showEnter(cls: ShowClass): void {
+    const day = Math.floor(Date.now() / 86_400_000), season = showSeason(), c = SHOW_CLASSES.find((x) => x.id === cls);
+    if (!c) return;
+    if (this.flag(`show:${cls}:day`) === day) { this.hud.system(`You have an entry in ${c.name.toLowerCase()} today already. The judges go round again tomorrow.`); return; }
+    const b = this.showBest(cls);
+    if (!b) { this.hud.system(`Nothing of yours for ${c.name.toLowerCase()}: ${c.says}.`); this.sfx('fail'); return; }
+    if (!this.take(b.item, 1)) return;
     const family = this.social.groupNearby();
-    const score = (SHOW.length - SHOW.indexOf(pick)) * 4 + this.level('farming') * 0.5 + Math.random() * 20 + (family ? 6 : 0);
-    const place = score >= 60 ? 1 : score >= 42 ? 2 : score >= 28 ? 3 : 0;
-    this.setFlag('show:day', day);
-    const name = ITEMS[pick]?.name.toLowerCase() ?? pick;
+    const place = placeOf(judge(b.tier, b.grade, this.level('farming'), family, cls === 'giants'));
+    this.setFlag(`show:${cls}:day`, day);
+    const name = (ITEMS[b.item]?.name ?? b.item).toLowerCase();
     if (!place) { this.hud.system(`The judges turn your ${name} over, write something, and move on. No card this time: there's always tomorrow.`); this.persist(); return; }
-    const dollies = [0, 6, 4, 2][place] + (family ? 1 : 0);
-    this.give('corn_dolly', dollies);
-    if (place === 1) this.give('show_rosette', 1);
-    this.addXp('farming', [0, 300, 180, 90][place]);
+    const was = Number(this.flag(`show:${season}:${cls}`) ?? 0);
+    if (!was || place < was) this.setFlag(`show:${season}:${cls}`, place);
+    this.give(place === 1 ? 'show_rosette' : place === 2 ? 'show_card_blue' : 'show_card_yellow', 1);
+    this.addMarks(PLACE_PAY.marks[place]);
+    this.addXp('farming', PLACE_PAY.xp[place]);
+    const fair = this.festivals.fest?.id === 'harvest';
+    if (fair) this.give('corn_dolly', PLACE_PAY.dollies[place] + (family ? 1 : 0));
+    if (place === 1) this.bump('showFirsts');
     this.sfx(place === 1 ? 'discover' : 'coin');
-    this.hud.banner(['', 'First prize', 'Second prize', 'Third prize'][place], `Your ${name}${family ? ', a family entry' : ''}`, true);
-    this.hud.system(`${['', 'First', 'Second', 'Third'][place]} prize for your ${name}: ${dollies} corn dollies${place === 1 ? ' and the Harvest Home rosette' : ''}.`);
+    this.hud.banner(['', 'First prize', 'Second prize', 'Third prize'][place], `${c.name}: your ${name}${family ? ', a family entry' : ''}`, true);
+    this.hud.system(`${['', 'First', 'Second', 'Third'][place]} in ${c.name.toLowerCase()} for your ${name}: ${PLACE_PAY.marks[place]} marks${place === 1 ? ' and the rosette' : ' and the card'}${fair ? ', and corn dollies for Harvest Home' : ''}.`);
+    // four firsts in a season: the cup
+    const firsts = SHOW_CLASSES.filter((x) => Number(this.flag(`show:${season}:${x.id}`) ?? 0) === 1).length;
+    if (firsts >= 4 && !this.flag(`show:${season}:cup`)) {
+      this.setFlag(`show:${season}:cup`, 1);
+      this.give('furn_show_cup', 1);
+      this.bump('showCups');
+      this.hud.banner('The show cup', `Four firsts at Hollin Ford this ${season.split('-')[1]}`, true);
+      this.hud.system('Hester Wragg hands you the show cup and makes you hold it up while everyone claps. It goes on your mantel at home.');
+    }
     this.persist();
+  }
+  /** At the Harvest Home stall: the class your best entry is in, entered for you. */
+  private enterShow(): void {
+    const open = this.showView().filter((c) => c.best && !c.today);
+    if (!open.length) { this.hud.system('The show is for what you grew or made yourself, an entry a class a day: bring something from your garden, your yard or your larder.'); this.sfx('fail'); return; }
+    const pick = open.map((c) => ({ c, b: this.showBest(c.id)! })).sort((a, z) => z.b.tier + z.b.grade * 14 - (a.b.tier + a.b.grade * 14))[0];
+    this.showEnter(pick.c.id);
   }
 
   /** Sell your house on the Mirador back to its family, for two thirds of what it cost. */

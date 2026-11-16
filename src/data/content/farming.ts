@@ -21,6 +21,13 @@ const npcs: NpcDef[] = [
     schedule: [{ from: 6, to: 20, at: [117.4, 180.6], face: [117.4, 184], anim: 'idle' }, { from: 20, to: 6, at: [117.4, 180.6], face: [117.4, 184], anim: 'idle' }], // (out at the front of the cottage: his old spot was inside its north wall, and he stood on the roof)
     barks: ['Seed! Good seed!', 'Mind my beans.', 'Rake it before you sow it.'],
   },
+  {
+    // the Hollin Ford Show's secretary (data/farmingFive.ts), at her trestle by Bertram's garden
+    id: 'show_hester', name: 'Hester Wragg', title: 'Show Secretary',
+    look: { skin: '#e0b898', hair: '#8a7a6a', hairStyle: 4, eyes: '#4a3a2a', tunic: '#3a4a6a', trim: '#e8dcc0', trousers: '#2a2a3a', boots: '#2a1e14', hat: 'coif', hatColor: '#e8dcc0', age: 0.6, build: 0.9 },
+    schedule: [{ from: 7, to: 19, at: [113.6, 182.4], face: [117.4, 184], anim: 'idle' }, { from: 19, to: 7, at: [113.6, 182.4], face: [117.4, 184], anim: 'idle' }],
+    barks: ['Entries by noon! Or after noon. Entries whenever.', 'No shop-bought, and I can tell.', 'Six classes, a card in every one.'],
+  },
 ];
 
 const bertram: DialogueTree = {
@@ -72,6 +79,45 @@ const bertram: DialogueTree = {
   },
 };
 
+type Api = import('../../game/api').GameApi;
+const PLACE = ['', 'first', 'second', 'third'];
+const hester: DialogueTree = {
+  start: () => 'hello',
+  nodes: {
+    hello: {
+      text: (g) => {
+        const v = g.showView?.() ?? [];
+        const firsts = v.filter((c) => c.place === 1).length;
+        return `Hester Wragg, secretary of the Hollin Ford Show, which is every season and has been since before the bridge. You've a card in ${v.filter((c) => c.place).length} of the six classes this season${firsts ? `, ${firsts} of them first` : ''}. Four firsts in a season and the cup is yours.`;
+      },
+      options: [
+        { text: 'I want to enter something.', next: 'enter' },
+        { text: 'How does the judging work?', next: 'how' },
+        { text: 'Good day.' },
+      ],
+    },
+    how: {
+      text: "One entry a class a day, and I'll pick your best for you, because people bring me their worst and then argue. The judges look at what it is, how well it was grown (fine beats plain, prize beats fine), and who grew it. A family entry, your group about you, they like. Anything grown giant goes in its own class and has never not won it. First is a rosette and eighty marks, second a blue card and forty, third a yellow and twenty.",
+      next: 'hello',
+    },
+    enter: {
+      text: (g) => {
+        const v = g.showView?.() ?? [];
+        return v.map((c) => `${c.name}${c.place ? ` (${PLACE[c.place]} this season)` : ''}: ${c.today ? 'entered today' : c.best ? `your ${c.best.name.toLowerCase()}` : 'nothing of yours'}`).join('. ') + '.';
+      },
+      options: [
+        ...(['veg', 'fruit', 'flowers', 'larder', 'yard', 'giants'] as const).map((id) => ({
+          text: (g: Api) => { const c = g.showView?.().find((x) => x.id === id); return c?.best ? `Enter my ${c.best.name.toLowerCase()} in ${c.name.toLowerCase()}.` : ''; },
+          cond: (g: Api) => { const c = g.showView?.().find((x) => x.id === id); return !!c?.best && !c.today; },
+          effect: (g: Api) => g.showEnter?.(id),
+          next: 'enter',
+        })),
+        { text: 'That\'s all for today.' },
+      ],
+    },
+  },
+};
+
 const shop: ShopDef = {
   id: 'seed_bertram', name: 'Bertram Sowerby\'s seeds', owner: 'seed_bertram',
   stock: [
@@ -95,6 +141,6 @@ export const FARM_CONTENT: RegionContent = {
   id: 'farming',
   items: FARM_ITEMS,
   npcs,
-  dialogue: { seed_bertram: bertram },
+  dialogue: { seed_bertram: bertram, show_hester: hester },
   shops: { seed_bertram: shop },
 };
