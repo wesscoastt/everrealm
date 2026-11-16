@@ -16,6 +16,8 @@ interface Entry {
   solid?: THREE.Mesh;
   water?: THREE.Mesh;
   veg?: THREE.InstancedMesh | null;
+  /** The grass's positions, x y z every nine floats, kept to hide it later (tilled ground). */
+  vegData?: Float32Array;
   /** Stone treads on the roads' steep runs. */
   steps?: THREE.InstancedMesh | null;
   meshState: 'none' | 'pending' | 'done';
@@ -55,6 +57,22 @@ export interface GreenwakeSource {
 }
 
 export class ChunkManager {
+  /** Cells ("x,z") where no grass grows: tilled garden ground (game/HomeFarm.ts). */
+  private bare = new Set<string>();
+  /** Clear the grass and flowers off these cells, now and in every chunk loaded after. */
+  hideVegAt(cells: Iterable<string>): void {
+    let added = false;
+    for (const c of cells) if (!this.bare.has(c)) { this.bare.add(c); added = true; }
+    if (added) for (const e of this.entries.values()) this.hideVegIn(e);
+  }
+  private hideVegIn(e: Entry): void {
+    const d = e.vegData, m = e.veg;
+    if (!d || !m || !this.bare.size) return;
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    let hit = false;
+    for (let i = 0, n = d.length / 9; i < n; i++) if (this.bare.has(Math.floor(d[i * 9]) + ',' + Math.floor(d[i * 9 + 2]))) { m.setMatrixAt(i, zero); hit = true; }
+    if (hit) m.instanceMatrix.needsUpdate = true;
+  }
   readonly group = new THREE.Group();
   private workers: Worker[] = [];
   private next = 0;
@@ -205,7 +223,8 @@ export class ChunkManager {
       this.voxels.chunks.set(key, r.data);
       const e: Entry = { cx, cz, tint: r.tint, meshState: 'none', dirty: false };
       e.veg = buildVegMesh(r.veg, this.time);
-      if (e.veg) this.group.add(e.veg);
+      e.vegData = r.veg;
+      if (e.veg) { this.group.add(e.veg); this.hideVegIn(e); }
       e.steps = buildSteps(r.steps);
       if (e.steps) this.group.add(e.steps);
       this.entries.set(key, e);

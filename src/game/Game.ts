@@ -1251,6 +1251,7 @@ export class Game implements GameApi {
       handGarden: () => (this.online.online && this.handGardenAt ? this.handGardenAt : null),
       handGardenSet: (k, t) => { if (this.handGardenAt) { this.handGardenAt.tiles[k] = t; this.online.gardenSet(this.handGardenAt.owner, k, t); } },
       gardenChanged: () => { this.handsDirty = true; },
+      clearGrass: (cells) => this.world.chunks.hideVegAt(cells),
       groupPlotSet: (k, t) => { if (this.groupPlotTiles) { if (t) this.groupPlotTiles[k] = t; else delete this.groupPlotTiles[k]; } this.online.groupPlotSet(k, t); },
       garden: () => {
         // your house's footprint, and ten blocks of yard round it; the owner's house in Verandah, its grounds
