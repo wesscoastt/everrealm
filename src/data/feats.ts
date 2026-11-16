@@ -2,7 +2,7 @@ import { WAKE_COSTUMES } from './costumes';
 import { EVENTS, TASKS, WORLD_BOSSES } from './activities';
 import { ITEMS } from './items';
 import { RANKS, REVERED_TITLE } from './standing';
-import { FACTIONS } from './factions';
+import { FACTIONS, factionRank } from './factions';
 import { TRADES, TRADE_RANK_AT } from './jobs';
 import { REGION_INFO, type RegionId } from '../world/terrain';
 import { bestiaryRoster } from './bestiary';
@@ -127,7 +127,7 @@ export const FEATS: FeatDef[] = [
   // The open world
   { id: 'posts10', name: 'Wayside Writer', group: 'The open world', desc: 'Leave ten message posts for whoever comes after.', need: 10, have: (g) => n(g, 'posts'), marks: 60, title: 'the Signpost' },
   // Factions: in more than one at once
-  { id: 'manyHats', name: 'Many Hats', group: 'Factions', desc: 'Join four of the realm\'s factions.', need: 4, have: (g) => FACTIONS.filter((x) => typeof g.flag('fac:' + x.id) === 'number').length, marks: 150, title: 'of Many Halls', dye: ['#7a4a8a', 'Motley'] },
+  { id: 'manyHats', name: 'Many Hats', group: 'Factions', desc: 'Join four of the realm\'s factions.', need: 4, have: (g) => FACTIONS.filter((x) => factionRank(g, x.id) >= 0).length, marks: 150, title: 'of Many Halls', dye: ['#7a4a8a', 'Motley'] },
   // Hidden: choices with a story behind them
   { id: 'hArithmetic', name: 'Arithmetic', group: 'Hidden', desc: 'Let Kit Bawden stand up for the casks.', need: 1, have: (g) => (g.flag('lampEnd') === 'kit' ? 1 : 0), marks: 50, title: 'the Quiet One', hidden: true },
   { id: 'hSand', name: 'Sand by the Door', group: 'Hidden', desc: 'Keep the lifting mark, and teach it.', need: 1, have: (g) => (g.flag('mgEnd') === 'teach' ? 1 : 0), marks: 50, title: 'the Bold Teacher', hidden: true },
@@ -136,6 +136,6 @@ export const FEATS: FeatDef[] = [
   ...TRADES.map((t): FeatDef => ({ id: 'trade_' + t.id, name: t.ranks[4], group: 'Craft and trade', desc: `Rise to ${t.ranks[4]} as a ${t.name.toLowerCase()}: ${TRADE_RANK_AT[4]} of the trade's daily jobs done.`, need: TRADE_RANK_AT[4], have: (g) => Number(g.flag('tradeDone:' + t.id) ?? 0), marks: 300, title: t.title, dye: t.dye })),
   // Standing (data/standing.ts): the last rank in a region gives its title
   // Factions (data/factions.ts): the last rank gives its title
-  ...FACTIONS.filter((f) => f.open).map((f): FeatDef => ({ id: 'fac_' + f.id, name: f.ranks[f.ranks.length - 1], group: 'Factions', desc: `Rise to ${f.ranks[f.ranks.length - 1]} in ${f.name}, through its whole storyline.`, need: f.ranks.length, have: (g) => { const r = g.flag('fac:' + f.id); return typeof r === 'number' ? r + 1 : 0; }, marks: 150, title: f.title })),
+  ...FACTIONS.filter((f) => f.open).map((f): FeatDef => ({ id: 'fac_' + f.id, name: f.ranks[f.ranks.length - 1], group: 'Factions', desc: `Rise to ${f.ranks[f.ranks.length - 1]} in ${f.name}, through its whole storyline.`, need: f.ranks.length, have: (g) => factionRank(g, f.id) + 1, marks: 150, title: f.title })),
   ...(Object.keys(REVERED_TITLE) as RegionId[]).map((r): FeatDef => ({ id: 'rep_' + r, name: 'Revered in ' + REGION_INFO[r].name, group: 'The open world', desc: `Reach Revered standing in ${REGION_INFO[r].name}: its quests, parish tasks, events, rares and world boss all count.`, need: RANKS[RANKS.length - 1].at, have: (g) => Number(g.flag('rep:' + r) ?? 0), marks: 100, title: REVERED_TITLE[r] })),
 ];

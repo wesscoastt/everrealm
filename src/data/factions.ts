@@ -3,7 +3,7 @@
 // Joining is the first quest of a faction\'s storyline; each later chapter raises your rank, and the
 // last gives a title. Your rank is kept in the flag "fac:<id>" (missing: not a member).
 
-export type FactionId = 'waits' | 'collegium' | 'muster' | 'lamplighters' | 'bell' | 'ushers' | 'fighters' | 'mages';
+export type FactionId = 'waits' | 'collegium' | 'muster' | 'lamplighters' | 'bell' | 'ushers' | 'fighters' | 'mages' | 'company';
 
 export interface FactionDef {
   id: FactionId;
@@ -22,6 +22,8 @@ export interface FactionDef {
   color: string;
   /** Open to join in this build. */
   open: boolean;
+  /** A storyline that doesn't set the rank flag itself: chapters done needed for each rank (data/company.ts's "Short Weight"). */
+  rankAt?: number[];
 }
 
 export const FACTIONS: FactionDef[] = [
@@ -45,6 +47,14 @@ export const FACTIONS: FactionDef[] = [
     blurb: 'It keeps what the old kingdom cut into its standing stones, and teaches it slowly, because the last time it was taught quickly the old kingdom fell.',
     join: 'Selina Pendarves, Warden of the Mages Guild, takes Novices at the Guild in Verandah. Bring her a rubbing.', ranks: ['Novice', 'Reader', 'Scribe', 'Magister'], title: 'Magister of the Mages Guild',
     storyline: ['mgHum', 'mgPetition', 'mgSink', 'mgSlow'], color: '#2a3a6a', open: true,
+  },
+  {
+    // the Counting House (docs/COMPANY_BRIEF.md): its storyline, "Short Weight", raises you as its chapters close
+    id: 'company', name: 'The Counting House', where: 'The head office on East Avenue, Ansbury; counting houses at Holme Staithe, Gillsby Staithe, Callis and Brasswick, and a hired loft on the Gullmouth quay',
+    blurb: 'The Charter\'s own sea trade, chartered by the Speaker forty years ago: wool, tin and salt fish out, wine, silk and timber back, and the harbour dues collected on the way. Rich, lawful, slow, a little rotten, and the only employer on the coast that pays on the day it says.',
+    join: 'Gilbert Ashe, the clerk at the Ansbury counting house, has a contract board and a problem with his crates. Ask him.',
+    ranks: ['Clerk', 'Supercargo', 'Factor', 'Chief Factor'], title: 'Factor of the Counting House',
+    storyline: ['coWeight', 'coDues', 'coHen', 'coSalt', 'coBonded', 'coReckoning'], rankAt: [1, 2, 4, 6], color: '#22365a', open: true,
   },
   {
     id: 'collegium', name: 'The Collegium', where: 'The Collegium, Guild Ward, Ansbury',
@@ -83,5 +93,8 @@ export const FACTION_BY_ID = Object.fromEntries(FACTIONS.map((f) => [f.id, f])) 
 /** Your rank in a faction (0 is the first), or -1 if you haven\'t joined. */
 export function factionRank(g: { flag(k: string): unknown }, id: FactionId): number {
   const r = g.flag('fac:' + id);
-  return typeof r === 'number' ? r : -1;
+  if (typeof r === 'number') return r;
+  const f = FACTION_BY_ID[id], st = (g as { stage?(q: string): string | undefined }).stage;
+  if (f?.rankAt && st) { const done = f.storyline.filter((q) => st.call(g, q) === 'done').length; return f.rankAt.filter((n) => done >= n).length - 1; }
+  return -1;
 }
