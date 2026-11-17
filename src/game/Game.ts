@@ -205,6 +205,7 @@ import { inOwnerHome, isHomeOwner, OWNER_HOME } from '../data/content/ownerHome'
 import { HERDS, HomeFarm, type Tile as GardenTile } from './HomeFarm';
 import { CROPS } from '../data/farming';
 import { DECOR_OF_ITEM } from '../data/farmingSix';
+import { Thievery } from './Thievery';
 import { bindRule, goodDrop, LootRolls, type LrMsg } from './LootRolls';
 import { COLOURS, flowerId, SPECIES } from '../data/farmingFour';
 import { heartWord } from '../data/farmingThree';
@@ -1132,6 +1133,7 @@ export class Game implements GameApi {
       sendSunk: (by) => { if (this.online.online) this.online.shipSunk(by); },
     });
     this.justice = new Justice({
+      confiscate: () => { const n = this.thief.confiscate((id, k) => this.inv.remove(id, k), (id) => this.inv.count(id)); if (n) { this.hud.system(`The watch goes through your pack and takes back ${n} stolen thing${n === 1 ? '' : 's'}.`); this.hud.refresh('inv'); } },
       noticed: () => this.companions?.event('crime'),
       scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
       setPose: (st) => { this.lawPose = st; },
@@ -2015,6 +2017,24 @@ export class Game implements GameApi {
     }
     for (const b of this.beams.filter((x) => x.t > 4.5)) { this.scene.remove(b.m); b.m.geometry.dispose(); (b.m.material as THREE.Material).dispose(); }
     this.beams = this.beams.filter((x) => x.t <= 4.5);
+  }
+  // ---------------------------------------------------------------- Sneaking, looting and stealing (game/Thievery.ts)
+  /** Sneaking (Left Ctrl toggles it): slower, crouched, seen from half as far, and a pocket can be picked from behind. */
+  sneaking = false;
+  private thiefT: Thievery | null = null;
+  private get thief(): Thievery {
+    return (this.thiefT ??= new Thievery({
+      props: () => this.world.sites.flatMap((s) => s.props as { t: string; item?: string; x: number; y: number; z: number }[]),
+      player: () => this.player.position, facing: () => this.player.facing, sneaking: () => this.sneaking,
+      night: () => { const h = this.world.sky.hour ?? 12; return h >= 21 || h < 5; },
+      people: () => this.npcs.filter((n) => n.placed !== false && n.model.root.visible).map((n) => ({ id: n.def.id, name: n.def.name, pos: n.pos, yaw: n.model.root.rotation.y })),
+      witnesses: (at, r) => this.crowd.near(at, r) + this.npcs.filter((n) => n.placed !== false && n.model.root.visible && n.pos.distanceTo(at) < r).length,
+      crime: (at, price, what) => this.justice.crime('theft', at, what, undefined, price),
+      lockpick: () => this.hud.lockpick('a strongbox lock', 3, 0.22, 1.1, () => this.inv.count('lockpick'), () => { this.inv.remove('lockpick', 1); this.sfx('pickSnap' as Sfx); }),
+      count: (it) => this.inv.count(it), give: (it, n) => this.give(it, n ?? 1), addMarks: (n) => this.addMarks(n), level: () => this.level('melee'),
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v), system: (t) => this.hud.system(t),
+      say: (at, t) => this.floatAt(at, 2.3, t, 'chatter'), sfx: (n) => this.sfx(n), bump: (k) => this.bump(k),
+    }));
   }
   count(item: string): number { return this.inv.count(item); }
   has(item: string, n = 1): boolean { return this.inv.count(item) >= n; }
@@ -5585,6 +5605,7 @@ export class Game implements GameApi {
     const def = ITEMS[st.id];
     const view = this.shopView();
     const price = view.sellPrice(st.id);
+    if (def.stolen && price <= 0) { this.hud.system(`${view.who} looks at it, and then at you. "I don't buy stolen goods. Try a fence."`); return; }
     if (def.kind === 'quest' || price <= 0) { this.hud.system(`${view.who} won't take that.`); return; }
     this.inv.removeAt(slot, 1);
     this.save.marks += price;
@@ -6539,6 +6560,7 @@ export class Game implements GameApi {
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    if (!this.horse) for (const c of this.thief.candidates()) consider({ kind: 'act', label: c.label, sub: c.sub, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) + 0.2);
     for (const c of this.garden.candidates()) consider({ kind: 'act', label: c.label, sub: c.sub, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.6);
     for (const c of this.farming.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.5);
     // On the post cart: get off whenever you like
@@ -8644,6 +8666,7 @@ export class Game implements GameApi {
     const v = fwd.multiplyScalar(f - b - this.input.moveY).addScaledVector(right, r - l + this.input.moveX);
     if (this.input.leftDown && this.input.rightDown) v.add(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)));
     if (v.lengthSq() > 1) v.normalize();
+    if (this.sneaking) v.multiplyScalar(0.5);
     return v;
   }
 
@@ -9326,6 +9349,9 @@ export class Game implements GameApi {
     const wasSwimming = P.swimming;
     P.rise = !this.dialogue && !this.fair.playing && this.input.held('Space');
     P.sink = !this.dialogue && this.input.held('KeyC');
+    // Left Ctrl: sneak, or stand up again (swimming or riding stands you up)
+    if (!this.dialogue && this.input.pressedOnce('ControlLeft') && !P.swimming && !this.horse) { this.sneaking = !this.sneaking; this.hud.system(this.sneaking ? 'Sneaking: slower, and seen from half as far. Left Ctrl again to stand.' : 'You stand up.'); }
+    if (this.sneaking && (P.swimming || this.horse)) this.sneaking = false;
     P.swimAim = THREE.MathUtils.clamp((0.32 - this.rig.pitch) * 1.2, -1.2, 1.2);
     let fall: number;
     const seat = this.pillion !== null ? this.online.seatOf(this.pillion) : null;
@@ -9518,6 +9544,7 @@ export class Game implements GameApi {
     else if (this.skillAnim) M.setState(this.skillAnim.st);
     // at a tavern table, with the cards in hand (dice and all: the keeper's games are played sat over a hand)
     else if (this.tavernT?.open && !this.horse && P.speed < 0.6) { M.setState('cards'); if (this.tavernT.handsFull) held = 'cards'; }
+    else if (this.sneaking && !this.horse && !P.swimming && !this.attack) M.setState('crouch');
     else if (this.doAnim && !this.horse) { M.setState(this.doAnim.st); held = this.doAnim.st === 'dig' || this.doAnim.st === 'chop' ? 'pickaxe' : 'none'; }
     else if (this.music.out && !this.horse) { M.setState('perform'); held = this.music.out.item; }
     else if (this.emote && !this.horse) M.setState(this.emote.id);

@@ -16,6 +16,8 @@ export interface ShopDef {
   stock: { item: string; price: number; when?: (g: GameApi) => boolean }[];
   /** Fraction of an item's worth paid when buying from the player. */
   buyRate: (g: GameApi, item: string) => number;
+  /** Buys stolen goods (data/thievery.ts): the Ropewalk Cellar, the Brethren. Nobody else will. */
+  fence?: boolean;
   /** Multiplier on stock prices. */
   priceMult?: (g: GameApi) => number;
   /** Priced in this item (a festival token) instead of marks. */
@@ -138,6 +140,7 @@ export function shopPrice(g: GameApi, shop: ShopDef, price: number): number {
 }
 
 export function shopBuyPrice(g: GameApi, shop: ShopDef, item: string): number {
+  if (ITEMS[item]?.stolen && !shop.fence) return 0;
   return Math.floor(ITEMS[item].value * shop.buyRate(g, item));
 }
 

@@ -34,6 +34,8 @@ export interface ItemDef {
   desc: string;
   /** Mechanical summary shown in its own line under the description. */
   stats?: string;
+  /** Stolen goods (data/thievery.ts): only a fence buys them, and the watch takes them off you. */
+  stolen?: boolean;
   heal?: number;
   /**
    * Weapon traits: flat damage, attack speed (1 = normal), extra reach in blocks, extra critical
@@ -387,6 +389,9 @@ for (const d of JEWEL_ITEMS) ITEMS[d.id] = d;
 // Cloak designs (src/data/capes.ts).
 import { CAPE_ITEMS } from './capes';
 for (const d of CAPE_ITEMS) ITEMS[d.id] = d;
+// Stolen goods (src/data/thievery.ts).
+import { STOLEN_GOODS } from './thievery';
+for (const d of STOLEN_GOODS) ITEMS[d.id] = d;
 
 // Fine and prize produce, from a garden kept well (src/data/quality.ts).
 import { CROPS } from './farming';

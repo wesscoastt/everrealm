@@ -45,6 +45,8 @@ export interface GuardRef { id: string; town: string; pos: THREE.Vector3 }
 export interface JusticeHost {
   /** A crime done where your companion could see it. */
   noticed?(): void;
+  /** Taken in or paid up: the stolen goods go back (game/Thievery.ts). */
+  confiscate?(): void;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   player: { position: THREE.Vector3; yaw: number; locked: boolean; seat: number; teleport(x: number, y: number, z: number): void };
@@ -156,22 +158,24 @@ export class Justice {
    * A blow struck at `at`: a town beast (its kind), a townsperson, or one of the watch. Seen by
    * anyone, it goes in that town's book.
    */
-  crime(kind: 'beast' | 'assault' | 'guard', at: THREE.Vector3, what?: string, guardId?: string): void {
+  crime(kind: 'beast' | 'assault' | 'guard' | 'theft', at: THREE.Vector3, what?: string, guardId?: string, worth = 0): boolean {
     const j = jurisdictionAt(at.x, at.z);
-    if (!j || this.ride || this.jailed) return;
+    if (!j || this.ride || this.jailed) return false;
     // Your companion sees it, whoever else does (game/Companions.ts)
     this.host.noticed?.();
-    const price = kind === 'beast' ? CRIME.beast[what ?? ''] ?? 40 : kind === 'assault' ? CRIME.assault : CRIME.guard;
-    const seen = kind === 'guard' || this.host.guards(at, 26).some((g) => g.town === j.id) || this.host.witnesses(at, 18) > 0;
-    if (!seen) { this.host.system('Nobody saw that.'); return; }
+    const price = kind === 'theft' ? Math.round(worth) : kind === 'beast' ? CRIME.beast[what ?? ''] ?? 40 : kind === 'assault' ? CRIME.assault : CRIME.guard;
+    // (a theft is only reported here once the thief's own check found a witness: game/Thievery.ts)
+    const seen = kind === 'guard' || kind === 'theft' || this.host.guards(at, 26).some((g) => g.town === j.id) || this.host.witnesses(at, 18) > 0;
+    if (!seen) { this.host.system('Nobody saw that.'); return false; }
     const was = this.bounty(j.id);
     this.setBounty(j.id, was + price);
     const now = this.bounty(j.id);
     this.host.system(`${j.name} puts ${price} marks on your head: ${now} in all. ${j.watch[0].toUpperCase() + j.watch.slice(1)} will know your face.`);
     this.host.sfx('fail', 0.6);
-    if (kind === 'guard') { this.startArrest(j, guardId ?? null, 'blades'); return; }
-    if (this.arrest) { if (now >= HEAT.onSight) this.arrest.mode = 'blades'; return; }
+    if (kind === 'guard') { this.startArrest(j, guardId ?? null, 'blades'); return true; }
+    if (this.arrest) { if (now >= HEAT.onSight) this.arrest.mode = 'blades'; return true; }
     if (now >= HEAT.arrest) this.startArrest(j, null, now >= HEAT.onSight ? 'blades' : 'take');
+    return true;
   }
 
   // ---------------------------------------------------------------------------------------- the watch
@@ -329,6 +333,7 @@ export class Justice {
       if (this.host.marks() < n) return;
       this.host.spend(n);
       this.setBounty(a.j.id, 0);
+      this.host.confiscate?.();
       this.host.sfx('coin');
       this.host.say(g.pos, 2.3, 'Paid in full. Keep it that way.');
       this.endArrest();
@@ -351,6 +356,7 @@ export class Justice {
   private takeIn(j: Jurisdiction, longer: number): void {
     const gaol = GAOLS.find((x) => x.id === j.gaol) ?? GAOLS[0];
     const bounty = this.bounty(j.id);
+    this.host.confiscate?.();
     this.host.chase(null, null);
     this.closePanel();
     this.arrest = null;

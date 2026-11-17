@@ -117,7 +117,8 @@ const SHOPS: Record<string, ShopDef> = {
     id: 'abe_rowse', name: 'Abe Rowse, no questions', owner: 'abe_rowse',
     stock: [{ item: 'lockpick', price: 4 }],
     buyRate: () => 0.62,
-    footer: () => 'Abe pays nearly two-thirds of what a thing is worth, and forgets he saw it',
+    fence: true,
+    footer: () => 'Abe pays nearly two-thirds of what a thing is worth, stolen or not, and forgets he saw it',
   },
 };
 

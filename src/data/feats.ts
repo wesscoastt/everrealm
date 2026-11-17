@@ -124,6 +124,9 @@ export const FEATS: FeatDef[] = [
   { id: 'tables10', name: 'Luck Be a Lady', group: 'The tables', desc: 'Come out ahead at a tavern table ten times: the dice, the Lady, or the cards.', need: 10, have: (g) => n(g, 'tableWins'), marks: 80, title: 'the Lucky', dye: ['#1e5a32', 'Baize green'] },
   { id: 'tables100', name: 'The House Remembers You', group: 'The tables', desc: 'Come out ahead at the tables a hundred times.', need: 100, have: (g) => n(g, 'tableWins'), marks: 250, title: 'Card Sharp of the Counties' },
   { id: 'chess10', name: 'Mate in the Taproom', group: 'The tables', desc: 'Win ten games of chess at the tavern tables, against the regulars or another player.', need: 10, have: (g) => n(g, 'chessWins'), marks: 120, title: 'the Tactician', dye: ['#e2c99a', 'Boxwood'] },
+  { id: 'looted25', name: 'Finders Keepers', group: 'The tables', desc: 'Search twenty-five barrels, crates and chests out in the country.', need: 25, have: (g) => n(g, 'looted'), marks: 60, title: 'the Rummager' },
+  { id: 'pockets20', name: 'Light Fingers', group: 'The tables', desc: 'Pick twenty pockets without a hand on your wrist.', need: 20, have: (g) => n(g, 'pockets'), marks: 120, title: 'Light-Fingered', dye: ['#2a2a32', 'Cellar black'], hidden: true },
+  { id: 'stolen50', name: 'Abe Rowse\'s Best Customer', group: 'The tables', desc: 'Steal fifty times in the towns of the Counties.', need: 50, have: (g) => n(g, 'stolen'), marks: 150, title: 'of the Ropewalk Cellar', hidden: true },
   // The open world
   { id: 'posts10', name: 'Wayside Writer', group: 'The open world', desc: 'Leave ten message posts for whoever comes after.', need: 10, have: (g) => n(g, 'posts'), marks: 60, title: 'the Signpost' },
   // Factions: in more than one at once
@@ -133,7 +136,7 @@ export const FEATS: FeatDef[] = [
   { id: 'hSand', name: 'Sand by the Door', group: 'Hidden', desc: 'Keep the lifting mark, and teach it.', need: 1, have: (g) => (g.flag('mgEnd') === 'teach' ? 1 : 0), marks: 50, title: 'the Bold Teacher', hidden: true },
   { id: 'hFree', name: 'Poor and Free', group: 'Hidden', desc: 'Turn down a king.', need: 1, have: (g) => (g.flag('fgEnd') === 'free' ? 1 : 0), marks: 50, title: 'Nobody\'s Sword', hidden: true, dye: ['#c8c0a8', 'Unbleached'] },
   // Trades (data/jobs.ts): the last rank gives its title and dye
-  ...TRADES.map((t): FeatDef => ({ id: 'trade_' + t.id, name: t.ranks[4], group: 'Craft and trade', desc: `Rise to ${t.ranks[4]} as a ${t.name.toLowerCase()}: ${TRADE_RANK_AT[4]} of the trade's daily jobs done.`, need: TRADE_RANK_AT[4], have: (g) => Number(g.flag('tradeDone:' + t.id) ?? 0), marks: 300, title: t.title, dye: t.dye })),
+  ...TRADES.map((t): FeatDef => ({ id: 'trade_' + t.id, name: t.ranks[4], group: 'Craft and trade', desc: `Rise to ${t.ranks[4]} as a ${t.name.toLowerCase()}: ${TRADE_RANK_AT[4]} of the trade\'s daily jobs done.`, need: TRADE_RANK_AT[4], have: (g) => Number(g.flag('tradeDone:' + t.id) ?? 0), marks: 300, title: t.title, dye: t.dye })),
   // Standing (data/standing.ts): the last rank in a region gives its title
   // Factions (data/factions.ts): the last rank gives its title
   ...FACTIONS.filter((f) => f.open).map((f): FeatDef => ({ id: 'fac_' + f.id, name: f.ranks[f.ranks.length - 1], group: 'Factions', desc: `Rise to ${f.ranks[f.ranks.length - 1]} in ${f.name}, through its whole storyline.`, need: f.ranks.length, have: (g) => factionRank(g, f.id) + 1, marks: 150, title: f.title })),
