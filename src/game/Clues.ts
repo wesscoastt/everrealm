@@ -263,6 +263,13 @@ export class Clues {
         put(box, '#6a665e', 0, 0.105, 0, 0.3, 0.004, 0.06, ang + 0.3); put(box, '#6a665e', 0.08, 0.105, 0.02, 0.18, 0.004, 0.05, ang - 0.5); // the gull, cut in the stone
         put(disc, '#2a2620', 0.5, 0.012, 0, 0.12, 1, 0.3, ang, 0, 0, 0.7); // the gap at its edge
         break;
+      case 'gauge':
+        put(rod, '#3a3a3a', 0, 0.6, 0, 0.05, 1.2, 0.05);
+        put(rod, '#b8873a', 0, 1.25, 0, 0.2, 0.08, 0.2, 0, Math.PI / 2, ang);
+        put(rod, '#d8e0c8', Math.cos(ang) * 0.045, 1.25, -Math.sin(ang) * 0.045, 0.16, 0.01, 0.16, 0, Math.PI / 2, ang); // its face, the glass gone green
+        put(box, '#2a2a2a', Math.cos(ang) * 0.055, 1.27, -Math.sin(ang) * 0.055, 0.012, 0.12, 0.012, ang, 0, 0.6); // the needle
+        put(box, '#5a5a5a', 0, 0.02, 0, 0.3, 0.04, 0.3, ang);
+        break;
       case 'glint':
         break;
     }

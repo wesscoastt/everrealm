@@ -59,8 +59,8 @@ export const FACTIONS: FactionDef[] = [
   {
     id: 'collegium', name: 'The Collegium', where: 'The Collegium, Guild Ward, Ansbury',
     blurb: 'Fellows who study star crystal, the old words and the weather, and teach them for a fee. They would like a Charter licence over all three.',
-    join: 'Not yet open.', ranks: ['Entrant', 'Scholar', 'Fellow', 'Senior Fellow'], title: 'Fellow of the Collegium',
-    storyline: [], color: '#5a2a4a', open: false,
+    join: 'Walter Gilby, the Provost, takes Entrants on the lecture-room steps in the Guild Ward. Twenty marks a term, or make yourself useful.', ranks: ['Entrant', 'Scholar', 'Fellow', 'Senior Fellow'], title: 'Fellow of the Collegium',
+    storyline: ['colVolume', 'colPages', 'colFigure', 'colSitting'], color: '#5a2a4a', open: true,
   },
   {
     id: 'muster', name: 'The Muster', where: 'The Muster Hall, by the tilt-yard, Ansbury',

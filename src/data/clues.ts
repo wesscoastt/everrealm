@@ -4,7 +4,7 @@
 // (WorldThing.look); otherwise it's read from what the spot says and what you're told there. game/Clues.ts draws it
 // while the quest wants it found, with a faint glint over it.
 
-export type ClueLook = 'tracks' | 'hoofprints' | 'blood' | 'satchel' | 'letter' | 'scorch' | 'bones' | 'arrow' | 'grain' | 'fleece' | 'trampled' | 'cloth' | 'coins' | 'chalk' | 'tags' | 'skin' | 'harness' | 'cairn' | 'nest' | 'harpoon' | 'hoard' | 'crate' | 'slab' | 'glint';
+export type ClueLook = 'tracks' | 'hoofprints' | 'blood' | 'satchel' | 'letter' | 'scorch' | 'bones' | 'arrow' | 'grain' | 'fleece' | 'trampled' | 'cloth' | 'coins' | 'chalk' | 'tags' | 'skin' | 'harness' | 'cairn' | 'nest' | 'harpoon' | 'hoard' | 'crate' | 'slab' | 'gauge' | 'glint';
 
 /**
  * Spots that had only the glint, given what's there (OWED 00, "the 52 plain-glint spots given their own looks"). The

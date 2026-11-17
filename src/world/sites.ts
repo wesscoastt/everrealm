@@ -2274,6 +2274,9 @@ function* planBody(): Generator<string, Plan> {
     north.props.push({ t: 'sign', x: 778.5, y: base, z: 157.5, ry: 0, text: 'Guildhall' });
     // The Exchange's desk on the square, where Gideon Wray reads the guilds' book to anyone who asks
     north.props.push({ t: 'desk', x: 775.5, y: base, z: 164.2, ry: Math.PI }, { t: 'sign', x: 772.2, y: base, z: 164.5, ry: 0, text: 'The Exchange' });
+    // The Collegium's music presses, out on the square under the clock till Michaelmas (its library cellar floods):
+    // two presses of books, the Librarian's desk, a sign (data/content/collegium.ts)
+    north.props.push({ t: 'furn', item: 'shelves', x: 796.2, y: base, z: 188.6, ry: Math.PI }, { t: 'furn', item: 'shelves', x: 798.8, y: base, z: 188.6, ry: Math.PI }, { t: 'desk', x: 797.4, y: base, z: 185.0, ry: 0 }, { t: 'furn', item: 'letters', x: 797.4, y: base + 1.02, z: 185.0, ry: 0, tint: 1 }, { t: 'sign', x: 800.6, y: base, z: 187.6, ry: 0, text: 'The Collegium' });
 
     // ---- Tilt Ward: the tilt-yard, banked stands round a sanded oval with the tilt down the middle
     claim(922, 192, 994, 236);
