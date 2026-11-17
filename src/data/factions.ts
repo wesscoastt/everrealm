@@ -65,8 +65,8 @@ export const FACTIONS: FactionDef[] = [
   {
     id: 'muster', name: 'The Muster', where: 'The Muster Hall, by the tilt-yard, Ansbury',
     blurb: 'When the Charter laid off its toll riders, their sergeant put up a hiring hall at the tilt-yard. Anyone who can hold a weapon can sign the roll and take the contracts on its board.',
-    join: 'Not yet open.', ranks: ['On the Roll', 'Sworn', 'Corporal', 'Banneret'], title: 'of the Muster Roll',
-    storyline: [], color: '#2a4a8a', open: false,
+    join: 'Sergeant Agnes Holroyd keeps the roll at the tilt-yard, by the notice. Read it before you sign.', ranks: ['On the Roll', 'Sworn', 'Corporal', 'Banneret'], title: 'of the Muster Roll',
+    storyline: ['musRoll', 'musTwice', 'musToll', 'musBanner'], color: '#2a4a8a', open: true,
   },
   {
     id: 'lamplighters', name: 'The Lamplighters', where: 'The lamp store, the Shambles yard, Ansbury',
