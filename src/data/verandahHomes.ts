@@ -9,6 +9,14 @@ import { inOwnerHome } from './content/ownerHome';
 // town's, the owner's own house is theirs, and the rest are for sale, bought outright as the Mirador's are
 // (game/Game.ts buyVilla) and priced by their floor: a two-room cottage a few thousand marks, a big house more.
 
+/**
+ * A house's price by its floor area (owner 2026-11-17: "rebalance home prices to better reflect modern mmo's and the
+ * economy"): a curve, like ESO's small, medium, large and notable homes, so a room-and-a-half is a few hours of play at
+ * fifteen and the great houses are a long goal at the top (scripts/economy.ts checks the hours). 49 square: about 3,800;
+ * 131: about 10,700; 300: about 31,000; 750: about 108,000.
+ */
+export const homePrice = (area: number) => Math.round((1500 + Math.pow(area, 1.4) * 10) / 100) * 100;
+
 export interface VerandahHome {
   /** In the realm's homes book: 'vh1'... (west to east). */
   id: string;
@@ -23,6 +31,8 @@ export interface VerandahHome {
   price: number;
   /** Every door into it from outside (front and back), and which way it faces out: [x, z, ry]; its FOR SALE board stands by each. */
   doors: [number, number, number][];
+  /** What it cost before the 2026-11-17 prices, for what the town pays back to anyone who bought it then. */
+  was?: number;
 }
 
 /** Signs that don't make a building public: a house's own, a mailbox, a name. */
@@ -49,7 +59,7 @@ function build(): VerandahHome[] {
     if (inOwnerHome((x0 + x1) / 2, (z0 + z1) / 2)) continue;
     // a public building: a sign about it that isn't a house's own
     if (MC_SIGNS.some((s) => s.x >= x0 - 3 && s.x <= x1 + 3 && s.z >= z0 - 3 && s.z <= z1 + 3 && Math.abs(s.y - base) < 10 && !PRIVATE.test(s.text.split(String.fromCharCode(10)).join(' ').trim()))) continue;
-    out.push({ x0, z0, x1, z1, base, door: front.door, area, price: Math.round((1500 + area * 30) / 100) * 100 });
+    out.push({ x0, z0, x1, z1, base, door: front.door, area, price: homePrice(area), was: Math.round((1500 + area * 30) / 100) * 100 });
   }
   out.sort((a, b) => a.x0 - b.x0 || a.z0 - b.z0);
   // addresses: numbered within the nearest waystone's neighbourhood
@@ -84,7 +94,7 @@ function build(): VerandahHome[] {
  * no house already held changes its id. */
 const GATE_ROW: VerandahHome[] = [2033, 2043, 2053].map((z0, i) => ({
   id: 'vg' + (i + 1), name: `No. ${i + 1}, Quarry Row`, x0: -3118, z0: z0 + 1, x1: -3112, z1: z0 + 7, base: 22,
-  door: [-3119, z0 + 4] as [number, number], area: 49, price: 3000, doors: [[-3119, z0 + 4, -Math.PI / 2]] as [number, number, number][],
+  door: [-3119, z0 + 4] as [number, number], area: 49, price: homePrice(49), was: 3000, doors: [[-3119, z0 + 4, -Math.PI / 2]] as [number, number, number][],
 }));
 /** The owner's house on the hill above No. 1, Kestle, finished in their style (scripts/mc/kestle-house.cjs; owner 2026-11-13: "make it a
  * decent size house, I'm going to give it to a new player"): two storeys, thirty-six by thirteen, the front door on the north. */
@@ -92,7 +102,7 @@ const KESTLE_HEIGHTS: VerandahHome[] = [{ id: 'vk1', name: 'No. 1, Kestle Height
 /** The white house on the path south from the Screaming Mermaid (owner 2026-11-13: "the white houses along the path from the
  * Screaming Mermaid area" for sale): whitestone and oak, L-shaped, its door in the angle of the L; the exporter found no roofed
  * room behind its door, so it's listed by hand. */
-const MERMAID_LANE: VerandahHome[] = [{ id: 'vm1', name: 'No. 1, Mermaid Lane', x0: -2844, z0: 2002, x1: -2832, z1: 2013, base: 17, door: [-2841, 2011], area: 131, price: 5400, doors: [[-2841, 2011, -Math.PI / 2]] }];
+const MERMAID_LANE: VerandahHome[] = [{ id: 'vm1', name: 'No. 1, Mermaid Lane', x0: -2844, z0: 2002, x1: -2832, z1: 2013, base: 17, door: [-2841, 2011], area: 131, price: homePrice(131), was: 5400, doors: [[-2841, 2011, -Math.PI / 2]] }];
 /** Two of the farm row's four houses (No. 5 and No. 7, Verandah) have their only door at the back against the bank, so from the
  * street only No. 4 and No. 6 looked to be for sale (owner 2026-11-13: "all 4 need to be for sale"): each gets its FOR SALE
  * board on the street side too. */

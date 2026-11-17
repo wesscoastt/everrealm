@@ -24,6 +24,8 @@ export interface Villa {
   /** Where the scarp's lip is in front of it (z). */
   edge: number;
   price: number;
+  /** What it cost before the 2026-11-17 prices (the Mirador's and Verandah's), for buying back from anyone who paid that. */
+  was?: number;
   /** What Teresa says of it. */
   blurb: string;
   /** A house elsewhere sold the same way (Verandah's: data/verandahHomes.ts): the town, who sells it, which wall its door is in, and its door's cell. */
@@ -37,22 +39,22 @@ const V = (id: string | null, kind: VillaKind, name: string, x0: number, z0: num
 
 /** West to east along the lip. */
 export const VILLAS: Villa[] = [
-  V('hv1', 'stair', 'the Stair House', 8441, 797, 9, 8, 46, 806, 13000, 'Built on the lip and then down the face of it: three terraces under the house, one below the other, and a stair cut in the rock to the bottom, with a gate onto the Callis road. You can be at the harbour before your guests are up the lane.'),
+  V('hv1', 'stair', 'the Stair House', 8441, 797, 9, 8, 46, 806, 23000, 'Built on the lip and then down the face of it: three terraces under the house, one below the other, and a stair cut in the rock to the bottom, with a gate onto the Callis road. You can be at the harbour before your guests are up the lane.'),
   V(null, 'roig', 'the Roig house', 8490, 803, 11, 8, 46, 812, 0, ''),
-  V('hv2', 'point', 'the Point', 8544, 807, 13, 9, 47, 817, 24000, 'The best house on the hill and the dearest: the lip comes furthest out here, and the deck goes out past it, stone on stone corbels. A loggia on the west wing for the afternoons. You can count the ships in from the Keys.'),
-  V('hv3', 'longdeck', 'the Long Deck', 8594, 802, 13, 8, 46, 811, 16000, 'A timber house with the longest deck on the Mirador, end to end and then some, under a pergola the vines have had twenty years to cover. The Ferrers held their summer suppers on it.'),
-  V('hv4', 'lantern', 'the Lantern House', 8640, 796, 11, 8, 45, 805, 14000, 'Glass all round the upper floor, so the whole room is the view, and a balcony outside it hung with lamps. Lit at night you can see it from the harbour. People do.'),
+  V('hv2', 'point', 'the Point', 8544, 807, 13, 9, 47, 817, 42000, 'The best house on the hill and the dearest: the lip comes furthest out here, and the deck goes out past it, stone on stone corbels. A loggia on the west wing for the afternoons. You can count the ships in from the Keys.'),
+  V('hv3', 'longdeck', 'the Long Deck', 8594, 802, 13, 8, 46, 811, 28000, 'A timber house with the longest deck on the Mirador, end to end and then some, under a pergola the vines have had twenty years to cover. The Ferrers held their summer suppers on it.'),
+  V('hv4', 'lantern', 'the Lantern House', 8640, 796, 11, 8, 45, 805, 24500, 'Glass all round the upper floor, so the whole room is the view, and a balcony outside it hung with lamps. Lit at night you can see it from the harbour. People do.'),
   V(null, 'vidal', 'the Vidal house', 8686, 797, 9, 8, 45, 805, 0, ''),
-  V('hv5', 'tower', 'the Tower House', 8729, 799, 9, 8, 46, 808, 18000, 'A watch tower older than the houses, from when the Assembly kept a lookout on the scarp, with a house built against it. The tower stands on the cliff foot and goes up past the roofs: the stair inside it runs to a parapet at the top.'),
-  V('hv6', 'cistern', 'the Cistern House', 8775, 800, 11, 8, 47, 809, 15000, 'Sandstone, round a walled garden with a long pool down the middle, and a bathing pool let into the deck. The Oms had the water piped up from a spring on the plateau. It still runs.'),
-  V('hv7', 'cypress', 'the Cypress House', 8820, 798, 11, 8, 49, 807, 12000, 'The furthest along and the highest: dressed stone, an arcade along the cliff side, and a garden of cypresses stepping down to the deck. Quiet. The lane ends at the lookout just past it.'),
+  V('hv5', 'tower', 'the Tower House', 8729, 799, 9, 8, 46, 808, 31500, 'A watch tower older than the houses, from when the Assembly kept a lookout on the scarp, with a house built against it. The tower stands on the cliff foot and goes up past the roofs: the stair inside it runs to a parapet at the top.'),
+  V('hv6', 'cistern', 'the Cistern House', 8775, 800, 11, 8, 47, 809, 26000, 'Sandstone, round a walled garden with a long pool down the middle, and a bathing pool let into the deck. The Oms had the water piped up from a spring on the plateau. It still runs.'),
+  V('hv7', 'cypress', 'the Cypress House', 8820, 798, 11, 8, 49, 807, 21000, 'The furthest along and the highest: dressed stone, an arcade along the cliff side, and a garden of cypresses stepping down to the deck. Quiet. The lane ends at the lookout just past it.'),
 ];
 
 /** Verandah's houses, sold the same way as the Mirador's (the town clerk, not a family). */
 export const VERANDAH_VILLAS: Villa[] = VERANDAH_HOMES.map((h) => {
   const w = h.x1 - h.x0 + 1, d = h.z1 - h.z0 + 1;
   const side: Door = h.door[1] < h.z0 ? 'n' : h.door[1] > h.z1 ? 's' : h.door[0] < h.x0 ? 'w' : 'e';
-  return { id: h.id, kind: 'stair', name: h.name, x0: h.x0, z0: h.z0, w, d, floors: 1, base: h.base, edge: 0, price: h.price, blurb: '', town: 'Verandah', seller: 'the town clerk', doorSide: side, doorAt: h.door };
+  return { id: h.id, kind: 'stair', name: h.name, x0: h.x0, z0: h.z0, w, d, floors: 1, base: h.base, edge: 0, price: h.price, was: h.was, blurb: '', town: 'Verandah', seller: 'the town clerk', doorSide: side, doorAt: h.door };
 });
 export const VILLA_BY_ID = new Map([...VILLAS, ...VERANDAH_VILLAS].filter((v) => v.id).map((v) => [v.id!, v]));
 /** Where a house sold this way stands, for what's said of it ("on the Mirador", "in Verandah"). */
@@ -101,5 +103,8 @@ export function villaAt(x: number, z: number): Villa | null {
   for (const v of VILLAS) if (x >= v.x0 - 8 && x < v.x0 + v.w + 8 && z >= v.z0 - 6 && z < v.edge + 8) return v;
   return null;
 }
-/** What the families take back for a house you sell them: two thirds of the price. */
-export const VILLA_RESALE = 2 / 3;
+/** What the families (and Verandah's clerk) pay to take a house back: half what you paid for it. (Two thirds once; halved with
+ *  the 2026-11-17 prices, so selling to another player is the better bargain, as in the MMOs.) */
+export const VILLA_RESALE = 1 / 2;
+/** The Mirador's prices before 2026-11-17, for paying back anyone who bought then. */
+export const MIRADOR_WAS: Record<string, number> = { hv1: 13000, hv2: 24000, hv3: 16000, hv4: 14000, hv5: 18000, hv6: 15000, hv7: 12000 };

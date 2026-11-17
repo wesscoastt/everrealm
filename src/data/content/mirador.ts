@@ -127,7 +127,7 @@ const teresa: DialogueTree = {
       options: [{ text: 'Which houses are for sale?', next: 'houses' }, { text: 'Good day.' }],
     },
     how: {
-      text: 'You pay the price at the gate and I give you the keys. No lease, nothing to the Assembly, it\'s yours. One house to a household, mind: if you have a cottage or a lot from the Charter, they take it back and pay you for it. If you tire of it, I\'ll buy it back for the family at two thirds.',
+      text: 'You pay the price at the gate and I give you the keys. No lease, nothing to the Assembly, it\'s yours. One house to a household, mind: if you have a cottage or a lot from the Charter, they take it back and pay you for it. If you tire of it, I\'ll buy it back for the family at half what you paid. Or sell it to whoever you like, for what they\'ll give.',
       options: [{ text: 'Which houses are for sale?', next: 'houses' }, { text: 'Good day.' }],
     },
     ...teresaHouses,

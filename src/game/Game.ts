@@ -143,9 +143,9 @@ import { bondOf, nextBond, BOND_GIVES, LOYAL_PERK } from '../data/companionBonds
 import { giftTag, GIFT_TAG_NAME, GIFT_TASTES, reactionTo, type GiftTag } from '../data/companionGifts';
 import { Planner } from './Planner';
 import { Bank } from './Bank';
-import { VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaPlace, villaSeller, villaShape, VILLAS } from '../data/mirador';
+import { MIRADOR_WAS, VILLA_BY_ID, VILLA_RESALE, villaDoor, villaGate, villaLocks, villaPlace, villaSeller, villaShape, VILLAS } from '../data/mirador';
 import { VERANDAH_HOMES } from '../data/verandahHomes';
-import { COTTAGE_BUYBACK, COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_D, LOT_PRICE, LOT_W, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
+import { COTTAGE_SHAPE, costOf, HomeShape, housePlace, HouseSpec, Lot, LOT_BY_ID, LOT_D, LOT_PRICE, LOT_W, LOTS, lotFront, plotShape, readPlot, WENDSIDE_LOTS } from '../data/housing';
 import { updateDoors } from '../world/Doors';
 import { Social } from './Social';
 import { Exchange } from './Exchange';
@@ -1827,12 +1827,12 @@ export class Game implements GameApi {
         this.garden?.refresh();
       },
       groupPlot: (owner, tiles) => { const had = !!this.groupPlotTiles; this.groupPlotTiles = tiles as Record<string, GardenTile> | null; if (tiles && !had && owner) this.hud.system(`Your group farms together: what you till on the public fields is ${owner}'s group plot, sown, watered and picked by any of you.`); this.garden.refresh(); },
-      homeOffered: (id, from, price) => this.homeOffered(id, from, price),
+      homeOffered: (id, from, price, furnished) => this.homeOffered(id, from, price, furnished),
       homeOfferAns: (ok, why, to) => {
         this.hud.system(ok ? `Your offer has gone to ${to}. It stands for ten minutes.` : why === 'declined' ? `${to} turned your offer down.` : why === 'hasHome' ? `${to} has a home already: they would have to give it up first.` : `There is nobody called ${to} in the world just now.`);
       },
-      homeBought: (id, ok, price, from, why) => this.homeBought(id, ok, price, from, why),
-      homeSold: (id, price, to) => this.homeSold(id, price, to),
+      homeBought: (id, ok, price, from, why, pieces) => this.homeBought(id, ok, price, from, why, pieces),
+      homeSold: (id, price, to, furnished) => this.homeSold(id, price, to, furnished),
       homeClaimed: (id: string, ok: boolean, why: string, owner: string) => {
         const c = this.pendingClaim;
         if (!c || c.id !== id) return;
@@ -3030,13 +3030,14 @@ export class Game implements GameApi {
     const cottage = this.myHomeId() === 'cottage';
     if (cottage && this.home.pieces().length) { this.hud.system(`${lot.name}: to let. You hold Wendside Cottage: pick up your furniture there first (Arrange the furniture, then X), and the Charter will buy it back when you lease.`); this.sfx('fail'); return; }
     if (this.save.marks < LOT_PRICE) { this.hud.system(`${lot.name}: to let for ninety-nine years, ${LOT_PRICE} marks to the Charter. You have ${this.save.marks}.`); this.sfx('fail'); return; }
-    this.hud.ask(`Lease ${lot.name} from the Charter for ${LOT_PRICE} marks?${cottage ? ` The Charter takes Wendside Cottage back and pays you ${COTTAGE_BUYBACK} for it.` : ''} Then draw up plans and have a house built on it.`, () => {
+    this.hud.ask(`Lease ${lot.name} from the Charter for ${LOT_PRICE} marks?${cottage ? ` The Charter takes Wendside Cottage back and pays you ${this.cottageBack()} for it.` : ''} Then draw up plans and have a house built on it.`, () => {
       if ((readPlot(this.flag('plot')) && !keepLot) || this.save.marks < LOT_PRICE) return;
       this.claimHome(id, () => {
         if ((readPlot(this.flag('plot'))?.lot === id) || this.save.marks < LOT_PRICE) return;
         this.addMarks(-LOT_PRICE);
+        this.setFlag('paid:lot', LOT_PRICE);
         if (keepLot || readTenancy(this.flag('flat'))) { const cur = this.packPrimary(); if (cur) this.setFlag('held', [...this.held(), cur]); }
-        if (cottage) { this.addMarks(COTTAGE_BUYBACK); this.setFlag('home', null); this.hud.system(`You give Wendside Cottage back to the Charter, and Maud Ashby pays you ${COTTAGE_BUYBACK} marks for it.`); }
+        if (cottage) { const cb = this.cottageBack(); this.addMarks(cb); this.setFlag('home', null); this.hud.system(`You give Wendside Cottage back to the Charter, and Maud Ashby pays you ${cb} marks for it.`); }
         this.setFlag('plot', { lot: id });
         this.hud.banner(lot.name, 'Leased for ninety-nine years', true);
         this.sfx('discover');
@@ -3118,10 +3119,10 @@ export class Game implements GameApi {
     if (was && this.home.pieces().length && this.ownedCount() >= Game.MAX_HOMES) { this.hud.system(`Your furniture is still set out at ${this.myHome()?.name ?? 'home'}. Pick it up first (Arrange the furniture, then X), and you can move.`); this.sfx('fail'); return; }
     // (with fewer than three homes, the one you have is kept: you move into the new one, and the map's Travel home takes you to either)
     const keep = !!was && this.ownedCount() < Game.MAX_HOMES;
-    const back = keep ? 0 : was === 'cottage' ? COTTAGE_BUYBACK : plot ? Math.round(LOT_PRICE / 2) : other ? Math.round(other.price * VILLA_RESALE) : 0;
+    const back = keep ? 0 : was === 'cottage' ? this.cottageBack() : plot ? this.lotBack() : other ? this.resaleOf(other) : 0;
     const cost = v.price - back;
     if (this.save.marks < cost) { this.hud.system(`${name}: ${v.price.toLocaleString()} marks${back ? ` (${cost.toLocaleString()} once your home is paid back)` : ''}. You have ${this.save.marks.toLocaleString()}.`); this.sfx('fail'); return; }
-    const leaving = keep ? ` You keep ${this.homeName(was!)} too: you'll live in the new one, and can travel to either from the map.` : was === 'cottage' ? ' The Charter takes Wendside Cottage back and pays you ' + COTTAGE_BUYBACK + '.'
+    const leaving = keep ? ` You keep ${this.homeName(was!)} too: you'll live in the new one, and can travel to either from the map.` : was === 'cottage' ? ' The Charter takes Wendside Cottage back and pays you ' + this.cottageBack() + '.'
       : plot ? ` The Charter takes back your lease on ${LOT_BY_ID.get(plot.lot)?.name ?? 'your lot'} for ${back} marks, and the house on it comes down.`
       : other ? ` ${this.homeName(other.id!)} goes back to its family for ${back.toLocaleString()}.` : '';
     this.hud.ask(`Buy ${v.name} for ${v.price.toLocaleString()} marks? It's yours for good: furnish it however you like.${leaving}`, () => {
@@ -3130,6 +3131,7 @@ export class Game implements GameApi {
       this.claimHome(id, () => {
         if (this.myHomeId() === id || this.save.marks < cost) return;
         this.addMarks(-cost);
+        this.setFlag('paid:' + id, v.price);
         // (a home you're keeping, or a let room, goes in with your others, furniture and all)
         if (keep || readTenancy(this.flag('flat'))) { const cur = this.packPrimary(); if (cur) this.setFlag('held', [...this.held(), cur]); }
         this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null);
@@ -3178,13 +3180,14 @@ export class Game implements GameApi {
    * ask: they're asked, they pay, the book of homes puts it in their name, and the marks are yours. Your furniture
    * comes out first; theirs goes in after.
    */
-  sellHomeTo(to: string, price: number): void {
+  sellHomeTo(to: string, price: number, furnished = false): void {
     const v = this.myVilla();
     if (!v) { this.hud.system('Only a house you bought outright can be sold to another player (a lot\u2019s lease goes back to the Charter).'); return; }
     if (!this.online.online || !this.homesBook) { this.hud.system('Selling a house to another player needs the realm: you\u2019re playing offline.'); return; }
     if (!to || !Number.isFinite(price) || price < 1) { this.hud.system('Say who to and for how much: /sellhome Name 5000'); return; }
-    if (this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.homeName(v.id!)}. Pick it up first (Arrange the furniture, then X).`); this.sfx('fail'); return; }
-    this.online.homeOffer(v.id!, to, Math.floor(price));
+    if (!furnished && this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.homeName(v.id!)}. Pick it up first (Arrange the furniture, then X), or sell it furnished.`); this.sfx('fail'); return; }
+    this.online.homeOffer(v.id!, to, Math.floor(price), furnished ? this.home.pieces() : []);
+    this.hud.system(`You offer ${this.homeName(v.id!)} to ${to} for ${Math.floor(price).toLocaleString()} marks${furnished && this.home.pieces().length ? `, furnished (${this.home.pieces().length} pieces)` : ''}. They have ten minutes to answer.`);
   }
 
   private offerAt: { id: string; price: number; from: string } | null = null;
@@ -3208,9 +3211,9 @@ export class Game implements GameApi {
     this.online.gardenNear(p.x, p.z);
   }
   private handsOpen(): 'off' | 'friends' | 'group' { const v = this.flag('gardenHands'); return v === 'friends' || v === 'group' ? v : 'off'; }
-  private homeOffered(id: string, from: string, price: number): void {
+  private homeOffered(id: string, from: string, price: number, furnished = 0): void {
     const name = this.homeName(id);
-    this.hud.ask(`${from} offers to sell you ${name} for ${price.toLocaleString()} marks. Buy it?`, () => {
+    this.hud.ask(`${from} offers to sell you ${name} for ${price.toLocaleString()} marks${furnished ? `, furnished as it stands (${furnished} pieces)` : ', empty'}. Buy it?`, () => {
       if (this.myHomeId()) { this.hud.system('You have a home already: sell it or give it up first, and ask them again.'); this.online.homeDecline(id); return; }
       if (this.save.marks < price) { this.hud.system(`${name} is ${price.toLocaleString()} marks and you have ${this.save.marks.toLocaleString()}.`); this.online.homeDecline(id); this.sfx('fail'); return; }
       if (readTenancy(this.flag('flat')) && !this.leaveRoom()) { this.online.homeDecline(id); return; }
@@ -3219,7 +3222,7 @@ export class Game implements GameApi {
     }, () => this.online.homeDecline(id), 60);
   }
 
-  private homeBought(id: string, ok: boolean, price: number, from: string, why: string): void {
+  private homeBought(id: string, ok: boolean, price: number, from: string, why: string, pieces: unknown[] = []): void {
     const o = this.offerAt;
     this.offerAt = null;
     if (!ok || !o || o.id !== id) {
@@ -3227,26 +3230,30 @@ export class Game implements GameApi {
       return;
     }
     this.addMarks(-price);
+    this.setFlag('paid:' + id, price);
     this.setFlag('plot', null); this.setFlag('lotBlocks', null); this.setFlag('stall', null);
     this.setFlag('villa', id);
-    this.setFlag('home', []);
+    // (sold furnished: the seller's pieces come with it, as they stood; anything the game doesn't know is left out)
+    const furn = pieces.filter((p): p is Piece => Array.isArray(p) && typeof p[0] === 'string' && !!ITEMS[p[0]]?.furn).slice(0, 400);
+    this.setFlag('home', furn);
     this.home.render();
-    this.hud.banner(this.homeName(id), `Bought from ${from}`, true);
+    this.hud.banner(this.homeName(id), `Bought from ${from}${furn.length ? ', furnished' : ''}`, true);
     this.sfx('discover');
     this.hud.system(`${from} hands you the keys. ${this.homeName(id)} is yours for ${price.toLocaleString()} marks: inside, use the prompt to arrange the furniture.`);
     this.hud.refresh();
     this.persist();
   }
 
-  private homeSold(id: string, price: number, to: string): void {
+  private homeSold(id: string, price: number, to: string, furnished = false): void {
     if (this.flag('villa') !== id) return;
-    this.furnitureBack(false);
+    // (sold furnished, the furniture went with it; sold empty, anything still out comes back to you)
+    if (!furnished) this.furnitureBack(false);
     this.setFlag('villa', null);
     this.setFlag('home', null);
     this.addMarks(price);
     this.home.render();
     this.sfx('coin');
-    this.hud.system(`${to} has bought ${this.homeName(id)}: ${price.toLocaleString()} marks are yours.`);
+    this.hud.system(`${to} has bought ${this.homeName(id)}${furnished ? ', furniture and all' : ''}: ${price.toLocaleString()} marks are yours.`);
     this.hud.refresh();
     this.persist();
   }
@@ -3319,11 +3326,40 @@ export class Game implements GameApi {
   }
 
   /** Sell your house on the Mirador back to its family, for two thirds of what it cost. */
+  /** What a home's seller pays back for it (owner 2026-11-17, the prices rebalanced): half what you paid, and anyone who
+   *  bought before the change is paid on the old price, so nobody profits from the rise. */
+  private resaleOf(v: { id: string | null; price: number; was?: number }): number {
+    const paid = Number(this.flag('paid:' + v.id) ?? 0) || v.was || MIRADOR_WAS[v.id ?? ''] || v.price;
+    return Math.round(Math.min(v.price, paid) * VILLA_RESALE);
+  }
+  private cottageBack(): number { return Math.round(Math.min(COTTAGE.price, Number(this.flag('paid:cottage') ?? 0) || 2500) / 2); }
+  private lotBack(): number { return Math.round(Math.min(LOT_PRICE, Number(this.flag('paid:lot') ?? 0) || 2000) / 2); }
+  /** At your house's gate: sell it back, or to another player, furnished as it stands or empty. */
+  private sellChoice(): void {
+    const v = this.myVilla();
+    if (!v) return;
+    this.playScene('home_sell', { name: villaSeller(v)[0].toUpperCase() + villaSeller(v).slice(1), title: this.homeName(v.id!), look: { skin: '#e0b48e', hair: '#5a4a3a', hairStyle: 1, eyes: '#4a3a2a', tunic: '#2a2a32', trim: '#c8b070', trousers: '#2a2a32', boots: '#1e1a16' } as Appearance });
+  }
+  /** The chooser's answers (data/content/homeSale.ts). */
+  homeSellView(): { name: string; back: number; price: number; pieces: number; online: boolean } | null {
+    const v = this.myVilla();
+    return v ? { name: this.homeName(v.id!), back: this.resaleOf(v), price: v.price, pieces: this.home.pieces().length, online: !!this.online.online && !!this.homesBook } : null;
+  }
+  homeSellBack(): void { this.sellVilla(); }
+  homeSellToPlayer(furnished: boolean): void {
+    const v = this.myVilla();
+    if (!v) return;
+    this.hud.askLine(`Who are you selling ${this.homeName(v.id!)} to, and for how much? Their name, then the price.`, 'Name 45000', 40, (line) => {
+      const m = line.trim().match(/^(.+?)\s+([\d,]+)$/);
+      if (!m) { this.hud.system('Their name, a space, then the price: Wren 45000.'); return; }
+      this.sellHomeTo(m[1].trim(), Number(m[2].replace(/,/g, '')), furnished);
+    });
+  }
   sellVilla(): void {
     const v = this.myVilla();
     if (!v) return;
     if (this.home.pieces().length) { this.hud.system(`Your furniture is still set out at ${this.homeName(v.id!)}. Pick it up first (Arrange the furniture, then X).`); this.sfx('fail'); return; }
-    const back = Math.round(v.price * VILLA_RESALE);
+    const back = this.resaleOf(v);
     this.hud.ask(`Sell ${v.name} back ${v.town ? 'to the town' : 'to its family'} for ${back.toLocaleString()} marks? Someone else can buy it after.`, () => {
       if (this.myVilla() !== v) return;
       if (this.homesBook && this.online.online) this.online.homeRelease(v.id!);
@@ -3565,7 +3601,7 @@ export class Game implements GameApi {
     const fromCottage = !rebuild && !!this.flag('home');
     for (const [id, n] of Object.entries(cost.items)) this.inv.remove(id, n);
     this.addMarks(-cost.marks);
-    if (fromCottage) { this.addMarks(COTTAGE_BUYBACK); this.hud.system(`You give Wendside Cottage back to the Charter, and Maud Ashby pays you ${COTTAGE_BUYBACK} marks for it.`); }
+    if (fromCottage) { const cb = this.cottageBack(); this.addMarks(cb); this.hud.system(`You give Wendside Cottage back to the Charter, and Maud Ashby pays you ${cb} marks for it.`); }
     this.setFlag('plot', { lot: lot.id, spec });
     this.setFlag('home', []);
     if (this.homesBook) this.online.homeSpec(lot.id, spec);
@@ -3588,6 +3624,7 @@ export class Game implements GameApi {
     this.hud.ask(`Buy Wendside Cottage for ${price} marks? It's yours for good: furnish it however you like.`, () => this.claimHome('cottage', () => {
       if (this.home.owned || this.save.marks < price) return;
       this.addMarks(-price);
+      this.setFlag('paid:cottage', price);
       this.setFlag('home', []);
       this.home.render();
       this.hud.banner('Wendside Cottage', 'A home of your own', true);
@@ -6578,7 +6615,7 @@ export class Game implements GameApi {
       const g = villaGate(v), d = Math.hypot(g.x - p.x, g.z - p.z);
       if (d > 2.6 || Math.abs(v.base - p.y) > 3) continue;
       const name = this.homeName(v.id);
-      if (this.myHomeId() === v.id) consider({ kind: 'act', label: `Sell ${v.name} back (${Math.round(v.price * VILLA_RESALE).toLocaleString()} marks)`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.sellVilla() }, d + 0.5);
+      if (this.myHomeId() === v.id) consider({ kind: 'act', label: `Sell ${v.name}`, sub: `back for ${this.resaleOf(v).toLocaleString()} marks, or to another player`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.sellChoice() }, d + 0.5);
       else if (!this.homesBook?.get(v.id)) consider({ kind: 'act', label: `Buy ${v.name}`, sub: `For sale, ${v.price.toLocaleString()} marks`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.buyVilla(v.id!) }, d);
       else consider({ kind: 'act', label: name, sub: `${this.homesBook.get(v.id)!.owner}'s house`, pos: new THREE.Vector3(g.x, v.base + 1.4, g.z), act: () => this.hud.system(`${name}: ${this.homesBook!.get(v.id!)!.owner}'s house. Knock at the door if you'd like to be let in.`) }, d + 0.5);
     }
@@ -9973,10 +10010,10 @@ export class Game implements GameApi {
         case 'pledge': if (arg) this.pledgeWith(arg); else this.hud.system(this.spouse() ? `You have taken the Pledge with ${this.spouse()}.` : 'Stand at a chapel\'s altar with them and say /pledge and their name.'); return;
         case 'part': this.part(); return;
         case 'sellhome': {
-          // /sellhome Name 5000: offer the house you bought to another player in the world
-          const m = arg.trim().match(/^(.+?)\s+(\d[\d,]*)$/);
-          if (!m) { this.hud.system('Sell your house to another player: /sellhome Name price (they must be in the world)'); return; }
-          this.sellHomeTo(m[1].trim(), Number(m[2].replace(/,/g, '')));
+          // /sellhome Name 5000 [furnished]: offer the house you bought to another player in the world, empty or as it stands
+          const m = arg.trim().match(/^(.+?)\s+(\d[\d,]*)(\s+furnished)?$/i);
+          if (!m) { this.hud.system('Sell your house to another player: /sellhome Name price, or /sellhome Name price furnished (they must be in the world). Or use the gate.'); return; }
+          this.sellHomeTo(m[1].trim(), Number(m[2].replace(/,/g, '')), !!m[3]);
           return;
         }
         case 'post': {

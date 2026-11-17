@@ -16,6 +16,7 @@ import { QUESTS } from '../src/data/quests';
 import { marksScale } from '../src/data/scaling';
 import { STABLES } from '../src/data/stables';
 import { COTTAGE, LOT_PRICE, SIZES } from '../src/data/housing';
+import { homePrice } from '../src/data/verandahHomes';
 import { LODGINGS } from '../src/data/lodgings';
 import { REGION_INFO, type RegionId } from '../src/world/terrain';
 
@@ -86,12 +87,15 @@ goals.push({ what: `a middling mount (${ITEMS[mid.item]?.name})`, price: mid.pri
 const top = horses[horses.length - 1];
 goals.push({ what: `the finest mount (${ITEMS[top.item]?.name}, ${top.town})`, price: top.price, at: 35, lo: 6, hi: 40 });
 goals.push({ what: 'a week in lodgings (dearest)', price: Math.max(...LODGINGS.map((l) => l.rent)), at: 8, lo: 0.05, hi: 1 });
-goals.push({ what: 'Wendside Cottage', price: COTTAGE.price, at: 15, lo: 1.5, hi: 10 });
-goals.push({ what: 'a lot and a long house built on it', price: LOT_PRICE + SIZES.hall.cost.marks, at: 25, lo: 3, hi: 20 });
+goals.push({ what: 'Wendside Cottage', price: COTTAGE.price, at: 15, lo: 3, hi: 10 });
+goals.push({ what: 'a lot and a long house built on it', price: LOT_PRICE + SIZES.hall.cost.marks, at: 25, lo: 5, hi: 20 });
+// Verandah's houses by size (owner 2026-11-17: "rebalance home prices to better reflect modern mmo's"): small, middling,
+// large and the great houses, each a goal at the level you'd likely be when you want one
+for (const [area, at, lo, hi, what] of [[49, 15, 3, 10, 'a small Verandah house (49 square)'], [131, 35, 5, 15, 'a middling one (131 square)'], [300, 50, 12, 30, 'a large one (300 square)'], [750, 90, 35, 80, 'a great house (750 square)']] as const) goals.push({ what, price: homePrice(area), at, lo, hi });
 // The dear things: a house on the Mirador, a ship of your own (the yard's labour; the materials are gathered)
 const villas = VILLAS.filter((v) => v.id).sort((x, y) => x.price - y.price);
-goals.push({ what: `the cheapest Mirador house (${villas[0].name})`, price: villas[0].price, at: 40, lo: 5, hi: 25 });
-goals.push({ what: `the dearest (${villas[villas.length - 1].name})`, price: villas[villas.length - 1].price, at: 60, lo: 8, hi: 30 });
+goals.push({ what: `the cheapest Mirador house (${villas[0].name})`, price: villas[0].price, at: 40, lo: 8, hi: 30 });
+goals.push({ what: `the dearest (${villas[villas.length - 1].name})`, price: villas[villas.length - 1].price, at: 60, lo: 15, hi: 45 });
 goals.push({ what: 'a cutter built (the yard labour)', price: HULLS.cutter.build.marks, at: 25, lo: 1, hi: 8 });
 goals.push({ what: 'a frigate built (the yard labour)', price: HULLS.frigate.build.marks, at: 60, lo: 6, hi: 30 });
 for (const g of goals) {

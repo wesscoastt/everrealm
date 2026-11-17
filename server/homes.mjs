@@ -49,6 +49,19 @@ function cleanSpec(s) {
 }
 
 /** Hand-laid blocks: whole numbers inside the lot's box, at most MAX_BLOCKS, one to a cell. */
+/** Furniture sold with a house (owner 2026-11-17: "allow players to sell furnished homes to other players"): set-out pieces,
+ *  [item, x, z, turn, floor?, fish?], at most four hundred, checked for shape only (the buyer's game checks the items). */
+function cleanPieces(p) {
+  if (!Array.isArray(p)) return [];
+  const out = [];
+  for (const x of p.slice(0, 400)) {
+    if (!Array.isArray(x) || typeof x[0] !== 'string' || x[0].length > 64) continue;
+    const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+    const fish = Array.isArray(x[5]) ? x[5].filter((f) => typeof f === 'string' && f.length <= 64).slice(0, 24) : undefined;
+    out.push([x[0], n(x[1]), n(x[2]), n(x[3]), n(x[4]), ...(fish ? [fish] : [])]);
+  }
+  return out;
+}
 function cleanBlocks(b) {
   if (!Array.isArray(b)) return null;
   const seen = new Set(), out = [];
@@ -175,8 +188,9 @@ export function homesInit(ctx) {
           const q = [...players.values()].find((x) => x.name?.toLowerCase() === name && x.key !== p.key);
           if (!q) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'away', to: String(msg.to ?? '') }); return true; }
           if (mineAll(q.key).length >= MAX_HOMES) { send(p.ws, { t: 'hOfferAns', ok: false, why: 'hasHome', to: q.name }); return true; }
-          offers.set(id, { from: p.key, fromName: p.name, to: q.key, price, at: Date.now() });
-          send(q.ws, { t: 'hOffered', id, from: p.name, price });
+          const pieces = cleanPieces(msg.pieces);
+          offers.set(id, { from: p.key, fromName: p.name, to: q.key, price, at: Date.now(), pieces });
+          send(q.ws, { t: 'hOffered', id, from: p.name, price, furnished: pieces.length });
           send(p.ws, { t: 'hOfferAns', ok: true, to: q.name });
           return true;
         }
@@ -195,8 +209,8 @@ export function homesInit(ctx) {
           store();
           onVacate?.(o.from, id);
           log('homes: ' + o.fromName + ' sold ' + id + ' to ' + p.name + ' for ' + o.price);
-          send(p.ws, { t: 'hBought', id, ok: true, price: o.price, from: o.fromName });
-          send(seller.ws, { t: 'hSold', id, price: o.price, to: p.name });
+          send(p.ws, { t: 'hBought', id, ok: true, price: o.price, from: o.fromName, pieces: o.pieces ?? [] });
+          send(seller.ws, { t: 'hSold', id, price: o.price, to: p.name, furnished: (o.pieces ?? []).length > 0 });
           tell(id);
           return true;
         }

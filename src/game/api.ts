@@ -64,6 +64,10 @@ export interface GameApi {
   compNear(x: number, z: number, r: number): boolean;
   compHour(): number;
   compOutfit(id: string, outfit: string): void;
+  /** Selling the house you bought (data/content/homeSale.ts): its name, what it fetches sold back, its price, the furniture out, and whether the realm is there. */
+  homeSellView?(): { name: string; back: number; price: number; pieces: number; online: boolean } | null;
+  homeSellBack?(): void;
+  homeSellToPlayer?(furnished: boolean): void;
   /** The Hollin Ford Show (data/farmingFive.ts): each class, your best entry for it, whether you've entered today, your best place this season. */
   showView?(): { id: import('../data/farmingFive').ShowClass; name: string; says: string; best: { item: string; name: string } | null; today: boolean; place: number }[];
   /** Put your best for a class on the judges' table. */

@@ -240,10 +240,10 @@ export interface OnlineHooks {
   home?(id: string, home: HomeHeld | null): void;
   homeClaimed?(id: string, ok: boolean, why: string, owner: string): void;
   /** Homes sold between players: an offer to you, the answer to yours, your purchase, your sale. */
-  homeOffered?(id: string, from: string, price: number): void;
+  homeOffered?(id: string, from: string, price: number, furnished: number): void;
   homeOfferAns?(ok: boolean, why: string, to: string): void;
-  homeBought?(id: string, ok: boolean, price: number, from: string, why: string): void;
-  homeSold?(id: string, price: number, to: string): void;
+  homeBought?(id: string, ok: boolean, price: number, from: string, why: string, pieces: unknown[]): void;
+  homeSold?(id: string, price: number, to: string, furnished: boolean): void;
   trade?(v: TradeView): void;
   tradeEnd?(why: string): void;
   tradeDone?(withName: string, give: TradeOffer, take: TradeOffer): void;
@@ -442,10 +442,10 @@ export class Online {
       case 'homes': this.hooks.homes?.((m.list ?? {}) as Record<string, HomeHeld>, typeof m.mine === 'string' ? m.mine : null, typeof m.lapsed === 'string' ? m.lapsed : null, Array.isArray(m.mineAll) ? (m.mineAll as unknown[]).filter((x): x is string => typeof x === 'string') : undefined); break;
       case 'home': if (typeof m.id === 'string') this.hooks.home?.(m.id, (m.home ?? null) as HomeHeld | null); break;
       case 'hClaimed': if (typeof m.id === 'string') this.hooks.homeClaimed?.(m.id, !!m.ok, String(m.why ?? ''), String(m.owner ?? '')); break;
-      case 'hOffered': if (typeof m.id === 'string') this.hooks.homeOffered?.(m.id, String(m.from ?? ''), Math.max(0, Number(m.price) || 0)); break;
+      case 'hOffered': if (typeof m.id === 'string') this.hooks.homeOffered?.(m.id, String(m.from ?? ''), Math.max(0, Number(m.price) || 0), Math.max(0, Number(m.furnished) || 0)); break;
       case 'hOfferAns': this.hooks.homeOfferAns?.(!!m.ok, String(m.why ?? ''), String(m.to ?? '')); break;
-      case 'hBought': if (typeof m.id === 'string') this.hooks.homeBought?.(m.id, !!m.ok, Math.max(0, Number(m.price) || 0), String(m.from ?? ''), String(m.why ?? '')); break;
-      case 'hSold': if (typeof m.id === 'string') this.hooks.homeSold?.(m.id, Math.max(0, Number(m.price) || 0), String(m.to ?? '')); break;
+      case 'hBought': if (typeof m.id === 'string') this.hooks.homeBought?.(m.id, !!m.ok, Math.max(0, Number(m.price) || 0), String(m.from ?? ''), String(m.why ?? ''), Array.isArray(m.pieces) ? m.pieces : []); break;
+      case 'hSold': if (typeof m.id === 'string') this.hooks.homeSold?.(m.id, Math.max(0, Number(m.price) || 0), String(m.to ?? ''), !!m.furnished); break;
       case 'trade': this.hooks.trade?.(m as unknown as TradeView); break;
       case 'tradeEnd': this.hooks.tradeEnd?.(String(m.why ?? '')); break;
       case 'tradeDone': this.hooks.tradeDone?.(String(m.with), m.give as TradeOffer, m.take as TradeOffer); break;
@@ -808,7 +808,7 @@ export class Online {
   gardenNear(x: number, z: number): void { this.emit({ t: 'hgNear', x, z }); }
   gardenSet(owner: string, k: string, tile: unknown): void { this.emit({ t: 'hgSet', owner, k, tile }); }
   groupPlotSet(k: string, tile: unknown): void { this.emit({ t: 'gpSet', k, tile }); }
-  homeOffer(id: string, to: string, price: number): void { this.emit({ t: 'hOffer', id, to, price }); }
+  homeOffer(id: string, to: string, price: number, pieces: unknown[] = []): void { this.emit({ t: 'hOffer', id, to, price, pieces }); }
   homeAccept(id: string): void { this.emit({ t: 'hAccept', id }); }
   homeDecline(id: string): void { this.emit({ t: 'hDecline', id }); }
   homeSpec(id: string, spec: unknown): void { this.emit({ t: 'hSpec', id, spec }); }

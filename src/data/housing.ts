@@ -3,7 +3,7 @@ import type { FrontId, TrimId } from '../world/sites';
 import { ESTATES } from './estates';
 
 /** Wendside Cottage, the house for sale on the road east of Hollin Ford: its walls and floor height. */
-export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 2500, bench: { x: 412.6, z: 199.5 } };
+export const COTTAGE = { x0: 404, z0: 197, w: 8, d: 7, floor: 20, price: 3500, bench: { x: 412.6, z: 199.5 } };
 
 // Homes. Two ways to have one: buy Wendside Cottage as it stands, or lease a lot from the Charter
 // and have a house built to your own plans. The Charter is selling the waste ground along the
@@ -46,9 +46,9 @@ export function lotFront(l: Lot): { x: number; z: number; ry: number } {
   if (l.door === 'e') return { x: l.x0 + LOT_W - 0.5, z: l.z0 + LOT_D / 2, ry: Math.PI / 2 };
   return { x: l.x0 + 0.5, z: l.z0 + LOT_D / 2, ry: -Math.PI / 2 };
 }
-export const LOT_PRICE = 2000;
+export const LOT_PRICE = 4500;
 /** What the Charter pays when you give up Wendside Cottage to move into a house of your own. */
-export const COTTAGE_BUYBACK = 1250;
+export const COTTAGE_BUYBACK = 1750;
 /** Where the land agent's board stands: by the road, between the two rows of lots. */
 export const LAND_BOARD = { x: 413.5, z: 209.5 };
 
