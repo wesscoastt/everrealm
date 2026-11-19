@@ -1086,3 +1086,8 @@ The island kingdom west of the Counties: its canon (history, the Packet Treaty, 
 - **Carn Hold**, the keep on the peak west of the Airport, raised on the herring crews' heap of stones; Captain Jago Penhallow's garrison, the island's armoury and its beacon chain (Carn Hold, the watch tower, Awschitz, Kestle). `src/data/content/verandahCarn.ts`.
 - **Sampson Keast**, beacon keeper, forty-one years, in the lookout room. *Wet Wood:* the beacon wood is soaked before the monthly test; dry oak from Digory Trounce and pitch from Gwen Bolitho, and the chain answers, Kestle a quarter of an hour late. Told to the captain, or kept between you.
 - *The Night Cart* (Penhallow): a cart with no lamp on the Gorran road after midnight turns off before Gorran's gate (Ivo Sowden watched it) down the sheep track to the cove. A brandy cask with no Customs seal, its head burned with a ring and a cross. Penhallow knows the mark.
+
+### Awschitz's work [in game]
+
+- *Two Kegs Short* (Sergeant Annie Tonkin): the month's stores come round by Wenna Chegwidden's boat because the road floods; two kegs of powder go missing between the jetty and the store. Gunner Pellow took them for his gun drill. Signed for, reported, or ([Bad or Evil]) one sold to the Fortress den. `src/data/content/awschitzMore.ts`.
+- *The Cutter's Hours* (Lieutenant Hal Ennor): a fishing boat, the Brave Annie, lies off the Head every evening and watches the Vigilant go out. A Vyvyan boat, leased in April for a year, paid in advance in Charter silver, to a "Mr Dunn" who talked like Ansbury. Grace Vyvyan asks that her name be kept out of it.
