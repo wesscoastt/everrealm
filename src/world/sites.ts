@@ -5380,6 +5380,27 @@ function* planBody(): Generator<string, Plan> {
       s.props.push({ t: 'furn', item: 'coil', x: jx1 + 1.2, y: G, z: jz + 0.6, ry: 0.4 });
       rect(s, jx1, jz, jx0, jz + 2);
       for (const [hx, hz] of [[cx - 16, cz + 20], [cx - 12, cz + 21], [cx + 18, cz + 14]]) haystack(hx, hz, 2);
+      // The old road the falling water has let up, west of the mere (data/content/holmeSunday.ts, The Old Road): split oak
+      // laid end to end in black peat between two rows of stakes, out to a ring of nine posts at the old water's edge
+      {
+        const ax = cx - 57, az = cz + 11, bx = cx - 77, bz = cz + 24;
+        const n = Math.ceil(Math.hypot(bx - ax, bz - az));
+        for (let i = 0; i <= n; i++) {
+          const x = Math.round(ax + ((bx - ax) * i) / n), z = Math.round(az + ((bz - az) * i) / n), h = heightAt(x, z);
+          for (const dz of [-2, -1, 1, 2]) if (hash2(x, z + dz, 41) > 0.35) O.set(x, h - 1, z + dz, B.Peat);
+          if (hash2(x, z, 43) > 0.12) O.set(x, h - 1, z, B.DarkPlanks); // a timber or two rotted out
+          if (i % 3 === 0) for (const dz of [-1, 1]) if (hash2(x, z + dz, 47) > 0.2) O.set(x, h, z + dz, B.PineLog);
+        }
+        const rx = cx - 79.5, rz = cz + 26.5;
+        for (let k = 0; k < 9; k++) {
+          const a = (k / 9) * Math.PI * 2, px = Math.round(rx + Math.cos(a) * 3.5 - 0.5), pz = Math.round(rz + Math.sin(a) * 3.5 - 0.5), h = heightAt(px, pz);
+          for (let y = 0; y < (k % 3 === 1 ? 1 : 2); y++) O.set(px, h + y, pz, B.PineLog);
+        }
+        for (let x = Math.floor(rx) - 2; x <= Math.floor(rx) + 2; x++) for (let z = Math.floor(rz) - 2; z <= Math.floor(rz) + 2; z++) if (Math.hypot(x + 0.5 - rx, z + 0.5 - rz) < 2.6) O.set(x, heightAt(x, z) - 1, z, B.Peat);
+        // (no trees on the road or in the ring: the fen's been under water till this year)
+        for (let k = 0; k < 4; k++) { const x = ax + ((bx - ax) * k) / 3, z = az + ((bz - az) * k) / 3; rect(s, x - 2, z - 2, x + 2, z + 2); }
+        rect(s, rx - 4, rz - 4, rx + 4, rz + 4);
+      }
       // Harrowgate's sluice on the new drain, north of the town: stone cheeks, a timber gate between
       const sx = cx + 26, sz = cz - 34;
       for (let z = sz - 14; z <= sz + 14; z++) for (let x = sx - 1; x <= sx + 1; x++) {
