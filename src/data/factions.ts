@@ -77,8 +77,8 @@ export const FACTIONS: FactionDef[] = [
   {
     id: 'bell', name: 'The Passing Bell', where: 'A chapel on Tolmen Moor',
     blurb: 'An old practice the moor has never quite given up: ring the passing bell for someone the law can\'t reach, and the bell is answered.',
-    join: 'Not yet open.', ranks: ['Treble', 'Second', 'Third', 'Tenor\'s Hand'], title: 'of the Passing Bell',
-    storyline: [], color: '#3a3a42', open: false,
+    join: 'Nobody joins. You hear the bell at Carne Cross ring, and go to see who rang it. Joss Trewin at the Peat Fire heard it last.', ranks: ['Treble', 'Second', 'Third', 'Tenor\'s Hand'], title: 'of the Passing Bell',
+    storyline: ['bellRung', 'bellPrice', 'bellFire', 'bellTenor'], color: '#3a3a42', open: true,
   },
   {
     id: 'ushers', name: 'The Ushers', where: 'The Charter Hall, in the keep, Ansbury',

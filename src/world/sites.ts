@@ -16,7 +16,7 @@ import { roofApex, roofOverhang, roofRise } from './roofShape';
 import { chimneyCell, fitOut, FURN_SIZE, openDoorPlace, Role, type FurnItem } from './interiors';
 import { baseHeight, rememberHeights, Flatten, GW, HEART_ROADS, heartRoadDist, heightAt, lakeDist, regionAt, RegionId, riverDist, roadDist, roadGrade, SEA, setFlattenZones, coastX, coastDist, WORLD_ROADS } from './terrain';
 import { BUILD_SY, CHUNK, chunkKey, idxY, inWorld, keyChunk, localIdx, MINY, SY, WMAX, WMAX_X, WMIN } from './VoxelWorld';
-import { BANDSTAND, CARNE, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
+import { BANDSTAND, CARNE, CARNE_CROSS, CARNE_HUT, CARNE_FLOOR, WAITS_HOUSE } from '../data/content/waits';
 import { BONDED_STORE, LAMP_STORE, ROUND as LAMP_ROUND } from '../data/content/lamplighters';
 import { TAVERN_SIGNS } from '../data/content/taverns';
 import { hoistSpot, isleSpots } from './holms';
@@ -970,6 +970,8 @@ function* planBody(): Generator<string, Plan> {
     { id: 'sc-drowned', name: 'The Drowned Bell-tower', x: 1560, z: 1500, r0: 0, r1: 0, build: (s) => buildDrownedTower(s) },
     // A long barrow on Tolmen Moor that the frost cracked open (the Waits' storyline: data/content/waits.ts)
     { id: 'carne', name: 'Carne Barrow', x: CARNE.x, z: CARNE.z, r0: 0, r1: 0, build: (s) => buildCarne(s) },
+    // The roofless chapel at Carne Cross, which keeps its bell (the Passing Bell: data/content/passingBell.ts)
+    { id: 'carnecross', name: 'Carne Cross', x: CARNE_CROSS.x, z: CARNE_CROSS.z, r0: 0, r1: 0, build: (s) => buildCarneCross(s) },
     // Under the sea: the parish the tower belonged to, and a reef that wrecks ships off the Fleet Coast
     // The outer lands' towns, at the far ends of the roads over the necks
     { id: 'cragsby', name: 'Cragsby', x: CRAGSBY.x, z: CRAGSBY.z, r0: 22, r1: 34, build: (s, b) => buildOuterTown(s, b, 'cragsby') },
@@ -2699,6 +2701,56 @@ function* planBody(): Generator<string, Plan> {
    * down last winter, so a little daylight gets in. A niche in the chamber's north wall held a bone
    * whistle (data/content/waits.ts).
    */
+  /**
+   * Carne Cross: a granite chapel on Tolmen Moor that lost its roof a hundred years ago and its parish fifty before that
+   * (data/lorebooks.ts, "What the Moor Says About Bells"). Walls standing to the eaves in places and to the knee in
+   * others, the floor gone to turf, a slate sill under the bellcote at the west end where the bell still hangs. And a
+   * drover's stone hut down the slope to the east, turf-roofed, with its door to the wind (Hal Pentreath's).
+   */
+  function buildCarneCross(s: Site) {
+    const cx = CARNE_CROSS.x, cz = CARNE_CROSS.z, G = heightAt(cx, cz);
+    s.r = 120;
+    rect(s, cx - 8, cz - 12, cx + 8, cz + 12);
+    // the floor: levelled turf, flags where the aisle was
+    for (let z = cz - 10; z <= cz + 10; z++) for (let x = cx - 6; x <= cx + 6; x++) {
+      const h = heightAt(x, z);
+      for (let y = Math.min(h, G) - 2; y < G; y++) O.set(x, y, z, B.Dirt);
+      for (let y = G; y < Math.max(h, G) + 3; y++) O.set(x, y, z, B.Air);
+      O.set(x, G - 1, z, Math.abs(x - cx) <= 1 && hash2(x, z, 71) < 0.7 ? B.Cobble : B.Grass);
+    }
+    // the walls, broken: full height by the bellcote, falling away toward the east end
+    for (let z = cz - 10; z <= cz + 10; z++) for (let x = cx - 6; x <= cx + 6; x++) {
+      const wall = x === cx - 6 || x === cx + 6 || z === cz - 10 || z === cz + 10;
+      if (!wall) continue;
+      if (z === cz + 10 && Math.abs(x - cx) <= 1) continue; // the east doorway
+      const k = (z - (cz - 10)) / 20, full = 6 - Math.round(k * 4 + hash2(x, z, 73) * 2.2);
+      for (let y = 0; y < Math.max(1, full); y++) O.set(x, G + y, z, hash2(x, y * 7 + z, 75) < 0.35 ? B.MossyStone : B.Granite);
+      // the windows' gaps, where the walls still stand high enough
+      if ((x === cx - 6 || x === cx + 6) && (z === cz - 5 || z === cz) && full > 3) { O.set(x, G + 2, z, B.Air); O.set(x, G + 3, z, B.Air); }
+    }
+    // the west gable, up into a bellcote: two piers and an arch with the bell in it
+    for (let x = cx - 6; x <= cx + 6; x++) for (let y = 6; y < 6 + Math.max(0, 4 - Math.abs(x - cx)); y++) O.set(x, G + y, cz - 10, B.Granite);
+    for (const px of [cx - 1, cx + 1]) for (let y = 9; y <= 12; y++) O.set(px, G + y, cz - 10, B.Granite);
+    for (let x = cx - 1; x <= cx + 1; x++) O.set(x, G + 13, cz - 10, B.Granite);
+    s.props.push({ t: 'monument', monument: 'bell', x: cx + 0.5, y: G, z: cz - 8.4, ry: 0 }); // the bell, brought down to the sill on its frame
+    // the slate sill where the coins are left, and the fallen roof slates along the walls
+    for (let x = cx - 1; x <= cx + 1; x++) O.set(x, G, cz - 9, B.StoneBrick);
+    for (const [x, z] of [[cx - 4, cz - 2], [cx + 3, cz + 4], [cx - 2, cz + 6], [cx + 4, cz - 6], [cx - 5, cz + 8]]) O.set(x, G, z, B.MossyCobble);
+    // the drover's hut, down the slope
+    const hx = CARNE_HUT.x, hz = CARNE_HUT.z, HG = heightAt(hx, hz);
+    for (let z = hz - 3; z <= hz + 3; z++) for (let x = hx - 3; x <= hx + 3; x++) {
+      const h = heightAt(x, z);
+      for (let y = Math.min(h, HG) - 2; y < HG; y++) O.set(x, y, z, B.Dirt);
+      for (let y = HG; y < Math.max(h, HG) + 5; y++) O.set(x, y, z, B.Air);
+      O.set(x, HG - 1, z, B.Dirt);
+      const edge = Math.abs(x - hx) === 3 || Math.abs(z - hz) === 3;
+      if (edge && !(z === hz + 3 && x === hx)) for (let y = 0; y < 3; y++) O.set(x, HG + y, z, B.Granite);
+      if (edge && z === hz + 3 && x === hx) O.set(x, HG + 2, z, B.Granite);
+      O.set(x, HG + 3, z, B.Grass); // the turf roof
+    }
+    s.props.push({ t: 'furn', item: 'bed', x: hx - 1.5, y: HG, z: hz - 1.5, ry: Math.PI / 2 }, { t: 'furn', item: 'chest', x: hx + 1.8, y: HG, z: hz - 1.8, ry: Math.PI }, { t: 'furn', item: 'stool', x: hx + 1.2, y: HG, z: hz + 1, ry: 0 });
+  }
+
   function buildCarne(s: Site) {
     const cx = CARNE.x, cz = CARNE.z, G = CARNE_FLOOR;
     s.r = 140;

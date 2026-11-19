@@ -33,6 +33,9 @@ export const BANDSTAND = { x: 659.5, z: 414.5 };
 export const CARNE = { x: 470, z: 3050 };
 /** The barrow's passage and chamber floor (the moor is about this high there). */
 export const CARNE_FLOOR = 46;
+/** The roofless chapel at Carne Cross and the drover's hut below it (world/sites.ts buildCarneCross; data/content/passingBell.ts). */
+export const CARNE_CROSS = { x: 404, z: 3128 };
+export const CARNE_HUT = { x: 444, z: 3112 };
 const AMOS = { x: 812.5, z: 341.5 };
 const GULL_X = 1744.5; // Bet Polglase, on the quay street (GULL.coast - 40: content imports types only)
 

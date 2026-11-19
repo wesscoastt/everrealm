@@ -275,7 +275,7 @@ export const OUTER_SIDE_CONTENT: RegionContent = {
     hook(D, 'tilly', (g) => (!at(g, REED) ? 'rd1' : at(g, REED) === 'tilly' ? 'rdBack' : at(g, REED) !== 'done' ? 'rdWait' : undefined), tillyNodes);
     hook(D, 'tilney', (g) => (at(g, REED) === 'tilney' && g.count('old_reed') > 0 && g.count('drain_reed') > 0 ? 'tl1' : undefined), tilneyNodes);
     hook(D, 'rudd', (g) => (at(g, REED) === 'rudd' ? 'rr1' : undefined), ruddNodes);
-    hook(D, 'josstre', (g) => (!at(g, CROUP) ? 'cr1' : at(g, CROUP) === 'done' ? 'crAfter' : 'crWait'), jossNodes);
+    hook(D, 'josstre', (g) => (!at(g, CROUP) ? 'cr1' : at(g, CROUP) === 'done' ? (at(g, 'bellRung') ? 'crAfter' : undefined) : 'crWait'), jossNodes); // (Bess well again, he has the bell at Carne Cross on his mind: data/content/passingBell.ts)
     hook(D, 'kitto', (g) => (at(g, CROUP) === 'kitto' && g.count('bitter_moss') > 0 ? 'kt1' : undefined), kittoNodes);
     hook(D, 'nankervis', (g) => (at(g, CROUP) === 'caddy' ? 'cd1' : undefined), caddyNodes);
   },
