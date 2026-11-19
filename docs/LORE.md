@@ -1091,3 +1091,8 @@ The island kingdom west of the Counties: its canon (history, the Packet Treaty, 
 
 - *Two Kegs Short* (Sergeant Annie Tonkin): the month's stores come round by Wenna Chegwidden's boat because the road floods; two kegs of powder go missing between the jetty and the store. Gunner Pellow took them for his gun drill. Signed for, reported, or ([Bad or Evil]) one sold to the Fortress den. `src/data/content/awschitzMore.ts`.
 - *The Cutter's Hours* (Lieutenant Hal Ennor): a fishing boat, the Brave Annie, lies off the Head every evening and watches the Vigilant go out. A Vyvyan boat, leased in April for a year, paid in advance in Charter silver, to a "Mr Dunn" who talked like Ansbury. Grace Vyvyan asks that her name be kept out of it.
+
+### The Silent Waters [in game, chapters 1 and 2]
+
+- *1, The Little Grace* (Tegen Hocking): her brother Petroc is two days late in the Little Grace, a Vyvyan boat, in fair weather. Kerra Nance: the third boat from the grounds off the Fortress since spring (the Swallow in April, the Sweet Promise in July). On the Long Sands, his dan buoy (LITTLE GRASE, his own spelling) and his nets, every rope cut with a knife. `src/data/content/silentWaters.ts`.
+- *2, Late Cargo* (Grace Vyvyan): the Good Intent, two hundred tons of salt for Callis, master Ralph Truscott, posted lost; Tregarthen pays the claim the same day. Hugh Carne's stamp says she crossed the bar on the night tide of the ninth; Kerra Nance was on the bar and nothing crossed. Pressed, Hugh admits the clearance came to him already written, with the duty in coin on top. Grace sends the player to Captain Morvah.

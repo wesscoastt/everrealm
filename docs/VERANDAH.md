@@ -322,7 +322,7 @@ under new management. Piers Arundell is on the Board. Garland, if he got away, t
 3. *(Done 2026-11-19: `verandahCarn.ts`, Sampson Keast the beacon keeper; Wet Wood and The Night Cart, which shows the player Mab Penhallow's tally mark; the outpost and its people renamed Carn Hold. Still to do: road patrols on schedules, a sign at the gate.)* Carn Hold. Give the outpost its name on signs and waystones, add the beacon keeper, the road patrol on
    schedules and supplies at the gate. Two fort quests: a road investigation and a beacon drill.
 4. *(Done 2026-11-19: `awschitzMore.ts`, Two Kegs Short with Annie Tonkin, Wenna, Ennor and Gunner Pellow; The Cutter's Hours, where an Ansbury man leases a Vyvyan boat to watch the Vigilant go out.)* Awschitz quests: a supply run to the King's Dock and a night patrol on the *Vigilant*'s boat.
-5. Silent Waters chapters 1 and 2.
+5. *(Done 2026-11-19: `silentWaters.ts`, swGrace and swIntent. Tegen's brother is Petroc; the lost boats are the Swallow, the Sweet Promise and the Little Grace; the Good Intent's master was Ralph Truscott.)* Silent Waters chapters 1 and 2.
 6. Chapters 3 and 4 (Black Gull Keep wiring, the rescued crews at the market).
 7. Chapters 5 and 6 (the Fortress, the two captains, the raid).
 8. Chapters 7 and 8, and the council. This is the kingdom-politics example owed under the morality item
