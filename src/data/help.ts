@@ -85,6 +85,67 @@ export const HELP: [string, [string, string][]][] = [
     ['How do I chat?', 'Press Enter to type. The tabs on the chat box switch between everyone near you, the world and your group.'],
     ['Where can I play cards and dice?', 'In any tavern: they\'re marked on the map. Sit at a table to play against the house or against other players.'],
   ]],
+  ['Keys worth knowing', [
+    ['What else is on the keyboard?', 'U opens your companions, N the songbook, I or B your pack. F eats, H puts your weapon away, L lights or puts away your light. / opens the chat with a slash ready. Esc closes windows, then clears your target, then opens this menu.'],
+    ['What slash commands are there?', 'Type /help in chat for the full list. The useful ones: /w name to whisper and /r to reply, /p for your group, /gu for your guild, /trade for the trade channel, /roll, /who, /played, /home, /goto name, /joinrun, /costume, /catches, /friend and /ignore, and /report name to report someone.'],
+    ['How do I emote?', '/wave, /bow, /cheer, /clap, /laugh, /salute, /point, /shrug, /dance, /sit, /kneel and /sleep. /emotes lists them. Moving ends one, and you can’t while riding or swimming.'],
+  ]],
+  ['Companions', [
+    ['How do I get a companion?', 'Meet them in the world and win them round: Wenna Hale in the Waystation yard, Ottilie Fenn at the Glass Kirk, Tam Reddick on Gullmouth quay, Ned Applegarth in Ansbury’s market, Fisherman Dave in his net shed above Gullmouth’s slip, and Daejon Love at Kezia’s stall on the quay. One walks with you at a time.'],
+    ['How do I call or send one away?', 'Open Companions (U). Summon calls them from wherever they are, Gear dresses them, Gift gives them something, To your house sends them home, and Send back returns them to their own place.'],
+    ['What is rapport?', 'How they feel about you, from wary to loyal. It rises and falls with what you do and say, and with gifts. A friend hits harder, a trusted ally has more health, and a loyal companion gives you their own perk. Their own story opens as rapport grows, and romance at the top.'],
+    ['What gift should I give?', 'Each loves, likes or dislikes certain kinds of thing. Only one gift a day counts. What you’ve learned about their taste shows next to the item next time.'],
+  ]],
+  ['Horses and riding', [
+    ['Do better horses go faster?', 'No. Every mount goes at the same pace: riding skill is yours, not the horse’s. The more you ride, the higher your horsemanship rank, up to ten, and each rank is a little faster and tires you less at the gallop.'],
+    ['Where do I buy horses?', 'At the stables in the towns: Ansbury, Gullmouth, Harrowgate Works, Cragsby, Holme Staithe, Scarrow Tor and Verandah, and Cai Morgan in Kelderby. Each sells its own breeds. The daily login reward gives two more.'],
+  ]],
+  ['Factions, standing and titles', [
+    ['How do I join a faction?', 'Each faction’s storyline begins with joining it, and every chapter raises your rank, with a title at the top. The Waits (Tabitha Gant, Charter Green, Ansbury), the Fighters Guild (Ancrum Treneer, Verandah), the Mages Guild (Selina Pendarves, Verandah), the Counting House (Gilbert Ashe, Ansbury), the Collegium (Walter Gilby, Guild Ward), the Muster (Sergeant Holroyd at the tilt-yard), the Lamplighters (Hester Vosper, the Shambles), and the Ushers (Oswin Hext at the keep’s south door). The Passing Bell finds you.'],
+    ['What is standing?', 'Each region’s regard for you, earned by quests, parish tasks, events, world bosses and dungeons there. Trusted takes 5% off shop prices there, Honoured 10%, and Revered 15% with a title. Your journal shows it.'],
+    ['How do I get titles?', 'From feats (your journal’s Achievements), faction ranks and Revered standing. Each feat pays marks once, and some unlock dyes. Choose the title you wear under your name.'],
+  ]],
+  ['Guilds', [
+    ['How do I start or join a guild?', 'Anyone not in one can found a guild, free, from Social (O). The leader and officers invite with /ginvite name. /gleave leaves.'],
+    ['What is the guild vault?', 'A shared bank at any bank counter. Officers take freely; members can take twenty items and two hundred marks a day.'],
+    ['Can my guild have a hall?', 'Yes, on Hall Row outside Ansbury’s south wall. Walter Pinnock, Clerk of the Halls, lets them for 5,000 marks from the vault. Then build it up: a long table for supper, a forge, a counting room, a map room for cheap Post rides, and a roll of honour.'],
+  ]],
+  ['Dungeons, bosses and the tower', [
+    ['How do group dungeons work?', 'They’re for four: a tank, a healer and two damage. The Group Finder (P) fills empty places with hired hands if you want. Clear one and Veteran opens, harder, with better chests. /joinrun puts you into your group’s run.'],
+    ['What is a delve?', 'A small dungeon you can do alone or with friends: three rooms, a champion, and a chest that refills every half hour.'],
+    ['When do world bosses come?', 'Each rises every thirty minutes, is announced three minutes before, and stays up ten. Anyone nearby can join in, and everyone who helps gets a share.'],
+    ['What is the Endless Tower?', 'A climb with no top. Annot Crowle keeps it and starts your runs. Every tenth floor is a checkpoint, and tower tokens buy her trophies. Cloaks wait at floors 25 and 100.'],
+    ['Does everything scale to me?', 'Yes. Creatures meet you at your level, and so do rewards, so you can play anywhere with anyone.'],
+  ]],
+  ['Fighting other players', [
+    ['Is there PvP?', 'In the Cockpit at Saltpenny Key, Jago Sweeney runs a duelling ladder; duels stop before anyone dies, and stepping out of the ring forfeits. At sea, in the Freewater between the continents, any ship may fire on any other.'],
+  ]],
+  ['Quarters (the tile game)', [
+    ['How do I play Quarters?', 'Ask a tavern regular “A game of Quarters?”. On a three-by-three board, lay a tile, and every touching enemy tile whose facing side is lower than yours turns to your colour. Most tiles at the end wins.'],
+    ['How do I get more tiles?', 'You get five the first time. Win a game and you take one of theirs; losing costs nothing. Old Notch always drops a great tile, and world bosses sometimes do.'],
+  ]],
+  ['Every day', [
+    ['What is the daily round?', 'Three Charter writs a day, the same for everyone, new at midnight; all three earn a bonus. Three commissions a week pay well too. Your journal (J) has them.'],
+    ['How does the login reward work?', 'Twenty-eight rewards a month, one for each day you play. Missing a day loses nothing. Days 14 and 28 are horses.'],
+    ['What are parish tasks?', 'Glowing spots on the map where the locals need a hand: do the chores and drive off the pests until the bar fills.'],
+    ['When are the festivals?', 'Shrovetide, the Lambing Fair, Midsummer Watch, Harvest Home, Lantern Wake, the Goose Fair and the Frostfair, through the year. While one is on, creatures drop tokens that the festival stalls take for horses, dyes and food.'],
+    ['How do I get rested?', 'Sleep in your own bed: full health and a quarter more experience for half an hour, once every eight hours.'],
+  ]],
+  ['Trading and travel', [
+    ['How does the Exchange work?', 'Brokers are in Ansbury’s Guildhall, Gullmouth’s Merchants’ Quarter and Harrowgate. List things at your price; the Exchange takes 5% of each sale, and what doesn’t sell comes back after three days. The Wanted page posts what you want to buy, which is how to commission a crafter.'],
+    ['How else can I travel?', 'The Charter Post carts run between stops you’ve visited, for a mark or two. The packet ship runs between Gullmouth and Callis, and ferries keep a timetable. Waymarks are quickest and cost a little more.'],
+    ['How do I sail?', 'Hire a ship by the hour from a shipwright, or have one built. At the helm, W and S set and take in sail, A and D steer, and Q and E fire the broadsides.'],
+  ]],
+  ['Fighting, more', [
+    ['What do the elements do?', 'Water beats fire, fire beats air, air beats earth, earth beats thunder, and thunder beats water. Hitting a weakness does 30% more; the same element does less. Your weapon’s glyph gives you yours, and the target frame shows the foe’s and what beats it.'],
+    ['What do food and drink do?', 'Each gives a buff for a time, and you can have one of each. F eats.'],
+    ['What happens if I break the law?', 'Each town keeps its own bounty: assault, hitting a guard and stealing all add to it. It fades with time. Over a hundred the watch arrests you; over six hundred they attack on sight.'],
+  ]],
+  ['Pets and looks', [
+    ['How do I look after my pet?', 'Choose it under Pet. Walk up to it and press E to feed, brush, play with, name or dress it. Care for it and its bond grows, and with bond come collars and more.'],
+    ['How do I dye my gear?', 'Each piece of armour takes a main colour and a trim, for 5 marks a change, at the wardrobe.'],
+    ['How do I wear a costume?', 'From the wardrobe’s Outfits, or /costume name; /costume off takes it off. Festival stalls sell them.'],
+  ]],
   ['Trouble', [
     ['The game is slow. What can I do?', 'Open the Picture tab in this menu and lower the view distance or the quality, or turn off the shadows and light shafts.'],
     ['I\'m stuck in a wall or a hole.', 'Travel to a waymark or home from the map (M). That always gets you out.'],
