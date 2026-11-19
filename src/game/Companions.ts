@@ -8,6 +8,7 @@ import type { Henchman } from '../data/dungeons';
 import { ITEMS } from '../data/items';
 import { bondOf, bondPerks, BOND_LINES } from '../data/companionBonds';
 import { COMPANION_MORALS } from '../data/companionMorals';
+import { COMP_MAX_RANK, COMP_XP, passiveAt, rankOf, SKILL_BY_ID, skillsFor, slotsAt, type CompSkill } from '../data/companionRanks';
 import type { DeedInput, Trait } from '../data/morality';
 
 /** The places a companion wears gear: a weapon, and armour as you wear it. */
@@ -189,6 +190,67 @@ export class Companions {
     this.host.scene.add(this.ally.model.root);
   }
 
+  // ---------------------------------------------------------------- Their own rank (data/companionRanks.ts)
+  xp(id: CompanionId): number { return Number(this.host.flag(`comp:${id}:xp`) ?? 0); }
+  rank(id: CompanionId): number { return rankOf(this.xp(id)).rank; }
+  /** XP for something done together, said when a rank comes, with what it opened. */
+  addXp(id: CompanionId, n: number): void {
+    if (n <= 0) return;
+    const was = rankOf(this.xp(id)).rank;
+    if (was >= COMP_MAX_RANK) return;
+    this.host.setFlag(`comp:${id}:xp`, this.xp(id) + Math.round(n));
+    const now = rankOf(this.xp(id)).rank;
+    if (now === was) return;
+    const first = compShort(id);
+    const opened: string[] = [];
+    for (const sk of skillsFor(this.roleOf(id))) if (sk.rank > was && sk.rank <= now) opened.push(sk.name);
+    if (slotsAt(now) > slotsAt(was)) opened.push('another skill slot');
+    if (passiveAt(now) > passiveAt(was)) opened.push('a little more in every blow and in their health');
+    this.host.system(`${first} is now rank ${now}${opened.length ? ': ' + opened.join(', ') : ''}.`);
+    // a new skill goes straight into an empty slot
+    const lo = this.loadout(id);
+    for (const sk of skillsFor(this.roleOf(id))) if (sk.rank > was && sk.rank <= now && lo.length < slotsAt(now) && !lo.includes(sk.id)) lo.push(sk.id);
+    this.host.setFlag(`comp:${id}:skills:${this.roleOf(id)}`, lo);
+  }
+  /** The skills they carry, in their role: what you chose, or the first ones open, as many as they have slots for. */
+  loadout(id: CompanionId): string[] {
+    const role = this.roleOf(id), rank = this.rank(id), slots = slotsAt(rank);
+    const open = skillsFor(role).filter((s) => s.rank <= rank).map((s) => s.id);
+    // (once you've chosen, it's yours: a skill set down stays down; until then, the first ones open)
+    const saved = this.host.flag(`comp:${id}:skills:${this.roleOf(id)}`) as string[] | undefined;
+    return (Array.isArray(saved) ? saved.filter((k) => open.includes(k)) : open).slice(0, slots);
+  }
+  /** Put a skill in or take it out (only open ones, and no more than their slots). */
+  toggleSkill(id: CompanionId, skill: string): boolean {
+    const sk = SKILL_BY_ID[skill];
+    if (!sk || sk.role !== this.roleOf(id) || sk.rank > this.rank(id)) return false;
+    const lo = this.loadout(id);
+    const i = lo.indexOf(skill);
+    if (i >= 0) lo.splice(i, 1);
+    else if (lo.length < slotsAt(this.rank(id))) lo.push(skill);
+    else return false;
+    this.host.setFlag(`comp:${id}:skills:${this.roleOf(id)}`, lo);
+    return true;
+  }
+  private cds = new Map<string, number>();
+  private flurry: { at: number; dmg: number }[] = [];
+  /** A skill that's ready and fits the moment, or null. */
+  private readySkill(id: CompanionId, p: { hp: number; max: number }, foe: Enemy | null, healsOnly: boolean): CompSkill | null {
+    for (const k of this.loadout(id)) {
+      const sk = SKILL_BY_ID[k];
+      if (!sk || (this.cds.get(sk.id) ?? 0) > this.clock) continue;
+      const hurt = p.hp / Math.max(1, p.max);
+      if (sk.kind === 'mend' && hurt < (sk.mult > 1 ? 0.45 : 0.75)) return sk;
+      if (sk.kind === 'second' && hurt < 0.25) return sk;
+      if (sk.kind === 'rally' && hurt < 0.5 && foe) return sk;
+      if (healsOnly || !foe) continue;
+      if (sk.kind === 'stun' && foe.stun <= 0) return sk;
+      if (sk.kind === 'finish' && foe.hp < foe.def.hp * 0.3) return sk;
+      if ((sk.kind === 'strike' && (sk.id !== 'measured' || hurt > 0.6)) || sk.kind === 'flurry') return sk;
+    }
+    return null;
+  }
+
   /** Change how they rapport with you, and say so the way BioWare's companions do. */
   addRapport(id: CompanionId, delta: number, line?: string): void {
     const was = this.rapport(id), now = Math.max(-100, Math.min(100, was + delta));
@@ -287,9 +349,20 @@ export class Companions {
     if (this.steed) { this.host.scene.remove(this.steed.root); this.steed = null; }
     // Fighting: what you're fighting, in their role
     const foe = this.host.fighting() ? this.host.target() : null;
-    const S = allyStats(a.role, Math.max(1, this.host.level()));
+    const S0 = allyStats(a.role, Math.max(1, this.host.level())), up = 1 + passiveAt(this.rank(this.id));
+    const S = { ...S0, hit: S0.hit * up, mend: S0.mend * up };
     let moving = 0;
     this.hitIn -= dt; this.mendIn -= dt;
+    // A skill that mends or steadies you, whatever they're doing
+    const care = !p.dead ? this.readySkill(this.id, p, foe && foe.alive ? foe : null, true) : null;
+    if (care) {
+      this.host.healPlayer(S.mend * care.mult);
+      this.cds.set(care.id, this.clock + care.cd);
+      a.act = 'heal'; a.actTime = 0; a.face(p.pos.x, p.pos.z);
+      if (care.kind !== 'mend') this.host.say(a.pos, 2.4, care.name + '!');
+    }
+    // The rest of a flurry
+    while (this.flurry.length && this.flurry[0].at <= this.clock) { const f = this.flurry.shift()!; if (foe && foe.alive) { this.host.hit(foe, f.dmg); a.act = 'attack'; a.actTime = 0; } }
     if (a.role === 'healer' && !p.dead && p.hp < p.max * 0.65 && this.mendIn <= 0) {
       this.host.healPlayer(S.mend * 0.6);
       a.act = 'heal'; a.actTime = 0; a.face(p.pos.x, p.pos.z);
@@ -319,6 +392,18 @@ export class Companions {
             a.act = 'attack'; a.actTime = 0;
             this.hitIn = S.every * 1.3;
             if (Math.random() < 0.5) this.host.say(a.pos, 2.4, ['That was almost embarrassing.', 'I meant to do that. Mostly.', 'Remind me not to practise drinking and fighting at the same time.'][Math.floor(Math.random() * 3)]);
+          } else if (!fdave && (() => { const sk = this.readySkill(this.id!, p, foe, false); if (!sk) return false;
+            // One of their skills (data/companionRanks.ts)
+            const dmg = S.hit * sk.mult;
+            this.host.hit(foe, dmg);
+            if (sk.kind === 'stun' && sk.stun) foe.stun = sk.stun;
+            if (sk.kind === 'flurry') this.flurry.push({ at: this.clock + 0.4, dmg }, { at: this.clock + 0.8, dmg });
+            this.cds.set(sk.id, this.clock + sk.cd);
+            a.act = 'attack'; a.actTime = 0;
+            this.hitIn = S.every;
+            if (sk.kind === 'stun' || sk.kind === 'finish') this.host.say(a.pos, 2.2, sk.name + '!');
+            return true; })()) {
+            // (done above)
           } else {
             this.host.hit(foe, S.hit * (a.role === 'tank' ? 0.9 : 1) * (fdave ? 0.75 : 1));
             a.act = a.role === 'healer' ? 'heal' : 'attack'; a.actTime = 0;

@@ -3,6 +3,7 @@ import { addDeed, bandOf, CHOICE_DEEDS, choiceDeedId, derive, GOSSIP_MS, knows, 
 import { COMPANION_MORALS } from '../src/data/companionMorals';
 import { COMPANIONS } from '../src/data/companions';
 import { GROUPS } from '../src/data/morality';
+import { COMP_MAX_RANK, COMP_SKILLS, passiveAt, RANK_AT, rankOf, skillsFor, slotsAt } from '../src/data/companionRanks';
 
 let fails = 0, passes = 0;
 const ok = (cond: boolean, what: string) => { if (cond) passes++; else { fails++; console.log('FAIL: ' + what); } };
@@ -102,6 +103,16 @@ const fresh = (): MoralBook => ({ v: 1, deeds: [] });
 for (const id of Object.keys(COMPANIONS)) {
   const m = COMPANION_MORALS[id as keyof typeof COMPANION_MORALS];
   ok(!!m && (m.always || (m.approve.length > 0 && m.disapprove.length > 0)) && (!m.leaves || !!m.goodbye), 'companion morals: ' + id);
+}
+
+// 12. Companions' own ranks (data/companionRanks.ts): independent of the player, a sensible climb, skills in every role
+{
+  ok(rankOf(0).rank === 1 && rankOf(RANK_AT[2] - 1).rank === 1 && rankOf(RANK_AT[2]).rank === 2, 'rank edges');
+  ok(rankOf(RANK_AT[COMP_MAX_RANK] + 99999).rank === COMP_MAX_RANK && rankOf(RANK_AT[COMP_MAX_RANK]).next === null, 'held at the top rank');
+  ok(RANK_AT[COMP_MAX_RANK] > 15000 && RANK_AT[COMP_MAX_RANK] < 35000, 'the climb to the top is hours, not minutes or weeks: ' + RANK_AT[COMP_MAX_RANK]);
+  ok(slotsAt(1) === 1 && slotsAt(4) === 2 && slotsAt(20) === 3 && passiveAt(4) === 0 && passiveAt(20) === 0.16, 'slots and passives');
+  for (const role of ['tank', 'healer', 'damage'] as const) { const k = skillsFor(role); ok(k.length === 4 && k[0].rank === 1 && k.every((x, i) => i === 0 || x.rank > k[i - 1].rank), 'four skills in rank order: ' + role); }
+  ok(new Set(COMP_SKILLS.map((x) => x.id)).size === COMP_SKILLS.length, 'skill ids unique');
 }
 
 console.log(`${passes} passed, ${fails} failed`);

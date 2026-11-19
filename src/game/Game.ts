@@ -190,6 +190,7 @@ import { Stables } from './Stables';
 import { LODGINGS, MAX_WEEKS, readTenancy, roomsOf, roomShape, WEEK } from '../data/lodgings';
 import { DUNGEON_BY_ID, henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
+import { COMP_MAX_RANK, COMP_XP, passiveAt, rankOf as compRankOf, skillsFor, slotsAt } from '../data/companionRanks';
 import { addDeed, BANDS, heardOf, bandName, CHOICE_DEEDS, choiceDeedId, derive, GROUPS, meets, needTag, readBook, regardWord, tone, TRAIT_NAMES, TRAITS, traitWord, type DeedInput, type Moral } from '../data/morality';
 import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
 import { marksScale, regionLevel, rewardScale } from '../data/scaling';
@@ -1988,6 +1989,7 @@ export class Game implements GameApi {
       this.hud.banner('Quest complete', def.name, true);
       this.sfx('quest');
       this.companions?.event('quest');
+      if (this.companions?.active) this.companions.addXp(this.companions.active, COMP_XP.quest);
     } else if (!prev && def.story) {
       this.hud.chapterCard(`${def.story.act ?? 'The Charter\'s Debt'} · Chapter ${ROMAN[def.story.chapter]}`, def.story.title);
       this.sfx('levelUp');
@@ -7842,6 +7844,8 @@ export class Game implements GameApi {
         why: !on && busy ? busy : undefined,
         summon: on || busy ? undefined : () => this.summonCompanion(id),
         gear: () => this.compGear(id),
+        skills: () => this.compSkills(id),
+        rank: (() => { const x = compRankOf(this.companions.xp(id)); return x.next ? `Rank ${x.rank}` : `Rank ${x.rank}, the highest`; })(),
         gift: canGift ? () => this.compGift(id) : undefined,
         house: home && !house && !busy ? () => { this.companions.toHouse(id); this.persist(); this.openCompanions(); } : undefined,
         dismiss: on || house ? () => { if (on) this.compDismiss(); else { this.setFlag(`comp:${id}:house`, null); this.hud.system(`${compShort(id)} goes back to ${c.home.place}.`); this.persist(); } this.openCompanions(); } : undefined,
@@ -7857,6 +7861,19 @@ export class Game implements GameApi {
       { label: hidden ? 'Show them about the house' : 'Hide them about the house', use: () => { this.setFlag('comp:houseHidden', hidden ? null : 1); this.persist(); this.openCompanions(); } },
       { label: resting ? 'Tending your things: off' : 'Tending your things: on', use: () => { this.setFlag('comp:houseRest', resting ? null : 1); this.hud.system(resting ? 'They\'ll see to the house and water the garden.' : 'They\'ll leave your things be and take their ease.'); this.persist(); this.openCompanions(); } },
     ] : undefined);
+  }
+  /** A companion's rank and skills (data/companionRanks.ts): what's open, what they carry, and the slots for it. */
+  compSkills(id: CompanionId): void {
+    const C = this.companions, x = compRankOf(C.xp(id)), first = compShort(id);
+    const role = this.companions.henchmanOf(id).role, lo = C.loadout(id), slots = slotsAt(x.rank);
+    const note = (x.next ? `Rank ${x.rank}: ${C.xp(id) - x.from} of ${x.next - x.from} to rank ${x.rank + 1}. ` : `Rank ${COMP_MAX_RANK}, as high as it goes. `)
+      + `${first} carries ${slots} skill${slots > 1 ? 's' : ''} as a ${role}${passiveAt(x.rank) ? `, and hits and holds ${Math.round(passiveAt(x.rank) * 100)}% better for their rank` : ''}. `
+      + 'They learn beside you: foes, quests, bosses. Their strength still meets the land you\'re in.';
+    const rows = skillsFor(role).map((sk) => ({
+      name: sk.name, desc: sk.desc, rank: sk.rank, open: sk.rank <= x.rank, on: lo.includes(sk.id),
+      toggle: sk.rank <= x.rank ? () => { if (!C.toggleSkill(id, sk.id)) this.hud.system(`${first} has no free slot: take a skill out first.`); this.persist(); this.compSkills(id); } : undefined,
+    }));
+    this.hud.compSkillsWindow(`${COMPANIONS[id].name}`, note, rows, () => this.openCompanions());
   }
   /** The companions living at your house, and not out with you. */
   private atHouse(): CompanionId[] {
@@ -8475,6 +8492,8 @@ export class Game implements GameApi {
       this.hud.banner(`${e.def.name}: a Quarters tile`, 'A great tile, for the tables', true);
     }
     if (e.isBoss || WORLD_BOSSES.some((b) => b.type === e.def.type)) this.companions?.event('boss');
+    // The companion with you learns from it (data/companionRanks.ts)
+    if (this.companions?.active) this.companions.addXp(this.companions.active, e.isBoss || WORLD_BOSSES.some((b) => b.type === e.def.type) ? COMP_XP.boss : e.def.elite ? COMP_XP.elite : COMP_XP.foe);
     else if (e.def.type.startsWith('r_')) this.companions?.event('rare');
     if (e.def.elite) this.audio.sting('victory');
     this.activities.onKilled(e);

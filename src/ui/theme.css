@@ -424,6 +424,8 @@
 #postcard .cw-face canvas { width: 40px; height: 40px; image-rendering: pixelated; }
 #postcard .cw-row .cw-t { display: block; color: var(--muted); font-style: italic; }
 #postcard .cw-btns { display: flex; flex-direction: column; gap: 4px; }
+#postcard .cs-row { grid-template-columns: 1fr 110px; }
+#postcard .cs-row.no { opacity: 0.6; }
 #postcard .cw-worn, #postcard .cw-pack { max-height: min(26vh, 220px); }
 #postcard .cw-sub { margin: 10px 2px 4px; }
 #postcard .cw-gifts { max-height: min(52vh, 420px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }

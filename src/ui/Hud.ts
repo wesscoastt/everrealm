@@ -1147,7 +1147,7 @@ export class Hud {
    * to remember where each goes to on the map"): everyone who's joined you, their face, how they feel about you and what
    * they're doing, with Summon to call them to your side from wherever they are, and Send back.
    */
-  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; gear?: () => void; gift?: () => void; house?: () => void; dismiss?: () => void }[], more: string, toggles?: { label: string; use: () => void }[]): void {
+  companionWindow(rows: { name: string; title: string; look: Appearance; state: string; mood: string; with: boolean; why?: string; summon?: () => void; gear?: () => void; skills?: () => void; rank?: string; gift?: () => void; house?: () => void; dismiss?: () => void }[], more: string, toggles?: { label: string; use: () => void }[]): void {
     const box = this.q('#postcard');
     box.classList.add('wide');
     box.innerHTML = `<h3 class="cw-h">Companions</h3><p class="pc-q">${rows.length ? 'Call one to your side, wherever they are, or send them to live at your house. One walks with you at a time.' : 'Nobody walks with you yet. People you meet on the road may, if you ask them.'}</p>
@@ -1160,11 +1160,12 @@ export class Hud {
       drawFace(row.querySelector('canvas')!, r.look);
       row.querySelector('b')!.textContent = r.name;
       row.querySelector('.cw-t')!.textContent = r.title;
-      row.querySelector('.en-now')!.textContent = r.why ?? `${r.state} · ${r.mood}`;
+      row.querySelector('.en-now')!.textContent = r.why ?? `${r.state} · ${r.rank ? r.rank + ' · ' : ''}${r.mood}`;
       const btns = row.querySelector('.cw-btns')!;
       const button = (label: string, fn: () => void, ghost = false) => { const b = el('button', 'btn sm' + (ghost ? ' ghost' : ''), label); b.addEventListener('click', fn); btns.append(b); };
       if (r.summon) button('Summon', r.summon);
       if (r.gear) button('Gear', r.gear, true);
+      if (r.skills) button('Skills', r.skills, true);
       if (r.gift) button('Gift', r.gift, true);
       if (r.house) button('To your house', r.house, true);
       if (r.dismiss) button('Send back', r.dismiss, true);
@@ -1173,6 +1174,26 @@ export class Hud {
     box.querySelector('.cw-more')!.textContent = more;
     box.querySelector('.pc-x')!.addEventListener('click', () => { box.classList.remove('show', 'wide'); this.ctx.sfx('close'); });
     if (!box.classList.contains('show')) this.ctx.sfx('open');
+    box.classList.add('show');
+  }
+  /** A companion's skills: each in their role, open or not yet (and at what rank), carried or not; click to carry or set down. */
+  compSkillsWindow(who: string, note: string, rows: { name: string; desc: string; rank: number; open: boolean; on: boolean; toggle?: () => void }[], back: () => void): void {
+    const box = this.q('#postcard');
+    box.classList.add('wide');
+    box.innerHTML = '<h3 class="cw-h"></h3><p class="pc-q"></p><div class="en-rows"></div><div class="row"><button class="btn ghost pc-back">Back</button></div>';
+    box.querySelector('.cw-h')!.textContent = who + ': skills';
+    box.querySelector('.pc-q')!.textContent = note;
+    const list = box.querySelector('.en-rows')!;
+    for (const r of rows) {
+      const row = el('div', 'en-row cw-row cs-row' + (r.on ? ' on' : '') + (r.open ? '' : ' no'));
+      row.innerHTML = '<div class="en-mid"><b></b><small class="cw-t"></small><small class="en-now"></small></div><div class="cw-btns"></div>';
+      row.querySelector('b')!.textContent = r.name;
+      row.querySelector('.cw-t')!.textContent = r.desc;
+      row.querySelector('.en-now')!.textContent = r.open ? (r.on ? 'Carried' : 'Open') : `Opens at rank ${r.rank}`;
+      if (r.toggle) { const b = el('button', 'btn sm' + (r.on ? ' ghost' : ''), r.on ? 'Set down' : 'Carry'); b.addEventListener('click', r.toggle); row.querySelector('.cw-btns')!.append(b); }
+      list.append(row);
+    }
+    box.querySelector('.pc-back')!.addEventListener('click', () => { this.ctx.sfx('click'); back(); });
     box.classList.add('show');
   }
   /** Something from your pack for a companion: each thing, with what they make of that kind of thing if you know. */
