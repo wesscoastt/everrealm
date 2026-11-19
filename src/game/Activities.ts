@@ -476,6 +476,7 @@ export class Activities {
           const ch = a.kind === 'delve' ? DELVE_CHAMPIONS[s.id] : undefined, d = championOf(a.boss[3] as EnemyType, a.kind === 'dungeon' ? 1.7 : 1.45);
           out.push(this.spawnAt(ch ? { ...d, ...(ch.name ? { name: ch.name } : {}), ...(ch.attack ? { attack: ch.attack } : {}), ...(ch.role ? { role: ch.role } : {}), ...(ch.phases ? { phases: ch.phases } : {}) } : d, a.boss[0], a.boss[1], a.boss[2]));
         }
+        if (a.boss) this.siteBoss.set(out[out.length - 1], s);
         // Each keyed by its kind and where it stands, as the open world's are: shared between everyone there
         // (game/SharedMobs.ts: one creature, one health, blows and the kill for all who fought it)
         this.keyed(out);
@@ -818,7 +819,20 @@ export class Activities {
   }
 
   /** The game tells us about every kill; ours count toward events. */
+  /** A delve's or a public dungeon's own boss, to know when it's been cleared. */
+  private siteBoss = new Map<Enemy, { id: string; name: string; act?: { kind: string } }>();
   onKilled(e: Enemy): void {
+    // A delve or public dungeon is cleared when its boss falls (owner 2026-11-17: "delves and public dungeons you complete
+    // should say cleared like eso"): the first time, a banner and a little more; ever after, "Cleared" on the map
+    const site = this.siteBoss.get(e);
+    if (site && !this.host.flag('cleared:' + site.id)) {
+      const kind = site.act?.kind === 'dungeon' ? 'Public dungeon' : site.act?.kind === 'delve' ? 'Delve' : 'Fort';
+      this.host.setFlag('cleared:' + site.id, 1);
+      this.host.setFlag('n:cleared', Number(this.host.flag('n:cleared') ?? 0) + 1);
+      this.host.reward(site.act?.kind === 'dungeon' ? 600 : 300, 0, [], kind + ' cleared: ' + site.name);
+      this.host.banner(site.name, kind + ' cleared');
+      this.host.sound('discover');
+    }
     this.tasks.onKilled(e);
     this.escorts.onKilled(e);
     for (const ev of this.live.values()) if (ev.enemies.includes(e)) {

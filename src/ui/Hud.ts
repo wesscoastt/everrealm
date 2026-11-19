@@ -86,9 +86,11 @@ function actGlyph(c: CanvasRenderingContext2D, kind: string, x: number, y: numbe
 }
 
 /** Glyphs for dungeons (a dark gate), delves (a cave mouth), vistas (a peak) and dive sites (an anchor); false for others. */
-function placeGlyph(c: CanvasRenderingContext2D, id: string, x: number, y: number, s: number): boolean {
+function placeGlyph(c: CanvasRenderingContext2D, id: string, x: number, y: number, s: number, cleared = false): boolean {
   const kind = id.startsWith('pd-') || id.startsWith('gd-') ? 'pd' : id.startsWith('delve-') ? 'delve' : id.startsWith('vista-') ? 'vista' : id.startsWith('dive-') ? 'dive' : '';
   if (!kind) return false;
+  // (cleared, ESO's way: a green tick on its corner; owner 2026-11-17, "delves and public dungeons you complete should say cleared")
+  if (cleared) { c.save(); c.translate(x + 6 * s, y - 6 * s); c.scale(s, s); c.fillStyle = '#3a8a3a'; c.strokeStyle = '#1e1208'; c.lineWidth = 1.2; c.beginPath(); c.arc(0, 0, 4.2, 0, Math.PI * 2); c.fill(); c.stroke(); c.strokeStyle = '#f4ecd8'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(-2, 0); c.lineTo(-0.5, 1.6); c.lineTo(2.2, -1.6); c.stroke(); c.restore(); }
   c.save(); c.translate(x, y); c.scale(s, s); c.strokeStyle = '#1e1208'; c.lineWidth = 1.6;
   if (kind === 'dive') {
     c.fillStyle = '#3aa8b8';
@@ -1849,7 +1851,7 @@ export class Hud {
       const [x, y] = at(p.x, p.z);
       if (Math.hypot(x, y) > inside) continue;
       c.globalAlpha = found.includes(p.id) ? 1 : 0.55;
-      if (town) mmHouse(c, x, y); else if (!placeGlyph(c, p.id, x, y, 1.6)) mmStar(c, x, y, 7);
+      if (town) mmHouse(c, x, y); else if (!placeGlyph(c, p.id, x, y, 1.6, !!this.ctx.save.flags['cleared:' + p.id])) mmStar(c, x, y, 7);
       c.globalAlpha = 1;
     }
     for (const p of I ? [] : POSTS) {
@@ -3743,11 +3745,11 @@ export class Hud {
       const gw = r.x < 320 && r.z < 320;
       x.save(); x.globalAlpha = seen ? 1 : 0.55;
       x.translate(X, Y); x.scale(dpr * 1.25, dpr * 1.25);
-      if (town) mmHouse(x, 0, 0); else if (!placeGlyph(x, r.id, 0, 0, 1)) mmStar(x, 0, 0, 7);
+      if (town) mmHouse(x, 0, 0); else if (!placeGlyph(x, r.id, 0, 0, 1, !!this.ctx.save.flags['cleared:' + r.id])) mmStar(x, 0, 0, 7);
       x.restore();
       const show = town ? z > (gw ? 0.9 : 0.32) : z > (gw ? 1.2 : 0.6);
-      if (show) { x.globalAlpha = seen ? 1 : 0.6; label(seen ? r.name : r.name + '?', X, Y + px(town ? 22 : 19), `${town ? 700 : 600} ${px(town ? 17 : 15)}px "Alegreya", Georgia, serif`, town ? '#2a1a0a' : '#4a3010'); x.globalAlpha = 1; }
-      hits.push({ x: X, y: Y, name: seen ? r.name : r.name + ' (not yet visited)', sub: r.sub });
+      if (show) { x.globalAlpha = seen ? 1 : 0.6; label(seen ? (this.ctx.save.flags['cleared:' + r.id] ? r.name + ' · Cleared' : r.name) : r.name + '?', X, Y + px(town ? 22 : 19), `${town ? 700 : 600} ${px(town ? 17 : 15)}px "Alegreya", Georgia, serif`, town ? '#2a1a0a' : '#4a3010'); x.globalAlpha = 1; }
+      hits.push({ x: X, y: Y, name: seen ? r.name : r.name + ' (not yet visited)', sub: this.ctx.save.flags['cleared:' + r.id] ? `${r.sub ? r.sub + ' · ' : ''}Cleared` : r.sub });
     }
     // Charter Post stops, people, other players, objectives
     for (const m of markers) {

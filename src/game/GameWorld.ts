@@ -30,7 +30,8 @@ const LOD_STEP = 12;
 
 /** How many lamps light the world at once, how far each reaches, and how bright they are. */
 // (reach and fall-off eased out: owner 2026-11-12, "lights need to light up farther away, it looks dark in the distance even though there's light")
-const LAMP_LIGHTS = 18, LAMP_REACH = 42, LAMP_POWER = 15, LAMP_DECAY = 1.0;
+// (owner 2026-11-17: "torchlights have bright light orbs, look unnatural": a flame lights the wall it hangs on warmly and falls off, not a white blaze)
+const LAMP_LIGHTS = 18, LAMP_REACH = 26, LAMP_POWER = 5.5, LAMP_DECAY = 1.6;
 /** Lamps further off than the real lights reach still light the ground under them: a pool of lamplight, this far out at most. */
 const POOL_MAX = 420, POOL_SEE = 260;
 const LAMP_ORANGE = new THREE.Color('#ffb05a');
@@ -457,9 +458,11 @@ export class GameWorld {
     c.width = c.height = 64;
     const x = c.getContext('2d')!;
     const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0, 'rgba(255,220,150,1)');
-    g.addColorStop(0.25, 'rgba(255,170,80,0.5)');
-    g.addColorStop(1, 'rgba(255,140,40,0)');
+    // (owner 2026-11-17: "torchlights have bright light orbs, look unnatural": a warm haze round the flame, not a white ball)
+    g.addColorStop(0, 'rgba(255,190,110,0.7)');
+    g.addColorStop(0.2, 'rgba(255,160,80,0.3)');
+    g.addColorStop(0.55, 'rgba(255,140,60,0.07)');
+    g.addColorStop(1, 'rgba(255,130,40,0)');
     x.fillStyle = g;
     x.fillRect(0, 0, 64, 64);
     return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
@@ -543,7 +546,7 @@ export class GameWorld {
     this.shared.uClip.value.set(center.x, center.z, this.chunks.coveredRadius > 0 ? this.chunks.coveredRadius + 1 : 1e9);
 
     const glow = this.sky.night;
-    this.glowMat.opacity = 0.15 + glow * 0.75;
+    this.glowMat.opacity = 0.1 + glow * 0.45;
     this.props.glow.emissiveIntensity = 0.5 + glow * 2.2;
     this.structures.sails.rotation.x += dt * 0.5;
     this.structures.wheel.rotation.x += dt * 0.7;
@@ -603,7 +606,7 @@ export class GameWorld {
       const cv = document.createElement('canvas');
       cv.width = cv.height = 64;
       const c = cv.getContext('2d')!, gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gr.addColorStop(0, 'rgba(255,190,110,1)'); gr.addColorStop(0.35, 'rgba(255,170,90,0.55)'); gr.addColorStop(1, 'rgba(255,150,70,0)');
+      gr.addColorStop(0, 'rgba(255,180,100,0.5)'); gr.addColorStop(0.4, 'rgba(255,160,80,0.2)'); gr.addColorStop(1, 'rgba(255,150,70,0)');
       c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
       const tex = new THREE.CanvasTexture(cv);
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -619,19 +622,20 @@ export class GameWorld {
       const cv = document.createElement('canvas');
       cv.width = cv.height = 64;
       const c = cv.getContext('2d')!, gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gr.addColorStop(0, 'rgba(255,236,190,1)'); gr.addColorStop(0.18, 'rgba(255,200,120,0.75)'); gr.addColorStop(0.5, 'rgba(255,160,70,0.22)'); gr.addColorStop(1, 'rgba(255,140,50,0)');
+      // (owner 2026-11-17: "torchlights have bright light orbs, look unnatural": no hot white core, a soft warm haze that fades out)
+      gr.addColorStop(0, 'rgba(255,190,110,0.55)'); gr.addColorStop(0.35, 'rgba(255,165,80,0.22)'); gr.addColorStop(0.7, 'rgba(255,140,60,0.06)'); gr.addColorStop(1, 'rgba(255,130,50,0)');
       c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(POOL_MAX * 3), 3));
       geo.setDrawRange(0, 0);
-      this.halos = new THREE.Points(geo, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(cv), size: 3.4, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+      this.halos = new THREE.Points(geo, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(cv), size: 1.6, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
       this.halos.frustumCulled = false;
       this.halos.renderOrder = 3;
       this.sceneRef?.add(this.halos);
     }
     const mat = this.pools.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.68 * night;
-    (this.halos.material as THREE.PointsMaterial).opacity = 0.95 * night;
+    mat.opacity = 0.4 * night;
+    (this.halos.material as THREE.PointsMaterial).opacity = 0.5 * night;
     this.pools.visible = this.halos.visible = night > 0.05;
     if (!this.pools.visible || (this.poolT -= dt) > 0) return;
     this.poolT = 0.6;
@@ -643,8 +647,9 @@ export class GameWorld {
     const near = all.map((p) => ({ p, d: Math.hypot(p.x - center.x, p.z - center.z) })).filter((q) => q.d <= POOL_SEE).sort((a, b) => a.d - b.d);
     let n = 0, h = 0;
     const hp = this.halos.geometry.getAttribute('position') as THREE.BufferAttribute;
-    for (const { p } of near) {
-      if (h < POOL_MAX) hp.setXYZ(h++, p.x, p.y, p.z);
+    for (const { p, d } of near) {
+      // (a haze only round lamps further off, where the eye wants to see them lit; up close the flame and its pool are enough)
+      if (h < POOL_MAX && d > 14) hp.setXYZ(h++, p.x, p.y, p.z);
       if (n >= POOL_MAX) break;
       const key = `${Math.round(p.x * 2)},${Math.round(p.y * 2)},${Math.round(p.z * 2)}`;
       let gy = this.poolGround.get(key);
@@ -657,7 +662,7 @@ export class GameWorld {
         if (this.poolGround.size > 6000) this.poolGround.clear();
       }
       if (gy === null) continue;
-      const r = 10 - (p.y - gy) * 0.5;
+      const r = 7 - (p.y - gy) * 0.4;
       m.makeScale(r, 1, r).setPosition(p.x, gy + 0.03, p.z);
       this.pools.setMatrixAt(n++, m);
     }

@@ -63,7 +63,7 @@ function glowPoints(glowMat: THREE.SpriteMaterial, pos: number[], size: number[]
       uniforms: { uMap: { value: glowMat.map }, uOpacity: { value: 0 }, uScale: { value: 400 } },
       // A halo is a thing seen from off: it stops growing and fades out as you come right up to the lamp
       vertexShader: `attribute float aSize; attribute vec3 aColor; varying vec3 vColor; varying float vNear; uniform float uScale;
-        void main() { vColor = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = min(aSize * uScale / max(0.5, -mv.z), 150.0); vNear = smoothstep(1.5, 5.0, -mv.z); }`,
+        void main() { vColor = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = min(aSize * uScale / max(0.5, -mv.z), 70.0); vNear = smoothstep(1.5, 5.0, -mv.z); }`,
       fragmentShader: `uniform sampler2D uMap; uniform float uOpacity; varying vec3 vColor; varying float vNear;
         void main() { vec4 t = texture2D(uMap, gl_PointCoord); gl_FragColor = vec4(t.rgb * vColor, t.a * uOpacity * vNear); }`,
       blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
