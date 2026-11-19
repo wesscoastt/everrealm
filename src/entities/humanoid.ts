@@ -4,6 +4,7 @@ import { capeTexture } from './capes';
 import type { EmoteAnim } from '../data/emotes';
 import type { Voice as InstrumentVoice } from '../data/tunes';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { shade as voxShade, Vox } from './vox';
 
 // ---------------------------------------------------------------------------------------------
@@ -236,6 +237,8 @@ function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
   return g;
 }
 
+/** Hair: one vertex-coloured mesh per head (buildHair). */
+const HAIR_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 const matCache = new Map<string, THREE.MeshLambertMaterial>();
 function lam(color: string): THREE.MeshLambertMaterial {
   let m = matCache.get(color);
@@ -1837,7 +1840,54 @@ export class Humanoid {
     const roots = style === 13 ? this.look.hairRoots ?? '#7fe05a' : null;
     let streakAt = 0;
     const streaks = this.look.hairStreaks ?? [];
-    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.025) => { let c = roots && y > 0.47 ? roots : h; if (streaks.length && style !== 14 && y < 0.5 && (streakAt++ % 3 === 1)) c = streaks[Math.floor(streakAt / 3) % streaks.length]; return part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z); };
+    // Hair is voxel, like the world (owner 2026-11-19: "the weird circles in the hair ... make hair look more voxel /
+    // natural"): square-edged blocks, each a shade off its neighbours as strands are, all merged into one mesh per head.
+    const bits: { w: number; ht: number; d: number; x: number; y: number; z: number; c: string }[] = [];
+    const p = (w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, _r = 0.025) => { let c = roots && y > 0.47 ? roots : h; if (streaks.length && style !== 14 && y < 0.5 && (streakAt++ % 3 === 1)) c = streaks[Math.floor(streakAt / 3) % streaks.length]; bits.push({ w, ht, d, x, y, z, c: tone === 1 ? c : shade(c, tone) }); };
+    /** A fall of hair as locks side by side, each its own shade, the ends ragged: across x0..x1, from the top down to about yb. */
+    const locks = (x0: number, x1: number, top: number, yb: number, z: number, d: number, tone = 0.94, ragged = 0.07) => {
+      const n = Math.max(2, Math.round((x1 - x0) / 0.065)), w = (x1 - x0) / n;
+      for (let i = 0; i < n; i++) {
+        const k = Math.sin(i * 12.9898 + top * 78.233) * 43758.5453, f = k - Math.floor(k);
+        const bot = yb - (i % 2 ? ragged * 0.4 : 0) - f * ragged;
+        p(w + 0.002, top - bot, d, x0 + w * (i + 0.5), (top + bot) / 2, z, tone * (i % 3 === 1 ? 0.92 : i % 3 === 2 ? 1.04 : 1));
+      }
+    };
+    /** The same down a side of the head (locks running front to back), at x, z0..z1. */
+    const sideLocks = (x: number, z0: number, z1: number, top: number, yb: number, w: number, tone = 0.95, ragged = 0.06) => {
+      const n = Math.max(2, Math.round((z1 - z0) / 0.07)), dd = (z1 - z0) / n;
+      for (let i = 0; i < n; i++) {
+        const k = Math.sin(i * 4.1414 + x * 91.7 + top * 13.1) * 43758.5453, f = k - Math.floor(k);
+        const bot = yb - (i % 2 ? ragged * 0.5 : 0) - f * ragged;
+        p(w, top - bot, dd + 0.002, x, (top + bot) / 2, z0 + dd * (i + 0.5), tone * (i % 3 === 1 ? 0.93 : i % 3 === 2 ? 1.03 : 1));
+      }
+    };
+    const flushHair = () => {
+      if (!bits.length) return;
+      const geos: THREE.BufferGeometry[] = [];
+      const col = new THREE.Color();
+      for (const b of bits) {
+        const g = new THREE.BoxGeometry(b.w, b.ht, b.d).toNonIndexed();
+        g.deleteAttribute('uv');
+        g.translate(b.x, b.y, b.z);
+        // a strand's shade varies a little from its neighbour's (fixed by where it sits, so a figure looks the same each time)
+        const k = Math.sin(b.x * 127.1 + b.y * 311.7 + b.z * 74.7) * 43758.5453, j = 0.95 + (k - Math.floor(k)) * 0.09;
+        col.set(b.c).multiplyScalar(j);
+        const n = g.attributes.position.count, cs = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) { cs[i * 3] = col.r; cs[i * 3 + 1] = col.g; cs[i * 3 + 2] = col.b; }
+        g.setAttribute('color', new THREE.BufferAttribute(cs, 3));
+        geos.push(g);
+      }
+      const merged = mergeGeometries(geos, false);
+      for (const g of geos) g.dispose();
+      if (!merged) return;
+      merged.computeBoundingSphere();
+      const m = new THREE.Mesh(merged, HAIR_MAT);
+      m.castShadow = true; m.receiveShadow = true;
+      this.head.add(m);
+      bits.length = 0;
+    };
+    try {
     if (hat === 'coif') {
       // A mail coif: the whole head but the face
       const mail = this.look.hatColor ?? '#9aa0a8';
@@ -2026,9 +2076,9 @@ export class Humanoid {
       // Crown, temples, nape
       p(0.48, 0.1, 0.46, 0, 0.555, -0.01);
       if (!covered && style !== 2 && style !== 6 && style !== 7) {
-        p(0.18, 0.05, 0.2, -0.09, 0.615, 0.03, 1.12);
-        p(0.15, 0.04, 0.17, 0.1, 0.61, -0.06, 1.06);
-        p(0.13, 0.04, 0.13, -0.02, 0.612, -0.17, 0.96);
+        // a second, smaller layer on top, so the crown steps up as a block would, its edge broken into locks
+        p(0.38, 0.04, 0.34, -0.01, 0.625, -0.01, 1.07);
+        for (const [x, z, w, d] of [[-0.16, 0.12, 0.08, 0.1], [0.15, 0.1, 0.1, 0.08], [-0.17, -0.12, 0.08, 0.12], [0.16, -0.14, 0.08, 0.1], [0.0, -0.18, 0.14, 0.06]] as const) p(w, 0.025, d, x, 0.615, z, 1.02);
       }
       // The sides, from the nape forward to the temples, and down behind the ears (no bare patch above or behind them)
       if (style !== 10) for (const s of [1, -1]) {
@@ -2036,8 +2086,7 @@ export class Humanoid {
         p(0.04, 0.15, 0.06, s * 0.232, 0.455, 0.175, 0.98, 0.012);
         p(0.05, 0.13, 0.15, s * 0.236, 0.27, -0.12, 0.92, 0.015);
       }
-      p(0.48, 0.3, 0.1, 0, 0.39, -0.19, 0.94);
-      p(0.38, 0.06, 0.08, 0, 0.22, -0.19, 0.88);
+      locks(-0.24, 0.24, 0.54, 0.25, -0.19, 0.1, 0.94, 0.05);
       if (!fem && (style === 0 || style === 8 || style === 10)) for (const s of [1, -1]) p(0.035, 0.1, 0.06, s * 0.226, 0.33, 0.12, 0.9, 0.01);
     }
     // The fringe across the forehead (the face's front is at z 0.21)
@@ -2056,9 +2105,8 @@ export class Humanoid {
     switch (style) {
       case 13: // bright roots: long and loose like 1, the top another colour (below)
       case 1: // long, loose
-        for (const s of [1, -1]) { p(0.07, 0.42, 0.22, s * 0.24, 0.25, 0.04, 0.96); p(0.06, 0.08, 0.16, s * 0.24, 0.0, 0.05, 0.9); }
-        p(0.48, 0.5, 0.1, 0, 0.2, -0.21, 0.94);
-        for (const [x, w, ht] of [[-0.16, 0.14, 0.07], [0.02, 0.14, 0.1], [0.17, 0.12, 0.06]] as const) p(w, ht, 0.09, x, -0.05 - ht / 2, -0.21, 0.88);
+        for (const s of [1, -1]) sideLocks(s * 0.245, -0.08, 0.15, 0.46, 0.0, 0.07, 0.96, 0.08);
+        locks(-0.25, 0.25, 0.45, -0.08, -0.215, 0.1, 0.93, 0.1);
         break;
       case 2: // topknot
         p(0.17, 0.15, 0.17, 0, 0.66, -0.06, 1.05, 0.06);
@@ -2073,8 +2121,8 @@ export class Humanoid {
         }
         break;
       case 5: // bob, to the jaw all round
-        for (const s of [1, -1]) p(0.08, 0.36, 0.42, s * 0.245, 0.3, -0.02, 0.95);
-        p(0.5, 0.36, 0.1, 0, 0.3, -0.21, 0.93);
+        for (const s of [1, -1]) sideLocks(s * 0.25, -0.22, 0.2, 0.48, 0.13, 0.08, 0.95, 0.03);
+        locks(-0.25, 0.25, 0.48, 0.13, -0.215, 0.1, 0.93, 0.03);
         break;
       case 6: // ponytail, tied with a thong
         part(this.head, rbox(0.1, 0.08, 0.06, 0.02), '#3a2a1a', 0, 0.44, -0.255);
@@ -2107,7 +2155,7 @@ export class Humanoid {
       case 14: { // a thick mane of waves to the waist, wider than the head, over the shoulders in front (Becky White's)
         // (her colours by hand: the base, and the streaks: [0] the strands that run down through it, the rest the fringe's)
         const S = streaks.length ? streaks : [h];
-        const q = (c: string, w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, r = 0.02) => part(this.head, rbox(w, ht, d, r), tone === 1 ? c : shade(c, tone), x, y, z);
+        const q = (c: string, w: number, ht: number, d: number, x: number, y: number, z: number, tone = 1, _r = 0.02) => { bits.push({ w, ht, d, x, y, z, c: tone === 1 ? c : shade(c, tone) }); };
         q(h, 0.62, 0.16, 0.6, 0, 0.6, -0.03, 1.06);
         q(h, 0.5, 0.06, 0.46, 0.02, 0.69, -0.05, 1.12);
         // the mass down the back, broad, a little ragged at the foot
@@ -2143,8 +2191,8 @@ export class Humanoid {
         break;
       case 12: // wild mane
         p(0.56, 0.2, 0.52, 0, 0.57, -0.03, 1.02, 0.06);
-        p(0.56, 0.6, 0.16, 0, 0.2, -0.22, 0.94, 0.05);
-        for (const s of [1, -1]) { p(0.1, 0.5, 0.34, s * 0.27, 0.24, -0.06, 0.96, 0.04); p(0.08, 0.14, 0.12, s * 0.3, -0.04, -0.02, 0.88, 0.03); }
+        locks(-0.28, 0.28, 0.5, -0.06, -0.23, 0.16, 0.94, 0.14);
+        for (const s of [1, -1]) sideLocks(s * 0.27, -0.22, 0.12, 0.49, 0.0, 0.1, 0.96, 0.12);
         for (const [x, z] of [[-0.18, 0.1], [0.05, 0.14], [0.2, -0.05], [-0.1, -0.2]]) p(0.12, 0.08, 0.12, x, 0.69, z, 1.1, 0.04);
         break;
     }
@@ -2303,6 +2351,7 @@ export class Humanoid {
       part(this.head, rbox(0.54, 0.09, 0.52, 0.04), '#f4f8fc', 0, 0.5, -0.01);
       part(this.head, rbox(0.17, 0.17, 0.17, 0.08), '#f4f8fc', 0, 0.78, -0.02);
     }
+    } finally { flushHair(); }
   }
 
   /** A weapon put away (owner 2026-11-12: "a way to sheathe your weapon, like ESO"): across the back, hilt over the right shoulder. */
