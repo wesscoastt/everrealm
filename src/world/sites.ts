@@ -5337,6 +5337,8 @@ function* planBody(): Generator<string, Plan> {
    * pony pound, and the tor with its holed stone.
    */
   function buildOuterTown(s: Site, G: number, kind: 'cragsby' | 'holme' | 'scarrow') {
+    // Cragsby's green: the Callis brig's figurehead the gale threw up (data/content/gannetMore.ts, What the Sea Brought)
+    if (kind === 'cragsby') s.props.push({ t: 'monument', monument: 'spfigure', x: 243.5, y: G, z: -1008.5, ry: Math.PI * 0.75 });
     const cx = Math.round(s.x), cz = Math.round(s.z);
     const roof: PropDesc['mat'] = kind === 'holme' ? 'thatch' : 'slate';
     const wall = kind === 'holme' ? B.Plaster : B.StoneBrick;

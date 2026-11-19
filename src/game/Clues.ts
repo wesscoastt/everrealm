@@ -270,6 +270,18 @@ export class Clues {
         put(box, '#2a2a2a', Math.cos(ang) * 0.055, 1.27, -Math.sin(ang) * 0.055, 0.012, 0.12, 0.012, ang, 0, 0.6); // the needle
         put(box, '#5a5a5a', 0, 0.02, 0, 0.3, 0.04, 0.3, ang);
         break;
+      case 'basket': {
+        // a fowler's wicker basket, lid tied down, a gannet's head pushed out under the lid
+        put(rod, '#a07c48', 0, 0.26, 0, 0.36, 0.52, 0.36, ang);
+        for (const yy of [0.06, 0.2, 0.34, 0.48]) put(rod, '#7a5a30', 0, yy, 0, 0.375, 0.035, 0.375, ang);
+        put(rod, '#8a6a3a', 0, 0.54, 0, 0.39, 0.05, 0.39, ang, 0, 0.12);
+        put(box, '#c8b898', 0, 0.56, 0, 0.8, 0.02, 0.03, ang); // the cord over the lid
+        const hx = Math.sin(ang) * 0.3, hz = Math.cos(ang) * 0.3;
+        put(blob, '#f4f2ea', hx, 0.5, hz, 0.11, 0.1, 0.12, ang);
+        put(blob, '#e8d8a0', hx * 1.25, 0.56, hz * 1.25, 0.08, 0.07, 0.08, ang); // the yellow nape
+        put(new THREE.ConeGeometry(1, 1, 5), '#9aa4ac', hx * 1.75, 0.55, hz * 1.75, 0.03, 0.16, 0.03, 0, Math.PI / 2 * Math.cos(ang), -Math.PI / 2 * Math.sin(ang)); // the bill
+        break;
+      }
       case 'glint':
         break;
     }
