@@ -730,6 +730,7 @@ function* planBody(): Generator<string, Plan> {
     { id: 'mossgate', name: 'Ketley Arches', x: 176, z: 860, r0: 18, r1: 30, build: (s, b) => buildMossgate(s, b) },
     { id: 'wendside', name: 'Wendside Cottage', x: 408, z: 200, r0: 10, r1: 18, h: 20, build: (s, b) => buildCottage(s, b) },
     { id: 'lots', name: 'Wendside Lots', x: 416, z: 214, r0: 0, r1: 0, build: (s) => buildLots(s, WENDSIDE_LOTS) },
+    { id: 'collierclamp', name: 'Bevin\'s Clamp', x: 360, z: 800, r0: 8, r1: 13, build: (s, b) => buildCollierClamp(s, b) },
     { id: 'woodcamp', name: 'Fellers\' Camp', x: 446, z: 520, r0: 12, r1: 22, build: (s) => { buildCamp(s, 446, 520, true); fellersExtras(s); } },
     { id: 'gullmouth', name: 'Gullmouth', x: gullCoast - 34, z: gullZ, r0: 26, r1: 40, h: SEA + 3, build: (s, b) => buildGullmouth(s, b, gullCoast) },
     { id: 'lighthouse', name: 'Fleet Light', x: lightCoast - 14, z: lightZ, r0: 7, r1: 14, build: (s, b) => buildLighthouse(s, b) },
@@ -7868,6 +7869,27 @@ function* planBody(): Generator<string, Plan> {
   }
 
   /** Fellers' Camp: a cookhouse lean-to, log stacks, stumps of felled trees, sawhorses and a loaded cart. */
+  /**
+   * Jethro Bevin's charcoal clamp, east of the Colliers' Clearing (data/content/hagwormColliers.ts): a long turfed mound
+   * smoking from its vents, his turf hut, the cordwood waiting for the next burn, and the bank he cuts turves from.
+   */
+  function buildCollierClamp(s: Site, base: number) {
+    const x = Math.round(s.x), z = Math.round(s.z);
+    for (let dx = -5; dx <= 5; dx++) for (let dz = -4; dz <= 4; dz++) {
+      const d = Math.hypot(dx / 5.2, dz / 3.9);
+      if (d > 1) continue;
+      const h = d < 0.4 ? 3 : d < 0.75 ? 2 : 1;
+      for (let y = 0; y < h; y++) O.set(x + dx, base + y, z + dz, y === h - 1 ? (hash2(x + dx, z + dz, 61) < 0.35 ? B.Grass : B.Dirt) : B.Dirt);
+    }
+    for (const [sx, sz, sy] of [[-2, -1, 3], [1, 1, 3], [3, -1, 2], [-1, 2, 2], [4, 1, 1]]) s.props.push({ t: 'smoke', x: x + sx + 0.5, y: base + sy + 0.2, z: z + sz + 0.5 });
+    s.props.push({ t: 'tent', x: x - 7.5, y: base, z: z + 5.5, ry: 0.6, color: '#5a4a32' }); // the turf hut he sleeps in, when he sleeps
+    s.props.push({ t: 'woodpile', x: x + 7.5, y: base, z: z + 6.2, ry: 0, len: 3 }, { t: 'woodpile', x: x + 7.5, y: base, z: z + 7.6, ry: 0, len: 3 });
+    s.props.push({ t: 'barrel', x: x - 5.2, y: base, z: z + 6.8 }, { t: 'crate', x: x - 6.4, y: base, z: z + 2.2 });
+    // the turf bank, cut back in steps
+    for (let dx = 0; dx < 4; dx++) for (let y = 0; y < (dx < 2 ? 2 : 1); y++) O.set(x + 7 + dx, base + y, z - 6, y === (dx < 2 ? 1 : 0) ? B.Grass : B.Dirt);
+    rect(s, x - 10, z - 8, x + 11, z + 9);
+  }
+
   function fellersExtras(s: Site) {
     const x = 446, z = 520, base = heightAt(x, z);
     shelter(s, x - 9, z + 9, 5, 4, heightAt(x - 7, z + 10), 'thatch', 3);
