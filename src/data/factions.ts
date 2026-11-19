@@ -83,8 +83,8 @@ export const FACTIONS: FactionDef[] = [
   {
     id: 'ushers', name: 'The Ushers', where: 'The Charter Hall, in the keep, Ansbury',
     blurb: 'They keep the doors of the Charter Hall. Since the Charter was sealed they have also been the Speaker\'s eyes, and the less said about that, the better they like it.',
-    join: 'Not yet open.', ranks: ['Doorkeeper', 'Usher', 'Usher of the Hall'], title: 'Usher of the Hall',
-    storyline: [], color: '#1e1e24', open: false,
+    join: 'Oswin Hext, the Senior Usher, stands by the south door of the keep in Ansbury. He\'s an usher short.', ranks: ['Doorkeeper', 'Usher', 'Usher of the Hall'], title: 'Usher of the Hall',
+    storyline: ['ushDoor', 'ushSeal', 'ushHall'], color: '#1e1e24', open: true,
   },
 ];
 
