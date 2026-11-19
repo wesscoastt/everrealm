@@ -180,7 +180,7 @@ export interface MapMarker { x: number; z: number; kind: 'quest' | 'npc' | 'enem
 /** The tracker for a running event, world boss or Shardfall (see game/Activities.ts). */
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escort'; title: string; goal: string; progress: number; count: string; time?: number }
 export interface PlateInfo { key: string; x: number; y: number; name: string; sub?: string; kind: 'npc' | 'enemy' | 'elite' | 'player'; hp?: number; mark?: string; targeted?: boolean; /** A foe's element (data/elements.ts): its glyph and colour before the name. */ el?: { glyph: string; color: string; name: string } }
-export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean }[] }
+export interface DialogueView { speaker: string; title: string; text: string; narrator: boolean; look?: Appearance; options: { text: string; leave?: boolean; tag?: string; tone?: 'light' | 'dark' }[] }
 
 export interface FeatView { id: string; name: string; group: string; desc: string; have: number; need: number; done: boolean; marks: number; title: string; worn: boolean; points?: number; dye?: [string, string]; hidden?: boolean }
 
@@ -262,6 +262,7 @@ export interface UiCtx {
   /** The factions: which you've joined, your rank, and what's next (data/factions.ts). */
   factions(): { id: string; name: string; where: string; blurb: string; join: string; rank: string | null; rankIdx: number; ranks: string[]; next: string | null; open: boolean }[];
   /** Standing in each region (data/standing.ts). */
+  character(): { align: number; band: string; blurb: string; traits: { name: string; word: string }[]; regard: { name: string; kind: string; word: string; value: number }[]; people: { name: string; word: string; value: number }[]; decisions: string[]; history: string[] };
   standing(): { id: string; name: string; points: number; rank: string; off: number; from: number; next: { name: string; at: number; off: number } | null }[];
   calling(): CallingId;
   /** The calling's talent trees: points to spend, and each talent's state (why it can't be learned yet, if not). */
@@ -2620,7 +2621,7 @@ export class Hud {
   private renderJournal(): void {
     const body = this.q('#journal-panel .body');
     const qs = this.ctx.quests();
-    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'trade' && this.selQuest !== 'garden' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
+    if (!this.selQuest || (this.selQuest !== 'places' && this.selQuest !== 'bestiary' && this.selQuest !== 'feats' && this.selQuest !== 'trade' && this.selQuest !== 'garden' && this.selQuest !== 'library' && this.selQuest !== 'factions' && this.selQuest !== 'standing' && this.selQuest !== 'character' && this.selQuest !== 'calling' && this.selQuest !== 'festival' && this.selQuest !== 'writs' && this.selQuest !== 'weekly' && this.selQuest !== 'login' && !qs.some((q) => q.id === this.selQuest))) this.selQuest = qs.find((q) => !q.done)?.id ?? qs[0]?.id ?? 'places';
     const list = el('div', 'jlist');
     const add = (title: string, items: QuestEntry[]) => {
       if (!items.length) return;
@@ -2659,6 +2660,9 @@ export class Hud {
       fj.addEventListener('click', () => { this.selQuest = 'festival'; this.renderJournal(); });
       list.append(fj);
     }
+    const chj = el('div', 'ji' + (this.selQuest === 'character' ? ' sel' : ''), 'Character');
+    chj.addEventListener('click', () => { this.selQuest = 'character'; this.renderJournal(); });
+    list.append(chj);
     const tr = el('div', 'ji' + (this.selQuest === 'trade' ? ' sel' : ''), 'Trade');
     tr.addEventListener('click', () => { this.selQuest = 'trade'; this.renderJournal(); });
     list.append(tr);
@@ -2814,6 +2818,20 @@ export class Hud {
           + `<div class="fd"><b>${esc(f.where)}.</b> ${esc(f.rankIdx >= 0 ? f.next ?? 'You have risen as high as it goes.' : f.join)}</div>`;
         page.append(row);
       }
+    } else if (this.selQuest === 'character') {
+      // Alignment, traits, regard, people, decisions (data/morality.ts; the owner's brief, docs/briefs/morality.md 9)
+      const c = this.ctx.character();
+      const pos = ((c.align + 100) / 200) * 100;
+      page.innerHTML = '<h4>Character</h4><div class="feat-sum">Who you have become, by what you have done. Nothing here is fixed: a hero can fall, and anyone can come back.</div>'
+        + `<div class="align-card"><div class="ft"><b>${esc(c.band)}</b><span>${c.align > 0 ? '+' : ''}${c.align}</span></div>`
+        + `<div class="align-scale"><i class="ev"></i><i class="bd"></i><i class="nt"></i><i class="gd"></i><i class="hr"></i><b style="left:${pos}%"></b></div>`
+        + '<div class="align-names"><span>Evil</span><span>Bad</span><span>Neutral</span><span>Good</span><span>Heroic</span></div>'
+        + `<div class="fd">${esc(c.blurb)}</div></div>`
+        + '<h5>Temperament</h5><div class="trait-grid">' + c.traits.map((t) => `<div><span>${esc(t.name)}</span><b>${esc(t.word)}</b></div>`).join('') + '</div>'
+        + '<h5>Major decisions</h5>' + (c.decisions.length ? c.decisions.map((d) => `<div class="fd moral-line">${esc(d)}</div>`).join('') : '<div class="fd">None yet. They will come.</div>')
+        + '<h5>Regard</h5>' + (c.regard.length ? c.regard.map((r) => `<div class="feat"><div class="ft"><b>${esc(r.name)}</b><span>${esc(r.word)}</span></div><div class="bar feat-bar regard${r.value < 0 ? ' neg' : ''}"><i style="width:${Math.abs(r.value)}%"></i></div></div>`).join('') : '<div class="fd">No kingdom, town or company has made up its mind about you yet.</div>')
+        + (c.people.length ? '<h5>People</h5>' + c.people.map((p) => `<div class="ft moral-person"><b>${esc(p.name)}</b><span>${esc(p.word)}</span></div>`).join('') : '')
+        + (c.history.length ? '<h5>What you have done</h5>' + c.history.map((d) => `<div class="fd moral-line">${esc(d)}</div>`).join('') : '');
     } else if (this.selQuest === 'standing') {
       const rows = this.ctx.standing();
       page.innerHTML = '<h4>Standing</h4><div class="feat-sum">How well each region knows you. Its quests, parish tasks, events, rares, world boss and group dungeon all count. Trusted takes 5% off its traders\' prices, Honoured 10% and Revered 15%, and Revered gives a title.</div>';
@@ -4192,7 +4210,7 @@ export class Hud {
     const opts = d.querySelector('.opts')!;
     opts.innerHTML = '';
     this.dlgOptions = v.options.map((o, i) => {
-      const b = el('button', 'opt' + (o.leave ? ' leave' : ''), `<span class="k">${i + 1}.</span>${esc(o.text)}`);
+      const b = el('button', 'opt' + (o.leave ? ' leave' : '') + (o.tone ? ' ' + o.tone : ''), `<span class="k">${i + 1}.</span>${o.tag ? `<span class="atag">[${esc(o.tag)}]</span> ` : ''}${esc(o.text)}`);
       b.addEventListener('click', () => this.ctx.dialogueChoose(i));
       opts.append(b);
       return b;

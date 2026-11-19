@@ -494,6 +494,10 @@ canvas.portrait3d { image-rendering: auto !important; padding: 0 !important; bac
 .dlg .opt:hover, .dlg .opt.focus { background: rgba(80, 50, 15, 0.12); color: #000; }
 .dlg .opt .k { position: absolute; left: 4px; top: 4px; width: 20px; height: 20px; display: grid; place-items: center; font: 700 13px var(--body); color: var(--cream); background: #3a2814; border: 2px solid var(--ink); }
 .dlg .opt.leave { color: #7a5a30; font-style: italic; }
+/* Morality (data/morality.ts): an option's weight, light or dark, as a small mark by its number; what it needs, as a tag */
+.dlg .opt.light .k { box-shadow: 0 0 0 2px #e8c860, 0 0 8px rgba(240, 210, 110, 0.7); }
+.dlg .opt.dark .k { box-shadow: 0 0 0 2px #8a1e1e, 0 0 8px rgba(150, 20, 20, 0.6); }
+.dlg .opt .atag { font: 700 13px var(--body); letter-spacing: 0.04em; color: #7a4a10; }
 
 /* ------------------------------------------------------------- Title and creator */
 /* Loading screen: opaque, so half-built chunks never show behind the logo */

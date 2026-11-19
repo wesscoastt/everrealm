@@ -90,6 +90,15 @@ export const HELP: [string, [string, string][]][] = [
     ['What slash commands are there?', 'Type /help in chat for the full list. The useful ones: /w name to whisper and /r to reply, /p for your group, /gu for your guild, /trade for the trade channel, /roll, /who, /played, /home, /goto name, /joinrun, /costume, /catches, /friend and /ignore, and /report name to report someone.'],
     ['How do I emote?', '/wave, /bow, /cheer, /clap, /laugh, /salute, /point, /shrug, /dance, /sit, /kneel and /sleep. /emotes lists them. Moving ends one, and you can’t while riding or swimming.'],
   ]],
+  ['Alignment and reputation', [
+    ['What is alignment?', 'How your deeds have shaped you, from Evil through Bad, Neutral and Good to Heroic. Your journal’s Character page (J) shows where you stand. Nothing is fixed: a hero can fall, and anyone can come back.'],
+    ['What changes it?', 'Choices that matter: what you agree to, what you ask for in return, who you protect and who you sell out. A conversation answer with a small gold mark by its number leans to the light, a red one to the dark. Not every choice has one, and some consequences you won’t see coming.'],
+    ['Why do some answers have a tag like [Heroic]?', 'Only someone of that alignment, or that temperament, would think to say it. Others have their own answers. No quest is shut to you because of who you are, but the ways through it change.'],
+    ['What is my temperament?', 'Eight traits that grow from what you do: compassion, greed, honesty, cruelty, courage, loyalty, deception and generosity. They move apart from your alignment, so you can be heroic and greedy, or wicked and loyal. People and companions notice them.'],
+    ['Is reputation the same as alignment?', 'No. Regard is what a particular kingdom, town, company, faith, soldiery or band of thieves thinks of you, and each makes up its own mind. Exposing a crooked court can make you loved in one place and loathed in another. Standing, earned by work in a region, is separate again.'],
+    ['Does everyone know what I’ve done?', 'No. The person you did it to remembers, and so do those who saw it. Word gets round a district in time, round a guild or a gang by their own ways, and only great deeds are cried across the realm.'],
+    ['Do companions care?', 'Each has their own morals. Wenna can’t stand faithlessness, Daejon a lie told for money, David Kitto cruelty; Tam likes a bit of an edge, and Ned likes everything you do. They’ll tell you what they think, and some will leave for good if you push them far enough.'],
+  ]],
   ['Companions', [
     ['How do I get a companion?', 'Meet them in the world and win them round: Wenna Hale in the Waystation yard, Ottilie Fenn at the Glass Kirk, Tam Reddick on Gullmouth quay, Ned Applegarth in Ansbury’s market, Fisherman Dave in his net shed above Gullmouth’s slip, and Daejon Love at Kezia’s stall on the quay. One walks with you at a time.'],
     ['How do I call or send one away?', 'Open Companions (U). Summon calls them from wherever they are, Gear dresses them, Gift gives them something, To your house sends them home, and Send back returns them to their own place.'],

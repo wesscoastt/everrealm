@@ -14,6 +14,7 @@
     "ferries": "rolldown scripts/ferries.ts --platform node --format esm --file .walker/ferries.mjs --logLevel warn && node .walker/ferries.mjs",
     "poststations": "rolldown scripts/poststations.ts --platform node --format esm --file .walker/poststations.mjs --logLevel warn && node .walker/poststations.mjs",
     "islands": "rolldown scripts/islandcourses.ts --platform node --format esm --file .walker/islandcourses.mjs --logLevel warn && node .walker/islandcourses.mjs",
+    "morality": "rolldown scripts/moraltest.ts --platform node --format esm --file .walker/moraltest.mjs --logLevel warn && node .walker/moraltest.mjs",
     "sites": "rolldown scripts/sitecheck.ts --platform node --format esm --file .walker/sitecheck.mjs --logLevel warn && node .walker/sitecheck.mjs",
     "paths": "rolldown scripts/pathcheck.ts --platform node --format esm --file .walker/pathcheck.mjs --logLevel warn && node .walker/pathcheck.mjs",
     "balance": "rolldown scripts/classbalance.ts --platform node --format esm --file .walker/classbalance.mjs --logLevel warn && node .walker/classbalance.mjs",

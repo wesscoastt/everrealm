@@ -45,6 +45,8 @@ export interface GuardRef { id: string; town: string; pos: THREE.Vector3 }
 export interface JusticeHost {
   /** A crime done where your companion could see it. */
   noticed?(): void;
+  /** A crime that was seen: written in the book of deeds (data/morality.ts). */
+  committed?(kind: 'beast' | 'assault' | 'guard' | 'theft', town: string): void;
   /** Taken in or paid up: the stolen goods go back (game/Thievery.ts). */
   confiscate?(): void;
   scene: THREE.Scene;
@@ -167,6 +169,7 @@ export class Justice {
     // (a theft is only reported here once the thief's own check found a witness: game/Thievery.ts)
     const seen = kind === 'guard' || kind === 'theft' || this.host.guards(at, 26).some((g) => g.town === j.id) || this.host.witnesses(at, 18) > 0;
     if (!seen) { this.host.system('Nobody saw that.'); return false; }
+    this.host.committed?.(kind, j.id);
     const was = this.bounty(j.id);
     this.setBounty(j.id, was + price);
     const now = this.bounty(j.id);

@@ -1,4 +1,5 @@
 import type { DialogueTree, DNode, DOption, GameApi } from '../../game/api';
+import { addDeed, derive, meets, readBook, type Band, type DeedInput, type Moral, type Need } from '../morality';
 
 // Small helpers for writing content modules. Type-only imports keep this free of cycles.
 
@@ -33,3 +34,22 @@ export const killed = (g: GameApi, key: string) => Number(g.flag((key.startsWith
 
 /** Return type for QuestDef.marks: who wears a "!" (has something for you) or "?" (waiting on you). */
 export type Marks = Record<string, '!' | '?'>;
+
+// ---------------------------------------------------------------- Morality (data/morality.ts, docs/MORALITY.md)
+
+/** Write a deed in the character's book: once per id (false if it was already there). */
+export function deed(g: GameApi, d: DeedInput): boolean {
+  if (g.deed) return g.deed(d);
+  const book = readBook(g.flag('moral')); // (a harness without the game: the book alone)
+  const added = addDeed(book, d);
+  if (added) g.setFlag('moral', book);
+  return added;
+}
+/** The character's alignment, band, traits, regard and people's feelings. */
+export const moral = (g: GameApi): Moral => (g.moral ? g.moral() : derive(readBook(g.flag('moral'))));
+/** Whether the character qualifies (alignment, traits, regard, feelings, past deeds). */
+export const qualifies = (g: GameApi, n: Need) => meets(moral(g), n);
+/** The alignment band: 'evil' | 'bad' | 'neutral' | 'good' | 'heroic'. */
+export const bandIs = (g: GameApi): Band => moral(g).band;
+/** Whether a deed has been done. */
+export const did = (g: GameApi, id: string) => moral(g).done.has(id);

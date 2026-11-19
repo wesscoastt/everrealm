@@ -190,6 +190,7 @@ import { Stables } from './Stables';
 import { LODGINGS, MAX_WEEKS, readTenancy, roomsOf, roomShape, WEEK } from '../data/lodgings';
 import { DUNGEON_BY_ID, henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
+import { addDeed, BANDS, bandName, CHOICE_DEEDS, choiceDeedId, derive, GROUPS, meets, needTag, readBook, regardWord, tone, TRAIT_NAMES, TRAITS, traitWord, type DeedInput, type Moral } from '../data/morality';
 import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
 import { marksScale, regionLevel, rewardScale } from '../data/scaling';
 import { HIT_XP, killXp, QUEST_KILLS } from '../data/pacing';
@@ -1135,6 +1136,7 @@ export class Game implements GameApi {
     this.justice = new Justice({
       confiscate: () => { const n = this.thief.confiscate((id, k) => this.inv.remove(id, k), (id) => this.inv.count(id)); if (n) { this.hud.system(`The watch goes through your pack and takes back ${n} stolen thing${n === 1 ? '' : 's'}.`); this.hud.refresh('inv'); } },
       noticed: () => this.companions?.event('crime'),
+      committed: (kind, town) => this.crimeDeed(kind, town),
       scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
       setPose: (st) => { this.lawPose = st; },
       marks: () => this.save.marks, spend: (n) => { this.save.marks = Math.max(0, this.save.marks - n); this.hud.refresh(); },
@@ -1900,6 +1902,52 @@ export class Game implements GameApi {
       else if (key.startsWith('book:')) this.companions.event('book');
     }
     this.save.flags[key] = value;
+    if (typeof value === 'string' && key !== 'moral') for (const c of CHOICE_DEEDS) if (c.flag === key && c.value === value) this.deed({ id: choiceDeedId(key, value), ...c.deed });
+  }
+  // =================================================================== Morality (data/morality.ts)
+  private moralCache: Moral | null = null;
+  /** The character's alignment, traits, regard and people's feelings, worked out from the book of deeds. */
+  moral(): Moral { return (this.moralCache ??= derive(readBook(this.save.flags.moral))); }
+  /** Write a deed: once per id. Says what changed that a person would notice in themselves, and the companion with you has their say. */
+  deed(d: DeedInput): boolean {
+    const book = readBook(this.save.flags.moral);
+    const p = this.player?.position;
+    const comp = this.companions?.active;
+    const input: DeedInput = { ...d, where: d.where ?? (p ? (regionAt(p.x, p.z).a as DeedInput['where']) : undefined), who: comp ? [...(d.who ?? []), 'comp:' + comp] : d.who };
+    const before = this.moral();
+    if (!addDeed(book, input)) return false;
+    this.save.flags.moral = book;
+    this.moralCache = null;
+    const after = this.moral();
+    if (after.align !== before.align) {
+      const up = after.align > before.align;
+      this.hud?.system(`${up ? 'Light' : 'Dark'}: ${up ? '+' : ''}${after.align - before.align} alignment (${after.align}, ${bandName(after.band)})`);
+      if (after.band !== before.band) this.hud?.banner(bandName(after.band), up ? 'Your alignment has risen' : 'Your alignment has fallen', false);
+    }
+    this.companions?.moralDeed(input);
+    return true;
+  }
+  /**
+   * A crime that was seen, in the book of deeds: each kind at most once a day in each town, so a spree doesn't count
+   * as a lifetime (the owner's brief: only meaningful events move traits). The town and its watch think less of you.
+   */
+  private crimeDeed(kind: 'beast' | 'assault' | 'guard' | 'theft', town: string): void {
+    const day = Math.floor(Date.now() / 86_400_000);
+    const w = {
+      theft: { a: -3, tr: { greed: 2, honesty: -2 }, rep: { [town]: -4, watch: -2 }, note: 'Caught stealing in ' },
+      assault: { a: -5, tr: { cruelty: 3 }, rep: { [town]: -6, watch: -4 }, note: 'Seen attacking someone in ' },
+      beast: { a: -2, tr: { cruelty: 2 }, rep: { [town]: -3 }, note: 'Seen hurting the animals in ' },
+      guard: { a: -8, tr: { cruelty: 2, courage: 2 }, rep: { [town]: -8, watch: -12 }, note: 'Fought the watch in ' },
+    }[kind];
+    const name = town[0].toUpperCase() + town.slice(1);
+    this.deed({ id: `crime:${kind}:${town}:${day}`, a: w.a, tr: w.tr, rep: w.rep, note: w.note + name + '.', spread: 'witness', fame: kind === 'guard' ? 'fought the watch' : undefined });
+  }
+  /** Old saves: the quest choices made before the book existed, written in once. */
+  private bookFromChoices(): void {
+    for (const c of CHOICE_DEEDS) if (this.save.flags[c.flag] === c.value) {
+      const book = readBook(this.save.flags.moral);
+      if (addDeed(book, { id: choiceDeedId(c.flag, c.value), ...c.deed }, 0)) { this.save.flags.moral = book; this.moralCache = null; }
+    }
   }
   stage(q: string): string | undefined { return this.save.quests[q]; }
   questsDone(): number { return Object.values(this.save.quests).filter((v) => v === 'done').length; }
@@ -1968,8 +2016,32 @@ export class Game implements GameApi {
     this.sfx('discover');
   }
   /** What the shops of a region take off for you. */
+  /** What a merchant adds for who you are (data/morality.ts): their town's regard for you, and a Bad or Evil name where it's known. */
+  private moralMarkup(region: RegionId): number {
+    const m = this.moral();
+    const towns = GROUPS.filter((g) => g.kind === 'town' && g.region === region && g.id in m.regard).map((g) => m.regard[g.id]);
+    const regard = towns.length ? Math.min(...towns) : 0;
+    const byRegard = regard <= -60 ? 0.15 : regard <= -25 ? 0.08 : regard >= 60 ? -0.05 : regard >= 25 ? -0.03 : 0;
+    const known = readBook(this.save.flags.moral).deeds.some((d) => d.where === region && (d.a ?? 0) < 0 && d.spread && d.spread !== 'self');
+    const byName = known ? ({ bad: 0.05, evil: 0.1 } as Record<string, number>)[m.band] ?? 0 : 0;
+    return byRegard + byName;
+  }
   private standingOff(region: RegionId): number { return rankFor(Number(this.flag('rep:' + region) ?? 0)).rank.off; }
   /** The journal's Standing page. */
+  /** The Character page (journal): alignment and its band, traits as words, regard with the groups you're known to, the people who feel strongly, the major decisions and the record. */
+  characterView() {
+    const m = this.moral(), book = readBook(this.save.flags.moral), band = BANDS.find((b) => b.id === m.band)!;
+    const nameOf = (id: string) => id.startsWith('comp:') ? COMPANIONS[id.slice(5) as CompanionId]?.name : (NPCS.find((n) => n.id === id)?.name ?? this.npcs.find((n) => n.def.id === id)?.def.name);
+    const feelWord = (v: number) => (v >= 60 ? 'Devoted to you' : v >= 25 ? 'Fond of you' : v > -25 ? 'Warm' : v > -60 ? 'Bitter' : 'Hates you');
+    return {
+      align: m.align, band: band.name, blurb: band.blurb,
+      traits: TRAITS.map((t) => ({ name: TRAIT_NAMES[t], word: traitWord(t, m.traits[t]) })),
+      regard: GROUPS.filter((g) => g.id in m.regard).map((g) => ({ name: g.name, kind: g.kind, word: regardWord(m.regard[g.id]), value: m.regard[g.id] })),
+      people: Object.entries(m.feel).filter(([, v]) => Math.abs(v) >= 15).map(([id, v]) => ({ name: nameOf(id) ?? '', word: v > 0 ? feelWord(v) : feelWord(v), value: v })).filter((p) => p.name).sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 10),
+      decisions: book.deeds.filter((d) => d.major && d.note).map((d) => d.note!).reverse(),
+      history: book.deeds.filter((d) => d.note && !d.major).map((d) => d.note!).reverse().slice(0, 12),
+    };
+  }
   standingView() {
     return (Object.keys(REGION_INFO) as RegionId[]).map((r) => {
       const points = Number(this.flag('rep:' + r) ?? 0), x = rankFor(points);
@@ -2027,6 +2099,7 @@ export class Game implements GameApi {
       props: () => this.world.sites.flatMap((s) => s.props as { t: string; item?: string; x: number; y: number; z: number }[]),
       player: () => this.player.position, facing: () => this.player.facing, sneaking: () => this.sneaking,
       night: () => { const h = this.world.sky.hour ?? 12; return h >= 21 || h < 5; },
+      watched: () => ({ bad: 1.15, evil: 1.3 } as Record<string, number>)[this.moral().band] ?? 1,
       people: () => this.npcs.filter((n) => n.placed !== false && n.model.root.visible).map((n) => ({ id: n.def.id, name: n.def.name, pos: n.pos, yaw: n.model.root.rotation.y })),
       witnesses: (at, r) => this.crowd.near(at, r) + this.npcs.filter((n) => n.placed !== false && n.model.root.visible && n.pos.distanceTo(at) < r).length,
       crime: (at, price, what) => this.justice.crime('theft', at, what, undefined, price),
@@ -4532,6 +4605,7 @@ export class Game implements GameApi {
       claimLogin: () => { g.dailies.claimLogin(); g.hud.refresh(); },
       respawnNow: () => { if (g.dead) g.respawn(); },
       standing: () => g.standingView(),
+      character: () => g.characterView(),
       library: () => SHELVES.map((shelf) => ({ shelf, books: LORE_BOOKS.filter((b) => b.shelf === shelf).map((b) => ({ id: b.id, title: b.title, where: b.where, read: !!g.flag('book:' + b.id) })) })),
       readBook: (id: string) => { const b = BOOK_BY_ID[id]; if (b && g.flag('book:' + id)) g.books.open(b); },
       factions: () => FACTIONS.map((f) => {
@@ -5202,6 +5276,8 @@ export class Game implements GameApi {
   private finishStart(fresh: boolean): void {
     this.startPending = null;
     this.mode = 'play';
+    this.moralCache = null;
+    this.bookFromChoices();
     this.hud.hideTitle();
     this.fitPack();
     this.sweepUnknown();
@@ -5525,14 +5601,14 @@ export class Game implements GameApi {
     const owner = NPCS.find((n) => n.id === shop.owner);
     // Standing in the trader's region takes a share off (not off festival tokens)
     const where = owner ? regionAt(owner.schedule[0].at[0], owner.schedule[0].at[1]).a : null;
-    const off = where && !shop.currency ? this.standingOff(where) : 0;
+    const off = where && !shop.currency ? this.standingOff(where) - this.moralMarkup(where) : 0;
     return {
       name: shop.name,
       who: shop.who ?? (owner ? owner.name.split(' ')[0] : shop.name),
       stock: shop.stock.filter((x) => !x.when || x.when(this)).map((x) => ({ item: x.item, price: Math.max(1, Math.round(shopPrice(this, shop, x.price) * (1 - off))) })),
       sellPrice: (id: string) => shopBuyPrice(this, shop, id),
       buyback: this.soldLately().map(({ id, n, price }) => ({ id, n, price })),
-      footer: shop.footer(this) + (off ? ` · ${rankFor(Number(this.flag('rep:' + where) ?? 0)).rank.name} in ${REGION_INFO[where!].name}: ${Math.round(off * 100)}% off` : ''),
+      footer: shop.footer(this) + (off > 0 ? ` · ${rankFor(Number(this.flag('rep:' + where) ?? 0)).rank.name} in ${REGION_INFO[where!].name}: ${Math.round(off * 100)}% off` : off < 0 ? ` · They know your name here: ${Math.round(-off * 100)}% on` : ''),
       currency: shop.currency ? { id: shop.currency, name: FESTIVALS.find((f) => f.token === shop.currency)?.tokenPlural ?? ITEMS[shop.currency].name, have: this.inv.count(shop.currency) } : undefined,
     };
   }
@@ -6078,12 +6154,17 @@ export class Game implements GameApi {
     this.renderNode(node);
   }
 
-  private nodeOptions(node: DNode): { text: string; next?: string; effect?: (g: GameApi) => void; leave?: boolean }[] {
-    const opts = (node.options ?? []).filter((o) => !o.cond || o.cond(this)).map((o) => ({
+  private nodeOptions(node: DNode): { text: string; next?: string; effect?: (g: GameApi) => void; leave?: boolean; moral?: DeedInput; tag?: string; tone?: 'light' | 'dark' }[] {
+    const m = this.moral();
+    type Opt = { text: string; next?: string; effect?: (g: GameApi) => void; leave?: boolean; moral?: DeedInput; tag?: string; tone?: 'light' | 'dark' };
+    const opts: Opt[] = (node.options ?? []).filter((o) => (!o.cond || o.cond(this)) && meets(m, o.need)).map((o) => ({
       text: typeof o.text === 'function' ? o.text(this) : o.text,
       next: o.next,
       effect: o.effect,
-      leave: !o.next && !o.effect,
+      leave: !o.next && !o.effect && !o.moral,
+      moral: o.moral,
+      tag: needTag(o.need) ?? undefined,
+      tone: o.quiet || (o.moral && this.moral().done.has(o.moral.id)) ? undefined : tone(o.moral?.a) ?? undefined,
     }));
     if (!opts.length) opts.push(node.next ? { text: 'Continue', next: node.next, effect: undefined, leave: false } : { text: 'Leave', next: undefined, effect: undefined, leave: true });
     return opts;
@@ -6106,7 +6187,7 @@ export class Game implements GameApi {
       text: d.text ?? (typeof node.text === 'function' ? node.text(this) : node.text),
       narrator: node.speaker === 'narrator',
       look: who?.look ?? d.npc.def.look,
-      options: this.nodeOptions(node).map((o) => ({ text: o.text, leave: o.leave })),
+      options: this.nodeOptions(node).map((o) => ({ text: o.text, leave: o.leave, tag: o.tag, tone: o.tone })),
     });
     this.sfx('click');
   }
@@ -6117,6 +6198,7 @@ export class Game implements GameApi {
     const node = d.tree.nodes[d.node];
     const opt = this.nodeOptions(node)[i];
     if (!opt) return;
+    if (opt.moral) this.deed({ ...opt.moral, who: opt.moral.who ?? [d.npc.def.id] });
     opt.effect?.(this);
     if (!this.dialogue) return;
     if (opt.next) this.enterNode(opt.next);

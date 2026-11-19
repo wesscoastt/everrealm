@@ -15,6 +15,8 @@ export interface ThiefHost {
   facing(): number;
   sneaking(): boolean;
   night(): boolean;
+  /** How much closer the watch keeps an eye on you (data/morality.ts: Bad and Evil are watched): 1 for most. */
+  watched?(): number;
   /** Townsfolk you could pick: id, name, where, and the way they face. */
   people(): { id: string; name: string; pos: THREE.Vector3; yaw: number }[];
   witnesses(at: THREE.Vector3, r: number): number;
@@ -84,7 +86,7 @@ export class Thievery {
   }
 
   private pocketOdds(): number { return Math.min(POCKET_ODDS.cap, POCKET_ODDS.base + this.host.level() * POCKET_ODDS.perLevel); }
-  private seenR(): number { return (this.host.sneaking() ? SEEN.sneak : SEEN.stand) * (this.host.night() ? SEEN.nightMul : 1); }
+  private seenR(): number { return (this.host.sneaking() ? SEEN.sneak : SEEN.stand) * (this.host.night() ? SEEN.nightMul : 1) * (this.host.watched?.() ?? 1); }
 
   /** Search or steal from a container. */
   private async take(c: { key: string; kind: string; x: number; y: number; z: number }): Promise<void> {

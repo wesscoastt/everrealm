@@ -1,5 +1,6 @@
 import { SkillId } from '../data/items';
 import { Station } from '../data/gameplay';
+import type { DeedInput, Moral, Need } from '../data/morality';
 
 /** The narrow surface dialogue, quests and interactables use to read and change the game. */
 export interface GameApi {
@@ -7,6 +8,10 @@ export interface GameApi {
   setFlag(key: string, value?: unknown): void;
   stage(quest: string): string | undefined;
   setStage(quest: string, stage: string): void;
+  /** Write a deed in the character's book (data/morality.ts): alignment, traits, regard, people's feelings. Once per id; false if already done. Optional so test harnesses without it still run: use kit.ts deed() in content. */
+  deed?(d: DeedInput): boolean;
+  /** The character's alignment, traits, regard and the people's feelings, as the book of deeds has them. */
+  moral?(): Moral;
   /** How many quests you've seen through to the end. */
   questsDone(): number;
   count(item: string): number;
@@ -154,6 +159,12 @@ export interface DOption {
   next?: string;
   cond?: (g: GameApi) => boolean;
   effect?: (g: GameApi) => void;
+  /** The moral weight of choosing it (data/morality.ts): written in the book of deeds when chosen, once. */
+  moral?: DeedInput;
+  /** Only offered when the character qualifies: alignment, traits, regard, feelings, past deeds. Shows its tag ("Heroic") when offered. */
+  need?: Need;
+  /** Hide the light or dark mark this option's weight would show. */
+  quiet?: boolean;
 }
 
 export interface DNode {

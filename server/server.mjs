@@ -211,6 +211,33 @@ function climbers() {
 }
 /** A save with far less play than the realm's copy (a fresh character made again under the same name, an old
  *  browser's copy): never written over the one with the progress. */
+/**
+ * The book of deeds (src/data/morality.ts) only ever grows, and no deed weighs more than a deed can: a save that drops
+ * a deed, changes one already written, repeats an id, or adds an unlikely number at once is refused. Alignment, traits
+ * and regard are worked out from the book, so this is what keeps them honest. Null when the book is sound.
+ */
+const MORAL_CAP = { a: 25, tr: 10, rep: 30, npc: 40 };
+function moralCheck(next, kept) {
+  const book = next?.flags?.moral;
+  if (book === undefined) return kept?.flags?.moral?.deeds?.length ? 'the book of deeds is missing' : null;
+  if (!book || typeof book !== 'object' || !Array.isArray(book.deeds) || book.deeds.length > 5000) return 'a damaged book of deeds';
+  const ids = new Set();
+  const within = (o, cap) => !o || (typeof o === 'object' && Object.values(o).every((v) => typeof v === 'number' && Math.abs(v) <= cap));
+  for (const d of book.deeds) {
+    if (!d || typeof d.id !== 'string' || d.id.length > 80 || ids.has(d.id)) return 'a bad or repeated deed';
+    ids.add(d.id);
+    if (d.a !== undefined && (typeof d.a !== 'number' || Math.abs(d.a) > MORAL_CAP.a)) return 'a deed weighs too much';
+    if (!within(d.tr, MORAL_CAP.tr) || !within(d.rep, MORAL_CAP.rep) || !within(d.npc, MORAL_CAP.npc)) return 'a deed weighs too much';
+  }
+  const old = kept?.flags?.moral?.deeds;
+  if (Array.isArray(old)) {
+    const now = new Map(book.deeds.map((d) => [d.id, d]));
+    const same = (x, y) => JSON.stringify([x.a ?? 0, x.tr ?? null, x.rep ?? null, x.npc ?? null]) === JSON.stringify([y.a ?? 0, y.tr ?? null, y.rep ?? null, y.npc ?? null]);
+    for (const d of old) { const n = now.get(d.id); if (!n || !same(n, d)) return 'a deed already written was changed or taken out'; }
+    if (book.deeds.length - old.length > 80) return 'too many deeds at once';
+  }
+  return null;
+}
 const behind = (next, kept) => !!kept && Number(kept.playTime ?? 0) - Number(next?.playTime ?? 0) > 600;
 /** A character's own id: given the first time it's stored and never changed, so a player is known by more than their name. */
 const newPid = () => crypto.randomBytes(6).toString('hex');
@@ -589,6 +616,7 @@ async function api(req, res) {
         log(`${acc.user} claimed ${rec.name}`);
       }
       if (behind(body.save, rec.save)) return reply(res, 409, { error: 'The realm has more progress for this character than this copy.' });
+      { const bad = moralCheck(body.save, rec.save); if (bad) { log(`refused ${body.save.name}'s upload: ${bad}`); return reply(res, 409, { error: `The realm refused this copy: ${bad}.` }); } }
       rec.save = body.save;
       rec.updated = Date.now();
       storeChar(key, rec);
@@ -951,6 +979,7 @@ wss.on('connection', (ws, req) => {
         const rec = loadChar(me.key);
         if (!rec) return;
         if (behind(msg.save, rec.save)) { log(`kept ${me.name}'s save: the one sent was far behind it`); return; }
+        { const bad = moralCheck(msg.save, rec.save); if (bad) { log(`kept ${me.name}'s save: ${bad}`); return; } }
         rec.save = msg.save;
         rec.updated = Date.now();
         storeChar(me.key, rec);

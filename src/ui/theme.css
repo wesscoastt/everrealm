@@ -876,3 +876,21 @@ body.pad .ab-slot .key { white-space: nowrap; }
 #loot-rolls .lr-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--rc); transform-origin: left; animation: lr-time linear forwards; }
 @keyframes lr-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 #tooltip .bind { font-size: 12px; color: #e8d8a0; margin-top: 2px; }
+
+/* The Character page: the alignment scale, Evil to Heroic, and the temperament grid (data/morality.ts) */
+.jbody .align-card { margin: 6px 0 10px; }
+.jbody .align-card .ft { display: flex; justify-content: space-between; align-items: baseline; font: 700 17px var(--body); color: #2a1a08; }
+.jbody .align-scale { position: relative; display: flex; height: 12px; border: 1px solid #5a3e1c; border-radius: 6px; overflow: visible; margin: 6px 0 2px; }
+.jbody .align-scale i { flex: 1; height: 100%; }
+.jbody .align-scale i.ev { flex: 25; background: #5a1414; border-radius: 5px 0 0 5px; } .jbody .align-scale i.bd { flex: 50; background: #9a5a3a; }
+.jbody .align-scale i.nt { flex: 51; background: #b8a888; } .jbody .align-scale i.gd { flex: 50; background: #8aaac8; }
+.jbody .align-scale i.hr { flex: 25; background: #e8c860; border-radius: 0 5px 5px 0; }
+.jbody .align-scale b { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; background: #1e1408; box-shadow: 0 0 0 2px #f4e8c8; border-radius: 2px; }
+.jbody .align-names { display: flex; justify-content: space-between; font: 600 11px var(--body); color: #6a4a24; text-transform: uppercase; letter-spacing: 0.06em; }
+.jbody h5 { font: 700 13px var(--body); color: #5a3a14; text-transform: uppercase; letter-spacing: 0.08em; margin: 12px 0 4px; }
+.jbody .trait-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 14px; }
+.jbody .trait-grid div { display: flex; justify-content: space-between; border-bottom: 1px dotted rgba(90, 60, 20, 0.35); font: 500 14px var(--body); color: #3a2810; }
+.jbody .trait-grid b { font-style: italic; }
+.jbody .moral-line { padding-left: 10px; border-left: 2px solid rgba(120, 80, 30, 0.35); margin: 3px 0; }
+.jbody .moral-person { display: flex; justify-content: space-between; }
+.jbody .bar.regard.neg i { background: #8a2a1e; }

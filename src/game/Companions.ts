@@ -7,6 +7,8 @@ import { COMPANIONS, compShort, type BanterKey, type CompanionEvent, type Compan
 import type { Henchman } from '../data/dungeons';
 import { ITEMS } from '../data/items';
 import { bondOf, bondPerks, BOND_LINES } from '../data/companionBonds';
+import { COMPANION_MORALS } from '../data/companionMorals';
+import type { DeedInput, Trait } from '../data/morality';
 
 /** The places a companion wears gear: a weapon, and armour as you wear it. */
 export const COMP_SLOTS = ['weapon', 'head', 'shoulders', 'chest', 'legs', 'hands', 'feet'] as const;
@@ -204,6 +206,26 @@ export class Companions {
     const first = compShort(id);
     this.host.system(`${first} ${delta > 0 ? (delta >= 8 ? 'approves greatly' : 'approves') : delta <= -8 ? 'disapproves greatly' : 'disapproves'}.`);
     if (line && this.ally && this.id === id) this.host.say(this.ally.pos, 2.4, line);
+  }
+
+  /** A deed done in front of the companion with you (data/morality.ts): what they make of it, by their own morals (data/companionMorals.ts). */
+  moralDeed(d: DeedInput): void {
+    const id = this.id;
+    if (!id) return;
+    const m = COMPANION_MORALS[id];
+    let score = m.always ? 4 : (d.a ?? 0) * m.light;
+    if (!m.always) for (const [t, v] of Object.entries(d.tr ?? {}) as [Trait, number][]) score += (m.traits[t] ?? 0) * v;
+    const own = d.npc?.['comp:' + id] ?? 0;
+    const delta = Math.max(-8, Math.min(8, Math.round(score / 4) + own));
+    if (!delta) return;
+    const pool = delta > 0 ? m.approve : m.disapprove;
+    const line = pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined;
+    this.addRapport(id, delta, line);
+    if (line) this.host.system(`${compShort(id)}: "${line}"`);
+    if (m.leaves && delta < 0 && this.rapport(id) <= -80) {
+      if (m.goodbye) { if (this.ally) this.host.say(this.ally.pos, 3, m.goodbye); this.host.system(`${compShort(id)}: "${m.goodbye}"`); }
+      this.leave(id);
+    }
   }
 
   /** Something you did that they might have an opinion on. */
