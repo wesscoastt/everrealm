@@ -282,6 +282,23 @@ export class Clues {
         put(new THREE.ConeGeometry(1, 1, 5), '#9aa4ac', hx * 1.75, 0.55, hz * 1.75, 0.03, 0.16, 0.03, 0, Math.PI / 2 * Math.cos(ang), -Math.PI / 2 * Math.sin(ang)); // the bill
         break;
       }
+      case 'saltcart': {
+        // A carrier's cart down on one side, the near wheel off and in the ditch, sacks of salt in the bed
+        const cart = new THREE.Group(); cart.rotation.set(0, ang, 0.13); g.add(cart);
+        const on = (geo: THREE.BufferGeometry, color: string, x: number, yy: number, z: number, sx: number, sy: number, sz: number, ry = 0, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat(color)); m.position.set(x, yy, z); m.scale.set(sx, sy, sz); m.rotation.set(rx, ry, rz); cart.add(m); };
+        on(box, '#7a5a34', 0, 0.62, 0, 2.6, 0.12, 1.3); // the bed
+        for (const zz of [-0.62, 0.62]) on(box, '#6a4a2a', 0, 0.86, zz, 2.6, 0.36, 0.08); // its sides
+        on(box, '#6a4a2a', -1.27, 0.86, 0, 0.08, 0.36, 1.3);
+        for (const zz of [-0.35, 0.35]) on(box, '#5a3e22', 2.1, 0.56, zz, 1.9, 0.08, 0.08, 0, 0, -0.18); // the shafts, down on the road
+        on(rod, '#3a2a18', 0.3, 0.42, 0.72, 0.42, 0.08, 0.42, 0, Math.PI / 2); // the far wheel, still on
+        on(rod, '#5a5a5a', 0.3, 0.42, 0.78, 0.44, 0.03, 0.44, 0, Math.PI / 2); // its tyre
+        on(box, '#4a3420', 0.3, 0.42, 0, 0.1, 0.1, 1.5); // the axle, snapped short on the near side
+        for (let i = 0; i < 5; i++) on(blob, '#e8e2d2', -0.9 + i * 0.42, 0.86, (i % 2 ? 0.22 : -0.2), 0.26, 0.2, 0.22, i); // sacks of salt
+        put(rod, '#3a2a18', 0.4 + Math.sin(ang) * -1.1, 0.06, Math.cos(ang) * -1.1, 0.42, 0.08, 0.42, 0, 0.2); // the near wheel, flat in the ditch
+        put(rod, '#5a5a5a', 0.4 + Math.sin(ang) * -1.1, 0.1, Math.cos(ang) * -1.1, 0.44, 0.03, 0.44, 0, 0.2);
+        put(disc, '#f0ece2', -0.6, 0.012, -0.8, 0.5, 1, 0.35, ang, 0, 0, 0.85); // a split sack's salt on the road
+        break;
+      }
       case 'glint':
         break;
     }

@@ -190,7 +190,7 @@ import { Stables } from './Stables';
 import { LODGINGS, MAX_WEEKS, readTenancy, roomsOf, roomShape, WEEK } from '../data/lodgings';
 import { DUNGEON_BY_ID, henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
-import { addDeed, BANDS, bandName, CHOICE_DEEDS, choiceDeedId, derive, GROUPS, meets, needTag, readBook, regardWord, tone, TRAIT_NAMES, TRAITS, traitWord, type DeedInput, type Moral } from '../data/morality';
+import { addDeed, BANDS, heardOf, bandName, CHOICE_DEEDS, choiceDeedId, derive, GROUPS, meets, needTag, readBook, regardWord, tone, TRAIT_NAMES, TRAITS, traitWord, type DeedInput, type Moral } from '../data/morality';
 import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
 import { marksScale, regionLevel, rewardScale } from '../data/scaling';
 import { HIT_XP, killXp, QUEST_KILLS } from '../data/pacing';
@@ -1102,7 +1102,7 @@ export class Game implements GameApi {
     });
     mark('player and camera');
     await breathe();
-    this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors());
+    this.crowd = new Crowd(this.scene, this.world.voxels, crowdZones(), (pos, h, text) => this.floatAt(pos, h, text, 'chatter'), () => this.world.doors(), (pos) => this.gossipAt(pos));
     // The watch keeps every town's peace: the Counties' busy towns, and Morrow's (data/justice.ts)
     // (the Counties' busy towns, and Morrow's: data/justice.ts)
     this.prisonCart = new PrisonCart({
@@ -1941,6 +1941,27 @@ export class Game implements GameApi {
     }[kind];
     const name = town[0].toUpperCase() + town.slice(1);
     this.deed({ id: `crime:${kind}:${town}:${day}`, a: w.a, tr: w.tr, rep: w.rep, note: w.note + name + '.', spread: 'witness', fame: kind === 'guard' ? 'fought the watch' : undefined });
+  }
+  /**
+   * What a passer-by says about you: something they've heard you did, if word of it has reached this district (a
+   * deed's `fame`, through knows()), or, for a name that's gone round, how they take you. Null when they've heard nothing.
+   */
+  gossipAt(pos: THREE.Vector3): string | null {
+    const book = readBook(this.save.flags.moral);
+    if (!book.deeds.length) return null;
+    const region = regionAt(pos.x, pos.z).a as DeedInput['where'];
+    const heard = heardOf(book, { id: 'townsfolk', region }).filter((d) => d.fame);
+    const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+    if (heard.length) {
+      const d = pick(heard.slice(0, 4));
+      return (d.a ?? 0) >= 0
+        ? pick([`That's the one who ${d.fame}.`, `Is that them? The one who ${d.fame}?`, `My cousin says that one ${d.fame}. Didn't believe her.`, `Good day to you. You're the one who ${d.fame}, aren't you?`])
+        : pick([`Don't look. That's the one who ${d.fame}.`, `Keep walking. They ${d.fame}, my sister says.`, `Mind your purse. That one ${d.fame}.`, `I heard they ${d.fame}. Brazen, walking about.`]);
+    }
+    const band = this.moral().band;
+    if (band === 'heroic') return pick(['Is that...? It is.', 'Mam, look! No, don\'t point.', 'Good day to you. And thank you, for all of it.']);
+    if (band === 'evil') return pick(['Don\'t catch their eye.', 'Get inside, the both of you.', 'Not here. Please, not here.']);
+    return null;
   }
   /** Old saves: the quest choices made before the book existed, written in once. */
   private bookFromChoices(): void {

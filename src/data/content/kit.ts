@@ -41,7 +41,7 @@ export type Marks = Record<string, '!' | '?'>;
 export function deed(g: GameApi, d: DeedInput): boolean {
   if (g.deed) return g.deed(d);
   const book = readBook(g.flag('moral')); // (a harness without the game: the book alone)
-  const added = addDeed(book, d);
+  const added = addDeed(book, d, 0); // (no clock without the game: a fixed time keeps the walker's states comparable)
   if (added) g.setFlag('moral', book);
   return added;
 }

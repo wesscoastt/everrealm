@@ -95,15 +95,21 @@ rapport falls to -80 through what they've watched you do. A deed can also touch 
 
 ## The six examples the brief asks for
 
-1. **A heroic-only optional response**: `need: { band: ['heroic'] }` on an option (above).
-2. **A quest with five moral approaches**: one node with five options, each with its own `moral` and its own stage
+Four are written as a real quest, `src/data/content/hagwormSalt.ts` (The Hollin Ford Salt and Salt Back, on the woods road from Fellers' Camp to Hollin Ford): read it alongside this list.
+
+1. **A heroic-only optional response**: `need: { band: ['heroic'] }` on an option. In the quest: "You know who I am. Let them hear it.", and two of the three footpads leave.
+2. **A quest with five moral approaches** (Ada's ask: free, a sack of salt, fifty marks up front, walk on, rob her): one node with five options, each with its own `moral` and its own stage
    or flag, all reaching an ending (heroic: for nothing; good: a fair favour; neutral: decline; bad: an extortionate
    price; evil: rob the one asking). The walker checks every ending is reachable.
 3. **A faction that recruits evil characters**: the recruiter's opening offers `need: { band: ['bad', 'evil'] }` a
    straight invitation, and everyone else another way in (a job, a test, a lie) so it's never a gate.
-4. **A redemption quest**: offered when `moral(g).align <= -26` and `did(g, <the old wrong>)`, its deeds positive and
+4. **A redemption quest** (Salt Back, for whoever robbed or sold out Ada): offered when `moral(g).align <= -26` and `did(g, <the old wrong>)`, its deeds positive and
    `major`, and the wronged person's `feel` rising only if they `knows()` you came back.
-5. **An NPC who remembers a betrayal**: the betraying option carries `npc: { thatNpc: -40 }`; their tree's start picks
+5. **An NPC who remembers a betrayal** (Jem Sallow's offer, and Ada at home after): the betraying option carries `npc: { thatNpc: -40 }`; their tree's start picks
    a cold opening when `moral(g).feel.thatNpc <= -30`, and `did(g, 'betrayalId')` lets them name it.
 6. **A kingdom whose regard follows a political decision**: the decision's options carry
    `rep: { verandah: -25, charter: 15 }` with `spread: 'realm'`, and the court's people check `moral(g).regard.verandah`.
+
+## Gossip
+
+Passers-by in a town now and then say what they've heard you did (`Game.gossipAt`): the `fame` of a deed whose word has reached their district, admiring for a light deed, wary for a dark one; and for a Heroic or Evil name with nothing particular heard, a line for that. Give a deed a `fame` written to follow "the one who": `fame: 'pulled the miller's boy out of the race'`.

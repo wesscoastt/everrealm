@@ -22,7 +22,7 @@ import { NPCS } from '../src/data/npcs';
 import { QUEST_SPAWNS, WORLD_THINGS } from '../src/data/places_regional';
 import { QUESTS, type QuestDef } from '../src/data/quests';
 import { SHOPS } from '../src/data/shops';
-import { HOOK_CLASHES } from '../src/data/content/kit';
+import { deed as writeDeed, HOOK_CLASHES } from '../src/data/content/kit';
 import '../src/data/pledges';
 import { BOARDS } from '../src/data/content';
 import { OPPONENT_BY_NPC } from '../src/data/cards';
@@ -191,7 +191,8 @@ function converse(s: State, id: string): Step[] {
       const m2 = new Mock(clone(m.s), `${id}.${nodeId} option`);
       const label = textOf(o.text, m2);
       texts.set(`${id}.${nodeId} [${label.slice(0, 24)}]`, label);
-      try { o.effect?.(m2); settle(m2); } catch (e) { err(`opt:${id}.${nodeId}`, `${id}.${nodeId}: option "${label}" throws: ${(e as Error).message}`); continue; }
+      // (an option only some characters are offered, need: walked as if this one qualifies, so its ending is checked too; its deed is written as the game would)
+      try { if (o.moral) writeDeed(m2, o.moral); o.effect?.(m2); settle(m2); } catch (e) { err(`opt:${id}.${nodeId}`, `${id}.${nodeId}: option "${label}" throws: ${(e as Error).message}`); continue; }
       if (o.next) dfs(m2.s, o.next, [...path, label], steps + 1);
       else out.push({ state: m2.s, label: `talk ${id}: ${[...path, label].join(' > ')}` });
     }

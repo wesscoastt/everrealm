@@ -155,6 +155,8 @@ export class Crowd {
     private readonly say: (pos: THREE.Vector3, height: number, text: string) => void,
     /** The swinging doors built round the player just now. */
     private readonly doors: () => Iterable<Door> = () => [],
+    /** Something said about you, from what the district has heard you did (data/morality.ts), or null. */
+    private readonly gossip: (pos: THREE.Vector3) => string | null = () => null,
   ) {}
 
   /** How many are out at this hour, as a share of the day's number. */
@@ -586,7 +588,8 @@ export class Crowd {
       w.chat -= dt;
       if (!paused && dp < 5 && w.chat <= 0 && this.chatT <= 0) {
         const lines = w.bound && Math.random() < 0.6 ? BOUND[w.bound] : w.zone.lines ? [...COMMON, ...w.zone.lines, ...w.zone.lines] : COMMON;
-        this.say(w.pos, 2.3, pick(lines));
+        const said = Math.random() < 0.35 ? this.gossip(w.pos) : null;
+        this.say(w.pos, 2.3, said ?? pick(lines));
         w.chat = 60 + Math.random() * 60;
         this.chatT = 9;
       }
