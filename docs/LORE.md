@@ -1080,3 +1080,9 @@ The island kingdom west of the Counties: its canon (history, the Packet Treaty, 
 - **Kerra Nance**, pilot, master of the Guild of the Quay this year, at the pier end. *Off Station:* the bell buoy on the harbour bar came ashore on the Long Sands with its shackle open and the pin drawn by a spanner: somebody let it go. Captain Morvah is told, or the Guild keeps watch itself.
 - **Bryok Nance**, her son, dockhand, keeps the Guild's tally book: a turn tallying the morning packet's cargo once a day, twelve marks, counted as a Factor contract.
 - **Grace Vyvyan**, seventy, head of House Vyvyan, counts herring barrels on the pier. Three of her boats gone in a year in fair weather; she doesn't believe it was the Black Gulls.
+
+### Carn Hold [in game]
+
+- **Carn Hold**, the keep on the peak west of the Airport, raised on the herring crews' heap of stones; Captain Jago Penhallow's garrison, the island's armoury and its beacon chain (Carn Hold, the watch tower, Awschitz, Kestle). `src/data/content/verandahCarn.ts`.
+- **Sampson Keast**, beacon keeper, forty-one years, in the lookout room. *Wet Wood:* the beacon wood is soaked before the monthly test; dry oak from Digory Trounce and pitch from Gwen Bolitho, and the chain answers, Kestle a quarter of an hour late. Told to the captain, or kept between you.
+- *The Night Cart* (Penhallow): a cart with no lamp on the Gorran road after midnight turns off before Gorran's gate (Ivo Sowden watched it) down the sheep track to the cove. A brandy cask with no Customs seal, its head burned with a ring and a cross. Penhallow knows the mark.

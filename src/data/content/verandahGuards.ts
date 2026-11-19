@@ -55,19 +55,19 @@ const npcs: NpcDef[] = [
     schedule: [{ from: 8, to: 18, at: [-3128.5, 1964.5], face: [-3131.5, 1963.5], anim: 'crouch', y: 37 }],
     barks: ['Twelve beds a morning. Thirteen when the steward stays over.'] },
   // the outpost on the peak
-  { id: 'ver_capt_penhallow', name: 'Captain Penhallow', title: 'The outpost', look: guard('#c88a62', '#2a1e14', undefined, { facial: 2, age: 0.5, build: 1.15, cape: '#7a2a24' }),
+  { id: 'ver_capt_penhallow', name: 'Captain Jago Penhallow', title: 'Carn Hold', look: guard('#c88a62', '#2a1e14', undefined, { facial: 2, age: 0.5, build: 1.15, cape: '#7a2a24' }),
     schedule: [{ from: 6, to: 23, at: [-3140.5, 2327.5], face: [-3140.5, 2331.5], anim: 'idle', y: 67 }],
     barks: ['From up here I can see a raid before it can see me.', 'Report, or keep walking.'] },
-  { id: 'ver_guard_nancarrow', name: 'Verandah Guard', title: 'The outpost', look: guard('#e2b894', '#6a3a1e'),
+  { id: 'ver_guard_nancarrow', name: 'Verandah Guard', title: 'Carn Hold', look: guard('#e2b894', '#6a3a1e'),
     schedule: [{ from: 6, to: 22, at: [-3140.5, 2337.5], face: [-3140.5, 2339.5], anim: 'idle', y: 67 }],
     barks: ['Long climb for a bowl of stew.', 'The wind never stops up here. Never.'] },
-  { id: 'ver_guard_tamsin', name: 'Verandah Guard', title: 'The outpost', look: guard('#d8a888', '#c8a060', 'f'),
+  { id: 'ver_guard_tamsin', name: 'Verandah Guard', title: 'Carn Hold', look: guard('#d8a888', '#c8a060', 'f'),
     schedule: [{ from: 6, to: 22, at: [-3129.5, 2330.5], face: [-3127.5, 2330.5], anim: 'idle', y: 67 }],
     barks: ['Elowen at the lumberyard? My sister. Don’t believe a word she says about me.'] },
   { id: 'ver_lookout_crago', name: 'Verandah Guard', title: 'Lookout', look: guard('#c88a62', '#1e1a16'),
     schedule: [{ from: 0, to: 24, at: [-3130.5, 2332.5], face: [-3124.5, 2332.5], anim: 'idle', y: 95 }],
     barks: ['Smoke on the north shore. Charcoal burners. Probably.', 'You can see the whole island from here. And it can see you.'] },
-  { id: 'ver_smith_bolitho', name: 'Gwen Bolitho', title: 'The outpost’s smith', look: { frame: 'f', skin: '#d8a07a', hair: '#3a2a1e', hairStyle: 5, eyes: '#3a2a1e', tunic: '#4a3a2a', trim: '#2a2018', shirt: '#c8b8a0', trousers: '#2a2620', boots: '#1e1a16', apron: true, lashes: true, build: 1.15 },
+  { id: 'ver_smith_bolitho', name: 'Gwen Bolitho', title: 'Smith, Carn Hold', look: { frame: 'f', skin: '#d8a07a', hair: '#3a2a1e', hairStyle: 5, eyes: '#3a2a1e', tunic: '#4a3a2a', trim: '#2a2018', shirt: '#c8b8a0', trousers: '#2a2620', boots: '#1e1a16', apron: true, lashes: true, build: 1.15 },
     schedule: [{ from: 7, to: 19, at: [-3133.5, 2336.5], face: [-3133.5, 2338.5], anim: 'hammer', y: 58, held: 'hammer' }],
     barks: ['Arthur at the fish stalls is my brother. He gets the bad knives.', 'Horseshoes, spearheads, hinges. Same iron, different day.'] },
 
@@ -133,14 +133,14 @@ const penhallow: DialogueTree = {
   start: () => 'hello',
   nodes: {
     hello: {
-      text: 'Captain Penhallow, and this is the outpost. The highest ground on the island, the oldest stone on it, and the only place a raid from the west can’t get past without my say. Did the sergeant send you?',
+      text: 'Captain Penhallow, and this is Carn Hold. The highest ground on the island, the oldest stone on it, and the only place a raid from the west can’t get past without my say. Did the sergeant send you?',
       options: [
         { text: 'What do you watch for?', next: 'watch' },
         { text: 'Who built this place?', next: 'built' },
         { text: 'Just passing through.' },
       ],
     },
-    watch: { text: 'Sails, mostly. Smoke, sometimes. The second raid came in on the west shore under fog, and burned half the farms before the town knew. The king built this so that never happens again, and I make sure it doesn’t.', next: 'hello' },
+    watch: { text: 'Sails, mostly. Smoke, sometimes. The second raid came in on the west shore under fog, and burned half the farms before the town knew. The king’s father built Awschitz so that never happens again on the west shore, and I make sure it doesn’t happen anywhere else.', next: 'hello' },
     built: { text: 'The old king, the first one, the harbourmaster who called himself king to win an argument. He put a beacon up here. Every king since has added a floor. This one added the lookout and the forge, and asked me why it cost so much.', next: 'hello' },
   },
 };

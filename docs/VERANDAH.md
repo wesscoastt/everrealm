@@ -319,7 +319,7 @@ under new management. Piers Arundell is on the Board. Garland, if he got away, t
 2. *(Done 2026-11-19: `verandahHarbour.ts`, Hugh Carne in the warehouse, Kerra Nance at the pier end, her son Bryok with the daily tally, Grace Vyvyan on the pier; Short Measure and Off Station.)* Harbour government: the Customs House (Hugh Carne), the Guild of the Quay (Kerra Nance), Grace Vyvyan at the
    sheds, and harbour dues as a talk-to-learn system. Two everyday harbour quests and a repeatable dock job
    (unloading, tallying). Help entry for the harbour.
-3. Carn Hold. Give the outpost its name on signs and waystones, add the beacon keeper, the road patrol on
+3. *(Done 2026-11-19: `verandahCarn.ts`, Sampson Keast the beacon keeper; Wet Wood and The Night Cart, which shows the player Mab Penhallow's tally mark; the outpost and its people renamed Carn Hold. Still to do: road patrols on schedules, a sign at the gate.)* Carn Hold. Give the outpost its name on signs and waystones, add the beacon keeper, the road patrol on
    schedules and supplies at the gate. Two fort quests: a road investigation and a beacon drill.
 4. Awschitz quests: a supply run to the King's Dock and a night patrol on the *Vigilant*'s boat.
 5. Silent Waters chapters 1 and 2.
