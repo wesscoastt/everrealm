@@ -60,6 +60,10 @@ export interface GameApi {
   compCanGift(): boolean;
   /** Their gear: what they wear that you gave them, and what in your pack they could. */
   compGear(id: string): void;
+  /** A companion's rank and skills window (data/companionRanks.ts). */
+  compSkills?(id: string): void;
+  /** Send a companion to work (data/companionWork.ts). */
+  compWork?(id: string): void;
   compActive(): string | null;
   /** Play a conversation where you stand (a quest spot's scene): the tree registered under this id, with this voice for its unmarked lines. */
   playScene(id: string, who: { name: string; title: string; look: import('../entities/humanoid').Appearance }): void;

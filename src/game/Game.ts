@@ -7873,7 +7873,9 @@ export class Game implements GameApi {
     return j && JOB_BY_ID[j.t] ? { t: j.t, left: j.t1 - Date.now() } : null;
   }
   /** The trades, each with what they're like at it, how long, and what it brings. */
-  compWork(id: CompanionId): void {
+  compWork(raw: CompanionId | string): void {
+    if (!COMPANIONS[raw as CompanionId]) return;
+    const id = raw as CompanionId;
     const first = compShort(id);
     const rows = JOBS.map((j) => {
       const apt = aptitudeOf(id, j.id), times = Number(this.save.flags[`comp:${id}:trade:${j.id}`] ?? 0), o = jobOutcome(apt, times);
@@ -7920,7 +7922,9 @@ export class Game implements GameApi {
   }
   private compJobsClock = 0;
   /** A companion's rank and skills (data/companionRanks.ts): what's open, what they carry, and the slots for it. */
-  compSkills(id: CompanionId): void {
+  compSkills(raw: CompanionId | string): void {
+    if (!COMPANIONS[raw as CompanionId]) return;
+    const id = raw as CompanionId;
     const C = this.companions, x = compRankOf(C.xp(id)), first = compShort(id);
     const role = this.companions.henchmanOf(id).role, lo = C.loadout(id), slots = slotsAt(x.rank);
     const note = (x.next ? `Rank ${x.rank}: ${C.xp(id) - x.from} of ${x.next - x.from} to rank ${x.rank + 1}. ` : `Rank ${COMP_MAX_RANK}, as high as it goes. `)

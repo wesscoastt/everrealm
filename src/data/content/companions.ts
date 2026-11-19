@@ -2,6 +2,9 @@ import type { DialogueTree, DNode, DOption, GameApi } from '../../game/api';
 import type { NpcDef } from '../npcs';
 import type { RegionContent } from './types';
 import { COMPANIONS, FLIRTS_NEEDED, ROMANCE_AT, STORY_AT, type CompanionId } from '../companions';
+import { COMPANION_MORALS } from '../companionMorals';
+import { moral } from './kit';
+import type { Trait } from '../morality';
 
 // The companions' conversations (data/companions.ts says who they are): meeting them, the menu you get
 // whenever you talk to one after (how they are, their outfits, their role, sending them home), their
@@ -24,15 +27,40 @@ function common(id: CompanionId): DOption[] {
   return [
     { text: 'I brought you something.', cond: (g) => joined(g, id) && g.compCanGift(), effect: (g) => g.compGift(id) },
     { text: 'Let\'s see what you\'re carrying.', cond: (g) => joined(g, id), effect: (g) => g.compGear(id) },
+    { text: 'What have you learned, fighting beside me?', cond: (g) => joined(g, id) && !!g.compSkills, effect: (g) => g.compSkills!(id) },
+    { text: 'I\'ve some work for you, if you want it.', cond: (g) => joined(g, id) && !!g.compWork, effect: (g) => g.compWork!(id) },
+    { text: 'What do you make of me?', cond: (g) => joined(g, id), next: 'opinion' },
     { text: 'Change into something else.', next: 'outfits', cond: (g) => joined(g, id) },
     { text: 'Fight differently.', next: 'roles', cond: (g) => joined(g, id) && c.roles.length > 1 },
     { text: `Go back to ${c.home.place} for now.`, cond: (g) => active(g, id), effect: (g) => g.compDismiss(), next: 'bye' },
     { text: 'Come with me.', cond: (g) => joined(g, id) && !active(g, id), effect: (g) => g.compJoin(id), next: 'hello' },
   ];
 }
+/**
+ * What they make of you (the owner's companion brief, 10: ask their opinion): by their own morals (data/companionMorals.ts)
+ * against what your deeds have made you (data/morality.ts), they think well of it, aren't sure, or don't like it.
+ */
+const OPINION: Record<CompanionId, [string, string, string]> = {
+  wenna: ['You keep your word. You do the thing in front of you properly, and you don\'t make a song about it. I\'d ride with you anywhere.', 'I\'m still working you out. Some days you\'re the best rider on the road; some days I don\'t know who signed for what.', 'Honestly? You remind me of the Toll Office. Everything signed for, nothing true. I\'m still here. I\'m not sure why.'],
+  ottilie: ['If I had to write you down in one line, it would be a good line. I\'ve checked it twice.', 'You\'re a column I can\'t total yet. That\'s not a criticism. It\'s not praise either.', 'I keep a straight record. Yours has things in it I\'d rather not have written. I\'m writing them anyway.'],
+  tam: ['You play a straight hand and still win. I didn\'t know that was allowed.', 'Half of you is honest and the other half\'s holding cards I can\'t see. I like you more than I trust you, which is how I like most people.', 'You\'re mean with it. Sharp I can admire. Mean I just have to sit next to.'],
+  ned: ['The best person I\'ve ever met. I\'ve written it down. I\'ve underlined it.', 'Brilliant. Obviously. I\'m still deciding which kind of brilliant. All of them, probably.', 'Everything you do is the most interesting thing anyone\'s done. Even the bits I don\'t put in the book.'],
+  dave: ['You\'re decent. Becky would have liked you.', 'Can\'t say yet. Ask me after a winter.', 'You\'ve a hard streak. I\'ve seen it on the quay. I don\'t like it.'],
+  fdave: ['You\'re a good one. A proper good one. Like a fish that jumps into the boat on its own.', 'You\'re all right. Mostly. Some days you\'re a bit of a puzzle, and I\'m bad at puzzles, sober or otherwise.', 'There\'s a cold bit in you. I\'ve felt it. Like stepping in the sea in March.'],
+  daejon: ['You pay what you owe, and you don\'t lie for money. On the Rock that makes you a saint. Out here it makes you rare.', 'You\'re straight with me. I watch how you are with other people, and I\'m still watching.', 'I know that look. I wore it for twelve years. Be careful where it takes you.'],
+};
+function opinionOf(g: GameApi, id: CompanionId): string {
+  const m = moral(g), cm = COMPANION_MORALS[id];
+  if (cm.always) return OPINION[id][0];
+  let score = cm.light * (m.align / 60);
+  for (const [t, w] of Object.entries(cm.traits) as [Trait, number][]) score += (w ?? 0) * ((m.traits[t] - 50) / 40);
+  return OPINION[id][score > 0.35 ? 0 : score < -0.35 ? 2 : 1];
+}
+
 function outfitNodes(id: CompanionId): Record<string, DNode> {
   const c = COMPANIONS[id];
   return {
+    opinion: { text: (g) => opinionOf(g, id), next: 'menu' },
     outfits: {
       text: 'What did you have in mind?',
       options: [
@@ -600,6 +628,28 @@ const daejon: DialogueTree = {
 
 const TREES: Record<CompanionId, DialogueTree> = { wenna, ottilie, tam, ned, dave, fdave, daejon };
 
+/**
+ * Their days when they're not with you (the owner's companion brief, 8: companions shouldn't stand frozen when sent
+ * home): the hours of their own, walked between, near their home ground. Wenna spars in the Waystation yard and sits
+ * out the evening on the benches; Ottilie measures the Kirk floor by day and reads there after; Tam plays cards on the
+ * quay of an evening; Ned does sums at the counting-house door; Dave and Fisherman Dave fish off the end of the quay;
+ * Daejon helps at Kezia's stall and talks with Hilda after. Each sleeps at home. (Positions sit a step or two off
+ * people already standing there, so the site check knows the ground.)
+ */
+type Slot = NpcDef['schedule'][number];
+const day = (from: number, to: number, at: [number, number], face: [number, number], anim: Slot['anim']): Slot => ({ from, to, at, face, anim });
+const ROUTINES: Partial<Record<CompanionId, (home: Slot) => Slot[]>> = {
+  wenna: (h) => [day(0, 7, h.at, h.face, 'idle'), day(7, 12, [704.0, 580.0], [705.5, 578.5], 'attack'), day(12, 18, h.at, h.face, 'idle'), day(18, 22, [705.0, 569.0], [708, 567.5], 'talk'), day(22, 24, h.at, h.face, 'idle')],
+  ottilie: (h) => [day(0, 7, h.at, h.face, 'idle'), day(7, 17, h.at, h.face, 'crouch'), day(17, 22, h.at, [1184.5, 1806.5], 'read'), day(22, 24, h.at, h.face, 'idle')],
+  tam: (h) => [day(0, 9, h.at, h.face, 'idle'), day(9, 17, h.at, h.face, 'idle'), day(17, 23, [1746.5, 599.0], [1744.5, 597.5], 'cards'), day(23, 24, h.at, h.face, 'idle')],
+  ned: (h) => [day(0, 8, h.at, h.face, 'idle'), day(8, 12, h.at, h.face, 'idle'), day(12, 17, [830.5, 325.0], [832, 323.4], 'read'), day(17, 21, [817.5, 315.0], [815.5, 313.5], 'talk'), day(21, 24, h.at, h.face, 'idle')],
+  dave: (h) => [day(0, 5, h.at, h.face, 'idle'), day(5, 12, [1802.5, 599.5], [1806, 599.5], 'fishWait'), day(12, 24, h.at, h.face, 'idle')],
+  fdave: (h) => [day(0, 9, h.at, h.face, 'seated'), day(9, 15, [1801.0, 599.5], [1806, 599.5], 'fishWait'), day(15, 24, h.at, h.face, 'seated')],
+  daejon: (h) => [day(0, 7, h.at, h.face, 'idle'), day(7, 18, h.at, h.face, 'idle'), day(18, 22, [1773.0, 601.5], [1771.4, 600.5], 'talk'), day(22, 24, h.at, h.face, 'idle')],
+};
+/** Out on a job (data/companionWork.ts) until it's done: not at home either. */
+const working = (g: GameApi, id: CompanionId) => { const j = g.flag(`comp:${id}:job`) as { t1: number } | undefined; return !!j && Date.now() < j.t1; };
+
 export const COMPANION_CONTENT: RegionContent = {
   id: 'companions',
   // Each waits at home until they join you, and whenever you send them back
@@ -608,11 +658,11 @@ export const COMPANION_CONTENT: RegionContent = {
     return {
       id: 'comp_' + id, name: c.name, title: c.title, look: c.look,
       // (Fisherman Dave on the stool in his net shed)
-      schedule: [{ from: 0, to: 24, at: c.home.at, face: c.home.face, anim: id === 'fdave' ? 'seated' : 'idle' }],
+      schedule: (() => { const home: Slot = { from: 0, to: 24, at: c.home.at, face: c.home.face, anim: id === 'fdave' ? 'seated' : 'idle' }; return ROUTINES[id]?.(home) ?? [home]; })(),
       barks: [],
       // (not when they've gone for good: Tam taken off the quay, or anyone who died in the main story)
       // (Ned only once your name has got about: level 15)
-      when: (g) => g.compActive() !== id && !g.flag(`comp:${id}:house`) && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15)
+      when: (g) => g.compActive() !== id && !g.flag(`comp:${id}:house`) && !working(g, id) && !(id === 'tam' && g.flag('comp:tam:gone')) && !g.flag(`comp:${id}:dead`) && (id !== 'ned' || g.level('melee') >= 15)
         // (David Kitto only for those who had him before Fisherman Dave's story replaced his; owner 2026-11-11)
         && (id !== 'dave' || !!g.flag('comp:dave:joined'))
         // (Daejon only once he's off the Rock and his name is clear, or bought: data/content/daejon.ts)
