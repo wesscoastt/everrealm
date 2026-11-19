@@ -190,6 +190,7 @@ import { Stables } from './Stables';
 import { LODGINGS, MAX_WEEKS, readTenancy, roomsOf, roomShape, WEEK } from '../data/lodgings';
 import { DUNGEON_BY_ID, henchmenFor, Role } from '../data/dungeons';
 import { GAINS, rankFor } from '../data/standing';
+import { aptitudeOf, APTITUDE_WORD, jobHaul, jobOutcome, JOB_BY_ID, JOBS, type Trade } from '../data/companionWork';
 import { COMP_MAX_RANK, COMP_XP, passiveAt, rankOf as compRankOf, skillsFor, slotsAt } from '../data/companionRanks';
 import { addDeed, BANDS, heardOf, bandName, CHOICE_DEEDS, choiceDeedId, derive, GROUPS, meets, needTag, readBook, regardWord, tone, TRAIT_NAMES, TRAITS, traitWord, type DeedInput, type Moral } from '../data/morality';
 import { CAPE_DESIGNS, FEAT_CAPE, REGION_CAPE, type CapeDesign } from '../data/capes';
@@ -7838,11 +7839,14 @@ export class Game implements GameApi {
     const rows = ids.map((id) => {
       const c = COMPANIONS[id], h = this.companions.henchmanOf(id), on = this.companions.active === id;
       const house = !!this.save.flags[`comp:${id}:house`];
+      const job = this.compJob(id), away = job ? (job.left > 0 ? `Away ${JOB_BY_ID[job.t].verb}, ${Math.ceil(job.left / 60000)} min left` : `Back from ${JOB_BY_ID[job.t].verb}`) : null;
       return {
         name: c.name, title: c.title, look: h.look as Appearance, with: on,
-        state: on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`, mood: bondLine(this.companions.rapport(id)),
+        state: away ?? (on ? 'With you' : house ? `At ${home ? 'your house' : c.home.place}` : `At ${c.home.place}`), mood: bondLine(this.companions.rapport(id)),
         why: !on && busy ? busy : undefined,
-        summon: on || busy ? undefined : () => this.summonCompanion(id),
+        summon: on || busy || job ? undefined : () => this.summonCompanion(id),
+        collect: job && job.left <= 0 ? () => this.collectJob(id) : undefined,
+        work: job ? undefined : () => this.compWork(id),
         gear: () => this.compGear(id),
         skills: () => this.compSkills(id),
         rank: (() => { const x = compRankOf(this.companions.xp(id)); return x.next ? `Rank ${x.rank}` : `Rank ${x.rank}, the highest`; })(),
@@ -7862,6 +7866,59 @@ export class Game implements GameApi {
       { label: resting ? 'Tending your things: off' : 'Tending your things: on', use: () => { this.setFlag('comp:houseRest', resting ? null : 1); this.hud.system(resting ? 'They\'ll see to the house and water the garden.' : 'They\'ll leave your things be and take their ease.'); this.persist(); this.openCompanions(); } },
     ] : undefined);
   }
+  // ---------------------------------------------------------------- Companions at work (data/companionWork.ts)
+  /** The job a companion is out on: its trade, and how long until they're back (ms; 0 or less: back). */
+  compJob(id: CompanionId): { t: Trade; left: number } | null {
+    const j = this.save.flags[`comp:${id}:job`] as { t: Trade; t1: number } | undefined;
+    return j && JOB_BY_ID[j.t] ? { t: j.t, left: j.t1 - Date.now() } : null;
+  }
+  /** The trades, each with what they're like at it, how long, and what it brings. */
+  compWork(id: CompanionId): void {
+    const first = compShort(id);
+    const rows = JOBS.map((j) => {
+      const apt = aptitudeOf(id, j.id), times = Number(this.save.flags[`comp:${id}:trade:${j.id}`] ?? 0), o = jobOutcome(apt, times);
+      const mins = Math.round(j.mins * o.timeMul);
+      const brings = j.yields.map(([it, n]) => `${Math.max(1, Math.round(n * o.yieldMul))} ${ITEMS[it]?.name.toLowerCase() ?? it}`).join(', ');
+      return { name: `${j.name} · ${APTITUDE_WORD[apt]}${times ? ` · done ${times} time${times > 1 ? 's' : ''}` : ''}`, desc: `${j.blurb} About ${brings}, and sometimes ${ITEMS[j.special[0]]?.name.toLowerCase() ?? j.special[0]}.`, rank: 0, open: true, on: false, status: `${mins} min`, label: 'Send', toggle: () => this.startJob(id, j.id) };
+    });
+    this.hud.compSkillsWindow(`${COMPANIONS[id].name}: work`, `Send ${first} off to a trade. It takes real time and goes on while you're away; they bring back what an honest stint turns up, and get better at a trade each time. They can't walk with you while they're out.`, rows, () => this.openCompanions());
+  }
+  startJob(id: CompanionId, t: Trade): void {
+    const j = JOB_BY_ID[t];
+    if (!j || this.compJob(id)) return;
+    if (this.companions.active === id) this.compDismiss();
+    const o = jobOutcome(aptitudeOf(id, t), Number(this.save.flags[`comp:${id}:trade:${t}`] ?? 0));
+    this.setFlag(`comp:${id}:job`, { t, t1: Date.now() + Math.round(j.mins * o.timeMul) * 60_000 });
+    this.setFlag(`comp:${id}:jobSaid`, null);
+    this.hud.system(`${compShort(id)} goes off ${j.verb}. Back in about ${Math.round(j.mins * o.timeMul)} minutes.`);
+    this.persist();
+    this.openCompanions();
+  }
+  /** What they brought back, into your pack (or the post, if it won't fit). */
+  collectJob(id: CompanionId): void {
+    const job = this.compJob(id);
+    if (!job || job.left > 0) return;
+    const times = Number(this.save.flags[`comp:${id}:trade:${job.t}`] ?? 0);
+    const haul = jobHaul(JOB_BY_ID[job.t], aptitudeOf(id, job.t), times, Math.random());
+    for (const [it, n] of haul) if (!this.give(it, n)) this.toParcel(it, n);
+    this.setFlag(`comp:${id}:trade:${job.t}`, times + 1);
+    this.setFlag(`comp:${id}:job`, null);
+    this.hud.system(`${compShort(id)} brings back ${haul.map(([it, n]) => `${n} ${ITEMS[it]?.name.toLowerCase() ?? it}`).join(', ')}.`);
+    this.sfx('open');
+    this.persist();
+    this.openCompanions();
+  }
+  /** Now and then: say when someone's back from a job. */
+  private compJobsTick(): void {
+    for (const id of Object.keys(COMPANIONS) as CompanionId[]) {
+      const job = this.compJob(id);
+      if (job && job.left <= 0 && !this.save.flags[`comp:${id}:jobSaid`]) {
+        this.save.flags[`comp:${id}:jobSaid`] = 1;
+        this.hud.system(`${compShort(id)} is back from ${JOB_BY_ID[job.t].verb}. Collect what they brought in Companions (U).`);
+      }
+    }
+  }
+  private compJobsClock = 0;
   /** A companion's rank and skills (data/companionRanks.ts): what's open, what they carry, and the slots for it. */
   compSkills(id: CompanionId): void {
     const C = this.companions, x = compRankOf(C.xp(id)), first = compShort(id);
@@ -7878,7 +7935,7 @@ export class Game implements GameApi {
   /** The companions living at your house, and not out with you. */
   private atHouse(): CompanionId[] {
     if (!this.myHome()) return [];
-    return (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:house`] && this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`] && this.companions.active !== id);
+    return (Object.keys(COMPANIONS) as CompanionId[]).filter((id) => this.save.flags[`comp:${id}:house`] && this.save.flags[`comp:${id}:joined`] && !this.save.flags[`comp:${id}:gone`] && this.companions.active !== id && !this.compJob(id));
   }
   /** Called to your side: they come in at a run from just out of sight, and say so. */
   private summonCompanion(id: CompanionId): void {
@@ -8918,6 +8975,7 @@ export class Game implements GameApi {
     // (Dave's companion body steps aside while the bout's Dave fights: game/Reckoning.ts)
     if (this.dungeons.run || this.reckoning.active) { if (this.companions.body) this.companions.body.model.root.visible = false; }
     else { if (this.companions.body) this.companions.body.model.root.visible = true; this.companions.update(dt); }
+    if ((this.compJobsClock += dt) > 5) { this.compJobsClock = 0; this.compJobsTick(); }
     if (this.reckoning.active) { if (this.reckoning.tooFar()) { this.reckoning.cancel(); this.hud.system('You walked away. The fight is off, for now.'); } else this.reckoning.update(dt); }
     this.updateQuests(dt);
 

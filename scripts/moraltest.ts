@@ -4,6 +4,8 @@ import { COMPANION_MORALS } from '../src/data/companionMorals';
 import { COMPANIONS } from '../src/data/companions';
 import { GROUPS } from '../src/data/morality';
 import { COMP_MAX_RANK, COMP_SKILLS, passiveAt, RANK_AT, rankOf, skillsFor, slotsAt } from '../src/data/companionRanks';
+import { APTITUDE, jobHaul, JOB_BY_ID, JOBS } from '../src/data/companionWork';
+import { ITEMS } from '../src/data/items';
 
 let fails = 0, passes = 0;
 const ok = (cond: boolean, what: string) => { if (cond) passes++; else { fails++; console.log('FAIL: ' + what); } };
@@ -113,6 +115,19 @@ for (const id of Object.keys(COMPANIONS)) {
   ok(slotsAt(1) === 1 && slotsAt(4) === 2 && slotsAt(20) === 3 && passiveAt(4) === 0 && passiveAt(20) === 0.16, 'slots and passives');
   for (const role of ['tank', 'healer', 'damage'] as const) { const k = skillsFor(role); ok(k.length === 4 && k[0].rank === 1 && k.every((x, i) => i === 0 || x.rank > k[i - 1].rank), 'four skills in rank order: ' + role); }
   ok(new Set(COMP_SKILLS.map((x) => x.id)).size === COMP_SKILLS.length, 'skill ids unique');
+}
+
+// 13. Companions at work (data/companionWork.ts): real items, honest amounts, aptitude and practice count
+{
+  const allItems = JOBS.flatMap((j) => [...j.yields.map(([id]) => id), j.special[0]]);
+  ok(allItems.every((id) => !!ITEMS[id]), 'every job brings real items: ' + allItems.filter((id) => !ITEMS[id]).join(','));
+  const fish = JOB_BY_ID.fishing;
+  const poor = jobHaul(fish, 0, 0, 0.99), able = jobHaul(fish, 1, 0, 0.99), gifted = jobHaul(fish, 2, 0, 0.99), practised = jobHaul(fish, 1, 10, 0.99);
+  const total = (h: [string, number][]) => h.reduce((a, [, n]) => a + n, 0);
+  ok(total(poor) < total(able) && total(able) < total(gifted) && total(able) < total(practised), 'aptitude and practice raise the haul');
+  ok(jobHaul(fish, 1, 0, 0).length === fish.yields.length + 1 && jobHaul(fish, 1, 0, 0.99).length === fish.yields.length, 'the special comes only on a good stint');
+  ok(JOBS.every((j) => j.mins >= 45 && j.mins <= 120), 'jobs take real time');
+  for (const id of Object.keys(COMPANIONS)) ok(Object.values(APTITUDE[id as keyof typeof APTITUDE] ?? {}).some((v) => v === 2), 'every companion is gifted at something: ' + id);
 }
 
 console.log(`${passes} passed, ${fails} failed`);
