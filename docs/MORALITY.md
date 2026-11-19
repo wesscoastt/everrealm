@@ -95,13 +95,13 @@ rapport falls to -80 through what they've watched you do. A deed can also touch 
 
 ## The six examples the brief asks for
 
-Four are written as a real quest, `src/data/content/hagwormSalt.ts` (The Hollin Ford Salt and Salt Back, on the woods road from Fellers' Camp to Hollin Ford): read it alongside this list.
+Five are written as real quests: four in `src/data/content/hagwormSalt.ts` (The Hollin Ford Salt and Salt Back, on the woods road from Fellers' Camp to Hollin Ford): and the recruiting faction in `src/data/content/gullmouthRopewalk.ts`. Read them alongside this list.
 
 1. **A heroic-only optional response**: `need: { band: ['heroic'] }` on an option. In the quest: "You know who I am. Let them hear it.", and two of the three footpads leave.
 2. **A quest with five moral approaches** (Ada's ask: free, a sack of salt, fifty marks up front, walk on, rob her): one node with five options, each with its own `moral` and its own stage
    or flag, all reaching an ending (heroic: for nothing; good: a fair favour; neutral: decline; bad: an extortionate
    price; evil: rob the one asking). The walker checks every ending is reachable.
-3. **A faction that recruits evil characters**: the recruiter's opening offers `need: { band: ['bad', 'evil'] }` a
+3. **A faction that recruits evil characters** (A Page Goes Missing, `content/gullmouthRopewalk.ts`: Nell Kitto takes a Bad or Evil name as its own reference; anyone else gets a test): the recruiter's opening offers `need: { band: ['bad', 'evil'] }` a
    straight invitation, and everyone else another way in (a job, a test, a lie) so it's never a gate.
 4. **A redemption quest** (Salt Back, for whoever robbed or sold out Ada): offered when `moral(g).align <= -26` and `did(g, <the old wrong>)`, its deeds positive and
    `major`, and the wronged person's `feel` rising only if they `knows()` you came back.

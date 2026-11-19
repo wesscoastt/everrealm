@@ -268,5 +268,23 @@ export const CHOICE_DEEDS: { flag: string; value: string; deed: Omit<DeedInput, 
   // Brass Rings (Gannet Cliffs)
   { flag: 'cgRings', value: 'cragsby', deed: { a: 2, tr: { generosity: 2 }, rep: { cragsby: 5, collegium: -3 }, where: 'gannet', spread: 'local' } },
   { flag: 'cgRings', value: 'collegium', deed: { rep: { collegium: 3 }, where: 'gannet' } },
+  // Honest or kind: these move the temperament, not the alignment (the brief: not every choice needs one)
+  { flag: 'kyCount', value: 'true', deed: { tr: { honesty: 4 }, note: 'Wrote the true count of hatchlings in Sal Mudge\'s book, though it was a bad year.' } },
+  { flag: 'kyCount', value: 'kind', deed: { tr: { compassion: 3, deception: 2, honesty: -2 }, note: 'Wrote a kinder count of hatchlings in Sal Mudge\'s book than the true one.' } },
+  { flag: 'sfSkate', value: 'told', deed: { tr: { honesty: 3 }, note: 'Told Edwin Marner whose initials were scratched beside his daughter\'s on her skate.' } },
+  { flag: 'sfSkate', value: 'worn', deed: { tr: { compassion: 2, deception: 2 }, note: 'Told Edwin Marner the letters on his daughter\'s skate were too worn to read.' } },
+  { flag: 'isJowan', value: 'told', deed: { tr: { honesty: 3 } } },
+  { flag: 'isJowan', value: 'ill', deed: { tr: { compassion: 2, deception: 2 } } },
+  { flag: 'nellTold', value: 'letters', deed: { tr: { honesty: 3, compassion: 2 }, npc: { nell_kitto: 12 }, note: 'Told Nell Kitto her father keeps every letter she sends him, though he asked you to say he was dead.' } },
+  { flag: 'nellTold', value: 'dead', deed: { tr: { deception: 2, loyalty: 2 }, note: 'Told Nell Kitto her father was dead, as he asked.' } },
+  { flag: 'lfRopes', value: 'assembly', deed: { a: 2, tr: { honesty: 3 }, rep: { callis: 3 }, note: 'Told the Assembly\'s clerk that Pol Vidal cut the bridge rope.' } },
+  { flag: 'lfRopes', value: 'quiet', deed: { tr: { loyalty: 2, deception: 2 } } },
+  { flag: 'hgSpikes', value: 'told', deed: { tr: { honesty: 2, compassion: -2 }, rep: { company: 5 } } },
+  { flag: 'hgSpikes', value: 'hands', deed: { tr: { compassion: 3 }, rep: { company: -3 } } },
+  { flag: 'hsChoice', value: 'told', deed: { tr: { honesty: 2 }, rep: { company: 3, holme: -2 } } },
+  { flag: 'hsChoice', value: 'quiet', deed: { tr: { loyalty: 2 }, rep: { holme: 4 } } },
+  { flag: 'hwShort', value: 'delia', deed: { a: 2, tr: { honesty: 3, courage: 2 }, rep: { company: 4 }, note: 'Took the carter\'s chits to Delia Harrowgate, and the fellers were paid what they were owed.' } },
+  { flag: 'hwShort', value: 'keep', deed: { tr: { loyalty: 2 } } },
+  { flag: 'hwShort', value: 'pad', deed: { a: -2, tr: { deception: 3 } } },
 ];
 export const choiceDeedId = (flag: string, value: string) => `choice:${flag}=${value}`;
