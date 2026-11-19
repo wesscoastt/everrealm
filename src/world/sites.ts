@@ -971,6 +971,8 @@ function* planBody(): Generator<string, Plan> {
     { id: 'sc-drowned', name: 'The Drowned Bell-tower', x: 1560, z: 1500, r0: 0, r1: 0, build: (s) => buildDrownedTower(s) },
     // A long barrow on Tolmen Moor that the frost cracked open (the Waits' storyline: data/content/waits.ts)
     { id: 'carne', name: 'Carne Barrow', x: CARNE.x, z: CARNE.z, r0: 0, r1: 0, build: (s) => buildCarne(s) },
+    // A round barrow south-west of Scarrow Tor, cut into by the school (data/content/tolmenMore.ts, The Children's Barrow)
+    { id: 'pellow', name: 'Pellow\'s Barrow', x: 304, z: 3012, r0: 0, r1: 0, build: (s) => buildPellow(s) },
     // The roofless chapel at Carne Cross, which keeps its bell (the Passing Bell: data/content/passingBell.ts)
     { id: 'carnecross', name: 'Carne Cross', x: CARNE_CROSS.x, z: CARNE_CROSS.z, r0: 0, r1: 0, build: (s) => buildCarneCross(s) },
     // Under the sea: the parish the tower belonged to, and a reef that wrecks ships off the Fleet Coast
@@ -7888,6 +7890,28 @@ function* planBody(): Generator<string, Plan> {
     // the turf bank, cut back in steps
     for (let dx = 0; dx < 4; dx++) for (let y = 0; y < (dx < 2 ? 2 : 1); y++) O.set(x + 7 + dx, base + y, z - 6, y === (dx < 2 ? 1 : 0) ? B.Grass : B.Dirt);
     rect(s, x - 10, z - 8, x + 11, z + 9);
+  }
+
+  /**
+   * Pellow's Barrow on Tolmen Moor: a round mound in a kerb of moor-stones, turfed over, with a trench the schoolmaster's
+   * children cut into its east side, spoil heaped beside it, and the dark of the chamber at the end of it.
+   */
+  function buildPellow(s: Site) {
+    const bx = 304, bz = 3012, r = 6, g = heightAt(bx, bz);
+    for (let dz = -r - 1; dz <= r + 1; dz++) for (let dx = -r - 1; dx <= r + 1; dx++) {
+      const d = Math.hypot(dx, dz);
+      if (d > r + 0.5) continue;
+      const h = Math.max(1, Math.round(Math.sqrt(Math.max(0, r * r - d * d)) * 0.55));
+      const x = bx + dx, z = bz + dz;
+      for (let y = heightAt(x, z) - 1; y < g + h; y++) O.set(x, y, z, y === g + h - 1 ? B.Grass : B.Dirt);
+      if (d > r - 0.5 && Math.round(Math.atan2(dz, dx) * 4) % 2 === 0) O.set(x, g, z, B.MossyStone);
+    }
+    // the children's trench, in from the east, to the chamber's capstone
+    for (let dx = 1; dx <= r + 1; dx++) for (const dz of [-1, 0, 1]) { const x = bx + dx, z = bz + dz; clearUp(x, z, g, g + 5); O.set(x, g - 1, z, B.Dirt); }
+    for (const dz of [-1, 0, 1]) { O.set(bx, g, bz + dz, B.MossyStone); O.set(bx, g + 1, bz + dz, B.MossyStone); }
+    O.set(bx + 1, g + 2, bz, B.MossyStone); // the capstone's lip
+    for (let i = 0; i < 5; i++) { const hx = bx + r + 3 + (i % 2), hz = bz - 3 + i; O.set(hx, heightAt(hx, hz), hz, B.Dirt); }
+    rect(s, bx - r - 2, bz - r - 2, bx + r + 6, bz + r + 2);
   }
 
   function fellersExtras(s: Site) {
