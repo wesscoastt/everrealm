@@ -9975,7 +9975,9 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     return m.get(localIdx(x & 31, y, z & 31));
   };
   const solid = (x: number, y: number, z: number) => { const b = block(x, y, z); return b === undefined ? y < heightAt(x, z) : b !== B.Air && b !== B.Water && !!BLOCKS[b]?.solid; };
-  const surface = (x: number, z: number) => { const g = heightAt(x, z); let y = g + 6; while (y > g - 4 && !solid(x, y - 1, z)) y--; return y; };
+  // (down as far as a site has cut the ground away: Skua Rock's landing is seventeen below the hill, and its shrine
+  // hung in the air over it, owner 2026-11-19)
+  const surface = (x: number, z: number) => { const g = heightAt(x, z); let y = g + 6; while (y > g - 40 && y > 1 && !solid(x, y - 1, z)) y--; return y; };
   const PAVED = new Set<number>([B.Path, B.Cobble, B.StoneBrick, B.MossyCobble, B.Gravel, B.Planks, B.Farmland, B.Whitestone]);
   const IGNORE = new Set<PropType>(['roof', 'glow', 'smoke', 'rope', 'root', 'banner', 'wallLantern', 'cone']);
   const fits = (x: number, z: number, slack: number): number | null => {
@@ -10017,7 +10019,9 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     host.props.push({ t: 'waymark', x: best.x, y: best.y, z: best.z, ry, theme });
     host.rects.push([fx - 3, fz - 3, fx + 3, fz + 3]);
     const arrive = opts.arrive;
-    out.push({ id, name, x: best.x, z: best.z, y: best.y, theme, ry, ax: arrive ? arrive[0] : best.x + Math.sin(ry) * 3.5, az: arrive ? arrive[2] : best.z + Math.cos(ry) * 3.5, ay: arrive?.[1] });
+    const ax = arrive ? arrive[0] : best.x + Math.sin(ry) * 3.5, az = arrive ? arrive[2] : best.z + Math.cos(ry) * 3.5;
+    // arriving on the floor that's really there, not the hill's height (which a site may have cut away, or built over)
+    out.push({ id, name, x: best.x, z: best.z, y: best.y, theme, ry, ax, az, ay: arrive?.[1] ?? surface(Math.floor(ax), Math.floor(az)) });
   };
   for (const p of POSTS) {
     if (p.id === 'hollin' || p.y !== undefined) continue;
@@ -10043,13 +10047,19 @@ function placeWaymarks(O: Overrides, sites: Site[]): WaymarkSpot[] {
     // (the name the owner gave it in Minecraft, where the add-on kept one)
     const name = w.name ?? (near(/welcome to verandah/i, 40) ? 'Verandah Docks' : near(/arena/i, 30) ? 'Verandah Arena' : near(/airport/i, 40) ? 'Verandah Airport'
       : near(/horses/i, 120) ? 'Verandah Stables' : near(/bank of verandah/i, 130) ? 'Verandah, the Great Bridge' : 'Verandah Outskirts');
-    const x = Math.floor(w.x) + 0.5, z = Math.floor(w.z) + 0.5, ry = Math.PI / 2;
+    // (Verandah Farm's stone stood in the gap between two oaks, the shrine's post in a trunk and travellers landing in
+    // the canopy: owner 2026-11-19, "spawns u on top of a tree and has z fighting". Its shrine stands on the open grass
+    // three blocks south instead; the id stays the stone's, so attunements hold.)
+    const moved = w.name === 'Verandah Farm' ? { x: -2665.5, y: 19, z: 2194.5 } : null;
+    const x = moved?.x ?? Math.floor(w.x) + 0.5, z = moved?.z ?? Math.floor(w.z) + 0.5, wy = moved?.y ?? w.y, ry = Math.PI / 2;
     // each its own shrine for the place it stands in (world/shrines.ts)
     const theme: ShrineTheme = /port|docks/i.test(name) ? 'vh_harbour' : /farm/i.test(name) ? 'vh_farm' : /arena/i.test(name) ? 'vh_arena' : /kestle/i.test(name) ? 'vh_snow'
       : /awschitz/i.test(name) ? 'vh_fort' : /mizu/i.test(name) ? 'vh_east' : /airport/i.test(name) ? 'vh_tower' : /outskirts|stables/i.test(name) ? 'vh_village' : 'vh_town';
     // its own little site, so the shrine is built when you come near it (the island's host site is centred far off)
-    sites.push({ id: 'vwm-' + Math.floor(x) + '-' + Math.floor(z), name: '', region: 'verandah', x: x, z: z, r: 60, named: false, props: [{ t: 'waymark', x: x, y: w.y, z: z, ry, theme: theme }], rects: [], impostor: [] });
-    out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: w.y, theme, ry, ax: x + 2.5, az: z });
+    sites.push({ id: 'vwm-' + Math.floor(x) + '-' + Math.floor(z), name: '', region: 'verandah', x: x, z: z, r: 60, named: false, props: [{ t: 'waymark', x: x, y: wy, z: z, ry, theme: theme }], rects: [], impostor: [] });
+    // arriving on the stone's own floor (the planner's height doesn't know the town's blocks, and from above a tree
+    // is the first thing it meets)
+    out.push({ id: 'wm-mc-' + Math.floor(w.x) + '-' + Math.floor(w.z), name, x, z, y: wy, theme, ry, ax: x + 2.5, az: z, ay: wy });
   }
   for (const b of WORLD_BOSSES) {
     const lair = sites.find((s) => s.id === 'lair-' + b.id);
