@@ -282,6 +282,21 @@ export class Clues {
         put(new THREE.ConeGeometry(1, 1, 5), '#9aa4ac', hx * 1.75, 0.55, hz * 1.75, 0.03, 0.16, 0.03, 0, Math.PI / 2 * Math.cos(ang), -Math.PI / 2 * Math.sin(ang)); // the bill
         break;
       }
+      case 'buoy': {
+        // A channel buoy washed up and leaning in the sand: a cask float banded red and white, its iron cage on top
+        // with the bell in it, and the last links of its chain, the shackle open and empty
+        const b = new THREE.Group(); b.rotation.set(0, ang, 0.42); g.add(b);
+        const on = (geo: THREE.BufferGeometry, color: string, x: number, yy: number, z: number, sx: number, sy: number, sz: number, ry = 0, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat(color)); m.position.set(x, yy, z); m.scale.set(sx, sy, sz); m.rotation.set(rx, ry, rz); b.add(m); };
+        on(rod, '#b8322a', 0, 0.22, 0, 0.42, 0.44, 0.42);
+        on(rod, '#e8e2d4', 0, 0.52, 0, 0.4, 0.18, 0.4);
+        on(rod, '#b8322a', 0, 0.74, 0, 0.36, 0.26, 0.36);
+        on(rod, '#8a2a22', 0, 0.9, 0, 0.3, 0.06, 0.3);
+        for (const a of [0, 2.1, 4.2]) on(box, '#3a3a3e', Math.sin(a) * 0.2, 1.18, Math.cos(a) * 0.2, 0.04, 0.5, 0.04);
+        on(rod, '#3a3a3e', 0, 1.42, 0, 0.24, 0.04, 0.24);
+        on(blob, '#c8a050', 0, 1.2, 0, 0.12, 0.14, 0.12);
+        for (let i = 0; i < 4; i++) on(new THREE.TorusGeometry(1, 0.28, 4, 8), '#4a4440', 0.05 + i * 0.16, 0.06, -0.3 - i * 0.05, 0.08, 0.08, 0.08, i * 0.6, Math.PI / 2 * (i % 2));
+        break;
+      }
       case 'saltcart': {
         // A carrier's cart down on one side, the near wheel off and in the ditch, sacks of salt in the bed
         const cart = new THREE.Group(); cart.rotation.set(0, ang, 0.13); g.add(cart);

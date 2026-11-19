@@ -1069,3 +1069,14 @@ Every ninety minutes on the realm clock one town lights its fire for twenty minu
 ## The Old Mother going over [in game]
 
 Every three hours on the realm clock (a moment set per cycle, the same for everyone), Serra's Old Mother crosses the sky over the Counties and Morrow: out of the south over the sea, far overhead, north, never looking down (`src/game/DragonPass.ts`). A dark dragon thirteen times a drake's size, ember-bellied, her shadow sweeping the ground; a low roar and a tremor as she passes. Nobody knows what she is yet. People near you look up and say what people say ("That's no gull." "It came up from the south. Nothing comes up from the south." In Morrow: "That came from Serra. Ask any sailor."). Foreshadowing for continent 3.
+
+## Verandah [in game, in part]
+
+The island kingdom west of the Counties: its canon (history, the Packet Treaty, the Harbour Board, the houses, the two forts, The Silent Waters) is `docs/VERANDAH.md`.
+
+### The harbour [in game]
+
+- **Hugh Carne**, Collector of Customs, keeps his ledger at the west end of the port warehouse, the King's bonded store. His brother Ned is the quarry ganger. *Short Measure:* one of three bonded casks of Trefusis wine is a hand short and watered; Josh Teague, the Winery's cellarman, sold a jug a week for his mother's medicine. The law, a paid duty, a leaking stave, or silence bought. `src/data/content/verandahHarbour.ts`.
+- **Kerra Nance**, pilot, master of the Guild of the Quay this year, at the pier end. *Off Station:* the bell buoy on the harbour bar came ashore on the Long Sands with its shackle open and the pin drawn by a spanner: somebody let it go. Captain Morvah is told, or the Guild keeps watch itself.
+- **Bryok Nance**, her son, dockhand, keeps the Guild's tally book: a turn tallying the morning packet's cargo once a day, twelve marks, counted as a Factor contract.
+- **Grace Vyvyan**, seventy, head of House Vyvyan, counts herring barrels on the pier. Three of her boats gone in a year in fair weather; she doesn't believe it was the Black Gulls.

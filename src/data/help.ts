@@ -150,6 +150,8 @@ export const HELP: [string, [string, string][]][] = [
   ['Trading and travel', [
     ['How does the Exchange work?', 'Brokers are in Ansbury’s Guildhall, Gullmouth’s Merchants’ Quarter and Harrowgate. List things at your price; the Exchange takes 5% of each sale, and what doesn’t sell comes back after three days. The Wanted page posts what you want to buy, which is how to commission a crafter.'],
     ['How else can I travel?', 'The Charter Post carts run between stops you’ve visited, for a mark or two. The packet ship runs between Gullmouth and Callis, and ferries keep a timetable. Waymarks are quickest and cost a little more.'],
+    ['How does Verandah’s harbour work?', 'Verandah is a kingdom of its own, outside the Charter. Its Harbour Board (the Portreeve, the houses of Vyvyan, Tregarthen and Trefusis, and the Guild of the Quay) sets the dues every ship pays to tie up, and the Customs takes the king’s duty on every cask landed. Hugh Carne, the Collector, keeps his ledger in the port warehouse; Kerra Nance, the pilot who leads the Guild of the Quay, stands at the pier end.'],
+    ['Is there work on Verandah’s quay?', 'Once a day Bryok Nance, the dockhand who keeps the Guild of the Quay’s tally book, will give you a turn tallying the morning packet’s cargo: check four lots against the bill, chalk them, and she pays twelve marks. A turn counts as a contract for the Factor trade.'],
     ['How do I sail?', 'Hire a ship by the hour from a shipwright, or have one built. At the helm, W and S set and take in sail, A and D steer, and Q and E fire the broadsides.'],
   ]],
   ['Fighting, more', [

@@ -76,7 +76,7 @@ export const TRADES: TradeDef[] = [
     blurb: 'You carry for the Company and trade for yourself: a bonded crate here, a debt collected there, a sharp eye on the weights. The quays run on people like you.',
     ranks: ['Porter', 'Clerk', 'Supercargo', 'Factor', 'Chief Factor'], title: 'Chief Factor', dye: ['#1e3a6a', 'Company blue'],
     jobs: [
-      { counter: 'contracts', text: 'Finish {n} of the Counting House\'s contracts', base: 1 },
+      { counter: 'contracts', text: 'Finish {n} of the Counting House\'s contracts (a turn tallying on Verandah\'s quay counts too)', base: 1 },
       { counter: 'crafted', text: 'Make {n} things at a bench, an anvil, a furnace or a hearth, to trade', base: 5 },
       { counter: 'orders', text: 'Fill {n} of Bertram Sowerby\'s orders', base: 1 },
     ],

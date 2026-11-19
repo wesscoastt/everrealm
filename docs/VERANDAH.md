@@ -20,7 +20,7 @@ screenshot. Map render: `.walker/gamemap2.ts`, 2 blocks to the pixel.
 | Awschitz Fort | -3445, 1960 | Walled fort on the west coast; Captain Jenifer Morvah, the King's Dock, marines, the cutter *Vigilant* |
 | Awschitz Head | -3458, 1912 | The headland under the fort; wreckers' false-lights event |
 | The outpost | -3136, 2332 | The owner's keep on the peak west of the Airport; Captain Penhallow's garrison (`ver-outpost`) |
-| The Fortress | off the docks | The owner's walled islet, made a smugglers' den: Jory Kettle, Sal Treharne, Mab Penhallow |
+| The Fortress | the north islet, about -2990, 1630 | The owner's walled islet, made a smugglers' den: Jory Kettle, Sal Treharne, Mab Penhallow |
 | Black Gull Keep | -3384, 2114 | Public dungeon: the Black Gull wreckers |
 | Stables | -3305, 2050 | The Charter Post's yard and the king's horses |
 | Sunken Temple | -3384, 2464 | Ruin, flooded |
@@ -31,7 +31,6 @@ screenshot. Map render: `.walker/gamemap2.ts`, 2 blocks to the pixel.
 | Kestle and the Kestle Folds | -2340, 2445 | East-island village and sheep folds; wolf event |
 | Gorran | behind the Arena | Walled village: Loveday Rowse, reeve |
 | Verandah Farm | waystone | The farm country |
-| Skua Rock | north islet, about -3008, 1600 | The prison (`skua.ts`) |
 
 The owner's waystones: Verandah, Verandah Farm, Mizuholm, Verandah Port, Awschitz, Verandah Airport, Kestle,
 Verandah Arena.
@@ -217,7 +216,7 @@ does not trust the sea. Each is half right about the other.
 - **The Charter.** The Charter has the yard, the packet and the cutters. Ansbury wants the harbour in the Charter,
   and Harrowgate & Daughters want the harbour itself. Their factor in Verandah, Ambrose Garland, keeps rooms at
   the Dolphyn and lends money to anyone on the Board who needs it.
-- **The Guild of the Quay.** Dockers, lightermen and pilots. Its master is Hedra Nance, a pilot. They know every
+- **The Guild of the Quay.** Dockers, lightermen and pilots. Its master is Kerra Nance, a pilot. They know every
   ship that comes in and every one that doesn't, and nobody asks them.
 
 ### The people of the Silent Waters (recurring)
@@ -225,8 +224,8 @@ does not trust the sea. Each is half right about the other.
 | Person | Who | Where |
 |---|---|---|
 | Tegen Hocking | Fishmonger whose brother's boat, the *Little Grace*, didn't come home | Market (in game) |
-| Hedra Nance | Master of the Guild of the Quay, a pilot | The quay |
-| Hugh Carne | Collector of Customs, tired, kind, frightened | The Customs House |
+| Kerra Nance | Master of the Guild of the Quay, a pilot | The quay |
+| Hugh Carne | Collector of Customs, tired, kind, frightened | The port warehouse, the King's bonded store |
 | Grace Vyvyan | Head of House Vyvyan | The salting sheds |
 | Lewis Tregarthen | Head of House Tregarthen | The house in town |
 | Honor Trefusis | Head of House Trefusis | Verandah Farm |
@@ -264,7 +263,7 @@ harbour, its customs on his quay, and the Packet Treaty torn up. Ansbury gets th
 the end of the third chapter.
 
 1. **The Little Grace.** Tegen Hocking's brother is two days late. The player searches the Long Sands, finds
-   the boat's marker buoy cut loose, not torn free, and talks to the pilots. Hedra Nance says three boats have gone
+   the boat's marker buoy cut loose, not torn free, and talks to the pilots. Kerra Nance says three boats have gone
    missing this way in a year, all from the same water off the Fortress. Ends with Tegen's brother still missing.
    Grounded: fetch, search, talk.
 2. **Late Cargo.** A Vyvyan salt ship, the *Good Intent*, is reported lost in fair weather. Grace Vyvyan
@@ -316,8 +315,8 @@ under new management. Piers Arundell is on the Board. Garland, if he got away, t
 
 ## 4. Stages
 
-1. This document. *(Done.)*
-2. Harbour government: the Customs House (Hugh Carne), the Guild of the Quay (Hedra Nance), Grace Vyvyan at the
+1. This document. *(Done 2026-11-19.)*
+2. *(Done 2026-11-19: `verandahHarbour.ts`, Hugh Carne in the warehouse, Kerra Nance at the pier end, her son Bryok with the daily tally, Grace Vyvyan on the pier; Short Measure and Off Station.)* Harbour government: the Customs House (Hugh Carne), the Guild of the Quay (Kerra Nance), Grace Vyvyan at the
    sheds, and harbour dues as a talk-to-learn system. Two everyday harbour quests and a repeatable dock job
    (unloading, tallying). Help entry for the harbour.
 3. Carn Hold. Give the outpost its name on signs and waystones, add the beacon keeper, the road patrol on
