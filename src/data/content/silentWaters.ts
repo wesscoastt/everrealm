@@ -167,7 +167,7 @@ export const SILENT_WATERS: RegionContent = {
   hooks: (D) => {
     hook(D, 'ver_fish_tegen', (g) => (at(g, GRACE_Q) === 'tegen' ? 'tb1' : undefined), tegenNodes);
     addOption(D, 'ver_fish_tegen', 'hello', { text: 'You\'re watching the harbour mouth, Tegen.', cond: (g) => !at(g, GRACE_Q), next: 't1' });
-    addOption(D, 'ver_fish_tegen', 'hello', { text: 'About Petroc.', cond: (g) => at(g, GRACE_Q) === 'done', next: 'tAfter' });
+    addOption(D, 'ver_fish_tegen', 'hello', { text: 'About Petroc.', cond: (g) => at(g, GRACE_Q) === 'done' && at(g, 'swKeep') !== 'done', next: 'tAfter' });
     hook(D, 'vh_kerra', (g) => (at(g, GRACE_Q) === 'kerra' ? 'pk1' : at(g, INTENT) === 'kerra' ? 'ki1' : undefined), { ...kerraNodes, ...kerraIntentNodes });
     hook(D, 'vh_grace', (g) => (at(g, INTENT) === 'grace' ? 'ib1' : undefined), graceNodes);
     addOption(D, 'vh_grace', 'hello', { text: 'You look as if you\'ve lost something bigger than a boat.', cond: (g) => at(g, GRACE_Q) === 'done' && !at(g, INTENT), next: 'i1' });
