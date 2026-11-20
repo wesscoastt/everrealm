@@ -15,6 +15,7 @@ export const UPDATES: Update[] = [
       ['Washed.', 'In Saltpenny Key, somebody takes a bowl of Annie Coe\'s chowder every night after the Leaning Mast shuts, and brings it back washed. Ask Annie what\'s wrong.'],
       ['Always Buys.', 'Kit Rowe, the first fighter on the Cockpit\'s ladder, has lost to the last eleven newcomers in a row. Jago Sweeney doesn\'t believe anybody is that bad.'],
       ['The Bright Nails.', 'In Reedwater, somebody is pulling nails out of the bog oak at night, and Lorne Rush\'s father\'s nail is in that tree.'],
+      ['The Ring of Black.', 'At Cold Harbour, once the dead on Hollow Fell are lying still again, Ellen Dacre watches the moor track: her husband keeps their flock inside a ring the Held won\'t cross, and there\'s a gap in it.'],
       ['The Gorran road patrol.', 'Two troopers from Carn Hold walk the Gorran road all day, from the foot of the Carn path to Gorran\'s gate and back, and stand at the turning above the cove at night.'],
     ],
   },
