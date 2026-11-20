@@ -26,7 +26,7 @@ effect, the sum a ship that sails and fights the way it was built. It sits on th
 - The plain design of each keel matches the old fixed hull within a few per cent, so ships already built keep sailing
   the same.
 
-## The shipyard (next)
+## The shipyard [built 2026-11-20: the designer in the yards' talk, data/content/naval.ts; a 3D preview at the berth to come]
 
 At any shipwright, "Design a ship": the ship stands at the yard's berth as you build her, and changes as you change
 her parts (as Starfield's builder shows the ship in the hangar). A list of slots, each cycled through its parts, beside

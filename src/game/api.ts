@@ -44,7 +44,7 @@ export interface GameApi {
   leaseHall(id: string): void;
   /** The guild panel, open on its hall page. */
   openHallPage(): void;
-  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name' | 'below', arg?: string): void;
+  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name' | 'below' | 'refit', arg?: string): void;
   fairOn(): boolean;
   fairPlay(game: string): void;
   fairPlaysLeft(game: string): number;
@@ -175,6 +175,8 @@ export interface DNode {
   text: string | ((g: GameApi) => string);
   /** Defaults to the NPC. 'narrator' renders in italics. */
   speaker?: 'npc' | 'narrator';
+  /** Not quest content and too wide to walk (the shipyard's designer: every part in every slot): the quest walker reads its text and stops. */
+  noWalk?: boolean;
   /** Somebody else in the scene says this line: a companion's id, or another person's NPC id. */
   as?: string;
   options?: DOption[];

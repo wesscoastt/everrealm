@@ -79,6 +79,7 @@ import { ISLAND_COURSES } from '../data/islandCourses';
 import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
 import { Sailing, type ShipState } from './Sailing';
 import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
+import { buildShip, decodeDesign, PARTS, slotsOf } from '../data/shipParts';
 import { applyColourVision } from '../ui/colourVision';
 import { ATTACK_WAYS, BEAST_NOTES, BEAST_TIERS, bestiaryRoster, ROLE_WAYS } from '../data/bestiary';
 import { CABINS, CABIN_BASE, cabinAt, cabinFixtures, cabinReserved, cabinShape } from '../data/cabins';
@@ -3753,19 +3754,19 @@ export class Game implements GameApi {
   }
 
   /** Ships of your own, as saved: what she is, how she's painted, how she was left, and whether she's on the bottom. */
-  private myShips(): { hull: HullId; livery: Livery; hp: number; sunk?: boolean }[] {
+  private myShips(): { hull: HullId; livery: Livery; hp: number; sunk?: boolean; design?: string }[] {
     const v = this.flag('ships');
-    return Array.isArray(v) ? (v as { hull: HullId; livery: Livery; hp: number; sunk?: boolean }[]).filter((x) => x && x.hull in HULLS && x.livery) : [];
+    return Array.isArray(v) ? (v as { hull: HullId; livery: Livery; hp: number; sunk?: boolean; design?: string }[]).filter((x) => x && x.hull in HULLS && x.livery) : [];
   }
   private nearestBerth() { const P = this.player.position; return BERTHS.slice().sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0]; }
   private defaultLivery(id: HullId): Livery { return { hull: HULL_PAINTS[0], wale: WALE_PAINTS[0], sail: SAIL_CLOTHS[0], name: `${this.save.name}'s ${HULLS[id].name}` }; }
 
-  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name' | 'below', arg?: string): void {
+  naval(action: 'hire' | 'build' | 'call' | 'salvage' | 'paint' | 'sail' | 'name' | 'below' | 'refit', arg?: string): void {
     const berth = this.nearestBerth(), ships = this.myShips();
-    const sailOut = (hull: HullId, livery: Livery, hp?: number) => {
+    const sailOut = (hull: HullId, livery: Livery, hp?: number, design?: string) => {
       if (this.horse) this.dismount(true);
       this.boat.aboard = false;
-      this.sailing.launch(hull, livery, berth.x, berth.z, berth.heading, hp);
+      this.sailing.launch(hull, livery, berth.x, berth.z, berth.heading, hp, design);
       this.takeHelm();
       this.sfx('bell' as Sfx, 0.6);
     };
@@ -3776,6 +3777,48 @@ export class Game implements GameApi {
       this.setFlag('shipHire', { hull: id, until: Date.now() + 3600_000 });
       sailOut(id, { hull: '#3a2a1e', wale: '#7a2a1e', sail: '#efe3c4', name: 'Yard ' + h.name }, h.hp);
       this.hud.system(`The yard's ${h.name.toLowerCase()} is yours for the hour. W and S set and take in sail, A and D the helm. F fires the broadside on the side you're looking at (Z port, C starboard). Mind the wind.`);
+      this.persist();
+      return;
+    }
+    // Built or refitted to a design of your own (data/shipParts.ts; the yard's designer, data/content/naval.ts)
+    const pay = (marks: number, items: Record<string, number>, what: string): boolean => {
+      for (const [it, n] of Object.entries(items)) if (n > 0 && this.inv.count(it) < n) { this.hud.system(`For ${what} the yard needs ${n} ${ITEMS[it]?.name ?? it}, and you have ${this.inv.count(it)}.`); this.sfx('fail'); return false; }
+      if (this.save.marks < marks) { this.hud.system(`The yard wants ${marks.toLocaleString()} marks for ${what}, and you have ${this.save.marks.toLocaleString()}.`); this.sfx('fail'); return false; }
+      for (const [it, n] of Object.entries(items)) if (n > 0) this.inv.remove(it, n);
+      this.addMarks(-marks);
+      return true;
+    };
+    if (action === 'build' && arg && arg.includes(':')) {
+      const d = decodeDesign(arg);
+      if (!d) return;
+      if (ships.length >= 3) { this.hud.system('The yard won\'t lay down a fourth keel for one captain. Three ships is a fleet.'); return; }
+      const h = HULLS[d.keel], b = buildShip(d), items: Record<string, number> = { ...h.build.items };
+      for (const [it, n] of Object.entries(b.cost.items)) items[it] = (items[it] ?? 0) + n;
+      if (!pay(h.build.marks + b.cost.marks, items, `your ${h.name.toLowerCase()}`)) return;
+      this.setFlag('ships', [...ships, { hull: d.keel, livery: this.defaultLivery(d.keel), hp: b.hp, design: b.code }]);
+      this.setFlag('shipDraft', null);
+      this.hud.banner('Launched', `Your ${h.name.toLowerCase()} is in the water, built to your design`, true);
+      this.sfx('levelUp');
+      this.hud.system('Ask at any shipwright to bring her round, refit her, paint her or name her.');
+      this.hud.refresh();
+      this.persist();
+      return;
+    }
+    if (action === 'refit') {
+      const [si, code] = String(arg ?? '').split('|'), i = Number(si), sh = ships[i], d = decodeDesign(code);
+      if (!sh || !d || d.keel !== sh.hull) return;
+      if (sh.sunk) { this.hud.system(`The ${sh.livery.name} is on the bottom. Raise her first.`); return; }
+      // only what changes is paid for: the new part in every slot that's different
+      const old = decodeDesign(sh.design ?? sh.hull + ':')!;
+      let marks = 0, changed = 0; const items: Record<string, number> = {};
+      for (const s of slotsOf(d.keel)) if (d.parts[s.key] !== old.parts[s.key]) { changed++; const p = PARTS[d.parts[s.key]]; if (!p) continue; marks += p.marks; for (const [it, n] of Object.entries(p.items ?? {})) items[it] = (items[it] ?? 0) + n; }
+      if (!changed) { this.hud.system('She\'s built that way already.'); return; }
+      if (!pay(marks, items, `the ${sh.livery.name}'s refit`)) return;
+      const b = buildShip(d);
+      this.setFlag('ships', ships.map((x, k) => (k === i ? { ...x, design: b.code, hp: b.hp } : x)));
+      this.setFlag('shipDraft', null); this.setFlag('shipDraftFor', null);
+      this.hud.system(`The yard's carpenters go over the ${sh.livery.name}. She's refitted to your design, and sound.`);
+      this.sfx('levelUp');
       this.persist();
       return;
     }
@@ -3805,7 +3848,7 @@ export class Game implements GameApi {
     }
     if (action === 'call') {
       if (sh.sunk) { this.hud.system(`The ${sh.livery.name} is on the bottom. The yard can raise her for ${Math.round(HULLS[sh.hull].build.marks * SALVAGE)} marks.`); return; }
-      sailOut(sh.hull, sh.livery, sh.hp);
+      sailOut(sh.hull, sh.livery, sh.hp, sh.design);
       this.setFlag('shipOut', i);
       this.hud.system(`The ${sh.livery.name} comes round to the berth.`);
       return;

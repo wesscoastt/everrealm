@@ -181,6 +181,7 @@ function converse(s: State, id: string): Step[] {
       node.effect?.(m);
       settle(m);
     } catch (e) { err(`run:${id}.${nodeId}`, `${id}.${nodeId}: throws: ${(e as Error).message}`); return; }
+    if (node.noWalk) { out.push({ state: m.s, label: `talk ${id}${path.length ? ': ' + path.join(' > ') : ''}` }); return; }
     const opts = (node.options ?? []).filter((o) => { try { return !o.cond || o.cond(m); } catch (e) { err(`cond:${id}.${nodeId}`, `${id}.${nodeId}: option condition throws: ${(e as Error).message}`); return false; } });
     if (!opts.length) {
       if (node.next) dfs(m.s, node.next, path, steps + 1);

@@ -182,5 +182,12 @@ export function buildShip(d: Design): BuiltShip {
   };
 }
 
+/** What a refit from one design to another costs: the new part in every slot that changes. */
+export function refitCost(from: Design, to: Design): { marks: number; items: Record<string, number>; changed: number } {
+  let marks = 0, changed = 0; const items: Record<string, number> = {};
+  for (const s of slotsOf(to.keel)) if (to.parts[s.key] !== from.parts[s.key]) { changed++; const p = PARTS[to.parts[s.key]]; if (!p) continue; marks += p.marks; for (const [it, n] of Object.entries(p.items ?? {})) items[it] = (items[it] ?? 0) + n; }
+  return { marks, items, changed };
+}
+
 /** The weight of a broadside on one side (every gun of every deck), for the shipyard's figures. */
 export const broadside = (b: BuiltShip) => b.batteries.reduce((a, x) => a + x.gun.dmg * x.n, 0);

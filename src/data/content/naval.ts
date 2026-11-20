@@ -1,6 +1,7 @@
 import type { DialogueTree, DNode, DOption, GameApi } from '../../game/api';
 import type { ItemDef } from '../items';
 import { HULLS, HULL_IDS, LANES, type HullId } from '../naval';
+import { baseDesign, broadside, buildShip, decodeDesign, encodeDesign, partsFor, PARTS, refitCost, slotsOf, type Design } from '../shipParts';
 import type { NpcDef } from '../npcs';
 import type { QuestDef } from '../quests';
 import type { ShopDef } from '../shops';
@@ -19,10 +20,44 @@ const FIRST = 'navalFirst';
 /** Hal on the low quay by Gullmouth's berth, facing the water. */
 const HAL: [number, number] = [1788.5, 606.5];
 
-type Owned = { hull: HullId; livery: { name: string }; sunk?: boolean };
+type Owned = { hull: HullId; livery: { name: string }; sunk?: boolean; design?: string };
 const ships = (g: GameApi): Owned[] => { const v = g.flag('ships'); return Array.isArray(v) ? v as Owned[] : []; };
 const cost = (id: HullId) => Object.entries(HULLS[id].build.items).map(([it, n]) => `${n} ${NAMES[it] ?? it}`).join(', ');
-const NAMES: Record<string, string> = { oak_logs: 'oak logs', pine_logs: 'pine logs', ship_cable: 'cable', sailcloth: 'sailcloth', iron_fittings: 'iron fittings', pine_tar: 'tar' };
+const NAMES: Record<string, string> = { oak_logs: 'oak logs', pine_logs: 'pine logs', ship_cable: 'cable', sailcloth: 'sailcloth', iron_fittings: 'iron fittings', pine_tar: 'tar', bronze_bar: 'bronze bars', iron_bar: 'iron bars', copper_ore: 'copper ore' };
+
+// ---- The designer (owner 2026-11-19, "ship building like starfield"; data/shipParts.ts, docs/SHIPBUILD.md): a keel, a
+// part in every slot, the figures as they add up. The draft is the flag shipDraft (a design's short form); refitting one
+// of yours, shipDraftFor is which.
+const draft = (g: GameApi): Design | null => decodeDesign(g.flag('shipDraft'));
+const forShip = (g: GameApi): number | null => { const v = g.flag('shipDraftFor'); return typeof v === 'number' ? v : null; };
+const list = (items: Record<string, number>) => Object.entries(items).filter(([, n]) => n > 0).map(([it, n]) => `${n} ${NAMES[it] ?? it}`).join(', ');
+function figures(g: GameApi): string {
+  const d = draft(g);
+  if (!d) return 'Nothing on the slip.';
+  const b = buildShip(d), k = HULLS[d.keel];
+  const decks = b.batteries.map((x) => `${x.n} ${x.gun.name.toLowerCase()}`).join(' and ') || 'no guns';
+  const chase = [b.bowChaser ? 'a bow chaser' : '', b.sternChaser ? 'a stern chaser' : ''].filter(Boolean).join(' and ');
+  const over = b.mass > b.capacity ? ` She's overloaded: ${b.mass} weight on a keel that carries ${b.capacity}, and she'll wallow for it.` : ` Weight ${b.mass} of the ${b.capacity} she carries well.`;
+  const point = b.upwind > 0.1 ? 'points close to the wind' : b.upwind < -0.05 ? 'sulks to windward' : 'points fair';
+  const hands = b.crew < b.crewNeeded ? ` Short-handed: ${b.crew} hands for guns that want ${b.crewNeeded}, so they'll load slow.` : ` ${b.crew} hands, enough for her guns.`;
+  const i = forShip(g), own = i !== null ? ships(g)[i] : null;
+  let cost: string;
+  if (own) {
+    const rc = refitCost(decodeDesign(own.design ?? own.hull + ':')!, d);
+    cost = rc.changed ? `The refit: ${rc.marks.toLocaleString()} marks${list(rc.items) ? ', and ' + list(rc.items) : ''}.` : 'Nothing changed from how she\'s built.';
+  } else {
+    const items: Record<string, number> = { ...k.build.items }; for (const [it, n] of Object.entries(b.cost.items)) items[it] = (items[it] ?? 0) + n;
+    cost = `To build: ${(k.build.marks + b.cost.marks).toLocaleString()} marks, and ${list(items)}.`;
+  }
+  return `${own ? 'The ' + own.livery.name : 'A ' + k.name.toLowerCase()}, as drawn. Hull ${b.hp}. Top speed ${b.speed}, and she turns ${b.turn}; she ${point}. A side: ${decks}, ${broadside(b)} weight of shot${chase ? ', with ' + chase : ''}.${hands} Cargo ${b.cargo}.${over} ${cost}`;
+}
+const cycle = (g: GameApi, key: string) => {
+  const d = draft(g); if (!d) return;
+  const slot = slotsOf(d.keel).find((s) => s.key === key); if (!slot) return;
+  const opts = partsFor(d.keel, slot.kind), at = opts.findIndex((p) => p.id === d.parts[key]);
+  d.parts[key] = opts[(at + 1) % opts.length].id;
+  g.setFlag('shipDraft', encodeDesign(d));
+};
 
 const items: ItemDef[] = [
   { id: 'ship_cable', name: 'Ship\'s cable', kind: 'material', rarity: 'common', stack: true, value: 14, icon: { shape: 'log', a: '#b8a070', b: '#5a4a2a' }, desc: 'Hawser-laid, tarred, a hand thick. Rook\'s Ropewalk lays it to the fathom for the yards.' },
@@ -53,6 +88,8 @@ function yard(p: string, who: string): Record<string, DNode> {
       options: [
         ...HULL_IDS.map((id): DOption => ({ text: `Hire a ${HULLS[id].name.toLowerCase()} for the hour (${HULLS[id].hire} marks).`, effect: (g) => g.naval('hire', id), cond: (g) => id !== 'frigate' || g.level('melee') >= 30 })),
         { text: 'Have a ship built.', next: p + 'build' },
+        { text: 'Draw up a ship of my own design.', next: p + 'dkeel' },
+        { text: 'Refit one of mine.', next: p + 'refit', cond: (g) => ships(g).some((x) => !x.sunk) },
         { text: 'My ships.', next: p + 'mine', cond: (g) => ships(g).length > 0 },
         { text: 'Not today.' },
       ],
@@ -66,6 +103,38 @@ function yard(p: string, who: string): Record<string, DNode> {
       options: [{ text: 'Lay her down.', effect: (g) => g.naval('build', id) }, back],
     } satisfies DNode])),
     [p + 'mine']: { text: 'Which?', options: [...own(0), ...own(1), ...own(2), back] },
+    [p + 'dkeel']: {
+      noWalk: true,
+      text: 'Which keel do I lay for her? The keel says how long she is, how many gun decks she takes and how much she carries before she wallows. The rest is yours to choose.',
+      options: [...HULL_IDS.map((id): DOption => ({ text: `A ${HULLS[id].name.toLowerCase()}'s keel.`, effect: (g) => { g.setFlag('shipDraft', encodeDesign(baseDesign(id))); g.setFlag('shipDraftFor', null); }, next: p + 'dsg' })), back],
+    },
+    [p + 'refit']: {
+      noWalk: true,
+      text: 'Which of yours? She\'ll come out of the water while we work, and you pay for what changes and nothing else.',
+      options: [...[0, 1, 2].map((i): DOption => ({ text: (g) => `The ${ships(g)[i]?.livery.name ?? ''}.`, cond: (g) => !!ships(g)[i] && !ships(g)[i].sunk, effect: (g) => { const s = ships(g)[i]; g.setFlag('shipDraft', s.design ?? encodeDesign(baseDesign(s.hull))); g.setFlag('shipDraftFor', i); }, next: p + 'dsg' })), back],
+    },
+    [p + 'dsg']: {
+      noWalk: true,
+      text: (g) => figures(g),
+      options: [
+        ...Array.from({ length: 11 }, (_, n): DOption => ({
+          text: (g) => { const d = draft(g); const s = d && slotsOf(d.keel)[n]; return s ? `${s.label}: ${PARTS[d!.parts[s.key]]?.name ?? '?'}` : ''; },
+          cond: (g) => { const d = draft(g); return !!d && n < slotsOf(d.keel).length; },
+          effect: (g) => { const d = draft(g); const s = d && slotsOf(d.keel)[n]; if (s) cycle(g, s.key); },
+          next: p + 'dsg',
+        })),
+        { text: 'What does each part do?', next: p + 'dparts' },
+        { text: 'Lay her down to this design.', cond: (g) => forShip(g) === null && !!draft(g), effect: (g) => g.naval('build', g.flag('shipDraft') as string) },
+        { text: 'Refit her to this design.', cond: (g) => forShip(g) !== null && !!draft(g), effect: (g) => g.naval('refit', `${forShip(g)}|${g.flag('shipDraft')}`) },
+        { text: 'Start again.', next: p + 'dkeel' },
+        back,
+      ],
+    },
+    [p + 'dparts']: {
+      noWalk: true,
+      text: (g) => { const d = draft(g); if (!d) return 'Nothing on the slip.'; return slotsOf(d.keel).map((s) => { const pt = PARTS[d.parts[s.key]]; return pt ? `${s.label}, ${pt.name}: ${pt.blurb}` : ''; }).join(' '); },
+      options: [{ text: 'Back to the drawing.', next: p + 'dsg' }],
+    },
     ...Object.fromEntries([0, 1, 2].map((i) => [`${p}ship${i}`, {
       text: (g: GameApi) => { const s = ships(g)[i]; return !s ? 'No such ship.' : s.sunk ? `The ${s.livery.name} is on the bottom. We can raise her, for a tenth of what she cost.` : `The ${s.livery.name}, a ${HULLS[s.hull].name.toLowerCase()}. What'll it be?`; },
       options: [

@@ -16,6 +16,7 @@ export const UPDATES: Update[] = [
       ['Side stories across the Counties.', 'Two new stories in every region of the Counties, from Scarth to the Sickle.'],
       ['Hair.', 'Hair is built in blocks like the world, locks and all, without the round blobs.'],
       ['Robes and gowns.', 'Skirts and coat tails swing with your stride instead of your legs coming through them.'],
+      ['Ships of your own design.', 'At any shipwright, draw up a ship part by part: keel, bow, stern, rig, sailcloth, planking, every gun deck and every hold, and watch her figures change as you choose. Lay her down, or refit a ship you own and pay only for what changes. Help has the details.'],
       ['Stairs, slabs and walls in Verandah.', 'Verandah\'s stairs climb in steps, its slabs are half a block, its walls are posts and rails, and its trapdoors are boards, where they used to be whole blocks; and its prismarine is the sea-green stone it should be.'],
       ['The map remembers.', 'Where you\'ve been stays drawn on the map. It used to forget some of it if the game saved while the map was still being drawn back in after you came into the world.'],
       ['Quarry Row Lots.', 'Four more building lots by Verandah\'s west gate, six in all, and the paths to the Quarry Row houses laid level.'],

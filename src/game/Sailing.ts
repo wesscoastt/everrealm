@@ -4,6 +4,7 @@ import { B, isSolid } from '../world/blocks';
 import { realmNow } from '../world/clock';
 import type { PropMaterials } from '../world/props';
 import { shipModel, SHIPS } from '../world/ships';
+import { baseDesign, buildShip, decodeDesign } from '../data/shipParts';
 import { SEA } from '../world/terrain';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
@@ -165,9 +166,11 @@ export class Sailing {
   // ------------------------------------------------------------------------------- your ship
 
   /** Launch a ship of yours (or a hired one) at a berth, and take her helm. */
-  launch(hullId: HullId, livery: Livery, x: number, z: number, yaw: number, hp?: number): Ship {
+  launch(hullId: HullId, livery: Livery, x: number, z: number, yaw: number, hp?: number, design?: string): Ship {
     this.stow();
-    const s = new Ship(this.host.props, HULLS[hullId], livery);
+    // (a ship built to a design of yours sails and fights as it adds up: data/shipParts.ts)
+    const d = design ? decodeDesign(design) : null;
+    const s = new Ship(this.host.props, d && d.keel === hullId ? buildShip(d) : design === undefined ? HULLS[hullId] : buildShip(baseDesign(hullId)), livery);
     s.pos.set(x, SEA, z);
     s.yaw = yaw;
     if (hp !== undefined) s.hp = Math.max(1, Math.min(s.hull.hp, hp));
