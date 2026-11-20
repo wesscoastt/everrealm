@@ -1,3 +1,4 @@
+import { HAIR_STYLES } from '../data/hairStyles';
 import type { Appearance } from '../entities/humanoid';
 import { StoreShowcase } from './StoreShowcase';
 import { PETS } from '../data/pets';
@@ -133,7 +134,6 @@ const OPT = {
 };
 type Tab = 'origin' | 'calling' | 'body' | 'face' | 'hair' | 'outfit' | 'gear';
 const TAB_NAME: Record<Tab, string> = { origin: 'Origin', calling: 'Calling', body: 'Body', face: 'Face', hair: 'Hair', outfit: 'Outfit', gear: 'Gear' };
-const HAIR_STYLES = ['Short', 'Long', 'Topknot', 'Shaved', 'Braids', 'Bob', 'Ponytail', 'Bun', 'Curls', 'Mohawk', 'Undercut', 'Twin tails', 'Wild mane', 'Bright roots'];
 const FACIAL = ['None', 'Full beard', 'Stubble', 'Moustache', 'Goatee', 'Chinstrap', 'Long beard', 'Mutton chops', 'Forked beard'];
 const BROWS = ['Straight', 'Heavy', 'Arched', 'Fine'];
 const EYE_SHAPES = ['Almond', 'Round', 'Narrow', 'Hooded'];

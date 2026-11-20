@@ -39,6 +39,12 @@ const street = (x: number, z: number) => heightAt(Math.floor(x), Math.floor(z)) 
 //
 // Prices are flags (bounty:<town>), a sentence is flag jail, arrests are counted per town
 // (arrests:<town>): the watch of a town where you've been taken in before knows you.
+//
+// The watch knows you by what you were wearing (owner 2026-11-20, "like GTA 6": change your clothing or hair to lose
+// them). Every crime a town writes down also writes down how you looked (face:<town>) and, if you were on a stolen
+// horse, the horse (steed:<town>). The watch goes by that: change your clothes, your hat or your hair, and get off
+// the horse, and they walk past you; while one is after you, a change of look out of their sight loses them. The
+// price stays in the book.
 
 export interface GuardRef { id: string; town: string; pos: THREE.Vector3 }
 
@@ -96,6 +102,9 @@ export interface JusticeHost {
   travel(x: number, y: number, z: number, label: string): void;
   /** Experience in a skill (the pick, on the quarry gang). */
   xp(skill: 'mining', n: number): void;
+  /** What you look like as the watch would tell it (clothes, hat, hair), and the stolen horse under you, if any. */
+  lookKey(): string;
+  stolenKey(): string | null;
 }
 
 const WATCH_SAYS = {
@@ -160,8 +169,8 @@ export class Justice {
    * A blow struck at `at`: a town beast (its kind), a townsperson, or one of the watch. Seen by
    * anyone, it goes in that town's book.
    */
-  crime(kind: 'beast' | 'assault' | 'guard' | 'theft', at: THREE.Vector3, what?: string, guardId?: string, worth = 0): boolean {
-    const j = jurisdictionAt(at.x, at.z);
+  crime(kind: 'beast' | 'assault' | 'guard' | 'theft', at: THREE.Vector3, what?: string, guardId?: string, worth = 0, town?: string): boolean {
+    const j = (town ? JURISDICTIONS.find((x) => x.id === town) : null) ?? jurisdictionAt(at.x, at.z);
     if (!j || this.ride || this.jailed) return false;
     // Your companion sees it, whoever else does (game/Companions.ts)
     this.host.noticed?.();
@@ -170,6 +179,9 @@ export class Justice {
     const seen = kind === 'guard' || kind === 'theft' || this.host.guards(at, 26).some((g) => g.town === j.id) || this.host.witnesses(at, 18) > 0;
     if (!seen) { this.host.system('Nobody saw that.'); return false; }
     this.host.committed?.(kind, j.id);
+    // (how you looked, and what you rode, go in the book with it)
+    this.host.setFlag('face:' + j.id, this.host.lookKey());
+    this.host.setFlag('steed:' + j.id, this.host.stolenKey());
     const was = this.bounty(j.id);
     this.setBounty(j.id, was + price);
     const now = this.bounty(j.id);
@@ -182,6 +194,18 @@ export class Justice {
   }
 
   // ---------------------------------------------------------------------------------------- the watch
+
+  /** Would this town's watch know you on sight: in the clothes, hat and hair they wrote down, or on the horse you took? */
+  recognised(j: Jurisdiction): boolean {
+    const face = this.host.flag('face:' + j.id) as string | undefined, steed = this.host.flag('steed:' + j.id) as string | null | undefined;
+    if (!face) return true;
+    const mine = this.host.stolenKey();
+    return face === this.host.lookKey() || (!!steed && steed === mine);
+  }
+  /** The nearest town that would write a crime at a point down: its own, or out on the road the nearest. */
+  static nearestTown(x: number, z: number): string {
+    return (jurisdictionAt(x, z) ?? [...JURISDICTIONS].sort((a, b) => Math.hypot(x - a.x, z - a.z) - Math.hypot(x - b.x, z - b.z))[0]).id;
+  }
 
   private startArrest(j: Jurisdiction, guard: string | null, mode: 'take' | 'blades'): void {
     const P = this.host.player.position;
@@ -237,6 +261,8 @@ export class Justice {
   private watchLooks(P: THREE.Vector3): void {
     const j = jurisdictionAt(P.x, P.z);
     if (!j) return;
+    // (in other clothes, off the stolen horse, they don't know you: game/HorseTheft.ts)
+    if (!this.recognised(j)) return;
     const n = this.bounty(j.id), known = Number(this.host.flag('arrests:' + j.id) ?? 0) > 0;
     for (const g of this.host.guards(P, 14)) {
       if (g.town !== j.id) continue;
@@ -258,6 +284,15 @@ export class Justice {
     if (a.mode === 'blades' && a.foe === undefined) {
       a.foe = this.host.fight(a.guard, `${a.j.watch[0].toUpperCase() + a.j.watch.slice(1)}, ${a.j.name}`);
       if (a.foe) this.host.chase(null, null);
+    }
+    // Lost in other clothes: out of reach of the one who's after you, you're somebody else now
+    const after = a.foe ? a.foe.pos : this.host.guards(P, 80).find((x) => x.id === a.guard)?.pos;
+    if (!this.recognised(a.j) && (!after || after.distanceTo(P) > 9)) {
+      if (a.foe?.alive) this.host.unfight(a.foe, a.guard, true);
+      this.host.banner('Lost in the crowd', `${a.j.name}'s watch is looking for somebody else`);
+      this.host.system(`In other clothes the watch goes straight past you. ${a.j.name} still wants ${this.bounty(a.j.id)} marks, for somebody who doesn't look like you any more.`);
+      if (a.foe) this.arrest = null; else this.endArrest();
+      return;
     }
     if (a.foe) {
       const foe = a.foe;

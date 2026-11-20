@@ -1,3 +1,4 @@
+import { HAIR_STYLES } from '../data/hairStyles';
 import { NEWS_V, newsHtml } from '../data/whatsNew';
 import { HELP } from '../data/help';
 import { Input } from '../systems/Input';
@@ -297,7 +298,8 @@ export interface UiCtx {
   /** Armour dyes (data/gearDyes.ts): what's on each slot, the dyes you have, and dyeing a channel. */
   gearDyes(): Record<DyeSlot, { main?: string; trim?: string }>;
   /** The wardrobe in the world (owner 2026-11-12: "add a way to equip and unequip outfits in game"): costumes, hats, saved outfits. */
-  wardrobe(): { costumes: { id: string; name: string }[]; costume: string | null; hats: { id: string; name: string }[]; hat: string; outfits: ({ name: string } | null)[] };
+  wardrobe(): { costumes: { id: string; name: string }[]; costume: string | null; hats: { id: string; name: string }[]; hat: string; hairStyle: number; outfits: ({ name: string } | null)[] };
+  restyleHair(i: number): void;
   wearCostume(id: string | null): void;
   wearHat(id: string): void;
   saveOutfit(i: number): void;
@@ -2119,6 +2121,7 @@ export class Hud {
     if (w.costumes.length) box.append(chips('Costume', [{ id: '', name: 'None' }, ...w.costumes], w.costume ?? '', (id) => this.ctx.wearCostume(id || null)));
     else box.append(el('p', 'of-none', 'No costumes yet: the festival stalls, the store, the puzzles and the road all have them.'));
     box.append(chips('Hat', w.hats, w.hat, (id) => this.ctx.wearHat(id)));
+    box.append(chips('Hair', HAIR_STYLES.map((name, i) => ({ id: String(i), name })), String(w.hairStyle), (id) => this.ctx.restyleHair(Number(id))));
     const saved = el('div', 'of-saved');
     saved.append(el('span', 'k', 'Saved'));
     w.outfits.forEach((o, i) => {

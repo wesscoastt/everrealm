@@ -7,7 +7,8 @@ import { B, isSolid } from '../world/blocks';
 import { GW, heightAt, SEA, WORLD_ROADS } from '../world/terrain';
 import { ROADS as VALE_ROADS } from '../world/generate';
 import { realmHour, realmNow } from '../world/clock';
-import { CreatureModel } from '../entities/creatures';
+import { CreatureModel, mountModel, type MountLook } from '../entities/creatures';
+import { riderLift } from '../entities/seats';
 import { PEDLARS, type Pedlar } from '../data/content/pedlars';
 
 // People on the roads and the watch in the towns, the same for everyone in the realm.
@@ -24,6 +25,11 @@ import { PEDLARS, type Pedlar } from '../data/content/pedlars';
 // Pedlars walk the long roads the same way, leading a pack pony, and stop when someone comes up to
 // deal with them (game/Game.ts opens their pack). A pedlar kept talking falls behind the clock and
 // hurries a little after, until they're back where everyone else sees them.
+//
+// Riders (owner 2026-11-20, horse theft): a few travellers go by on horseback, a post rider or a dealer at a trot,
+// and the bigger towns have one of the watch mounted, riding the streets the foot patrols walk. Any of them can be
+// pulled down out of the saddle (game/HorseTheft.ts): the rider and the horse go off this clock for a while, for you
+// only (the realm still sees them riding on).
 //
 // Looks come from a seed, not from chance, for the same reason. Only the ones near the player are
 // built (and each keeps its own figure after that: there are only a hundred or so in the realm);
@@ -75,6 +81,9 @@ interface Figure {
   pedlar?: Pedlar;
   lag: number;
   pony?: CreatureModel;
+  /** Mounted: the horse's look, and its figure once built. */
+  horse?: MountLook;
+  steed?: CreatureModel;
 }
 
 export interface Town { id: string; x: number; z: number; r: number }
@@ -119,6 +128,19 @@ const KINDS: { name: string; lines: string[]; look: (r: () => number) => Partial
     'If it\'s sealed, I don\'t know what\'s in it. If it isn\'t, I still don\'t.',
     'Gullmouth to Ansbury and back by Friday. Ask me how my knees are.',
   ] },
+];
+
+/** Riders on the roads: who, how they look, and what they say going by. */
+const RIDERS: { name: string; lines: string[]; look: (r: () => number) => Partial<Appearance> }[] = [
+  { name: 'post rider', look: () => ({ top: 1, hat: 'cap', cape: '#2a3a6a', shoes: 1 }), lines: ['Charter post! Mind the road!', 'Can\'t stop. Two more stages before dark.', 'Out of the way, friend, I\'m paid by the mile.'] },
+  { name: 'dealer', look: (r) => ({ top: 3, hat: 'wide', cape: CLOTH[Math.floor(r() * CLOTH.length)] }), lines: ['Fine morning for it.', 'Wool\'s down a penny at Ansbury. Again.', 'Good roads, these. I remember them mud.'] },
+  { name: 'farmer', look: (r) => ({ top: 6, hat: r() < 0.5 ? 'straw' : 'cap' }), lines: ['Market day tomorrow.', 'Mind the mare, she bites.', 'Rain by evening, you watch.'] },
+];
+/** Riding horses, the plain sorts you see on a road. */
+const COATS: MountLook[] = [
+  { coat: '#6a4a2a', mane: '#2a1e14', cloth: '#7a2a24' }, { coat: '#3a2a1e', mane: '#141010', cloth: '#2a4a6a' },
+  { coat: '#c8b898', mane: '#e8e0d0', cloth: '#4a5a3a' }, { coat: '#8a6a4a', mane: '#3a2a1e', cloth: '#6a5a3a' },
+  { coat: '#5a5a5a', mane: '#2a2a2a', cloth: '#5a3a2a' }, { coat: '#a8783a', mane: '#e8d8b0', cloth: '#3a4a5a' },
 ];
 
 /** Each town's watch: its colours, and what they say to you in passing. */
@@ -179,6 +201,21 @@ export class Roadfolk {
         });
       }
     });
+    // Riders, one or two to a road, at a trot
+    WORLD_ROADS.forEach((road, ri) => {
+      const len = beatOf(road, 1, 0, 0, true, 0).len;
+      const n = len > 500 ? 2 : 1;
+      for (let j = 0; j < n; j++) {
+        const id = `r${ri}.${j}`, r = seeded(hashStr(id));
+        const kind = RIDERS[Math.floor(r() * RIDERS.length)];
+        const speed = 3.6 + r() * 1.2, rest = 30 + r() * 40;
+        const period = 2 * (len / speed + rest);
+        this.add({
+          id, kind: 'traveller', look: this.lookFor(r, kind.look(r)), held: 'none', lines: kind.lines, night: false,
+          beat: beatOf(road, speed, rest, r() * period, true, 1.4), horse: COATS[Math.floor(r() * COATS.length)],
+        });
+      }
+    });
     // Pedlars, each on their own road with a pony
     for (const pd of PEDLARS) {
       const road = WORLD_ROADS[pd.road];
@@ -216,6 +253,13 @@ export class Roadfolk {
         const len = beatOf(line, 1, 0, 0, false, 0).len;
         const speed = 1.15 + r() * 0.2, rest = 6 + r() * 6;
         this.add({ id, kind: 'guard', town: t.id, look: this.lookFor(r, uniform(r)), held: 'sword', lines: W.lines, night: true, beat: beatOf(line, speed, rest, r() * 2 * (len / speed + rest), false, k % 2 ? 1.2 : -1.2) });
+      }
+      // One of the watch on horseback in a walled-size town, riding the longest street
+      if (t.r >= 60 && pieces.length) {
+        const line = [...pieces].sort((a, b) => b.length - a.length)[0];
+        const id = `m.${t.id}`, r = seeded(hashStr(id));
+        const len = beatOf(line, 1, 0, 0, false, 0).len, speed = 2.4, rest = 10;
+        this.add({ id, kind: 'guard', town: t.id, look: this.lookFor(r, { ...uniform(r), cape: W.tunic }), held: 'sword', lines: W.lines, night: true, beat: beatOf(line, speed, rest, r() * 2 * (len / speed + rest), false, -1.6), horse: { coat: '#2a1e18', mane: '#0e0a08', cloth: W.tunic } });
       }
       // Two at each way into a walled-size town
       if (t.r >= 60) gates.forEach((g, gi) => {
@@ -304,10 +348,11 @@ export class Roadfolk {
       if (f.chasing && this.chaseTo) {
         // After someone: run at them, and stop at arm's length
         const dx = this.chaseTo.x - f.pos.x, dz = this.chaseTo.z - f.pos.z, d = Math.hypot(dx, dz) || 1;
-        const step = d > 1.6 ? Math.min(d - 1.6, 5.6 * dt) : 0;
+        const pace = f.horse ? 10.8 : 5.6, reach = f.horse ? 2.4 : 1.6;
+        const step = d > reach ? Math.min(d - reach, pace * dt) : 0;
         f.pos.x += (dx / d) * step; f.pos.z += (dz / d) * step;
         f.yaw = Math.atan2(dx, dz);
-        f.moving = step > 0 ? 5.6 : 0;
+        f.moving = step > 0 ? pace : 0;
         out = true;
       } else {
         if (out && f.beat) out = this.place(f, f.beat, t);
@@ -343,7 +388,7 @@ export class Roadfolk {
       f.pos.y += (g - f.pos.y) * Math.min(1, dt * 10);
       // The watch: anything hostile in reach gets a blade
       f.swing -= dt;
-      if (f.kind !== 'traveller' && !paused && f.swing <= 0) {
+      if (f.kind !== 'traveller' && !f.horse && !paused && f.swing <= 0) {
         const foe = enemies.find((e) => e.alive && !e.def.anchored && e.pos.distanceTo(f.pos) < 3.2);
         if (foe) {
           f.swing = 1.1;
@@ -353,9 +398,12 @@ export class Roadfolk {
         }
       }
       const busy = f.swing > 0.6;
-      if (!busy) f.model.setState(f.moving > 4 ? 'run' : f.moving > 0 ? 'walk' : 'idle');
-      f.model.update(dt, f.moving);
-      f.model.root.position.copy(f.pos);
+      if (f.horse) this.ride(f, dt, camera);
+      else {
+        if (!busy) f.model.setState(f.moving > 4 ? 'run' : f.moving > 0 ? 'walk' : 'idle');
+        f.model.update(dt, f.moving);
+        f.model.root.position.copy(f.pos);
+      }
       if (f.pedlar) this.lead(f, dt);
       let dy = f.yaw - f.model.root.rotation.y;
       while (dy > Math.PI) dy -= Math.PI * 2;
@@ -372,9 +420,28 @@ export class Roadfolk {
     }
   }
 
+  /** A rider: the horse on the road at a walk, a trot or a gallop, and the rider astride it, hands on the reins. */
+  private ride(f: Figure, dt: number, camera: THREE.Vector3): void {
+    if (!f.steed) f.steed = mountModel(f.horse!);
+    if (!f.steed.root.parent) this.scene.add(f.steed.root);
+    const h = f.steed.root, M = f.model!;
+    h.position.copy(f.pos);
+    h.rotation.y = M.root.rotation.y;
+    f.steed.setAnim(f.moving > 6 ? 'run' : f.moving > 0 ? 'walk' : 'idle');
+    f.steed.update(dt, f.moving);
+    M.straddle = f.steed.girth;
+    M.setState('ride');
+    M.update(dt, 0);
+    M.root.position.set(f.pos.x, f.pos.y + riderLift(f.horse), f.pos.z);
+    const L = new THREE.Vector3(), R = new THREE.Vector3();
+    f.steed.holdReins(M.handsAt(L, R));
+    characterDetail(h, f.pos.distanceTo(camera));
+  }
+
   private hide(f: Figure): void {
     if (f.shown && f.model) this.scene.remove(f.model.root);
     if (f.shown && f.pony) this.scene.remove(f.pony.root);
+    if (f.steed?.root.parent) this.scene.remove(f.steed.root);
     f.shown = false;
   }
 
@@ -419,6 +486,21 @@ export class Roadfolk {
     if (f.chasing) f.chasing = false;
     this.hide(f);
     return { pos: f.pos.clone(), look: f.look, held: f.held };
+  }
+  /** Riders in the saddle near a point, built and in sight: for horse theft (game/HorseTheft.ts). */
+  ridersNear(p: THREE.Vector3, r: number): { id: string; guard: boolean; town?: string; pos: THREE.Vector3; yaw: number; moving: number }[] {
+    const out: { id: string; guard: boolean; town?: string; pos: THREE.Vector3; yaw: number; moving: number }[] = [];
+    for (const f of this.figures) if (f.horse && f.shown && !f.chasing && f.pos.distanceTo(p) < r) out.push({ id: f.id, guard: f.kind === 'guard', town: f.town, pos: f.pos, yaw: f.model?.root.rotation.y ?? f.yaw, moving: f.moving });
+    return out;
+  }
+  /** A rider pulled down out of the saddle: off the road for a while, for you; who they were and what they rode. */
+  unseat(id: string, secs: number): { pos: THREE.Vector3; yaw: number; look: Appearance; horse: MountLook; guard: boolean; town?: string } | null {
+    const f = this.figures.find((x) => x.id === id);
+    if (!f?.horse) return null;
+    this.off.set(id, realmNow() / 1000 + secs);
+    const yaw = f.model?.root.rotation.y ?? f.yaw;
+    this.hide(f);
+    return { pos: f.pos.clone(), yaw, look: f.look, horse: f.horse, guard: f.kind === 'guard', town: f.town };
   }
   /** Back on the beat (they weren't hurt: you got away, or they took you). */
   putBack(id: string): void { this.off.delete(id); }

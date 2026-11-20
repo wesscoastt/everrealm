@@ -65,7 +65,7 @@ import type { ThemeId } from '../systems/music/Score';
 import { CameraRig } from '../systems/CameraRig';
 import { Input } from '../systems/Input';
 import { Particles } from '../systems/Particles';
-import { CreatureModel, mountModel, type CreatureKind } from '../entities/creatures';
+import { CreatureModel, mountModel, type CreatureKind, type MountLook } from '../entities/creatures';
 import { riderLift, riderPose, spareSeats, type SeatPose } from '../entities/seats';
 import { mountKey, mountOf } from '../data/mountLooks';
 import { MountChooser } from '../ui/MountChooser';
@@ -74,6 +74,7 @@ import { Crowd, CrowdZone, townsLook } from './Crowd';
 import { Roadfolk } from './Roadfolk';
 import { PrisonCart } from './PrisonCart';
 import { Justice } from './Justice';
+import { HorseTheft, HORSE_PRICE } from './HorseTheft';
 import { Voyage, type Harbour } from './Voyage';
 import { ISLAND_COURSES } from '../data/islandCourses';
 import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
@@ -854,6 +855,11 @@ export class Game implements GameApi {
   private weatherT = 0;
   /** The horse under the player, while riding. */
   private horse: CreatureModel | null = null;
+  /** Pulling riders down off their horses, and the one you're on if it isn't yours (game/HorseTheft.ts). */
+  private horseTheft!: HorseTheft;
+  private stolen: { look: MountLook; key: string } | null = null;
+  /** What's under you: a stolen horse's look, or your own mount's. */
+  private get mountLook(): MountLook | undefined { return this.stolen?.look ?? ITEMS[this.flag('mount') as string]?.mount; }
   /** Riding with someone in your group, behind their saddle or in their wagon: their id on the realm, or null. */
   private pillion: number | null = null;
   /** How a passenger sits: astride behind a saddle, or on a wagon's bench. */
@@ -1117,6 +1123,15 @@ export class Game implements GameApi {
       constable: () => ({ ...townsLook(), costume: null, tunic: '#2a3a5a', trim: '#c8b070', hat: 'coif', hatColor: '#9aa0a6', cape: '#2a3a5a' } as Appearance),
     });
     this.roadfolk = new Roadfolk(this.scene, this.world.voxels, [...crowdZones(), ...JURISDICTIONS.filter((j) => landOf(j) === 'morrow').map((j) => ({ id: j.id, x: j.x, z: j.z, r: j.r }))], (pos, h, text) => this.floatAt(pos, h, text, 'chatter'));
+    this.horseTheft = new HorseTheft({
+      scene: this.scene, roadfolk: this.roadfolk, player: this.player,
+      pose: (st, secs) => { if (st) this.doAnim = { st, left: secs }; },
+      rideStolen: (m, look) => this.rideStolen(m, look),
+      crime: (guard, at, town) => { this.justice.crime(guard ? 'guard' : 'theft', at, undefined, undefined, HORSE_PRICE, town ?? Justice.nearestTown(at.x, at.z)); },
+      ground: (x, z, y) => this.world.voxels.groundBelow(x, y, z),
+      say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
+      sfx: (n, v) => this.sfx(n as never, v), system: (t) => this.hud.system(t),
+    });
     this.scene.add(this.torchLight);
     this.voyage = new Voyage({
       scene: this.scene, props: this.world.props, player: this.player,
@@ -1141,6 +1156,8 @@ export class Game implements GameApi {
       noticed: () => this.companions?.event('crime'),
       committed: (kind, town) => this.crimeDeed(kind, town),
       scene: this.scene, camera: this.camera, player: this.player, look: this.save.look,
+      lookKey: () => { const L = this.wornLook(); return JSON.stringify([L.costume ?? null, L.hat ?? null, L.hatColor ?? null, L.cape ?? null, L.tunic, L.trim, L.top ?? null, L.hair, L.hairStyle, L.trousers]); },
+      stolenKey: () => this.stolen?.key ?? this.horseTheft.pendingKey,
       setPose: (st) => { this.lawPose = st; },
       marks: () => this.save.marks, spend: (n) => { this.save.marks = Math.max(0, this.save.marks - n); this.hud.refresh(); },
       flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v),
@@ -1716,7 +1733,7 @@ export class Game implements GameApi {
         // On the Post: the cart, with its spare benches for whoever climbs up
         if (this.post.active) return { ...this.post.where, mount: POST_CART_KEY };
         const id = this.flag('mount') as string;
-        return this.horse && spareSeats(ITEMS[id]?.mount) > 0 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y, mount: id } : null;
+        return this.horse && !this.stolen && spareSeats(ITEMS[id]?.mount) > 0 ? { x: this.horse.root.position.x, y: this.horse.root.position.y, z: this.horse.root.position.z, yaw: this.horse.root.rotation.y, mount: id } : null;
       },
       system: (t) => this.hud.system(t),
       qStatus: (d, n) => this.dungeons.onQueue(d, n),
@@ -2285,7 +2302,12 @@ export class Game implements GameApi {
     const costumes = Object.values(COSTUMES).filter((c) => this.flag('costume:' + c.id) && (!c.frame || c.frame === frame)).map((c) => ({ id: c.id, name: c.name }));
     const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.flag('hat:' + id))].map(([name, id]) => ({ id: String(id), name }));
     const saved = (this.flag('outfits') as ({ name: string; look: Record<string, unknown> } | null)[] | undefined) ?? [];
-    return { costumes, costume: L.costume ?? null, hats, hat: String(L.hat ?? 'none'), outfits: [0, 1, 2, 3, 4].map((i) => (saved[i] ? { name: saved[i]!.name } : null)) };
+    return { costumes, costume: L.costume ?? null, hats, hat: String(L.hat ?? 'none'), hairStyle: L.hairStyle ?? 0, outfits: [0, 1, 2, 3, 4].map((i) => (saved[i] ? { name: saved[i]!.name } : null)) };
+  }
+  /** Your hair done another way (Outfits, in the pack): tied back, cropped, braided; enough for the watch to look past you. */
+  restyleHair(i: number): void {
+    this.save.look.hairStyle = i;
+    this.dress(); this.persist(); this.sfx('cloth');
   }
   wearHat(id: string): void {
     this.save.look.hat = id as Appearance['hat'];
@@ -4724,6 +4746,7 @@ export class Game implements GameApi {
       wardrobe: () => g.wardrobe(),
       wearCostume: (id: string | null) => g.wearCostume(id),
       wearHat: (id: string) => g.wearHat(id),
+      restyleHair: (i: number) => g.restyleHair(i),
       saveOutfit: (i: number) => g.saveOutfit(i),
       wearOutfit: (i: number) => g.wearOutfit(i),
       dyePalette: () => g.dyePalette(),
@@ -6711,6 +6734,8 @@ export class Game implements GameApi {
     // The festival's round: a spot near you (game/Seasons.ts)
     for (const c of this.seasons.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
     for (const c of this.fair.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z));
+    // Somebody riding by: pull them down and take the horse (game/HorseTheft.ts)
+    if (!this.horse && !this.dead && this.pillion === null) for (const c of this.horseTheft.candidates(p)) consider({ kind: 'act', label: c.label, sub: c.sub, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) + 0.1);
     if (!this.horse) for (const c of this.thief.candidates()) consider({ kind: 'act', label: c.label, sub: c.sub, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) + 0.2);
     for (const c of this.garden.candidates()) consider({ kind: 'act', label: c.label, sub: c.sub, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.6);
     for (const c of this.farming.candidates(p)) consider({ kind: 'act', label: c.label, pos: c.pos, act: c.use, warn: c.warn }, Math.hypot(c.pos.x - p.x, c.pos.z - p.z) - 0.5);
@@ -7660,8 +7685,34 @@ export class Game implements GameApi {
     setTimeout(() => this.sfx('neigh', 0.7), 450);
   }
 
+  /** Up into the saddle of a horse pulled out from under its rider (game/HorseTheft.ts): yours until you get down. */
+  private rideStolen(horse: CreatureModel, look: MountLook): void {
+    this.dismount(true);
+    this.cancelActions();
+    const at = horse.root.position, P = this.player;
+    P.teleport(at.x, at.y, at.z);
+    P.faceTowards(at.x + Math.sin(horse.root.rotation.y) * 4, at.z + Math.cos(horse.root.rotation.y) * 4);
+    this.horse = horse;
+    this.stolen = { look, key: HorseTheft.keyOf(look) };
+    P.seat = riderLift(look);
+    this.sfx('neigh', 0.7);
+    this.hud.system('You\'re up and away on a stolen horse. The watch knows the horse as well as your face: get down somewhere out of sight and change your clothes, your hat or your hair (Outfits, in your pack), and they\'ll walk past you.');
+  }
+
   private dismount(quiet = false): void {
     if (!this.horse) return;
+    if (this.stolen) {
+      // A stolen horse stays where you leave it, grazing, and goes home after a while
+      const h = this.horse, yaw = h.root.rotation.y, P = this.player.position;
+      this.horseTheft.leave(h);
+      this.horse = null;
+      this.stolen = null;
+      this.player.seat = 0;
+      const x = P.x - Math.cos(yaw) * 1.3, z = P.z + Math.sin(yaw) * 1.3;
+      this.player.teleport(x, this.world.voxels.groundBelow(x, P.y + 2.5, z), z);
+      if (!quiet) { this.sfx('snort', 0.5); this.hud.system('You leave the horse to find its own way home.'); }
+      return;
+    }
     const id = this.flag('mount') as string;
     if (ITEMS[id]?.mount?.wagon) {
       // A wagon stays where you leave it; you step down beside the box
@@ -9089,6 +9140,7 @@ export class Game implements GameApi {
     if ((this.anglT -= dt) <= 0) { this.anglT = 1; this.anglTick(); }
     if (this.mode === 'play') this.doubloons.update(dt);
     this.roadfolk.update(dt, P, this.camera.position, this.enemies, this.elapsed, !!this.dialogue || this.dead);
+    this.horseTheft.update(dt);
     this.prisonCart.update(dt);
     this.checkFeats(dt);
     this.waymarkStones.update(P, this.elapsed);
@@ -9542,7 +9594,7 @@ export class Game implements GameApi {
     const mv = this.dialogue || this.fair.playing ? new THREE.Vector3() : this.moveVector();
     const sprint = this.input.held('ShiftLeft') || this.input.held('ShiftRight');
     // A wagon rolls a little slower than a horse alone
-    const haul = this.horse && ITEMS[this.flag('mount') as string]?.mount?.wagon ? 0.85 : 1;
+    const haul = this.horse && this.mountLook?.wagon ? 0.85 : 1;
     this.magicka = Math.min(this.maxMagicka, this.magicka + dt * (this.elapsed - this.lastCombat > 3 ? POOLS.magicka.regenCalm : POOLS.magicka.regenFight) * (1 + this.armour.light * 0.05 + this.buffSum('regen')));
     // The guard: held up while V is down (not mounted, swimming, rolling or swinging); it drops when the stamina's gone
     {
@@ -9786,7 +9838,7 @@ export class Game implements GameApi {
       const st = this.craftAction.station;
       M.setState(st === 'anvil' || st === 'bench' ? 'hammer' : st === 'hearth' ? 'cook' : 'bellows');
       held = st === 'anvil' ? 'hammer' : st === 'furnace' ? 'tongs' : 'none';
-    } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(ITEMS[this.flag('mount') as string]?.mount) : this.pillionPose); held = 'none'; }
+    } else if (this.horse || this.pillion !== null) { M.setState(this.horse ? riderPose(this.mountLook) : this.pillionPose); held = 'none'; }
     else if (this.trying?.mount) { M.setState(riderPose(ITEMS[this.trying.id]?.mount)); held = 'none'; }
     else if (this.seated || this.boat.aboard || this.post.active) { M.setState('seated'); held = 'none'; }
     else if (this.reviving) { M.setState('kneel'); held = 'none'; }

@@ -8,6 +8,7 @@ export const UPDATES: Update[] = [
   {
     v: 17, date: '20 November', title: 'Kestle',
     items: [
+      ['Horse thieves.', 'Riders go by on the roads now, and the bigger towns have one of the watch on horseback. Walk up beside one and pull them out of the saddle. The town wants you for it, and the watch comes after you, the mounted one at a gallop. Lose them, then change your clothes, your hat or your hair (Outfits, in your pack, has hair now too), and they\'ll walk straight past you.'],
       ['Kestle.', 'The sheep village in Verandah\'s east has its people and two stories: Matthew Nankivell, whose beacon fire is always the last on the island, by the waymark, and Thirza Rosewarne at the Kestle Folds, whose wolves won\'t go back up the hill this summer.'],
       ['The house on the hill.', 'West of Gorran, over the stream, a big house with one man in it: Thomas Prisk, who was the king\'s hangman. Somebody leaves a rope on his step every morning.'],
       ['The tower in the trees.', 'On Verandah\'s south cliffs, Ursula Toms watches the southern sky from a tower she paid two men from Gorran to build, and she wants to know where the great dark thing that comes out of the south is going.'],

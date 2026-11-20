@@ -224,7 +224,7 @@ const ROLL_KEYS: RollPose[] = [
   { at: 1, leg: 0, shin: 0, split: 0, curl: 0.1, nod: 0, arm: 0, wide: 0.08, fore: -0.15, lift: 1.0 },
 ];
 
-export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | 'cards' | 'petting' | EmoteAnim;
+export type AnimState = 'idle' | 'ride' | 'walk' | 'run' | 'swim' | 'tread' | 'attack' | 'shoot' | 'cleave' | 'mine' | 'chop' | 'fishCast' | 'fishWait' | 'hit' | 'dead' | 'roll' | 'talk' | 'hammer' | 'bellows' | 'jump' | 'heal' | 'cook' | 'perform' | 'seated' | 'cast' | 'stomp' | 'dash' | 'throw' | 'yank' | 'whistle' | 'crouch' | 'gather' | 'dig' | 'open' | 'water' | 'read' | 'cards' | 'petting' | EmoteAnim;
 
 const geoCache = new Map<string, THREE.BufferGeometry>();
 function rbox(w: number, h: number, d: number, r = 0.04): THREE.BufferGeometry {
@@ -2861,6 +2861,17 @@ export class Humanoid {
         P.torso.rotation.y = (0.5 * wind - 0.8 * go) * out;
         P.armL.rotation.x = -0.6 * wind * out;
         if (speed > 0.6) legs(0.5);
+        break;
+      }
+      case 'yank': {
+        // Both hands up to a rider's belt, then a heave down and back with the whole weight (game/HorseTheft.ts)
+        const up = Math.min(1, t / 0.25), heave = Math.min(1, Math.max(0, (t - 0.3) / 0.25)), out = Math.min(1, Math.max(0, (1.1 - t) / 0.3));
+        P.armR.rotation.x = (-2.5 + 1.7 * heave) * up * out; P.armL.rotation.x = (-2.3 + 1.6 * heave) * up * out;
+        P.armR.rotation.z = -0.15 * up * out; P.armL.rotation.z = 0.15 * up * out;
+        P.foreR.rotation.x = -0.3 * up * out; P.foreL.rotation.x = -0.3 * up * out;
+        P.torso.rotation.x = (0.1 - 0.45 * heave) * out;
+        P.head.rotation.x = (-0.35 * up + 0.2 * heave) * out;
+        P.legL.rotation.x = 0.35 * heave * out; P.shinL.rotation.x = 0.4 * heave * out;
         break;
       }
       case 'whistle': {
