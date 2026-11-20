@@ -16,6 +16,7 @@ export const UPDATES: Update[] = [
       ['Side stories across the Counties.', 'Two new stories in every region of the Counties, from Scarth to the Sickle.'],
       ['Hair.', 'Hair is built in blocks like the world, locks and all, without the round blobs.'],
       ['Robes and gowns.', 'Skirts and coat tails swing with your stride instead of your legs coming through them.'],
+      ['Quarry Row Lots.', 'Four more building lots by Verandah\'s west gate, six in all, and the paths to the Quarry Row houses laid level.'],
       ['Waymarks.', 'Verandah Farm\'s waymark stands clear of the trees, and Skua Rock\'s no longer drops you off a height.'],
     ],
   },

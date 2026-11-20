@@ -37,5 +37,7 @@ export const ESTATES: Estate[] = [
 // Added by hand (keep when regenerating): Verandah's first lots, west of the lane by Quarry Row inside the west gate
 // (owner 2026-11-12: "also add plots people can buy over there too, room for both"). Their ground is the owner's,
 // level at 21.
-ESTATES.push({ id: 'qr', name: 'Quarry Row Lots', town: 'verandah', door: 'e', lane: [[-3133.5, 2033], [-3133.5, 2061]], track: [[-3133.5, 2047], [-3132, 2047]], lots: [[-3149, 2033, 21], [-3149, 2048, 21]] });
+// (owner 2026-11-19: "need to be expanded down the lot areas", "still space to the left of them": four more, two on the
+// level ground west of the first pair, two down the lane to the south past the old tower; the first two keep their numbers)
+ESTATES.push({ id: 'qr', name: 'Quarry Row Lots', town: 'verandah', door: 'e', lane: [[-3133.5, 2033], [-3133.5, 2061]], track: [[-3133.5, 2047], [-3132, 2047]], lots: [[-3149, 2033, 21], [-3149, 2048, 21], [-3166, 2033, 21], [-3166, 2048, 21], [-3147, 2063, 20], [-3147, 2079, 20]] });
 
