@@ -513,6 +513,12 @@ export class Roadfolk {
     this.hide(f);
     return { pos: f.pos.clone(), look: f.look, held: f.held };
   }
+  /** Name plates for Verandah's conscripts (owner 2026-11-06: "the ones riding horses: Verandah Conscript"). */
+  plates(): { id: string; x: number; y: number; z: number; name: string; sub: string }[] {
+    const out: { id: string; x: number; y: number; z: number; name: string; sub: string }[] = [];
+    for (const f of this.figures) if (f.town === 'verandah' && f.shown && f.model) { const p = f.model.root.position; out.push({ id: f.id, x: p.x, y: p.y + (f.horse ? 2.2 : 2.3), z: p.z, name: f.horse ? 'Verandah Conscript' : 'Verandah Guard', sub: f.horse ? 'On patrol' : 'The king\'s peace' }); }
+    return out;
+  }
   /** Riders in the saddle near a point, built and in sight: for horse theft (game/HorseTheft.ts). */
   ridersNear(p: THREE.Vector3, r: number): { id: string; guard: boolean; town?: string; pos: THREE.Vector3; yaw: number; moving: number }[] {
     const out: { id: string; guard: boolean; town?: string; pos: THREE.Vector3; yaw: number; moving: number }[] = [];

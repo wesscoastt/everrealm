@@ -10587,6 +10587,12 @@ export class Game implements GameApi {
       if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: this.save.settings.npcNames === false ? '' : n.def.name, sub: d < 12 && this.save.settings.npcNames !== false ? n.def.title : undefined, kind: 'npc', mark });
     }
     // Verandah's mounted conscripts and the watch on its walls
+    for (const g of this.roadfolk.plates()) {
+      const d = Math.hypot(g.x - P.x, g.y - P.y, g.z - P.z);
+      if (d > 28) continue;
+      const s = project(g.x, g.y, g.z);
+      if (s) plates.push({ key: 'rf' + g.id, x: s.x, y: s.y, name: g.name, sub: d < 12 ? g.sub : undefined, kind: 'npc' });
+    }
     for (const g of this.wallWatch.plates()) {
       const d = Math.hypot(g.x - P.x, g.y - P.y, g.z - P.z);
       if (d > 28) continue;
