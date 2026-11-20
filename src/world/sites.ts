@@ -36,6 +36,8 @@ import { JUMP_PUZZLES, type JumpPuzzle } from '../data/jumpPuzzles';
 import { MC_SIGNS, MC_THINGS, MC_WAYSTONES } from '../data/mcSigns';
 /** Where the owner's doors and gates stand (a door with another beside it is one of a pair). */
 const MC_DOOR_CELLS = new Set<string>();
+/** The ring of open fence gates round the top of the trident statue by Verandah's main bridge: the box they stand on. */
+const TRIDENT_AWNING = { x0: -3094.5, x1: -3088.5, z0: 2085.5, z1: 2096.5, y: 26 };
 import { MC_PIECES, mcToGame, pieceBounds } from './mclandArea';
 import { DEN_BOATS, DEN_PROPS } from '../data/content/smugglersDen';
 import { VERANDAH_HOMES } from '../data/verandahHomes';
@@ -762,6 +764,16 @@ function* planBody(): Generator<string, Plan> {
             // a door that swings, shut across its doorway till someone comes up to it (as the game's other doors)
             // a door or a gate that swings, shut across its doorway till someone comes up to it (as the game's other doors):
             // hung on the jamb to one side, and the second of a pair on the other jamb, so the two meet in the middle
+            // the open gates round the top of the trident statue by the main bridge are an awning, not gates (owner
+            // 2026-11-20: "the fence gates in front of the trident are supposed to be an awning"): sea-green canvas
+            // over each one, sloping out from the statue
+            if (t === 'mcgate' && +y === TRIDENT_AWNING.y && +x >= TRIDENT_AWNING.x0 && +x <= TRIDENT_AWNING.x1 && +z >= TRIDENT_AWNING.z0 && +z <= TRIDENT_AWNING.z1) {
+              const A = TRIDENT_AWNING, ex = +x <= A.x0 ? -1 : +x >= A.x1 ? 1 : 0, ez = +z <= A.z0 ? -1 : +z >= A.z1 ? 1 : 0;
+              // a side gate faces out sideways, a gate on the end rows out along the length (the corners go with the ends)
+              const r = ez ? (ez > 0 ? 0 : Math.PI) : ex > 0 ? Math.PI / 2 : -Math.PI / 2;
+              s.props.push({ t: 'awning', x: +x - Math.sin(r) * 0.5, y: +y + 1.25, z: +z - Math.cos(r) * 0.5, ry: r, color: '#2f6f66', len: 1.02 });
+              continue;
+            }
             if (t === 'mcgate' || t === 'mcdoor') {
               let r = +ry;
               const cell = (dx: number, dz: number) => Math.floor(+x + dx) + ',' + y + ',' + Math.floor(+z + dz);

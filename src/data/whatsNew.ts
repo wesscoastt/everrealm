@@ -17,6 +17,7 @@ export const UPDATES: Update[] = [
       ['The Bright Nails.', 'In Reedwater, somebody is pulling nails out of the bog oak at night, and Lorne Rush\'s father\'s nail is in that tree.'],
       ['The Ring of Black.', 'At Cold Harbour, once the dead on Hollow Fell are lying still again, Ellen Dacre watches the moor track: her husband keeps their flock inside a ring the Held won\'t cross, and there\'s a gap in it.'],
       ['Drinks First.', 'In Tenwells, once the fourth well is dealt with, a salt reaver walks in off the Flats and drinks from the very well his people spoiled. Ennis Wade has questions, and Cass Moran has a rope.'],
+      ['The trident garden.', 'The posts round the garden in front of Verandah\'s trident, by the main bridge, carry sea-green awnings, where they had gates hanging in the air.'],
       ['The Gorran road patrol.', 'Two troopers from Carn Hold walk the Gorran road all day, from the foot of the Carn path to Gorran\'s gate and back, and stand at the turning above the cove at night.'],
     ],
   },
