@@ -6,6 +6,12 @@ export interface Update { v: number; date: string; title: string; items: [string
 
 export const UPDATES: Update[] = [
   {
+    v: 17, date: '20 November', title: 'Kestle',
+    items: [
+      ['Kestle.', 'The sheep village in Verandah\'s east has its people and two stories: Matthew Nankivell, whose beacon fire is always the last on the island, by the waymark, and Thirza Rosewarne at the Kestle Folds, whose wolves won\'t go back up the hill this summer.'],
+    ],
+  },
+  {
     v: 16, date: '19 November', title: 'The Silent Waters, and who you are',
     items: [
       ['The Silent Waters.', 'Verandah\'s own story in eight chapters, from a fishmonger\'s missing brother to the king\'s council: smugglers, a crooked insurer, the two forts\' captains and a man from Ansbury. It starts with Tegen Hocking at the fish stalls.'],
