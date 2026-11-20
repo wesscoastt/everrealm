@@ -34,7 +34,7 @@ her figures: hull, speed, handiness, how close she points, broadside weight a si
 weight against capacity, and the cost. Designs can be saved and named, and a ship of yours can be **refitted** to a
 new design at the yard for the difference.
 
-## Naval combat to fit (next)
+## Naval combat to fit [built 2026-11-20: game/Sailing.ts; the realm needs a restart to pass designs between captains]
 
 - Each gun deck fires its own guns with its own loading time; Q and E fire every loaded deck on that side.
 - R fires the chasers (bow ahead, stern astern).

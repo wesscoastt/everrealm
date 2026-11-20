@@ -35,6 +35,8 @@ export function navalInit(ctx) {
     if (x === null || z === null || yaw === null || hp === null || sails === null) return null;
     return {
       hull: st.hull, x, z, yaw, hp: Math.round(hp), sails: Math.round(sails), sinking: !!st.sinking,
+      // her design (src/data/shipParts.ts), for the others to see her as she was built
+      d: typeof st.d === 'string' && /^[a-z]+:[a-z0-9_=,]{0,240}$/.test(st.d) ? st.d : undefined,
       livery: { hull: HEX.test(L.hull) ? L.hull : '#3a2a1e', wale: HEX.test(L.wale) ? L.wale : '#2f528f', sail: HEX.test(L.sail) ? L.sail : '#efe3c4', name: typeof L.name === 'string' && NAME.test(L.name) ? L.name : 'Unnamed' },
     };
   }
@@ -60,7 +62,7 @@ export function navalInit(ctx) {
           if (recent.length >= HITS) return true;
           recent.push(now);
           hits.set(key, recent);
-          const dmg = Math.max(1, Math.min(120, Math.round(Number(msg.dmg) || 0)));
+          const dmg = Math.max(1, Math.min(240, Math.round(Number(msg.dmg) || 0)));
           send(them.ws, { t: 'shHurt', from: me.name, dmg });
           return true;
         }

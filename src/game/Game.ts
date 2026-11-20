@@ -9617,7 +9617,8 @@ export class Game implements GameApi {
       if (free && I.pressedOnce('KeyZ')) fire = -1;
       else if (free && I.pressedOnce('KeyC')) fire = 1;
       else if (free && I.pressedOnce('KeyF')) { const look = this.rig.yaw - Math.PI, off = Math.atan2(Math.sin(look - sh.yaw), Math.cos(look - sh.yaw)); fire = off < 0 ? 1 : -1; }
-      this.sailing.steer(dt, sails, turn, fire);
+      // (R: the chasers, bow and stern, data/shipParts.ts)
+      this.sailing.steer(dt, sails, turn, fire, free && I.pressedOnce('KeyR'));
       sh.helm(P.position);
       P.velocity.set(0, 0, 0);
       P.yaw = sh.yaw;

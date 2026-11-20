@@ -85,11 +85,11 @@ export const FREEWATER = { x0: 3300, x1: MORROW_OX - 600, z0: 300, z1: 3400 };
 export const inFreewater = (x: number, z: number) => x >= FREEWATER.x0 && x <= FREEWATER.x1 && z >= FREEWATER.z0 && z <= FREEWATER.z1;
 
 /** Who sails the lanes against you, where, and what they leave in the water when they go down. */
-export interface RaiderKind { id: string; name: string; hull: HullId; level: number; livery: Omit<Livery, 'name'>; names: string[]; marks: [number, number]; plunder: [string, number, number][] }
+export interface RaiderKind { id: string; name: string; hull: HullId; /** Built to a design (data/shipParts.ts), or the plain hull. */ design?: string; level: number; livery: Omit<Livery, 'name'>; names: string[]; marks: [number, number]; plunder: [string, number, number][] }
 export const RAIDERS: RaiderKind[] = [
   { id: 'brethren', name: 'Brethren raider', hull: 'cutter', level: 30, livery: { hull: '#1e1c1c', wale: '#a8382c', sail: '#3a3a40' }, names: ['Black Hen', 'Slack Tide', 'Widow\'s Mite', 'Long Odds'], marks: [60, 140], plunder: [['salt_cod', 2, 5], ['brethren_rum', 1, 3]] },
-  { id: 'brig', name: 'Brethren brig', hull: 'brig', level: 42, livery: { hull: '#2a2420', wale: '#c8a050', sail: '#a8603a' }, names: ['Gallows Jig', 'Fair Exchange', 'Kittiwake\'s Sister'], marks: [180, 320], plunder: [['brethren_rum', 2, 5], ['spice_chest', 1, 1]] },
-  { id: 'revenue', name: 'Revenue cutter', hull: 'cutter', level: 35, livery: { hull: '#2f3a4a', wale: '#e8e0c8', sail: '#efe3c4' }, names: ['Vigilant', 'Duty', 'Speaker\'s Due'], marks: [40, 90], plunder: [['seized_goods', 1, 3]] },
+  { id: 'brig', name: 'Brethren brig', hull: 'brig', design: 'brig:bow=ram,stern=castle,rig=square,cloth=canvas,plank=oak,d0=g_carronade,d1=g_chain,h0=berths,h1=magazine', level: 42, livery: { hull: '#2a2420', wale: '#c8a050', sail: '#a8603a' }, names: ['Gallows Jig', 'Fair Exchange', 'Kittiwake\'s Sister'], marks: [180, 320], plunder: [['brethren_rum', 2, 5], ['spice_chest', 1, 1]] },
+  { id: 'revenue', name: 'Revenue cutter', hull: 'cutter', design: 'cutter:bow=bowchaser,stern=transom,rig=foreaft,cloth=canvas,plank=copper,d0=g_long,h0=berths', level: 35, livery: { hull: '#2f3a4a', wale: '#e8e0c8', sail: '#efe3c4' }, names: ['Vigilant', 'Duty', 'Speaker\'s Due'], marks: [40, 90], plunder: [['seized_goods', 1, 3]] },
 ];
 /** The lanes the raiders work: a patrol box each, and how many at once. */
 export const LANES: { raider: string; x0: number; x1: number; z0: number; z1: number; n: number; revenue?: boolean }[] = [

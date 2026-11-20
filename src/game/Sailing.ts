@@ -4,7 +4,7 @@ import { B, isSolid } from '../world/blocks';
 import { realmNow } from '../world/clock';
 import type { PropMaterials } from '../world/props';
 import { shipModel, SHIPS } from '../world/ships';
-import { baseDesign, buildShip, decodeDesign } from '../data/shipParts';
+import { baseDesign, buildShip, decodeDesign, type Battery, type BuiltShip, type Gun } from '../data/shipParts';
 import { SEA } from '../world/terrain';
 import type { VoxelWorld } from '../world/VoxelWorld';
 
@@ -45,7 +45,7 @@ export interface SailingHost {
 }
 
 /** A ship as the realm passes it between players. */
-export interface ShipState { hull: HullId; livery: Livery; x: number; z: number; yaw: number; sails: number; hp: number; sinking: boolean }
+export interface ShipState { hull: HullId; livery: Livery; x: number; z: number; yaw: number; sails: number; hp: number; sinking: boolean; /** Her design (data/shipParts.ts), if she was built to one. */ d?: string }
 
 const SAIL_SET = [0, 0.55, 1];
 const V = () => new THREE.Vector3();
@@ -76,6 +76,18 @@ export class Ship {
   /** A raider's mind; a remote captain's name. */
   npc: { kind: RaiderKind; name: string; flee: boolean; think: number; goal: THREE.Vector3; lane: number } | null = null;
   remote: string | null = null;
+  /** Each gun deck's loading, a side: [port, starboard], a number a deck (data/shipParts.ts batteries). */
+  readonly deckReload: [number[], number[]] = [[], []];
+  /** The bow and stern chasers' loading. */
+  chaserReload = 0;
+  /** Her rigging, whole at 1: shot that cuts it (chain shot above all) slows her till it's mended. */
+  rig = 1;
+  /** Seconds since she last fired or was struck: once it's quiet her carpenter and bosun get to work. */
+  quiet = 0;
+  ramCd = 0;
+  /** Her gun decks as built; a ship with no design fires her hull's broadside as one. */
+  batteries(): Battery[] { const b = this.hull as BuiltShip; return Array.isArray(b.batteries) ? b.batteries : this.hull.guns ? [{ gun: oldGun(this.hull), n: this.hull.guns }] : []; }
+  reloadMul(): number { return (this.hull as BuiltShip).reloadMul ?? 1; }
   /** Where a remote ship is heading, for smoothing. */
   readonly goal = V();
   goalYaw = 0;
@@ -100,7 +112,10 @@ export class Ship {
   /** Under way for dt: the wind on her sails, the helm (turn, -1..1), the land in her way. */
   sail(dt: number, turn: number, V2: VoxelWorld, wind: { dir: number; strength: number }): void {
     const h = this.hull;
-    const want = h.speed * SAIL_SET[this.sails] * pointOfSail(wind.dir - this.yaw) * (0.55 + 0.45 * wind.strength);
+    // (her rig decides how close to the wind she points and how she runs before it; torn rigging, how much of it draws)
+    const b = h as BuiltShip, off = Math.atan2(Math.sin(wind.dir - this.yaw), Math.cos(wind.dir - this.yaw));
+    const running = Math.abs(off) < 0.9 ? (b.downwind ?? 1) : 1;
+    const want = h.speed * SAIL_SET[this.sails] * pointOfSail(off - Math.sign(off || 1) * (b.upwind ?? 0)) * running * (0.55 + 0.45 * wind.strength) * (0.35 + 0.65 * this.rig);
     this.speed += (want - this.speed) * Math.min(1, dt * (want > this.speed ? 0.3 : 0.6));
     this.yaw += turn * h.turn * dt * (0.3 + 0.7 * Math.min(1, this.speed / h.speed));
     const f = this.fwd, step = this.speed * dt;
@@ -140,7 +155,9 @@ export class Ship {
 }
 
 /** A ball in flight, whose it is, and what it does when it lands. */
-type Ball = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; from: Ship; dmg: number; life: number };
+type Ball = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; from: Ship; dmg: number; life: number; vsRig: number };
+/** The guns of a ship with no design: her hull's broadside as one deck. */
+const oldGun = (h: Hull): Gun => ({ id: 'old', name: 'guns', dmg: h.shot, speed: 46, life: 4, reload: h.reload, mass: 0, vsRig: 1 });
 /** Smoke, a splash, a splinter: a mesh that grows, falls and fades. */
 type Fx = { mesh: THREE.Mesh; vel: THREE.Vector3; grow: number; life: number; max: number; fall: number };
 
@@ -191,39 +208,77 @@ export class Sailing {
   }
 
   /** At the helm, each frame: sails (+1 set more, -1 take in), helm (-1..1), and a broadside wanted (-1 port, 1 starboard, 0 none). */
-  steer(dt: number, sails: number, turn: number, fire: -1 | 0 | 1): void {
+  steer(dt: number, sails: number, turn: number, fire: -1 | 0 | 1, chase = false): void {
     const s = this.mine;
     if (!s || s.sinking >= 0) return;
     if (sails) { const was = s.sails; s.setSails(s.sails + sails); if (s.sails !== was) this.host.sfx(s.sails > was ? 'open' : 'close', 0.6); }
     s.sail(dt, turn, this.host.voxels, this.wind());
     if (fire) this.broadside(s, fire);
+    if (chase) this.chase(s);
   }
 
   /** Fire a broadside, if her guns on that side are loaded. */
   broadside(s: Ship, sd: -1 | 1): boolean {
     const i = sd < 0 ? 0 : 1;
-    if (s.reload[i] > 0 || s.sinking >= 0) return false;
-    s.reload[i] = s.hull.reload;
-    const f = s.fwd.clone(), side = s.side(sd);
-    const n = s.hull.guns, y = s.root.position.y + s.deck + 0.55;
-    for (let g = 0; g < n; g++) {
-      const along = n === 1 ? 0 : (g / (n - 1) - 0.5) * s.hull.len * 0.62;
-      const at = V().set(s.pos.x + f.x * along + side.x * (s.hull.beam * 0.5 + 0.35), y, s.pos.z + f.z * along + side.z * (s.hull.beam * 0.5 + 0.35));
-      // A ripple of fire down her side, not all at once
-      setTimeout(() => this.shoot(s, at, side, f), g * 90 + Math.random() * 40);
-    }
+    if (s.sinking >= 0) return false;
+    const bats = s.batteries(), f = s.fwd.clone(), side = s.side(sd);
+    let fired = false, k = 0;
+    // every deck that's loaded fires, each its own guns, and each loads again in its own time
+    bats.forEach((bt, bi) => {
+      if ((s.deckReload[i][bi] ?? 0) > 0) return;
+      s.deckReload[i][bi] = bt.gun.reload * s.reloadMul();
+      fired = true;
+      const n = bt.n, y = s.root.position.y + s.deck + 0.55 + bi * 0.45;
+      for (let g = 0; g < n; g++) {
+        const along = (n === 1 ? 0 : (g / (n - 1) - 0.5) * s.hull.len * 0.62) + (bi % 2 ? 0.7 : 0);
+        const at = V().set(s.pos.x + f.x * along + side.x * (s.hull.beam * 0.5 + 0.35), y, s.pos.z + f.z * along + side.z * (s.hull.beam * 0.5 + 0.35));
+        // A ripple of fire down her side, not all at once
+        setTimeout(() => this.shoot(s, at, side, f, bt.gun), (k++) * 90 + Math.random() * 40);
+      }
+    });
+    s.reload[i] = Math.max(0, ...bats.map((_, bi) => s.deckReload[i][bi] ?? 0));
+    if (fired) s.quiet = 0;
+    return fired;
+  }
+
+  /** Fire the chasers (R): the bow gun dead ahead, the stern gun dead astern, whichever she carries. */
+  chase(s: Ship): boolean {
+    const h = s.hull as BuiltShip;
+    if (s.sinking >= 0 || s.chaserReload > 0 || (!h.bowChaser && !h.sternChaser)) return false;
+    s.chaserReload = Math.max(h.bowChaser?.reload ?? 0, h.sternChaser?.reload ?? 0) * s.reloadMul();
+    const f = s.fwd.clone(), y = s.root.position.y + s.deck + 0.8, L = s.hull.len * 0.5;
+    if (h.bowChaser) this.shoot(s, V().set(s.pos.x + f.x * (L + 0.6), y, s.pos.z + f.z * (L + 0.6)), f.clone(), f, h.bowChaser);
+    if (h.sternChaser) this.shoot(s, V().set(s.pos.x - f.x * (L + 0.3), y + 0.4, s.pos.z - f.z * (L + 0.3)), f.clone().multiplyScalar(-1), f, h.sternChaser);
+    s.quiet = 0;
     return true;
   }
 
-  private shoot(s: Ship, at: THREE.Vector3, side: THREE.Vector3, f: THREE.Vector3): void {
+  /** A ship's clocks for dt: her decks' and chasers' loading, and her repairs once the guns have been quiet a while. */
+  private tick(s: Ship, dt: number): void {
+    for (let i = 0; i < 2; i++) {
+      const d = s.deckReload[i];
+      for (let b = 0; b < d.length; b++) d[b] = Math.max(0, d[b] - dt);
+      s.reload[i] = d.length ? Math.max(0, ...d) : Math.max(0, s.reload[i] - dt);
+    }
+    s.chaserReload = Math.max(0, s.chaserReload - dt);
+    s.ramCd = Math.max(0, s.ramCd - dt);
+    s.quiet += dt;
+    if (s.sinking < 0 && s.quiet > 8 && !s.remote) {
+      const rep = (s.hull as BuiltShip).repair ?? 0;
+      if (rep && s.hp < s.hull.hp) s.hp = Math.min(s.hull.hp, s.hp + rep * dt);
+      s.rig = Math.min(1, s.rig + dt * 0.012 * (1 + rep / 4));
+    }
+  }
+
+  private shoot(s: Ship, at: THREE.Vector3, side: THREE.Vector3, f: THREE.Vector3, gun: Gun = oldGun(s.hull)): void {
     if (s.sinking >= 0) return;
     const spread = (Math.random() - 0.5) * 0.08, up = 0.075 + Math.random() * 0.03;
     const dir = V().copy(side).applyAxisAngle(tmp2.set(0, 1, 0), spread).normalize();
-    const vel = dir.multiplyScalar(46 * Math.cos(up)).setY(46 * Math.sin(up)).addScaledVector(f, s.speed);
+    const vel = dir.multiplyScalar(gun.speed * Math.cos(up)).setY(gun.speed * Math.sin(up)).addScaledVector(f, s.speed);
     const mesh = new THREE.Mesh(this.ballGeo, this.ballMat);
     mesh.position.copy(at);
     this.host.scene.add(mesh);
-    this.balls.push({ mesh, pos: at.clone(), vel, from: s, dmg: s.hull.shot * (0.85 + Math.random() * 0.3) * (s === this.mine ? this.host.gunMul?.() ?? 1 : 1), life: 4 });
+    this.balls.push({ mesh, pos: at.clone(), vel, from: s, dmg: gun.dmg * (0.85 + Math.random() * 0.3) * (s === this.mine ? this.host.gunMul?.() ?? 1 : 1), life: gun.life, vsRig: gun.vsRig });
     this.puff(at, side, '#d8d4cc', 1.6, 1.8);
     this.puff(at, side, '#ffb040', 0.5, 0.12);
     const d = this.mine ? at.distanceTo(this.mine.pos) : 99;
@@ -300,7 +355,7 @@ export class Sailing {
         if (x < L.x0 || x > L.x1 || z < L.z0 || z > L.z1 || !openSea(this.host.voxels, x, z)) continue;
         const wanted = this.host.raiderName?.(li);
         const name = wanted && !this.ships.some((x) => x.npc?.name === wanted && x.sinking < 0) ? wanted : kind.names[Math.floor(Math.random() * kind.names.length)];
-        const s = new Ship(this.host.props, HULLS[kind.hull], { ...kind.livery, name });
+        const s = new Ship(this.host.props, kind.design ? buildShip(decodeDesign(kind.design) ?? baseDesign(kind.hull)) : HULLS[kind.hull], { ...kind.livery, name });
         s.pos.set(x, SEA, z);
         s.yaw = Math.atan2(P.x - x, P.z - z) + (Math.random() - 0.5);
         s.setSails(2);
@@ -332,6 +387,8 @@ export class Sailing {
         const aim = Math.abs(angleTo(Math.atan2(s.side(sd).x, s.side(sd).z), bearing));
         if (aim < 0.3 && d < 48) this.broadside(s, sd);
       }
+      // end-on, she tries her chasers
+      if (!n.flee && d < 70 && Math.abs(angleTo(s.yaw, bearing)) < 0.25) this.chase(s);
       turn = Math.max(-1, Math.min(1, angleTo(s.yaw, want) * 2));
     } else {
       // Nobody to hunt: work the lane, a new mark every while
@@ -356,9 +413,10 @@ export class Sailing {
   remoteShip(name: string, st: ShipState | null): void {
     let s = this.ships.find((x) => x.remote === name);
     if (!st) { if (s) { this.host.scene.remove(s.root); this.ships.splice(this.ships.indexOf(s), 1); } return; }
-    if (!s || s.hull.id !== st.hull) {
+    if (!s || s.hull.id !== st.hull || ((s.hull as BuiltShip).code ?? '') !== (st.d ?? '')) {
       if (s) { this.host.scene.remove(s.root); this.ships.splice(this.ships.indexOf(s), 1); }
-      s = new Ship(this.host.props, HULLS[st.hull] ?? HULLS.cutter, st.livery);
+      const d = st.d ? decodeDesign(st.d) : null;
+      s = new Ship(this.host.props, d && d.keel === st.hull ? buildShip(d) : HULLS[st.hull] ?? HULLS.cutter, st.livery);
       s.remote = name;
       s.pos.set(st.x, SEA, st.z);
       s.yaw = st.yaw;
@@ -380,7 +438,7 @@ export class Sailing {
     this.spawnT -= dt;
     if (me && me.sinking < 0 && this.spawnT <= 0) { this.spawnT = 8; this.spawn(me.pos); }
     for (const s of [...this.ships]) {
-      for (let i = 0; i < 2; i++) s.reload[i] = Math.max(0, s.reload[i] - dt);
+      this.tick(s, dt);
       if (s.sinking >= 0) {
         s.sinking += dt;
         if (s.sinking > 7) { this.host.scene.remove(s.root); this.ships.splice(this.ships.indexOf(s), 1); continue; }
@@ -395,7 +453,21 @@ export class Sailing {
       s.place(wind);
     }
     if (me) {
-      for (let i = 0; i < 2; i++) me.reload[i] = Math.max(0, me.reload[i] - dt);
+      this.tick(me, dt);
+      // A ram: her bow into another ship's side at speed does the work of a broadside, and costs her a little
+      const rh = me.hull as BuiltShip;
+      if (me.sinking < 0 && rh.ram && me.speed > 2.5 && me.ramCd <= 0) {
+        const f = me.fwd, L = me.hull.len * 0.5 + 0.4, bow = V().set(me.pos.x + f.x * L, SEA + 0.5, me.pos.z + f.z * L);
+        for (const s of this.ships) {
+          if (s.sinking >= 0 || !s.struck(bow)) continue;
+          if (s.remote && !inFreewater(s.pos.x, s.pos.z)) continue;
+          const dmg = rh.ram * me.speed;
+          this.splinters(bow); this.host.sfx('hitHeavy', 1);
+          this.hit(s, dmg, me);
+          me.hp -= dmg * 0.12; me.speed *= 0.25; me.ramCd = 2.5; me.quiet = 0; s.quiet = 0;
+          break;
+        }
+      }
       if (me.sinking >= 0) {
         me.sinking += dt;
         if (me.sinking > 6) { const at = me.pos.clone(); this.stow(); this.host.lost(at); }
@@ -406,7 +478,7 @@ export class Sailing {
       this.sendT -= dt;
       if (this.mine === me && this.sendT <= 0 && this.host.sendState) {
         this.sendT = 0.25;
-        this.host.sendState({ hull: me.hull.id, livery: me.livery, x: Math.round(me.pos.x * 10) / 10, z: Math.round(me.pos.z * 10) / 10, yaw: Math.round(me.yaw * 100) / 100, sails: me.sails, hp: Math.round(me.hp), sinking: me.sinking >= 0 });
+        this.host.sendState({ hull: me.hull.id, d: (me.hull as BuiltShip).code, livery: me.livery, x: Math.round(me.pos.x * 10) / 10, z: Math.round(me.pos.z * 10) / 10, yaw: Math.round(me.yaw * 100) / 100, sails: me.sails, hp: Math.round(me.hp), sinking: me.sinking >= 0 });
       }
     }
     // Shot in the air: falling, striking a hull, into the sea, or into the land
@@ -426,7 +498,11 @@ export class Sailing {
           if (pvp && !inFreewater(s.pos.x, s.pos.z)) continue;
           this.splinters(b.pos);
           this.host.sfx('hit', Math.max(0.2, 1 - b.pos.distanceTo(player) / 80));
-          this.hit(s, b.dmg, b.from);
+          // shot that strikes high cuts her rigging (chain shot does little else); her hull takes the rest
+          const high = b.pos.y > s.root.position.y + s.deck + 1.2, chain = b.vsRig > 2;
+          if (!s.remote) s.rig = Math.max(0.1, s.rig - (b.dmg * b.vsRig * (high || chain ? 1 : 0.3)) / (600 * ((s.hull as BuiltShip).rigHp ?? 1) * Math.sqrt(s.hull.hp / 1500)));
+          s.quiet = 0;
+          this.hit(s, b.dmg * (chain ? 0.35 : high ? 0.7 : 1), b.from);
           done = true;
           break;
         }
