@@ -5288,7 +5288,9 @@ export class Game implements GameApi {
     else if (!this.flag('mapV3')) { this.save.explored = this.save.explored?.map(v2ChunkKey); this.setFlag('mapV3'); this.setFlag('mapV4'); }
     // (the world grew west and north for Verandah: the map's chunks renumbered)
     else if (!this.flag('mapV4')) { this.save.explored = this.save.explored?.map(v3ChunkKey); this.setFlag('mapV4'); }
-    if (this.save.explored?.length) this.world.chunks.queueMapTiles(this.save.explored);
+    // (counted as explored at once, not as each tile is painted back: a save in the meantime used to write out only the
+    // tiles painted so far, and the map forgot the rest; owner 2026-11-19, "the map doesn't always keep where you've been")
+    if (this.save.explored?.length) { for (const k of this.save.explored) this.world.explored.add(k); this.world.chunks.queueMapTiles(this.save.explored); }
     const worn = this.flag('title') as string | undefined;
     this.hud.setTitle(worn ? FEATS.find((f) => f.id === worn)?.title ?? null : null);
     this.startPending = { fresh };
