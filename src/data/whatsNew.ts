@@ -9,6 +9,7 @@ export const UPDATES: Update[] = [
     v: 17, date: '20 November', title: 'Kestle',
     items: [
       ['Kestle.', 'The sheep village in Verandah\'s east has its people and two stories: Matthew Nankivell, whose beacon fire is always the last on the island, by the waymark, and Thirza Rosewarne at the Kestle Folds, whose wolves won\'t go back up the hill this summer.'],
+      ['The house on the hill.', 'West of Gorran, over the stream, a big house with one man in it: Thomas Prisk, who was the king\'s hangman. Somebody leaves a rope on his step every morning.'],
     ],
   },
   {
