@@ -13,6 +13,7 @@ export const UPDATES: Update[] = [
       ['The tower in the trees.', 'On Verandah\'s south cliffs, Ursula Toms watches the southern sky from a tower she paid two men from Gorran to build, and she wants to know where the great dark thing that comes out of the south is going.'],
       ['After the raid.', 'Once the Fortress has been raided in The Silent Waters, Jory Kettle, Sal and old Mab are gone from it, and Corporal Chirgwin\'s marines hold it and sell off the seized cargo for the prize court.'],
       ['Washed.', 'In Saltpenny Key, somebody takes a bowl of Annie Coe\'s chowder every night after the Leaning Mast shuts, and brings it back washed. Ask Annie what\'s wrong.'],
+      ['Always Buys.', 'Kit Rowe, the first fighter on the Cockpit\'s ladder, has lost to the last eleven newcomers in a row. Jago Sweeney doesn\'t believe anybody is that bad.'],
       ['The Gorran road patrol.', 'Two troopers from Carn Hold walk the Gorran road all day, from the foot of the Carn path to Gorran\'s gate and back, and stand at the turning above the cove at night.'],
     ],
   },
