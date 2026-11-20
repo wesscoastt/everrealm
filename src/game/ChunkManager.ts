@@ -221,6 +221,7 @@ export class ChunkManager {
       this.stats.workerGenMs += d.ms ?? 0;
       const r = d.result as ChunkResult;
       this.voxels.chunks.set(key, r.data);
+      if (r.shapes?.length) { const m = new Map<number, number>(); for (const v of r.shapes) m.set(v >>> 8, v & 255); this.voxels.shapes.set(key, m); } else this.voxels.shapes.delete(key);
       const e: Entry = { cx, cz, tint: r.tint, meshState: 'none', dirty: false };
       e.veg = buildVegMesh(r.veg, this.time);
       e.vegData = r.veg;
@@ -265,11 +266,23 @@ export class ChunkManager {
         pad[row + PAD - 1] = right ? right[so] : 3;
       }
     }
+    // shaped cells (world/shapes.ts), padded the same way, for a chunk with any of its own or at its edges
+    let shp: Uint8Array | null = null;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const sm = this.voxels.shapes.get(chunkKey(e.cx + dx, e.cz + dz));
+      if (!sm?.size) continue;
+      for (const [i, code] of sm) {
+        const lx = (i & 31) + dx * CHUNK, lz = ((i >> 5) & 31) + dz * CHUNK, y = i >> 10;
+        if (lx < -1 || lx > CHUNK || lz < -1 || lz > CHUNK) continue;
+        if (!shp) shp = new Uint8Array(PAD * PAD * SPAN);
+        shp[(lx + 1) + PAD * ((lz + 1) + PAD * y)] = code;
+      }
+    }
     e.meshState = 'pending';
     e.dirty = false;
     this.meshInFlight++;
     const tint = e.tint.slice();
-    this.post({ type: 'mesh', key: chunkKey(e.cx, e.cz), pad, tint, ox: e.cx * CHUNK, oz: e.cz * CHUNK }, [pad.buffer, tint.buffer]).then((d) => {
+    this.post({ type: 'mesh', key: chunkKey(e.cx, e.cz), pad, tint, shp, ox: e.cx * CHUNK, oz: e.cz * CHUNK }, shp ? [pad.buffer, tint.buffer, shp.buffer] : [pad.buffer, tint.buffer]).then((d) => {
       this.meshInFlight--;
       const key = chunkKey(e.cx, e.cz);
       if (this.entries.get(key) !== e) return; // unloaded meanwhile
@@ -321,6 +334,7 @@ export class ChunkManager {
     if (e.steps) { this.group.remove(e.steps); e.steps.dispose(); }
     this.entries.delete(key);
     this.voxels.chunks.delete(key);
+    this.voxels.shapes.delete(key);
     this.events.onUnloaded(e.cx, e.cz);
   }
 }

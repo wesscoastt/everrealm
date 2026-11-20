@@ -1,4 +1,5 @@
 import { B, BLOCKS, isLeaves } from './blocks';
+import { SHAPE, shapeBoxes } from './shapes';
 
 // Pure chunk mesher (runs in workers). Input is a padded copy of the chunk: 34 x SY x 34 columns,
 // i.e. the chunk plus a one-block border from its neighbours, so faces and ambient occlusion are
@@ -76,9 +77,11 @@ function hash3(x: number, y: number, z: number): number {
 }
 
 /** y0: the height row 0 stands at (the world's floor), for the blocks' looks; the mesh itself is laid from row 0 and set down by the caller. */
-export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, tint: Float32Array, y0 = 0): MeshArrays {
+export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, tint: Float32Array, y0 = 0, shp: Uint8Array | null = null): MeshArrays {
   // Out-of-range y reads as stone below and air above
   const get = (x: number, y: number, z: number) => (y < 0 ? B.Stone : y >= sy ? B.Air : pad[(x + 1) + PAD * ((z + 1) + PAD * y)]);
+  /** A cell's shape (world/shapes.ts), 0 for a whole cube. */
+  const SH = (x: number, y: number, z: number) => (shp && y >= 0 && y < sy ? shp[(x + 1) + PAD * ((z + 1) + PAD * y)] : 0);
   const cap = 12000;
   const pos = new F32(cap * 12), uv = new F32(cap * 8), col = new F32(cap * 12), meta = new F32(cap * 8);
   const nor = new I8(cap * 12), idx = new U32(cap * 6);
@@ -144,12 +147,55 @@ export function meshPadded(pad: Uint8Array, sy: number, ox: number, oz: number, 
         const leaves = LEAF[id] === 1;
         const ti = (z * 32 + x) * 6 + (leaves ? 3 : 0);
         const tinted = id === B.Grass || leaves;
-        const tr = tinted ? tint[ti] : 1, tg = tinted ? tint[ti + 1] : 1, tb = tinted ? tint[ti + 2] : 1;
+        // (a block's own tint, prismarine's teal, over its texture; grass and leaves the climate's)
+        const own = def.tint;
+        const tr = tinted ? tint[ti] : own ? own[0] : 1, tg = tinted ? tint[ti + 1] : own ? own[1] : 1, tb = tinted ? tint[ti + 2] : own ? own[2] : 1;
         const jitter = 1 + (hash3(wx, y + y0, wz) - 0.5) * 2 * (def.jitter ?? 0);
+        // A shaped cell (a stair, a slab, a wall, a hatch): its boxes, each face shown unless it lies flat against a
+        // whole opaque block; its texture by where each corner is in the cell, so a slab's side is half a block of it
+        const sc = SH(x, y, z);
+        if (sc) {
+          const boxes = shapeBoxes(sc, (d) => {
+            const dx = d === 0 ? 1 : d === 1 ? -1 : 0, dz = d === 2 ? 1 : d === 3 ? -1 : 0, nid = get(x + dx, y, z + dz);
+            return SH(x + dx, y, z + dz) === SHAPE.wall || (OCC[nid] === 1 && !SEE[nid] && !LEAF[nid]);
+          });
+          for (const bx of boxes) {
+            for (let f = 0; f < 6; f++) {
+              const n = FN[f], u = FU[f], v = FV[f], kind = FK[f];
+              const ax = n[0] ? 0 : n[1] ? 1 : 2;
+              if (n[ax] > 0 ? bx[ax + 3] === 1 : bx[ax] === 0) {
+                const nid = get(x + n[0], y + n[1], z + n[2]);
+                if (OCC[nid] && !SEE[nid] && !EXPOSES[nid] && !SH(x + n[0], y + n[1], z + n[2])) continue;
+              }
+              const layer = kind === 0 ? def.top : kind === 2 ? def.bottom : def.side;
+              const lit = n[1] < 0 ? 0.7 : n[1] > 0 ? 1 : 0.88;
+              const cr = tr * jitter * lit, cg = tg * jitter * lit, cb = tb * jitter * lit;
+              const ua = u[0] ? 0 : u[1] ? 1 : 2, va = v[0] ? 0 : v[1] ? 1 : 2;
+              pos.ensure(12); nor.ensure(12); uv.ensure(8); col.ensure(12); meta.ensure(8); idx.ensure(6);
+              for (let c = 0; c < 4; c++) {
+                const su = CU[c], sv = CV[c];
+                const px = (bx[0] + bx[3]) / 2 + (n[0] + su * u[0] + sv * v[0]) * (bx[3] - bx[0]) / 2;
+                const py = (bx[1] + bx[4]) / 2 + (n[1] + su * u[1] + sv * v[1]) * (bx[4] - bx[1]) / 2;
+                const pz = (bx[2] + bx[5]) / 2 + (n[2] + su * u[2] + sv * v[2]) * (bx[5] - bx[2]) / 2;
+                pos.a[pos.n++] = wx + px; pos.a[pos.n++] = y + py; pos.a[pos.n++] = wz + pz;
+                nor.a[nor.n++] = n[0]; nor.a[nor.n++] = n[1]; nor.a[nor.n++] = n[2];
+                const pa = [px, py, pz];
+                uv.a[uv.n++] = u[ua] > 0 ? pa[ua] : 1 - pa[ua]; uv.a[uv.n++] = v[va] > 0 ? pa[va] : 1 - pa[va];
+                col.a[col.n++] = cr; col.a[col.n++] = cg; col.a[col.n++] = cb;
+                meta.a[meta.n++] = layer; meta.a[meta.n++] = 0;
+              }
+              const i = quads * 4;
+              idx.a[idx.n++] = i; idx.a[idx.n++] = i + 1; idx.a[idx.n++] = i + 2; idx.a[idx.n++] = i; idx.a[idx.n++] = i + 2; idx.a[idx.n++] = i + 3;
+              quads++;
+            }
+          }
+          continue;
+        }
         for (let f = 0; f < 6; f++) {
           const n = FN[f];
           const nid = get(x + n[0], y + n[1], z + n[2]);
-          if (!(EXPOSES[nid] || (SEE[nid] && nid !== id))) continue;
+          // (a shaped neighbour, a step or a slab, never hides a face against it)
+          if (!(EXPOSES[nid] || (SEE[nid] && nid !== id) || SH(x + n[0], y + n[1], z + n[2]))) continue;
           if (leaves && LEAF[nid]) continue;
           const u = FU[f], v = FV[f], kind = FK[f];
           const layer = kind === 0 ? def.top : kind === 2 ? def.bottom : def.side;

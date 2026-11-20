@@ -169,7 +169,7 @@ export function mapBlock(p: Palette): number {
   if (/iron_block|anvil|cauldron|hopper|furnace|smoker|blast_furnace|stonecutter|grindstone|bell/.test(n)) return /furnace|smoker/.test(n) ? B.Cobble : B.Stone;
   if (/copper/.test(n)) return B.Copper;
   if (/gold_block/.test(n)) return B.Brass;
-  if (/prismarine/.test(n)) return B.MossyStone;
+  if (/prismarine/.test(n)) return /dark_prismarine/.test(n) ? B.DarkPrismarine : /prismarine_brick/.test(n) ? B.PrismarineBricks : B.Prismarine;
   if (/purpur|end_stone/.test(n)) return B.Sandstone;
   if (/nether|soul|crimson|warped/.test(n)) return B.TerraBrown;
   if (/bed$|_bed$|dripleaf|amethyst_bud|double_plant|piston|command_block|observer|dispenser|dropper|target|structure_block/.test(n)) return /piston|command|observer|dispenser|dropper/.test(n) ? B.Stone : B.Air;

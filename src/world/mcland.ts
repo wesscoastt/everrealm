@@ -43,6 +43,8 @@ const files = new Map<string, Uint8Array | null>();
 const VERANDAH_FARM = [-2667, 2192];
 /** Columns dug below the old foot (the Verandah quarry): per column 255 (not dug) or a count of [y - MINY, length, block] runs. */
 const deep = new Map<string, Uint8Array>();
+/** The shape layer (scripts/mc/shapes.ts): per chunk a u32 count, then [lx, lz, y, expected, block, shape] for each cell. */
+const shapeFiles = new Map<string, Uint8Array>();
 const pending = new Map<string, Promise<void>>();
 
 /** Fetch an island chunk's file, once (the worker awaits this before generating the chunk). */
@@ -59,6 +61,11 @@ export function mcLoad(cx: number, cz: number, base: string): Promise<void> {
         try {
           const d = await fetch(`${base}mcland/deep/${key}.bin`);
           if (d.ok && (d.headers.get('content-type') ?? '').indexOf('html') < 0) deep.set(key, new Uint8Array(await new Response(d.body!.pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()));
+        } catch { /* none */ }
+        // its stairs, slabs, walls and hatches, and the stuff export.ts mapped wrong (world/shapes.ts)
+        try {
+          const sh = await fetch(`${base}mcland/shape/${key}.bin`);
+          if (sh.ok && (sh.headers.get('content-type') ?? '').indexOf('html') < 0) shapeFiles.set(key, new Uint8Array(await new Response(sh.body!.pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()));
         } catch { /* none */ }
         const raw = res.body!.pipeThrough(new DecompressionStream('deflate-raw'));
         files.set(key, new Uint8Array(await new Response(raw).arrayBuffer()));
@@ -191,5 +198,17 @@ export function mcApply(r: ChunkResult, mapColor: (id: number) => [number, numbe
   const keep: number[] = [];
   for (let i = 0; i < veg.length; i += 9) if (i >= r.veg.length || !mine(veg[i], veg[i + 2])) keep.push(...veg.slice(i, i + 9));
   r.veg = new Float32Array(keep);
+  // the shape layer: laid only where the block is still the one the export made (the hand edits since are kept)
+  const sf = shapeFiles.get(r.cx + '_' + r.cz);
+  if (sf && sf.length >= 4) {
+    const n = sf[0] | (sf[1] << 8) | (sf[2] << 16) | (sf[3] << 24), cells: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const o = 4 + k * 6, i = localIdx(sf[o], sf[o + 2], sf[o + 1]);
+      if (r.data[i] !== sf[o + 3]) continue;
+      r.data[i] = sf[o + 4];
+      if (sf[o + 5]) cells.push(i * 256 + sf[o + 5]);
+    }
+    if (cells.length) r.shapes = new Uint32Array(cells);
+  }
 }
 export { SEA as MC_SEA };

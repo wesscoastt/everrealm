@@ -20,14 +20,14 @@ self.onmessage = (e: MessageEvent) => {
     const t0 = performance.now();
     const gen = () => {
       const r = generateChunk(m.cx, m.cz);
-      self.postMessage({ type: 'gen', id: m.id, result: r, ms: performance.now() - t0 }, [r.data.buffer, r.tint.buffer, r.veg.buffer, r.steps.buffer, r.map.buffer]);
+      self.postMessage({ type: 'gen', id: m.id, result: r, ms: performance.now() - t0 }, [r.data.buffer, r.tint.buffer, r.veg.buffer, r.steps.buffer, r.map.buffer, ...(r.shapes ? [r.shapes.buffer] : [])]);
     };
     // (the owner's Minecraft island: its chunk's file first, world/mcland.ts)
     if (mcChunk(m.cx, m.cz)) void mcLoad(m.cx, m.cz, import.meta.env.BASE_URL).then(gen);
     else gen();
   } else if (m.type === 'mesh') {
     const t0 = performance.now();
-    const a = meshPadded(m.pad, SPAN, m.ox, m.oz, m.tint, MINY);
+    const a = meshPadded(m.pad, SPAN, m.ox, m.oz, m.tint, MINY, m.shp ?? null);
     self.postMessage({ type: 'mesh', id: m.id, key: m.key, arrays: a, ms: performance.now() - t0 }, [
       a.pos.buffer, a.nor.buffer, a.uv.buffer, a.col.buffer, a.meta.buffer, a.idx.buffer,
       a.wPos.buffer, a.wNor.buffer, a.wUv.buffer, a.wExtra.buffer, a.wIdx.buffer,

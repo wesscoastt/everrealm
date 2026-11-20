@@ -50,6 +50,8 @@ export enum B {
   Glass, Bars, Bookshelf, Glowstone,
   // Bamboo planks, pale gold (a Verandah house of bamboo, the side-slab add-on)
   Bamboo,
+  // Prismarine, its bricks and the dark kind (the trident on Verandah's green, owner 2026-11-19): teal stone
+  Prismarine, PrismarineBricks, DarkPrismarine,
   Count,
 }
 
@@ -145,6 +147,9 @@ BLOCKS[B.Bars] = D('iron bars', T.Bars, T.Bars, T.Bars, { seeThrough: true, jitt
 BLOCKS[B.Bookshelf] = D('bookshelf', T.Planks, T.Bookshelf, T.Planks, { jitter: 0.02 });
 BLOCKS[B.Glowstone] = D('glowstone', T.Glowstone, T.Glowstone, T.Glowstone, { emissive: 1, jitter: 0 });
 BLOCKS[B.Bamboo] = D('bamboo planks', T.Bamboo, T.Bamboo, T.Bamboo);
+BLOCKS[B.Prismarine] = D('prismarine', T.Stone, T.Stone, T.Stone, { tint: [0.5, 0.92, 0.84], jitter: 0.08 });
+BLOCKS[B.PrismarineBricks] = D('prismarine bricks', T.StoneBrick, T.StoneBrick, T.StoneBrick, { tint: [0.56, 0.96, 0.88], jitter: 0.04 });
+BLOCKS[B.DarkPrismarine] = D('dark prismarine', T.StoneBrick, T.StoneBrick, T.StoneBrick, { tint: [0.26, 0.5, 0.44], jitter: 0.04 });
 BLOCKS[B.BluePlaster] = D('blue limewash', T.BluePlaster, T.BluePlaster, T.BluePlaster, { jitter: 0.025 });
 BLOCKS[B.FlowerGrass] = D('meadow', T.FlowerGrass, T.GrassSide, T.Dirt, { jitter: 0.05 });
 BLOCKS[B.Granite] = D('granite', T.Granite, T.Granite, T.Granite, { jitter: 0.04 });

@@ -72,6 +72,8 @@ export interface RayHit {
 
 export class VoxelWorld {
   readonly chunks = new Map<number, Uint8Array>();
+  /** Shaped cells (world/shapes.ts) by chunk: data index -> shape. A cell that changes loses its shape. */
+  readonly shapes = new Map<number, Map<number, number>>();
   readonly dirty = new Set<number>();
   private listeners: ((cx: number, cz: number) => void)[] = [];
 
@@ -113,6 +115,7 @@ export class VoxelWorld {
     if (c[i] === id) return;
     c[i] = id;
     const cx = x >> 5, cz = z >> 5;
+    this.shapes.get(chunkKey(cx, cz))?.delete(i);
     this.markDirty(cx, cz);
     const lx = x & 31, lz = z & 31;
     if (lx === 0) this.markDirty(cx - 1, cz);

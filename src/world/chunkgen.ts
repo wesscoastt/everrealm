@@ -36,6 +36,8 @@ export interface ChunkResult {
   map: Uint8ClampedArray;
   spawns: GenSpawn[];
   forage: GenForage[];
+  /** Shaped cells (world/shapes.ts), the owner's island's: (data index << 8) | shape. */
+  shapes?: Uint32Array;
 }
 
 // Heights are precomputed for the chunk plus a one-block border; anything further out (tree
@@ -44,6 +46,7 @@ const M = 1;
 const AW = CHUNK + M * 2;
 
 export const MAP_COLORS: Record<number, [number, number, number]> = {
+  [B.Prismarine]: [96, 170, 150], [B.PrismarineBricks]: [104, 178, 160], [B.DarkPrismarine]: [44, 88, 78],
   [B.Grass]: [104, 160, 60], [B.Dirt]: [135, 90, 58], [B.Stone]: [128, 130, 136], [B.Cobble]: [140, 138, 132], [B.Sand]: [222, 204, 142],
   [B.Gravel]: [130, 124, 118], [B.Snow]: [236, 242, 248], [B.OakLeaves]: [62, 118, 42], [B.BirchLeaves]: [110, 160, 60], [B.PineLeaves]: [40, 86, 58],
   [B.Path]: [176, 146, 104], [B.StoneBrick]: [150, 150, 154], [B.Farmland]: [92, 64, 40], [B.Plaster]: [200, 120, 90], [B.Timber]: [70, 50, 36],
