@@ -6,6 +6,20 @@ export interface Update { v: number; date: string; title: string; items: [string
 
 export const UPDATES: Update[] = [
   {
+    v: 16, date: '19 November', title: 'The Silent Waters, and who you are',
+    items: [
+      ['The Silent Waters.', 'Verandah\'s own story in eight chapters, from a fishmonger\'s missing brother to the king\'s council: smugglers, a crooked insurer, the two forts\' captains and a man from Ansbury. It starts with Tegen Hocking at the fish stalls.'],
+      ['Verandah\'s harbour.', 'Hugh Carne keeps the Customs in the port warehouse, Kerra Nance pilots the harbour, Grace Vyvyan counts her herring on the pier, and Bryok Nance has a turn tallying cargo for you every day.'],
+      ['Carn Hold and Awschitz.', 'The outpost on the peak has a name, a beacon keeper and its own stories; Awschitz Fort has two of its own. Gorran has two more.'],
+      ['Your character.', 'What you do is remembered: kindness and cruelty, honesty and lies, who you\'ve helped and who you\'ve crossed. Your journal\'s Character page shows how you\'re thought of, and some choices only open to some kinds of people. Word travels.'],
+      ['Companions grow.', 'Companions rank up to twenty as they fight beside you, learn skills you choose for them, work trades while you\'re away, keep their own days, and tell you what they make of you.'],
+      ['Side stories across the Counties.', 'Two new stories in every region of the Counties, from Scarth to the Sickle.'],
+      ['Hair.', 'Hair is built in blocks like the world, locks and all, without the round blobs.'],
+      ['Robes and gowns.', 'Skirts and coat tails swing with your stride instead of your legs coming through them.'],
+      ['Waymarks.', 'Verandah Farm\'s waymark stands clear of the trees, and Skua Rock\'s no longer drops you off a height.'],
+    ],
+  },
+  {
     v: 15, date: '13 November', title: 'Dice, doubloons and the Downs',
     items: [
       ['Games at the taverns.', 'Ask any tavern keeper “Any games going?” for Crown and Anchor, Find the Lady, or BS round the big table for a pot of marks. Taverns have a T on the map.'],
