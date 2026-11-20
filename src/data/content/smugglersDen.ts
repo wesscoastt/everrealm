@@ -1,4 +1,4 @@
-import type { DialogueTree } from '../../game/api';
+import type { DialogueTree, GameApi } from '../../game/api';
 import type { NpcDef } from '../npcs';
 import type { ItemDef } from '../items';
 import type { ShopDef } from '../shops';
@@ -15,6 +15,14 @@ import { mcToGame } from '../../world/mclandArea';
 // the tally in the hold, and has been in the trade so long she remembers when it was honest.
 
 /** Spots on the Fortress piece (Minecraft coordinates, as in scripts/mc/edits.ts) in the game's. */
+/**
+ * The den is open until the raid in The Silent Waters, chapter 6 (silentWaters3.ts, swTwo). After it, Jory, Sal and Mab
+ * are gone, whichever way it went (taken by Morvah's marines, or away a day ahead of them with Penhallow's help), and
+ * Corporal Chirgwin's marines hold the Fortress and sell off the seized cargo for the prize court.
+ */
+const raided = (g: GameApi) => ['back', 'done'].includes(g.stage('swTwo') ?? '');
+/** The den's people are gone from the night of the raid on (its men fight on the wharf; Jory, Sal and Mab are not there to talk to). */
+const gone = (g: GameApi) => raided(g) || g.stage('swTwo') === 'raid';
 const at = (x: number, y: number, z: number): [number, number, number] => mcToGame('seafort', x + 0.5, y, z + 0.5);
 
 /** The cargo, the lamps and the den's new signs, in Minecraft coordinates (world/sites.ts places them). */
@@ -62,14 +70,38 @@ const items: ItemDef[] = [
 const npcs: NpcDef[] = [
   { id: 'den_jory', name: 'Jory Kettle', title: 'Runs the Den', look: { frame: 'm', skin: '#c8906a', hair: '#2a2420', hairStyle: 3, facial: 4, eyes: '#3a4a2a', tunic: '#2a2a30', trim: '#8a6a3a', shirt: '#d8ccb0', trousers: '#2a2620', boots: '#1e1a16', hat: 'tricorn', hatColor: '#1e1e22', build: 1.05, age: 0.45, earring: '#c8a050' },
     schedule: [{ from: 0, to: 24, at: (() => { const p = at(-983, 63, 920); return [p[0], p[2]] as [number, number]; })(), face: (() => { const p = at(-983, 63, 918); return [p[0], p[2]] as [number, number]; })(), anim: 'idle', y: at(-983, 63, 920)[1] }],
+    when: (g) => !gone(g),
     barks: ['Buying or selling? Either way, quietly.', 'Tide\'s on the turn. Something\'s coming in.', 'If anyone asks, this is a fish shed.'] },
   { id: 'den_sal', name: 'Sal Treharne', title: 'The lookout', look: { frame: 'f', skin: '#d8a882', hair: '#7a3a1e', hairStyle: 5, eyes: '#4a6a7a', tunic: '#3a4a3a', trim: '#6a5a3a', trousers: '#2a2a26', boots: '#1e1a16', hat: 'kerchief', hatColor: '#5a2a22', build: 0.95, age: 0.3 },
     schedule: [{ from: 0, to: 24, at: (() => { const p = at(-973, 63, 912); return [p[0], p[2]] as [number, number]; })(), face: (() => { const p = at(-960, 63, 912); return [p[0], p[2]] as [number, number]; })(), anim: 'idle', y: at(-973, 63, 912)[1] }],
+    when: (g) => !gone(g),
     barks: ['You weren\'t followed. Were you.', 'Cutter off the point at dawn. Charter colours.', 'Keep away from the edge. It\'s a long swim and I won\'t throw you a rope.'] },
   { id: 'den_mab', name: 'Mab Penhallow', title: 'Keeps the tally', look: { frame: 'f', skin: '#d8b090', hair: '#e8e4dc', hairStyle: 5, eyes: '#3a3a3a', tunic: '#4a3a2a', trim: '#8a7a5a', shirt: '#e8e0d0', trousers: '#2a2420', boots: '#1e1a16', hat: 'coif', hatColor: '#3a3028', build: 0.85, height: 0.92, age: 0.9 },
     schedule: [{ from: 0, to: 24, at: (() => { const p = at(-990, 57, 911); return [p[0], p[2]] as [number, number]; })(), face: (() => { const p = at(-990, 57, 914); return [p[0], p[2]] as [number, number]; })(), anim: 'idle', y: at(-990, 57, 911)[1] }],
+    when: (g) => !gone(g),
     barks: ['Forty barrels in, thirty-eight out. Somebody\'s drinking the difference.', 'Wipe your feet. This is a cave, not a pigsty.'] },
+  { id: 'den_chirgwin', name: 'Corporal Chirgwin', title: 'Verandah Marines, holding the Fortress', look: { frame: 'm', skin: '#d8a888', hair: '#5a3a22', hairStyle: 0, facial: 2, eyes: '#4a5a6a', tunic: '#7a1e1a', trim: '#c8a050', shirt: '#e8e0d0', trousers: '#e8e0d0', boots: '#1a1612', hat: 'cap', hatColor: '#22365a', build: 1.05, age: 0.4 },
+    schedule: [{ from: 0, to: 24, at: (() => { const p = at(-983, 63, 920); return [p[0], p[2]] as [number, number]; })(), face: (() => { const p = at(-983, 63, 918); return [p[0], p[2]] as [number, number]; })(), anim: 'idle', y: at(-983, 63, 920)[1] }],
+    when: (g) => raided(g),
+    barks: ['Prize sale. Everything must go, by order.', 'Mind the stair. We lost a man on it the first night. He\'s fine. He\'s wet.'] },
 ];
+
+const chirgwin: DialogueTree = {
+  start: () => 'hello',
+  nodes: {
+    hello: {
+      text: (g) => (g.flag('swTwo') === 'penhallow'
+        ? 'Corporal Chirgwin, Awschitz. We came in a day late and found the nest warm and the birds flown. Kettle, the old woman, the girl on the tower, gone. What they left is the king\'s now, and I\'m to sell it for the prize court.'
+        : g.flag('swTwo') === 'both'
+          ? 'Corporal Chirgwin, Awschitz. Kettle and the girl from the tower are on their way to Skua Rock. The old woman went out with her son, up to Carn Hold, and nobody\'s to ask. What they left is the king\'s, and I\'m to sell it for the prize court.'
+          : 'Corporal Chirgwin, Awschitz. Kettle and his people are on their way to Skua Rock, the old woman with them. What they left is the king\'s. I\'m to sell it for the prize court, receipts given, no questions asked, because I\'ve been told not to.'),
+      options: [
+        { text: 'Show me the prize cargo.', effect: (g) => g.openShop('den_chirgwin') },
+        { text: 'Good day, Corporal.' },
+      ],
+    },
+  },
+};
 
 const jory: DialogueTree = {
   start: (g) => (g.flag('den:met') ? 'back' : 'meet'),
@@ -112,8 +144,15 @@ const shop: ShopDef = {
   footer: () => 'Jory buys anything at six tenths of its worth. No questions.',
 } as ShopDef;
 
+const prize: ShopDef = {
+  id: 'den_chirgwin', name: 'The prize sale', owner: 'den_chirgwin',
+  stock: shop.stock,
+  buyRate: () => 0.5,
+  footer: () => 'The prize court buys at half an item\'s worth, receipt given.',
+} as ShopDef;
+
 export const SMUGGLERS_DEN: RegionContent = {
   id: 'smugglersDen', items, npcs,
-  dialogue: { den_jory: jory },
-  shops: { den_jory: shop },
+  dialogue: { den_jory: jory, den_chirgwin: chirgwin },
+  shops: { den_jory: shop, den_chirgwin: prize },
 };
