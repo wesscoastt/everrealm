@@ -325,7 +325,7 @@ under new management. Piers Arundell is on the Board. Garland, if he got away, t
 5. *(Done 2026-11-19: `silentWaters.ts`, swGrace and swIntent. Tegen's brother is Petroc; the lost boats are the Swallow, the Sweet Promise and the Little Grace; the Good Intent's master was Ralph Truscott.)* Silent Waters chapters 1 and 2.
 6. *(Done 2026-11-19: `silentWaters2.ts`, swLights and swKeep. The lamp-man is Nicky Skewes, Mother Skewes's son; the crews are chained in the Keep's hall; Petroc saw the Good Intent go into the Fortress's sea cave.)* Chapters 3 and 4 (Black Gull Keep wiring, the rescued crews at the market).
 7. *(Done 2026-11-19: `silentWaters3.ts`, swTally and swTwo. The Good Intent had already sailed from the cave painted over as the Charity of Ansbury; her nameboard and master's chest, with the papers under Tregarthen's seal, were left on the landing stage.)* Chapters 5 and 6 (the Fortress, the two captains, the raid).
-8. Chapters 7 and 8, and the council. This is the kingdom-politics example owed under the morality item
+8. *(Done 2026-11-19: `silentWaters4.ts`, swUnder and swCouncil. The other insured ships are the Fair Maid, the Brothers and the Hope of Kestle.)* Chapters 7 and 8, and the council. This is the kingdom-politics example owed under the morality item
    (OWED u).
 9. The countryside: Polwith (the western village) and the Lamp House (the lit structure in the south-east), the
    farms and Kestle's unfinished buildings, side quests for each.
