@@ -327,7 +327,7 @@ under new management. Piers Arundell is on the Board. Garland, if he got away, t
 7. *(Done 2026-11-19: `silentWaters3.ts`, swTally and swTwo. The Good Intent had already sailed from the cave painted over as the Charity of Ansbury; her nameboard and master's chest, with the papers under Tregarthen's seal, were left on the landing stage.)* Chapters 5 and 6 (the Fortress, the two captains, the raid).
 8. *(Done 2026-11-19: `silentWaters4.ts`, swUnder and swCouncil. The other insured ships are the Fair Maid, the Brothers and the Hope of Kestle.)* Chapters 7 and 8, and the council. This is the kingdom-politics example owed under the morality item
    (OWED u).
-9. The countryside: Polwith (the western village) and the Lamp House (the lit structure in the south-east), the
+9. *(Begun 2026-11-19: Gorran, `gorranMore.ts`, The Grandson and Fight Night Glass. The "western village" and "lit building" of the prop survey turned out to be water and woods at the cell scale; a door survey, `.walker/vdoors.ts`, finds a 13-door building at -3417, 2389 and a farmstead at -3369, 2822 to look at next.)* The countryside: Polwith (the western village) and the Lamp House (the lit structure in the south-east), the
    farms and Kestle's unfinished buildings, side quests for each.
 
 Every stage ships with its Help entries, the quest walker, the site check and a screenshot pass. Placements are
