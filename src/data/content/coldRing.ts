@@ -110,7 +110,7 @@ const things: WorldThing[] = [
     use: (g) => { g.give('gw_sack', 1); g.setStage(RING, 'up'); g.toast('The heap is cold and heavier than coal, broken slabs and dust. You shovel a sack full. Over by the shed, a tally board says "Wat says no more" in chalk. Up the track, a mile, the Dacres\' pasture.'); },
   },
   {
-    land: 'morrow', id: 'gwGapCart', x: GAP.x + 4, z: GAP.z, y: GAP.y, label: 'The tipped cart', radius: 2, look: 'saltcart',
+    land: 'morrow', id: 'gwGapCart', x: GAP.x - 2, z: GAP.z, y: GAP.y, label: 'The tipped cart', radius: 2, look: 'saltcart',
     when: (g) => at(g, RING) === 'up',
     use: (g) => { g.toast('The cart that tipped coming down off the fell, still on its side where it went over, its bed scraped clean. "A.P." is chalked on the tailboard.'); },
   },
