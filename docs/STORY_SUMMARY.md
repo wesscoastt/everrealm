@@ -99,7 +99,7 @@ In each of these you do the reasonable thing and it goes badly.
 
 ## The acts
 
-The plan is about 112 chapters in ten acts, 60 to 80 hours. Acts I to IV and the first half of Act V are built.
+The plan is about 112 chapters in ten acts, 60 to 80 hours. Acts I to VI are built (the Counties and Morrow); Acts VII to X wait on Serra.
 
 **Part one: the Counties**
 - **Act I, The Charter's Debt.** From a notice in Hollin Ford, through the Turnpike, the Glass Kirk where the
@@ -143,7 +143,7 @@ The plan is about 112 chapters in ten acts, 60 to 80 hours. Acts I to IV and the
 ## Regional stories alongside it, ESO-style
 
 Each region has its own complete story beside the main one:
-- **Verandah's "The Silent Waters":** merchant ships and fishing boats going missing, smuggling, and corruption
+- **Verandah's "The Silent Waters" [in game, eight chapters]:** merchant ships and fishing boats going missing, smuggling, and corruption
   among powerful merchant houses (planned).
 - **The Fisherman Dave and Becky White questline** (Dave is in the game; his story is being rewritten to the owner's brief): a ghost in town, a grieving drunk fisherman, a strange rancher
   father, a magical Pilgrim Hat, and a reaper-like Cursekeeper whose death frees Becky (planned).
