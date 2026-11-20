@@ -1072,6 +1072,9 @@ export class Humanoid {
   private armR = new THREE.Group();
   private foreL = new THREE.Group();
   private foreR = new THREE.Group();
+  /** A long skirt's front and back (robe, gown, a coat's tails), hinged at the hips to swing with the legs (skirtSwing). */
+  private skirtF: THREE.Group | null = null;
+  private skirtB: THREE.Group | null = null;
   private legL = new THREE.Group();
   private legR = new THREE.Group();
   private shinL = new THREE.Group();
@@ -1186,20 +1189,33 @@ export class Humanoid {
     if (top === 6) for (const side of [1, -1]) part(this.torso, rbox(0.06, 0.62, 0.35, 0.01), belt, side * 0.1, 0.42, 0, );
     if (long) {
       // Robe and gown: a long skirt from the belt to the shins, a gown flaring wider
-      const w = (top === 5 ? 0.66 : 0.58) * build;
-      part(this.hips, rbox(w, 0.72, top === 5 ? 0.46 : 0.38, 0.06), top === 5 ? look.tunic : hem, 0, -0.32, 0);
-      part(this.hips, rbox(w + 0.02, 0.05, (top === 5 ? 0.46 : 0.38) + 0.02, 0.02), look.trim, 0, -0.66, 0);
+      // (in halves, front and back, each hinged at the hips where the legs are, swinging out with the leg that goes
+      // furthest that way, so a stride never comes through the cloth: owner 2026-11-19, "legs clip through them";
+      // narrow panels at the sides keep the shape)
+      const w = (top === 5 ? 0.66 : 0.58) * build, d = top === 5 ? 0.46 : 0.38, cloth = top === 5 ? look.tunic : hem;
+      const sF = (this.skirtF = new THREE.Group()), sB = (this.skirtB = new THREE.Group());
+      for (const g of [sF, sB]) { g.position.set(0, -0.04, 0); this.hips.add(g); }
+      for (const [g, sd] of [[sF, 1], [sB, -1]] as const) {
+        part(g, rbox(w, 0.72, d / 2, 0.04), cloth, 0, -0.28, sd * d / 4);
+        part(g, rbox(w + 0.02, 0.05, d / 2 + 0.01, 0.02), look.trim, 0, -0.62, sd * (d / 4 + 0.005));
+      }
+      for (const sx of [1, -1]) {
+        part(this.hips, rbox(0.05, 0.7, d * 0.7, 0.02), shade(cloth, 0.94), sx * (w / 2 - 0.02), -0.31, 0);
+        part(this.hips, rbox(0.06, 0.05, d * 0.7 + 0.01, 0.02), look.trim, sx * (w / 2 - 0.02), -0.66, 0);
+      }
       if (top === 5 && !look.bodice) part(this.torso, rbox(0.12, 0.42, 0.02, 0.01), shirt, 0, 0.44, 0.17); // laced bodice
       if (look.underskirt) {
         // open down the front over the underskirt, its edges trimmed
         const sw = 0.28 * build;
-        part(this.hips, rbox(sw, 0.7, 0.03, 0.01), look.underskirt, 0, -0.31, 0.235);
-        for (const sx of [1, -1]) part(this.hips, rbox(0.04, 0.7, 0.03, 0.01), look.trim, sx * (sw / 2 + 0.02), -0.31, 0.24);
+        part(sF, rbox(sw, 0.7, 0.03, 0.01), look.underskirt, 0, -0.27, 0.235);
+        for (const sx of [1, -1]) part(sF, rbox(0.04, 0.7, 0.03, 0.01), look.trim, sx * (sw / 2 + 0.02), -0.27, 0.24);
       }
     }
     if (top === 7) {
       // Long coat: tails at the back to the knee, and lapels
-      part(this.torso, rbox(chestW, 0.6, 0.05, 0.02), look.tunic, 0, -0.12, -0.17);
+      // (hinged at the hips, so they swing back with a stride instead of the leg coming through them)
+      const tails = (this.skirtB = new THREE.Group()); tails.position.set(0, -0.04, 0); this.hips.add(tails);
+      part(tails, rbox(chestW, 0.6, 0.05, 0.02), look.tunic, 0, -0.02, -0.17);
       for (const side of [1, -1]) part(this.torso, rbox(0.08, 0.4, 0.03, 0.01), look.trim, side * 0.12, 0.5, 0.17);
     }
     if (look.bodice) {
@@ -1297,6 +1313,12 @@ export class Humanoid {
     this.handR.position.set(0, -0.32, 0.02);
     this.buildArmour(part, build, fem, chestW, waistW);
     this.buildGear(part, build, chestW, waistW, long, top);
+    // whatever was hung round the hem of a long skirt (runes, tatters, trim) goes with the half it's on
+    if (long && this.skirtF && this.skirtB) for (const m of [...this.hips.children]) {
+      if (!(m as THREE.Mesh).isMesh || m.position.y > -0.1 || Math.abs(m.position.z) < 0.1) continue;
+      const g = m.position.z > 0 ? this.skirtF : this.skirtB;
+      g.add(m); m.position.y += 0.04;
+    }
     this.foreR.add(this.handR);
     this.handL.position.set(0, -0.3, 0.02);
     this.foreL.add(this.handL);
@@ -3111,6 +3133,13 @@ export class Humanoid {
     if (this.torch) this.torch.rotation.set(-(P.torso.rotation.x + P.armL.rotation.x + P.foreL.rotation.x) + 0.1, 0, -P.armL.rotation.z);
     // A belt lantern swings a little as you go
     if (this.lantern) this.lantern.rotation.x = Math.sin(performance.now() * 0.008 + this.phase) * Math.min(1, speed / 4) * 0.35;
+    if (this.skirtF || this.skirtB) {
+      // the front goes out with whichever thigh is furthest forward, the back with whichever leg (and its kicked-back
+      // shin) is furthest back
+      const a = P.legL.rotation.x, b = P.legR.rotation.x;
+      if (this.skirtF) this.skirtF.rotation.x = Math.min(a, b, 0) * 0.85;
+      if (this.skirtB) this.skirtB.rotation.x = Math.max(a + P.shinL.rotation.x * 0.45, b + P.shinR.rotation.x * 0.45, 0) * 0.85;
+    }
     if (this.cape) {
       const target = 0.15 + Math.min(1, speed / 7) * 0.9 + (airborne ? 0.4 : 0);
       this.capeSwing += (target - this.capeSwing) * Math.min(1, dt * 5);
