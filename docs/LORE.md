@@ -987,6 +987,7 @@ Act IV is nine chapters (XXVII to XXXV), with three added (`src/data/content/act
 
 - **Dinah's maps.** `dinahSalt` (a map of the key itself; a tin of her own buttons under the X), `dinahKeys` (two maps of the Keys; a page of Gale's log in the second chest), `dinahGale` (Gale's hoard by Heron Mere in the Glades: an iron box, a brass compass Dinah keeps, and Gale's cloak with the compass rose, which the player keeps). After that Dinah sells maps of every region in Morrow; there are two to each region, as in the Counties.
 - **Wreckers' Bight** is the camp on a key east along the causeway where Pryce's wreckers lie up.
+- **Washed** (Annie Coe, `saltpennyMore.ts`): a bowl of chowder goes from the Leaning Mast every night and comes back washed. Wet prints from the back hatch go to the third pier and the galley Long Meg, whose oars are the Margery's six (see The Margery's Bell, Gullmouth). **Sam Bowden** slips his cuff with a bent nail and shares one bowl among them. `sbBowden`: `fed` (six bowls at the back hatch every night; Ned lets it be, and the Long Meg's master ends up paying), `cask` (Sam goes to Callis in a rum cask on the Kittiwake; Mara Coyle asks nothing) or `table` (Ned Vey is told; the Long Meg moves to the north pier).
 
 ### The Teeth [in game]
 
