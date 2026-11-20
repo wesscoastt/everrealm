@@ -97,6 +97,9 @@ export class Ship {
     this.set = shipModel(M, hull.kind, { ...o, sails: 'set' });
     this.furled = shipModel(M, hull.kind, { ...o, sails: 'furled' });
     this.root.add(this.set, this.furled);
+    // what she was built with shows on her (data/shipParts.ts)
+    const kit = shipKit(hull, SHIPS[hull.kind].deck + 0.17);
+    if (kit) { this.set.add(kit); this.furled.add(kit.clone()); }
     this.hp = hull.hp;
     this.show();
   }
@@ -156,6 +159,48 @@ export class Ship {
 
 /** A ball in flight, whose it is, and what it does when it lands. */
 type Ball = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; from: Ship; dmg: number; life: number; vsRig: number };
+const kitMats = new Map<string, THREE.MeshLambertMaterial>();
+const kitMat = (c: string, glow = false) => { const k = c + (glow ? '+' : ''); let m = kitMats.get(k); if (!m) { m = new THREE.MeshLambertMaterial({ color: c, ...(glow ? { emissive: new THREE.Color(c), emissiveIntensity: 0.8 } : {}) }); kitMats.set(k, m); } return m; };
+const kitBox = new THREE.BoxGeometry(1, 1, 1), kitCyl = new THREE.CylinderGeometry(1, 1, 1, 8), kitCone = new THREE.ConeGeometry(1, 1, 8);
+/**
+ * What a ship built to a design shows of it (owner 2026-11-19, ship building): her ram, figurehead and chasers, her
+ * sterncastle or her great cabin's lit windows, iron bands or copper along her hull, and her guns run out of their ports
+ * by deck, long or squat as they are. Along +x from her middle (the model's way), her deck at deck.
+ */
+function shipKit(h: Hull, deck: number): THREE.Group | null {
+  const b = h as BuiltShip;
+  if (!b.design) return null;
+  const g = new THREE.Group(), L = h.len, B = h.beam, P = b.design.parts;
+  const put = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rx = 0, ry = 0, rz = 0, glow = false) => { const m = new THREE.Mesh(geo, kitMat(color, glow)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.set(rx, ry, rz); m.castShadow = true; g.add(m); return m; };
+  const barrel = (x: number, y: number, z: number, len: number, r: number, dir: 'x' | '-x' | 'z' | '-z', color = '#2a2a2e') => {
+    const along = dir === 'x' || dir === '-x';
+    const sgn = dir === 'x' || dir === 'z' ? 1 : -1;
+    put(kitCyl, color, x + (along ? sgn * len / 2 : 0), y, z + (along ? 0 : sgn * len / 2), r, len, r, along ? 0 : Math.PI / 2, 0, along ? Math.PI / 2 : 0);
+  };
+  // the bow
+  if (P.bow === 'ram') put(kitCone, '#b08d57', L / 2 + 0.55, 0.35, 0, 0.32, 1.3, 0.32, 0, 0, -Math.PI / 2);
+  if (P.bow === 'figurehead') { put(kitBox, '#d8b04a', L / 2 + 0.15, deck - 0.45, 0, 0.35, 0.9, 0.3, 0, 0, -0.5); put(kitBox, '#e8d8b0', L / 2 + 0.35, deck - 0.05, 0, 0.25, 0.28, 0.25); }
+  if (P.bow === 'bowchaser') barrel(L / 2 - 1.2, deck + 0.45, 0, 1.6, 0.12, 'x');
+  // the stern
+  if (P.stern === 'castle') { put(kitBox, '#4a3420', -L / 2 + L * 0.14, deck + 0.6, 0, L * 0.26, 1.2, B * 0.82); put(kitBox, '#2e2014', -L / 2 + L * 0.14, deck + 1.25, 0, L * 0.28, 0.12, B * 0.88); }
+  if (P.stern === 'cabin') for (const z of [-B * 0.25, 0, B * 0.25]) put(kitBox, '#ffd890', -L / 2 - 0.02, deck - 0.25, z, 0.05, 0.35, B * 0.16, 0, 0, 0, true);
+  if (P.stern === 'sternchaser') barrel(-L / 2 + 1.2, deck + 0.85, 0, 1.4, 0.11, '-x');
+  // the planking
+  if (P.plank === 'ironband') for (const sd of [1, -1]) for (const y of [deck - 0.65, deck - 0.2]) put(kitBox, '#3a3c40', 0, y, sd * (B / 2 + 0.02), L * 0.66, 0.1, 0.05);
+  // (copper at the waterline, along her straight middle: the hull narrows toward the keel, where a band would stand off it)
+  if (P.plank === 'copper') for (const sd of [1, -1]) put(kitBox, '#c07040', 0, Math.max(0.32, deck - 1.0), sd * (B / 2 - 0.03), L * 0.5, 0.16, 0.05);
+  // the guns, deck by deck, run out of her ports on both sides
+  b.batteries.forEach((bt, bi) => {
+    const n = bt.n, y = deck + 0.25 + bi * 0.45;
+    const len = bt.gun.id === 'long' ? 1.1 : bt.gun.id === 'carronade' ? 0.55 : 0.75, r = bt.gun.id === 'carronade' ? 0.17 : bt.gun.id === 'light' ? 0.09 : 0.12;
+    for (let k = 0; k < n; k++) {
+      const x = (n === 1 ? 0 : (k / (n - 1) - 0.5) * L * 0.62) + (bi % 2 ? 0.7 : 0);
+      for (const sd of [1, -1] as const) barrel(x, y, sd * (B / 2 - 0.2), len, r, sd > 0 ? 'z' : '-z', bt.gun.id === 'chain' ? '#3a3026' : '#2a2a2e');
+    }
+  });
+  return g;
+}
+
 /** The guns of a ship with no design: her hull's broadside as one deck. */
 const oldGun = (h: Hull): Gun => ({ id: 'old', name: 'guns', dmg: h.shot, speed: 46, life: 4, reload: h.reload, mass: 0, vsRig: 1 });
 /** Smoke, a splash, a splinter: a mesh that grows, falls and fades. */
