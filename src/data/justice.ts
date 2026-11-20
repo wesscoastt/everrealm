@@ -32,6 +32,9 @@ export const JURISDICTIONS: Jurisdiction[] = [
   { id: 'hollinford', name: 'Hollin Ford', watch: 'the parish constable', x: 165, z: 182, r: 42, gaol: 'gaol-ansbury' },
   { id: 'gullmouth', name: 'Gullmouth', watch: 'the harbour watch', x: GULL.x, z: GULL.z, r: 72, gaol: 'gaol-ansbury' },
   { id: 'harrowgate', name: 'Harrowgate Works', watch: 'the Company\'s men', x: 975, z: 1003, r: 60, gaol: 'gaol-ansbury' },
+  // Verandah, the island kingdom (owner 2026-11-20): the king's conscripts keep the town, the port and the farms, and
+  // those they take in go down the quarry with a pick (game/Justice.ts, data/content/verandahQuarry.ts)
+  { id: 'verandah', name: 'Verandah', watch: 'the king\'s conscripts', x: -3060, z: 2110, r: 300, gaol: 'gaol-ansbury' },
   { id: 'kelderby', name: 'Kelderby', watch: 'the fell watch', x: 300, z: 1460, r: 30, gaol: 'gaol-ansbury' },
   { land: 'morrow', id: 'callis', name: 'Callis', watch: 'the Assembly\'s watch', x: CALLIS.x, z: CALLIS.z, r: 120, gaol: 'gaol-callis' },
   { land: 'morrow', id: 'northgate', name: 'Northgate', watch: 'the garrison', x: NORTHGATE_TOWN.x, z: NORTHGATE_TOWN.z, r: 60, gaol: 'gaol-callis' },

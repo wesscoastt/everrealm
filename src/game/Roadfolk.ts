@@ -10,6 +10,7 @@ import { realmHour, realmNow } from '../world/clock';
 import { CreatureModel, mountModel, type MountLook } from '../entities/creatures';
 import { riderLift } from '../entities/seats';
 import { PEDLARS, type Pedlar } from '../data/content/pedlars';
+import { GUARD_LOOK } from '../data/content/verandahCourt';
 
 // People on the roads and the watch in the towns, the same for everyone in the realm.
 //
@@ -143,6 +144,16 @@ const COATS: MountLook[] = [
   { coat: '#5a5a5a', mane: '#2a2a2a', cloth: '#5a3a2a' }, { coat: '#a8783a', mane: '#e8d8b0', cloth: '#3a4a5a' },
 ];
 
+/**
+ * Verandah's conscripts (owner 2026-11-20: "add a Verandah watch"): the town has no roads of the Charter's, so its
+ * watch walks the island's own: out from the Charter yard by the stables, along the road north, east to the main
+ * street, down it to the high street. Two ride it on the island's black horses (they were game/VerandahPatrols.ts),
+ * four walk a stretch of it each.
+ */
+const VERANDAH_ROUTE: Pt[] = [[-3290, 2054], [-3288, 2040], [-3288, 2028], [-3220, 2028], [-3132, 2028], [-3132, 2080], [-3132, 2130], [-3060, 2131], [-2985, 2131]];
+const VERANDAH_STRETCHES: Pt[][] = [[[-3288, 2040], [-3288, 2028], [-3220, 2028]], [[-3200, 2028], [-3132, 2028], [-3132, 2070]], [[-3132, 2080], [-3132, 2130], [-3090, 2131]], [[-3080, 2131], [-3020, 2131], [-2985, 2131]]];
+const VERANDAH_LINES = ['Move along. The king\'s peace.', 'Keep to the street, friend.', 'Nobody rides fast in the town. Nobody.', 'Mind the carts on the high street.'];
+
 /** Each town's watch: its colours, and what they say to you in passing. */
 const WATCH: Record<string, { tunic: string; trim: string; lines: string[] }> = {
   ansbury: { tunic: '#2a4a8a', trim: '#e0bd64', lines: ['Keep your blade in its sheath inside the walls.', 'Charter Hall\'s straight up the avenue. You can\'t miss it; people try.', 'Move along, friend. Nothing to see but me.'] },
@@ -223,6 +234,19 @@ export class Roadfolk {
       const len = beatOf(road, 1, 0, 0, true, 0).len, r = seeded(hashStr('pd.' + pd.id));
       const period = 2 * (len / pd.speed + pd.rest);
       this.add({ id: 'pd.' + pd.id, kind: 'pedlar', look: this.lookFor(r, pd.look), held: 'none', lines: pd.hello, night: false, pedlar: pd, beat: beatOf(road, pd.speed, pd.rest, r() * period, false, 0.9) });
+    }
+    // Verandah's conscripts
+    {
+      const look = (r: () => number): Appearance => ({ ...GUARD_LOOK, skin: SKINS[Math.floor(r() * SKINS.length)], hair: HAIRS[Math.floor(r() * HAIRS.length)] });
+      for (let k = 0; k < 2; k++) {
+        const id = `m.verandah.${k}`, r = seeded(hashStr(id)), speed = 2.2, rest = 12;
+        this.add({ id, kind: 'guard', town: 'verandah', look: look(r), held: 'sword', lines: VERANDAH_LINES, night: true, beat: beatOf(VERANDAH_ROUTE, speed, rest, k * 5 / speed, false, -1.6), horse: { coat: '#141012', mane: '#0a0808', cloth: '#22365a' } });
+      }
+      VERANDAH_STRETCHES.forEach((line, k) => {
+        const id = `w.verandah.${k}`, r = seeded(hashStr(id));
+        const l = beatOf(line, 1, 0, 0, false, 0).len, speed = 1.15 + r() * 0.2, rest = 6 + r() * 6;
+        this.add({ id, kind: 'guard', town: 'verandah', look: look(r), held: 'sword', lines: VERANDAH_LINES, night: true, beat: beatOf(line, speed, rest, r() * 2 * (l / speed + rest), false, k % 2 ? 1.2 : -1.2) });
+      });
     }
     // The watch
     for (const t of towns) {
@@ -326,10 +350,12 @@ export class Roadfolk {
   /** Standing height: on the road, through any leaves overhead, up onto a bridge over water. */
   private ground(x: number, z: number): number {
     const ix = Math.floor(x), iz = Math.floor(z), vale = ix < GW && iz < GW && ix >= 0 && iz >= 0;
-    let y = this.voxels.groundBelow(x, vale ? 40 : heightAt(ix, iz) + 3, z);
+    // (Verandah's ground is the owner's own blocks, not the generated land: looked for from above)
+    const island = ix < -2000 && iz > 1700;
+    let y = this.voxels.groundBelow(x, vale ? 40 : island ? 70 : heightAt(ix, iz) + 3, z);
     // (through leaves overhead, and never up onto the barrier round a signpost or a lamp)
     while (y > 1 && [B.OakLeaves, B.BirchLeaves, B.PineLeaves, B.Barrier].includes(this.voxels.get(ix, y - 1, iz) as never)) y = this.voxels.groundBelow(x, y - 2, z);
-    if (!vale && (y <= SEA || this.voxels.get(ix, y - 1, iz) === B.Water)) y = this.voxels.groundBelow(x, heightAt(ix, iz) + 8, z);
+    if (!vale && !island && (y <= SEA || this.voxels.get(ix, y - 1, iz) === B.Water)) y = this.voxels.groundBelow(x, heightAt(ix, iz) + 8, z);
     return y;
   }
 

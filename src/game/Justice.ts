@@ -118,7 +118,7 @@ const pick = <T>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
 type Arrest = { j: Jurisdiction; guard: string; mode: 'take' | 'blades'; panel: boolean; t: number; lost: number; foe?: { alive: boolean; pos: THREE.Vector3 } | null };
 /** In the wagon: along the roads in the cage (cart), or, where no road reaches, a short way off before the dark (wagon, driver). */
 type Ride = { gaol: GaolDef; t: number; wagon: CreatureModel | null; driver: Humanoid | null; cart: PostRide | null; arrived: number; yaw: number; from: THREE.Vector3; secs: number; town: string; bounty: number; rock: boolean };
-interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean; /** Working it off on the Verandah quarry gang. */ gang?: boolean }
+interface Jail { gaol: string; until: number; town: string; bounty: number; escaped?: boolean; /** Working it off on the Verandah quarry gang, and since when (the journey there isn't walking off). */ gang?: boolean; since?: number }
 
 export class Justice {
   private arrest: Arrest | null = null;
@@ -400,6 +400,17 @@ export class Justice {
     this.arrest = null;
     if (!gaol) { this.setBounty(j.id, 0); return; }
     this.host.dismount();
+    // Verandah's conscripts don't keep cells: down the quarry with a pick, and every block broken takes a little off
+    if (j.id === 'verandah') {
+      const secs = Math.round(sentence(bounty) * longer);
+      this.setBounty(j.id, 0);
+      this.host.setFlag('arrests:' + j.id, Number(this.host.flag('arrests:' + j.id) ?? 0) + 1);
+      this.host.setFlag('jail', { gaol: gaol.id, until: Date.now() + secs * 1000, town: j.id, bounty, gang: true, since: Date.now() } satisfies Jail);
+      this.host.banner('The king\'s quarry', `${Math.ceil(secs / 60)} minute${secs > 60 ? 's' : ''} on the gang`);
+      this.host.system('The conscripts march you up the hill road to the quarry and put a pick in your hands. Every block you break takes a little off your time.');
+      this.host.travel(QG.arrive[0], QG.arriveY + 0.2, QG.arrive[1], 'Up to the king\'s quarry');
+      return;
+    }
     const P = this.host.player.position, yaw = this.host.player.yaw;
     const secs = Math.round(sentence(bounty) * longer), rock = bounty >= ROCK_PRICE;
     // The wagon takes you there along the roads: down the lane to the nearest, then the Charter's
@@ -564,7 +575,11 @@ export class Justice {
         }
       }
       const out = P.x < QG.x0 || P.x > QG.x1 || P.z < QG.z0 || P.z > QG.z1 || P.y > QG.top;
-      if (out && !this.picking) { this.host.player.teleport(QG.arrive[0], QG.arriveY + 0.2, QG.arrive[1]); this.host.system('"Back down the pit, you." A minute more on your time.'); this.host.setFlag('jail', { ...j, until: j.until + 60000 }); }
+      if (out && !this.picking) {
+        this.host.player.teleport(QG.arrive[0], QG.arriveY + 0.2, QG.arrive[1]);
+        // (still on the way there in the first minute: no minute on for that)
+        if (Date.now() - (j.since ?? 0) > 60000) { this.host.system('"Back down the pit, you." A minute more on your time.'); this.host.setFlag('jail', { ...j, until: j.until + 60000 }); }
+      }
       if (Date.now() >= j.until) {
         this.host.setFlag('jail', null);
         this.host.setPose(null);
@@ -631,7 +646,7 @@ export class Justice {
         // (the Charter's gaols in the Counties send prisoners out to the Verandah quarry gang, for those who'd rather work it off)
         if (g.id === 'gaol-ansbury') out.push({ label: 'Ask to go on the quarry gang', pos: cell.clone().add(new THREE.Vector3(0.6, 0.4, 0.8)), use: () => {
           this.resting = false; this.oakum = 0;
-          this.host.setFlag('jail', { ...j, gang: true });
+          this.host.setFlag('jail', { ...j, gang: true, since: Date.now() });
           this.host.system('The gaoler writes you down for the gang. A cart, a boat, and by noon you’re in the Verandah quarry with a pick in your hands. Every block you break takes a little off your time; the pick will teach your arms something too.');
           this.host.travel(QG.arrive[0], QG.arriveY + 0.2, QG.arrive[1], 'Out to the quarry gang');
         } });
@@ -676,7 +691,7 @@ export class Justice {
     if (this.ride) text = 'In the watch\'s wagon';
     else if (this.rock.busy) text = j && Rock.is(j) && j.out ? 'Off the Rock: paddle' : 'In irons';
     else if (j && !j.escaped && Rock.is(j)) { const left = Math.max(0, Math.ceil((j.until - Date.now()) / 1000)); text = j.out ? 'Off the Rock: keep going' : `Skua Rock: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }
-    else if (j && !j.escaped) { const left = Math.max(0, Math.ceil((j.until - Date.now()) / 1000)); text = `In the cells: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }
+    else if (j && !j.escaped) { const left = Math.max(0, Math.ceil((j.until - Date.now()) / 1000)); text = `${j.gang ? 'On the quarry gang' : 'In the cells'}: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }
     else if (here && this.bounty(here.id) > 0) text = `Wanted in ${here.name}: ${this.bounty(here.id)} marks`;
     if (!text) { this.badge?.remove(); this.badge = null; return; }
     if (!this.badge) { this.badge = document.createElement('div'); this.badge.id = 'bountybadge'; document.body.appendChild(this.badge); }

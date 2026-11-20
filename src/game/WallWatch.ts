@@ -6,7 +6,7 @@ import type { VoxelWorld } from '../world/VoxelWorld';
 // The watch on Verandah's walls (owner 2026-11-06: "have guards patrolling the Verandah city walls"): two of the
 // King's Guard walking the wall-walk of the owner's walls, along the north wall from its west end to the corner
 // tower and down the east wall to where it turns, and back, one well behind the other. Kept by the real clock,
-// as the riders are (game/VerandahPatrols.ts), so everyone sees them in the same place; drawn while you're near.
+// as Verandah's mounted conscripts are (game/Roadfolk.ts), so everyone sees them in the same place; drawn while you're near.
 
 /** The wall-walk (game x, the walk's floor, z): the north wall at 40, the east wall at 41. */
 const ROUTE: [number, number, number][] = [[-3026.5, 40, 1963.5], [-2857.5, 40, 1963.5], [-2856.5, 41, 1965.5], [-2856.5, 41, 2106.5]];

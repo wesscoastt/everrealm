@@ -216,7 +216,6 @@ import { COLOURS, flowerId, SPECIES } from '../data/farmingFour';
 import { heartWord } from '../data/farmingThree';
 import { BETTER } from '../data/quality';
 import { judge, PLACE_PAY, placeOf, SHOW_CLASSES, showEntries, showSeason, type ShowClass } from '../data/farmingFive';
-import { VerandahPatrols } from './VerandahPatrols';
 import { WallWatch } from './WallWatch';
 import { serverUrl } from '../net/Online';
 import { climbers, restoreGuest, releaseCharacter, currentAccount, deleteRemote, isDevAccount, loadClimbers, loadTravellers, recoverAccount, remoteCharacters, signIn, signOut, uploadSave , storeOwned } from '../net/Account';
@@ -556,8 +555,6 @@ export class Game implements GameApi {
   dragonPass!: DragonPass;
   /** Your farming patches (data/farming.ts). */
   private farming!: Farming;
-  /** Verandah's mounted guard on their round (game/VerandahPatrols.ts). */
-  private verandahPatrols!: VerandahPatrols;
   /** The guard on Verandah's walls (game/WallWatch.ts). */
   private wallWatch!: WallWatch;
   /** The garden round your own house (game/HomeFarm.ts). */
@@ -1551,7 +1548,6 @@ export class Game implements GameApi {
     }
     this.stables = new Stables(this.scene, this.world.voxels);
     this.postStations = new PostStations(this.scene, this.world.voxels);
-    this.verandahPatrols = new VerandahPatrols(this.scene, this.world.voxels);
     this.wallWatch = new WallWatch(this.scene, this.world.voxels);
     // Dogs and cats about the towns: by every Charter Post sign and in Hollin Ford, coats from a few kinds
     {
@@ -9133,7 +9129,6 @@ export class Game implements GameApi {
     this.sendGuildParts(dt);
     this.stables.update(dt, P);
     this.postStations.update(dt, P);
-    this.verandahPatrols.update(dt, P);
     this.wallWatch.update(dt, P);
     this.crowd.update(dt, P, this.camera.position, this.world.sky.hour, !!this.dialogue || this.dead);
     this.races.update(dt);
@@ -10592,7 +10587,7 @@ export class Game implements GameApi {
       if (s) plates.push({ key: 'n' + n.id, x: s.x, y: s.y, name: this.save.settings.npcNames === false ? '' : n.def.name, sub: d < 12 && this.save.settings.npcNames !== false ? n.def.title : undefined, kind: 'npc', mark });
     }
     // Verandah's mounted conscripts and the watch on its walls
-    for (const g of [...this.verandahPatrols.plates(), ...this.wallWatch.plates()]) {
+    for (const g of this.wallWatch.plates()) {
       const d = Math.hypot(g.x - P.x, g.y - P.y, g.z - P.z);
       if (d > 28) continue;
       const s = project(g.x, g.y, g.z);
