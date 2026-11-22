@@ -10188,7 +10188,12 @@ export class Game implements GameApi {
   private serviceSeen = -1;
   private serviceMarkers(): MapMarker[] {
     if (this.serviceList && this.serviceSeen === this.save.discovered.length) return this.serviceList;
-    const found = (x: number, z: number) => places().some((p) => p.kind === 'place' && this.save.discovered.includes(p.id) && Math.hypot(p.x - x, p.z - z) < p.r + 30);
+    // (found: near a place you've found; or, for one in no named place at all, like Verandah's taverns, once you've been in its region)
+    const near = (p: { x: number; z: number; r: number }, x: number, z: number) => Math.hypot(p.x - x, p.z - z) < p.r + 30;
+    const found = (x: number, z: number) => {
+      const named = places().filter((p) => p.kind === 'place' && near(p, x, z));
+      return named.length ? named.some((p) => this.save.discovered.includes(p.id)) : this.save.discovered.includes('region:' + regionAt(x, z).a);
+    };
     const out: MapMarker[] = [];
     for (const t of WORLD_THINGS) if (t.id.startsWith('bank:') && found(t.x, t.z)) out.push({ x: t.x, z: t.z, kind: 'service', svc: 'bank', label: 'Bank' });
     const shops: { x: number; z: number; n: string[] }[] = [];
