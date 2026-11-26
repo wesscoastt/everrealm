@@ -65,6 +65,7 @@ class Mock implements GameApi {
   take(i: string, n = 1) { this.item(i); if ((this.s.inv[i] ?? 0) < n) return false; this.s.inv[i] -= n; if (!this.s.inv[i]) delete this.s.inv[i]; return true; }
   get marks() { return this.s.marks; }
   addMarks(n: number) { this.s.marks += n; }
+  crimeHere(_worth: number) { /* the law: nothing to walk */ }
   level() { return 99; }
   hasTool(skill: string) { return Object.keys(this.s.inv).some((i) => ITEMS[i]?.tool?.skill === skill); }
   toast(t: string) { texts.set(`${this.where} (toast)`, t); }

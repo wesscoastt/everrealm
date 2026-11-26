@@ -1124,7 +1124,7 @@ export class Game implements GameApi {
       scene: this.scene, roadfolk: this.roadfolk, player: this.player,
       pose: (st, secs) => { if (st) this.doAnim = { st, left: secs }; },
       rideStolen: (m, look) => this.rideStolen(m, look),
-      crime: (guard, at, town) => { this.justice.crime(guard ? 'guard' : 'theft', at, undefined, undefined, HORSE_PRICE, town ?? Justice.nearestTown(at.x, at.z)); },
+      crime: (guard, at, town) => { this.setFlag('horsesStolen', Number(this.flag('horsesStolen') ?? 0) + 1); this.justice.crime(guard ? 'guard' : 'theft', at, undefined, undefined, HORSE_PRICE, town ?? Justice.nearestTown(at.x, at.z)); },
       ground: (x, z, y) => this.world.voxels.groundBelow(x, y, z),
       say: (pos, h, text) => this.floatAt(pos, h, text, 'chatter'),
       sfx: (n, v) => this.sfx(n as never, v), system: (t) => this.hud.system(t),
@@ -2304,6 +2304,11 @@ export class Game implements GameApi {
   restyleHair(i: number): void {
     this.save.look.hairStyle = i;
     this.dress(); this.persist(); this.sfx('cloth');
+  }
+  /** A crime done here, worth this much to the nearest town's book (data/content/outlawFortnight.ts). */
+  crimeHere(worth: number): void {
+    const P = this.player.position;
+    this.justice.crime('theft', P, undefined, undefined, worth, Justice.nearestTown(P.x, P.z));
   }
   wearHat(id: string): void {
     this.save.look.hat = id as Appearance['hat'];

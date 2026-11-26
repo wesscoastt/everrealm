@@ -8,6 +8,8 @@ export const UPDATES: Update[] = [
   {
     v: 17, date: '20 November', title: 'Kestle',
     items: [
+      ['The Outlaw Fortnight.', 'Until the 8th of December, Ruby Garret and Hob Calloway, lovers and highway robbers, are holding up the Charter\'s coaches by the Waystation, and the Waystation Crier can\'t print cartoons of them fast enough. Read it on the board by the Waystation\'s Charter Post. Ride with them or hunt them: rob the pay coach and lose the watch, or clear out their gang, and the end comes down to which of them you trust. Their coats and horses are yours at the end.'],
+      ['Chess.', 'The careful players at the tavern chess tables are careful, but human now: a few real mistakes a game, never many. The long, deep players still play their best.'],
       ['Horse thieves.', 'Riders go by on the roads now, the bigger towns have one of the watch on horseback, and Verandah has a watch of its own, the king\'s conscripts, two of them mounted (anyone they take in goes up to the quarry gang). Walk up beside one and pull them out of the saddle. The town wants you for it, and the watch comes after you, the mounted one at a gallop. Lose them, then change your clothes, your hat or your hair (Outfits, in your pack, has hair now too), and they\'ll walk straight past you.'],
       ['The Lending Chest.', 'Branchley lends from a chest at the foot of its post: take what you need and bring it back. Things have stopped coming back, and Mags Briar wants to know why.'],
       ['Ring for the Wall.', 'Somebody cut the strap on Northgate\'s wall bell in the night, and when the wind comes off the Held it will ring. Sergeant Mercy Thwaite is holding it quiet with one hand.'],

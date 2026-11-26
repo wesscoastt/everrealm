@@ -170,6 +170,21 @@ Object.assign(COSTUMES, {
   },
 });
 
+// The Outlaw Fortnight (data/outlaws.ts): Hob Calloway's highwayman's coat and Ruby Garret's scarlet, the way the
+// broadsheets draw them, from the end of their story (data/content/outlawFortnight.ts)
+Object.assign(COSTUMES, {
+  highwayman: {
+    id: 'highwayman', name: 'Highwayman',
+    look: { top: 7, tunic: '#1a1a1e', trim: '#c8a040', shirt: '#e8e0d0', trousers: '#2a2622', hose: '#1a1816', legs: 0, boots: '#141210', shoes: 1,
+      cape: '#141016', capeDesign: null, hat: 'tricorn', hatColor: '#141210', gloves: '#2a1e16', belt: '#3a2a1e' },
+  },
+  scarlet: {
+    id: 'scarlet', name: 'The Scarlet Coat',
+    look: { top: 7, tunic: '#9a1a1e', trim: '#e8c060', shirt: '#f0e8d8', trousers: '#1e1a1c', hose: '#1a1618', legs: 0, boots: '#1a1416', shoes: 1,
+      cape: '#6a0e14', capeDesign: null, hat: 'feathered', hatColor: '#1a1416', gloves: '#1a1416', belt: '#c8a040' },
+  },
+});
+
 export const WAKE_COSTUMES =['lanternman', 'scarecrow', 'skeleton', 'witch', 'ghost', 'crow'];
 
 /** The look as it's seen: the costume over it, if one is on, with the armour put away under it. */

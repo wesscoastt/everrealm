@@ -93,6 +93,8 @@ export interface GameApi {
   /** A part of their story is done (2 or 3): a banner and a little more trust. */
   compStory(id: string, part: number): void;
   addMarks(n: number): void;
+  /** A crime done here, worth this much to the nearest town's book (the Outlaw Fortnight's hold-up: game/Justice.ts). */
+  crimeHere(worth: number): void;
   /** Experience in a skill (farming orders, and the like). */
   addXp(skill: import('../data/items').SkillId, n: number): void;
   level(skill: SkillId): number;
