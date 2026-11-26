@@ -70,6 +70,7 @@ export const HELP: [string, [string, string][]][] = [
   ]],
   ['Delves and dungeons', [
     ['How do I see every land at once?', 'Open the map (M) and press World at the top right: the Counties, Verandah and Morrow, with the ships between them. Here takes you back to the land you are in.'],
+    ['How do I get to Inkholm?', 'Talk to Doctor Lettice Hale of the Collegium by Gullmouth\'s Charter Post: she gets Reuben Hoskin the ferryman to take you over. Its people have more for you once you are across, and more again once the Grey is broken.'],
     ['What does Cleared mean on the map?', 'You beat that delve’s or public dungeon’s boss. The first time gives a banner and experience, and the place gets a green tick on the map from then on.'],
   ]],
   ['Enchanting', [
