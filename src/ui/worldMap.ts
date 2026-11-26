@@ -1,7 +1,7 @@
 import { landAt, LAND_NAMES, type LandId } from '../world/land';
 import { PACKET_COURSE } from '../data/travel';
 import { CALLIS_PACKET, MORROW_OX } from '../world/morrow';
-import { WMAX } from '../world/VoxelWorld';
+import { WMAX, WMIN, WSIZE } from '../world/VoxelWorld';
 
 // The world map's World view: the whole known world on one sea, as WoW's map shows both its
 // continents. Each land's chart is painted from its terrain at build time (npm run charts:
@@ -27,14 +27,16 @@ function chartOf(land: LandId, redraw: () => void): LandChart {
 
 /**
  * How each land's chart is cut and placed: the share of its square kept (left to right), and where it
- * goes in the world. Only open sea is cut: the Teeth, off the west end of the Keys, come within 2.4% of
- * Morrow's west edge, and the Counties' last land (the Sickle) within 1.5% of their cut.
+ * goes in the world. Only open sea is cut. The charts are painted from the world's west edge (WMIN), so the
+ * Counties' takes in Verandah in the far west (owner 2026-11-26: "when clicking world you can't see Verandah");
+ * their last land east is the Sickle, inside the cut at 0.93. Morrow's chart starts in the Counties' eastern
+ * isles, so it's cut at 0.12, short of the Keys' west end, and the isles aren't shown twice.
  */
 const CUT: Record<LandId, { u0: number; u1: number; at: number }> = {
-  counties: { u0: 0, u1: 0.88, at: 0 },
-  morrow: { u0: 0.01, u1: 1, at: 0.88 },
+  counties: { u0: 0, u1: 0.93, at: 0 },
+  morrow: { u0: 0.12, u1: 1, at: 0.93 },
 };
-const WIDTH = 0.88 + 0.99;
+const WIDTH = 0.93 + 0.88;
 
 /** The sea lanes' ends (world coordinates). */
 const GULL: [number, number] = [1784, 600];
@@ -55,7 +57,7 @@ export function drawWorldMap(c: HTMLCanvasElement, dpr: number, me: { x: number;
   /** A point in a land's own coordinates, on the World view. */
   const at = (land: LandId, wx: number, wz: number): [number, number] => {
     const m = charts[land]?.meta, cut = CUT[land];
-    const wmin = m?.wmin ?? -2304, wsize = m?.wsize ?? 6400;
+    const wmin = m?.wmin ?? WMIN, wsize = m?.wsize ?? WSIZE;
     const u = (wx - wmin) / wsize, v = (wz - wmin) / wsize;
     return [ox + (cut.at + (u - cut.u0)) * S, oy + v * S];
   };
@@ -111,6 +113,15 @@ export function drawWorldMap(c: HTMLCanvasElement, dpr: number, me: { x: number;
     x.letterSpacing = px(6) + 'px';
     label(name, c0[0], c0[1], `700 ${px(Math.max(16, S / 26))}px "Alegreya Sans SC", "Alegreya", serif`, 'rgb(58, 36, 14)', 'rgba(250, 242, 220, 0.7)', 5);
     x.letterSpacing = '0px';
+    // (Verandah, the island kingdom out west, named on its own)
+    if (land === 'counties') {
+      const v = at('counties', -2990, 1880);
+      x.letterSpacing = px(4) + 'px';
+      label('VERANDAH', v[0], v[1], `700 ${px(Math.max(12, S / 40))}px "Alegreya Sans SC", "Alegreya", serif`, 'rgb(58, 36, 14)', 'rgba(250, 242, 220, 0.7)', 4);
+      x.letterSpacing = '0px';
+      const vt = at('counties', -3040, 2130);
+      hits.push({ x: vt[0], y: vt[1], name: 'Verandah', sub: 'The island kingdom: the packet from Gullmouth' });
+    }
     for (const t of m?.towns ?? []) {
       const [tx, ty] = at(land, t.x, t.z);
       x.fillStyle = '#3a2408'; x.strokeStyle = 'rgba(250, 242, 220, 0.9)'; x.lineWidth = px(2);

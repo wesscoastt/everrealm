@@ -69,6 +69,7 @@ export const HELP: [string, [string, string][]][] = [
     ['What happens if I’m seen?', 'You get a bounty in that town. It fades over time, but a big one brings the guards. When they catch you, pay it, go quietly to the gaol, or run (which adds to it). Stolen goods are taken. A fixer will clear every town’s book for a price: Nell Kitto in the Ropewalk Cellar, or Gil.'],
   ]],
   ['Delves and dungeons', [
+    ['How do I see every land at once?', 'Open the map (M) and press World at the top right: the Counties, Verandah and Morrow, with the ships between them. Here takes you back to the land you are in.'],
     ['What does Cleared mean on the map?', 'You beat that delve’s or public dungeon’s boss. The first time gives a banner and experience, and the place gets a green tick on the map from then on.'],
   ]],
   ['Enchanting', [
