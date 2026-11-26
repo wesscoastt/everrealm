@@ -85,6 +85,10 @@ export interface GameApi {
   petInfo(): { id: string; kind: string; breed: string; name: string; named: boolean; bond: number; tier: string; fed: number; washed: number; played: number; spirits: number; mood: string; collarOpen: boolean; collar?: string; neck?: string; head?: string; back?: string; wardrobe: Record<'neck' | 'head' | 'back', { id: string; name: string; owned: boolean; dyed: boolean; how: string }[]> } | null;
   /** Look after it: feed, brush, play, or a fuss (stroke it). */
   petCare(k: 'fed' | 'washed' | 'played' | 'fuss'): void;
+  /** Your horse where she stands (data/horseCare.ts, data/content/horseCare.ts), and seeing to her. */
+  horseInfo?(): { name: string; named: boolean; level: number; levelName: string; next: number | null; health: number; stamina: number; dirt: number; healthWord: string; staminaWord: string; coat: string; feeds: { id: string; label: string }[] } | null;
+  horseTend?(how: 'pat' | 'brush' | 'feed', feed?: string): void;
+  horseRename?(): void;
   /** Give it a name (asks for one). */
   petRename(): void;
   /** Dress it: a collar's colour, or a piece in a slot and its colour (null takes it off). */

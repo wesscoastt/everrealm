@@ -4,6 +4,7 @@ import type { NpcDef } from '../npcs';
 import type { ShopDef } from '../shops';
 import { stableAt, STABLES, type StableDef } from '../stables';
 import type { RegionContent } from './types';
+import { HORSE_CARE_ITEMS } from '../horseCare';
 
 // THE STABLES: a stablemaster at each stable outside the towns (data/stables.ts says where), the
 // horses they sell, and what they have to say about them. The heartland towns sell working horses
@@ -17,6 +18,8 @@ const halter = (id: string, name: string, rarity: ItemDef['rarity'], coat: strin
 });
 
 const ITEMS: ItemDef[] = [
+  // the stable's feed and the tonic (data/horseCare.ts)
+  ...HORSE_CARE_ITEMS,
   // Verandah's pure-breds (data/stables.ts st-verandah)
   halter('halter_ver_black', 'Verandah black', 'epic', '#141012', '#0a0808', '#2f528f', 'Black to the hoof, with one white star on the brow. Verandah breeders keep the bloodline to a book older than the walls, and they read it to you before they sell.'),
   halter('halter_ver_gold', 'Verandah palomino', 'epic', '#d8a850', '#f4ecd0', '#7a2a24', 'Gold with a white mane, the colour of the harbour at evening. They say the first one came off a ship and would not go back aboard.'),
@@ -129,9 +132,9 @@ const SHOPS: Record<string, ShopDef> = Object.fromEntries(STABLES.map((st): [str
   const id = keeperId(st);
   return [id, {
     id, name: st.name, owner: id,
-    stock: st.stock.map((s) => ({ item: s.item, price: s.price, when: (g: GameApi) => !g.has(s.item) })),
+    stock: [...st.stock.map((s) => ({ item: s.item, price: s.price, when: (g: GameApi) => !g.has(s.item) })), { item: 'horse_hay', price: 3 }, { item: 'horse_oats', price: 8 }, { item: 'horse_tonic', price: 30 }],
     buyRate: () => 0.3,
-    footer: () => 'A horse is yours for good once bought. Every one keeps the same pace.',
+    footer: () => 'A horse is yours for good once bought. Feed her, brush her and ride her, and she\'ll come to know you.',
   }];
 }));
 
