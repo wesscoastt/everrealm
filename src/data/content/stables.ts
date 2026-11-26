@@ -132,7 +132,7 @@ const SHOPS: Record<string, ShopDef> = Object.fromEntries(STABLES.map((st): [str
   const id = keeperId(st);
   return [id, {
     id, name: st.name, owner: id,
-    stock: [...st.stock.map((s) => ({ item: s.item, price: s.price, when: (g: GameApi) => !g.has(s.item) })), { item: 'horse_hay', price: 3 }, { item: 'horse_oats', price: 8 }, { item: 'horse_tonic', price: 30 }],
+    stock: [...st.stock.map((s) => ({ item: s.item, price: s.price, when: (g: GameApi) => !g.has(s.item) })), { item: 'horse_hay', price: 3 }, { item: 'horse_oats', price: 8 }, { item: 'horse_tonic', price: 30 }, { item: 'saddle_drover', price: 180, when: (g: GameApi) => !g.has('saddle_drover') }, { item: 'saddle_racing', price: 260, when: (g: GameApi) => !g.has('saddle_racing') }, { item: 'saddle_war', price: 320, when: (g: GameApi) => !g.has('saddle_war') }],
     buyRate: () => 0.3,
     footer: () => 'A horse is yours for good once bought. Feed her, brush her and ride her, and she\'ll come to know you.',
   }];

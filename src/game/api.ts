@@ -86,8 +86,8 @@ export interface GameApi {
   /** Look after it: feed, brush, play, or a fuss (stroke it). */
   petCare(k: 'fed' | 'washed' | 'played' | 'fuss'): void;
   /** Your horse where she stands (data/horseCare.ts, data/content/horseCare.ts), and seeing to her. */
-  horseInfo?(): { name: string; named: boolean; level: number; levelName: string; next: number | null; health: number; stamina: number; dirt: number; healthWord: string; staminaWord: string; coat: string; feeds: { id: string; label: string }[] } | null;
-  horseTend?(how: 'pat' | 'brush' | 'feed', feed?: string): void;
+  horseInfo?(): { name: string; named: boolean; level: number; levelName: string; next: number | null; health: number; stamina: number; dirt: number; healthWord: string; staminaWord: string; coat: string; feeds: { id: string; label: string }[]; down: boolean; kind: string; traits: string; saddle: string; saddles: number; bags: number } | null;
+  horseTend?(how: 'pat' | 'brush' | 'feed' | 'bags' | 'saddle', feed?: string): void;
   horseRename?(): void;
   /** Give it a name (asks for one). */
   petRename(): void;

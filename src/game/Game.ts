@@ -75,7 +75,7 @@ import { Roadfolk } from './Roadfolk';
 import { PrisonCart } from './PrisonCart';
 import { Justice } from './Justice';
 import { HorseTheft, HORSE_PRICE } from './HorseTheft';
-import { BOND_LEVELS, DAILY_BOND, FEEDS, bondLevel, coatWord, coreWord, horseFx, newHorse, settle as settleHorse, type HorseState } from '../data/horseCare';
+import { BOND_LEVELS, DAILY_BOND, DOWN_MS, FEEDS, SADDLES, bagsOf, bondLevel, coatWord, coreWord, horseFx, hurtShare, muddy, newHorse, settle as settleHorse, traitsOf, type HorseState } from '../data/horseCare';
 import { Voyage, type Harbour } from './Voyage';
 import { ISLAND_COURSES } from '../data/islandCourses';
 import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
@@ -4406,6 +4406,57 @@ export class Game implements GameApi {
     if (now > was) { const l = BOND_LEVELS[now - 1]; this.hud.banner(`Bond ${now}: ${l.name}`, `${st.name ?? ITEMS[id]?.name ?? 'Your horse'}. ${l.gives}`, true); this.sfx('levelUp'); }
     return give;
   }
+  /** Her breed's traits (data/horseCare.ts). */
+  private traits(id: string) { return traitsOf(id, ITEMS[id]?.rarity, ITEMS[id]?.mount?.breed); }
+  /** A horse of yours drawn as she is: her coat as muddy as the road has left it. */
+  private steedModel(id: string): CreatureModel {
+    const look = mountOf(this.mountKeyOf(id)) ?? ITEMS[id].mount!;
+    return mountModel(this.isSteed(id) ? { ...look, coat: muddy(look.coat, this.horseState(id).dirt) } : look);
+  }
+  /** A blow you took in the saddle: some of it falls on her. Too much, and she goes down under you. */
+  private horseHurt(taken: number): void {
+    const mid = this.flag('mount') as string;
+    if (!this.horse || this.stolen || !mid || !this.isSteed(mid) || taken <= 0) return;
+    const st = this.horseState(mid);
+    st.health = Math.max(0, st.health - (taken / Math.max(1, this.maxHp)) * 100 * hurtShare(st, this.traits(mid)));
+    if (st.health <= 0) {
+      st.downAt = Date.now();
+      this.saveHorse(mid, st);
+      const h = this.horse;
+      this.dismount(true);
+      h.setAnim('sit');
+      this.hud.banner(`${st.name ?? 'Your horse'} is down`, 'A tonic gets her up, or rest', true);
+      this.hud.system(`${st.name ?? 'Your horse'} goes down under you and throws you clear. She's hurt: give her a horse tonic from any stable, or let her rest (${Math.round(DOWN_MS / 60000)} minutes) and she'll get up on her own.`);
+      this.sfx('neigh', 0.8);
+      return;
+    }
+    if (st.health < 25 && Math.random() < 0.3) this.hud.system(`${st.name ?? 'Your horse'} is hurt and stumbling. Get her out of this.`);
+    this.saveHorse(mid, st);
+  }
+  /** Her saddlebags, where she stands: goods kept in them stay with her. */
+  private openSaddlebags(): void {
+    const pk = this.parked;
+    if (!pk || !this.isSteed(pk.id)) return;
+    const st = this.horseState(pk.id), at = pk.model.root.position, key = `bags:${pk.id}`;
+    this.hud.closeAll();
+    void this.bank.show(`${st.name ?? ITEMS[pk.id]?.name ?? 'Your horse'}: the saddlebags`, at.x, at.z, {
+      title: `${st.name ?? ITEMS[pk.id]?.name ?? 'Your horse'}: the saddlebags`, kinds: bagsOf(st, this.traits(pk.id)), note: 'What you put in her saddlebags stays with her, wherever she goes.',
+      load: () => ({ ...((this.flag(key) as Record<string, number> | undefined) ?? {}) }),
+      save: (items) => this.setFlag(key, items),
+    });
+  }
+  /** Put the next saddle you own on her (and after the last, the plain one she came with). */
+  private changeSaddle(): void {
+    const pk = this.parked;
+    if (!pk || !this.isSteed(pk.id)) return;
+    const st = this.horseState(pk.id), own = Object.keys(SADDLES).filter((k) => this.inv.count(k) > 0);
+    const order = [undefined, ...own], i = order.indexOf(st.saddle);
+    st.saddle = order[(i + 1) % order.length];
+    this.saveHorse(pk.id, st);
+    this.hfxT = 0;
+    this.sfx('equip');
+    this.hud.system(st.saddle ? `You put the ${SADDLES[st.saddle].name.toLowerCase()} on ${st.name ?? 'her'}. ${SADDLES[st.saddle].desc}` : `You put ${st.name ?? 'her'} back in the plain saddle she came with.`);
+  }
   /** Is this halter a horse (not a wagon)? */
   private isSteed(id: string): boolean { return !!ITEMS[id]?.mount && !ITEMS[id]!.mount!.wagon; }
   /** Pat, brush or feed your horse where she stands. */
@@ -4427,10 +4478,16 @@ export class Game implements GameApi {
       line = `You brush ${st.name ?? 'her'} down, neck to tail, and the road comes out of her coat in clouds. She shuts her eyes.${g ? '' : ' (The bond grows again tomorrow.)'}`;
       this.doAnim = { st: 'petting', left: 2.6 };
       this.particles.dust(pk.model.root.position, 10);
+      // (she looks it: her coat drawn clean)
+      this.saveHorse(pk.id, st);
+      const fresh = this.steedModel(pk.id), old = pk.model;
+      fresh.root.position.copy(old.root.position); fresh.root.rotation.y = old.root.rotation.y;
+      this.scene.remove(old.root); this.scene.add(fresh.root); pk.model = fresh;
     } else if (feed) {
       const f = FEEDS[feed];
       if (!f || this.inv.count(feed) <= 0) return;
       this.inv.remove(feed, 1);
+      if (st.downAt && feed === 'horse_tonic') { st.downAt = undefined; pk.model.setAnim('idle'); }
       st.health = Math.min(100, st.health + f.health);
       st.stamina = Math.min(100, st.stamina + f.stamina);
       if (f.bond) this.horseBond(pk.id, st, f.bond);
@@ -4450,9 +4507,17 @@ export class Game implements GameApi {
       name: st.name ?? ITEMS[pk.id]?.name ?? 'Your horse', named: !!st.name, level: lvl, levelName: BOND_LEVELS[lvl - 1].name, next: nx ? Math.max(1, Math.round(nx.at - st.bond)) : null,
       health: st.health, stamina: st.stamina, dirt: st.dirt, healthWord: coreWord(st.health, 'health'), staminaWord: coreWord(st.stamina, 'stamina'), coat: coatWord(st.dirt),
       feeds: Object.keys(FEEDS).filter((k) => this.inv.count(k) > 0).map((k) => ({ id: k, label: `${ITEMS[k]?.name ?? k} (${this.inv.count(k)})` })),
+      down: !!st.downAt, kind: this.traits(pk.id).kind,
+      traits: (({ pace, wind, tough }) => `pace ${pace}, wind ${wind}, toughness ${tough} of 5`)(this.traits(pk.id)),
+      saddle: st.saddle ? SADDLES[st.saddle].name : 'the plain saddle', saddles: Object.keys(SADDLES).filter((k) => this.inv.count(k) > 0).length,
+      bags: bagsOf(st, this.traits(pk.id)),
     };
   }
-  horseTend(how: 'pat' | 'brush' | 'feed', feed?: string): void { this.tendHorse(how, feed); }
+  horseTend(how: 'pat' | 'brush' | 'feed' | 'bags' | 'saddle', feed?: string): void {
+    if (how === 'bags') { this.openSaddlebags(); return; }
+    if (how === 'saddle') { this.changeSaddle(); return; }
+    this.tendHorse(how, feed);
+  }
   horseRename(): void { this.nameHorse(); }
   /** Your horse, in the talk panel (data/content/horseCare.ts: the tree 'myhorse'). */
   private talkToHorse(): void {
@@ -4492,7 +4557,7 @@ export class Game implements GameApi {
       this.parked = null;
     } else {
       if (this.parked?.id === id) { this.scene.remove(this.parked.model.root); this.parked = null; }
-      model = mountModel(mountOf(this.mountKeyOf(id)) ?? ITEMS[id].mount!);
+      model = this.steedModel(id);
       // (from just out of sight behind you)
       const back = this.player.facing + Math.PI, r = 28;
       const x = P.x + Math.sin(back) * r, z = P.z + Math.cos(back) * r;
@@ -6781,7 +6846,7 @@ export class Game implements GameApi {
       const pk = this.parked, at = pk.model.root.position, d = Math.hypot(at.x - p.x, at.z - p.z);
       if (d < 3.6) {
         const st = this.horseState(pk.id), nm = st.name ?? 'your horse', top = new THREE.Vector3(at.x, at.y + 1.8, at.z);
-        consider({ kind: 'act', label: `See to ${nm}`, sub: `Bond ${bondLevel(st.bond)}, ${coreWord(st.health, 'health')}, ${coatWord(st.dirt)} · G to ride`, pos: top, act: () => this.talkToHorse() }, d - 0.3);
+        consider({ kind: 'act', label: `See to ${nm}`, sub: st.downAt ? 'Down and hurt: a tonic, or rest' : `Bond ${bondLevel(st.bond)}, ${coreWord(st.health, 'health')}, ${coatWord(st.dirt)} · G to ride`, pos: top, act: () => this.talkToHorse() }, d - 0.3);
       }
     }
     if (this.parked && !this.horse && !this.isSteed(this.parked.id)) {
@@ -7831,6 +7896,8 @@ export class Game implements GameApi {
     // Fighting means a hit given or taken lately, or something hostile after you: not a swing at the air
     if (this.inCombat()) { this.hud.system('Not while you\'re fighting.'); return; }
     if (!this.roomForHorse()) { this.hud.system('There\'s no room for a horse here.'); return; }
+    // Down and hurt: she won't carry you, and can't come to your whistle
+    if (this.isSteed(id) && this.horseState(id).downAt) { this.hud.system(`${this.horseName(id)} is down and hurt where you left her. Give her a horse tonic (any stable has them), or let her rest.`); return; }
     // A horse of yours not at your shoulder: you whistle, and she comes (wagons still come round at once)
     if (this.isSteed(id) && !(this.parked?.id === id && this.parked.model.root.position.distanceTo(P.position) < 9)) {
       if (this.coming?.id === id) { this.hud.system(`${this.horseName(id)} is on her way.`); return; }
@@ -8966,6 +9033,7 @@ export class Game implements GameApi {
     const fel = foeElement(from.def.type), ward = fel ? this.armour.wards[fel] ?? 0 : 0;
     if (ward > 0) taken = Math.max(1, Math.round(taken * (1 - ward)));
     this.hp -= taken;
+    this.horseHurt(taken);
     // Verdigris: below half, a shell of green copper closes over you (data/trophies.ts)
     if (this.trophy === 'verdigris' && this.hp > 0 && this.hp < this.maxHp / 2 && this.elapsed - (this.trophyAt.verdigris ?? -999) >= 20) {
       this.trophyAt.verdigris = this.elapsed;
@@ -9391,7 +9459,7 @@ export class Game implements GameApi {
     this.bank.update();
     if (this.parked && this.parked.model.root.position.distanceTo(this.player.position) < 90) {
       const pm = this.parked.model;
-      if (this.isSteed(this.parked.id) && Math.random() < dt / 6) pm.setAnim(pm.anim === 'graze' ? 'idle' : 'graze');
+      if (this.isSteed(this.parked.id) && Math.random() < dt / 6) pm.setAnim(this.horseState(this.parked.id).downAt ? 'sit' : pm.anim === 'graze' ? 'idle' : 'graze');
       pm.update(dt, 0);
     }
     this.updateComing(dt);
@@ -9795,7 +9863,7 @@ export class Game implements GameApi {
     else if (this.winded && this.energy >= 50) this.winded = false;
     // (horsemanship: a little more pace each rank, and the gallop tires you less)
     const rank = this.horse ? rideRank(Number(this.flag('rideDist') ?? 0)) : 1;
-    if (this.horse && (this.hfxT -= dt) <= 0) { this.hfxT = 1; const mid = this.flag('mount') as string; this.hfx = !this.stolen && mid && this.isSteed(mid) ? horseFx(this.horseState(mid)) : { speed: 1, drain: 1 }; }
+    if (this.horse && (this.hfxT -= dt) <= 0) { this.hfxT = 1; const mid = this.flag('mount') as string; this.hfx = !this.stolen && mid && this.isSteed(mid) ? horseFx(this.horseState(mid), this.traits(mid)) : { speed: 1, drain: 1 }; }
     const hf = this.horse ? this.hfx : { speed: 1, drain: 1 };
     const sure = (1 + (rank - 1) * RIDE_PACE) * hf.speed, wind = (1 - (rank - 1) * RIDE_WIND) * hf.drain;
     let speed = this.horse ? 9.6 * haul * sure : this.winded || this.guarding ? 3.6 : 5.4;
