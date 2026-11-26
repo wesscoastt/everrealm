@@ -179,6 +179,7 @@ export const HELP: [string, [string, string][]][] = [
   ]],
   ['Pets and looks', [
     ['How do I look after my pet?', 'Choose it under Pet. Walk up to it and press E to feed, brush, play with, name or dress it. Care for it and its bond grows, and with bond come collars and more.'],
+    ['Where do pets come from?', 'The adoption centres in Verandah, the Shambles in Ansbury and Gullmouth quay rehome strays, and some come from the store. A few you can only earn: a quest may end with an animal that wants to come home with you. Use it from your pack and it is yours for good.'],
     ['How do I dye my gear?', 'Each piece of armour takes a main colour and a trim, for 5 marks a change, at the wardrobe.'],
     ['How do I wear a costume?', 'From the wardrobe’s Outfits, or /costume name; /costume off takes it off. Festival stalls sell them.'],
   ]],

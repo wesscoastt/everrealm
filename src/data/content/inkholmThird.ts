@@ -96,7 +96,8 @@ const scoble: DialogueTree = {
     s0: { text: 'Hal Scoble, works store. Flour, oil, boots, caps, candles. On the tab, if you\'re company. Cash, if you\'re not.' },
     s1: { speaker: 'narrator', text: 'A neat man behind a neat counter, with a pen in two inkpots at his elbow. One is labelled. One isn\'t. He sees you look at them, and he smiles.', next: 's2' },
     s2: { text: 'Mary Opie\'s book. And a Charter page beside it, I suppose, out on the racks. Agnes has a big mouth for a woman who boils for a living.', next: 's3' },
-    s3: { text: 'Here\'s how it is. The company pays the pickers in tabs and takes the tabs back at the store, and there\'s nothing left over at the end of the month for anyone. Not for them. Not for me. Somebody has to come out ahead, or what\'s the store for?', next: 's4' },
+    s3: { text: 'Here\'s how it is. The company pays the pickers in tabs, and takes the tabs back at this counter.', next: 's3b' },
+    s3b: { text: 'At the end of the month there\'s nothing left over for anyone. Not for them. Not for me. Somebody has to come out ahead, or what\'s a store for?', next: 's4' },
     s4: {
       text: 'So. What now?',
       options: [
