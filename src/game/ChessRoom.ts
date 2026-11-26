@@ -21,7 +21,8 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const GLYPH: Record<string, string> = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
 
 /** How a regular plays: how far ahead they look, how loose their judgement is, and the most they'll play for. */
-const style = (r: BsRegular) => (r.nerve >= 0.75 ? { depth: 3, noise: 12, most: 100, says: 'plays a long, deep game' } : r.nerve >= 0.45 ? { depth: 2, noise: 30, most: 50, says: 'plays a careful game' } : { depth: 1, noise: 90, most: 25, says: 'plays a loose, cheerful game' });
+// (the careful ones are careful, but human: two to four real mistakes a game, now and then five, never more; owner 2026-11-23)
+const style = (r: BsRegular) => (r.nerve >= 0.75 ? { depth: 3, noise: 12, most: 100, slips: 0, says: 'plays a long, deep game' } : r.nerve >= 0.45 ? { depth: 2, noise: 30, most: 50, slips: Math.random() < 0.12 ? 5 : 2 + Math.floor(Math.random() * 3), says: 'plays a careful game, with a slip or two' } : { depth: 1, noise: 90, most: 25, slips: 0, says: 'plays a loose, cheerful game' });
 
 const HELP: Record<Rules, string> = {
   old: 'The old game, as the Counties learned it. The king steps one square any way. The counsellor, beside him, steps one square on the slant and no further. The aufin leaps exactly two squares on the slant, over whatever is between. Knights and rooks move as they always have. Pawns step one square forward and take one on the slant; one that reaches the far side is crowned a counsellor. No castling. You win by mate, by leaving your opponent no move at all, or by taking every piece but their king.',
@@ -36,7 +37,7 @@ export class ChessRoom {
   private st: ChessState | null = null;
   private me: Side = 'w';
   /** Who's across the board: a regular (by name), or another player (by their id). */
-  private opp: { name: string; peer?: number; depth: number; noise: number } | null = null;
+  private opp: { name: string; peer?: number; depth: number; noise: number; slips?: number; moved?: number } | null = null;
   private pick: number | null = null;
   private timer = 0;
   private paid = false;
@@ -66,7 +67,7 @@ export class ChessRoom {
 
   // ---- Starting a game ----
 
-  private startWith(opp: { name: string; peer?: number; depth: number; noise: number }, me: Side, rules: Rules, stake: number): boolean {
+  private startWith(opp: { name: string; peer?: number; depth: number; noise: number; slips?: number; moved?: number }, me: Side, rules: Rules, stake: number): boolean {
     if (stake > this.host.marks()) { this.host.system('You haven\'t the marks for that stake.'); return false; }
     this.opp = opp; this.me = me; this.rules = rules; this.stake = stake;
     this.st = newGame(rules);
@@ -84,7 +85,7 @@ export class ChessRoom {
     if (!r) return;
     if (this.stake && this.shut()) return;
     const s = style(r);
-    this.startWith({ name: r.name, depth: s.depth, noise: s.noise }, Math.random() < 0.5 ? 'w' : 'b', this.rules, Math.min(this.stake, s.most));
+    this.startWith({ name: r.name, depth: s.depth, noise: s.noise, slips: s.slips, moved: 0 }, Math.random() < 0.5 ? 'w' : 'b', this.rules, Math.min(this.stake, s.most));
   }
 
   /** The regular's move, after a moment's thought. */
@@ -94,7 +95,11 @@ export class ChessRoom {
     if (!st || !o || o.peer !== undefined || st.result || st.turn === this.me) return;
     this.timer = window.setTimeout(() => {
       if (this.st !== st) return;
-      const m = npcMove(st, o.depth, o.noise);
+      // (their slips, spread over the game after the opening: the fewer moves likely left, the likelier the next)
+      o.moved = (o.moved ?? 0) + 1;
+      const slip = !!o.slips && o.moved > 3 && Math.random() < o.slips / Math.max(4, 32 - o.moved);
+      const m = npcMove(st, o.depth, o.noise, slip);
+      if (slip && m) o.slips! -= 1;
       if (m) this.apply(m, false);
     }, 700 + Math.random() * 900);
   }

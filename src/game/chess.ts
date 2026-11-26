@@ -198,17 +198,26 @@ function search(s: ChessState, depth: number, alpha: number, beta: number): numb
   return alpha;
 }
 
-/** A regular's move: how far they look ahead (1 to 3), and how loose their judgement is (centipawns of noise). */
-export function npcMove(s: ChessState, depth: number, noise: number): Move | null {
+/**
+ * A regular's move: how far they look ahead (1 to 3), and how loose their judgement is (centipawns of noise). A slip
+ * (owner 2026-11-23, a friend's feedback: "careful, but still makes mistakes") is a human one: a move a good deal worse
+ * than their best, between a minor piece's worth and a rook's, but never one that hands over mate on the spot.
+ */
+export function npcMove(s: ChessState, depth: number, noise: number, slip = false): Move | null {
   const moves = legalMoves(s);
   if (!moves.length) return null;
-  let best: Move | null = null, bestV = -Infinity;
+  const scored: { m: Move; v: number }[] = [];
   for (const m of moves) {
     const n = play(s, m);
     // (a move that finishes the game is seen for what it is)
     const done = legalMoves(n).length === 0;
-    const v = done ? (inCheck(n, n.turn) || s.rules === 'old' ? 200000 : 0) : -search(n, depth - 1, -Infinity, Infinity) + (Math.random() - 0.5) * noise;
-    if (v > bestV) { bestV = v; best = m; }
+    scored.push({ m, v: done ? (inCheck(n, n.turn) || s.rules === 'old' ? 200000 : 0) : -search(n, depth - 1, -Infinity, Infinity) + (Math.random() - 0.5) * noise });
   }
-  return best;
+  scored.sort((a, b) => b.v - a.v);
+  const best = scored[0];
+  if (slip && best.v < 50000) {
+    const worse = scored.filter((x) => x.v <= best.v - 60 && x.v >= best.v - 350 && x.v > -50000);
+    if (worse.length) return worse[Math.floor(Math.random() * Math.min(3, worse.length))].m;
+  }
+  return best.m;
 }
