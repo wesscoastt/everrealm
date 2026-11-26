@@ -2,6 +2,7 @@ import { createSeededRandom } from '../utils/random';
 import { smoothstep } from './noise';
 import { baseHeight, lakeDist, regionAt, RegionId, riverDist, roadDist, SEA } from './terrain';
 import { WMIN, WSIZE } from './VoxelWorld';
+import { inMcLand } from './mcland';
 
 // The Charter's chart of the continent: what every map in the realm shows before you have walked
 // it. Painted once, at low resolution, from the terrain functions: the sea and the coast, each
@@ -48,6 +49,17 @@ export function chartPixels(size: number, x0 = WMIN): Uint8ClampedArray {
   const step = WSIZE / size;
   const h = new Float32Array(size * size);
   for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) h[j * size + i] = baseHeight(x0 + (i + 0.5) * step, WMIN + (j + 0.5) * step);
+  // The owner's builds keep their water as a flat sheet just under the sea's level, so it would chart as a pale
+  // square of shallows round Verandah: there the sea deepens with the distance from land as it does off any coast
+  const far = new Float32Array(size * size).fill(1e9), mc = new Uint8Array(size * size);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
+    const k = j * size + i;
+    if (h[k] > SEA) far[k] = 0;
+    else if (inMcLand(x0 + (i + 0.5) * step, WMIN + (j + 0.5) * step)) mc[k] = 1;
+  }
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) { const k = j * size + i; if (i > 0) far[k] = Math.min(far[k], far[k - 1] + 1); if (j > 0) far[k] = Math.min(far[k], far[k - size] + 1); if (i > 0 && j > 0) far[k] = Math.min(far[k], far[k - size - 1] + 1.41); if (j > 0 && i < size - 1) far[k] = Math.min(far[k], far[k - size + 1] + 1.41); }
+  for (let j = size - 1; j >= 0; j--) for (let i = size - 1; i >= 0; i--) { const k = j * size + i; if (i < size - 1) far[k] = Math.min(far[k], far[k + 1] + 1); if (j < size - 1) far[k] = Math.min(far[k], far[k + size] + 1); if (i < size - 1 && j < size - 1) far[k] = Math.min(far[k], far[k + size + 1] + 1.41); if (j < size - 1 && i > 0) far[k] = Math.min(far[k], far[k + size - 1] + 1.41); }
+  for (let k = 0; k < size * size; k++) if (mc[k]) h[k] = Math.min(h[k], SEA - Math.min(9, 1 + far[k] * step * 0.3));
   const data = new Uint8ClampedArray(size * size * 4);
   const rnd = createSeededRandom(4242);
   for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
