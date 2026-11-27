@@ -26,6 +26,8 @@ export const PETS: Record<string, PetDef> = {
   stray_calico: { id: 'stray_calico', name: 'Quay calico', kind: 'cat', pal: { a: '#e8dcc0', b: '#c86a2a', c: '#2a2420' }, scale: 1 },
   stray_spaniel: { id: 'stray_spaniel', name: 'Liver spaniel', kind: 'dog', pal: { a: '#6a3a1e', b: '#e8dcc0', c: '#4a2a16' }, scale: 0.95 },
   stray_terrier: { id: 'stray_terrier', name: 'Wheaten terrier', kind: 'dog', pal: { a: '#d8b878', b: '#c8a868', c: '#8a6a3a' }, scale: 0.8 },
+  // One of the Admiral's kittens, Saltpenny Key (data/content/saltpennyCat.ts)
+  salt_kitten: { id: 'salt_kitten', name: 'A Saltpenny kitten', kind: 'cat', pal: { a: '#2a2420', b: '#e8dcc0', c: '#c86a2a', breed: 'young' }, scale: 0.9 },
   // Bel, the red dog of the Raddle Barrens, if you bring her home (data/content/redstoneBarrens.ts)
   barrens_red: { id: 'barrens_red', name: 'Bel, the red dog', kind: 'dog', pal: { a: '#b0502a', b: '#8a3a1e', c: '#e0a070' }, scale: 1.3 },
   hen: { id: 'hen', name: 'Speckled hen', kind: 'chicken', pal: { a: '#b8885a', c: '#4a2e1a' }, scale: 1 },
