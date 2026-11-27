@@ -5641,6 +5641,12 @@ export class Game implements GameApi {
     this.festivals.greet(fresh);
     // A new character's first day: Davy Ashby is waiting by the road to show them round (data/content/firstDay.ts)
     if (fresh && !this.stage('firstDay')) this.setStage('firstDay', 'meet');
+    // Characters from before it are offered the tour once, on the tracker; telling Davy they know the way ends it (owner 2026-11-26)
+    else if (!fresh && !this.stage('firstDay') && !this.flag('firstDayOffered')) {
+      this.setFlag('firstDayOffered', 1);
+      this.setStage('firstDay', 'meet');
+      setTimeout(() => { if (this.mode === 'play') this.hud.system('Davy Ashby, the reeve’s lad, is showing people round Hollin Ford: every part of the game, one thing at a time. Find him by the road into the village if you’d like the tour. It’s on your tracker.'); }, 4000);
+    }
     if (!this.flag('class')) {
       // Characters from before callings: show them the choice once (they play as Wardens until they pick)
       this.setFlag('class', 'warden');
