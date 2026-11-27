@@ -3,6 +3,7 @@
 
 export const HELP: [string, [string, string][]][] = [
   ['Getting about', [
+    ['I\'m new. Where do I start?', 'Davy Ashby, the reeve\'s lad, waits by the road into Hollin Ford to show newcomers round: the map, the journal, your bag, a first fight, gathering, cooking, buying, your skills and the Group Finder, one thing at a time. When he\'s done he sends you to his mother, Maud Ashby, and the story starts. If you skipped him, he\'s still there.'],
     ['How do I move and look round?', 'W, A, S and D move you, Space jumps, Shift runs. Hold the right mouse button and drag to look round, and use the wheel to bring the camera in or out. A controller works too, laid out as ESO’s: plug one in and the prompts and the bar show its buttons. Hold LB with the D-pad for the other windows: up for skills, down for the group finder, left for companions, right for social; LB and L3 for talents.'],
     ['How do I talk to someone or use something?', 'Walk up to it. When a prompt with E shows at the bottom of the screen, press E. In a conversation, click an answer or press its number.'],
     ['How do I travel quickly?', 'Touch the waymarks you find on the roads to attune them. Then open the map (M) and click one to travel there from anywhere. Your home is on the map once you have one.'],

@@ -4114,6 +4114,7 @@ export class Game implements GameApi {
 
   // =================================================================== XP and items
   addXp(skill: SkillId, amount: number): void {
+    this.first('xp:' + skill);
     if (this.social.groupNearby()) amount = Math.round(amount * 1.1);
     // The Pledge: out together with the one you've pledged to
     if (this.social.spouseNearby(this.spouse())) amount = Math.round(amount * 1.1);
@@ -4815,6 +4816,7 @@ export class Game implements GameApi {
       get currentStation() { return g.currentStation; },
       level: (s: SkillId) => g.level(s),
       useSlot: (i: number) => g.useSlot(i),
+      panelShown: (p: string) => g.first('panel:' + p),
       sortPack: () => { g.inv.sort(); g.hud.refresh(); g.persist(); },
       equipBest: () => g.equipBest(),
       daily: () => g.dailies.view(),
@@ -5637,6 +5639,8 @@ export class Game implements GameApi {
     this.hud.setPortrait(this.save.look);
     this.applyCalling();
     this.festivals.greet(fresh);
+    // A new character's first day: Davy Ashby is waiting by the road to show them round (data/content/firstDay.ts)
+    if (fresh && !this.stage('firstDay')) this.setStage('firstDay', 'meet');
     if (!this.flag('class')) {
       // Characters from before callings: show them the choice once (they play as Wardens until they pick)
       this.setFlag('class', 'warden');
@@ -5781,7 +5785,7 @@ export class Game implements GameApi {
       this.save.equip.weapon = st.id;
       if (old) this.inv.add(old, 1);
       if (bindRule(def) === 'equip') this.bind(st.id);
-      this.hud.system(`Equipped ${def.name}.`);
+      this.first('equip'); this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.armor) {
       const slot = def.armor.slot;
@@ -5793,7 +5797,7 @@ export class Game implements GameApi {
       this.hp = Math.min(this.hp, this.maxHp);
       this.dress();
       this.sfx('equip');
-      this.hud.system(`Equipped ${def.name}.`);
+      this.first('equip'); this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.instrument) {
       this.hud.toggle('inv');
@@ -5987,6 +5991,7 @@ export class Game implements GameApi {
       return;
     }
     this.save.marks -= s.price;
+    this.first('buy');
     // (a piece to wear comes at your level, as a vendor's does in any MMO)
     this.give(this.atMyLevel(item), 1);
     this.sfx('coin');
@@ -7776,6 +7781,8 @@ export class Game implements GameApi {
 
   /** One more of something the achievements count (data/feats.ts: the flags "n:<what>"). */
   bump(k: string, by = 1): void { this.setFlag('n:' + k, Number(this.flag('n:' + k) ?? 0) + by); }
+  /** The first time a player does a thing (flag 'ft:' + what): the new player's intro quest reads these (data/content/firstDay.ts). */
+  first(k: string): void { if (!this.flag('ft:' + k)) this.setFlag('ft:' + k, 1); }
 
   // ---------------------------------------------------------------- Trades (data/jobs.ts)
 
@@ -8459,6 +8466,7 @@ export class Game implements GameApi {
       if (ok) { const id = i === 1 ? this.kit.secondSkill?.id : i === 2 ? this.kit.weaponSkill.id : this.kit.bar[i - 3]?.id; const school = id ? SKILL_SCHOOL[id] : undefined; if (school) this.audio.skillCast(school); }
       if (ok && i > 2 && this.kit.bar[i - 3]?.id === 'attune') this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
       if (ok) {
+        this.first('skill');
         this.cds.strike = Math.max(this.cds.strike, TUNE.skillLock); this.comboWindow = 0;
         if (cost) {
           if (cost.pool === 'stamina') this.energy = Math.max(0, this.energy - cost.n);
@@ -8875,6 +8883,7 @@ export class Game implements GameApi {
 
   /** byOther: someone else landed the last blow on a creature you'd hurt (game/SharedMobs.ts); they tell the realm and the group. */
   private onEnemyKilled(e: Enemy, byOther = false): void {
+    if (!byOther) this.first('kill');
     if (!byOther) { this.bump('kills'); if (e.def.elite) this.bump('elites'); }
     // The Long Stair: a step up for every foe you bring down (data/trophies.ts)
     if (!byOther && this.trophy === 'longstair') {
@@ -10697,6 +10706,7 @@ export class Game implements GameApi {
   private isIgnored(name: string): boolean { return this.save.settings.ignored.includes(name.toLowerCase()); }
 
   private speak(text: string, kind: 'say' | 'local' | 'trade' = 'say'): void {
+    this.first('chat');
     if (this.online.status === 'online') { this.online.chat(text, kind); return; } // the server echoes it back to everyone, you included
     this.hud.chat(this.save.name, text, kind);
     this.addBubble(-1, text, false);

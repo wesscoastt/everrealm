@@ -215,6 +215,8 @@ export interface CraftView {
 }
 
 export interface UiCtx {
+  /** A window opened (the new player's intro quest counts the first of each). */
+  panelShown?(p: PanelId): void;
   save: SaveData;
   inv: Inventory;
   level(s: SkillId): number;
@@ -2028,6 +2030,7 @@ export class Hud {
     if (p === 'craft' || p === 'shop' || p === 'travel' || p === 'exchange' || p === 'finder') { this.close('journal'); this.close('map'); this.close('settings'); }
     if (p === 'map' || p === 'journal' || p === 'settings' || p === 'talents') for (const o of ['craft', 'shop', 'travel', 'exchange', 'finder', 'map', 'journal', 'settings', 'talents', 'inv', 'skills'] as PanelId[]) if (o !== p) this.close(o);
     this.open.add(p);
+    this.ctx.panelShown?.(p);
     this.panelEl(p).classList.add('show');
     this.layoutBeside();
     this.ctx.sfx(p === 'journal' || p === 'map' || p === 'read' || p === 'mail' ? 'page' : 'open');
