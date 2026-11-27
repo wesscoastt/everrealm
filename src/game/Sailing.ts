@@ -59,8 +59,25 @@ function openSea(V: VoxelWorld, x: number, z: number): boolean {
   return V.get(ix, SEA - 1, iz) === B.Water && !isSolid(V.get(ix, SEA, iz));
 }
 
+/**
+ * What a fight leaves on a ship (owner 2026-11-27: "destruction maybe for combat or quests events etc", "naval combat";
+ * the voxel-destruction kit's way, made over for our ships): a ball that strikes her hull leaves a charred hole where it
+ * went in; as she's beaten down fires break out on her deck, one, then two, then three, each throwing smoke downwind;
+ * her carpenter's repairs put them out again. When she goes down she goes up first: a burst of fire, her deck alight,
+ * and wreckage left floating where she was.
+ */
+const SCAR_MATS = ['#1e1612', '#2a1e16', '#14100c'].map((c) => new THREE.MeshLambertMaterial({ color: c }));
+const SCAR_RIM = new THREE.MeshLambertMaterial({ color: '#a8885a' }); // (the raw wood round a hole, splintered pale, so it shows on any hull)
+const FLAME_MATS = ['#ff6a1a', '#ffa030', '#ffe080'].map((c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+const SCAR_GEO = new THREE.BoxGeometry(0.5, 0.42, 0.08), RIM_GEO = new THREE.BoxGeometry(0.66, 0.56, 0.05), FLAME_GEO = new THREE.BoxGeometry(0.5, 1, 0.5);
+type Fire = { at: THREE.Vector3; flame: THREE.Group; smoke: number };
+
 export class Ship {
   readonly root = new THREE.Group();
+  /** Her scars and fires: tilted with her hull as she rolls (place). */
+  readonly fxRoot = new THREE.Group();
+  readonly fires: Fire[] = [];
+  private scars = 0;
   private readonly set: THREE.Group;
   private readonly furled: THREE.Group;
   readonly pos = V();
@@ -101,8 +118,37 @@ export class Ship {
     const kit = shipKit(hull, SHIPS[hull.kind].deck + 0.17);
     if (kit) { this.set.add(kit); this.furled.add(kit.clone()); }
     this.hp = hull.hp;
+    this.root.add(this.fxRoot);
     this.show();
   }
+
+  /** A ball went into her here (world space): a charred hole in her side, where it struck. */
+  scar(p: THREE.Vector3): void {
+    if (this.scars >= 22) return;
+    this.root.updateMatrixWorld(true);
+    const at = this.fxRoot.worldToLocal(p.clone());
+    // on her side, at the waterline or above it, flush with her planking (the model runs along x, her beam across z)
+    const sd = at.z >= 0 ? 1 : -1, half = this.hull.beam * 0.5;
+    at.z = sd * (half * 0.98 + 0.04); at.y = Math.max(0.3, Math.min(this.deck - 0.2, at.y)); at.x = Math.max(-this.hull.len * 0.45, Math.min(this.hull.len * 0.45, at.x));
+    const hole = new THREE.Mesh(SCAR_GEO, SCAR_MATS[this.scars % 3]), rim = new THREE.Mesh(RIM_GEO, SCAR_RIM);
+    for (const m of [rim, hole]) { m.position.copy(at); m.rotation.set(0, 0, (Math.random() - 0.5) * 0.8); this.fxRoot.add(m); }
+    hole.position.z += sd * 0.03;
+    this.scars++;
+  }
+
+  /** A fire on her deck, somewhere along it. */
+  burn(): void {
+    const flame = new THREE.Group();
+    for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(FLAME_GEO, FLAME_MATS[i]); m.position.set((Math.random() - 0.5) * 0.5, 0, (Math.random() - 0.5) * 0.5); m.scale.setScalar(1 - i * 0.25); flame.add(m); }
+    const at = new THREE.Vector3((Math.random() - 0.5) * this.hull.len * 0.7, this.deck + 0.1, (Math.random() - 0.5) * this.hull.beam * 0.5);
+    flame.position.copy(at);
+    this.fxRoot.add(flame);
+    this.fires.push({ at, flame, smoke: Math.random() * 0.3 });
+  }
+  /** Her carpenter's work: the newest fire out. */
+  douse(): void { const f = this.fires.pop(); if (f) this.fxRoot.remove(f.flame); }
+  /** How many fires a ship this beaten carries: one under three quarters, two under half, three under a quarter. */
+  firesFor(): number { const k = this.hp / this.hull.hp; return k < 0.25 ? 3 : k < 0.5 ? 2 : k < 0.75 ? 1 : 0; }
 
   get deck(): number { return SHIPS[this.hull.kind].deck + 0.17; }
   get fwd(): THREE.Vector3 { return tmp.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
@@ -140,6 +186,7 @@ export class Ship {
     this.root.rotation.set(0, this.yaw - Math.PI / 2, 0, 'YXZ');
     this.set.rotation.set(roll, 0, pitch);
     this.furled.rotation.copy(this.set.rotation);
+    this.fxRoot.rotation.copy(this.set.rotation);
   }
 
   /** Where someone stands at her helm, on her quarterdeck aft. */
@@ -213,6 +260,9 @@ export class Sailing {
   readonly ships: Ship[] = [];
   private balls: Ball[] = [];
   private fx: Fx[] = [];
+  /** What's left on the water where a ship went down: planks, casks, a spar, drifting and going under in time. */
+  private wreck: { mesh: THREE.Mesh; vel: THREE.Vector3; spin: number; life: number }[] = [];
+  private readonly wreckGeos = [new THREE.BoxGeometry(1.6, 0.14, 0.32), new THREE.BoxGeometry(0.9, 0.12, 0.3), new THREE.CylinderGeometry(0.32, 0.32, 0.8, 8), new THREE.CylinderGeometry(0.12, 0.12, 4, 6).rotateZ(Math.PI / 2)]; // (the spar laid flat)
   private spawnT = 0;
   private sendT = 0;
   private readonly ballGeo = new THREE.SphereGeometry(0.18, 6, 5);
@@ -311,6 +361,7 @@ export class Sailing {
     if (s.sinking < 0 && s.quiet > 8 && !s.remote) {
       const rep = (s.hull as BuiltShip).repair ?? 0;
       if (rep && s.hp < s.hull.hp) s.hp = Math.min(s.hull.hp, s.hp + rep * dt);
+      while (s.fires.length > s.firesFor()) s.douse();
       s.rig = Math.min(1, s.rig + dt * 0.012 * (1 + rep / 4));
     }
   }
@@ -360,6 +411,7 @@ export class Sailing {
     const n = Math.round(target === this.mine ? dmg / (this.host.hullMul?.() ?? 1) : dmg);
     if (target.remote) { if (by === this.mine) this.host.sendHit?.(target.remote, n); this.host.floatAt(target.pos.clone().setY(SEA + target.deck + 2), 1, `-${n}`, 'enemy'); return; }
     target.hp -= n;
+    while (target.fires.length < target.firesFor()) { target.burn(); this.puff(target.pos.clone().setY(SEA + target.deck + 1), tmp2.set(0, 1, 0), '#ff8a2a', 1.6, 0.4); }
     this.host.floatAt(target.pos.clone().setY(SEA + target.deck + 2), 1, `-${n}`, target === this.mine ? 'player' : 'enemy');
     if (target.hp <= 0) this.sink(target, by);
   }
@@ -370,6 +422,8 @@ export class Sailing {
     if (!s || s.sinking >= 0) return;
     s.hp -= dmg;
     this.splinters(s.pos.clone().setY(SEA + s.deck));
+    s.scar(s.pos.clone().setY(SEA + s.deck * 0.5).addScaledVector(s.side(Math.random() < 0.5 ? 1 : -1), s.hull.beam * 0.5));
+    while (s.fires.length < s.firesFor()) s.burn();
     this.host.floatAt(s.pos.clone().setY(SEA + s.deck + 2), 1, `-${dmg}`, 'player');
     if (s.hp <= 0) { this.host.sendSunk?.(from); this.sink(s, null); }
   }
@@ -380,6 +434,22 @@ export class Sailing {
     s.speed = 0;
     s.setSails(0);
     this.host.sfx('hitHeavy', 0.9);
+    // the magazine or the galley fire: a burst of flame along her, her whole deck alight, and her timbers thrown wide
+    const f = s.fwd.clone();
+    for (let i = -2; i <= 2; i++) {
+      const at = s.pos.clone().addScaledVector(f, i * s.hull.len * 0.18).setY(SEA + s.deck + 0.6);
+      this.puff(at, tmp2.set(0, 1, 0), '#ffb040', 2.6, 0.5); this.puff(at, tmp2.set(0, 1, 0), '#ff6a1a', 2, 0.8); this.puff(at, tmp2.set(0, 0.6, 0), '#2a2622', 3, 4);
+      this.splinters(at);
+    }
+    while (s.fires.length < 5) s.burn();
+    for (let i = 0; i < 9 + Math.floor(s.hull.len / 3); i++) {
+      const mesh = new THREE.Mesh(this.wreckGeos[i % this.wreckGeos.length], this.host.props.wood);
+      mesh.position.set(s.pos.x + (Math.random() - 0.5) * s.hull.len * 0.8, SEA, s.pos.z + (Math.random() - 0.5) * s.hull.len * 0.8);
+      if (i % 4 === 2) mesh.rotation.x = Math.PI / 2; // (a cask on its side)
+      mesh.rotation.y = Math.random() * 6;
+      this.host.scene.add(mesh);
+      this.wreck.push({ mesh, vel: V().set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3), spin: (Math.random() - 0.5) * 0.6, life: 30 + Math.random() * 20 });
+    }
     if (s.npc && by === this.mine) this.host.sank(s.npc.kind, s.npc.name, s.pos.clone());
     if (s === this.mine) { this.host.banner('She\'s going down', `${s.livery.name} is sinking`); if (!by?.remote) this.host.sendSunk?.(null); }
   }
@@ -542,6 +612,7 @@ export class Sailing {
           const pvp = (s.remote || s === this.mine) && (b.from.remote || b.from === this.mine);
           if (pvp && !inFreewater(s.pos.x, s.pos.z)) continue;
           this.splinters(b.pos);
+          if (b.pos.y < s.root.position.y + s.deck + 0.4) s.scar(b.pos); // (a ball into her side; one high goes through the rigging)
           this.host.sfx('hit', Math.max(0.2, 1 - b.pos.distanceTo(player) / 80));
           // shot that strikes high cuts her rigging (chain shot does little else); her hull takes the rest
           const high = b.pos.y > s.root.position.y + s.deck + 1.2, chain = b.vsRig > 2;
@@ -559,6 +630,26 @@ export class Sailing {
     }
     // Smoke drifting off downwind, splashes falling back, splinters tumbling
     const wx = Math.sin(wind.dir) * wind.strength * 2, wz = Math.cos(wind.dir) * wind.strength * 2;
+    // Fires on the ships: flickering, throwing smoke downwind (and drowned as she goes under)
+    const t = performance.now() / 1000;
+    for (const s of targets) for (const fi of s.fires) {
+      fi.flame.children.forEach((m, i) => { m.scale.y = (1 - i * 0.25) * (0.8 + 0.5 * Math.abs(Math.sin(t * (7 + i * 3) + fi.at.x))); m.position.y = m.scale.y * 0.5; });
+      const w = fi.flame.getWorldPosition(V());
+      fi.flame.visible = w.y > SEA;
+      if ((fi.smoke -= dt) <= 0 && fi.flame.visible && this.fx.length < 260) {
+        fi.smoke = 0.22 + Math.random() * 0.15;
+        this.puff(w.setY(w.y + 1), V().set(0, 1, 0), Math.random() < 0.25 ? '#ff8a2a' : '#2e2a26', 1.4 + Math.random(), 2.6);
+      }
+    }
+    // Wreckage: riding the swell, drifting with the wind, going under in time
+    for (const w of [...this.wreck]) {
+      w.life -= dt;
+      w.mesh.position.x += (w.vel.x + wx * 0.15) * dt; w.mesh.position.z += (w.vel.z + wz * 0.15) * dt;
+      w.vel.multiplyScalar(Math.exp(-dt * 0.3));
+      w.mesh.position.y = SEA - 0.05 + Math.sin(t * 1.1 + w.mesh.position.x) * 0.1 - (w.life < 4 ? (4 - w.life) * 0.25 : 0);
+      w.mesh.rotation.z = Math.sin(t * 0.8 + w.mesh.position.z) * 0.08;
+      if (w.life <= 0) { this.host.scene.remove(w.mesh); this.wreck.splice(this.wreck.indexOf(w), 1); }
+    }
     for (const e of [...this.fx]) {
       e.life -= dt;
       const k = 1 - e.life / e.max;
