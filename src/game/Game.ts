@@ -2186,8 +2186,51 @@ export class Game implements GameApi {
     for (const f of this.flying.filter((x) => x.t >= 0.9)) this.scene.remove(f.m);
     this.flying = this.flying.filter((x) => x.t < 0.9);
   }
+  /**
+   * What a blast leaves where it comes down (owner 2026-11-27: the voxel-destruction kit, "destruction maybe for combat"):
+   * earth thrown up, a scorch on the ground that fades over half a minute, and if the blast was fire, the circle burning
+   * a few seconds with smoke off it. Only the sight of it: the blow is the blow it always was.
+   */
+  private scorches: { m: THREE.Mesh; t: number; flames: THREE.Mesh[]; burn: number; at: THREE.Vector3; smoke: number }[] = [];
+  private static readonly SCORCH_GEO = new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2);
+  private static readonly FLAME_GEO = new THREE.BoxGeometry(0.28, 0.6, 0.28);
+  private static readonly FLAME_MATS = ['#ff6a1a', '#ffa030', '#ffd060'].map((c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+  private blastMark(at: THREE.Vector3, r: number, from: Enemy): void {
+    if (at.distanceTo(this.player.position) > 70) return;
+    const V = this.world.voxels, gy = V.groundBelow(at.x, at.y + 2, at.z);
+    if (V.isWater(at.x, gy + 0.1, at.z)) { this.particles.splash(tmpV.set(at.x, gy, at.z), 12); return; }
+    const fire = foeElement(from.def.type) === 'fire';
+    this.particles.debris(tmpV.set(at.x, gy + 0.2, at.z), fire ? ['#3a2a1e', '#5a4632', '#2a2420'] : ['#5a4632', '#7a6a4a', '#4a3e30'], 8 + Math.round(r * 2), 4 + r);
+    this.particles.dust(tmpV.set(at.x, gy + 0.1, at.z), 6);
+    if (this.scorches.length >= 18) { const old = this.scorches.shift()!; this.scene.remove(old.m); for (const f of old.flames) this.scene.remove(f); }
+    const m = new THREE.Mesh(Game.SCORCH_GEO, new THREE.MeshBasicMaterial({ color: fire ? '#140c08' : '#2a2018', transparent: true, opacity: 0.6, depthWrite: false }));
+    m.position.set(at.x, gy + 0.03 + Math.random() * 0.01, at.z); m.scale.setScalar(r * 0.85); m.rotation.y = Math.random() * 6;
+    this.scene.add(m);
+    const flames: THREE.Mesh[] = [];
+    if (fire) for (let i = 0; i < 3 + Math.round(r); i++) {
+      const a = Math.random() * Math.PI * 2, d = Math.random() * r * 0.7, f = new THREE.Mesh(Game.FLAME_GEO, Game.FLAME_MATS[i % 3]);
+      const fx = at.x + Math.cos(a) * d, fz = at.z + Math.sin(a) * d;
+      f.position.set(fx, V.groundBelow(fx, gy + 2, fz) + 0.3, fz);
+      this.scene.add(f); flames.push(f);
+    }
+    this.scorches.push({ m, t: 0, flames, burn: fire ? 3 + Math.random() * 2 : 0, at: at.clone().setY(gy), smoke: 0 });
+  }
+  private scorchTick(dt: number): void {
+    for (const s of this.scorches) {
+      s.t += dt;
+      (s.m.material as THREE.MeshBasicMaterial).opacity = 0.6 * Math.max(0, 1 - Math.max(0, s.t - 20) / 10);
+      if (s.flames.length) {
+        if (s.t > s.burn) { for (const f of s.flames) this.scene.remove(f); s.flames = []; continue; }
+        s.flames.forEach((f, i) => { f.scale.y = 0.6 + 0.7 * Math.abs(Math.sin(s.t * (9 + i * 2) + i)); });
+        if ((s.smoke -= dt) <= 0) { s.smoke = 0.35; this.particles.smoke(tmpV.copy(s.at).setY(s.at.y + 0.8), this.world.sky.night); }
+      }
+    }
+    for (const s of this.scorches.filter((x) => x.t > 30)) { this.scene.remove(s.m); (s.m.material as THREE.Material).dispose(); }
+    this.scorches = this.scorches.filter((x) => x.t <= 30);
+  }
   private beamsTick(dt: number): void {
     this.flyTick(dt);
+    this.scorchTick(dt);
     for (const b of this.beams) {
       b.t += dt;
       (b.m.material as THREE.MeshBasicMaterial).opacity = 0.55 * Math.min(1, b.t * 4) * Math.max(0, 1 - Math.max(0, b.t - 3) / 1.5);
@@ -9613,6 +9656,7 @@ export class Game implements GameApi {
       hitPlayer: (d: number, from: Enemy) => this.hitPlayer(d, from),
       sound: (name: 'growl' | 'squelch' | 'skitter' | 'swing', at: THREE.Vector3) => this.audio.playAt(name, at.distanceTo(P), 0.8),
       allies: (at: THREE.Vector3, r: number) => this.enemies.filter((o) => o.alive && !o.def.anchored && o.pos.distanceTo(at) < r),
+      landed: (at: THREE.Vector3, r: number, from: Enemy) => this.blastMark(at, r, from),
     };
     for (const e of this.enemies) {
       if (!this.world.voxels.isLoaded(e.pos.x, e.pos.z)) { e.model.root.visible = false; continue; }
@@ -10410,7 +10454,7 @@ export class Game implements GameApi {
       if (this.companion) this.scene.add(this.companion.model.root);
     }
     this.companion?.update(dt, P.position, P.yaw, (x, z, near) => this.footing(x, z, near));
-    if (this.beams.length || this.flying.length) this.beamsTick(dt);
+    if (this.beams.length || this.flying.length || this.scorches.length) this.beamsTick(dt);
     // (someone else petting: the pet nearest them perks up, yours or theirs, as everyone sees)
     if ((this.petCheerT -= dt) <= 0) {
       this.petCheerT = 0.8;

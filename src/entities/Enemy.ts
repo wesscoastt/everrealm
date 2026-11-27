@@ -24,6 +24,8 @@ export interface EnemyContext {
    * else standing in it. "player" above is whoever the creature is after; this is the rest.
    */
   splash?(at: THREE.Vector3, r: number, damage: number, from: Enemy): void;
+  /** Where a thrown blast came down, for the mark it leaves (Game.blastMark). */
+  landed?(at: THREE.Vector3, r: number, from: Enemy): void;
   /** Foes alive within r of a point (a mender looks among them for the most hurt). */
   allies?(at: THREE.Vector3, r: number): Enemy[];
 }
@@ -895,6 +897,7 @@ export class Enemy {
             const r = def.blast ?? 1.8, o = this.attackOrigin;
             if (ctx.playerAlive && !ctx.playerInvulnerable && Math.hypot(ctx.player.x - o.x, ctx.player.z - o.z) < r && Math.abs(ctx.player.y - o.y) < 2) ctx.hitPlayer(def.damage, this);
             ctx.splash?.(o, r, def.damage, this);
+            ctx.landed?.(o, r, this);
             ctx.sound('squelch', o);
           }
         } else if (def.attack !== 'cast' && !this.hitDone && this.timer > 0.4) {
