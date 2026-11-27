@@ -67,7 +67,7 @@ import { Input } from '../systems/Input';
 import { Particles } from '../systems/Particles';
 import { CreatureModel, mountModel, type CreatureKind, type MountLook } from '../entities/creatures';
 import { riderLift, riderPose, spareSeats, type SeatPose } from '../entities/seats';
-import { mountKey, mountOf } from '../data/mountLooks';
+import { maleByDefault, mountKey, mountOf, parseMountKey, sexesOf } from '../data/mountLooks';
 import { MountChooser } from '../ui/MountChooser';
 import { TouchControls } from '../ui/TouchControls';
 import { Crowd, CrowdZone, townsLook } from './Crowd';
@@ -75,10 +75,12 @@ import { Roadfolk } from './Roadfolk';
 import { PrisonCart } from './PrisonCart';
 import { Justice } from './Justice';
 import { HorseTheft, HORSE_PRICE } from './HorseTheft';
-import { BOND_LEVELS, DAILY_BOND, DOWN_MS, FEEDS, SADDLES, bagsOf, bondLevel, coatWord, coreWord, horseFx, hurtShare, muddy, newHorse, settle as settleHorse, traitsOf, type HorseState } from '../data/horseCare';
+import { BOND_LEVELS, DAILY_BOND, DOWN_MS, FEEDS, SADDLES, bagsOf, bondLevel, coatWord, coreWord, forHorse, horseFx, hurtShare, muddy, newHorse, settle as settleHorse, traitsOf, type HorseState } from '../data/horseCare';
 import { Voyage, type Harbour } from './Voyage';
 import { ISLAND_COURSES } from '../data/islandCourses';
 import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
+import { CockyRoad } from './CockyRoad';
+import { COCKY_BACK } from '../data/cockyRoad';
 import { Sailing, type ShipState } from './Sailing';
 import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
 import { buildShip, decodeDesign, PARTS, slotsOf } from '../data/shipParts';
@@ -161,7 +163,7 @@ import { lakeDist } from '../world/terrain';
 import { DragonPass } from './DragonPass';
 import { gatheringBoard } from '../data/gatherings';
 import { Farming, farmPatches } from './Farming';
-import { MessagePosts, Post } from './Posts';
+import { MessagePosts, Post, Post_weathered } from './Posts';
 import { Rowboat, rowboatModel, hullBlocks, overHull, BOAT_FLOOR } from './Rowboat';
 import { PostRide, rideMinutes, roadNet, wayLength } from './PostRide';
 import { mewJetty, type Site } from '../world/sites';
@@ -531,6 +533,8 @@ export class Game implements GameApi {
   voyage!: Voyage;
   /** Ships of your own under sail, the raiders and the guns (game/Sailing.ts). */
   sailing!: Sailing;
+  /** Cocky Road (game/CockyRoad.ts): the Henwife's curse, a run down the old drove road as a cockerel. */
+  cocky!: CockyRoad;
   /** The camera's distance before you took a ship's helm, to go back to. */
   private rigBeforeHelm = 0;
   private shipPanel: HTMLDivElement | null = null;
@@ -1139,6 +1143,21 @@ export class Game implements GameApi {
     this.voyage = new Voyage({
       scene: this.scene, props: this.world.props, player: this.player,
       sfx: (n, v) => this.sfx(n as Sfx, v), banner: (t, sub) => this.hud.banner(t, sub, true),
+    });
+    this.cocky = new CockyRoad({
+      scene: this.scene, camera: this.camera,
+      pressed: (c) => this.input.pressedOnce(c),
+      banner: (t, sub) => this.hud.banner(t, sub, true), system: (t) => this.hud.system(t), sfx: (n) => this.sfx(n as Sfx),
+      flag: (k) => this.flag(k), setFlag: (k, v) => this.setFlag(k, v as never),
+      follow: (x, y, z) => this.player.teleport(x, y, z),
+      ended: (score, best, how) => {
+        this.player.locked = false;
+        this.player.teleport(COCKY_BACK.x, 20.05, COCKY_BACK.z);
+        const line = how === 'through the far gate' ? `Through the far gate! ${score} lanes, the whole of Cocky Road.` : how === 'gave up' ? `You give up at lane ${score}.` : `${how === 'squashed' ? 'Squashed by a cart' : how === 'drowned' ? 'Drowned in the river' : 'Swept away down the river'} at lane ${score}.`;
+        this.hud.banner(how === 'through the far gate' ? 'The far gate!' : 'The curse lifts', `${line} Best: ${best}.`, true);
+        this.hud.system(`Cocky Road: ${line} Your best is ${best}. The Henwife will put the curse on you again any time.`);
+        this.hud.setTracker(this.questEntries());
+      },
     });
     this.sailing = new Sailing({
       scene: this.scene, props: this.world.props, voxels: this.world.voxels,
@@ -2233,6 +2252,10 @@ export class Game implements GameApi {
     return ok;
   }
   get marks(): number { return this.save.marks; }
+  /** Cocky Road (game/CockyRoad.ts): the Henwife's curse; and the best run so far. */
+  cockyRoad(): void { this.player.locked = true; this.cocky.start(); }
+  cockyBest(): number { return this.cocky?.best ?? 0; }
+
   addMarks(n: number): void {
     this.save.marks += n;
     if (n > 0) { this.hud.system(`+${n} marks`); this.sfx('coin'); }
@@ -4426,12 +4449,12 @@ export class Game implements GameApi {
       const h = this.horse;
       this.dismount(true);
       h.setAnim('sit');
-      this.hud.banner(`${st.name ?? 'Your horse'} is down`, 'A tonic gets her up, or rest', true);
-      this.hud.system(`${st.name ?? 'Your horse'} goes down under you and throws you clear. She's hurt: give her a horse tonic from any stable, or let her rest (${Math.round(DOWN_MS / 60000)} minutes) and she'll get up on her own.`);
+      this.hud.banner(`${st.name ?? 'Your horse'} is down`, forHorse('A tonic gets her up, or rest', this.horseMale(mid)), true);
+      this.horseSay(mid, `${st.name ?? 'Your horse'} goes down under you and throws you clear. She's hurt: give her a horse tonic from any stable, or let her rest (${Math.round(DOWN_MS / 60000)} minutes) and she'll get up on her own.`);
       this.sfx('neigh', 0.8);
       return;
     }
-    if (st.health < 25 && Math.random() < 0.3) this.hud.system(`${st.name ?? 'Your horse'} is hurt and stumbling. Get her out of this.`);
+    if (st.health < 25 && Math.random() < 0.3) this.horseSay(mid, `${st.name ?? 'Your horse'} is hurt and stumbling. Get her out of this.`);
     this.saveHorse(mid, st);
   }
   /** Her saddlebags, where she stands: goods kept in them stay with her. */
@@ -4441,7 +4464,7 @@ export class Game implements GameApi {
     const st = this.horseState(pk.id), at = pk.model.root.position, key = `bags:${pk.id}`;
     this.hud.closeAll();
     void this.bank.show(`${st.name ?? ITEMS[pk.id]?.name ?? 'Your horse'}: the saddlebags`, at.x, at.z, {
-      title: `${st.name ?? ITEMS[pk.id]?.name ?? 'Your horse'}: the saddlebags`, kinds: bagsOf(st, this.traits(pk.id)), note: 'What you put in her saddlebags stays with her, wherever she goes.',
+      title: `${st.name ?? ITEMS[pk.id]?.name ?? 'Your horse'}: the saddlebags`, kinds: bagsOf(st, this.traits(pk.id)), note: forHorse('What you put in her saddlebags stays with her, wherever she goes.', this.horseMale(pk.id)),
       load: () => ({ ...((this.flag(key) as Record<string, number> | undefined) ?? {}) }),
       save: (items) => this.setFlag(key, items),
     });
@@ -4456,10 +4479,14 @@ export class Game implements GameApi {
     this.saveHorse(pk.id, st);
     this.hfxT = 0;
     this.sfx('equip');
-    this.hud.system(st.saddle ? `You put the ${SADDLES[st.saddle].name.toLowerCase()} on ${st.name ?? 'her'}. ${SADDLES[st.saddle].desc}` : `You put ${st.name ?? 'her'} back in the plain saddle she came with.`);
+    this.horseSay(pk.id, st.saddle ? `You put the ${SADDLES[st.saddle].name.toLowerCase()} on ${st.name ?? 'her'}. ${SADDLES[st.saddle].desc}` : `You put ${st.name ?? 'her'} back in the plain saddle she came with.`);
   }
   /** Is this halter a horse (not a wagon)? */
   private isSteed(id: string): boolean { return !!ITEMS[id]?.mount && !ITEMS[id]!.mount!.wagon; }
+  /** A stallion (or stag, ram, bull) rather than a mare: as you chose at the stable, or as the halter falls. */
+  horseMale(id: string): boolean { return !!sexesOf(id) && parseMountKey(this.mountKeyOf(id)).male; }
+  /** A line about this horse, he or she as the horse is (data/horseCare.ts forHorse). */
+  private horseSay(id: string, text: string): void { this.hud.system(forHorse(text, this.horseMale(id))); }
   /** Pat, brush or feed your horse where she stands. */
   private tendHorse(how: 'pat' | 'brush' | 'feed', feed?: string): void {
     const pk = this.parked;
@@ -4467,13 +4494,13 @@ export class Game implements GameApi {
     const st = this.horseState(pk.id), name = st.name ?? 'She';
     let line = '';
     if (how === 'pat') {
-      if (Date.now() - st.patted < 60_000) { this.hud.system(`${name} leans into your hand, but she's had her fuss for now.`); return; }
+      if (Date.now() - st.patted < 60_000) { this.horseSay(pk.id, `${name} leans into your hand, but she's had her fuss for now.`); return; }
       st.patted = Date.now();
       const g = this.horseBond(pk.id, st, 1);
       line = `You run a hand down ${st.name ? st.name + "'s" : 'her'} neck and talk to her. She blows warm air into your collar.${g ? '' : ' (She has had all the fuss a day can hold. The bond grows again tomorrow.)'}`;
       this.doAnim = { st: 'petting', left: 2.2 };
     } else if (how === 'brush') {
-      if (st.dirt < 10) { this.hud.system(`${name} is as clean as she gets.`); return; }
+      if (st.dirt < 10) { this.horseSay(pk.id, `${name} is as clean as she gets.`); return; }
       st.dirt = 0;
       const g = this.horseBond(pk.id, st, 2);
       line = `You brush ${st.name ?? 'her'} down, neck to tail, and the road comes out of her coat in clouds. She shuts her eyes.${g ? '' : ' (The bond grows again tomorrow.)'}`;
@@ -4498,7 +4525,7 @@ export class Game implements GameApi {
     }
     this.saveHorse(pk.id, st);
     this.sfx('snort', 0.5);
-    if (line) this.hud.system(line);
+    if (line) this.horseSay(pk.id, line);
   }
   horseInfo() {
     const pk = this.parked;
@@ -4508,7 +4535,7 @@ export class Game implements GameApi {
       name: st.name ?? ITEMS[pk.id]?.name ?? 'Your horse', named: !!st.name, level: lvl, levelName: BOND_LEVELS[lvl - 1].name, next: nx ? Math.max(1, Math.round(nx.at - st.bond)) : null,
       health: st.health, stamina: st.stamina, dirt: st.dirt, healthWord: coreWord(st.health, 'health'), staminaWord: coreWord(st.stamina, 'stamina'), coat: coatWord(st.dirt),
       feeds: Object.keys(FEEDS).filter((k) => this.inv.count(k) > 0).map((k) => ({ id: k, label: `${ITEMS[k]?.name ?? k} (${this.inv.count(k)})` })),
-      down: !!st.downAt, kind: this.traits(pk.id).kind,
+      down: !!st.downAt, kind: this.traits(pk.id).kind, male: this.horseMale(pk.id),
       traits: (({ pace, wind, tough }) => `pace ${pace}, wind ${wind}, toughness ${tough} of 5`)(this.traits(pk.id)),
       saddle: st.saddle ? SADDLES[st.saddle].name : 'the plain saddle', saddles: Object.keys(SADDLES).filter((k) => this.inv.count(k) > 0).length,
       bags: bagsOf(st, this.traits(pk.id)),
@@ -4534,18 +4561,19 @@ export class Game implements GameApi {
     if (!pk || !this.isSteed(pk.id)) return;
     const st = this.horseState(pk.id), lvl = bondLevel(st.bond), next = BOND_LEVELS[lvl];
     const name = st.name ?? ITEMS[pk.id]?.name ?? 'Your horse';
-    this.hud.system(`${name}: bond ${lvl} of 4, ${BOND_LEVELS[lvl - 1].name}${next ? ` (${Math.round(next.at - st.bond)} to go to ${next.name})` : ''}. ${coreWord(st.health, 'health')[0].toUpperCase() + coreWord(st.health, 'health').slice(1)}, ${coreWord(st.stamina, 'stamina')}, and ${coatWord(st.dirt)}.${st.health < 50 || st.stamina < 50 ? ' Feed her: apples, carrots, or hay and oats from any stable.' : ''}${st.dirt >= 40 ? ' A brush would do her good.' : ''}`);
+    this.horseSay(pk.id, `${name}: bond ${lvl} of 4, ${BOND_LEVELS[lvl - 1].name}${next ? ` (${Math.round(next.at - st.bond)} to go to ${next.name})` : ''}. ${coreWord(st.health, 'health')[0].toUpperCase() + coreWord(st.health, 'health').slice(1)}, ${coreWord(st.stamina, 'stamina')}, and ${coatWord(st.dirt)}.${st.health < 50 || st.stamina < 50 ? ' Feed her: apples, carrots, or hay and oats from any stable.' : ''}${st.dirt >= 40 ? ' A brush would do her good.' : ''}`);
     this.saveHorse(pk.id, st);
   }
   private nameHorse(): void {
     const pk = this.parked;
     if (!pk || !this.isSteed(pk.id)) return;
-    this.hud.askLine('What will you call her?', 'Bess', 16, (raw) => {
+    const male = this.horseMale(pk.id);
+    this.hud.askLine(forHorse('What will you call her?', male), male ? 'Bram' : 'Bess', 16, (raw) => {
       const n = cleanPetName(filterLanguage(raw));
       if (!n) { this.hud.system('A name of two letters or more, please: letters, spaces, an apostrophe or a hyphen.'); return; }
       const st = this.horseState(pk.id); st.name = n; this.saveHorse(pk.id, st);
       this.sfx('neigh', 0.6);
-      this.hud.system(`${n} it is. She flicks an ear at it, which you decide is a yes.`);
+      this.horseSay(pk.id, `${n} it is. She flicks an ear at it, which you decide is a yes.`);
     });
   }
   /** Your whistle: she comes to you from where she stands, or, far off or out of mind, from just out of sight. */
@@ -4585,7 +4613,7 @@ export class Game implements GameApi {
       this.parked = { id: c.id, model: c.model };
       this.coming = null;
       this.sfx('snort', 0.6);
-      this.hud.system(`${this.horseName(c.id)} is here. G to ride, or E to see to her.`);
+      this.horseSay(c.id, `${this.horseName(c.id)} is here. G to ride, or E to see to her.`);
       return;
     }
     const step = Math.min(d - 2.2, pace * dt);
@@ -5032,6 +5060,7 @@ export class Game implements GameApi {
       homeName: () => g.myHomeName(),
       travelHome: () => g.travelHomeMenu(),
       homeList: () => g.homeList(),
+      postList: () => g.postList(), postFind: (id: number) => g.postFind(id), postUp: (id: number) => g.postUp(id),
       travelHomeTo: (id: string) => g.travelHomeTo(id),
       instance: () => g.inInstance(),
       leaveInstance: () => { g.leaveInstance(); },
@@ -5986,11 +6015,11 @@ export class Game implements GameApi {
     if (ITEMS[item]?.mount && !this.inv.canAdd(item)) { this.hud.system('Your pack is full.'); return; }
     if (ITEMS[item]?.mount && !this.mountPick.open) {
       // A mount: choose its coat and cloth before paying
-      this.mountPick.show(item, `${s.price} marks`, true, (coat, cloth) => {
+      this.mountPick.show(item, `${s.price} marks`, true, (coat, cloth, male) => {
         if (this.save.marks < s.price || !this.inv.canAdd(item)) return;
         this.save.marks -= s.price;
         this.give(item, 1);
-        this.setFlag('look:' + item, `${Math.min(9, coat)}${Math.min(9, cloth)}`);
+        this.setFlag('look:' + item, `${Math.min(9, coat)}${Math.min(9, cloth)}${male ? 'm' : 'f'}`);
         this.sfx('coin');
         this.hud.refresh();
       });
@@ -6134,14 +6163,29 @@ export class Game implements GameApi {
     for (const s of rings) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d > 4.5 && d < 9.5) return s; }
     return null;
   }
-  /** A rubbing of one of the stones' marks: the same ring gives another after twenty minutes. */
+  /**
+   * A ring's three marks (owner 2026-11-27: "enchanting system is confusing"; a rubbing used to be any of fifteen at
+   * random): every ring has its own three, one on each third of the ring, so you choose by which stones you stand at,
+   * and five rings between them carry all fifteen.
+   */
+  ringMarks(s: Site): string[] {
+    const rings = (this._rings ??= this.world.sites.filter((r) => r.ring)), j = Math.max(0, rings.indexOf(s)), kinds = Object.keys(ENCHANTS);
+    return [0, 1, 2].map((k) => kinds[(j * 3 + k) % kinds.length]);
+  }
+  /** Which of the ring's marks is on the stones you stand at. */
+  private ringMarkAt(s: Site, p: THREE.Vector3): string {
+    const a = Math.atan2(p.z - s.z, p.x - s.x);
+    return this.ringMarks(s)[Math.floor(((a + Math.PI) / (Math.PI * 2)) * 3) % 3];
+  }
+  /** A rubbing of the mark on the stones you stand at: the same ring gives another after five minutes. */
   private takeRubbing(s: Site): void {
     const key = 'rub:' + s.id, last = Number(this.flag(key) ?? 0), now = realmNow();
     // (five minutes, not twenty, and the rubbing worth more as you rise: enchanting was starved, the XP audit 2026-11-12)
     if (now - last < 5 * 60_000) { this.hud.system(`The marks on these stones are rubbed faint. Come back in ${Math.ceil((5 * 60_000 - (now - last)) / 60_000)} minutes.`); return; }
-    const kinds = Object.keys(ENCHANTS), pick = kinds[Math.floor(Math.random() * kinds.length)];
+    const pick = this.ringMarkAt(s, this.player.position), others = this.ringMarks(s).filter((k) => k !== pick).map((k) => ENCHANTS[k].word);
     this.setFlag(key, now);
     this.give('rubbing_' + pick, 1);
+    this.hud.system(`You take a rubbing of the ${ENCHANTS[pick].word} mark: ${ENCHANTS[pick].text(1)} This ring's other stones carry ${others[0]} and ${others[1]}.`);
     this.bump('rubbings');
     this.addXp('enchanting', Math.round(15 * (1 + this.level('enchanting') / 6)));
     this.sfx('page');
@@ -6163,6 +6207,25 @@ export class Game implements GameApi {
     // a step in front of you, facing back the way you came, so the next one to come along reads it
     this.bump('posts');
     this.online.putPost(text, P.x + Math.sin(yaw) * 0.9, P.y, P.z + Math.cos(yaw) * 0.9, yaw + Math.PI);
+  }
+  /** The Social window's sign posts: every one standing, where it is and how long it has. */
+  postList() {
+    const P = this.player.position;
+    return [...this.posts.list.values()].map((p) => ({
+      id: p.id, text: p.text, by: p.by, up: p.up, mine: p.mine, voted: !!p.voted,
+      where: REGION_INFO[regionAt(p.x, p.z).a]?.name ?? '', dist: Math.hypot(p.x - P.x, p.z - P.z),
+      daysLeft: p.until ? Math.max(0, Math.floor((p.until - Date.now()) / 86_400_000)) : null, weathered: Post_weathered(p),
+    }));
+  }
+  postFind(id: number): void {
+    const p = this.posts.list.get(id);
+    if (p) this.markOnMap(p.x, p.z, `${p.by}'s sign post`);
+  }
+  postUp(id: number): void {
+    const p = this.posts.list.get(id);
+    if (!p || p.mine || p.voted || this.online.status !== 'online') return;
+    this.online.upPost(id); this.posts.up(id, p.up + 1, true);
+    this.sfx('click');
   }
   private readPost(p: Post): void {
     this.reading = p.id;
@@ -6584,6 +6647,13 @@ export class Game implements GameApi {
   }
 
   private markerPos(key: string): THREE.Vector3 | null {
+    // A spot on the ground, "at:x,z" (owner 2026-11-27: "cant find the mire jellies for intro"; a place with nobody at it)
+    if (key.startsWith('at:')) {
+      const [x, z] = key.slice(3).split(',').map(Number);
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+      const y = this.world.voxels.isLoaded(x, z) ? this.world.voxels.groundBelow(x, 140, z) : this.player.position.y;
+      return new THREE.Vector3(x, y, z);
+    }
     if (key.startsWith('ore:')) {
       const kind = key.slice(4);
       const P = this.player.position;
@@ -6915,7 +6985,8 @@ export class Game implements GameApi {
       if (ring) {
         // (the nearest stone of the ring, as near as it stands to you)
         const d = Math.max(0.1, Math.hypot(p.x - ring.x, p.z - ring.z)), sx = ring.x + ((p.x - ring.x) / d) * 7, sz = ring.z + ((p.z - ring.z) / d) * 7;
-        consider({ kind: 'act', label: 'Take a rubbing of the stones', sub: 'Enchanting', pos: new THREE.Vector3(sx, p.y + 1.2, sz), act: () => this.takeRubbing(ring) }, Math.abs(d - 7) + 0.6);
+        const mark = this.ringMarkAt(ring, p);
+        consider({ kind: 'act', label: `Take a rubbing: ${ENCHANTS[mark].word}`, sub: `Enchanting · ${ENCHANTS[mark].kind} mark · walk round the ring for ${this.ringMarks(ring).filter((k) => k !== mark).map((k) => ENCHANTS[k].word).join(' and ')}`, pos: new THREE.Vector3(sx, p.y + 1.2, sz), act: () => this.takeRubbing(ring) }, Math.abs(d - 7) + 0.6);
       }
     }
     // A fish tank of your own, at home: put a fish you caught in it, or take one out
@@ -7885,7 +7956,7 @@ export class Game implements GameApi {
   /** Your mount's key as others see it: its halter and the coat and cloth you chose. */
   private mountKeyOf(id: string): string {
     const v = String(this.flag('look:' + id) ?? '');
-    return v ? mountKey(id, Number(v[0]) || 0, Number(v[1]) || 0) : id;
+    return v ? mountKey(id, Number(v[0]) || 0, Number(v[1]) || 0, v[2] === 'm' ? true : v[2] === 'f' ? false : maleByDefault(id)) : id;
   }
 
   private halters(): string[] {
@@ -7910,10 +7981,10 @@ export class Game implements GameApi {
     if (this.inCombat()) { this.hud.system('Not while you\'re fighting.'); return; }
     if (!this.roomForHorse()) { this.hud.system('There\'s no room for a horse here.'); return; }
     // Down and hurt: she won't carry you, and can't come to your whistle
-    if (this.isSteed(id) && this.horseState(id).downAt) { this.hud.system(`${this.horseName(id)} is down and hurt where you left her. Give her a horse tonic (any stable has them), or let her rest.`); return; }
+    if (this.isSteed(id) && this.horseState(id).downAt) { this.horseSay(id, `${this.horseName(id)} is down and hurt where you left her. Give her a horse tonic (any stable has them), or let her rest.`); return; }
     // A horse of yours not at your shoulder: you whistle, and she comes (wagons still come round at once)
     if (this.isSteed(id) && !(this.parked?.id === id && this.parked.model.root.position.distanceTo(P.position) < 9)) {
-      if (this.coming?.id === id) { this.hud.system(`${this.horseName(id)} is on her way.`); return; }
+      if (this.coming?.id === id) { this.horseSay(id, `${this.horseName(id)} is on her way.`); return; }
       this.whistleHorse(id);
       return;
     }
@@ -9536,7 +9607,8 @@ export class Game implements GameApi {
     }
     this.justice.update(dt);
     this.world.sky.underwater = this.world.voxels.isWater(this.camera.position.x, this.camera.position.y, this.camera.position.z);
-    this.player.model.root.visible = this.rig.actualDistance > 1.1 || this.justice.busy;
+    this.player.model.root.visible = (this.rig.actualDistance > 1.1 || this.justice.busy) && !this.cocky?.active;
+    if (this.cocky?.active) this.cocky.aim();
     // In first person you face where you look
     if (this.rig.firstPerson && !this.dialogue && !this.action && !this.craftAction) this.player.yaw = this.rig.yaw - Math.PI;
     this.ambientFx(dt);
@@ -9628,11 +9700,14 @@ export class Game implements GameApi {
   }
 
   private handleInput(dt: number): void {
+    if (this.cocky?.active) { this.cocky.update(dt); return; } // (a cockerel has two keys' worth of wits, and Escape)
     const I = this.input;
     // Dialogue captures number keys and Escape.
     if (this.dialogue) {
       for (let k = 1; k <= 9; k++) if (I.pressedOnce('Digit' + k)) this.hud.dialogueKey(k - 1);
-      if (I.pressedOnce('Space') || I.pressedOnce('Enter')) this.hud.dialogueKey(0);
+      if (I.pressedOnce('ArrowUp')) this.hud.dialogueMove(-1);
+      if (I.pressedOnce('ArrowDown')) this.hud.dialogueMove(1);
+      if (I.pressedOnce('Space') || I.pressedOnce('Enter')) this.hud.dialogueKey(-1);
       if (I.pressedOnce('Escape')) this.endDialogue();
       if (this.dialogue && this.dialogue.npc.pos.distanceTo(this.player.position) > 6) this.endDialogue();
       if (I.dragX || I.dragY) this.rig.rotate(I.dragX, I.dragY);

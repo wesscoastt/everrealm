@@ -66,21 +66,43 @@ export function clothsOf(id: string): Cloth[] {
   return [{ name: 'As described', hex: m.wagon?.paint ?? m.cloth }, ...CLOTHS];
 }
 
-export function mountKey(id: string, coat = 0, cloth = 0): string {
-  return coat || cloth ? `${id}.${Math.min(9, coat)}${Math.min(9, cloth)}` : id;
+/**
+ * Mare or stallion (owner 2026-11-27: "have diff mounts be male or female"): what a mount of this kind is called each
+ * way, or null for one that has none (a clockwork strider). A halter you didn't choose for is the one its id falls to;
+ * a stag and a ram are what their names say.
+ */
+export function sexesOf(id: string): [string, string] | null {
+  const m = ITEMS[id]?.mount;
+  if (!m || m.breed === 'strider') return null;
+  if (m.breed === 'elk') return ['Hind', 'Stag'];
+  if (m.breed === 'ram') return ['Ewe', 'Ram'];
+  if (m.breed === 'drake' || m.breed === 'wyrm' || m.breed === 'griffin' || m.breed === 'cat' || m.breed === 'sabre' || m.breed === 'turtle' || m.breed === 'slabback') return ['Female', 'Male'];
+  return ['Mare', 'Stallion'];
 }
-export function parseMountKey(key: string): { id: string; coat: number; cloth: number } {
+export function maleByDefault(id: string): boolean {
+  const m = ITEMS[id]?.mount;
+  if (m?.breed === 'elk' || m?.breed === 'ram') return true;
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return (h & 1) === 1;
+}
+/** A mount's key as it travels: its halter, then coat, cloth, and m or f (none of it when it's all the halter's own). */
+export function mountKey(id: string, coat = 0, cloth = 0, male = maleByDefault(id)): string {
+  const sex = male === maleByDefault(id) ? '' : male ? 'm' : 'f';
+  return coat || cloth || sex ? `${id}.${Math.min(9, coat)}${Math.min(9, cloth)}${sex}` : id;
+}
+export function parseMountKey(key: string): { id: string; coat: number; cloth: number; male: boolean } {
   const [id, v] = key.split('.');
-  return { id, coat: v ? Number(v[0]) || 0 : 0, cloth: v ? Number(v[1]) || 0 : 0 };
+  return { id, coat: v ? Number(v[0]) || 0 : 0, cloth: v ? Number(v[1]) || 0 : 0, male: v?.[2] === 'm' ? true : v?.[2] === 'f' ? false : maleByDefault(id) };
 }
 
 /** A mount's look in a chosen coat and cloth (null: not a mount). */
-export function mountLook(id: string, coat = 0, cloth = 0): MountLook | null {
+export function mountLook(id: string, coat = 0, cloth = 0, male = maleByDefault(id)): MountLook | null {
   const m = ITEMS[id]?.mount;
   if (!m) return null;
   const c = coatsOf(id)[coat] ?? coatsOf(id)[0], k = clothsOf(id)[cloth] ?? clothsOf(id)[0];
   const breed = c.breed === null ? undefined : c.breed ?? m.breed;
-  const look: MountLook = { ...m, coat: c.a, mane: c.b, breed };
+  const look: MountLook = { ...m, coat: c.a, mane: c.b, breed, male: !!sexesOf(id) && male };
   if (cloth) {
     look.cloth = k.hex;
     if (m.wagon) look.wagon = { ...m.wagon, paint: k.hex };
@@ -92,6 +114,6 @@ export function mountLook(id: string, coat = 0, cloth = 0): MountLook | null {
 export function mountOf(key: string | null | undefined): MountLook | null {
   if (!key) return null;
   if (key === POST_CART_KEY) return POST_CART;
-  const { id, coat, cloth } = parseMountKey(key);
-  return mountLook(id, coat, cloth);
+  const { id, coat, cloth, male } = parseMountKey(key);
+  return mountLook(id, coat, cloth, male);
 }

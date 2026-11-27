@@ -384,6 +384,10 @@ export interface UiCtx {
   travelHome(): void;
   /** Every home you hold, the one you live in first (the Homes page in Social). */
   homeList(): { id: string; name: string; where: string; current: boolean; kind: string }[];
+  /** Every sign post standing in the realm (owner 2026-11-27: "put sign posts in social so people can reinforce them or find them"). */
+  postList(): { id: number; text: string; by: string; up: number; mine: boolean; voted: boolean; where: string; dist: number; daysLeft: number | null; weathered: boolean }[];
+  postFind(id: number): void;
+  postUp(id: number): void;
   /** Travel to one of them. */
   travelHomeTo(id: string): void;
   /** The dungeon or tower you're in (null: none), and leaving it. */
@@ -513,6 +517,8 @@ export class Hud {
   private exQuery = '';
   private exSell: string | null = null;
   private dlgOptions: HTMLButtonElement[] = [];
+  /** The answer picked out for the controller and the arrow keys (owner 2026-11-27: "scroll thru answer choices on controller"). */
+  private dlgSel = 0;
   private dragFrom = -1;
   /** Your character in the pack (ui/Doll.ts): the canvas it's drawn into, and which way it faces. */
   dollCanvas: HTMLCanvasElement | null = null;
@@ -1344,6 +1350,31 @@ export class Hud {
     body.querySelectorAll<HTMLElement>('[data-gohome]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.toggle('guild'); this.ctx.travelHomeTo(b.dataset.gohome!); }));
     foot.innerHTML = `<span>${list.length} home${list.length === 1 ? '' : 's'}</span><span>Going to one you don't live in moves you in there</span>`;
   }
+  /** How the sign posts are listed: the ones about to weather first, the nearest, or the best liked. */
+  private postSort: 'weather' | 'near' | 'liked' = 'weather';
+  /**
+   * Sign posts (owner 2026-11-27): every post standing in the realm, to find (pinned on your map) or to vote up from
+   * wherever you are. Mending one, three logs for three more days, is done at the post itself.
+   */
+  private renderPosts(): void {
+    const body = this.q('#guild-panel .body'), foot = this.q('#guild-panel .footer');
+    this.q('#guild-panel h3').textContent = 'Sign posts';
+    const all = this.ctx.postList();
+    if (!all.length) {
+      body.innerHTML = '<p class="gnote">No sign posts are standing, or you\'re playing offline. Leave one yourself with the pen beside the chat tabs: it goes in the ground where you stand, for whoever comes by after.</p>';
+      foot.innerHTML = '';
+      return;
+    }
+    const list = [...all].sort((a, b) => this.postSort === 'near' ? a.dist - b.dist : this.postSort === 'liked' ? b.up - a.up : (a.daysLeft ?? 99) - (b.daysLeft ?? 99));
+    const sorts: [typeof this.postSort, string][] = [['weather', 'Weathering soonest'], ['near', 'Nearest'], ['liked', 'Most liked']];
+    const days = (p: (typeof all)[number]) => p.daysLeft === null ? '' : p.weathered ? 'weathering away' : `${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left`;
+    body.innerHTML = `<div class="post-sorts">${sorts.map(([k, n]) => `<button class="btn sm${k === this.postSort ? ' sel' : ''}" data-psort="${k}">${n}</button>`).join('')}</div>
+      <div class="home-list">${list.slice(0, 60).map((p) => `<div class="home-row post-row${p.weathered ? ' weathered' : ''}"><div class="hr-t"><b>${esc(p.text)}</b><span>${esc(p.by)} · ${esc(p.where)} · ${p.dist >= 1000 ? (p.dist / 1000).toFixed(1) + ' km' : Math.round(p.dist) + ' m'} · ${p.up} liked${days(p) ? ' · ' + days(p) : ''}${p.mine ? ' · <i>yours</i>' : ''}</span></div><div class="post-acts"><button class="btn sm" data-pfind="${p.id}">Find</button>${p.mine || p.voted ? '' : `<button class="btn sm" data-pup="${p.id}">Like</button>`}</div></div>`).join('')}</div>`;
+    body.querySelectorAll<HTMLElement>('[data-psort]').forEach((b) => b.addEventListener('click', () => { this.postSort = b.dataset.psort as typeof this.postSort; this.ctx.sfx('click'); this.renderPosts(); }));
+    body.querySelectorAll<HTMLElement>('[data-pfind]').forEach((b) => b.addEventListener('click', () => { this.ctx.postFind(Number(b.dataset.pfind)); }));
+    body.querySelectorAll<HTMLElement>('[data-pup]').forEach((b) => b.addEventListener('click', () => { this.ctx.postUp(Number(b.dataset.pup)); this.renderPosts(); }));
+    foot.innerHTML = `<span>${all.length} post${all.length === 1 ? '' : 's'} standing${all.length > 60 ? ' (the first 60 shown)' : ''}</span><span>Find one to mend it: three logs, three more days</span>`;
+  }
   private renderHall(): void {
     const body = this.q('#guild-panel .body');
     const foot = this.q('#guild-panel .footer');
@@ -1397,21 +1428,22 @@ export class Hud {
   }
 
   /** The social panel (O) opens on Friends, Guild or the guild's Hall. */
-  private socialTab: 'friends' | 'guild' | 'hall' | 'homes' = 'friends';
+  private socialTab: 'friends' | 'guild' | 'hall' | 'homes' | 'posts' = 'friends';
   /** Open the social panel on this page next time it's shown. */
-  socialPage(t: 'friends' | 'guild' | 'hall' | 'homes'): void { this.socialTab = t; }
+  socialPage(t: 'friends' | 'guild' | 'hall' | 'homes' | 'posts'): void { this.socialTab = t; }
   private renderGuild(): void {
     const panel = this.q('#guild-panel');
     let tabs = panel.querySelector<HTMLElement>('.stabs');
     if (!tabs) {
-      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button><button data-st="hall">Hall</button><button data-st="homes">Homes</button>');
+      tabs = el('div', 'stabs', '<button data-st="friends">Friends</button><button data-st="guild">Guild</button><button data-st="hall">Hall</button><button data-st="homes">Homes</button><button data-st="posts">Sign posts</button>');
       panel.querySelector('.body')!.before(tabs);
-      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild' | 'hall' | 'homes'; this.ctx.sfx('click'); this.renderGuild(); }));
+      tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.addEventListener('click', () => { this.socialTab = b.dataset.st as 'friends' | 'guild' | 'hall' | 'homes' | 'posts'; this.ctx.sfx('click'); this.renderGuild(); }));
     }
     tabs.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => b.classList.toggle('sel', b.dataset.st === this.socialTab));
     if (this.socialTab === 'friends') { this.renderFriends(); return; }
     if (this.socialTab === 'hall') { this.renderHall(); return; }
     if (this.socialTab === 'homes') { this.renderHomes(); return; }
+    if (this.socialTab === 'posts') { this.renderPosts(); return; }
     const { view: g, online } = this.ctx.guild();
     const body = this.q('#guild-panel .body');
     const foot = this.q('#guild-panel .footer');
@@ -4227,7 +4259,7 @@ export class Hud {
     this.dialogueOpen = !!v;
     // (small screens clear the way for the conversation: see body.talking in styles.css)
     document.body.classList.toggle('talking', !!v);
-    if (!v) { d.classList.remove('show'); return; }
+    if (!v) { d.classList.remove('show', 'arrowed'); return; }
     d.classList.add('show');
     // (a speaker with no face, a pet or a notice board, shows no empty frame: owner 2026-11-15)
     (d.querySelector('.face') as HTMLElement).style.display = v.look ? '' : 'none';
@@ -4244,6 +4276,17 @@ export class Hud {
       opts.append(b);
       return b;
     });
+    this.dlgSel = 0;
+    this.dialogueMove(0);
+  }
+  /** Move the picked-out answer up or down (round from the last to the first), and keep it in sight. */
+  dialogueMove(d: number): void {
+    const n = this.dlgOptions.length;
+    if (!n) return;
+    this.dlgSel = (((this.dlgSel + d) % n) + n) % n;
+    this.dlgOptions.forEach((b, i) => b.classList.toggle('sel', i === this.dlgSel));
+    if (d) this.dlgOptions[this.dlgSel].scrollIntoView({ block: 'nearest' });
+    this.q('.dlg').classList.toggle('arrowed', !!d || this.q('.dlg').classList.contains('arrowed') && this.dialogueOpen);
   }
 
   // ------------------------------------------------------------------ Loading screen
@@ -4293,8 +4336,10 @@ export class Hud {
     this.root.classList.toggle('hidden-hud', on);
   }
 
+  /** Choose an answer by its number, or (-1) the one picked out. */
   dialogueKey(i: number): boolean {
     if (!this.dialogueOpen) return false;
+    if (i < 0) i = this.dlgSel;
     if (i < this.dlgOptions.length) { this.ctx.dialogueChoose(i); return true; }
     return false;
   }

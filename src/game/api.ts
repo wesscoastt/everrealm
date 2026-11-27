@@ -86,7 +86,7 @@ export interface GameApi {
   /** Look after it: feed, brush, play, or a fuss (stroke it). */
   petCare(k: 'fed' | 'washed' | 'played' | 'fuss'): void;
   /** Your horse where she stands (data/horseCare.ts, data/content/horseCare.ts), and seeing to her. */
-  horseInfo?(): { name: string; named: boolean; level: number; levelName: string; next: number | null; health: number; stamina: number; dirt: number; healthWord: string; staminaWord: string; coat: string; feeds: { id: string; label: string }[]; down: boolean; kind: string; traits: string; saddle: string; saddles: number; bags: number } | null;
+  horseInfo?(): { name: string; named: boolean; level: number; levelName: string; next: number | null; health: number; stamina: number; dirt: number; healthWord: string; staminaWord: string; coat: string; feeds: { id: string; label: string }[]; down: boolean; kind: string; male?: boolean; traits: string; saddle: string; saddles: number; bags: number } | null;
   horseTend?(how: 'pat' | 'brush' | 'feed' | 'bags' | 'saddle', feed?: string): void;
   horseRename?(): void;
   /** Give it a name (asks for one). */
@@ -97,6 +97,9 @@ export interface GameApi {
   /** A part of their story is done (2 or 3): a banner and a little more trust. */
   compStory(id: string, part: number): void;
   addMarks(n: number): void;
+  /** Cocky Road (game/CockyRoad.ts): the Henwife's curse, a run down the old drove road as a cockerel; and your best so far. */
+  cockyRoad(): void;
+  cockyBest(): number;
   /** A crime done here, worth this much to the nearest town's book (the Outlaw Fortnight's hold-up: game/Justice.ts). */
   crimeHere(worth: number): void;
   /** Experience in a skill (farming orders, and the like). */

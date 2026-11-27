@@ -43,6 +43,17 @@ function joinStory(g: GameApi, id: 'wenna' | 'ottilie'): void {
   if (!g.compActive()) g.compJoin(id);
 }
 
+/**
+ * Ottilie at your side for a walk she's in (owner 2026-11-27: "ottillie fenn dont follow for quest in glass kirk"): she says
+ * she's right behind you on the way to Joan, so she is, in the place of whoever was with you; she joins for good, as the
+ * chapter's end would have it, and the one sent home waits where you met them.
+ */
+function ottilieWithYou(g: GameApi): void {
+  g.setFlag('comp:ottilie:met', 1);
+  if (!g.flag('comp:ottilie:joined')) { g.setFlag('comp:ottilie:joined', 1); g.setFlag('comp:ottilie:part', 1); }
+  if (g.compActive() !== 'ottilie') g.compJoin('ottilie');
+}
+
 // ================================================================ II. A WITNESS
 
 const wennaRoad: DialogueTree = {
@@ -121,9 +132,9 @@ const ottNodes = {
       { text: 'Give me the book. I\'ll take it to her.', next: 'oD4b' },
     ],
   },
-  oD4: { text: 'Together. Yes. All right. If she shouts, I\'m standing behind you.', effect: (g: GameApi) => { g.give('ottilie_levels'); g.setStage(OTT, 'joan'); } },
-  oD4b: { text: 'I\'d rather come. It\'s my book. But you\'re taller. Here: don\'t fold the corners.', effect: (g: GameApi) => { g.give('ottilie_levels'); g.setStage(OTT, 'joan'); } },
-  oJoan: { text: 'East end. The tents. She\'s the one shouting numbers. Go on, I\'m right behind you.' },
+  oD4: { text: 'Together. Yes. All right. If she shouts, I\'m standing behind you.', effect: (g: GameApi) => { g.give('ottilie_levels'); g.setStage(OTT, 'joan'); ottilieWithYou(g); } },
+  oD4b: { text: 'I\'d rather come. It\'s my book. But you\'re taller. Here: don\'t fold the corners. I\'m coming anyway.', effect: (g: GameApi) => { g.give('ottilie_levels'); g.setStage(OTT, 'joan'); ottilieWithYou(g); } },
+  oJoan: { text: 'East end. The tents. She\'s the one shouting numbers. Go on, I\'m right behind you.', effect: (g: GameApi) => ottilieWithYou(g) },
 };
 const readings = (g: GameApi) => ['ottL1', 'ottL2', 'ottL3'].filter((k) => g.flag(k)).length;
 const LINE = [
@@ -159,12 +170,12 @@ const fortyNodes = {
       { text: 'Keep it until after the sitting. If you tell her now, the only person on the Kirk\'s side loses her nerve.', next: 'ff_fKeep' },
     ],
   },
-  ff_fJoan: { text: 'Now. Yes. Before I lose mine.', effect: (g: GameApi) => { g.setStage(FORTY, 'joan'); g.compRapport('ottilie', 5); } },
+  ff_fJoan: { text: 'Now. Yes. Before I lose mine.', effect: (g: GameApi) => { g.setStage(FORTY, 'joan'); g.compRapport('ottilie', 5); ottilieWithYou(g); } },
   ff_fKeep: {
     text: 'That\'s horrible. That\'s horrible and you might be right. I\'ll keep it. I\'ll keep measuring. And if the floor so much as twitches, I\'m telling everyone.',
     effect: (g: GameApi) => { g.setFlag('fortyTold', 'kept'); g.compRapport('ottilie', -3); g.setStage(FORTY, 'done'); },
   },
-  ff_fToJoan: { text: 'She\'s by her tents. I\'ll stand behind you again. Further behind you, this time.' },
+  ff_fToJoan: { text: 'She\'s by her tents. I\'ll stand behind you again. Further behind you, this time.', effect: (g: GameApi) => ottilieWithYou(g) },
 };
 const joanForty = {
   jf1: { speaker: 'narrator' as const, text: 'Joan reads Ottilie\'s two pages standing up, then reads them again sitting down on a crate.', next: 'jf2' },

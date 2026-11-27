@@ -7,6 +7,7 @@ import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID, type ShrineTheme } from './shrineData';
 import { hash2 } from './noise';
 import { landAt, landOf } from './land';
+import { COCKY, COCKY_BACK, HENWIFE, LANES } from '../data/cockyRoad';
 import { WH_DOOR, WH_HALLS, MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
@@ -973,6 +974,9 @@ function* planBody(): Generator<string, Plan> {
     { id: 'delve-smugglers', name: 'Smugglers\' Hole', x: 1660, z: 1090, r0: 20, r1: 30, h: 28, build: (s, b) => buildUnderworks(s, b, 'smugglers') },
     { id: 'delve-tinner', name: 'Tinner\'s Adit', x: 826, z: 1274, r0: 20, r1: 30, h: 28, build: (s, b) => buildUnderworks(s, b, 'tinner') },
     { id: 'delve-seep', name: 'The Cold Seep', x: 700, z: 1560, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'seep') },
+    // Cocky Road (data/cockyRoad.ts): the Henwife's cottage, and the old drove road east of it, lane by lane
+    { id: 'henwife', name: 'The Henwife\'s', x: HENWIFE.x, z: HENWIFE.z, r0: 9, r1: 16, h: 20, build: (s, b) => buildHenwife(s, b) },
+    { id: 'cocky-road', name: 'Cocky Road', x: COCKY.x + COCKY.lanes / 2, z: COCKY.z, r0: 0, r1: 0, build: (s) => buildCockyRoad(s) },
     { id: 'delve-hob', name: 'Hob\'s Barrow', x: 150, z: 760, r0: 20, r1: 30, h: 33, build: (s, b) => buildUnderworks(s, b, 'hob') },
     { id: 'vista-northhead', name: 'Vista: Gannet Head', x: 1050, z: -200, r0: 0, r1: 0, build: (s) => buildVista(s) },
     { id: 'vista-westcape', name: 'Vista: Cape Wrath', x: -170, z: 640, r0: 0, r1: 0, build: (s) => buildVista(s) },
@@ -3921,6 +3925,66 @@ function* planBody(): Generator<string, Plan> {
    * The Winding House's door (gd-winding): a way cut into the hillside south-west of Liftwick, dressed in the Assembly's
    * white and black, an anchor stone with a cut chain lying across it by the step, and the Assembly's board.
    */
+  /**
+   * The Henwife's cottage at the head of Cocky Road: whitewash and thatch, a hen coop and run beside it, a woodpile, and
+   * her board at the road's start.
+   */
+  function buildHenwife(s: Site, base: number) {
+    const X = HENWIFE.x, Z = HENWIFE.z;
+    house(s, X - 4, Z - 3, 7, 6, 1, base, 'thatch', 'e', { wall: B.Plaster, front: 'boarded', role: 'home' });
+    // the hen coop: a little dark-boarded house on legs, and its run of hay
+    for (let x = X + 5; x <= X + 7; x++) for (let z = Z + 2; z <= Z + 4; z++) { O.set(x, base, z, B.Hay); for (let y = base + 1; y <= base + 2; y++) O.set(x, y, z, x === X + 6 && z === Z + 3 && y === base + 1 ? B.Air : B.DarkPlanks); O.set(x, base + 3, z, B.Thatch); }
+    fence(s, X + 4.5, Z + 6, X + 8.5, Z + 6); fence(s, X + 8.5, Z + 1.5, X + 8.5, Z + 6);
+    s.props.push({ t: 'barrel', x: X + 4.5, y: base, z: Z - 3.5 }, { t: 'crate', x: X + 4.5, y: base, z: Z - 2.2, ry: 0.4 }, { t: 'lantern', x: X + 3.5, y: base, z: Z + 1.5 });
+    for (const [dx, dz] of [[-5, 4], [-5, 5]]) O.set(X + dx, base, Z + dz, B.OakLog);
+  }
+
+  /**
+   * Cocky Road: the old drove road, one lane a block across, the lanes running north and south between hedges. Grass
+   * with hay bales and stumps in the way; rutted cart roads; channels of water a block deep. The ground is laid level at
+   * the road's height whatever the meadow does under it. The carts, logs and punts are the minigame's (game/CockyRoad.ts).
+   */
+  function buildCockyRoad(s: Site) {
+    const Y = 20, Z = COCKY.z, H = COCKY.half;
+    rect(s, COCKY.x - 4, Z - H - 2, COCKY.x + COCKY.lanes + 2, Z + H + 2);
+    const ground = (x: number, z: number, top: number) => {
+      const g = heightAt(x, z);
+      for (let y = Math.min(g, Y) - 2; y < Y - 1; y++) O.set(x, y, z, B.Dirt);
+      O.set(x, Y - 1, z, top);
+      for (let y = Y; y < Y + 8; y++) O.set(x, y, z, B.Air);
+    };
+    // the start: three lanes of grass before the first, and the Henwife's board
+    for (let x = COCKY.x - 4; x < COCKY.x; x++) for (let z = Z - H - 1; z <= Z + H + 1; z++) ground(x, z, Math.abs(z - Z) > H ? B.Path : B.Grass);
+    s.props.push({ t: 'sign', x: COCKY.x - 2.5, y: Y, z: Z - H - 1.5, ry: 0, text: 'COCKY ROAD\nby order of the Henwife:\nmind the carts' });
+    LANES.forEach((lane, i) => {
+      const x = COCKY.x + i;
+      for (let z = Z - H - 1; z <= Z + H + 1; z++) {
+        const edge = Math.abs(z - Z) > H;
+        if (lane.kind === 'river') {
+          const g = heightAt(x, z);
+          for (let y = Math.min(g, Y) - 4; y < Y - 3; y++) O.set(x, y, z, B.Dirt);
+          O.set(x, Y - 3, z, B.Gravel); O.set(x, Y - 2, z, B.Water); O.set(x, Y - 1, z, B.Water);
+          for (let y = Y; y < Y + 8; y++) O.set(x, y, z, B.Air);
+          continue;
+        }
+        ground(x, z, lane.kind === 'road' ? (hashCocky(x, z) < 0.25 ? B.Gravel : B.Path) : hashCocky(x, z) < 0.1 ? B.FlowerGrass : B.Grass);
+        // hedges along both sides of the grass, and a low stone kerb along the roads
+        if (edge) {
+          if (lane.kind === 'grass') { O.set(x, Y, z, B.OakLeaves); O.set(x, Y + 1, z, B.OakLeaves); }
+          else O.set(x, Y, z, B.Cobble);
+        }
+      }
+      // what's in the way on the grass: a hay bale, or a stump
+      if (lane.kind === 'grass') for (const bz of lane.blocks ?? []) O.set(x, Y, Z + bz, (x + bz) % 3 === 0 ? B.OakLog : B.Hay);
+    });
+    // the far gate: two posts and a board
+    const gx = COCKY.x + COCKY.lanes - 1;
+    for (const z of [Z - H - 1, Z + H + 1]) for (let y = Y; y < Y + 4; y++) O.set(gx, y, z, B.OakLog);
+    s.props.push({ t: 'sign', x: gx + 1.5, y: Y, z: Z + H + 2.5, ry: 0, text: 'THE FAR GATE\nyou made it, cockerel' });
+    void COCKY_BACK;
+  }
+  function hashCocky(x: number, z: number) { return hash2(x, z, 4431); }
+
   function buildWindingDoor(s: Site, base: number) {
     const PX = WH_DOOR.x, PZ = WH_DOOR.z;
     for (let z = PZ - 7; z <= PZ; z++) for (let x = PX - 2; x <= PX + 2; x++) for (let y = base; y < base + 5; y++) O.set(x, y, z, B.Air);

@@ -892,7 +892,10 @@ export class AudioSystem {
     if (on && !this.menuSong) {
       const a = new Audio(`${import.meta.env.BASE_URL}audio/menu-song.m4a`);
       a.loop = true; a.volume = 0;
+      // (and when a browser or a server that won't seek lets it end anyway, start it over from a fresh copy next frame)
+      a.addEventListener('ended', () => { if (this.menuSong === a) { this.menuSong = null; a.src = ''; } });
       this.menuSong = a;
+      this.applyVolumes();
     }
     const a = this.menuSong;
     if (!a) return;

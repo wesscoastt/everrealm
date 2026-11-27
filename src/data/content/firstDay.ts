@@ -27,6 +27,8 @@ import type { QuestSpawn } from '../places_regional';
 const Q = 'firstDay';
 const DAVY = { x: 153.5, z: 184.5 };
 const JELLIES: [number, number][] = [[200, 242], [207, 248], [198, 251]];
+/** Where the jellies come up, on the map and the pin (owner 2026-11-27: "cant find the mire jellies for intro"). */
+const JELLY_MARK = `at:${Math.round(JELLIES.reduce((t, j) => t + j[0], 0) / JELLIES.length)},${Math.round(JELLIES.reduce((t, j) => t + j[1], 0) / JELLIES.length)}`;
 
 const ft = (g: GameApi, k: string) => !!g.flag('ft:' + k);
 const n = (g: GameApi, k: string) => Number(g.flag('n:' + k) ?? 0);
@@ -46,7 +48,7 @@ const STEPS: Record<string, (g: GameApi) => { text: string; done: boolean; marke
   ],
   fight: (g) => [
     { text: 'Use a skill from your hotbar (keys 1 to 8)', done: ft(g, 'skill') },
-    { text: `Burst the mire jellies in the Wetlings, east of the ford (${Math.min(JELLIES.length, killed(g, 'fdJelly'))}/${JELLIES.length})`, done: killed(g, 'fdJelly') >= JELLIES.length },
+    { text: `Burst the mire jellies in the Wetlings, east of the ford (${Math.min(JELLIES.length, killed(g, 'fdJelly'))}/${JELLIES.length})`, done: killed(g, 'fdJelly') >= JELLIES.length, marker: JELLY_MARK },
   ],
   gather: (g) => [{ text: 'Gather something: fish the Wend, cut a tree, mine ore, or pick what grows (E)', done: gathered(g) }],
   make: (g) => [{ text: 'Make something: cook the minnows at a fire, or work a bench or the forge', done: made(g) }],

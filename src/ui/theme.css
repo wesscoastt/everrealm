@@ -896,3 +896,8 @@ body.pad .ab-slot .key { white-space: nowrap; }
 .jbody .moral-line { padding-left: 10px; border-left: 2px solid rgba(120, 80, 30, 0.35); margin: 3px 0; }
 .jbody .moral-person { display: flex; justify-content: space-between; }
 .jbody .bar.regard.neg i { background: #8a2a1e; }
+/* Social: sign posts (Hud.renderPosts) */
+.post-sorts { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.post-sorts .btn.sel { border-color: rgba(224,189,100,0.9); }
+.post-row .post-acts { display: flex; gap: 6px; flex-shrink: 0; }
+.post-row.weathered { border-color: rgba(200,120,60,0.6); }

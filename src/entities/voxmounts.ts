@@ -10,7 +10,7 @@ import { shade, Vox, VOX_MAT, type Paint } from './vox';
 
 type V3 = [number, number, number];
 export interface VoxMountHost { body: THREE.Group; legs: THREE.Object3D[]; segs: THREE.Object3D[] }
-export interface VoxMountPal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string; pillion?: boolean; /** In the shafts of a wagon: a harness, not a saddle. */ harness?: boolean }
+export interface VoxMountPal { a?: string; b?: string; c?: string; glow?: boolean; breed?: string; pillion?: boolean; /** In the shafts of a wagon: a harness, not a saddle. */ harness?: boolean; /** A stallion: a thicker, crested neck and a fuller mane. */ male?: boolean }
 /** A wagon behind the animal: an open cart or a wagon with a canvas tilt; paint for the boards and wheels. */
 export interface WagonLook { kind: 'cart' | 'covered' | 'cage'; paint?: string; canvas?: string }
 
@@ -153,7 +153,9 @@ function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): VoxMo
     v.ellipsoid([0, 1.38, 0.6], [0.34, 0.4, 0.36], coatP); // the chest
     v.ellipsoid([0, 1.47, -0.6], [0.37, 0.4, 0.42], coatP); // the quarters
     v.ellipsoid([0, 1.7, 0.48], [0.2, 0.16, 0.28], coatP); // the withers
-    v.capsule([0, 1.62, 0.78], [0, 2.28, 1.18], 0.26, 0.17, coatP); // the neck
+    // the neck: a stallion's thicker, and crested along the top; a mare's finer
+    if (P.male) { v.capsule([0, 1.6, 0.76], [0, 2.28, 1.18], 0.31, 0.19, coatP); v.capsule([0, 1.82, 0.7], [0, 2.3, 1.08], 0.15, 0.1, coatP); }
+    else v.capsule([0, 1.62, 0.78], [0, 2.28, 1.18], 0.26, 0.17, coatP);
     // The girth under the belly
     v.fill([-0.4, 0.95, 0.18], [0.4, 1.75, 0.3], (x, y, z) => Math.abs(z - 0.24) < 0.05 && y < 1.7 && (x / 0.38) ** 2 + ((y - 1.4) / 0.43) ** 2 <= 1 && (x / 0.31) ** 2 + ((y - 1.4) / 0.36) ** 2 > 1, flat(leather));
     if (elk) {
@@ -164,10 +166,11 @@ function horse(k: Kit, host: VoxMountHost, P: VoxMountPal, breed: string): VoxMo
       for (const [x, y, z, r] of [[0, 1.62, 0.36, 0.34], [0, 1.66, -0.36, 0.36], [0.24, 1.46, 0.0, 0.26], [-0.24, 1.46, 0.0, 0.26], [0, 1.66, 0.82, 0.24], [0, 1.52, -0.82, 0.26], [0.18, 1.5, 0.6, 0.24], [-0.18, 1.5, 0.6, 0.24], [0.2, 1.52, -0.6, 0.26], [-0.2, 1.52, -0.6, 0.26]] as const) v.ellipsoid([x, y, z], [r * 1.2, r, r * 1.1], shag(a));
     } else {
       // The mane: along the crest, falling in strands down the right side
-      v.capsule([0, 1.9, 0.7], [0, 2.44, 1.1], 0.075, 0.065, maneP);
+      const mx = P.male ? 1.25 : 1; // (a stallion's mane is heavier, and sits higher on the crest)
+      v.capsule([0, 1.9 + (mx - 1) * 0.2, 0.7], [0, 2.44 + (mx - 1) * 0.1, 1.1], 0.075 * mx, 0.065 * mx, maneP);
       for (let i = 0; i <= 9; i++) {
-        const t = i / 9, cy = 1.88 + 0.54 * t, cz = 0.72 + 0.38 * t;
-        v.capsule([0.04, cy, cz], [0.17 + (i % 2) * 0.03, cy - 0.24 - (i % 3) * 0.07, cz + 0.03], 0.06, 0.05, maneP);
+        const t = i / 9, cy = 1.88 + 0.54 * t + (mx - 1) * 0.18, cz = 0.72 + 0.38 * t;
+        v.capsule([0.04, cy, cz], [0.17 * mx + (i % 2) * 0.03, cy - 0.24 * mx - (i % 3) * 0.07, cz + 0.03], 0.06 * mx, 0.05 * mx, maneP);
       }
       if (kelpie) for (let i = 0; i < 5; i++) v.capsule([0.12, 1.98 + i * 0.1, 0.74 + i * 0.08], [0.2, 1.62 + i * 0.08, 0.8 + i * 0.08], 0.05, 0.045, flat('#2e5a3a', 0.25));
     }
@@ -283,7 +286,7 @@ export interface VoxMountParts { head: THREE.Group; tail: THREE.Group; bit: V3; 
 
 export function buildVoxMount(host: VoxMountHost, breed: string, P: VoxMountPal): VoxMountParts {
   const a = P.a ?? '#8a5a2e', b = P.b ?? '#2a1e16', c = P.c ?? '#2e4a7a', glow = !!P.glow;
-  const k = new Kit([breed, a, b, c, glow ? 1 : 0, P.pillion ? 1 : 0, P.harness ? 1 : 0].join('|'));
+  const k = new Kit([breed, a, b, c, glow ? 1 : 0, P.pillion ? 1 : 0, P.harness ? 1 : 0, P.male ? 1 : 0].join('|'));
   const B = host.body;
   const leg = (at: V3, build: (v: Vox) => void) => { host.legs.push(k.part(B, at, build)); };
   let head: THREE.Group, tail: THREE.Group, bit: V3, girth: number;
