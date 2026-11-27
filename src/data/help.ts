@@ -70,6 +70,7 @@ export const HELP: [string, [string, string][]][] = [
     ['What happens if I’m seen?', 'You get a bounty in that town. It fades over time, but a big one brings the guards. When they catch you, pay it, go quietly to the gaol, or run (which adds to it). Stolen goods are taken. A fixer will clear every town’s book for a price: Nell Kitto in the Ropewalk Cellar, or Gil.'],
   ]],
   ['Delves and dungeons', [
+    ['How do I get to the north of Morrow?', 'The ferry Kittiwake runs from Callis up the coast to Cold Harbour, though her mate won’t carry you there without the Assembly’s pass; or go overland, north through the Sunder and the Glass Flats. Northgate stands across the pass beyond the Greywaste.'],
     ['How do I see every land at once?', 'Open the map (M) and press World at the top right: the Counties, Verandah and Morrow, with the ships between them. Here takes you back to the land you are in.'],
     ['How do I get to Inkholm?', 'Talk to Doctor Lettice Hale of the Collegium by Gullmouth\'s Charter Post: she gets Reuben Hoskin the ferryman to take you over. Its people have more for you once you are across, and more again once the Grey is broken.'],
     ['What does Cleared mean on the map?', 'You beat that delve’s or public dungeon’s boss. The first time gives a banner and experience, and the place gets a green tick on the map from then on.'],
