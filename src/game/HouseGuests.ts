@@ -146,10 +146,14 @@ export class HouseGuests {
 
   private spawn(id: CompanionId, h: HomeShape, spots: Spot[]): void {
     const model = new Humanoid(this.host.look(id));
-    const at = spots.length ? spots[Math.floor(Math.random() * spots.length)] : null;
+    // (only a place nobody else has: owner 2026-11-27, "companions all sit in same chair"; they used to be set down on
+    // any spot at all, in a chair someone was already in, and stand up out of it later)
+    const me = { id } as Guest;
+    const open = spots.filter((s) => this.claimable(s, me) && (!s.work || this.host.tending()) && !s.night);
+    const at = open.length ? open[Math.floor(Math.random() * open.length)] : null;
     const pos = at ? new THREE.Vector3(at.x, at.y, at.z) : this.doorPoints(h).in.clone();
     const g: Guest = { id, model, pos, yaw: 0, path: [], doing: null, until: 0, inside: at?.inside ?? true, talk: null };
-    if (at && this.claimable(at, g) && (!at.work || this.host.tending())) this.begin(g, at);
+    if (at) this.begin(g, at);
     this.host.scene.add(model.root);
     this.guests.set(id, g);
   }
@@ -190,7 +194,7 @@ export class HouseGuests {
     if (night) {
       const beds = pool.filter((s) => s.night);
       pool = beds.length ? beds : pool.filter((s) => s.anim === 'seated');
-      if (!pool.length) pool = spots.filter((s) => s.inside);
+      if (!pool.length) pool = spots.filter((s) => s.inside && !s.night && s.anim !== 'seated' && this.claimable(s, g)); // (no bed or chair free: stand about indoors, never in someone's)
     } else pool = pool.filter((s) => !s.night);
     if (!pool.length) { g.until = this.clock + 10; return; }
     const s = pool[Math.floor(Math.random() * pool.length)];

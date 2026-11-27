@@ -3222,3 +3222,25 @@ export class Humanoid {
     return this.held.localToWorld(out.copy(local));
   }
 }
+
+/**
+ * What a hand holds, built as a figure would hold it (setHeld): a weapon by its item id, one of the plain tools, or
+ * nothing; and the left hand's shield, lamp or book. For the first-person view (game/FirstPerson.ts), which draws your
+ * own hands and what's in them.
+ */
+export function heldObject(kind: string): { mesh: THREE.Group | null; bow: boolean } {
+  if (!kind || kind === 'none' || (!TOOLS.has(kind) && instrumentOf(kind))) return { mesh: null, bow: false };
+  const model = TOOLS.has(kind) ? null : weaponModelOf(kind);
+  const mesh = model ? weaponMesh(model) : heldMesh(TOOLS.has(kind) ? (kind as HeldItem) : 'sword');
+  return { mesh, bow: model?.family === 'bow' };
+}
+export function offhandObject(id: string | null): THREE.Group | null {
+  const model = id ? offhandModelOf(id) : null;
+  return model ? offhandMesh(model) : null;
+}
+/** The colours of a figure's forearm, as the arm is drawn: sleeve, cuff, glove or bare hand, and bare to the elbow. */
+export function armColours(look: Appearance): { sleeve: string; cuff: string; hand: string; bare: boolean; skin: string; bracers: Appearance['bracers'] | null } {
+  const top = look.top ?? 0, shirt = look.shirt ?? shade(look.trim, 0.9);
+  const sleeve = look.sleeves ?? (top === 1 || top === 3 || top === 6 ? shirt : look.tunic);
+  return { sleeve, cuff: look.sleeves ? shade(look.sleeves, 0.7) : look.trim, hand: look.gloves ?? look.skin, bare: !!look.shortSleeves, skin: look.skin, bracers: look.bracers ?? null };
+}

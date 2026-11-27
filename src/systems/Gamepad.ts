@@ -14,6 +14,11 @@ import type { Input } from './Input';
 //   A clicks, B closes.
 //   Hold LB with the D-pad for the other windows: up, skills; down, the group finder; left, companions; right, social;
 //   LB and L3, talents (owner 2026-11-13: "U isn't companions on a controller").
+//   Steering (owner 2026-11-27: "whole game needs to be controller supported"): on Cocky Road, at a ship's helm and at
+//   the oars, the left stick and the D-pad are the arrow keys (a flick is one hop, or a notch of sail); at the helm X
+//   fires to port, B to starboard, RT toward where you look, Y the chasers; A goes over the side, B gives up a run.
+//   Building, on your lot or about the house: A sets down, X digs out or picks up, Y turns, B stops.
+//   Swimming: LT dives. LB and R3: sneak. Fishing: A held reels the line in (it was only ever a tap).
 //   While the pad is what you're using, the prompts, the bar and the menu buttons show its buttons (Hud.setPadMode);
 //   a key or the mouse puts them back.
 
@@ -28,6 +33,11 @@ export interface PadHost {
   inDialogue(): boolean;
   /** Something in reach to talk to or use (the E prompt is showing). */
   canInteract(): boolean;
+  /** Steering something with the arrow keys rather than walking: Cocky Road, a ship's helm, the oars. */
+  steering?(): 'cocky' | 'helm' | 'row' | null;
+  /** Building on your lot or arranging the house. */
+  building?(): boolean;
+  swimming?(): boolean;
   /** Seen a pad for the first time: say how it's laid out. */
   hello(name: string): void;
   /** The pad has become (or stopped being) what you're playing with: show its buttons, or the keys. */
@@ -96,6 +106,33 @@ export class Gamepad {
     if (Math.hypot(ax(0), ax(1)) < 0.1) this.sprint = false;
     this.hold(L3 + 100, 'ShiftLeft', this.sprint);
 
+    // Steering: the stick and the D-pad are the arrow keys, and the face buttons are the helm's (or the cockerel's)
+    const steer = this.host.steering?.() ?? null;
+    const sx = ax(0), sy = ax(1);
+    this.hold(200, 'ArrowUp', !!steer && (sy < -0.5 || btn(UP)));
+    this.hold(201, 'ArrowDown', !!steer && (sy > 0.5 || btn(DOWN)));
+    this.hold(202, 'ArrowLeft', !!steer && (sx < -0.5 || btn(LEFT)));
+    this.hold(203, 'ArrowRight', !!steer && (sx > 0.5 || btn(RIGHT)));
+    if (steer && !talk) {
+      I.moveX = I.moveY = 0;
+      if (steer === 'helm') { if (down(X)) I.tap('KeyZ'); if (down(B)) I.tap('KeyC'); if (down(RT)) I.tap('KeyF'); if (down(Y)) I.tap('KeyR'); }
+      if (steer === 'cocky' && down(B)) I.tap('Escape');
+      if (down(A) && steer !== 'cocky') I.tap('Space');
+      if (down(START)) I.tap('Escape');
+      if (down(VIEW)) I.tap('KeyM');
+      this.remember(pad);
+      return;
+    }
+    // Building: the face buttons are the builder's keys
+    if (this.host.building?.() && !talk) {
+      if (down(A)) I.tap('KeyE');
+      if (down(X)) I.tap('KeyX');
+      if (down(Y)) I.tap('KeyR');
+      if (down(B)) I.tap('Escape');
+      if (down(START)) I.tap('Escape');
+      this.remember(pad);
+      return;
+    }
     // In a conversation: up and down the answers (the stick repeats while held), A takes the one picked out
     if (talk) {
       I.moveX = I.moveY = 0;
@@ -114,9 +151,12 @@ export class Gamepad {
     const lb = btn(LB);
     // Attack, block, dodge
     if (down(RT)) I.tap('Digit1');
-    this.hold(LT, 'KeyV', btn(LT));
+    const swim = !!this.host.swimming?.();
+    this.hold(LT, 'KeyV', btn(LT) && !swim);
+    this.hold(LT + 100, 'KeyC', btn(LT) && swim); // (in the water, LT dives)
     if (down(A)) { if (btn(LT)) I.tap('KeyQ'); else if (this.host.canInteract()) I.tap('KeyE'); else { I.tap('Space'); this.hold(A + 100, 'Space', true); } }
     if (!btn(A)) this.hold(A + 100, 'Space', false);
+    this.hold(A + 200, 'KeyE', btn(A) && !btn(LT)); // (held: a fish on the line reels in while A is down)
     // The bar
     if (down(X)) I.tap(lb ? 'Digit6' : 'Digit2');
     if (down(Y)) I.tap(lb ? 'Digit7' : 'Digit3');
@@ -128,7 +168,7 @@ export class Gamepad {
     if (down(LEFT)) I.tap(lb ? 'KeyU' : 'KeyL');
     if (down(RIGHT)) I.tap(lb ? 'KeyO' : 'KeyH');
     if (down(L3) && lb) I.tap('KeyT');
-    if (down(R3)) I.tap('Tab');
+    if (down(R3)) I.tap(lb ? 'ControlLeft' : 'Tab'); // (LB and R3: sneak)
     if (down(START)) I.tap(lb ? 'KeyI' : 'Escape');
     if (down(VIEW)) I.tap(lb ? 'KeyJ' : 'KeyM');
     this.remember(pad);

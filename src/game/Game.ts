@@ -80,6 +80,7 @@ import { Voyage, type Harbour } from './Voyage';
 import { ISLAND_COURSES } from '../data/islandCourses';
 import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
 import { CockyRoad } from './CockyRoad';
+import { FirstPerson } from './FirstPerson';
 import { COCKY_BACK } from '../data/cockyRoad';
 import { Sailing, type ShipState } from './Sailing';
 import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
@@ -535,6 +536,11 @@ export class Game implements GameApi {
   sailing!: Sailing;
   /** Cocky Road (game/CockyRoad.ts): the Henwife's curse, a run down the old drove road as a cockerel. */
   cocky!: CockyRoad;
+  /** Your own hands in first person (game/FirstPerson.ts), drawn over the frame. */
+  private readonly fp = new FirstPerson();
+  /** A blow landing holds the world still a moment: seconds left (resolveAttack, dealDamage; frame slows the clock). */
+  private hitstop = 0;
+  private fpLook = { yaw: 0, pitch: 0 };
   /** The camera's distance before you took a ship's helm, to go back to. */
   private rigBeforeHelm = 0;
   private shipPanel: HTMLDivElement | null = null;
@@ -964,7 +970,6 @@ export class Game implements GameApi {
   private rolledThrough = false;
   private wakeTimer = 0;
   private lastCombat = -99;
-  private hitstop = 0;
   target: Enemy | null = null;
 
   // Activities
@@ -1034,6 +1039,9 @@ export class Game implements GameApi {
       rotate: (dx, dy) => { this.input.dragX += dx; this.input.dragY += dy; },
       windowOpen: () => this.hud?.anyOpen() || !!this.tavernT?.open || !!this.racesT?.bookOpen || this.homePicker.open || !!this.quartersT?.open,
       inDialogue: () => !!this.dialogue,
+      steering: () => (this.cocky?.active ? 'cocky' : this.sailing?.mine && this.sailing.atHelm ? 'helm' : this.boat?.aboard ? 'row' : null),
+      building: () => !!this.lotBuild?.active || !!this.home?.active || !!this.cabin?.active,
+      swimming: () => !!this.player?.swimming,
       padMode: (on, id) => this.hud?.padUsed(on, id),
       canInteract: () => !!this.candidate,
       hello: () => this.hud?.system('A controller, laid out as ESO\'s: left stick to move, right stick to look, RT to attack, LT to block (LT and A to dodge), X, Y, B and RB for skills 2 to 5 (hold LB for 6 to 8; LB and RB together for 8), A to talk, use or jump, the D-pad for food, your horse, your light and your weapon, Start for the menu, View for the map. In a window, the left stick moves a pointer and A clicks.'),
@@ -6691,6 +6699,28 @@ export class Game implements GameApi {
 
   /** Quests taken off the tracker and the map in the journal (Track), and the one put first (Focus). */
   private questHidden(): string[] { return (this.flag('qHidden') as string[] | undefined) ?? []; }
+  /**
+   * Your hands in first person (game/FirstPerson.ts): what you hold, how you're moving and what you're doing, given to
+   * the view each frame and drawn over it. Not while riding, swimming, sitting, talking, down, or a cockerel.
+   */
+  private drawHands(dt: number): void {
+    const show = this.rig.firstPerson && this.mode === 'play' && !this.horse && !this.player.swimming && !this.seated && !this.dialogue && !this.dead
+      && !this.cocky?.active && !this.cine && !this.justice.busy && !this.boat.aboard;
+    const dYaw = this.rig.yaw - this.fpLook.yaw, dPitch = this.rig.pitch - this.fpLook.pitch;
+    this.fpLook.yaw = this.rig.yaw; this.fpLook.pitch = this.rig.pitch;
+    if (!show) { this.fp.visible = false; return; }
+    const M = this.player.model, a = this.attack, sky = this.world.sky;
+    this.fp.update(dt, {
+      look: this.wornLook(), held: M.heldKind, offhand: M.offhandKind, anim: M.state, animT: M.stateTime,
+      swing: a ? { u: Math.min(1, a.t / a.dur), combo: a.combo, cleave: a.kind === 'cleave' } : null,
+      blocking: this.guarding, speed: Math.hypot(this.player.velocity.x, this.player.velocity.z),
+      sprint: this.input.held('ShiftLeft') || this.input.held('ShiftRight'),
+      dYaw: Math.abs(dYaw) > 1 ? 0 : dYaw, dPitch: Math.abs(dPitch) > 1 ? 0 : dPitch,
+      hemi: sky.hemi, sun: sky.sun, shade: sky.underground ? 0.45 : this.rig.indoor ? 0.7 : 1,
+    }, this.camera.aspect);
+    this.fp.render(this.renderer);
+  }
+
   /** Where the tracked objective is on screen (Hud.objectivePin): the focused quest's, else the story's, else the first. */
   private pinV = new THREE.Vector3();
   private pinT = 0;
@@ -8906,6 +8936,11 @@ export class Game implements GameApi {
       if (crit && this.gearSet === 'starglass') this.energy = Math.min(100, this.energy + 6);
       const dmg = this.dealDamage(e, power * mult * bonus.mult * (0.9 + Math.random() * 0.2), crit);
       drawn += dmg * (blade?.leech ?? 0);
+      // in first person, the blow is felt: the hands jolt back, the view kicks, sparks where it bit (the hitstop is resolveAttack's own)
+      if (!any && this.rig.firstPerson) {
+        this.fp.hit(crit); this.rig.addShake(crit ? 0.12 : 0.06);
+        this.particles.sparks(tmpV2.copy(e.pos).setY(e.pos.y + 1.1), crit ? 10 : 6, crit ? '#ffe08a' : '#ffc860');
+      }
       any = true;
     }
     // Nothing hostile in reach: a blow at the town itself, its watch, its people or its beasts, goes in its book (game/Justice.ts)
@@ -9631,6 +9666,7 @@ export class Game implements GameApi {
       this.picture.setLight(sky.sunDir, sky.sun.color, sky.night, sky.weather.cloud, sky.underwater, sky.underground, sky.weather.snow ? 0 : sky.weather.precip);
       this.picture.render(dt);
     } else this.renderer.render(this.scene, this.camera);
+    this.drawHands(dt);
     if (this.debug) {
       this.fpsAcc.t += dt; this.fpsAcc.n++;
       if (this.fpsAcc.t > 0.5) {
