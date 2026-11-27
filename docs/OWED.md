@@ -44,6 +44,8 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 ## A. Now, in order
 
+000. **Owner 2026-11-27: Cocky Road** (docs/briefs/cocky-road.md, "new minigame / questline idea. a parody of crossy road called cocky road, it will be a new location, a waitch turns you into a animal for the quest and thats also how you start the minigame, allow player to go back to beat score"): a new place; a witch turns you into an animal for a questline, and the same curse starts the lane-crossing minigame; come back any time to beat your score. Next after the Morrow delves.
+
 00. **Owner 2026-11-17, in the order sent:** **Home prices rebalanced** to modern MMOs and the realm's economy ("rebalance home prices to better reflect modern mmo's and the economy"); **sell a furnished home to another player** ("allow players to sell furnished homes to other players"); **looting and stealing like Elder Scrolls / ESO** ("add looting and stealing like elder scrolls/elder scrolls online"): pickpocketing, taking owned things (red-handed), sneaking, witnesses, a bounty, fences, the guards. DONE 2026-11-17 (game/Thievery.ts).
 00. **Owner 2026-11-15:** DONE **Chess for marks, the medieval way** ("add gambling chess like medieval days"): at every tavern keeper's table, the old game (counsellor and aufin, no castling, stalemate and a bare king win) or the new; three regulars of three strengths for up to 100 marks; or another player in the taproom.
 00. **Owner 2026-11-14, in the order sent:**

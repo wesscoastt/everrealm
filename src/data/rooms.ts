@@ -264,6 +264,47 @@ const CAVE_BOX: [number, number, number, number] = [-19, -5, -9, 5];
 const VAULT_BOX: [number, number, number, number] = [-16, -5, -10, 5];
 
 export const DELVE_ROOMS: Record<string, RoomDef> = {
+  'delve-hollow': {
+    id: 'larder', kind: 'waves', title: 'The honey larder',
+    start: 'The west hollow is Honeyjaw\'s larder: wild comb packed into the roots, and the smell of it brings everything in the Amberwold. Roots grow down across the way east as you watch.',
+    done: 'The last of them goes down in the honey. The roots across the way east sag, and part, and somewhere ahead something big turns over in its sleep.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, style: 'hurdle' },
+    waves: [
+      [[-17, -3, 'leafback'], [-11, 3, 'lampmoth']],
+      [[-18, 2, 'amberlynx'], [-12, -4, 'lampmoth'], [-16, 4, 'leafback']],
+      [[-19, 0, 'amberlynx'], [-10, -3, 'amberlynx'], [-14, 4, 'lampmoth']],
+    ],
+    waveSays: ['A lynx comes in down a root, after the moths, or after you.', 'The big ones last, a pair of lynxes that have been fat on this larder all summer.'],
+    chest: [-17, -3],
+  },
+  'delve-liftgallery': {
+    id: 'pins', kind: 'levers', title: 'The winch-pins',
+    start: 'An iron grille is down across the gallery east, and its chain runs back through four winch-pins in the walls of the west working, the way the Assembly\'s cutters left it. They pulled them in an order.',
+    done: 'The fourth pin comes out with a crack, and the grille east winds up into the roof.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, early: true },
+    levers: [
+      { at: [-15, -5], label: 'Pull the pin by the white face' },
+      { at: [-13, 4], label: 'Pull the pin by the cart' },
+      { at: [-19, 0], label: 'Pull the pin at the end of the working' },
+      { at: [-10, -4], label: 'Pull the pin by the way out' },
+    ],
+    order: [2, 0, 3, 1],
+    wrong: ['liftmoth', 'liftmoth'],
+    clue: [-18, -1, 'Chalked on a prop', 'PINS OUT: FAR END, THE FACE, BY THE DOOR, THE CART.\nAny other way and the white lets go.\nCutter A. Oms'],
+    chest: [-15, 4],
+  },
+  'delve-foldbarrow': {
+    id: 'herdsmen', kind: 'plates', title: 'The herdsmen\'s stones',
+    start: 'A slab of the black stands across the way east. Three worn stones in the floor of the west vault are cut with a crook, a horn and a fleece: where the Herd-Thane\'s three herdsmen stood to open it, together.',
+    done: 'The third stone goes down with the other two still down. The black slab grinds aside, and the cold comes up out of the dark beyond it.',
+    box: VAULT_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, early: true },
+    plates: [[-16, -5], [-10, -5], [-13, 5]],
+    hold: 6,
+    chest: [-15, 4],
+  },
   'delve-badger': {
     id: 'litter', kind: 'waves', title: 'The old boar\'s litter',
     start: 'The west cave is where the old boar\'s litter lies up, and they come out of the side crawls one after another to see you off.',

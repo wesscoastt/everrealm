@@ -8,6 +8,21 @@ import type { BossPhase, EnemyDef } from './gameplay';
 export interface Champion { name?: string; attack?: EnemyDef['attack']; role?: EnemyDef['role']; phases?: BossPhase[]; move: string }
 
 export const DELVE_CHAMPIONS: Record<string, Champion> = {
+  'delve-hollow': {
+    name: 'Honeyjaw', attack: 'charge',
+    phases: [{ at: 0.6, say: 'Honeyjaw rears up against the roots, and the lamp-moths that live in the comb come pouring out round her.', summon: 'lampmoth', n: 2 }, { at: 0.25, storm: true, say: 'Honeyjaw shakes the whole hollow. Comb and earth and moths come down everywhere.' }],
+    move: 'Charges the length of the hollow; calls the lamp-moths out of the comb, then shakes the roof down round her.',
+  },
+  'delve-liftgallery': {
+    name: 'Old Chalky', role: 'guard',
+    phases: [{ at: 0.5, say: 'Old Chalky scrapes the white face, and lift-moths come off it in a cloud.', summon: 'liftmoth', n: 2 }],
+    move: 'Its plates take most of a blow from in front, so go round it; at half health it brings the lift-moths off the white.',
+  },
+  'delve-foldbarrow': {
+    name: 'The Herd-Thane',
+    phases: [{ at: 0.6, say: 'The Herd-Thane strikes his crook on the flags, and his herdsmen get up out of their niches.', summon: 'risen', n: 2 }, { at: 0.3, storm: true, say: 'The cold comes off the Herd-Thane like a winter on the fell.' }],
+    move: 'Calls his herdsmen up out of their niches, then the cold of the fell comes off him in a storm.',
+  },
   'delve-badger': {
     name: 'Old Tusk', attack: 'charge',
     phases: [{ at: 0.5, say: 'Old Tusk squeals, and the last of his litter comes running out of the crawls.', summon: 'boar', n: 2 }],

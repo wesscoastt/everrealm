@@ -239,6 +239,11 @@ const UNDERWORKS = {
   seep: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Crystal, floor: B.Basalt, floor2: B.Ice, light: '#9fe8ff', mobs: ['shardjelly', 'frostwolf'], boss: 'frostwolf', clutter: ['candles', 'chest'] },
   glimmer: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Ice, wall2: B.Snow, floor: B.Ice, floor2: B.Snow, light: '#bff4ff', mobs: ['rimewight', 'icewolf', 'rimewight'], boss: 'greymeg', clutter: ['bones', 'chest', 'candles'] },
   gullery: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Stone, wall2: B.MossyStone, floor: B.Gravel, floor2: B.Sand, light: '#c8e8ff', mobs: ['cavebat', 'brinejelly', 'cavebat'], boss: 'leatherwing', clutter: ['bones', 'barrel', 'chest'] },
+  // Morrow's: a hollow under the roots of one of the Amberwold's great trees, where an old bear keeps the wild honey;
+  // the Assembly's old white-crystal galleries off the Sunder's rim; and a herders' barrow on the Held
+  hollow: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Dirt, wall2: B.OakLog, floor: B.Loam, floor2: B.Mycelium, light: '#ffb040', mobs: ['lampmoth', 'leafback', 'amberlynx'], boss: 'amberbear', clutter: ['mushrooms', 'barrel', 'chest'] },
+  liftgallery: { kind: 'mine', pub: false, depth: 13, reach: 19, wall: B.Whitestone, wall2: B.Timber, floor: B.Gravel, floor2: B.Crystal, light: '#bfe8ff', mobs: ['liftmoth', 'slabcrawler'], boss: 'slabcrawler', clutter: ['cart', 'rails', 'crate'] },
+  foldbarrow: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.MossyStone, floor: B.StoneBrick, floor2: B.Blackstone, light: '#9fe8ff', mobs: ['risen', 'barrowwight'], boss: 'barrowwight', clutter: ['bones', 'candles', 'chest'] },
   hob: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
 
@@ -1278,6 +1283,9 @@ function* planBody(): Generator<string, Plan> {
       { id: 'gd-kingsbarrow', name: 'Kingsbarrow: the king\'s barrow', x: KB_HALLS.x + 56, z: KB_HALLS.z, r0: 0, r1: 0, under: true, build: (s) => buildKingsHalls(s) },
       // The Winding House (data/dungeons.ts gd-winding): its door in the hillside south-west of Liftwick, its halls far under
       { id: 'wh-door', name: 'The Winding House', x: WH_DOOR.x, z: WH_DOOR.z, r0: 7, r1: 14, h: 52, build: (s, b) => buildWindingDoor(s, b) },
+      { id: 'delve-hollow', name: 'Honeyjaw\'s Hollow', x: 7247, z: 1443, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'hollow') },
+      { id: 'delve-liftgallery', name: 'The Lift Galleries', x: 7655, z: 302, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'liftgallery') },
+      { id: 'delve-foldbarrow', name: 'Fold Barrow', x: 6906, z: -1536, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'foldbarrow') },
       { id: 'gd-winding', name: 'The Winding House: the winding halls', x: WH_HALLS.x + 54, z: WH_HALLS.z - 10, r0: 0, r1: 0, under: true, build: (s) => buildWindingHalls(s) },
       { id: 'reedwater', name: 'Reedwater', x: TOWNS.reedwater.x, z: TOWNS.reedwater.z, r0: 0, r1: 0, build: (s) => buildReedwater(s) },
       { id: 'branchley', name: 'Branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r0: 44, r1: 64, h: 22, build: (s, b) => buildBranchley(s, b) },
