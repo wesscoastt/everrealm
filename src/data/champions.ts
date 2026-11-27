@@ -18,6 +18,11 @@ export const DELVE_CHAMPIONS: Record<string, Champion> = {
     phases: [{ at: 0.5, say: 'Old Chalky scrapes the white face, and lift-moths come off it in a cloud.', summon: 'liftmoth', n: 2 }],
     move: 'Its plates take most of a blow from in front, so go round it; at half health it brings the lift-moths off the white.',
   },
+  'delve-pumphouse': {
+    name: 'Old Sump',
+    phases: [{ at: 0.6, say: 'Old Sump thrashes in the sump, and the glims that live in its green water rise round it.', summon: 'glim', n: 2 }, { at: 0.3, storm: true, say: 'The sump boils. The white pipes overhead split and the marsh comes in.' }],
+    move: 'A marsh lizard grown huge in the drowned sump: calls the glims up out of the water, then bursts the old pipes and floods the hall.',
+  },
   'delve-foldbarrow': {
     name: 'The Herd-Thane',
     phases: [{ at: 0.6, say: 'The Herd-Thane strikes his crook on the flags, and his herdsmen get up out of their niches.', summon: 'risen', n: 2 }, { at: 0.3, storm: true, say: 'The cold comes off the Herd-Thane like a winter on the fell.' }],

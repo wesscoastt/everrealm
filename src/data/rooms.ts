@@ -295,6 +295,20 @@ export const DELVE_ROOMS: Record<string, RoomDef> = {
     clue: [-18, -1, 'Chalked on a prop', 'PINS OUT: FAR END, THE FACE, BY THE DOOR, THE CART.\nAny other way and the white lets go.\nCutter A. Oms'],
     chest: [-15, 4],
   },
+  'delve-pumphouse': {
+    id: 'sluice', kind: 'waves', title: 'The open sluice',
+    start: 'The west hall is the pump house\'s old sluice, its gates rusted open, and as you come in the marsh starts to come in after you. Everything that lives in the sawgrass comes with it. An iron grate drops across the way east.',
+    done: 'The last of them goes down in the green water. The sluice gates groan shut on their own, the water drains away, and the grate across the way east lifts.',
+    box: VAULT_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2 },
+    waves: [
+      [[-14, -3, 'glim'], [-11, 3, 'marshmoth']],
+      [[-15, 2, 'gladelizard'], [-11, -4, 'glim'], [-13, 4, 'marshmoth']],
+      [[-15, 0, 'gladelizard'], [-11, -3, 'gladelizard'], [-13, 4, 'glim']],
+    ],
+    waveSays: ['A marsh lizard comes in with the water, slow and heavy.', 'The big ones last: two lizards that have been living in the sump.'],
+    chest: [-15, 4],
+  },
   'delve-foldbarrow': {
     id: 'herdsmen', kind: 'plates', title: 'The herdsmen\'s stones',
     start: 'A slab of the black stands across the way east. Three worn stones in the floor of the west vault are cut with a crook, a horn and a fleece: where the Herd-Thane\'s three herdsmen stood to open it, together.',
