@@ -338,7 +338,7 @@ writing. Not ready yet. What stands between it and ready, checked 2026-10-31:
 
 ## C. Waiting on the owner
 
-17. **Continent 3, Serra** (docs/CONTINENT3.md, draft written; name Serra confirmed 2026-10-31; flying mounts come with it, learned there (owner 2026-11-04, CONTINENT3.md "Flying mounts"); expansion title: "Everrealm: Over the Southern Sea" (owner chose 2026-11-04); dragon awake from the start, Debatable Land 50+):
+17. **Continent 3, Serra** (owner 2026-11-27, docs/briefs/continent3-elves.md: "lets have continent 3 unlock a new playable race and have a elven race come into the land from another planet in a sci fi style ship and have it tye into the story and be a world event when continent 3 launches", "elven race being the new race": the elves, from off-world, playable, their ship's landing the launch world event) (docs/CONTINENT3.md, draft written; name Serra confirmed 2026-10-31; flying mounts come with it, learned there (owner 2026-11-04, CONTINENT3.md "Flying mounts"); expansion title: "Everrealm: Over the Southern Sea" (owner chose 2026-11-04); dragon awake from the start, Debatable Land 50+):
     build after the first-hours playthrough and once the main game is polished (owner 2026-10-31: "After. And after the main game is polished"); the dragon at the centre of its story; Cyrodiil-style PvP region.
 18. **Stripe**: the owner adds charge.refunded, charge.dispute.created and charge.dispute.closed to the
     webhook.

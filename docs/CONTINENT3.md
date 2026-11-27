@@ -90,6 +90,57 @@ round properly, four or five times the size of Callis.
   gossip-market.
 - **The port**, down the river at Ambry Mouth: galleys, the customs house, the Lazaret on the horizon.
 
+## The elves: a new playable race from off-world (owner 2026-11-27)
+
+The owner: "lets have continent 3 unlock a new playable race and have a elven race come into the land
+from another planet in a sci fi style ship and have it tye into the story and be a world event when
+continent 3 launches"; "elven race being the new race" (docs/briefs/continent3-elves.md).
+
+**Who they are.** The **Far Folk**, as the Sallows call them, are elves from another world: tall, long-lived
+(two hundred years is middle age), with a reach of sky in their eyes that the realm's peoples find hard
+to look at for long. Their world went cold. For longer than they remember they have been crossing the
+dark in one ship, the **Long Quiet**, its halls grown as much as built: pale ribbed hulls like the
+inside of a shell, light that moves through the walls like water, rooms that open when you come to them.
+It must look like nothing in any game or film. It's our own, and it's alive in a way the realm has no word for.
+
+**How they tie to Serra.** The Sallows are not native after all. Their oldest carving, in the living oak
+of chapter 3, tells of "the fall from the sky": a first ship that came down on the green a thousand years
+ago and never rose again. Its people walked into the forest and became the Sallows. Their hundred-year
+lives, their quietness and their way of being hard to lie to are what's left of the Far Folk in them.
+The green under Serra is why both ships came: from the dark it shines like a lamp, and to the Far Folk it
+means a world that can carry them. When the Corvo pipes go down into the green seam and the Old Mother
+wakes, the green flares, and the Long Quiet, searching ever since the first ship fell silent, turns
+toward it.
+
+**The launch world event: the Coming of the Long Quiet.** When Serra opens, every player online sees it
+together. For an hour the sky over every land darkens to a deep blue at noon, and a light crosses it
+south. Then the ship comes down over the Shingle Coast, slow as a cloud, with the Old Mother's brood
+rising to meet it. The event is played at the landing ground above Stair:
+- hold the brood off the ship as it settles;
+- carry the wounded out of a broken hall;
+- stand with Wend and the Sallows as the first of the Far Folk step down;
+- be there when a Sallow and a Far Folk elder touch hands across a thousand years.
+After launch it stays as a yearly event on its anniversary.
+
+**Playable.** Finishing the Coming (or any character reaching Serra) unlocks the **elf** race at the
+character creator for the whole account. That means:
+- a second body: taller and longer-limbed, high-cheeked, long-eared, with eyes that catch the light;
+- their own hair styles, marks of the ship worn as fine lines at the temples, and colours that are
+  theirs and not the realm's;
+- a starting story on the Long Quiet: an elf's first day is waking on the ship as it comes down, and
+  their first quest is the Coming seen from inside.
+
+Armour, the outfits, the doll and the first-person hands all need the second body (data/armour.ts fit,
+entities/humanoid.ts). Elves join the same callings and alliances as everyone else: a race, not a
+faction, and no stat advantage, as the store and the rest of the game hold to.
+
+**Who they make the story.** The Far Folk land into the middle of the Hill. The Corvo see a ship full of
+craft they can buy. The Bassa see a new power to marry. The Sallows see kin they have waited a thousand
+years to meet, who are not what the carvings promised. In chapter 6's **Three Ways**, the Far Folk become
+a fourth voice: they can lift the Old Mother's sleep with what the ship carries, if the city lets them
+stay. That's a choice between a better future and a stranger one. An elf player hears the whole story
+from the other side.
+
 ## The main story: The Hill
 
 Eight chapters, from Act IV on: the third act of the Everrealm's story, after the Third Daughter.
