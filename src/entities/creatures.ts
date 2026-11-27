@@ -27,9 +27,9 @@ export const SWIM_KINDS: ReadonlySet<CreatureKind> = new Set(['shark', 'eel', 'r
 export type Breed = 'pied' | 'shire' | 'elk' | 'ram' | 'kelpie' | 'pack' | 'young'
   /** Mounts that aren't horses at all (beastMount): the same seat, a different animal under it. */
   | 'cat' | 'sabre' | 'drake' | 'turtle' | 'slabback' | 'strider' | 'griffin' | 'wyrm';
-export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean; /** A wagon behind, the animal in its shafts. */ wagon?: WagonLook }
+export interface Palette { a?: string; b?: string; c?: string; glow?: boolean; breed?: Breed; /** A second seat behind the saddle (a two-seat mount). */ pillion?: boolean; /** A mount that's male: a stallion's crested neck. */ male?: boolean; /** A wagon behind, the animal in its shafts. */ wagon?: WagonLook }
 /** What a halter calls (data/items.ts mount): enough to build the model. */
-export interface MountLook { coat: string; mane: string; cloth: string; glow?: boolean; breed?: Breed; seats?: number; wagon?: WagonLook & { bed: number } }
+export interface MountLook { coat: string; mane: string; cloth: string; glow?: boolean; /** A stallion (or stag, ram, bull): heavier in the neck. */ male?: boolean; breed?: Breed; seats?: number; wagon?: WagonLook & { bed: number } }
 export type CreatureAnim = 'idle' | 'walk' | 'run' | 'windup' | 'attack' | 'hit' | 'dead' | 'graze' | 'sit' | 'swim';
 
 const mats = new Map<string, THREE.Material>();
@@ -1289,5 +1289,5 @@ export class CreatureModel {
 
 /** The model a halter calls: a horse, a beast, or either one in the shafts of a wagon. */
 export function mountModel(m: MountLook): CreatureModel {
-  return new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 && !m.wagon, wagon: m.wagon });
+  return new CreatureModel('horse', { a: m.coat, b: m.mane, c: m.cloth, glow: m.glow, breed: m.breed, pillion: m.seats === 2 && !m.wagon, wagon: m.wagon, male: m.male });
 }

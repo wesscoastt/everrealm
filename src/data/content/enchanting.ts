@@ -24,13 +24,13 @@ const items: ItemDef[] = [
   ...BLANKS.map((b): ItemDef => ({
     id: b.id, name: b.name, kind: 'material', rarity: (['common', 'uncommon', 'rare'] as const)[b.tier - 1], stack: true, value: [4, 20, 60][b.tier - 1],
     icon: { shape: 'ore', a: STONE[b.tier][0], b: STONE[b.tier][1] }, desc: b.desc,
-    stats: `Enchanting · takes a ${['minor', 'full', 'greater'][b.tier - 1]} mark · enchanting ${b.level}`,
+    stats: `Enchanting ${b.level} · cut with a rubbing at a glyph-cutter's bench, it makes a ${['minor', 'full', 'greater'][b.tier - 1]} glyph`,
   })),
   ...Object.entries(ENCHANTS).map(([id, E]): ItemDef => ({
-    id: RUBBING_OF(id), name: `${E.word.replace(/^the /, '').replace(/^\w/, (c) => c.toUpperCase())} rubbing`, kind: 'material', rarity: 'uncommon', stack: true, value: 12,
+    id: RUBBING_OF(id), name: `${E.word} rubbing`, kind: 'material', rarity: 'uncommon', stack: true, value: 12,
     icon: { shape: 'letter', a: '#e8dcc0', b: '#2a2420' },
-    desc: `Charcoal on paper: one of the old kingdom's marks, taken from a standing stone. Cut into a blank, it makes a glyph of ${E.word.toLowerCase()}.`,
-    stats: `Enchanting · ${E.kind === 'weapon' ? 'a weapon' : 'an armour'} mark: ${E.text(1).replace(/\.$/, '')}`,
+    desc: `Charcoal on paper: one of the old kingdom's marks, taken from a standing stone. Cut into a blank at a glyph-cutter's bench, it makes a ${E.word.toLowerCase()} glyph.`,
+    stats: `Enchanting · ${E.kind === 'weapon' ? 'a weapon' : 'an armour'} mark · ${E.text(1)} Cut it with a blank at a glyph-cutter's bench.`,
   })),
 ];
 

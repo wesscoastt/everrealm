@@ -65,6 +65,9 @@ class Mock implements GameApi {
   take(i: string, n = 1) { this.item(i); if ((this.s.inv[i] ?? 0) < n) return false; this.s.inv[i] -= n; if (!this.s.inv[i]) delete this.s.inv[i]; return true; }
   get marks() { return this.s.marks; }
   addMarks(n: number) { this.s.marks += n; }
+  // Cocky Road: the walker's cockerel always makes the far gate
+  cockyRoad() { this.s.flags['cocky:best'] = 149 as never; }
+  cockyBest() { return Number(this.s.flags['cocky:best'] ?? 0); }
   crimeHere(_worth: number) { /* the law: nothing to walk */ }
   level() { return 99; }
   hasTool(skill: string) { return Object.keys(this.s.inv).some((i) => ITEMS[i]?.tool?.skill === skill); }
@@ -317,7 +320,7 @@ const STRUCTURE_KEYS = (() => {
   for (const mm of src.matchAll(/kind: '(\w+)'/g)) keys.add(mm[1]);
   return keys;
 })();
-const markerOk = (k: string) => k.startsWith('ore:') || k.startsWith('tree:') || NPCS.some((n) => n.id === k) || WORLD_THINGS.some((w) => w.id === k) || STRUCTURE_KEYS.has(k) || BOARDS.some((b) => 'board:' + b.id === k);
+const markerOk = (k: string) => /^at:-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(k) || k.startsWith('ore:') || k.startsWith('tree:') || NPCS.some((n) => n.id === k) || WORLD_THINGS.some((w) => w.id === k) || STRUCTURE_KEYS.has(k) || BOARDS.some((b) => 'board:' + b.id === k);
 
 interface Ending { signature: string; path: string[]; notes: string }
 interface Line { tree: string; node: string; order: number; speaker: string; who: string; text: string; options: string[] }

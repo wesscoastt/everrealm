@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ITEMS } from '../data/items';
-import { clothsOf, coatsOf, mountLook } from '../data/mountLooks';
+import { clothsOf, coatsOf, maleByDefault, mountLook, sexesOf } from '../data/mountLooks';
 import { mountModel, type CreatureModel } from '../entities/creatures';
 
 // Choosing a mount's look before you pay: a coat and a saddle cloth (or a wagon's paint), with the
@@ -24,6 +24,7 @@ export class MountChooser {
   private id = '';
   private coat = 0;
   private cloth = 0;
+  private male = false;
 
   constructor(private renderer: THREE.WebGLRenderer) {
     this.target.texture.colorSpace = THREE.SRGBColorSpace;
@@ -40,10 +41,11 @@ export class MountChooser {
 
   get open(): boolean { return !!this.el; }
 
-  /** Opens on a mount for sale: `buy` gets the coat and cloth chosen. */
-  show(id: string, price: string, canPay: boolean, buy: (coat: number, cloth: number) => void): void {
+  /** Opens on a mount for sale: `buy` gets the coat, cloth, and mare or stallion chosen. */
+  show(id: string, price: string, canPay: boolean, buy: (coat: number, cloth: number, male: boolean) => void): void {
     this.close();
-    this.id = id; this.coat = 0; this.cloth = 0;
+    this.id = id; this.coat = 0; this.cloth = 0; this.male = maleByDefault(id);
+    const sexes = sexesOf(id);
     const el = document.createElement('div');
     el.id = 'mountpick';
     document.body.appendChild(el);
@@ -54,11 +56,13 @@ export class MountChooser {
       <canvas width="${W}" height="${H}"></canvas>
       <h6>${wagon ? 'The animal in the shafts' : 'Coat'} <i data-coatname></i></h6><div class="mp-row" data-coats>${coats.map((c, i) => `<button class="mp-sw" data-coat="${i}" title="${esc(c.name)}"><span style="background:linear-gradient(135deg, ${c.a} 0 62%, ${c.b} 62% 100%)"></span></button>`).join('')}</div>
       <h6>${wagon ? 'Paint and harness' : 'Saddle cloth'} <i data-clothname></i></h6><div class="mp-row" data-cloths>${cloths.map((c, i) => `<button class="mp-sw" data-cloth="${i}" title="${esc(c.name)}"><span style="background:${c.hex}"></span></button>`).join('')}</div>
+      ${sexes && !wagon ? `<h6>${esc(sexes[0])} or ${esc(sexes[1].toLowerCase())}</h6><div class="mp-row">${sexes.map((s, i) => `<button class="btn s mp-sex" data-male="${i}">${esc(s)}</button>`).join('')}</div>` : ''}
       <div class="mp-foot"><span>Yours for good once bought. The look can't be changed after.</span><button class="btn" data-buy${canPay ? '' : ' disabled'}>Buy · ${esc(price)}</button></div>`;
     el.querySelectorAll<HTMLElement>('[data-coat]').forEach((b) => b.addEventListener('click', () => { this.coat = Number(b.dataset.coat); this.refresh(); }));
     el.querySelectorAll<HTMLElement>('[data-cloth]').forEach((b) => b.addEventListener('click', () => { this.cloth = Number(b.dataset.cloth); this.refresh(); }));
+    el.querySelectorAll<HTMLElement>('[data-male]').forEach((b) => b.addEventListener('click', () => { this.male = b.dataset.male === '1'; this.refresh(); }));
     el.querySelector('[data-close]')!.addEventListener('click', () => this.close());
-    el.querySelector('[data-buy]')!.addEventListener('click', () => { const c = this.coat, k = this.cloth; this.close(); buy(c, k); });
+    el.querySelector('[data-buy]')!.addEventListener('click', () => { const c = this.coat, k = this.cloth, m = this.male; this.close(); buy(c, k, m); });
     this.refresh();
     this.last = performance.now();
     const loop = (now: number) => { if (!this.el) return; this.draw(Math.min(0.1, (now - this.last) / 1000)); this.last = now; this.raf = requestAnimationFrame(loop); };
@@ -74,7 +78,7 @@ export class MountChooser {
 
   private refresh(): void {
     if (!this.el) return;
-    const look = mountLook(this.id, this.coat, this.cloth);
+    const look = mountLook(this.id, this.coat, this.cloth, this.male);
     if (!this.model) this.pivot.rotation.y = -0.7;
     if (this.model) this.pivot.remove(this.model.root);
     this.model = look ? mountModel(look) : null;
@@ -84,6 +88,7 @@ export class MountChooser {
     this.camera.lookAt(0, long ? 1.2 : 1.25, 0);
     this.el.querySelectorAll<HTMLElement>('[data-coat]').forEach((b) => b.classList.toggle('on', Number(b.dataset.coat) === this.coat));
     this.el.querySelectorAll<HTMLElement>('[data-cloth]').forEach((b) => b.classList.toggle('on', Number(b.dataset.cloth) === this.cloth));
+    this.el.querySelectorAll<HTMLElement>('[data-male]').forEach((b) => b.classList.toggle('on', (b.dataset.male === '1') === this.male));
     this.el.querySelector('[data-coatname]')!.textContent = coatsOf(this.id)[this.coat]?.name ?? '';
     this.el.querySelector('[data-clothname]')!.textContent = clothsOf(this.id)[this.cloth]?.name ?? '';
   }

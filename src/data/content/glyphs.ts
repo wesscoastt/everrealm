@@ -21,10 +21,10 @@ const LINES: Record<string, string> = {
 };
 
 const ITEMS: ItemDef[] = Object.entries(ENCHANTS).flatMap(([id, E]) => [1, 2, 3].map((tier): ItemDef => ({
-  id: `glyph_${id}_${tier}`, name: `${TIER_WORDS[tier - 1] ? TIER_WORDS[tier - 1] + ' g' : 'G'}lyph of ${E.word.toLowerCase()}`, kind: 'material', rarity: (['uncommon', 'rare', 'epic'] as const)[tier - 1],
+  id: `glyph_${id}_${tier}`, name: `${TIER_WORDS[tier - 1] ? TIER_WORDS[tier - 1] + ' ' + E.word.toLowerCase() : E.word} glyph`, kind: 'material', rarity: (['uncommon', 'rare', 'epic'] as const)[tier - 1],
   stack: true, value: [25, 70, 160][tier - 1], icon: { shape: 'ore', a: COLOURS[id][0], b: COLOURS[id][1] }, glyph: { id, tier },
-  desc: `A cut stone with ${E.word.toLowerCase()} worked into it. ${LINES[id]}`,
-  stats: `Use it to enchant ${E.kind === 'weapon' ? 'the weapon in your hand' : 'a piece of armour you wear (chest first, then the rest)'}: ${E.text(tier)}`,
+  desc: `A cut stone with the old kingdom's mark of ${E.word.toLowerCase()} worked into it. ${LINES[id]}`,
+  stats: `${['Minor', 'Full', 'Greater'][tier - 1]} ${E.kind} glyph · ${E.text(tier)} Use it from your pack and choose which ${E.kind === 'weapon' ? 'weapon' : 'piece of armour'} you wear to set it in.`,
 })));
 
 export const GLYPH_CONTENT: RegionContent = { id: 'glyphs', items: ITEMS };

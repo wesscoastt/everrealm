@@ -9,7 +9,8 @@ import type { Input } from './Input';
 //   X, Y, B, RB: skills 2 to 5. Hold LB: X, Y, B are skills 6 to 8; LB + RB is skill 8 (the ultimate, as ESO's).
 //   A: talk to or use what's in reach, or jump. D-pad: up, the quick slot (food); down, the horse; left, your light;
 //   right, sheathe or draw. Start: the menu (closes a window). View: the map. LB + Start: the pack; LB + View: the journal.
-//   In a conversation: A, X and Y pick the first three answers, B leaves. In a window: the left stick moves a pointer,
+//   In a conversation: the D-pad or the left stick moves up and down the answers, A takes the one picked out, X and Y
+//   take the second and third straight off, B leaves. In a window: the left stick moves a pointer,
 //   A clicks, B closes.
 //   Hold LB with the D-pad for the other windows: up, skills; down, the group finder; left, companions; right, social;
 //   LB and L3, talents (owner 2026-11-13: "U isn't companions on a controller").
@@ -44,6 +45,8 @@ export class Gamepad {
   private holding = new Map<number, string>();
 
   private using = false;
+  /** Holding the stick up or down in a conversation: seconds till the next answer. */
+  private dlgRepeat = -1;
   constructor(private input: Input, private host: PadHost) {
     // a key or the mouse in use again: the keys back on the screen
     const off = () => { if (this.using) { this.using = false; this.host.padMode(false); } };
@@ -93,9 +96,14 @@ export class Gamepad {
     if (Math.hypot(ax(0), ax(1)) < 0.1) this.sprint = false;
     this.hold(L3 + 100, 'ShiftLeft', this.sprint);
 
-    // In a conversation: answers on the face buttons
+    // In a conversation: up and down the answers (the stick repeats while held), A takes the one picked out
     if (talk) {
-      if (down(A)) I.tap('Digit1');
+      I.moveX = I.moveY = 0;
+      const sy = ax(1), dir = down(UP) ? -1 : down(DOWN) ? 1 : Math.abs(sy) > 0.6 ? Math.sign(sy) : 0;
+      if (!dir) this.dlgRepeat = -1;
+      else if (this.dlgRepeat < 0 || down(UP) || down(DOWN)) { I.tap(dir < 0 ? 'ArrowUp' : 'ArrowDown'); this.dlgRepeat = 0.4; } // (a press: one step, then a pause)
+      else if ((this.dlgRepeat -= dt) <= 0) { I.tap(dir < 0 ? 'ArrowUp' : 'ArrowDown'); this.dlgRepeat = 0.18; } // (held: on down the list)
+      if (down(A)) I.tap('Enter');
       if (down(X)) I.tap('Digit2');
       if (down(Y)) I.tap('Digit3');
       if (down(B)) I.tap('Escape');

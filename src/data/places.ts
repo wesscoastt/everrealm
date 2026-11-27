@@ -32,6 +32,8 @@ export function places(): Place[] {
   const out: Place[] = REGIONS.map((r) => ({ id: r.id, name: r.name, sub: r.sub, x: r.x, z: r.z, r: r.r, y: r.y, kind: 'place' as const }))
     .filter((p) => p.id !== 'hollin' || true);
   for (const s of plan().sites) {
+    // a ring of standing stones, where rubbings for enchanting come from: on the map once you've found it (owner 2026-11-27)
+    if (s.ring) { out.push({ id: s.id, name: 'Standing stones', sub: `${REGION_INFO[s.region].name} · rubbings for enchanting`, x: s.x, z: s.z, r: 12, kind: 'place' }); continue; }
     if (!s.named || !s.name) continue; // (a site with no name of its own, the furniture of the owner's buildings and the like, isn't a place: owner 2026-11-06, "all the yellow stars say Verandah")
     const door = s.act?.kind === 'group' ? DUNGEON_BY_ID[s.id]?.door : undefined;
     if (door) { out.push({ id: s.id, name: s.name, sub: 'Group dungeon', x: door[0], z: door[2], r: 8, kind: 'place' }); continue; }

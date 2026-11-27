@@ -90,9 +90,9 @@ export function traitsOf(id: string, rarity?: string, breed?: string): Traits {
 /** Saddles: bought at the stables, kept in your pack, put on any horse of yours by seeing to her. */
 export interface SaddleDef { id: string; name: string; speed: number; drain: number; hurt: number; bags: number; desc: string }
 export const SADDLES: Record<string, SaddleDef> = {
-  saddle_drover: { id: 'saddle_drover', name: 'Drover\'s saddle', speed: 1, drain: 0.9, hurt: 1, bags: 4, desc: 'Deep-seated and broad, with rings for extra bags. The gallop tires you both less, and she carries more.' },
-  saddle_racing: { id: 'saddle_racing', name: 'Racing saddle', speed: 1.04, drain: 1.05, hurt: 1.1, bags: -4, desc: 'A scrap of leather and two stirrups. She\'s quicker under it, and you feel every stone.' },
-  saddle_war: { id: 'saddle_war', name: 'Cavalry saddle', speed: 0.98, drain: 1, hurt: 0.7, bags: 0, desc: 'High at the back, padded and plated at the flanks. Blows that come her way do her less harm.' },
+  saddle_drover: { id: 'saddle_drover', name: 'Drover\'s saddle', speed: 1, drain: 0.9, hurt: 1, bags: 4, desc: 'Deep-seated and broad, with rings for extra bags. The gallop tires you both less, and the horse carries more.' },
+  saddle_racing: { id: 'saddle_racing', name: 'Racing saddle', speed: 1.04, drain: 1.05, hurt: 1.1, bags: -4, desc: 'A scrap of leather and two stirrups. A horse is quicker under it, and you feel every stone.' },
+  saddle_war: { id: 'saddle_war', name: 'Cavalry saddle', speed: 0.98, drain: 1, hurt: 0.7, bags: 0, desc: 'High at the back, padded and plated at the flanks. Blows aimed at the horse do less harm.' },
 };
 
 /** Under you: her pace, and how fast the gallop tires you, from her breed, the saddle, the bond and the cores. */
@@ -129,3 +129,17 @@ export const HORSE_CARE_ITEMS: ItemDef[] = [
   { id: 'horse_oats', name: 'Bag of oats', kind: 'material', rarity: 'common', stack: true, value: 5, icon: { shape: 'bag', a: '#e8d8a0', b: '#a07848' }, desc: 'Rolled oats, the stable\'s best. Use them beside your horse to feed her: more than hay does, and she loves you for it.' },
   { id: 'horse_tonic', name: 'Horse tonic', kind: 'material', rarity: 'uncommon', stack: true, value: 15, icon: { shape: 'bottle', a: '#a8502a', b: '#e8d8c0' }, desc: 'A stablemaster\'s tonic, bitter and brown. Fills a horse\'s cores right up.' },
 ];
+
+/**
+ * A line written for a mare, said of the horse you have (owner 2026-11-27: "have diff mounts be male or female"): for a
+ * stallion she becomes he, herself himself, and her his before a noun and him otherwise ("her coat", "feed her").
+ */
+const HIM_AFTER = new Set(['a', 'an', 'the', 'up', 'down', 'out', 'off', 'in', 'on', 'at', 'to', 'by', 'from', 'with', 'for', 'into', 'back', 'again', 'over', 'and', 'or', 'less', 'more', 'some', 'something', 'good', 'what', 'go', 'be', 'rest', 'get', 'it', 'is', 'was', 'when', 'if', 'as']);
+export function forHorse(text: string, male: boolean): string {
+  if (!male) return text;
+  const cap = (w: string, to: string) => (w[0] === w[0].toUpperCase() ? to[0].toUpperCase() + to.slice(1) : to);
+  return text
+    .replace(/\b(she)\b/gi, (w) => cap(w, 'he'))
+    .replace(/\b(herself)\b/gi, (w) => cap(w, 'himself'))
+    .replace(/\b(her)\b(?=(\W*)(\w*))/gi, (w, _h, gap: string, next: string) => cap(w, !next || /[.,;:!?)]/.test(gap) || HIM_AFTER.has(next.toLowerCase()) ? 'him' : 'his'));
+}
