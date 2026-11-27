@@ -192,6 +192,7 @@ export const HELP: [string, [string, string][]][] = [
     ['How do I wear a costume?', 'From the wardrobe’s Outfits, or /costume name; /costume off takes it off. Festival stalls sell them.'],
   ]],
   ['Trouble', [
+    ['The music is too loud, or I can’t hear it.', 'The Sound tab in this menu has a slider each for the master volume, effects, ambience and music; the main menu’s song follows the music slider too. Sound starts after your first click or key, as browsers ask.'],
     ['The game is slow. What can I do?', 'Open the Picture tab in this menu and lower the view distance or the quality, or turn off the shadows and light shafts.'],
     ['I\'m stuck in a wall or a hole.', 'Travel to a waymark or home from the map (M). That always gets you out.'],
     ['Is my progress saved?', 'Yes, as you play. Save and quit, under Character in this menu, takes you back to your characters.'],

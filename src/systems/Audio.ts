@@ -188,6 +188,11 @@ export class AudioSystem {
   private ducked = 0;
   private stepFlip = false;
   volumes = { master: 0.8, sfx: 0.9, ambience: 0.7, music: 0.45 };
+  /** The main menu's own song (owner 2026-11-27: public/audio/menu-song.m4a), looped on the title screen in place of the score's title theme. */
+  private menuSong: HTMLAudioElement | null = null;
+  /** How far up the menu song is (0 to 1): it fades in on the title screen and out when you go into the world. */
+  private menuLevel = 0;
+  private menuAt = 0;
 
   unlock(): void {
     if (this.ctx) { void this.ctx.resume(); void this.mctx?.resume(); return; }
@@ -274,7 +279,8 @@ export class AudioSystem {
     this.sfx.gain.value = this.volumes.sfx;
     this.amb.gain.value = this.volumes.ambience;
     // (the music's context has no master of its own: the master volume is folded in here)
-    this.music.gain.value = this.volumes.master * this.volumes.music * (1 - this.ducked * 0.85);
+    this.music.gain.value = this.volumes.master * this.volumes.music * (1 - this.ducked * 0.85) * (1 - this.menuLevel);
+    if (this.menuSong) this.menuSong.volume = Math.min(1, this.volumes.master * this.volumes.music * 1.8 * this.menuLevel);
     this.perf.gain.value = this.volumes.sfx;
   }
 
@@ -875,8 +881,28 @@ export class AudioSystem {
   /** Steer the score: which theme, and whether the combat layer is up. Call every frame. */
   musicContext(c: MusicContext): void {
     this.musicWant = c;
+    this.menuMusic(c.theme === 'title');
     this.feedScore();
   }
+  /** The menu song: started on the title screen once sound is unlocked, faded in over a second, and out over two when you leave it. */
+  private menuMusic(on: boolean): void {
+    if (!this.ctx) return; // (no sound until the first click or key)
+    const now = performance.now() / 1000, dt = Math.min(0.25, this.menuAt ? now - this.menuAt : 0);
+    this.menuAt = now;
+    if (on && !this.menuSong) {
+      const a = new Audio(`${import.meta.env.BASE_URL}audio/menu-song.m4a`);
+      a.loop = true; a.volume = 0;
+      this.menuSong = a;
+    }
+    const a = this.menuSong;
+    if (!a) return;
+    if (on && a.paused) void a.play().catch(() => { /* the browser wants a click first: tried again next frame */ });
+    const target = on ? 1 : 0, before = this.menuLevel;
+    this.menuLevel = on ? Math.min(1, this.menuLevel + dt) : Math.max(0, this.menuLevel - dt / 2);
+    if (this.menuLevel !== before || target === 1) this.applyVolumes();
+    if (!on && this.menuLevel === 0 && !a.paused) { a.pause(); a.currentTime = 0; }
+  }
+
   /** Keep the score eight seconds ahead (from the frame, and from its own timer when frames are slow or hidden). */
   private feedScore(): void {
     if (!this.mctx || !this.score) return;
