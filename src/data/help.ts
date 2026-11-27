@@ -139,6 +139,7 @@ export const HELP: [string, [string, string][]][] = [
     ['Can my guild have a hall?', 'Yes, on Hall Row outside Ansbury’s south wall. Walter Pinnock, Clerk of the Halls, lets them for 5,000 marks from the vault. Then build it up: a long table for supper, a forge, a counting room, a map room for cheap Post rides, and a roll of honour.'],
   ]],
   ['Dungeons, bosses and the tower', [
+    ['Which group dungeons are there?', 'In the Counties: the Old Man’s Workings (level 10), Under the Kettle (30) and the Escapement (40). On Verandah: the Sunken Temple (28). In Morrow: the Winding House under Liftwick (66) and Kingsbarrow in the Held (95). Each has its own armour and weapons, and a key for its corrupted run.'],
     ['How do group dungeons work?', 'They’re for four: a tank, a healer and two damage. The Group Finder (P) fills empty places with hired hands if you want. Clear one and Veteran opens, harder, with better chests. /joinrun puts you into your group’s run.'],
     ['What is a delve?', 'A small dungeon you can do alone or with friends: three rooms, a champion, and a chest that refills every half hour.'],
     ['What are events?', 'Trouble that flares up when you come near: wolves on a ridge, reavers at a well, a troll at the folds. A bell rings and it goes on your tracker. Beat its waves and the leader before the time runs out, alone or with anyone nearby, for experience, marks and standing. Every region of both continents has its own, and each rests a while before it can flare up again.'],

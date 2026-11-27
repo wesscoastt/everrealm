@@ -106,3 +106,21 @@ depends on what you did. Delia reads his book at last.
    Flats, quicksand in the Glades).
 4. The five chapters, the Brethren standing track and their side content.
 5. Player ships last: the endgame farm.
+
+## The Winding House, Morrow's second group dungeon [in game, 2026-11-27]
+
+Owner 2026-11-26: "it also needs events dungeons all that". Kingsbarrow (level 95) was Morrow's only dungeon. The
+Winding House fills the middle: level 66, under Liftwick on the Sunder's rim (`TOWNS.liftwick`), where the ground is
+high enough for halls (the Glades are too low and wet).
+
+- What it is: the Assembly's old winding house, cut into the rim under Liftwick. Black-iron chains run from its
+  anchors up through shafts to the hanging slabs the skyfarms stand on, and hold them down; the great winch lets them
+  out a link a year as the white settles and the slabs want to rise.
+- The trouble (a human cause): someone has been cutting black links out of the chains and selling the iron to Callis,
+  where the Works Committee pays nine-hundred-weight prices for black. The slabs rise faster every month.
+- The halls: the gallery of anchors; the Linkmen's camp; the anchor pit; the chain shafts; the winch room.
+- Bosses: (1) Moll Tunney, ganger of the Linkmen, with her gang (cone, charge, adds); (2) the old slab crawler that
+  nests in the anchor pit on the warmth of the white (beast; nova, hazards, adds of crawlers); (3) Albi Roure, the
+  Assembly's own Winder, who has been selling the links himself and rigged the great winch (stack, nova, charge; the
+  winch surges in phases).
+- Rewards: an armour set and a weapon set of its own, a key and fragments like Kingsbarrow's, the chest.

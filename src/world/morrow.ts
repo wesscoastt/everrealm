@@ -49,6 +49,8 @@ export const KB_KING = X(L.KB_KING);
 export const KB_PORTAL = X(L.KB_PORTAL);
 export const KB_CAMP = X(L.KB_CAMP);
 export const KB_HALLS = X(L.KB_HALLS);
+export const WH_DOOR = X(L.WH_DOOR);
+export const WH_HALLS = X(L.WH_HALLS);
 export const KINGSBARROW = X(L.KINGSBARROW);
 export const MORROW_RIVERS = L.MORROW_RIVERS.map((r) => r.map(P));
 export const MORROW_LAKES = L.MORROW_LAKES.map(X);

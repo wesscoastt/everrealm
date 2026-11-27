@@ -14,6 +14,7 @@ export const DUNGEON_KEYS: DungeonKey[] = [
   { dungeon: 'gd-kettle', frag: 'frag_token', key: 'key_kettle' },
   { dungeon: 'gd-escapement', frag: 'frag_tooth', key: 'key_escapement' },
   { dungeon: 'gd-kingsbarrow', frag: 'frag_gravecoin', key: 'key_kingsbarrow' },
+  { dungeon: 'gd-winding', frag: 'frag_blacklink', key: 'key_winding' },
 ];
 export const KEY_OF: Record<string, DungeonKey> = Object.fromEntries(DUNGEON_KEYS.map((k) => [k.dungeon, k]));
 

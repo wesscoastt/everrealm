@@ -139,6 +139,12 @@ export const KB_PORTAL = { x: 860, z: -1846 };
 export const KB_CAMP = { x: 914, z: -1884 };
 /** The halls under the king's barrow (the group dungeon gd-kingsbarrow): their origin and floor. */
 export const KB_HALLS = { x: 800, z: -1880, f: 8 };
+/**
+ * The Winding House (group dungeon gd-winding) under Liftwick's rim: its door in the hillside south-west of the town, and its
+ * halls' origin and floor, deep under ground that stands near fifty high over the whole of them.
+ */
+export const WH_DOOR = { x: 1406, z: 152 };
+export const WH_HALLS = { x: 1380, z: 140, f: 14 };
 /** Kingsbarrow, the city of the dead, in the Held Country. */
 export const KINGSBARROW = { x: 860, z: -1830 };
 /** The Sunder's rift runs east to west along this line. */

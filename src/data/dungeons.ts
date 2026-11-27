@@ -2,7 +2,7 @@ import type { CallingId } from './classes';
 import type { Appearance, HeldItem } from '../entities/humanoid';
 import { dungeonArmour } from './armour';
 import { DUNGEON_WEAPONS } from './weapons';
-import { MORROW_OX } from '../world/morrow';
+import { MORROW_OX, WH_DOOR, WH_HALLS } from '../world/morrow';
 
 // Group dungeons, in the manner of ESO's: built into the world behind a door, for four (one to
 // hold the creatures, one to heal, two to do the damage). The Group Finder (key P) makes a group
@@ -97,8 +97,63 @@ const KETTLE_GEAR = [...dungeonArmour('gd-kettle'), 'shepherd_hood', ...(DUNGEON
 const ESC_GEAR = [...dungeonArmour('gd-escapement'), ...(DUNGEON_WEAPONS['gd-escapement'] ?? [])];
 const TEMPLE_GEAR = [...dungeonArmour('gd-temple'), ...(DUNGEON_WEAPONS['gd-temple'] ?? [])];
 const KB_GEAR = [...dungeonArmour('gd-kingsbarrow'), ...(DUNGEON_WEAPONS['gd-kingsbarrow'] ?? [])];
+const WH_GEAR = [...dungeonArmour('gd-winding'), ...(DUNGEON_WEAPONS['gd-winding'] ?? [])];
 
 export const DUNGEONS: DungeonDef[] = [
+  {
+    land: 'morrow', id: 'gd-winding', name: 'The Winding House', where: 'Under Liftwick, on the rim of the Sunder, Morrow', level: 66,
+    blurb: 'Black-iron chains run up from the Assembly\'s winding house under Liftwick to the hanging slabs the skyfarms stand on, and hold them down. Somebody has been cutting the black out of them a link at a time and selling it in Callis, and the slabs are rising faster every month.',
+    door: [WH_DOOR.x + 0.5, 52, WH_DOOR.z - 4.5], out: [WH_DOOR.x + 0.5, 52, WH_DOOR.z + 3.5, 0],
+    bosses: [
+      {
+        title: 'Ganger of the Linkmen',
+        pull: ['Moll Tunney', 'This is a working gang, and you\'re not on it. Lads. Show them the way out. Head first.'],
+        adds: [{ at: 0.6, types: ['dg_linkman', 'dg_linkthrower'], line: ['Moll Tunney', 'Leave the chain! Leave it, I said!'] }, { at: 0.3, types: ['dg_linkman', 'dg_linkman'], line: ['Moll Tunney', 'Every one of you, now, or nobody gets paid!'] }],
+        moves: [
+          { kind: 'cone', every: 10, windup: 1.2, damage: 105, r: 5, w: 100, color: '#c8a040', line: 'Moll Tunney swings her link hammer round, wide.' },
+          { kind: 'charge', every: 15, windup: 1.2, damage: 115, r: 14, w: 2.6, color: '#ff9a40', line: 'Moll Tunney drops her shoulder and goes for {name}.' },
+        ],
+        hazard: { every: 9, count: 2, r: 3, windup: 1.7, damage: 95, color: '#6a6a72', line: 'A length of cut chain comes down a shaft.' },
+        phase: ['Moll Tunney', 'Do you know what a link fetches in Callis? Do you? More than you\'ll ever see!'],
+        fall: ['Moll Tunney', 'We only cut what he marked. Chalk on the links. Ask the Winder. Ask him who chalks them.'],
+        drops: WH_GEAR, chance: 0.6,
+      },
+      {
+        title: 'In the anchor pit',
+        pull: ['', 'The anchor pit is warm. The white set in the anchors gives off a heat the crawlers love, and the one that has nested on them all is the size of a cart.'],
+        adds: [{ at: 0.66, types: ['dg_crawlerkin', 'dg_crawlerkin'], line: ['', 'Crawlers come scuttling out from between the anchors.'] }, { at: 0.33, types: ['dg_crawlerkin', 'dg_crawlerkin', 'dg_crawlerkin'], line: ['', 'The pit floor heaves. More of them.'] }],
+        moves: [
+          { kind: 'nova', every: 18, windup: 2.0, damage: 125, r: 7, color: '#9fe8ff', line: 'The Pit Mother shudders, and the white under it flares. Get clear.' },
+          { kind: 'charge', every: 13, windup: 1.3, damage: 120, r: 16, w: 3.2, color: '#cfe8f0', line: 'The Pit Mother scrapes the floor and comes at {name}.' },
+        ],
+        hazard: { every: 10, count: 2, r: 3.2, windup: 1.8, damage: 100, color: '#9fe8ff', line: 'The white in the pit floor lifts a slab of it, and drops it.' },
+        phase: ['', 'The Pit Mother rears up off the anchors, and the chains overhead groan as the warmth goes out of them.'],
+        fall: ['', 'The Pit Mother goes down across the anchors and lies still. Far above, a chain settles back into its lay with a sound like a bell.'],
+        drops: WH_GEAR, chance: 0.6,
+      },
+      {
+        title: 'The Assembly\'s Winder',
+        pull: ['Albi Roure', 'Forty years I have let these chains out a link at a time, and the Committee has never once asked me how. They ask how much. So I told them how much. Go home.'],
+        adds: [{ at: 0.7, types: ['dg_linkman', 'dg_linkman'], line: ['Albi Roure', 'Tunney\'s men. Paid in advance. Earn it.'] }, { at: 0.35, types: ['dg_linkthrower', 'dg_crawlerkin'], line: ['', 'The great winch slips a turn, and the whole hall shakes.'] }],
+        moves: [
+          { kind: 'stack', every: 17, windup: 3.0, damage: 220, r: 3.2, color: '#9fe8ff', line: 'Albi Roure points his rod at {name}, and the white in the floor rises under them. Stand together.' },
+          { kind: 'nova', every: 21, windup: 2.2, damage: 135, r: 8, color: '#e8e0d0', line: 'Albi Roure throws the brake on the great winch. Get away from it.' },
+          { kind: 'charge', every: 14, windup: 1.3, damage: 125, r: 16, w: 3, color: '#2a3a5a', line: 'Albi Roure comes down off the winch-stage at {name}.' },
+        ],
+        hazard: { every: 9, count: 3, r: 3, windup: 1.6, damage: 100, color: '#6a6a72', line: 'Links come down out of the shafts like hail.' },
+        phase: ['Albi Roure', 'Let them rise, then! Let every slab on the Sunder rise, and see what the Committee pays for black then!'],
+        fall: ['Albi Roure', 'A link a year. That was the lay. Nine hundred weight a summer, Callis wanted. Somebody had to find it. I found it.'],
+        drops: WH_GEAR, chance: 1,
+      },
+    ],
+    notes: [
+      { x: WH_HALLS.x + 22, z: WH_HALLS.z, r: 9, who: 'tom', said: 'Anchors. Every one with a chain going up. And every one\'s been cut at.', seen: 'Anchor stones line the gallery, each with a black chain running up into the dark, and every chain bitten through with cold chisels in a dozen places.' },
+      { x: WH_HALLS.x + 52, z: WH_HALLS.z, r: 10, who: 'osgood', said: 'A gang\'s camp. Hammocks, a fire, and a whole cart of black links. They\'ve been here months.', seen: 'A camp under the rock: hammocks, a fire, and a cart heaped with cut black links.' },
+      { x: WH_HALLS.x + 52, z: WH_HALLS.z - 28, r: 10, who: 'edith', said: 'It\'s warm down here. The white in the anchors. Something likes it.', seen: 'The anchor pit is warm. The white set in the anchors gives off a heat you can feel on your face.' },
+      { x: WH_HALLS.x + 89, z: WH_HALLS.z + 8, r: 11, said: 'That\'s the great winch. And that\'s a man in Assembly blue standing on it.', seen: 'The great winch fills the end of the hall, its drum taller than a house, and a grey man in Assembly blue stands on the stage above it with his hand on the brake.' },
+    ],
+    chest: { xp: 15000, marks: 380, items: ['white_chip', 'white_chip', 'white_chip', 'black_shard', 'black_shard', 'frag_blacklink'] },
+  },
   {
     id: 'gd-oldman', name: 'The Old Man\'s Workings', where: 'Sallow Pit, Hollindale', level: 10,
     blurb: 'Number Four gallery has been shut since the roof came in at Candlemas. Lamps go missing from the lamp room, and copper goes up the shaft at night that never went through Hesk Dunmore\'s carts.',

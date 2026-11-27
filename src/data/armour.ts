@@ -385,6 +385,38 @@ const LINES: Line[] = [
     },
   },
 
+  // The Winding House (group dungeon under Liftwick): the winding crews' gear, and the Assembly's own
+  {
+    id: 'windercloth', weight: 'light', set: 'winding', dungeon: 'gd-winding', rarity: 'epic', value: 130, colour: '#2a3a5a', trim: '#e8e0d0',
+    look: { chest: { top: 7, tunic: '#2a3a5a', trim: '#e8e0d0', shirt: '#e8e0d0' }, legs: { trousers: '#22222a', legs: 0 }, hands: { gloves: '#3a3a42' }, feet: { boots: '#141210', shoes: 1 } },
+    pieces: {
+      chest: ['Winder\'s coat', 'Assembly blue with white facings, the Winder\'s own cut. There are link-counts chalked inside the cuff in a hand that got smaller every year.'],
+      legs: ['Winder\'s breeches', 'Good wool, worn through at the knee from kneeling at the gauge.'],
+      hands: ['Winder\'s gloves', 'Kid, with the fingertips cut off for feeling a chain\'s lay.'],
+      feet: ['Winder\'s shoes', 'Buckled with white crystal. They weigh a little less than they should.'],
+    },
+  },
+  {
+    id: 'linkleather', weight: 'medium', set: 'winding', dungeon: 'gd-winding', rarity: 'epic', value: 130, colour: '#4a4a46', trim: '#c8a040',
+    look: { chest: { top: 6, tunic: '#4a4a46', trim: '#c8a040', chestArmour: { style: 'brigandine', color: '#3a3a3e', trim: '#c8a040' }, shoulders: { style: 'leather', color: '#3a3a3e' } }, legs: { trousers: '#3a3430', legs: 1 }, hands: { gloves: '#2a2420' }, feet: { boots: '#2a2018', shoes: 1 } },
+    pieces: {
+      chest: ['Linkman\'s jerkin', 'Thick leather with links of chain sewn over the shoulders, where the weight rests when you carry a length of it.'],
+      legs: ['Linkman\'s leggings', 'Patched at the shin where the chain swings.'],
+      hands: ['Linkman\'s mitts', 'Leather palms gone black from the iron. It doesn\'t wash out.'],
+      feet: ['Linkman\'s boots', 'Hobnailed for the wet rock of the shafts.'],
+    },
+  },
+  {
+    id: 'anchorplate', weight: 'heavy', set: 'winding', dungeon: 'gd-winding', rarity: 'epic', value: 150, colour: '#5a5a62', trim: '#9fe8ff',
+    look: { chest: { top: 4, tunic: '#2a2a32', trim: '#9fe8ff', chestArmour: { style: 'plate', color: '#5a5a62', trim: '#9fe8ff' }, shoulders: { style: 'layered', color: '#4a4a52', trim: '#9fe8ff' } }, legs: { trousers: '#22222a', legs: 0 }, hands: { gloves: '#4a4a52' }, feet: { boots: '#1e1e24', shoes: 1 } },
+    pieces: {
+      chest: ['Anchor-plate', 'Plate hammered out of the iron of a broken anchor, with a link of the black set over the heart. It holds you to the ground.'],
+      legs: ['Anchor greaves', 'Heavy enough to stand under a falling chain.'],
+      hands: ['Anchor gauntlets', 'The knuckles are chain links, riveted shut.'],
+      feet: ['Anchor sabatons', 'Weighted in the heel with the black. You will not be lifted.'],
+    },
+  },
+
   // ---- New lines: the regions' own, and one from the anvil
   {
     id: 'charter', weight: 'heavy', region: 'crownroad', rarity: 'rare', value: 72, colour: '#b8bcc4', trim: '#2a4a8a',

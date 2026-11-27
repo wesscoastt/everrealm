@@ -7,7 +7,7 @@ import { SHARDFALLS, WORLD_BOSSES } from '../data/activities';
 import { HOLLIN_SHRINE, SHRINE_SOLID, type ShrineTheme } from './shrineData';
 import { hash2 } from './noise';
 import { landAt, landOf } from './land';
-import { MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
+import { WH_DOOR, WH_HALLS, MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
 import { hullHalf, shipDeckY, SHIPS, type ShipKind } from './shipHull';
@@ -1276,6 +1276,9 @@ function* planBody(): Generator<string, Plan> {
       { id: 'hollowfell', name: 'Hollow Fell', x: HOLLOW_FELL.x, z: HOLLOW_FELL.z, r0: 0, r1: 0, build: (s) => buildHollowFell(s) },
       { id: 'kingsbarrow', name: 'Kingsbarrow', x: KINGSBARROW.x, z: KINGSBARROW.z, r0: 92, r1: 122, h: KB_FLOOR, build: (s, b) => buildKingsbarrow(s, b) },
       { id: 'gd-kingsbarrow', name: 'Kingsbarrow: the king\'s barrow', x: KB_HALLS.x + 56, z: KB_HALLS.z, r0: 0, r1: 0, under: true, build: (s) => buildKingsHalls(s) },
+      // The Winding House (data/dungeons.ts gd-winding): its door in the hillside south-west of Liftwick, its halls far under
+      { id: 'wh-door', name: 'The Winding House', x: WH_DOOR.x, z: WH_DOOR.z, r0: 7, r1: 14, h: 52, build: (s, b) => buildWindingDoor(s, b) },
+      { id: 'gd-winding', name: 'The Winding House: the winding halls', x: WH_HALLS.x + 54, z: WH_HALLS.z - 10, r0: 0, r1: 0, under: true, build: (s) => buildWindingHalls(s) },
       { id: 'reedwater', name: 'Reedwater', x: TOWNS.reedwater.x, z: TOWNS.reedwater.z, r0: 0, r1: 0, build: (s) => buildReedwater(s) },
       { id: 'branchley', name: 'Branchley', x: TOWNS.branchley.x, z: TOWNS.branchley.z, r0: 44, r1: 64, h: 22, build: (s, b) => buildBranchley(s, b) },
       { id: 'cala', name: 'Cala Roja', x: TOWNS.cala.x, z: TOWNS.cala.z, r0: 36, r1: 52, h: SEA + 3, flats: [{ x: TOWNS.cala.x + 52, z: TOWNS.cala.z, r0: 18, r1: 22, h: SEA - 3 }], build: (s, b) => buildCala(s, b) },
@@ -3906,6 +3909,115 @@ function* planBody(): Generator<string, Plan> {
    * Hall of the Kneeling, the old king's guard on their knees in rows; the Black Stair; and the King's
    * Hall, his bier at the far end.
    */
+  /**
+   * The Winding House's door (gd-winding): a way cut into the hillside south-west of Liftwick, dressed in the Assembly's
+   * white and black, an anchor stone with a cut chain lying across it by the step, and the Assembly's board.
+   */
+  function buildWindingDoor(s: Site, base: number) {
+    const PX = WH_DOOR.x, PZ = WH_DOOR.z;
+    for (let z = PZ - 7; z <= PZ; z++) for (let x = PX - 2; x <= PX + 2; x++) for (let y = base; y < base + 5; y++) O.set(x, y, z, B.Air);
+    for (let z = PZ - 7; z <= PZ + 2; z++) for (let x = PX - 2; x <= PX + 2; x++) O.set(x, base - 1, z, z <= PZ ? B.Flagstone : B.Gravel);
+    for (const x of [PX - 3, PX + 3]) for (let y = base; y < base + 6; y++) for (const z of [PZ, PZ - 1]) O.set(x, y, z, y === base + 5 ? B.Blackstone : B.Whitestone);
+    for (let x = PX - 4; x <= PX + 4; x++) for (const z of [PZ, PZ - 1]) O.set(x, base + 6, z, x === PX ? B.Blackstone : B.Whitestone);
+    for (let x = PX - 2; x <= PX + 2; x++) for (let y = base; y < base + 5; y++) O.set(x, y, PZ - 8, y < base + 4 ? B.Blackstone : B.Whitestone);
+    // the anchor stone by the step, and a length of cut black chain across it
+    for (const [dx, dz] of [[4, 2], [5, 2], [4, 3], [5, 3]]) O.set(PX + dx, base, PZ + dz, B.StoneBrick);
+    O.set(PX + 4, base + 1, PZ + 2, B.Blackstone); O.set(PX + 5, base + 1, PZ + 3, B.Bars);
+    s.props.push({ t: 'glow', x: PX + 0.5, y: base + 2.5, z: PZ - 6.5, r: 2, color: '#9fe8ff', lit: true });
+    s.props.push({ t: 'lantern', x: PX - 4.5, y: base, z: PZ + 1.5, ry: 0 }, { t: 'lantern', x: PX + 3.5, y: base, z: PZ + 1.5, ry: 0 });
+    s.props.push({ t: 'sign', x: PX - 3.5, y: base, z: PZ + 3.5, ry: 0, text: 'The Winding House\nThe Assembly of Callis' });
+    s.props.push({ t: 'crate', x: PX - 4.5, y: base, z: PZ - 0.5, ry: 0.3 }, { t: 'barrel', x: PX + 5.6, y: base, z: PZ - 0.4 });
+  }
+
+  /**
+   * The Winding House's halls (gd-winding), cut into the rock under Liftwick's rim and winding down: the gallery of
+   * anchors, every anchor stone with its black chain going up into the dark and every chain bitten through; the Linkmen's
+   * camp; north to the anchor pit, warm from the white set in the anchors, where the crawlers nest; east through the
+   * chain shafts, the chains hanging down through them like a forest; and back south to the great winch.
+   */
+  function buildWindingHalls(s: Site) {
+    const OX = WH_HALLS.x, OZ = WH_HALLS.z, F = WH_HALLS.f;
+    const CUT: CaveTheme = { wall: B.Stone, wall2: B.StoneBrick, band: B.Whitestone, floor: B.Flagstone, floor2: B.Cobble, spike: B.Stone, rubble: B.Cobble, light: '#ffd090' };
+    const WORK: CaveTheme = { wall: B.StoneBrick, wall2: B.Whitestone, band: B.Blackstone, floor: B.Flagstone, floor2: B.StoneBrick, spike: B.StoneBrick, rubble: B.Blackstone, light: '#9fe8ff' };
+    const PIT: CaveTheme = { wall: B.Stone, wall2: B.Whitestone, band: B.Crystal, floor: B.Gravel, floor2: B.Whitestone, spike: B.Whitestone, rubble: B.Gravel, light: '#9fe8ff' };
+    const k = caveKit(O, s.props, OX, OZ, F);
+    const at = (x: number, z: number): [number, number, number] => [OX + x + 0.5, k.floorAt(x, z) ?? F, OZ + z + 0.5];
+    const mob = (x: number, z: number, type: string): [number, number, number, string] => [...at(x, z), type];
+    const P = (t: PropType, x: number, y: number, z: number, extra: Partial<PropDesc> = {}) => s.props.push({ t, x: OX + x + 0.5, y, z: OZ + z + 0.5, ...extra });
+
+    k.tunnel([[1, 0], [8, 0]], 6, 7, CUT, { mine: true, frame: B.Timber });
+    k.chamber(5, 0, 5, 5, 7, CUT, { round: true });
+    // The gallery of anchors: long and high, ribbed in white
+    k.tunnel([[9, 0], [40, 0]], 9, 12, WORK, { mine: true, frame: B.Whitestone });
+    // The Linkmen's camp
+    k.chamber(52, 0, 12, 10, 12, CUT, { round: true });
+    // North to the anchor pit
+    k.tunnel([[52, -9], [52, -18]], 5, 6, CUT, { mine: true, frame: B.Timber });
+    k.chamber(52, -28, 13, 10, 12, PIT, { round: true });
+    // East through the chain shafts
+    k.tunnel([[64, -28], [78, -28]], 5, 6, WORK, { mine: true, frame: B.Blackstone });
+    k.chamber(89, -28, 10, 10, 16, WORK, { round: true });
+    // South to the great winch
+    k.tunnel([[89, -18], [89, -6]], 6, 8, WORK, { mine: true, frame: B.Whitestone });
+    k.chamber(89, 8, 18, 13, 18, WORK);
+    for (const [x, z] of [[3, -3], [3, 3], [14, -4], [22, 4], [30, -4], [38, 4], [45, -7], [59, -7], [45, 7], [59, 7], [52, -14], [43, -24], [61, -24], [43, -33], [61, -33], [71, -27], [82, -22], [96, -22], [82, -34], [96, -34], [89, -12], [74, 2], [104, 2], [74, 16], [104, 16]] as [number, number][])
+      k.glow(x, z, F + 3, 1.2, z < -18 ? '#9fe8ff' : '#ffd090', false);
+    k.glow(89, 14, F + 6, 1.8, '#9fe8ff', true);
+    k.finish({ spikes: 0, rubble: 0.25 });
+
+    // The gallery: an anchor stone in every bay on both sides, each with its black chain running up to the roof, cut
+    for (let x = 12; x <= 39; x += 4) for (const z of [-4, 4]) {
+      O.set(OX + x, F, OZ + z, B.StoneBrick); O.set(OX + x, F + 1, OZ + z, B.Whitestone);
+      for (let y = F + 2; y < F + 12; y++) if ((x * 7 + y) % 5 !== 0) O.set(OX + x, y, OZ + z, B.Blackstone); // (the gaps where links were cut out)
+    }
+    // The Linkmen's camp: a cart of cut links, crates, a fire
+    P('cart', 47, F, -5, { ry: 0.4 }); P('crate', 57, F, 6, { ry: 0.2 }); P('crate', 58.2, F, 7, { ry: 1.1 }); P('barrel', 59, F, -6, {}); P('firepit', 50, F, 4, {});
+    for (const [x, z] of [[46, -5], [47, -6], [48, -5]]) O.set(OX + x, F, OZ + z, B.Blackstone);
+    // The anchor pit: four great anchors set in the floor, each a block of white crystal bound in black, warm to stand by
+    for (const [ax, az] of [[46, -32], [58, -32], [46, -24], [58, -24]]) {
+      for (let dx = 0; dx <= 1; dx++) for (let dz = 0; dz <= 1; dz++) { O.set(OX + ax + dx, F, OZ + az + dz, B.Crystal); O.set(OX + ax + dx, F + 1, OZ + az + dz, B.Blackstone); }
+      for (let y = F + 2; y < F + 12; y++) O.set(OX + ax, y, OZ + az, B.Blackstone);
+    }
+    // The chain shafts: black chains hanging down through the room like a forest, some cut short
+    for (let x = 82; x <= 96; x += 3) for (let z = -35; z <= -21; z += 3) {
+      if (Math.hypot(x - 89, z + 28) > 8 || Math.hypot(x - 89, z + 28) < 3) continue;
+      const short = (x + z) % 2 === 0 ? 5 : 0;
+      for (let y = F + 4 + short; y < F + 16; y++) O.set(OX + x, y, OZ + z, B.Blackstone);
+    }
+    // The great winch: a drum taller than a house across the end of the hall, its stage above, the brake beside it
+    for (let x = 80; x <= 98; x++) for (let y = F + 1; y <= F + 9; y++) for (let z = 17; z <= 19; z++) {
+      const r = Math.hypot(y - (F + 5), z - 18 + (z === 18 ? 0 : 0));
+      if (Math.abs(y - (F + 5)) <= 4) O.set(OX + x, y, OZ + z, x === 80 || x === 98 ? B.Blackstone : (x % 3 === 0 ? B.Timber : B.DarkPlanks));
+      void r;
+    }
+    for (let x = 82; x <= 96; x++) for (let z = 13; z <= 15; z++) O.set(OX + x, F + 4, OZ + z, B.Planks); // the stage
+    for (let y = F + 1; y <= F + 4; y++) for (const x of [82, 96]) O.set(OX + x, y, OZ + 13, B.Timber);
+    for (let y = F + 1; y <= F + 7; y++) O.set(OX + 99, y, OZ + 14, y === F + 7 ? B.Brass : B.Blackstone); // the brake
+    for (let x = 80; x <= 98; x += 6) for (let y = F + 10; y < F + 18; y++) O.set(OX + x, y, OZ + 18, B.Blackstone); // chains going up from the drum
+
+    s.act = {
+      kind: 'group',
+      arrive: at(2, 0),
+      exit: at(1, 0),
+      packs: [
+        [mob(18, -2, 'dg_linkman'), mob(20, 2, 'dg_linkman'), mob(16, 0, 'dg_linkthrower')],
+        [mob(30, -3, 'dg_linkman'), mob(33, 3, 'dg_linkthrower'), mob(36, 0, 'dg_linkman')],
+        [mob(52, -15, 'dg_crawlerkin'), mob(50, -20, 'dg_crawlerkin')],
+        [mob(70, -27, 'dg_crawlerkin'), mob(75, -29, 'dg_linkman'), mob(76, -28, 'dg_linkthrower')],
+        [mob(84, -30, 'dg_linkman'), mob(94, -26, 'dg_linkman'), mob(89, -34, 'dg_crawlerkin')],
+        [mob(89, -10, 'dg_linkthrower'), mob(87, -3, 'dg_linkman'), mob(91, -3, 'dg_linkman')],
+      ],
+      bosses: [
+        { at: at(54, 0), type: 'dg_tunney', crew: [mob(48, -6, 'dg_linkman'), mob(48, 6, 'dg_linkthrower')] },
+        { at: at(52, -28), type: 'dg_oldcrawler' },
+        { at: at(89, 8), type: 'dg_roure' },
+      ],
+      chest: at(97, 2),
+      covered: k.covered(),
+    };
+    s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
+  }
+
   function buildKingsHalls(s: Site) {
     const OX = KB_HALLS.x, OZ = KB_HALLS.z, F = KB_HALLS.f;
     const VAULT: CaveTheme = { wall: B.StoneBrick, wall2: B.MossyStone, band: B.Blackstone, floor: B.StoneBrick, floor2: B.MossyCobble, spike: B.MossyStone, rubble: B.Cobble, light: '#9fe8ff' };

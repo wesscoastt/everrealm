@@ -153,6 +153,12 @@ const SOURCES: Source[] = [
     lines: ['From the king\'s guard under Kingsbarrow, laid down with them three hundred years ago and not meant to be picked up.', 'Old-kingdom steel, grey and fine. A sliver of the black is set in the grip, and it sits heavy in the hand.'],
   },
   {
+    id: 'winding', name: 'Linkforged', dungeon: 'gd-winding', rarity: 'epic', value: 140, lean: 'damage', colours: { metal: '#6a6a72', hilt: '#2a3a5a', grip: '#2a2420', accent: '#9fe8ff' }, style: { guard: 'bar', pommel: 'wheel', blade: 'fuller', axe: 'bearded', mace: 'flanged', hammer: 'maul', staff: 'orb', spear: 'leaf' },
+    nouns: { hammer: 'link hammer', staff: 'winder\'s rod' },
+    families: ['hammer', 'sword', 'axe', 'mace', 'staff', 'spear', 'dagger'],
+    lines: ['Forged in the Winding House under Liftwick, from iron that held the skyfarm slabs down.', 'Black-iron work with a link of the chain worked into the grip. It sits in the hand like an anchor.'],
+  },
+  {
     id: 'escapement', name: 'Kilnwright', dungeon: 'gd-escapement', rarity: 'epic', value: 120, lean: 'speed', colours: { metal: '#d8b050', hilt: '#3e8a74', grip: '#3a2a1e', accent: '#3e8a74' }, style: { guard: 'bar', pommel: 'cube', blade: 'fuller', axe: 'crescent', mace: 'star', hammer: 'maul', staff: 'orb', spear: 'glaive' },
     nouns: { hammer: 'fitter\'s maul', staff: 'gauge-staff' },
     families: ['hammer', 'mace', 'greataxe', 'staff', 'spear', 'longsword', 'dagger'],
