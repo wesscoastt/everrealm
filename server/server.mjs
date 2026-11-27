@@ -700,7 +700,7 @@ const plots = plotsInit({ players, send, readJson, writeJson, dataDir: DATA, soc
 const gardens = gardensInit({ players, send, readJson, writeJson, dataDir: DATA, social, log });
 // The Arena at Verandah: duels, one to one or two against two (server/arena.mjs)
 const arena = arenaInit({ players, send, social, log });
-const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p), comp: p.comp ?? null });
+const pub = (p) => ({ land: p.land, id: p.id, name: p.name, look: p.look, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, held: p.held, mount: p.mount, msex: p.msex ?? 0, steed: p.steed ?? 0, guild: p.guildName ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, perf: music.perfOf(p), comp: p.comp ?? null });
 
 /** A player out of the world: their socket closed, or a new connection of theirs took over. */
 function dropPlayer(p) {
@@ -803,6 +803,13 @@ wss.on('connection', (ws, req) => {
         // The light they carry, lit: 1 a torch in the hand, 2 a lantern at the belt (everyone sees it come out and go away)
         me.light = msg.light === 1 || msg.light === 2 ? msg.light : 0;
         me.mount = typeof msg.mount === 'string' && /^(halter|mount|wagon|boat)_[a-z][a-z_]{1,39}(\.\d\d)?$/.test(msg.mount) ? msg.mount : null;
+        // Mare or stallion, for the mount's look (owner 2026-11-27): sent on its own so the mount's key stays as it was
+        me.msex = msg.msex === 'm' || msg.msex === 'f' ? msg.msex : 0;
+        // Their own horse, not ridden: standing where they left it, or coming at a run to their whistle (owner 2026-11-27:
+        // "cant see others mounts following them", "their own horse"); only its look and where it is
+        const st = msg.steed, sx = st && num(st.x, WORLD_X[0], WORLD_X[1]), sz = st && num(st.z, WORLD[0], WORLD[1]), sy = st && num(st.y, -10, 200), syaw = st && num(st.yaw, -100, 100);
+        me.steed = st && typeof st.k === 'string' && /^(halter|mount)_[a-z][a-z_]{1,39}(\.\d\d)?$/.test(st.k) && sx !== null && sz !== null && sy !== null && syaw !== null && Math.hypot(sx - me.x, sz - me.z) < 400
+          ? [st.k, st.s === 'm' || st.s === 'f' ? st.s : 0, sx, sy, sz, syaw, st.run ? 1 : 0] : 0;
         // Riding with someone in your group, close by, on a mount with a seat still free
         const rider = Number.isInteger(msg.pillion) && msg.pillion ? players.get(msg.pillion) : null;
         const group = rider && social.groupIds(me);
@@ -1039,7 +1046,7 @@ setInterval(() => {
   if (!moved.length) return;
   for (const p of moved) p.dirty = false;
   for (const to of players.values()) {
-    const rows = moved.filter((p) => p !== to && p.land === to.land).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0, p.light ?? 0]);
+    const rows = moved.filter((p) => p !== to && p.land === to.land).map((p) => [p.id, +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(3), p.anim, p.held, p.mount ?? 0, p.pillion ?? 0, p.light ?? 0, p.msex ?? 0, p.steed ?? 0]);
     if (rows.length) send(to.ws, { t: 'snap', p: rows });
   }
 }, TICK_MS);

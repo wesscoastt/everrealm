@@ -8,6 +8,7 @@ export const UPDATES: Update[] = [
   {
     v: 17, date: '20 November', title: 'Kestle',
     items: [
+      ['Other people\'s horses.', 'You now see someone else\'s horse when they\'re not on it: standing where they left it, grazing, and coming at a run when they whistle. A rider on a horse of the less usual sex for its halter (a mare where the halter falls stallion, or the other way) was shown to everyone else on no horse at all; they ride their own again, mare or stallion as they chose.'],
       ['The Late Sledge.', 'Up on the Held, at the herders\' folds north-east of Northgate, Aud Garth is waiting on Oswy Hale\'s sledge and the cough syrup it carries for her children. It is two days late, and there was a storm. Walk down the road and find it, dig out what it was carrying, and find out where Oswy went, and what he took from the barrow he sheltered against. Opens once The Last Fold is done.'],
       ['The Dark Mile.', 'West of Branchley the old road runs a mile through the oldest of the Amberwold, lit at dusk by lamp-moths on seven tallowed posts. Three have gone dark, and a carter has broken his leg off the road. Wat Elder, the lampkeeper, can\'t walk the Mile any more: find out who has been scraping his posts, and decide what becomes of them.'],
       ['See the weapon you win.', 'When a foe drops a weapon you see it come: the weapon itself, as it\'s drawn in a hand, jumps up out of the body, turns over in the air and arcs into yours, with a spark of its colour if it\'s a rare one or better.'],

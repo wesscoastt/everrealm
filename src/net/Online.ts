@@ -48,6 +48,8 @@ interface Remote {
   mount: string | null;
   horse: CreatureModel | null;
   horseOf: string | null;
+  /** Their own horse not ridden: where it stands or runs to them, its key (with mare or stallion), and its model. */
+  steed?: { key: string; at: THREE.Vector3; yaw: number; run: boolean; model: CreatureModel | null; of: string | null } | null;
   /** Rowing (mount 'boat_row'): the boat under them, and where she was last frame (to carry anyone standing in her). */
   boat?: THREE.Object3D | null;
   boatPrev?: { x: number; y: number; z: number; yaw: number } | null;
@@ -61,6 +63,23 @@ interface Remote {
   pet: Companion | null;
   /** Their companion (game/Companions.ts), following them: the figure, the horse it rides when they ride, where it is. */
   comp?: { model: Humanoid; steedLook: MountLook | null; steed: CreatureModel | null; pos: THREE.Vector3; yaw: number } | null;
+}
+
+/** Someone's own horse, as the realm sends it: key, mare or stallion, x, y, z, yaw, running. */
+type SteedRow = [string, string | 0, number, number, number, number, number];
+const tmpSteed = new THREE.Vector3();
+/** A mount's key without its m or f (the realm's own form of it), and the m or f. */
+function splitSex(key: string | null): [string | null, string | 0] {
+  if (!key) return [null, 0];
+  const m = /^(.*\.\d\d)([mf])$/.exec(key);
+  return m ? [m[1], m[2]] : [key, 0];
+}
+/** And back: the realm's key with its m or f put on again. */
+function withSex(key: string | 0 | undefined, s: string | 0 | undefined): string | null {
+  if (!key || typeof key !== 'string') return null;
+  if (s !== 'm' && s !== 'f') return key;
+  const [id, v] = key.split('.');
+  return `${id}.${v?.[0] ?? '0'}${v?.[1] ?? '0'}${s}`;
 }
 
 /** A companion as everyone else is told of it. */
@@ -392,7 +411,8 @@ export class Online {
       case 'look': { const r = this.remotes.get(m.id as number); if (r) this.replaceModel(r, m.look as Appearance); break; }
       case 'comp': { const r = this.remotes.get(m.id as number); if (r) this.setRemoteComp(r, (m.comp as CompPub | null) ?? null); break; }
       case 'snap':
-        for (const [id, x, y, z, yaw, anim, held, mount, pillion, light] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined, number | undefined, number | undefined][]) {
+        for (const [id, x, y, z, yaw, anim, held, mount0, pillion, light, msex, steed] of m.p as [number, number, number, number, number, AnimState, HeldItem, string | 0 | undefined, number | undefined, number | undefined, string | 0 | undefined, SteedRow | 0 | undefined][]) {
+          const mount = withSex(mount0, msex);
           const r = this.remotes.get(id);
           if (!r) continue;
           r.from.copy(r.model.root.position);
@@ -404,6 +424,7 @@ export class Online {
           r.yaw = yaw; r.anim = anim; r.held = held;
           r.pillion = typeof pillion === 'number' ? pillion : 0;
           r.light = light === 1 || light === 2 ? light : 0;
+          this.setSteed(r, steed);
         }
         break;
       case 'chat': this.hooks.chat(String(m.from), String(m.text), typeof m.id === 'number' ? m.id : undefined, (['emote', 'local', 'trade', 'group', 'guild', 'whisper', 'whisperTo'] as const).find((k) => k === m.kind) ?? 'say'); break;
@@ -512,10 +533,35 @@ export class Online {
     const pos = new THREE.Vector3(p.x, p.y, p.z);
     model.root.position.copy(pos);
     this.hooks.scene.add(model.root);
-    const mount = p.mount && mountOf(p.mount) ? p.mount : null;
+    const mk = withSex(p.mount ?? undefined, (p as { msex?: string }).msex), mount = mk && mountOf(mk) ? mk : null;
     this.remotes.set(p.id, { id: p.id, name: p.name, model, from: pos.clone(), to: pos.clone(), t: 1, yaw: p.yaw, anim: p.anim, held: p.held, speed: 0, mount, horse: null, horseOf: null, guild: p.guild ?? null, pillion: p.pillion ?? 0, light: p.light ?? 0, pet: this.petFor(p.look, pos) });
     if (p.perf) this.hooks.perform?.(p.id, p.perf);
     if (p.comp) this.setRemoteComp(this.remotes.get(p.id)!, p.comp);
+    this.setSteed(this.remotes.get(p.id)!, (p as { steed?: SteedRow | 0 }).steed);
+  }
+
+  /** Someone's own horse, not ridden (the realm's row: key, mare or stallion, where, and running or not). */
+  private setSteed(r: Remote, row: SteedRow | 0 | undefined): void {
+    if (!row || !Array.isArray(row)) { if (r.steed?.model) this.hooks.scene.remove(r.steed.model.root); r.steed = null; return; }
+    const [k, s, x, y, z, yaw, run] = row, key = withSex(k, s);
+    if (!key || !mountOf(key)) return;
+    if (!r.steed) r.steed = { key, at: new THREE.Vector3(x, y, z), yaw, run: !!run, model: null, of: null };
+    r.steed.key = key; r.steed.yaw = yaw; r.steed.run = !!run;
+    if (!run || r.steed.at.distanceTo(tmpSteed.set(x, y, z)) > 40) r.steed.at.set(x, y, z); else r.steed.at.lerp(tmpSteed, 0.5);
+  }
+  /** Draw each one's horse where it stands, or on its way to them. */
+  private updateSteeds(dt: number): void {
+    for (const r of this.remotes.values()) {
+      const s = r.steed;
+      if (!s) continue;
+      if (s.of !== s.key) { if (s.model) this.hooks.scene.remove(s.model.root); const m = mountOf(s.key); s.model = m ? mountModel(m) : null; if (s.model) this.hooks.scene.add(s.model.root); s.of = s.key; }
+      if (!s.model) continue;
+      const p = s.model.root.position, d = p.distanceTo(s.at);
+      if (d > 30 || d < 0.01) p.copy(s.at); else p.lerp(s.at, Math.min(1, dt * 6));
+      s.model.root.rotation.y = s.yaw;
+      s.model.setAnim(s.run ? 'run' : 'graze');
+      s.model.update(dt, s.run ? 9 : 0);
+    }
   }
 
   /** Someone's companion came out, changed, or went home. */
@@ -601,14 +647,18 @@ export class Online {
   }
   private myPillion: number | null = null;
 
-  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem | string; mount?: string | null; pillion?: number | null; light?: number }): void {
+  update(dt: number, me: { x: number; y: number; z: number; yaw: number; anim: AnimState; held: HeldItem | string; mount?: string | null; pillion?: number | null; light?: number; steed?: { key: string; x: number; y: number; z: number; yaw: number; run: boolean } | null }): void {
     this.myPillion = me.pillion ?? null;
     if (this.status !== 'online' || !this.ws) return;
     this.sendT -= dt * 1000;
     if (this.sendT <= 0) {
       this.sendT = SEND_MS;
-      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount: me.mount ?? null, pillion: me.pillion ?? 0, light: me.light ?? 0 }));
+      // (the mount's key as the realm has always taken it, mare or stallion beside it; and the horse left standing)
+      const [mount, msex] = splitSex(me.mount ?? null), [sk, ss] = splitSex(me.steed?.key ?? null);
+      const steed = me.steed && sk ? { k: sk, s: ss, x: +me.steed.x.toFixed(2), y: +me.steed.y.toFixed(2), z: +me.steed.z.toFixed(2), yaw: +me.steed.yaw.toFixed(2), run: me.steed.run } : null;
+      this.ws.send(JSON.stringify({ t: 'state', x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.yaw.toFixed(3), anim: me.anim, held: me.held, mount, msex, pillion: me.pillion ?? 0, light: me.light ?? 0, steed }));
     }
+    this.updateSteeds(dt);
     for (const r of this.remotes.values()) {
       r.t = Math.min(1, r.t + dt / 0.1);
       r.model.root.position.lerpVectors(r.from, r.to, r.t);

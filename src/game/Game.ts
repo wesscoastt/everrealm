@@ -4619,6 +4619,13 @@ export class Game implements GameApi {
     this.sfx('equip');
     this.horseSay(pk.id, st.saddle ? `You put the ${SADDLES[st.saddle].name.toLowerCase()} on ${st.name ?? 'her'}. ${SADDLES[st.saddle].desc}` : `You put ${st.name ?? 'her'} back in the plain saddle she came with.`);
   }
+  /** Your own horse not under you, for everyone else to see (owner 2026-11-27: "cant see others mounts following them"): standing where you left her, or coming at a run to your whistle. */
+  private steedShown(): { key: string; x: number; y: number; z: number; yaw: number; run: boolean } | null {
+    const h = this.coming ?? this.parked;
+    if (!h || this.horse) return null;
+    const p = h.model.root.position;
+    return { key: this.mountKeyOf(h.id), x: p.x, y: p.y, z: p.z, yaw: h.model.root.rotation.y, run: h === this.coming };
+  }
   /** Is this halter a horse (not a wagon)? */
   private isSteed(id: string): boolean { return !!ITEMS[id]?.mount && !ITEMS[id]!.mount!.wagon; }
   /** A stallion (or stag, ram, bull) rather than a mare: as you chose at the stable, or as the halter falls. */
@@ -10387,7 +10394,7 @@ export class Game implements GameApi {
     this.horse?.holdReins(M.state === 'ride' ? M.handsAt(handL, handR) : null);
     // (on the Post, everyone sees the cart go by with you on its bench)
     if (this.post.active) { const w = this.post.where; this.online.update(dt, { x: w.x, y: w.y, z: w.z, yaw: w.yaw, anim: 'seated', held: 'none', mount: POST_CART_KEY, pillion: null }); }
-    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion, light: this.lightShown });
+    else this.online.update(dt, { x: P.position.x, y: P.position.y, z: P.position.z, yaw: P.yaw, anim: M.state, held, mount: this.horse ? this.mountKeyOf(this.flag('mount') as string) : this.boat.aboard ? 'boat_row' : null, pillion: this.pillion, light: this.lightShown, steed: this.steedShown() });
     this.sendComp();
     this.music.update();
     this.chests.update();
