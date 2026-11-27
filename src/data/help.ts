@@ -141,6 +141,7 @@ export const HELP: [string, [string, string][]][] = [
   ['Dungeons, bosses and the tower', [
     ['How do group dungeons work?', 'They’re for four: a tank, a healer and two damage. The Group Finder (P) fills empty places with hired hands if you want. Clear one and Veteran opens, harder, with better chests. /joinrun puts you into your group’s run.'],
     ['What is a delve?', 'A small dungeon you can do alone or with friends: three rooms, a champion, and a chest that refills every half hour.'],
+    ['What are events?', 'Trouble that flares up when you come near: wolves on a ridge, reavers at a well, a troll at the folds. A bell rings and it goes on your tracker. Beat its waves and the leader before the time runs out, alone or with anyone nearby, for experience, marks and standing. Every region of both continents has its own, and each rests a while before it can flare up again.'],
     ['When do world bosses come?', 'Each rises every thirty minutes, is announced three minutes before, and stays up ten. Anyone nearby can join in, and everyone who helps gets a share.'],
     ['What is the Endless Tower?', 'A climb with no top. Annot Crowle keeps it and starts your runs. Every tenth floor is a checkpoint, and tower tokens buy her trophies. Cloaks wait at floors 25 and 100.'],
     ['Does everything scale to me?', 'Yes. Creatures meet you at your level, and so do rewards, so you can play anywhere with anyone.'],
