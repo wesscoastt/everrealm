@@ -3,7 +3,7 @@
 // Joining is the first quest of a faction\'s storyline; each later chapter raises your rank, and the
 // last gives a title. Your rank is kept in the flag "fac:<id>" (missing: not a member).
 
-export type FactionId = 'waits' | 'collegium' | 'muster' | 'lamplighters' | 'bell' | 'ushers' | 'fighters' | 'mages' | 'company';
+export type FactionId = 'waits' | 'collegium' | 'muster' | 'lamplighters' | 'bell' | 'ushers' | 'fighters' | 'mages' | 'company' | 'brethren';
 
 export interface FactionDef {
   id: FactionId;
@@ -85,6 +85,12 @@ export const FACTIONS: FactionDef[] = [
     blurb: 'They keep the doors of the Charter Hall. Since the Charter was sealed they have also been the Speaker\'s eyes, and the less said about that, the better they like it.',
     join: 'Oswin Hext, the Senior Usher, stands by the south door of the keep in Ansbury. He\'s an usher short.', ranks: ['Doorkeeper', 'Usher', 'Usher of the Hall'], title: 'Usher of the Hall',
     storyline: ['ushDoor', 'ushSeal', 'ushHall'], color: '#1e1e24', open: true,
+  },
+  {
+    id: 'brethren', name: 'The Brethren of Saltpenny', where: 'The Captains’ Table, Saltpenny Key, in the Keys of Morrow',
+    blurb: 'A free company of captains who answer to no Charter and no Assembly, only to their own articles: quarter is always given and the black flag never flown, a prize is shared by the articles, and a quarrel between captains goes to the Cockpit.',
+    join: 'Captain Bess Merrin of the Fair Exchange, on Saltpenny’s north pier, is a hand short. She owes you a favour if you found her cat.', ranks: ['Hand', 'Able Hand', 'Bosun', 'Quartermaster', 'Captain'], title: 'Captain of the Brethren',
+    storyline: ['bfArticles', 'bfMary', 'bfLady', 'bfMaroon', 'bfVote'], color: '#1e1c1c', open: true,
   },
 ];
 

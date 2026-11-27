@@ -185,6 +185,18 @@ Object.assign(COSTUMES, {
   },
 });
 
+// Under the Black Flag (data/content/blackFlag.ts): a Brethren hand's slops, and a captain's coat for the last chapter
+Object.assign(COSTUMES, {
+  brethren_hand: {
+    id: 'brethren_hand', name: 'Brethren Hand',
+    look: { top: 2, tunic: '#e8e0d0', trim: '#2a3a5a', shirt: '#e8e0d0', trousers: '#3a4a6a', hose: '#2a2420', legs: 0, boots: '#2a1e14', shoes: 1, cape: null, capeDesign: null, hat: 'kerchief', hatColor: '#a8382c', belt: '#5a3a1e' },
+  },
+  brethren_captain: {
+    id: 'brethren_captain', name: 'Captain of the Brethren',
+    look: { top: 7, tunic: '#1e1c1c', trim: '#c8a040', shirt: '#f0e8d8', trousers: '#2a1e1e', hose: '#1a1612', legs: 0, boots: '#141210', shoes: 1, cape: '#5a1e1a', capeDesign: null, hat: 'tricorn', hatColor: '#141210', gloves: '#2a1e16', belt: '#a8382c' },
+  },
+});
+
 export const WAKE_COSTUMES =['lanternman', 'scarecrow', 'skeleton', 'witch', 'ghost', 'crow'];
 
 /** The look as it's seen: the costume over it, if one is on, with the armour put away under it. */

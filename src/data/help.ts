@@ -130,6 +130,7 @@ export const HELP: [string, [string, string][]][] = [
   ['Factions, standing and titles', [
     ['How do I join a faction?', 'Each faction’s storyline begins with joining it, and every chapter raises your rank, with a title at the top. The Waits (Tabitha Gant, Charter Green, Ansbury), the Fighters Guild (Ancrum Treneer, Verandah), the Mages Guild (Selina Pendarves, Verandah), the Counting House (Gilbert Ashe, Ansbury), the Collegium (Walter Gilby, Guild Ward), the Muster (Sergeant Holroyd at the tilt-yard), the Lamplighters (Hester Vosper, the Shambles), and the Ushers (Oswin Hext at the keep’s south door). The Passing Bell finds you.'],
     ['What is standing?', 'Each region’s regard for you, earned by quests, parish tasks, events, world bosses and dungeons there. Trusted takes 5% off shop prices there, Honoured 10%, and Revered 15% with a title. Your journal shows it.'],
+    ['How do I join the Brethren?', 'Find the Admiral, Captain Bess Merrin’s cat, on Saltpenny Key first; then Bess will take you aboard the Fair Exchange, on the north pier. Their storyline, Under the Black Flag, takes you from Hand to Captain, with a hand’s slops, a captain’s coat and the title Captain of the Brethren along the way.'],
     ['How do I get titles?', 'From feats (your journal’s Achievements), faction ranks and Revered standing. Each feat pays marks once, and some unlock dyes. Choose the title you wear under your name.'],
   ]],
   ['Guilds', [
