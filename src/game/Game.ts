@@ -56,7 +56,7 @@ import { EFFECTS, inflictionOf, type EffectId, type Infliction } from '../data/e
 import { Companions } from './Companions';
 import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import { COMPANIONS, compShort, type CompanionId, type CompanionRole } from '../data/companions';
-import { Appearance, HeldItem, Humanoid, setGearModels, type AnimState } from '../entities/humanoid';
+import { Appearance, HeldItem, Humanoid, heldObject, setGearModels, type AnimState } from '../entities/humanoid';
 /** How long each skill move holds the body before walking takes it back (seconds). */
 const SKILL_ANIM: Partial<Record<AnimState, number>> = { attack: 0.4, cleave: 0.55, shoot: 0.5, cast: 0.5, stomp: 0.6, dash: 0.42, throw: 0.5, whistle: 0.85, crouch: 0.65 };
 import { Npc } from '../entities/Npc';
@@ -2144,6 +2144,7 @@ export class Game implements GameApi {
   private dropLoot(item: string, at: THREE.Vector3): void {
     const d = ITEMS[item];
     if (goodDrop(d)) this.lootBeam(at, d!.rarity);
+    if (d?.weapon) this.lootFly(item, at, goodDrop(d) ? d.rarity : null);
     if (goodDrop(d) && this.online.online && this.social.inGroup && this.lootRolls.start(item)) return;
     this.give(item, 1);
   }
@@ -2155,7 +2156,38 @@ export class Game implements GameApi {
     this.scene.add(m);
     this.beams.push({ m, t: 0 });
   }
+  /**
+   * A weapon a foe drops, seen (owner 2026-11-27, the crawler kit's "the same model lies on the floor"): the weapon
+   * itself, as it's drawn in a hand, jumps up out of the body, turns over in the air and arcs into yours, with a spark of
+   * its rarity's colour as you catch it. (Loot still goes straight to the pack: this is the sight of it coming.)
+   */
+  private flying: { m: THREE.Object3D; from: THREE.Vector3; t: number; spin: number; col: string | null }[] = [];
+  private lootFly(item: string, at: THREE.Vector3, rarity: string | null): void {
+    if (this.flying.length > 6) return;
+    const { mesh } = heldObject(item);
+    if (!mesh) return;
+    mesh.position.copy(at).setY(at.y + 0.8);
+    this.scene.add(mesh);
+    const col = rarity === 'legendary' ? '#ffb040' : rarity === 'epic' ? '#c070ff' : rarity ? '#60a8ff' : null;
+    this.flying.push({ m: mesh, from: mesh.position.clone(), t: 0, spin: (Math.random() < 0.5 ? -1 : 1) * (7 + Math.random() * 3), col });
+  }
+  private flyTick(dt: number): void {
+    const P = this.player.position;
+    for (const f of this.flying) {
+      f.t += dt;
+      const up = Math.min(1, f.t / 0.45), k = Math.max(0, Math.min(1, (f.t - 0.45) / 0.45));
+      // up out of the body, turning; then in an arc to your hands, quicker as it comes, smaller at the last
+      const hand = tmpV2.set(P.x, P.y + 1.1, P.z);
+      f.m.position.set(f.from.x + (hand.x - f.from.x) * k * k, f.from.y + Math.sin(up * Math.PI * 0.5) * 1.4 * (1 - k) + (hand.y - f.from.y) * k * k + Math.sin(k * Math.PI) * 0.8, f.from.z + (hand.z - f.from.z) * k * k);
+      f.m.rotation.set(f.t * f.spin * 0.6, f.t * f.spin, 0);
+      f.m.scale.setScalar(1 - k * k * 0.6);
+      if (f.t >= 0.9 && f.col) this.particles.burst(tmpV.copy(hand), f.col, 10);
+    }
+    for (const f of this.flying.filter((x) => x.t >= 0.9)) this.scene.remove(f.m);
+    this.flying = this.flying.filter((x) => x.t < 0.9);
+  }
   private beamsTick(dt: number): void {
+    this.flyTick(dt);
     for (const b of this.beams) {
       b.t += dt;
       (b.m.material as THREE.MeshBasicMaterial).opacity = 0.55 * Math.min(1, b.t * 4) * Math.max(0, 1 - Math.max(0, b.t - 3) / 1.5);
@@ -10371,7 +10403,7 @@ export class Game implements GameApi {
       if (this.companion) this.scene.add(this.companion.model.root);
     }
     this.companion?.update(dt, P.position, P.yaw, (x, z, near) => this.footing(x, z, near));
-    if (this.beams.length) this.beamsTick(dt);
+    if (this.beams.length || this.flying.length) this.beamsTick(dt);
     // (someone else petting: the pet nearest them perks up, yours or theirs, as everyone sees)
     if ((this.petCheerT -= dt) <= 0) {
       this.petCheerT = 0.8;
