@@ -24,7 +24,30 @@ export interface EventDef {
   xp: number;
   marks: [number, number];
   loot: { item: string; chance: number }[];
+  // Chains (owner 2026-11-27: "i want some events to be dynamic ones like guild wars 2 has"): an event can be more than
+  // waves. It can be something to hold, fires to put out, or things to carry. It can open with a call for help, and how it
+  // ends decides what comes next and what's left in the world.
+  /** Something to hold. The creatures go for it until you hit them, and if it breaks the event is lost. hp counts blows. */
+  ward?: { label: string; hp: number; look: 'well' | 'fold' };
+  /** Fires that break out one after another and spread. Put each out with E before it burns down; `lose` burnt down loses it. */
+  fires?: { count: number; lose: number };
+  /** Things scattered about to pick up with E. */
+  gather?: { count: number; label: string; look: 'cutting' | 'sheep' };
+  /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
+  call?: { who: string; text: string; secs: number };
+  /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
+  after?: { id: string; result: 'win' | 'fail' };
+  /** What its ending leaves behind: a world state set or cleared (WORLD_STATES), and a line from whoever called for help. */
+  won?: { set?: string; clear?: string; say?: string };
+  lost?: { set?: string; clear?: string; say?: string };
 }
+
+/** What a chain's ending can leave in the world until a later event puts it right. Every player on the realm sees the same. */
+export const WORLD_STATES: Record<string, { x: number; z: number; r: number; look: 'burnt' | 'hurdles' | 'none'; guards?: { type: EnemyType; count: number }; note: string }> = {
+  terracesburnt: { x: 8828, z: 958, r: 11, look: 'burnt', note: 'The top terrace at Cala Roja burned. The vines are black stumps.' },
+  wellsheld: { x: 7496, z: -196, r: 9, look: 'none', guards: { type: 'saltreaver', count: 4 }, note: 'Salt reavers hold Tenwells\' outer wells.' },
+  foldbroken: { x: 8615, z: -1054, r: 6, look: 'hurdles', note: 'The hurdles of Cold Harbour\'s fold are down and the sheep are loose on the cliff.' },
+};
 
 export const EVENTS: EventDef[] = [
   { id: 'ev-lantern', name: 'The Lantern Wolves', region: 'greenwake', x: 86, z: 262, goal: 'Drive the wolves off the Lantern ridge', waves: [{ type: 'wolf', count: 3 }, { type: 'wolf', count: 3 }], leader: 'wolf', time: 240, cooldown: 360, xp: 160, marks: [6, 12], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'wolfskin_hood', chance: 0.08 }] },
@@ -60,12 +83,40 @@ export const EVENTS: EventDef[] = [
   { id: 'ev-mbeetles', name: 'Beetles in the White Quarry', region: 'bright', x: 8280, z: 1100, goal: 'Clear the quarry beetles out of the white workings so the cutters can go back', waves: [{ type: 'quarrybeetle', count: 3 }, { type: 'quarrybeetle', count: 3 }], leader: 'quarrybeetle', time: 300, cooldown: 420, xp: 1200, marks: [20, 34], loot: [{ item: 'white_chip', chance: 1 }] },
   { id: 'ev-mcrawlers', name: 'Crawlers on the Rim', region: 'sunder', x: 7916, z: 233, goal: 'Knock the slab crawlers off Liftwick’s rim before they foul the bridges', waves: [{ type: 'slabcrawler', count: 3 }, { type: 'slabcrawler', count: 3 }], leader: 'slabcrawler', time: 300, cooldown: 420, xp: 1340, marks: [22, 38], loot: [{ item: 'white_chip', chance: 1 }] },
   { id: 'ev-mriftpack', name: 'The Rift Pack', region: 'sunder', x: 7750, z: 300, goal: 'Break up the rift wolves hunting the skyfarm flocks', waves: [{ type: 'riftwolf', count: 3 }, { type: 'riftwolf', count: 3 }], leader: 'riftwolf', time: 300, cooldown: 420, xp: 1360, marks: [22, 38], loot: [{ item: 'wolf_pelt', chance: 1 }] },
-  { id: 'ev-mreavers', name: 'Reavers at the Outer Wells', region: 'glassflats', x: 7496, z: -196, goal: 'Hold Tenwells’ outer wells against the salt reavers', waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 3 }], leader: 'saltreaver', time: 300, cooldown: 420, xp: 1500, marks: [24, 42], loot: [{ item: 'black_glass', chance: 1 }] },
+  { id: 'ev-mreavers', name: 'Reavers at the Outer Wells', region: 'glassflats', x: 7496, z: -196, goal: 'Keep the salt reavers off the outer well head. If they foul it, Tenwells loses the well', waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 3 }], leader: 'saltreaver', time: 300, cooldown: 420, xp: 1500, marks: [24, 42], loot: [{ item: 'black_glass', chance: 1 }],
+    ward: { label: 'The outer well head', hp: 70, look: 'well' },
+    call: { who: 'Ennis Wade', text: 'Reavers on the flats, and they\'re making for the outer wells! If they foul the well head we carry water from the fort all summer. Get out there!', secs: 15 },
+    won: { clear: 'wellsheld', say: 'They\'re falling back to their camp on the flats. Hit them there and they won\'t try the wells again this season.' },
+    lost: { set: 'wellsheld', say: 'They\'ve got the outer wells. They\'ll sit on them and sell us our own water if we let them.' } },
   { id: 'ev-mglassbacks', name: 'Glassbacks Before the Storm', region: 'glassflats', x: 7550, z: -400, goal: 'See off the glassbacks and their basilisk before the lightning comes in over the flats', waves: [{ type: 'glassback', count: 3 }, { type: 'glassback', count: 2 }], leader: 'basilisk', time: 300, cooldown: 420, xp: 1520, marks: [24, 42], loot: [{ item: 'black_glass', chance: 1 }] },
-  { id: 'ev-mhounds', name: 'Waste Hounds at the Harbour', region: 'greywaste', x: 8615, z: -1054, goal: 'Drive the waste hounds away from Cold Harbour’s last sheep', waves: [{ type: 'wastehound', count: 3 }, { type: 'wastehound', count: 3 }], leader: 'wastehound', time: 300, cooldown: 420, xp: 1660, marks: [26, 46], loot: [{ item: 'wolf_pelt', chance: 1 }] },
+  { id: 'ev-mhounds', name: 'Waste Hounds at the Harbour', region: 'greywaste', x: 8615, z: -1054, goal: 'Keep the waste hounds from breaking into Cold Harbour’s fold', waves: [{ type: 'wastehound', count: 3 }, { type: 'wastehound', count: 3 }], leader: 'wastehound', time: 300, cooldown: 420, xp: 1660, marks: [26, 46], loot: [{ item: 'wolf_pelt', chance: 1 }],
+    ward: { label: 'The fold', hp: 60, look: 'fold' },
+    call: { who: 'Wat Aske', text: 'Hounds! They\'re at the fold! Those are the last sheep in Cold Harbour. Don\'t let them through the hurdles!', secs: 12 },
+    won: { clear: 'foldbroken', say: 'They\'ve run back to their den in the rocks above the cove. Go and finish it, and I might sleep tonight.' },
+    lost: { set: 'foldbroken', say: 'They broke the hurdles. The sheep are all over the cliff. Help me find them before the hounds come back for them.' } },
   { id: 'ev-mrisen', name: 'The Risen on the Moor', region: 'greywaste', x: 6970, z: -1150, goal: 'Lay the risen down before they walk as far as Northgate’s fields', waves: [{ type: 'risen', count: 3 }, { type: 'risen', count: 3 }], leader: 'risen', time: 300, cooldown: 420, xp: 1700, marks: [26, 46], loot: [{ item: 'grave_iron', chance: 1 }] },
   { id: 'ev-mwights', name: 'Wights at the Dig', region: 'held', x: 7364, z: -1884, goal: 'Hold the diggers’ camp against the barrow-wights coming up out of the dark', waves: [{ type: 'risen', count: 3 }, { type: 'barrowwight', count: 2 }], leader: 'barrowwight', time: 300, cooldown: 420, xp: 1900, marks: [30, 52], loot: [{ item: 'grave_iron', chance: 1 }] },
   { id: 'ev-mtroll', name: 'A Troll at the Folds', region: 'held', x: 6970, z: -1500, goal: 'Bring down the fell troll that has come down to the herders’ folds, and what follows it', waves: [{ type: 'cavebear', count: 2 }, { type: 'felltroll', count: 1 }], leader: 'felltroll', time: 360, cooldown: 480, xp: 2000, marks: [32, 56], loot: [{ item: 'troll_hide', chance: 1 }] },
+  // The chains' other links: they only flare up once the one before has ended a certain way (after), and they put the
+  // world back as it was, or leave it worse
+  { id: 'ev-mterracefire', name: 'Fire on the Terraces', region: 'bright', x: 8828, z: 958, goal: 'Put out the fires on Cala Roja’s top terrace before the whole hill goes up', waves: [], fires: { count: 8, lose: 3 }, time: 240, cooldown: 900, xp: 1240, marks: [22, 36], loot: [{ item: 'olive_bread', chance: 0.6 }],
+    call: { who: 'Jordi Vall', text: 'Fire on the top terrace! The whole hill is dry as tinder. Anyone with two hands, there are buckets at the cistern!', secs: 10 },
+    won: { clear: 'terracesburnt', say: 'That wasn\'t lightning. There\'s lamp oil on the stakes, and boot prints going down to the cove. Someone wanted us looking up here.' },
+    lost: { set: 'terracesburnt', say: 'It\'s gone. Three years of vines. If we can save the cuttings there\'s something to plant. Help me find them.' } },
+  { id: 'ev-mlanding', name: 'The Black-Runners\' Landing', region: 'bright', x: 8802, z: 996, goal: 'Catch the black-runners at the cove before their boat takes the cargo off', after: { id: 'ev-mterracefire', result: 'win' }, waves: [{ type: 'blackrunner', count: 3 }, { type: 'blackrunner', count: 3 }], leader: 'blackrunner', time: 240, cooldown: 900, xp: 1380, marks: [24, 40], loot: [{ item: 'black_shard', chance: 1 }],
+    won: { say: 'They lit my hill to land a few casks. The casks are ours now. Cala Roja won\'t forget who came running.' },
+    lost: { say: 'The boat\'s away. They\'ll be back when the hill is dry again.' } },
+  { id: 'ev-mcuttings', name: 'What the Fire Left', region: 'bright', x: 8828, z: 958, goal: 'Find the vine cuttings that came through the fire so the terrace can be planted again', after: { id: 'ev-mterracefire', result: 'fail' }, waves: [{ type: 'terracejackal', count: 2 }], gather: { count: 7, label: 'the vine cuttings', look: 'cutting' }, time: 240, cooldown: 900, xp: 1100, marks: [18, 30], loot: [{ item: 'olive_bread', chance: 0.6 }],
+    won: { clear: 'terracesburnt', say: 'They\'ll take. Heeled in by tonight, and in three years it\'s a terrace again. Thank you.' } },
+  { id: 'ev-mreavercamp', name: 'The Reaver Camp', region: 'glassflats', x: 7590, z: -200, goal: 'Break the reavers’ camp on the flats so they can’t come at the wells again', after: { id: 'ev-mreavers', result: 'win' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 4 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1700, marks: [28, 46], loot: [{ item: 'black_glass', chance: 1 }, { item: 'callis_red', chance: 0.4 }],
+    won: { say: 'Camp\'s broken and their water skins are cut. They\'ll have to go a long way round to find another well.' } },
+  { id: 'ev-mretakewells', name: 'Take Back the Outer Wells', region: 'glassflats', x: 7496, z: -196, goal: 'Drive the reavers off Tenwells’ outer wells', after: { id: 'ev-mreavers', result: 'fail' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 3 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1600, marks: [26, 44], loot: [{ item: 'black_glass', chance: 1 }],
+    call: { who: 'Ennis Wade', text: 'Enough of this. Every reaver on that well is one more mouth we\'re watering. We\'re taking it back. Who\'s with me?', secs: 10 },
+    won: { clear: 'wellsheld', say: 'The wells are ours. Somebody fetch rope and a clean bucket, and nobody drink from it until I\'ve tasted it.' } },
+  { id: 'ev-mhoundden', name: 'The Hounds\' Den', region: 'greywaste', x: 8580, z: -1100, goal: 'Clear the waste hounds out of their den in the rocks above Cold Harbour', after: { id: 'ev-mhounds', result: 'win' }, waves: [{ type: 'wastehound', count: 3 }, { type: 'wastehound', count: 4 }], leader: 'wastehound', time: 300, cooldown: 900, xp: 1820, marks: [28, 48], loot: [{ item: 'wolf_pelt', chance: 1 }],
+    won: { say: 'The den\'s empty. First quiet night at the fold since my father had it.' } },
+  { id: 'ev-mstrays', name: 'The Scattered Flock', region: 'greywaste', x: 8615, z: -1054, goal: 'Bring the sheep back from the cliff before the hounds find them', after: { id: 'ev-mhounds', result: 'fail' }, waves: [{ type: 'wastehound', count: 2 }], gather: { count: 6, label: 'a strayed sheep', look: 'sheep' }, time: 240, cooldown: 900, xp: 1500, marks: [24, 40], loot: [{ item: 'wolf_pelt', chance: 0.6 }],
+    won: { clear: 'foldbroken', say: 'That\'s every one of them. I\'ll have the hurdles up again by dark.' } },
 ];
 
 export interface BossDef {

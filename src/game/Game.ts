@@ -83,7 +83,7 @@ import { Voyage, type Harbour } from './Voyage';
 import { ISLAND_COURSES } from '../data/islandCourses';
 import { MASTERY, MASTERY_BY_ID, masteryEarned, readMastery, type MasteryId } from '../data/mastery';
 import { CockyRoad } from './CockyRoad';
-import { FirstPerson } from './FirstPerson';
+import { FirstPerson, moveFor } from './FirstPerson';
 import { COCKY_BACK } from '../data/cockyRoad';
 import { Sailing, type ShipState } from './Sailing';
 import { BERTHS, HULL_PAINTS, HULLS, SAIL_CLOTHS, SALVAGE, WALE_PAINTS, type HullId, type Livery } from '../data/naval';
@@ -259,7 +259,7 @@ const PLACE_PIECE: Partial<Record<ThemeId, ThemeId[]>> = { ansbury: ['charter', 
 const UNDER_THEME: Record<string, ThemeId> = {
   'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow', 'pd-blackgull': 'blackgull', 'gd-temple': 'tidebell', 'delve-crypt': 'tregarthen', 'delve-cistern': 'cistern',
   'pd-mortlake': 'mortlake', 'pd-blackcut': 'blackcut', 'delve-badger': 'badger', 'delve-culvert': 'culvert', 'delve-smugglers': 'smugglers',
-  'delve-tinner': 'tinner', 'delve-seep': 'seep', 'delve-hollow': 'badger', 'delve-liftgallery': 'tinner', 'delve-foldbarrow': 'kingsbarrow', 'delve-pumphouse': 'seep', 'delve-glimmer': 'glimmer', 'delve-gullery': 'gullery', 'delve-hob': 'hob', 'delve-holmsey': 'holmsey', 'ink-priory': 'priory',
+  'delve-tinner': 'tinner', 'delve-seep': 'seep', 'delve-hollow': 'badger', 'delve-liftgallery': 'tinner', 'delve-foldbarrow': 'kingsbarrow', 'delve-pumphouse': 'seep', 'delve-reavers': 'tinner', 'delve-glimmer': 'glimmer', 'delve-gullery': 'gullery', 'delve-hob': 'hob', 'delve-holmsey': 'holmsey', 'ink-priory': 'priory',
 };
 
 /** Furniture that works as a crafting station once it's set down at home, and what using it says. */
@@ -544,6 +544,8 @@ export class Game implements GameApi {
   /** A blow landing holds the world still a moment: seconds left (resolveAttack, dealDamage; frame slows the clock). */
   private hitstop = 0;
   private fpLook = { yaw: 0, pitch: 0 };
+  /** The skill just used, for its first-person move: what it is, when, and (once it asks the body for one) its move. */
+  private fpSkill: { name: string; desc: string; at: number; move: string | null } | null = null;
   /** The camera's distance before you took a ship's helm, to go back to. */
   private rigBeforeHelm = 0;
   private shipPanel: HTMLDivElement | null = null;
@@ -1444,6 +1446,7 @@ export class Game implements GameApi {
       voxels: () => this.world.voxels,
       bow: () => this.bowInHand,
       anim: (st) => {
+        if (this.fpSkill && !this.fpSkill.move && this.elapsed - this.fpSkill.at < 0.05) this.fpSkill.move = moveFor(st, this.fpSkill.name, this.fpSkill.desc, this.bowInHand);
         if (st === 'heal') { this.healAnim = 0.6; return; }
         // (held for its own length, so walking doesn't take the pose back the next frame)
         this.skillAnim = { st, left: SKILL_ANIM[st] ?? 0.45 };
@@ -1523,8 +1526,10 @@ export class Game implements GameApi {
         on: () => !!this.online?.online,
         sync: (id, cycle, max) => this.online.bossSync(id, cycle, max),
         hit: (id, cycle, dmg, max) => this.online.bossHit(id, cycle, dmg, max),
-        evStart: (id, waves, time, cooldown) => this.online.eventStart(id, waves, time, cooldown),
+        evStart: (id, waves, time, cooldown, more) => this.online.eventStart(id, waves, time, cooldown, more),
         evKill: (id) => this.online.eventKill(id),
+        evWork: (id) => this.online.eventWork(id),
+        evFail: (id) => this.online.eventFail(id),
       },
       scene: this.scene,
       voxels: this.world.voxels,
@@ -1552,6 +1557,8 @@ export class Game implements GameApi {
       discovered: (id) => this.save.discovered.includes(id),
       cinematic: (view, then) => { this.cine = { view, t: 0, then }; this.player.locked = true; this.hud.setHudHidden(true); },
       setEvent: (panel) => { this.actPanel = panel; this.hud.setEvent(panel ?? this.anglPanel); },
+      fx: { smoke: (at) => this.particles.smoke(at, this.world.sky.night), splash: (at, n) => this.particles.splash(at, n), fire: (at) => this.particles.fire(at), dust: (at) => this.particles.dust(at, 5) },
+      nearbyPlayers: (x, z, r) => { let n = 0; for (const p of this.online?.remotes.values() ?? []) if (Math.hypot(p.model.root.position.x - x, p.model.root.position.z - z) < r) n++; return n; },
       say: (who, text, bubble) => {
         this.hud.chat(who, text, 'say');
         if (bubble !== undefined) this.addBubble(bubble, text, false);
@@ -1918,8 +1925,9 @@ export class Game implements GameApi {
       },
       bossState: (id, cycle, hp) => this.activities.bossState(id, cycle, hp),
       bossDown: (id, cycle, by) => this.activities.bossDown(id, cycle, by, this.save.name),
-      eventState: (id, killed, total, wave, left) => this.activities.eventState(id, killed, total, wave, left),
-      eventDone: (id, ok, total, shares) => this.activities.eventDone(id, ok, total, shares, this.save.name),
+      eventState: (id, killed, total, wave, left, work, extra, waves) => this.activities.eventState(id, killed, total, wave, left, work, extra, waves),
+      eventDone: (id, ok, total, shares, states) => this.activities.eventDone(id, ok, total, shares, this.save.name, states),
+      eventRealm: (outs, states) => this.activities.eventRealm(outs, states),
       eventCool: (id, left) => this.activities.eventCool(id, left),
       newerSave: (save) => {
         // Another browser played this character further. Take the server's copy and restart on it.
@@ -6910,8 +6918,17 @@ export class Game implements GameApi {
       sprint: this.input.held('ShiftLeft') || this.input.held('ShiftRight'),
       dYaw: Math.abs(dYaw) > 1 ? 0 : dYaw, dPitch: Math.abs(dPitch) > 1 ? 0 : dPitch,
       hemi: sky.hemi, sun: sky.sun, shade: sky.underground ? 0.45 : this.rig.indoor ? 0.7 : 1,
+      skill: this.fpSkill?.move && this.elapsed - this.fpSkill.at < 1.2 ? { move: this.fpSkill.move, t: this.elapsed - this.fpSkill.at, color: this.fpSkillColor(this.fpSkill.move) } : null,
     }, this.camera.aspect);
+    const kick = this.fp.takeKick(); if (kick) this.rig.addShake(kick);
     this.fp.render(this.renderer);
+  }
+
+  /** A skill's colour in the hands: gold for a heal or a ward or a war cry, else the calling's own element. */
+  private fpSkillColor(move: string): string {
+    if (move === 'heal' || move === 'ward' || move === 'warcry') return '#ffd87a';
+    const el = CALLING_ELEMENT[this.kit.calling.id];
+    return el ? ELEMENTS[el].color : '#ffd080';
   }
 
   /** Where the tracked objective is on screen (Hud.objectivePin): the focused quest's, else the story's, else the first. */
@@ -8761,7 +8778,9 @@ export class Game implements GameApi {
         if (this.elapsed - this.shortAt > 1.2) { this.shortAt = this.elapsed; this.hud.system(`Not enough ${cost!.pool} for that.`); this.sfx('fail'); }
         return;
       }
+      { const sk = i === 1 ? this.kit.secondSkill : i === 2 ? this.kit.weaponSkill : this.kit.bar[i - 3]; this.fpSkill = sk ? { name: sk.name, desc: sk.desc, at: this.elapsed, move: null } : null; }
       const ok = i === 1 ? this.kit.useSecond() : i === 2 ? this.kit.useWeapon() : this.kit.use(i - 3);
+      if (!ok) this.fpSkill = null;
       // The skill's own sound, by its school (data/skillSchools.ts), when it actually goes off
       if (ok) { const id = i === 1 ? this.kit.secondSkill?.id : i === 2 ? this.kit.weaponSkill.id : this.kit.bar[i - 3]?.id; const school = id ? SKILL_SCHOOL[id] : undefined; if (school) this.audio.skillCast(school); }
       if (ok && i > 2 && this.kit.bar[i - 3]?.id === 'attune') this.hud.setCalling(this.kit.calling, this.kit.bar, this.kit.weaponSkill, this.kit.secondSkill);
@@ -9036,6 +9055,7 @@ export class Game implements GameApi {
     this.dungeons.onPlayerHit(e, dmg);
     this.tower?.onPlayerHit(e, dmg);
     this.activities.escorts.onPlayerHit(e);
+    this.activities.onPlayerHit(e);
     // Barrowborn: below half health, a tenth of every blow comes back to you
     if (this.gearSet === 'barrow' && !this.dead && this.hp < this.maxHp / 2) this.hp = Math.min(this.maxHp, this.hp + Math.round(dmg * 0.1));
     if (this.gearSet === 'fold' && !this.dead && e.alive && (e.state === 'chase' || e.state === 'windup' || e.state === 'attack' || e.state === 'recover') && !this.dungeons.onSomeoneElse(e)) {
@@ -9663,7 +9683,7 @@ export class Game implements GameApi {
       const d = e.pos.distanceTo(P);
       if (d > 90 && e.state !== 'dead') { e.model.root.visible = false; continue; }
       e.model.root.visible = e.state !== 'dead' || e.model.root.visible;
-      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? this.raisedCtx(e, ctx) ?? this.shared.ctxFor(e, ctx) ?? ctx);
+      e.update(dt, this.dungeons.ctxFor(e, ctx) ?? this.activities.escorts.ctxFor(e, ctx) ?? this.activities.ctxFor(e, ctx) ?? this.raisedCtx(e, ctx) ?? this.shared.ctxFor(e, ctx) ?? ctx);
       if (e.interrupted) { e.interrupted = false; this.floatAt(e.pos, 2.8, 'Interrupted!', 'crit'); this.sfx('hitHeavy', 0.6); }
       if (e.resisted) { e.resisted = false; this.floatAt(e.pos, 2.6, 'Resisted', 'dodge'); }
       this.foeDid(e);
