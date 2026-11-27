@@ -17,6 +17,9 @@ import { applyRank, earlyPoints, MORPHS, RANK_AT, RANK_NAMES, rankFor as skillRa
 const ENTER_KEY = 'everrealm.enter';
 import type { Equip } from '../data/items';
 import { BRIGHTCUT, REGION_ARMOUR, WEIGHTS } from '../data/armour';
+import { chestColours, lookBase, looksFor, OUTFIT_SLOTS, outfitPick, shownIn, type OutfitSlot } from '../data/looks';
+/** One of the five outfits kept in the wardrobe (Game.outfitTabs). */
+interface OutfitTab { name: string; look: Record<string, unknown>; shows?: Record<string, string | null>; hide?: { head: boolean; hands: boolean; cape: boolean }; dyes?: Record<string, { main?: string; trim?: string }>; match?: boolean }
 import { Reckoning, type BoutId } from './Reckoning';
 import { OLD_WEAPON_MODELS, REGION_WEAPONS } from '../data/weapons';
 import { Stage } from './Stage';
@@ -2161,7 +2164,7 @@ export class Game implements GameApi {
       const d = ITEMS[item];
       // (a rare piece or better rings out as it comes)
       this.hud.loot(item, n); this.sfx((d.weapon || d.armor) && (d.rarity === 'rare' || d.rarity === 'epic' || d.rarity === 'legendary') ? 'discover' : 'pickup');
-      if (d.weapon || d.armor) this.setFlag('found:' + baseOf(item)); // the armoury remembers every piece
+      if (d.weapon || d.armor) this.setFlag('found:' + lookBase(item)); // the armoury remembers every piece, and its look (data/looks.ts)
       if (bindRule(d) === 'pickup') this.bind(item);
     } else if (ITEMS[item]) {
       // A full pack loses nothing: it goes ahead by Charter Post, to be collected at any post box
@@ -2303,13 +2306,78 @@ export class Game implements GameApi {
     const L = this.save.look, frame = L.frame ?? 'm';
     const costumes = Object.values(COSTUMES).filter((c) => this.flag('costume:' + c.id) && (!c.frame || c.frame === frame)).map((c) => ({ id: c.id, name: c.name }));
     const hats = [...HATS, ...FEST_HATS.filter(([, id]) => this.flag('hat:' + id))].map(([name, id]) => ({ id: String(id), name }));
-    const saved = (this.flag('outfits') as ({ name: string; look: Record<string, unknown> } | null)[] | undefined) ?? [];
-    return { costumes, costume: L.costume ?? null, hats, hat: String(L.hat ?? 'none'), hairStyle: L.hairStyle ?? 0, outfits: [0, 1, 2, 3, 4].map((i) => (saved[i] ? { name: saved[i]!.name } : null)) };
+    const saved = this.outfitTabs();
+    const f = this.save.flags, e = this.save.equip, held = this.lookHeld();
+    const looks = OUTFIT_SLOTS.map((slot) => {
+      const worn = e[slot] ?? null;
+      return {
+        slot, worn: worn ? ITEMS[worn]?.name ?? null : null, pick: outfitPick(slot, f, e.weapon),
+        hidden: (slot === 'head' && !!f.hideHead) || (slot === 'hands' && !!f.hideHands), options: looksFor(slot, f, held, e.weapon),
+      };
+    });
+    const designs = (Object.keys(CAPE_DESIGNS) as CapeDesign[]).filter((id) => f['capeD:' + id]).map((id) => ({ id, name: CAPE_DESIGNS[id].name }));
+    const cloak = { has: !!L.cape, hidden: !!f.hideCape, design: L.capeDesign ?? null, designs };
+    const tab = typeof f.outfitTab === 'number' && saved[f.outfitTab] ? f.outfitTab : null;
+    return {
+      costumes, costume: L.costume ?? null, hats, hat: String(L.hat ?? 'none'), hairStyle: L.hairStyle ?? 0, looks, cloak,
+      gearShown: !!f.outfitOff, matchChest: !!f.matchChest, tab, outfits: [0, 1, 2, 3, 4].map((i) => (saved[i] ? { name: saved[i]!.name } : null)),
+    };
+  }
+  /** Everything worn or in the pack: their looks count as collected even before the flag is written. */
+  private lookHeld(): (string | null | undefined)[] { return [...Object.values(this.save.equip), ...this.save.inv.map((s) => s?.id)]; }
+  /**
+   * Put a look in one of the outfit's slots (Outfits, beside your gear: data/looks.ts): a piece from the collection,
+   * null to leave the slot empty (what you wear there shows), or 'hide' (a helm or gloves only; they still guard
+   * you). Free, once collected: the price was finding the piece.
+   */
+  showLook(slot: OutfitSlot, id: string | null): void {
+    if (!OUTFIT_SLOTS.includes(slot)) return;
+    const f = this.save.flags;
+    if (id === 'hide') {
+      if (slot !== 'head' && slot !== 'hands') return;
+      this.setFlag(slot === 'head' ? 'hideHead' : 'hideHands', true);
+    } else {
+      if (id && !looksFor(slot, f, this.lookHeld(), this.save.equip.weapon).some((o) => o.id === id)) { this.hud.system('That look isn\'t in your collection.'); return; }
+      if (id) { this.setFlag('found:' + id); this.setFlag('shows:' + slot, id); } else delete f['shows:' + slot];
+      if (slot === 'head') delete f.hideHead;
+      if (slot === 'hands') delete f.hideHands;
+      // (a look picked while your gear is showing is a look you want to see)
+      if (id && f.outfitOff) delete f.outfitOff;
+    }
+    this.keepOutfit(); this.dress(); this.persist(); this.sfx('cloth');
+  }
+  /** The cloak in Outfits: hidden, plain, or one of the designs you have (data/capes.ts). */
+  showCloak(choice: string): void {
+    const L = this.save.look;
+    if (choice === 'hide') this.setFlag('hideCape', true);
+    else {
+      if (choice !== 'plain' && !(choice in CAPE_DESIGNS && this.flag('capeD:' + choice))) return;
+      delete this.save.flags.hideCape;
+      L.cape = L.cape ?? '#2a3a5a';
+      L.capeDesign = choice === 'plain' ? null : choice as CapeDesign;
+    }
+    this.keepOutfit(); this.dress(); this.persist(); this.sfx('cloth');
+  }
+  /** Show your outfit, or the gear you really wear (the outfit is kept for when you switch back). */
+  toggleOutfitShown(): void {
+    const off = !this.flag('outfitOff');
+    if (off) this.setFlag('outfitOff', true); else delete this.save.flags.outfitOff;
+    this.hud.system(off ? 'You show your gear as it is. Your outfit is kept for later.' : 'You show your outfit over your gear.');
+    this.dress(); this.persist(); this.sfx('cloth'); this.hud.refresh('inv');
+  }
+  /** Every piece of the outfit in the chest's colours (its dyes, or the chest piece's own), or each slot in its own. */
+  toggleMatchChest(): void {
+    if (this.flag('matchChest')) delete this.save.flags.matchChest; else this.setFlag('matchChest', true);
+    this.keepOutfit(); this.dress(); this.persist(); this.sfx('click'); this.hud.refresh('inv');
+  }
+  /** Every armour piece and weapon worn or held goes into the collection of looks (pieces that came some way other than give()). */
+  private noteLooks(): void {
+    for (const id of this.lookHeld()) if (id && (ITEMS[id]?.armor || ITEMS[id]?.weapon)) this.save.flags['found:' + lookBase(id)] = true;
   }
   /** Your hair done another way (Outfits, in the pack): tied back, cropped, braided; enough for the watch to look past you. */
   restyleHair(i: number): void {
     this.save.look.hairStyle = i;
-    this.dress(); this.persist(); this.sfx('cloth');
+    this.keepOutfit(); this.dress(); this.persist(); this.sfx('cloth');
   }
   /** A crime done here, worth this much to the nearest town's book (data/content/outlawFortnight.ts). */
   crimeHere(worth: number): void {
@@ -2318,27 +2386,56 @@ export class Game implements GameApi {
   }
   wearHat(id: string): void {
     this.save.look.hat = id as Appearance['hat'];
-    this.dress(); this.persist(); this.sfx('equip');
+    this.keepOutfit(); this.dress(); this.persist(); this.sfx('equip');
   }
-  saveOutfit(i: number): void {
-    const L = this.save.look as unknown as Record<string, unknown>, look: Record<string, unknown> = {};
+  /**
+   * The five outfits: each keeps a costume, a hat, a cloak and your clothes' colours, the look in every slot, what's
+   * hidden, the dyes and whether it matches the chest. The one you're wearing (outfitTab) keeps every change you
+   * make in Outfits, so switching to another and back finds it as you left it.
+   */
+  private outfitTabs(): (OutfitTab | null)[] { return (this.flag('outfits') as (OutfitTab | null)[] | undefined) ?? []; }
+  private outfitNow(name: string): OutfitTab {
+    const L = this.save.look as unknown as Record<string, unknown>, f = this.save.flags;
+    const look: Record<string, unknown> = {}, shows: Record<string, string | null> = {}, dyes: Record<string, { main?: string; trim?: string }> = {};
     for (const k of Game.OUTFIT_KEYS) look[k] = L[k] ?? null;
-    const saved = [...((this.flag('outfits') as unknown[] | undefined) ?? [])];
+    for (const s of OUTFIT_SLOTS) shows[s] = typeof f['shows:' + s] === 'string' ? f['shows:' + s] as string : null;
+    for (const s of DYE_SLOTS) { const d = this.gearDye(s); if (d.main || d.trim) dyes[s] = { ...d }; }
+    return { name, look, shows, hide: { head: !!f.hideHead, hands: !!f.hideHands, cape: !!f.hideCape }, dyes, match: !!f.matchChest };
+  }
+  /** Write what you're wearing into the outfit being worn, if there is one. */
+  private keepOutfit(): void {
+    const t = this.flag('outfitTab'), saved = [...this.outfitTabs()];
+    if (typeof t !== 'number' || !saved[t]) return;
+    saved[t] = this.outfitNow(saved[t]!.name);
+    this.setFlag('outfits', saved);
+  }
+  /** Keep what you're wearing as outfit i (an empty one, or over what was there), and wear it from now on. */
+  saveOutfit(i: number): void {
+    const saved = [...this.outfitTabs()];
     while (saved.length < 5) saved.push(null);
     const costume = this.save.look.costume ? COSTUMES[this.save.look.costume]?.name : null;
-    saved[i] = { name: costume ?? `Outfit ${i + 1}`, look };
+    saved[i] = this.outfitNow(saved[i]?.name ?? costume ?? `Outfit ${i + 1}`);
     this.setFlag('outfits', saved);
-    this.hud.system(`Saved as ${(saved[i] as { name: string }).name}: wear it again from Outfits, beside your gear.`);
+    this.setFlag('outfitTab', i);
+    this.hud.system(`You keep this look as ${saved[i]!.name}. While you wear it, it keeps what you change in Outfits.`);
     this.persist(); this.sfx('click');
   }
   wearOutfit(i: number): void {
-    const o = ((this.flag('outfits') as ({ look: Record<string, unknown> } | null)[] | undefined) ?? [])[i];
+    const o = this.outfitTabs()[i];
     if (!o) return;
     const L = this.save.look as unknown as Record<string, unknown>;
     // (a costume that has since gone from the wardrobe, or doesn't fit this frame, isn't put on)
     const cos = o.look.costume as string | null;
     for (const k of Game.OUTFIT_KEYS) { if (k === 'costume') continue; if (o.look[k] === null || o.look[k] === undefined) delete L[k]; else L[k] = o.look[k]; }
     this.save.look.costume = cos && this.flag('costume:' + cos) && (!COSTUMES[cos]?.frame || COSTUMES[cos].frame === (this.save.look.frame ?? 'm')) ? cos : null;
+    // (an outfit saved before the slots, dyes and matching were kept leaves those as they are)
+    const f = this.save.flags;
+    if (o.shows) for (const s of OUTFIT_SLOTS) { const id = o.shows[s]; if (id && f['found:' + id]) f['shows:' + s] = id; else delete f['shows:' + s]; }
+    if (o.hide) for (const [k, on] of [['hideHead', o.hide.head], ['hideHands', o.hide.hands], ['hideCape', o.hide.cape]] as const) { if (on) f[k] = true; else delete f[k]; }
+    if (o.dyes) for (const s of DYE_SLOTS) { const d = o.dyes[s]; if (d && (d.main || d.trim)) f['gdye:' + s] = { ...d }; else delete f['gdye:' + s]; }
+    if (o.match !== undefined) { if (o.match) f.matchChest = true; else delete f.matchChest; }
+    delete f.outfitOff;
+    f.outfitTab = i;
     this.dress(); this.persist(); this.sfx('equip');
   }
 
@@ -2347,6 +2444,7 @@ export class Game implements GameApi {
     if (id && !this.flag('costume:' + id)) { this.hud.system('That costume isn\'t in your wardrobe.'); return; }
     if (id && COSTUMES[id]?.frame && COSTUMES[id].frame !== (this.save.look.frame ?? 'm')) { this.hud.system(`The ${COSTUMES[id].name.toLowerCase()} is cut for a woman’s frame. It stays in your wardrobe.`); return; }
     this.save.look.costume = id;
+    this.keepOutfit();
     this.dress();
     this.persist();
     this.hud.system(id ? `You put on the ${COSTUMES[id]?.name.toLowerCase() ?? 'costume'}.` : 'You take the costume off.');
@@ -4615,14 +4713,19 @@ export class Game implements GameApi {
   static wornLookOf(save: SaveData): Appearance {
     const e = save.equip, flags = save.flags ?? {};
     const look: Appearance = { ...save.look };
+    const dyeOf = (slot: string) => { const d = flags['gdye:' + slot]; return d && typeof d === 'object' ? (d as { main?: string; trim?: string }) : {}; };
+    // (the outfit's piece in each slot, or what's worn there; and every slot in the chest's colours, if asked: data/looks.ts)
+    const chestId = shownIn('chest', e?.chest, flags);
+    const match = flags.matchChest && !flags.outfitOff ? chestColours(chestId ? ITEMS[chestId]?.armor?.look : undefined, dyeOf('chest')) : null;
     for (const slot of ['chest', 'shoulders', 'legs', 'hands', 'feet', 'head'] as const) {
       // (a helm or gloves you'd rather not see still guard you: they just aren't drawn)
       if ((slot === 'head' && flags.hideHead) || (slot === 'hands' && flags.hideHands)) continue;
-      const id = e?.[slot];
+      const id = shownIn(slot, e?.[slot], flags);
       const l = id ? ITEMS[id]?.armor?.look : undefined;
-      const dye = flags['gdye:' + slot];
-      if (l) Object.assign(look, dyeLook(slot, l, dye && typeof dye === 'object' ? (dye as { main?: string; trim?: string }) : {}));
+      if (l) Object.assign(look, dyeLook(slot, l, match && slot !== 'chest' ? match : dyeOf(slot)));
     }
+    // (a cloak you'd rather not show keeps its colour and design for when it's back on)
+    if (flags.hideCape) { look.cape = null; look.capeDesign = null; }
     // (the pack on your back goes with the look, so everyone else sees it too)
     look.pack = flags.hidePack ? 0 : Number(flags.packLook ?? 0);
     // (the pet's name and what it wears go with the look, so everyone sees them: data/petCare.ts)
@@ -4657,6 +4760,7 @@ export class Game implements GameApi {
     } else delete cur[channel];
     this.setFlag('gdye:' + slot, cur.main || cur.trim ? cur : undefined);
     if (!cur.main && !cur.trim) delete this.save.flags['gdye:' + slot];
+    this.keepOutfit();
     this.sfx('click');
     this.dress();
     this.persist();
@@ -4981,6 +5085,10 @@ export class Game implements GameApi {
       restyleHair: (i: number) => g.restyleHair(i),
       saveOutfit: (i: number) => g.saveOutfit(i),
       wearOutfit: (i: number) => g.wearOutfit(i),
+      showLook: (slot: OutfitSlot, id: string | null) => g.showLook(slot, id),
+      showCloak: (choice: string) => g.showCloak(choice),
+      toggleOutfitShown: () => g.toggleOutfitShown(),
+      toggleMatchChest: () => g.toggleMatchChest(),
       dyePalette: () => g.dyePalette(),
       dyeGear: (slot: DyeSlot, channel: DyeChannel, hex: string | null) => g.dyeGear(slot, channel, hex),
       armourSummary: () => g.armourSummary(),
@@ -5605,6 +5713,7 @@ export class Game implements GameApi {
     this.hud.hideTitle();
     this.fitPack();
     this.sweepUnknown();
+    this.noteLooks();
     // What's new since this player last looked (once an update, for the whole account on this computer)
     {
       let seen = 0;
@@ -5791,6 +5900,7 @@ export class Game implements GameApi {
       this.save.equip.weapon = st.id;
       if (old) this.inv.add(old, 1);
       if (bindRule(def) === 'equip') this.bind(st.id);
+      this.setFlag('found:' + lookBase(st.id)); // (its look goes into the collection: data/looks.ts)
       this.first('equip'); this.hud.system(`Equipped ${def.name}.`);
       this.sfx('pickup');
     } else if (def.armor) {
@@ -5800,6 +5910,7 @@ export class Game implements GameApi {
       this.save.equip[slot] = st.id;
       if (old) this.inv.add(old, 1);
       if (bindRule(def) === 'equip') this.bind(st.id);
+      this.setFlag('found:' + lookBase(st.id)); // (its look goes into the collection: data/looks.ts)
       this.hp = Math.min(this.hp, this.maxHp);
       this.dress();
       this.sfx('equip');
@@ -10091,7 +10202,8 @@ export class Game implements GameApi {
     // Animation state
     const M = P.model;
     // A weapon by its id, so it's drawn as itself (and others see it so); tools by name
-    const wid = this.save.equip.weapon;
+    // (the outfit's weapon, if it has one of the same kind: data/looks.ts)
+    const wid = shownIn('weapon', this.save.equip.weapon, this.save.flags);
     let held: HeldItem | string = wid ? (ITEMS[wid]?.weapon?.model ? wid : ITEMS[wid]?.weapon?.held ?? 'none') : 'none';
     if (this.lawPose) { M.setState(this.lawPose); held = 'none'; }
     else if (P.rolling > 0) M.setState('roll');
@@ -10590,6 +10702,13 @@ export class Game implements GameApi {
           const c = owned.find((x) => x.name.toLowerCase().includes(want) || x.id.includes(want));
           if (!c) { this.hud.system(`No costume called "${arg.trim()}" in your wardrobe.`); return; }
           this.wearCostume(c.id);
+          return;
+        }
+        case 'outfit': {
+          // /outfit: switch between your outfit and your gear; /outfit 1 to 5 wears that outfit (data/looks.ts)
+          const n = Number(arg.trim());
+          if (n >= 1 && n <= 5) { if (this.outfitTabs()[n - 1]) this.wearOutfit(n - 1); else this.hud.system(`Outfit ${n} is empty. Keep a look in it from Outfits, beside your gear.`); return; }
+          this.toggleOutfitShown();
           return;
         }
         case 'home': { const want = arg.trim().toLowerCase(); const hit = want ? this.homeList().find((h) => h.name.toLowerCase().includes(want)) : null; if (hit) this.travelHomeTo(hit.id); else this.travelHomeMenu(); return; }

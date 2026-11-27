@@ -804,6 +804,31 @@
 .outfits .of-slot { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 4px 6px; background: rgba(0, 0, 0, 0.18); border-radius: 4px; }
 .outfits .of-slot b { font: 600 13px var(--body); }
 .outfits .of-slot .btn { padding: 3px 10px; font-size: 12px; }
+/* The outfit tabs and switches, and the outfit's slots (data/looks.ts) */
+.outfits .of-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; margin: 6px 0; }
+.outfits .of-tab { padding: 5px 4px; font: 600 11px var(--px); color: var(--cream); background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.12); border-bottom-width: 2px; border-radius: 4px 4px 2px 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outfits .of-tab:hover { background: rgba(255, 255, 255, 0.07); }
+.outfits .of-tab.on { border-color: var(--gild, #d8b86a); background: rgba(216, 184, 106, 0.18); color: #f3d58a; }
+.outfits .of-tab.empty { color: var(--cream-d); font-weight: 500; border-style: dashed; }
+.outfits .of-switches { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 6px; }
+.outfits .of-switch { padding: 3px 9px; font: 600 11px var(--px); color: var(--cream); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; cursor: pointer; }
+.outfits .of-switch.on { border-color: var(--gild, #d8b86a); background: rgba(216, 184, 106, 0.14); }
+.outfits .of-looks.off .of-lrows { opacity: 0.6; }
+.outfits .of-looks { margin: 8px 0; padding-top: 6px; border-top: 1px solid rgba(243, 213, 138, 0.18); }
+.outfits .of-lh { display: grid; gap: 2px; margin-bottom: 4px; }
+.outfits .of-lh .k { font: 600 11px var(--px); letter-spacing: 0.08em; text-transform: uppercase; color: var(--cream-d); }
+.outfits .of-lh small { font-size: 11px; color: var(--cream-d); }
+.outfits .of-lrows { display: grid; gap: 3px; }
+.outfits .of-lrow { display: grid; grid-template-columns: 70px 1fr; gap: 6px; align-items: center; text-align: left; padding: 3px 6px; color: var(--cream); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; cursor: pointer; }
+.outfits .of-lrow:hover { background: rgba(255, 255, 255, 0.08); }
+.outfits .of-lrow.on { border-color: var(--gild, #d8b86a); background: rgba(216, 184, 106, 0.14); }
+.outfits .of-lrow.none { opacity: 0.55; }
+.outfits .of-lrow .dy-slot { font: 600 12px var(--px); color: var(--cream); }
+.outfits .of-lwhat { font: 500 12px var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outfits .of-lwhat i { color: var(--cream-d); }
+.outfits .of-lwhat b { color: #f3d58a; font-weight: 600; }
+.outfits .of-lpick { margin: 6px 0 2px; max-height: 150px; overflow-y: auto; }
+.outfits .dy-hint { font-size: 11px; color: var(--cream-d); margin: 2px 0 4px; }
 
 /* ---- The controller pointer, in a window (systems/Gamepad.ts) ---- */
 #pad-cursor { position: fixed; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; background: rgba(224, 189, 100, 0.85); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.6); pointer-events: none; z-index: 9999; }

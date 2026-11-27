@@ -5,6 +5,7 @@ import { Input } from '../systems/Input';
 import { lastSfx } from '../systems/Audio';
 import './styles.css';
 import { SLOT_NAMES } from '../data/armour';
+import type { OutfitSlot } from '../data/looks';
 import { DYE_COST, DYE_SLOTS, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import type { Equip } from '../data/items';
 import './theme.css';
@@ -300,7 +301,24 @@ export interface UiCtx {
   /** Armour dyes (data/gearDyes.ts): what's on each slot, the dyes you have, and dyeing a channel. */
   gearDyes(): Record<DyeSlot, { main?: string; trim?: string }>;
   /** The wardrobe in the world (owner 2026-11-12: "add a way to equip and unequip outfits in game"): costumes, hats, saved outfits. */
-  wardrobe(): { costumes: { id: string; name: string }[]; costume: string | null; hats: { id: string; name: string }[]; hat: string; hairStyle: number; outfits: ({ name: string } | null)[] };
+  wardrobe(): {
+    costumes: { id: string; name: string }[]; costume: string | null; hats: { id: string; name: string }[]; hat: string; hairStyle: number;
+    /** The five outfits (null: empty), and the one being worn, which keeps what's changed. */
+    outfits: ({ name: string } | null)[]; tab: number | null;
+    /** Each outfit slot: what's worn, the outfit's piece there (null: empty, the gear shows), hidden, and the looks collected (data/looks.ts). */
+    looks: { slot: OutfitSlot; worn: string | null; pick: string | null; hidden: boolean; options: { id: string; name: string }[] }[];
+    cloak: { has: boolean; hidden: boolean; design: string | null; designs: { id: string; name: string }[] };
+    /** The real gear shown instead of the outfit; every piece in the chest's colours. */
+    gearShown: boolean; matchChest: boolean;
+  };
+  /** Put a collected piece's look in an outfit slot (null: empty, the gear shows; 'hide': a helm or gloves only). */
+  showLook(slot: OutfitSlot, id: string | null): void;
+  /** The cloak: 'hide', 'plain', or a design you have. */
+  showCloak(choice: string): void;
+  /** Show the outfit, or the gear as it is. */
+  toggleOutfitShown(): void;
+  /** Every piece in the chest's colours, or each in its own. */
+  toggleMatchChest(): void;
   restyleHair(i: number): void;
   wearCostume(id: string | null): void;
   wearHat(id: string): void;
@@ -2108,7 +2126,27 @@ export class Hud {
     box.open = this.outfitOpen;
     box.addEventListener('toggle', () => { this.outfitOpen = box.open; });
     const w = this.ctx.wardrobe();
-    box.append(el('summary', '', `Outfits · ${w.costume ? esc(w.costumes.find((c) => c.id === w.costume)?.name ?? 'a costume') : 'your own clothes'}`));
+    const tabName = w.tab !== null ? w.outfits[w.tab]?.name ?? null : null;
+    const showing = w.costume ? esc(w.costumes.find((c) => c.id === w.costume)?.name ?? 'a costume') : w.gearShown ? 'your gear' : tabName ? esc(tabName) : 'your outfit';
+    box.append(el('summary', '', `Outfits · ${showing}`));
+    // The five outfits, as tabs: one to wear, an empty one to keep this look in
+    const tabs = el('div', 'of-tabs');
+    w.outfits.forEach((o, i) => {
+      const b = el('button', 'of-tab' + (w.tab === i ? ' on' : '') + (o ? '' : ' empty'), o ? esc(o.name) : `+ Outfit ${i + 1}`) as HTMLButtonElement;
+      b.title = o ? (w.tab === i ? 'Wearing it. Changes here are kept in it.' : `Wear ${o.name}`) : 'Keep the look you have on as a new outfit';
+      b.addEventListener('click', () => { if (o) { if (w.tab !== i) this.ctx.wearOutfit(i); } else this.ctx.saveOutfit(i); this.refresh('inv'); });
+      tabs.append(b);
+    });
+    box.append(tabs);
+    const sw = el('div', 'of-switches');
+    const gear = el('button', 'of-switch' + (w.gearShown ? ' on' : ''), w.gearShown ? 'Showing your gear' : 'Showing your outfit') as HTMLButtonElement;
+    gear.title = 'Switch between the outfit and the gear you really wear. The outfit is kept either way.';
+    gear.addEventListener('click', () => this.ctx.toggleOutfitShown());
+    const match = el('button', 'of-switch' + (w.matchChest ? ' on' : ''), `${w.matchChest ? '■' : '□'} Match chest colours`) as HTMLButtonElement;
+    match.title = 'Every piece takes the chest’s colours: its dyes, or the chest piece’s own.';
+    match.addEventListener('click', () => this.ctx.toggleMatchChest());
+    sw.append(gear, match);
+    box.append(sw);
     const chips = (label: string, items: { id: string; name: string }[], cur: string, act: (id: string) => void) => {
       const row = el('div', 'of-row');
       row.append(el('span', 'k', label));
@@ -2125,20 +2163,62 @@ export class Hud {
     else box.append(el('p', 'of-none', 'No costumes yet: the festival stalls, the store, the puzzles and the road all have them.'));
     box.append(chips('Hat', w.hats, w.hat, (id) => this.ctx.wearHat(id)));
     box.append(chips('Hair', HAIR_STYLES.map((name, i) => ({ id: String(i), name })), String(w.hairStyle), (id) => this.ctx.restyleHair(Number(id))));
-    const saved = el('div', 'of-saved');
-    saved.append(el('span', 'k', 'Saved'));
-    w.outfits.forEach((o, i) => {
-      const slot = el('div', 'of-slot');
-      slot.append(el('b', '', o ? esc(o.name) : `Outfit ${i + 1}`));
-      const wear = el('button', 'btn', 'Wear') as HTMLButtonElement, keep = el('button', 'btn ghost', o ? 'Save over' : 'Save this look') as HTMLButtonElement;
-      wear.disabled = !o;
-      wear.addEventListener('click', () => { this.ctx.wearOutfit(i); this.refresh('inv'); });
-      keep.addEventListener('click', () => { this.ctx.saveOutfit(i); this.refresh('inv'); });
-      slot.append(wear, keep);
-      saved.append(slot);
-    });
-    box.append(saved);
+    box.append(this.looksPart(w));
     return box;
+  }
+
+  /**
+   * The outfit's slots (data/looks.ts): each one a look from the collection over what you wear, or left empty to show
+   * the gear itself. One slot open at a time, as the dyes are.
+   */
+  private lookPick: OutfitSlot | 'cloak' | null = null;
+  private looksPart(w: ReturnType<UiCtx['wardrobe']>): HTMLElement {
+    const part = el('div', 'of-looks' + (w.gearShown ? ' off' : ''));
+    part.append(el('div', 'of-lh', `<span class="k">Outfit</span><small>${w.gearShown ? 'Your gear is showing. Switch back to see the outfit.' : 'Show any piece you’ve found over what you wear. Only the look changes; your gear keeps its stats.'}</small>`));
+    const rows = el('div', 'of-lrows');
+    const names: Record<OutfitSlot, string> = { ...SLOT_NAMES, weapon: 'Weapon' };
+    const row = (key: OutfitSlot | 'cloak', label: string, what: string) => {
+      const b = el('button', 'of-lrow' + (this.lookPick === key ? ' on' : '')) as HTMLButtonElement;
+      b.innerHTML = `<span class="dy-slot">${esc(label)}</span><span class="of-lwhat">${what}</span>`;
+      b.addEventListener('click', () => { this.ctx.sfx('click'); this.lookPick = this.lookPick === key ? null : key; this.refresh('inv'); });
+      rows.append(b);
+    };
+    for (const L of w.looks) {
+      const shown = L.pick ? L.options.find((o) => o.id === L.pick)?.name ?? '' : '';
+      const gear = L.worn ? esc(L.worn) : 'nothing worn';
+      const what = L.hidden ? `<i>hidden</i> · ${gear}` : shown ? `<b>${esc(shown)}</b>${L.worn ? ` over ${esc(L.worn)}` : ''}` : `<i>empty:</i> ${gear}`;
+      row(L.slot, names[L.slot], what);
+    }
+    const c = w.cloak, cName = c.design ? c.designs.find((d) => d.id === c.design)?.name ?? 'Cloak' : 'Plain cloak';
+    row('cloak', 'Cloak', !c.has ? '<i>none</i>' : c.hidden ? `<i>hidden</i> · ${esc(cName)}` : esc(cName));
+    part.append(rows);
+    const pick = this.lookPick;
+    if (pick) {
+      const list = el('div', 'chips of-lpick');
+      const chip = (label: string, on: boolean, act: () => void, title = '') => {
+        const b = el('button', 'chip' + (on ? ' sel' : ''), esc(label)) as HTMLButtonElement;
+        if (title) b.title = title;
+        b.addEventListener('click', () => { act(); this.refresh('inv'); });
+        list.append(b);
+      };
+      let hint = '';
+      if (pick === 'cloak') {
+        chip('Hidden', c.has && c.hidden, () => this.ctx.showCloak('hide'));
+        chip('Plain', c.has && !c.hidden && !c.design, () => this.ctx.showCloak('plain'));
+        for (const d of c.designs) chip(d.name, !c.hidden && c.design === d.id, () => this.ctx.showCloak(d.id));
+        hint = c.designs.length ? 'Cloak designs you have.' : 'Cloak designs come from the Charter Market’s tailor, feats, the group dungeons and a region’s highest standing.';
+      } else {
+        const L = w.looks.find((x) => x.slot === pick)!;
+        chip('Empty', !L.pick && !L.hidden, () => this.ctx.showLook(pick, null), 'Show what you wear here.');
+        if (pick === 'head' || pick === 'hands') chip('Hidden', L.hidden, () => this.ctx.showLook(pick, 'hide'), 'Not drawn. It still guards you.');
+        for (const o of L.options) chip(o.name, !L.hidden && L.pick === o.id, () => this.ctx.showLook(pick, o.id));
+        hint = pick === 'weapon'
+          ? (L.worn ? `${L.options.length} weapons of this kind collected. A weapon's look goes over one of the same kind.` : 'Hold a weapon first: its look goes over one of the same kind.')
+          : `${L.options.length} looks collected for the ${names[pick].toLowerCase()}. Every piece you pick up or wear adds its look, for good.`;
+      }
+      part.append(list, el('div', 'dy-hint', esc(hint)));
+    }
+    return part;
   }
 
   private dyeBox(): HTMLElement {
@@ -2384,10 +2464,11 @@ export class Hud {
     const stats = this.packPart(() => {
       const a = this.ctx.armourSummary();
       const pk = this.ctx.packInfo();
-      const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b>'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
+      const stats = el('div', 'stats', `Weapon <b>${esc(style(save.equip.weapon))}</b><br>Armour <b>defence ${a.defense}, ${Math.round((a.defense / (a.defense + 40)) * 100)}% off each blow</b><br>Weights <b>${esc(a.weights)}</b><br>${a.set ? `Set <b>${esc(GEAR_SETS[a.set].name)}</b>: ${esc(GEAR_SETS[a.set].bonus)}<br>` : ''}${a.trophy ? `Trophy <b>${esc(TROPHY_SETS[a.trophy as TrophyId].name)}</b>: ${esc(TROPHY_SETS[a.trophy as TrophyId].two)}<br>` : ''}${pk ? `Pack <b>${esc(pk.name)}</b> (+${pk.slots}) <button class="link" data-hidepack>${pk.hidden ? 'Show it' : 'Hide it'}</button>` : 'Pack <b>none</b>'}<br>Horsemanship <b>${this.ctx.ridingInfo().rank}</b>${this.ctx.ridingInfo().next !== null ? ` (${(this.ctx.ridingInfo().next! / 1000).toFixed(1)} km to the next)` : ' (the top)'}<br>Look <b>${save.flags.outfitOff ? 'your gear' : 'your outfit'}</b> <button class="link" data-outfit>${save.flags.outfitOff ? 'Show outfit' : 'Show gear'}</button>${save.equip.head || save.equip.hands ? `<br>Shown ${save.equip.head ? `<button class="link" data-showgear="head">${this.ctx.gearShown().head ? 'Hide helm' : 'Show helm'}</button>` : ''} ${save.equip.hands ? `<button class="link" data-showgear="hands">${this.ctx.gearShown().hands ? 'Hide gloves' : 'Show gloves'}</button>` : ''}` : ''}`);
       // (a sheet of label and value, one row each, rather than lines of text)
       stats.innerHTML = stats.innerHTML.split('<br>').map((ln) => `<div class="st-row">${ln.replace(/^([^<]+?)s*(?=<)/, '<span class="k">$1</span>')}</div>`).join('');
       stats.querySelector('[data-hidepack]')?.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.togglePack(); });
+      stats.querySelector('[data-outfit]')?.addEventListener('click', () => { this.ctx.toggleOutfitShown(); });
       stats.querySelectorAll<HTMLElement>('[data-showgear]').forEach((b) => b.addEventListener('click', () => { this.ctx.sfx('click'); this.ctx.toggleGearShown(b.dataset.showgear as 'head' | 'hands'); }));
         return stats;
     });
