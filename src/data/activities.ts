@@ -85,12 +85,17 @@ export interface BossDef {
 /** The Mother's Bed, in the Glass Flats west of Tenwells, where the Glassmother comes down. */
 export const GLASSMOTHER_BED = { x: MORROW_OX + 700, z: -380 };
 
+/** The Lantern Ring, in the deep of the Amberwold west of Branchley, where Old Lantern comes down at dusk. */
+export const LANTERN_RING = { x: MORROW_OX + 100, z: 1350 };
+
 export const WORLD_BOSSES: BossDef[] = [
   { id: 'wb-bramblemaw', type: 'bramblemaw', x: 120, z: 1157, where: 'the Bramble Ring, Hagworm Wood', every: 1800, offset: 0, adds: 'thornwolf' },
   { id: 'wb-tidewright', type: 'tidewright', x: 1708, z: 1004, where: 'Jenny\'s Strand, the Fleet Coast', every: 1800, offset: 450, adds: 'crab' },
   { id: 'wb-cinderhorn', type: 'cinderhorn', x: 1245, z: 1375, where: 'Clinker Bottom, the Raddle Barrens', every: 1800, offset: 900, adds: 'dustwolf' },
   { id: 'wb-rimeglass', type: 'rimeglass', x: 957, z: 1734, where: 'the Rime Bowl, Scarth', every: 1800, offset: 1350, adds: 'shardjelly' },
   // Morrow's: the Glassmother comes down on the Mother's Bed in the Glass Flats, her brood with her
+  // and Old Lantern in the Amberwold, her swarm with her
+  { id: 'wb-oldlantern', type: 'oldlantern', x: LANTERN_RING.x, z: LANTERN_RING.z, where: 'the Lantern Ring, the Amberwold', every: 1800, offset: 1125, adds: 'lampmoth' },
   { id: 'wb-glassmother', type: 'glassmother', x: GLASSMOTHER_BED.x, z: GLASSMOTHER_BED.z, where: 'the Mother\'s Bed, the Glass Flats', every: 1800, offset: 225, adds: 'flatsdrake' },
 ];
 /** How long a world boss stays up once it has risen, and how long before that it is announced (seconds). */

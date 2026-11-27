@@ -218,7 +218,7 @@ export interface SiteActivity {
 }
 
 /** The lairs where the world bosses rise. */
-const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl', 'wb-glassmother': 'The Mother\'s Bed' };
+const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl', 'wb-glassmother': 'The Mother\'s Bed', 'wb-oldlantern': 'The Lantern Ring' };
 
 /** Underworks themes: depth and reach, stone, light, who lives there, and what's left lying about. */
 /** The rock of the underworks that are caves or mines (the built ones keep their dressed stone). */
@@ -5079,6 +5079,7 @@ function* planBody(): Generator<string, Plan> {
         : type === 'tidewright' ? (h < 0.8 ? B.Sand : B.Gravel)
           : type === 'cinderhorn' ? (h < 0.6 ? B.RedSand : h < 0.85 ? B.TerraOrange : B.Basalt)
             : type === 'glassmother' ? (h < 0.55 ? B.Blackstone : h < 0.85 ? B.Basalt : B.Emberstone)
+            : type === 'oldlantern' ? (h < 0.5 ? B.Loam : h < 0.85 ? B.Grass : B.MossyCobble)
             : (h < 0.6 ? B.Ice : h < 0.85 ? B.Snow : B.Basalt);
       if (d <= R) O.set(x, G - 1, z, floor);
     }
@@ -5093,6 +5094,11 @@ function* planBody(): Generator<string, Plan> {
       } else if (type === 'tidewright') {
         for (let y = G - 1; y < G + h - 2; y++) for (const [ox, oz] of [[0, 0], [1, 0], [0, 1]]) O.set(x + ox, y, z + oz, y > G + 1 ? B.Stone : B.MossyStone);
         if (i % 4 === 0) s.props.push({ t: 'boat', x: x + 0.5 - Math.cos(a) * 4, y: G + 0.5, z: z + 0.5 - Math.sin(a) * 4, ry: a });
+      } else if (type === 'oldlantern') {
+        // Old trunks, snapped and hollow, each with a lamp-moth's gold on it; mushrooms at their feet
+        for (let y = G - 1; y < G + h; y++) for (const [ox, oz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (y < G + h - 1 || (ox + oz) % 2 === 0) O.set(x + ox, y, z + oz, y === G + h - 1 ? B.OakLeaves : B.OakLog);
+        s.props.push({ t: 'glow', x: x + 1, y: G + h - 1.5, z: z + 1, r: 3.2, color: '#ffb040' });
+        if (i % 2 === 0) s.props.push({ t: 'furn', item: 'mushrooms', x: x + 0.5 - Math.cos(a) * 2.5, y: G, z: z + 0.5 - Math.sin(a) * 2.5, ry: a, tint: i });
       } else if (type === 'glassmother') {
         // Spires of sand her fire fused to black glass, leaning outward from where she lies; old bones at their feet
         for (let y = G - 1; y < G + h + 2; y++) O.set(x + Math.round(Math.cos(a) * (y - G) * 0.15), y, z + Math.round(Math.sin(a) * (y - G) * 0.15), y > G + h ? B.Crystal : B.Blackstone);
