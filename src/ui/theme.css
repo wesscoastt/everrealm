@@ -926,3 +926,10 @@ body.pad .ab-slot .key { white-space: nowrap; }
 .post-sorts .btn.sel { border-color: rgba(224,189,100,0.9); }
 .post-row .post-acts { display: flex; gap: 6px; flex-shrink: 0; }
 .post-row.weathered { border-color: rgba(200,120,60,0.6); }
+
+/* The map's legend (owner 2026-11-27, "clean it up like triple a mmo map icons"): a picture with each short name, dimmed when hidden */
+#map-panel .map-legend { gap: 5px; max-width: 64%; background: rgba(33, 22, 13, 0.55); padding: 6px 8px; border-radius: 10px; border: 1px solid rgba(243, 213, 138, 0.25); }
+#map-panel .map-legend .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 6px; font-size: 12px; }
+#map-panel .map-legend .chip img { width: 18px; height: 18px; }
+#map-panel .map-legend .chip:not(.on) { opacity: 0.5; }
+#map-panel .map-legend .chip:not(.on) img { filter: grayscale(1); }

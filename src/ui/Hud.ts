@@ -120,7 +120,74 @@ function mmStar(c: CanvasRenderingContext2D, x: number, y: number, r: number): v
   c.closePath(); c.fill(); c.stroke();
 }
 
-const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'woodcamp', 'gullmouth', 'harrowgate', 'coldhearth', 'cragsby', 'holme', 'scarrow']);
+const MAP_TOWNS = new Set(['hollin', 'aldermere', 'cotters', 'waystation', 'woodcamp', 'gullmouth', 'harrowgate', 'coldhearth', 'cragsby', 'holme', 'scarrow',
+  // Verandah's port, and Morrow's towns
+  'awschitz', 'callis', 'saltpenny', 'reedwater', 'branchley', 'cala', 'liftwick', 'tenwells', 'fellside', 'conch', 'northgate', 'coldharbour']);
+
+/**
+ * A service on the map: a round badge in its colour with a small picture, the same shape for all of them so they read
+ * as one family (a coin for the bank, a hammer for crafting, a sack for a merchant, a horseshoe for a stable, a cross
+ * for a temple, a tankard for a tavern, a signpost for the Charter Post).
+ */
+function svcBadge(c: CanvasRenderingContext2D, svc: string, x: number, y: number, s: number): void {
+  const BG: Record<string, string> = { bank: '#d8a830', craft: '#7a8698', shop: '#4f9f5a', stable: '#9a6a3c', temple: '#7a6ab8', tavern: '#b8582a', post: '#3a6a9a' };
+  c.save(); c.translate(x, y); c.scale(s, s);
+  c.fillStyle = BG[svc] ?? '#6a5a48'; c.strokeStyle = '#1e1208'; c.lineWidth = 1.8;
+  c.beginPath(); c.arc(0, 0, 8.5, 0, Math.PI * 2); c.fill(); c.stroke();
+  c.strokeStyle = 'rgba(255, 240, 200, 0.55)'; c.lineWidth = 0.9;
+  c.beginPath(); c.arc(0, 0, 6.9, 0, Math.PI * 2); c.stroke();
+  const ink = '#fff6e0';
+  c.fillStyle = ink; c.strokeStyle = ink; c.lineCap = 'round'; c.lineJoin = 'round';
+  if (svc === 'bank') {
+    c.beginPath(); c.arc(0, 0, 4, 0, Math.PI * 2); c.fill();
+    c.fillStyle = BG.bank; c.fillRect(-0.8, -2.6, 1.6, 5.2);
+  } else if (svc === 'craft') {
+    c.save(); c.rotate(-0.7);
+    c.fillRect(-0.9, -1.5, 1.8, 7); c.fillRect(-3.6, -4.4, 7.2, 3.2);
+    c.restore();
+  } else if (svc === 'shop') {
+    c.beginPath(); c.moveTo(-1.6, -3.4); c.lineTo(1.6, -3.4); c.lineTo(4.2, 3.6); c.quadraticCurveTo(0, 5.2, -4.2, 3.6); c.closePath(); c.fill();
+    c.fillRect(-2.4, -4.6, 4.8, 1.4);
+  } else if (svc === 'stable') {
+    c.lineWidth = 2.2; c.beginPath(); c.arc(0, -0.4, 3.6, Math.PI * 0.15, Math.PI * 0.85, true); c.stroke();
+    c.beginPath(); c.moveTo(-3.4, 0.6); c.lineTo(-3.6, 3.8); c.moveTo(3.4, 0.6); c.lineTo(3.6, 3.8); c.stroke();
+  } else if (svc === 'temple') {
+    c.fillRect(-1, -4.6, 2, 9.2); c.fillRect(-3.6, -2.2, 7.2, 2);
+  } else if (svc === 'tavern') {
+    c.fillRect(-3.4, -2.6, 5, 6.4);
+    c.lineWidth = 1.4; c.beginPath(); c.arc(2.2, 0.6, 2, -Math.PI / 2, Math.PI / 2); c.stroke();
+    c.beginPath(); c.arc(-2.2, -3, 1.4, 0, Math.PI * 2); c.arc(-0.2, -3.4, 1.5, 0, Math.PI * 2); c.fill();
+  } else {
+    // the Post: a signpost with two arms
+    c.fillRect(-0.8, -4.4, 1.6, 9);
+    c.beginPath(); c.moveTo(-0.8, -3.8); c.lineTo(4.2, -3.8); c.lineTo(5.4, -2.6); c.lineTo(4.2, -1.4); c.lineTo(-0.8, -1.4); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0.8, 0.2); c.lineTo(-4.2, 0.2); c.lineTo(-5.4, 1.4); c.lineTo(-4.2, 2.6); c.lineTo(0.8, 2.6); c.closePath(); c.fill();
+  }
+  c.restore();
+}
+
+/** A filter's picture for the map's legend, drawn once. */
+const legendIcons = new Map<string, string>();
+function legendIcon(f: string): string {
+  let u = legendIcons.get(f);
+  if (u) return u;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 40;
+  const c = cv.getContext('2d')!;
+  c.translate(20, 21);
+  if (f === 'towns') { c.scale(1.55, 1.55); mmHouse(c, 0, 0); }
+  else if (f === 'landmarks') mmStar(c, 0, 0, 12);
+  else if (f === 'post') svcBadge(c, 'post', 0, 0, 2);
+  else if (f === 'services') svcBadge(c, 'bank', 0, 0, 2);
+  else if (f === 'quests') { c.fillStyle = '#ffd23a'; c.strokeStyle = '#3a2400'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, -15); c.lineTo(12, 0); c.lineTo(0, 15); c.lineTo(-12, 0); c.closePath(); c.fill(); c.stroke(); }
+  else if (f === 'waymarks') { c.fillStyle = '#3ab8ff'; c.strokeStyle = '#1e1208'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, -15); c.lineTo(10, 0); c.lineTo(0, 15); c.lineTo(-10, 0); c.closePath(); c.fill(); c.stroke(); }
+  else if (f === 'events') actGlyph(c, 'event', 0, 0, 2.3);
+  else if (f === 'tasks') actGlyph(c, 'task', 0, 0, 2.3);
+  else if (f === 'bosses') actGlyph(c, 'boss', 0, 0, 2.2);
+  else { c.fillStyle = '#f4e6a0'; c.strokeStyle = '#2a1a0a'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, 8, 0, Math.PI * 2); c.fill(); c.stroke(); }
+  u = cv.toDataURL();
+  legendIcons.set(f, u);
+  return u;
+}
 import type { Appearance } from '../entities/humanoid';
 import type { ColourVision, Inventory, SaveData } from '../game/state';
 import { COLOUR_VISION_NAMES } from './colourVision';
@@ -515,7 +582,7 @@ export class Hud {
   /** Attuned waymarks where they were last drawn on the world map (canvas pixels), for clicks. */
   private wmHits: { x: number; y: number; id: string; name: string }[] = [];
   /** The world map's view (centre, canvas pixels per block, zoom limits), hover point and hidden icon kinds. */
-  private mapView = { cx: 1024, cz: 1024, k: 1, kMin: 0.2, kMax: 7, dpr: 1, fresh: true, world: false, hover: null as { x: number; y: number } | null, hits: [] as { x: number; y: number; name: string; sub: string }[], hidden: new Set<string>() };
+  private mapView = { cx: 1024, cz: 1024, k: 1, kMin: 0.2, kMax: 7, dpr: 1, fresh: true, world: false, hover: null as { x: number; y: number } | null, hits: [] as { x: number; y: number; name: string; sub: string }[], hidden: new Set<string>(['people']) };
   /** A waypoint the player dropped on the map; it shows on the minimap too. */
   pin: { x: number; z: number } | null = null;
   private portrait!: HTMLCanvasElement;
@@ -1983,11 +2050,7 @@ export class Hud {
       if (m.kind === 'service') {
         const [sx2, sy2] = at(m.x, m.z);
         if (Math.hypot(sx2, sy2) > inside) continue;
-        const st = SERVICE_LOOK[m.svc ?? 'shop'];
-        c.fillStyle = st.bg; c.strokeStyle = '#21160d'; c.lineWidth = 2;
-        c.beginPath(); c.roundRect(sx2 - 6.5, sy2 - 6.5, 13, 13, 3); c.fill(); c.stroke();
-        c.fillStyle = st.fg; c.font = '700 10px "Alegreya Sans", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-        c.fillText(st.letter, sx2, sy2 + 0.5);
+        svcBadge(c, m.svc ?? 'shop', sx2, sy2, 0.85);
         continue;
       }
       if (m.kind === 'fair') {
@@ -3895,91 +3958,138 @@ export class Hud {
       x.letterSpacing = '0px';
       x.globalAlpha = 1;
     }
+    // Everything on the chart is gathered first, then placed by importance, the way the big games keep a map readable
+    // (owner 2026-11-27: "this mess of a map its not user friendly or beginner friendly lets clean it up like triple a
+    // mmo map icons"). Each thing shows from the zoom where it matters: towns, your quests, events and waymarks from
+    // anywhere; tasks, the Post and the waymarks you haven't touched as you come in; a town's bank, smiths, shops and
+    // the rest only close up (from further out a town says what it has when you hover it). Where two would overlap the
+    // less important gives way, and so do names.
+    type Placed = { pri: number; X: number; Y: number; r: number; keep?: boolean; draw: () => void; label?: { text: string; dy: number; font: string; fill: string; plaque?: boolean; alpha?: number }; hit?: { name: string; sub: string }; wm?: { id: string; name: string }; alpha?: number };
+    const items: Placed[] = [];
+    const inView = (X: number, Y: number) => X > -40 && Y > -40 && X < cw + 40 && Y < ch + 40;
+    const add = (it: Placed) => { if (inView(it.X, it.Y)) items.push(it); };
+    const SVC_SHORT: Record<string, string> = { bank: 'Bank', craft: 'Crafting', shop: 'Merchant', stable: 'Stable', temple: 'Temple', tavern: 'Tavern' };
+    const services = markers.filter((m) => m.kind === 'service');
+    const townHas = (tx: number, tz: number) => {
+      const got = new Set<string>();
+      for (const m of services) if (Math.hypot(m.x - tx, m.z - tz) < 70) got.add(SVC_SHORT[m.svc ?? 'shop']);
+      return [...got];
+    };
     // Towns (on every chart) and the landmarks you've found
     for (const r of I ? [] : places()) {
       if (r.kind === 'region') continue;
       const town = MAP_TOWNS.has(r.id), seen = found.includes(r.id);
-      if (town ? !on('towns') : (!seen || !on('landmarks'))) continue;
-      const X = sx(r.x), Y = sy(r.z);
-      if (X < -60 || Y < -60 || X > cw + 60 || Y > ch + 60) continue;
+      if (town ? !on('towns') : (!seen || !on('landmarks') || z < 0.42)) continue;
+      const X = sx(r.x), Y = sy(r.z), cleared = !!this.ctx.save.flags['cleared:' + r.id];
       const gw = r.x < 320 && r.z < 320;
-      x.save(); x.globalAlpha = seen ? 1 : 0.55;
-      x.translate(X, Y); x.scale(dpr * 1.25, dpr * 1.25);
-      if (town) mmHouse(x, 0, 0); else if (!placeGlyph(x, r.id, 0, 0, 1, !!this.ctx.save.flags['cleared:' + r.id])) mmStar(x, 0, 0, 7);
-      x.restore();
-      const show = town ? z > (gw ? 0.9 : 0.32) : z > (gw ? 1.2 : 0.6);
-      if (show) { x.globalAlpha = seen ? 1 : 0.6; label(seen ? (this.ctx.save.flags['cleared:' + r.id] ? r.name + ' · Cleared' : r.name) : r.name + '?', X, Y + px(town ? 22 : 19), `${town ? 700 : 600} ${px(town ? 17 : 15)}px "Alegreya", Georgia, serif`, town ? '#2a1a0a' : '#4a3010'); x.globalAlpha = 1; }
-      hits.push({ x: X, y: Y, name: seen ? r.name : r.name + ' (not yet visited)', sub: this.ctx.save.flags['cleared:' + r.id] ? `${r.sub ? r.sub + ' · ' : ''}Cleared` : r.sub });
+      const show = town ? z > (gw ? 0.9 : 0.3) : z > (gw ? 1.2 : 0.75);
+      const has = town ? townHas(r.x, r.z) : [];
+      add({
+        pri: town ? 70 : 40, X, Y, r: px(town ? 13 : 10), keep: town, alpha: seen ? 1 : 0.6,
+        draw: () => { x.save(); x.translate(X, Y); x.scale(dpr * (town ? 1.3 : 1.15), dpr * (town ? 1.3 : 1.15)); if (town) mmHouse(x, 0, 0); else if (!placeGlyph(x, r.id, 0, 0, 1, cleared)) mmStar(x, 0, 0, 6.5); x.restore(); },
+        label: show ? { text: seen ? r.name : r.name + '?', dy: px(town ? 23 : 19), font: `${town ? 700 : 600} ${px(town ? 15 : 13)}px "Alegreya", Georgia, serif`, fill: town ? '#f3e2b4' : '#3a2408', plaque: town, alpha: seen ? 1 : 0.7 } : undefined,
+        hit: { name: seen ? r.name : r.name + ' (not yet visited)', sub: cleared ? `${r.sub ? r.sub + ' · ' : ''}Cleared` : town && has.length ? `${r.sub ? r.sub + ' · ' : ''}${has.join(', ')}` : r.sub },
+      });
     }
-    // Charter Post stops, people, other players, objectives
     for (const m of markers) {
       const X = sx(m.x), Y = sy(m.z);
-      if (X < -40 || Y < -40 || X > cw + 40 || Y > ch + 40) continue;
+      if (!inView(X, Y)) continue;
       if ((m.kind === 'waymark' || m.kind === 'waymarkDim') && on('waymarks')) {
         const lit = m.kind === 'waymark';
-        x.fillStyle = lit ? '#3ab8ff' : '#7a8a96'; x.strokeStyle = '#21160d'; x.lineWidth = px(2);
-        x.beginPath(); x.moveTo(X, Y - px(10)); x.lineTo(X + px(6), Y); x.lineTo(X, Y + px(10)); x.lineTo(X - px(6), Y); x.closePath(); x.fill(); x.stroke();
-        x.fillStyle = lit ? '#e8f8ff' : '#c8d0d6'; x.fillRect(X - px(1.5), Y - px(4), px(3), px(8));
-        if (m.label && z > 0.6) label(m.label, X, Y + px(22), `600 ${px(12)}px "Alegreya Sans", sans-serif`, lit ? '#4b341f' : '#645649');
+        if (!lit && z < 0.8) continue;
         const fare = lit && m.id ? this.ctx.waymarkFare(m.id) : null;
-        hits.push({ x: X, y: Y, name: m.label ?? 'Waymark', sub: lit ? (fare !== null ? `Waymark · click to travel (${fare} marks)` : 'Waymark') : 'Waymark · walk up to it to attune' });
-        if (lit && m.id) this.wmHits.push({ x: X, y: Y, id: m.id, name: m.label ?? 'Waymark' });
-      } else if (m.kind === 'service' && on('services')) {
-        const st = SERVICE_LOOK[m.svc ?? 'shop'], r = px(8);
-        x.fillStyle = st.bg; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
-        x.beginPath(); x.roundRect(X - r, Y - r, r * 2, r * 2, px(3)); x.fill(); x.stroke();
-        x.fillStyle = st.fg; x.font = `700 ${px(12)}px "Alegreya Sans", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-        x.fillText(st.letter, X, Y + px(0.5));
-        if (m.label && z > 1.6) label(m.label, X, Y + px(18), `600 ${px(12)}px "Alegreya Sans", sans-serif`, '#2a1a0a');
-        hits.push({ x: X, y: Y, name: m.label ?? st.name, sub: st.name });
+        add({
+          pri: lit ? 55 : 20, X, Y, r: px(9), keep: lit,
+          draw: () => {
+            x.fillStyle = lit ? '#3ab8ff' : '#7a8a96'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
+            x.beginPath(); x.moveTo(X, Y - px(10)); x.lineTo(X + px(7), Y); x.lineTo(X, Y + px(10)); x.lineTo(X - px(7), Y); x.closePath(); x.fill(); x.stroke();
+            x.fillStyle = lit ? '#e8f8ff' : '#c8d0d6'; x.beginPath(); x.moveTo(X, Y - px(5)); x.lineTo(X + px(3), Y); x.lineTo(X, Y + px(5)); x.lineTo(X - px(3), Y); x.closePath(); x.fill();
+          },
+          label: m.label && z > 1.3 ? { text: m.label, dy: px(19), font: `600 ${px(12)}px "Alegreya Sans", sans-serif`, fill: lit ? '#1e3a52' : '#645649' } : undefined,
+          hit: { name: m.label ?? 'Waymark', sub: lit ? (fare !== null ? `Waymark · click to travel (${fare} marks)` : 'Waymark') : 'Waymark · walk up to it to attune' },
+          wm: lit && m.id ? { id: m.id, name: m.label ?? 'Waymark' } : undefined,
+        });
+      } else if (m.kind === 'service' && on('services') && z > 1.6) {
+        const svc = m.svc ?? 'shop', st = SERVICE_LOOK[svc];
+        add({ pri: 25, X, Y, r: px(9), draw: () => svcBadge(x, svc, X, Y, dpr), label: m.label && z > 2.6 ? { text: m.label, dy: px(17), font: `600 ${px(11)}px "Alegreya Sans", sans-serif`, fill: '#2a1a0a' } : undefined, hit: { name: m.label ?? st.name, sub: st.name } });
       } else if (m.kind === 'fair' && on('post')) {
-        x.fillStyle = '#4a3020'; x.fillRect(X - px(1.5), Y - px(12), px(3), px(22));
-        x.fillStyle = '#e8a020'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
-        x.beginPath(); x.moveTo(X + px(1.5), Y - px(12)); x.lineTo(X + px(15), Y - px(6)); x.lineTo(X + px(1.5), Y); x.closePath(); x.fill(); x.stroke();
-        hits.push({ x: X, y: Y, name: m.label ?? 'Festival stall', sub: 'Festival stall: trade tokens here' });
-      } else if (m.kind === 'post' && on('post')) {
-        x.fillStyle = '#c8803a'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
-        x.fillRect(X - px(2), Y - px(3), px(4), px(14)); x.strokeRect(X - px(2), Y - px(3), px(4), px(14));
-        x.fillRect(X - px(9), Y - px(11), px(18), px(8)); x.strokeRect(X - px(9), Y - px(11), px(18), px(8));
-        hits.push({ x: X, y: Y, name: m.label ?? 'Charter Post', sub: 'Charter Post stop' });
-      } else if (m.kind === 'npc' && on('people') && z > 1) {
-        x.fillStyle = '#f4e6a0'; x.strokeStyle = '#2a1a0a'; x.lineWidth = px(2);
-        x.beginPath(); x.arc(X, Y, px(5), 0, Math.PI * 2); x.fill(); x.stroke();
-        if (m.label && z > 2.2) label(m.label, X, Y + px(15), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#2a1a0a');
-        if (m.label) hits.push({ x: X, y: Y, name: m.label, sub: 'Townsperson' });
-      } else if (m.kind === 'ally') {
-        x.fillStyle = '#5fbf3a'; x.strokeStyle = '#fff'; x.lineWidth = px(2);
-        x.beginPath(); x.arc(X, Y, px(6), 0, Math.PI * 2); x.fill(); x.stroke();
-        if (m.label) { label(m.label, X, Y + px(16), `700 ${px(13)}px "Alegreya Sans", sans-serif`, '#1f4a10'); hits.push({ x: X, y: Y, name: m.label, sub: 'In your group' }); }
-      } else if (m.kind === 'other') {
-        x.fillStyle = '#3f8fc0'; x.strokeStyle = '#fff'; x.lineWidth = px(2);
-        x.beginPath(); x.arc(X, Y, px(5), 0, Math.PI * 2); x.fill(); x.stroke();
-        if (m.label) { label(m.label, X, Y + px(15), `600 ${px(13)}px "Alegreya Sans", sans-serif`, '#624328'); hits.push({ x: X, y: Y, name: m.label, sub: 'Another player' }); }
+        add({ pri: 35, X, Y, r: px(10), draw: () => {
+          x.fillStyle = '#4a3020'; x.fillRect(X - px(1.5), Y - px(12), px(3), px(22));
+          x.fillStyle = '#e8a020'; x.strokeStyle = '#1e1208'; x.lineWidth = px(2);
+          x.beginPath(); x.moveTo(X + px(1.5), Y - px(12)); x.lineTo(X + px(15), Y - px(6)); x.lineTo(X + px(1.5), Y); x.closePath(); x.fill(); x.stroke();
+        }, hit: { name: m.label ?? 'Festival stall', sub: 'Festival stall: trade tokens here' } });
+      } else if (m.kind === 'post' && on('post') && z > 1) {
+        add({ pri: 30, X, Y, r: px(9), draw: () => svcBadge(x, 'post', X, Y, dpr), hit: { name: m.label ?? 'Charter Post', sub: 'Charter Post stop: a coach to other towns' } });
+      } else if (m.kind === 'npc' && on('people') && z > 1.4) {
+        add({ pri: 10, X, Y, r: px(5), draw: () => { x.fillStyle = '#f4e6a0'; x.strokeStyle = '#2a1a0a'; x.lineWidth = px(1.5); x.beginPath(); x.arc(X, Y, px(4), 0, Math.PI * 2); x.fill(); x.stroke(); },
+          label: m.label && z > 2.6 ? { text: m.label, dy: px(13), font: `600 ${px(11)}px "Alegreya Sans", sans-serif`, fill: '#2a1a0a' } : undefined, hit: m.label ? { name: m.label, sub: 'Townsperson' } : undefined });
+      } else if (m.kind === 'ally' || m.kind === 'other') {
+        const ally = m.kind === 'ally';
+        add({ pri: ally ? 85 : 50, X, Y, r: px(6), keep: true, draw: () => { x.fillStyle = ally ? '#5fbf3a' : '#3f8fc0'; x.strokeStyle = '#fff'; x.lineWidth = px(2); x.beginPath(); x.arc(X, Y, px(ally ? 6 : 5), 0, Math.PI * 2); x.fill(); x.stroke(); },
+          label: m.label ? { text: m.label, dy: px(15), font: `700 ${px(12)}px "Alegreya Sans", sans-serif`, fill: ally ? '#1f4a10' : '#24435a' } : undefined, hit: m.label ? { name: m.label, sub: ally ? 'In your group' : 'Another player' } : undefined });
+      } else if (ACT_KINDS.has(m.kind)) {
+        const task = m.kind === 'task' || m.kind === 'taskDone' || m.kind === 'treasure';
+        if (!on(m.kind === 'event' ? 'events' : task ? 'tasks' : 'bosses')) continue;
+        if ((m.kind === 'task' || m.kind === 'taskDone') && z < 0.7) continue;
+        if (m.kind === 'taskDone' && z < 1.2) continue;
+        const big = m.kind === 'boss' || m.kind === 'event' || m.kind === 'shard';
+        add({
+          pri: m.kind === 'boss' ? 80 : m.kind === 'event' || m.kind === 'shard' ? 75 : m.kind === 'treasure' ? 60 : m.kind === 'bossSoon' ? 45 : m.kind === 'task' ? 38 : 15,
+          X, Y, r: px(big ? 12 : 10), keep: big || m.kind === 'treasure',
+          draw: () => actGlyph(x, m.kind, X, Y, dpr * (big ? 1.45 : 1.25)),
+          label: m.label && (big || m.kind === 'treasure' || m.kind === 'bossSoon' ? z > 0.35 : z > 1.2) ? { text: m.label, dy: px(21), font: `700 ${px(13)}px "Alegreya", serif`, fill: ACT_COLOR[m.kind] === '#ffd23a' ? '#5a3a00' : '#4a1208' } : undefined,
+          hit: { name: m.label ?? '', sub: m.kind === 'treasure' ? 'Dig a few strides from the landmark here' : m.kind === 'task' ? 'Parish task: the locals want a hand' : m.kind === 'taskDone' ? 'Parish task: done' : m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' },
+        });
+      } else if (m.kind === 'giver' && on('quests') && z > 1.1) {
+        add({ pri: 42, X, Y, r: px(8), draw: () => {
+          x.fillStyle = '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(2);
+          x.beginPath(); x.arc(X, Y, px(7), 0, Math.PI * 2); x.fill(); x.stroke();
+          x.fillStyle = '#3a2400'; x.fillRect(X - px(1.3), Y - px(4.5), px(2.6), px(5.5)); x.fillRect(X - px(1.3), Y + px(2.2), px(2.6), px(2.2));
+        }, hit: { name: 'Someone with work', sub: 'Has a quest to offer' } });
+      } else if (m.kind === 'quest' && on('quests')) {
+        const s = m.focus ? 1.35 : 1;
+        add({
+          pri: m.focus ? 100 : 90, X, Y, r: px(11 * s), keep: true,
+          draw: () => {
+            if (m.focus) { x.strokeStyle = 'rgba(255,210,58,.85)'; x.lineWidth = px(2.5); x.beginPath(); x.arc(X, Y, px(19), 0, Math.PI * 2); x.stroke(); }
+            x.fillStyle = m.focus ? '#ffe27a' : '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(3);
+            x.beginPath(); x.moveTo(X, Y - px(12 * s)); x.lineTo(X + px(10 * s), Y); x.lineTo(X, Y + px(12 * s)); x.lineTo(X - px(10 * s), Y); x.closePath(); x.fill(); x.stroke();
+          },
+          label: m.focus && m.label ? { text: m.label, dy: px(27), font: `700 ${px(14)}px "Alegreya", serif`, fill: '#5a3a00' } : undefined,
+          hit: { name: m.label ?? 'Objective', sub: m.sub ?? 'From your journal' },
+        });
       }
     }
-    for (const m of markers) {
-      if (!ACT_KINDS.has(m.kind)) continue;
-      if (!on(m.kind === 'event' ? 'events' : m.kind === 'task' || m.kind === 'taskDone' || m.kind === 'treasure' ? 'tasks' : 'bosses')) continue;
-      const X = sx(m.x), Y = sy(m.z);
-      actGlyph(x, m.kind, X, Y, dpr * 1.5);
-      if (m.label && (z > 0.5 || (m.kind !== 'event' && m.kind !== 'taskDone' && m.kind !== 'task'))) label(m.label, X, Y + px(20), `700 ${px(14)}px "Alegreya", serif`, ACT_COLOR[m.kind] === '#ffd23a' ? '#5a3a00' : '#3a1008');
-      hits.push({ x: X, y: Y, name: m.label ?? '', sub: m.kind === 'treasure' ? 'Dig a few strides from the landmark here' : m.kind === 'task' ? 'Parish task: the locals want a hand' : m.kind === 'taskDone' ? 'Parish task: done' : m.kind === 'event' ? 'Event under way' : m.kind === 'boss' ? 'World boss: up now' : m.kind === 'bossSoon' ? 'World boss: rising soon' : 'A Shardfall: a star has come down' });
+    // Place them, most important first: anything that would sit on top of one already placed gives way (unless it's one
+    // that must always show), then draw the least important first so the rest sit over it
+    items.sort((a, b) => b.pri - a.pri);
+    const placed: Placed[] = [];
+    for (const it of items) {
+      if (!it.keep && placed.some((p) => Math.hypot(p.X - it.X, p.Y - it.Y) < (p.r + it.r) * 0.8)) continue;
+      placed.push(it);
     }
-    if (on('quests') && z > 1.1) for (const m of markers) {
-      if (m.kind !== 'giver') continue;
-      const X = sx(m.x), Y = sy(m.z);
-      x.fillStyle = '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(2);
-      x.beginPath(); x.arc(X, Y, px(7), 0, Math.PI * 2); x.fill(); x.stroke();
-      x.fillStyle = '#3a2400'; x.fillRect(X - px(1.3), Y - px(4.5), px(2.6), px(5.5)); x.fillRect(X - px(1.3), Y + px(2.2), px(2.6), px(2.2));
-      hits.push({ x: X, y: Y, name: 'Someone with work', sub: 'Has a quest to offer' });
-    }
-    if (on('quests')) for (const m of [...markers.filter((k) => k.kind === 'quest' && !k.focus), ...markers.filter((k) => k.kind === 'quest' && k.focus)]) {
-      const X = sx(m.x), Y = sy(m.z), s = m.focus ? 1.35 : 1;
-      if (m.focus) { x.strokeStyle = 'rgba(255,210,58,.85)'; x.lineWidth = px(2.5); x.beginPath(); x.arc(X, Y, px(19), 0, Math.PI * 2); x.stroke(); }
-      x.fillStyle = m.focus ? '#ffe27a' : '#ffd23a'; x.strokeStyle = '#3a2400'; x.lineWidth = px(3);
-      x.beginPath(); x.moveTo(X, Y - px(12 * s)); x.lineTo(X + px(10 * s), Y); x.lineTo(X, Y + px(12 * s)); x.lineTo(X - px(10 * s), Y); x.closePath(); x.fill(); x.stroke();
-      if (m.focus && m.label) label(m.label, X, Y + px(26), `700 ${px(14)}px "Alegreya", serif`, '#5a3a00');
-      hits.push({ x: X, y: Y, name: m.label ?? 'Objective', sub: m.sub ?? 'From your journal' });
+    for (const it of [...placed].reverse()) { x.globalAlpha = it.alpha ?? 1; it.draw(); x.globalAlpha = 1; }
+    // Names, most important first, each only where it has room
+    const boxes: [number, number, number, number][] = [];
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    for (const it of placed) {
+      if (it.hit) hits.push({ x: it.X, y: it.Y, ...it.hit });
+      if (it.wm) this.wmHits.push({ x: it.X, y: it.Y, ...it.wm });
+      const L = it.label;
+      if (!L) continue;
+      x.font = L.font;
+      const w = x.measureText(L.text).width + px(L.plaque ? 16 : 6), h = px(L.plaque ? 20 : 15), bx = it.X - w / 2, by = it.Y + L.dy - h / 2;
+      if (boxes.some(([a, b, c2, d]) => bx < a + c2 && bx + w > a && by < b + d && by + h > b)) continue;
+      if (placed.some((p) => p !== it && p.pri > it.pri && Math.hypot(p.X - it.X, p.Y - (it.Y + L.dy)) < p.r + h * 0.4)) continue;
+      boxes.push([bx, by, w, h]);
+      x.globalAlpha = L.alpha ?? 1;
+      if (L.plaque) {
+        // A town's name on a small dark plaque, gold-edged, like the big games' city labels
+        x.fillStyle = 'rgba(38, 25, 13, 0.88)'; x.strokeStyle = 'rgba(243, 213, 138, 0.7)'; x.lineWidth = px(1.2);
+        x.beginPath(); x.roundRect(bx, by, w, h, px(4)); x.fill(); x.stroke();
+        x.fillStyle = L.fill; x.fillText(L.text, it.X, it.Y + L.dy + px(0.5));
+      } else label(L.text, it.X, it.Y + L.dy, L.font, L.fill);
+      x.globalAlpha = 1;
     }
     if (this.pin) {
       const X = sx(this.pin.x), Y = sy(this.pin.z);
@@ -4036,8 +4146,10 @@ export class Hud {
     const ctl = el('div', 'map-ctl');
     ctl.innerHTML = '<button class="mm-b wide" data-world title="The whole known world, and the ships between its lands">World</button><button class="mm-b" data-z="1" title="Zoom in">+</button><button class="mm-b" data-z="-1" title="Zoom out">−</button><button class="mm-b me" title="Centre on you">◎</button>';
     const legend = el('div', 'map-legend');
-    for (const [f, name] of [['towns', 'Towns'], ['landmarks', 'Landmarks'], ['post', 'Charter Post'], ['services', 'Banks, crafting, shops, taverns, temples'], ['quests', 'Objectives'], ['waymarks', 'Waymarks'], ['events', 'Events'], ['tasks', 'Tasks'], ['bosses', 'Bosses'], ['people', 'People']] as const) {
-      const chip = el('button', 'chip on', name);
+    for (const [f, name, tip] of [['quests', 'Quests', 'Your objectives, and people with work'], ['towns', 'Towns', 'Towns and villages (hover one to see what it has)'], ['waymarks', 'Waymarks', 'Blue: travel by clicking. Grey: walk up to one to attune it'], ['events', 'Events', 'Events under way'], ['bosses', 'Bosses', 'World bosses and Shardfalls'], ['tasks', 'Tasks', 'Parish tasks and treasure maps'], ['landmarks', 'Places', 'Dungeons, delves, vistas and the places you have found'], ['services', 'Services', 'Bank, crafting, merchants, stables, temples, taverns (zoom in to a town)'], ['post', 'Post', 'Charter Post stops and festival stalls'], ['people', 'People', 'Townsfolk (zoom right in)']] as const) {
+      const chip = el('button', 'chip' + (V.hidden.has(f) ? '' : ' on'));
+      chip.innerHTML = `<img src="${legendIcon(f)}" alt="">${name}`;
+      chip.title = tip;
       chip.addEventListener('click', () => { if (V.hidden.has(f)) V.hidden.delete(f); else V.hidden.add(f); chip.classList.toggle('on', !V.hidden.has(f)); this.ctx.sfx('click'); });
       legend.append(chip);
     }
