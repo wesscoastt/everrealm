@@ -21,9 +21,10 @@ function box(g: THREE.Object3D, w: number, h: number, d: number, c: string, x: n
 }
 
 /** The thing a defend event is about. */
-export function wardMesh(look: 'well' | 'fold'): THREE.Group {
+export function wardMesh(look: 'well' | 'fold' | 'nests'): THREE.Group {
   const g = new THREE.Group();
-  if (look === 'well') {
+  if (look === 'nests') nests(g);
+  else if (look === 'well') {
     // A ring of dressed stone, a timber frame over it with a windlass and rope, a bucket on the lip
     const stones = ['#b8ac94', '#a89c84', '#c4b8a0'];
     for (let i = 0; i < 12; i++) {
@@ -187,5 +188,70 @@ export function brokenFold(): THREE.Group {
   for (const [x, z] of [[-2.85, -2.85], [2.85, -2.85], [-2.85, 2.85], [2.85, 2.85], [0, -2.85]]) box(g, 0.14, 1.2, 0.14, '#4a3420', x, 0.6, z);
   box(g, 1.4, 0.12, 1.2, '#b8a060', -1.6, 0.06, -1.5);
   for (let i = 0; i < 4; i++) box(g, 0.3, 0.14, 0.2, '#e8e2d4', Math.cos(i * 1.9) * 1.8, 0.07, Math.sin(i * 1.9) * 1.6, i);
+  return g;
+}
+
+/** Turtle eggs: a clutch of round white eggs half in the sand. */
+export function eggMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const sand = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat('#e2d2a4'));
+  sand.scale.set(1, 0.35, 1); g.add(sand);
+  const egg = new THREE.SphereGeometry(0.12, 10, 8);
+  for (let i = 0; i < 7; i++) {
+    const m = new THREE.Mesh(egg, mat(i % 3 ? '#f4efe2' : '#ebe4d2'));
+    const a = i * 0.9, r = i ? 0.16 + (i % 2) * 0.08 : 0;
+    m.position.set(Math.cos(a) * r, 0.14 + (i % 2) * 0.06, Math.sin(a) * r);
+    m.castShadow = true; g.add(m);
+  }
+  return g;
+}
+
+/** A nesting beach: mounds of turned sand, each marked by the watchers with a driftwood stake and a strip of red rag. */
+function nests(g: THREE.Group): void {
+  const mound = new THREE.SphereGeometry(0.75, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+  const spots: [number, number][] = [[0, 0], [2.2, 0.8], [-1.9, 1.3], [0.9, -2.1], [-1.4, -1.8], [2.6, -1.6]];
+  spots.forEach(([x, z], i) => {
+    const m = new THREE.Mesh(mound, mat(i % 2 ? '#dccb98' : '#e6d6a6'));
+    m.scale.set(1, 0.4, 1); m.position.set(x, 0, z); m.receiveShadow = true; g.add(m);
+    box(g, 0.08, 1.1, 0.08, '#9a8a70', x + 0.6, 0.55, z + 0.2, 0, 0.12);
+    box(g, 0.05, 0.22, 0.14, '#b83a2a', x + 0.66, 1.0, z + 0.2);
+    // a few eggs showing where the sand's been scraped
+    if (i % 2 === 0) for (let k = 0; k < 3; k++) box(g, 0.16, 0.14, 0.16, '#f2ecde', x + (k - 1) * 0.2, 0.25, z - 0.3);
+  });
+  // the watchers' tally board on a post
+  box(g, 0.12, 1.5, 0.12, '#6a5238', -3.2, 0.75, 0);
+  box(g, 0.9, 0.6, 0.06, '#a08660', -3.2, 1.35, 0.06);
+  for (let k = 0; k < 4; k++) box(g, 0.04, 0.3, 0.02, '#2a2420', -3.5 + k * 0.12, 1.35, 0.1);
+}
+
+/** A goat: rough brown and white, short horns, a beard. */
+export function goatMesh(dark = false): THREE.Group {
+  const g = new THREE.Group();
+  const coat = dark ? '#5a4232' : '#b89a72', light = '#e8dcc4';
+  box(g, 0.46, 0.42, 0.85, coat, 0, 0.62, 0);
+  box(g, 0.48, 0.12, 0.5, light, 0, 0.44, 0.05);
+  box(g, 0.24, 0.3, 0.3, coat, 0, 0.92, 0.5);
+  box(g, 0.2, 0.18, 0.2, light, 0, 0.86, 0.68);
+  box(g, 0.08, 0.16, 0.06, '#d8d0c0', 0, 0.7, 0.72);
+  for (const s of [-1, 1]) {
+    box(g, 0.05, 0.22, 0.05, '#3a3028', s * 0.08, 1.14, 0.44, 0, s * 0.35);
+    box(g, 0.14, 0.05, 0.08, coat, s * 0.17, 0.98, 0.46);
+  }
+  box(g, 0.06, 0.2, 0.06, coat, 0, 0.82, -0.44, 0, 0.6);
+  for (const [x, z] of [[-0.14, -0.3], [0.14, -0.3], [-0.14, 0.3], [0.14, 0.3]]) box(g, 0.09, 0.42, 0.09, '#3a3028', x, 0.21, z);
+  return g;
+}
+
+/** Nests dug out by the lizards: holes in the sand, broken shell round them (WORLD_STATES 'dug'). */
+export function dugNests(): THREE.Group {
+  const g = new THREE.Group();
+  const hole = new THREE.CircleGeometry(0.6, 12).rotateX(-Math.PI / 2);
+  const spots: [number, number][] = [[0, 0], [2.2, 0.8], [-1.9, 1.3], [0.9, -2.1], [-1.4, -1.8], [2.6, -1.6]];
+  for (const [x, z] of spots) {
+    const h = new THREE.Mesh(hole, new THREE.MeshBasicMaterial({ color: '#8a7650', transparent: true, opacity: 0.85, depthWrite: false }));
+    h.position.set(x, 0.04, z); g.add(h);
+    for (let k = 0; k < 5; k++) box(g, 0.12, 0.03, 0.08, '#f2ecde', x + Math.cos(k * 1.3) * 0.75, 0.03, z + Math.sin(k * 1.3) * 0.7, k);
+    box(g, 0.08, 0.6, 0.08, '#9a8a70', x + 0.7, 0.15, z + 0.3, 0, 1.2);
+  }
   return g;
 }

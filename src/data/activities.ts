@@ -28,11 +28,11 @@ export interface EventDef {
   // waves. It can be something to hold, fires to put out, or things to carry. It can open with a call for help, and how it
   // ends decides what comes next and what's left in the world.
   /** Something to hold. The creatures go for it until you hit them, and if it breaks the event is lost. hp counts blows. */
-  ward?: { label: string; hp: number; look: 'well' | 'fold' };
+  ward?: { label: string; hp: number; look: 'well' | 'fold' | 'nests' };
   /** Fires that break out one after another and spread. Put each out with E before it burns down; `lose` burnt down loses it. */
   fires?: { count: number; lose: number };
   /** Things scattered about to pick up with E. */
-  gather?: { count: number; label: string; look: 'cutting' | 'sheep' };
+  gather?: { count: number; look: 'cutting' | 'sheep' | 'egg' | 'goat'; /** what you press E to do */ act: string; /** what the tracker counts */ noun: string };
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
   call?: { who: string; text: string; secs: number };
   /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
@@ -43,9 +43,12 @@ export interface EventDef {
 }
 
 /** What a chain's ending can leave in the world until a later event puts it right. Every player on the realm sees the same. */
-export const WORLD_STATES: Record<string, { x: number; z: number; r: number; look: 'burnt' | 'hurdles' | 'none'; guards?: { type: EnemyType; count: number }; note: string }> = {
+export const WORLD_STATES: Record<string, { x: number; z: number; r: number; look: 'burnt' | 'hurdles' | 'dug' | 'none'; guards?: { type: EnemyType; count: number }; note: string }> = {
   terracesburnt: { x: 8828, z: 958, r: 11, look: 'burnt', note: 'The top terrace at Cala Roja burned. The vines are black stumps.' },
   wellsheld: { x: 7496, z: -196, r: 9, look: 'none', guards: { type: 'saltreaver', count: 4 }, note: 'Salt reavers hold Tenwells\' outer wells.' },
+  nestsdug: { x: 5100, z: 3460, r: 4, look: 'dug', note: 'The lizards dug out the turtle nests on Conch Key\'s beach.' },
+  pensbroken: { x: 7186, z: 1625, r: 6, look: 'hurdles', note: 'Branchley\'s goat pens are broken and the goats are in the wold.' },
+  heldfold: { x: 6970, z: -1500, r: 6, look: 'hurdles', note: 'Lew Garth\'s fold on the Held is down and his sheep are on the fell.' },
   foldbroken: { x: 8615, z: -1054, r: 6, look: 'hurdles', note: 'The hurdles of Cold Harbour\'s fold are down and the sheep are loose on the cliff.' },
 };
 
@@ -74,10 +77,18 @@ export const EVENTS: EventDef[] = [
   // Morrow (owner 2026-11-26: "it also needs events dungeons all that"): two in every region, each from that country's own
   // trouble, the places found flat and dry and off the roads, near the towns that would send for help
   { id: 'ev-mcauseway', name: 'Snakes on the Causeway', region: 'keys', x: 5151, z: 3369, goal: 'Clear the mangrove snakes off the causeway before the Conch carts come through', waves: [{ type: 'mangrovesnake', count: 4 }, { type: 'mangrovesnake', count: 4 }], leader: 'mangrovesnake', time: 300, cooldown: 420, xp: 900, marks: [16, 28], loot: [{ item: 'adder_skin', chance: 1 }] },
-  { id: 'ev-mturtles', name: 'The Turtle Beach', region: 'keys', x: 5100, z: 3460, goal: 'Drive the key lizards off the turtle nests before the eggs are gone', waves: [{ type: 'keylizard', count: 3 }, { type: 'keylizard', count: 4 }], leader: 'keylizard', time: 300, cooldown: 420, xp: 880, marks: [16, 28], loot: [{ item: 'lizard_hide', chance: 1 }] },
+  { id: 'ev-mturtles', name: 'The Turtle Beach', region: 'keys', x: 5100, z: 3460, goal: 'Keep the key lizards off the turtle nests before the eggs are gone', waves: [{ type: 'keylizard', count: 3 }, { type: 'keylizard', count: 4 }], leader: 'keylizard', time: 300, cooldown: 420, xp: 880, marks: [16, 28], loot: [{ item: 'lizard_hide', chance: 1 }],
+    ward: { label: 'The turtle nests', hp: 50, look: 'nests' },
+    call: { who: 'Sal Mudge', text: 'Lizards on the nesting beach! They\'re digging! Every egg they get is one less turtle back here in thirty years. Help me!', secs: 12 },
+    won: { clear: 'nestsdug', say: 'They\'ve gone back to their burrows up in the dune scrub. If someone cleared those out, the nests would have a quiet season for once.' },
+    lost: { set: 'nestsdug', say: 'They\'ve had half the nests open. There are still eggs in the sand, if we\'re quick. Help me bury them again.' } },
   { id: 'ev-mglims', name: 'Glim Night at Reedwater', region: 'glades', x: 7770, z: 2536, goal: 'Put out the glims drifting in over the marsh towards the stilt walks', waves: [{ type: 'glim', count: 4 }, { type: 'glim', count: 4 }], leader: 'glim', time: 300, cooldown: 420, xp: 1000, marks: [18, 30], loot: [{ item: 'jelly_residue', chance: 1 }] },
   { id: 'ev-mwebs', name: 'Webs on the Punt Channel', region: 'glades', x: 7615, z: 2655, goal: 'Cut the glade spiders out of the punt channel before they web it shut', waves: [{ type: 'gladespider', count: 3 }, { type: 'gladelizard', count: 2 }], leader: 'gladespider', time: 300, cooldown: 420, xp: 1050, marks: [18, 30], loot: [{ item: 'lizard_hide', chance: 1 }] },
-  { id: 'ev-mlynx', name: 'The Lynx Run', region: 'amberwold', x: 7186, z: 1625, goal: 'Turn the amber lynxes back from Branchley’s goat pens', waves: [{ type: 'amberlynx', count: 3 }, { type: 'amberlynx', count: 3 }], leader: 'amberlynx', time: 300, cooldown: 420, xp: 1120, marks: [19, 32], loot: [{ item: 'wolf_pelt', chance: 1 }] },
+  { id: 'ev-mlynx', name: 'The Lynx Run', region: 'amberwold', x: 7186, z: 1625, goal: 'Keep the amber lynxes out of Branchley’s goat pens', ward: { label: 'The goat pens', hp: 60, look: 'fold' },
+    call: { who: 'Hester Crane', text: 'Lynx at the pens! Three of them, maybe more in the trees! I can\'t hold them off with a crook!', secs: 12 },
+    won: { clear: 'pensbroken', say: 'They\'ve run back into the wold. There\'s a lynx den under the windfall east of here. That\'s where they keep coming from.' },
+    lost: { set: 'pensbroken', say: 'The pens are down and the goats have bolted into the trees. Help me find them before dark, before the lynx do.' },
+    waves: [{ type: 'amberlynx', count: 3 }, { type: 'amberlynx', count: 3 }], leader: 'amberlynx', time: 300, cooldown: 420, xp: 1120, marks: [19, 32], loot: [{ item: 'wolf_pelt', chance: 1 }] },
   { id: 'ev-mmoths', name: 'Lamp-Moth Swarm', region: 'amberwold', x: 7180, z: 1500, goal: 'Drive the lamp-moths off the old road’s lanterns before they put every one out', waves: [{ type: 'lampmoth', count: 4 }, { type: 'lampmoth', count: 4 }], leader: 'lampmoth', time: 300, cooldown: 420, xp: 1120, marks: [19, 32], loot: [{ item: 'moth_dust', chance: 1 }] },
   { id: 'ev-mjackals', name: 'Jackals in the Terraces', region: 'bright', x: 8845, z: 951, goal: 'Run the terrace jackals out of Cala’s vines before the vintage', waves: [{ type: 'terracejackal', count: 3 }, { type: 'terracejackal', count: 3 }], leader: 'terracejackal', time: 300, cooldown: 420, xp: 1200, marks: [20, 34], loot: [{ item: 'wolf_pelt', chance: 1 }] },
   { id: 'ev-mbeetles', name: 'Beetles in the White Quarry', region: 'bright', x: 8280, z: 1100, goal: 'Clear the quarry beetles out of the white workings so the cutters can go back', waves: [{ type: 'quarrybeetle', count: 3 }, { type: 'quarrybeetle', count: 3 }], leader: 'quarrybeetle', time: 300, cooldown: 420, xp: 1200, marks: [20, 34], loot: [{ item: 'white_chip', chance: 1 }] },
@@ -96,7 +107,11 @@ export const EVENTS: EventDef[] = [
     lost: { set: 'foldbroken', say: 'They broke the hurdles. The sheep are all over the cliff. Help me find them before the hounds come back for them.' } },
   { id: 'ev-mrisen', name: 'The Risen on the Moor', region: 'greywaste', x: 6970, z: -1150, goal: 'Lay the risen down before they walk as far as Northgate’s fields', waves: [{ type: 'risen', count: 3 }, { type: 'risen', count: 3 }], leader: 'risen', time: 300, cooldown: 420, xp: 1700, marks: [26, 46], loot: [{ item: 'grave_iron', chance: 1 }] },
   { id: 'ev-mwights', name: 'Wights at the Dig', region: 'held', x: 7364, z: -1884, goal: 'Hold the diggers’ camp against the barrow-wights coming up out of the dark', waves: [{ type: 'risen', count: 3 }, { type: 'barrowwight', count: 2 }], leader: 'barrowwight', time: 300, cooldown: 420, xp: 1900, marks: [30, 52], loot: [{ item: 'grave_iron', chance: 1 }] },
-  { id: 'ev-mtroll', name: 'A Troll at the Folds', region: 'held', x: 6970, z: -1500, goal: 'Bring down the fell troll that has come down to the herders’ folds, and what follows it', waves: [{ type: 'cavebear', count: 2 }, { type: 'felltroll', count: 1 }], leader: 'felltroll', time: 360, cooldown: 480, xp: 2000, marks: [32, 56], loot: [{ item: 'troll_hide', chance: 1 }] },
+  { id: 'ev-mtroll', name: 'A Troll at the Folds', region: 'held', x: 6970, z: -1500, goal: 'Keep the fell troll and what follows it out of Lew Garth’s fold', waves: [{ type: 'cavebear', count: 2 }, { type: 'felltroll', count: 1 }], leader: 'felltroll', time: 360, cooldown: 480, xp: 2000, marks: [32, 56], loot: [{ item: 'troll_hide', chance: 1 }],
+    ward: { label: 'The fold', hp: 70, look: 'fold' },
+    call: { who: 'Lew Garth', text: 'There\'s a troll come down off the fell, and the bears are following it for the leavings! It\'s heading for my fold!', secs: 12 },
+    won: { clear: 'heldfold', say: 'It came down the scree from the old cave above the tarn. The bears will have found its larder by now. Clear it, or another one will come for it.' },
+    lost: { set: 'heldfold', say: 'It\'s through the hurdles. What it didn\'t eat has run up the fell. They\'ll die of cold up there by morning if nobody brings them down.' } },
   // The chains' other links: they only flare up once the one before has ended a certain way (after), and they put the
   // world back as it was, or leave it worse
   { id: 'ev-mterracefire', name: 'Fire on the Terraces', region: 'bright', x: 8828, z: 958, goal: 'Put out the fires on Cala Roja’s top terrace before the whole hill goes up', waves: [], fires: { count: 8, lose: 3 }, time: 240, cooldown: 900, xp: 1240, marks: [22, 36], loot: [{ item: 'olive_bread', chance: 0.6 }],
@@ -106,7 +121,7 @@ export const EVENTS: EventDef[] = [
   { id: 'ev-mlanding', name: 'The Black-Runners\' Landing', region: 'bright', x: 8802, z: 996, goal: 'Catch the black-runners at the cove before their boat takes the cargo off', after: { id: 'ev-mterracefire', result: 'win' }, waves: [{ type: 'blackrunner', count: 3 }, { type: 'blackrunner', count: 3 }], leader: 'blackrunner', time: 240, cooldown: 900, xp: 1380, marks: [24, 40], loot: [{ item: 'black_shard', chance: 1 }],
     won: { say: 'They lit my hill to land a few casks. The casks are ours now. Cala Roja won\'t forget who came running.' },
     lost: { say: 'The boat\'s away. They\'ll be back when the hill is dry again.' } },
-  { id: 'ev-mcuttings', name: 'What the Fire Left', region: 'bright', x: 8828, z: 958, goal: 'Find the vine cuttings that came through the fire so the terrace can be planted again', after: { id: 'ev-mterracefire', result: 'fail' }, waves: [{ type: 'terracejackal', count: 2 }], gather: { count: 7, label: 'the vine cuttings', look: 'cutting' }, time: 240, cooldown: 900, xp: 1100, marks: [18, 30], loot: [{ item: 'olive_bread', chance: 0.6 }],
+  { id: 'ev-mcuttings', name: 'What the Fire Left', region: 'bright', x: 8828, z: 958, goal: 'Find the vine cuttings that came through the fire so the terrace can be planted again', after: { id: 'ev-mterracefire', result: 'fail' }, waves: [{ type: 'terracejackal', count: 2 }], gather: { count: 7, look: 'cutting', act: 'Pick up the vine cuttings', noun: 'cuttings' }, time: 240, cooldown: 900, xp: 1100, marks: [18, 30], loot: [{ item: 'olive_bread', chance: 0.6 }],
     won: { clear: 'terracesburnt', say: 'They\'ll take. Heeled in by tonight, and in three years it\'s a terrace again. Thank you.' } },
   { id: 'ev-mreavercamp', name: 'The Reaver Camp', region: 'glassflats', x: 7590, z: -200, goal: 'Break the reavers’ camp on the flats so they can’t come at the wells again', after: { id: 'ev-mreavers', result: 'win' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 4 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1700, marks: [28, 46], loot: [{ item: 'black_glass', chance: 1 }, { item: 'callis_red', chance: 0.4 }],
     won: { say: 'Camp\'s broken and their water skins are cut. They\'ll have to go a long way round to find another well.' } },
@@ -115,8 +130,20 @@ export const EVENTS: EventDef[] = [
     won: { clear: 'wellsheld', say: 'The wells are ours. Somebody fetch rope and a clean bucket, and nobody drink from it until I\'ve tasted it.' } },
   { id: 'ev-mhoundden', name: 'The Hounds\' Den', region: 'greywaste', x: 8580, z: -1100, goal: 'Clear the waste hounds out of their den in the rocks above Cold Harbour', after: { id: 'ev-mhounds', result: 'win' }, waves: [{ type: 'wastehound', count: 3 }, { type: 'wastehound', count: 4 }], leader: 'wastehound', time: 300, cooldown: 900, xp: 1820, marks: [28, 48], loot: [{ item: 'wolf_pelt', chance: 1 }],
     won: { say: 'The den\'s empty. First quiet night at the fold since my father had it.' } },
-  { id: 'ev-mstrays', name: 'The Scattered Flock', region: 'greywaste', x: 8615, z: -1054, goal: 'Bring the sheep back from the cliff before the hounds find them', after: { id: 'ev-mhounds', result: 'fail' }, waves: [{ type: 'wastehound', count: 2 }], gather: { count: 6, label: 'a strayed sheep', look: 'sheep' }, time: 240, cooldown: 900, xp: 1500, marks: [24, 40], loot: [{ item: 'wolf_pelt', chance: 0.6 }],
+  { id: 'ev-mstrays', name: 'The Scattered Flock', region: 'greywaste', x: 8615, z: -1054, goal: 'Bring the sheep back from the cliff before the hounds find them', after: { id: 'ev-mhounds', result: 'fail' }, waves: [{ type: 'wastehound', count: 2 }], gather: { count: 6, look: 'sheep', act: 'Bring the sheep back', noun: 'sheep' }, time: 240, cooldown: 900, xp: 1500, marks: [24, 40], loot: [{ item: 'wolf_pelt', chance: 0.6 }],
     won: { clear: 'foldbroken', say: 'That\'s every one of them. I\'ll have the hurdles up again by dark.' } },
+  { id: 'ev-mburrows', name: 'The Lizards\' Burrows', region: 'keys', x: 5130, z: 3430, goal: 'Clear the key lizards out of their burrows in the dune scrub', after: { id: 'ev-mturtles', result: 'win' }, waves: [{ type: 'keylizard', count: 3 }, { type: 'keylizard', count: 4 }], leader: 'keylizard', time: 300, cooldown: 900, xp: 960, marks: [18, 30], loot: [{ item: 'lizard_hide', chance: 1 }],
+    won: { say: 'Burrows empty. The turtles get a quiet season. I\'ll put it in the tally book with your name on it.' } },
+  { id: 'ev-meggs', name: 'Eggs in the Sand', region: 'keys', x: 5100, z: 3460, goal: 'Find the turtle eggs the lizards dug up and bury them again before the sun cooks them', after: { id: 'ev-mturtles', result: 'fail' }, waves: [{ type: 'keylizard', count: 2 }], gather: { count: 6, look: 'egg', act: 'Bury the eggs again', noun: 'clutches' }, time: 240, cooldown: 900, xp: 820, marks: [14, 26], loot: [{ item: 'lizard_hide', chance: 0.6 }],
+    won: { clear: 'nestsdug', say: 'Six clutches back in the sand. Not all of them will take, but most will. Thank you.' } },
+  { id: 'ev-mlynxden', name: 'The Lynx Den', region: 'amberwold', x: 7220, z: 1650, goal: 'Drive the amber lynxes out of their den under the windfall', after: { id: 'ev-mlynx', result: 'win' }, waves: [{ type: 'amberlynx', count: 3 }, { type: 'amberlynx', count: 4 }], leader: 'amberlynx', time: 300, cooldown: 900, xp: 1200, marks: [20, 34], loot: [{ item: 'wolf_pelt', chance: 1 }],
+    won: { say: 'Den\'s empty. My goats will be fat by autumn, and I\'ll owe you a cheese.' } },
+  { id: 'ev-mgoats', name: 'Goats in the Wold', region: 'amberwold', x: 7186, z: 1625, goal: 'Find Hester Crane’s goats in the wold and bring them back to the pens', after: { id: 'ev-mlynx', result: 'fail' }, waves: [{ type: 'amberlynx', count: 2 }], gather: { count: 6, look: 'goat', act: 'Bring the goat back', noun: 'goats' }, time: 240, cooldown: 900, xp: 1050, marks: [18, 30], loot: [{ item: 'wolf_pelt', chance: 0.6 }],
+    won: { clear: 'pensbroken', say: 'Every one of them, and the old nanny too. I\'ll have the pens up again by tonight.' } },
+  { id: 'ev-mlarder', name: 'The Troll\'s Larder', region: 'held', x: 7010, z: -1540, goal: 'Clear the bears out of the troll’s old cave above the tarn', after: { id: 'ev-mtroll', result: 'win' }, waves: [{ type: 'cavebear', count: 2 }, { type: 'cavebear', count: 3 }], leader: 'cavebear', time: 330, cooldown: 900, xp: 2100, marks: [34, 58], loot: [{ item: 'troll_hide', chance: 0.5 }],
+    won: { say: 'Nothing left up there to bring another one down. I\'ll sleep in the house tonight instead of by the fold.' } },
+  { id: 'ev-mfell', name: 'Sheep on the Fell', region: 'held', x: 6970, z: -1500, goal: 'Bring Lew Garth’s sheep down off the fell before the cold takes them', after: { id: 'ev-mtroll', result: 'fail' }, waves: [{ type: 'cavebear', count: 1 }], gather: { count: 6, look: 'sheep', act: 'Bring the sheep back', noun: 'sheep' }, time: 270, cooldown: 900, xp: 1800, marks: [28, 48], loot: [{ item: 'troll_hide', chance: 0.3 }],
+    won: { clear: 'heldfold', say: 'All six. They\'re cold, but they\'ll live. I\'ll mend the hurdles before I sleep.' } },
 ];
 
 export interface BossDef {

@@ -6,7 +6,7 @@ import { Duels } from './Duels';
 import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES, WORLD_STATES } from '../data/activities';
-import { brokenFold, burntGround, charMark, cuttingMesh, fireSpot, glintMesh, sheepMesh, wardMesh } from './EventParts';
+import { brokenFold, burntGround, charMark, cuttingMesh, dugNests, eggMesh, fireSpot, glintMesh, goatMesh, sheepMesh, wardMesh } from './EventParts';
 import { EnemyDef, EnemyType, ENEMIES } from '../data/gameplay';
 import { ITEMS } from '../data/items';
 import { Enemy, type EnemyContext } from '../entities/Enemy';
@@ -305,7 +305,8 @@ export class Activities {
     }
     if (def.gather) {
       ev.picks = spots(ev.extra, 6, 22, seed + 5).map((p, i): Pick => {
-        const g = def.gather!.look === 'sheep' ? sheepMesh(i % 4 === 3) : cuttingMesh();
+        const look = def.gather!.look;
+        const g = look === 'sheep' ? sheepMesh(i % 4 === 3) : look === 'goat' ? goatMesh(i % 3 === 2) : look === 'egg' ? eggMesh() : cuttingMesh();
         g.position.copy(p); g.rotation.y = hash2(i, seed, 40) * 6;
         const glint = glintMesh(); g.add(glint);
         if (i >= ev.work) this.host.scene.add(g);
@@ -600,6 +601,7 @@ export class Activities {
           const b = burntGround(ws.r, (x, z) => V.groundBelow(ws.x + 0.5 + x, 140, ws.z + 0.5 + z, true) - gy);
           root = b.root; smokes = b.smokes.map((p) => p.clone().add(new THREE.Vector3(ws.x + 0.5, gy, ws.z + 0.5)));
         } else if (ws.look === 'hurdles') root = brokenFold();
+        else if (ws.look === 'dug') root = dugNests();
         if (root) { root.position.set(ws.x + 0.5, gy, ws.z + 0.5); this.host.scene.add(root); }
         shown = { root, smokes, guards: [], puff: 0 };
         this.stateShown.set(key, shown);
@@ -612,7 +614,8 @@ export class Activities {
       if (!shown) continue;
       // Guards stand there while no event is on the spot (one being fought there brings its own)
       const busy = [...this.live.values()].some((ev) => Math.hypot(ev.def.x - ws.x, ev.def.z - ws.z) < 30);
-      if (shown.root) shown.root.visible = !busy;
+      // (the look steps aside only for a ward put up on the same spot; an event that mends it shows what it is mending)
+      if (shown.root) shown.root.visible = ![...this.live.values()].some((ev) => ev.ward && Math.hypot(ev.def.x - ws.x, ev.def.z - ws.z) < 30);
       if (ws.guards && !busy && !shown.guards.length) {
         for (let i = 0; i < ws.guards.count; i++) {
           const a = (i / ws.guards.count) * Math.PI * 2 + 0.4;
@@ -639,7 +642,7 @@ export class Activities {
       for (const f of ev.fires ?? []) if (f.state === 'burn' && Math.hypot(P.x - f.at.x, P.z - f.at.z) < 2.8 && Math.abs(P.y - f.at.y) < 3)
         out.push({ label: 'Put out the fire', pos: f.at.clone().setY(f.at.y + 1.6), use: () => this.douse(ev, f, true) });
       for (const p of ev.picks ?? []) if (!p.got && Math.hypot(P.x - p.at.x, P.z - p.at.z) < 2.4 && Math.abs(P.y - p.at.y) < 3)
-        out.push({ label: ev.def.gather!.look === 'sheep' ? 'Bring the sheep back' : `Pick up ${ev.def.gather!.label.replace(/^the /, 'the ')}`, pos: p.at.clone().setY(p.at.y + 1.2), use: () => this.carry(ev, p, true) });
+        out.push({ label: ev.def.gather!.act, pos: p.at.clone().setY(p.at.y + 1.2), use: () => this.carry(ev, p, true) });
     }
     return out;
   }
@@ -1221,7 +1224,7 @@ export class Activities {
       const bits: string[] = [];
       if (ev.kills) bits.push(`${kills}/${ev.kills}`);
       if (ev.def.fires) bits.push(`fires out ${work}/${ev.extra}`);
-      if (ev.def.gather) bits.push(`${ev.def.gather.look === 'sheep' ? 'sheep' : 'cuttings'} ${work}/${ev.extra}`);
+      if (ev.def.gather) bits.push(`${ev.def.gather.noun} ${work}/${ev.extra}`);
       if (ev.ward) bits.push(`${ev.def.ward!.label} ${Math.max(0, Math.round((ev.ward.hp / ev.ward.max) * 100))}%`);
       best = { kind: 'event', title: ev.def.name, goal: ev.def.goal, progress: (kills + work) / Math.max(1, ev.kills + ev.extra), count: bits.join(' · '), time: Math.max(0, ev.endsAt - this.clock) };
     }
