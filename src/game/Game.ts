@@ -261,7 +261,7 @@ const PLACE_PIECE: Partial<Record<ThemeId, ThemeId[]>> = { ansbury: ['charter', 
 const UNDER_THEME: Record<string, ThemeId> = {
   'gd-oldman': 'oldman', 'gd-kettle': 'kettle', 'gd-escapement': 'escapement', 'gd-kingsbarrow': 'kingsbarrow', 'pd-blackgull': 'blackgull', 'gd-temple': 'tidebell', 'delve-crypt': 'tregarthen', 'delve-cistern': 'cistern',
   'pd-mortlake': 'mortlake', 'pd-blackcut': 'blackcut', 'delve-badger': 'badger', 'delve-culvert': 'culvert', 'delve-smugglers': 'smugglers',
-  'delve-tinner': 'tinner', 'delve-seep': 'seep', 'delve-hollow': 'badger', 'delve-liftgallery': 'tinner', 'delve-foldbarrow': 'kingsbarrow', 'delve-pumphouse': 'seep', 'delve-reavers': 'tinner', 'delve-runners': 'badger', 'delve-grotto': 'seep', 'delve-glimmer': 'glimmer', 'delve-gullery': 'gullery', 'delve-hob': 'hob', 'delve-holmsey': 'holmsey', 'ink-priory': 'priory',
+  'delve-tinner': 'tinner', 'delve-seep': 'seep', 'delve-hollow': 'badger', 'delve-liftgallery': 'tinner', 'delve-foldbarrow': 'kingsbarrow', 'delve-pumphouse': 'seep', 'delve-reavers': 'tinner', 'delve-runners': 'badger', 'delve-grotto': 'seep', 'delve-tallycut': 'kingsbarrow', 'delve-glimmer': 'glimmer', 'delve-gullery': 'gullery', 'delve-hob': 'hob', 'delve-holmsey': 'holmsey', 'ink-priory': 'priory',
 };
 
 /** Furniture that works as a crafting station once it's set down at home, and what using it says. */

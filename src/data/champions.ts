@@ -23,6 +23,11 @@ export const DELVE_CHAMPIONS: Record<string, Champion> = {
     phases: [{ at: 0.6, say: 'Old Sump thrashes in the sump, and the glims that live in its green water rise round it.', summon: 'glim', n: 2 }, { at: 0.3, storm: true, say: 'The sump boils. The white pipes overhead split and the marsh comes in.' }],
     move: 'A marsh lizard grown huge in the drowned sump: calls the glims up out of the water, then bursts the old pipes and floods the hall.',
   },
+  'delve-tallycut': {
+    name: 'The Tallyman',
+    phases: [{ at: 0.6, say: 'The Tallyman calls the shift by name, and the risen come shuffling up out of the dark to be counted.', summon: 'risen', n: 2 }, { at: 0.3, storm: true, say: 'The Tallyman strikes the prop with his slate, and the roof of the black comes down in a long slide.' }],
+    move: 'The dead foreman of the cut, still counting his shift: calls the risen up out of the workings by name, then strikes out the props and brings the roof down.',
+  },
   'delve-grotto': {
     name: 'Bully Kerr, the Wrecking Master',
     phases: [{ at: 0.6, say: 'Bully Kerr bellows for his crew, and the wreckers come down the ship\'s ladder into the grotto.', summon: 'keywrecker', n: 2 }, { at: 0.3, storm: true, say: 'Bully Kerr knocks the sea-gate wedge out, and the tide comes roaring into the grotto.' }],

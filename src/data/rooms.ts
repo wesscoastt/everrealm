@@ -309,6 +309,16 @@ export const DELVE_ROOMS: Record<string, RoomDef> = {
     waveSays: ['A marsh lizard comes in with the water, slow and heavy.', 'The big ones last: two lizards that have been living in the sump.'],
     chest: [-15, 4],
   },
+  'delve-tallycut': {
+    id: 'tally', kind: 'plates', title: 'The tally stones',
+    start: 'A door of black-stained planks is barred across the cut east. In the floor of the west working are three tally stones, worn hollow where the diggers stood to be counted at the end of a shift. The door was the foreman\'s: it opened when the shift stood its count.',
+    done: 'The third stone goes down with the others still down. Somewhere a bell that isn\'t there rings once, and the bar on the door east lifts.',
+    box: VAULT_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, early: true },
+    plates: [[-16, -4], [-11, 0], [-16, 4]],
+    hold: 6,
+    chest: [-12, -4],
+  },
   'delve-grotto': {
     id: 'lamps', kind: 'levers', title: 'The wreckers\' signal',
     start: 'A gate of ship\'s timbers is barred across the grotto east, and four lamps hang dark round the west cave on hooks. The wreckers light them in an order when a boat comes in: that\'s the signal, and that\'s what opens the gate.',

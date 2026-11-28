@@ -271,6 +271,8 @@ const UNDERWORKS = {
   runnershold: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Sandstone, wall2: B.Timber, floor: B.Sand, floor2: B.Gravel, light: '#ffc890', mobs: ['blackrunner', 'terracejackal'], boss: 'blackrunner', clutter: ['crate', 'barrel', 'chest'] },
   // the Keys': the key wreckers' grotto in the coral rock west of Conch Key, ship's timbers propping its roof
   wreckgrotto: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Sandstone, wall2: B.DarkPlanks, floor: B.Sand, floor2: B.Gravel, light: '#9ae8e0', mobs: ['keywrecker', 'mangrovecrab', 'reefjelly'], boss: 'keywrecker', clutter: ['crate', 'barrel', 'bones'] },
+  // the Greywaste's: an old working of the black west of Cold Harbour, abandoned when its diggers stopped coming up as themselves
+  tallycut: { kind: 'mine', pub: false, depth: 13, reach: 19, wall: B.Blackstone, wall2: B.Timber, floor: B.Gravel, floor2: B.Blackstone, light: '#c8d0d8', mobs: ['risen', 'fendamp', 'wastehound'], boss: 'risen', clutter: ['cart', 'rails', 'bones'] },
   foldbarrow: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.MossyStone, floor: B.StoneBrick, floor2: B.Blackstone, light: '#9fe8ff', mobs: ['risen', 'barrowwight'], boss: 'barrowwight', clutter: ['bones', 'candles', 'chest'] },
   hob: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
@@ -1321,6 +1323,7 @@ function* planBody(): Generator<string, Plan> {
       { id: 'delve-liftgallery', name: 'The Lift Galleries', x: 7655, z: 302, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'liftgallery') },
       { id: 'delve-pumphouse', name: 'The Drowned Pump House', x: 7400, z: 2400, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'pumphouse') },
       { id: 'delve-reavers', name: 'The Reaver Cistern', x: 7650, z: -120, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'reavers') },
+      { id: 'delve-tallycut', name: 'The Tally Cut', x: 8300, z: -900, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'tallycut') },
       { id: 'delve-grotto', name: 'The Wreckers\' Grotto', x: 5060, z: 3300, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'wreckgrotto') },
       { id: 'delve-runners', name: 'The Runners\' Hold', x: 8780, z: 865, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'runnershold') },
       { id: 'delve-foldbarrow', name: 'Fold Barrow', x: 6906, z: -1536, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'foldbarrow') },
