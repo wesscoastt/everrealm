@@ -23,6 +23,11 @@ export const DELVE_CHAMPIONS: Record<string, Champion> = {
     phases: [{ at: 0.6, say: 'Old Sump thrashes in the sump, and the glims that live in its green water rise round it.', summon: 'glim', n: 2 }, { at: 0.3, storm: true, say: 'The sump boils. The white pipes overhead split and the marsh comes in.' }],
     move: 'A marsh lizard grown huge in the drowned sump: calls the glims up out of the water, then bursts the old pipes and floods the hall.',
   },
+  'delve-grotto': {
+    name: 'Bully Kerr, the Wrecking Master',
+    phases: [{ at: 0.6, say: 'Bully Kerr bellows for his crew, and the wreckers come down the ship\'s ladder into the grotto.', summon: 'keywrecker', n: 2 }, { at: 0.3, storm: true, say: 'Bully Kerr knocks the sea-gate wedge out, and the tide comes roaring into the grotto.' }],
+    move: 'The master of the key wreckers, who lights the false lamps on the reef: calls his crew down the ladder, then knocks out the sea-gate wedge and lets the tide in.',
+  },
   'delve-runners': {
     name: 'Pep Duran, the Factor',
     phases: [{ at: 0.6, say: 'Pep Duran whistles through his fingers, and the runners come down out of the stores at a run.', summon: 'blackrunner', n: 2 }, { at: 0.3, storm: true, say: 'Pep Duran kicks the lamp over into the spilled oil, and the hold goes up in a sheet of flame.' }],

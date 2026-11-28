@@ -309,6 +309,23 @@ export const DELVE_ROOMS: Record<string, RoomDef> = {
     waveSays: ['A marsh lizard comes in with the water, slow and heavy.', 'The big ones last: two lizards that have been living in the sump.'],
     chest: [-15, 4],
   },
+  'delve-grotto': {
+    id: 'lamps', kind: 'levers', title: 'The wreckers\' signal',
+    start: 'A gate of ship\'s timbers is barred across the grotto east, and four lamps hang dark round the west cave on hooks. The wreckers light them in an order when a boat comes in: that\'s the signal, and that\'s what opens the gate.',
+    done: 'The fourth lamp catches. Somewhere behind the timbers a bar is lifted, and the gate east swings in on its rope.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 5, ry: Math.PI / 2, early: true },
+    levers: [
+      { at: [-15, -5], label: 'Light the lamp by the casks' },
+      { at: [-13, 4], label: 'Light the lamp on the ladder' },
+      { at: [-19, 0], label: 'Light the high lamp at the back' },
+      { at: [-10, -4], label: 'Light the lamp by the sea door' },
+    ],
+    order: [2, 0, 3, 1],
+    wrong: ['keywrecker', 'mangrovecrab'],
+    clue: [-18, -1, 'A scrap of sailcloth nailed to a timber', 'HIGH LAMP FIRST. THEN THE CASKS. THEN THE SEA DOOR. LADDER LAST.\nGet it wrong and the lads come down to see who\'s lighting their lamps.'],
+    chest: [-15, 4],
+  },
   'delve-runners': {
     id: 'tally', kind: 'waves', title: 'The tally room',
     start: 'The west cave is where the runners count the casks in off the boats, a plank table with the tally book still open on it. As you come in a bell rings somewhere up in the stores, and a grille drops across the way east.',
