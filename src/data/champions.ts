@@ -23,6 +23,11 @@ export const DELVE_CHAMPIONS: Record<string, Champion> = {
     phases: [{ at: 0.6, say: 'Old Sump thrashes in the sump, and the glims that live in its green water rise round it.', summon: 'glim', n: 2 }, { at: 0.3, storm: true, say: 'The sump boils. The white pipes overhead split and the marsh comes in.' }],
     move: 'A marsh lizard grown huge in the drowned sump: calls the glims up out of the water, then bursts the old pipes and floods the hall.',
   },
+  'delve-reavers': {
+    name: 'Old Glare',
+    phases: [{ at: 0.6, say: 'Old Glare hisses, and the reavers who keep it fed come running down the steps.', summon: 'saltreaver', n: 2 }, { at: 0.3, storm: true, say: 'Old Glare\'s stare catches the light through the cistern\'s grates, and the whole hall goes white.' }],
+    move: 'A basilisk grown huge in the cistern\'s dark, kept and fed by the reavers: calls them down to it, then its stare fills the hall with glare.',
+  },
   'delve-foldbarrow': {
     name: 'The Herd-Thane',
     phases: [{ at: 0.6, say: 'The Herd-Thane strikes his crook on the flags, and his herdsmen get up out of their niches.', summon: 'risen', n: 2 }, { at: 0.3, storm: true, say: 'The cold comes off the Herd-Thane like a winter on the fell.' }],

@@ -44,6 +44,80 @@ const SWINGS: Record<string, Key[]> = {
   // the off hand reaching for what's in front of you (picking, opening, patting)
   reach: [[0, -0.3, -0.62, -0.5, 0.4, 0.8, -0.4], [0.35, -0.14, -0.42, -0.72, 0.2, 0.3, -0.93], [0.7, -0.14, -0.44, -0.7, 0.2, 0.35, -0.9], [1.1, -0.3, -0.62, -0.5, 0.4, 0.8, -0.4]],
 };
+// ---------------------------------------------------------------------------------------------------------------
+// The skills (owner 2026-11-27: "first person needs work, lots of skills have no animation need stuff like eso first
+// person level triple a"). Every skill on the bar has a move of its own, both hands keyframed: what it is comes from
+// the skill (its name and what it does), so a thrust stabs, a spin sweeps the blade all the way across, a slam brings
+// both hands down to the ground, a ward puts a palm up behind a disc of light, a heal opens the off hand palm up in a
+// gold glow, a cast pushes the open off hand out with the calling's own colour gathered in it.
+const LIDLE: Pose = [-0.5, -0.5, -0.6, 0.35, 0.35, -0.85];
+/** A move: keys for the right hand, the left, how long it lasts, which hands glow (and from when), and its kick. */
+export interface Move { R?: Key[]; L?: Key[]; dur: number; open?: boolean; glow?: 'L' | 'R' | 'both'; glowAt?: [number, number]; ward?: boolean; kickAt?: number; kick?: number; trail?: [number, number] }
+const MOVES: Record<string, Move> = {
+  slash: { R: SWINGS.s1, L: [K(0, LIDLE), [0.2, -0.56, -0.62, -0.5, 0.4, 0.2, -0.9], K(0.6, LIDLE)], dur: 0.6, trail: [0.12, 0.36] },
+  backhand: { R: SWINGS.s2, dur: 0.6, trail: [0.12, 0.34] },
+  overhead: { R: SWINGS.s3, dur: 0.7, trail: [0.18, 0.4], kickAt: 0.36, kick: 0.05 },
+  thrust: { R: [K(0, READY), [0.12, 0.38, -0.32, -0.4, -0.05, 0.2, -0.98], [0.2, 0.08, -0.2, -0.95, -0.02, 0.08, -1], [0.3, 0.1, -0.22, -0.9, -0.02, 0.1, -1], K(0.5, READY)], dur: 0.5, trail: [0.12, 0.26] },
+  flurry: { R: [K(0, READY), [0.08, 0.08, -0.2, -0.92, 0, 0.08, -1], [0.14, 0.35, -0.3, -0.5, 0, 0.2, -1], [0.22, -0.05, -0.15, -0.92, 0, 0.1, -1], [0.28, 0.35, -0.3, -0.5, 0, 0.2, -1], [0.36, 0.15, -0.25, -0.95, 0, 0.05, -1], K(0.6, READY)], dur: 0.6, trail: [0.04, 0.4] },
+  spin: { R: [K(0, READY), [0.12, 0.75, -0.15, -0.35, 0.95, 0.15, 0.2], [0.26, 0.1, -0.2, -0.75, 0.2, 0.1, -1], [0.38, -0.75, -0.2, -0.4, -0.95, 0.1, 0.15], K(0.7, READY)], L: [K(0, LIDLE), [0.2, -0.72, -0.5, -0.3, 0.3, 0.3, -0.9], K(0.7, LIDLE)], dur: 0.7, trail: [0.1, 0.42], kickAt: 0.26, kick: 0.04 },
+  slam: { R: [K(0, READY), [0.22, 0.2, 0.25, -0.45, 0.05, 0.95, 0.3], [0.34, 0.08, -0.55, -0.72, 0.02, -0.6, -0.8], [0.5, 0.08, -0.5, -0.7, 0.02, -0.55, -0.8], K(0.8, READY)], L: [K(0, LIDLE), [0.22, -0.15, 0.2, -0.45, 0, 0.9, -0.3], [0.34, -0.08, -0.55, -0.72, 0, -0.5, -0.9], [0.5, -0.08, -0.5, -0.7, 0, -0.5, -0.9], K(0.8, LIDLE)], dur: 0.8, trail: [0.24, 0.38], kickAt: 0.34, kick: 0.16 },
+  leap: { R: [K(0, READY), [0.3, 0.25, 0.3, -0.4, 0.05, 0.95, 0.3], [0.44, 0.08, -0.6, -0.72, 0.02, -0.6, -0.8], [0.6, 0.08, -0.5, -0.7, 0.02, -0.55, -0.8], K(0.9, READY)], L: [K(0, LIDLE), [0.3, -0.25, 0.1, -0.4, 0, 0.9, -0.3], [0.44, -0.2, -0.6, -0.6, 0, -0.5, -0.9], K(0.9, LIDLE)], dur: 0.9, trail: [0.32, 0.48], kickAt: 0.44, kick: 0.2 },
+  bash: { L: [K(0, LIDLE), [0.1, -0.42, -0.45, -0.4, 0.3, 0.1, -0.9], [0.2, -0.1, -0.25, -0.88, 0.05, 0, -1], [0.32, -0.12, -0.27, -0.85, 0.05, 0, -1], K(0.55, LIDLE)], R: [K(0, READY), [0.15, 0.62, -0.45, -0.45, 0.1, 0.6, -0.6], K(0.55, READY)], dur: 0.55, kickAt: 0.2, kick: 0.08 },
+  uppercut: { R: [K(0, READY), [0.14, 0.2, -0.6, -0.5, 0.1, -0.4, -0.9], [0.26, 0.05, 0.1, -0.75, 0, 0.95, -0.3], K(0.55, READY)], dur: 0.55, trail: [0.14, 0.3], kickAt: 0.26, kick: 0.05 },
+  warcry: { R: [K(0, READY), [0.15, 0.45, 0.15, -0.55, 0, 1, 0.1], [0.55, 0.45, 0.18, -0.55, 0, 1, 0.1], K(0.8, READY)], L: [K(0, LIDLE), [0.15, -0.4, 0.12, -0.55, 0, 1, 0.1], [0.55, -0.4, 0.15, -0.55, 0, 1, 0.1], K(0.8, LIDLE)], dur: 0.8, glow: 'both', glowAt: [0.12, 0.6], kickAt: 0.15, kick: 0.1 },
+  cast: { L: [K(0, LIDLE), [0.14, -0.3, -0.35, -0.4, 0.1, 0.5, -0.85], [0.26, -0.08, -0.15, -0.88, 0, 0.1, -1], [0.4, -0.08, -0.15, -0.85, 0, 0.1, -1], K(0.65, LIDLE)], R: [K(0, READY), [0.2, 0.62, -0.5, -0.55, -0.1, 0.5, -0.85], K(0.65, READY)], dur: 0.65, open: true, glow: 'L', glowAt: [0.05, 0.45] },
+  castBoth: { L: [K(0, LIDLE), [0.14, -0.3, -0.35, -0.4, 0.1, 0.5, -0.85], [0.26, -0.1, -0.15, -0.88, 0.2, 0.1, -1], [0.4, -0.1, -0.15, -0.85, 0.2, 0.1, -1], K(0.65, LIDLE)], R: [K(0, READY), [0.14, 0.3, -0.3, -0.45, -0.3, 0.5, -0.8], [0.26, 0.12, -0.15, -0.85, -0.2, 0.2, -0.95], [0.4, 0.12, -0.15, -0.82, -0.2, 0.2, -0.95], K(0.65, READY)], dur: 0.65, open: true, glow: 'both', glowAt: [0.05, 0.45], kickAt: 0.26, kick: 0.05 },
+  channel: { L: [K(0, LIDLE), [0.18, -0.12, -0.18, -0.8, 0.15, 0.15, -1], [0.85, -0.12, -0.16, -0.8, 0.15, 0.15, -1], K(1.05, LIDLE)], R: [K(0, READY), [0.18, 0.14, -0.18, -0.8, -0.15, 0.2, -0.95], [0.85, 0.14, -0.16, -0.8, -0.15, 0.2, -0.95], K(1.05, READY)], dur: 1.05, open: true, glow: 'both', glowAt: [0.1, 0.9] },
+  heal: { L: [K(0, LIDLE), [0.2, -0.25, -0.35, -0.55, 0.1, 0.9, -0.3], [0.45, -0.2, -0.22, -0.6, 0.05, 0.95, -0.2], K(0.8, LIDLE)], R: [K(0, READY), [0.3, 0.55, -0.3, -0.6, -0.1, 0.6, -0.8], K(0.8, READY)], dur: 0.8, open: true, glow: 'L', glowAt: [0.15, 0.7] },
+  ward: { L: [K(0, LIDLE), [0.15, -0.2, -0.15, -0.55, 0, 0.1, -1], [0.6, -0.2, -0.12, -0.55, 0, 0.1, -1], K(0.85, LIDLE)], dur: 0.85, open: true, glow: 'L', glowAt: [0.1, 0.7], ward: true },
+  throw: { R: [K(0, READY), [0.16, 0.45, 0.2, -0.2, 0, 0.9, 0.4], [0.28, 0.1, -0.1, -0.95, 0, 0.2, -1], K(0.55, READY)], L: [K(0, LIDLE), [0.16, -0.2, -0.2, -0.8, 0.2, 0.2, -1], K(0.55, LIDLE)], dur: 0.55, trail: [0.16, 0.3] },
+  dash: { R: [K(0, READY), [0.1, 0.55, -0.62, -0.3, 0, 0.4, -0.9], [0.3, 0.55, -0.62, -0.35, 0, 0.4, -0.9], K(0.45, READY)], L: [K(0, LIDLE), [0.1, -0.55, -0.62, -0.3, 0.3, 0.4, -0.9], [0.3, -0.55, -0.62, -0.35, 0.3, 0.4, -0.9], K(0.45, LIDLE)], dur: 0.45, kickAt: 0.05, kick: 0.06 },
+  stomp: { R: [K(0, READY), [0.18, 0.4, 0.0, -0.5, 0.05, 0.9, 0.2], [0.3, 0.3, -0.55, -0.6, 0.02, -0.3, -0.9], K(0.6, READY)], L: [K(0, LIDLE), [0.18, -0.35, 0.0, -0.5, 0, 0.9, -0.2], [0.3, -0.3, -0.55, -0.6, 0, -0.3, -0.9], K(0.6, LIDLE)], dur: 0.6, kickAt: 0.3, kick: 0.14 },
+  whistle: { L: [K(0, LIDLE), [0.2, -0.05, -0.15, -0.25, 0, 0.3, -1], [0.65, -0.05, -0.15, -0.25, 0, 0.3, -1], K(0.85, LIDLE)], dur: 0.85 },
+  crouch: { R: [K(0, READY), [0.2, 0.5, -0.58, -0.6, -0.16, 0.5, -0.85], K(0.65, READY)], L: [K(0, LIDLE), [0.2, -0.5, -0.62, -0.6, 0.35, 0.35, -0.85], K(0.65, LIDLE)], dur: 0.65 },
+  shoot: { R: SWINGS.shoot, dur: 0.62 },
+  volley: { R: [[0, 0.06, -0.3, -0.62, 0.05, 0.99, -0.1], [0.25, 0.1, 0.05, -0.55, 0.05, 0.9, 0.4], [0.35, 0.1, 0.08, -0.6, 0.05, 0.9, 0.4], [0.6, 0.06, -0.3, -0.62, 0.05, 0.99, -0.1]], dur: 0.6, kickAt: 0.35, kick: 0.04 },
+};
+/** The move a skill makes, from the animation it asks of the body and what it is (its name and what it does). */
+export function moveFor(anim: string, name: string, desc: string, bow: boolean): string {
+  const t = (name + ' ' + desc).toLowerCase(), has = (...w: string[]) => w.some((x) => t.includes(x));
+  if (bow && (anim === 'shoot' || anim === 'attack')) return has('volley', 'rain', 'hail of', 'barrage') ? 'volley' : 'shoot';
+  const elemental = has('fire', 'frost', 'ice', 'lightning', 'storm', 'bolt', 'flame', 'spark', 'smoulder', 'ember', 'cinder', 'element', 'curse', 'hex', 'spirit', 'shadow', 'grave');
+  switch (anim) {
+    case 'shoot': return has('volley', 'rain', 'hail of', 'barrage') ? 'volley' : 'shoot';
+    case 'heal':
+      if (has('ward', 'barrier', 'aegis', 'shield of', 'bulwark', 'guard', 'cover')) return 'ward';
+      if (has(' cry', 'shout', 'roar', 'rally', 'war ', 'horn', 'banner', 'howl', 'bellow', 'blade', 'poison', 'hold fast')) return 'warcry';
+      if (elemental || has('ring of', 'wall')) return 'castBoth';
+      return 'heal';
+    case 'cast': return has('channel', 'beam', 'stream', 'drain', 'siphon') ? 'channel' : 'castBoth';
+    case 'cleave':
+      if (has('spin', 'whirl', 'sweep', 'circle', 'cyclone', 'around you', 'all round')) return 'spin';
+      if (has('leap', 'jump', 'pounce', 'vault')) return 'leap';
+      if (has('slam', 'smash', 'quake', 'crush', 'hammer', 'ground', 'shatter', 'grip')) return 'slam';
+      if (has('challenge', 'taunt', 'dread', 'fear', 'terror', 'rebuke')) return 'warcry';
+      if (elemental) return 'castBoth';
+      return 'overhead';
+    case 'attack':
+      if (has('bash', 'shove', 'shield', 'buffet', 'knock back', 'knocks back')) return 'bash';
+      if (has('flurry', 'rapid', 'twin', 'quick', 'thousand', 'flurries', 'three blows', 'two blows', 'backstab')) return 'flurry';
+      if (has('thrust', 'stab', 'pierce', 'lunge', 'sting', 'fang', 'impale', 'skewer', 'spear', 'riposte')) return 'thrust';
+      if (has('uppercut', 'rising', 'launch', 'upward', 'bell')) return 'uppercut';
+      if (has('sand', 'snare', 'net', 'caltrop', 'dust', 'toss')) return 'throw';
+      if (has('tumble', 'roll', 'step')) return 'dash';
+      if (has('finish', 'execute', 'cleave', 'chop')) return 'overhead';
+      if (elemental) return 'cast';
+      // the rest alternate, by name, between the forehand and the backhand, so a bar of them doesn't look the same
+      return [...name].reduce((n, c) => n + c.charCodeAt(0), 0) % 2 ? 'backhand' : 'slash';
+    case 'stomp': return 'stomp';
+    case 'dash': return 'dash';
+    case 'throw': return 'throw';
+    case 'whistle': return 'whistle';
+    case 'crouch': return 'crouch';
+    default: return 'slash';
+  }
+}
+
 const ROD_HOLD: Pose = [0.36, -0.42, -0.56, 0.0, 0.62, -0.78];
 const BOW_HOLD: Pose = [0.06, -0.32, -0.62, 0.05, 0.99, -0.1];
 // (the left hand's way is where its knuckles face: a shield's face, a lamp's front, a book's cover)
@@ -53,7 +127,7 @@ const LEFT_BLOCK: Pose = [-0.14, -0.3, -0.5, 0.05, 0.05, -1];
 /** The shoulders the forearms are solved from: below and to the side of the view, a little behind the eyes. */
 const SHOULDER_R = new THREE.Vector3(0.42, -0.95, 0.25), SHOULDER_L = new THREE.Vector3(-0.42, -0.95, 0.25);
 /** How big the hands are drawn against the figure they belong to. */
-const SCALE = 0.62;
+const SCALE = 0.56;
 
 /** What the game tells the view each frame. */
 export interface FirstPersonState {
@@ -77,18 +151,26 @@ export interface FirstPersonState {
   hemi: THREE.HemisphereLight;
   sun: THREE.DirectionalLight;
   shade: number;
+  /** A skill being used: its move (moveFor), how long since it went off, and its colour (the calling's element, or gold). */
+  skill: { move: string; t: number; color: string } | null;
 }
 
 class Hand {
   readonly root = new THREE.Group();
   /** The fist: its +Z is the way what it holds points, +Y back up the forearm. */
   readonly fist = new THREE.Group();
+  /** The hand closed round what it holds, and open (a spell, a heal, a ward): one shown at a time. */
+  readonly closed = new THREE.Group();
+  readonly open = new THREE.Group();
+  /** What gathers in the palm while a skill is cast: a bright core and a soft halo. */
+  readonly glow = new THREE.Group();
   held: THREE.Object3D | null = null;
   /** How far out along +Z the blade's tip is (fist space), for the trail. */
   tip = 0.9;
   pose: Pose;
-  constructor(pose: Pose) { this.pose = [...pose] as Pose; this.root.add(this.fist); }
+  constructor(pose: Pose) { this.pose = [...pose] as Pose; this.root.add(this.fist); this.fist.add(this.closed, this.open, this.glow); }
 }
+const GLOW_CORE = new THREE.SphereGeometry(0.085, 12, 9), GLOW_HALO = new THREE.SphereGeometry(0.2, 12, 9), WARD_DISC = new THREE.CircleGeometry(0.46, 32);
 
 const mats = new Map<string, THREE.MeshLambertMaterial>();
 const lam = (c: string) => { let m = mats.get(c); if (!m) { m = new THREE.MeshLambertMaterial({ color: c }); mats.set(c, m); } return m; };
@@ -140,16 +222,29 @@ export class FirstPerson {
   private rebuild(s: FirstPersonState): void {
     const c = armColours(s.look);
     for (const [h, side, item] of [[this.right, 1, s.held], [this.left, -1, s.offhand]] as const) {
-      h.fist.clear();
+      for (const g of [h.fist, h.closed, h.open, h.glow]) g.clear();
+      h.fist.add(h.closed, h.open, h.glow);
       // The forearm runs up +Y from the wrist, long enough to leave the frame; the sleeve, the cuff, then the hand
       const fore = c.bracers ? c.bracers.color : c.bare ? c.skin : c.sleeve;
       h.fist.add(box(0.17, 0.62, 0.19, fore, 0, 0.42, 0));
       if (c.bracers) h.fist.add(box(0.2, 0.06, 0.22, c.bracers.trim ?? c.cuff, 0, 0.16, 0), box(0.19, 0.06, 0.21, c.bracers.trim ?? c.cuff, 0, 0.58, 0));
       else if (!c.bare) h.fist.add(box(0.2, 0.08, 0.22, c.cuff, 0, 0.14, 0));
       // the fist: knuckles forward, the thumb wrapped over
-      h.fist.add(box(0.16, 0.16, 0.17, c.hand, 0, 0.02, 0));
-      h.fist.add(box(0.13, 0.05, 0.06, c.hand, 0, 0.04, 0.1));
-      h.fist.add(box(0.05, 0.1, 0.06, c.hand, -0.07 * side, -0.02, 0.06));
+      h.closed.add(box(0.16, 0.16, 0.17, c.hand, 0, 0.02, 0));
+      h.closed.add(box(0.13, 0.05, 0.06, c.hand, 0, 0.04, 0.1));
+      h.closed.add(box(0.05, 0.1, 0.06, c.hand, -0.07 * side, -0.02, 0.06));
+      // the open hand: the palm flat, four fingers out past it and spread a little, the thumb out to the side
+      h.open.add(box(0.16, 0.15, 0.06, c.hand, 0, -0.02, 0.02));
+      for (let f = 0; f < 4; f++) { const fx = (f - 1.5) * 0.04, fing = box(0.034, 0.13 - Math.abs(f - 1.5) * 0.02, 0.04, c.hand, fx, -0.15, 0.03); fing.rotation.z = (f - 1.5) * 0.08; h.open.add(fing); }
+      const thumb = box(0.04, 0.09, 0.04, c.hand, -0.1 * side, -0.02, 0.04); thumb.rotation.z = 0.7 * side; h.open.add(thumb);
+      h.open.visible = false;
+      // the glow in the palm, and (the left) a ward's disc of light in front of it
+      const core = new THREE.Mesh(GLOW_CORE, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }));
+      const halo = new THREE.Mesh(GLOW_HALO, new THREE.MeshBasicMaterial({ color: '#ffd080', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+      core.position.set(0, -0.08, 0.14); halo.position.copy(core.position);
+      h.glow.add(core, halo);
+      if (side < 0) { const disc = new THREE.Mesh(WARD_DISC, new THREE.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); disc.position.set(0, -0.12, 0.42); disc.name = 'ward'; h.glow.add(disc); }
+      h.glow.visible = false;
       h.held = null;
       const o = side > 0 ? heldObject(item ?? 'none') : { mesh: offhandObject(item), bow: false };
       if (side > 0) this.bow = o.bow;
@@ -157,12 +252,12 @@ export class FirstPerson {
         // as the figure holds it (Humanoid.setHeld: laid along the hand's +Z), so the same model and the same grip
         o.mesh.rotation.x = Math.PI / 2;
         if (side < 0) o.mesh.rotation.set(0, 0, 0); // (an offhand sits in the hand as it's built: its face along +Z, ahead)
-        h.fist.add(o.mesh);
+        h.closed.add(o.mesh);
         h.held = o.mesh;
         const b = new THREE.Box3().setFromObject(o.mesh);
         h.tip = Math.max(0.3, b.max.z);
       }
-      h.root.visible = side > 0 || !!o.mesh;
+      h.root.visible = true; // (both hands, as ESO shows them: the off hand low and ready when it holds nothing)
     }
     this.right.root.scale.setScalar(SCALE);
     this.left.root.scale.setScalar(SCALE);
@@ -215,18 +310,37 @@ export class FirstPerson {
     // Where each hand wants to be
     const A = s.anim;
     let R: Pose = this.bow ? [...BOW_HOLD] as Pose : [...READY] as Pose, kR = 14;
-    let L: Pose = this.left.held ? [...LEFT_SHIELD] as Pose : [...LEFT_READY] as Pose, kL = 12;
+    let L: Pose = this.left.held ? [...LEFT_SHIELD] as Pose : [...LIDLE] as Pose, kL = 12;
+    // A skill's own move, both hands, over its own length
+    const mv = s.skill && !s.swing ? MOVES[s.skill.move] : null, mt = s.skill?.t ?? 0;
+    let glowR = 0, glowL = 0, ward = 0, trailOn = false;
+    if (mv && mt < mv.dur) {
+      if (mv.R) { R = this.sample(mv.R, mt); kR = 50; }
+      if (mv.L) { L = this.sample(mv.L, mt); kL = 45; }
+      const [g0, g1] = mv.glowAt ?? [0, 0], up = mt > g0 && mt < g1 ? Math.min(1, (mt - g0) / 0.08, (g1 - mt) / 0.12) : 0;
+      if (mv.glow === 'L' || mv.glow === 'both') glowL = up;
+      if (mv.glow === 'R' || mv.glow === 'both') glowR = up;
+      if (mv.ward) ward = up;
+      if (mv.trail && mt > mv.trail[0] && mt < mv.trail[1]) trailOn = true;
+      if (mv.kickAt !== undefined && this.lastMoveT < mv.kickAt && mt >= mv.kickAt) { this.jolt = Math.min(1.4, this.jolt + 0.6); this.kick += mv.kick ?? 0.05; }
+    }
+    this.lastMoveT = mt;
+    // the off hand opens for a spell, a heal or a ward (and the right too, when it holds nothing)
+    const openNow = !!mv && !!mv.open && mt < mv.dur;
+    this.left.open.visible = openNow && !this.left.held; this.left.closed.visible = !this.left.open.visible;
+    this.right.open.visible = openNow && !this.right.held; this.right.closed.visible = !this.right.open.visible;
+    this.setGlow(this.left, glowL, s.skill?.color, ward);
+    this.setGlow(this.right, glowR, s.skill?.color, 0);
     if (s.swing) {
       const keys = s.swing.cleave ? SWINGS.cleave : [SWINGS.s1, SWINGS.s2, SWINGS.s3][s.swing.combo % 3];
       R = this.sample(keys, s.swing.u * keys[keys.length - 1][0]); kR = 55;
-    } else if (A === 'shoot') { R = this.sample(SWINGS.shoot, s.animT); kR = 40; }
+    } else if (mv && mt < mv.dur) { /* (the skill's move, above) */ }
+    else if (A === 'shoot') { R = this.sample(SWINGS.shoot, s.animT); kR = 40; }
     else if (A === 'mine' || A === 'chop' || A === 'hammer' || A === 'dig') { R = this.sample(SWINGS.chop, s.animT % 0.8); kR = 40; }
     else if (A === 'cast' || A === 'heal' || A === 'throw' || A === 'stomp') { R = this.sample(SWINGS.cast, Math.min(s.animT, 0.7)); kR = 40; }
     else if (A === 'fishCast') { R = this.sample(SWINGS.fishCast, s.animT); kR = 30; }
     else if (A === 'fishWait' || s.held === 'rod') { R = [...ROD_HOLD] as Pose; R[1] += Math.sin(this.t * 1.3) * 0.01; }
-    if (A === 'gather' || A === 'open' || A === 'petting' || A === 'water' || A === 'cook' || A === 'read') {
-      L = this.sample(SWINGS.reach, Math.min(s.animT, 1.1)); kL = 22; this.left.root.visible = true;
-    } else this.left.root.visible = !!this.left.held;
+    if (A === 'gather' || A === 'open' || A === 'petting' || A === 'water' || A === 'cook' || A === 'read') { L = this.sample(SWINGS.reach, Math.min(s.animT, 1.1)); kL = 22; }
     if (s.blocking) { L = [...LEFT_BLOCK] as Pose; kL = 24; if (!this.left.held) { R = [0.2, -0.3, -0.5, -0.9, 0.4, -0.2]; kR = 24; } }
     if (A === 'roll' || A === 'dash' || A === 'jump') { R[1] -= 0.12; L[1] -= 0.12; }
     if (A === 'hit') { R[1] -= 0.05; R[0] += 0.04; }
@@ -248,8 +362,32 @@ export class FirstPerson {
     this.ease(this.left, L, kL, dt);
     this.place(this.right, this.right.pose, SHOULDER_R);
     this.place(this.left, this.left.pose, SHOULDER_L);
-    this.updateTrail(dt, !!s.swing && s.swing.u > 0.15 && s.swing.u < 0.62 && !!this.right.held && !this.bow);
+    this.updateTrail(dt, ((!!s.swing && s.swing.u > 0.15 && s.swing.u < 0.62) || trailOn) && !!this.right.held && !this.bow);
     this.visible = true;
+  }
+
+  /** How far through the current move it was last frame (for its kick), and the kick owed to the camera. */
+  private lastMoveT = 0;
+  private kick = 0;
+  /** The camera shake owed by a move landing (slam, leap, bash): taken once by Game.ts. */
+  takeKick(): number { const k = this.kick; this.kick = 0; return k; }
+
+  /** Light the palm (k 0..1) in the skill's colour, pulsing; and the ward's disc in front of the left hand. */
+  private setGlow(h: Hand, k: number, color: string | undefined, ward: number): void {
+    h.glow.visible = k > 0.01 || ward > 0.01;
+    if (!h.glow.visible) return;
+    const pulse = 1 + Math.sin(this.t * 18) * 0.12;
+    const [core, halo, disc] = h.glow.children as THREE.Mesh[];
+    (core.material as THREE.MeshBasicMaterial).color.set('#ffffff').lerp(new THREE.Color(color ?? '#ffd080'), 0.35);
+    (halo.material as THREE.MeshBasicMaterial).color.set(color ?? '#ffd080');
+    core.scale.setScalar(k * pulse); halo.scale.setScalar(k * (1.1 + Math.sin(this.t * 7) * 0.15));
+    (halo.material as THREE.MeshBasicMaterial).opacity = 0.35 * k;
+    if (disc) {
+      disc.visible = ward > 0.01;
+      (disc.material as THREE.MeshBasicMaterial).color.set(color ?? '#ffe08a');
+      (disc.material as THREE.MeshBasicMaterial).opacity = 0.28 * ward * (0.85 + Math.sin(this.t * 9) * 0.15);
+      disc.scale.setScalar(0.4 + 0.6 * ward);
+    }
   }
 
   /** The ribbon behind the blade through the cut: the last few frames of its edge, fading. */

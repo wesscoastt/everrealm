@@ -280,9 +280,11 @@ export interface OnlineHooks {
   /** The server says a world boss has fallen, and who fought it. */
   bossDown?(id: string, cycle: number, by: string[]): void;
   /** A shared event's progress: kills so far, the wave it's on, seconds left. */
-  eventState?(id: string, killed: number, total: number, wave: number, left: number): void;
+  eventState?(id: string, killed: number, total: number, wave: number, left: number, work: number, extra: number, waves: number[]): void;
   /** A shared event is over (won or failed) with each player's kills. */
-  eventDone?(id: string, ok: boolean, total: number, shares: Record<string, number>): void;
+  eventDone?(id: string, ok: boolean, total: number, shares: Record<string, number>, states: string[] | null): void;
+  /** On joining: how each chain of events last ended, and what they've left in the world. */
+  eventRealm?(outs: Record<string, string>, states: string[]): void;
   /** That event ran lately and is resting for so many seconds. */
   eventCool?(id: string, left: number): void;
   /** The Exchange (game/Exchange.ts). */
@@ -394,6 +396,7 @@ export class Online {
         this.myId = typeof m.id === 'number' ? m.id : -1;
         if (typeof m.now === 'number') setRealmTime(m.now);
         if (Array.isArray(m.mobs)) this.hooks.mobLedger?.(m.mobs as [string, number][]);
+        if (m.evOut && typeof m.evOut === 'object' && Array.isArray(m.states)) this.hooks.eventRealm?.(m.evOut as Record<string, string>, (m.states as unknown[]).map(String));
         for (const p of m.players as PlayerPub[]) this.addRemote(p);
         this.setStatus('online');
         const others = this.remotes.size;
@@ -510,8 +513,8 @@ export class Online {
       case 'mailUnread': this.hooks.mailUnread?.(Number(m.n) || 0); break;
       case 'exOwed': this.hooks.exOwed?.(Array.isArray(m.rows) ? (m.rows as ExOwed[]) : []); break;
       case 'boss': this.hooks.bossState?.(String(m.id), Number(m.cycle), Number(m.hp), Number(m.max)); break;
-      case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left)); break;
-      case 'evDone': this.hooks.eventDone?.(String(m.id), !!m.ok, Number(m.total), (m.shares && typeof m.shares === 'object' ? m.shares : {}) as Record<string, number>); break;
+      case 'ev': this.hooks.eventState?.(String(m.id), Number(m.killed), Number(m.total), Number(m.wave), Number(m.left), Number(m.work ?? 0), Number(m.extra ?? 0), Array.isArray(m.waves) ? (m.waves as unknown[]).map(Number) : []); break;
+      case 'evDone': this.hooks.eventDone?.(String(m.id), !!m.ok, Number(m.total), (m.shares && typeof m.shares === 'object' ? m.shares : {}) as Record<string, number>, Array.isArray(m.states) ? (m.states as unknown[]).map(String) : null); break;
       case 'evCool': this.hooks.eventCool?.(String(m.id), Number(m.left)); break;
       case 'bossDown': this.hooks.bossDown?.(String(m.id), Number(m.cycle), Array.isArray(m.by) ? (m.by as unknown[]).map(String) : []); break;
       case 'qStatus': this.hooks.qStatus?.(typeof m.dungeon === 'string' ? m.dungeon : null, Number(m.n) || 0); break;
@@ -796,8 +799,18 @@ export class Online {
   }
 
   /** Near an event: join its run, or start one. */
-  eventStart(id: string, waves: number[], time: number, cooldown: number): void {
-    if (this.online) this.ws!.send(JSON.stringify({ t: 'evStart', id, waves, time, cooldown }));
+  eventStart(id: string, waves: number[], time: number, cooldown: number, more?: { extra: number; after: string | null; ws: string[] }): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'evStart', id, waves, time, cooldown, ...(more ?? {}) }));
+  }
+
+  /** A fire put out, a thing carried, for a shared event. */
+  eventWork(id: string): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'evWork', id }));
+  }
+
+  /** What we were holding broke, or too much burned: the event is lost for everyone. */
+  eventFail(id: string): void {
+    if (this.online) this.ws!.send(JSON.stringify({ t: 'evFail', id }));
   }
 
   /** One of an event's creatures fell to us. */

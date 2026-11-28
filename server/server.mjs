@@ -775,7 +775,7 @@ wss.on('connection', (ws, req) => {
       };
       players.set(me.id, me);
       me.guildName = null;
-      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), players: [...players.values()].filter((p) => p !== me && p.land === me.land).map(pub), save: rec.save ?? null });
+      send(ws, { t: 'welcome', id: me.id, now: Date.now(), mobs: mobList(), evOut: Object.fromEntries(evOut), states: [...worldStates], players: [...players.values()].filter((p) => p !== me && p.land === me.land).map(pub), save: rec.save ?? null });
       guilds.join(me);
       social.join(me);
       exchange.join(me);
@@ -911,13 +911,21 @@ wss.on('connection', (ws, req) => {
         if (typeof msg.id !== 'string' || !/^ev-[a-z]{2,20}$/.test(msg.id)) return;
         const now = Date.now();
         let ev = events.get(msg.id);
-        if (ev && !ev.done) { send(ws, evState(ev)); return; }
+        if (ev && !ev.done) { ev.seen.add(me.name); send(ws, evState(ev)); return; }
         if (ev && now < ev.coolUntil) { send(ws, { t: 'evCool', id: ev.id, left: Math.round((ev.coolUntil - now) / 1000) }); return; }
         const waves = Array.isArray(msg.waves) ? msg.waves.slice(0, 6).map((n) => num(n, 1, 12)) : [];
         const time = num(msg.time, 30, 900), cooldown = num(msg.cooldown, 30, 3600);
-        if (!waves.length || waves.includes(null) || time === null || cooldown === null) return;
-        ev = { id: msg.id, waves, total: waves.reduce((a, b) => a + b, 0), killed: 0, endsAt: now + time * 1000, done: false, coolUntil: 0, cooldown, shares: new Map() };
+        // Work besides kills (fires put out, things carried), the event this one follows on from, and the world states
+        // its ending sets and clears: [won set, won clear, lost set, lost clear]
+        const extra = msg.extra === undefined ? 0 : num(msg.extra, 0, 40);
+        const after = typeof msg.after === 'string' && /^ev-[a-z]{2,20}$/.test(msg.after) ? msg.after : null;
+        const ws4 = Array.isArray(msg.ws) ? msg.ws.slice(0, 4).map((w) => (typeof w === 'string' && /^[a-z]{0,24}$/.test(w) ? w : '')) : ['', '', '', ''];
+        if ((!waves.length && !extra) || waves.includes(null) || extra === null || time === null || cooldown === null) return;
+        const kills = waves.reduce((a, b) => a + b, 0);
+        ev = { id: msg.id, waves, kills, extra, work: 0, total: kills + extra, killed: 0, endsAt: now + time * 1000, done: false, coolUntil: 0, cooldown, shares: new Map(), ws: ws4, seen: new Set([me.name]) };
         events.set(ev.id, ev);
+        // A follow-up spends the ending it followed (the chain's head can come round again once it's done)
+        if (after) evOut.delete(after);
         broadcast(evState(ev));
         break;
       }
@@ -927,9 +935,29 @@ wss.on('connection', (ws, req) => {
         const now = Date.now();
         if (!me.killWindow || now - me.killWindow.at > 1000) me.killWindow = { at: now, n: 0 };
         if (++me.killWindow.n > 10) return;
+        if (ev.killed >= ev.kills) return;
         ev.killed++;
         ev.shares.set(me.name, (ev.shares.get(me.name) ?? 0) + 1);
-        if (ev.killed >= ev.total) endEvent(ev, true); else broadcast(evState(ev));
+        if (ev.killed >= ev.kills && ev.work >= ev.extra) endEvent(ev, true); else broadcast(evState(ev));
+        break;
+      }
+      case 'evWork': {
+        // A fire put out, a thing carried
+        const ev = events.get(msg.id);
+        if (!ev || ev.done || ev.work >= ev.extra) return;
+        const now = Date.now();
+        if (!me.workWindow || now - me.workWindow.at > 1000) me.workWindow = { at: now, n: 0 };
+        if (++me.workWindow.n > 4) return;
+        ev.work++;
+        ev.shares.set(me.name, (ev.shares.get(me.name) ?? 0) + 1);
+        if (ev.killed >= ev.kills && ev.work >= ev.extra) endEvent(ev, true); else broadcast(evState(ev));
+        break;
+      }
+      case 'evFail': {
+        // What they were holding broke, or too much burned: lost for everyone (only from someone who had a hand in it)
+        const ev = events.get(msg.id);
+        if (!ev || ev.done || !ev.seen.has(me.name)) return;
+        endEvent(ev, false);
         break;
       }
       case 'mobDead': {
@@ -1030,13 +1058,19 @@ setInterval(() => { const old = Date.now() - 2 * 3600_000; for (const [k, b] of 
 // Dynamic events are shared too: one run of each at a time. The first player near it starts it;
 // everyone's kills count toward its waves, the clock is the server's, and when it ends each player
 // is told their share of the work (which sets their medal).
-const events = new Map(); // id -> { id, waves, total, killed, endsAt, done, coolUntil, cooldown, shares: Map<name, kills> }
-function waveOf(ev) { let n = 0; for (let i = 0; i < ev.waves.length; i++) { n += ev.waves[i]; if (ev.killed < n) return i; } return ev.waves.length - 1; }
-function evState(ev) { return { t: 'ev', id: ev.id, killed: ev.killed, total: ev.total, wave: waveOf(ev), left: Math.max(0, Math.round((ev.endsAt - Date.now()) / 1000)) }; }
+const events = new Map(); // id -> { id, waves, kills, extra, work, total, killed, endsAt, done, coolUntil, cooldown, shares: Map<name, kills>, ws }
+/** How each event last ended ('win' or 'fail'), until a follow-up spends it; and what the chains have left in the world. */
+const evOut = new Map();
+const worldStates = new Set();
+function waveOf(ev) { let n = 0; for (let i = 0; i < ev.waves.length; i++) { n += ev.waves[i]; if (ev.killed < n) return i; } return Math.max(0, ev.waves.length - 1); }
+function evState(ev) { return { t: 'ev', id: ev.id, killed: ev.killed, total: ev.total, wave: waveOf(ev), left: Math.max(0, Math.round((ev.endsAt - Date.now()) / 1000)), work: ev.work, extra: ev.extra, waves: ev.waves }; }
 function endEvent(ev, ok) {
   ev.done = true;
   ev.coolUntil = Date.now() + (ok ? ev.cooldown : 60) * 1000;
-  broadcast({ t: 'evDone', id: ev.id, ok, total: ev.total, shares: Object.fromEntries(ev.shares) });
+  evOut.set(ev.id, ok ? 'win' : 'fail');
+  const [ws, wc, ls, lc] = ev.ws ?? [];
+  if (ok) { if (ws) worldStates.add(ws); if (wc) worldStates.delete(wc); } else { if (ls) worldStates.add(ls); if (lc) worldStates.delete(lc); }
+  broadcast({ t: 'evDone', id: ev.id, ok, total: ev.total, shares: Object.fromEntries(ev.shares), states: [...worldStates] });
 }
 setInterval(() => { const now = Date.now(); for (const ev of events.values()) if (!ev.done && now > ev.endsAt) endEvent(ev, false); }, 1000);
 

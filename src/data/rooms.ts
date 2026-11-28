@@ -309,6 +309,16 @@ export const DELVE_ROOMS: Record<string, RoomDef> = {
     waveSays: ['A marsh lizard comes in with the water, slow and heavy.', 'The big ones last: two lizards that have been living in the sump.'],
     chest: [-15, 4],
   },
+  'delve-reavers': {
+    id: 'valves', kind: 'plates', title: 'The cistern\'s three valves',
+    start: 'A sluice gate of old Assembly iron stands shut across the way east. In the floor of the west hall are three valve stones, each marked with a well: the cistern\'s own valves, and they open the gate only when all three are down at once.',
+    done: 'The third valve goes down with the others still down. Somewhere under the floor water moves for the first time in years, and the sluice gate ratchets up.',
+    box: VAULT_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2, early: true },
+    plates: [[-15, -4], [-11, 0], [-15, 4]],
+    hold: 6,
+    chest: [-12, -4],
+  },
   'delve-foldbarrow': {
     id: 'herdsmen', kind: 'plates', title: 'The herdsmen\'s stones',
     start: 'A slab of the black stands across the way east. Three worn stones in the floor of the west vault are cut with a crook, a horn and a fleece: where the Herd-Thane\'s three herdsmen stood to open it, together.',

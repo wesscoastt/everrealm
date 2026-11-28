@@ -5,10 +5,11 @@ import { FORT_BY_ID, FORT_RESPAWN } from '../data/forts';
 import { Duels } from './Duels';
 import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
-import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES } from '../data/activities';
+import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES, WORLD_STATES } from '../data/activities';
+import { brokenFold, burntGround, charMark, cuttingMesh, fireSpot, glintMesh, sheepMesh, wardMesh } from './EventParts';
 import { EnemyDef, EnemyType, ENEMIES } from '../data/gameplay';
 import { ITEMS } from '../data/items';
-import { Enemy } from '../entities/Enemy';
+import { Enemy, type EnemyContext } from '../entities/Enemy';
 import type { MapMarker } from '../ui/Hud';
 import { plan, Site } from '../world/sites';
 import { REGION_INFO, RegionId } from '../world/terrain';
@@ -74,13 +75,29 @@ export interface ActivityHost {
   /** Online: the world boss's health is the server's, shared with every player there. */
   shared?: {
     on(): boolean; sync(id: string, cycle: number, max: number): void; hit(id: string, cycle: number, dmg: number, max: number): void;
-    evStart(id: string, waves: number[], time: number, cooldown: number): void; evKill(id: string): void;
+    evStart(id: string, waves: number[], time: number, cooldown: number, more?: { extra: number; after: string | null; ws: string[] }): void; evKill(id: string): void;
+    evWork(id: string): void; evFail(id: string): void;
   };
+  /** Sights for the events: smoke off a fire, a splash of water, sparks, dust off a struck ward. */
+  fx?: { smoke(at: THREE.Vector3): void; splash(at: THREE.Vector3, n: number): void; fire(at: THREE.Vector3): void; dust(at: THREE.Vector3): void };
+  /** Other players within r of a point (an event grows with the crowd at it). */
+  nearbyPlayers?(x: number, z: number, r: number): number;
 }
 
 export interface EventPanel { kind: 'event' | 'boss' | 'shard' | 'task' | 'escort'; title: string; goal: string; progress: number; count: string; time?: number }
 
-interface LiveEvent { def: EventDef; wave: number; enemies: Enemy[]; killed: number; total: number; endsAt: number; shared?: { killed: number }; stalled?: number }
+interface FireSpot { at: THREE.Vector3; state: 'wait' | 'burn' | 'out' | 'gone'; t: number; puff: number; mesh?: THREE.Object3D; flame?: THREE.Mesh }
+interface Pick { at: THREE.Vector3; got: boolean; mesh: THREE.Group; glint: THREE.Mesh }
+/** An event running here. killed is our own share (kills, fires out, things carried); kills and extra are the whole of it. */
+interface LiveEvent {
+  def: EventDef; wave: number; enemies: Enemy[]; killed: number; total: number; endsAt: number;
+  shared?: { killed: number; work: number }; stalled?: number; sw?: number;
+  kills: number; extra: number; sizes: number[]; work: number; lost: number; startAt: number; begun: boolean; losing?: boolean; others: number; nextFire: number;
+  ward?: { pos: THREE.Vector3; hp: number; max: number; mesh: THREE.Group; said: number; shake: number };
+  fires?: FireSpot[]; picks?: Pick[];
+  /** Marks it leaves (black rings where the fires were). */
+  parts: THREE.Object3D[];
+}
 interface LiveBoss { def: BossDef; enemy: Enemy; cycle: number; calls: number; nextQuake: number; quake?: { at: THREE.Vector3; t: number }; adds: Enemy[]; shared: boolean; hitByMe: boolean; credit: boolean }
 interface LiveShard { idx: number; cycle: number; wave: number; enemies: Enemy[]; crystal: THREE.Group; fall: number }
 
@@ -130,6 +147,7 @@ export class Activities {
     this.escorts = new Escorts(host, (def, x, z) => this.spawn(def, x, z, false));
     this.duels = new Duels(host, (def, x, z) => this.spawn(def, x, z, false));
     this.puzzles = new Puzzles(host);
+    this.loadChains();
     this.sites = plan().sites.filter((s) => s.act);
     const ring = new THREE.Mesh(new THREE.CircleGeometry(QUAKE_R, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.3, depthWrite: false }));
     ring.visible = false;
@@ -156,7 +174,8 @@ export class Activities {
       this.runRares(P);
     }
     this.tickTreasure(P);
-    this.tickEvents(P);
+    this.tickEvents(dt, P);
+    this.tickWorld(dt, P);
     this.tickBoss(dt, P);
     this.tickShard(dt, P);
     this.tasks.update(dt, P);
@@ -167,128 +186,462 @@ export class Activities {
   }
 
   // ---------------------------------------------------------------- Dynamic events
+  // GW2's events, chained (owner 2026-11-27): each can be waves, something to hold, fires to put out or things to carry,
+  // or a mix. Some open with a call for help. How one ends picks what flares up next (data/activities.ts after), and can
+  // leave the world changed (WORLD_STATES) until a later event puts it right. Online, the realm keeps the count, the
+  // endings and the world's state, so every player there sees the same.
+
+  /** How each event last ended, while a follow-up is waiting on it. */
+  private outcomes = new Map<string, 'win' | 'fail'>();
+  /** What the chains have left in the world (WORLD_STATES keys). */
+  private states = new Set<string>();
+  /** What a world state has put up while you're near it: its look, its smoke, its guards. */
+  private stateShown = new Map<string, { root: THREE.Group | null; smokes: THREE.Vector3[]; guards: Enemy[]; puff: number }>();
+  /** Which event a creature came with, and which have been hit by the player (they leave the ward alone after). */
+  private evOf = new WeakMap<Enemy, LiveEvent>();
+  private struck = new WeakSet<Enemy>();
+
+  private loadChains(): void {
+    for (const def of EVENTS) { const o = this.host.flag('evout:' + def.id); if (o === 'win' || o === 'fail') this.outcomes.set(def.id, o); }
+    for (const k of Object.keys(WORLD_STATES)) if (this.host.flag('world:' + k)) this.states.add(k);
+  }
+  private setOutcome(id: string, o: 'win' | 'fail' | null): void {
+    if (o) this.outcomes.set(id, o); else this.outcomes.delete(id);
+    this.host.setFlag('evout:' + id, o ?? 0);
+  }
+  private setStates(list: Iterable<string>): void {
+    const next = new Set([...list].filter((k) => WORLD_STATES[k]));
+    for (const k of Object.keys(WORLD_STATES)) if (next.has(k) !== this.states.has(k)) this.host.setFlag('world:' + k, next.has(k) ? 1 : 0);
+    this.states = next;
+  }
+  /** Is this world state on (a chain left it so)? */
+  worldState(key: string): boolean { return this.states.has(key); }
+
+  /** A follow-up waits on its parent's ending; a chain's first event waits while any of its follow-ups is due. */
+  private eligible(def: EventDef): boolean {
+    if (def.after) return this.outcomes.get(def.after.id) === def.after.result;
+    return !this.pendingIn(def.id, 0);
+  }
+  private pendingIn(id: string, depth: number): boolean {
+    if (depth > 6) return false;
+    const o = this.outcomes.get(id);
+    return EVENTS.some((f) => f.after?.id === id && (f.after.result === o || this.pendingIn(f.id, depth + 1)));
+  }
+
+  /** How much more there is for a crowd: more creatures, more fires, more to carry, a ward that stands longer. */
+  private crowd(def: EventDef): number { return Math.min(4, this.host.nearbyPlayers?.(def.x, def.z, 80) ?? 0); }
+  private sizesFor(def: EventDef, others: number): number[] {
+    const k = 1 + 0.4 * others;
+    return def.waves.map((w, i) => Math.min(12, Math.round(w.count * k)) + (i === def.waves.length - 1 && def.leader ? 1 : 0));
+  }
+  /** Work besides kills: the fires that must be put out (all but the ones you can afford to lose), or the things to carry. */
+  private extraFor(def: EventDef, others: number): number {
+    if (def.fires) return def.fires.count + others - def.fires.lose + 1;
+    if (def.gather) return def.gather.count + Math.min(3, others);
+    return 0;
+  }
+
   private startEvents(P: THREE.Vector3): void {
     for (const def of EVENTS) {
-      if (this.live.has(def.id) || (this.cool.get(def.id) ?? 0) > this.clock) continue;
+      if (this.live.has(def.id) || (this.cool.get(def.id) ?? 0) > this.clock || !this.eligible(def)) continue;
       const d = Math.hypot(P.x - def.x, P.z - def.z);
-      if (d > 70 || !this.host.voxels.isLoaded(def.x, def.z)) continue;
-      if (Math.random() < 0.6) continue; // not every visit: they flare up when they will
+      // A follow-up comes at once and reaches further (it's the story going on); the rest flare up when they will
+      if (d > (def.after ? 120 : 70) || !this.host.voxels.isLoaded(def.x, def.z)) continue;
+      if (!def.after && Math.random() < 0.6) continue;
+      const others = this.crowd(def), sizes = this.sizesFor(def, others), extra = this.extraFor(def, others);
       if (this.host.shared?.on()) {
         // Online the server runs it: ask, and it starts the run (or says one is on, or resting)
         if ((this.asked.get(def.id) ?? 0) > this.clock) continue;
         this.asked.set(def.id, this.clock + 8);
-        this.host.shared.evStart(def.id, waveSizes(def), def.time, def.cooldown);
+        this.host.shared.evStart(def.id, sizes, def.time + (def.call?.secs ?? 0), def.cooldown,
+          { extra, after: def.after?.id ?? null, ws: [def.won?.set ?? '', def.won?.clear ?? '', def.lost?.set ?? '', def.lost?.clear ?? ''] });
         continue;
       }
-      const ev: LiveEvent = { def, wave: -1, enemies: [], killed: 0, total: def.waves.reduce((n, w) => n + w.count, 0) + (def.leader ? 1 : 0), endsAt: this.clock + def.time };
-      this.live.set(def.id, ev);
-      this.nextWave(ev);
-      this.host.banner(def.name, `Event · ${REGION_INFO[def.region].name}`);
-      this.host.sound('bell');
+      this.open(def, sizes, extra, def.call?.secs ?? 0, others);
     }
+  }
+
+  /** An event begins here: the call for help first if it has one, then the work. */
+  private open(def: EventDef, sizes: number[], extra: number, wait: number, others: number, shared?: { killed: number; work: number }): LiveEvent {
+    if (def.after) this.setOutcome(def.after.id, null);
+    const kills = sizes.reduce((a, b) => a + b, 0);
+    const ev: LiveEvent = { def, wave: -1, enemies: [], killed: 0, total: kills + extra, kills, extra, sizes, work: 0, lost: 0, endsAt: this.clock + wait + def.time, startAt: this.clock + wait, begun: false, shared, others, nextFire: 0, parts: [] };
+    this.live.set(def.id, ev);
+    if (def.call && wait > 1) {
+      this.host.say?.(def.call.who, def.call.text);
+      this.host.banner(def.name, `${def.call.who} calls for help · ${REGION_INFO[def.region].name}`);
+    } else this.host.banner(def.name, `Event · ${REGION_INFO[def.region].name}`);
+    this.host.sound('bell');
+    return ev;
+  }
+
+  /** The call's time is up: the creatures come, the fires catch, the strays are out there. */
+  private begin(ev: LiveEvent): void {
+    ev.begun = true;
+    const def = ev.def, V = this.host.voxels;
+    const spots = (n: number, r0: number, r1: number, seed: number): THREE.Vector3[] => {
+      const out: THREE.Vector3[] = [];
+      for (let i = 0; i < n; i++) {
+        const a = hash2(i, seed, 31) * Math.PI * 2, r = r0 + hash2(i, seed, 32) * (r1 - r0);
+        const x = def.x + Math.cos(a) * r + 0.5, z = def.z + Math.sin(a) * r + 0.5;
+        out.push(new THREE.Vector3(x, V.groundBelow(x, 140, z, true), z));
+      }
+      return out;
+    };
+    const seed = Math.floor(def.x * 7 + def.z * 13);
+    if (def.ward) {
+      const mesh = wardMesh(def.ward.look), y = V.groundBelow(def.x + 0.5, 140, def.z + 0.5, true);
+      mesh.position.set(def.x + 0.5, y, def.z + 0.5);
+      this.host.scene.add(mesh);
+      const max = Math.round(def.ward.hp * (1 + 0.5 * ev.others));
+      ev.ward = { pos: new THREE.Vector3(def.x + 0.5, y + 0.6, def.z + 0.5), hp: max, max, mesh, said: 0, shake: 0 };
+    }
+    if (def.fires) {
+      const n = ev.extra + def.fires.lose - 1;
+      ev.fires = spots(n, 3, 11, seed).map((p, i): FireSpot => ({ at: p, state: i < ev.work ? 'out' : 'wait', t: 0, puff: Math.random() }));
+      // Two catch at once; the rest go one after another, from whatever's burning
+      this.light(ev); this.light(ev);
+      ev.nextFire = 6;
+    }
+    if (def.gather) {
+      ev.picks = spots(ev.extra, 6, 22, seed + 5).map((p, i): Pick => {
+        const g = def.gather!.look === 'sheep' ? sheepMesh(i % 4 === 3) : cuttingMesh();
+        g.position.copy(p); g.rotation.y = hash2(i, seed, 40) * 6;
+        const glint = glintMesh(); g.add(glint);
+        if (i >= ev.work) this.host.scene.add(g);
+        return { at: p, got: i < ev.work, mesh: g, glint };
+      });
+    }
+    if (def.waves.length) { ev.wave = (ev.sw ?? 0) - 1; this.nextWave(ev, ev.shared ? ev.shared.killed : 0); }
+    if (def.call) this.host.banner(def.name, `Event · ${REGION_INFO[def.region].name}`);
   }
 
   private nextWave(ev: LiveEvent, already = 0): void {
     ev.wave++;
     const w = ev.def.waves[ev.wave];
+    if (!w) return;
     const last = ev.wave === ev.def.waves.length - 1;
-    const types: EnemyDef[] = Array.from({ length: w.count }, () => ENEMIES[w.type]);
-    if (last && ev.def.leader) types.push(championOf(ev.def.leader));
+    const leader = last && ev.def.leader;
+    const n = Math.max(1, (ev.sizes[ev.wave] ?? w.count) - (leader ? 1 : 0));
+    const types: EnemyDef[] = Array.from({ length: n }, () => ENEMIES[w.type]);
+    if (leader) types.push(championOf(ev.def.leader!));
     // Joining a shared wave part-way through: only what's left of it
-    types.splice(0, Math.min(already, types.length - 1));
+    const before = ev.sizes.slice(0, ev.wave).reduce((a, b) => a + b, 0);
+    types.splice(0, Math.min(Math.max(0, already - before), types.length - 1));
+    // Against a ward they come in from further out and make for it
+    const r0 = ev.ward ? 15 : 5;
     types.forEach((def, i) => {
-      const a = (i / types.length) * Math.PI * 2 + ev.wave, r = 5 + (i % 3) * 2;
-      ev.enemies.push(this.spawn(def, ev.def.x + Math.cos(a) * r, ev.def.z + Math.sin(a) * r, true));
+      const a = (i / types.length) * Math.PI * 2 + ev.wave, r = r0 + (i % 3) * 2;
+      const e = this.spawn(def, ev.def.x + Math.cos(a) * r, ev.def.z + Math.sin(a) * r, true);
+      if (ev.ward) e.state = 'chase';
+      this.evOf.set(e, ev);
+      ev.enemies.push(e);
     });
   }
 
-  private tickEvents(P: THREE.Vector3): void {
-    for (const ev of this.live.values()) {
-      if (ev.shared) {
-        // The server keeps the clock and the count; leaving the area lets it go on without us
-        if (Math.hypot(P.x - ev.def.x, P.z - ev.def.z) > 260) { this.endEvent(ev, 30); continue; }
-        // Ours are all down but the wave isn't done (others' kills went elsewhere, or a message was
-        // lost): after a moment the rest of the wave turns up here
-        if (ev.enemies.some((e) => e.alive)) ev.stalled = undefined;
-        else if (ev.stalled === undefined) ev.stalled = this.clock;
-        else if (this.clock - ev.stalled > 6) {
-          ev.stalled = undefined;
-          const end = waveSizes(ev.def).slice(0, ev.wave + 1).reduce((a, b) => a + b, 0);
-          const before = end - waveSizes(ev.def)[ev.wave];
-          ev.wave--;
-          this.nextWave(ev, Math.max(0, ev.shared.killed - before));
-        }
-        continue;
-      }
-      const far = Math.hypot(P.x - ev.def.x, P.z - ev.def.z) > 260;
-      if (far || this.clock > ev.endsAt) {
-        if (!far) { this.host.banner('Event failed', ev.def.name); }
-        this.endEvent(ev, far ? 60 : ev.def.cooldown);
-        continue;
-      }
-      if (ev.enemies.every((e) => !e.alive)) {
-        if (ev.wave < ev.def.waves.length - 1) this.nextWave(ev);
-        else {
-          // Success: the share of the work that was yours sets the medal
-          const share = ev.killed / Math.max(1, ev.total);
-          this.award(ev, share >= 0.75 ? 'Gold' : share >= 0.4 ? 'Silver' : 'Bronze');
-          this.endEvent(ev, ev.def.cooldown);
+  /** One more fire catches: next to one that's burning, or anywhere if none is. */
+  private light(ev: LiveEvent): void {
+    const fires = ev.fires!, waiting = fires.filter((f) => f.state === 'wait');
+    if (!waiting.length) return;
+    const burning = fires.filter((f) => f.state === 'burn');
+    const pick = burning.length ? waiting.reduce((a, b) => (Math.min(...burning.map((f) => f.at.distanceTo(a.at))) < Math.min(...burning.map((f) => f.at.distanceTo(b.at))) ? a : b)) : waiting[0];
+    pick.state = 'burn'; pick.t = 0;
+    const f = fireSpot();
+    f.root.position.copy(pick.at);
+    this.host.scene.add(f.root);
+    pick.mesh = f.root; pick.flame = f.flame;
+  }
+
+  /** A fire out: by us (it counts to our share), or by someone else in a shared event. */
+  private douse(ev: LiveEvent, f: FireSpot, mine: boolean): void {
+    if (f.state === 'out' || f.state === 'gone') return;
+    if (f.mesh) this.host.scene.remove(f.mesh);
+    f.state = 'out';
+    const mark = charMark(true); mark.position.copy(f.at); this.host.scene.add(mark); ev.parts.push(mark);
+    this.host.fx?.splash(f.at.clone().setY(f.at.y + 0.4), 18);
+    this.host.fx?.smoke(f.at.clone().setY(f.at.y + 0.5));
+    ev.work++;
+    if (mine) { ev.killed++; if (ev.shared) this.host.shared?.evWork(ev.def.id); }
+  }
+
+  private carry(ev: LiveEvent, p: Pick, mine: boolean): void {
+    if (p.got) return;
+    p.got = true;
+    this.host.scene.remove(p.mesh);
+    this.host.fx?.dust(p.at.clone().setY(p.at.y + 0.3));
+    ev.work++;
+    if (mine) { ev.killed++; this.host.sound('open'); if (ev.shared) this.host.shared?.evWork(ev.def.id); }
+  }
+
+  /** The parts of an event that run between kills: fires spreading and burning down, the ward's state. */
+  private tickParts(ev: LiveEvent, dt: number): void {
+    const def = ev.def;
+    if (ev.fires) {
+      if ((ev.nextFire -= dt) <= 0) { ev.nextFire = 6 / (1 + 0.3 * ev.others); this.light(ev); }
+      for (const f of ev.fires) {
+        if (f.state !== 'burn') continue;
+        f.t += dt;
+        if (f.flame) { const k = Math.min(1, f.t / 3); f.flame.scale.set(2.2 * (0.6 + 0.4 * k), 2.6 * (0.5 + 0.5 * k) * (1 + Math.sin(this.clock * 6 + f.at.x) * 0.08), 2.2 * (0.6 + 0.4 * k)); }
+        if ((f.puff -= dt) <= 0) { f.puff = 0.45; this.host.fx?.smoke(f.at.clone().setY(f.at.y + 1.6)); this.host.fx?.fire(f.at.clone().setY(f.at.y + 0.4)); }
+        // Left alone it burns down to the roots
+        if (f.t > 40) {
+          f.state = 'gone';
+          if (f.mesh) this.host.scene.remove(f.mesh);
+          const mark = charMark(false); mark.position.copy(f.at); this.host.scene.add(mark); ev.parts.push(mark);
+          ev.lost++;
+          if (ev.lost >= def.fires!.lose) { this.lose(ev, 'Too much of it burned.'); return; }
+          if (def.call) this.host.say?.(def.call.who, ev.lost === 1 ? 'That one\'s gone. Don\'t let the rest go the same way!' : 'Another one gone! We can\'t lose any more!');
         }
       }
     }
+    for (const p of ev.picks ?? []) if (!p.got) { p.glint.rotation.y += dt * 2; p.glint.position.y = 1.6 + Math.sin(this.clock * 2.5 + p.at.x) * 0.12; }
+    const w = ev.ward;
+    if (w) {
+      if (w.shake > 0) { w.shake -= dt; w.mesh.position.x = w.pos.x + Math.sin(w.shake * 60) * 0.03; }
+      const k = w.hp / w.max;
+      if (def.call && w.said < 1 && k < 0.5) { w.said = 1; this.host.say?.(def.call.who, `They're at ${def.ward!.label.toLowerCase()}! Get them off it!`); }
+      if (def.call && w.said < 2 && k < 0.2) { w.said = 2; this.host.say?.(def.call.who, 'It won\'t hold much longer!'); }
+      if (w.hp <= 0) this.lose(ev, `${def.ward!.label} has gone.`);
+    }
+  }
+
+  /** A blow on the ward from one of the event's creatures. */
+  private hitWard(ev: LiveEvent): void {
+    const w = ev.ward;
+    if (!w || w.hp <= 0) return;
+    w.hp--;
+    w.shake = 0.25;
+    this.host.fx?.dust(w.pos);
+  }
+
+  /** It's lost: online the realm ends it for everyone; alone, it ends here. */
+  private lose(ev: LiveEvent, why: string): void {
+    if (ev.losing) return;
+    ev.losing = true;
+    this.host.system(why);
+    if (ev.shared && this.host.shared?.on()) { this.host.shared.evFail(ev.def.id); return; }
+    this.finish(ev, false);
+  }
+
+  private tickEvents(dt: number, P: THREE.Vector3): void {
+    for (const ev of [...this.live.values()]) {
+      const far = Math.hypot(P.x - ev.def.x, P.z - ev.def.z) > 260;
+      if (!ev.begun) {
+        if (far) { this.endEvent(ev, 30); continue; }
+        if (this.clock >= ev.startAt) this.begin(ev);
+        continue;
+      }
+      this.tickParts(ev, dt);
+      if (!this.live.has(ev.def.id) || ev.losing) continue;
+      if (ev.shared) {
+        // The server keeps the clock and the count; leaving the area lets it go on without us
+        if (far) { this.endEvent(ev, 30); continue; }
+        // Ours are all down but the wave isn't done (others' kills went elsewhere, or a message was
+        // lost): after a moment the rest of the wave turns up here
+        if (!ev.def.waves.length || ev.shared.killed >= ev.kills || ev.enemies.some((e) => e.alive)) ev.stalled = undefined;
+        else if (ev.stalled === undefined) ev.stalled = this.clock;
+        else if (this.clock - ev.stalled > 6) {
+          ev.stalled = undefined;
+          ev.wave--;
+          this.nextWave(ev, ev.shared.killed);
+        }
+        continue;
+      }
+      if (far) { this.endEvent(ev, 60); continue; }
+      if (this.clock > ev.endsAt) { this.lose(ev, 'Out of time.'); continue; }
+      const down = ev.enemies.every((e) => !e.alive);
+      if (down && ev.wave < ev.def.waves.length - 1) { this.nextWave(ev); continue; }
+      if (down && ev.work >= ev.extra) this.finish(ev, true);
+    }
+  }
+
+  /**
+   * An event is over. Alone it's settled here; online the realm settles it and tells everyone (eventDone). Either way:
+   * the medal, what follows it, what it leaves in the world, and a last word from whoever called for help.
+   */
+  private finish(ev: LiveEvent, ok: boolean, medal?: 'Gold' | 'Silver' | 'Bronze' | null, states?: string[] | null): void {
+    const def = ev.def;
+    if (ok && medal !== null) {
+      const share = ev.killed / Math.max(1, ev.total);
+      this.award(ev, medal ?? (share >= 0.75 ? 'Gold' : share >= 0.4 ? 'Silver' : 'Bronze'));
+    } else if (ok) this.host.banner('Event complete', `${def.name} · others saw it through`);
+    else this.host.banner('Event failed', def.name);
+    this.settle(def, ok, states);
+    // What was left burning goes out, and what wasn't carried is gone
+    if (ok) for (const f of ev.fires ?? []) if (f.state === 'burn' || f.state === 'wait') { if (f.mesh) this.host.scene.remove(f.mesh); f.state = 'out'; }
+    this.endEvent(ev, ok ? def.cooldown : 60);
+  }
+
+  /** The chain moves on: the ending remembered while a follow-up waits on it, the world changed, the last word said. */
+  private settle(def: EventDef, ok: boolean, states?: string[] | null): void {
+    const r = ok ? 'win' : 'fail';
+    this.setOutcome(def.id, EVENTS.some((f) => f.after?.id === def.id && f.after.result === r) ? r : null);
+    if (def.after) this.setOutcome(def.after.id, null);
+    const end = ok ? def.won : def.lost;
+    if (states) this.setStates(states);
+    else {
+      const next = new Set(this.states);
+      if (end?.set) next.add(end.set);
+      if (end?.clear) next.delete(end.clear);
+      this.setStates(next);
+    }
+    if (end?.say) this.host.say?.(def.call?.who ?? this.callerOf(def) ?? def.name, end.say);
+    const follow = EVENTS.find((f) => f.after?.id === def.id && f.after.result === r);
+    if (follow) this.cool.set(follow.id, this.clock + (ok ? 8 : 150));
+    if (follow) this.host.system(`What happens next: ${follow.name}. ${follow.goal}.`);
+  }
+  /** Who speaks for a follow-up that has no call of its own: whoever called for help at the head of its chain. */
+  private callerOf(def: EventDef): string | undefined {
+    let d: EventDef | undefined = def;
+    for (let i = 0; i < 6 && d; i++) { if (d.call) return d.call.who; d = d.after ? EVENTS.find((x) => x.id === d!.after!.id) : undefined; }
+    return undefined;
   }
 
   private endEvent(ev: LiveEvent, cooldown: number): void {
     for (const e of ev.enemies) this.host.removeEnemy(e);
+    if (ev.ward) this.host.scene.remove(ev.ward.mesh);
+    for (const f of ev.fires ?? []) if (f.mesh) this.host.scene.remove(f.mesh);
+    for (const p of ev.picks ?? []) if (!p.got) this.host.scene.remove(p.mesh);
+    // The black rings stay a while after, then go
+    const parts = ev.parts;
+    if (parts.length) setTimeout(() => { for (const m of parts) this.host.scene.remove(m); }, 90000);
     this.live.delete(ev.def.id);
     this.cool.set(ev.def.id, this.clock + cooldown);
   }
 
-  /** The server's word on a shared event: join it if we're near, and keep up with its waves. */
-  eventState(id: string, killed: number, total: number, wave: number, left: number): void {
+  /** The server's word on a shared event: join it if we're near, and keep up with its waves and its work. */
+  eventState(id: string, killed: number, total: number, wave: number, left: number, work = 0, extra = 0, waves: number[] = []): void {
     const def = EVENTS.find((d) => d.id === id);
     if (!def) return;
     const P = this.host.player();
     let ev = this.live.get(id);
     if (!ev) {
       if (Math.hypot(P.x - def.x, P.z - def.z) > 160 || !this.host.voxels.isLoaded(def.x, def.z)) return;
-      ev = { def, wave: -1, enemies: [], killed: 0, total, endsAt: this.clock + left, shared: { killed } };
-      this.live.set(id, ev);
-      this.host.banner(def.name, `Event · ${REGION_INFO[def.region].name}`);
-      this.host.sound('bell');
+      // (what's left of the call for help, if it's still being called)
+      const sizes = waves.length ? waves : this.sizesFor(def, 0);
+      ev = this.open(def, sizes, extra, Math.max(0, left - def.time), 0, { killed, work });
+      ev.others = this.crowd(def);
+      // (so the realm knows we are in it: a ward that breaks on our watch can lose it for everyone)
+      this.host.shared?.evStart(def.id, sizes, def.time, def.cooldown, { extra, after: null, ws: [] });
     }
-    ev.shared = { killed };
+    ev.shared = { killed, work };
+    ev.sw = wave;
     ev.endsAt = this.clock + left;
-    if (wave > ev.wave) {
+    ev.total = total;
+    // Others' work: the same fires out here, the same strays found
+    while (ev.work < work) {
+      const f = ev.fires?.find((x) => x.state === 'burn') ?? ev.fires?.find((x) => x.state === 'wait');
+      const p = ev.picks?.find((x) => !x.got);
+      if (f) this.douse(ev, f, false); else if (p) this.carry(ev, p, false); else { ev.work = work; break; }
+    }
+    if (ev.begun && wave > ev.wave && def.waves.length) {
       // The wave has moved on (others finished it): what was left of ours slips away
       for (const e of ev.enemies) if (e.alive) this.host.removeEnemy(e);
       ev.enemies = ev.enemies.filter((e) => !e.alive);
-      const before = waveSizes(def).slice(0, wave).reduce((a, b) => a + b, 0);
       ev.wave = wave - 1;
-      this.nextWave(ev, Math.max(0, killed - before));
+      this.nextWave(ev, killed);
     }
   }
 
   /** A shared event is over: the medal goes by our share of the work. */
-  eventDone(id: string, ok: boolean, total: number, shares: Record<string, number>, me: string): void {
+  eventDone(id: string, ok: boolean, total: number, shares: Record<string, number>, me: string, states: string[] | null = null): void {
     const ev = this.live.get(id);
     const def = EVENTS.find((d) => d.id === id);
     if (!def) return;
     this.cool.set(id, this.clock + (ok ? def.cooldown : 60));
-    if (!ev) return;
-    if (!ok) { this.host.banner('Event failed', def.name); this.endEvent(ev, 60); return; }
+    if (!ev) {
+      // Not there for it, but the chain moves on and the world changes for us too
+      this.setOutcome(id, EVENTS.some((f) => f.after?.id === id && f.after.result === (ok ? 'win' : 'fail')) ? (ok ? 'win' : 'fail') : null);
+      if (def.after) this.setOutcome(def.after.id, null);
+      if (states) this.setStates(states);
+      const follow = EVENTS.find((f) => f.after?.id === id && f.after.result === (ok ? 'win' : 'fail'));
+      if (follow) this.cool.set(follow.id, this.clock + (ok ? 8 : 150));
+      return;
+    }
     const mine = Number(shares[me] ?? 0), people = Math.max(1, Object.keys(shares).length);
-    const fair = total / people;
-    if (mine === 0) { this.host.banner('Event complete', `${def.name} · others saw it through`); this.endEvent(ev, def.cooldown); return; }
-    const k = mine / fair;
-    const medal = k >= 0.75 ? 'Gold' : k >= 0.4 ? 'Silver' : 'Bronze';
-    this.award(ev, medal);
-    this.endEvent(ev, def.cooldown);
+    const k = mine / (total / people);
+    this.finish(ev, ok, !ok ? undefined : mine === 0 ? null : k >= 0.75 ? 'Gold' : k >= 0.4 ? 'Silver' : 'Bronze', states);
+  }
+
+  /** On joining the realm: how its chains stand, and what they've left in the world. */
+  eventRealm(outs: Record<string, string>, states: string[]): void {
+    for (const def of EVENTS) {
+      const o = outs[def.id];
+      this.setOutcome(def.id, (o === 'win' || o === 'fail') && EVENTS.some((f) => f.after?.id === def.id && f.after.result === o) ? o : null);
+    }
+    this.setStates(states);
   }
 
   /** That event ran lately: don't ask again until it's rested. */
   eventCool(id: string, left: number): void {
     this.cool.set(id, this.clock + left);
+  }
+
+  /** A held-ward event's creatures go for the ward, until you hit them. */
+  ctxFor(e: Enemy, base: EnemyContext): EnemyContext | null {
+    const ev = this.evOf.get(e);
+    if (!ev?.ward || ev.ward.hp <= 0 || this.struck.has(e) || !this.live.has(ev.def.id)) return null;
+    const w = ev.ward;
+    return { ...base, player: w.pos, playerAlive: true, playerInvulnerable: false, playerSwimming: false, hitPlayer: () => this.hitWard(ev) };
+  }
+  onPlayerHit(e: Enemy): void { if (this.evOf.has(e)) this.struck.add(e); }
+
+  /** World states near you: the burned terrace, the broken fold, the reavers sitting on the wells. */
+  private tickWorld(dt: number, P: THREE.Vector3): void {
+    for (const [key, ws] of Object.entries(WORLD_STATES)) {
+      const near = Math.hypot(P.x - ws.x, P.z - ws.z) < 140 && this.host.voxels.isLoaded(ws.x, ws.z);
+      let shown = this.stateShown.get(key);
+      const want = near && this.states.has(key);
+      if (want && !shown) {
+        const V = this.host.voxels;
+        const gy = V.groundBelow(ws.x + 0.5, 140, ws.z + 0.5, true);
+        let root: THREE.Group | null = null, smokes: THREE.Vector3[] = [];
+        if (ws.look === 'burnt') {
+          const b = burntGround(ws.r, (x, z) => V.groundBelow(ws.x + 0.5 + x, 140, ws.z + 0.5 + z, true) - gy);
+          root = b.root; smokes = b.smokes.map((p) => p.clone().add(new THREE.Vector3(ws.x + 0.5, gy, ws.z + 0.5)));
+        } else if (ws.look === 'hurdles') root = brokenFold();
+        if (root) { root.position.set(ws.x + 0.5, gy, ws.z + 0.5); this.host.scene.add(root); }
+        shown = { root, smokes, guards: [], puff: 0 };
+        this.stateShown.set(key, shown);
+      } else if (!want && shown) {
+        if (shown.root) this.host.scene.remove(shown.root);
+        for (const g of shown.guards) this.host.removeEnemy(g);
+        this.stateShown.delete(key);
+        continue;
+      }
+      if (!shown) continue;
+      // Guards stand there while no event is on the spot (one being fought there brings its own)
+      const busy = [...this.live.values()].some((ev) => Math.hypot(ev.def.x - ws.x, ev.def.z - ws.z) < 30);
+      if (shown.root) shown.root.visible = !busy;
+      if (ws.guards && !busy && !shown.guards.length) {
+        for (let i = 0; i < ws.guards.count; i++) {
+          const a = (i / ws.guards.count) * Math.PI * 2 + 0.4;
+          const e = this.spawn(ENEMIES[ws.guards.type], ws.x + Math.cos(a) * (ws.r * 0.7), ws.z + Math.sin(a) * (ws.r * 0.7), false);
+          e.respawnIn = Infinity;
+          shown.guards.push(e);
+        }
+      } else if (busy && shown.guards.length) {
+        for (const g of shown.guards) if (g.alive) this.host.removeEnemy(g);
+        shown.guards = [];
+      }
+      if (shown.smokes.length && (shown.puff -= dt) <= 0) {
+        shown.puff = 0.7;
+        this.host.fx?.smoke(shown.smokes[Math.floor(Math.random() * shown.smokes.length)]);
+      }
+    }
+  }
+
+  /** "Put out the fire", "Pick up a strayed sheep". */
+  private eventCandidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
+    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [];
+    for (const ev of this.live.values()) {
+      if (!ev.begun || ev.losing) continue;
+      for (const f of ev.fires ?? []) if (f.state === 'burn' && Math.hypot(P.x - f.at.x, P.z - f.at.z) < 2.8 && Math.abs(P.y - f.at.y) < 3)
+        out.push({ label: 'Put out the fire', pos: f.at.clone().setY(f.at.y + 1.6), use: () => this.douse(ev, f, true) });
+      for (const p of ev.picks ?? []) if (!p.got && Math.hypot(P.x - p.at.x, P.z - p.at.z) < 2.4 && Math.abs(P.y - p.at.y) < 3)
+        out.push({ label: ev.def.gather!.look === 'sheep' ? 'Bring the sheep back' : `Pick up ${ev.def.gather!.label.replace(/^the /, 'the ')}`, pos: p.at.clone().setY(p.at.y + 1.2), use: () => this.carry(ev, p, true) });
+    }
+    return out;
   }
 
   /** Pay out an event by medal. */
@@ -555,7 +908,7 @@ export class Activities {
   // ---------------------------------------------------------------- Chests, vistas, wonders
   /** Things to press E on: dungeon chests (refill each half hour) and vistas (once each). */
   candidates(P: THREE.Vector3): { label: string; pos: THREE.Vector3; use: () => void }[] {
-    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.escorts.candidates(P), ...this.puzzles.candidates(P), ...this.tasks.candidates(P), ...[...this.delveRooms.values()].flatMap((d) => d.rooms.candidates(P))];
+    const out: { label: string; pos: THREE.Vector3; use: () => void }[] = [...this.eventCandidates(P), ...this.escorts.candidates(P), ...this.puzzles.candidates(P), ...this.tasks.candidates(P), ...[...this.delveRooms.values()].flatMap((d) => d.rooms.candidates(P))];
     for (const s of this.sites) {
       const a = s.act!;
       if (a.chest && a.kind === 'fort' && !this.fortDone.has(s.id) && Math.hypot(P.x - a.chest[0], P.z - a.chest[2]) < 2.4 && Math.abs(P.y - a.chest[1]) < 2.5) {
@@ -862,8 +1215,15 @@ export class Activities {
       const d = Math.hypot(P.x - ev.def.x, P.z - ev.def.z);
       if (d > 160 || d > bd) continue;
       bd = d;
-      const killed = ev.shared ? ev.shared.killed : ev.enemies.filter((e) => !e.alive).length + ev.def.waves.slice(0, ev.wave).reduce((n, w) => n + w.count, 0);
-      best = { kind: 'event', title: ev.def.name, goal: ev.def.goal, progress: killed / ev.total, count: `${killed}/${ev.total}`, time: Math.max(0, ev.endsAt - this.clock) };
+      if (!ev.begun) { best = { kind: 'event', title: ev.def.name, goal: ev.def.call ? `${ev.def.call.who}: "${ev.def.call.text}"` : ev.def.goal, progress: 0, count: 'Starting', time: Math.max(0, ev.startAt - this.clock) }; continue; }
+      const kills = ev.shared ? ev.shared.killed : Math.min(ev.kills, ev.enemies.filter((e) => !e.alive).length + ev.sizes.slice(0, Math.max(0, ev.wave)).reduce((n, w) => n + w, 0));
+      const work = ev.shared ? ev.shared.work : ev.work;
+      const bits: string[] = [];
+      if (ev.kills) bits.push(`${kills}/${ev.kills}`);
+      if (ev.def.fires) bits.push(`fires out ${work}/${ev.extra}`);
+      if (ev.def.gather) bits.push(`${ev.def.gather.look === 'sheep' ? 'sheep' : 'cuttings'} ${work}/${ev.extra}`);
+      if (ev.ward) bits.push(`${ev.def.ward!.label} ${Math.max(0, Math.round((ev.ward.hp / ev.ward.max) * 100))}%`);
+      best = { kind: 'event', title: ev.def.name, goal: ev.def.goal, progress: (kills + work) / Math.max(1, ev.kills + ev.extra), count: bits.join(' · '), time: Math.max(0, ev.endsAt - this.clock) };
     }
     const b = this.boss;
     if (b && b.enemy.alive && Math.hypot(P.x - b.def.x, P.z - b.def.z) < 160) best = { kind: 'boss', title: b.enemy.def.name, goal: `World boss in ${b.def.where}. Roll out of the red ring.`, progress: 1 - b.enemy.hp / b.enemy.def.hp, count: `${Math.round((b.enemy.hp / b.enemy.def.hp) * 100)}% left`, time: -this.bossClock(b.def).until };
@@ -877,6 +1237,8 @@ export class Activities {
   markers(): MapMarker[] {
     const out: MapMarker[] = [];
     for (const ev of this.live.values()) out.push({ x: ev.def.x, z: ev.def.z, kind: 'event', label: ev.def.name });
+    // A chain's next link, waiting for someone to come by
+    for (const def of EVENTS) if (def.after && !this.live.has(def.id) && this.eligible(def)) out.push({ x: def.x, z: def.z, kind: 'event', label: `${def.name} (waiting)` });
     for (const def of WORLD_BOSSES) {
       const { until } = this.bossClock(def);
       const name = ENEMIES[def.type].name;
@@ -906,11 +1268,6 @@ function dirtMound(): THREE.Group {
   glint.position.y = 0.9;
   g.add(glint);
   return g;
-}
-
-/** How many creatures each wave brings (the leader comes with the last). */
-function waveSizes(def: EventDef): number[] {
-  return def.waves.map((w, i) => w.count + (i === def.waves.length - 1 && def.leader ? 1 : 0));
 }
 
 /** Group dungeons' sets drop only in their dungeons. */
