@@ -74,6 +74,7 @@ export const HELP: [string, [string, string][]][] = [
     ['How do I get to the north of Morrow?', 'The ferry Kittiwake runs from Callis up the coast to Cold Harbour, though her mate won’t carry you there without the Assembly’s pass; or go overland, north through the Sunder and the Glass Flats. Northgate stands across the pass beyond the Greywaste.'],
     ['How do I see every land at once?', 'Open the map (M) and press World at the top right: the Counties, Verandah and Morrow, with the ships between them. Here takes you back to the land you are in.'],
     ['How do I get to Inkholm?', 'Talk to Doctor Lettice Hale of the Collegium by Gullmouth\'s Charter Post: she gets Reuben Hoskin the ferryman to take you over. Its people have more for you once you are across, and more again once the Grey is broken.'],
+    ['How do I read the map?', 'Press M. Far out it shows only what matters most: towns, your quests, events, bosses and the waymarks you can travel to. Zoom in and more appears: tasks, the Post, the waymarks you have not touched, then a town\'s bank, crafting, merchants, stables, temples and taverns as round badges. Hover a town to see what it has without zooming in. The buttons along the top show or hide each kind; townsfolk are hidden to start.'],
     ['What does Cleared mean on the map?', 'You beat that delve’s or public dungeon’s boss. The first time gives a banner and experience, and the place gets a green tick on the map from then on.'],
   ]],
   ['Enchanting', [
