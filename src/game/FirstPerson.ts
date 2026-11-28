@@ -177,6 +177,8 @@ export interface FirstPersonState {
   shade: number;
   /** A skill being used: its move (moveFor), how long since it went off, and its colour (the calling's element, or gold). */
   skill: { move: string; t: number; color: string } | null;
+  /** Sheathed (H): the weapon carried down to the side and out of the view, the off hand lowered too; drawn again by H or a blow. */
+  sheathed?: boolean;
 }
 
 class Hand {
@@ -385,7 +387,7 @@ export class FirstPerson {
     const openNow = !!mv && !!mv.open && mt < mv.dur;
     // An empty hand rests open and easy, as the concept's left does; it closes round a grip, or to strike with nothing in it.
     // A two-hander's off hand is closed on the grip unless a spell takes it away.
-    const twoGrip = this.twoH && !openNow;
+    const twoGrip = this.twoH && !openNow && !(s.sheathed && !s.swing);
     this.left.open.visible = !this.left.held && !twoGrip; this.left.closed.visible = !this.left.open.visible;
     this.right.open.visible = !this.right.held && (openNow || !s.swing); this.right.closed.visible = !this.right.open.visible;
     this.setGlow(this.left, glowL, s.skill?.color, ward);
@@ -421,8 +423,22 @@ export class FirstPerson {
       p[0] += (bx + this.lagX) * w; p[1] += (by + br + this.lagY - sprintDrop) * w + this.jolt * 0.035; p[2] += this.jolt * 0.06;
       p[3] += this.lagX * 0.8 * w;
     }
+    // The off hand only when it has work (owner 2026-11-27: "i dont think the left arms necessary for one handed weapons
+    // swinging dagger went thru left hand"): a two-hander's grip, a shield or lamp or book in it, a skill that uses it, a
+    // reach for something, a block with nothing in it, or nothing in either hand. Otherwise it drops below the view (easing
+    // down, and up again when it's wanted), as ESO shows only the weapon hand.
+    const reaching = A === 'gather' || A === 'open' || A === 'petting' || A === 'water' || A === 'cook' || A === 'read';
+    const sheathe = !!s.sheathed && !s.swing && !(mv && mt < mv.dur);
+    if (sheathe) {
+      // down past the hip, the blade turned back along the leg, out of the view; up again into READY when it's drawn
+      R = [0.78, -1.15, -0.5, 0.15, -0.35, 0.92]; kR = 7;
+    }
     this.ease(this.right, R, kR, dt);
+    this.right.root.visible = this.right.fore.visible = !sheathe || this.right.pose[1] > -0.85;
+    const offWork = !sheathe && (twoGrip || !!this.left.held || !this.right.held || reaching || (!!mv && !!mv.L && mt < mv.dur && (!!mv.open || !!mv.glow || !!mv.ward || !!mv.kick)) || (s.blocking && !this.twoH));
+    if (!offWork) { L = [...LIDLE] as Pose; L[1] = -0.95; kL = 14; }
     this.ease(this.left, L, kL, dt);
+    this.left.root.visible = this.left.fore.visible = (twoGrip && !sheathe) || this.left.pose[1] > -0.8;
     this.place(this.right, this.right.pose, ELBOW_R);
     if (twoGrip) this.gripBelow(); else this.place(this.left, this.left.pose, ELBOW_L);
     this.updateTrail(dt, ((!!s.swing && s.swing.u > 0.15 && s.swing.u < 0.62) || trailOn) && !!this.right.held && !this.bow);

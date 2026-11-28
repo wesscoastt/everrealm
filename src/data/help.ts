@@ -17,7 +17,7 @@ export const HELP: [string, [string, string][]][] = [
     ['How do I find my way to a quest?', 'Your quests are in the journal (J). The tracked one shows on the right of the screen with how far it is, and a marker on the compass and the map points the way.'],
   ]],
   ['Fighting', [
-    ['How do I fight?', 'Press 1 to attack and 2 to 8 for the skills on your bar. Tab picks the next enemy. Hold V to block, and press Q to roll out of the way.'],
+    ['How do I fight?', 'Press 1 to attack and 2 to 8 for the skills on your bar. Tab picks the next enemy. Hold V to block, and press Q to roll out of the way. Press H to sheathe your weapon (in first person your hand carries it down out of sight) and H again to draw it; striking or using a skill draws it too.'],
     ['How do I learn and change skills?', 'Skills (K) shows what you know and what you can learn as you level. Talents (T) is where you spend your talent points.'],
     ['How do I respec?', 'Open Talents (T): Unlearn at the foot of it takes back every talent, skill and morph for a few marks, so you can choose again. Save your build first if you want it back. A temple or a chapel will do it too (they are on the map).'],
     ['What happens if I\'m knocked out?', 'You come round somewhere safe nearby, a bench or a bed, with your health back. Nothing you carry is lost.'],

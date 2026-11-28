@@ -6924,7 +6924,8 @@ export class Game implements GameApi {
     if (!show) { this.fp.visible = false; return; }
     const M = this.player.model, a = this.attack, sky = this.world.sky;
     this.fp.update(dt, {
-      look: this.wornLook(), held: M.heldKind, offhand: M.offhandKind, anim: M.state, animT: M.stateTime,
+      // (sheathed with H, the hand keeps the weapon and carries it down out of the view, ESO's way; owner 2026-11-27: "neeed to be able to sheathe in 1st pov")
+      look: this.wornLook(), held: this.fpSheathed() ?? M.heldKind, offhand: M.offhandKind, anim: M.state, animT: M.stateTime, sheathed: this.fpSheathed() !== null,
       swing: a ? { u: Math.min(1, a.t / a.dur), combo: a.combo, cleave: a.kind === 'cleave' } : null,
       blocking: this.guarding, speed: Math.hypot(this.player.velocity.x, this.player.velocity.z),
       sprint: this.input.held('ShiftLeft') || this.input.held('ShiftRight'),
@@ -6934,6 +6935,13 @@ export class Game implements GameApi {
     }, this.camera.aspect);
     const kick = this.fp.takeKick(); if (kick) this.rig.addShake(kick);
     this.fp.render(this.renderer);
+  }
+
+  /** Sheathed with a weapon to sheathe: the weapon's held id (first person carries it down out of the view), else null. */
+  private fpSheathed(): string | null {
+    const wid = this.save.equip.weapon;
+    if (!this.sheathed || !wid || this.attack || this.skillAnim) return null;
+    return ITEMS[wid]?.weapon?.model ? wid : ITEMS[wid]?.weapon?.held ?? null;
   }
 
   /** A skill's colour in the hands: gold for a heal or a ward or a war cry, else the calling's own element. */
