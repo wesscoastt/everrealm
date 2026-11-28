@@ -6,7 +6,7 @@ import { Duels } from './Duels';
 import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES, WORLD_STATES } from '../data/activities';
-import { brokenFold, burntGround, charMark, crateMesh, cuttingMesh, sheafMesh, toolMesh, dugNests, eggMesh, fireSpot, glintMesh, goatMesh, sheepMesh, wardMesh } from './EventParts';
+import { brokenFold, burntGround, captureFlag, charMark, crateMesh, cuttingMesh, sheafMesh, toolMesh, dugNests, eggMesh, fireSpot, glintMesh, goatMesh, sheepMesh, wardMesh } from './EventParts';
 import { EnemyDef, EnemyType, ENEMIES } from '../data/gameplay';
 import { ITEMS } from '../data/items';
 import { Enemy, type EnemyContext } from '../entities/Enemy';
@@ -95,6 +95,8 @@ interface LiveEvent {
   kills: number; extra: number; sizes: number[]; work: number; lost: number; startAt: number; begun: boolean; losing?: boolean; others: number; nextFire: number;
   ward?: { pos: THREE.Vector3; hp: number; max: number; mesh: THREE.Group; said: number; shake: number };
   fires?: FireSpot[]; picks?: Pick[];
+  /** Ground to hold: its pole and ring, the banner that climbs it, and how long it's been held toward the next tenth. */
+  flag?: { root: THREE.Group; cloth: THREE.Mesh; ring: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>; held: number };
   /** Marks it leaves (black rings where the fires were). */
   parts: THREE.Object3D[];
 }
@@ -238,6 +240,7 @@ export class Activities {
   private extraFor(def: EventDef, others: number): number {
     if (def.fires) return def.fires.count + others - def.fires.lose + 1;
     if (def.gather) return def.gather.count + Math.min(3, others);
+    if (def.capture) return 10; // (held in tenths)
     return 0;
   }
 
@@ -313,6 +316,13 @@ export class Activities {
         return { at: p, got: i < ev.work, mesh: g, glint };
       });
     }
+    if (def.capture) {
+      const f = captureFlag(), y = V.groundBelow(def.x + 0.5, 140, def.z + 0.5, true);
+      f.root.position.set(def.x + 0.5, y, def.z + 0.5);
+      this.host.scene.add(f.root);
+      ev.flag = { ...f, held: 0 };
+      f.cloth.position.y = 0.9 + 3.2 * (ev.work / Math.max(1, ev.extra));
+    }
     if (def.waves.length) { ev.wave = (ev.sw ?? 0) - 1; this.nextWave(ev, ev.shared ? ev.shared.killed : 0); }
     if (def.call) this.host.banner(def.name, `Event · ${REGION_INFO[def.region].name}`);
   }
@@ -375,8 +385,23 @@ export class Activities {
   }
 
   /** The parts of an event that run between kills: fires spreading and burning down, the ward's state. */
-  private tickParts(ev: LiveEvent, dt: number): void {
+  private tickParts(ev: LiveEvent, dt: number, P: THREE.Vector3): void {
     const def = ev.def;
+    if (ev.flag) {
+      // The ring fills while you stand in it and none of theirs does; the banner climbs the pole as it fills
+      const R = 6, inRing = (p: THREE.Vector3) => Math.hypot(p.x - (def.x + 0.5), p.z - (def.z + 0.5)) < R;
+      const here = inRing(P) && Math.abs(P.y - ev.flag.root.position.y) < 4 && this.host.alive();
+      const contested = ev.enemies.some((e) => e.alive && inRing(e.pos));
+      ev.flag.ring.material.color.set(here ? (contested ? '#e85a3a' : '#7ad87a') : '#f3d58a');
+      if (here && !contested && ev.work < ev.extra) {
+        ev.flag.held += dt;
+        const step = def.capture!.secs / ev.extra;
+        if (ev.flag.held >= step) { ev.flag.held -= step; ev.work++; ev.killed++; if (ev.shared) this.host.shared?.evWork(def.id); }
+      }
+      const want = 0.9 + 3.2 * ((ev.work + ev.flag.held / (def.capture!.secs / ev.extra)) / ev.extra);
+      ev.flag.cloth.position.y += (want - ev.flag.cloth.position.y) * Math.min(1, dt * 4);
+      ev.flag.cloth.rotation.y = Math.sin(this.clock * 2.1) * 0.12;
+    }
     if (ev.fires) {
       if ((ev.nextFire -= dt) <= 0) { ev.nextFire = 6 / (1 + 0.3 * ev.others); this.light(ev); }
       for (const f of ev.fires) {
@@ -432,7 +457,7 @@ export class Activities {
         if (this.clock >= ev.startAt) this.begin(ev);
         continue;
       }
-      this.tickParts(ev, dt);
+      this.tickParts(ev, dt, P);
       if (!this.live.has(ev.def.id) || ev.losing) continue;
       if (ev.shared) {
         // The server keeps the clock and the count; leaving the area lets it go on without us
@@ -501,6 +526,7 @@ export class Activities {
   private endEvent(ev: LiveEvent, cooldown: number): void {
     for (const e of ev.enemies) this.host.removeEnemy(e);
     if (ev.ward) this.host.scene.remove(ev.ward.mesh);
+    if (ev.flag) this.host.scene.remove(ev.flag.root);
     for (const f of ev.fires ?? []) if (f.mesh) this.host.scene.remove(f.mesh);
     for (const p of ev.picks ?? []) if (!p.got) this.host.scene.remove(p.mesh);
     // The black rings stay a while after, then go
@@ -1225,6 +1251,7 @@ export class Activities {
       if (ev.kills) bits.push(`${kills}/${ev.kills}`);
       if (ev.def.fires) bits.push(`fires out ${work}/${ev.extra}`);
       if (ev.def.gather) bits.push(`${ev.def.gather.noun} ${work}/${ev.extra}`);
+      if (ev.def.capture) bits.push(`${ev.def.capture.label} held ${Math.round((work / Math.max(1, ev.extra)) * 100)}%`);
       if (ev.ward) bits.push(`${ev.def.ward!.label} ${Math.max(0, Math.round((ev.ward.hp / ev.ward.max) * 100))}%`);
       best = { kind: 'event', title: ev.def.name, goal: ev.def.goal, progress: (kills + work) / Math.max(1, ev.kills + ev.extra), count: bits.join(' · '), time: Math.max(0, ev.endsAt - this.clock) };
     }

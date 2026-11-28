@@ -33,6 +33,9 @@ export interface EventDef {
   fires?: { count: number; lose: number };
   /** Things scattered about to pick up with E. */
   gather?: { count: number; look: 'cutting' | 'sheep' | 'egg' | 'goat' | 'crate' | 'tool' | 'sheaf'; /** what you press E to do */ act: string; /** what the tracker counts */ noun: string };
+  /** Ground to take and hold (GW2's capture points): stand in the ring for so many seconds in all; it only fills while none
+   *  of the event's creatures stand in it with you. */
+  capture?: { secs: number; label: string };
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
   call?: { who: string; text: string; secs: number };
   /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
@@ -142,7 +145,7 @@ export const EVENTS: EventDef[] = [
     won: { clear: 'terracesburnt', say: 'They\'ll take. Heeled in by tonight, and in three years it\'s a terrace again. Thank you.' } },
   { id: 'ev-mreavercamp', name: 'The Reaver Camp', region: 'glassflats', x: 7590, z: -200, goal: 'Break the reavers’ camp on the flats so they can’t come at the wells again', after: { id: 'ev-mreavers', result: 'win' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 4 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1700, marks: [28, 46], loot: [{ item: 'black_glass', chance: 1 }, { item: 'callis_red', chance: 0.4 }],
     won: { say: 'Camp\'s broken and their water skins are cut. They\'ll have to go a long way round to find another well.' } },
-  { id: 'ev-mretakewells', name: 'Take Back the Outer Wells', region: 'glassflats', x: 7496, z: -196, goal: 'Drive the reavers off Tenwells’ outer wells', after: { id: 'ev-mreavers', result: 'fail' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 3 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1600, marks: [26, 44], loot: [{ item: 'black_glass', chance: 1 }],
+  { id: 'ev-mretakewells', name: 'Take Back the Outer Wells', region: 'glassflats', x: 7496, z: -196, goal: 'Take the outer wells back and hold the ground round them while the reavers try to win it back', after: { id: 'ev-mreavers', result: 'fail' }, capture: { secs: 60, label: 'The outer wells' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 3 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1600, marks: [26, 44], loot: [{ item: 'black_glass', chance: 1 }],
     call: { who: 'Ennis Wade', text: 'Enough of this. Every reaver on that well is one more mouth we\'re watering. We\'re taking it back. Who\'s with me?', secs: 10 },
     won: { clear: 'wellsheld', say: 'The wells are ours. Somebody fetch rope and a clean bucket, and nobody drink from it until I\'ve tasted it.' } },
   { id: 'ev-mhoundden', name: 'The Hounds\' Den', region: 'greywaste', x: 8580, z: -1100, goal: 'Clear the waste hounds out of their den in the rocks above Cold Harbour', after: { id: 'ev-mhounds', result: 'win' }, waves: [{ type: 'wastehound', count: 3 }, { type: 'wastehound', count: 4 }], leader: 'wastehound', time: 300, cooldown: 900, xp: 1820, marks: [28, 48], loot: [{ item: 'wolf_pelt', chance: 1 }],

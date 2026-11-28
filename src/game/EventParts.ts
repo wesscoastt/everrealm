@@ -332,3 +332,18 @@ export function sheafMesh(): THREE.Group {
   for (let k = 0; k < 5; k++) box(g, 0.25, 0.05, 0.06, '#c8a84a', 0.55, 0.32 + (k - 2) * 0.05, (k - 2) * 0.06, 0, -0.2);
   return g;
 }
+
+/** Ground to hold: a ring marked on the ground, a tall pole in the middle, a banner that climbs it as the ground is held. */
+export function captureFlag(): { root: THREE.Group; cloth: THREE.Mesh; ring: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> } {
+  const root = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.RingGeometry(5.6, 6, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f3d58a', transparent: true, opacity: 0.55, depthWrite: false }));
+  ring.position.y = 0.06; root.add(ring);
+  box(root, 0.6, 0.3, 0.6, '#6a6a66', 0, 0.15, 0);
+  box(root, 0.12, 4.6, 0.12, '#5a4228', 0, 2.5, 0);
+  box(root, 0.22, 0.12, 0.22, '#c8a050', 0, 4.85, 0);
+  const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 1.1), new THREE.MeshLambertMaterial({ color: '#2a5a8a' }));
+  cloth.position.set(0, 0.9, 0.6); root.add(cloth);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 1.1), new THREE.MeshLambertMaterial({ color: '#f3d58a' }));
+  band.position.y = -0.22; cloth.add(band);
+  return { root, cloth, ring };
+}
