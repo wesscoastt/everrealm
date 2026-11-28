@@ -128,7 +128,9 @@ const LEFT_READY: Pose = [-0.62, -0.34, -0.74, 0.32, 0.28, -0.9];
 const LEFT_SHIELD: Pose = [-0.56, -0.3, -0.72, 0.25, 0.12, -0.96];
 const LEFT_BLOCK: Pose = [-0.14, -0.3, -0.5, 0.05, 0.05, -1];
 /** The shoulders the forearms are solved from: below and to the side of the view, a little behind the eyes. */
-const SHOULDER_R = new THREE.Vector3(0.58, -0.9, 0.1), SHOULDER_L = new THREE.Vector3(-0.58, -0.9, 0.1);
+// (out to the sides and a little ahead of the eye, so each forearm runs down and out to its own corner, the elbows wider
+// than the hands, as arms reaching forward are; behind the eye they met under the middle of the view in a V: owner 2026-11-27)
+const SHOULDER_R = new THREE.Vector3(0.8, -1.05, -0.3), SHOULDER_L = new THREE.Vector3(-0.8, -1.05, -0.3);
 /** How big the hands are drawn against the figure they belong to. */
 const SCALE = 0.56;
 
@@ -229,7 +231,7 @@ export class FirstPerson {
       h.fist.add(h.closed, h.open, h.glow);
       // The forearm runs up +Y from the wrist, long enough to leave the frame; the sleeve, the cuff, then the hand
       const fore = c.bracers ? c.bracers.color : c.bare ? c.skin : c.sleeve;
-      h.fist.add(box(0.17, 0.62, 0.19, fore, 0, 0.42, 0));
+      h.fist.add(box(0.17, 0.95, 0.19, fore, 0, 0.58, 0));
       if (c.bracers) h.fist.add(box(0.2, 0.06, 0.22, c.bracers.trim ?? c.cuff, 0, 0.16, 0), box(0.19, 0.06, 0.21, c.bracers.trim ?? c.cuff, 0, 0.58, 0));
       else if (!c.bare) h.fist.add(box(0.2, 0.08, 0.22, c.cuff, 0, 0.14, 0));
       // the fist: knuckles forward, the thumb wrapped over
