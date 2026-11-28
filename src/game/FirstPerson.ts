@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { armColours, heldObject, offhandObject, type Appearance } from '../entities/humanoid';
+import { heldFamily, heldObject, offhandObject, type Appearance, type WeaponFamily } from '../entities/humanoid';
+import { buildArm } from './fpArms';
 
 // First person, your own hands (owner 2026-11-27: "work on first person"; "the crawler kit could prob help the first
 // person view and also armor and weapons"). Zoomed all the way in, you used to see the world and nothing of yourself.
@@ -25,7 +26,9 @@ type Key = [number, ...Pose];
 
 // (owner 2026-11-27: "arms in first person need to be more natural positioion"): the fist rests low in the right corner, a
 // little way out from the eye, the blade angled forward and in over the ground ahead rather than standing up in the view
-const READY: Pose = [0.64, -0.32, -0.8, -0.26, 0.44, -0.86];
+// (owner 2026-11-27, docs/briefs/first-person-arms.md: the concept's right hand low on the right, the fingers round the grip
+// and the blade rising up and a little out; the left hand low on the left, open and easy, palm down)
+const READY: Pose = [0.59, -0.23, -0.78, 0.22, 0.8, -0.56];
 const K = (t: number, p: Pose): Key => [t, ...p];
 /** Swings, in seconds at a pace of 1 (sampled by the fraction of the blow done, so a faster pace swings faster). */
 const SWINGS: Record<string, Key[]> = {
@@ -53,7 +56,7 @@ const SWINGS: Record<string, Key[]> = {
 // both hands down to the ground, a ward puts a palm up behind a disc of light, a heal opens the off hand palm up in a
 // gold glow, a cast pushes the open off hand out with the calling's own colour gathered in it.
 // (the off hand rests low in the left corner, above the bar, knuckles forward and a little in)
-const LIDLE: Pose = [-0.62, -0.34, -0.74, 0.32, 0.28, -0.9];
+const LIDLE: Pose = [-0.46, -0.27, -0.72, 0.12, -0.92, -0.36];
 /** A move: keys for the right hand, the left, how long it lasts, which hands glow (and from when), and its kick. */
 export interface Move { R?: Key[]; L?: Key[]; dur: number; open?: boolean; glow?: 'L' | 'R' | 'both'; glowAt?: [number, number]; ward?: boolean; kickAt?: number; kick?: number; trail?: [number, number] }
 const MOVES: Record<string, Move> = {
@@ -124,15 +127,31 @@ export function moveFor(anim: string, name: string, desc: string, bow: boolean):
 const ROD_HOLD: Pose = [0.36, -0.42, -0.56, 0.0, 0.62, -0.78];
 const BOW_HOLD: Pose = [0.06, -0.32, -0.62, 0.05, 0.99, -0.1];
 // (the left hand's way is where its knuckles face: a shield's face, a lamp's front, a book's cover)
-const LEFT_READY: Pose = [-0.62, -0.34, -0.74, 0.32, 0.28, -0.9];
+const LEFT_READY: Pose = [-0.46, -0.27, -0.72, 0.12, -0.92, -0.36];
+/** How each kind of weapon rests in the hand: a dagger low and pointing ahead, a two-hander up across the body with the
+ *  other hand below on the grip, a spear levelled, a staff upright. (Swords, axes and maces take READY.) */
+const REST: Partial<Record<WeaponFamily, Pose>> = {
+  dagger: [0.56, -0.3, -0.72, -0.08, 0.3, -0.95],
+  // (two-handers further out and nearer the middle, so the off hand on the grip below shows and the blade doesn't fill the view)
+  greatsword: [0.24, -0.2, -1.05, -0.36, 0.78, -0.5],
+  greataxe: [0.26, -0.22, -1.05, -0.38, 0.76, -0.52],
+  hammer: [0.26, -0.22, -1.05, -0.38, 0.76, -0.52],
+  spear: [0.24, -0.26, -1.0, -0.08, 0.2, -0.98],
+  staff: [0.58, -0.24, -0.84, 0.05, 0.98, -0.18],
+};
+/** Two-handed: the off hand takes the grip below the right. */
+const TWO_HANDED = new Set<WeaponFamily>(['greatsword', 'greataxe', 'hammer', 'spear']);
 const LEFT_SHIELD: Pose = [-0.56, -0.3, -0.72, 0.25, 0.12, -0.96];
 const LEFT_BLOCK: Pose = [-0.14, -0.3, -0.5, 0.05, 0.05, -1];
 /** The shoulders the forearms are solved from: below and to the side of the view, a little behind the eyes. */
-// (out to the sides and a little ahead of the eye, so each forearm runs down and out to its own corner, the elbows wider
-// than the hands, as arms reaching forward are; behind the eye they met under the middle of the view in a V: owner 2026-11-27)
-const SHOULDER_R = new THREE.Vector3(0.8, -1.05, -0.3), SHOULDER_L = new THREE.Vector3(-0.8, -1.05, -0.3);
+// Where each elbow is: out of the view below and to the side, a little ahead of the eye. Every forearm is aimed straight
+// at its elbow, so the arm always runs off the bottom corner to the body it belongs to, and the elbow follows the hand a
+// little as it moves (a swing across the body pulls it in). (The V the owner saw came from aiming at points behind the eye.)
+const ELBOW_R = new THREE.Vector3(0.66, -0.55, -0.26), ELBOW_L = new THREE.Vector3(-0.66, -0.55, -0.26);
 /** How big the hands are drawn against the figure they belong to. */
-const SCALE = 0.56;
+const SCALE = 0.62;
+/** Where the wrist is, up the forearm from the grip (in the hand's own units). */
+const WRIST = 0.15;
 
 /** What the game tells the view each frame. */
 export interface FirstPersonState {
@@ -173,7 +192,12 @@ class Hand {
   /** How far out along +Z the blade's tip is (fist space), for the trail. */
   tip = 0.9;
   pose: Pose;
-  constructor(pose: Pose) { this.pose = [...pose] as Pose; this.root.add(this.fist); this.fist.add(this.closed, this.open, this.glow); }
+  /** The forearm, a piece of its own from the wrist to the elbow: it aims at the elbow while the hand turns at the wrist
+   *  to hold the blade where it should point (one rigid piece forced the blade back at the eye). Its blocks hang in
+   *  foreInner, shifted so the joint is its origin. */
+  readonly fore = new THREE.Group();
+  readonly foreInner = new THREE.Group();
+  constructor(pose: Pose) { this.pose = [...pose] as Pose; this.root.add(this.fist); this.fist.add(this.closed, this.open, this.glow); this.fore.add(this.foreInner); this.foreInner.position.y = -WRIST; }
 }
 const GLOW_CORE = new THREE.SphereGeometry(0.065, 12, 9), GLOW_HALO = new THREE.SphereGeometry(0.14, 12, 9), WARD_DISC = new THREE.CircleGeometry(0.46, 32);
 
@@ -197,13 +221,18 @@ export class FirstPerson {
   private jolt = 0;
   private t = 0;
   private bow = false;
+  /** What family of weapon is in the right hand, and whether it takes both hands. */
+  private fam: WeaponFamily | null = null;
+  private twoH = false;
+  /** A light that's always with you, so your own arms never go black at night or in a cellar (the sky's lights on top). */
+  private readonly fill = new THREE.AmbientLight('#fff2e0', 0.5);
   private trail: THREE.Mesh;
   private trailPts: { a: THREE.Vector3; b: THREE.Vector3; age: number }[] = [];
   /** Whether it was drawn this frame (Game.ts draws its pass only then). */
   visible = false;
 
   constructor() {
-    this.scene.add(this.hemi, this.sun, this.sun.target, this.right.root, this.left.root);
+    this.scene.add(this.hemi, this.sun, this.sun.target, this.fill, this.right.root, this.left.root, this.right.fore, this.left.fore);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(16 * 2 * 3), 3));
     geo.setAttribute('alpha', new THREE.BufferAttribute(new Float32Array(16 * 2), 1));
@@ -225,23 +254,17 @@ export class FirstPerson {
 
   /** Build the forearms and what's in the hands again when the look or the gear changes. */
   private rebuild(s: FirstPersonState): void {
-    const c = armColours(s.look);
+    this.fam = heldFamily(s.held);
+    this.twoH = !!this.fam && TWO_HANDED.has(this.fam) && !s.offhand;
     for (const [h, side, item] of [[this.right, 1, s.held], [this.left, -1, s.offhand]] as const) {
-      for (const g of [h.fist, h.closed, h.open, h.glow]) g.clear();
+      for (const g of [h.fist, h.closed, h.open, h.glow, h.foreInner]) g.clear();
       h.fist.add(h.closed, h.open, h.glow);
-      // The forearm runs up +Y from the wrist, long enough to leave the frame; the sleeve, the cuff, then the hand
-      const fore = c.bracers ? c.bracers.color : c.bare ? c.skin : c.sleeve;
-      h.fist.add(box(0.17, 0.95, 0.19, fore, 0, 0.58, 0));
-      if (c.bracers) h.fist.add(box(0.2, 0.06, 0.22, c.bracers.trim ?? c.cuff, 0, 0.16, 0), box(0.19, 0.06, 0.21, c.bracers.trim ?? c.cuff, 0, 0.58, 0));
-      else if (!c.bare) h.fist.add(box(0.2, 0.08, 0.22, c.cuff, 0, 0.14, 0));
-      // the fist: knuckles forward, the thumb wrapped over
-      h.closed.add(box(0.16, 0.16, 0.17, c.hand, 0, 0.02, 0));
-      h.closed.add(box(0.13, 0.05, 0.06, c.hand, 0, 0.04, 0.1));
-      h.closed.add(box(0.05, 0.1, 0.06, c.hand, -0.07 * side, -0.02, 0.06));
-      // the open hand: the palm flat, four fingers out past it and spread a little, the thumb out to the side
-      h.open.add(box(0.16, 0.15, 0.06, c.hand, 0, -0.02, 0.02));
-      for (let f = 0; f < 4; f++) { const fx = (f - 1.5) * 0.04, fing = box(0.034, 0.13 - Math.abs(f - 1.5) * 0.02, 0.04, c.hand, fx, -0.15, 0.03); fing.rotation.z = (f - 1.5) * 0.08; h.open.add(fing); }
-      const thumb = box(0.04, 0.09, 0.04, c.hand, -0.1 * side, -0.02, 0.04); thumb.rotation.z = 0.7 * side; h.open.add(thumb);
+      // The arm as the figure is dressed (game/fpArms.ts): forearm, wrist, sleeve or bracer or vambrace, the hand round the
+      // grip and the hand open
+      const parts = buildArm(s.look, side);
+      h.foreInner.add(parts.arm);
+      h.closed.add(...parts.closed.children);
+      h.open.add(...parts.open.children);
       h.open.visible = false;
       // the glow in the palm, and (the left) a ward's disc of light in front of it
       const core = new THREE.Mesh(GLOW_CORE, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -263,9 +286,9 @@ export class FirstPerson {
         h.tip = Math.max(0.3, b.max.z);
       }
       h.root.visible = true; // (both hands, as ESO shows them: the off hand low and ready when it holds nothing)
+      h.fore.visible = true;
     }
-    this.right.root.scale.setScalar(SCALE);
-    this.left.root.scale.setScalar(SCALE);
+    for (const h of [this.right, this.left]) { h.root.scale.setScalar(SCALE); h.fore.scale.setScalar(SCALE); }
   }
 
   private sample(keys: Key[], t: number): Pose {
@@ -279,22 +302,43 @@ export class FirstPerson {
     return keys[keys.length - 1].slice(1) as Pose;
   }
 
-  /** Set the fist where the pose says, the blade along its way, the forearm back toward the shoulder. */
-  private place(h: Hand, p: Pose, shoulder: THREE.Vector3): void {
-    // (the kit's poses are for a wider view than ours: drawn in nearer the middle and higher, so the fist rests on the
-    // bottom edge of the frame with the blade rising into it, as theirs does)
-    const at = new THREE.Vector3(p[0] * 0.8, p[1] * 0.6 - 0.04, p[2]);
-    const z = new THREE.Vector3(p[3], p[4], p[5]).normalize();
-    // The forearm runs from the hand down and back toward you, under the hand wherever it is (owner 2026-11-27: "still look v
-    // shape. look at eso / minecraft first person use a mix of both"): from the eye it comes almost straight up from the bottom
-    // edge, Minecraft's arm, held lower and reaching forward as ESO's are; never aimed at a fixed shoulder, so no V
-    const side = Math.sign(shoulder.x) || 1;
-    const up = new THREE.Vector3(side * 0.07, -0.62, 0.42).normalize();
-    const y = up.sub(z.clone().multiplyScalar(up.dot(z))).normalize();
-    if (y.lengthSq() < 0.01) y.set(0, 1, 0);
+  /** Set the hand where the pose says: its forearm aimed at its elbow, the blade's way kept as near as the wrist allows. */
+  private place(h: Hand, p: Pose, elbow: THREE.Vector3): void {
+    // (the poses are written for a wider view than ours: drawn in nearer the middle and a little higher)
+    this.orient(h, new THREE.Vector3(p[0] * 0.8, p[1] * 0.6 - 0.04, p[2]), new THREE.Vector3(p[3], p[4], p[5]), elbow);
+  }
+
+  /** Put a hand at a point (camera space), the forearm running straight to its elbow (which follows the hand a little), and
+   *  turn it about the forearm so what it holds points as near the way asked as it can. The forearm is never bent to suit
+   *  the blade: it's what keeps the arm joined to the body. */
+  private orient(h: Hand, at: THREE.Vector3, way: THREE.Vector3, elbow: THREE.Vector3): void {
+    const E = elbow.clone().addScaledVector(at, 0.3);
+    // The hand: what it holds points the way asked; its back up toward the elbow as near as that allows (the wrist bends)
+    const z = way.clone().normalize();
+    const toE = E.clone().sub(at).normalize();
+    const y = toE.clone().addScaledVector(z, -toE.dot(z));
+    if (y.lengthSq() < 1e-4) y.set(0, 1, 0).addScaledVector(z, -z.y);
+    y.normalize();
     const x = new THREE.Vector3().crossVectors(y, z).normalize();
     h.root.position.copy(at);
     h.root.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+    // The forearm: from the wrist straight to the elbow, turned with the hand about its own length
+    const wrist = at.clone().add(y.clone().multiplyScalar(WRIST * SCALE));
+    const fy = E.sub(wrist).normalize();
+    const fz = z.clone().addScaledVector(fy, -z.dot(fy));
+    if (fz.lengthSq() < 1e-4) fz.copy(x).cross(fy);
+    fz.normalize();
+    const fx = new THREE.Vector3().crossVectors(fy, fz).normalize();
+    h.fore.position.copy(wrist);
+    h.fore.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(fx, fy, fz));
+  }
+
+  /** A two-hander: the off hand takes the grip below the right, the same way along the handle, its own forearm to its own elbow. */
+  private gripBelow(): void {
+    this.right.root.updateMatrixWorld(true);
+    const at = this.right.fist.localToWorld(new THREE.Vector3(0, 0, -0.21));
+    const way = new THREE.Vector3(0, 0, 1).transformDirection(this.right.fist.matrixWorld);
+    this.orient(this.left, at, way, ELBOW_L);
   }
 
   private ease(h: Hand, want: Pose, k: number, dt: number): void {
@@ -315,10 +359,13 @@ export class FirstPerson {
     this.sun.color.copy(s.sun.color);
     this.sun.intensity = s.sun.intensity * s.shade * s.shade;
     this.sun.position.set(0.5, 1, 0.6); // (from over the shoulder: the sun's own way would light the backs of the hands half the day)
+    // ...and never less than enough to see your own hands by: the darker it is, the more the fill makes up
+    const lit = this.hemi.intensity + this.sun.intensity * 0.4;
+    this.fill.intensity = THREE.MathUtils.clamp(1.25 - lit, 0.3, 1.0);
 
     // Where each hand wants to be
     const A = s.anim;
-    let R: Pose = this.bow ? [...BOW_HOLD] as Pose : [...READY] as Pose, kR = 14;
+    let R: Pose = this.bow ? [...BOW_HOLD] as Pose : [...(this.fam && REST[this.fam] ? REST[this.fam]! : READY)] as Pose, kR = 14;
     let L: Pose = this.left.held ? [...LEFT_SHIELD] as Pose : [...LIDLE] as Pose, kL = 12;
     // A skill's own move, both hands, over its own length
     const mv = s.skill && !s.swing ? MOVES[s.skill.move] : null, mt = s.skill?.t ?? 0;
@@ -336,8 +383,11 @@ export class FirstPerson {
     this.lastMoveT = mt;
     // the off hand opens for a spell, a heal or a ward (and the right too, when it holds nothing)
     const openNow = !!mv && !!mv.open && mt < mv.dur;
-    this.left.open.visible = openNow && !this.left.held; this.left.closed.visible = !this.left.open.visible;
-    this.right.open.visible = openNow && !this.right.held; this.right.closed.visible = !this.right.open.visible;
+    // An empty hand rests open and easy, as the concept's left does; it closes round a grip, or to strike with nothing in it.
+    // A two-hander's off hand is closed on the grip unless a spell takes it away.
+    const twoGrip = this.twoH && !openNow;
+    this.left.open.visible = !this.left.held && !twoGrip; this.left.closed.visible = !this.left.open.visible;
+    this.right.open.visible = !this.right.held && (openNow || !s.swing); this.right.closed.visible = !this.right.open.visible;
     this.setGlow(this.left, glowL, s.skill?.color, ward);
     this.setGlow(this.right, glowR, s.skill?.color, 0);
     if (s.swing) {
@@ -350,7 +400,11 @@ export class FirstPerson {
     else if (A === 'fishCast') { R = this.sample(SWINGS.fishCast, s.animT); kR = 30; }
     else if (A === 'fishWait' || s.held === 'rod') { R = [...ROD_HOLD] as Pose; R[1] += Math.sin(this.t * 1.3) * 0.01; }
     if (A === 'gather' || A === 'open' || A === 'petting' || A === 'water' || A === 'cook' || A === 'read') { L = this.sample(SWINGS.reach, Math.min(s.animT, 1.1)); kL = 22; }
-    if (s.blocking) { L = [...LEFT_BLOCK] as Pose; kL = 24; if (!this.left.held) { R = [0.2, -0.3, -0.5, -0.9, 0.4, -0.2]; kR = 24; } }
+    if (s.blocking) {
+      // a two-hander is held across the body to take the blow; a shield comes up; an empty off hand comes up with the blade
+      if (this.twoH) { R = [0.18, -0.22, -0.62, -0.95, 0.28, -0.1]; kR = 24; }
+      else { L = [...LEFT_BLOCK] as Pose; kL = 24; if (!this.left.held) { R = [0.2, -0.3, -0.5, -0.9, 0.4, -0.2]; kR = 24; } }
+    }
     if (A === 'roll' || A === 'dash' || A === 'jump') { R[1] -= 0.12; L[1] -= 0.12; }
     if (A === 'hit') { R[1] -= 0.05; R[0] += 0.04; }
 
@@ -369,8 +423,8 @@ export class FirstPerson {
     }
     this.ease(this.right, R, kR, dt);
     this.ease(this.left, L, kL, dt);
-    this.place(this.right, this.right.pose, SHOULDER_R);
-    this.place(this.left, this.left.pose, SHOULDER_L);
+    this.place(this.right, this.right.pose, ELBOW_R);
+    if (twoGrip) this.gripBelow(); else this.place(this.left, this.left.pose, ELBOW_L);
     this.updateTrail(dt, ((!!s.swing && s.swing.u > 0.15 && s.swing.u < 0.62) || trailOn) && !!this.right.held && !this.bow);
     this.visible = true;
   }

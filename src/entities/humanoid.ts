@@ -3234,6 +3234,11 @@ export function heldObject(kind: string): { mesh: THREE.Group | null; bow: boole
   const mesh = model ? weaponMesh(model) : heldMesh(TOOLS.has(kind) ? (kind as HeldItem) : 'sword');
   return { mesh, bow: model?.family === 'bow' };
 }
+/** The family of weapon a held id is (a sword, a greataxe, a bow), or null for a tool or nothing: first person grips each its own way. */
+export function heldFamily(kind: string): WeaponFamily | null {
+  if (!kind || kind === 'none' || TOOLS.has(kind)) return null;
+  return weaponModelOf(kind)?.family ?? null;
+}
 export function offhandObject(id: string | null): THREE.Group | null {
   const model = id ? offhandModelOf(id) : null;
   return model ? offhandMesh(model) : null;
