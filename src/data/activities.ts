@@ -43,6 +43,9 @@ export interface EventDef {
   escort?: string;
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
   call?: { who: string; text: string; secs: number };
+  /** Opened by a quest: it only flares up while this flag is set (and starts as soon as you're near), and when it ends
+   *  it writes '<id>:result' ('win' or 'fail') for the quest to read and clears the flag. */
+  gate?: string;
   /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
   after?: { id: string; result: 'win' | 'fail' };
   /** What its ending leaves behind: a world state set or cleared (WORLD_STATES), and a line from whoever called for help. */
@@ -58,6 +61,7 @@ export const WORLD_STATES: Record<string, { x: number; z: number; r: number; loo
   pensbroken: { x: 7186, z: 1625, r: 6, look: 'hurdles', note: 'Branchley\'s goat pens are broken and the goats are in the wold.' },
   heldfold: { x: 6970, z: -1500, r: 6, look: 'hurdles', note: 'Lew Garth\'s fold on the Held is down and his sheep are on the fell.' },
   kestlefold: { x: -2340, z: 2445, r: 6, look: 'hurdles', note: 'Thirza Rosewarne\'s fold at Kestle is down and her sheep are on the moor.' },
+  eastwalkburnt: { x: 7689, z: 2548, r: 9, look: 'burnt', note: 'Three roofs on Reedwater\'s east walk burned on glim night.' },
   foldbroken: { x: 8615, z: -1054, r: 6, look: 'hurdles', note: 'The hurdles of Cold Harbour\'s fold are down and the sheep are loose on the cliff.' },
 };
 
@@ -188,6 +192,11 @@ export const EVENTS: EventDef[] = [
     won: { say: 'Lair\'s empty. My lads can fell without looking over their shoulders. Come by for a cup when you\'re passing.' } },
   { id: 'ev-felltools', name: 'Tools in the Brambles', region: 'crownroad', x: 470, z: 566, goal: 'Find the axes and saws the thornbacks dragged into the brambles', after: { id: 'ev-fellers', result: 'fail' }, waves: [{ type: 'thornwolf', count: 2 }], gather: { count: 6, look: 'tool', act: 'Pick up the tool', noun: 'tools' }, time: 270, cooldown: 900, xp: 520, marks: [14, 24], loot: [{ item: 'wolf_pelt', chance: 0.6 }],
     won: { say: 'Every axe and both saws. Chewed handles, but they\'ll cut. Thank you.' } },
+  // (a quest's set piece: data/content/reedRoofs.ts opens it)
+  { id: 'ev-mreedfire', name: 'The East Walk Burns', region: 'glades', x: 7689, z: 2548, goal: 'Put out the burning roofs on Reedwater\'s east walk and drive the glims back to the marsh', gate: 'rwRoofs:fire', waves: [{ type: 'glim', count: 3 }, { type: 'glim', count: 4 }], fires: { count: 9, lose: 4 }, time: 300, cooldown: 600, xp: 1500, marks: [20, 34], loot: [],
+    call: { who: 'Joan Reddy', text: 'There! The long house, the eaves have caught! Buckets, now, before it gets into the next one!', secs: 8 },
+    won: { say: 'That\'s the last of it. Look at them. Still there, every one.' },
+    lost: { set: 'eastwalkburnt', say: 'It\'s in the rafters. Get back, it\'s coming down. Get back!' } },
 ];
 
 export interface BossDef {

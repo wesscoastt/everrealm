@@ -232,6 +232,7 @@ export class Activities {
 
   /** A follow-up waits on its parent's ending; a chain's first event waits while any of its follow-ups is due. */
   private eligible(def: EventDef): boolean {
+    if (def.gate) return !!this.host.flag(def.gate);
     if (def.after) return this.outcomes.get(def.after.id) === def.after.result;
     return !this.pendingIn(def.id, 0);
   }
@@ -261,8 +262,8 @@ export class Activities {
       if (this.live.has(def.id) || (this.cool.get(def.id) ?? 0) > this.clock || !this.eligible(def)) continue;
       const d = Math.hypot(P.x - def.x, P.z - def.z);
       // A follow-up comes at once and reaches further (it's the story going on); the rest flare up when they will
-      if (d > (def.after ? 120 : 70) || !this.host.voxels.isLoaded(def.x, def.z)) continue;
-      if (!def.after && Math.random() < 0.6) continue;
+      if (d > (def.after || def.gate ? 120 : 70) || !this.host.voxels.isLoaded(def.x, def.z)) continue;
+      if (!def.after && !def.gate && Math.random() < 0.6) continue;
       const others = this.crowd(def), sizes = this.sizesFor(def, others), extra = this.extraFor(def, others);
       if (this.host.shared?.on()) {
         // Online the server runs it: ask, and it starts the run (or says one is on, or resting)
@@ -296,10 +297,19 @@ export class Activities {
     const def = ev.def, V = this.host.voxels;
     const spots = (n: number, r0: number, r1: number, seed: number): THREE.Vector3[] => {
       const out: THREE.Vector3[] = [];
+      // (never out on open water, nor down below the event's own ground, a deck's marsh or a gully: try other spots
+      // round about, then nearer in, then the middle; on a deck town the fires take the deck and the roofs)
+      const y0 = V.groundBelow(def.x + 0.5, 140, def.z + 0.5, true);
+      const bad = (x: number, y: number, z: number) => V.isWater(x, y + 0.1, z) || y < y0 - 2;
       for (let i = 0; i < n; i++) {
-        const a = hash2(i, seed, 31) * Math.PI * 2, r = r0 + hash2(i, seed, 32) * (r1 - r0);
-        const x = def.x + Math.cos(a) * r + 0.5, z = def.z + Math.sin(a) * r + 0.5;
-        out.push(new THREE.Vector3(x, V.groundBelow(x, 140, z, true), z));
+        let x = 0, y = 0, z = 0;
+        for (let t = 0; t < 8; t++) {
+          const a = hash2(i, seed + t * 17, 31) * Math.PI * 2, r = (r0 + hash2(i, seed + t * 17, 32) * (r1 - r0)) * (t < 5 ? 1 : 0.5);
+          x = def.x + Math.cos(a) * r + 0.5; z = def.z + Math.sin(a) * r + 0.5; y = V.groundBelow(x, 140, z, true);
+          if (!bad(x, y, z)) break;
+          if (t === 7) { x = def.x + 0.5 + (i % 3 - 1); z = def.z + 0.5 + (((i / 3) | 0) % 3 - 1); y = V.groundBelow(x, 140, z, true); }
+        }
+        out.push(new THREE.Vector3(x, y, z));
       }
       return out;
     };
@@ -603,6 +613,8 @@ export class Activities {
     const r = ok ? 'win' : 'fail';
     this.setOutcome(def.id, EVENTS.some((f) => f.after?.id === def.id && f.after.result === r) ? r : null);
     if (def.after) this.setOutcome(def.after.id, null);
+    // a quest's event: its ending for the quest to read, and the quest's flag that opened it cleared
+    if (def.gate) { this.host.setFlag(def.id + ':result', ok ? 'win' : 'fail'); this.host.setFlag(def.gate, 0); }
     const end = ok ? def.won : def.lost;
     if (states) this.setStates(states);
     else {

@@ -9,6 +9,7 @@
 // not buried in a wall, not sealed in by a fence's barrier, and not stranded on a roof or rampart.
 // The authored Hollindale valley is built by structures.ts on its own grid and isn't covered here.
 
+import { REED_DECK } from '../src/world/morrow';
 import { inMcLand } from '../src/world/mcland';
 import { MC_THINGS } from '../src/data/mcSigns';
 /** The owner's ladders (Verandah): climbed up and down as in the game (entities/Player.ts). */
@@ -71,7 +72,8 @@ function check(label: string, x: number, z: number, opts: { y?: number; water?: 
   const under = cells.get(key(x, top, z));
   if (under === B.Barrier && !opts.seated) problems.push(`${label} (${x.toFixed(1)}, ${z.toFixed(1)}): standing on a barrier (a fence, door or prop)`);
   // (a bridge deck over a lake or river carries the road: standing on it is standing on the road)
-  else if (stand - ground >= 2 && !GROUNDLIKE.has(under ?? -1) && !(under === B.Planks && ground <= SEA)) {
+  // (and Reedwater stands on its deck over the marsh: the deck is its ground)
+  else if (stand - ground >= 2 && !GROUNDLIKE.has(under ?? -1) && !(under === B.Planks && ground <= SEA) && !((under === B.Planks || under === B.DarkPlanks) && top === REED_DECK)) {
     const what = `${label} (${x.toFixed(1)}, ${z.toFixed(1)}): ${stand - ground} blocks above the ground, on ${BLOCKS[under ?? 0]?.name ?? 'terrain'}`;
     if (stand - ground >= 4) problems.push(what); else raised.push(what);
   }
