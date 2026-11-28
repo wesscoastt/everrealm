@@ -285,7 +285,11 @@ export class FirstPerson {
     // bottom edge of the frame with the blade rising into it, as theirs does)
     const at = new THREE.Vector3(p[0] * 0.8, p[1] * 0.6 - 0.04, p[2]);
     const z = new THREE.Vector3(p[3], p[4], p[5]).normalize();
-    const up = shoulder.clone().sub(at).normalize();
+    // The forearm runs from the hand down and back toward you, under the hand wherever it is (owner 2026-11-27: "still look v
+    // shape. look at eso / minecraft first person use a mix of both"): from the eye it comes almost straight up from the bottom
+    // edge, Minecraft's arm, held lower and reaching forward as ESO's are; never aimed at a fixed shoulder, so no V
+    const side = Math.sign(shoulder.x) || 1;
+    const up = new THREE.Vector3(side * 0.07, -0.62, 0.42).normalize();
     const y = up.sub(z.clone().multiplyScalar(up.dot(z))).normalize();
     if (y.lengthSq() < 0.01) y.set(0, 1, 0);
     const x = new THREE.Vector3().crossVectors(y, z).normalize();
