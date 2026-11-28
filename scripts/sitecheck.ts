@@ -317,6 +317,8 @@ for (const [k, id] of cells) {
     let g = y - 1;
     while (g >= 0 && !solid(x, g, z)) { if (cells.get(key(x, g, z)) === B.Water) { g = -99; break; } g--; }
     const gap = y - 1 - g;
+    // (as footings: under the ground a cart's barrier holds nothing up, and the rock over it isn't built on it)
+    if (g >= 0 && cells.get(key(x, g, z)) === B.Barrier && y < heightAt(x, z) - 3) continue;
     // (a doorway, wall either side along one line and open across it, is meant to be open)
     const f = g + 1, wx = solid(x - 1, f, z) && solid(x + 1, f, z), wz = solid(x, f, z - 1) && solid(x, f, z + 1);
     const open = (dx: number, dz: number) => !solid(x + dx, f, z + dz) && !solid(x + dx, y, z + dz);

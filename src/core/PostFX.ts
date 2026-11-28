@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ZONE_GRADE } from '../world/zones';
 
 // The picture after it's drawn (owner 2026-11-05: "feel more like it was built in an engine like Unity"; the
 // reference shots in docs/graphics-ref): the frame is drawn in high range, then
@@ -81,6 +82,7 @@ export class PostFX {
   private bloom: UnrealBloomPass;
   private grade: ShaderPass;
   private readonly tmp = new THREE.Vector3();
+  private readonly tmpC = new THREE.Color();
   enabled = true;
 
   constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, private camera: THREE.PerspectiveCamera) {
@@ -131,6 +133,12 @@ export class PostFX {
     // Rain: the light goes to a muted brown haze (the reference shot 6-rain-haze), the colour drained out of it
     if (rain > 0.01 && !under) { const k = Math.min(1, rain * 1.3); g.uWarm.value.lerp(new THREE.Color(1.03, 0.97, 0.86), k); g.uCool.value.lerp(new THREE.Color(0.97, 0.94, 0.88), k); }
     if (under) { g.uWarm.value.setRGB(0.9, 1.02, 1.04); g.uCool.value.setRGB(0.82, 0.98, 1.06); }
+    // Under the ground, the room's own grade over it (world/zones.ts: a crystal pit cold, a forge warm)
+    else if (cave && ZONE_GRADE.on > 0.01) {
+      const k = ZONE_GRADE.on, w = ZONE_GRADE.warm, c = ZONE_GRADE.cool;
+      g.uWarm.value.multiply(this.tmpC.setRGB(1 + (w.r - 1) * k, 1 + (w.g - 1) * k, 1 + (w.b - 1) * k));
+      g.uCool.value.multiply(this.tmpC.setRGB(1 + (c.r - 1) * k, 1 + (c.g - 1) * k, 1 + (c.b - 1) * k));
+    }
     g.uSat.value = under ? 0.9 : 1.08 + day * 0.04 - cloud * 0.1 - Math.min(1, rain * 1.3) * 0.22;
     g.uContrast.value = under ? 0.96 : 1.06 + day * 0.03;
     g.uVignette.value = cave ? 0.42 : 0.3;

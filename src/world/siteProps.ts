@@ -1,3 +1,4 @@
+import { lightShaft, motes, waterfall } from './underProps';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as P from './props';
@@ -371,6 +372,10 @@ export function buildSiteProps(site: Site, M: P.PropMaterials, time: { value: nu
         break;
       }
       case 'smoke': smoke.push(new THREE.Vector3(d.x, d.y, d.z)); break;
+      // The set pieces under the ground (world/underProps.ts)
+      case 'shaft': group.add(lightShaft(d.x, d.y, d.z, d.h ?? 10, d.r ?? 2, d.color ?? '#fff2d0', time)); break;
+      case 'falls': group.add(waterfall(d.x, d.y, d.z, d.h ?? 8, d.len ?? 3, d.ry ?? 0, time)); break;
+      case 'motes': group.add(motes(d.x, d.y, d.z, d.r ?? 3, d.h ?? 4, d.color ?? '#ffe0b0', time)); break;
     }
   }
   for (const g of glows) { glow(g.x, g.y, g.z); lamps.push(g); }

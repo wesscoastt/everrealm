@@ -1,6 +1,7 @@
 import { B } from './blocks';
 import { hash2 } from './noise';
-import type { PropDesc } from './sites';
+import type { BreakSpot, PropDesc } from './sites';
+import { type LightZone, zoneFromLamp, type ZoneLook } from './zones';
 
 // Caves for the group dungeons: rock that looks dug or worn, not boxes. Chambers are domed, their
 // walls pushed in and out by noise, with pillars of living rock left standing; tunnels wind between
@@ -18,7 +19,12 @@ export interface CaveTheme {
   spike: number; rubble: number;
   /** The colour of the lamps' light. */
   light: string;
+  /** How a chamber of this rock is lit (world/zones.ts), over what its lamps' colour gives. */
+  zone?: Partial<ZoneLook>;
 }
+
+/** A room's look as a builder gives it: a key's x and z are the dungeon's own (from its origin), its y the world's. */
+export type RoomLook = Partial<ZoneLook>;
 
 interface Setter { set(x: number, y: number, z: number, id: number): void }
 
@@ -54,8 +60,9 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
    * A chamber: an ellipse rx by rz round (x, z), its outline pushed in and out, domed to h at the
    * middle. Pillars of living rock ([x, z, r]) stand floor to roof. f: its floor (default F).
    */
-  const chamber = (x: number, z: number, rx: number, rz: number, h: number, th: CaveTheme, opt: { f?: number; pillars?: [number, number, number][]; seed?: number; round?: boolean } = {}) => {
+  const chamber = (x: number, z: number, rx: number, rz: number, h: number, th: CaveTheme, opt: { f?: number; pillars?: [number, number, number][]; seed?: number; round?: boolean; zone?: RoomLook; name?: string } = {}) => {
     const f = opt.f ?? F, seed = opt.seed ?? Math.round(x * 31 + z * 17);
+    mood(x, z, rx * 1.12, rz * 1.12, { ...th.zone, ...opt.zone }, th.light, f, h, opt.name);
     for (const [px, pz, pr] of opt.pillars ?? []) {
       for (let dx = -Math.ceil(pr) - 2; dx <= Math.ceil(pr) + 2; dx++) for (let dz = -Math.ceil(pr) - 2; dz <= Math.ceil(pr) + 2; dz++) {
         for (let y = f; y < f + h + 2; y++) {
@@ -129,6 +136,21 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
 
   const isOpen = (X: number, y: number, Z: number) => open.has(k3(X, y, Z));
 
+  /** How each room is lit: one zone per chamber (from its rock), and any a builder lays over them. */
+  const zones: LightZone[] = [];
+  const mood = (x: number, z: number, rx: number, rz: number, look: RoomLook, light = '#ffc880', f = F, h = 8, name?: string) => {
+    const base = zoneFromLamp(light);
+    const key = look.key ? { ...look.key, x: OX + look.key.x + 0.5, z: OZ + look.key.z + 0.5 } : undefined;
+    zones.push({ ...base, ...look, key, x: OX + x + 0.5, z: OZ + z + 0.5, rx, rz, y0: f, y1: f + h, name });
+  };
+  /** Pots, barrels and crates to smash, on the floor at (x, z). */
+  const breakables: BreakSpot[] = [];
+  const smash = (x: number, z: number, kind: BreakSpot['kind'], ry = 0) => {
+    const f = floorOf.get(ck(Math.floor(OX + x), Math.floor(OZ + z)));
+    if (f === undefined) return;
+    breakables.push({ x: OX + x + 0.5, y: f, z: OZ + z + 0.5, kind, ry });
+  };
+
   /** Paint the rock where open meets solid, hang spikes, scatter rubble, cut pits and lay bridges and lamps. */
   const finish = (opt: { spikes?: number; rubble?: number } = {}) => {
     const spikes = opt.spikes ?? 0.05, rubble = opt.rubble ?? 0.1;
@@ -160,13 +182,16 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
       for (let i = 0; i < n; i++) { O.set(X, top - i, Z, th.spike); open.delete(k3(X, top - i, Z)); }
     }
     // Rubble along the walls: a block of loose stone where a floor cell has rock on two sides
+    const fallen: string[] = [];
     for (const [c, f] of floorOf) {
       const [X, Z] = c.split(',').map(Number);
       const th = theme.get(c)!;
       let rockSides = 0;
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!isOpen(X + dx, f, Z + dz)) rockSides++;
-      if (rockSides >= 2 && hash2(X, Z, 731) < rubble) O.set(X, f, Z, th.rubble);
+      if (rockSides >= 2 && hash2(X, Z, 731) < rubble) { O.set(X, f, Z, th.rubble); fallen.push(k3(X, f, Z)); }
     }
+    // (a cell with rubble in it is no longer open: nothing is put down there after)
+    for (const c of fallen) open.delete(c);
     // Pits, then the bridges over them
     for (const p of pits) for (let X = p.x0; X <= p.x1; X++) for (let Z = p.z0; Z <= p.z1; Z++) {
       const f = floorOf.get(ck(X, Z)) ?? F;
@@ -204,7 +229,7 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
       const half = Math.floor(st.w / 2);
       for (const side of [-half, half]) {
         const X = Math.round(st.x + st.nx * side), Z = Math.round(st.z + st.nz * side);
-        for (let y = st.f; y < st.f + st.h; y++) O.set(X, y, Z, st.frame);
+        for (let y = st.f; y < st.f + st.h; y++) { O.set(X, y, Z, st.frame); open.delete(k3(X, y, Z)); }
       }
       for (let k = -half; k <= half; k++) O.set(Math.round(st.x + st.nx * k), st.f + st.h - 1, Math.round(st.z + st.nz * k), st.frame);
     }
@@ -233,5 +258,5 @@ export function caveKit(O: Setter, props: PropDesc[], OX: number, OZ: number, F:
     return out;
   };
 
-  return { keep: (x: number, y: number, z: number) => { kept.add(k3(x, y, z)); }, chamber, tunnel, pit, bridge, pool, lamp, glow, finish, covered, isOpen, floorAt: (x: number, z: number) => floorOf.get(ck(OX + x, OZ + z)) };
+  return { zones, mood, breakables, smash, keep: (x: number, y: number, z: number) => { kept.add(k3(x, y, z)); }, chamber, tunnel, pit, bridge, pool, lamp, glow, finish, covered, isOpen, floorAt: (x: number, z: number) => floorOf.get(ck(OX + x, OZ + z)) };
 }

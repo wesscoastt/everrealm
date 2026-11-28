@@ -10,6 +10,7 @@ import { landAt, landOf } from './land';
 import { COCKY, COCKY_BACK, HENWIFE, LANES } from '../data/cockyRoad';
 import { WH_DOOR, WH_HALLS, MORROW_OX, KINGSBARROW, CALLIS, CALLIS_PACKET, CALLIS_QUAY_X, CALLIS_RIVER_Z, CALLIS_SPOTS, CALLIS_TOWERS, BIGHT, BIGHT_BOAT, COLD_HARBOUR, COLD_SHED, COLD_TALLY, FELL_BARROWS, HOLLOW_FELL, REED_DECK, SLAB_MARKS, SLABS, TOWNS, WOLD_TREES, KB_CAMP, KB_FLOOR, KB_HALLS, KB_KING, KB_PORTAL, NG_ARCHIVE, NG_CATHEDRAL, NG_GATE, NG_WALL, NORTHGATE_TOWN, hullDoorX, SALT_COCKPIT, SALT_FLOOR, SALT_HULLS, SALT_LANDING, SALT_PIERS, SALTPENNY } from './morrow';
 import { caveKit, type CaveTheme } from './caves';
+import { type LightZone, mixHex, zoneFromLamp, type ZoneLook } from './zones';
 import { DOOR_PAINTS, MORROW_PAINTS, type DoorKind } from './doorKinds';
 import { hullHalf, shipDeckY, SHIPS, type ShipKind } from './shipHull';
 import { BUSINESSES, bizAt, SHOP_PLAN, type BusinessDef } from '../data/businesses';
@@ -79,6 +80,9 @@ export type PropType = 'butt' | 'roof' | 'door' | 'sails' | 'cog' | 'pipe' | 'gr
   | 'bench' | 'barrel' | 'crate' | 'firepit' | 'well' | 'glow' | 'smoke' | 'cone' | 'anvil' | 'fence' | 'sign' | 'mcsign' | 'mctorch' | 'mclantern' | 'mcladder' | 'mcfire' | 'mcfence' | 'mcbench' | 'mcfurnace' | 'mchatch' | 'mcpumpkin' | 'mcbeehive' | 'notice' | 'desk' | 'furn' | 'rails'
   /** The Mirador's (world/props.ts): a stone balustrade and a deck's rail (len along x), a sunshade (color), lamps strung on a line (len, sagging h). */
   | 'balustrade' | 'deckRail' | 'parasol' | 'stringLights'
+  /** Under the ground (world/siteProps.ts): a shaft of daylight down from a crack in the roof (y its top, h how far it falls, r its width at
+   *  the floor, color); a waterfall (y its lip, h its drop, len wide, facing ry); dust turning in the air (r round, h high, color). */
+  | 'shaft' | 'falls' | 'motes'
   /** Iron bars across a cell (len wide, rise high); a cellar hatch set in the street. */
   | 'bars' | 'hatch'
   /** The street kit (world/props.ts): a trade's hanging sign (color, tint = emblem), a striped awning (color, len), a planter of flowers, a washing line (len), a woodpile (len), a statue on its plinth. */
@@ -183,7 +187,14 @@ export interface Site {
   ring?: boolean;
   /** A ruin: a broken tower, an old wall in the moss or the red stone, a fallen keep (the music knows: game/Game.ts musicSpot). */
   ruin?: boolean;
+  /** Under the ground: how each hall is lit (world/zones.ts), eased between as you walk. */
+  zones?: LightZone[];
+  /** Pots, barrels and crates that burst when struck, with a little in them (game/Breakables.ts). */
+  breakables?: BreakSpot[];
 }
+
+/** Something to smash: where it stands (world), what it is, and which way it's turned. */
+export interface BreakSpot { x: number; y: number; z: number; kind: 'pot' | 'barrel' | 'crate'; ry?: number }
 
 /** A beast that lives at a site, wandering r blocks from (x, z), in its own coat (entities/creatures.ts Palette). */
 export interface AnimalSpot { kind: 'cow' | 'pig' | 'sheep' | 'chicken'; x: number; z: number; r: number; pal?: { a?: string; b?: string; c?: string } }
@@ -221,6 +232,14 @@ export interface SiteActivity {
 const LAIR_NAMES: Record<string, string> = { 'wb-bramblemaw': 'The Bramble Ring', 'wb-tidewright': 'Jenny\'s Strand', 'wb-cinderhorn': 'Clinker Bottom', 'wb-rimeglass': 'The Rime Bowl', 'wb-glassmother': 'The Mother\'s Bed', 'wb-oldlantern': 'The Lantern Ring' };
 
 /** Underworks themes: depth and reach, stone, light, who lives there, and what's left lying about. */
+/** Each delve's set piece in its champion's room (the dungeon pass: sites.ts dressDelve); a theme not here gets a shaft of its own lamps' light. */
+const DELVE_HERO: Partial<Record<string, { kind: 'shaft' | 'falls' | 'crystal' | 'statue'; color: string; room?: 'west' }>> = {
+  badger: { kind: 'shaft', color: '#ffe6b0' }, smugglers: { kind: 'shaft', color: '#e0f0ff', room: 'west' }, tinner: { kind: 'shaft', color: '#fff0d8' },
+  seep: { kind: 'shaft', color: '#d8f4ff' }, glimmer: { kind: 'crystal', color: '#bff4ff' }, gullery: { kind: 'shaft', color: '#f0f4ff' },
+  hollow: { kind: 'shaft', color: '#ffd890' }, liftgallery: { kind: 'crystal', color: '#bfe8ff' }, culvert: { kind: 'falls', color: '#c8e8ff' },
+  pumphouse: { kind: 'falls', color: '#8af0a0' }, foldbarrow: { kind: 'statue', color: '#9fe8ff' }, hob: { kind: 'shaft', color: '#e0ffc8' },
+};
+
 /** The rock of the underworks that are caves or mines (the built ones keep their dressed stone). */
 const CAVE_LOOK: Partial<Record<string, CaveTheme>> = {
   badger: { wall: B.Dirt, wall2: B.Loam, band: B.Gravel, floor: B.Dirt, floor2: B.Loam, spike: B.Dirt, rubble: B.Gravel, light: '#ffc880' },
@@ -347,10 +366,11 @@ function clearRoads(O: Overrides, sites: Site[]): void {
   const onRoad = (x: number, z: number) => !(x < GW + 40 && z < GW + 40) && roadDist(x, z) < 1.7 && heightAt(x, z) > SEA;
   for (const [cell, id] of [...O.soft]) {
     const x = (cell % KEY_W) + WMIN, z = (Math.floor(cell / KEY_W) % KEY_W) + WMIN, y = Math.floor(cell / (KEY_W * KEY_W));
-    if (!onRoad(x, z)) continue;
+    // (only on the road itself: a dungeon's barrier far under one is the dungeon's)
+    if (!onRoad(x, z) || y < heightAt(x, z) - 3) continue;
     O.set(x, y, z, id === B.Farmland ? B.Path : B.Air);
   }
-  for (const s of sites) s.props = s.props.filter((p) => !(ROAD_CLUTTER.has(p.t) && onRoad(p.x, p.z)));
+  for (const s of sites) s.props = s.props.filter((p) => !(ROAD_CLUTTER.has(p.t) && onRoad(p.x, p.z) && p.y >= heightAt(Math.floor(p.x), Math.floor(p.z)) - 3));
 }
 
 /**
@@ -392,6 +412,8 @@ function footings(O: Overrides): void {
     while (g >= 0 && !solidAt(x, g, z)) { if (at(x, g, z) === B.Water) { g = -99; break; } g--; }
     const gap = y - 1 - g;
     if (g < 0 || gap < 1 || gap > 2) continue;
+    // (never off a barrier under the ground: a cart's body in a dungeon holds nothing up)
+    if (at(x, g, z) === B.Barrier && y < h - 3) continue;
     // A doorway: wall either side along one line, and open in front and behind along the other, up
     // past the lintel (a slot under a deck has the deck over it there)
     const f = g + 1, wx = solidAt(x - 1, f, z) && solidAt(x + 1, f, z), wz = solidAt(x, f, z - 1) && solidAt(x, f, z + 1);
@@ -2962,9 +2984,16 @@ function* planBody(): Generator<string, Plan> {
     const spawns: [number, number, number, string][] = [];
     const { hall, run, finish, lamp, wallMat, opened } = digger(s, cx, cz, F, T);
     const put = (x: number, z: number, n: number, types: string[]) => { for (let i = 0; i < n; i++) spawns.push([cx + x + (i % 2 ? 2 : -2) * (i >> 1 ? 1 : 0.5), F, cz + z + (i % 2 ? 1.5 : -1.5), types[i % types.length]]); };
+    /** Where the rock is open (a cave delve's kit, once it's cut): clutter only goes down where there's room for it. */
+    let roomy: ((X: number, y: number, Z: number) => boolean) | null = null;
     const clutter = (x: number, z: number) => {
       const X = cx + x, Z = cz + z, k = hash2(X, Z, 305);
-      for (const c of T.clutter.slice(0, 2 + Math.floor(k * 2))) s.props.push(c === 'mushrooms' || c === 'candles' || c === 'shelves' || c === 'chest' ? { t: 'furn', item: c, x: X + (k - 0.5) * 2, y: F, z: Z + (k - 0.5) * 1.5, ry: k * 6 } : { t: c as PropType, x: X + (k - 0.5) * 2, y: F, z: Z - (k - 0.5) * 1.5, ry: k * 6 });
+      // (each its own spot, a stride apart: they used to stand in one another, a cart through a crate)
+      T.clutter.slice(0, 2 + Math.floor(k * 2)).forEach((c, i) => {
+        const x = X + (k - 0.5) * 1.2 + (i - 1) * 1.1, z = Z + (i % 2 ? 0.6 : -0.6) * (k + 0.4);
+        if (roomy && !(roomy(Math.floor(x), F, Math.floor(z)) && roomy(Math.floor(x), F + 1, Math.floor(z)))) return;
+        s.props.push(c === 'mushrooms' || c === 'candles' || c === 'shelves' || c === 'chest' ? { t: 'furn', item: c, x, y: F, z, ry: k * 6 } : { t: c as PropType, x, y: F, z, ry: k * 6 + i });
+      });
     };
 
     // The gatehouse and the stair down (south from the gate)
@@ -2991,6 +3020,8 @@ function* planBody(): Generator<string, Plan> {
       const mine = T.kind === 'mine';
       const CT = CAVE_LOOK[theme] ?? { wall: T.wall, wall2: B.Stone, band: T.floor2, floor: T.floor, floor2: B.Stone, spike: T.wall, rubble: B.Cobble, light: T.light };
       const k = caveKit(O, s.props, cx, cz, F);
+      roomy = (X, y, Z) => k.isOpen(X, y, Z);
+      const afterCut: (() => void)[] = [];
       // The stair down is already cut: the kit leaves its cells be
       for (let z = cz + ez + 2; z < cz + stairEnd; z++) for (let x = cx - 1; x <= cx + 1; x++) for (let y = F; y < G + 5; y++) k.keep(x, y, z);
       const tun = (pts: [number, number][]) => k.tunnel(pts, mine ? 4 : 4, 5, CT, { mine });
@@ -3007,7 +3038,7 @@ function* planBody(): Generator<string, Plan> {
         for (const [x, z] of [[-4, -8], [4, -2], [-26, -2], [-18, -12], [26, -2], [18, -12], [-11, 22], [11, 22], [-6, 28], [6, 28]] as const) k.lamp(x, z);
         if (mine) s.props.push({ t: 'rails', x: cx + 0.5, y: F, z: cz + 2.5, ry: 0, len: 12 } as PropDesc);
         s.act = { kind: 'dungeon', spawns, boss: [cx + 0.5, F, cz + 22.5, T.boss], chest: [cx + 0.5, F, cz + 28.5] };
-        for (const [x, z] of [[-26, -12], [26, -12], [-26, 2], [26, 2], [-4, -8], [-10, 26], [10, 26], [-24, -2], [24, -2], [-8, 30], [8, 30]]) if (room3(x, z)) clutter(x, z);
+        for (const [x, z] of [[-26, -12], [26, -12], [-26, 2], [26, 2], [-4, -8], [-10, 26], [10, 26], [-24, -2], [24, -2], [-8, 30], [8, 30]]) afterCut.push(() => { if (room3(x, z)) clutter(x, z); });
       } else {
         tun([[0, stairEnd + 1], [0, -2]]);
         room(0, 1, 6, 5, 6);
@@ -3019,10 +3050,14 @@ function* planBody(): Generator<string, Plan> {
         if (theme === 'seep') for (const [x, z] of [[-12, -4], [16, 6], [3, -2]] as const) k.glow(x, z, F + 2, 1.2, T.light, true);
         if (mine) s.props.push({ t: 'rails', x: cx + 7.5, y: F, z: cz + 2.5, ry: Math.PI / 2, len: 8 } as PropDesc);
         s.act = { kind: 'delve', spawns, boss: [cx + 14.5, F, cz + 2.5, T.boss], chest: [cx + 17.5, F, cz + 5.5] };
-        for (const [x, z] of [[-15, -4], [-11, 4], [3, -3], [16, 5], [-13, 3], [18, 0]]) if (room3(x, z)) clutter(x, z);
+        for (const [x, z] of [[-15, -4], [-11, 4], [3, -3], [16, 5], [-13, 3], [18, 0]]) afterCut.push(() => { if (room3(x, z)) clutter(x, z); });
       }
       k.finish({ spikes: T.kind === 'cave' ? 0.06 : 0.02, rubble: 0.1 });
+      // (the clutter once the rock is cut, rubble and timber sets and all, so none of it is put down inside them)
+      for (const f of afterCut) f();
       s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+      if (T.pub) s.zones = k.zones;
+      else dressDelve(s, theme, cx, cz, F, (X, y, Z) => k.isOpen(X, y, Z));
       return;
     }
     if (T.pub) {
@@ -3043,6 +3078,79 @@ function* planBody(): Generator<string, Plan> {
     }
     finish();
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: F, z: s.act.chest![2], ry: Math.PI });
+    if (!T.pub) dressDelve(s, theme, cx, cz, F, null);
+  }
+
+  /**
+   * A delve's rooms lit one by one, and the champion's given its set piece (the dungeon pass, after the dark-crawler
+   * kit: one hero element in a room, darkness round it): a shaft of daylight down a crack or a root hole, the water
+   * coming in, a cluster of the crystal, or a carved figure; a pot or two to smash in each room. open: the cave kit's
+   * open cells (null for a built delve, whose halls are boxes).
+   */
+  function dressDelve(s: Site, theme: keyof typeof UNDERWORKS, cx: number, cz: number, F: number, open: ((X: number, y: number, Z: number) => boolean) | null) {
+    const T = UNDERWORKS[theme];
+    const hero = DELVE_HERO[theme] ?? { kind: 'shaft', color: T.light };
+    const built = T.kind === 'built';
+    const [hx, hz] = hero.room === 'west' ? [-16, 3] : hero.kind === 'falls' ? [13, -7] : hero.kind === 'statue' ? [17, -3] : hero.kind === 'crystal' ? [18, -1] : [16, 4];
+    const zones: LightZone[] = [];
+    const base = zoneFromLamp(T.light);
+    // (a built delve's halls are boxes: the first room, the west and the champion's)
+    const isOpen = open ?? ((X: number, y: number, Z: number) => { const x = X - cx, z = Z - cz; return y >= F && y < F + 5 && [[-5, -4, 5, 4], [-17, -6, -9, 6], [9, -7, 18, 7]].some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d); });
+    const room = (x: number, z: number, r: number, h: number, look: Partial<ZoneLook>, name: string) => zones.push({ ...base, ...look, x: cx + x + 0.5, z: cz + z + 0.5, rx: r, rz: r, y0: F, y1: F + h, name });
+    room(0, 1, 7, 6, { hemi: 1.35, near: 14, far: 70, flick: 1.7 }, 'the first room');
+    room(-14, 0, 7.5, 7, { hemi: 1.2, near: 12, far: 62, flick: 1.5, fog: mixHex('#090a0c', T.light, 0.06) }, 'the west room');
+    room(15, 2, 8.5, 8, {
+      hemi: 1.1, near: 12, far: 60, flick: 1.3, fog: mixHex('#08090b', hero.color, 0.08), sky: mixHex('#7c8494', hero.color, 0.3),
+      key: { x: cx + hx + 0.5, y: F + (hero.kind === 'shaft' ? 5 : 3), z: cz + hz + 0.5, color: hero.color, power: hero.kind === 'shaft' ? 6 : 5, reach: 20 },
+    }, 'the champion\'s room');
+    if (hero.room === 'west') zones.push(zones.splice(1, 1)[0]); // (the set piece's room wins where they meet)
+    // The set piece
+    const X = cx + hx, Z = cz + hz;
+    const roofAt = (x: number, z: number) => { let y = F; while (y < F + 14 && isOpen(x, y, z)) y++; return y; };
+    if (hero.kind === 'shaft') {
+      // a crack up through the roof, the light coming down it onto the floor
+      const top = built ? F + (hero.room === 'west' ? 5 : 6) : roofAt(X, Z);
+      for (let y = top; y < top + 6; y++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+        const ring = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+        if (ring && Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
+        O.set(X + dx, y, Z + dz, ring ? (theme === 'hollow' || theme === 'badger' ? (hash2(dx, y, 1311) < 0.5 ? B.OakLog : B.Dirt) : T.wall) : B.Air);
+      }
+      if (theme === 'hollow' || theme === 'badger') for (const [dx, dz] of [[-1, 1], [1, -1], [0, 1]] as const) s.props.push({ t: 'root', x: X + dx + 0.5, y: top + 1, z: Z + dz + 0.5, ry: dx, len: 0.4, h: 2.4, r: 0.25 });
+      s.props.push({ t: 'shaft', x: X + 0.5, y: top + 5, z: Z + 0.5, h: top + 5 - F, r: 1.7, color: hero.color });
+      s.props.push({ t: 'glow', x: X + 0.5, y: F + 1, z: Z + 0.5, r: 2, color: hero.color, lit: true });
+    } else if (hero.kind === 'falls') {
+      // the water coming in at the north wall, into a pool sunk in the floor
+      const lip = F + (built ? 5.6 : 6);
+      s.props.push({ t: 'falls', x: X + 1, y: lip, z: Z + 0.55, h: lip - F + 0.6, len: 3, ry: 0 });
+      for (let x = X - 1; x <= X + 2; x++) { O.set(x, F - 1, Z + 1, B.Water); O.set(x, F - 2, Z + 1, B.Gravel); }
+      s.props.push({ t: 'smoke', x: X + 1, y: F, z: Z + 1.5 });
+      s.props.push({ t: 'glow', x: X + 1, y: F + 0.6, z: Z + 1.5, r: 1.6, color: hero.color, lit: true });
+    } else if (hero.kind === 'crystal') {
+      // a cluster of the crystal grown out of the wall, giving its own light
+      for (const [dx, dz, h] of [[0, 0, 3], [1, 0, 2], [0, 1, 2], [-1, 0, 1], [0, -1, 1], [1, 1, 1]] as const) for (let y = F; y < F + h; y++) if (isOpen(X + dx, y, Z + dz)) O.set(X + dx, y, Z + dz, B.Crystal);
+      s.props.push({ t: 'glow', x: X - 0.5, y: F + 1.5, z: Z + 0.5, r: 2.2, color: hero.color, lit: true });
+      s.props.push({ t: 'motes', x: X + 0.5, y: F, z: Z + 0.5, r: 3, h: 4, color: hero.color });
+    } else {
+      // a carved figure against the east wall, facing into the room: the barrow's own, standing over it
+      for (let dz = -1; dz <= 1; dz++) for (const dx of [0, 1]) O.set(X + dx, F, Z + dz, B.CarvedStone);
+      for (let y = F + 1; y <= F + 3; y++) for (let dz = -1; dz <= 1; dz++) O.set(X + 1, y, Z + dz, y === F + 1 ? T.wall2 : T.wall);
+      for (let y = F + 1; y <= F + 2; y++) O.set(X, y, Z, T.wall);
+      for (const dz of [-2, 2]) O.set(X + 1, F + 3, Z + dz, T.wall); // the shoulders
+      O.set(X + 1, F + 4, Z, T.wall); O.set(X, F + 4, Z, B.Blackstone); // the head, and the black of the face
+      for (let y = F + 1; y <= F + 4; y++) O.set(X, y, Z - 2, B.Blackstone); // the crook
+      s.props.push({ t: 'glow', x: X - 0.5, y: F + 0.5, z: Z + 0.5, r: 1.2, color: hero.color, lit: true });
+      s.props.push({ t: 'furn', item: 'candles', x: X - 0.7, y: F, z: Z + 1.6, ry: 0 });
+    }
+    s.props.push({ t: 'motes', x: cx + 0.5, y: F, z: cz + 1.5, r: 3, h: 4, color: '#e8d8c0' });
+    // Pots to smash (the crates and barrels are already: propCollision)
+    const brk = (s.breakables ??= []);
+    for (const [x, z] of [[-4, -2], [4, 3], [-16, 3], [-11, -3], [10, -5], [11, 6]] as const) {
+      if (hero.room === 'west' && x === -16) continue;
+      const bx = cx + x, bz = cz + z;
+      if (!isOpen(bx, F, bz) || !isOpen(bx, F + 1, bz)) continue;
+      brk.push({ x: bx + 0.5, y: F, z: bz + 0.5, kind: 'pot', ry: x });
+    }
+    s.zones = zones;
   }
 
   /**
@@ -3088,12 +3196,68 @@ function* planBody(): Generator<string, Plan> {
     k.tunnel([[72, 8], [73, 13], [73, 18]], 4, 5, OLD);
     k.chamber(73, 31, 19, 14, 15, OLD, { pillars: [[59, 27, 1.9], [87, 27, 1.9], [62, 38, 1.4], [84, 38, 1.4]], seed: 31 });
 
-    // Lamps: the mine's every few sets, the caves' where somebody needed to see
-    for (const x of [4, 14, 22, 30]) k.lamp(x, -2);
-    for (const [x, z] of [[34, 4], [43, -4], [26, -23], [40, -31], [33, -18], [52, -24], [62, -27], [82, -22], [73, -14], [70, 6], [62, 22], [84, 22], [66, 42], [80, 42]] as const) k.lamp(x, z);
-    // The sump's water gives back a green light; the old man is lit by the braziers the night shift left
-    k.glow(80, -35, F + 2, 1.4, '#9ae8b0', true); k.glow(66, -20, F + 2, 1.2, '#9ae8b0', true);
+    // (the dungeon pass) a cleft in the sump's north wall, where an old adit lets the water in from above
+    k.chamber(80, -38, 2.4, 2, 12, SUMP, { round: true });
+    // Lamps: the mine's every few sets, the caves' where somebody needed to see (fewer than there were, so the set
+    // pieces have the dark round them they need)
+    for (const x of [14, 22, 30]) k.lamp(x, -2);
+    for (const [x, z] of [[34, 4], [43, -4], [26, -23], [33, -18], [52, -24], [62, -27], [82, -22], [73, -14], [70, 6], [62, 22], [84, 22]] as const) k.lamp(x, z);
+    // The shaft foot: daylight down the shaft the ladder climbs
+    s.props.push({ t: 'shaft', x: OX + 2.5, y: F + 14, z: OZ + 0.5, h: 14, r: 1.5, color: '#fff4dc' });
+    k.glow(2, 0, F + 1, 1.8, '#fff4dc', true);
+    // Number Four: dust still hanging over the fall of roof, in the lamp's light
+    s.props.push({ t: 'motes', x: OX + 24.5, y: F, z: OZ + 0.5, r: 2.2, h: 4, color: '#e8d4b0' });
+    // The night shift's room: the candles at the Old Man's feet, and his lamp
+    k.glow(33, -29, F + 0.6, 1.2, '#ffc070', true); k.glow(36, -30, F + 4.4, 1, '#ffd890', true);
+    // The sump: the water coming in down the cleft, and the green the deep water gives back
+    s.props.push({ t: 'falls', x: OX + 80.5, y: F + 11, z: OZ - 39.1, h: 11, len: 3, ry: 0 });
+    k.glow(80, -35, F + 1, 1.4, '#9ae8b0', true); k.glow(66, -20, F + 2, 1.2, '#9ae8b0', true);
+    // The old man: daylight down the old fire-setting chimney onto Verdigris's nest
+    s.props.push({ t: 'shaft', x: OX + 73.5, y: F + 21, z: OZ + 35.5, h: 21, r: 3, color: '#eef6dc' });
+    s.props.push({ t: 'motes', x: OX + 73.5, y: F, z: OZ + 35.5, r: 3.5, h: 10, color: '#c8f0c0' });
+    // How each room is lit (world/zones.ts)
+    k.mood(4, 0, 5.5, 4.5, { fog: '#0c0d0e', near: 12, far: 60, sky: '#a4a8aa', ground: '#4a4440', hemi: 1.25, warm: [1.04, 1.02, 0.98], key: { x: 2, y: F + 4, z: 0, color: '#fff2d8', power: 4.5, reach: 15 }, flick: 1.4 }, '#ffc880', F, 5, 'the shaft foot');
+    k.mood(25, 0, 15.5, 3.6, { fog: '#120e0a', near: 10, far: 54, sky: '#9a8e7e', ground: '#4a3a2a', hemi: 1.2, warm: [1.08, 1.0, 0.9], flick: 2.2 }, '#ffc880', F, 5, 'Number Four');
+    k.mood(33, -27, 13, 10, { fog: '#110b07', near: 12, far: 58, sky: '#9a8a76', ground: '#4e3824', hemi: 1.1, warm: [1.1, 1.0, 0.86], key: { x: 33, y: F + 1.5, z: -28, color: '#ffc070', power: 5, reach: 14 }, flick: 2.0 }, '#ffc880', F, 10, "the night shift's room");
+    k.mood(73, -27, 15.5, 13.5, { fog: '#07100b', near: 12, far: 62, sky: '#86a494', ground: '#2a3a30', hemi: 1.15, warm: [0.98, 1.04, 0.98], cool: [0.88, 1.0, 0.96], key: { x: 80, y: F + 6, z: -34, color: '#c8ffd8', power: 5.5, reach: 22 }, flick: 1.0 }, '#b8ffc8', F, 12, 'the sump');
+    k.mood(73, -8, 4.5, 7.5, { fog: '#0a0c0c', near: 10, far: 50, sky: '#8a9690', ground: '#2e3430', hemi: 1.1, key: { x: 73, y: F + 3.5, z: -13, color: '#ffc880', power: 3, reach: 12 }, flick: 1.6 }, '#ffc880', F, 5, 'the flooded shaft');
+    k.mood(73, 31, 20.5, 15.5, { fog: '#0c0a08', near: 14, far: 72, sky: '#8e9a86', ground: '#3a3024', hemi: 1.1, warm: [1.0, 1.04, 0.96], cool: [0.92, 1.0, 0.98], key: { x: 73, y: F + 13, z: 35, color: '#e8f4d8', power: 7.5, reach: 28 }, flick: 1.5 }, '#ffb070', F, 15, 'the old man');
     k.finish({ spikes: 0.05, rubble: 0.12 });
+    // The shaft over the shaft foot, cribbed in timber, going up out of sight
+    for (let y = F + 5; y < F + 15; y++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+      O.set(OX + 2 + dx, y, OZ + dz, edge ? (y % 2 === 0 || (Math.abs(dx) === 2 && Math.abs(dz) === 2) ? B.Timber : B.Stone) : B.Air);
+    }
+    // The old man's chimney, black with the soot of the fires that split the rock
+    for (let y = F + 13; y < F + 22; y++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      if (k.isOpen(OX + 73 + dx, y, OZ + 35 + dz)) continue;
+      O.set(OX + 73 + dx, y, OZ + 35 + dz, Math.abs(dx) === 2 || Math.abs(dz) === 2 ? (hash2(dx, y + dz, 1301) < 0.3 ? B.CopperOre : B.Basalt) : B.Air);
+    }
+    // The Old Man himself, as the night shift cut him into the living rock: hooded, bearded, his lamp held out for
+    // them, the candles at his feet that they kept burning (Assembly or no Assembly, nobody goes down without asking him)
+    const SX = OX + 33, SZ = OZ - 31;
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -1; dz <= 1; dz++) O.set(SX + dx, F, SZ + dz, B.CarvedStone);
+    for (let y = F + 1; y <= F + 5; y++) for (let dx = -2; dx <= 2; dx++) for (const dz of [-1, 0]) {
+      if (y <= F + 2 && Math.abs(dx) === 2) continue; // (the robe narrows to the hem)
+      O.set(SX + dx, y, SZ + dz, y === F + 1 ? B.Blackstone : B.Whitestone);
+    }
+    // (cut where the rock runs pale, so he stands out white against the dark of the room)
+    for (const dx of [-3, 3]) for (let y = F + 3; y <= F + 4; y++) O.set(SX + dx, y, SZ, B.Whitestone); // his arms
+    O.set(SX + 3, F + 4, SZ + 1, B.Whitestone); // the hand held out with the lamp
+    for (let y = F + 6; y <= F + 7; y++) for (let dx = -1; dx <= 1; dx++) for (const dz of [-1, 0]) O.set(SX + dx, y, SZ + dz, y === F + 7 ? B.Blackstone : B.Whitestone);
+    O.set(SX, F + 7, SZ, B.Whitestone); // his face in the shadow of the hood, and the hood itself
+    O.set(SX, F + 8, SZ - 1, B.Blackstone); O.set(SX, F + 8, SZ, B.Blackstone);
+    for (let y = F + 4; y <= F + 6; y++) O.set(SX, y, SZ + 1, B.Snow); // the beard, down over his chest
+    furn('candles', 31.6, -29.4); furn('candles', 34.4, -29.4, 1.2);
+    // Number Four's fall of roof, bigger: the set that gave way lying in it
+    for (const [x, z, h] of [[22, 2, 1], [23, 1, 1], [27, 2, 1], [26, 2, 2], [25, 1, 2]] as const) for (let y = 0; y < h; y++) O.set(OX + x, F + y, OZ + z, y ? B.Gravel : B.Cobble);
+    for (let y = F + 2; y < F + 5; y++) O.set(OX + 25, y, OZ + 2, B.Air);
+    O.set(OX + 24, F + 2, OZ + 2, B.Timber); O.set(OX + 23, F + 1, OZ + 2, B.Timber);
+    // The flooded shaft: what's left of the old bridge, its ends hanging, a beam gone down into the water
+    for (const [x, y, z] of [[75, -1, -10], [76, -1, -10], [75, -1, -5], [76, -1, -5], [76, -2, -9], [76, -3, -8], [76, -4, -7], [75, -2, -6]] as const) O.set(OX + x, F + y, OZ + z, y === -1 ? B.Planks : B.Timber);
+    s.props.push({ t: 'rope', x: OX + 76.5, y: F + 0.2, z: OZ - 9.4, ry: 0, len: 0.2, h: 3, r: 0.03 });
+    // Verdigris's nest: a low mound of green-crusted spoil under the chimney
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) if (Math.hypot(dx, dz) < 2.6) O.set(OX + 73 + dx, F, OZ + 35 + dz, hash2(dx, dz, 1303) < 0.35 ? B.CopperOre : B.Gravel);
 
     // The ladder's frame on the west wall of the shaft foot
     for (let y = F; y < F + 5; y++) for (const z of [-2, 2]) O.set(OX, y, OZ + z, B.Timber);
@@ -3107,8 +3271,8 @@ function* planBody(): Generator<string, Plan> {
     furn('coil', 41, -3); furn('candles', 39, 5);
     // The night shift's room: copper sorted by hand, a table, the stove they kept going
     for (const [x, z, r] of [[25, -34, 0.2], [27, -34, 1.1], [41, -33, 0.6], [43, -31, 1.7], [24, -21, 0.9], [26, -20, 0.2]] as const) prop('crate', x, z, r);
-    furn('table', 36, -33, 0.2); furn('stool', 35, -32, 0.5); furn('stool', 37, -34, 2.1); furn('candles', 36, -33);
-    prop('firepit', 30, -33); prop('cart', 29, -20, 0.2); prop('barrel', 40, -20);
+    furn('table', 37, -21, 0.2); furn('stool', 36, -20, 0.5); furn('stool', 38.4, -22, 2.1); furn('candles', 37, -21);
+    prop('firepit', 27, -25); prop('cart', 29, -20, 0.2); prop('barrel', 40, -20);
     // The sump: the pump's frame by the deep water, its barrels, a boat nobody will use again
     for (const [x, z] of [[78, -31], [82, -31]] as const) for (let y = F; y < F + 5; y++) O.set(OX + x, y, OZ + z, B.Timber);
     for (let x = 78; x <= 82; x++) O.set(OX + x, F + 4, OZ - 31, B.Timber);
@@ -3119,9 +3283,13 @@ function* planBody(): Generator<string, Plan> {
     // The old man: rotten props from whoever worked it first, the tally they cut, the nest
     for (const [x, z] of [[58, 21], [88, 21], [57, 34], [89, 34]] as const) for (let y = F; y < F + 6; y++) O.set(OX + x, y, OZ + z, B.Timber);
     for (let i = 0; i < 4; i++) { const z = 24 + i * 2; for (let y = F + 2; y < F + 4; y++) if (!k.isOpen(OX + 93, y, OZ + z)) O.set(OX + 93, y, OZ + z, B.Sand); }
-    for (const [x, z] of [[62, 28], [84, 28], [66, 39], [80, 39]] as const) prop('firepit', x, z);
+    for (const [x, z] of [[62, 28], [84, 28]] as const) prop('firepit', x, z);
     furn('bones', 66, 36, 1.2, 1); furn('bones', 80, 25, 2.6, 1); furn('candles', 73, 44); prop('crate', 58, 40, 0.8); prop('barrel', 88, 40);
     for (const [x, z] of [[68, 43], [69, 44], [77, 44], [78, 43]] as const) O.set(OX + x, F, OZ + z, B.CopperOre);
+    // Things to smash (game/Breakables.ts): the lamp room's jars, the night shift's pots, the diggers' stores
+    for (const [x, z, kind] of [[3, 2.2, 'pot'], [2.2, -2.4, 'pot'], [6.4, 2.4, 'pot'], [42, 3, 'pot'], [38.5, -26, 'pot'], [43, -25.2, 'pot'],
+      [86, -26, 'pot'], [68, -36, 'crate'], [76, 3, 'pot'], [60, 33, 'pot'], [86, 33, 'pot'], [64, 41, 'crate'], [83, 41, 'pot']] as [number, number, BreakSpot['kind']][]) k.smash(x, z, kind, (x * 3) % 2);
+    s.zones = k.zones; s.breakables = k.breakables;
 
     s.act = {
       kind: 'group',
@@ -3143,6 +3311,7 @@ function* planBody(): Generator<string, Plan> {
       chest: at(73, 41),
       covered: k.covered(),
     };
+    s.zones ??= k.zones; // (each hall lit by its own lamps' colour: world/zones.ts)
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
@@ -3312,6 +3481,7 @@ function* planBody(): Generator<string, Plan> {
       chest: at(73, 38),
       covered: k.covered(),
     };
+    s.zones ??= k.zones; // (each hall lit by its own lamps' colour: world/zones.ts)
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
@@ -3523,6 +3693,7 @@ function* planBody(): Generator<string, Plan> {
       chest: at(93, -23),
       covered: k.covered(),
     };
+    s.zones ??= k.zones; // (each hall lit by its own lamps' colour: world/zones.ts)
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
@@ -4038,19 +4209,74 @@ function* planBody(): Generator<string, Plan> {
     // South to the great winch
     k.tunnel([[89, -18], [89, -6]], 6, 8, WORK, { mine: true, frame: B.Whitestone });
     k.chamber(89, 8, 18, 13, 18, WORK);
-    for (const [x, z] of [[3, -3], [3, 3], [14, -4], [22, 4], [30, -4], [38, 4], [45, -7], [59, -7], [45, 7], [59, 7], [52, -14], [43, -24], [61, -24], [43, -33], [61, -33], [71, -27], [82, -22], [96, -22], [82, -34], [96, -34], [89, -12], [74, 2], [104, 2], [74, 16], [104, 16]] as [number, number][])
-      k.glow(x, z, F + 3, 1.2, z < -18 ? '#9fe8ff' : '#ffd090', false);
-    k.glow(89, 14, F + 6, 1.8, '#9fe8ff', true);
+    // (the dungeon pass) a tall slot in the shafts' north wall, where the water comes down from the slabs' melt far above
+    k.chamber(89, -38.5, 2.2, 1.6, 15, WORK, { round: true });
+    // The light, room by room (world/zones.ts): one strong light on each room's set piece and the rest left darker.
+    // Lamps on the walls where somebody needed to see, not every few strides; the rest is the set pieces' own.
+    for (const [x, z] of [[3, -3], [14, -4], [38, 4], [45, -7], [59, -7], [52, -14], [71, -27], [82, -22], [96, -22], [89, -12], [74, 2], [104, 2]] as [number, number][]) k.lamp(x, z);
+    // the gallery: daylight down the Assembly's inspection bore, onto the one chain they haven't cut
+    P('shaft', 24, F + 15, -2, { h: 15, r: 2.2, color: '#fff0cc' });
+    k.glow(24, -2, F + 1.2, 2.4, '#fff0cc', true);
+    // the camp: the Linkmen's furnace, where the black is cut off the links and run into bars
+    P('flame', 60, F + 1.1, 5, { r: 1.1 }); P('smoke', 60, F + 3.2, 5);
+    k.glow(60, 5, F + 1.5, 2, '#ff9a50', true);
+    // the pit: the white in the four anchors, warm to stand by and giving off its own light
+    for (const [ax, az] of [[46, -32], [58, -32], [46, -24], [58, -24]]) k.glow(ax + 0.5, az + 0.5, F + 1.5, 1.6, '#bff4ff', true);
+    P('motes', 52, F, -28, { r: 6, h: 9, color: '#cff6ff' });
+    // the shafts: the water coming down, into its pool
+    P('falls', 89, F + 14, -38.6, { h: 14, len: 3, ry: 0 });
+    k.pool(89, -36.5, 2.4);
+    // the winch: braziers on the stage either side of the drum, and the Winder's lamp
+    k.glow(89, 13, F + 6, 1.2, '#ffd090', true);
+    k.mood(5, 0, 6.5, 6.5, { fog: '#0e0b08', near: 14, far: 70, sky: '#9a8e7c', ground: '#4a3a2a', hemi: 1.35, warm: [1.06, 1.0, 0.92], key: { x: 5, y: F + 5.5, z: 0, color: '#ffd090', power: 3.2, reach: 12 }, flick: 1.8 }, '#ffd090', F, 7, 'the door');
+    k.mood(25, 0, 17, 6.5, { fog: '#080b10', near: 12, far: 62, sky: '#7c8aa0', ground: '#3a3430', hemi: 1.05, warm: [1.08, 1.03, 0.94], cool: [0.9, 0.96, 1.08], key: { x: 24, y: F + 10, z: -2, color: '#fff0cc', power: 7, reach: 24 }, flick: 1.3 }, '#ffd090', F, 12, 'the gallery of anchors');
+    k.mood(52, 0, 13.5, 11.5, { fog: '#140c07', near: 12, far: 66, sky: '#a08a70', ground: '#5a3a22', hemi: 1.2, warm: [1.12, 1.0, 0.86], cool: [0.95, 0.96, 1.04], key: { x: 60, y: F + 3.5, z: 5, color: '#ff9a50', power: 7.5, reach: 26 }, flick: 2.6 }, '#ffd090', F, 12, 'the Linkmen\'s camp');
+    k.mood(52, -28, 14.5, 11.5, { fog: '#05101a', near: 12, far: 58, sky: '#7ca0b8', ground: '#2a4048', hemi: 1.0, warm: [0.96, 1.02, 1.08], cool: [0.86, 0.97, 1.1], key: { x: 52, y: F + 3, z: -28, color: '#9fe8ff', power: 6, reach: 22 }, flick: 0.8 }, '#9fe8ff', F, 12, 'the anchor pit');
+    k.mood(89, -29, 11.5, 11.5, { fog: '#091014', near: 12, far: 64, sky: '#8aa0b0', ground: '#2e3a3e', hemi: 1.15, cool: [0.9, 0.98, 1.06], key: { x: 89, y: F + 7, z: -34, color: '#cfe8ff', power: 5, reach: 22 }, flick: 1.1 }, '#9fe8ff', F, 16, 'the chain shafts');
+    k.mood(89, 8, 19.5, 14.5, { fog: '#0e0b09', near: 14, far: 80, sky: '#988a78', ground: '#4a3626', hemi: 1.2, warm: [1.1, 1.01, 0.88], key: { x: 89, y: F + 8, z: 11, color: '#ffb060', power: 8.5, reach: 30 }, flick: 1.9 }, '#ffd090', F, 18, 'the great winch');
     k.finish({ spikes: 0, rubble: 0.25 });
+    // The inspection bore over the gallery: a square shaft going up through the rock, dark where the light comes down it
+    for (let y = F + 11; y < F + 16; y++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) O.set(OX + 24 + dx, y, OZ - 2 + dz, B.Air);
+    for (let y = F + 11; y < F + 16; y++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.abs(dx) === 2 || Math.abs(dz) === 2) O.set(OX + 24 + dx, y, OZ - 2 + dz, y % 3 === 0 ? B.Whitestone : B.StoneBrick);
 
     // The gallery: an anchor stone in every bay on both sides, each with its black chain running up to the roof, cut
     for (let x = 12; x <= 39; x += 4) for (const z of [-4, 4]) {
       O.set(OX + x, F, OZ + z, B.StoneBrick); O.set(OX + x, F + 1, OZ + z, B.Whitestone);
-      for (let y = F + 2; y < F + 12; y++) if ((x * 7 + y) % 5 !== 0) O.set(OX + x, y, OZ + z, B.Blackstone); // (the gaps where links were cut out)
+      // (the gaps where links were cut out; the one under the bore is whole, and the light comes down on it)
+      const whole = x === 24 && z === -4;
+      for (let y = F + 2; y < F + 12; y++) if (whole || (x * 7 + y) % 5 !== 0) O.set(OX + x, y, OZ + z, B.Blackstone);
     }
-    // The Linkmen's camp: a cart of cut links, crates, a fire
-    P('cart', 47, F, -5, { ry: 0.4 }); P('crate', 57, F, 6, { ry: 0.2 }); P('crate', 58.2, F, 7, { ry: 1.1 }); P('barrel', 59, F, -6, {}); P('firepit', 50, F, 4, {});
-    for (const [x, z] of [[46, -5], [47, -6], [48, -5]]) O.set(OX + x, F, OZ + z, B.Blackstone);
+    // The door: the Assembly's seal set in the floor, a ring of the black in the white, a link across it
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+      const d = Math.hypot(dx, dz);
+      if (d > 3.4) continue;
+      O.set(OX + 5 + dx, F - 1, OZ + dz, d > 2.5 ? B.Blackstone : d > 1.6 ? B.Whitestone : Math.abs(dz) <= 0 && Math.abs(dx) <= 1 ? B.Blackstone : B.Whitestone);
+    }
+    // The Linkmen's camp: a cart of cut links, their stores, a fire, and the furnace against the east wall
+    P('cart', 47, F, -5, { ry: 0.4 }); P('firepit', 50, F, 4, {});
+    for (const [x, z] of [[44, -7], [45, -8], [44, -8], [62, 1], [62, 2], [61, 1], [62, 3]]) O.set(OX + x, F, OZ + z, B.Blackstone);
+    // the furnace: a squat stone hearth with a mouth of glowing ember, a chimney going up to the roof, black bars stacked by it
+    for (let x = 59; x <= 61; x++) for (let z = 5; z <= 7; z++) for (let y = F; y < F + 3; y++) {
+      const mouth = z === 5 && x === 60 && y <= F + 1;
+      O.set(OX + x, y, OZ + z, mouth ? (y === F ? B.Emberstone : B.Air) : y === F + 2 ? B.Blackstone : B.StoneBrick);
+    }
+    for (let y = F + 3; y < F + 12; y++) O.set(OX + 60, y, OZ + 7, y % 4 === 0 ? B.Blackstone : B.StoneBrick);
+    for (const [x, z, h] of [[57, 7, 2], [57, 8, 1], [56, 7, 1]] as const) for (let y = 0; y < h; y++) O.set(OX + x, F + y, OZ + z, B.Blackstone);
+    // The great winch: the gantry the Winder walked along over the hall, its middle gone, the planks of it on the floor
+    for (const [x0, x1] of [[72, 84], [94, 106]] as [number, number][]) for (let x = x0; x <= x1; x++) for (const z of [-1, 0, 1]) {
+      const end = x === 84 || x === 94;
+      O.set(OX + x, F + 8 - (end && z !== 0 ? 1 : 0), OZ + z, x % 4 === 0 ? B.Timber : B.Planks);
+      if (z !== 0 && (x === x0 || x === x1)) for (let y = F; y < F + 8; y++) O.set(OX + x, y, OZ + z, B.Timber);
+    }
+    // (the broken ends hang down a block or two, splintered)
+    for (const [x, y] of [[85, 7], [86, 6], [93, 7], [92, 6]] as const) O.set(OX + x, F + y, OZ, B.Planks);
+    for (const [x, z] of [[87, -1], [88, 0], [89, 1], [90, -1], [91, 0], [88, 2]] as const) O.set(OX + x, F, OZ + z, B.Planks);
+    s.props.push({ t: 'rope', x: OX + 85.5, y: F + 9.2, z: OZ + 1.6, ry: 0, len: 0.2, h: 3.5, r: 0.03 }, { t: 'rope', x: OX + 93.5, y: F + 9.2, z: OZ - 0.6, ry: 0, len: 0.2, h: 2.6, r: 0.03 });
+    // Things to smash (game/Breakables.ts): the gang's stores in the camp and along the halls, the Assembly's old jars
+    for (const [x, z, kind] of [[7, 3, 'crate'], [8, 3.8, 'barrel'], [7.6, -3.4, 'pot'], [18, -4, 'crate'], [34.6, 3.2, 'pot'], [35.4, 2.6, 'pot'],
+      [56, 6, 'crate'], [57.2, 5, 'crate'], [55, 7.5, 'barrel'], [59, -6, 'barrel'], [60.2, -5.2, 'barrel'], [44, 5, 'pot'], [45, 6.4, 'pot'], [48, 7, 'crate'],
+      [42, -33, 'pot'], [62, -23, 'pot'], [83, -33, 'crate'], [95, -24, 'pot'], [74, 6, 'crate'], [75, 7.3, 'barrel'], [104, 6, 'crate'], [103, 14, 'barrel'], [102, 15, 'pot'], [76, 15, 'pot']] as [number, number, BreakSpot['kind']][]) k.smash(x, z, kind, (x * 7) % 3);
+    s.zones = k.zones; s.breakables = k.breakables;
     // The anchor pit: four great anchors set in the floor, each a block of white crystal bound in black, warm to stand by
     for (const [ax, az] of [[46, -32], [58, -32], [46, -24], [58, -24]]) {
       for (let dx = 0; dx <= 1; dx++) for (let dz = 0; dz <= 1; dz++) { O.set(OX + ax + dx, F, OZ + az + dz, B.Crystal); O.set(OX + ax + dx, F + 1, OZ + az + dz, B.Blackstone); }
@@ -4082,7 +4308,7 @@ function* planBody(): Generator<string, Plan> {
         [mob(30, -3, 'dg_linkman'), mob(33, 3, 'dg_linkthrower'), mob(36, 0, 'dg_linkman')],
         [mob(52, -15, 'dg_crawlerkin'), mob(50, -20, 'dg_crawlerkin')],
         [mob(70, -27, 'dg_crawlerkin'), mob(75, -29, 'dg_linkman'), mob(76, -28, 'dg_linkthrower')],
-        [mob(84, -30, 'dg_linkman'), mob(94, -26, 'dg_linkman'), mob(89, -34, 'dg_crawlerkin')],
+        [mob(84, -30, 'dg_linkman'), mob(94, -26, 'dg_linkman'), mob(89, -31, 'dg_crawlerkin')],
         [mob(89, -10, 'dg_linkthrower'), mob(87, -3, 'dg_linkman'), mob(91, -3, 'dg_linkman')],
       ],
       bosses: [
@@ -4093,6 +4319,7 @@ function* planBody(): Generator<string, Plan> {
       chest: at(97, 2),
       covered: k.covered(),
     };
+    s.zones ??= k.zones; // (each hall lit by its own lamps' colour: world/zones.ts)
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
@@ -4157,6 +4384,7 @@ function* planBody(): Generator<string, Plan> {
       chest: at(98, -23),
       covered: k.covered(),
     };
+    s.zones ??= k.zones; // (each hall lit by its own lamps' colour: world/zones.ts)
     s.props.push({ t: 'furn', item: 'chest', x: s.act.chest![0], y: s.act.chest![1], z: s.act.chest![2], ry: Math.PI });
   }
 
@@ -10065,8 +10293,10 @@ function propCollision(O: Overrides, sites: Site[]): void {
     return m.get(localIdx(x & 31, y, z & 31));
   };
   /** Bar the cells under a rectangle (centre cx, cz and half sizes hx, hz in the prop's own frame), h high. */
-  const bar = (d: PropDesc, cx: number, cz: number, hx: number, hz: number, h: number) => {
+  const bar = (d: PropDesc, cx: number, cz: number, hx: number, hz: number, h: number, hard = false) => {
     const ry = d.ry ?? 0, c = Math.cos(ry), sn = Math.sin(ry), y0 = Math.floor(d.y + 0.05);
+    // (under the ground keyed so a negative z comes out right; up top it keeps x * 100000 + z, which for z < 0 lands off the map and leaves
+    // the prop without a body: the towns north of the origin were laid out round that, so changing it there is its own job)
     const cells = new Set<number>();
     // Sample the footprint every quarter block, so a bench thinner than a block still lands on its cells, but a
     // little inside its edges: a cell is barred only where the prop really stands in it, not where its edge grazes
@@ -10075,18 +10305,41 @@ function propCollision(O: Overrides, sites: Site[]): void {
     for (let u = -ix; u <= ix + 1e-6; u += Math.min(0.25, ix || 0.25)) for (let w = -iz; w <= iz + 1e-6; w += Math.min(0.25, iz || 0.25)) {
       const lx = cx + u, lz = cz + w;
       const x = Math.floor(d.x + lx * c + lz * sn), z = Math.floor(d.z - lx * sn + lz * c);
-      cells.add(x * 100000 + z);
+      cells.add(hard ? x * 200000 + (z + 100000) : x * 100000 + z);
     }
     for (const k of cells) {
-      const x = Math.floor(k / 100000), z = k - x * 100000;
-      if (POSTS.some((pt) => Math.abs(pt.x - (x + 0.5)) < 1.6 && Math.abs(pt.z - (z + 0.5)) < 1.6)) continue; // a Charter Post's spot stays open
+      const x = hard ? Math.floor(k / 200000) : Math.floor(k / 100000), z = hard ? k - x * 200000 - 100000 : k - x * 100000;
+      // (under the ground, only where there's open air over it too: a body never holds up the rock)
+      if (hard && block(x, y0 + h, z) !== B.Air) continue;
+      if (!hard && POSTS.some((pt) => Math.abs(pt.x - (x + 0.5)) < 1.6 && Math.abs(pt.z - (z + 0.5)) < 1.6)) continue; // a Charter Post's spot stays open (up top: not a dungeon's under it)
       for (let y = y0; y < y0 + h; y++) {
         const id = block(x, y, z);
         // (open air only: not stone, and not the sea or a lake, which would lose its surface there)
-        if ((id === undefined && y >= heightAt(x, z) && y >= SEA) || id === B.Air) O.set(x, y, z, B.Barrier);
+        if ((id === undefined && y >= heightAt(x, z) && y >= SEA) || id === B.Air) {
+          O.set(x, y, z, B.Barrier);
+          // (under the ground nothing clears it: the roads above mustn't take a dungeon's cart for one of theirs)
+          if (hard) O.soft.delete((x - WMIN) + (z - WMIN) * KEY_W + y * KEY_W * KEY_W);
+        }
       }
     }
   };
+  // The dungeons and delves (the dungeon pass, npm run pathscan): every crate and barrel down there is one you can
+  // smash (game/Breakables.ts), and pushes you off it till you do; the bigger things (a cart, a table, a bed, shelves,
+  // an anvil) stand in your way as they would anywhere
+  for (const st of sites) if (st.act && (st.act.kind === 'group' || st.act.kind === 'delve' || st.act.kind === 'dungeon')) {
+    const keep: PropDesc[] = [];
+    for (const d of st.props) {
+      // (one stood where it's half in the rock, or on nothing, stays a thing you look at)
+      const here = block(Math.floor(d.x), Math.floor(d.y + 0.05), Math.floor(d.z)), under = block(Math.floor(d.x), Math.floor(d.y + 0.05) - 1, Math.floor(d.z));
+      if ((d.t === 'crate' || d.t === 'barrel') && here === B.Air && under !== undefined && under !== B.Air) { (st.breakables ??= []).push({ x: d.x, y: d.y, z: d.z, kind: d.t, ry: d.ry }); continue; }
+      keep.push(d);
+      if (d.t === 'cart') bar(d, 0, 0, 0.4, 0.52, 3, true);
+      else if (d.t === 'anvil' || d.t === 'desk') bar(d, 0, 0, 0.45, 0.3, 3, true);
+      else if (d.t === 'furn' && (d.item === 'table' || d.item === 'bed')) bar(d, 0, 0, 0.5, 0.5, 3, true);
+      else if (d.t === 'furn' && (d.item === 'shelves' || d.item === 'dresser' || d.item === 'wardrobe' || d.item === 'bookcase')) bar(d, 0, 0, 0.45, 0.2, 3, true);
+    }
+    st.props = keep;
+  }
   // (the wild's camps and ruins, the delves and dungeons keep their clutter walkable: a chest or a find often
   // sits among the crates; so do the gaols' cells, where people sit on the benches, and the cramped sky isles)
   for (const st of sites) if (!st.id.startsWith('poi') && !st.id.startsWith('gaol-') && st.id !== 'skyisles' && !st.act) for (const d of st.props) {
