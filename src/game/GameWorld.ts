@@ -24,6 +24,7 @@ import { buildBlockTextureArray } from '../world/textures';
 import { Vegetation } from '../world/Vegetation';
 import { BASEMENT, CHUNK, CHUNK_VOL, chunkKey, localIdx, MAP_SCALE, SY, VoxelWorld, WMAX, WMIN, WSIZE } from '../world/VoxelWorld';
 import { ChunkManager } from './ChunkManager';
+import { inZone, type LightZone, ZONE_GRADE } from '../world/zones';
 
 /** Blocks between the far terrain's samples: it's only seen past the near chunks, in the haze. */
 const LOD_STEP = 12;
@@ -178,6 +179,8 @@ export class GameWorld {
       scene.add(l);
       this.lampLights.push(l);
     }
+    // (and one more, always there so nothing recompiles: the key light on a dungeon room's set piece, world/zones.ts)
+    scene.add(this.zoneKey);
     this.glowMat = this.makeGlowMaterial();
     for (const p of [...this.structures.lights, ...this.layout.caveLights.map(([x, y, z]) => new THREE.Vector3(x, y, z))]) {
       const s = new THREE.Sprite(this.glowMat);
@@ -527,14 +530,17 @@ export class GameWorld {
     if (heightAt(center.x, center.z) - center.y > 5) for (let y = 2; y < 24; y++) if (this.voxels.solidAt(center.x, center.y + y, center.z)) { below = 1; break; }
     this.under += (below - this.under) * Math.min(1, dt * 2);
     this.sky.underground = below === 1;
+    this.easeZone(dt, center, below === 1);
     if (this.under > 0.01) {
-      const u = this.under, h = this.sky.hemi;
-      h.color.lerp(CAVE_SKY, u); h.groundColor.lerp(CAVE_GROUND, u);
-      h.intensity += (1.7 - h.intensity) * u;
+      const u = this.under, h = this.sky.hemi, Z = this.zoneNow;
+      h.color.lerp(Z.sky, u); h.groundColor.lerp(Z.ground, u);
+      h.intensity += (Z.hemi - h.intensity) * u;
       this.sky.sun.intensity *= 1 - u;
-      this.sky.fog.color.lerp(CAVE_FOG, u);
-      this.sky.fog.near += (24 - this.sky.fog.near) * u; this.sky.fog.far += (140 - this.sky.fog.far) * u;
+      this.sky.fog.color.lerp(Z.fog, u);
+      this.sky.fog.near += (Z.near - this.sky.fog.near) * u; this.sky.fog.far += (Z.far - this.sky.fog.far) * u;
     }
+    ZONE_GRADE.on = this.under;
+    ZONE_GRADE.warm.copy(this.zoneNow.warm); ZONE_GRADE.cool.copy(this.zoneNow.cool);
     this.chunks.update(center.x, center.z);
     this.plantsIn -= dt;
     if (this.plantsIn <= 0 || this.plantsDirty) { this.plantsIn = 0.5; this.plantsDirty = false; this.plants.sync(this.forageSpots(), elapsed); }
@@ -676,6 +682,52 @@ export class GameWorld {
   /** How far underground the player is, eased (0 in the open, 1 well below the surface). */
   private under = 0;
 
+  /** The room's light as it stands now, eased toward the zone you're in (world/zones.ts); the cave's own light where no room says otherwise. */
+  private zoneNow = { fog: CAVE_FOG.clone(), near: 24, far: 140, sky: CAVE_SKY.clone(), ground: CAVE_GROUND.clone(), hemi: 1.7, warm: new THREE.Color(1, 1, 1), cool: new THREE.Color(1, 1, 1), flick: 1 };
+  private zoneAim: LightZone | null = null;
+  private readonly zoneKey = new THREE.PointLight('#ffffff', 0, 30, 1.4);
+  private zoneKeyPower = 0;
+  private readonly _zc = new THREE.Color();
+  /** The zone you're standing in, if any (the last one laid that holds you): for the tests and the debug panel. */
+  get zone(): LightZone | null { return this.zoneAim; }
+
+  /**
+   * Ease the light toward the room you're in. Between rooms (a passage no zone covers) the last room's light
+   * holds, so walking from hall to hall it changes once, not twice; back up in the open it goes back to the
+   * cave's own. The key light fades out before it moves to the next room's set piece, and in again there.
+   */
+  private easeZone(dt: number, c: THREE.Vector3, below: boolean): void {
+    if (!below) this.zoneAim = null;
+    else {
+      let hit: LightZone | null = null;
+      for (const s of this.sites) {
+        if (!s.zones || !this.activeSites.has(s.id)) continue;
+        for (let i = s.zones.length - 1; i >= 0; i--) if (inZone(s.zones[i], c.x, c.y, c.z)) { hit = s.zones[i]; break; }
+        if (hit) break;
+      }
+      if (hit) this.zoneAim = hit;
+    }
+    const A = this.zoneAim, Z = this.zoneNow, k = Math.min(1, dt * 1.4), c2 = this._zc;
+    Z.fog.lerp(A ? c2.set(A.fog) : CAVE_FOG, k);
+    Z.sky.lerp(A ? c2.set(A.sky) : CAVE_SKY, k);
+    Z.ground.lerp(A ? c2.set(A.ground) : CAVE_GROUND, k);
+    Z.near += ((A?.near ?? 24) - Z.near) * k; Z.far += ((A?.far ?? 140) - Z.far) * k;
+    Z.hemi += ((A?.hemi ?? 1.7) - Z.hemi) * k;
+    Z.flick += ((A?.flick ?? 1) - Z.flick) * k;
+    const w = A?.warm ?? [1, 1, 1], cl = A?.cool ?? [1, 1, 1];
+    Z.warm.lerp(c2.setRGB(w[0], w[1], w[2]), k); Z.cool.lerp(c2.setRGB(cl[0], cl[1], cl[2]), k);
+    // The key: fade out, move, fade in
+    const key = A?.key, L = this.zoneKey;
+    const there = key && Math.abs(L.position.x - key.x) + Math.abs(L.position.y - key.y) + Math.abs(L.position.z - key.z) < 0.5;
+    if (key && (there || this.zoneKeyPower < 0.05)) {
+      if (!there) { L.position.set(key.x, key.y, key.z); L.color.set(key.color); L.distance = key.reach; }
+      this.zoneKeyPower += (key.power * this.under - this.zoneKeyPower) * k;
+    } else this.zoneKeyPower += (0 - this.zoneKeyPower) * Math.min(1, dt * 3);
+    // (a set piece's light breathes a little, like daylight through moving cloud far above, or a fire)
+    const t = performance.now() / 1000;
+    L.intensity = this.zoneKeyPower * (0.96 + 0.03 * Math.sin(t * 1.3) + 0.01 * Math.sin(t * 5.1));
+  }
+
   /**
    * Hang the light pool on the lamps nearest the player: every interior lamp, lantern and fire in
    * the vale and in the settlements around. Lights fade out as they drop off the end of the
@@ -707,7 +759,9 @@ export class GameWorld {
       l.position.copy(best[i]);
       l.color.copy(LAMP_TINT.get(best[i]) ?? LAMP_ORANGE);
       const ph = (best[i].x * 12.9898 + best[i].z * 78.233) % 6.283;
-      const own = 0.94 + 0.04 * Math.sin(t * 7.3 + ph) + 0.025 * Math.sin(t * 19.1 + ph * 2.3) + 0.015 * Math.sin(t * 41 + ph * 3.7);
+      // (under the ground the room says how hard the torches flicker: a draughty hall's gutter, a still vault's hardly do)
+      const fl = 1 + (this.zoneNow.flick - 1) * this.under;
+      const own = 1 - 0.06 * fl + fl * (0.04 * Math.sin(t * 7.3 + ph) + 0.025 * Math.sin(t * 19.1 + ph * 2.3) + 0.015 * Math.sin(t * 41 + ph * 3.7));
       l.intensity = level * own * Math.min(1, (edge - Math.sqrt(dist[i])) / 6);
     }
   }

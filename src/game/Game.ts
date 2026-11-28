@@ -180,6 +180,7 @@ import { BOATMEN, BOAT_HIRE, BOAT_HIRE_MS } from '../data/content/boats';
 import type { FairGameId } from '../data/wakeFair';
 import { REEKS } from '../data/inkholm';
 import { Dungeons } from './Dungeons';
+import { Breakables } from './Breakables';
 import { SetPieces } from './SetPieces';
 import { SharedMobs } from './SharedMobs';
 import { QuartersTable } from './QuartersTable';
@@ -750,6 +751,8 @@ export class Game implements GameApi {
   private groupRows: GroupRow[] | null = null;
   /** Group dungeons: the finder, a run, the henchmen (game/Dungeons.ts). */
   dungeons!: Dungeons;
+  /** Pots, barrels and crates in the dungeons and delves that burst when struck (game/Breakables.ts). */
+  breakables!: Breakables;
   /** Story set pieces: things that stand in the world only while a chapter needs them. */
   private setPieces!: SetPieces;
   /** Vents, bogs and loose cliffs (game/Hazards.ts). */
@@ -1692,6 +1695,15 @@ export class Game implements GameApi {
       net: { event: (run, k, i, dmg) => this.online.dEv(run, k, i, dmg), leaveRun: (run) => this.online.dLeave(run) },
       remote: (id) => this.online.remotes.get(id)?.model.root.position ?? null,
       killed: (e) => this.onEnemyKilled(e),
+    });
+    this.breakables = new Breakables({
+      scene: this.scene, props: this.world.props, particles: this.particles, sites: () => this.world.sites, player: () => this.player.position,
+      sound: (n, d, v) => this.audio.playAt(n, d, v),
+      loot: (m, items, at) => {
+        const marks = Math.round(m * marksScale(this.level('melee'), regionLevel(regionAt(at.x, at.z).a)));
+        if (marks) { this.addMarks(marks); this.floatAt(at, 0.4, '+' + marks + ' marks', 'heal'); }
+        for (const it of items) { this.give(it, 1); this.hud.system('Inside: ' + (ITEMS[it]?.name ?? it) + '.'); }
+      },
     });
     this.dungeons = new Dungeons({
       cleared: () => { this.dailies.bump('dungeon'); this.guildPart('dungeons'); },
@@ -9136,6 +9148,8 @@ export class Game implements GameApi {
       }
       any = true;
     }
+    // Pots, barrels and crates in reach go to pieces (game/Breakables.ts)
+    if (this.breakables.strike(P, face, (a.kind === 'cleave' ? 3.4 : 2.7) + (blade?.reach ?? 0), a.kind === 'cleave') && !any && this.rig.firstPerson) { this.fp.hit(false); this.rig.addShake(0.05); }
     // Nothing hostile in reach: a blow at the town itself, its watch, its people or its beasts, goes in its book (game/Justice.ts)
     if (!any && jurisdictionAt(P.x, P.z)) {
       const reach = (a.kind === 'cleave' ? 3.4 : 2.7) + (blade?.reach ?? 0);
@@ -9691,6 +9705,7 @@ export class Game implements GameApi {
     this.npcMusic();
     this.activities.update(dt);
     this.dungeons.update(dt);
+    this.breakables.update(dt);
     this.tower?.update(dt);
     this.setPieces.update(dt, this, this.player.position);
     this.shared.update(dt);
