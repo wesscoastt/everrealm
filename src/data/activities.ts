@@ -32,7 +32,7 @@ export interface EventDef {
   /** Fires that break out one after another and spread. Put each out with E before it burns down; `lose` burnt down loses it. */
   fires?: { count: number; lose: number };
   /** Things scattered about to pick up with E. */
-  gather?: { count: number; look: 'cutting' | 'sheep' | 'egg' | 'goat'; /** what you press E to do */ act: string; /** what the tracker counts */ noun: string };
+  gather?: { count: number; look: 'cutting' | 'sheep' | 'egg' | 'goat' | 'crate'; /** what you press E to do */ act: string; /** what the tracker counts */ noun: string };
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
   call?: { who: string; text: string; secs: number };
   /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
@@ -49,6 +49,7 @@ export const WORLD_STATES: Record<string, { x: number; z: number; r: number; loo
   nestsdug: { x: 5100, z: 3460, r: 4, look: 'dug', note: 'The lizards dug out the turtle nests on Conch Key\'s beach.' },
   pensbroken: { x: 7186, z: 1625, r: 6, look: 'hurdles', note: 'Branchley\'s goat pens are broken and the goats are in the wold.' },
   heldfold: { x: 6970, z: -1500, r: 6, look: 'hurdles', note: 'Lew Garth\'s fold on the Held is down and his sheep are on the fell.' },
+  kestlefold: { x: -2340, z: 2445, r: 6, look: 'hurdles', note: 'Thirza Rosewarne\'s fold at Kestle is down and her sheep are on the moor.' },
   foldbroken: { x: 8615, z: -1054, r: 6, look: 'hurdles', note: 'The hurdles of Cold Harbour\'s fold are down and the sheep are loose on the cliff.' },
 };
 
@@ -69,10 +70,18 @@ export const EVENTS: EventDef[] = [
   // wealth draws thieves to it by land and by sea. Wreckers from Black Gull light false lamps on the headland under
   // Awschitz to bring ships onto the rocks; footpads work the sands below the port where the cargo is landed;
   // poachers take the deer in the Mizuholm woods; wolves come down on Kestle's sheep; crabs swarm the Long Sands.
-  { id: 'ev-falselights', name: 'False Lights on Awschitz Head', region: 'verandah', x: -3458, z: 1912, goal: 'Stop the wreckers lighting false lamps on the headland', waves: [{ type: 'wrecker', count: 3 }, { type: 'wrecker', count: 4 }], leader: 'wrecker', time: 330, cooldown: 540, xp: 980, marks: [26, 42], loot: [{ item: 'raw_mackerel', chance: 1 }, { item: 'lampman_hood', chance: 0.05 }, { item: 'brine_cutlass', chance: 0.05 }] },
+  { id: 'ev-falselights', name: 'False Lights on Awschitz Head', region: 'verandah', x: -3458, z: 1912, goal: 'Put out the wreckers\' false lamps on the headland before a ship steers for them', fires: { count: 7, lose: 3 },
+    call: { who: 'Wenna Chegwidden', text: 'Lights on the Head! That\'s no lighthouse, that\'s Black Gull\'s lot, and there\'s a coaster standing in for the harbour. Put them out before she turns for them!', secs: 12 },
+    won: { say: 'She\'s seen the true light and gone about. The wreckers ran down the cliff path to their cove. Catch them there before they try it again.' },
+    lost: { say: 'She\'s on the rocks under the Head. The crew got off, God knows how, but her cargo\'s coming ashore in every cove. Help me get it in before the wreckers do.' },
+    waves: [{ type: 'wrecker', count: 3 }, { type: 'wrecker', count: 4 }], leader: 'wrecker', time: 330, cooldown: 540, xp: 980, marks: [26, 42], loot: [{ item: 'raw_mackerel', chance: 1 }, { item: 'lampman_hood', chance: 0.05 }, { item: 'brine_cutlass', chance: 0.05 }] },
   { id: 'ev-portsands', name: 'Footpads on the Port Sands', region: 'verandah', x: -2937, z: 1905, goal: 'Run the footpads off the sands where the cargo comes ashore', waves: [{ type: 'footpad', count: 3 }, { type: 'footpad', count: 4 }], leader: 'footpad', time: 300, cooldown: 480, xp: 900, marks: [24, 40], loot: [{ item: 'bread', chance: 1 }, { item: 'toll_sabre', chance: 0.06 }] },
   { id: 'ev-mizuholm', name: 'Poachers in the Mizuholm Woods', region: 'verandah', x: -2862, z: 2735, goal: 'Catch the poachers before they clear the woods of deer', waves: [{ type: 'poacher', count: 3 }, { type: 'poacher', count: 3 }], leader: 'poacher', time: 300, cooldown: 480, xp: 920, marks: [24, 40], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'thorn_blade', chance: 0.06 }] },
-  { id: 'ev-kestlefolds', name: 'Wolves at the Kestle Folds', region: 'verandah', x: -2340, z: 2445, goal: 'Drive the wolves away from Kestle’s sheep', waves: [{ type: 'moorwolf', count: 2 }, { type: 'moorwolf', count: 3 }], leader: 'moorwolf', time: 330, cooldown: 540, xp: 1000, marks: [26, 42], loot: [{ item: 'frost_pelt', chance: 1 }, { item: 'frost_cowl', chance: 0.06 }] },
+  { id: 'ev-kestlefolds', name: 'Wolves at the Kestle Folds', region: 'verandah', x: -2340, z: 2445, goal: 'Keep the moor wolves out of Thirza Rosewarne’s fold', ward: { label: 'The fold', hp: 60, look: 'fold' },
+    call: { who: 'Thirza Rosewarne', text: 'Wolves off the moor, and the snow\'s brought them hungry! They\'re at my fold! Anyone with a blade!', secs: 12 },
+    won: { clear: 'kestlefold', say: 'They\'ve gone back up the valley to the rocks where they den. Go and finish it, and I\'ll owe you a fleece.' },
+    lost: { set: 'kestlefold', say: 'The hurdles are down and the sheep are all over the moor. They\'ll freeze or the wolves will have them. Help me bring them in.' },
+    waves: [{ type: 'moorwolf', count: 2 }, { type: 'moorwolf', count: 3 }], leader: 'moorwolf', time: 330, cooldown: 540, xp: 1000, marks: [26, 42], loot: [{ item: 'frost_pelt', chance: 1 }, { item: 'frost_cowl', chance: 0.06 }] },
   { id: 'ev-longsands', name: 'Crabs on the Long Sands', region: 'verandah', x: -2642, z: 2158, goal: 'Clear the crabs off the Long Sands before the tide brings more', waves: [{ type: 'crab', count: 4 }, { type: 'crab', count: 4 }], leader: 'crab', time: 300, cooldown: 480, xp: 860, marks: [22, 38], loot: [{ item: 'crab_shell', chance: 1 }, { item: 'oilskin_hat', chance: 0.08 }] },
   // Morrow (owner 2026-11-26: "it also needs events dungeons all that"): two in every region, each from that country's own
   // trouble, the places found flat and dry and off the roads, near the towns that would send for help
@@ -144,6 +153,14 @@ export const EVENTS: EventDef[] = [
     won: { say: 'Nothing left up there to bring another one down. I\'ll sleep in the house tonight instead of by the fold.' } },
   { id: 'ev-mfell', name: 'Sheep on the Fell', region: 'held', x: 6970, z: -1500, goal: 'Bring Lew Garth’s sheep down off the fell before the cold takes them', after: { id: 'ev-mtroll', result: 'fail' }, waves: [{ type: 'cavebear', count: 1 }], gather: { count: 6, look: 'sheep', act: 'Bring the sheep back', noun: 'sheep' }, time: 270, cooldown: 900, xp: 1800, marks: [28, 48], loot: [{ item: 'troll_hide', chance: 0.3 }],
     won: { clear: 'heldfold', say: 'All six. They\'re cold, but they\'ll live. I\'ll mend the hurdles before I sleep.' } },
+  { id: 'ev-wreckcove', name: 'The Wreckers\' Cove', region: 'verandah', x: -3440, z: 1890, goal: 'Catch the wreckers in their cove under Awschitz Head', after: { id: 'ev-falselights', result: 'win' }, waves: [{ type: 'wrecker', count: 3 }, { type: 'wrecker', count: 4 }], leader: 'wrecker', time: 330, cooldown: 900, xp: 1080, marks: [28, 44], loot: [{ item: 'lampman_hood', chance: 0.08 }, { item: 'brine_cutlass', chance: 0.08 }],
+    won: { say: 'Their lamps are smashed and their boat\'s stove in. Awschitz owes you a drink, and I\'ll see you get it.' } },
+  { id: 'ev-salvage', name: 'A Ship on the Rocks', region: 'verandah', x: -3458, z: 1912, goal: 'Bring in the wrecked coaster\'s cargo before the wreckers carry it off', after: { id: 'ev-falselights', result: 'fail' }, waves: [{ type: 'wrecker', count: 3 }], gather: { count: 6, look: 'crate', act: 'Haul the cargo up', noun: 'cargo' }, time: 270, cooldown: 900, xp: 900, marks: [24, 40], loot: [{ item: 'raw_mackerel', chance: 1 }],
+    won: { say: 'Six crates, and the owners will have them back. Black Gull gets nothing out of this one.' } },
+  { id: 'ev-kestleden', name: 'The Wolves\' Rocks', region: 'verandah', x: -2310, z: 2475, goal: 'Clear the moor wolves out of their den in the rocks up the valley', after: { id: 'ev-kestlefolds', result: 'win' }, waves: [{ type: 'moorwolf', count: 3 }, { type: 'moorwolf', count: 3 }], leader: 'moorwolf', time: 330, cooldown: 900, xp: 1100, marks: [28, 44], loot: [{ item: 'frost_pelt', chance: 1 }],
+    won: { say: 'The rocks are empty. A quiet winter, then. Come by in spring and the fleece is yours.' } },
+  { id: 'ev-kestlestrays', name: 'Sheep on the Moor', region: 'verandah', x: -2340, z: 2445, goal: 'Bring Thirza Rosewarne’s sheep in off the moor before the cold or the wolves take them', after: { id: 'ev-kestlefolds', result: 'fail' }, waves: [{ type: 'moorwolf', count: 2 }], gather: { count: 6, look: 'sheep', act: 'Bring the sheep back', noun: 'sheep' }, time: 270, cooldown: 900, xp: 950, marks: [24, 40], loot: [{ item: 'frost_pelt', chance: 0.6 }],
+    won: { clear: 'kestlefold', say: 'All of them, and not a bite on one. I\'ll have the hurdles up by dark.' } },
 ];
 
 export interface BossDef {

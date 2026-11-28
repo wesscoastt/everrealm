@@ -255,3 +255,21 @@ export function dugNests(): THREE.Group {
   }
   return g;
 }
+
+/** Cargo off a wreck: a sea-stained crate or a cask, a tangle of weed and rope on it. */
+export function crateMesh(i: number): THREE.Group {
+  const g = new THREE.Group();
+  if (i % 3 === 2) {
+    const cask = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.8, 10), mat('#7a5a34'));
+    cask.rotation.z = Math.PI / 2; cask.position.y = 0.36; cask.castShadow = true; g.add(cask);
+    for (const x of [-0.28, 0.28]) { const hoop = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.06, 10), mat('#3a3a3c')); hoop.rotation.z = Math.PI / 2; hoop.position.set(x, 0.36, 0); g.add(hoop); }
+  } else {
+    box(g, 0.8, 0.7, 0.7, '#8a6a42', 0, 0.35, 0);
+    for (const y of [0.12, 0.58]) box(g, 0.84, 0.08, 0.74, '#5a4228', 0, y, 0);
+    box(g, 0.08, 0.72, 0.74, '#5a4228', 0, 0.35, 0);
+    box(g, 0.5, 0.05, 0.3, '#2a2420', 0.1, 0.71, 0.1);
+  }
+  box(g, 0.6, 0.04, 0.12, '#3a5a2a', -0.1, 0.74, -0.15, 0.6);
+  box(g, 0.05, 0.05, 0.7, '#c8b890', 0.25, 0.73, 0, 0.3);
+  return g;
+}
