@@ -28,11 +28,11 @@ export interface EventDef {
   // waves. It can be something to hold, fires to put out, or things to carry. It can open with a call for help, and how it
   // ends decides what comes next and what's left in the world.
   /** Something to hold. The creatures go for it until you hit them, and if it breaks the event is lost. hp counts blows. */
-  ward?: { label: string; hp: number; look: 'well' | 'fold' | 'nests' };
+  ward?: { label: string; hp: number; look: 'well' | 'fold' | 'nests' | 'stack' | 'hay' };
   /** Fires that break out one after another and spread. Put each out with E before it burns down; `lose` burnt down loses it. */
   fires?: { count: number; lose: number };
   /** Things scattered about to pick up with E. */
-  gather?: { count: number; look: 'cutting' | 'sheep' | 'egg' | 'goat' | 'crate'; /** what you press E to do */ act: string; /** what the tracker counts */ noun: string };
+  gather?: { count: number; look: 'cutting' | 'sheep' | 'egg' | 'goat' | 'crate' | 'tool' | 'sheaf'; /** what you press E to do */ act: string; /** what the tracker counts */ noun: string };
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
   call?: { who: string; text: string; secs: number };
   /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
@@ -56,9 +56,17 @@ export const WORLD_STATES: Record<string, { x: number; z: number; r: number; loo
 export const EVENTS: EventDef[] = [
   { id: 'ev-lantern', name: 'The Lantern Wolves', region: 'greenwake', x: 86, z: 262, goal: 'Drive the wolves off the Lantern ridge', waves: [{ type: 'wolf', count: 3 }, { type: 'wolf', count: 3 }], leader: 'wolf', time: 240, cooldown: 360, xp: 160, marks: [6, 12], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'wolfskin_hood', chance: 0.08 }] },
   { id: 'ev-wetlings', name: 'Mire Bloom in the Wetlings', region: 'greenwake', x: 204, z: 246, goal: 'Clear the jellies out of the low fields', waves: [{ type: 'jelly', count: 4 }, { type: 'jelly', count: 4 }], time: 240, cooldown: 360, xp: 120, marks: [4, 9], loot: [{ item: 'jelly_residue', chance: 1 }] },
-  { id: 'ev-meadow', name: 'Boars in the Hay Meadows', region: 'crownroad', x: 522, z: 384, goal: 'Turn the boars out of the meadows', waves: [{ type: 'boar', count: 3 }, { type: 'boar', count: 3 }], leader: 'boar', time: 270, cooldown: 420, xp: 320, marks: [10, 18], loot: [{ item: 'boar_hide', chance: 1 }, { item: 'toll_sabre', chance: 0.06 }] },
+  { id: 'ev-meadow', name: 'Boars in the Hay Meadows', region: 'crownroad', x: 545, z: 370, goal: 'Keep the boars off Nathaniel Crouch\'s haycocks before they root them flat', ward: { label: 'The haycocks', hp: 50, look: 'hay' },
+    call: { who: 'Nathaniel Crouch', text: 'Boars in the hay! A whole sounder of them, rooting under the cocks! A week\'s cutting, and they\'ll have it flat in an hour!', secs: 12 },
+    won: { say: 'They\'ve gone back to the wallow down by the brook. Every year they come up from there. Clear it and they\'ll go somewhere else to be a nuisance.' },
+    lost: { say: 'Flat. All of it, rooted and scattered over the field. If we get it stooked again before the rain, there\'s still feed in it. Will you lend a hand?' },
+    waves: [{ type: 'boar', count: 3 }, { type: 'boar', count: 3 }], leader: 'boar', time: 270, cooldown: 420, xp: 320, marks: [10, 18], loot: [{ item: 'boar_hide', chance: 1 }, { item: 'toll_sabre', chance: 0.06 }] },
   { id: 'ev-drove', name: 'Wolves on the Drove Road', region: 'crownroad', x: 836, z: 884, goal: 'Keep the wolves off the drove road', waves: [{ type: 'roadwolf', count: 4 }, { type: 'roadwolf', count: 4 }], leader: 'roadwolf', time: 270, cooldown: 420, xp: 380, marks: [12, 20], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'wolfskin_hood', chance: 0.08 }, { item: 'toll_sabre', chance: 0.06 }] },
-  { id: 'ev-fellers', name: 'Stalkers round the Fellers\' Camp', region: 'brambledeep', x: 470, z: 566, goal: 'Drive the thornbacks back from the camp', waves: [{ type: 'thornwolf', count: 2 }, { type: 'thornwolf', count: 3 }], leader: 'thornwolf', time: 300, cooldown: 480, xp: 560, marks: [16, 28], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'thorn_blade', chance: 0.08 }, { item: 'moss_hood', chance: 0.08 }] },
+  { id: 'ev-fellers', name: 'Stalkers round the Fellers\' Camp', region: 'brambledeep', x: 470, z: 566, goal: 'Keep the thornbacks off the camp\'s timber stack and its tools', ward: { label: 'The timber stack', hp: 60, look: 'stack' },
+    call: { who: 'Ide Marrow', text: 'Thornbacks in the clearing! They\'re after the camp, the stack, everything! Get between them and the timber!', secs: 12 },
+    won: { say: 'Jabez says they came from a lair in the brambles south of the clearing. If somebody cleared it, my fellers could work without a man on watch.' },
+    lost: { say: 'They\'ve dragged the tools off into the brambles, the axes and the saws with them. No tools, no work, no pay. Help me find them.' },
+    waves: [{ type: 'thornwolf', count: 2 }, { type: 'thornwolf', count: 3 }], leader: 'thornwolf', time: 300, cooldown: 480, xp: 560, marks: [16, 28], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'thorn_blade', chance: 0.08 }, { item: 'moss_hood', chance: 0.08 }] },
   { id: 'ev-spores', name: 'Spore Bloom at Peg\'s Water', region: 'brambledeep', x: 476, z: 968, goal: 'Burst the spore jellies before they spread', waves: [{ type: 'sporejelly', count: 3 }, { type: 'sporejelly', count: 4 }], time: 300, cooldown: 480, xp: 520, marks: [14, 26], loot: [{ item: 'jelly_residue', chance: 1 }, { item: 'moss_hood', chance: 0.08 }] },
   { id: 'ev-strand', name: 'Crabs on the Strand', region: 'saltwind', x: 1712, z: 420, goal: 'Clear the crabs off the strand', waves: [{ type: 'crab', count: 3 }, { type: 'crab', count: 3 }], leader: 'crab', time: 300, cooldown: 480, xp: 640, marks: [18, 30], loot: [{ item: 'crab_shell', chance: 1 }, { item: 'oilskin_hat', chance: 0.08 }] },
   { id: 'ev-shallows', name: 'Brine in the Shallows', region: 'saltwind', x: 1716, z: 700, goal: 'Burst the brine jellies in the shallows', waves: [{ type: 'brinejelly', count: 3 }, { type: 'brinejelly', count: 4 }], time: 300, cooldown: 480, xp: 600, marks: [16, 28], loot: [{ item: 'jelly_residue', chance: 1 }, { item: 'brine_cutlass', chance: 0.08 }] },
@@ -161,6 +169,14 @@ export const EVENTS: EventDef[] = [
     won: { say: 'The rocks are empty. A quiet winter, then. Come by in spring and the fleece is yours.' } },
   { id: 'ev-kestlestrays', name: 'Sheep on the Moor', region: 'verandah', x: -2340, z: 2445, goal: 'Bring Thirza Rosewarne’s sheep in off the moor before the cold or the wolves take them', after: { id: 'ev-kestlefolds', result: 'fail' }, waves: [{ type: 'moorwolf', count: 2 }], gather: { count: 6, look: 'sheep', act: 'Bring the sheep back', noun: 'sheep' }, time: 270, cooldown: 900, xp: 950, marks: [24, 40], loot: [{ item: 'frost_pelt', chance: 0.6 }],
     won: { clear: 'kestlefold', say: 'All of them, and not a bite on one. I\'ll have the hurdles up by dark.' } },
+  { id: 'ev-wallow', name: 'The Boars\' Wallow', region: 'crownroad', x: 552, z: 404, goal: 'Clear the boars out of their wallow by the brook', after: { id: 'ev-meadow', result: 'win' }, waves: [{ type: 'boar', count: 3 }, { type: 'boar', count: 3 }], leader: 'boar', time: 270, cooldown: 900, xp: 360, marks: [12, 20], loot: [{ item: 'boar_hide', chance: 1 }],
+    won: { say: 'Empty, and the brook\'s running clear for once. Next year\'s hay is safe.' } },
+  { id: 'ev-stooks', name: 'Stooking the Hay', region: 'crownroad', x: 545, z: 370, goal: 'Stook the scattered hay again before the rain comes', after: { id: 'ev-meadow', result: 'fail' }, waves: [{ type: 'boar', count: 2 }], gather: { count: 6, look: 'sheaf', act: 'Stook the hay', noun: 'stooks' }, time: 240, cooldown: 900, xp: 300, marks: [10, 18], loot: [{ item: 'boar_hide', chance: 0.6 }],
+    won: { say: 'That\'ll dry. Half a week\'s cutting saved, and I owe you a drink at the Weighhouse.' } },
+  { id: 'ev-thornlair', name: 'The Thornback Lair', region: 'crownroad', x: 505, z: 572, goal: 'Clear the thornbacks out of their lair in the brambles', after: { id: 'ev-fellers', result: 'win' }, waves: [{ type: 'thornwolf', count: 3 }, { type: 'thornwolf', count: 3 }], leader: 'thornwolf', time: 300, cooldown: 900, xp: 620, marks: [18, 30], loot: [{ item: 'wolf_pelt', chance: 1 }, { item: 'thorn_blade', chance: 0.08 }],
+    won: { say: 'Lair\'s empty. My lads can fell without looking over their shoulders. Come by for a cup when you\'re passing.' } },
+  { id: 'ev-felltools', name: 'Tools in the Brambles', region: 'crownroad', x: 470, z: 566, goal: 'Find the axes and saws the thornbacks dragged into the brambles', after: { id: 'ev-fellers', result: 'fail' }, waves: [{ type: 'thornwolf', count: 2 }], gather: { count: 6, look: 'tool', act: 'Pick up the tool', noun: 'tools' }, time: 270, cooldown: 900, xp: 520, marks: [14, 24], loot: [{ item: 'wolf_pelt', chance: 0.6 }],
+    won: { say: 'Every axe and both saws. Chewed handles, but they\'ll cut. Thank you.' } },
 ];
 
 export interface BossDef {

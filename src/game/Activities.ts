@@ -6,7 +6,7 @@ import { Duels } from './Duels';
 import { regionLevel } from '../data/scaling';
 import { realmNow } from '../world/clock';
 import { BOSS_UP, BOSS_WARN, BossDef, EventDef, EVENTS, SHARDFALL_EVERY, SHARDFALLS, WORLD_BOSSES, WORLD_STATES } from '../data/activities';
-import { brokenFold, burntGround, charMark, crateMesh, cuttingMesh, dugNests, eggMesh, fireSpot, glintMesh, goatMesh, sheepMesh, wardMesh } from './EventParts';
+import { brokenFold, burntGround, charMark, crateMesh, cuttingMesh, sheafMesh, toolMesh, dugNests, eggMesh, fireSpot, glintMesh, goatMesh, sheepMesh, wardMesh } from './EventParts';
 import { EnemyDef, EnemyType, ENEMIES } from '../data/gameplay';
 import { ITEMS } from '../data/items';
 import { Enemy, type EnemyContext } from '../entities/Enemy';
@@ -306,7 +306,7 @@ export class Activities {
     if (def.gather) {
       ev.picks = spots(ev.extra, 6, 22, seed + 5).map((p, i): Pick => {
         const look = def.gather!.look;
-        const g = look === 'sheep' ? sheepMesh(i % 4 === 3) : look === 'goat' ? goatMesh(i % 3 === 2) : look === 'egg' ? eggMesh() : look === 'crate' ? crateMesh(i) : cuttingMesh();
+        const g = look === 'sheep' ? sheepMesh(i % 4 === 3) : look === 'goat' ? goatMesh(i % 3 === 2) : look === 'egg' ? eggMesh() : look === 'crate' ? crateMesh(i) : look === 'tool' ? toolMesh(i) : look === 'sheaf' ? sheafMesh() : cuttingMesh();
         g.position.copy(p); g.rotation.y = hash2(i, seed, 40) * 6;
         const glint = glintMesh(); g.add(glint);
         if (i >= ev.work) this.host.scene.add(g);

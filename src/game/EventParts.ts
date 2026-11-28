@@ -21,9 +21,11 @@ function box(g: THREE.Object3D, w: number, h: number, d: number, c: string, x: n
 }
 
 /** The thing a defend event is about. */
-export function wardMesh(look: 'well' | 'fold' | 'nests'): THREE.Group {
+export function wardMesh(look: 'well' | 'fold' | 'nests' | 'stack' | 'hay'): THREE.Group {
   const g = new THREE.Group();
   if (look === 'nests') nests(g);
+  else if (look === 'stack') timberStack(g);
+  else if (look === 'hay') haycocks(g);
   else if (look === 'well') {
     // A ring of dressed stone, a timber frame over it with a windlass and rope, a bucket on the lip
     const stones = ['#b8ac94', '#a89c84', '#c4b8a0'];
@@ -271,5 +273,62 @@ export function crateMesh(i: number): THREE.Group {
   }
   box(g, 0.6, 0.04, 0.12, '#3a5a2a', -0.1, 0.74, -0.15, 0.6);
   box(g, 0.05, 0.05, 0.7, '#c8b890', 0.25, 0.73, 0, 0.3);
+  return g;
+}
+
+/** A fellers' timber stack: trunks laid on bearers, stakes at the ends, a sawhorse and a rack of axes beside it. */
+function timberStack(g: THREE.Group): void {
+  for (const x of [-1.6, 0, 1.6]) box(g, 0.25, 0.2, 2.6, '#4a3a28', x, 0.1, 0);
+  const logs: [number, number][] = [[-1.0, 0.45], [-0.3, 0.45], [0.4, 0.45], [1.1, 0.45], [-0.65, 1.05], [0.05, 1.05], [0.75, 1.05], [-0.3, 1.65], [0.4, 1.65]];
+  for (const [z, y] of logs) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 4.0, 8), mat(((z * 7) | 0) % 2 ? '#6a4a2e' : '#5e4228'));
+    log.rotation.z = Math.PI / 2; log.position.set(0, y, z); log.castShadow = true; g.add(log);
+    for (const sx of [-2.0, 2.0]) { const end = new THREE.Mesh(new THREE.CircleGeometry(0.31, 8), mat('#c8a06a')); end.position.set(sx + Math.sign(sx) * 0.01, y, z); end.rotation.y = Math.PI / 2 * Math.sign(sx); g.add(end); }
+  }
+  for (const [x, z] of [[-1.9, -1.4], [-1.9, 1.4], [1.9, -1.4], [1.9, 1.4]]) box(g, 0.14, 2.0, 0.14, '#4a3a28', x, 1.0, z);
+  // the sawhorse, a half-sawn log on it
+  for (const k of [-1, 1]) { box(g, 0.1, 1.0, 0.1, '#5a4228', 3.0, 0.45, 0.6 * k, 0, 0.4); box(g, 0.1, 1.0, 0.1, '#5a4228', 3.0, 0.45, 0.6 * k, 0, -0.4); }
+  const cut = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 8), mat('#6a4a2e')); cut.rotation.x = Math.PI / 2; cut.position.set(3.0, 0.95, 0); g.add(cut);
+  // the rack of axes
+  box(g, 0.1, 1.3, 0.1, '#4a3a28', -3.0, 0.65, -0.8); box(g, 0.1, 1.3, 0.1, '#4a3a28', -3.0, 0.65, 0.8); box(g, 0.08, 0.08, 1.7, '#4a3a28', -3.0, 1.25, 0);
+  for (const z of [-0.5, 0, 0.5]) { box(g, 0.05, 1.1, 0.05, '#8a6a42', -2.95, 0.7, z, 0, 0.15); box(g, 0.05, 0.2, 0.26, '#8a8c90', -2.88, 0.2, z); }
+}
+
+/** Haycocks: three domed heaps of cut hay, a pitchfork stood in one, a hay rake on the ground. */
+function haycocks(g: THREE.Group): void {
+  const hay = mat('#d8b860'), dark = mat('#b8984a');
+  for (const [x, z, r] of [[0, 0, 1.3], [2.6, 0.6, 1.1], [-2.4, 0.8, 1.15]] as [number, number, number][]) {
+    const cock = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 7, 0, Math.PI * 2, 0, Math.PI / 2), hay);
+    cock.scale.y = 1.35; cock.position.set(x, 0, z); cock.castShadow = true; g.add(cock);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.45, r * 0.6, 8), dark); cap.position.set(x, r * 1.35 + 0.1, z); g.add(cap);
+  }
+  box(g, 0.05, 1.8, 0.05, '#8a6a42', 0.4, 1.6, 0.3, 0, 0.25);
+  for (const k of [-1, 0, 1]) box(g, 0.03, 0.35, 0.03, '#8a8c90', 0.62 + k * 0.06, 2.55, 0.3, 0, 0.25);
+  box(g, 1.8, 0.05, 0.05, '#8a6a42', 0.5, 0.05, 2.0, 0.3, 0);
+  box(g, 0.05, 0.05, 0.7, '#8a6a42', 1.35, 0.05, 2.25, 0.3, 0);
+}
+
+/** A feller's tool dragged off: an axe or a two-man saw, lying in the grass. */
+export function toolMesh(i: number): THREE.Group {
+  const g = new THREE.Group();
+  if (i % 3 === 2) {
+    box(g, 1.6, 0.03, 0.24, '#9aa0a6', 0, 0.06, 0);
+    for (let k = 0; k < 10; k++) box(g, 0.06, 0.03, 0.06, '#7a8086', -0.72 + k * 0.16, 0.06, -0.14, 0.785, 0);
+    for (const x of [-0.86, 0.86]) box(g, 0.08, 0.08, 0.4, '#6a4a2e', x, 0.08, 0.05);
+  } else {
+    box(g, 1.0, 0.07, 0.07, '#8a6a42', 0, 0.06, 0, 0.3, 0);
+    box(g, 0.14, 0.06, 0.26, '#8a8c90', 0.47, 0.06, 0.2, 0.3, 0);
+    box(g, 0.04, 0.07, 0.3, '#c8ccd0', 0.52, 0.06, 0.33, 0.3, 0);
+  }
+  return g;
+}
+
+/** A sheaf of hay to stook: a bound bundle, its ears spilling. */
+export function sheafMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const s = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.2, 0.9, 8), mat('#d8b860'));
+  s.rotation.z = Math.PI / 2 - 0.2; s.position.y = 0.25; s.castShadow = true; g.add(s);
+  box(g, 0.08, 0.32, 0.32, '#8a6a32', 0.05, 0.27, 0, 0, 0.2);
+  for (let k = 0; k < 5; k++) box(g, 0.25, 0.05, 0.06, '#c8a84a', 0.55, 0.32 + (k - 2) * 0.05, (k - 2) * 0.06, 0, -0.2);
   return g;
 }
