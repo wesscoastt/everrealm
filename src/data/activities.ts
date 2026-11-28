@@ -36,6 +36,9 @@ export interface EventDef {
   /** Ground to take and hold (GW2's capture points): stand in the ring for so many seconds in all; it only fills while none
    *  of the event's creatures stand in it with you. */
   capture?: { secs: number; label: string };
+  /** A lookout of theirs that goes up when the event begins and comes down when it's won (owner 2026-11-27, the
+   *  voxel-destruction kit: "a tower coming down"): where it stands from the event's middle, and how tall. */
+  tower?: { dx: number; dz: number; h: number };
   /** Someone to walk somewhere (data/escorts.ts, a chained one): the link is won when they get there and lost if they go down. */
   escort?: string;
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
@@ -148,8 +151,8 @@ export const EVENTS: EventDef[] = [
     lost: { say: 'They had the cart over. Half the casks went down the hill. Still, the rest are ours.' } },
   { id: 'ev-mcuttings', name: 'What the Fire Left', region: 'bright', x: 8828, z: 958, goal: 'Find the vine cuttings that came through the fire so the terrace can be planted again', after: { id: 'ev-mterracefire', result: 'fail' }, waves: [{ type: 'terracejackal', count: 2 }], gather: { count: 7, look: 'cutting', act: 'Pick up the vine cuttings', noun: 'cuttings' }, time: 240, cooldown: 900, xp: 1100, marks: [18, 30], loot: [{ item: 'olive_bread', chance: 0.6 }],
     won: { clear: 'terracesburnt', say: 'They\'ll take. Heeled in by tonight, and in three years it\'s a terrace again. Thank you.' } },
-  { id: 'ev-mreavercamp', name: 'The Reaver Camp', region: 'glassflats', x: 7590, z: -200, goal: 'Break the reavers’ camp on the flats so they can’t come at the wells again', after: { id: 'ev-mreavers', result: 'win' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 4 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1700, marks: [28, 46], loot: [{ item: 'black_glass', chance: 1 }, { item: 'callis_red', chance: 0.4 }],
-    won: { say: 'Camp\'s broken and their water skins are cut. They\'ll have to go a long way round to find another well.' } },
+  { id: 'ev-mreavercamp', name: 'The Reaver Camp', region: 'glassflats', x: 7590, z: -200, goal: 'Break the reavers’ camp on the flats and bring down their lookout', after: { id: 'ev-mreavers', result: 'win' }, tower: { dx: 6, dz: -4, h: 11 }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 4 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1700, marks: [28, 46], loot: [{ item: 'black_glass', chance: 1 }, { item: 'callis_red', chance: 0.4 }],
+    won: { say: 'Down it comes! Camp\'s broken and their water skins are cut. They\'ll have to go a long way round to find another well.' } },
   { id: 'ev-mretakewells', name: 'Take Back the Outer Wells', region: 'glassflats', x: 7496, z: -196, goal: 'Take the outer wells back and hold the ground round them while the reavers try to win it back', after: { id: 'ev-mreavers', result: 'fail' }, capture: { secs: 60, label: 'The outer wells' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 3 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1600, marks: [26, 44], loot: [{ item: 'black_glass', chance: 1 }],
     call: { who: 'Ennis Wade', text: 'Enough of this. Every reaver on that well is one more mouth we\'re watering. We\'re taking it back. Who\'s with me?', secs: 10 },
     won: { clear: 'wellsheld', say: 'The wells are ours. Somebody fetch rope and a clean bucket, and nobody drink from it until I\'ve tasted it.' } },

@@ -95,6 +95,8 @@ interface LiveEvent {
   kills: number; extra: number; sizes: number[]; work: number; lost: number; startAt: number; begun: boolean; losing?: boolean; others: number; nextFire: number;
   ward?: { pos: THREE.Vector3; hp: number; max: number; mesh: THREE.Group; said: number; shake: number };
   fires?: FireSpot[]; picks?: Pick[];
+  /** Their lookout: the blocks it was built of (and what stood there before), and where its foot is. */
+  tower?: { cells: [number, number, number, number, number][]; foot: THREE.Vector3 };
   /** Ground to hold: its pole and ring, the banner that climbs it, and how long it's been held toward the next tenth. */
   flag?: { root: THREE.Group; cloth: THREE.Mesh; ring: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>; held: number };
   /** Marks it leaves (black rings where the fires were). */
@@ -186,6 +188,7 @@ export class Activities {
     this.tickTreasure(P);
     this.tickEvents(dt, P);
     this.tickWorld(dt, P);
+    if (this.debris.length) this.tickDebris(dt);
     this.tickBoss(dt, P);
     this.tickShard(dt, P);
     this.tasks.update(dt, P);
@@ -325,6 +328,7 @@ export class Activities {
         return { at: p, got: i < ev.work, mesh: g, glint };
       });
     }
+    if (def.tower) ev.tower = this.raiseTower(def);
     if (def.capture) {
       const f = captureFlag(), y = V.groundBelow(def.x + 0.5, 140, def.z + 0.5, true);
       f.root.position.set(def.x + 0.5, y, def.z + 0.5);
@@ -504,7 +508,94 @@ export class Activities {
     this.settle(def, ok, states);
     // What was left burning goes out, and what wasn't carried is gone
     if (ok) for (const f of ev.fires ?? []) if (f.state === 'burn' || f.state === 'wait') { if (f.mesh) this.host.scene.remove(f.mesh); f.state = 'out'; }
+    if (ok && ev.tower) { this.topple(ev.tower); ev.tower = undefined; }
     this.endEvent(ev, ok ? def.cooldown : 60);
+  }
+
+  // ---- A tower coming down (owner 2026-11-27, the voxel-destruction kit, "destruction maybe for combat or quests events")
+  /** Their lookout, raised in the world's own blocks beside the event: four log posts, two plank floors, braces, a
+   *  platform with rails, and their cloth on a pole. Only into open air; what was there is remembered. */
+  private raiseTower(def: EventDef): { cells: [number, number, number, number, number][]; foot: THREE.Vector3 } {
+    const V = this.host.voxels, t = def.tower!;
+    const x0 = Math.floor(def.x + t.dx), z0 = Math.floor(def.z + t.dz), gy = Math.floor(V.groundBelow(x0 + 1.5, 140, z0 + 1.5, true));
+    const cells: [number, number, number, number, number][] = [];
+    const put = (x: number, y: number, z: number, b: number) => {
+      const was = V.get(x, y, z);
+      if (was !== B.Air) return;
+      V.set(x, y, z, b); cells.push([x, y, z, b, was]);
+    };
+    const H = t.h;
+    for (let y = 0; y < H; y++) for (const [x, z] of [[0, 0], [2, 0], [0, 2], [2, 2]]) put(x0 + x, gy + y, z0 + z, B.OakLog);
+    for (const fy of [Math.floor(H * 0.45), H]) for (let x = -1; x <= 3; x++) for (let z = -1; z <= 3; z++) {
+      const edge = x < 0 || x > 2 || z < 0 || z > 2;
+      if (fy === H || !edge) put(x0 + x, gy + fy, z0 + z, fy === H ? B.Planks : B.DarkPlanks);
+    }
+    // braces on the open sides, a rail round the top, the pole and its cloth
+    for (let y = 2; y < H - 1; y += 3) { put(x0 + 1, gy + y, z0, B.Planks); put(x0 + 1, gy + y, z0 + 2, B.Planks); }
+    for (let x = -1; x <= 3; x++) for (const z of [-1, 3]) if ((x + z) % 2 === 0) put(x0 + x, gy + H + 1, z0 + z, B.OakLog);
+    for (let y = H + 1; y <= H + 4; y++) put(x0 + 1, gy + y, z0 + 1, B.OakLog);
+    for (let y = H + 3; y <= H + 4; y++) for (const dx of [1, 2]) put(x0 + 1 + dx, gy + y, z0 + 1, B.Wool);
+    return { cells, foot: new THREE.Vector3(x0 + 1.5, gy, z0 + 1.5) };
+  }
+
+  /** The pieces of a toppled tower, falling and tumbling, settling, then gone. */
+  private debris: { m: THREE.Mesh; v: THREE.Vector3; w: THREE.Vector3; ground: number; t: number; rest: boolean }[] = [];
+  /** It goes over: every block comes loose and swings about the foot away from you, falling as it goes; dust where it
+   *  lands; a line of broken timber left on the ground where it fell. */
+  private topple(tw: { cells: [number, number, number, number, number][]; foot: THREE.Vector3 }): void {
+    const V = this.host.voxels, P = this.host.player();
+    const away = new THREE.Vector3(tw.foot.x - P.x, 0, tw.foot.z - P.z);
+    if (away.lengthSq() < 0.01) away.set(1, 0, 0);
+    away.normalize();
+    // (axis x up-the-tower must point away: the axis is away turned a quarter the other way)
+    const axis = new THREE.Vector3(away.z, 0, -away.x), spin = 1.2;
+    const COL: Record<number, string> = { [B.OakLog]: '#6a4a2e', [B.Planks]: '#a07a4a', [B.DarkPlanks]: '#6a5034', [B.Wool]: '#d8c8a0' };
+    let top = 0;
+    for (const [x, y, z, b, was] of tw.cells) {
+      V.set(x, y, z, was);
+      const m = new THREE.Mesh(this.cube(), this.cubeMat(COL[b] ?? '#8a6a42'));
+      m.position.set(x + 0.5, y + 0.5, z + 0.5); m.castShadow = true;
+      this.host.scene.add(m);
+      // the swing about the foot: speed grows with height, so the top goes over first and furthest
+      const r = m.position.clone().sub(tw.foot);
+      const v = new THREE.Vector3().crossVectors(axis.clone().multiplyScalar(spin), r).add(away.clone().multiplyScalar(0.6 + Math.random() * 0.6));
+      v.y += Math.random() * 0.8;
+      const ground = V.groundBelow(x + 0.5 + away.x * r.y, 140, z + 0.5 + away.z * r.y, true);
+      this.debris.push({ m, v, w: new THREE.Vector3((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6), ground: Number.isFinite(ground) ? ground : tw.foot.y, t: 0, rest: false });
+      top = Math.max(top, y - tw.foot.y);
+    }
+    // broken timber lying where it fell
+    for (let d = 2; d < top; d += 2) {
+      const x = Math.floor(tw.foot.x + away.x * d), z = Math.floor(tw.foot.z + away.z * d), gy = Math.floor(V.groundBelow(x + 0.5, 140, z + 0.5, true));
+      if (V.get(x, gy, z) === B.Air) V.set(x, gy, z, d % 4 ? B.Planks : B.OakLog);
+    }
+    this.host.fx?.dust(tw.foot.clone().setY(tw.foot.y + 0.5));
+    this.host.sound('bell');
+  }
+  private _cube: THREE.BoxGeometry | null = null;
+  private cube(): THREE.BoxGeometry { return this._cube ??= new THREE.BoxGeometry(0.96, 0.96, 0.96); }
+  private cubeMats = new Map<string, THREE.MeshLambertMaterial>();
+  private cubeMat(c: string): THREE.MeshLambertMaterial { let m = this.cubeMats.get(c); if (!m) { m = new THREE.MeshLambertMaterial({ color: c, transparent: true }); this.cubeMats.set(c, m); } return m; }
+  private tickDebris(dt: number): void {
+    for (const d of this.debris) {
+      d.t += dt;
+      if (!d.rest) {
+        d.v.y -= 20 * dt;
+        d.m.position.addScaledVector(d.v, dt);
+        d.m.rotation.x += d.w.x * dt; d.m.rotation.y += d.w.y * dt; d.m.rotation.z += d.w.z * dt;
+        // (the ground under it where it is now, so nothing hangs in the air)
+        const gy = this.host.voxels.groundBelow(d.m.position.x, d.m.position.y + 1, d.m.position.z, true);
+        if (Number.isFinite(gy)) d.ground = gy;
+        if (d.m.position.y < d.ground + 0.5) {
+          d.m.position.y = d.ground + 0.5;
+          if (Math.abs(d.v.y) > 4) { d.v.y *= -0.25; d.v.x *= 0.5; d.v.z *= 0.5; d.w.multiplyScalar(0.5); if (Math.random() < 0.3) this.host.fx?.dust(d.m.position); }
+          else d.rest = true;
+        }
+      }
+    }
+    // settled a while, they go (the line of broken timber stays)
+    for (const d of this.debris.filter((x) => x.t > 7)) this.host.scene.remove(d.m);
+    this.debris = this.debris.filter((x) => x.t <= 7);
   }
 
   /** The chain moves on: the ending remembered while a follow-up waits on it, the world changed, the last word said. */
@@ -536,6 +627,7 @@ export class Activities {
     for (const e of ev.enemies) this.host.removeEnemy(e);
     if (ev.ward) this.host.scene.remove(ev.ward.mesh);
     if (ev.flag) this.host.scene.remove(ev.flag.root);
+    if (ev.tower) { for (const [x, y, z, , was] of ev.tower.cells) this.host.voxels.set(x, y, z, was); ev.tower = undefined; }
     for (const f of ev.fires ?? []) if (f.mesh) this.host.scene.remove(f.mesh);
     for (const p of ev.picks ?? []) if (!p.got) this.host.scene.remove(p.mesh);
     // The black rings stay a while after, then go
