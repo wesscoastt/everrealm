@@ -150,6 +150,14 @@ export class Activities {
     this.duels = new Duels(host, (def, x, z) => this.spawn(def, x, z, false));
     this.puzzles = new Puzzles(host);
     this.loadChains();
+    // A chained escort waits only while its link is open, and its end is the link's
+    this.escorts.gate = (id) => [...this.live.values()].some((ev) => ev.def.escort === id && ev.begun && !ev.losing);
+    this.escorts.onEnd = (id, ok) => {
+      const ev = [...this.live.values()].find((e) => e.def.escort === id);
+      if (!ev || ev.losing) return;
+      if (!ok) { this.lose(ev, 'The walk is lost.'); return; }
+      if (ev.work < ev.extra) { ev.work++; ev.killed++; if (ev.shared) this.host.shared?.evWork(ev.def.id); }
+    };
     this.sites = plan().sites.filter((s) => s.act);
     const ring = new THREE.Mesh(new THREE.CircleGeometry(QUAKE_R, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.3, depthWrite: false }));
     ring.visible = false;
@@ -241,6 +249,7 @@ export class Activities {
     if (def.fires) return def.fires.count + others - def.fires.lose + 1;
     if (def.gather) return def.gather.count + Math.min(3, others);
     if (def.capture) return 10; // (held in tenths)
+    if (def.escort) return 1; // (they get there)
     return 0;
   }
 
@@ -1251,6 +1260,7 @@ export class Activities {
       if (ev.kills) bits.push(`${kills}/${ev.kills}`);
       if (ev.def.fires) bits.push(`fires out ${work}/${ev.extra}`);
       if (ev.def.gather) bits.push(`${ev.def.gather.noun} ${work}/${ev.extra}`);
+      if (ev.def.escort) bits.push(work ? 'There' : 'Waiting for you');
       if (ev.def.capture) bits.push(`${ev.def.capture.label} held ${Math.round((work / Math.max(1, ev.extra)) * 100)}%`);
       if (ev.ward) bits.push(`${ev.def.ward!.label} ${Math.max(0, Math.round((ev.ward.hp / ev.ward.max) * 100))}%`);
       best = { kind: 'event', title: ev.def.name, goal: ev.def.goal, progress: (kills + work) / Math.max(1, ev.kills + ev.extra), count: bits.join(' · '), time: Math.max(0, ev.endsAt - this.clock) };

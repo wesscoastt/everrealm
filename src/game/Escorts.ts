@@ -38,6 +38,9 @@ export class Escorts {
   /** Ambushers the player has hit: they leave the walker alone. */
   private struck = new WeakSet<Enemy>();
   private clock = 0;
+  /** A chained escort waits only while its link in an event chain is open; and its end is that link's (game/Activities.ts). */
+  gate: (id: string) => boolean = () => true;
+  onEnd: (id: string, ok: boolean) => void = () => {};
 
   constructor(private host: ActivityHost, private spawn: (def: EnemyDef, x: number, z: number) => Enemy) {}
 
@@ -52,7 +55,7 @@ export class Escorts {
       let l = this.live.get(def.id);
       const near = Math.hypot(P.x - sx, P.z - sz) < 70;
       if (!l) {
-        if (!near || !this.host.voxels.isLoaded(sx, sz) || (Number(this.host.flag('escortRest:' + def.id) ?? 0) > Date.now())) continue;
+        if (!near || !this.host.voxels.isLoaded(sx, sz) || (def.chained ? !this.gate(def.id) : Number(this.host.flag('escortRest:' + def.id) ?? 0) > Date.now())) continue;
         const walker = new Ally(this.hench(def), Math.max(1, this.host.level?.() ?? 1), this.host.voxels);
         walker.place(sx + 0.5, this.host.voxels.groundBelow(sx + 0.5, 140, sz + 0.5), sz + 0.5);
         walker.face(def.route[1][0], def.route[1][1]);
@@ -63,7 +66,7 @@ export class Escorts {
       const w = l.walker;
       const far = Math.hypot(P.x - w.pos.x, P.z - w.pos.z);
       // Put away when nobody is about (a walk abandoned counts as gone home)
-      if (far > 120 || (l.state === 'waiting' && !near)) { this.close(l); continue; }
+      if (far > 120 || (l.state === 'waiting' && (!near || (def.chained && !this.gate(def.id))))) { this.close(l); continue; }
       let moving = 0;
       if (l.state === 'waiting') {
         if (far < 9 && !l.asked) { l.asked = true; w.face(P.x, P.z); this.host.say?.(def.who.name, def.lines.ask, w.bubble); }
@@ -139,6 +142,7 @@ export class Escorts {
     this.host.daily?.('event');
     this.host.setFlag('escortRest:' + def.id, Date.now() + def.rest * 1000);
     this.host.setFlag('escorted:' + def.id, Number(this.host.flag('escorted:' + def.id) ?? 0) + 1);
+    this.onEnd(def.id, true);
   }
 
   private fail(l: Live): void {
@@ -147,6 +151,7 @@ export class Escorts {
     this.host.system(l.def.lines.fail);
     this.host.banner('Escort failed', l.def.name);
     this.host.setFlag('escortRest:' + l.def.id, Date.now() + 60 * 1000);
+    this.onEnd(l.def.id, false);
     const gone = l.ambushers;
     l.ambushers = [];
     setTimeout(() => { for (const e of gone) this.host.removeEnemy(e); }, 8000);
@@ -211,7 +216,7 @@ export class Escorts {
 
   markers(): MapMarker[] {
     const out: MapMarker[] = [];
-    for (const def of ESCORTS) out.push({ x: def.route[0][0], z: def.route[0][1], kind: 'task', label: `${def.name}: ${def.who.name}` });
+    for (const def of ESCORTS) if (!def.chained || this.gate(def.id)) out.push({ x: def.route[0][0], z: def.route[0][1], kind: 'task', label: `${def.name}: ${def.who.name}` });
     for (const l of this.live.values()) if (l.state === 'walking') out.push({ x: l.walker.pos.x, z: l.walker.pos.z, kind: 'ally', label: l.def.who.name });
     return out;
   }

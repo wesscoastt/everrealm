@@ -36,6 +36,8 @@ export interface EventDef {
   /** Ground to take and hold (GW2's capture points): stand in the ring for so many seconds in all; it only fills while none
    *  of the event's creatures stand in it with you. */
   capture?: { secs: number; label: string };
+  /** Someone to walk somewhere (data/escorts.ts, a chained one): the link is won when they get there and lost if they go down. */
+  escort?: string;
   /** Someone calls for help first, so many seconds before it starts (GW2's pre-events). */
   call?: { who: string; text: string; secs: number };
   /** A follow-up. It only flares up after this other event has ended this way, and it starts as soon as anyone is near. */
@@ -139,8 +141,11 @@ export const EVENTS: EventDef[] = [
     won: { clear: 'terracesburnt', say: 'That wasn\'t lightning. There\'s lamp oil on the stakes, and boot prints going down to the cove. Someone wanted us looking up here.' },
     lost: { set: 'terracesburnt', say: 'It\'s gone. Three years of vines. If we can save the cuttings there\'s something to plant. Help me find them.' } },
   { id: 'ev-mlanding', name: 'The Black-Runners\' Landing', region: 'bright', x: 8802, z: 996, goal: 'Catch the black-runners at the cove before their boat takes the cargo off', after: { id: 'ev-mterracefire', result: 'win' }, waves: [{ type: 'blackrunner', count: 3 }, { type: 'blackrunner', count: 3 }], leader: 'blackrunner', time: 240, cooldown: 900, xp: 1380, marks: [24, 40], loot: [{ item: 'black_shard', chance: 1 }],
-    won: { say: 'They lit my hill to land a few casks. The casks are ours now. Cala Roja won\'t forget who came running.' },
+    won: { say: 'They lit my hill to land a few casks. The casks are ours now, if we can get them up the hill. I\'ll load the cart.' },
     lost: { say: 'The boat\'s away. They\'ll be back when the hill is dry again.' } },
+  { id: 'ev-mcasks', name: 'The Casks to Cala Roja', region: 'bright', x: 8806, z: 990, goal: 'Walk Jordi Vall and the black-runners\' casks up past the terraces to Cala Roja', after: { id: 'ev-mlanding', result: 'win' }, escort: 'es-casks', waves: [], time: 480, cooldown: 900, xp: 900, marks: [16, 26], loot: [{ item: 'olive_bread', chance: 0.6 }],
+    won: { say: 'Every cask up the hill and counted. Cala Roja won\'t forget who came running.' },
+    lost: { say: 'They had the cart over. Half the casks went down the hill. Still, the rest are ours.' } },
   { id: 'ev-mcuttings', name: 'What the Fire Left', region: 'bright', x: 8828, z: 958, goal: 'Find the vine cuttings that came through the fire so the terrace can be planted again', after: { id: 'ev-mterracefire', result: 'fail' }, waves: [{ type: 'terracejackal', count: 2 }], gather: { count: 7, look: 'cutting', act: 'Pick up the vine cuttings', noun: 'cuttings' }, time: 240, cooldown: 900, xp: 1100, marks: [18, 30], loot: [{ item: 'olive_bread', chance: 0.6 }],
     won: { clear: 'terracesburnt', say: 'They\'ll take. Heeled in by tonight, and in three years it\'s a terrace again. Thank you.' } },
   { id: 'ev-mreavercamp', name: 'The Reaver Camp', region: 'glassflats', x: 7590, z: -200, goal: 'Break the reavers’ camp on the flats so they can’t come at the wells again', after: { id: 'ev-mreavers', result: 'win' }, waves: [{ type: 'saltreaver', count: 3 }, { type: 'saltreaver', count: 4 }], leader: 'saltreaver', time: 300, cooldown: 900, xp: 1700, marks: [28, 46], loot: [{ item: 'black_glass', chance: 1 }, { item: 'callis_red', chance: 0.4 }],

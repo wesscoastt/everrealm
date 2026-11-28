@@ -26,6 +26,9 @@ export interface EscortDef {
   loot: string[];
   /** Seconds before they set out again after an end, good or bad. */
   rest: number;
+  /** A link in an event chain (data/activities.ts EVENTS escort): they only wait for you while that link is open, and
+   *  getting them there or losing them is how it ends. */
+  chained?: boolean;
 }
 
 export const ESCORTS: EscortDef[] = [
@@ -70,6 +73,28 @@ export const ESCORTS: EscortDef[] = [
       fail: 'Lettie is down. She\'ll go back to the Waystation and try again later.',
     },
     xp: 700, marks: 34, loot: ['bread', 'cooked_trout'], rest: 150,
+  },
+  {
+    // (Morrow; the third link of the terrace fire's chain: the black-runners caught at the cove, their casks to carry up)
+    id: 'es-casks', name: 'The Casks to Cala Roja', region: 'bright', chained: true,
+    who: {
+      name: 'Jordi Vall', title: 'Terrace hand, Cala Roja',
+      look: { skin: '#c89068', hair: '#2a1a12', hairStyle: 2, facial: 1, eyes: '#3a2a1e', tunic: '#8a5a3a', trim: '#e8dcc0', trousers: '#3a3430', boots: '#2a1e14', hat: 'straw', build: 1.05, age: 0.45 },
+      held: 'none',
+    },
+    to: 'Cala Roja',
+    route: [[8806, 990], [8815, 975], [8820, 955], [8830, 935], [8845, 918], [8856, 906], [8862, 903]],
+    ambush: [{ at: 2, type: 'blackrunner', count: 2 }, { at: 4, type: 'blackrunner', count: 3 }],
+    lines: {
+      ask: 'The casks are on the cart, and the black-runners who got away know where they are. Walk up the hill with me?',
+      start: 'Up past the terraces, then. Mind the cart, it pulls to the left.',
+      ambush: ['There! In the vines!', 'They want their casks back. Don\'t let them near the cart!'],
+      hurt: 'Get them off me!',
+      wait: 'I\'m not hauling this up alone.',
+      end: 'Cala Roja. The wine guild can count these and decide who they belong to. You\'ve done the town a kindness.',
+      fail: 'Jordi is down, and the cart is in the ditch. He\'ll limp back to the cove and try again.',
+    },
+    xp: 1300, marks: 44, loot: ['olive_bread'], rest: 60,
   },
 ];
 
