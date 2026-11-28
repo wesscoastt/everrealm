@@ -23,6 +23,11 @@ export const DELVE_CHAMPIONS: Record<string, Champion> = {
     phases: [{ at: 0.6, say: 'Old Sump thrashes in the sump, and the glims that live in its green water rise round it.', summon: 'glim', n: 2 }, { at: 0.3, storm: true, say: 'The sump boils. The white pipes overhead split and the marsh comes in.' }],
     move: 'A marsh lizard grown huge in the drowned sump: calls the glims up out of the water, then bursts the old pipes and floods the hall.',
   },
+  'delve-runners': {
+    name: 'Pep Duran, the Factor',
+    phases: [{ at: 0.6, say: 'Pep Duran whistles through his fingers, and the runners come down out of the stores at a run.', summon: 'blackrunner', n: 2 }, { at: 0.3, storm: true, say: 'Pep Duran kicks the lamp over into the spilled oil, and the hold goes up in a sheet of flame.' }],
+    move: 'The black-runners\' factor, who keeps the book on every cask: whistles his runners down to him, then fires the lamp oil spilled across the hold.',
+  },
   'delve-reavers': {
     name: 'Old Glare',
     phases: [{ at: 0.6, say: 'Old Glare hisses, and the reavers who keep it fed come running down the steps.', summon: 'saltreaver', n: 2 }, { at: 0.3, storm: true, say: 'Old Glare\'s stare catches the light through the cistern\'s grates, and the whole hall goes white.' }],

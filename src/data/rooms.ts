@@ -309,6 +309,20 @@ export const DELVE_ROOMS: Record<string, RoomDef> = {
     waveSays: ['A marsh lizard comes in with the water, slow and heavy.', 'The big ones last: two lizards that have been living in the sump.'],
     chest: [-15, 4],
   },
+  'delve-runners': {
+    id: 'tally', kind: 'waves', title: 'The tally room',
+    start: 'The west cave is where the runners count the casks in off the boats, a plank table with the tally book still open on it. As you come in a bell rings somewhere up in the stores, and a grille drops across the way east.',
+    done: 'The last of them goes down across the tally table. Nobody rings the bell again, and the grille across the way east rattles up.',
+    box: CAVE_BOX,
+    gate: { cells: NECK, h: 4, ry: Math.PI / 2 },
+    waves: [
+      [[-14, -3, 'blackrunner'], [-11, 3, 'terracejackal']],
+      [[-16, 2, 'blackrunner'], [-12, -4, 'blackrunner'], [-13, 4, 'terracejackal']],
+      [[-16, 0, 'blackrunner'], [-12, -3, 'blackrunner'], [-14, 4, 'blackrunner']],
+    ],
+    waveSays: ['More of them, down from the stores with their knives out.', 'The last of the runners, and they know they\'ve nowhere else to go.'],
+    chest: [-15, 4],
+  },
   'delve-reavers': {
     id: 'valves', kind: 'plates', title: 'The cistern\'s three valves',
     start: 'A sluice gate of old Assembly iron stands shut across the way east. In the floor of the west hall are three valve stones, each marked with a well: the cistern\'s own valves, and they open the gate only when all three are down at once.',

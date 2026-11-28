@@ -267,6 +267,8 @@ const UNDERWORKS = {
   pumphouse: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.Whitestone, wall2: B.MossyStone, floor: B.MossyCobble, floor2: B.Gravel, light: '#8af0a0', mobs: ['glim', 'marshmoth', 'gladelizard'], boss: 'gladelizard', clutter: ['crate', 'barrel', 'candles'] },
   // the Glass Flats': the Assembly's old water cistern under the flats east of Tenwells, the reavers' hold now
   reavers: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.Whitestone, floor: B.Sand, floor2: B.Gravel, light: '#ffd8a0', mobs: ['saltreaver', 'basilisk'], boss: 'basilisk', clutter: ['crate', 'barrel', 'bones'] },
+  // the Bright Coast's: the black-runners' sea cave under the cliffs west of Cala Roja, where the casks come off the boats
+  runnershold: { kind: 'cave', pub: false, depth: 13, reach: 19, wall: B.Sandstone, wall2: B.Timber, floor: B.Sand, floor2: B.Gravel, light: '#ffc890', mobs: ['blackrunner', 'terracejackal'], boss: 'blackrunner', clutter: ['crate', 'barrel', 'chest'] },
   foldbarrow: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.StoneBrick, wall2: B.MossyStone, floor: B.StoneBrick, floor2: B.Blackstone, light: '#9fe8ff', mobs: ['risen', 'barrowwight'], boss: 'barrowwight', clutter: ['bones', 'candles', 'chest'] },
   hob: { kind: 'built', pub: false, depth: 13, reach: 19, wall: B.MossyCobble, wall2: B.StoneBrick, floor: B.Loam, floor2: B.MossyCobble, light: '#a8ffb0', mobs: ['thornwolf', 'sporejelly'], boss: 'thornwolf', clutter: ['candles', 'mushrooms', 'chest'] },
 };
@@ -1317,6 +1319,7 @@ function* planBody(): Generator<string, Plan> {
       { id: 'delve-liftgallery', name: 'The Lift Galleries', x: 7655, z: 302, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'liftgallery') },
       { id: 'delve-pumphouse', name: 'The Drowned Pump House', x: 7400, z: 2400, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'pumphouse') },
       { id: 'delve-reavers', name: 'The Reaver Cistern', x: 7650, z: -120, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'reavers') },
+      { id: 'delve-runners', name: 'The Runners\' Hold', x: 8780, z: 865, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'runnershold') },
       { id: 'delve-foldbarrow', name: 'Fold Barrow', x: 6906, z: -1536, r0: 20, r1: 30, build: (s, b) => buildUnderworks(s, b, 'foldbarrow') },
       { id: 'gd-winding', name: 'The Winding House: the winding halls', x: WH_HALLS.x + 54, z: WH_HALLS.z - 10, r0: 0, r1: 0, under: true, build: (s) => buildWindingHalls(s) },
       { id: 'reedwater', name: 'Reedwater', x: TOWNS.reedwater.x, z: TOWNS.reedwater.z, r0: 0, r1: 0, build: (s) => buildReedwater(s) },
