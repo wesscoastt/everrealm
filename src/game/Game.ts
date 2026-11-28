@@ -56,7 +56,8 @@ import { EFFECTS, inflictionOf, type EffectId, type Infliction } from '../data/e
 import { Companions } from './Companions';
 import { DYE_COST, DYE_SLOTS, STARTER_DYES, dyeLook, type DyeChannel, type DyeSlot } from '../data/gearDyes';
 import { COMPANIONS, compShort, type CompanionId, type CompanionRole } from '../data/companions';
-import { Appearance, HeldItem, Humanoid, heldObject, setGearModels, type AnimState } from '../entities/humanoid';
+import { Appearance, HeldItem, Humanoid, heldObject, offhandObject, setGearModels, type AnimState } from '../entities/humanoid';
+import { shapeIcon } from '../ui/icons';
 /** How long each skill move holds the body before walking takes it back (seconds). */
 const SKILL_ANIM: Partial<Record<AnimState, number>> = { attack: 0.4, cleave: 0.55, shoot: 0.5, cast: 0.5, stomp: 0.6, dash: 0.42, throw: 0.5, whistle: 0.85, crouch: 0.65 };
 import { Npc } from '../entities/Npc';
@@ -2164,7 +2165,7 @@ export class Game implements GameApi {
   private dropLoot(item: string, at: THREE.Vector3): void {
     const d = ITEMS[item];
     if (goodDrop(d)) this.lootBeam(at, d!.rarity);
-    if (d?.weapon) this.lootFly(item, at, goodDrop(d) ? d.rarity : null);
+    if (d?.weapon || d?.armor || d?.jewel || (d && offhandObject(item))) this.lootFly(item, at, goodDrop(d) ? d.rarity : null);
     if (goodDrop(d) && this.online.online && this.social.inGroup && this.lootRolls.start(item)) return;
     this.give(item, 1);
   }
@@ -2184,8 +2185,19 @@ export class Game implements GameApi {
   private flying: { m: THREE.Object3D; from: THREE.Vector3; t: number; spin: number; col: string | null }[] = [];
   private lootFly(item: string, at: THREE.Vector3, rarity: string | null): void {
     if (this.flying.length > 6) return;
-    const { mesh } = heldObject(item);
-    if (!mesh) return;
+    // a weapon as the hand holds it, a shield or a lamp or a book as the off hand does; a piece of armour or a ring as its
+    // own painted picture, turning in the air the same way (owner 2026-11-27,
+    // the crawler kit: gear seen as itself when it drops)
+    let mesh: THREE.Object3D | null = ITEMS[item]?.weapon ? heldObject(item).mesh : offhandObject(item);
+    if (!mesh) {
+      // (its flat painted icon: the studio one is drawn on a mannequin, and a helm would fly up as a head)
+      const ic = ITEMS[item]!.icon;
+      const tex = new THREE.TextureLoader().load(shapeIcon(ic.shape, ic.a, ic.b));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      sp.scale.setScalar(0.9);
+      mesh = sp;
+    }
     mesh.position.copy(at).setY(at.y + 0.8);
     this.scene.add(mesh);
     const col = rarity === 'legendary' ? '#ffb040' : rarity === 'epic' ? '#c070ff' : rarity ? '#60a8ff' : null;
@@ -2203,7 +2215,7 @@ export class Game implements GameApi {
       f.m.scale.setScalar(1 - k * k * 0.6);
       if (f.t >= 0.9 && f.col) this.particles.burst(tmpV.copy(hand), f.col, 10);
     }
-    for (const f of this.flying.filter((x) => x.t >= 0.9)) this.scene.remove(f.m);
+    for (const f of this.flying.filter((x) => x.t >= 0.9)) { this.scene.remove(f.m); if (f.m instanceof THREE.Sprite) { f.m.material.map?.dispose(); f.m.material.dispose(); } }
     this.flying = this.flying.filter((x) => x.t < 0.9);
   }
   /**
